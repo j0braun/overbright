@@ -146,6 +146,8 @@ pub(crate) const SMOOTH_CARS: u32 = 0xC1_04E0_E0;
 pub(crate) const TRAFFIC_DENSITY: u32 = 0xC1_04E0_E1;
 /// Skip Title Screen (docs/start-and-menus.md).
 pub(crate) const SKIP_TITLE: u32 = 0xC1_04E0_FB;
+/// Skip Intro Movies (docs/start-and-menus.md).
+pub(crate) const SKIP_MOVIES: u32 = 0xC1_04E0_FD;
 /// G7b2.
 pub(crate) const TEXTURE_PACK: u32 = 0xC1_04E0_F4;
 pub(crate) const GENERATE_TEXTURE_PACK: u32 = 0xC1_04E0_F5;
@@ -280,6 +282,7 @@ pub fn clone_label(hash: u32) -> Option<&'static str> {
         SMOOTH_CARS => "Smooth Car Shapes",
         TRAFFIC_DENSITY => "Traffic Density",
         SKIP_TITLE => "Skip Title Screen",
+        SKIP_MOVIES => "Skip Intro Movies",
         TEXTURE_PACK => "World Texture Pack",
         GENERATE_TEXTURE_PACK => "Generate Texture Pack",
         GROUP_DISPLAY => "Display",

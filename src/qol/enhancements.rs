@@ -890,15 +890,46 @@ options! {
         parse bool;
 
     /// docs/start-and-menus.md: Skip Title Screen (QoL, opt-in) — 0 Off
-    /// (native: the boot movies, then the title screen, which takes Enter
-    /// only after its 4 s, 0x4C564E), 1 Title Screen (the movies, then the
-    /// profile step at once), 2 Movies and Title Screen (the profile step
-    /// at the start). Presets leave it alone.
+    /// (native: the title screen, which takes Enter only after its 4 s,
+    /// 0x4C564E), 1 On (the profile step where the title stood). 2 is an
+    /// older options.txt's "Movies and Title Screen": read as this row On
+    /// and Skip Intro Movies On (`Settings::from_text`,
+    /// [`Enhancements::set_skips`]). Presets leave it alone.
     skip_title: u8 = 0,
         key "enh.skip_title", presets keep, write 71,
-        dev [64 tiers ["skip title", "skip movies and title"]],
+        dev [64 custom |s, _, v| if s.skips_title() { v.push("skip title".into()) }],
         apply none,
         parse (|old, v| min_u32(old, v, 2));
+
+    /// docs/start-and-menus.md: Skip Intro Movies (QoL, opt-in) — Off
+    /// (native: the boot movies, which Enter skips), On (each boot movie
+    /// passes as a missing movie file does, 0x566250). Independent of
+    /// Skip Title Screen. Presets leave it alone.
+    skip_movies: bool = false,
+        key "enh.skip_movies", presets keep, write 72,
+        dev [65 custom |s, _, v| if s.skips_movies() { v.push("skip movies".into()) }],
+        apply none,
+        parse bool;
+}
+
+impl Enhancements {
+    /// Skip Title Screen in force (`skip_title` 1, or an older file's 2).
+    pub fn skips_title(&self) -> bool {
+        self.skip_title >= 1
+    }
+
+    /// Skip Intro Movies in force (`skip_movies`, or an older file's
+    /// `enh.skip_title 2`, "Movies and Title Screen").
+    pub fn skips_movies(&self) -> bool {
+        self.skip_movies || self.skip_title >= 2
+    }
+
+    /// Both skips as two independent values (`skip_title` 0 / 1,
+    /// `skip_movies`): an older file's `enh.skip_title 2` becomes 1 + On.
+    pub fn set_skips(&mut self, movies: bool, title: bool) {
+        self.skip_movies = movies;
+        self.skip_title = u8::from(title);
+    }
 }
 
 /// The longest `enh.boot_loading_min_ms` (30 s).

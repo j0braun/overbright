@@ -194,14 +194,14 @@ fn broken_and_foreign_packages_install_nothing() {
     assert!(r.is_err());
     // Another game's package: nothing matches, the program is named.
     let foreign = zip(&[("GTA-SA.EXE_0x0BADF00D.png", png(4, 4))], "");
-    let pkg = tpf::read(&foreign).unwrap();
+    let pkg: Package = tpf::read(&foreign).unwrap().into();
     let r = install(&pkg, Path::new("other.tpf"), &game(), &packages, &|_, _| {});
     let o = outcome_line("other.tpf", &r);
     assert!(!o.ok && o.line.contains("another game (GTA-SA.EXE)"), "{}", o.line);
     // A matching key whose image is broken: counted, nothing installed.
     let g = game();
     let broken = zip(&[(&format!("SPEED2.EXE_0x{:08X}.png", key(&g[0].tex)), b"not a png".to_vec())], "");
-    let pkg = tpf::read(&broken).unwrap();
+    let pkg: Package = tpf::read(&broken).unwrap().into();
     let r = install(&pkg, Path::new("broken.tpf"), &g, &packages, &|_, _| {});
     let o = outcome_line("broken.tpf", &r);
     assert_eq!(r.as_ref().unwrap().1.unsupported, 1);
@@ -309,5 +309,125 @@ fn the_launcher_imports_for_the_players_game() {
     assert!(enabled_roots(false).contains(&world));
     // The game folder was only read: nothing written into it.
     assert!(!root.join("texture-mods.txt").exists() && !root.join("imported").exists());
+    let _ = std::fs::remove_dir_all(home);
+}
+
+/// A TexWizard pack made here: ROAD_TEST and CAR_TEST paired with the pack's
+/// own textures, one pair whose original the game does not have.
+fn texwizard_files() -> (Vec<u8>, Vec<u8>) {
+    let mut road = texture("_ROAD_TEST", 8, 8, [10, 200, 30, 255]);
+    road.format = PixelFormat::Bgra8;
+    let mut car = texture("_CAR_TEST", 8, 8, [200, 10, 30, 255]);
+    car.format = PixelFormat::Bgra8;
+    let meta = br#"{
+      "textures": [
+        [ "ROAD_TEST", "_ROAD_TEST" ],
+        [ "CAR_TEST", "_CAR_TEST" ],
+        [ "NOT_A_TEXTURE_OF_THE_GAME", "_ROAD_TEST" ],
+      ]
+    }"#
+    .to_vec();
+    (meta, crate::formats::texwizard::tpk_bytes(&[road, car]))
+}
+
+#[test]
+fn a_texwizard_pack_installs() {
+    let dir = scratch("texwizard");
+    let (meta, bin) = texwizard_files();
+    let pack = dir.join("TexturePacks/Test Roads TW");
+    std::fs::create_dir_all(&pack).unwrap();
+    std::fs::write(pack.join("meta.json"), &meta).unwrap();
+    std::fs::write(pack.join("textures.bin"), &bin).unwrap();
+    let packages = dir.join("imported");
+    let pkg = read_source(&pack).unwrap();
+    assert_eq!(pkg.kind(), "TexWizard");
+    let r = install(&pkg, &pack, &game(), &packages, &|_, _| {});
+    let o = outcome_line("Test Roads TW", &r);
+    let (info, sum) = r.unwrap();
+    let info = info.expect("installed");
+    assert_eq!((sum.images, sum.matched, sum.unmatched, sum.missing), (3, 2, 1, 0));
+    assert!(o.ok && o.line.contains("2 of 3 textures") && o.line.contains("1 not found"), "{}", o.line);
+    assert_eq!((info.id.as_str(), info.name.as_str(), info.kind.as_str()), ("test-roads-tw", "Test Roads TW", "TexWizard"));
+    let road = game()[0].tex.hash;
+    let car = game()[2].tex.hash;
+    assert!(packages.join("test-roads-tw/world").join(format!("{road:08X}.png")).is_file());
+    assert!(packages.join("test-roads-tw/car").join(format!("{car:08X}.png")).is_file());
+    assert!(packages.join("test-roads-tw/import-texwizard.tsv").is_file());
+    assert_eq!(info, super::info(&packages, "test-roads-tw").unwrap(), "package.txt round-trips");
+    // The player's pack is only read.
+    assert_eq!((std::fs::read(pack.join("meta.json")).unwrap(), std::fs::read(pack.join("textures.bin")).unwrap()), (meta.clone(), bin.clone()));
+    // The same pack in a ZIP, and two packs in one ZIP.
+    let z = dir.join("pack.zip");
+    std::fs::write(&z, crate::formats::zip::build(&[("Roads/meta.json", &meta, 8), ("Roads/textures.bin", &bin, 8), ("readme.txt", b"x", 0)])).unwrap();
+    assert!(zip_has_texwizard_pack(&z));
+    let v = read_sources(&z).unwrap();
+    assert_eq!(v.len(), 1);
+    assert_eq!(v[0].0, "pack.zip");
+    let (info, _) = install(&v[0].1, &z, &game(), &packages, &|_, _| {}).unwrap();
+    let info = info.unwrap();
+    assert_eq!((info.id.as_str(), info.source.as_str()), ("roads", "pack.zip"));
+    let two = dir.join("two.zip");
+    std::fs::write(&two, crate::formats::zip::build(&[("A/meta.json", &meta, 8), ("A/textures.bin", &bin, 8), ("B/meta.json", &meta, 0), ("B/textures.bin", &bin, 0)])).unwrap();
+    let names: Vec<String> = read_sources(&two).unwrap().into_iter().map(|(n, _)| n).collect();
+    assert_eq!(names, ["two.zip: A", "two.zip: B"]);
+    assert!(read_source(&two).is_err(), "one package asked, two in the archive");
+    // A ZIP without a pack is no package (it may be the HUD mod).
+    let other = dir.join("other.zip");
+    std::fs::write(&other, crate::formats::zip::build(&[("Binary/script.end", b"x", 0)])).unwrap();
+    assert!(!zip_has_texwizard_pack(&other) && read_sources(&other).is_err());
+    // A pack whose textures.bin is no chunk file installs nothing.
+    let broken = dir.join("Broken");
+    std::fs::create_dir_all(&broken).unwrap();
+    std::fs::write(broken.join("meta.json"), &meta).unwrap();
+    std::fs::write(broken.join("textures.bin"), b"not a chunk file").unwrap();
+    assert!(read_source(&broken).is_err());
+    // The launcher's browser lists the folder and the ZIP as TexWizard packs.
+    let rows = crate::launcher::model::read_packages(&dir);
+    let notes: Vec<(&str, &str)> = rows.iter().map(|e| (e.name.as_str(), e.note.split(',').next().unwrap())).collect();
+    assert_eq!(notes, [("Broken", "TexWizard pack"), ("pack.zip", "TexWizard pack (ZIP)"), ("two.zip", "TexWizard pack (ZIP)")]);
+    assert_eq!(crate::launcher::model::packages_here(&pack, Vec::new()), [pack.clone()]);
+    let _ = std::fs::remove_dir_all(dir);
+}
+
+/// The launcher's real import path on the player's game files, for a
+/// TexWizard pack made here from the game's own textures: two world
+/// textures of one size, the second's pixels put in the pack under a new
+/// name and paired with the first. Imported from the game folder layout
+/// TexWizard uses (`TexturePacks/<pack>`), installed on, and the first
+/// texture's file in the package then holds the second's pixels.
+#[test]
+#[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
+fn the_launcher_imports_a_texwizard_pack_for_the_players_game() {
+    let root = crate::testkit::game_root();
+    let home = scratch("players-game-texwizard");
+    crate::platform::dirs::set_thread_data_home(home.clone());
+    let sources = crate::tpf_import::collect(&root).unwrap();
+    let world: Vec<&Source> = sources.iter().filter(|s| s.domain == Domain::World && s.tex.format == PixelFormat::Dxt1 && s.tex.width >= 16 && s.tex.width == s.tex.height).collect();
+    let a = world[0];
+    let b = world
+        .iter()
+        .find(|s| s.tex.hash != a.tex.hash && (s.tex.width, s.tex.height) == (a.tex.width, a.tex.height) && s.tex.decode_rgba() != a.tex.decode_rgba())
+        .expect("two different world textures of one size");
+    let mut new = b.tex.clone();
+    new.name = format!("_{}", a.tex.name);
+    new.hash = crate::formats::hash::bin_hash(&new.name);
+    let fake_game = home.join("game");
+    let pack = fake_game.join("TexturePacks/Own Swap");
+    std::fs::create_dir_all(&pack).unwrap();
+    std::fs::write(pack.join("meta.json"), format!("{{ \"textures\": [ [ \"0x{:08X}\", \"{}\" ] ] }}", a.tex.hash, new.name)).unwrap();
+    std::fs::write(pack.join("textures.bin"), crate::formats::texwizard::tpk_bytes(std::slice::from_ref(&new))).unwrap();
+    let found = crate::formats::texwizard::find_packs(&fake_game);
+    assert_eq!(found, [pack.clone()]);
+    let out = crate::launcher::model::import_paths(&found, Some(&root), &|_| {});
+    assert_eq!(out.len(), 1);
+    assert!(out[0].ok && out[0].line.contains("1 of 1 textures"), "{}", out[0].line);
+    let id = out[0].id.clone().unwrap();
+    assert_eq!(load(), [Entry { id: id.clone(), on: true }]);
+    let file = packages_dir().join(&id).join("world").join(format!("{:08X}.dds", a.tex.hash));
+    let dds = crate::upscale::parse_dds(&std::fs::read(&file).unwrap()).unwrap();
+    assert_eq!((dds.format, dds.width, dds.height), (PixelFormat::Dxt1, b.tex.width, b.tex.height));
+    std::thread::sleep(std::time::Duration::from_millis(550));
+    assert!(enabled_roots(false).contains(&packages_dir().join(&id).join("world")));
+    assert!(!root.join("texture-mods.txt").exists() && !root.join("TexturePacks").join("Own Swap").exists());
     let _ = std::fs::remove_dir_all(home);
 }

@@ -760,6 +760,9 @@ pub struct ImportSummary {
     pub unsupported: usize,
     /// Matched images identical to the original (nothing to replace).
     pub same: usize,
+    /// Replacements the package names but does not hold (a TexWizard pair
+    /// whose texture is neither in its textures.bin nor in the game).
+    pub missing: usize,
     /// Files written, by folder (`world`, `car`).
     pub files: std::collections::BTreeMap<&'static str, usize>,
     /// Bytes written.
@@ -837,18 +840,40 @@ pub fn import_package(
     opts: &ImportOptions,
     progress: &(dyn Fn(usize, usize) + Sync),
 ) -> Result<ImportSummary> {
-    use rayon::prelude::*;
-    use std::collections::BTreeMap;
-
     let images = package_images(package);
-    let index = index(sources);
-    let variants = variants(sources);
+    let items: Vec<(u32, String)> = images.iter().map(|(k, e)| (*k, e.name.clone())).collect();
+    let read = |i: usize| read_image(&images[i].1.name, &images[i].1.data);
+    let mut sum = import_images(&items, &read, &index(sources), &variants(sources), out, opts, progress, "texmod", "import-tpf.tsv")?;
     let mut programs: Vec<String> = package.entries.iter().filter_map(|e| entry_program(&e.name)).collect();
     programs.sort();
     programs.dedup();
+    sum.programs = programs;
+    Ok(sum)
+}
+
+/// The core of an import: `items` (a key and a label per replacement,
+/// `read(i)` its image) matched through `index` (key → the game textures
+/// it stands for), converted and written into `out/world`, `out/car`, the
+/// report (`key_column` naming the key) written as `report` beside them.
+/// One image per (folder, bin hash): the first item wins.
+#[allow(clippy::too_many_arguments)]
+pub fn import_images(
+    items: &[(u32, String)],
+    read: &(dyn Fn(usize) -> Result<Image> + Sync),
+    index: &HashMap<u32, Vec<&Source>>,
+    variants: &HashMap<u32, usize>,
+    out: &Path,
+    opts: &ImportOptions,
+    progress: &(dyn Fn(usize, usize) + Sync),
+    key_column: &str,
+    report: &str,
+) -> Result<ImportSummary> {
+    use rayon::prelude::*;
+    use std::collections::BTreeMap;
+
     struct Job<'a> {
         key: u32,
-        entry: &'a tpf::Entry,
+        item: usize,
         folder: Domain,
         tex: &'a Texture,
         files: Vec<String>,
@@ -856,19 +881,19 @@ pub fn import_package(
     }
     let mut jobs: Vec<Job> = Vec::new();
     let mut taken: HashMap<(Domain, u32), u32> = HashMap::new();
-    let mut lines = vec!["texmod\tfile\tfolder\tbin_hash\tname\tfiles\torig\tinput\toutput\tnotes\tluma_orig\tluma_pack\tluma_out\tcorrelation\talpha_orig\talpha_pack\talpha_out\tcoverage_change\tflags".to_string()];
+    let mut lines = vec![format!("{key_column}\tfile\tfolder\tbin_hash\tname\tfiles\torig\tinput\toutput\tnotes\tluma_orig\tluma_pack\tluma_out\tcorrelation\talpha_orig\talpha_pack\talpha_out\tcoverage_change\tflags")];
     let (mut matched, mut unmatched) = (0, 0);
-    for (key, entry) in &images {
+    for (item, (key, label)) in items.iter().enumerate() {
         let Some(hits) = index.get(key) else {
             unmatched += 1;
-            lines.push(format!("{key:08X}\t{}\t-\t-\t-\t-\t-\t-\t-\t-\t-\t-\t-\t-\t-\t-\t-\t-\tunmatched: no texture in the game's files has this key", entry.name));
+            lines.push(format!("{key:08X}\t{label}\t-\t-\t-\t-\t-\t-\t-\t-\t-\t-\t-\t-\t-\t-\t-\t-\tunmatched: no texture in the game's files has this key"));
             continue;
         };
         matched += 1;
         let mut targets: BTreeMap<(Domain, u32), Job> = BTreeMap::new();
         for s in hits {
             for &folder in s.domain.targets() {
-                let j = targets.entry((folder, s.tex.hash)).or_insert(Job { key: *key, entry, folder, tex: &s.tex, files: Vec::new(), other: false });
+                let j = targets.entry((folder, s.tex.hash)).or_insert(Job { key: *key, item, folder, tex: &s.tex, files: Vec::new(), other: false });
                 j.files.push(s.file.clone());
                 if s.domain == Domain::Other {
                     j.other = true;
@@ -877,7 +902,7 @@ pub fn import_package(
         }
         for ((folder, bin), job) in targets {
             match taken.get(&(folder, bin)) {
-                Some(first) => lines.push(format!("{key:08X}\t{}\t{}\t{bin:08X}\t{}\t-\t-\t-\t-\t-\t-\t-\t-\t-\t-\t-\t-\t-\tconflict: {first:08X} kept", entry.name, folder.dir(), job.tex.name)),
+                Some(first) => lines.push(format!("{key:08X}\t{label}\t{}\t{bin:08X}\t{}\t-\t-\t-\t-\t-\t-\t-\t-\t-\t-\t-\t-\t-\tconflict: {first:08X} kept", folder.dir(), job.tex.name)),
                 None => {
                     taken.insert((folder, bin), *key);
                     jobs.push(job);
@@ -892,19 +917,19 @@ pub fn import_package(
     let results: Vec<Result<Made>> = jobs
         .par_iter()
         .map(|j| -> Result<Made> {
-            let r = convert_job(j.key, j.entry, j.folder, j.tex, &j.files, j.other, variants.get(&j.tex.hash).copied(), opts);
+            let r = read(j.item).and_then(|img| convert_job(j.key, &items[j.item].1, &img, j.folder, j.tex, &j.files, j.other, variants.get(&j.tex.hash).copied(), opts));
             progress(done.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1, total);
             r
         })
         .collect();
-    let mut sum = ImportSummary { images: images.len(), matched, unmatched, programs, ..Default::default() };
+    let mut sum = ImportSummary { images: items.len(), matched, unmatched, ..Default::default() };
     let mut unsupported_keys = std::collections::HashSet::new();
     for (j, r) in jobs.iter().zip(results) {
         let (line, file) = match r {
             Ok(x) => x,
             Err(e) => {
                 unsupported_keys.insert(j.key);
-                lines.push(format!("{:08X}\t{}\t{}\t{:08X}\t{}\t-\t-\t-\t-\t-\t-\t-\t-\t-\t-\t-\t-\t-\tunsupported: {e:#}", j.key, j.entry.name, j.folder.dir(), j.tex.hash, j.tex.name));
+                lines.push(format!("{:08X}\t{}\t{}\t{:08X}\t{}\t-\t-\t-\t-\t-\t-\t-\t-\t-\t-\t-\t-\t-\tunsupported: {e:#}", j.key, items[j.item].1, j.folder.dir(), j.tex.hash, j.tex.name));
                 continue;
             }
         };
@@ -931,7 +956,7 @@ pub fn import_package(
     sum.unsupported = unsupported_keys.len();
     if !opts.dry_run {
         std::fs::create_dir_all(out)?;
-        std::fs::write(out.join("import-tpf.tsv"), lines.join("\n") + "\n")?;
+        std::fs::write(out.join(report), lines.join("\n") + "\n")?;
     }
     sum.lines = lines;
     Ok(sum)
@@ -942,7 +967,8 @@ pub fn import_package(
 #[allow(clippy::too_many_arguments)]
 fn convert_job(
     key: u32,
-    entry: &tpf::Entry,
+    label: &str,
+    img: &Image,
     folder: Domain,
     tex: &Texture,
     files: &[String],
@@ -950,7 +976,6 @@ fn convert_job(
     variants: Option<usize>,
     opts: &ImportOptions,
 ) -> Result<(String, Option<(Domain, String, Vec<u8>, u64)>)> {
-    let img = read_image(&entry.name, &entry.data)?;
     let (iw, ih) = img.size();
     let top = img.top_rgba();
     let before = compare(tex, &top, iw, ih);
@@ -963,7 +988,7 @@ fn convert_job(
     }
     let head = format!(
         "{key:08X}\t{}\t{}\t{:08X}\t{}\t{}\t{}x{} {:?} {:?}\t{iw}x{ih} {}",
-        entry.name,
+        label,
         folder.dir(),
         tex.hash,
         tex.name,
@@ -974,7 +999,7 @@ fn convert_job(
         crate::upscale::AlphaUse::of(tex),
         img.format_name()
     );
-    if same_as_original(tex, &img) {
+    if same_as_original(tex, img) {
         flags.push("same as the original: skipped".into());
         let line = format!(
             "{head}\t-\t-\t{:.3}\t{:.3}\t-\t{:.3}\t{:.3}\t{:.3}\t-\t-\t{}",
@@ -987,7 +1012,7 @@ fn convert_job(
         );
         return Ok((line, None));
     }
-    let conv = convert(&img, opts.max, opts.tone.then_some((tex, opts.alpha)))?;
+    let conv = convert(img, opts.max, opts.tone.then_some((tex, opts.alpha)))?;
     // What the game gets: the written file's top level.
     let written = read_image(&format!("x.{}", conv.ext), &conv.bytes)?;
     let after = compare(tex, &written.top_rgba(), conv.width, conv.height);

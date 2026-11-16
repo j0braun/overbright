@@ -3864,3 +3864,6 @@ CarDriver_t+0x1D9	struct-field	CarDriver_t.keep_path	0x420D40 keeps the path's f
 0x566250	label	Movie_PlayRequest	movie message 7: 0x51C740 name, 0x6F909D exists, 0x566030 plays it, else the movie end 0xC3960EB9 at once	verified	formats.md (Boot sequence)
 0x6F909D	function	FileSys_Exists	whether a file exists (0x6F87EA with op 100)	verified	formats.md (Boot sequence)
 0x6F87EA	function	FileSys_RequestWait	queue a file-layer request (0x6F7B34), wait (0x6F75DD), its result non-zero	verified	formats.md (Boot sequence)
+0x57FB50	function	LoadGlobalChunks	loads GLOBAL\GLOBALB.LZC (0x57CF00, 0x57BD80) at the game start; called at 0x57EDA9, the call TexWizard replaces to load its packs	inferred	texture-packs.md (TexWizard packs)
+0x57CF00	function	ResourceFile_Create	resource file for a path (pushed by 0x57FB10 / 0x57FB50 with GLOBALA.BUN / GLOBALB.LZC)	inferred	texture-packs.md (TexWizard packs)
+0x57BD80	function	ResourceFile_BeginLoading	starts loading a resource file (after 0x57CF00)	inferred	texture-packs.md (TexWizard packs)

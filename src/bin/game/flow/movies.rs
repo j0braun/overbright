@@ -146,9 +146,9 @@ pub(crate) fn lot_again_qr(lot: &CarLot) -> Mode {
 impl Game {
     /// A boot screen (see [`BootStep`]): a movie screen, or the splash.
     pub(crate) fn boot_screen(&mut self, step: BootStep) -> Mode {
-        // Skip Title Screen (Enhancements, opt-in; Off = native):
-        // 1 the title screen, 2 the opening movies too.
-        let skip = self.settings.enh.skip_title;
+        // Skip Intro Movies / Skip Title Screen (Enhancements, opt-in,
+        // independent; Off = native).
+        let (skip_movies, skip_title) = (self.settings.enh.skips_movies(), self.settings.enh.skips_title());
         let Some((_, _, name)) = step.movie() else {
             // The title's constructor (0x4A90F0) starts the music with −2
             // (0x480C30): its first song is song 0.
@@ -157,7 +157,7 @@ impl Game {
             }
             // The main menu's garage scene made while the title is up.
             self.garage_ahead_start();
-            if skip >= 1 {
+            if skip_title {
                 // The title's end without it (its Accept, 0x4C4F50): the
                 // profile step, the music started as the title starts it.
                 log::info!("boot: the title screen skipped (Skip Title Screen)");
@@ -170,7 +170,12 @@ impl Game {
         };
         // Skipped as a missing movie file is (0x566250): passed in the same
         // tick, the next step with it.
-        let names: &[&str] = if skip >= 2 { &[] } else { &[name] };
+        let names: &[&str] = if skip_movies {
+            log::info!("boot: {name} skipped (Skip Intro Movies)");
+            &[]
+        } else {
+            &[name]
+        };
         let mut m = MovieScreen::new(&self.game_data.root, 0, names);
         m.boot = Some(step);
         Mode::Menu(Menu::Movie(m))

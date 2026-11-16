@@ -2,15 +2,32 @@
 
 No replacement world/car artwork is included: the game shows the player's own original textures.
 
-## TexMod packages and the HUD mod (the launcher's Mods page)
+## Texture packages and the HUD mod (the launcher's Mods page)
 
-For players: in the launcher, **Mods…** (on the main screen) sets up texture mods from files you have:
-* **Add package…** opens the folder browser, which lists folders and TexMod packages (`.tpf`). Enter on a
-  package imports it; **Import all here** imports every package in the folder shown, or the folder itself
-  when it is a folder of loose TexMod files (a `texmod.def` and the images it names). On Windows the
-  "Windows dialog…" button picks the folder that holds the packages.
+For players: in the launcher, **Mods…** (on the main screen) sets up texture mods from files you have.
+The formats it takes:
+
+| What you have | Made with | Taken as |
+|---|---|---|
+| A TexMod package, `<name>.tpf` | TexMod / uMod | the file |
+| A folder of loose TexMod files (`texmod.def` and the images it names) | TexMod's extract | the folder |
+| A TexWizard pack: a folder with `meta.json` and `textures.bin` | TexWizard Packer or Binary | the folder |
+| A `.zip` holding one or more TexWizard pack folders | (a download) | the file, each pack in it |
+| A game folder with TexWizard installed (`scripts/TexWizard.json`, `TexturePacks/`) | TexWizard | every pack it loads |
+| The HD HUD mod (HUD part and map part) | Binary | its two downloads (below) |
+
+`.7z` and `.rar` downloads are not opened: extract them first. Images inside packages may be DDS (DXT1,
+DXT3, DXT5, uncompressed), BMP or PNG (TexMod), or any texture format of the game's own files (TexWizard).
+
+* **Add package…** opens the folder browser, which lists folders, TexMod packages (`.tpf`) and TexWizard
+  packs (folders and `.zip` files). Enter on a package imports it; **Import all here** imports every
+  package in the folder shown, or the folder itself when it is a folder of loose TexMod files or a
+  TexWizard pack; in a game folder with TexWizard, or its `TexturePacks` folder, it takes the packs
+  TexWizard loads, in TexWizard's order (see "TexWizard packs"). Dropped files and folders do the same. On
+  Windows the "Windows dialog…" button picks the folder that holds the packages.
 * The import reads your game's textures once (a few seconds), converts each package
-  (`tpf_import::import_package`, the same conversion as `examples/import_tpf`, docs/texmod-import.md) and
+  (`tpf_import::import_package` for TexMod, `texwizard_import::import_pack` for TexWizard; both through
+  `tpf_import::import_images`, the same conversion as `examples/import_tpf`, docs/texmod-import.md) and
   says per package how many of its textures replace the game's, how many are not in your game's files (left
   out) and how many are in a format Overbright cannot read; a package made for another game says so (its
   entries name another program than `SPEED2.EXE`), as does one none of whose textures is in your files
@@ -30,11 +47,13 @@ For players: in the launcher, **Mods…** (on the main screen) sets up texture m
   deleted).
 
 Mods belong to their authors and stay on your computer; Overbright neither ships, links nor downloads any.
-Reading a `.tpf` is the project's own code from public format notes (THIRD-PARTY-NOTICES.md).
+Reading a `.tpf` or a TexWizard pack is the project's own code from public format notes and source
+(THIRD-PARTY-NOTICES.md, "Format references").
 
 How it is kept (`src/texture_mods.rs`):
 * One folder per package: `<data>/overbright/texture-pack/imported/<id>/` with `world/`, `car/` (the pack
-  folders below), `import-tpf.tsv` (the importer's report) and `package.txt` (what the launcher shows). An
+  folders below), `import-tpf.tsv` or `import-texwizard.tsv` (the importer's report) and `package.txt`
+  (what the launcher shows, with `kind=TexMod` or `kind=TexWizard`). An
   import writes into `imported/.import-<id>` and renames it into place only when it finished: a failed or
   interrupted import leaves no package (the leftover is removed the next time the list is read). Nothing is
   written into the game folder or next to the package.
@@ -53,6 +72,59 @@ How it is kept (`src/texture_mods.rs`):
   makes (and an earlier `imported/{world,car}` made by the import tool); its help says the launcher's
   packages apply on or off, ahead of it. HD UI + Maps is the launcher's "Use the HUD mod" (one setting,
   shown in both places); its help says the mod is set up in the launcher's Mods page.
+
+## TexWizard packs
+
+TexWizard (R-033, GPL-3.0) is a script for the original game that replaces textures by name, without
+changing game files. Read from its public source (`TexWizard.h`, release 1.3) and wiki; implemented in
+`src/formats/texwizard.rs` (reading) and `src/texwizard_import.rs` (conversion):
+* **A pack** is a folder with `meta.json` and `textures.bin`. `meta.json` is
+  `{"textures": [["ORIGINAL", "NEW"], …]}` (TexWizard Packer adds `"links"`, the files the originals come
+  from, which the game does not use). Each name is a texture name, hashed with the game's string hash
+  (`bin_hash`, SPEED2.EXE 0x43DB50), or `0x` and the hash in hex (read up to the first other character;
+  only a lower-case `0x`). jsoncpp's default reader parses it: comments and trailing commas are allowed,
+  and our reader takes them too. A later pair for the same original wins.
+* **`textures.bin`** is a chunk file holding texture packs (chunk 0xB3300000), the game's own format
+  (`texture::parse_texture_pack`; a whole-file JDLZ is unpacked). Checked against the TexWizard 1.3
+  release's example pack for Underground 2 (outside the tree): one texture pack, one 256 × 256 DXT1 texture whose stored hash is the string hash of its name in `meta.json`.
+* **What the game does with it** (TexWizard's code; its effect in the original under Wine was not run):
+  it replaces the game start's call of the global loader (`LoadGlobalChunks`) with one that also loads
+  every pack's `textures.bin`, and every call of `GetTextureInfo` (0x4901D0, verified) with one that looks
+  an original's hash up in the pairs and asks for NEW's instead. NEW is any loaded texture: usually the
+  pack's own, but it may be another texture of the game. In the SPEED2.EXE this project traces (entry
+  point 0x75BCC7, the one TexWizard checks) there are 81 calls of 0x4901D0, as TexWizard patches; its 42
+  sites below 0x536000 are the same, the other 39 and its loader addresses (call 0x57ED99, loader
+  0x57FB40) are 16 bytes lower than this executable's (call 0x57EDA9 of 0x57FB50, which loads
+  `GLOBAL\GLOBALB.LZC`; inferred from the disassembly). TexWizard's table was made for the 4,800,512-byte
+  v1.2 executable; this one has 4,788,224 bytes, the same code moved by 16 bytes from there on. Per site:
+  docs/evidence/texwizard/hook-sites.tsv.
+* **Which packs, in which order**: `scripts/TexWizard.json` in the game folder, `{"packs": [FOLDER, …],
+  "autoScan": true}` (folders relative to the game folder), then, unless `autoScan` is false, every folder
+  under `TexturePacks/` holding a `meta.json` (recursively; a folder already listed is not loaded twice).
+  A later pack's pair replaces an earlier one's, so TexWizard's last pack wins; the launcher imports them
+  last first, and Overbright's list (the first wins) keeps TexWizard's priority. The scan's order is the
+  file system's in TexWizard; the launcher uses the names' order (case ignored), the order NTFS lists them.
+* **The conversion**: each pair puts NEW's pixels under ORIGINAL's bin hash, in `world/` and/or `car/` by
+  the file ORIGINAL comes from (as for TexMod: TRACKS/ and FRONTEND/PLATFORMS/ world, CARS/ car, GLOBAL
+  both). NEW is taken from the pack's `textures.bin`, else from the game's own files. DXT1/3/5 textures stay
+  DXT (`<HASH>.dds`, stored levels kept, missing ones completed), P8 and 32-bit ones become PNG; the same
+  tone match, size limit and "same as the original" skip as the TexMod import. Counted in the result line:
+  pairs whose ORIGINAL is not in the game's files ("not found", left out), pairs whose NEW is in neither
+  ("name a texture the pack does not hold", left out), images that cannot be converted. Textures of
+  `textures.bin` that no pair names are not used (TexWizard does not use them either; listed in the report).
+* **Differences from TexWizard in the original**: the original draws NEW with NEW's own texture record (its
+  alpha test, blend mode and scrolling); Overbright replaces the pixels only and keeps ORIGINAL's record, as
+  for every texture pack here. HUD, menu and loading-screen textures in a pack are converted but not drawn
+  (the scoped packs are world and car only; the UI uses the HUD mod). Vinyl images (CARS/*/VINYLS.BIN) are
+  not matched. A NEW held by another TexWizard pack than its own is not found (each pack is converted on
+  its own). Open: which texture the game returns when a `textures.bin` holds the same name as an original
+  without a pair (not traced; such textures are left out).
+* Tests: `formats::texwizard::tests` (JSON as jsoncpp reads it, the hash of names, pairs, a pack written and
+  read back, TexWizard's pack order), `texwizard_import::tests` (pairs land under the original's hash; NEW
+  from the game's files; a missing NEW), `texture_mods::tests::a_texwizard_pack_installs`
+  (folder and ZIP, the launcher's install path) and, with the player's game files,
+  `texture_mods::tests::the_launcher_imports_a_texwizard_pack_for_the_players_game` (a pack made in the
+  test from two of the game's own textures). No pack content is in the tree.
 
 ## The HUD mod
 

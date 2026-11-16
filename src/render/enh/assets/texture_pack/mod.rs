@@ -465,7 +465,7 @@ mod tests {
         ];
         let key = crate::tpf_import::texmod_hash(&road).unwrap();
         let bytes = tm::zip(&[(&format!("SPEED2.EXE_0x{key:08X}.png"), tm::png(8, 8))], "One road");
-        let pkg = crate::formats::tpf::read(&bytes).unwrap();
+        let pkg: crate::texture_mods::Package = crate::formats::tpf::read(&bytes).unwrap().into();
         let packages = crate::texture_mods::packages_dir();
         let (info, _) =
             crate::texture_mods::install(&pkg, std::path::Path::new("one.tpf"), &game, &packages, &|_, _| {}).unwrap();

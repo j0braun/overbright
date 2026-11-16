@@ -231,7 +231,33 @@ pub(crate) struct ScenePipelines {
     /// rays traced in the colour shader, `D9_ML_CHAR`); empty otherwise
     /// (they take `pipelines`).
     pub(crate) characters: HashMap<PipelineKey, wgpu::RenderPipeline>,
+    /// The falling rain lit at its drops' corners (the lamps' module
+    /// only; [`DropPipelines`]).
+    pub(crate) drops: Option<std::sync::Arc<DropPipelines>>,
 }
+
+/// The falling rain's drops under the lamps' module, lit at their corners
+/// (rain_lit.wgsl, docs/lamps-shadows.md "The falling rain under the
+/// lamps"): the probe's two pipelines (K, S into [`DROP_PROBE_FORMAT`])
+/// and the drops' own (the scene's format and samples, the rain's key).
+pub(crate) struct DropPipelines {
+    pub(crate) key: PipelineKey,
+    pub(crate) probe_k: wgpu::RenderPipeline,
+    pub(crate) probe_s: wgpu::RenderPipeline,
+    pub(crate) draw: wgpu::RenderPipeline,
+}
+
+/// The drop probe's target format (filterable, signed: K and S).
+pub(crate) const DROP_PROBE_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba16Float;
+/// The probe target's size: 2 x 2 texels per particle quad,
+/// [`DROP_BLOCKS`] a row, K above S (rain_lit.wgsl).
+pub(crate) const DROP_BLOCKS: u32 = 128;
+pub(crate) const DROP_PROBE_SIZE: (u32, u32) = (2 * DROP_BLOCKS, 32);
+const _: () = assert!(DROP_BLOCKS * (DROP_PROBE_SIZE.1 / 4) >= crate::particles::MAX_PARTICLES as u32);
+
+/// The key the falling rain's drops take the corner-lit path for
+/// (RAINDROP's: world.efx, alpha-blended).
+pub(crate) const DROP_KEY: PipelineKey = PipelineKey { effect: Effect::World, blend: Blend::Alpha, alpha_test: false };
 
 /// The main view's depth pre-pass pipelines (depth only, by
 /// [`DepthKey`]) and the colour pipelines its draws then take: the same
@@ -355,6 +381,8 @@ pub(crate) struct WorldShared {
     /// Their worldreflect keys writing the SSR mask too ([`WorldShared::mrt_pipelines`]).
     built_mrt:
         std::sync::Mutex<HashMap<(bool, SceneMode, wgpu::TextureFormat, u8, PipelineKey), wgpu::RenderPipeline>>,
+    /// The rain drops' corner-lit pipelines ([`WorldShared::drop_pipelines`]).
+    built_drops: std::sync::Mutex<HashMap<(bool, SceneMode, wgpu::TextureFormat), std::sync::Arc<DropPipelines>>>,
     /// The device's pipeline cache ([`DiskPipelineCache`]).
     cache: Option<wgpu::PipelineCache>,
     /// The device's [`crate::render::Gpu::build_tag`].
@@ -398,6 +426,7 @@ impl WorldShared {
             built_depth: Default::default(),
             built_equal: Default::default(),
             built_mrt: Default::default(),
+            built_drops: Default::default(),
             cache,
             tag,
         }
@@ -605,6 +634,37 @@ impl WorldShared {
             built.entry(id(k)).or_insert(p);
         }
         keys.iter().map(|&k| (k, built[&id(k)].clone())).collect()
+    }
+}
+
+impl WorldShared {
+    /// The rain drops' corner-lit pipelines in `scene` (the lamps' module)
+    /// for a scene of `format`, built on first use.
+    #[track_caller]
+    pub(crate) fn drop_pipelines(
+        &self,
+        device: &wgpu::Device,
+        arrays: bool,
+        scene: SceneMode,
+        format: wgpu::TextureFormat,
+    ) -> std::sync::Arc<DropPipelines> {
+        let id = (arrays, scene, format);
+        if let Some(d) = self.built_drops.lock().unwrap().get(&id) {
+            return d.clone();
+        }
+        let at = std::panic::Location::caller();
+        let mode = self.mode_modern(device, arrays, false, scene.lamps, scene.modern, scene.bias_q != 0);
+        let make = |vs: &str, fs: &str, format: wgpu::TextureFormat, samples: u32, blend: bool, depth: bool| {
+            note_pipeline_at(at, self.tag);
+            make_drop_pipeline(device, mode, scene, vs, fs, format, samples, blend, depth, self.cache.as_ref())
+        };
+        let d = std::sync::Arc::new(DropPipelines {
+            key: DROP_KEY,
+            probe_k: make("vs_drop_probe", "fs_drop_k", DROP_PROBE_FORMAT, 1, false, false),
+            probe_s: make("vs_drop_probe", "fs_drop_s", DROP_PROBE_FORMAT, 1, false, false),
+            draw: make("vs_drop", "fs_drop", scene.target(format), scene.samples, true, true),
+        });
+        self.built_drops.lock().unwrap().entry(id).or_insert(d).clone()
     }
 }
 
@@ -878,6 +938,77 @@ pub(crate) fn native_blend_factors(blend: Blend) -> Option<(wgpu::BlendFactor, w
     }
 }
 
+/// One of [`DropPipelines`]: the probe's (`blend` and `depth` false: no
+/// depth, one sample) or the drops' (the rain key's blend, depth-tested
+/// as [`make_pipeline_with`], not written).
+#[allow(clippy::too_many_arguments)]
+fn make_drop_pipeline(
+    device: &wgpu::Device,
+    mode: &WorldMode,
+    scene: SceneMode,
+    vs: &str,
+    fs: &str,
+    format: wgpu::TextureFormat,
+    samples: u32,
+    blend: bool,
+    depth: bool,
+    cache: Option<&wgpu::PipelineCache>,
+) -> wgpu::RenderPipeline {
+    let mut constants = scene.fragment_constants();
+    constants.extend(scene.lamp_constants());
+    let factors = native_blend_factors(DROP_KEY.blend).map(|(src, dst)| {
+        let c = wgpu::BlendComponent { src_factor: src, dst_factor: dst, operation: wgpu::BlendOperation::Add };
+        wgpu::BlendState { color: c, alpha: c }
+    });
+    let vertex_attributes = wgpu::vertex_attr_array![0 => Float32x3, 1 => Unorm8x4, 2 => Float32x2];
+    let instance_attributes = wgpu::vertex_attr_array![3 => Float32x4, 4 => Float32x4, 5 => Float32x4, 6 => Float32x4];
+    let buffers = [
+        Some(wgpu::VertexBufferLayout {
+            array_stride: std::mem::size_of::<Vertex>() as u64,
+            step_mode: wgpu::VertexStepMode::Vertex,
+            attributes: &vertex_attributes,
+        }),
+        Some(wgpu::VertexBufferLayout { array_stride: 64, step_mode: wgpu::VertexStepMode::Instance, attributes: &instance_attributes }),
+    ];
+    let target = Some(wgpu::ColorTargetState { format, blend: if blend { factors } else { None }, write_mask: wgpu::ColorWrites::ALL });
+    crate::render::core::device_cache::timed_render_pipeline(device, &wgpu::RenderPipelineDescriptor {
+        label: Some(fs),
+        layout: Some(&mode.layout),
+        vertex: wgpu::VertexState { module: &mode.shader, entry_point: Some(vs), compilation_options: Default::default(), buffers: &buffers },
+        primitive: wgpu::PrimitiveState { topology: wgpu::PrimitiveTopology::TriangleList, cull_mode: None, ..Default::default() },
+        depth_stencil: depth.then(|| wgpu::DepthStencilState {
+            format: DEPTH_FORMAT,
+            depth_write_enabled: Some(false),
+            depth_compare: Some(scene.compare()),
+            stencil: Default::default(),
+            bias: Default::default(),
+        }),
+        multisample: wgpu::MultisampleState { count: samples, ..Default::default() },
+        fragment: Some(wgpu::FragmentState {
+            module: &mode.shader,
+            entry_point: Some(fs),
+            compilation_options: wgpu::PipelineCompilationOptions { constants: &constants, ..Default::default() },
+            targets: &[target],
+        }),
+        multiview_mask: None,
+        cache,
+    })
+}
+
+/// Whether `key`'s pipeline takes `fs_world_clear` / `fs_nofog_clear`
+/// (fragment.wgsl): the lamps' module only (the native module is as it
+/// was), alpha-blended keys without the alpha test, the main view's plain
+/// colour pipelines (not LOD Fade's, the pre-pass's EQUAL or the SSR mask's).
+/// Exact: a fragment of alpha 0 blends to the target as it was.
+pub(crate) fn clear_skip(key: PipelineKey, mode: SceneMode, fade: u8, equal: bool, mrt: bool) -> bool {
+    mode.lamps
+        && key.blend == Blend::Alpha
+        && !key.alpha_test
+        && fade == 0
+        && !equal
+        && !mrt
+}
+
 /// [`make_pipeline`]; with `equal` (after the depth pre-pass) the
 /// depth test is EQUAL and depth is not written; with `mrt` (worldreflect
 /// keys only) the `_mrt` entry, which also writes the SSR mask's term and
@@ -928,6 +1059,11 @@ fn make_pipeline_with(
         (true, "fs_nofog_alpha_test") => "fs_nofog_coverage",
         (true, "fs_reflect_alpha_test") => "fs_reflect_coverage",
         (_, e) => e,
+    };
+    let entry_point = match entry_point {
+        "fs_world" if clear_skip(key, mode, fade, equal, mrt) => "fs_world_clear",
+        "fs_nofog" if clear_skip(key, mode, fade, equal, mrt) => "fs_nofog_clear",
+        e => e,
     };
     let mut constants = mode.fragment_constants();
     constants.extend(mode.lamp_constants());

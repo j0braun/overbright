@@ -250,7 +250,7 @@ for players, the shipped program names per system (`overbright` /
   the tail, the log; log pruning; the lock refusing a second holder.
   `qol::setup::tests::help_is_worded_for_each_system`.
 - `tests/launcher_render.rs`: the 66 renders (11 screens × 6 sizes) and the
-  26 states at 1366 × 768 with 150 % scaling (`state-<name>-1366x768@150.png`)
+  31 states at 1366 × 768 with 150 % scaling (`state-<name>-1366x768@150.png`)
   against `tests/launcher/*.png` (our own images; at most 0.05 % of pixels off by
   more than 2), and a self-check that a changed screen fails. Re-bless:
   `OB_LAUNCHER_BLESS=1 cargo test --release --test launcher_render`, look
@@ -282,7 +282,10 @@ for players, the shipped program names per system (`overbright` /
   NFSU2_ROOT. `OB_WINE=1` runs it for `overbright.exe` under Wine with
   `cmd.exe /c stub.bat` as the game.
 - `qol::tests::launcher_prerequisites`, `launcher_skip_row`; the option
-  table tests count 70 rows.
+  table tests count 71 rows.
+- `launcher::tests::skip_boxes_round_trip_through_options_txt` (the two
+  start boxes: toggled with the keyboard, saved, read back by the game's
+  parser and the launcher, an older `enh.skip_title 2` shown as both).
 
 **Windows build and Wine (2026-11-12)**: `overbright.exe` and `game.exe`
 built in the release container (`scripts/release/container/build.sh
@@ -436,12 +439,17 @@ launchers such as Prism and Heroic), not native:
 
 The main screen's **Mods** row says what is on ("None: the game's own textures", "2 texture packages on,
 HUD mod on") and opens the Mods page (`screens::build_mods`): one sentence that Overbright includes no
-texture art and what can be added; the texture packages (a list: name, textures, size, on / off; Add
+texture art and what can be added (`screens::MODS_INTRO`: TexMod packages `.tpf`, TexWizard packs as a
+folder or `.zip`, the HD HUD mod; docs/texture-packs.md has the full table of formats); the texture packages
+(a list: name, textures, size, on / off; Add
 package…, Turn on / off (Enter on the list does the same), Move up, Move down, Remove… with a confirmation
 whose default is "Keep it"); the result line of each import; the HUD mod's folder, its check
 (`hd_ui_pack::inspect`), "Use the HUD mod" (= `enh.hd_ui`, written with the other choices through the
 game's settings code) and Choose folder… / Forget folder. The folder browser's `Packages` purpose lists
-`.tpf` files with the folders. An import runs on a worker thread (`window::poll_import`, the progress in a
+`.tpf` files, TexWizard pack folders and `.zip` files holding a TexWizard pack with the folders
+(`model::read_packages`; a pack folder is listed once, as a package), Enter on one imports it; "Import all
+here" takes `model::packages_here` (the folder itself when it is a package; in a game folder with TexWizard
+or its `TexturePacks`, the packs TexWizard loads, most important first, `formats::texwizard::find_packs`). An import runs on a worker thread (`window::poll_import`, the progress in a
 status line); closing the launcher meanwhile leaves only the temporary folder, removed the next time.
 docs/texture-packs.md has what is kept where and how the game picks the packages up. Tests:
 `launcher::tests::mods_page_flow`, `mods_page_when_empty`, `texture_mods::tests` (a package made in the
@@ -522,8 +530,9 @@ only after a key, `UiState::mouse_scrolled`).
   text beam over a text field, the arrow elsewhere (X11, Wayland, Windows).
 - **Dropped files** (`App::drop_paths`, winit's `DroppedFile`, gathered per drop): a game folder (or a
   file in it, SPEED2.EXE) on the first-run or check screen or in the game folder's browser is checked as
-  if chosen; `.tpf` files and package folders on the main or Mods page or in the packages browser are
-  imported; `.zip` / `.7z` / `.rar` files there (and folders in the HUD mod's browser) go to the HUD mod.
+  if chosen; `.tpf` files, package folders and `.zip` files holding a TexWizard pack on the main or Mods page or in
+  the packages browser are imported (a dropped folder that is no package: the TexWizard packs in it); other
+  `.zip` / `.7z` / `.rar` files there (and folders in the HUD mod's browser) go to the HUD mod.
   winit 0.30 delivers drops on X11 (XDND) and Windows (OLE drag and drop), not on Wayland (no drag and
   drop in its Wayland backend): there nothing else changes. Covered by the model test; a real drag in a
   window is not tested (no drag source on Xvfb).
@@ -575,3 +584,17 @@ line, not started again, Prepare again to Done, the stamp, `prepared=1` from the
 ## Open (next units)
 - Copy log (clipboard), a GPU class for the presets from the probe.
 - The game's exit code when its window cannot open (0 today).
+
+## Start choices: skip the intro movies, skip the title screen
+
+The main screen's Start settings panel has, under Graphics, two checkboxes side by side (one under the other
+when the panel is narrow, `Builder::checkboxes`): **Skip the intro movies** (EA, THX, the warning screen and
+the intro) and **Skip the title screen** ("Press Enter" and its wait). Like the display rows they are
+options.txt values, so they are shown only when the launcher can write them (`display_rows_on`: options.txt
+exists or the probe gave the first-run values); before that the panel's line says when they come. They are
+the game's own Enhancements rows Skip Intro Movies and Skip Title Screen (docs/start-and-menus.md):
+`Choices::skip_movies` / `skip_title` read with `Enhancements::skips_movies` / `skips_title` and written with
+`set_skips` through `save_choices` (options.txt's `enh.skip_movies` / `enh.skip_title`), so a change in either
+place shows in the other. Both ticked, nothing plays between the start and the main menu's profile step.
+Both are off by default (native). Render state `skip-movies` (the movies skipped, the title kept). Tests:
+`skip_boxes_round_trip_through_options_txt`, the focus order (… `graphics`, `skip_movies`, `skip_title`, `mods`, `skip` …).

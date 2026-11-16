@@ -60,6 +60,13 @@ doc = false
 bench = false
 
 [[bin]]
+name = "texwizard"
+path = "fuzz_targets/texwizard.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
 name = "track_sections"
 path = "fuzz_targets/track_sections.rs"
 test = false

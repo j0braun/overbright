@@ -258,6 +258,50 @@ Cost classes (options `cost`): Lamps Free, Contact Free, Shadows Low/High
 Low (1080p) to Medium (4K). On the iGPU Lamps and Contact are Medium,
 Lamp Shadows High.
 
+## The falling rain under the lamps (the native particles' pass)
+
+The native particles' pass (`sprites.rs` `draw_native_particles`, its own GPU mark "graphics: native particles")
+draws the falling rain with world.efx (`Effect::World`, fogged: docs/formats.md "Drop draw"), so with the lamps'
+module every pixel of every drop ran the whole lamp shading (`lamp_shade`: the cluster loop, Lamp Shadows, Contact
+Shadows, beams, Modern Lighting's relight and rays). About 260 drops (0.06 × 1.4 m quads, RAINDROP's alpha at most
+68/255 times the template's 0x1C) cost 0.28–0.30 ms at the player's settings in 4K rain and 0.60–0.70 ms on the
+integrated GPU (1080p, World Detail 3, Medium and High); with the drops drawn with the cheap `fs_nofog` program
+(a measurement only) 0.022 / 0.17: the shading was nine tenths of the pass. The smoke and the other particles
+(worldnodepth) take no lamp light and cost 0.006 ms.
+
+Two changes, Enhanced only (the lamps' module; the native modules are not touched):
+
+1. **Alpha 0 left before the shading (exact).** Alpha-blended keys without the alpha test take `fs_world_clear` /
+   `fs_nofog_clear` (fragment.wgsl, `pipelines::clear_skip`): a fragment whose alpha (texel.a · v0.a, as `shade`
+   makes it) is 0 blends src · 0 + dst · 1, the target as it was, no depth written; it is discarded before the
+   lamps (a demote: the derivatives the neighbours take are unchanged). RAINDROP is 39 % transparent texels.
+   Byte-identical (4K the player's settings and 1080p High rain, 17 frames each, md5 of the pixels).
+2. **The drops lit at their corners** (`rain_lit.wgsl`, `DropPipelines`, `sprites::DropProbe`). The fogged colour
+   is linear in the texel: rgb = texel.rgb · K + S, K and S depending on the position (the lamps, shadows, beams,
+   Modern Lighting's light and specular), not on the texel. A probe pass draws each drop as a 2 × 2 block of a
+   256 × 32 half-float target, one pixel per corner (the drop's vertices placed twice as far from its centre, so
+   the pixel centres interpolate to the corners; the drop is a parallelogram, every input affine across it, the
+   block's derivatives spanning the drop), K into the upper half and S into the lower (two pipelines, two
+   viewports). The drop then takes K and S filtered between its corners: one texture read and one blend per pixel
+   instead of the shading. Not byte-identical: a drop's light is interpolated along its 1.4 m instead of evaluated
+   per pixel (a shadow edge or a light's falloff across one drop becomes a gradient).
+
+Measured (GPU timer queries, median of interleaved runs [range]; probe + pass):
+
+| | base | 1. alpha 0 | 2. corners |
+|---|---|---|---|
+| 4K the player's settings, rain (4 runs, load 24–31) | 0.295 [0.294..0.298] | 0.259 [0.256..0.262] | 0.032 + 0.029 |
+| frame (GPU busy) | 18.95 [18.88..18.98] | 18.98 | 18.74 [18.65..18.81] |
+| integrated GPU High rain (2 runs each, slow state) | 0.68–0.70 | 0.637 | 0.05 + 0.24 |
+| integrated GPU Medium rain (2 runs, mixed state) | 0.602 [0.576..0.629] | 0.521 | 0.05 + 0.27 |
+
+What is left on the integrated GPU is the drops' fill and blend (the plain program's 0.17 ms) and the probe's
+fixed cost (its pass and two pipelines, 0.05). Pictures of step 2 against step 1 (17 frames each, 16 consecutive,
+`docs/evidence/perf-budget/rain-drops-lit.txt`): 4K at most 38 levels on 50 pixels > 20 (a drop's specular
+highlight over a light), 0.10 % of the pixels > 1 %, 1 − SSIM ≤ 1.3e−5, mean / p5 / p95 luma unchanged; 1080p High
+at most 21, 0.05 % > 1 %, 1 − SSIM ≤ 7e−6; the difference's own frame-to-frame change 0.012 / 0.008 levels (no
+flicker). Original and the levels without the lamps' module draw as before.
+
 ## Open / left out
 * Neon and shop signs: not in the light packs (above); no proxy lights
   were invented for them.

@@ -1,0 +1,44 @@
+# The game windowed on a private Xvfb, no sound device (NFSU2_AUDIO_HOST=none, no /dev/snd), no key pressed, 14 s;
+# options.txt = a player's file plus the lines named. The game's log lines (boot:, wait:), timestamps cut.
+
+## off: 
+wait: start -> first frame (boot Blank) …
+wait: boot Blank -> boot EaLogo: no key
+wait: boot EaLogo -> boot Thx: no key
+wait: boot Thx -> boot Psa: no key
+
+## movies: enh.skip_movies 1 
+boot: blank skipped (Skip Intro Movies)
+boot: ealogo skipped (Skip Intro Movies)
+boot: THX_logo_fr skipped (Skip Intro Movies)
+boot: PSA skipped (Skip Intro Movies)
+boot: FMVOpening skipped (Skip Intro Movies)
+boot: the title screen (UG_LS_Splash)
+wait: start -> first frame (boot Blank) …
+wait: boot Blank -> menu Splash: no key
+
+## title: enh.skip_title 1 
+wait: start -> first frame (boot Blank) …
+wait: boot Blank -> boot EaLogo: no key
+wait: boot EaLogo -> boot Thx: no key
+wait: boot Thx -> boot Psa: no key
+
+## both: enh.skip_movies 1 enh.skip_title 1 
+boot: blank skipped (Skip Intro Movies)
+boot: ealogo skipped (Skip Intro Movies)
+boot: THX_logo_fr skipped (Skip Intro Movies)
+boot: PSA skipped (Skip Intro Movies)
+boot: FMVOpening skipped (Skip Intro Movies)
+boot: the title screen skipped (Skip Title Screen)
+wait: start -> first frame (boot Blank) …
+wait: boot Blank -> menu McMain: no key
+
+## legacy: enh.skip_title 2 
+boot: blank skipped (Skip Intro Movies)
+boot: ealogo skipped (Skip Intro Movies)
+boot: THX_logo_fr skipped (Skip Intro Movies)
+boot: PSA skipped (Skip Intro Movies)
+boot: FMVOpening skipped (Skip Intro Movies)
+boot: the title screen skipped (Skip Title Screen)
+wait: start -> first frame (boot Blank) …
+wait: boot Blank -> menu McMain: no key

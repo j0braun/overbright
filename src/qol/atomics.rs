@@ -191,11 +191,6 @@ pub fn traffic_density() -> u8 {
 
 pub const TRAFFIC_DENSITY_STEPS: [u8; 3] = [0, 1, 2];
 
-/// Skip Title Screen's values (`Enhancements::skip_title`): Off (native),
-/// the title screen, the opening movies and the title screen.
-pub const SKIP_TITLE_STEPS: [u8; 3] = [0, 1, 2];
-/// Their names on the row (0 reads "Off").
-pub const SKIP_TITLE_NAMES: [&str; 3] = ["Off", "Title Screen", "Movies and Title Screen"];
 
 /// Photo Mode in Pause Menu in force (see [`Enhancements::photo_mode`]).
 pub fn photo_mode() -> bool {

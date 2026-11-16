@@ -424,8 +424,11 @@ fn world_text_is_the_old_file() {
     // colour functions (`ml_vis_early`; the native and the lamps' modules unchanged, Modern's by two comment lines),
     // the gather's two exact short cuts (`ml_vis_taps`: uniform blocks, no light; Modern + RT's module only), the
     // blocks' grid scale (`ml_vis_grid`; Modern + RT's module only) and the road's dry-road override (`D9_WET`; the
-    // lamps' modules only).
-    assert_old_text(ShaderId::World, 128_469, 0xe290_d4d5_ea1d_c825);
+    // lamps' modules only); then 128_469, 0xe290_d4d5_ea1d_c825 before the lamps' module's alpha-0 entries
+    // (`fs_world_clear` / `fs_nofog_clear`) and the falling rain lit at its drops' corners (`rain_lit.wgsl`): new
+    // entry points inside the LAMPS blocks only, the native modules unchanged (made in parallel from 122_409:
+    // 129_099, 0x5e49_6c40_8c8c_df4d there).
+    assert_old_text(ShaderId::World, 135_159, 0xbb99_edb7_338b_e7e0);
 }
 
 #[test]

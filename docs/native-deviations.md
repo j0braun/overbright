@@ -153,7 +153,8 @@ Where and when it rains stays the original's.
 | Traffic Density | Native | More (1.5x) or Dense (2x) free-roam traffic; races keep the native pool |
 | Replay Cameras | Native | Extra replay angles and slow-motion steps |
 | Photo Mode in Pause Menu | Off | Adds Photo Mode to the pause menu |
-| Skip Title Screen | Off | Title Screen: after the opening movies the profile step comes at once, without the title screen and its 4 s before Enter is taken (0x4C564E). Movies and Title Screen: the profile step at the start, without the opening movies too (docs/start-and-menus.md) |
+| Skip Intro Movies | Off | On: the opening movies (EA, THX, the warning screen, the intro) are passed as missing movie files are (0x566250); the title screen still follows unless Skip Title Screen is on (docs/start-and-menus.md). Also in the launcher |
+| Skip Title Screen | Off | On: the profile step comes where the title screen stood, without the title screen and its 4 s before Enter is taken (0x4C564E); independent of Skip Intro Movies (docs/start-and-menus.md). Also in the launcher |
 | Mark Spot Key | Off | A key (F9 to F12) writes a report of the spot you are looking at |
 | Durable Saves | Off | Flushes profile writes to disk before and after the rename |
 | Save Backups | 0 | Keeps the last N copies of a profile before each save |

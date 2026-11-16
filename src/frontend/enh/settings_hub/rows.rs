@@ -102,7 +102,14 @@ fn reset_row_to(id: RowId, s: &mut Settings, native_of_s: Option<&Settings>) {
         RowId::FixModels => e.fix_models = d.fix_models,
         RowId::TrafficDensity => e.traffic_density = d.traffic_density,
         RowId::PhotoMode => e.photo_mode = d.photo_mode,
-        RowId::SkipTitle => e.skip_title = d.skip_title,
+        RowId::SkipMovies => {
+            let title = e.skips_title();
+            e.set_skips(d.skip_movies, title)
+        }
+        RowId::SkipTitle => {
+            let movies = e.skips_movies();
+            e.set_skips(movies, d.skip_title != 0)
+        }
         RowId::LowLatency => e.extras.low_latency = d.extras.low_latency,
         RowId::PowerSaving => e.extras.power_saving = d.extras.power_saving,
         RowId::ReplayCameras => e.extras.replay_cameras = d.extras.replay_cameras,

@@ -26,6 +26,11 @@
 #include "native/world/vertex.wgsl"
 #include "enh/geometry/world_fade.wgsl"
 #include "native/world/fragment.wgsl"
+#if LAMPS
+// BEGIN LAMPS
+#include "enh/weather/rain_lit.wgsl"
+// END LAMPS
+#endif
 #include "enh/materials/world_reflect_enh.wgsl"
 #include "native/world/fragment_reflect.wgsl"
 #include "enh/weather/wetness.wgsl"

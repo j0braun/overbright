@@ -21,8 +21,9 @@ No game files are included: you need your own PC copy of the game.
 - **Optional graphics upgrades.** Street lamps that light the world and cast shadows, ambient occlusion,
   screen-space or ray-traced reflections (Vulkan), volumetric fog and rain, supersampling up to 16×,
   upscaling. Each is off until you switch it on, and Restore Native goes back in one step.
-- **A launcher.** Finds and checks your game, prepares the shaders in the background, and sets up texture
-  mods and the HD HUD mod you already have.
+- **A launcher.** Finds and checks your game, prepares the shaders in the background, sets up texture
+  mods and the HD HUD mod you already have, and can skip the intro movies and the title screen (each on its
+  own) so the game starts straight into the menus.
 - **Linux and Windows**, with ready-made builds for both.
 
 ## Screenshots
@@ -156,8 +157,10 @@ report it.
 ## Texture mods
 
 Overbright ships no texture art. In the launcher, Mods… adds texture mods you already have: TexMod packages
-(`.tpf`) and the HD HUD mod's folder. Mods belong to their authors and stay on your computer; Overbright
-neither ships nor downloads any ([docs/texture-packs.md](docs/texture-packs.md)).
+(`.tpf`), TexWizard packs (a folder with `meta.json` and `textures.bin`, a `.zip` of one, or the packs a
+TexWizard install in your game folder loads) and the HD HUD mod's folder. Mods belong to their authors and
+stay on your computer; Overbright neither ships nor downloads any
+([docs/texture-packs.md](docs/texture-packs.md)).
 
 ## Where your files go
 

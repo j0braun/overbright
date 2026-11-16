@@ -172,8 +172,13 @@ pub fn change(id: RowId, s: &mut Settings, player: usize, right: bool, has_profi
                 crate::qol::step_in(&crate::qol::TRAFFIC_DENSITY_STEPS, s.enh.traffic_density, right)
         }
         RowId::PhotoMode => s.enh.photo_mode = !s.enh.photo_mode,
+        RowId::SkipMovies => {
+            let title = s.enh.skips_title();
+            s.enh.set_skips(!s.enh.skips_movies(), title)
+        }
         RowId::SkipTitle => {
-            s.enh.skip_title = crate::qol::step_in(&crate::qol::SKIP_TITLE_STEPS, s.enh.skip_title, right)
+            let movies = s.enh.skips_movies();
+            s.enh.set_skips(movies, !s.enh.skips_title())
         }
         RowId::LowLatency => s.enh.extras.low_latency = !s.enh.extras.low_latency,
         RowId::MarkSpot => {

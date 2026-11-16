@@ -1,14 +1,16 @@
 //! Texture mods set up in the launcher (docs/texture-packs.md, "TexMod
 //! packages"): TexMod packages (`.tpf`, or a folder of loose TexMod files)
-//! the player has, converted into Overbright's data folder, one folder per
-//! package, and the list of them the game uses, in order (first wins).
+//! and TexWizard packs (a folder with `meta.json` and `textures.bin`, or a
+//! ZIP of one) the player has, converted into Overbright's data folder, one
+//! folder per package, and the list of them the game uses, in order (first
+//! wins).
 //! Overbright ships no texture art: with no list, or nothing on in it, the
 //! game shows the original textures (the loader's path is unchanged).
 //!
 //! * A package lives in `<packs>/imported/<id>/` (`platform::dirs::packs`):
 //!   `world/` and `car/` (the pack folders, docs/texture-packs.md),
-//!   `import-tpf.tsv` (the importer's report) and `package.txt` (what the
-//!   launcher shows). The single `imported/{world,car}` an earlier import
+//!   `import-tpf.tsv` or `import-texwizard.tsv` (the importer's report) and
+//!   `package.txt` (what the launcher shows). The single `imported/{world,car}` an earlier import
 //!   tool run wrote stays the World Texture Pack row's (not in the list).
 //! * The list is `texture-mods.txt` beside game-root.txt: a header line,
 //!   then `on <id>` / `off <id>` per package, first wins. Written
@@ -147,6 +149,8 @@ pub struct Info {
     pub name: String,
     /// The file or folder it was imported from (its name only).
     pub source: String,
+    /// What it was: `TexMod` or `TexWizard` (empty: an older import, TexMod).
+    pub kind: String,
     pub images: usize,
     pub matched: usize,
     pub unmatched: usize,
@@ -159,9 +163,10 @@ pub struct Info {
 impl Info {
     fn text(&self) -> String {
         format!(
-            "name={}\nsource={}\nimages={}\nmatched={}\nunmatched={}\nunsupported={}\nfiles={}\nbytes={}\n",
+            "name={}\nsource={}\nkind={}\nimages={}\nmatched={}\nunmatched={}\nunsupported={}\nfiles={}\nbytes={}\n",
             one_line(&self.name),
             one_line(&self.source),
+            one_line(&self.kind),
             self.images,
             self.matched,
             self.unmatched,
@@ -179,6 +184,7 @@ impl Info {
             match k.trim() {
                 "name" => i.name = v.trim().to_string(),
                 "source" => i.source = v.trim().to_string(),
+                "kind" => i.kind = v.trim().to_string(),
                 "images" => i.images = n(),
                 "matched" => i.matched = n(),
                 "unmatched" => i.unmatched = n(),
@@ -291,10 +297,60 @@ fn free_space_of(_d: &Path) -> Option<u64> {
     None
 }
 
+/// A package read from the player's files.
+pub enum Package {
+    /// A TexMod package (`.tpf`, or a folder of loose TexMod files).
+    TexMod(crate::formats::tpf::Package),
+    /// A TexWizard pack (`formats::texwizard`).
+    TexWizard(crate::formats::texwizard::Pack),
+}
+
+impl From<crate::formats::tpf::Package> for Package {
+    fn from(p: crate::formats::tpf::Package) -> Package {
+        Package::TexMod(p)
+    }
+}
+
+impl Package {
+    /// `TexMod` or `TexWizard`.
+    pub fn kind(&self) -> &'static str {
+        match self {
+            Package::TexMod(_) => "TexMod",
+            Package::TexWizard(_) => "TexWizard",
+        }
+    }
+
+    /// The name the package gives itself (a TexMod comment's first line, a
+    /// TexWizard pack's folder name; may be empty).
+    pub fn own_name(&self) -> String {
+        match self {
+            Package::TexMod(p) => one_line(&p.comment),
+            Package::TexWizard(p) => one_line(&p.name),
+        }
+    }
+
+    fn import(
+        &self,
+        sources: &[crate::tpf_import::Source],
+        out: &Path,
+        opts: &crate::tpf_import::ImportOptions,
+        progress: &(dyn Fn(usize, usize) + Sync),
+    ) -> Result<crate::tpf_import::ImportSummary> {
+        match self {
+            Package::TexMod(p) => crate::tpf_import::import_package(p, sources, out, opts, progress),
+            Package::TexWizard(p) => crate::texwizard_import::import_pack(p, sources, out, opts, progress),
+        }
+    }
+}
+
 /// The space an import of `package` may take: its images' bytes, twice
 /// (completed mip chains, PNGs of uncompressed art), plus 16 MB.
-pub fn space_needed(package: &crate::formats::tpf::Package) -> u64 {
-    package.entries.iter().map(|e| e.data.len() as u64).sum::<u64>() * 2 + (16 << 20)
+pub fn space_needed(package: &Package) -> u64 {
+    let images = match package {
+        Package::TexMod(p) => p.entries.iter().map(|e| e.data.len() as u64).sum::<u64>(),
+        Package::TexWizard(p) => p.bin_bytes,
+    };
+    images * 2 + (16 << 20)
 }
 
 /// What one import did, in plain words for the launcher.
@@ -308,14 +364,57 @@ pub struct Outcome {
     pub ok: bool,
 }
 
-/// Reads a package from a `.tpf` file or a folder of loose TexMod files.
-pub fn read_source(path: &Path) -> Result<crate::formats::tpf::Package> {
+/// Reads a package from a `.tpf` file, a folder of loose TexMod files or a
+/// TexWizard pack folder (a ZIP of TexWizard packs: [`read_sources`]).
+pub fn read_source(path: &Path) -> Result<Package> {
     if path.is_dir() {
-        crate::tpf_import::read_folder(path)
+        if crate::formats::texwizard::is_pack_dir(path) {
+            return Ok(Package::TexWizard(crate::formats::texwizard::read_dir(path)?));
+        }
+        Ok(Package::TexMod(crate::tpf_import::read_folder(path).map_err(|e| {
+            e.context("not a TexMod folder (texmod.def) nor a TexWizard pack (meta.json and textures.bin)")
+        })?))
+    } else if is_zip_name(path) {
+        let mut v = read_sources(path)?;
+        ensure!(v.len() == 1, "{}: {} TexWizard packs in one archive", path.display(), v.len());
+        Ok(v.remove(0).1)
     } else {
         let raw = std::fs::read(path).with_context(|| path.display().to_string())?;
-        crate::formats::tpf::read(&raw)
+        Ok(Package::TexMod(crate::formats::tpf::read(&raw)?))
     }
+}
+
+fn is_zip_name(path: &Path) -> bool {
+    path.extension().is_some_and(|x| x.eq_ignore_ascii_case("zip"))
+}
+
+/// The packages in `path`, each with the name it is reported under: a ZIP
+/// gives each TexWizard pack in it (`archive.zip: Pack`; the archive's
+/// name alone when it holds one), anything else what [`read_source`] reads.
+pub fn read_sources(path: &Path) -> Result<Vec<(String, Package)>> {
+    let file = path.file_name().map_or_else(|| path.display().to_string(), |n| n.to_string_lossy().into_owned());
+    if !(path.is_file() && is_zip_name(path)) {
+        return Ok(vec![(file, read_source(path)?)]);
+    }
+    let zip = crate::formats::zip::Zip::open(path)?;
+    let packs = crate::formats::texwizard::zip_packs(&zip);
+    ensure!(!packs.is_empty(), "{file}: no TexWizard pack in this archive (no meta.json with a textures.bin)");
+    let stem = path.file_stem().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+    let n = packs.len();
+    packs
+        .into_iter()
+        .map(|(dir, name)| {
+            let name = if name.is_empty() { stem.clone() } else { name };
+            let pack = crate::formats::texwizard::read_zip_pack(&zip, &dir, &name)
+                .with_context(|| format!("{file}: {}", if dir.is_empty() { "the pack" } else { &dir }))?;
+            Ok((if n == 1 { file.clone() } else { format!("{file}: {name}") }, Package::TexWizard(pack)))
+        })
+        .collect()
+}
+
+/// A ZIP archive that holds a TexWizard pack (its directory only is read).
+pub fn zip_has_texwizard_pack(path: &Path) -> bool {
+    crate::formats::zip::Zip::open(path).is_ok_and(|z| !crate::formats::texwizard::zip_packs(&z).is_empty())
 }
 
 /// Imports `package` (read from `source`) for the game textures `sources`
@@ -323,14 +422,20 @@ pub fn read_source(path: &Path) -> Result<crate::formats::tpf::Package> {
 /// finished). Returns the installed package's description and the
 /// summary. Nothing is installed when no image matched.
 pub fn install(
-    package: &crate::formats::tpf::Package,
+    package: &Package,
     source: &Path,
     sources: &[crate::tpf_import::Source],
     packages: &Path,
     progress: &(dyn Fn(usize, usize) + Sync),
 ) -> Result<(Option<Info>, crate::tpf_import::ImportSummary)> {
     let file = source.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
-    let stem = source.file_stem().map(|n| n.to_string_lossy().into_owned()).unwrap_or_else(|| file.clone());
+    let own = package.own_name();
+    let stem = match package {
+        // A TexWizard pack is named by its folder (in a ZIP: its folder there).
+        Package::TexWizard(_) if !own.is_empty() => own.clone(),
+        _ if source.is_dir() => file.clone(),
+        _ => source.file_stem().map(|n| n.to_string_lossy().into_owned()).unwrap_or_else(|| file.clone()),
+    };
     std::fs::create_dir_all(packages).with_context(|| packages.display().to_string())?;
     let need = space_needed(package);
     if let Some(free) = free_space(packages)
@@ -347,7 +452,7 @@ pub fn install(
     let tmp = packages.join(format!(".import-{id}"));
     let _ = std::fs::remove_dir_all(&tmp);
     let opts = crate::tpf_import::ImportOptions::default();
-    let r = crate::tpf_import::import_package(package, sources, &tmp, &opts, progress);
+    let r = package.import(sources, &tmp, &opts, progress);
     let sum = match r {
         Ok(s) => s,
         Err(e) => {
@@ -359,11 +464,11 @@ pub fn install(
         let _ = std::fs::remove_dir_all(&tmp);
         return Ok((None, sum));
     }
-    let name = one_line(&package.comment);
     let info = Info {
         id: id.clone(),
-        name: if name.is_empty() { stem } else { name },
+        name: if own.is_empty() { stem } else { own },
         source: file,
+        kind: package.kind().into(),
         images: sum.images,
         matched: sum.matched,
         unmatched: sum.unmatched,
@@ -395,7 +500,7 @@ pub fn outcome_line(name: &str, r: &Result<(Option<Info>, crate::tpf_import::Imp
                 format!("{name}: not imported: it was made for another game ({p}), not Need for Speed Underground 2")
             } else if s.matched == 0 {
                 format!(
-                    "{name}: not imported: none of its {} textures is in your game's files (made for another version of the game?)",
+                    "{name}: not imported: none of its {} textures is in your game's files (made for another game or another version?)",
                     s.images
                 )
             } else if !ok {
@@ -410,6 +515,9 @@ pub fn outcome_line(name: &str, r: &Result<(Option<Info>, crate::tpf_import::Imp
                 }
                 if s.unsupported > 0 {
                     l += &format!("; {} in a format Overbright cannot read (left out)", s.unsupported);
+                }
+                if s.missing > 0 {
+                    l += &format!("; {} name a texture the pack does not hold (left out)", s.missing);
                 }
                 l
             };

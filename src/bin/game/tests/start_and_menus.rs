@@ -1,5 +1,5 @@
-//! The start and the menus' waits (docs/start-and-menus.md): Skip Title
-//! Screen's three values; the main menu's garage scene made while the
+//! The start and the menus' waits (docs/start-and-menus.md): Skip Intro
+//! Movies and Skip Title Screen, each on its own; the main menu's garage scene made while the
 //! title is up draws the frames the menu made it for itself draws.
 use super::*;
 // The test kit (tests/common/mod.rs, docs/testing.md).
@@ -21,29 +21,40 @@ fn is_title(mode: &Mode) -> bool {
     matches!(mode, Mode::Menu(Menu::Splash(_)))
 }
 
-/// Off: the movies, then the title (0x4C564E's hold). Title Screen: the
-/// movies, then the profile step where the title stood. Movies and Title
-/// Screen: the profile step on the start's first tick.
+/// Off / Off: the movies, then the title (0x4C564E's hold). Skip Title
+/// Screen alone: the movies, then the profile step where the title stood.
+/// Skip Intro Movies alone: no movie opened, then the title. Both: the
+/// profile step on the start's first tick. An older file's
+/// `enh.skip_title 2` reads as both.
 #[test]
 #[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
 fn skip_title_screen_leaves_out_what_it_names() {
     testkit::game();
     let mut native = Game::new().unwrap();
-    assert_eq!(native.settings.enh.skip_title, 0, "native by default");
+    assert_eq!((native.settings.enh.skip_title, native.settings.enh.skip_movies), (0, false), "native by default");
     native.mode = native.boot_screen(BootStep::Splash);
     assert!(is_title(&native.mode));
     native.mode = native.boot_screen(BootStep::Intro);
     assert!(matches!(&native.mode, Mode::Menu(Menu::Movie(m)) if m.player.is_some()), "the intro plays");
 
     let mut title = Game::new().unwrap();
-    title.settings.enh.skip_title = 1;
+    title.settings.enh.set_skips(false, true);
     title.mode = title.boot_screen(BootStep::Intro);
     assert!(matches!(&title.mode, Mode::Menu(Menu::Movie(m)) if m.player.is_some()), "the movies still play");
     title.mode = title.boot_screen(BootStep::Splash);
     assert!(!is_title(&title.mode) && !is_movie(&title.mode), "the profile step where the title stood");
 
+    let mut movies = Game::new().unwrap();
+    movies.settings.enh.set_skips(true, false);
+    movies.mode = movies.boot_screen(BootStep::Intro);
+    assert!(matches!(&movies.mode, Mode::Menu(Menu::Movie(m)) if m.player.is_none()), "no movie opened");
+    movies.mode = movies.boot_screen(BootStep::Splash);
+    assert!(is_title(&movies.mode), "the title screen still shows");
+
     let mut all = Game::new().unwrap();
-    all.settings.enh.skip_title = 2;
+    let old = nfsu2::frontend::options::Settings::from_text("enh.skip_title 2\n").enh;
+    assert!(old.skip_movies && old.skip_title == 1, "an older file's value");
+    all.settings.enh.set_skips(old.skip_movies, old.skip_title == 1);
     all.mode = all.boot_screen(BootStep::Blank);
     assert!(matches!(&all.mode, Mode::Menu(Menu::Movie(m)) if m.player.is_none()), "no movie opened");
     tick(&mut all);

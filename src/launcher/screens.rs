@@ -385,7 +385,7 @@ pub fn build(b: &mut Builder, m: &Model, screen: Screen) {
                 BrowseFor::Game => "Choose the game folder",
                 BrowseFor::TexturePack => "Choose the texture-pack folder",
                 BrowseFor::Saves => "Choose the original game's save folder",
-                BrowseFor::Packages => "Add TexMod packages",
+                BrowseFor::Packages => "Add texture packages",
                 BrowseFor::HudMod => "Add the HUD mod",
             });
             // The places, then the folder shown as clickable parts.
@@ -455,7 +455,7 @@ pub fn build(b: &mut Builder, m: &Model, screen: Screen) {
                 BrowseFor::Packages => {
                     "A double click (or Enter, or Open) opens the folder or imports the package chosen in the list; \
                      “Import all here” takes every package in the folder shown above (or the folder itself when it \
-                     holds TexMod's texmod.def)."
+                     holds TexMod's texmod.def or a TexWizard pack; in the game folder, the packs TexWizard loads)."
                 }
                 BrowseFor::HudMod => {
                     "A double click (or Enter, or Open) opens the folder or takes the .zip chosen in the list; “Use \
@@ -628,6 +628,20 @@ pub fn game_state(m: &Model) -> (Mark, String) {
     }
 }
 
+/// The game's Skip Intro Movies and Skip Title Screen rows (Enhancements
+/// page, options.txt `enh.skip_movies` / `enh.skip_title`): independent.
+fn game_skip_boxes(b: &mut Builder, c: &super::model::Choices) {
+    b.checkboxes(&[
+        ("skip_movies", "Skip the intro movies", c.skip_movies),
+        ("skip_title", "Skip the title screen", c.skip_title),
+    ]);
+}
+
+/// The launcher's own start choice.
+fn launcher_skip_box(b: &mut Builder, c: &super::model::Choices) {
+    b.checkbox("skip", "Start the game directly next time (hold Shift while starting to see this window)", c.skip);
+}
+
 /// The main screen: the game and Play (the hero), the start settings and
 /// Mods in their own panels, the computer's facts as a quiet strip, the
 /// rarely used pages as small buttons at the bottom.
@@ -723,8 +737,15 @@ fn build_main(b: &mut Builder, m: &Model) {
             },
         );
     }
+    // The game's skip boxes, under Graphics: like the display rows they
+    // are options.txt values, which cannot be written before the game's
+    // first run values are known (`SaveError::FirstRunPending`), so they
+    // are shown only once they can be.
+    if on {
+        game_skip_boxes(b, c);
+    }
     if !wide {
-        b.checkbox("skip", "Start the game directly next time (hold Shift while starting to see this window)", c.skip);
+        launcher_skip_box(b, c);
     }
     b.card_end(set);
     let set_bottom = b.y;
@@ -752,7 +773,7 @@ fn build_main(b: &mut Builder, m: &Model) {
     // Wide: the start choice under Mods, the right column's second card.
     let next = wide.then(|| {
         let i = b.card_begin();
-        b.checkbox("skip", "Start the game directly next time (hold Shift while starting to see this window)", c.skip);
+        launcher_skip_box(b, c);
         b.card_end(i);
         i
     });
@@ -884,8 +905,9 @@ pub fn mods_summary(m: &Model) -> String {
 }
 
 /// The Mods page's one sentence on what can be added.
-pub const MODS_INTRO: &str = "Overbright ships no texture art. Add mods you have: TexMod packages (.tpf) and the HD \
-HUD mod. They are copied into Overbright's folder; your files stay unchanged. Mods belong to their authors.";
+pub const MODS_INTRO: &str = "Overbright ships no texture art. Add mods you have: TexMod packages (.tpf), TexWizard \
+packs (folder or .zip) and the HD HUD mod. They are copied into Overbright's folder; your files stay unchanged. Mods \
+belong to their authors.";
 
 /// The HUD mod section's sentence on what it takes.
 pub const HUD_INTRO: &str = "Not set up: the game shows its own HUD and maps. Add HUD mod… takes the downloads.";
@@ -1223,7 +1245,10 @@ impl<'e> App<'e> {
         match self.env.list_dirs(&dir) {
             Ok(mut entries) => {
                 if b.purpose == BrowseFor::Packages {
-                    entries.extend(self.env.list_packages(&dir));
+                    // A TexWizard pack folder is listed once, as a package.
+                    let packages = self.env.list_packages(&dir);
+                    entries.retain(|e| !packages.iter().any(|p| p.path == e.path));
+                    entries.extend(packages);
                 }
                 if b.purpose == BrowseFor::HudMod {
                     entries.extend(self.env.list_archives(&dir));
@@ -1270,11 +1295,14 @@ impl<'e> App<'e> {
             BrowseFor::Packages => {
                 // A folder of loose TexMod files is one package; else every
                 // package file in it.
-                let loose = self.env.list_dirs(&dir).is_ok() && dir.join("texmod.def").is_file();
-                let paths: Vec<PathBuf> =
-                    if loose { vec![dir] } else { self.env.list_packages(&dir).into_iter().map(|e| e.path).collect() };
+                let paths = if self.env.list_dirs(&dir).is_ok() {
+                    super::model::packages_here(&dir, self.env.list_packages(&dir))
+                } else {
+                    Vec::new()
+                };
                 if paths.is_empty() {
-                    self.model.message = Some((Mark::Info, "No TexMod packages (.tpf) in this folder.".into()));
+                    self.model.message =
+                        Some((Mark::Info, "No texture packages (TexMod .tpf, TexWizard packs) in this folder.".into()));
                 } else {
                     self.go(Screen::Mods);
                     self.queue_import(paths);
@@ -1304,7 +1332,9 @@ impl<'e> App<'e> {
 
     /// A browser row is a package file (listed by [`Env::list_packages`]).
     fn is_package_row(&self, p: &Path) -> bool {
-        self.model.browse.entries.iter().any(|e| e.path == p && e.note.starts_with("TexMod package"))
+        self.model.browse.entries.iter().any(|e| {
+            e.path == p && (e.note.starts_with("TexMod package") || e.note.starts_with("TexWizard pack"))
+        })
     }
 
     /// A HUD mod download chosen: added to the parts found; both known:
@@ -1419,10 +1449,13 @@ impl<'e> App<'e> {
             }
             (Screen::Browse, Some(BrowseFor::TexturePack | BrowseFor::Saves)) => self.use_folder(folder(&first)),
             (Screen::Main | Screen::Mods, _) | (Screen::Browse, Some(BrowseFor::Packages | BrowseFor::HudMod)) => {
-                let (hud, packs): (Vec<PathBuf>, Vec<PathBuf>) = paths
-                    .iter()
-                    .cloned()
-                    .partition(|p| archive(p) || (purpose == Some(BrowseFor::HudMod) && p.is_dir()));
+                // A ZIP holding a TexWizard pack is a package, not the HUD mod.
+                let (hud, packs): (Vec<PathBuf>, Vec<PathBuf>) = paths.iter().cloned().partition(|p| {
+                    (archive(p) && !crate::texture_mods::zip_has_texwizard_pack(p))
+                        || (purpose == Some(BrowseFor::HudMod) && p.is_dir())
+                });
+                // A dropped folder that is no package: the TexWizard packs in it.
+                let packs = super::model::expand_packages(packs);
                 if !packs.is_empty() {
                     self.go(Screen::Mods);
                     self.model.mods.list = self.env.mods();
@@ -1511,6 +1544,12 @@ impl<'e> App<'e> {
                 self.model.choices.graphics = Self::step(&GRAPHICS, &self.model.choices.graphics, *d)
             }
             (Screen::Main, Event::Toggle("skip")) => self.model.choices.skip = !self.model.choices.skip,
+            (Screen::Main, Event::Toggle("skip_movies")) => {
+                self.model.choices.skip_movies = !self.model.choices.skip_movies
+            }
+            (Screen::Main, Event::Toggle("skip_title")) => {
+                self.model.choices.skip_title = !self.model.choices.skip_title
+            }
             (Screen::Main, Event::Activate("mods")) => {
                 self.model.mods.list = self.env.mods();
                 self.model.mods.confirm = None;
@@ -1656,7 +1695,7 @@ impl<'e> App<'e> {
             }
             (Screen::Browse, Event::Activate("dirs" | "open")) => {
                 if let Some(d) = self.browse_row(self.model.browse.sel) {
-                    if self.model.browse.purpose == BrowseFor::Packages && !d.is_dir() && self.is_package_row(&d) {
+                    if self.model.browse.purpose == BrowseFor::Packages && self.is_package_row(&d) {
                         self.go(Screen::Mods);
                         self.queue_import(vec![d]);
                     } else if self.model.browse.purpose == BrowseFor::HudMod
@@ -1685,7 +1724,7 @@ impl<'e> App<'e> {
                     BrowseFor::Game => "Choose the game folder",
                     BrowseFor::TexturePack => "Choose the texture-pack folder",
                     BrowseFor::Saves => "Choose the original game's save folder",
-                    BrowseFor::Packages => "Choose the folder that holds the TexMod packages",
+                    BrowseFor::Packages => "Choose the folder that holds the texture packages",
                     BrowseFor::HudMod => "Choose the HUD mod's folder",
                 };
                 if let Some(d) = self.env.native_folder_dialog(title) {

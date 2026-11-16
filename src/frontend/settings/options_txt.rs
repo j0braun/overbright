@@ -196,6 +196,10 @@ impl Settings {
         // Old clone keys that duplicated a Customize Display row map onto
         // it; enhanced tiers keep theirs at the top.
         super::graphics_table::normalize(&mut s);
+        // An older file's `enh.skip_title 2` ("Movies and Title Screen"):
+        // the two independent rows, both On.
+        let (movies, title) = (s.enh.skips_movies(), s.enh.skips_title());
+        s.enh.set_skips(movies, title);
         s
     }
 

@@ -4,8 +4,8 @@ What a player waits for between the game's start and driving, outside a race's o
 first frame, the boot screens and the title, the menus' steps, the garage's scene, the first frame of free roam.
 Measured in the shipping game's own wait lines (docs/waits-log.md). None of this is native behaviour: the
 original reads its files and makes its objects when it needs them; here the same objects are made earlier or
-off the frame that shows them, so nothing drawn, heard or simulated changes. The one opt-in is the Skip Title
-Screen row (below, and docs/native-deviations.md).
+off the frame that shows them, so nothing drawn, heard or simulated changes. The opt-ins are the Skip Intro
+Movies and Skip Title Screen rows (below, and docs/native-deviations.md).
 
 ## What a wait is made of (measured before this work)
 
@@ -87,12 +87,31 @@ The mark (`touch`, `touch_file`) is queued for one toucher thread and made withi
 asked. The times the pruning reads ("used within the hour" for another build's entries, the oldest first under
 the size limit) are the same: the cache's flush and the game's exit wait for the queue (`wait_touches`).
 
-### Skip Title Screen (Enhancements, opt-in, default Off)
+### Skip Intro Movies and Skip Title Screen (Enhancements, opt-in, default Off and Off)
 
-Off: the native start (the boot movies, which Enter skips, then the title screen and its 4 s hold). Title
-Screen: the movies, then the profile step where the title stood (its music starts as the title starts it).
-Movies and Title Screen: the profile step on the start's first tick (each boot screen passes as a missing movie
-file does, 0x566250). A profile message or the profile list still asks for its key, as it does natively.
+Two independent On/Off rows (`movies.rs`, `Game::boot_screen`), both Off by default: the native start (the
+boot movies, which Enter skips, then the title screen and its 4 s hold).
+
+* **Skip Intro Movies** (`enh.skip_movies 1`): each boot screen (LS_BlankMovie, EA, THX, the warning screen,
+  the intro) passes as a missing movie file does (0x566250): in the same tick, no file opened, no sound. The
+  log says `boot: <name> skipped (Skip Intro Movies)` for each. The title screen follows unless Skip Title
+  Screen is on.
+* **Skip Title Screen** (`enh.skip_title 1`): the profile step where the title stood (its music starts as the
+  title starts it); log `boot: the title screen skipped (Skip Title Screen)`.
+* Both: the profile step on the start's first tick. A profile message or the profile list still asks for its
+  key, as it does natively.
+
+options.txt: an older file's `enh.skip_title 2` (the former single row's "Movies and Title Screen") reads as
+both On and is written back as `enh.skip_title 1` + `enh.skip_movies 1` (`Settings::from_text`,
+`Enhancements::set_skips`); `enh.skip_title 1` keeps its meaning. The launcher's main screen has the same two
+values as two checkboxes ("Skip the intro movies", "Skip the title screen"), read from and written to the same
+lines (docs/launcher.md "Start choices"), so the game's rows and the launcher always agree.
+
+Observed (`docs/evidence/start-and-menus/skip-boot.txt`: the game windowed on a private display with no sound
+device, no key pressed): both On, every boot screen passes in the start's first tick and the next screen is
+the profile step (`wait: boot Blank -> menu McMain`); movies only, the title screen comes at once (`boot Blank
+-> menu Splash`); an older `enh.skip_title 2` behaves as both; Off and title only play the EA and THX movies
+first.
 
 ## The launcher's prepare step in the background
 
@@ -102,7 +121,8 @@ before.
 
 ## Checks
 
-`tests::start_and_menus` (the three values of Skip Title Screen; the main menu's scene made during the title
+`tests::start_and_menus` (Skip Intro Movies and Skip Title Screen each alone, both, and an older file's
+`enh.skip_title 2`; the main menu's scene made during the title
 taken by its first tick and drawing the same pictures as a scene the tick made), `render::enh::assets::surface::
 gpu::tests` (the array zero in every layer and mip after it was filled with other bytes),
 `render::core::upload::zeroed_tests` (a zeroed buffer reads zeros), `world::query::collision_ahead_tests` (the same

@@ -227,7 +227,21 @@ fn focus_order_and_arrow_moves() {
         let mut a = app(&env, &fonts, Screen::Main, w, h, 1.0);
         assert_eq!(
             a.ui.focus_order(),
-            ["change", "play", "display", "resolution", "graphics", "mods", "skip", "about", "import", "prepare", "quit"],
+            [
+                "change",
+                "play",
+                "display",
+                "resolution",
+                "graphics",
+                "skip_movies",
+                "skip_title",
+                "mods",
+                "skip",
+                "about",
+                "import",
+                "prepare",
+                "quit"
+            ],
             "{w}x{h}"
         );
         assert_eq!(focus(&a), "play", "the default focus");
@@ -407,6 +421,8 @@ fn saving_respects_the_first_run() {
         resolution: (1600, 900),
         graphics: Graphics::Original,
         skip: true,
+        skip_movies: true,
+        skip_title: false,
         texture_pack: String::new(),
         hud_mod: false,
     };
@@ -437,6 +453,51 @@ fn saving_respects_the_first_run() {
     assert_eq!(Graphics::of(&back.enh), Graphics::Enhanced);
     assert_eq!(super::model::load_choices().0.graphics, Graphics::Enhanced);
     let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// The start boxes Skip Intro Movies and Skip Title Screen are the game's
+/// own rows: toggled on the main screen, saved to options.txt as the
+/// game writes them, read back by the game's parser and by the launcher;
+/// each independent of the other; an older file's `enh.skip_title 2` shows
+/// both ticked.
+#[test]
+fn skip_boxes_round_trip_through_options_txt() {
+    use crate::frontend::options::Settings;
+    let fonts = Fonts::new();
+    let env = FakeEnv;
+    let mut a = app(&env, &fonts, Screen::Main, 1280, 720, 1.0);
+    assert!(!a.model.choices.skip_movies && !a.model.choices.skip_title, "off by default");
+    a.st.focus = Some("skip_movies");
+    key(&mut a, &fonts, Key::Space);
+    assert!(a.model.choices.skip_movies && !a.model.choices.skip_title, "the movies alone");
+    let mut s = Settings::from_text("resolution 1280x960\n");
+    super::model::apply_choices(&mut s, &a.model.choices);
+    let text = s.options_text();
+    assert!(text.contains("enh.skip_movies 1\n") && !text.contains("enh.skip_title"), "{text}");
+    let back = Settings::from_text(&text);
+    assert!(back.enh.skips_movies() && !back.enh.skips_title());
+    assert_eq!(super::model::choices_of(&back), a.model.choices);
+    a.st.focus = Some("skip_title");
+    key(&mut a, &fonts, Key::Space);
+    a.st.focus = Some("skip_movies");
+    key(&mut a, &fonts, Key::Space);
+    assert!(!a.model.choices.skip_movies && a.model.choices.skip_title, "the title alone");
+    super::model::apply_choices(&mut s, &a.model.choices);
+    let text = s.options_text();
+    assert!(text.contains("enh.skip_title 1\n") && !text.contains("enh.skip_movies"), "{text}");
+    let back = Settings::from_text(&text);
+    assert!(!back.enh.skips_movies() && back.enh.skips_title());
+    // An older file: both ticked, written back as two values.
+    let old = Settings::from_text("enh.skip_title 2\n");
+    let c = super::model::choices_of(&old);
+    assert!(c.skip_movies && c.skip_title);
+    let text = old.options_text();
+    assert!(text.contains("enh.skip_title 1\n") && text.contains("enh.skip_movies 1\n"), "{text}");
+    // Unticked both: native, no line.
+    let mut s = old.clone();
+    super::model::apply_choices(&mut s, &Choices { skip_movies: false, skip_title: false, ..c });
+    let text = s.options_text();
+    assert!(!text.contains("enh.skip_"), "{text}");
 }
 
 #[test]
@@ -485,6 +546,8 @@ fn first_write_uses_the_probes_card() {
         resolution: (1920, 1080),
         graphics: Graphics::Original,
         skip: false,
+        skip_movies: false,
+        skip_title: false,
         texture_pack: String::new(),
         hud_mod: false,
     };

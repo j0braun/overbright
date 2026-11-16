@@ -48,6 +48,7 @@ pub mod formats {
     pub mod smackable;
     pub mod solid;
     pub mod texture;
+    pub mod texwizard;
     pub mod tpf;
     pub mod texture_anim;
     pub mod track;
@@ -128,6 +129,7 @@ pub mod upscale;
 pub mod upscale_pack;
 pub mod tpf_import;
 pub mod texture_mods;
+pub mod texwizard_import;
 pub mod hud_mod;
 pub mod shadow;
 pub mod shop_scene;

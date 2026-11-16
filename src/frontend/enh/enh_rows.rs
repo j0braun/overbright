@@ -70,12 +70,8 @@ pub(crate) fn qol_rows(s: &Settings) -> Vec<Row> {
             or_native(e.traffic_density == 0, if e.traffic_density == 1 { "More".into() } else { "Dense".into() }),
         ),
         row(RowId::PhotoMode, PHOTO_MODE_ROW, Kind::Cycle, on_off(e.photo_mode)),
-        row(
-            RowId::SkipTitle,
-            SKIP_TITLE,
-            Kind::Cycle,
-            or_off(e.skip_title == 0, crate::qol::SKIP_TITLE_NAMES[usize::from(e.skip_title.min(2))].to_string()),
-        ),
+        row(RowId::SkipMovies, SKIP_MOVIES, Kind::Cycle, on_off(e.skips_movies())),
+        row(RowId::SkipTitle, SKIP_TITLE, Kind::Cycle, on_off(e.skips_title())),
         // See docs/modern-extras.md.
         row(RowId::LowLatency, LOW_LATENCY, Kind::Cycle, on_off(e.extras.low_latency)),
         row(
@@ -304,8 +300,11 @@ pub fn detail(category: Category, id: RowId, s: &Settings) -> Option<String> {
         RowId::PhotoMode => {
             "Adds Photo Mode to the pause menu: a free camera, focus, filters and high-resolution pictures."
         }
+        RowId::SkipMovies => {
+            "Starts without the opening movies (the EA, THX and warning screens and the intro). Off: as the original."
+        }
         RowId::SkipTitle => {
-            "Starts without the title screen (Title Screen) or without the opening movies and the title screen. Off: as the original."
+            "Starts without the title screen (\"Press Enter\" and its wait): the profile step comes at once. Off: as the original."
         }
         RowId::LowLatency => {
             "Reads your input as late as the display allows (one frame in flight; on a variable-refresh display, frames held just under its top rate). Off: as the original."

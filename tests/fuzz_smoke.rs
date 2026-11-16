@@ -606,6 +606,11 @@ fn zip() -> Vec<u8> {
 fn text_seeds(kind: &str) -> Vec<Vec<u8>> {
     match kind {
         "tpf" => vec![zip(), b"0x12345678|SPEED2.EXE_0x12345678.dds\n0xABCDEF01|x.dds\n".to_vec()],
+        "texwizard" => vec![
+            br#"{ "textures": [ [ "ROAD", "_ROAD" ], [ "0x1234ABCD", "0xBEEF" ], ], // a comment
+                 "links": [ { "path": "TRACKS\\L4RA.BUN", "textures": [ "ROAD" ] } ] }"#
+                .to_vec(),
+        ],
         "save" => {
             let mut v = vec![nfsu2::formats::native_save::NativeSave::fresh("FUZZ").to_bytes(), nfsu2::formats::native_save::picture(&[128; 16 * 16 * 4], 16, 16)];
             // The original's save of a finished career, with the private set (OB_PRIVATE).
