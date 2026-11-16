@@ -11,7 +11,7 @@ function, so the Windows rules are unit-tested on Linux.
 |---|---|---|
 | data home (the profiles' parent) | `$XDG_DATA_HOME`, else `$HOME/.local/share`, else `.` | `<Local AppData>\Overbright` |
 | profiles | `<data home>/NFS Underground 2/<NAME>/<NAME>` | `<Local AppData>\Overbright\NFS Underground 2\<NAME>\<NAME>` |
-| Overbright's folder (`app`, `config`: options.txt, career.txt, game-root.txt) | `<data home>/overbright` | `<Local AppData>\Overbright` |
+| Overbright's folder (`app`, `config`: options.txt, game-root.txt) | `<data home>/overbright` | `<Local AppData>\Overbright` |
 | crash reports / logs / marks / perf CSVs / screenshots / texture pack | `<app>/crashes`, `logs`, `marks`, `perf`, `Screenshots`, `texture-pack` | the same under `<app>` |
 | asset cache (`cache`), the player's game | `$XDG_CACHE_HOME/overbright` (set, not empty), else `$HOME/.cache/overbright` | `<Local AppData>\Overbright\cache` |
 | asset cache, every other program (developer cache) | `$XDG_CACHE_HOME/overbright-dev`, else `$HOME/.cache/overbright-dev` | `<Local AppData>\Overbright\cache-dev` |
@@ -43,11 +43,8 @@ function, so the Windows rules are unit-tested on Linux.
 - Crash reports, Mark This Spot reports and the log file show the home folder as `~`: `$HOME` and `%USERPROFILE%`.
   Mark's command lines write `$HOME` / `%USERPROFILE%`.
 
-## No folder from before 0.1.0
-
-Test builds before 0.1.0 kept their settings and cache under another folder name. Overbright neither reads nor
-moves those folders: its settings start fresh in the folders above. The test kit's fixture cache is
-`<cache home>/overbright-test-fixtures`, beside the player's cache rather than inside it.
+The test kit's fixture cache is `<cache home>/overbright-test-fixtures`, beside the player's cache rather than
+inside it.
 
 ## Paths (`platform::paths`)
 

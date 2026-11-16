@@ -151,7 +151,7 @@ the panoramas the eye section's own native list names. A panorama is a
 stand-in (a few flat faces with a low-resolution texture) built for the
 outlines whose lists name it; drawn from elsewhere it stands in front of
 the scene as a flat face whose texture reads as streaks. Reported
-from a 4K test build:
+from a 4K development build:
 * by the Marquis cinema (section 1404, car at about (−265, −845) heading
   −40°) the 400 m ring lent ten panoramas (198, 398, 399, 595, 596, 598,
   599, 899, 1098, 1499); region 5's 596 (high PAN_ENTERTAINMENT, low

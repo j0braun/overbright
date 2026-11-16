@@ -228,8 +228,8 @@ the launch's missing 1–8 kHz. A second artefact made the prop runs' beds
 the gearbox's own state and kicked down to first or second gear (the engine
 on its 7000 rpm limiter), while the clone rolled in the gear asked for.
 
-**Method.** `scripts/rt_free.py` (free roam) and `drive_rt_f.py` (the first
-drag): the parity cave holds the game while the car is placed, then stays
+**Method** (scripts and measurements: docs/evidence/engine-bed/). `scripts/rt_free.py` (free roam) and
+`drive_rt_f.py` (the first drag): the parity cave holds the game while the car is placed, then stays
 in the frame-time call with every frame 1/120 s (no recording, no lock), so
 the original runs its own 120 fps cadence (world 119.8 updates and the audio
 ~60 updates a game second) whatever the wall clock; the mix is recorded with

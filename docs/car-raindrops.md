@@ -1,6 +1,6 @@
 # "My car looks like it has raindrops on it" (player report)
 
-Test build `a test build`. The player's settings: the Ultra preset and then every
+Development build. The player's settings: the Ultra preset and then every
 graphics row at its maximum (internal evidence: car-raindrops/max-options.txt: render scale 200, SSAA 16x,
 MSAA 16x, filter 4, Sharpen 100, High Precision Post 2, road reflection full, car cube 1024, reflection
 every frame, Enhanced Reflections, anisotropy 16, reversed-Z, Ultra shadows, SSAO 100, detail 300, car
@@ -40,7 +40,7 @@ tilted-normal glint, spread ≤ ±50 %, grain ≤ 0.02, filtered lobe = old mean
 
 ## Evidence (docs/evidence/car-raindrops/)
 - `intro-paint-only-orig-before-after.jpg`: Original | Enhanced Car Paint alone, before | after.
-- `intro-max-before-after-paintoff.jpg`: user's all-max set, test build 1441 | fixed | max with paint off.
+- `intro-max-before-after-paintoff.jpg`: user's all-max set, development build 1441 | fixed | max with paint off.
 - `garage-metpaint-max-before-after.jpg`: `--shot main`, `NFSU2_SHOT_FIT=0x3F:104` (METPAINTSILVER), all
   max, before | after.
 - `bisect-speckle.txt`, `max-options.txt`.

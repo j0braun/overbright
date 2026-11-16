@@ -312,7 +312,7 @@ Modern/Ultra/Extreme/Extreme-FSR AE 0, 15 shots AE 0 (no panic/validation), audi
 hashes identical over firstrace, firstdrag, postrace, the playthrough (82 412 steps) and the
 parity scenario (internal evidence: modern-lighting-2/parity-base-vs-new.txt).
 
-### Fixes after the first test build (lead / design note)
+### Fixes after the first player check (lead / design note)
 * **Windowed start crashed** ("Surface::configure: Failed to wait for GPU to come idle") on the
   user's Wayland desktop. Not Modern Lighting phase 2's: <base> (main) built from its own tree crashes the same
   way there, 2 of 2. wgpu-core 30 waits for the queue to drain before it reconfigures a surface and

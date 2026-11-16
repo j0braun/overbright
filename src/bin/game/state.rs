@@ -152,15 +152,9 @@ impl Game {
         let presets = nfsu2::car::parse_presets(&globalb);
         let started = Instant::now();
         let menu = IconMenu::new("UI_Main", None, screens::MAIN_MENU.to_vec(), 0.0);
-        // The native profiles (`profiles`): the old career.txt becomes one
-        // once; one profile on disk is loaded at once, several wait for the
-        // boot's list.
+        // The native profiles (`profiles`): one profile on disk is loaded at
+        // once, several wait for the boot's list.
         career::NativeContext::init_with(&data, &parts, &car_types);
-        if let Some(ctx) = career::NativeContext::get()
-            && let Some(name) = profiles::migrate(ctx)
-        {
-            eprintln!("migrated career.txt to the native profile {}", profiles::file(&name).display());
-        }
         let boot_profiles = profiles::boot();
         if let profiles::Boot::One(name) = &boot_profiles
             && let Err(e) = profiles::load(name)

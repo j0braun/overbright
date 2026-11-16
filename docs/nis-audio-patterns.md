@@ -143,8 +143,10 @@ are appended to `nis-audio-patterns/native-updates.txt` (`fixture.py`).
 * DynoExit: see above (no native trigger found). The sound heard on leaving
   the dyno is the garage's car swing, FE id 69 (L1, internal notes;
   ported).
-* Ending holds: the player's road / wind / skid sounds and the race's
-  traffic during the hold are not run (the native keeps them alive).
+* Ending scenes: the player's road / wind / skid sounds run behind the results
+  until the scene ends (docs/p17-scene-follow-ups.md §4, test
+  `won_ending_keeps_the_player_car_sounds_until_the_scene_ends`); their pitch
+  and slip levels are partly open there.
 * Racers' slots 3+ in an ending: the results order binding is not used (no
   shipped ending has events for them).
 * The scene's starting carry: the native one depends on the frames before

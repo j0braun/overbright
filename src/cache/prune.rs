@@ -7,7 +7,7 @@ use super::*;
 /// the size limit and are evicted with the others ([`prune`]).
 pub const SURFACE_MAPS: &str = "surface-maps";
 
-/// Cache files of earlier builds that nothing reads now.
+/// Cache file names that nothing reads (removed when found).
 pub(super) const OBSOLETE: [&str; 2] = ["ui2d-vector.nfc", "ui2d-hd.nfc"];
 
 /// [`sweep_tmp`] once per process, at the first cache file opened.
@@ -17,8 +17,8 @@ pub(super) fn sweep_once(dir: &Path) {
         sweep_tmp(dir);
         // The surface maps' folder (`render::enh::assets::surface`).
         sweep_tmp(&dir.join(SURFACE_MAPS));
-        // Files no build makes any more: the old 2D enhancements' bake
-        // (Vector Fonts / HD UI Art before sharp bilinear, ~165 MB).
+        // Files no current code makes: a 2D bake of Vector Fonts / HD UI
+        // Art (~165 MB) that sharp bilinear sampling replaced.
         for name in OBSOLETE {
             if std::fs::remove_file(dir.join(name)).is_ok() {
                 log::info!("cache: removed obsolete {name}");

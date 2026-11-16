@@ -133,9 +133,6 @@ without one leaves the record as loaded (the control save: floats 0).
   Evidence: internal evidence: perf-shop/record-store.txt.
 
 ## Open
-* The player's "can't buy parts independently": the keyboard path worked in
-  the clone before this round (shots); the mouse could not pick a row
-  (hover missing), which is the likely cause (**inferred**).
 * The strip's frame on Choose Individual Parts (the green frame round the
   icon): on in some captures, off in others (a pulse is likely; the clone
   keeps it hidden). Not settled in the performance-shop fix (two Wine restarts hung on the

@@ -215,9 +215,8 @@ not ported; the photo mode / replays have no SCREEN_FLASH.
 * Shop and dyno scenes (ShopEnter1, ShopExit1, DynoEnter, CareerNis1)
   now run the mover too (observed under Wine: the CoM on the
   channel, the car on the floor and up the dyno ramp; within 0.09 m /
-  0.22 m of the original's track, `p17-scene-follow-ups.md`). Open: after
-  ShopExit1 the original's car stops within two frames, the clone's rolls
-  on at its last mover speed; CareerNis1 not captured.
+  0.22 m of the original's track, `p17-scene-follow-ups.md`; the stop after
+  ShopExit1 matches, p17-scene-follow-ups.md §5). CareerNis1 not captured.
 * 0x5A2FE0 hydraulic hops, 0x5A3420 airborne damping, aero 0x59E630(0), the
   top-speed limiter and 0x5AB1A0's RPM/gear (engine audio in scenes) are not
   ported; scene cars stay on four wheels at low speed (observed loads all

@@ -125,9 +125,6 @@ fresh profile; evidence `docs/evidence/s6-a6b/`, raw in
   (`Game::save_point`), so that path itself is not offered (**open**).
 
 ## Open
-* A save point with no profile current asks "Would you like to create a new
-  profile?" in the original (seen at Customize's Back); the clone's save
-  points skip it.
 * The Profile Manager's Create with no profile current was not run under
   Wine (the save-point create was); both are MC state 2 (**inferred** the
   same).

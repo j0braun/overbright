@@ -103,14 +103,6 @@ The Graphics page's **World Texture Pack** row selects the pack that **Generate 
 Pack** makes in `<data>/overbright/texture-pack/{world,car}` without any variable; a set variable
 wins over the row (docs/texture-pack-generator.md, "In the game").
 
-**Upgrading from an older build:** earlier test builds had a "Remaster" row and preset whose
-Generate Texture Pack run also wrote de-lit textures and material maps to
-`<data>/overbright/texture-pack/remaster/`. That option is gone: the game no longer reads the folder
-and does not delete it either, so it can be deleted by hand (a few hundred MB). An options.txt that
-still holds `enh.remaster` loads as before without that line (unknown keys are ignored) and drops it
-at the next save; the asset-cache files made with it belong to the older build and are pruned
-first (docs/asset-cache.md, "Pruning").
-
 Each variable may name several folders separated like `PATH` (`:`), searched in order, first file
 wins; the row's folders follow them (docs/texmod-import.md: an imported TexMod pack in front of
 the generated upscale, e.g. `NFSU2_WORLD_TEXTURE_PACK=~/packs/ineedspeed-hd/world:~/upscaled/world`).

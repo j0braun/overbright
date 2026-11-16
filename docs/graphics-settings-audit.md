@@ -374,7 +374,7 @@ on a machine set lower, Restore Native and the Original preset left it
 raised. Now `graphics_table::custom_part` remembers the player's own value
 before the first raise (`Settings::custom_raised`, options.txt
 `enh.raised.N v`, written only while a value is remembered, so a native
-file is unchanged and older builds ignore the key), and
+file is unchanged), and
 `graphics_table::normalize` gives it back once no enhanced tier holds
 that row: Restore Native (`Settings::restore_native` now normalizes), the
 Original preset, or a preset without that tier (Ultra → Clean). A native

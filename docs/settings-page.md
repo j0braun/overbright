@@ -127,18 +127,18 @@ bounds). The detail line's estimate (`LEVEL_COSTS`, `preset_ms`) still takes the
 Detail 5 figures (**open**: a change of what the page shows, left to the settings work).
 
 Low was first High Precision Post + Wet Roads + the 256 car reflection too: +4.3 / +6.3 ms (race start / rain) on
-the integrated GPU; those three rows (+3.9 / +2.7, +2.7 in rain, ~+0.7) start at Medium. Medium matches the old High
-preset's cost (2.41 / 7.20 / 50.9 with its MSAA 8x), High is the old Ultra preset's (3.97 / 13.07 with SSAA 2x)
+the integrated GPU; those three rows (+3.9 / +2.7, +2.7 in rain, ~+0.7) start at Medium. Medium matches the High
+preset's cost (2.41 / 7.20 / 50.9 with its MSAA 8x), High is the Ultra preset's (3.97 / 13.07 with SSAA 2x)
 without the SSAA.
 
-**Old option files.** Nothing new is stored: the mode and the level are found from the `enh.*` values, so a file
-written by an earlier build loads with the same values and writes back byte-identical (test
-`old_option_files_survive`). An old preset reads as: Original → Graphics Mode Original; Ultra → Enhanced, High (its
+**Option files.** Nothing new is stored: the mode and the level are found from the `enh.*` values, so any
+options.txt loads with the same values and writes back byte-identical (test
+`old_option_files_survive`). A preset's values (`qol::Preset`) read as: Original → Graphics Mode Original; Ultra → Enhanced, High (its
 SSAA 2x shown on Anti-Aliasing); Balanced, High and Extreme → Enhanced, Custom (Balanced has fewer rows than Low;
-the old High lacks Medium's fog; Extreme has rows no level sets), each with its own values until a level is picked.
+the High preset lacks Medium's fog; Extreme has rows no level sets), each with its own values until a level is picked.
 The presets stay defined (`qol::Preset`, `PRESETS`) for the checks (the gate's `extreme` sets, shot targets,
-benches, the matrix) and the old preset row's code (`RowId::GraphicsPreset`, the 60 FPS pick below), which is no
-longer listed on a page.
+benches, the matrix) and the preset row's code (`RowId::GraphicsPreset`, the 60 FPS pick below), which is not listed on a
+page.
 
 **The launcher** offers Graphics Original / Enhanced with the same meaning: Enhanced writes the Low level (the same
 on every GPU, so no probe is needed); a file at Medium or High reads "Enhanced Medium (set in game)", one matching no

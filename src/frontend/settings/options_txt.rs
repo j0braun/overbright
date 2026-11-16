@@ -6,7 +6,8 @@ use super::*;
 
 impl Settings {
     pub fn path() -> PathBuf {
-        super::career::Profile::path().with_file_name("options.txt")
+        // Overbright's settings folder (`platform::dirs::config`).
+        crate::platform::dirs::config().join("options.txt")
     }
 
     /// The options in force: the display options and the key map from
@@ -20,10 +21,10 @@ impl Settings {
     /// are 0x5BEA30's display ones only), and the boot loads a profile only
     /// after the splash ("Load complete." with exactly one, MC_List with
     /// several) — so the boot movies, the splash and a list of profiles
-    /// play with the default volumes, whatever the last profile had. The
-    /// clone kept the last profile's options in options.txt and applied
-    /// them at boot before (a profile with music at 0 made the first
-    /// loading screen silent and hid the EA Trax caption).
+    /// play with the default volumes, whatever the last profile had. Applying
+    /// the last profile's options at boot instead would make the first
+    /// loading screen silent for a profile with music at 0 and hide the
+    /// EA Trax caption.
     pub fn load() -> Settings {
         let all = Settings::load_text();
         let mut s = Settings {
@@ -47,9 +48,8 @@ impl Settings {
         s
     }
 
-    /// Everything options.txt holds, profile options included (older
-    /// clone versions wrote them there): for the one-time migration of
-    /// career.txt into a native profile.
+    /// Everything options.txt holds, parsed whole (the keys
+    /// [`Settings::load`] keeps and any others).
     pub fn load_text() -> Settings {
         let Ok(text) = std::fs::read_to_string(Settings::path()) else {
             return Settings::default();

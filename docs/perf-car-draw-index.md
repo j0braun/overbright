@@ -89,6 +89,6 @@ bandwidth-bound.
 2. Set the screen to 1080p and the Original look. Set World Detail's Full Screen Anti-Aliasing to
    Off, then start a Quick Race circuit on the same track with the same car. On the grid during
    the countdown, press F3 and note the average frame time over about 10 s. Do this with the
-   previous test build and with this one, twice each, alternating.
+   build before this change and with this one, twice each, alternating.
 3. A drop of at least 0.15 ms (about 1 fps at 70 fps) in this build confirms the gain. Repeat with
    FSAA at its default for the smaller drop expected there (about 0.1–0.2 ms).

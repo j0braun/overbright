@@ -90,8 +90,8 @@ after (`clone-shots-after.txt`): chase 4.5 s from the green, then 3 s Speed shot
 back with a Corner shot and one 4 s chase view — the original's pattern.
 
 **2026-11-05**: Burnout's weight ported (`typed_weight`, `TypedInput::wheel_slip` /
-`rpm`); the typed weights read the exported forward speed (car +0x42C, `exported_forward_speed`;
-an earlier version took the velocity along the heading); a held track (route or typed) is drawn again under
+`rpm`); the typed weights read the exported forward speed (car +0x42C, `exported_forward_speed`,
+not the velocity along the heading); a held track (route or typed) is drawn again under
 bVar5 while the car is upside down (0x5FB060: 0x441B40 > 0 or car +0xB8 < 0). Replay bench
 (`--bench replay 3600`, 30 s replayed) unchanged shot for shot
 (internal evidence: p8-gaps/clone-replay-shots-p8.txt vs `clone-shots-after.txt`: the bench car
