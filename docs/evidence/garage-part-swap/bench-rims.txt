@@ -1,0 +1,67 @@
+# game --bench rims 30 (reference desktop GPU, 1280x960, host load avg 20-33 during the runs)
+## base (sync, before)
+rim step  0:   11.4 ms (key 0.0 ms) front rim Some(276dbf05)
+rim step  1:   11.4 ms (key 0.0 ms) front rim Some(8d794583)
+rim step  2:   11.5 ms (key 0.0 ms) front rim Some(da738244)
+rim step  3:   33.2 ms (key 0.0 ms) front rim Some(7467fbc6)
+rim step  4:   33.9 ms (key 0.0 ms) front rim Some(da738244)
+rim step  5:   11.3 ms (key 0.0 ms) front rim Some(8d794583)
+rim step  6:   11.0 ms (key 0.0 ms) front rim Some(276dbf05)
+rim step  7:   20.0 ms (key 0.0 ms) front rim Some(407f08c2)
+rim step  8:   36.8 ms (key 0.6 ms) front rim Some(276dbf05)
+rim step  9:   60.7 ms (key 0.0 ms) front rim Some(8d794583)
+rim step 10:   25.1 ms (key 0.0 ms) front rim Some(da738244)
+rim step 11:   78.6 ms (key 0.0 ms) front rim Some(7467fbc6)
+rim step 12:   44.7 ms (key 0.0 ms) front rim Some(da738244)
+rim step 13:   38.3 ms (key 0.0 ms) front rim Some(8d794583)
+rim step 14:   49.4 ms (key 0.0 ms) front rim Some(276dbf05)
+rim step 15:   61.2 ms (key 0.0 ms) front rim Some(407f08c2)
+rim step 16:   56.8 ms (key 0.0 ms) front rim Some(276dbf05)
+rim step 17:  124.3 ms (key 0.0 ms) front rim Some(8d794583)
+rim step 18:   20.2 ms (key 0.0 ms) front rim Some(da738244)
+rim step 19:   41.4 ms (key 0.0 ms) front rim Some(7467fbc6)
+rim step 20:  134.5 ms (key 0.0 ms) front rim Some(da738244)
+rim step 21:   51.8 ms (key 0.0 ms) front rim Some(8d794583)
+rim step 22:   23.1 ms (key 0.0 ms) front rim Some(276dbf05)
+rim step 23:   55.0 ms (key 0.0 ms) front rim Some(407f08c2)
+rim step 24:   30.4 ms (key 0.0 ms) front rim Some(276dbf05)
+rim step 25:   31.8 ms (key 0.0 ms) front rim Some(8d794583)
+rim step 26:   86.5 ms (key 0.0 ms) front rim Some(da738244)
+rim step 27:   56.7 ms (key 0.0 ms) front rim Some(7467fbc6)
+rim step 28:   34.7 ms (key 0.0 ms) front rim Some(da738244)
+rim step 29:   36.2 ms (key 0.0 ms) front rim Some(8d794583)
+rims: 30 steps (brand 9): step frame avg 44.1 ms, worst 134.5 ms; other frames avg 5.50 ms, worst 28.33 ms
+## after (worker thread)
+rim step  0:    5.2 ms (key 0.1 ms) front rim Some(276dbf05), shown after 7 more frames
+rim step  1:    4.7 ms (key 0.0 ms) front rim Some(8d794583), shown after 7 more frames
+rim step  2:    2.7 ms (key 0.0 ms) front rim Some(da738244), shown after 6 more frames
+rim step  3:    4.8 ms (key 0.0 ms) front rim Some(7467fbc6), shown after 10 more frames
+rim step  4:    4.2 ms (key 0.0 ms) front rim Some(da738244), shown after 0 more frames
+rim step  5:    5.5 ms (key 0.0 ms) front rim Some(8d794583), shown after 10 more frames
+rim step  6:    4.8 ms (key 0.0 ms) front rim Some(276dbf05), shown after 9 more frames
+rim step  7:    6.5 ms (key 0.0 ms) front rim Some(407f08c2), shown after 7 more frames
+rim step  8:    3.4 ms (key 0.0 ms) front rim Some(276dbf05), shown after 8 more frames
+rim step  9:    5.4 ms (key 0.0 ms) front rim Some(8d794583), shown after 9 more frames
+rim step 10:    4.2 ms (key 0.0 ms) front rim Some(da738244), shown after 9 more frames
+rim step 11:    4.3 ms (key 0.0 ms) front rim Some(7467fbc6), shown after 7 more frames
+rim step 12:    6.8 ms (key 0.0 ms) front rim Some(da738244), shown after 9 more frames
+rim step 13:    5.8 ms (key 0.0 ms) front rim Some(8d794583), shown after 5 more frames
+rim step 14:    3.9 ms (key 0.0 ms) front rim Some(276dbf05), shown after 8 more frames
+rim step 15:    4.2 ms (key 0.0 ms) front rim Some(407f08c2), shown after 10 more frames
+rim step 16:    3.1 ms (key 0.0 ms) front rim Some(276dbf05), shown after 0 more frames
+rim step 17:    5.3 ms (key 0.0 ms) front rim Some(8d794583), shown after 10 more frames
+rim step 18:    4.4 ms (key 0.0 ms) front rim Some(da738244), shown after 10 more frames
+rim step 19:    4.8 ms (key 0.0 ms) front rim Some(7467fbc6), shown after 7 more frames
+rim step 20:    3.7 ms (key 0.0 ms) front rim Some(da738244), shown after 7 more frames
+rim step 21:    6.3 ms (key 0.0 ms) front rim Some(8d794583), shown after 10 more frames
+rim step 22:    5.6 ms (key 0.0 ms) front rim Some(276dbf05), shown after 10 more frames
+rim step 23:    4.3 ms (key 0.0 ms) front rim Some(407f08c2), shown after 6 more frames
+rim step 24:    4.4 ms (key 0.0 ms) front rim Some(276dbf05), shown after 7 more frames
+rim step 25:    6.6 ms (key 0.0 ms) front rim Some(8d794583), shown after 7 more frames
+rim step 26:    5.6 ms (key 0.0 ms) front rim Some(da738244), shown after 9 more frames
+rim step 27:    5.6 ms (key 0.0 ms) front rim Some(7467fbc6), shown after 7 more frames
+rim step 28:   24.3 ms (key 0.0 ms) front rim Some(da738244), shown after 2 more frames
+rim step 29:    6.0 ms (key 0.0 ms) front rim Some(8d794583), shown after 6 more frames
+rims: 30 steps (brand 9): step frame avg 5.5 ms, worst 24.3 ms; other frames avg 5.18 ms, worst 24.45 ms; the rim shown after at most 10 more frames
+## after with NFSU2_GARAGE_SYNC=1 (the old in-frame path)
+rims: 30 steps (brand 9): step frame avg 41.9 ms, worst 70.2 ms; other frames avg 5.66 ms, worst 21.98 ms; the rim shown after at most 0 more frames

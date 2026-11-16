@@ -1,0 +1,99 @@
+Ambient Detail's props made in the menus, kept for the drive (docs/perf-budget.md, docs/ambient-detail.md "When the props are placed").
+
+Method: `--bench transitions` (developer harness, headless, offscreen; NFSU2_BENCH_MENU_FIRST=1), one binary per arm
+(base = the tree before, new = this change), interleaved (odd rounds base first, even rounds new first), 7 rounds per arm,
+each lock hold under 10 minutes; own game cache, Mesa shader cache and XDG folders. Wait = from the call to its first frame
+drawn and the GPU done (wall ms); main-thread CPU = the load + its first frame on the calling thread (ms), and of it the
+first frame's. Median (min–max).
+
+== 4K: a player's own options.txt copied as it is (3840x2160, Ambient Detail Next-Gen, Modern Lighting 3, Light Probes,
+   Animated Water 3; no texture pack in the copy's folder), discrete GPU. Load average 13–25 at the run starts; the discrete GPU's busy counter 0–99 % at the starts (another
+   program on it): its wall times are an upper bound; the main-thread CPU columns are the trustworthy ones.
+
+| transition | wait before | wait after | main-thread CPU before | after | of it the first frame before | after | n |
+|---|---|---|---|---|---|---|---|
+| free roam, first load | 602 (461–929) | 208 (156–532) | 418 (385–668) | 124 (111–138) | 399 (369–646) | 103 (93–118) | 7/7 |
+| free roam -> race | 251 (67–293) | 149 (75–268) | 38 (32–52) | 37 (36–39) | 19 (15–27) | 18 (17–20) | 7/7 |
+| race -> free roam | 67 (23–209) | 66 (28–243) | 11 (10–14) | 11 (10–13) | 4 (3–4) | 4 (3–5) | 7/7 |
+| free roam -> race, rivals loaded ahead | 100 (67–188) | 86 (65–113) | 32 (28–44) | 29 (27–36) | 16 (13–20) | 14 (14–17) | 7/7 |
+| that race -> free roam, encounter racers loaded ahead | 110 (81–139) | 111 (84–138) | 12 (10–16) | 11 (9–16) | 4 (3–5) | 4 (3–6) | 7/7 |
+| into the garage | 50 (24–138) | 42 (32–75) | 28 (21–30) | 25 (21–32) | 28 (21–30) | 25 (21–32) | 7/7 |
+| into a shop | 68 (23–126) | 38 (28–113) | 18 (12–20) | 15 (13–21) | 16 (11–19) | 15 (12–19) | 7/7 |
+| out of the garage | 21 (14–89) | 28 (15–50) | 11 (9–15) | 10 (9–14) | 5 (4–7) | 5 (4–6) | 7/7 |
+| out of a shop | 53 (24–338) | 45 (33–108) | 11 (10–14) | 13 (10–14) | 5 (4–6) | 6 (4–6) | 7/7 |
+| out of a shop, a part fitted | 246 (182–1251) | 235 (210–616) | 45 (40–78) | 50 (37–56) | 6 (6–10) | 7 (6–8) | 7/7 |
+| out of a shop, a part fitted, after the shop's menus | 84 (44–107) | 60 (28–112) | 15 (10–17) | 12 (10–15) | 5 (4–7) | 4 (4–6) | 7/7 |
+| menu -> free roam, at once | 726 (544–2135) | 502 (447–806) | 183 (174–294) | 200 (172–213) | 110 (98–150) | 105 (96–132) | 7/7 |
+| menu -> free roam, preloaded | 530 (448–900) | 186 (118–374) | 406 (384–616) | 116 (103–149) | 387 (366–589) | 95 (85–121) | 7/7 |
+| free roam -> another region's race, at once | 488 (243–542) | 412 (278–742) | 107 (95–123) | 108 (99–158) | 58 (56–65) | 57 (53–78) | 7/7 |
+| that race -> free roam, at once | 642 (589–804) | 725 (433–1860) | 188 (183–216) | 246 (178–282) | 100 (97–105) | 116 (99–142) | 7/7 |
+| free roam -> another region's race, preloaded | 291 (188–578) | 197 (165–459) | 143 (135–152) | 106 (82–129) | 114 (109–122) | 68 (52–83) | 7/7 |
+| that race -> free roam, preloaded | 690 (617–834) | 361 (257–687) | 419 (395–442) | 120 (110–164) | 397 (374–419) | 97 (86–125) | 7/7 |
+| menu -> Quick Race circuit | 694 (575–1142) | 524 (420–720) | 204 (188–292) | 203 (186–278) | 116 (106–165) | 120 (106–157) | 7/7 |
+| menu -> Quick Race drag | 483 (261–1466) | 330 (273–482) | 104 (99–172) | 105 (94–124) | 65 (63–94) | 66 (60–73) | 7/7 |
+| Quick Race circuit from its car select | 637 (504–1015) | 271 (203–323) | 435 (410–570) | 144 (139–182) | 407 (384–536) | 114 (111–149) | 7/7 |
+| Quick Race drag from its car select | 212 (135–680) | 239 (147–268) | 92 (79–100) | 82 (80–96) | 69 (60–79) | 63 (60–72) | 7/7 |
+
+== The integrated GPU (a 2-CU RDNA2 iGPU), 1920x1080, the Enhanced level High with Ambient Detail on; load average
+   10–35 at the run starts, the integrated GPU idle at the starts.
+
+| transition | wait before | wait after | main-thread CPU before | after | of it the first frame before | after | n |
+|---|---|---|---|---|---|---|---|
+| free roam, first load | 644 (505–869) | 312 (130–631) | 463 (292–523) | 46 (24–58) | 444 (272–499) | 24 (9–28) | 7/7 |
+| free roam -> race | 182 (63–405) | 270 (68–827) | 28 (20–36) | 30 (23–38) | 6 (4–10) | 7 (5–8) | 7/7 |
+| race -> free roam | 153 (74–335) | 210 (82–379) | 14 (10–15) | 12 (10–15) | 4 (3–5) | 4 (2–5) | 7/7 |
+| free roam -> race, rivals loaded ahead | 198 (195–284) | 192 (130–241) | 26 (16–33) | 21 (19–30) | 5 (4–8) | 5 (3–8) | 7/7 |
+| that race -> free roam, encounter racers loaded ahead | 294 (28–362) | 253 (113–287) | 13 (11–15) | 14 (11–18) | 3 (3–4) | 3 (3–4) | 7/7 |
+| into the garage | 100 (54–425) | 59 (40–2215) | 25 (22–37) | 23 (19–38) | 25 (22–37) | 23 (19–38) | 7/7 |
+| into a shop | 68 (25–149) | 33 (24–136) | 15 (11–28) | 16 (10–19) | 14 (10–25) | 14 (10–17) | 7/7 |
+| out of the garage | 51 (13–325) | 50 (13–285) | 10 (8–14) | 10 (7–17) | 4 (2–4) | 3 (2–6) | 7/7 |
+| out of a shop | 367 (49–1416) | 74 (47–846) | 11 (8–26) | 11 (8–12) | 2 (2–12) | 2 (2–3) | 7/7 |
+| out of a shop, a part fitted | 655 (62–8308) | 211 (81–3801) | 51 (41–158) | 58 (38–78) | 6 (4–8) | 6 (3–7) | 7/7 |
+| out of a shop, a part fitted, after the shop's menus | 81 (25–230) | 74 (58–151) | 11 (10–17) | 12 (10–17) | 5 (3–8) | 5 (3–8) | 7/7 |
+| menu -> free roam, at once | 1433 (464–8881) | 855 (244–4355) | 104 (83–336) | 103 (81–222) | 12 (9–17) | 14 (6–18) | 7/7 |
+| menu -> free roam, preloaded | 1101 (424–2200) | 182 (106–222) | 494 (307–547) | 32 (29–41) | 466 (287–520) | 10 (8–16) | 7/7 |
+| free roam -> another region's race, at once | 905 (232–5557) | 648 (130–2627) | 80 (54–132) | 63 (57–114) | 11 (8–14) | 10 (9–12) | 7/7 |
+| that race -> free roam, at once | 1761 (519–6677) | 635 (264–1591) | 165 (97–246) | 112 (82–146) | 15 (12–34) | 12 (9–12) | 7/7 |
+| free roam -> another region's race, preloaded | 313 (273–1032) | 292 (230–518) | 106 (94–169) | 52 (36–74) | 75 (65–114) | 9 (8–14) | 7/7 |
+| that race -> free roam, preloaded | 927 (609–4160) | 456 (346–1120) | 309 (298–317) | 42 (32–48) | 285 (276–287) | 10 (6–11) | 7/7 |
+| menu -> Quick Race circuit | 1856 (498–4979) | 475 (225–781) | 153 (99–264) | 120 (90–150) | 19 (16–36) | 21 (14–23) | 7/7 |
+| menu -> Quick Race drag | 1143 (323–2011) | 371 (138–1018) | 84 (44–110) | 48 (40–75) | 10 (6–13) | 7 (5–8) | 7/7 |
+| Quick Race circuit from its car select | 575 (394–1490) | 164 (140–382) | 344 (334–483) | 53 (40–71) | 315 (300–445) | 19 (14–29) | 7/7 |
+| Quick Race drag from its car select | 304 (114–1368) | 119 (74–264) | 34 (23–53) | 26 (22–38) | 7 (5–15) | 5 (4–7) | 7/7 |
+
+== Attribution, the base binary (one run, NFSU2_AMBIENT_STATS=1, load average 19.8): every preloaded load places the
+   props twice, the menus' preload and the first frame (its "world: road reflection, main view" span):
+ambient detail: 336719 props, 508 drains (248 steam), 325 vents, 146017 ground tris, 300 ms
+ambient detail: 336719 props, 508 drains (248 steam), 325 vents, 146017 ground tris, 280 ms
+free roam, first load: load 76 ms, with its first frame 1028 ms; track loads 1, PC_Loading shown 0
+ambient detail: 336719 props, 508 drains (248 steam), 325 vents, 146017 ground tris, 530 ms
+ambient detail: 336719 props, 508 drains (248 steam), 325 vents, 146017 ground tris, 370 ms
+menu -> free roam, preloaded: load 31 ms, with its first frame 563 ms; track loads 1, PC_Loading shown 0
+ambient detail: 0 props, 0 drains (0 steam), 0 vents, 71966 ground tris, 89 ms
+ambient detail: 0 props, 0 drains (0 steam), 0 vents, 72594 ground tris, 96 ms
+free roam -> another region's race, preloaded: load 79 ms, with its first frame 502 ms; track loads 1, PC_Loading shown 0
+ambient detail: 336719 props, 508 drains (248 steam), 325 vents, 146017 ground tris, 287 ms
+ambient detail: 336719 props, 508 drains (248 steam), 325 vents, 146017 ground tris, 294 ms
+that race -> free roam, preloaded: load 227 ms, with its first frame 642 ms; track loads 1, PC_Loading shown 0
+ambient detail: 336719 props, 508 drains (248 steam), 325 vents, 146017 ground tris, 301 ms
+ambient detail: 336719 props, 508 drains (248 steam), 325 vents, 146017 ground tris, 290 ms
+Quick Race circuit from its car select: load 70 ms, with its first frame 608 ms; track loads 1, PC_Loading shown 0
+
+== The new binary (one run, the slot decisions kept but before the fast hasher; load average 42): the preloaded city
+   loads place them once (the preload); the URL circuit's race (L4RG) places them again in the load's warm-up (its own job):
+ambient detail: 336719 props, 508 drains (248 steam), 325 vents, 146017 ground tris, 2316 placements of use, 247 ms
+[time] warm: ambient detail: 0.4 ms (thread cpu 0.4 ms)
+free roam, first load: load 78 ms, with its first frame 545 ms
+ambient detail: 336719 props, 508 drains (248 steam), 325 vents, 146017 ground tris, 2316 placements of use, 145 ms
+[time] warm: ambient detail: 0.6 ms (thread cpu 0.0 ms)
+menu -> free roam, preloaded: load 73 ms, with its first frame 205 ms
+ambient detail: 0 props, 0 drains (0 steam), 0 vents, 71966 ground tris, 718 placements of use, 24 ms
+ambient detail: 0 props, 0 drains (0 steam), 0 vents, 72594 ground tris, 718 placements of use, 63 ms
+[time] warm: ambient detail: 69.1 ms (thread cpu 38.6 ms)
+free roam -> another region's race, preloaded: load 132 ms, with its first frame 263 ms
+ambient detail: 336719 props, 508 drains (248 steam), 325 vents, 146017 ground tris, 2316 placements of use, 129 ms
+[time] warm: ambient detail: 0.2 ms (thread cpu 0.0 ms)
+that race -> free roam, preloaded: load 209 ms, with its first frame 329 ms
+ambient detail: 336719 props, 508 drains (248 steam), 325 vents, 146017 ground tris, 2316 placements of use, 167 ms
+[time] warm: ambient detail: 0.3 ms (thread cpu 0.0 ms)
+Quick Race circuit from its car select: load 94 ms, with its first frame 315 ms

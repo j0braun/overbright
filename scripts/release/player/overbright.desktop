@@ -1,0 +1,13 @@
+[Desktop Entry]
+# Copy to ~/.local/share/applications/ and set Exec= to the full path of the overbright program
+# (see README.txt); Icon= finds overbright.png in ~/.local/share/icons/hicolor/256x256/apps/.
+Type=Application
+Version=1.0
+Name=Overbright
+GenericName=Racing game
+Comment=Need for Speed Underground 2 reimplementation (needs your own copy of the game)
+Exec=overbright
+Icon=overbright
+Terminal=false
+Categories=Game;ActionGame;
+Keywords=racing;nfs;underground;

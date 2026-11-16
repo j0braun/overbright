@@ -1,0 +1,26 @@
+exact records; frames 1201 / 1201
+558 of 575 columns equal on all 1201 frames
+[global] 11/14 equal:
+    clock                    first differs at frame     0  max |diff| 3
+    frame_n                  first differs at frame     0  max |diff| 636
+    shared_rng               first differs at frame     0  max |diff| 4.1293e+09
+[cam_eye] 0/3 equal:
+    cam_eye.z                first differs at frame    26  max |diff| 7.15256e-05
+    cam_eye.x                first differs at frame    73  max |diff| 0.000305176
+    cam_eye.y                first differs at frame    73  max |diff| 0.000274658
+[cam_fwd] 0/3 equal:
+    cam_fwd.z                first differs at frame    65  max |diff| 0.000200749
+    cam_fwd.x                first differs at frame    73  max |diff| 0.000126481
+    cam_fwd.y                first differs at frame    73  max |diff| 0.000190921
+[c0] 125/126 equal:
+    c0.placed_at             first differs at frame     0  max |diff| 3
+[c1] 141/143 equal:
+    c1.placed_at             first differs at frame     0  max |diff| 3
+    c1.ai_obj                first differs at frame    83  max |diff| 2.67932e+08
+[c2] 140/143 equal:
+    c2.placed_at             first differs at frame     0  max |diff| 3
+    c2.ai_obj                first differs at frame    36  max |diff| 2.67932e+08
+    c2.ai_reach              first differs at frame   692  max |diff| 4.2039e-45
+[c3] 141/143 equal:
+    c3.placed_at             first differs at frame     0  max |diff| 3
+    c3.ai_obj                first differs at frame    45  max |diff| 2.67932e+08

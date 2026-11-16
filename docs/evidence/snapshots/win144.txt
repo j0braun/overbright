@@ -1,0 +1,5 @@
+# Tick snapshots: 144 Hz windowed run (Xvfb :173, NFSU2_FRAME_CAP=144, free roam, 2026-11-12, load avg > 100)
+frames 2039  frame time ms: mean 10.84 p50 7.23 p95 22.47 max 533.46; ticks/frame [912, 1022, 94, 11]
+drawn speed m/s: mean 6.34 sd 8.34 (cv 131.5 %) min 0.02 max 37.34
+second difference |d2p/dt2| m/s2: p50 21.8 p95 270.3 max 3845.2
+base's lerp on the same frames: 1926 frames compared, max |base - new| 0.000244 m (trace has 6 decimals)

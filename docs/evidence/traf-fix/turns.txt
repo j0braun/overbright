@@ -1,0 +1,122 @@
+# freeroam_walk (original fw1, 300 s) vs clone, 6 streams x 300 s at the same stand (462.4,-46.2,18.3,-20.2)
+# before = the clone's absolute length after a turn; after = relative to the walk's first point (the traffic-walk fix)
+## before
+TURNS 423:6	2/0/1	|	19/0/14
+TURNS 446:1	0/0/0	|	3/0/0
+TURNS 446:10	1/0/0	|	16/0/0
+TURNS 459:3	2/0/0	|	29/0/0
+TURNS 460:2	0/0/0	|	11/0/0
+TURNS 492:4	7/0/0	|	23/0/0
+TURNS 492:6	5/0/0	|	46/0/0
+TURNS 495:2	4/0/0	|	20/0/0
+TURNS 730:9	0/0/0	|	10/0/0
+TURNS 734:14	44/0/0	|	114/0/0
+TURNS 734:16	33/0/0	|	114/0/0
+TURNS 734:22	13/0/0	|	74/0/0
+TURNS total	original 0/115 | clone 0/484
+## after
+TURNS 423:6	2/0/1	|	19/0/14
+TURNS 446:1	0/0/0	|	3/0/0
+TURNS 446:10	1/0/0	|	16/0/0
+TURNS 459:3	2/0/0	|	29/0/0
+TURNS 460:2	0/0/0	|	11/0/0
+TURNS 492:4	7/0/0	|	23/0/0
+TURNS 492:6	5/0/0	|	46/0/0
+TURNS 495:2	4/0/0	|	20/0/0
+TURNS 730:9	0/0/0	|	10/0/0
+TURNS 734:14	44/0/0	|	114/0/0
+TURNS 734:16	33/0/0	|	114/0/0
+TURNS 734:22	13/0/0	|	74/0/0
+TURNS total	original 0/115 | clone 0/483
+
+# qr_walk_4014 (original qr1, Resort Loop, traffic maximum, 150 s from the green) vs clone (6 streams, Quick Race circuit 4014, traffic 3, 150 s + 30 s)
+## before
+TURNS 423:27	0/0/0	|	9/0/0
+TURNS 423:30	0/0/0	|	3/0/0
+TURNS 423:32	0/0/0	|	14/0/0
+TURNS 435:11	3/0/0	|	2/0/0
+TURNS 435:25	1/0/0	|	2/0/0
+TURNS 444:13	0/0/0	|	4/0/0
+TURNS 444:14	0/0/0	|	3/0/0
+TURNS 444:16	0/0/0	|	3/0/0
+TURNS 446:3	0/0/0	|	3/0/0
+TURNS 455:3	1/0/0	|	6/0/0
+TURNS 455:9	0/0/0	|	4/0/0
+TURNS 477:6	9/0/0	|	23/0/0
+TURNS 477:8	10/0/0	|	24/3/0
+TURNS 784:6	0/0/0	|	3/0/0
+TURNS 784:8	0/0/0	|	3/0/0
+TURNS 784:11	0/0/0	|	4/0/0
+TURNS total	original 0/33 | clone 5/133
+MODES mode 2 avoid false: 145388 car-frames, under 3 m/s 35001, negative 0
+MODES mode 2 avoid true: 7281 car-frames, under 3 m/s 2328, negative 0
+MODES mode 3 avoid false: 48280 car-frames, under 3 m/s 7195, negative 2588
+MODES mode 3 avoid true: 235264 car-frames, under 3 m/s 83054, negative 38054
+MODES mode 4 avoid false: 59253 car-frames, under 3 m/s 25897, negative 0
+MODES mode 4 avoid true: 16830 car-frames, under 3 m/s 9394, negative 2571
+## after
+TURNS 423:27	0/0/0	|	9/0/0
+TURNS 423:30	0/0/0	|	3/0/0
+TURNS 423:32	0/0/0	|	14/0/0
+TURNS 435:11	3/0/0	|	2/0/0
+TURNS 435:25	1/0/0	|	2/0/0
+TURNS 444:13	0/0/0	|	4/0/0
+TURNS 444:14	0/0/0	|	3/0/0
+TURNS 444:16	0/0/0	|	3/0/0
+TURNS 446:3	0/0/0	|	3/0/0
+TURNS 455:3	1/0/0	|	6/0/0
+TURNS 455:9	0/0/0	|	4/0/0
+TURNS 477:6	9/0/0	|	23/0/0
+TURNS 477:8	10/0/0	|	24/3/0
+TURNS 784:6	0/0/0	|	3/0/0
+TURNS 784:8	0/0/0	|	3/0/0
+TURNS 784:11	0/0/0	|	4/0/0
+TURNS total	original 0/33 | clone 5/133
+MODES mode 2 avoid false: 145388 car-frames, under 3 m/s 35001, negative 0
+MODES mode 2 avoid true: 7281 car-frames, under 3 m/s 2328, negative 0
+MODES mode 3 avoid false: 48280 car-frames, under 3 m/s 7195, negative 2588
+MODES mode 3 avoid true: 235264 car-frames, under 3 m/s 83054, negative 38054
+MODES mode 4 avoid false: 59253 car-frames, under 3 m/s 25897, negative 0
+MODES mode 4 avoid true: 16830 car-frames, under 3 m/s 9394, negative 2571
+
+# with the placer's road node too (HumanRoad::node, a follow-up)
+## free roam
+TURNS 423:6	2/0/1	|	19/0/14
+TURNS 446:1	0/0/0	|	3/0/0
+TURNS 446:10	1/0/0	|	16/0/0
+TURNS 459:3	2/0/0	|	29/0/0
+TURNS 460:2	0/0/0	|	11/0/0
+TURNS 492:4	7/0/0	|	23/0/0
+TURNS 492:6	5/0/0	|	46/0/0
+TURNS 495:2	4/0/0	|	20/0/0
+TURNS 730:9	0/0/0	|	10/0/0
+TURNS 734:14	44/0/0	|	114/0/0
+TURNS 734:16	33/0/0	|	114/0/0
+TURNS 734:22	13/0/0	|	74/0/0
+TURNS total	original 0/115 | clone 0/483
+MODES mode 2 avoid false: 142622 car-frames, under 3 m/s 1015, negative 0
+MODES mode 2 avoid true: 4920 car-frames, under 3 m/s 38, negative 0
+MODES mode 3 avoid false: 211510 car-frames, under 3 m/s 25537, negative 560
+MODES mode 3 avoid true: 610903 car-frames, under 3 m/s 328984, negative 131815
+MODES mode 4 avoid false: 56483 car-frames, under 3 m/s 152, negative 0
+MODES mode 4 avoid true: 19267 car-frames, under 3 m/s 1333, negative 654
+## race
+TURNS 423:27	0/0/0	|	10/0/0
+TURNS 423:32	0/0/0	|	13/0/0
+TURNS 425:9	1/0/0	|	2/0/0
+TURNS 435:9	1/0/0	|	3/1/0
+TURNS 435:11	3/0/0	|	2/0/0
+TURNS 435:25	1/0/0	|	2/0/0
+TURNS 455:3	1/0/0	|	12/0/1
+TURNS 455:7	0/0/0	|	6/0/0
+TURNS 477:6	9/0/0	|	25/0/0
+TURNS 477:8	10/0/0	|	27/1/0
+TURNS 784:6	0/0/0	|	3/0/0
+TURNS 784:11	0/0/0	|	3/0/0
+TURNS total	original 0/33 | clone 4/146
+MODES mode 2 avoid false: 144689 car-frames, under 3 m/s 32730, negative 0
+MODES mode 2 avoid true: 4420 car-frames, under 3 m/s 605, negative 0
+MODES mode 3 avoid false: 51788 car-frames, under 3 m/s 8739, negative 3078
+MODES mode 3 avoid true: 255522 car-frames, under 3 m/s 85192, negative 38368
+MODES mode 4 avoid false: 56126 car-frames, under 3 m/s 22872, negative 242
+MODES mode 4 avoid true: 14054 car-frames, under 3 m/s 8148, negative 1459

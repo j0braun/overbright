@@ -1,0 +1,31 @@
+# free roam stand (462/-46... TURN_AT default 450,-60), belt Avoid share (traf-2/stats.py), 8 streams x 300 s each side
+# clone before
+stream 0: belt samples 907, Avoid Cars 162 (17.9 %), under 3 m/s 0 (0.0 % of it), asked 0 0 (0.0 %)
+stream 1: belt samples 1644, Avoid Cars 313 (19.0 %), under 3 m/s 0 (0.0 % of it), asked 0 0 (0.0 %)
+stream 2: belt samples 2638, Avoid Cars 451 (17.1 %), under 3 m/s 0 (0.0 % of it), asked 0 0 (0.0 %)
+stream 3: belt samples 3116, Avoid Cars 1163 (37.3 %), under 3 m/s 38 (3.3 % of it), asked 0 16 (1.4 %)
+stream 4: belt samples 1868, Avoid Cars 428 (22.9 %), under 3 m/s 0 (0.0 % of it), asked 0 0 (0.0 %)
+stream 5: belt samples 2464, Avoid Cars 919 (37.3 %), under 3 m/s 38 (4.1 % of it), asked 0 32 (3.5 %)
+stream 6: belt samples 2607, Avoid Cars 1083 (41.5 %), under 3 m/s 0 (0.0 % of it), asked 0 0 (0.0 %)
+stream 7: belt samples 2726, Avoid Cars 719 (26.4 %), under 3 m/s 88 (12.2 % of it), asked 0 64 (8.9 %)
+clone total: belt samples 17970, Avoid Cars 5238 (29.1 %), under 3 m/s 164 (3.1 % of it), asked 0 112 (2.1 %)
+nearest active traffic car    <30:   2.2 % of belt samples, avoiding in 78.4 %
+nearest active traffic car    <60:  22.1 % of belt samples, avoiding in 51.4 %
+nearest active traffic car   <125:  49.9 % of belt samples, avoiding in 30.4 %
+nearest active traffic car  >=125:  25.9 % of belt samples, avoiding in 3.7 %
+# clone after
+stream 0: belt samples 2133, Avoid Cars 602 (28.2 %), under 3 m/s 0 (0.0 % of it), asked 0 0 (0.0 %)
+stream 1: belt samples 2060, Avoid Cars 839 (40.7 %), under 3 m/s 0 (0.0 % of it), asked 0 0 (0.0 %)
+stream 2: belt samples 3728, Avoid Cars 1509 (40.5 %), under 3 m/s 0 (0.0 % of it), asked 0 0 (0.0 %)
+stream 3: belt samples 4607, Avoid Cars 1191 (25.9 %), under 3 m/s 54 (4.5 % of it), asked 0 48 (4.0 %)
+stream 4: belt samples 2125, Avoid Cars 919 (43.2 %), under 3 m/s 0 (0.0 % of it), asked 0 0 (0.0 %)
+stream 5: belt samples 1226, Avoid Cars 461 (37.6 %), under 3 m/s 0 (0.0 % of it), asked 0 0 (0.0 %)
+stream 6: belt samples 2982, Avoid Cars 1192 (40.0 %), under 3 m/s 0 (0.0 % of it), asked 0 0 (0.0 %)
+stream 7: belt samples 3196, Avoid Cars 1017 (31.8 %), under 3 m/s 25 (2.5 % of it), asked 0 32 (3.1 %)
+clone total: belt samples 22057, Avoid Cars 7730 (35.0 %), under 3 m/s 79 (1.0 % of it), asked 0 80 (1.0 %)
+nearest active traffic car    <30:   7.2 % of belt samples, avoiding in 57.4 %
+nearest active traffic car    <60:  33.6 % of belt samples, avoiding in 53.2 %
+nearest active traffic car   <125:  38.0 % of belt samples, avoiding in 33.3 %
+nearest active traffic car  >=125:  21.2 % of belt samples, avoiding in 1.7 %
+# native fw1 (the belt measurement's run; its table: 2 runs 13.6 %)
+native total: belt samples 2642, Avoid Cars 590 (22.3 %), under 3 m/s 0 (0.0 % of it), asked 0 0 (0.0 %)

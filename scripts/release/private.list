@@ -1,0 +1,453 @@
+# Paths that move to the private companion repo (release plan C-c). Prefix (dir/) or exact path or fnmatch glob.
+# text scan skips them; binary scan accepts files under them (but not shipping src embedding them).
+# docs/: records of sessions, playthroughs, audits and units (who did what when), the refactor's move map and plans,
+# benchmark logs, screenshots of the game, and the third-party map pack note (docs-table.md in the release audit).
+docs/refactor/
+docs/bayview-240sx.png
+docs/bayview-bridge.png
+docs/bayview-night.png
+docs/chase-240sx.png
+docs/playthrough-*.md
+docs/menus-audit.md
+docs/career-audit.md
+docs/gaps.md
+docs/l1-leftovers.md
+docs/known-gaps-p16.md
+docs/user-reports-2026-11.md
+docs/gfx-issues-2026-11.md
+docs/drag-check-2026-11.md
+docs/small-fixes-2026-11.md
+docs/drive-parity.md
+docs/recovered-*.md
+docs/outrun-recovery-investigation.md
+docs/tyre-export-lifetime-inventory.md
+docs/reverse-refresh-rea.md
+docs/detailed-map.md
+# docs/evidence/ per folder (release plan §1b, evidence-table.md): PRIVATE folders whole; SPLIT folders keep the notes
+# named on the "# split" line public, everything else in them is private; KEEP folders are not listed.
+docs/evidence/ai-t/
+docs/evidence/ambient-detail/
+docs/evidence/assets-distance/
+docs/evidence/atmosphere/
+docs/evidence/audio-levels/
+docs/evidence/bf1-max-rain/
+docs/evidence/boundary-replay/
+docs/evidence/cached-forward-speed/
+docs/evidence/cached-wheel-count/
+# split: public notes = README.md
+docs/evidence/car-draw-height/*.asm
+docs/evidence/car-draw-height/*.log
+docs/evidence/car-draw-height/*.txt
+docs/evidence/car-lights/
+docs/evidence/car-materials/
+docs/evidence/car-paint-enhanced/
+docs/evidence/car-raindrops/
+docs/evidence/car-scene-specular/
+docs/evidence/car-shading/
+docs/evidence/cheats/
+# split: public notes = README.md
+docs/evidence/chrome-flicker/*.jpg
+docs/evidence/chrome-flicker/*.txt
+docs/evidence/controller-support/
+# split: public notes = README.md
+docs/evidence/cover-lighting/*.dis
+docs/evidence/cover-lighting/*.json
+docs/evidence/cover-lighting/*.log
+docs/evidence/cover-lighting/*.png
+# split: public notes = README.md
+docs/evidence/cover-placement/*.asm
+docs/evidence/cover-placement/*.bin
+docs/evidence/cover-placement/*.json
+docs/evidence/cover-placement/*.log
+docs/evidence/cover-placement/*.png
+docs/evidence/cover-placement/*.py
+docs/evidence/cover-placement/*.txt
+# split: public notes = README.md
+docs/evidence/cover-shadow/*.bin
+docs/evidence/cover-shadow/*.json
+docs/evidence/cover-shadow/*.log
+docs/evidence/cover-shadow/*.png
+docs/evidence/cover-shadow/*.py
+docs/evidence/cover-shadow/*.txt
+docs/evidence/crash-camera-park/
+docs/evidence/d15-vram/
+docs/evidence/drag-check-2026-11/
+docs/evidence/drag-drift-outrun/
+docs/evidence/drag-stage4/
+docs/evidence/drag-stage4-p10/
+docs/evidence/drag-stage4-p11/
+docs/evidence/drag-stage4-p13/
+docs/evidence/drag-stage4-p9b/
+docs/evidence/drive-parity/
+# split: the two perfgate notes stay public
+docs/evidence/dx2/*.py
+docs/evidence/dx2/*.sh
+docs/evidence/dx2/*.txt
+docs/evidence/dx2/*.webp
+# split: public notes = perfgate-vs-20261106-0446.md
+docs/evidence/dx3/*.py
+docs/evidence/dx3/*.sh
+docs/evidence/dx3/*.txt
+docs/evidence/dx3/*.webp
+docs/evidence/dyno-exit/
+docs/evidence/ealayer3-output/
+docs/evidence/ending-hold-audio/
+docs/evidence/enh-ticks/        # screenshots of the game (before/after crops), nothing else in the folder
+# split: public notes = README.md
+docs/evidence/engine-level/*.gz
+docs/evidence/engine-level/*.py
+# split: public notes = README.md
+docs/evidence/fe-authored-animation/*.asm
+docs/evidence/fe-authored-animation/*.bin
+docs/evidence/fe-authored-animation/*.json
+docs/evidence/fe-authored-animation/*.log
+docs/evidence/fe-authored-animation/*.png
+docs/evidence/fe-authored-animation/*.py
+docs/evidence/fe-authored-animation/*.rs
+docs/evidence/fe-authored-animation/*.txt
+docs/evidence/fe-authored-animation/SHA256SUMS
+docs/evidence/fe-backdrops/
+# split: public notes = README.md
+docs/evidence/fe-door-transitions/*.asm
+docs/evidence/fe-door-transitions/*.bin
+docs/evidence/fe-door-transitions/*.json
+docs/evidence/fe-door-transitions/*.log
+docs/evidence/fe-door-transitions/*.png
+docs/evidence/fe-door-transitions/*.py
+docs/evidence/fe-door-transitions/*.txt
+docs/evidence/fe-door-transitions/SHA256SUMS
+# split: public notes = README.md
+docs/evidence/fe-open-part/*.asm
+docs/evidence/fe-open-part/*.bin
+docs/evidence/fe-open-part/*.json
+docs/evidence/fe-open-part/*.log
+docs/evidence/fe-open-part/*.png
+docs/evidence/fe-open-part/*.py
+docs/evidence/fe-open-part/*.txt
+docs/evidence/fe-open-part/SHA256SUMS
+# split: public notes = README.md
+docs/evidence/fe-reflection-lighting/*.asm
+docs/evidence/fe-reflection-lighting/*.bin
+docs/evidence/fe-reflection-lighting/*.json
+docs/evidence/fe-reflection-lighting/*.log
+docs/evidence/fe-reflection-lighting/*.py
+docs/evidence/fe-reflection-lighting/*.txt
+# split: public notes = README.md
+docs/evidence/fe-reflection-plane/*.asm
+docs/evidence/fe-reflection-plane/*.bin
+docs/evidence/fe-reflection-plane/*.json
+docs/evidence/fe-reflection-plane/*.log
+docs/evidence/fe-reflection-plane/*.png
+docs/evidence/fe-reflection-plane/*.py
+docs/evidence/fe-reflection-plane/*.txt
+docs/evidence/free-roam-routes/   # the original's free-roam route tables in memory (Wine), read by the ai_routes post-load test
+docs/evidence/race-routes/   # the original's race route tables in memory (Wine), read by the racing-line speed test
+# split: public notes = perfgate/ab_rain_max_4k.md, perfgate-d14b/perfgate.md
+docs/evidence/fsr2/*.log
+docs/evidence/fsr2/*.py
+docs/evidence/fsr2/*.sh
+docs/evidence/fsr2/*.tsv
+docs/evidence/fsr2/*.txt
+docs/evidence/fsr2/*.webp
+# split: public notes = README.md, precision-replay.md
+docs/evidence/full-phase-inputs/*.bin
+docs/evidence/full-phase-inputs/*.csv
+docs/evidence/full-phase-inputs/*.json
+docs/evidence/full-phase-inputs/*.py
+docs/evidence/full-phase-inputs/*.s
+docs/evidence/full-phase-inputs/*.txt
+docs/evidence/full-phase-inputs/*.zlib
+docs/evidence/full-phase-inputs/SHA256SUMS
+docs/evidence/full-phase-inputs/camber-replay.md
+docs/evidence/full-phase-inputs/ground-replay.md
+docs/evidence/full-phase-inputs/hub-replay.md
+# split: public notes = carbox.py, table.txt
+docs/evidence/gfx-b1/*.webp
+# split: public notes = boxes.py, table.txt
+docs/evidence/gfx-b2/*.webp
+# split: public notes = README.md, bench.tsv, jets.py, wet.py, table-before.txt, table-after.txt
+docs/evidence/gfx-b3/*.webp       # screenshots of the game
+docs/evidence/gfx1-2026-11/
+docs/evidence/glow-darkening/
+docs/evidence/gfx-bug-2/          # screenshots of the game; its probes and notes have no README (PRIVATE by the evidence table's rule)
+docs/evidence/gps-reflection/
+docs/evidence/graphics-settings-audit/
+docs/evidence/gs1-game-side/
+# split: public notes = README.md
+docs/evidence/hdr/*.jpg
+docs/evidence/hdr/*.png
+# split: public notes = README.md
+docs/evidence/hdr-post/*.png
+docs/evidence/hdr-post/*.webp
+docs/evidence/intro-skip-grid/
+docs/evidence/l1-leftovers/
+docs/evidence/l2-leftovers/
+docs/evidence/l3-leftovers/
+docs/evidence/l4-leftovers/
+# split: public notes = README.md
+docs/evidence/lamps-shadows/*.py
+docs/evidence/lamps-shadows/*.sh
+docs/evidence/lamps-shadows/*.webp
+docs/evidence/lighting2/
+docs/evidence/list-openings/
+docs/evidence/loading-image/
+docs/evidence/look-direction/
+docs/evidence/magazine-covers/
+docs/evidence/model-fixes/
+# split: public notes = review_log_lead.md, mf3b/review_log.md
+docs/evidence/model-review/*.jpg
+docs/evidence/model-review/review_forks/
+docs/evidence/model-review/mf3b/checklist.md
+# split: public notes = README.md
+docs/evidence/modern-extras/*.log
+docs/evidence/modern-extras/*.sh
+docs/evidence/modern-extras/*.tsv
+docs/evidence/modern-extras/*.txt
+docs/evidence/modern-extras/*.webp
+docs/evidence/modern-lighting/
+docs/evidence/modern-lighting-2/
+# split: public notes = README.md
+docs/evidence/motionblur-dof/*.sh
+docs/evidence/motionblur-dof/*.tsv
+docs/evidence/motionblur-dof/*.txt
+docs/evidence/motionblur-dof/*.webp
+docs/evidence/n-ai/
+docs/evidence/n-mix/              # a trace of the original under Wine (the human path per frame), read by a test through testkit::private
+docs/evidence/n-cam/
+docs/evidence/n-rng/
+docs/evidence/native-fixes/     # delete candidate (unreferenced clone shots; release plan §1b)
+docs/evidence/native-integrator/
+docs/evidence/neon/
+docs/evidence/neon-driving/
+# split: public notes = README.md
+docs/evidence/nis-audio-pattern/*.S
+docs/evidence/nis-audio-pattern/*.bin
+docs/evidence/nis-audio-pattern/*.json
+docs/evidence/nis-audio-pattern/*.py
+docs/evidence/nis-audio-pattern/*.txt
+docs/evidence/nis-audio-pattern/SHA256SUMS
+# split: public notes = README.md
+docs/evidence/nis-audio-pattern4/*.bin
+docs/evidence/nis-audio-pattern4/*.json
+docs/evidence/nis-audio-pattern4/*.py
+docs/evidence/nis-audio-pattern4/*.zlib
+docs/evidence/nis-audio-pattern4/SHA256SUMS
+# split: public notes = README.md
+docs/evidence/nis-audio-patterns/*.S
+docs/evidence/nis-audio-patterns/*.bin
+docs/evidence/nis-audio-patterns/*.py
+docs/evidence/nis-audio-patterns/*.txt
+docs/evidence/nis-audio-patterns/*.zlib
+docs/evidence/nis-audio-patterns/SHA256SUMS
+docs/evidence/nis-mover/
+# split: public notes = live-derivatives/README.md, live-components/README.md, live-precision/README.md
+docs/evidence/nis-mover-step/*.asm
+docs/evidence/nis-mover-step/*.bin
+docs/evidence/nis-mover-step/*.json
+docs/evidence/nis-mover-step/*.py
+docs/evidence/nis-mover-step/*.s
+docs/evidence/nis-mover-step/*.txt
+docs/evidence/nis-mover-step/live-components/SHA256SUMS
+docs/evidence/nis-mover-step/live-derivatives/SHA256SUMS
+docs/evidence/nis-mover-step/live-precision/SHA256SUMS
+docs/evidence/nis-torque/
+# split: public notes = belt-applicability/README.md
+docs/evidence/outrun/*.asm
+docs/evidence/outrun/*.bin
+docs/evidence/outrun/*.csv
+docs/evidence/outrun/*.gz
+docs/evidence/outrun/*.json
+docs/evidence/outrun/*.log
+docs/evidence/outrun/*.py
+docs/evidence/outrun/*.s
+docs/evidence/outrun/*.txt
+docs/evidence/outrun/*.zlib
+docs/evidence/outrun/belt-integration/
+docs/evidence/outrun/belt-applicability/SHA256SUMS
+docs/evidence/outrun-ai-strength/
+docs/evidence/outrun-live/
+docs/evidence/outrun-pace/
+docs/evidence/outrun-s45/
+docs/evidence/outrun-speech/
+docs/evidence/overlay/
+docs/evidence/p12-racer-traffic/
+docs/evidence/p8-gaps/
+docs/evidence/parity-harness/
+docs/evidence/particles-smoke/
+# split: the two perfgate notes stay public
+docs/evidence/perf-budget/*.json
+docs/evidence/perf-budget/*.log
+docs/evidence/perf-budget/*.tsv
+docs/evidence/perf-budget/*.webp
+docs/evidence/perf-budget/budget-igpu.md
+docs/evidence/perf-budget/budget-rx7800xt.md
+docs/evidence/perf-budget/dx0b-runs.md
+docs/evidence/perf-budget/perfgate-seed-AA.md
+docs/evidence/perf-main-thread/
+docs/evidence/perf-shop/
+docs/evidence/photo-challenge-hud/
+docs/evidence/photo-mode/
+docs/evidence/platform-windows/
+# split: public notes = README.md
+docs/evidence/player-nitro-coverage/*.asm
+docs/evidence/player-nitro-coverage/*.json
+docs/evidence/player-nitro-coverage/*.jsonl
+docs/evidence/player-nitro-coverage/*.log
+docs/evidence/playthrough-s4-ending/     # delete candidate (unreferenced clone shots; release plan §1b)
+docs/evidence/pop-in/
+docs/evidence/positive-dt-native/
+docs/evidence/post-scale/
+docs/evidence/prop-hits/          # traces of the original under Wine (collision sound levels, queries) and their capture scripts; read by a test through testkit::private
+docs/evidence/race-ai-parity/
+# split: public notes = README.md
+docs/evidence/race-endings/*.asm
+docs/evidence/race-endings/*.json
+docs/evidence/race-endings/*.py
+docs/evidence/race-endings/*.txt
+docs/evidence/rain-nextgen/
+docs/evidence/rating-flash/
+docs/evidence/release/
+docs/evidence/replay-cameras/
+# split: public notes = findings.md, table.md
+docs/evidence/resolutions/*.gz
+docs/evidence/resolutions/*.jpg
+docs/evidence/resolutions/*.txt
+docs/evidence/resolutions/res2-table.md
+# split: public notes = README.md
+docs/evidence/rest-components/*.bin
+docs/evidence/rest-components/*.json
+docs/evidence/rest-components/*.py
+docs/evidence/rest-components/*.txt
+docs/evidence/reverse-refresh/
+docs/evidence/rng-t/
+# split: public notes = README.md
+docs/evidence/rt-reflections/*.jpg
+docs/evidence/rt-reflections/*.py
+docs/evidence/rt-reflections/*.txt
+# split: public notes = README.md
+docs/evidence/s2-reflections/*.jpg
+docs/evidence/s2-reflections/*.txt
+# split: public notes = README.md, waveform.md
+docs/evidence/s3-audio/*.json
+docs/evidence/s3-audio/*.py
+docs/evidence/s3-audio/*.tsv
+docs/evidence/s3-audio/*.zlib
+docs/evidence/s4-career/
+docs/evidence/s5-visual/
+docs/evidence/s6-a6b/
+docs/evidence/save-points/
+docs/evidence/shadow-softness/
+# split: public notes = README.md
+docs/evidence/shop-part-animations/*.jpg
+docs/evidence/shop-record-store/
+# split: public notes = README.md
+docs/evidence/shop-scene-mover/*.jpg
+docs/evidence/shop-scene-mover/*.py
+docs/evidence/shop-scene-mover/*.tsv
+docs/evidence/shop-scene-mover/*.txt
+# split: public notes = README.md
+docs/evidence/showcase-picture/*.log
+docs/evidence/showcase-picture/*.png
+docs/evidence/showcase-picture/*.txt
+# split: public notes = README.md
+docs/evidence/showcase-shadow-lifecycle/*.asm
+docs/evidence/showcase-shadow-lifecycle/*.bin
+docs/evidence/showcase-shadow-lifecycle/*.elf
+docs/evidence/showcase-shadow-lifecycle/*.json
+docs/evidence/showcase-shadow-lifecycle/*.png
+docs/evidence/showcase-shadow-lifecycle/*.py
+docs/evidence/showcase-shadow-lifecycle/*.s
+docs/evidence/showcase-shadow-lifecycle/*.txt
+docs/evidence/showcase-shadow-lifecycle/*.zlib
+docs/evidence/showcase-shadow-lifecycle/.gitignore
+docs/evidence/small-fixes-2026-11/
+docs/evidence/smoke-nextgen/
+docs/evidence/smoke-volumetric/
+docs/evidence/smoke2/
+docs/evidence/sparks-fire/
+docs/evidence/speech-selection/
+docs/evidence/streetx-nitrous/
+docs/evidence/stuck-sound/
+docs/evidence/surface-maps/
+docs/evidence/surface-maps-cars/
+docs/evidence/suspension-load-phase/
+# split: public notes = README.md
+docs/evidence/temporal/*.sh
+docs/evidence/temporal/*.webp
+docs/evidence/texmod-import/
+docs/evidence/texture-pack/
+docs/evidence/texture-pack-cache/
+docs/evidence/tuning-physics-parity/
+# split: public notes = README.md
+docs/evidence/tyre-export-lifetime/*.bin
+docs/evidence/tyre-export-lifetime/*.json
+docs/evidence/tyre-export-lifetime/*.log
+docs/evidence/tyre-export-lifetime/*.py
+docs/evidence/tyre-export-lifetime/*.s
+docs/evidence/tyre-export-lifetime/*.txt
+docs/evidence/tyre-export-lifetime/*.zlib
+docs/evidence/tyre-export-lifetime/implementation/
+docs/evidence/tyre-export-lifetime/SHA256SUMS
+docs/evidence/ui-sampling/
+docs/evidence/ui-sharp/
+docs/evidence/ultrawide/
+docs/evidence/uncapped-fps/
+docs/evidence/user-reports-2026-11/
+docs/evidence/ux1a/
+docs/evidence/ux1b/
+docs/evidence/water/
+docs/evidence/water2/
+docs/evidence/water3/
+docs/evidence/water4/
+# split: public notes = README.md
+docs/evidence/weather/*.sh
+docs/evidence/weather/*.txt
+docs/evidence/weather/*.webp
+# split: public notes = README.md, g12c/README.md
+docs/evidence/wet-road-car/*.txt
+docs/evidence/wet-road-car/*.webp
+# split: public notes = README.md
+docs/evidence/wet-ssr/*.webp
+docs/evidence/world-systems/
+docs/evidence/world-systems-p5b/
+docs/evidence/world-systems-p5c/
+docs/evidence/world-systems-p5d/
+docs/evidence/world-systems-p5e/
+docs/evidence/world-systems-p5f/
+docs/benchmarks/
+docs/superpowers/
+review/
+analysis/
+devprobes/           # maintainer probes moved out of examples/ (docs/refactor/examples-triage.tsv); examples/ keeps the public tools and checks
+tools/
+tests/fixtures/native_saves/
+tests/fixtures/native_blocks/
+tests/fixtures/outrun-native/
+tests/fixtures/visual_rating/
+src/formats/native_save_fresh.bin
+CLAUDE.md
+.claude/
+scripts/dyno_motion.sh
+scripts/dyno_xvfb.sh
+scripts/preview_xtest.sh
+scripts/road_reflection.py
+scripts/import_hud_pack.py
+scripts/import_map_pack.py
+scripts/tests/
+scripts/release/families.private.txt
+scripts/checks/shot-renames.txt
+scripts/checks/fixture-renames.txt
+# files inside KEEP / SPLIT-note folders that carry a community-save name, a home path or recovery provenance
+docs/evidence/postrace-jitter/flow-before-after.txt
+docs/evidence/postrace-jitter/*-ending-car-speed.txt
+docs/evidence/test-determinism/outcomes.txt
+docs/evidence/test-determinism/shared20-summary.txt
+docs/evidence/streetx-bot-recovery/validation.json
+docs/evidence/world-clock/manifest.json
+docs/evidence/gfx-b1/carbox.py
+docs/evidence/gfx-b2/boxes.py
+# work records no test or public doc reads (they stay in the tree; the private companion keeps them)
+docs/evidence/checks/rate-2026-11-12-u2b.txt        # a rate run of one change before its merge; the merged runs are the evidence
+docs/evidence/checks/rate-2026-11-13-*.txt          # rate runs recorded at merges; docs/checks.md and rate-columns.txt read none of them
+docs/evidence/np-fix-1/playthrough.txt              # the playthrough log of one change's gate
+docs/evidence/perf-rain/bench.md                    # a before/after bench of one change against named builds

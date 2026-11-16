@@ -1,0 +1,140 @@
+Loads ahead: the measurements behind docs/perf-budget.md "Built: programs made ahead …" (the evening after the
+load-time inspection). Binaries: perf.sh build. base = the tree this work started from; new = the tree with the
+programs made ahead, the traced scene at the load and the water handed over; "now" = the tree as delivered
+(also the smoke handed over, the programs from the second frame, Quick Race loaded ahead in the bench).
+dgpu = the discrete GPU (shared with another program, its busy counter 26-100 %), igpu = the integrated GPU.
+Every series ran under the machine-wide measuring lock; load average 3-9.
+
+== 1. Before -> after, warm cache: --bench boot and --bench transitions with the menus first (2 runs per arm) ==
+
+## igpu 1920x1080: load + first frame, ms, median [min..max], base -> new; up to 2 runs per arm
+wait | Original | Low | Medium | High
+start -> first frame | 138 [74..201] -> 128 [63..194] | 138 [74..201] -> 128 [63..194] | 138 [74..201] -> 128 [63..194] | 138 [74..201] -> 128 [63..194]
+start -> title (Enter held) | 170 [117..222] -> 147 [77..217] | 170 [117..222] -> 147 [77..217] | 170 [117..222] -> 147 [77..217] | 170 [117..222] -> 147 [77..217]
+(the menus' work ahead) | 200 [165..236] -> 200 [188..211] | 157 [156..158] -> 192 [180..205] | 158 [144..172] -> 304 [237..371] | 179 [151..207] -> 297 [241..353]
+free roam, first load | 93 [92..94] -> 80 [67..92] | 86 [86..86] -> 69 [66..72] | 128 [127..129] -> 92 [74..111] | 184 [184..185] -> 146 [146..147]
+free roam -> race | 70 [65..75] -> 50 [35..66] | 40 [39..40] -> 38 [37..38] | 38 [37..39] -> 56 [38..74] | 56 [56..57] -> 60 [57..63]
+race -> free roam | 42 [34..51] -> 56 [21..91] | 22 [22..23] -> 23 [22..24] | 49 [49..49] -> 50 [49..50] | 80 [76..84] -> 82 [81..82]
+free roam -> race, rivals loaded ahead | 54 [53..54] -> 54 [54..55] | 58 [58..59] -> 58 [56..60] | 114 [114..114] -> 116 [113..119] | 202 [196..207] -> 210 [208..212]
+that race -> free roam, encounter racers loaded ahead | 64 [64..65] -> 64 [63..64] | 74 [73..76] -> 71 [70..72] | 147 [146..148] -> 150 [147..154] | 264 [261..268] -> 269 [266..272]
+into the garage | 23 [23..23] -> 21 [21..21] | 22 [21..22] -> 22 [21..23] | 33 [32..34] -> 53 [34..72] | 50 [38..62] -> 62 [61..62]
+into a shop | 18 [17..20] -> 20 [19..21] | 18 [18..18] -> 18 [18..19] | 20 [20..21] -> 32 [20..43] | 25 [25..25] -> 26 [25..27]
+out of the garage | 9 [8..10] -> 9 [9..9] | 10 [9..10] -> 8 [8..8] | 10 [9..10] -> 22 [11..32] | 18 [17..18] -> 16 [15..17]
+out of a shop | 22 [19..24] -> 19 [19..19] | 18 [17..19] -> 20 [19..20] | 28 [28..29] -> 66 [28..105] | 52 [50..53] -> 53 [53..53]
+out of a shop, a part fitted | 66 [55..76] -> 52 [50..53] | 56 [54..57] -> 52 [51..54] | 57 [56..58] -> 63 [59..67] | 118 [115..120] -> 113 [112..114]
+menu -> free roam, at once | 124 [123..125] -> 114 [113..115] | 118 [117..120] -> 112 [110..115] | 149 [143..155] -> 416 [146..685] | 160 [159..162] -> 166 [163..169]
+menu -> free roam, preloaded | 66 [62..70] -> 49 [33..65] | 74 [73..76] -> 66 [66..67] | 110 [110..111] -> 107 [84..130] | 156 [155..157] -> 116 [116..117]
+free roam -> another region's race, at once | 102 [87..118] -> 90 [68..111] | 77 [74..80] -> 74 [74..74] | 90 [87..93] -> 219 [87..351] | 117 [117..117] -> 119 [115..123]
+that race -> free roam, at once | 127 [113..141] -> 118 [115..122] | 124 [118..129] -> 117 [115..119] | 156 [153..158] -> 161 [159..163] | 202 [199..205] -> 204 [199..209]
+free roam -> another region's race, preloaded | 84 [80..87] -> 79 [78..80] | 94 [93..94] -> 85 [83..87] | 148 [148..148] -> 158 [141..174] | 241 [237..245] -> 236 [233..239]
+that race -> free roam, preloaded | 79 [70..88] -> 76 [72..81] | 84 [84..85] -> 86 [80..93] | 234 [230..239] -> 212 [194..230] | 353 [327..379] -> 299 [268..330]
+menu -> Quick Race circuit | 138 [119..157] -> 122 [118..125] | 130 [129..132] -> 164 [137..190] | 166 [163..170] -> 169 [169..169] | 208 [192..224] -> 190 [189..191]
+menu -> Quick Race drag | 104 [85..122] -> 123 [93..153] | 70 [68..73] -> 103 [70..136] | 96 [94..98] -> 107 [74..140] | 138 [134..143] -> 112 [94..131]
+new medians of 200 ms or more: free roam -> race, rivals loaded ahead (1 levels), that race -> free roam, encounter racers loaded ahead (1 levels), menu -> free roam, at once (1 levels), free roam -> another region's race, at once (1 levels), that race -> free roam, at once (1 levels), free roam -> another region's race, preloaded (1 levels), that race -> free roam, preloaded (2 levels)
+
+## dgpu 1920x1080: load + first frame, ms, median [min..max], base -> new; up to 2 runs per arm
+wait | Original | Low | Medium | High
+start -> first frame | 64 [64..65] -> 71 [70..72] | 64 [64..65] -> 71 [70..72] | 64 [64..65] -> 71 [70..72] | 64 [64..65] -> 71 [70..72]
+start -> title (Enter held) | 112 [109..114] -> 260 [171..349] | 112 [109..114] -> 260 [171..349] | 112 [109..114] -> 260 [171..349] | 112 [109..114] -> 260 [171..349]
+(the menus' work ahead) | 200 [117..283] -> 212 [203..220] | 190 [182..199] -> 249 [205..293] | 198 [195..201] -> 331 [291..371] | 156 [124..188] -> 280 [266..295]
+free roam, first load | 104 [88..120] -> 128 [123..134] | 102 [93..112] -> 123 [105..141] | 144 [138..151] -> 152 [133..170] | 110 [80..139] -> 78 [42..115]
+free roam -> race | 87 [75..99] -> 98 [82..114] | 50 [50..51] -> 95 [73..117] | 76 [75..76] -> 87 [86..88] | 62 [45..78] -> 94 [84..104]
+race -> free roam | 50 [44..56] -> 52 [51..53] | 26 [26..26] -> 45 [43..47] | 36 [34..39] -> 57 [48..66] | 30 [20..40] -> 46 [40..52]
+free roam -> race, rivals loaded ahead | 40 [40..41] -> 59 [55..63] | 50 [47..53] -> 102 [68..137] | 46 [43..49] -> 52 [30..73] | 44 [41..46] -> 56 [53..58]
+that race -> free roam, encounter racers loaded ahead | 44 [40..48] -> 61 [58..64] | 32 [28..35] -> 56 [51..62] | 49 [44..54] -> 53 [40..66] | 44 [36..52] -> 53 [44..62]
+into the garage | 34 [30..38] -> 36 [25..47] | 34 [30..38] -> 65 [55..75] | 38 [38..38] -> 44 [18..69] | 29 [27..31] -> 47 [39..55]
+into a shop | 32 [26..38] -> 33 [30..36] | 28 [26..30] -> 53 [51..55] | 30 [30..31] -> 42 [14..71] | 33 [33..33] -> 46 [42..51]
+out of the garage | 18 [17..20] -> 30 [26..34] | 20 [17..22] -> 32 [27..38] | 25 [25..25] -> 24 [22..25] | 35 [30..40] -> 34 [34..35]
+out of a shop | 19 [18..20] -> 35 [31..39] | 18 [17..20] -> 44 [41..48] | 38 [38..38] -> 38 [25..52] | 40 [39..42] -> 40 [34..46]
+out of a shop, a part fitted | 66 [65..66] -> 90 [82..98] | 70 [66..73] -> 116 [76..157] | 87 [87..87] -> 123 [95..151] | 125 [113..137] -> 155 [144..166]
+menu -> free roam, at once | 182 [181..183] -> 254 [245..263] | 183 [177..189] -> 300 [162..439] | 234 [234..234] -> 282 [265..298] | 246 [242..249] -> 227 [221..233]
+menu -> free roam, preloaded | 82 [76..87] -> 109 [107..111] | 82 [75..88] -> 120 [107..133] | 128 [125..131] -> 135 [123..147] | 153 [143..163] -> 140 [125..154]
+free roam -> another region's race, at once | 170 [163..177] -> 222 [208..235] | 127 [127..127] -> 154 [96..213] | 158 [152..164] -> 210 [190..230] | 120 [100..141] -> 148 [117..179]
+that race -> free roam, at once | 184 [180..187] -> 254 [233..275] | 188 [187..188] -> 226 [157..296] | 225 [212..238] -> 304 [290..318] | 216 [188..243] -> 311 [280..342]
+free roam -> another region's race, preloaded | 80 [80..80] -> 96 [92..99] | 86 [80..92] -> 101 [73..129] | 106 [106..106] -> 160 [152..169] | 124 [117..130] -> 122 [105..138]
+that race -> free roam, preloaded | 76 [76..77] -> 101 [91..111] | 82 [77..88] -> 107 [106..108] | 140 [128..153] -> 146 [104..187] | 170 [157..184] -> 132 [102..162]
+menu -> Quick Race circuit | 190 [186..193] -> 220 [204..235] | 199 [195..203] -> 254 [249..259] | 276 [271..282] -> 351 [223..479] | 324 [258..390] -> 356 [331..381]
+menu -> Quick Race drag | 164 [145..182] -> 212 [206..218] | 130 [128..133] -> 154 [138..170] | 159 [159..159] -> 194 [159..230] | 210 [132..289] -> 202 [192..211]
+new medians of 200 ms or more: start -> title (Enter held) (4 levels), menu -> free roam, at once (4 levels), free roam -> another region's race, at once (2 levels), that race -> free roam, at once (4 levels), menu -> Quick Race circuit (4 levels), menu -> Quick Race drag (2 levels)
+
+## dgpu 3840x2160: load + first frame, ms, median [min..max], base -> new; up to 2 runs per arm
+wait | Original | Low | Medium | High
+start -> first frame | 82 [68..95] -> 74 [71..76] | 82 [68..95] -> 74 [71..76] | 82 [68..95] -> 74 [71..76] | 82 [68..95] -> 74 [71..76]
+start -> title (Enter held) | 118 [112..124] -> 119 [117..121] | 118 [112..124] -> 119 [117..121] | 118 [112..124] -> 119 [117..121] | 118 [112..124] -> 119 [117..121]
+(the menus' work ahead) | 208 [196..219] -> 218 [183..253] | 146 [131..162] -> 272 [263..280] | 156 [129..182] -> 226 [190..263] | 135 [126..144] -> 334 [331..336]
+free roam, first load | 70 [58..81] -> 85 [54..116] | 69 [68..70] -> 110 [94..126] | 126 [93..160] -> 117 [78..156] | 100 [91..110] -> 136 [129..144]
+free roam -> race | 39 [39..39] -> 55 [34..76] | 35 [32..38] -> 69 [65..73] | 50 [44..56] -> 91 [76..106] | 62 [56..69] -> 89 [79..99]
+race -> free roam | 24 [19..28] -> 36 [20..53] | 24 [19..28] -> 39 [28..50] | 34 [32..35] -> 55 [48..62] | 38 [37..38] -> 62 [55..68]
+free roam -> race, rivals loaded ahead | 39 [31..47] -> 57 [41..73] | 42 [36..47] -> 44 [37..51] | 57 [49..65] -> 46 [36..57] | 64 [64..65] -> 79 [69..89]
+that race -> free roam, encounter racers loaded ahead | 32 [27..36] -> 33 [28..38] | 35 [33..37] -> 40 [40..41] | 60 [52..68] -> 64 [60..67] | 70 [70..71] -> 102 [86..119]
+into the garage | 36 [31..40] -> 48 [48..49] | 40 [39..42] -> 40 [33..48] | 32 [31..34] -> 42 [39..44] | 38 [37..39] -> 44 [23..66]
+into a shop | 34 [27..42] -> 40 [27..53] | 40 [39..42] -> 27 [26..28] | 29 [28..30] -> 36 [35..37] | 36 [31..41] -> 18 [17..19]
+out of the garage | 26 [25..28] -> 36 [32..40] | 24 [20..28] -> 24 [14..33] | 27 [25..29] -> 34 [33..34] | 30 [29..30] -> 38 [32..44]
+out of a shop | 40 [26..53] -> 40 [34..46] | 27 [26..28] -> 28 [23..34] | 38 [30..46] -> 36 [31..41] | 42 [35..50] -> 58 [55..62]
+out of a shop, a part fitted | 101 [67..135] -> 75 [71..79] | 68 [63..72] -> 80 [78..82] | 62 [60..65] -> 72 [68..77] | 102 [93..110] -> 141 [123..159]
+menu -> free roam, at once | 302 [176..427] -> 212 [181..243] | 206 [161..250] -> 233 [203..263] | 218 [216..219] -> 196 [162..230] | 182 [179..186] -> 230 [210..251]
+menu -> free roam, preloaded | 101 [73..129] -> 78 [74..81] | 98 [94..101] -> 102 [98..105] | 156 [155..157] -> 116 [113..119] | 128 [124..132] -> 111 [93..129]
+free roam -> another region's race, at once | 194 [117..271] -> 131 [130..132] | 135 [129..141] -> 156 [129..182] | 112 [97..126] -> 144 [142..147] | 120 [116..125] -> 133 [102..164]
+that race -> free roam, at once | 298 [189..408] -> 226 [194..259] | 312 [164..461] -> 232 [206..258] | 168 [167..168] -> 230 [182..279] | 156 [156..156] -> 205 [183..227]
+free roam -> another region's race, preloaded | 114 [87..142] -> 80 [56..103] | 118 [99..137] -> 99 [79..119] | 123 [121..125] -> 117 [75..159] | 124 [117..131] -> 163 [162..164]
+that race -> free roam, preloaded | 80 [70..91] -> 117 [98..136] | 94 [93..95] -> 102 [90..114] | 129 [121..137] -> 122 [116..128] | 136 [135..137] -> 162 [159..165]
+menu -> Quick Race circuit | 180 [171..188] -> 172 [132..212] | 198 [196..201] -> 203 [180..226] | 232 [230..234] -> 282 [200..365] | 210 [207..213] -> 253 [240..266]
+menu -> Quick Race drag | 118 [116..119] -> 156 [130..181] | 134 [130..139] -> 162 [144..181] | 118 [112..124] -> 158 [124..193] | 118 [116..119] -> 136 [113..159]
+new medians of 200 ms or more: menu -> free roam, at once (3 levels), that race -> free roam, at once (4 levels), menu -> Quick Race circuit (3 levels)
+
+== 2. The tree as delivered (3 runs): boot, the first load after the menus, Quick Race ==
+dgpu high | free roam, first load | 91 [32..92] (n=3)
+dgpu high | menu -> Quick Race circuit | 270 [268..273] (n=3)
+dgpu high | menu -> Quick Race drag | 137 [124..162] (n=3)
+dgpu high | Quick Race circuit from its car select | 141 [129..142] (n=3)
+dgpu high | Quick Race drag from its car select | 103 [102..107] (n=3)
+dgpu orig | free roam, first load | 64 [26..74] (n=3)
+dgpu orig | menu -> Quick Race circuit | 175 [170..187] (n=3)
+dgpu orig | menu -> Quick Race drag | 110 [108..117] (n=3)
+dgpu orig | Quick Race circuit from its car select | 76 [76..88] (n=3)
+dgpu orig | Quick Race drag from its car select | 63 [63..76] (n=3)
+dgpu start | process start -> first frame | 65 [65..66] (n=3)
+dgpu start | process start -> title, Enter held | 102 [75..106] (n=3)
+dgpu start |   the Enter frames | 36 [10..40] (n=3)
+igpu high | free roam, first load | 131 [108..134] (n=3)
+igpu high | menu -> Quick Race circuit | 184 [182..193] (n=3)
+igpu high | menu -> Quick Race drag | 134 [129..135] (n=3)
+igpu high | Quick Race circuit from its car select | 143 [140..146] (n=3)
+igpu high | Quick Race drag from its car select | 115 [114..117] (n=3)
+igpu orig | free roam, first load | 60 [59..61] (n=3)
+igpu orig | menu -> Quick Race circuit | 112 [106..119] (n=3)
+igpu orig | menu -> Quick Race drag | 55 [53..56] (n=3)
+igpu orig | Quick Race circuit from its car select | 66 [66..67] (n=3)
+igpu orig | Quick Race drag from its car select | 54 [53..54] (n=3)
+igpu start | process start -> first frame | 68 [64..71] (n=3)
+igpu start | process start -> title, Enter held | 81 [79..82] (n=3)
+igpu start |   the Enter frames | 13 [12..15] (n=3)
+
+== 3. The main menu while the work ahead runs (--bench menu, igpu; all = whole machine, two = taskset -c 0,1) ==
+level cores arm | work ahead ms | frames during it: median / p99 / longest ms | frames after: median / p99 / longest ms | pipelines | RSS peak MB | GPU memory peak MB | runs
+high all ahead | 307 [289..361] | 20.2 [19.9..20.9] / 24.1 [22.1..25.4] / 24.1 [22.1..25.4] | 22.8 [22.8..23.7] / 24.6 [24.3..25.0] / 26.6 [25.7..27.6] | 392 [392..392] | 909 [904..938] | 871 [868..887] | 3
+high all nopreload | 81 [80..132] | 2.5 [2.4..3.0] / 2.5 [2.4..3.0] / 2.5 [2.4..3.0] | 22.9 [22.5..24.0] / 24.8 [24.2..30.3] / 28.0 [24.7..38.3] | 306 [306..306] | 449 [427..451] | 690 [681..693] | 3
+high all noprograms | 141 [136..153] | 2.3 [2.3..2.6] / 20.4 [19.3..20.9] / 20.4 [19.3..20.9] | 23.3 [22.3..23.5] / 25.2 [24.6..27.8] / 26.5 [24.8..32.5] | 306 [306..306] | 884 [875..901] | 820 [813..824] | 3
+high two ahead | 516 [487..529] | 19.4 [18.0..20.0] / 23.2 [19.9..24.1] / 23.2 [19.9..24.1] | 23.1 [22.8..23.8] / 29.7 [24.0..32.0] / 35.2 [29.1..44.9] | 504 [456..512] | 725 [720..729] | 870 [859..871] | 3
+high two nopreload | 221 [220..276] | 2.8 [2.7..3.7] / 2.8 [2.7..3.7] / 2.8 [2.7..3.7] | 23.2 [23.1..23.4] / 26.6 [24.6..27.3] / 27.9 [25.5..34.6] | 306 [306..306] | 319 [316..336] | 693 [681..693] | 3
+high two noprograms | 309 [293..357] | 3.0 [2.4..5.1] / 3.0 [2.4..7.7] / 3.0 [2.4..7.7] | 23.4 [22.7..23.5] / 27.1 [23.6..30.6] / 30.1 [23.9..43.6] | 306 [306..306] | 686 [682..694] | 822 [805..830] | 3
+orig all ahead | 176 [155..209] | 7.4 [7.3..7.4] / 18.5 [16.2..18.6] / 18.5 [16.2..18.6] | 9.3 [9.2..9.7] / 11.7 [11.1..12.4] / 13.7 [12.8..13.9] | 176 [176..176] | 879 [871..882] | 647 [645..647] | 3
+orig all nopreload | 50 [46..90] | 2.6 [2.1..3.6] / 2.6 [2.1..3.6] / 2.6 [2.1..3.6] | 9.2 [9.1..9.3] / 10.7 [9.6..12.8] / 12.3 [9.7..13.2] | 175 [175..175] | 426 [402..429] | 481 [475..486] | 3
+orig all noprograms | 174 [142..254] | 7.6 [7.0..7.6] / 9.2 [8.6..15.1] / 9.2 [8.6..15.1] | 9.2 [9.2..9.8] / 11.8 [10.0..12.5] / 13.4 [12.8..13.7] | 175 [175..175] | 848 [834..865] | 591 [589..610] | 3
+orig two ahead | 232 [204..272] | 7.0 [5.8..7.5] / 9.8 [8.3..15.4] / 9.8 [8.3..15.4] | 9.2 [9.0..9.6] / 10.4 [9.9..11.5] / 11.7 [11.1..13.5] | 176 [176..176] | 710 [680..713] | 590 [566..592] | 3
+orig two nopreload | 80 [78..128] | 3.6 [3.4..5.9] / 3.6 [3.4..5.9] / 3.6 [3.4..5.9] | 9.2 [9.2..9.4] / 9.7 [9.7..11.0] / 11.6 [10.2..11.8] | 175 [175..175] | 343 [338..347] | 481 [481..494] | 3
+orig two noprograms | 275 [262..334] | 7.7 [7.6..7.8] / 11.2 [10.7..11.7] / 11.2 [10.7..11.7] | 9.2 [9.2..9.7] / 10.0 [9.9..11.8] / 11.4 [10.7..15.0] | 175 [175..175] | 701 [693..705] | 593 [592..604] | 3
+
+== 4. game --prepare (dgpu; empty caches, 3 runs; High unless said) ==
+prepare on empty caches: 1.76 / 1.78 / 1.68 s (399 pipelines); again on the prepared folder: 0.59 / 0.65 / 0.59 s
+first load of a new process after it: 397 / 410 / 425 ms (first frame 83-86 ms); on empty caches: 1491 / 1461 / 1455 ms
+scripts/checks/prepare.sh: defaults: first run 0.57-0.98 s, second 0.31-0.52 s, 181 pipelines; High 1.70-2.24 s / 0.63-1.02 s, 409;
+Extreme 1.94-2.14 s / 0.65-0.70 s, 423; the cache folder 259-300 MB; the Windows build under Wine (Vulkan): ok, 5 steps, 175 pipelines, 2 s.
+
+== 5. A cold file cache (igpu, Original, 5 runs; 1528 files, 2079 MB dropped before each cold run) ==
+warm: start -> first frame 83 [81..88], -> title 148 [146..153] (loader + Game::new 32 [28..35]); first free-roam load 160 [159..168] (Game::new 23, the track from the cache 21), first frame 28
+cold: start -> first frame 238 [236..245], -> title 340 [334..342] (loader + Game::new 133 [130..138]); first free-roam load 375 [358..393] (Game::new 77 [76..89], the track from the cache 110 [108..144]), first frame 31
+
+== 6. The traced scene at the load (race start, maximum setup 1080p, dgpu, 5 runs per arm interleaved) ==
+base: load 382 [365..389], first frame 261 [251..273] (draw 217 [214..226]), load + first frame 649 [626..662]; the world's geometry gathered in the first frame (94 [93..98] ms)
+now:  load 384 [331..389], first frame 164 [153..171] (draw 118 [115..124]), load + first frame 537 [486..560]; gathered during the load on a worker (113 [110..116] ms)

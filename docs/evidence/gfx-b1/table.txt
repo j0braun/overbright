@@ -1,0 +1,71 @@
+garage__1bal           box mean   +0.5% ->   +0.5%  box p95   +0.0% ->   +0.0%  box R   +0.5% ->   +0.5%  frame dmean +0.01 -> +0.01  dp95 +1.32 -> +1.32
+garage__2high          box mean   +0.2% ->   +0.2%  box p95   +0.0% ->   +0.0%  box R   +0.4% ->   +0.4%  frame dmean -0.19 -> -0.19  dp95 -0.27 -> -0.27
+garage__3ultra         box mean   +0.1% ->   +0.1%  box p95   +0.0% ->   +0.0%  box R   +0.3% ->   +0.3%  frame dmean -0.18 -> -0.18  dp95 -2.04 -> -2.04
+garage__o+envrefl      box mean   -0.2% ->   -0.2%  box p95   +0.0% ->   +0.0%  box R   -0.1% ->   -0.1%  frame dmean -0.18 -> -0.18  dp95 -1.09 -> -1.09
+garage__o+modern2      box mean   -0.8% ->   -0.8%  box p95   +0.0% ->   +0.0%  box R   -0.9% ->   -0.9%  frame dmean -2.00 -> -2.00  dp95 +0.00 -> +0.00
+garage__o+paint        box mean   +0.1% ->   +0.1%  box p95   +0.0% ->   +0.0%  box R   +0.1% ->   +0.1%  frame dmean +0.01 -> +0.01  dp95 +0.00 -> +0.00
+harbour__o+probes      box mean   +3.5% ->   +0.1%  box p95   +0.1% ->   -0.0%  box R   +7.7% ->   +0.5%  frame dmean +0.83 -> +0.03  dp95 +0.18 -> +0.00
+hood__1bal             box mean  -51.2% ->   +3.6%  box p95   -9.1% ->   +0.3%  box R  -11.7% ->   +0.7%  frame dmean -7.71 -> +0.56  dp95 +0.00 -> +0.00
+hood__2high            box mean  -47.5% ->   +4.2%  box p95  -10.7% ->   -0.8%  box R   -5.6% ->   +2.6%  frame dmean -7.03 -> +0.78  dp95 +0.00 -> +0.00
+hood__3ultra           box mean  -46.9% ->   +4.8%  box p95  -10.9% ->   -0.8%  box R   -5.6% ->   +2.7%  frame dmean -4.84 -> +2.97  dp95 +0.00 -> +0.00
+hood__o+envrefl        box mean  -51.3% ->   +3.8%  box p95  -10.9% ->   -0.0%  box R  -11.8% ->   +0.2%  frame dmean -7.90 -> +0.42  dp95 +0.00 -> +0.00
+hood__o+modern2        box mean  -48.2% ->   +5.3%  box p95  -10.8% ->   +0.3%  box R   -7.9% ->   +2.1%  frame dmean -8.54 -> -0.46  dp95 +0.00 -> +0.00
+hood__o+paint          box mean  -51.2% ->   +3.4%  box p95   -9.1% ->   +0.1%  box R  -11.7% ->   +0.4%  frame dmean -7.73 -> +0.51  dp95 +0.00 -> +0.00
+hood__o+probes         box mean   +3.6% ->   -1.0%  box p95   +1.3% ->   -1.4%  box R   +5.6% ->   +1.5%  frame dmean +0.55 -> -0.15  dp95 +0.00 -> +0.00
+neon__1bal             box mean  -12.6% ->   -0.6%  box p95   -0.1% ->   -0.0%  box R   -6.6% ->   +0.8%  frame dmean -1.12 -> -0.04  dp95 -0.55 -> -0.01
+neon__2high            box mean   -3.9% ->   -3.9%  box p95   -1.1% ->   -0.6%  box R  +21.9% ->   +3.2%  frame dmean -1.37 -> -1.39  dp95 -3.13 -> -2.84
+neon__3ultra           box mean   -4.9% ->   -4.0%  box p95   -1.6% ->   -1.3%  box R  +21.2% ->   +3.3%  frame dmean -0.02 -> +0.03  dp95 -3.23 -> -3.01
+neon__o+envrefl        box mean  -12.8% ->   -1.4%  box p95   -0.2% ->   -0.1%  box R   -6.8% ->   -0.4%  frame dmean -1.58 -> -0.55  dp95 -1.27 -> -0.94
+neon__o+modern2        box mean  -13.1% ->   -1.1%  box p95   -0.1% ->   -0.1%  box R   -5.8% ->   +1.6%  frame dmean -4.93 -> -3.85  dp95 -2.37 -> -1.78
+neon__o+paint          box mean  -13.0% ->   -1.3%  box p95   -0.1% ->   -0.0%  box R   -7.3% ->   -0.2%  frame dmean -1.17 -> -0.11  dp95 -0.40 -> -0.01
+neon__o+probes         box mean  +13.6% ->   +1.4%  box p95   -0.0% ->   -0.0%  box R  +31.5% ->   +5.3%  frame dmean +1.23 -> +0.13  dp95 +0.03 -> -0.01
+qrstart__o+beams2      frame dmean +1.81 -> +1.34  dp95 +4.73 -> +3.13
+race__3ultra           frame dmean +0.68 -> +3.69  dp95 +7.88 -> +8.59
+race__6nextgen         frame dmean +14.30 -> +10.67  dp95 +27.94 -> +27.37
+race__o+beams1         frame dmean +0.97 -> +0.97  dp95 +3.30 -> +3.30
+race__o+beams2         frame dmean +8.60 -> +1.23  dp95 +15.57 -> +3.93
+race__o+envrefl        frame dmean -3.71 -> +1.24  dp95 -5.32 -> +2.67
+race__o+fog2           frame dmean +0.77 -> +0.77  dp95 +1.97 -> +1.97
+race__o+glass          frame dmean +0.23 -> +0.23  dp95 +0.93 -> +0.93
+race__o+modern2        frame dmean -1.52 -> +3.31  dp95 +4.57 -> +9.60
+race__o+paint          frame dmean -1.40 -> +1.27  dp95 +3.57 -> +3.44
+race__o+probes         frame dmean -0.01 -> +0.01  dp95 +0.01 -> +0.01
+race__o+ssr1           frame dmean +0.11 -> +0.11  dp95 -1.09 -> -1.09
+race__u+beams2         frame dmean +7.53 -> +3.67  dp95 +18.08 -> +8.72
+racing__1bal           box mean   -9.6% ->   -0.0%  box p95   -0.2% ->   +0.1%  box R   -6.8% ->   -0.3%  frame dmean -0.46 -> +0.01  dp95 -2.18 -> +0.02
+racing__2high          box mean  -11.3% ->   -1.8%  box p95   -3.2% ->   -3.1%  box R   -8.7% ->   -2.4%  frame dmean -0.07 -> +0.42  dp95 -2.73 -> +0.07
+racing__3ultra         box mean  -11.6% ->   -1.6%  box p95   -3.0% ->   -2.8%  box R   -9.0% ->   -2.4%  frame dmean +0.35 -> +0.87  dp95 -4.03 -> -1.16
+racing__o+envrefl      box mean  -12.7% ->   -0.8%  box p95   -1.5% ->   -1.2%  box R   -8.6% ->   -0.8%  frame dmean -0.53 -> +0.05  dp95 -2.01 -> +0.21
+racing__o+modern2      box mean  -19.2% ->   -9.4%  box p95   -3.6% ->   -3.2%  box R  -12.9% ->   -6.2%  frame dmean -1.92 -> -1.43  dp95 -6.79 -> -5.01
+racing__o+paint        box mean  -10.4% ->   -0.7%  box p95   -0.3% ->   +0.0%  box R   -7.1% ->   -0.6%  frame dmean -0.50 -> -0.02  dp95 -1.78 -> +0.31
+rain__1bal             box mean  -19.5% ->   -0.4%  box p95   -5.7% ->   -0.5%  box R  -11.9% ->   +1.7%  frame dmean -2.48 -> -0.16  dp95 -6.67 -> -1.45
+rain__2high            box mean  -16.7% ->   +1.5%  box p95   -5.0% ->   +0.3%  box R  -13.3% ->   +0.3%  frame dmean -1.46 -> +0.74  dp95 -4.30 -> +2.53
+rain__3ultra           box mean  -15.5% ->   +4.4%  box p95   -5.0% ->   +1.2%  box R  -12.2% ->   +2.5%  frame dmean +0.50 -> +2.92  dp95 -3.17 -> +4.26
+rain__o+envrefl        box mean  -19.9% ->   -0.6%  box p95   -7.2% ->   +0.3%  box R  -12.4% ->   -0.3%  frame dmean -2.79 -> -0.45  dp95 -7.48 -> -0.46
+rain__o+modern2        box mean  -21.4% ->   -1.6%  box p95  -12.3% ->   -2.4%  box R  -17.9% ->   -2.3%  frame dmean -3.85 -> -1.43  dp95 -9.46 -> -4.12
+rain__o+paint          box mean  -20.1% ->   -1.3%  box p95   -6.4% ->   -0.0%  box R  -12.5% ->   +0.2%  frame dmean -2.45 -> -0.16  dp95 -6.72 -> -1.89
+street__1bal           box mean  -19.9% ->   -0.5%  box p95   -7.4% ->   -0.5%  box R  -11.9% ->   +1.1%  frame dmean -2.74 -> -0.15  dp95 -6.11 -> -1.70
+street__2high          box mean  -19.2% ->   -1.1%  box p95   -9.3% ->   -1.9%  box R   -9.5% ->   +1.0%  frame dmean -2.98 -> -0.57  dp95 -7.81 -> -0.91
+street__3ultra         box mean  -19.7% ->   +0.2%  box p95   -9.6% ->   -1.6%  box R  -10.0% ->   +1.7%  frame dmean -1.80 -> +0.85  dp95 -7.66 -> -0.04
+street__o+envrefl      box mean  -20.1% ->   -0.6%  box p95   -9.7% ->   +0.2%  box R  -12.2% ->   -0.2%  frame dmean -3.11 -> -0.51  dp95 -6.92 -> -0.29
+street__o+modern2      box mean  -21.5% ->   -1.4%  box p95  -13.1% ->   -3.1%  box R  -17.0% ->   -2.2%  frame dmean -4.36 -> -1.66  dp95 -8.79 -> -3.68
+street__o+paint        box mean  -20.3% ->   -1.1%  box p95   -9.2% ->   +0.2%  box R  -12.4% ->   +0.3%  frame dmean -2.73 -> -0.15  dp95 -6.20 -> -1.67
+street__o+probes       box mean   +1.4% ->   +0.2%  box p95   +0.2% ->   +0.1%  box R   +3.3% ->   +1.0%  frame dmean +0.19 -> +0.03  dp95 +0.10 -> -0.04
+traffic__o+beams2      frame dmean +0.89 -> +0.76  dp95 +3.13 -> +2.33
+tunnel__1bal           box mean  -20.5% ->   -1.5%  box p95   -8.0% ->   -2.6%  box R  -13.7% ->   +0.6%  frame dmean -2.29 -> -0.25  dp95 -4.45 -> -1.43
+tunnel__2high          box mean  -19.1% ->   -2.9%  box p95   -8.8% ->   -2.1%  box R   -9.0% ->   +1.1%  frame dmean -0.47 -> +1.23  dp95 -3.73 -> -0.84
+tunnel__3ultra         box mean  -19.1% ->   -1.1%  box p95   -8.9% ->   -2.1%  box R   -9.0% ->   +2.5%  frame dmean +0.18 -> +2.08  dp95 -2.69 -> +0.27
+tunnel__o+envrefl      box mean  -21.0% ->   -2.3%  box p95   -8.6% ->   -0.9%  box R  -14.6% ->   -0.8%  frame dmean -2.35 -> -0.36  dp95 -5.28 -> -1.37
+tunnel__o+modern2      box mean  -25.2% ->   -6.1%  box p95   -8.2% ->   -4.1%  box R  -22.8% ->   -6.7%  frame dmean -4.93 -> -2.87  dp95 -10.86 -> -6.55
+tunnel__o+paint        box mean  -20.3% ->   -1.5%  box p95   -8.2% ->   -2.6%  box R  -13.7% ->   +0.4%  frame dmean -2.27 -> -0.24  dp95 -4.87 -> -1.81
+garage__0orig.png Original before == after: True
+harbour__0orig.png Original before == after: True
+hood__0orig.png Original before == after: True
+neon__0orig.png Original before == after: True
+qrstart__0orig.png Original before == after: True
+race__0orig.png Original before == after: True
+racing__0orig.png Original before == after: True
+rain__0orig.png Original before == after: True
+street__0orig.png Original before == after: True
+traffic__0orig.png Original before == after: True
+tunnel__0orig.png Original before == after: True

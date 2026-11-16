@@ -1,0 +1,29 @@
+circuit_s1_a
+  frames 1201; ticks/frame {29: 400, 30: 400, 31: 400}; world dt mean 16.6667 ms min 16.1111 max 17.2222; clock steps {64: 400, 67: 400, 69: 400} (mean 16.6667 ms)
+  frames off the 60 fps 3-cycle (30, 29, 31): 0
+  pattern: 31 30 29 31 30 29 31 30 29 31 30 29 31 30 29 31 30 29 31 30 29 31 30 29 …
+crash_wall_a
+  frames 481; ticks/frame {29: 160, 30: 160, 31: 160}; world dt mean 16.6667 ms min 16.1111 max 17.2222; clock steps {64: 160, 67: 160, 69: 160} (mean 16.6667 ms)
+  frames off the 60 fps 3-cycle (30, 29, 31): 0
+  pattern: 30 29 31 30 29 31 30 29 31 30 29 31 30 29 31 30 29 31 30 29 31 30 29 31 …
+freeroam_node
+  frames 721; ticks/frame {29: 240, 30: 240, 31: 240}; world dt mean 16.6667 ms min 16.1111 max 17.2222; clock steps {64: 240, 67: 240, 69: 240} (mean 16.6667 ms)
+  frames off the 60 fps 3-cycle (30, 29, 31): 0
+  pattern: 31 30 29 31 30 29 31 30 29 31 30 29 31 30 29 31 30 29 31 30 29 31 30 29 …
+  [race 4, flow 4] 720 frames: human_path sum 720 max/frame 1; node_update sum 86 max/frame 1; node_search sum 2 max/frame 2
+freeroam_cadence
+  frames 1201; ticks/frame {15: 145, 16: 67, 17: 134, 18: 174, 19: 173, 20: 107, 21: 72, 22: 42, 23: 28, 24: 20, 25: 25, 26: 28, 27: 16, 28: 21, 29: 26, 30: 34, 31: 31, 32: 12, 33: 17, 34: 8, 35: 2, 36: 1, 37: 1, 38: 2, 41: 3, 42: 1, 43: 2, 44: 1, 46: 1, 49: 1, 50: 1, 51: 1, 53: 1, 54: 1, 57: 1}; world dt mean 11.5014 ms min 8.3333 max 31.6667; clock steps {33: 145, 36: 67, 38: 134, 40: 174, 42: 173, 44: 107, 47: 72, 49: 42, 51: 28, 53: 20, 56: 25, 58: 28, 60: 16, 62: 21, 64: 26, 67: 34, 69: 31, 71: 12, 73: 17, 76: 8, 78: 2, 80: 1, 82: 1, 84: 2, 91: 3, 93: 1, 96: 2, 98: 1, 102: 1, 109: 1, 111: 1, 113: 1, 118: 1, 120: 1, 127: 1} (mean 11.4923 ms)
+  frames off the 60 fps 3-cycle (30, 29, 31): 1190 first [(1, 15), (2, 15), (3, 15), (4, 16), (5, 15), (6, 15), (7, 15), (8, 25)]
+  pattern: 15 15 15 16 15 15 15 25 26 25 31 26 28 19 30 22 29 24 33 27 29 27 26 31 …
+startscene_counts
+  frames 721; ticks/frame {29: 180, 30: 180, 31: 181, 60: 144, 61: 35}; world dt mean 20.8380 ms min 16.1111 max 33.8889; clock steps {64: 180, 67: 180, 69: 181, 133: 144, 136: 35} (mean 20.8267 ms)
+  frames off the 60 fps 3-cycle (30, 29, 31): 182 first [(1, 60), (2, 60), (3, 60), (4, 60), (5, 61), (6, 60), (7, 60), (8, 60)]
+  pattern: 60 60 60 60 61 60 60 60 60 61 60 60 60 60 61 60 60 60 60 61 60 60 60 60 …
+  [race 2, flow 3] 178 frames: pair_test sum 0 max/frame 0; contact sum 0 max/frame 0; world_draw sum 0 max/frame 0
+  [race 3, flow 4] 171 frames: pair_test sum 0 max/frame 0; contact sum 0 max/frame 0; world_draw sum 15 max/frame 9
+  [race 4, flow 4] 371 frames: pair_test sum 1456 max/frame 12; contact sum 50 max/frame 2; world_draw sum 365 max/frame 15
+freeroam_encounters_finished
+  frames 1801; ticks/frame {29: 600, 30: 600, 31: 600}; world dt mean 16.6667 ms min 16.1111 max 17.2222; clock steps {64: 600, 67: 600, 69: 600} (mean 16.6667 ms)
+  frames off the 60 fps 3-cycle (30, 29, 31): 0
+  pattern: 29 31 30 29 31 30 29 31 30 29 31 30 29 31 30 29 31 30 29 31 30 29 31 30 …
+  [race 4, flow 4] 1800 frames: world_draw sum 1336 max/frame 17; goal9_set sum 5239 max/frame 4; chase_car sum 0 max/frame 0

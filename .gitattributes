@@ -1,0 +1,26 @@
+# Line endings (docs/platform-dirs.md): LF in the repository and in
+# every checkout, Windows included, so build.rs's source hash, the
+# include_str! shaders and the source-reading tests see the same bytes on
+# every OS. Git decides text vs binary for the rest.
+* text=auto eol=lf
+*.rs text eol=lf
+*.wgsl text eol=lf
+*.toml text eol=lf
+*.md text eol=lf
+*.sh text eol=lf
+*.py text eol=lf
+
+# Captures kept byte for byte (a few hold CRLF as captured).
+docs/evidence/** -text
+
+# Binary data.
+*.png binary
+*.jpg binary
+*.webp binary
+*.bin binary
+*.gz binary
+*.zlib binary
+*.sav binary
+*.vram binary
+*.wav binary
+*.ico binary

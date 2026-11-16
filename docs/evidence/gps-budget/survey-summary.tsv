@@ -1,0 +1,7 @@
+# GPS route search cost (ai::gps data test search_cost_survey): per career stage's network, 212 GPS destinations + 1 goal on no road, from 9 starts; times are the least of five runs per step on the reference desktop.
+stage	searches	found	nodes_p50	nodes_p90	nodes_max	us_p50	us_p90	us_p99	us_max	start_pass_us_max	work_max	frames_0.6ms_mean	frames_0.6ms_max	frames_700k_mean	frames_700k_max	same_frames_pct
+1	1917	741	301	533	733	293	928	1450	1686	26.4	2034691	1.301	3	1.207	3	89.7
+2	1917	916	196	744	779	302	1556	2977	4198	27.2	3268323	1.570	7	1.423	5	83.3
+3	1917	1086	206	784	785	270	1247	2741	3937	26.8	3163241	1.449	7	1.405	5	93.8
+4	1917	1552	106	961	992	174	1958	3578	4655	27.1	6296802	1.791	8	1.858	9	86.6
+5	1917	1688	90	672	1122	127	2054	4185	4641	27.0	6764757	1.720	8	1.845	10	86.5

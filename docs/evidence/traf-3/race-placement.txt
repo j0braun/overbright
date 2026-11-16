@@ -1,0 +1,155 @@
+# Traffic placement: one method on both sides (dens3.py): native = trafwalk tsv + native.tsv (qr_walk_4014, throttle only, from the green); clone = traffic_turn_stats TURN_RACE=1 TURN_THROTTLE=1 TURN_DUMP (12 streams of 150 s)
+# native runs (qr1-qr3: the belt measurement's, qr4-qr5: this one)
+qr1: TOTAL belt 9063: <60 m 38.8 %, Avoid 11.7 %, inactive 29.7 %, placements 20.0/min, parks 9.6/min
+qr2: TOTAL belt 11063: <60 m 26.7 %, Avoid 18.5 %, inactive 7.9 %, placements 22.9/min, parks 10.0/min
+qr3: TOTAL belt 8133: <60 m 11.8 %, Avoid 2.3 %, inactive 16.0 %, placements 27.1/min, parks 11.3/min
+qr4: TOTAL belt 19120: <60 m 18.9 %, Avoid 11.9 %, inactive 32.5 %, placements 28.2/min, parks 15.3/min
+qr5: TOTAL belt 9175: <60 m 54.1 %, Avoid 6.0 %, inactive 38.7 %, placements 22.4/min, parks 8.4/min
+# clone before (base logic, same probe)
+stream0: 171 s, cars listed 12.0, non-parked 8.9; belt samples 9028: <60 m 53.4 %, Avoid 48.6 %, inactive 0.0 %
+   belt car player distance %: [(100, 3), (200, 31), (300, 22), (400, 16), (500, 24), (600, 4)]
+   placements 88 (30.8/min); from mode {4: 34, 2: 22, 3: 22, 0: 10}; {'ahead': 44, 'behind': 44}; {'same': 47, 'oncoming': 41}
+   parked 20 (7.0/min) at (50 m bins) [(50, 4), (100, 3), (200, 5), (250, 3), (300, 3), (350, 2)]
+   removed at (50 m bins) [(0, 3), (50, 3), (100, 7), (150, 8), (200, 10), (250, 10), (300, 5), (350, 13), (400, 29)]
+   placed at  (50 m bins) [(50, 4), (100, 8), (150, 11), (200, 22), (250, 33), (300, 7), (350, 1), (400, 2)]
+stream1: 169 s, cars listed 12.0, non-parked 4.1; belt samples 1003: <60 m 0.0 %, Avoid 4.7 %, inactive 0.0 %
+   belt car player distance %: [(200, 15), (300, 15), (400, 5), (500, 44), (600, 21)]
+   placements 15 (5.3/min); from mode {2: 9, 4: 4, 3: 1, 0: 1}; {'behind': 8, 'ahead': 7}; {'oncoming': 7, 'same': 8}
+   parked 10 (3.5/min) at (50 m bins) [(100, 3), (150, 1), (200, 1), (300, 3), (400, 2)]
+   removed at (50 m bins) [(100, 1), (150, 2), (200, 2), (250, 2), (300, 1), (350, 1), (400, 6)]
+   placed at  (50 m bins) [(50, 1), (100, 3), (150, 2), (200, 2), (250, 7)]
+stream2: 171 s, cars listed 12.0, non-parked 8.5; belt samples 5703: <60 m 41.5 %, Avoid 28.3 %, inactive 14.7 %
+   belt car player distance %: [(100, 4), (200, 27), (300, 44), (400, 15), (500, 5), (600, 5)]
+   placements 87 (30.5/min); from mode {2: 17, 4: 21, 3: 20, 0: 29}; {'behind': 32, 'ahead': 55}; {'oncoming': 45, 'same': 42}
+   parked 29 (10.2/min) at (50 m bins) [(50, 3), (100, 2), (150, 1), (200, 2), (250, 5), (300, 4), (350, 8), (400, 4)]
+   removed at (50 m bins) [(0, 2), (50, 5), (100, 1), (150, 1), (200, 3), (250, 13), (300, 18), (350, 13), (400, 31)]
+   placed at  (50 m bins) [(50, 2), (100, 2), (150, 4), (200, 16), (250, 48), (300, 9), (350, 4), (400, 2)]
+stream3: 170 s, cars listed 12.0, non-parked 8.7; belt samples 4123: <60 m 59.8 %, Avoid 48.6 %, inactive 0.1 %
+   belt car player distance %: [(100, 2), (200, 23), (300, 47), (400, 13), (500, 9), (600, 7)]
+   placements 85 (30.1/min); from mode {2: 16, 4: 23, 3: 27, 0: 19}; {'behind': 62, 'ahead': 23}; {'same': 45, 'oncoming': 40}
+   parked 20 (7.1/min) at (50 m bins) [(50, 2), (100, 3), (150, 3), (200, 4), (250, 3), (300, 3), (400, 2)]
+   removed at (50 m bins) [(50, 1), (100, 5), (150, 4), (200, 7), (250, 8), (300, 18), (350, 14), (400, 28)]
+   placed at  (50 m bins) [(50, 3), (100, 9), (150, 13), (200, 11), (250, 36), (300, 10), (350, 2), (400, 1)]
+stream4: 171 s, cars listed 12.0, non-parked 7.5; belt samples 9543: <60 m 63.8 %, Avoid 50.3 %, inactive 12.6 %
+   belt car player distance %: [(200, 22), (300, 24), (400, 21), (500, 19), (600, 14)]
+   placements 66 (23.2/min); from mode {2: 4, 4: 31, 3: 7, 0: 24}; {'ahead': 33, 'behind': 33}; {'oncoming': 35, 'same': 31}
+   parked 31 (10.9/min) at (50 m bins) [(50, 2), (100, 1), (150, 3), (200, 6), (250, 6), (300, 4), (400, 9)]
+   removed at (50 m bins) [(50, 2), (100, 1), (150, 2), (200, 6), (250, 6), (300, 3), (350, 10), (400, 36)]
+   placed at  (50 m bins) [(50, 2), (100, 6), (150, 7), (200, 9), (250, 23), (300, 16), (400, 3)]
+stream5: 171 s, cars listed 12.0, non-parked 9.9; belt samples 9040: <60 m 57.6 %, Avoid 42.3 %, inactive 2.0 %
+   belt car player distance %: [(100, 4), (200, 15), (300, 33), (400, 17), (500, 22), (600, 10)]
+   placements 111 (39.0/min); from mode {2: 21, 4: 39, 3: 26, 0: 25}; {'ahead': 47, 'behind': 64}; {'same': 59, 'oncoming': 52}
+   parked 27 (9.5/min) at (50 m bins) [(100, 6), (150, 3), (200, 5), (250, 3), (300, 2), (400, 8)]
+   removed at (50 m bins) [(50, 3), (100, 9), (150, 6), (200, 14), (250, 14), (300, 12), (350, 15), (400, 38)]
+   placed at  (50 m bins) [(50, 3), (100, 9), (150, 10), (200, 17), (250, 49), (300, 14), (350, 8), (400, 1)]
+stream6: 171 s, cars listed 12.0, non-parked 8.9; belt samples 7700: <60 m 40.4 %, Avoid 36.2 %, inactive 0.0 %
+   belt car player distance %: [(100, 4), (200, 14), (300, 29), (400, 26), (500, 18), (600, 9)]
+   placements 92 (32.3/min); from mode {4: 38, 3: 22, 2: 9, 0: 23}; {'behind': 50, 'ahead': 42}; {'oncoming': 50, 'same': 42}
+   parked 33 (11.6/min) at (50 m bins) [(100, 3), (150, 3), (200, 4), (250, 9), (300, 7), (350, 1), (400, 6)]
+   removed at (50 m bins) [(50, 5), (100, 8), (150, 8), (200, 7), (250, 8), (300, 10), (350, 7), (400, 39)]
+   placed at  (50 m bins) [(50, 3), (100, 6), (150, 9), (200, 13), (250, 48), (300, 10), (350, 3)]
+stream7: 170 s, cars listed 12.0, non-parked 8.9; belt samples 8796: <60 m 75.3 %, Avoid 57.5 %, inactive 7.1 %
+   belt car player distance %: [(100, 6), (200, 33), (300, 42), (400, 8), (500, 7), (600, 4)]
+   placements 99 (35.0/min); from mode {4: 34, 3: 14, 2: 25, 0: 26}; {'behind': 55, 'ahead': 44}; {'oncoming': 54, 'same': 45}
+   parked 28 (9.9/min) at (50 m bins) [(100, 3), (150, 4), (200, 4), (250, 4), (300, 3), (350, 2), (400, 8)]
+   removed at (50 m bins) [(50, 5), (100, 4), (150, 6), (200, 13), (250, 18), (300, 17), (350, 12), (400, 24)]
+   placed at  (50 m bins) [(50, 2), (100, 5), (150, 13), (200, 15), (250, 42), (300, 11), (350, 9), (400, 2)]
+stream8: 171 s, cars listed 12.0, non-parked 9.1; belt samples 8604: <60 m 58.6 %, Avoid 38.3 %, inactive 4.6 %
+   belt car player distance %: [(100, 2), (200, 21), (300, 31), (400, 18), (500, 15), (600, 14)]
+   placements 101 (35.4/min); from mode {2: 18, 3: 23, 4: 32, 0: 28}; {'ahead': 38, 'behind': 63}; {'oncoming': 49, 'same': 52}
+   parked 29 (10.2/min) at (50 m bins) [(50, 1), (150, 4), (200, 5), (250, 6), (300, 4), (350, 3), (400, 6)]
+   removed at (50 m bins) [(0, 2), (50, 3), (100, 9), (150, 7), (200, 10), (250, 7), (300, 8), (350, 12), (400, 43)]
+   placed at  (50 m bins) [(50, 6), (100, 9), (150, 7), (200, 22), (250, 43), (300, 9), (350, 3), (400, 2)]
+stream9: 171 s, cars listed 12.0, non-parked 10.1; belt samples 5844: <60 m 56.0 %, Avoid 45.0 %, inactive 0.7 %
+   belt car player distance %: [(100, 4), (200, 18), (300, 32), (400, 23), (500, 17), (600, 7)]
+   placements 98 (34.3/min); from mode {2: 17, 4: 29, 3: 32, 0: 20}; {'ahead': 48, 'behind': 50}; {'same': 44, 'oncoming': 54}
+   parked 27 (9.5/min) at (50 m bins) [(50, 1), (100, 2), (150, 3), (200, 1), (250, 2), (300, 3), (350, 4), (400, 11)]
+   removed at (50 m bins) [(50, 7), (100, 8), (150, 7), (200, 8), (250, 12), (300, 12), (350, 9), (400, 35)]
+   placed at  (50 m bins) [(50, 4), (100, 9), (150, 11), (200, 11), (250, 49), (300, 9), (350, 4), (400, 1)]
+stream10: 170 s, cars listed 12.0, non-parked 7.9; belt samples 4561: <60 m 49.9 %, Avoid 44.2 %, inactive 0.6 %
+   belt car player distance %: [(100, 0), (200, 7), (300, 14), (400, 30), (500, 31), (600, 17)]
+   placements 54 (19.0/min); from mode {2: 5, 3: 9, 4: 26, 0: 14}; {'ahead': 21, 'behind': 33}; {'oncoming': 22, 'same': 32}
+   parked 22 (7.8/min) at (50 m bins) [(50, 1), (100, 6), (150, 3), (200, 3), (250, 3), (300, 2), (400, 4)]
+   removed at (50 m bins) [(0, 1), (50, 2), (100, 2), (150, 2), (200, 5), (250, 1), (300, 5), (350, 4), (400, 32)]
+   placed at  (50 m bins) [(50, 1), (100, 3), (150, 4), (200, 11), (250, 26), (300, 6), (400, 3)]
+stream11: 171 s, cars listed 12.0, non-parked 9.1; belt samples 8698: <60 m 51.9 %, Avoid 36.0 %, inactive 0.0 %
+   belt car player distance %: [(100, 1), (200, 21), (300, 25), (400, 19), (500, 16), (600, 19)]
+   placements 102 (35.7/min); from mode {2: 17, 4: 37, 0: 30, 3: 18}; {'behind': 65, 'ahead': 37}; {'oncoming': 53, 'same': 49}
+   parked 31 (10.9/min) at (50 m bins) [(100, 3), (150, 2), (200, 1), (250, 4), (300, 3), (350, 3), (400, 15)]
+   removed at (50 m bins) [(0, 1), (100, 2), (150, 7), (200, 4), (250, 18), (300, 14), (350, 17), (400, 39)]
+   placed at  (50 m bins) [(50, 1), (100, 2), (150, 2), (200, 12), (250, 64), (300, 11), (350, 8), (400, 2)]
+TOTAL belt 82643: <60 m 55.4 %, Avoid 43.1 %, inactive 4.0 %, placements 29.2/min, parks 9.0/min
+# clone after the placement fixes
+stream0: 171 s, cars listed 12.0, non-parked 8.1; belt samples 9093: <60 m 52.5 %, Avoid 41.5 %, inactive 8.7 %
+   belt car player distance %: [(100, 3), (200, 14), (300, 31), (400, 20), (500, 21), (600, 11)]
+   placements 90 (31.5/min); from mode {4: 27, 2: 9, 3: 25, 0: 29}; {'behind': 57, 'ahead': 33}; {'same': 44, 'oncoming': 46}
+   parked 30 (10.5/min) at (50 m bins) [(50, 1), (100, 4), (150, 1), (200, 2), (250, 4), (300, 3), (350, 3), (400, 12)]
+   removed at (50 m bins) [(0, 1), (50, 6), (100, 7), (150, 4), (200, 9), (250, 5), (300, 6), (350, 11), (400, 41)]
+   placed at  (50 m bins) [(50, 3), (100, 7), (150, 9), (200, 13), (250, 46), (300, 9), (350, 2), (400, 1)]
+stream1: 171 s, cars listed 12.0, non-parked 7.2; belt samples 6782: <60 m 55.0 %, Avoid 37.5 %, inactive 2.3 %
+   belt car player distance %: [(200, 23), (300, 23), (400, 26), (500, 23), (600, 5)]
+   placements 55 (19.3/min); from mode {4: 26, 2: 8, 0: 16, 3: 5}; {'ahead': 18, 'behind': 37}; {'oncoming': 33, 'same': 22}
+   parked 24 (8.4/min) at (50 m bins) [(100, 2), (150, 1), (200, 3), (250, 5), (300, 1), (350, 4), (400, 8)]
+   removed at (50 m bins) [(100, 3), (150, 3), (200, 3), (250, 1), (300, 4), (350, 7), (400, 34)]
+   placed at  (50 m bins) [(50, 1), (100, 4), (150, 3), (200, 8), (250, 31), (300, 7), (400, 1)]
+stream2: 171 s, cars listed 12.0, non-parked 5.2; belt samples 4984: <60 m 56.0 %, Avoid 50.7 %, inactive 0.0 %
+   belt car player distance %: [(100, 3), (200, 6), (300, 10), (400, 31), (500, 38), (600, 11)]
+   placements 39 (13.7/min); from mode {3: 5, 2: 6, 4: 21, 0: 7}; {'behind': 30, 'ahead': 9}; {'oncoming': 26, 'same': 13}
+   parked 18 (6.3/min) at (50 m bins) [(100, 1), (150, 2), (250, 1), (300, 2), (350, 1), (400, 11)]
+   removed at (50 m bins) [(50, 1), (100, 1), (150, 4), (200, 2), (250, 4), (300, 4), (400, 23)]
+   placed at  (50 m bins) [(50, 1), (100, 2), (150, 3), (200, 4), (250, 25), (300, 4)]
+stream3: 169 s, cars listed 12.0, non-parked 9.3; belt samples 8851: <60 m 48.6 %, Avoid 40.0 %, inactive 4.4 %
+   belt car player distance %: [(100, 5), (200, 18), (300, 34), (400, 17), (500, 10), (600, 15)]
+   placements 95 (33.7/min); from mode {2: 10, 3: 25, 4: 30, 0: 30}; {'behind': 45, 'ahead': 50}; {'oncoming': 48, 'same': 47}
+   parked 34 (12.0/min) at (50 m bins) [(50, 4), (100, 2), (150, 8), (200, 2), (250, 4), (300, 4), (350, 5), (400, 5)]
+   removed at (50 m bins) [(0, 2), (50, 2), (100, 9), (150, 7), (200, 8), (250, 13), (300, 9), (350, 11), (400, 34)]
+   placed at  (50 m bins) [(50, 1), (100, 11), (150, 8), (200, 13), (250, 42), (300, 16), (350, 4)]
+stream4: 171 s, cars listed 12.0, non-parked 8.1; belt samples 10802: <60 m 63.1 %, Avoid 43.2 %, inactive 3.6 %
+   belt car player distance %: [(100, 1), (200, 24), (300, 30), (400, 22), (500, 16), (600, 7)]
+   placements 92 (32.2/min); from mode {2: 16, 4: 37, 3: 12, 0: 27}; {'behind': 69, 'ahead': 23}; {'same': 48, 'oncoming': 44}
+   parked 28 (9.8/min) at (50 m bins) [(100, 4), (150, 2), (200, 2), (250, 7), (300, 2), (350, 4), (400, 7)]
+   removed at (50 m bins) [(0, 1), (50, 3), (100, 1), (200, 2), (250, 8), (300, 8), (350, 12), (400, 57)]
+   placed at  (50 m bins) [(50, 1), (100, 8), (150, 3), (200, 11), (250, 58), (300, 8), (350, 1), (400, 2)]
+stream5: 171 s, cars listed 12.0, non-parked 9.0; belt samples 3037: <60 m 51.5 %, Avoid 39.0 %, inactive 0.1 %
+   belt car player distance %: [(200, 1), (300, 2), (400, 24), (500, 42), (600, 31)]
+   placements 66 (23.2/min); from mode {4: 17, 2: 11, 3: 17, 0: 21}; {'ahead': 12, 'behind': 54}; {'same': 26, 'oncoming': 40}
+   parked 28 (9.8/min) at (50 m bins) [(100, 5), (150, 2), (200, 7), (250, 4), (300, 5), (350, 3), (400, 2)]
+   removed at (50 m bins) [(0, 2), (100, 1), (150, 4), (200, 3), (250, 6), (300, 6), (350, 12), (400, 32)]
+   placed at  (50 m bins) [(100, 4), (150, 1), (200, 13), (250, 40), (300, 6), (350, 1), (400, 1)]
+stream6: 170 s, cars listed 12.0, non-parked 7.6; belt samples 8612: <60 m 64.0 %, Avoid 49.9 %, inactive 4.2 %
+   belt car player distance %: [(100, 5), (200, 18), (300, 24), (400, 17), (500, 15), (600, 21)]
+   placements 48 (16.9/min); from mode {2: 4, 4: 22, 3: 4, 0: 18}; {'behind': 28, 'ahead': 20}; {'oncoming': 23, 'same': 25}
+   parked 26 (9.2/min) at (50 m bins) [(50, 2), (100, 6), (150, 1), (200, 1), (250, 3), (300, 1), (350, 3), (400, 9)]
+   removed at (50 m bins) [(50, 3), (100, 6), (150, 1), (200, 2), (250, 2), (300, 2), (350, 3), (400, 29)]
+   placed at  (50 m bins) [(100, 4), (150, 5), (200, 7), (250, 22), (300, 5), (350, 5)]
+stream7: 170 s, cars listed 12.0, non-parked 7.8; belt samples 7427: <60 m 33.3 %, Avoid 17.1 %, inactive 23.5 %
+   belt car player distance %: [(100, 1), (200, 37), (300, 29), (400, 8), (500, 8), (600, 17)]
+   placements 76 (26.8/min); from mode {2: 19, 4: 17, 3: 14, 0: 26}; {'ahead': 43, 'behind': 33}; {'oncoming': 41, 'same': 35}
+   parked 33 (11.6/min) at (50 m bins) [(50, 1), (100, 1), (150, 3), (200, 8), (250, 6), (300, 5), (350, 4), (400, 5)]
+   removed at (50 m bins) [(50, 1), (100, 1), (150, 2), (200, 2), (250, 13), (300, 13), (350, 11), (400, 33)]
+   placed at  (50 m bins) [(100, 3), (150, 3), (200, 7), (250, 55), (300, 8)]
+stream8: 170 s, cars listed 12.0, non-parked 8.9; belt samples 11856: <60 m 68.8 %, Avoid 47.3 %, inactive 0.9 %
+   belt car player distance %: [(100, 3), (200, 32), (300, 23), (400, 18), (500, 13), (600, 10)]
+   placements 85 (30.0/min); from mode {4: 37, 2: 7, 3: 11, 0: 30}; {'ahead': 46, 'behind': 39}; {'oncoming': 44, 'same': 41}
+   parked 31 (10.9/min) at (50 m bins) [(50, 2), (100, 3), (150, 8), (200, 1), (250, 6), (300, 2), (350, 4), (400, 5)]
+   removed at (50 m bins) [(50, 1), (100, 5), (150, 2), (200, 5), (250, 17), (300, 9), (350, 9), (400, 37)]
+   placed at  (50 m bins) [(100, 6), (150, 4), (200, 15), (250, 45), (300, 9), (350, 3), (400, 3)]
+stream9: 170 s, cars listed 12.0, non-parked 9.7; belt samples 13520: <60 m 43.4 %, Avoid 30.5 %, inactive 4.4 %
+   belt car player distance %: [(100, 2), (200, 30), (300, 33), (400, 14), (500, 7), (600, 14)]
+   placements 94 (33.2/min); from mode {2: 31, 4: 26, 3: 13, 0: 24}; {'behind': 46, 'ahead': 48}; {'same': 42, 'oncoming': 52}
+   parked 25 (8.8/min) at (50 m bins) [(150, 1), (200, 3), (250, 7), (300, 3), (350, 4), (400, 7)]
+   removed at (50 m bins) [(0, 4), (50, 3), (100, 1), (150, 5), (200, 15), (250, 10), (300, 13), (350, 10), (400, 33)]
+   placed at  (50 m bins) [(100, 4), (150, 1), (200, 7), (250, 71), (300, 6), (350, 3), (400, 2)]
+stream10: 169 s, cars listed 12.0, non-parked 9.1; belt samples 6442: <60 m 47.1 %, Avoid 28.7 %, inactive 3.7 %
+   belt car player distance %: [(100, 4), (200, 15), (300, 29), (400, 19), (500, 12), (600, 21)]
+   placements 85 (30.1/min); from mode {4: 24, 2: 13, 0: 27, 3: 21}; {'behind': 43, 'ahead': 42}; {'oncoming': 36, 'same': 49}
+   parked 30 (10.6/min) at (50 m bins) [(50, 3), (100, 4), (150, 4), (200, 2), (250, 4), (300, 3), (350, 5), (400, 5)]
+   removed at (50 m bins) [(0, 1), (50, 3), (100, 5), (150, 8), (200, 10), (250, 8), (300, 6), (350, 8), (400, 36)]
+   placed at  (50 m bins) [(50, 3), (100, 7), (150, 13), (200, 10), (250, 43), (300, 7), (350, 2)]
+stream11: 170 s, cars listed 12.0, non-parked 3.3; belt samples 861: <60 m 0.0 %, Avoid 0.0 %, inactive 0.0 %
+   belt car player distance %: [(400, 35), (500, 14), (600, 51)]
+   placements 11 (3.9/min); from mode {2: 7, 4: 3, 3: 1}; {'ahead': 2, 'behind': 9}; {'oncoming': 7, 'same': 4}
+   parked 10 (3.5/min) at (50 m bins) [(200, 1), (250, 6), (400, 3)]
+   removed at (50 m bins) [(200, 1), (300, 2), (350, 3), (400, 5)]
+   placed at  (50 m bins) [(200, 5), (250, 6)]
+TOTAL belt 92267: <60 m 53.1 %, Avoid 38.3 %, inactive 5.2 %, placements 24.5/min, parks 9.3/min

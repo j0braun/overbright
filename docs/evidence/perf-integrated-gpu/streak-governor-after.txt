@@ -1,0 +1,70 @@
+# Streak governor, NFSU2_STREAK_FORM=auto, base (probe load alone) vs new (probe load + the drawn frames' share), 600 frames at a 144 Hz schedule, frames back to back, 3 runs each; 'cheap' = the cheap form forced
+## gov-igpu: the governor's line per run
+base__free-bal-1366x768__r1   exact in 158 of 599 frames, 1 changes, 52 probes; predicted probe load 36.8 % (6.129 ms a scene render, GPU 5.714 ms)
+base__free-bal-1366x768__r2   exact in 118 of 599 frames, 1 changes, 40 probes; predicted probe load 37.4 % (6.230 ms a scene render, GPU 5.764 ms)
+base__free-bal-1366x768__r3   exact in 161 of 599 frames, 1 changes, 54 probes; predicted probe load 36.2 % (6.031 ms a scene render, GPU 5.605 ms)
+base__free-orig-1366x768__r1   exact in 599 of 599 frames, 0 changes, 200 probes; predicted probe load 28.5 % (4.753 ms a scene render, GPU 4.617 ms)
+base__free-orig-1366x768__r2   exact in 599 of 599 frames, 0 changes, 200 probes; predicted probe load 29.3 % (4.889 ms a scene render, GPU 4.654 ms)
+base__free-orig-1366x768__r3   exact in 599 of 599 frames, 0 changes, 200 probes; predicted probe load 29.7 % (4.948 ms a scene render, GPU 4.612 ms)
+base__free-orig-1920x1080__r1   exact in 26 of 599 frames, 1 changes, 8 probes; predicted probe load 68.6 % (11.436 ms a scene render, GPU 10.567 ms)
+base__free-orig-1920x1080__r2   exact in 25 of 599 frames, 1 changes, 8 probes; predicted probe load 74.6 % (12.437 ms a scene render, GPU 10.520 ms)
+base__free-orig-1920x1080__r3   exact in 24 of 599 frames, 1 changes, 8 probes; predicted probe load 76.7 % (12.790 ms a scene render, GPU 11.179 ms)
+base__start-orig-1366x768__r1   exact in 599 of 599 frames, 0 changes, 100 probes; predicted probe load 21.3 % (7.111 ms a scene render, GPU 6.544 ms)
+base__start-orig-1366x768__r2   exact in 599 of 599 frames, 0 changes, 100 probes; predicted probe load 22.9 % (7.628 ms a scene render, GPU 9.217 ms)
+base__start-orig-1366x768__r3   exact in 599 of 599 frames, 0 changes, 100 probes; predicted probe load 22.0 % (7.348 ms a scene render, GPU 6.691 ms)
+cheap__free-orig-1366x768__r1   exact in 0 of 599 frames, 0 changes, 0 probes; predicted probe load 0.0 % (0.000 ms a scene render, GPU 4.656 ms), with the drawn frames 0.0 %
+cheap__free-orig-1366x768__r2   exact in 0 of 599 frames, 0 changes, 0 probes; predicted probe load 0.0 % (0.000 ms a scene render, GPU 4.611 ms), with the drawn frames 0.0 %
+cheap__free-orig-1366x768__r3   exact in 0 of 599 frames, 0 changes, 0 probes; predicted probe load 0.0 % (0.000 ms a scene render, GPU 4.523 ms), with the drawn frames 0.0 %
+cheap__start-orig-1366x768__r1   exact in 0 of 599 frames, 0 changes, 0 probes; predicted probe load 0.0 % (0.000 ms a scene render, GPU 6.712 ms), with the drawn frames 0.0 %
+cheap__start-orig-1366x768__r2   exact in 0 of 599 frames, 0 changes, 0 probes; predicted probe load 0.0 % (0.000 ms a scene render, GPU 6.786 ms), with the drawn frames 0.0 %
+cheap__start-orig-1366x768__r3   exact in 0 of 599 frames, 0 changes, 0 probes; predicted probe load 0.0 % (0.000 ms a scene render, GPU 6.334 ms), with the drawn frames 0.0 %
+new__free-bal-1366x768__r1   exact in 42 of 599 frames, 1 changes, 14 probes; predicted probe load 38.3 % (6.384 ms a scene render, GPU 5.948 ms), with the drawn frames 130.2 %
+new__free-bal-1366x768__r2   exact in 42 of 599 frames, 1 changes, 14 probes; predicted probe load 37.5 % (6.258 ms a scene render, GPU 6.098 ms), with the drawn frames 127.7 %
+new__free-bal-1366x768__r3   exact in 41 of 599 frames, 1 changes, 14 probes; predicted probe load 38.1 % (6.353 ms a scene render, GPU 5.870 ms), with the drawn frames 129.6 %
+new__free-orig-1366x768__r1   exact in 220 of 599 frames, 1 changes, 73 probes; predicted probe load 30.3 % (5.054 ms a scene render, GPU 4.781 ms), with the drawn frames 103.1 %
+new__free-orig-1366x768__r2   exact in 269 of 599 frames, 1 changes, 90 probes; predicted probe load 29.7 % (4.944 ms a scene render, GPU 4.653 ms), with the drawn frames 100.9 %
+new__free-orig-1366x768__r3   exact in 44 of 599 frames, 1 changes, 15 probes; predicted probe load 32.6 % (5.428 ms a scene render, GPU 4.998 ms), with the drawn frames 110.7 %
+new__free-orig-1920x1080__r1   exact in 27 of 599 frames, 1 changes, 9 probes; predicted probe load 67.8 % (11.304 ms a scene render, GPU 9.887 ms), with the drawn frames 230.6 %
+new__free-orig-1920x1080__r2   exact in 24 of 599 frames, 1 changes, 8 probes; predicted probe load 70.6 % (11.761 ms a scene render, GPU 11.461 ms), with the drawn frames 239.9 %
+new__free-orig-1920x1080__r3   exact in 26 of 599 frames, 1 changes, 8 probes; predicted probe load 70.5 % (11.748 ms a scene render, GPU 10.971 ms), with the drawn frames 239.7 %
+new__start-orig-1366x768__r1   exact in 35 of 599 frames, 1 changes, 6 probes; predicted probe load 21.7 % (7.241 ms a scene render, GPU 6.560 ms), with the drawn frames 126.0 %
+new__start-orig-1366x768__r2   exact in 31 of 599 frames, 1 changes, 5 probes; predicted probe load 22.9 % (7.649 ms a scene render, GPU 6.860 ms), with the drawn frames 133.1 %
+new__start-orig-1366x768__r3   exact in 34 of 599 frames, 1 changes, 6 probes; predicted probe load 21.6 % (7.205 ms a scene render, GPU 6.990 ms), with the drawn frames 125.4 %
+config                    GPU base   GPU new     d% |  f50 base   f50 new | main base/new | render base/new
+free-orig-1366x768           4.341     4.621   +6.4 |      4.85      4.94 | p99 10.33/9.27 | 0.64/0.57 | 0.94/0.80  n 3/3  gpu scatter   4.34 (4.28-4.36) /   4.62 (4.45-5.04)
+free-orig-1920x1080         10.220    10.191   -0.3 |     10.41     10.48 | p99 15.79/16.11 | 1.08/0.75 | 1.28/0.99  n 3/3  gpu scatter  10.22 (9.98-10.54) /  10.19 (9.94-10.49)
+free-bal-1366x768            5.457     5.657   +3.7 |      5.85      5.94 | p99 10.24/9.58 | 0.62/0.73 | 0.85/0.89  n 3/3  gpu scatter   5.46 (5.40-5.59) /   5.66 (5.66-5.69)
+start-orig-1366x768          6.908     6.915   +0.1 |      7.29      7.21 | p99 15.80/10.99 | 0.76/0.70 | 1.68/1.50  n 3/3  gpu scatter   6.91 (6.77-7.13) /   6.92 (6.78-7.16)
+## gov-dgpu: the governor's line per run
+base__free-orig-1366x768__r1   exact in 599 of 599 frames, 0 changes, 200 probes; predicted probe load 2.4 % (0.407 ms a scene render, GPU 0.400 ms)
+base__free-orig-1366x768__r2   exact in 599 of 599 frames, 0 changes, 200 probes; predicted probe load 2.6 % (0.431 ms a scene render, GPU 0.355 ms)
+base__free-orig-1366x768__r3   exact in 599 of 599 frames, 0 changes, 200 probes; predicted probe load 2.5 % (0.414 ms a scene render, GPU 0.364 ms)
+base__free-orig-1920x1080__r1   exact in 599 of 599 frames, 0 changes, 200 probes; predicted probe load 3.6 % (0.600 ms a scene render, GPU 0.564 ms)
+base__free-orig-1920x1080__r2   exact in 599 of 599 frames, 0 changes, 200 probes; predicted probe load 3.6 % (0.597 ms a scene render, GPU 0.564 ms)
+base__free-orig-1920x1080__r3   exact in 599 of 599 frames, 0 changes, 200 probes; predicted probe load 3.6 % (0.604 ms a scene render, GPU 0.563 ms)
+base__start-orig-1366x768__r1   exact in 599 of 599 frames, 0 changes, 100 probes; predicted probe load 1.9 % (0.638 ms a scene render, GPU 0.527 ms)
+base__start-orig-1366x768__r2   exact in 599 of 599 frames, 0 changes, 100 probes; predicted probe load 1.7 % (0.578 ms a scene render, GPU 0.514 ms)
+base__start-orig-1366x768__r3   exact in 599 of 599 frames, 0 changes, 100 probes; predicted probe load 2.0 % (0.658 ms a scene render, GPU 0.528 ms)
+new__free-orig-1366x768__r1   exact in 599 of 599 frames, 0 changes, 200 probes; predicted probe load 2.4 % (0.404 ms a scene render, GPU 0.353 ms), with the drawn frames 8.2 %
+new__free-orig-1366x768__r2   exact in 599 of 599 frames, 0 changes, 200 probes; predicted probe load 2.5 % (0.416 ms a scene render, GPU 0.389 ms), with the drawn frames 8.5 %
+new__free-orig-1366x768__r3   exact in 599 of 599 frames, 0 changes, 200 probes; predicted probe load 2.6 % (0.439 ms a scene render, GPU 0.404 ms), with the drawn frames 8.9 %
+new__free-orig-1920x1080__r1   exact in 599 of 599 frames, 0 changes, 200 probes; predicted probe load 3.6 % (0.599 ms a scene render, GPU 0.562 ms), with the drawn frames 12.2 %
+new__free-orig-1920x1080__r2   exact in 599 of 599 frames, 0 changes, 200 probes; predicted probe load 3.6 % (0.602 ms a scene render, GPU 0.566 ms), with the drawn frames 12.3 %
+new__free-orig-1920x1080__r3   exact in 599 of 599 frames, 0 changes, 200 probes; predicted probe load 3.6 % (0.599 ms a scene render, GPU 0.566 ms), with the drawn frames 12.2 %
+new__start-orig-1366x768__r1   exact in 599 of 599 frames, 0 changes, 100 probes; predicted probe load 1.8 % (0.616 ms a scene render, GPU 0.525 ms), with the drawn frames 10.7 %
+new__start-orig-1366x768__r2   exact in 599 of 599 frames, 0 changes, 100 probes; predicted probe load 1.9 % (0.633 ms a scene render, GPU 0.532 ms), with the drawn frames 11.0 %
+new__start-orig-1366x768__r3   exact in 599 of 599 frames, 0 changes, 100 probes; predicted probe load 1.8 % (0.613 ms a scene render, GPU 0.526 ms), with the drawn frames 10.7 %
+config                    GPU base   GPU new     d% |  f50 base   f50 new | main base/new | render base/new
+free-orig-1366x768           0.317     0.317   +0.0 |      0.45      0.45 | p99 1.80/1.98 | 0.43/0.43 | 0.69/0.73  n 3/3  gpu scatter   0.32 (0.32-0.32) /   0.32 (0.32-0.32)
+free-orig-1920x1080          0.518     0.517   -0.2 |      0.65      0.65 | p99 2.23/2.18 | 0.46/0.46 | 0.71/0.74  n 3/3  gpu scatter   0.52 (0.52-0.52) /   0.52 (0.52-0.52)
+start-orig-1366x768          0.458     0.457   -0.2 |      0.65      0.66 | p99 1.74/1.99 | 0.40/0.40 | 1.27/1.27  n 3/3  gpu scatter   0.46 (0.46-0.46) /   0.46 (0.46-0.46)
+config                   GPU cheap   GPU new     d% | f50 cheap   f50 new | main cheap/new | render cheap/new
+free-orig-1366x768           4.601     4.621   +0.4 |      4.84      4.94 | p99 5.54/9.27 | 0.62/0.57 | 0.88/0.80  n 3/3  gpu scatter   4.60 (4.47-4.64) /   4.62 (4.45-5.04)
+start-orig-1366x768          6.928     6.915   -0.2 |      7.25      7.21 | p99 7.76/10.99 | 0.51/0.70 | 1.31/1.50  n 3/3  gpu scatter   6.93 (6.65-7.08) /   6.92 (6.78-7.16)
+## integrated, frame p50/p99 per run (ms)
+free-orig-1366x768 base 4.77/10.00 4.86/10.33 4.86/10.76
+free-orig-1366x768 new 4.94/9.49 4.79/9.27 5.26/9.13
+free-orig-1366x768 cheap 4.84/15.07 4.64/5.34 4.84/5.54
+start-orig-1366x768 base 7.11/14.88 7.54/17.06 7.29/15.80
+start-orig-1366x768 new 7.11/8.07 7.48/10.99 7.21/11.62
+start-orig-1366x768 cheap 7.36/8.78 7.25/7.76 6.99/7.67

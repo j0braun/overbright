@@ -1,0 +1,336 @@
+The tail: scripts/perf/frametail.py over each run's frame log (NFSU2_BENCH_FRAMELOG), 1920x1080.
+d/ = the discrete GPU (shared with another program: its wall times are the other program's turns, not trusted);
+i/ = the integrated GPU. 'fixed' = the bench's one tick per frame; 60 / 144 = NFSU2_BENCH_HZ (the window's schedule).
+Scenes: drive = a career sprint with traffic and three rivals to its finish; racing = a career circuit with three
+rivals and traffic to its finish; race = that circuit's start (1500 frames). orig = Original, high = the Enhanced level High.
+
+=== d/drive-high-144: bench drive: load 267 ms, first frame 66.7 ms, 22740 frames, 0 traffic cars on the road, 0 rivals; the car drove 4234 m (1079 m from the start) throug
+22740 frames
+wall        p50  14.489  p95  18.717  p99  23.306  max  178.890  mean  11.209
+main busy   p50  14.489  p95  18.717  p99  23.306  max  178.890  mean  11.208
+render CPU  p50   2.559  p95   6.084  p99   7.777  max   16.486  mean   2.935
+other CPU   p50   2.559  p95   6.084  p99   7.777  max   16.486  mean   2.935
+90 slow frames (median wall 14.489, main busy 14.489)
+  frame  21214 x 12.3  wall  178.89  update   0.49  draw 178.40  render CPU 6.893 |  | shadows, particles, glows, horizon fog=1.29,particles=0.67,shadows=0.52,world: road reflection, main view=0.48,cars=0.47,weather fx prepare=0.45,tick: update=0.39,post passes=0.27
+  frame  22116 x  4.4  wall   63.31  update   0.57  draw  62.74  render CPU 1.920 |  | shadows, particles, glows, horizon fog=0.66,particles=0.41,world: road reflection, main view=0.32,tick: update=0.29,weather fx prepare=0.29,cars=0.26
+  frame  22013 x  4.3  wall   62.89  update   1.29  draw  61.60  render CPU 5.995 |  | shadows, particles, glows, horizon fog=1.11,particles=0.61,world: road reflection, main view=0.50,cars=0.48,shadows=0.41,weather fx prepare=0.39,post passes=0.31,tick: update=0.27
+  frame  15041 x  3.0  wall   43.91  update   0.35  draw  43.56  render CPU 8.326 |  | world: road reflection, main view=1.26,world: LOD fade=0.79,shadows, particles, glows, horizon fog=0.61,shadows=0.40,cars=0.32,world: flare pools, reflection flares=0.29
+  frame  20278 x  2.9  wall   41.88  update   0.47  draw  41.41  render CPU 6.718 |  | shadows, particles, glows, horizon fog=0.94,world: road reflection, main view=0.78,post passes=0.69,shadows=0.65,cars=0.44,tick: update=0.30,world: lamps=0.29,world: flare pools, reflection flares=0.2
+  frame  13769 x  2.8  wall   40.29  update   0.25  draw  40.04  render CPU 6.756 |  | world: road reflection, main view=0.70,shadows, particles, glows, horizon fog=0.54,world: flare pools, reflection flares=0.40,shadows=0.36,cars=0.27,world: LOD fade=0.25
+  frame  19083 x  2.6  wall   38.08  update   0.30  draw  37.78  render CPU 7.386 |  | world: road reflection, main view=2.12,world: light probes=1.31,shadows, particles, glows, horizon fog=0.80,post passes=0.65,shadows=0.57,cars=0.49,world: flare pools, reflection flares=0.42,world: LO
+  frame  13827 x  2.6  wall   38.03  update   0.36  draw  37.66  render CPU 4.879 |  | shadows, particles, glows, horizon fog=0.57,world: road reflection, main view=0.45,shadows=0.42,tick: update=0.27
+  frame  18752 x  2.5  wall   36.07  update   0.27  draw  35.80  render CPU 5.944 |  | world: road reflection, main view=0.89,shadows, particles, glows, horizon fog=0.70,shadows=0.43,post passes=0.42,cars=0.37,world: LOD fade=0.31
+  frame  21003 x  2.4  wall   34.83  update   0.41  draw  34.42  render CPU 7.387 | built 3 pipelines / 1 modules | shadows, particles, glows, horizon fog=17.04,particles=16.48,weather fx prepare=16.25,post passes=1.06,world: road reflection, main view=0.65,shadows=0.46,cars=0.42,tick: update=0.31,t
+  frame 21003: 3 pipelines built (update 0.4 ms, draw 34.4 ms, GPU 0.0 ms)
+
+=== d/drive-high-60: bench drive: load 362 ms, first frame 82.8 ms, 9475 frames, 0 traffic cars on the road, 0 rivals; the car drove 4234 m (1079 m from the start) through
+9475 frames
+wall        p50  14.246  p95  20.779  p99  27.405  max  182.986  mean  10.910
+main busy   p50   1.359  p95   5.075  p99   7.849  max   21.010  mean   1.846
+render CPU  p50   2.153  p95   3.791  p99   4.999  max   10.282  mean   2.314
+other CPU   p50   2.153  p95   3.791  p99   4.999  max   10.282  mean   2.314
+1271 slow frames (median wall 14.246, main busy 1.359)
+  frame   1393 x 15.5  wall   22.09  update   0.34  draw  20.67  render CPU 3.569 |  | world: road reflection, main view=0.49,shadows, particles, glows, horizon fog=0.48,cars=0.46,shadows=0.33
+  frame   3046 x 12.8  wall  182.99  update   0.19  draw   0.98  render CPU 2.144 |  | world: road reflection, main view=0.28
+  frame   8751 x 11.8  wall   16.26  update   0.34  draw  15.68  render CPU 2.341 |  | shadows, particles, glows, horizon fog=12.63,particles=12.40,weather fx prepare=12.31,world: road reflection, main view=0.38,tick: update=0.25
+  frame   9475 x 11.3  wall   15.40  update  11.97  draw   3.42  render CPU 2.088 | traffic 12 -> 0 | tick: update=11.83,shadows, particles, glows, horizon fog=1.69,characters=1.44,cars=0.91,car renderer builds=0.82
+  frame   3100 x 11.1  wall  158.30  update   0.17  draw   1.40  render CPU 2.423 |  | world: road reflection, main view=0.33,shadows, particles, glows, horizon fog=0.30,cars=0.26
+  frame    858 x  9.8  wall   13.56  update   0.47  draw  12.84  render CPU 3.714 |  | world: road reflection, main view=1.03,world: light probes=0.70,shadows, particles, glows, horizon fog=0.37,tick: update=0.36,cars=0.35,tick:   sim step=0.33
+  frame    655 x  9.3  wall   12.69  update   0.27  draw  12.41  render CPU 5.603 |  | world: road reflection, main view=0.97,world: LOD fade=0.59,cars=0.37,shadows, particles, glows, horizon fog=0.35
+  frame    844 x  8.9  wall   12.16  update   0.28  draw  11.87  render CPU 3.510 |  | world: road reflection, main view=0.94,world: light probes=0.43,shadows, particles, glows, horizon fog=0.33,cars=0.28
+  frame   1806 x  8.5  wall   11.62  update   0.50  draw  11.11  render CPU 2.285 |  | world: road reflection, main view=1.21,world: light probes=0.70,tick: update=0.33,shadows, particles, glows, horizon fog=0.33,cars=0.31,tick:   sim step=0.29
+  frame   1006 x  8.4  wall   11.44  update   0.45  draw  10.99  render CPU 3.422 |  | world: road reflection, main view=0.65,world: LOD fade=0.41,shadows, particles, glows, horizon fog=0.35,cars=0.34,tick: update=0.34,tick:   sim step=0.30
+  frame 8752: 3 pipelines built (update 0.2 ms, draw 1.9 ms, GPU 0.0 ms)
+
+=== d/drive-high-fixed: bench drive: load 340 ms, first frame 108.3 ms, 9572 frames, 0 traffic cars on the road, 0 rivals; the car drove 4234 m (1077 m from the start) throug
+9572 frames
+wall        p50  13.111  p95  16.263  p99  26.729  max   39.399  mean  10.879
+main busy   p50   1.836  p95   7.309  p99  10.360  max   25.437  mean   2.745
+render CPU  p50   2.641  p95   4.581  p99   5.913  max   11.163  mean   2.815
+other CPU   p50   2.641  p95   4.581  p99   5.913  max   11.163  mean   2.815
+2241 slow frames (median wall 13.111, main busy 1.836)
+  frame   9572 x 13.9  wall   25.44  update  16.49  draw   8.94  render CPU 3.131 | traffic 12 -> 0 | tick: update=12.73,cars=1.99,shadows, particles, glows, horizon fog=1.92,car renderer builds=1.86,characters=1.54,world: road reflection, main view=0.36,particles=0.28
+  frame   5971 x  9.5  wall   24.84  update   0.39  draw  17.11  render CPU 3.719 |  | world: road reflection, main view=1.68,world: LOD fade=0.86,world: light probes=0.55,shadows, particles, glows, horizon fog=0.41,tick: update=0.31,shadows=0.28,tick:   sim step=0.27
+  frame   9454 x  8.8  wall   16.18  update   0.43  draw  15.74  render CPU 7.323 |  | shadows, particles, glows, horizon fog=0.61,particles=0.36,world: road reflection, main view=0.34,tick: update=0.33,cars=0.28
+  frame   7581 x  8.5  wall   17.22  update   0.29  draw  15.30  render CPU 4.294 |  | world: road reflection, main view=1.52,world: light probes=0.76,world: LOD fade=0.50,shadows, particles, glows, horizon fog=0.33,cars=0.28
+  frame   5901 x  8.4  wall   18.38  update   0.35  draw  15.16  render CPU 4.460 |  | world: road reflection, main view=0.46,shadows, particles, glows, horizon fog=0.40,shadows=0.28,tick: update=0.27
+  frame   6983 x  8.4  wall   15.35  update   1.11  draw  14.23  render CPU 6.201 |  | world: road reflection, main view=0.58,post passes=0.38,shadows, particles, glows, horizon fog=0.34,world: LOD fade=0.32,cars=0.26
+  frame   5461 x  8.2  wall   20.43  update   0.44  draw  14.65  render CPU 7.034 |  | world: road reflection, main view=0.98,world: LOD fade=0.72,shadows, particles, glows, horizon fog=0.44,tick: update=0.35,tick:   sim step=0.31,shadows=0.30,cars=0.26
+  frame   8884 x  7.8  wall   14.62  update   0.22  draw  14.17  render CPU 2.856 | built 3 pipelines / 1 modules | shadows, particles, glows, horizon fog=12.45,particles=12.20,weather fx prepare=12.13,post passes=0.80,world: road reflection, main view=0.28
+  frame   9532 x  7.8  wall   14.28  update   5.70  draw   8.58  render CPU 3.803 |  | shadows, particles, glows, horizon fog=1.23,particles=0.97,weather fx prepare=0.84,world: road reflection, main view=0.34,tick: update=0.31,cars=0.29
+  frame   6065 x  7.7  wall   16.30  update   3.01  draw  11.16  render CPU 8.372 |  | world: road reflection, main view=1.01,world: LOD fade=0.77,shadows, particles, glows, horizon fog=0.37,shadows=0.26
+  frame 8884: 3 pipelines built (update 0.2 ms, draw 14.2 ms, GPU 0.2 ms)
+
+=== d/drive-orig-144: bench drive: load 167 ms, first frame 11.0 ms, 22740 frames, 0 traffic cars on the road, 0 rivals; the car drove 4234 m (1079 m from the start) throug
+22740 frames
+wall        p50   7.677  p95  19.627  p99  26.686  max   41.672  mean   8.013
+main busy   p50   7.677  p95  19.627  p99  26.686  max   41.672  mean   8.013
+render CPU  p50   1.158  p95   2.666  p99   3.430  max    8.356  mean   1.409
+other CPU   p50   1.158  p95   2.666  p99   3.430  max    8.356  mean   1.409
+1969 slow frames (median wall 7.677, main busy 7.677)
+  frame   6704 x  5.4  wall   41.67  update   0.23  draw  41.44  render CPU 2.322 |  | cars=0.26
+  frame  13799 x  4.6  wall   35.44  update   0.01  draw  35.43  render CPU 1.926 |  | 
+  frame   1491 x  4.5  wall   34.66  update   0.16  draw  34.49  render CPU 2.637 |  | cars=0.36
+  frame   2974 x  4.5  wall   34.22  update   0.19  draw  34.03  render CPU 2.429 |  | cars=0.30
+  frame   1580 x  4.4  wall   33.65  update   0.24  draw  33.42  render CPU 1.996 |  | cars=0.34
+  frame   2986 x  4.3  wall   33.36  update   0.19  draw  33.16  render CPU 2.148 |  | cars=0.31
+  frame   2624 x  4.3  wall   33.34  update   0.20  draw  33.15  render CPU 1.767 |  | cars=0.32
+  frame   2235 x  4.3  wall   33.13  update   0.18  draw  32.94  render CPU 2.273 |  | cars=0.32
+  frame   4599 x  4.2  wall   32.60  update   0.19  draw  32.41  render CPU 2.877 |  | cars=0.33
+  frame   1613 x  4.2  wall   32.54  update   0.17  draw  32.37  render CPU 2.152 |  | cars=0.29
+  frame 21000: 1 pipelines built (update 0.2 ms, draw 0.7 ms, GPU 0.0 ms)
+  frame 21003: 3 pipelines built (update 0.2 ms, draw 15.3 ms, GPU 0.0 ms)
+
+=== d/drive-orig-60: bench drive: load 234 ms, first frame 50.4 ms, 9475 frames, 0 traffic cars on the road, 0 rivals; the car drove 4234 m (1079 m from the start) through
+9475 frames
+wall        p50   1.533  p95  40.327  p99  42.767  max   93.213  mean   9.455
+main busy   p50   0.655  p95   2.450  p99   4.186  max   11.558  mean   0.864
+render CPU  p50   1.057  p95   1.754  p99   2.526  max    5.020  mean   1.128
+other CPU   p50   1.057  p95   1.754  p99   2.526  max    5.020  mean   1.128
+4204 slow frames (median wall 1.533, main busy 0.655)
+  frame   5261 x 60.8  wall   93.21  update   0.24  draw   0.49  render CPU 1.352 |  | 
+  frame   4527 x 35.0  wall   53.65  update   0.20  draw   0.53  render CPU 1.260 |  | 
+  frame   5303 x 34.6  wall   53.09  update   0.16  draw   0.41  render CPU 1.436 |  | 
+  frame   2778 x 32.6  wall   50.05  update   0.14  draw   0.40  render CPU 1.166 |  | 
+  frame   1894 x 32.2  wall   49.42  update   0.15  draw   0.41  render CPU 1.886 |  | 
+  frame   5988 x 32.1  wall   49.25  update   0.15  draw   0.41  render CPU 1.014 |  | 
+  frame    168 x 31.9  wall   48.88  update   0.14  draw   0.37  render CPU 1.058 |  | 
+  frame   3154 x 31.0  wall   47.53  update   0.15  draw   0.39  render CPU 1.067 |  | 
+  frame   6840 x 30.9  wall   47.36  update   0.15  draw   0.46  render CPU 2.265 |  | 
+  frame   4698 x 30.9  wall   47.35  update   0.14  draw   0.37  render CPU 1.011 |  | 
+  frame 8750: 1 pipelines built (update 0.3 ms, draw 1.1 ms, GPU 0.0 ms)
+  frame 8752: 3 pipelines built (update 0.2 ms, draw 1.4 ms, GPU 0.0 ms)
+
+=== d/drive-orig-fixed: bench drive: load 123 ms, first frame 13.1 ms, 9572 frames, 0 traffic cars on the road, 0 rivals; the car drove 4234 m (1077 m from the start) through
+9572 frames
+wall        p50  12.309  p95  12.848  p99  23.036  max   36.354  mean   8.275
+main busy   p50   0.600  p95   2.621  p99   4.153  max   12.142  mean   0.829
+render CPU  p50   0.992  p95   1.710  p99   2.479  max    3.412  mean   1.065
+other CPU   p50   0.992  p95   1.710  p99   2.479  max    3.412  mean   1.065
+736 slow frames (median wall 12.309, main busy 0.600)
+  frame   9572 x 20.2  wall   12.57  update   8.26  draw   3.89  render CPU 2.183 | traffic 12 -> 0 | tick: update=8.12,shadows, particles, glows, horizon fog=2.50,characters=2.44,cars=1.05,car renderer builds=0.99
+  frame   7500 x 16.6  wall   10.01  update   0.19  draw   9.75  render CPU 2.334 |  | 
+  frame   7983 x 15.1  wall   13.67  update   0.31  draw   8.77  render CPU 1.630 |  | 
+  frame   7986 x 12.8  wall    7.87  update   0.29  draw   7.40  render CPU 1.227 |  | shadows, particles, glows, horizon fog=0.32,shadows=0.28
+  frame   7643 x 11.6  wall    7.07  update   0.22  draw   6.76  render CPU 1.882 |  | 
+  frame   7641 x 11.5  wall    8.36  update   0.20  draw   6.72  render CPU 2.908 |  | 
+  frame   7637 x 11.5  wall    6.88  update   0.29  draw   6.58  render CPU 0.689 |  | shadows, particles, glows, horizon fog=0.35,world: moved placements=0.31,shadows=0.30
+  frame   7982 x 11.3  wall    8.62  update   0.21  draw   6.58  render CPU 2.876 |  | cars=0.44
+  frame   7646 x 10.8  wall    6.54  update   4.80  draw   1.67  render CPU 1.991 |  | 
+  frame   8599 x 10.6  wall    6.35  update   1.94  draw   4.40  render CPU 0.411 |  | tick: update=0.30,tick:   sim step=0.28
+  frame 8883: 1 pipelines built (update 0.1 ms, draw 0.6 ms, GPU 11.6 ms)
+  frame 8884: 3 pipelines built (update 0.2 ms, draw 1.1 ms, GPU 11.3 ms)
+
+=== d/race-high-fixed: bench race: load 1083 ms, first frame 108.2 ms, 1500 frames, 5 traffic cars on the road, 3 rivals; the car drove 367 m (328 m from the start) through 
+1500 frames
+wall        p50  13.663  p95  22.504  p99  27.620  max   34.535  mean  11.056
+main busy   p50   1.397  p95   5.364  p99   7.900  max   12.498  mean   1.986
+render CPU  p50   2.483  p95   4.771  p99   7.090  max   13.539  mean   2.786
+other CPU   p50   2.483  p95   4.771  p99   7.090  max   13.539  mean   2.786
+281 slow frames (median wall 13.663, main busy 1.397)
+  frame    151 x  8.9  wall   13.67  update   0.20  draw  12.29  render CPU 4.366 |  | world: road reflection, main view=0.34,shadows, particles, glows, horizon fog=0.26
+  frame      3 x  8.9  wall   12.38  update   0.20  draw  12.17  render CPU 9.855 |  | world: road reflection, main view=0.93,world: light probes=0.58
+  frame      4 x  8.7  wall   14.30  update   0.23  draw  11.90  render CPU 8.102 |  | world: road reflection, main view=0.36,cars=0.27
+  frame     28 x  8.0  wall   11.32  update   0.18  draw  11.03  render CPU 7.642 |  | world: road reflection, main view=0.78,world: light probes=0.45
+  frame    174 x  7.2  wall   12.98  update   0.16  draw   9.93  render CPU 7.472 |  | world: road reflection, main view=0.30
+  frame      2 x  6.4  wall    8.94  update   0.18  draw   8.76  render CPU 8.569 |  | world: road reflection, main view=0.35,cars=0.26
+  frame      5 x  6.3  wall   19.32  update   0.22  draw   8.60  render CPU 13.539 |  | world: road reflection, main view=0.36
+  frame     13 x  6.3  wall   22.72  update   0.21  draw   8.59  render CPU 11.581 |  | world: road reflection, main view=0.37
+  frame    161 x  6.0  wall   14.34  update   0.15  draw   8.25  render CPU 4.622 |  | world: road reflection, main view=0.30
+  frame     46 x  6.0  wall    8.33  update   0.23  draw   8.09  render CPU 3.865 |  | shadows, particles, glows, horizon fog=0.52,world: road reflection, main view=0.36,characters=0.31
+
+=== d/race-orig-fixed: bench race: load 124 ms, first frame 8.9 ms, 1500 frames, 5 traffic cars on the road, 3 rivals; the car drove 367 m (328 m from the start) through 4 s
+1500 frames
+wall        p50  12.463  p95  12.916  p99  20.022  max   25.069  mean   8.488
+main busy   p50   0.589  p95   0.789  p99   1.289  max    2.664  mean   0.613
+render CPU  p50   1.162  p95   1.554  p99   2.381  max    4.982  mean   1.203
+other CPU   p50   1.162  p95   1.554  p99   2.381  max    4.982  mean   1.203
+4 slow frames (median wall 12.463, main busy 0.589)
+  frame    359 x  4.5  wall   12.33  update   0.11  draw   2.55  render CPU 1.265 |  | cars=2.24,car renderer builds=2.03
+  frame   1318 x  2.0  wall   25.07  update   0.11  draw   0.48  render CPU 1.155 |  | 
+  frame    546 x  2.0  wall   25.00  update   0.10  draw   0.46  render CPU 1.178 |  | 
+  frame    149 x  2.0  wall   24.98  update   0.10  draw   0.45  render CPU 1.289 |  | 
+
+=== d/racing-high-144: bench racing: load 294 ms, first frame 78.7 ms, 15226 frames, 0 traffic cars on the road, 0 rivals; the car drove 3241 m (4 m from the start) through 
+15226 frames
+wall        p50  10.207  p95  21.275  p99  30.508  max  214.478  mean  10.902
+main busy   p50  10.205  p95  21.266  p99  30.508  max  214.478  mean  10.900
+render CPU  p50   3.043  p95   7.303  p99   9.828  max   20.029  mean   3.534
+other CPU   p50   3.043  p95   7.303  p99   9.828  max   20.029  mean   3.534
+1008 slow frames (median wall 10.207, main busy 10.205)
+  frame    226 x 21.0  wall  214.48  update   0.24  draw 214.24  render CPU 5.026 |  | shadows, particles, glows, horizon fog=0.81,shadows=0.55,cars=0.51,world: road reflection, main view=0.42
+  frame    905 x 19.2  wall  195.63  update   0.33  draw 195.29  render CPU 5.845 |  | world: road reflection, main view=0.80,shadows, particles, glows, horizon fog=0.71,cars=0.64,shadows=0.47,world: LOD fade=0.36,world: flare pools, reflection flares=0.34
+  frame  11287 x 18.9  wall  193.24  update   0.01  draw 193.24  render CPU 3.309 |  | shadows, particles, glows, horizon fog=0.36,shadows=0.26
+  frame    646 x 18.4  wall  187.57  update   0.32  draw 187.25  render CPU 6.088 |  | shadows, particles, glows, horizon fog=0.76,world: road reflection, main view=0.66,shadows=0.55,cars=0.53
+  frame    500 x 13.3  wall  135.60  update   0.29  draw 135.31  render CPU 5.048 |  | shadows, particles, glows, horizon fog=0.71,shadows=0.53,cars=0.49,world: road reflection, main view=0.40
+  frame    361 x 13.1  wall  133.32  update   0.01  draw 133.32  render CPU 2.772 |  | shadows, particles, glows, horizon fog=0.52,shadows=0.40,cars=0.34
+  frame   1066 x 10.8  wall  110.44  update   0.28  draw 110.16  render CPU 11.722 |  | world: road reflection, main view=1.03,shadows, particles, glows, horizon fog=0.78,cars=0.78,shadows=0.56,world: LOD fade=0.53,world: flare pools, reflection flares=0.29
+  frame   3838 x  9.5  wall   97.34  update   2.35  draw  94.99  render CPU 8.204 |  | shadows, particles, glows, horizon fog=0.93,shadows=0.68,world: road reflection, main view=0.65,cars=0.46,tick: update=0.43,tick:   sim step=0.40,post passes=0.38,world: flare pools, reflection flares
+  frame    936 x  9.3  wall   95.17  update   0.40  draw  94.77  render CPU 1.829 |  | world: road reflection, main view=0.43,shadows, particles, glows, horizon fog=0.29
+  frame   1016 x  8.7  wall   88.86  update   0.41  draw  88.44  render CPU 6.488 |  | world: road reflection, main view=1.06,shadows, particles, glows, horizon fog=0.70,cars=0.53,shadows=0.51,world: light probes=0.37,world: LOD fade=0.31,world: flare pools, reflection flares=0.29,tick:
+
+=== d/racing-high-60: bench racing: load 689 ms, first frame 37.8 ms, 6344 frames, 0 traffic cars on the road, 0 rivals; the car drove 3241 m (4 m from the start) through 1
+6344 frames
+wall        p50  13.772  p95  19.390  p99  27.271  max   41.999  mean  11.245
+main busy   p50   1.834  p95   7.486  p99  10.819  max   41.993  mean   2.652
+render CPU  p50   2.871  p95   4.750  p99   6.114  max   10.295  mean   3.001
+other CPU   p50   2.871  p95   4.750  p99   6.114  max   10.295  mean   3.001
+1175 slow frames (median wall 13.772, main busy 1.834)
+  frame     13 x 22.9  wall   42.00  update   0.25  draw  41.74  render CPU 3.186 |  | world: road reflection, main view=0.54,shadows, particles, glows, horizon fog=0.39,world: light probes=0.31,shadows=0.27,cars=0.25
+  frame    223 x 13.7  wall   25.14  update   0.41  draw  24.72  render CPU 1.823 |  | world: road reflection, main view=0.78,world: LOD fade=0.51,shadows, particles, glows, horizon fog=0.48,shadows=0.35,cars=0.34,tick: update=0.30,tick:   sim step=0.27
+  frame    447 x  9.8  wall   18.58  update   0.39  draw  17.58  render CPU 4.913 |  | world: road reflection, main view=0.73,world: LOD fade=0.47,shadows, particles, glows, horizon fog=0.40,cars=0.31,tick: update=0.30,shadows=0.28,tick:   sim step=0.27
+  frame     51 x  9.6  wall   17.64  update   3.83  draw  13.80  render CPU 7.967 |  | world: road reflection, main view=0.90,shadows, particles, glows, horizon fog=0.58,world: light probes=0.53,shadows=0.40,cars=0.37,tick: update=0.34,tick:   sim step=0.30
+  frame     22 x  8.7  wall   15.89  update   0.40  draw  15.48  render CPU 3.317 |  | world: road reflection, main view=1.44,world: light probes=0.80,shadows, particles, glows, horizon fog=0.57,shadows=0.39,cars=0.38,world: lamps=0.35,tick: update=0.29
+  frame     32 x  8.3  wall   15.28  update   0.38  draw  14.89  render CPU 7.140 |  | shadows, particles, glows, horizon fog=0.81,shadows=0.36,world: road reflection, main view=0.35,characters=0.32,cars=0.30,tick: update=0.27
+  frame   2973 x  8.2  wall   23.61  update   0.28  draw  14.84  render CPU 6.746 |  | world: road reflection, main view=0.75,world: LOD fade=0.46,post passes=0.38,shadows, particles, glows, horizon fog=0.30
+  frame   2967 x  8.2  wall   19.05  update   0.38  draw  14.66  render CPU 4.392 |  | world: road reflection, main view=1.01,world: LOD fade=0.47,shadows, particles, glows, horizon fog=0.30,tick: update=0.27
+  frame    188 x  7.9  wall   14.43  update   3.76  draw  10.66  render CPU 5.361 |  | shadows, particles, glows, horizon fog=0.49,shadows=0.37,world: road reflection, main view=0.35,cars=0.32,tick: update=0.29,tick:   sim step=0.26
+  frame    265 x  7.7  wall   18.82  update   4.88  draw   9.29  render CPU 6.060 |  | world: road reflection, main view=0.99,world: light probes=0.50,shadows, particles, glows, horizon fog=0.43,tick: update=0.37,tick:   sim step=0.34,cars=0.32,shadows=0.30,world: LOD fade=0.26
+
+=== d/racing-high-fixed: bench racing: load 659 ms, first frame 112.3 ms, 6176 frames, 0 traffic cars on the road, 0 rivals; the car drove 3252 m (17 m from the start) through
+6176 frames
+wall        p50  11.777  p95  19.845  p99  27.317  max   40.084  mean  11.436
+main busy   p50   3.422  p95   9.870  p99  13.656  max   31.477  mean   4.220
+render CPU  p50   3.025  p95   5.547  p99   6.958  max   16.563  mean   3.222
+other CPU   p50   3.025  p95   5.547  p99   6.958  max   16.563  mean   3.222
+1329 slow frames (median wall 11.777, main busy 3.422)
+  frame   6176 x  9.2  wall   33.51  update  21.64  draw   9.84  render CPU 3.685 | traffic 12 -> 0 | tick: update=10.09,shadows, particles, glows, horizon fog=1.39,characters=1.24,world: road reflection, main view=0.73,world: LOD fade=0.45,tick:   sim step=0.25
+  frame    223 x  6.8  wall   23.43  update   0.57  draw  22.86  render CPU 2.718 |  | world: road reflection, main view=0.54,shadows, particles, glows, horizon fog=0.51,shadows=0.38,tick: update=0.38,cars=0.37,tick:   sim step=0.34,world: LOD fade=0.28
+  frame    902 x  6.3  wall   21.61  update   0.28  draw  21.32  render CPU 8.615 |  | world: road reflection, main view=0.43,shadows, particles, glows, horizon fog=0.40,cars=0.34,shadows=0.27
+  frame    804 x  5.9  wall   20.07  update   0.44  draw  19.62  render CPU 6.460 |  | world: road reflection, main view=1.65,world: LOD fade=0.79,world: light probes=0.62,shadows, particles, glows, horizon fog=0.40,tick: update=0.35,cars=0.34,tick:   sim step=0.31,shadows=0.26
+  frame    595 x  5.8  wall   20.21  update   6.89  draw  13.01  render CPU 4.438 |  | world: road reflection, main view=0.56,shadows, particles, glows, horizon fog=0.41,tick: update=0.34,cars=0.33,tick:   sim step=0.30,shadows=0.29,world: LOD fade=0.29
+  frame    602 x  5.7  wall   20.04  update   2.96  draw  16.52  render CPU 3.518 |  | world: road reflection, main view=0.53,shadows, particles, glows, horizon fog=0.39,cars=0.37,tick: update=0.29,shadows=0.29
+  frame   2282 x  5.4  wall   19.05  update   0.36  draw  18.26  render CPU 3.164 |  | world: road reflection, main view=0.87,world: light probes=0.52,shadows, particles, glows, horizon fog=0.38,tick: update=0.28,shadows=0.27
+  frame    594 x  5.2  wall   18.11  update   0.37  draw  17.58  render CPU 4.399 |  | shadows, particles, glows, horizon fog=0.68,shadows=0.57,world: road reflection, main view=0.52,cars=0.34,tick: update=0.30,tick:   sim step=0.27,world: LOD fade=0.25
+  frame    803 x  5.2  wall   17.93  update   7.97  draw   9.82  render CPU 5.045 |  | world: road reflection, main view=0.88,world: LOD fade=0.62,shadows, particles, glows, horizon fog=0.40,cars=0.34,tick: update=0.29,shadows=0.27,tick:   sim step=0.25
+  frame   2012 x  5.1  wall   18.03  update   3.03  draw  14.48  render CPU 5.758 |  | world: road reflection, main view=0.77,shadows, particles, glows, horizon fog=0.69,world: LOD fade=0.46,tick: update=0.35,particles=0.32,shadows=0.31,tick:   sim step=0.31,weather fx prepare=0.27
+
+=== d/racing-orig-144: bench racing: load 132 ms, first frame 10.5 ms, 15226 frames, 0 traffic cars on the road, 0 rivals; the car drove 3241 m (4 m from the start) through 
+15226 frames
+wall        p50  12.285  p95  14.041  p99  21.972  max   32.691  mean   8.461
+main busy   p50  12.285  p95  14.041  p99  21.972  max   32.691  mean   8.461
+render CPU  p50   1.283  p95   2.925  p99   3.689  max    7.677  mean   1.536
+other CPU   p50   1.283  p95   2.925  p99   3.689  max    7.677  mean   1.536
+119 slow frames (median wall 12.285, main busy 12.285)
+  frame    807 x  2.7  wall   32.69  update   0.18  draw  32.51  render CPU 2.054 |  | cars=0.32
+  frame    778 x  2.6  wall   32.48  update   0.17  draw  32.32  render CPU 2.283 |  | cars=0.31
+  frame   6260 x  2.4  wall   29.34  update   2.00  draw  27.34  render CPU 5.224 |  | shadows, particles, glows, horizon fog=0.46,cars=0.41,horizon fog=0.28,tick: update=0.28,tick:   sim step=0.25
+  frame   4071 x  2.3  wall   28.36  update   0.29  draw  28.07  render CPU 2.080 |  | cars=0.33
+  frame   3627 x  2.3  wall   27.82  update   0.36  draw  27.46  render CPU 2.236 |  | cars=0.30,tick: update=0.27,tick:   sim step=0.26
+  frame   4249 x  2.2  wall   27.54  update   0.01  draw  27.53  render CPU 1.998 |  | 
+  frame   5446 x  2.2  wall   26.95  update   0.30  draw  26.65  render CPU 2.230 |  | cars=0.26
+  frame   4587 x  2.2  wall   26.87  update   0.40  draw  26.47  render CPU 1.790 |  | tick: update=0.31,tick:   sim step=0.29,cars=0.27
+  frame   9132 x  2.2  wall   26.45  update   0.16  draw  26.29  render CPU 1.582 |  | 
+  frame   8739 x  2.1  wall   26.18  update   0.16  draw  26.02  render CPU 2.191 |  | 
+
+=== d/racing-orig-60: bench racing: load 135 ms, first frame 10.9 ms, 6344 frames, 0 traffic cars on the road, 0 rivals; the car drove 3241 m (4 m from the start) through 1
+6344 frames
+wall        p50   1.890  p95  34.535  p99  38.899  max   66.974  mean   8.569
+main busy   p50   0.689  p95   4.032  p99   5.616  max   14.630  mean   1.131
+render CPU  p50   1.116  p95   2.324  p99   3.332  max    5.418  mean   1.239
+other CPU   p50   1.116  p95   2.324  p99   3.332  max    5.418  mean   1.239
+3021 slow frames (median wall 1.890, main busy 0.689)
+  frame   1472 x 35.4  wall   66.97  update   0.18  draw   0.44  render CPU 1.301 |  | 
+  frame   2241 x 24.6  wall   46.52  update   0.18  draw   0.45  render CPU 1.247 |  | 
+  frame   1100 x 23.9  wall   45.19  update   0.16  draw   0.66  render CPU 2.329 |  | 
+  frame   2076 x 23.8  wall   45.02  update   0.20  draw   0.39  render CPU 1.046 |  | 
+  frame   1082 x 23.6  wall   44.64  update   0.19  draw   0.52  render CPU 2.582 |  | 
+  frame   3045 x 23.0  wall   43.49  update   0.14  draw   0.35  render CPU 1.131 |  | 
+  frame   1938 x 22.7  wall   42.93  update   0.17  draw   0.37  render CPU 0.999 |  | 
+  frame   1457 x 22.7  wall   42.85  update   0.18  draw   0.44  render CPU 1.011 |  | 
+  frame   1067 x 22.6  wall   42.67  update   0.25  draw   1.51  render CPU 2.346 |  | 
+  frame   1415 x 22.5  wall   42.58  update   0.18  draw   0.43  render CPU 1.099 |  | 
+
+=== d/racing-orig-fixed: bench racing: load 248 ms, first frame 41.3 ms, 6176 frames, 0 traffic cars on the road, 0 rivals; the car drove 3252 m (17 m from the start) through 
+6176 frames
+wall        p50  12.554  p95  12.887  p99  24.296  max   35.059  mean   8.606
+main busy   p50   0.596  p95   0.887  p99   3.528  max   10.435  mean   0.688
+render CPU  p50   0.997  p95   1.466  p99   2.592  max    6.175  mean   1.061
+other CPU   p50   0.997  p95   1.466  p99   2.592  max    6.175  mean   1.061
+157 slow frames (median wall 12.554, main busy 0.596)
+  frame   6176 x 17.5  wall   12.88  update   7.46  draw   2.98  render CPU 3.435 | traffic 12 -> 0 | tick: update=7.28,shadows, particles, glows, horizon fog=2.20,characters=2.17,ui=0.40
+  frame      3 x 13.6  wall    8.13  update   0.22  draw   7.90  render CPU 4.983 |  | 
+  frame      6 x 13.3  wall    7.96  update   0.23  draw   7.67  render CPU 4.852 |  | 
+  frame     28 x 11.4  wall    6.81  update   0.22  draw   6.58  render CPU 2.557 |  | 
+  frame     24 x 10.4  wall    6.22  update   2.35  draw   3.82  render CPU 2.978 |  | 
+  frame     42 x 10.3  wall    7.99  update   0.19  draw   5.94  render CPU 3.721 |  | 
+  frame     11 x 10.2  wall    7.35  update   0.21  draw   5.86  render CPU 6.175 |  | shadows, particles, glows, horizon fog=0.46,characters=0.37,cars=0.35
+  frame     27 x  9.7  wall    5.81  update   0.23  draw   5.57  render CPU 3.155 |  | 
+  frame     26 x  9.6  wall    5.71  update   0.24  draw   5.46  render CPU 2.361 |  | 
+  frame    345 x  9.5  wall    5.70  update   0.31  draw   5.38  render CPU 1.079 |  | 
+
+=== i/drive-orig-144: bench drive: load 145 ms, first frame 23.0 ms, 22740 frames, 0 traffic cars on the road, 0 rivals; the car drove 4234 m (1079 m from the start) throug
+22740 frames
+wall        p50  14.007  p95  29.418  p99  33.184  max   37.000  mean  16.987
+main busy   p50  14.007  p95  29.418  p99  33.184  max   37.000  mean  16.986
+render CPU  p50   1.444  p95   3.210  p99   4.214  max    7.975  mean   1.778
+other CPU   p50   1.444  p95   3.210  p99   4.214  max    7.975  mean   1.778
+1727 slow frames (median wall 14.007, main busy 14.007)
+  frame  16587 x  2.6  wall   37.00  update   0.36  draw  36.64  render CPU 3.433 |  | cars=0.37,tick: update=0.26
+  frame  16563 x  2.6  wall   36.89  update   0.32  draw  36.57  render CPU 3.320 |  | shadows, particles, glows, horizon fog=0.33,cars=0.29
+  frame  16179 x  2.6  wall   36.73  update   0.28  draw  36.45  render CPU 4.023 |  | cars=0.29
+  frame   1971 x  2.6  wall   36.65  update   0.36  draw  36.29  render CPU 7.975 |  | cars=2.14,cars: recording=0.75,shadows, particles, glows, horizon fog=0.60,cars: uniforms=0.59,hud and menu layout=0.56,world: road reflection, main view=0.38,post passes=0.34,shadows=0.31,tick: updat
+  frame  16575 x  2.6  wall   36.55  update   0.31  draw  36.24  render CPU 2.522 |  | cars=0.28
+  frame  16263 x  2.6  wall   36.39  update   0.32  draw  36.08  render CPU 2.737 |  | cars=0.28
+  frame  16599 x  2.6  wall   36.26  update   0.30  draw  35.95  render CPU 3.211 |  | cars=0.35
+  frame  16275 x  2.6  wall   36.12  update   0.28  draw  35.84  render CPU 2.717 |  | cars=0.31
+  frame  16215 x  2.6  wall   36.10  update   0.27  draw  35.83  render CPU 2.979 |  | 
+  frame  16239 x  2.6  wall   36.10  update   0.31  draw  35.79  render CPU 3.768 |  | cars=0.27
+  frame 21000: 1 pipelines built (update 0.3 ms, draw 12.4 ms, GPU 0.0 ms)
+  frame 21003: 3 pipelines built (update 0.3 ms, draw 24.9 ms, GPU 0.0 ms)
+
+=== i/drive-orig-60: bench drive: load 464 ms, first frame 46.3 ms, 9475 frames, 0 traffic cars on the road, 0 rivals; the car drove 4234 m (1079 m from the start) through
+9475 frames
+wall        p50  13.319  p95  17.293  p99  18.819  max   29.859  mean  13.576
+main busy   p50   0.988  p95   2.270  p99   3.794  max   29.697  mean   1.171
+render CPU  p50   1.534  p95   2.204  p99   2.852  max    6.197  mean   1.583
+other CPU   p50   1.534  p95   2.204  p99   2.852  max    6.197  mean   1.583
+673 slow frames (median wall 13.319, main busy 0.988)
+  frame   9475 x 30.1  wall   29.86  update  26.56  draw   3.14  render CPU 1.761 | traffic 12 -> 0 | tick: update=11.64,shadows, particles, glows, horizon fog=1.49,characters=1.42,cars=1.03,car renderer builds=0.94
+  frame   1939 x  9.5  wall   11.48  update   0.47  draw   8.90  render CPU 1.774 |  | tick: update=0.33,tick:   sim step=0.31
+  frame   8752 x  7.7  wall   13.71  update   0.34  draw   7.26  render CPU 1.951 | built 3 pipelines / 1 modules | post passes=1.33
+  frame   5243 x  7.5  wall   17.27  update   0.87  draw   6.57  render CPU 5.633 |  | cars=0.99,cars: uniforms=0.52,hud and menu layout=0.46,tick: update=0.42,tick:   sim step=0.39,shadows, particles, glows, horizon fog=0.28
+  frame   1948 x  7.5  wall   12.56  update   0.40  draw   7.02  render CPU 1.631 |  | tick: update=0.29,tick:   sim step=0.26
+  frame   9172 x  7.5  wall   18.10  update   2.23  draw   5.17  render CPU 4.453 |  | tick: update=1.44,tick:   sim step=1.34,hud and menu layout=0.77,cars=0.62,shadows, particles, glows, horizon fog=0.44,cars: uniforms=0.32
+  frame   3050 x  7.4  wall   16.83  update   1.67  draw   5.61  render CPU 2.380 |  | tick: update=1.18,tick:   sim step=1.11,cars=0.70,hud and menu layout=0.51,cars: uniforms=0.25
+  frame   7901 x  7.3  wall   15.46  update   1.64  draw   5.59  render CPU 2.730 |  | tick: update=0.96,tick:   sim step=0.90,hud and menu layout=0.68,ui=0.38,post passes=0.34,shadows, particles, glows, horizon fog=0.33,world: road reflection, main view=0.27
+  frame   1512 x  7.3  wall   10.94  update   2.44  draw   4.77  render CPU 2.266 |  | tick: update=0.60,tick:   sim step=0.56,hud and menu layout=0.29,cars=0.29
+  frame   8392 x  7.1  wall   14.34  update   0.60  draw   6.43  render CPU 4.184 |  | hud and menu layout=0.89,shadows, particles, glows, horizon fog=0.57,cars=0.52,tick: update=0.44,tick:   sim step=0.40,shadows=0.40
+  frame 8750: 1 pipelines built (update 0.4 ms, draw 1.0 ms, GPU 10.2 ms)
+  frame 8752: 3 pipelines built (update 0.3 ms, draw 7.3 ms, GPU 6.1 ms)
+
+=== i/racing-orig-144: bench racing: load 130 ms, first frame 24.1 ms, 15226 frames, 0 traffic cars on the road, 0 rivals; the car drove 3241 m (4 m from the start) through 
+15226 frames
+wall        p50  15.313  p95  30.870  p99  32.816  max   41.213  mean  19.052
+main busy   p50  15.313  p95  30.870  p99  32.816  max   41.213  mean  19.050
+render CPU  p50   1.423  p95   3.096  p99   3.996  max    8.220  mean   1.771
+other CPU   p50   1.423  p95   3.096  p99   3.996  max    8.220  mean   1.771
+947 slow frames (median wall 15.313, main busy 15.313)
+  frame  12281 x  2.7  wall   41.21  update   0.35  draw  40.86  render CPU 5.014 |  | cars=0.65,shadows, particles, glows, horizon fog=0.35,hud and menu layout=0.30,tick: update=0.27,world: moved placements=0.26,world: road reflection, main view=0.26
+  frame  11528 x  2.6  wall   39.88  update   1.19  draw  38.68  render CPU 4.093 | section 1316 -> 1313 | tick: update=0.94,tick:   sim step=0.90,cars=0.44,shadows, particles, glows, horizon fog=0.30
+  frame  12536 x  2.5  wall   37.87  update   0.49  draw  37.38  render CPU 6.672 |  | cars=1.16,cars: uniforms=0.51,shadows, particles, glows, horizon fog=0.51,tick: update=0.36,hud and menu layout=0.35,tick:   sim step=0.33,world: moved placements=0.32,shadows=0.32,post passes=0.29
+  frame   3579 x  2.5  wall   37.71  update   0.39  draw  37.33  render CPU 6.149 |  | shadows, particles, glows, horizon fog=0.57,cars=0.48,hud and menu layout=0.46,post passes=0.31,tick: update=0.27,tick:   sim step=0.25
+  frame  12315 x  2.4  wall   37.42  update   0.80  draw  36.62  render CPU 5.471 |  | tick: update=0.56,cars=0.56,tick:   sim step=0.53,shadows, particles, glows, horizon fog=0.47,world: flare pools, reflection flares=0.38,post passes=0.28
+  frame  13954 x  2.4  wall   37.28  update   0.39  draw  36.89  render CPU 3.414 |  | cars=0.36,tick: update=0.30,tick:   sim step=0.28,shadows, particles, glows, horizon fog=0.26
+  frame  14679 x  2.4  wall   37.13  update   0.36  draw  36.78  render CPU 7.005 |  | shadows, particles, glows, horizon fog=0.83,cars=0.67,shadows=0.46,hud and menu layout=0.42,post passes=0.31,tick: update=0.27,tick:   sim step=0.25
+  frame   3992 x  2.4  wall   37.06  update   0.53  draw  36.53  render CPU 7.592 |  | cars=0.98,shadows, particles, glows, horizon fog=0.74,tick: update=0.39,tick:   sim step=0.36,shadows=0.36,post passes=0.34,hud and menu layout=0.33,cars: recording=0.29
+  frame  11516 x  2.4  wall   37.01  update   0.55  draw  36.45  render CPU 7.302 |  | cars=0.81,hud and menu layout=0.76,shadows, particles, glows, horizon fog=0.60,tick: update=0.42,tick:   sim step=0.39,shadows=0.36,cars: uniforms=0.34,world: road reflection, main view=0.29
+  frame  14009 x  2.4  wall   36.99  update   0.46  draw  36.53  render CPU 3.001 |  | tick: update=0.35,tick:   sim step=0.33,cars=0.30,shadows, particles, glows, horizon fog=0.28
+
+=== i/racing-orig-60: bench racing: load 491 ms, first frame 28.8 ms, 6344 frames, 0 traffic cars on the road, 0 rivals; the car drove 3241 m (4 m from the start) through 1
+6344 frames
+wall        p50  14.677  p95  16.289  p99  17.092  max   21.173  mean  14.505
+main busy   p50   0.849  p95   1.361  p99   1.814  max   11.296  mean   0.910
+render CPU  p50   1.387  p95   2.039  p99   2.521  max    7.831  mean   1.447
+other CPU   p50   1.387  p95   2.039  p99   2.521  max    7.831  mean   1.447
+39 slow frames (median wall 14.677, main busy 0.849)
+  frame   6344 x 13.3  wall   15.48  update   9.27  draw   2.03  render CPU 1.393 | traffic 12 -> 0 | tick: update=9.04,cars=0.90,car renderer builds=0.85,shadows, particles, glows, horizon fog=0.84,characters=0.80
+  frame    261 x  8.2  wall   16.55  update   1.04  draw   5.94  render CPU 5.708 |  | cars=1.44,tick: update=0.76,tick:   sim step=0.69,shadows, particles, glows, horizon fog=0.62,cars: uniforms=0.56,cars: recording=0.44,shadows=0.36,hud and menu layout=0.26
+  frame   5209 x  6.8  wall   19.19  update   1.80  draw   3.98  render CPU 4.377 |  | tick: update=1.26,tick:   sim step=1.19,cars=0.73,hud and menu layout=0.41,cars: uniforms=0.39,world: flare pools, reflection flares=0.28
+  frame   5932 x  6.4  wall   15.74  update   0.33  draw   5.09  render CPU 5.829 |  | cars=0.89,shadows, particles, glows, horizon fog=0.61,post passes=0.39,cars: uniforms=0.39,shadows=0.27,hud and menu layout=0.27,tick: update=0.25
+  frame    138 x  5.6  wall   14.43  update   1.56  draw   3.19  render CPU 3.817 |  | tick: update=1.07,tick:   sim step=1.00,cars=0.63,hud and menu layout=0.39,cars: uniforms=0.27
+  frame    140 x  4.9  wall   15.38  update   1.15  draw   2.98  render CPU 3.392 |  | tick: update=0.90,tick:   sim step=0.87,hud and menu layout=0.59,cars=0.41
+  frame   2269 x  4.8  wall   17.95  update   1.71  draw   2.39  render CPU 3.026 |  | tick: update=1.18,tick:   sim step=1.11,hud and menu layout=0.42
+  frame     14 x  4.7  wall   17.51  update   1.04  draw   2.93  render CPU 5.746 |  | cars=1.00,tick: update=0.77,tick:   sim step=0.72,cars: uniforms=0.38,shadows, particles, glows, horizon fog=0.35,hud and menu layout=0.27
+  frame   3541 x  4.0  wall   15.34  update   0.61  draw   2.82  render CPU 2.557 |  | hud and menu layout=0.67,tick: update=0.45,cars=0.43,tick:   sim step=0.43
+  frame   4112 x  4.0  wall   15.28  update   1.01  draw   2.38  render CPU 1.922 |  | hud and menu layout=0.61,tick: update=0.60,tick:   sim step=0.52,cars=0.26

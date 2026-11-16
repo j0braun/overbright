@@ -1,0 +1,138 @@
+# The world colour pass's lamp work culled per cluster (docs/lamps-shadows.md "Per-pixel work")
+# GPU timer queries of `--bench` (200 frames), median over runs (min-max), "world: main view" and the whole frame's
+# GPU busy median, ms. Integrated GPU (2 CUs, RDNA2): 1920x1080, World Detail 3 (the first-run estimate), the levels'
+# rows (scripts levels.sh MED / HIGH). Desktop GPU, max4k: every row up (3840x2160, SSAA 2x, Modern Lighting + RT,
+# RT reflections, Next-Gen beams, Surface Detail). Interleaved runs, each series <= 2 minutes under the measuring
+# lock; the machine's 1-minute load average 15-68 during the series (other builds and gates), median 32.
+# base = the tree before these steps; step4 = all four steps. Frames: every dumped frame byte-identical (below).
+
+## Base -> all four steps
+explore-med-1920x1080      base       n= 4 world: main view   6.46 (6.05-6.67)  frame  17.30 (16.75-17.86)
+explore-med-1920x1080      step4      n= 4 world: main view   4.68 (4.55-4.73)  frame  14.97 (14.91-16.51)
+race-med-1920x1080         base       n= 4 world: main view   9.43 (9.24-9.55)  frame  25.43 (24.31-26.06)
+race-med-1920x1080         step4      n= 4 world: main view   7.92 (7.84-8.26)  frame  23.95 (22.74-24.53)
+race-max4k-3840x2160       base       n= 6 world: main view   5.48 (5.39-5.50)  frame  20.49 (20.43-20.60)
+race-max4k-3840x2160       step4      n= 6 world: main view   4.79 (4.73-4.89)  frame  19.32 (19.22-19.50)
+racing-high-1920x1080      base       n= 4 world: main view  13.09 (12.89-13.47)  frame  47.21 (46.16-48.54)
+racing-high-1920x1080      step4      n= 4 world: main view   8.75 (8.16-9.92)  frame  42.86 (42.15-43.63)
+racing-med-1920x1080       base       n= 8 world: main view  11.23 (10.74-11.33)  frame  24.52 (23.34-25.64)
+racing-med-1920x1080       step4      n= 8 world: main view   7.45 (7.19-8.00)  frame  21.04 (19.19-22.24)
+racing-max4k-3840x2160     base       n= 6 world: main view   6.13 (6.03-6.24)  frame  18.89 (18.73-18.99)
+racing-max4k-3840x2160     step4      n= 6 world: main view   4.51 (4.44-4.53)  frame  16.90 (16.79-17.01)
+rain-med-1920x1080         base       n= 4 world: main view  12.50 (12.29-12.81)  frame  28.24 (27.78-28.97)
+rain-med-1920x1080         step4      n= 4 world: main view   8.50 (8.29-8.89)  frame  24.23 (23.21-25.24)
+rain-max4k-3840x2160       base       n= 5 world: main view   6.58 (6.39-6.59)  frame  23.33 (22.99-23.48)
+rain-max4k-3840x2160       step4      n= 5 world: main view   5.30 (5.26-5.50)  frame  21.44 (21.28-22.39)
+
+## Per step (integrated GPU, Medium racing; s1 lamp cars, s2 + tight lists, s3 + contact cars, s4 + beams per
+## cluster (dropped), s5 + early outs, s6 + headlight cars, s7 = s6 without the beams per cluster; step1..3 the
+## gated steps; p3/p4 prototype builds of s6/s7 that take shader files at run time; ko*/k6*/kb* measuring variants
+## that take a part out (not pictures): ko = on the base, k6/kb = on s6)
+explore-med-1920x1080      base       n= 4 world: main view   6.20 (6.05-6.54)  frame  17.70 (15.98-18.09)
+explore-med-1920x1080      step2      n= 4 world: main view   5.79 (5.74-5.88)  frame  16.37 (15.40-16.91)
+explore-med-1920x1080      step3      n= 4 world: main view   5.68 (5.20-5.94)  frame  16.23 (15.37-16.79)
+race-med-1920x1080         base       n= 4 world: main view   9.47 (9.14-9.59)  frame  24.75 (23.91-27.04)
+race-med-1920x1080         s6a        n= 4 world: main view   8.98 (8.76-9.36)  frame  24.98 (24.23-26.12)
+racing-high-1920x1080      base       n= 4 world: main view  13.01 (11.93-13.42)  frame  46.80 (45.32-48.10)
+racing-high-1920x1080      s7a        n= 4 world: main view  10.07 (9.77-10.29)  frame  44.69 (42.99-46.11)
+racing-med-1920x1080       base       n= 7 world: main view  11.35 (11.08-12.33)  frame  25.21 (23.61-26.63)
+racing-med-1920x1080       bexit      n= 4 world: main view   8.61 (8.17-9.17)  frame  22.74 (20.92-24.61)
+racing-med-1920x1080       bfast      n= 4 world: main view   7.83 (7.34-8.21)  frame  20.93 (19.31-22.91)
+racing-med-1920x1080       k6beams    n= 8 world: main view   5.67 (5.49-5.71)  frame  18.83 (17.97-20.28)
+racing-med-1920x1080       k6shadow   n= 4 world: main view   7.14 (6.80-7.46)  frame  19.58 (18.25-20.55)
+racing-med-1920x1080       k6shtex    n= 4 world: main view   7.42 (7.26-7.96)  frame  19.41 (19.10-20.54)
+racing-med-1920x1080       kbcookie   n= 4 world: main view   7.09 (7.00-7.32)  frame  20.81 (20.77-21.45)
+racing-med-1920x1080       kbothers   n= 4 world: main view   6.83 (6.62-6.97)  frame  21.23 (19.90-21.90)
+racing-med-1920x1080       kbpvis     n= 4 world: main view   7.05 (6.68-7.62)  frame  21.04 (19.70-22.24)
+racing-med-1920x1080       kobeams    n= 2 world: main view   8.59 (8.47-8.70)  frame  21.59 (21.46-21.72)
+racing-med-1920x1080       kocar      n= 3 world: main view   8.55 (8.47-8.61)  frame  22.45 (21.61-22.57)
+racing-med-1920x1080       kocontact  n= 2 world: main view   9.39 (9.26-9.51)  frame  23.18 (22.71-23.64)
+racing-med-1920x1080       kohl       n= 1 world: main view  10.97 (10.97-10.97)  frame  23.59 (23.59-23.59)
+racing-med-1920x1080       kolamps    n= 3 world: main view   5.70 (5.66-5.93)  frame  19.49 (18.44-20.74)
+racing-med-1920x1080       koshadow   n= 2 world: main view   9.55 (9.42-9.68)  frame  22.83 (22.32-23.34)
+racing-med-1920x1080       lazy       n= 4 world: main view   8.12 (7.97-8.34)  frame  20.68 (19.92-21.22)
+racing-med-1920x1080       p2uloop    n= 4 world: main view   9.02 (8.49-9.27)  frame  22.46 (21.44-23.28)
+racing-med-1920x1080       p3         n= 8 world: main view   8.12 (7.86-8.51)  frame  22.02 (19.88-23.26)
+racing-med-1920x1080       p4         n= 8 world: main view   8.30 (8.01-8.92)  frame  22.74 (21.51-23.49)
+racing-med-1920x1080       pbase      n= 5 world: main view  11.08 (10.83-11.39)  frame  23.34 (23.24-25.78)
+racing-med-1920x1080       s1a        n= 3 world: main view   9.39 (8.85-9.39)  frame  23.33 (22.18-23.58)
+racing-med-1920x1080       s2a        n= 2 world: main view   8.95 (8.85-9.05)  frame  21.92 (20.92-22.92)
+racing-med-1920x1080       s3a        n= 8 world: main view   8.47 (8.07-8.67)  frame  22.09 (20.66-22.65)
+racing-med-1920x1080       s4a        n= 8 world: main view   8.66 (8.43-9.13)  frame  22.17 (21.15-23.18)
+racing-med-1920x1080       s5a        n= 6 world: main view   8.59 (8.37-9.11)  frame  22.33 (20.62-22.99)
+racing-med-1920x1080       s6a        n= 6 world: main view   8.35 (8.14-8.85)  frame  22.30 (21.35-22.95)
+racing-med-1920x1080       s7a        n= 4 world: main view   8.18 (7.94-8.35)  frame  21.97 (20.80-22.91)
+racing-med-1920x1080       step1      n= 5 world: main view   8.28 (8.08-9.36)  frame  22.63 (21.01-23.40)
+racing-med-1920x1080       step2      n= 5 world: main view   8.15 (7.85-8.34)  frame  22.35 (21.37-22.60)
+racing-med-1920x1080       step3      n= 5 world: main view   8.09 (7.66-9.04)  frame  22.45 (21.05-22.80)
+rain-med-1920x1080         base       n= 4 world: main view  12.50 (12.13-12.69)  frame  29.05 (28.00-29.43)
+rain-med-1920x1080         s6a        n= 4 world: main view   9.37 (9.11-9.74)  frame  24.25 (22.61-26.13)
+rain-med-1920x1080         step2      n= 4 world: main view   9.56 (9.51-9.94)  frame  24.63 (23.88-26.10)
+rain-med-1920x1080         step3      n= 4 world: main view   9.31 (8.96-9.76)  frame  24.74 (24.16-25.63)
+
+## Per step, every row up (desktop GPU)
+racing-max4k-3840x2160     base       n= 9 world: main view   6.17 (5.96-6.23)  frame  18.96 (18.89-19.18)
+racing-max4k-3840x2160     bfast      n= 4 world: main view   4.47 (4.45-4.50)  frame  16.85 (16.76-16.99)
+racing-max4k-3840x2160     k6beams    n= 3 world: main view   4.05 (4.01-4.05)  frame  16.41 (16.28-16.44)
+racing-max4k-3840x2160     k6lamps    n= 3 world: main view   4.68 (4.56-4.69)  frame  17.12 (17.11-17.18)
+racing-max4k-3840x2160     p4         n= 7 world: main view   4.64 (4.55-4.73)  frame  17.08 (16.93-17.23)
+racing-max4k-3840x2160     s2a        n= 3 world: main view   5.82 (5.56-5.84)  frame  18.23 (18.02-18.34)
+racing-max4k-3840x2160     s3a        n= 4 world: main view   4.76 (4.68-4.81)  frame  17.28 (17.07-17.34)
+racing-max4k-3840x2160     s4a        n= 4 world: main view   4.83 (4.69-4.89)  frame  17.30 (17.20-17.38)
+racing-max4k-3840x2160     s6a        n= 6 world: main view   4.61 (4.52-4.66)  frame  17.19 (17.08-17.33)
+racing-max4k-3840x2160     step1      n= 4 world: main view   5.04 (4.98-5.05)  frame  17.68 (17.57-17.74)
+racing-max4k-3840x2160     step2      n= 3 world: main view   4.69 (4.66-4.72)  frame  17.08 (16.99-17.08)
+racing-max4k-3840x2160     step3      n= 3 world: main view   4.71 (4.71-4.72)  frame  17.04 (17.03-17.10)
+
+## Trip counts per fragment invocation (desktop GPU, Medium, 1920x1080, a counting build with atomics: its fragments
+## take late depth tests, so ~4x the screen's pixels are counted; the ratios are what matters)
+scene     lamp entries  lit (w,N.L>0)  shadow lookups  car tests  cars within 12 m  cars shading  contact tests  beam iters
+racing    2.80 -> 1.89  0.51 -> 0.49   0.51 -> 0.39    13.9 -> 0.20  0.59 -> 0.19 (s5) 0.036 -> 0.036  16.0 -> 0.24   4.00 -> 1.25 (beams per cluster, dropped)
+rain      2.86 -> 2.08  0.62 -> 0.55   0.55 -> 0.35    17.9 -> 0.23  0.71 -> 0.20 (s5) 0.039 -> 0.039  13.4 -> 0.26
+race      3.37 -> 2.58  0.59 -> 0.54   0.63 -> 0.30     6.5 -> 0.47  1.22 -> 0.82 (s5) 0.100 -> 0.084* 4.0 -> 0.28
+casino    1.41 -> 0.89  0.32 -> 0.25   0.34 -> 0.18     5.8 -> 0.06  0.12 -> 0.06 (s5) 0.021 -> 0.021  8.2 -> 0.20
+(* fewer lamp iterations after the early break at LAMP_MAX: the cars of lamps no longer evaluated; every frame identical)
+
+## Pictures (desktop GPU, 1920x1080, frames 60, 100-107 / 100-105 consecutive while driving, 120; md5 per frame)
+base vs s5: Medium racing / rain / casino / race start: 44 of 44 identical
+base vs step3: High racing / rain / casino, max race start: 36 of 36 identical
+base vs step4: Medium racing / rain / casino / race start, High racing / rain, max racing / rain: 72 of 72 identical
+
+## Shader statistics (RADV_DEBUG=shaderstats, the lamps' world pixel shader, compiled on one CPU)
+integrated GPU base:  4567-4634 instructions, 80 VGPRs, 12 waves per SIMD, 73 VMEM, 25 KB
+integrated GPU step4: 5086-5147 instructions, 80 VGPRs / 12 waves (8 pipelines), 96 VGPRs / 10 waves (4), 123 VMEM, 28 KB
+
+## CPU (the bench's "world: lamps" span, main thread, ms per frame, median of the runs above)
+Medium 1080p: 0.06-0.08 -> 0.21-0.35; max 4K: 0.20-0.27 -> 0.38-0.47
+
+## Modern Lighting's cars per cluster entry (desktop GPU, max4k racing; s4 = all four steps, s5 = + ml_cars masked)
+racing-max4k-3840x2160     s4     n= 7 world: main view   4.52 (4.50-4.55)  frame  16.88 (16.83-16.98)
+racing-max4k-3840x2160     s5     n= 6 world: main view   4.41 (4.39-4.43)  frame  16.76 (16.70-16.85)
+measuring variants (s4): ml_cars removed 4.09, ml_shadow removed 4.39 (n=4-5)
+CPU "world: lamps": 0.52 -> 0.69 ms per frame
+Pictures base vs s5: every row up racing / rain / race start / casino, Medium + Modern Lighting Modern and Low,
+racing / casino: 72 of 72 frames identical
+
+## On the tree with the subgroup cluster loop (the five steps, the cars' bits walked per subgroup)
+## base = that tree before the steps; after = with them. Integrated GPU in its slow state for every run (SSAO
+## occlusion 2.4-3.5 ms, load 14-36): the main view is the same in both states (above), the frame is ~1 ms higher.
+explore-med-1920x1080      base       n= 4 world: main view   6.15 (5.91-6.24)  frame  16.89 (16.35-17.04)
+explore-med-1920x1080      after       n= 4 world: main view   4.81 (4.64-4.97)  frame  15.80 (15.57-17.11)
+race-med-1920x1080         base       n= 4 world: main view   9.33 (9.28-9.37)  frame  26.34 (25.40-27.03)
+race-med-1920x1080         after       n= 4 world: main view   8.09 (7.69-8.51)  frame  25.18 (23.56-25.77)
+race-max4k-3840x2160       base       n= 6 world: main view   5.43 (5.42-5.57)  frame  19.30 (19.20-19.72)
+race-max4k-3840x2160       after       n= 6 world: main view   4.72 (4.64-4.76)  frame  18.01 (17.98-18.25)
+racing-high-1920x1080      base       n= 4 world: main view  11.82 (11.57-12.57)  frame  46.26 (45.17-47.67)
+racing-high-1920x1080      after       n= 4 world: main view   7.81 (7.32-8.01)  frame  41.30 (40.03-42.07)
+racing-med-1920x1080       base       n= 8 world: main view  11.20 (10.89-11.58)  frame  26.08 (25.33-27.69)
+racing-med-1920x1080       after       n= 8 world: main view   7.47 (7.04-7.97)  frame  22.54 (21.40-24.25)
+racing-max4k-3840x2160     base       n= 6 world: main view   6.20 (6.16-6.26)  frame  17.67 (17.59-17.74)
+racing-max4k-3840x2160     after       n= 6 world: main view   4.45 (4.40-4.49)  frame  15.54 (15.43-15.64)
+rain-med-1920x1080         base       n= 4 world: main view  12.73 (12.38-12.81)  frame  29.92 (28.84-30.39)
+rain-med-1920x1080         after       n= 4 world: main view   8.82 (8.77-9.19)  frame  24.72 (23.91-26.19)
+rain-max4k-3840x2160       base       n= 7 world: main view   6.68 (6.63-6.77)  frame  21.71 (21.55-21.78)
+rain-max4k-3840x2160       after       n= 6 world: main view   5.31 (5.26-5.34)  frame  19.91 (19.79-20.00)
+Shader (integrated GPU, compiled on one CPU): base 4656-4737 instructions, 72 VGPRs, 14 waves, VMEM 51;
+after 5205-5292 instructions, 72 VGPRs, 14 waves, VMEM 59.
+Pictures base vs after: Medium racing / rain / casino / race start, High racing / rain, max4k racing / rain / race
+start / casino, Medium + Modern Lighting Modern and Low racing: 108 of 108 frames identical.

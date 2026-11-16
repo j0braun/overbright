@@ -1,0 +1,16 @@
+racing orig 60 rc=0 dumps=100
+racing orig 120 rc=0 dumps=100
+racing orig 200 rc=0 dumps=100
+IMG racing orig: orig vs racing-orig-60: 120 Hz: 100 frames, 0 identical, 100 over (worst 267576 px, max diff 90, max mean 0.2119, first at tick 561); 200 Hz: 100 frames, 0 identical, 100 over (worst 255286 px, max diff 122, max mean 0.2773, first at tick 561)
+racing step 60 rc=0 dumps=100
+racing step 120 rc=0 dumps=100
+racing step 200 rc=0 dumps=100
+IMG racing step: step vs racing-step-60: 120 Hz: 100 frames, 0 identical, 100 over (worst 355709 px, max diff 190, max mean 0.3237, first at tick 561); 200 Hz: 100 frames, 0 identical, 100 over (worst 422101 px, max diff 198, max mean 0.4027, first at tick 561)
+explore orig 60 rc=0 dumps=100
+explore orig 120 rc=0 dumps=100
+explore orig 200 rc=0 dumps=100
+IMG explore orig: orig vs explore-orig-60: 120 Hz: 100 frames, 0 identical, 100 over (worst 338746 px, max diff 88, max mean 0.3369, first at tick 1207); 200 Hz: 100 frames, 0 identical, 100 over (worst 367449 px, max diff 142, max mean 0.4698, first at tick 1207)
+explore step 60 rc=0 dumps=100
+explore step 120 rc=0 dumps=100
+explore step 200 rc=0 dumps=100
+IMG explore step: step vs explore-step-60: 120 Hz: 100 frames, 0 identical, 100 over (worst 570963 px, max diff 141, max mean 0.6499, first at tick 1207); 200 Hz: 100 frames, 0 identical, 100 over (worst 635393 px, max diff 141, max mean 0.9581, first at tick 1207)

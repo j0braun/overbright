@@ -1,0 +1,60 @@
+perfgate run, main (perf.sh build) against the baseline accepted on the earlier main, three runs on a quiet
+machine (load average 0.8-1.5 from these runs alone; another program kept the discrete GPU busy throughout, both arms alike).
+Each line: base -> new median, change, verdict. Runs 1, 2, 3:
+racing-orig-1920x1080 | gpu 0.786->0.791 +0.6% ok | render 1.345->1.394 +3.7% n.s. | main 0.734->0.794 +8.2% n.s. | load 209.080->238.570 +14.1% ok
+explore-orig-1920x1080 | gpu 0.626->0.627 +0.2% ok | render 0.802->0.858 +7.0% REGRESSION | main 0.583->0.566 -3.0% ok | load 138.610->258.380 +86.4% worse
+race-orig-1920x1080 | gpu 0.827->0.812 -1.8% ok | render 1.332->1.527 +14.6% REGRESSION | main 0.521->0.551 +5.8% REGRESSION | load 242.490->228.150 -5.9% ok
+racing-orig-3840x2160 | gpu 2.529->2.523 -0.2% ok | render 1.280->1.326 +3.5% REGRESSION | main 0.732->0.779 +6.4% REGRESSION | load 231.520->247.760 +7.0% ok
+racing-ultra-3840x2160 | gpu 9.176->8.838 -3.7% better | render 2.239->2.301 +2.8% ok | main 1.326->1.449 +9.3% REGRESSION | load 210.080->182.170 -13.3% ok
+explore-extreme-1920x1080 | gpu 2.816->3.327 +18.2% REGRESSION | render 1.420->1.492 +5.0% REGRESSION | main 1.040->1.071 +3.0% ok | load 143.120->366.900 +156.4% worse
+rain-max-3840x2160 | gpu 23.230->22.105 -4.8% better | render 3.075->3.608 +17.3% REGRESSION | main 2.722->2.316 -14.9% better | load 149.620->336.840 +125.1% worse
+race-max-1920x1080 | gpu 6.272->6.166 -1.7% ok | render 2.698->2.986 +10.7% REGRESSION | main 1.306->1.423 +9.0% REGRESSION | load 145.470->331.170 +127.7% worse
+
+Bisection (perf.sh build of each commit, A/B against the old baseline binary, 5 runs per arm; commit = position
+on main's first-parent line after the old baseline, 1..196):
+98 28a2d87
+   race-orig-1920x1080 gpu 0.814->0.812 -0.2% ok | render 1.317->1.426 +8.3% **REGRESSION** | main 0.511->0.517 +1.1% ok
+   explore-extreme-1920x1080 gpu 2.813->2.884 +2.5% ok | render 1.434->1.394 -2.8% ok | main 1.049->1.046 -0.3% ok
+   rain-max-3840x2160 gpu 23.177->22.107 -4.6% better | render 3.059->3.215 +5.1% **REGRESSION** | main 2.720->2.554 -6.1% better
+147 643f09a
+   race-orig-1920x1080 gpu 0.822->0.812 -1.2% ok | render 1.315->1.493 +13.5% **REGRESSION** | main 0.516->0.555 +7.5% n.s.
+   explore-extreme-1920x1080 gpu 2.830->2.832 +0.1% ok | render 1.413->1.419 +0.5% ok | main 1.048->1.040 -0.8% ok
+   rain-max-3840x2160 gpu 23.187->21.978 -5.2% better | render 3.070->3.534 +15.1% **REGRESSION** | main 2.698->2.328 -13.7% better
+171 eb1da31
+   race-orig-1920x1080 gpu 0.816->0.811 -0.6% ok | render 1.306->1.489 +14.0% **REGRESSION** | main 0.506->0.529 +4.4% ok
+   explore-extreme-1920x1080 gpu 2.822->2.832 +0.4% ok | render 1.418->1.489 +5.0% **REGRESSION** | main 1.050->1.047 -0.3% ok
+   rain-max-3840x2160 gpu 23.189->21.939 -5.4% better | render 3.074->3.565 +16.0% **REGRESSION** | main 2.719->2.304 -15.2% better
+172 43a4790
+   race-orig-1920x1080 gpu 0.822->0.811 -1.3% ok | render 1.301->1.538 +18.2% **REGRESSION** | main 0.514->0.561 +9.0% n.s.
+   explore-extreme-1920x1080 gpu 2.830->2.846 +0.6% ok | render 1.418->1.437 +1.4% ok | main 1.063->1.026 -3.5% n.s.
+   rain-max-3840x2160 gpu 23.184->21.959 -5.3% better | render 3.068->3.579 +16.7% **REGRESSION** | main 2.699->2.352 -12.8% better
+173 2518414
+   race-orig-1920x1080 gpu 0.825->0.812 -1.5% ok | render 1.315->1.522 +15.7% **REGRESSION** | main 0.516->0.556 +7.6% **REGRESSION**
+   explore-extreme-1920x1080 gpu 2.818->3.382 +20.0% **REGRESSION** | render 1.420->1.478 +4.1% **REGRESSION** | main 1.049->1.042 -0.6% ok
+   rain-max-3840x2160 gpu 23.223->21.979 -5.4% better | render 3.066->3.546 +15.6% **REGRESSION** | main 2.688->2.328 -13.4% better
+176 4de347b
+   race-orig-1920x1080 gpu 0.820->0.812 -1.0% ok | render 1.285->1.519 +18.2% **REGRESSION** | main 0.495->0.548 +10.7% **REGRESSION**
+   explore-extreme-1920x1080 gpu 2.833->3.384 +19.4% **REGRESSION** | render 1.410->1.463 +3.8% **REGRESSION** | main 1.046->1.045 -0.1% ok
+   rain-max-3840x2160 gpu 23.188->21.942 -5.4% better | render 3.132->3.564 +13.8% **REGRESSION** | main 2.709->2.329 -14.0% better
+179 d125e0a
+   race-orig-1920x1080 gpu 0.823->0.813 -1.2% ok | render 1.299->1.541 +18.6% **REGRESSION** | main 0.513->0.560 +9.0% **REGRESSION**
+   explore-extreme-1920x1080 gpu 2.824->3.380 +19.7% **REGRESSION** | render 1.434->1.477 +3.0% ok | main 1.058->1.047 -1.0% ok
+   rain-max-3840x2160 gpu 23.175->21.926 -5.4% better | render 3.082->3.564 +15.6% **REGRESSION** | main 2.704->2.283 -15.6% better
+180 d6db818
+   race-orig-1920x1080 gpu 0.827->0.812 -1.8% ok | render 1.304->1.512 +16.0% **REGRESSION** | main 0.510->0.556 +8.9% **REGRESSION**
+   explore-extreme-1920x1080 gpu 2.832->3.384 +19.5% **REGRESSION** | render 1.416->1.461 +3.2% ok | main 1.051->1.054 +0.2% ok
+   rain-max-3840x2160 gpu 23.197->21.956 -5.3% better | render 3.093->3.576 +15.6% **REGRESSION** | main 2.711->2.280 -15.9% better
+186 3588cee
+   race-orig-1920x1080 gpu 0.825->0.812 -1.5% ok | render 1.329->1.525 +14.7% **REGRESSION** | main 0.513->0.561 +9.2% n.s.
+   explore-extreme-1920x1080 gpu 2.819->3.381 +19.9% **REGRESSION** | render 1.423->1.451 +2.0% ok | main 1.068->1.045 -2.2% ok
+   rain-max-3840x2160 gpu 23.178->21.927 -5.4% better | render 3.069->3.607 +17.6% **REGRESSION** | main 2.750->2.311 -16.0% better
+Findings:
+- explore-extreme GPU +18..20 %: first at 2518414 (the hull query's support rule, the pair box on the centre of
+  mass); 43a4790 just before it is +0.6 %. The bench's car travels 7.1 m in the 300 measured frames instead of
+  30.1 m (it ends up held against something after the 20 s throttle run), so more of its burnout smoke is in
+  view: "graphics: particles draw" 1.39 -> 1.77 ms/frame. The scene changed, not a pass's cost.
+- CPU render workers +3..18 %, main thread +6..10 % (Original configs included; absolute +0.03..0.2 ms/frame):
+  about half by 28a2d87 (the tick clock), the rest by 643f09a, flat after; the tick work (update CPU 0.15 ms,
+  the tick's own parts) and, in rain-max, the spray step moved onto the workers (main -15 %, workers +17 %).
+  Not one commit; nothing small and exact to undo.
+- load_ms +30..160 % (reported only): already at 28a2d87; noisy run to run, not bisected further.

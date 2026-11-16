@@ -1,0 +1,124 @@
+First-use hitches built ahead (docs/perf-budget.md "First-use hitches built ahead"). 1920x1080; d/ = the discrete GPU (shared
+with another program: wall times not trusted), i/ = the integrated GPU. Thread CPU from the frame log (NFSU2_BENCH_FRAMELOG).
+One binary per arm (before = the base tree, after = this change), arms interleaved, 7 runs each, under the measuring lock.
+
+== 1. The spray volume, the lens drops' pass and the rain tint: the rain drive (--bench drive 300, NFSU2_RAIN_CLOCK=162; i/: 30 frames)
+   ms, median [min..max]; 'worst of frames 0-59' = the frame log's main thread CPU; base's worst is always frame 2 (the first cloud)
+== discrete High rain, 300 frames
+  before n=7 load_ms 280.0 [278.0..284.0]; first frame 26.9 [25.1..27.3]; frame 2 main CPU 2.3 [2.2..2.7]; worst of frames 0-59 13.3 [13.1..13.7] at [2]; weather fx prepare max 11.3 [11.2..11.6]; pipelines in timed frames [0]
+  after  n=7 load_ms 279.0 [278.0..345.0]; first frame 24.8 [23.7..25.3]; frame 2 main CPU 2.1 [1.8..2.5]; worst of frames 0-59 2.5 [2.4..2.7] at [1, 2, 10, 15, 25, 59]; weather fx prepare max 0.7 [0.4..0.7]; pipelines in timed frames [0]
+== discrete Original rain
+  before n=7 load_ms 126.0 [123.0..130.0]; first frame 11.0 [10.6..11.9]; frame 2 main CPU 0.9 [0.9..1.2]; worst of frames 0-59 1.5 [1.4..1.8] at [1, 30]; weather fx prepare max 0.0 [0.0..0.0]; pipelines in timed frames [0]
+  after  n=7 load_ms 127.0 [124.0..129.0]; first frame 10.3 [9.9..10.6]; frame 2 main CPU 1.0 [0.9..1.0]; worst of frames 0-59 1.5 [1.3..1.8] at [1]; weather fx prepare max 0.0 [0.0..0.0]; pipelines in timed frames [0]
+== integrated High rain, 30 frames
+  before n=7 load_ms 283.0 [277.0..286.0]; first frame 124.6 [123.3..144.9]; frame 2 main CPU 1.9 [1.5..2.8]; worst of frames 0-59 13.0 [11.5..13.6] at [2]; weather fx prepare max 11.3 [9.6..11.5]; pipelines in timed frames [0]
+  after  n=7 load_ms 281.0 [278.0..289.0]; first frame 124.5 [123.2..134.2]; frame 2 main CPU 1.9 [1.8..2.1]; worst of frames 0-59 3.6 [3.3..4.6] at [8, 10, 18, 20, 30]; weather fx prepare max 0.0 [0.0..0.0]; pipelines in timed frames [0]
+== integrated Original rain
+  before n=7 load_ms 135.0 [128.0..136.0]; first frame 24.7 [23.2..29.3]; frame 2 main CPU 1.3 [1.0..1.4]; worst of frames 0-59 1.4 [1.3..1.6] at [1, 4]; weather fx prepare max 0.0 [0.0..0.0]; pipelines in timed frames [0]
+  after  n=7 load_ms 136.0 [127.0..140.0]; first frame 24.2 [23.2..28.1]; frame 2 main CPU 1.2 [1.0..1.4]; worst of frames 0-59 1.5 [1.3..1.7] at [1, 11, 28]; weather fx prepare max 0.0 [0.0..0.0]; pipelines in timed frames [0]
+
+== 2. The long sprint (--bench drive to its finish, fixed step, d/, one run per arm): frames that built pipelines after the first frame
+  High before:   frame 8884: 3 pipelines built ; max main CPU 13.645 ms (frame 8884)
+  High after: no pipeline after the first frame; max main CPU 12.931 ms (frame 9572)
+  Original before:   frame 8883: 1 pipelines built ;  frame 8884: 3 pipelines built ; max main CPU 10.914 ms (frame 9572)
+  Original after: no pipeline after the first frame; max main CPU 12.098 ms (frame 9572)
+  the first-cloud frame 8884 in the High trace before: weather fx prepare 11.64 ms of 13.65 ms main CPU; a traced run with spans:
+  SprayVolume::new 12.60 ms, of it the accumulators' zeros 11.05 ms, the noise volume 1.16 ms
+  first version (the volume inside the world renderer's warm-up): i/ High load_ms 291 [281..301] -> 320 [303..333] (7 runs each)
+
+== 3. The menus' garage scene and the boot screens on empty caches (the game's cache folder and the driver's shader cache new;
+   Original, i/, one run each; NFSU2_NO_PRELOAD=1 so that only the screens' own programs are made): pipelines made / ms making them / over 1 ms
+   boot = --bench boot (the boot screens to the title); rims = --bench rims 2 (the main menu's Customize: the garage scene).
+   The same rims run again on the prepared folder (all warm): world pipelines.rs:818 144 made, p50 0.48 ms, p90 1.00, max 1.60.
+  -- without --prepare
+    boot     1      0.6    0 module src/render/native/car/shared.rs:111
+    boot     1      0.1    0 module src/render/native/post/fused.rs:146
+    boot     1      0.1    0 module src/render/native/post/fused.rs:346
+    boot     1      1.1    1 module src/render/native/post/mod.rs:196
+    boot     1      0.5    0 module src/render/native/ui/renderer.rs:32
+    boot     1      0.4    0 pipeline src/render/native/post/fused.rs:150
+    boot     1      0.4    0 pipeline src/render/native/post/fused.rs:171
+    boot     1      0.6    0 pipeline src/render/native/post/fused.rs:350
+    boot     1      0.4    0 pipeline src/render/native/post/horizon_fog_pass.rs:42
+    boot    18     13.7    4 pipeline src/render/native/post/targets.rs:490
+    boot    10      9.6    3 pipeline src/render/native/ui/renderer.rs:51
+    rims     1      0.6    0 module src/render/native/car/shared.rs:111
+    rims     1      0.1    0 module src/render/native/post/fused.rs:146
+    rims     1      0.1    0 module src/render/native/post/fused.rs:346
+    rims     1      1.2    1 module src/render/native/post/mod.rs:196
+    rims     1      0.5    0 module src/render/native/ui/renderer.rs:32
+    rims     2      6.3    2 module src/render/native/world/pipelines.rs:394
+    rims    30     76.4   12 pipeline src/render/native/car/shared.rs:407
+    rims     1      0.1    0 pipeline src/render/native/post/fused.rs:150
+    rims     1      0.1    0 pipeline src/render/native/post/fused.rs:171
+    rims     1      0.1    0 pipeline src/render/native/post/fused.rs:350
+    rims     1      0.1    0 pipeline src/render/native/post/horizon_fog_pass.rs:42
+    rims    20      3.7    1 pipeline src/render/native/post/targets.rs:490
+    rims    10      1.3    0 pipeline src/render/native/ui/renderer.rs:51
+    rims   144   1224.3   80 pipeline src/render/native/world/pipelines.rs:818
+  -- after --prepare
+    boot     1      0.6    0 module src/render/native/car/shared.rs:111
+    boot     1      0.1    0 module src/render/native/post/fused.rs:146
+    boot     1      0.1    0 module src/render/native/post/fused.rs:346
+    boot     1      1.2    1 module src/render/native/post/mod.rs:196
+    boot     1      0.5    0 module src/render/native/ui/renderer.rs:32
+    boot     1      0.1    0 pipeline src/render/native/post/fused.rs:150
+    boot     1      0.1    0 pipeline src/render/native/post/fused.rs:171
+    boot     1      0.1    0 pipeline src/render/native/post/fused.rs:350
+    boot     1      0.1    0 pipeline src/render/native/post/horizon_fog_pass.rs:42
+    boot    18      2.0    0 pipeline src/render/native/post/targets.rs:490
+    boot    10      1.2    0 pipeline src/render/native/ui/renderer.rs:51
+    rims     1      0.6    0 module src/render/native/car/shared.rs:111
+    rims     1      0.1    0 module src/render/native/post/fused.rs:146
+    rims     1      0.1    0 module src/render/native/post/fused.rs:346
+    rims     1      1.2    1 module src/render/native/post/mod.rs:196
+    rims     1      0.6    0 module src/render/native/ui/renderer.rs:32
+    rims     2      5.5    2 module src/render/native/world/pipelines.rs:394
+    rims    30      5.6    0 pipeline src/render/native/car/shared.rs:407
+    rims     1      0.1    0 pipeline src/render/native/post/fused.rs:150
+    rims     1      0.1    0 pipeline src/render/native/post/fused.rs:171
+    rims     1      0.1    0 pipeline src/render/native/post/fused.rs:350
+    rims     1      0.1    0 pipeline src/render/native/post/horizon_fog_pass.rs:42
+    rims    20      2.4    0 pipeline src/render/native/post/targets.rs:490
+    rims    10      1.5    0 pipeline src/render/native/ui/renderer.rs:51
+    rims   144     86.0   12 pipeline src/render/native/world/pipelines.rs:818
+
+== 4. Car renderers built ahead: the race start (--bench race 1500, d/, fixed step), 7 runs per arm interleaved; before = the tree with section 1's change
+orig before n 7 frame 359 1.33 [1.27..1.46] worst (frames 10+) 2.79 [2.68..2.82] frames with crb>0.25 [1] mean main 0.82 [0.81..0.83] VmHWM 635.00 [620.00..646.00] load 137.00 [128.00..308.00]
+orig after n 7 frame 359 1.38 [1.31..1.59] worst (frames 10+) 1.46 [1.31..1.67] frames with crb>0.25 [0] mean main 0.83 [0.81..0.90] VmHWM 645.00 [631.00..651.00] load 135.00 [131.00..146.00]
+high before n 7 frame 359 1.82 [1.78..2.23] worst (frames 10+) 3.52 [3.29..4.27] frames with crb>0.25 [1] mean main 1.52 [1.49..1.54] VmHWM 722.00 [710.00..734.00] load 293.00 [285.00..303.00]
+high after n 7 frame 359 2.03 [1.79..2.48] worst (frames 10+) 2.70 [2.50..3.24] frames with crb>0.25 [0] mean main 1.51 [1.47..1.58] VmHWM 732.00 [718.00..739.00] load 292.00 [281.00..296.00]
+   (frame 359 = the frame log's row 359; the hitch is the worst frame of the before arm, 'frames with crb>0.25' = frames whose 'car renderer builds' part is logged)
+
+== 5. Animated Water kept across a car change: --bench transitions (NFSU2_BENCH_MENU_FIRST=1), i/, 7 runs per arm interleaved
+   (before = the tree with sections 1 and 4; load / load + its first frame, ms)
+  high before: out of a shop, a part fitted: 105 [103..126] / 110 [108..132]; out of a shop: 19 [17..44] / 58 [48..86]; out of the garage: 9 [8..37] / 14 [14..63]; free roam, first load: 105 [99..118] / 134 [122..150]
+  high after: out of a shop, a part fitted: 74 [66..147] / 80 [71..165]; out of a shop: 28 [18..59] / 64 [46..89]; out of the garage: 13 [8..31] / 18 [14..47]; free roam, first load: 101 [96..127] / 134 [127..157]
+  orig before: out of a shop, a part fitted: 69 [47..147] / 71 [49..162]; out of a shop: 21 [17..28] / 23 [18..37]; out of the garage: 10 [7..27] / 10 [8..30]; free roam, first load: 62 [56..88] / 72 [66..105]
+  orig after: out of a shop, a part fitted: 76 [52..152] / 78 [53..166]; out of a shop: 21 [15..44] / 22 [16..46]; out of the garage: 9 [7..24] / 10 [8..28]; free roam, first load: 53 [51..92] / 63 [61..118]
+
+== 6. The race end's files read ahead: the sprint to its finish (--bench drive, fixed step, Original, d/), 5 runs per arm interleaved
+   before = the tree with sections 1, 4 and 5; the race end frame's main thread CPU and its 'tick: update' part (ms)
+  before: frame 9572 10.58 [9.46..14.07]; tick: update 7.12 [6.88..10.77]; run median frame 0.83 [0.81..0.97]; peak resident MB 658.00 [644.00..658.00]
+  after: frame 9572 7.61 [7.19..10.47]; tick: update 4.94 [4.49..6.71]; run median frame 0.87 [0.82..0.88]; peak resident MB 652.00 [637.00..680.00]
+
+== 7. Step 4 measured again (d/, fixed step): car renderers built ahead, before = sections 1 only, after = this tree
+  explore (Original, 3600 frames) before: runs 5; worst frame 4.64 [4.23..4.86]; frames with car renderer builds [4, 5, 6]; frames an encounter racer appears 2.05 [0.88..3.89]
+  explore (Original, 3600 frames) after: runs 5; worst frame 4.74 [4.04..6.03]; frames with car renderer builds [0]; frames an encounter racer appears 0.97 [0.88..1.33]
+  sprint (High, to the finish) before: runs 3; worst frame 5.82 [5.56..9.02]; frames with car renderer builds [0, 1]; frame 3050 1.77 [1.74..1.95]
+  sprint (High, to the finish) after: runs 3; worst frame 6.46 [6.21..7.54]; frames with car renderer builds [0]; frame 3050 2.00 [1.58..2.15]
+== 8. The spray volume's GPU memory (NFSU2_VRAM_REPORT, High, rain drive, i/): MiB by label
+        9.00	1	vfx accumulators
+        2.06	1	vfx density
+        2.00	1	vfx emission
+        1.25	1	vfx particles
+        1.00	1	vfx albedo
+        1.00	1	vfx noise
+        0.25	1	vfx light
+        0.12	1	vfx light dir
+
+== 9. Enter held from the boot screens to the main menu's garage scene (--bench boot, NFSU2_BENCH_BOOT_MENU=1, i/, one run each)
+  bootmenu-orig: Enter to the garage scene: 242 frames, 210 ms (process start to it: 304 ms); the frame that made it 29.5 ms with the GPU's wait, its builds 0 pipelines, 0 modules (0.0 ms making them through the device cache); builds since the title 113 pipelines, 2 modules (62.6 ms making them through the device cache); programs ahead done
+  bootmenu-high: Enter to the garage scene: 242 frames, 240 ms (process start to it: 337 ms); the frame that made it 38.9 ms with the GPU's wait, its builds 0 pipelines, 0 modules (0.0 ms making them through the device cache); builds since the title 113 pipelines, 2 modules (74.5 ms making them through the device cache); programs ahead done
+  bootcold-orig: Enter to the garage scene: 242 frames, 282 ms (process start to it: 590 ms); the frame that made it 39.6 ms with the GPU's wait, its builds 0 pipelines, 0 modules (0.0 ms making them through the device cache); builds since the title 115 pipelines, 2 modules (1124.2 ms making them through the device cache); programs ahead done
+  bootcold-high: Enter to the garage scene: 242 frames, 281 ms (process start to it: 431 ms); the frame that made it 44.6 ms with the GPU's wait, its builds 0 pipelines, 0 modules (0.0 ms making them through the device cache); builds since the title 131 pipelines, 2 modules (1315.3 ms making them through the device cache); programs ahead done

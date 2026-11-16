@@ -1,0 +1,298 @@
+[package]
+name = "nfsu2-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+[package.metadata]
+cargo-fuzz = true
+
+# Its own workspace: cargo-fuzz builds it with nightly and sanitizer flags.
+[workspace]
+
+[dependencies]
+libfuzzer-sys = "0.4"
+glam = "0.32"
+
+[dependencies.nfsu2]
+path = ".."
+
+[[bin]]
+name = "bundle_walk"
+path = "fuzz_targets/bundle_walk.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "texture_pack"
+path = "fuzz_targets/texture_pack.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "viv_big"
+path = "fuzz_targets/viv_big.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "huff"
+path = "fuzz_targets/huff.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "jdlz"
+path = "fuzz_targets/jdlz.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "tpf"
+path = "fuzz_targets/tpf.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "track_sections"
+path = "fuzz_targets/track_sections.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "scenery"
+path = "fuzz_targets/scenery.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "solid"
+path = "fuzz_targets/solid.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "collision"
+path = "fuzz_targets/collision.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "visibility"
+path = "fuzz_targets/visibility.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "lights"
+path = "fuzz_targets/lights.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "roads"
+path = "fuzz_targets/roads.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "ai_routes"
+path = "fuzz_targets/ai_routes.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "parts"
+path = "fuzz_targets/parts.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "world_anim"
+path = "fuzz_targets/world_anim.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "texture_anim"
+path = "fuzz_targets/texture_anim.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "camera_tracks"
+path = "fuzz_targets/camera_tracks.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "parameter_map"
+path = "fuzz_targets/parameter_map.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "smackable"
+path = "fuzz_targets/smackable.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "eagl"
+path = "fuzz_targets/eagl.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "zam"
+path = "fuzz_targets/zam.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "magazines"
+path = "fuzz_targets/magazines.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "native_save"
+path = "fuzz_targets/native_save.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "vp6"
+path = "fuzz_targets/vp6.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "movie"
+path = "fuzz_targets/movie.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "feng_package"
+path = "fuzz_targets/feng_package.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "feng_strings"
+path = "fuzz_targets/feng_strings.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "feng_font"
+path = "fuzz_targets/feng_font.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "options_text"
+path = "fuzz_targets/options_text.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "profile_text"
+path = "fuzz_targets/profile_text.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "globalb"
+path = "fuzz_targets/globalb.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "dds"
+path = "fuzz_targets/dds.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "abk"
+path = "fuzz_targets/abk.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "schl"
+path = "fuzz_targets/schl.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "ealayer3"
+path = "fuzz_targets/ealayer3.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "utk"
+path = "fuzz_targets/utk.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "gin"
+path = "fuzz_targets/gin.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "speech_bank"
+path = "fuzz_targets/speech_bank.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "pe_sections"
+path = "fuzz_targets/pe_sections.rs"
+test = false
+doc = false
+bench = false

@@ -1,0 +1,3 @@
+mark shot a.png (NFSU2_SHOT_MARK=1 NFSU2_SHOT_HOLD=1 NFSU2_SHOT_AT=-1650,600,0,45 --shot explore) vs the report's command b.png; 1280x960, RADV, NFSU2_SHOT_CLOCK=0
+AE fuzz 3%: 32.9353 (2.68028e-05)
+pixdiff: a.png: 80367 of 1228800 pixels differ (6.5403 %), max channel diff 209, mean abs diff 0.03369  OVER

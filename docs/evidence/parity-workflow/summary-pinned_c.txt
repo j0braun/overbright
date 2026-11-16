@@ -1,0 +1,1 @@
+circuit_s1_pinned    1201       1   0.02s  PEUGOT#1 ai_target: 34.4 vs 37.8 (tol 1.0); player off 70.2 m at the end

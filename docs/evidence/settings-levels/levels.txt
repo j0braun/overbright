@@ -1,0 +1,26 @@
+Enhanced quality levels: GPU busy median ms per frame (median of the runs), --bench <scene> 300, Anti-Aliasing Native,
+default Customize Display values, rain = drive at NFSU2_RAIN_CLOCK=162. Reference desktop GPU: 2 runs; reference
+integrated GPU (MESA_VK_DEVICE_SELECT): Original / Low 3 runs, Medium / High 2 runs. Configurations alternated per run.
+
+desktop 1920x1080   explore racing race   rain   worst
+  Original          0.54    0.68   0.70   0.67   0.70
+  Low               0.55    0.72   0.74   0.73   0.74
+  Medium            1.06    1.75   1.64   1.77   1.77
+  High              2.31    2.80   2.71   3.32   3.32
+desktop 3840x2160
+  Original          2.08    2.42   2.60   2.47   2.60
+  Low               2.11    2.48   2.66   2.62   2.66
+  Medium            5.52    6.57   6.60   7.08   7.08
+  High             10.08    9.74   9.99  11.42  11.42
+integrated 1920x1080
+  Original         10.73   13.78  15.03  14.20  15.03
+  Low              11.71   14.71  17.42  16.96  17.42   (per scene +1.0 / +0.9 / +2.4 / +2.8: within Original + 3 ms)
+  Medium           26.86   38.52  43.92  49.50  49.50
+  High             70.22   64.06  69.92 100.45 100.45
+
+Low's rows, integrated GPU 1080p, before they were trimmed (race start / rain, ms the row adds, 2-3 runs, +-1 ms noise):
+  High Precision Post +3.9 / +2.7   Wet Roads -- / +2.7 (rain only)   Enhanced Paint +2.2 / +0.2
+  Car Reflection 256 ~+0.7          Wet Car +1.4 (rain)                the other Low rows within the noise
+-> High Precision Post, Wet Roads and the 256 car reflection start at Medium.
+Old presets for comparison (docs/settings-page.md "60 FPS"): High 2.41 / 7.20 / 50.9, Ultra 3.97 / 13.07 / 72.0
+(desktop 1080p / 4K / integrated 1080p; Ultra with its SSAA 2x).

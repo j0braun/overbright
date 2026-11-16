@@ -1,0 +1,55 @@
+airport__2high           dmean  -0.72 dp5 +0.42 dp95  -1.01 dsat +0.000
+airport__3ultra          dmean  +0.75 dp5 +2.14 dp95  +0.06 dsat -0.003
+airport__6nextgen        dmean  -3.70 dp5 -0.72 dp95  -8.46 dsat +0.001
+airport__o+fog1          dmean  +0.47 dp5 +0.35 dp95  +0.86 dsat -0.002
+airport__o+fog2          dmean  +1.47 dp5 +1.14 dp95  +2.07 dsat -0.004
+airport__o+fog3          dmean  +0.63 dp5 +0.42 dp95  +1.21 dsat -0.003
+fountain__o+water2       dmean  -5.03 dp5 -0.13 dp95  -2.15 dsat -0.028
+fountain__o+water3       dmean  +0.20 dp5 -0.21 dp95  -2.35 dsat -0.046
+harbour__2high           dmean  -0.81 dp5 +0.79 dp95  -1.46 dsat -0.005
+harbour__3ultra          dmean  +0.40 dp5 +1.72 dp95  -1.89 dsat -0.003
+harbour__6nextgen        dmean  -6.87 dp5 +0.15 dp95 -14.38 dsat -0.013
+harbour__o+fog1          dmean  +0.30 dp5 +0.07 dp95  +0.08 dsat -0.000
+harbour__o+fog2          dmean  +0.98 dp5 +0.29 dp95  +1.18 dsat -0.002
+harbour__o+fog3          dmean  +0.62 dp5 +0.07 dp95  +0.91 dsat -0.001
+neon__2high              dmean  -1.04 dp5 +0.72 dp95  -1.32 dsat +0.007
+neon__3ultra             dmean  +0.39 dp5 +2.30 dp95  -1.56 dsat +0.005
+neon__6nextgen           dmean  -4.23 dp5 +3.07 dp95  -3.65 dsat +0.020
+neon__o+fog1             dmean  +0.58 dp5 +0.44 dp95  +0.49 dsat -0.001
+neon__o+fog2             dmean  +1.41 dp5 +0.85 dp95  +1.00 dsat -0.002
+neon__o+fog3             dmean  +1.42 dp5 +0.85 dp95  +0.50 dsat -0.001
+rain__2high+ssr          dmean  +1.02 dp5 +0.28 dp95  +3.92 dsat +0.003  road sheen L/R 15.94/ 2.89 cov  62.0/ 22.7% hf x0.83/1.04
+rain__2high              dmean  +1.22 dp5 +0.28 dp95  +5.53 dsat +0.000  road sheen L/R 21.48/ 1.67 cov  65.8/ 11.8% hf x0.85/1.08
+rain__3ultra             dmean  +2.59 dp5 +0.72 dp95  +4.76 dsat -0.001  road sheen L/R 16.77/ 3.62 cov  63.9/ 24.0% hf x0.73/0.86
+rain__6nextgen           dmean  +1.76 dp5 +0.50 dp95  +4.09 dsat -0.008  road sheen L/R 12.48/ 2.10 cov  50.3/ 14.1% hf x0.79/0.89
+rain__o+fog1             dmean  +0.45 dp5 +0.00 dp95  +0.53 dsat -0.001  road sheen L/R  0.00/ 0.00 cov   0.0/  0.0% hf x1.00/1.00
+rain__o+fog2             dmean  +1.16 dp5 +0.00 dp95  +1.78 dsat -0.003  road sheen L/R  0.57/ 0.96 cov   0.0/  0.1% hf x1.00/1.00
+rain__o+fog3             dmean  +0.81 dp5 +0.00 dp95  +1.45 dsat -0.003  road sheen L/R  0.34/ 0.92 cov   0.2/  0.5% hf x1.00/1.00
+rain__o+rain3            dmean  +1.83 dp5 +0.79 dp95  +3.23 dsat -0.008  road sheen L/R  0.69/ 0.42 cov   2.7/  2.3% hf x1.04/1.01
+rain__o+ssr2             dmean  -0.17 dp5 +0.00 dp95  -0.44 dsat -0.002  road sheen L/R  0.04/ 0.02 cov   0.0/  0.0% hf x0.99/1.00
+rain__o+wetint2          dmean  +1.35 dp5 +0.00 dp95  +4.66 dsat +0.010  road sheen L/R 17.75/ 1.14 cov  74.6/  8.8% hf x0.96/1.06
+rain__o+wetroads         dmean  +1.40 dp5 +0.00 dp95  +5.10 dsat +0.011  road sheen L/R 17.75/ 1.14 cov  74.6/  8.8% hf x0.96/1.06
+rainharb__2high+ssr      dmean  +0.52 dp5 +0.64 dp95  +1.22 dsat -0.003  road sheen L/R  5.10/ 9.21 cov  15.4/ 39.1% hf x0.96/0.92
+rainharb__2high          dmean  -0.05 dp5 +0.64 dp95  +1.36 dsat -0.005  road sheen L/R  2.05/10.86 cov  11.0/ 45.4% hf x0.99/0.98
+rainharb__3ultra         dmean  +1.52 dp5 +1.00 dp95  +1.82 dsat -0.006  road sheen L/R  5.60/11.17 cov  17.5/ 48.0% hf x0.88/0.77
+rainharb__6nextgen       dmean  -2.59 dp5 +0.79 dp95  -5.59 dsat -0.000  road sheen L/R  4.28/ 3.81 cov  11.8/ 17.0% hf x0.88/1.02
+rainharb__o+fog1         dmean  +0.23 dp5 +0.00 dp95  +0.03 dsat -0.000  road sheen L/R  0.00/ 0.34 cov   0.0/  0.1% hf x1.00/1.00
+rainharb__o+fog2         dmean  +0.78 dp5 +0.00 dp95  +0.82 dsat -0.003  road sheen L/R  0.32/ 2.15 cov   0.0/ 13.9% hf x1.00/0.99
+rainharb__o+fog3         dmean  +0.63 dp5 +0.00 dp95  +0.42 dsat -0.002  road sheen L/R  0.00/ 0.65 cov   0.0/  2.6% hf x1.00/1.00
+rainharb__o+rain3        dmean  +1.14 dp5 +0.07 dp95  +0.28 dsat -0.004  road sheen L/R  0.35/ 0.57 cov   1.8/  3.1% hf x1.07/1.03
+rainharb__o+ssr2         dmean  -0.03 dp5 +0.00 dp95  -0.93 dsat +0.002  road sheen L/R  0.03/ 0.01 cov   0.1/  0.0% hf x1.00/1.02
+rainharb__o+wetint2      dmean  +2.31 dp5 +0.00 dp95  +5.32 dsat +0.001  road sheen L/R  3.45/15.07 cov  15.9/ 67.1% hf x1.01/0.88
+rainharb__o+wetroads     dmean  +2.16 dp5 +0.00 dp95  +5.32 dsat +0.000  road sheen L/R  3.45/15.07 cov  15.9/ 67.1% hf x1.01/0.88
+street__2high            dmean  -0.22 dp5 +0.36 dp95  +0.07 dsat -0.010  road sheen L/R  0.97/ 1.38 cov   4.9/  7.8% hf x0.87/0.89
+street__3ultra           dmean  +1.21 dp5 +0.72 dp95  +1.03 dsat -0.012  road sheen L/R  1.34/ 2.20 cov   7.6/ 11.9% hf x0.77/0.76
+street__6nextgen         dmean  -1.36 dp5 +0.57 dp95  -0.49 dsat -0.009  road sheen L/R  0.86/ 1.11 cov   6.4/  4.8% hf x0.76/0.78
+street__o+fog1           dmean  +0.49 dp5 +0.00 dp95  +0.57 dsat -0.002  road sheen L/R  0.00/ 0.00 cov   0.0/  0.0% hf x1.00/1.00
+street__o+fog2           dmean  +1.25 dp5 +0.00 dp95  +1.82 dsat -0.006  road sheen L/R  0.64/ 0.85 cov   0.1/  0.0% hf x1.00/1.00
+street__o+fog3           dmean  +0.52 dp5 +0.21 dp95  +0.74 dsat -0.003  road sheen L/R  0.30/ 0.72 cov   0.0/  0.2% hf x1.00/1.00
+street__o+wetroads       dmean  +0.00 dp5 +0.00 dp95  +0.00 dsat +0.000  road sheen L/R  0.00/ 0.00 cov   0.0/  0.0% hf x1.00/1.00
+tunnel__2high            dmean  +1.84 dp5 -0.64 dp95  +1.71 dsat +0.006
+tunnel__3ultra           dmean  +2.69 dp5 +0.14 dp95  +3.05 dsat +0.007
+tunnel__6nextgen         dmean  -2.31 dp5 -0.57 dp95  -5.01 dsat -0.011
+tunnel__o+fog1           dmean  +0.10 dp5 +0.00 dp95  +0.07 dsat +0.000
+tunnel__o+fog2           dmean  +0.72 dp5 +0.07 dp95  +1.68 dsat -0.005
+tunnel__o+fog3           dmean  +0.56 dp5 +0.07 dp95  +1.43 dsat -0.005

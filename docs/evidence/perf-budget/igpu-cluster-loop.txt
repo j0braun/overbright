@@ -1,0 +1,55 @@
+# The lamps' light-cluster loop in its subgroup form (docs/lamps-shadows.md "The cluster loop"): A/B on the integrated GPU
+# --bench <scene> 200, 1920x1080, NFSU2_BENCH_DETAIL=3 (a fresh install's World Detail there), arms interleaved,
+# 7 runs per arm, every series under the machine's measuring lock (docs/evidence/perf-integrated-gpu/scripts/passes.sh).
+# ms GPU per frame: each arm's median (min-max), and the paired per-run difference new - base (median, min..max).
+# base = the tree before; s1 = the subgroup form (returns from inside the round loop); s1b = a measuring build
+# with the round loop's other shape (a pending flag, as first prototyped): the same within the noise.
+
+## series 1 (load average 7.47 23.68 )
+race-med-1920x1080  (n 7/7)
+  GPU frame                                    base  25.55 (24.04-26.44)  s1  25.19 (24.16-26.10)  paired -0.16 (-1.91..+2.06)
+  world: main view                             base   9.32 (9.09-9.51)  s1   9.13 (8.86-9.46)  paired -0.17 (-0.59..+0.14)
+racing-high-1920x1080  (n 7/7)
+  GPU frame                                    base  46.03 (44.24-46.89)  s1  45.42 (44.05-47.21)  paired -0.55 (-1.86..+1.18)
+  world: main view                             base  11.96 (11.79-12.10)  s1  11.35 (11.12-12.94)  paired -0.52 (-0.98..+0.85)
+racing-med-1920x1080  (n 7/7)
+  GPU frame                                    base  25.18 (22.81-25.71)  s1  23.27 (22.14-24.56)  paired -0.89 (-3.15..+0.48)
+  world: main view                             base  11.32 (11.00-11.78)  s1  10.82 (10.35-11.04)  paired -0.34 (-1.42..-0.13)
+rain-med-1920x1080  (n 7/7)
+  GPU frame                                    base  28.78 (26.60-29.90)  s1  28.71 (27.03-29.25)  paired -0.38 (-1.19..+2.11)
+  world: main view                             base  12.21 (11.99-12.56)  s1  12.22 (12.00-12.69)  paired +0.01 (-0.18..+0.28)
+
+## series 2 (load average 21.88 37.52 )
+racing-med-1920x1080  (n 7/7)
+  GPU frame                                    base  24.89 (24.20-25.57)  s1  24.75 (23.92-25.68)  paired -0.14 (-1.60..+1.37)
+  world: main view                             base  11.47 (10.64-11.90)  s1  10.66 (10.44-10.99)  paired -0.80 (-1.08..+0.33)
+rain-med-1920x1080  (n 7/7)
+  GPU frame                                    base  28.53 (27.11-31.75)  s1  28.84 (26.98-30.92)  paired +0.28 (-2.90..+3.81)
+  world: main view                             base  12.46 (12.20-14.41)  s1  12.21 (11.98-13.26)  paired -0.30 (-2.16..+1.06)
+racing-med-1920x1080  (n 7/7)
+  GPU frame                                    s1  24.75 (23.92-25.68)  s1b  24.02 (22.93-24.87)  paired -0.78 (-2.28..+0.62)
+  world: main view                             s1  10.66 (10.44-10.99)  s1b  10.68 (10.47-10.81)  paired +0.02 (-0.36..+0.27)
+rain-med-1920x1080  (n 7/7)
+  GPU frame                                    s1  28.84 (26.98-30.92)  s1b  28.51 (26.94-29.63)  paired +0.17 (-2.95..+1.29)
+  world: main view                             s1  12.21 (11.98-13.26)  s1b  12.07 (12.01-12.58)  paired +0.09 (-1.21..+0.32)
+
+## Frames (desktop GPU, the bench's dumps of frames 0, 30, 60, 90, 120, 1920x1080, World Detail 3; byte compare to the base)
+CMP dgpu racing-med s1 vs ref: 5 same, 0 differ
+CMP dgpu race-med s1 vs ref: 5 same, 0 differ
+CMP dgpu rain-med s1 vs ref: 5 same, 0 differ
+CMP dgpu racing-high s1 vs ref: 5 same, 0 differ
+CMP dgpu race-high s1 vs ref: 5 same, 0 differ
+CMP dgpu rain-high s1 vs ref: 5 same, 0 differ
+CMP dgpu racing-medmsaa8 s1 vs ref: 5 same, 0 differ
+CMP dgpu race-medmsaa8 s1 vs ref: 5 same, 0 differ
+CMP dgpu racing-user s1 vs ref: 5 same, 0 differ
+CMP dgpu race-user s1 vs ref: 5 same, 0 differ
+
+## Frames on the integrated GPU (this tree's binary with both changes against the base; frames 0, 30, 60, 90, 120)
+CMP igpu racing-med s2d vs ref: 5 same, 0 differ
+CMP igpu race-med s2d vs ref: 5 same, 0 differ
+CMP igpu racing-high s2d vs ref: 5 same, 0 differ
+
+# State: the machine was under build load; the SSAO occlusion row (the slow-state marker, about 1.0 ms at 1080p in the
+# fast state) was 1.3-3.9 ms across these runs, so the runs were in the slow state or between; the arms alternate
+# run by run inside one lock hold.

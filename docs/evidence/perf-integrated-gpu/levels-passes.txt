@@ -1,0 +1,104 @@
+# Integrated GPU, the levels' passes (GPU busy median ms per frame over the runs, (min-max); p99; frame p50/p99; top passes, ms)
+# --bench <scene> 200 frames, 2 runs, Anti-Aliasing Native (8x), default Customize Display; rain = drive at clock 162
+## 1920x1080
+explore-high-1920x1080       GPU   52.87 (52.83-52.90) p99   55.15 frame 53.37/56.44 n=2
+    world: main view 11.60; post: overbright (high precision) 10.46; graphics: ssr trace 3.60; graphics: ssao occlusion 3.23; graphics: ssr copy and depth pyramid 3.03; world: depth pre-pass 2.58; graphics: atmosphere 2.45; graphics: ssao apply 1.96
+explore-low-1920x1080        GPU   11.23 (11.09-11.37) p99   12.27 frame 11.49/13.03 n=2
+    world: main view 4.77; post: bleach bypass 1.75; post: streaks 1.35; post: overbright (half size) 1.04; cars 0.59; ui 0.58; post: to the back buffer 0.37; world: environment cube 0.28
+explore-med-1920x1080        GPU   30.37 (30.37-30.38) p99   31.68 frame 30.72/32.63 n=2
+    world: main view 11.10; graphics: ssao occlusion 3.44; world: depth pre-pass 2.54; graphics: atmosphere 2.46; graphics: ssao apply 1.97; post: streaks 1.90; post: overbright (high precision) 1.40; graphics: ssao depth (and the resolve before it) 0.97
+explore-orig-1920x1080       GPU   10.15 (10.08-10.22) p99   10.85 frame 10.38/17.14 n=2
+    world: main view 4.13; post: bleach bypass 1.68; post: streaks 1.29; post: overbright (half size) 1.02; ui 0.57; cars 0.45; post: to the back buffer 0.42; horizon fog 0.24
+race-high-1920x1080          GPU   72.11 (71.83-72.39) p99   74.41 frame 72.66/75.18 n=2
+    world: main view 18.58; post: overbright (high precision) 9.79; graphics: ssao depth (and the resolve before it) 6.62; graphics: ssr trace 5.64; world: depth pre-pass 4.63; graphics: ssao occlusion 3.80; graphics: ssr copy and depth pyramid 3.38; graphics: atmosphere 2.87
+race-low-1920x1080           GPU   15.95 (15.66-16.23) p99   17.25 frame 16.21/17.71 n=2
+    world: main view 7.00; cars 1.86; post: bleach bypass 1.75; post: streaks 1.47; particles 1.04; post: overbright (half size) 1.01; post: to the back buffer 0.53; ui 0.42
+race-med-1920x1080           GPU   44.03 (43.51-44.56) p99   47.07 frame 44.59/47.49 n=2
+    world: main view 15.75; graphics: ssao depth (and the resolve before it) 6.16; world: depth pre-pass 4.04; graphics: ssao occlusion 3.78; graphics: atmosphere 2.69; cars 2.17; post: streaks 2.11; graphics: ssao apply 1.92
+race-orig-1920x1080          GPU   14.51 (14.33-14.69) p99   15.56 frame 14.81/15.99 n=2
+    world: main view 6.38; post: bleach bypass 1.74; cars 1.44; post: streaks 1.41; post: overbright (half size) 1.06; particles 1.01; post: to the back buffer 0.50; ui 0.42
+racing-high-1920x1080        GPU   68.35 (68.32-68.39) p99   73.76 frame 68.86/74.48 n=2
+    world: main view 21.04; post: overbright (high precision) 9.84; graphics: ssr trace 4.22; world: depth pre-pass 4.12; graphics: ssao occlusion 3.49; graphics: ssr copy and depth pyramid 3.19; graphics: atmosphere 2.85; cars: enhanced glass 2.55
+racing-low-1920x1080         GPU   16.00 (15.80-16.20) p99   17.11 frame 16.38/17.86 n=2
+    world: main view 7.58; post: bleach bypass 1.76; cars 1.73; post: streaks 1.38; post: overbright (half size) 1.04; ui 0.61; post: to the back buffer 0.48; particles 0.41
+racing-med-1920x1080         GPU   44.08 (43.95-44.21) p99   47.52 frame 44.59/48.06 n=2
+    world: main view 18.98; world: depth pre-pass 4.22; graphics: ssao occlusion 3.58; graphics: atmosphere 2.73; graphics: ssao depth (and the resolve before it) 2.59; graphics: ssao apply 2.17; cars 2.01; post: streaks 1.99
+racing-orig-1920x1080        GPU   14.38 (14.14-14.62) p99   15.84 frame 14.68/16.13 n=2
+    world: main view 6.82; post: bleach bypass 1.75; post: streaks 1.46; cars 1.30; post: overbright (half size) 1.03; ui 0.60; post: to the back buffer 0.54; particles 0.40
+rain-high-1920x1080          GPU   99.53 (97.75-101.31) p99  122.02 frame 99.65/124.52 n=2
+    world: main view 26.09; graphics: volume fx march 12.23; post: overbright (high precision) 10.37; graphics: ssr mask 6.07; graphics: ssr trace 5.24; cars: enhanced glass 4.13; graphics: ssao occlusion 3.80; graphics: ssr copy and depth pyramid 3.58
+rain-low-1920x1080           GPU   16.31 (16.23-16.39) p99   17.98 frame 16.54/18.47 n=2
+    world: main view 5.74; cars 2.82; post: streaks 1.37; post: bleach bypass 1.13; post: overbright (half size) 1.03; post: lens drops 0.92; graphics: weather fx 0.80; ui 0.58
+rain-med-1920x1080           GPU   51.15 (49.96-52.33) p99   55.43 frame 51.57/56.71 n=2
+    world: main view 20.45; graphics: ssao occlusion 4.00; cars 3.34; world: depth pre-pass 3.27; graphics: atmosphere 3.23; graphics: ssao depth (and the resolve before it) 2.69; graphics: weather fx 2.38; graphics: ssao apply 2.27
+rain-orig-1920x1080          GPU   13.49 (13.45-13.54) p99   14.73 frame 13.72/15.08 n=2
+    world: main view 5.08; post: streaks 1.34; cars 1.33; post: bleach bypass 1.30; post: overbright (half size) 1.10; post: lens drops 0.90; particles 0.66; ui 0.59
+## 1366x768
+explore-high-1366x768        GPU   26.74 (26.40-27.08) p99   28.56 frame 27.00/29.58 n=2
+    world: main view 4.78; post: overbright (high precision) 4.61; graphics: ssr trace 2.23; graphics: ssr copy and depth pyramid 1.92; graphics: ssao occlusion 1.67; graphics: atmosphere 1.52; world: depth pre-pass 1.09; post: streaks 0.96
+explore-low-1366x768         GPU    5.40 (5.25-5.54) p99    6.91 frame 5.54/7.96 n=2
+    world: main view 2.06; post: bleach bypass 1.00; post: streaks 0.66; post: overbright (half size) 0.53; cars 0.32; ui 0.28; post: to the back buffer 0.24; world: environment cube 0.17
+explore-med-1366x768         GPU   12.90 (12.83-12.97) p99   13.41 frame 13.14/13.67 n=2
+    world: main view 3.73; graphics: ssao occlusion 1.24; graphics: atmosphere 1.19; world: depth pre-pass 1.04; post: streaks 0.89; graphics: ssao apply 0.85; post: overbright (high precision) 0.70; world: environment cube 0.61
+explore-orig-1366x768        GPU    5.07 (4.92-5.21) p99    6.71 frame 5.21/9.62 n=2
+    world: main view 1.94; post: bleach bypass 1.02; post: streaks 0.55; post: overbright (half size) 0.53; cars 0.30; ui 0.29; post: to the back buffer 0.27; world: environment cube 0.16
+race-high-1366x768           GPU   37.26 (34.95-39.57) p99   39.53 frame 61.00/145.91 n=2
+    world: main view 8.08; post: overbright (high precision) 4.34; graphics: ssao depth (and the resolve before it) 3.54; graphics: ssr trace 3.03; world: depth pre-pass 2.22; graphics: ssr copy and depth pyramid 2.14; graphics: atmosphere 2.03; cars: enhanced glass 1.80
+race-low-1366x768            GPU    8.96 (7.95-9.96) p99    9.79 frame 10.06/106.42 n=2
+    world: main view 3.76; cars 1.15; post: bleach bypass 1.06; post: streaks 0.77; particles 0.68; post: overbright (half size) 0.56; world: environment cube 0.23; post: to the back buffer 0.22
+race-med-1366x768            GPU   21.82 (19.30-24.34) p99   24.17 frame 33.66/120.46 n=2
+    world: main view 6.75; graphics: ssao depth (and the resolve before it) 3.17; world: depth pre-pass 2.01; graphics: ssao occlusion 1.50; cars 1.39; graphics: atmosphere 1.37; graphics: ssao apply 1.18; post: streaks 1.15
+race-orig-1366x768           GPU    7.73 (7.25-8.22) p99    8.69 frame 39.27/90.04 n=2
+    (between submissions) 4.52; world: main view 3.12; post: bleach bypass 1.00; cars 0.94; post: streaks 0.72; post: overbright (half size) 0.58; particles 0.57; post: to the back buffer 0.24
+racing-high-1366x768         GPU   34.83 (34.44-35.22) p99   40.14 frame 37.35/111.76 n=2
+    world: main view 8.21; post: overbright (high precision) 4.44; (between submissions) 2.88; graphics: ssr trace 2.72; graphics: ssr copy and depth pyramid 2.04; world: depth pre-pass 2.04; cars: enhanced glass 2.01; graphics: atmosphere 1.92
+racing-low-1366x768          GPU    7.42 (7.39-7.45) p99    8.89 frame 7.71/9.59 n=2
+    world: main view 3.05; post: bleach bypass 1.03; cars 0.98; post: streaks 0.67; post: overbright (half size) 0.59; ui 0.30; post: to the back buffer 0.25; particles 0.20
+racing-med-1366x768          GPU   18.62 (17.69-19.55) p99   21.57 frame 19.15/23.16 n=2
+    world: main view 6.73; world: depth pre-pass 1.97; graphics: atmosphere 1.40; graphics: ssao occlusion 1.26; cars 1.18; graphics: ssao depth (and the resolve before it) 1.16; post: streaks 0.96; graphics: ssao apply 0.92
+racing-orig-1366x768         GPU    7.01 (6.95-7.08) p99    7.54 frame 7.29/7.85 n=2
+    world: main view 2.97; post: bleach bypass 1.12; cars 0.79; post: streaks 0.60; post: overbright (half size) 0.53; ui 0.31; post: to the back buffer 0.18; particles 0.18
+rain-high-1366x768           GPU   49.87 (49.71-50.03) p99   52.96 frame 50.47/53.69 n=2
+    world: main view 10.86; graphics: volume fx march 4.91; post: overbright (high precision) 4.54; graphics: ssr mask 3.29; graphics: ssr trace 3.11; cars: enhanced glass 2.59; graphics: ssr copy and depth pyramid 2.04; graphics: ssao occlusion 1.93
+rain-low-1366x768            GPU    8.99 (8.08-9.90) p99   10.83 frame 9.54/79.18 n=2
+    world: main view 3.10; (between submissions) 2.61; cars 1.60; post: streaks 0.73; post: bleach bypass 0.64; post: lens drops 0.56; graphics: weather fx 0.53; post: overbright (half size) 0.52
+rain-med-1366x768            GPU   20.67 (20.49-20.85) p99   21.44 frame 20.96/22.10 n=2
+    world: main view 7.66; cars 1.68; graphics: atmosphere 1.35; world: depth pre-pass 1.35; graphics: ssao depth (and the resolve before it) 1.12; post: streaks 0.99; graphics: weather fx 0.94; graphics: ssao apply 0.89
+rain-orig-1366x768           GPU    7.24 (6.45-8.03) p99    8.46 frame 8.97/151.15 n=2
+    world: main view 2.72; (between submissions) 2.35; cars 0.84; post: streaks 0.67; post: bleach bypass 0.59; post: overbright (half size) 0.55; post: lens drops 0.49; particles 0.38
+## Advanced rows on Medium (and Low), racing 1920x1080, 2 runs
+racing-low-1920x1080         GPU   15.29 (15.15-15.43) p99   17.53 frame 15.65/17.90 n=2
+    world: main view 6.99; post: bleach bypass 1.84; cars 1.62; post: streaks 1.38; post: overbright (half size) 1.00; ui 0.59; post: to the back buffer 0.50
+racing-lowup3-1920x1080      GPU   14.64 (14.14-15.13) p99   16.69 frame 14.95/17.11 n=2
+    graphics: temporal resolve 8.16; world: main view 1.24; post: bleach bypass 1.20; post: overbright (half size) 1.06; post: streaks 0.61; ui 0.59; graphics: temporal output 0.51
+racing-med-1920x1080         GPU   39.86 (38.46-41.26) p99   44.96 frame 40.27/45.85 n=2
+    world: main view 16.07; graphics: ssao occlusion 3.38; graphics: atmosphere 3.10; world: depth pre-pass 3.05; graphics: ssao apply 2.95; graphics: ssao depth (and the resolve before it) 2.51; cars 1.90
+racing-medfsr1-1920x1080     GPU   25.06 (24.77-25.35) p99   27.02 frame 25.55/28.18 n=2
+    world: main view 6.76; graphics: fsr easu 4.89; world: depth pre-pass 2.22; post: overbright (high precision) 1.42; graphics: atmosphere 1.38; graphics: ssao depth (and the resolve before it) 1.25; cars 1.20
+racing-medfsr2-1920x1080     GPU   35.18 (34.83-35.53) p99   36.72 frame 35.61/37.88 n=2
+    graphics: fsr2 accumulate 10.06; world: main view 5.69; graphics: fsr2 depth clip 3.25; graphics: fsr2 reconstruct 2.48; graphics: fsr2 output 1.68; post: overbright (high precision) 1.33; post: streaks 1.02
+racing-medmsaa4-1920x1080    GPU   43.26 (42.99-43.53) p99   47.17 frame 43.63/48.00 n=2
+    world: main view 23.04; graphics: ssao occlusion 3.30; graphics: ssao apply 2.63; graphics: atmosphere 2.44; post: streaks 1.84; graphics: ssao depth (and the resolve before it) 1.72; cars 1.67
+racing-medrt-1920x1080       GPU   83.56 (83.52-83.60) p99   89.46 frame 84.29/92.04 n=2
+    world: main view 26.17; graphics: ssr trace 18.86; cars 6.35; graphics: ssao depth (and the resolve before it) 3.49; graphics: ssr copy and depth pyramid 3.38; graphics: ssao occlusion 3.29; world: depth pre-pass 3.16
+racing-medssaa2-1920x1080    GPU   55.87 (50.95-60.79) p99   60.72 frame 56.55/62.36 n=2
+    world: main view 22.99; graphics: ssao apply 6.12; graphics: ssao occlusion 5.12; post: overbright (high precision) 3.56; graphics: render scale 2.66; graphics: atmosphere 2.57; post: streaks 2.09
+racing-medtaa-1920x1080      GPU   35.40 (34.50-36.30) p99   37.74 frame 35.88/39.40 n=2
+    world: main view 11.63; graphics: temporal resolve 7.85; graphics: ssao occlusion 3.37; graphics: ssao apply 1.87; post: overbright (high precision) 1.35; graphics: atmosphere 1.21; cars 1.20
+racing-medup1-1920x1080      GPU   22.31 (21.58-23.04) p99   23.87 frame 22.75/25.45 n=2
+    graphics: temporal resolve 6.81; world: main view 5.61; post: overbright (high precision) 1.31; post: streaks 1.01; graphics: ssao apply 0.80; post: bleach bypass 0.78; cars 0.69
+racing-medup3-1920x1080      GPU   18.63 (18.33-18.93) p99   19.88 frame 19.04/21.05 n=2
+    graphics: temporal resolve 6.38; world: main view 3.64; post: overbright (high precision) 1.33; post: streaks 1.03; post: bleach bypass 0.84; world: environment cube 0.70; post: to the back buffer 0.64
+## Medium, one row down (leave-one-out), racing 1920x1080, 2 runs: GPU saved, and the passes that moved
+racing-med-1920x1080: GPU 44.15 (43.45-44.86)
+  racing-med_beams-1920x1080     saves  -0.59 ms (run 44.38-45.11)  world: main view -0.99; graphics: ssao depth (and the resolve before it) +0.28; world: depth pre-pass -0.11; graphics: atmosphere +0.11; graphics: ssao occlusion -0.08
+  racing-med_cr-1920x1080        saves  +1.17 ms (run 42.62-43.34)  world: environment cube +0.42; world: main view +0.29; graphics: atmosphere +0.17; cars +0.10; world: depth pre-pass -0.09
+  racing-med_cs-1920x1080        saves  +2.66 ms (run 40.51-42.48)  world: main view +2.65; graphics: ssao depth (and the resolve before it) +0.32; graphics: atmosphere -0.22; post: streaks -0.11; world: depth pre-pass -0.08
+  racing-med_fog-1920x1080       saves  +2.37 ms (run 41.71-41.86)  graphics: atmosphere +2.83; post: bleach bypass -0.72; world: main view +0.47; graphics: ssao occlusion +0.14; graphics: ssao depth (and the resolve before it) +0.09
+  racing-med_hp-1920x1080        saves  +0.71 ms (run 43.36-43.52)  post: overbright (high precision) +1.44; graphics: ssao apply -1.16; post: overbright (half size) -1.04; world: main view +1.00; post: streaks +0.50
+  racing-med_lamps-1920x1080     saves  +9.64 ms (run 34.50-34.52)  world: main view +8.98; graphics: ssao depth (and the resolve before it) +1.07; cars +0.21; graphics: ssao occlusion -0.14; graphics: atmosphere -0.12
+  racing-med_lsh-1920x1080       saves  +7.78 ms (run 36.14-36.61)  world: main view +7.28; graphics: ssao depth (and the resolve before it) +0.79; graphics: lamp shadows +0.28; world: depth pre-pass -0.22; graphics: ssao occlusion +0.19
+  racing-med_probes-1920x1080    saves  +0.09 ms (run 43.73-44.40)  world: main view +0.11; world: depth pre-pass -0.11; post: streaks -0.09; post: to the back buffer -0.09; cars -0.08
+  racing-med_spray-1920x1080     saves  -0.41 ms (run 43.50-45.62)  world: main view -0.73; graphics: atmosphere +0.15; graphics: ssao apply +0.13; world: depth pre-pass +0.07
+  racing-med_ssao-1920x1080      saves  +7.77 ms (run 36.15-36.61)  graphics: ssao occlusion +3.76; graphics: ssao depth (and the resolve before it) +2.63; graphics: ssao apply +2.24; particles -1.50; graphics: ssao blur +0.40
+  racing-med_wet-1920x1080       saves  -1.02 ms (run 43.56-46.78)  world: main view -0.82; graphics: ssao occlusion +0.25; graphics: atmosphere -0.22; world: depth pre-pass -0.15; cars -0.08

@@ -1,0 +1,31 @@
+Street X 4601 variant 0: finished true, false wrong way 0 frames, "Wrong Way" text 0 times
+Street X 4601 variant 1: finished true, false wrong way 0 frames, "Wrong Way" text 0 times
+Street X 4602 variant 0: finished true, false wrong way 0 frames, "Wrong Way" text 0 times
+Street X 4602 variant 1: finished true, false wrong way 0 frames, "Wrong Way" text 0 times
+Street X 4603 variant 0: finished true, false wrong way 0 frames, "Wrong Way" text 0 times
+Street X 4603 variant 1: finished true, false wrong way 0 frames, "Wrong Way" text 0 times
+Street X 4604 variant 0: finished true, false wrong way 0 frames, "Wrong Way" text 0 times
+Street X 4604 variant 1: finished true, false wrong way 0 frames, "Wrong Way" text 0 times
+Street X 4605 variant 0: finished true, false wrong way 0 frames, "Wrong Way" text 0 times
+Street X 4605 variant 1: finished true, false wrong way 0 frames, "Wrong Way" text 0 times
+Street X 4606 variant 0: finished true, false wrong way 0 frames, "Wrong Way" text 0 times
+Street X 4606 variant 1: finished true, false wrong way 0 frames, "Wrong Way" text 0 times
+Street X 4607 variant 0: finished true, false wrong way 0 frames, "Wrong Way" text 0 times
+Street X 4607 variant 1: finished true, false wrong way 0 frames, "Wrong Way" text 0 times
+SXBOT frame=5580 live=true clock=82.26976 along=34.883743 lap=Some(1.6353271) pos=Vec3(-1573.0782, -1857.1052, 24.37737) speed=26.427216 steer=0.114512324 target=Vec2(-1568.8068, -1848.1932) up=0.9904221 contacts=[] impulse=0 wheels=4 gear=Some((4, 453.3245, 0.46249983))
+SXBOT frame=5640 live=true clock=83.26997 along=54.124847 lap=Some(1.6568304) pos=Vec3(-1557.5369, -1839.7955, 23.113548) speed=17.034542 steer=-1.0731936 target=Vec2(-1548.3514, -1848.4185) up=0.99931526 contacts=[] impulse=0 wheels=4 gear=Some((3, 416.55664, 0.8124995))
+SXBOT frame=5700 live=true clock=84.27019 along=62.543663 lap=Some(1.666239) pos=Vec3(-1545.5636, -1842.2227, 23.120613) speed=11.984839 steer=-0.8011443 target=Vec2(-1547.1471, -1856.5681) up=0.9994594 contacts=[] impulse=0 wheels=4 gear=Some((2, 515.7029, 1.0))
+SXBOT frame=5760 live=true clock=85.2704 along=73.11834 lap=Some(1.678057) pos=Vec3(-1536.8895, -1853.2468, 22.587706) speed=14.027515 steer=0.9294822 target=Vec2(-1545.9323, -1867.2225) up=0.99607825 contacts=[ContactNote { life: 0.71666664, age: 0.06666667, point: Vec3(-1539.1077, -1851.7689, 23.003235), touching: Car { speed: 12.546328 }, wall: false, impulse: 29.70462 }] impulse=0 wheels=4 gear=Some((2, 554.491, 1.0))
+SXBOT frame=5820 live=true clock=86.270615 along=82.09363 lap=Some(1.6880875) pos=Vec3(-1532.8846, -1863.0483, 22.016096) speed=7.834719 steer=2.8582876 target=Vec2(-1545.4117, -1874.7233) up=0.99707454 contacts=[ContactNote { life: 0.16666667, age: 0.06666667, point: Vec3(-1532.4807, -1860.2993, 22.459839), touching: Car { speed: 10.838798 }, wall: false, impulse: 2.7807388 }] impulse=0 wheels=4 gear=Some((2, 341.17184, 1.0))
+SXBOT frame=5880 live=true clock=87.27083 along=86.13173 lap=Some(1.6926004) pos=Vec3(-1532.5573, -1867.8175, 21.755714) speed=2.1310222 steer=-2.7643342 target=Vec2(-1543.062, -1878.71) up=0.9969254 contacts=[ContactNote { life: 0.28333336, age: 0.2, point: Vec3(-1530.4673, -1867.1836, 21.952522), touching: Car { speed: 14.2990055 }, wall: false, impulse: 1.4720955 }] impulse=0 wheels=4 gear=Some((2, 465.1359, 1.0))
+SXBOT frame=5940 live=true clock=88.27104 along=85.543304 lap=Some(1.6919428) pos=Vec3(-1529.5868, -1866.7245, 21.81658) speed=0.98666596 steer=-2.5899312 target=Vec2(-1539.683, -1878.0514) up=0.9986588 contacts=[ContactNote { life: 0.30000004, age: 0.06666667, point: Vec3(-1527.2515, -1866.7219, 21.968102), touching: Track { upright: true }, wall: true, impulse: 19.901112 }] impulse=0 wheels=4 gear=Some((2, 224.0137, 1.0))
+SXBOT frame=6000 live=true clock=89.271255 along=85.32443 lap=Some(1.6916982) pos=Vec3(-1529.592, -1866.4333, 21.834143) speed=0.1423501 steer=-1.9859043 target=Vec2(-1536.7668, -1877.7721) up=0.99811083 contacts=[ContactNote { life: 1.2999995, age: 0.0, point: Vec3(-1527.252, -1866.7839, 21.966093), touching: Track { upright: true }, wall: true, impulse: 38.49052 }] impulse=0.5552527 wheels=4 gear=Some((2, 83.775734, 1.0))
+Street X 4608 variant 0: reverse recovery 1 at clock 89.271255
+SXBOT frame=6060 live=true clock=90.27147 along=85.07555 lap=Some(1.6914201) pos=Vec3(-1531.3955, -1866.2855, 21.846737) speed=3.5096462 steer=-1.283063 target=Vec2(-1535.6958, -1877.501) up=0.9978045 contacts=[] impulse=0 wheels=4 gear=Some((0, 154.28938, 1.0))
+SXBOT frame=6120 live=true clock=91.27168 along=81.63677 lap=Some(1.687577) pos=Vec3(-1533.7341, -1862.7079, 22.045156) speed=5.6997166 steer=0.11218811 target=Vec2(-1537.042, -1874.0922) up=0.9979298 contacts=[] impulse=0 wheels=4 gear=Some((0, 260.14767, 1.0))
+SXBOT frame=6180 live=true clock=92.2719 along=80.40457 lap=Some(1.6861999) pos=Vec3(-1533.2887, -1861.2039, 22.124393) speed=1.1422806 steer=0.3387921 target=Vec2(-1540.0934, -1872.9242) up=0.9989665 contacts=[] impulse=0 wheels=4 gear=Some((2, 83.775734, 1.0))
+SXBOT frame=6240 live=true clock=93.27211 along=82.318596 lap=Some(1.688339) pos=Vec3(-1534.9843, -1863.7638, 21.972383) speed=5.0925684 steer=0.040237192 target=Vec2(-1543.407, -1874.9061) up=0.9991586 contacts=[] impulse=0 wheels=4 gear=Some((2, 217.93042, 1.0))
+SXBOT frame=6300 live=true clock=94.27232 along=87.23896 lap=Some(1.6938379) pos=Vec3(-1539.3464, -1869.6311, 21.636705) speed=9.662303 steer=0.057059288 target=Vec2(-1545.4076, -1879.8654) up=0.9994066 contacts=[] impulse=0 wheels=4 gear=Some((2, 416.08698, 1.0))
+Street X 4608 variant 0: finished true, false wrong way 0 frames, "Wrong Way" text 0 times
+Street X 4608 variant 1: finished true, false wrong way 0 frames, "Wrong Way" text 0 times
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 26 filtered out; finished in 4.10s

@@ -1,0 +1,92 @@
+Ray-traced reflections: the rays from a list in a compute pass (docs/rt-reflections.md "The ray list")
+Reference desktop GPU (RADV, Vulkan), 3840x2160, the reference player's settings: SSAA 2x, Ray Traced
+reflections, Modern + RT lighting, every other row as the player has it (World Detail values incl.).
+Base = the tree before this change; new = with it. Shots `--shot <target>` at 3840x2160, bench `--bench`.
+
+1. The target's f16 conversion (a stand-alone wgpu probe, 4 194 304 values: every f16, its f32
+   neighbours and the rounding midpoints, random patterns over 2^-30 .. 2^17, the specials)
+   fragment export to Rgba16Float: rounds toward zero (0 values off round-toward-zero, 1 986 440 off
+   round-to-nearest); compute textureStore to an rgba16float storage texture: the same bits as the
+   fragment export for every non-NaN value; only the 5 NaN inputs differ (the export writes 0xFE00,
+   the store keeps the payload).
+
+2. Pictures, md5 of the PNG (first 12 hex), base | new
+   owner settings      race     ffb108db1bd6 | ffb108db1bd6   (new log: "ray-traced trace 3840x2160,
+                       qrstart  56f3ab882f57 | 56f3ab882f57    its rays from a list in a compute pass")
+                       intro    50bdbdaea74a | 50bdbdaea74a
+                       rain     7a8ccc5a1fa9 | 7a8ccc5a1fa9   (explore_rain, the night shower)
+   RT reflections, Modern lighting (not + RT)
+                       race     c6a296ccf75e | c6a296ccf75e
+                       qrstart  3e72d59e65f9 | 3e72d59e65f9
+   native MSAA 8x instead of SSAA (multisampled depth: the list's second fragment variant)
+                       race     3077d94389fc | 3077d94389fc
+                       qrstart  d5894b6129a4 | d5894b6129a4
+   controls: SSR Ultra instead of RT, race   788f521485ee | 788f521485ee (differs from RT's: RT was on)
+             new with NFSU2_RT_TRACE=fragment, race          ffb108db1bd6 (the fragment form, same)
+
+3. Bench frames (NFSU2_BENCH_DUMP_EVERY=40, 200 frames), every dumped frame base vs new
+   racing  frames 0 40 80 120 160 200: identical (6 of 6), clock.tsv identical
+   race    frames 0 40 80 120 160 200: identical (6 of 6), clock.tsv identical
+   rain    frames 0 40 80 120 160 200: identical (6 of 6), clock.tsv identical (drive, NFSU2_RAIN_CLOCK=162)
+   explore frames 0 40 80 120 160 200: identical (6 of 6), clock.tsv identical
+
+4. The share of the trace's pixels that need a ray (NFSU2_RT_LIST_STATS=40; of all 8 294 400 trace
+   pixels, the road's and the cars' and the rest of the screen alike)
+   racing      40.5 .. 45.4 % (traces 0 40 80 120 160 200: 45.42 43.66 45.04 43.11 40.54 43.63)
+   race start  26.9 .. 35.6 % (26.94 27.97 32.82 35.13 34.40 35.60)
+   rain        32.3 .. 37.0 % (32.32 32.86 36.96 37.01 33.53 34.74)
+   free roam   34.9 .. 35.5 % (35.04 34.89 34.92 35.51 34.95 35.48)
+
+5. Timing: 7 runs per arm, interleaved (ABAB / BABA), 150 frames each, GPU busy median of each run; the
+   table gives the median of the 7 run medians [min .. max]; each series of 14 runs under the measuring
+   lock, the desktop GPU idle (busy 0-4 %) before and after; 1-minute load average 31-56 (other units).
+   "trace" = the bucket "graphics: rt trace" (base: the RT fragment pass; new: the list's fragment pass)
+   plus "graphics: rt trace rays" (new: the compute pass).
+   scene       frame base               frame new                fps            trace base -> new (march + rays)
+   racing      19.02 [18.90..19.21]     18.55 [18.43..18.57]     52.6 -> 53.9   3.17 -> 2.55 (1.60 + 0.94)
+   race start  20.27 [20.13..20.37]     19.95 [19.88..20.08]     49.3 -> 50.1   3.31 -> 2.99 (1.73 + 1.26)
+   rain        23.45 [23.37..23.53]     22.87 [22.76..22.92]     42.6 -> 43.7   3.62 -> 2.91 (1.86 + 1.06)
+   free roam   13.06 [13.01..13.20]     12.74 [12.69..12.82]     76.6 -> 78.5   2.79 -> 2.45 (1.56 + 0.89)
+   Screening (racing, 2 runs each, 200 frames): rt_fill's two casts on two ray queries: rays 1.13 / 1.15 ms;
+   on one query: 0.97 / 0.98 ms (kept).
+
+6. Memory: the list is 20 bytes per trace pixel (the pixel, and the march's result for the hits) plus a
+   16-byte head, made with the trace's targets: 41.5 MB at 1920x1080, 73.7 MB at 2560x1440, 165.9 MB at
+   3840x2160 (the trace is the screen's size at the Ray Traced tier). The bench's own-VRAM peak moved
+   +81 / +101 / +146 / +84 MiB (racing / race start / rain / free roam medians) against the list's
+   computed 158 MiB; the spread between the runs of one arm is 39-85 MiB (the metric is noisy; the
+   computed size is the one to go by).
+
+7. The race start's characters (their rays in their colour shader), the new tree, 150 frames, 3 runs
+   per arm, GPU ms per frame; bucket = "graphics: ssao depth (and the resolve before it)"
+   arm                               frame                  bucket            rt trace / rays     rt shadows
+   Modern + RT (as above)            20.09 20.00 20.04      2.84 2.84 2.87    1.73 / 1.27         0.66
+   same, RADV_DEBUG=nort (no rays)   17.61 17.71 17.63      1.80 1.80 1.80    1.73 / 0.31         0.33
+   Modern instead of Modern + RT     16.34 16.38 16.38      1.33 1.34 1.33    1.71 / 1.26         -
+   The characters' rays: about 1.05 ms at the race start. (The list's compute pass without rays: 0.31 ms.)
+
+8. Wave sizes (RADV_DEBUG=shaderstats with every cache off, the race start shot; VOPD = dual-issue
+   instructions, wave32 only on this GPU). The world colour shaders of Modern + RT: 168 VGPRs, 9 per SIMD,
+   VOPD (wave32): RADV gives every shader with a ray query in it the ray-query wave size (32), and the
+   world module holds the NIS characters' ray query (dead outside their pipelines). The list's compute pass:
+   96 VGPRs, 4096 bytes of workgroup memory (64 lanes x a 16-entry stack: one query), 16 per SIMD, VOPD
+   (wave32); its fragment pass has no ray query (the pixel shaders' default, wave64).
+   RADV_PERFTEST=rtwave64 as an instrument (every shader with a ray query in wave64), racing, 4 runs per
+   arm, against the wave32 runs of 5. (another series, same settings):
+                    frame                main view   trace + rays        characters' bucket
+   base wave32      19.02 [18.90..19.21] 6.22        3.17 + 0    = 3.17  1.15
+   base wave64      19.17 [19.13..19.20] 6.73        2.53 + 0    = 2.53  1.45
+   new  wave32      18.55 [18.43..18.57] 6.26        1.60 + 0.94 = 2.55  1.15
+   new  wave64      19.16 [19.12..19.17] 6.73        1.57 + 0.96 = 2.53  1.44
+   The fragment form's trace is 0.64 ms faster in wave64; the list is as fast at the default wave size, its
+   compute pass the same in both (0.94 / 0.96). The world colour pass is 0.5 ms slower in wave64.
+   (wgpu 30 cannot ask for a wave size: it sets VK_EXT_subgroup_size_control's ALLOW_VARYING_SUBGROUP_SIZE
+   with its SUBGROUP feature only, no required size.)
+
+9. Tried and dropped: the NIS characters' rays in a module of their own (a composer flag around their ray
+   functions, loop and quad resolve; their pipelines from that module, every other Modern + RT world
+   pipeline from one without a ray query). Pictures identical (race, qrstart, intro, rain, photo at the
+   settings above; race start and racing dumps), but those pipelines then compile in wave64 (192 VGPRs,
+   8 per SIMD, no VOPD) and are slower: racing, 7 runs each, the world colour pass 6.34 [6.33..6.39] ->
+   6.75 [6.70..6.79] ms, the frame 18.68 [18.61..18.76] -> 18.93 [18.81..18.97] (53.5 -> 52.8 fps). Kept
+   as it was: the characters' ray query in the shared module keeps that pass in wave32 on this driver.

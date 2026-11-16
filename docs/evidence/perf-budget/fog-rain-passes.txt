@@ -1,0 +1,239 @@
+# Fog, volumes and rain, pass by pass (docs/perf-budget.md "Fog, volumes and rain: the same pictures for less")
+# GPU busy ms per frame (median of the runs' medians, frames 30+; [min-max] over the runs) and each pass's ms per frame.
+# Arms: base = the tree before, new = with the changes; a measuring build times the fog's, the volumes', the rain's and the lens drops' dispatches apart (labels PROBE ...).
+# The reference desktop GPU at 3840x2160, the player's rows (SSAA 2x, ray tracing, every row up), --bench drive at clock 162 (rain) and --bench racing, 300 frames, 7 runs per arm interleaved.
+
+## rain, base -> lens drops in place + haze left out + fog light cull + resolve
+base                        gpu  23.270 (23.201-24.532) n 7 load 32
+new                        gpu  22.703 (22.491-23.374) n 7 load 34
+  delta -0.567 ms
+    PROBE lens: copy                                       0.458 [0.456-0.460] ->   0.000 [0.000-0.000] -0.458
+    PROBE wfx: haze_up                                     0.090 [0.089-0.090] ->   0.000 [0.000-0.000] -0.090
+    PROBE wfx: haze_half                                   0.074 [0.073-0.074] ->   0.001 [0.001-0.001] -0.072
+    PROBE atmo: inject                                     0.114 [0.111-0.115] ->   0.061 [0.061-0.061] -0.053
+    post: rain tint                                        0.247 [0.246-0.247] ->   0.264 [0.264-0.266] +0.017
+    post: lens drops                                       0.032 [0.031-0.032] ->   0.048 [0.047-0.048] +0.016
+    PROBE spray: resolve                                   0.030 [0.030-0.031] ->   0.022 [0.022-0.022] -0.008
+    PROBE vfx: ambient                                     0.050 [0.050-0.051] ->   0.045 [0.045-0.046] -0.005
+    PROBE atmo: integrate                                  0.027 [0.027-0.028] ->   0.025 [0.024-0.025] -0.002
+    PROBE wfx: ring_ng                                     0.027 [0.027-0.028] ->   0.025 [0.025-0.025] -0.002
+    PROBE wfx: spray                                       0.020 [0.020-0.021] ->   0.019 [0.018-0.019] -0.002
+    PROBE vfx: march                                       0.058 [0.057-0.058] ->   0.059 [0.059-0.059] +0.001
+    PROBE atmo: floor                                      0.011 [0.011-0.011] ->   0.012 [0.012-0.013] +0.001
+    PROBE spray: bounds                                    0.011 [0.010-0.012] ->   0.010 [0.010-0.010] -0.001
+    PROBE wfx: rain_ng                                     0.039 [0.038-0.039] ->   0.037 [0.037-0.038] -0.001
+    PROBE vfx: resolve                                     0.010 [0.010-0.010] ->   0.009 [0.009-0.009] -0.001
+    PROBE atmo: apply                                      0.274 [0.272-0.274] ->   0.274 [0.274-0.275] +0.000
+    PROBE wfx: splash_ng                                   0.023 [0.023-0.023] ->   0.024 [0.023-0.024] +0.000
+    PROBE vfx: light                                       0.014 [0.014-0.014] ->   0.014 [0.013-0.014] -0.000
+    PROBE spray: march                                     0.412 [0.409-0.414] ->   0.412 [0.408-0.415] -0.000
+    PROBE spray: light                                     0.022 [0.021-0.022] ->   0.022 [0.021-0.022] -0.000
+    PROBE spray: composite                                 0.049 [0.047-0.049] ->   0.049 [0.047-0.050] -0.000
+    PROBE spray: clear+splat                               0.019 [0.019-0.020] ->   0.019 [0.019-0.020] -0.000
+    PROBE spray: before                                    0.391 [0.388-0.393] ->   0.391 [0.387-0.396] +0.000
+    PROBE spray: ambient                                   0.047 [0.047-0.048] ->   0.047 [0.047-0.047] +0.000
+    PROBE vfx: composite                                   0.014 [0.014-0.015] ->   0.014 [0.014-0.015] -0.000
+
+## racing
+base                      gpu  18.903 (18.708-18.977) n 7 load 52
+new                      gpu  18.782 (18.535-18.912) n 7 load 49
+  delta -0.122 ms
+    PROBE atmo: inject                                     0.172 [0.170-0.173] ->   0.055 [0.055-0.055] -0.117
+    PROBE atmo: integrate                                  0.028 [0.027-0.028] ->   0.025 [0.024-0.025] -0.002
+    PROBE vfx: resolve                                     0.011 [0.011-0.011] ->   0.009 [0.009-0.009] -0.002
+    PROBE atmo: floor                                      0.011 [0.011-0.011] ->   0.012 [0.012-0.013] +0.001
+    PROBE atmo: apply                                      0.280 [0.280-0.281] ->   0.281 [0.281-0.282] +0.001
+    PROBE vfx: march                                       0.202 [0.201-0.204] ->   0.202 [0.201-0.204] -0.001
+    PROBE vfx: ambient                                     0.035 [0.035-0.036] ->   0.036 [0.035-0.037] +0.000
+    PROBE vfx: composite                                   0.045 [0.044-0.045] ->   0.044 [0.044-0.045] -0.000
+    PROBE vfx: light                                       0.011 [0.010-0.011] ->   0.011 [0.010-0.011] +0.000
+
+## the reference integrated GPU, 1920x1080, World Detail 3, level High, rain, 200 frames, 5 runs per arm: base -> the six changes (measuring builds)
+rain-pb                        gpu  70.166 (68.824-72.896) n 5 load 22
+rain-ov                        gpu  69.715 (68.075-70.055) n 5 load 20
+  delta -0.451 ms
+    world: main view                                      17.924 [16.143-18.376] ->  17.434 [16.159-18.695] -0.490
+    PROBE spray: march                                     7.114 [7.070-7.213] ->   6.634 [6.562-6.688] -0.480
+    post: rain tint                                        0.387 [0.383-0.413] ->   0.000 [0.000-0.000] -0.387
+    graphics: ssr composite                                0.814 [0.797-0.852] ->   0.913 [0.779-0.967] +0.099
+    post: streaks                                          1.086 [1.015-1.192] ->   1.184 [1.041-1.247] +0.099
+    PROBE atmo: inject                                     0.759 [0.658-0.787] ->   0.663 [0.557-0.679] -0.096
+    post: overbright (high precision)                      9.366 [9.051-9.664] ->   9.460 [9.336-9.738] +0.094
+    PROBE spray: resolve                                   0.268 [0.265-0.276] ->   0.182 [0.180-0.185] -0.086
+    PROBE spray: before                                    1.239 [0.950-1.314] ->   1.154 [0.944-1.272] -0.085
+    (between submissions)                                  0.174 [0.160-0.184] ->   0.242 [0.159-0.552] +0.068
+    graphics: ssr copy and depth pyramid                   1.103 [1.094-1.170] ->   1.156 [1.102-1.213] +0.054
+    graphics: ssao apply                                   2.160 [2.116-2.170] ->   2.203 [2.044-2.371] +0.043
+    graphics: ssr filter                                   1.066 [0.860-1.120] ->   1.103 [1.004-1.200] +0.038
+
+## the player's settings at 3840x2160, 5 runs per arm: base -> the six changes (measuring builds; rain and racing)
+rain-pb                        gpu  23.530 (23.383-23.938) n 5 load 23
+rain-ov                        gpu  22.818 (22.607-23.043) n 5 load 22
+  delta -0.711 ms
+    PROBE lens: copy                                       0.454 [0.446-0.455] ->   0.000 [0.000-0.000] -0.454
+    PROBE wfx: haze_up                                     0.090 [0.090-0.090] ->   0.000 [0.000-0.000] -0.090
+    world: main view                                       6.921 [6.841-6.940] ->   6.832 [6.739-6.921] -0.089
+    PROBE wfx: haze_half                                   0.074 [0.074-0.075] ->   0.001 [0.001-0.002] -0.073
+    PROBE atmo: inject                                     0.115 [0.115-0.116] ->   0.060 [0.060-0.061] -0.055
+    PROBE spray: march                                     0.414 [0.412-0.417] ->   0.368 [0.365-0.378] -0.046
+    graphics: wet road map                                 0.299 [0.143-0.464] ->   0.258 [0.132-0.669] -0.041
+    graphics: rt trace                                     3.930 [3.872-3.950] ->   3.895 [3.834-3.926] -0.035
+    graphics: ssr copy and depth pyramid                   0.785 [0.781-0.812] ->   0.804 [0.787-0.824] +0.018
+    post: lens drops                                       0.032 [0.031-0.032] ->   0.047 [0.047-0.047] +0.015
+    post: rain tint                                        0.246 [0.245-0.247] ->   0.261 [0.260-0.262] +0.015
+    world: rt shadows                                      1.008 [0.996-1.019] ->   0.997 [0.974-1.017] -0.011
+    post: bleach bypass                                    0.618 [0.616-0.620] ->   0.628 [0.627-0.630] +0.010
+racing-pb                      gpu  18.921 (18.829-19.137) n 5 load 22
+racing-ov                      gpu  19.030 (18.890-19.114) n 5 load 23
+  delta +0.109 ms
+    PROBE atmo: inject                                     0.174 [0.173-0.175] ->   0.055 [0.054-0.055] -0.119
+    world: main view                                       6.127 [6.074-6.270] ->   6.222 [6.145-6.296] +0.095
+    world: rt shadows                                      0.848 [0.833-0.874] ->   0.868 [0.846-0.873] +0.020
+    PROBE vfx: march                                       0.203 [0.202-0.206] ->   0.187 [0.186-0.188] -0.017
+    (between submissions)                                  0.799 [0.262-1.131] ->   0.813 [0.444-1.571] +0.014
+
+## the whole frame, the game without the measuring marks, 7 runs per arm interleaved: base -> the six changes
+# the player's settings, 3840x2160, 300 frames
+rain-base                      gpu  23.417 (23.195-23.497) n 7 load 26
+rain-fin                       gpu  22.786 (22.686-22.894) n 7 load 26
+  delta -0.630 ms
+    post: lens drops                                       0.468 [0.466-0.471] ->   0.047 [0.047-0.047] -0.421
+    graphics: weather fx                                   0.237 [0.235-0.237] ->   0.080 [0.080-0.080] -0.157
+    graphics: atmosphere                                   0.417 [0.414-0.418] ->   0.362 [0.361-0.363] -0.055
+    graphics: volume fx march                              0.563 [0.559-0.564] ->   0.513 [0.511-0.514] -0.050
+    world: main view                                       6.977 [6.873-7.009] ->   6.947 [6.930-7.009] -0.030
+racing-base                    gpu  19.110 (19.036-19.190) n 7 load 28
+racing-fin                     gpu  18.987 (18.860-19.038) n 7 load 29
+  delta -0.123 ms
+    graphics: atmosphere                                   0.481 [0.479-0.483] ->   0.363 [0.361-0.363] -0.119
+    graphics: volume fx march                              0.238 [0.237-0.239] ->   0.221 [0.220-0.221] -0.017
+    post: bleach bypass                                    0.438 [0.436-0.440] ->   0.443 [0.442-0.445] +0.005
+    world: main view                                       6.242 [6.183-6.248] ->   6.245 [6.194-6.269] +0.003
+    graphics: rt trace                                     3.395 [3.373-3.401] ->   3.393 [3.379-3.403] -0.003
+explore-base                   gpu  14.143 (14.065-14.181) n 7 load 27
+explore-fin                    gpu  14.118 (14.028-14.140) n 7 load 26
+  delta -0.026 ms
+    graphics: atmosphere                                   0.348 [0.347-0.349] ->   0.327 [0.326-0.328] -0.021
+    graphics: volume fx march                              0.199 [0.199-0.200] ->   0.186 [0.186-0.187] -0.013
+    world: rt shadows                                      0.566 [0.562-0.575] ->   0.572 [0.560-0.574] +0.006
+    post: bleach bypass                                    0.385 [0.385-0.388] ->   0.391 [0.389-0.393] +0.006
+    (between submissions)                                  0.132 [0.130-0.472] ->   0.137 [0.130-0.512] +0.005
+# the reference integrated GPU, 1920x1080, World Detail 3, level Medium, 200 frames (its slow state in some runs: SSAO occlusion 1.4-3.4)
+rain-base                      gpu  28.660 (27.125-28.971) n 7 load 37
+rain-fin                       gpu  28.052 (26.930-28.587) n 7 load 36
+  delta -0.608 ms
+    graphics: ssao occlusion                               3.167 [1.565-3.406] ->   2.500 [1.703-3.451] -0.667
+    post: rain tint                                        0.400 [0.386-0.414] ->   0.000 [0.000-0.000] -0.400
+    graphics: ssao apply                                   1.900 [1.816-2.174] ->   2.033 [1.842-2.126] +0.133
+    world: main view                                      12.394 [12.235-12.719] ->  12.466 [12.362-13.004] +0.072
+    graphics: weather fx                                   1.199 [1.152-1.300] ->   1.252 [1.182-1.340] +0.053
+racing-base                    gpu  24.695 (23.434-25.654) n 7 load 36
+racing-fin                     gpu  24.560 (23.983-26.272) n 7 load 35
+  delta -0.135 ms
+    graphics: ssao occlusion                               2.838 [1.350-2.982] ->   2.520 [1.849-3.195] -0.318
+    world: main view                                      11.380 [10.949-11.630] ->  11.280 [10.991-11.669] -0.100
+    post: streaks                                          0.991 [0.972-1.093] ->   1.048 [0.972-1.135] +0.057
+    graphics: ssao apply                                   2.001 [1.732-2.164] ->   1.948 [1.804-2.109] -0.053
+    cars                                                   1.181 [1.113-1.210] ->   1.147 [1.076-1.204] -0.035
+explore-base                   gpu  17.460 (16.157-18.316) n 7 load 35
+explore-fin                    gpu  16.820 (16.661-17.195) n 7 load 36
+  delta -0.640 ms
+    world: main view                                       6.528 [6.235-6.749] ->   6.365 [6.318-6.562] -0.162
+    graphics: ssao apply                                   1.857 [1.755-2.069] ->   1.700 [1.533-2.195] -0.158
+    graphics: ssao occlusion                               2.195 [1.365-2.792] ->   2.048 [1.431-2.308] -0.147
+    graphics: atmosphere                                   1.209 [1.189-1.291] ->   1.164 [1.146-1.228] -0.045
+    cars                                                   0.383 [0.344-0.415] ->   0.410 [0.367-0.422] +0.027
+# the reference integrated GPU, level High, rain, 200 frames (every run in the slow state: SSAO occlusion 2.9-3.8)
+rain-base                      gpu  70.109 (68.895-73.616) n 7 load 28
+rain-fin                       gpu  70.609 (69.579-72.727) n 7 load 27
+  delta +0.500 ms
+    post: rain tint                                        0.408 [0.389-0.437] ->   0.000 [0.000-0.000] -0.408
+    graphics: volume fx march                              7.420 [7.268-7.712] ->   7.104 [6.927-7.144] -0.316
+    graphics: ssao occlusion                               3.343 [3.071-3.687] ->   3.608 [2.862-3.795] +0.265
+    graphics: ssr trace                                    4.787 [4.530-5.058] ->   5.014 [4.767-5.224] +0.228
+    world: main view                                      18.048 [16.379-19.059] ->  17.829 [15.755-18.926] -0.219
+    graphics: atmosphere                                   2.183 [2.115-2.256] ->   2.057 [1.879-2.160] -0.125
+    graphics: ssr mask                                     5.314 [5.158-5.631] ->   5.428 [5.207-5.780] +0.114
+
+## pictures, base -> the six changes, frames 0, 60, 120, 200-215 (two runs of base: identical bytes)
+# 3840x2160 the player's settings
+TOTAL 19 frames, 0 identical; worst >1% 0.0000 % >3% 0.0000 % max 1
+MOTION frame-to-frame mean |change| ref 9.827 test 9.827; the change's own frame-to-frame mean 0.0001 (max 0.0001)
+# 1920x1080 Medium
+TOTAL 19 frames, 0 identical; worst >1% 0.0000 % >3% 0.0000 % max 2
+MOTION frame-to-frame mean |change| ref 8.959 test 8.962; the change's own frame-to-frame mean 0.0341 (max 0.0461)
+# 1920x1080 High
+TOTAL 19 frames, 0 identical; worst >1% 0.0000 % >3% 0.0000 % max 2
+MOTION frame-to-frame mean |change| ref 9.256 test 9.259; the change's own frame-to-frame mean 0.0343 (max 0.0475)
+
+## the SSR mask in rain, split by term (the mask's instrument: 1 no wet_surface, 2 no ripples, 3 no planar blur taps, 4 no trail map terms, 5 no puddle noise; m0 as built)
+# the reference integrated GPU, level High, 1080p, 4 runs per arm
+rain-m0                        gpu  69.814 (67.847-73.244) n 4 load 42
+    graphics: ssr mask                                     5.639 [5.387-6.230]
+rain-m1                        gpu  64.301 (62.743-65.888) n 4 load 41
+    graphics: ssr mask                                     0.830 [0.819-0.885]
+rain-m2                        gpu  67.861 (67.718-71.270) n 4 load 44
+    graphics: ssr mask                                     4.143 [3.962-4.488]
+rain-m3                        gpu  69.789 (69.417-70.259) n 4 load 51
+    graphics: ssr mask                                     5.186 [5.042-5.349]
+rain-m4                        gpu  67.512 (67.294-69.154) n 4 load 51
+    graphics: ssr mask                                     4.565 [4.511-4.576]
+rain-m5                        gpu  67.185 (65.044-68.843) n 4 load 50
+    graphics: ssr mask                                     4.418 [4.310-4.547]
+# the player's settings, 4K, 4 runs per arm
+rain-m0                        gpu  22.702 (22.687-22.724) n 4 load 42
+    graphics: ssr mask                                     0.739 [0.737-0.741]
+rain-m1                        gpu  21.264 (21.212-21.280) n 4 load 41
+    graphics: ssr mask                                     0.234 [0.233-0.234]
+rain-m2                        gpu  22.520 (22.463-22.624) n 4 load 42
+    graphics: ssr mask                                     0.653 [0.651-0.654]
+rain-m3                        gpu  22.593 (22.522-22.785) n 4 load 42
+    graphics: ssr mask                                     0.651 [0.648-0.651]
+rain-m4                        gpu  22.464 (22.441-22.673) n 4 load 43
+    graphics: ssr mask                                     0.649 [0.644-0.651]
+rain-m5                        gpu  22.643 (22.580-22.671) n 4 load 45
+    graphics: ssr mask                                     0.680 [0.677-0.682]
+
+## the mask from the main view with the hidden road's pass (plain = the mask pass as before), interleaved
+# the player's settings, 4K, 7 runs per arm (pictures: 19 frames identical)
+rain-plain                     gpu  22.715 (22.650-22.777) n 7 load 16
+rain-mrt                       gpu  22.405 (22.338-22.499) n 7 load 16
+  delta -0.310 ms
+    graphics: ssr mask                                     0.738 [0.732-0.740] ->   0.220 [0.219-0.221] -0.517
+    world: main view                                       6.865 [6.769-6.922] ->   7.181 [7.028-7.206] +0.316
+    (between submissions)                                  0.273 [0.178-0.474] ->   0.305 [0.168-0.636] +0.033
+# the reference integrated GPU, level High, 1080p, 7 runs per arm (not taken on this GPU class)
+rain-plain                     gpu  68.780 (66.090-70.368) n 7 load 12
+rain-mrt                       gpu  66.617 (63.761-68.715) n 7 load 12
+  delta -2.163 ms
+    graphics: ssr mask                                     5.508 [5.400-5.710] ->   0.915 [0.892-0.974] -4.594
+    world: main view                                      15.800 [15.634-16.333] ->  20.140 [19.604-20.648] +4.339
+    post: overbright (high precision)                      9.627 [9.064-9.956] ->   9.394 [8.550-9.806] -0.233
+# the integrated GPU's main view: the cost is the mask program's, not the target (5 runs per arm; LOD Fade off for store)
+rain-mrt                       gpu  66.373 (65.332-67.289) n 5 load 28
+    world: main view                                      19.852 [19.065-20.691]
+rain-mrtc                      gpu  62.000 (61.055-62.855) n 5 load 28
+    world: main view                                      19.067 [18.293-19.888]
+rain-plain                     gpu  67.256 (65.862-71.088) n 5 load 31
+    world: main view                                      16.328 [15.782-18.461]
+rain-split                     gpu  57.399 (55.639-58.515) n 5 load 30
+    world: main view                                      15.905 [15.792-16.425]
+rain-mrt                       gpu  68.493 (68.443-72.111) n 5 load 17
+    world: main view                                      20.302 [20.174-22.463]
+rain-one                       gpu  64.221 (61.951-64.488) n 5 load 18
+    world: main view                                      20.270 [19.775-21.273]
+rain-plain                     gpu  69.438 (68.764-70.169) n 5 load 17
+    world: main view                                      16.089 [15.667-17.838]
+rain-mrt                       gpu  65.609 (64.778-73.411) n 5 load 12
+    world: main view                                      20.249 [19.746-22.262]
+rain-plain                     gpu  66.808 (65.561-69.009) n 5 load 13
+    world: main view                                      16.117 [15.993-16.307]
+rain-store                     gpu  66.758 (65.170-69.760) n 5 load 12
+    world: main view                                      20.399 [20.146-21.756]
+
+## the march sampling the next step's density ahead (exact: 19 frames identical), the reference integrated GPU, level High, 7 runs per arm: dropped
+rain-off                       gpu  69.350 (68.556-72.403) n 7 load 15
+rain-on                        gpu  68.584 (66.357-72.139) n 7 load 15
+  delta -0.766 ms
+    world: main view                                      16.549 [15.707-17.822] ->  15.758 [15.487-18.352] -0.791
+    graphics: volume fx march                              7.017 [6.897-7.180] ->   7.177 [7.082-7.239] +0.160

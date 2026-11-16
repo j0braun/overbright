@@ -1,0 +1,50 @@
+A/B of the look-ahead changes: one binary per arm (both with the frame log), the release profile, arms interleaved
+(order alternating), 7 runs each, the fixed step, 1920x1080; own cache folder per arm. Per run: main / workers ms per
+frame (bench JSON), the frame log's main-thread CPU clock: mean, p99, the worst frame (frame number, ms).
+
+=== race-high
+start 21:48:11  21:48:11 up 3 days, 21:47,  1 user,  load average: 5,28, 6,90, 8
+main     base 2.268 [1.775..2.448] | new 2.072 [1.745..2.380]
+work     base 2.965 [2.423..3.450] | new 2.792 [2.431..3.153]
+mean     base 2.267 [1.775..2.448] | new 2.072 [1.744..2.379]
+p99      base 3.930 [2.708..6.225] | new 4.271 [2.856..4.730]
+maxcpu   base 8.391 [7.707..11.691] | new 6.862 [6.045..7.437]
+maxbusy  base 8.124 [7.423..26.690] | new 7.364 [5.271..17.225]
+base worst frames: [('742', 8.39), ('742', 11.68), ('742', 11.69), ('742', 7.81), ('742', 7.86), ('742', 10.14), ('742', 7.71)]
+new worst frames: [('1293', 7.44), ('762', 6.74), ('1433', 6.97), ('1059', 6.86), ('359', 7.08), ('1470', 6.04), ('1152', 6.12)]
+base per-run main ms/frame: 1.775 2.448 2.376 1.857 1.915 2.365 2.268 
+new per-run main ms/frame: 1.745 2.239 2.38 2.262 1.871 1.845 2.072 
+end 21:52:25  21:52:25 up 3 days, 21:51,  1 user,  load average: 8,81, 8,73, 8,54
+
+=== racing-high
+start 22:11:51  22:11:51 up 3 days, 22:11,  1 user,  load average: 2,69, 3,28, 5
+main     base 1.914 [1.813..1.976] | new 1.873 [1.765..1.941]
+work     base 2.345 [2.183..2.384] | new 2.336 [2.185..2.434]
+mean     base 1.914 [1.813..1.976] | new 1.873 [1.765..1.941]
+p99      base 2.827 [2.514..2.993] | new 2.742 [2.447..2.958]
+maxcpu   base 7.695 [7.172..8.156] | new 7.328 [3.494..8.551]
+maxbusy  base 7.576 [6.724..12.589] | new 6.657 [3.183..8.637]
+base worst frames: [('1003', 8.1), ('223', 8.16), ('918', 7.17), ('223', 8.08), ('223', 7.37), ('223', 7.7), ('223', 7.28)]
+new worst frames: [('794', 7.7), ('36', 7.77), ('2246', 7.33), ('1600', 5.92), ('510', 6.88), ('802', 8.55), ('223', 3.49)]
+base per-run main ms/frame: 1.914 1.948 1.932 1.891 1.976 1.881 1.813 
+new per-run main ms/frame: 1.837 1.941 1.89 1.94 1.873 1.858 1.765 
+end 22:18:58  22:18:58 up 3 days, 22:18,  1 user,  load average: 1,44, 2,26, 3,93
+
+=== racing-orig
+start 22:27:17  22:27:17 up 3 days, 22:26,  1 user,  load average: 2,10, 1,94, 3
+main     base 1.031 [1.013..1.046] | new 1.033 [1.028..1.047]
+work     base 1.056 [1.052..1.078] | new 1.064 [1.058..1.074]
+mean     base 1.031 [1.013..1.046] | new 1.033 [1.028..1.047]
+p99      base 1.341 [1.302..1.361] | new 1.331 [1.311..1.341]
+maxcpu   base 1.806 [1.609..2.182] | new 1.743 [1.555..1.958]
+maxbusy  base 1.811 [1.729..1.994] | new 1.976 [1.717..2.157]
+base worst frames: [('1', 1.81), ('79', 2.13), ('83', 1.64), ('79', 2.14), ('933', 1.61), ('82', 2.18), ('78', 1.68)]
+new worst frames: [('13', 1.96), ('82', 1.84), ('608', 1.65), ('598', 1.55), ('1', 1.74), ('82', 1.74), ('82', 1.74)]
+base per-run main ms/frame: 1.013 1.031 1.028 1.028 1.034 1.046 1.039 
+new per-run main ms/frame: 1.034 1.028 1.033 1.032 1.03 1.047 1.04 
+end 22:32:24  22:32:24 up 3 days, 22:31,  1 user,  load average: 1,73, 1,90, 2,72
+
+race-high frame 742 main CPU, base: 8.391 11.680 11.691 7.809 7.863 10.136 7.707 
+race-high frame 742 main CPU, new: 3.082 2.698 3.676 4.652 3.048 2.739 4.078 
+racing-high frame 223 main CPU, base: 7.334 8.156 7.082 8.082 7.365 7.695 7.280 
+racing-high frame 223 main CPU, new: 3.061 2.560 3.074 3.136 2.742 2.925 3.494 

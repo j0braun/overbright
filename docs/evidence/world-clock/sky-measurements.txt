@@ -1,0 +1,9 @@
+clock 28: sky(320,0 540x190) orig 61,38,51 clone 61,38,50 | ground(300,520 700x80) orig 140,128,99 clone 139,126,98
+clock 57.94: sky(320,0 540x190) orig 61,38,51 clone 61,38,50 | ground(300,520 700x80) orig 140,127,99 clone 139,126,98
+clock 88.38: sky(320,0 540x190) orig 23,23,32 clone 23,23,31 | ground(300,520 700x80) orig 130,125,102 clone 128,124,101
+clock 118: sky(320,0 540x190) orig 23,23,32 clone 23,23,31 | ground(300,520 700x80) orig 130,125,102 clone 128,124,101
+clock 147.80: sky(320,0 540x190) orig 53,52,54 clone 47,42,41 | ground(300,520 700x80) orig 130,125,101 clone 114,100,77
+clock 328.42: sky(320,0 540x190) orig 23,23,32 clone 23,23,31 | ground(300,520 700x80) orig 129,125,102 clone 128,124,101
+clock 367.07: sky(320,0 540x190) orig 36,24,34 clone 36,24,33 | ground(300,520 700x80) orig 137,127,101 clone 136,126,99
+clock 392.27: sky(320,0 540x190) orig 59,31,40 clone 60,32,39 | ground(300,520 700x80) orig 140,127,99 clone 139,126,98
+clock 679.29: sky(320,0 540x190) orig 24,23,33 clone 24,23,32 | ground(300,520 700x80) orig 130,125,102 clone 129,124,101

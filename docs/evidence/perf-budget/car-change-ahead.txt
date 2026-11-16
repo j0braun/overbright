@@ -1,0 +1,111 @@
+Car change made ready in the menus, rivals' renderers with their loads, the texture arrays' upload, the sim step.
+Integrated GPU = IGPU_DEVICE (scripts/local.env); discrete = the desktop GPU (wall times there are
+shared-GPU numbers). Arms: before = the base tree with this work's harness changes, after = this tree; interleaved, under
+the measuring lock; load average 8-14 from other units' work throughout. Medians [min..max].
+
+== 1. Shop exit with a part fitted: NFSU2_BENCH_TRANSITIONS_SHOPS=1 NFSU2_BENCH_MENU_FIRST=1 --bench transitions
+   rows: load / load + first frame (wall ms), drive_in's main-thread CPU (ms), the first frame's draw (ms);
+   'menus longest frame' = the shop's menus' longest frame after the first while the work ahead runs (ms).
+-- igpu-orig 
+menus longest frame | before n=7 | load 10.7 [10.0..11.0] | +first 10.7 [10.0..11.0] | drive_in cpu 10.7 [10.0..11.0] | first draw 0.0 [0.0..0.0]
+menus longest frame | after n=7 | load 10.9 [10.5..11.0] | +first 10.9 [10.5..11.0] | drive_in cpu 10.9 [10.5..11.0] | first draw 0.0 [0.0..0.0]
+out of a shop, a part fitted | before n=7 | load 54.0 [48.0..58.0] | +first 55.0 [49.0..59.0] | drive_in cpu 29.1 [22.5..32.6] | first draw 1.5 [1.4..1.6]
+out of a shop, a part fitted | after n=7 | load 50.0 [48.0..56.0] | +first 52.0 [50.0..58.0] | drive_in cpu 24.3 [23.3..31.5] | first draw 1.5 [1.5..1.6]
+out of a shop, a part fitted, after the shop's menus | before n=7 | load 40.0 [33.0..41.0] | +first 41.0 [35.0..43.0] | drive_in cpu 30.4 [23.7..31.7] | first draw 1.4 [1.3..1.6]
+out of a shop, a part fitted, after the shop's menus | after n=7 | load 29.0 [28.0..29.0] | +first 30.0 [29.0..31.0] | drive_in cpu 1.1 [1.1..1.3] | first draw 1.4 [1.2..1.6]
+-- igpu-high 
+menus longest frame | before n=7 | load 47.9 [44.9..49.5] | +first 47.9 [44.9..49.5] | drive_in cpu 47.9 [44.9..49.5] | first draw 0.0 [0.0..0.0]
+menus longest frame | after n=7 | load 48.4 [47.7..49.4] | +first 48.4 [47.7..49.4] | drive_in cpu 48.4 [47.7..49.4] | first draw 0.0 [0.0..0.0]
+out of a shop, a part fitted | before n=7 | load 72.0 [69.0..73.0] | +first 77.0 [75.0..78.0] | drive_in cpu 25.8 [24.9..31.0] | first draw 4.1 [3.8..4.3]
+out of a shop, a part fitted | after n=7 | load 70.0 [69.0..72.0] | +first 75.0 [74.0..77.0] | drive_in cpu 25.9 [25.2..27.5] | first draw 4.2 [3.9..4.2]
+out of a shop, a part fitted, after the shop's menus | before n=7 | load 53.0 [51.0..56.0] | +first 58.0 [56.0..90.0] | drive_in cpu 26.1 [24.7..34.3] | first draw 4.1 [3.2..7.0]
+out of a shop, a part fitted, after the shop's menus | after n=7 | load 54.0 [52.0..56.0] | +first 57.0 [56.0..91.0] | drive_in cpu 1.4 [1.1..1.7] | first draw 3.3 [3.0..3.8]
+-- dgpu-orig 
+menus longest frame | before n=7 | load 2.5 [2.4..2.7] | +first 2.5 [2.4..2.7] | drive_in cpu 2.5 [2.4..2.7] | first draw 0.0 [0.0..0.0]
+menus longest frame | after n=7 | load 2.8 [2.4..4.1] | +first 2.8 [2.4..4.1] | drive_in cpu 2.8 [2.4..4.1] | first draw 0.0 [0.0..0.0]
+out of a shop, a part fitted | before n=7 | load 43.0 [42.0..49.0] | +first 44.0 [43.0..51.0] | drive_in cpu 21.1 [20.1..26.8] | first draw 1.6 [1.3..1.9]
+out of a shop, a part fitted | after n=7 | load 44.0 [42.0..51.0] | +first 46.0 [44.0..53.0] | drive_in cpu 21.5 [20.1..27.4] | first draw 1.6 [1.5..1.9]
+out of a shop, a part fitted, after the shop's menus | before n=7 | load 29.0 [28.0..34.0] | +first 30.0 [30.0..36.0] | drive_in cpu 20.4 [19.8..26.0] | first draw 1.3 [1.3..1.4]
+out of a shop, a part fitted, after the shop's menus | after n=7 | load 10.0 [9.0..11.0] | +first 12.0 [11.0..12.0] | drive_in cpu 1.4 [1.1..1.6] | first draw 1.4 [1.3..1.5]
+-- dgpu-high 
+menus longest frame | before n=7 | load 2.4 [2.3..2.8] | +first 2.4 [2.3..2.8] | drive_in cpu 2.4 [2.3..2.8] | first draw 0.0 [0.0..0.0]
+menus longest frame | after n=7 | load 2.8 [2.4..3.4] | +first 2.8 [2.4..3.4] | drive_in cpu 2.8 [2.4..3.4] | first draw 0.0 [0.0..0.0]
+out of a shop, a part fitted | before n=7 | load 45.0 [42.0..55.0] | +first 50.0 [47.0..58.0] | drive_in cpu 21.0 [20.4..27.1] | first draw 4.1 [3.2..5.0]
+out of a shop, a part fitted | after n=7 | load 45.0 [43.0..57.0] | +first 50.0 [48.0..61.0] | drive_in cpu 21.1 [20.8..27.8] | first draw 4.3 [3.1..4.6]
+out of a shop, a part fitted, after the shop's menus | before n=7 | load 33.0 [31.0..43.0] | +first 36.0 [34.0..46.0] | drive_in cpu 22.0 [20.2..28.9] | first draw 2.8 [2.5..3.9]
+out of a shop, a part fitted, after the shop's menus | after n=7 | load 12.0 [11.0..13.0] | +first 15.0 [13.0..16.0] | drive_in cpu 1.0 [0.9..1.1] | first draw 2.6 [2.4..3.0]
+
+   (first series, menu frames unpaced, the full transitions bench, iGPU)
+-- igpu-orig
+menus longest frame | before n=7 | load 11.3 [10.8..786.3] | +first 11.3 [10.8..786.3] | drive_in cpu 11.3 [10.8..786.3] | first draw 0.0 [0.0..0.0]
+menus longest frame | after n=7 | load 11.2 [10.9..11.8] | +first 11.2 [10.9..11.8] | drive_in cpu 11.2 [10.9..11.8] | first draw 0.0 [0.0..0.0]
+out of a shop, a part fitted | before n=7 | load 52.0 [42.0..69.0] | +first 53.0 [44.0..72.0] | drive_in cpu 29.2 [20.6..36.0] | first draw 1.7 [1.4..2.5]
+out of a shop, a part fitted | after n=7 | load 46.0 [43.0..55.0] | +first 49.0 [45.0..57.0] | drive_in cpu 23.5 [22.0..29.6] | first draw 1.4 [1.3..3.0]
+out of a shop, a part fitted, after the shop's menus | before n=7 | load 48.0 [47.0..52.0] | +first 49.0 [48.0..54.0] | drive_in cpu 29.6 [24.4..31.3] | first draw 1.3 [1.3..2.0]
+out of a shop, a part fitted, after the shop's menus | after n=7 | load 48.0 [46.0..49.0] | +first 50.0 [47.0..51.0] | drive_in cpu 1.7 [1.2..1.8] | first draw 1.4 [1.3..1.9]
+-- igpu-high
+menus longest frame | before n=7 | load 45.1 [38.1..47.9] | +first 45.1 [38.1..47.9] | drive_in cpu 45.1 [38.1..47.9] | first draw 0.0 [0.0..0.0]
+menus longest frame | after n=7 | load 47.1 [46.3..48.3] | +first 47.1 [46.3..48.3] | drive_in cpu 47.1 [46.3..48.3] | first draw 0.0 [0.0..0.0]
+out of a shop, a part fitted | before n=7 | load 69.0 [67.0..131.0] | +first 74.0 [72.0..153.0] | drive_in cpu 26.4 [23.7..38.9] | first draw 4.3 [3.8..21.8]
+out of a shop, a part fitted | after n=7 | load 69.0 [61.0..84.0] | +first 75.0 [67.0..89.0] | drive_in cpu 26.5 [24.9..30.9] | first draw 4.0 [3.3..4.2]
+out of a shop, a part fitted, after the shop's menus | before n=7 | load 99.0 [96.0..188.0] | +first 104.0 [102.0..230.0] | drive_in cpu 28.5 [26.0..57.2] | first draw 4.4 [3.6..40.6]
+out of a shop, a part fitted, after the shop's menus | after n=7 | load 95.0 [88.0..99.0] | +first 99.0 [91.0..131.0] | drive_in cpu 1.8 [1.3..2.5] | first draw 3.2 [3.0..4.7]
+
+== 2. Rivals' renderers: NFSU2_BENCH_TRANSITIONS_RACE=1 --bench transitions (the 'rivals loaded ahead' row takes 0 of 3
+   loads ahead in this flow, before and after: the prediction misses)
+-- igpu-orig
+free roam -> race | before n=7 | load 24.0 [23.0..28.0] | +first 29.0 [28.0..37.0] | drive_in cpu 0.9 [0.7..1.4] | first draw 4.0 [3.8..7.5]
+free roam -> race | after n=7 | load 25.0 [24.0..26.0] | +first 28.0 [27.0..28.0] | drive_in cpu 1.0 [0.7..1.4] | first draw 2.0 [1.8..2.1]
+free roam -> race, rivals loaded ahead | before n=7 | load 36.0 [34.0..37.0] | +first 54.0 [52.0..55.0] | drive_in cpu 1.8 [0.9..1.8] | first draw 4.4 [4.0..4.8]
+free roam -> race, rivals loaded ahead | after n=7 | load 37.0 [36.0..38.0] | +first 54.0 [53.0..55.0] | drive_in cpu 1.3 [1.0..1.6] | first draw 1.8 [1.5..2.9]
+-- igpu-high
+free roam -> race | before n=7 | load 33.0 [32.0..35.0] | +first 55.0 [54.0..56.0] | drive_in cpu 1.0 [0.7..1.5] | first draw 21.7 [18.5..23.2]
+free roam -> race | after n=7 | load 34.0 [33.0..38.0] | +first 54.0 [54.0..54.0] | drive_in cpu 1.3 [1.2..1.6] | first draw 19.0 [15.6..20.0]
+free roam -> race, rivals loaded ahead | before n=7 | load 76.0 [76.0..77.0] | +first 201.0 [195.0..204.0] | drive_in cpu 1.6 [1.1..1.9] | first draw 8.1 [7.1..9.6]
+free roam -> race, rivals loaded ahead | after n=7 | load 78.0 [77.0..80.0] | +first 203.0 [201.0..204.0] | drive_in cpu 1.3 [0.9..1.6] | first draw 4.4 [3.4..5.0]
+-- dgpu-orig
+free roam -> race | before n=7 | load 23.0 [23.0..24.0] | +first 28.0 [27.0..30.0] | drive_in cpu 1.1 [0.7..1.2] | first draw 4.3 [3.9..6.0]
+free roam -> race | after n=7 | load 24.0 [23.0..27.0] | +first 26.0 [25.0..29.0] | drive_in cpu 1.1 [0.9..1.2] | first draw 1.9 [1.6..2.0]
+free roam -> race, rivals loaded ahead | before n=7 | load 21.0 [20.0..23.0] | +first 25.0 [25.0..29.0] | drive_in cpu 1.0 [0.6..1.5] | first draw 4.2 [3.9..4.7]
+free roam -> race, rivals loaded ahead | after n=7 | load 21.0 [21.0..22.0] | +first 24.0 [23.0..24.0] | drive_in cpu 1.0 [0.7..1.2] | first draw 1.8 [1.7..1.9]
+-- dgpu-high
+free roam -> race | before n=7 | load 30.0 [29.0..34.0] | +first 37.0 [36.0..41.0] | drive_in cpu 1.0 [0.8..1.3] | first draw 6.3 [6.1..6.6]
+free roam -> race | after n=7 | load 32.0 [31.0..34.0] | +first 37.0 [36.0..39.0] | drive_in cpu 1.0 [0.6..1.3] | first draw 4.2 [3.9..4.6]
+free roam -> race, rivals loaded ahead | before n=7 | load 27.0 [26.0..28.0] | +first 32.0 [32.0..34.0] | drive_in cpu 1.1 [0.8..1.7] | first draw 4.8 [4.6..5.8]
+free roam -> race, rivals loaded ahead | after n=7 | load 31.0 [30.0..35.0] | +first 33.0 [33.0..39.0] | drive_in cpu 1.1 [0.7..1.5] | first draw 2.4 [2.3..3.6]
+   --bench race 120 (iGPU): load, first frame, its draw, its 'car renderer builds' part, line_up_rivals
+before-high n=7 | load 290.0 [286.0..370.0] | first frame 79.6 [68.0..85.6] | its draw 11.1 [10.3..21.1] | car renderer builds 4.3 [3.9..5.6] | line_up wall 10.5 [9.8..74.7] cpu 2.3 [2.1..3.8]
+before-orig n=7 | load 136.0 [133.0..149.0] | first frame 21.7 [20.2..22.5] | its draw 5.7 [5.5..6.3] | car renderer builds 4.0 [4.0..4.3] | line_up wall 10.0 [9.3..10.2] cpu 2.0 [1.9..2.4]
+after-high n=7 | load 310.0 [283.0..1156.0] | first frame 78.3 [74.0..93.0] | its draw 9.6 [8.3..13.1] | car renderer builds 2.0 [1.9..3.2] | line_up wall 12.0 [11.7..176.2] cpu 2.5 [2.1..3.9]
+after-orig n=7 | load 137.0 [134.0..484.0] | first frame 19.9 [17.2..62.2] | its draw 3.7 [3.4..8.4] | car renderer builds 1.8 [0.0..2.0] | line_up wall 12.0 [11.3..23.8] cpu 2.7 [2.1..3.8]
+
+== 3. Texture arrays' upload variants: --bench explore 60, iGPU, NFSU2_ARRAY_UPLOAD=0 now, 1 one staging buffer per array,
+   2 one submission for all arrays, 3 both (a measuring build; the variants are not kept). 68 arrays, 49.8 MB.
+variant 0, high n=7 | load 379.0 [294.0..506.0] | first frame 71.5 [59.8..82.2] | arrays upload 15.6 [13.5..41.5] | uploads wait 2.4 [2.2..2.7] | drive_in 326.0 [260.7..438.3]
+variant 0, orig n=7 | load 158.0 [150.0..327.0] | first frame 18.1 [15.8..24.4] | arrays upload 15.9 [12.6..37.8] | uploads wait 2.4 [2.0..2.7] | drive_in 125.6 [116.0..259.1]
+variant 1, high n=7 | load 328.0 [300.0..681.0] | first frame 68.1 [66.8..81.4] | arrays upload 13.6 [12.6..39.6] | uploads wait 2.3 [2.2..3.9] | drive_in 284.1 [261.1..564.7]
+variant 1, orig n=7 | load 160.0 [152.0..322.0] | first frame 18.9 [17.9..22.0] | arrays upload 14.6 [12.8..30.1] | uploads wait 2.4 [2.3..2.7] | drive_in 120.8 [116.1..261.3]
+variant 2, high n=7 | load 362.0 [303.0..830.0] | first frame 67.3 [60.6..74.7] | arrays upload 25.6 [16.9..67.2] | uploads wait 2.7 [2.5..3.2] | drive_in 324.9 [269.6..722.4]
+variant 2, orig n=7 | load 193.0 [154.0..322.0] | first frame 19.1 [18.1..23.1] | arrays upload 20.4 [15.1..56.5] | uploads wait 3.1 [2.8..4.5] | drive_in 152.4 [121.2..269.7]
+variant 3, high n=7 | load 307.0 [297.0..405.0] | first frame 68.4 [62.5..73.1] | arrays upload 16.4 [15.0..26.1] | uploads wait 2.6 [2.4..3.2] | drive_in 274.1 [264.3..347.7]
+variant 3, orig n=7 | load 213.0 [158.0..289.0] | first frame 19.3 [17.9..19.8] | arrays upload 21.6 [15.7..49.9] | uploads wait 3.0 [2.6..3.3] | drive_in 161.6 [124.1..240.0]
+
+== 4. tick: sim step (frame log, every part: NFSU2_BENCH_FRAMELOG_MIN_US=0), fixed step, 1500 frames, frames 11 on;
+   high8 = High with the process on cores 0-7 (no two of its threads on one core's two hardware threads)
+-- sim (--bench race 1500: the circuit's start, the cars held for the countdown; integrated GPU)
+high n=3 frames=1490 | sim step p50 0.120 [0.118..0.158] mean 0.127 [0.122..0.185] p99 0.271 [0.247..0.482] max 0.741 [0.375..1.047] | main cpu p50 1.922 [1.870..2.345]
+high8 n=3 frames=1490 | sim step p50 0.121 [0.118..0.142] mean 0.122 [0.120..0.174] p99 0.249 [0.241..0.488] max 0.447 [0.415..2.105] | main cpu p50 1.757 [1.737..2.029]
+orig n=3 frames=1490 | sim step p50 0.111 [0.102..0.195] mean 0.113 [0.105..0.207] p99 0.215 [0.195..0.463] max 0.469 [0.409..0.857] | main cpu p50 1.094 [1.026..1.707]
+-- sim-igpu-racing (--bench racing 1500, integrated GPU)
+high n=3 frames=1490 | sim step p50 0.153 [0.152..0.204] mean 0.163 [0.160..0.237] p99 0.319 [0.301..0.562] max 0.398 [0.375..0.845] | main cpu p50 2.061 [2.035..2.643]
+high8 n=3 frames=1490 | sim step p50 0.153 [0.151..0.153] mean 0.162 [0.159..0.162] p99 0.310 [0.302..0.319] max 0.473 [0.376..1.025] | main cpu p50 1.902 [1.883..1.930]
+orig n=3 frames=1490 | sim step p50 0.136 [0.136..0.138] mean 0.144 [0.142..0.144] p99 0.265 [0.262..0.282] max 0.408 [0.340..1.120] | main cpu p50 1.077 [1.075..1.082]
+-- sim-dgpu-racing (--bench racing 1500, discrete GPU)
+high n=3 frames=1490 | sim step p50 0.122 [0.122..0.123] mean 0.129 [0.128..0.131] p99 0.236 [0.228..0.239] max 0.359 [0.331..0.376] | main cpu p50 1.591 [1.584..1.598]
+high8 n=3 frames=1490 | sim step p50 0.127 [0.124..0.128] mean 0.133 [0.130..0.133] p99 0.240 [0.239..0.254] max 0.358 [0.337..0.389] | main cpu p50 1.526 [1.510..1.528]
+orig n=3 frames=1490 | sim step p50 0.105 [0.103..0.108] mean 0.111 [0.107..0.113] p99 0.211 [0.204..0.217] max 0.297 [0.285..0.806] | main cpu p50 0.842 [0.836..0.858]
+-- sim2 (racing 1500, discrete GPU, the process on cores 0-3,8-11; *nb = a High racing bench beside it on cores 4-7,12-15)
+high n=3 frames=1490 | sim step p50 0.124 [0.122..0.188] mean 0.131 [0.128..0.192] p99 0.237 [0.226..0.385] max 0.354 [0.297..0.527] | main cpu p50 1.580 [1.564..2.285]
+highnb n=3 frames=1490 | sim step p50 0.170 [0.140..0.181] mean 0.176 [0.143..0.187] p99 0.296 [0.261..0.376] max 0.489 [0.406..0.593] | main cpu p50 2.168 [1.779..2.261]
+orig n=3 frames=1490 | sim step p50 0.107 [0.104..0.177] mean 0.112 [0.111..0.183] p99 0.224 [0.211..0.353] max 0.476 [0.282..1.028] | main cpu p50 0.848 [0.795..1.215]
+orignb n=3 frames=1490 | sim step p50 0.180 [0.146..0.184] mean 0.186 [0.156..0.188] p99 0.325 [0.296..0.349] max 0.474 [0.464..0.487] | main cpu p50 1.316 [1.108..1.319]

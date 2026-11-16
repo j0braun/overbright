@@ -1,0 +1,76 @@
+N owner after: gpu busy median 13.477 ms; water passes 2.409 ms/frame (runs 2)
+N owner base : gpu busy median 13.916 ms; water passes 3.002 ms/frame (runs 2)
+N w3    after: gpu busy median 4.281 ms; water passes 2.185 ms/frame (runs 2)
+N w3    base : gpu busy median 4.486 ms; water passes 2.393 ms/frame (runs 2)
+R owner after: gpu busy median 20.373 ms; water passes 2.056 ms/frame (runs 2)
+R owner base : gpu busy median 21.083 ms; water passes 2.816 ms/frame (runs 2)
+R w3    after: gpu busy median 4.444 ms; water passes 1.895 ms/frame (runs 2)
+R w3    base : gpu busy median 4.706 ms; water passes 2.369 ms/frame (runs 2)
+X owner after: gpu busy median 12.492 ms; water passes 0.000 ms/frame (runs 2)
+X owner base : gpu busy median 12.452 ms; water passes 0.000 ms/frame (runs 2)
+X w3    after: gpu busy median 2.305 ms; water passes 0.000 ms/frame (runs 2)
+X w3    base : gpu busy median 2.309 ms; water passes 0.000 ms/frame (runs 2)
+   N owner after graphics: water 1.401
+   N owner after graphics: water copy 0.548
+   N owner after graphics: water ng drops 0.080
+   N owner after graphics: water ng mist 0.003
+   N owner after graphics: water ng sim 0.037
+   N owner after graphics: water wet 0.341
+   N owner base graphics: water 0.661
+   N owner base graphics: water copy 0.546
+   N owner base graphics: water ng composite 0.469
+   N owner base graphics: water ng copy 0.351
+   N owner base graphics: water ng filter 0.100
+   N owner base graphics: water ng mist 0.004
+   N owner base graphics: water ng shade 0.158
+   N owner base graphics: water ng sim 0.037
+   N owner base graphics: water ng spheres 0.338
+   N owner base graphics: water wet 0.340
+   N w3 after graphics: water 1.380
+   N w3 after graphics: water copy 0.374
+   N w3 after graphics: water ng drops 0.063
+   N w3 after graphics: water ng mist 0.002
+   N w3 after graphics: water ng sim 0.035
+   N w3 after graphics: water wet 0.330
+   N w3 base graphics: water 0.642
+   N w3 base graphics: water copy 0.373
+   N w3 base graphics: water ng composite 0.282
+   N w3 base graphics: water ng copy 0.151
+   N w3 base graphics: water ng filter 0.098
+   N w3 base graphics: water ng mist 0.003
+   N w3 base graphics: water ng shade 0.148
+   N w3 base graphics: water ng sim 0.035
+   N w3 base graphics: water ng spheres 0.331
+   N w3 base graphics: water wet 0.330
+   R owner after graphics: water 1.034
+   R owner after graphics: water copy 0.503
+   R owner after graphics: water ng drops 0.086
+   R owner after graphics: water ng mist 0.002
+   R owner after graphics: water ng sim 0.066
+   R owner after graphics: water wet 0.365
+   R owner base graphics: water 0.275
+   R owner base graphics: water copy 0.503
+   R owner base graphics: water ng composite 0.276
+   R owner base graphics: water ng copy 0.283
+   R owner base graphics: water ng filter 0.088
+   R owner base graphics: water ng mist 0.002
+   R owner base graphics: water ng shade 0.109
+   R owner base graphics: water ng sim 0.067
+   R owner base graphics: water ng spheres 0.847
+   R owner base graphics: water wet 0.366
+   R w3 after graphics: water 0.987
+   R w3 after graphics: water copy 0.364
+   R w3 after graphics: water ng drops 0.069
+   R w3 after graphics: water ng mist 0.002
+   R w3 after graphics: water ng sim 0.063
+   R w3 after graphics: water wet 0.411
+   R w3 base graphics: water 0.250
+   R w3 base graphics: water copy 0.360
+   R w3 base graphics: water ng composite 0.199
+   R w3 base graphics: water ng copy 0.138
+   R w3 base graphics: water ng filter 0.080
+   R w3 base graphics: water ng mist 0.002
+   R w3 base graphics: water ng shade 0.096
+   R w3 base graphics: water ng sim 0.061
+   R w3 base graphics: water ng spheres 0.777
+   R w3 base graphics: water wet 0.408

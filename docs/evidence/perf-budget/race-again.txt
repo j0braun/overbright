@@ -1,0 +1,20 @@
+A race raced again: the restart bench (--bench transitions, NFSU2_BENCH_TRANSITIONS_RESTART=3; a stage-1 city
+circuit, three restarts from its pause after 2 s each), integrated GPU, the base and this tree interleaved, 7 series.
+Per run: each restart's "load + its first frame" ms and its line_up_rivals ms; the load average at each series.
+
+== warm
+  series 1 (load 14.69)  base 31/39/29 (rivals 16/22/16)  new 14/12/16 (rivals 2/2/3)
+  series 2 (load 13.46)  base 59/55/49 (rivals 32/27/25)  new 46/31/25 (rivals 9/5/5)
+  series 3 (load 14.18)  base 55/60/34 (rivals 27/34/19)  new 13/12/16 (rivals 2/2/2)
+  series 4 (load 14.34)  base 26/59/34 (rivals 13/31/18)  new 14/15/16 (rivals 2/4/3)
+  series 5 (load 14.57)  base 59/47/32 (rivals 32/15/16)  new 14/12/12 (rivals 2/2/2)
+  series 6 (load 15.47)  base 28/26/30 (rivals 15/14/17)  new 12/13/13 (rivals 2/2/2)
+  series 7 (load 14.40)  base 52/73/189 (rivals 27/41/17)  new 12/12/12 (rivals 2/2/2)
+== the cache's and the cars' pages dropped before each restart (NFSU2_BENCH_DROP_PAGES=1)
+  series 1 (load 14.88)  base 374/541/399 (rivals 354/514/376)  new 64/65/52 (rivals 10/7/7)
+  series 2 (load 16.13)  base 396/371/202 (rivals 359/345/163)  new 33/17/17 (rivals 5/2/2)
+  series 3 (load 15.17)  base 127/221/376 (rivals 114/205/356)  new 19/19/19 (rivals 2/2/2)
+  series 4 (load 13.14)  base 336/374/391 (rivals 308/328/360)  new 19/19/16 (rivals 1/2/1)
+  series 5 (load 12.92)  base 340/435/486 (rivals 316/387/431)  new 25/19/33 (rivals 3/2/2)
+  series 6 (load 13.64)  base 131/221/158 (rivals 118/192/143)  new 29/45/58 (rivals 3/5/10)
+  series 7 (load 12.74)  base 148/152/151 (rivals 129/137/136)  new 36/28/19 (rivals 1/2/2)

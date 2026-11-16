@@ -1,0 +1,16 @@
+# --flow firstrace, NFSU2_FIRSTRACE_HZ=60,0 (second race draws another grid/scene)
+## before (d6c3783 + probe)
+FirstRaceRun { label: "first race 60 Hz", yaw: [7.303827, 7.5791025, 19.532385], min_gap: (2.0896306, 1, 3), off_grid: [0.21142967, 0.544781, 0.76370925], pacing: (0.053176165,) }
+FirstRaceRun { label: "restart 60 Hz", yaw: [12.603301, 11.283494, 20.048777], min_gap: (1.6603572, 1, 2), off_grid: [0.22149564, 0.5591774, 0.7637562], pacing: (0.05429238,) }
+FirstRaceRun { label: "first race uncapped", yaw: [14.352227, 8.125524, 21.58713], min_gap: (1.8890356, 1, 3), off_grid: [0.25476435, 0.5347149, 0.23139927], pacing: (1.8155086,) }
+FirstRaceRun { label: "restart uncapped", yaw: [11.887304, 8.420973, 9.40676], min_gap: (1.669814, 2, 3), off_grid: [0.40249276, 0.40486175, 0.4239562], pacing: (1.6345356,) }
+## after (route.rs + frame_clock.rs fixes)
+FirstRaceRun { label: "first race 60 Hz", yaw: [8.177083, 8.421988, 12.120482], min_gap: (2.4516547, 1, 3), off_grid: [0.21142967, 0.544781, 0.76370925], pacing: (0.05377364,) }
+FirstRaceRun { label: "restart 60 Hz", yaw: [8.32127, 8.770561, 12.325116], min_gap: (2.889608, 1, 2), off_grid: [0.22149564, 0.5591774, 0.7637562], pacing: (0.054292142,) }
+FirstRaceRun { label: "first race uncapped", yaw: [14.170827, 8.442492, 13.769384], min_gap: (2.1206303, 1, 3), off_grid: [0.25476435, 0.5347149, 0.23139927], pacing: (0.051478624,) }
+FirstRaceRun { label: "restart uncapped", yaw: [11.494698, 8.025621, 8.63597], min_gap: (1.6425567, 2, 3), off_grid: [0.40249276, 0.40486175, 0.4239562], pacing: (0.05306846,) }
+## bisection, 60 Hz, road-lateral metric (rival 1..3 m), min gap
+3348acb: lateral: [4.3793, 4.6105423, 8.695321] min_gap: (2.0663133, 1, 3) 
+5ca9380: lateral: [3.1537254, 4.591936, 6.9402995] min_gap: (2.1443772, 1, 3) 
+1a5ea61: lateral: [6.3500633, 4.4229183, 10.20256] min_gap: (2.1043718, 1, 3) 
+d6c3783: lateral: [6.266616, 4.5379024, 10.709364] min_gap: (2.0896306, 1, 3) 

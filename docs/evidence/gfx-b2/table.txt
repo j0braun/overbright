@@ -1,0 +1,60 @@
+# the second graphics-audit round: boxes vs Original (before = the base, after = this round; internal box and metric scripts)
+## before
+airport__6nextgen      sky +2.39
+airport__o+sky1        sky +2.14
+dusk__2high            road -7.83%  sky -0.13
+dusk__3ultra           road -3.83%  sky -0.05
+dusk__6nextgen         road -10.38%  sky +7.18
+dusk__o+beams1         road -7.44%  sky +0.00
+dusk__o+beams2         road -4.73%  sky +0.00
+dusk__o+sky1           road +0.00%  sky +6.78
+garage__o+ssao50       car +0.00%
+neon__o+ssao50         car -1.74%  lanterns -0.16%  neonL -0.29%  neonR -0.22%  under -6.77%
+street__2high          car -1.14%  lampA -0.38%  lampB +0.56%  sign +2.73%  sky +0.50
+street__3ultra         car +0.15%  lampA +0.37%  lampB +0.59%  sign +4.34%  sky +0.62
+street__6nextgen       car +2.44%  lampA +1.98%  lampB +9.95%  sign -4.95%  sky +1.53
+street__o+beams1       car -0.17%  lampA +0.00%  lampB +0.00%  sign +0.00%  sky +0.00
+street__o+beams2       car +0.84%  lampA +0.00%  lampB +0.00%  sign +0.45%  sky +0.00
+street__o+sky1         car +3.65%  lampA -0.93%  lampB +7.88%  sign +0.00%  sky +0.91
+street__o+ssao50       car -2.16%  lampA -0.22%  lampB +0.00%  sign +0.00%  sky -0.02
+tunnel__2high          road -2.59%  car -2.91%
+tunnel__3ultra         road +0.02%  car -1.10%
+tunnel__o+beams1       road -6.57%  car -1.33%
+tunnel__o+beams2       road -2.13%  car +0.18%
+tunnel__o+ssao50       road -0.00%  car -1.56%
+## after
+airport__6nextgen      sky +2.39
+airport__o+sky1        sky +2.14
+dusk__2high            road -0.91%  sky -0.13
+dusk__3ultra           road +2.76%  sky -0.05
+dusk__6nextgen         road -5.14%  sky +0.39
+dusk__o+beams1         road -0.00%  sky +0.00
+dusk__o+beams2         road +2.47%  sky +0.00
+dusk__o+sky1           road +0.00%  sky +0.00
+garage__o+ssao50       car +0.00%
+neon__o+ssao50         car -0.61%  lanterns -0.16%  neonL -0.29%  neonR -0.22%  under -5.32%
+street__2high          car +0.87%  lampA -0.38%  lampB +0.56%  sign +2.73%  sky +0.50
+street__3ultra         car +2.18%  lampA +0.37%  lampB +0.59%  sign +4.34%  sky +0.62
+street__6nextgen       car +4.52%  lampA +1.98%  lampB +9.95%  sign -4.95%  sky +1.53
+street__o+beams1       car -0.00%  lampA +0.00%  lampB +0.00%  sign +0.00%  sky +0.00
+street__o+beams2       car +1.00%  lampA +0.00%  lampB +0.00%  sign +0.45%  sky +0.00
+street__o+sky1         car +3.62%  lampA -0.93%  lampB +7.88%  sign +0.00%  sky +0.91
+street__o+ssao50       car -0.31%  lampA -0.22%  lampB +0.00%  sign +0.00%  sky -0.02
+tunnel__2high          road +4.09%  car -0.25%
+tunnel__3ultra         road +6.68%  car +1.56%
+tunnel__o+beams1       road +0.00%  car -0.00%
+tunnel__o+beams2       road +4.24%  car +1.42%
+tunnel__o+ssao50       road -0.00%  car -0.02%
+## metrics.py dsky (top 18%, HUD masked)
+before airport	6nextgen	3.40
+before airport	o+sky1	3.15
+before dusk	6nextgen	9.38
+before dusk	o+sky1	8.84
+before street	6nextgen	1.44
+before street	o+sky1	0.850
+after  airport	6nextgen	3.40
+after  airport	o+sky1	3.15
+after  dusk	6nextgen	0.452
+after  dusk	o+sky1	0.00
+after  street	6nextgen	1.44
+after  street	o+sky1	0.850

@@ -1,0 +1,46 @@
+# State hash columns (src/bin/game/dev/state_hash.rs) and which gate counts them (docs/checks.md "Rate gate").
+#   column  rate    parity
+# rate:   the cross-rate gate (perf.sh rate; ratediff.py). fail = a difference against the reference rate fails the
+#         rate gate; report = shown in the table, never fails; skip = not compared. RATE=strict (the gate's default)
+#         and RATE=1 both count what this file marks "fail"; RATE=strict also counts a "report" line.
+# parity: the base-vs-new sim gate (perf.sh parity "sim"; hashdiff.py). fail = a difference fails the sim gate;
+#         report = shown, never fails. A column the base binary does not print is left out of that comparison (said
+#         so in the gate line).
+# A line "COLUMN@FLOW" overrides the column's line for one flow ("fail:R1,R2" = only at those schedules); none is
+# needed now.
+#
+# The final policy: every state column is identical to 60 Hz at 30, 120 and 200 Hz and under the jittered schedule
+# in every flow (600 of 600 cells), so every one counts at every schedule. A jittered run covers exactly the 60 Hz
+# run's ticks (the benches end on a tick count, NFSU2_RATE_TICKS; postrace's ending scene on the scene's ticks), so
+# a run that ends early counts too. `step` (the row index), `all` (the legacy whole-state hash) and `global` (it
+# keeps the drawn-frame counter, which differs by design) are not compared across rates.
+step     skip    skip
+dt       fail    fail
+all      skip    fail
+global   skip    fail
+player   fail    fail
+race     fail    fail
+rivals   fail    fail
+traffic  fail    fail
+rate     fail    report
+gsim     fail    report
+clk      fail    report
+enc      fail    report
+hud      fail    report
+fe       fail    report
+fx       fail    report
+vis      fail    report
+envf     fail    report
+aud      fail    report
+# Image classes of the racing bench's α = 0 frames (perf.sh rate_gates, rateimg.py). orig (Original), step
+# (Extreme with Anti-Aliasing 5, no volumetric fog) and hist (Extreme: the volumetric fog's history, the light
+# streaks, the motion blur's motion and noise phase, all on the ticks) are identical to 60 Hz at 30 / 120 / 200 Hz:
+# any difference counts (the light streaks: the harness is always exact; the window falls back to a cheap form when
+# its offscreen tick draws would cost too much, which the gate does not draw). taa (Extreme with TAA) is the one class that differs by nature: the temporal pass
+# accumulates drawn frames (its sub-pixel jitter and the samples averaged depend on the frames drawn); it counts
+# only over its bound (mean |Δ| per frame, TAA_MEAN, rateimg.py; docs/uncapped-fps.md "Rate independence: what the
+# gate guarantees").
+images@orig        fail                   -
+images@step        fail                   -
+images@hist        fail                   -
+images@taa         fail                   -

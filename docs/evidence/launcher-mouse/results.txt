@@ -1,0 +1,105 @@
+The launcher by the mouse alone: what was measured (docs/launcher.md, "The mouse"). The browser's picture at 150 %: tests/launcher/state-browse-many-1366x768@150.png.
+
+== Before the change (folder browser over a home folder of 26 folders)
+X11 (Xvfb + xdotool), scale 1: three wheel notches over the list left it on its first 6 rows; a click
+  on the row chosen when the browser opened ("..") went up at once.
+X11, WINIT_X11_SCALE_FACTOR=2: clicks land on the boxes (Browse... opened the browser).
+Wayland (private headless mutter at scale 1.5, pointer through RemoteDesktop): winit reports scale 1.5
+  and the cursor in physical pixels; clicks on Browse..., list rows and Cancel land; a wheel notch
+  (LineDelta) and 10 touchpad steps (PixelDelta) left the list unchanged.
+
+== After: tests/launcher_mouse.sh, X11
+-- WINIT_X11_SCALE_FACTOR=1
+ok    a: window on <Xvfb>, client area at 480,180, scale factor 1
+ok    b: the browser in <home>: 33 rows, 11 shown
+ok    c: first row 0 -> 6 after one notch; Folder 27 in view (18 11 0 33)
+ok    d: a double click opened Folder 27
+ok    e: one click chose row 1, Open opened Deep
+ok    f: the mouse's back button went up
+ok    g: thumb dragged to the end (first row 22 of 33), a click on the track paged up to 11
+ok    h: the path part 'mouse1' went to the folder above home
+ok    i: Target chosen by double clicks, Use this folder: the check screen
+ok    j: the game folder chosen by the mouse: the main screen
+ok    j: Mods > Add packages > the package by double clicks: [error] other-game.tpf: not imported: it was made for another game (GTA-SA.EXE), not…
+MOUSE: PASS
+-- WINIT_X11_SCALE_FACTOR=2
+ok    a: window on <Xvfb>, client area at 77,81, scale factor 2
+ok    b: the browser in <home>: 33 rows, 7 shown
+ok    c: first row 0 -> 6 after one notch; Folder 27 in view (24 7 0 33)
+ok    d: a double click opened Folder 27
+ok    e: one click chose row 1, Open opened Deep
+ok    f: the mouse's back button went up
+ok    g: thumb dragged to the end (first row 26 of 33), a click on the track paged up to 19
+ok    h: the path part 'mouse2' went to the folder above home
+ok    i: Target chosen by double clicks, Use this folder: the check screen
+ok    j: the game folder chosen by the mouse: the main screen
+ok    j: Mods > Add packages > the package by double clicks: [error] other-game.tpf: not imported: it was made for another game (GTA-SA.EXE), not…
+MOUSE: PASS
+
+== After: tests/launcher_wayland.sh (private headless mutter)
+== scale 1
+  monitor Meta-0 1920x1080@60.000 at scale 1.0 (asked 1.0)
+  scale 1.0: the window's origin at 480.0,198.0 (logical); cursor in physical pixels (480.0, 342.0)
+  a click on Browse… opened the browser
+  a wheel notch: first row 0 -> 3
+  100 logical px of touchpad scrolling: first row 3 -> 6 (31 px a row)
+  a double click on the shown row 3 opened Folder 09
+  RESULT PASS
+== scale 1.25
+  monitor Meta-0 1920x1080@60.000 at scale 1.25 (asked 1.25)
+  scale 1.25: the window's origin at 288.0,90.4 (logical); cursor in physical pixels (840.0, 562.0)
+  a click on Browse… opened the browser
+  a wheel notch: first row 0 -> 3
+  100 logical px of touchpad scrolling: first row 3 -> 6 (39 px a row)
+  a double click on the shown row 3 opened Folder 09
+  RESULT PASS
+== scale 1.5
+  monitor Meta-0 1920x1080@60.000 at scale 1.5 (asked 1.5)
+  scale 1.5: the window's origin at 160.0,35.6 (logical); cursor in physical pixels (1200.0, 756.6)
+  a click on Browse… opened the browser
+  a wheel notch: first row 0 -> 3
+  100 logical px of touchpad scrolling: first row 3 -> 6 (45 px a row)
+  a double click on the shown row 3 opened Folder 09
+  RESULT PASS
+== scale 2
+  monitor Meta-0 1920x1080@60.000 at scale 2.0 (asked 2.0)
+  scale 2.0: the window's origin at 1.0,36.0 (logical); cursor in physical pixels (1918.0, 1008.0)
+  a click on Browse… opened the browser
+  a wheel notch: first row 0 -> 3
+  100 logical px of touchpad scrolling: first row 3 -> 7 (47 px a row)
+  a double click on the shown row 3 opened Folder 10
+  RESULT PASS
+WAYLAND: PASS
+
+== After: tests/launcher_mouse.sh under Wine (overbright.exe, x86_64-pc-windows-gnu), prefix LogPixels
+-- LogPixels 96
+ok    a: window on <Xvfb>, client area at 484,210, scale factor 1
+ok    b: the browser in C:\users\<user>: 45 rows, 11 shown
+ok    c: first row 0 -> 3 after one notch; Folder 27 in view (24 11 0 45)
+ok    d: a double click opened Folder 27
+ok    e: one click chose row 1, Open opened Deep
+ok    f: the mouse's back button went up
+ok    g: thumb dragged to the end (first row 34 of 45), a click on the track paged up to 23
+ok    h: the path part 'users' went to the folder above home
+ok    i: Target chosen by double clicks, Use this folder: the check screen
+ok    w: This PC lists the drives, C:\ opened by a double click, Up at its root goes back to the drives
+ok    j: the game folder chosen by the mouse: the main screen
+ok    j: Mods > Add packages > the package by double clicks: [error] other-game.tpf: not imported: it was made for another game (GTA-SA.EXE), not…
+MOUSE: PASS
+-- LogPixels 144
+ok    a: window on <Xvfb>, client area at 245,125, scale factor 1.5
+ok    b: the browser in C:\users\<user>: 45 rows, 11 shown
+ok    c: first row 0 -> 3 after one notch; Folder 27 in view (24 11 0 45)
+ok    d: a double click opened Folder 27
+ok    e: one click chose row 1, Open opened Deep
+ok    f: the mouse's back button went up
+ok    g: thumb dragged to the end (first row 34 of 45), a click on the track paged up to 23
+ok    h: the path part 'users' went to the folder above home
+ok    i: Target chosen by double clicks, Use this folder: the check screen
+ok    w: This PC lists the drives, C:\ opened by a double click, Up at its root goes back to the drives
+ok    j: the game folder chosen by the mouse: the main screen
+ok    j: Mods > Add packages > the package by double clicks: [error] other-game.tpf: not imported: it was made for another game (GTA-SA.EXE), not…
+MOUSE: PASS
+-- LogPixels 120 and 192: MOUSE: PASS (scale factor 1.25 and 2; a, c, g, w as above)
+-- Windows dialog... (IFileOpenDialog, FOS_PICKFOLDERS): opens under Wine from a click (Wine's own
+   folder dialog, titled "Choose the game folder"); its Cancel by click returns to the browser.

@@ -1,0 +1,14 @@
+brake200-1 without tyres_at: +1 0.185  +2 0.425  +5 1.018  slip_fl max 0.01987  spin_fl max 1.111  
+brake200-1 with: spin_fl max 0.03248  slip_fl max 0.001068  
+turn60-1 without tyres_at: +1 0.190  +2 0.580  +5 0.032  slip_fl max 0.02831  spin_fl max 0.301  
+turn60-1 with: spin_fl max 0.1655  slip_fl max 0.0007778  
+turn90-1 without tyres_at: +1 0.345  +2 1.067  +5 0.337  slip_fl max 0.6189  spin_fl max 1.96  
+turn90-1 with: spin_fl max 0.2427  slip_fl max 0.01934  
+turn130-1 without tyres_at: +1 0.396  +2 1.192  +5 3.727  slip_fl max 0.4866  spin_fl max 1.656  
+turn130-1 with: slip_fl max 0.0108  spin_fl max 0.2185  
+lift90-1 without tyres_at: +1 0.296  +2 0.847  +5 1.111  slip_fl max 0.6321  spin_fl max 1.943  
+lift90-1 with: spin_fl max 0.2469  slip_fl max 0.01767  
+hand90-1 without tyres_at: +1 0.073  +2 0.121  +5 0.212  spin_fl max 0.1266  slip_fl max 0.02929  
+hand90-1 with: slip_fl max 0.02932  spin_fl max 0.1386  
+launch20-1 without tyres_at: +1 0.012  +2 0.023  +5 0.024  slip_fl max 0.003624  spin_fl max 0.06995  
+launch20-1 with: spin_fl max 0.09829  slip_fl max 0.02326  

@@ -1,0 +1,43 @@
+# traffic_circling_soak, defaults (12 spots x 240 s, 6 Quick Races x 240 s requested, the four below ran), after the traffic-walk fix
+spot 0 (1695 -884, standing): 0 circling, 0 spins after hits
+spot 1 (-2996 2365, driving): 0 circling, 0 spins after hits
+spot 2 (-1381 -1789, standing): 0 circling, 0 spins after hits
+spot 3 (-78 1578, driving): 0 circling, 0 spins after hits
+spot 4 (-1591 360, standing): 1 circling, 0 spins after hits
+spot 5 (-1215 3114, driving): 0 circling, 0 spins after hits
+spot 6 (-55 -627, standing): 0 circling, 0 spins after hits
+spot 7 (12 -2020, driving): 0 circling, 0 spins after hits
+spot 8 (-1436 1733, standing): 0 circling, 0 spins after hits
+spot 9 (417 481, driving): 0 circling, 0 spins after hits
+spot 10 (-1226 -705, standing): 1 circling, 0 spins after hits
+spot 11 (790 -1352, driving): 0 circling, 0 spins after hits
+race 0 (event track 4014): 0 circling, 0 spins after hits
+race 1 (event track 4123): 0 circling, 0 spins after hits
+race 2 (event track 4201): 0 circling, 0 spins after hits
+race 3 (event track 4001): 0 circling, 2 spins after hits
+soak: 215923 frames, 2 circling
+# the two found:
+spot 10 (-1226 -705, standing)    36.6 s car  0 SUV circling: turned 302° in 10.0 s, mean 12.0 m/s, 94 m from its place 10 s ago, at -1237 -655; mover MeloMvr stopped false avoid false obey false; lane step Some((234, 10, false, 4)) walk 5 lane turned 22°; target point Some((2.7516823, -83.16919)) (m, ° off heading) speed Some(19.816961); steer -39.0° gas 0.71 brake 0.00; contacts []
+spot 4 (-1591 360, standing)    19.5 s car 13 4DR_SEDAN02 circling: turned 338° in 7.3 s, mean 12.7 m/s, 92 m from its place 10 s ago, at -1301 559; mover physics stopped false avoid true obey false; lane step Some((54, 4, false, 4)) walk 6 lane turned 6°; target point Some((5.2122517, 18.209084)) (m, ° off heading) speed Some(6.0); steer 45.0° gas 1.00 brake 0.00; contacts []
+
+# again on the final tree (with the placer's road node), the same defaults; races 4-5 did not start (menu)
+spot 0 (1695 -884, standing): 0 circling, 0 spins after hits
+spot 1 (-2996 2365, driving): 0 circling, 0 spins after hits
+spot 2 (-1381 -1789, standing): 0 circling, 0 spins after hits
+spot 3 (-78 1578, driving): 0 circling, 0 spins after hits
+spot 4 (-1591 360, standing): 0 circling, 0 spins after hits
+spot 5 (-1215 3114, driving): 0 circling, 0 spins after hits
+spot 6 (-55 -627, standing): 0 circling, 0 spins after hits
+spot 7 (12 -2020, driving): 0 circling, 0 spins after hits
+spot 8 (-1436 1733, standing): 0 circling, 0 spins after hits
+spot 9 (417 481, driving): 0 circling, 0 spins after hits
+spot 10 (-1226 -705, standing): 0 circling, 0 spins after hits
+spot 11 (790 -1352, driving): 0 circling, 0 spins after hits
+race 0 (event track 4014): 1 circling, 2 spins after hits
+race 1 (event track 4123): 0 circling, 0 spins after hits
+race 2 (event track 4201): 0 circling, 1 spins after hits
+race 3 (event track 4001): 0 circling, 2 spins after hits
+race 4: no race (menu)
+race 5: no race (menu)
+soak: 218213 frames, 1 circling
+race 0 (event track 4014)   154.3 s car 10 4DR_SEDAN02 circling: turned 351° in 10.0 s, mean 3.5 m/s, 35 m from its place 10 s ago, at -239 284; mover physics stopped false avoid false obey false; lane step Some((88, 12, false, 3)) walk 2 lane turned 27°; target point Some((13.612315, 2.2562368)) (m, ° off heading) speed Some(14.0); steer 45.0° gas 0.50 brake 0.00; contacts []

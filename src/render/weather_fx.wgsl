@@ -1,0 +1,5 @@
+#include "enh/weather/weather_common.wgsl"
+#include "enh/weather/rain.wgsl"
+#include "enh/weather/wetness.wgsl"
+#include "enh/weather/rain_ng.wgsl"
+#include "enh/weather/haze.wgsl"

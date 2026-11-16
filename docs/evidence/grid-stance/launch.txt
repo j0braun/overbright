@@ -1,0 +1,39 @@
+# The launch residual on the pinned stage-1 circuit (circuit_s1_launch.toml: throttle from the green, frame 0 = the
+# green; the player's |v| m/s 0.5 / 1 / 2 / 3 / 4 s after it; tools/parity/stance.py). "pushes" = frames whose speed
+# rises by more than 0.15 m/s in one frame (the 240SX directly behind shunting the player; car mode 2, one contact
+# record on both cars from frame 59 on).
+speed after the green (m/s) at 0.5 1 2 3 4 s; pushes (frame: +dv); contact frames
+original          1.297  4.319  9.441 14.025 15.893  pushes [(59, 1.707), (62, 0.326), (69, 0.362), (78, 0.367), (109, 0.377), (252, 0.365), (257, 0.161), (259, 0.168)]  contact 59..300 (160)
+clone-own         1.296  4.318  9.541 14.110 16.149  pushes [(59, 1.706), (65, 0.357), (75, 0.365), (86, 0.372), (106, 0.376), (181, 0.377), (200, 0.151), (247, 0.18)]  contact 59..300 (183)
+clone-stance      1.296  4.318  9.541 14.110 15.920  pushes [(59, 1.706), (65, 0.357), (75, 0.365), (86, 0.372), (106, 0.376), (182, 0.382), (248, 0.171), (267, 0.178)]  contact 59..300 (182)
+clone-com         1.296  4.318  9.433 14.018 15.910  pushes [(59, 1.706), (62, 0.328), (68, 0.364), (78, 0.367), (107, 0.381), (241, 0.184), (242, 0.174), (247, 0.156)]  contact 59..300 (160)
+# clone-own: before; clone-stance: before, with the original's exact frame-0 stance put on (PARITY_STANCE=1):
+# 2 s and 3 s unchanged, so the stance does not make the residual; clone-com: after the look-ahead fix.
+#
+# The player alone matches up to the first shunt: frame 58 |v| 2.5136 / 2.5129 (the original / the clone), the
+# first shunt (frame 59) +1.707 / +1.706 m/s. The shunts after it came at other frames (62, 69, 78 against 65, 75,
+# 86) because the 240SX had steered differently from the green's first frame:
+#   frame  the 240SX's look-ahead point x, y (driver +0x224)  steer (deg)    original / clone before / clone after
+#   0      -9.71368, 367.190 / -9.95231, 367.155 / -9.71369, 367.154                0 / 0 / 0
+#   1      -9.92813, 368.774 / -10.06218, 368.762 / -9.90030, 368.770        1.19751 / 1.20850 / 1.21948
+#   55     -8.31474, 368.846 / -8.33201, 368.845 / -8.25706, 368.848         1.17554 / 1.07666 / 1.08215
+# With no path yet (frame 0) the original's point stood 25.1869 m from each rival's centre of mass (PEUGOT, 240SX,
+# MIATA alike), the clone's 24.895 / 24.948 / 24.953 m: 25.187 m from the body origin, short by each car's
+# centre-of-mass offset (0.29 / 0.24 / 0.23 m). Traced: 0x415F80 takes the point from 0x403AF0 (|v| < 5 m/s: car
+# +0x60 + max(look, 5) along the 16-bit heading +0x40C) or 0x403BA0 (+0x60 + along the velocity +0x70), or along the
+# path from 0x415630 (+0x60, 0x41564A; the first point ahead 0x404EF0 from +0x60, 0x4156DD); the angle errors
+# 0x4054D0 subtract +0x60 / +0x64 (0x4054E1 / 0x4054F2). Car +0x60 is the centre of mass. Ported: the AI driver
+# measures from the centre of mass (ai::driver::car centre_of_mass, target_point, path_point, angle_errors).
+# Mean distance between the two games' look-ahead points relative to their own car, metres (circuit_s1_pinned 20 s,
+# frames 0-300 / 0-1200), PEUGOT#1, 240SX, MIATA: before 0.679 / 7.80, 0.285 / 0.89, 0.316 / 5.27;
+# after 0.444 / 3.89, 0.065 / 2.25, 0.036 / 3.91 (past ~5 s the race's contacts part the two runs either way).
+# Left: the original's straight-ahead direction is the 16-bit heading +0x40C, which reads in steps of 32 (0xFF00,
+# 0xFF20, 0xFF60, 0: the 240SX's is 0 while its forward axis points -0.080 deg), so its point's y differs by up to
+# 0.07 m on this grid; which code writes +0x40C every frame is not traced (0x5F52D0 / 0x604406 write it at a
+# placement) and the clone keeps the forward axis there: open.
+#
+# Side force: from frame 12 to 21 the original's +0x128 (lateral tyre force, last sub-step) is negative on every
+# wheel, the clone's positive with about the same size, while the sideways velocity and slip agree to 1-2 %
+# (frame 13 vel.y 0.01339 / 0.01337). The sign of the gripping force follows the sub-step's slip angle
+# (0x5A8653..0x5A86B9, the clone the same); the recorded value is the last of four sub-steps, so a force flipping
+# sign each sub-step shows its phase only (inferred): no effect on the launch seen.

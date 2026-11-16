@@ -1,0 +1,21 @@
+finding	address	change	test	confidence
+save-points follow-up (gauge question)	0x563D10 (0x564145–0x5642B0)	Custom Gauges purchase after the needle colour asks 0x44B7167F (career) / 0xF5AC2B2A, No focused, No/OK back on the needle colour; Yes = fit_custom_gauge	tests::native_dialogs::custom_gauge_short_of_bank_shows_the_bank_dialog; selftest custom gauges	certain
+save-points follow-up (dim under the bank dialog)	0x5642A4 → 0x560B70	bank dialog and questions dim UI_CustomHUDOverlay (DIM on 0x47FF4E7C)	tests::native_dialogs::custom_gauge_short_of_bank_shows_the_bank_dialog	certain
+save-points follow-up (stock gauge)	0x56C283, 0x564159–0x564192	Accept on the stock gauge (HUDINDEX 0) does nothing (step 1 from the overlay ctor); no fit_browser_part path for gauges	tests::native_dialogs::the_stock_gauge_accept_does_nothing	certain (static)
+mouse select asks to buy	0x5664A0 → 0x566D98–0x566EC5	UI_GenericParts_Browser Select/Accept asks: already installed 0xDA15D7E5 / bank 0xD1AC60BE / buy 0x44B7167F / install 0xF5AC2B2A, browser DIMmed (0x566748)	tests::native_fe_part2::body_shop_accept_asks_to_buy; shot mouse_parts	certain
+online ISP connect	0x4B97D0 / 0x49DF20	Online: UI_OLISPConnect leaves for EA Login at the next tick (ISP_TRY_MS 2000 → 0)	tests::native_fe_part2::online_goes_on_to_ea_login_at_the_next_tick	likely (Wine, two entries)
+race flow state	[[0x8900D8]] / 0x484E82	race_flow_state: 3 only in the start scene, 4 from the countdown and through the 3 s race-over hold, 7 after it	(gate audio lines; no unit test)	certain (scene/countdown); likely (hold)
+start-scene letterbox	0x437741 / 0x6000A0	start-scene letterbox through mark 2 inclusive (<=)	(race-start shots)	certain
+engine chain while shifting (HUD half)	0x4C784E → 0x5ECD80	tach shift light hidden while the gearbox shifts (Drivetrain::pending)	(no unit test; hud input)	certain
+trick popup inheritance	0x4C7E20 / 0x575630	a new trick popup inherits +0x24 of the last freed popup block (LIFO); 5 → no fade-out	frontend::hud::tests::a_new_popup_inherits_the_freed_blocks_state	certain (values); inferred (LIFO allocator)
+trick popups (refactor)	0x4EBB10, 0x865150	Hurry! test uses the hurry clock's own step (0 while paused), not the drawn frame's wall time	frontend::hud::tests::hurry_fires_once_per_even_second_at_any_draw_rate	certain (rule); 60 fps exact
+FE clock	0x5662F9, 0x558DAB	FE clock: no code change; verified, sub-60/odd-rate per-frame truncation documented as the agreed any-rate deviation	(doc only)	certain
+engage message	0x512620 / 0x4B551B	engage message: SUV set first, number drawn once from the career generator (Profile::draw), no % n	tests::native_fe_part2::engage_message_sets_and_draw	certain
+rim brand names (follow-up)	0x50E960	unique_part_name uses screens::rim_brand_name	tests::native_fe_part2::unique_rim_names_use_the_brand_table	certain
+default settings (score-5 card)	0x5BE97C–0x5BE9BC	Default Settings on a score-5 card above detail 3: 800 x 600	frontend::native_fe_part2_tests::default_settings_on_a_score_five_card_take_800_by_600	certain
+ATI FSAA clear	0x5BEA05 / 0x5BF5B0	ATI FSAA clear is Win9x only: open note replaced	(doc only)	certain
+CPU speed	0x5CDD00 / 0x5C0AE0	cpu_mhz: base_frequency before max; non Intel/AMD vendors tier 1	(machine-dependent; no test)	likely
+GarageViewPhase	0x5683C2/0x56B8D0, 0x553547/0x56AA4B/0x56AAD5	menus::garage_view::screen_base_view_returns (decal Back from top; neon first tick and Back); garage-side call left to the maintainer	menus::garage_view::tests::decal_and_neon_screens_return_the_base_view	certain
+refactor (a)	0x8CA76279	outrun meter group test and insert use fe_ids::OBJ_8CA76279 (same value)	(no behaviour change)	certain
+refactor (b)	0x4AA05C → 0x4AA0A4	cash_reward kind outside 1-4: clone already native (text kept, shown, ZoomIn); comment	(no change)	certain
+PSA skip flag	0x4C53D0 / 0x4A9C40	PSA skip flag explained in the dead native rule's doc (open tag removed)	(doc only)	certain

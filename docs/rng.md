@@ -1,0 +1,115 @@
+# Random numbers: generators, draw sites, order
+
+The original's generators and the draw sites the clone ports, (2026-11-12).
+Source of the native facts: the audit's RNG-port-list (unit RNG-T: all 206 direct call sites of
+the draw functions classified, per-site counts measured on the pinned original, c1 / d1 / s2);
+the addresses below were re-read in SPEED2.EXE where this work relied on them. Marks:
+**traced** (the code), **measured** (the running original, RNG-T), **open**.
+
+Goal (PLAN.md "RNG scope"): the same generators, draw sites and order within a routine — not a
+bit-exact stream for its own sake. Rate rule (owner): every shared- and world-generator draw is
+made on the fixed 1/60 s simulation update, never per drawn frame (the original draws per drawn
+frame, one world update per frame: at 60 fps the two agree).
+
+## Generators
+
+| Original | Clone |
+|---|---|
+| G1 shared 0x7EA624 (0x43C1C0 / 0x43C1F0) | `Game::rng` only. The career generator `Profile.rng` is gone (career picks, engage messages, sender names, neighbourhood lines draw on `Game::rng`); the weather's own generator is gone (lens set-up at start-up, rain set-up at each world build, gusts and lens drops on the update all on `Game::rng`). |
+| G2 world [0x890080] +0xF8 (0x5EA4F0 / 0x5EA510), seeded by `Rand_Int(0x7FFFFFFF)` at each world build (0x5FF557) | One stream per world. Races: `Race::racers.cars.rng` (the race field), lent to the race's traffic around its think and fill. Free roam: the world's car field (`Traffic::field` while traffic is loaded, else `Encounters::field`): the traffic's placer and lanes, the encounter racers' spawn searches and thinks draw from it. The traffic's own `Traffic::rng`, the encounters' own spawn generator and the extra seeds (free roam 2, race 4) are gone. |
+| G3 particles (0x7F3940 + emitters) | `Effects::rng`, render side, unchanged (open: A-game-1). Never read by the simulation. |
+| G4 speech library (0x819AB4) | seeded from `Game::rng.below(0xFFFFFFFF)` at the audio start (0x4866F0) and at every world build (MixMap_Select 0x486A2C), only with sound (`Game::speech_seed`). |
+| G5 AEMS | `audio::aems::Rng`, unchanged (open: A-audio-1). |
+| G1 in the audio (P4 U11) | the tick's sounds (`Game::audio_sounds`, only with sound) draw on `Game::rng`: `audio::collision::enter_game_rng` / `leave_game_rng` hand the game's state to the audio's generator for the window and back. Sites on it: turbo 0x45EED1 (`turbo.rs`), stitch layer start 0x45B280 (`stitch.rs`: road thumps, drive-by whooshes, bottom-out knocks, traffic contexts), stereo 0x4765A7/BD/D8 + the racers' roll 0x4765F5 (`stereo.rs`), horns 0x47E78F/CE/EE (`others.rs`), bottom-out (`bottom_out.rs`), EA Trax's Random pick 0x46B86F / 0x46BA2F (`Playlist::next`; `Streams.rng` is gone). |
+| — | **Left (open)**: audio draws outside that window stay on the audio's own copy (0x12345678): the car-part stitch layers started by the cover rewards (`CommonStitches::start`, `career_glue/cover_rewards.rs`). Native G1 audio draws the clone does not make at all (port list R13 / R30: SfxCtlEngine 0x46F5AB/BC, AccelTrans 0x45CADE, physics bind 0x45D885, hybrid 0x47099E, rain 0x47488A, knock 0x47EB9C, AI contexts 0x476C9B/AB/BB, traffic add 0x464097..0x464217), so the G1 count with sound is still short of the original's. The per-car drivetrain LCG (`handling/drivetrain/gearbox.rs`). |
+
+## Sites ported
+
+* **Start-up** (`Game::boot_draws`; traced order 0x57ED5C seed → 0x57ED7C → 0x48CD60 → Views_Init
+  0x5C2FA0 → 0x61E160 × 2 (lens 0x6140A0: 2 × 20 × {F(1.5), F(0.1), F(1.0)}, view 1's kept) →
+  0x57ED90 → 0x579560's tail `Rand_Int(0x80000000)` (0x5795BB) → the traffic list's first build
+  0x4FE9F0 → 0x41AAF0 (once a process, flag +0x90C) → 0x412840 with no world: 15 × {paint
+  `Rand_Int(270)` 0x63720F, `Rand_Int(0xFFFF)` 0x41289C}. 151 draws (**measured** 151 sound off).
+  The window path reseeds from the clock first, then makes them again.
+* **World build** (`Game::world_build`; every free-roam entry, race load, restart, test run):
+  world seed 0x5FF557; 0x4179F0 → 0x412840 with the world (15 × {paint, shared 0xFFFF, world
+  0xFFFF 0x4128B7}); rain set-up 0x5FF6A5 → 0x61E100 → 0x613060 on view 1 then view 2 (2 × 1630).
+  Then the career's open events (0x5412E0 → 0x527D40, free roam), Traffic_AssignModels 0x412C9A on
+  the shared generator, the speech re-seed (its place among the load's draws is **open**).
+  Free roam's order: encounter set-up (0x540790 → 0x53F010(3)) → world build → open events →
+  traffic models. Race's: line-up and dressing (0x526980) → world build → traffic models →
+  NIS_PickScene case 0 (0x436A26) on the shared generator (was a copy that never moved it).
+  The clone now builds free roam's traffic pool on every entry, as the world is (it kept the pool
+  between entries before, so the models were not drawn again).
+* **Camera director** (0x5FB060 → 0x5FB2EA `Rand_Float(1.0)`; `Game::director_draw`, once per
+  world update, before the frame's rain) while the player's NIS id (player +0x234: set by 0x437910
+  at a scene's start, cleared by the scene's end 0x439070) is set. **Measured** on the pinned c1
+  with `[0x8900AC] +0x234` read every frame (`rngdraws.py`, internal evidence: n-rng/c1-director-gate.txt):
+  set from the scene's first frame through the countdown and 325 frames past the green, one draw
+  on each of those frames (678), none after. The clone: while its start scene runs, then on the race
+  clock up to the scene's end (`Race::scene_end`, the clone drops the scene run at the green mark);
+  its first race draws 677 (340 before the green, 337 after). Shop drive-in likewise (s2: 140).
+  Drive-out, career start and ending scenes: not measured (open).
+* **Engage message** (0x512620), challenge message (0x515160), sender name (0x4FE970) on the shared
+  generator; **shop drive-in pick** 0x4370E3 `Rand_Int(1)` (measured one draw).
+* **Outrun: the other encounter cars' goal 5**: while the manager races (state
+  4, race type 7) every encounter car out besides the challenged one thinks as an outrun racer
+  (goal 5 on the leader, `outrun_racer_think`), no longer as goal 9: its world-generator draws (the
+  speed refresh of 0x41C5E0's race-state-7 branch, the route's junction decisions on the world
+  generator, the race actions' odds) move from `goal9_think`'s sites to `encounter_racer_think`'s,
+  in the same car order (the manager's slots), after the challenged car's when it has the lower
+  slot. No draw site is added in the generator's other users.
+* **Traffic placer pass** (**verified**, the decompile of 0x42F910 / 0x42F800 / 0x42E9F0 and the
+  asm): when the placer's timer runs out, 0x42F910 first draws the spacing for each human racer
+  (0x418240 → 0x4182A5 `Rand_Float(max − min)`; none outside every traffic zone or while 0x4112A0
+  finds a jam) — on every pass, whether or not a car is then tried (the clone drew it per tried
+  car); its 0x5F0E40(−1) entry is taken as none (R20's 4 floats + 1 int a placing pass leave no
+  room for it, **inferred**). Then per tried car 0x42F800: 0x42F812 `Rand_Int(humans)` (which
+  racer), 0x42F852 `Rand_Float(1.0)` (the teleporter odds) — both **added** (the clone drew
+  neither), `nfsu2::ai::traffic::placer_try_draws` — 0x42E790 draws nothing (no teleporters in
+  the retail routes), then 0x42E9F0: 0x42EA23 `Rand_Float(1.0)` (against), 0x42EAE7
+  `Rand_Float(1.0)` under 24.5865 m/s (ahead / behind), the walk 0x415130 (0x4153D2, per branch
+  outside coordinate races), and per try 0x410CA0's lane picks, then the new lane's
+  `Rand_Int(0x7FFFFFFF)` — unchanged. Sites: `sim/traffic/think.rs` `traffic_place_pass` (spacing
+  moved to the pass start; 0x42F812 / 0x42F852 added), `ai/traffic/place.rs`.
+* **Honk / light flash 0x40D5C0** (**verified**, the decompile; `nfsu2::rng_sites::honk`):
+  right before the constructor of the action proposed at the human's car (0x614890; not traffic
+  0x6148D0; 0x60BED0 taken as false for the player's stock car, **inferred**), by the own car's
+  kind (car +0x24): traffic (4) always, an AI racer (3) when 0x403820 keeps the human's entry (not
+  wholly behind it: gap > −(both +0x0C) − 0.5 m), never otherwise. World generator, in order:
+  F(0.4), F(0.2), F(0.4), F(1.0), F(1.0) (horn under p: 1 when the human entry's +0x04 is over
+  50 m/s or, for a traffic controller, under −3 m/s; else 0.75), then F(1.0) only after a horn —
+  5 or 6 draws. Sites: traffic "Avoid Cars" proposal 0x426CFF / 0x426E4F (`TrafficLane::think`,
+  before the action; the two are the same code in the choosers of traffic goal 7, vtable 0x7848A0
+  slot +0x38 = 0x426C20, and goal 8, vtable 0x784900 slot +0x38 = 0x426D70: the same calls in the
+  same order, the same type / priority tests (0x11 ≤ 600 → 0x4149E0, else 2 ≤ 300 → 0x4145B0), and
+  the same −1.0 arguments (0x783648 / 0x783630 / 0x783634); the placer 0x42C816 gives goal 8 to a
+  car whose placement record +0x18 is set, else goal 7, and both share the default 0x426EC0. In
+  every chooser the draws come after the proposal's search and before the action is allocated
+  (0x440E50) and built, and neither the constructors 0x424B40 / 0x423CC0 / 0x4243B0 nor the searches
+  0x4145B0 / 0x4149E0 draw, so the draw needs no other place in the think); IJustGotHit 0x42D1F5 / 0x42D7F5 (`Actions::choose`), 0x42DB59 (`choose_pursuit`);
+  AvoidAvoidable 0x42D274 / 0x42D874 (`choose`), 0x42DBD8 (`choose_pursuit`) before the vt+0x9C
+  draw (`willing`), 0x42D68C (`drag_avoid`). Nothing reads the stored values (0x5F61A0 returns
+  before them: +0x925 is only ever written 0), so the draws are all that is ported.
+* **Collision hull support** 0x5AFBF1: `nfsu2::rng_sites::hull_support_start` for the collision
+  code (not wired: the physics unit's files and the per-query mapping are open).
+
+## Open
+
+* One `Rand_Int(8)` per car render info (0x6383A5 via 0x63A5B0 / 0x63A660, 24–37 a world build, 1
+  per front-end car): which cars and when.
+* Drivetrain rerolls (0x594720, world generator): 2 calls a frame standing. The call path is
+  settled: 0x594720 is called from the clutch machine of 0x5A1410 (the drivetrain's
+  vt+0x1C, vtable 0x7A2510) in state 1 (0x5A1634) unless +0x48 = 0 and 0x594EA0() ≠ 0; the
+  integrator's end 0x5B04E0 runs every component's vt+0x1C (0x5B0509), then 0x5ABB10, whose rest
+  test (0x5A5E30: class 1 / 2) or bump-stop hit re-runs them with h = 0 (0x5A0D90, 0x5A0DB6). So a
+  car standing runs 0x5A1410 twice a sub-step (8 calls a frame at 60 fps), the machine advances one
+  state a call, and 2 rerolls (6 world draws) fall on the re-pass of sub-steps 2 and 4 (**measured**,
+  gdb watches). The clone's `drive/force.rs` `rest_test` / `bump_stops` already make this re-pass;
+  only the generator the reroll draws from is open (R19). Expected at 120 fps (2 sub-steps): 1.
+* `pick_lane`'s frequency (the clone ≈ 6.6 a frame driving vs the original's ≈ 22 a placement).
+  The placer's order inside a pass is settled ("Traffic placer pass" above).
+* Audio draws (`audio::collision::rand`, trax): on `Game::rng` since P4 U11 (the audio's posted
+  events are a function of the ticks, rate gate `aud`); the native audio draws the clone lacks (see
+  the table) are open.
+* The free-roam entry's traffic fill (0x42E2C0 / 0x411110, 25 + 25 world draws).

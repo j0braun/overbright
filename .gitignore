@@ -1,0 +1,7 @@
+/target
+/target-ship
+/*.png
+/analysis
+*.wav
+__pycache__/
+/scripts/local.env

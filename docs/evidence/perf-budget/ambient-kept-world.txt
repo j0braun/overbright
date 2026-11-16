@@ -1,0 +1,108 @@
+Ambient Detail's props on a world kept for the next drive (docs/ambient-detail.md "When the props are placed",
+docs/perf-budget.md "Ambient Detail's props on a world kept for the next drive").
+
+The fault: a world kept for the next drive (the drive itself for the same car, its world and renderer for another
+car, the world kept beside the menus after a car change) carried the last drive's props unchecked. The test
+tests::first_use::a_kept_world_draws_the_next_drives_props on the tree without the new drive's check
+(WorldRenderer::new_drive_ambient not called, everything else equal):
+  panicked at src/bin/game/tests/first_use.rs:957:9:
+  another drift track, the same car: the props drawn are not those of the drive's world
+The same drives with the assertions turned into lines (the tree before the check):
+  a drift track: drawn==now true                                  (a new region: placed in the load)
+  another drift track, the same car: drawn==now false             (L4RC 4312 -> 4311, the drive kept)
+  another drift track, another car: drawn==now false              (-> 4313, the drive's world and renderer kept)
+  a drift track after a car change: drawn==now false              (-> 4314, the world made ready in the menus)
+  after a car change, at once: drawn==now false                   (-> 4315, the world kept beside the menus)
+  a URL circuit: drawn==now true                                  (L4RG 4701, a new region)
+  another URL circuit: drawn==now false                           (-> 4712: the ground the debris lands on)
+  a city circuit / another city circuit: drawn==now true          (the same surfaces: nothing to place)
+With the check every line is true; the drift and URL loads place the props once, their frames none; the second
+city circuit places none.
+
+Method: `--bench transitions` with NFSU2_BENCH_TRANSITIONS_KEPT=1 (developer harness, headless, offscreen): free
+roam's first load, then Quick Races one after the other: a drift track (L4RC 4312), a URL circuit (L4RG 4701) and a
+city circuit, each from its car select while the region loads ahead, then another track of the region from its car
+select (half a second up) with the last race's drive in memory, the same car (PEUGOT) and another (COROLLA): drift
+4311, 4313; URL 4712, 4713; the second city circuit, then the first again. One binary per arm: before = this tree
+without the new drive's check (the earlier behaviour), after = this tree. Interleaved (odd rounds before first, even
+rounds after first), 7 rounds per arm, one round per hold of the integrated GPU's measuring lock (each under 2
+minutes); own game cache, Mesa shader cache and XDG folders; a warm-up round of each arm first (not counted).
+The integrated GPU (the reference 2-CU iGPU) at 1920x1080, the Enhanced level High with Ambient Detail On. Load
+average 14-26 at the run starts, the integrated GPU idle at the starts.
+Wait = from the call to its first frame drawn and the GPU done (wall ms); main-thread CPU = the load + its first
+frame on the calling thread (ms), and of it the first frame's. Median (min-max).
+
+| transition | wait before | wait after | main-thread CPU before | after | of it the first frame before | after | n |
+|---|---|---|---|---|---|---|---|
+| free roam, first load | 571 (358–1514) | 446 (357–2413) | 112 (95–190) | 108 (99–202) | 14 (10–42) | 12 (10–18) | 7/7 |
+| Quick Race drift from its car select | 136 (127–699) | 203 (129–453) | 31 (25–34) | 38 (26–46) | 11 (7–12) | 11 (7–13) | 7/7 |
+| another Quick Race drift, the world kept | 94 (77–311) | 117 (85–259) | 39 (28–47) | 46 (36–54) | 21 (9–28) | 26 (11–33) | 7/7 |
+| another Quick Race drift, another car, the world kept | 148 (126–270) | 128 (120–254) | 30 (28–47) | 34 (31–47) | 9 (6–24) | 18 (9–26) | 7/7 |
+| Quick Race URL from its car select | 150 (122–786) | 185 (143–311) | 39 (30–54) | 44 (31–48) | 11 (7–13) | 10 (7–12) | 7/7 |
+| another Quick Race URL, the world kept | 154 (82–418) | 107 (87–264) | 28 (26–44) | 35 (30–55) | 7 (5–25) | 21 (6–32) | 7/7 |
+| another Quick Race URL, another car, the world kept | 140 (112–255) | 186 (131–325) | 42 (41–61) | 48 (39–56) | 19 (8–24) | 20 (5–28) | 7/7 |
+| Quick Race city circuit from its car select | 307 (144–738) | 173 (133–224) | 58 (42–71) | 62 (42–74) | 21 (15–27) | 23 (13–28) | 7/7 |
+| another Quick Race city circuit, the world kept | 87 (72–511) | 81 (76–195) | 40 (27–43) | 39 (30–43) | 18 (13–19) | 16 (12–20) | 7/7 |
+| another Quick Race city circuit, another car, the world kept | 214 (92–579) | 102 (96–514) | 59 (42–68) | 52 (42–69) | 8 (7–15) | 9 (7–13) | 7/7 |
+
+Reading: the rows whose code is the same in both arms (the first race of each pair, free roam) move by up to
+±130 ms of wait between the arms: the wall times on this shared machine do not resolve a few tens of ms. The first
+frame's main-thread CPU is bimodal in both arms (its update 1 ms or 12-22 ms: whether a world tick falls in it), so
+its medians move by ±10 ms with no code change. The placement itself runs on the warm-up's own job, not on the
+main thread; its cost is in the spans below.
+
+== The warm-up's spans (NFSU2_TIMING=1, NFSU2_AMBIENT_STATS=1), the same binaries and set-up, 5 interleaved rounds per
+   arm, one round per lock hold, load average 20-37 at the run starts. The load's warm-up runs its jobs side by side
+   (`drive_in: warm`); Ambient Detail's is one of them (`warm: ambient detail`). Wall ms, median (min-max):
+
+| transition | warm-up before | after | its Ambient Detail job before | after | job thread CPU before | after | n |
+|---|---|---|---|---|---|---|---|
+| free roam, first load | 399.4 (164.4–675.2) | 222.5 (190.6–441.7) | 113.2 (76.6–465.9) | 139.9 (89.6–168.8) | 70.6 (56.1–82.0) | 80.2 (62.6–87.1) | 5/5 |
+| Quick Race drift from its car select | 13.1 (12.5–24.4) | 14.9 (11.7–66.1) | 12.7 (11.7–18.9) | 14.4 (10.8–62.9) | 6.5 (6.1–8.4) | 8.2 (5.5–13.9) | 5/5 |
+| another Quick Race drift, the world kept | 3.1 (1.2–36.7) | 28.5 (11.7–207.1) | 0.0 (0.0–0.0) | 26.0 (11.6–205.5) | 0.0 (0.0–0.0) | 13.6 (7.4–14.7) | 5/5 |
+| another Quick Race drift, another car, the world kept | 3.2 (2.2–14.7) | 24.5 (12.8–79.0) | 0.0 (0.0–0.0) | 23.7 (11.8–63.0) | 0.0 (0.0–0.0) | 9.7 (7.0–12.6) | 5/5 |
+| Quick Race URL from its car select | 2.3 (1.1–10.2) | 2.2 (2.2–2.4) | 0.1 (0.1–0.2) | 0.1 (0.1–0.1) | 0.0 (0.0–0.0) | 0.0 (0.0–0.0) | 5/5 |
+| another Quick Race URL, the world kept | 2.8 (1.1–42.3) | 24.7 (18.4–52.9) | 0.0 (0.0–0.0) | 24.5 (18.2–52.6) | 0.0 (0.0–0.0) | 19.0 (13.3–25.0) | 5/5 |
+| another Quick Race URL, another car, the world kept | 4.2 (3.2–21.0) | 33.0 (23.0–111.5) | 0.0 (0.0–0.0) | 32.3 (22.5–109.0) | 0.0 (0.0–0.0) | 21.4 (17.1–26.1) | 5/5 |
+| Quick Race city circuit from its car select | 2.2 (2.2–34.7) | 2.2 (2.2–234.9) | 0.3 (0.2–0.3) | 0.3 (0.2–0.3) | 0.1 (0.0–0.2) | 0.0 (0.0–0.2) | 5/5 |
+| another Quick Race city circuit, the world kept | 2.1 (1.3–20.7) | 1.6 (1.5–85.2) | 0.0 (0.0–0.8) | 0.6 (0.5–0.9) | 0.0 (0.0–0.1) | 0.5 (0.0–0.6) | 5/4 |
+| another Quick Race city circuit, another car, the world kept | 3.6 (2.2–4.6) | 3.2 (2.2–4.4) | 0.0 (0.0–0.0) | 0.2 (0.1–0.4) | 0.0 (0.0–0.0) | 0.0 (0.0–0.4) | 5/5 |
+
+A drift track's props placed again: L4RC 42-43 k props, 314 placements of use, 10-59 ms of placement (wall, with its
+rayon workers; the menus' preload of the city placed beside it in some runs). A city drive's check (the record's
+comparison, no placement): 0.2-0.9 ms on the job, and once more in the first frame (as for props made ahead).
+
+== Lamp Shadows' layers over a kept drive's barrier switch (docs/lamps-shadows.md).
+
+A first probe (bounds only) counted, in five stage-1 city races left for free roam on the spot, 3-8 held layers with
+switched placements in reach. By what the layers draw (opaque and alpha-tested draws; blended and sky draws left out)
+none of those matters: the switched placements there are the start lines' graphics (STARTLINE, blended) and barrier
+tape (OBJ_TRACKBARRIERB, blended). Opaque switches inside downward lamps' views, by region (every set-up its scenery
+groups name, from the region as loaded; a lib probe, not in the tree): the city's free roam (14 street posts and
+spotlights, none within 80 m of a city race's grid), L4RB (trains, doors, drag strips' road pieces: up to 50 lamps), L4RC
+(drift road pieces, markers, walls: 27 lamps forward, ~125 backward), L4RD (construction walls: 42 lamps), L4RF, and L4RG
+(the URL circuits' walls, XW_GTBARRIER*: 33-57 lamps a set-up).
+
+The release (update_placement -> release_lamp_layers_seeing) gives up a held layer whose view (lamp_view's frustum) holds
+the bounds, before or after, of a placement the set-up shows, hides or moves, when the layers draw it. The test
+tests::kept_world::lamp_layers_follow_a_kept_drives_barriers (High preset, Light Probes off), its lines:
+  free roam after a city circuit: layers drawn again 0, kept 3; 0 pixels differ; layers compared 4, differ []
+  a URL circuit after another: layers drawn again 3, kept 1; 0 pixels differ; layers compared 4, differ []
+  a drag strip after another: layers drawn again 1, kept 1; 0 pixels differ; layers compared 3, differ []
+"layers compared": the lamps holding a layer a second after the switch in this run and in the same run with the
+lamps' state dropped after the switch (WorldRenderer::lamps_afresh); "differ": those whose layer's depth differs.
+The same with the release left out:
+  a URL circuit after another: layers drawn again 3, kept 1; 0 pixels differ; layers compared 4, differ [176, 180, 181]
+(the three layers keep the first race's scenery; at this camera the frame does not show it; a frame under those
+lamps would, inferred, not captured). The drag strip's one layer given up holds the same depth either way (its switched pieces lie in the view's
+bounds but are not drawn into it: a release that was not needed).
+
+Cost, GPU timestamps of "graphics: lamp shadows" (all lamp layers and the headlight's), the integrated GPU, Lamp
+Shadows at the High preset's Low (512 x 512 layers), 7 runs (one per lock hold, a warm-up run before), load average
+26-39: the first 5 frames after the switch over the median of frames 6-10 (no layer drawn then), ms:
+  URL 4701 -> 4703, 3 layers drawn again:  +0.59 (0.53-0.84) over 2 frames; the worst frame 0.59 (0.50-0.77) against 0.20
+  drag 4222 -> 4223, 2 layers drawn (1 given up, 1 a lamp newly wanted, drawn either way): +0.22 (0.11-0.34); worst
+    frame 0.25 against 0.08
+  free roam after a city circuit: no layer given up, nothing added.
+About 0.15-0.2 ms of the integrated GPU per layer drawn again, at most 2 a world tick. The frames where nothing switched
+draw nothing more (the release runs only in a set-up's update_placement).

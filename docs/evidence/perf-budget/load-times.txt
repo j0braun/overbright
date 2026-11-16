@@ -1,0 +1,569 @@
+Load times: the measurements behind docs/perf-budget.md "Load times".
+Binaries: perf.sh build (the measured profile). "discrete GPU" / "integrated GPU": the two GPUs of the reference desktop.
+The machine was shared during every series: other builds and comparisons ran (load average in each table's notes,
+16 hardware threads), and another program kept the discrete GPU's queue busy (its busy counter 72-100 %). The
+integrated GPU was otherwise idle. Wall times on the discrete GPU carry that program's turns; see the text.
+dgpu = the discrete GPU, igpu = the integrated GPU; orig / low / med / high = Original and the three Enhanced levels;
+any = no level (the start-up).
+
+== 1. What a player waits for (this tree; ms, median [min..max], 5 runs) ==
+warm: --bench boot, --bench transitions with the main menu's preload first (each span: the load call and its first
+frame drawn and done on the GPU). empty: a fresh cache folder for the game and for the driver's shaders per run;
+--bench boot, explore, race, race with the first Quick Race drag track (load_ms and the first frame apart).
+
+## dgpu warm 1920x1080: median [min..max] ms; n = 5
+span | any | orig | low | med | high
+start -> first frame | 74 [66..186] |  |  |  | 
+start -> title (Enter held) | 125 [82..217] |  |  |  | 
+  of it: loader + Game::new | 39 [33..60] |  |  |  | 
+(main menu's preload, in the background) |  | 186 [142..538] | 267 [188..408] | 242 [151..267] | 273 [178..338]
+free roam, first load |  | 62 [37..144] | 157 [60..169] | 169 [85..216] | 145 [106..245]
+free roam, first load | load |  | 47 [29..97] | 105 [56..125] | 107 [79..112] | 119 [76..137]
+free roam, first load | wait |  | 16 [4..43] | 38 [0..47] | 25 [0..51] | 12 [1..59]
+free roam -> race |  | 44 [29..77] | 80 [37..101] | 62 [35..122] | 75 [43..149]
+free roam -> race | load |  | 24 [21..33] | 32 [30..49] | 35 [28..41] | 34 [31..41]
+free roam -> race | wait |  | 13 [3..42] | 38 [0..52] | 2 [0..47] | 0 [0..48]
+race -> free roam |  | 39 [27..69] | 53 [17..56] | 57 [30..82] | 73 [39..83]
+race -> free roam | load |  | 17 [16..19] | 18 [16..28] | 17 [16..21] | 18 [16..31]
+race -> free roam | wait |  | 18 [9..50] | 34 [0..36] | 37 [8..63] | 49 [17..58]
+free roam -> race, rivals loaded ahead |  | 72 [47..81] | 60 [42..134] | 83 [73..90] | 95 [44..133]
+free roam -> race, rivals loaded ahead | load |  | 25 [20..30] | 35 [24..90] | 30 [26..60] | 38 [30..95]
+free roam -> race, rivals loaded ahead | wait |  | 44 [12..47] | 30 [0..47] | 44 [10..49] | 46 [0..62]
+that race -> free roam, encounter racers loaded ahead |  | 55 [28..90] | 57 [18..87] | 65 [30..88] | 63 [34..90]
+that race -> free roam, encounter racers loaded ahead | load |  | 19 [15..43] | 18 [16..42] | 23 [15..46] | 23 [17..49]
+that race -> free roam, encounter racers loaded ahead | wait |  | 38 [0..45] | 38 [0..50] | 40 [4..47] | 37 [6..58]
+into the garage |  | 53 [25..61] | 55 [29..70] | 55 [52..77] | 56 [42..74]
+into the garage | load |  | 0 [0..0] | 0 [0..0] | 0 [0..0] | 0 [0..0]
+into the garage | wait |  | 33 [3..45] | 36 [8..50] | 34 [26..48] | 33 [1..46]
+into a shop |  | 55 [16..76] | 53 [32..70] | 58 [39..65] | 53 [39..70]
+into a shop | load |  | 1 [1..2] | 1 [1..2] | 1 [1..5] | 1 [1..3]
+into a shop | wait |  | 41 [0..59] | 35 [18..52] | 40 [16..48] | 36 [21..56]
+out of the garage |  | 34 [14..41] | 25 [10..63] | 39 [12..57] | 65 [36..78]
+out of the garage | load |  | 9 [8..32] | 10 [8..14] | 9 [8..11] | 16 [10..33]
+out of the garage | wait |  | 17 [0..32] | 15 [0..48] | 30 [0..48] | 37 [6..51]
+out of a shop |  | 26 [22..66] | 27 [24..56] | 54 [23..65] | 60 [33..69]
+out of a shop | load |  | 22 [16..24] | 21 [15..55] | 17 [14..22] | 26 [20..31]
+out of a shop | wait |  | 4 [0..47] | 5 [0..40] | 36 [0..46] | 32 [0..47]
+out of a shop, a part fitted |  | 74 [50..118] | 109 [87..210] | 132 [69..143] | 208 [174..217]
+out of a shop, a part fitted | load |  | 70 [48..116] | 107 [85..207] | 95 [55..101] | 169 [125..181]
+out of a shop, a part fitted | wait |  | 0 [0..0] | 0 [0..0] | 33 [0..40] | 30 [22..54]
+menu -> free roam, at once |  | 232 [147..324] | 287 [190..644] | 341 [230..358] | 405 [277..453]
+menu -> free roam, at once | load |  | 226 [138..265] | 239 [178..576] | 242 [178..282] | 295 [250..356]
+menu -> free roam, at once | wait |  | 9 [1..55] | 44 [7..57] | 20 [0..54] | 53 [0..64]
+menu -> free roam, preloaded |  | 97 [36..133] | 130 [47..152] | 228 [102..277] | 215 [94..290]
+menu -> free roam, preloaded | load |  | 52 [20..92] | 84 [41..110] | 125 [71..233] | 151 [85..191]
+menu -> free roam, preloaded | wait |  | 38 [0..41] | 38 [2..52] | 50 [1..54] | 38 [0..65]
+free roam -> another region's race, at once |  | 188 [147..248] | 189 [141..372] | 140 [124..329] | 292 [162..364]
+free roam -> another region's race, at once | load |  | 137 [113..171] | 144 [114..316] | 123 [91..186] | 183 [118..203]
+free roam -> another region's race, at once | wait |  | 37 [24..71] | 35 [20..51] | 22 [0..66] | 41 [24..71]
+that race -> free roam, at once |  | 334 [263..367] | 265 [201..473] | 292 [178..339] | 397 [266..471]
+that race -> free roam, at once | load |  | 280 [211..327] | 217 [180..425] | 219 [169..263] | 297 [181..371]
+that race -> free roam, at once | wait |  | 46 [36..59] | 43 [17..52] | 24 [0..35] | 48 [31..62]
+free roam -> another region's race, preloaded |  | 135 [60..195] | 136 [56..163] | 152 [88..236] | 226 [180..319]
+free roam -> another region's race, preloaded | load |  | 82 [41..141] | 88 [45..114] | 100 [66..124] | 144 [91..155]
+free roam -> another region's race, preloaded | wait |  | 42 [0..55] | 39 [0..43] | 19 [0..47] | 50 [1..73]
+that race -> free roam, preloaded |  | 133 [41..152] | 118 [36..134] | 214 [78..246] | 221 [132..289]
+that race -> free roam, preloaded | load |  | 84 [31..102] | 69 [33..94] | 121 [64..163] | 150 [124..183]
+that race -> free roam, preloaded | wait |  | 45 [7..45] | 35 [0..45] | 22 [0..50] | 27 [0..71]
+menu -> Quick Race circuit |  | 269 [226..367] | 269 [259..314] | 411 [216..475] | 487 [332..581]
+menu -> Quick Race circuit | load |  | 229 [194..295] | 229 [214..265] | 268 [176..326] | 312 [292..455]
+menu -> Quick Race circuit | wait |  | 35 [26..67] | 30 [23..42] | 44 [0..50] | 43 [0..61]
+menu -> Quick Race drag |  | 180 [106..183] | 179 [113..224] | 257 [135..284] | 235 [131..348]
+menu -> Quick Race drag | load |  | 126 [87..132] | 136 [108..162] | 148 [123..177] | 161 [101..216]
+menu -> Quick Race drag | wait |  | 44 [12..48] | 31 [0..57] | 49 [0..54] | 42 [1..62]
+menu -> free roam, at once | shown (runs with PC_Loading) |  | 3/5 | 4/5 | 4/5 | 5/5
+free roam -> another region's race, at once | shown (runs with PC_Loading) |  | 0/5 | 1/5 | 0/5 | 0/5
+that race -> free roam, at once | shown (runs with PC_Loading) |  | 4/5 | 4/5 | 3/5 | 4/5
+menu -> Quick Race circuit | shown (runs with PC_Loading) |  | 4/5 | 2/5 | 4/5 | 5/5
+
+## dgpu warm 3840x2160: median [min..max] ms; n = 5
+span | any | orig | low | med | high
+start -> first frame | 90 [83..157] |  |  |  | 
+start -> title (Enter held) | 191 [108..275] |  |  |  | 
+  of it: loader + Game::new | 53 [43..72] |  |  |  | 
+(main menu's preload, in the background) |  | 278 [188..357] | 325 [298..348] | 297 [212..424] | 226 [145..586]
+free roam, first load |  | 134 [46..195] | 150 [133..203] | 187 [111..236] | 220 [133..340]
+free roam, first load | load |  | 96 [37..140] | 106 [95..161] | 110 [84..142] | 138 [106..291]
+free roam, first load | wait |  | 29 [5..52] | 38 [28..57] | 26 [1..42] | 27 [0..66]
+free roam -> race |  | 74 [38..86] | 84 [47..97] | 115 [84..150] | 118 [88..250]
+free roam -> race | load |  | 29 [23..35] | 34 [29..42] | 45 [32..51] | 33 [33..106]
+free roam -> race | wait |  | 44 [0..51] | 43 [0..61] | 22 [20..32] | 27 [21..45]
+race -> free roam |  | 65 [28..85] | 55 [31..75] | 62 [61..88] | 71 [64..83]
+race -> free roam | load |  | 18 [15..65] | 17 [14..18] | 16 [16..22] | 17 [15..27]
+race -> free roam | wait |  | 14 [1..60] | 36 [11..58] | 43 [36..70] | 50 [44..64]
+free roam -> race, rivals loaded ahead |  | 87 [46..118] | 78 [52..98] | 90 [76..106] | 89 [80..121]
+free roam -> race, rivals loaded ahead | load |  | 28 [26..77] | 29 [25..34] | 32 [30..46] | 38 [28..40]
+free roam -> race, rivals loaded ahead | wait |  | 32 [13..61] | 47 [16..65] | 40 [36..71] | 46 [40..78]
+that race -> free roam, encounter racers loaded ahead |  | 63 [37..86] | 86 [52..93] | 85 [54..132] | 99 [73..125]
+that race -> free roam, encounter racers loaded ahead | load |  | 21 [15..34] | 34 [18..48] | 31 [20..60] | 29 [23..48]
+that race -> free roam, encounter racers loaded ahead | wait |  | 38 [2..56] | 41 [17..67] | 60 [32..75] | 70 [47..80]
+into the garage |  | 55 [30..77] | 57 [55..75] | 66 [60..82] | 68 [62..108]
+into the garage | load |  | 0 [0..0] | 0 [0..0] | 0 [0..0] | 0 [0..0]
+into the garage | wait |  | 36 [11..60] | 40 [7..58] | 42 [33..56] | 50 [40..89]
+into a shop |  | 55 [54..73] | 57 [31..74] | 61 [56..74] | 56 [36..65]
+into a shop | load |  | 1 [1..2] | 1 [1..1] | 1 [1..1] | 1 [1..2]
+into a shop | wait |  | 40 [32..58] | 41 [17..60] | 42 [38..57] | 40 [8..50]
+out of the garage |  | 53 [38..72] | 38 [18..65] | 57 [54..72] | 55 [36..88]
+out of the garage | load |  | 9 [8..22] | 10 [8..17] | 9 [8..14] | 10 [9..17]
+out of the garage | wait |  | 42 [15..64] | 26 [0..56] | 48 [38..61] | 39 [8..70]
+out of a shop |  | 53 [28..73] | 55 [28..73] | 61 [58..75] | 65 [60..80]
+out of a shop | load |  | 20 [17..24] | 18 [17..25] | 19 [17..27] | 19 [18..31]
+out of a shop | wait |  | 32 [3..56] | 36 [8..54] | 41 [25..57] | 41 [25..59]
+out of a shop, a part fitted |  | 106 [71..109] | 103 [78..117] | 112 [85..145] | 158 [119..208]
+out of a shop, a part fitted | load |  | 104 [69..106] | 102 [76..116] | 89 [74..121] | 132 [116..193]
+out of a shop, a part fitted | wait |  | 0 [0..0] | 0 [0..0] | 19 [10..38] | 6 [0..35]
+menu -> free roam, at once |  | 240 [227..333] | 285 [213..316] | 316 [207..410] | 267 [174..621]
+menu -> free roam, at once | load |  | 219 [187..282] | 243 [185..289] | 257 [198..294] | 233 [165..532]
+menu -> free roam, at once | wait |  | 42 [17..50] | 24 [20..44] | 1 [0..42] | 1 [0..38]
+menu -> free roam, preloaded |  | 141 [120..184] | 145 [134..168] | 185 [171..257] | 157 [141..289]
+menu -> free roam, preloaded | load |  | 99 [85..138] | 102 [83..125] | 137 [117..145] | 114 [108..219]
+menu -> free roam, preloaded | wait |  | 44 [27..48] | 47 [35..62] | 28 [25..67] | 1 [0..36]
+free roam -> another region's race, at once |  | 188 [146..243] | 222 [190..266] | 220 [214..301] | 163 [126..375]
+free roam -> another region's race, at once | load |  | 142 [131..176] | 168 [142..186] | 169 [156..196] | 127 [105..281]
+free roam -> another region's race, at once | wait |  | 35 [2..61] | 41 [24..73] | 28 [25..40] | 0 [0..24]
+that race -> free roam, at once |  | 270 [227..303] | 254 [217..348] | 264 [211..505] | 283 [219..333]
+that race -> free roam, at once | load |  | 215 [209..259] | 230 [192..304] | 239 [203..444] | 246 [190..259]
+that race -> free roam, at once | wait |  | 41 [13..59] | 38 [17..45] | 0 [0..5] | 2 [0..43]
+free roam -> another region's race, preloaded |  | 139 [125..181] | 157 [143..222] | 200 [170..241] | 222 [197..249]
+free roam -> another region's race, preloaded | load |  | 94 [91..146] | 105 [98..157] | 129 [111..173] | 147 [145..163]
+free roam -> another region's race, preloaded | wait |  | 28 [12..45] | 46 [38..66] | 19 [13..45] | 24 [19..45]
+that race -> free roam, preloaded |  | 141 [138..171] | 154 [125..189] | 169 [155..327] | 201 [173..342]
+that race -> free roam, preloaded | load |  | 101 [90..128] | 108 [78..142] | 120 [107..210] | 169 [161..238]
+that race -> free roam, preloaded | wait |  | 42 [38..47] | 44 [28..62] | 26 [24..48] | 0 [0..48]
+menu -> Quick Race circuit |  | 247 [197..319] | 323 [272..352] | 290 [267..588] | 276 [242..340]
+menu -> Quick Race circuit | load |  | 210 [166..253] | 267 [238..294] | 237 [202..515] | 228 [194..292]
+menu -> Quick Race circuit | wait |  | 24 [5..60] | 38 [27..53] | 24 [3..34] | 0 [0..29]
+menu -> Quick Race drag |  | 197 [104..227] | 185 [157..246] | 218 [175..473] | 198 [165..288]
+menu -> Quick Race drag | load |  | 146 [82..181] | 154 [135..175] | 152 [142..373] | 167 [143..224]
+menu -> Quick Race drag | wait |  | 35 [17..46] | 44 [7..66] | 28 [0..35] | 10 [0..34]
+free roam, first load | shown (runs with PC_Loading) |  | 0/5 | 0/5 | 0/5 | 1/5
+menu -> free roam, at once | shown (runs with PC_Loading) |  | 2/5 | 3/5 | 3/5 | 3/5
+free roam -> another region's race, at once | shown (runs with PC_Loading) |  | 0/5 | 0/5 | 0/5 | 1/5
+that race -> free roam, at once | shown (runs with PC_Loading) |  | 2/5 | 3/5 | 3/5 | 4/5
+menu -> Quick Race circuit | shown (runs with PC_Loading) |  | 2/5 | 5/5 | 3/5 | 2/5
+menu -> Quick Race drag | shown (runs with PC_Loading) |  | 0/5 | 0/5 | 1/5 | 0/5
+
+## dgpu empty 1920x1080: median [min..max] ms; n = 5
+span | any | orig | low | med | high
+start -> first frame | 166 [132..394] |  |  |  | 
+start -> title (Enter held) | 275 [165..470] |  |  |  | 
+  of it: loader + Game::new | 39 [32..74] |  |  |  | 
+drag: load |  | 570 [392..761] | 1013 [934..1366] | 2142 [1484..2685] | 1856 [1608..2259]
+drag: first frame |  | 50 [28..74] | 76 [23..86] | 155 [24..182] | 117 [100..301]
+explore: load |  | 744 [569..1333] | 1293 [1006..1414] | 1578 [1520..2275] | 1882 [1854..4508]
+explore: first frame |  | 60 [24..65] | 64 [55..166] | 170 [78..228] | 141 [107..161]
+race: load |  | 852 [643..2047] | 1320 [988..1668] | 1797 [1559..2459] | 1699 [1595..2277]
+race: first frame |  | 55 [50..127] | 66 [41..137] | 135 [64..163] | 139 [92..161]
+
+## dgpu empty 3840x2160: median [min..max] ms; n = 5
+span | any | orig | low | med | high
+start -> first frame | 150 [140..215] |  |  |  | 
+start -> title (Enter held) | 266 [223..425] |  |  |  | 
+  of it: loader + Game::new | 38 [34..69] |  |  |  | 
+drag: load |  | 603 [422..614] | 1075 [913..1984] | 1749 [1469..3327] | 1699 [1457..4088]
+drag: first frame |  | 68 [57..110] | 78 [54..88] | 119 [63..205] | 117 [88..153]
+explore: load |  | 683 [533..699] | 1217 [983..1422] | 1577 [1520..1922] | 2117 [1924..2572]
+explore: first frame |  | 66 [49..82] | 62 [38..109] | 132 [44..208] | 132 [88..147]
+race: load |  | 575 [559..728] | 1208 [920..1408] | 1855 [1532..3174] | 2120 [1727..4843]
+race: first frame |  | 48 [40..71] | 60 [41..99] | 154 [86..231] | 163 [90..226]
+
+## igpu warm 1920x1080: median [min..max] ms; n = 5
+span | any | orig | low | med | high
+start -> first frame | 69 [66..86] |  |  |  | 
+start -> title (Enter held) | 85 [75..101] |  |  |  | 
+  of it: loader + Game::new | 37 [29..46] |  |  |  | 
+(main menu's preload, in the background) |  | 158 [152..196] | 161 [144..229] | 129 [122..309] | 143 [133..191]
+free roam, first load |  | 63 [59..64] | 81 [80..117] | 122 [105..153] | 178 [170..214]
+free roam, first load | load |  | 52 [50..55] | 71 [69..97] | 103 [96..133] | 143 [140..183]
+free roam, first load | wait |  | 7 [6..7] | 7 [5..8] | 0 [0..18] | 22 [21..23]
+free roam -> race |  | 27 [25..42] | 40 [35..51] | 37 [36..90] | 60 [53..112]
+free roam -> race | load |  | 22 [21..36] | 31 [31..42] | 30 [29..79] | 39 [29..55]
+free roam -> race | wait |  | 0 [0..0] | 0 [0..1] | 0 [0..0] | 0 [0..46]
+race -> free roam |  | 20 [19..24] | 22 [20..23] | 47 [41..51] | 65 [27..77]
+race -> free roam | load |  | 18 [16..22] | 18 [17..21] | 17 [14..38] | 20 [16..32]
+race -> free roam | wait |  | 1 [0..2] | 2 [0..4] | 29 [0..31] | 35 [0..59]
+free roam -> race, rivals loaded ahead |  | 54 [53..62] | 55 [55..61] | 111 [106..113] | 194 [189..232]
+free roam -> race, rivals loaded ahead | load |  | 36 [34..42] | 39 [37..52] | 52 [51..52] | 74 [71..85]
+free roam -> race, rivals loaded ahead | wait |  | 12 [11..14] | 10 [0..14] | 52 [45..53] | 110 [106..134]
+that race -> free roam, encounter racers loaded ahead |  | 59 [58..61] | 67 [66..69] | 143 [142..146] | 262 [235..274]
+that race -> free roam, encounter racers loaded ahead | load |  | 29 [29..34] | 31 [30..32] | 51 [49..51] | 81 [80..91]
+that race -> free roam, encounter racers loaded ahead | wait |  | 28 [22..31] | 36 [32..37] | 90 [88..94] | 179 [153..181]
+into the garage |  | 22 [19..32] | 23 [20..26] | 34 [32..42] | 56 [36..57]
+into the garage | load |  | 0 [0..0] | 0 [0..0] | 0 [0..0] | 0 [0..0]
+into the garage | wait |  | 4 [3..4] | 4 [3..4] | 12 [5..16] | 32 [15..37]
+into a shop |  | 18 [17..21] | 19 [16..19] | 20 [19..21] | 24 [22..34]
+into a shop | load |  | 1 [1..1] | 1 [1..2] | 1 [1..1] | 1 [1..2]
+into a shop | wait |  | 4 [3..5] | 4 [3..5] | 6 [5..7] | 10 [8..12]
+out of the garage |  | 8 [8..13] | 9 [7..10] | 10 [9..14] | 17 [16..27]
+out of the garage | load |  | 8 [8..12] | 8 [7..9] | 8 [8..11] | 9 [8..16]
+out of the garage | wait |  | 0 [0..0] | 0 [0..0] | 1 [1..1] | 1 [1..1]
+out of a shop |  | 18 [17..26] | 19 [18..27] | 27 [25..31] | 50 [48..51]
+out of a shop | load |  | 18 [16..26] | 18 [17..26] | 18 [16..28] | 19 [16..26]
+out of a shop | wait |  | 0 [0..0] | 0 [0..0] | 8 [1..10] | 30 [23..33]
+out of a shop, a part fitted |  | 50 [45..66] | 49 [44..51] | 54 [46..103] | 120 [110..134]
+out of a shop, a part fitted | load |  | 48 [43..64] | 47 [42..50] | 51 [43..100] | 115 [105..127]
+out of a shop, a part fitted | wait |  | 0 [0..0] | 0 [0..0] | 0 [0..1] | 2 [0..2]
+menu -> free roam, at once |  | 107 [102..139] | 113 [105..126] | 171 [139..178] | 202 [159..549]
+menu -> free roam, at once | load |  | 104 [99..135] | 109 [102..122] | 165 [134..171] | 193 [152..518]
+menu -> free roam, at once | wait |  | 0 [0..0] | 0 [0..0] | 0 [0..0] | 0 [0..2]
+menu -> free roam, preloaded |  | 60 [58..78] | 69 [66..72] | 114 [107..117] | 180 [143..354]
+menu -> free roam, preloaded | load |  | 58 [55..74] | 66 [63..68] | 103 [101..111] | 170 [137..332]
+menu -> free roam, preloaded | wait |  | 0 [0..0] | 0 [0..0] | 0 [0..2] | 0 [0..0]
+free roam -> another region's race, at once |  | 64 [61..89] | 72 [69..93] | 105 [85..133] | 141 [111..356]
+free roam -> another region's race, at once | load |  | 58 [54..81] | 65 [63..83] | 89 [74..109] | 124 [98..263]
+free roam -> another region's race, at once | wait |  | 0 [0..1] | 0 [0..1] | 1 [1..1] | 1 [1..65]
+that race -> free roam, at once |  | 113 [107..157] | 114 [109..152] | 155 [154..217] | 205 [197..280]
+that race -> free roam, at once | load |  | 111 [105..146] | 111 [106..145] | 149 [148..206] | 197 [191..273]
+that race -> free roam, at once | wait |  | 0 [0..6] | 0 [0..0] | 0 [0..1] | 0 [0..0]
+free roam -> another region's race, preloaded |  | 77 [75..90] | 92 [87..96] | 153 [144..167] | 248 [230..310]
+free roam -> another region's race, preloaded | load |  | 70 [68..81] | 85 [80..88] | 140 [135..148] | 230 [218..280]
+free roam -> another region's race, preloaded | wait |  | 0 [0..2] | 1 [0..1] | 1 [0..2] | 0 [0..3]
+that race -> free roam, preloaded |  | 72 [68..79] | 81 [79..87] | 234 [218..240] | 348 [315..386]
+that race -> free roam, preloaded | load |  | 69 [65..74] | 78 [76..83] | 219 [207..230] | 342 [309..378]
+that race -> free roam, preloaded | wait |  | 0 [0..1] | 0 [0..0] | 0 [0..19] | 0 [0..0]
+menu -> Quick Race circuit |  | 134 [123..174] | 134 [127..141] | 188 [164..237] | 220 [181..294]
+menu -> Quick Race circuit | load |  | 128 [113..158] | 128 [121..135] | 169 [151..216] | 194 [157..222]
+menu -> Quick Race circuit | wait |  | 0 [0..8] | 0 [0..1] | 0 [0..1] | 0 [0..39]
+menu -> Quick Race drag |  | 58 [55..83] | 79 [67..91] | 99 [73..127] | 134 [123..262]
+menu -> Quick Race drag | load |  | 52 [50..76] | 73 [62..79] | 92 [65..116] | 125 [116..236]
+menu -> Quick Race drag | wait |  | 0 [0..1] | 0 [0..1] | 0 [0..0] | 0 [0..1]
+menu -> free roam, at once | shown (runs with PC_Loading) |  | 0/4 | 0/5 | 0/5 | 2/5
+menu -> free roam, preloaded | shown (runs with PC_Loading) |  | 0/4 | 0/5 | 0/5 | 1/5
+that race -> free roam, at once | shown (runs with PC_Loading) |  | 0/4 | 0/5 | 0/5 | 1/5
+free roam -> another region's race, preloaded | shown (runs with PC_Loading) |  | 0/4 | 0/5 | 0/5 | 1/5
+that race -> free roam, preloaded | shown (runs with PC_Loading) |  | 0/4 | 0/5 | 0/5 | 5/5
+
+## igpu empty 1920x1080: median [min..max] ms; n = 5
+span | any | orig | low | med | high
+start -> first frame | 144 [116..191] |  |  |  | 
+start -> title (Enter held) | 163 [127..204] |  |  |  | 
+  of it: loader + Game::new | 33 [26..43] |  |  |  | 
+drag: load |  | 480 [305..595] | 1287 [920..2007] | 1912 [1383..3465] | 1695 [1537..2036]
+drag: first frame |  | 34 [33..37] | 47 [31..76] | 80 [70..103] | 104 [92..189]
+explore: load |  | 526 [465..552] | 1066 [792..1459] | 2297 [1512..3911] | 1726 [1601..4998]
+explore: first frame |  | 30 [28..40] | 34 [28..67] | 65 [51..105] | 78 [76..108]
+race: load |  | 435 [367..566] | 1279 [831..1508] | 2261 [1411..2572] | 2002 [1666..3068]
+race: first frame |  | 44 [32..106] | 39 [35..45] | 73 [68..92] | 110 [99..133]
+
+series notes (time, configuration, load average 1/5/15 min, GPU busy counters):
+  dgpu-empty: first load 12.50 10.27 13.92 dgpu 100% igpu 0%  last load 21.89 18.70 16.81 dgpu 99% igpu 0%
+  dgpu-warm: first load 10.17 19.24 20.30 dgpu 100% igpu 100%  last load 8.99 9.44 13.82 dgpu 100% igpu 100%
+  igpu-empty: first load 10.54 9.83 13.82 dgpu 100% igpu 0%  last load 30.15 17.10 16.00 dgpu 99% igpu 0%
+  igpu-warm: first load 6.87 15.31 18.73 dgpu 100% igpu 0%  last load 6.37 9.33 13.99 dgpu 100% igpu 0%
+
+== 2. Stages of a load and its first frame (the tree before this work; 5 runs each; scripts/perf/blocksample.py) ==
+-- explore Original 1080p, discrete GPU (shared)
+5 runs; ms, median [min..max] for wall, medians else
+stage | wall | main: running | main: waits for workers | main: waits for the GPU | main: in the submit call | other threads: running | other threads: GPU memory and submit calls | other threads: file reads
+Game::new | 23 [21..33] | 3 | 20 | 0 | 0 | 100 | 0 | 0
+World::load | 22 [20..26] | 1 | 22 | 0 | 0 | 100 | 0 | 0
+Car::load_tuned | 18 [17..22] | 0 | 17 | 0 | 0 | 97 | 0 | 0
+WorldRenderer::new: groups and draws | 9 [8..11] | 6 | 3 | 0 | 0 | 36 | 0 | 0
+WorldRenderer::new: texture arrays: upload | 125 [22..135] | 1 | 124 | 0 | 0 | 116 | 263 | 0
+WorldRenderer::new: buffers, uniforms | 7 [7..8] | 7 | 0 | 0 | 0 | 0 | 0 | 0
+WorldRenderer::new: pipelines | 12 [11..14] | 3 | 9 | 0 | 0 | 73 | 0 | 0
+WorldRenderer::new | 188 [90..195] | 50 | 137 | 0 | 0 | 241 | 263 | 0
+drive_in: car renderer | 3 [3..3] | 3 | 0 | 0 | 0 | 0 | 0 | 0
+drive_in: uploads | 51 [3..72] | 1 | 0 | 50 | 0 | 0 | 0 | 0
+drive_in: warm | 8 [8..16] | 5 | 3 | 0 | 0 | 36 | 0 | 0
+drive_in | 254 [154..296] | 72 | 162 | 50 | 0 | 392 | 263 | 0
+first frame: draw | 3 [3..5] | 3 | 0 | 0 | 0 | 3 | 0 | 0
+first frame: wait for the GPU (the bench) | 74 [13..90] | 0 | 2 | 73 | 0 | 1 | 0 | 0
+load_ms 290.0 [195..371]
+first_frame_ms 79.0 [17..93]
+-- explore Extreme 1080p, discrete GPU (shared)
+5 runs; ms, median [min..max] for wall, medians else
+stage | wall | main: running | main: waits for workers | main: waits for the GPU | main: in the submit call | other threads: running | other threads: GPU memory and submit calls | other threads: file reads
+Game::new | 22 [21..26] | 3 | 19 | 0 | 0 | 98 | 0 | 0
+World::load | 22 [21..25] | 1 | 20 | 0 | 0 | 114 | 0 | 0
+Car::load_tuned | 21 [20..23] | 1 | 19 | 0 | 0 | 112 | 0 | 0
+WorldRenderer::new: groups and draws | 8 [8..11] | 6 | 3 | 0 | 0 | 32 | 0 | 0
+WorldRenderer::new: texture arrays: upload | 103 [60..174] | 1 | 103 | 0 | 0 | 119 | 202 | 0
+WorldRenderer::new: buffers, uniforms | 7 [7..7] | 7 | 0 | 0 | 0 | 1 | 0 | 0
+WorldRenderer::new: pipelines | 11 [10..14] | 3 | 8 | 0 | 0 | 69 | 0 | 0
+WorldRenderer::new | 169 [121..235] | 49 | 117 | 0 | 0 | 226 | 202 | 0
+drive_in: car renderer | 3 [3..3] | 3 | 0 | 0 | 0 | 0 | 0 | 0
+drive_in: uploads | 34 [8..75] | 1 | 0 | 33 | 0 | 0 | 0 | 0
+drive_in: warm | 142 [141..149] | 14 | 130 | 0 | 0 | 633 | 0 | 0
+drive_in | 402 [315..444] | 81 | 267 | 33 | 0 | 976 | 202 | 0
+first frame: draw | 473 [270..560] | 86 | 1 | 380 | 0 | 62 | 0 | 0
+first frame: wait for the GPU (the bench) | 92 [25..107] | 3 | 3 | 88 | 0 | 4 | 0 | 0
+load_ms 437.0 [351..477]
+first_frame_ms 579.3 [296..653]
+-- rain max 4K, discrete GPU (shared)
+5 runs; ms, median [min..max] for wall, medians else
+stage | wall | main: running | main: waits for workers | main: waits for the GPU | main: in the submit call | other threads: running | other threads: GPU memory and submit calls | other threads: file reads
+Game::new | 23 [22..26] | 3 | 20 | 0 | 0 | 100 | 0 | 0
+World::load | 22 [22..23] | 0 | 21 | 0 | 0 | 131 | 0 | 0
+Car::load_tuned | 20 [20..21] | 0 | 20 | 0 | 0 | 130 | 0 | 0
+WorldRenderer::new: groups and draws | 8 [8..9] | 6 | 3 | 0 | 0 | 33 | 0 | 0
+WorldRenderer::new: texture arrays: upload | 115 [96..133] | 0 | 115 | 0 | 0 | 142 | 188 | 0
+WorldRenderer::new: buffers, uniforms | 7 [7..8] | 7 | 0 | 0 | 0 | 0 | 0 | 0
+WorldRenderer::new: pipelines | 12 [10..12] | 3 | 8 | 0 | 0 | 71 | 0 | 0
+WorldRenderer::new | 177 [157..194] | 49 | 128 | 0 | 0 | 239 | 188 | 0
+drive_in: car renderer | 3 [3..4] | 3 | 0 | 0 | 0 | 0 | 0 | 0
+drive_in: uploads | 61 [43..94] | 1 | 0 | 60 | 0 | 0 | 0 | 0
+drive_in: warm | 191 [186..214] | 15 | 175 | 0 | 0 | 899 | 0 | 0
+drive_in | 471 [436..518] | 82 | 325 | 60 | 0 | 1274 | 198 | 0
+rt: world geometry | 99 [97..105] | 99 | 0 | 0 | 0 | 0 | 0 | 0
+first frame: draw | 1466 [756..1523] | 230 | 3 | 796 | 368 | 63 | 0 | 0
+first frame: wait for the GPU (the bench) | 93 [48..116] | 1 | 3 | 90 | 0 | 2 | 0 | 0
+load_ms 501.0 [466..546]
+first_frame_ms 1514.4 [805..1639]
+-- explore Original 1080p, integrated GPU
+5 runs; ms, median [min..max] for wall, medians else
+stage | wall | main: running | main: waits for workers | main: waits for the GPU | main: in the submit call | other threads: running | other threads: GPU memory and submit calls | other threads: file reads
+Game::new | 22 [21..25] | 3 | 19 | 0 | 0 | 88 | 0 | 0
+World::load | 23 [21..26] | 4 | 20 | 0 | 0 | 128 | 0 | 0
+Car::load_tuned | 18 [16..22] | 3 | 16 | 0 | 0 | 125 | 0 | 0
+WorldRenderer::new: groups and draws | 11 [8..12] | 7 | 4 | 0 | 0 | 53 | 0 | 0
+WorldRenderer::new: texture arrays: upload | 16 [13..18] | 0 | 15 | 0 | 0 | 76 | 10 | 0
+WorldRenderer::new: buffers, uniforms | 5 [5..6] | 5 | 0 | 0 | 0 | 0 | 0 | 0
+WorldRenderer::new: pipelines | 11 [10..11] | 3 | 8 | 0 | 0 | 58 | 0 | 0
+WorldRenderer::new | 75 [73..78] | 49 | 26 | 0 | 0 | 193 | 10 | 0
+drive_in: car renderer | 3 [3..3] | 3 | 0 | 0 | 0 | 0 | 0 | 0
+drive_in: uploads | 2 [2..2] | 1 | 0 | 2 | 0 | 0 | 0 | 0
+drive_in: warm | 18 [18..18] | 14 | 3 | 0 | 0 | 36 | 0 | 0
+drive_in | 133 [130..138] | 79 | 53 | 2 | 0 | 355 | 10 | 0
+first frame: draw | 5 [4..5] | 4 | 0 | 0 | 0 | 3 | 0 | 0
+first frame: wait for the GPU (the bench) | 23 [21..25] | 1 | 1 | 22 | 0 | 1 | 0 | 0
+load_ms 169.0 [164..173]
+first_frame_ms 27.9 [26..30]
+-- explore Extreme 1080p, integrated GPU
+5 runs; ms, median [min..max] for wall, medians else
+stage | wall | main: running | main: waits for workers | main: waits for the GPU | main: in the submit call | other threads: running | other threads: GPU memory and submit calls | other threads: file reads
+Game::new | 23 [22..26] | 3 | 20 | 0 | 0 | 106 | 0 | 0
+World::load | 23 [21..25] | 1 | 22 | 0 | 0 | 118 | 0 | 0
+Car::load_tuned | 21 [19..23] | 0 | 20 | 0 | 0 | 117 | 0 | 0
+WorldRenderer::new: groups and draws | 8 [8..9] | 5 | 3 | 0 | 0 | 28 | 0 | 0
+WorldRenderer::new: texture arrays: upload | 14 [13..16] | 0 | 14 | 0 | 0 | 75 | 12 | 0
+WorldRenderer::new: buffers, uniforms | 5 [5..7] | 5 | 0 | 0 | 0 | 1 | 0 | 0
+WorldRenderer::new: pipelines | 11 [10..11] | 3 | 8 | 0 | 0 | 64 | 0 | 0
+WorldRenderer::new | 73 [70..74] | 45 | 25 | 0 | 0 | 167 | 12 | 0
+drive_in: car renderer | 3 [3..4] | 3 | 0 | 0 | 0 | 0 | 0 | 0
+drive_in: uploads | 2 [2..3] | 1 | 0 | 1 | 0 | 0 | 0 | 0
+drive_in: warm | 156 [150..185] | 21 | 138 | 0 | 0 | 685 | 0 | 0
+drive_in | 269 [266..295] | 87 | 185 | 2 | 0 | 1008 | 12 | 0
+first frame: draw | 84 [80..120] | 81 | 1 | 1 | 0 | 57 | 0 | 0
+first frame: wait for the GPU (the bench) | 110 [106..112] | 4 | 2 | 103 | 0 | 2 | 0 | 0
+load_ms 307.0 [300..330]
+first_frame_ms 192.8 [190..232]
+
+== 3. load_ms across the commits that changed it (perf.sh bench, 8 arms interleaved, 7 runs each, 30 frames, NFSU2_TIMING) ==
+old = the earlier perf baseline's binary; p1 / s1 = the tree before / at the change that builds the scene's pipelines
+at the load; p2 / s2 = before / at the change that makes the Enhanced passes' programs before their first frame;
+p3 / s3 = before / at the change that makes the water's programs at the load; main = the tree this work started from.
+Between s1 and p2 the warm-up moved onto a worker beside the loading screen.
+pipes = pipelines built by the load / in the first frame. spans: wall / thread CPU (the calling thread's), medians.
+-- integrated GPU (idle otherwise; load average 21-23)
+## explore-extreme-1920x1080   (median [min..max], ms)
+  old       n=7 load    175 [135..311]  first    397 [324..1806]  (draw      -  wait      - )  load+first    608 [477..1967]  pipes 115/253  loadavg 21
+  p1        n=7 load    202 [142..814]  first    499 [324..2256]  (draw      -  wait      - )  load+first    701 [488..2408]  pipes 115/253  loadavg 21
+  s1        n=7 load    385 [260..971]  first    442 [337..847]  (draw      -  wait      - )  load+first    796 [622..1634]  pipes 273/100  loadavg 23
+  p2        n=7 load    262 [230..1791]  first    304 [245..813]  (draw      -  wait      - )  load+first    623 [475..2604]  pipes 273/100  loadavg 23
+  s2        n=7 load    408 [310..690]  first    423 [222..610]  (draw    180 [126..513] wait     96 [89..296])  load+first    812 [545..1210]  pipes 395/3  loadavg 23
+  p3        n=7 load    351 [307..501]  first    298 [222..585]  (draw    195 [127..486] wait     99 [94..112])  load+first    686 [556..936]  pipes 395/3  loadavg 22
+  s3        n=7 load    526 [316..758]  first    267 [182..581]  (draw    172 [76..481] wait    101 [88..117])  load+first    834 [507..1217]  pipes 398/0  loadavg 21
+  main      n=7 load    335 [286..599]  first    222 [173..601]  (draw    127 [81..518] wait     95 [84..103])  load+first    594 [508..948]  pipes 396/0  loadavg 22
+    drive_in                                 wall/cpu: old 130/68  p1 143/70  s1 327/160  p2 225/72  s2 360/84  p3 313/75  s3 410/103  main 292/74
+    World::load                              wall/cpu: old 25/6  p1 28/6  s1 28/5  p2 25/7  s2 28/6  p3 25/6  s3 26/7  main 24/6
+    Car::load_tuned                          wall/cpu: old 24/20  p1 25/18  s1 24/19  p2 22/18  s2 28/18  p3 23/20  s3 22/19  main 21/18
+    WorldRenderer::new                       wall/cpu: old 90/56  p1 102/56  s1 127/65  p2 80/50  s2 99/60  p3 94/54  s3 168/70  main 80/51
+    WorldRenderer::new: groups and draws     wall/cpu: old 10/8  p1 16/8  s1 19/11  p2 11/8  s2 14/9  p3 12/8  s3 32/11  main 10/6
+    WorldRenderer::new: texture arrays       wall/cpu: old 16/1  p1 21/1  s1 36/1  p2 16/1  s2 21/1  p3 20/1  s3 36/1  main 16/1
+    WorldRenderer::new: buffers, uniforms    wall/cpu: old 6/6  p1 6/6  s1 7/7  p2 6/6  s2 6/6  p3 7/6  s3 9/8  main 6/6
+    WorldRenderer::new: pipelines            wall/cpu: old 14/4  p1 14/4  s1 18/4  p2 12/3  s2 13/4  p3 13/4  s3 22/4  main 11/3
+    drive_in: car renderer                   wall/cpu: old 4/3  p1 3/3  s1 4/4  p2 4/3  s2 4/4  p3 4/3  s3 4/4  main 4/4
+    drive_in: uploads                        wall/cpu: old 2/0  p1 3/1  s1 2/0  p2 2/1  s2 2/1  p3 2/1  s3 2/1  main 2/1
+    drive_in: warm                           wall/cpu: s1 126/76  p2 99/1  s2 191/10  p3 172/8  s3 183/11  main 162/7
+## explore-orig-1920x1080   (median [min..max], ms)
+  old       n=7 load    204 [169..368]  first     26 [22..42]  (draw      -  wait      - )  load+first    230 [194..410]  pipes 115/62  loadavg 22
+  p1        n=7 load    220 [141..318]  first     33 [23..45]  (draw      -  wait      - )  load+first    265 [164..347]  pipes 115/62  loadavg 22
+  s1        n=7 load    186 [159..253]  first     19 [18..30]  (draw      -  wait      - )  load+first    214 [177..282]  pipes 158/19  loadavg 21
+  p2        n=7 load    198 [167..241]  first     19 [17..20]  (draw      -  wait      - )  load+first    217 [184..261]  pipes 158/19  loadavg 22
+  s2        n=7 load    166 [160..287]  first     13 [12..16]  (draw      4 [4..6] wait      9 [8..11])  load+first    178 [172..303]  pipes 175/0  loadavg 22
+  p3        n=7 load    169 [153..317]  first     13 [12..14]  (draw      4 [4..5] wait      9 [8..10])  load+first    182 [165..330]  pipes 175/0  loadavg 22
+  s3        n=7 load    185 [162..349]  first     13 [12..22]  (draw      4 [4..8] wait      9 [8..13])  load+first    200 [174..365]  pipes 175/0  loadavg 22
+  main      n=7 load    185 [149..383]  first     18 [15..33]  (draw      5 [4..10] wait     14 [11..23])  load+first    203 [164..416]  pipes 175/0  loadavg 22
+    drive_in                                 wall/cpu: old 160/75  p1 160/77  s1 132/69  p2 152/74  s2 133/70  p3 135/72  s3 137/74  main 145/74
+    World::load                              wall/cpu: old 27/5  p1 33/7  s1 22/5  p2 25/7  s2 24/6  p3 24/6  s3 22/7  main 26/6
+    Car::load_tuned                          wall/cpu: old 22/16  p1 36/16  s1 20/16  p2 20/15  s2 19/16  p3 20/16  s3 19/16  main 23/16
+    WorldRenderer::new                       wall/cpu: old 102/59  p1 119/62  s1 86/52  p2 99/58  s2 86/54  p3 84/50  s3 90/56  main 96/53
+    WorldRenderer::new: groups and draws     wall/cpu: old 12/8  p1 17/11  s1 11/8  p2 13/9  s2 13/8  p3 11/7  s3 14/7  main 14/8
+    WorldRenderer::new: texture arrays       wall/cpu: old 26/1  p1 28/0  s1 18/0  p2 23/1  s2 15/1  p3 18/1  s3 16/1  main 19/1
+    WorldRenderer::new: buffers, uniforms    wall/cpu: old 7/6  p1 8/7  s1 6/6  p2 6/5  s2 6/5  p3 6/6  s3 6/6  main 7/6
+    WorldRenderer::new: pipelines            wall/cpu: old 15/4  p1 23/4  s1 14/4  p2 15/3  s2 12/3  p3 12/3  s3 13/3  main 18/4
+    drive_in: car renderer                   wall/cpu: old 4/4  p1 4/4  s1 3/3  p2 4/4  s2 3/3  p3 3/3  s3 4/4  main 3/4
+    drive_in: uploads                        wall/cpu: old 2/1  p1 2/1  s1 2/1  p2 2/1  s2 2/1  p3 2/1  s3 3/1  main 2/1
+    drive_in: warm                           wall/cpu: s1 6/3  p2 8/0  s2 8/4  p3 10/4  s3 9/4  main 10/4
+-- discrete GPU (shared with another program; load average 24-27: single values scatter, see min..max)
+## explore-extreme-1920x1080   (median [min..max], ms)
+  old       n=7 load    280 [146..1152]  first   1001 [280..1834]  (draw      -  wait      - )  load+first   1351 [426..2825]  pipes 115/253  loadavg 26
+  p1        n=7 load    334 [142..897]  first    900 [264..4128]  (draw      -  wait      - )  load+first   1238 [406..4405]  pipes 115/253  loadavg 24
+  s1        n=7 load    486 [366..1786]  first    787 [628..1659]  (draw      -  wait      - )  load+first   1277 [994..3445]  pipes 273/100  loadavg 25
+  p2        n=7 load    362 [248..2868]  first    804 [225..2633]  (draw      -  wait      - )  load+first   1166 [473..5501]  pipes 273/100  loadavg 25
+  s2        n=7 load    486 [375..1837]  first    733 [179..1916]  (draw    661 [161..1858] wait     59 [16..80])  load+first   1143 [688..3753]  pipes 395/3  loadavg 24
+  p3        n=7 load    510 [341..1759]  first    735 [314..1545]  (draw    650 [304..1487] wait     58 [10..164])  load+first   1245 [698..2513]  pipes 395/3  loadavg 25
+  s3        n=7 load    543 [404..1577]  first    799 [148..1203]  (draw    716 [138..1131] wait     66 [9..83])  load+first   1380 [598..2086]  pipes 398/0  loadavg 25
+  main      n=7 load    414 [376..1701]  first    423 [138..626]  (draw    355 [106..590] wait     59 [32..77])  load+first    846 [548..2280]  pipes 396/0  loadavg 26
+    drive_in                                 wall/cpu: old 248/77  p1 285/82  s1 433/171  p2 329/73  s2 431/95  p3 456/97  s3 412/89  main 361/85
+    World::load                              wall/cpu: old 29/7  p1 33/7  s1 28/7  p2 27/8  s2 38/8  p3 28/7  s3 32/8  main 27/7
+    Car::load_tuned                          wall/cpu: old 26/19  p1 31/20  s1 26/20  p2 23/18  s2 34/19  p3 29/20  s3 30/20  main 25/20
+    WorldRenderer::new                       wall/cpu: old 148/58  p1 193/67  s1 215/66  p2 152/51  s2 166/66  p3 171/66  s3 159/60  main 144/60
+    WorldRenderer::new: groups and draws     wall/cpu: old 14/9  p1 14/9  s1 16/10  p2 9/6  s2 21/10  p3 28/10  s3 15/9  main 14/8
+    WorldRenderer::new: texture arrays       wall/cpu: old 90/0  p1 96/0  s1 122/1  p2 80/1  s2 87/1  p3 95/1  s3 88/1  main 70/1
+    WorldRenderer::new: buffers, uniforms    wall/cpu: old 8/7  p1 8/7  s1 8/8  p2 8/8  s2 7/7  p3 8/8  s3 8/7  main 8/7
+    WorldRenderer::new: pipelines            wall/cpu: old 15/4  p1 24/4  s1 18/4  p2 16/4  s2 19/4  p3 20/4  s3 17/4  main 19/3
+    drive_in: car renderer                   wall/cpu: old 4/5  p1 4/4  s1 5/5  p2 5/5  s2 5/4  p3 5/5  s3 4/4  main 4/3
+    drive_in: uploads                        wall/cpu: old 20/1  p1 33/1  s1 38/2  p2 27/1  s2 36/1  p3 32/1  s3 14/1  main 29/1
+    drive_in: warm                           wall/cpu: s1 128/79  p2 97/4  s2 184/10  p3 168/10  s3 211/10  main 161/8
+## explore-orig-1920x1080   (median [min..max], ms)
+  old       n=7 load    261 [177..1001]  first     52 [22..151]  (draw      -  wait      - )  load+first    326 [200..1152]  pipes 115/62  loadavg 26
+  p1        n=7 load    332 [244..1174]  first     67 [55..88]  (draw      -  wait      - )  load+first    388 [311..1262]  pipes 115/62  loadavg 26
+  s1        n=7 load    258 [149..1272]  first     55 [10..80]  (draw      -  wait      - )  load+first    315 [159..1340]  pipes 158/19  loadavg 26
+  p2        n=7 load    348 [210..1424]  first     53 [23..91]  (draw      -  wait      - )  load+first    407 [263..1515]  pipes 158/19  loadavg 26
+  s2        n=7 load    322 [185..1322]  first     52 [17..82]  (draw      5 [3..22] wait     45 [14..60])  load+first    375 [202..1404]  pipes 175/0  loadavg 26
+  p3        n=7 load    341 [202..1637]  first     40 [31..59]  (draw      5 [3..13] wait     36 [26..49])  load+first    376 [233..1696]  pipes 175/0  loadavg 26
+  s3        n=7 load    376 [221..1149]  first     48 [9..71]  (draw      5 [3..28] wait     43 [4..57])  load+first    437 [230..1220]  pipes 175/0  loadavg 26
+  main      n=7 load    334 [160..1645]  first     39 [11..62]  (draw      5 [3..16] wait     33 [7..57])  load+first    373 [174..1707]  pipes 175/0  loadavg 26
+    drive_in                                 wall/cpu: old 230/86  p1 281/88  s1 223/80  p2 281/75  s2 269/80  p3 289/74  s3 253/84  main 264/86
+    World::load                              wall/cpu: old 32/7  p1 33/7  s1 30/7  p2 33/8  s2 33/8  p3 32/8  s3 26/8  main 26/8
+    Car::load_tuned                          wall/cpu: old 26/16  p1 24/17  s1 26/15  p2 27/16  s2 22/17  p3 26/18  s3 32/16  main 21/16
+    WorldRenderer::new                       wall/cpu: old 157/66  p1 191/68  s1 148/61  p2 134/56  s2 165/58  p3 161/54  s3 171/61  main 164/62
+    WorldRenderer::new: groups and draws     wall/cpu: old 13/9  p1 14/9  s1 13/9  p2 10/6  s2 17/10  p3 14/8  s3 15/9  main 14/9
+    WorldRenderer::new: texture arrays       wall/cpu: old 90/0  p1 96/1  s1 88/1  p2 71/1  s2 82/1  p3 92/1  s3 102/1  main 88/1
+    WorldRenderer::new: buffers, uniforms    wall/cpu: old 7/7  p1 9/8  s1 7/7  p2 7/7  s2 8/7  p3 7/7  s3 8/6  main 7/7
+    WorldRenderer::new: pipelines            wall/cpu: old 21/4  p1 22/4  s1 18/4  p2 14/4  s2 20/4  p3 16/4  s3 23/4  main 18/4
+    drive_in: car renderer                   wall/cpu: old 5/4  p1 5/5  s1 3/4  p2 4/5  s2 3/4  p3 4/5  s3 5/4  main 3/3
+    drive_in: uploads                        wall/cpu: old 26/1  p1 30/2  s1 35/1  p2 31/1  s2 26/1  p3 43/1  s3 30/1  main 39/2
+    drive_in: warm                           wall/cpu: s1 7/3  p2 8/1  s2 11/5  p3 11/4  s3 13/5  main 11/5
+## rain-max-3840x2160   (median [min..max], ms)
+  old       n=7 load    240 [149..1176]  first   1246 [789..5652]  (draw      -  wait      - )  load+first   1420 [938..6490]  pipes 115/287  loadavg 25
+  p1        n=7 load    270 [151..1215]  first   1419 [722..4836]  (draw      -  wait      - )  load+first   1814 [874..5106]  pipes 115/288  loadavg 25
+  s1        n=7 load    691 [296..1596]  first   1142 [681..2091]  (draw      -  wait      - )  load+first   1534 [977..3687]  pipes 283/125  loadavg 24
+  p2        n=7 load    662 [269..2995]  first   1606 [712..1940]  (draw      -  wait      - )  load+first   2602 [1064..4761]  pipes 283/126  loadavg 25
+  s2        n=7 load    840 [455..1064]  first    837 [497..1466]  (draw    760 [450..1390] wait     69 [43..83])  load+first   1655 [972..2416]  pipes 408/6  loadavg 27
+  p3        n=7 load    492 [358..995]  first    944 [382..1518]  (draw    896 [362..1441] wait     44 [18..82])  load+first   1504 [809..2513]  pipes 408/6  loadavg 27
+  s3        n=7 load    699 [449..3373]  first   1092 [328..2249]  (draw    992 [280..2196] wait     48 [32..97])  load+first   1818 [777..5622]  pipes 415/3  loadavg 25
+  main      n=7 load    640 [461..1616]  first   1078 [425..1373]  (draw   1046 [381..1313] wait     48 [32..91])  load+first   1682 [888..2968]  pipes 413/3  loadavg 25
+    drive_in                                 wall/cpu: old 148/79  p1 189/80  s1 526/174  p2 567/86  s2 750/102  p3 438/88  s3 651/108  main 578/105
+    World::load                              wall/cpu: old 28/8  p1 30/7  s1 33/8  p2 65/7  s2 41/9  p3 30/9  s3 34/10  main 34/6
+    Car::load_tuned                          wall/cpu: old 26/21  p1 29/19  s1 27/20  p2 58/19  s2 36/20  p3 26/19  s3 38/20  main 27/21
+    WorldRenderer::new                       wall/cpu: old 101/60  p1 138/62  s1 206/63  p2 112/59  s2 153/71  p3 116/60  s3 233/71  main 148/68
+    WorldRenderer::new: groups and draws     wall/cpu: old 12/9  p1 15/10  s1 15/8  p2 16/9  s2 26/10  p3 16/10  s3 22/11  main 16/10
+    WorldRenderer::new: texture arrays       wall/cpu: old 22/1  p1 55/1  s1 48/1  p2 35/0  s2 63/1  p3 28/1  s3 78/1  main 46/0
+    WorldRenderer::new: buffers, uniforms    wall/cpu: old 7/7  p1 7/7  s1 9/8  p2 9/7  s2 8/7  p3 7/7  s3 18/8  main 9/8
+    WorldRenderer::new: pipelines            wall/cpu: old 16/4  p1 18/4  s1 25/4  p2 16/4  s2 24/4  p3 20/4  s3 49/4  main 25/4
+    drive_in: car renderer                   wall/cpu: old 5/4  p1 4/4  s1 4/5  p2 5/5  s2 4/5  p3 4/4  s3 6/5  main 5/5
+    drive_in: uploads                        wall/cpu: old 1/1  p1 2/1  s1 2/1  p2 2/1  s2 2/1  p3 1/1  s3 3/1  main 14/1
+    drive_in: warm                           wall/cpu: s1 227/82  p2 148/5  s2 223/11  p3 224/11  s3 326/16  main 276/14
+
+== 4. Light Probes' arrival burst: a wait per probe (NFSU2_PROBE_BURST_SERIAL=1, the form before) -> one wait ==
+one binary, arms interleaved, order swapped each repetition, --bench explore / race 5 frames, 7 runs per arm and round
+-- discrete GPU (shared), round 1
+gpu size level scene | first frame draw: per-probe waits -> one wait | whole first frame: before -> after | load: before -> after | n
+dgpu 1920x1080 extreme explore | 331 [103..407] -> 130 [88..141] | 388 [137..472] -> 188 [122..214] | 436 [326..567] -> 443 [325..477] | 7/7
+dgpu 1920x1080 extreme race | 454 [173..531] -> 158 [117..276] | 514 [192..599] -> 228 [139..346] | 445 [349..518] -> 430 [324..495] | 7/7
+dgpu 1920x1080 high explore | 44 [9..256] -> 52 [11..62] | 71 [16..295] -> 95 [40..120] | 387 [304..458] -> 422 [302..433] | 7/7
+dgpu 1920x1080 high race | 48 [20..392] -> 56 [43..67] | 71 [49..428] -> 104 [75..120] | 345 [286..471] -> 431 [379..571] | 7/7
+dgpu 1920x1080 med explore | 62 [7..246] -> 28 [8..53] | 88 [10..251] -> 49 [10..118] | 269 [242..421] -> 348 [247..404] | 7/7
+dgpu 1920x1080 med race | 206 [25..379] -> 26 [10..55] | 219 [29..430] -> 37 [14..183] | 343 [228..376] -> 308 [232..405] | 7/7
+dgpu 3840x2160 extreme explore | 302 [90..434] -> 126 [116..206] | 388 [117..510] -> 207 [179..286] | 449 [336..617] -> 419 [318..800] | 7/7
+dgpu 3840x2160 extreme race | 448 [150..488] -> 142 [120..190] | 523 [171..577] -> 226 [174..284] | 362 [300..638] -> 344 [317..569] | 7/7
+dgpu 3840x2160 high explore | 237 [42..304] -> 50 [12..63] | 297 [85..354] -> 109 [25..127] | 394 [314..565] -> 451 [330..587] | 7/7
+dgpu 3840x2160 high race | 321 [26..360] -> 50 [20..94] | 383 [47..417] -> 105 [56..148] | 337 [304..456] -> 392 [295..613] | 7/7
+dgpu 3840x2160 med explore | 223 [7..316] -> 37 [12..53] | 274 [16..377] -> 92 [20..112] | 369 [280..416] -> 351 [261..491] | 7/7
+dgpu 3840x2160 med race | 34 [14..368] -> 61 [17..101] | 66 [26..421] -> 117 [25..154] | 345 [238..430] -> 294 [242..348] | 7/7
+-- discrete GPU (shared), round 2
+dgpu 1920x1080 extreme explore | 365 [243..401] -> 124 [108..143] | 422 [316..468] -> 193 [144..223] | 454 [336..492] -> 437 [295..475] | 7/7
+dgpu 1920x1080 extreme race | 466 [110..520] -> 148 [125..179] | 540 [147..591] -> 220 [141..257] | 415 [300..488] -> 448 [303..528] | 7/7
+dgpu 1920x1080 high explore | 66 [15..288] -> 43 [14..59] | 95 [20..347] -> 96 [27..119] | 464 [307..547] -> 457 [308..519] | 7/7
+dgpu 1920x1080 high race | 409 [42..471] -> 62 [43..79] | 457 [67..535] -> 110 [73..134] | 435 [288..531] -> 460 [290..625] | 7/7
+dgpu 1920x1080 med explore | 253 [21..347] -> 46 [12..65] | 301 [25..400] -> 96 [16..123] | 330 [230..467] -> 316 [266..422] | 7/7
+dgpu 1920x1080 med race | 345 [36..465] -> 54 [12..70] | 391 [42..527] -> 103 [20..124] | 326 [223..462] -> 327 [207..573] | 7/7
+dgpu 3840x2160 extreme explore | 326 [101..395] -> 136 [95..149] | 404 [162..474] -> 200 [121..210] | 385 [305..447] -> 364 [327..464] | 7/7
+dgpu 3840x2160 extreme race | 434 [104..526] -> 152 [121..198] | 512 [153..626] -> 236 [147..279] | 362 [310..398] -> 354 [304..485] | 7/7
+dgpu 3840x2160 high explore | 241 [9..322] -> 49 [17..56] | 301 [21..387] -> 95 [43..109] | 373 [338..458] -> 348 [319..493] | 7/7
+dgpu 3840x2160 high race | 397 [348..453] -> 60 [16..74] | 454 [405..519] -> 115 [29..136] | 336 [294..375] -> 351 [289..459] | 7/7
+dgpu 3840x2160 med explore | 271 [8..290] -> 53 [14..60] | 313 [16..350] -> 109 [40..123] | 343 [232..450] -> 316 [223..413] | 7/7
+dgpu 3840x2160 med race | 358 [12..434] -> 63 [12..108] | 413 [44..490] -> 115 [35..130] | 334 [231..392] -> 318 [211..431] | 7/7
+-- integrated GPU (idle otherwise)
+igpu 1920x1080 extreme explore | 84 [79..99] -> 86 [78..102] | 191 [185..218] -> 194 [182..220] | 312 [291..388] -> 323 [299..369] | 7/7
+igpu 1920x1080 extreme race | 96 [86..128] -> 104 [96..135] | 250 [238..276] -> 263 [250..312] | 310 [283..380] -> 313 [289..580] | 7/7
+igpu 1920x1080 high explore | 9 [9..12] -> 9 [8..17] | 76 [74..80] -> 75 [70..83] | 299 [286..333] -> 314 [292..395] | 7/7
+igpu 1920x1080 high race | 18 [18..29] -> 17 [15..21] | 99 [94..117] -> 95 [77..108] | 291 [279..339] -> 294 [281..442] | 7/7
+igpu 1920x1080 med explore | 10 [8..26] -> 9 [7..14] | 52 [45..70] -> 50 [40..62] | 240 [218..449] -> 245 [217..353] | 7/7
+igpu 1920x1080 med race | 11 [10..16] -> 10 [9..11] | 64 [58..72] -> 63 [59..65] | 246 [203..279] -> 226 [205..262] | 7/7
+-- the first frame's draw, main thread, three sampled runs per arm (discrete GPU, shared)
+  explore High 1080p-serial-1: first frame draw: 310 ms; main thread: wait for the GPU 296, running 14
+  explore High 1080p-serial-2: first frame draw: 495 ms; main thread: wait for the GPU 484, running 11
+  explore High 1080p-serial-3: first frame draw: 576 ms; main thread: wait for the GPU 564, running 12
+  explore High 1080p-together-1: first frame draw: 89 ms; main thread: wait for the GPU 79, running 10
+  explore High 1080p-together-2: first frame draw: 131 ms; main thread: wait for the GPU 100, running 31
+  explore High 1080p-together-3: first frame draw: 78 ms; main thread: wait for the GPU 67, running 11
+  rain max 4K-serial-1: first frame draw: 1610 ms; main thread: wait for the GPU 837, in the submit call 513, running 256, wait for workers 4
+  rain max 4K-serial-2: first frame draw: 1601 ms; main thread: wait for the GPU 782, in the submit call 547, running 270, wait for workers 2
+  rain max 4K-serial-3: first frame draw: 2073 ms; main thread: wait for the GPU 1140, in the submit call 621, running 255, GPU memory call 51, wait for workers 7
+  rain max 4K-together-1: first frame draw: 810 ms; main thread: in the submit call 480, running 258, wait for the GPU 67, wait for workers 5
+  rain max 4K-together-2: first frame draw: 822 ms; main thread: in the submit call 506, running 305, wait for workers 6, wait for the GPU 4
+  rain max 4K-together-3: first frame draw: 595 ms; main thread: running 287, in the submit call 252, wait for the GPU 51, wait for workers 4, GPU memory call 1
+
+== 5. The earlier quiet-CPU gate runs (old baseline binary = base, main at that time = new; 3 runs x 5 per arm, sorted;
+   discrete GPU shared with another program throughout): load and first frame, pipelines by the load / in the first frame ==
+racing-orig-1920x1080      base load median  243 [126, 138, 209, 219, 236, 240, 243, 243, 244, 244, 244, 245, 248, 249, 286]  first median    54 [36, 37, 53, 54, 54, 54, 54, 54, 55, 55, 55, 55, 56, 58, 66]  load+first median   298  pipes 115/62
+racing-orig-1920x1080      new  load median  243 [122, 127, 226, 228, 239, 240, 243, 243, 244, 244, 245, 245, 247, 251, 259]  first median    52 [11, 11, 38, 51, 51, 52, 52, 52, 53, 53, 53, 53, 54, 54, 54]  load+first median   296  pipes 175/0
+explore-orig-1920x1080     base load median  225 [129, 131, 135, 136, 139, 140, 152, 225, 230, 234, 243, 246, 251, 251, 258]  first median    41 [13, 14, 19, 23, 23, 27, 36, 41, 41, 41, 42, 43, 43, 44, 54]  load+first median   269  pipes 115/62
+explore-orig-1920x1080     new  load median  259 [138, 248, 248, 253, 256, 257, 258, 259, 261, 262, 266, 274, 281, 284, 294]  first median    36 [10, 27, 33, 35, 35, 35, 36, 36, 37, 37, 37, 37, 38, 38, 39]  load+first median   294  pipes 175/0
+race-orig-1920x1080        base load median  243 [144, 222, 229, 237, 241, 242, 243, 243, 243, 245, 247, 248, 248, 248, 248]  first median    52 [18, 50, 51, 51, 51, 52, 52, 52, 52, 52, 52, 52, 52, 52, 52]  load+first median   295  pipes 115/62
+race-orig-1920x1080        new  load median  242 [121, 122, 124, 124, 228, 241, 241, 242, 242, 243, 245, 249, 253, 266, 267]  first median    46 [11, 12, 13, 13, 44, 45, 46, 46, 46, 47, 47, 47, 47, 48, 48]  load+first median   289  pipes 175/0
+racing-orig-3840x2160      base load median  235 [118, 119, 119, 122, 216, 232, 232, 235, 235, 235, 238, 244, 246, 247, 264]  first median    56 [21, 31, 32, 44, 49, 56, 56, 56, 56, 56, 57, 57, 57, 57, 57]  load+first median   291  pipes 115/62
+racing-orig-3840x2160      new  load median  248 [124, 126, 217, 238, 239, 242, 247, 248, 248, 249, 249, 250, 251, 267, 271]  first median    54 [12, 38, 40, 50, 52, 52, 54, 54, 54, 55, 55, 55, 55, 55, 63]  load+first median   299  pipes 175/0
+racing-ultra-3840x2160     base load median  216 [135, 137, 141, 185, 193, 210, 210, 216, 223, 239, 239, 240, 245, 246, 251]  first median   137 [132, 133, 134, 134, 136, 137, 137, 137, 138, 138, 138, 138, 138, 140, 164]  load+first median   354  pipes 115/234
+racing-ultra-3840x2160     new  load median  267 [164, 168, 178, 182, 251, 261, 266, 267, 270, 271, 273, 277, 277, 285, 298]  first median    80 [50, 62, 78, 78, 79, 79, 80, 80, 80, 81, 81, 81, 86, 101, 102]  load+first median   347  pipes 345/0
+explore-extreme-1920x1080  base load median  220 [127, 131, 132, 143, 164, 216, 218, 220, 236, 238, 244, 250, 251, 264, 265]  first median   777 [238, 241, 592, 648, 671, 727, 775, 777, 780, 803, 804, 831, 851, 1120, 1144]  load+first median   993  pipes 115/253
+explore-extreme-1920x1080  new  load median  326 [275, 280, 304, 305, 306, 306, 311, 326, 364, 365, 367, 378, 381, 388, 388]  first median   640 [98, 136, 509, 537, 632, 635, 638, 640, 661, 663, 690, 690, 922, 953, 970]  load+first median   969  pipes 396/0
+rain-max-3840x2160         base load median  144 [123, 124, 124, 128, 136, 137, 141, 144, 150, 234, 245, 245, 248, 258, 267]  first median   850 [671, 673, 673, 697, 718, 800, 822, 850, 1009, 1086, 1110, 1112, 1161, 1190, 1190]  load+first median   991  pipes 115/287
+rain-max-3840x2160         new  load median  399 [307, 316, 316, 321, 323, 327, 337, 399, 424, 444, 449, 450, 452, 452, 463]  first median  1043 [578, 582, 596, 745, 973, 1015, 1034, 1043, 1046, 1047, 1065, 1082, 1146, 1171, 1218]  load+first median  1439  pipes 413/3
+race-max-1920x1080         base load median  139 [124, 126, 128, 129, 129, 132, 132, 139, 145, 153, 241, 253, 256, 257, 291]  first median   754 [591, 607, 609, 614, 642, 643, 644, 754, 809, 893, 923, 939, 940, 940, 963]  load+first median   893  pipes 115/277
+race-max-1920x1080         new  load median  316 [308, 309, 311, 312, 312, 312, 314, 316, 326, 331, 332, 337, 433, 443, 453]  first median   564 [228, 258, 272, 277, 308, 351, 395, 564, 567, 569, 571, 606, 626, 646, 658]  load+first median   881  pipes 413/0
+
+== 6. Load against the GPU's state, discrete GPU, explore Original 1080p (the 56 runs of section 3's series) ==
+"drive_in: uploads" is one wait for the GPU after the load's uploads: under 10 ms when the GPU was free at that moment.
+GPU free at the upload wait (under 10 ms): 10 runs: texture upload median 31 ms, drive_in 182 ms (its thread CPU 80 ms), load 228 ms, first frame 31 ms
+GPU busy (25 ms or more): 37 runs: texture upload median 96 ms, drive_in 281 ms (its thread CPU 80 ms), load 341 ms, first frame 56 ms
+
+== 7. Where the first frame waited for the GPU (before; explore Extreme 1080p, a line-table build under a debugger, ==
+   a breakpoint on the sync-object wait; one stack per wait: seven waits in the first frame's draw, all this one) ==
+  wgpu device poll (wait)
+  render/enh/lighting/probes/bake.rs  bake_probes  (the arrival burst: one wait per probe)
+  render/native/world/plan.rs         plan_views
+  render/native/world/record.rs       render_async
+  bin/game/render/frame/scene.rs      world / run / draw_world_scene
+the load's one wait: bin/game/loads/drive_in.rs drive_in_loaded ("drive_in: uploads"); the bench's own wait after the frame.
+main thread, first frame's draw, rain max 4K before (ms from the run's start, length, state):
+    590.6    76.2 ms  running
+    666.8    72.0 ms  wait for the GPU (sync-object wait)
+    739.8   186.5 ms  wait for the GPU (sync-object wait)
+    927.2    51.0 ms  wait for the GPU (sync-object wait)
+    979.1    29.7 ms  wait for the GPU (sync-object wait)
+   1010.7    26.4 ms  wait for the GPU (sync-object wait)
+   1037.9    71.2 ms  wait for the GPU (sync-object wait)
+   1110.0    67.8 ms  wait for the GPU (sync-object wait)
+   1178.7   222.2 ms  wait for the GPU (sync-object wait)
+   1401.8    69.5 ms  wait for the GPU (sync-object wait)
+   1471.3    39.9 ms  running
+   1514.8    43.6 ms  running
+   1558.3    62.6 ms  in the submit call
+   1635.3    70.8 ms  in the submit call
+   1716.1    58.8 ms  in the submit call
+   1775.8    27.4 ms  in the submit call
+   1805.0    68.4 ms  in the submit call
+   1877.9    65.5 ms  in the submit call
+   1948.0    25.3 ms  in the submit call
+   1974.1    34.2 ms  in the submit call
+   2015.0    43.7 ms  wait for the GPU (sync-object wait)
+
+
+== 8. The benches' first Extreme frame and Surface Detail (integrated GPU, explore Extreme 1080p, 2 runs each) ==
+Extreme:                       draw 224.7 / 97.7 ms; parts: road reflection, main view 67.9 / 60.4, world: lamps 62.7 / 55.0
+Extreme with Surface Detail 0: draw 26.6 / 26.8 ms;  parts: road reflection, main view 6.0 / 5.7, world: lamps under 1

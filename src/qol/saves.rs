@@ -1,0 +1,122 @@
+use std::io::Write;
+use std::path::{Path, PathBuf};
+
+/// Write `bytes` to `path` through a temporary file next to it and a
+/// rename, so a crash leaves the old file or the new one, never half of
+/// either (the original does the same: CreateFileA on a temporary file,
+/// then MoveFileA, 0x6F9BFC). With `durable`, the temporary file is
+/// flushed to the disk before the rename and the folder after it.
+pub fn write_atomic(path: &Path, bytes: &[u8], durable: bool) -> std::io::Result<()> {
+    if let Some(dir) = path.parent() {
+        std::fs::create_dir_all(dir)?;
+    }
+    let tmp = path.with_extension("tmp");
+    {
+        let mut f = std::fs::File::create(&tmp)?;
+        f.write_all(bytes)?;
+        if durable {
+            f.sync_all()?;
+        }
+    }
+    if let Err(e) = crate::platform::fs::rename_replace(&tmp, path) {
+        let _ = std::fs::remove_file(&tmp);
+        return Err(e);
+    }
+    // The rename itself reaches the disk with the folder's entry (Windows
+    // has no folder fsync: the file's FlushFileBuffers above is all).
+    #[cfg(unix)]
+    if durable && let Some(dir) = path.parent() {
+        std::fs::File::open(dir)?.sync_all()?;
+    }
+    Ok(())
+}
+
+/// Where a profile's backups go: `<data home>/NFS Underground 2
+/// Backups/<NAME>/`, beside the profiles' folder and not in it — the
+/// original lists every entry of its profile folder as a profile
+/// (FindFirstFileA "\*", 0x6FC01E), so nothing of the clone's goes
+/// there.
+pub fn backup_root() -> PathBuf {
+    crate::frontend::profiles::data_home().join(format!("{} Backups", crate::frontend::profiles::FOLDER))
+}
+
+/// Copy the profile file `path` (if there is one) into `dir` as
+/// `<file name>.<YYYYMMDD-HHMMSS>[-n]` and keep the newest `keep` there.
+/// Returns the copy's path. The copy is the file's bytes unchanged, so
+/// it loads in the original once renamed back to `<NAME>`.
+pub fn backup(path: &Path, dir: &Path, keep: usize) -> std::io::Result<Option<PathBuf>> {
+    if keep == 0 || !path.is_file() {
+        return Ok(None);
+    }
+    let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("profile").to_string();
+    std::fs::create_dir_all(dir)?;
+    let stamp = timestamp(std::time::SystemTime::now());
+    // A second backup within the same second gets the next number.
+    let same: Vec<u32> =
+        list(dir, &name).iter().filter_map(|p| key(p, &name)).filter(|k| k.0 == stamp).map(|k| k.1 + 1).collect();
+    let to = match same.iter().max() {
+        None => dir.join(format!("{name}.{stamp}")),
+        Some(&n) => dir.join(format!("{name}.{stamp}-{n}")),
+    };
+    let bytes = std::fs::read(path)?;
+    write_atomic(&to, &bytes, false)?;
+    prune(dir, &name, keep)?;
+    Ok(Some(to))
+}
+
+/// The backups of `name` in `dir`, oldest first (the stamps sort by
+/// time).
+pub fn list(dir: &Path, name: &str) -> Vec<PathBuf> {
+    let prefix = format!("{name}.");
+    let mut v: Vec<PathBuf> = std::fs::read_dir(dir)
+        .map(|d| {
+            d.filter_map(|e| e.ok())
+                .map(|e| e.path())
+                .filter(|p| {
+                    p.is_file()
+                        && p.file_name()
+                            .and_then(|n| n.to_str())
+                            .is_some_and(|n| n.starts_with(&prefix) && !n.ends_with(".tmp"))
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    v.sort_by_key(|p| key(p, name).unwrap_or_default());
+    v
+}
+
+/// A backup's (stamp, number): "<stamp>" is 0, "<stamp>-n" n, so they
+/// sort by time ("-10" after "-9").
+fn key(path: &Path, name: &str) -> Option<(String, u32)> {
+    let n = path.file_name()?.to_str()?;
+    let tail = n.strip_prefix(name)?.strip_prefix('.')?;
+    Some(match tail.split_once('-').and_then(|(d, rest)| rest.split_once('-').map(|(t, k)| (d, t, k))) {
+        Some((d, t, k)) => (format!("{d}-{t}"), k.parse().unwrap_or(0)),
+        None => (tail.to_string(), 0),
+    })
+}
+
+fn prune(dir: &Path, name: &str, keep: usize) -> std::io::Result<()> {
+    let all = list(dir, name);
+    for old in &all[..all.len().saturating_sub(keep)] {
+        std::fs::remove_file(old)?;
+    }
+    Ok(())
+}
+
+/// `YYYYMMDD-HHMMSS` in UTC.
+pub fn timestamp(t: std::time::SystemTime) -> String {
+    let secs = t.duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_secs()) as i64;
+    let (days, rem) = (secs.div_euclid(86_400), secs.rem_euclid(86_400));
+    // Civil from days (H. Hinnant's algorithm).
+    let z = days + 719_468;
+    let era = z.div_euclid(146_097);
+    let doe = z - era * 146_097;
+    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = doy - (153 * mp + 2) / 5 + 1;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 };
+    let y = yoe + era * 400 + i64::from(m <= 2);
+    format!("{y:04}{m:02}{d:02}-{:02}{:02}{:02}", rem / 3600, rem / 60 % 60, rem % 60)
+}

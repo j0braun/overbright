@@ -1,0 +1,98 @@
+first drag 60 Hz seed 0 [STAGE_1_DRAG_1] player Some(40.6) totaled false ticks 2959 left Some("Menu(other)")
+  r1 FOCUS      roll   2.1 pitch   9.0 up  0.99 air   0 lanes 11 hits p2/r0/t1/w14 hardest p63/r0/t39/w17 crash Some(40.56578) drop Some((40.56578, 9)) up_after -0.95 fin Some(40.56578) tipped None
+  r2 240SX      roll   1.8 pitch   8.5 up  0.99 air   0 lanes 6 hits p0/r0/t0/w0 hardest p0/r0/t0/w0 crash None drop None up_after  1.00 fin Some(41.43299) tipped None
+  r3 PEUGOT106  roll   1.5 pitch   9.1 up  0.99 air   0 lanes 1 hits p0/r0/t0/w0 hardest p0/r0/t0/w0 crash None drop None up_after  1.00 fin None tipped None
+restart 60 Hz seed 0 [STAGE_1_DRAG_1] player Some(36.07) totaled true ticks 2715 left Some("Menu(other)")
+  r1 FOCUS      roll   2.9 pitch   9.0 up  0.99 air   0 lanes 9 hits p0/r1/t0/w4 hardest p0/r20/t20/w33 crash None drop None up_after  1.00 fin None tipped None
+  r2 240SX      roll   1.8 pitch   8.5 up  0.99 air   0 lanes 14 hits p0/r1/t0/w0 hardest p0/r20/t20/w0 crash None drop None up_after  1.00 fin None tipped None
+  r3 MIATA      roll   1.6 pitch   9.1 up  0.99 air   0 lanes 4 hits p0/r0/t0/w0 hardest p0/r0/t0/w0 crash None drop None up_after  1.00 fin None tipped None
+first drag 144 Hz seed 0 [STAGE_1_DRAG_1] player Some(40.6) totaled false ticks 2960 left Some("Menu(other)")
+  r1 FOCUS      roll   2.0 pitch   9.0 up  0.99 air   0 lanes 11 hits p0/r0/t1/w0 hardest p0/r0/t37/w0 crash Some(39.115803) drop Some((39.115803, 9)) up_after  0.85 fin Some(39.115803) tipped None
+  r2 240SX      roll   1.9 pitch   8.5 up  0.99 air   0 lanes 13 hits p0/r0/t2/w0 hardest p0/r0/t25/w0 crash None drop None up_after  1.00 fin Some(41.58299) tipped None
+  r3 PEUGOT106  roll   1.6 pitch   9.1 up  0.99 air   0 lanes 3 hits p0/r0/t0/w0 hardest p0/r0/t0/w0 crash None drop None up_after  1.00 fin None tipped None
+restart 144 Hz seed 0 [STAGE_1_DRAG_1] player Some(31.82) totaled true ticks 2462 left Some("Menu(other)")
+  r1 FOCUS      roll   1.4 pitch   9.0 up  0.99 air   0 lanes 4 hits p0/r0/t1/w0 hardest p0/r0/t38/w0 crash Some(33.865883) drop Some((33.865883, 9)) up_after  0.99 fin Some(33.865883) tipped None
+  r2 240SX      roll   2.3 pitch   8.5 up  0.99 air   0 lanes 9 hits p0/r0/t0/w0 hardest p0/r0/t0/w0 crash None drop None up_after  1.00 fin None tipped None
+  r3 MIATA      roll   2.2 pitch   9.1 up  0.99 air   0 lanes 5 hits p0/r0/t0/w0 hardest p0/r0/t0/w0 crash None drop None up_after  1.00 fin None tipped None
+first drag uncapped seed 0 [STAGE_1_DRAG_1] player Some(32.48) totaled true ticks 2474 left Some("Menu(other)")
+  r1 FOCUS      roll   1.6 pitch   9.0 up  0.99 air   0 lanes 4 hits p0/r0/t0/w0 hardest p0/r0/t0/w0 crash None drop None up_after  1.00 fin None tipped None
+  r2 240SX      roll   1.5 pitch   8.5 up  0.99 air   0 lanes 4 hits p0/r0/t0/w0 hardest p0/r0/t0/w0 crash None drop None up_after  1.00 fin None tipped None
+  r3 PEUGOT106  roll   1.5 pitch   9.1 up  0.99 air   0 lanes 3 hits p0/r0/t0/w0 hardest p0/r0/t0/w0 crash None drop None up_after  1.00 fin None tipped None
+restart uncapped seed 0 [STAGE_1_DRAG_1] player Some(40.73) totaled false ticks 2980 left None
+  r1 FOCUS      roll   1.7 pitch   9.0 up  0.99 air   0 lanes 6 hits p3/r0/t0/w0 hardest p173/r0/t163/w0 crash None drop None up_after  1.00 fin Some(40.76633) tipped None
+  r2 240SX      roll   1.7 pitch   8.5 up  0.99 air   0 lanes 13 hits p0/r0/t0/w0 hardest p0/r0/t0/w0 crash None drop None up_after  1.00 fin Some(40.982437) tipped None
+  r3 MIATA      roll   1.7 pitch   9.1 up  0.99 air   0 lanes 13 hits p0/r0/t0/w0 hardest p0/r0/t0/w0 crash None drop None up_after  1.00 fin Some(43.4324) tipped None
+first drag 60 Hz seed 4 [STAGE_1_DRAG_1] player Some(27.45) totaled true ticks 2199 left Some("Menu(other)")
+  r1 PEUGOT     roll  17.6 pitch   9.8 up  0.95 air   0 lanes 6 hits p2/r1/t0/w0 hardest p45/r45/t45/w0 crash None drop None up_after  1.00 fin None tipped None
+  r2 FOCUS      roll   1.9 pitch   9.0 up  0.99 air   0 lanes 5 hits p0/r0/t0/w0 hardest p0/r0/t0/w0 crash None drop None up_after  1.00 fin None tipped None
+  r3 PEUGOT     roll   2.3 pitch   9.6 up  0.99 air   0 lanes 6 hits p0/r1/t0/w0 hardest p0/r20/t20/w0 crash None drop None up_after  1.00 fin None tipped None
+restart 60 Hz seed 4 [STAGE_1_DRAG_1] player Some(24.22) totaled true ticks 1970 left Some("Menu(other)")
+  r1 MIATA      roll   1.3 pitch  13.7 up  0.97 air   0 lanes 6 hits p0/r0/t6/w0 hardest p0/r23/t65/w0 crash None drop None up_after  1.00 fin None tipped None
+  r2 MIATA      roll   1.4 pitch   9.1 up  0.99 air   0 lanes 7 hits p0/r0/t0/w0 hardest p0/r0/t0/w0 crash None drop None up_after  1.00 fin None tipped None
+  r3 240SX      roll   1.4 pitch   8.5 up  0.99 air   0 lanes 4 hits p0/r0/t0/w0 hardest p0/r0/t0/w0 crash None drop None up_after  1.00 fin None tipped None
+first drag 144 Hz seed 4 [STAGE_1_DRAG_1] player Some(27.43) totaled true ticks 2199 left Some("Menu(other)")
+  r1 PEUGOT     roll   1.7 pitch   9.6 up  0.99 air   0 lanes 6 hits p0/r0/t2/w0 hardest p0/r0/t2/w0 crash None drop None up_after  1.00 fin None tipped None
+  r2 FOCUS      roll   1.9 pitch   9.0 up  0.99 air   0 lanes 5 hits p0/r0/t0/w0 hardest p0/r0/t0/w0 crash None drop None up_after  1.00 fin None tipped None
+  r3 PEUGOT     roll   2.1 pitch   9.6 up  0.99 air   0 lanes 7 hits p0/r0/t0/w0 hardest p0/r0/t0/w0 crash None drop None up_after  1.00 fin None tipped None
+restart 144 Hz seed 4 [STAGE_1_DRAG_1] player Some(39.85) totaled false ticks 2910 left Some("Menu(other)")
+  r1 MIATA      roll   1.5 pitch   9.1 up  0.99 air   0 lanes 12 hits p0/r2/t0/w0 hardest p0/r20/t20/w0 crash None drop None up_after  1.00 fin None tipped None
+  r2 MIATA      roll   1.6 pitch   9.1 up  0.99 air   0 lanes 8 hits p0/r2/t0/w0 hardest p0/r20/t20/w0 crash None drop None up_after  1.00 fin None tipped None
+  r3 240SX      roll   1.9 pitch   8.5 up  0.99 air   0 lanes 5 hits p0/r0/t0/w0 hardest p0/r0/t0/w0 crash None drop None up_after  1.00 fin Some(41.81687) tipped None
+first drag uncapped seed 4 [STAGE_1_DRAG_1] player Some(52.03) totaled false ticks 3496 left None
+  r1 PEUGOT     roll   1.6 pitch   9.6 up  0.99 air   0 lanes 8 hits p0/r4/t0/w0 hardest p0/r8/t2/w0 crash None drop None up_after  1.00 fin Some(40.999664) tipped None
+  r2 FOCUS      roll   1.4 pitch   9.0 up  0.99 air   0 lanes 6 hits p0/r2/t0/w0 hardest p0/r8/t0/w0 crash None drop None up_after  1.00 fin Some(41.065773) tipped None
+  r3 PEUGOT     roll   2.1 pitch   9.6 up  0.99 air   0 lanes 11 hits p0/r2/t0/w0 hardest p0/r2/t2/w0 crash None drop None up_after  1.00 fin Some(41.015774) tipped None
+restart uncapped seed 4 [STAGE_1_DRAG_1] player Some(39.85) totaled false ticks 2910 left Some("Menu(other)")
+  r1 MIATA      roll   2.2 pitch   9.1 up  0.99 air   0 lanes 12 hits p0/r2/t0/w0 hardest p0/r17/t17/w0 crash None drop None up_after  1.00 fin None tipped None
+  r2 MIATA      roll   1.6 pitch   9.1 up  0.99 air   0 lanes 12 hits p0/r2/t0/w0 hardest p0/r17/t17/w0 crash None drop None up_after  1.00 fin None tipped None
+  r3 240SX      roll   2.0 pitch   8.5 up  0.99 air   0 lanes 8 hits p0/r0/t0/w0 hardest p0/r0/t0/w0 crash None drop None up_after  1.00 fin Some(41.832985) tipped None
+first drag 60 Hz seed 7 [STAGE_1_DRAG_1] player Some(39.83) totaled false ticks 2980 left Some("Menu(other)")
+  r1 COROLLA    roll   0.9 pitch  10.6 up  0.98 air   0 lanes 7 hits p0/r0/t0/w0 hardest p0/r0/t0/w0 crash None drop None up_after  1.00 fin Some(40.966328) tipped None
+  r2 CORSA      roll   1.6 pitch   9.0 up  0.99 air   0 lanes 12 hits p0/r1/t1/w0 hardest p0/r5/t32/w0 crash Some(27.082651) drop Some((27.082651, 9)) up_after  0.89 fin Some(27.082651) tipped None
+  r3 FOCUS      roll   2.0 pitch   9.0 up  0.99 air   0 lanes 6 hits p0/r1/t2/w0 hardest p0/r5/t49/w0 crash None drop None up_after  1.00 fin None tipped None
+restart 60 Hz seed 7 [STAGE_1_DRAG_1] player Some(39.8) totaled false ticks 2977 left Some("Menu(other)")
+  r1 MIATA      roll   1.7 pitch   9.1 up  0.99 air   0 lanes 8 hits p0/r0/t1/w0 hardest p0/r0/t39/w0 crash Some(15.833376) drop Some((15.833376, 9)) up_after  0.56 fin Some(15.833376) tipped None
+  r2 MIATA      roll   1.9 pitch   9.1 up  0.99 air   0 lanes 17 hits p0/r1/t0/w0 hardest p0/r25/t25/w0 crash None drop None up_after  1.00 fin None tipped None
+  r3 FOCUS      roll   1.5 pitch   9.0 up  0.99 air   0 lanes 7 hits p0/r1/t1/w0 hardest p0/r25/t51/w0 crash None drop None up_after  1.00 fin None tipped None
+first drag 144 Hz seed 7 [STAGE_1_DRAG_1] player Some(39.82) totaled false ticks 2980 left Some("Menu(other)")
+  r1 COROLLA    roll   1.8 pitch  10.6 up  0.98 air   0 lanes 13 hits p0/r2/t0/w0 hardest p0/r9/t0/w0 crash None drop None up_after  1.00 fin Some(41.36632) tipped None
+  r2 CORSA      roll   1.9 pitch   9.0 up  0.99 air   0 lanes 9 hits p0/r7/t0/w0 hardest p0/r104/t20/w0 crash None drop None up_after  1.00 fin None tipped None
+  r3 FOCUS      roll   6.6 pitch   9.0 up  0.99 air   0 lanes 14 hits p0/r9/t2/w6 hardest p0/r104/t47/w13 crash None drop None up_after  1.00 fin None tipped None
+restart 144 Hz seed 7 [STAGE_1_DRAG_1] player Some(32.48) totaled true ticks 2540 left Some("Menu(other)")
+  r1 MIATA      roll   3.4 pitch   9.1 up  0.99 air   0 lanes 7 hits p0/r0/t1/w0 hardest p0/r0/t22/w0 crash None drop None up_after  1.00 fin None tipped None
+  r2 MIATA      roll   1.4 pitch   9.1 up  0.99 air   0 lanes 4 hits p0/r0/t0/w0 hardest p0/r0/t0/w0 crash None drop None up_after  1.00 fin None tipped None
+  r3 FOCUS      roll   1.5 pitch   9.0 up  0.99 air   0 lanes 13 hits p0/r0/t2/w0 hardest p0/r0/t49/w0 crash None drop None up_after  1.00 fin None tipped None
+first drag uncapped seed 7 [STAGE_1_DRAG_1] player Some(39.83) totaled false ticks 2980 left Some("Menu(other)")
+  r1 COROLLA    roll   1.0 pitch  10.6 up  0.98 air   0 lanes 7 hits p0/r0/t0/w0 hardest p0/r0/t0/w0 crash None drop None up_after  1.00 fin Some(41.032997) tipped None
+  r2 CORSA      roll   2.0 pitch   9.0 up  0.99 air   0 lanes 14 hits p0/r2/t1/w0 hardest p0/r10/t30/w0 crash Some(27.565979) drop Some((27.565979, 9)) up_after  0.96 fin Some(27.565979) tipped None
+  r3 FOCUS      roll   3.7 pitch   9.0 up  0.99 air   0 lanes 12 hits p0/r2/t1/w0 hardest p0/r10/t49/w0 crash None drop None up_after  1.00 fin None tipped None
+restart uncapped seed 7 [STAGE_1_DRAG_1] player Some(32.47) totaled true ticks 2539 left Some("Menu(other)")
+  r1 MIATA      roll   1.6 pitch   9.1 up  0.99 air   0 lanes 6 hits p0/r0/t0/w0 hardest p0/r0/t0/w0 crash None drop None up_after  1.00 fin None tipped None
+  r2 MIATA      roll   1.4 pitch   9.1 up  0.99 air   0 lanes 2 hits p0/r2/t0/w0 hardest p0/r22/t0/w0 crash None drop None up_after  1.00 fin None tipped None
+  r3 FOCUS      roll   2.0 pitch   9.0 up  0.99 air   0 lanes 9 hits p0/r2/t2/w0 hardest p0/r22/t43/w0 crash None drop None up_after  1.00 fin None tipped None
+first drag 60 Hz seed 20261103 [STAGE_1_DRAG_1] player Some(39.9) totaled false ticks 2767 left None
+  r1 FOCUS      roll   1.6 pitch   9.0 up  0.99 air   0 lanes 10 hits p0/r4/t0/w0 hardest p0/r3/t0/w0 crash None drop None up_after  1.00 fin Some(40.29967) tipped None
+  r2 FOCUS      roll   1.8 pitch   9.0 up  0.99 air   0 lanes 11 hits p0/r4/t0/w0 hardest p0/r3/t0/w0 crash None drop None up_after  1.00 fin Some(40.366894) tipped None
+  r3 240SX      roll   2.7 pitch   8.5 up  0.99 air   0 lanes 15 hits p0/r0/t0/w0 hardest p0/r0/t0/w0 crash None drop Some((38.783585, 8)) up_after  1.00 fin Some(38.783585) tipped None
+restart 60 Hz seed 20261103 [STAGE_1_DRAG_1] player Some(39.88) totaled false ticks 2988 left Some("Menu(other)")
+  r1 FOCUS      roll   1.6 pitch   9.0 up  0.99 air   0 lanes 10 hits p0/r0/t0/w0 hardest p0/r0/t0/w0 crash None drop None up_after  1.00 fin Some(41.049664) tipped None
+  r2 CORSA      roll   1.6 pitch   9.0 up  0.99 air   0 lanes 11 hits p0/r0/t2/w0 hardest p0/r0/t16/w0 crash None drop None up_after  1.00 fin None tipped None
+  r3 COROLLA    roll   1.3 pitch  10.6 up  0.98 air   0 lanes 7 hits p0/r0/t0/w0 hardest p0/r0/t0/w0 crash None drop None up_after  1.00 fin Some(40.533005) tipped None
+first drag 144 Hz seed 20261103 [STAGE_1_DRAG_1] player Some(32.52) totaled true ticks 2475 left Some("Menu(other)")
+  r1 FOCUS      roll   4.3 pitch   9.0 up  0.99 air   0 lanes 11 hits p0/r4/t0/w6 hardest p0/r128/t0/w7 crash None drop None up_after  1.00 fin None tipped None
+  r2 FOCUS      roll   2.2 pitch   9.0 up  0.99 air   0 lanes 10 hits p0/r4/t2/w1 hardest p0/r128/t59/w7 crash None drop None up_after  1.00 fin None tipped None
+  r3 240SX      roll   2.3 pitch   8.5 up  0.99 air   0 lanes 3 hits p0/r4/t1/w6 hardest p0/r29/t33/w23 crash Some(28.133192) drop Some((28.133192, 9)) up_after  0.86 fin Some(28.133192) tipped None
+restart 144 Hz seed 20261103 [STAGE_1_DRAG_1] player Some(19.32) totaled true ticks 1756 left Some("Menu(other)")
+  r1 FOCUS      roll   1.4 pitch   9.0 up  0.99 air   0 lanes 3 hits p0/r0/t0/w0 hardest p0/r0/t0/w0 crash None drop None up_after  1.00 fin None tipped None
+  r2 CORSA      roll   1.1 pitch   9.0 up  0.99 air   0 lanes 4 hits p0/r0/t0/w0 hardest p0/r0/t0/w0 crash None drop None up_after  1.00 fin None tipped None
+  r3 COROLLA    roll   0.5 pitch  10.6 up  0.98 air   0 lanes 2 hits p0/r0/t0/w0 hardest p0/r0/t0/w0 crash None drop None up_after  1.00 fin None tipped None
+first drag uncapped seed 20261103 [STAGE_1_DRAG_1] player Some(39.88) totaled false ticks 2810 left None
+  r1 FOCUS      roll   1.6 pitch   9.0 up  0.99 air   0 lanes 13 hits p0/r5/t0/w0 hardest p0/r3/t2/w0 crash None drop None up_after  1.00 fin Some(40.316338) tipped None
+  r2 FOCUS      roll   1.7 pitch   9.0 up  0.99 air   0 lanes 9 hits p0/r5/t0/w0 hardest p0/r3/t3/w0 crash None drop None up_after  1.00 fin Some(40.39967) tipped None
+  r3 240SX      roll   2.1 pitch   8.5 up  0.99 air   0 lanes 9 hits p0/r0/t0/w0 hardest p0/r0/t0/w0 crash None drop None up_after  1.00 fin Some(41.066326) tipped None
+restart uncapped seed 20261103 [STAGE_1_DRAG_1] player Some(39.82) totaled false ticks 2977 left None
+  r1 FOCUS      roll   2.0 pitch   9.0 up  0.99 air   0 lanes 13 hits p0/r0/t0/w0 hardest p0/r0/t0/w0 crash None drop None up_after  1.00 fin Some(41.132435) tipped None
+  r2 CORSA      roll   1.3 pitch   9.0 up  0.99 air   0 lanes 10 hits p0/r0/t0/w0 hardest p0/r0/t0/w0 crash None drop None up_after  1.00 fin Some(42.649635) tipped None
+  r3 COROLLA    roll   2.0 pitch  10.6 up  0.98 air   0 lanes 10 hits p0/r0/t0/w0 hardest p0/r0/t0/w0 crash None drop None up_after  1.00 fin Some(40.49967) tipped None
+first drag: 24 runs, 8 rival drop-outs, 0 failures
+first drag: rivals stayed on their wheels

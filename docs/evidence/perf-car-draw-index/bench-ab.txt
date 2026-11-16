@@ -1,0 +1,28 @@
+# bench race (race start: 4 cars on screen, ~495 car draws/frame), 600 frames; cars = car pass GPU ms (timestamps), busy = GPU busy ms/frame, rec = render-worker 'cars: recording' CPU ms
+# ig-* = the reference integrated GPU (RDNA2, 2 CU) 1080p; m1 = NFSU2_MSAA=1 (native default World Detail = 8x); d-* = the reference desktop GPU 4K default; exp-* = experiment binary (new path + NFSU2_P3_EXP: flatfs = car fs_main/fs_alpha_test return the interpolated diffuse, tiny = each draw only its first triangle, nodraw = no draw call); load average 13-30 during the runs
+d-race-4k-base-r1 cars 0.21 busy 2.52 rec 0.03
+d-race-4k-base-r2 cars 0.21 busy 2.52 rec 0.03
+d-race-4k-base-r3 cars 0.21 busy 2.52 rec 0.03
+d-race-4k-new-r1 cars 0.21 busy 2.51 rec 0.03
+d-race-4k-new-r2 cars 0.21 busy 2.52 rec 0.04
+d-race-4k-new-r3 cars 0.21 busy 2.52 rec 0.03
+exp-flatfs cars 1.67 busy 13.90 rec 0.07
+exp-m1-flatfs cars 0.24 busy 7.07 rec 0.05
+exp-m1-none cars 0.51 busy 7.24 rec 0.05
+exp-m4-flatfs cars 0.83 busy 10.50 rec 0.07
+exp-m4-none cars 1.06 busy 11.27 rec 0.06
+exp-nodraw cars 0.04 busy 11.69 rec 0.03
+exp-none cars 1.70 busy 13.74 rec 0.06
+exp-tiny cars 0.13 busy 12.03 rec 0.05
+ig-race-1080-base-r1 cars 1.81 busy 13.74 rec 0.04
+ig-race-1080-base-r2 cars 1.80 busy 13.77 rec 0.03
+ig-race-1080-base-r3 cars 1.93 busy 14.25 rec 0.06
+ig-race-1080-m1-base-r1 cars 0.75 busy 7.14 rec 0.03
+ig-race-1080-m1-base-r2 cars 0.76 busy 7.29 rec 0.03
+ig-race-1080-m1-base-r3 cars 0.72 busy 6.99 rec 0.03
+ig-race-1080-m1-new-r1 cars 0.50 busy 6.98 rec 0.04
+ig-race-1080-m1-new-r2 cars 0.50 busy 6.91 rec 0.04
+ig-race-1080-m1-new-r3 cars 0.54 busy 7.16 rec 0.04
+ig-race-1080-new-r1 cars 1.68 busy 13.74 rec 0.06
+ig-race-1080-new-r2 cars 1.66 busy 13.73 rec 0.05
+ig-race-1080-new-r3 cars 1.72 busy 13.85 rec 0.07

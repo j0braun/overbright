@@ -1,0 +1,197 @@
+# path:key:family:reason   (path is an fnmatch glob; key is * or =HASH, `scan.py allow-key PATH LINE`; family may be *). Hits listed here do not fail `scan.py text`.
+# Docs: technical tokens that look like work-unit codes, object "owners" of game semantics,
+# and the app data folder name the code uses today (src/platform/dirs.rs APP; its rename is a separate release step).
+docs/sound-audit.md:*:unit-code:sound-row ids of the audit table (C = car, F = front end, H = HUD, S = streams, W = world)
+docs/look-direction.md:*:unit-code:look-budget rule ids E1-E8 and R1-R6 defined on this page
+docs/engine-volume-chain.md:*:unit-code:field offsets of the sound objects (D0, C8, E0, B8)
+docs/outrun-placement-acceleration.md:*:unit-code:field offsets (D0/D4/D8, E0/E4/E8)
+docs/outrun-action-lifecycle.md:*:unit-code:controller field offsets (+A0, +A4)
+docs/nis-mover-step-investigation.md:*:unit-code:field offset +A0
+docs/rng.md:*:unit-code:generator ids G1-G5 of the original
+docs/native-fixes/N-RNG.tsv:*:unit-code:finding ids of the RNG port list (R draw sites, G generators, P phases)
+docs/symbols.tsv:*:unit-code:field names, offsets and sponsor names in symbol descriptions
+docs/formats.md:*:owner-remark:object owner (game semantics)
+docs/particles-smoke.md:=58b4488227f6:owner-remark:object owner (game semantics)
+docs/sparks-fire.md:*:owner-remark:emitter owner (game semantics)
+docs/outrun-think-scheduling.md:=1836a47e597c:owner-remark:object owner (game semantics)
+docs/parity-harness.md:=6fdc2c4f6ae3:owner-remark:handler owners (code semantics)
+docs/io-robustness.md:=f9a85f958d23:owner-remark:code owners of the render path
+docs/formats.md:=8a0475e110f6:private-path:heading anchors of the session log ("Wine captures", "Wine side")
+docs/perf-overlay.md:*:hardware:Linux hwmon driver names
+# the app data folder name used by the code today (src/platform/dirs.rs APP)
+README.md:*:private-path:app data folder name (src/platform/dirs.rs APP)
+docs/formats.md:*:private-path:app data folder name (src/platform/dirs.rs APP); session-log heading anchors
+# look-budget rule references (docs/look-direction.md) in other pages
+docs/ambient-detail.md:=375297605e02:unit-code:look rule ids R1-R6
+docs/lamps-shadows.md:=23343f70f9d5:unit-code:look rule id E2
+docs/lighting2.md:=bed431f2f6f5:unit-code:look rule id E2
+docs/modern-lighting.md:=83836142ff33:unit-code:look rule id E3
+docs/perf-budget.md:=89f4f80defa4:unit-code:look rule ids R1-R6
+docs/perf-budget.md:=25ed07efaf89:unit-code:look rule ids R1 / E4
+docs/perf-budget.md:=600a8e3a523a:unit-code:look rule ids R1-R6
+docs/perf-budget.md:=70d903b0e565:unit-code:look rule id E1
+docs/rain-nextgen.md:=dc8e235b2d5c:unit-code:look rule ids E1 / E4
+docs/settings-model.md:=47235ebe8092:unit-code:look rule id E3
+docs/settings-model.md:=307316b75efe:unit-code:look rule ids R1-R4
+docs/smoke-nextgen.md:=ecf20ebf17fe:unit-code:look rule ids R1-R6
+docs/smoke-nextgen.md:=b86b61a96cc2:unit-code:look rule id E7
+docs/sparks-fire.md:=95d56fc1e285:unit-code:look rule ids R1-R6
+docs/temporal.md:=09fee4ed0c6d:unit-code:look rule id E4
+docs/evidence/wet-road-car/g12c/README.md:=e1c2a1269cd0:unit-code:look rule id E7
+# game, car, texture, key and format names
+docs/audio-levels.md:=08047ea5c703:unit-code:sample format I24
+docs/checks.md:=afb542250efb:unit-code:placeholder shot-target names T1 T2
+docs/drag-drift-outrun-parity.md:=efe91c688b94:unit-code:car name A3 (Audi)
+docs/drag-stage4-parity.md:=3f86a94bbe83:unit-code:option value placeholders D1,D2
+docs/drag-stage4-parity.md:=80623e5a50de:unit-code:car name A3 (Audi)
+docs/outrun.md:=70ebef2f3cf6:unit-code:car name A3 (Audi)
+docs/model-fixes.md:*:unit-code:car name A3 (Audi); rim widths W23 / W26
+docs/evidence/model-review/*:*:unit-code:car name A3 (Audi); rim sizes D20 / W23 / W26
+docs/outrun-ai-strength.md:=4ffbe60ab0ef:unit-code:AI difficulty levels L3 / L5
+docs/parity-harness.md:=dd7c69623a6c:unit-code:key names K1,K2
+docs/lighting2.md:=a7b0d0ef1457:unit-code:label id suffix B0..B2
+docs/weather.md:=c97b785e3428:unit-code:label id suffix A0..A4
+docs/tuning-physics-parity.md:*:unit-code:item ids A1-A4 of this page's findings
+docs/water.md:=907d2b241918:unit-code:texture name parts A15/A16
+docs/water.md:=c1fcb15f6c5f:unit-code:texture name parts I15/I17
+docs/outrun-action-lifecycle.md:*:owner-remark:race-record owner (game semantics)
+# docs/formats.md: per line, technical tokens that look like unit codes (each line reviewed)
+docs/formats.md:=677bc7e9e039:unit-code:technical token (variable, offset, register, sound-row id, texture format, car or sponsor name, native-fixes table name)
+docs/formats.md:=33c8626ab9ab:unit-code:technical token (variable, offset, register, sound-row id, texture format, car or sponsor name, native-fixes table name)
+docs/formats.md:=26f6b33c9ee6:unit-code:technical token (variable, offset, register, sound-row id, texture format, car or sponsor name, native-fixes table name)
+docs/formats.md:=c01f840f4916:unit-code:technical token (variable, offset, register, sound-row id, texture format, car or sponsor name, native-fixes table name)
+docs/formats.md:=4db7d18b060a:unit-code:technical token (variable, offset, register, sound-row id, texture format, car or sponsor name, native-fixes table name)
+docs/formats.md:=31a3be7945f4:unit-code:technical token (variable, offset, register, sound-row id, texture format, car or sponsor name, native-fixes table name)
+docs/formats.md:=b6761f4d153f:unit-code:technical token (variable, offset, register, sound-row id, texture format, car or sponsor name, native-fixes table name)
+docs/formats.md:=dca568103392:unit-code:technical token (variable, offset, register, sound-row id, texture format, car or sponsor name, native-fixes table name)
+docs/formats.md:=8168330b747d:unit-code:technical token (variable, offset, register, sound-row id, texture format, car or sponsor name, native-fixes table name)
+docs/formats.md:=78df656128df:unit-code:technical token (variable, offset, register, sound-row id, texture format, car or sponsor name, native-fixes table name)
+docs/formats.md:=da0ad2fd4f5b:unit-code:technical token (variable, offset, register, sound-row id, texture format, car or sponsor name, native-fixes table name)
+docs/formats.md:=b55a8d00bff0:unit-code:technical token (variable, offset, register, sound-row id, texture format, car or sponsor name, native-fixes table name)
+docs/formats.md:=80322872455a:unit-code:technical token (variable, offset, register, sound-row id, texture format, car or sponsor name, native-fixes table name)
+docs/formats.md:=b3616e395e10:unit-code:technical token (variable, offset, register, sound-row id, texture format, car or sponsor name, native-fixes table name)
+docs/formats.md:=68e58ef70f88:unit-code:technical token (variable, offset, register, sound-row id, texture format, car or sponsor name, native-fixes table name)
+docs/formats.md:=ca984a06d711:unit-code:technical token (variable, offset, register, sound-row id, texture format, car or sponsor name, native-fixes table name)
+docs/formats.md:=e4af2db02056:unit-code:technical token (variable, offset, register, sound-row id, texture format, car or sponsor name, native-fixes table name)
+docs/formats.md:=ccf9cc3ba04c:unit-code:technical token (variable, offset, register, sound-row id, texture format, car or sponsor name, native-fixes table name)
+docs/formats.md:=95b9d7eec59b:unit-code:technical token (variable, offset, register, sound-row id, texture format, car or sponsor name, native-fixes table name)
+docs/formats.md:=b211f7315bf9:unit-code:technical token (variable, offset, register, sound-row id, texture format, car or sponsor name, native-fixes table name)
+docs/formats.md:=6c7bf836f255:unit-code:technical token (variable, offset, register, sound-row id, texture format, car or sponsor name, native-fixes table name)
+docs/formats.md:=6df649d4162c:unit-code:technical token (variable, offset, register, sound-row id, texture format, car or sponsor name, native-fixes table name)
+docs/formats.md:=03b95904adb3:unit-code:technical token (variable, offset, register, sound-row id, texture format, car or sponsor name, native-fixes table name)
+docs/formats.md:=953d6c5f6393:unit-code:technical token (variable, offset, register, sound-row id, texture format, car or sponsor name, native-fixes table name)
+docs/formats.md:=1a4da3a70679:unit-code:technical token (variable, offset, register, sound-row id, texture format, car or sponsor name, native-fixes table name)
+docs/formats.md:=d10e9e0c3ae1:unit-code:technical token (variable, offset, register, sound-row id, texture format, car or sponsor name, native-fixes table name)
+docs/formats.md:=f4ff8b2ac120:unit-code:technical token (variable, offset, register, sound-row id, texture format, car or sponsor name, native-fixes table name)
+docs/formats.md:=dd06709816c1:unit-code:technical token (variable, offset, register, sound-row id, texture format, car or sponsor name, native-fixes table name)
+docs/formats.md:=5d70c3a71641:unit-code:technical token (variable, offset, register, sound-row id, texture format, car or sponsor name, native-fixes table name)
+docs/formats.md:=11e9ecb4ac11:unit-code:technical token (variable, offset, register, sound-row id, texture format, car or sponsor name, native-fixes table name)
+docs/formats.md:=4cb66161de01:unit-code:technical token (variable, offset, register, sound-row id, texture format, car or sponsor name, native-fixes table name)
+docs/formats.md:=9f556c60cee7:unit-code:technical token (variable, offset, register, sound-row id, texture format, car or sponsor name, native-fixes table name)
+docs/formats.md:=5f235e3cedab:unit-code:technical token (variable, offset, register, sound-row id, texture format, car or sponsor name, native-fixes table name)
+docs/formats.md:=928cf620cfd0:unit-code:technical token (variable, offset, register, sound-row id, texture format, car or sponsor name, native-fixes table name)
+docs/formats.md:=8082266d1a95:unit-code:technical token (variable, offset, register, sound-row id, texture format, car or sponsor name, native-fixes table name)
+docs/formats.md:=573390ed5e8b:unit-code:technical token (variable, offset, register, sound-row id, texture format, car or sponsor name, native-fixes table name)
+docs/formats.md:=0ac853b442b0:unit-code:technical token (variable, offset, register, sound-row id, texture format, car or sponsor name, native-fixes table name)
+docs/formats.md:=a4e27af0c245:unit-code:technical token (variable, offset, register, sound-row id, texture format, car or sponsor name, native-fixes table name)
+docs/formats.md:=8eee1f1c1805:unit-code:technical token (variable, offset, register, sound-row id, texture format, car or sponsor name, native-fixes table name)
+docs/formats.md:=e124766b191f:unit-code:technical token (variable, offset, register, sound-row id, texture format, car or sponsor name, native-fixes table name)
+docs/formats.md:=07632111b376:unit-code:technical token (variable, offset, register, sound-row id, texture format, car or sponsor name, native-fixes table name)
+docs/formats.md:=8f496245fe83:unit-code:technical token (variable, offset, register, sound-row id, texture format, car or sponsor name, native-fixes table name)
+docs/formats.md:=a167e329f986:unit-code:technical token (variable, offset, register, sound-row id, texture format, car or sponsor name, native-fixes table name)
+docs/formats.md:=069b7819f1d3:unit-code:technical token (variable, offset, register, sound-row id, texture format, car or sponsor name, native-fixes table name)
+docs/formats.md:=03e475fdfcd0:unit-code:technical token (variable, offset, register, sound-row id, texture format, car or sponsor name, native-fixes table name)
+docs/formats.md:=8e49517778e8:unit-code:technical token (variable, offset, register, sound-row id, texture format, car or sponsor name, native-fixes table name)
+docs/formats.md:=da2a50964080:unit-code:technical token (variable, offset, register, sound-row id, texture format, car or sponsor name, native-fixes table name)
+docs/formats.md:=430e10ed2a93:unit-code:technical token (variable, offset, register, sound-row id, texture format, car or sponsor name, native-fixes table name)
+docs/formats.md:=7ea2b1117c9e:unit-code:technical token (variable, offset, register, sound-row id, texture format, car or sponsor name, native-fixes table name)
+docs/formats.md:=74f5886135f9:unit-code:technical token (variable, offset, register, sound-row id, texture format, car or sponsor name, native-fixes table name)
+docs/formats.md:=48963f2d9c5b:unit-code:technical token (variable, offset, register, sound-row id, texture format, car or sponsor name, native-fixes table name)
+docs/formats.md:=4b97dceec3f1:unit-code:technical token (variable, offset, register, sound-row id, texture format, car or sponsor name, native-fixes table name)
+docs/formats.md:=2620cd5ae788:unit-code:technical token (variable, offset, register, sound-row id, texture format, car or sponsor name, native-fixes table name)
+docs/formats.md:=5c3dd8c0f222:unit-code:technical token (variable, offset, register, sound-row id, texture format, car or sponsor name, native-fixes table name)
+docs/formats.md:=ce2d8e41a73a:unit-code:technical token (variable, offset, register, sound-row id, texture format, car or sponsor name, native-fixes table name)
+docs/formats.md:=50931a7b82b8:unit-code:technical token (variable, offset, register, sound-row id, texture format, car or sponsor name, native-fixes table name)
+docs/formats.md:=eaeabf60ed9e:unit-code:technical token (variable, offset, register, sound-row id, texture format, car or sponsor name, native-fixes table name)
+docs/formats.md:=7c225abaf13a:unit-code:technical token (variable, offset, register, sound-row id, texture format, car or sponsor name, native-fixes table name)
+docs/formats.md:=d886dbd9b637:unit-code:technical token (variable, offset, register, sound-row id, texture format, car or sponsor name, native-fixes table name)
+docs/formats.md:=a14ed08f27aa:unit-code:technical token (variable, offset, register, sound-row id, texture format, car or sponsor name, native-fixes table name)
+docs/formats.md:=8fb1c55b6184:unit-code:technical token (variable, offset, register, sound-row id, texture format, car or sponsor name, native-fixes table name)
+docs/formats.md:=7462de0fd520:unit-code:technical token (variable, offset, register, sound-row id, texture format, car or sponsor name, native-fixes table name)
+docs/formats.md:=2d836a96f407:unit-code:technical token (variable, offset, register, sound-row id, texture format, car or sponsor name, native-fixes table name)
+docs/formats.md:=b961412fcc9e:unit-code:technical token (variable, offset, register, sound-row id, texture format, car or sponsor name, native-fixes table name)
+docs/formats.md:=cf055388748d:unit-code:technical token (variable, offset, register, sound-row id, texture format, car or sponsor name, native-fixes table name)
+# Code, tests, scripts: technical tokens and names the code needs as they are
+LICENSE:=e8d0d53aacad:owner-remark:GPL-3.0 text ("tells the user that there is no warranty")
+LICENSE:=99fc6aa6edd2:agent-wording:GPL-3.0 text ("a brief idea of what it does")
+scripts/release/allow.txt:*:*:this file's entries quote the tokens they allow
+scripts/release/allow-archive.txt:*:*:quotes third-party text the archive scan allows (GPL-3.0, x11rb, mimalloc) and the old data folder name
+scripts/audio_sandbox.sh:*:private-path:the sandbox's own HOME folder under its temp dir
+scripts/checks/checks.sh:=6f9e1e7c64bb:unit-code:grep option -A6
+scripts/checks/resolutions.sh:*:unit-code:shell variables T0 / T1 (timestamps)
+scripts/checks/wine_smoke.sh:*:private-path:the script's own build folder name (wine-smoke-build)
+scripts/release/package.sh:=532ba49ce2d0:private-path:planted home path the package check must catch
+scripts/release/package.sh:=594a35a8816d:private-path:planted home path the package check must catch
+scripts/release/package.sh:=9d29a74d7c1a:private-path:the check's own Wine data folder name (wine-data)
+src/platform/dirs.rs:*:private-path:the synthetic test HOME /home/u
+src/platform/paths.rs:=8ab1143ef65b:unit-code:NFSU2 game folder name inside a raw-string Windows path
+src/platform/paths.rs:=973c94fa6d15:unit-code:NFSU2 game folder name inside a raw-string Windows path
+src/platform/paths.rs:=d2f31cc9fadf:unit-code:NFSU2 game folder name inside a raw-string Windows path
+src/overlay/system/sources.rs:*:hardware:Linux hwmon driver names (k10temp / zenpower / coretemp)
+tests/fixtures/overlay/root/sys/class/hwmon/hwmon3/name:=2ae88f54fb5a:hardware:Linux hwmon driver name the fixture's CPU sensor carries
+src/ai/gps.rs:*:owner-remark:the search's owner (code semantics)
+src/audio/banks/stitch.rs:*:owner-remark:the sound's owner object (game semantics)
+src/failed_load.rs:*:owner-remark:the cache's owner (code semantics)
+src/frontend/career/native_map/context.rs:*:owner-remark:the parts' owner (game semantics)
+src/particles/*:*:owner-remark:the emitter's owner object (game semantics)
+src/frontend/cheats.rs:*:unit-code:sponsor car name D3 (game data)
+src/formats/hash.rs:=43b0003f02dc:unit-code:test input name Q0 (a truncated-name case)
+src/formats/native_save.rs:=dc7b8fb9887d:unit-code:CP1251 bytes DD EC E8 EB FC
+src/exe_tables/mod.rs:=477a4d7972d0:unit-code:x86 opcode byte B8 (mov eax, imm32)
+src/car/lod.rs:=eb3b62ade30a:unit-code:x87 status flag C0
+src/formats/zam.rs:=858707855aec:unit-code:x87 status flags C0 / C3
+src/audio/fe_rules.rs:=42e844bedec4:unit-code:hash suffix D1 of a button range
+src/drive/rigid.rs:*:unit-code:matrix names M1 / M2 of the inertia product
+src/handling/gearing_tests.rs:=4e138fcb6350:unit-code:car name A3 (Audi)
+src/bin/game/dev/flow/outrun.rs:*:agent-wording:"the lead" = the race lead (a gap in metres)
+src/bin/game/dev/selftest/free_roam.rs:=64acd0d6b22a:agent-wording:"the lead" = the race lead (game semantics)
+src/bin/game/dev/shot/targets/explore.rs:=a6a60585b92e:agent-wording:"takes the lead" = the race lead (game semantics)
+src/bin/game/dev/state_hash.rs:=48bd0554ad17:unit-code:the constant V2 (the hash's second column list)
+src/bin/game/tests/snapshots.rs:*:owner-remark:the particles' owner objects (game semantics; the field `owners`)
+src/bin/game/tests/outrun_leader_goal.rs:=a41a46044349:agent-wording:"takes the lead" = the race lead (game semantics)
+docs/atmosphere.md:*:unit-code:look rule ids E1-E8 / R1-R6 (docs/look-direction.md)
+docs/car-scene-specular.md:*:unit-code:look rule ids E1-E8 / R1-R6 (docs/look-direction.md)
+docs/wet-road-car.md:*:unit-code:look rule ids E1-E8 / R1-R6 (docs/look-direction.md)
+docs/outrun.md:*:unit-code:car name A3 (Audi)
+docs/perf-car-draw-index.md:*:unit-code:memory type DDR4
+docs/formats.md:=d145e56ca8fa:unit-code:technical token (offset, register, variable, sound-row id, colour value, car or sponsor name, native-fixes file name)
+docs/native-fixes/N-MIX.tsv:*:unit-code:finding ids of this table (T1-T8) and native-fixes table names
+# False positives (object owners of game semantics, game data names, rule ids defined in public docs)
+src/bin/game/render/snapshot.rs:*:owner-remark:particle owners (the object a particle follows: game semantics)
+src/bin/game/sim/effects/mod.rs:=cc0f06115d77:owner-remark:the code that owns the effects (object owner)
+src/bin/game/sim/effects/mod.rs:=dc5e4205a71d:owner-remark:a particle's owner key (0x491E50's argument: game semantics)
+src/bin/game/sim/effects/mod.rs:=d7d0e616e28b:owner-remark:a particle's owner (game semantics)
+src/bin/game/audio/world.rs:=c2cc02f4eb00:owner-remark:the sound object's owner kind (game semantics)
+src/bin/game/state.rs:=ab9783375e10:owner-remark:the state structs that own the game's parts (object owners)
+src/render/core/shader/registry.rs:=e229f3a4600d:owner-remark:the Rust modules that own the shaders (object owners)
+src/render/enh/assets/car_model/fixes.rs:*:unit-code:car name (Audi A3, game data)
+src/render/enh/lighting/modern/bold/car_lights.rs:*:owner-remark:the car that owns a light (game semantics)
+src/render/enh/volumes/atmosphere/mod.rs:*:unit-code:look-budget rule ids E1-E8 defined in docs/look-direction.md
+src/render/enh/volumes/smoke/gpu_particles/feeder.rs:*:owner-remark:a particle's owner (game semantics)
+src/render/enh/volumes/sparks_fire/instances.rs:*:owner-remark:a flame's owner car (game semantics)
+src/render/native/world/draws.rs:=b5dd64a790ba:unit-code:address fragments 0x8028E4/E8 (exe addresses)
+src/render/shaders/enh/lighting/modern.wgsl:*:owner-remark:the car that owns a light (game semantics)
+src/audio/world/collision.rs:=f80b0022ce52:unit-code:row ids R7 / R13 of docs/native-fixes/N-RNG.tsv
+src/audio/world/collision.rs:=def21baf65ee:unit-code:row id R30 of docs/native-fixes/N-RNG.tsv
+src/render/native/post/targets.rs:=ab336dec0d78:owner-remark:texture owners (the objects holding the textures)
+docs/uncapped-fps.md:=3823cecdfd36:owner-remark:particle owners (the object a particle follows: game semantics)
+docs/uncapped-fps.md:=1e75d47b0295:owner-remark:a carried particle's owner (game semantics)
+
+# Lines reworded since their entries were written (same reasons)
+docs/native-fixes/AI-T.tsv:=714ce9b13a6d:unit-code:"W1 model" = the runtime-read rework's placement model
+docs/native-fixes/N-CAM.tsv:=0de0280e1933:unit-code:address suffixes /C4/C0
+docs/native-fixes/TRAF-3.tsv:=8f8bf2c2a957:unit-code:row id R20 of docs/native-fixes/N-RNG.tsv
+docs/prop-hits.md:=6444972c2f97:unit-code:vertex names B0 / A0 of the support query
+# the co-author credit of the public commit and the README's "How it was made" line
+README.md:=0f173abf5c83:agent-wording:credit line, "How it was made"
+scripts/release/clean_repo.py:=17d27c65d486:agent-wording:the public commit's co-author credit line (COMMIT_CREDIT_LINES)

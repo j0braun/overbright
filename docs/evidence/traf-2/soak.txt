@@ -1,0 +1,29 @@
+spot 0 (1695 -884, standing): 0 circling, 0 spins after hits
+spot 1 (-2996 2365, driving): 0 circling, 0 spins after hits
+spot 2 (-1381 -1789, standing): 0 circling, 0 spins after hits
+spot 3 (-78 1578, driving): 0 circling, 0 spins after hits
+spot 4 (-1591 360, standing): 0 circling, 0 spins after hits
+spot 5 (-1215 3114, driving): 0 circling, 0 spins after hits
+spot 6 (-55 -627, standing): 0 circling, 0 spins after hits
+spot 7 (12 -2020, driving): 0 circling, 0 spins after hits
+spot 8 (-1436 1733, standing): 0 circling, 0 spins after hits
+spot 9 (417 481, driving): 0 circling, 0 spins after hits
+spot 10 (-1226 -705, standing): 0 circling, 0 spins after hits
+spot 11 (790 -1352, driving): 0 circling, 0 spins after hits
+race 0 (event track 4014)   154.3 s car 10 4DR_SEDAN02 circling: turned 351° in 10.0 s, mean 3.5 m/s, 35 m from its place 10 s ago, at -239 284; mover physics stopped false avoid false obey false; lane step Some((88, 12, false, 3)) walk 2 lane turned 27°; target point Some((13.612315, 2.2562368)) (m, ° off heading) speed Some(14.0); steer 45.0° gas 0.50 brake 0.00; contacts []
+race 0 (event track 4014): 1 circling, 2 spins after hits
+race 1 (event track 4123): 0 circling, 0 spins after hits
+race 2 (event track 4201): 0 circling, 1 spins after hits
+race 3 (event track 4001): 0 circling, 2 spins after hits
+race 4: no race (menu)
+race 5: no race (menu)
+soak: 218213 frames, 1 circling
+race 0 (event track 4014)   154.3 s car 10 4DR_SEDAN02 circling: turned 351° in 10.0 s, mean 3.5 m/s, 35 m from its place 10 s ago, at -239 284; mover physics stopped false avoid false obey false; lane step Some((88, 12, false, 3)) walk 2 lane turned 27°; target point Some((13.612315, 2.2562368)) (m, ° off heading) speed Some(14.0); steer 45.0° gas 0.50 brake 0.00; contacts []
+race 0 (event track 4014)   154.3 s car 10 4DR_SEDAN02 circling: turned 351° in 10.0 s, mean 3.5 m/s, 35 m from its place 10 s ago, at -239 284; mover physics stopped false avoid false obey false; lane step Some((88, 12, false, 3)) walk 2 lane turned 27°; target point Some((13.612315, 2.2562368)) (m, ° off heading) speed Some(14.0); steer 45.0° gas 0.50 brake 0.00; contacts []
+race 0 (event track 4014)   154.3 s car 10 4DR_SEDAN02 circling: turned 351° in 10.0 s, mean 3.5 m/s, 35 m from its place 10 s ago, at -239 284; mover physics stopped false avoid false obey false; lane step Some((88, 12, false, 3)) walk 2 lane turned 27°; target point Some((13.612315, 2.2562368)) (m, ° off heading) speed Some(14.0); steer 45.0° gas 0.50 brake 0.00; contacts []
+seed 0: test tests::traffic::traffic_does_not_circle ... ok
+seed 1: test tests::traffic::traffic_does_not_circle ... ok
+seed 2: test tests::traffic::traffic_does_not_circle ... ok
+seed 3: test tests::traffic::traffic_does_not_circle ... ok
+seed 4: test tests::traffic::traffic_does_not_circle ... ok
+seed 5: test tests::traffic::traffic_does_not_circle ... ok

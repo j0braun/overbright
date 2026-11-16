@@ -1,0 +1,40 @@
+# Developer Certificate of Origin: every commit of a pull request must carry a Signed-off-by line
+# (CONTRIBUTING.md, "Sign off your commits"). Add one with `git commit -s`; fix a branch with
+# `git rebase --signoff <base>` and force-push it.
+name: DCO
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+
+permissions:
+  contents: read
+
+jobs:
+  signoff:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the pull request
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Every commit is signed off
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          missing=0
+          for c in $(git rev-list --no-merges "$BASE..$HEAD"); do
+            if git log -1 --format=%B "$c" | grep -qiE '^Signed-off-by: .+ <[^>]+@[^>]+>[[:space:]]*$'; then
+              echo "ok      $(git log -1 --format='%h %s' "$c")"
+            else
+              echo "::error::commit $(git log -1 --format='%h' "$c") has no Signed-off-by line: $(git log -1 --format=%s "$c")"
+              missing=$((missing + 1))
+            fi
+          done
+          if [ "$missing" -gt 0 ]; then
+            echo "$missing commit(s) without a sign-off. Add one with 'git commit -s' (or 'git rebase --signoff $BASE')."
+            exit 1
+          fi
+          echo "every commit is signed off"

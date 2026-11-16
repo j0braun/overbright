@@ -1,0 +1,42 @@
+A restart's rivals: Restart and Next Race keep the field in the original; the clone now does too, and keeps the cars.
+
+== The original (assembly, SPEED2.EXE)
+  0x6037D0 (flow state 0): messages 9, 10, 0x10 -> 0x7FAA08 = message; 0x581A00 -> 0x581830.
+  0x581830 (GameFlow_SwitchTrack): 0x89E7E6 (dyno run) -> 0x526980; else 0x850078 = 1 (career) and
+    0x863470 (event) -> 58192e: cmp ds:0x7faa08,0x10 / sete cl / push ecx / push eax / call 0x5322f0;
+    career without an event -> 0x540790; other game modes (Quick Race = 2): no set-up.
+  0x5322F0 (Race_SetupFromEvent): globals always (0x89E7F4; 0x89E7A0, 0x89E7A4, 0x89E7BC from [0x85EF48]; flags);
+    53245a: test param2 / je 0x53255c skips 0x528610, 0x6373F0, 0x601610, 0x5260C0 (line-up, looks,
+    performance), 0x4FE9F0 (traffic pool), 0x5264B0 (grid slots).
+  Restart posts 9 without moving the race record (0x4F3BA6, 0x4BFFDF, 0x4E9A75, 0x5DEBC9);
+  Next Race 0x4BEC90: 0x54CAF0 -> 0x541590 ([0x85EF48] += 0xD24), then 0x5F41F0(10).
+
+== Under Wine (fastgpu.sh on a private Xvfb, sound driver off; racer list [0x89E810], 0x940 bytes each,
+   count 0x89E814; four racers compared byte for byte, the player first)
+  Quick Race, first start: game mode 2, track 4014, 0x7FAA08 -1, grid slots (player, rivals) [2, 1, 3, 4]
+  Quick Race, restart 1: game mode 2, track 4014, 0x7FAA08 9, grid slots (player, rivals) [2, 1, 3, 4]
+  Quick Race, restart 2: game mode 2, track 4014, 0x7FAA08 9, grid slots (player, rivals) [2, 1, 3, 4]
+  Quick Race, restart 3: game mode 2, track 4014, 0x7FAA08 9, grid slots (player, rivals) [2, 1, 3, 4]
+    every restart against the first start: 1 byte of 0x940 differs per racer (+0x8F8)
+  career circuit A, World Map start: game mode 1, track 4013, 0x7FAA08 -1, grid slots [3, 2, 1, 4]
+  career circuit A, restart 1: game mode 1, track 4013, 0x7FAA08 9, grid slots [3, 2, 1, 4] (1 byte, +0x8F8)
+  career circuit A again, World Map start (no restart): track 4013, grid slots [2, 1, 3, 4]
+    (a new line-up: 44 / 625 / 718 / 711 bytes of the four records differ, other cars; 0x7FAA08 still
+    held 16 from the switch to free roam before: the World Map's start is not a track switch)
+  career circuit A again, restart 1: track 4013, 0x7FAA08 9, grid slots [2, 1, 3, 4] (1 byte, +0x8F8)
+  career circuit A again, restart 2: track 4013, 0x7FAA08 9, grid slots [2, 1, 3, 4] (1 byte, +0x8F8)
+  Frames at the grid, restarts 2 and 3 (pictures of the original stay out of the tree): the Quick Race
+  with the black coupe on the left and the silver hatchback on the right both times, the career race
+  with the yellow car behind and the black car on the left both times.
+  Not seen: Next Race (no tournament race finished in the original).
+
+== The clone before (a probe over a stage-1..5 career, each event raced 1 s, then the pause's Restart):
+  the rivals' load keys (car, parts, performance) of the race and of its restart: 0 of 83 equal, the car
+  types 73 of 83 (Restart drew a new line-up, looks and grid slots on the event's first race).
+
+== The clone now (tests::race_again, 17 races: every event kind of stages 1 and 3, URL and tournament
+   events among them, and five Quick Race modes):
+  restart twice: the same rivals, car keys, grid slots and round; every rival's car kept (3 or 5 of 3 or 5);
+  a restart with the cars kept against one that loads them: the same field, generator and 30 steps of
+  state hashes; a tournament's Next Race: the same line-up, looks and slots on race 2 with the cars of
+  race 1, and Restart there stays on race 2.

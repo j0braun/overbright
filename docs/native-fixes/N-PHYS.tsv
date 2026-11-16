@@ -1,0 +1,15 @@
+finding	address	change	test	confidence
+rigid body rows	0x59C130, 0x5AA490, 0x59C600, 0x5BB0E0 (0x5B7455; MeloMvr 0x5AB091)	drive mover and MeloMvr rows take the Euler step row += h(w x row); w from the un-cleaned rows; then 0x5BB0E0; exact rows kept between sub-steps; one helper (drive::rigid) shared with the NIS mover	drive::rigid::native_integrator_replay::original_sub_steps_replay_to_the_bit (262 native sub-steps, bit for bit)	certain
+crash mode	0x593A50, 0x5A0B10	a car in crash mode takes a track polygon's push with inertia and angular part x1.0 (not x0.4)	contact::tests::crash_mode_takes_the_track_push_whole	certain
+wall drive speed	0x5A4D2A	wall drive tests car +0x430 = |v| (not signed forward speed) against 60 mph	drive::native_phys::wall_drive_reads_the_speed_not_the_forward_speed	certain
+wheel hop speed	0x5B633A, 0x5B64F7, 0x5B660C	wheel hop reads the exported forward speed (+0x42C / +0x3EC)	drive::tests::hop_reads_the_end_state_load_term (exported speed set)	certain
+race tune blend	0x5A7540	race tunes blend both table halves by the category's upgrade state; Handling::upgrade_state + handling::upgrade_state (call site: car/record.rs, game-side patch)	race::tests::tunes_blend_by_the_upgrade_level	certain
+MeloMvr pass sums	0x5AB0D0 (vtable 0x7A2534 +4)	MeloMvr integrates the previous pass's sums, then runs the force pass on the un-cleaned rows (Melo::pending); first sub-step on a new mover inferred	melo integration via drive tests (no native capture)	likely
+resolution re-sweep	0x5FFC78 -> 0x5B23C0	after a resolution only the event's bodies sweep again, A then B, polygons and car pairs merged by high x	drive::collide::step::resweep_tests::moved_bodies_sweep_in_event_order	likely
+no car pairs at the start	0x593990, 0x5B5060, 0x5B2620	no car pairs in the start scene and countdown (CarState::start_hold; set in race_world_step, game-side patch)	drive::native_phys::no_car_pairs_while_the_race_start_holds	certain
+SPRAY SHOW test	0x6034C6 before 0x5EB924, 0x5ECDC0	SPRAY SHOW test reads the previous world update's gas and |v| (CarState::nitrous_key, Detect::key; game-side patch)	style::tests::the_nitrous_key_reads_the_previous_update	certain
+jump camera flight	0x5EC3E0, 0x5921C0	jump camera flight starts from the wheels lifted by their suspension offset (CarState::flight_start; game-side patch)	drive::native_phys::jump_flight_starts_from_the_lifted_wheels	likely
+dyno hold	0x56D415 -> 0x599210, 0x5A5C30, 0x5A4C53, 0x5A4D0A, 0x5A5124	dyno hold: kinematic position spring, yaw limit 1e-14, no top-speed limit, undriven grip x0 at gas 1	drive::native_phys::the_dyno_hold_keeps_the_car_in_place; tests/dyno_pull.rs unchanged	certain
+check: since_collision	0x5B5060 (+0x138 stamp)	verified native, comment only	-	certain
+check: uncapped effects |J|	0x5A9689, 0x59FBB8 (0x7A1860 = 40)	verified native, comment only	-	certain
+neutral throttle curve	0x416DE0, 0x7EA004	neutral throttle curve already ported (pad::driving); no change	pad::tests::neutral_throttle_takes_the_graph_and_no_1_07	certain

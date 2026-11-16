@@ -1,0 +1,71 @@
+# The drivetrain's order (docs/cornering-parity.md §6, docs/formats.md 'Order of a frame and a sub-step').
+# The same native runs (three per case; bench_wall_hold and accel_straight recorded anew), the clone side
+# run three times: base = before; h1 = the transplant carries the power factor, not the reaction; p1 = h1
+# and the force pass at the end of the sub-step. Per run: apart at 1 / 2 / 5 s (m) [the first quantity
+# beyond noise: frame (+n) field original | clone].
+brake200-1 | base: 0.005/0.017/0.242 [frame 33 (+1) fx_fl -2.9776 | -3.0623] | h1: 0.003/0.013/0.233 [frame 33 (+1) fx_fl -2.9776 | -3.0431] | p1: 0.003/0.011/0.003 [frame 33 (+1) fx_fr -2.9776 | -2.9764]
+brake200-2 | base: 0.005/0.017/0.242 [frame 33 (+1) fx_fl -2.9776 | -3.0623] | h1: 0.003/0.013/0.233 [frame 33 (+1) fx_fl -2.9776 | -3.0431] | p1: 0.003/0.011/0.003 [frame 33 (+1) fx_fr -2.9776 | -2.9764]
+brake200-3 | base: 0.005/0.017/0.496 [frame 33 (+1) fx_fl -3.0534 | -3.1449] | h1: 0.004/0.014/0.491 [frame 33 (+1) fx_fl -3.0534 | -3.1334] | p1: 0.003/0.012/0.008 [frame 33 (+1) fx_fr -3.0534 | -3.0523]
+turn60-1 | base: 0.004/0.007/0.070 [frame 53 (+1) fx_fl 0.91815 | 0.93337] | h1: 0.004/0.007/0.073 [frame 53 (+1) fx_fl 0.91815 | 0.93336] | p1: 0.004/0.002/0.101 [frame 53 (+1) fx_fl 0.91815 | 0.92016]
+turn60-2 | base: 0.018/0.039/0.087 [frame 53 (+1) fx_fl 0.96398 | 0.99357] | h1: 0.004/0.003/0.035 [frame 53 (+1) fx_fl 0.96398 | 0.99051] | p1: 0.004/0.001/0.009 [frame 53 (+1) fx_fl 0.96398 | 0.96605]
+turn60-3 | base: 0.013/0.018/0.169 [frame 53 (+1) fx_fl 1.0448 | 1.0737] | h1: 0.001/0.006/0.023 [frame 53 (+1) fx_fl 1.0448 | 1.0705] | p1: 0.001/0.006/0.053 [frame 53 (+1) fx_fl 1.0448 | 1.0469]
+turn90-1 | base: 0.003/0.012/0.311 [frame 53 (+1) fx_fl 0.87478 | 0.89007] | h1: 0.003/0.007/0.072 [frame 53 (+1) fx_fl 0.87478 | 0.8901] | p1: 0.003/0.022/0.858 [frame 53 (+1) fx_rr 0.59536 | 0.59413]
+turn90-2 | base: 0.007/0.007/0.061 [frame 53 (+1) fx_fl 1.2993 | 1.3123] | h1: 0.005/0.009/0.091 [frame 53 (+1) fx_fl 1.2993 | 1.3193] | p1: 0.005/0.064/3.418 [frame 54 (+2) fx_fl 1.2046 | 1.2025]
+turn90-3 | base: 0.003/0.012/0.311 [frame 53 (+1) fx_fl 0.87478 | 0.89007] | h1: 0.003/0.007/0.072 [frame 53 (+1) fx_fl 0.87478 | 0.8901] | p1: 0.003/0.022/0.858 [frame 53 (+1) fx_rr 0.59536 | 0.59413]
+turn130-1 | base: 0.005/0.083/0.752 [frame 53 (+1) fx_fl 1.4973 | 1.5025] | h1: 0.005/0.081/0.791 [frame 53 (+1) fx_fl 1.4973 | 1.5041] | p1: 0.007/0.080/1.185 [frame 53 (+1) fy_fr 11.519 | 11.513]
+turn130-2 | base: 0.017/0.109/0.850 [frame 53 (+1) fx_fl 1.4488 | 1.4587] | h1: 0.009/0.008/0.247 [frame 53 (+1) fx_fl 1.4488 | 1.4635] | p1: 0.010/0.005/0.272 [frame 53 (+1) fy_fr 11.466 | 11.472]
+turn130-3 | base: 0.008/0.150/1.008 [frame 53 (+1) fx_fl 1.4243 | 1.4547] | h1: 0.007/0.121/0.797 [frame 53 (+1) fx_fl 1.4243 | 1.4476] | p1: 0.008/0.052/0.051 [frame 53 (+1) fx_rr 0.7281 | 0.72695]
+lift90-1 | base: 0.006/0.017/0.033 [frame 53 (+1) fx_fl 0.97994 | 1.0001] | h1: 0.006/0.018/0.102 [frame 53 (+1) fx_fl 0.97994 | 1.0002] | p1: 0.004/0.000/0.105 [frame 53 (+1) fx_fl 0.97994 | 0.97796]
+lift90-2 | base: 0.005/0.017/0.032 [frame 53 (+1) fx_fl 0.87453 | 0.89185] | h1: 0.005/0.018/0.033 [frame 53 (+1) fx_fl 0.87453 | 0.89189] | p1: 0.003/0.005/0.014 [frame 53 (+1) fx_fl 0.87453 | 0.87255]
+lift90-3 | base: 0.010/0.007/0.009 [frame 53 (+1) fx_fl 1.8793 | 2.0116] | h1: 0.010/0.008/0.025 [frame 53 (+1) fx_fl 1.8793 | 2.0064] | p1: 0.002/0.006/0.011 [frame 53 (+1) fx_fl 1.8793 | 1.9421]
+hand90-1 | base: 0.074/0.127/0.263 [frame 54 (+2) fx_fl -0.72233 | -0.31093] | h1: 0.074/0.128/0.158 [frame 54 (+2) fx_fl -0.72233 | -0.31114] | p1: 0.007/0.037/0.238 [frame 61 (+9) fx_fl 1.9984 | 1.9974]
+hand90-2 | base: 0.061/0.076/0.286 [frame 53 (+1) fx_fl -0.87139 | -0.61173] | h1: 0.065/0.108/0.329 [frame 53 (+1) fx_fl -0.87139 | -0.86685] | p1: 0.009/0.024/0.284 [frame 61 (+9) fx_fl 2.4301 | 2.4467]
+hand90-3 | base: 0.062/0.065/0.145 [frame 53 (+1) fx_fl -0.87139 | -0.61173] | h1: 0.066/0.097/0.197 [frame 53 (+1) fx_fl -0.87139 | -0.86685] | p1: 0.010/0.035/0.141 [frame 61 (+9) fx_fl 2.4301 | 2.4467]
+launch20-1 | base: 0.009/0.017/0.057 [frame 53 (+1) fx_fl 0.2736 | 0.32413] | h1: 0.007/0.008/0.028 [frame 53 (+1) fx_fl 0.2736 | 0.3022] | p1: 0.007/0.010/0.012 [frame 53 (+1) fx_fl 0.2736 | 0.28732]
+launch20-2 | base: 0.018/0.026/0.182 [frame 53 (+1) fx_fl 0.1265 | 0.17113] | h1: 0.012/0.019/0.007 [frame 53 (+1) fx_fl 0.1265 | 0.14234] | p1: 0.012/0.018/0.031 [frame 53 (+1) fx_fl 0.1265 | 0.13957]
+launch20-3 | base: 0.006/0.010/0.059 [frame 53 (+1) fx_fl 0.12799 | 0.16337] | h1: 0.006/0.007/0.035 [frame 53 (+1) fx_fl 0.12799 | 0.13746] | p1: 0.006/0.007/0.144 [frame 53 (+1) fx_fl 0.12799 | 0.14208]
+wall-1 | base: 0.017/0.004/0.027 [frame 51 (+1) fx_fl -0.8476 | -0.70406] | h1: 0.001/0.009/0.226 [frame 51 (+1) fx_fl -0.8476 | -0.84405] | p1: 0.001/0.009/0.155 [frame 61 (+11) fx_fr -6.5085 | -6.5119]
+wall-2 | base: 0.023/0.004/0.111 [frame 51 (+1) fx_fl -0.84515 | -0.616] | h1: 0.004/0.004/0.095 [frame 51 (+1) fx_fl -0.84515 | -0.84666] | p1: 0.004/0.007/0.152 [frame 60 (+10) fx_fr -6.6344 | -6.6279]
+wall-3 | base: 0.023/0.004/0.111 [frame 51 (+1) fx_fl -0.84515 | -0.616] | h1: 0.004/0.004/0.095 [frame 51 (+1) fx_fl -0.84515 | -0.84666] | p1: 0.004/0.007/0.152 [frame 60 (+10) fx_fr -6.6344 | -6.6279]
+
+# The frames of the three named differences (original | clone after the port).
+# turn60-1 frame 53 (lock-up): engine 251.46 | 251.45811, input shaft 251.46 | 251.45811, FL / FR spin 48.7855 / 48.7855 | 48.785137 / 48.785137
+#   (base: input shaft 250.46742, spins 48.62 / 48.565865: the next frame's first sub-step matched them)
+# hand90-2 frame 53 (disengaging): engine 436.644 | 436.6425 (base 437.38837; harness fix alone 436.6425), FL spin 85.4012 | 85.40096
+# bench_wall_hold run 2 frame 60 (2nd -> 1st): fx FL / FR -6.454 / -6.634 | -6.453 / -6.628 (base -6.428 / -6.602),
+#   yaw rate at frame 65 -0.00140 | -0.00140; the wheel hop's grip 0.913971 (count 3) on both
+
+# circuit_s1_launch (pinned stage-1 circuit, tools/parity/stance.py): |v| m/s at 0.5 / 1 / 2 / 3 / 4 s after the green
+# two native runs (the same up to 3 s); the 4 s value follows the shunts of the car behind (pushes).
+# cl1-base
+original          1.297  4.319  9.441 14.025 15.893  pushes [(59, 1.707), (62, 0.326), (69, 0.362), (78, 0.367), (109, 0.377), (252, 0.365), (257, 0.161), (259, 0.168)]  contact 59..300 (160)
+clone             1.296  4.319  9.435 14.019 15.903  pushes [(59, 1.707), (62, 0.33), (69, 0.362), (78, 0.367), (108, 0.379), (246, 0.353), (251, 0.176)]  contact 59..300 (160)
+# cl1-p1
+original          1.297  4.319  9.441 14.025 15.893  pushes [(59, 1.707), (62, 0.326), (69, 0.362), (78, 0.367), (109, 0.377), (252, 0.365), (257, 0.161), (259, 0.168)]  contact 59..300 (160)
+clone             1.296  4.316  9.438 14.021 16.182  pushes [(59, 1.704), (62, 0.326), (68, 0.364), (78, 0.367), (107, 0.381), (240, 0.18)]  contact 59..300 (160)
+# cl2-base
+original          1.297  4.319  9.441 14.025 15.916  pushes [(59, 1.707), (62, 0.326), (69, 0.362), (78, 0.367), (109, 0.377), (251, 0.294), (256, 0.161)]  contact 59..300 (159)
+clone             1.296  4.319  9.435 14.019 15.903  pushes [(59, 1.707), (62, 0.33), (69, 0.362), (78, 0.367), (108, 0.379), (246, 0.353), (251, 0.176)]  contact 59..300 (160)
+# cl2-p1
+original          1.297  4.319  9.441 14.025 15.916  pushes [(59, 1.707), (62, 0.326), (69, 0.362), (78, 0.367), (109, 0.377), (251, 0.294), (256, 0.161)]  contact 59..300 (159)
+clone             1.296  4.316  9.438 14.021 16.182  pushes [(59, 1.704), (62, 0.326), (68, 0.364), (78, 0.367), (107, 0.381), (240, 0.18)]  contact 59..300 (160)
+
+# accel_straight (full throttle from 20 km/h in 2nd, automatic gearbox; gear 2 = 1st). The road is not long
+# enough for 200 km/h: a contact at about 8.5 s (run 3: 14.9 s) ends the straight part. The clone's
+# '0.017: 2->3' is its own pre-transplant frame.
+  orig-1  shifts (s after frame 52: from→to) 0.167:3→2 2.800:2→3 7.633:3→4 13.783:4→3 14.233:3→2; 60/100/150/200 km/h at 3.283/7.700/-/- s; max 111.1 km/h; first drop >5 km/h/frame at 8.55
+  base    shifts (s after frame 52: from→to) 0.017:2→3 0.167:3→2 2.750:2→3 7.750:3→4 14.283:4→5 16.967:5→4 17.483:4→3 18.000:3→2; 60/100/150/200 km/h at 3.300/7.533/-/- s; max 149.9 km/h; first drop >5 km/h/frame at 8.57
+  p1      shifts (s after frame 52: from→to) 0.017:2→3 0.167:3→2 2.750:2→3 7.750:3→4 14.283:4→5; 60/100/150/200 km/h at 3.317/7.533/16.250/- s; max 162.3 km/h; first drop >5 km/h/frame at 8.57
+  orig-2  shifts (s after frame 52: from→to) 0.167:3→2 2.733:2→3 7.783:3→4 8.833:4→3 15.400:3→4 19.133:4→3; 60/100/150/200 km/h at 3.317/7.550/-/- s; max 121.4 km/h; first drop >5 km/h/frame at 8.48
+  base    shifts (s after frame 52: from→to) 0.017:2→3 0.167:3→2 2.750:2→3 7.733:3→4 8.767:4→3 12.783:3→4 17.250:4→5; 60/100/150/200 km/h at 3.300/7.533/-/- s; max 145.9 km/h; first drop >5 km/h/frame at 8.48
+  p1      shifts (s after frame 52: from→to) 0.017:2→3 0.167:3→2 2.750:2→3 7.750:3→4 8.733:4→3 12.767:3→4 17.233:4→5; 60/100/150/200 km/h at 3.300/7.533/-/- s; max 146.0 km/h; first drop >5 km/h/frame at 8.50
+  orig-3  shifts (s after frame 52: from→to) 0.183:3→2 2.783:2→3 7.750:3→4 13.583:4→5 16.150:5→4 16.550:4→3 16.950:3→2; 60/100/150/200 km/h at 3.333/7.567/-/- s; max 146.2 km/h; first drop >5 km/h/frame at 14.88
+  base    shifts (s after frame 52: from→to) 0.017:2→3 0.183:3→2 2.783:2→3 7.783:3→4 13.817:4→5 17.233:5→4 17.750:4→3 18.967:3→2; 60/100/150/200 km/h at 3.333/7.567/15.650/- s; max 151.6 km/h; first drop >5 km/h/frame at 16.10
+  p1      shifts (s after frame 52: from→to) 0.017:2→3 0.183:3→2 2.783:2→3 7.783:3→4 13.817:4→5 16.783:5→4 17.283:4→3 17.800:3→2; 60/100/150/200 km/h at 3.333/7.567/15.617/- s; max 152.0 km/h; first drop >5 km/h/frame at 16.10
+
+# A plain locked-clutch frame: 120 km/h on the straight before the highway's barrels, full throttle, no shift
+# (the barrel runs' transplant before frame 59; three native runs, identical at the transplant). Frame +1,
+# original | clone: base engine 589.789 | 589.632, FL spin 114.425 | 114.401, vel.z -0.91070 | -0.91053,
+# rb_spin.x 0.00238 | 0.00107; with the transplant no longer carrying the reaction (and the port) engine
+# 589.789 | 589.787, FL spin 114.425 | 114.425, vel.z -0.91070 | -0.91069, rb_spin.x 0.00238 | 0.00239.
+# The doubled reaction was the whole difference there; the runs part later at the barrels' contacts.

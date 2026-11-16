@@ -1,0 +1,35 @@
+turn90-1-t100  transplant before frame 100; frames 101..140
+  fx_fl      max|d| 0.01595   first beyond noise: frame 101 (+1) fx_fl 2.7572 | 2.7453
+  fx_rr      max|d| 0.03776   first beyond noise: frame 101 (+1) fx_rr 0.26723 | 0.26324
+  fy_fl      max|d| 0.01782   first beyond noise: frame 101 (+1) fy_fl 1.3001 | 1.2881
+  fy_fr      max|d| 0.02962   first beyond noise: frame 101 (+1) fy_fr 9.9563 | 9.9721
+  fy_rr      max|d| 0.918   first beyond noise: frame 101 (+1) fy_rr 5.4043 | 5.3905
+  ntq_fl     max|d| 0.04097   first beyond noise: frame 101 (+1) ntq_fl 0.36472 | 0.32375
+  ntq_fr     max|d| 0.00823   first beyond noise: frame 101 (+1) ntq_fr -0.64844 | -0.65667
+  pos        max|d| 0.0048   first beyond noise: frame 101 (+1) pos.y -1390.2 | -1390.2
+  rpm        max|d| 1.635   first beyond noise: frame 101 (+1) rpm 4048.5 | 4046.9
+  slip_fl    max|d| 0.004914   first beyond noise: frame 101 (+1) slip_fl 0.027455 | 0.022541
+  slip_fr    max|d| 0.001507   first beyond noise: frame 101 (+1) slip_fr -0.097759 | -0.098801
+  spin_fl    max|d| 0.0284   first beyond noise: frame 101 (+1) spin_fl 53.672 | 53.643
+  spin_fr    max|d| 0.02006   first beyond noise: frame 101 (+1) spin_fr 66.557 | 66.537
+  spin_rl    max|d| 0.01925   first beyond noise: frame 101 (+1) spin_rl 71.859 | 71.843
+  spin_rr    max|d| 0.0197   first beyond noise: frame 101 (+1) spin_rr 75.57 | 75.553
+  vel        max|d| 0.00578   first beyond noise: frame 101 (+1) vel.x -21.551 | -21.546
+  fx_fr      max|d| 0.05571   first beyond noise: frame 102 (+2) fx_fr 4.3184 | 4.3215
+  ntq_rr     max|d| 0.005958   first beyond noise: frame 108 (+8) ntq_rr -0.089184 | -0.083225
+  slip_rl    max|d| 0.00172   first beyond noise: frame 108 (+8) slip_rl -0.019785 | -0.018064
+  yaw_rate   max|d| 0.001824   first beyond noise: frame 108 (+8) yaw_rate 0.81759 | 0.81941
+  fx_rl      max|d| 0
+  fy_rl      max|d| 0
+  gear       max|d| 0
+  lock_fl    max|d| 0
+  lock_fr    max|d| 0
+  lock_rl    max|d| 0
+  lock_rr    max|d| 0
+  ntq_rl     max|d| 4.013e-46
+  slip_rr    max|d| 0.0002499
+  steer      max|d| 0
+  +0.5 s: apart 0.002 m   |v| 79.52 | 79.51 km/h   heading -166.65 | -166.64   yaw rate 0.925 | 0.926
+  +1 s: apart 0.006 m   |v| 5.85 | 5.86 km/h   heading -154.12 | -154.08   yaw rate 0.052 | 0.071
+  +2 s: apart 0.024 m   |v| 22.34 | 22.15 km/h   heading -92.33 | -93.65   yaw rate 1.641 | 1.640
+  +5 s: apart 0.264 m   |v| 38.45 | 38.42 km/h   heading -169.25 | -170.18   yaw rate 1.719 | 1.720

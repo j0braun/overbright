@@ -1,0 +1,38 @@
+The race end's part map made ahead (Game::preload_owned_bits).
+
+--bench drive 4000, NFSU2_BENCH_KIND=drag, NFSU2_BENCH_GPU=0, frame log; the base tree with the bench prints vs this tree;
+7 interleaved runs each under the measuring lock; the race end's frame (3642): main thread CPU, the frame's update CPU, the tick's update span.
+start 12:59:28 load 13.63 15.33 19.68
+base 1 load 13.63 15.33 19.68 exit 0
+new 1 load 13.29 15.21 19.59 exit 0
+base 2 load 12.94 15.07 19.50 exit 0
+new 2 load 12.54 14.95 19.43 exit 0
+base 3 load 12.54 14.95 19.43 exit 0
+new 3 load 12.50 14.90 19.39 exit 0
+base 4 load 12.38 14.84 19.35 exit 0
+new 4 load 12.11 14.74 19.29 exit 0
+base 5 load 11.86 14.64 19.24 exit 0
+new 5 load 12.03 14.63 19.21 exit 0
+base 6 load 13.31 14.85 19.26 exit 0
+new 6 load 13.53 14.87 19.24 exit 0
+base 7 load 13.16 14.78 19.18 exit 0
+new 7 load 13.23 14.76 19.16 exit 0
+end 13:00:40
+-- base
+  frame 3642 main_cpu 7.059 update_cpu 4.946 | tick: update=4.392,shadows, particles, glows, horizon fog=1.570,characters=1.537
+  frame 3642 main_cpu 7.920 update_cpu 4.587 | tick: update=4.188,shadows, particles, glows, horizon fog=2.812,characters=2.765
+  frame 3642 main_cpu 7.651 update_cpu 4.812 | tick: update=4.393,shadows, particles, glows, horizon fog=2.059,characters=1.986
+  frame 3642 main_cpu 9.155 update_cpu 5.703 | tick: update=5.281,shadows, particles, glows, horizon fog=2.961,characters=2.925
+  frame 3642 main_cpu 9.206 update_cpu 5.269 | tick: update=5.154,shadows, particles, glows, horizon fog=2.817,characters=2.770
+  frame 3642 main_cpu 7.120 update_cpu 4.042 | tick: update=3.970,shadows, particles, glows, horizon fog=2.370,characters=2.342
+  frame 3642 main_cpu 7.010 update_cpu 4.344 | tick: update=3.954,shadows, particles, glows, horizon fog=2.278,characters=2.248
+-- new
+  frame 3642 main_cpu 6.151 update_cpu 2.866 | tick: update=2.328,shadows, particles, glows, horizon fog=1.851,characters=1.788
+  frame 3642 main_cpu 5.375 update_cpu 2.522 | shadows, particles, glows, horizon fog=2.337,characters=2.295,tick: update=2.100
+  frame 3642 main_cpu 5.580 update_cpu 2.529 | shadows, particles, glows, horizon fog=2.585,characters=2.552,tick: update=2.111
+  frame 3642 main_cpu 4.835 update_cpu 2.332 | shadows, particles, glows, horizon fog=2.103,characters=2.070,tick: update=1.919
+  frame 3642 main_cpu 5.501 update_cpu 2.162 | shadows, particles, glows, horizon fog=2.432,characters=2.382,tick: update=2.018
+  frame 3642 main_cpu 6.206 update_cpu 2.100 | shadows, particles, glows, horizon fog=3.517,characters=3.471,tick: update=1.817
+  frame 3642 main_cpu 8.245 update_cpu 4.041 | tick: update=3.566,shadows, particles, glows, horizon fog=3.265,characters=3.168
+
+tests::part_group_owned_bits::a_new_cars_part_map_is_made_ahead: part map of 240SX: 2.00 ms of one thread

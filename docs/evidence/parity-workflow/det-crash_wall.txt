@@ -1,0 +1,117 @@
+exact records; frames 481 / 481
+  slot 1: FOCUS vs MIATA (different car)
+  slot 2: COROLLA vs MIATA (different car)
+  slot 3: PEUGOT106 vs 240SX (different car)
+418 of 523 columns equal on all 481 frames
+[global] 8/13 equal:
+    clock                    first differs at frame     0  max |diff| 5370
+    race_clock               first differs at frame     0  max |diff| 5521
+    frame_n                  first differs at frame     0  max |diff| 156
+    world_n                  first differs at frame     0  max |diff| 4
+    world_rng                first differs at frame     0  max |diff| 3.76992e+09
+[cam_eye] 0/3 equal:
+    cam_eye.x                first differs at frame     0  max |diff| 0.289459
+    cam_eye.y                first differs at frame     0  max |diff| 0.187202
+    cam_eye.z                first differs at frame     0  max |diff| 0.0173607
+[cam_fwd] 0/3 equal:
+    cam_fwd.x                first differs at frame     0  max |diff| 0.0458479
+    cam_fwd.y                first differs at frame     0  max |diff| 0.0389384
+    cam_fwd.z                first differs at frame     0  max |diff| 0.0170392
+[c0] 42/126 equal:
+    c0.clutch                first differs at frame     0  max |diff| 0.325
+    c0.shift                 first differs at frame     0  max |diff| 3
+    c0.load_rl               first differs at frame     0  max |diff| 5.1814
+    c0.load_rr               first differs at frame     0  max |diff| 4.26004
+    c0.dt_70                 first differs at frame     0  max |diff| 7.81187
+    c0.eng_7c                first differs at frame     0  max |diff| 7.81187
+    c0.dt_78                 first differs at frame     0  max |diff| 80.7933
+    c0.dt_7c                 first differs at frame     0  max |diff| 94.2194
+    c0.dt_80                 first differs at frame     0  max |diff| 85.8677
+    c0.load_fl               first differs at frame     0  max |diff| 7.79936
+    c0.pos.x                 first differs at frame     8  max |diff| 0.486938
+    c0.pos.y                 first differs at frame     8  max |diff| 0.281494
+    c0.pos.z                 first differs at frame     8  max |diff| 0.018631
+    c0.vel.x                 first differs at frame     8  max |diff| 5.44848
+    c0.vel.y                 first differs at frame     8  max |diff| 13.7078
+    c0.vel.z                 first differs at frame     8  max |diff| 0.513414
+    c0.fwd.x                 first differs at frame     8  max |diff| 0.0458769
+    c0.fwd.y                 first differs at frame     8  max |diff| 0.0387707
+    c0.fwd.z                 first differs at frame     8  max |diff| 0.0102496
+    c0.speed                 first differs at frame     8  max |diff| 13.1902
+    c0.rpm                   first differs at frame     8  max |diff| 1062.62
+    c0.steer                 first differs at frame     8  max |diff| 781
+    c0.gas                   first differs at frame     8  max |diff| 1
+    c0.brake                 first differs at frame     8  max |diff| 0.00392157
+    c0.car_rng               first differs at frame     8  max |diff| 3732
+    c0.raw_gas               first differs at frame     8  max |diff| 0.99702
+    c0.key_gas               first differs at frame     8  max |diff| 255
+    c0.eng_w                 first differs at frame     8  max |diff| 247.172
+    c0.eng_pedal             first differs at frame     8  max |diff| 1
+    c0.eng_power             first differs at frame     8  max |diff| 1
+    c0.in_w                  first differs at frame     8  max |diff| 298.949
+    c0.spin_fl               first differs at frame     8  max |diff| 39.1005
+    c0.spin_rr               first differs at frame     8  max |diff| 5.60665
+    c0.spin_rl               first differs at frame     8  max |diff| 3.55474
+    c0.slip_rl               first differs at frame     8  max |diff| 14.0692
+    c0.slip_rr               first differs at frame     8  max |diff| 15.3578
+    c0.torq_rl               first differs at frame     8  max |diff| 0.0162196
+    c0.dt_58                 first differs at frame     8  max |diff| 2785.1
+    c0.slip_fl               first differs at frame     8  max |diff| 14.085
+    c0.w118_rl               first differs at frame     8  max |diff| 14.0692
+    c0.w164_rl               first differs at frame     8  max |diff| 5.18026
+    c0.w118_rr               first differs at frame     8  max |diff| 15.3578
+    c0.w164_rr               first differs at frame     8  max |diff| 4.25248
+    c0.w118_fl               first differs at frame     8  max |diff| 14.085
+    c0.w164_fl               first differs at frame     8  max |diff| 7.78794
+    c0.xspeed                first differs at frame     8  max |diff| 14.7099
+    c0.yaw_rate              first differs at frame     8  max |diff| 0.898119
+    c0.cb_sweep              first differs at frame     8  max |diff| 1
+    c0.rb_row0.x             first differs at frame     8  max |diff| 0.0458769
+    c0.rb_row0.y             first differs at frame     8  max |diff| 0.0387707
+    c0.rb_row0.z             first differs at frame     8  max |diff| 0.0102496
+    c0.rb_row1.x             first differs at frame     8  max |diff| 0.0384113
+    c0.rb_row1.y             first differs at frame     8  max |diff| 0.045705
+    c0.rb_row1.z             first differs at frame     8  max |diff| 0.0141317
+    c0.rb_row2.x             first differs at frame     8  max |diff| 0.0112019
+    c0.rb_row2.y             first differs at frame     8  max |diff| 0.00885816
+    c0.rb_row2.z             first differs at frame     8  max |diff| 0.000222445
+    c0.rb_spin.x             first differs at frame     8  max |diff| 0.400053
+    c0.rb_spin.y             first differs at frame     8  max |diff| 0.70108
+    c0.rb_spin.z             first differs at frame     8  max |diff| 0.898119
+    c0.rb_angmom.x           first differs at frame     8  max |diff| 0.443829
+    c0.rb_angmom.y           first differs at frame     8  max |diff| 0.363026
+    c0.rb_angmom.z           first differs at frame     8  max |diff| 3.04632
+    c0.grip_rl               first differs at frame     9  max |diff| 0.157571
+    c0.hpath_p0.x            first differs at frame     9  max |diff| 18.3989
+    c0.hpath_p0.y            first differs at frame     9  max |diff| 14.1156
+    c0.hpath_p0.z            first differs at frame     9  max |diff| 0.493851
+    c0.hpath_p1.x            first differs at frame     9  max |diff| 45.8799
+    c0.hpath_p1.y            first differs at frame     9  max |diff| 25.852
+    c0.hpath_p1.z            first differs at frame     9  max |diff| 10.8791
+    c0.hpath_n               first differs at frame   124  max |diff| 11
+    c0.road_node.x           first differs at frame   171  max |diff| 8.82706
+    c0.road_node.y           first differs at frame   171  max |diff| 5.60664
+    c0.road_node_id          first differs at frame   176  max |diff| 242
+    c0.dt_tgt                first differs at frame   189  max |diff| 1
+    c0.dt_6c                 first differs at frame   189  max |diff| 5401.47
+    c0.gear                  first differs at frame   199  max |diff| 1
+    c0.slide_rl              first differs at frame   199  max |diff| 1
+    c0.slide_fl              first differs at frame   199  max |diff| 1
+    c0.recs                  first differs at frame   199  max |diff| 1
+    c0.car_mode              first differs at frame   199  max |diff| 2
+    c0.hop                   first differs at frame   200  max |diff| 4
+    c0.hop_grip              first differs at frame   200  max |diff| 0.203991
+    c0.grip_fl               first differs at frame   200  max |diff| 0.152656
+[c1] 126/126 equal
+[c2] 116/126 equal:
+    c2.dlane                 first differs at frame     0  max |diff| 1.06519e+09
+    c2.rb_row0.x             first differs at frame     0  max |diff| 18.3713
+    c2.rb_row0.y             first differs at frame     0  max |diff| 35.3724
+    c2.rb_row0.z             first differs at frame     0  max |diff| 34.8215
+    c2.rb_row1.x             first differs at frame     0  max |diff| 163.066
+    c2.rb_row1.y             first differs at frame     0  max |diff| 131.096
+    c2.rb_row1.z             first differs at frame     0  max |diff| 2053.67
+    c2.rb_row2.x             first differs at frame     0  max |diff| 1.32311
+    c2.rb_row2.y             first differs at frame     0  max |diff| 1.95885
+    c2.rb_row2.z             first differs at frame     0  max |diff| 0.140754
+[c3] 126/126 equal

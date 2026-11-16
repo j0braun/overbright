@@ -1,0 +1,17 @@
+probe=1
+version=Overbright 0.1.0 (commit unknown, linux-x86_64)
+adapter.name=Example Discrete GPU (RADV)
+adapter.backend=Vulkan
+adapter.type=DiscreteGpu
+adapter.pci=1002:1234
+adapter.driver=radv Mesa 26.2
+adapter.vram=17179869184
+gpu.class=high
+monitor=1920x1080@0.000
+modes=640x480,800x600,1024x768,1280x960,1280x1024,1600x1200,1920x1080,2560x1440,3840x2160
+settings.file=0
+first_run.resolution=1280x960
+first_run.fullscreen=0
+first_run.detail=3
+first_run.custom=1,1,2,1,1,1,2,2,1,1,1,1,1,1,0,1,1,1,0,0,1,0
+ok=1

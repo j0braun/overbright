@@ -1,0 +1,5 @@
+# Applied to files created by the refactor (new files only, for now); the
+# older files are formatted when they are split.
+edition = "2024"
+max_width = 120
+use_small_heuristics = "Max"

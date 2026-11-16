@@ -1,0 +1,30 @@
+rear-1: contact at frame 151; before: player 78.1, traffic 43.6 km/h (closing 34.5)
+   +0.5 s: player   52.0 km/h yaw -0.009 rad/s | traffic   52.5 km/h yaw +0.045 rad/s
+   +1 s: player   45.0 km/h yaw -0.001 rad/s | traffic   46.8 km/h yaw +0.042 rad/s
+   +2 s: player   44.5 km/h yaw +0.044 rad/s | traffic   42.8 km/h yaw +0.450 rad/s
+rear-2: contact at frame 135; before: player 88.9, traffic 36.2 km/h (closing 52.7)
+   +0.5 s: player   63.7 km/h yaw +0.031 rad/s | traffic   64.8 km/h yaw +0.248 rad/s
+   +1 s: player   66.9 km/h yaw +0.027 rad/s | traffic   64.7 km/h yaw +0.016 rad/s
+   +2 s: player   70.6 km/h yaw +0.016 rad/s | traffic   59.1 km/h yaw -0.051 rad/s
+rear-3: contact at frame 133; before: player 89.0, traffic 34.3 km/h (closing 54.6)
+   +0.5 s: player   61.8 km/h yaw +0.057 rad/s | traffic   58.9 km/h yaw -0.087 rad/s
+   +1 s: player   55.7 km/h yaw +0.044 rad/s | traffic   52.4 km/h yaw -0.066 rad/s
+   +2 s: player   14.0 km/h yaw -0.034 rad/s | traffic   14.9 km/h yaw +0.088 rad/s
+side-1: contact at frame 83; before: player 150.5, traffic 32.4 km/h (closing 118.1)
+   +0.5 s: player  146.2 km/h yaw +0.003 rad/s | traffic   23.3 km/h yaw +0.046 rad/s
+   +1 s: player  148.3 km/h yaw +0.003 rad/s | traffic    4.8 km/h yaw +0.028 rad/s
+   +2 s: player  150.7 km/h yaw +0.003 rad/s | traffic   12.3 km/h yaw -0.101 rad/s
+side-2: contact at frame 91; before: player 151.1, traffic 51.8 km/h (closing 99.3)
+   +0.5 s: player   68.8 km/h yaw +0.001 rad/s | traffic   68.4 km/h yaw +0.528 rad/s
+   +1 s: player   32.4 km/h yaw +0.043 rad/s | traffic   31.4 km/h yaw -0.028 rad/s
+   +2 s: player   12.6 km/h yaw +0.088 rad/s | traffic   12.4 km/h yaw -0.179 rad/s
+side-3: contact at frame 94; before: player 151.1, traffic 41.9 km/h (closing 109.2)
+   +0.5 s: player   93.1 km/h yaw +0.303 rad/s | traffic   94.1 km/h yaw -0.971 rad/s
+   +1 s: player   92.9 km/h yaw +0.165 rad/s | traffic   84.2 km/h yaw -0.899 rad/s
+   +2 s: player   79.4 km/h yaw -0.857 rad/s | traffic   60.0 km/h yaw -3.352 rad/s
+rear-1: traffic car MINIVAN slot 9 37.5 km/h; player put 10.0 m behind, 0.0 m left; roll at 67.5 km/h
+rear-2: traffic car COUPE slot 6 54.0 km/h; player put 10.0 m behind, 0.0 m left; roll at 84.0 km/h
+rear-3: traffic car MINIVAN slot 6 54.2 km/h; player put 10.0 m behind, 0.0 m left; roll at 84.2 km/h
+side-1: traffic car MINIVAN slot 6 32.4 km/h; player put 25.0 m behind, 2.2 m left; roll at 150.0 km/h
+side-2: traffic car PANELVAN slot 7 39.3 km/h; player put 25.0 m behind, 2.2 m left; roll at 150.0 km/h
+side-3: traffic car HATCHBACK02 slot 6 54.0 km/h; player put 25.0 m behind, 2.2 m left; roll at 150.0 km/h

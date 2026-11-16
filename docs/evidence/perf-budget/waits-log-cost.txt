@@ -1,0 +1,52 @@
+The waits log's cost (docs/waits-log.md): the shipping game (no developer harness) without the lines (the tree
+before them) and with them, each from its own target folder (md5 differ). Windowed on a private Xvfb in a bwrap
+sandbox (no sound device, NFSU2_AUDIO_HOST=none, own data / cache / Mesa shader cache folders per arm, both warm),
+integrated GPU, 1920x1080, Original (default options), a copy of a test profile. Each run: --no-boot, the menus
+to the garage, Return to Explore Mode, free roam with Up held 16 s, the pause menu, the window closed.
+(Measured with the part size then 1,048,576 frames and the load's set-up mark a few lines earlier; the
+per-frame path is the same.) Measured window: 3 s after the drive's start to 1 s before its end.
+  a = the main thread's CPU time (/proc schedstat, sampled every 4 ms) over the window / the frames in it
+      (the F3 sampler's fps rows of NFSU2_PERF_CSV, the same in both arms)
+  b = median over the window's sampler rows of the main thread's CPU % * 10 / fps
+7 pairs, ABBA order, one series under the measuring lock; load average 10-30 (other builds and runs on the
+machine), so the CPU times carry other threads' contention.
+
+run      frames  fps    a ms/frame  b ms/frame  load (1 min)
+base-1    612   50.8    1.896       1.878        9.97
+new-1     635   52.7    1.639       1.691       12.07
+new-2     695   57.7    1.357       1.748       15.25
+base-2    729   60.5    1.140       0.951       14.77
+base-3    680   55.5    1.682       1.747       16.18
+new-3     566   46.7    1.928       1.860       17.71
+new-4     701   58.2    1.506       1.558       23.90
+base-4    659   54.7    1.823       1.860       20.45
+base-5    723   60.0    1.569       1.615       18.31
+new-5     646   53.5    1.829       1.931       20.38
+new-6     595   49.5    1.855       1.869       21.22
+base-6    568   47.0    1.967       1.959       25.98
+base-7    657   54.0    1.778       1.846       29.87
+new-7     454   35.4    1.867       1.887       25.76
+
+            a median [min..max]       b median [min..max]
+without     1.778 [1.140..1.967]      1.846 [0.951..1.959]
+with        1.829 [1.357..1.928]      1.860 [1.558..1.931]
+pairwise with - without (a): -0.257 +0.217 +0.246 -0.317 +0.260 -0.112 +0.089, median +0.089
+=> no difference measurable at this load: the spread between runs (0.8 ms) is 10^4 times the hooks' own cost below.
+
+The hooks' own cost (qol::waits::Tracker::frame, release build, one thread, synthetic drive at ~150 fps of
+frame times, a stable screen; a throwaway test, not kept): 15.5 / 11.3 / 10.6 ns a frame over three rounds of
+5,000,000 frames (the part summaries every 1,048,576 frames included). The game's hook adds the screen's
+discriminants and the mode test: a few ns more.
+A drive's summary (summarize + the line), best of 5: 10,000 frames 0.048 ms, 100,000 frames 0.514 ms,
+1,000,000 frames 4.731 ms (linear; hence the part size of 262,144 frames: about 1.2 ms, interpolated).
+Memory: 4 bytes per counted drive frame, at most 1 MB (a part), freed at the drive's end; lines at most 20,000 a
+run. The runs' peak resident memory (the sampler's rss_mb): without 875 MB median [842..933], with 889 [843..951]:
+the spread (the traffic and encounter cars are drawn anew each run), not the lines (their frames here: 16 KB).
+
+What the lines said in those runs (the free roam entry; warm, with the lines):
+  from the key 68-428 ms, the load itself 23-64 ms (world and car 5-25, renderers and uploads 0-12, set-up 2-8,
+  programs 12-31), world and car loaded ahead, 0-4 cache files missing (new traffic and encounter cars), first
+  frame 27-382 ms; drive medians 15.7-19.8 ms on Xvfb (its present is a CPU copy: frame times there are not the
+  game's, docs/perf-budget.md).
+
+Not trusted: the absolute CPU times (machine shared, load 10-30); Xvfb frame times and hitches.

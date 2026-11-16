@@ -1,0 +1,375 @@
+Read-ahead and the real flow after a reboot: the measurements behind docs/perf-budget.md "A start after a reboot,
+the real flow" and docs/read-ahead.md.
+
+The shipping game (built without the developer harness), plus measuring-only log lines (each wait from the key to
+the new screen's first frame; every frame over 80 ms), in a window on a private display, keys as a player in a
+hurry presses them: Enter as soon as each boot movie takes it, Enter at the title every 0.1 s until its native 4 s
+hold lets it through, the profile message, the main menu 1 s, then Career, the garage, "Return to Explore Mode?",
+free roam (roam), or Quick Race, a circuit, its options, the car, the transmission question, the race (race).
+"reboot": the game folder and the run's own cache folders (the asset cache and the driver's shader cache) dropped
+from the OS's file cache (posix_fadvise DONTNEED) before the run; the binary, the driver's libraries and the
+kernel stay warm. "first": new cache folders and the game folder dropped. "later": nothing dropped (on this
+shared machine other programs evicted part of it between runs: not a clean warm state). "off" / "on":
+NFSU2_READ_AHEAD=0 / the default, one build, the runs interleaved.
+Columns: the wait's wall ms from the game's log, median [min..max]; the main thread's time in it running (R),
+waiting for another thread (S) and blocked on the disk (D), sampled every 4 ms from /proc. The machine was
+shared throughout (load average 17-68 on 16 hardware threads, the disk's I/O pressure "full" 2-55 %): the wall
+times are upper bounds, the R/S/D split is the trustworthy part.
+first = start to the first frame; ealogo/thx/psa/intro = the boot movie opened by Enter (its file read whole on
+the main thread); main = the profile message to the main menu's first frame (the garage scene: its platform, the
+FE car loaded on a thread the frame waits for); crib = the career garage's first frame; roam = free roam's entry;
+carlot / race = Quick Race's car select and the race's entry.
+
+### step 1, the base build: Original, integrated GPU (3 rounds; no thread samples: wall only)
+== first-roam (n=3)
+  first   642 [371..1008]      R 0 [0..0]       S 0 [0..0]       D 0 [0..0]
+  ealogo  25 [24..38]          R 0 [0..0]       S 0 [0..0]       D 0 [0..0]
+  thx     16 [11..18]          R 0 [0..0]       S 0 [0..0]       D 0 [0..0]
+  psa     80 [39..92]          R 0 [0..0]       S 0 [0..0]       D 0 [0..0]
+  intro   190 [70..379]        R 0 [0..0]       S 0 [0..0]       D 0 [0..0]
+  title   16 [8..37]           R 0 [0..0]       S 0 [0..0]       D 0 [0..0]
+  mc      14 [5..20]           R 0 [0..0]       S 0 [0..0]       D 0 [0..0]
+  main    176 [113..529]       R 0 [0..0]       S 0 [0..0]       D 0 [0..0]
+  career  25 [16..109]         R 0 [0..0]       S 0 [0..0]       D 0 [0..0]
+  crib    153 [54..299]        R 0 [0..0]       S 0 [0..0]       D 0 [0..0]
+  roam    244 [234..576]       R 0 [0..0]       S 0 [0..0]       D 0 [0..0]
+== later-race (n=3)
+  first   464 [150..481]       R 0 [0..0]       S 0 [0..0]       D 0 [0..0]
+  ealogo  31 [14..44]          R 0 [0..0]       S 0 [0..0]       D 0 [0..0]
+  thx     26 [17..27]          R 0 [0..0]       S 0 [0..0]       D 0 [0..0]
+  psa     91 [16..153]         R 0 [0..0]       S 0 [0..0]       D 0 [0..0]
+  intro   159 [22..453]        R 0 [0..0]       S 0 [0..0]       D 0 [0..0]
+  title   7 [6..10]            R 0 [0..0]       S 0 [0..0]       D 0 [0..0]
+  mc      20 [10..47]          R 0 [0..0]       S 0 [0..0]       D 0 [0..0]
+  main    431 [50..656]        R 0 [0..0]       S 0 [0..0]       D 0 [0..0]
+  qrlist  251 [174..325]       R 0 [0..0]       S 0 [0..0]       D 0 [0..0]
+  qropts  120 [35..201]        R 0 [0..0]       S 0 [0..0]       D 0 [0..0]
+  carlot  28 [27..479]         R 0 [0..0]       S 0 [0..0]       D 0 [0..0]
+  race    835 [281..1580]      R 0 [0..0]       S 0 [0..0]       D 0 [0..0]
+== later-roam (n=3)
+  first   93 [89..881]         R 0 [0..0]       S 0 [0..0]       D 0 [0..0]
+  ealogo  10 [9..39]           R 0 [0..0]       S 0 [0..0]       D 0 [0..0]
+  thx     16 [6..21]           R 0 [0..0]       S 0 [0..0]       D 0 [0..0]
+  psa     14 [2..83]           R 0 [0..0]       S 0 [0..0]       D 0 [0..0]
+  intro   18 [14..173]         R 0 [0..0]       S 0 [0..0]       D 0 [0..0]
+  title   17 [9..17]           R 0 [0..0]       S 0 [0..0]       D 0 [0..0]
+  mc      16 [5..18]           R 0 [0..0]       S 0 [0..0]       D 0 [0..0]
+  main    381 [28..552]        R 0 [0..0]       S 0 [0..0]       D 0 [0..0]
+  career  20 [17..28]          R 0 [0..0]       S 0 [0..0]       D 0 [0..0]
+  crib    125 [35..263]        R 0 [0..0]       S 0 [0..0]       D 0 [0..0]
+  roam    126 [57..409]        R 0 [0..0]       S 0 [0..0]       D 0 [0..0]
+== reboot-race (n=3)
+  first   726 [103..851]       R 0 [0..0]       S 0 [0..0]       D 0 [0..0]
+  ealogo  36 [13..465]         R 0 [0..0]       S 0 [0..0]       D 0 [0..0]
+  thx     26 [24..32]          R 0 [0..0]       S 0 [0..0]       D 0 [0..0]
+  psa     170 [155..238]       R 0 [0..0]       S 0 [0..0]       D 0 [0..0]
+  intro   391 [147..703]       R 0 [0..0]       S 0 [0..0]       D 0 [0..0]
+  title   8 [7..9]             R 0 [0..0]       S 0 [0..0]       D 0 [0..0]
+  mc      16 [6..24]           R 0 [0..0]       S 0 [0..0]       D 0 [0..0]
+  main    709 [281..1298]      R 0 [0..0]       S 0 [0..0]       D 0 [0..0]
+  qrlist  358 [228..362]       R 0 [0..0]       S 0 [0..0]       D 0 [0..0]
+  qropts  118 [97..162]        R 0 [0..0]       S 0 [0..0]       D 0 [0..0]
+  carlot  107 [85..1700]       R 0 [0..0]       S 0 [0..0]       D 0 [0..0]
+  race    640 [615..1507]      R 0 [0..0]       S 0 [0..0]       D 0 [0..0]
+== reboot-roam (n=3)
+  first   286 [132..499]       R 0 [0..0]       S 0 [0..0]       D 0 [0..0]
+  ealogo  25 [14..29]          R 0 [0..0]       S 0 [0..0]       D 0 [0..0]
+  thx     21 [21..29]          R 0 [0..0]       S 0 [0..0]       D 0 [0..0]
+  psa     54 [34..81]          R 0 [0..0]       S 0 [0..0]       D 0 [0..0]
+  intro   184 [90..215]        R 0 [0..0]       S 0 [0..0]       D 0 [0..0]
+  title   9 [7..24]            R 0 [0..0]       S 0 [0..0]       D 0 [0..0]
+  mc      18 [2..22]           R 0 [0..0]       S 0 [0..0]       D 0 [0..0]
+  main    398 [284..464]       R 0 [0..0]       S 0 [0..0]       D 0 [0..0]
+  career  27 [21..30]          R 0 [0..0]       S 0 [0..0]       D 0 [0..0]
+  crib    271 [73..321]        R 0 [0..0]       S 0 [0..0]       D 0 [0..0]
+  roam    492 [324..587]       R 0 [0..0]       S 0 [0..0]       D 0 [0..0]
+### step 1, the base build: every Graphics row up at 4K, discrete GPU (2 rounds)
+== first-roam (n=2)
+  first   642 [268..1016]      R 112 [112..113] S 79 [46..112]   D 414 [75..754]
+  ealogo  24 [23..26]          R 3 [0..5]       S 16 [9..23]     D 0 [0..0]
+  thx     26 [25..27]          R 5 [0..10]      S 17 [9..25]     D 0 [0..0]
+  psa     76 [62..91]          R 21 [11..31]    S 33 [31..36]    D 19 [10..27]
+  intro   137 [74..200]        R 13 [4..22]     S 33 [17..49]    D 86 [46..126]
+  title   18 [6..30]           R 9 [0..17]      S 3 [0..6]       D 0 [0..0]
+  mc      52 [13..90]          R 9 [0..18]      S 24 [8..39]     D 16 [0..31]
+  main    1988 [417..3558]     R 818 [138..1499] S 980 [217..1743] D 184 [58..310]
+  career  32 [24..40]          R 3 [0..5]       S 12 [4..20]     D 12 [0..24]
+  crib    230 [192..269]       R 34 [29..38]    S 100 [49..151]  D 94 [85..102]
+  roam    1037 [964..1110]     R 510 [466..554] S 386 [298..473] D 137 [22..253]
+== later-roam (n=2)
+  first   726 [121..1332]      R 153 [55..252]  S 149 [22..276]  D 333 [4..662]
+  ealogo  36 [31..40]          R 2 [0..4]       S 30 [27..32]    D 0 [0..0]
+  thx     41 [12..70]          R 2 [0..4]       S 32 [4..59]     D 0 [0..0]
+  psa     58 [18..97]          R 8 [4..13]      S 38 [8..68]     D 6 [0..13]
+  intro   156 [14..298]        R 22 [0..45]     S 75 [8..143]    D 55 [0..109]
+  title   34 [17..52]          R 2 [0..4]       S 6 [0..13]      D 19 [0..39]
+  mc      36 [20..51]          R 0 [0..0]       S 29 [17..42]    D 2 [0..4]
+  main    254 [36..471]        R 51 [17..86]    S 110 [17..204]  D 89 [0..177]
+  career  34 [11..57]          R 7 [0..14]      S 23 [4..42]     D 0 [0..0]
+  crib    214 [30..399]        R 24 [17..31]    S 156 [8..304]   D 30 [0..61]
+  roam    789 [453..1125]      R 448 [386..510] S 258 [56..460]  D 79 [4..154]
+== reboot-race (n=2)
+  first   540 [338..743]       R 184 [79..288]  S 105 [25..186]  D 119 [77..162]
+  ealogo  14 [10..18]          R 0 [0..0]       S 9 [4..14]      D 0 [0..0]
+  thx     34 [28..41]          R 7 [4..10]      S 24 [21..27]    D 0 [0..0]
+  psa     56 [49..63]          R 8 [8..8]       S 30 [26..34]    D 13 [4..22]
+  intro   131 [61..201]        R 23 [8..37]     S 33 [25..42]    D 72 [26..119]
+  title   43 [14..72]          R 15 [0..31]     S 18 [8..28]     D 5 [0..9]
+  mc      17 [10..24]          R 2 [0..4]       S 13 [8..17]     D 0 [0..0]
+  main    204 [188..219]       R 41 [30..52]    S 158 [151..165] D 2 [0..4]
+  qrlist  106 [54..158]        R 10 [8..12]     S 26 [13..39]    D 65 [0..129]
+  qropts  150 [128..172]       R 8 [4..13]      S 38 [21..54]    D 100 [100..100]
+  carlot  72 [39..105]         R 2 [0..4]       S 25 [8..42]     D 40 [21..58]
+  race    919 [793..1045]      R 515 [462..569] S 302 [221..383] D 100 [92..108]
+== reboot-roam (n=2)
+  first   470 [226..715]       R 78 [75..81]    S 41 [32..51]    D 303 [21..585]
+  ealogo  28 [15..41]          R 2 [0..4]       S 15 [9..21]     D 2 [0..4]
+  thx     16 [14..19]          R 2 [0..4]       S 11 [10..12]    D 0 [0..0]
+  psa     38 [35..41]          R 4 [4..4]       S 21 [17..25]    D 6 [0..13]
+  intro   176 [144..207]       R 12 [4..20]     S 47 [8..85]     D 110 [95..125]
+  title   19 [19..19]          R 2 [0..4]       S 6 [0..13]      D 8 [0..16]
+  mc      14 [11..18]          R 3 [0..6]       S 8 [8..8]       D 0 [0..0]
+  main    388 [273..504]       R 27 [8..46]     S 261 [224..299] D 95 [37..152]
+  career  26 [7..44]           R 4 [4..5]       S 17 [0..34]     D 0 [0..0]
+  crib    268 [128..409]       R 41 [36..47]    S 168 [50..287]  D 54 [36..73]
+  roam    714 [575..854]       R 399 [395..403] S 285 [171..398] D 28 [8..47]
+### step 1, the base build: every Graphics row up at 1920x1080, integrated GPU (2 rounds)
+== first-roam (n=2)
+  first   519 [242..796]       R 253 [112..393] S 124 [42..206]  D 87 [34..139]
+  ealogo  86 [8..163]          R 26 [0..51]     S 50 [4..95]     D 6 [0..13]
+  thx     37 [17..57]          R 5 [5..5]       S 28 [9..47]     D 2 [0..4]
+  psa     119 [118..120]       R 38 [30..45]    S 19 [0..38]     D 54 [45..64]
+  intro   108 [80..136]        R 20 [0..39]     S 32 [26..38]    D 53 [0..105]
+  title   43 [28..58]          R 7 [0..14]      S 32 [26..38]    D 0 [0..0]
+  mc      16 [15..17]          R 2 [0..4]       S 11 [8..13]     D 0 [0..0]
+  main    270 [268..272]       R 55 [40..71]    S 210 [194..226] D 0 [0..0]
+  career  61 [60..62]          R 2 [0..4]       S 54 [52..56]    D 0 [0..0]
+  crib    134 [75..194]        R 43 [13..74]    S 64 [56..72]    D 23 [0..46]
+  roam    1536 [1047..2024]    R 1019 [555..1484] S 426 [330..522] D 84 [13..155]
+== later-roam (n=2)
+  first   395 [319..471]       R 17 [0..33]     S 11 [0..21]     D 108 [0..217]
+  ealogo  16 [10..23]          R 0 [0..0]       S 2 [0..4]       D 0 [0..0]
+  thx     18 [7..30]           R 0 [0..0]       S 2 [0..4]       D 0 [0..0]
+  psa     214 [186..242]       R 0 [0..0]       S 15 [0..29]     D 77 [0..153]
+  intro   120 [7..232]         R 0 [0..0]       S 0 [0..0]       D 0 [0..0]
+  title   5 [3..7]             R 0 [0..0]       S 0 [0..0]       D 0 [0..0]
+  mc      14 [12..17]          R 2 [0..4]       S 2 [0..4]       D 0 [0..0]
+  main    238 [146..329]       R 15 [0..31]     S 57 [0..113]    D 0 [0..0]
+  career  40 [39..40]          R 0 [0..0]       S 17 [0..34]     D 0 [0..0]
+  crib    74 [72..75]          R 11 [0..21]     S 25 [0..51]     D 0 [0..0]
+  roam    1126 [891..1361]     R 241 [0..483]   S 203 [0..406]   D 0 [0..0]
+== reboot-roam (n=2)
+  first   424 [287..560]       R 96 [76..115]   S 35 [30..39]    D 214 [21..406]
+  ealogo  60 [20..99]          R 2 [0..4]       S 14 [14..14]    D 40 [0..80]
+  thx     24 [19..29]          R 8 [4..13]      S 11 [8..14]     D 0 [0..0]
+  psa     110 [46..174]        R 13 [13..13]    S 11 [10..13]    D 82 [17..147]
+  intro   120 [70..169]        R 6 [4..8]       S 15 [0..29]     D 96 [35..157]
+  title   13 [8..18]           R 0 [0..0]       S 10 [4..17]     D 0 [0..0]
+  mc      12 [6..19]           R 0 [0..0]       S 8 [0..17]      D 0 [0..0]
+  main    328 [275..382]       R 23 [17..29]    S 301 [254..347] D 0 [0..0]
+  career  41 [41..41]          R 4 [0..9]       S 30 [26..33]    D 0 [0..0]
+  crib    78 [74..82]          R 15 [13..18]    S 50 [47..53]    D 9 [9..9]
+  roam    887 [735..1039]      R 635 [561..709] S 245 [169..322] D 0 [0..0]
+### A/B 1 (the first list: also the start's files beside Game::new, the city and car): Original, integrated GPU, after a reboot, 7 pairs
+== reboot-roam-off (n=7)
+  first   536 [256..1303]      R 63 [54..120]   S 132 [54..836]  D 182 [116..936]
+  ealogo  28 [16..55]          R 4 [0..8]       S 13 [8..36]     D 4 [0..9]
+  thx     15 [8..29]           R 0 [0..4]       S 8 [0..21]      D 0 [0..4]
+  psa     77 [43..98]          R 0 [0..9]       S 25 [12..46]    D 40 [4..72]
+  intro   179 [172..257]       R 8 [4..27]      S 42 [12..62]    D 133 [111..186]
+  title   7 [5..22]            R 0 [0..4]       S 0 [0..0]       D 4 [0..17]
+  mc      41 [8..188]          R 0 [0..4]       S 8 [4..49]      D 0 [0..157]
+  main    306 [169..440]       R 12 [4..43]     S 228 [113..289] D 42 [0..157]
+  career  19 [17..39]          R 4 [0..4]       S 12 [8..32]     D 0 [0..0]
+  crib    84 [36..171]         R 8 [0..30]      S 34 [8..96]     D 16 [0..62]
+  roam    355 [115..476]       R 21 [16..55]    S 335 [91..374]  D 0 [0..42]
+== reboot-roam-on (n=7)
+  first   573 [320..1095]      R 101 [37..196]  S 105 [68..119]  D 290 [99..676]
+  ealogo  14 [5..24]           R 8 [0..13]      S 8 [0..9]       D 0 [0..0]
+  thx     9 [6..13]            R 0 [0..0]       S 4 [0..9]       D 0 [0..0]
+  psa     17 [4..96]           R 0 [0..21]      S 8 [0..30]      D 0 [0..69]
+  intro   33 [8..166]          R 4 [0..36]      S 4 [0..38]      D 0 [0..136]
+  title   17 [7..21]           R 8 [0..14]      S 5 [0..12]      D 0 [0..0]
+  mc      23 [9..30]           R 0 [0..4]       S 13 [4..21]     D 0 [0..17]
+  main    397 [259..584]       R 38 [13..123]   S 266 [100..550] D 17 [0..188]
+  career  28 [16..31]          R 4 [0..9]       S 17 [12..21]    D 0 [0..0]
+  crib    214 [31..310]        R 17 [4..43]     S 81 [17..238]   D 33 [0..182]
+  roam    370 [46..500]        R 36 [16..88]    S 292 [25..406]  D 0 [0..52]
+### A/B 2 (the final list): every Graphics row up at 4K, discrete GPU, after a reboot, pairs 3-6 of a series (pairs 1-2 ran the first list)
+== reboot-roam-off (n=4)
+  first   446 [316..941]       R 64 [37..235]   S 160 [79..244]  D 199 [126..346]
+  ealogo  24 [24..48]          R 6 [0..13]      S 10 [0..14]     D 5 [0..25]
+  thx     35 [18..104]         R 4 [0..11]      S 22 [13..96]    D 0 [0..0]
+  psa     106 [66..173]        R 6 [0..9]       S 33 [17..69]    D 51 [21..142]
+  intro   196 [167..211]       R 13 [4..22]     S 15 [12..18]    D 156 [145..190]
+  title   16 [13..22]          R 2 [0..4]       S 6 [0..12]      D 0 [0..17]
+  mc      44 [13..99]          R 2 [0..7]       S 37 [13..85]    D 0 [0..0]
+  main    192 [126..617]       R 15 [12..199]   S 123 [38..370]  D 42 [0..131]
+  career  8 [4..10]            R 0 [0..4]       S 3 [0..8]       D 0 [0..0]
+  crib    70 [34..246]         R 23 [13..41]    S 19 [12..128]   D 24 [0..73]
+  roam    1198 [740..2408]     R 602 [398..1539] S 296 [115..660] D 166 [0..682]
+== reboot-roam-on (n=4)
+  first   241 [189..455]       R 69 [46..118]   S 23 [0..97]     D 144 [4..230]
+  ealogo  18 [7..77]           R 8 [4..18]      S 7 [0..51]      D 0 [0..0]
+  thx     17 [9..36]           R 3 [0..13]      S 14 [0..21]     D 0 [0..0]
+  psa     12 [11..30]          R 0 [0..13]      S 8 [8..9]       D 0 [0..0]
+  intro   18 [11..857]         R 4 [4..10]      S 8 [0..8]       D 0 [0..841]
+  title   14 [8..29]           R 4 [0..4]       S 6 [4..21]      D 0 [0..0]
+  mc      18 [1..20]           R 0 [0..4]       S 13 [0..17]     D 0 [0..0]
+  main    51 [34..337]         R 22 [4..33]     S 38 [4..129]    D 0 [0..172]
+  career  18 [17..19]          R 4 [0..8]       S 8 [8..17]      D 0 [0..0]
+  crib    34 [28..108]         R 14 [9..34]     S 15 [12..29]    D 0 [0..38]
+  roam    994 [766..1260]      R 401 [364..444] S 401 [295..557] D 101 [8..521]
+### A/B 3 (the final list): Original, integrated GPU, after a reboot, pairs 2-7 (pair 1 ran right after the build's cache entries were written: 539 MB stayed resident before its 'on' run)
+== reboot-roam-off (n=6)
+  first   310 [189..847]       R 48 [25..59]    S 44 [0..133]    D 112 [21..273]
+  ealogo  16 [12..31]          R 0 [0..4]       S 8 [0..16]      D 2 [0..17]
+  thx     21 [11..32]          R 2 [0..8]       S 13 [4..18]     D 0 [0..13]
+  psa     80 [70..88]          R 2 [0..26]      S 15 [8..30]     D 52 [32..71]
+  intro   178 [167..360]       R 2 [0..22]      S 15 [8..21]     D 158 [135..311]
+  title   10 [6..17]           R 2 [0..6]       S 0 [0..4]       D 2 [0..8]
+  mc      20 [4..37]           R 0 [0..4]       S 13 [0..21]     D 2 [0..8]
+  main    359 [261..893]       R 27 [13..42]    S 298 [191..389] D 42 [0..516]
+  career  22 [14..391]         R 0 [0..8]       S 13 [5..21]     D 0 [0..380]
+  crib    107 [48..485]        R 17 [4..43]     S 53 [8..376]    D 39 [25..63]
+  roam    406 [211..836]       R 25 [18..116]   S 301 [166..365] D 21 [8..456]
+== reboot-roam-on (n=6)
+  first   346 [130..742]       R 54 [46..207]   S 82 [4..178]    D 123 [29..513]
+  ealogo  10 [4..49]           R 0 [0..14]      S 4 [0..27]      D 0 [0..0]
+  thx     13 [3..24]           R 0 [0..9]       S 8 [0..10]      D 0 [0..0]
+  psa     16 [8..57]           R 0 [0..5]       S 10 [0..34]     D 0 [0..13]
+  intro   18 [13..179]         R 2 [0..49]      S 12 [8..23]     D 0 [0..102]
+  title   14 [5..34]           R 0 [0..28]      S 4 [0..9]       D 0 [0..0]
+  mc      10 [4..62]           R 0 [0..4]       S 4 [0..25]      D 0 [0..29]
+  main    94 [25..307]         R 12 [8..84]     S 33 [4..253]    D 0 [0..95]
+  career  26 [19..27]          R 4 [0..4]       S 17 [9..19]     D 0 [0..0]
+  crib    44 [23..300]         R 14 [0..39]     S 27 [8..112]    D 0 [0..166]
+  roam    332 [105..670]       R 29 [21..123]   S 302 [28..511]  D 0 [0..33]
+### A/B 4 (the final list): every Graphics row up at 4K, discrete GPU, after a reboot, 7 pairs, the disk saturated (I/O pressure full 35-55 %)
+== reboot-roam-off (n=7)
+  first   1047 [289..2670]     R 66 [33..299]   S 97 [13..545]   D 324 [136..1688]
+  ealogo  30 [7..117]          R 5 [0..47]      S 8 [0..49]      D 4 [0..89]
+  thx     35 [19..293]         R 0 [0..23]      S 18 [13..69]    D 0 [0..274]
+  psa     90 [57..530]         R 9 [0..22]      S 27 [10..82]    D 50 [0..487]
+  intro   219 [155..599]       R 30 [0..35]     S 33 [4..191]    D 133 [0..524]
+  title   15 [1..67]           R 0 [0..39]      S 0 [0..23]      D 0 [0..13]
+  mc      32 [12..709]         R 4 [0..33]      S 22 [4..309]    D 0 [0..362]
+  main    577 [309..967]       R 34 [4..98]     S 250 [143..278] D 295 [62..638]
+  career  45 [11..283]         R 4 [0..81]      S 25 [4..197]    D 0 [0..34]
+  crib    330 [147..790]       R 39 [12..91]    S 245 [91..428]  D 37 [27..313]
+  roam    2380 [886..12285]    R 521 [358..2365] S 386 [259..591] D 562 [29..11334]
+== reboot-roam-on (n=7)
+  first   1055 [214..7210]     R 46 [0..297]    S 63 [0..151]    D 186 [0..750]
+  ealogo  22 [9..32]           R 0 [0..9]       S 0 [0..17]      D 0 [0..29]
+  thx     27 [13..278]         R 0 [0..9]       S 9 [0..62]      D 0 [0..230]
+  psa     102 [4..557]         R 14 [0..29]     S 9 [0..78]      D 35 [0..454]
+  intro   220 [5..434]         R 18 [0..53]     S 27 [0..306]    D 27 [0..360]
+  title   19 [7..608]          R 0 [0..40]      S 13 [0..54]     D 0 [0..508]
+  mc      66 [7..219]          R 2 [0..14]      S 28 [0..107]    D 18 [0..172]
+  main    542 [55..1294]       R 49 [0..104]    S 323 [0..402]   D 48 [0..832]
+  career  28 [16..331]         R 2 [0..13]      S 13 [0..22]     D 0 [0..293]
+  crib    351 [83..511]        R 23 [0..86]     S 189 [0..377]   D 55 [0..109]
+  roam    1866 [1220..2900]    R 606 [0..798]   S 626 [0..1111]  D 429 [0..1106]
+  qropts  2879 [2879..2879]    R 35 [35..35]    S 394 [394..394] D 2446 [2446..2446]
+  carlot  3710 [3710..3710]    R 41 [41..41]    S 921 [921..921] D 2743 [2743..2743]
+### A/B 5 (the first list): Original, integrated GPU, the files in memory (later), 5 pairs
+== later-roam-off (n=5)
+  first   490 [133..698]       R 100 [61..159]  S 71 [18..112]   D 36 [0..518]
+  ealogo  18 [10..45]          R 0 [0..13]      S 13 [4..24]     D 0 [0..0]
+  thx     16 [13..51]          R 4 [0..4]       S 9 [4..43]      D 0 [0..0]
+  psa     16 [11..22]          R 0 [0..9]       S 9 [5..13]      D 0 [0..0]
+  intro   19 [13..59]          R 4 [0..21]      S 9 [4..33]      D 0 [0..0]
+  title   10 [5..25]           R 4 [0..10]      S 4 [0..10]      D 0 [0..0]
+  mc      17 [9..28]           R 0 [0..0]       S 10 [6..22]     D 0 [0..0]
+  main    155 [38..227]        R 27 [13..61]    S 133 [21..192]  D 0 [0..4]
+  career  35 [23..114]         R 5 [0..9]       S 19 [9..27]     D 0 [0..90]
+  crib    77 [32..110]         R 41 [4..53]     S 28 [17..36]    D 0 [0..26]
+  roam    188 [112..749]       R 37 [26..105]   S 77 [34..646]   D 18 [0..71]
+== later-roam-on (n=5)
+  first   186 [126..397]       R 40 [0..228]    S 21 [0..36]     D 42 [0..69]
+  ealogo  11 [7..22]           R 0 [0..8]       S 4 [0..10]      D 0 [0..0]
+  thx     15 [4..20]           R 0 [0..6]       S 4 [0..17]      D 0 [0..0]
+  psa     16 [7..18]           R 0 [0..8]       S 8 [0..13]      D 0 [0..0]
+  intro   12 [4..25]           R 0 [0..8]       S 8 [0..18]      D 0 [0..0]
+  title   16 [10..18]          R 0 [0..4]       S 9 [0..13]      D 0 [0..0]
+  mc      15 [8..20]           R 0 [0..4]       S 5 [4..14]      D 0 [0..0]
+  main    75 [53..161]         R 36 [17..47]    S 36 [15..130]   D 0 [0..0]
+  career  28 [17..57]          R 4 [0..8]       S 18 [0..31]     D 0 [0..21]
+  crib    89 [37..197]         R 45 [4..97]     S 38 [22..96]    D 0 [0..0]
+  roam    198 [81..259]        R 51 [37..83]    S 156 [26..177]  D 0 [0..0]
+### A/B 6 (the final list): Original, integrated GPU, a first start ever and the files in memory (later), 3 pairs each
+== first-roam-off (n=3)
+  first   466 [353..1636]      R 87 [0..95]     S 0 [0..112]     D 117 [0..216]
+  ealogo  23 [21..29]          R 0 [0..4]       S 9 [0..13]      D 8 [0..8]
+  thx     22 [16..24]          R 0 [0..0]       S 13 [0..13]     D 0 [0..8]
+  psa     110 [55..114]        R 0 [0..4]       S 13 [0..17]     D 87 [0..95]
+  intro   306 [247..420]       R 0 [0..4]       S 12 [0..13]     D 286 [0..402]
+  title   6 [4..17]            R 0 [0..9]       S 0 [0..4]       D 0 [0..0]
+  mc      17 [10..19]          R 0 [0..0]       S 4 [0..12]      D 0 [0..0]
+  main    180 [165..187]       R 21 [0..30]     S 89 [0..118]    D 46 [0..58]
+  career  16 [3..27]           R 0 [0..4]       S 0 [0..21]      D 0 [0..0]
+  crib    86 [60..237]         R 17 [0..63]     S 23 [0..25]     D 41 [0..141]
+  roam    438 [310..499]       R 33 [0..33]     S 264 [0..318]   D 9 [0..146]
+== first-roam-on (n=3)
+  first   428 [298..811]       R 91 [91..157]   S 75 [8..134]    D 128 [112..472]
+  ealogo  13 [9..21]           R 4 [0..8]       S 4 [0..13]      D 0 [0..0]
+  thx     11 [5..18]           R 0 [0..4]       S 4 [0..17]      D 0 [0..0]
+  psa     16 [3..22]           R 0 [0..8]       S 12 [0..13]     D 0 [0..0]
+  intro   17 [14..20]          R 4 [0..8]       S 8 [4..12]      D 0 [0..0]
+  title   13 [12..14]          R 0 [0..8]       S 8 [0..13]      D 0 [0..0]
+  mc      13 [10..22]          R 0 [0..0]       S 8 [4..17]      D 0 [0..0]
+  main    48 [28..110]         R 29 [17..44]    S 13 [8..56]     D 0 [0..4]
+  career  20 [16..23]          R 0 [0..4]       S 12 [10..16]    D 0 [0..0]
+  crib    40 [23..77]          R 21 [12..22]    S 13 [8..53]     D 0 [0..0]
+  roam    366 [322..457]       R 29 [25..40]    S 201 [117..317] D 86 [20..170]
+== later-roam-off (n=3)
+  first   189 [89..247]        R 46 [29..50]    S 29 [25..122]   D 34 [0..41]
+  ealogo  17 [5..21]           R 0 [0..4]       S 13 [4..17]     D 0 [0..0]
+  thx     10 [7..18]           R 0 [0..0]       S 4 [4..13]      D 0 [0..0]
+  psa     20 [6..83]           R 0 [0..4]       S 17 [4..17]     D 0 [0..59]
+  intro   16 [7..259]          R 0 [0..18]      S 12 [4..12]     D 0 [0..225]
+  title   14 [4..23]           R 0 [0..13]      S 0 [0..8]       D 0 [0..4]
+  mc      8 [4..18]            R 0 [0..4]       S 4 [0..8]       D 0 [0..0]
+  main    172 [56..390]        R 17 [13..27]    S 151 [27..179]  D 0 [0..197]
+  career  16 [16..24]          R 0 [0..4]       S 13 [8..21]     D 0 [0..0]
+  crib    66 [30..82]          R 8 [4..47]      S 17 [17..21]    D 0 [0..50]
+  roam    230 [56..342]        R 21 [21..33]    S 205 [33..302]  D 0 [0..0]
+== later-roam-on (n=3)
+  first   90 [85..101]         R 33 [25..42]    S 21 [17..25]    D 0 [0..0]
+  ealogo  16 [6..19]           R 4 [0..4]       S 8 [0..17]      D 0 [0..0]
+  thx     13 [8..15]           R 0 [0..4]       S 4 [4..8]       D 0 [0..0]
+  psa     14 [2..16]           R 0 [0..0]       S 8 [0..8]       D 0 [0..0]
+  intro   15 [13..21]          R 0 [0..4]       S 12 [8..13]     D 0 [0..0]
+  title   12 [7..17]           R 0 [0..0]       S 8 [4..12]      D 0 [0..0]
+  mc      17 [5..18]           R 0 [0..0]       S 12 [0..13]     D 0 [0..0]
+  main    33 [25..36]          R 12 [8..21]     S 8 [8..25]      D 0 [0..0]
+  career  17 [15..24]          R 0 [0..4]       S 12 [12..17]    D 0 [0..0]
+  crib    39 [32..44]          R 8 [4..18]      S 25 [23..25]    D 0 [0..0]
+  roam    118 [54..286]        R 17 [17..60]    S 52 [33..265]   D 0 [0..0]
+
+### Step 3, the harness (--bench boot, Enter held, no title hold; empty caches; every Graphics row up at 4K; load 49-68): the frame that first shows the main menu's garage scene
+== round 1, GPU d, ahead (load average 48.89 43.40 33.05)
+the frame that made it 12164.8 ms with the GPU's wait, its builds 592 pipelines, 20 modules (228922.1 ms making them through the device cache); programs ahead done
+== round 1, GPU d, alone (load average 50.88 44.13 33.46)
+the frame that made it 14028.5 ms with the GPU's wait, its builds 180 pipelines, 6 modules (117725.9 ms making them through the device cache); programs ahead none
+== round 1, GPU i, ahead (load average 60.03 46.44 34.38)
+the frame that made it 2603.6 ms with the GPU's wait, its builds 327 pipelines, 12 modules (46576.9 ms making them through the device cache); programs ahead done
+== round 1, GPU i, alone (load average 61.87 47.04 34.64)
+the frame that made it 4321.5 ms with the GPU's wait, its builds 272 pipelines, 8 modules (33517.6 ms making them through the device cache); programs ahead none
+== round 2, GPU d, ahead (load average 62.76 47.47 34.85)
+the frame that made it 19014.6 ms with the GPU's wait, its builds 489 pipelines, 27 modules (224900.1 ms making them through the device cache); programs ahead done
+== round 2, GPU d, alone (load average 68.09 49.72 35.86)
+the frame that made it 11717.3 ms with the GPU's wait, its builds 302 pipelines, 7 modules (106460.4 ms making them through the device cache); programs ahead none
+== round 2, GPU i, ahead (load average 67.13 50.43 36.32)
+the frame that made it 6497.8 ms with the GPU's wait, its builds 525 pipelines, 19 modules (118331.5 ms making them through the device cache); programs ahead done
+== round 2, GPU i, alone (load average 66.16 50.50 36.42)
+the frame that made it 3144.1 ms with the GPU's wait, its builds 372 pipelines, 8 modules (30304.6 ms making them through the device cache); programs ahead none
+(ahead: the drive's programs made ahead from the second frame, as shipped; alone: NFSU2_NO_PROGRAMS_AHEAD=1, the garage builds its own set; d = discrete, i = integrated GPU)
+
+### The reader's own log (the final list, after a reboot, Original, integrated GPU)
+read ahead: queue done 2175 ms after the first: 24 files, 50.7 MB read, 45.6 MB in memory already, 0 not there; gave way 995 ms, read 1170 ms
+read ahead: queue done 642 ms after the first: 24 files, 51.7 MB read, 44.6 MB in memory already, 0 not there; gave way 0 ms, read 630 ms
+read ahead: queue done 664 ms after the first: 24 files, 51.7 MB read, 44.6 MB in memory already, 0 not there; gave way 0 ms, read 642 ms
+read ahead: queue done 3780 ms after the first: 24 files, 50.4 MB read, 45.9 MB in memory already, 0 not there; gave way 1459 ms, read 2282 ms
+read ahead: queue done 701 ms after the first: 24 files, 50.7 MB read, 45.6 MB in memory already, 0 not there; gave way 22 ms, read 664 ms
+read ahead: queue done 2494 ms after the first: 24 files, 50.7 MB read, 45.6 MB in memory already, 0 not there; gave way 967 ms, read 1508 ms

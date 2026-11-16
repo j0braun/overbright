@@ -1,0 +1,35 @@
+brake200-3-t60  transplant before frame 60; frames 61..120
+  fx_rl      max|d| 3.505   first beyond noise: frame 61 (+1) fx_rl -3.8695 | -3.8724
+  fx_rr      max|d| 1.595   first beyond noise: frame 61 (+1) fx_rr -4.0087 | -4.0128
+  ntq_fl     max|d| 0.004104   first beyond noise: frame 61 (+1) ntq_fl -0.55521 | -0.55283
+  ntq_fr     max|d| 0.0041   first beyond noise: frame 61 (+1) ntq_fr -0.55522 | -0.55285
+  ntq_rl     max|d| 0.009393   first beyond noise: frame 61 (+1) ntq_rl -0.92676 | -0.92509
+  ntq_rr     max|d| 0.008345   first beyond noise: frame 61 (+1) ntq_rr -0.88168 | -0.88045
+  pos        max|d| 0.0055   first beyond noise: frame 61 (+1) pos.y -1384.1 | -1384.1
+  vel        max|d| 0.005796   first beyond noise: frame 61 (+1) vel.y 40.569 | 40.571
+  fx_fl      max|d| 0.5755   first beyond noise: frame 63 (+3) fx_fl -4.2482 | -4.2653
+  fx_fr      max|d| 0.5756   first beyond noise: frame 63 (+3) fx_fr -4.2839 | -4.2651
+  fy_rl      max|d| 0.2259   first beyond noise: frame 63 (+3) fy_rl -0.22585 | 0
+  fy_rr      max|d| 0.2253   first beyond noise: frame 63 (+3) fy_rr -0.22351 | 0
+  slip_rl    max|d| 0.001213   first beyond noise: frame 77 (+17) slip_rl -0.086136 | -0.084999
+  yaw_rate   max|d| 0.002062   first beyond noise: frame 77 (+17) yaw_rate -0.00063135 | 0.00038649
+  slip_rr    max|d| 0.002014   first beyond noise: frame 78 (+18) slip_rr -0.091171 | -0.090145
+  fy_fl      max|d| 0.6592   first beyond noise: frame 88 (+28) fy_fl -0.65918 | 0
+  fy_fr      max|d| 0.6592   first beyond noise: frame 88 (+28) fy_fr -0.65918 | 0
+  gear       max|d| 0
+  lock_fl    max|d| 0
+  lock_fr    max|d| 0
+  lock_rl    max|d| 0
+  lock_rr    max|d| 0
+  rpm        max|d| 0.184
+  slip_fl    max|d| 0.0005226
+  slip_fr    max|d| 0.0008659
+  spin_fl    max|d| 0.00695
+  spin_fr    max|d| 0.00698
+  spin_rl    max|d| 0.00734
+  spin_rr    max|d| 0.00806
+  steer      max|d| 0
+  +0.5 s: apart 0.003 m   |v| 140.79 | 140.80 km/h   heading 120.40 | 120.40   yaw rate 0.001 | 0.001
+  +1 s: apart 0.003 m   |v| 112.43 | 112.43 km/h   heading 120.49 | 120.49   yaw rate 0.008 | 0.008
+  +2 s: apart 0.003 m   |v| 62.06 | 62.06 km/h   heading 120.84 | 120.83   yaw rate 0.004 | 0.006
+  +5 s: apart 0.759 m   |v| 19.03 | 21.39 km/h   heading 120.61 | 120.81   yaw rate -0.002 | -0.000

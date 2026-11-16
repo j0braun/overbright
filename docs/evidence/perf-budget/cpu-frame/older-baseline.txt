@@ -1,0 +1,91 @@
+The older accepted baseline's main commit against the current tree (same build, same scene, interleaved), per function
+(module paths stripped: the moves since renamed them), ms per frame, old -> new, change. Largest changes first.
+
+=== rain-max-3840x2160, self time
+
+## main: old 2.939 -> new 2.747 ms/frame (-6.5 %)
+    0.215 ->   0.098   -0.117  wake
+    0.142 ->   0.032   -0.110  <Spray>::step
+    0.000 ->   0.056   +0.056  <Option<Particle>, <Spray>::{closure#2}>
+    0.000 ->   0.052   +0.052  <Spray>::{closure#4}
+    0.048 ->   0.011   -0.037  logf32
+    0.032 ->   0.000   -0.032  <WorldRenderer>::update_fades
+    0.045 ->   0.015   -0.030  <Spray>::hit
+    0.048 ->   0.019   -0.028  <Spray>::volume_particles
+    0.028 ->   0.000   -0.028  <FilterMap<Filter<Iter<Particle>, <Spray>::{closure#3}>, <Spray>::{closure#4}> as Iterator>::next
+    0.000 ->   0.028   +0.028  <<WorldRenderer>::{closure#2}>::{closure#2}
+    0.000 ->   0.024   +0.024  <WorldRenderer>::fades_step
+    0.142 ->   0.119   -0.022  fade_slots
+    0.030 ->   0.008   -0.021  powf32
+    0.020 ->   0.000   -0.020  <CarState>::substep
+    0.051 ->   0.031   -0.020  _expf_finite
+    0.021 ->   0.039   +0.018  <World>::lookahead_sections
+    0.017 ->   0.000   -0.017  <WorldRenderer>::{closure#18}
+    0.000 ->   0.016   +0.016  <CarState>::force_pass
+
+## workers: old 3.196 -> new 4.166 ms/frame (+30.3 %)
+    0.000 ->   0.206   +0.206  wake
+    0.000 ->   0.153   +0.153  <Option<Particle>, <Spray>::{closure#2}>
+    0.000 ->   0.106   +0.106  <Spray>::{closure#4}
+    0.000 ->   0.073   +0.073  _expf_finite
+    0.083 ->   0.057   -0.026  flush_bindings_helper
+    0.025 ->   0.049   +0.024  fun_f6cc0
+    0.000 ->   0.024   +0.024  logf32
+    0.182 ->   0.204   +0.022  encode_render_pass
+    0.026 ->   0.045   +0.020  fun_f6ea0
+    0.159 ->   0.177   +0.018  fun_1b7ac0
+    0.031 ->   0.048   +0.017  fun_101530
+    0.000 ->   0.017   +0.017  powf32
+    0.055 ->   0.071   +0.016  <State>::flush_vertex_buffers
+    0.021 ->   0.037   +0.016  <TextureUsageScope>::clear
+    0.028 ->   0.043   +0.015  <BoundBindGroupLayouts>::get_invalid
+    0.049 ->   0.063   +0.014  <CommandEncoder as DynCommandEncoder>::set_render_pipeline
+    0.044 ->   0.056   +0.012  <WorldCore>::draw_pass_faded
+    0.025 ->   0.036   +0.012  <Queue>::submit
+
+=== race-max-1920x1080, self time
+
+## main: old 1.870 -> new 2.186 ms/frame (+16.9 %)
+    0.133 ->   0.189   +0.056  fun_1b7ac0
+    0.068 ->   0.103   +0.035  build
+    0.023 ->   0.055   +0.032  <World>::lookahead_sections
+    0.000 ->   0.032   +0.032  <<WorldRenderer>::{closure#2}>::{closure#2}
+    0.029 ->   0.000   -0.029  <WorldRenderer>::update_fades
+    0.000 ->   0.022   +0.022  <WorldRenderer>::fades_step
+    0.021 ->   0.000   -0.021  <WorldRenderer>::{closure#18}
+    0.131 ->   0.112   -0.019  fade_slots
+    0.006 ->   0.024   +0.018  {closure#0}
+    0.028 ->   0.044   +0.017  <Queue>::write_buffer
+    0.051 ->   0.068   +0.017  <TrackGround>::query
+    0.013 ->   0.000   -0.013  <CarState>::substep
+    0.021 ->   0.034   +0.012  <Shadow>::refine
+    0.000 ->   0.012   +0.012  <WorldScene>::world
+    0.012 ->   0.001   -0.011  <Props>::sweep
+    0.000 ->   0.011   +0.011  <CarState>::force_pass
+    0.001 ->   0.011   +0.010  <Vec<RenderCommand<ArcReferences>>>::push_mut
+    0.007 ->   0.016   +0.009  <(f32, usize), <[(f32, usize)]>::sort_by<{closure#2}>::{closure#0}>
+
+## workers: old 3.195 -> new 3.777 ms/frame (+18.2 %)
+    0.173 ->   0.234   +0.061  encode_render_pass
+    0.028 ->   0.067   +0.039  fun_f6cc0
+    0.143 ->   0.181   +0.038  fun_1b7ac0
+    0.056 ->   0.087   +0.031  <State>::flush_vertex_buffers
+    0.035 ->   0.066   +0.031  fun_f6ea0
+    0.045 ->   0.076   +0.030  <Binder>::assign_group
+    0.059 ->   0.088   +0.029  <CommandBufferTextureMemoryActions>::register_init_action
+    0.026 ->   0.054   +0.028  fun_101530
+    0.099 ->   0.127   +0.028  fun_1098d0
+    0.113 ->   0.138   +0.025  fun_11fd80
+    0.061 ->   0.085   +0.025  <State>::is_ready
+    0.031 ->   0.055   +0.024  fun_f9930
+    0.083 ->   0.102   +0.019  <Vec<RenderCommand<ArcReferences>>>::push_mut
+    0.071 ->   0.087   +0.017  fun_112800
+    0.040 ->   0.024   -0.016  fun_fac80
+    0.031 ->   0.047   +0.016  <u32, <u32 as PartialOrd>::lt>
+    0.022 ->   0.037   +0.016  <PassCull>::drops_slot
+    0.039 ->   0.054   +0.015  <WorldCore>::draw_pass_faded
+
+old rain-max-3840x2160: bench drive: load 194 ms, first frame 1300.7 ms, 3000 frames, 7 traffic cars on the road, 3 rivals; the car drove 1229 m (524 m from the start) through 13 sections
+old race-max-1920x1080: bench race: load 192 ms, first frame 865.4 ms, 3000 frames, 7 traffic cars on the road, 3 rivals; the car drove 730 m (102 m from the start) through 4 sections
+new rain-max-3840x2160: bench drive: load 412 ms, first frame 872.9 ms, 3000 frames, 4 traffic cars on the road, 3 rivals; the car drove 1246 m (527 m from the start) through 13 sections
+new race-max-1920x1080: bench race: load 397 ms, first frame 271.4 ms, 3000 frames, 9 traffic cars on the road, 3 rivals; the car drove 1057 m (423 m from the start) through 8 sections

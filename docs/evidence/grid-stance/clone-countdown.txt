@@ -1,0 +1,8 @@
+# The player's car through the countdown (the scene's frames from its cut), --flow firstrace / firstdrag at 60 Hz, per world update.
+# run | countdown updates | first race clock | velocity all exactly 0 | distinct compression sets (9 decimals) | brake | compressions FL FR RR RL
+first race 60 Hz | 159 | -2.6467 | True | 1 | ['1.000'] | 0.000035763 0.001601219 0.000922203 -0.001619786
+restart 60 Hz | 231 | -3.8467 | True | 1 | ['1.000'] | -0.000289679 0.000128448 -0.000151902 0.000286341
+first drag 60 Hz seed 4 | 193 | -3.2133 | True | 1 | ['1.000'] | -0.000234157 0.000229329 -0.000192881 0.000197858
+start 60 Hz seed 4 | 193 | -3.2133 | True | 1 | ['1.000'] | -0.000234157 0.000229329 -0.000192881 0.000197858
+restart 60 Hz seed 4 | 239 | -3.9778 | True | 1 | ['1.000'] | 0.000356287 -0.000182539 0.000215143 -0.000310570
+# Last scene update before the cut and the first after it (first race): velocity 6.09e-5 4.96e-4 2.87e-3 -> 0 0 0; compressions 0.000030577 0.001651853 0.000932783 -0.001666963 -> 0.000035763 0.001601219 0.000922203 -0.001619786.

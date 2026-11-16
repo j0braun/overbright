@@ -1,0 +1,11 @@
+finding	address	change	test	confidence
+blend bytes 5 / 6	0x5BCC40, table 0x5BCF90	blend byte 5 = DstAlpha/OneMinusDstAlpha, 6 = DstAlpha/One (colour and alpha), world and car pipelines	render::native::world::pipelines::blend_factor_tests::blend_bytes_give_the_originals_factors	certain
+car renderers' start cube	0x5BCAE0, 0x5BA4F4, 0x5B9920	car renderers start with a black cube, not a made-up gradient (keeping the last platform's cube is game side, open)	render::native::car::envmap::tests::the_start_cube_is_black	likely
+scene light groups	0x48E3D0, 0x4893A0	the scene light groups (0x835850) are not capped at ten; total capped at 24 stored lights	render::native::car::lighting::tests::scene_groups_are_not_capped_at_ten	certain
+car light packs	0x48E070, 0x48E270, 0x48E3D0	car light packs: never every pack of the world; no visibility lists = none	world::query::light_pack_tests::no_visibility_means_no_light_packs_not_all	certain (list); stand-in inferred
+road reflection flare cap	0x5BB230, 0x5D27F0, 0x5BB440	road reflection flares capped at the sprite batch's 1000 quads (was 4096)	render::native::world::draws::sprite_batch_tests::reflection_flares_stop_at_the_batch_size	certain (capacity, one texture)
+rim / spinner remap	0x631EB7-0x631EDB, 0x631F44-0x631F56	a bailed rim/spinner composite still remaps the source to DUMMY_WHEEL1 / DUMMY_SPINNER1	car::wheels::remap_tests::a_bailed_wheel_composite_still_draws_the_dummy	certain
+capture alpha 0x5C3130	0x5C3130	cover picture: point-sampled stretch (D3DTEXF_NONE), the captured alpha kept	formats::native_save::picture_tests::a_cover_is_point_sampled_with_its_alpha	likely (driver point filter)
+airborne car LOD (library)	0x6211CB, 0x616776, 0x60C330, 0x803E08	library: airborne LOD D→C rule and the underside visibility test (game-side call open)	car::shared_part_tests::an_airborne_car_seen_from_below_keeps_lod_c	certain (REA: 0x60C330 mode 1 decoded)
+front-end fog (library)	0x614310, 0x89E850	library: Fog::frontend keeps the last in-game sample (game-side use open)	fog::tests::the_front_end_keeps_the_last_in_game_sample	certain (memory); likely (constants)
+track window (library)	0x43A4C1-0x43A526	library: track_window_admits rule (world load has no track number; open)	world::anims::window_tests::the_track_window_picks_tracks_by_number	certain

@@ -1,0 +1,100 @@
+The temporal rows' programs made ahead.
+
+== Programs made by a free roam's first 10 frames before the change (tests::first_use, 320x240 offscreen, native FSAA on), by source line:
+Low TAA 141 native/world/record.rs:966x40 native/world/record.rs:975x1 native/world/record.rs:984x1 native/world/record.rs:994x80 native/car/record.rs:155x1 native/car/batch.rs:62x1 enh/post/blur_dof.rs:699x5 native/car/record.rs:177x1 enh/weather/rain_fx.rs:512x9 enh/post/blur_dof.rs:656x1 native/car/record.rs:180x1
+Low upscale 1 0 
+Low upscale 2 0 
+Low upscale 3 0 
+Low upscale 4 3 native/post/targets.rs:501x1 enh/post/fsr.rs:73x2
+Low upscale 5 3 native/post/targets.rs:501x1 enh/post/fsr.rs:73x2
+Low upscale 6 3 native/post/targets.rs:501x1 enh/post/fsr.rs:73x2
+Low upscale 7 160 native/world/record.rs:966x40 native/world/record.rs:975x1 native/world/record.rs:984x1 native/world/record.rs:994x80 native/car/record.rs:155x1 native/car/batch.rs:62x1 enh/post/fsr2.rs:192x8 enh/post/fsr2.rs:201x8 enh/post/fsr2.rs:401x1 enh/post/fsr2.rs:764x2 native/car/record.rs:177x1 enh/post/blur_dof.rs:699x5 enh/weather/rain_fx.rs:512x9 enh/post/blur_dof.rs:656x1 native/car/record.rs:180x1
+Low upscale 8 19 enh/post/fsr2.rs:192x8 enh/post/fsr2.rs:201x8 enh/post/fsr2.rs:401x1 enh/post/fsr2.rs:764x2
+Low upscale 9 19 enh/post/fsr2.rs:192x8 enh/post/fsr2.rs:201x8 enh/post/fsr2.rs:401x1 enh/post/fsr2.rs:764x2
+Low upscale 10 19 enh/post/fsr2.rs:192x8 enh/post/fsr2.rs:201x8 enh/post/fsr2.rs:401x1 enh/post/fsr2.rs:764x2
+Low upscale 11 19 enh/post/fsr2.rs:192x8 enh/post/fsr2.rs:201x8 enh/post/fsr2.rs:401x1 enh/post/fsr2.rs:764x2
+Medium TAA 0 
+Medium upscale 1 0 
+Medium upscale 2 0 
+Medium upscale 3 0 
+Medium upscale 4 2 enh/post/fsr.rs:73x2
+Medium upscale 5 2 enh/post/fsr.rs:73x2
+Medium upscale 6 2 enh/post/fsr.rs:73x2
+Medium upscale 7 194 native/world/record.rs:966x40 native/world/record.rs:975x1 native/world/record.rs:984x1 native/world/record.rs:994x80 native/world/record.rs:997x2 native/world/record.rs:1011x12 native/world/record.rs:1016x18 native/car/record.rs:155x1 native/car/batch.rs:62x1 native/post/horizon_fog_pass.rs:42x1 enh/post/fsr2.rs:192x8 enh/post/fsr2.rs:201x8 enh/post/fsr2.rs:401x1 enh/volumes/atmosphere/pass.rs:424x1 enh/post/fsr2.rs:764x2 enh/weather/rain_fx.rs:512x9 native/car/record.rs:177x1 enh/post/blur_dof.rs:699x5 enh/post/blur_dof.rs:656x1 native/car/record.rs:180x1
+Medium upscale 8 19 enh/post/fsr2.rs:192x8 enh/post/fsr2.rs:201x8 enh/post/fsr2.rs:401x1 enh/post/fsr2.rs:764x2
+Medium upscale 9 19 enh/post/fsr2.rs:192x8 enh/post/fsr2.rs:201x8 enh/post/fsr2.rs:401x1 enh/post/fsr2.rs:764x2
+Medium upscale 10 19 enh/post/fsr2.rs:192x8 enh/post/fsr2.rs:201x8 enh/post/fsr2.rs:401x1 enh/post/fsr2.rs:764x2
+Medium upscale 11 19 enh/post/fsr2.rs:192x8 enh/post/fsr2.rs:201x8 enh/post/fsr2.rs:401x1 enh/post/fsr2.rs:764x2
+High TAA 0 
+High upscale 1 0 
+High upscale 2 0 
+High upscale 3 0 
+High upscale 4 2 enh/post/fsr.rs:73x2
+High upscale 5 2 enh/post/fsr.rs:73x2
+High upscale 6 2 enh/post/fsr.rs:73x2
+High upscale 7 202 native/world/record.rs:966x40 native/world/record.rs:975x1 native/world/record.rs:984x1 native/world/record.rs:994x80 native/world/record.rs:997x2 native/world/record.rs:1011x12 native/world/record.rs:1016x18 native/car/record.rs:155x1 native/car/batch.rs:62x1 enh/materials/car/glass/mod.rs:168x1 enh/materials/car/glass/mod.rs:182x4 enh/materials/car/glass/mod.rs:240x1 enh/volumes/water/mod.rs:995x2 native/post/horizon_fog_pass.rs:42x1 enh/post/fsr2.rs:192x8 enh/post/fsr2.rs:201x8 enh/post/fsr2.rs:401x1 enh/volumes/atmosphere/pass.rs:424x1 enh/post/fsr2.rs:764x2 enh/post/blur_dof.rs:699x5 native/car/record.rs:177x1 enh/weather/rain_fx.rs:512x9 enh/post/blur_dof.rs:656x1 native/car/record.rs:180x1
+High upscale 8 19 enh/post/fsr2.rs:192x8 enh/post/fsr2.rs:201x8 enh/post/fsr2.rs:401x1 enh/post/fsr2.rs:764x2
+High upscale 9 19 enh/post/fsr2.rs:192x8 enh/post/fsr2.rs:201x8 enh/post/fsr2.rs:401x1 enh/post/fsr2.rs:764x2
+High upscale 10 19 enh/post/fsr2.rs:192x8 enh/post/fsr2.rs:201x8 enh/post/fsr2.rs:401x1 enh/post/fsr2.rs:764x2
+High upscale 11 19 enh/post/fsr2.rs:192x8 enh/post/fsr2.rs:201x8 enh/post/fsr2.rs:401x1 enh/post/fsr2.rs:764x2
+Extreme TAA 0 
+Extreme upscale 1 0 
+Extreme upscale 2 0 
+Extreme upscale 3 0 
+Extreme upscale 4 2 enh/post/fsr.rs:73x2
+Extreme upscale 5 2 enh/post/fsr.rs:73x2
+Extreme upscale 6 2 enh/post/fsr.rs:73x2
+Extreme upscale 7 206 native/world/record.rs:966x40 native/world/record.rs:975x1 native/world/record.rs:984x1 native/world/record.rs:994x80 native/world/record.rs:997x2 native/world/record.rs:1011x12 native/world/record.rs:1016x18 native/car/record.rs:155x1 native/car/batch.rs:62x1 enh/materials/car/glass/mod.rs:168x1 enh/materials/car/glass/mod.rs:182x4 enh/materials/car/glass/mod.rs:240x1 enh/volumes/water/mod.rs:995x2 native/post/horizon_fog_pass.rs:42x1 enh/post/fsr2.rs:192x8 enh/post/fsr2.rs:201x8 enh/post/fsr2.rs:401x1 enh/volumes/atmosphere/pass.rs:424x1 enh/post/fsr2.rs:764x2 native/car/record.rs:177x1 enh/volumes/water/hq.rs:519x4 enh/post/blur_dof.rs:699x5 enh/weather/rain_fx.rs:512x9 enh/post/blur_dof.rs:656x1 native/car/record.rs:180x1
+Extreme upscale 8 19 enh/post/fsr2.rs:192x8 enh/post/fsr2.rs:201x8 enh/post/fsr2.rs:401x1 enh/post/fsr2.rs:764x2
+Extreme upscale 9 19 enh/post/fsr2.rs:192x8 enh/post/fsr2.rs:201x8 enh/post/fsr2.rs:401x1 enh/post/fsr2.rs:764x2
+Extreme upscale 10 19 enh/post/fsr2.rs:192x8 enh/post/fsr2.rs:201x8 enh/post/fsr2.rs:401x1 enh/post/fsr2.rs:764x2
+Extreme upscale 11 19 enh/post/fsr2.rs:192x8 enh/post/fsr2.rs:201x8 enh/post/fsr2.rs:401x1 enh/post/fsr2.rs:764x2
+After: 0 in every row (the test).
+
+== --bench explore 30, 1920x1080, integrated GPU, NFSU2_BENCH_LEVEL, base -> this tree, 7 interleaved runs
+-- Low
+enhpost_aa11 before n=7 | load 331.0 [310.0..437.0] | first frame update+draw 45.6 [41.5..65.7] | its pipelines [124] | frames 1-9 main cpu sum 13.6 [12.1..15.9] | their pipelines [11]
+enhpost_aa11 after n=7 | load 312.0 [291.0..647.0] | first frame update+draw 6.4 [5.6..10.7] | its pipelines [0] | frames 1-9 main cpu sum 12.9 [12.4..19.3] | their pipelines [0]
+enhupscale1 before n=7 | load 394.0 [287.0..697.0] | first frame update+draw 51.9 [40.9..397.6] | its pipelines [124] | frames 1-9 main cpu sum 13.0 [12.4..18.3] | their pipelines [11]
+enhupscale1 after n=7 | load 349.0 [308.0..446.0] | first frame update+draw 6.8 [4.6..10.4] | its pipelines [0] | frames 1-9 main cpu sum 13.3 [12.4..15.0] | their pipelines [0]
+enhupscale4 before n=7 | load 339.0 [276.0..787.0] | first frame update+draw 6.9 [5.1..18.1] | its pipelines [3] | frames 1-9 main cpu sum 13.5 [12.7..16.3] | their pipelines [0]
+enhupscale4 after n=7 | load 334.0 [293.0..710.0] | first frame update+draw 7.3 [5.4..21.5] | its pipelines [0] | frames 1-9 main cpu sum 12.8 [12.2..15.6] | their pipelines [0]
+enhupscale8 before n=7 | load 374.0 [309.0..573.0] | first frame update+draw 67.6 [56.4..138.4] | its pipelines [134] | frames 1-9 main cpu sum 15.0 [12.3..19.8] | their pipelines [11]
+enhupscale8 after n=7 | load 340.0 [326.0..494.0] | first frame update+draw 7.3 [5.8..10.4] | its pipelines [0] | frames 1-9 main cpu sum 14.1 [12.7..17.8] | their pipelines [0]
+-- Medium
+enhpost_aa11 before n=7 | load 452.0 [400.0..470.0] | first frame update+draw 103.6 [92.6..216.3] | its pipelines [158] | frames 1-9 main cpu sum 19.2 [16.4..30.8] | their pipelines [11]
+enhpost_aa11 after n=7 | load 503.0 [415.0..813.0] | first frame update+draw 12.8 [9.7..52.0] | its pipelines [0] | frames 1-9 main cpu sum 20.3 [17.1..25.5] | their pipelines [0]
+enhupscale1 before n=7 | load 446.0 [390.0..524.0] | first frame update+draw 120.4 [97.3..142.9] | its pipelines [158] | frames 1-9 main cpu sum 19.2 [16.4..20.5] | their pipelines [11]
+enhupscale1 after n=7 | load 456.0 [393.0..474.0] | first frame update+draw 11.0 [9.4..21.2] | its pipelines [0] | frames 1-9 main cpu sum 18.0 [16.9..19.6] | their pipelines [0]
+enhupscale4 before n=7 | load 475.0 [403.0..815.0] | first frame update+draw 11.8 [10.2..16.6] | its pipelines [2] | frames 1-9 main cpu sum 18.3 [17.8..20.5] | their pipelines [0]
+enhupscale4 after n=7 | load 445.0 [387.0..731.0] | first frame update+draw 12.3 [10.7..23.4] | its pipelines [0] | frames 1-9 main cpu sum 20.1 [17.8..21.3] | their pipelines [0]
+enhupscale8 before n=7 | load 450.0 [400.0..737.0] | first frame update+draw 127.4 [100.6..193.4] | its pipelines [168] | frames 1-9 main cpu sum 20.2 [18.0..22.0] | their pipelines [11]
+enhupscale8 after n=7 | load 436.0 [388.0..578.0] | first frame update+draw 13.0 [10.2..14.5] | its pipelines [0] | frames 1-9 main cpu sum 20.6 [17.4..21.1] | their pipelines [0]
+-- High
+enhpost_aa11 before n=7 | load 510.0 [468.0..552.0] | first frame update+draw 124.8 [97.4..129.2] | its pipelines [163] | frames 1-9 main cpu sum 24.8 [21.1..28.2] | their pipelines [13]
+enhpost_aa11 after n=7 | load 539.0 [463.0..757.0] | first frame update+draw 14.4 [10.9..24.8] | its pipelines [0] | frames 1-9 main cpu sum 22.7 [20.8..27.3] | their pipelines [0]
+enhupscale1 before n=7 | load 520.0 [476.0..1872.0] | first frame update+draw 110.5 [99.6..2192.6] | its pipelines [163] | frames 1-9 main cpu sum 21.9 [21.2..27.4] | their pipelines [13]
+enhupscale1 after n=7 | load 572.0 [444.0..596.0] | first frame update+draw 14.3 [12.3..16.5] | its pipelines [0] | frames 1-9 main cpu sum 20.9 [18.8..22.4] | their pipelines [0]
+enhupscale4 before n=7 | load 605.0 [520.0..944.0] | first frame update+draw 17.2 [14.1..23.4] | its pipelines [2] | frames 1-9 main cpu sum 21.7 [19.6..23.7] | their pipelines [0]
+enhupscale4 after n=7 | load 550.0 [459.0..784.0] | first frame update+draw 19.5 [13.1..30.2] | its pipelines [0] | frames 1-9 main cpu sum 22.4 [17.3..26.7] | their pipelines [0]
+enhupscale8 before n=7 | load 517.0 [495.0..1718.0] | first frame update+draw 129.4 [103.9..1447.7] | its pipelines [173] | frames 1-9 main cpu sum 24.0 [19.7..26.0] | their pipelines [13]
+enhupscale8 after n=7 | load 520.0 [492.0..1115.0] | first frame update+draw 15.9 [12.5..28.6] | its pipelines [0] | frames 1-9 main cpu sum 25.2 [20.6..35.7] | their pipelines [0]
+-- Medium, native FSAA off (custom.14 0), 5 runs
+custom140enhpost_aa11 before n=5 | load 461.0 [416.0..523.0] | first frame update+draw 11.6 [10.0..15.3] | its pipelines [0] | frames 1-9 main cpu sum 20.1 [16.5..20.8] | their pipelines [0]
+custom140enhpost_aa11 after n=5 | load 451.0 [430.0..548.0] | first frame update+draw 10.6 [8.1..11.7] | its pipelines [0] | frames 1-9 main cpu sum 19.4 [16.2..21.3] | their pipelines [0]
+custom140enhupscale8 before n=5 | load 421.0 [407.0..458.0] | first frame update+draw 24.6 [23.4..30.5] | its pipelines [10] | frames 1-9 main cpu sum 20.0 [19.7..20.0] | their pipelines [0]
+custom140enhupscale8 after n=5 | load 475.0 [441.0..497.0] | first frame update+draw 12.1 [10.8..16.8] | its pipelines [0] | frames 1-9 main cpu sum 19.0 [18.5..21.3] | their pipelines [0]
+
+== game --prepare, empty cache folder, integrated GPU (custom.14 3 + the row in options.txt)
+base taa r1 ms 531 pipelines=193 cache_kb 179400 pcache_kb 149 ok=1
+new taa r1 ms 561 pipelines=191 cache_kb 179400 pcache_kb 151 ok=1
+base fsr2 r1 ms 590 pipelines=211 cache_kb 179424 pcache_kb 174 ok=1
+new fsr2 r1 ms 504 pipelines=219 cache_kb 179452 pcache_kb 203 ok=1
+base taa r2 ms 484 pipelines=193 cache_kb 179400 pcache_kb 149 ok=1
+new taa r2 ms 460 pipelines=191 cache_kb 179400 pcache_kb 151 ok=1
+base fsr2 r2 ms 516 pipelines=211 cache_kb 179424 pcache_kb 174 ok=1
+new fsr2 r2 ms 564 pipelines=219 cache_kb 179452 pcache_kb 203 ok=1
+base taa r3 ms 755 pipelines=193 cache_kb 179400 pcache_kb 149 ok=1
+new taa r3 ms 802 pipelines=191 cache_kb 179400 pcache_kb 151 ok=1
+base fsr2 r3 ms 768 pipelines=211 cache_kb 179424 pcache_kb 174 ok=1
+new fsr2 r3 ms 755 pipelines=219 cache_kb 179452 pcache_kb 203 ok=1

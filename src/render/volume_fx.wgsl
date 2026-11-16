@@ -1,0 +1,8 @@
+#include "enh/volumes/volume_fx/volume_common.wgsl"
+#include "enh/volumes/volume_fx/pool.wgsl"
+#include "enh/volumes/volume_fx/splat.wgsl"
+#include "enh/volumes/volume_fx/resolve.wgsl"
+#include "enh/volumes/volume_fx/light.wgsl"
+#include "enh/volumes/volume_fx/march.wgsl"
+#include "enh/volumes/volume_fx/temporal.wgsl"
+#include "enh/volumes/volume_fx/composite.wgsl"

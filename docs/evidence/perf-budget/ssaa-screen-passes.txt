@@ -1,0 +1,312 @@
+# SSAA's effect and post passes at the screen's size (docs/ssaa-screen-passes.md)
+# A 4K play setup's options.txt (3840x2160, SSAA 2x, High Precision Post, ray tracing, SSAO 100 %); --bench <scene> 150, GPU timestamps, ms per frame.
+# Arms by NFSU2_SSAA_SCENE_SIZE: off = every pass at the scene's size (the frame as before); ssao; texel = the resolve
+# first (graded per scene texel); final = both; tried: avg = the resolved average graded, streak = the streak buffer on
+# screen. Each candidate run paired with the off runs of its block (one hold of the measure lock, desktop GPU idle).
+# Groups: ssao = its four timestamps (the depth one shares a bucket with the scene's draws); post = bleach + overbright
+# + to the back buffer + resample + resolve; streak = streaks + glow depth.
+
+== ssao vs off (racing)
+  block 1 run 1: gpu  19.13 ->  18.71 (-0.43) | ssao 2.029 -> 1.732 (-0.297) | post 2.064 -> 2.070 (+0.005) | streak 0.484 -> 0.485 (+0.001)
+  block 1 run 2: gpu  19.13 ->  18.86 (-0.27) | ssao 2.029 -> 1.702 (-0.326) | post 2.064 -> 2.074 (+0.010) | streak 0.484 -> 0.484 (+0.000)
+  block 2 run 1: gpu  19.13 ->  18.83 (-0.30) | ssao 2.015 -> 1.705 (-0.311) | post 2.067 -> 2.062 (-0.005) | streak 0.481 -> 0.483 (+0.002)
+  block 3 run 1: gpu  19.22 ->  18.93 (-0.29) | ssao 2.034 -> 1.713 (-0.321) | post 2.076 -> 2.080 (+0.004) | streak 0.487 -> 0.489 (+0.001)
+  block 4 run 1: gpu  19.28 ->  18.96 (-0.33) | ssao 2.041 -> 1.713 (-0.328) | post 2.073 -> 2.076 (+0.003) | streak 0.488 -> 0.488 (+0.000)
+  block 5 run 1: gpu  19.25 ->  18.96 (-0.29) | ssao 2.041 -> 1.712 (-0.330) | post 2.077 -> 2.079 (+0.001) | streak 0.489 -> 0.489 (-0.000)
+  block 6 run 1: gpu  19.18 ->  18.86 (-0.33) | ssao 2.022 -> 1.706 (-0.315) | post 2.071 -> 2.074 (+0.003) | streak 0.484 -> 0.485 (+0.001)
+  block 7 run 1: gpu  19.19 ->  18.85 (-0.34) | ssao 2.027 -> 1.719 (-0.308) | post 2.073 -> 2.066 (-0.007) | streak 0.485 -> 0.483 (-0.002)
+  block 8 run 1: gpu  19.16 ->  18.83 (-0.34) | ssao 2.032 -> 1.706 (-0.326) | post 2.072 -> 2.079 (+0.007) | streak 0.483 -> 0.484 (+0.001)
+  gpu    pairs 9: median -0.325  min -0.426  max -0.275
+  ssao   pairs 9: median -0.321  min -0.330  max -0.297
+  post   pairs 9: median +0.003  min -0.007  max +0.010
+  streak pairs 9: median +0.001  min -0.002  max +0.002
+== texel vs off (racing)
+  block 2 run 1: gpu  19.13 ->  18.80 (-0.32) | ssao 2.015 -> 2.024 (+0.009) | post 2.067 -> 1.682 (-0.385) | streak 0.481 -> 0.484 (+0.003)
+  block 3 run 1: gpu  19.22 ->  18.88 (-0.34) | ssao 2.034 -> 2.033 (-0.001) | post 2.076 -> 1.681 (-0.395) | streak 0.487 -> 0.487 (-0.001)
+  block 4 run 1: gpu  19.28 ->  18.94 (-0.34) | ssao 2.041 -> 2.043 (+0.002) | post 2.073 -> 1.687 (-0.387) | streak 0.488 -> 0.489 (+0.001)
+  block 5 run 1: gpu  19.25 ->  18.98 (-0.27) | ssao 2.041 -> 2.045 (+0.003) | post 2.077 -> 1.686 (-0.391) | streak 0.489 -> 0.490 (+0.001)
+  block 6 run 1: gpu  19.18 ->  18.78 (-0.40) | ssao 2.022 -> 2.023 (+0.001) | post 2.071 -> 1.678 (-0.393) | streak 0.484 -> 0.485 (+0.001)
+  block 7 run 1: gpu  19.19 ->  18.88 (-0.31) | ssao 2.027 -> 2.031 (+0.004) | post 2.073 -> 1.676 (-0.397) | streak 0.485 -> 0.485 (-0.000)
+  block 8 run 1: gpu  19.16 ->  18.88 (-0.29) | ssao 2.032 -> 2.030 (-0.003) | post 2.072 -> 1.679 (-0.393) | streak 0.483 -> 0.485 (+0.001)
+  gpu    pairs 7: median -0.323  min -0.405  max -0.268
+  ssao   pairs 7: median +0.002  min -0.003  max +0.009
+  post   pairs 7: median -0.393  min -0.397  max -0.385
+  streak pairs 7: median +0.001  min -0.001  max +0.003
+== avg vs off (racing)
+  block 2 run 1: gpu  19.13 ->  18.48 (-0.64) | ssao 2.015 -> 2.024 (+0.008) | post 2.067 -> 1.474 (-0.593) | streak 0.481 -> 0.484 (+0.003)
+  block 3 run 1: gpu  19.22 ->  18.66 (-0.56) | ssao 2.034 -> 2.035 (+0.001) | post 2.076 -> 1.479 (-0.597) | streak 0.487 -> 0.487 (-0.000)
+  block 4 run 1: gpu  19.28 ->  18.64 (-0.64) | ssao 2.041 -> 2.034 (-0.007) | post 2.073 -> 1.480 (-0.593) | streak 0.488 -> 0.487 (-0.001)
+  block 5 run 1: gpu  19.25 ->  18.73 (-0.52) | ssao 2.041 -> 2.041 (-0.001) | post 2.077 -> 1.482 (-0.596) | streak 0.489 -> 0.489 (+0.000)
+  block 6 run 1: gpu  19.18 ->  18.58 (-0.60) | ssao 2.022 -> 2.024 (+0.002) | post 2.071 -> 1.477 (-0.594) | streak 0.484 -> 0.483 (-0.001)
+  block 7 run 1: gpu  19.19 ->  18.58 (-0.60) | ssao 2.027 -> 2.028 (+0.001) | post 2.073 -> 1.479 (-0.594) | streak 0.485 -> 0.486 (+0.000)
+  block 8 run 1: gpu  19.16 ->  18.64 (-0.52) | ssao 2.032 -> 2.040 (+0.008) | post 2.072 -> 1.477 (-0.595) | streak 0.483 -> 0.482 (-0.001)
+  gpu    pairs 7: median -0.599  min -0.642  max -0.519
+  ssao   pairs 7: median +0.001  min -0.007  max +0.008
+  post   pairs 7: median -0.594  min -0.597  max -0.593
+  streak pairs 7: median -0.000  min -0.001  max +0.003
+== streak vs off (racing)
+  block 1 run 1: gpu  19.13 ->  19.13 (-0.00) | ssao 2.029 -> 2.023 (-0.005) | post 2.064 -> 2.053 (-0.012) | streak 0.484 -> 0.422 (-0.062)
+  block 2 run 1: gpu  19.13 ->  18.89 (-0.24) | ssao 2.015 -> 2.013 (-0.002) | post 2.067 -> 2.047 (-0.020) | streak 0.481 -> 0.423 (-0.058)
+  block 3 run 1: gpu  19.22 ->  19.23 (+0.01) | ssao 2.034 -> 2.033 (-0.002) | post 2.076 -> 2.060 (-0.016) | streak 0.487 -> 0.424 (-0.064)
+  block 4 run 1: gpu  19.28 ->  19.27 (-0.01) | ssao 2.041 -> 2.039 (-0.002) | post 2.073 -> 2.063 (-0.011) | streak 0.488 -> 0.424 (-0.064)
+  block 5 run 1: gpu  19.25 ->  19.26 (+0.01) | ssao 2.041 -> 2.041 (-0.000) | post 2.077 -> 2.062 (-0.015) | streak 0.489 -> 0.424 (-0.065)
+  gpu    pairs 5: median -0.004  min -0.238  max +0.012
+  ssao   pairs 5: median -0.002  min -0.005  max -0.000
+  post   pairs 5: median -0.015  min -0.020  max -0.011
+  streak pairs 5: median -0.064  min -0.065  max -0.058
+== final vs off (racing)
+  block 2 run 1: gpu  19.13 ->  18.19 (-0.94) | ssao 2.015 -> 1.703 (-0.312) | post 2.067 -> 1.664 (-0.403) | streak 0.481 -> 0.471 (-0.009)
+  block 3 run 1: gpu  19.22 ->  18.58 (-0.63) | ssao 2.034 -> 1.718 (-0.316) | post 2.076 -> 1.685 (-0.391) | streak 0.487 -> 0.489 (+0.002)
+  block 4 run 1: gpu  19.28 ->  18.59 (-0.69) | ssao 2.041 -> 1.718 (-0.323) | post 2.073 -> 1.685 (-0.388) | streak 0.488 -> 0.489 (+0.000)
+  block 5 run 1: gpu  19.25 ->  18.55 (-0.70) | ssao 2.041 -> 1.716 (-0.326) | post 2.077 -> 1.685 (-0.392) | streak 0.489 -> 0.489 (+0.000)
+  block 6 run 1: gpu  19.18 ->  18.50 (-0.68) | ssao 2.022 -> 1.702 (-0.320) | post 2.071 -> 1.679 (-0.392) | streak 0.484 -> 0.485 (+0.001)
+  block 7 run 1: gpu  19.19 ->  18.50 (-0.69) | ssao 2.027 -> 1.708 (-0.319) | post 2.073 -> 1.673 (-0.400) | streak 0.485 -> 0.484 (-0.001)
+  block 8 run 1: gpu  19.16 ->  18.39 (-0.77) | ssao 2.032 -> 1.691 (-0.341) | post 2.072 -> 1.675 (-0.397) | streak 0.483 -> 0.480 (-0.003)
+  gpu    pairs 7: median -0.694  min -0.936  max -0.635
+  ssao   pairs 7: median -0.320  min -0.341  max -0.312
+  post   pairs 7: median -0.392  min -0.403  max -0.388
+  streak pairs 7: median +0.000  min -0.009  max +0.002
+arm off    : GPU busy median  19.19 ms [19.06..19.31], 52.1 fps, own VRAM peak 3286 MiB, n=16
+arm ssao   : GPU busy median  18.86 ms [18.71..18.96], 53.0 fps, own VRAM peak 3238 MiB, n=9
+arm texel  : GPU busy median  18.88 ms [18.78..18.98], 53.0 fps, own VRAM peak 3283 MiB, n=7
+arm avg    : GPU busy median  18.64 ms [18.48..18.73], 53.6 fps, own VRAM peak 3300 MiB, n=7
+arm streak : GPU busy median  19.23 ms [18.89..19.27], 52.0 fps, own VRAM peak 3382 MiB, n=5
+arm final  : GPU busy median  18.50 ms [18.19..18.59], 54.0 fps, own VRAM peak 3249 MiB, n=7
+
+== final vs off (explore)
+  block 1 run 1: gpu  13.03 ->  12.38 (-0.65) | ssao 0.951 -> 0.619 (-0.332) | post 1.980 -> 1.624 (-0.356) | streak 0.478 -> 0.478 (-0.000)
+  block 2 run 2: gpu  13.05 ->  12.41 (-0.64) | ssao 0.946 -> 0.622 (-0.324) | post 1.990 -> 1.641 (-0.348) | streak 0.481 -> 0.482 (+0.002)
+  gpu    pairs 2: median -0.646  min -0.654  max -0.637
+  ssao   pairs 2: median -0.328  min -0.332  max -0.324
+  post   pairs 2: median -0.352  min -0.356  max -0.348
+  streak pairs 2: median +0.001  min -0.000  max +0.002
+arm off    : GPU busy median  13.04 ms [13.03..13.05], 76.7 fps, own VRAM peak 3250 MiB, n=2
+arm final  : GPU busy median  12.39 ms [12.38..12.41], 80.7 fps, own VRAM peak 3211 MiB, n=2
+
+== final vs off (race)
+  block 1 run 1: gpu  20.21 ->  19.54 (-0.67) | ssao 3.683 -> 3.365 (-0.319) | post 2.081 -> 1.696 (-0.385) | streak 0.522 -> 0.523 (+0.001)
+  block 2 run 2: gpu  20.31 ->  19.62 (-0.69) | ssao 3.708 -> 3.374 (-0.334) | post 2.084 -> 1.700 (-0.383) | streak 0.523 -> 0.525 (+0.001)
+  gpu    pairs 2: median -0.683  min -0.694  max -0.672
+  ssao   pairs 2: median -0.326  min -0.334  max -0.319
+  post   pairs 2: median -0.384  min -0.385  max -0.383
+  streak pairs 2: median +0.001  min +0.001  max +0.001
+arm off    : GPU busy median  20.26 ms [20.21..20.31], 49.4 fps, own VRAM peak 3192 MiB, n=2
+arm final  : GPU busy median  19.58 ms [19.54..19.62], 51.1 fps, own VRAM peak 3165 MiB, n=2
+
+== final vs off (rain)
+  block 1 run 1: gpu  23.39 ->  22.50 (-0.89) | ssao 2.112 -> 1.783 (-0.329) | post 2.337 -> 1.823 (-0.514) | streak 0.498 -> 0.499 (+0.002)
+  block 2 run 2: gpu  23.40 ->  22.57 (-0.83) | ssao 2.113 -> 1.788 (-0.326) | post 2.339 -> 1.826 (-0.514) | streak 0.499 -> 0.500 (+0.001)
+  gpu    pairs 2: median -0.858  min -0.886  max -0.830
+  ssao   pairs 2: median -0.327  min -0.329  max -0.326
+  post   pairs 2: median -0.514  min -0.514  max -0.514
+  streak pairs 2: median +0.001  min +0.001  max +0.002
+arm off    : GPU busy median  23.40 ms [23.39..23.40], 42.7 fps, own VRAM peak 3377 MiB, n=2
+arm final  : GPU busy median  22.54 ms [22.50..22.57], 44.4 fps, own VRAM peak 3340 MiB, n=2
+
+# Pictures: each candidate against off, still frames and motion (high-pass change frame to frame).
+### racing ssao (racing-ssao7) vs off
+racing-00000.png: 1-SSIM 0.000208411 | >2: 0.366 % >8: 0.0234 % max 42 | luma mean 44.04/44.04 p5 12.5/12.5 p95 138.9/138.9
+racing-00100.png: 1-SSIM 0.000358391 | >2: 0.692 % >8: 0.0504 % max 87 | luma mean 50.11/50.11 p5 12.8/12.8 p95 161.0/161.0
+racing-00101.png: 1-SSIM 0.000372079 | >2: 0.720 % >8: 0.0543 % max 85 | luma mean 50.29/50.29 p5 12.8/12.8 p95 161.6/161.6
+racing-00102.png: 1-SSIM 0.00037201 | >2: 0.720 % >8: 0.0555 % max 92 | luma mean 50.59/50.59 p5 12.8/12.8 p95 162.1/162.1
+racing-00103.png: 1-SSIM 0.000364136 | >2: 0.702 % >8: 0.0514 % max 60 | luma mean 50.92/50.92 p5 12.8/12.8 p95 162.7/162.7
+racing-00104.png: 1-SSIM 0.000358635 | >2: 0.702 % >8: 0.0529 % max 83 | luma mean 51.20/51.19 p5 12.8/12.8 p95 162.7/162.7
+racing-00105.png: 1-SSIM 0.000354882 | >2: 0.688 % >8: 0.0522 % max 85 | luma mean 51.50/51.50 p5 12.8/12.8 p95 163.0/163.0
+racing-00106.png: 1-SSIM 0.000350049 | >2: 0.682 % >8: 0.0525 % max 91 | luma mean 51.79/51.79 p5 12.8/12.8 p95 163.4/163.4
+racing-00107.png: 1-SSIM 0.000355524 | >2: 0.679 % >8: 0.0502 % max 58 | luma mean 52.06/52.05 p5 12.8/12.8 p95 163.8/163.8
+racing-00200.png: 1-SSIM 0.000160171 | >2: 0.225 % >8: 0.0090 % max 36 | luma mean 49.60/49.60 p5 12.5/12.5 p95 176.1/176.1
+### motion racing ssao
+flicker (mean |d highpass| per frame) A 1.4137 p99 15.32 | B 1.4130 p99 15.30 | B/A 0.9995 | B more than A by > 2 levels: 0.0202 %, by > 8: 0.0001 %, max 10.5
+### racing texel (racing-post4) vs off
+racing-00000.png: 1-SSIM 0.00194646 | >2: 0.026 % >8: 0.0034 % max 80 | luma mean 44.04/44.06 p5 12.5/12.5 p95 138.9/139.0
+racing-00100.png: 1-SSIM 0.00188242 | >2: 0.064 % >8: 0.0066 % max 72 | luma mean 50.11/50.13 p5 12.8/12.6 p95 161.0/161.1
+racing-00101.png: 1-SSIM 0.00188156 | >2: 0.063 % >8: 0.0061 % max 71 | luma mean 50.29/50.31 p5 12.8/12.8 p95 161.6/161.7
+racing-00102.png: 1-SSIM 0.00188072 | >2: 0.062 % >8: 0.0064 % max 88 | luma mean 50.59/50.62 p5 12.8/12.8 p95 162.1/162.2
+racing-00103.png: 1-SSIM 0.00187964 | >2: 0.065 % >8: 0.0072 % max 84 | luma mean 50.92/50.94 p5 12.8/12.8 p95 162.7/162.8
+racing-00104.png: 1-SSIM 0.00187948 | >2: 0.063 % >8: 0.0072 % max 74 | luma mean 51.20/51.22 p5 12.8/12.8 p95 162.7/162.9
+racing-00105.png: 1-SSIM 0.00187818 | >2: 0.063 % >8: 0.0072 % max 82 | luma mean 51.50/51.53 p5 12.8/12.8 p95 163.0/163.1
+racing-00106.png: 1-SSIM 0.00187724 | >2: 0.066 % >8: 0.0069 % max 89 | luma mean 51.79/51.82 p5 12.8/12.8 p95 163.4/163.6
+racing-00107.png: 1-SSIM 0.00187591 | >2: 0.065 % >8: 0.0074 % max 66 | luma mean 52.06/52.08 p5 12.8/12.8 p95 163.8/163.9
+racing-00200.png: 1-SSIM 0.00196498 | >2: 0.062 % >8: 0.0058 % max 60 | luma mean 49.60/49.62 p5 12.5/12.5 p95 176.1/176.2
+### motion racing texel
+flicker (mean |d highpass| per frame) A 1.4137 p99 15.32 | B 1.4108 p99 15.32 | B/A 0.9980 | B more than A by > 2 levels: 0.0064 %, by > 8: 0.0005 %, max 19.3
+### racing avg (racing-post) vs off
+racing-00000.png: 1-SSIM 0.00240317 | >2: 2.104 % >8: 0.5394 % max 99 | luma mean 44.04/43.97 p5 12.5/12.5 p95 138.9/139.6
+racing-00100.png: 1-SSIM 0.0023753 | >2: 2.292 % >8: 0.5866 % max 71 | luma mean 50.11/50.03 p5 12.8/12.5 p95 161.0/161.6
+racing-00101.png: 1-SSIM 0.00237247 | >2: 2.281 % >8: 0.5823 % max 64 | luma mean 50.29/50.21 p5 12.8/12.6 p95 161.6/162.1
+racing-00102.png: 1-SSIM 0.00237312 | >2: 2.279 % >8: 0.5826 % max 101 | luma mean 50.59/50.52 p5 12.8/12.8 p95 162.1/162.6
+racing-00103.png: 1-SSIM 0.00237236 | >2: 2.278 % >8: 0.5817 % max 96 | luma mean 50.92/50.84 p5 12.8/12.8 p95 162.7/163.1
+racing-00104.png: 1-SSIM 0.00237088 | >2: 2.267 % >8: 0.5807 % max 76 | luma mean 51.20/51.12 p5 12.8/12.8 p95 162.7/163.2
+racing-00105.png: 1-SSIM 0.00236781 | >2: 2.271 % >8: 0.5785 % max 80 | luma mean 51.50/51.43 p5 12.8/12.8 p95 163.0/163.5
+racing-00106.png: 1-SSIM 0.00237178 | >2: 2.278 % >8: 0.5827 % max 92 | luma mean 51.79/51.72 p5 12.8/12.8 p95 163.4/163.9
+racing-00107.png: 1-SSIM 0.00236592 | >2: 2.274 % >8: 0.5830 % max 74 | luma mean 52.06/51.98 p5 12.8/12.8 p95 163.8/164.3
+racing-00200.png: 1-SSIM 0.00243279 | >2: 2.135 % >8: 0.5035 % max 60 | luma mean 49.60/49.52 p5 12.5/12.5 p95 176.1/176.4
+### motion racing avg
+flicker (mean |d highpass| per frame) A 1.4137 p99 15.32 | B 1.4261 p99 15.82 | B/A 1.0088 | B more than A by > 2 levels: 0.8325 %, by > 8: 0.0180 %, max 21.1
+### racing streak (racing-streak) vs off
+racing-00000.png: 1-SSIM 4.27628e-06 | >2: 0.003 % >8: 0.0008 % max 28 | luma mean 44.04/44.04 p5 12.5/12.5 p95 138.9/138.9
+racing-00100.png: 1-SSIM 1.02384e-05 | >2: 0.019 % >8: 0.0021 % max 40 | luma mean 50.11/50.11 p5 12.8/12.8 p95 161.0/161.0
+racing-00101.png: 1-SSIM 1.05098e-05 | >2: 0.021 % >8: 0.0020 % max 31 | luma mean 50.29/50.29 p5 12.8/12.8 p95 161.6/161.6
+racing-00102.png: 1-SSIM 1.06459e-05 | >2: 0.024 % >8: 0.0026 % max 45 | luma mean 50.59/50.59 p5 12.8/12.8 p95 162.1/162.1
+racing-00103.png: 1-SSIM 1.11065e-05 | >2: 0.026 % >8: 0.0024 % max 34 | luma mean 50.92/50.92 p5 12.8/12.8 p95 162.7/162.7
+racing-00104.png: 1-SSIM 1.16743e-05 | >2: 0.028 % >8: 0.0037 % max 39 | luma mean 51.20/51.20 p5 12.8/12.8 p95 162.7/162.8
+racing-00105.png: 1-SSIM 1.2613e-05 | >2: 0.029 % >8: 0.0033 % max 48 | luma mean 51.50/51.50 p5 12.8/12.8 p95 163.0/163.0
+racing-00106.png: 1-SSIM 1.32663e-05 | >2: 0.030 % >8: 0.0046 % max 42 | luma mean 51.79/51.79 p5 12.8/12.8 p95 163.4/163.4
+racing-00107.png: 1-SSIM 1.26543e-05 | >2: 0.031 % >8: 0.0047 % max 34 | luma mean 52.06/52.06 p5 12.8/12.8 p95 163.8/163.8
+racing-00200.png: 1-SSIM 1.13833e-05 | >2: 0.023 % >8: 0.0057 % max 40 | luma mean 49.60/49.60 p5 12.5/12.5 p95 176.1/176.2
+### motion racing streak
+flicker (mean |d highpass| per frame) A 1.4137 p99 15.32 | B 1.4135 p99 15.32 | B/A 0.9999 | B more than A by > 2 levels: 0.0004 %, by > 8: 0.0000 %, max 5.6
+### racing final (racing-final7) vs off
+racing-00000.png: 1-SSIM 0.00203274 | >2: 0.415 % >8: 0.0272 % max 80 | luma mean 44.04/44.06 p5 12.5/12.5 p95 138.9/139.0
+racing-00100.png: 1-SSIM 0.00209622 | >2: 0.796 % >8: 0.0580 % max 87 | luma mean 50.11/50.13 p5 12.8/12.6 p95 161.0/161.1
+racing-00101.png: 1-SSIM 0.0021069 | >2: 0.823 % >8: 0.0607 % max 85 | luma mean 50.29/50.31 p5 12.8/12.8 p95 161.6/161.7
+racing-00102.png: 1-SSIM 0.00210491 | >2: 0.822 % >8: 0.0622 % max 92 | luma mean 50.59/50.61 p5 12.8/12.8 p95 162.1/162.1
+racing-00103.png: 1-SSIM 0.00209519 | >2: 0.801 % >8: 0.0590 % max 84 | luma mean 50.92/50.94 p5 12.8/12.8 p95 162.7/162.8
+racing-00104.png: 1-SSIM 0.00209306 | >2: 0.800 % >8: 0.0610 % max 83 | luma mean 51.20/51.21 p5 12.8/12.8 p95 162.7/162.8
+racing-00105.png: 1-SSIM 0.00209015 | >2: 0.785 % >8: 0.0597 % max 85 | luma mean 51.50/51.52 p5 12.8/12.8 p95 163.0/163.1
+racing-00106.png: 1-SSIM 0.00208561 | >2: 0.780 % >8: 0.0599 % max 91 | luma mean 51.79/51.81 p5 12.8/12.8 p95 163.4/163.5
+racing-00107.png: 1-SSIM 0.00208958 | >2: 0.780 % >8: 0.0582 % max 66 | luma mean 52.06/52.08 p5 12.8/12.8 p95 163.8/163.9
+racing-00200.png: 1-SSIM 0.00201616 | >2: 0.307 % >8: 0.0151 % max 60 | luma mean 49.60/49.62 p5 12.5/12.5 p95 176.1/176.2
+### motion racing final
+flicker (mean |d highpass| per frame) A 1.4137 p99 15.32 | B 1.4102 p99 15.32 | B/A 0.9975 | B more than A by > 2 levels: 0.0267 %, by > 8: 0.0006 %, max 19.2
+### rain ssao (rain-ssao7) vs off
+drive-00000.png: 1-SSIM 0.000404276 | >2: 0.657 % >8: 0.0349 % max 43 | luma mean 62.36/62.35 p5 13.1/13.1 p95 172.9/172.9
+drive-00100.png: 1-SSIM 0.000585183 | >2: 1.174 % >8: 0.0658 % max 71 | luma mean 63.92/63.92 p5 12.8/12.8 p95 162.4/162.4
+drive-00101.png: 1-SSIM 0.000606127 | >2: 1.219 % >8: 0.0688 % max 79 | luma mean 64.01/64.00 p5 12.6/12.6 p95 161.7/161.7
+drive-00102.png: 1-SSIM 0.000609015 | >2: 1.209 % >8: 0.0691 % max 82 | luma mean 63.93/63.92 p5 12.5/12.5 p95 161.9/161.8
+drive-00103.png: 1-SSIM 0.000628552 | >2: 1.261 % >8: 0.0723 % max 52 | luma mean 63.78/63.78 p5 12.5/12.5 p95 161.4/161.3
+drive-00200.png: 1-SSIM 0.000184441 | >2: 0.217 % >8: 0.0049 % max 29 | luma mean 44.50/44.49 p5 12.6/12.6 p95 116.0/116.0
+### motion rain ssao
+flicker (mean |d highpass| per frame) A 1.8245 p99 19.27 | B 1.8231 p99 19.28 | B/A 0.9992 | B more than A by > 2 levels: 0.0854 %, by > 8: 0.0008 %, max 15.6
+### rain texel (rain-post6) vs off
+drive-00000.png: 1-SSIM 0.00169002 | >2: 0.058 % >8: 0.0240 % max 55 | luma mean 62.36/62.39 p5 13.1/13.1 p95 172.9/173.0
+drive-00100.png: 1-SSIM 0.00169388 | >2: 0.092 % >8: 0.0201 % max 88 | luma mean 63.92/63.95 p5 12.8/12.8 p95 162.4/162.6
+drive-00101.png: 1-SSIM 0.00169451 | >2: 0.092 % >8: 0.0214 % max 84 | luma mean 64.01/64.04 p5 12.6/12.6 p95 161.7/161.9
+drive-00102.png: 1-SSIM 0.00169659 | >2: 0.091 % >8: 0.0199 % max 72 | luma mean 63.93/63.96 p5 12.5/12.5 p95 161.9/162.0
+drive-00103.png: 1-SSIM 0.001703 | >2: 0.093 % >8: 0.0206 % max 90 | luma mean 63.78/63.81 p5 12.5/12.5 p95 161.4/161.5
+drive-00200.png: 1-SSIM 0.00180824 | >2: 0.144 % >8: 0.0341 % max 95 | luma mean 44.50/44.52 p5 12.6/12.6 p95 116.0/116.0
+### motion rain texel
+flicker (mean |d highpass| per frame) A 1.8245 p99 19.27 | B 1.8178 p99 19.28 | B/A 0.9963 | B more than A by > 2 levels: 0.0210 %, by > 8: 0.0013 %, max 18.6
+### rain avg (rain-avg) vs off
+drive-00000.png: 1-SSIM 0.00198794 | >2: 2.359 % >8: 0.5584 % max 66 | luma mean 62.36/62.37 p5 13.1/13.1 p95 172.9/173.5
+drive-00100.png: 1-SSIM 0.00193465 | >2: 2.203 % >8: 0.4745 % max 93 | luma mean 63.92/63.94 p5 12.8/12.7 p95 162.4/163.2
+drive-00101.png: 1-SSIM 0.001935 | >2: 2.203 % >8: 0.4802 % max 95 | luma mean 64.01/64.03 p5 12.6/12.6 p95 161.7/162.6
+drive-00102.png: 1-SSIM 0.00193605 | >2: 2.193 % >8: 0.4785 % max 69 | luma mean 63.93/63.94 p5 12.5/12.5 p95 161.9/162.7
+drive-00103.png: 1-SSIM 0.00194132 | >2: 2.180 % >8: 0.4763 % max 99 | luma mean 63.78/63.80 p5 12.5/12.5 p95 161.4/162.1
+drive-00200.png: 1-SSIM 0.00201421 | >2: 2.012 % >8: 0.3529 % max 106 | luma mean 44.50/44.50 p5 12.6/12.6 p95 116.0/116.4
+### motion rain avg
+flicker (mean |d highpass| per frame) A 1.8245 p99 19.27 | B 1.8343 p99 19.85 | B/A 1.0054 | B more than A by > 2 levels: 0.9020 %, by > 8: 0.0509 %, max 25.4
+### rain streak (rain-streak) vs off
+drive-00000.png: 1-SSIM 8.75984e-06 | >2: 0.025 % >8: 0.0078 % max 38 | luma mean 62.36/62.36 p5 13.1/13.1 p95 172.9/172.9
+drive-00100.png: 1-SSIM 1.48848e-05 | >2: 0.053 % >8: 0.0134 % max 52 | luma mean 63.92/63.92 p5 12.8/12.8 p95 162.4/162.4
+drive-00101.png: 1-SSIM 1.41766e-05 | >2: 0.055 % >8: 0.0125 % max 48 | luma mean 64.01/64.01 p5 12.6/12.6 p95 161.7/161.7
+drive-00102.png: 1-SSIM 1.48012e-05 | >2: 0.055 % >8: 0.0145 % max 48 | luma mean 63.93/63.93 p5 12.5/12.5 p95 161.9/161.9
+drive-00103.png: 1-SSIM 1.44978e-05 | >2: 0.056 % >8: 0.0118 % max 52 | luma mean 63.78/63.78 p5 12.5/12.5 p95 161.4/161.4
+drive-00200.png: 1-SSIM 2.15076e-05 | >2: 0.081 % >8: 0.0217 % max 66 | luma mean 44.50/44.50 p5 12.6/12.6 p95 116.0/116.0
+### motion rain streak
+flicker (mean |d highpass| per frame) A 1.8245 p99 19.27 | B 1.8236 p99 19.26 | B/A 0.9995 | B more than A by > 2 levels: 0.0010 %, by > 8: 0.0000 %, max 9.1
+### rain final (rain-final) vs off
+drive-00000.png: 1-SSIM 0.00192165 | >2: 0.770 % >8: 0.0592 % max 55 | luma mean 62.36/62.38 p5 13.1/13.1 p95 172.9/173.0
+drive-00100.png: 1-SSIM 0.00209298 | >2: 1.339 % >8: 0.0869 % max 88 | luma mean 63.92/63.95 p5 12.8/12.8 p95 162.4/162.5
+drive-00101.png: 1-SSIM 0.00211448 | >2: 1.379 % >8: 0.0909 % max 84 | luma mean 64.01/64.03 p5 12.6/12.6 p95 161.7/161.9
+drive-00102.png: 1-SSIM 0.00211883 | >2: 1.364 % >8: 0.0902 % max 83 | luma mean 63.93/63.95 p5 12.5/12.5 p95 161.9/162.0
+drive-00103.png: 1-SSIM 0.00214282 | >2: 1.421 % >8: 0.0937 % max 90 | luma mean 63.78/63.81 p5 12.5/12.5 p95 161.4/161.4
+drive-00200.png: 1-SSIM 0.00187088 | >2: 0.389 % >8: 0.0393 % max 95 | luma mean 44.50/44.52 p5 12.6/12.6 p95 116.0/116.0
+### motion rain final
+flicker (mean |d highpass| per frame) A 1.8245 p99 19.27 | B 1.8165 p99 19.28 | B/A 0.9956 | B more than A by > 2 levels: 0.1080 %, by > 8: 0.0022 %, max 18.7
+### start ssao (start-ssao) vs off
+race-00000.png: 1-SSIM 0.000449824 | >2: 0.673 % >8: 0.0202 % max 63 | luma mean 49.21/49.21 p5 0.0/0.0 p95 159.2/159.2
+race-00020.png: 1-SSIM 0.0004971 | >2: 1.123 % >8: 0.0569 % max 75 | luma mean 52.84/52.84 p5 0.0/0.0 p95 197.5/197.5
+race-00021.png: 1-SSIM 0.000500946 | >2: 1.138 % >8: 0.0576 % max 85 | luma mean 52.74/52.74 p5 0.0/0.0 p95 197.5/197.5
+race-00022.png: 1-SSIM 0.000524535 | >2: 1.156 % >8: 0.0615 % max 78 | luma mean 52.37/52.37 p5 0.0/0.0 p95 197.4/197.4
+race-00023.png: 1-SSIM 0.000561378 | >2: 1.181 % >8: 0.0666 % max 87 | luma mean 52.23/52.23 p5 0.0/0.0 p95 197.4/197.4
+race-00280.png: 1-SSIM 9.97181e-05 | >2: 0.230 % >8: 0.0165 % max 38 | luma mean 30.16/30.16 p5 0.0/0.0 p95 106.8/106.8
+race-00281.png: 1-SSIM 0.000100744 | >2: 0.234 % >8: 0.0169 % max 59 | luma mean 30.22/30.22 p5 0.0/0.0 p95 107.0/107.0
+race-00282.png: 1-SSIM 0.000101809 | >2: 0.236 % >8: 0.0171 % max 40 | luma mean 30.28/30.28 p5 0.0/0.0 p95 107.3/107.3
+race-00283.png: 1-SSIM 0.000102115 | >2: 0.243 % >8: 0.0167 % max 52 | luma mean 30.35/30.35 p5 0.0/0.0 p95 107.6/107.5
+### motion start ssao
+flicker (mean |d highpass| per frame) A 1.2049 p99 18.46 | B 1.2044 p99 18.45 | B/A 0.9995 | B more than A by > 2 levels: 0.0247 %, by > 8: 0.0004 %, max 18.8
+### start texel (start-post) vs off
+race-00000.png: 1-SSIM 0.0014525 | >2: 0.024 % >8: 0.0097 % max 89 | luma mean 49.21/49.24 p5 0.0/0.0 p95 159.2/159.3
+race-00020.png: 1-SSIM 0.00147798 | >2: 0.080 % >8: 0.0241 % max 78 | luma mean 52.84/52.86 p5 0.0/0.0 p95 197.5/197.7
+race-00021.png: 1-SSIM 0.00147951 | >2: 0.079 % >8: 0.0253 % max 76 | luma mean 52.74/52.76 p5 0.0/0.0 p95 197.5/197.6
+race-00022.png: 1-SSIM 0.00148549 | >2: 0.080 % >8: 0.0257 % max 99 | luma mean 52.37/52.39 p5 0.0/0.0 p95 197.4/197.4
+race-00023.png: 1-SSIM 0.00148241 | >2: 0.078 % >8: 0.0252 % max 71 | luma mean 52.23/52.26 p5 0.0/0.0 p95 197.4/197.4
+race-00280.png: 1-SSIM 0.00156254 | >2: 0.026 % >8: 0.0058 % max 94 | luma mean 30.16/30.17 p5 0.0/0.0 p95 106.8/106.8
+race-00281.png: 1-SSIM 0.00156264 | >2: 0.026 % >8: 0.0060 % max 80 | luma mean 30.22/30.23 p5 0.0/0.0 p95 107.0/107.1
+race-00282.png: 1-SSIM 0.00156132 | >2: 0.025 % >8: 0.0058 % max 74 | luma mean 30.28/30.30 p5 0.0/0.0 p95 107.3/107.3
+race-00283.png: 1-SSIM 0.00156055 | >2: 0.025 % >8: 0.0057 % max 73 | luma mean 30.35/30.36 p5 0.0/0.0 p95 107.6/107.6
+### motion start texel
+flicker (mean |d highpass| per frame) A 1.2049 p99 18.46 | B 1.2037 p99 18.47 | B/A 0.9990 | B more than A by > 2 levels: 0.0099 %, by > 8: 0.0012 %, max 40.9
+### start avg (start-avg) vs off
+race-00000.png: 1-SSIM 0.00149395 | >2: 0.468 % >8: 0.0164 % max 93 | luma mean 49.21/49.21 p5 0.0/0.0 p95 159.2/159.3
+race-00020.png: 1-SSIM 0.0019419 | >2: 2.182 % >8: 0.5785 % max 83 | luma mean 52.84/52.76 p5 0.0/0.0 p95 197.5/197.7
+race-00021.png: 1-SSIM 0.00194468 | >2: 2.173 % >8: 0.5808 % max 87 | luma mean 52.74/52.66 p5 0.0/0.0 p95 197.5/197.6
+race-00022.png: 1-SSIM 0.00194044 | >2: 1.927 % >8: 0.5664 % max 99 | luma mean 52.37/52.29 p5 0.0/0.0 p95 197.4/197.4
+race-00023.png: 1-SSIM 0.00194329 | >2: 1.953 % >8: 0.5721 % max 76 | luma mean 52.23/52.15 p5 0.0/0.0 p95 197.4/197.4
+race-00280.png: 1-SSIM 0.00186231 | >2: 1.592 % >8: 0.4198 % max 102 | luma mean 30.16/30.10 p5 0.0/0.0 p95 106.8/106.7
+race-00281.png: 1-SSIM 0.00186399 | >2: 1.596 % >8: 0.4207 % max 115 | luma mean 30.22/30.17 p5 0.0/0.0 p95 107.0/106.9
+race-00282.png: 1-SSIM 0.00185793 | >2: 1.600 % >8: 0.4200 % max 74 | luma mean 30.28/30.23 p5 0.0/0.0 p95 107.3/107.1
+race-00283.png: 1-SSIM 0.00185961 | >2: 1.603 % >8: 0.4210 % max 81 | luma mean 30.35/30.30 p5 0.0/0.0 p95 107.6/107.4
+### motion start avg
+flicker (mean |d highpass| per frame) A 1.2049 p99 18.46 | B 1.2181 p99 18.97 | B/A 1.0109 | B more than A by > 2 levels: 0.8323 %, by > 8: 0.0883 %, max 41.7
+### start streak (start-streak) vs off
+race-00000.png: 1-SSIM 3.14119e-05 | >2: 0.071 % >8: 0.0232 % max 64 | luma mean 49.21/49.21 p5 0.0/0.0 p95 159.2/159.2
+race-00020.png: 1-SSIM 4.48161e-05 | >2: 0.115 % >8: 0.0272 % max 70 | luma mean 52.84/52.84 p5 0.0/0.0 p95 197.5/197.5
+race-00021.png: 1-SSIM 4.13159e-05 | >2: 0.112 % >8: 0.0235 % max 67 | luma mean 52.74/52.74 p5 0.0/0.0 p95 197.5/197.5
+race-00022.png: 1-SSIM 4.28111e-05 | >2: 0.110 % >8: 0.0236 % max 65 | luma mean 52.37/52.37 p5 0.0/0.0 p95 197.4/197.4
+race-00023.png: 1-SSIM 4.07565e-05 | >2: 0.106 % >8: 0.0238 % max 89 | luma mean 52.23/52.23 p5 0.0/0.0 p95 197.4/197.4
+race-00280.png: 1-SSIM 1.25327e-05 | >2: 0.013 % >8: 0.0020 % max 52 | luma mean 30.16/30.16 p5 0.0/0.0 p95 106.8/106.8
+race-00281.png: 1-SSIM 1.25188e-05 | >2: 0.013 % >8: 0.0020 % max 43 | luma mean 30.22/30.22 p5 0.0/0.0 p95 107.0/107.0
+race-00282.png: 1-SSIM 1.25374e-05 | >2: 0.014 % >8: 0.0019 % max 36 | luma mean 30.28/30.28 p5 0.0/0.0 p95 107.3/107.3
+race-00283.png: 1-SSIM 1.25356e-05 | >2: 0.014 % >8: 0.0018 % max 35 | luma mean 30.35/30.35 p5 0.0/0.0 p95 107.6/107.6
+### motion start streak
+flicker (mean |d highpass| per frame) A 1.2049 p99 18.46 | B 1.2047 p99 18.45 | B/A 0.9998 | B more than A by > 2 levels: 0.0003 %, by > 8: 0.0000 %, max 5.0
+### start final (start-final) vs off
+race-00000.png: 1-SSIM 0.00171884 | >2: 0.767 % >8: 0.0307 % max 89 | luma mean 49.21/49.23 p5 0.0/0.0 p95 159.2/159.3
+race-00020.png: 1-SSIM 0.00181495 | >2: 1.270 % >8: 0.0827 % max 78 | luma mean 52.84/52.86 p5 0.0/0.0 p95 197.5/197.7
+race-00021.png: 1-SSIM 0.001821 | >2: 1.278 % >8: 0.0842 % max 85 | luma mean 52.74/52.76 p5 0.0/0.0 p95 197.5/197.5
+race-00022.png: 1-SSIM 0.00185 | >2: 1.294 % >8: 0.0881 % max 99 | luma mean 52.37/52.39 p5 0.0/0.0 p95 197.4/197.4
+race-00023.png: 1-SSIM 0.00188529 | >2: 1.324 % >8: 0.0924 % max 86 | luma mean 52.23/52.26 p5 0.0/0.0 p95 197.4/197.4
+race-00280.png: 1-SSIM 0.00160305 | >2: 0.273 % >8: 0.0225 % max 94 | luma mean 30.16/30.17 p5 0.0/0.0 p95 106.8/106.8
+race-00281.png: 1-SSIM 0.00160433 | >2: 0.276 % >8: 0.0233 % max 80 | luma mean 30.22/30.23 p5 0.0/0.0 p95 107.0/107.1
+race-00282.png: 1-SSIM 0.00160352 | >2: 0.278 % >8: 0.0233 % max 74 | luma mean 30.28/30.29 p5 0.0/0.0 p95 107.3/107.3
+race-00283.png: 1-SSIM 0.00160358 | >2: 0.284 % >8: 0.0229 % max 73 | luma mean 30.35/30.36 p5 0.0/0.0 p95 107.6/107.6
+### motion start final
+flicker (mean |d highpass| per frame) A 1.2049 p99 18.46 | B 1.2031 p99 18.46 | B/A 0.9985 | B more than A by > 2 levels: 0.0353 %, by > 8: 0.0016 %, max 41.1
+
+# Photo mode (--photo OUT race, 3840x2160): photo-help = photo mode's frame, photo-held = its camera moved (the 229-level
+# difference is a file name in the help bar, different in any two runs), capture-7 = a 3840x2160 picture.
+### photo ssao
+race-capture-7-3840x2160.png: 1-SSIM 7.84633e-05 | >2: 0.163 % >8: 0.0103 % max 37 | luma mean 22.69/22.69 p5 13.0/13.0 p95 54.0/54.0
+race-pause.png: 1-SSIM 0.000137001 | >2: 0.229 % >8: 0.0176 % max 33 | luma mean 35.83/35.82 p5 6.8/6.8 p95 77.6/77.6
+race-photo-held.png: 1-SSIM 0.000106681 | >2: 0.016 % >8: 0.0149 % max 229 | luma mean 68.34/68.34 p5 26.0/26.0 p95 117.0/117.0
+race-photo-help.png: 1-SSIM 2.56026e-05 | >2: 0.010 % >8: 0.0001 % max 15 | luma mean 19.60/19.60 p5 5.0/5.0 p95 51.9/51.9
+### photo texel
+race-capture-7-3840x2160.png: 1-SSIM 0.00207536 | >2: 0.001 % >8: 0.0000 % max 3 | luma mean 22.69/22.69 p5 13.0/12.0 p95 54.0/54.0
+race-pause.png: 1-SSIM 0.00172558 | >2: 0.036 % >8: 0.0030 % max 52 | luma mean 35.83/35.84 p5 6.8/6.8 p95 77.6/77.6
+race-photo-held.png: 1-SSIM 0.00219898 | >2: 0.015 % >8: 0.0132 % max 229 | luma mean 68.34/68.37 p5 26.0/26.0 p95 117.0/118.0
+race-photo-help.png: 1-SSIM 0.00223328 | >2: 0.000 % >8: 0.0000 % max 4 | luma mean 19.60/19.60 p5 5.0/5.1 p95 51.9/51.9
+### photo final
+race-capture-7-3840x2160.png: 1-SSIM 0.00210928 | >2: 0.177 % >8: 0.0103 % max 37 | luma mean 22.69/22.68 p5 13.0/12.0 p95 54.0/54.0
+race-pause.png: 1-SSIM 0.00177893 | >2: 0.278 % >8: 0.0205 % max 52 | luma mean 35.83/35.84 p5 6.8/6.8 p95 77.6/77.6
+race-photo-held.png: 1-SSIM 0.00220206 | >2: 0.015 % >8: 0.0132 % max 228 | luma mean 68.34/68.38 p5 26.0/26.0 p95 117.0/118.0
+race-photo-help.png: 1-SSIM 0.00223574 | >2: 0.011 % >8: 0.0001 % max 15 | luma mean 19.60/19.60 p5 5.0/5.1 p95 51.9/51.9
+
+# The gate's enhanced Extreme dumps (SSAA 2x, High Precision Post, SSAO; 1920x1080), new against base:
+### gate racing extreme
+racing-00000.png: 1-SSIM 0.00179178 | >2: 0.257 % >8: 0.0106 % max 53 | luma mean 46.44/46.45 p5 12.8/12.8 p95 145.9/145.9
+racing-00100.png: 1-SSIM 0.00175881 | >2: 0.545 % >8: 0.0220 % max 80 | luma mean 52.57/52.58 p5 12.8/12.8 p95 167.2/167.3
+racing-00200.png: 1-SSIM 0.00181104 | >2: 0.210 % >8: 0.0134 % max 48 | luma mean 52.50/52.52 p5 12.8/12.8 p95 182.0/182.0
+racing-00300.png: 1-SSIM 0.00175711 | >2: 0.353 % >8: 0.0488 % max 62 | luma mean 54.24/54.26 p5 15.3/15.3 p95 147.9/148.0
+racing-00400.png: 1-SSIM 0.00179993 | >2: 0.213 % >8: 0.0214 % max 64 | luma mean 44.09/44.10 p5 14.7/14.7 p95 99.0/99.0
+racing-00500.png: 1-SSIM 0.00183274 | >2: 0.251 % >8: 0.0353 % max 59 | luma mean 47.18/47.20 p5 16.0/16.0 p95 108.7/108.7
+racing-00600.png: 1-SSIM 0.00182309 | >2: 0.367 % >8: 0.0605 % max 55 | luma mean 45.37/45.39 p5 15.8/15.8 p95 107.3/107.4
+### gate explore extreme
+explore-00000.png: 1-SSIM 0.00181745 | >2: 0.282 % >8: 0.0065 % max 62 | luma mean 58.46/58.49 p5 13.5/13.5 p95 160.5/160.6
+explore-00100.png: 1-SSIM 0.00179629 | >2: 0.342 % >8: 0.0206 % max 51 | luma mean 62.22/62.24 p5 14.2/14.2 p95 159.7/159.8
+explore-00200.png: 1-SSIM 0.0017659 | >2: 0.387 % >8: 0.0124 % max 79 | luma mean 74.05/74.09 p5 14.0/14.0 p95 162.9/163.0
+explore-00300.png: 1-SSIM 0.00171767 | >2: 0.293 % >8: 0.0104 % max 51 | luma mean 68.83/68.85 p5 16.1/16.1 p95 152.7/152.8
+explore-00400.png: 1-SSIM 0.00191361 | >2: 0.163 % >8: 0.0037 % max 36 | luma mean 49.41/49.43 p5 15.8/15.8 p95 110.0/110.0
+explore-00500.png: 1-SSIM 0.00197216 | >2: 0.115 % >8: 0.0050 % max 19 | luma mean 45.72/45.74 p5 16.4/16.4 p95 91.7/91.7
+explore-00600.png: 1-SSIM 0.00194704 | >2: 0.174 % >8: 0.0041 % max 31 | luma mean 50.81/50.83 p5 17.5/17.5 p95 141.2/141.3

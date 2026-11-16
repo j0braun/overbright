@@ -1,0 +1,70 @@
+# Generic pattern data for scan.py (one regex per line; '#' starts a comment; extend freely).
+# Nothing here names a person, machine or game copy: those patterns live in families.private.txt (private.list).
+# Words are written with a bracketed letter (e.g. "R[y]zen") so this file does not match its own patterns.
+# [unit-allow] is different: whitespace/comma separated tokens that the unit-code regex must NOT report
+# (legitimate technical tokens, derived from the real hits of the baseline scan).
+
+[private-path]
+/ho[m]e/[A-Za-z0-9_.-]+
+~/Down[l]oads
+/Down[l]oads/
+\bw[f][0-9]{2,3}[a-z]?\b
+\bba[s]e[0-9]{2,3}\b
+\btg[t]-?[0-9]{2,3}\b
+\bwi[n]e-[a-z][a-z0-9]+\b
+/tm[p]/cla[u]de
+
+[owner-remark]
+\bth[e] user\b
+\bTh[e] user\b
+\buser reports?\b
+\buser:
+\([Uu]ser,? 20[0-9]{2}-[0-9]{2}-[0-9]{2}
+\b[Uu]ser'?s? \(?20[0-9]{2}-[0-9]{2}-[0-9]{2}
+\b[Tt]h[e] owner\b
+\bowner'?s\b
+
+[agent-wording]
+\b[Tt]h[e] lead\b
+\blead ag[e]nt\b
+\bsub-?ag[e]nts?\b
+\b(other|parallel|build|work(ing)?|wf|my|the) ag[e]nts?\b
+\bag[e]nts'
+\bbr[i]efs?\b
+
+[hardware]
+\bRad[e]on\b
+\bRX ?[0-9]{4}\b
+\bk10t[e]mp\b
+\bR[y]zen\b
+
+[unit-allow]
+# pad buttons, keys
+L1 L2 L3 R1 R2 R3 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12
+# GPU / texture formats, APIs, codecs, standards
+R8 RG8 RGB8 A8 BC1 BC2 BC3 BC4 BC5 BC6 BC7 DXT1 DXT2 DXT3 DXT4 DXT5 X11 DX9 DX12 HDR10 VP6 XXH3 LZ77
+ELF32 PE32 PS2 USB2 GT7 FH5 CIE76 F32 F64 I8 I16 I32 I64 U8 U16 U32 U64 W8 O2 H0 T0 MX5 BIG4 BFC7 BE4 BAT0 USB3 SM5 SM6 MP3 CD1 CD2
+# game data names and values
+KIT00 KIT01 KIT02 KIT03 KIT24 RED2 GREEN2 BLUE2 ALPHA2 PC24 FPS60 D16 B0
+# world scenery section names (Z0, A12, ...), wheel names (S0..S3), shader consts
+Z0 Z1 Z19 A12 A21 S0 S3 S4 W90 W94 W98 WA0 WA4 WA8 C9 I1 I2 K2 H2
+# car, game and standard names; x87 precision tags; big-endian sample widths; tool and file-name tokens (docs scrub)
+RX7 RX8 G35 UG2 FSR2 UE5 F0 PC53 PC64 BE16 BE32 DVD1 T60 CB04 CA03 A00 EAF4 HIT2 VS8 SML1 SML2 SM1 OUT1 OUT2 HL2 T2x S2x
+KIT09 KIT12 KIT14 KIT16 KIT21 KIT22 KIT25 KIT26 KIT28 KIT29 KIT30
+# reserved Windows device names; X11 extension; licence id
+COM1 COM2 COM3 COM4 COM5 COM6 COM7 COM8 COM9 LPT1 LPT2 LPT3 LPT4 LPT5 LPT6 LPT7 LPT8 LPT9 DRI3 CC0
+# texture format P8 (8-bit palettised)
+P8
+
+[hyphen-allow]
+# tokens the hyphen-code regex must NOT report (whitespace separated; derived from the real hits):
+# licence ids (SPDX)
+GPL-2 GPL-3 LGPL-2 LGPL-3 MPL-2 BSD-2 BSD-3 BSL-1 MIT-0
+# text encodings, checksums and hashes, audio codec standards
+UTF-8 UTF-16 CRC-32 FNV-1a MPEG-1 MPEG-2
+# car names (Mazda RX-7 / RX-8 / MX-5)
+RX-7 RX-8 MX-5
+# display connector names as the system reports them (DisplayPort 1 / 3)
+DP-1 DP-3
+# arithmetic in a format description (B minus 1 rows)
+B-1

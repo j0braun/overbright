@@ -1,0 +1,8 @@
+selftest: ok rc=0 panic/validation=0 11 s 
+shot_main: ok rc=0 panic/validation=0 1 s adapter llvmpipe (LLVM 23.1.3, 256 bits) (Cpu, Vulkan)
+  main vs the default GPU: 6166.85 (0.0050186) pixels differ by > 4 %
+shot_explore: ok rc=0 panic/validation=0 1 s adapter llvmpipe (LLVM 23.1.3, 256 bits) (Cpu, Vulkan)
+  explore vs the default GPU: 6522.19 (0.00530777) pixels differ by > 4 %
+shot_race: ok rc=0 panic/validation=0 0 s adapter llvmpipe (LLVM 23.1.3, 256 bits) (Cpu, Vulkan)
+  race vs the default GPU: 14959.2 (0.0121738) pixels differ by > 4 %
+LAVAPIPE: PASS

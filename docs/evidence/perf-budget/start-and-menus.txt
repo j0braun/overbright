@@ -1,0 +1,234 @@
+The start's and the menus' waits (docs/start-and-menus.md): the shipping game (built without the developer harness) in a
+window on a private Xvfb, sandboxed (bwrap: no sound device, its own data, cache and driver shader cache folders), keys
+pressed with xdotool as a player presses them, the times from the game's own wait lines (docs/waits-log.md, "from the
+key", ms). Tour C: the boot (Enter per movie), the title (Enter once it is taken), the profile message, Career, Resume,
+the garage (Crib), Car Select and back, Change Parts (a category, a parts list) and back, Return to Explore Mode (yes),
+free roam, pause / resume, Photo Mode (play rows), Jump to Garage (yes), free roam again. Tour F: the boot, Options (a
+page and back), Customize (the car lot, a category, a parts list, back), Quick Race (mode, track, options, car lot,
+transmission), the race (start scene skipped), pause / resume, Restart, Quit.
+Settings: "play rows" = a play setup's options.txt as it is (every Graphics row up; 3840x2160 on the discrete GPU,
+1920x1080 on the integrated one); "Original" = no options but the resolution (1920x1080). Each run under the measuring
+lock of its GPU (one run a lock hold); base = the base tree's binary, new = this tree's.
+States: hot = the game folder, the cache folders and the binary read right before the run (their pages in the OS cache);
+warm = the caches on disk, the files as this machine's page cache left them (it held ~11 GB beside other programs'
+builds and often dropped them); cold = the game folder's and the caches' pages dropped (posix_fadvise DONTNEED); first =
+a new cache folder and a new driver shader cache, the files' pages dropped. Load average at the runs' starts 12–47 on 16
+threads (median 22); the discrete GPU's busy counter 0–97 % (another program). Medians [min–max] of 7 runs (tour F 5)
+unless "n a/b" says otherwise. A measuring lesson: the harness's NFSU2_INPUT_LOG on ext4 made the main thread wait up to
+0.6 s in the journal inside a measured wait (do_get_write_access): the log is on tmpfs in every run here.
+
+Builds: "new" in the first three tables is an earlier build of this tree (new2: the scene ahead made its renderers and
+their pipelines); the final build is new4 (below). The start and free roam parts are the same code in all three.
+
+## Before -> after: the files read right before each run (hot), interleaved, tour C (career)
+| wait | dGPU play 4K | dGPU Original | iGPU play 1080p | iGPU Original |
+|---|---|---|---|---|
+| start: first frame | 154 [93–558] → 162 [81–386] | 92 [74–250] → 80 [68–131] | 136 [74–851] → 104 [67–684] | 92 [70–134] → 88 [75–114] (n 6/7) |
+| start: data loaded | 40 [29–48] → 126 [51–210] | 33 [28–90] → 54 [47–77] | 48 [25–203] → 67 [41–589] | 38 [27–43] → 58 [54–88] (n 6/7) |
+| start: window part | 93 [44–500] → 29 [18–57] | 55 [41–153] → 18 [17–43] | 75 [39–612] → 22 [15–70] | 48 [39–87] → 19 [17–23] (n 6/7) |
+| start: audio part | 0 [0–8] → 0 [0–0] | 0 [0–1] → 0 [0–0] | 0 [0–21] → 0 [0–0] | 0 [0–0] → 0 [0–0] (n 6/7) |
+| start: first frame part | 18 [13–21] → 16 [12–119] | 5 [5–7] → 6 [4–24] | 13 [9–28] → 14 [9–25] | 5 [4–5] → 7 [4–22] (n 6/7) |
+| boot Intro -> menu Splash | 20 [4–42] → 16 [7–41] | 18 [10–57] → 17 [9–61] | 11 [4–20] → 15 [7–38] | 10 [3–28] → 13 [4–20] (n 6/7) |
+| menu Splash -> menu McMessage | 30 [17–50] → 22 [1–80] | 24 [2–77] → 11 [4–121] | 11 [9–48] → 10 [5–20] | 13 [11–32] → 8 [5–19] (n 6/7) |
+| menu McMessage -> menu Main | 72 [52–115] → 42 [30–123] | 47 [27–127] → 29 [23–74] | 74 [45–110] → 33 [21–172] | 36 [27–44] → 26 [16–70] (n 6/7) |
+| menu Main -> menu Career | 37 [5–73] → 24 [15–65] | 21 [9–67] → 19 [7–118] | 51 [47–171] → 52 [46–63] | 24 [15–32] → 24 [14–36] (n 6/7) |
+| menu Career -> menu Crib | 84 [42–117] → 91 [38–316] | 35 [23–103] → 53 [30–135] | 101 [73–201] → 79 [75–194] | 46 [38–222] → 52 [35–118] (n 6/7) |
+| menu Crib -> menu CarLot | 22 [3–72] → 15 [12–46] | 15 [3–75] → 15 [4–105] | 46 [38–81] → 41 [37–57] | 25 [19–38] → 23 [16–29] (n 6/7) |
+| menu CarLot -> menu Crib | 26 [9–51] → 25 [15–106] | 15 [7–73] → 19 [7–146] | 46 [38–79] → 39 [38–49] | 16 [6–25] → 21 [18–25] (n 6/7) |
+| menu Crib -> menu CustomizeCategory | 35 [7–53] → 18 [4–53] | 19 [8–106] → 9 [4–118] | 46 [38–77] → 44 [42–48] | 20 [16–26] → 23 [18–146] (n 6/7) |
+| menu CustomizeCategory -> menu Parts | 28 [5–57] → 30 [4–52] | 17 [5–88] → 23 [12–37] | 46 [37–81] → 47 [40–81] | 18 [16–25] → 26 [18–34] (n 6/7) |
+| menu Crib -> menu Dialog | 41 [12–87] → 25 [3–53] | 11 [8–84] → 23 [7–117] | 49 [40–109] → 47 [38–53] | 20 [13–27] → 25 [17–33] (n 6/7) |
+| menu Dialog -> free roam | 259 [165–1711] → 87 [54–505] | 39 [35–104] → 37 [26–115] | 290 [167–868] → 127 [89–351] | 54 [44–1035] → 43 [32–94] (n 6/7) |
+| menu Dialog -> free roam [load] | 29 [21–142] → 8 [7–114] | 17 [16–54] → 8 [3–44] | 31 [18–169] → 12 [9–28] | 24 [22–44] → 14 [10–21] (n 6/7) |
+| menu Dialog -> free roam [first frame] | 198 [115–1556] → 43 [37–343] | 17 [12–31] → 19 [13–23] | 167 [105–637] → 77 [34–285] | 14 [12–973] → 16 [12–55] (n 6/7) |
+| free roam -> menu ExplorePause | 25 [14–139] → 33 [16–59] | 18 [9–106] → 18 [4–85] | 261 [255–272] → 263 [242–310] | 26 [24–45] → 28 [26–34] (n 6/7) |
+| menu ExplorePause -> free roam | 38 [14–71] → 20 [15–70] | 9 [6–75] → 22 [4–78] | 271 [246–299] → 262 [246–310] | 26 [23–38] → 29 [14–31] (n 6/7) |
+| menu ExplorePause -> menu Dialog | 21 [15–83] → 19 [16–63] | 9 [4–106] → 18 [4–115] | 251 [230–306] → 253 [229–640] (n 7/6) | 32 [25–38] → 33 [27–37] (n 6/7) |
+| menu Dialog -> menu Crib | 22 [17–163] → 34 [16–192] | 22 [6–73] → 19 [6–106] | 264 [219–314] → 246 [213–296] (n 7/6) | 37 [25–45] → 33 [24–51] (n 6/7) |
+| menu Dialog -> free roam #2 | 57 [40–138] → 51 [25–170] | 59 [16–105] → 34 [23–61] | 86 [43–356] → 56 [50–293] (n 7/6) | 42 [33–50] → 50 [35–172] (n 6/7) |
+
+## Before -> after, hot, tour F (front end, Quick Race)
+| wait | dGPU play 4K | dGPU Original | iGPU play 1080p | iGPU Original |
+|---|---|---|---|---|
+| start: first frame | 161 [86–349] → 126 [72–263] (n 5/5) | 103 [81–254] → 96 [60–122] (n 5/5) | 168 [97–300] → 120 [74–417] (n 5/5) | 129 [71–158] → 95 [62–201] (n 5/5) |
+| menu McMessage -> menu Main | 51 [46–451] → 59 [49–70] (n 5/5) | 50 [34–114] → 37 [19–66] (n 5/5) | 64 [39–323] → 49 [23–72] (n 5/5) | 42 [31–108] → 26 [15–39] (n 5/5) |
+| menu Main -> menu Options | 28 [21–60] → 44 [16–74] (n 5/5) | 12 [7–121] → 17 [7–109] (n 5/5) | 52 [48–58] → 49 [48–56] (n 5/5) | 19 [17–42] → 19 [15–27] (n 5/5) |
+| menu Options -> menu Options | 33 [4–54] → 41 [9–63] (n 5/5) | 13 [5–106] → 14 [4–104] (n 5/5) | 50 [50–58] → 49 [48–55] (n 5/5) | 29 [18–29] → 30 [24–31] (n 5/5) |
+| menu Options -> menu Main | 23 [10–49] → 42 [16–52] (n 5/5) | 13 [5–105] → 14 [4–130] (n 5/5) | 52 [51–56] → 48 [47–58] (n 5/5) | 25 [20–26] → 20 [17–30] (n 5/5) |
+| menu Main -> menu CarLot | 28 [24–45] → 39 [7–50] (n 5/5) | 9 [2–107] → 18 [5–107] (n 5/5) | 51 [47–56] → 54 [48–58] (n 5/5) | 22 [12–34] → 22 [17–33] (n 5/5) |
+| menu CarLot -> menu CustomizeCategory | 48 [9–123] → 41 [14–60] (n 5/5) | 17 [7–113] → 15 [6–113] (n 5/5) | 51 [49–62] → 53 [47–56] (n 5/5) | 24 [16–41] → 20 [16–26] (n 5/5) |
+| menu CustomizeCategory -> menu Parts | 35 [29–49] → 29 [15–49] (n 5/5) | 17 [11–116] → 14 [9–108] (n 5/5) | 54 [47–58] → 51 [48–67] (n 5/5) | 24 [15–32] → 21 [19–30] (n 5/5) |
+| menu Main -> menu QrMode | 38 [10–47] → 31 [11–54] (n 5/5) | 12 [2–102] → 20 [9–105] (n 5/5) | 51 [47–58] → 51 [41–55] (n 5/5) | 27 [18–34] → 26 [19–33] (n 5/5) |
+| menu QrMode -> menu QuickRace | 53 [40–454] → 47 [21–393] (n 5/5) | 15 [6–107] → 23 [10–100] (n 5/5) | 55 [50–64] → 55 [50–58] (n 5/5) | 23 [21–79] → 21 [19–33] (n 5/5) |
+| menu QuickRace -> menu QrOptions | 41 [32–80] → 51 [34–117] (n 5/5) | 18 [4–88] → 25 [17–234] (n 5/5) | 54 [52–59] → 52 [49–147] (n 5/5) | 24 [20–64] → 28 [25–32] (n 5/5) |
+| menu QrOptions -> menu CarLot | 53 [42–99] → 29 [23–106] (n 5/5) | 22 [16–258] → 20 [8–130] (n 5/5) | 57 [54–282] → 52 [50–164] (n 5/5) | 22 [19–24] → 35 [25–92] (n 5/5) |
+| menu CarLot -> menu Dialog | 48 [29–50] → 16 [11–70] (n 5/5) | 11 [7–106] → 21 [4–114] (n 5/5) | 51 [48–61] → 52 [48–173] (n 5/5) | 23 [16–35] → 32 [20–38] (n 5/5) |
+| menu Dialog -> race | 277 [259–1404] → 243 [84–1032] (n 5/5) | 85 [40–149] → 116 [54–283] (n 5/5) | 272 [234–367] → 207 [177–444] (n 5/5) | 81 [56–154] → 69 [60–90] (n 5/5) |
+| race -> menu RacePause | 55 [22–73] → 63 [27–175] (n 5/5) | 11 [4–77] → 18 [6–95] (n 5/5) | 382 [360–395] → 375 [345–393] (n 5/5) | 33 [32–37] → 34 [34–90] (n 5/5) |
+| menu RacePause -> race | 58 [25–72] → 57 [26–104] (n 5/5) | 21 [17–106] → 20 [7–95] (n 5/5) | 353 [337–381] → 370 [320–372] (n 5/5) | 29 [11–34] → 32 [20–34] (n 5/5) |
+| menu Dialog -> race #2 | 120 [101–195] → 106 [85–1048] (n 5/5) | 85 [32–258] → 49 [39–149] (n 5/5) | 412 [395–420] → 436 [394–465] (n 4/4) | 71 [45–261] → 68 [37–78] (n 5/5) |
+| menu Dialog -> menu Main | 68 [43–111] → 49 [22–195] (n 5/5) | 13 [8–112] → 19 [13–107] (n 5/5) | 386 [333–433] → 361 [315–388] (n 4/4) | 42 [36–53] → 33 [14–38] (n 5/5) |
+
+## Before -> after, a first start ever (new cache and driver shader cache, files dropped), tour C, play rows
+| wait | dGPU play 4K | dGPU Original | iGPU play 1080p | iGPU Original |
+|---|---|---|---|---|
+| start: first frame | 475 [379–637] → 329 [285–627] (n 3/3) | – → – (n 0/0) | 653 [276–1276] → 448 [172–532] (n 3/3) | – → – (n 0/0) |
+| start: window part | 254 [170–287] → 85 [63–126] (n 3/3) | – → – (n 0/0) | 323 [115–371] → 59 [28–92] (n 3/3) | – → – (n 0/0) |
+| menu McMessage -> menu Main | 102 [96–113] → 353 [96–2309] (n 3/3) | – → – (n 0/0) | 86 [55–1925] → 229 [133–272] (n 3/3) | – → – (n 0/0) |
+| menu Career -> menu Crib | 55 [42–59] → 56 [47–78] (n 3/3) | – → – (n 0/0) | 179 [85–1029] → 90 [89–124] (n 3/3) | – → – (n 0/0) |
+| menu Dialog -> free roam | 154 [150–158] → 72 [67–77] (n 3/3) | – → – (n 0/0) | 390 [237–1141] → 145 [128–365] (n 3/3) | – → – (n 0/0) |
+| menu Dialog -> free roam [first frame] | 115 [105–120] → 42 [40–48] (n 3/3) | – → – (n 0/0) | 322 [178–964] → 92 [79–293] (n 3/3) | – → – (n 0/0) |
+
+## Base only (round 1): caches on disk, the files as this machine's page cache left them (warm); tour C
+### warm
+| wait | dGPU play 4K | dGPU Original | iGPU play 1080p | iGPU Original |
+|---|---|---|---|---|
+| start: first frame | 1181 [205–1877] | 556 [187–954] | 414 [162–1627] | 357 [132–1019] |
+| start: data loaded | 331 [37–813] | 173 [35–401] | 71 [42–576] | 68 [25–496] |
+| start: window part | 481 [127–1007] | 324 [115–524] | 198 [61–1100] | 256 [76–451] |
+| start: audio part | 13 [0–242] | 11 [0–153] | 11 [0–133] | 11 [0–21] |
+| start: first frame part | 57 [19–184] | 26 [9–89] | 38 [9–59] | 27 [4–53] |
+| boot Intro -> menu Splash | 21 [4–28] | 15 [8–23] | 13 [6–20] n5 | 13 [7–20] n6 |
+| menu Splash -> menu McMessage | 18 [8–41] | 18 [9–24] | 14 [4–25] n5 | 16 [10–22] n6 |
+| menu McMessage -> menu Main | 64 [52–384] | 81 [25–639] | 58 [37–338] n5 | 37 [27–490] n6 |
+| menu Main -> menu Career | 16 [10–26] | 18 [5–29] | 49 [47–53] n5 | 20 [16–39] n6 |
+| menu Career -> menu Crib | 58 [40–448] | 46 [34–427] | 95 [68–224] n5 | 42 [29–860] n6 |
+| menu Crib -> menu CarLot | 17 [8–32] | 13 [8–149] | 42 [37–44] n5 | 26 [16–49] n6 |
+| menu CarLot -> menu Crib | 22 [7–126] | 7 [5–12] | 43 [37–49] n5 | 20 [16–28] n6 |
+| menu Crib -> menu CustomizeCategory | 15 [4–21] | 12 [6–176] | 41 [37–42] n5 | 21 [15–27] n6 |
+| menu CustomizeCategory -> menu Parts | 24 [12–73] | 15 [6–22] | 44 [41–121] n5 | 22 [17–48] n6 |
+| menu Crib -> menu Dialog | 25 [15–48] | 13 [4–66] | 43 [37–49] n5 | 24 [16–28] n6 |
+| menu Dialog -> free roam | 229 [160–474] | 102 [43–353] | 437 [280–507] n5 | 80 [56–257] n6 |
+| menu Dialog -> free roam [load] | 55 [20–104] | 29 [22–104] | 40 [21–67] n5 | 33 [23–87] n6 |
+| menu Dialog -> free roam [first frame] | 166 [125–363] | 53 [18–282] | 331 [198–449] n5 | 35 [17–156] n6 |
+| free roam -> menu ExplorePause | 22 [17–41] | 15 [7–20] | 246 [239–262] n5 | 26 [23–31] n6 |
+| menu ExplorePause -> free roam | 22 [15–33] | 14 [7–26] | 255 [234–263] n5 | 34 [28–38] n6 |
+| menu ExplorePause -> menu Dialog | 26 [17–187] | 17 [4–19] | 249 [218–282] n5 | 29 [25–35] n6 |
+| menu Dialog -> menu Crib | 32 [19–250] | 10 [4–26] | 251 [232–257] n5 | 32 [26–37] n6 |
+| menu Dialog -> free roam #2 | 111 [40–367] | 54 [16–245] | 108 [39–138] n5 | 108 [63–380] n6 |
+
+
+## Base only: page cache of the game folder and the caches dropped (cold) and a first start, tour C
+### cold
+| wait | dGPU play 4K | dGPU Original | iGPU play 1080p | iGPU Original |
+|---|---|---|---|---|
+| start: first frame | 226 [217–436] n3 | 215 [201–2054] n3 | 1095 [201–1989] n2 | 205 [109–301] n2 |
+| start: data loaded | 93 [76–101] n3 | 91 [80–543] n3 | 254 [81–427] n2 | 51 [29–73] n2 |
+| start: window part | 122 [114–239] n3 | 109 [109–1141] n3 | 596 [102–1091] n2 | 138 [66–211] n2 |
+| start: audio part | 0 [0–25] n3 | 0 [0–147] n3 | 90 [1–178] n2 | 3 [0–6] n2 |
+| start: first frame part | 19 [19–71] n3 | 15 [12–223] n3 | 155 [17–293] n2 | 12 [11–14] n2 |
+| boot Intro -> menu Splash | 7 [5–15] n3 | 16 [10–25] n3 | 14 [13–16] n2 | 7 [5–9] n2 |
+| menu Splash -> menu McMessage | 17 [14–22] n3 | 20 [4–21] n3 | 32 [12–53] n2 | 8 [2–14] n2 |
+| menu McMessage -> menu Main | 60 [43–63] n3 | 41 [29–59] n3 | 209 [123–295] n2 | 50 [43–58] n2 |
+| menu Main -> menu Career | 17 [9–24] n3 | 16 [12–19] n3 | 46 [45–46] n2 | 17 [16–18] n2 |
+| menu Career -> menu Crib | 41 [39–76] n3 | 87 [33–107] n3 | 237 [207–267] n2 | 44 [36–51] n2 |
+| menu Crib -> menu CarLot | 11 [8–14] n3 | 17 [14–19] n3 | 46 [39–54] n2 | 18 [17–20] n2 |
+| menu CarLot -> menu Crib | 14 [2–15] n3 | 20 [7–21] n3 | 60 [39–82] n2 | 21 [15–27] n2 |
+| menu Crib -> menu CustomizeCategory | 16 [9–17] n3 | 15 [6–37] n3 | 40 [37–44] n2 | 24 [22–25] n2 |
+| menu CustomizeCategory -> menu Parts | 9 [9–17] n3 | 17 [17–18] n3 | 46 [37–54] n2 | 24 [20–29] n2 |
+| menu Crib -> menu Dialog | 21 [13–30] n3 | 24 [13–491] n3 | 41 [38–44] n2 | 16 [16–16] n2 |
+| menu Dialog -> free roam | 143 [127–175] n3 | 150 [48–622] n3 | 1131 [1008–1254] n2 | 84 [55–114] n2 |
+| menu Dialog -> free roam [load] | 20 [20–29] n3 | 55 [17–515] n3 | 62 [19–106] n2 | 34 [25–42] n2 |
+| menu Dialog -> free roam [first frame] | 103 [100–143] n3 | 76 [17–101] n3 | 1020 [842–1199] n2 | 36 [17–54] n2 |
+| free roam -> menu ExplorePause | 33 [15–55] n3 | 8 [5–11] n3 | 247 [234–260] n2 | 24 [23–26] n2 |
+| menu ExplorePause -> free roam | 16 [14–58] n3 | 14 [9–16] n3 | 218 [190–246] n2 | 30 [24–36] n2 |
+| menu ExplorePause -> menu Dialog | 22 [16–61] n3 | 5 [5–11] n3 | 246 [227–264] n2 | 28 [22–33] n2 |
+| menu Dialog -> menu Crib | 22 [15–144] n3 | 16 [13–18] n3 | 258 [228–288] n2 | 26 [26–26] n2 |
+| menu Dialog -> free roam #2 | 43 [34–378] n3 | 35 [28–74] n3 | 54 [46–63] n2 | 39 [31–47] n2 |
+
+### first
+| wait | dGPU play 4K | dGPU Original | iGPU play 1080p | iGPU Original |
+|---|---|---|---|---|
+| start: first frame | 664 [277–1642] n3 | 500 [134–1342] n3 | 383 [260–506] n2 | 1760 [178–3342] n2 |
+| start: data loaded | 224 [80–585] n3 | 157 [36–281] n3 | 86 [41–132] n2 | 240 [39–441] n2 |
+| start: window part | 274 [113–477] n3 | 249 [62–955] n3 | 194 [124–263] n2 | 685 [99–1271] n2 |
+| start: audio part | 34 [0–44] n3 | 22 [0–40] n3 | 7 [0–14] n2 | 278 [0–555] n2 |
+| start: first frame part | 132 [84–536] n3 | 66 [36–72] n3 | 96 [95–97] n2 | 558 [40–1075] n2 |
+| boot Intro -> menu Splash | 25 [11–27] n3 | 12 [11–13] n3 | 12 [8–16] n2 | 5 [1–9] n2 |
+| menu Splash -> menu McMessage | 26 [11–30] n3 | 18 [2–19] n3 | 14 [6–21] n2 | 38 [9–66] n2 |
+| menu McMessage -> menu Main | 219 [87–329] n3 | 232 [41–319] n3 | 82 [74–89] n2 | 1112 [46–2178] n2 |
+| menu Main -> menu Career | 17 [7–24] n3 | 15 [7–15] n3 | 57 [55–59] n2 | 20 [18–21] n2 |
+| menu Career -> menu Crib | 88 [41–96] n3 | 76 [23–164] n3 | 103 [85–121] n2 | 232 [42–423] n2 |
+| menu Crib -> menu CarLot | 20 [16–23] n3 | 10 [10–14] n3 | 45 [42–48] n2 | 64 [19–110] n2 |
+| menu CarLot -> menu Crib | 21 [21–37] n3 | 14 [5–18] n3 | 44 [43–44] n2 | 18 [16–20] n2 |
+| menu Crib -> menu CustomizeCategory | 15 [14–24] n3 | 8 [7–8] n3 | 40 [36–43] n2 | 27 [25–29] n2 |
+| menu CustomizeCategory -> menu Parts | 17 [17–24] n3 | 17 [4–20] n3 | 46 [45–46] n2 | 26 [19–34] n2 |
+| menu Crib -> menu Dialog | 16 [12–20] n3 | 9 [9–18] n3 | 41 [38–44] n2 | 24 [14–34] n2 |
+| menu Dialog -> free roam | 378 [211–548] n3 | 54 [38–148] n3 | 322 [191–454] n2 | 264 [58–470] n2 |
+| menu Dialog -> free roam [load] | 42 [16–100] n3 | 23 [13–54] n3 | 128 [25–231] n2 | 118 [21–214] n2 |
+| menu Dialog -> free roam [first frame] | 330 [175–400] n3 | 29 [15–73] n3 | 154 [128–181] n2 | 127 [18–236] n2 |
+| free roam -> menu ExplorePause | 25 [17–35] n3 | 10 [4–13] n3 | 254 [253–256] n2 | 32 [26–38] n2 |
+| menu ExplorePause -> free roam | 15 [15–50] n3 | 7 [6–13] n3 | 258 [250–266] n2 | 28 [26–29] n2 |
+| menu ExplorePause -> menu Dialog | 17 [15–71] n3 | 13 [10–18] n3 | 244 [242–247] n2 | 29 [29–29] n2 |
+| menu Dialog -> menu Crib | 19 [16–353] n3 | 7 [6–26] n3 | 248 [247–250] n2 | 24 [17–30] n2 |
+| menu Dialog -> free roam #2 | 63 [17–162] n3 | 21 [20–25] n3 | 158 [49–268] n2 | 42 [31–54] n2 |
+
+## The final build (new4: the main menu's scene read during the title, its renderers made by the menu's first tick), play rows, 3 runs an arm, during the gate's builds (load average 14-19)
+### hot
+| wait | dGPU play 4K | dGPU Original | iGPU play 1080p | iGPU Original |
+|---|---|---|---|---|
+| start: first frame | 87 [82–158] → 100 [99–237] (n 3/3) | – → – (n 0/0) | 73 [71–100] → 68 [62–214] (n 3/3) | – → – (n 0/0) |
+| start: window part | 46 [43–100] → 21 [19–51] (n 3/3) | – → – (n 0/0) | 40 [37–53] → 19 [13–58] (n 3/3) | – → – (n 0/0) |
+| menu McMessage -> menu Main | 48 [47–60] → 42 [25–71] (n 3/3) | – → – (n 0/0) | 26 [25–119] → 33 [32–45] (n 3/3) | – → – (n 0/0) |
+| menu Career -> menu Crib | 46 [32–50] → 35 [32–52] (n 3/3) | – → – (n 0/0) | 73 [68–102] → 70 [70–72] (n 3/3) | – → – (n 0/0) |
+| menu Dialog -> free roam | 135 [125–162] → 56 [51–89] (n 3/3) | – → – (n 0/0) | 213 [147–230] → 84 [80–144] (n 3/3) | – → – (n 0/0) |
+| menu Dialog -> free roam [first frame] | 100 [95–119] → 32 [31–41] (n 3/3) | – → – (n 0/0) | 151 [96–164] → 38 [33–92] (n 3/3) | – → – (n 0/0) |
+### first
+| wait | dGPU play 4K | dGPU Original | iGPU play 1080p | iGPU Original |
+|---|---|---|---|---|
+| start: first frame | 458 [342–1475] → 515 [507–1042] (n 3/3) | – → – (n 0/0) | 292 [276–784] → 223 [191–410] (n 3/3) | – → – (n 0/0) |
+| start: window part | 170 [126–705] → 97 [73–394] (n 3/3) | – → – (n 0/0) | 128 [114–346] → 37 [34–89] (n 3/3) | – → – (n 0/0) |
+| menu McMessage -> menu Main | 96 [88–138] → 91 [72–657] (n 3/3) | – → – (n 0/0) | 62 [48–67] → 50 [39–69] (n 3/3) | – → – (n 0/0) |
+| menu Career -> menu Crib | 35 [30–66] → 41 [32–50] (n 3/3) | – → – (n 0/0) | 79 [78–156] → 84 [83–109] (n 3/3) | – → – (n 0/0) |
+| menu Dialog -> free roam | 183 [126–222] → 75 [63–83] (n 3/3) | – → – (n 0/0) | 183 [156–228] → 101 [96–176] (n 3/3) | – → – (n 0/0) |
+| menu Dialog -> free roam [first frame] | 159 [104–188] → 60 [40–70] (n 3/3) | – → – (n 0/0) | 130 [101–165] → 50 [49–110] (n 3/3) | – → – (n 0/0) |
+
+## An earlier build (new3: the scene's renderers made in the title's job), play rows, 3 runs an arm
+### hot
+| wait | dGPU play 4K | dGPU Original | iGPU play 1080p | iGPU Original |
+|---|---|---|---|---|
+| start: first frame | 101 [92–242] → 83 [81–432] (n 3/3) | – → – (n 0/0) | 95 [80–135] → 98 [67–139] (n 3/3) | – → – (n 0/0) |
+| start: window part | 52 [48–111] → 25 [19–339] (n 3/3) | – → – (n 0/0) | 50 [47–82] → 22 [15–43] (n 3/3) | – → – (n 0/0) |
+| menu McMessage -> menu Main | 44 [38–60] → 30 [17–34] (n 3/3) | – → – (n 0/0) | 44 [43–55] → 47 [17–50] (n 3/3) | – → – (n 0/0) |
+| menu Career -> menu Crib | 44 [37–59] → 39 [33–58] (n 3/3) | – → – (n 0/0) | 75 [68–82] → 75 [72–91] (n 3/3) | – → – (n 0/0) |
+| menu Dialog -> free roam | 220 [124–233] → 53 [51–64] (n 3/3) | – → – (n 0/0) | 152 [142–154] → 141 [75–173] (n 3/3) | – → – (n 0/0) |
+| menu Dialog -> free roam [first frame] | 140 [105–182] → 32 [32–37] (n 3/3) | – → – (n 0/0) | 98 [84–102] → 99 [32–105] (n 3/3) | – → – (n 0/0) |
+### first
+| wait | dGPU play 4K | dGPU Original | iGPU play 1080p | iGPU Original |
+|---|---|---|---|---|
+| start: first frame | 758 [385–896] → 497 [200–611] (n 3/3) | – → – (n 0/0) | 905 [203–993] → 261 [163–316] (n 3/3) | – → – (n 0/0) |
+| start: window part | 331 [163–379] → 91 [33–275] (n 3/3) | – → – (n 0/0) | 442 [72–497] → 46 [29–53] (n 3/3) | – → – (n 0/0) |
+| menu McMessage -> menu Main | 106 [97–148] → 86 [77–92] (n 3/3) | – → – (n 0/0) | 144 [67–243] → 56 [40–91] (n 3/3) | – → – (n 0/0) |
+| menu Career -> menu Crib | 51 [51–159] → 39 [31–71] (n 3/3) | – → – (n 0/0) | 135 [86–764] → 85 [78–114] (n 3/3) | – → – (n 0/0) |
+| menu Dialog -> free roam | 176 [175–199] → 98 [73–103] (n 3/3) | – → – (n 0/0) | 206 [190–804] → 140 [127–297] (n 3/3) | – → – (n 0/0) |
+| menu Dialog -> free roam [first frame] | 140 [139–161] → 59 [51–78] (n 3/3) | – → – (n 0/0) | 146 [128–682] → 93 [75–246] (n 3/3) | – → – (n 0/0) |
+
+## The title screen with and without the scene read ahead (play rows, hot): the largest frame in the title's first second and over it (perf log samples), and the sound written to a null sink (silent runs >= 3 ms, seconds from the recording's start)
+dgpu-base-1: first second 38 ms, whole title 1215 ms; sound 4.80–15.70 s; silent runs >= 3.0 ms inside: 1 5.40s:57ms
+dgpu-base-2: first second 22 ms, whole title 22 ms; sound 0.50–9.32 s; silent runs >= 3.0 ms inside: 3 0.87s:54ms 1.49s:21ms 2.43s:36ms
+dgpu-base-3: first second 14 ms, whole title 14 ms; sound 0.54–11.33 s; silent runs >= 3.0 ms inside: 3 0.94s:33ms 1.58s:21ms 2.20s:36ms
+dgpu-new4-1: first second 13 ms, whole title 21 ms; sound 0.67–10.56 s; silent runs >= 3.0 ms inside: 2 1.02s:54ms 2.15s:36ms
+dgpu-new4-2: first second 12 ms, whole title 12 ms; sound 0.19–10.71 s; silent runs >= 3.0 ms inside: 2 0.36s:54ms 0.98s:21ms
+dgpu-new4-3: first second 16 ms, whole title 16 ms; sound 0.48–12.37 s; silent runs >= 3.0 ms inside: 4 0.87s:54ms 1.32s:21ms 1.94s:21ms 2.56s:36ms
+igpu-base-1: first second 6 ms, whole title 12 ms; sound 0.50–13.14 s; silent runs >= 3.0 ms inside: 4 0.90s:54ms 1.49s:21ms 2.09s:21ms 2.69s:43ms
+igpu-base-2: first second 9 ms, whole title 13 ms; sound 0.50–13.08 s; silent runs >= 3.0 ms inside: 4 0.87s:54ms 1.49s:21ms 2.11s:21ms 2.75s:36ms
+igpu-base-3: first second 5 ms, whole title 10 ms; sound 0.48–12.97 s; silent runs >= 3.0 ms inside: 4 0.90s:33ms 1.49s:21ms 2.11s:21ms 2.73s:36ms
+igpu-new4-1: first second 9 ms, whole title 12 ms; sound 0.50–13.12 s; silent runs >= 3.0 ms inside: 4 0.87s:54ms 1.49s:21ms 2.11s:21ms 2.75s:36ms
+igpu-new4-2: first second 11 ms, whole title 11 ms; sound 0.48–12.37 s; silent runs >= 3.0 ms inside: 4 0.85s:54ms 1.34s:21ms 1.88s:21ms 2.52s:36ms
+igpu-new4-3: first second 6 ms, whole title 12 ms; sound 0.48–13.03 s; silent runs >= 3.0 ms inside: 4 0.87s:54ms 1.49s:21ms 2.11s:21ms 2.73s:36ms
+The silent runs are the boot movies' cuts (Enter, the first ~3 s of the recording) in both arms; none falls in the title
+music. dgpu-base-1's 1.2 s frame is the base arm under the gate's build load.
+
+## The developer harness's transitions (discrete GPU, 3840x2160, play rows, 3 runs an arm, medians, ms)
+menu -> free roam, preloaded: 158 -> 72; another region's race, preloaded: 140 -> 108; back from it: 306 -> 221; a Quick
+Race circuit: 422 -> 324. The world's "lamps" part in the first frames: 61-69 -> 18-19.
+
+## The cache's "used" mark (touch) beside a 150 MB write and fsync, synthetic, ext4 data=ordered
+On the opening thread: p99 88 ms, max 194 ms; one game trace with the disk busy: 2.16 s over three loading threads.
+Queued (`cache::touch_later`): off those threads; the flush and the exit wait for the queue.
+
+## Main-thread profiles (samply, before)
+Free roam's first frame at the play rows: 136 ms of main-thread CPU (SurfaceMaps' CPU zero fill 44, VolumeFx's second
+zeroing 31, the collision made by the first placing 16-20). The main menu's first tick: SHOWROOM's parse 11 ms, the FE
+car's renderer 5 ms. The start: one serial chain (data, controllers, event loop 44-59 ms, instance, device 8-172 ms,
+swap chain, 2-D renderer, sound device).

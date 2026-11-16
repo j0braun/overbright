@@ -1,0 +1,33 @@
+Light-trail governor in a window (docs/uncapped-fps.md, "Streak buffer on ticks").
+The game windowed on a private Xvfb display (software presentation, mailbox, uncapped),
+1280 x 960, Career -> Return to Explore Mode, throttle held 40 s; every governor sample
+logged (RUST_LOG=game::render::streak=debug). Each pair: the rule before | after, run
+back to back on a shared machine (1-minute load average 26-57 during the pairs).
+Figures over the last 38 s of free roam; "load" = the predicted probe load.
+o1 = Original settings, o0 = a play setup (Extreme-like rows, no temporal pass).
+
+o1-before: free roam last 38 s: 294 fps (median interval 3.02 ms), exact 0% of frames, probes 0, median gpu 0.47 ms, cpu 0.65 ms, load min/median/max 19.2/27.4/74.5%
+   decisions: cheap 47%
+o1-after: free roam last 38 s: 182 fps (median interval 5.16 ms), exact 100% of frames, probes 2271, median gpu 0.72 ms, cpu 1.15 ms, load min/median/max 3.1/6.5/9.4%
+   decisions: none
+o0-before: free roam last 38 s: 176 fps (median interval 5.22 ms), exact 37% of frames, probes 495, median gpu 1.61 ms, cpu 1.78 ms, load min/median/max 17.7/39.8/83.9%
+   decisions: cheap 129%; exact 12%; cheap 25%
+o0-after: free roam last 38 s: 168 fps (median interval 4.37 ms), exact 100% of frames, probes 2204, median gpu 1.47 ms, cpu 1.19 ms, load min/median/max 8.0/9.4/19.7%
+   decisions: none
+
+o1's lower frame rate after is the machine's (the overlay's CSV: CPU busy 99.8 % against 87 %
+before, draw 1.31 against 0.71 ms); the probes' own share is the "trails" part, 0.46 of 6.17 ms
+a frame (7 %, predicted 6.5 %); o0: 1.29 of 10.1 ms (13 %, predicted 9.4 %).
+
+Probe cost (--bench explore at NFSU2_BENCH_HZ=30, one probe a frame in the exact form):
+predicted = the cost timer's GPU time per render (exact run / cheap run);
+measured = GPU time per drawn frame, exact run minus cheap run.
+1920x1080 orig exact: total 1.08 | 399 probes GPU 0.546 ms 
+1920x1080 orig cheap: total 0.63 | 0 probes GPU 0.612 ms 
+1920x1080 extreme exact: total 6.10 | 399 probes GPU 2.567 ms 
+1920x1080 extreme cheap: total 3.25 | 0 probes GPU 2.812 ms 
+3840x2160 orig exact: total 4.52 | 399 probes GPU 2.121 ms 
+3840x2160 orig cheap: total 2.71 | 0 probes GPU 2.547 ms 
+3840x2160 extreme exact: total 23.50 | 399 probes GPU 9.823 ms 
+3840x2160 extreme cheap: total 12.53 | 0 probes GPU 10.526 ms 
+The timer's earlier span (auto run): 1080p Original 0.508, 1080p Extreme 2.281, 4K Original 1.264, 4K Extreme 9.037 ms.

@@ -1,0 +1,92 @@
+Overbright 0.1.0 mark-this-spot report mark-20261105-144704
+time (UTC): 20261105-144704
+note: (describe what is wrong here, then send this file)
+
+mode: explore
+region: L4RA
+car: PEUGOT
+car position: -1650.000,600.000,4.456 heading 45.0 deg (from +x) speed 0.0 km/h
+camera: eye -1654.313,595.687,6.156 looking at -1647.242,602.758,6.156 fov 71.52 deg (game camera 71.52 deg) up 0.000,0.000,1.000
+section: 302
+nearest asset: XB_SHORE_BEACHTENT_1A_00 at -1660.931,611.277,3.030 (15.8 m)
+world clock: 4.000 s
+game time: 0.000 s
+window: 1280x960
+settings hash: 9c9c01b932b0ed69 (xxh3 of options.txt)
+
+reproduce (headless; the shot loads free roam, puts the car at its position standing, lets it settle 3 s, then sets the camera; the camera and the world are exact, the car's speed is not):
+  NFSU2_SHOT_CAR=PEUGOT \
+  NFSU2_SHOT_AT=-1650.000,600.000,4.456,45.0 \
+  NFSU2_SHOT_HOLD=1 \
+  NFSU2_SHOT_LOOK=-1654.313,595.687,6.156,-1647.242,602.758,6.156,71.5210,71.5210,0.00000,0.00000,1.00000 \
+  NFSU2_RAIN_CLOCK=1.000 \
+  NFSU2_SHOT_SIZE=1280x960 \
+  NFSU2_SHOT_ENH='custom.0 3;custom.1 1;custom.2 2;custom.3 1;custom.4 1;custom.5 1;custom.6 2;custom.7 3;custom.8 1;custom.9 1;custom.10 1;custom.11 1;custom.12 1;custom.13 1;custom.14 3;custom.15 1;custom.16 1;custom.17 1;custom.18 1;custom.19 1;custom.20 2;custom.21 0' \
+  game --shot explore mark-20261105-144704.png
+performance with these settings (the bench's own free-roam route, not this spot):
+  NFSU2_BENCH_CAR=PEUGOT NFSU2_BENCH_DETAIL=5 NFSU2_BENCH_ENH='custom.0 3;custom.1 1;custom.2 2;custom.3 1;custom.4 1;custom.5 1;custom.6 2;custom.7 3;custom.8 1;custom.9 1;custom.10 1;custom.11 1;custom.12 1;custom.13 1;custom.14 3;custom.15 1;custom.16 1;custom.17 1;custom.18 1;custom.19 1;custom.20 2;custom.21 0' game --bench explore 600
+
+options.txt:
+resolution 1280x960
+fullscreen 0
+aspect 0
+vsync_off mailbox
+detail 5
+custom.0 3
+custom.1 1
+custom.2 2
+custom.3 1
+custom.4 1
+custom.5 1
+custom.6 2
+custom.7 3
+custom.8 1
+custom.9 1
+custom.10 1
+custom.11 1
+custom.12 1
+custom.13 1
+custom.14 3
+custom.15 1
+custom.16 1
+custom.17 1
+custom.18 1
+custom.19 1
+custom.20 2
+custom.21 0
+key.0.0 Left
+key.0.1 A
+key.1.0 Right
+key.1.1 D
+key.2.0 Up
+key.2.1 W
+key.3.0 Down
+key.3.1 S
+key.4.0 Left Shift
+key.4.1 ;
+key.5.0 Left Ctrl
+key.5.1 .
+key.6.0 Space
+key.6.1 End
+key.7.0 Left Alt
+key.7.1 Right Alt
+key.8.0 C
+key.8.1 Insert
+key.9.0 B
+key.9.1 K
+key.10.0 Enter
+key.10.1 F1
+key.11.0 M
+key.11.1 F2
+key.12.0 Tab
+key.12.1 F3
+key.13.0 T
+key.13.1 F4
+key.14.0 R
+key.14.1 Home
+key.15.0 H
+key.15.1 Y
+key.16.0 J
+key.16.1 U
+key.17.0 Esc
+key.17.1 P

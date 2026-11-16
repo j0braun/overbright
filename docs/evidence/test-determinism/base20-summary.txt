@@ -1,0 +1,21 @@
+run 1: test result: ok. 56 passed; 0 failed; 14 ignored; 0 measured; 0 filtered out; finished in 17.65s load 55.68 
+run 2: test result: ok. 56 passed; 0 failed; 14 ignored; 0 measured; 0 filtered out; finished in 17.37s load 132.74 
+run 3: test result: ok. 56 passed; 0 failed; 14 ignored; 0 measured; 0 filtered out; finished in 20.95s load 196.81 
+run 4: test result: ok. 56 passed; 0 failed; 14 ignored; 0 measured; 0 filtered out; finished in 13.47s load 164.10 
+run 5: test result: ok. 56 passed; 0 failed; 14 ignored; 0 measured; 0 filtered out; finished in 9.65s load 147.67 
+run 6: test result: ok. 56 passed; 0 failed; 14 ignored; 0 measured; 0 filtered out; finished in 11.86s load 133.88 
+run 7: test result: ok. 56 passed; 0 failed; 14 ignored; 0 measured; 0 filtered out; finished in 16.13s load 151.07 
+run 8: test result: ok. 56 passed; 0 failed; 14 ignored; 0 measured; 0 filtered out; finished in 16.64s load 163.41 
+run 9: test result: ok. 56 passed; 0 failed; 14 ignored; 0 measured; 0 filtered out; finished in 13.01s load 144.34 
+run 10: test result: ok. 56 passed; 0 failed; 14 ignored; 0 measured; 0 filtered out; finished in 10.06s load 146.68 
+run 11: test result: ok. 56 passed; 0 failed; 14 ignored; 0 measured; 0 filtered out; finished in 12.20s load 139.48 
+run 12: test result: ok. 56 passed; 0 failed; 14 ignored; 0 measured; 0 filtered out; finished in 9.86s load 116.83 
+run 13: test result: ok. 56 passed; 0 failed; 14 ignored; 0 measured; 0 filtered out; finished in 11.42s load 150.51 
+run 14: test result: ok. 56 passed; 0 failed; 14 ignored; 0 measured; 0 filtered out; finished in 8.53s load 131.50 
+run 15: test result: ok. 56 passed; 0 failed; 14 ignored; 0 measured; 0 filtered out; finished in 9.59s load 114.88 
+run 16: test result: ok. 56 passed; 0 failed; 14 ignored; 0 measured; 0 filtered out; finished in 7.63s load 107.44 
+run 17: test result: ok. 56 passed; 0 failed; 14 ignored; 0 measured; 0 filtered out; finished in 12.70s load 95.70 
+run 18: test result: ok. 56 passed; 0 failed; 14 ignored; 0 measured; 0 filtered out; finished in 10.52s load 125.60 
+run 19: test result: ok. 56 passed; 0 failed; 14 ignored; 0 measured; 0 filtered out; finished in 28.49s load 145.02 
+run 20: test result: ok. 56 passed; 0 failed; 14 ignored; 0 measured; 0 filtered out; finished in 12.42s load 127.22 
+finished

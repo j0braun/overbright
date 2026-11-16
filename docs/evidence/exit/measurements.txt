@@ -1,0 +1,17 @@
+Exit measurements, 2026-11-12, the reference desktop (16 cores; other builds running:
+load average 30-90 throughout, so every run is "loaded"; no idle window was available).
+Shipping build (no dev-harness), fresh sandbox HOME (cold asset cache, as tests/launcher_fresh.sh
+step h), private Xvfb :180, WM_DELETE_WINDOW sent $WAIT s after "game start: done"; time = close
+sent -> process gone (docs/evidence/exit/measure.sh).
+
+before the change:                      7.81  4.01  3.29 s
+cache writes unsynced only:             6.21  6.12  2.28  1.36 s   (exit still joins every writer; audio close)
++ writers waited for at most 1 s:       0.18  0.25  3.44  4.11  0.21 s  ("exit: audio at 2703 / 3026 ms")
++ audio muted, left to the process end: 0.31  0.19  0.14  0.15  0.20  0.14  0.14  0.08  0.08 s
+                                        (WAIT 0.5 / 2 / 12 s; "exit: game at" 14-454 ms)
+
+What it waited for (thread states from /proc/<pid>/task/*/{comm,stat,wchan} sampled after the close):
+the main thread in futex wait (cache::flush joining the cache writers), the writers in
+do_get_write_access / jbd2_log_wait_commit (file.sync_all, uninterruptible: the process cannot end
+before it returns) and, with sync_file_range, rq_qos_wait; then Audio's drop (the device stream's
+close) 2.7-3.0 s. GPU teardown (window, renderer): 14-454 ms. Log file thread: no wait.

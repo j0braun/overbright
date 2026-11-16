@@ -1,0 +1,147 @@
+# The Enhanced levels on the integrated GPU at World Detail 3 (a fresh install's there: docs/perf-integrated-gpu.md "World Detail").
+# scripts/passes.sh with NFSU2_BENCH_DETAIL=3, --bench <scene> 200, 2 runs per configuration, the tree's binary (with the
+# cluster loop's subgroup form and the occlusion's glow rectangles); five short series under the integrated GPU's
+# measuring lock, load average 17.69 42.13 (the other units' work; the CPU is not what bounds these frames).
+# Per configuration: GPU busy median (min-max of the runs), p99, frame p50/p99 ms, and the largest passes.
+
+## 1920x1080
+d3 explore-high-1920x1080       GPU   37.46 (37.35-37.57) p99   41.22 frame 37.74/46.02 n=2
+    post: overbright (high precision) 9.34; world: main view 6.49; graphics: ssr trace 3.18; graphics: ssao apply 2.77; graphics: ssao occlusion 2.76; graphics: atmosphere 1.90; graphics: particles draw 1.60; graphics: ssr mask 1.15
+d3 explore-low-1920x1080        GPU    4.59 (4.39-4.79) p99    6.06 frame 4.77/8.09 n=2
+    world: main view 1.80; post: overbright (half size) 0.90; ui 0.51; post: streaks 0.49; post: to the back buffer 0.39; cars 0.33; world: road reflection 0.16; horizon fog 0.07
+d3 explore-med-1920x1080        GPU   17.46 (16.34-18.59) p99   19.24 frame 17.74/20.57 n=2
+    world: main view 6.08; graphics: ssao occlusion 2.46; graphics: ssao apply 2.12; post: overbright (high precision) 1.43; graphics: atmosphere 1.20; post: streaks 0.95; post: to the back buffer 0.63; ui 0.55
+d3 explore-orig-1920x1080       GPU    4.01 (3.98-4.03) p99    4.89 frame 4.15/6.85 n=2
+    world: main view 1.54; post: overbright (half size) 0.88; ui 0.51; post: streaks 0.47; post: to the back buffer 0.35; cars 0.14; horizon fog 0.07; (between submissions) 0.06
+d3 race-high-1920x1080          GPU   47.62 (46.93-48.31) p99   53.91 frame 48.26/55.75 n=2
+    world: main view 9.72; post: overbright (high precision) 9.54; graphics: ssr trace 5.17; graphics: ssao depth (and the resolve before it) 4.05; graphics: ssao occlusion 3.20; graphics: atmosphere 2.19; graphics: ssao apply 1.45; cars: enhanced glass 1.43
+d3 race-low-1920x1080           GPU    6.48 (6.44-6.52) p99    8.46 frame 6.82/10.44 n=2
+    world: main view 2.60; post: overbright (half size) 1.01; cars 0.97; post: streaks 0.63; post: to the back buffer 0.46; ui 0.42; world: road reflection 0.29; particles 0.23
+d3 race-med-1920x1080           GPU   25.48 (25.10-25.86) p99   28.24 frame 26.04/29.30 n=2
+    world: main view 9.04; graphics: ssao depth (and the resolve before it) 3.58; graphics: ssao occlusion 3.42; post: overbright (high precision) 1.56; graphics: ssao apply 1.40; cars 1.26; graphics: atmosphere 1.25; post: streaks 1.08
+d3 race-orig-1920x1080          GPU    5.53 (5.50-5.55) p99    6.88 frame 5.81/7.51 n=2
+    world: main view 2.22; post: overbright (half size) 1.11; post: streaks 0.61; post: to the back buffer 0.44; ui 0.42; cars 0.39; particles 0.23; world: road reflection 0.08
+d3 racing-high-1920x1080        GPU   46.39 (46.24-46.54) p99   51.47 frame 46.94/96.30 n=2
+    world: main view 11.79; post: overbright (high precision) 9.18; graphics: ssr trace 4.15; graphics: ssao occlusion 3.00; graphics: ssao apply 2.23; graphics: atmosphere 2.21; graphics: particles draw 1.52; cars: enhanced glass 1.36
+d3 racing-low-1920x1080         GPU    6.94 (6.87-7.01) p99    8.26 frame 7.25/10.83 n=2
+    world: main view 2.99; post: overbright (half size) 1.06; cars 0.88; post: streaks 0.54; ui 0.54; post: to the back buffer 0.41; world: road reflection 0.28; particles 0.10
+d3 racing-med-1920x1080         GPU   24.50 (24.04-24.96) p99   26.91 frame 24.96/27.99 n=2
+    world: main view 10.88; graphics: ssao occlusion 2.52; graphics: ssao apply 1.91; post: overbright (high precision) 1.53; graphics: atmosphere 1.31; cars 1.17; post: streaks 1.00; graphics: ssao depth (and the resolve before it) 0.92
+d3 racing-orig-1920x1080        GPU    5.75 (5.50-5.99) p99    6.34 frame 6.04/7.25 n=2
+    world: main view 2.49; post: overbright (half size) 1.05; ui 0.57; post: streaks 0.56; post: to the back buffer 0.42; cars 0.36; particles 0.11; (between submissions) 0.07
+d3 rain-high-1920x1080          GPU   67.71 (67.13-68.28) p99   80.10 frame 68.28/118.02 n=2
+    world: main view 15.49; post: overbright (high precision) 9.89; graphics: volume fx march 7.56; graphics: ssr mask 5.29; graphics: ssr trace 4.91; graphics: ssao occlusion 3.13; cars: enhanced glass 2.27; graphics: ssao apply 2.17
+d3 rain-low-1920x1080           GPU    7.73 (7.66-7.80) p99    9.23 frame 7.94/11.58 n=2
+    world: main view 2.36; cars 1.49; post: overbright (half size) 1.06; post: streaks 0.62; ui 0.55; post: to the back buffer 0.46; world: road reflection 0.41; graphics: weather fx 0.36
+d3 rain-med-1920x1080           GPU   28.36 (27.78-28.95) p99   30.12 frame 28.63/31.71 n=2
+    world: main view 12.26; graphics: ssao occlusion 3.00; cars 1.83; graphics: ssao apply 1.60; post: overbright (high precision) 1.56; graphics: weather fx 1.20; graphics: atmosphere 1.18; post: streaks 1.03
+d3 rain-orig-1920x1080          GPU    5.84 (5.79-5.90) p99    7.38 frame 6.06/8.70 n=2
+    world: main view 2.15; post: overbright (half size) 1.10; post: streaks 0.57; ui 0.54; post: to the back buffer 0.43; cars 0.37; post: rain tint 0.29; particles 0.26
+
+## 1366x768
+d3 explore-high-1366x768        GPU   19.62 (19.06-20.18) p99   21.49 frame 19.89/23.36 n=2
+    post: overbright (high precision) 4.47; world: main view 3.57; graphics: ssr trace 2.19; graphics: atmosphere 1.21; graphics: ssao occlusion 1.07; graphics: ssao apply 0.89; graphics: particles draw 0.77; graphics: ssr mask 0.70
+d3 explore-low-1366x768         GPU    2.80 (2.41-3.19) p99    3.62 frame 3.60/8.57 n=2
+    world: main view 1.12; post: overbright (half size) 0.51; post: streaks 0.27; ui 0.27; (between submissions) 0.24; cars 0.19; post: to the back buffer 0.18; world: road reflection 0.15
+d3 explore-med-1366x768         GPU    8.77 (8.71-8.84) p99    9.71 frame 8.97/12.82 n=2
+    world: main view 3.16; graphics: ssao occlusion 1.11; graphics: ssao apply 0.84; post: overbright (high precision) 0.70; graphics: atmosphere 0.66; post: streaks 0.48; post: to the back buffer 0.34; ui 0.27
+d3 explore-orig-1366x768        GPU    2.29 (2.11-2.47) p99    3.29 frame 2.69/9.25 n=2
+    world: main view 0.93; post: overbright (half size) 0.50; post: streaks 0.27; ui 0.27; (between submissions) 0.23; post: to the back buffer 0.19; cars 0.09; world: road reflection 0.05
+d3 race-high-1366x768           GPU   25.75 (25.63-25.88) p99   29.77 frame 26.28/32.57 n=2
+    world: main view 5.48; post: overbright (high precision) 4.45; graphics: ssr trace 2.82; graphics: ssao depth (and the resolve before it) 2.43; graphics: atmosphere 1.60; graphics: ssao occlusion 1.23; cars: enhanced glass 0.85; graphics: ssao apply 0.76
+d3 race-low-1366x768            GPU    3.57 (3.39-3.74) p99    4.82 frame 3.80/7.71 n=2
+    world: main view 1.46; cars 0.57; post: overbright (half size) 0.50; post: streaks 0.31; ui 0.22; post: to the back buffer 0.21; world: road reflection 0.17; particles 0.13
+d3 race-med-1366x768            GPU   12.82 (12.64-13.01) p99   14.25 frame 13.15/16.12 n=2
+    world: main view 4.83; graphics: ssao depth (and the resolve before it) 1.95; post: overbright (high precision) 0.75; cars 0.74; graphics: ssao occlusion 0.70; graphics: atmosphere 0.68; post: streaks 0.56; graphics: ssao apply 0.56
+d3 race-orig-1366x768           GPU    3.09 (2.97-3.21) p99    3.92 frame 3.61/8.91 n=2
+    world: main view 1.33; post: overbright (half size) 0.55; cars 0.30; post: streaks 0.29; ui 0.22; post: to the back buffer 0.18; (between submissions) 0.16; particles 0.13
+d3 racing-high-1366x768         GPU   25.40 (25.12-25.68) p99   28.31 frame 25.85/31.54 n=2
+    world: main view 6.52; post: overbright (high precision) 4.30; graphics: ssr trace 2.53; graphics: atmosphere 1.54; graphics: ssao occlusion 1.49; cars: enhanced glass 0.88; graphics: ssao apply 0.88; graphics: particles draw 0.73
+d3 racing-low-1366x768          GPU    3.67 (3.65-3.68) p99    5.22 frame 3.85/8.67 n=2
+    world: main view 1.62; post: overbright (half size) 0.53; cars 0.53; ui 0.28; post: streaks 0.27; post: to the back buffer 0.20; world: road reflection 0.16; (between submissions) 0.09
+d3 racing-med-1366x768          GPU   12.98 (12.56-13.41) p99   14.71 frame 13.42/17.98 n=2
+    world: main view 6.01; graphics: ssao occlusion 1.06; graphics: ssao apply 0.81; post: overbright (high precision) 0.80; graphics: atmosphere 0.71; cars 0.67; graphics: ssao depth (and the resolve before it) 0.51; post: streaks 0.50
+d3 racing-orig-1366x768         GPU    3.58 (3.29-3.86) p99    4.41 frame 4.86/11.41 n=2
+    world: main view 1.67; post: overbright (half size) 0.60; post: streaks 0.30; ui 0.29; cars 0.29; post: to the back buffer 0.22; (between submissions) 0.14; particles 0.08
+d3 rain-high-1366x768           GPU   36.99 (36.46-37.51) p99   42.58 frame 37.74/50.13 n=2
+    world: main view 8.57; post: overbright (high precision) 4.47; graphics: volume fx march 4.08; graphics: ssr mask 3.07; graphics: ssr trace 2.93; graphics: ssao occlusion 1.65; graphics: atmosphere 1.38; cars: enhanced glass 1.32
+d3 rain-low-1366x768            GPU    4.41 (4.34-4.48) p99    5.54 frame 4.58/8.54 n=2
+    world: main view 1.38; cars 0.90; post: overbright (half size) 0.54; post: streaks 0.32; ui 0.28; graphics: weather fx 0.28; world: road reflection 0.25; post: to the back buffer 0.25
+d3 rain-med-1366x768            GPU   14.61 (14.41-14.80) p99   16.57 frame 14.87/21.30 n=2
+    world: main view 6.86; cars 1.02; graphics: ssao occlusion 0.82; graphics: ssao apply 0.79; graphics: weather fx 0.74; graphics: atmosphere 0.70; post: overbright (high precision) 0.69; graphics: ssao depth (and the resolve before it) 0.58
+d3 rain-orig-1366x768           GPU    3.79 (3.44-4.15) p99    4.54 frame 6.47/13.26 n=2
+    world: main view 1.43; post: overbright (half size) 0.60; cars 0.32; (between submissions) 0.31; post: streaks 0.31; ui 0.31; post: to the back buffer 0.22; particles 0.20
+
+## The table (GPU busy median ms, explore / racing / race start / rain) and each level's heaviest 1080p scene
+| level | integrated 1366×768 | integrated 1920×1080 |
+|---|---|---|
+| Original | 2.3 / 3.6 / 3.1 / 3.8 | 4.0 / 5.7 / 5.5 / 5.8 |
+| Low | 2.8 / 3.7 / 3.6 / 4.4 | 4.6 / 6.9 / 6.5 / 7.7 |
+| Medium | 8.8 / 13.0 / 12.8 / 14.6 | 17.5 / 24.5 / 25.5 / 28.4 |
+| High | 19.6 / 25.4 / 25.8 / 37.0 | 37.5 / 46.4 / 47.6 / 67.7 |
+
+runs per config: [2]
+Original 768 range 2.1–4.1 1080 range 4.0–6.0
+Low 768 range 2.4–4.5 1080 range 4.4–7.8
+Medium 768 range 8.7–14.8 1080 range 16.3–29.0
+High 768 range 19.1–37.5 1080 range 37.4–68.3
+
+Original (rain 5.8, frame p99 8.7): world: main view 2.1, post: overbright (half size) 1.1, post: streaks 0.6, ui 0.5, post: to the back buffer 0.4, cars 0.4
+Low (rain 7.7, frame p99 11.6): world: main view 2.4, cars 1.5, post: overbright (half size) 1.1, post: streaks 0.6, ui 0.5, post: to the back buffer 0.5
+Medium (rain 28.4, frame p99 31.7): world: main view 12.3, graphics: ssao occlusion 3.0, cars 1.8, graphics: ssao apply 1.6, post: overbright (high precision) 1.6, graphics: weather fx 1.2
+High (rain 67.7, frame p99 118.0): world: main view 15.5, post: overbright (high precision) 9.9, graphics: volume fx march 7.6, graphics: ssr mask 5.3, graphics: ssr trace 4.9, graphics: ssao occlusion 3.1
+
+## The state of each 1920x1080 Medium / High run (the SSAO occlusion row: about 1.0 ms in the fast state, up to ~3.5 in the
+## slow state of a machine under build load), with the run's load average; then a re-measure of the same 16 configurations
+# t1080m
+explore-med-1920x1080__r1    GPU  18.6 occlusion 2.81 main view  6.3 load 17.69
+explore-med-1920x1080__r2    GPU  16.3 occlusion 2.12 main view  5.9 load 29.82
+race-med-1920x1080__r1       GPU  25.1 occlusion 3.09 main view  9.1 load 19.46
+race-med-1920x1080__r2       GPU  25.9 occlusion 3.75 main view  9.0 load 28.42
+racing-med-1920x1080__r1     GPU  25.0 occlusion 3.23 main view 10.7 load 18.28
+racing-med-1920x1080__r2     GPU  24.0 occlusion 1.82 main view 11.1 load 29.35
+rain-med-1920x1080__r1       GPU  27.8 occlusion 2.28 main view 12.3 load 20.46
+rain-med-1920x1080__r2       GPU  29.0 occlusion 3.72 main view 12.2 load 26.45
+# t1080h
+explore-high-1920x1080__r1   GPU  37.4 occlusion 2.78 main view  6.6 load 33.32
+explore-high-1920x1080__r2   GPU  37.6 occlusion 2.74 main view  6.4 load 32.31
+race-high-1920x1080__r1      GPU  46.9 occlusion 3.23 main view  9.7 load 32.15
+race-high-1920x1080__r2      GPU  48.3 occlusion 3.18 main view  9.7 load 33.20
+racing-high-1920x1080__r1    GPU  46.2 occlusion 2.95 main view 11.4 load 32.05
+racing-high-1920x1080__r2    GPU  46.5 occlusion 3.04 main view 12.2 load 33.14
+rain-high-1920x1080__r1      GPU  68.3 occlusion 3.23 main view 15.5 load 31.65
+rain-high-1920x1080__r2      GPU  67.1 occlusion 3.03 main view 15.5 load 38.66
+# t768b
+explore-high-1366x768__r1    GPU  19.1 occlusion 0.60 main view  3.5 load 35.61
+explore-high-1366x768__r2    GPU  20.2 occlusion 1.54 main view  3.6 load 32.22
+explore-med-1366x768__r1     GPU   8.8 occlusion 1.07 main view  3.2 load 34.59
+explore-med-1366x768__r2     GPU   8.7 occlusion 1.15 main view  3.2 load 35.31
+race-high-1366x768__r1       GPU  25.6 occlusion 1.35 main view  5.4 load 35.27
+race-high-1366x768__r2       GPU  25.9 occlusion 1.11 main view  5.5 load 34.90
+race-med-1366x768__r1        GPU  13.0 occlusion 0.68 main view  4.9 load 34.97
+race-med-1366x768__r2        GPU  12.6 occlusion 0.73 main view  4.8 load 33.99
+racing-high-1366x768__r1     GPU  25.7 occlusion 1.45 main view  6.6 load 35.40
+racing-high-1366x768__r2     GPU  25.1 occlusion 1.54 main view  6.5 load 33.63
+racing-med-1366x768__r1      GPU  12.6 occlusion 0.70 main view  6.1 load 36.62
+racing-med-1366x768__r2      GPU  13.4 occlusion 1.42 main view  6.0 load 34.56
+rain-high-1366x768__r1       GPU  36.5 occlusion 1.64 main view  8.6 load 34.04
+rain-high-1366x768__r2       GPU  37.5 occlusion 1.66 main view  8.6 load 35.15
+rain-med-1366x768__r1        GPU  14.4 occlusion 0.88 main view  6.8 load 34.97
+rain-med-1366x768__r2        GPU  14.8 occlusion 0.77 main view  6.9 load 33.65
+# t1080f
+explore-high-1920x1080__r1   GPU  39.7 occlusion 3.15 main view  7.3 load 24.34
+explore-high-1920x1080__r2   GPU  39.3 occlusion 3.10 main view  6.9 load 26.59
+explore-med-1920x1080__r1    GPU  18.0 occlusion 2.94 main view  6.0 load 27.89
+explore-med-1920x1080__r2    GPU  18.3 occlusion 3.20 main view  6.3 load 28.76
+race-high-1920x1080__r1      GPU  54.8 occlusion 3.45 main view 11.9 load 27.47
+race-high-1920x1080__r2      GPU  49.9 occlusion 3.54 main view 10.9 load 28.33
+race-med-1920x1080__r1       GPU  26.8 occlusion 3.36 main view  9.2 load 31.87
+race-med-1920x1080__r2       GPU  25.0 occlusion 2.11 main view  9.3 load 26.70
+racing-high-1920x1080__r1    GPU  48.9 occlusion 3.16 main view 11.1 load 26.54
+racing-high-1920x1080__r2    GPU  50.9 occlusion 3.49 main view 13.5 load 28.89
+racing-med-1920x1080__r1     GPU  24.3 occlusion 1.83 main view 10.9 load 31.42
+racing-med-1920x1080__r2     GPU  25.5 occlusion 3.43 main view 10.9 load 26.81
+rain-high-1920x1080__r1      GPU  70.4 occlusion 3.48 main view 15.9 load 26.54
+rain-high-1920x1080__r2      GPU  77.2 occlusion 3.84 main view 19.7 load 26.97
+rain-med-1920x1080__r1       GPU  29.8 occlusion 3.33 main view 12.4 load 29.54
+rain-med-1920x1080__r2       GPU  28.6 occlusion 3.39 main view 12.2 load 27.89

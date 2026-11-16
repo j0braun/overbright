@@ -1,0 +1,18 @@
+# pattern:class:reason   (fnmatch glob or path prefix). Entries here do not fail `scan.py binary`.
+src/*.wgsl:asset:shader sources compiled into the binary
+src/*.rs:asset:Rust sources included by tests (include_str!)
+tests/fixtures/overlay/:machine-snapshot:kept public with generic values (release plan b.2); current values still identify the build machine, fixed by the fixture unit
+examples/fixtures/:asset:frozen reference copies of the project's own shader/code, read by the public equivalence checks and src/shadow.rs tests (docs/refactor/examples-triage.tsv)
+tests/launcher/:asset:the launcher's own headless renders (its plain dark look, the Go font, fixed fake data; nothing from the game) and a probe output sample with a made-up adapter, compared by tests/launcher_render.rs and src/launcher/
+src/launcher/fonts/:asset:Go fonts (BSD-3-Clause; notice in THIRD-PARTY-NOTICES.md and src/launcher/fonts/), embedded in the launcher
+LICENSE:asset:the project's licence text (GPL-3.0), shown on the launcher's about screen (include_str!)
+tests/launcher:asset:the launcher's render baselines folder (read by tests/launcher_render.rs)
+THIRD-PARTY-NOTICES.md:asset:the third-party notices, shown on the launcher's about screen (include_str!)
+src/render:asset:the shader registry's include macros (src/render/core/shader/registry.rs: concat of src/render/ or src/render/shaders/ and a literal .wgsl name, the project's own shaders)
+build_support/:asset:the icon drawing, the project's own source, compiled into the exe resource and the window icon (src/platform/icon.rs)
+tests/fixtures.lock:asset:the fixture pins (name, SHA-256, size; hashes only, no data), read by the test kit
+fuzz/fuzz_targets:asset:the project's own fuzz target sources, checked against the smoke list by tests/fuzz_smoke.rs
+build.rs:dynamic:the private set's location for the test cfgs ($OB_PRIVATE, else the repository while it still holds the set); reads nothing
+tests/common/mod.rs:dynamic:the test kit's private-set resolver (private_root: $OB_PRIVATE, else the repository); every read goes through private(path) in a test marked to need OB_PRIVATE
+src/bin/game/dev/private.rs:dynamic:the developer harness's private-set resolver ($OB_PRIVATE, else the repository): run-time reads only, a missing file is a reported skip, nothing is embedded
+docs/screenshots/:screenshot:the README's comparison pictures (the game at the Original preset and with every graphics row at its top value, 1920x1080 JPEG, made with the developer harness's --shot; no mods or texture packs)

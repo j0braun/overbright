@@ -1,0 +1,49 @@
+# Rain with Wet Road Interaction 1/2 (High + the row), 60 Hz schedule, 600 frames, 5 runs each: par = the job split (default), ser = NFSU2_WEATHER_HELPERS=0
+## rain-dgpu-c3 (c3 = taskset 0-3, c1 = taskset 0-1)
+config                     GPU par   GPU ser     d% |   f50 par   f50 ser | main par/ser | render par/ser
+rain-wi2-1366x768            1.459     1.451   -0.6 |      3.77      3.78 | p99 10.30/8.25 | 2.63/2.77 | 2.26/1.98  n 5/5  gpu scatter   1.46 (1.44-1.48) /   1.45 (1.42-1.48)
+rain-wi1-1366x768            1.410     1.400   -0.7 |      2.60      2.83 | p99 7.90/7.44 | 2.26/2.43 | 2.08/1.97  n 5/5  gpu scatter   1.41 (1.39-1.48) /   1.40 (1.39-1.51)
+rain-wi1-1366x768      spray volume particles           par    0.139  n=5
+rain-wi1-1366x768      spray volume particles           ser    0.189  n=5
+rain-wi1-1366x768      tick:   spray step               par    0.209  n=5
+rain-wi1-1366x768      tick:   spray step               ser    0.276  n=5
+rain-wi2-1366x768      spray volume particles           par    0.216  n=5
+rain-wi2-1366x768      spray volume particles           ser    0.291  n=5
+rain-wi2-1366x768      tick:   spray step               par    0.307  n=5
+rain-wi2-1366x768      tick:   spray step               ser    0.421  n=5
+## rain-dgpu-c1 (c3 = taskset 0-3, c1 = taskset 0-1)
+config                     GPU par   GPU ser     d% |   f50 par   f50 ser | main par/ser | render par/ser
+rain-wi2-1366x768            1.420     1.406   -0.9 |      2.54      2.72 | p99 8.12/10.06 | 2.51/2.66 | 1.90/1.72  n 5/5  gpu scatter   1.42 (1.40-1.47) /   1.41 (1.40-1.46)
+rain-wi1-1366x768            1.389     1.371   -1.3 |      2.55      2.68 | p99 13.36/12.74 | 2.16/2.36 | 1.67/1.83  n 5/5  gpu scatter   1.39 (1.37-1.41) /   1.37 (1.36-1.42)
+rain-wi1-1366x768      spray volume particles           par    0.174  n=5
+rain-wi1-1366x768      spray volume particles           ser    0.191  n=5
+rain-wi1-1366x768      tick:   spray step               par    0.239  n=5
+rain-wi1-1366x768      tick:   spray step               ser    0.275  n=5
+rain-wi2-1366x768      spray volume particles           par    0.273  n=5
+rain-wi2-1366x768      spray volume particles           ser    0.292  n=5
+rain-wi2-1366x768      tick:   spray step               par    0.345  n=5
+rain-wi2-1366x768      tick:   spray step               ser    0.420  n=5
+## rain-igpu-c3 (c3 = taskset 0-3, c1 = taskset 0-1)
+config                     GPU par   GPU ser     d% |   f50 par   f50 ser | main par/ser | render par/ser
+rain-wi1-1366x768           36.613    35.854   -2.1 |     37.01     36.34 | p99 45.29/44.21 | 3.71/3.96 | 2.84/2.58  n 5/5  gpu scatter  36.61 (35.45-37.51) /  35.85 (35.26-37.62)
+rain-wi2-1366x768           39.587    39.043   -1.4 |     40.60     40.14 | p99 49.94/48.24 | 3.91/4.29 | 2.94/2.75  n 5/5  gpu scatter  39.59 (37.94-39.84) /  39.04 (37.01-39.47)
+rain-wi1-1366x768      spray volume particles           par    0.148  n=5
+rain-wi1-1366x768      spray volume particles           ser    0.209  n=5
+rain-wi1-1366x768      tick:   spray step               par    0.191  n=5
+rain-wi1-1366x768      tick:   spray step               ser    0.310  n=5
+rain-wi2-1366x768      spray volume particles           par    0.245  n=5
+rain-wi2-1366x768      spray volume particles           ser    0.342  n=5
+rain-wi2-1366x768      tick:   spray step               par    0.243  n=5
+rain-wi2-1366x768      tick:   spray step               ser    0.455  n=5
+## rain-igpu-c1 (c3 = taskset 0-3, c1 = taskset 0-1)
+config                     GPU par   GPU ser     d% |   f50 par   f50 ser | main par/ser | render par/ser
+rain-wi1-1366x768           37.036    36.614   -1.1 |     37.57     37.20 | p99 47.37/44.14 | 3.76/3.44 | 2.48/2.23  n 5/5  gpu scatter  37.04 (36.88-37.51) /  36.61 (35.27-37.24)
+rain-wi2-1366x768           38.632    40.129   +3.9 |     39.59     41.17 | p99 48.50/49.46 | 3.61/3.89 | 2.40/2.33  n 5/5  gpu scatter  38.63 (37.94-39.25) /  40.13 (38.24-40.92)
+rain-wi1-1366x768      spray volume particles           par    0.194  n=5
+rain-wi1-1366x768      spray volume particles           ser    0.201  n=5
+rain-wi1-1366x768      tick:   spray step               par    0.253  n=5
+rain-wi1-1366x768      tick:   spray step               ser    0.299  n=5
+rain-wi2-1366x768      spray volume particles           par    0.284  n=5
+rain-wi2-1366x768      spray volume particles           ser    0.339  n=5
+rain-wi2-1366x768      tick:   spray step               par    0.350  n=5
+rain-wi2-1366x768      tick:   spray step               ser    0.450  n=5

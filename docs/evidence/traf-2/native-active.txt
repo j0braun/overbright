@@ -1,0 +1,14 @@
+# original, qr_walk_4014: car +0x550 (active) on belt cars, per run (trafwalk columns active550 / stop710_park77c)
+qr1: belt samples 10739, inactive 25.1 %
+qr2: belt samples 12593, inactive 6.9 %
+qr3: belt samples 9397, inactive 13.9 %
+# qr3 / fw1: placements from parked (park flag 1 -> 0): mode at placement and +0x550
+4 qr3: mode 4 active 0
+15 qr3: mode 2 active 1
+3 fw1: mode 2 active 1
+# original free roam (freeroam_walk) first sample: every car active
+4 mode 4 active 1
+5 mode 3 active 1
+7 mode 2 active 1
+# clone, 6 throttle-only streams after the change: belt inactive share
+3.3 %

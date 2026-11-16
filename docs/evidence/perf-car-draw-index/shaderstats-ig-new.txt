@@ -1,0 +1,6 @@
+# RADV_DEBUG=shaderstats,nir, bench race 960x540 8 frames; car modules (cube=1 FS / ssbo=1 VS)
+   6 FRAG fs_alpha_test              cube=1 ssbo=  1/smem   0 push= 1 nirscratch=  0 VGPR=32 SGPR=108 scratch=0 waves=32 instr=403 VMEM=2 SMEM=19 lat=3520
+   4 FRAG fs_alpha_test              cube=1 ssbo=  1/smem   0 push= 1 nirscratch=  0 VGPR=32 SGPR=108 scratch=0 waves=32 instr=404 VMEM=2 SMEM=19 lat=3526
+   6 FRAG fs_main                    cube=1 ssbo=  1/smem   0 push= 1 nirscratch=  0 VGPR=32 SGPR=108 scratch=0 waves=32 instr=397 VMEM=2 SMEM=19 lat=3150
+   4 FRAG fs_main                    cube=1 ssbo=  1/smem   0 push= 1 nirscratch=  0 VGPR=32 SGPR=108 scratch=0 waves=32 instr=398 VMEM=2 SMEM=19 lat=3156
+  20 VERT vs_main                    cube=0 ssbo=  1/smem   0 push= 1 nirscratch=  0 VGPR=48 SGPR=108 scratch=0 waves=20 instr=337 VMEM=3 SMEM=16 lat=718

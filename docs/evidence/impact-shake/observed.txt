@@ -1,0 +1,82 @@
+# The impact shake, original (Wine, parity cave at 60 fps) and clone, per scenario (tools/parity/scenarios).
+# hit row = first frame with the weighted car +0x80 >= 250; start = first frame the slot runs; dur = frames the slot runs (and seconds);
+# shaken views = frames whose view takes a non-zero offset (the strobe); peak rot = the rule's turn (a, b) on the recorded view.
+crash_wall           native hit row 190 w  481.1 start row 190 (+0) amp 0.1328 m dur 0.567 s (33 frames, 19 shaken views) peak disp 0.1328 m peak rot 0.91 deg
+crash_wall           clone  hit row 201 w  458.8 start row 201 (+0) amp 0.1277 m dur 0.550 s (32 frames, 18 shaken views) peak disp 0.1277 m peak rot 0.89 deg
+impact_wall_bumper   native hit row 192 w  455.9 start row 192 (+0) amp 0.1271 m dur 0.550 s (32 frames, 17 shaken views) peak disp 0.1271 m peak rot 0.85 deg
+impact_wall_bumper   clone  hit row 201 w  458.8 start row 201 (+0) amp 0.1277 m dur 0.550 s (32 frames, 18 shaken views) peak disp 0.1277 m peak rot 0.84 deg
+impact_wall_150      native hit row 62 w 1316.7 start row 62 (+0) amp 0.1600 m dur 0.700 s (41 frames, 26 shaken views) peak disp 0.1600 m peak rot 0.82 deg
+impact_wall_150      clone  hit row 66 w  938.0 start row 66 (+0) amp 0.1600 m dur 0.700 s (41 frames, 26 shaken views) peak disp 0.1600 m peak rot 0.66 deg
+impact_drop native hit None no shake
+impact_drop clone hit None no shake
+prop_barrels_120     native hit row 64 w  385.6 start row 64 (+0) amp 0.1110 m dur 0.467 s (27 frames, 15 shaken views) peak disp 0.1110 m peak rot 1.18 deg
+prop_barrels_120     clone  hit row 65 w  409.2 start row 65 (+0) amp 0.1164 m dur 3.483 s (208 frames, 25 shaken views) peak disp 0.1164 m peak rot 1.24 deg
+
+# Original's view 1 eye: the measured shift (eye minus the strobe-off frames' line) against the rule's −offset (crash_wall)
+194 pred [0.052, 0.074, 0.001] meas [0.059, 0.073, 0.001]
+195 pred [0.05, 0.071, 0.001] meas [0.055, 0.069, 0.001]
+198 pred [0.043, 0.061, 0.001] meas [0.047, 0.061, 0.002]
+199 pred [0.041, 0.058, 0.001] meas [0.044, 0.058, 0.002]
+202 pred [0.036, 0.051, 0.001] meas [0.038, 0.046, 0.001]
+203 pred [0.035, 0.05, 0.001] meas [0.039, 0.044, 0.001]
+206 pred [0.032, 0.045, 0.0] meas [0.039, 0.043, 0.001]
+207 pred [0.031, 0.043, 0.0] meas [0.034, 0.045, 0.001]
+210 pred [0.025, 0.036, 0.0] meas [0.022, 0.031, 0.001]
+211 pred [0.023, 0.033, 0.0] meas [0.019, 0.028, 0.001]
+214 pred [0.018, 0.025, 0.0] meas [0.02, 0.024, 0.001]
+215 pred [0.016, 0.023, 0.0] meas [0.02, 0.021, 0.001]
+218 pred [0.011, 0.015, 0.0] meas [0.01, 0.017, 0.001]
+219 pred [0.009, 0.012, 0.0] meas [0.004, 0.014, 0.0]
+
+# Original's view 1 forward axis: the rule's turn against the measured one
+## crash_wall
+194 pred turn 0.611° meas turn 0.621°  pred-vs-meas 0.063°
+195 pred turn 0.584° meas turn 0.594°  pred-vs-meas 0.056°
+198 pred turn 0.508° meas turn 0.511°  pred-vs-meas 0.053°
+199 pred turn 0.481° meas turn 0.483°  pred-vs-meas 0.051°
+202 pred turn 0.421° meas turn 0.418°  pred-vs-meas 0.045°
+203 pred turn 0.412° meas turn 0.404°  pred-vs-meas 0.066°
+206 pred turn 0.370° meas turn 0.356°  pred-vs-meas 0.060°
+207 pred turn 0.361° meas turn 0.346°  pred-vs-meas 0.044°
+210 pred turn 0.297° meas turn 0.289°  pred-vs-meas 0.009°
+211 pred turn 0.276° meas turn 0.269°  pred-vs-meas 0.009°
+214 pred turn 0.216° meas turn 0.207°  pred-vs-meas 0.011°
+215 pred turn 0.194° meas turn 0.177°  pred-vs-meas 0.031°
+218 pred turn 0.130° meas turn 0.120°  pred-vs-meas 0.013°
+219 pred turn 0.106° meas turn 0.108°  pred-vs-meas 0.013°
+## impact_wall_bumper
+196 pred turn 0.549° meas turn 0.490°  pred-vs-meas 0.061°
+197 pred turn 0.519° meas turn 0.468°  pred-vs-meas 0.069°
+200 pred turn 0.439° meas turn 0.361°  pred-vs-meas 0.086°
+201 pred turn 0.418° meas turn 0.344°  pred-vs-meas 0.074°
+204 pred turn 0.376° meas turn 0.394°  pred-vs-meas 0.042°
+205 pred turn 0.367° meas turn 0.389°  pred-vs-meas 0.040°
+208 pred turn 0.333° meas turn 0.356°  pred-vs-meas 0.027°
+211 pred turn 0.278° meas turn 0.317°  pred-vs-meas 0.040°
+212 pred turn 0.255° meas turn 0.284°  pred-vs-meas 0.032°
+215 pred turn 0.197° meas turn 0.201°  pred-vs-meas 0.011°
+216 pred turn 0.175° meas turn 0.187°  pred-vs-meas 0.015°
+219 pred turn 0.111° meas turn 0.170°  pred-vs-meas 0.076°
+220 pred turn 0.089° meas turn 0.139°  pred-vs-meas 0.064°
+## impact_wall_150
+67 pred turn 0.553° meas turn 0.553°  pred-vs-meas 0.002°
+68 pred turn 0.536° meas turn 0.538°  pred-vs-meas 0.016°
+69 pred turn 0.513° meas turn 0.520°  pred-vs-meas 0.012°
+72 pred turn 0.457° meas turn 0.462°  pred-vs-meas 0.012°
+73 pred turn 0.440° meas turn 0.441°  pred-vs-meas 0.019°
+74 pred turn 0.417° meas turn 0.428°  pred-vs-meas 0.021°
+77 pred turn 0.381° meas turn 0.386°  pred-vs-meas 0.018°
+78 pred turn 0.376° meas turn 0.376°  pred-vs-meas 0.016°
+79 pred turn 0.364° meas turn 0.363°  pred-vs-meas 0.011°
+82 pred turn 0.335° meas turn 0.333°  pred-vs-meas 0.012°
+83 pred turn 0.323° meas turn 0.329°  pred-vs-meas 0.029°
+84 pred turn 0.312° meas turn 0.311°  pred-vs-meas 0.013°
+87 pred turn 0.266° meas turn 0.266°  pred-vs-meas 0.009°
+88 pred turn 0.249° meas turn 0.248°  pred-vs-meas 0.009°
+89 pred turn 0.233° meas turn 0.231°  pred-vs-meas 0.012°
+92 pred turn 0.188° meas turn 0.187°  pred-vs-meas 0.008°
+93 pred turn 0.171° meas turn 0.171°  pred-vs-meas 0.008°
+94 pred turn 0.155° meas turn 0.154°  pred-vs-meas 0.003°
+97 pred turn 0.105° meas turn 0.110°  pred-vs-meas 0.006°
+98 pred turn 0.094° meas turn 0.093°  pred-vs-meas 0.007°
+99 pred turn 0.077° meas turn 0.078°  pred-vs-meas 0.001°
