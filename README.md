@@ -154,7 +154,7 @@ report it.
 
 Overbright ships no texture art. In the launcher, Mods… adds texture mods you already have: TexMod packages
 (`.tpf`), TexWizard packs (a folder with `meta.json` and `textures.bin`, a `.zip` of one, or the packs a
-TexWizard install in your game folder loads) and the HD HUD mod's folder. Mods belong to their authors and
+TexWizard install in your game folder loads) and the HD HUD mod (its HUD part, extracted, and its map part). Mods belong to their authors and
 stay on your computer; Overbright neither ships nor downloads any
 ([docs/texture-packs.md](docs/texture-packs.md)).
 

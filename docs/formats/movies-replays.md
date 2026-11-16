@@ -717,9 +717,10 @@ vtable 0x788018, update 0x453F50).
     0x12 mover's +0x84 is set (typed tracks only; 0x828655 = 1), when
     0x441B40(car) > 0 (car +0xB8 < 0, or the flight prediction 0x5EC3E0(3)
     over 1 / 1.5) or car +0xB8 < 0; with no track drawn it goes back to a
-    chase view (0x5FA830). **Open** in the clone: the airborne re-pick
-    (0x441B40), the 1.5 s chase hold before a track (the car test 0x5F1500
-    is `track_camera::eye_in_car`);
+    chase view (0x5FA830). Ported (docs/replay-cameras.md): the airborne
+    re-pick (0x441B40 > 0: upside down, or Jump's long predicted flight,
+    `long_flight`) and the 1.5 s chase hold before a track
+    (`ReplayCamera::gate`; the car test 0x5F1500 is `track_camera::eye_in_car`);
     **inferred**: the view's velocity as the eye's change over the clone
     frame, the piece count of 0x5E7EE0.
   - The clone's black frame (side-by-side 09) was a route shot the clone

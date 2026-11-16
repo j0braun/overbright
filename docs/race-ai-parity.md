@@ -282,8 +282,8 @@ and steps its world update counter from `world_n`). **Verified** = traced in SPE
   scenario are meaningful only to ~frame 260.
 * World draws per frame (`[run] counters`, scenario `circuit_s1_pinned_counts`): the original
   draws 3 offsets at the green and again after 5 s, one odds draw (0x408280) per pass / avoid
-  taken (rows 36, 45, 83: the clone the same), 3 per drivetrain reroll (0x594720, every shift:
-  the clone's drivetrains draw a generator of their own, not this work) and
+  taken (rows 36, 45, 83: the clone the same), 3 per drivetrain reroll (0x594720, every shift;
+  the clone's drivetrains now draw them from the world generator too, docs/rng.md "Drivetrain rerolls") and
   further draws the clone does not make: 4 at every whole second (rows 60 k) and ~5 more on the
   frame an avoid starts (**open**: not traced; candidates the AI nitrous strategy 0x416F70 and
   the avoid plan's trial paths).
@@ -505,7 +505,7 @@ Fix list `docs/native-fixes/TRAF-FIX.tsv`; evidence `docs/evidence/traf-fix/`.
   are told apart from the walk rule's by the two gates (`gate-traf`, then `gate-traf2`).
 * **Draws (world generator, free roam standing at the stand, 60 s)**: the traffic stream 0.28 a
   frame (`pick_lane` 0.19, the placer's search and lane draws 0.09); the original 6.30 a frame of
-  which the drivetrain rerolls 6.00 (not wired in the clone), the rest 0.30 (RNG-T: lanes
+  which the drivetrain rerolls 6.00 (not wired in the clone then; now ported, docs/rng.md), the rest 0.30 (RNG-T: lanes
   0.20–0.38, placer 0.08). The earlier "12 lane picks a frame" is gone from today's tree
   (`pick_lane` is called only from the placers). The encounter placer's search walk (racer_search,
   `sim/encounters`, 0x415130) drew a further ≈ 0.7 a frame — **open**, not this unit's files.

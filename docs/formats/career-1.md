@@ -238,7 +238,10 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
     (0xE170F115, icon 0x2BDB0653); locked until the cost category's level
     3 unlocks (0x52A1B0). The toggles are plain option objects (vtable
     0x79BE3C: only a destructor); the accept is the parts browser's
-    (0x5664A0 at 0x566F12, carbon mode +0x1D5, slot 0x60 / 0x5D): the
+    (0x5664A0, carbon mode +0x1D5, slot 0x60 / 0x5D). It first asks "Do
+    you want to convert …?" with No focused (0x566686..0x566728 trunk,
+    0x566895..0x5669E3 kits; No 0xB4623F67 → 0x5674D8; ported,
+    docs/car-materials.md); Yes (0x51123592) goes on at 0x566F12: the
     slot's other part (the non-none one while none is on, else the none
     one), in a career bought first unless owned (0x521BF0 → 0x503DB0):
     0x528A00 takes its 0x514280 price (level 3: the category's level-3
