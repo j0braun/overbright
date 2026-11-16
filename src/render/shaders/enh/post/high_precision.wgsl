@@ -25,14 +25,18 @@ fn fs_bleach_hdr(in: VsOut) -> @location(0) vec4<f32> {
 
 // overbright.efx's C (the prefiltered image, as its 8-bit target holds
 // it: saturated) and A = overbright(C).
-@fragment
-fn fs_overbright_mrt_hdr(in: VsOut) -> OverbrightOut {
-    let c = sat(filter_taps(in.uv));
+fn overbright_mrt_hdr(uv: vec2<f32>) -> OverbrightOut {
+    let c = sat(filter_taps(uv));
     var out: OverbrightOut;
     out.c = c;
     // (x · g)² reaches 3.1 at white: saturated as A's 8-bit target is.
     out.a = sat(overbright_of(c));
     return out;
+}
+
+@fragment
+fn fs_overbright_mrt_hdr(in: VsOut) -> OverbrightOut {
+    return overbright_mrt_hdr(in.uv);
 }
 
 // A Gaussian of σ = params.w texels along offsets[0].xy (one texel), two

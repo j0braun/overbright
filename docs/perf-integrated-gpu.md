@@ -696,7 +696,10 @@ factor image compared bit by bit):
   17.5–28.4 ms at 1920×1080 (above), so such a level would be measured there first.
 * High's full glow (High Precision Post Ultra) is 10.4 ms at 1920×1080 on
   the integrated GPU (1.4 at High Precision Post High); High is not an
-  integrated-GPU level in any case.
+  integrated-GPU level in any case. With the blur only where it can be lit
+  (docs/hdr-post.md) the glow chain measured 9.5 → 5.3 ms at High and
+  1.56 → 1.03 ms at Medium (World Detail 3, racing, the build machine's
+  slow state; docs/perf-budget.md "The glow's blur where it can be lit").
 
 ### What the machine proposes, per GPU class
 

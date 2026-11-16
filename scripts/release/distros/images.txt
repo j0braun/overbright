@@ -1,0 +1,19 @@
+# The distributions run.sh tries: name, image, package family (the packages each family installs: run.sh).
+# deb: apt with libasound2; deb-eol: the same for a release past its security support; deb64: apt with
+# libasound2t64 (Ubuntu 24.04+, Debian 13+); rpm: dnf; arch: pacman; suse: zypper. SteamOS 3 is Arch
+# with Valve's packages: "arch" stands in for it (same library names; SteamOS's glibc is older than Arch's).
+ubuntu-20.04     docker.io/library/ubuntu:20.04                     deb
+ubuntu-22.04     docker.io/library/ubuntu:22.04                     deb
+ubuntu-24.04     docker.io/library/ubuntu:24.04                     deb64
+mint-22          docker.io/linuxmintd/mint22-amd64:latest           deb64
+debian-11        docker.io/library/debian:11                        deb-eol
+debian-12        docker.io/library/debian:12                        deb
+debian-13        docker.io/library/debian:13                        deb64
+fedora-40        registry.fedoraproject.org/fedora:40               rpm
+fedora-41        registry.fedoraproject.org/fedora:41               rpm
+fedora-latest    registry.fedoraproject.org/fedora:latest           rpm
+alma-8           docker.io/library/almalinux:8                      rpm
+alma-9           docker.io/library/almalinux:9                      rpm
+arch             docker.io/library/archlinux:latest                 arch
+opensuse-leap    registry.opensuse.org/opensuse/leap:15.6           suse
+opensuse-tw      registry.opensuse.org/opensuse/tumbleweed:latest   suse

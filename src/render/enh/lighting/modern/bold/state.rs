@@ -155,7 +155,10 @@ pub fn scene_modern(opts: &crate::render::RenderOptions) -> u8 {
 /// The world's group 0 layout for Modern + RT (the frame layout and the
 /// traced scene at binding 11).
 pub fn frame_layout_rt(device: &wgpu::Device) -> wgpu::BindGroupLayout {
-    crate::render::frame_layout_with(device, &[rt_layout_entry(), crate::render::rt_shadow::layout_entry()])
+    crate::render::frame_layout_with(
+        device,
+        &[rt_layout_entry(), crate::render::rt_shadow::layout_entry(), crate::render::rt_shadow::layout_entry_uniform()],
+    )
 }
 
 impl crate::render::WorldRenderer {
@@ -173,6 +176,10 @@ impl crate::render::WorldRenderer {
         let tlas = frame_rt().map_or_else(|| placeholder_tlas(gpu), |f| f.tlas);
         let vis =
             self.rt_shadow.as_ref().map_or_else(|| crate::render::rt_shadow::placeholder(gpu), |r| r.vis().clone());
+        let grid = self
+            .rt_shadow
+            .as_ref()
+            .map_or_else(|| crate::render::rt_shadow::placeholder_uniform(gpu), |r| r.uniform().clone());
         let [e3, e4, e5, e6, e7, e8, e9, e10, e12, e13, e14] = lamps.entries();
         device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("frame (modern lighting rt)"),
@@ -193,6 +200,8 @@ impl crate::render::WorldRenderer {
                 // 15: the half-resolution pass's traced blocks (an empty 1 × 1 target until the
                 // first traced frame).
                 wgpu::BindGroupEntry { binding: 15, resource: wgpu::BindingResource::TextureView(&vis) },
+                // 16: its uniform (the grid's scale).
+                wgpu::BindGroupEntry { binding: 16, resource: grid.as_entire_binding() },
                 // 12–14: Wet Road Interaction.
                 e12,
                 e13,

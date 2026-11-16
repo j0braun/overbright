@@ -100,7 +100,8 @@ const STEPS_HALF: f32 = 48.0;
 const STEPS_FULL: f32 = 64.0;
 
 /// Pipelines by pass: copy, linear, down, trace, denoise, composite;
-/// the copy and composite tested against the mask's depth.
+/// the copy and composite tested against the mask's depth; the composite
+/// added onto a half-float scene by the blend (no copy).
 enum Pass {
     Copy,
     Linear,
@@ -110,7 +111,23 @@ enum Pass {
     Composite,
     CopyMasked,
     CompositeMasked,
+    CompositeAdd,
+    CompositeAddMasked,
 }
+
+/// The blend of [`Pass::CompositeAdd`]: the change added, the alpha kept.
+const ADD_CHANGE: wgpu::BlendState = wgpu::BlendState {
+    color: wgpu::BlendComponent {
+        src_factor: wgpu::BlendFactor::One,
+        dst_factor: wgpu::BlendFactor::One,
+        operation: wgpu::BlendOperation::Add,
+    },
+    alpha: wgpu::BlendComponent {
+        src_factor: wgpu::BlendFactor::Zero,
+        dst_factor: wgpu::BlendFactor::One,
+        operation: wgpu::BlendOperation::Add,
+    },
+};
 
 pub(crate) struct Targets {
     /// The scene's size and the trace's.
@@ -336,15 +353,18 @@ impl Ssr {
                 bind_group_layouts: &[Some(&layouts[usize::from(ms)])],
                 immediate_size: 0,
             });
-            let make =
-                |vs: &str, entry: &str, formats: &[wgpu::TextureFormat], depth: Option<wgpu::DepthStencilState>| {
-                    let targets: Vec<_> = formats
-                        .iter()
-                        .map(|&format| {
-                            Some(wgpu::ColorTargetState { format, blend: None, write_mask: wgpu::ColorWrites::ALL })
-                        })
-                        .collect();
-                    crate::render::core::device_cache::render_pipeline(gpu, &wgpu::RenderPipelineDescriptor {
+            let make_blended = |vs: &str,
+                                entry: &str,
+                                formats: &[wgpu::TextureFormat],
+                                depth: Option<wgpu::DepthStencilState>,
+                                blend: Option<wgpu::BlendState>| {
+                let targets: Vec<_> = formats
+                    .iter()
+                    .map(|&format| Some(wgpu::ColorTargetState { format, blend, write_mask: wgpu::ColorWrites::ALL }))
+                    .collect();
+                crate::render::core::device_cache::render_pipeline(
+                    gpu,
+                    &wgpu::RenderPipelineDescriptor {
                         label: Some(entry),
                         layout: Some(&pl),
                         vertex: wgpu::VertexState {
@@ -364,7 +384,12 @@ impl Ssr {
                         multisample: wgpu::MultisampleState::default(),
                         multiview_mask: None,
                         cache: gpu.disk_pipeline_cache(),
-                    })
+                    },
+                )
+            };
+            let make =
+                |vs: &str, entry: &str, formats: &[wgpu::TextureFormat], depth: Option<wgpu::DepthStencilState>| {
+                    make_blended(vs, entry, formats, depth, None)
                 };
             vec![
                 make("vs_main", "fs_copy", &[scene_format], None),
@@ -380,6 +405,8 @@ impl Ssr {
                 make("vs_main", "fs_composite", &[scene_format], None),
                 make("vs_mask", "fs_copy", &[scene_format], Some(mask_test())),
                 make("vs_mask", "fs_composite", &[scene_format], Some(mask_test())),
+                make_blended("vs_main", "fs_composite_add", &[scene_format], None, Some(ADD_CHANGE)),
+                make_blended("vs_mask", "fs_composite_add", &[scene_format], Some(mask_test()), Some(ADD_CHANGE)),
             ]
         })
     }
@@ -573,9 +600,13 @@ impl Ssr {
         };
         let clear = wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT);
         let dummy = &self.dummy;
+        // A half-float scene takes the composite's change by the blend:
+        // no copy (the debug views read the copy).
+        let add = scene_format == crate::render::HDR_FORMAT && !debug;
         // The scene's copy (what the composite adds to; the trace reads
         // the scene itself, unchanged until the composite).
         match mask_depth {
+            _ if add => {}
             Some(d) => pass(
                 encoder,
                 "ssr copy",
@@ -655,6 +686,18 @@ impl Ssr {
         crate::prof::gpu::mark(encoder, "graphics: ssr filter");
         let composite_group = group(&frame.depth, &self.dummy, &t.copy, true, &t.filtered, &self.dummy);
         match mask_depth {
+            Some(d) if add => pass(
+                encoder,
+                "ssr composite",
+                &[scene],
+                wgpu::LoadOp::Load,
+                Some((d, false)),
+                Pass::CompositeAddMasked,
+                &composite_group,
+            ),
+            None if add => {
+                pass(encoder, "ssr composite", &[scene], wgpu::LoadOp::Load, None, Pass::CompositeAdd, &composite_group)
+            }
             // Only the mask's pixels: the others keep the scene (the
             // composite's `base` there).
             Some(d) => pass(
@@ -1303,6 +1346,7 @@ mod tests {
                 "fs_denoise",
                 "fs_copy",
                 "fs_composite",
+                "fs_composite_add",
             ] {
                 assert!(module.entry_points.iter().any(|e| e.name == entry), "{entry}");
             }
@@ -1312,6 +1356,43 @@ mod tests {
         assert!(src.contains("    if term.a <= 0.002 || z <= 0.0 {\n        return vec4<f32>(0.0);\n    }"));
         assert!(src.contains("        mask = select(0.5, 0.0, !(term.a <= 0.002 || surface.w <= 0.0));"));
         assert!(src.contains("    if textureLoad(term_tex, m, 0).a <= 0.002 {\n        return centre;\n    }"));
+    }
+
+    /// A ray whose confidence is 0 whatever it meets (`facing`'s lower
+    /// edge) is not marched: the same threshold as the confidence, before
+    /// the march, outside the debug views.
+    #[test]
+    fn zero_confidence_rays_are_not_marched() {
+        let src = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/render/ssr.wgsl"));
+        let skip =
+            src.find("    if p.right.w < 1.5 && r.z <= -0.4 {\n        return vec4<f32>(0.0);\n    }").expect("skip");
+        let facing = src.find("let facing = smoothstep(-0.4, -0.05, r.z);").expect("facing");
+        let march = src.find("for (var i = 0; i < steps; i = i + 1) {").expect("march");
+        assert!(skip < march && march < facing);
+        // The confidence's other factors are at most 1: 0 stays 0.
+        assert!(src.contains("return vec4<f32>(colour, edge * travel * facing);"));
+    }
+
+    /// The composite's two forms take one change: the copy's adds it to
+    /// the scene's colour as it was (8-bit scenes, the debug views), the
+    /// blend's (half-float scenes) returns it alone and the blend adds it
+    /// to the scene, its alpha kept; nothing where the change is none.
+    #[test]
+    fn both_composites_take_the_same_change() {
+        let src = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/render/ssr.wgsl"));
+        assert!(src.contains("    let change = composite_change(c, frag.xy);\n    if change.w == 0.0 {\n        return base;\n    }\n    return vec4<f32>(base.rgb + change.rgb, base.a);"));
+        assert!(src.contains("    return vec4<f32>(composite_change(vec2<i32>(frag.xy), frag.xy).rgb, 0.0);"));
+        assert!(src.contains("    return vec4<f32>(term.a * tint.rgb * (refl - planar), 1.0);"));
+        let change = src.split("fn composite_change(").nth(1).unwrap().split("\n}\n").next().unwrap();
+        assert_eq!(change.matches("return vec4<f32>(0.0);").count(), 3);
+        assert_eq!(
+            (ADD_CHANGE.color.src_factor, ADD_CHANGE.color.dst_factor),
+            (wgpu::BlendFactor::One, wgpu::BlendFactor::One)
+        );
+        assert_eq!(
+            (ADD_CHANGE.alpha.src_factor, ADD_CHANGE.alpha.dst_factor),
+            (wgpu::BlendFactor::Zero, wgpu::BlendFactor::One)
+        );
     }
 
     #[test]

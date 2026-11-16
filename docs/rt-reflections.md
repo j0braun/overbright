@@ -62,7 +62,7 @@ Windows/DX12 (wgpu: Vulkan only), iGPUs (excluded by design).
   already hold every street lamp's pool (docs/lamps-shadows.md "Pools too bright"), so the
   bake alone is the lit colour (an inference from the bright-lamps fix; no material system).
 * **Trace**: the SSR trace pass in a variant (`rt::trace_source`: ssr.wgsl
-  + rt.wgsl, its four anchors rewritten; the SSR modules are untouched).
+  + rt.wgsl, its five anchors rewritten; the SSR modules are untouched).
   Where the screen march is unsure (confidence < 0.98: misses, off-screen
   and behind-camera rays, rays toward the camera, near-plane early outs)
   one ray query (300 m) fills the rest: `rgb = (ssr·c + rt·(1−c)·conf) / a`.
@@ -83,10 +83,10 @@ pass's march is faster in the pixel shaders' 64 (measured, docs/perf-budget.md
 "Wave sizes"). So, where the device allows it, the rays leave the fragment
 pass (27–45 % of the trace's pixels need one in the scenes measured):
 * **The trace's fragment pass** is the RT form with each `rt_fill(c, …)`
-  call replaced by `rt_keep(c, …)` (the same four places): where `rt_fill`
+  call replaced by `rt_keep(c, …)` (the same five places): where `rt_fill`
   would trace (its own test, `!(c.a >= 0.98)`) the pixel goes into a list
-  (`x | y << 15`, bit 31 for the three places whose result is 0) and, for
-  the fourth, the march's f32 result `c` beside it; the pass writes `c` as
+  (`x | y << 15`, bit 31 for the four places whose result is 0) and, for
+  the march's own result, its f32 `c` beside it; the pass writes `c` as
   before. No ray query in it. An `atomicAdd` per listed pixel gives its
   slot; every 64th also raises the compute pass's group count
   (`atomicMax`, the indirect dispatch's x; y and z stay 1).
@@ -174,7 +174,7 @@ ssr.wgsl once; the RT module parses and validates in naga),
 `enh.ssr` clamps at 3. GPU check: `cargo run --release -p devprobes --bin rt_probe`.
 The ray list: `render::rt::tests::list_sources_follow_the_rt_form` (both
 modules parse and validate, both depth forms; the fragment pass is the RT
-form with its four `rt_fill` calls sent to `rt_keep` and no ray query; the
+form with its five `rt_fill` calls sent to `rt_keep` and no ray query; the
 compute pass's head is fs_trace's text; one query),
 `list_pixels_pack_in_15_bits`;
 `render::ssr::tests::ray_list_traces_what_the_fragment_form_traces` (GPU

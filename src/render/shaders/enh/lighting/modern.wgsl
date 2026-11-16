@@ -264,15 +264,6 @@ fn ml_relight(p: vec3<f32>, bake: vec3<f32>, ng_in: vec3<f32>, n_in: vec3<f32>, 
     let tx = u32(clamp(floor((ndc.x * 0.5 + 0.5) * tiles.x), 0.0, tiles.x - 1.0));
     let ty = u32(clamp(floor((ndc.y * 0.5 + 0.5) * tiles.y), 0.0, tiles.y - 1.0));
     let z = dot(p - frame.camera.xyz, frame.forward.xyz);
-    #if MLRT
-    // BEGIN MLRT
-    // The view depth's screen slope (this pixel's plane, for the
-    // traced blocks' weights; here, in uniform control flow).
-    let dpx = dpdxFine(p);
-    let dpy = dpdyFine(p);
-    let dz = vec2<f32>(dot(dpx, frame.forward.xyz), dot(dpy, frame.forward.xyz));
-    // END MLRT
-    #endif
     let slice = u32(clamp(floor(log(max(z, frame.cluster_near.x) / frame.cluster_near.x) * frame.cluster.w), 0.0, frame.cluster.z - 1.0));
     let c = (slice * u32(tiles.y) + ty) * u32(tiles.x) + tx;
     let first = clusters[c * 2u];
@@ -327,14 +318,10 @@ fn ml_relight(p: vec3<f32>, bake: vec3<f32>, ng_in: vec3<f32>, n_in: vec3<f32>, 
     // The half-resolution pass traced the two strongest lights of
     // each block (ranked as here, with the share floor; not on ceilings):
     // the blocks around this pixel, and the lights they hold (two corner
-    // blocks'). Those lights' traced visibility replaces their fallback in
-    // the loop below. The characters' pipelines rank and trace here.
+    // blocks'), gathered first (`ml_vis_early`). Those lights' traced
+    // visibility replaces their fallback in the loop below. The characters'
+    // pipelines rank and trace here.
     let rt_blocks = !D9_ML_CHAR && P.rays > 0u && ng.z >= -0.3;
-    var rt_ids = vec4<u32>(0u);
-    if rt_blocks {
-        ml_vis_find(p, z, dpx, dpy, dz, ng);
-        rt_ids = g_vis_ids;
-    }
     // END MLRT
     #endif
     for (var i = 0u; i < n_lights; i++) {
@@ -380,9 +367,9 @@ fn ml_relight(p: vec3<f32>, bake: vec3<f32>, ng_in: vec3<f32>, n_in: vec3<f32>, 
         // the traced low LOD would shade them).
         let w = now * dot(colour, vec3<f32>(0.33));
         if rt_blocks && l.colour.w > -1.5 {
-            let key = clusters[first + i] + 1u;
-            if any(rt_ids == vec4<u32>(key)) {
-                let traced = ml_vis(key - 1u);
+            var found = false;
+            let traced = ml_vis_slot(clusters[first + i] + 1u, &found);
+            if found {
                 if traced >= 0.0 {
                     g_ml_traced += 0.25;
                     // Faces the light grazes are left lit (the traced low

@@ -43,6 +43,9 @@ pub(in crate::render) struct ViewsPlan {
     /// Modern + RT's traced shadows, between the pre-pass and the
     /// colour pass.
     pub(in crate::render) rt_shadow: Option<rt_shadow::Plan>,
+    /// The main view's road draws this frame with a dry road (wet.x 0):
+    /// their pipelines without the Wet Roads branch (`DepthPrepass::equal_dry`).
+    pub(in crate::render) dry_road: bool,
 }
 
 /// By section number, whether a frame draws it: the visibility list's
@@ -184,6 +187,9 @@ impl WorldRenderer {
         };
         // Wet Road Interaction: its bindings in the main view's group.
         let lamp_frame = self.plan_wet_road(gpu, lamp_frame, params.opts);
+        // The road's Wet Roads branch runs where wet.x > 0.5 (the frame's
+        // value from here on): without it, the dry set.
+        let dry_road = main_uniform.wet[0] <= 0.5;
         *self.core.lamp_main.write().unwrap() = lamp_frame.clone();
         // The main view's draw with the scene's pipelines.
         let lamp_frame = lamp_frame.map(|_| self.core.scene_group());
@@ -225,6 +231,7 @@ impl WorldRenderer {
             lamp_shadows,
             hide_water: self.hide_water,
             rt_shadow,
+            dry_road,
         }
     }
 
@@ -484,6 +491,7 @@ impl WorldRenderer {
             self.rt_shadow.get_or_insert_with(|| rt_shadow::RtShadow::new(gpu)).prepare(
                 gpu,
                 size,
+                self.screen_size,
                 main_proj,
                 params.camera.position,
                 scene_mode.clear_depth(),

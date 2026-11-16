@@ -76,8 +76,10 @@ pub mod trace {
     fn tid() -> u64 {
         #[cfg(target_os = "linux")]
         {
-            // SAFETY: gettid has no preconditions.
-            unsafe { libc::gettid() as u64 }
+            // SAFETY: the gettid system call has no preconditions. Called through
+            // syscall: glibc's own gettid() wrapper needs glibc 2.30, the release
+            // build runs on 2.28 (scripts/release/check_linux.sh).
+            unsafe { libc::syscall(libc::SYS_gettid) as u64 }
         }
         #[cfg(not(target_os = "linux"))]
         {

@@ -73,7 +73,7 @@ into the binaries: `--no-build` keeps the one of the earlier build, so a changed
 | `listing <archive>` | the archive holds exactly the allow-listed files (a tool binary, a stray file → FAIL) |
 | `zip text files: CRLF` | Notepad-friendly text in the Windows archive |
 | `version stamp <binary>` | all four binaries carry the version and commit of the archive's name |
-| `check_linux.sh` (both Linux programs) | no x86 ISA note, glibc ≤ 2.35, NEEDED allow-list, no RPATH, no `/home/` |
+| `check_linux.sh` (both Linux programs) | no x86 ISA note, glibc ≤ 2.28, NEEDED allow-list, no RPATH, no `/home/` |
 | `check_pe.py --gui` (both exes) | system DLLs only, GUI subsystem, icon + version + manifest resources, no home paths |
 | `game --selftest` / `--dev-harness` | the developer harness is not in the shipping game (usage error, rc 2) |
 | `no harness strings` | the maintainer's save names and the harness's flags and variables are absent (both games) |
@@ -216,6 +216,131 @@ second commit or a tag, and a public `Cargo.lock` that still holds the private m
 the plain resolve both fail) or lost a public package (the overlay fails). The synthetic source is a real
 two-member cargo workspace, so the plain-resolve line runs there too.
 
+## Changes after the first release
+
+The public repository's history goes on there: every later change reaches it as a pull request that is
+reviewed and merged on GitHub. `scripts/release/sync_pr.sh` makes one from a commit of the development
+repository:
+
+```
+scripts/release/sync_pr.sh --branch perf/batch-e --title "<title>" --body-file <pr body.md> [--rev <commit>] \
+    [--message-file <commit body>] [--repo j0braun/overbright] [--base main] [--work <dir>] [--no-push]
+```
+
+- **What goes in:** the commit's public tree, selected exactly as for the clean repository (`public_tree.py
+  --rev`: private.list applied, the private workspace members left out of `Cargo.toml` and `Cargo.lock`),
+  copied over a new branch of a fresh clone of the public repository (files the commit no longer has are
+  deleted on the branch). The branch is one new commit on top of the public base: no commit of the
+  development repository and none of its history leaves it.
+- **The checks before the commit** (any FAIL stops it): no branch file on private.list; `scan.py text`
+  (scopes tree, public, all) and `scan.py binary` at 0 on the branch's tree; the development folder's old name
+  in no file name or content; no private pattern in the commit message; a plain `cargo metadata` leaves the
+  tree unchanged. The scans need `families.private.txt`: run it from the full development tree.
+- **The commit:** author and committer `j0braun <52372377+j0braun@users.noreply.github.com>`, `git commit
+  -s` (the DCO check of `.github/workflows/dco.yml`), the co-author line of `clean_repo.py`'s
+  `COMMIT_CREDIT_LINES`. The push and `gh pr create` use gh's credentials. The script refuses the base
+  branch's name and a branch that exists already; it never merges and never pushes to the base.
+- `--no-push` stops after the commit and leaves the clone in the work folder (default `sync-pr-work` next
+  to the development repository) for a look.
+
+## Linux: what a player needs
+
+The requirements as README.md and the archive's README.txt state them, and how they were measured.
+
+- **64-bit x86** (x86-64). No newer instruction set: `check_linux.sh` fails a binary with an "x86 ISA
+  needed" note.
+- **glibc 2.28 or newer.** The Linux programs are linked in an AlmaLinux 8 image
+  (`container/Containerfile.linux`, glibc 2.28, the manylinux_2_28 base); `check_linux.sh` fails a binary
+  that names a newer glibc symbol version. Before, they were linked on Ubuntu 22.04 (glibc 2.35), which
+  shut out Ubuntu 20.04, Debian 11 and RHEL / AlmaLinux / Rocky 8 and 9.
+- **Libraries the programs link**: glibc's own (`libc`, `libm`, `libdl`, `libpthread`), `libgcc_s`,
+  `libudev.so.1` (systemd) and, for the game, `libasound.so.2` (ALSA). Every desktop install has them; a
+  minimal or container image may lack `libasound2` / `alsa-lib` (then the game does not start, the
+  launcher does).
+- **Libraries loaded at run time**: the Vulkan loader `libvulkan.so.1` and a driver; on X11 `libX11`,
+  `libX11-xcb`, `libXcursor`, `libXi`, `libxkbcommon`, `libxkbcommon-x11`; on Wayland
+  `libwayland-client` and `libxkbcommon`. The X11 ones measured with `LD_DEBUG=files` on the launcher and
+  the game's probe, the Wayland ones read from the programs' strings (no Wayland session was run); a
+  desktop has them all.
+- **A Vulkan driver**, Mesa 22 or newer for AMD and Intel graphics, or NVIDIA's own driver. The oldest
+  driver that drew real frames here is lavapipe from Mesa 22.3 (Debian 12). Lavapipe from Mesa 21.2
+  (Ubuntu 20.04) and 20.3 (Debian 11) is found but cannot draw: wgpu reports a limit of 3 storage
+  buffers per fragment shader for it, the game's frame layout uses 4 (a wgpu validation error at the
+  first frame). Whether the real-GPU drivers
+  of Mesa 21.x (RADV, ANV) draw was not tested: no such hardware in a container.
+- **Sound**: ALSA, directly or through PulseAudio's or PipeWire's ALSA plugin.
+
+**No Vulkan driver.** On Linux the game draws only with Vulkan, so "no adapter" means no loader or no
+driver. `src/platform/vulkan.rs` words it for the player and names the packages for the distribution
+(`/etc/os-release`: apt, dnf, pacman, zypper; any other: "the Vulkan loader and Mesa's Vulkan drivers"):
+
+> no Vulkan driver for this graphics card was found. Overbright draws with Vulkan: install one with
+> "sudo apt install libvulkan1 mesa-vulkan-drivers" (Mesa 22 or newer; for an NVIDIA card, NVIDIA's own
+> driver), then start again
+
+(or "the Vulkan loader (libvulkan.so.1) is not installed. … install it and the driver with …"). The
+probe (`game --probe`) gives it as its `error=` line, which the launcher shows as its Graphics card line
+(state `no-vulkan` of `overbright --render`); the game prints it when its window gets no surface or
+adapter ("could not open a window: …", which the launcher's failure screen shows after Play). Before,
+the launcher showed wgpu's "No suitable graphics adapter found; noop not requested, vulkan
+drivers/libraries could not be loaded, metal support not compiled in, …" and the game "Failed to create
+surface for any enabled backend: {}". Started directly from a file manager the game has no terminal to
+print into and shows nothing; the menu entry (`overbright.desktop`) starts the launcher. Tests:
+`platform::vulkan` (the families and the line), `launcher::tests::no_vulkan_driver_says_what_to_install`,
+the render baseline `tests/launcher/state-no-vulkan-1366x768@150.png`, and `tests/no_vulkan.rs` (the
+built game's probe with the loader pointed at a driver file that does not exist).
+
+### The distributions it was run on
+
+`scripts/release/distros/run.sh <linux archive> <out dir>` (with `NFSU2_ROOT`; `DEV_GAME` = the harness
+game of the same build, `container/build.sh --dev-harness`) runs the archive in a rootless podman
+container of each distribution in `scripts/release/distros/images.txt`: the image as pulled (ldd,
+`--version`) and the image with the packages a desktop has (the Vulkan loader and Mesa's software
+driver lavapipe, Xvfb, the X11, xkbcommon, ALSA and udev libraries), where it runs `--version` of both
+programs, `game --check-game` on the game folder mounted read-only, `game --probe` on lavapipe, the
+harness game's headless shots `main` and `explore` (real frames, the menu and free roam), and the
+launcher on an X server inside the container (one screenshot, the libraries it loaded). `--novk` adds
+Ubuntu 24.04 without the Vulkan loader and with the loader but no driver (the lines quoted above). The containers get no
+network, no devices (no sound, no GPU) and nothing of the host's display. Result per distribution:
+works = every step passed.
+
+| distribution | glibc | lavapipe (Mesa) | glibc 2.35 build (before) | glibc 2.28 build (now) |
+|---|---|---|---|---|
+| Ubuntu 20.04 | 2.31 | 21.2.6 | does not start (needs glibc 2.35) | starts, checks the game, finds lavapipe, launcher; lavapipe 21.2 cannot draw (above) |
+| Ubuntu 22.04 | 2.35 | 23.2.1 | works | works |
+| Ubuntu 24.04 | 2.39 | 25.2.8 | works | works |
+| Linux Mint 22 (`linuxmintd/mint22-amd64`) | 2.39 | 25.2.8 | works | works |
+| Debian 11 | 2.31 | 20.3.5 | does not start | starts, checks the game, finds lavapipe, launcher; lavapipe 20.3 cannot draw (above) |
+| Debian 12 | 2.36 | 22.3.6 | works | works |
+| Debian 13 | 2.41 | 25.0.7 | works | works |
+| Fedora 40 | 2.39 | 24.1.7 | works | works |
+| Fedora 41 | 2.40 | 25.0.7 | works | works |
+| Fedora 45 (`fedora:latest`) | 2.44 | 26.2.6 | works | works |
+| AlmaLinux 8.10 (RHEL 8 family) | 2.28 | 23.1.4 | does not start | starts, checks the game, launcher; its lavapipe fails its own `vkCreateInstance` (`vulkaninfo` too), so the launcher shows the no-Vulkan line: no frames |
+| AlmaLinux 9.8 (RHEL 9 family) | 2.34 | 25.2.7 | the launcher starts, the game does not (needs 2.35) | works |
+| Arch (stands in for SteamOS) | 2.44 | 26.2.7 | works | works |
+| openSUSE Leap 15.6 | 2.38 | 23.3.4 | works | works |
+| openSUSE Tumbleweed | 2.44 | 26.2.6 | works | works |
+
+Every image as pulled lacks `libasound.so.2` (the Mint image excepted): a minimal install, not a desktop.
+Ubuntu-based distributions (Linux Mint 20–22, Pop!_OS, elementary, Zorin) have their base's glibc and
+Mesa; SteamOS 3 is Arch-based (its first releases had glibc 2.33, later ones newer), stood in for by the
+Arch container. The same harness game built in both images (Ubuntu 22.04 and AlmaLinux 8) drew the same
+pictures (`main`, `explore`, `race`: identical PNG bytes) with identical simulation state hashes
+(`NFSU2_STATE_HASH`, 181 and 91 steps) in one Ubuntu 24.04 container. Not run: real GPUs and drivers,
+Wayland sessions, distributions outside the table.
+
+**What the older floor costs.** The Windows programs are built as before (the same `Containerfile` and
+image); only Linux moved to `Containerfile.linux`. One code change: the profiler's thread id comes from
+the `gettid` system call instead of glibc's `gettid()`, which needs glibc 2.30. Linked against glibc
+2.28, the binaries name `libdl.so.2` and `libpthread.so.0` (in `check_linux.sh`'s allow-list: newer
+glibc keeps them as compatibility libraries) and the older symbol versions of `exp`, `log`, `pow`
+and `hypot`, which on a newer glibc run the same functions (only their error reporting for overflow
+differs; inferred from glibc's sources, not measured). On glibc older than 2.35 the huge-page malloc
+tunable that the game's start sets (docs/developer-guide.md, "Malloc on huge pages") does not exist and
+is ignored: the "system" allocator that machines under 10 GiB of RAM use then loads races more slowly;
+the default allocator is unaffected (inferred, not measured on such a machine).
+
 ## What a human must still do
 
 1. Tag the commit and run the script with `SOURCE_URL` set to the public repository (the placeholder is in
@@ -223,7 +348,8 @@ two-member cargo workspace, so the plain-resolve line runs there too.
    private files (`scripts/release/private.list`) are not part of it, so publish the scrubbed tree, then build
    from that commit.
 2. Test on real Windows 10/11 (Wine does not prove DX12, DPI, SmartScreen, NTFS, real drivers:
-   docs/platform-windows.md, docs/launcher.md) and on a second Linux distribution.
+   docs/platform-windows.md, docs/launcher.md), and on Linux with real GPUs (the distributions above ran
+   in containers, on Mesa's software driver).
 3. Decide about `dxcompiler.dll`. It is **not bundled**: without it, DX12 uses FXC (slower pipeline builds,
    no multiview cube; Vulkan is preferred anyway). To ship it, put `dxcompiler.dll`, `dxil.dll` (from
    Microsoft's DirectXShaderCompiler release, `bin/x64/`) and its licence as `LICENSE-DXC.txt` in a folder

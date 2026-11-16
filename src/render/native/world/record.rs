@@ -137,6 +137,7 @@ impl WorldCore {
             plan.fade.as_ref().map(|(b, m)| (b, &m[..])),
             plan.rt_shadow.as_ref(),
             plan.wet_mask.as_ref(),
+            plan.dry_road,
         );
         crate::prof::gpu::mark(encoder, "world: main view");
         if let Some(m) = &plan.wet_mask {
@@ -615,6 +616,7 @@ impl WorldCore {
             None,
             None,
             None,
+            false,
         );
     }
 
@@ -712,6 +714,8 @@ impl WorldCore {
         // The SSR mask, whose term and surface the main view's road then
         // writes where it can ([`super::plan::MaskMrt`]). -> whether it did.
         mask: Option<&super::plan::WetMaskPlan>,
+        // The road dry (`wet` ≤ 0.5): its dry-road pipelines where it has them.
+        dry_road: bool,
     ) -> bool {
         let is_reflection = sky.is_none();
         let scene = self.scene_pipelines();
@@ -883,10 +887,13 @@ impl WorldCore {
                 }
                 None => (native, false),
             };
-            // A draw the pre-pass drew tests EQUAL against its depth.
+            // A draw the pre-pass drew tests EQUAL against its depth (the
+            // road's on a dry road: its dry set, `DepthPrepass::equal_dry`).
             let (pipelines, is_equal) = match equal {
                 Some(e) if in_depth_prepass(d.key, d.sky, scene.mode.coverage) => {
-                    (&e.equal[if faded.is_some() { 1 + usize::from(dither) } else { 0 }], true)
+                    let f = if faded.is_some() { 1 + usize::from(dither) } else { 0 };
+                    let dry = &e.equal_dry[f];
+                    (if dry_road && dry.contains_key(&d.key) { dry } else { &e.equal[f] }, true)
                 }
                 _ => (pipelines, false),
             };
@@ -1157,6 +1164,13 @@ impl WorldRenderer {
         self.view_size = size;
     }
 
+    /// The output's size the scene is shown at: Modern + RT's traced
+    /// shadows take their blocks from it when the scene is supersampled
+    /// (`rt_shadow::grid`).
+    pub fn set_screen_size(&mut self, size: (u32, u32)) {
+        self.screen_size = size;
+    }
+
     pub fn render_async(
         &mut self,
         gpu: &Gpu,
@@ -1248,6 +1262,13 @@ pub(in crate::render) fn scene_pipelines_for(
                         shared.equal_pipelines(device, arrays, mode, scene_format, f)
                     }
                 }),
+                equal_dry: [0, 1, 2].map(|f| {
+                    if f > 0 && !lod_fade {
+                        HashMap::new()
+                    } else {
+                        DepthPrepass::dry_for(shared, device, arrays, mode, scene_format, f)
+                    }
+                }),
             })
         }),
         characters: if mode.modern == 2 {
@@ -1295,7 +1316,29 @@ pub fn warm_scene_programs(gpu: &Gpu, format: wgpu::TextureFormat, samples: u32,
     if mode.modern == 2 {
         rt_shadow::RtShadow::new(gpu).warm(gpu, mode.samples > 1);
     }
-    if opts.rain_detail != 0 || opts.spray || opts.wet_interaction != 0 {
+    if weather_passes(opts) {
         crate::render::weather_fx::WeatherFx::new(gpu).warm(mode.target(format), mode.samples);
     }
+}
+
+/// Whether `opts`' frames draw the rain's and spray's passes (their
+/// programs made with the first rain).
+fn weather_passes(opts: &RenderOptions) -> bool {
+    opts.rain_detail != 0 || opts.spray || opts.wet_interaction != 0
+}
+
+/// The programs a front-end scene's world (the main menu's and the shops'
+/// garage scenes, `WorldRenderer::set_samples` at the frame's count) takes
+/// beyond [`warm_scene_programs`]'s: the weather passes for its own target
+/// and `samples` ([`SceneMode::current`] with the temporal pass off, as
+/// those frames run). A garage's renderer is made in its visit's first
+/// tick and its weather passes with the first rain drawn there; these go
+/// into the device's cache, where its [`crate::render::weather_fx::WeatherFx`]
+/// then finds them (a drive's at the same target and count are found made).
+pub fn warm_front_scene_programs(gpu: &Gpu, format: wgpu::TextureFormat, samples: u32, opts: &RenderOptions) {
+    if !weather_passes(opts) {
+        return;
+    }
+    let front = SceneMode::current(&RenderOptions { temporal_frame: false, ..*opts }, samples);
+    crate::render::weather_fx::WeatherFx::new(gpu).warm(front.target(format), front.samples);
 }

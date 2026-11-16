@@ -142,6 +142,9 @@ pub struct WorldRenderer {
     /// (0, 0) unknown): what the Graphics page's Road Reflection Res sizes
     /// view 4 from.
     pub(in crate::render) view_size: (u32, u32),
+    /// The output's size ([`WorldRenderer::set_screen_size`]): Modern + RT's
+    /// traced shadows follow it when the scene is supersampled.
+    pub(in crate::render) screen_size: (u32, u32),
     /// Modern + RT's half-resolution traced shadows (made on first use).
     pub(in crate::render) rt_shadow: Option<rt_shadow::RtShadow>,
     /// Basis used by retained cube faces; reset when storage changes.
@@ -385,6 +388,7 @@ impl WorldRenderer {
             anim_mask_drawn: false,
             anim_mask_time: None,
             view_size: (0, 0),
+            screen_size: (0, 0),
             rt_shadow: None,
             environment_enhanced: None,
             env_tick: None,

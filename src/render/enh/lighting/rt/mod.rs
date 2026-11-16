@@ -53,7 +53,7 @@ mod tests {
             assert_eq!(ssr.matches(from).count(), 1, "{from}");
         }
         let s = trace_source(ssr);
-        assert_eq!(s.matches("rt_fill(").count(), 5); // 4 calls + the definition
+        assert_eq!(s.matches("rt_fill(").count(), 6); // 5 calls + the definition
         assert!(s.starts_with("enable wgpu_ray_query;"));
         // It parses and validates (naga, no GPU).
         let module = wgpu::naga::front::wgsl::parse_str(&s).expect("parse");
@@ -79,7 +79,7 @@ mod tests {
     /// The ray list's two modules (docs/rt-reflections.md "The ray
     /// list"), for both depth forms: the fragment pass is the RT form with
     /// each `rt_fill` call's result sent to `rt_keep` instead (the same
-    /// four places, zero for the three whose result is 0) and holds no ray
+    /// five places, zero for the four whose result is 0) and holds no ray
     /// query; the compute pass's `rt_ray` is fs_trace's head as written,
     /// then `rt_fill`; both parse and validate (naga, no GPU).
     #[test]
@@ -87,8 +87,8 @@ mod tests {
         let ssr = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/render/ssr.wgsl"));
         for src in [ssr.to_string(), crate::render::ssr::multisampled(ssr)] {
             let frag = list_trace_source(&src);
-            assert_eq!(frag.matches("rt_keep(").count(), 5); // 4 calls + the definition
-            assert_eq!(frag.matches("rt_keep(vec4<f32>(0.0), frag.xy, true)").count(), 3);
+            assert_eq!(frag.matches("rt_keep(").count(), 6); // 5 calls + the definition
+            assert_eq!(frag.matches("rt_keep(vec4<f32>(0.0), frag.xy, true)").count(), 4);
             assert!(!frag.contains("rayQuery") && !frag.contains("ray_query;") && !frag.contains("rt_fill("));
             for ((from, rt), (from_list, list)) in ANCHORS.iter().zip(LIST_ANCHORS.iter()) {
                 assert_eq!(from, from_list);

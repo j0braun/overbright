@@ -1,5 +1,5 @@
 #!/bin/bash
-# Runs inside the release image (Containerfile), started by build.sh. Mounts:
+# Runs inside a release image (Containerfile: Windows, Containerfile.linux: Linux), started by build.sh. Mounts:
 #   /src         the source tree (read-only)       /cargo-home  the crate cache (CARGO_HOME)
 #   /target-linux, /target-windows                 cargo's target directories (kept between runs)
 #   /dist        the binaries this run delivers
@@ -14,7 +14,9 @@ if [ "${MODE:-build}" = fetch ]; then
     exit 0
 fi
 ldd --version | sed -n 1p
-x86_64-w64-mingw32-gcc --version | sed -n 1p
+gcc --version | sed -n 1p
+# mingw-w64 is only in the Windows image (Containerfile).
+if command -v x86_64-w64-mingw32-gcc > /dev/null; then x86_64-w64-mingw32-gcc --version | sed -n 1p; fi
 # Paths in panic messages and debug info: the tree and the crate cache under neutral names (RUSTFLAGS,
 # set per target in build() below).
 # Ubuntu 22.04's mingw-w64 (8.0) headers default to Windows Server 2003 (_WIN32_WINNT 0x0502) and

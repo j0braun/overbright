@@ -418,16 +418,24 @@ fn world_text_is_the_old_file() {
     // the light-cluster loop's subgroup form (`#if !SUBGROUPS`, and the per-cluster sum moved from
     // `lamp_light` into `cluster_light` for both forms: the same operations; the native modules unchanged); then
     // 112_837, 0xe5fb_dd21_26a5_33a1 before the cars and lamps culled per light cluster (docs/lamps-shadows.md) and the SSR mask from the main view's entries (`world_masks.wgsl`: new
-    // entry points and their one binding only).
-    assert_old_text(ShaderId::World, 122_409, 0xaebe_c9e7_6e96_b63a);
+    // entry points and their one binding only); then 122_409, 0xaebe_c9e7_6e96_b63a before the traced shadows'
+    // steps, made in parallel from 111_658 (there: 114_001, 0x15b1_5077_1229_66a9; 116_653, 0x719f_eb19_7d8b_d114;
+    // 117_249, 0xfbcb_61e4_6fd5_6c42; 117_718, 0xe375_ee4a_fa27_9b69): Modern + RT's gather moved to the top of the
+    // colour functions (`ml_vis_early`; the native and the lamps' modules unchanged, Modern's by two comment lines),
+    // the gather's two exact short cuts (`ml_vis_taps`: uniform blocks, no light; Modern + RT's module only), the
+    // blocks' grid scale (`ml_vis_grid`; Modern + RT's module only) and the road's dry-road override (`D9_WET`; the
+    // lamps' modules only).
+    assert_old_text(ShaderId::World, 128_469, 0xe290_d4d5_ea1d_c825);
 }
 
 #[test]
 fn postfx_text_is_the_old_file() {
     // Re-pinned for SSAA's resolve to the screen's size (`post_scale.wgsl`'s compute resolve and its last pass,
     // docs/ssaa-screen-passes.md: new entry points only; every older entry point unchanged, the shots without SSAA
-    // byte-identical): was 19_324, 0x7dcc_3c3e_3dc0_2856.
-    assert_old_text(ShaderId::PostFx, 25_013, 0x741f_c83a_0cec_45cc);
+    // byte-identical): was 19_324, 0x7dcc_3c3e_3dc0_2856. Then for the glow skip (High Precision Post's two
+    // prefilters each split into a function and its entry, which the flagging entries in `glow_skip.wgsl` call;
+    // `native/post/post.wgsl` unchanged, the native gate byte-identical): was 25_013, 0x741f_c83a_0cec_45cc.
+    assert_old_text(ShaderId::PostFx, 25_189, 0x931f_0f74_33c6_4cb7);
 }
 
 #[test]

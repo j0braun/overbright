@@ -203,6 +203,17 @@ only where the mask needs them, with the same shaders per pixel.
 * `NFSU2_SSR_FULL=1` (A/B aid): the copy and composite over every pixel
   as before; the debug views always do. A mask depth of another size or
   format falls back to that too.
+* **A half-float scene (High Precision Post) takes the composite by the
+  blend** (`fs_composite_add`, `ADD_CHANGE`): the composite's change
+  (`composite_change`, the same code the copy's form adds) is returned
+  alone and added onto the scene by ONE / ONE with the alpha kept, so the
+  scene is not copied first. Not exact: the sum is rounded once by the
+  blend rather than by the target's write: at most two 8-bit steps on
+  0.03–0.28 % of the pixels of a 3840x2160 frame (one on nearly all of
+  them), 1 − SSIM ≤ 2.3e-6, means unchanged; under FSR 1 the upscale's
+  sharpening takes a few of them further (at most 12 steps on 3 pixels of
+  29 million) (docs/evidence/perf-budget/ssr-composite.md).
+  An 8-bit scene keeps the copy (its target would clamp a negative change).
 
 ### The mask from the main view
 The mask pass drew the road a second time to work out `wet_surface` again, the term the main view had just
@@ -322,3 +333,21 @@ red, the wall and the alpha are unchanged, no validation error).
 `enh.ssr 3` (Ray Traced (experimental), Vulkan discrete GPUs, after a restart): the trace pass's
 ray-query variant completes the screen march's misses (off screen, behind the camera); filter and
 composite as above, the chrome-flicker fix's dry-road hold included.
+
+## The road's dry-road pipelines (registers)
+The Wet Roads branch of `reflect_colour` (`if frame.wet.x > 0.5 { wet_surface … }`) runs only once rain
+has wetted the road, but its terms set the road function's register allocation in every frame: with the
+lamps' module the road's pixel shader needed 143 registers per lane on the reference desktop GPU
+(Modern: 144 allocated, 10 waves per SIMD; Modern + RT: 153–161, 168, 9 waves) and 79–80 on the
+integrated GPU at Medium (80, 12 waves); without the branch 115–116 (120, 12 waves), 123–125
+(144, 10 waves) and 60–62 (64, 16 waves). So the main view's road draws that the depth pre-pass
+covers (`DepthPrepass::equal`) also have a dry-road set (`DepthPrepass::equal_dry`, `LF_DRY`): the
+same pipelines with the override `D9_WET` false, which compiles the branch out. A frame takes it when
+its own wet.x is 0 (`ViewsPlan::dry_road`, decided where the uniform is written), so the branch it
+leaves out is one that frame would not have taken: frames identical, dry and wet. Both sets are made
+with the scene's pipelines (the load's warm-up, the menus' programs made ahead, `--prepare`): rain
+wetting the road mid-drive switches sets without making anything (`first_use.rs`,
+`rain_starting_mid_drive_makes_no_programs`). Six more pipelines per scene mode (two road keys,
+three LOD Fade forms; cold, `--prepare` with the player's options made 359 instead of 353, +0.45 s);
+the lamps' modules only (the native module's text is unchanged). Numbers:
+`docs/perf-budget.md` "Modern + RT's traced shadows: the colour shader's registers".

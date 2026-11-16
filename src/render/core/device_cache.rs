@@ -215,18 +215,30 @@ pub fn bind_group_layout(gpu: &Gpu, desc: &wgpu::BindGroupLayoutDescriptor<'_>) 
 
 /// A pipeline layout, one per list of groups and immediates size.
 pub fn pipeline_layout(gpu: &Gpu, desc: &wgpu::PipelineLayoutDescriptor<'_>) -> wgpu::PipelineLayout {
+    pipeline_layout_in(&gpu.device_cache, &gpu.device, desc)
+}
+
+fn pipeline_layout_in(cache: &DeviceCache, device: &wgpu::Device, desc: &wgpu::PipelineLayoutDescriptor<'_>) -> wgpu::PipelineLayout {
     let key = (desc.bind_group_layouts.iter().map(|g| g.cloned()).collect(), desc.immediate_size);
-    gpu.device_cache.pipeline_layouts.get_or(key, || gpu.device.create_pipeline_layout(desc))
+    cache.pipeline_layouts.get_or(key, || device.create_pipeline_layout(desc))
 }
 
 /// A render pipeline, one per descriptor (label and pipeline cache aside).
 /// Counted in [`crate::render::pipelines_built`] when made.
 #[track_caller]
 pub fn render_pipeline(gpu: &Gpu, desc: &wgpu::RenderPipelineDescriptor<'_>) -> wgpu::RenderPipeline {
-    let device = &gpu.device;
-    let at = std::panic::Location::caller();
+    render_pipeline_in(&gpu.device_cache, &gpu.device, gpu.tag, std::panic::Location::caller(), desc)
+}
+
+fn render_pipeline_in(
+    cache: &DeviceCache,
+    device: &wgpu::Device,
+    tag: u64,
+    at: &'static std::panic::Location<'static>,
+    desc: &wgpu::RenderPipelineDescriptor<'_>,
+) -> wgpu::RenderPipeline {
     let make = || {
-        crate::render::core::gpu::note_pipeline_at(at, gpu.tag);
+        crate::render::core::gpu::note_pipeline_at(at, tag);
         timed_at(&PIPELINE_NS, at, || device.create_render_pipeline(desc))
     };
     let key = RenderKey {
@@ -247,7 +259,35 @@ pub fn render_pipeline(gpu: &Gpu, desc: &wgpu::RenderPipelineDescriptor<'_>) -> 
             .map(|f| (StageKey::of(f.module, f.entry_point, &f.compilation_options), f.targets.to_vec())),
         multiview_mask: desc.multiview_mask,
     };
-    gpu.device_cache.render.get_or(key, make)
+    cache.render.get_or(key, make)
+}
+
+/// What [`render_pipeline`] and [`pipeline_layout`] take of a [`Gpu`], kept
+/// by a pass that makes its pipelines at its first draw of a target, where
+/// no `Gpu` is at hand: the same device cache, so a warm-up's copy of the
+/// pass (another object, made earlier) leaves those draws nothing to build.
+#[derive(Clone)]
+pub struct Programs {
+    device: wgpu::Device,
+    tag: u64,
+    cache: Arc<DeviceCache>,
+}
+
+impl Programs {
+    pub fn of(gpu: &Gpu) -> Programs {
+        Programs { device: gpu.device.clone(), tag: gpu.tag, cache: gpu.device_cache.clone() }
+    }
+
+    /// [`pipeline_layout`].
+    pub fn pipeline_layout(&self, desc: &wgpu::PipelineLayoutDescriptor<'_>) -> wgpu::PipelineLayout {
+        pipeline_layout_in(&self.cache, &self.device, desc)
+    }
+
+    /// [`render_pipeline`].
+    #[track_caller]
+    pub fn render_pipeline(&self, desc: &wgpu::RenderPipelineDescriptor<'_>) -> wgpu::RenderPipeline {
+        render_pipeline_in(&self.cache, &self.device, self.tag, std::panic::Location::caller(), desc)
+    }
 }
 
 /// A compute pipeline, one per descriptor (label and pipeline cache

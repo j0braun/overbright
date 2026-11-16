@@ -51,7 +51,7 @@ pub fn named_app<'e>(env: &'e FakeEnv, fonts: &Fonts, name: &str, w: u32, h: u32
 
 /// The named states: (name, the screen it is shown on). The fake data of
 /// each comes from [`state_model`].
-pub const STATES: [(&str, Screen); 29] = [
+pub const STATES: [(&str, Screen); 30] = [
     ("no-game", Screen::FirstRun),
     ("check-ok", Screen::Check),
     ("wrong-version", Screen::Check),
@@ -60,6 +60,7 @@ pub const STATES: [(&str, Screen); 29] = [
     ("checking", Screen::Main),
     ("first-start", Screen::Main),
     ("probe-failed", Screen::Main),
+    ("no-vulkan", Screen::Main),
     ("long-values", Screen::Main),
     ("unofficial", Screen::About),
     ("start-failed", Screen::Failure),
@@ -149,6 +150,19 @@ pub fn state_model(name: &str) -> Option<(Screen, Model)> {
         "first-start" => {
             // Before the game's first run, the probe done: the display rows
             // show the values the game's first start would pick.
+            m.settings_file = false;
+        }
+        "no-vulkan" => {
+            // The probe found no adapter: an Ubuntu machine with the Vulkan
+            // loader but no driver for its card (`platform::vulkan`).
+            let mut p = FakeEnv::probe();
+            p.adapter = None;
+            p.first_run = None;
+            p.prepared = None;
+            p.prepared_programs = None;
+            p.gpu_class.clear();
+            p.error = Some(crate::platform::vulkan::line_for(true, Some("ID=ubuntu\nID_LIKE=debian\n")));
+            m.probe = ProbeState::Ready(p);
             m.settings_file = false;
         }
         "probe-failed" => {

@@ -10,8 +10,8 @@ pub(crate) struct Targets {
     /// targets; 1 half the screen's; 2 the screen's), as made.
     pub(super) hdr: Option<u8>,
     /// The glow targets' (A–C) size.
-    glow: (u32, u32),
-    scene: wgpu::Texture,
+    pub(super) glow: (u32, u32),
+    pub(super) scene: wgpu::Texture,
     full: [wgpu::Texture; 2],
     half: [wgpu::Texture; 3],
     pub(super) streak: wgpu::Texture,
@@ -461,6 +461,10 @@ impl PostFx {
         }
         for entry in ["fs_out_add_resolved", "fs_out_add_resolved_a0"] {
             self.pipeline(gpu, entry, out, Blend::Replace);
+        }
+        // The blur where it can be lit (its own pipelines, made once).
+        if self.glow_skip.is_none() && super::glow_skip::supported(gpu) {
+            self.glow_skip = Some(super::glow_skip::GlowSkip::new(gpu, self));
         }
     }
 

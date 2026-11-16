@@ -1,0 +1,36 @@
+# The Linux release build image: AlmaLinux 8 (glibc 2.28, the manylinux_2_28 base), so the Linux binaries
+# run on every x86-64 distribution with glibc >= 2.28, and the same pinned Rust toolchain as the Windows
+# image (Containerfile). Nothing machine-specific: build.sh mounts the source, the crate cache and the
+# target directories at run time. See scripts/release/container/README.md.
+#
+# The base image is pinned by digest (docker.io/library/almalinux:8); the Rust components by version and
+# SHA-256 (https://static.rust-lang.org/dist/<file>.sha256), the same as in Containerfile.
+FROM docker.io/library/almalinux@sha256:1965cb10f9c392766b2d544d3c1b997eb008d0e413c808e6a20086e87c802a80
+
+ARG RUST_VERSION=1.98.0
+ARG SHA_RUSTC=0e37cb339f447fc44d6d781073bacacebfdc5612f2600e4c7e84c266f5f3aced
+ARG SHA_CARGO=2f512d170d3dd23e16ababcda32ee2e6d5172d861a7af1f504e0b1e270cafab9
+ARG SHA_STD_LINUX=f5022e6c95a5ad23cca2513dc8281200f585fa188de6370aa37b128a43f876a3
+
+# A C compiler (mimalloc), ALSA and udev headers (cpal, gilrs), binutils for the checks (readelf, strings).
+RUN dnf -y -q install --setopt=install_weak_deps=False \
+      gcc gcc-c++ make pkgconf-pkg-config alsa-lib-devel systemd-devel ca-certificates curl xz tar gzip \
+      binutils findutils diffutils \
+ && dnf clean all
+
+# Rust from the official standalone component archives (no rustup): rustc, cargo and the Linux standard
+# library, installed into /usr/local.
+RUN set -e; cd /tmp; base=https://static.rust-lang.org/dist; \
+    for pair in "rustc-$RUST_VERSION-x86_64-unknown-linux-gnu $SHA_RUSTC" \
+                "cargo-$RUST_VERSION-x86_64-unknown-linux-gnu $SHA_CARGO" \
+                "rust-std-$RUST_VERSION-x86_64-unknown-linux-gnu $SHA_STD_LINUX"; do \
+      set -- $pair; \
+      curl -fsSL -o "$1.tar.xz" "$base/$1.tar.xz"; \
+      echo "$2  $1.tar.xz" | sha256sum -c -; \
+      tar xJf "$1.tar.xz"; \
+      "$1/install.sh" --prefix=/usr/local --disable-ldconfig >/dev/null; \
+      rm -rf "$1" "$1.tar.xz"; \
+    done; \
+    rustc -V; cargo -V; ls /usr/local/lib/rustlib
+
+ENV CARGO_HOME=/cargo-home

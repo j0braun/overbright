@@ -33,9 +33,13 @@ fn fs_box_hdr(in: VsOut) -> @location(0) vec4<f32> {
 
 // A = overbright(C), saturated as its 8-bit target is (High Precision
 // Post, scaled; `fs_overbright_mrt_hdr`'s second output).
+fn overbright_sat(uv: vec2<f32>) -> vec4<f32> {
+    return sat(overbright_of(tap(uv)));
+}
+
 @fragment
 fn fs_overbright_sat(in: VsOut) -> @location(0) vec4<f32> {
-    return sat(overbright_of(tap(in.uv)));
+    return overbright_sat(in.uv);
 }
 
 // ---------------------------------------------------------------------

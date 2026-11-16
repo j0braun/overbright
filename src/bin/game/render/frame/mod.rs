@@ -463,6 +463,7 @@ impl FrameDraw<'_, '_, '_, '_> {
                 size,
                 samples,
                 ssao_texel_scale: size.1 as f32 / out_size.1.max(1) as f32,
+                out_size,
                 // The frame's clocks between the ticks.
                 clocks: self.v.poses.clocks,
                 settings: t.settings,

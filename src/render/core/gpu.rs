@@ -151,10 +151,11 @@ impl Gpu {
             }
             return Err(last.unwrap_or_else(|| anyhow::anyhow!("no GPU adapter (Vulkan or DX12) that can show the window")));
         }
-        let adapter = instance
-            .request_adapter(&Gpu::adapter_options(compatible_surface))
-            .await
-            .context("no GPU adapter")?;
+        // Linux: the player's line (no Vulkan loader or driver, and the
+        // packages to install; `platform::vulkan`).
+        let adapter = instance.request_adapter(&Gpu::adapter_options(compatible_surface)).await.with_context(|| {
+            if cfg!(target_os = "linux") { crate::platform::vulkan::no_adapter_line() } else { "no GPU adapter".into() }
+        })?;
         Self::open(instance, adapter).await
     }
 

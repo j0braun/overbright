@@ -124,6 +124,9 @@ pub(crate) struct FrameInputs {
     /// The ambient occlusion's texel scale (the scene's height over the
     /// output's).
     pub(crate) ssao_texel_scale: f32,
+    /// The output's size (Modern + RT's traced shadows follow it when the
+    /// scene is supersampled, `WorldRenderer::set_screen_size`).
+    pub(crate) out_size: (u32, u32),
     /// The scene's clocks, the only time the draw reads
     /// (`render::clocks`; the window: the frame's between the ticks; a
     /// shot: the shaders' clock at 0, the blur's at 1 s, the world clock
@@ -543,6 +546,7 @@ impl WorldScene<'_, '_> {
             // The Graphics page's Car Reflection Res and Road
             // Reflection Res (clone deviations) follow these.
             r.sync_environment_size(gpu, opts);
+            r.set_screen_size(inp.out_size);
             if let ScenePath::Window { .. } = path {
                 r.sync_texture_pack(gpu, &d.world);
                 r.set_view_size(size);

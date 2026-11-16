@@ -69,6 +69,13 @@ pub fn drive_msaa_samples(custom: &[u8; 22], gpu: &crate::render::Gpu, opts: &cr
     msaa_samples(custom, gpu, &crate::render::RenderOptions { temporal_frame: opts.temporal, ..*opts })
 }
 
+/// [`msaa_samples`] for a front-end scene's frames (the main menu's and the
+/// shops' garage scenes): the native MSAA, never the temporal pass
+/// (`qol::set_temporal_frame` leaves it off there), whatever a drive takes.
+pub fn front_msaa_samples(custom: &[u8; 22], gpu: &crate::render::Gpu, opts: &crate::render::RenderOptions) -> u32 {
+    msaa_samples(custom, gpu, &crate::render::RenderOptions { temporal_frame: false, ..*opts })
+}
+
 /// `NFSU2_FRAME_CAP=fps`, else the Enhancements page's Frame Rate Cap: an
 /// optional frame cap (off by default, native uncapped; not a game option).
 /// The game loop then starts a frame no sooner than 1 / fps after the last

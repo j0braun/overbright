@@ -15,6 +15,7 @@ use crate::render::Gpu;
 
 mod chain;
 mod fused;
+mod glow_skip;
 mod horizon_fog_pass;
 pub mod lens_drops;
 mod motion_blur_pass;
@@ -128,6 +129,9 @@ pub struct PostFx {
     /// resample at the end, as before [`resolves_first`]
     /// (`NFSU2_SSAA_SCENE_SIZE=post`, for comparisons).
     pub(crate) scene_size_post: bool,
+    /// High Precision Post's blur where it can be lit ([`glow_skip`]; made
+    /// with its set, where the device can take it).
+    glow_skip: Option<glow_skip::GlowSkip>,
 }
 
 /// The rain's part of a frame ([`PostFx::set_rain`]).
@@ -302,6 +306,7 @@ impl PostFx {
             blur_dof: None,
             commit_stamp: None,
             scene_size_post: crate::render::debug_env::ssaa_scene_size("post"),
+            glow_skip: None,
         };
         post.warm(gpu);
         // The fused passes (R3): on once the self-check, run on the GPU now
@@ -1024,7 +1029,35 @@ impl PostFx {
     ) {
         // High Precision Post: C and A at the glow's size (the
         // prefilter), A blurred across, then down with A − C · factor
-        // (held at 0, as the 8-bit target is) in the same pass.
+        // (held at 0, as the 8-bit target is) in the same pass; where the
+        // device can, the blur only where it can be lit ([`glow_skip`]).
+        if let Some(mut skip) = self.glow_skip.take() {
+            if scaled {
+                self.draw(gpu, encoder, &cv.c, inter, "fs_box_hdr", Blend::Replace, cur, PREFILTER, None, None);
+            }
+            let hdr = self.targets.as_ref().and_then(|t| t.hdr).unwrap_or(1);
+            skip.run(gpu, encoder, self, cv, cur, scaled, hdr);
+            self.glow_skip = Some(skip);
+        } else {
+            self.overbright_blur(gpu, encoder, scaled, cv, inter, cur);
+        }
+        crate::prof::gpu::mark(encoder, "post: overbright (high precision)");
+        let add = if frame.front_end { ADD_FRONT_END } else { f64::from(level.add()) / 255.0 };
+        let add = StreakAdd { overbright: Some(add), saturate: true };
+        self.streak_frame(gpu, encoder, &cv.streak, inter, add, streak, glow);
+        crate::prof::gpu::mark(encoder, "post: streaks");
+    }
+
+    /// High Precision Post's prefilter and blur over every texel.
+    fn overbright_blur(
+        &mut self,
+        gpu: &Gpu,
+        encoder: &mut wgpu::CommandEncoder,
+        scaled: bool,
+        cv: &ChainViews,
+        inter: wgpu::TextureFormat,
+        cur: Src,
+    ) {
         if scaled {
             self.draw(gpu, encoder, &cv.c, inter, "fs_box_hdr", Blend::Replace, cur, PREFILTER, None, None);
             self.draw(gpu, encoder, &cv.a, inter, "fs_overbright_sat", Blend::Replace, Src::C, OVERBRIGHT, None, None);
@@ -1044,11 +1077,6 @@ impl PostFx {
         }
         self.draw(gpu, encoder, &cv.b, inter, "fs_blur_hdr", Blend::Replace, Src::A, ACROSS, None, None);
         self.draw(gpu, encoder, &cv.a, inter, "fs_blur_sub_hdr", Blend::Replace, Src::BWithC, DOWN, None, None);
-        crate::prof::gpu::mark(encoder, "post: overbright (high precision)");
-        let add = if frame.front_end { ADD_FRONT_END } else { f64::from(level.add()) / 255.0 };
-        let add = StreakAdd { overbright: Some(add), saturate: true };
-        self.streak_frame(gpu, encoder, &cv.streak, inter, add, streak, glow);
-        crate::prof::gpu::mark(encoder, "post: streaks");
     }
 
     /// The native overbright pass (0x5CCA10) and streak buffer.
@@ -1437,6 +1465,104 @@ mod tests {
                 post.targets.as_ref().unwrap().streak.format(),
                 if hdr != 0 && crate::qol::hdr_active() { want } else { INTERMEDIATE }
             );
+        }
+        crate::qol::Enhancements::default().apply();
+    }
+
+    /// The blur where it can be lit draws what the full passes draw, byte
+    /// for byte (a dark scene with bright texels in the middle and at the
+    /// edges, both glow sizes, a still of three frames; at 1× and under SSAA
+    /// 2x, where the glow's source is the image resolved to the screen's
+    /// size first), and runs on the device.
+    #[test]
+    #[ignore = "requires a GPU; run explicitly for High Precision Post's pipelines"]
+    fn glow_blur_where_lit_is_the_full_blur() {
+        let _globals = crate::qol::test_globals();
+        let gpu = pollster::block_on(Gpu::new(None, wgpu::Instance::default())).unwrap();
+        // The screen.
+        let (w, h) = (96u32, 64u32);
+        let half = |v: f32| -> [u8; 2] {
+            let b = v.to_bits();
+            let e = ((b >> 23) & 0xff) as i32 - 127 + 15;
+            let m = ((b >> 13) & 0x3ff) as u16;
+            if v == 0.0 { [0, 0] } else { (((e as u16) << 10) | m).to_le_bytes() }
+        };
+        // 1×, and SSAA 2x (resolved first).
+        for (sw, sh) in [(w, h), (2 * w, 2 * h)] {
+            let mut data = Vec::new();
+            for sy in 0..sh {
+                for sx in 0..sw {
+                    // single pixels (at the edges too) and a block big
+                    // enough to glow past the subtraction, on black (the
+                    // screen's pixels, each the scene's texels under it)
+                    let (x, y) = (sx * w / sw, sy * h / sh);
+                    let lit = [(5, 7), (48, 30), (95, 63), (0, 40), (70, 0)].contains(&(x, y))
+                        || ((60..84).contains(&x) && (20..44).contains(&y));
+                    let v = if lit { 1.0 } else { 0.0 };
+                    for c in [v, v * 0.8, v * 0.6, 1.0] {
+                        data.extend(half(c));
+                    }
+                }
+            }
+            for hdr in [2u8, 1] {
+                crate::qol::Enhancements { hdr_post: hdr, ..Default::default() }.apply();
+                let opts = crate::render::RenderOptions::in_force();
+                if !crate::qol::hdr_active() {
+                    continue;
+                }
+                let mut frames = Vec::new();
+                for skip in [true, false] {
+                    let mut post = PostFx::new(&gpu, wgpu::TextureFormat::Rgba8Unorm);
+                    post.scene_view(&gpu, (sw, sh), &opts);
+                    if skip {
+                        assert!(post.glow_skip.is_some() || !glow_skip::supported(&gpu));
+                    } else {
+                        post.glow_skip = None;
+                    }
+                    let scene = &post.targets.as_ref().unwrap().scene;
+                    gpu.queue.write_texture(
+                        scene.as_image_copy(),
+                        &data,
+                        wgpu::TexelCopyBufferLayout {
+                            offset: 0,
+                            bytes_per_row: Some(sw * 8),
+                            rows_per_image: Some(sh),
+                        },
+                        scene.size(),
+                    );
+                    let out = gpu.device.create_texture(&wgpu::TextureDescriptor {
+                        label: Some("out"),
+                        size: wgpu::Extent3d { width: w, height: h, depth_or_array_layers: 1 },
+                        mip_level_count: 1,
+                        sample_count: 1,
+                        dimension: wgpu::TextureDimension::D2,
+                        format: wgpu::TextureFormat::Rgba8Unorm,
+                        usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
+                        view_formats: &[],
+                    });
+                    let scope = gpu.device.push_error_scope(wgpu::ErrorFilter::Validation);
+                    post.set_output_size((w, h));
+                    let mut encoder = gpu.device.create_command_encoder(&Default::default());
+                    post.apply(
+                        &gpu,
+                        &opts,
+                        &mut encoder,
+                        &out.create_view(&Default::default()),
+                        Switches::from_detail(5),
+                        Frame::GAME,
+                        3,
+                        false,
+                        &mut |_, _, _| {},
+                    );
+                    gpu.queue.submit([encoder.finish()]);
+                    assert!(pollster::block_on(scope.pop()).is_none(), "scene {sw}x{sh} hdr {hdr} skip {skip}");
+                    frames.push(crate::render::read_back(&gpu, &out, w, h));
+                }
+                assert!(frames[0] == frames[1], "scene {sw}x{sh} hdr {hdr}: the blur where lit differs");
+                // The glow reached the dark pixels (the test sees a glow at all).
+                let px = |f: &Vec<u8>, x: u32, y: u32| f[((y * w + x) * 4) as usize];
+                assert!(px(&frames[0], 57, 32) > px(&frames[0], 30, 50), "scene {sw}x{sh} hdr {hdr}: no glow");
+            }
         }
         crate::qol::Enhancements::default().apply();
     }

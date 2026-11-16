@@ -198,7 +198,20 @@ preset, and neither after a preset is switched to in the menus. `tests::first_us
 with the boot screens up until the work ahead is done, the main menu's
 garage scene (its platform's renderer, the FE car's and its floor
 reflection) makes none in its frames, at every preset (before: the
-reflection set, one pipeline). The
+reflection set, one pipeline).
+
+**The garage scenes' weather passes.** A garage scene's world draws the
+rain's and spray's passes (`WeatherFx`) into its own target at the front
+end's sample count (the native MSAA: the temporal pass is off there,
+`display::front_msaa_samples`). Its renderer is made in the visit's first
+tick, and with rain it built the haze's two pipelines in the scene's first
+frames (seen at High). The weather passes' pipelines now come from the
+device's cache (`device_cache::Programs`), and
+`world::record::warm_front_scene_programs` makes them for that target and
+count: in the menus' work ahead (`drive_programs`, the main menu's garage)
+and in a drive's load warm-up (`loads::warm::warm_passes`, the shops'
+garage scenes over it). A drive's own (`warm_scene_programs`,
+`WorldRenderer::warm_drive_passes`) are now shared the same way. The
 pictures are the gate's (identical). Numbers: docs/perf-budget.md "Load
 times".
 
@@ -468,8 +481,10 @@ turn there and Extreme's rows with Next-Gen water, neither (the water's
 builds were left out of the check before; with them counted the check
 failed at the first tier: three pipelines in the first frame). Not reached:
 rain starting mid-drive (its passes, the spray volume
-and the lens drops' pass are made at the load whatever the weather), the
-shops' garage scenes (the main menu's is checked, above).
+and the lens drops' pass are made at the load whatever the weather). The
+shops' garage scenes are checked by
+`tests::first_use::the_shops_garage_scenes_after_a_load_make_no_program`
+(each shop kind's front end over free roam, at every preset).
 
 The world modules have two forms of the lamps' light-cluster loop, one per device (subgroup operations or
 not, docs/lamps-shadows.md "The cluster loop"): the warm-ups and `game --prepare` make the world's programs

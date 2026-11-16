@@ -17,7 +17,7 @@ pub fn trace_source(ssr: &str) -> String {
 
 /// (ssr.wgsl text, its RT form): the trace's early outs once the ray is
 /// known, its miss and its result.
-pub(in crate::render) const ANCHORS: [(&str, &str); 4] = [
+pub(in crate::render) const ANCHORS: [(&str, &str); 5] = [
     (
         "    if reach <= 0.05 {\n        return vec4<f32>(0.0);\n    }",
         "    if reach <= 0.05 {\n        return rt_fill(vec4<f32>(0.0), origin, r, n, car, term, false);\n    }",
@@ -33,6 +33,12 @@ pub(in crate::render) const ANCHORS: [(&str, &str); 4] = [
     (
         "    return vec4<f32>(colour, edge * travel * facing);\n}",
         "    return rt_fill(vec4<f32>(colour, edge * travel * facing), origin, r, n, car, term, hit_car);\n}",
+    ),
+    // The rays not marched (no confidence whatever they meet): traced as
+    // the march's 0 was.
+    (
+        "    if p.right.w < 1.5 && r.z <= -0.4 {\n        return vec4<f32>(0.0);\n    }",
+        "    if p.right.w < 1.5 && r.z <= -0.4 {\n        return rt_fill(vec4<f32>(0.0), origin, r, n, car, term, false);\n    }",
     ),
 ];
 
@@ -59,11 +65,15 @@ const HEAD_END: &str = "    // The ray's reach: the distance, and not behind the
 /// (ssr.wgsl text, its list form): where the RT form calls `rt_fill`, the
 /// result goes to `rt_keep` (`zero`: the early outs and the miss, whose
 /// result is 0).
-pub(in crate::render) const LIST_ANCHORS: [(&str, &str); 4] = [
+pub(in crate::render) const LIST_ANCHORS: [(&str, &str); 5] = [
     (ANCHORS[0].0, "    if reach <= 0.05 {\n        return rt_keep(vec4<f32>(0.0), frag.xy, true);\n    }"),
     (ANCHORS[1].0, "    if dist < 1.0 {\n        return rt_keep(vec4<f32>(0.0), frag.xy, true);\n    }"),
     (ANCHORS[2].0, "    if !hit {\n        return rt_keep(vec4<f32>(0.0), frag.xy, true);\n    }"),
     (ANCHORS[3].0, "    return rt_keep(vec4<f32>(colour, edge * travel * facing), frag.xy, false);\n}"),
+    (
+        ANCHORS[4].0,
+        "    if p.right.w < 1.5 && r.z <= -0.4 {\n        return rt_keep(vec4<f32>(0.0), frag.xy, true);\n    }",
+    ),
 ];
 
 /// The list's head: the count, then the compute pass's indirect

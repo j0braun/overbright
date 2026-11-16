@@ -195,3 +195,4 @@ docs/prop-hits.md:=6444972c2f97:unit-code:vertex names B0 / A0 of the support qu
 # the co-author credit of the public commit and the README's "How it was made" line
 README.md:=0f173abf5c83:agent-wording:credit line, "How it was made"
 scripts/release/clean_repo.py:=17d27c65d486:agent-wording:the public commit's co-author credit line (COMMIT_CREDIT_LINES)
+scripts/release/distros/images.txt:=44558aeb5a45:hardware:the Arch Linux container image (docker.io/library/archlinux), a distribution the release is run on

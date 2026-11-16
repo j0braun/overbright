@@ -58,6 +58,18 @@ fn world_colour(in: VertexOut, alpha_test: bool, fogged: bool) -> vec4<f32> {
     // BEGIN LAMPS
     // The face normal for Dynamic Lamps, taken in uniform control flow.
     let n = cross(dpdx(in.world_position), dpdy(in.world_position));
+    #if MODERN
+    // BEGIN MODERN
+    #if MLRT
+    // BEGIN MLRT
+    // Modern + RT: the traced blocks first (`ml_vis_early`).
+    if fogged {
+        ml_vis_early(in.world_position, n, in.clip.xy);
+    }
+    // END MLRT
+    #endif
+    // END MODERN
+    #endif
     // Surface Detail: the material and the mapped normal, likewise.
     g_surface = surface_at(in, n);
     // END LAMPS

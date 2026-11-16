@@ -166,3 +166,52 @@ Image metrics vs before (4K, user's settings + Modern + RT; `docs/evidence/perf-
 casino canopy still SSIM 0.9993 (0.6 % of pixels > 2 levels, at shadow edges), rain drive 0.9994–0.9998,
 race start 0.99998; crawl / drive sequences: temporal SD and second differences equal to before
 (±0.2 %). Not native (no counterpart in SPEED2.EXE); the other tiers are byte-identical.
+
+## The gather first (the colour shader's registers)
+The colour pass's 3 × 3 gather of the blocks (`ml_vis_find` → `ml_vis_taps`) ran inside `ml_relight`:
+its four slot ids and eight sums were live across the whole light loop, and the wet road's two
+`lamp_shade` calls inlined it twice in the reflect function. On the reference desktop GPU (gfx11,
+these shaders in wave32: every module with a ray query is compiled at the driver's ray-tracing wave
+size, the characters' rays included) registers are allocated in steps of 24 per lane: the world
+function needed 126 (allocated 144, 10 waves per SIMD), the reflect function 161 (168, 9 waves);
+without the gather 112 (120, 12 waves) and 143 (144, 10 waves). With the gather left out the main
+view is ~1.1 ms faster at 4K and SSAA 2x, while exact short cuts that skip most of its executed work
+saved ~0.1: the gather's cost is the occupancy it takes from the whole colour shader.
+
+Now `ml_vis_early` (mlrt.wgsl) gathers at the top of `world_colour` and `reflect_colour`, before
+Surface Detail and the lighting, from the same inputs (the face normal, the view depth, its screen
+slopes) with the same expressions, and keeps only what the loop reads: the slots' light ids, two to
+a register, and each slot's traced visibility (`ml_vis`, made once); the loop picks it by id
+(`ml_vis_slot`). Frames are identical (racing, race start, night rain at 4K). The world function
+now needs 120 (120, 12 waves) in 22 of its 33 pipelines (the LOD fade's need 122 and stay at 144);
+the reflect function 151–153 (still 168, 9 waves). Main view at the player's 4K settings, racing:
+−0.15 ms (paired median of 6 interleaved runs; `docs/perf-budget.md`). What keeps the reflect
+function at 9 waves: the wet surface's terms (`wet_surface`) are live across the lighting, and
+`wet_surface` writes the roughness the lamps' specular reads (`g_surface`), so the two cannot simply
+swap (tried: the wet road's highlights change).
+
+With the registers freed, two exact short cuts in `ml_vis_taps` pay off (alone, before, they saved
+~0.1 ms; the gather's work was hidden behind the occupancy): where all 3 × 3 blocks hold the centre
+block's lights (two different ones, or one and none) with the same visibility, each fully lit or fully
+shadowed, a light's sum is its weight sum or 0, so only the nine weights are summed (in the same order:
+the same bits); where neither the centre nor the side block holds a light, nothing reads the sums. In
+racing two thirds of the colour shader's waves see no traced light and most of the rest are uniform
+(a counting shader over the blocks: 84–91 % of 8 × 8-pixel tiles take one of the two). A GPU test
+(`gather_short_cuts_are_exact`, `--ignored`) runs today's gather and the full one over blocks holding
+every case and compares their ids and sums bit for bit. Main view: −0.23 ms against before both steps.
+
+
+## The blocks follow the screen under supersampling
+With SSAA (or Render Scale above 100 %) the scene is larger than the screen: at 4K and SSAA 2x
+5431 × 3055 scene pixels, 4.15 M blocks traced. The soft shadows are a smooth signal (area lights,
+the 3 × 3 tent), and the scene's extra pixels added rays without adding shadow detail the screen can
+show. Now (`rt_shadow::grid`) a supersampled scene takes one block per 2 × 2 *screen* pixels
+(1920 × 1080 at 4K: 2.07 M), each sampling the scene pixel under its first screen pixel
+(`rt_shadow.wgsl`, the pass's uniform `misc.yz` = the scene pixels per grid pixel); the colour pass
+reads that scale (`ml_vis_grid`, the same uniform at group 0 binding 16) and still gathers its own
+blocks on its own plane per scene pixel, so silhouettes and the depth / normal weights keep the
+scene's resolution. Without supersampling the scale is exactly 1 and the grid, the sample pixels and
+the gather's arithmetic are the ones before (frames identical). The output's size reaches the world
+renderer through `WorldRenderer::set_screen_size` (`FrameInputs::out_size`). Cost and the picture
+report: `docs/perf-budget.md`, `docs/evidence/perf-budget/rt-shadow-gather.md`. Not native (no
+counterpart in SPEED2.EXE).
