@@ -2042,3 +2042,12 @@ the pixels). Racing, the player's 4K settings: copy + depth pyramid 0.74 → 0.5
 frame 18.70 → 18.28 ms (again on a later tree, after SSAA's resolve: 0.73 → 0.57 and 0.38 → 0.31 ms; with the glow's
 blur where lit, the frame 17.89 → 17.27 ms); integrated GPU 1920×1080 High: 1.07 → 0.80 and 0.74 → 0.60 ms
 (docs/evidence/perf-budget/ssr-composite.md, also the march's counts).
+
+## The falling rain's lamp shading (the native particles' pass)
+
+With the lamps' module the falling rain's drops ran the whole lamp shading per pixel (docs/lamps-shadows.md "The
+falling rain under the lamps"). Alpha-0 fragments are now left before the shading (exact), and the drops take
+their light from their four corners (a probe pass; the colour is linear in the texel). "graphics: native
+particles" in 4K rain at the player's settings: 0.295 → 0.259 (exact step) → 0.032 (probe, "graphics: rain drop
+probe") + 0.029; frame 18.95 → 18.74. Integrated GPU (1080p, World Detail 3): High 0.68–0.70 → 0.05 + 0.24,
+Medium 0.60 → 0.05 + 0.27. Raw runs: `docs/evidence/perf-budget/rain-drops-lit.txt`.

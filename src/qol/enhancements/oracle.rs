@@ -262,10 +262,11 @@ impl Old for Enhancements {
             1 => v.push("texture pack".into()),
             _ => v.push("texture pack lean".into()),
         }
-        match self.skip_title {
-            0 => {}
-            1 => v.push("skip title".into()),
-            _ => v.push("skip movies and title".into()),
+        if self.skips_title() {
+            v.push("skip title".into());
+        }
+        if self.skips_movies() {
+            v.push("skip movies".into());
         }
         v
     }
@@ -480,6 +481,9 @@ impl Old for Enhancements {
         if self.skip_title != d.skip_title {
             out.push_str(&format!("enh.skip_title {}\n", self.skip_title));
         }
+        if self.skip_movies != d.skip_movies {
+            out.push_str(&format!("enh.skip_movies {}\n", u8::from(self.skip_movies)));
+        }
     }
 
     /// An options.txt line's key and value; false when the key is not one
@@ -499,6 +503,7 @@ impl Old for Enhancements {
             }
             "launcher.skip" => self.launcher_skip = value != "0",
             "enh.skip_title" => self.skip_title = value.parse::<u32>().map_or(self.skip_title, |v| v.min(2) as u8),
+            "enh.skip_movies" => self.skip_movies = value != "0",
             "enh.boot_loading_min_ms" => {
                 self.boot_loading_min_ms = value
                     .parse::<u32>()
@@ -764,6 +769,7 @@ pub(super) fn old_preset_base(e: &mut Enhancements) {
         boot_loading_min_ms: qol.boot_loading_min_ms,
         launcher_skip: qol.launcher_skip,
         skip_title: qol.skip_title,
+        skip_movies: qol.skip_movies,
         lists_open_installed: qol.lists_open_installed,
         fix_models: qol.fix_models,
         pad: qol.pad,

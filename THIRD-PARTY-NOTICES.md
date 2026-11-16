@@ -67,3 +67,16 @@ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
+
+## Format references (no code taken)
+
+These mod formats are read by Overbright's own code, written from the public
+sources named here; nothing of them is copied into the tree:
+
+* TexWizard by R-033 (https://github.com/R-033/texwizard, GNU GPL v3.0; release
+  1.3 and its wiki): the pack layout (`meta.json` pairs, `textures.bin`,
+  `scripts/TexWizard.json`, the `TexturePacks` scan) from `TexWizard.h`. Read by
+  `src/formats/texwizard.rs` (docs/texture-packs.md, "TexWizard packs").
+* retex by Depth118 (https://github.com/Depth118/retex, MIT OR Apache-2.0):
+  its notes on TexMod's `.tpf` container, `docs/texmod-format.md`. Read by
+  `src/formats/tpf.rs` (docs/texmod-import.md).

@@ -291,6 +291,9 @@ impl Game {
             // world kept for this one) are checked against this drive's
             // barriers by the warm-up below, and made again if they differ.
             r.new_drive_ambient();
+            // Light Probes baked under the last drive's set-up: those that
+            // see a placement this one switched are baked again.
+            r.new_drive_probes(&drive.world, nfsu2::render::RenderOptions::in_force().light_probes);
         }
         drive.car.set_race(race);
         drive.state.ground.barriers = drive.world.racer_barriers(&barriers);

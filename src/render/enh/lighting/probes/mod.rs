@@ -182,6 +182,41 @@ mod tests {
         assert_eq!(f.plan(Vec3::new(-2000.0, 0.0, 0.0)), BakePlan::Nothing);
     }
 
+    /// A set-up's switch gives up exactly the baked probes whose bake box
+    /// (± far round the probe) holds a switched placement's sphere; the
+    /// next plan bakes those near the car at once, then one at a time.
+    #[test]
+    fn a_switch_gives_up_the_probes_that_see_it() {
+        let mut f = ProbeField::new(vec![
+            Vec3::new(0.0, 0.0, 1.0),
+            Vec3::new(24.0, 0.0, 1.0),
+            Vec3::new(100.0, 0.0, 1.0),
+            Vec3::new(300.0, 0.0, 1.0),
+        ]);
+        for b in &mut f.baked[..3] {
+            *b = Some([Vec3::ONE; 6]);
+        }
+        // Nothing switched: nothing given up.
+        assert!(f.release_seeing(&[], 64.0).is_empty());
+        assert!(!f.rebake);
+        // A sphere at x = 70 (radius 7): probe 0's box reaches 64 (gap 6 <
+        // 7), probe 1 and 2 hold it; probe 3 (unbaked) is left.
+        assert_eq!(f.release_seeing(&[(Vec3::new(70.0, 0.0, 1.0), 7.0)], 64.0), vec![0, 1, 2]);
+        assert!(f.rebake);
+        // A sphere just outside a box's corner: kept.
+        f.baked[0] = Some([Vec3::ONE; 6]);
+        f.rebake = false;
+        assert!(f.release_seeing(&[(Vec3::new(-68.0, 68.0, 1.0), 5.0)], 64.0).is_empty());
+        // The burst after the switch: the given-up probes within the burst
+        // radius, though one in reach is baked.
+        f.baked[0] = None;
+        f.baked[1] = Some([Vec3::ONE; 6]);
+        f.rebake = true;
+        assert_eq!(f.plan(Vec3::new(20.0, 0.0, 1.0)), BakePlan::Burst(vec![0]));
+        f.rebake = false;
+        assert_eq!(f.plan(Vec3::new(20.0, 0.0, 1.0)), BakePlan::One(0));
+    }
+
     #[test]
     fn face_means_and_slots() {
         let row = ROW_BYTES as usize;

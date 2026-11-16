@@ -77,6 +77,8 @@ pub enum RowId {
     TrafficDensity,
     /// Skip Title Screen (docs/start-and-menus.md).
     SkipTitle,
+    /// Skip Intro Movies (docs/start-and-menus.md).
+    SkipMovies,
     SmoothCars,
     /// Photo Mode in Pause Menu (docs/photo-mode.md).
     PhotoMode,

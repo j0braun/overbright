@@ -159,6 +159,7 @@ pub static MODEL: &[RowModel] = &[
     m(RowId::TrafficDensity, GameplayAccessibility, Enhanced, NextLoad("free roam")),
     m(RowId::ReplayCameras, GameplayAccessibility, Enhanced, Live),
     m(RowId::PhotoMode, GameplayAccessibility, Enhanced, Live),
+    m(RowId::SkipMovies, GameplayAccessibility, Enhanced, Restart),
     m(RowId::SkipTitle, GameplayAccessibility, Enhanced, Restart),
     m(RowId::MarkSpot, GameplayAccessibility, Utility, Live),
     m(RowId::DurableSaves, GameplayAccessibility, Utility, Live),

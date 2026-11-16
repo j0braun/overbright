@@ -79,6 +79,11 @@ pub struct Choices {
     pub graphics: Graphics,
     /// `launcher.skip`.
     pub skip: bool,
+    /// The game's Skip Intro Movies row (`enh.skip_movies`, Enhancements
+    /// page; an older file's `enh.skip_title 2` included).
+    pub skip_movies: bool,
+    /// The game's Skip Title Screen row (`enh.skip_title`).
+    pub skip_title: bool,
     /// The HUD mod's folder ("" = none; `texture-pack-root.txt`).
     pub texture_pack: String,
     /// Use the HUD mod: the game's HD UI + Maps setting (`enh.hd_ui`).
@@ -294,7 +299,8 @@ pub enum BrowseFor {
     Game,
     TexturePack,
     Saves,
-    /// TexMod packages (`.tpf` files listed with the folders).
+    /// Texture packages: TexMod `.tpf` files, TexWizard pack folders and
+    /// ZIPs of them, listed with the folders.
     Packages,
     /// The HUD mod's downloads (archives listed with the folders).
     HudMod,
@@ -466,7 +472,8 @@ pub trait Env {
     fn save_mods(&self, list: &[crate::texture_mods::Entry]) -> Result<(), String>;
     /// Deletes a package's converted folder (never the player's file).
     fn remove_mod(&self, id: &str) -> Result<(), String>;
-    /// The TexMod packages (`.tpf`) in `dir`, sorted.
+    /// The texture packages in `dir` (TexMod `.tpf` files, TexWizard pack
+    /// folders and ZIPs holding one), sorted.
     fn list_packages(&self, dir: &Path) -> Vec<DirEntry>;
     /// Imports the packages `paths` for the game in `root` (reading its
     /// textures first), adds the installed ones to the list (on, at the
@@ -564,21 +571,74 @@ pub fn read_archives(dir: &Path) -> Vec<DirEntry> {
     v
 }
 
-/// The `.tpf` files in `dir`, sorted by name, with their size as the note.
+/// The texture packages in `dir`, sorted by name, with their kind and size
+/// as the note: `.tpf` files ("TexMod package"), TexWizard pack folders
+/// and ZIPs holding a TexWizard pack ("TexWizard pack").
 pub fn read_packages(dir: &Path) -> Vec<DirEntry> {
     let Ok(rd) = std::fs::read_dir(dir) else { return Vec::new() };
     let mut v: Vec<DirEntry> = rd
         .flatten()
-        .filter(|e| e.path().is_file())
-        .filter(|e| e.path().extension().is_some_and(|x| x.eq_ignore_ascii_case("tpf")))
         .filter_map(|e| {
+            let path = e.path();
             let name = e.file_name().into_string().ok()?;
-            let mb = e.metadata().map_or(0, |m| m.len()) as f64 / 1e6;
-            Some(DirEntry { note: format!("TexMod package, {mb:.0} MB"), path: e.path(), name })
+            let ext = |x: &str| path.extension().is_some_and(|e| e.eq_ignore_ascii_case(x));
+            let mb = |bytes: u64| bytes as f64 / 1e6;
+            let note = if path.is_dir() && crate::formats::texwizard::is_pack_dir(&path) {
+                let bin = std::fs::read_dir(&path)
+                    .into_iter()
+                    .flatten()
+                    .flatten()
+                    .filter(|f| f.file_name().to_string_lossy().eq_ignore_ascii_case("textures.bin"))
+                    .map(|f| f.metadata().map_or(0, |m| m.len()))
+                    .sum::<u64>();
+                format!("TexWizard pack, {:.0} MB", mb(bin))
+            } else if path.is_file() && ext("tpf") {
+                format!("TexMod package, {:.0} MB", mb(e.metadata().map_or(0, |m| m.len())))
+            } else if path.is_file() && ext("zip") && crate::texture_mods::zip_has_texwizard_pack(&path) {
+                format!("TexWizard pack (ZIP), {:.0} MB", mb(e.metadata().map_or(0, |m| m.len())))
+            } else {
+                return None;
+            };
+            Some(DirEntry { note, path, name })
         })
         .collect();
     v.sort_by_key(|e| e.name.to_lowercase());
     v
+}
+
+/// Paths given as packages (dropped, or on the command line) with each
+/// folder that is no package (no `texmod.def`, no TexWizard pack) standing
+/// for the TexWizard packs in it, when it holds any.
+pub fn expand_packages(paths: Vec<PathBuf>) -> Vec<PathBuf> {
+    paths
+        .into_iter()
+        .flat_map(|p| {
+            let found = if p.is_dir() && !p.join("texmod.def").is_file() && !crate::formats::texwizard::is_pack_dir(&p) {
+                crate::formats::texwizard::find_packs(&p)
+            } else {
+                Vec::new()
+            };
+            if found.is_empty() { vec![p] } else { found }
+        })
+        .collect()
+}
+
+/// What "Import all here" takes in `dir`: the folder itself when it is a
+/// package (loose TexMod files, a TexWizard pack); in a game folder with
+/// TexWizard, or its TexturePacks folder, the packs TexWizard loads (most
+/// important first); else the packages listed in it, then TexWizard packs
+/// in folders below it.
+pub fn packages_here(dir: &Path, listed: Vec<DirEntry>) -> Vec<PathBuf> {
+    if dir.join("texmod.def").is_file() || crate::formats::texwizard::is_pack_dir(dir) {
+        return vec![dir.to_path_buf()];
+    }
+    let mut out: Vec<PathBuf> = listed.into_iter().map(|e| e.path).collect();
+    for p in crate::formats::texwizard::find_packs(dir) {
+        if !out.contains(&p) {
+            out.push(p);
+        }
+    }
+    out
 }
 
 /// The real import: the game's textures read once, then each path read
@@ -616,27 +676,34 @@ pub fn import_paths(
         let n = paths.len();
         let head = if n > 1 { format!("Importing {name} ({} of {n})", i + 1) } else { format!("Importing {name}") };
         progress(format!("{head}: reading the package…"));
-        let r = tm::read_source(p).and_then(|pkg| {
-            tm::install(&pkg, p, &sources, &packages, &|d, t| {
-                progress(format!("{head}: {d} of {t} textures converted…"))
-            })
-        });
-        let o = tm::outcome_line(&name, &r);
-        if let Some(id) = &o.id {
-            let mut list = tm::load();
-            list.push(tm::Entry { id: id.clone(), on: true });
-            if let Err(e) = tm::save(&list) {
-                out.push(tm::Outcome {
-                    line: format!("{name}: imported, but the list could not be kept: {e}"),
-                    ok: false,
-                    ..o
-                });
+        let read = match tm::read_sources(p) {
+            Ok(v) => v,
+            Err(e) => {
+                out.push(tm::outcome_line(&name, &Err(e)));
                 continue;
             }
+        };
+        for (label, pkg) in read {
+            let r = tm::install(&pkg, p, &sources, &packages, &|d, t| {
+                progress(format!("{head}: {d} of {t} textures converted…"))
+            });
+            out.push(keep_installed(tm::outcome_line(&label, &r)));
         }
-        out.push(o);
     }
     out
+}
+
+/// An installed package added to the kept list (on, at the end).
+fn keep_installed(o: crate::texture_mods::Outcome) -> crate::texture_mods::Outcome {
+    use crate::texture_mods as tm;
+    if let Some(id) = &o.id {
+        let mut list = tm::load();
+        list.push(tm::Entry { id: id.clone(), on: true });
+        if let Err(e) = tm::save(&list) {
+            return tm::Outcome { line: format!("{}: imported, but the list could not be kept: {e}", o.name), ok: false, ..o };
+        }
+    }
+    o
 }
 
 /// Where a found folder came from, in a few plain words.
@@ -926,6 +993,8 @@ pub fn choices_of(s: &Settings) -> Choices {
         resolution: s.resolution,
         graphics: Graphics::of(&s.enh),
         skip: s.enh.launcher_skip,
+        skip_movies: s.enh.skips_movies(),
+        skip_title: s.enh.skips_title(),
         texture_pack: setup::saved_texture_pack().map(|p| p.display().to_string()).unwrap_or_default(),
         hud_mod: s.enh.hd_ui,
     }
@@ -953,7 +1022,7 @@ impl std::fmt::Display for SaveError {
 }
 
 /// `c` applied to `s` as the game's own pages would: the display mode and
-/// size, the skip row, and the Graphics Mode only when the player picked
+/// size, the skip row, Skip Intro Movies and Skip Title Screen, and the Graphics Mode only when the player picked
 /// Original or Enhanced (Original also puts Customize Display back to the
 /// original's values for the World Detail level, as the game's Original
 /// does; Enhanced writes the launcher's quality level).
@@ -961,6 +1030,7 @@ pub fn apply_choices(s: &mut Settings, c: &Choices) {
     s.fullscreen = c.fullscreen;
     s.resolution = c.resolution;
     s.enh.launcher_skip = c.skip;
+    s.enh.set_skips(c.skip_movies, c.skip_title);
     s.enh.hd_ui = c.hud_mod;
     if Graphics::of(&s.enh) == c.graphics {
         return;
@@ -1016,6 +1086,8 @@ impl Env for FakeEnv {
             resolution: (1920, 1080),
             graphics: Graphics::Original,
             skip: false,
+            skip_movies: false,
+            skip_title: false,
             texture_pack: String::new(),
             hud_mod: false,
         };
@@ -1196,6 +1268,7 @@ impl Env for FakeEnv {
             id: id.into(),
             name: name.into(),
             source: source.into(),
+            kind: "TexMod".into(),
             images,
             matched,
             unmatched: images - matched,

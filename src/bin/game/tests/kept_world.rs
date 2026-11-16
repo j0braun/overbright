@@ -1,6 +1,7 @@
 //! A world kept for the next drive draws what a fresh load of the same spot
-//! draws: Lamp Shadows' layers follow the new drive's barriers
-//! (docs/ambient-detail.md "Kept-world caches", docs/lamps-shadows.md).
+//! draws: Lamp Shadows' layers and Light Probes' field follow the new
+//! drive's barriers (docs/ambient-detail.md "Kept-world caches",
+//! docs/lamps-shadows.md, docs/lighting2.md).
 use super::*;
 
 const SIZE: (u32, u32) = (320, 240);
@@ -18,10 +19,9 @@ fn picture(game: &mut Game) -> Vec<u8> {
     nfsu2::render::read_back(&w.gpu, w.offscreen.as_ref().unwrap(), SIZE.0, SIZE.1)
 }
 
-/// Offscreen at the High preset (Lamp Shadows on) with Light Probes off: a
-/// kept world's probes are baked with the scenery of the drives before
-/// (docs/ambient-detail.md "Kept-world caches", open), which a fresh load's
-/// are not.
+/// Offscreen at the High preset (Lamp Shadows on) with Light Probes off
+/// (their field after a switch is checked on its own,
+/// [`light_probes_follow_a_kept_drives_barriers`]).
 fn game_high() -> Game {
     let mut game = Game::new().unwrap();
     let mut profile = Profile::new("KEPT_WORLD_TEST");
@@ -242,5 +242,185 @@ fn lamp_layers_follow_a_kept_drives_barriers() {
     assert!(city.redrawn == 0 && city.kept > 0, "the city's switch keeps every layer");
     for (what, s) in [("the URL circuits", &url), ("the drag strips", &drag)] {
         assert!(s.redrawn > 0 && s.kept > 0, "{what}: layers drawn again {}, kept {}: both kinds", s.redrawn, s.kept);
+    }
+}
+
+/// Offscreen with Light Probes on (the rest as the defaults).
+fn game_probes() -> Game {
+    let mut game = Game::new().unwrap();
+    let mut profile = Profile::new("KEPT_WORLD_TEST");
+    profile.skip_intro(&game.game_data.career, &game.game_data.root, "PEUGOT", &mut game.rng);
+    game.profile = Some(profile);
+    super::tick_effects::offscreen_window(&mut game, SIZE.0, SIZE.1);
+    game.settings.enh.parse("enh.light_probes", "1");
+    game.settings.apply_enhancements();
+    game
+}
+
+/// What [`probes_kept_and_afresh`] saw.
+struct ProbesSeen {
+    /// Probes the second drive's set-up gave up.
+    released: usize,
+    /// Probes baked in both fields, and those whose cubes differ.
+    compared: usize,
+    differ: Vec<usize>,
+}
+
+/// The probe field a second after `second` (a drive on the world kept
+/// after `first`, held for a second), and the same with the field dropped
+/// after the switch (`WorldRenderer::probes_afresh`: made and baked anew,
+/// as a fresh load's renderer has it), compared probe by probe.
+fn probes_kept_and_afresh(first: &dyn Fn(&mut Game), second: &dyn Fn(&mut Game)) -> ProbesSeen {
+    let run = |afresh: bool| {
+        let mut game = game_probes();
+        first(&mut game);
+        for _ in 0..60 {
+            frame(&mut game);
+        }
+        second(&mut game);
+        let r = game.render.world.as_mut().unwrap();
+        assert!(r.probes_released().is_some(), "a probe field after the first drive");
+        if afresh {
+            r.probes_afresh();
+        }
+        for _ in 0..60 {
+            frame(&mut game);
+        }
+        game.platform.window.as_mut().unwrap().settle();
+        let released = game.render.world.as_ref().unwrap().probes_released().unwrap_or(0);
+        (released, nfsu2::render::probes::published_baked().expect("the probe field"))
+    };
+    let (released, kept) = run(false);
+    let (_, afresh) = run(true);
+    assert_eq!(kept.len(), afresh.len());
+    let both: Vec<usize> = (0..kept.len()).filter(|&i| kept[i].is_some() && afresh[i].is_some()).collect();
+    let differ = both.iter().copied().filter(|&i| kept[i] != afresh[i]).collect();
+    ProbesSeen { released, compared: both.len(), differ }
+}
+
+/// Light Probes' field over a kept drive's set-up switch: Quick Races from
+/// one grid on the world kept (L4RG's URL circuits 4701 → 4703, L4RB's
+/// drag strips 4222 → 4223, whose set-ups switch road pieces, walls and
+/// markers by the grid) give up the probes that see a switched placement
+/// and bake them again; free roam → a city circuit → free roam where its
+/// car stands (the city's common transition) gives up none. Each time the
+/// probes baked a second later are those of the field made afresh after the
+/// switch, probe by probe.
+#[test]
+#[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
+fn light_probes_follow_a_kept_drives_barriers() {
+    super::test_isolation::exclusive();
+    let circuit = {
+        let game = Game::new().unwrap();
+        let data = &game.game_data;
+        data.career
+            .stage_events(&data.root, 1)
+            .iter()
+            .find(|e| {
+                e.kind == career::EventKind::Circuit
+                    && data.career.tracks.get(&e.races[0].0).is_some_and(|t| t.region == EXPLORE_REGION)
+            })
+            .map(|e| e.index)
+            .expect("a city circuit")
+    };
+    let spot = std::sync::Mutex::new((Vec3::ZERO, 0.0f32));
+    let city = probes_kept_and_afresh(
+        &|g| {
+            g.explore(None).unwrap();
+            for _ in 0..5 {
+                frame(g);
+            }
+            g.start_race(circuit, false, false).unwrap();
+            let d = g.sim.drive.as_ref().unwrap();
+            let f = d.state.forward();
+            *spot.lock().unwrap() = (d.state.position, f.y.atan2(f.x));
+        },
+        &|g| {
+            let (at, heading) = *spot.lock().unwrap();
+            g.explore(Some((at, heading))).unwrap();
+        },
+    );
+    let url = probes_kept_and_afresh(&|g| quick_race(g, screens::QrMode::Url, 4701), &|g| {
+        quick_race(g, screens::QrMode::Url, 4703)
+    });
+    let drag = probes_kept_and_afresh(&|g| quick_race(g, screens::QrMode::Drag, 4222), &|g| {
+        quick_race(g, screens::QrMode::Drag, 4223)
+    });
+    let all = [
+        ("free roam after a city circuit", &city),
+        ("a URL circuit after another", &url),
+        ("a drag strip after another", &drag),
+    ];
+    for (what, s) in all {
+        eprintln!(
+            "{what}: probes given up {}, compared {}, differ {} {:?}",
+            s.released,
+            s.compared,
+            s.differ.len(),
+            &s.differ[..s.differ.len().min(12)]
+        );
+    }
+    for (what, s) in all {
+        assert!(s.compared > 0, "{what}: no probe baked in both fields");
+        assert!(s.differ.is_empty(), "{what}: {} probes differ from the field made afresh", s.differ.len());
+    }
+    assert_eq!(city.released, 0, "the city's switch gives up no probe");
+    for (what, s) in [("the URL circuits", &url), ("the drag strips", &drag)] {
+        assert!(s.released > 0, "{what}: the set-up gives up probes");
+    }
+}
+
+/// The GPU time Light Probes take (GPU timestamps, `prof::gpu`) in a kept
+/// drive's first frame and its next nine, after the set-ups of
+/// [`light_probes_follow_a_kept_drives_barriers`] and after the same
+/// set-up again (nothing switched). A measuring aid (docs/lighting2.md).
+#[test]
+#[ignore = "a measuring aid (GPU timestamps); run with --ignored and NFSU2_ROOT"]
+fn light_probes_rebake_cost() {
+    super::test_isolation::exclusive();
+    nfsu2::prof::gpu::want(true);
+    let probe_ms = |game: &mut Game| {
+        // The frame's timing closed at its end.
+        game.platform.window.as_mut().unwrap().settle();
+        let gpu = &game.platform.window.as_ref().unwrap().gpu;
+        nfsu2::prof::gpu::finish(&gpu.device);
+        nfsu2::prof::gpu::take().into_iter().filter(|e| e.0 == "world: light probes").map(|e| e.1).sum::<f64>()
+    };
+    let cases: [(&str, (screens::QrMode, u16), (screens::QrMode, u16)); 4] = [
+        ("URL 4701 -> 4703", (screens::QrMode::Url, 4701), (screens::QrMode::Url, 4703)),
+        ("URL 4701 -> 4701", (screens::QrMode::Url, 4701), (screens::QrMode::Url, 4701)),
+        ("drag 4222 -> 4223", (screens::QrMode::Drag, 4222), (screens::QrMode::Drag, 4223)),
+        ("drag 4222 -> 4222", (screens::QrMode::Drag, 4222), (screens::QrMode::Drag, 4222)),
+    ];
+    for (what, a, b) in cases {
+        let mut game = game_probes();
+        {
+            let gpu = &game.platform.window.as_ref().unwrap().gpu;
+            assert!(nfsu2::prof::gpu::init(&gpu.device, &gpu.queue), "GPU timestamps on this device");
+        }
+        quick_race(&mut game, a.0, a.1);
+        for _ in 0..60 {
+            frame(&mut game);
+        }
+        probe_ms(&mut game);
+        quick_race(&mut game, b.0, b.1);
+        frame(&mut game);
+        let first = probe_ms(&mut game);
+        for _ in 0..9 {
+            frame(&mut game);
+        }
+        let next = probe_ms(&mut game);
+        let released = game.render.world.as_ref().unwrap().probes_released().unwrap_or(0);
+        // The drive start's check with nothing switched (the set-up again).
+        let world = &game.sim.drive.as_ref().unwrap().world;
+        let r = game.render.world.as_mut().unwrap();
+        let t = std::time::Instant::now();
+        r.new_drive_probes(world, true);
+        let check = t.elapsed().as_secs_f64() * 1e3;
+        eprintln!(
+            "PROBE_COST {what}: given up {released}; first frame {first:.3} ms, next 9 frames {next:.3} ms; \
+             the check alone {check:.3} ms CPU ({} placements)",
+            world.placements.len()
+        );
     }
 }

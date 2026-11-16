@@ -474,7 +474,8 @@ mod tests {
             boot_loading_min_ms: 1500,
             ambient_detail: 2,
             launcher_skip: true,
-            skip_title: 2,
+            skip_title: 1,
+            skip_movies: true,
         };
         let mut out = String::new();
         e.write(&mut out);
@@ -484,7 +485,7 @@ mod tests {
             assert!(back.parse(k, v));
         }
         assert_eq!(back, e);
-        assert_eq!(e.deviations().len(), 79);
+        assert_eq!(e.deviations().len(), 80);
         assert!(!back.parse("detail", "3"));
         // Volumetric Fog's Next-Gen tier (3) and the Sky row round-trip, clamped.
         let mut n = Enhancements::default();

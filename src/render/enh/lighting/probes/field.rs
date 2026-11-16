@@ -41,6 +41,9 @@ pub struct ProbeField {
     /// 0..1 as drawn); None until baked.
     pub baked: Vec<Option<[Vec3; 6]>>,
     cells: HashMap<(i32, i32), Vec<u32>>,
+    /// A drive's set-up gave up baked probes ([`ProbeField::release_seeing`]):
+    /// the next plan bakes those near the car at once, as an arrival does.
+    pub rebake: bool,
 }
 
 pub(in crate::render) fn cell_of(p: Vec3) -> (i32, i32) {
@@ -53,7 +56,7 @@ impl ProbeField {
         for (i, p) in positions.iter().enumerate() {
             cells.entry(cell_of(*p)).or_default().push(i as u32);
         }
-        ProbeField { baked: vec![None; positions.len()], positions, cells }
+        ProbeField { baked: vec![None; positions.len()], positions, cells, rebake: false }
     }
 
     /// Probes along every record of a route file: the control points and
@@ -120,15 +123,43 @@ impl ProbeField {
     /// probe is never baked again (with no probe in reach the
     /// arrival test held every frame, and the burst re-baked up to
     /// BURST_MAX baked probes a frame off the roads).
+    /// After a set-up's switch ([`ProbeField::rebake`]) the probes it gave
+    /// up within [`BURST_RADIUS`] are a burst too: the field round the car
+    /// is then baked in the same frame a fresh load bakes it in.
     pub fn plan(&self, at: Vec3) -> BakePlan {
         let unbaked = |i: &u32| self.baked[*i as usize].is_none();
         let reach = self.near(at, REACH);
-        if !reach.is_empty() && reach.iter().all(|(_, i)| unbaked(i)) {
-            return BakePlan::Burst(
-                self.near(at, BURST_RADIUS).into_iter().map(|(_, i)| i).filter(unbaked).take(BURST_MAX).collect(),
-            );
+        if self.rebake || (!reach.is_empty() && reach.iter().all(|(_, i)| unbaked(i))) {
+            let burst: Vec<u32> =
+                self.near(at, BURST_RADIUS).into_iter().map(|(_, i)| i).filter(unbaked).take(BURST_MAX).collect();
+            if !burst.is_empty() {
+                return BakePlan::Burst(burst);
+            }
         }
         self.near(at, BAKE_RADIUS).into_iter().map(|(_, i)| i).find(unbaked).map_or(BakePlan::Nothing, BakePlan::One)
+    }
+
+    /// Gives up every baked probe whose bake can see one of `bounds`
+    /// (spheres): a probe's six faces reach `far` along their axes, so it
+    /// draws what lies in the box of half-size `far` round it. The probes
+    /// given up, in index order; [`ProbeField::rebake`] set when there are any.
+    pub fn release_seeing(&mut self, bounds: &[(Vec3, f32)], far: f32) -> Vec<u32> {
+        let mut out = Vec::new();
+        for &(c, r) in bounds {
+            for (_, i) in self.near(c, far * 3f32.sqrt() + r) {
+                if self.baked[i as usize].is_none() {
+                    continue;
+                }
+                let gap = ((c - self.positions[i as usize]).abs() - Vec3::splat(far)).max(Vec3::ZERO);
+                if gap.length_squared() <= r * r {
+                    self.baked[i as usize] = None;
+                    out.push(i);
+                }
+            }
+        }
+        out.sort_unstable();
+        self.rebake |= !out.is_empty();
+        out
     }
 
     /// The ambient cube at `at`: the baked probes within [`REACH`] (at most

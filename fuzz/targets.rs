@@ -67,7 +67,11 @@ pub fn texture_pack(b: &[u8]) {
 pub fn viv_big(b: &[u8]) {
     black_box(viv::Viv::parse_header(std::path::PathBuf::new(), b).map(|v| v.entries.len()));
     // `Viv::open` on a file with this content (header size from file fields).
-    let p = std::env::temp_dir().join(format!("nfsu2-fuzz-viv-{}-{:?}.viv", std::process::id(), std::thread::current().id()));
+    let p = std::env::temp_dir().join(format!(
+        "nfsu2-fuzz-viv-{}-{:?}.viv",
+        std::process::id(),
+        std::thread::current().id()
+    ));
     if std::fs::write(&p, b).is_ok() {
         if let Some(v) = viv::Viv::open(&p) {
             for e in v.entries.iter().take(4) {
@@ -93,6 +97,13 @@ pub fn tpf(b: &[u8]) {
         black_box(p.entries.len());
     }
     black_box(tpf::parse_def(&String::from_utf8_lossy(b)).len());
+}
+
+/// A TexWizard pack's two files: `meta.json` (our JSON reader) and
+/// `textures.bin` (a chunk file of texture packs).
+pub fn texwizard(b: &[u8]) {
+    black_box(texwizard::parse_meta(&String::from_utf8_lossy(b)).map(|(p, n)| p.len() + n).ok());
+    black_box(texwizard::read_bin(b).map(|t| t.len()).ok());
 }
 
 pub fn track_sections(b: &[u8]) {
@@ -408,32 +419,64 @@ const BUN_TRACK: &str = "TRACKS/L4RA.BUN";
 
 pub const TARGETS: &[Target] = &[
     t!(bundle_walk, Seed::Chunks(BUN_STREAM, &[id::SCENERY_SECTION])),
-    t!(texture_pack, Seed::Chunks(BUN_STREAM, &[id::TEXTURE_PACK]), Seed::Chunks("TRACKS/LOC4DYNTEX.BIN", &[id::TEXTURE_PACK])),
+    t!(
+        texture_pack,
+        Seed::Chunks(BUN_STREAM, &[id::TEXTURE_PACK]),
+        Seed::Chunks("TRACKS/LOC4DYNTEX.BIN", &[id::TEXTURE_PACK])
+    ),
     t!(viv_big, Seed::File("SDATA/sdat.viv")),
     t!(huff, Seed::Block("TRACKS/LOC4DYNTEX.BIN", huff::MAGIC)),
     t!(jdlz, Seed::Block("TRACKS/LOC4DYNTEX.BIN", jdlz::MAGIC), Seed::File("GLOBAL/GlobalB.lzc")),
     t!(tpf, Seed::Text("tpf")),
+    t!(texwizard, Seed::Text("texwizard")),
     t!(track_sections, Seed::Concat(BUN_TRACK, &[id::TRACK_STREAMING_SECTIONS])),
     t!(scenery, Seed::Chunks(BUN_STREAM, &[id::SCENERY_SECTION])),
-    t!(solid, Seed::Chunks(BUN_STREAM, &[id::SOLID_LIST]), Seed::Chunks("CARS/COROLLA/GEOMETRY.BIN", &[id::SOLID_LIST])),
-    t!(collision, Seed::Chunks(BUN_STREAM, &[collision::COLLISION_PACK]), Seed::Chunks(BUN_TRACK, &[collision::BARRIER_GROUPS]), Seed::Chunks("CARS/COROLLA/GEOMETRY.BIN", &[collision::COLLISION_VOLUMES])),
-    t!(visibility, Seed::Concat(BUN_TRACK, &[visibility::SECTION_INFO, visibility::DRIVABLE_BOUNDARIES, visibility::VISIBLE_SECTIONS])),
+    t!(
+        solid,
+        Seed::Chunks(BUN_STREAM, &[id::SOLID_LIST]),
+        Seed::Chunks("CARS/COROLLA/GEOMETRY.BIN", &[id::SOLID_LIST])
+    ),
+    t!(
+        collision,
+        Seed::Chunks(BUN_STREAM, &[collision::COLLISION_PACK]),
+        Seed::Chunks(BUN_TRACK, &[collision::BARRIER_GROUPS]),
+        Seed::Chunks("CARS/COROLLA/GEOMETRY.BIN", &[collision::COLLISION_VOLUMES])
+    ),
+    t!(
+        visibility,
+        Seed::Concat(
+            BUN_TRACK,
+            &[visibility::SECTION_INFO, visibility::DRIVABLE_BOUNDARIES, visibility::VISIBLE_SECTIONS]
+        )
+    ),
     t!(lights, Seed::Chunks(BUN_STREAM, &[lights::LIGHT_PACK, lights::FLARE_PACK])),
     t!(roads, Seed::Concat("TRACKS/ROUTESL4RA/Paths4001.bin", &[0x34148, 0x34149, 0x3414D])),
     t!(ai_routes, Seed::Concat("TRACKS/ROUTESL4RA/Routes4176F.bin", &[0x34121, 0x34122, 0x34123])),
-    t!(parts, Seed::Concat("GLOBAL/GLOBALB.BUN", &[0x8003_4602, 0x34607]), Seed::Concat("GLOBAL/GLOBALB.BUN", &[0x34A1C])),
+    t!(
+        parts,
+        Seed::Concat("GLOBAL/GLOBALB.BUN", &[0x8003_4602, 0x34607]),
+        Seed::Concat("GLOBAL/GLOBALB.BUN", &[0x34A1C])
+    ),
     t!(world_anim, Seed::Concat(BUN_TRACK, &[world_anim::ENTITY, world_anim::INSTANCE, world_anim::BANK])),
     t!(texture_anim, Seed::Chunks(BUN_STREAM, &[texture_anim::TEXTURE_ANIMATIONS])),
     t!(camera_tracks, Seed::Chunks(BUN_TRACK, &[camera_tracks::TYPED_CAMERAS, camera_tracks::ROUTE_CAMERAS])),
     t!(parameter_map, Seed::Concat(BUN_TRACK, &[parameter_map::PARAMETER_MAPS])),
-    t!(smackable, Seed::Chunks(BUN_TRACK, &[smackable::SCENERY_GROUPS, smackable::SCENERY_LINKS, smackable::OBJECT_INFOS]), Seed::Chunks(BUN_STREAM, &[smackable::OBJECT_INSTANCES])),
+    t!(
+        smackable,
+        Seed::Chunks(BUN_TRACK, &[smackable::SCENERY_GROUPS, smackable::SCENERY_LINKS, smackable::OBJECT_INFOS]),
+        Seed::Chunks(BUN_STREAM, &[smackable::OBJECT_INSTANCES])
+    ),
     t!(eagl, Seed::Chunks(BUN_TRACK, &[world_anim::BANK])),
     t!(zam, Seed::File("CARS/COROLLA/PARTS_ANIMATIONS.bin")),
     t!(magazines, Seed::File("FRONTEND/MAGAZINES_FRONTEND.BIN"), Seed::File("FRONTEND/MAGAZINES_SHOWCASE.BIN")),
     t!(native_save, Seed::Text("save")),
     t!(vp6, Seed::Text("vp6")),
     t!(movie, Seed::File("MOVIES/blank.vp6"), Seed::File("MOVIES/DragTut_en.vp6")),
-    t!(feng_package, Seed::Bodies("FRONTEND/FrontB.lzc", &[0x30203, 0x30210]), Seed::Bodies("GLOBAL/InGameCommon.lzc", &[0x30203, 0x30210])),
+    t!(
+        feng_package,
+        Seed::Bodies("FRONTEND/FrontB.lzc", &[0x30203, 0x30210]),
+        Seed::Bodies("GLOBAL/InGameCommon.lzc", &[0x30203, 0x30210])
+    ),
     t!(feng_strings, Seed::File("LANGUAGES/English.bin")),
     t!(feng_font, Seed::Bodies("FRONTEND/FrontB.lzc", &[0x30201]), Seed::Bodies("GLOBAL/GlobalB.lzc", &[0x30201])),
     t!(options_text, Seed::Text("options")),
@@ -446,5 +489,10 @@ pub const TARGETS: &[Target] = &[
     t!(utk, Seed::Viv("SDATA/sdat.viv", b"SCHl")),
     t!(gin, Seed::File("SOUND/ENGINE/GIN_Mazda_RX7_DCL.gin")),
     t!(pe_sections, Seed::File("SPEED2.EXE")),
-    t!(speech_bank, Seed::Viv("SDATA/sdat.viv", b"\x03\x11\x3c\x07"), Seed::Viv("SDATA/sdat.viv", b"MOIR"), Seed::Viv("SDATA/sdat.viv", b"\x01\x00\x00\x00")),
+    t!(
+        speech_bank,
+        Seed::Viv("SDATA/sdat.viv", b"\x03\x11\x3c\x07"),
+        Seed::Viv("SDATA/sdat.viv", b"MOIR"),
+        Seed::Viv("SDATA/sdat.viv", b"\x01\x00\x00\x00")
+    ),
 ];

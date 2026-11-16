@@ -1285,6 +1285,7 @@ pub(in crate::render) fn scene_pipelines_for(
         } else {
             HashMap::new()
         },
+        drops: mode.lamps.then(|| shared.drop_pipelines(device, arrays, mode, scene_format)),
     }
 }
 

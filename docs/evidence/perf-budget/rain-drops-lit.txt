@@ -1,0 +1,30 @@
+The falling rain's drops under the lamps: per-run GPU timer rows (ms/frame), --bench drive at clock 162 (rain 0.70).
+base = the tree before; s1 = alpha 0 left before the shading; s2 = s1 + the drops lit at their corners.
+Columns: GPU busy median [runs] | pass medians [runs] | load average at each run's start.
+
+4K, the player's settings (SSAA 2x, every row up, ray tracing), 180 frames, interleaved:
+base n 4 gpu 18.95 [18.97 18.88 18.94 18.98] graphics: rain drop pr 0.000 [0.000 0.000 0.000 0.000] | graphics: native parti 0.295 [0.294 0.294 0.296 0.298] load 25 25 31 28
+s1 n 4 gpu 18.98 [18.92 19.01 18.96 19.02] graphics: rain drop pr 0.000 [0.000 0.000 0.000 0.000] | graphics: native parti 0.259 [0.256 0.259 0.259 0.262] load 24 28 31 28
+s2 n 4 gpu 18.74 [18.73 18.65 18.75 18.81] graphics: rain drop pr 0.032 [0.032 0.032 0.032 0.033] | graphics: native parti 0.029 [0.029 0.029 0.029 0.029] load 24 28 31 26
+
+Integrated GPU 1080p, World Detail 3, High, 120 frames (all slow state: occlusion 2.4-3.0 ms):
+base n 2 gpu 57.02 [57.16 56.87] graphics: native parti 0.679 [0.682 0.676] | graphics: ssao occlusi 2.553 [2.419 2.688] load 17 14
+s1 n 2 gpu 58.16 [58.26 58.06] graphics: native parti 0.637 [0.636 0.638] | graphics: ssao occlusi 2.675 [2.697 2.653] load 16 14
+s2 n 2 gpu 57.93 [57.52 58.34] graphics: native parti 0.282 [0.283 0.282] | graphics: ssao occlusi 2.673 [2.580 2.766] load 15 15
+drops with fs_nofog (measurement only) n 2 gpu 56.19 [55.68 56.71] graphics: native parti 0.170 [0.169 0.171] load 15 16
+s2 (final) n 3 gpu 58.07 [58.07 61.47 55.86] graphics: rain drop pr 0.053 [0.051 0.053 0.053] | graphics: native parti 0.236 [0.241 0.236 0.226] load 27 35 31
+
+Integrated GPU Medium, 120 frames:
+base n 2 gpu 22.64 [23.09 22.19] graphics: rain drop pr 0.000 [0.000 0.000] | graphics: native parti 0.602 [0.576 0.629] | graphics: ssao occlusi 2.253 [2.841 1.665] load 13 12
+s1 n 2 gpu 23.17 [23.07 23.26] graphics: rain drop pr 0.000 [0.000 0.000] | graphics: native parti 0.521 [0.539 0.504] | graphics: ssao occlusi 2.946 [2.730 3.162] load 13 12
+s2 n 2 gpu 22.48 [22.29 22.67] graphics: rain drop pr 0.050 [0.045 0.055] | graphics: native parti 0.271 [0.273 0.268] | graphics: ssao occlusi 2.282 [2.241 2.324] load 13 12
+
+4K owner rain, decomposition (2 runs): base 0.283/0.285, drops with fs_nofog 0.022/0.023, no drops 0/0.
+
+Pictures (17 frames: 0 and 100-115), s1 vs base: identical (md5 of pixels), 4K and 1080p High.
+s2 vs s1, 4K:
+TOTAL 17 frames, 0 identical; worst >1% 0.1028 % >3% 0.0148 % max 38
+MOTION frame-to-frame mean |change| ref 10.783 test 10.783; the change's own frame-to-frame mean 0.0121 (max 0.0143)
+s2 vs s1, 1080p High:
+TOTAL 17 frames, 0 identical; worst >1% 0.0526 % >3% 0.0105 % max 21
+MOTION frame-to-frame mean |change| ref 8.539 test 8.538; the change's own frame-to-frame mean 0.0075 (max 0.0087)

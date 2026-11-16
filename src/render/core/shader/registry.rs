@@ -65,6 +65,7 @@ const WORLD_FILES: &[(&str, &str)] = &[
     shader!("enh/geometry/world_masks.wgsl"),
     shader!("native/world/fragment_sky.wgsl"),
     shader!("enh/geometry/world_coverage.wgsl"),
+    shader!("enh/weather/rain_lit.wgsl"),
 ];
 
 const POSTFX_FILES: &[(&str, &str)] = &[

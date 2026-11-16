@@ -195,6 +195,11 @@ pub struct WorldRenderer {
     pub(in crate::render) particle_instance: wgpu::Buffer,
     /// This frame's runs: (texture, first quad, quads).
     pub(in crate::render) particle_runs: Vec<(u32, u32, u32)>,
+    /// The rain drops lit at their corners (the lamps' module): their
+    /// probe's target and vertices, made with the first drops
+    /// (`sprites::DropProbe`); `drops_lit` this frame's drops take it.
+    pub(in crate::render) drop_probe: Option<sprites::DropProbe>,
+    pub(in crate::render) drops_lit: bool,
     /// The flare textures (`crate::glow::TEXTURES`) by hash.
     pub(in crate::render) glow_textures: HashMap<u32, (usize, PipelineKey)>,
     /// worldnodepth with COLORWRITEENABLE 7 (0x5CBC00): into the back
@@ -240,6 +245,9 @@ pub struct WorldRenderer {
     pub(in crate::render) probes: Option<probes::ProbeBaker>,
     /// The game folder and region the world came from (the probes' routes).
     pub(in crate::render) probe_source: Option<(std::path::PathBuf, String)>,
+    /// The scenery the probes' field was baked under (`new_drive_probes`):
+    /// each placement's hidden flag and transform at the last drive's start.
+    pub(in crate::render) probe_scene: Option<Vec<(bool, glam::Mat4)>>,
     /// Group 0's layout and HEADLIGHTTEX, for the lamps' frame groups.
     pub(in crate::render) frame_layout: wgpu::BindGroupLayout,
     pub(in crate::render) headlight: (wgpu::TextureView, wgpu::Sampler),
@@ -315,7 +323,7 @@ impl WorldRenderer {
             sky_rows: sky_ng::rows_of(&sky_ng::Palette::from_world(world)),
             sky_ng: std::sync::OnceLock::new(),
             sky_on: std::sync::atomic::AtomicBool::new(false),
-            scene: std::sync::RwLock::new(std::sync::Arc::new(ScenePipelines { mode: SceneMode::NATIVE, pipelines, glow: glow_pipelines, glow_streak: glow_streak_pipelines, fade: None, car_shadow: HashMap::new(), depth: None, characters: HashMap::new() })),
+            scene: std::sync::RwLock::new(std::sync::Arc::new(ScenePipelines { mode: SceneMode::NATIVE, pipelines, glow: glow_pipelines, glow_streak: glow_streak_pipelines, fade: None, car_shadow: HashMap::new(), depth: None, characters: HashMap::new(), drops: None })),
             reflection_pipelines,
             main_frame,
             lamp_main: std::sync::RwLock::new(None),
@@ -411,6 +419,8 @@ impl WorldRenderer {
             particle_indices,
             particle_instance,
             particle_runs: Vec::new(),
+            drop_probe: None,
+            drops_lit: false,
             glow_textures,
             scene_format: color_format,
             arrays,
@@ -432,6 +442,7 @@ impl WorldRenderer {
             surface_maps: None,
             probes: None,
             probe_source: world.cache.as_ref().and_then(|c| c.region()).map(|(r, n)| (r.to_path_buf(), n.to_string())),
+            probe_scene: None,
             frame_layout,
             headlight: (headlight_view, headlight_sampler),
         }

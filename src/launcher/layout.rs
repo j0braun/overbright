@@ -663,6 +663,40 @@ impl<'a> Builder<'a> {
         self.y += total;
     }
 
+    /// Short checkboxes side by side on one line when they fit (each
+    /// label on one line), else one under the other.
+    pub fn checkboxes(&mut self, items: &[(Id, &str, bool)]) {
+        let size = self.m.body();
+        let lh = self.lh(size);
+        let bs = (lh * 1.05).round();
+        let gap = self.m.s(28.0);
+        let widths: Vec<f32> = items
+            .iter()
+            .map(|(_, l, _)| {
+                self.m.s(4.0) + bs + self.m.s(12.0) + self.fonts.width(Face::Regular, size, l) + self.m.s(8.0)
+            })
+            .collect();
+        let total = widths.iter().sum::<f32>() + gap * (items.len().saturating_sub(1)) as f32;
+        if total > self.width() {
+            for &(id, label, checked) in items {
+                self.checkbox(id, label, checked);
+            }
+            return;
+        }
+        let (x0, y0) = (self.x0, self.y);
+        let mut bottom = y0;
+        let mut x = x0;
+        for (&(id, label, checked), w) in items.iter().zip(&widths) {
+            self.x0 = x;
+            self.y = y0;
+            self.checkbox(id, label, checked);
+            bottom = bottom.max(self.y);
+            x += w + gap;
+        }
+        self.x0 = x0;
+        self.y = bottom;
+    }
+
     /// A list that takes the room the window leaves ([`Builder::grow`]
     /// rows more than `rows`).
     pub fn list_grow(&mut self, id: Id, items: &[(String, String)], selected: usize, rows: usize) {

@@ -160,7 +160,7 @@ fn read(text: &str, old: bool) -> (Enhancements, Vec<bool>) {
 
 #[test]
 fn the_table_is_well_formed() {
-    assert_eq!(OPTION_ROWS.len(), 70);
+    assert_eq!(OPTION_ROWS.len(), 71);
     let mut fields: Vec<_> = OPTION_ROWS.iter().map(|r| r.field).collect();
     fields.sort();
     fields.dedup();
@@ -363,6 +363,7 @@ fn every_ui_value_is_kept_by_the_table() {
         RowId::OutrunVariety,
         RowId::FixModels,
         RowId::TrafficDensity,
+        RowId::SkipMovies,
         RowId::SkipTitle,
         RowId::PhotoMode,
         RowId::LowLatency,

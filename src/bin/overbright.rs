@@ -46,7 +46,11 @@ fn list_folder(dir: &str, kind: Option<&str>) -> Result<(), String> {
     let mut rows = env.list_dirs(dir)?;
     match kind {
         None | Some("game") => {}
-        Some("packages") => rows.extend(env.list_packages(dir)),
+        Some("packages") => {
+            let packages = env.list_packages(dir);
+            rows.retain(|r| !packages.iter().any(|p| p.path == r.path));
+            rows.extend(packages);
+        }
         Some("hud") => rows.extend(env.list_archives(dir)),
         Some(k) => return Err(format!("--list-folder: {k}: game, packages or hud\n{USAGE}")),
     }
@@ -56,9 +60,11 @@ fn list_folder(dir: &str, kind: Option<&str>) -> Result<(), String> {
     Ok(())
 }
 
-/// `--add-packages`: TexMod packages imported for the kept game folder.
+/// `--add-packages`: texture packages (TexMod, TexWizard) imported for the
+/// kept game folder; a folder that is no package stands for the TexWizard
+/// packs in it.
 fn add_packages(paths: &[String]) -> Result<(), String> {
-    let paths: Vec<std::path::PathBuf> = paths.iter().map(std::path::PathBuf::from).collect();
+    let paths = model::expand_packages(paths.iter().map(std::path::PathBuf::from).collect());
     let root = nfsu2::qol::setup::find();
     let out = model::import_paths(&paths, root.as_deref(), &|t| eprintln!("{t}"));
     let mut ok = !out.is_empty();

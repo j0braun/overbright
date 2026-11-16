@@ -259,6 +259,7 @@ impl WorldRenderer {
             car_shadow: scene.car_shadow.clone(),
             depth,
             characters: scene.characters.clone(),
+            drops: scene.drops.clone(),
         };
         *self.scene.write().unwrap() = std::sync::Arc::new(built);
     }

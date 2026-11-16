@@ -71,6 +71,14 @@ pub(in crate::render) struct ProbeBaker {
     readback: wgpu::Buffer,
     /// The probe being read back and whether its map has completed.
     pending: Option<(u32, Arc<MapFlag>)>,
+    /// The pending probe was given up by a set-up's switch after it was
+    /// drawn: its read-back is not stored.
+    discard: bool,
+    /// The race direction the field was baked under (the environment view
+    /// culls the forward-only and backward-only scenery by it).
+    reversed: Option<bool>,
+    /// Probes given up since the last drive's start (the tests).
+    released: usize,
     /// The last world tick a bake was planned at
     /// (`render::enh::tick_views`): at most one new probe a tick.
     gate: crate::render::enh::tick_views::TickGate,
@@ -115,14 +123,28 @@ impl WorldRenderer {
         let mut baker = self.probes.take().unwrap();
         if let Some((probe, done)) = baker.pending.clone() {
             match done.state() {
+                MapState::Ready if baker.discard => {
+                    baker.readback.unmap();
+                    baker.pending = None;
+                    baker.discard = false;
+                }
                 MapState::Ready => baker.finish(probe),
                 MapState::Failed => {
                     warn_read_back_failed();
                     baker.pending = None;
+                    baker.discard = false;
                 }
                 MapState::Pending => {}
             }
         }
+        // A race direction other than the one the field was baked under:
+        // the probes that see scenery whose culling it switches are baked
+        // again.
+        if baker.reversed.is_some_and(|r| r != params.reversed) {
+            let bounds = self.direction_switched_bounds();
+            self.release_probes(&mut baker, &bounds);
+        }
+        baker.reversed = Some(params.reversed);
         publish(Some(baker.field.clone()));
         let due = match baker.gate.due(crate::render::enh::tick_views::frame().as_deref()) {
             crate::render::enh::tick_views::Due::Draw => true,
@@ -160,10 +182,15 @@ impl WorldRenderer {
                     }
                     baker.store(*i, readback);
                 }
+                baker.field.write().unwrap().rebake = false;
             }
             // One probe a world tick (a draw without published
             // ticks: one a draw, as before).
-            BakePlan::One(i) if baker.pending.is_none() && due => self.bake_one(gpu, &mut baker, params, i),
+            BakePlan::One(i) if baker.pending.is_none() && due => {
+                baker.field.write().unwrap().rebake = false;
+                self.bake_one(gpu, &mut baker, params, i)
+            }
+            BakePlan::Nothing => baker.field.write().unwrap().rebake = false,
             _ => {}
         }
         if log_on() {
@@ -189,6 +216,139 @@ impl WorldRenderer {
             self.probes = Some(ProbeBaker::new(gpu, self, field));
         }
         true
+    }
+
+    /// Light Probes at a drive's start, once its barriers are set up (every
+    /// path: a new renderer, a kept one's reset, the menus' kept world, a
+    /// drive kept on the spot): the probes whose bake can see a placement
+    /// the set-up shows, hides or moves since the last drive are given up and
+    /// baked again — the nearest at once in the first frame, as a fresh
+    /// load bakes them — the others kept. Nothing to do when no placement
+    /// changed (a probe draws only placements; the fog maps are the world's
+    /// and the same for every drive).
+    ///
+    /// `on`: Light Probes in force. Off, nothing is recorded and a field
+    /// left from before is dropped (made anew if the row is turned on).
+    pub fn new_drive_probes(&mut self, world: &crate::world::World, on: bool) {
+        if !on {
+            if self.probes.take().is_some() {
+                publish(None);
+            }
+            self.probe_scene = None;
+            return;
+        }
+        let now: Vec<(bool, glam::Mat4)> =
+            world.placements.iter().map(|p| (p.flags & crate::world::HIDDEN_FLAG != 0, p.transform)).collect();
+        let was = self.probe_scene.replace(now);
+        let Some(mut baker) = self.probes.take() else { return };
+        baker.released = 0;
+        match &was {
+            Some(was) => {
+                let bounds = self.scene_switched_bounds(world, was);
+                self.release_probes(&mut baker, &bounds);
+            }
+            // Baked before any record (none: a field is made in a drive's
+            // frames, after its start): all of it again.
+            None => {
+                let f = baker.field.clone();
+                let mut field = f.write().unwrap();
+                baker.released = field.baked.iter().filter(|b| b.is_some()).count();
+                field.baked.fill(None);
+                field.rebake = true;
+                baker.discard = baker.pending.is_some();
+            }
+        }
+        self.probes = Some(baker);
+    }
+
+    /// The bounds (before and after) of the placements shown in either
+    /// state whose hidden flag or transform differs between `was` and the
+    /// record now, for the groups the environment view can draw.
+    fn scene_switched_bounds(&self, world: &crate::world::World, was: &[(bool, glam::Mat4)]) -> Vec<(Vec3, f32)> {
+        let Some(now) = self.probe_scene.as_ref() else { return Vec::new() };
+        let mut bounds = Vec::new();
+        for (i, (a, b)) in was.iter().zip(now).enumerate() {
+            if a == b || (a.0 && b.0) {
+                continue;
+            }
+            let has_matrix = world.placements[i].flags & crate::render::NO_MATRIX_FLAG == 0;
+            for &slot in self.placement_slots.get(i).map_or(&[][..], |s| &s[..]) {
+                let g = self.slot_group[slot as usize] as usize;
+                if !self.environment_can_draw(g) {
+                    continue;
+                }
+                let local = self.group_local[g];
+                for (hidden, m) in [a, b] {
+                    if !hidden {
+                        bounds.push(crate::render::instance_spheres(local, *m, has_matrix)[0]);
+                    }
+                }
+            }
+        }
+        bounds
+    }
+
+    /// The bounds of the instances of groups the environment view culls in
+    /// one race direction and not in the other.
+    fn direction_switched_bounds(&self) -> Vec<(Vec3, f32)> {
+        let spheres = self.slot_spheres.read().unwrap();
+        let mut bounds = Vec::new();
+        for (g, (is_sky, flags, _, instances)) in self.group_key.iter().enumerate() {
+            let env = WorldView::Environment;
+            if *is_sky || env.culls(*flags, false) == env.culls(*flags, true) || !self.environment_can_draw(g) {
+                continue;
+            }
+            bounds.extend(instances.clone().map(|i| spheres[i as usize][0]));
+        }
+        bounds
+    }
+
+    /// Whether the environment view (a probe's bake) draws group `g` in
+    /// some race direction: not the dome, which follows the probe.
+    fn environment_can_draw(&self, g: usize) -> bool {
+        let (is_sky, flags, _, _) = self.group_key[g];
+        let env = WorldView::Environment;
+        !is_sky && !(env.culls(flags, false) && env.culls(flags, true))
+    }
+
+    /// Gives up the baked probes that see one of `bounds` (a pending
+    /// probe among them is not stored).
+    fn release_probes(&self, baker: &mut ProbeBaker, bounds: &[(Vec3, f32)]) {
+        if bounds.is_empty() {
+            return;
+        }
+        let pending = baker.pending.as_ref().map(|p| p.0);
+        let f = baker.field.clone();
+        let mut field = f.write().unwrap();
+        let released = field.release_seeing(bounds, crate::render::ENV_FAR);
+        // A probe drawn but not read back yet is drawn with the scenery
+        // before the switch when a bound is within its reach.
+        if let Some(p) = pending {
+            let c = field.positions[p as usize];
+            let far = crate::render::ENV_FAR;
+            if bounds.iter().any(|&(b, r)| ((b - c).abs() - Vec3::splat(far)).max(Vec3::ZERO).length_squared() <= r * r)
+            {
+                baker.discard = true;
+                field.rebake = true;
+            }
+        }
+        baker.released += released.len();
+        if log_on() {
+            log::warn!("light probes: {} given up by a set-up's switch", released.len());
+        }
+    }
+
+    /// The probes' field dropped as a new renderer has it (none yet: made
+    /// and baked anew), the tests' reference for the field a fresh load
+    /// bakes.
+    pub fn probes_afresh(&mut self) {
+        self.probes = None;
+        publish(None);
+    }
+
+    /// Probes given up since the last drive's start (None: no field yet).
+    pub fn probes_released(&self) -> Option<usize> {
+        self.probes.as_ref().map(|b| b.released)
     }
 
     /// Draw probe `i`'s six faces and start their read-back.
@@ -220,6 +380,8 @@ impl WorldRenderer {
             PassCull { planes, mirrored: false, eye: centre, forward: Vec3::Z, scale: 0.0, min_size: 0.0, fades: None };
         let mut encoder =
             gpu.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("light probe") });
+        // The GPU's time timed from here (the submissions before excluded).
+        crate::prof::gpu::mark(&mut encoder, crate::prof::gpu::GAP);
         let core = &self.core;
         let groups = core.kept_groups(&visible, &cube, WorldView::Environment, params.reversed, false, None, main_lod);
         for (f, (r, d, fwd)) in face_axes().into_iter().enumerate() {
@@ -347,6 +509,9 @@ impl ProbeBaker {
             frames,
             readback,
             pending: None,
+            discard: false,
+            reversed: None,
+            released: 0,
             gate: Default::default(),
         }
     }

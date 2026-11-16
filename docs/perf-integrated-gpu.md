@@ -252,6 +252,13 @@ the switch (with their probes) still set it; after the switch the frames
 are the cheap form's. On a 60 Hz panel with vsync, which most such laptops
 have, no probe is drawn at all.
 
+## The falling rain's drops under the lamps
+
+"graphics: native particles" in rain at Medium and High was 0.60–0.70 ms here (an earlier 0.94–1.24 included what
+ran before it): nine tenths the lamp shading of the falling rain's drops. Left before the shading where their alpha
+is 0 (exact: 0.60 → 0.52 Medium, 0.68 → 0.64 High), then lit at their four corners: 0.05 (probe) + 0.27 Medium,
+0.05 + 0.24 High (docs/lamps-shadows.md "The falling rain under the lamps").
+
 ## The laptop
 
 GPU time is what bounds the frame on the integrated GPU (CPU ≤ 2.5 ms

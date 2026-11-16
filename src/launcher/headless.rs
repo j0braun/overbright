@@ -51,7 +51,7 @@ pub fn named_app<'e>(env: &'e FakeEnv, fonts: &Fonts, name: &str, w: u32, h: u32
 
 /// The named states: (name, the screen it is shown on). The fake data of
 /// each comes from [`state_model`].
-pub const STATES: [(&str, Screen); 30] = [
+pub const STATES: [(&str, Screen); 31] = [
     ("no-game", Screen::FirstRun),
     ("check-ok", Screen::Check),
     ("wrong-version", Screen::Check),
@@ -62,6 +62,7 @@ pub const STATES: [(&str, Screen); 30] = [
     ("probe-failed", Screen::Main),
     ("no-vulkan", Screen::Main),
     ("long-values", Screen::Main),
+    ("skip-movies", Screen::Main),
     ("unofficial", Screen::About),
     ("start-failed", Screen::Failure),
     ("unreadable-folder", Screen::Browse),
@@ -196,6 +197,12 @@ pub fn state_model(name: &str) -> Option<(Screen, Model)> {
             m.pack_status = PackStatus::Incomplete;
             m.choices.graphics = super::model::Graphics::Custom;
             m.controller = Some("Sony Interactive Entertainment Wireless Controller (DualSense Edge)".into());
+        }
+        // Skip Intro Movies on, the title screen kept (the two boxes are
+        // independent).
+        "skip-movies" => {
+            m.choices.skip_movies = true;
+            m.saved.skip_movies = true;
         }
         "unofficial" => m.source = None,
         "start-failed" => {

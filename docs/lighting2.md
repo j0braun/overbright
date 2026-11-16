@@ -75,7 +75,10 @@ chosen while the row is on (`SceneMode::lamps`).
   photo mode, the fountain orbit — kept baking), nearest first, one per frame (the read-back a
   frame later); arriving where probes are within 40 m but none of them is baked (a load, a reset)
   bakes the nearest 48 unbaked within 70 m at once (a hitch of the order of a section load).
-  Kept for the world's life; a baked probe is never baked again (`ProbeField::plan`; the frame-budget fixes fixed
+  Kept for the world's life; a baked probe is never baked again unless a drive's set-up switches scenery it
+  sees (`WorldRenderer::new_drive_probes`, docs/ambient-detail.md "Kept-world caches": the probes whose
+  ±`ENV_FAR` box holds a shown, hidden or moved placement are given up, those within `BURST_RADIUS` baked
+  again in the drive's first frame; GPU cost below) (`ProbeField::plan`; the frame-budget fixes fixed
   the arrival test, which also held with *no* probe within 40 m and then re-baked up to 48
   baked probes every frame: 818 bakes of 118 probes in the 600-frame fountain orbit, now 100).
 * Use: `CarLighting::in_world` blends the nearest four baked probes within 40 m (inverse distance)
@@ -194,8 +197,21 @@ module only appends to car.wgsl and keeps the native colour/alpha as base); `qol
 
 ## Open
 * Cars are not lit by other cars' beams (world surfaces only); traffic beams cast no shadow.
-* Probes: baked once per world load (a scenery switch later is not re-baked); the bake sees the
-  camera's visible section list; probes between roads (plazas off the splines) are absent.
+* Probes: the bake sees the camera's visible section list, the fog and the time of the frame it is
+  baked in (a probe baked while it rains keeps the rain's fog); probes between roads (plazas off the
+  splines) are absent. A drive's set-up switch bakes again only the probes that see it; a probe's
+  freshness is not kept per probe for these other inputs.
+* Re-bake cost at a set-up switch (GPU timestamps, `tests::kept_world::light_probes_rebake_cost`,
+  320×240 offscreen, Light Probes on; "world: light probes" in the drive's first frame / the next nine;
+  the same set-up again gives up none and costs nothing extra; three runs each):
+  | switch | probes given up | discrete GPU first / next 9 | integrated GPU first / next 9 (load ≈ 36–40) |
+  |---|---|---|---|
+  | URL 4701 → 4703 | 26–30 | 0.96–0.97 / 0.30 ms | 1.7–2.7 / 0.36–0.65 ms |
+  | URL 4701 → 4701 | 0 | 0 / 0.28 ms | 0 / 0.49–0.88 ms |
+  | drag 4222 → 4223 | 13 | 0.32–0.33 / 0.20 ms | 0.43–0.92 / 0.29–0.67 ms |
+  | drag 4222 → 4222 | 0 | 0 / 0 | 0 / 0 |
+  The drive start's check itself: 0.08–0.17 ms CPU (6 687–12 375 placements) behind the loading screen. With
+  Light Probes off nothing is recorded or checked (a field left from before is dropped).
 * Glass in the front end (garage, showroom) stays native (its render paths have no glass pass); the
   rear-view mirror keeps native glass.
 * The look of all three is a judgement call (no native counterpart); constants are named in the code.

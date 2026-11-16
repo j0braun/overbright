@@ -165,3 +165,41 @@ fn fs_nofog_alpha_test(in: VertexOut, @builtin(view_index) view_index: u32) -> @
     return world_colour(in, true, false);
 }
 
+
+#if LAMPS
+// BEGIN LAMPS
+// Blend::Alpha draws with the lamps' module: a fragment whose alpha
+// (texel.a · v0.a, as `shade` makes it) is 0 adds src · 0 + dst · 1, the
+// target as it was (no depth written for blended textures), so it is
+// left before the lamps' shading. The rest draws exactly as `fs_world` /
+// `fs_nofog`; `discard` demotes, so the derivatives the lamps take for
+// the neighbours stay as they were.
+fn clear_left(in: VertexOut) {
+    if sample_tex(in.uv).a * in.color.a == 0.0 {
+        discard;
+    }
+}
+
+@fragment
+#if !MULTIVIEW
+fn fs_world_clear(in: VertexOut) -> @location(0) vec4<f32> {
+#else
+fn fs_world_clear(in: VertexOut, @builtin(view_index) view_index: u32) -> @location(0) vec4<f32> {
+    frame = frames[view_index];
+#endif
+    clear_left(in);
+    return world_colour(in, false, true);
+}
+
+@fragment
+#if !MULTIVIEW
+fn fs_nofog_clear(in: VertexOut) -> @location(0) vec4<f32> {
+#else
+fn fs_nofog_clear(in: VertexOut, @builtin(view_index) view_index: u32) -> @location(0) vec4<f32> {
+    frame = frames[view_index];
+#endif
+    clear_left(in);
+    return world_colour(in, false, false);
+}
+// END LAMPS
+#endif
