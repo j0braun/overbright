@@ -110,6 +110,14 @@ pub struct CarState {
     /// unchanged the next sub-step steps these exact rows, so
     /// the quaternion round trip adds no rounding between sub-steps.
     pub(super) body_rows: Option<(Quat, Mat3)>,
+    /// The rigid body's centre of mass (body +0x20) as the last sub-step or
+    /// push left it, with the `position` and `orientation` it was published
+    /// with: while both are unchanged the centre of mass is this exact
+    /// value, not `position + R·c` again (the original keeps the centre of
+    /// mass itself; the round trip through the car's origin rounds it by a
+    /// float step at world coordinates, which a contact's arm turns into
+    /// a different yaw kick).
+    pub(super) body_com: Option<(Vec3, Quat, Vec3)>,
     /// Velocity of the centre of mass, m/s.
     pub velocity: Vec3,
     /// Completed outer-world velocity delta (car +80, 604750).
@@ -488,6 +496,7 @@ impl CarState {
             position,
             orientation: Quat::from_rotation_z(heading),
             body_rows: None,
+            body_com: None,
             velocity: Vec3::ZERO,
             world_acceleration: Vec3::ZERO,
             spin: Vec3::ZERO,

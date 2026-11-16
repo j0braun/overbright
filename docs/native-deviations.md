@@ -216,19 +216,18 @@ The following still differ from the original. These are defects, tracked as such
 (the player's view of each: README.md, "Known issues"):
 
 - **Random draws:** most draws are made at the original's places in its order (docs/rng.md); the car
-  render-info draws, the drivetrain's rerolls, the free-roam traffic fill and some audio draws are not yet
-  (docs/rng.md "Open"). Line-ups, cars, traffic and encounters follow the original's rules but not its picks.
-- **Physics:** after a wall contact the pivot off the wall differs (collision code); in an engaging clutch the
-  front wheels' force is about 5 % off for a frame (docs/cornering-parity.md section 6).
+  render-info draws, the free-roam traffic fill and some audio draws are not yet (docs/rng.md "Open").
+  Line-ups, cars, traffic and encounters follow the original's rules but not its picks.
+- **Physics:** a car held against a wall turns off it the same way as in the original, but leaves it
+  sooner or later: from the second push of a hold the contacts' timing differs (the contact refresh,
+  docs/cornering-parity.md section 6).
 - **AI slip tracking:** reads the wheels' own slip, not the slip the scene mover writes back (0x4057C0,
   0x5A2B70; docs/native-fixes/slip-readers.tsv).
-- **Replay cameras:** the Jump shot's flight prediction (0x5EC3E0) is not ported; Jump is chosen only for a car
-  upside down (docs/replay-cameras.md).
 - **Stage-4 drag rivals:** the AI's lane convergence at lane splits (0x40FC80 / 0x60BFB0) and the drag AI's
   nitrous end (0x42AD24..0x42AD55): docs/drag-stage4-parity.md 8.4.
 - **After an outrun:** the original's rival drives on in goal 1 at ~40 m/s; the clone's brakes towards the
   pursuit cap (docs/outrun-pace.md "Open").
-- **Carbon fibre convert:** the original asks "Do you want to convert …?" and turns the camera to the rear
-  before Convert Trunk / Body Kits; the clone fits at once (docs/car-materials.md).
+- **Carbon fibre:** the original turns the camera to the rear before Convert Trunk / Body Kits' question;
+  the clone keeps the view (where the turn comes from is not traced, docs/car-materials.md).
 - **Not yet compared under Wine:** a tournament's Next Race (Restart was), a save made after a long session
   loaded back into the original (docs/world-systems-parity.md section 5).

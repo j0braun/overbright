@@ -748,8 +748,8 @@ impl Props {
                 let prop = &world.smackables[k];
                 let b = self.bodies[k].as_mut()?;
                 let c = &mut cars[i];
-                let f = if spans[i] > 1e-6 { t / spans[i] } else { 0.0 };
-                c.state.back_to(&starts[i], f);
+                let local = glam::Vec3::from(c.car.car_type.handling.centre_of_mass);
+                c.state.back_to(&starts[i], t, spans[i], local);
                 if b.moving && t > 0.0 {
                     back_to(prop, b, t);
                 }

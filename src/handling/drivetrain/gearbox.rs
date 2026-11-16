@@ -1,13 +1,25 @@
 use super::*;
 
 impl Drivetrain {
-    /// 0x594720: new random shift offsets, each lo + uniform(hi − lo)
-    /// from its range (0x5EA510 on the race's random state; the clone's
-    /// own generator here).
+    /// 0x594720 (**verified**): the three shift offsets (+0x78 up, +0x7C
+    /// down, +0x80 2nd gear) set to 0, then each Rand_Float(hi − lo) + lo
+    /// on the world generator (0x5EA510 on [0x890080] +0xF8) in that
+    /// order, from the ranges +0xCC/+0xD0, +0xD4/+0xD8, +0xDC/+0xE0. The
+    /// draws are skipped (the offsets left 0) when the replay manager's
+    /// +0xA0 is set and its +0x41 is not 0 (0x594731..0x594743; what those
+    /// fields are is **open**: the clone draws in a replay's frames as in
+    /// the live ones, which keeps a replay the race it recorded). Where no
+    /// world generator is lent (a lone free-roam car, the dyno, tests) the
+    /// clone draws from the drivetrain's own sequence.
     pub(in crate::handling) fn reroll(&mut self, h: &Handling) {
         for (j, [lo, hi]) in self.jitter.iter_mut().zip(h.shift_ranges) {
-            self.seed = self.seed.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
-            *j = lo + (self.seed >> 8) as f32 / 16_777_216.0 * (hi - lo);
+            *j = match super::world_unit(hi - lo) {
+                Some(u) => u + lo,
+                None => {
+                    self.seed = self.seed.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
+                    lo + (self.seed >> 8) as f32 / 16_777_216.0 * (hi - lo)
+                }
+            };
         }
     }
 

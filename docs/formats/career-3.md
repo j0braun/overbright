@@ -1220,7 +1220,9 @@ The drawing (0x531050 per point, **verified**; the walker 0x531280 passes the no
   ≤ 0.7, (|body +0x38| ≤ 0.15 and |+0x48| ≤ 0.15, the forward and side
   axes' z) or no wheel down, not recently hit (0x5EBFB0: car +0x974 tick
   within +0x978 s, the ghost timer), and a wheel down or a track contact
-  with |n.z| < 0.7 (0x5ED230 → 0x5A01C0, 0x7844D8) or class 2 last time:
+  with |n.z| > 0.7 (0x5ED230 → 0x5A01C0: either side a track polygon,
+  class 3, whose |+0x60 → +0x78| is over 0x7844D8 = 0.7 — a floor, not a
+  wall, **verified**) or class 2 last time:
   2 when |v| and |ω| ≤ 0.25, else 1. Class 1 scales momenta +0x70 / +0x80
   by 0.95, class 2 zeroes them (and, with a wheel mover, its wheel spins
   +0x28 when wheels are down), both body +0x160 (gravity) to 0 for 2,

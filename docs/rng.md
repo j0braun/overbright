@@ -21,7 +21,7 @@ frame, one world update per frame: at 60 fps the two agree).
 | G4 speech library (0x819AB4) | seeded from `Game::rng.below(0xFFFFFFFF)` at the audio start (0x4866F0) and at every world build (MixMap_Select 0x486A2C), only with sound (`Game::speech_seed`). |
 | G5 AEMS | `audio::aems::Rng`, unchanged (open: A-audio-1). |
 | G1 in the audio (P4 U11) | the tick's sounds (`Game::audio_sounds`, only with sound) draw on `Game::rng`: `audio::collision::enter_game_rng` / `leave_game_rng` hand the game's state to the audio's generator for the window and back. Sites on it: turbo 0x45EED1 (`turbo.rs`), stitch layer start 0x45B280 (`stitch.rs`: road thumps, drive-by whooshes, bottom-out knocks, traffic contexts), stereo 0x4765A7/BD/D8 + the racers' roll 0x4765F5 (`stereo.rs`), horns 0x47E78F/CE/EE (`others.rs`), bottom-out (`bottom_out.rs`), EA Trax's Random pick 0x46B86F / 0x46BA2F (`Playlist::next`; `Streams.rng` is gone). |
-| — | **Left (open)**: audio draws outside that window stay on the audio's own copy (0x12345678): the car-part stitch layers started by the cover rewards (`CommonStitches::start`, `career_glue/cover_rewards.rs`). Native G1 audio draws the clone does not make at all (port list R13 / R30: SfxCtlEngine 0x46F5AB/BC, AccelTrans 0x45CADE, physics bind 0x45D885, hybrid 0x47099E, rain 0x47488A, knock 0x47EB9C, AI contexts 0x476C9B/AB/BB, traffic add 0x464097..0x464217), so the G1 count with sound is still short of the original's. The per-car drivetrain LCG (`handling/drivetrain/gearbox.rs`). |
+| — | **Left (open)**: audio draws outside that window stay on the audio's own copy (0x12345678): the car-part stitch layers started by the cover rewards (`CommonStitches::start`, `career_glue/cover_rewards.rs`). Native G1 audio draws the clone does not make at all (port list R13 / R30: SfxCtlEngine 0x46F5AB/BC, AccelTrans 0x45CADE, physics bind 0x45D885, hybrid 0x47099E, rain 0x47488A, knock 0x47EB9C, AI contexts 0x476C9B/AB/BB, traffic add 0x464097..0x464217), so the G1 count with sound is still short of the original's. The drivetrain's own sequence (`handling/drivetrain/gearbox.rs`), only where no world step lends the world generator. |
 
 ## Sites ported
 
@@ -91,22 +91,43 @@ frame, one world update per frame: at 60 fps the two agree).
   AvoidAvoidable 0x42D274 / 0x42D874 (`choose`), 0x42DBD8 (`choose_pursuit`) before the vt+0x9C
   draw (`willing`), 0x42D68C (`drag_avoid`). Nothing reads the stored values (0x5F61A0 returns
   before them: +0x925 is only ever written 0), so the draws are all that is ported.
+* **Drivetrain rerolls** 0x594720 (**verified**; **observed** bit for bit, corner_launch20 run 1
+  frame 65: from the original's world state 0x67B5B54F the offsets −18.9767 / −9.51665 / −19.1812
+  and the state after, 0x4BD7ACF5, `docs/evidence/native-sim/shift-reroll.txt`): the three shift
+  offsets +0x78 / +0x7C / +0x80 each Rand_Float(hi − lo) + lo on the world generator (0x5EA510),
+  in that order. The call path: 0x5A1410's clutch machine (the drivetrain's vt+0x1C, vtable
+  0x7A2510) in state 1 (0x5A1634) unless +0x48 = 0 and 0x594EA0() ≠ 0; the integrator's end
+  0x5B04E0 runs every component's vt+0x1C (0x5B0509), then 0x5ABB10, whose rest test (0x5A5E30:
+  class 1 / 2) or bump-stop hit re-runs them with h = 0 (0x5A0D90, 0x5A0DB6): a car standing makes
+  2 rerolls (6 world draws) a frame at 60 fps (**measured**, gdb watches; the clone the same, the
+  evidence file), 1 expected at 120 fps. The clone's world step lends its car field's generator
+  (the race field's, free roam's traffic or encounter field's) to the drivetrains around every
+  car's motion and contact re-step (`handling::with_world_rng` in `drive::collide::step`); the
+  drivetrain's own sequence is left only where no world step runs (a lone free-roam car with no
+  traffic or encounters, the dyno, tests). A replay's frames draw as the live ones (the replay
+  restores the generator with its snapshots). The replay manager test 0x594731..0x594743
+  (**verified**): [0x8650B4] +0xA0 is the snapshot Replay_SerialiseAll (0x57BFF0) walks — set at
+  0x57C001, cleared at 0x57C01B / 0x57C07A — and its +0x41 is the restore flag (0x57C1F2 sets it in
+  the restore 0x57C1E0, 0x5791EA / 0x579206 around 0x5791A0): a drivetrain set up while a snapshot is
+  restored takes offsets 0 and draws nothing. The clone's restore copies the drivetrain's state and
+  draws nothing either.
 * **Collision hull support** 0x5AFBF1: `nfsu2::rng_sites::hull_support_start` for the collision
   code (not wired: the physics unit's files and the per-query mapping are open).
 
 ## Open
 
 * One `Rand_Int(8)` per car render info (0x6383A5 via 0x63A5B0 / 0x63A660, 24–37 a world build, 1
-  per front-end car): which cars and when.
-* Drivetrain rerolls (0x594720, world generator): 2 calls a frame standing. The call path is
-  settled: 0x594720 is called from the clutch machine of 0x5A1410 (the drivetrain's
-  vt+0x1C, vtable 0x7A2510) in state 1 (0x5A1634) unless +0x48 = 0 and 0x594EA0() ≠ 0; the
-  integrator's end 0x5B04E0 runs every component's vt+0x1C (0x5B0509), then 0x5ABB10, whose rest
-  test (0x5A5E30: class 1 / 2) or bump-stop hit re-runs them with h = 0 (0x5A0D90, 0x5A0DB6). So a
-  car standing runs 0x5A1410 twice a sub-step (8 calls a frame at 60 fps), the machine advances one
-  state a call, and 2 rerolls (6 world draws) fall on the re-pass of sub-steps 2 and 4 (**measured**,
-  gdb watches). The clone's `drive/force.rs` `rest_test` / `bump_stops` already make this re-pass;
-  only the generator the reroll draws from is open (R19). Expected at 120 fps (2 sub-steps): 1.
+  per front-end car): which cars and when. The value (render info +0x3F8, 0x6383AA) is never read: no other
+  access to +0x3F8 on a render info in the executable (**verified**, the disassembly), so the draw
+  only moves the shared generator on; porting it needs the original's order of render-info builds
+  among the world build's draws (not measured).
+* Drivetrain rerolls (0x594720): ported in the clutch machine, see "Sites ported". Open: (a) the
+  gearbox set-up's reroll (constructor 0x5AF9E0 at 0x5AFA9F, three world draws per car mover built,
+  0x5B608F in the mover's construction; the clone's drivetrain starts with its own offsets and draws
+  nothing there); (b) the contact refresh 0x593710 runs the clutch machine with h = 0 before and
+  after every impulse (0x5B2620 → 0x5B04E0), so a car in state 1 during a contact rerolls there too;
+  the clone runs no drivetrain update in a contact; (c) the order of a frame's rerolls among the world
+  generator's other users (the cars' motion against the traffic's think).
 * `pick_lane`'s frequency (the clone ≈ 6.6 a frame driving vs the original's ≈ 22 a placement).
   The placer's order inside a pass is settled ("Traffic placer pass" above).
 * Audio draws (`audio::collision::rand`, trax): on `Game::rng` since P4 U11 (the audio's posted

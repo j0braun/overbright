@@ -17,7 +17,7 @@ impl CarState {
     /// 0.7, the forward and side axes' z (body +0x38, +0x48) within ±0.15
     /// unless no wheel is down, no recent hit (0x5EBFB0: the ghost timer
     /// +0x974 / +0x978), and a wheel down or a contact with a track
-    /// polygon whose |n.z| < 0.7 (0x5ED230 → 0x5A01C0) or the class 2
+    /// polygon whose |n.z| > 0.7 (0x5ED230 → 0x5A01C0) or the class 2
     /// last time: 2 when |v| and |ω| are both at most 0.25, else 1.
     pub(super) fn rest_class(&self, gas: f32, neutral: bool, rot: Mat3) -> u8 {
         if self.hydraulics.input.bouncing() || self.hydraulics.moving() > 0 {
@@ -38,11 +38,19 @@ impl CarState {
         if self.ghost_timer > 0.0 {
             return 0;
         }
-        let wall = self.contacts.iter().any(|n| n.wall);
-        if !(down > 0 || wall || self.rest == 2) {
+        if !(self.grounded() || self.rest == 2) {
             return 0;
         }
         if v <= 0.25 && w <= 0.25 { 2 } else { 1 }
+    }
+
+    /// 0x5ED230: a wheel down (car +0x424 > 0), else any of the body's
+    /// contacts (+0x3C, count at +0x18, walked by 0x5A0830) for which
+    /// 0x5A01C0 holds: a track polygon on either side whose normal's z is
+    /// over 0.7 in size (`ContactNote::floor`). Read by the rest classifier
+    /// (0x5993F5) and the replay's Jump camera (0x441B6D).
+    pub fn grounded(&self) -> bool {
+        self.wheels_down() > 0 || self.contacts.iter().any(|n| n.floor)
     }
 
     pub(super) fn upright_contact(&self) -> bool {

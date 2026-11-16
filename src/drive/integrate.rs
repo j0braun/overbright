@@ -70,6 +70,30 @@ impl CarState {
         }
     }
 
+    /// The centre of mass in the world (body +0x20): the published exact
+    /// value while the pose it was published with stands, else
+    /// `position + R·com_local`.
+    pub fn com_world(&self, com_local: Vec3) -> Vec3 {
+        match self.body_com {
+            Some((p, q, c)) if p == self.position && q == self.orientation => c,
+            _ => self.position + self.body_rows() * com_local,
+        }
+    }
+
+    /// Put the centre of mass at `com` exactly (the car's origin follows).
+    pub fn set_com_world(&mut self, com: Vec3, com_local: Vec3) {
+        self.position = com - self.body_rows() * com_local;
+        self.body_com = Some((self.position, self.orientation, com));
+    }
+
+    /// Move the body by `offset` (a push-out, 0x5B2620): the centre of
+    /// mass and the origin both.
+    pub(crate) fn shift_body(&mut self, offset: Vec3, com_local: Vec3) {
+        let com = self.com_world(com_local) + offset;
+        self.position += offset;
+        self.body_com = Some((self.position, self.orientation, com));
+    }
+
     /// Publish orthonormal rows (0x5BB0E0's result) as the orientation.
     pub(crate) fn set_body_rows(&mut self, rows: Mat3) {
         let q = Quat::from_mat3(&rows).normalize();

@@ -222,8 +222,8 @@ fn replay_track(
         // A held track is drawn again with bVar5 when
         // the Jump weight 0x441B40 is over 0 or car
         // +0xB8 < 0 (0x5FB060; the typed mover's +0x84
-        // request is not ported): the car upside down
-        // (the flight prediction 0x5EC3E0 is not ported).
+        // request is not ported): the car upside down or
+        // a long flight predicted (0x5EC3E0).
         if may_draw {
             let i = replay_typed_input(d, play.typed_top, play.last_velocity, dt);
             if i.upside_down || i.long_flight {

@@ -186,7 +186,6 @@ game.quads	inferred	docs/formats.md	totals add (0x515990 → +0xA00). Inferred: 
 game.race_start_scene	open	docs/formats.md	Open: the complete NISMover pose/force solver and remaining
 game.racer_think	inferred	docs/formats.md	NIS movers is inferred: no gas, the hold's brake, neutral).
 game.replay_typed_input	inferred	docs/drag-drift-outrun-parity.md,docs/replay-cameras.md	path's curvature (0x5EB320; inferred here from the velocity's turn
-game.replay_typed_input-2	open	docs/drag-drift-outrun-parity.md,docs/replay-cameras.md	the slip angle (0x59FA20). The flight prediction (Jump) is open.
 game.reset_to_road	inferred	docs/formats.md,docs/nis-mover.md	Inferred: the human's road node is the AI racer controller's route
 game.road_car	inferred	docs/formats.md	half its length and width (handling +0x224 / +0x228, inferred for
 game.shop_preview_item	inferred	docs/formats.md	(under Wine RED's underglow; inferred that it is

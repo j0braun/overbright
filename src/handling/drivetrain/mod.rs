@@ -10,6 +10,31 @@ pub use turbo::Turbo;
 
 use super::*;
 
+thread_local! {
+    /// The world generator ([0x890080] +0xF8) lent to the drivetrains for
+    /// one world step ([`with_world_rng`]); None outside one.
+    static WORLD_RNG: std::cell::RefCell<Option<crate::opponents::GameRng>> = const { std::cell::RefCell::new(None) };
+}
+
+/// Run `f` (a world step: every car's motion and contact re-steps) with
+/// the world's generator lent to the drivetrains, so the shift offsets'
+/// rerolls (0x594720 → 0x5EA510) draw from it in the cars' step order, as
+/// the original's do.
+pub fn with_world_rng<R>(rng: &mut crate::opponents::GameRng, f: impl FnOnce() -> R) -> R {
+    let lent = WORLD_RNG.with(|w| w.borrow_mut().replace(rng.clone()));
+    let r = f();
+    if let Some(back) = WORLD_RNG.with(|w| std::mem::replace(&mut *w.borrow_mut(), lent)) {
+        *rng = back;
+    }
+    r
+}
+
+/// One draw on the lent world generator (0x5EA510: Rand_Float(scale)),
+/// None when none is lent.
+fn world_unit(scale: f32) -> Option<f32> {
+    WORLD_RNG.with(|w| w.borrow_mut().as_mut().map(|r| r.unit(scale)))
+}
+
 /// rad/s → rpm (0x7A1D30).
 pub const RPM_PER_RAD_S: f32 = 9.549304;
 pub const NEUTRAL: usize = 1;
@@ -204,9 +229,9 @@ impl Drivetrain {
     }
 
     /// A drivetrain whose shift offsets draw from their own sequence
-    /// `seed` (the original draws them from the world's random state
-    /// 0x890080 +0xF8, shared by every car; the clone gives each racer its
-    /// own so that rivals do not shift in step).
+    /// `seed` where no world generator is lent ([`with_world_rng`]: the
+    /// world steps of a race and of free roam lend it, as the original's
+    /// 0x594720 draws from 0x890080 +0xF8, shared by every car).
     pub fn seeded(h: &Handling, seed: u32) -> Drivetrain {
         Drivetrain { seed, ..Drivetrain::new(h) }
     }

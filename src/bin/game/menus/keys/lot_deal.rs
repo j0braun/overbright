@@ -18,6 +18,7 @@ impl Game {
                 self.fit_browser_part(package, sub, category, i, slot, hash, price, owned);
             }
             Mode::Menu(Menu::LotDeal(LotDeal::FitGauge(c))) => self.fit_custom_gauge(&c),
+            Mode::Menu(Menu::LotDeal(LotDeal::Convert { sub, category })) => self.carbon_convert(sub, category)?,
             // The garage's Yes: its save point when changed, then
             // 0x4AF607 (career +0x8744 = 1, 0x4AF616): the city
             // start at the kept place, the race's engage place

@@ -1,0 +1,13 @@
+# bench_wall_hold, the clone with the exact centre of mass (body +0x20 kept, back_to on it, 0x593640/0x593290).
+# wallA: a fresh capture of the original with the per-contact log (PARITY_CONTACT_ALL=1 PARITY_CONTACT_EXACT=1); wall-1..3: the earlier captures.
+# First contact (wallA, clock 52048): original | clone
+#   arm      (1.61475,-0.29175,-0.09758) | (1.61475,-0.29175,-0.09759)   (before: y -0.29181)
+#   dv       (-12.04108,2.17447,0.02227) | (-12.04109,2.17446,0.02231)
+#   dL       (0.08680,0.48067,-0.00074) | (0.08680,0.48066,-0.00075)    (before: z -0.00106)
+#   yaw rate at frame 120  -0.00174857 | -0.001751                     (before: -0.001842)
+# Heading (deg) at frames 150 / 250 / 360 / 450 / 540 / 600, original|clone:
+wallA -10.5|-10.5 -12.0|-12.6 -20.6|-22.8 -37.3|-45.6 -87.7|-94.8 -99.3|-101.3
+wall-1 -10.4|-10.4 -11.2|-11.3 -14.9|-18.7 -24.5|-33.3 -53.2|-80.2 -89.7|-99.4
+wall-2 -10.4|-10.3 -11.3|-10.4 -17.6|-11.7 -30.4|-17.8 -72.3|-30.6 -98.2|-55.1
+wall-3 -10.4|-10.3 -11.3|-10.4 -17.6|-11.7 -30.4|-17.8 -72.3|-30.6 -98.2|-55.1
+# Next difference (wallA, clock 52384): after the push at the upper front point the original's next time-of-impact search overlaps at every one of its 8 tries (stuck: push-out, no impulse; native-contacts t 0.015609 of the 0.015671 left), the clone's finds a clear time halfway (0.0079) and applies the 0.3 m/s minimum push. Open.

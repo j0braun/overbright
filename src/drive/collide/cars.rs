@@ -17,8 +17,8 @@ pub(in crate::drive) fn resolve_cars(
 ) {
     let (a, b) = key;
     for k in [a, b] {
-        let f = if spans[k] > 1e-6 { t / spans[k] } else { 0.0 };
-        cars[k].state.back_to(&starts[k], f);
+        let local = Vec3::from(cars[k].car.car_type.handling.centre_of_mass);
+        cars[k].state.back_to(&starts[k], t, spans[k], local);
     }
     let pair = field.pairs.get_mut(&key).unwrap();
     if stuck {
@@ -310,6 +310,8 @@ pub(crate) struct Pose {
     pub(crate) position: Vec3,
     pub(crate) orientation: Quat,
     pub(crate) velocity: Vec3,
+    /// The exact centre of mass (body +0x20) when the state held it.
+    pub(crate) com: Option<Vec3>,
 }
 
 /// When, in seconds before the end of the span, the hull first touched the

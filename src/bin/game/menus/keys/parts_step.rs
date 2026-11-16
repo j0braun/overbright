@@ -35,6 +35,24 @@ impl Game {
         {
             self.fe.overlay_rating = Some(b_package);
         }
+        // Carbon fibre's Hood opened (0x5664A0 at 0x566786, +0x1D5 set,
+        // slot 9, the list not open): with a vinyl of kind 0x14 on a layer
+        // the warning first, over the list it opens (`carbon_hood_warning`).
+        if let Mode::Menu(Menu::Parts(b)) = &self.mode
+            && sub == Some(0x5E)
+            && part_before.is_none()
+            && b.part.is_some()
+            && b.categories.get(b.category).is_some_and(|c| c.slot == 9)
+            && let Some(text) = self.carbon_hood_warning()
+        {
+            let text = self.label(text, "");
+            let ok = self.label(0x0639, "OK");
+            let mut d = Dialog::new(screens::dialog_package(&self.game_data.assets, &text), &text, &[&ok], self.now());
+            d.dim_scripts = Some((nfsu2::frontend::MENUFADEOUT_SCRIPT, nfsu2::frontend::UNDIM_SCRIPT));
+            let under = std::mem::replace(&mut self.mode, Mode::Explore);
+            self.mode = dialog_over(Mode::Menu(Menu::Dialog(d, vec![under])), true, None);
+            return Ok(None);
+        }
         let Mode::Menu(Menu::Parts(b)) = &mut self.mode else { return Ok(None) };
         let i = match step {
             screens::BrowserKey::None => return Ok(None),
@@ -201,9 +219,96 @@ impl Game {
         Ok(())
     }
 
-    /// A toggle category's Accept (`CategoryAction::Toggle`).
+    /// A toggle category's Accept (`CategoryAction::Toggle`): carbon
+    /// fibre's Convert / Revert Trunk (slot 0x60) and Body Kits (0x5D) ask
+    /// first (UI_GenericParts_Browser's handler 0x5664A0 on 0x406415E3 with
+    /// +0x1D5 set, **verified**: 0x566686 and 0x566895). With the "none"
+    /// part 0xC8D313AC fitted the question converts, else it reverts
+    /// (`carbon_question`); Yes (0x51123592) converts (`carbon_convert`),
+    /// No / Back (0xB4623F67) leaves the strip as it was.
     fn parts_toggle_key(&mut self, sub: Option<u8>, category: usize) -> Result<()> {
-        let Mode::Menu(Menu::Parts(b)) = &mut self.mode else { unreachable!() };
+        let Mode::Menu(Menu::Parts(b)) = &self.mode else { unreachable!() };
+        let c = &b.categories[category];
+        let screens::CategoryAction::Toggle(_) = c.action else { return Ok(()) };
+        let question = self.carbon_question(c.slot);
+        let yes = Mode::Menu(Menu::LotDeal(LotDeal::Convert { sub, category }));
+        let text = self.label(question, "?");
+        let package = screens::dialog_package(&self.game_data.assets, &text);
+        let again = self.parts_browser_in(sub, category, None);
+        // 0x5587A0(…, Yes 0xF770, No 0x061C, 0x51123592, 0xB4623F67,
+        // 0xB4623F67, 1: No focused, question), then StartDim on the
+        // browser (0x537C10 "DIM").
+        self.mode = dialog_over(focus_no(self.ask_in(package, question, yes, again)), true, None);
+        Ok(())
+    }
+
+    /// The convert question for the trunk (0x60) or the kits (0x5D)
+    /// (0x566686..0x566728, 0x566895..0x5669E3; **verified**). The fitted
+    /// part 0x610300(slot) still the "none" part 0xC8D313AC:
+    /// * trunk: "Do you want to convert your trunk to carbon fiber?"
+    ///   (0x2B950C36), in a career (0x850078 = 1) with that part not owned
+    ///   (0x521BF0 on the slot and the fitted part) the purchase question
+    ///   0x3175F2B0;
+    /// * kits: with no conflicting vinyl the same pair 0x9E274DAA /
+    ///   0xB7C84DA4; with one, 0xEE2C85BB (purchase, "This will cause some
+    ///   vinyls to be removed", whatever the career). A vinyl on a layer
+    ///   (0x610300(0x40..0x43), kind = +5 & 0x1F) conflicts: with a wide
+    ///   body fitted (slot 6, level +5 >> 5 above 0) every kind but 0x14;
+    ///   without one the kinds 0x0E, 0x0F and 0x15..0x1A (the jump table
+    ///   0x56787C / 0x567884 over kind − 0x0E, 0..0x0C).
+    ///
+    /// Otherwise the revert question: 0xA645A29E (trunk), 0x660BDF52 (kits).
+    pub(crate) fn carbon_question(&self, slot: u8) -> u32 {
+        const NONE: u32 = 0xC8D3_13AC;
+        let fitted = self.profile.as_ref().and_then(|p| p.installed.get(&slot).copied()).unwrap_or(NONE);
+        let unowned = self.profile.as_ref().is_some_and(|p| !p.scratch && !p.owned.contains(&(slot, fitted)));
+        if fitted != NONE {
+            return if slot == 0x60 { 0xA645_A29E } else { 0x660B_DF52 };
+        }
+        if slot == 0x60 {
+            return if unowned { 0x3175_F2B0 } else { 0x2B95_0C36 };
+        }
+        let part = |s: u8| self.fitted(s).and_then(|h| self.car_part(s, h));
+        let wide = part(6).is_some_and(|p| p.level > 0);
+        let conflict = (0x40..0x44).filter_map(part).any(|p| {
+            let kind = p.kind & 0x1F;
+            if wide { kind != 0x14 } else { matches!(kind, 0x0E | 0x0F | 0x15..=0x1A) }
+        });
+        if conflict {
+            0xEE2C_85BB
+        } else if unowned {
+            0xB7C8_4DA4
+        } else {
+            0x9E27_4DAA
+        }
+    }
+
+    /// The carbon hood's warning (0x566786..0x566862, **verified**): a vinyl
+    /// whose kind (+5 & 0x1F) is 0x14 on one of the layers 0x40..0x43
+    /// (0x610300) gives "Warning! Installing a carbon fiber hood will cause
+    /// any hood vinyls to be removed from your car." (0xB3BBB11D), or with
+    /// a decal in one of the slots 0x61..0x68 the "… hood vinyls and decals
+    /// …" one (0x9796DFB4): a one-button dialog (0x558440), its OK
+    /// 0x34DC1BEC; the browser plays MENUFADEOUT (0x537C10, 0x79BE40) and
+    /// the list opens under it (0x55EDE0); OK ends in UNDIM (0x5674D8 with
+    /// the list open, 0x79031C). None without such a vinyl.
+    pub(crate) fn carbon_hood_warning(&self) -> Option<u32> {
+        let part = |s: u8| self.fitted(s).and_then(|h| self.car_part(s, h));
+        let hood_vinyl = (0x40..0x44).filter_map(part).any(|p| p.kind & 0x1F == 0x14);
+        if !hood_vinyl {
+            return None;
+        }
+        let decal = (0x61..0x69).any(|s| self.fitted(s).is_some());
+        Some(if decal { 0x9796_DFB4 } else { 0xB3BB_B11D })
+    }
+
+    /// The convert question's Yes (0x566F12 → 0x567098): the carbon (or
+    /// back the "none") part for the category's slot, bought first in a
+    /// career when not owned (0x528A00), fitted (0x55C240), the strip
+    /// built again (0x545D40) and the install sound (0x521290).
+    pub(crate) fn carbon_convert(&mut self, sub: Option<u8>, category: usize) -> Result<()> {
+        let mode = self.parts_browser_in(sub, category, None);
+        let Mode::Menu(Menu::Parts(b)) = &mode else { return Ok(()) };
         let c = &b.categories[category];
         let screens::CategoryAction::Toggle(fit) = c.action else { return Ok(()) };
         let slot = c.slot;

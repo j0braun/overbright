@@ -76,9 +76,48 @@ Rachel's 350Z (DDAY_PLAYER_CAR, a hood with the CARBONFIBRE attribute) on the ma
 - RAGE / SLINGBLADE / SWEEPER / ROADRUNNER were not shot one by one. They use the same CHROME material
   path as FUSION.
 
+## Carbon Fiber → Convert Trunk / Body Kits asks first (ported)
+UI_GenericParts_Browser's handler 0x5664A0 on Accept (0x406415E3) with +0x1D5 set (the carbon
+fibre strip), **verified** in the disassembly; label texts from the game's language file:
+- Trunk (slot 0x60, 0x566686..0x566728): with the "none" part 0xC8D313AC fitted (0x610300) "Do you
+  want to convert your trunk to carbon fiber?" (0x2B950C36), in a career (0x850078 = 1) with that
+  fitted part not owned (0x521BF0) "Do you want to purchase the ability to convert …" (0x3175F2B0);
+  with the carbon trunk fitted "Do you want to revert your trunk back to stock?" (0xA645A29E).
+- Body kits (slot 0x5D, 0x566895..0x5669E3): the same pair 0x9E274DAA / 0xB7C84DA4, or 0xEE2C85BB
+  ("… This will cause some vinyls to be removed from your car.") when a vinyl on layers 0x40..0x43
+  conflicts — with a wide body fitted (slot 6, level above 0) any vinyl kind (+5 & 0x1F) but 0x14,
+  without one the kinds 0x0E, 0x0F, 0x15..0x1A (jump table 0x56787C / 0x567884); revert 0x660BDF52.
+- 0x5587A0: Yes / No (0xF770 / 0x061C), Yes 0x51123592, No and Back 0xB4623F67, No focused (its 1);
+  0x838970 = 0xB4623F67; the strip hidden (0x52EBA0(0)); StartDim (0x537C10 "DIM"); FE sound 8
+  (0x51DE40).
+- Yes (0x566F12 → 0x5670F6): bought in a career when not owned (0x528A00), fitted (0x55C240), the
+  strip built again (0x545D40), the install sound (0x521290), the strip shown and UNDIM. No
+  (0x5674D8): the strip shown again, nothing fitted.
+
+Neither the question nor its answers call the camera (below, "The camera's turn to the rear"). Clone: `parts_toggle_key`,
+`Game::carbon_question`, `Game::carbon_convert`, `LotDeal::Convert`. Test
+`tests::native_fe_part2::carbon_convert_asks_first`. Not re-run under Wine for this change.
+
+## The carbon hood's warning (ported)
+Accept on the carbon fibre strip's Hood (slot 9, +0x1D5 set, +0x1D9 clear: no list open; 0x566786,
+**verified**): a vinyl of kind 0x14 (+5 & 0x1F) on one of the layers 0x40..0x43 shows a one-button
+warning first — "Warning! Installing a carbon fiber hood will cause any hood vinyls to be removed from
+your car." (0xB3BBB11D), or "… hood vinyls and decals …" (0x9796DFB4) with a decal in one of the slots
+0x61..0x68 (0x558440; OK 0x34DC1BEC). The browser plays MENUFADEOUT (0x537C10, "MENUFADEOUT" 0x79BE40)
+and the hoods' list opens under it (0x566862 → 0x55EDE0, which sets +0x1D9 = list open); OK runs
+0x5674D8 (strip and list shown, UNDIM 0x79031C). Clone: `Game::carbon_hood_warning`, `parts_step`.
+Test `tests::native_fe_part2::carbon_hood_warns_about_hood_vinyls`.
+
+## The camera's turn to the rear (open)
+No path of the browser's handler 0x5664A0 for the carbon strip moves the garage camera: the convert
+question, its Yes and No, and the strip's own Accept make no 0x4C2100 call. The handler's only delayed
+view request is on its tick (0xC98356BA at 0x567645: +0x1D6 set and over 0.5 s since +0x1CC, then
+0x50E580(slot, the list's part) → 0x4C2100), and nothing in the executable sets +0x1D6 but the
+constructor's 0 (0x55E930): dead. The list's opening (0x55EDE0) requests the view of the highlighted
+part (0x55EEE8); the trunk and the kits have no list. Where the turn seen under Wine comes from is
+**open**.
+
 ## Seen on the way (open, not changed)
-- In the clone, Carbon Fiber → Convert Trunk / Body Kits applies at once. The original first asks
-  "Do you want to convert …?" (Yes / No) and turns the camera to the rear.
 - Re-entering the original's car select lists the tuned car at the end.
 
 ## Tests
