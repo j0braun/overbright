@@ -81,7 +81,7 @@ cluster's lamps in the same order with the same operations, so the sums are the 
   operations, i.e. through DXC). `NFSU2_GPU_DROP=subgroup` makes a device without them (A/B, checks). The
   bench's `device:` line says which form runs.
 * With `SUBGROUP` on a Vulkan device wgpu also sets `ALLOW_VARYING_SUBGROUP_SIZE` on every pipeline stage.
-  The driver's pipeline cache from an older build therefore misses once; RADV picks the same wave sizes
+  The driver's pipeline cache from a build without it therefore misses once; RADV picks the same wave sizes
   for shaders without subgroup operations.
 * Proof: the composed modules (`validate_tests::the_cluster_loop_takes_subgroups_only_where_the_device_has_them`:
   the plain form validates without the capability, the subgroup form only with it, in the fragment stage,

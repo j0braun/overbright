@@ -79,9 +79,6 @@ original, with its switch, is in [docs/native-deviations.md](docs/native-deviati
   by `game --check-game`; Overbright still starts with them, but nothing about them was tested.
 - **Controllers** were tested with a virtual Xbox 360 pad only. Rumble, PlayStation and Switch pads and the
   Steam Deck's controls were not tried on real hardware.
-- **Settings from test builds before 0.1.0 are not carried over.** Those builds kept their settings and cache in
-  another folder; 0.1.0 starts with fresh settings. Saved games are not affected: they stay in
-  `NFS Underground 2` (see "Where your files go").
 
 **Not in the game**
 
@@ -102,8 +99,6 @@ original, with its switch, is in [docs/native-deviations.md](docs/native-deviati
   most random draws happen at the original's places in its order, but not all of them (some car-set-up,
   traffic-fill and audio draws). So the same save does not give the same picks the original would give;
   the odds are the same.
-- **Rival launches:** at a race start the rivals pull away about 10 % quicker than in the original (their engines
-  drop from the limiter at once instead of slipping the clutch with spinning wheels). Your own launch matches.
 - **Physics after a wall hit:** from the same start, your car stays within a few centimetres of the original's
   path through braking, cornering, handbrake turns and launches; after a wall hit, which way the car turns
   off the wall can differ. In play the handling is the original's; a hit can end a few degrees differently.
@@ -113,6 +108,12 @@ original, with its switch, is in [docs/native-deviations.md](docs/native-deviati
   mover writes back, which is not ported. How much this changes their driving was not measured.
 - **Replays:** the replay director never picks the Jump camera for a long jump (the original predicts the flight;
   that part is not ported). The Jump camera still comes when a car is upside down.
+- **Stage-4 drag rivals:** on drags with lane splits (e.g. event 4213) a rival can scrape a wall where its lane
+  ends and stop before the line, where the original's rivals finish; late in the race the original's rivals
+  also run a few m/s faster (their nitrous comes in several shots, Overbright's in one).
+- **After an outrun:** when an outrun ends, the original's rival drives on at speed; Overbright's brakes.
+- **Carbon fibre:** Convert Trunk / Convert Body Kits fits at once; the original first asks "Do you want to
+  convert …?" and turns the camera to the rear.
 - **Saves:** a save of the original from any career stage, loaded and saved again in Overbright, comes out byte
   for byte as the original's own load-and-save leaves it, and the original loads Overbright's saves. A save
   made after a long session played in Overbright was not loaded back into the original in the last check.
@@ -124,8 +125,8 @@ original, with its switch, is in [docs/native-deviations.md](docs/native-deviati
 
 **Performance**
 
-- **The first time the main menu's garage is shown in rain at the High level**, the game may build two
-  shader programs (a short stall, once). Shop garages were not checked for such first-use stalls.
+- **The F3 performance overlay's system rows** (CPU and GPU load, clocks, temperatures, memory) show "n/a" on
+  Windows. On Linux the GPU rows read AMD GPUs; Intel GPUs show "n/a" and NVIDIA readings are untested.
 - Integrated GPUs run the original look well; the heavier upgrades want a dedicated GPU (each option shows
   its cost on the settings page).
 

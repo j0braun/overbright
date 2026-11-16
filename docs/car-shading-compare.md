@@ -77,10 +77,9 @@ DULLPLASTIC both with and without the env term.
 - **Engine under the shut hood**: the original does not draw 240SX_KIT00_ENGINE_A on the car select
   (no draw with its 305/317-primitive ranges in the trace); whether the clone draws it is not
   checked (hidden either way).
-- **Quick Race grid** (not this work): with the 240SX on the first circuit the original puts the
-  player in the back row centre (rivals Eric/Brian/Frank); the clone's `qrstart` puts it in the
-  right lane (rivals Ryan/Stefan/Bryce) and its chase camera drifts right after ~10 s standing.
-  So the in-race frames are not matched; the in-game comparison uses the free-roam `intro`.
+- **Quick Race grid**: the player's grid slot and the rivals are random draws in both games
+  (docs/race-ai-parity.md, row 5), so the in-race frames are not matched; the in-game comparison uses the
+  free-roam `intro`.
 - The in-game env cube contents differ slightly (C-pillar reflection in `intro`), as the dynamic
   cube's face order/timing is not frame-matched; car-crop means still within 1 level.
 

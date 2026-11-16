@@ -114,29 +114,11 @@ mod tests {
 }
 
 /// A profile name usable as the folder and file name (the name editor
-/// takes letters and digits, at most seven, 0x551280; older clone saves may
-/// hold other characters).
+/// takes letters and digits, at most seven, 0x551280; a name from
+/// elsewhere may hold other characters).
 pub fn sanitize(name: &str) -> String {
     let s: String = name.chars().filter(|c| c.is_ascii_alphanumeric()).take(31).collect();
     if s.is_empty() { "NAME".to_string() } else { s }
-}
-
-/// The clone's old text save (`career.txt` in Overbright's folder) becomes a native
-/// profile once: when no native profile exists yet and the migration has
-/// not run before. career.txt and options.txt are left in place.
-pub fn migrate(ctx: &super::career::NativeContext) -> Option<String> {
-    let old = super::career::Profile::path();
-    let marker = old.with_file_name("migrated-to-native");
-    if marker.exists() || !list().is_empty() {
-        return None;
-    }
-    let p = super::career::Profile::load_text(&old)?;
-    let name = sanitize(&p.name);
-    let mut s = p.to_native(&NativeSave::fresh(&name), ctx);
-    super::options::Settings::load_text().write_native(&mut s);
-    write(&name, &s).ok()?;
-    let _ = std::fs::write(&marker, format!("{name}\n"));
-    Some(name)
 }
 
 #[cfg(test)]

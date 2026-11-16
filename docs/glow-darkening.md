@@ -4,7 +4,7 @@ Clone deviations only (nothing traced; no native counterpart): the opt-in rows t
 (SSAO, Contact Shadows, Lamp Shadows, Volumetric Fog's extinction, TAA's history clamp) checked
 against the additive layers (underglow, glow sprites, streaks, flames, headlight pools), and the
 car's shadow stack at a player's real settings (`<the player's options file>`;
-report on test build 20261104-1930: "shadows and neon on highest settings look a bit off").
+report on development build 20261104-1930: "shadows and neon on highest settings look a bit off").
 All rows off: md5-identical to the build before (explore, race, qrstart, neon_car, garage_neon,
 intro, drift, drag, qrcars 1280×960); Ultra alone, Lamp Shadows, Volumetric Fog: AE 0.
 

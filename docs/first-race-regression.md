@@ -47,8 +47,8 @@ baseline, 2026-11-02), 5ca9380, 1a5ea61, 3feac52 and d6c3783 all give the same
 rival paths (rival 3 lateral 8.7–12.8 m, min gap 1.66–2.1 m). None of the
 listed candidates (a33d186, cc2245c, 3feac52, bf5969b, d6c3783) changed it;
 it predates 2026-11-02. With the scene skipped (Enter) it is the same: the NIS
-mover hand-off is not involved. Whether the player's earlier builds showed
-it less is **open** (their play differs: car, launch, refresh rate).
+mover hand-off is not involved. Whether the player saw
+it less before that date is **open** (their play differs: car, launch, refresh rate).
 
 ## Finding 2: interpolation stutter at high / uncapped rates (regression, a33d186)
 

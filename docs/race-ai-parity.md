@@ -139,13 +139,10 @@ dialog (Auto). Results in the table above.
 
 ## Open
 
-* **A. Rival launch ≈ 10 % quicker** (all types): same fitted parts (§5);
-  the original's rivals leave the limiter with the rpm falling at a
-  constant ≈ 5500 rpm/s and wheels spinning; the clone's rpm drops at
-  once and the car pulls harder; first gear engages 1 frame (circuit,
-  drag) to 6 frames (Street X's upgraded cars) earlier. A drivetrain /
-  tyre matter at a standing start from the limiter (the player, launched
-  from idle, matches) — for the physics unit; **open**.
+* **A. Rival launch ≈ 10 % quicker**: resolved in docs/tuning-physics-parity.md A (the "5500 rpm/s fall"
+  was the shown rpm's smoothing; the green's gear change came an update early; the replay manager's
+  DUMMY_SNAPSHOT every 100 world updates is ported: launches within 0.1–0.3 m/s of the original at 1 / 2 / 5 s; tests
+  `the_dummy_snapshot_lets_spinning_wheels_grip_for_a_sub_step`, `the_dummy_snapshot_drops_the_car_for_a_sub_step`).
 * **C. Drag rivals' shifts**: resolved in the drag shift sweep (docs/tuning-physics-parity.md
   C): the drag AI's shift offset ranges from its skill row, the shown rpm
   for the choice and the grade, the slow clutch after a −1 grade.

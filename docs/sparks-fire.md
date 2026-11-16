@@ -120,7 +120,7 @@ the native quads as before.
 * **Order / TAA**: drawn right after the smoke tiers, into the scene before the post chain; with TAA
   in the late pass with the temporal viewport (no jitter, no history), as the GPU particles work.
 
-### Tuning (player report, test build 20261105-2142: "spark is too much and the contact texture looks off")
+### Tuning (player report, development build 20261105-2142: "spark is too much and the contact texture looks off")
 
 **What was wrong** (reproduced at the player's settings and with the row on: `work/scr`, `work/before` of the unit):
 * every native spark birth threw 6 fragments with a scatter of 1.5–5 m/s **times up to 3 at speed**

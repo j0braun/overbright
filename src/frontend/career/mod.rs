@@ -29,7 +29,6 @@ use crate::race::RaceMode;
 mod data;
 mod events;
 mod intro;
-mod legacy_text;
 mod lists;
 mod native_map;
 mod persist;

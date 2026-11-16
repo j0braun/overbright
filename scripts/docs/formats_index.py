@@ -1,44 +1,43 @@
 #!/usr/bin/env python3
-"""Regenerate the index at the top of docs/formats.md.
+"""Regenerate the index of docs/formats.md from its chapter files in docs/formats/.
 
-The index sits between `<!-- index:begin -->` and `<!-- index:end -->`:
-* by subject: every `##` section, grouped by the title prefixes in SUBJECTS
-  (a new section whose title matches none is listed under "Unsorted": add
-  its prefix here);
-* by address range: for each 64 KB range of SPEED2.EXE's image
-  (0x400000-0x8FFFFF), the sections that cite addresses in it, most cited
-  first (at most MAX_PER_RANGE named, then "+n more").
+The traced behaviour is split into chapter files (docs/formats/*.md, each under GitHub's markdown render
+limit; a chapter holds one or more `##` sections). docs/formats.md is the index: an intro, then the generated
+part between `<!-- index:begin -->` and `<!-- index:end -->`:
+* chapters: every chapter file in CHAPTERS order with every `##`, `###` and `####` section and its link (the heading
+  text unchanged, so a reference such as `docs/formats.md "Boot sequence"` is found here); a chapter file not
+  in CHAPTERS is listed under "Unsorted" (add it to CHAPTERS);
+* by address range: for each 64 KB range of SPEED2.EXE's image (0x400000-0x8FFFFF), the `##` sections that
+  cite addresses in it, most cited first (at most MAX_PER_RANGE named, then "+n more").
 
-Usage: scripts/docs/formats_index.py [docs/formats.md]   (rewrites in place;
---check exits 1 when the file's index is not the generated one).
+A new section goes into the chapter file of its subject; keep each file under MAX_BYTES (start a new
+chapter file and add it to CHAPTERS when one would pass it).
+
+Usage: scripts/docs/formats_index.py [docs/formats.md]   (rewrites the index in place;
+--check exits 1 when the index is not the generated one or a chapter is over MAX_BYTES).
 """
-import collections, re, sys, unicodedata
+import collections, os, re, sys, unicodedata
 
-SUBJECTS = [
-    ("World data and rendering", [
-        "Chunk container", "Strings → hashes", "Solids", "Scenery", "Texture packs", "Tracks, streaming",
-        "Compressed texture packs", "Shaders", "Screen filters", "Light glow sprites", "Sky", "Parameter maps",
-        "Rain", "Effect selection", "Road reflections", "Rear-view mirror", "Texture animation", "Open",
-        "Renderer performance", "Pop-in"]),
-    ("Cars, handling, collision, cameras", [
-        "Cars (in progress)", "Handling", "Collision", "Contacts", "Chase camera", "Player camera movers",
-        "Hydraulics", "Specialties", "Main-menu car"]),
-    ("AI, traffic and outruns", ["AI driver", "AI route layer", "Traffic", "AI car looks", "Outrun"]),
-    ("Career, race types and rewards", [
-        "Career (verified", "Style points", "Difficulty", "Race types", "Rewards gallery", "Hidden races",
-        "Post Race and tournament", "Race lines and the post-race", "Cheat codes"]),
-    ("Front end, menus and input", [
-        "Front end (verified", "Front-end help bar", "Front-end particles", "Help bar in the career",
-        "Shop previews", "Engage prompt queue", "Front-end mouse", "List openings", "Gamepads"]),
-    ("Audio, speech and music", ["Audio (verified", "Sound effects audit", "Speech and music archive", "Rachel's speech"]),
-    ("Movies and replays", ["Movies", "Replays"]),
-    ("Saves, options and clone deviations", [
-        "Native profile saves", "Display modes", "QoL", "Graphics enhancements", "2D enhancements"]),
+# (chapter file in docs/formats/, title), in the index's order.
+CHAPTERS = [
+    ("world.md", "World data and rendering"),
+    ("cars-1.md", "Cars, handling, collision, cameras (1)"),
+    ("cars-2.md", "Cars, handling, collision, cameras (2)"),
+    ("ai.md", "AI, traffic and outruns"),
+    ("career-1.md", "Career, race types and rewards (1)"),
+    ("career-2.md", "Career, race types and rewards (2)"),
+    ("career-3.md", "Career, race types and rewards (3)"),
+    ("front-end.md", "Front end, menus and input"),
+    ("audio.md", "Audio, speech and music"),
+    ("movies-replays.md", "Movies and replays"),
+    ("saves-options.md", "Saves, options and clone deviations"),
+    ("session-log.md", "Session log (dated): comparison rounds and session reports, in their order"),
 ]
 MAX_PER_RANGE = 6
+MAX_BYTES = 300_000
 BEGIN, END = "<!-- index:begin -->", "<!-- index:end -->"
-SESSION_H1 = "# Session log (dated)"
 ADDR = re.compile(r"(?<![0-9A-Za-z_])0x([0-9A-Fa-f]{6})(?![0-9A-Za-z_])")
+FENCE = re.compile(r"^\s*(```|~~~)")
 
 
 def slug(title):
@@ -52,63 +51,73 @@ def slug(title):
     return "".join(out)
 
 
-def sections(lines):
-    """(title, first line, lines) per `##` section, and whether it is in the session log."""
-    out, cur, session = [], None, False
+def headings(lines):
+    """(level, title, anchor, line index) of every `#`..`####` heading outside code fences, with GitHub's
+    -1, -2 suffixes for repeated anchors in one file."""
+    out, seen, fence = [], collections.Counter(), False
     for i, l in enumerate(lines):
-        if l.startswith("# ") and l.strip() == SESSION_H1:
-            session = True
-        if l.startswith("## "):
-            cur = [l[3:].strip(), i, [], session]
-            out.append(cur)
-        elif cur is not None:
-            cur[2].append(l)
+        if FENCE.match(l):
+            fence = not fence
+            continue
+        m = None if fence else re.match(r"^(#{1,6}) (.*)$", l)
+        if not m:
+            continue
+        title = m.group(2).strip()
+        base = slug(title)
+        n = seen[base]
+        seen[base] += 1
+        if len(m.group(1)) <= 4:
+            out.append((len(m.group(1)), title, base if n == 0 else f"{base}-{n}", i))
     return out
 
 
-def link(title):
-    return f"[{title}](#{slug(title)})"
+def chapter_files(folder):
+    names = sorted(f for f in os.listdir(folder) if f.endswith(".md"))
+    known = [f for f, _ in CHAPTERS]
+    return [(f, t) for f, t in CHAPTERS if f in names] + [(f, "Unsorted (add to CHAPTERS)") for f in names if f not in known]
 
 
 def short(title, n=70):
     return title if len(title) <= n else title[: n - 1].rstrip() + "…"
 
 
-def build(lines):
-    secs = sections(lines)
-    out = [BEGIN, "## Index", "",
-           "Generated by `scripts/docs/formats_index.py` (rerun after adding a section).",
-           "Part 1 holds the subjects; **Session log (dated)** at the end holds the",
-           "comparison rounds and session reports in their order.", "",
-           "### By subject", ""]
-    placed = set()
-    for name, prefixes in SUBJECTS:
-        hits = [s for s in secs if not s[3] and any(s[0].startswith(p) for p in prefixes)]
-        if not hits:
-            continue
-        out.append(f"* **{name}**: " + " · ".join(link(s[0]) for s in hits))
-        placed.update(id(s) for s in hits)
-    rest = [s for s in secs if not s[3] and id(s) not in placed]
-    if rest:
-        out.append("* **Unsorted** (add to SUBJECTS in the script): " + " · ".join(link(s[0]) for s in rest))
-    log = [s for s in secs if s[3]]
-    if log:
-        out.append(f"* **Session log (dated)** ({len(log)}): " + " · ".join(link(s[0]) for s in log))
-    out += ["", "### By address range (SPEED2.EXE image, 64 KB ranges)", "",
+def cell(text):
+    return text.replace("|", "\\|")
+
+
+def build(folder, rel):
+    out = [BEGIN, "## Chapters", "",
+           "Generated by `scripts/docs/formats_index.py` from the chapter files in `docs/formats/` (rerun after",
+           "adding a section). Every `##` section and every `###` / `####` section below it, with its link.", "",
+           "| chapter | section |", "|---|---|"]
+    ranges = collections.defaultdict(collections.Counter)
+    for f, title in chapter_files(folder):
+        lines = open(os.path.join(folder, f), encoding="utf-8").read().split("\n")
+        hs = [h for h in headings(lines) if h[0] in (2, 3, 4)]
+        first = True
+        for level, t, anchor, _ in hs:
+            name = f"[{cell(t)}]({rel}/{f}#{anchor})"
+            sec = name if level == 2 else "↳ " * (level - 2) + name
+            chap = f"[**{cell(title)}**]({rel}/{f})" if first else ""
+            out.append(f"| {chap} | {sec} |")
+            first = False
+        # Address mentions per `##` section.
+        tops = [h for h in hs if h[0] == 2]
+        for k, (_, t, anchor, start) in enumerate(tops):
+            stop = tops[k + 1][3] if k + 1 < len(tops) else len(lines)
+            for l in lines[start + 1:stop]:
+                for m in ADDR.finditer(l):
+                    v = int(m.group(1), 16)
+                    if 0x400000 <= v <= 0x8FFFFF:
+                        ranges[v >> 16][(t, f"{rel}/{f}#{anchor}")] += 1
+    out += ["", "## By address range (SPEED2.EXE image, 64 KB ranges)", "",
             "Sections citing addresses in each range, most cited first (count of",
             "address mentions in brackets). Code ends near 0x78xxxx; above it are the",
             "data and BSS (globals).", "",
             "| range | sections |", "|---|---|"]
-    ranges = collections.defaultdict(collections.Counter)
-    for s in secs:
-        for l in s[2]:
-            for m in ADDR.finditer(l):
-                v = int(m.group(1), 16)
-                if 0x400000 <= v <= 0x8FFFFF:
-                    ranges[v >> 16][s[0]] += 1
     for r in sorted(ranges):
         top = ranges[r].most_common()
-        cells = [f"[{short(t)}](#{slug(t)}) ({n})" for t, n in top[:MAX_PER_RANGE]]
+        cells = [f"[{cell(short(t))}]({href}) ({n})" for (t, href), n in top[:MAX_PER_RANGE]]
         if len(top) > MAX_PER_RANGE:
             cells.append(f"+{len(top) - MAX_PER_RANGE} more")
         out.append(f"| 0x{r:02X}0000–0x{r:02X}FFFF | " + " · ".join(cells) + " |")
@@ -119,15 +128,19 @@ def build(lines):
 def main():
     args = [a for a in sys.argv[1:] if a != "--check"]
     path = args[0] if args else "docs/formats.md"
+    folder = os.path.join(os.path.dirname(path), "formats")
     text = open(path, encoding="utf-8").read()
     lines = text.split("\n")
     a, b = lines.index(BEGIN), lines.index(END)
-    body = lines[:a] + lines[b + 1:]
-    new = lines[:a] + build(body) + lines[b + 1:]
-    new_text = "\n".join(new)
+    new_text = "\n".join(lines[:a] + build(folder, "formats") + lines[b + 1:])
+    big = [f for f in os.listdir(folder) if os.path.getsize(os.path.join(folder, f)) > MAX_BYTES]
     if "--check" in sys.argv:
-        sys.exit(0 if new_text == text else 1)
+        for f in big:
+            print(f"docs/formats/{f}: over {MAX_BYTES} bytes", file=sys.stderr)
+        sys.exit(0 if new_text == text and not big else 1)
     open(path, "w", encoding="utf-8").write(new_text)
+    for f in big:
+        print(f"warning: docs/formats/{f} is over {MAX_BYTES} bytes: split it", file=sys.stderr)
 
 
 if __name__ == "__main__":

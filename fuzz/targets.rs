@@ -286,8 +286,8 @@ pub fn options_text(b: &[u8]) {
     black_box(s.options_text().len());
 }
 
-/// The player's text files: the legacy career.txt, the SMS inbox lines, the
-/// memory-card language table.
+/// The player's text files: the SMS inbox lines, the memory-card language
+/// table.
 pub fn profile_text(b: &[u8]) {
     let text = String::from_utf8_lossy(b);
     let mut inbox = nfsu2::frontend::sms::Inbox::default();
@@ -296,11 +296,6 @@ pub fn profile_text(b: &[u8]) {
     }
     black_box(inbox.unread());
     black_box(nfsu2::frontend::profiles::parse_loc(b).len());
-    let p = std::env::temp_dir().join(format!("nfsu2-fuzz-career-{}-{:?}.txt", std::process::id(), std::thread::current().id()));
-    if std::fs::write(&p, b).is_ok() {
-        black_box(nfsu2::frontend::career::Profile::load_text(&p).map(|p| p.cash));
-        let _ = std::fs::remove_file(&p);
-    }
 }
 
 pub fn globalb(b: &[u8]) {

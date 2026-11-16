@@ -13,4 +13,4 @@ pub use gpu_rating::*;
 pub use keys::*;
 pub use model::*;
 
-use super::{career, graphics_table, profiles, quick_race};
+use super::{graphics_table, profiles, quick_race};

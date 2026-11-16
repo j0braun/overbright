@@ -149,10 +149,10 @@ Results: internal evidence: ux1a/matrix.txt. `NFSU2_BENCH_ENH_SWITCH` also takes
   `rules_are_well_formed` (rows exist, a Blocks rule leaves a tier to step to, nothing but a Needs fires on
   Original), `engine_rules_match_effective`.
 
-## Migrations
+## Stored values
 
-No options.txt key was renamed or merged: the rules act on the values in force, the stored values stay as they
-are (old files load unchanged; `effective()` only changes what is drawn). Presets are unchanged (`Preset::apply`
+No options.txt key is renamed or merged: the rules act on the values in force, the stored values stay as they
+are (`effective()` only changes what is drawn). Presets are unchanged (`Preset::apply`
 values).
 
 ## Label ids

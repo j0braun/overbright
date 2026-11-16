@@ -16,11 +16,6 @@ thread_local! {
 }
 
 impl Profile {
-    pub fn path() -> PathBuf {
-        // Overbright's settings folder (`platform::dirs::config`).
-        crate::platform::dirs::config().join("career.txt")
-    }
-
     /// Save into the original's profile file (see `profiles`): the
     /// payload the profile was loaded from (else the original's fresh one)
     /// with the clone's fields written in. The profile becomes current.

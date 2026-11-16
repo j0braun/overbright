@@ -6,7 +6,7 @@
 //! * data home (the profiles' parent, the original's `%LOCALAPPDATA%`):
 //!   `$XDG_DATA_HOME`, else `$HOME/.local/share`, else `.`;
 //! * Overbright's folder: `<data home>/overbright` ([`APP`]; options.txt,
-//!   career.txt, game-root.txt, crashes/, logs/, marks/, perf/,
+//!   game-root.txt, crashes/, logs/, marks/, perf/,
 //!   Screenshots/, texture-pack/);
 //! * cache: `$XDG_CACHE_HOME/overbright` (set and not empty), else
 //!   `$HOME/.cache/overbright`.
@@ -57,7 +57,7 @@ pub struct Layout {
     /// (`frontend::profiles`), `<data home>/NFS Underground 2 Backups` the
     /// backups.
     pub data_home: PathBuf,
-    /// Overbright's own folder (options.txt, career.txt, game-root.txt and
+    /// Overbright's own folder (options.txt, game-root.txt and
     /// the subfolders of [`crashes`], [`logs`], …).
     pub app: PathBuf,
     /// The asset cache's folder, or None when there is no place for it.
@@ -158,7 +158,7 @@ pub fn app() -> PathBuf {
     }
 }
 
-/// The settings files' folder: options.txt, career.txt, game-root.txt.
+/// The settings files' folder: options.txt, game-root.txt.
 pub fn config() -> PathBuf {
     app()
 }

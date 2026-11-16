@@ -1194,8 +1194,7 @@ keep their the look direction tuning.
   (`current`; sha256 b7ee3bcf…, the <base> A/B run's arm).
 
 ### Open
-* Enhanced Glass hides window decals (car_glass draws the pane after the car pass, over the decals): fix the order,
-  then it may return to Ultra. Rain Next-Gen's haze over R1 at the rain street (weather_fx, after the wet-driving pass). Ambient
+* Rain Next-Gen's haze over R1 at the rain street (weather_fx, after the wet-driving pass). Ambient
   Next-Gen's own volume (+7.8 ms on an iGPU; merging its grid with the smoke's is volume_fx, after the next-gen smoke polish). The Mid
   class has no measured step (no mid card here). Car lights Next-Gen is still ~10 ms on the reference integrated GPU (the cones'
   per-step noise ~2.4 ms, the 64-lamp loop ~2.9 ms): a cheaper march would be non-exact for every GPU.

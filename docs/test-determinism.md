@@ -17,7 +17,7 @@ tests run at the time:
 | state | where | who wrote it | who read it |
 |---|---|---|---|
 | current profile `profiles::CURRENT` | src/frontend/profiles.rs | every test whose game commits or saves a career (`Profile::commit/save` → `set_current`): the shop tests' a community save, `FIRST`, `DriftOrderTest`, `SHOP_EXIT_AUDIO_TEST`, … | `Game::new` (`Profile::load`, `Settings::load` → the profile's options), the menus |
-| data folder `XDG_DATA_HOME` (profiles on disk, options.txt, career.txt) | `profiles::data_home`, `Profile::path` | `Game::new` set it once per process; `rivals_hold_the_line_and_launch_at_full_throttle` re-pointed it mid-run for the whole process; profile/option saves | `Game::new` (`profiles::boot` loads a lone profile on disk; `Settings::load_text`) |
+| data folder `XDG_DATA_HOME` (profiles on disk, options.txt) | `profiles::data_home`, `Settings::path` | `Game::new` set it once per process; `rivals_hold_the_line_and_launch_at_full_throttle` re-pointed it mid-run for the whole process; profile/option saves | `Game::new` (`profiles::boot` loads a lone profile on disk; `Settings::load_text`) |
 | the Enhancements' atomics (`qol`: ~50 values), `display` atomics, output size, photo mode, `UNLOCK_ALL` | src/qol.rs, src/render/display.rs, src/render/blur_dof.rs, src/frontend/career.rs | `Settings::apply_enhancements` — run by **every** `Game::new` — and tests that put values in force (the ignored nitro-flame GPU tests, the library's reflection / HDR / DOF tests) | rendering, world streaming (`keep_loaded`), model fixes, menus |
 
 So a race test started in whichever profile another test had left current —
@@ -50,12 +50,10 @@ menu timings under heavy load can differ; no failure seen from it.
 * **Per-test sandbox** (`profiles::sandbox`, library, `#[doc(hidden)]`):
   `sandbox::enter(parent)` gives the calling thread its own empty data
   folder and its own current profile; `data_home()` (and so
-  `Profile::path`, options.txt, backups) and `current_name/save,
+  options.txt (`Settings::path`), backups) and `current_name/save,
   set/clear/update_current` use them on that thread only. The folder is
   removed when the thread ends. Never entered by the game: outside a
   sandbox the code paths are the old ones (one thread-local lookup).
-  `Profile::path` now calls `profiles::data_home()` (the same expression it
-  duplicated).
 * **Game tests** (`src/bin/game/test_isolation.rs`, `cfg(test)`):
   `Game::new` enters the sandbox for its test thread (once) and takes a
   *shared* hold on the process-wide settings (an `RwLock`, held in a

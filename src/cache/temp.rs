@@ -7,7 +7,7 @@ use super::*;
 /// cache folder (`O_TMPFILE`), given a name only once complete and synced
 /// (a temporary one, renamed over the old file at once); elsewhere, or on
 /// a file system without it, to `<name>.<pid>-<hex>-<n>.<seq>.tmp`
-/// (`crate::unique_tag`; older builds: `<name>.<pid>.<seq>.tmp`), locked while it
+/// (`crate::unique_tag`; a bare pid in that field is read too), locked while it
 /// is written, which [`prune`] removes once stale and unlocked.
 pub(super) enum TempFile {
     #[cfg(target_os = "linux")]
@@ -140,7 +140,7 @@ pub(super) fn tmp_pid(n: &str) -> Option<u32> {
     if let Some(rest) = n.strip_suffix(TMP_SUFFIX) {
         let mut it = rest.rsplitn(3, '.');
         // The middle field is `crate::unique_tag()`: `<pid>-<hex>-<seq>`
-        // (older builds wrote the pid alone).
+        // (a pid alone is accepted as well).
         let tag = |s: &str| -> Option<u32> {
             if digits(s) {
                 return s.parse().ok();

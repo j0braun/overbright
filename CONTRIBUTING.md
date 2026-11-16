@@ -78,7 +78,9 @@ check without Mesa's software Vulkan driver. Without the private set the steps t
 ## Recording reverse-engineering findings
 
 - **docs/formats.md**: what is known about the original's files and behaviour, by subject, with addresses and
-  the verified / inferred / open status of each claim. Topic documents (docs/*.md) go into more depth.
+  the verified / inferred / open status of each claim. It is the index of the chapter files in docs/formats/
+  (add a section to the chapter of its subject, then rerun `scripts/docs/formats_index.py`). Topic documents
+  (docs/*.md) go into more depth.
 - **docs/symbols.tsv**: one row per address (address, kind, name, description, status, source). It is the
   single source of names for addresses: no duplicate addresses; use these names in code and docs.
 - Evidence that is our own (notes, numbers, small tables) can go under `docs/evidence/<topic>/`. Raw
