@@ -25,6 +25,12 @@ pub(crate) fn place_on_mover(
     dt: f32,
 ) {
     place_on_road(world, car, state, (m.position, before.0.z), m.heading, m.speed, before, dt);
+    // The TrafficMover's frame (0x408820) clears every wheel's exported slip
+    // pair, car +0x374 / +0x378 + 8i (0x408BC5 / 0x408BC7).
+    for w in &mut state.wheels {
+        w.exported_slip = 0.0;
+        w.lateral_slip = 0.0;
+    }
 }
 
 /// 0x5F5020 for a mover's x / y (`at.0`, with the height to search down

@@ -883,7 +883,12 @@ impl Game {
             let row = event.opponents.get(i).map_or(0, |o| o.difficulty[difficulty] as usize);
             // Racer number 100 + i (car +0x0A): its start hold (0x5EF000).
             let route =
-                nfsu2::ai::route::RacerRoute::start(routes, state.position, Vec2::new(heading.cos(), heading.sin()))
+                nfsu2::ai::route::RacerRoute::start_in(
+                    routes,
+                    state.position,
+                    Vec2::new(heading.cos(), heading.sin()),
+                    car.car_type.handling.race.drag(),
+                )
                     .map(|mut r| {
                         r.branch_hold = nfsu2::ai::route::start_hold(100 + i as i32);
                         r

@@ -230,21 +230,43 @@ impl RacerRoute {
     /// FuturePoint ahead (at most 20) on the lane, its lateral offset
     /// starting at the car's off the lane's centre (0x60BFB0) and moving to
     /// the lane record's offset (+0x04, 0) by `rate` per metre (0x40FC80;
-    /// the step taken as the distance from the last point). The clamp to the
-    /// lane's room (0x40FC80 with future point +0x18.. / +0x2C..) is not
-    /// ported.
-    pub fn lane_path(&self, routes: &AiRoutes, position: Vec3, l: usize, rate: f32) -> Vec<Vec3> {
+    /// the step taken as the distance from the last point), on the lane's
+    /// position plus the point's lane adjustment (+0x08.., 0x41A180), then held in
+    /// the point's room for the lane (0x40FC80: low +0x1C + 4·(lane − 2),
+    /// high +0x30 + 4·(lane − 2), [`lane_room`]) less `margin` on each side;
+    /// in a drag race (0x89E7D8 / 0x890108) the bounds never pass 0 (low
+    /// = min(low + margin, 0), high = max(high − margin, 0)). When the
+    /// clamp moved the offset against the way it was going and it is not
+    /// yet at the lane's centre (|offset| > 0.001, 0x78435C), the rate is
+    /// 0 for the rest of the path (0x41D68E..0x41D6DE): the offset then
+    /// only follows the rooms. `margin` is 0x41D530's: 1 m (0x420D40 with a
+    /// rate other than 999) plus the car's own road entry's +0x08 (planner
+    /// +0x10 + 0x30·own index, 0x41D5F9..0x41D60F), its half extent across
+    /// its heading.
+    pub fn lane_path(&self, routes: &AiRoutes, position: Vec3, l: usize, rate: f32, margin: f32) -> Vec<Vec3> {
         let f = &routes.file;
         let Some(here) = self.points.get(self.current) else { return Vec::new() };
         let mut lateral = self.lane_lateral(routes, position, l);
+        let mut rate = rate;
         let mut last = here.s;
         let mut path = Vec::with_capacity(PATH_POINTS);
         for p in self.points.iter().filter(|p| p.s > self.distance).take(PATH_POINTS) {
             let step = rate * (p.s - last).max(0.0);
             last = p.s;
-            lateral = if lateral > 0.0 { (lateral - step).max(0.0) } else { (lateral + step).min(0.0) };
+            let from = lateral;
+            let moved = if from > 0.0 { (from - step).max(0.0) } else { (from + step).min(0.0) };
+            let adj = p.lane_adjust[l - 2];
+            let (lo, hi) = lane_room(f, p.record, p.cp, p.backward, l);
+            let (lo, hi) = (lo - adj, hi - adj);
+            let (lo, hi) = ((lo + margin).min(0.0), (hi - margin).max(0.0));
+            lateral = moved.max(lo).min(hi);
+            // The direction of travel: towards 0 (the record's offset).
+            let toward = if from < 0.0 { 1.0 } else { -1.0 };
+            if lateral.abs() > 0.001 && (lateral - from) * toward < 0.0 {
+                rate = 0.0;
+            }
             let cp = &f.records[p.record].points[p.cp];
-            path.push(f.point(p.record, p.cp, p.backward, p.offset, lane_offset(cp, lane(l, p.backward)) + lateral));
+            path.push(f.point(p.record, p.cp, p.backward, p.offset, lane_offset(cp, lane(l, p.backward)) + adj + lateral));
         }
         path
     }
@@ -279,6 +301,8 @@ impl RacerRoute {
             if i0 < n && i1 < n && i1 - i0 > 1 {
                 let (a, b) = (&self.points[i0], &self.points[i1]);
                 let (s0, span) = (a.s, b.s - a.s);
+                let (dir_a, dir_b) =
+                    (f.direction(a.record, a.cp, a.backward), f.direction(b.record, b.cp, b.backward));
                 let len = span * 0.75;
                 let p0 = self.racing_point(f, a).truncate();
                 let p1 = self.racing_point(f, b).truncate();
@@ -300,9 +324,41 @@ impl RacerRoute {
                         f.lateral(p.record, p.cp, p.backward, h) - (lane_offset(cp, lane(0, p.backward)) + p.adjust);
                     self.points[k].adjust += delta;
                 }
+                // Lanes 2–5 bend the same way (+0x08…): each lane's own
+                // curve between its places at i0 and i1 (0x4122C0 on the
+                // lane), the tangents from its place at i0 − 1 and to its
+                // place at the next plain point.
+                for l in 2..=5 {
+                    let place = |p: &FuturePoint| Self::lane_place(f, p, l);
+                    let (q0, q1) = (place(&self.points[i0]), place(&self.points[i1]));
+                    let u0 = if i0 > 0 {
+                        scaled(q0 - place(&self.points[i0 - 1]), len)
+                    } else {
+                        scaled(dir_a, len)
+                    };
+                    let u1 = match next {
+                        Some(k) => scaled(place(&self.points[k]) - q1, len),
+                        None => scaled(dir_b, len),
+                    };
+                    for k in i0 + 1..i1 {
+                        let h = hermite(q0, u0, q1, u1, (self.points[k].s - s0) * (1.0 / span));
+                        let p = &self.points[k];
+                        let cp = &f.records[p.record].points[p.cp];
+                        let delta = f.lateral(p.record, p.cp, p.backward, h)
+                            - (lane_offset(cp, lane(l, p.backward)) + p.lane_adjust[l - 2]);
+                        self.points[k].lane_adjust[l - 2] += delta;
+                    }
+                }
             }
             i0 = i1;
         }
+    }
+
+    /// A point's place on traffic lane `l` (2–5): 0x4122C0 at its own
+    /// +0x58 with the lane's position and the point's lane adjustment.
+    pub(super) fn lane_place(f: &RouteFile, p: &FuturePoint, l: usize) -> Vec2 {
+        let cp = &f.records[p.record].points[p.cp];
+        f.point(p.record, p.cp, p.backward, p.offset, lane_offset(cp, lane(l, p.backward)) + p.lane_adjust[l - 2]).truncate()
     }
 
     pub(super) fn racing_point(&self, f: &RouteFile, p: &FuturePoint) -> Vec3 {
@@ -363,4 +419,20 @@ impl RacerRoute {
         self.current = i;
         self.distance = s;
     }
+}
+
+/// A FuturePoint's room for lane `l` (0x41FD50 from the point's slots
+/// +0x0C / +0x10: forward 0x40B2A0 / 0x40B1F0, backward 0x40B840 /
+/// 0x40B780): from the lane's position (0x401C40) to the road's left and
+/// right edges (control point +0x14 / +0x16, the halves swapped backward).
+/// The point's own lane adjustment (+0x08.. for lanes 2–5) is taken off by
+/// the caller (`lane_path`). 0x41FD50's pass back from the
+/// list's end limits each point's bounds by the next one's ± (Δs × 99999,
+/// 0x784360; three times that on a slope beyond ∓0.12, 0x7854E0 /
+/// 0x785368): with any distance between the points it never binds.
+pub fn lane_room(f: &crate::formats::ai_routes::RouteFile, record: usize, cp: usize, backward: bool, l: usize) -> (f32, f32) {
+    let point = &f.records[record].points[cp];
+    let c = lane_offset(point, lane(l, backward));
+    let [left, right] = if backward { [point.half_width[1], point.half_width[0]] } else { point.half_width };
+    (-left - c, right - c)
 }

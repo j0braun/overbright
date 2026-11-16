@@ -1,0 +1,20 @@
+# Rival runs: the original (Wine) against clone replays of the same races (d3: a fresh native run; w4, f2: earlier ones).
+# base = master before this branch, new = this branch. 'last C (v V) nos N': last race coordinate, speed (v > 0: still driving at the recording's end) and nitrous left (ticks of 4000/s).
+base d3 TIBURON    native last 1906.81 (v 68.0) nos 2190     clone last 1811.93 (v 67.6) nos 0
+base d3 IMPREZAWRX native last 1877.16 (v 67.9) nos 0        clone last 1667.39 (v 0) nos 0
+base d3 TIBURON    native last 1893.9 (v 62.7) nos 0         clone last 1669.46 (v 0) nos 3192
+base w4 SENTRA     native last 1811.72 (v 63.3) nos 0        clone last 1879.74 (v 57.8) nos 3624
+base w4 240SX      native last 569.406 (v 0) nos 24000       clone last 1888.06 (v 63.0) nos 5595
+base w4 IMPREZAWRX native last 1878.61 (v 63.9) nos 0        clone last 1271.60 (v 0) nos 0
+base f2 PEUGOT     native last 1999.87 (v 67.4) nos 1465     clone last 1991.28 (v 65.3) nos 0
+base f2 ECLIPSE    native last 1950.07 (v 73.7) nos 200      clone last 1669.39 (v 0) nos 1800
+base f2 350Z       native last 1922.9 (v 69.1) nos 0         clone last 1667.70 (v 0) nos 0
+new  d3 TIBURON    native last 1906.81 (v 68.0) nos 2190     clone last 1864.57 (v 67.5) nos 0
+new  d3 IMPREZAWRX native last 1877.16 (v 67.9) nos 0        clone last 1959.92 (v 72.0) nos 0
+new  d3 TIBURON    native last 1893.9 (v 62.7) nos 0         clone last 1951.73 (v 69.6) nos 5956
+new  w4 SENTRA     native last 1811.72 (v 63.3) nos 0        clone last 1852.74 (v 65.0) nos 0
+new  w4 240SX      native last 569.406 (v 0) nos 24000       clone last 1917.92 (v 70.7) nos 0
+new  w4 IMPREZAWRX native last 1878.61 (v 63.9) nos 0        clone last 1923.80 (v 72.7) nos 0
+new  f2 PEUGOT     native last 1999.87 (v 67.4) nos 1465     clone last 1956.54 (v 67.7) nos 3198
+new  f2 ECLIPSE    native last 1950.07 (v 73.7) nos 200      clone last 1962.18 (v 72.5) nos 0
+new  f2 350Z       native last 1922.9 (v 69.1) nos 0         clone last 1795.73 (v 66.6) nos 0

@@ -122,7 +122,7 @@ pub(crate) fn encounter_mover_timers(r: &mut EncounterCar, loaded: bool, dt: f32
 
 /// An encounter racer's own inputs to `encounter_racer_think`: the road
 /// entries it sees and its own, its contacts, its slot of `count`, the
-/// world's clock, whether it chases, the chase's target, the player's
+/// world's clock, its goal (5 chase, 6 lead, 1 after the end), the chase's target, the player's
 /// place, the outrun's race clock and start tick, the road entries'
 /// sample interval, the human's body centre and whether its world is
 /// loaded.
@@ -135,7 +135,7 @@ pub(crate) struct EncounterThinkIn<'a> {
     pub(crate) slot: i32,
     pub(crate) count: i32,
     pub(crate) world_clock: &'a nfsu2::ai::encounter_controller::WorldClock,
-    pub(crate) chase: bool,
+    pub(crate) goal: nfsu2::ai::encounter_controller::EncounterGoal,
     pub(crate) target_position: Vec3,
     pub(crate) player: Vec2,
     pub(crate) race_clock: f32,
@@ -145,12 +145,40 @@ pub(crate) struct EncounterThinkIn<'a> {
     pub(crate) loaded: bool,
 }
 
-/// Active goal5/6 controller (goal 9 is `goal9_think`'s); native race
+/// The goal's speed for the driver (0x41C5E0, the goal's speed slot):
+/// in the outrun (race type 7) goals 5 / 6 take the route's speed × 0.84
+/// for the leader, × the catch-up 1 (`update_outrun`); goal 1 after the end
+/// runs with race type 0 (0x5F84A0 clears 0x89E7B0), so the offline
+/// racer's speed (`update`) × the catch-up 0.75 that 0x4172D0 gives with no
+/// race on (0x783B74, 0x417337) — as goal 9 does outside the pursuit.
+/// Goal 1's slot +0x4C (0x40DDD0) caps at 1e9: no cap. **Observed** under
+/// Wine (outrun_brake_p14 b1–b3, the rival's row from the end): goal 1,
+/// action 0 then 6, `ai_catch` 0.75, target 43 / 31 / 39 m/s after the
+/// outrun's 62 / 45 / 58.
+fn goal_speed(
+    speed: &mut nfsu2::ai::route::SpeedTarget,
+    ai: &AiData,
+    route: &nfsu2::ai::route::RacerRoute,
+    rng: &mut nfsu2::opponents::GameRng,
+    clock: f32,
+    goal: nfsu2::ai::encounter_controller::EncounterGoal,
+    dt: f32,
+) -> f32 {
+    use nfsu2::ai::encounter_controller::EncounterGoal;
+    match goal {
+        EncounterGoal::RoadRace => speed.update(&ai.tuning, route, rng, f64::from(clock), None, dt) * 0.75,
+        EncounterGoal::Chase => speed.update_outrun(&ai.tuning, route, rng, f64::from(clock), false, dt),
+        EncounterGoal::Lead => speed.update_outrun(&ai.tuning, route, rng, f64::from(clock), true, dt),
+    }
+}
+
+/// Active goal 5 / 6 / 1 controller (goal 9 is `goal9_think`'s); native race
 /// actions are reused with retained output between thinks.
 pub(crate) fn encounter_racer_think(r: &mut EncounterCar, ctx: ThinkCtx, input: EncounterThinkIn) {
     use nfsu2::ai::{actions::Actions, encounter_controller::ThinkInput};
     let ThinkCtx { ai, routes, field_rng: rng, clock, dt } = ctx;
-    let EncounterThinkIn { slot, count, world_clock, chase, target_position, player, race_clock, loaded, .. } = input;
+    let EncounterThinkIn { slot, count, world_clock, goal, target_position, player, race_clock, loaded, .. } = input;
+    let chase = goal == nfsu2::ai::encounter_controller::EncounterGoal::Chase;
     r.belt_rating = ai.bounds.scale(r.car.car_type.handling.performance_rating);
     encounter_mover_timers(r, loaded, dt);
     r.driver.mover = encounter_mover_kind(r);
@@ -158,7 +186,7 @@ pub(crate) fn encounter_racer_think(r: &mut EncounterCar, ctx: ThinkCtx, input: 
     r.controller.search_callbacks = 0;
     let h = &r.car.car_type.handling;
     let suv = r.car.car_type.suv;
-    if r.controller.assign_goal(chase) {
+    if r.controller.assign_goal(goal) {
         r.unstuck.since = None;
     }
     let full = r.controller.schedule.full_think(ThinkInput {
@@ -193,12 +221,16 @@ pub(crate) fn encounter_racer_think(r: &mut EncounterCar, ctx: ThinkCtx, input: 
     if let Some(route) = r.route.as_mut() {
         route.clock = race_clock;
         route.set_outrun_chaser(chase);
-        route.outrun_leader_positions = (!chase).then_some((r.state.position.truncate(), player));
+        // Goal 6's junctions (slot +0x28, 0x41BD00 → 0x413F50) weigh the
+        // second car's distance; goal 1's (0x41BCF0 → 0x413CC0) are the
+        // ordinary racer's.
+        route.outrun_leader_positions = (goal == nfsu2::ai::encounter_controller::EncounterGoal::Lead)
+            .then_some((r.state.position.truncate(), player));
         if !r.controller.suspended {
             // Fallback speed runs even when action virtual+10 is false.
             if !full {
                 r.controller.speed_callbacks += 1;
-                target = r.speed.update_outrun(&ai.tuning, route, &mut *rng, f64::from(clock), !chase, dt);
+                target = goal_speed(&mut r.speed, ai, route, &mut *rng, clock, goal, dt);
             }
             if full || ready {
                 if full {
@@ -290,7 +322,7 @@ fn encounter_actions_step(
     use nfsu2::ai::actions::{Actions, Scene, Steer};
     let ThinkCtx { ai, routes, field_rng: rng, clock, dt } = ctx;
     let EncounterThinkIn {
-        others, me, hits, touching, slot, world_clock, chase, race_clock, race_start_tick, sample_dt, ..
+        others, me, hits, touching, slot, world_clock, goal, race_clock, race_start_tick, sample_dt, ..
     } = *input;
     let EncounterThinkStart { full, skill, minimum, engine_ok, tick } = think;
     if full && r.state.nitrous.as_mut().is_some_and(|t| t.level() != 0) {
@@ -373,7 +405,7 @@ fn encounter_actions_step(
     // 420810 calls speed again after an action update. On
     // ready fallback this is its second speed callback.
     r.controller.speed_callbacks += 1;
-    let target = r.speed.update_outrun(&ai.tuning, route, &mut *rng, f64::from(clock), !chase, dt);
+    let target = goal_speed(&mut *r.speed, ai, route, &mut *rng, clock, goal, dt);
     if let Some(actions) = r.controller.actions.as_mut().filter(|_| r.unstuck.since.is_none()) {
         let running = r.state.nitrous.as_mut().is_some_and(|t| t.level() != 0);
         if actions.nitrous_query {

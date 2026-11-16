@@ -200,6 +200,21 @@ pub(crate) fn step_belt(world: &World, r: &mut Rival, plan: &(Vec<Vec3>, f32), l
     }
 }
 
+/// The BeltMover's exported slip pair (0x59EC90: 0x59F344..0x59F378, stored
+/// for every wheel at 0x59F402 / 0x59F408, car +0x374 / +0x378 + 8i): along,
+/// the belt's speed less the car's velocity along its forward axis (body
+/// row +0x90); across, minus the velocity along its left axis (row +0xA0).
+/// The mover's constructor 0x5A93B0 clears it first (0x59F890).
+pub(crate) fn belt_slip_pair(state: &mut CarState, speed: f32) {
+    let rot = glam::Mat3::from_quat(state.orientation);
+    let along = speed - state.velocity.dot(rot.x_axis);
+    let across = -state.velocity.dot(rot.y_axis);
+    for w in &mut state.wheels {
+        w.exported_slip = along;
+        w.lateral_slip = across;
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn step_belt_state(
     world: &World,
@@ -221,6 +236,7 @@ pub(crate) fn step_belt_state(
             let (f, l) = (Vec2::from_angle(heading), Vec2::from_angle(heading).perp());
             let origin = at.truncate() - f * com.x - l * com.y;
             place_on_road(world, car, state, (origin, at.z), heading, speed, before, dt);
+            belt_slip_pair(state, speed);
         }
         None => {
             let speed = belt.belt.as_ref().map_or(state.exported_forward_speed(), |b| b.speed());
@@ -231,4 +247,29 @@ pub(crate) fn step_belt_state(
         }
     }
     dropped
+}
+
+#[cfg(test)]
+mod slip_pair_tests {
+    use super::belt_slip_pair;
+    use crate::*;
+
+    /// The BeltMover's frame writes every wheel's exported slip pair from the
+    /// belt's speed and the car's velocity in its own axes (0x59F344..0x59F378,
+    /// 0x59F402 / 0x59F408): a stale value from the mover before (a slide on
+    /// the physics mover) does not survive onto the belt.
+    #[test]
+    fn the_belt_writes_the_slip_pair() {
+        let mut state = CarState::new(Vec3::ZERO, 0.0);
+        for w in &mut state.wheels {
+            w.exported_slip = 11.0;
+            w.lateral_slip = -7.0;
+        }
+        state.velocity = Vec3::new(20.0, 1.5, 0.0);
+        belt_slip_pair(&mut state, 21.0);
+        for w in &state.wheels {
+            assert!((w.exported_slip - 1.0).abs() < 1e-4, "{}", w.exported_slip);
+            assert!((w.lateral_slip + 1.5).abs() < 1e-4, "{}", w.lateral_slip);
+        }
+    }
 }

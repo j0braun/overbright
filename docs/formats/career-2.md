@@ -324,7 +324,8 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
   file names them and the pad input names are hashes, so the physical binding is not
   traced; the steering keys stand in. **Lane room**
   (0x40FC80(from, lane, rate, to, point, margin, car); decompiled and
-  checked in full, not ported): the offset moves from `from` towards `to` by rate × the
+  checked in full; ported for the drag lane paths, `RacerRoute::lane_path`
+  with `lane_room`): the offset moves from `from` towards `to` by rate × the
   point's vt+0x18 step without passing it, then is held to [lo, hi]: lo
   = point +0x18 (lane 0) or +0x1C.. (+4 × (lane − 2), lanes 2–5), else 0,
   plus margin; hi = +0x2C (lane 0) or +0x30.. , else 0, less margin; in
@@ -342,10 +343,29 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
   own lane bounds (FuturePoint vt+0xC / vt+0x10 per lane) and, walking
   back from the list's end, a point's lo at least the next one's less
   1 (or 3) × a per-point value and its hi at most the next's plus it (3
-  × above a ±0.12 measure; ±99999 sentinels) — partly traced (the x87
-  returns lost in decompilation), **not ported**: the clone's
-  FuturePoints carry no room fields; the drag lane path keeps no clamp
-  and the racers' JustDrive path (Street X) clamps to the road's edges
+  × above a ±0.12 measure; ±99999 sentinels). **Verified** from the
+  disassembly (0x41FE50..0x42001C): the step is (next +0x54 − this +0x54) ×
+  99999 (0x784360), three times that for lane 0 on a curve measure ≤ −0.12
+  (0x7854E0, the high side) or ≥ 0.12 (0x785368, the low side); lo = max(own
+  lo, next lo − step), hi = min(own hi, next hi + step); lane 0's own lo
+  over 1 (hi under −1) with a width of 99999 or more becomes 0. With any
+  distance between two points the pass never binds, so a point's room is
+  its own: from the lane's position plus the point's lane adjustment (+0x04
+  lane 0, +0x08 + 4·(lane − 2)) to the road's edges (`lane_room`).
+  **Observed** under Wine (a stage-4 drag on 4213 backward, the rivals' walk
+  points, controller +0x370 → +0x378 + 4k): record 270 point 6 (adjustments
+  0) lanes 2–5 −6.466 / 24.542, −12.449 / 18.559, −17.943 / 13.065, −24.048
+  / 6.960, the clone's `lane_room` the same within 0.01 m; point 8, whose
+  lane 2 adjustment is −1.181, read 1.18 m off the clone's then (31 % of
+  the native rivals' recorded walk-point adjustments were nonzero; the
+  racer points now carry them, 0x41A180, docs/drag-stage4-parity.md 8.6,
+  and `lane_path` takes the room off them). The
+  margin (0x41D530, 0x41D5F9..0x41D60F): 0x420D40's 1 m plus the car's own
+  road entry's +0x08 (planner +0x10 + 0x30·own index), its half extent
+  across. In a drag race the bounds never pass 0, and once the clamp moves
+  the offset against its way while it is not yet within 0.001 of the
+  target, the rate is 0 for the rest of the path (0x41D68E..0x41D6DE). The
+  racers' JustDrive path (Street X) clamps to the road's edges
   less a margin, passed as param_3 of 0x41D530; the Street X caller and
   its value (1 m) are **inferred**. In 0x41D530 param_3 (arg3) is read as
   [esp+0x34] at 0x41D60B and added to the walk's float (fVar1 + param_3,

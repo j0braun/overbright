@@ -14,6 +14,10 @@ use crate::opponents::GameRng;
 /// The lane record's rate the lane setter gives a racer's lane (0x405410:
 /// 0x7837D8), metres of offset per metre along the path (0x40FC80).
 pub const AI_RATE: f32 = 0.151;
+/// 0x420D40's margin to the lane room with a rate other than 999 (0x7837EC),
+/// m; 0x41D530 adds the car's own half extent across (its road entry's
+/// +0x08).
+pub const ROOM_MARGIN: f32 = 1.0;
 /// The player's lane change ends once the car is this close to the new
 /// lane's centre (0x42DF10: |offset| ≤ 0x783824).
 pub const LANE_HOLD: f32 = 0.5;
@@ -146,7 +150,8 @@ impl DragLane {
     /// lane qualifies when `lane_allowed` (0x412500) lets it, the run test
     /// only for a racer whose own lane is gone. With none it keeps its
     /// lane (the nearest-lane fallback is only for driver kinds 1 and 3).
-    pub fn ai_path(&mut self, route: &RacerRoute, routes: &AiRoutes, position: Vec3, rng: &mut GameRng) -> Vec<Vec3> {
+    /// `half_width`: the car's half extent across (the margin's own part).
+    pub fn ai_path(&mut self, route: &RacerRoute, routes: &AiRoutes, position: Vec3, half_width: f32, rng: &mut GameRng) -> Vec<Vec3> {
         match self.lane {
             Some(l) if (2..=5).contains(&l) => {
                 let gone = !route.has_lane(routes, l);
@@ -167,7 +172,15 @@ impl DragLane {
                 self.rate = AI_RATE;
             }
         }
-        self.lane.map_or_else(|| route.path(routes), |l| route.lane_path(routes, position, l, self.rate))
+        self.lane.map_or_else(|| route.path(routes), |l| route.lane_path(routes, position, l, self.rate, ROOM_MARGIN + half_width))
+    }
+
+    /// The path on the lane record as it stands (0x420D40 → 0x41D530), built
+    /// from where the car is now: what AvoidAvoidable drives when 0x42BF00
+    /// finds no lane to move to (0x42BFA9). None without a traffic lane.
+    pub fn record_path(&self, route: &RacerRoute, routes: &AiRoutes, position: Vec3, half_width: f32) -> Option<Vec<Vec3>> {
+        let l = self.lane.filter(|l| (2..=5).contains(l))?;
+        Some(route.lane_path(routes, position, l, self.rate, ROOM_MARGIN + half_width))
     }
 
     /// The player's steering input as the lane events (0x4102B0: 0xB8 /
@@ -203,7 +216,7 @@ impl DragLane {
     /// for Right and a change is under way. Keep (0x40FDE0) takes the
     /// nearest lane outside the window, or with none clears it and takes
     /// the nearest. The lane's rate is `change_rate` at the car's speed.
-    pub fn player_path(&mut self, route: &RacerRoute, routes: &AiRoutes, position: Vec3, speed: f32) -> Vec<Vec3> {
+    pub fn player_path(&mut self, route: &RacerRoute, routes: &AiRoutes, position: Vec3, speed: f32, half_width: f32) -> Vec<Vec3> {
         if let Some((lo, hi)) = self.window
             && let Some(at) = route.nearest_lane(routes, position, None)
             && (at < lo || at > hi)
@@ -235,7 +248,7 @@ impl DragLane {
                 self.rate = change_rate(speed);
             }
         }
-        self.lane.map_or_else(|| route.path(routes), |l| route.lane_path(routes, position, l, self.rate))
+        self.lane.map_or_else(|| route.path(routes), |l| route.lane_path(routes, position, l, self.rate, ROOM_MARGIN + half_width))
     }
 
     /// 0x41D720(n): from the car's nearest lane, step |n| lanes towards
@@ -317,6 +330,95 @@ mod tests {
         assert!(!lane_allowed(&route, &routes, 3, 2, false, false));
         route.race_coord = Some(1296.0);
         assert!(lane_allowed(&route, &routes, 3, 2, false, true));
+    }
+
+    /// The lane room a FuturePoint gives 0x40FC80 (+0x1C.. / +0x30..,
+    /// filled by 0x41FD50 from 0x40B840 / 0x40B780 on a backward walk):
+    /// from the lane's position to the road's edges. Under Wine (stage-4
+    /// drag on 4213 backward, the RX7's walk, record 270 point 6, its lane
+    /// adjustments 0) the rooms of lanes 2–5 read −6.466 / 24.542, −12.449 /
+    /// 18.559, −17.943 / 13.065, −24.048 / 6.960.
+    #[test]
+    #[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
+    fn lane_room_matches_the_originals_walk_points() {
+        let data = std::fs::read(crate::testkit::game_root().join("TRACKS/ROUTESL4RB/Routes4213B.bin")).expect("reading the game's data file");
+        let f = crate::formats::ai_routes::RouteFile::parse(&data);
+        let r = f.record(270).expect("record 270");
+        let native = [(-6.46555, 24.5423), (-12.4485, 18.5593), (-17.943, 13.0648), (-24.0481, 6.95975)];
+        for (l, (lo, hi)) in (2..=5).zip(native) {
+            let (a, b) = crate::ai::route::lane_room(&f, r, 6, true, l);
+            assert!((a - lo).abs() < 0.02 && (b - hi).abs() < 0.02, "lane {l}: {a} / {b} against {lo} / {hi}");
+        }
+    }
+
+    /// AvoidAvoidable with no lane to move to drives the lane record's path
+    /// rebuilt from where the car is (0x42F330 → 0x42BF00 → 0x42BFA9 →
+    /// 0x420D40, every update); the clone had kept the path driven before,
+    /// so a rival that had just moved its record to a new lane went on along
+    /// the old one into its end (stage-4 drag replays, docs/drag-stage4-parity.md 8.6).
+    #[test]
+    #[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
+    fn avoid_without_a_lane_drives_the_records_path_from_here() {
+        let data = std::fs::read(crate::testkit::game_root().join("TRACKS/ROUTESL4RB/Routes4213B.bin")).expect("reading the game's data file");
+        let routes = AiRoutes { file: crate::formats::ai_routes::RouteFile::parse(&data), track: 0x1075, backward: true, race_coords: false, resets: Vec::new(), blocks: Vec::new() };
+        let heading = glam::Vec2::new(0.927, 0.374);
+        let here = Vec3::new(-281.3, -2121.1, -1.8);
+        let route = RacerRoute::start(&routes, here, heading).expect("on the drag road");
+        let mut lane = DragLane::default();
+        assert!(lane.record_path(&route, &routes, here, 0.9).is_none(), "no record yet");
+        lane.lane = Some(3);
+        lane.rate = AI_RATE;
+        let path = lane.record_path(&route, &routes, here, 0.9).unwrap();
+        assert_eq!(path, route.lane_path(&routes, here, 3, AI_RATE, ROOM_MARGIN + 0.9));
+        // From another place, another path: nothing of the earlier one kept.
+        let moved = here + Vec3::new(0.0, 3.0, 0.0);
+        assert_ne!(lane.record_path(&route, &routes, moved, 0.9).unwrap(), path);
+    }
+
+    /// The drag racers' walk against the original's (a stage-4 drag on 4213
+    /// backward, three rivals' walk points read under Wine at frames 900 …
+    /// 1600, docs/evidence/native-ai/walk-adjust-native.tsv). In a drag race
+    /// 0x422220 joins two records by dropping the list's last point when the
+    /// next record's first lies under 3 m on (record 278's last point gives way
+    /// to record 277's first), and 0x41A180 bends lanes 2–5 as it bends the
+    /// racing line. Each native point (record, point, +0x58) is in the clone's
+    /// walk started at the rival's pose, but for those behind the start, and the
+    /// lane adjustments of the 8 m points match the original's where both
+    /// walks had the point before (the start's first points excepted).
+    #[test]
+    #[cfg_attr(not(all(ob_game, ob_private)), ignore = "needs NFSU2_ROOT (the player's own game files) and OB_PRIVATE (private captures and saves)")]
+    fn drag_walks_join_records_and_bend_lanes_as_the_original() {
+        let data = std::fs::read(crate::testkit::game_root().join("TRACKS/ROUTESL4RB/Routes4213B.bin")).expect("reading the game's data file");
+        let routes = AiRoutes { file: crate::formats::ai_routes::RouteFile::parse(&data), track: 0x1075, backward: true, race_coords: false, resets: Vec::new(), blocks: Vec::new() };
+        let tsv = crate::testkit::private_str("docs/evidence/native-ai/walk-adjust-native.tsv");
+        let (mut key, mut list) = (String::new(), Vec::new());
+        let (mut found, mut total) = (0, 0);
+        let mut checked = Vec::new();
+        for line in tsv.lines().skip(1) {
+            let v: Vec<&str> = line.split('\t').collect();
+            let num = |i: usize| v[i].parse::<f32>().unwrap();
+            if format!("{}-{}", v[0], v[1]) != key {
+                key = format!("{}-{}", v[0], v[1]);
+                let (pos, fwd) = (Vec3::new(num(2), num(3), num(4)), glam::Vec2::new(num(5), num(6)));
+                let mut route = RacerRoute::start_in(&routes, pos, fwd, true).expect("on the drag road");
+                for _ in 0..3 {
+                    route.update(&routes, pos, num(7), fwd * num(7), 0, false, &|_| 1.0);
+                }
+                list = route.lane_adjusts(&routes.file);
+            }
+            let (rec, cp, o): (u16, usize, f32) = (v[9].parse().unwrap(), v[10].parse().unwrap(), num(12));
+            total += 1;
+            if let Some(p) = list.iter().find(|p| p.0 == rec && p.1 == cp && (p.2 - o).abs() < 0.05) {
+                found += 1;
+                checked.push((v[0].to_string(), rec, cp, o, p.4, [num(15), num(16), num(17), num(18)]));
+            }
+        }
+        assert!(found * 100 >= total * 90, "{found} of {total} native walk points in the clone's walks");
+        // Record 278's 8 m point bends lane 2 towards record 277's (−3.50 natively).
+        let r278 = checked.iter().find(|c| c.1 == 278 && c.2 == 1 && c.3 == 8.0).expect("record 278 point 1 + 8 m");
+        assert!((r278.4[0] - r278.5[0]).abs() < 0.15, "{r278:?}");
+        let r268 = checked.iter().find(|c| c.0 == "1500" && c.1 == 268 && c.2 == 1 && c.3 == 8.0).expect("record 268 point 1 + 8 m");
+        assert!((0..4).all(|i| (r268.4[i] - r268.5[i]).abs() < 0.15), "{r268:?}");
     }
 
     #[test]

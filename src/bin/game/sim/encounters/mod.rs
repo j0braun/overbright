@@ -67,12 +67,12 @@ pub(crate) struct Encounters {
     /// frame (0x6076E0 → 0x607190).
     pub(crate) start: bool,
     pub(crate) outrun: Option<Outrun>,
-    /// The outrun that just ended, while the manager
-    /// deactivates (state 5): nothing reassigns a goal after the end
-    /// (0x5F84A0 → 0x42EFB0; goals 5 / 6 are built only in state 4,
-    /// 0x42A9E0 / 0x42EF36), so the cars still out keep the goal they had —
-    /// the challenged car goal 5 or 6 on the player, the others goal 5 on
-    /// the last leader — until 0x40BF60 / 0x40BFB0 park them.
+    /// The outrun that just ended, while the manager deactivates (state
+    /// 5). The end (0x5F84A0) calls 0x42EFB0, which first runs 0x42CD60:
+    /// every AI racer out (0x5ED440) whose goal is not of type 1 gets goal
+    /// 1, "Win road race" (0x42AA20(1) → 0x40CA20; 0x402070 drops the old
+    /// goal and its action). The cars still out drive on with it until
+    /// 0x40BF60 / 0x40BFB0 park them.
     pub(crate) ended: Option<Outrun>,
     /// The manager's clock, s, for the slots' stamps.
     pub(crate) clock: f32,
@@ -555,9 +555,10 @@ impl Encounters {
         // out stand behind them (observed under Wine: GOLF / CELICA goal 5 on
         // the leading MUSTANGGT). L's target node: the player's road node,
         // or the challenged car's walk point (as `race` reads them).
-        // From the end (the end's frame, then state 5) the cars keep
-        // the last outrun's goals (`Encounters::ended`).
-        let outrun = self.outrun.as_ref().filter(|_| self.state == 4).or(self.ended.as_ref());
+        // From the end (the end's frame, then state 5) every car out has
+        // goal 1 (`Encounters::ended`, 0x42CD60).
+        let racing = self.outrun.as_ref().filter(|_| self.state == 4);
+        let outrun = racing.or(self.ended.as_ref());
         let leader_target = outrun.map(|o| {
             if o.player_leads {
                 target_position
@@ -586,15 +587,24 @@ impl Encounters {
             sample_dt,
             dt,
         };
+        use nfsu2::ai::encounter_controller::EncounterGoal;
         for (i, r) in self.cars.iter_mut().enumerate().filter(|(_, c)| c.active) {
+            if racing.is_none()
+                && let Some(ended) = self.ended.as_ref()
+            {
+                let field = world_field.as_deref_mut().unwrap_or(&mut self.field);
+                outrun_racer_think(r, i, ended, &f, field, EncounterGoal::RoadRace, f.target_position);
+                continue;
+            }
             if let Some(outrun) = f.outrun.filter(|o| o.opponent == i) {
                 let field = world_field.as_deref_mut().unwrap_or(&mut self.field);
-                outrun_racer_think(r, i, outrun, &f, field, outrun.player_leads, f.target_position);
+                let goal = if outrun.player_leads { EncounterGoal::Chase } else { EncounterGoal::Lead };
+                outrun_racer_think(r, i, outrun, &f, field, goal, f.target_position);
                 continue;
             }
             if let (Some(outrun), Some(leader)) = (f.outrun, leader_target) {
                 let field = world_field.as_deref_mut().unwrap_or(&mut self.field);
-                outrun_racer_think(r, i, outrun, &f, field, true, leader);
+                outrun_racer_think(r, i, outrun, &f, field, EncounterGoal::Chase, leader);
                 continue;
             }
             goal9_think(r, i, &f, world_field.as_deref_mut().unwrap_or(&mut self.field));
@@ -801,9 +811,9 @@ struct EncounterFrame<'a> {
     dt: f32,
 }
 
-/// An outrun racer (goal 5 on `target_position`'s car when `chase`, else
-/// goal 6): the challenged car, and during the race every other car out
-/// with goal 5 on the leader. `encounter_racer_think` on the
+/// An outrun racer (goal 5 on `target_position`'s car, goal 6, or after
+/// the end goal 1): the challenged car, and during the race every other
+/// car out with goal 5 on the leader. `encounter_racer_think` on the
 /// world's car field, then its reset request queued (car +0x96C).
 fn outrun_racer_think(
     r: &mut EncounterCar,
@@ -811,7 +821,7 @@ fn outrun_racer_think(
     outrun: &Outrun,
     f: &EncounterFrame,
     field: &mut nfsu2::drive::CarField,
-    chase: bool,
+    goal: nfsu2::ai::encounter_controller::EncounterGoal,
     target_position: Vec3,
 ) {
     let EncounterFrame { ai, d, routes, road_cars, racer_count, player, clock, dt, .. } = *f;
@@ -830,7 +840,7 @@ fn outrun_racer_think(
             slot: i as i32,
             count: racer_count,
             world_clock: &d.world_clock,
-            chase,
+            goal,
             target_position,
             player,
             race_clock: outrun.clock,

@@ -198,7 +198,7 @@ fn encounter_loaded_belt_enters_after_native_gates() {
                 slot: 0,
                 count: 3,
                 world_clock: clock,
-                chase: false,
+                goal: nfsu2::ai::encounter_controller::EncounterGoal::Lead,
                 target_position: position,
                 player: human.truncate(),
                 race_clock: seconds,
@@ -388,7 +388,7 @@ fn encounter_controller_full_fallback_and_reset_lifecycle() {
                 slot: slot as i32,
                 count: 3,
                 world_clock: clock,
-                chase,
+                goal: if chase { nfsu2::ai::encounter_controller::EncounterGoal::Chase } else { nfsu2::ai::encounter_controller::EncounterGoal::Lead },
                 target_position: position,
                 player: position.truncate(),
                 race_clock: 30.0,
@@ -470,7 +470,7 @@ fn encounter_controller_full_fallback_and_reset_lifecycle() {
     r.state.publish_forward_speed();
     r.route = nfsu2::ai::route::RacerRoute::start(&routes, spot, heading);
     r.controller = Default::default();
-    r.controller.assign_goal(false);
+    r.controller.assign_goal(nfsu2::ai::encounter_controller::EncounterGoal::Lead);
     r.controller.actions = Some(Actions::default());
     r.controller.output = Some(nfsu2::ai::actions::Steer { path: vec![spot], cap: None, pedals: true, reset: false });
     let chase = |r: &mut EncounterCar, clock: &WorldClock, rng: &mut nfsu2::opponents::GameRng| {
@@ -486,7 +486,7 @@ fn encounter_controller_full_fallback_and_reset_lifecycle() {
                 slot: slot as i32,
                 count: 3,
                 world_clock: clock,
-                chase: true,
+                goal: nfsu2::ai::encounter_controller::EncounterGoal::Chase,
                 target_position: target,
                 player: player.truncate(),
                 race_clock: 30.0,

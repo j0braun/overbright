@@ -213,6 +213,7 @@ docs/evidence/motionblur-dof/*.txt
 docs/evidence/motionblur-dof/*.webp
 docs/evidence/n-ai/
 docs/evidence/n-mix/              # a trace of the original under Wine (the human path per frame), read by a test through testkit::private
+docs/evidence/native-ai/walk-adjust-native.tsv   # a capture of the original's drag walks under Wine, read by a test through testkit::private
 docs/evidence/n-cam/
 docs/evidence/n-rng/
 docs/evidence/native-fixes/     # delete candidate (unreferenced clone shots; release plan §1b)
