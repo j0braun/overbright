@@ -224,7 +224,7 @@ the reflections differ): 1.6-5.9 % of the pixels > 3 %, luma mean −0.3 … +0.
 +1.1. Night-rain race start frames 100-109: 2.3 % > 3 %, mean −0.15, p95 −1.1, frame-to-frame change
 30.61 % vs 30.68 % of the pixels (no added flicker). The quarter rate's difference to the full rate on
 the wet road (the lower half): mean 0.99 vs 1.01 levels, about equal on this bench (its road is rough
-enough for the surface's reprojection to dominate). Crops (left before, right after, then |diff| × 8 where three): `evidence/rt-next/primary_*`.
+enough for the surface's reprojection to dominate). Crops of before and after are kept with the maintainer's private evidence.
 
 ## The ray list (`rt/trace.rs`: `list_trace_source`, `list_rays_source`, `ssr_trace_list`)
 A ray query in a fragment shader keeps its traversal stack in scratch

@@ -260,7 +260,7 @@ pairs against the tree before, load 4-9, GPU busy ms; with the reflections' prim
 racing 12.16 → 12.19, night rain 14.97 → 14.65, race start 14.01 → 13.85, free roam 9.13 → 9.26: the
 blocks' pass +0.03 … +0.12 (race start −0.29: the characters' box once), the colour pass −0.08 … −0.14
 (the 2 × 2 gather). Pictures: the sign beside the racing bench's road keeps smooth soft shadows where the
-blocks' stair-step was, at rest and in motion (`evidence/rt-next/shadows_*`); at the wet spots against
+blocks' stair-step was, at rest and in motion (crops kept with the maintainer's private evidence); at the wet spots against
 before (reflections march-first in both): 0.01-4.5 % of the pixels > 3 %, luma mean −0.3 … 0, p5 equal,
 p95 −1.5 … 0. Ten frames: frame-to-frame change (pixels > 3 %) racing frozen 1.94 → 1.96 %, casino in rain
 still 1.35 → 1.39 %, racing in motion 15.06 → 15.24 %. Open: in motion a faint fine grid of the

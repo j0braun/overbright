@@ -1,6 +1,6 @@
 [package]
 name = "nfsu2"
-version = "0.1.0"
+version = "0.2.1"
 edition = "2024"
 description = "Reimplementation of Need for Speed: Underground 2 (2004) in Rust and wgpu."
 license = "GPL-3.0-or-later"
