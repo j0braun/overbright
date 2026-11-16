@@ -453,7 +453,12 @@ impl WorldRenderer {
             fsr2_frame.then(|| self.plan_anim_mask(gpu, scene_mode.reversed, main_uniform.wet[0] > 0.5, params.time));
         self.anim_mask_drawn = anim_mask.is_some();
         self.main_fog = (main_fog.value, main_fog.color);
-        self.fx_view = self.fx_sim.stepped_or(params.opts).weather_fx.then_some(weather_fx::View {
+        // Only a view with a weather (the in-game main view, `set_weather`)
+        // draws the weather effects: the original updates and draws the rain
+        // in game mode 6 only (0x5CB40D, 0x5CB7EE), so the front end's garage
+        // scenes have none, whatever weather a drive left published
+        // (docs/formats/front-end.md, "Garage scenes: no weather").
+        self.fx_view = (self.weather.is_some() && self.fx_sim.stepped_or(params.opts).weather_fx).then_some(weather_fx::View {
             camera: *params.camera,
             aspect: params.aspect,
             reversed: scene_mode.reversed,

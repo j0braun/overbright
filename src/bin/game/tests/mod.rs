@@ -68,6 +68,8 @@ mod snapshots;
 mod draw_clocks;
 // The garage's own scene between ticks.
 mod garage_between;
+// The garage scenes draw no weather.
+mod garage_weather;
 // The track-map widgets on the tick.
 mod map_widget;
 // The environment cube on ticks.
