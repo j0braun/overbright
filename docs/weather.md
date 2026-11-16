@@ -34,7 +34,11 @@ Label ids 0xC104E0A0..A4 (`options::GROUP_WEATHER`, `WET_CAR`, …).
   road_wet × smoothstep(4 → 20 m/s), rises at 0.02 a step and dries at 0.0015.
 
 The in-game frame publishes these values (`wet_car::publish_weather`, next to `set_weather`, two hook
-lines in game.rs). Front-end scenes (garage, showroom) never take them, so their cars stay dry.
+lines in game.rs). Front-end scenes (garage, showroom) never take them, so their cars stay dry. The
+published values outlive the drive (a shower in free roam, then a shop or the main menu), so a world
+renderer draws the weather effects (drops, splashes, haze, spray, wet-road trails) only once it has a
+weather of its own (`set_weather`, the in-game main view); the garage's renderer never does, as the
+original draws no rain in the front end (docs/formats/front-end.md, "Garage scenes: no weather").
 
 ## Wet Car (`render/wet_car.rs`, `car_wet.wgsl`)
 Per car, the renderer keeps a `WetState`: its velocity from the drawn poses over the world clock, and

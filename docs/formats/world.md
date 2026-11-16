@@ -974,7 +974,8 @@ track load 0x61E100 sets both views' wetness +0x509C = 1 and calls
 per-frame drop motions (+0x5120: (rand 0.02 − 0.01, rand 0.02 − 0.01,
 −rand 0.03 − 0.45)) and the fall table (+0x4D4C, from 0x8039CC…). The
 frame function calls 0x61F130 on view 1's object (0x5CB47B), in game
-(mode 6) only:
+(mode 6) only (0x5CB40D; the front end's garage scenes draw no rain:
+docs/formats/front-end.md, "Garage scenes: no weather"):
 
 * **Paused** (0x571260: race state [0x8900D8] 6 and not online): only
   the tint and the drop draw run, with the values as they are.

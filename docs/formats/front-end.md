@@ -655,6 +655,31 @@ The menus are FEng packages: FRONTEND/FrontB.lzc (137), GLOBAL/GlobalB.lzc
     seen only in the worldreflect floor and discs. Disc centres (0x7F45AC):
     (0, 5.4, 0), (4.7, −2.7, 0), (−4.7, −2.7, 0). The clone draws the
     models with the world renderer, the passes picked by instance flags.
+  * **Garage scenes: no weather** (verified; checked under Wine). The
+    frame function 0x5CAAE0 updates and draws the rain only in game mode
+    6: `cmp [0x8654A4], 6; jne 0x5CB4AB` at 0x5CB40D skips the call of the
+    weather update 0x61F130 at 0x5CB47B (its only caller), which draws the
+    drops (0x613A80 at 0x61F1E7), applies the rain tint (slot 2, 0x5D75F0
+    at 0x61F1DB), steps the lens drops (0x614100 at 0x61F211) and moves
+    the drops (0x61E710 at 0x61F3E8); and 0x5CB7EE sets the lens drops'
+    draw flag 0x8707D2 (read at 0x5CB9A9 before 0x5C7AC0) only in mode 6.
+    The front end, where the main menu's and the shops' garage scenes
+    are drawn, is mode 3, so none of it runs there whatever the weather
+    object holds. Under Wine (main menu, 0x8654A4 = 3, Rain 0x870D10 = 1,
+    the frame period 0x865558 written to 1/60): with view 1's weather
+    (`*(0x832E50 + 0x64)`) amount +0x1F0 and target +0x5094 written to
+    1.0 and the debug override 0x8A1D38 to 1, the wetness +0x509C stayed
+    0 for 6 s (the update would raise it by 0.05 a frame) and the garage
+    picture changed no more than between two dry captures (RMSE 0.0351
+    vs 0.0350, the menu's animation): no drops, no tint. The clone's
+    garage renderer (`render_garage`) is never given a weather
+    (`WorldRenderer::set_weather` is the in-game main view's), and a
+    renderer without one draws no weather effects (`plan.rs`, `fx_view`):
+    no rain drops, splashes, haze, spray or wet-road trails, even when a
+    drive left a shower published (`wet_car::scene`). The FE car's wet
+    film was already off (`lighting.is_frontend()`), and the post's rain
+    tint, lens drops and the rain's volumetric terms run only in game
+    frames. Test: `tests::garage_weather::garage_draws_no_rain_left_by_a_drive`.
   * The car (0x4A6670(car, disc), per car from 0x4D82D0): x, y the disc
     centre turned by the platform angle 0x8363F0; turned by +0x274 alone;
     each tyre's contact at 0.15 (0x7F45A8) plus the hydraulics height
