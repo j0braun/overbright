@@ -7,14 +7,19 @@
 //! two strongest lights of each 2 × 2 pixel block (the area-light rays,
 //! the block's quarter of the disc set) and the colour pass gathers the
 //! 2 × 2 blocks around each pixel, weighted by its own plane and normal
-//! (`ml_vis` in world.wgsl). Nothing native is involved (SPEED2.EXE has no
-//! ray tracing); the Original path and every other tier are untouched.
+//! (`ml_vis` in world.wgsl). The lights past those two without a shadow
+//! layer (neon, signs, emitters) share a resampled visibility, one ray a
+//! block to a light picked by its share of their light, averaged over the
+//! block's history (the last frame's blocks, reprojected); the two traced
+//! lights keep a history by light (docs/shadow-softness.md "Every light: the
+//! rest resampled"). Nothing native is involved (SPEED2.EXE has no ray
+//! tracing); the Original path and every other tier are untouched.
 
 use crate::render::Gpu;
 use glam::{DMat4, DVec3, Mat4, Vec3};
 
-/// The visibility blocks' format: (light + 1, visibility) × 2, view depth,
-/// normal.
+/// The visibility blocks' format: (light + 1, visibility) × 2, the rest's
+/// visibility, view depth and normal.
 pub const VIS_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba32Uint;
 
 #[repr(C)]
@@ -23,6 +28,30 @@ struct Uniform {
     inv: [[f32; 4]; 4],
     sizes: [f32; 4],
     misc: [f32; 4],
+    prev: [[f32; 4]; 4],
+    hist: [f32; 4],
+    skip: [f32; 4],
+}
+
+/// A box of blocks, `lo..hi`.
+type BlockBox = ((u32, u32), (u32, u32));
+
+/// The history's least blend toward this frame per world tick (1 / 60 s):
+/// 1 / 16 (about a quarter second to settle; each block's sample pixel and
+/// disc quarter turn over four frames, so the history is what smooths the
+/// blocks' steps), never below [`BLEND_MIN`] a frame (a paused world's view
+/// still settles). A moving shadow leaves no trail: the history is held to
+/// the range this frame's rays show around the block first.
+const BLEND_TICK: f32 = 1.0 / 16.0;
+const BLEND_MIN: f32 = 1.0 / 32.0;
+/// A cut (the eye this far from the last frame's, m) drops the history.
+const CUT: f32 = 20.0;
+
+/// The history's least blend for a frame `dt` seconds of world time after
+/// the last (the same time constant at any frame rate).
+pub fn blend(dt: f32) -> f32 {
+    let ticks = (dt * 60.0).clamp(0.0, 8.0);
+    (1.0 - (1.0 - BLEND_TICK).powf(ticks)).max(BLEND_MIN)
 }
 
 /// The compute module: world.wgsl's Frame / Lamp structs and its Modern
@@ -59,8 +88,16 @@ pub fn grid(size: (u32, u32), screen: (u32, u32)) -> ((u32, u32), [f32; 2]) {
 /// Clip → world position relative to `eye` for `view_proj` (in f64: the
 /// world's coordinates reach thousands of metres).
 pub fn inverse_relative(view_proj: Mat4, eye: Vec3) -> Mat4 {
-    let m = view_proj.as_dmat4() * DMat4::from_translation(DVec3::new(eye.x as f64, eye.y as f64, eye.z as f64));
-    m.inverse().as_mat4()
+    relative_f64(view_proj, eye).inverse().as_mat4()
+}
+
+/// World position relative to `eye` → clip for `view_proj` (in f64).
+pub fn relative(view_proj: Mat4, eye: Vec3) -> Mat4 {
+    relative_f64(view_proj, eye).as_mat4()
+}
+
+fn relative_f64(view_proj: Mat4, eye: Vec3) -> DMat4 {
+    view_proj.as_dmat4() * DMat4::from_translation(DVec3::new(eye.x as f64, eye.y as f64, eye.z as f64))
 }
 
 fn layout(device: &wgpu::Device, ms: bool) -> wgpu::BindGroupLayout {
@@ -111,6 +148,16 @@ fn layout(device: &wgpu::Device, ms: bool) -> wgpu::BindGroupLayout {
             },
             uniform(6),
             E {
+                binding: 8,
+                visibility: c,
+                ty: B::Texture {
+                    sample_type: wgpu::TextureSampleType::Uint,
+                    view_dimension: wgpu::TextureViewDimension::D2,
+                    multisampled: false,
+                },
+                count: None,
+            },
+            E {
                 binding: 7,
                 visibility: c,
                 ty: B::Buffer {
@@ -151,9 +198,21 @@ pub struct RtShadow {
     uniform: wgpu::Buffer,
     /// The dispatches' first blocks (rt_shadow.wgsl `rv_first`).
     first: wgpu::Buffer,
-    vis: wgpu::TextureView,
+    /// The blocks, written in turn: this frame's ([`Self::cur`]) and the
+    /// last one's (the history).
+    vis: [wgpu::TextureView; 2],
+    cur: usize,
     size: (u32, u32),
     screen: (u32, u32),
+    /// The last prepared frame: its view-projection, eye and world time.
+    last: Option<(Mat4, Vec3, f32)>,
+    /// This frame's box left to the characters' pass.
+    skip: Option<BlockBox>,
+    frames: u32,
+    /// The NIS characters' box of blocks the last frame's characters pass
+    /// traced again (shared with the frame's [`Plan`]): this frame's first
+    /// pass leaves it out and the characters' pass covers it.
+    boxes: std::sync::Arc<std::sync::Mutex<Option<BlockBox>>>,
 }
 
 fn vis_target(device: &wgpu::Device, blocks: (u32, u32)) -> wgpu::TextureView {
@@ -175,7 +234,7 @@ fn vis_target(device: &wgpu::Device, blocks: (u32, u32)) -> wgpu::TextureView {
 /// colour pass divides by it).
 fn uniform_buffer(device: &wgpu::Device) -> wgpu::Buffer {
     use wgpu::util::DeviceExt;
-    let u = Uniform { inv: [[0.0; 4]; 4], sizes: [0.0; 4], misc: [0.0, 1.0, 1.0, 0.0] };
+    let u = Uniform { inv: [[0.0; 4]; 4], sizes: [0.0; 4], misc: [0.0, 1.0, 1.0, 0.0], prev: [[0.0; 4]; 4], hist: [0.0; 4], skip: [0.0; 4] };
     device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
         label: Some("rt shadow"),
         contents: bytemuck::bytes_of(&u),
@@ -223,16 +282,21 @@ impl RtShadow {
                     mapped_at_creation: false,
                 },
             ),
-            vis: vis_target(device, (1, 1)),
+            vis: [vis_target(device, (1, 1)), vis_target(device, (1, 1))],
+            cur: 0,
             size: (0, 0),
             screen: (0, 0),
+            last: None,
+            skip: None,
+            frames: 0,
+            boxes: Default::default(),
         }
     }
 
     /// The blocks the colour pass reads (a 1 × 1 empty target before the
     /// first sized frame: every pixel keeps its fallback).
     pub fn vis(&self) -> &wgpu::TextureView {
-        &self.vis
+        &self.vis[self.cur]
     }
 
     /// The uniform the colour pass reads too (the grid's scale, `mlrt.wgsl`
@@ -242,21 +306,45 @@ impl RtShadow {
     }
 
     /// This frame's values: the scene's `size` shown at `screen`, the main
-    /// view's `view_proj` and `eye`, the depth cleared to `clear`. The blocks
-    /// are remade when their grid changed (before the frame's group 0 binds
-    /// them).
-    pub fn prepare(&mut self, gpu: &Gpu, size: (u32, u32), screen: (u32, u32), view_proj: Mat4, eye: Vec3, clear: f32) {
+    /// view's `view_proj` and `eye`, the depth cleared to `clear`, the world
+    /// `time` (s). The blocks are remade when their grid changed (before the
+    /// frame's group 0 binds them), and this frame's blocks are the other
+    /// pair's (the last frame's become the history).
+    #[allow(clippy::too_many_arguments)]
+    pub fn prepare(&mut self, gpu: &Gpu, size: (u32, u32), screen: (u32, u32), view_proj: Mat4, eye: Vec3, clear: f32, time: f32) {
         let (b, scale) = grid(size, screen);
+        let still = crate::render::debug_env::nfsu2_rt_shadow_still();
+        let mut valid = !still && self.last.is_some_and(|(_, last_eye, _)| last_eye.distance(eye) < CUT);
         if (size, screen) != (self.size, self.screen) {
-            self.vis = vis_target(&gpu.device, b);
+            self.vis = [vis_target(&gpu.device, b), vis_target(&gpu.device, b)];
             self.size = size;
             self.screen = screen;
+            valid = false;
         }
+        self.cur ^= 1;
+        self.frames = self.frames.wrapping_add(1);
+        let (prev, dt) = match self.last {
+            Some((vp, _, t)) if valid => (relative(vp, eye), time - t),
+            _ => (Mat4::IDENTITY, 0.0),
+        };
+        let blend = blend(dt);
+        // The characters' box of the last frame (dropped with the grid).
+        let skip = self.boxes.lock().unwrap().take().filter(|_| valid && size.0 > 0);
+        self.skip = skip;
         let u = Uniform {
             inv: inverse_relative(view_proj, eye).to_cols_array_2d(),
             sizes: [size.0 as f32, size.1 as f32, b.0 as f32, b.1 as f32],
             misc: [clear, scale[0], scale[1], 0.0],
+            prev: prev.to_cols_array_2d(),
+            hist: [
+                if valid { 1.0 } else { 0.0 },
+                blend,
+                if still || crate::render::debug_env::nfsu2_rt_shadow_unturned() { 0.0 } else { (self.frames % (1 << 24)) as f32 },
+                blend,
+            ],
+            skip: skip.map_or([0.0; 4], |((x0, y0), (x1, y1))| [x0 as f32, y0 as f32, x1 as f32, y1 as f32]),
         };
+        self.last = (size.0 > 0).then_some((view_proj, eye, time));
         gpu.queue.write_buffer(&self.uniform, 0, bytemuck::bytes_of(&u));
     }
 
@@ -312,8 +400,11 @@ impl RtShadow {
             clusters: clusters.clone(),
             tlas: tlas.clone(),
             uniform: self.uniform.clone(),
-            vis: self.vis.clone(),
+            vis: self.vis[self.cur].clone(),
+            prev: self.vis[self.cur ^ 1].clone(),
             blocks: grid(self.size, self.screen).0,
+            skip: self.skip,
+            boxes: self.boxes.clone(),
             ms,
         }
     }
@@ -333,8 +424,13 @@ pub struct Plan {
     tlas: wgpu::Tlas,
     uniform: wgpu::Buffer,
     vis: wgpu::TextureView,
+    /// The last frame's blocks (the history).
+    prev: wgpu::TextureView,
     blocks: (u32, u32),
     ms: bool,
+    /// The box this frame's first pass leaves to the characters' pass.
+    skip: Option<BlockBox>,
+    boxes: std::sync::Arc<std::sync::Mutex<Option<BlockBox>>>,
 }
 
 impl Plan {
@@ -347,13 +443,22 @@ impl Plan {
     /// The blocks again over `lo..hi` (blocks), from the `depth` that now
     /// holds the NIS characters too: their pixels read their own lights'
     /// rays as the world's do (no rays in their colour shader). Once a frame.
+    /// The box is joined with the one the first pass left out (the last
+    /// frame's), and kept for the next frame's first pass to leave out: the
+    /// blocks there are traced once a frame, not twice.
     pub fn record_region(&self, encoder: &mut wgpu::CommandEncoder, depth: &wgpu::TextureView, lo: (u32, u32), hi: (u32, u32)) {
         let lo = (lo.0.min(self.blocks.0), lo.1.min(self.blocks.1));
         let hi = (hi.0.min(self.blocks.0), hi.1.min(self.blocks.1));
         if hi.0 <= lo.0 || hi.1 <= lo.1 {
             return;
         }
-        self.queue.write_buffer(&self.first, u64::from(REGION_OFFSET), bytemuck::cast_slice(&[lo.0, lo.1, 0, 0]));
+        *self.boxes.lock().unwrap() = Some((lo, hi));
+        let (lo, hi) = match self.skip {
+            Some((a, b)) => ((lo.0.min(a.0), lo.1.min(a.1)), (hi.0.max(b.0), hi.1.max(b.1))),
+            None => (lo, hi),
+        };
+        // (z 1: the characters' pass, which leaves nothing out.)
+        self.queue.write_buffer(&self.first, u64::from(REGION_OFFSET), bytemuck::cast_slice(&[lo.0, lo.1, 1, 0]));
         self.dispatch(encoder, depth, REGION_OFFSET, lo, (hi.0 - lo.0, hi.1 - lo.1));
     }
 
@@ -379,6 +484,7 @@ impl Plan {
                 entry(4, R::TextureView(depth)),
                 entry(5, R::TextureView(&self.vis)),
                 entry(6, self.uniform.as_entire_binding()),
+                entry(8, R::TextureView(&self.prev)),
                 entry(
                     7,
                     R::Buffer(wgpu::BufferBinding { buffer: &self.first, offset: 0, size: wgpu::BufferSize::new(16) }),
@@ -452,15 +558,16 @@ mod tests {
         }
     }
 
-    /// The gather's exact short cuts (`ml_vis_taps`: uniform blocks, no
-    /// light) make the full gather's ids and sums bit for bit: today's
-    /// `ml_vis_taps` and the gather without them (below, as it was) run on
-    /// the GPU over blocks holding every case (lit, shadowed, penumbra, no
-    /// light, a second light, a light's edge, depth and normal steps) for
-    /// pixels on and off the blocks' plane.
+    /// The gather's short cut (`ml_vis_taps`: uniform blocks) makes the full
+    /// gather's ids and, up to rounding, its sums (each light's, the rest's,
+    /// the surface's weight): today's `ml_vis_taps` and the same without the
+    /// short cut run on the GPU over blocks holding every case (lit,
+    /// shadowed, penumbra, no light, a second light, a light's edge, a rest
+    /// or none, depth and normal steps) for pixels on and off the blocks'
+    /// plane.
     #[test]
     #[ignore = "requires a GPU adapter; run serially with --ignored"]
-    fn gather_short_cuts_are_exact() {
+    fn gather_short_cut_matches_the_full_gather() {
         use wgpu::util::DeviceExt;
         let text = crate::render::core::shader::registry::text(crate::render::core::shader::registry::ShaderId::World);
         let cut = |from: &str, to: &str| -> &str {
@@ -468,9 +575,14 @@ mod tests {
             &text[a..a + text[a..].find(to).unwrap_or_else(|| panic!("{to}"))]
         };
         // Today's gather (its grid, private state, `ml_vis_oct`, the taps; the
-        // grid's scale 1, the scene's) and the full one as it was.
+        // grid's scale 1, the scene's) and the same without its short cut.
         let grid = cut("struct MlRtVis", "// The NIS characters' pipelines");
         let today = cut("var<private> g_vis_ids", "// The blocks for this pixel at p (face normal ng");
+        let taps = cut("fn ml_vis_taps(", "\n}\n");
+        const SHORT_CUT: &str =
+            "if (vx == 0u || vx == 0x7FFFu) && (vy == 0u || vy == 0x7FFFu) && (g_vis_c.x >> 16u) != (g_vis_c.y >> 16u) {";
+        assert_eq!(taps.matches(SHORT_CUT).count(), 1);
+        let reference = format!("{}\n}}\n", taps.replace("fn ml_vis_taps(", "fn ref_taps(").replace(SHORT_CUT, "if false {"));
         let src = format!(
             "@group(0) @binding(15) var ml_vis_blocks: texture_2d<u32>;\n\
              @group(0) @binding(0) var<storage, read> pixels: array<vec4<f32>>;\n\
@@ -479,24 +591,26 @@ mod tests {
              @compute @workgroup_size(64)\n\
              fn main(@builtin(global_invocation_id) id: vec3<u32>) {{\n\
                  let i = id.x;\n\
-                 if i >= arrayLength(&pixels) / 2u {{ return; }}\n\
+                 let n = arrayLength(&pixels) / 2u;\n\
+                 if i >= n {{ return; }}\n\
                  let a = pixels[2u * i];\n\
                  let b = pixels[2u * i + 1u];\n\
                  ml_vis_taps(a.xy, a.z, vec2<f32>(a.w, b.x), b.yzw);\n\
-                 out[4u * i] = g_vis_ids;\n\
-                 out[4u * i + 1u] = bitcast<vec4<u32>>(g_vis_sum);\n\
-                 out[4u * i + 2u] = bitcast<vec4<u32>>(g_vis_wt);\n\
+                 out[8u * i] = g_vis_ids;\n\
+                 out[8u * i + 1u] = bitcast<vec4<u32>>(g_vis_sum);\n\
+                 out[8u * i + 2u] = bitcast<vec4<u32>>(g_vis_wt);\n\
+                 out[8u * i + 3u] = bitcast<vec4<u32>>(vec4<f32>(g_vis_all, g_vis_rest, 0.0));\n\
                  ref_taps(a.xy, a.z, vec2<f32>(a.w, b.x), b.yzw);\n\
-                 out[4u * i + 3u] = g_vis_ids;\n\
-                 out[4u * arrayLength(&pixels) / 2u + 2u * i] = bitcast<vec4<u32>>(g_vis_sum);\n\
-                 out[4u * arrayLength(&pixels) / 2u + 2u * i + 1u] = bitcast<vec4<u32>>(g_vis_wt);\n\
-             }}\n",
-            reference = REFERENCE
+                 out[8u * i + 4u] = g_vis_ids;\n\
+                 out[8u * i + 5u] = bitcast<vec4<u32>>(g_vis_sum);\n\
+                 out[8u * i + 6u] = bitcast<vec4<u32>>(g_vis_wt);\n\
+                 out[8u * i + 7u] = bitcast<vec4<u32>>(vec4<f32>(g_vis_all, g_vis_rest, 0.0));\n\
+             }}\n"
         );
         let gpu = pollster::block_on(Gpu::new(None, wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle()))).unwrap();
         let device = &gpu.device;
         // 32 x 32 blocks: depth on a sloped plane with a step, normals with a
-        // crease, and the light slots by region.
+        // crease, the light slots and the rest by region.
         let (bw, bh) = (32u32, 32u32);
         let oct = |n: Vec3| -> u32 {
             let n = n / (n.x.abs() + n.y.abs() + n.z.abs());
@@ -504,8 +618,15 @@ mod tests {
             if n.z < 0.0 {
                 e = (glam::Vec2::ONE - glam::Vec2::new(e.y.abs(), e.x.abs())) * glam::Vec2::new(e.x.signum(), e.y.signum());
             }
-            let q = |v: f32| ((v.clamp(-1.0, 1.0) * 32767.0).round() as i16) as u16 as u32;
-            q(e.x) | (q(e.y) << 16)
+            let q = |v: f32| ((v.clamp(-1.0, 1.0) * 127.0).round() as i8) as u8 as u32;
+            q(e.x) | (q(e.y) << 8)
+        };
+        // An f32 (positive, normal range) as f16 bits, rounded to nearest.
+        let half = |v: f32| -> u32 {
+            let b = v.to_bits();
+            let e = ((b >> 23) & 0xFF) as i32 - 127 + 15;
+            let m = (b & 0x7F_FFFF) + 0x1000;
+            ((e as u32) << 10) + (m >> 13)
         };
         let plane = |x: f32, y: f32| 10.0 + 0.05 * x + 0.02 * y + if x > 24.0 { 3.0 } else { 0.0 };
         let mut blocks = Vec::new();
@@ -513,16 +634,22 @@ mod tests {
             for bx in 0..bw {
                 let (x, y) = (bx as f32 * 2.0 + 0.5, by as f32 * 2.0 + 0.5);
                 let n = if by > 20 { Vec3::new(0.0, 0.6, 0.8) } else { Vec3::Z };
-                let slot = |light: u32, vis: u32| ((light + 1) << 16) | vis;
+                // (light + 1) << 16, the rest's kind (1 << 15), visibility (15 bits).
+                let slot = |light: u32, vis: u32| ((light + 1) << 16) | if light % 2 == 0 { 0x8000 } else { 0 } | vis;
                 let (sx, sy) = match (bx / 8, by / 8) {
                     (0, _) => (0, 0),
-                    (1, 0) => (slot(4, 65535), 0),
-                    (1, _) => (slot(4, 0), slot(9, 65535)),
-                    (2, 0) => (slot(4, if (bx + by) % 3 == 0 { 32768 } else { 65535 }), 0),
-                    (2, _) => (slot(if bx % 2 == 0 { 4 } else { 7 }, 65535), 0),
-                    _ => (slot(6, [0, 32768, 65535][((bx * 7 + by * 3) % 3) as usize]), slot(2, [0, 65535][(bx % 2) as usize])),
+                    (1, 0) => (slot(4, 32767), 0),
+                    (1, _) => (slot(4, 0), slot(9, 32767)),
+                    (2, 0) => (slot(4, if (bx + by) % 3 == 0 { 16384 } else { 32767 }), 0),
+                    (2, _) => (slot(if bx % 2 == 0 { 4 } else { 7 }, 32767), 0),
+                    _ => (slot(6, [0, 16384, 32767][((bx * 7 + by * 3) % 3) as usize]), slot(2, [0, 32767][(bx % 2) as usize])),
                 };
-                blocks.extend_from_slice(&[sx, sy, plane(x, y).to_bits(), oct(n)]);
+                let rest = match (bx + by / 4) % 4 {
+                    0 => 0,
+                    1 => 40000 | (12 << 16) | (130 << 24),
+                    _ => [0u32, 20000, 65535][(by % 3) as usize] | (3 << 16) | (128 << 24),
+                };
+                blocks.extend_from_slice(&[sx, sy, if by < 4 { 0 } else { rest }, half(plane(x, y)) | (oct(n) << 16)]);
             }
         }
         let tex = device.create_texture_with_data(
@@ -559,7 +686,7 @@ mod tests {
             contents: bytemuck::cast_slice(&pixels),
             usage: wgpu::BufferUsages::STORAGE,
         });
-        let size = (n * 6 * 16) as u64;
+        let size = (n * 8 * 16) as u64;
         let output = device.create_buffer(&wgpu::BufferDescriptor {
             label: None,
             size,
@@ -603,68 +730,28 @@ mod tests {
         staging.slice(..).map_async(wgpu::MapMode::Read, |_| {});
         device.poll(wgpu::PollType::wait_indefinitely()).unwrap();
         let v: Vec<[u32; 4]> = bytemuck::cast_slice(&staging.slice(..).get_mapped_range().expect("mapped")).to_vec();
-        let (mut uniform, mut none, mut lit) = (0, 0, 0);
+        let f = |a: [u32; 4]| a.map(f32::from_bits);
+        let close = |a: [f32; 4], b: [f32; 4]| a.iter().zip(b).all(|(x, y)| (x - y).abs() <= 1e-5 * (1.0 + y.abs()));
+        let (mut uniform, mut rest, mut lit) = (0, 0, 0);
         for i in 0..n {
-            let (ids, sum, wt, ref_ids) = (v[4 * i], v[4 * i + 1], v[4 * i + 2], v[4 * i + 3]);
-            let (ref_sum, ref_wt) = (v[4 * n + 2 * i], v[4 * n + 2 * i + 1]);
-            // (No light in the centre and side blocks: only the ids are read.)
-            if ref_ids == [0; 4] {
-                assert_eq!(ids, ref_ids, "pixel {i} ({:?})", pixels[2 * i]);
-                none += 1;
+            let got = &v[8 * i..8 * i + 4];
+            let want = &v[8 * i + 4..8 * i + 8];
+            let what = format!("pixel {i} ({:?})", pixels[2 * i]);
+            // (No light nor rest in the centre and side blocks: the ids alone.)
+            if want[0] == [0; 4] && f(want[3])[2] == 0.0 {
+                assert_eq!(got[0], want[0], "{what}");
                 continue;
             }
-            assert_eq!((ids, sum, wt), (ref_ids, ref_sum, ref_wt), "pixel {i} ({:?})", pixels[2 * i]);
-            uniform += usize::from(ids[0] != 0 && ids[0] == ids[2] && ids[1] == ids[3]);
-            lit += usize::from(sum[0] != 0);
+            assert_eq!(got[0], want[0], "{what}");
+            for k in 1..4 {
+                assert!(close(f(got[k]), f(want[k])), "{what}: {:?} vs {:?}", f(got[k]), f(want[k]));
+            }
+            uniform += usize::from(got[0][0] != 0 && got[0][0] == got[0][2] && got[0][1] == got[0][3]);
+            rest += usize::from(f(want[3])[2] > 0.0);
+            lit += usize::from(f(want[1])[0] > 0.0);
         }
-        assert!(uniform > n / 4 && none > n / 8 && lit > n / 4, "the cases covered: {uniform} {none} {lit} of {n}");
+        assert!(uniform > n / 8 && rest > n / 4 && lit > n / 4, "the cases covered: {uniform} {rest} {lit} of {n}");
     }
-
-    /// The gather as it was before its short cuts (the reference above).
-    const REFERENCE: &str = r#"
-fn ref_add(q: vec2<i32>, dims: vec2<i32>, fw: f32, want: f32, tol: f32, e: vec2<f32>) {
-    let t = textureLoad(ml_vis_blocks, clamp(q, vec2<i32>(0), dims - 1), 0);
-    let de = unpack2x16snorm(t.w) - e;
-    let wd = 1.0 - smoothstep(tol, 2.0 * tol, abs(bitcast<f32>(t.z) - want));
-    let wn = 1.0 - smoothstep(0.1, 0.2, abs(de.x) + abs(de.y));
-    let inside = all(q >= vec2<i32>(0)) && all(q < dims);
-    let w = select(0.0, fw * wd * wn, inside);
-    let mx = select(vec4<f32>(0.0), vec4<f32>(w), g_vis_ids == vec4<u32>(t.x >> 16u));
-    let my = select(vec4<f32>(0.0), vec4<f32>(w), g_vis_ids == vec4<u32>(t.y >> 16u));
-    g_vis_sum += mx * (f32(t.x & 0xFFFFu) / 65535.0) + my * (f32(t.y & 0xFFFFu) / 65535.0);
-    g_vis_wt += mx + my;
-}
-fn ref_taps(pix: vec2<f32>, z: f32, dz: vec2<f32>, ng: vec3<f32>) {
-    let dims = vec2<i32>(textureDimensions(ml_vis_blocks));
-    let u = (pix - 0.5) * 0.5 + 0.5;
-    let k = floor(u);
-    let f = u - k;
-    let ax = vec3<f32>(0.5 - 0.5 * f.x, 0.5, 0.5 * f.x);
-    let ay = vec3<f32>(0.5 - 0.5 * f.y, 0.5, 0.5 * f.y);
-    let c = vec2<i32>(k);
-    g_vis_cb = c;
-    g_vis_c = textureLoad(ml_vis_blocks, clamp(c, vec2<i32>(0), dims - 1), 0);
-    let side = select(vec2<i32>(-1), vec2<i32>(1), f >= vec2<f32>(0.5));
-    let d = textureLoad(ml_vis_blocks, clamp(c + side, vec2<i32>(0), dims - 1), 0);
-    g_vis_ids = vec4<u32>(g_vis_c.x >> 16u, g_vis_c.y >> 16u, d.x >> 16u, d.y >> 16u);
-    g_vis_sum = vec4<f32>(0.0);
-    g_vis_wt = vec4<f32>(0.0);
-    let tol = 0.004 * z + 0.02;
-    let e = ml_vis_oct(ng);
-    let z0 = z + dot(dz, vec2<f32>(c * 2) + 0.5 - pix);
-    let sx = dz.x * 2.0;
-    let sy = dz.y * 2.0;
-    ref_add(c + vec2<i32>(-1, -1), dims, ax.x * ay.x, z0 - sx - sy, tol, e);
-    ref_add(c + vec2<i32>(0, -1), dims, ax.y * ay.x, z0 - sy, tol, e);
-    ref_add(c + vec2<i32>(1, -1), dims, ax.z * ay.x, z0 + sx - sy, tol, e);
-    ref_add(c + vec2<i32>(-1, 0), dims, ax.x * ay.y, z0 - sx, tol, e);
-    ref_add(c, dims, ax.y * ay.y, z0, tol, e);
-    ref_add(c + vec2<i32>(1, 0), dims, ax.z * ay.y, z0 + sx, tol, e);
-    ref_add(c + vec2<i32>(-1, 1), dims, ax.x * ay.z, z0 - sx + sy, tol, e);
-    ref_add(c + vec2<i32>(0, 1), dims, ax.y * ay.z, z0 + sy, tol, e);
-    ref_add(c + vec2<i32>(1, 1), dims, ax.z * ay.z, z0 + sx + sy, tol, e);
-}
-"#;
 
     /// A supersampled scene's blocks follow the screen (2 x 2 screen pixels
     /// each, every block's scene pixel inside the scene); otherwise the

@@ -368,14 +368,14 @@ fn ml_relight(p: vec3<f32>, bake: vec3<f32>, ng_in: vec3<f32>, n_in: vec3<f32>, 
         let w = now * dot(colour, vec3<f32>(0.33));
         if rt_blocks && l.colour.w > -1.5 {
             var found = false;
-            let traced = ml_vis_slot(clusters[first + i] + 1u, &found);
-            if found {
-                if traced >= 0.0 {
-                    g_ml_traced += 0.25;
-                    // Faces the light grazes are left lit (the traced low
-                    // LOD of a curved facade shades the drawn one there).
-                    vis = mix(1.0, traced, ML_SHADOW_DEPTH * smoothstep(0.1, 0.35, dot(ng, dir)));
-                }
+            // (The rest: the emitters the blocks estimate together,
+            // rt_shadow.wgsl; the lamps keep their fallback.)
+            let traced = ml_vis_slot(clusters[first + i] + 1u, l.shadow.x < 0.0 && !pack, &found);
+            if traced >= 0.0 {
+                g_ml_traced += select(0.0, 0.25, found);
+                // Faces the light grazes are left lit (the traced low
+                // LOD of a curved facade shades the drawn one there).
+                vis = mix(1.0, traced, ML_SHADOW_DEPTH * select(ML_REST_DEPTH, 1.0, found) * smoothstep(0.1, 0.35, dot(ng, dir)));
             }
         }
         if D9_ML_CHAR && l.colour.w > -1.5 && w > selw.w {

@@ -12,7 +12,29 @@ pub fn trace_source(ssr: &str) -> String {
         assert!(s.contains(from), "ssr.wgsl anchor missing: {from}");
         s = s.replacen(from, to, 1);
     }
+    let s = format!("{}\n{}", primary_anchor(s, "        return rt_primary_at(frag_in, origin, r, n, car, term);\n"), march_fn(ssr));
     s
+}
+
+/// `ssr_march`: fs_trace as ssr.wgsl writes it (the screen march alone), a
+/// function the primary reflection asks where the screen hides its ray's hit
+/// (rt.wgsl `rt_primary_at`).
+pub(in crate::render) fn march_fn(ssr: &str) -> String {
+    let start = ssr.find(HEAD_START).expect("ssr.wgsl: fs_trace");
+    let end = start + ssr[start..].find("\n}\n").expect("ssr.wgsl: fs_trace's end") + 3;
+    const PATH: &str = "    let path = length(hit_p - origin);\n";
+    let body = &ssr[start..end];
+    assert_eq!(body.matches(PATH).count(), 1, "ssr.wgsl: fs_trace's path");
+    body.replacen(HEAD_START, "fn ssr_march(frag_in: vec4<f32>) -> vec4<f32> {\n    g_march_path = -1.0;\n", 1)
+        .replacen(PATH, &format!("{PATH}    g_march_path = path;\n"), 1)
+}
+
+/// The primary reflection's early out (`rt_is_primary`, docs/rt-reflections.md
+/// "Primary on wet roads and cars"): once the reflected ray is known, before the
+/// march, a primary pixel's result is the ray's (`then`: the form's statement).
+fn primary_anchor(s: String, then: &str) -> String {
+    assert!(s.matches(HEAD_END).count() == 1, "ssr.wgsl anchor missing: {HEAD_END}");
+    s.replacen(HEAD_END, &format!("    if rt_is_primary(car) {{\n{then}    }}\n{HEAD_END}"), 1)
 }
 
 /// (ssr.wgsl text, its RT form): the trace's early outs once the ray is
@@ -81,7 +103,8 @@ pub(in crate::render) const LIST_ANCHORS: [(&str, &str); 5] = [
 const LIST_HEAD: &str = r#"
 // ---- The ray list (rt/trace.rs, docs/rt-reflections.md) ----
 // Per listed pixel: x | y << 15, bit 31 for a result of 0 (the early outs,
-// the miss); else the march's result in rt_c.
+// the miss); else the march's result in rt_c. A primary pixel is neither
+// marched nor listed: the primary pass (`cs_rt_primary`) traces it.
 struct RtHead {
     count: atomic<u32>,
     groups: atomic<u32>,
@@ -91,6 +114,11 @@ struct RtHead {
 @group(1) @binding(0) var<storage, read_write> rt_head: RtHead;
 @group(1) @binding(1) var<storage, read_write> rt_px: array<u32>;
 @group(1) @binding(2) var<storage, read_write> rt_c: array<vec4<f32>>;
+
+// As rt.wgsl's (the primary reflection's surfaces).
+fn rt_is_primary(car: bool) -> bool {
+    return p.prev_proj.z > 0.5 && p.right.w < 0.5 && (car || p.fog_color.w >= 0.5);
+}
 
 // The trace's result c at pixel `frag`, listed where rt_fill would trace
 // it (its own test: not c.a >= 0.98).
@@ -125,6 +153,9 @@ struct RtHead {
 @group(2) @binding(1) var<storage, read> rt_px: array<u32>;
 @group(2) @binding(2) var<storage, read> rt_c: array<vec4<f32>>;
 @group(2) @binding(3) var rt_out: texture_storage_2d<rgba16float, write>;
+// The ray's path to its hit (-1: none; rt.wgsl `g_rt_dist`), for the
+// quarter rate's reprojection of a mirror by its reflected point.
+@group(2) @binding(4) var rt_dist_out: texture_storage_2d<r32float, write>;
 
 @compute @workgroup_size(64)
 fn cs_rt_rays(@builtin(global_invocation_id) id: vec3<u32>, @builtin(num_workgroups) groups: vec3<u32>) {
@@ -136,6 +167,31 @@ fn cs_rt_rays(@builtin(global_invocation_id) id: vec3<u32>, @builtin(num_workgro
             c = rt_c[i];
         }
         textureStore(rt_out, q, rt_ray(vec4<f32>(vec2<f32>(q) + 0.5, 0.0, 1.0), c));
+        textureStore(rt_dist_out, q, vec4<f32>(g_rt_dist, 0.0, 0.0, 0.0));
+    }
+}
+
+// The primary reflection's pixels (wet roads, cars; rt.wgsl `rt_is_primary`):
+// every pixel of the target looked at, those traced and written (with their
+// rays' paths); the others are left as the fragment pass wrote them (or as
+// cleared, when it did not run: on a wet frame every mask pixel is primary).
+// (Measured: tracing a dry frame's car pixels here costs less than listing
+// them, the dense tiles' rays being more coherent than the list's.)
+@compute @workgroup_size(8, 8)
+fn cs_rt_primary(@builtin(global_invocation_id) id: vec3<u32>) {
+    if any(id.xy >= textureDimensions(rt_out)) {
+        return;
+    }
+    // (Not a car's nor a wet road's: the head's work skipped.)
+    let frag = vec4<f32>(vec2<f32>(id.xy) + 0.5, 0.0, 1.0);
+    let kind = textureLoad(surface_tex, mask_texel(trace_frag(frag).xy), 0);
+    if kind.w <= 0.0 || !(is_car(kind.z) || p.fog_color.w >= 0.5) {
+        return;
+    }
+    let c = rt_ray_primary(frag);
+    if g_rt_was_primary {
+        textureStore(rt_out, id.xy, c);
+        textureStore(rt_dist_out, id.xy, vec4<f32>(g_rt_dist, 0.0, 0.0, 0.0));
     }
 }
 "#;
@@ -155,7 +211,7 @@ pub fn list_trace_source(ssr: &str) -> String {
         assert!(s.contains(from), "ssr.wgsl anchor missing: {from}");
         s = s.replacen(from, to, 1);
     }
-    s
+    primary_anchor(s, "        return vec4<f32>(0.0);\n")
 }
 
 /// (rt.wgsl text, the list's form): `rt_fill`'s two casts on one ray
@@ -197,6 +253,7 @@ pub fn list_rays_source(ssr: &str) -> String {
     let start = ssr.find(HEAD_START).expect("ssr.wgsl: fs_trace") + HEAD_START.len();
     let end = start + ssr[start..].find(HEAD_END).expect("ssr.wgsl: fs_trace's reach");
     let head = &ssr[start..end];
+    let march = march_fn(ssr);
     let mut rt = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/render/rt.wgsl")).to_string();
     for (from, to) in ONE_QUERY {
         assert!(rt.matches(from).count() == 1, "rt.wgsl anchor missing: {from}");
@@ -204,7 +261,7 @@ pub fn list_rays_source(ssr: &str) -> String {
     }
     rt = glow_on_one_query(&rt);
     format!(
-        "enable wgpu_ray_query;\n{ssr}\n{rt}\n// fs_trace's head (ssr.wgsl), then rt_fill on the march's result c.\nfn rt_ray(frag_in: vec4<f32>, c: vec4<f32>) -> vec4<f32> {{\n{head}    return rt_fill(c, origin, r, n, car, term, false);\n}}\n{LIST_RAYS}"
+        "enable wgpu_ray_query;\n{ssr}\n{rt}\n// fs_trace's head (ssr.wgsl), then rt_fill on the march's result c.\nfn rt_ray(frag_in: vec4<f32>, c: vec4<f32>) -> vec4<f32> {{\n{head}    return rt_fill(c, origin, r, n, car, term, false);\n}}\n// fs_trace's head, then the ray alone where the pixel is primary.\nfn rt_ray_primary(frag_in: vec4<f32>) -> vec4<f32> {{\n{head}    if !rt_is_primary(car) {{\n        return vec4<f32>(0.0);\n    }}\n    return rt_primary_at(frag_in, origin, r, n, car, term);\n}}\n{march}\n{LIST_RAYS}"
     )
 }
 
@@ -326,6 +383,21 @@ pub(in crate::render) struct ListTrace {
     /// traced scene, the list and the trace target.
     rays_layouts: [wgpu::BindGroupLayout; 3],
     rays: wgpu::ComputePipeline,
+    /// The primary reflection's pass (`cs_rt_primary`: every pixel of the
+    /// target looked at, the primary ones traced).
+    primary: wgpu::ComputePipeline,
+}
+
+/// Which trace pixels the rays decide ([`ssr_trace_list`], traced by a
+/// dense pass over the target): none (the march first everywhere), some
+/// (cars; dry roads march), or all (a wet frame: every mask pixel is a wet
+/// road or a car, so nothing marches first: the fragment pass and the list
+/// are skipped).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Primary {
+    Off,
+    Some,
+    All,
 }
 
 impl ListTrace {
@@ -347,12 +419,24 @@ impl ListTrace {
             count: None,
         };
         // ssr.wgsl's group 0 as the head reads it: the mask's term and
-        // surface, the trace's uniform (`p`).
+        // surface, the trace's uniform (`p`); and as the primary reflection
+        // reads the screen (rt.wgsl `rt_screen`): the pyramid, the scene, the
+        // mask's tint (the overlay), the glow sprites and the sampler.
         let mask_layout = cache(gpu, &wgpu::BindGroupLayoutDescriptor {
             label: Some("rt list mask"),
             entries: &[
+                tex(1, false),
+                tex(2, true),
                 tex(3, true),
                 tex(4, false),
+                tex(8, false),
+                tex(9, true),
+                wgpu::BindGroupLayoutEntry {
+                    binding: 6,
+                    visibility: S::COMPUTE,
+                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                    count: None,
+                },
                 wgpu::BindGroupLayoutEntry {
                     binding: 7,
                     visibility: S::COMPUTE,
@@ -381,6 +465,16 @@ impl ListTrace {
                     },
                     count: None,
                 },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 4,
+                    visibility: S::COMPUTE,
+                    ty: wgpu::BindingType::StorageTexture {
+                        access: wgpu::StorageTextureAccess::WriteOnly,
+                        format: DIST_FORMAT,
+                        view_dimension: wgpu::TextureViewDimension::D2,
+                    },
+                    count: None,
+                },
             ],
         });
         let rays_layouts = [mask_layout, crate::render::rt::layout(gpu, S::COMPUTE), out_layout];
@@ -402,7 +496,15 @@ impl ListTrace {
             compilation_options: Default::default(),
             cache: gpu.disk_pipeline_cache(),
         });
-        ListTrace { list_layout, fragment: [None, None], fragment_half: [None, None], rays_layouts, rays }
+        let primary = crate::render::core::device_cache::compute_pipeline(gpu, &wgpu::ComputePipelineDescriptor {
+            label: Some("cs_rt_primary"),
+            layout: Some(&pl),
+            module: &module,
+            entry_point: Some("cs_rt_primary"),
+            compilation_options: Default::default(),
+            cache: gpu.disk_pipeline_cache(),
+        });
+        ListTrace { list_layout, fragment: [None, None], fragment_half: [None, None], rays_layouts, rays, primary }
     }
 
     /// The fragment pass for a depth multisampled (`ms` 1) or not; `half`:
@@ -564,12 +666,24 @@ fn begin_trace<'a>(
 }
 
 /// What the list's compute pass reads besides the list: the mask the
-/// trace's head reads and the trace's uniform.
+/// trace's head reads and the trace's uniform; the screen the primary
+/// reflection takes its hits' colour from (the pyramid, the scene, the mask's
+/// tint, the glow sprites, the sampler); the rays' path target (the
+/// trace's size, or the half trace's).
 pub(in crate::render) struct ListInputs<'a> {
     pub term: &'a wgpu::TextureView,
     pub surface: &'a wgpu::TextureView,
     pub uniform: &'a wgpu::Buffer,
+    pub hiz: &'a wgpu::TextureView,
+    pub scene: &'a wgpu::TextureView,
+    pub tint: &'a wgpu::TextureView,
+    pub glow: &'a wgpu::TextureView,
+    pub sampler: &'a wgpu::Sampler,
+    pub dist: &'a wgpu::TextureView,
 }
+
+/// The rays' path target's format (rt.wgsl `g_rt_dist`, metres; -1 none).
+pub const DIST_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::R32Float;
 
 /// The SSR trace pass with the rays from a list ([`list_path`]): the
 /// fragment pass marches and lists the pixels that need a ray, the compute
@@ -587,6 +701,7 @@ pub(in crate::render) fn ssr_trace_list(
     trace_group: &wgpu::BindGroup,
     inputs: ListInputs<'_>,
     half: Option<&wgpu::TextureView>,
+    primary: Primary,
 ) {
     let lt = slot.get_or_insert_with(|| ListTrace::new(gpu));
     let fragment = lt.fragment(gpu, layouts, ms, half.is_some()).clone();
@@ -604,17 +719,25 @@ pub(in crate::render) fn ssr_trace_list(
     // The count and the groups from 0 (y and z stay 1).
     encoder.clear_buffer(&list.head, 0, Some(8));
     let mut rp = begin_trace(encoder, target, half.is_none().then_some(&t.skip), "ssr rt list trace");
-    rp.set_pipeline(&fragment);
-    rp.set_bind_group(0, trace_group, &[]);
-    rp.set_bind_group(1, &list_group, &[]);
-    rp.draw(0..3, 0..1);
+    // (Every pixel primary: the target only cleared.)
+    if primary != Primary::All {
+        rp.set_pipeline(&fragment);
+        rp.set_bind_group(0, trace_group, &[]);
+        rp.set_bind_group(1, &list_group, &[]);
+        rp.draw(0..3, 0..1);
+    }
     drop(rp);
     crate::prof::gpu::mark(encoder, "graphics: rt trace");
     use wgpu::BindingResource as R;
     let mask_group = group(&lt.rays_layouts[0], &[
+        entry(1, R::TextureView(inputs.hiz)),
+        entry(2, R::TextureView(inputs.scene)),
         entry(3, R::TextureView(inputs.term)),
         entry(4, R::TextureView(inputs.surface)),
+        entry(6, R::Sampler(inputs.sampler)),
         entry(7, inputs.uniform.as_entire_binding()),
+        entry(8, R::TextureView(inputs.tint)),
+        entry(9, R::TextureView(inputs.glow)),
     ]);
     let scene_group = group(&lt.rays_layouts[1], &rt.entries());
     let out_group = group(&lt.rays_layouts[2], &[
@@ -622,6 +745,7 @@ pub(in crate::render) fn ssr_trace_list(
         entry(1, list.px.as_entire_binding()),
         entry(2, list.c.as_entire_binding()),
         entry(3, R::TextureView(target)),
+        entry(4, R::TextureView(inputs.dist)),
     ]);
     {
         let mut cp = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor { label: Some("ssr rt rays"), timestamp_writes: None });
@@ -629,7 +753,14 @@ pub(in crate::render) fn ssr_trace_list(
         cp.set_bind_group(0, &mask_group, &[]);
         cp.set_bind_group(1, &scene_group, &[]);
         cp.set_bind_group(2, &out_group, &[]);
-        cp.dispatch_workgroups_indirect(&list.head, ARGS_OFFSET);
+        if primary != Primary::All {
+            cp.dispatch_workgroups_indirect(&list.head, ARGS_OFFSET);
+        }
+        if primary != Primary::Off {
+            let (w, h) = (target.texture().width(), target.texture().height());
+            cp.set_pipeline(&lt.primary);
+            cp.dispatch_workgroups(w.div_ceil(8), h.div_ceil(8), 1);
+        }
     }
     crate::prof::gpu::mark(encoder, "graphics: rt trace rays");
     if let Some(every) = crate::render::debug_env::nfsu2_rt_list_stats() {

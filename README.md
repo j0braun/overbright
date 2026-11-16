@@ -141,7 +141,9 @@ original, with its switch, is in [docs/native-deviations.md](docs/native-deviati
   Windows. On Linux the GPU rows read AMD GPUs; Intel GPUs show "n/a" and NVIDIA readings are untested.
 - **Ray-traced reflections** need a Vulkan GPU with ray queries and about 350–425 MB more video memory at 4K
   than before the ray-tracing rework. In them, cars keep a flat colour, and the wet road's finest ripples are
-  a little softer (each frame traces a quarter of the pixels and the rest come from a history).
+  a little softer (each frame traces a quarter of the pixels and the rest come from a history). On wet roads
+  and cars the rays decide the reflection; railings, foliage and the race-start crowd, which the traced scene
+  leaves out, come from the screen where they are visible there.
 - Integrated GPUs run the original look well; the heavier upgrades want a dedicated GPU (each option shows
   its cost on the settings page).
 

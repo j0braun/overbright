@@ -54,6 +54,10 @@ mod tests {
         }
         let s = trace_source(ssr);
         assert_eq!(s.matches("rt_fill(").count(), 6); // 5 calls + the definition
+        // The primary reflection's early out, once, before the march.
+        let early = "    if rt_is_primary(car) {\n        return rt_primary_at(frag_in, origin, r, n, car, term);\n    }\n    // The ray's reach";
+        assert_eq!(s.matches(early).count(), 1);
+        assert!(s.find(early).unwrap() < s.find("let end = origin + r * reach;").unwrap());
         assert!(s.starts_with("enable wgpu_ray_query;"));
         // It parses and validates (naga, no GPU).
         let module = wgpu::naga::front::wgsl::parse_str(&s).expect("parse");
@@ -89,6 +93,7 @@ mod tests {
             let frag = list_trace_source(&src);
             assert_eq!(frag.matches("rt_keep(").count(), 6); // 5 calls + the definition
             assert_eq!(frag.matches("rt_keep(vec4<f32>(0.0), frag_in.xy, true)").count(), 4);
+            assert_eq!(frag.matches("    if rt_is_primary(car) {\n        return vec4<f32>(0.0);\n    }\n").count(), 1);
             assert!(!frag.contains("rayQuery") && !frag.contains("ray_query;") && !frag.contains("rt_fill("));
             for ((from, rt), (from_list, list)) in ANCHORS.iter().zip(LIST_ANCHORS.iter()) {
                 assert_eq!(from, from_list);
@@ -104,6 +109,10 @@ mod tests {
         // The head is fs_trace's, every line up to the ray's reach.
         let head = rays.split("fn rt_ray(frag_in: vec4<f32>, c: vec4<f32>) -> vec4<f32> {\n").nth(1).unwrap();
         let head = head.split("    return rt_fill(c, origin, r, n, car, term, false);").next().unwrap();
+        // The primary pass's: the same head, then the ray alone.
+        assert!(rays.contains(&format!(
+            "fn rt_ray_primary(frag_in: vec4<f32>) -> vec4<f32> {{\n{head}    if !rt_is_primary(car) {{\n        return vec4<f32>(0.0);\n    }}\n    return rt_primary_at(frag_in, origin, r, n, car, term);\n}}"
+        )));
         let trace = ssr.split("fn fs_trace(@builtin(position) frag_in: vec4<f32>) -> @location(0) vec4<f32> {\n").nth(1).unwrap();
         assert!(trace.starts_with(head) && head.ends_with("    let r = reflect(v, n);\n"), "{head}");
         // rt_fill's two casts on one query (rt_cast's own is left unused).
@@ -112,6 +121,7 @@ mod tests {
         assert_eq!(rays.matches("rayQueryInitialize(&rq, rt_tlas, RayDesc(RAY_FLAG_FORCE_OPAQUE, ").count(), 3);
         let module = validate(&rays);
         assert!(module.entry_points.iter().any(|e| e.name == "cs_rt_rays"));
+        assert!(module.entry_points.iter().any(|e| e.name == "cs_rt_primary"));
     }
 
     /// A listed pixel's packing covers the largest trace the list takes.
@@ -290,7 +300,7 @@ mod tests {
     fn glow_rides_the_list_query() {
         let ssr = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/render/ssr.wgsl"));
         let rays = list_rays_source(ssr);
-        let fill = rays.split("fn rt_fill(").nth(1).unwrap().split("\nfn ").next().unwrap();
+        let fill = rays.split("fn rt_trace(").nth(1).unwrap().split("\nfn ").next().unwrap();
         assert!(!fill.contains("rt_glow("), "{fill}");
         assert!(fill.contains("rayQueryInitialize(&rq, rt_tlas, RayDesc(RAY_FLAG_NONE, 0x04u"));
         assert!(fill.contains("rayQueryGetCandidateIntersection(&rq)"));

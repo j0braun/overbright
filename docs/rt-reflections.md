@@ -35,9 +35,8 @@ spots); the quarter-rate history steadies them (frame-to-frame change −0.4 % o
 softens the wet road's finest ripples a little at 200 %. VRAM: +350–425 MB at 4K (the hit texture layers
 about 150 MB, the history pairs and the half trace about 215 MB).
 
-Not built yet: ray tracing as the primary reflection (the traced rays still fill only what the
-screen-space march cannot), and ReSTIR-style light sampling for the hits (they are not relit by the
-lamp clusters or the headlights).
+Since then: the rays decide wet roads' and cars' reflections ("Primary on wet roads and cars"
+below). Still open: the hits are not relit by the lamp clusters or the headlights.
 
 ## API status on this machine (verified 2026-11-05)
 wgpu 30.0 (`wgpu-types` 30.0.1): `Features::EXPERIMENTAL_RAY_QUERY`
@@ -187,6 +186,46 @@ pixels > 3 %, racing 0.12 %, luma mean / p5 / p95 within 0.1; frame-to-frame cha
 pixels in rain (the history steadies the reflections); at 200 % the wet road's finest ripples are a
 little softer.
 
+## Primary on wet roads and cars (prototype)
+A wet road's and a car's paint and glass reflection is decided by the ray, not by the screen march:
+* **Every pixel casts** (`rt_is_primary`: the tier, not a debug view, a car's surface or a wet frame's
+  road). Their trace pixels are not marched first. On a wet frame every mask pixel is primary: the
+  trace's fragment pass and the list are skipped and a dense compute pass (`cs_rt_primary`, 8 × 8
+  tiles over the half trace) traces them; a dry frame's cars go through the same pass after the
+  fragment pass has marched the roads (listing them cost more: the tiles' rays are more coherent than
+  the list's).
+* **The screen where it holds the hit** (`rt_screen`, after FidelityFX Hybrid Reflections' reuse of
+  the screen): where the ray's hit projects on screen and the pyramid's depth there lies within the
+  traced low LOD's offset of it (0.6 m or 5 %), the hit's colour is the drawn scene's, taken as the
+  march takes a hit's (its fog taken off, the glow sprites there, a car's path fog) and faded into the
+  traced colour over the screen's edge; no glow ray then. Elsewhere the traced hit's own colour
+  (texture, bake, neon and glows).
+* **The march where the traced scene is short** (`rt_primary_at`, wet roads): where something on
+  screen nearer than the hit hides it, or the ray meets nothing, the screen march (fs_trace as
+  ssr.wgsl writes it, `ssr_march`) is asked, and a march hit well before the ray's (under 90 % of its
+  path) takes its place by the march's confidence: alpha-tested railings and foliage, the NIS
+  characters and moved props are not in the traced scene but are on screen. Cars keep the ray's.
+* **The mirror's history by the reflected point** (`ssr_resolve.wgsl`): the list's pass writes each
+  primary ray's path to its hit (`g_rt_dist`, a half-size R32Float target); a wet road's resolve takes
+  its history where the reflected point was (the eye's ray through the surface point, extended by the
+  ray's path: the image a flat mirror shows), on the same stretch of road (its depth within 25 %),
+  blended with the surface's own reprojection by roughness (the reflected point alone up to 0.15,
+  the surface's from 0.45).
+* `NFSU2_RT_PRIMARY=0` keeps the march first (the previous form, a check aid); `NFSU2_RT_DEBUG=primary`
+  shows red where the screen's colour was taken, green the traced hit's, blue a miss.
+
+Measured (the reference player's 4K settings, Modern + RT, 4 interleaved pairs against the tree before,
+load 4-9, GPU busy ms): with the traced shadows' changes of docs/shadow-softness.md "Every light"
+(which pay for the dry frames' rays) racing 12.32 → 12.31, night rain 15.03 → 14.74, race start
+14.13 → 13.94, free roam 9.12 → 9.31. The reflections alone: night rain −0.6 ms (the march gone: trace
+0.72 → 0.02, rays 0.50 → 1.12 with the march where the screen is short), dry frames +0.1 ms of rays
+(the cars). Pictures at the four wet spots against the march-first form (Modern without RT, so only
+the reflections differ): 1.6-5.9 % of the pixels > 3 %, luma mean −0.3 … +0.2, p5 equal, p95 −0.5 …
++1.1. Night-rain race start frames 100-109: 2.3 % > 3 %, mean −0.15, p95 −1.1, frame-to-frame change
+30.61 % vs 30.68 % of the pixels (no added flicker). The quarter rate's difference to the full rate on
+the wet road (the lower half): mean 0.99 vs 1.01 levels, about equal on this bench (its road is rough
+enough for the surface's reprojection to dominate). Crops (left before, right after, then |diff| × 8 where three): `evidence/rt-next/primary_*`.
+
 ## The ray list (`rt/trace.rs`: `list_trace_source`, `list_rays_source`, `ssr_trace_list`)
 A ray query in a fragment shader keeps its traversal stack in scratch
 memory on RADV (76 entries per lane, `radv_nir_lower_ray_queries.c`; in a
@@ -320,6 +359,9 @@ module and pipelines made in the first frame).
 * The world build is a one-time 0.2 s CPU hitch on the first RT frame of a
   region (could move to a loader thread); BLAS compaction not used.
 * The tier needs a restart to take effect (device feature).
+* The primary reflection's screen test and march use the half trace's pyramid: a hit hidden by
+  something within 0.6 m of it, or a thin occluder the pyramid's nearest depth hides, can take the
+  wrong one. The fragment form (devices without the list) traces primary pixels in the fragment pass.
 * The quarter rate's history follows frames, not world ticks, and is dropped at cuts and where the
   surface changes, and held to the current samples' range (+10 %) so it does not trail; at a low frame
   rate it covers more time. Without the ray list (no RADV-style list path) every pixel is traced every

@@ -762,7 +762,13 @@ pub fn frame(gpu: &Gpu, world: &World, region: &str, cars: &[(&Car, Mat4)], eye:
                 instances as f32,
                 if crate::render::debug_env::nfsu2_rt_flat() { 0.0 } else { 1.0 },
                 s.hit_layers as f32,
-                if crate::render::debug_env::nfsu2_rt_debug_glow() { 1.0 } else { 0.0 },
+                if crate::render::debug_env::nfsu2_rt_debug_glow() {
+                    1.0
+                } else if crate::render::debug_env::nfsu2_rt_debug_primary() {
+                    2.0
+                } else {
+                    0.0
+                },
             ],
             cars: [glows.len() as f32, 0.0, 0.0, 0.0],
             glows: records,
