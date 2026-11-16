@@ -54,7 +54,7 @@ button (Generate Texture Pack). Of those options, 78 appear as an entry in the
 F3 overlay's Deviations rows and the crash reports' "deviations on" line; the other 8 are the four
 overlay diagnostics, Lighting Strength and the three HDR calibration values,
 which have no entry of their own. The code's tests set every option away from
-native and assert **79** entries: the rows' own plus two extra entries from the
+native and assert **80** entries: the rows' own plus two extra entries from the
 Detail Distance row (it covers three stored values). The Display page's Aspect
 Ratio and Vsync Off Mode add two more entries outside the hub. The
 legacy Reversed-Z row is hidden unless something switched it on.
@@ -137,7 +137,7 @@ Where and when it rains stays the original's.
 | Overlay Scale | 100% | Overlay size |
 | Performance Log (CSV) | Off | Writes frame times to a CSV file |
 
-### 3.6 Gameplay & Accessibility (18)
+### 3.6 Gameplay & Accessibility (19)
 | Option | Default | What it changes |
 |---|---|---|
 | Field Of View | 0 | Degrees added to the player cameras (scene and replay cameras keep theirs) |
@@ -172,7 +172,7 @@ Where and when it rains stays the original's.
 | Pause on Disconnect | Off | Pauses a race or free roam when the driving pad is unplugged |
 | Safe Axis Binding | Off | Capturing an axis on the Controls page keeps the roles of the other axes (the original clears them) |
 
-### 3.8 Packs (5)
+### 3.8 Packs (4)
 | Option | Default | What it changes |
 |---|---|---|
 | HD UI + Maps | Off | Uses an installed HD interface and detailed-map pack (needs a restart) |

@@ -9,7 +9,7 @@ the frame loop and the glue that turns the library's parts into the running game
 
 | area | modules | what |
 |---|---|---|
-| file formats | `formats/` | Pure parsers for the original's files: bundle chunks, string hashes, solids, scenery, textures, tracks and visibility, compressed packs (JDLZ, Huffman), VIV archives, VP6 video, routes, roads, collision, native saves. They take bytes and return data; every parser is a fuzz target (docs/fuzzing.md). |
+| file formats | `formats/` | Pure parsers for the original's files: bundle chunks, string hashes, solids, scenery, textures, tracks and visibility, compressed packs (JDLZ, Huffman), VIV archives, VP6 video, routes, roads, collision, native saves, texture-mod packages (TexMod `.tpf`, TexWizard packs, ZIP). They take bytes and return data; every parser is a fuzz target (docs/fuzzing.md). |
 | the player's game files | `game_fs/`, `exe_tables/`, `fingerprint.rs`, `cache/` | Case-insensitive access to the game folder; the tables read from the player's `SPEED2.EXE` (docs/exe-tables.md); the version fingerprint; the cache of converted world and car data. |
 | world and cars | `world/`, `car/`, `ground.rs`, `collision.rs`, `smackable/`, `fog.rs`, `sky.rs`, `weather.rs` | A track assembled from the parsers, cars from their parts, the ground and wall queries, knock-over props, fog, sky, the weather cycle. |
 | simulation | `drive/`, `handling/`, `contact.rs`, `race.rs`, `drift.rs`, `style.rs`, `nitrous.rs`, `tuning/`, `frame_clock.rs`, `interpolate.rs`, `rng_sites.rs` | Driving (sub-steps, rigid body, suspension, tyres, brakes, aero, steering), engine and drivetrain, contacts, race modes and scoring, the tick clock and interpolation, the original's random-number draw sites. |
@@ -19,8 +19,8 @@ the frame loop and the glue that turns the library's parts into the running game
 | audio | `audio/` | The original's audio objects and mixer: banks, codecs, the engine chain, car and world sounds, speech, EA Trax and the interactive score, reverb. |
 | rendering | `render/` | The wgpu renderer, in three layers (below). |
 | input and platform | `pad/`, `platform/`, `allocator.rs`, `latency.rs` | Gamepads (gilrs), folders and paths per OS (docs/platform-dirs.md), the allocator choice, frame pacing. |
-| extras and tools | `qol/`, `overlay/`, `mark_spot.rs`, `photo.rs`, `upscale*.rs`, `tpf_import.rs`, `remaster.rs`, `hd_ui_pack.rs`, `model_fixes.rs` | The opt-in quality-of-life features, the F3 overlay, report and photo tools, texture-pack generation and import. |
-| launcher | `launcher/` (binary `src/bin/overbright.rs`) | The launcher: game-folder search and check, settings, start. CPU-drawn (no wgpu), so it opens without a Vulkan driver (docs/launcher.md). |
+| extras and tools | `qol/`, `overlay/`, `mark_spot.rs`, `photo.rs`, `upscale*.rs`, `texture_mods.rs`, `tpf_import.rs`, `texwizard_import.rs`, `hud_mod.rs`, `hd_ui_pack.rs`, `model_fixes.rs` | The opt-in quality-of-life features, the F3 overlay, report and photo tools, texture-pack generation, the texture mods' and the HUD mod's import. |
+| launcher | `launcher/` (binary `src/bin/overbright.rs`) | The launcher: game-folder search and check, settings, the start choices, the Mods page (texture mods, the HUD mod), start. CPU-drawn (no wgpu), so it opens without a Vulkan driver (docs/launcher.md). |
 
 ### Rendering layers
 
@@ -42,7 +42,7 @@ original's frames byte for byte, which the gate checks.
 |---|---|
 | `shell/` | Start-up, command line, window, the frame loop and the display cadence, first run, the probe for the launcher. |
 | `sim/` | The running world: explore, races, traffic, encounters, AI, replay, event cameras, the game's random stream. |
-| `update/`, `input/`, `loads/` | Per-tick updates, input handling, world and car loading. |
+| `update/`, `input/`, `loads/`, `flow/` | Per-tick updates, input handling, world and car loading, the game's flow (boot movies, race set-up and end, free roam, replay). |
 | `menus/`, `ui/`, `hud/`, `career_glue/`, `shops/`, `garage/`, `dyno/`, `finish/` | Front-end screens, the HUD, the career's glue, shops, garage, dyno, race finish. |
 | `render/`, `enh/`, `audio/`, `effects_glue.rs`, `car_build.rs`, `state.rs` | Drawing a frame, the enhancement glue, the audio inputs, effects, car assembly, the game state. |
 | `dev/`, `dev_hooks.rs` | The developer harness (`--shot`, `--selftest`, `--flow`, `--bench`, `--playthrough`, parity, audio capture). Compiled only with the Cargo feature `dev-harness`; the game's paths call it only through `dev_hooks.rs`, which is a set of no-op stubs without the feature (layering rule 3). |
