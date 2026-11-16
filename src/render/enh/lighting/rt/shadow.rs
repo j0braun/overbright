@@ -110,9 +110,23 @@ fn layout(device: &wgpu::Device, ms: bool) -> wgpu::BindGroupLayout {
                 count: None,
             },
             uniform(6),
+            E {
+                binding: 7,
+                visibility: c,
+                ty: B::Buffer {
+                    ty: wgpu::BufferBindingType::Uniform,
+                    has_dynamic_offset: true,
+                    min_binding_size: wgpu::BufferSize::new(16),
+                },
+                count: None,
+            },
         ],
     })
 }
+
+/// The first blocks' buffer ([`Plan::record_region`]): 0 at offset 0, the
+/// characters' box at [`REGION_OFFSET`].
+const REGION_OFFSET: u32 = 256;
 
 /// The world's group 0 entry the colour pass reads the blocks from
 /// (Modern + RT's layout only).
@@ -135,6 +149,8 @@ pub struct RtShadow {
     layouts: [wgpu::BindGroupLayout; 2],
     pipelines: [Option<wgpu::ComputePipeline>; 2],
     uniform: wgpu::Buffer,
+    /// The dispatches' first blocks (rt_shadow.wgsl `rv_first`).
+    first: wgpu::Buffer,
     vis: wgpu::TextureView,
     size: (u32, u32),
     screen: (u32, u32),
@@ -198,6 +214,15 @@ impl RtShadow {
             layouts: [layout(device, false), layout(device, true)],
             pipelines: [None, None],
             uniform,
+            first: crate::render::zeroed_buffer(
+                device,
+                &wgpu::BufferDescriptor {
+                    label: Some("rt shadow first block"),
+                    size: u64::from(REGION_OFFSET) + 16,
+                    usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+                    mapped_at_creation: false,
+                },
+            ),
             vis: vis_target(device, (1, 1)),
             size: (0, 0),
             screen: (0, 0),
@@ -278,6 +303,8 @@ impl RtShadow {
         let ms = samples > 1;
         Plan {
             device: gpu.device.clone(),
+            queue: gpu.queue.clone(),
+            first: self.first.clone(),
             pipeline: self.pipeline(gpu, ms),
             layout: self.layouts[usize::from(ms)].clone(),
             frame: frame.clone(),
@@ -293,8 +320,11 @@ impl RtShadow {
 }
 
 /// One frame's pass, recorded on a render thread after the pre-pass.
+#[derive(Clone)]
 pub struct Plan {
     device: wgpu::Device,
+    queue: wgpu::Queue,
+    first: wgpu::Buffer,
     pipeline: wgpu::ComputePipeline,
     layout: wgpu::BindGroupLayout,
     frame: wgpu::Buffer,
@@ -311,6 +341,28 @@ impl Plan {
     /// The blocks from the pre-pass's `depth` (skipped when its sample
     /// count is not the planned one).
     pub fn record(&self, encoder: &mut wgpu::CommandEncoder, depth: &wgpu::TextureView) {
+        self.dispatch(encoder, depth, 0, (0, 0), self.blocks);
+    }
+
+    /// The blocks again over `lo..hi` (blocks), from the `depth` that now
+    /// holds the NIS characters too: their pixels read their own lights'
+    /// rays as the world's do (no rays in their colour shader). Once a frame.
+    pub fn record_region(&self, encoder: &mut wgpu::CommandEncoder, depth: &wgpu::TextureView, lo: (u32, u32), hi: (u32, u32)) {
+        let lo = (lo.0.min(self.blocks.0), lo.1.min(self.blocks.1));
+        let hi = (hi.0.min(self.blocks.0), hi.1.min(self.blocks.1));
+        if hi.0 <= lo.0 || hi.1 <= lo.1 {
+            return;
+        }
+        self.queue.write_buffer(&self.first, u64::from(REGION_OFFSET), bytemuck::cast_slice(&[lo.0, lo.1, 0, 0]));
+        self.dispatch(encoder, depth, REGION_OFFSET, lo, (hi.0 - lo.0, hi.1 - lo.1));
+    }
+
+    /// The blocks' grid.
+    pub fn blocks(&self) -> (u32, u32) {
+        self.blocks
+    }
+
+    fn dispatch(&self, encoder: &mut wgpu::CommandEncoder, depth: &wgpu::TextureView, offset: u32, _lo: (u32, u32), n: (u32, u32)) {
         if (depth.texture().sample_count() > 1) != self.ms {
             return;
         }
@@ -327,13 +379,17 @@ impl Plan {
                 entry(4, R::TextureView(depth)),
                 entry(5, R::TextureView(&self.vis)),
                 entry(6, self.uniform.as_entire_binding()),
+                entry(
+                    7,
+                    R::Buffer(wgpu::BufferBinding { buffer: &self.first, offset: 0, size: wgpu::BufferSize::new(16) }),
+                ),
             ],
         });
         let mut pass = encoder
             .begin_compute_pass(&wgpu::ComputePassDescriptor { label: Some("rt shadow"), timestamp_writes: None });
         pass.set_pipeline(&self.pipeline);
-        pass.set_bind_group(0, &group, &[]);
-        pass.dispatch_workgroups(self.blocks.0.div_ceil(8), self.blocks.1.div_ceil(8), 1);
+        pass.set_bind_group(0, &group, &[offset]);
+        pass.dispatch_workgroups(n.0.div_ceil(8), n.1.div_ceil(8), 1);
     }
 }
 

@@ -156,8 +156,11 @@ every world pixel's shader (+1.5 ms with no ray traced at all). Now (`render/rt_
 * **Overlays** the pre-pass does not hold (blended road decals: the start line's checker) lie a
   little over the surface the blocks traced: there the blocks of the surface point under the pixel are
   taken (`ml_vis_find`, ≤ 25 cm; before this the car's shadow on the start line moved ~10 px).
-* **NIS characters** (not in the pre-pass) keep this work's in-shader rays: their own pipeline set
-  (`ScenePipelines::characters`, `LF_ML_CHAR` → `D9_ML_CHAR`).
+* **NIS characters** (not in the pre-pass): drawn into the depth just before their colour pass, the
+  blocks traced again over their screen box, then shaded by the world's pipelines from the blocks
+  (docs/perf-budget.md "The NIS characters' rays, moved after all"); `NFSU2_RT_CHAR_RAYS=1` keeps this
+  work's in-shader rays (their own pipeline set, `ScenePipelines::characters`, `LF_ML_CHAR` →
+  `D9_ML_CHAR`).
 * Pixels whose blocks lie on another surface (silhouettes, alpha-tested foliage under MSAA's
   alpha-to-coverage) keep the light's fallback shadow (ellipsoid / lamp layer), as before for lights
   past the strongest four. Without the depth pre-pass (`NFSU2_DEPTH_PREPASS=0`) every pixel does.

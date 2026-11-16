@@ -34,6 +34,10 @@ struct RtVis {
     misc: vec4<f32>,
 };
 @group(0) @binding(6) var<uniform> rv: RtVis;
+// The dispatch's first block (xy): 0 for the frame's pass; the characters'
+// box for their own pass after they are in the depth (shadow.rs
+// `Plan::record_region`).
+@group(0) @binding(7) var<uniform> rv_first: vec4<u32>;
 // The block (half-resolution) the rays interleave over (`ml_ray`).
 var<private> g_ml_pix: vec2<f32>;
 // `ml_ray` / `ml_ray_one`: world.wgsl's RTVIS C block (prepended).
@@ -62,7 +66,8 @@ fn rv_slot(light: u32, vis: f32) -> u32 {
 }
 
 @compute @workgroup_size(8, 8)
-fn cs_rt_vis(@builtin(global_invocation_id) id: vec3<u32>) {
+fn cs_rt_vis(@builtin(global_invocation_id) gid: vec3<u32>) {
+    let id = vec3<u32>(gid.xy + rv_first.xy, gid.z);
     if f32(id.x) >= rv.sizes.z || f32(id.y) >= rv.sizes.w { return; }
     // The block's scene pixel: under its first grid pixel (2 id when the
     // grid is the scene's).
@@ -142,7 +147,7 @@ fn cs_rt_vis(@builtin(global_invocation_id) id: vec3<u32>) {
         let k = clusters[first + i];
         if k >= 0xFFFFu { continue; }
         let l = lamp_list[k];
-        let vis = ml_ray(p, ng, l.position.xyz, ml_light_radius(l), 0xFFu, k, select(ML_RAY_SAMPLES_REST, ML_RAY_SAMPLES, j == 0u));
+        let vis = ml_ray(p, ng, l.position.xyz, ml_light_radius(l), 0x03u, k, select(ML_RAY_SAMPLES_REST, ML_RAY_SAMPLES, j == 0u));
         slots[j] = rv_slot(k, vis);
     }
     textureStore(vis_out, vec2<i32>(id.xy), vec4<u32>(slots, out_zn));

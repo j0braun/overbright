@@ -19,7 +19,8 @@ No game files are included: you need your own PC copy of the game.
 - **Modern displays.** Resolutions up to 4K and ultrawide, high refresh rates and any frame rate. The world
   still updates like the original's 60 Hz, so the game plays the same at 30, 60, 144 or 240 fps.
 - **Optional graphics upgrades.** Street lamps that light the world and cast shadows, ambient occlusion,
-  screen-space or ray-traced reflections (Vulkan), volumetric fog and rain, supersampling up to 16×,
+  screen-space or ray-traced reflections (Vulkan; the traced ones show textured scenery, neon signs and the
+  street lamps' and cars' light glows on wet roads), volumetric fog and rain, supersampling up to 16×,
   upscaling. Each is off until you switch it on, and Restore Native goes back in one step.
 - **A launcher.** Finds and checks your game, prepares the shaders in the background, sets up texture
   mods and the HD HUD mod you already have, and can skip the intro movies and the title screen (each on its
@@ -144,6 +145,9 @@ original, with its switch, is in [docs/native-deviations.md](docs/native-deviati
 
 - **The F3 performance overlay's system rows** (CPU and GPU load, clocks, temperatures, memory) show "n/a" on
   Windows. On Linux the GPU rows read AMD GPUs; Intel GPUs show "n/a" and NVIDIA readings are untested.
+- **Ray-traced reflections** need a Vulkan GPU with ray queries and about 350–425 MB more video memory at 4K
+  than before the ray-tracing rework. In them, cars keep a flat colour, and the wet road's finest ripples are
+  a little softer (each frame traces a quarter of the pixels and the rest come from a history).
 - Integrated GPUs run the original look well; the heavier upgrades want a dedicated GPU (each option shows
   its cost on the settings page).
 

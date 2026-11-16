@@ -15,6 +15,30 @@ else 2 (SSR Ultra); `qol::rt_reflections()`. The tier is greyed out
 discrete GPU, `EXPERIMENTAL_RAY_QUERY` offered; `NFSU2_RT=1` any Vulkan
 adapter, `NFSU2_RT=0` never). No new label id (a tier of the SSR row).
 
+## The rework in one table
+
+The ray-tracing rework (the sections "Textured, glowing hits", "Light glows in the reflections",
+"Quarter rate" below, the NIS characters' rays in the world's traced-shadow pass, docs/perf-budget.md,
+and the hit textures built on the GPU) against the tree before it, the reference player's 4K settings
+(SSAA 2x, Modern + RT, Ray Traced reflections), GPU busy ms per frame:
+
+| scene | before | after |
+|---|---|---|
+| racing | 13.92 | 12.27 |
+| night rain | 16.83 | 15.22 |
+| race start | 16.60 | 14.13 |
+| free roam | 10.95 | 9.86 |
+
+The pictures gain the textured walls, windows and signs, the neon and the lamps' and cars' glows in wet
+reflections (night rain: luma p95 +1 … +3 levels, mean within +0.6; 3–7 % of the pixels > 3 % at the wet
+spots); the quarter-rate history steadies them (frame-to-frame change −0.4 % of the pixels in rain) and
+softens the wet road's finest ripples a little at 200 %. VRAM: +350–425 MB at 4K (the hit texture layers
+about 150 MB, the history pairs and the half trace about 215 MB).
+
+Not built yet: ray tracing as the primary reflection (the traced rays still fill only what the
+screen-space march cannot), and ReSTIR-style light sampling for the hits (they are not relit by the
+lamp clusters or the headlights).
+
 ## API status on this machine (verified 2026-11-05)
 wgpu 30.0 (`wgpu-types` 30.0.1): `Features::EXPERIMENTAL_RAY_QUERY`
 ("may have major bugs … subject to breaking changes", Vulkan only,
@@ -72,6 +96,96 @@ Windows/DX12 (wgpu: Vulkan only), iGPUs (excluded by design).
   traced colour held to the planar term's luminance on a dry road) applies
   to RT world hits as to SSR hits; the composite weight is the native one.
   Car origins get the fog of the reflected path (as SSR's).
+
+## Textured, glowing hits (prototype)
+The first step of the ray-tracing rework: a hit no longer takes its triangle's flat colour.
+* **Textured hits** (world triangles): per triangle a 48-byte surface record (`rt/geometry.rs`
+  `Surface`: the three UVs, the three baked vertex colours, the texture's layer and the LOD's
+  triangle term) and one texture array of every traced world texture, box-filtered to
+  128 × 128 with its mips (`hit_layer`; Bayview's layers are made at the region's load). The hit
+  is coloured as world.efx draws it, texture × interpolated baked colour × 2, at the mip the ray
+  cone's width at the hit asks for (Akenine-Möller et al., "Texture Level of Detail Strategies
+  for Real-Time Ray Tracing", Ray Tracing Gems ch. 20: the per-triangle term plus log2 of one
+  trace pixel's angle × (the eye's distance to the surface + the reflected path)).
+* **Neon and lit signs in the reflection**: the additive SGN_* / *NEON* / *_SIGN textures of every
+  placement's main LOD (`emissive_geometry`, the names of Modern Lighting's emitters) are a second,
+  non-opaque instance (mask 4) that no other ray sees (the opaque casts and the Modern + RT shadow
+  rays now use mask 3). After the opaque hit, one more query from the same start to the hit visits
+  every glowing triangle on the way without committing any and sums texture × alpha × vertex colour × 2
+  (additive blending, so the order does not matter); the list's compute pass runs it on its one
+  query (`glow_on_one_query`: a second query halved RADV's workgroup-memory traversal stack,
+  measured +0.4 ms). A miss keeps the march's result (no glow over the sky).
+* `NFSU2_RT_FLAT=1` keeps the flat colours (frames identical to before, checked); cars keep the
+  flat colour for now.
+* Measured (the reference player's 4K settings, 4 interleaved pairs, load 12-20): racing frame
+  13.99 → 14.21 ms, the rays 0.99 → 1.17; night rain 16.95 → 17.14, rays 1.11 → 1.32; VRAM
+  +150 MB. The layers are made on the GPU (`hit_texture_gpu`, `rt_hit_shrink.wgsl`: each world texture
+  uploaded as the game stores it, DXT with its mips, and all eight levels of its layer written by one
+  compute dispatch, each from the source level of that size; a texture with one level larger than twice
+  the layer is box-filtered on the CPU, `hit_layer`; `NFSU2_RT_CPU_LAYERS=1` filters all on the CPU):
+  Bayview's 1040 layers in 41-47 ms instead of 213-224 ms, the region's traced scene in 165-175 ms
+  (geometry 105-110 of it) instead of 337-351; pictures against the CPU's layers: 0.03 % of the pixels
+  > 3 % (night rain). Pictures: luma mean / p95 unchanged (±0.3), 1-4 % of the
+  pixels > 3 % at the wet Modern Lighting spots (reflected walls, windows and signs now have their
+  texture), 0.1-0.2 % in a dry race.
+
+## Light glows in the reflections (prototype)
+The lamps' and cars' light glow sprites (docs/formats.md "Light glow sprites") are camera-facing
+quads, not geometry, so no ray met them: a wet road reflected an off-screen or occluded lamp as
+nothing. Now:
+* **Street lamps**: every flare of the region's flare packs is a `Glow` (`rt/geometry.rs`: the type's
+  first layer, colour × doubled alpha, size, depth clamp, facing exponent with flag 4) whose bounding
+  octahedron (8 triangles, the record's mark `GLOW_MARK`) sits in the glowing instance (mask 4). The
+  glow query's candidate loop takes each glow once (the last four seen) and adds the sprite's soft disc
+  (`(1 − r²/R²)²`) at the ray's nearest point to its centre, its radius as the sprite's at the
+  reflected path's length (eye to surface + t), × the streak buffer's steady state where the glows go
+  through it (as the march sees an on-screen glow).
+* **Cars' head and brake lights**: the 16 glows of the cars nearest the eye (headlights type 0, brake
+  lights type 1 at the native 0.85: the traced scene does not know the brake) in the trace's uniform,
+  tested one by one (scalar loads; a per-frame BLAS of their octahedra cost 0.75 ms: rays near the
+  player's car start inside its lights' 5 m octahedra). A ray leaving a car skips glows within 1.5 m.
+* **Lamps against the sky**: a ray that misses now still looks for glows up to 120 m and returns the
+  reflection's own term (planar / cube) plus the glow.
+* **Wet road streak**: on a road the glow is stretched along the vertical by the native mirror sprite's
+  factor (1.2 … 10 by the wetness, `streak_factor`) and kept at 0.6 of the sprite's light (at 1 the
+  night-rain p95 luma rose 4 levels).
+* **Dry roads** cast no glow ray (their reflection is held to the native term's luminance, which the
+  glow could not pass): a dry race costs nothing more.
+* `NFSU2_RT_DEBUG=glow` shows the glow term alone (× 20), a check aid.
+Measured (the reference player's 4K settings, 3 interleaved triples, load 11-16): racing (dry)
+13.99 / 14.14 / 14.28 ms (today / textured / + glows), rays 0.99 / 1.16 / 1.12; night rain
+16.98 / 17.33 / 17.54, rays 1.10 / 1.34 / 1.67. Pictures, night-rain race start frames 100-111 vs
+today: luma mean +0.3 … +0.6, p5 equal, p95 +1.1 … +3.0; 3-7 % of the pixels > 3 % at the wet spots;
+frame-to-frame change +0.26 % of the pixels (no added flicker; no history is kept).
+
+## Quarter rate (prototype)
+With the ray list (the path a discrete RADV GPU takes), the Ray Traced tier no longer traces every
+trace pixel every frame:
+* **Half-size trace, jittered**: the trace's fragment pass (the march and the ray list) runs on a
+  half-size target; each of its pixels stands for one pixel of its 2 × 2 of the full trace
+  (`trace_frag`: `floor(frag) × 2 + 0.5 + jitter`), a different one each frame (`JITTER`: (0,0),
+  (1,1), (1,0), (0,1)), so the march, the rays and the result are exactly the full trace's at that
+  pixel. No mask depth there (sizes differ): the trace's own early outs skip the pixels without a
+  mask. The list holds the half-size pixel; its compute pass writes the half target.
+* **Resolve** (`ssr_resolve.wgsl`, a fragment pass at the full trace size into one of two history
+  pairs: colour, and the surface's view depth negative on a car): per pixel the half trace's 3 × 3
+  samples on the same surface (kind, depth within 5 %), weighted by distance and confidence (the exact
+  one where this frame traced the pixel); the last frame's result where the surface was (the road:
+  the point reprojected by the camera's motion; a car: the same pixel, as the chase camera holds it),
+  dropped where the depth or kind there differs, off screen, on the first frame or after a cut (eye
+  20 m away), else held to the current samples' range (+10 %) and blended (the current at 0.5 where
+  traced this frame, 0.2 elsewhere), all in confidence-weighted colour. The filter and composite then
+  run as before on the resolved trace.
+* `NFSU2_RT_QUARTER=0` traces every pixel every frame (the previous form, a check aid); the debug views
+  and the fragment form (no list) always do.
+* The history follows frames, not world ticks: at a low frame rate it covers more time (the clamp keeps
+  it from trailing). VRAM: two full-size history pairs and the half trace, about +215 MB at 4K.
+Measured (the reference player's 4K settings, 3 interleaved triples, load 8): racing 13.88 today →
+14.14 (glows) → **12.72** ms; night rain 16.73 → 17.51 → **15.50**: the trace 1.85 → 0.71 ms, its rays
+1.52 → 0.46, the resolve 0.33. Pictures against the full rate (frames 100-111): rain 0.93 % of the
+pixels > 3 %, racing 0.12 %, luma mean / p5 / p95 within 0.1; frame-to-frame change −0.4 % of the
+pixels in rain (the history steadies the reflections); at 200 % the wet road's finest ripples are a
+little softer.
 
 ## The ray list (`rt/trace.rs`: `list_trace_source`, `list_rays_source`, `ssr_trace_list`)
 A ray query in a fragment shader keeps its traversal stack in scratch
@@ -197,15 +311,16 @@ module and pipelines made in the first frame).
 * wgpu's API is experimental: breaking changes between wgpu versions are
   expected; driver bugs can hang or crash the GPU (UB per wgpu's docs).
   Only RADV/reference desktop GPU tested; NVIDIA/Intel, Windows untested.
-* Flat colour per triangle (no textures, no UV lookup): hits look
-  faceted/blurry; only acceptable after the SSR filter. No lamp clusters,
-  no glows, no emissive signs (additive textures are left out), sky misses
-  keep the planar/cube image.
+* World hits are textured and see the neon / signs and the light glows (above); cars' hits keep a
+  flat colour. Hits are not relit by the lamp clusters (the bake holds the lamps' pools) nor by the
+  cars' headlights.
 * Coarse LODs: the world's `low_solid` and car LOD C differ from what is
   drawn; self-hits are avoided only by tmin/offsets and the 1.5 m car
   rule. Smackables, the GPS arrow and moving props are not in the BLAS.
 * The world build is a one-time 0.2 s CPU hitch on the first RT frame of a
   region (could move to a loader thread); BLAS compaction not used.
 * The tier needs a restart to take effect (device feature).
-* No temporal accumulation: one ray per trace pixel, noise handled by the
-  SSR filter only.
+* The quarter rate's history follows frames, not world ticks, and is dropped at cuts and where the
+  surface changes, and held to the current samples' range (+10 %) so it does not trail; at a low frame
+  rate it covers more time. Without the ray list (no RADV-style list path) every pixel is traced every
+  frame, as before.

@@ -48,6 +48,10 @@ pub(in crate::render) struct Uniform {
     /// The eye in the world; w the reach.
     eye: [f32; 4],
     misc: [f32; 4],
+    /// x: the cars' glows.
+    cars: [f32; 4],
+    /// The cars' glows' surface records (rt.wgsl `rt_car_glows`).
+    glows: [Surface; MAX_CAR_GLOWS],
 }
 
 pub(in crate::render) struct CarEntry {
@@ -62,6 +66,8 @@ pub(in crate::render) struct Scene {
     key: (String, usize, usize),
     world_blas: Option<wgpu::Blas>,
     world_triangles: u32,
+    /// The neon and lit signs ([`emissive_geometry`]), not opaque.
+    emissive_blas: Option<wgpu::Blas>,
     colors: wgpu::Buffer,
     /// The next free car slot in `colors` (triangles).
     car_next: u32,
@@ -69,6 +75,12 @@ pub(in crate::render) struct Scene {
     means: HashMap<u32, [f32; 4]>,
     tlas: [wgpu::Tlas; 3],
     uniforms: [wgpu::Buffer; 3],
+    /// The world triangles' surfaces ([`Surface`]) and the hit texture
+    /// array (layers of [`HIT_TEXTURE`] square), its sampler, its layer count.
+    surfaces: wgpu::Buffer,
+    hit_tex: wgpu::TextureView,
+    hit_samp: wgpu::Sampler,
+    hit_layers: u32,
     frame: u64,
     /// The cache's clock: +1 per world tick (`render::enh::tick_views`;
     /// per draw without published ticks), which the models' last use and
@@ -111,6 +123,32 @@ pub fn layout(gpu: &Gpu, visibility: wgpu::ShaderStages) -> wgpu::BindGroupLayou
                 },
                 count: None,
             },
+            wgpu::BindGroupLayoutEntry {
+                binding: 3,
+                visibility,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Storage { read_only: true },
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+                count: None,
+            },
+            wgpu::BindGroupLayoutEntry {
+                binding: 4,
+                visibility,
+                ty: wgpu::BindingType::Texture {
+                    sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                    view_dimension: wgpu::TextureViewDimension::D2Array,
+                    multisampled: false,
+                },
+                count: None,
+            },
+            wgpu::BindGroupLayoutEntry {
+                binding: 5,
+                visibility,
+                ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                count: None,
+            },
         ],
     })
 }
@@ -121,6 +159,243 @@ pub struct FrameRt {
     pub tlas: wgpu::Tlas,
     pub colors: wgpu::Buffer,
     pub uniform: wgpu::Buffer,
+    /// The textured hit's inputs (rt.wgsl bindings 3-5).
+    pub surfaces: wgpu::Buffer,
+    pub hit_tex: wgpu::TextureView,
+    pub hit_samp: wgpu::Sampler,
+    /// The eye in the world (the reflections' quarter-rate history follows it).
+    pub eye: Vec3,
+}
+
+impl FrameRt {
+    /// The group-1 entries ([`layout`]) for this frame's scene.
+    pub fn entries(&self) -> [wgpu::BindGroupEntry<'_>; 6] {
+        let entry = |binding, resource| wgpu::BindGroupEntry { binding, resource };
+        [
+            entry(0, self.tlas.as_binding()),
+            entry(1, self.colors.as_entire_binding()),
+            entry(2, self.uniform.as_entire_binding()),
+            entry(3, self.surfaces.as_entire_binding()),
+            entry(4, wgpu::BindingResource::TextureView(&self.hit_tex)),
+            entry(5, wgpu::BindingResource::Sampler(&self.hit_samp)),
+        ]
+    }
+}
+
+/// The hit texture array's sampler: trilinear, repeating (the world's UVs tile).
+pub fn hit_sampler(device: &wgpu::Device) -> wgpu::Sampler {
+    device.create_sampler(&wgpu::SamplerDescriptor {
+        label: Some("rt hit textures"),
+        address_mode_u: wgpu::AddressMode::Repeat,
+        address_mode_v: wgpu::AddressMode::Repeat,
+        address_mode_w: wgpu::AddressMode::ClampToEdge,
+        mag_filter: wgpu::FilterMode::Linear,
+        min_filter: wgpu::FilterMode::Linear,
+        mipmap_filter: wgpu::MipmapFilterMode::Linear,
+        ..Default::default()
+    })
+}
+
+/// The hit texture array made on the GPU (the region's load stays short):
+/// each layer from its world texture as the game stores it (DXT with its
+/// mip chain, uploaded as is where the device takes BC), all its levels in
+/// one compute dispatch, each from the source's level of that size
+/// (`rt_hit_shrink.wgsl`: trilinear, so a box of the source's texels); a texture with too few levels for
+/// that (one level, larger than twice the layer) is filtered on the CPU
+/// ([`hit_layer`]); none: white.
+pub fn hit_texture_gpu(gpu: &Gpu, textures: &[Option<&Texture>]) -> wgpu::TextureView {
+    assert_eq!(HIT_MIPS, 8, "rt_hit_shrink.wgsl writes eight levels");
+    let device = &gpu.device;
+    let n = (textures.len() as u32).max(1);
+    let tex = device.create_texture(&wgpu::TextureDescriptor {
+        label: Some("rt hit textures"),
+        size: wgpu::Extent3d { width: HIT_TEXTURE, height: HIT_TEXTURE, depth_or_array_layers: n },
+        mip_level_count: HIT_MIPS,
+        sample_count: 1,
+        dimension: wgpu::TextureDimension::D2,
+        format: wgpu::TextureFormat::Rgba8Unorm,
+        usage: wgpu::TextureUsages::TEXTURE_BINDING
+            | wgpu::TextureUsages::COPY_DST
+            | wgpu::TextureUsages::STORAGE_BINDING
+            | wgpu::TextureUsages::COPY_SRC,
+        view_formats: &[],
+    });
+    let c = wgpu::ShaderStages::COMPUTE;
+    let mut entries = vec![
+        wgpu::BindGroupLayoutEntry {
+            binding: 0,
+            visibility: c,
+            ty: wgpu::BindingType::Texture {
+                sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                view_dimension: wgpu::TextureViewDimension::D2,
+                multisampled: false,
+            },
+            count: None,
+        },
+        wgpu::BindGroupLayoutEntry {
+            binding: 1,
+            visibility: c,
+            ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+            count: None,
+        },
+    ];
+    for m in 0..HIT_MIPS {
+        entries.push(wgpu::BindGroupLayoutEntry {
+            binding: 2 + m,
+            visibility: c,
+            ty: wgpu::BindingType::StorageTexture {
+                access: wgpu::StorageTextureAccess::WriteOnly,
+                format: wgpu::TextureFormat::Rgba8Unorm,
+                view_dimension: wgpu::TextureViewDimension::D2,
+            },
+            count: None,
+        });
+    }
+    let layout =
+        device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor { label: Some("rt hit shrink"), entries: &entries });
+    let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+        label: Some("rt hit shrink"),
+        source: wgpu::ShaderSource::Wgsl(
+            include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/render/rt_hit_shrink.wgsl")).into(),
+        ),
+    });
+    let pl = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+        label: Some("rt hit shrink"),
+        bind_group_layouts: &[Some(&layout)],
+        immediate_size: 0,
+    });
+    let pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+        label: Some("rt hit shrink"),
+        layout: Some(&pl),
+        module: &shader,
+        entry_point: Some("cs_shrink"),
+        compilation_options: Default::default(),
+        cache: None,
+    });
+    let samp = hit_sampler(device);
+    let bc = device.features().contains(wgpu::Features::TEXTURE_COMPRESSION_BC);
+    let white: Vec<u8> = vec![255u8; (0..HIT_MIPS).map(|m| ((HIT_TEXTURE >> m) as usize).pow(2) * 4).sum()];
+    for chunk in (0..n).collect::<Vec<u32>>().chunks(128) {
+        let mut enc = device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("rt hit shrink") });
+        let mut groups = Vec::new();
+        for &l in chunk {
+            let Some(t) = textures.get(l as usize).copied().flatten() else {
+                hit_layer_write(gpu, &tex, l, &white);
+                continue;
+            };
+            let ((format, w, h, mips), bytes) = crate::render::native::world::textures::texture_layer(Some(t), bc);
+            // Too few levels to box down on the GPU: the CPU's filter.
+            if mips == 1 && w.max(h) > 2 * HIT_TEXTURE {
+                hit_layer_write(gpu, &tex, l, &hit_layer(t));
+                continue;
+            }
+            let src = wgpu::util::DeviceExt::create_texture_with_data(
+                device,
+                &gpu.queue,
+                &wgpu::TextureDescriptor {
+                    label: Some("rt hit source"),
+                    size: wgpu::Extent3d { width: w, height: h, depth_or_array_layers: 1 },
+                    mip_level_count: mips,
+                    sample_count: 1,
+                    dimension: wgpu::TextureDimension::D2,
+                    format,
+                    usage: wgpu::TextureUsages::TEXTURE_BINDING,
+                    view_formats: &[],
+                },
+                wgpu::util::TextureDataOrder::LayerMajor,
+                &bytes,
+            );
+            let src_view = src.create_view(&Default::default());
+            let views: Vec<wgpu::TextureView> = (0..HIT_MIPS)
+                .map(|m| {
+                    tex.create_view(&wgpu::TextureViewDescriptor {
+                        dimension: Some(wgpu::TextureViewDimension::D2),
+                        base_mip_level: m,
+                        mip_level_count: Some(1),
+                        base_array_layer: l,
+                        array_layer_count: Some(1),
+                        ..Default::default()
+                    })
+                })
+                .collect();
+            let mut e = vec![
+                wgpu::BindGroupEntry { binding: 0, resource: wgpu::BindingResource::TextureView(&src_view) },
+                wgpu::BindGroupEntry { binding: 1, resource: wgpu::BindingResource::Sampler(&samp) },
+            ];
+            for (m, v) in views.iter().enumerate() {
+                e.push(wgpu::BindGroupEntry { binding: 2 + m as u32, resource: wgpu::BindingResource::TextureView(v) });
+            }
+            groups.push(device.create_bind_group(&wgpu::BindGroupDescriptor {
+                label: Some("rt hit shrink"),
+                layout: &layout,
+                entries: &e,
+            }));
+        }
+        {
+            let mut cp = enc.begin_compute_pass(&wgpu::ComputePassDescriptor { label: Some("rt hit shrink"), timestamp_writes: None });
+            cp.set_pipeline(&pipeline);
+            for g in &groups {
+                cp.set_bind_group(0, g, &[]);
+                cp.dispatch_workgroups(HIT_TEXTURE / 8, HIT_TEXTURE / 8, 1);
+            }
+        }
+        gpu.queue.submit([enc.finish()]);
+    }
+    tex.create_view(&wgpu::TextureViewDescriptor { dimension: Some(wgpu::TextureViewDimension::D2Array), ..Default::default() })
+}
+
+/// One layer's levels (back to back, [`hit_layer`]) into `tex`.
+fn hit_layer_write(gpu: &Gpu, tex: &wgpu::Texture, l: u32, bytes: &[u8]) {
+    let mut at = 0usize;
+    for m in 0..HIT_MIPS {
+        let side = HIT_TEXTURE >> m;
+        let len = (side * side * 4) as usize;
+        gpu.queue.write_texture(
+            wgpu::TexelCopyTextureInfo { texture: tex, mip_level: m, origin: wgpu::Origin3d { x: 0, y: 0, z: l }, aspect: wgpu::TextureAspect::All },
+            &bytes[at..at + len],
+            wgpu::TexelCopyBufferLayout { offset: 0, bytes_per_row: Some(side * 4), rows_per_image: Some(side) },
+            wgpu::Extent3d { width: side, height: side, depth_or_array_layers: 1 },
+        );
+        at += len;
+    }
+}
+
+/// A hit texture array of `layers` layers (at least one), each filled from
+/// `data` (a layer's levels back to back, [`hit_layer`]) where given, white
+/// elsewhere.
+pub fn hit_texture(gpu: &Gpu, layers: u32, data: &mut dyn FnMut(u32) -> Option<Vec<u8>>) -> wgpu::TextureView {
+    let n = layers.max(1);
+    let tex = gpu.device.create_texture(&wgpu::TextureDescriptor {
+        label: Some("rt hit textures"),
+        size: wgpu::Extent3d { width: HIT_TEXTURE, height: HIT_TEXTURE, depth_or_array_layers: n },
+        mip_level_count: HIT_MIPS,
+        sample_count: 1,
+        dimension: wgpu::TextureDimension::D2,
+        format: wgpu::TextureFormat::Rgba8Unorm,
+        usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+        view_formats: &[],
+    });
+    for l in 0..n {
+        let bytes = data(l).unwrap_or_else(|| vec![255u8; (0..HIT_MIPS).map(|m| ((HIT_TEXTURE >> m) as usize).pow(2) * 4).sum()]);
+        let mut at = 0usize;
+        for m in 0..HIT_MIPS {
+            let side = HIT_TEXTURE >> m;
+            let len = (side * side * 4) as usize;
+            gpu.queue.write_texture(
+                wgpu::TexelCopyTextureInfo {
+                    texture: &tex,
+                    mip_level: m,
+                    origin: wgpu::Origin3d { x: 0, y: 0, z: l },
+                    aspect: wgpu::TextureAspect::All,
+                },
+                &bytes[at..at + len],
+                wgpu::TexelCopyBufferLayout { offset: 0, bytes_per_row: Some(side * 4), rows_per_image: Some(side) },
+                wgpu::Extent3d { width: side, height: side, depth_or_array_layers: 1 },
+            );
+            at += len;
+        }
+    }
+    tex.create_view(&wgpu::TextureViewDescriptor { dimension: Some(wgpu::TextureViewDimension::D2Array), ..Default::default() })
 }
 
 pub(in crate::render) static SCENE: Mutex<Option<Scene>> = Mutex::new(None);
@@ -140,12 +415,23 @@ pub(in crate::render) fn blas_for(
     label: &str,
     triangles: u32,
 ) -> (wgpu::Blas, wgpu::BlasTriangleGeometrySizeDescriptor) {
+    blas_with(device, label, triangles, wgpu::AccelerationStructureGeometryFlags::OPAQUE)
+}
+
+/// [`blas_for`] with the geometry's flags (empty: not opaque, a ray query
+/// sees each triangle as a candidate).
+pub(in crate::render) fn blas_with(
+    device: &wgpu::Device,
+    label: &str,
+    triangles: u32,
+    flags: wgpu::AccelerationStructureGeometryFlags,
+) -> (wgpu::Blas, wgpu::BlasTriangleGeometrySizeDescriptor) {
     let size = wgpu::BlasTriangleGeometrySizeDescriptor {
         vertex_format: wgpu::VertexFormat::Float32x3,
         vertex_count: triangles * 3,
         index_format: None,
         index_count: None,
-        flags: wgpu::AccelerationStructureGeometryFlags::OPAQUE,
+        flags,
     };
     let blas = device.create_blas(
         &wgpu::CreateBlasDescriptor {
@@ -170,11 +456,47 @@ fn ensure_world(gpu: &Gpu, world: &World, region: &str, guard: &mut Option<Scene
     }
     *guard = None;
     let span = crate::prof::span("rt: world geometry");
+    let started = std::time::Instant::now();
     let mut means = HashMap::new();
-    let g = world_geometry(world, &mut means);
+    let mut g = world_geometry(world, &mut means);
+    let emissive = emissive_geometry(world, &mut g);
     drop(span);
+    let geometry_ms = started.elapsed().as_secs_f64() * 1e3;
     let world_triangles = g.triangles() as u32;
-    log::info!("rt: world {} triangles ({} textures)", world_triangles, means.len());
+    log::info!(
+        "rt: world {} triangles ({} textures), {} glowing",
+        world_triangles,
+        means.len(),
+        emissive.triangles()
+    );
+    // The textured hit's surfaces and layers (as many as the device's
+    // array takes; the rest keep the flat colour).
+    let span = crate::prof::span("rt: hit textures");
+    let hit_layers = (g.layers.len() as u32).min(device.limits().max_texture_array_layers);
+    let t0 = std::time::Instant::now();
+    let textures: Vec<Option<&Texture>> =
+        (0..hit_layers).map(|l| g.layers.get(l as usize).and_then(|h| world.textures.get(h))).collect();
+    let hit_tex = if crate::render::debug_env::nfsu2_rt_cpu_layers() {
+        hit_texture(gpu, hit_layers, &mut |l| textures[l as usize].map(hit_layer))
+    } else {
+        hit_texture_gpu(gpu, &textures)
+    };
+    log::info!("rt: hit textures made in {:.0} ms", t0.elapsed().as_secs_f64() * 1e3);
+    let surfaces = wgpu::util::DeviceExt::create_buffer_init(
+        device,
+        &wgpu::util::BufferInitDescriptor {
+            label: Some("rt surfaces"),
+            contents: &{
+                let mut v: Vec<u8> = bytemuck::cast_slice(&g.surfaces).to_vec();
+                v.extend_from_slice(bytemuck::cast_slice(&emissive.surfaces));
+                v
+            },
+            usage: wgpu::BufferUsages::STORAGE,
+        },
+    );
+    let hit_samp = hit_sampler(device);
+    drop(span);
+    log::info!("rt: {} hit texture layers ({:.1} MB of surfaces)", hit_layers, g.surfaces.len() as f64 * 48.0 / 1e6);
     // Initialised at creation (the rule: `zeroed_buffer`): the
     // cars' colours are written later, frame by frame, into its tail.
     let colors = crate::render::zeroed_buffer(
@@ -190,7 +512,7 @@ fn ensure_world(gpu: &Gpu, world: &World, region: &str, guard: &mut Option<Scene
     let tlas = std::array::from_fn(|i| {
         device.create_tlas(&wgpu::CreateTlasDescriptor {
             label: Some(["rt tlas 0", "rt tlas 1", "rt tlas 2"][i]),
-            max_instances: 1 + MAX_CARS as u32,
+            max_instances: 2 + MAX_CARS as u32,
             flags: wgpu::AccelerationStructureFlags::PREFER_FAST_TRACE,
             update_mode: wgpu::AccelerationStructureUpdateMode::Build,
         })
@@ -237,16 +559,57 @@ fn ensure_world(gpu: &Gpu, world: &World, region: &str, guard: &mut Option<Scene
         gpu.queue.submit([enc.finish()]);
         blas
     });
+    let emissive_blas = (emissive.triangles() > 0).then(|| {
+        let n = emissive.triangles() as u32;
+        let (blas, size) = blas_with(device, "rt glow", n, wgpu::AccelerationStructureGeometryFlags::empty());
+        let vb = wgpu::util::DeviceExt::create_buffer_init(
+            device,
+            &wgpu::util::BufferInitDescriptor {
+                label: Some("rt glow positions"),
+                contents: bytemuck::cast_slice(&emissive.positions),
+                usage: wgpu::BufferUsages::BLAS_INPUT,
+            },
+        );
+        let mut enc = device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("rt glow blas") });
+        enc.build_acceleration_structures(
+            [&wgpu::BlasBuildEntry {
+                blas: &blas,
+                geometry: wgpu::BlasGeometries::TriangleGeometries(vec![wgpu::BlasTriangleGeometry {
+                    size: &size,
+                    vertex_buffer: &vb,
+                    first_vertex: 0,
+                    vertex_stride: 12,
+                    index_buffer: None,
+                    first_index: None,
+                    transform_buffer: None,
+                    transform_buffer_offset: None,
+                }]),
+            }],
+            std::iter::empty(),
+        );
+        gpu.queue.submit([enc.finish()]);
+        blas
+    });
+    log::info!(
+        "rt: the region's traced scene in {:.0} ms (geometry {:.0} ms)",
+        started.elapsed().as_secs_f64() * 1e3,
+        geometry_ms
+    );
     *guard = Some(Scene {
         key,
         world_blas,
         world_triangles,
+        emissive_blas,
         colors,
         car_next: 0,
         cars: HashMap::new(),
         means,
         tlas,
         uniforms,
+        surfaces,
+        hit_tex,
+        hit_samp,
+        hit_layers,
         frame: 0,
         steps: 0,
         gate: Default::default(),
@@ -342,12 +705,17 @@ pub fn frame(gpu: &Gpu, world: &World, region: &str, cars: &[(&Car, Mat4)], eye:
             tlas[instances] = Some(wgpu::TlasInstance::new(b, instance_transform(Mat4::IDENTITY), 0, MASK_WORLD));
             instances += 1;
         }
+        if let Some(b) = &s.emissive_blas {
+            tlas[instances] =
+                Some(wgpu::TlasInstance::new(b, instance_transform(Mat4::IDENTITY), s.world_triangles, MASK_EMISSIVE));
+            instances += 1;
+        }
         for (k, m) in &placed {
             let Some(e) = s.cars.get(k) else { continue };
             tlas[instances] = Some(wgpu::TlasInstance::new(&e.blas, instance_transform(*m), e.base, MASK_CAR));
             instances += 1;
         }
-        for i in instances..=MAX_CARS {
+        for i in instances..=MAX_CARS + 1 {
             tlas[i] = None;
         }
     }
@@ -368,15 +736,48 @@ pub fn frame(gpu: &Gpu, world: &World, region: &str, cars: &[(&Car, Mat4)], eye:
             }]),
         })
         .collect();
+    // The cars' glows: those of the cars nearest the eye (the list is
+    // nearest first), one record each after the load's.
+    let mut glows = Vec::new();
+    for &(car, m) in cars.iter().take(MAX_CARS) {
+        car_glows(car, m, &mut glows);
+        if glows.len() >= MAX_CAR_GLOWS {
+            break;
+        }
+    }
+    glows.truncate(MAX_CAR_GLOWS);
+    let mut records = [Surface::default(); MAX_CAR_GLOWS];
+    for (r, g) in records.iter_mut().zip(&glows) {
+        *r = g.surface();
+    }
     enc.build_acceleration_structures(entries.iter(), [&s.tlas[ring]]);
     crate::prof::gpu::mark(&mut enc, "graphics: rt tlas");
     gpu.queue.write_buffer(
         &s.uniforms[ring],
         0,
-        bytemuck::bytes_of(&Uniform { eye: [eye.x, eye.y, eye.z, REACH], misc: [instances as f32, 0.0, 0.0, 0.0] }),
+        bytemuck::bytes_of(&Uniform {
+            eye: [eye.x, eye.y, eye.z, REACH],
+            // y: textured hits (NFSU2_RT_FLAT=1: the flat colour, a check aid); z: the layers.
+            misc: [
+                instances as f32,
+                if crate::render::debug_env::nfsu2_rt_flat() { 0.0 } else { 1.0 },
+                s.hit_layers as f32,
+                if crate::render::debug_env::nfsu2_rt_debug_glow() { 1.0 } else { 0.0 },
+            ],
+            cars: [glows.len() as f32, 0.0, 0.0, 0.0],
+            glows: records,
+        }),
     );
     gpu.queue.submit([enc.finish()]);
-    Some(FrameRt { tlas: s.tlas[ring].clone(), colors: s.colors.clone(), uniform: s.uniforms[ring].clone() })
+    Some(FrameRt {
+        tlas: s.tlas[ring].clone(),
+        colors: s.colors.clone(),
+        uniform: s.uniforms[ring].clone(),
+        surfaces: s.surfaces.clone(),
+        hit_tex: s.hit_tex.clone(),
+        hit_samp: s.hit_samp.clone(),
+        eye,
+    })
 }
 
 /// The car cache's tick-stepped state (its clock and the models

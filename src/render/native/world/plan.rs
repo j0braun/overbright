@@ -185,6 +185,7 @@ impl WorldRenderer {
             }
             _ => None,
         };
+        *self.rt_shadow_plan.lock().unwrap() = rt_shadow.clone();
         // Wet Road Interaction: its bindings in the main view's group.
         let lamp_frame = self.plan_wet_road(gpu, lamp_frame, params.opts);
         // The road's Wet Roads branch runs where wet.x > 0.5 (the frame's

@@ -98,6 +98,31 @@ pub fn nfsu2_gpu_block_mib() -> Option<String> {
 pub fn nfsu2_rt() -> Option<String> {
     text("NFSU2_RT")
 }
+/// `NFSU2_RT_FLAT`: `1` gives the ray-traced reflections' hits their
+/// triangle's flat colour instead of the textured surface (a check aid).
+pub fn nfsu2_rt_flat() -> bool {
+    text("NFSU2_RT_FLAT").is_some_and(|v| v == "1")
+}
+/// `NFSU2_RT_DEBUG`: `glow` shows the reflections' glow term alone, strong
+/// (a check aid).
+pub fn nfsu2_rt_debug_glow() -> bool {
+    text("NFSU2_RT_DEBUG").is_some_and(|v| v == "glow")
+}
+/// `NFSU2_RT_QUARTER`: `0` traces every reflection pixel every frame in
+/// the ray-traced tier (a check aid); unset or anything else: the quarter rate.
+pub fn nfsu2_rt_quarter() -> bool {
+    text("NFSU2_RT_QUARTER").is_none_or(|v| v != "0")
+}
+/// `NFSU2_RT_CHAR_RAYS`: `1` keeps the NIS characters' Modern + RT rays in
+/// their colour shader (a check aid); unset: the traced shadows' blocks.
+pub fn nfsu2_rt_char_rays() -> bool {
+    text("NFSU2_RT_CHAR_RAYS").is_some_and(|v| v == "1")
+}
+/// `NFSU2_RT_CPU_LAYERS`: `1` filters the reflections' hit textures on the
+/// CPU at the load (a check aid); unset: on the GPU.
+pub fn nfsu2_rt_cpu_layers() -> bool {
+    text("NFSU2_RT_CPU_LAYERS").is_some_and(|v| v == "1")
+}
 /// `NFSU2_RT_TRACE`: `fragment` keeps the ray-traced reflections' rays in
 /// the trace's fragment pass (the form a device without the ray list
 /// takes, `rt::list_path`); unset or anything else: the device's choice.
