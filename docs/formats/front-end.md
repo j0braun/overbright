@@ -2310,7 +2310,7 @@ decompiles and the objdump) unless marked.
 
 Clone: `src/pad.rs` (the native model), `src/pad/host.rs` (gilrs and the
 synthetic script), game.rs `pad_frame`, `controls`, `controls_cells`;
-`devprobes/src/bin/pad_probe.rs` lists what the game sees.
+the maintainer's probe `pad_probe` lists what the game sees.
 
 * **Enumeration and channels.** 0x5D0320 (the input system 0x870760's
   constructor) → 0x5D0080: DirectInput8Create (IID_IDirectInput8A 0x7BFDA0)
@@ -2405,7 +2405,7 @@ synthetic script), game.rs `pad_frame`, `controls`, `controls_cells`;
   _ALTERNATE: the crossing sends the press with +0x20 = tick 0x865134 +
   25, held past it a press whenever the tick is above +0x20 (then tick +
   6) — but 0x865134 has no writer and reads 0 under Wine in the menus,
-  pause and free roam (`docs/evidence/controller-support/`), so the
+  pause and free roam (the maintainer's private captures), so the
   original never repeats: one press per push (**verified**; the clone's
   `FeRepeat` at tick 0; the Modern layout's repeat is a clone extra).
 * **The handlers** (the human input 0x41E060 registers them with 0x579420):
@@ -2517,7 +2517,7 @@ synthetic script), game.rs `pad_frame`, `controls`, `controls_cells`;
   connect <id> [vid pid]`, `disconnect <id>`, `axis <id> lx|ly|rx|ry|lt|rt
   <v>`, `button <id> <name> 0|1` on the game clock; the shots poll it at
   0 (`--shot controls_pad`, `controls_header`). The controller-support pass fed gilrs a uinput
-  Xbox 360 pad (internal evidence: controller-support/vpad.py, `devprobes/src/bin/pad_probe.rs`).
+  Xbox 360 pad (internal evidence, the maintainer's probe `pad_probe`).
 * **Open**: the per-player device assignment (player p's device byte
   0x864788[p], 0xFF = default 0x7F9414[p]; set by 0x571A30, the handler
   of event 1 registered for players 0 and 1 by 0x579560 — what raises
@@ -2530,7 +2530,7 @@ synthetic script), game.rs `pad_frame`, `controls`, `controls_cells`;
 ## Shop previews and engage message (2026-10-31, the finished-career save)
 
 Traced in SPEED2.EXE and checked under Wine (fastgpu, a copy of the player's
-finished career the finished-career save, `tests/fixtures/native_saves/the finished-career save`).
+finished career, `tests/fixtures/native_saves/career_complete.sav`).
 
 * **Engage message** (Shop_EngageMessage 0x512920, from the dialog setup
   0x4998E0): kind 0 (the garage) 0x987EECDA; a shop whose visit-table entry
@@ -3020,7 +3020,7 @@ The earlier checks (`--shot finished_shop_checks`) set the shop screens up
 directly. This round ran the windowed clone on a private Xvfb display
 (bwrap, no sound devices or session sockets) with the player's finished career
 (`the finished-career save`) as the profile, booted it, resumed the career and
-drove the menus with real key events (XTEST): `scripts/preview_xtest.sh`
+drove the menus with real key events (XTEST): the maintainer's `preview_xtest.sh`
 (`NFSU2_DEV_SHOP=<shop>` puts the car in that shop's trigger once free
 roam is up; a test aid). The original ran beside it under Wine
 (`fastgpu.sh`, the same save). Every body shop list (bumpers, skirts,
@@ -3104,7 +3104,7 @@ back and a bought part stayed. Found and fixed:
   window tint, lights, nitrous purge, hydraulics, spinners, split hoods,
   doors; the report of a part staying until the shop was left did not
   reproduce here.
-* Checks: `scripts/preview_xtest.sh run <dir> <display>` (each list
+* Checks: `$OB_PRIVATE/scripts/preview_xtest.sh run <dir> <display>` (each list
   stepped with real keys and checked against the FE car the draw loaded,
   `NFSU2_PREVIEW_LOG`; then Back must restore the car's own part at once;
   a locked category is noted), the shots as before.
@@ -3115,7 +3115,7 @@ Player report: "when selecting custom gauges it should, like the other parts, ju
 to the one already installed". Traced in SPEED2.EXE; confirmed under Wine (fastgpu, DXVK,
 1280×960, no WidescreenFix, `$OB_PRIVATE/wine/runs/<run>` on :189, profile the finished-career save from
 `the finished-career save`, main-menu Customize on the RX-7). Frames in
-`docs/evidence/list-openings/`; slot reads from the FE ride 0x8392C0 (+0x590 + 4·slot, 0x610300).
+the maintainer's private captures; slot reads from the FE ride 0x8392C0 (+0x590 + 4·slot, 0x610300).
 
 Every list selects with 0x5386B0 (IconScroller_SetSelected: the list offset −(item position),
 so the selection sits on the column's fixed highlight row and the rows above it show; the scroll
@@ -3180,4 +3180,4 @@ follows from the selection alone). What each list's fill passes to it:
   `lists_open_installed_row_toggles_and_restores` (options.rs),
   `lists_open_installed_round_trip_and_native_default` (qol.rs); selftest: the specialties
   lists with the option on (Custom Gauges on the fitted gauge), and `selftest_custom_hud`'s
-  steps on swatch 1 off / on the fitted backing and dial colours on. Evidence: internal evidence: list-openings/u3b-selftest.log, `u3b-enhancements-row-off.jpg` (the row, Off).
+  steps on swatch 1 off / on the fitted backing and dial colours on. Evidence: internal evidence, `u3b-enhancements-row-off.jpg` (the row, Off).

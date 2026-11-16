@@ -200,7 +200,7 @@ mod shared_part_tests {
     /// with KIT_CARBON the bumpers' CARSKIN ranges and every generic part's
     /// 0xA7366AE6 ranges; never the spoiler (its own draw), never a stock
     /// car. Compared in the original's Body Shop (G35 DOUBLE-V carbon hood,
-    /// carbon body kit): docs/evidence/car-materials/.
+    /// carbon body kit): the maintainer's private captures.
     #[test]
     #[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
     fn carbon_parts_take_the_carbonfiber_material() {
@@ -652,7 +652,7 @@ mod shared_part_tests {
     #[test]
     #[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
     fn split_hood_draws_its_black_undersides_while_open() {
-        // COBRA on the RX7 (hood.trace frame 20900, docs/l1-leftovers.md
+        // COBRA on the RX7 (hood.trace frame 20900, the maintainer's private notes
         // §L3.1): the hood's HOODUNDER (0x61BCE0) puts KIT24's
         // HOOD_UNDER_LEFT / _RIGHT (55 / 53 triangles, PLAINNOTHING: c18 =
         // c19 = 0, black) in slot 0x19; the generic draw poses them with the
@@ -810,8 +810,8 @@ mod shading_trace_tests {
 
     /// The stock 240SX on the Quick Race car select: every car.efx draw of
     /// the original's frame (apitrace over DXVK, 2026-11-04; VS c18..c23
-    /// and PS c0/c1, distinct sets in docs/evidence/car-shading/
-    /// fe-240sx-car-efx.txt) has the constants the clone gives one of the
+    /// and PS c0/c1, distinct sets in internal
+    /// evidence) has the constants the clone gives one of the
     /// car's front-end LOD A draws (0x5BD4B0 on the part's light material
     /// and the material record's flags), and every such clone draw's set
     /// occurs in the frame. Paint METPAINTSILVER, rims MAGSILVER, glass WINDSHIELD /

@@ -5,7 +5,7 @@ with the finished-career save". Measured on the player's save
 (`<the player's options file>`, career car Skyline GT-R) in the
 original under Wine (fastgpu, private copy `a private Wine copy`, display :194,
 vanilla, no widescreen fix) and in the clone (`--flow outrun`,
-`NFSU2_FLOW_SAVE`). Evidence: `docs/evidence/outrun-ai-strength/`.
+`NFSU2_FLOW_SAVE`). Evidence: the maintainer's private captures.
 **Verified** = traced in SPEED2.EXE; **observed** = read under Wine;
 **inferred** / **open** as marked.
 
@@ -106,7 +106,7 @@ Fix: `encounter_racer_think` treats "past the end" as 0x428720 returning
 false (suspends only in the ready fallback); `RacerRoute::update` after a
 search runs 0x428720's no-list node test (`route::node_holds`) instead of
 skipping it. Clone lead runs after: 0 of 12 suspended; the 8 unaffected runs
-are identical to before (internal evidence: s6-a6b/clone-lead-runs-before-after.txt).
+are identical to before (internal evidence).
 
 Not done: the spot was not reproduced in the original under Wine (the
 earlier teleport of the rival blew up its velocity; driving the player there

@@ -1,4 +1,4 @@
-//! User reports 2026-11 (docs/user-reports-2026-11.md): asset-backed
+//! User reports 2026-11 (the maintainer's private notes): asset-backed
 //! reproductions run through the live entry points (`Game::step`,
 //! `Game::key`). They load the original's assets: without NFSU2_ROOT they
 //! are ignored with that reason (docs/testing.md). The `#[ignore]`d ones
@@ -1112,7 +1112,7 @@ fn start_scene_flames_visible() {
     assert!(visible > 0, "{scene}: no flame visible");
 }
 
-/// Owner report (2026-11-01 14:56, docs/user-reports-2026-11.md c): "outrun
+/// Owner report (2026-11-01 14:56, the maintainer's private notes, item c): "outrun
 /// rivals don't switch into race mode; in the original they are much
 /// harder". Native: while the manager tries to engage (state 3) every
 /// encounter car runs goal 9 (0x42A860 → 0x428630) whose slot +0x4C

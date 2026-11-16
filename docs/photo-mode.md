@@ -105,11 +105,11 @@ clone label fallback).
   past every limit, closes, resumes, drives 300 steps.
   `NFSU2_PHOTO_CONTROL=1` does the same steps and draws without photo mode.
   With `NFSU2_STATE_HASH` the two hash files are **identical** for both
-  scenes (1296 steps each; internal evidence: photo-mode/state-hash.txt): opening
+  scenes (1296 steps each; internal evidence): opening
   photo mode, moving, capturing and closing leaves the simulation as the
   plain pause does.
 * Parity gates with the row Off (base = <base>, both fast-build
-  binaries): see internal evidence: photo-mode/parity-gates.txt.
+  binaries): see internal evidence.
 
 * The picture is drawn in the window's format and read back as RGBA8
   whatever that format is (`render::read_back_rgba8`; docs/hdr.md "The SDR
@@ -121,7 +121,7 @@ clone label fallback).
   read-back cannot convert) is a "Not saved: …" line under the strip and a
   log warning; photo mode and the game go on.
 
-## Evidence (`docs/evidence/photo-mode/`)
+## Evidence (the maintainer's private captures)
 `pause-photo-item.jpg` (the item selected), `*-photo-help.jpg` (help bar,
 f/2.8), `*-capture-*.jpg` (the pictures, downscaled), `explore-photo-held.jpg`
 (rig pushed past the limits), `*-photo.txt` / `*-control.txt` (the check's

@@ -42,7 +42,7 @@ not numerically the native global sorted ordinal.
 
 ## Evidence and validation
 
-internal evidence: outrun-speech/README.md includes a
+internal evidence includes a
 reproducer running unmodified native resolver/search machine code in a
 minimal isolated PE under Wine, using the real index headers. All five
 selectors resolve to their corresponding bases; absent selectors and an

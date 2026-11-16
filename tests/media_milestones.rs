@@ -1,5 +1,5 @@
 //! The stage 4–5 magazine and DVD milestones as the clone loads them
-//! (career chunk 0x34A16; docs/playthrough-stage4.md / -stage5.md):
+//! (career chunk 0x34A16; the maintainer's playthrough notes):
 //! STAGE_4_DVD_1..3 and STAGE_5_DVD_1..4 are DVD covers (+0x24 = 2 / 4)
 //! asking visual ratings that rise through the stage (0x5331D0 offers a
 //! cover once the car's rating reaches +0x3C), and every stage-4 / -5

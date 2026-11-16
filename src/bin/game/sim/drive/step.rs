@@ -5,7 +5,7 @@
 /// 0x5B72E0) splits that frame into ftol(dt / 0.0044) + 1 sub-steps
 /// itself, the player's input update (steering 0x416BB0, its running
 /// means) runs once, and the collision step 0x5FFA60 once. Verified under
-/// Wine (docs/drive-parity.md): at 35–60 fps the original logs one mover
+/// Wine (the maintainer's private notes): at 35–60 fps the original logs one mover
 /// call per frame with dt up to 0.037 s. On the tick clock every dt is a
 /// tick's, so the former `INTRO_STEP_HZ` split is gone.
 pub(crate) fn world_steps(_dt: f32) -> u32 {

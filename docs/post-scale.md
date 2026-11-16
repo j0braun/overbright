@@ -44,7 +44,7 @@ Where the 3×3 neighbourhood's peak luma is bright (smoothstep 0.35 → 0.7) the
 the neighbourhood's minimum (no undershoot): the negative lobe no longer draws a dark ring beside glow,
 lamps, headlights; elsewhere CAS is unchanged. Clone deviation (Sharpen is opt-in).
 
-## Results (1280×960 `garage_neon`, column x 700, y 776..800 step 3; internal evidence: post-scale/profiles.txt)
+## Results (1280×960 `garage_neon`, column x 700, y 776..800 step 3; internal evidence)
 | config | before | after | 1× reference |
 |---|---|---|---|
 | SSAA 4x | 216 101 92 72 40 17 | 211 95 83 71 45 21 | 212 94 84 71 45 21 |

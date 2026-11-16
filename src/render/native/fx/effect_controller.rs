@@ -27,7 +27,7 @@
 //!   fires in draws step 0, the next two steps 2 and 4, and the slot is off
 //!   from step 6: three drawn frames, amounts 1, 1, 0.3 — 0.1 s at the
 //!   scenes' 30 frames a second. **Observed** under Wine (IntroNis05,
-//!   docs/evidence/rating-flash/): the step reads 0, 2, 4, 6 on four
+//!   the maintainer's private captures): the step reads 0, 2, 4, 6 on four
 //!   consecutive frame counts (0x865148, one per present), the controller's
 //!   update count (+0x3AC × 30) goes up 2 per frame, and the grabbed frames
 //!   brighten × 2.1, × 2.1, × 1.4 for three frames at each flash.

@@ -613,7 +613,7 @@ Original look keeps its own targets; every step is exact (gate below).
 grouped by label (count, MiB), with the allocated and reserved totals and
 the process's own VRAM/GTT now (amdgpu fdinfo). The bench JSON's
 `vram_peak_kib` is the number compared below (process peak, fdinfo).
-Reports: `docs/evidence/d15-vram/`.
+Reports: the maintainer's private captures.
 
 The profile showed that the largest waste was not overlapping lifetimes
 but the allocator: at 4K Ultra 2051 MiB were allocated in 3072 MiB of
@@ -723,7 +723,7 @@ aliased multisampled streak copy): checks PASS (1144 tests, selftest,
 eebb2581… new); Original images 1280×960 + 4K, window path, enhanced
 (10 sets incl. Modern/user/Extreme/Extreme FSR), 29 shots: AE 0; audio
 identical; state hashes identical (firstrace, firstdrag, postrace,
-playthrough, parity). internal evidence: d15-vram/gate-*.txt.
+playthrough, parity). Gate logs: internal evidence.
 
 Perfgate (against the frame-budget gate baseline 99e726f): FAIL on one metric,
 racing Ultra 4K cpu_render +9 % (p 0.016); every GPU metric same or better,

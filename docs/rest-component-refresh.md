@@ -63,7 +63,7 @@ Two asset-backed regressions failed before their respective corrections:
 
 The former proves the second discrete update, and the latter proves that
 an impulse is not required to request it. Final validation results are
-recorded in internal evidence: rest-components/validation.txt.
+recorded in internal evidence.
 
 ## Remaining limits
 

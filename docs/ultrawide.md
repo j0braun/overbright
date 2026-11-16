@@ -48,7 +48,7 @@ width when the screen is within 1 % of 16:9 (1366 × 768). So 4:3, 5:4,
   within <base>'s own run-to-run noise (animated highlights: main,
   customize, options at 1280 × 960 differ base-vs-base by 50–1355 px as
   well); options_enhancements differs by the new row.
-* Evidence: internal evidence: ultrawide/sheet_<size>.jpg` (main, career,
+* Evidence: internal evidence, one sheet per size (main, career,
   explore, race start NIS, qrstart, customize, shop, showcase, intro NIS,
   movie, options, Enhancements page) and
   `hud_centered_vs_full_<size>.jpg` (explore and drift, Centered left,

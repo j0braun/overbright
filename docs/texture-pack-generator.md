@@ -87,10 +87,10 @@ never written to the track cache (unchanged rule).
 | GPU engine ms/frame | 2.48 / 2.40 | 2.48 / 2.45 (no measurable change) |
 | world load | 224 / 163 ms | 386 / 402 ms (+~0.2 s: arrays rebuilt from the pack) |
 | process RSS peak | 1.13 / 0.71 GB | 2.03 / 2.01 GB |
-Raw: internal evidence: texture-pack/bench-explore-4k-*.json. On laptops with 2 GB VRAM the pack does not fit
+Raw: internal evidence. On laptops with 2 GB VRAM the pack does not fit
 next to the game at 4K; it is meant for desktop GPUs.
 
-## Review (by eye; `evidence/texture-pack/`)
+## Review (by eye; the maintainer's private captures)
 Sheets: per texture the original (left) and the pack (right), the 48×48-texel window with the most
 detail, magnified bilinearly to 256 px (≈ 5 px per source texel, how they look up close at 4K);
 cut-outs alpha-tested at 95, decals blended over a checker, roads' alpha ignored (it is the reflection
@@ -176,7 +176,7 @@ uploads an RGBA8 texture's own levels when it has more than one (`render::textur
 game's textures and native composites have one level, so native is unchanged). Without both files
 (or without the pack) the native composite is made as before.
 
-### Review (by eye; internal evidence: texture-pack/cars)
+### Review (by eye; internal evidence)
 * `sheet-CarSkin-01.jpg` (traffic skins: spoke and grille edges cleaner, colours held — **better**),
   `sheet-CarDecal-01.jpg` (sponsor lettering and logos crisp, no halos — **better**),
   `sheet-CarRim-01.jpg` (tyre tread and rim edges sharper — **better**), `sheet-CarPart-03.jpg`
@@ -186,7 +186,7 @@ game's textures and native composites have one level, so native is unchanged). W
 * In the garage scene (`main-dday-350z-rim-4k-off-on.jpg`, `--shot main_dday` at 4K, row Off | On):
   the painted rim's spokes, lettering and tread are a little crisper; paint colour unchanged.
   `explore-peugeot-4k-off-on.jpg` (chase view): nearly identical (badging a touch sharper).
-  `model-sheet-350z-bbs-rim-off-on.jpg` (devprobes/src/bin/model_sheets.rs, `--cols 3 --rows 2`): no visible
+  `model-sheet-350z-bbs-rim-off-on.jpg` (the maintainer's probe `model_sheets`, `--cols 3 --rows 2`): no visible
   difference at sheet scale — the mips the GPU samples there are the box-downscaled original.
   Verdict: a small gain, visible only close up (garage, photo mode); the world pack is the larger one.
 
@@ -196,7 +196,7 @@ original by dropping the DDS's top mip levels at load (categories from the pack'
 signs, rims and decals keep their scale. The memory size comes from the DRM node with the adapter's
 PCI vendor/device (`mem_info_vram_total`, amdgpu/i915/xe; **inferred**: other drivers report nothing
 and then only integrated adapters count as small). `--bench explore 300`, 3840×2160, reference desktop GPU,
-machine shared (load 12–68), two runs each (internal evidence: texture-pack/cars/bench-explore-4k-tp*.json):
+machine shared (load 12–68), two runs each (internal evidence):
 | | Off | On | Lean |
 |---|---|---|---|
 | VRAM peak (GB) | 1.47 / 1.50 | 2.37 / 2.09 | 1.84 / 2.02 |

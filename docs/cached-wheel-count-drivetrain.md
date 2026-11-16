@@ -6,7 +6,7 @@ Native `594A40` scales crank reaction by `max(count / 4, 0.25)` using
 `[clutch+34]+3E4`. `5AA840` reads the same location for its locked-clutch gate.
 The captured clutch pointer is the physics view (`full car +40`), so this is
 `full car +424`. `5ABC00` also copies that count /4 into aero+14. Original
-bytes and hashes are retained in internal evidence: cached-wheel-count/native-disassembly.txt.
+bytes and hashes are retained in internal evidence.
 
 The three production drivetrain consumers now share
 `CarState::drivetrain_wheels_down()`, which uses the existing `aero_down` cache:
@@ -80,7 +80,7 @@ friction-circle inputs/limiting against the retained native wheel fields.
 ## Reproduction
 
 ```sh
-python3 internal evidence: cached-wheel-count/export.py
+python3 $OB_PRIVATE/docs/evidence/cached-wheel-count/export.py
 cargo test --release --lib native_airborne_drivetrain -- --nocapture
 ```
 

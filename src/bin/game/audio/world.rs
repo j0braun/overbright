@@ -373,7 +373,7 @@ impl Game {
         // own sound objects keep running from the scene car (**observed**
         // under Wine, a won EndingNis01: FX_WIND's level and pitch,
         // FX_ROADNOISE's pitch and FX_SKID's slip levels follow the car
-        // through its drift; docs/evidence/ending-hold-audio/), until the
+        // through its drift; the maintainer's private captures), until the
         // scene's last frame, where FX_SKID's and FX_WIND's levels drop to
         // 0 within 0.1 s (the scene's 550 frames; what lowers them is **not
         // traced**, the clone silences them there). The SFXCTL updates run

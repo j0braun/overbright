@@ -37,8 +37,8 @@ Validation: the no-op failed on native case0 (cached x velocity1 versus
 1.2500285). Both branches then passed all64 original snapshots without changing
 the tolerance. A subsequent review preserved native dx extended-precision
 multiplication separately from stored dy, and the final complete library run
-passed468 tests with7 ignored. Logs are retained in the private workspace's
-review/nis-target-rust-{red,green,final}.log. The first attempted test compile
+passed468 tests with7 ignored. Logs (red, green, final) are retained in the
+private workspace. The first attempted test compile
 had an incorrect relative fixture path; it was corrected before the genuine
 no-op failure was recorded. No game binary/package behavior changes follow from
 this unwired helper.

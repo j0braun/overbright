@@ -11,7 +11,7 @@ Wine: `$OB_PRIVATE/wine/runs/<run>`, `fastgpu.sh` on :193,
 `--wined3d` (DXVK hung on the boot's "Save complete." dialog once:
 game clock stopped), fresh profile, no WidescreenFix. Codes typed with
 `xdotool type` after `windowfocus` (`--window` alone delivers no
-WM_CHAR); memory read with `peek.py`. Evidence: `docs/evidence/cheats/`
+WM_CHAR); memory read with `peek.py`. Evidence: the maintainer's private captures
 (`typing.jsonl`: manager and table after each code; `table.json`;
 `pm_create_question.png`); raw captures in `<work dir>/cheats-work/wine`.
 
@@ -96,7 +96,7 @@ code reads the manager or the table.
 
 ## Checked under Wine
 `$OB_PRIVATE/wine/runs/<run>`, fastgpu (DXVK) on :204 with `--audio-file`,
-fresh profile; evidence `docs/evidence/s6-a6b/`, raw in
+fresh profile; evidence in the maintainer's private captures, raw in
 `<work dir>/s6-work/wine/`.
 * **gimmevisual2 alone opens nothing** (observed): gimmevisual2 then
   regmybank typed on the title (entries 3 and 17 active, bank 200), boot's

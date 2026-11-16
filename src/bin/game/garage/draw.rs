@@ -346,7 +346,7 @@ fn garage_car_change(
                 g.car_job = Some(g.prefetch.swap_remove(at));
             }
             if g.car_job.is_none() {
-                // NFSU2_PREVIEW_LOG (a test aid, scripts/preview_xtest.sh):
+                // NFSU2_PREVIEW_LOG (a test aid, the maintainer's preview_xtest.sh):
                 // the FE car as loaded for the draw.
                 if debug_env().preview_log {
                     log::info!("preview: {name} {:x?}", request.installed);
@@ -373,7 +373,7 @@ fn garage_car_change(
             let _t = nfsu2::prof::span("garage: car");
             g.car_job = None;
             let perf = &request.perf;
-            // NFSU2_PREVIEW_LOG (a test aid, scripts/preview_xtest.sh): the
+            // NFSU2_PREVIEW_LOG (a test aid, the maintainer's preview_xtest.sh): the
             // FE car as loaded for the draw.
             if debug_env().preview_log {
                 log::info!("preview: {name} {:x?}", request.installed);

@@ -27,7 +27,7 @@ world, like the popup before it and the sign question after it. No dim is applie
 signed-sponsor list (UI_RewardsSponsor, front end) stays as before.
 
 ## Screens checked
-| Screen | Original backdrop | Clone before | Fixed | Evidence (`docs/evidence/fe-backdrops/`) |
+| Screen | Original backdrop | Clone before | Fixed | Evidence (the maintainer's private captures) |
 |---|---|---|---|---|
 | Sponsorships (UI_Sponsorship_new, post race) | world (s4 KENWOOD, Wine) | black | **yes** | sponsor-orig_clone-before_clone-after.jpg |
 | SELECT A SPONSOR! popup | world | world | n/a | clone-reward_popup_sign_postrace.jpg; orig ../playthrough-s4-ending/s4-orig-reward-popup-sign-postrace.jpg |

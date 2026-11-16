@@ -12,6 +12,6 @@ labels on each crop. Native = the bench's default (World Detail 5, 8x MSAA).
 | nis_start.webp | race-start NIS (cuts) | `--bench race`, frame 250 |
 | interpolated_240hz.webp | 1 vs 4 draws per update | `NFSU2_BENCH_DRAWS=4` |
 | volumetric_off_low_high.webp | Volumetric Fog off / Low / High | `--bench racing`, frame 300 |
-Costs: `scripts/bench.sh SIZE [igpu]` (raw logs in the work dir
+Costs: `$OB_PRIVATE/docs/evidence/temporal/scripts/bench.sh SIZE [igpu]` (raw logs in the work dir
 `<work dir>/bench`).
 | mip_bias.webp | the LOD bias: native / TAA / Upscaling Quality | `--bench racing`, frame 200 |

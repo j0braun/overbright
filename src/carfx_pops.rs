@@ -31,7 +31,7 @@
 //! keys, the CARFX_NITRO emitter's random state (+0x24) and velocity
 //! (+0x80) change on the update the clutch locks in second gear (gear 3,
 //! +0x448 0 → 1), and at no other time; standing in first the car reads
-//! gear 2, armed (+0x924 = 1). (`docs/evidence/sparks-fire/`.)
+//! gear 2, armed (+0x924 = 1). (the maintainer's private captures.)
 //!
 //! **Inferred / open**: what ride +0x328 is (0 on every car read; only the
 //! intensity depends on it, never whether a pop fires); the last gear's

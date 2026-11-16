@@ -35,7 +35,7 @@ and after the prompt transitions to state 3, allowing the native blink.
 
 ## Evidence and limits
 
-internal evidence: photo-challenge-hud/static.json contains fresh disassembly from
+internal evidence contains fresh disassembly from
 SPEED2.EXE SHA256
 `8f6a9ae2c4cfa01181d2fd755d99c6f4b7103f60273908ea1de1e719dfe2a297`.
 The timer's native script checks are `0x4C929C..0x4C92F0`.

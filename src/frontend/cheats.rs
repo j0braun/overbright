@@ -322,7 +322,7 @@ mod tests {
         assert!(t.visual(2) && !t.visual(1) && t.car_type(0x15) && t.car_type(0x1B) && !t.car_type(0x16));
     }
 
-    /// The table in memory under Wine (docs/evidence/cheats/table.json):
+    /// The table in memory under Wine (the maintainer's private capture):
     /// each entry's kind (+0x20) and value (+0x24); the sponsor cars' and
     /// vinyls' values are bin hashes of SPONSOR_<preset> and the vinyl.
     #[test]
@@ -365,7 +365,7 @@ mod tests {
     }
 
     /// The Wine run typed these one after another on the title
-    /// (docs/evidence/cheats/typing.jsonl): after each, the active codes,
+    /// (the maintainer's private capture): after each, the active codes,
     /// the count since the last match (+0x34) and the career in memory's
     /// bank (0x861E74, from 0).
     #[test]

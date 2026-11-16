@@ -69,7 +69,7 @@ is exactly why it feels broken on a modern pad.
   (0 / 1) is unchanged by the graph.
 * **FE stick rows 0x571D60**: the press on crossing, deadline +0x20 = tick 0x865134 + 25, then a repeat when
   tick > deadline (+6). 0x865134 has **no writer**; under Wine it reads **0** in the main menu, pause menu and free
-  roam (internal evidence: controller-support/a private Wine copy.txt`), so the original never repeats — the clone's
+  roam (internal evidence), so the original never repeats — the clone's
   press-only behaviour was right; the repeat is now a Modern-layout extra on 60 Hz ticks of the game clock.
   (The audit's item is therefore not a native gap.)
 * **Force feedback** (formats.md): centring spring 0x5C9160, surface damping/terrain 0x5C9FE0, bump jolt
@@ -137,7 +137,7 @@ native press-only, layout switch / GUIDs / driver lost), `pad::extras::tests` (d
 trip, shaping and the steering curve, rumble pulse and fade), `qol` round trip, game.rs
 `pad_only_modern_layout_end_to_end` (real assets: native triggers do nothing, Modern drives, Start pauses, B
 resumes, d-pad name entry, unplug pauses). End-to-end with a **uinput** virtual Xbox 360 pad read by gilrs
-(`devprobes/src/bin/pad_probe.rs`, internal evidence: controller-support/uinput-*.txt, `vpad.py`, `vpad3.py`): detection,
+(the maintainer's probe `pad_probe`, internal evidence: the uinput logs, `vpad.py`, `vpad3.py`): detection,
 native and Modern reports, the hat d-pad, unplug, and the three-pad rescan.
 
 ### Open

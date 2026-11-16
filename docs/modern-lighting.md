@@ -9,7 +9,7 @@ the default and the classic look stays one toggle away. Phase 1 = this design an
 prototype for one district of Bayview behind a **hidden env switch** (no menu row yet).
 Nothing here is native: SPEED2.EXE lights the world with baked vertex colours only (world.efx
 `tex × v0 × 2`) and the cars with the light packs' harmonic (0x48E3D0 → 0x4893A0). Everything
-below about the bake is **measured from the game's data** (`devprobes/src/bin/modern_light_fit.rs`); how
+below about the bake is **measured from the game's data** (the maintainer's probe `modern_light_fit`); how
 EA produced the bake is **not traced** (offline tools, not in SPEED2.EXE) and stays **inferred**.
 
 ## What the bake holds (measured, `cargo run --release -p devprobes --bin modern_light_fit`)
@@ -64,9 +64,9 @@ map frame left −3425.43, top 3287.26, size 5633.16 → x −1379 … 1999, y �
 shows red = the modelled share, green = relit share, blue = shadowed share × 4 (× the texture).
 Unset or `0`: off (read once at start).
 
-Data: `devprobes/src/bin/modern_light_fit.rs` (the fit; FIT_ROAD=1 roads only, FIT_LIST=1 bright pool
+Data: the maintainer's probe `modern_light_fit` (the fit; FIT_ROAD=1 roads only, FIT_LIST=1 bright pool
 spots, FIT_DOORS=1 shop doors, FIT_NEAR=x,y,z lamps near a point; output in
-internal evidence: modern-lighting/fit.txt).
+internal evidence).
 Code: `src/render/modern_light.rs` (switch, district, fitted constants, CPU mirror, tests),
 world.wgsl `// BEGIN MODERN` … `// END MODERN` blocks (all inside LAMPS blocks), hooks in
 `lamps.rs::plan_lamps` (clusters and lamp layers at High while on, the headlight's layer only
@@ -90,7 +90,7 @@ from every district lamp that reaches it), awnings / canopies / poles / foliage 
 part of the bake, the lamps get a specular sheen (visible on wet roads and with Surface Detail);
 outside the lamps' reach and in neon-lit places nothing changes, by design.
 
-## A/B evidence (`docs/evidence/modern-lighting/`, 1920×1080 `--shot`, `scripts/scenes.sh GAME OUT`)
+## A/B evidence (the maintainer's private captures, 1920×1080 `--shot`, `scripts/scenes.sh GAME OUT`)
 Each `<scene>_orig_ml_ultra_ultraml.webp` = Original | Original + switch (top), Ultra (perf.sh's
 preset) | Ultra + switch (bottom). Zooms: `street_car_shadow_zoom.webp` (the car's shadow from the
 lamp behind it), `garage_canopy_shadow_zoom.webp` (the shop door's canopy shadowing the lamp
@@ -111,7 +111,7 @@ This is a deliberately small change: the player should judge whether phase 2 sho
 
 ## Cost (measured)
 `perf.sh bench` (SET=quick, REPS=3, 600 frames, full release profile, reference desktop GPU; arms: off, the
-switch `1` = City Core, `all`; GPU timestamps' median ms per frame; raw internal evidence: modern-lighting/costs.txt):
+switch `1` = City Core, `all`; GPU timestamps' median ms per frame; raw internal evidence):
 
 | config | off | City Core | all | added |
 |---|---|---|---|---|
@@ -138,7 +138,7 @@ build, md5 6bfe8305…) vs this copy (md5 7d396b77…), ENH_PRESETS="modern ultr
 extreme_fsr": **PARITY: all gates passed** — Original dumps of explore/race/racing/drive/rain at
 1280×960 and 3840×2160 AE 0, the 144 Hz window path AE 0, Modern/Ultra/Extreme/Extreme-FSR AE 0,
 15 shots AE 0, audio identical, state hashes identical over firstrace, firstdrag, postrace, the
-playthrough (82 412 steps) and the parity scenario (internal evidence: modern-lighting/parity-base-vs-new.txt).
+playthrough (82 412 steps) and the parity scenario (internal evidence).
 (A first parity run of an earlier build, under load average ~50, had 1 pixel off by 1 in one
 explore 4K frame; four reruns base/base, base/new, new/new were AE 0, and the final run passed.)
 
@@ -194,7 +194,7 @@ Phase 1's bake-anchored relight is kept and opened up by the strength *s*:
   lamp beside a facade does not wash it out).
 * **Neon and signs as lights** (`emitters`): the world's additive textures named SGN_* / *NEON* /
   *_SIGN (not flare / mist sprites, fake light beams, the city grid, headlight glows, windows,
-  race-only barriers; inventory: `devprobes/src/bin/modern_light_inventory.rs`), merged per 5 m cell and
+  race-only barriers; inventory: the maintainer's probe `modern_light_inventory`), merged per 5 m cell and
   section: area-weighted centre, mean emitted colour (texture mean × alpha × vertex colour × 2),
   area-weighted normal; a point light at full hue, reach 8–24 m and strength by the area, lighting
   only the half-space in front of the sign, faded in from 1–3.5 m (a sign never lights its own
@@ -216,11 +216,11 @@ Phase 1's bake-anchored relight is kept and opened up by the strength *s*:
   harmonic × 1 → 0.75 (the car's baked light darkened as the world's).
 * Strength 0 = phase 1 exactly (no new light, A = B = 1, cap kept).
 
-### A/B evidence (`docs/evidence/modern-lighting-2/`, 1920×1080 `--shot`, `scripts/scenes.sh GAME OUT`)
+### A/B evidence (the maintainer's private captures, 1920×1080 `--shot`, `scripts/scenes.sh GAME OUT`)
 Each `<scene>.webp` = Original | Ultra (perf.sh's preset) on top, Modern | Modern + RT below
 (strength Bold, the default). `<scene>_low.webp` Original | Modern Low; `strength_<scene>.webp`
 Classic (0) | 50 % | Bold | Ultra + Modern. Spots: This page's (street, neon, tunnel, open, garage,
-rain, race start) and four more found by `devprobes/src/bin/modern_light_spots.rs` on the free-roam routes
+rain, race start) and four more found by the maintainer's probe `modern_light_spots` on the free-roam routes
 inside the World Map's zoom boxes (0x7F42C8): **neondistrict** (−394.0, −531.1: the most neon /
 sign light of Bayview, the casino), **coal** (Coal Harbor East docks, 299.2, −700.5), **coalwest**
 (Coal Harbor West, −523.2, −511.6), **jackson** (Jackson Heights hills, −897.9, 726.1).
@@ -262,8 +262,8 @@ not at 60.
 
 ### Files and hooks
 New: `src/render/modern_light_bold.rs` (tiers, params, emitters, car lights, tagging, the cars'
-lamps, the RT frame slot and group), `devprobes/src/bin/modern_light_inventory.rs`,
-`devprobes/src/bin/modern_light_spots.rs`, `docs/evidence/modern-lighting-2/` (+ `scripts/scenes.sh`,
+lamps, the RT frame slot and group), the maintainer's probe `modern_light_inventory`,
+the maintainer's probe `modern_light_spots`, the maintainer's private captures (+ `scripts/scenes.sh`,
 `scripts/costs.sh`). Hooks: world.wgsl's MODERN block (rewritten: `MlParams`, `ml_relight` with
 the strength, `ml_near_pool`, the MLRT ray query), `src/render/car_modern.wgsl` (`car_modern`, appended to a car module form
 by `modern_light_bold::car_source`, selected per draw by a negative `lamps[1].w`; `car.rs` takes the
@@ -310,7 +310,7 @@ untouched (`car_modules`). Updated: the Graphics page's row order and defaults, 
 of explore/race/racing/drive/rain at 1280×960 and 3840×2160 AE 0, the 144 Hz window path AE 0,
 Modern/Ultra/Extreme/Extreme-FSR AE 0, 15 shots AE 0 (no panic/validation), audio identical, state
 hashes identical over firstrace, firstdrag, postrace, the playthrough (82 412 steps) and the
-parity scenario (internal evidence: modern-lighting-2/parity-base-vs-new.txt).
+parity scenario (internal evidence).
 
 ### Fixes after the first player check (lead / design note)
 * **Windowed start crashed** ("Surface::configure: Failed to wait for GPU to come idle") on the
@@ -327,7 +327,7 @@ parity scenario (internal evidence: modern-lighting-2/parity-base-vs-new.txt).
   have the plain layout). Now `lamp_main` stays the plain group and `lamp_main_rt` is bound only by
   the scene's pipelines while they are made with the RT layout (`WorldCore::scene_group`: the main
   draw, LOD fade, car shadows, particles, glows, characters). Matrix check
-  internal evidence: modern-lighting-2/scripts/matrix.sh: every tier × a player's real settings / Ultra /
+  internal evidence: every tier × a player's real settings / Ultra /
   Extreme × explore, race start, racing, rain, headless (NFSU2_RT=1), fails on any panic or
   validation error.
 

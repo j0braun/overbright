@@ -61,7 +61,7 @@ before the green in the clone; **open** whether the original lets one run there.
 * Standing: gear 2 (first), +0x924 = 1. Driving off on the keys: gear 2 → 3 with the clutch open,
   locked 0.07–0.1 s later; the kind-10 emitter's random state (+0x24) and velocity (+0x80) changed on
   the sample where the clutch locked in gear 3, and at no other time (no nitrous fitted, so only a
-  pop drives that emitter). internal evidence: sparks-fire/native-shift-transitions.txt.
+  pop drives that emitter). internal evidence.
 * 60 fps captures did not catch the pop's flame (≈5 particles a marker, 0.2 s, under the bumper).
 
 ### Clone (`src/carfx_pops.rs`, `Effects::step` in game.rs)
@@ -216,7 +216,7 @@ between world updates (as this work).
   stay a billboard procedural fire — not a simulated volume like FH5's backfire, and the haze is
   subtle. Below the "next-gen" bar for fire; at it for sparks.
 
-## Evidence (`docs/evidence/sparks-fire/`)
+## Evidence (the maintainer's private captures)
 * `native-shift-transitions.txt`: the Wine memory log (gear / clutch / emitter).
 * `scrape_orig_nextgen.webp`, `pop_orig_nextgen.webp`, `nitrous_orig_nextgen.webp`: the clone,
   Original | Next-Gen, 100 % crops (user settings + the row, NFSU2_RAIN_CLOCK=93).

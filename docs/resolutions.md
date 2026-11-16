@@ -157,7 +157,7 @@ exists; HUD, menus and mouse are unchanged (they never depended on the 3D angle)
 rule and keeps the band at 9:16 (listed `KNOWN`, XFAIL: SPEED2.EXE has no mode narrower than 5:4).
 F2: 320×240 left the matrix; the window cannot be made smaller than 640×480.
 
-Picture: internal evidence: resolutions/res2-portrait-band.jpg — 1080×1920
+Picture: internal evidence — 1080×1920
 free roam: Wide before (band), the same with the near plane at 0.05 m (road), Wide after (4:3 vertical angle).
 
 Whole matrix after the resolution fixes (`RES_SET=all RES_MOUSE=1`, 25 sizes, 1225 cells; 320×240's 49 cells left the matrix):

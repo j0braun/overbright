@@ -5,7 +5,7 @@ Follow-ups of internal notes. **Verified** = traced in SPEED2.EXE;
 WidescreenFix, private copy `$OB_PRIVATE/wine/runs/<run>`, fastgpu on :170 with
 `--audio-file`, the finished-career save's profile; raw captures and videos in
 `<work dir>/p17-work/`). Evidence: `evidence/shop-scene-mover/`,
-`evidence/ending-hold-audio/`.
+the maintainer's private captures.
 
 ## 1. Shop and dyno scene cars on the NIS mover — fixed
 
@@ -126,27 +126,27 @@ firstrace / firstdrag / postrace / parity sims identical; two intended
 differences, both the career start scene's car now on its mover: the
 `intro` shot (the 350Z stands where the original's does: bottom-strip RMSE
 against the Wine `intro.png` 0.129, was 0.166;
-internal evidence: shop-scene-mover/intro-native-base-new.jpg) and the playthrough
+internal evidence) and the playthrough
 sim hash from step 76 (the playthrough passes).
 
 ## 5. 2026-11-06: this work's leftovers
 
 Wine: vanilla SPEED2.EXE, private copy `$OB_PRIVATE/wine/runs/<run>` on :181
 with `--audio-file`, the finished-career save's profile (Lancer), one instance; raw captures in
-`<work dir>/p18-work/`; poller internal evidence: dyno-exit/carpoll.py
+`<work dir>/p18-work/`; poller internal evidence
 (the player's car 0x8900AC → +4: mode +0x28, the body's gravity +0x160,
 centre of mass, velocity, the input's pedals, car +0x3E0..+0x43C).
 
 1. **The 8 cm height — not a bug (measurement).** this work's clone runs used
-   `player-settings/the finished-career save-20261104` (a Skyline) while the original ran the
-   Wine copy's the finished-career save (a Lancer; = `tests/fixtures/native_saves/the finished-career save`).
+   the player's own finished-career save (a Skyline) while the original ran the
+   Wine copy's finished-career save (a Lancer; = `tests/fixtures/native_saves/career_complete.sav`).
    With the Lancer (centre of mass (0.29, 0, 0.145)) the clone's origin is
    on the original's height in all three scenes: mean dz −0.000 (ShopEnter1),
    0.000 (ShopExit1), 0.001 m (DynoEnter); frame 0 of DynoEnter 42.901 vs
    the Skyline's 42.818. No ride-height / suspension change. Test: the this work
    test now also checks the height (mean |dz| < 2 cm).
 2. **The stop after ShopExit1 — native, already matched.** **Observed**
-   (internal evidence: shop-scene-mover/native-shopexit-stop.tsv): on mode 1 the
+   (internal evidence): on mode 1 the
    body's |v| goes 0.77 → 0.37 → 0.25 → 0 within three polls (~60 ms);
    then the body's gravity +0x160 = 0, velocity exactly 0 and the place
    frozen — the rest test's class 2 (Car_RestClassify 0x5992C0 via
@@ -164,7 +164,7 @@ centre of mass, velocity, the input's pedals, car +0x3E0..+0x43C).
    −883.6426, 24.1127), forward (0.9817, −0.1903, −0.0018), camera mover
    vtable 0x788018; at the scene's end (count ~405) mode 1, the same
    place, velocity 0, gravity 0, camera 0x787F28
-   (internal evidence: dyno-exit/native-careernis1.tsv). The selftest now checks
+   (internal evidence). The selftest now checks
    the clone's car against it (< 0.1 m, forward within 2.6°), during and
    after the scene.
 4. **DynoExit — triggered by the Test Run; ported.** **Observed**: Dyno
@@ -172,7 +172,7 @@ centre of mass, velocity, the input's pedals, car +0x3E0..+0x43C).
    0xB7DEC9B3 and put the car on mode 5 for 180 frames (ticks 132187 →
    156117, 5.98 s) off the rollers and down the ramp at up to 19 m/s; then
    the test run's track 4705 loaded (race type 0x89E7B0 8 → 1, the dyno
-   flag 0x89E7E6 kept); seen twice (internal evidence: dyno-exit/native-dynoexit.tsv).
+   flag 0x89E7E6 kept); seen twice (internal evidence).
    Quitting a test run to the garage and forcing its finish played no scene.
    **Verified**: the race flow's mode handlers are the table 0x80214C
    (entry 7 = 0x603EC0); case 1 with +0x44 set (0x60A878 at the race's
@@ -195,7 +195,7 @@ centre of mass, velocity, the input's pedals, car +0x3E0..+0x43C).
    (race status not read), Dyno Run's reload after a test run (not
    observed: no scene played there in the clone).
 5. **Wind / road speed: car +0x430 is |velocity|.** **Observed**
-   (internal evidence: ending-hold-audio/native-p18-endingnis03-speed.tsv, a won
+   (internal evidence, a won
    Quick Race on Freemont, RX-7 → EndingNis03): car +0x430 = |body +0xA0|
    to 4 decimals on the mover (e.g. +0x42C 4.95, +0x430 5.46, |v| 5.46 in
    the scene's slide) and on mode 1 (braking 39.77 → 6.95); **verified**:

@@ -5,5 +5,5 @@ WAVs stay in the work dir `<work dir>/engine-work` (n-dyno2.wav, n-dyno4.wav (ef
 * `n-dyno3.tsv.gz` (`mon2.py`): every live AEMS instance's params through DynoEnter.
 * `n-dyno5.tsv.gz` (`mon3.py`): view mode 0x82BB48, ctx +0xA8, Physics +0x1C slew, listener globals, CAR p4/p14.
 * `n-free.tsv.gz` (`mon.py`): free roam idle 8 s, Up 4 s, idle.
-* `players.py`: a native AEMS instance's sound players (compared with `devprobes/src/bin/aems_probe` for the same block: identical).
+* `players.py`: a native AEMS instance's sound players (compared with the maintainer's probe `aems_probe` for the same block: identical).
 * `cmp.py NATIVE.wav CLONE.f32 [offset]`, `dbfs.py`: per-second RMS. Clone PCM: tests `dyno_enter_waveform_capture`, `free_roam_waveform_capture` (NFSU2_WAVE_SAVE, NFSU2_PATTERN_PCM).

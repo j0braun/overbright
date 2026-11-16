@@ -76,7 +76,7 @@ would be flagged (none in this pack).
   0.3-0.95 s → 0.7-5.6 s (the world arrays are rebuilt, not cached, with any world pack:
   existing behaviour; varies with the page cache, machine shared). GPU busy at 1280×960 free roam
   0.63 → 0.82 ms/frame. Import: 16 s (6 s decrypt, 3 s scan, 6 s convert).
-* Look (internal evidence: texmod-import/luminance-1080p.txt, user's options): frame mean within
+* Look (internal evidence, user's options): frame mean within
   −2..+2 % at all six places, ground crops −0..+5 % (highway +5 %, hills +3.6 %: the pack's wider
   painted lines and finer asphalt under the headlights), p5 unchanged, contrast (sd) equal or
   higher — not flatter. As authored the ground is up to +7.5 % brighter (hills) and the roads'

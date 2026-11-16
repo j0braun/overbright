@@ -250,7 +250,7 @@ impl Drop for Scratch {
 /// folders walked recursively, sorted by path),
 /// joined in the order given. Tests that look at source text read a tree
 /// with this, not one file, so they keep passing while code moves between
-/// files (docs/refactor/).
+/// files (the maintainer's private notes).
 pub fn source_tree(root: &str, paths: &[&str]) -> String {
     fn walk(p: &Path, out: &mut Vec<PathBuf>) {
         if p.is_dir() {

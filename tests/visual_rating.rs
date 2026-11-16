@@ -74,7 +74,7 @@ fn native_rides_rate_as_the_original() {
 /// The career car of native saves rated through the clone's own path
 /// (the save → `Profile::from_native` → the ride with its derived slots →
 /// `car::ride_visual_rating`) against the original's 0x528420 read under
-/// Wine (tools/rating/rating.py, docs/evidence/rating-flash/ratings.txt).
+/// Wine (the maintainer's tool `rating.py`, the maintainer's private capture).
 #[test]
 #[cfg_attr(not(all(ob_game, ob_private)), ignore = "needs NFSU2_ROOT (the player's own game files) and OB_PRIVATE (private captures and saves)")]
 fn native_saves_rate_as_the_original() {
@@ -90,7 +90,7 @@ fn native_saves_rate_as_the_original() {
 }
 
 /// (fixture save, career car, the original's 0x528420 bits).
-/// Read under Wine on 2026-11-05 (tools/rating/rating.py; 0x528420 and
+/// Read under Wine on 2026-11-05 (the maintainer's tool `rating.py`; 0x528420 and
 /// 0x5234D0 on its ride gave the same bits for every save).
 const SAVES: &[(&str, &str, u32)] = &[
     ("garage.sav", "240SX", 0x0000_0000),

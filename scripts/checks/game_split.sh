@@ -1,5 +1,5 @@
 #!/bin/bash
-# game_split.sh [repo]: the refactor's size report (docs/refactor/).
+# game_split.sh [repo]: the refactor's size report (the maintainer's private notes).
 # Prints the line count of src/bin/game.rs and src/render/mod.rs, every .rs
 # file under src/ longer than 1,500 lines, and every fn longer than 150 lines
 # (file:line, its length). A brace-depth scanner that skips comments, strings,

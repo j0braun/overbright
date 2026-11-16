@@ -28,7 +28,7 @@ The Next-Gen car-lights work (docs/car-lights.md) added a third Headlight Beams 
   (NFSU2 is always night). Under Wine (`fastgpu.sh`, own copy, :229, free roam at the airport, 45 s
   incl. 35 s driving, `[0x890080]` car list walked once a second, `scripts/lights_on.py`): 541
   car-samples (27 player = kind 1, 82 kind 2, 432 traffic kind 3), **all +0x93D = 1, +0x925 = 0**
-  (internal evidence: lighting2/wine/lights_freeroam.txt.gz, `freeroam_drive.webp`). A race was not logged
+  (internal evidence, `freeroam_drive.webp`). A race was not logged
   (**open**, but no code path differs).
 * The clone has no +0x93D: beams are on for every car that has a headlight pool (the player, race
   rivals, explore traffic, the shop companion) — the cars whose pools the native draws. A beam
@@ -149,7 +149,7 @@ all three rows off: **PARITY: all gates passed** — Original dumps of explore/r
 1280×960 and 3840×2160 AE 0 (10 sets), the 144 Hz window path AE 0, Modern/Ultra (perf.sh's preset
 strings, without this work's rows) AE 0, 15 standard shots AE 0, explore/race WAVs identical, state
 hashes identical over firstrace, firstdrag, postrace, the playthrough (82 695 steps) and the parity
-scenario (internal evidence: lighting2/parity-base-vs-new.txt). How it is kept: the beams are only in
+scenario (internal evidence). How it is kept: the beams are only in
 world.wgsl's LAMPS blocks (the native module strips them), the glass is a module of its own
 (car.wgsl + car_glass.wgsl) and its car-pass hook is a branch on a CPU flag (`glass_split`, false
 when off), the probes only add to the CPU harmonic when on.
@@ -170,7 +170,7 @@ Presets by cost: **Modern** gains Headlight Beams and Light Probes (next to the 
 (`qol::Preset::apply`); Original / Restore Native off. The rows' detail lines carry these costs
 (`graphics_table.rs` BEAMS_COST_4K, PROBES_CPU_MS, GLASS_COST_4K).
 
-## Evidence (`docs/evidence/lighting2/`, 1920×1080 `--shot`, full release build)
+## Evidence (the maintainer's private captures, 1920×1080 `--shot`, full release build)
 `scripts/scenes.sh GAME OUT` renders (with `RAIN=1`: heavy rain, clock 170 s, Wet Roads + Wet Car
 + Rain Detail + Spray on in every setting; those crops are `rain_{night,tunnel,start,crowd}_off_all.webp`, `rain_user_start_before_after.webp`,
 `rain_night_glass_zoom.webp`): night (explore, clock 93), tunnel (explore at

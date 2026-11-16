@@ -250,7 +250,7 @@ mod tests {
     use super::*;
 
     /// The original's mover dt in ticks (0x86513C) at a fixed 60 / 120 /
-    /// 240 frames a game second (docs/evidence/uncapped-fps): the clock
+    /// 240 frames a game second (the maintainer's private captures): the clock
     /// reaches the same repeating pattern.
     #[test]
     fn steady_rates_give_the_native_tick_patterns() {

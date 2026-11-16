@@ -510,8 +510,8 @@ mod tests {
     /// The hop's start test reads the load term the force pass after
     /// the frame's last integration wrote (0x5B664F, +0x164), `hop_loads`,
     /// not the last sub-step's start loads. The finished-career save's Skyline (AWD, class 0)
-    /// at the green of S4_H_DRAG_15 (run n1, `tools/parity/subtrap.py`
-    /// sub-step capture, docs/evidence/drag-stage4-p9b): the end-state loads
+    /// at the green of S4_H_DRAG_15 (run n1, the maintainer's tool `subtrap.py`
+    /// sub-step capture, the maintainer's private captures): the end-state loads
     /// and the frame's end slips give the original's count 3 and grip
     /// 0.195188; the loads one sub-step older pick another wheel.
     fn hop_reads_the_end_state_load_term() {

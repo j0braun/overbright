@@ -43,7 +43,7 @@ reusing an invalid middle slot does not increment it either.
 ## Exact helper/callback graph and effects
 
 The full-cache procedures and key dispatch/accessor instructions below
-are retained in internal evidence: outrun/route-static.json, reproducible with
+are retained in internal evidence, reproducible with
 `route-evidence.py`. Deeper handling/geometry callees are named as
 dependencies, not asserted to be fully reconstructed by this extraction.
 
@@ -145,7 +145,7 @@ this work; no chase or full-controller completion is claimed.
 
 Validation: two successful original-byte probe runs completed all 36 calls
 and reproduced the JSON, raw bytes and metadata byte for byte;
-`python3 internal evidence: outrun/check-native-cache.py passed its raw digest,
+`python3 $OB_PRIVATE/docs/evidence/outrun/check-native-cache.py` passed its raw digest,
 slot selection, predicate-call count and counter checks; all three Python
 tools parsed successfully. No Rust production code changed, so no Rust
 build/test was run in this evidence-only follow-up.
@@ -175,7 +175,7 @@ build/test was run in this evidence-only follow-up.
   accepted-junction callback 410580. The predicate alone remains synthetic;
   these results do not validate native RNG or acceptance choices.
 
-`python3 internal evidence: outrun/check-cache-helpers.py checks raw digests,
+`python3 $OB_PRIVATE/docs/evidence/outrun/check-cache-helpers.py` checks raw digests,
 all 39 cache/counter/predicate-call results, and both helper snapshots. An
 initial extension attempt with true acceptance faulted at the previously
 unused null +58 fixture binding; adding original 410580 fixed the harness.

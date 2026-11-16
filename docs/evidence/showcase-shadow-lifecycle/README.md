@@ -16,7 +16,7 @@ Current recorder additionally observes622D5A (second render-info+33C read) and62
 
 `session.py place` is explicit diagnostic relocation: adjust physics body position by requested full-car position delta, write full-car centre of mass (+60; +50 is body origin), zero body linear/angular momentum atomically while stopped. Every changed byte is logged. It is not a native teleport implementation and must not establish reset/placement semantics. Real trigger engagement and native photo UI will follow if the native marker is available.
 
-No shared session, original save, executable, or asset is modified. The copied profile originated in review/photo-saves-placed/s2a.sav; it is not a validated naturally progressed native save. Xvfb1280x960 holds native640x480 content, as visible in retained screenshots.
+No shared session, original save, executable, or asset is modified. The copied profile originated in the maintainer's private capture; it is not a validated naturally progressed native save. Xvfb1280x960 holds native640x480 content, as visible in retained screenshots.
 
 ## Kind1 completed lifecycle
 
@@ -38,4 +38,4 @@ Raw49,955 events, zero drops, restoration verified; rawSHA2566b274cef815c0072d4d
 
 Limits: one car(LANCEREVO8), one milestone of each kind, one native rendering setup, instrumented trigger access from a clone-generated native-format profile. This does not prove all cars, car changes during preview, alternate settings, or natural career progression. It does directly resolve the resource lifetime/submission question for two complete native UI lifecycles, including the saved artifacts and return to driving.
 
-Recheck with `python3 internal evidence: showcase-shadow-lifecycle/check-lifecycle.py. `analyze.py CAPTURE_DIRECTORY` verifies raw/compressed hashes and groups by most recent setup event. `manifest.json` hashes all retained evidence and source files except itself. The exact recorder/controller used by each completed run is copied inside that run directory.
+Recheck with `python3 $OB_PRIVATE/docs/evidence/showcase-shadow-lifecycle/check-lifecycle.py`. `analyze.py CAPTURE_DIRECTORY` verifies raw/compressed hashes and groups by most recent setup event. `manifest.json` hashes all retained evidence and source files except itself. The exact recorder/controller used by each completed run is copied inside that run directory.

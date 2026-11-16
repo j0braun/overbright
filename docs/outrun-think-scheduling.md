@@ -44,11 +44,11 @@ frame is the correct clone clock boundary.
 
 ## Retained evidence and reproduction
 
-`docs/evidence/outrun/think-followup` contains raw binary outputs, inputs and
+the maintainer's private captures contains raw binary outputs, inputs and
 metadata hashes. Run:
 
 ```
-python3 internal evidence: outrun/check-think.py
+python3 $OB_PRIVATE/docs/evidence/outrun/check-think.py
 ```
 
 The isolated PE oracle (`native-think-gate-probe.py EXE PRIVATE_OUTPUT_DIR`)

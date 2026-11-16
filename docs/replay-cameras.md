@@ -6,7 +6,7 @@ disassembly / Ghidra, **observed** = read under Wine, **inferred** / **open** as
 The rest of the replay (manager, markers, keys, route-camera motion and visibility) is in
 formats.md "Replays".
 
-Evidence: `docs/evidence/replay-cameras/` (the original's director per frame and its shots
+Evidence: the maintainer's private captures (the original's director per frame and its shots
 by group, the clone's shots before and after, frame sheets of both). Raw run:
 `<work dir>/p7-work/runs/replay1/` (Wine copy `a private Wine copy`, display :288,
 wined3d; Quick Race circuit 4014 from `stage1_win_streetx.sav`, the Peugeot driven 60 s by
@@ -78,7 +78,7 @@ Weights (0x441AF0..0x441F3A, constants read under Wine):
 holds, no reset flag), a chase view drawn only by the 4 s chance (none at a track's end).
 On the bench race (STAGE_1_CIRCUIT_1, 4013) the replay was chase views only
 (`clone-shots-before-typed.txt`): L4RA's route groups cover 1–2 % of 4013's race records
-(`devprobes/src/bin/replay_camera_coverage`; 4014: 5–10 %).
+(the maintainer's probe `replay_camera_coverage`; 4014: 5–10 %).
 
 **Now**: the director's gate (`ReplayCamera::gate`: the 1.5–4 s hold, bVar5 with +0x224),
 the reset at every restore (`reset`: +0x214, +0x224, the shots dropped), +0x214 stamped at
@@ -94,7 +94,7 @@ back with a Corner shot and one 4 s chase view — the original's pattern.
 not the velocity along the heading); a held track (route or typed) is drawn again under
 bVar5 while the car is upside down (0x5FB060: 0x441B40 > 0 or car +0xB8 < 0). Replay bench
 (`--bench replay 3600`, 30 s replayed) unchanged shot for shot
-(internal evidence: p8-gaps/clone-replay-shots-p8.txt vs `clone-shots-after.txt`: the bench car
+(internal evidence vs `clone-shots-after.txt`: the bench car
 never slows under 20 m/s). **Still open**: Jump's flight prediction 0x5EC3E0 (traced in outline:
 it steps the car's four wheel points (+0x130 + 0x40i, the set-up's +0x20 + 0x30i) along the velocity
 +0x70 with gravity 0x7FBEF0 plus the downforce term ((set-up +0x264 + +0x268) × 0.3 × speed /

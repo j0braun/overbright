@@ -1,7 +1,7 @@
 # Drag, drift and outrun parity (2026-11-04)
 
 **Verified** = traced in SPEED2.EXE, **observed** = read under Wine,
-**inferred** / **open** as marked. Evidence: `docs/evidence/drag-drift-outrun/`.
+**inferred** / **open** as marked. Evidence: the maintainer's private captures.
 
 ## 0. Outrun variety (design note: "I often see the same car")
 
@@ -153,7 +153,7 @@ uncapped: rival 1 turned 20.1°, rival 2 22.5°" (limit 16°).
 
 ## 2. Drift (harness `drift_s1`, STAGE_1_DRIFT_1, track 4311)
 
-New harness fields (tools/parity/fields.toml, `[run] drift = true`): the
+New harness fields (the maintainer's `fields.toml`, `[run] drift = true`): the
 DRIFT trick's state / points / banked / multiplier (racer +0x1D4 → [+0]
 +0x14 / +0x24 / +0x2C / +0x1C), the style total (+0x9C), the drift
 manager's level (+0x1D8 → +0x1C), its off-road and proximity factors
@@ -176,7 +176,7 @@ MIATA), throttle with handbrake flicks:
 The cars part within seconds (physics and AI paths; position error 2–30 m
 by 10–20 s), so the totals compare the scoring's scale, not a frame match:
 the same order (rival #2 far ahead), the same top levels for the rivals.
-**Scoring replay** (`devprobes/src/bin/drift_replay`): the clone's `DriftManager` +
+**Scoring replay** (the maintainer's probe `drift_replay`): the clone's `DriftManager` +
 `StyleManager` fed rival #2's *native* kinematics (speed, velocity, forward
 axis, yaw rate) reproduce the original's DRIFT trick frame by frame with
 the AI factor 1.25 (0x79DAF0[1]) and class 3, one frame later than the

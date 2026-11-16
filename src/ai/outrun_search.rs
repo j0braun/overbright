@@ -2,7 +2,7 @@
 //!
 //! This component reproduces the bounded native search; it is deliberately not
 //! wired into the controller until its think cadence and cache lifecycle are
-//! established. See docs/outrun-recovery-investigation.md for capture limits.
+//! established. See the maintainer's private notes for capture limits.
 use crate::formats::ai_routes::{ControlPoint, RouteFile};
 use glam::{Vec2, Vec3};
 use std::collections::VecDeque;

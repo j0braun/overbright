@@ -22,7 +22,7 @@ in HD too (§3).
 **Observed under Wine** (SPEED2.EXE 1.2, fastgpu.sh/DXVK, fresh profile, x11grab of the Wine
 desktop window at 30 fps from its creation): PC_Loading (PC_load.tga, "LOADING", the bars) for
 frames 18–21 (~0.13 s on this machine), then LS_BlankMovie's black, then FMVOpening
-(internal evidence: loading-image/orig-wine-*.jpg, `timings.txt`). The original's start load is shorter
+(internal evidence: the original's frames and `timings.txt`). The original's start load is shorter
 than the clone's 200 ms rule, which would therefore have hidden it.
 
 **Clone** (`game.rs`: `BootLoading`, `run`, `resumed`, `redraw`), **deviation** (design correction
@@ -42,7 +42,7 @@ frame. The log says which (`game start: done after N ms, PC_Loading shown / not 
   device's one blocking open (inferred: a slow device open alone does not raise the screen).
   Moving `Game::new`'s load behind the window (the original's order) is a larger change, not done.
 * Measured (private Xvfb :216 in its own PID namespace + bwrap, no sound devices, frame cap
-  60, x11grab at 30 fps; internal evidence: loading-image/boot-window-*.jpg): min 0 → `done after 138 ms,
+  60, x11grab at 30 fps; internal evidence: the boot-window frames): min 0 → `done after 138 ms,
   PC_Loading not shown`: the first window frame is LS_BlankMovie's black, the next the EA logo, no
   PC_Loading frame in the 150 captured; min 1500 → `done after 1501 ms, PC_Loading shown`:
   PC_Loading frames 19–56, then LS_BlankMovie, then the EA logo. (before the correction: always
@@ -51,7 +51,7 @@ frame. The log says which (`game start: done after N ms, PC_Loading shown / not 
 
 ## 2. The loading screens' textures and the HD UI pack
 
-`devprobes/src/bin/loading_textures [HD pack]` lists every texture of the loading packages and whether the
+`$OB_PRIVATE/devprobes/src/bin/loading_textures [HD pack]` lists every texture of the loading packages and whether the
 pack covers it, and what PC_Loading draws. With the player's pack
 (`$OB_PRIVATE/packs/upscaled-hud-detailed-map`, 4× almost everywhere):
 
@@ -85,7 +85,7 @@ Art is in force**; off, nothing changes (native, byte-identical). Pack hot reloa
 `ui` folder (restart after generating). VRAM: PC_LOAD as RGBA8 with mips ≈ 85 MB while a loading
 screen's texture is resident.
 
-**Review** (`evidence/loading-image/`): 1080p, 3440×1440 and 4K boot shots before (HD UI off) and
+**Review** (the maintainer's private captures): 1080p, 3440×1440 and 4K boot shots before (HD UI off) and
 after (HD UI on + pack + generated folder); 4K crops at 100 % and 200 % (face, logo): the logo's
 edges and lettering are visibly cleaner, the face smoother with no halos or ringing; the 1/8-scale
 colour difference over the 4K frame is 0.19/255 on average. Layout, timing and animation unchanged.
@@ -97,7 +97,7 @@ Enter Key", `screens::Splash`, formats.md "Boot sequence"). It is **not** a load
 exactly as it was (waits for Enter, the native 30 s return to the intro, no layout, timing, fade or
 text change); only its picture gets HD, with HD UI Art on.
 
-`devprobes/src/bin/loading_textures [HD pack]` now lists UG_LS_Splash and what it draws
+`$OB_PRIVATE/devprobes/src/bin/loading_textures [HD pack]` now lists UG_LS_Splash and what it draws
 (`Splash::quads` at 1 s, and at 6 s with the prompt up):
 
 | texture | size | UG_LS_Splash draws | HD UI pack | generator |
@@ -115,7 +115,7 @@ loading-image file is used wherever PC_LOAD is drawn. Generated with
 (14 textures: 7 covered by the HD UI pack, 4 flat, 1 small, 2 upscaled: PC_LOAD and U2_LOADING_BG,
 12.8 MB, 12 s).
 
-**Review** (internal evidence: loading-image/splash-*; `--shot splash`, before = HD UI Art off, after = on
+**Review** (internal evidence; `--shot splash`, before = HD UI Art off, after = on
 with the HD UI pack + the generated folder): 1080p frames; 4K crops at 100 % (logo, face)
 and 200 % (eyes, the windshield's lettering, the prompt). The picture's edges (logo chrome and
 lettering, hair, the car's lines) are smoother and cleaner with no halos or ringing; the source's

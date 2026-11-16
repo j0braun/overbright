@@ -48,7 +48,7 @@ LANCEREVO8: door sill right, hood under, wide-body decals)?
 Memory reads (peek.py) of the records 0x8406E4 + 0x7F8·i and the ride
 0x8392C0, saves after each visit (internal fixture saves of a community career,
 raw dumps in `<work dir>/bodyshop-work/{saves,mem,wine}`;
-summary internal evidence: shop-record-store/records.txt):
+summary internal evidence):
 1. Load, garage, free roam: records unchanged (stale slots kept).
 2. LANCEREVO8 (wide body kind 4, TRAP hood with HOODUNDER), hood ERASER
    (no HOODUNDER): record 0x09, 0x16, 0x3B–0x3E rewritten, 0x19 stays the
@@ -63,7 +63,7 @@ summary internal evidence: shop-record-store/records.txt):
    2.25; ORION (level 1) bought: the record keeps that state.
 6. RX7 (wide body, HOODUNDER hood, every derived slot stale), spoiler
    JORGEN: 0x0C, 0x0D, 0x16, 0x19, 0x1B, 0x3B–0x3E rewritten =
-   `devprobes/src/bin/record_derived`'s expected values.
+   the maintainer's probe `record_derived`'s expected values.
 * A second shop visit in one session hung the original twice (frozen, FE
   clock 0 %); every visit above ran in a fresh launch.
 
@@ -84,7 +84,7 @@ summary internal evidence: shop-record-store/records.txt):
 * Test `body_shop_installs_store_the_ride_as_the_original`: the four
   visits byte for byte (the car slot; other slots untouched), the control
   resave, and the stale ride's derived slots against the original's
-  stored ones. Tool: `devprobes/src/bin/record_derived.rs SAVE…`.
+  stored ones. Tool: `$OB_PRIVATE/devprobes/src/bin/record_derived.rs SAVE…`.
 
 ## Open
 * Main-menu Customize: what 0x503950 stores there (the record behind

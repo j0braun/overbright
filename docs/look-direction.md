@@ -9,7 +9,7 @@ too flat, and gives a verdict per row. **Every later effect change follows the r
 Nothing here is native code. The reference is the original, SPEED2.EXE, run under Wine (DXVK on the
 reference desktop GPU). The clone's Original path was measured against it at the same spots (below) and is used as
 the per-frame reference, because it is byte-identical run to run and matches the original's luminance.
-Statuses: **measured** = from frames by `tools/look`; **inferred** = a tuning choice judged by eye.
+Statuses: **measured** = from frames by the maintainer's tools; **inferred** = a tuning choice judged by eye.
 
 ## The target
 
@@ -26,18 +26,18 @@ NFSU2 at its best, rendered with modern quality, and not "generic modern":
 
 Reference frames: the original at 16 spots of Bayview (dusk, night dry, the rain spots' clock, city core,
 casino neon, Coal Harbor, Beacon Hill, airport, highway), plus the main menu and the garage
-(internal evidence: look-direction/poses-dxvk.tsv: clock, car pose, the original's camera eye / look-at /
+(internal evidence: clock, car pose, the original's camera eye / look-at /
 angle; the grids in `sbs/` hold the frames).
 
-## How it is measured (`tools/look/`)
+## How it is measured (the maintainer's tools)
 
 * `wine_ref.py OUT --attach --keep`: in a running fastgpu session (the player's career save
-  `the finished-career save`, free roam), puts the player car at each spot of `spots.py` (`tools/parity/place.py`),
+  `the finished-career save`, free roam), puts the player car at each spot of `spots.py` (the maintainer's tool `place.py`),
   waits, reads back the car pose and **view 1's camera** (`[[0x8900B4]+0x238]+0x1C`: +0x40 eye, +0x60
   look-at, +0xC4 binary angle) and the world clock (0x865188 / 4000), and takes the frame (1280×960).
   Dusk spots are taken in the first minute after the load (the sunrise/dusk sky, clock < 60); night spots
   at clock 85–135 (the clock is written back to 90 s when it passes 135, so no sky step and no shower is
-  crossed). The automatic navigation of `tools/parity/nav.py` pressed Enter into a Quick Race once; boot
+  crossed). The automatic navigation of the maintainer's tool `nav.py` pressed Enter into a Quick Race once; boot
   by hand (`peek.py key`) and use `--attach`.
 * `cshot.sh OUT SPOT PRESET` renders the clone at the same spot with `POSES=` the original's camera
   (`NFSU2_SHOT_AT` the car pose, `NFSU2_SHOT_LOOK` eye, look-at and game FOV, `NFSU2_RAIN_CLOCK` the
@@ -115,7 +115,7 @@ shader blocks and constants; gate parity below).
 
 ## The rules for every effect (from now on)
 
-A unit that adds or changes an enhancement reports, at this work's spots (`tools/look`, at least the six audit
+A unit that adds or changes an enhancement reports, at this work's spots (the maintainer's tools, at least the six audit
 spots plus its own), **Original + its row** and **the presets with it**, against Original:
 
 | rule | budget (mean over the spots, 0–255 luma) |
@@ -174,7 +174,7 @@ p5 +1.2, p95 −1.3 over 19 spots); max (manual top tiers) is −2.1 / +0.9 / �
 softer than the original at the race start (DOF) and the Coal Harbor docks (Modern Lighting's darker
 gaps), which is the direction of the look; it no longer lifts the blacks.
 
-## Evidence (`docs/evidence/look-direction/`)
+## Evidence (the maintainer's private captures)
 `sbs/<spot>.webp` (Original | user before | user after | max after, half size; all 21 spots in the work
 dir), `ultra/<spot>_orig_ultra-before_ultra-after.webp`, `audit-rows-before.txt`, `audit-rows-after.txt`,
 `audit-final.txt` (19 spots vs clone Original), internal evidence: the Wine table (11 spots vs the original),

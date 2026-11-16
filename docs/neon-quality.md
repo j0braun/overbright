@@ -14,7 +14,7 @@ Player report: the neon underglow looks low quality on Ultra (Ultra preset, ever
   green of 4/255 (green/magenta tint where they round apart), flat 4×4 block plateaus. world.efx doubles
   them: 16/255 output steps.
 * On the ground a texel is ~3.5 cm, 15–25 px at 4K close up, so the 4×4 blocks show as **stair-stepped,
-  blocky glow edges and contour bands** (internal evidence: neon/before-4k-max-blue.png: blue channel, contrast
+  blocky glow edges and contour bands** (internal evidence: blue channel, contrast
   stretched, Peugeot MAGENTA, `--shot neon_car`, orbit camera, 4K max). Native has the same texture; at
   1280×960 a texel is ~5 px, so it is far less visible (native-garage-corolla-1280x960.png).
 * Not the cause (each row isolated at 1280×960 / 1080p, AE vs Original): Ultra's shadow-grid refine
@@ -48,7 +48,7 @@ to the grid edge and nothing beyond it. Profile across the rear edge, user's Lan
 2560×1440 max settings 30 → 24 → 9 within 4 px. The sampler (Repeat, as D3D's default WRAP) blends the
 border with the opposite border, which is lit too.
 **Native.** The same texture, grid and UVs are drawn by the original, which shows the same straight edges
-(internal evidence: neon-driving/native-bumper-white-edge-1280x960.png: The neon pass's Wine bumper-cam frame, the finished-career save's
+(internal evidence: The neon pass's Wine bumper-cam frame, the finished-career save's
 Corolla WHITE PULSE, the glow's front and side edges are straight cuts). Original therefore stays native
 (AE 0 against the build before this change, `neon_car` 1280×960).
 **Fix (Ultra, clone deviation).** `neon_quality::enhance` now multiplies the rebuilt mask by a smoothstep

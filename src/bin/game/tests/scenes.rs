@@ -425,7 +425,7 @@ fn shop_and_dyno_scenes_drive_the_car_like_the_original() {
 }
 
 /// The Dyno Shop's Test Run on the dyno plays DynoExit first (Wine,
-/// `docs/evidence/dyno-exit/native-dynoexit.tsv`: the finished-career save's Lancer,
+/// the maintainer's private capture: the finished-career save's Lancer,
 /// mode 5 for the scene's 180 frames off the rollers and down the
 /// ramp, then the test run's track). The clone's car follows the
 /// original's centre of mass and the test run starts at the end.

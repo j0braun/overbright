@@ -171,7 +171,7 @@ Xvfb has no vertical blank: Fifo did not hold the frame rate there, so
 the vsync wait could not be seen in this setup.
 
 Evidence (headless `--shot`, 1280 × 960 unless said; JPEG crops):
-`docs/evidence/overlay/` — `minimal-topleft.jpg`, `standard-topleft.jpg`,
+the maintainer's private captures — `minimal-topleft.jpg`, `standard-topleft.jpg`,
 `full-topleft.jpg` (explore), `full-topright-75.jpg` (race start),
 `standard-bottomright-150.jpg`, `minimal-bottomleft-main-half.jpg` (main
 menu, half size), `full-4k-crop-half.jpg` (3840 × 2160, the player's size),

@@ -810,7 +810,7 @@ The drawing (0x531050 per point, **verified**; the walker 0x531280 passes the no
     and rise about the centre of mass, the drivetrain for the sound; the
     rollers turn by the wheels' spin), kept spinning down behind the
     results (`Game::dyno_spin`); the dyno camera keeps the car's rest
-    frame (`dyno_camera`). Clone measured (`scripts/dyno_motion.sh`): 1 s
+    frame (`dyno_camera`). Clone measured (the maintainer's `dyno_motion.sh`): 1 s
     17.5 rad/s / 1950 rpm, nose up 0.34°, rise < 1 mm. The third-gear
     pull was 1.75× slower than the original's until the dyno boost (see
     "The pull's power" under "Dyno chart") was ported (2026-11-01).
@@ -1616,7 +1616,7 @@ The drawing (0x531050 per point, **verified**; the walker 0x531280 passes the no
     nitrous, jumps and landing, traffic hits, AI racers' physics, top speed
     per car, the 240SX slalom, drift-race physics (not reached this round).
 * **Driving vs the original** (2026-11-04, after the physics merge;
-  internal notes, evidence `docs/evidence/drive-parity/`): 240SX
+  internal notes, evidence in the maintainer's private captures): 240SX
   and 206 launch, 38 m/s to ~99 mph, slalom at 60 mph, 2 m drop, brake from
   60 mph and a 6.6 mph wall bump, replayed frame by frame at ~120, 31–90 and
   20 fps. **One world update per frame** (**verified**, ported): the main
@@ -1634,7 +1634,7 @@ The drawing (0x531050 per point, **verified**; the walker 0x531280 passes the no
   at 0.5 / 1 / 2 / 4 / 8 s, against round 14's replays), `hopaddr.py` (now
   also logs mover +0x60, the rest class), `tl.py` (the logger plus a
   traffic car C2 and a `hit2` placement), `t2h.py` (a `tl.py` log in
-  `devprobes/src/bin/hit_replay.rs` rows, with the player's gear, clutch state,
+  the maintainer's probe `hit_replay` rows, with the player's gear, clutch state,
   engine and input shaft), `walk.py` (the mover's component list);
   logs `h1` Corolla handbrake turns, `n1` / `n2` 206 nitrous (career
   save), `t1` 206 into a traffic Panel Van; round 14's `c2`, `x2`, `f1`,
@@ -2040,7 +2040,7 @@ The drawing (0x531050 per point, **verified**; the walker 0x531280 passes the no
   player (mover +0x0C x, +0x10 y, +0x14 heading, +0x18 speed — and car
   +0x40C, the u16 heading the mover reads back: without it the body spins
   41 rad/s for a frame); `rlog.py` logs the racers' mode, hold, wheels
-  down and distance; `devprobes/src/bin/hit_replay.rs` replays a logged hit in the
+  down and distance; the maintainer's probe `hit_replay` replays a logged hit in the
   clone from one frame on). The world list is [0x890080] +0x10 (count)
   with pointers from +0x1C (+0x18 is the racers' count).
   * **AI racers' mover** (**found**, ported; `racer_mover` in game.rs,
@@ -2501,7 +2501,7 @@ The drawing (0x531050 per point, **verified**; the walker 0x531280 passes the no
   from 0x54CB00: +0x34 0 any shop, 1 the shop whose +0x38 is the
   milestone's +0x38) and 0x5337E0 (a win, from 0x541430: +0x34 2, the
   event's +8 = milestone +0x38, its record's +6 set) offer the others —
-  no milestone in the data has +0x34 below 3 (`devprobes/src/bin/milestones.rs`).
+  no milestone in the data has +0x34 below 3 (the maintainer's probe `milestones`).
   The photo shoot (0x533690) sets +4 = 2 and +6 = 1 (done); 0x501150 (on
   offer) is +4 = 2 and +6 ≠ 1. The clone keeps the eight slots (0x5111F0
   drops a post when all are used); kind 0xF, 0x525660 and the lines: see

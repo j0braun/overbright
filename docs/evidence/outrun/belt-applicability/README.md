@@ -94,8 +94,8 @@ is static evidence only here.
 Offline, from the repository root:
 
 ```sh
-python3 internal evidence: outrun/belt-applicability/decode.py internal evidence: outrun/belt-applicability/follow.json
-python3 internal evidence: outrun/belt-applicability/test_decoder.py
+python3 $OB_PRIVATE/docs/evidence/outrun/belt-applicability/decode.py $OB_PRIVATE/docs/evidence/outrun/belt-applicability/follow.json
+python3 $OB_PRIVATE/docs/evidence/outrun/belt-applicability/test_decoder.py
 ```
 
 The second command checks all captured groups and rejects ten rehashed

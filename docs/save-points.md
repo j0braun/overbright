@@ -2,7 +2,7 @@
 
 Traced in SPEED2.EXE (REA / Ghidra and `$OB_PRIVATE/dis/speed2.dis`);
 observed in the original under Wine (`a private Wine copy`, fastgpu, Xvfb :187,
-evidence `docs/evidence/save-points/`). **Verified** = traced; **observed** =
+evidence in the maintainer's private captures). **Verified** = traced; **observed** =
 seen under Wine; **inferred** / **open** as marked. Earlier rounds:
 formats.md "Save points, records, Delete Tuned Car" and
 internal notes rounds 2/3.
@@ -74,7 +74,7 @@ progress made by the stage end stays in memory until the next save point.
   does (`Profile::commit` vs `Profile::save`). The restore matters only
   for the create flow's 0x5000000 Yes (0x52A470(1)).
 
-## Observed under Wine (internal evidence: save-points/log.txt)
+## Observed under Wine (internal evidence)
 
 Fresh profile NAME, Options Back as the save point (mode 0x2042):
 

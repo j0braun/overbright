@@ -44,7 +44,7 @@ pub(crate) fn outrun_log_row(game: &Game, frame: u32) -> Option<String> {
 }
 
 /// The live comparison's keyboard driver (docs/outrun.md; check aid, not
-/// native), the rule of `docs/evidence/outrun-live/bot.py`: look 12 m +
+/// native), the rule of the maintainer's private capture: look 12 m +
 /// 0.6 s of speed along the path; steer while the target is over 0.03 rad
 /// off the car's forward axis; throttle unless faster than √(8 m/s² · R) +
 /// 2 for the tightest radius R in the next 100 m (headings over 10 m

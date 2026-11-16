@@ -5,7 +5,7 @@ edition = "2024"
 description = "Reimplementation of Need for Speed: Underground 2 (2004) in Rust and wgpu."
 license = "GPL-3.0-or-later"
 
-# The developer probes (devprobes/, docs/refactor/examples-triage.tsv) are a member but not a
+# The developer probes (devprobes/, the maintainer's private probes) are a member but not a
 # default one: a plain `cargo build`/`cargo test` here builds only the game, its tools and the
 # public examples; `cargo check --release -p devprobes` (scripts/checks/devprobes.sh) keeps the
 # probes compiling.

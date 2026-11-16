@@ -12,13 +12,13 @@ marked.
 ## 1. The cycle a fix follows
 
 1. **Pick the scenario and the fields** from the coverage table (§4). If a field the fix needs
-   is missing, add it to `tools/parity/fields.toml` with `clone = "context"` first and check
+   is missing, add it to the maintainer's `fields.toml` with `clone = "context"` first and check
    that it reads sensible values in one native run (§6 lists the ones added for the planned
    fixes, all checked). Give it a clone accessor in `src/bin/game/dev/parity.rs` (one match
    arm in `car_value` / `global_value`) and a tolerance once the fix lands; the test
    `every_field_accessor_is_known` fails until the accessor exists.
 2. **Record the original once** (it does not change with the fix):
-   `tools/parity/parity.py run SCENARIO.toml OUT` writes `native.tsv`, `native.json`,
+   `$OB_PRIVATE/tools/parity/parity.py run SCENARIO.toml OUT` writes `native.tsv`, `native.json`,
    `native.rec` + `native.layout.json` (exact bits), then runs the clone and the diff. Keep OUT.
    Use a pinned scenario (§3) when the comparison needs the same opponents, grid and draws.
 3. **Before**: with the unchanged clone, `parity.py clone SCENARIO.toml OUT` →
@@ -74,7 +74,7 @@ Context fields (`tol = -1`, clone `context`) are recorded and printed but never 
 
 ## 3. Determinism of the original (observed 2026-11-11)
 
-Two recordings of the same scenario, compared bit for bit (`tools/parity/detstats.py A B`
+Two recordings of the same scenario, compared bit for bit (`$OB_PRIVATE/tools/parity/detstats.py A B`
 over `native.rec`); outputs in `docs/evidence/parity-workflow/`):
 
 * **Unpinned career race** (`circuit_s1`, twice): different from frame 0. The opponents'
@@ -106,7 +106,7 @@ over `native.rec`); outputs in `docs/evidence/parity-workflow/`):
 **Update (2026-11-12)**: four pinned recordings of `circuit_s1_pinned` (00:25 of
 2026-11-12, one of 2026-11-11, two in `a private Wine copy`) agree on every car's place only to frame 264–280;
 past the rivals' first-corner contacts they part, the player 8–131 m apart at 20 s
-(internal evidence: n-ai/circuit_s1_pinned-summary.txt). Compare this scenario per frame only to
+(internal evidence). Compare this scenario per frame only to
 ~frame 260; beyond it, judge against the original's own spread. The clone pins the original's
 world generator at the arm (plan line `world_rng`, from the recording's frame 0) so its AI draws
 compare draw by draw (accessor `world_rng`).
@@ -118,17 +118,17 @@ original's key byte changed (§7).
 
 ## 4. Coverage of the planned fix families
 
-"Scenario" = an existing or new file in `tools/parity/scenarios/`; "fields" = fields.toml names
+"Scenario" = an existing or new file in the maintainer's tools; "fields" = fields.toml names
 (new ones in §6); "clone accessor" = what the fix must add to `parity.rs` for a per-frame
 comparison.
 
 | family | native rule (verified unless marked) | scenario | fields / metric | status |
 |---|---|---|---|---|
-| Orientation integrator: Euler row step + re-orthonormalise each sub-step (0x5AA490 → 0x59C130, 0x5BB0E0; ω from the un-orthonormalised rows) | | subtrap.py capture (stops before/after each 0x5AA490 of one car; `body_hex` = the body's raw bytes) on any driving scenario; per-frame `rb_row0..2`, `rb_spin`, `rb_angmom` | one-sub-step replay test in the clone: native pre-state → clone step → native post-state to float ulps | per-frame rows cannot show it (a step differs by ~(ωh)³; the drive parts for other reasons first). Replay test: **done**, bit for bit (docs/evidence/native-integrator/) |
+| Orientation integrator: Euler row step + re-orthonormalise each sub-step (0x5AA490 → 0x59C130, 0x5BB0E0; ω from the un-orthonormalised rows) | | subtrap.py capture (stops before/after each 0x5AA490 of one car; `body_hex` = the body's raw bytes) on any driving scenario; per-frame `rb_row0..2`, `rb_spin`, `rb_angmom` | one-sub-step replay test in the clone: native pre-state → clone step → native post-state to float ulps | per-frame rows cannot show it (a step differs by ~(ωh)³; the drive parts for other reasons first). Replay test: **done**, bit for bit (the maintainer's private captures) |
 | Track contact impulse 1.0 in crash mode (0x593A50 / 0x5A0B10) | | `crash_wall`, `crash_wall_tp` (car–wall, never crash mode); a car–car hit then a wall: **missing** | `car_mode` (1 = crash), `vel`, `yaw_rate`, `rb_spin`, `recs` | needs a scenario that sets crash mode (§7) |
 | No car–car pairs in the start scene / countdown (0x593990 refuses in the scene, bodies +0x19 = 0 in the countdown) | | `startscene_counts` (new, arm at the scene; the road-node, path and AI fields are skipped there: one of their pointers is not valid in the scene and faulted the cave) | `n_pair_test`, `n_contact` per race state (framestats.py), `cb_scene`, `cb_sweep`, `n_world_draw` | native side works. **Observed**: scene 178 frames, countdown 171 frames: 0 pair tests, 0 contacts; racing (371 frames): 1 456 pair tests (≤ 12 a frame), 50 contacts. World draws: 0 in the scene, 15 in the countdown. Flow 3 in the scene, 4 from the countdown. The clone side needs a scene arm and a pair-test count accessor |
 | Nitrous key reads the previous frame's gas / speed (0x6034C6 before 0x5EB924) | **observed** | `nitro_gas_edge_finished` (new; the stage-4 save's car has nitrous) | `nos_left`, `nos_start`, `key_gas`, `gas`, `speed`; the SPRAY SHOW result | runs. **Observed**: throttle and nitrous injected on the same frame: `key_gas` and the shot start (`nos_start`) appear on the same row and the tank `nos_left` rose 24 000 → 25 600 at that press (not at the second press with the throttle held); what the +1 600 is (**open**: a SPRAY SHOW reward is a guess) and the style result's address are open; the car stands against an obstacle at the resume pose (speed ≤ 0.5 m/s), so add a `[start] place` before using speeds |
-| Sticky player road node (0x411490 / 0x40F180) | | `freeroam_node` (new); every race scenario (all racers) | `road_node` (x, y, race coordinate), `road_node_id`, `n_node_update`, `n_node_search` | native works. **Observed**: 0x411490 ran on 86 of 720 frames (3.2–4.6 s and once at 6.8 s), not every update; 0x40F180 on one frame (2 calls); in `circuit_s1_pinned_counts` on 17 of 1 200 race frames. The calling condition is **verified**: 0x42CAA0 → 0x42A190 runs the search only when the human's walk cannot keep the car (docs/race-ai-parity.md). **Ported**: the clone's per-frame node and counts with `NFSU2_NODE_LOG`: 86 update frames in both, 85 in common, the node's record equal on 719 of 721 frames (internal evidence: ai-t/human-road-node.txt) |
+| Sticky player road node (0x411490 / 0x40F180) | | `freeroam_node` (new); every race scenario (all racers) | `road_node` (x, y, race coordinate), `road_node_id`, `n_node_update`, `n_node_search` | native works. **Observed**: 0x411490 ran on 86 of 720 frames (3.2–4.6 s and once at 6.8 s), not every update; 0x40F180 on one frame (2 calls); in `circuit_s1_pinned_counts` on 17 of 1 200 race frames. The calling condition is **verified**: 0x42CAA0 → 0x42A190 runs the search only when the human's walk cannot keep the car (docs/race-ai-parity.md). **Ported**: the clone's per-frame node and counts with `NFSU2_NODE_LOG`: 86 update frames in both, 85 in common, the node's record equal on 719 of 721 frames (internal evidence) |
 | Human path rebuilt per frame (0x42CAA0) | | `freeroam_node`, every race scenario | `hpath_n` (5 below ~10 m/s, 13–20 above), `hpath_p0`, `hpath_p1`, `n_human_path` | native works: exactly 1 build per frame (720/720) |
 | Traffic walk length rebased (0x419670 / 0x422220) | | `circuit_traffic`, `freeroam_stand` + `trafficstats.py`, `traffic_lane_offsets` | metric: traffic turn positions after walks > 200 m | the walk's +0x54 / +0x354 are not recordable (the traffic controller's walk offset is **open**); metric only |
 | Reach = max(125 m, 3 s · speed) (0x404910) | | `streetx_s4`, `drag_s4_*`, `outrun_pace_p14` (speeds above 41.7 m/s) | `speed` (reach derived), `ai_obj`, `ai_action`, `ai_target` | the reach itself is not stored natively; compare the avoid / pass decisions above 41.7 m/s |
@@ -149,7 +149,7 @@ comparison.
   the 60 fps tick pattern, the 3-cycle **30, 29, 31** ticks (16.667, 16.111, 17.222 ms; the
   sim clock 0x865188 steps 67, 64, 69). Measured: every frame of every fixed recording
   checked (circuit_s1 ×2, crash_wall ×2, freeroam_node, circuit_cd, outrun_stand; 4 927 frames)
-  is on the 3-cycle, mean exactly 16.6667 ms; 0 deviations (`tools/parity/framestats.py`).
+  is on the 3-cycle, mean exactly 16.6667 ms; 0 deviations (the maintainer's tool `framestats.py`).
   Only the phase of the cycle differs between runs (it starts at 30 or 31).
 * **The original at its own pace** (`freeroam_cadence`, `[run] fixed_fps = 0`, the cave only
   recording): 1 200 frames with world dt from 8.33 ms (15 ticks, the 1/120 s cap; 145 frames)
@@ -212,7 +212,7 @@ flow state), `detstats.py` (run-to-run comparison, exact bits). Scenario keys: `
    and compares with B. Before the fix it differs in the rows' and ω's low bits; after it the
    rows must match to a few ulps (x87 vs SSE rounding is the floor; record the observed spread).
    **Done** (2026-11-12): `drive::rigid::native_integrator_replay` replays 262 pairs of
-   the first drag bit for bit (docs/evidence/native-integrator/; `tools/parity/subtrap_fixture.py`).
+   the first drag bit for bit (the maintainer's private captures; the maintainer's tool `subtrap_fixture.py`).
 3. **Crash-mode contact scenario.** A car–car hit followed by a wall contact: free roam with
    `[start] place` putting the player 15 m behind a parked traffic / encounter car pointed at a
    wall, throttle held; `car_mode` must read 1 after the hit. Or the lockstep controller
@@ -231,7 +231,7 @@ flow state), `detstats.py` (run-to-run comparison, exact bits). Scenario keys: `
 6. **Race finish** (flow 4 → 7, ~3 s after the finish): `drag_s1` with lane taps to the line
    (dragshift.py `--replan`) plus `PARITY_EXTRA`, or a circuit with the player placed 9 m
    behind the leader every 0.3 s from Python; record `flow_state` and `racer_status`.
-7. **Encounter goals in free roam**: **done**: `tools/parity/encpoll.py` reads every
+7. **Encounter goals in free roam**: **done**: the maintainer's tool `encpoll.py` reads every
    encounter car out (owner kind 3, off the parking height) through the supervisor's /proc
    reads, two round trips a sample (the controller pointers cached): the car, its goal
    [[car +0x2C] +0x6FC] (+0x14 type, +0x18 target, +0x1C distance, +0x20 offset, +0x24), its
@@ -249,7 +249,7 @@ flow state), `detstats.py` (run-to-run comparison, exact bits). Scenario keys: `
 9. **Reach above 41.7 m/s**: confirm a rival in `streetx_s4` / `outrun_pace_p14` exceeds it
    long enough to change a decision; otherwise a stage-4 sprint on a stage-4 save.
 10. **Traffic walk offsets**: **done**: the walk object is controller +0x370
-    (planner +0x54, its walk +0x31C); `tools/parity/trafwalk.py` reads every traffic car's walk
+    (planner +0x54, its walk +0x31C); the maintainer's tool `trafwalk.py` reads every traffic car's walk
     (+0x54 / +0x58 / record / control point / junction per point, +0x354, the junction cache),
     mover mode, heading +0x40C and speed +0x42C through /proc, two round trips a sample
     (`[run] poll = "traffic_walk"`, OUT/native-walk.tsv; scenarios `freeroam_walk`, `qr_walk_4014`).
@@ -277,7 +277,7 @@ Machine-specific; not part of the method.
 
 ## Appendix: random-number draws per call site (RNG-T, 2026-11-12)
 
-* `tools/parity/rngsites.py patch $OB_PRIVATE/wine-<you>` writes a patched SPEED2.EXE into **your own Wine
+* `$OB_PRIVATE/tools/parity/rngsites.py patch $OB_PRIVATE/wine-<you>` writes a patched SPEED2.EXE into **your own Wine
   copy's** game folder (the original kept as `SPEED2.EXE.orig`; `restore` puts it back): each of the 206 direct
   calls to a draw function (shared 0x43C1C0 / 0x43C1F0, world 0x5EA4F0 / 0x5EA510, the state-pointer forms
   0x43C140 / 0x43C170, the seed 0x43E6B0, speech 0x738750 / 0x738860, AEMS 0x724903) and the two inline seed
@@ -285,11 +285,11 @@ Machine-specific; not part of the method.
   instruction (stubs in the nop padding between functions; counts at 0x8BB600 +4·site, totals per draw
   function at 0x8BBB80). The stubs live in function padding below 0x780000, so the cave, `counters.py` and
   `subtrap.py` still work on the patched copy (the `Probes` of an earlier Wine run, which uses 0x8BB600, does not).
-* `tools/parity/rngdraws.py OUT [--event circuit|drag|none] [--shop X,Y,Z] [--audio]` runs one session on it
+* `$OB_PRIVATE/tools/parity/rngdraws.py OUT [--event circuit|drag|none] [--shop X,Y,Z] [--audio]` runs one session on it
   (boot, 600 menu frames, free-roam entry, 600 free-roam frames, then the event — shared generator pinned at
   the dialog — or the shop) with the per-site table recorded every frame through the cave;
   `rngdraws.py report OUT` prints per phase and per frame. Results: $OB_PRIVATE/audit/binary/RNG-port-list.md
-  and docs/evidence/rng-t/. Each row also holds player 1's NIS id (`[0x8900AC] +0x234`, `nis`), the camera
+  and the maintainer's private captures. Each row also holds player 1's NIS id (`[0x8900AC] +0x234`, `nis`), the camera
   director's gate (docs/rng.md).
 * Clone side (`dev-harness` builds): `NFSU2_RNG_LOG=<file>` logs every `GameRng` draw with its caller and
-  generator instance (src/opponents.rs `draw_log`); `tools/parity/rnglog.py` sums two such logs by site.
+  generator instance (src/opponents.rs `draw_log`); the maintainer's tool `rnglog.py` sums two such logs by site.

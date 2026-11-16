@@ -724,8 +724,8 @@ mod tests {
     }
 
     /// Against the original: two barrel hits' collision sound
-    /// objects read under Wine every frame (`docs/evidence/prop-hits/
-    /// native-impact-levels.tsv`, tools/parity/proppoll.py: object +0xC0 V,
+    /// objects read under Wine every frame (internal evidence,
+    /// the maintainer's proppoll.py: object +0xC0 V,
     /// +0xF0 the point, the listener globals 0x82BEDC car / 0x82BF10
     /// camera). V is 0 on the start frame (0x46A540 zeroes +0xC0 before
     /// 0x479900), then each frame the copy's level of slot 7 at its point

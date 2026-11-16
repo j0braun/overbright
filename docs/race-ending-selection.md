@@ -99,7 +99,7 @@ Before the correction it failed: front spin -0.33494565 versus rolling
 checks all four wheels against slot 2's unmodified rolling speeds.
 Run with explicit `NFSU2_ROOT` and isolated XDG/TMP; an ordinary test run
 skips this ignored regression. Focused integrated results are recorded in
-internal evidence: race-endings/integration-validation.txt.
+internal evidence.
 
 This integration does not implement the second scene car or active body
 response to torque records. Shared ending/shop pose placement remains an
@@ -110,7 +110,7 @@ No uncapped gameplay or timestep policy changes are included.
 ## Scene-owned AI winner (2026-11-03)
 
 Fresh disassembly of the verified executable is preserved in
-internal evidence: race-endings/native-car-binding.asm. It corrects the earlier
+internal evidence. It corrects the earlier
 assumption that every single-player win should show a second AI car:
 0x432A06 binds human player 0 to entry +6, and 0x432A14 binds human
 player 1 to entry +7 through 0x4307F0. That helper indexes the human

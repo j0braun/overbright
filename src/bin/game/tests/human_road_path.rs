@@ -1,5 +1,5 @@
 //! The human's road path at 10 m/s and above against
-//! the original's recording (docs/evidence/n-mix/hpath-r5-freeroam.tsv).
+//! the original's recording (the maintainer's private capture).
 
 use crate::*;
 // The test kit (tests/common/mod.rs, docs/testing.md).

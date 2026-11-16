@@ -27,7 +27,7 @@ pub(super) fn offered_presets() -> Vec<Preset> {
 /// 162), GPU busy median ms per frame, 1920×1080 and 3840×2160 on the
 /// reference desktop GPU (the High class), and 1920×1080 on the reference integrated GPU (the
 /// Integrated class, with its class's preset tiers). docs/settings-page.md
-/// "60 fps" (`docs/evidence/ux1b/presets.txt`).
+/// "60 fps" (the maintainer's private capture).
 pub struct PresetCost {
     pub preset: Preset,
     pub high_1080: f32,

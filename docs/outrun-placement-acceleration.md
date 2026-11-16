@@ -39,7 +39,7 @@ necessary before widening that retention claim.
 
 ## Bounded original-code probe
 
-internal evidence: outrun/native-placement-acceleration-probe.py executes unchanged
+internal evidence executes unchanged
 instruction prefixes `59F890..59F8AD`, `5FBBF0..5FBC66`, and `604750..60483A`.
 Harness epilogues stop before unrelated body setup, world callbacks, and race
 events respectively. Synthetic car storage has distinct acceleration, current
@@ -55,7 +55,7 @@ and zero/nonpositive/unordered preservation of the now-cleared vector. The
 caller ordering in these synthetic cases is controlled by the harness; it is
 not evidence that the live game takes both orderings at a particular call site.
 Hashes, exact-entry disassembly, and result data are retained in
-`evidence/outrun/placement-acceleration`.
+the maintainer's private captures.
 
 ## Bounded clone correction and remaining phase differences
 

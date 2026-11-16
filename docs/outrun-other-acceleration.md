@@ -25,7 +25,7 @@ not preserve these semantics.
 
 ## Evidence and validation
 
-internal evidence: outrun/native-other-acceleration-probe.py executes complete unchanged
+internal evidence executes complete unchanged
 original `60BE40`, `5EC340`, and `43CF10` instruction blocks in an owned headless
 Wine helper with synthetic vectors. It uses a private prefix and shuts down its
 wineserver on success/failure. It does not attach to the live game. Executable

@@ -55,7 +55,7 @@ Enhanced Reflections on.
   well.
 
 ## Evidence
-`docs/evidence/gps-reflection/`:
+the maintainer's private captures:
 - `rear_window_before_after.jpg`: the original; the clone native; the player's settings before / after;
   the same in rain.
 - `intro_user_full_before_after.jpg`.

@@ -1,11 +1,11 @@
 # Race AI parity with the harness (2026-11-04)
 
 The race AI compared frame by frame with the original (SPEED2.EXE under
-Wine, `tools/parity`, docs/parity-harness.md) from the same save, grid,
+Wine, the maintainer's tools, docs/parity-harness.md) from the same save, grid,
 cars and inputs. **Verified** = traced in SPEED2.EXE, **observed** = read
 under Wine, **inferred** / **open** as marked. Raw runs:
 `<work dir>/raceai-work/runs/<name>/`; reports, plans, car lists
-and `aistats-after.txt` in `docs/evidence/race-ai-parity/`. The player only
+and `aistats-after.txt` in the maintainer's private captures. The player only
 holds the throttle in these scenarios (it hits walls and rivals), so after
 the first seconds the comparison is statistical (aistats), not per frame.
 
@@ -257,7 +257,7 @@ retained steer (its lane path) and replaces the action as `think` with
 Scenario `circuit_s1_pinned` (native recording of 2026-11-12 00:25, re-recorded twice in
 `a private Wine copy`; the clone pins the original's world generator at the arm, plan line `world_rng`,
 and steps its world update counter from `world_n`). **Verified** = traced in SPEED2.EXE,
-**observed** = read under Wine. Evidence: `docs/evidence/n-ai/`; fix list:
+**observed** = read under Wine. Evidence: the maintainer's private captures; fix list:
 `docs/native-fixes/N-AI.tsv`.
 
 * **Before**: first divergence frame 1 (rival 1's target speed 34.40 vs 37.80, rival 3's
@@ -322,7 +322,7 @@ and steps its world update counter from `world_n`). **Verified** = traced in SPE
 ## Encounter pursuit, the human's road node, the road entries (2026-11-12)
 
 **Verified** = traced in SPEED2.EXE, **observed** = read under Wine. Fix list:
-`docs/native-fixes/AI-T.tsv`; evidence `docs/evidence/ai-t/`; game-side wiring for review in the
+`docs/native-fixes/AI-T.tsv`; evidence in the maintainer's private captures; game-side wiring for review in the
 unit's `ait-game-side.md` (the game binary is being restructured).
 
 * **Encounter cars before a challenge (goal 9, verified + observed)**. The encounter manager's
@@ -417,7 +417,7 @@ unit's `ait-game-side.md` (the game binary is being restructured).
   (0x4280C2) and shifted when entries go (0x41973E): `RacerRoute::current`. **Ported**:
   `HumanRoad::road_path` / `human_append`, used for the human's `RoadCar::path` at +0x42C ≥ 10 in
   races and free roam (`human_road_path`). **Checked** against the free-roam recording
-  (docs/evidence/n-mix/hpath-r5-freeroam.tsv, 128 frames at ≥ 10 m/s): the clone's walk driven by the
+  (the maintainer's private capture, 128 frames at ≥ 10 m/s): the clone's walk driven by the
   recorded car, the path built from the car before the frame's motion — every count equal (10–15)
   and the first two points within 6.9e-4 m (median 3e-4; the recording's 6 significant digits);
   `tests::human_road_path::human_road_path_matches_the_recording`.
@@ -427,7 +427,7 @@ unit's `ait-game-side.md` (the game binary is being restructured).
 ## The traffic walk's turns, the "circling" car (2026-11-12)
 
 **Verified** = traced in SPEED2.EXE, **observed** = read under Wine (a private Wine prefix, display :161;
-scenarios `freeroam_walk` and `qr_walk_4014`, poller `tools/parity/trafwalk.py`, workflow gap 10).
+scenarios `freeroam_walk` and `qr_walk_4014`, poller the maintainer's tool `trafwalk.py`, workflow gap 10).
 Fix list `docs/native-fixes/TRAF-FIX.tsv`; evidence `docs/evidence/traf-fix/`.
 
 * **The traffic walk (verified).** The route pass (0x428030, at each think: the walk changes every
@@ -514,7 +514,7 @@ Fix list `docs/native-fixes/TRAF-FIX.tsv`; evidence `docs/evidence/traf-fix/`.
 ## Belt cars in "Avoid Cars", measured on both sides; car +0x550 (2026-11-12)
 
 **Verified** = traced in SPEED2.EXE, **observed** = read under Wine (a private Wine prefix, display :166,
-`qr_walk_4014` × 3 and `freeroam_walk`, poller `tools/parity/trafwalk.py`, which now also reads car
+`qr_walk_4014` × 3 and `freeroam_walk`, poller the maintainer's tool `trafwalk.py`, which now also reads car
 +0x550 / +0x998 / +0x8FC, the action's +0x1F0 / +0x218 (the tracked node's car) / +0x21C / +0x220,
 the road entries the car's last think left (controller +0x5C, changed ones only) and controller
 +0x710 / +0x77C). Fix list `docs/native-fixes/TRAF-2.tsv`; evidence `docs/evidence/traf-2/`.
@@ -582,7 +582,7 @@ the road entries the car's last think left (controller +0x5C, changed ones only)
 ## Traffic placement and density, measured on both sides; the race placer's rules (2026-11-12)
 
 **Verified** = traced in SPEED2.EXE, **observed** = read under Wine (a private Wine prefix, display :168,
-`qr_walk_4014` ×2 more runs, poller `tools/parity/trafwalk.py`, which now also reads world +0x14,
+`qr_walk_4014` ×2 more runs, poller the maintainer's tool `trafwalk.py`, which now also reads world +0x14,
 the world's slots +0x80/+0xE0 and each racer's place, +0x8FC, +0x430 and controller kind).
 Fix list `docs/native-fixes/TRAF-3.tsv`; evidence `docs/evidence/traf-3/` (`dens3.py`: one method
 for both sides — the clone's `traffic_turn_stats` dump now carries the player's place, facing,
@@ -699,7 +699,7 @@ the clone's probe. Answers with addresses: `$OB_PRIVATE/audit/binary/TRAF4-answe
 ## The placer at speed (the wrong-way byte); the mover switches traced end to end (2026-11-13)
 
 **Verified** = traced in SPEED2.EXE, **observed** = read under Wine (a private Wine prefix, display :183,
-`qr_walk_4014` × 2 more runs n1 / n2; `tools/parity/trafwalk.py` now also reads the human's road node
+`qr_walk_4014` × 2 more runs n1 / n2; the maintainer's tool `trafwalk.py` now also reads the human's road node
 with the placer's walk-byte inputs), **measured** = the clone's probe (`traffic_turn_stats`, 12 streams
 × 150 s). Fix list `docs/native-fixes/TRAF-5.tsv`; evidence `docs/evidence/traf-5/` (`measures.txt`,
 `native-wrongway.txt`, `avep.py` / `exit3.py` / `ahead.py` / `plnode.py` / `sw2.py`).

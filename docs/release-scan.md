@@ -56,7 +56,7 @@ A target/file passes when it matches `allow-binary.txt` or lies under `private.l
 ## Tables mode
 `const`/`static` arrays of at least 24 entries (counted from the initialiser; `[x; N]` uses N) whose doc comment (contiguous `//` block above; for a function-local table the enclosing fn's doc) names an executable address (`0x` plus 5-8 hex digits, or "SPEED2"). These are the tables to migrate to run-time reads from the player's own game executable.
 
-## Current totals (merge base 1, 2026-11-11; full output internal evidence: release/scan-baseline.txt)
+## Current totals (merge base 1, 2026-11-11; full output internal evidence)
 | measure | this scan | release plan |
 |---|---|---|
 | text, tree minus private.list: files / lines with any family | 368 / 5085 | n/a |
@@ -66,7 +66,7 @@ A target/file passes when it matches `allow-binary.txt` or lies under `private.l
 | private patterns in the public roots (private.list paths counted) | 86 files / 990 lines; the plan's own pattern P re-run: 75 / 936 | 79 / 933 |
 | unit codes in src+tests, public roots | 204 / 1730 (family); the plan's upper-bound regex re-run: 195 / 1869 | <= 190 / <= 1828 |
 | include_bytes!/include_str! of evidence/fixtures/native_save_fresh | 81 distinct resolved files (14 compiled into shipping src); 233 include references + 7 manifest-dir reads | 92 + 7 |
-| tracked non-text files | 1193 (4 not allowed: docs/bayview-*.png, an internal screenshot) | |
+| tracked non-text files | 1193 (4 not allowed: internal screenshots) | |
 | exe-address tables of >= 24 entries | 45 | 43 |
 
 Differences: the tree has grown since the plan's count (P re-run 75 / 936 vs 79 / 933: the plan's grep was run on an older tree and without `-I`). The family union is broader than P (it also covers owner-remark and hardware wording), hence 86 / 990. The plan's 92 counts distinct include *spellings* (`../docs/x` and `../../docs/x` count twice); resolved to repo paths there are 81 files. Tables: the plan's script is not available; this scan finds 45, among them 4 function-local tables whose address sits in the fn doc, and it does not count microtalk `RC` (only a module doc precedes it), so 43 is within the counting method.

@@ -1,10 +1,10 @@
 # Expanded native boundary capture and suspension-load diagnostic
 
-This continues `positive-dt-clone-boundaries.md` from commit . It does not relocate production component passes or claim a full `CarState::substep` replay.
+This continues `positive-dt-clone-boundaries.md`. It does not relocate production component passes or claim a full `CarState::substep` replay.
 
 ## What was missing, and what was captured
 
-The first capture retained component objects but omitted the engine-record pointee used immediately by `5AA770`, the full drivetrain, mover history and source handling record. internal evidence: boundary-replay/audit.py audits the earlier capture's actual address coverage; its output is `audit.json`.
+The first capture retained component objects but omitted the engine-record pointee used immediately by `5AA770`, the full drivetrain, mover history and source handling record. internal evidence audits the earlier capture's actual address coverage; its output is `audit.json`.
 
 A fresh private native session on display 174 retained those dependencies. The expanded recorder keeps all original boundaries and adds full car (0x600-byte window), mover (0x200-byte window), drivetrain (0x100 bytes), live engine/gearbox records, four wheel records, and the car's source record. The windows describe bytes captured, not asserted C++ object sizes. There are 27 retained regions and 10816 used bytes in each 16384-byte record. Pointer checks verify the live owner and pointees at every boundary.
 
@@ -14,8 +14,8 @@ Reproduction uses the retained launcher with the owned prefix, followed by:
 
 ```
 python3 $OB_PRIVATE/wine/fastnav.py $OB_PRIVATE/wine/runs/<run> race
-python3 internal evidence: boundary-replay/capture.py $OB_PRIVATE/wine/runs/<run> /PRIVATE/OUTPUT/expanded-landing --seconds 2 --drop .6 --vertical-speed -12
-python3 internal evidence: boundary-replay/decode.py /PRIVATE/OUTPUT/expanded-landing
+python3 $OB_PRIVATE/docs/evidence/boundary-replay/capture.py $OB_PRIVATE/wine/runs/<run> /PRIVATE/OUTPUT/expanded-landing --seconds 2 --drop .6 --vertical-speed -12
+python3 $OB_PRIVATE/docs/evidence/boundary-replay/decode.py /PRIVATE/OUTPUT/expanded-landing
 ```
 
 The capture pauses the game before disabling logging, then validates complete groups. Actual native dt and ticks are retained; reproduction is not promised bit-identical. Runtime navigation/capture logs are in the sibling `positive-dt-boundary-replay-runtime` directory. `test_decode.py` reproduces the summary and rejects a rehashed changed live engine pointer and a rehashed truncated group.
@@ -42,7 +42,7 @@ Compression, rate and preload are unchanged between those zero boundaries. The l
 The test executes the shared production component calculation in native wheel order for both traversals, comparing all 60 wheel results from the 15 bump groups to native first-pass and zero-pass loads at absolute error below 1e-5. Its fixture is generated only from raw input/output snapshots:
 
 ```
-python3 internal evidence: boundary-replay/fixture.py
+python3 $OB_PRIVATE/docs/evidence/boundary-replay/fixture.py
 cargo test --release --lib native_zero_refresh_recomputes_suspension_loads
 ```
 

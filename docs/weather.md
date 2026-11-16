@@ -100,7 +100,7 @@ Checked by md5 of the PNGs, fast build, 1280 × 960:
   the rain shot (`NFSU2_RAIN_CLOCK=170`) are **identical**.
 - The player's settings with all four weather rows on against off, in **dry** explore, qrstart and intro:
   **identical**. A dry car and a dry road draw nothing new.
-- Parity gates (`perf.sh parity`, full release, <base> against this copy; internal evidence: weather/gates.txt):
+- Parity gates (`perf.sh parity`, full release, <base> against this copy; internal evidence):
   - images: Original, 5 scenes × 1280 × 960 / 4K, AE 0.
   - window path at 144 Hz: AE 0.
   - Modern / Ultra (perf.sh's preset strings, dry scenes): AE 0.
@@ -113,10 +113,10 @@ Checked by md5 of the PNGs, fast build, 1280 × 960:
     never made). The fast-build shot md5s above were rerun on the final code.
 
 ## Cost
-internal evidence: weather/scripts/bench.sh runs `--bench drive 600` at clock 162 (night, heavy rain 0.70,
+internal evidence runs `--bench drive 600` at clock 162 (night, heavy rain 0.70,
 four cars). The numbers are GPU busy ms: the weather pass's own timestamp ("graphics: weather fx"),
 median of 3 interleaved runs. The full release build was measured on the reference desktop GPU and on the 2-CU
-RDNA2 iGPU, on a shared machine (raw: `docs/evidence/weather/cost/`).
+RDNA2 iGPU, on a shared machine (raw: the maintainer's private captures).
 
 | row | 1080p | 4K | iGPU 1080p |
 |---|---|---|---|

@@ -19,7 +19,7 @@ vertex colours only (world.efx `tex × v0 × 2`), the cars with the light
 packs' harmonic (0x48E3D0 → 0x4893A0, `render/lighting.rs`), and has no
 dynamic shadow but the car's shadow texture (SHADOWIG/SHADOWFE, 0x6162F0).
 
-## What the light packs hold (verified by reading the data, `devprobes/src/bin/lamp_census.rs`)
+## What the light packs hold (verified by reading the data, the maintainer's probe `lamp_census`)
 Bayview (L4RA) has 2234 light-pack lights (0x135003, `formats/lights.rs`):
 2009 of (150, 150, 150), 207 of (110, 110, 125), 17 warm (125, 110, 95)
 with radius 40 / inner 20, all **point lights** (kind 2, sub 2, on,
@@ -315,9 +315,9 @@ loaded) + Dynamic Lamps, Lamp Shadows High, Contact Shadows.
 road band (Dynamic Lamps alone changes nothing there); their "max"
 difference is Lamp Shadows (the cars shading the headlight beam) and
 Contact Shadows, unchanged by the bright-lamps fix. Crops (Original | before | after, the
-start's pool): internal evidence: lamps-shadows/r6_start_pool_orig_before_after.webp,
+start's pool): internal evidence,
 the max setup `r6_start_pool_max_orig_before_after.webp`. Script:
-internal evidence: lamps-shadows/scripts/pool.py.
+internal evidence.
 
 ## The Lighting II work (docs/lighting2.md)
 With Headlight Beams on, every car's headlight is view 9's projector as a beam in the same LAMPS
@@ -327,5 +327,5 @@ blocks (after the lamps in the lamp list); the headlight shadow layer follows th
 ## The gap budget (2026-11-05, docs/look-direction.md rule E2)
 `LAMP_MAX` 0.35 → **0.12**: a dark gap now gains at most ×1.24 of its bake (was ×1.7). Over the look direction
 spots Dynamic Lamps alone lifted the mean luma +2.6 (the coal docks +6.8), the darkness between the
-lamps — NFSU2's look — the most; now +1.7 (measured, `docs/evidence/look-direction/`). Pools and peaks
+lamps — NFSU2's look — the most; now +1.7 (measured, the maintainer's private captures). Pools and peaks
 are unchanged (`pool_peak_is_pinned_to_the_bake`).

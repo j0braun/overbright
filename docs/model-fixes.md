@@ -8,9 +8,9 @@ before the switch keep their geometry until reloaded). No mod file was downloade
 read or copied; the public description of a community "small model fix" (
 2721) was used only as a list of symptoms to check.
 
-Method: `devprobes/src/bin/model_scan.rs` scans every model file (81: each car's GEOMETRY.BIN
+Method: the maintainer's probe `model_scan` scans every model file (81: each car's GEOMETRY.BIN
 with all kits, bumpers, skirts, spoilers, hoods, scoops, mirrors, exhausts, the shared
-part folders and every `CARS\WHEELS\GEOMETRY_*.BIN`); `devprobes/src/bin/model_fix_shot.rs`
+part folders and every `CARS\WHEELS\GEOMETRY_*.BIN`); the maintainer's probe `model_fix_shot`
 renders clone close-ups (native / `--fix`, `--paint r,g,b`); the original was checked
 in SPEED2.EXE's main-menu Customize under Wine (`fastgpu.sh`, DXVK, copy
 `$OB_PRIVATE/wine/runs/<run>`, display :200, profile `career_end_won.sav` so every
@@ -20,11 +20,11 @@ part is unlocked, WidescreenFix off). Raw captures: `<work dir>/models-work/{win
 
 | Car | Part | Symptom | Data (original) | Correction | Evidence |
 |---|---|---|---|---|---|
-| IS300 | FRENZY rear bumper (`IS300_KIT11_REAR_BUMPER_A`) | two exhaust tips drawn into each other | markers LEFT_EXHAUST ×2 (−2.220, −0.504, 0.035) / (−2.231, −0.503, 0.010), REAR_LICENSE_PLATE ×2 at one spot; the exhaust walk 0x639843 files every EXHAUST-type marker | keep each marker's first record (`model_fixes::markers` on the walk; `Solid::markers` too) | internal evidence: model-fixes/is300_frenzy_wine.png, `is300_frenzy_clone_orig_vs_fixed.png` |
+| IS300 | FRENZY rear bumper (`IS300_KIT11_REAR_BUMPER_A`) | two exhaust tips drawn into each other | markers LEFT_EXHAUST ×2 (−2.220, −0.504, 0.035) / (−2.231, −0.503, 0.010), REAR_LICENSE_PLATE ×2 at one spot; the exhaust walk 0x639843 files every EXHAUST-type marker | keep each marker's first record (`model_fixes::markers` on the walk; `Solid::markers` too) | internal evidence, `is300_frenzy_clone_orig_vs_fixed.png` |
 | GOLF | SNYPER front bumper (`GOLF_KIT01_FRONT_BUMPER_A/B/C`) | lower grille slats in the body colour | the slats are MOLDINGS on the skin `GOLF_SKIN1` at UV (0.043, 0.854), a painted texel (the scanner's `skinpaint` check: the composite skin changes with the paint there) | those corners → (0.795, 0.719), the black trim box the Golf's other skin-mapped MOLDINGS (KIT03 bumper) sample | `golf_snyper_wine.png` (light slats on the silver car), `golf_snyper_clone_orig_vs_fixed.png` (red paint) |
 | MUSTANGGT | front wheels | tyre runs into the front of the arch, gap behind | car type (GLOBALB 0x34600 +0x120) front x 1.445; the arch circle fitted to the stock body / bumper / skirt has its centre at x 1.376 (dx −0.069); rear dx +0.021 | drawn wheels, brakes, spinners and their pivots −0.069 m in x (`Car::wheel_shift`); physics keeps the table | `mustanggt_front_wheel_wine.png`, `mus_fw_clone_orig_vs_fixed.png` |
 | A3 | front wheels | same | front x 1.170, arch centre 1.128 (dx −0.042); rear dx +0.001 | −0.042 m | `a3_front_wheel_wine.png`, `a3_fw_clone_orig_vs_fixed.png` |
-| PEUGOT106 | stock roof antenna with any roof scoop | the antenna runs through the scoop | three crossed DECAL quads (`PEUGOT106_BADGING`) in `PEUGOT106_BASE_A/B/C` at x −0.02…0.29, y ±0.01, z 1.16…1.33; every scoop sits at the ROOF_SCOOP marker (−0.130, 0, 1.175) | with a roof scoop (slot 7) above level 0 fitted, those six triangles per LOD are drawn degenerate (`model_fixes::hidden_triangles`, `CarPart::hidden_tris`) | `model-review/mf3b/peugot106_antenna_wine_vs_clone_native_fixed_noscoop.jpg` |
+| PEUGOT106 | stock roof antenna with any roof scoop | the antenna runs through the scoop | three crossed DECAL quads (`PEUGOT106_BADGING`) in `PEUGOT106_BASE_A/B/C` at x −0.02…0.29, y ±0.01, z 1.16…1.33; every scoop sits at the ROOF_SCOOP marker (−0.130, 0, 1.175) | with a roof scoop (slot 7) above level 0 fitted, those six triangles per LOD are drawn degenerate (`model_fixes::hidden_triangles`, `CarPart::hidden_tris`) | the maintainer's private capture |
 
 The arch fit (`model_scan --check wheel`, kind `arch`) is a measurement, not a traced
 value: per 10° bin of the upper half the nearest body vertex beyond the tyre within the
@@ -44,7 +44,7 @@ are fixed; the 3000GT is not.
 | GOLF | badge gaps in hoods | — | not found in a contact sheet of all 29 hoods (front 3/4 view); **open** |
 | WHEELS | MEISTER S2R (`WORK_STYLE02`) mapping | lettering on the lip | not an error: the lip's UVs (v from 0.246) reach the "MEISTER S2R" lettering drawn into the face area of `WORK_STYLE02_WHEEL` (rows 34–38 of 128); EQUIP 02 (`WORK_STYLE01`) uses the same layout. The original shows the same fleck on the lip: native |
 
-## Scanner findings (top, internal evidence: model-fixes/scan_top.tsv)
+## Scanner findings (top, internal evidence)
 - `marker`: the only duplicated marker at LOD A is the IS300 FRENZY one (fixed); LOD B
   files repeat their marker lists, which no draw reads (the walk takes LOD A).
 - `exhaust`: 6 buried outlets, all at LOD B (MIATA KIT12, FOCUS KIT16 / KIT25 / KIT09,
@@ -58,7 +58,7 @@ are fixed; the 3000GT is not.
 
 ## Visual design note
 
-Contact sheets: `devprobes/src/bin/model_sheets.rs` (`model_sheets OUTDIR [--cars A,B] [--classes
+Contact sheets: the maintainer's probe `model_sheets` (`model_sheets OUTDIR [--cars A,B] [--classes
 fb,rb,skirt,wide,hood,spoiler,roof,mirror,exhaust,overview,rims] [--traffic] [--rimref CAR]
 [--fix] [--smooth] [--lod N]`; `--smooth`: Smooth Car Shapes, docs/assets-distance.md). It renders 1920×1080 sheets, one or more pages per car per part class.
 Each part gets two tiles: its class view in the stock paint, and a second view in a dark paint,
@@ -68,7 +68,7 @@ close-ups) in stock and dark paint, at LOD A and LOD B. Rims: every style the ca
 next to each sheet lists its tiles. The full set covers 29 player cars and 15 traffic cars: 680
 sheets with 17 963 tiles, a few minutes on the reference desktop GPU. It lives in
 `<work dir>/models3-work/sheets`. Downscaled samples are in
-`evidence/model-review/sheets/` (every car's front-bumper and overview sheet, the G35 roofs,
+the maintainer's private captures (every car's front-bumper and overview sheet, the G35 roofs,
 and the first rim reference sheet).
 
 How much was reviewed by eye (`evidence/model-review/review_log_lead.md`, `review_forks/`,
@@ -122,7 +122,7 @@ draw keeps group 1 (`FULLROOF`) when the roof scoop (ride +0x5AC) is above level
 Re-rendered from the tree with the carbon fix (internal sheets, 207 sheets for
 A3, CELICA, COROLLA, GOLF, MIATA, RX7, RX8, TIBURON, TT plus `--rimref 350Z` and the 350Z rims). The
 rim sheets now come in 3 pages and the rim reference in 6 (same tiles as the visual model review's 4 and 7). Reviewed by
-eye, sheet by sheet, with a checklist (internal evidence: model-review/mf3b/checklist.md, log `review_log.md`):
+eye, sheet by sheet, with a checklist (internal evidence, log `review_log.md`):
 **180 sheets reviewed, 0 left** = the visual model review's 187 unreviewed sheets (177 under the new paging) + the 350Z's
 3 rim sheets. Every car's whole sheet set has now been looked at. Findings are in the table above
 (rows marked the model review sheets). Seen and judged as design or known: the CF scoops' light silver (CARBONFIBRE2 →

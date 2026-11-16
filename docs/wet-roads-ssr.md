@@ -32,7 +32,7 @@ get a weather and stay native. Per pixel, in world space:
   in the data, 0x8A1D38 BSS: never taken) and the step). Nothing of the
   road surface reads it or the rain amount: worldreflect draws at the
   texture's authored strength rain or not. Under Wine (a dry Quick Race,
-  internal evidence: s2-reflections/native-wetness-race.txt, peek of
+  internal evidence, peek of
   [0x832EB4]+0x509C): 0.185 after ~19 s, 0.0478 → 0.0393 in 2.0 s (≈ 130
   steps of 0.9985), amount and target 0, the road dry. So the old level
   (wetness × …) made a dry start look wet for the first minute (5–6 %

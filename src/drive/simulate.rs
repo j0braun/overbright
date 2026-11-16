@@ -366,7 +366,7 @@ impl CarState {
     /// wheel's slip (+0x118, r·ω − v along the wheel at the hub, 0x5A83E0)
     /// and load term (+0x164) from the state the last sub-step ended in,
     /// which the per-frame readers (the wheel hop 0x5B6310, the AI's
-    /// nitrous test) see (observed under Wine, `tools/parity/subtrap.py`:
+    /// nitrous test) see (observed under Wine, the maintainer's tool `subtrap.py`:
     /// the launch's frame-5 rear slip 0.698 from the end state).
     pub(super) fn end_slip(&mut self, car: &Car, _world: &World) {
         let table = &car.car_type.wheels;
@@ -391,7 +391,7 @@ impl CarState {
     }
 
     /// Debug aid (not native): NFSU2_SUBSTEP_DUMP=NAME prints car NAME's state at the
-    /// points tools/parity/subtrap.py stops the original (A before the integration, B after it).
+    /// points the maintainer's tool `subtrap.py` stops the original (A before the integration, B after it).
     pub(super) fn debug_substep(&self, at: char, car: &Car, d: &Drivetrain, dt: f32) {
         let Some(name) = crate::env_value_os!("NFSU2_SUBSTEP_DUMP") else { return };
         if !car.car_type.name.eq_ignore_ascii_case(&name.to_string_lossy()) {

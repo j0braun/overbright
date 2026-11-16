@@ -71,7 +71,7 @@ its own dt. A caller stepping faster (tests at 60/240 Hz) accumulates up to
 
 ## Observed under Wine
 
-internal evidence: nis-mover/native-intro13-quickrace.tsv (`capture.py`): Quick Race,
+internal evidence (`capture.py`): Quick Race,
 Circuit, first track, Peugeot 206, forced scene 0x865024 = BinHash
 ("IntroNis13") variant 0; 493 polls of all four scene cars over the 6 s
 scene. Scene car n = slot + 1: racer 1 → Car1 (the AI's scripted burnout:
@@ -88,7 +88,7 @@ frames — worst planar error 2.4 mm (car3), forward speed within 2.8 %
 wheels at 62.83 rad/s, the burnout's rocking (up-axis excursion) 0.0094 vs
 the original's 0.0083. The test also checks the 1.1 m / 15° gate.
 
-Visual (internal evidence: nis-mover/sbs-intro13-frame120-native-clone.jpg): the
+Visual (internal evidence): the
 original at scene count 121 (left; its AI cars were drawn at random: a
 Focus does Car1's burnout) and the clone's `--shot qrstart` with
 `NFSU2_INTRO_NIS=13 NFSU2_FRAMES=120 NFSU2_SHOT_STEP=1` (right; the new
@@ -151,7 +151,7 @@ The white flashes of the race-start scenes IntroNis05 (frames 36, 71,
 101, 131, 161, 200), 10, 22, 24, 25, 26, 27 (`SCREEN_FLASH 1 1.0f` lines).
 Code: `src/screen_flash.rs`, `Scene::flashes`, `Drive::screen_flash`,
 `rain_frame` (the tint pass), `PostFx` tint draw. Evidence:
-`evidence/rating-flash/`.
+the maintainer's private captures.
 
 **Traced (verified).**
 * Parser 0x432D00: name 0x785E48 → type 10 (0x430B20, call 0x432D29),

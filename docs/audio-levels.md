@@ -6,7 +6,7 @@ option volumes in SPEED2.EXE, measured the original under Wine (private copy
 `a private Wine copy`, fastgpu `--audio-file`, the option floats written live with
 `peek.py`) against the clone's offline mix in the same scene (career free
 roam, Rachel's 350Z at the airport car park, idle and a scripted drive), and
-fixed what differed. Evidence: `docs/evidence/audio-levels/` (tables, Wine
+fixed what differed. Evidence: the maintainer's private captures (tables, Wine
 readings, the scripts that regenerate them; raw WAVs stay in
 `<work dir>/a1-work/`).
 
@@ -120,8 +120,7 @@ positions: 1, 0.94999999, 0.89999998, 0.84999996, 0.79999995, …,
 `options::change` steps the same f32 sum).
 
 Measured at every position in both games (airport free roam, idle and
-full throttle; speech and game music 0; `evidence/audio-levels/
-slider-sweep.txt`, scripts `orig_sweep.py`, `clone_sweep.sh`,
+full throttle; speech and game music 0; internal evidence: `slider-sweep.txt`, scripts `orig_sweep.py`, `clone_sweep.sh`,
 `cmp_params.py`, `table.py`): every player event's parameters are equal
 (CAR p4 / p14 / p25, CAR_Sputter, FX_SKID, FX_TURBO_01, FX_WIND_Weather),
 the GIN bytes follow the same truncation, the stream bytes the same law,
@@ -154,7 +153,7 @@ in the same scene (the one-unit difference at master 0.35 with engine
 
 The first drag (Peugeot 206) driven at full throttle through the gears
 with a lift, at slider positions 1, 0.70 … 0.20, the original in real
-time against the clone (`evidence/audio-levels/driving-sweep.txt`;
+time against the clone (the maintainer's private capture;
 scripts `drive_rt.py`, `native_poll.py`, `envelope_rt.py`,
 `layers2.py`). Per position the output's 15 ms envelope and, per engine
 layer, the share of time it sounds and its on/off switches per second

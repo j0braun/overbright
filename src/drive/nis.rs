@@ -594,7 +594,7 @@ mod tests {
 }
 
 /// Replays of the original's IntroNis13 race start (Wine capture,
-/// `docs/evidence/nis-mover/native-intro13-quickrace.tsv`): each scene car's
+/// the maintainer's private capture): each scene car's
 /// incoming channel targets (mover +0x80) and authored controls drive the
 /// clone's mover at the native 30 Hz scene rate on flat ground; the body's
 /// planar track, forward speed and wheel spins must stay within a few

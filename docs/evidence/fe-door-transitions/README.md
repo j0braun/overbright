@@ -39,8 +39,8 @@ Before correction case 0 gave start 9.166669 versus native 9.500002; all
 cases now pass. This is not a bit-exact x87 implementation.
 
 ```
-NFSU2_EXE=/path/to/SPEED2.EXE NFSU2_PROBE_DIR=/private/probe /usr/bin/python3 internal evidence: fe-door-transitions/native_transition.py
-/usr/bin/python3 internal evidence: fe-door-transitions/reconstruct.py internal evidence: fe-door-transitions/native-results.json /private/transitions.bin
+NFSU2_EXE=/path/to/SPEED2.EXE NFSU2_PROBE_DIR=/private/probe /usr/bin/python3 $OB_PRIVATE/docs/evidence/fe-door-transitions/native_transition.py
+/usr/bin/python3 $OB_PRIVATE/docs/evidence/fe-door-transitions/reconstruct.py $OB_PRIVATE/docs/evidence/fe-door-transitions/native-results.json /private/transitions.bin
 ```
 
 The native probe requires llvm-mc, GNU i386pe ld, Wine and NumPy, uses a

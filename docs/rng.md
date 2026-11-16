@@ -44,7 +44,7 @@ frame, one world update per frame: at 60 fps the two agree).
 * **Camera director** (0x5FB060 → 0x5FB2EA `Rand_Float(1.0)`; `Game::director_draw`, once per
   world update, before the frame's rain) while the player's NIS id (player +0x234: set by 0x437910
   at a scene's start, cleared by the scene's end 0x439070) is set. **Measured** on the pinned c1
-  with `[0x8900AC] +0x234` read every frame (`rngdraws.py`, internal evidence: n-rng/c1-director-gate.txt):
+  with `[0x8900AC] +0x234` read every frame (`rngdraws.py`, internal evidence):
   set from the scene's first frame through the countdown and 325 frames past the green, one draw
   on each of those frames (678), none after. The clone: while its start scene runs, then on the race
   clock up to the scene's end (`Race::scene_end`, the clone drops the scene run at the green mark);

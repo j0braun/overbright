@@ -52,7 +52,7 @@ through `paint_layer` + `car_paint.wgsl`, built on first use (`CarShared::module
 (format, SceneMode, paint). The per-draw `paint` vec4 (bytes 368..384 of the 512-byte entry, formerly
 padding) is zero when the option is off.
 
-## Evidence (docs/evidence/car-paint-enhanced/; each image: Off | On)
+## Evidence (the maintainer's private captures; each image: Off | On)
 Shots 1280x960 (`NFSU2_SHOT_ENH="enh.enhanced_paint 0|1"`): `garage.jpg` (`--shot main`, stock 206),
 `dday350z.jpg` (main_dday, Rachel's 350Z on the turntable), `intro350z.jpg` (Rachel's 350Z in free roam
 at night, `--shot intro`), `pearl.jpg` / `candy.jpg` / `metal.jpg` (`main` + `NFSU2_SHOT_FIT=0x3F:123`

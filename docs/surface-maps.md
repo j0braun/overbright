@@ -27,7 +27,7 @@ Asphalt 0.62/0.035/1.0, Concrete 0.78/0.03/0.8, Metal 0.38/0.45/0.5, Glass 0.06/
 Rough (plants, terrain, cut-outs) 0.92/0.02/–, Generic (façades with painted windows and light)
 0.72/0.03/–, Skip (additive/emissive, sky, glows, alpha-blended decals, water, panoramas): untouched.
 Bayview: 1518 textures; Concrete 202, Asphalt 29, Metal 85, Glass 41, Sign 276, Rough 143, Generic 544,
-Skip 197 (internal evidence: surface-maps/census-l4ra.tsv, `devprobes/src/bin/surface_census.rs`).
+Skip 197 (internal evidence, the maintainer's probe `surface_census`).
 
 The class rides in the draw's immediates padding (`TextureImmediates._pad`: map layer, packed
 material), read only by the lamps' module (`TEXTURE_ARRAY_SURFACE_WGSL`); needs texture arrays
@@ -64,7 +64,7 @@ modes (shots, benches, flows, selftest) wait for the whole set before the first 
 (`set_blocking`). Bayview cold: +0.3–0.4 s wall (16 threads, machine at load ~90), warm: 0; cache 39 MB;
 VRAM ≈ 50 MB (284 layers × 175 KB).
 
-## Review (`devprobes/src/bin/surface_sheet.rs`, evidence/surface-maps/)
+## Review (the maintainer's probe `surface_sheet`, the maintainer's private captures)
 Sheets of the 50 most visible mapped Bayview textures (by area within 20–40 m of road surfaces;
 per texture: albedo, a grazing lamp without / with the map, the map) — `sheet-map-01-24.jpg`,
 `sheet-map-25-50.jpg` — and the 16 most visible rejected as Painted (`sheet-rejected-painted.jpg`).
@@ -90,7 +90,7 @@ manual row with its cost on the detail line.
 | Materials | +0.04–0.06 | +0.04 | not measured (est. ~10×) |
 | Materials + Normals | +0.06–0.08 | +0.08–0.10 | not measured |
 CPU: the lamp clusters (≈ Dynamic Lamps' build, ~0.03 ms) while the row is on; generation once per
-texture (above). Raw: internal evidence: surface-maps/cost-explore.txt. The machine was heavily loaded
+texture (above). Raw: internal evidence. The machine was heavily loaded
 (load average 90–300 from other jobs); whole-frame medians not used.
 
 ## Native byte-identity
@@ -99,7 +99,7 @@ row off: **PARITY: all gates passed** — Original dumps of explore/race/racing/
 and 3840×2160 AE 0 (10 sets), the 144 Hz window path AE 0, Modern/Ultra AE 0 (the lamps' module
 with Surface Detail off: g_surface.on = 0 leaves every lamp term as before), 15 shots AE 0, WAVs
 identical, state hashes identical over firstrace, firstdrag, postrace, the playthrough (82 493 steps)
-and the parity scenario (internal evidence: surface-maps/parity-base-vs-new.txt). How it is kept: every
+and the parity scenario (internal evidence). How it is kept: every
 Surface Detail line is inside world.wgsl's LAMPS blocks (the native module strips them); the extra
 group-0 bindings 9–10 and the immediates' padding values are unread by the native shaders.
 
@@ -135,7 +135,7 @@ reference 95 left out); outside texels take the masked mean before the high-pass
 is no edge); each region judged on its own texels (band RMS ≥ 0.012, edginess ≤ 24 for tyre / mesh /
 badge, ≤ 13.5 otherwise) and tilted as the world's (`SLOPE` × strength / region RMS, soft clip 2.5
 RMS); everything else (0, 0) = flat. At the source size (≤ 512), full mip chain, RG8 snorm.
-Census of 5 cars: internal evidence: surface-maps-cars/census-maps.txt (36 regions mapped; engines of the
+Census of 5 cars: internal evidence (36 regions mapped; engines of the
 Lancer / RX-8 and the 350Z's interior rejected as Painted, the 350Z's MISC flat).
 Cache: `<cache>/surface-maps/car-<xxh3 of source, regions, version>.rg8` (header w, h; `.none` when
 no region passes). Jobs run on the shared rayon builder (`Builder::spawn`) when the car is first
@@ -151,7 +151,7 @@ diffuse, 0.6–1.4), specular highlight × its ratio (0.25–2.5), the env cube 
 reflection's change. A flat texel returns exactly the native terms. Dynamic Lamps on cars keep the
 vertex normal. Enhanced Glass draws (glass) are never mapped.
 
-**Look** (internal evidence: surface-maps-cars/cars-01-05…jpg`, `cars-06-10…jpg`; per row: wheel off / on,
+**Look** (internal evidence, five cars per sheet; per row: wheel off / on,
 front off / on; the player's real options, `--shot explore`, 1280×960; the finished-career save = the player's Skyline save,
 a community save = the player's Lancer): the tyres' tread and sidewall gain clear relief on every car; grilles,
 badges and plates change little at these distances (night, harmonic light); paint and vinyls are
@@ -179,7 +179,7 @@ the replacement's bytes (`pack_cache_key`, `PackSource`), so each pack has its o
 the original's stay valid. Checked: a 4× SKYLINE_TIRE.png car pack made a new 512² tyre map.
 
 ## The car Surface Detail cost and parity
-internal evidence: surface-maps-cars/cost.sh.txt → `cost-explore-user-community.txt`: full release build, the player's
+internal evidence → `cost-explore-user-community.txt`: full release build, the player's
 real options file (`the player's options file`: SSR 2, lamp shadows 2, …; Surface Detail is **off**
 there, so "on" = that file + `enh.surface_detail 2`), the player's a community save (`NFSU2_FLOW_LOAD`),
 `--bench explore 300`, 3 reps interleaved, medians; cold = no `surface-maps` cache (world + car maps
@@ -200,7 +200,7 @@ Car cache: 16 MB for the 10 cars of the review (113 files incl. `.none`).
 **Parity** (`perf.sh parity`, <base> vs this copy, both full release, row off):
 **PARITY: all gates passed** — Original dumps AE 0 (10 sets), 144 Hz window path AE 0, Modern/Ultra AE 0
 (4 sets), 15 shots AE 0, audio identical, state hashes identical (firstrace 4916, firstdrag 15559,
-postrace 30779, playthrough 82412, parity 1753 steps): internal evidence: surface-maps-cars/parity-base-vs-new.txt.
+postrace 30779, playthrough 82412, parity 1753 steps): internal evidence.
 Kept by: the native car module is car.wgsl alone (`car_source_n(.., false) == car.wgsl`); the car
 texture group's extra bindings are unread by it; maps are only made with the row at 2; the world's
 mask uses the native module with the row off.
@@ -209,7 +209,7 @@ mask uses the native module with the row off.
 car_map_only_inside_its_regions, pack_replacements_fit_and_key_apart}`,
 `render::car::…::surface_module_hooks_car_colour_only_when_on`,
 `world_source_strips_the_lamps` (SURFACE_SSR_DRY lamps-only), `mask_module_appends_to_the_native_car_shader`.
-Probe: `devprobes/src/bin/car_surface_census.rs CAR… --maps` (classes, verdicts; `CAR_MAP_DIR` writes the maps).
+Probe: `$OB_PRIVATE/devprobes/src/bin/car_surface_census.rs CAR… --maps` (classes, verdicts; `CAR_MAP_DIR` writes the maps).
 
 ## Open
 * Grilles, badges and plates: relief is subtle under the night's harmonic light; no daylight scene.

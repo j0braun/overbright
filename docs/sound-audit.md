@@ -126,7 +126,7 @@ Nothing plays when a prompt ends (state 6) or on leaving a trigger.
 Every bank the exe can load (the csi list 0x7ED148..0x7ED15C: UG2_MAIN,
 UG2_FE, UG2_ENGINES2, UG2_TURBO, UG2_ENVIRO, UG2_STITCH; the bank names
 0x7ED190..0x7ED22C and the engine / gear / turbo tables) with its events,
-its entries and who plays them. `devprobes/src/bin/sound_inventory.rs` lists the
+its entries and who plays them. the maintainer's probe `sound_inventory` lists the
 modules, sound lists and sample lengths.
 
 | Bank | Event | Entries | Played by | Clone |

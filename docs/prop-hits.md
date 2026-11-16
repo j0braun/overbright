@@ -51,7 +51,7 @@ the layers' whole length (up to 2 s).
 ## 2. Measured (original under Wine, clone headless)
 
 Hit loudness: the mix's loudest 50 ms RMS in the second after the first hit, and against
-the engine (the RMS over the 0.5 s before it). Raw lines: `docs/evidence/prop-hits/measurements.txt`.
+the engine (the RMS over the 0.5 s before it). Raw lines: the maintainer's private capture.
 
 | speed | original (dBFS / vs engine) | clone before | clone after |
 |---|---|---|---|
@@ -106,21 +106,21 @@ road in the original and 0.85–0.95 m in the clone. Not fixed: no native rule w
 
 ## 4. Method and tools
 
-* Original: `tools/parity/native.py` with the scenarios `prop_barrels_{60,120,200}.toml`:
+* Original: the maintainer's tool `native.py` with the scenarios `prop_barrels_{60,120,200}.toml`:
   free roam from the stage-2 save, the player teleported 23 m before the barrels; the
   original holds a teleported car still for ~20 frames and puts it back on the resume's
   heading, so at frame `speed_at` (30) the game is stopped (SIGSTOP) and the car set rolling
   (`[start] speed`, `gear`, `ratio`: body P and the car's velocity, the rows, the wheels'
   spin, the gear and the shaft and engine speed matched), throttle held, 300 frames at the
   cave's fixed 1/60 s; the mix to `native.wav` (fastgpu `--audio-file`), the prop bodies per
-  frame through /proc (`tools/parity/proppoll.py`: the pool [0x86B374], vtable 0x7A26A0,
+  frame through /proc (the maintainer's tool `proppoll.py`: the pool [0x86B374], vtable 0x7A26A0,
   rigid body +0x68: +0x20 position, +0x70 P, +0x168 1/m; +0x506 moving, +0x508 settle).
 * Clone: the explore shot at the same place and speed in the same gear
-  (`docs/evidence/prop-hits/scripts/run_clone.sh`: `NFSU2_SHOT_AT`, `NFSU2_FX_SPEED`,
+  (the maintainer's private capture: `NFSU2_SHOT_AT`, `NFSU2_FX_SPEED`,
   `NFSU2_FX_GEAR`, `NFSU2_AUDIO_WAV`, `NFSU2_PROP_LOG=1`), and the parity flow
   (`parity.py clone`, the original's car state put on the clone's two frames before the hit,
   `[run] transplant`).
-* `tools/parity/prophits.py OUT` / `scripts/clone_shot.py`: the hit frame (the car's first
+* `$OB_PRIVATE/tools/parity/prophits.py OUT` / `scripts/clone_shot.py`: the hit frame (the car's first
   speed drop over 0.4 m/s a frame), the mix's RMS over the 0.5 s before the hit (the engine),
   the loudest 50 ms RMS and the peak of the second after it; per prop the distance travelled,
   the height reached and the time to rest.
@@ -130,10 +130,10 @@ road in the original and 0.85–0.95 m in the clone. Not fixed: no native rule w
 
 ## 5. The contacts, traced end to end (second round)
 
-Measured with a contact log inside the original (`tools/parity/contactlog.py` + `.s`, `[run]
+Measured with a contact log inside the original (the maintainer's tool `contactlog.py` + `.s`, `[run]
 contact_log` or `PARITY_CONTACT_LOG=1` in `native.py`: hooks on 0x5AF110's call of 0x594010,
 on the prop body's vtable +0x50 and on the three calls of the pair query 0x5B3D30), and
-compared per quantity with `tools/parity/propcompare.py` (native run dir or clone log).
+compared per quantity with the maintainer's tool `propcompare.py` (native run dir or clone log).
 
 **Rules (traced; the clone's code in `src/smackable/`):**
 * *Shape:* the barrel's `ZCS_` volume (48 points), the car's `<CAR>_CV` hull; one convex
@@ -233,7 +233,7 @@ with distance (read: 4617 → 4153 as the car leaves). No other input of section
 (`stage1_win_streetx.sav`) carries a queued Rachel hint: career 0x8635BC +0xA8 slot {4000
 ticks, kind 5} (posted at 0x52438E after a won event at stage 1, saved with the career).
 0x551330 fires it 1 s of free-roam driving after the resume and a ~15 s line plays
-(`tools/parity/speechpoll.py`: f1 = 1 from clock 12873; in run q120 back to 0 at 74133). The
+(the maintainer's tool `speechpoll.py`: f1 = 1 from clock 12873; in run q120 back to 0 at 74133). The
 scenario arms 25–40 s of wall time after the boot, so the hit fell inside the line in every
 second-round run (4617) and after it in the first round's n60b (hit at clock 72000: 12999).
 
@@ -249,7 +249,7 @@ playing). **What a player normally hears: 12999** — the duck applies only whil
 Rachel's lines plays in free roam (a hint, an outrun line), in the original and the clone alike.
 
 **Hit loudness, re-measured** (loudest 50 ms RMS in the second after the hit, dBFS; raw:
-`docs/evidence/prop-hits/prop3-measurements.txt`; `prophits.py --power` = per-channel power,
+the maintainer's private capture; `prophits.py --power` = per-channel power,
 the same within 0.1 dB, so the original's panning is not a factor):
 
 | speed | original, no line (12999) | original, line playing (4617) | clone (12999) | clone − original |
@@ -283,7 +283,7 @@ The offset flag +0x3E / +0x40 is set per shape by 0x5B5060 (both type-1 shapes o
 pair: the body's vtable +0x1C, the centre-of-mass offset), 0x5AEDE8 and 0x5A191A.
 
 **Measured** (contact log with the shapes, `PARITY_CONTACT_ALL=1` for every pair;
-`docs/evidence/prop-hits/prop3-native-shapes.tsv`): the PEUGOT's hull carries flag 1 and offset
+the maintainer's private capture): the PEUGOT's hull carries flag 1 and offset
 (0.3, 0, 0.3) in its **car–track** queries too (shapes 0x00010201: hull vs polygon), and the
 barrel's own hull flag 1 with offset (0, 0, 0.946) — larger than the car's, so a barrel's new
 supports sit 0.95 m along its axis. Wall hit (crash_wall, 15 m/s, normal approach 0.244 m a
@@ -372,7 +372,7 @@ is superseded: its sets are unknown.
 
 **Measured** (original: `prop_barrels_*` speech quiet, contact log, runs t60 / q120 / s200; clone:
 `run_clone.sh` at 60 / 132 / 225 km/h so that the hit comes at the original's speed; raw:
-`docs/evidence/prop-hits/prop4-measurements.txt`):
+the maintainer's private capture):
 
 | | original | clone before | clone after |
 |---|---|---|---|
@@ -468,7 +468,7 @@ of mass, rows, v, ω, L), the suspensions, the rest class, the gear, engine and 
 clutch, the four wheel spins, the target gear, the shown rpm (car +0x440, which the automatic
 choice reads; without it the clone shifted down at once from the transplanted 6th) and the shift
 state. Three original runs per speed, identical to the printed digit (the lockstep is
-deterministic); raw numbers `docs/evidence/prop-hits/transplant-runs.txt`. |v| in km/h:
+deterministic); raw numbers the maintainer's private capture. |v| in km/h:
 
 | | original | clone |
 |---|---|---|
@@ -507,7 +507,7 @@ PEUGOT; put at the clone's pose 64 frames before the hit, rolled at 31 km/h, thr
 contact log): in three runs the car meets the wall at frame 113–114 at 11.4 m/s, stays at 0.1–0.3 m/s
 against it, turns −10.2° → −16…−18° by frame 360 and leaves it 7–8 s after the hit (2.0–3.7 m/s at
 frame 540, −92…−98° at frame 600). 51–60 push-outs per run, all of one 5 mm step except two of 2 and 3
-steps. Raw numbers: `docs/evidence/prop-hits/bench-wall-hold.txt`. So the hold, its length and the
+steps. Raw numbers: the maintainer's private capture. So the hold, its length and the
 pivot are native; which way the car pivots follows the sign of its yaw rate at the hit. From the full
 transplant at frame 50 the clone holds as long but pivots the other way in all three runs: at the
 2nd → 1st downshift (frames 60–64) the original's front wheels pull unequally (fx −6.45 / −6.63, slip
@@ -547,7 +547,7 @@ Measured with the contact log extended for this (`PARITY_CONTACT_ALL=1`: every p
 contacts, the player's rigid body before 0x5AF0F0 and, through a hook on 0x5B2620's call at 0x5B2794,
 after it; `PARITY_CONTACT_EXACT=1`: exact floats; docs/parity-harness.md). The rigid body read there:
 centre of mass +0x20, momentum +0x70, angular momentum +0x80, velocity +0xA0, ω +0xC0 (the PEUGOT's
-mass 1.055: momentum / velocity). Raw numbers: `docs/evidence/prop-hits/transplant-runs.txt`.
+mass 1.055: momentum / velocity). Raw numbers: the maintainer's private capture.
 
 **First difference: the frame after the transplant (observed, open).** From the full transplant at
 frame 59 the next frame already differs beyond float noise: vertical speed −0.9107 against −0.9173 m/s,
@@ -653,7 +653,7 @@ overlapping barrel–floor queries against prism polygons (+0x1D0 set, all six p
 points equal, the vertex last appended differs (e.g. B {3, 0, 1} against {3, 0, 2}); **open**. Among
 the equal ones: the 120 km/h wall's 0.003174 (0x3B500000, 12 µm over the warm boundary), every time.
 Test `track_l4ra::wall_and_barrel_queries_match_the_original_to_the_bit` replays 289 of them
-(`docs/evidence/prop-hits/query-bits.tsv`: the 120 km/h wall pair and the barrels at all three speeds).
+(the maintainer's private capture: the 120 km/h wall pair and the barrels at all three speeds).
 
 **In the game** the hull side carries its `Body` only in the car's track detection at the span's end
 (`CarState::track_event`); the time of impact and push-out still blend the hull's world points and
@@ -714,7 +714,7 @@ impact's search in 67, the push-out in 5, the detection in 5. The same path as a
 the 77 points. **Ported**: `collide::cars::contact_point` takes the pair's last answer
 (`PairCache::last`), measuring only a pair with none. Test
 `track_l4ra::car_car_contacts_take_the_last_querys_points` (one rear and one side contact,
-`docs/evidence/prop-hits/carcar-contacts.tsv`).
+the maintainer's private capture).
 
 **Observed on the way**: after the side hits the original's PEUGOT hull offset (+0x40, written from
 the body's centre of mass before each detection, section 7a) reads (0, 0, 0.3), then (0, 0, 0.3333),

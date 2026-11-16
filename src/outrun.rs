@@ -463,7 +463,7 @@ mod tests {
 
     #[test]
     fn pursuit_cap_matches_the_native_table_and_floors() {
-        // Observed under Wine (docs/evidence/outrun-live): a far car's
+        // Observed under Wine (the maintainer's private captures): a far car's
         // target 17.881, one within 100 m of a standing player 26.822.
         assert_eq!(super::pursuit_cap(300.0, 0.0).to_bits(), 0x418F_0C79);
         assert_eq!(super::pursuit_cap(60.0, 0.0).to_bits(), 0x41D6_92B6);

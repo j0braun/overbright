@@ -2,7 +2,7 @@
 
 Clone frames only (these effects are not in SPEED2.EXE; nothing to compare
 under Wine). 1280 × 960, reference desktop GPU, World Detail 5 (native 8x MSAA).
-Frames: `scripts/frames.sh` (G=<game> W=<work dir>); costs: `scripts/bench.sh`.
+Frames: the maintainer's private capture (G=<game> W=<work dir>); costs: the maintainer's private capture.
 
 | file | what |
 |---|---|

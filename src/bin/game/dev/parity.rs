@@ -1,5 +1,5 @@
 //! `--flow parity <plan>` (docs/parity-harness.md): the clone's side of a
-//! parity scenario. `tools/parity/parity.py` writes the plan from the
+//! parity scenario. the maintainer's tool `parity.py` writes the plan from the
 //! scenario (tools/parity/scenarios/*.toml) and the original's run: the
 //! start state, the native tick counts per frame, the input events by
 //! frame and the fields to record. The flow brings the same start state
@@ -7,7 +7,7 @@
 //! challenge from the original's start pose), then steps the world frame
 //! by frame (`Game::step` with the native frame's ticks / 1800 s) with the
 //! keys held as the plan says, recording each frame's state before its
-//! inputs and update, as the original's cave does (tools/parity/cave.s).
+//! inputs and update, as the original's cave does (the maintainer's tool `cave.s`).
 use crate::*;
 
 /// One recorded field: its scope (car or global), TSV name, clone accessor
@@ -255,7 +255,7 @@ struct CarView<'a> {
     behind: Option<f32>,
 }
 
-/// A car field's value (the accessor names in tools/parity/fields.toml).
+/// A car field's value (the accessor names in the maintainer's `fields.toml`).
 fn car_value(c: &CarView, accessor: &str) -> Vec<f64> {
     let s = c.state;
     let v3 = |v: Vec3| vec![v.x as f64, v.y as f64, v.z as f64];
@@ -767,7 +767,7 @@ fn row(game: &Game, plan: &Plan, frame: usize, ticks: u32, n: usize) -> String {
     r.join("\t")
 }
 
-/// The outrun start: the original's frame-0 pose (tools/parity/outrun.py
+/// The outrun start: the original's frame-0 pose (the maintainer's tool `outrun.py`
 /// writes it: `player x y z vx vy vz fx fy fz gear` and `rival NAME x y z
 /// vx vy vz fx fy fz tank_left gear` lines). An encounter car out and driving is taken over,
 /// both cars put there, the challenge engaged (as `flow_outrun`).
@@ -776,7 +776,7 @@ fn start_outrun(game: &mut Game, path: &str, tick: Option<u32>) -> Result<()> {
     challenge(game, i, &player, &rival, tick)
 }
 
-/// The encounter table's columns (tools/parity/encpoll.py's, for
+/// The encounter table's columns (the maintainer's tool `encpoll.py`'s, for
 /// encstats.py).
 const ENC_HEADER: &str = "wall\tclock\tworld_n\trace_type\tslot\tcar\tname\tmover\tpos\tvel\tfwd\tgoal\tg_tgt\tg_dist\tg_off\tg_arg4\taction\tpri\ta_tgt\ta_dist\ta_off\ta_state\ta_speed\ta_line\tside\tstamp\tp_pos\tp_vel\tp_fwd\n";
 
@@ -944,7 +944,7 @@ fn place_encounter(game: &mut Game, path: &str) -> Result<(usize, Vec<f32>, Vec<
 fn challenge(game: &mut Game, i: usize, player: &[f32], rival: &[f32], tick: Option<u32>) -> Result<()> {
     let (player, rival) = (player.to_vec(), rival.to_vec());
     // The throttle held while following, as the original's start
-    // (tools/parity/outrun.py holds it through a cave event).
+    // (the maintainer's tool `outrun.py` holds it through a cave event).
     game.platform.keys.insert(KeyCode::ArrowUp);
     for _ in 0..36 {
         game.advance_ticks(1)?;
@@ -1466,7 +1466,7 @@ pub(crate) fn flow_parity(game: &mut Game, plan_path: &str) -> Result<()> {
     std::fs::write(&plan.out, out)?;
     std::fs::write(format!("{}.cars", plan.out), names.join("\n") + "\n")?;
     // The traffic slots (diff.py leaves traffic out of the car match;
-    // tools/parity/trafficstats.py reads them).
+    // the maintainer's tool `trafficstats.py` reads them).
     std::fs::write(
         format!("{}.traffic", plan.out),
         traffic.iter().enumerate().filter(|(_, t)| **t).map(|(k, _)| k.to_string()).collect::<Vec<_>>().join(" ")
@@ -1505,7 +1505,7 @@ mod tests {
     // The test kit (tests/common/mod.rs, docs/testing.md).
     use crate::tests::testkit;
 
-    /// Every clone accessor tools/parity/fields.toml names is implemented
+    /// Every clone accessor the maintainer's `fields.toml` names is implemented
     /// (an unknown one would record NaN and never be compared).
     #[test]
     #[cfg_attr(not(ob_private), ignore = "needs OB_PRIVATE (private captures and saves)")]

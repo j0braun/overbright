@@ -133,8 +133,8 @@ mod tests {
 /// The original's own sub-steps, replayed one at a time. The
 /// player's Peugeot in the first drag (STAGE_1_DRAG_1, frames 19–168 from
 /// the green), stopped before (A) and after (B) each 0x5AA490 call
-/// (`tools/parity/subtrap.py`, fixture by `tools/parity/subtrap_fixture.py`;
-/// docs/evidence/native-integrator/). Every pair must match to the bit:
+/// (the maintainer's tool `subtrap.py`, fixture by the maintainer's tool `subtrap_fixture.py`;
+/// the maintainer's private captures). Every pair must match to the bit:
 /// the rows' Euler step (0x59C130 + 0x5AA490), ω from the un-cleaned rows
 /// (0x59C600) and 0x5BB0E0 to the next A. The quaternion rotation the
 /// clone used before is shown to miss by far more than float rounding.

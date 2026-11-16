@@ -69,7 +69,7 @@ cloud (the row's help names it). Graphics-row costs: High 0.13, Ultra 0.23 ms at
 GPU on average). With a player's real settings (the player's options file, SSAA 2x at 1280 × 960,
 `--bench racing 410`, drift): mean 1.72 → 1.80 (High) / 1.84 (Ultra), p95 1.85 → 2.30 / 2.48 ms.
 
-## Evidence (`docs/evidence/particles-smoke/`, Original | High | Ultra unless named)
+## Evidence (the maintainer's private captures, Original | High | Ultra unless named)
 * `burnout_qrstart_orig_high_ultra.webp`: the race start burnout (`--shot qrstart`,
   NFSU2_FRAMES=450 NFSU2_THROTTLE=1 NFSU2_SHOT_STEP=1): the trail behind the car lingers and breaks
   into wisps; under the bumper it fades into the road instead of a hard sprite edge.
@@ -86,11 +86,11 @@ scene (EndingNis01..04) plays while the post-race menus are up (`Mode::Menu`), a
 `Game::particle_effects` returned early for every mode but Explore / Race, so the NIS mover's
 sliding wheels (`drive::nis` 0x5AB550: skid above 6 m/s, `docs/nis-mover.md`) never reached the
 tyre emitters. The race-start burnout (IntroNis, Car1) was not affected (Race mode; the clone
-and the original both smoke there, internal evidence: nis-mover/sbs-intro13-frame120-native-clone.jpg).
+and the original both smoke there, internal evidence).
 * **Native**: the particle update 0x492E10 runs inside the world update 0x609CF0 (call at
   0x60A191, docs/formats.md), which keeps running under the post-race screens (the scene plays
   and holds behind them, observed under Wine). Under Wine (the merged branch's capture, 2026-11-02,
-  `review/win-burnouts/native-finish-rwd.png`, 240SX win, EndingNis01 with brake 0.2 /
+  the maintainer's private capture, 240SX win, EndingNis01 with brake 0.2 /
   additive 2.5 on mode 5): a tyre-smoke cloud behind the car under Event Results.
 * **Fix**: `particle_effects` also runs while an Ending scene runs, with the player's car and
   the scene's AI winner (`ShopRun::companion`). Emission is the same tyre path as driving

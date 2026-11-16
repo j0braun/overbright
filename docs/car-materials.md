@@ -1,7 +1,7 @@
 # Car special materials: carbon fibre and chrome trim (2026-11-04)
 
 The visual model review found the carbon parts light grey and flat and the FUSION chevrons flat white
-(internal evidence: model-review/g35_carbon_hood_wine_vs_clone.jpg, `g35_fusion_hood_wine_vs_clone.jpg`).
+(internal evidence, `g35_fusion_hood_wine_vs_clone.jpg`).
 Those the visual model review crops came from two different scenes: the original's Body Shop and the clone's sheet tool,
 which has its own lighting and env cube. This work compared both in the **same scene**: main menu →
 Customize → G35 (and LANCER EVOLUTION VIII) → Car Shop → Body Shop. The original ran under Wine
@@ -42,7 +42,7 @@ at double strength: light grey in the showroom, a yellow mirror on the a communi
 That +0x3B8 equals "kit fitted" assumes a body or skirt model is always bound (slot 5 is). This is
 **inferred**: the flag is only written by those bindings.
 
-## Same-scene results (`docs/evidence/car-materials/`, region means 0–255 R G B)
+## Same-scene results (the maintainer's private captures, region means 0–255 R G B)
 | scene | region | original | clone before | clone after |
 |---|---|---|---|---|
 | G35 DOUBLE-V CF hood (`g35_doublev_cf_hood_orig_before_after.jpg`) | hood left 100×50+430+500 | 103.5 101.6 106.5 | 96.7 94.5 103.3 | 104.1 102.4 106.3 |
@@ -58,7 +58,7 @@ internal evidence (the community-save Lancer, free roam) shows the player's car 
 quarters; after, carbon.
 
 Rachel's 350Z (DDAY_PLAYER_CAR, a hood with the CARBONFIBRE attribute) on the main menu
-(`--shot main_dday`, the car-paint comparison's rectangles, original from internal evidence: car-shading/region-means.txt):
+(`--shot main_dday`, the car-paint comparison's rectangles, original from internal evidence):
 - hood 150×40+730+540, original − clone: before +1.6 +5.3 +2.5, after +1.4 +1.4 +1.3;
 - car 600×260+330+450: before +0.8 +0.9 +0.5, after +0.7 +0.4 +0.3.
 
@@ -89,5 +89,5 @@ Rachel's 350Z (DDAY_PLAYER_CAR, a hood with the CARBONFIBRE attribute) on the ma
   keep the paint;
 - the Lancer's TRUNK_CARBON lid takes it.
 
-The probes `devprobes/src/bin/part_materials.rs` (texture / light material / flags per range) and
-`devprobes/src/bin/save_parts.rs` (a native save's fitted parts) were used to find the materials.
+The probes the maintainer's probe `part_materials` (texture / light material / flags per range) and
+the maintainer's probe `save_parts` (a native save's fitted parts) were used to find the materials.

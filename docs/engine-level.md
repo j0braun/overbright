@@ -8,8 +8,8 @@ under Wine (vanilla SPEED2.EXE, private copy `a private Wine copy`, fastgpu on
 
 Save: the finished-career save's **Lancer** (the audio pass's save, a private Wine copy's finished-career save, md5
 97c1be0c…; master 0.5, engine 0.65, effects 1, tires 0.65, both music
-volumes 0). Note: `player-settings/the finished-career save-20261104` (md5 4a8797d6…) is a
-different the finished-career save whose current car is a **Skyline** (master 0.95, all
+volumes 0). Note: the player's own finished-career save (md5 4a8797d6…) is a
+different save whose current car is a **Skyline** (master 0.95, all
 others 1).
 
 ## Causes (each traced, then confirmed under Wine)

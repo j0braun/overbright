@@ -32,7 +32,7 @@ al. 2001), conservative:
   triangle (car parts are layered millimetres apart; a sunken panel let
   the layer under it through in the first review). Measured maximum
   vertex displacement from the source triangle's plane: 20.0 mm on the
-  cars that reach the cap (internal evidence: assets-distance/car_smooth_stats.tsv).
+  cars that reach the cap (internal evidence).
 * A triangle with a curved edge becomes 3×3 triangles on its cubic patch;
   others keep their vertices and indices. Shared edges are evaluated once
   in one direction (bit-identical points both sides: no cracks); a straight
@@ -56,7 +56,7 @@ Excluded parts (`car_smooth::EXCLUDED`, from the review): lamps
 
 Tests: `car_smooth::tests::{flat_panels_stay, fold_curves_within_tolerance,
 creases_stay, off_by_default, player_cars_stay_within_tolerance}`.
-Statistics per car file: `devprobes/src/bin/car_smooth_stats.rs` (`PER_SOLID=1`
+Statistics per car file: the maintainer's probe `car_smooth_stats` (`PER_SOLID=1`
 per solid). Sheets: `model_sheets OUT --smooth` (new flag).
 
 ### Cost
@@ -87,7 +87,7 @@ so the framing is the native sheets'). Every tile pair was scored by
 script (changed pixels, car pixels turned background, background turned
 car, and large colour changes inside both silhouettes away from edges —
 what a buried lamp, a hole or a spike gives); the 150 highest
-(internal evidence: assets-distance/sheet_review_top150.tsv) and every car's
+(internal evidence) and every car's
 overview (front 3/4 + wheel close-up, LOD A, all 29) were looked at by
 eye, side by side. Found and fixed during the review:
 
@@ -128,7 +128,7 @@ main list cross-fades its low-LOD groups out while its full groups fade
 in; a far section dropped fades out (`FadeState::far_sections /
 far_lingering`); new far instances fade in from nothing.
 
-Measured (`devprobes/src/bin/far_draw_probe`, internal evidence: assets-distance/far_draw_probe.txt):
+Measured (the maintainer's probe `far_draw_probe`, internal evidence):
 over the 255 drivable outlines of L4RA, Extreme adds 96 sections on
 average to Ultra's set (max 221); a cold look-ahead costs 0.7–1.7 ms
 once per section entered (Ultra's 0.03–0.09 ms).
@@ -163,7 +163,7 @@ from a 4K development build:
   beside the list's own 799, and a flat streaked slab stood over the
   buildings — only `enh.keep_loaded 0` removed it.
 Found by switching the reported options off one at a time and with
-`devprobes/src/bin/far_pick` (the sets and the far placements a fan of
+the maintainer's probe `far_pick` (the sets and the far placements a fan of
 chase-camera rays hits). Original never showed either. Test
 `world::tests::look_ahead_lends_no_panorama`.
 
@@ -183,7 +183,7 @@ drive 15.4 → 16.3 ms, explore / race / racing Modern within noise
 
 Tests: `world::tests::far_sections_extend_the_ultra_set_per_section`,
 `options::tests::restore_native_gives_back_raised_custom_values` (the
-row's Extreme tier). Probe: `devprobes/src/bin/far_draw_probe.rs`.
+row's Extreme tier). Probe: the maintainer's probe `far_draw_probe`.
 
 ## 3. Traffic Density (Enhancements, `enh.traffic_density`)
 

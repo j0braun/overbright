@@ -1423,7 +1423,7 @@ HD UI art and font does look AI-generated". So:
   set stays empty and every quad keeps mode 0 / 2. Checked: shots
   `ui2d` and `options_hdui` at 3840 × 2160 with
   `NFSU2_TEXTURE_PACK` set and HD UI Art off are byte-identical to <base>
-  (`docs/evidence/ui-sharp/`). `examples/ui_sampling_check` (GPU) checks
+  (the maintainer's private captures). `examples/ui_sampling_check` (GPU) checks
   through the real renderer that a game texture without a pack samples as
   the fill path does, and (re-run with a one-texture pack) that pack art is
   sharpened (texel centres exact at 2160p) while the same art as a fill is

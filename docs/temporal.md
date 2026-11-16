@@ -159,7 +159,7 @@ first n − 1 interpolated by `draw_between`, as a display at n × 60 Hz).
 Machine: reference desktop GPU (RADV), and the reference integrated GPU, an RDNA2 (2 CUs,
 `MESA_VK_DEVICE_SELECT='1002:164e!'`, measured). GPU busy ms/frame,
 `--bench explore 600` at night (`NFSU2_RAIN_CLOCK=93`), mean of 2 runs
-(internal evidence: temporal/scripts/bench.sh; data in the work dir). Original
+(internal evidence; data in the work dir). Original
 plays with native 8x MSAA (World Detail 5), which TAA and Upscaling replace.
 
 | | 1080p | 4K | iGPU 1080p |

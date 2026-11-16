@@ -9,8 +9,8 @@ The private original ran Quick Race Circuit with Peugeot 206 automatic. A contro
 Reproduce with the retained private-Wine method in CLAUDE.md, an owned prefix/display and GPU coordination. After entering that race:
 
 ```
-python3 internal evidence: full-phase-inputs/capture.py OWNED_PREFIX OUTPUT_BASE --seconds 5 --drop .6 --vertical-speed -12
-python3 internal evidence: full-phase-inputs/decode.py OUTPUT_BASE
+python3 $OB_PRIVATE/docs/evidence/full-phase-inputs/capture.py OWNED_PREFIX OUTPUT_BASE --seconds 5 --drop .6 --vertical-speed -12
+python3 $OB_PRIVATE/docs/evidence/full-phase-inputs/decode.py OUTPUT_BASE
 ```
 
 The retained stream has 2,580 records in 559 consecutive complete groups; 112 rest-triggered and 17 bump-triggered zero-time traversals. No records were dropped, no groups are partial, and hooks were restored. `test_decoder.py` audits the stream and rejects six rehashed semantic corruptions: wheel owner, dynamic pointer, overflow, polygon source face, unused slot and truncated group. The positive audit also checks every fixed component pointer/vtable and every dynamic pointer/count.

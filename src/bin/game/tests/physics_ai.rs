@@ -147,7 +147,7 @@ fn headless_drive(root: &std::path::Path, region: &str, car: &str) -> Drive {
     d
 }
 
-/// Driving parity (docs/drive-parity.md): the original's 240SX slalom
+/// Driving parity (the maintainer's private notes): the original's 240SX slalom
 /// at 60 mph, logged under Wine at 31–90 frames a second (wined3d),
 /// replayed frame by frame from the same state with its pedals and
 /// steering input. SPEED2.EXE runs one world update per frame (main
@@ -360,7 +360,7 @@ fn world_acceleration_outer_frames_include_real_contact() {
     step_explore_traced(d, None, Some(e), Controls::default(), 0.05, Some(&mut trace), &mut nfsu2::opponents::GameRng::default(), &mut Default::default());
     assert_eq!(trace.len(), 1, "recovery runs once in the complete outer interval");
     assert_eq!(trace[0].0 + 1, trace[0].1, "recovery waits until final subdivision motion");
-    assert_eq!(trace[0].1, 1, "one world step per frame (main loop 0x5811D0, docs/drive-parity.md)");
+    assert_eq!(trace[0].1, 1, "one world step per frame (main loop 0x5811D0)");
     assert_ne!(trace[0].2, before_motion, "mover motion precedes request consumption");
     let r = &e.cars[0];
     assert!(!r.recovery_pending, "physics consumes a retained recovery request");
