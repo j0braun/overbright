@@ -134,4 +134,4 @@ The retained clone smoke audio has 142,400 stereo frames at 48 kHz, RMS
 uses the copied profile's car and includes other sounds/music. These recordings
 are audibility evidence, **not** an isolated same-car waveform comparison.
 Full recordings, PCM, command logs and test logs are in workspace
-`review/nis-audio-pattern/`. `clone-audio-smoke.json` identifies the derived WAV.
+the maintainer's private captures. `clone-audio-smoke.json` identifies the derived WAV.

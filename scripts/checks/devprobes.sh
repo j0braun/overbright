@@ -1,5 +1,5 @@
 #!/bin/bash
-# The developer probes still compile (docs/checks.md, docs/refactor/examples-triage.tsv).
+# The developer probes still compile (docs/checks.md, the maintainer's private notes).
 #
 #   devprobes.sh
 #

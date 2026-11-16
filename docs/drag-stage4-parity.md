@@ -2,7 +2,7 @@
 
 Player report: "doesn't seem native to me, check every angle; I saw that blue
 shifting got the short shift message". **Verified** = traced in SPEED2.EXE, **observed** =
-read under Wine, **inferred** / **open** as marked. Evidence: `docs/evidence/drag-stage4/`.
+read under Wine, **inferred** / **open** as marked. Evidence: the maintainer's private captures.
 
 ## Verdict
 
@@ -67,7 +67,7 @@ read under Wine, **inferred** / **open** as marked. Evidence: `docs/evidence/dra
 blue and the grade Perfect.) Nitrous does not enter the grade or the light (no nitrous term
 in 0x594F30 / 0x4C7090; the nitrous run below confirms the bands).
 
-### Observed under Wine (`tools/parity/dragshift.py`, grades.tsv)
+### Observed under Wine (the maintainer's tool `dragshift.py`, grades.tsv)
 
 S4_H_DRAG_15 (track 4213) and S4_H_DRAG_17 (4404), the player shifting with the real Left
 Shift key at chosen rpm, every request graded by the original (+0x68) and the formula:
@@ -122,13 +122,13 @@ Shift!" (h15_d), red needle at 9426 → "Over Rev!" and the orange gear digit (c
 
 ## 2. Method
 
-* **Save.** the finished-career save (`player-settings/the finished-career save-20261104`) has finished the career: no stage-4 drag
-  is open in it. `[start] garage_from` (tools/parity/savepatch.py) puts the finished-career save's whole garage
+* **Save.** the player's finished-career save has finished the career: no stage-4 drag
+  is open in it. `[start] garage_from` (the maintainer's tool `savepatch.py`) puts the finished-career save's whole garage
   (payload 0..0x993E: part lists, cars, the five career slots, ranked cars) and current slot
   (career +0x8740) into `stage4_start.sav` (the original's stage-4 career),
   so both games race the finished-career save's Skyline (all upgrades, class 0) in stage-4 events. Rivals are
   matched to that car by each game (0x532020).
-* **Native driver** `tools/parity/dragshift.py SCEN OUT --deltas D1,D2,… [--nitro T]`:
+* **Native driver** `$OB_PRIVATE/tools/parity/dragshift.py SCEN OUT --deltas D1,D2,… [--nitro T]`:
   the harness's start (boot, Resume, put in the trigger, accept, held at the countdown), then
   real X key presses on the private Xvfb (Up held from the countdown, Left Shift, Left Alt),
   not the cave's handler events (the injected throttle is overridden in a drag,
@@ -142,7 +142,7 @@ Shift!" (h15_d), red needle at 9426 → "Over Rev!" and the orange gear digit (c
   models forced to the original's.
 * Scenarios `drag_s4_h15_finished`, `drag_s4_h17_finished`, `drag_s4_d9_finished`; new harness
   fields `dt_up6`, `dt_up7`, `heat` (engine +0x8C) and clone accessors for `dt_up2..7`,
-  `dt_e4`, `dt_f0`; `tools/parity/shiftgrades.py OUT…` (the table above).
+  `dt_e4`, `dt_f0`; `$OB_PRIVATE/tools/parity/shiftgrades.py OUT…` (the table above).
 * Each run ends when the player hits traffic or a wall at full speed (no steering in the
   driver): 8–13 s; the finish, results, ET and rewards were therefore not reached (**open**).
 * Wine: copy `$OB_PRIVATE/wine/runs/<run>`, display :239, wined3d; raw runs
@@ -216,14 +216,14 @@ are **open**; the speed comparison is confounded by the different shift grades.
 
 ## 5. Follow-ups (2026-11-05)
 
-New tools: `tools/parity/subtrap.py` + `subtrap.s` stop the original's drive mover before
+New tools: the maintainer's tool `subtrap.py` + `subtrap.s` stop the original's drive mover before
 (A, 0x5B73D8) and after (B, 0x5B73E3) each integrator call 0x5AA490 of one car (a code cave at
 0x782F00, control block 0x8BBE00; only the car whose mover + 8 is in EBX) and read its body,
 engine, drivetrain, wheels and suspension there; `dragshift.py --substeps N` arms it for the
 first N frames, `--lanes` taps Left / Right around cars in the player's lane, `--after S`
 takes screenshots after the race. The clone prints the same points with
 `NFSU2_SUBSTEP_DUMP=<car name>` (`CarState::debug_substep`, not native, off by default).
-Evidence: `docs/evidence/drag-stage4-p9b/` (launch-substeps-n1.txt, speeds-after.txt).
+Evidence: the maintainer's private captures (launch-substeps-n1.txt, speeds-after.txt).
 Wine copy `$OB_PRIVATE/wine/runs/<run>`, displays :247 / :248, raw runs
 `<work dir>/p9b-work/runs/` (n1: sub-steps + lanes; n2: lanes + nitrous 3.0–7.0 s).
 
@@ -338,7 +338,7 @@ at 422 — the shot's length matches to 3 ticks, the refill and the end one fram
 ## 6. 2026-11-05: drag traffic, the lane table's coordinate, the finish, the hop's load term
 
 Wine copy `$OB_PRIVATE/wine/runs/<run>`, display :310, wined3d; raw runs `<work dir>/p10-work/runs/`
-(p1 probe + crash shots, p3 lane plan, p4 the finish). Evidence: `docs/evidence/drag-stage4-p10/`.
+(p1 probe + crash shots, p3 lane plan, p4 the finish). Evidence: the maintainer's private captures.
 New harness options: `dragshift.py --probe` (the traffic pool and world list every 30 frames),
 `--shots-from F`, `--seconds S`, `--taps X,Y,key;…`, `--lane-map FILE` (lane planning, below); parity
 fields `rcoord` (car +0x8FC), `dlane` / `dreq` (controller +0x30C / +0x7B4, **not** the lane: +0x30C read
@@ -361,7 +361,7 @@ lateral off each, per frame).
   them), so those six drag tracks (the 500 m start-gap ones) run without traffic.
 * **Clone**: it found no point either, but placed the 12 cars after the green from its placer. Now
   `traffic_fill` drops the pool cars the fill could not place (`t.cars.retain`), so its placer never sees
-  them; test `drag_fill_finds_no_point_on_4213_backward`; devprobes/src/bin/drag_traffic_pool lists every career
+  them; test `drag_fill_finds_no_point_on_4213_backward`; the maintainer's probe `drag_traffic_pool` lists every career
   drag's pool. p1 clone: no traffic, and the player now meets the same obstacle as the original.
 
 ### 6.2 What the player hit (observed)
@@ -433,7 +433,7 @@ The hop fix changed the launches enough that rival Liz (PEUGOT, Sprint 4122 back
 `rivals_keep_the_race_route`) reached the hairpin at (−1510, 730) on the BeltMover (mode 4, far from
 the human) after a GetUnstuck. The world's edge there is a group-0 wall (faces (26, 1577..1579),
 flags 0x16, one-sided, normals into the road, ±2048 m high; no ground south of y ≈ 727,
-`devprobes/src/bin/ground_column`); it stops a car on the physics mover (checked in the clone with
+the maintainer's probe `ground_column`); it stops a car on the physics mover (checked in the clone with
 INTRO_POSE drives into it). The belt car's wall contacts were resolved but the clone kept it on the
 belt (a deliberate deviation for an older barrier problem), so the belt placed it past the wall each
 frame and it fell into the void. Natively a track contact of a loaded mode-4 car reaches 0x402450
@@ -457,7 +457,7 @@ hairpin is not reproducible with the harness); the evidence is the disassembly a
 Wine copy `$OB_PRIVATE/wine/runs/<run>`, display :331, wined3d; raw runs `<work dir>/p11-work/runs/`
 (c1: p4's plan with the sub-step trap armed at frame 255, `dragshift.py --substeps 40 --substeps-from 255`;
 f1 / f2: p4's plan to the finish, `--after 16 --continue 4`; g1 / g2: the free-roam resume probe,
-`p11-work/tools/probe_gear.py`). Evidence: `docs/evidence/drag-stage4-p11/`.
+`p11-work/tools/probe_gear.py`). Evidence: the maintainer's private captures.
 
 ### 7.1 The "bump" at frame ~269 is a knocked fence (verified, observed; fixed)
 
@@ -539,7 +539,7 @@ the same. The slow test's room check (99999 cost) and 0x42F505's bVar4 / bVar5 t
 
 Wine copy `$OB_PRIVATE/wine/runs/<run>`, display :343, wined3d; raw runs `<work dir>/p13-work/runs/`
 (w1–w3: nitrous at 2 / 8 s, totaled at the crests; w4: won; w5–w7: boots hung; f2e / w4b: clone replays). Evidence:
-`docs/evidence/drag-stage4-p13/` (finish-w4.txt, the post-race screens).
+the maintainer's private captures (finish-w4.txt, the post-race screens).
 
 ### 8.1 Lane taps by race coordinate (harness; done)
 

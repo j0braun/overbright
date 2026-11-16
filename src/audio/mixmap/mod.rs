@@ -181,7 +181,7 @@ mod tests {
 
     /// Every slider position against the original (airport free roam,
     /// Rachel's 350Z at idle, the master float written live at each
-    /// position; `docs/evidence/audio-levels/slider-sweep.txt`): the
+    /// position; the maintainer's private capture): the
     /// player's CAR block p4 = clamp(((HM +0x7C · level0) >> 15) − 0x7FFF)
     /// with HM +0x7C 12500, p14 = (wet B · level0) >> 15, FX_WIND_Weather's
     /// p0 (class 10 slot 0), with speech and game music 0 and the other

@@ -341,7 +341,7 @@ fn wrong_way_street_x_on_keys() {
 
 /// The race locator (0x5D9E40 → 0x5D5A10 / 0x5774D0) against the
 /// original's (car +0x8D8, read under Wine with the car teleported,
-/// `docs/evidence/small-fixes-2026-11/locator-4005-native.txt`) on
+/// the maintainer's private capture) on
 /// Circuit 4005 v0 (Garibaldi Run) where segment 12 (three nodes 10 m
 /// apart) gets its phantom points from its 50–80 m neighbours
 /// (0x5E48C0 → 0x5D50A0) and its spline loops back on itself: the

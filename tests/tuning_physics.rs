@@ -147,7 +147,7 @@ fn the_dummy_snapshot_drops_the_car_for_a_sub_step() {
 /// torque and force (+0x108, +0x124): the wheel's derivative (0x59D360)
 /// takes the whole slip out within the first sub-step, then the wheels spin
 /// up again. Captured sub-step by sub-step under Wine (`substep.py`,
-/// docs/evidence/tuning-physics-parity/substep-capture.txt): a COROLLA's
+/// the maintainer's private capture): a COROLLA's
 /// spinning rear wheel 47.3 → 1.25 rad/s, 23.4 at the frame's end; in the
 /// circuit runs the driven wheels end the frame at 0.54–0.55 of the
 /// plain frame's spin (CORSA 21.6 / 39.5, 240SX 22.1 / 40.0).
@@ -251,7 +251,7 @@ fn neutral_tuning_keeps_the_uniques_bonus() {
 /// parts, circuit rivals) against the clone's upgraded record from the
 /// same fitted parts and uniques, word for word (`performance::upgrade`,
 /// 0x5AC500 + 0x5997F0). Over the harness's 144 recorded cars and six
-/// saves' players the sweep (`devprobes/src/bin/block_sweep`) found no difference.
+/// saves' players the sweep (the maintainer's probe `block_sweep`) found no difference.
 #[test]
 #[cfg_attr(not(all(ob_game, ob_private)), ignore = "needs NFSU2_ROOT (the player's own game files) and OB_PRIVATE (private captures and saves)")]
 fn upgraded_blocks_match_the_originals() {

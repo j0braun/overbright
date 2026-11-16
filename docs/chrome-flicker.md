@@ -5,7 +5,7 @@ Player report:
 - "on dry road a lot of reflection now".
 
 ## Cause of the flicker: the carbon trunk drawn as a mirror (docs/car-materials.md)
-The player's save (`player-settings/a community save-latest`, `devprobes/src/bin/save_parts.rs`) fits these parts to the
+The player's save (a community save; the maintainer's probe `save_parts`) fits these parts to the
 LANCEREVO8:
 - KIT_CARBON (0x5D) and TRUNK_CARBON (0x60);
 - the TRAP CARBON FIBRE hood;
@@ -66,7 +66,7 @@ original's carbon trunk in motion was not captured under Wine (only in the Body 
 Natively the road always reflects: worldreflect at the texture's authored alpha, wetness never read
 (docs/wet-roads-ssr.md).
 
-Measurement (`scripts/road_reflection.py`, 1280×960 shots, lower half):
+Measurement (the maintainer's `road_reflection.py`, 1280×960 shots, lower half):
 - contribution = shot − the same shot with `custom.7 0` (road reflection off; shots now honour custom.7);
 - mean over the pixels where any variant reflects;
 - ratio to native.

@@ -32,7 +32,7 @@ establish its caller phase. The clone's existing post-`step_race` trigger placem
 already follows acceleration publication and is left in that position.
 
 Exact instruction ranges and hashes are retained in
-`evidence/outrun/recovery-timing`. This is static original-code evidence, not a
+the maintainer's private captures. This is static original-code evidence, not a
 new live-game capture. The prior 36-case native prefix oracle remains the
 acceleration/reset arithmetic evidence; no new synthetic callback oracle is
 presented as execution of a complete original world update.

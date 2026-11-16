@@ -180,7 +180,7 @@ pub fn parse_car_type_tuned(
     }
     // Check aid (not native): NFSU2_DUMP_TUNED_RECORDS=DIR writes the
     // physics record as built (parts and tuning applied), for the tuning
-    // sweep against the original's in-memory copy (tools/parity/recdump.py).
+    // sweep against the original's in-memory copy (the maintainer's tool `recdump.py`).
     if let Some(dir) = std::env::var_os("NFSU2_DUMP_TUNED_RECORDS") {
         let dir = std::path::Path::new(&dir);
         std::fs::write(dir.join(format!("{name}{}.bin", if tuned.is_some() { "-tuned" } else { "" })), &r).ok();

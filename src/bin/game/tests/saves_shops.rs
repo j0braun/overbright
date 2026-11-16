@@ -57,7 +57,7 @@ fn cover_uses_selected_environment_light_hash() {
 
 /// The performance shop's purchases and the save fields they write,
 /// against what the original wrote after the same purchases under Wine
-/// (`docs/perf-shop.md`, evidence `docs/evidence/perf-shop/`): an
+/// (`docs/perf-shop.md`, evidence in the maintainer's private captures): an
 /// unbranded part bought first appends no brand (slot 0x8389B4 still
 /// 0), a part's brand screen picks slot 0, a package's each branded
 /// part's slot in row order; a later unbranded part appends

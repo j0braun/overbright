@@ -3,7 +3,7 @@
 Investigation follow-up to reviewed controller commit . The original
 evidence was committed separately; the retained-state implementation is described
 at the end of this document. The original executable SHA256 and byte-range hashes are in
-`evidence/outrun/acceleration-followup`. The native helper uses copied original
+the maintainer's private captures. The native helper uses copied original
 instructions with synthetic car data, in an isolated headless Wine prefix. It
 is not a new live-game capture.
 
@@ -148,7 +148,7 @@ The later other-car follow-up replaces `RoadCar.accel` / `60BE40 -> 5EC340`'s
 legacy XY velocity-history approximation with its separate native projection;
 see `outrun-other-acceleration.md` for the original-code oracle and limits.
 
-The retained controlled-landing capture `full-phase-inputs/full-landing.bin.zlib`
+The retained controlled-landing capture the maintainer's private capture
 contains 2,580 records, all with FXSAVE control word `0x007F` at byte80 of each
 65536-byte record. This means PC24, nearest rounding, exceptions masked. The
 recorder saved FPU state before its own copying work and restored it afterward.

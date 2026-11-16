@@ -1,5 +1,5 @@
-//! Stages 4, 5 and the ending against the original (docs/playthrough-
-//! stage4.md, -stage5.md, -ending.md). The fixtures were saved by
+//! Stages 4, 5 and the ending against the original (the maintainer's
+//! playthrough notes). The fixtures were saved by
 //! SPEED2.EXE under Wine (tests/fixtures/native_saves):
 //! - stage4_start.sav: stage 4 just begun (the original won S3_URL_8 on a
 //!   clone-written stage-3 save, its "s14");
@@ -161,7 +161,7 @@ fn the_final_race_ends_the_career_as_the_original() {
     assert_eq!(p.stage_rep, orig.stage_rep);
 }
 
-/// The final race lost (S4 career compare, docs/playthrough-ending.md
+/// The final race lost (S4 career compare, the maintainer's private notes
 /// "Losing the final race"; under Wine on clone_s5_final.sav: Caleb
 /// finished, the player last): no reward, Post Race → Return to Explore,
 /// Scene16, no save questions, then free roam at the engage spot with
@@ -244,7 +244,7 @@ fn stage_six_world_offers_outruns_and_nothing_else() {
 
 /// Career Statistics on clone_s5_final against the original's block
 /// 0x835C00 (0x528A70) read on the same save under Wine
-/// (docs/evidence/s4-career/stats-block.txt): the stage's normal wins are
+/// (the maintainer's private capture): the stage's normal wins are
 /// the record's 35 slots (0x5004D0: 35/35 although 44 are won), so the
 /// region completion is 100 %; the Win Percent and reputation rows print
 /// `%$.1f` grouped ("4,325.0", "15,300.0").
@@ -270,7 +270,7 @@ fn career_statistics_rows_match_the_original_block() {
 
 /// docs/outrun.md, "Stages 4 and 5": an outrun won at stage 4 with 3
 /// wins before, and at stage 5 with 5, as the original gave it under Wine
-/// (`docs/evidence/outrun-s45/`; the sandbox saves: a community save at stage
+/// (the maintainer's private captures; the sandbox saves: a community save at stage
 /// 4 and `stage5_start`, the stage record's +0xDC set to 3 / 5): the
 /// stage's bank (+250 / +400, 0x541330), +0xDC + 1, SMS_OUTRUN_VICTORY only
 /// when not in the inbox yet (0x529BE0 → 0x514CB0), and the condition-2

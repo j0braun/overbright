@@ -1051,7 +1051,7 @@ Everything above the low-level driver; verified except where noted.
     rows: the row index stays under 3 because +0x94C is the catch-up
     table). The row is racer info +0x902, 0x6373F0's sixth argument:
     the career line-up 0x5260C0 passes the entry's byte +0x0B (1 in all
-    679 career entries, `devprobes/src/bin/difficulty_data.rs`), the Quick Race
+    679 career entries, the maintainer's probe `difficulty_data`), the Quick Race
     and free-roam line-ups 0x53EF75 / 0x53F0D2 pass 1, the human 0
     (**verified**; read 1 for every rival under Wine). It does not depend
     on the difficulty; the clone used the difficulty (always 0) until
@@ -1404,7 +1404,7 @@ Explore mode's and races' traffic. Verified except where noted.
     (0x43C1C0, iterating 0x61B990) of the 0x631A30(type, 0x3F, any hash,
     any level) parts of the paint part type — for every traffic type all
     270 paint-type parts (body, rim, caliper colours; the clone's
-    `PartDb::find_after` order, `devprobes/src/bin/traffic_paints.rs`). Its
+    `PartDb::find_after` order, the maintainer's probe `traffic_paints`). Its
     attribute 0x6BA02C05 becomes render info +0x384 (0x638D9E → 0x48F6A0),
     which only replaces `CARSKIN` / 0xA7366AE6 (0x6174A4) — light
     materials no traffic geometry uses — so it does not show. The clone
@@ -2800,13 +2800,13 @@ draws nothing there).
   first part of any level; then the performance level (+0x48, 0x5A64B0)
   or flags (+0x2F4). Rachel's DDAY_PLAYER_CAR has 0 only in slots 8,
   0x23–0x2E (NO COMPONENTS, no models) and 0xA2 (nozzles), so emptying
-  them changes nothing visible (`devprobes/src/bin/preset_slots.rs`).
+  them changes nothing visible (the maintainer's probe `preset_slots`).
 * **Clone**: `ai_looks::Ride` ports 0x631CC0, 0x6371F0, 0x6371B0,
   0x61C4C0, 0x632DF0, 0x6374C0 and 0x632ED0 with the shared random
   numbers (`opponents::GameRng`); `Preset::installed` gives 0 for a
   preset's 0; the car loader draws nothing for hash 0. Encounter racers,
   Quick Race and career RANDOM opponents are dressed, a career preset
-  opponent takes the preset (`devprobes/src/bin/ai_looks.rs` prints rides).
+  opponent takes the preset (the maintainer's probe `ai_looks` prints rides).
   The levels L[c] are the upgrade state's floats rounded, from the
   racer's own fitted parts after its performance is set (see **AI
   performance**; **verified**). **Inferred**: the random sequence is not
@@ -2820,7 +2820,7 @@ draws nothing there).
   this session).
 * **AI performance** (`performance::{state_float, fit_category, refit,
   ai_refit}`, `ai::route::match_to_human`; game.rs `line_up_rivals`,
-  `Encounters::new`, `human_perf`; `devprobes/src/bin/ai_perf.rs`). **Verified**
+  `Encounters::new`, `human_perf`; the maintainer's probe `ai_perf`). **Verified**
   in the disassembly unless marked:
   * The upgrade state (ride +0x2F0 = 0x4017E0; the performance object is
     ride +0x10 = racer info +0x20, its state at +0x2E0, rating at +8):
@@ -2890,7 +2890,7 @@ draws nothing there).
     stored is **inferred**).
   * **Checked under Wine** (memory read through the racer list, info +0x20
     performance object, +0x300 floats, +0x350 fitted bytes; peek loop,
-    `devprobes/src/bin/ai_perf.rs`): a Quick Race (stock Peugeot 206, rating
+    the maintainer's probe `ai_perf`): a Quick Race (stock Peugeot 206, rating
     196.696 in both): the Corsa and 106 rivals fitted part 0x30 only
     (float 7 = 0.3), the 206 rival none — as the clone. A new career's
     free roam (Rachel's 350Z: the same fitted parts and floats as the

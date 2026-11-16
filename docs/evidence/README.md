@@ -14,4 +14,7 @@ What the files are:
 
 Captures of the original game (its memory, traces, screenshots) and other raw recordings are not published:
 a test that needs one reads it through the test kit's private set and is reported as ignored without it
-(docs/testing.md). A doc that cites such a file calls it internal evidence.
+(docs/testing.md). A doc that cites such a file calls it internal evidence (or the maintainer's private
+captures) without a path; a command that runs one names it under `$OB_PRIVATE/`. The same holds for the
+maintainer's probes and tools (`devprobes/`, `tools/`), which are private too: prose names them by file name
+only ("the maintainer's probe `pad_probe`").

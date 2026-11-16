@@ -87,7 +87,7 @@ pub(crate) const PERF_OVERLAY: u32 = 0xC1_04E0_EC;
 pub(crate) const OVERLAY_POSITION: u32 = 0xC1_04E0_ED;
 pub(crate) const OVERLAY_SCALE: u32 = 0xC1_04E0_EE;
 pub(crate) const OVERLAY_LOG: u32 = 0xC1_04E0_EF;
-/// Power Saving (docs/benchmarks/d5-pacing/README.md); 0xE8, clear of
+/// Power Saving (the maintainer's private capture); 0xE8, clear of
 /// every copy's ids (2026-11-05).
 pub(crate) const POWER_SAVING: u32 = 0xC1_04E0_E8;
 /// Mark Spot Key (docs/mark-spot.md).

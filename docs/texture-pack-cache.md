@@ -35,7 +35,7 @@ as before, byte for byte. No SPEED2.EXE behaviour is involved (the texture packs
   and the index low bits flipped (c0 < c1: the same palette listed the other way), or its indices are set to 0
   (c0 = c1: all four colours equal, so BC1's transparent index is never used). Half the bytes, same
   texels. Checks: unit test `opaque_dxt_to_bc1_is_lossless` (CPU decode equal, all orders);
-  `devprobes/src/bin/pack_vram` decodes every level of every converted file and compares them (all 35 equal); on the GPU
+  the maintainer's probe `pack_vram` decodes every level of every converted file and compares them (all 35 equal); on the GPU
   the `--shot explore` and `--shot race` frames with the pack are byte-identical between the old
   binary and the new one, for both the build path and the cache path (md5 in this work's report). SSIM 1.0.
 * The community world folder (internal evidence: the pack VRAM table): 35 of 89 DDS are
@@ -49,7 +49,7 @@ as before, byte for byte. No SPEED2.EXE behaviour is involved (the texture packs
   encoder (none vendored). Left open.
 
 ## Measurements (this machine; shared, so the load numbers are noisy)
-internal evidence: texture-pack-cache/loads.md: loads SET 10 runs, 4 arms; with the pack, city loads (load + first frame, median) 502 → 364 ms first load, 322 → 160 menu → free roam, 396 → 216 race → free roam, 466 → 258 Quick Race circuit (pack off unchanged: 277 / 278 ms); cold page cache 1.1–2.7 s → 0.6–1.0 s.
+internal evidence: loads SET 10 runs, 4 arms; with the pack, city loads (load + first frame, median) 502 → 364 ms first load, 322 → 160 menu → free roam, 396 → 216 race → free roam, 466 → 258 Quick Race circuit (pack off unchanged: 277 / 278 ms); cold page cache 1.1–2.7 s → 0.6–1.0 s.
 
 ## Tools
 * `pack_vram <folder> [out]`: per file, the format and bytes before and after these steps,

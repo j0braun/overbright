@@ -1,7 +1,7 @@
 # Nitrous audio: the GB_NOS stream (2026-11-04)
 
 Player report: "the sound effect on high speed plus
-nitro doesn't stop after slowing down". Evidence: `docs/evidence/stuck-sound/`.
+nitro doesn't stop after slowing down". Evidence: the maintainer's private captures.
 
 ## The stuck voice
 GB_NOS. This is not a car-bank voice. It is the NIS stream's SoundFX line

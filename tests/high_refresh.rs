@@ -111,7 +111,7 @@ fn rachel(root: &std::path::Path) -> nfsu2::car::Car {
 /// Reverse from rest: 3 s settled, then the brake held 1 s, at every
 /// display rate the 60 fps result; and as in the original at 60 fps the
 /// gearbox rests in state 0 (clutch open), so the press reverses at once
-/// (original −3.159 / −3.130 m/s after 1 s; docs/evidence/uncapped-fps).
+/// (original −3.159 / −3.130 m/s after 1 s; the maintainer's private captures).
 #[test]
 #[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
 fn reversing_from_rest_is_the_60_fps_start_at_every_display_rate() {

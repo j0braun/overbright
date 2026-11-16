@@ -88,7 +88,7 @@ at the bumper / wheels, no blockiness), a 16-frame motion sequence (`drift_motio
 no shimmer or popping thanks to OIT; billows roll). SSIM/FLIP against Ultra are meaningless for a
 different look and were not used.
 
-## Evidence (`docs/evidence/smoke2/`, Original | Ultra | Cinematic unless named)
+## Evidence (the maintainer's private captures, Original | Ultra | Cinematic unless named)
 * `burnout_racestart_orig_ultra_cinematic.webp`, `burnout_racestart_200pct.webp`: `--shot qrstart`
   NFSU2_FRAMES=300 NFSU2_THROTTLE=1 NFSU2_SHOT_STEP=1 (the launch; 1280 × 960).
 * `drift_orig_ultra_cinematic.webp`: `--bench racing` NFSU2_BENCH_KIND=drift, frame 400, 1080p.

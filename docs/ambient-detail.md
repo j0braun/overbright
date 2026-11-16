@@ -62,7 +62,7 @@ props change ≤ 0.04 % of the frame at the chase camera, so the row stays manua
   * **Tyre dust** behind each wheel on the ground of a car within 35 m on a **dry** road (none above road_wet 0.15):
     thin lit puffs rising slowly, more with speed and wheel slip, ×3 on gravel / dirt (`is_gravel`).
   * **Steam** from the steaming drain grates and Bayview's road grills (RDP_ROAD_GRILL_WH, found with
-    `devprobes/src/bin/ambient_census`; no manhole texture exists in Bayview): the 10 nearest within 45 m, each breathing on its
+    the maintainer's probe `ambient_census`; no manhole texture exists in Bayview): the 10 nearest within 45 m, each breathing on its
     own slow pulse, buoyant, drifting with the wind, stirred by the cars' wakes (volume_fx's wake field), lit by the
     lamps, headlights and tail lights with self-shadowing and multiple scattering. On the first frame the vents have
     been steaming for 4.5 s already (warm-up steps), so a load or a still never shows bare vents.
@@ -137,7 +137,7 @@ with a new drive's barriers (checked in the code; the water by a data test):
 | `src/render/volume_fx.rs` | additive: `set_coarser`, COPY_SRC on the particle buffer |
 | `src/bin/game.rs` | hooks: `ensure_ambient` before `water_prepare` (window and shot), `draw_ambient` after the Cinematic smoke (3 sites), `ambient_detail::push_car` in `glow_quads`' per-car closure |
 | `src/qol.rs`, `src/frontend/options.rs`, `src/frontend/graphics_table.rs` | the row |
-| `devprobes/src/bin/ambient_census.rs` | texture census (vent candidates; `NEAR=x,y` the textures round a spot) |
+| the maintainer's probe `ambient_census` | texture census (vent candidates; `NEAR=x,y` the textures round a spot) |
 
 Diagnostics: `NFSU2_AMBIENT_STATS=1` (placement, nearest vents / lamps, per-second instance / moved / grit counts),
 `NFSU2_AMBIENT_DEBUG=1` (props magenta, decals green), `NFSU2_VFX_DEBUG=1` (the volume's).
@@ -163,7 +163,7 @@ its thread plus the scatter's rayon workers (0.27–0.45 s before "When the prop
 moved, ≤ 600 grit). Memory: ~24 MB CPU (336 k placed props, the ground grid), 2 MB instance buffer, the volume's own grid and
 pool (not measured).
 
-## Evidence (`docs/evidence/ambient-detail/`)
+## Evidence (the maintainer's private captures)
 
 1920 × 1080, perf.sh's Ultra preset as the base; captured with `scripts/spots.sh` (explore shots, clock 93 s = night,
 170 s rain) and `--bench racing` dumps.

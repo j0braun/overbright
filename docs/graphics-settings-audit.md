@@ -44,7 +44,7 @@ default, byte-identical (no render code changed in this work).
   ~1/5–1/10 of its shader rate; full-screen passes are bandwidth-bound, so
   multiply the 1080p cost by ~10 (≈ 2.5× the 4K number). A cost class
   "Medium" here (0.3–1 ms) is 3–10 ms there.
-* Data: internal evidence: graphics-settings-audit/data/*.tsv, scripts in
+* Data: internal evidence (the `*.tsv` tables), scripts in
   `.../scripts/` (`run.sh`, `run_msaa8.sh`, `bench.sh`, `pops.sh`,
   `imgdiff.py`, `table.py`); raw shots in `<work dir>/settings-work`.
 
@@ -171,7 +171,7 @@ Preset costs: measured as a whole in the small-settings pass (below); the earlie
 in the roadmap, is native at Detail 5 (Customize Display's Texture
 Filtering), so the presets do not touch it.
 
-## Crops (docs/evidence/graphics-settings-audit/, Off | On | difference ×8)
+## Crops (the maintainer's private captures, Off | On | difference ×8)
 Render Scale 75 % `1920x1080_motion_render_scale_75.jpg`; FXAA
 `1920x1080_motion_aa_fxaa.jpg`; SMAA `1920x1080_start_aa_smaa.jpg`; MSAA 8x
 vs native 8x (alpha-to-coverage on the palm) `1920x1080_msaa8_motion_aa_msaa8.jpg`;
@@ -363,7 +363,7 @@ medians of `--bench explore 300` (timestamps), the values interleaved per
 repetition (3 reps, base at start and end). The 4K and 1080p GPU numbers
 were stable this time: spread between reps ≤ 0.05 ms 4K, ≤ 0.02 ms 1080p
 (one 1080p HD UI "off" outlier, 0.80 ms, dropped). Data:
-internal evidence: graphics-settings-audit/data/s1, scripts `scripts/s1/`
+internal evidence, scripts `scripts/s1/`
 (`all.sh` drives `run.sh`, `bench.sh`, `hdui.sh`, `bench_hdui.sh`).
 
 ## Restore Native gives back raised Customize Display values

@@ -33,7 +33,7 @@ So the "static" look is native: a slow scroll and a 14-frame loop on a low-resol
 no lighting response, no splash. (Not re-observed under Wine in this work: the textures' scroll
 values and the flip-book are the verified native path the clone already draws.)
 
-## Water surfaces (`devprobes/src/bin/water_census.rs [TRACK]`; asset test `bayview_water_census`)
+## Water surfaces (`$OB_PRIVATE/devprobes/src/bin/water_census.rs [TRACK]`; asset test `bayview_water_census`)
 Bayview, L4RA (top LOD; centres in game coordinates, Z up). L4RD holds the same set (the race
 copy of the city); L4RB / L4RG only the panorama ocean; L4RC, L4RF, L4RH, L4RR none.
 
@@ -105,7 +105,7 @@ A player screenshot (Animated Water Off): the casino square's big arcing jets ov
 "look like a frozen texture". View: the casino round fountains (XO_ROUNDFOUNTAINA ×5 around
 (−326, −547)) with their arcs, XO_FOUNTAINWTRA_1A_LL_00 (28 placements in Bayview: 23 here and at
 the jackpot basin (−337, −701) and the plaza fountain (−432, −112), 5 at the park fountain).
-* **The jets** (`devprobes/src/bin/solid_uv.rs XO_FOUNTAINWTRA_1A_LL_00`): one material of 72 triangles,
+* **The jets** (`$OB_PRIVATE/devprobes/src/bin/solid_uv.rs XO_FOUNTAINWTRA_1A_LL_00`): one material of 72 triangles,
   `TRN_WATERFALL_A` (64×128 DXT3, alpha blend), local extent 28 × 4.3 × 6.9 m; **v runs along the
   arc** (mean |dP/dv| = (0.92, 0.04, 0.32): the jet's length), u across it, v spanning
   −0.37…1.29 (1.7 repeats over 28 m). Placements scale the jet non-uniformly (det 0.05–1.55).
@@ -197,7 +197,7 @@ timestamp (`graphics: water wet / copy / water / water sheets`):
 5. **Spray**: On's billboards, 80 per landing instead of 48 (24 mist, 56 drops).
 
 **Cost** (GPU busy ms/frame, `--bench explore 600`, reference desktop GPU with the native 8x MSAA, tiers
-interleaved, 2 runs each, medians; internal evidence: water2/scripts/cost.sh, raw internal evidence: water2/cost.txt;
+interleaved, 2 runs each, medians; internal evidence, raw internal evidence;
 B = the jackpot basin, C = the City Core fountain, N = the Beacon Hill steps (11 jets, the worst
 case), X = no water in view):
 
@@ -234,7 +234,7 @@ id**). Nothing native to compare with (SPEED2.EXE has no water system, above); e
 off at this tier.
 
 **Jets as simulated water.** Every falling sheet and arc of the art (a connected part of a record's
-sheet triangles, `water_ng::charts`: 702 in Bayview, built in 0.016 s, `devprobes/src/bin/water_jets.rs`) becomes
+sheet triangles, `water_ng::charts`: 702 in Bayview, built in 0.016 s, the maintainer's probe `water_jets`) becomes
 a **chart**: across (u) × along (v, from the source to where it lands) → world position, 16 × 64 texels
 rasterized from the triangles. The source end is the end the native scroll carries the texture away from
 (TRN_WATERFALL_A +0.9375/s: high v; TRN_WATERFALL_A_LL: low v) — that is the art's own flow: the falls
@@ -292,7 +292,7 @@ shade / composite / mist`). Diagnostics: `NFSU2_WATER_NG_DEBUG=1` (counts), `NFS
 (normal, thickness, aeration, depth), `NFSU2_WATER_NG_LOOK=k=v,…` (tuning).
 
 **Cost** (GPU busy ms/frame, `--bench explore 600` on the orbit tracks, reference desktop GPU, default settings
-(native 8x MSAA), tiers interleaved; internal evidence: water3/scripts/cost.sh, raw internal evidence: water3/cost.txt):
+(native 8x MSAA), tiers interleaved; internal evidence, raw internal evidence):
 
 | view | 1080p Off | Realistic | **Next-Gen** | Δ NG − Off | 4K Off | Realistic | **Next-Gen** | Δ NG − Off (Realistic's) |
 |---|---|---|---|---|---|---|---|---|
@@ -318,12 +318,12 @@ thickness, the upsample bilinear and depth-tested), the frame sequences no shimm
 
 **Parity**: Off / On / Realistic draw as before (no On/Realistic code path changed except the shared
 surface function and two layout visibilities). `scripts/checks/gate.sh … <base checkout> extreme`
-(2026-11-05, internal evidence: water3/gate.txt): base and new binaries
+(2026-11-05, internal evidence): base and new binaries
 (differ); checks PASS, 28 shots 0 differ, window path, enhanced Modern / Ultra / Extreme AE 0, audio and five
 simulation hashes identical: **PARITY: all gates passed**. (After the gate only the row's cost hint
 constant changed, 1.5 → 2.4.)
 
-**Evidence** (`docs/evidence/water3/`, `scripts/evidence.sh`): `<view>_off_realistic_nextgen_night_rain.webp`
+**Evidence** (the maintainer's private captures, `scripts/evidence.sh`): `<view>_off_realistic_nextgen_night_rain.webp`
 (C R N P W B L S, Off | Realistic | Next-Gen, rows night clock 120 and rain clock 162, 1280 × 960 at half
 size); `<C|B|N|R>_motion_realistic_nextgen_0.1s.webp` (clock 120.0–120.7); `B_user_settings.jpg`
 (a player's real settings: TAA, SSR Ultra, Volumetric Fog…; window path, `--bench explore`); crops.
@@ -368,7 +368,7 @@ Clone deviation work on the Next-Gen tier (opt-in, manual). Off draws as before 
 built); On and Realistic share two exact edits (lamps out of reach skipped, the wet stone's noise skipped
 where it adds nothing) and Realistic the reflection march's clip-space stepping (the same points up to
 float rounding). Nothing native to trace (SPEED2.EXE has no water system); every number below is measured on the
-clone (reference desktop GPU, 4K, explore at night, clock 120, orbit tracks; internal evidence: water4/scripts).
+clone (reference desktop GPU, 4K, explore at night, clock 120, orbit tracks; internal evidence).
 
 **1. The fine highlights (the FSR 2 masks pass's open item).** the FSR 2 masks pass found the jets' fine specular detail gone under TAA,
 TAAU and FSR 2 but kept by SSAA 2x and read it as a temporal-resolve problem. It is not: the default
@@ -481,7 +481,7 @@ explore and race WAVs identical; state hashes identical over firstrace (4810 ste
 construction: Off never builds the mesh or the GPU half, `hide_water` stays false (the draw list is
 the native one), and `Draw::water` is only read when it is set. Raw: `water-work/parity/`.
 
-## Cost (GPU busy ms/frame, `--bench explore 600`, reference desktop GPU, Off vs On interleaved; internal evidence: water/scripts/cost.sh)
+## Cost (GPU busy ms/frame, `--bench explore 600`, reference desktop GPU, Off vs On interleaved; internal evidence)
 The camera orbits a fountain (`scripts/orbit.py`, 600 frames, eye 18–20 m out): C = the City
 Core fountain (basin, 4-tier cascade, jet), N = the Beacon Hill steps (11 jets, stepped pools,
 the worst case found), X = the default explore route (no water in view). 4 runs per arm
@@ -504,7 +504,7 @@ an integrated GPU (×10, inferred as in the audit) ~5 ms with a fountain filling
 nothing elsewhere. Ultra preset: On. CPU: one pass over 141 records per frame (not measurable
 against the noise). Raw: `water-work/cost/`.
 
-## Evidence (`docs/evidence/water/`)
+## Evidence (the maintainer's private captures)
 * `*_off_on_day_night_dusk.webp`: per view Off | On, rows day (sunrise sky, clock ≈ 1 s), night
   (`NFSU2_RAIN_CLOCK=120`), dusk (420, the sunset sky). Views (`scripts/shoot.sh`,
   `NFSU2_SHOT_LOOK` eye → target, `--shot explore`): C City Core fountain (−785, −285), R casino
@@ -521,7 +521,7 @@ against the noise). Raw: `water-work/cost/`.
   in game.rs: `NFSU2_SHOT_LOOK=ex,ey,ez,tx,ty,tz[,fov]` (the shot's camera at the eye looking at
   the target; unset: unchanged).
 
-## Evidence, Realistic (`docs/evidence/water2/`, `scripts/evidence.sh`)
+## Evidence, Realistic (the maintainer's private captures, `scripts/evidence.sh`)
 * `<view>_off_on_realistic_night_rain.webp`: per fountain view (C City Core, R casino round
   fountains, N Beacon Hill steps, P park fountain, W waterfall pools, B jackpot basin, L hill pool,
   S hill stream) Off | On | Realistic, rows night (clock 120) and rain (clock 162), `--shot explore`
@@ -562,7 +562,7 @@ showcase). Now (water_ng.wgsl): the aerated share is the particles' own breakup 
 (`smoothstep(0.2, 0.7)` per particle in `fs_fluid_thick`: white streaks along the flow, clear water between), the
 cover ramps over 6 cm of chord, white water reflects at most 0.9 of its light, and the lamps' light through the water
 is counted once (in the white water's light; clear water shows the lamp's own sprite). Jet region
-(`docs/evidence/gfx-bug-2/fountain.txt`, 1280 × 960): Original + Next-Gen p95 225.3 → 224.8 (Realistic 234.0,
+(the maintainer's private capture, 1280 × 960): Original + Next-Gen p95 225.3 → 224.8 (Realistic 234.0,
 within 10; before 190.4), p75 207.9 → 170.2 (the tubes' fill gone), largest ≥ 250 region 350 → 215 px
 (Realistic 325). At a common play setup p95 235.5 (Realistic 240.3); the largest ≥ 250 region (1028 px) is the jets'
 landing spray in front of the basin's lamp, where the particle wall is thick (before 506 px; Realistic shows the lamp

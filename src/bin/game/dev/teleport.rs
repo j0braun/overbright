@@ -2,7 +2,7 @@ use crate::*;
 
 impl Game {
     /// NFSU2_DEV_SHOP=<shop name> (a test aid, not the game; used by
-    /// scripts/preview_xtest.sh): the first time career free roam is up
+    /// the maintainer's preview_xtest.sh): the first time career free roam is up
     /// with no scene running, the car is put in that shop's route trigger,
     /// mid-box, so the Enter Race / Shop key engages it through the
     /// window's own loop and keys.

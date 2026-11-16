@@ -3,7 +3,7 @@
 This follows `outrun-think-scheduling.md`. It is static tracing plus a 52-case
 original-code helper oracle, not a complete action implementation or new live run.
 Original executable digest and extracted range hashes are retained in
-internal evidence: outrun/action-followup/metadata.json; readable assembly is adjacent.
+internal evidence; readable assembly is adjacent.
 
 ## Action lifecycle after a successful full-think route update
 
@@ -44,8 +44,8 @@ and replacement behavior; it must not be silently folded into the ordinary path.
 Reproduce the oracle without a game/GPU session:
 
 ```
-python3 internal evidence: outrun/native-action-lifecycle-probe.py SPEED2.EXE PRIVATE_OUTPUT_DIR
-python3 internal evidence: outrun/check-action-lifecycle.py
+python3 $OB_PRIVATE/docs/evidence/outrun/native-action-lifecycle-probe.py SPEED2.EXE PRIVATE_OUTPUT_DIR
+python3 $OB_PRIVATE/docs/evidence/outrun/check-action-lifecycle.py
 ```
 
 The 16 state cases execute original `403120` and `401990`, covering every

@@ -69,7 +69,7 @@ Gate: see the unit report (`scripts/checks/gate.sh … extreme`).
 ## Cost
 GPU busy median per frame (ms), reference desktop GPU RADV, `--bench <scene> 600` at 3840×2160 with perf.sh's
 **Extreme** preset (SSAA 2x: the scene is 7680×4320) and the row at On vs Next-Gen, 2 runs each, frames
-after the first 20 % (internal evidence: car-lights/scripts/bench.sh, `summ.py`; raw: `costs-4k-extreme.txt`):
+after the first 20 % (internal evidence, `summ.py`; raw: `costs-4k-extreme.txt`):
 
 | scene | On | Next-Gen | Δ | its own pass (`graphics: car lights`) |
 |---|---|---|---|---|
@@ -103,7 +103,7 @@ the red haze's noise moved, 7 % of pixels by > 2 / 255, mean +0.2), motion stati
 rain drive within 0.05 %. Tried and dropped: iterating only the tile's set bits (a per-pixel index made
 the lamps' loads vector loads: 10.6 → 12.1 ms on the iGPU). Row hint 0.7 → 0.43.
 
-## Evidence (`docs/evidence/car-lights/`, 1920×1080, `scripts/scenes.sh GAME OUT`)
+## Evidence (the maintainer's private captures, 1920×1080, `scripts/scenes.sh GAME OUT`)
 Original | Ultra (perf.sh's ULTRA + Beams On) | Next-Gen (the same, Beams Next-Gen):
 `dry_front_*` (the S2_STREET_4 grid from ahead, night, dry), `rain_front_*` (the same in heavy rain,
 world clock 170 s, Wet Roads / Wet Car / Rain Detail / Spray), `rain_chase_*` (the race shot's camera at
@@ -150,7 +150,7 @@ van's box, the lens streak and core 360, the halos 90. Causes (measured):
 * **The lens glare's distance law** (`vs_streak`): `1 / (1 + d² / 30²)` kept 10 m's streak and core out to 30 m,
   covering the front between the lamps. Now full within 10 m, then `200 / (100 + d²)` (the light reaching the lens).
 Tried and dropped: an inverse-square near field per lamp and a per-car saturation cap (both left more white).
-Numbers (`docs/evidence/gfx-bug-2/headlights.txt`, area ≥ 240, 4K dry, Original / On / before / after):
+Numbers (the maintainer's private capture, area ≥ 240, 4K dry, Original / On / before / after):
 10 m 6188 / 6117 / 7594 / 7616, 30 m 1100 / 1126 / 4158 / 1586, 80 m 55 / 66 / 112 / 86 (target: within 2× of
 Original). Rain, 30 m: 448 / 1594 / 7297 / 3149; the rain's remainder is mostly not this effect ("On" is 3.6× the
 Original there: wet road, rain lighting) — open. The player's own lights (chase camera, explore / rain street) and the

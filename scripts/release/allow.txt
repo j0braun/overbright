@@ -42,7 +42,7 @@ docs/evidence/wet-road-car/g12c/README.md:=e1c2a1269cd0:unit-code:look rule id E
 docs/audio-levels.md:=08047ea5c703:unit-code:sample format I24
 docs/checks.md:=afb542250efb:unit-code:placeholder shot-target names T1 T2
 docs/drag-drift-outrun-parity.md:=efe91c688b94:unit-code:car name A3 (Audi)
-docs/drag-stage4-parity.md:=3f86a94bbe83:unit-code:option value placeholders D1,D2
+docs/drag-stage4-parity.md:=db43cfe03c9c:unit-code:option value placeholders D1,D2
 docs/drag-stage4-parity.md:=80623e5a50de:unit-code:car name A3 (Audi)
 docs/outrun.md:=70ebef2f3cf6:unit-code:car name A3 (Audi)
 docs/model-fixes.md:*:unit-code:car name A3 (Audi); rim widths W23 / W26

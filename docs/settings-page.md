@@ -10,7 +10,7 @@ unchanged: same rows, values, look and flow. Defaults stay native; options.txt k
   `options.rs` (`Category::Settings`, the `Ux*` row ids and labels, `OptionsScreen::key` / `quads`, 7 rows + a
   4-line detail on the page), `qol.rs` (`Preset::Extreme`, the page's preset names, `COMPARE`), `game.rs`
   (navigation, shots `settings_<group>`).
-* Evidence: `docs/evidence/ux1b/` (screens at 1920×1080, 3840×2160, 3440×1440; navigation sequence; preset costs).
+* Evidence: the maintainer's private captures (screens at 1920×1080, 3840×2160, 3440×1440; navigation sequence; preset costs).
 
 ## Structure
 
@@ -158,7 +158,7 @@ High class — measured at 1920×1080 and 3840×2160, linear in pixels between a
 sizes); Integrated — measured at 1920×1080, proportional to pixels (inferred elsewhere); **Mid — twice the High
 class (inferred: no mid-class card measured, as the effects-tiers pass)**.
 
-Measured (internal evidence: ux1b/presets-rx.txt, `presets-igpu.txt`; perf.sh bench, 2 runs × 300 frames,
+Measured (internal evidence, `presets-igpu.txt`; perf.sh bench, 2 runs × 300 frames,
 `ORDER=alternate`, load average 30–64; heaviest of explore / racing / race start / rain, GPU busy median ms):
 
 | preset | reference desktop GPU 1080p | reference desktop GPU 4K | reference integrated GPU 1080p |

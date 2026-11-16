@@ -15,7 +15,7 @@
 | garage | Quick Race car select (front end: no light packs, unchanged) | `--shot qrcars` |
 | dusk | brightest dry sky ("daytime"; NFSU2 has no day) | `NFSU2_RAIN_CLOCK=19 --shot explore` |
 
-Scripts: `scripts/scenes.sh`, `scripts/ident.sh`, `scripts/bench.sh`
+Scripts: the maintainer's private capture, the maintainer's private capture, the maintainer's private capture
 (paths point at the job's work dir).
 
 ## Native byte-identity (all three off), md5 of `--shot` 1280 × 960, <base> binary vs this build (ported onto main 2026-11-04)

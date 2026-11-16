@@ -4,7 +4,7 @@ One description of the career's random outruns. The career/manager/HUD
 side is in `formats.md` "Outrun"; this file covers what the rival does and
 indexes the detailed notes. **Verified** = traced in SPEED2.EXE (REA/Ghidra
 or `speed2.dis`); **observed** = seen under Wine (2026-11-04, vanilla,
-fastgpu/DXVK, the finished-career save, `docs/evidence/outrun-live/`);
+fastgpu/DXVK, the finished-career save, the maintainer's private captures);
 **inferred** / **open** as marked.
 
 ## Life of an encounter car
@@ -92,7 +92,7 @@ fastgpu/DXVK, the finished-career save, `docs/evidence/outrun-live/`);
    "Outrun"; observed losses at 20.96, 32.2 and 35.8 s with the player
    stopped.
 
-## Live comparison (docs/evidence/outrun-live)
+## Live comparison (the maintainer's private captures)
 
 Same driving in both: the player put 10 m behind a free-roam encounter car
 on its travel at its speed with the throttle held (`engage.py`; the clone's
@@ -119,7 +119,7 @@ encounter racer that type and row; performance still matched to the
 player by 0x5B7580), `NFSU2_FLOW_POSE` (both cars' position and velocity at
 the native challenge, plus the rival's tank ticks) and, for
 `NFSU2_FLOW_OUTRUN=bot`, `NFSU2_FLOW_PATH` (the road path the native bot
-drove, from `devprobes/src/bin/outrun_path` = `outrun::road_path`, 0x415130 walks)
+drove, from the maintainer's probe `outrun_path` = `outrun::road_path`, 0x415130 walks)
 with the same keyboard bot (`bot.py` / `OutrunBot`) and the same lead
 intervention (`NFSU2_FLOW_LEAD_AT=3`, `LEAD_M=40`: the player put on the
 rival's driver path ≥ 40 m ahead at the rival's speed; native and clone
@@ -202,7 +202,7 @@ against the player's car rating (0x4FEAF0, −1 → 0x5B69A0) from the pool, and
 Wine (Medium, 1): the challenged rivals were an A3 with row 4 (stage 4, a community save) and a CORSA
 with row 3 (stage 5) — within Medium's rows; this is consistent, not a distribution check.
 
-**Observed under Wine** (`docs/evidence/outrun-s45/`; Wine copy `a private Wine copy`, wined3d;
+**Observed under Wine** (the maintainer's private captures; Wine copy `a private Wine copy`, wined3d;
 `outrun_win.py`: the sandbox save's +0xDC set, engaged as outrun.py does, the player put 15 m
 ahead until its racer +0x24 = 0 (it leads), then the rival lifted 400 m: status 7, the player
 wins at once):

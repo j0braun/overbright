@@ -189,7 +189,7 @@ files.
 #[test]
 #[cfg_attr(not(ob_private), ignore = "needs OB_PRIVATE (private captures and saves)")]
 fn replays_the_capture() {
-    let raw = testkit::private("internal evidence: cached-wheel-count/airborne.bin");
+    let raw = testkit::private("docs/evidence/cached-wheel-count/airborne.bin");
     ...
 }
 ```

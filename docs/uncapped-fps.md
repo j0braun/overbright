@@ -59,7 +59,7 @@ rpm), drivetrain +0x14 (clutch), +0x38.. (target, gear, shift, pending,
 input ω), engine +0x14/+0x78.., input pedals and the timing globals. All
 patches were restored after each run (vtable, call, T = 1/120). Runs repeat
 to 3 decimals (f120r/rb/rc). Tools and the per-run table:
-`docs/evidence/uncapped-fps/` (cap.py, rec.s, dec.py, ana.py,
+the maintainer's private captures (cap.py, rec.s, dec.py, ana.py,
 native-runs.csv, rate_probe.rs); raw captures in
 `<work dir>/fps-work/raw/`.
 
@@ -761,7 +761,7 @@ reads what it read.
   (attributed: the trail map, spray and lens no longer reset when a bench
   or shot jumps the clock between two draws, the lens sim restarts with
   its generator on a jump; Ambient Detail's generator counts ticks).
-  Before / after crops: docs/evidence/enh-ticks/.
+  Before / after crops: the maintainer's private captures.
 * **Cost**: the hook runs ~0.95 ms a tick in the rain at Extreme (spray
   and trail 0.73, Ambient Detail 0.2, the car lists < 0.01): the same work
   (same particle counts) the draw did before, now on the tick; at 200 Hz
@@ -1193,7 +1193,7 @@ and a 120 ms stall every 4–6 s) and compares every state-hash column per tick
 with 60 Hz, the offline mix byte for byte and the racing bench's α = 0
 frames per image class. It now **counts everything** and runs by default
 (`RATE=strict` in gate.sh and checks.sh full; `RATE=0` leaves it out;
-evidence docs/evidence/checks/rate-2026-11-13-strict.txt):
+evidence in the maintainer's private capture):
 
 * **State: 600 of 600 cells identical** — the 15 columns × 10 flows × 4
   schedules, jitter included: gameplay, clocks, HUD, front end, audio,

@@ -27,8 +27,8 @@ build_acceleration_structures`, `TlasInstance` (3 × 4 row-major, 24-bit
 custom data, 8-bit mask). Also offered: `EXPERIMENTAL_RAY_HIT_VERTEX_RETURN`,
 `EXPERIMENTAL_RAY_TRACING_PIPELINES` (not used).
 
-`devprobes/src/bin/rt_probe.rs` (headless, no game data; exit 0 = usable), reference desktop GPU,
-RADV NAVI32, Mesa 26.2.5 (internal evidence: rt-reflections/probe-rx7800xt.txt):
+the maintainer's probe `rt_probe` (headless, no game data; exit 0 = usable), reference desktop GPU,
+RADV NAVI32, Mesa 26.2.5 (internal evidence):
 all three features offered; max BLAS primitives 536 870 911, TLAS instances
 16 777 215; a 1 M-triangle BLAS + 2 k car BLAS + 65-instance TLAS built in
 3.6 ms GPU; one coherent ray per pixel: 0.25 ms at 1080p, 1.0 ms at 4K;
@@ -127,7 +127,7 @@ pass (27–45 % of the trace's pixels need one in the scenes measured):
 * DX12: the tier is Vulkan-only (`rt::adapter_can`); both forms compile
   for Windows, neither can run there.
 
-## Cost (gpu busy ms/frame, median, `--bench … 300`, 2 runs each, Wet Roads on; internal evidence: rt-reflections/bench.txt)
+## Cost (gpu busy ms/frame, median, `--bench … 300`, 2 runs each, Wet Roads on; internal evidence)
 | scene | 1080p SSR Ultra → RT | Δ | 4K SSR Ultra → RT | Δ |
 |---|---|---|---|---|
 | explore | 1.31 → 1.56 | +0.25 | 4.40 → 5.19 | +0.79 |

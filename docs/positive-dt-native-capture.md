@@ -82,7 +82,7 @@ rest return and bump-call sequence.
 
 ## Instrumentation and provenance
 
-`evidence/positive-dt-native/` retains the assembly, linked recorder bytes,
+the maintainer's private captures retains the assembly, linked recorder bytes,
 disassembly, Python driver/decoder, three complete losslessly compressed
 raw streams, metadata, summaries, selected hard-landing decoded boundaries,
 and a SHA-256 manifest. The assembly saves/restores GPRs, EFLAGS and full
@@ -143,7 +143,7 @@ through the owned-prefix supervisor afterward.
 Offline audit (no game, Wine or clone simulation required):
 
 ```
-python3 internal evidence: positive-dt-native/test_decoder.py
+python3 $OB_PRIVATE/docs/evidence/positive-dt-native/test_decoder.py
 ```
 
 This audits all three complete streams, verifies raw/compressed hashes,

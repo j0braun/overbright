@@ -48,7 +48,7 @@ end (garage, showroom, car lots) keeps its light setups: there the rig is the sc
 
 Original: `compute` = `compute_with(…, false)` (the same sums; byte-identical, gate parity below).
 
-## Look rules (docs/look-direction.md, `tools/look`, the look direction spots with the original's cameras, 1280×960)
+## Look rules (docs/look-direction.md, the maintainer's tools, the look direction spots with the original's cameras, 1280×960)
 
 The change alone, user settings (perf.sh USER; the look direction's `user`) after − before, 16 spots: Δmean **−1.18**
 (R1 ±2.5), Δp5 −0.18 (R2 ≤ +1), Δp95 **−2.38** (R3 ±4), Δglow −0.09 (±0.2), ΔRMS −0.88 (R4 ≥ −2), Δsat
@@ -58,9 +58,9 @@ max −1.34 / −0.13 / −3.61 / −0.11 / −1.24. Against the original (Wine,
 frame's brightest pixels, so p95 falls (per spot −0.2 … −5.0, the most behind a near player car: street,
 downtown, coal_west, jackson_hills); Ultra's total p95 vs clone Original is −3.75 (16 spots) / −4.21
 (11 Wine spots), at the edge of R3; nothing is lifted, the blacks are unchanged, saturation is up slightly.
-Table: internal evidence: car-scene-specular/look-table.txt.
+Table: internal evidence.
 
-## Evidence (`docs/evidence/car-scene-specular/`)
+## Evidence (the maintainer's private captures)
 
 `intro_350z_car_200.webp` (Rachel's 350Z, the intro, 200 %: Original (Wine) | clone Original | user
 before | user after); three other cars at 100 % (clone Original | user before | user after, the Wine frame

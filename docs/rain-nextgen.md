@@ -72,10 +72,10 @@ Drops rows keep their own meaning):
 ## Native byte-identity
 - Fast build, 1280 × 960, `--shot explore` at clock 165 (rain 0.75): Original, Rain Detail On and
   High (with Wet Car, Spray, Lens Drops) are md5-identical to the copy's base binary.
-- Gate `scripts/checks/gate.sh … <base> extreme`: see the unit report / internal evidence: rain-nextgen/gate.txt.
+- Gate `scripts/checks/gate.sh … <base> extreme`: see the unit report / internal evidence.
 
 ## Cost (`--bench drive 600`, clock 162, rain 0.70, 4 cars; reference desktop GPU, shared machine, 1 run each)
-GPU busy median ms/frame; configs carry Wet Car + Spray + Lens Drops (internal evidence: rain-nextgen/scripts/bench.sh).
+GPU busy median ms/frame; configs carry Wet Car + Spray + Lens Drops (internal evidence).
 
 | | 1080p frame | 1080p weather pass | 4K frame | 4K weather pass |
 |---|---|---|---|---|
@@ -104,7 +104,7 @@ one 0.090 [0.089..0.090] → none. Without Volumetric Fog the haze runs as befor
 `next_gen_lens_drops_run_and_merge`, `frame_uniform_layout`; `qol::tests::weather_rows_round_trip_and_native_default`
 (3 parses and writes, 9 clamps to 3).
 
-## Evidence (`docs/evidence/rain-nextgen/`)
+## Evidence (the maintainer's private captures)
 - `spot-*-orig-ultra-ng.webp`: Original | Ultra-like (rain High) | Next-Gen, `--shot explore` 1080p at clock 165:
   City Core, casino canopy (under a cover zone: no rain, the haze and halos beyond), garage approach,
   the fountain plaza ("highway" spot −897.9, 726.1), neon district. `highway-crop100-ultra-ng.webp` at 100 %.

@@ -23,7 +23,7 @@ install: FE_COMMON_MB "CommonSample" (19 sounds), FE_MB "FrontEndSample"
 and "FrontEndSample_loop" (71 each).
 
 **AEMS event graphs** (<work dir> pass, verified; `src/audio/aems.rs`, probe
-`devprobes/src/bin/aems_probe.rs`). A module's code (record +0x28) is x86 emitted by
+the maintainer's probe `aems_probe`). A module's code (record +0x28) is x86 emitted by
 the bank compiler: `push esi; mov esi,[esp+8]`, then only `push esi; call
 id` (ESI = the node's block; the file holds the node id, the loader patches
 it to 0x817FE0[id], 0x72132C), `mov [esi+d],eax`, `mov eax|ecx,[esi+d]`,
@@ -239,7 +239,7 @@ signed byte rec(p)+0x5F is written by 0x723C41 (see the angle-word bullet).
   set EDI) and that was wrong: the third slot holds a pushed zero (see the <work dir>
   pass below), so the pan is 0 there if the callee pops four bytes (checked only
   for vtable 0x78AF30; the class of ESI is not identified). The dword angle is
-  the result of [vtable+0x3C](0) on the object (one argument; the second pushed
+  the result of `[vtable+0x3C](0)` on the object (one argument; the second pushed
   zero stays on the stack; class not identified; the other two callers do the
   same). The engine update also sets the signed byte
   rec(child)+0x5F through 0x723C41 (verified: for each record p of the voice's
@@ -422,7 +422,7 @@ decel crackle; no music or speech in this install.
 
 
 **Car effect sounds** (<work dir> pass; verified unless marked; `src/audio/carfx.rs`,
-probes `devprobes/src/bin/sfx_banks.rs`, `devprobes/src/bin/sfx_players.rs`).
+probes the maintainer's probe `sfx_banks`, the maintainer's probe `sfx_players`).
 
 * Registry (records {name, list head 0x7ED138, factory, type}; the type is
   the dword before the name, see Registry layout below): CARSFX_Shift
@@ -1098,7 +1098,7 @@ probes `devprobes/src/bin/sfx_banks.rs`, `devprobes/src/bin/sfx_players.rs`).
 
 **Road, wind, bottom-out, AI and traffic sounds, <work dir> pass** (verified
 unless marked; ported in `src/audio/roadwind.rs`, `traffic.rs`,
-`stitch.rs`; render probe `devprobes/src/bin/car_audio_render.rs`; self-test "road
+`stitch.rs`; render probe the maintainer's probe `car_audio_render`; self-test "road
 / wind voices"). Vtable slots of the sound objects: +0x10 attach, +0x14
 bind, +0x18 bank, +0x1C start, +0x20 stop, +0x24 update(dt), +0x28 per
 frame, +0x38 / +0x3C the mix map's level / azimuth (0x45E390 / 0x45E3B0),
@@ -1329,7 +1329,7 @@ AI engine (section 2), 0 TrafficEngine, 1 TrafficWoosh (section 3).
 * **Against the original under Wine** (recordings in
   $OB_PRIVATE/wine/runs/<run>/rec, 48 kHz stereo, free roam after Start
   New Career: Rachel's 350Z at the airport, raining, chase camera; the
-  clone's `devprobes/src/bin/car_audio_render`, engine entry 0, no rain). RMS
+  clone's the maintainer's probe `car_audio_render`, engine entry 0, no rain). RMS
   (L / R dBFS): idle −29.3 / −27.9 (original) vs −35.6 / −35.6 (clone);
   full throttle −18.7 / −18.4 vs −27.4; skid −17.7 / −17.9 vs −25.7.
   The original's idle energy sits at 100–1000 Hz (peaks near 128 / 191
@@ -1395,7 +1395,7 @@ The checklist is docs/sound-audit.md. **Verified** (traced) unless marked.
   +0x170 = +0x274 and, unless +0x16C, PlayFESound 0x49, +0x16C = 1, +0x16D
   = 0; equal → unless +0x16D, StopFESound 0x49, +0x16D = 1, +0x16C = 0.
   Id 0x49 is FE_MB's PlayFrontEndSample_loop sound 50 (bank slot 48: 44.1
-  kHz, 112500 samples, loop 0..112499 — `devprobes/src/bin/fe_loop_probe.rs`).
+  kHz, 112500 samples, loop 0..112499 — the maintainer's probe `fe_loop_probe`).
   Clone: `Game::car_turn_sound` on `garage::View::at`'s car angle; the
   loop also stops when the FE car goes (**inferred**).
 * **Drive-by whooshes** (`audio::driveby`). SFXCTL_Tunnel (factory
@@ -1450,7 +1450,7 @@ The checklist is docs/sound-audit.md. **Verified** (traced) unless marked.
   is 3, else 1}, then the stream is queued (0x46CA60(2, 0x475530, 0)).
   `nisaudio` event 0x4000 (entry 0x4023, constraints (0x1FFFFFFF, 0),
   (0x3FFFF, 1), (7, 2)) holds 2 records per scene / track: third key 0
-  (value 1) or 2 (value 4) — `devprobes/src/bin/nis_start_probe.rs`. Not modelled:
+  (value 1) or 2 (value 4) — the maintainer's probe `nis_start_probe`. Not modelled:
   the tournament and split-screen adjustments. **Under Wine** (Quick Race
   circuit, Resort Loop, Peugeot 206, Crowds on; memory reads every 0.25
   s, $OB_PRIVATE/wine/runs/<run>/logs/sound_probe.txt): flow +0 / +8 /
@@ -1865,7 +1865,7 @@ targets Ghidra has no function at) unless marked.
   2, 4 → 3. Mix map: sections 4 / 7 / 8, class 0, field 0x6004/7/80000
   (the distance), one copy per state (0x4860FC). Clone: `audio::enviro`
   (`World::anim_points`, `LoopPiece::waiting`, `Scene::enviro`). Levels
-  (MAPOUTPUT, `devprobes/src/bin/enviro_probe.rs`): fountain slot 0 2886 at 5 m,
+  (MAPOUTPUT, the maintainer's probe `enviro_probe`): fountain slot 0 2886 at 5 m,
   0 from 50 m; plane slot 0 / 1 3663 / 9748 near, 555 / 1476 at 400 m, 0
   at 800 m; train 4225 at 5 m, 543 at 200 m. **Inferred**: the 0.3 m move
   per 60 Hz frame; the objects after the managers each frame. Check:
@@ -2046,7 +2046,7 @@ targets Ghidra has no function at) unless marked.
   0x4714A0 / 0x47C6D0 and the zone entry / exit with the drive-by
   tunnel's zones (`driveby::Tunnel`). Not ported: the music streams'
   sends, the voice-stop declick into the bus (0x72886C on 0x8B4924), the
-  16-sample send ramps (0x728B48). Measured (`devprobes/src/bin/reverb_ir`, 8 s
+  16-sample send ramps (0x728B48). Measured (the maintainer's probe `reverb_ir`, 8 s
   impulse at 44100): T60 Simple_Tunnel 4.8 / 4.0 s (channels 0 / 1),
   Simple_Tunnel_Sml 0.6 / 0.5, Garage 0.7 / 0.45, Hills 1.1, Hills_Close
   0.6 / 0.7, City_Open 0.86, City_Dense 1.1 / 1.3, Alley 0.5 / 0.4; the
@@ -2463,7 +2463,7 @@ parser) unless marked. Clone: `audio::fe_rules` (round 8 part),
 ### Sound round 9
 
 **Verified** (the disassembly, REA / Ghidra, the packages' `PkgR` and
-object responses: `devprobes/src/bin/fng_pkg_responses`, `devprobes/src/bin/fng_responses`)
+object responses: the maintainer's probe `fng_pkg_responses`, the maintainer's probe `fng_responses`)
 unless marked. Clone: `audio::fe_rules` (round 9 part), `audio::stitch::
 CommonStitches`, `Game::native_menu_sound`, `Game::garage_request`, tests
 `round9_screen_key_state_table` (tests/fe_sounds.rs) and
@@ -2739,7 +2739,7 @@ table: docs/sound-audit.md (round 11).
   events; FX_SPARKCHATTER and FEDriveOn have none. Two were not in the
   audit: 0x46368D (the car stereo, below) and 0x46AEBD (the water drum:
   FX_ROADNOISE_TRANS {3, 0, 0, 0, 1}, which ROADNOISE_00_MB plays as
-  sample 14, 1.99 s — `devprobes/src/bin/aems_probe`; at level 0 until something
+  sample 14, 1.99 s — the maintainer's probe `aems_probe`; at level 0 until something
   sets p1, **open**).
 * **Context masks** (0x476B50 and its neighbours, through 0x476990(0,
   mask) → context slot 1 0x483740: +0x24 = mask, 0x47F660 makes one
@@ -2874,7 +2874,7 @@ there.
 * **Offline check of the traffic contexts and the splash** (selftest):
     six of ten traffic cars in range hold a context; twelve racers give
     two stereos; a splash's three requests run and end with the sample
-    after 2.05 s of rendered mix (`devprobes/src/bin/aems_probe` with
+    after 2.05 s of rendered mix (the maintainer's probe `aems_probe` with
     `NFSU2_PROBE_VOICE_TICKS`: FX_ROADNOISE_TRANS's instance ends when its
     voice does).
 * **Water drum splash.** The props' sound object (vtable 0x78BB08,
@@ -3164,7 +3164,7 @@ traffic engine's level for given position fields).
   looping."
 * **The trigger: an xrun while the worker waits in poll.** Reproduced in
   a private PipeWire 1.6.10 + WirePlumber with a null sink
-  (`scripts/audio_sandbox.sh`, `devprobes/src/bin/audio_xrun_repro`, watchdog
+  (`scripts/audio_sandbox.sh`, the maintainer's probe `audio_xrun_repro`, watchdog
   off): one `pw-metadata -n settings 0 clock.force-quantum 4096` (a
   graph quantum longer than the stream's buffer) put the worker at 100 %
   CPU (50 ticks per 0.5 s), 0 voluntary switches, no callback for the
@@ -3238,7 +3238,7 @@ traffic engine's level for given position fields).
     for that second. The sink's recording: the longest run of zeros
     inside sound 405 ms (A 3 ≥ 200 ms, B 4, all at a forced 8192 or 4096
     quantum, the sink refilling); no silence that lasted.
-* **Device check aids:** `devprobes/src/bin/audio_xrun_repro` (the busiest thread's CPU
+* **Device check aids:** the maintainer's probe `audio_xrun_repro` (the busiest thread's CPU
   and context switches, the callback's silence; NFSU2_REPRO_HOLD,
   NFSU2_REPRO_NO_WATCHDOG); `scripts/audio_sandbox.sh [--pulse]
   [--no-wireplumber] CMD` (the private PipeWire); `--flow` with
@@ -3265,7 +3265,7 @@ traffic engine's level for given position fields).
 
 Ported in `src/formats/viv.rs`, `src/audio/{schl,microtalk,ealayer3,
 mp3_tables,speech,music,streams}.rs`; tests `tests/speech_music.rs`, the
-selftest's "streams" step, probe `devprobes/src/bin/speech_probe.rs`.
+selftest's "streams" step, probe the maintainer's probe `speech_probe`.
 
 * **The archive** (**verified** unless marked): a "BIG4" (header kind 3 of
   0x6FA8D0; 0xC0FB → 1, "BIGF" / "Shp" → 2; header size u32 BE at +0xC,

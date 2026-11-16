@@ -61,7 +61,7 @@ Not carried:
   place keeps the driver's flags now.
 * **A held left turn was sent once.** `native.py` decided "held" by the event's value, and the
   steering's left is the value 0x00, which read as a released key; the original steered for a
-  frame and then went straight. Held now by the press (`tools/parity/selftest.py` checks it).
+  frame and then went straight. Held now by the press (the maintainer's tool `selftest.py` checks it).
   Earlier runs that held `left` steered only on their first frame.
 
 ## 3. The proof: no input change after the transplant
@@ -204,7 +204,7 @@ at the handbrake turn's key frame (the steering's running means are not carried,
 
 ## Tools
 
-* `tools/parity/fields.toml`: `lock_*`, `ntq_*`, `torq_*`, `steer_drift`, `steer_avg`,
+* the maintainer's `fields.toml`: `lock_*`, `ntq_*`, `torq_*`, `steer_drift`, `steer_avg`,
   `steer_rate`, `steer_lim`, `steer_last`, `hb_ramp`, `hop_t`, `hop_calm`, `rb_damp`.
 * `parity.py` writes the plan line `tyres_at F` (23 numbers, `Plan::tyres_at`, `put_tyres`) with
   `transplant_full` when the run recorded those fields; `PARITY_NO_TYRES=1` leaves it out (the

@@ -95,7 +95,7 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
   the win handler (0x541430 → 0x513390): category 3 and not SUV at stage
   record +0x00 (35), sponsor at +0x8C (4), URL at +0x9C (10). The stage
   ends (0x532C70) when its final event is won and its media milestones
-  are reached. Verified by `devprobes/src/bin/career_walk.rs` and the test
+  are reached. Verified by the maintainer's probe `career_walk` and the test
   `open_events_follow_the_stage_rules`.
 * **Milestones** (0x34A16, 0x40 each): +0x00 name (STAGE_2_DVD_1,
   STAGE_2_SHOW_1_PICTURE), +0x20 hash, +0x24 kind (1/3 magazine, 2/4 DVD),
@@ -739,7 +739,7 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
     hash names a preset (0x637280 → 0x61C470 by the preset's name hash;
     no such preset leaves the record as it was): the career's boss and
     rival entries CALEB_GTO, NIKKI_MUSTANGGT, TOM_G35, AL_RX8,
-    NIGEL_3000GT, MARCUS_CELICA, SCOTT_TT (`devprobes/src/bin/opponent_cars.rs`).
+    NIGEL_3000GT, MARCUS_CELICA, SCOTT_TT (the maintainer's probe `opponent_cars`).
     The clone used to look the hash up as a car type, found none and
     dropped those opponents; it now takes the preset's car type and parts
     (see **AI car looks**).
@@ -1126,7 +1126,7 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
     **Inferred**: the car keys at two scene frames each (car in place
     within ~3 s). **Not ported**: the scene's second car (`ZPM_Car2`) and
     its event track. Clone: `play_race_ending`, `IntroTable::ending_candidates`,
-    shot `ending` / `ending_hold`, `devprobes/src/bin/nis_endings.rs`.
+    shot `ending` / `ending_hold`, the maintainer's probe `nis_endings`.
   * UI_PostRaceResults' time column (0x4E9B8B, the tick): +0x70 counts the
     frame time; past +0x74 +0x68 flips and +0x74 is 1.75 s (0x78DFEC) for
     "Time Behind" (0xE2F9334D) or 4.5 s (0x78DFF0) for "Finish Time"
@@ -2442,7 +2442,7 @@ here: no Java) and **observed** under Wine unless marked. Ported in
     the total can stay below 0. Racer +0x194 is set to the total every
     frame, negative values included (0x60176C), so later positive tricks
     refill by their own Δ (no debt is carried).
-  * The negative entries in the trick table (`devprobes/src/bin/trick_table`):
+  * The negative entries in the trick table (the maintainer's probe `trick_table`):
     * TRAFFIC HIT (16): −50 × rate, threshold −30, mask 0x49, unlimited
       runs.
     * WALL IMPACT (3): −10, threshold −15, mask 4 (drift only). Its
@@ -2561,7 +2561,7 @@ did not start: no Java) unless marked. Ported in `src/style.rs`
 (`Misc`, `detect`, `draft`), `drive::CarState::style_contact` and game.rs
 (`style_detect`, `Race::style_frame`, `roam_style_frame`); tests in
 `style::tests`. The trick table's values (points, threshold, multiplier
-ceiling, runs) are the GLOBALB table's, dumped by `devprobes/src/bin/trick_table`.
+ceiling, runs) are the GLOBALB table's, dumped by the maintainer's probe `trick_table`.
 
 * **Misc style manager** (0x56CE00, racer +0x1DC; +0 the racer, +4 its
   style manager): +0x08 / +0x09 / +0x0A clean flags (1), +0x0B / +0x0C
@@ -2716,7 +2716,7 @@ and 0x89E804 in the disassembly):
   for each difficulty (+0x08…+0x0A; Easy 0–3, Medium 2–7, Hard 5–9, mean
   1.1, 5.0, 8.0 over the 679 entries), the Block row (+0x0B, 1 in all)
   and per event the AI throttle level (+0x7D: 0 or 1 in the 34 drag
-  events, 3 in the other 190; `devprobes/src/bin/difficulty_data.rs`).
+  events, 3 in the other 190; the maintainer's probe `difficulty_data`).
 * **Catch Up**: the Quick Race record's +0x05 (0x89E7F8); every career
   set-up clears it (see Catch-up, AI route layer).
 * **AI skill per racer**: racer info +0x901 (the skill row, read through

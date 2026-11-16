@@ -86,7 +86,7 @@ Each row: one option changed from the player's set. Still = car and camera held 
 * Found on the way: a `ray_query` declared inside a loop crashed the RADV pipeline compile
   (segfault); each ray now runs in its own function (`ml_ray_one`).
 
-## Evidence (`docs/evidence/shadow-softness/`, before = main + the bench aids only)
+## Evidence (the maintainer's private captures, before = main + the bench aids only)
 `<spot>_full.webp` before | after; `<spot>_crops.webp` 100 % (top) and 200 % at the shadow edge
 (bottom). Spots: airport (1700, −884), casino canopy dry and rain (−400, −524, heading 180), City Core
 street (−237.3, 79.8), neon district (−394, −531.1), garage approach (−388.6, 40.3); the flag girl
@@ -130,7 +130,7 @@ and no ceilings 24.4.
 Gate (`scripts/checks/gate.sh … <base> extreme`, base and new md5): CHECKS PASS (fast:
 1051 tests, selftest, 28 shots, flows, playthrough); PARITY all gates passed (Original AE 0 at 1280×960
 and 4K, 144 Hz path, Modern/Ultra/Extreme presets AE 0, 28 shots AE 0, audio and sim hashes identical).
-Modern Lighting phase 2 matrix (`modern-lighting-2/scripts/matrix.sh`, the player's live options / Ultra / Extreme × tiers
+Modern Lighting phase 2 matrix (the maintainer's private capture, the player's live options / Ultra / Extreme × tiers
 1–3 × explore, race, racing, rain): all runs clean.
 Measuring aids: `--bench explore` with `NFSU2_BENCH_AT=x,y,z,deg` (the car placed, standing),
 `NFSU2_BENCH_AT_DRIVE=n`, `NFSU2_BENCH_FREEZE_MOVE=dx,dy,dz` (a frozen view crawling);
@@ -162,7 +162,7 @@ every world pixel's shader (+1.5 ms with no ray traced at all). Now (`render/rt_
   alpha-to-coverage) keep the light's fallback shadow (ellipsoid / lamp layer), as before for lights
   past the strongest four. Without the depth pre-pass (`NFSU2_DEPTH_PREPASS=0`) every pixel does.
 * Debug view 2 (`NFSU2_MODERN_LIGHTING_DEBUG=2`): blue counts the lights the blocks shadow.
-Image metrics vs before (4K, user's settings + Modern + RT; `docs/evidence/perf-budget/dx1/`):
+Image metrics vs before (4K, user's settings + Modern + RT; the maintainer's private captures):
 casino canopy still SSIM 0.9993 (0.6 % of pixels > 2 levels, at shadow edges), rain drive 0.9994–0.9998,
 race start 0.99998; crawl / drive sequences: temporal SD and second differences equal to before
 (±0.2 %). Not native (no counterpart in SPEED2.EXE); the other tiers are byte-identical.

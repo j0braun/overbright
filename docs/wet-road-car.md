@@ -104,7 +104,7 @@ main group, the lamps' group and the RT scene group (`frame_group_rt`, `WorldCor
 carry the row's entries; `rebind_lamps_wet` rebuilds the RT group too
 (`wet_road::tests::frame_bindings_do_not_collide`). Modern Lighting phase 2's matrix (every Lighting tier × user / Ultra /
 Extreme × explore, race, racing, rain) with this row at High: all 36 runs clean
-(internal evidence: wet-road-car/matrix-g9b-wet-high.txt).
+(internal evidence).
 
 ## Native byte-identity and dry identity
 - The row off: no trail map, no passes. Bindings 12–14 of the world views' group 0 hold placeholders
@@ -119,7 +119,7 @@ Extreme × explore, race, racing, rain) with this row at High: all 36 runs clean
 ## Cost
 `--bench drive 600` at world clock 162 (night, heavy rain 0.70, a pack of cars), GPU busy ms/frame,
 median of 3 interleaved runs, reference desktop GPU, a shared machine. Raw numbers:
-internal evidence: wet-road-car/cost.txt.
+internal evidence.
 
 | row (over Original) | 1080p | 4K | of which the weather pass (spray) 1080p / 4K |
 |---|---|---|---|
@@ -190,7 +190,7 @@ On: the grid above, 16 Ki volume particles, 96 steps. High (cinematic): finer gr
 ### Cost
 `--bench drive 600` at clock 162 (night, rain 0.70, 3 rivals + traffic), the player's settings **without SSAA**
 (`enh.post_aa 0`), GPU busy ms/frame, reference desktop GPU (a shared machine; mean / median of 2 runs; raw:
-internal evidence: wet-road-car/g12b/cost.txt, round "final"):
+internal evidence, round "final"):
 
 | row | 1080p mean / median | 4K mean / median | the volume's passes (build + march + composite) 1080p / 4K |
 |---|---|---|---|
@@ -216,7 +216,7 @@ spray and the volume ended in brick-shaped edges. The droplets' weather pass got
   ahead entirely (now a veil: the car ahead and its lights read through it, `before_after_0501`).
 - SSIM / FLIP against this work are meaningless (a new effect); not used.
 
-### Evidence (`docs/evidence/wet-road-car/g12b/`, before = this work at c1983de On, after = the stronger wet interaction On; the player's settings
+### Evidence (the maintainer's private captures, before = this work at c1983de On, after = the stronger wet interaction On; the player's settings
 at 1080p, `--bench drive` from clock 162)
 | file | what |
 |---|---|
@@ -261,7 +261,7 @@ constant is by eye.
 Scope (user's scope freeze): the existing rows only — Wet Road Interaction, Spray & Splashes, Wet Car,
 Rain Detail; no new row, no new label id. Nothing here exists in SPEED2.EXE and nothing was traced or
 observed under Wine for it (there is no native spray, track or splash to capture): **inferred / by eye**,
-held to docs/look-direction.md's rules with `tools/look` numbers. The reference frame is the clone's
+held to docs/look-direction.md's rules with the maintainer's tools numbers. The reference frame is the clone's
 Original path at the same bench frame (it matches the original's luminance; the drive cannot be
 replayed under Wine at the same frame).
 
@@ -327,7 +327,7 @@ Motion (look rule E7): the spray moves with the cars, no popping or shimmer in c
    can be on screen (in front of the eye, within the screen's width + 1–3 m) go to the shader; and in the loop
    a pixel off a streak's line (lobe < e^-12) skips the rest (`wet_road_world.wgsl`; the tail glow is kept).
 
-### Look rules (docs/look-direction.md, `tools/look`; internal evidence: wet-road-car/g12c/look-drive.txt, `look-spots.txt`)
+### Look rules (docs/look-direction.md, the maintainer's tools; internal evidence, `look-spots.txt`)
 Driving frames (9: heavy chase 230/510/810/1110, bumper 510/810, damp 230/510/810), Δ against the clone's
 Original at the same frame:
 
@@ -345,7 +345,7 @@ not by this row (−0.01). The look direction spots (7: street, harbour neon, co
 harbour, race start; standing cars, so no spray): the row and Ultra / max are unchanged by this work (Δ ≤ 0.04);
 Rain Detail High's splashes p95 +1.37 → +1.27 at the rain spots.
 
-### Cost (internal evidence: wet-road-car/g12c/cost.txt)
+### Cost (internal evidence)
 `perf.sh bench` A/B, rain (drive at clock 162), 3840 × 2160, "max" (the player's setup + every newest row),
 3 reps × 600 frames interleaved, GPU busy median; a shared machine (load 15–170), noise ≈ ±0.3 ms:
 
@@ -391,12 +391,12 @@ march_tuning_defaults_are_inert` (the smoke and the fountain mist march as befor
 
 ## The glow shell, the washed road and the distance veil at max settings (design note)
 
-Player report (screenshot internal evidence: bf1-max-rain/user-screenshot-car.webp, 4K, SSAA 2x, every Next-Gen
+Player report (screenshot internal evidence, 4K, SSAA 2x, every Next-Gen
 tier, rain, the finished-career save's Skyline with a yellow underglow at 217 km/h in the chase camera): a cyan glow shell
 around the car's silhouette ("blueish smoke … it shouldn't be there"), the road around and ahead of the car
 washed out, and (follow-up) "light should be rendered more in the distance, now it looks like a transparent
 black texture disappearing when coming close". Nothing here is native code: **inferred / by eye**, held to
-docs/look-direction.md with `tools/look` numbers. Base: <base> (main + the maintainer's `shadow::neon_rgb`
+docs/look-direction.md with the maintainer's tools numbers. Base: <base> (main + the maintainer's `shadow::neon_rgb`
 fix of the spray's underglow colour, B,G,R bytes read as R,G,B: yellow lit cyan).
 
 **Reproduction** (measuring aids, not native, no effect without their variables): `--bench explore` takes
@@ -444,7 +444,7 @@ A single `--shot` frame shows no spray (the pool starts with the first drawn fra
    medium only adds its local light.
 
 ### Look numbers
-Screenshot view (4K, `tools/look/lstats.py`), Original | before | after: frame 30 mean 63.5 | 65.6 | 66.8,
+Screenshot view (4K, the maintainer's tool `lstats.py`), Original | before | after: frame 30 mean 63.5 | 65.6 | 66.8,
 p95 216.2 | 227.2 | 217.2, glow 2.06 | 2.74 | 2.32; frame 120 mean 46.7 | 53.4 | 54.0, p95 156.7 | 183.2 |
 172.7, glow 0.68 | 0.77 | 0.66, satB 0.20 | 0.39 | 0.33. Body box (halo.py): mean |diff| 6.5 → 1.6.
 Drive towards the lamps (rain highway, 1080p, far road / near road vs Original): before 0.89–0.95 / 1.12,

@@ -8,7 +8,7 @@ average 15–370 during these runs).
 | file | what |
 |---|---|
 | `latency-final3..5.log` | `--bench latency 600` (1080p racing on the autopilot, display model FIFO 60 / 144 Hz, VRR 144 Hz, Low Latency off / on): input → present / photon, blocked time, frames shown, CPU parts |
-| `fsr-bench-<size>.tsv` | `scripts/fsr_bench.sh`: GPU busy ms/frame, `--bench explore 600` at night, Original / TAAU 67-58-50 % / FSR 67-58-50 %, 2 runs |
+| `fsr-bench-<size>.tsv` | the maintainer's private capture: GPU busy ms/frame, `--bench explore 600` at night, Original / TAAU 67-58-50 % / FSR 67-58-50 %, 2 runs |
 | `fsr_vs_taau_1080p.webp` | racing frame 200 crops: top Original / TAAU Q / B / P, bottom Original / FSR Q / B / P |
 | `fsr_vs_taau_4k.webp` | the same frame at 4K: Original, TAAU Quality, FSR Quality, FSR Performance |
 | `replay_cameras.webp` | `--bench replay` with Replay Cameras Extended and Cinematic DOF, replay frame 120: Trackside, Helicopter, Wheel, Orbit |

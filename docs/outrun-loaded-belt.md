@@ -113,8 +113,8 @@ cargo test --lib --bin game
 cargo test --test track_l4ra --test high_refresh --test tuning_physics
 cargo test --bin game intro_skip_preserves_ai_grid_handoff -- --ignored --nocapture
 cargo run --bin game -- --selftest
-python3 internal evidence: outrun/belt-applicability/test_decoder.py
-python3 internal evidence: outrun/generate-belt-gates.py
+python3 $OB_PRIVATE/docs/evidence/outrun/belt-applicability/test_decoder.py
+python3 $OB_PRIVATE/docs/evidence/outrun/generate-belt-gates.py
 ```
 
 Final results:512 library passed/12 ignored;20 game passed/12 ignored;
@@ -124,7 +124,7 @@ passed (cash6650, reputation0, stage1, wins3). Native203-case selector and exact
 PC24 distance replay pass; the hardened204-group decoder and10 corruption
 checks pass; compact fixture regeneration is byte-identical.
 
-`evidence/outrun/belt-integration/` retains logs, exact source hashes and static
+the maintainer's private captures retains logs, exact source hashes and static
 byte ranges. The initial asset-backed regression failed with actual mover1
 versus expected4 before production changes. Expanded final regression also
 covers absent vs empty path, pre30/near fallback,4→3→4, actual240Hz world motion,

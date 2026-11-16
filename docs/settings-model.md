@@ -7,13 +7,13 @@ Display row an enhancement depends on); Original stays byte-identical (gate belo
 * Code: `src/frontend/settings_model.rs` (`MODEL`, `RULES`, `matrix_configs`), `qol::Enhancements::effective`
   (the engine rules), `options::graphics_rows` (the page shows the rules), `graphics_table::GraphicsRow::is_offered`
   (blocked tiers are not offered), `scripts/checks/matrix.sh` (the matrix; in `checks.sh full`).
-* Evidence: `docs/evidence/ux1a/` (`pairs.txt` stills at the look direction spots, `pairs-bench.txt` driving frames,
+* Evidence: the maintainer's private captures (`pairs.txt` stills at the look direction spots, `pairs-bench.txt` driving frames,
   `costs.txt` GPU ms, `matrix.txt`, crops, the scripts).
 
 ## Method
 
-* **Image difference**, base vs base + the stacked row (internal evidence: ux1a/scripts/pairs.sh,
-  `pairmetrics.py`): the look direction spots at the original's cameras (`tools/look/cshot.sh`, 1280×960, native 8x MSAA
+* **Image difference**, base vs base + the stacked row (internal evidence,
+  `pairmetrics.py`): the look direction spots at the original's cameras (the maintainer's tool `cshot.sh`, 1280×960, native 8x MSAA
   as World Detail 5 plays): street, harbour neon (casino), Coal Harbor docks, Jackson Heights, Quick Race start;
   rain street / rain harbour for the weather rows. Per frame: % of pixels changed (any channel > 2 levels, HUD
   masked), max delta, SSIM (luma, Gaussian σ 1.5), mean **FLIP** (NVIDIA ꟻLIP 1.7, `flip-evaluator`, BSD-3, LDR;
@@ -121,7 +121,7 @@ ray-traced tiers), `NFSU2_BENCH_MATRIX=orig,max,rules[,pairs]`: the settings of
 
 It is generated from `graphics_table::ROWS`, so a new row or tier is in the matrix without editing it. Fails on
 a non-zero exit, any panic / validation error / RecvError in the log, or fewer settings drawn than listed.
-Results: internal evidence: ux1a/matrix.txt. `NFSU2_BENCH_ENH_SWITCH` also takes several switches now
+Results: internal evidence. `NFSU2_BENCH_ENH_SWITCH` also takes several switches now
 (`"30:…|60:…"`, a leading `!` resets to Original first, `custom.N V` lines).
 
 ## The settings model (for the settings page)

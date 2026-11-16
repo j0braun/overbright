@@ -275,7 +275,7 @@ impl Overlay {
         let top = graph.iter().copied().fold(f.avg_ms * 2.0, f32::max).max(1.0);
         // A long frame spent mostly waiting for a swap-chain image
         // says so (the reported 1007 / 1052 ms stalls of 2026-11-06 were
-        // wgpu's 1 s acquire timeout: docs/gfx-issues-2026-11.md).
+        // wgpu's 1 s acquire timeout: the maintainer's private notes).
         let (worst_ms, worst_acquire) = self.stats.worst();
         let label = if worst_ms >= 100.0 && worst_acquire >= worst_ms * 0.5 {
             format!(

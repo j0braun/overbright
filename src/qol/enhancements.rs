@@ -1,6 +1,6 @@
 use super::*;
 
-/// docs/refactor plan core §1.3 / §3.6: every option of
+/// The refactor plan (the maintainer's private notes): every option of
 /// [`Enhancements`] is declared once, in the `options!` table below, and the
 /// struct, its `Default` (the native values), the options.txt writer and
 /// parser, the deviation list, the presets' keep-list and `apply_now`'s

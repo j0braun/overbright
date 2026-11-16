@@ -4,9 +4,9 @@ Traffic, collisions, cameras, audio mix and saves compared with SPEED2.EXE under
 through the parity harness (docs/parity-harness.md). **Verified** = traced in the
 disassembly, **observed** = read under Wine, **inferred** / **open** as marked. Raw runs:
 `<work dir>/world-work/runs/<name>/` (Wine copy `a private Wine copy`, display :223,
-wined3d); reports, car lists, statistics in `docs/evidence/world-systems/`. The audio and camera parity: raw runs in
+wined3d); reports, car lists, statistics in the maintainer's private captures. The audio and camera parity: raw runs in
 `<work dir>/p5b-work/runs/<name>/` (Wine copy `a private Wine copy`, display :233,
-wined3d), tables and frames in `docs/evidence/world-systems-p5b/`, harness additions in
+wined3d), tables and frames in the maintainer's private captures, harness additions in
 docs/parity-harness.md.
 
 ## Harness additions
@@ -21,17 +21,17 @@ docs/parity-harness.md.
   speed, and the traffic-only `mover` car +0x28, `traffic_action` [[car+0x2C]+0x6F8]+0x204,
   `parked` [car+0x2C]+0x77C — the byte 0x4112A0 reads, verified — `drawn` car +0x550).
   diff.py leaves traffic out of the car match (`clone.tsv.traffic` lists the clone's slots).
-* `tools/parity/trafficstats.py OUT`: pool statistics per side (placed, within 50–250 m,
+* `$OB_PRIVATE/tools/parity/trafficstats.py OUT`: pool statistics per side (placed, within 50–250 m,
   the jam share of 0x4112A0, placements per minute and where, speeds, mover and action
-  shares). `devprobes/src/bin/traffic_lane_offsets OUT`: each traffic sample's signed distance from
-  the nearest lane centre line running its way. `devprobes/src/bin/traffic_lanes_near X Y R`.
+  shares). `$OB_PRIVATE/devprobes/src/bin/traffic_lane_offsets OUT`: each traffic sample's signed distance from
+  the nearest lane centre line running its way. `$OB_PRIVATE/devprobes/src/bin/traffic_lanes_near X Y R`.
 * `[start] kind = "free_roam"`: the save resumed to free roam, the cave holds at once
   (trigger: the traffic level 0x89E7A8 as it is), arms on the next frame; the clone puts its
   player on the original's frame-0 pose (kept when within 1 m / 2.6°). `place` (a teleport
   while held) froze the original's car for a second and then reset it to a road spot: not
   usable at a standstill.
 * Camera fields (global, view 1 = 0x8760E0): `cam_eye` +0x40, `cam_fwd` +0x50, `cam_fov`
-  +0xC4 (binary angle); `tools/parity/camstats.py OUT` prints the eye relative to the car.
+  +0xC4 (binary angle); `$OB_PRIVATE/tools/parity/camstats.py OUT` prints the eye relative to the car.
 * Native AI fields are not recorded for free-roam encounter racers that are not out: their
   [car+0x2C]+0x6F8 read 1.0f and faulted the cave (page fault at 0x782C4C).
 
@@ -99,7 +99,7 @@ two frames vs 14.9 → 0.48, at rest at 455.68 / −69.63 vs 455.73 / −69.65 (
 height within 0.02 m; the heading drifts −111.7° → −113.2° in 0.8 s where the original's
 stays (1.5°, **open**, small). So the 20° yaw came from the 6.5° shallower incidence, i.e.
 from the turn before the wall (the tuning-physics parity's handling; the tuning sweep's area, not changed here).
-Frames: internal evidence: world-systems-p5b/crash_wall*-frames.txt.
+Frames: internal evidence.
 
 Both cars take the same line (within 0.3 m for 1.7 s), but the original yaws 6.5° further
 in the turn (heading −111.7° vs −105.2° on the straight) and hits the wall 2.3 m further
@@ -127,7 +127,7 @@ error median 0.003 (p90 0.021). Test: `chase::tests::the_chase_frame_keeps_its_p
 `audio_freeroam` (idle 6 s, throttle 4 s, brake 2 s, look back 15–17 s) ran in the original
 once per camera setting (`camera_bumper|hood|near|high`, the profile's setting patched,
 `[start] camera`). Per frame, eye relative to the centre of mass in the car's frame
-(internal evidence: world-systems-p5b/*-camera.txt), clone after the fixes:
+(internal evidence), clone after the fixes:
 
 | setting (kind) | eye at rest, original / clone | worst while driving | look back |
 |---|---|---|---|
@@ -174,11 +174,11 @@ Bumper / hood / far views and the look-back: The audio and camera parity above; 
 **The audio and camera parity (2026-11-05).** Method: the parity harness with `[run] audio = true` (the original's
 `--audio-file` WAV placed on the run's frames through the sim clock, every live AEMS
 instance's block every ~40 ms; the clone's offline mix and NFSU2_EVENT_LOG for the same
-frames; `tools/parity/audiomix.py`). Scenario `audio_freeroam` (the stage-1 save, the 206,
+frames; the maintainer's tool `audiomix.py`). Scenario `audio_freeroam` (the stage-1 save, the 206,
 default volumes: master 1, speech 1, menu music 0.7, game music 1, effects 1, engine 1,
 tires 1 — the player's a community save has exactly these; their the finished-career save has master 0.95, all else 1,
 and the option volumes enter only through the mix map's fields, verified in sound2 round 8, so
-it is the same mix 0.45 dB lower). Evidence internal evidence: world-systems-p5b/audio_*.
+it is the same mix 0.45 dB lower). Evidence: internal evidence.
 
 * **Event blocks, per window (idle, throttle, brake, stand, look back): equal.** The player's
   CAR block (p1 rpm map, p3 throttle, p4 / p5 level −30791 idle, −30589 / −30661 throttle,
@@ -244,7 +244,7 @@ could (none observed). Consistent with menus114; nothing to port.
 ## 7. 2026-11-05: scrape level, the mix, traffic movers
 
 Wine copy `a private Wine copy` (display :281, wined3d), raw runs in `<work dir>/p5c-work/runs/`,
-evidence in `docs/evidence/world-systems-p5c/`.
+evidence in the maintainer's private captures.
 
 **FX_Scrape's level (fixed, verified).** The writer of the scrape object's +0xD4 / +0xD8 / +0xDC
 is its mix-map client SFXObj_Collision (registry id 0x50000, name 0x788BFC, factory 0x47E220,
@@ -278,7 +278,7 @@ With the last stretch (the run's): `audio_freeroam_musiconly` (new scenario: spe
 engine, tires 0 by the profile — game music 0 still killed the original in the audio and camera parity, this run
 lived) gives native −19.6 … −21.0 dBFS, clone −18.0 … −19.5; `audio_freeroam` (default
 volumes) native −19.4 … −23 while driving, clone −17.3 … −21. Matching each WAV against the
-decoded songs (`devprobes/src/bin/trax_dump`, `trax_match.py`): the original played EA Trax song 6 at
+decoded songs (the maintainer's probe `trax_dump`, `trax_match.py`): the original played EA Trax song 6 at
 −9.04 / −9.81 dB under the decoded stream (corr 0.98 / 0.91), the clone song 18 at −9.02 dB;
 in the front end the original's song 0 sat at −14.08 dB. Those are the mix map's levels
 (section 0 class 0 slot 1 = 11598 → >> 8 = 45 → 45 / 127 = −9.0 dB in game, 0x482180 →
@@ -327,7 +327,7 @@ or block write is likely — not traced further (**open**); the yaw was not re-r
 
 Wine copy `a private Wine copy` (display :285, wined3d), raw runs in `<work dir>/p5d-work/runs/`
 (`walkprobe1.tsv`, `walkprobe2.tsv`: every traffic car's walk and stale road entries read through
-`/proc` with `walkprobe.py`, no cave fields), evidence in `docs/evidence/world-systems-p5d/`. Every clone
+`/proc` with `walkprobe.py`, no cave fields), evidence in the maintainer's private captures. Every clone
 figure below is the mean over six traffic seeds (`NFSU2_TRAFFIC_SEED`, a harness knob that varies the
 clone's draws; one seed is too noisy to compare), the original's from the audio and camera parity / the traffic-scrape parity runs.
 
@@ -411,7 +411,7 @@ Wine copy `a private Wine copy` (display :290, wined3d), raw runs in `<work dir>
 (`nat5/cache.tsv`: every traffic car's junction cache and walk read through `/proc` with
 `cacheprobe.py`, no cave fields; the cave was given the player's fields only — with the encounter
 racers' fields the cave faulted at 0x782C53 reading 0x00FFFF14 in three runs). Evidence in
-`docs/evidence/world-systems-p5e/`. `devprobes/src/bin/traffic_intersections [REGION] [REC CP]` lists the intersections, their crossing
+the maintainer's private captures. `$OB_PRIVATE/devprobes/src/bin/traffic_intersections [REGION] [REC CP]` lists the intersections, their crossing
 points and the control points flagged with each (or one point's junctions); `obeywin.py`, `turns.py`,
 `xtime.py` (evidence dir) bin the obey share by distance to a crossing point, count turns and time
 the passes through intersection 3. Clone figures are means over six traffic seeds (0, 11 … 55); the
@@ -482,9 +482,9 @@ driver's side not traced); impact sound start volume.
 
 Wine copy `a private Wine copy` (display :292, wined3d), raw runs in `<work dir>/p5f-work/nat/`
 (`fsA` … `fsC`: free roam 200 s, `rcA`, `rcB`, `race2`: STAGE_1_CIRCUIT_1; the cave given the player's
-fields only, `PARITY_HUMAN_ONLY=1` in `tools/parity/native.py`, because with the encounter racers' or the
+fields only, `PARITY_HUMAN_ONLY=1` in the maintainer's tool `native.py`, because with the encounter racers' or the
 rivals' it faulted at 0x782C53 reading 0x00FFFF14/15 every time; the traffic read through `/proc` by
-`stuckprobe.py` every ~0.3 s). Evidence and scripts in `docs/evidence/world-systems-p5f/`. Clone
+`stuckprobe.py` every ~0.3 s). Evidence and scripts in the maintainer's private captures. Clone
 figures are means over six traffic seeds (0, 11 … 55), the native's over the runs named.
 
 **The jam is native (observed).** The traffic-in-race parity jam spot, record 538 (id 734) cp 22 → 21 at 450 / 95 heading
@@ -568,7 +568,7 @@ points (0x415D50); the impact-sound start volume (not reached).
 
 Traced in SPEED2.EXE (Ghidra / the disassembly); no new Wine run — the native figures are the traffic-jam parity's
 probe runs (`<work dir>/p5f-work/nat/`) re-read. Evidence and scripts in
-`docs/evidence/p8-gaps/`. Clone figures over six traffic seeds (0, 11 … 55), `multirace.sh`;
+the maintainer's private captures. Clone figures over six traffic seeds (0, 11 … 55), `multirace.sh`;
 `NFSU2_TRAFFIC_STOPLOG=<file>` (harness knob) logs each car stopped for good with the rule and
 the nearest other car; parity fields `stopped` (controller +0x710) and `recs` (body +0x18) added.
 
@@ -653,7 +653,7 @@ The traffic-jam parity), with the reduced set all twelve runs went through. New 
 `ai_reach` (+0x21C), `ai_cap` (+0x1F0), `ai_line` (+0x1FC), `ai_plan_off` / `ai_plan_rate` /
 `ai_plan_stamp` (the lane record, controller +0x360 + 4 / 8 / 0xC: planner +0x30C, the native values
 0.05 / 0.10 / 0.15 / 999 confirm the place), `t7a0` (traffic controller +0x7A0), `recs` now for
-traffic too. Evidence and scripts in `docs/evidence/p12-racer-traffic/`.
+traffic too. Evidence and scripts in the maintainer's private captures.
 
 **Traced (verified).** The whole chain is in formats.md (Racer actions → 0x428DF0, AvoidAvoidable):
 * the look-ahead 0x42BA20 → 0x428CE0 → **0x4275E0** (the swept test): the other car moves along its

@@ -81,7 +81,7 @@ some runs noisy):
 | FIFO 144 Hz | 8.1–9.1 ms | 13.4–16.6 ms (19.6–20.6) | 6.1–7.2 ms | 9.3–11.9 ms (13.7–18.0) | ¹ |
 | VRR 144 Hz | 7.6–7.9 ms | 10.8–14.9 ms (20.1–20.4) | 5.8–6.2 ms | 6.4–6.6 ms (9.8–10.9) | ¹ |
 
-Three runs (internal evidence: modern-extras/latency-final3..5.log), machine load average 117–371 on 16
+Three runs (internal evidence), machine load average 117–371 on 16
 threads from other jobs (the frame's end + GPU 2–6 ms instead of ~1 ms
 on an idle machine, so the 144 Hz rows rarely held 144 frames/s Off or
 On; ¹ the gaps there are the load's, Off has as many). Off at 60 Hz is the
@@ -123,7 +123,7 @@ particle / glow pipelines for the late sprites (the scene keeps its MSAA
 under FSR). Particles and rain are part of the upscaled image.
 
 **Costs** (GPU busy ms/frame, `--bench explore 600` at night, mean of 2,
-internal evidence: modern-extras/scripts/fsr_bench.sh; Original = native 8x
+internal evidence; Original = native 8x
 MSAA, World Detail 5):
 
 | | 1080p | 4K |
@@ -142,7 +142,7 @@ size, which TAAU drops; at 4K the two cost the same within noise (other
 jobs' GPU work: ±0.1 ms). The Graphics row's cost classes use the 4K
 deltas (`FSR_COSTS_4K`).
 
-**Image** (internal evidence: modern-extras/fsr_vs_taau_1080p.webp: racing
+**Image** (internal evidence: racing
 frame 200, 1080p, top row Original / TAAU 67 / 58 / 50 %, bottom row
 Original / FSR 67 / 58 / 50 %; `fsr_vs_taau_4k.webp`: Original, TAAU 67 %,
 FSR 67 %, FSR 50 % at 4K; the runs' cars stand a little apart, the frames
@@ -182,7 +182,7 @@ Measured (`NFSU2_REPLAY_SMOOTH_PROBE=144`, 2 s of the window loop at
 144 Hz, the player's drawn step per frame): native 1× mean 0.154 m, sd 7 %;
 **native slow** mean 0.032 m, sd 220 %, 224 of 287 frames standing; smooth
 ½ 0.070 m, sd 6 %, none standing; smooth ¼ 0.033 m, sd 5 %, none standing.
-Frames: internal evidence: modern-extras/replay_cameras.webp (with Cinematic
+Frames: internal evidence (with Cinematic
 DOF).
 
 ## 4. Accessibility
@@ -221,7 +221,7 @@ DOF).
 ## Native byte-identity
 
 `perf.sh parity`, base = this copy before this work, both fast-build binaries
-(internal evidence: modern-extras/parity-gates.txt): Original images of the 5
+(internal evidence): Original images of the 5
 bench scenes at 1280×960 and 3840×2160, the window path at 144 Hz, Modern /
 Ultra racing and explore, 15 shots — **all AE 0**; audio WAVs identical;
 state hashes identical over firstrace, firstdrag, postrace, the

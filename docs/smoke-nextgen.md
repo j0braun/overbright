@@ -35,7 +35,7 @@ look, from watching them, not confirmed sources.
 
 At the explore burnout (`--bench explore`, frames 50 / 110 / 150), the race-start burnout (`--shot
 qrstart`), the drift event (`--bench racing` drift, frame 500), lamp-lit steam (rain) and the yellow
-underglow, Original | Cinematic the smoke integration | Cinematic this work (internal evidence: smoke-nextgen/sbs_*.webp):
+underglow, Original | Cinematic the smoke integration | Cinematic this work (internal evidence):
 
 | gap | seen as | This page |
 |---|---|---|
@@ -67,7 +67,7 @@ them on in `smoke_volume::FX`.
 
 `NFSU2_SMOKE3_LOOK` takes `fine, dir, temporal, step` too.
 
-## 4. Look rule (docs/look-direction.md, `tools/look`)
+## 4. Look rule (docs/look-direction.md, the maintainer's tools)
 
 **The look direction audit spots** (street, harbour_neon, coal_docks, jackson_hills, rain_street, qrstart; the original's
 cameras, `poses-dxvk.tsv`; `audit-spots.txt`): Original + Particles Cinematic and the max preset (which

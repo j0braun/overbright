@@ -16,7 +16,7 @@ representation remains open. This change does not claim that lifetime parity.
 
 ## Native observation and force replay
 
-The retained `full-phase-inputs/full-landing.bin.zlib` is a controlled original
+The retained the maintainer's private capture is a controlled original
 landing (+0.6 m height, -12 m/s vertical velocity), not a natural jump claim.
 All 559 force entries span 250 world/tick groups. Exported speed never changes
 within one such group. The observed PC24/nearest control word is retained in
@@ -61,7 +61,7 @@ consumer's shared scalar selection is supported by its native reader trace.
 Reproduce fixture extraction and focused tests:
 
 ```
-python3 internal evidence: cached-forward-speed/export.py
+python3 $OB_PRIVATE/docs/evidence/cached-forward-speed/export.py
 cargo test --release --lib native_cached_speed -- --nocapture
 ```
 

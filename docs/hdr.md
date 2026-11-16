@@ -27,7 +27,7 @@ colour → colour function, so only it becomes the LUT.
   while driving).
 * **Use**: HDR Output's grade pass `fs_grade_lut` (trilinear between
   lattice codes, the cell found on the codes, not on i/31).
-* **Export**: `devprobes/src/bin/grade_lut.rs cube OUT.cube [R G B W AMOUNT]` writes
+* **Export**: `$OB_PRIVATE/devprobes/src/bin/grade_lut.rs cube OUT.cube [R G B W AMOUNT]` writes
   a standard `.cube` (32³; its domain is uniform, the lattice codes are
   within 0.5/255 of i/31) and the exact strip as PNG.
 

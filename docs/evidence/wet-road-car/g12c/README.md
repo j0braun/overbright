@@ -15,7 +15,7 @@ clock 162 (rain 0.70); "damp": clock 196 (the rain stops by frame ~300, road wet
 | motion_heavy_chase_780_840_before_after.webp, motion_heavy_bumper_780_840_before_after.webp | animated, every 3rd frame (look rule E7, motion: no popping, no shimmer, no lattice) |
 | consec_before/after_801_804_crop100.png | four consecutive frames at 100 % |
 | crop100/200_4k_0810_before/after.png | 3840 × 2160 (SSAA 2x) at 100 % / 200 %: the white wall and the march's lattice before, gone after |
-| look-drive.txt | `tools/look/lstats.py` per frame: Original, rows off, before, after |
-| look-spots.txt | The look direction spots (`tools/look/cshot.sh`), the row and the presets vs Original, before and after |
+| look-drive.txt | the maintainer's tool `lstats.py` per frame: Original, rows off, before, after |
+| look-spots.txt | The look direction spots (the maintainer's tool `cshot.sh`), the row and the presets vs Original, before and after |
 | cost.txt | `perf.sh bench` A/B at 4K (max, max without the row, max with the row On), 3 reps × 600 frames |
 | gate.txt, perfgate.txt | `scripts/checks/gate.sh … <base> extreme` (CHECKS=full): PASS; perfgate vs the frame-budget gate baseline (99e726f): FAIL on rain-max draw_cpu_p10 +51 % at load 230 (the interleaved A/B against <base> in cost.txt: draw CPU p10 2.37 → 2.27, median 3.30 → 2.81 ms) |

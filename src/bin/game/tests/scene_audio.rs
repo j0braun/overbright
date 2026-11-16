@@ -606,7 +606,7 @@ fn career_scene_scripts_the_player_idle() {
 }
 
 /// A won ending's hold (EndingNis01, observed under Wine 2026-11-06,
-/// `docs/evidence/ending-hold-audio/`): the player's wind, road and
+/// the maintainer's private captures): the player's wind, road and
 /// skid objects keep running behind the post-race screens through the
 /// scene's 550 frames, FX_SKID's slip levels rise in the drift and the
 /// wind's pitch follows the car, and both stop at the scene's end. Real

@@ -252,7 +252,7 @@ pub(super) fn dynochart(game: &mut Game, cx: &ShotCtx) -> Result<Mode> {
 /// The Dyno Run as the window plays it: the chart opened with the
 /// Dyno Run option and NFSU2_SHOT_MS (default 4000) of frames run
 /// through the game's update (the car on the rollers, its wheels
-/// and the rollers turning; `scripts/dyno_motion.sh` takes a row of
+/// and the rollers turning; the maintainer's `dyno_motion.sh` takes a row of
 /// these). `dynorun_results`: Continue at the pull's top, then the
 /// spin-down on behind UI_PerformanceDyno_Results.
 pub(super) fn dynorun(game: &mut Game, cx: &ShotCtx) -> Result<Mode> {

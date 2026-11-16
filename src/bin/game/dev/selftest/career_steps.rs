@@ -138,7 +138,7 @@ pub(super) fn start_scene(game: &mut Game) -> Result<()> {
     // The original's 350Z under CareerNis1 (Wine, a new career:
     // mode 5 from count 215 to the scene's end, standing, centre of mass
     // (1695.2516, −883.6426, 24.1127), forward (0.9817, −0.1903, −0.0018);
-    // then mode 1 at the same place, docs/evidence/dyno-exit/README.md).
+    // then mode 1 at the same place, the maintainer's private capture).
     let com_of = |game: &Game| {
         game.sim.drive.as_ref().map(|d| {
             (

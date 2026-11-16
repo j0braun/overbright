@@ -35,8 +35,8 @@ normalization instructions. Original executable SHA256:
 ## Reproduction
 
 ```
-NFSU2_EXE=/path/to/SPEED2.EXE NFSU2_SNAPSHOT=docs/evidence/fe-authored-animation NFSU2_PROBE_DIR=/private/probe /usr/bin/python3 internal evidence: fe-authored-animation/native_sample.py
-/usr/bin/python3 internal evidence: fe-authored-animation/reconstruct.py docs/evidence/fe-authored-animation /path/to/CARS/RX8/PARTS_ANIMATIONS.bin /private/reconstructed
+NFSU2_EXE=/path/to/SPEED2.EXE NFSU2_SNAPSHOT=docs/evidence/fe-authored-animation NFSU2_PROBE_DIR=/private/probe /usr/bin/python3 $OB_PRIVATE/docs/evidence/fe-authored-animation/native_sample.py
+/usr/bin/python3 $OB_PRIVATE/docs/evidence/fe-authored-animation/reconstruct.py docs/evidence/fe-authored-animation /path/to/CARS/RX8/PARTS_ANIMATIONS.bin /private/reconstructed
 ```
 
 The first command requires LLVM llvm-mc, GNU i386pe ld, Wine and NumPy. It

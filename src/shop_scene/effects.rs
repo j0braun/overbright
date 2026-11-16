@@ -1,7 +1,7 @@
 //! NIS car effects: the event track's CAR_TRIGGER_EFFECT lines and the
 //! effect records SEQ_CAR_NITRO expands to (parser 0x432D00, dispatch
 //! 0x4392E0, per-update firing 0x43966D..0x439772; **verified**
-//! 2026-11-04, REA / disassembly, docs/user-reports-2026-11.md).
+//! 2026-11-04, REA / disassembly, the maintainer's private notes).
 //!
 //! * A CAR_TRIGGER_EFFECT line (event type 1, 0x430B20) is `car kind
 //!   intensity parameter`: record +8 the car (1..7; 8 or more → −1),

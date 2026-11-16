@@ -357,7 +357,7 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
     (0xEA8DFB05, string 0x7A8D1C) of the front / rear rim model, +0x1B48
     / +0x1B68 = slot 0x1D / 0x1E group 0 LOD A, found by 0x48D8F0 →
     0x488FA0, 0 when absent (0x6390A6…0x639112, after 0x61FE20).
-    `devprobes/src/bin/brake_markers.rs`: every stock `<CAR>_KIT00_FRONT_WHEEL_A/B`
+    the maintainer's probe `brake_markers`: every stock `<CAR>_KIT00_FRONT_WHEEL_A/B`
     has one (y 0.0511 A3 … 0.1373 HUMMER, x = z = 0), as do the shop rims
     except LEXANI_STYLE14, LIMITEDALLOY_STYLE01, SPINNER_STYLE12,
     STARK_STYLE01 and the `_SPIN` groups (those take w/2); LOD C models
@@ -393,7 +393,7 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
     Ported (`Wheel::face_wide`; in game the rims, spinners and brakes use
     it with a wide body). Traffic is not drawn through 0x620AF0: 0x6316E0
     hands kind-3 cars to the front-end draw 0x6162F0 (verified, see
-    Traffic → Traffic wheels). PARCELVAN (`devprobes/src/bin/van_wheels.rs`): wheels at y ±0.855,
+    Traffic → Traffic wheels). PARCELVAN (the maintainer's probe `van_wheels`): wheels at y ±0.855,
     face +0x1C ±0.936, tyre model y −0.007..0.296 (so it spans
     0.64..0.94), body half width 1.266 with its wheel-arch vertices at
     |y| 0.976; PANELVAN face ±0.85/0.87, body 1.13. The clone draws them
@@ -632,7 +632,7 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
   colour and attribute 0x6BA02C05 its light material (0x61D7A0;
   METPAINTSILVER on the 240SX, REGPAINTBLUE on the Peugeot's gloss blue).
   Brakes: group 0 front, group 1 rear. Verified on every player car by
-  `devprobes/src/bin/stock_check.rs` (all real parts' LOD A solids exist; the misses
+  the maintainer's probe `stock_check` (all real parts' LOD A solids exist; the misses
   are optional second groups, placeholders and the plate). Visual points
   per part: table 0x34A1C (0x28 per category, levels 1–3 at +4/+0x10/+0x1C;
   0x501860 via 0x501D70), stock (level 0) parts score 0.
@@ -666,7 +666,7 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
     the name and `_A`…`_D`. In GLOBALB, +0x06 = 0 parts have hashed models
     (624) or none, 1 parts named ones (8447), and the 1369 parts with 2 are
     all rims (type 0x1C): `RACINGHART` + `_STYLE07` + `_20_26` + `_A`
-    (`devprobes/src/bin/part_flags.rs`, `devprobes/src/bin/shared_parts.rs`).
+    (the maintainer's probe `part_flags`, the maintainer's probe `shared_parts`).
   * Mounts (the car draw 0x620AF0): 0x634F66 looks up four markers
     (0x488FA0) on the LOD A solid of the base part (slot 0, ride +0x590):
     SPOILER → render info +0x2C04, ROOF_SCOOP → +0x2C08, 0x9B971511 →
@@ -681,8 +681,8 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
     is above level 0 (0x62645D) draw group 0 at the left marker and group
     1 at the right one with its +0x14 (the y axis's y, −1 in the data)
     negated (0x626A4C), since the right models are built facing −y; stock
-    mirrors in car space (0x626F7F). `devprobes/src/bin/part_markers.rs`,
-    `devprobes/src/bin/fitted_parts.rs`.
+    mirrors in car space (0x626F7F). the maintainer's probe `part_markers`,
+    the maintainer's probe `fitted_parts`.
   * Brakes (slots 0x1B / 0x1C, models +0x1B08 / +0x1B28; drawn from
     0x62DF85) use the wheel's own matrix (frame +0x1C), not the rim's
     face-shifted one (frame +0x18, whose y translation 0x6162F0 zeroes
@@ -768,7 +768,7 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
     0xBFFF00FF, 0xBF00FFFF, 0xBFFFFF00, 0xBFFFFFFF (compared as floats)
     and keeps their positions (0x8A05E8, flag 0x8A1D18); all six
     DUMMY_SKINs have them as 4×4 blocks at y 508–511, x 508 (red) down to
-    484 (white) (`devprobes/src/bin/skin_markers.rs`). After the layers, those
+    484 (white) (the maintainer's probe `skin_markers`). After the layers, those
     texels take colours k = 0…6 from the paint slots 0x44 PAINT_ENGINE,
     0x45 PAINT_SPOILER, 0x46 PAINT_BRAKE, 0x47 PAINT_EXHAUST, 0x48
     PAINT_AUDIO, 0x4B PAINT_ROOF, 0x4C PAINT_MIRROR (names from 0x802DE8):
@@ -1108,7 +1108,7 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
     ALPHA2 − ALPHA as bytes (read back unsigned); zeros without a part.
     The part data: NO NEON level 0 all zero; colours level 1–2 ALPHA =
     ALPHA2 = 64 (steady); PULSE parts level 3 ALPHA 16 → ALPHA2 64, same
-    RGB (`devprobes/src/bin/neon_parts.rs`). Rachel's D-Day preset has NO NEON in
+    RGB (the maintainer's probe `neon_parts`). Rachel's D-Day preset has NO NEON in
     0x9A–0x9D; CALEB_GTO (RED PULSE), NIKKI_MUSTANGGT, TOM_G35, AL_RX8,
     the DEMO_PRESETs and others have neon.
   * Per frame (0x6227DE..0x622D35), only when a part in 0x9A, 0x9B or
@@ -1192,7 +1192,7 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
       and, in the front end, into the scene after the shadow passes
       (**inferred**: the front end's glow buffer). The player's report "no
       car has an underglow in the garage" (the finished-career save: Corolla slot 0 WHITE
-      PULSE, Skyline slot 4 YELLOW; `devprobes/src/bin/save_neon.rs`) was these
+      PULSE, Skyline slot 4 YELLOW; the maintainer's probe `save_neon`) was these
       tubes missing: the shadow-grid underglow was drawn.
     * `--shot garage_neon`: the crib's Car Select on the fixture
       the finished-career save (NFSU2_SHOT_SAVE=file for another save,
@@ -1254,9 +1254,9 @@ with brake 1.0 — the first race and its Restart (cut 180), the first drag,
 its 5 s start run and its Restart (cuts 180 / 200). Test
 `first_race::tests::the_player_stands_still_through_the_countdown`.
 **Against the original on the same event and slot (observed)**: on the pinned
-STAGE_1_CIRCUIT_1 grid (`tools/parity/scenarios/circuit_s1_stance.toml`,
+STAGE_1_CIRCUIT_1 grid (the maintainer's `circuit_s1_stance.toml`,
 `circuit_s1_launch.toml`, per-wheel fields `comp_*`, `crate_*`, `sforce_*`,
-`gnorm_*`, `rest`; table by `tools/parity/stance.py`) the clone's compressions,
+`gnorm_*`, `rest`; table by the maintainer's tool `stance.py`) the clone's compressions,
 body pose and rest class lie inside the original's own run-to-run spread
 (about 3 µm: FL/FR/RR/RL −0.4292 / −0.2058 / +0.5910 / +0.3676 mm and
 −0.4266 / −0.2064 / +0.5884 / +0.3681 mm in two runs, the clone −0.4247 /
@@ -1309,7 +1309,7 @@ drivetrain at +0x4C and the tuning block at +0x54.
   original's own sub-steps (subtrap A/B captures, every float operation
   in the original's order, h = t/1800/4 for the frame's t ticks):
   `drive::rigid::native_integrator_replay`,
-  docs/evidence/native-integrator/. The clone keeps the exact rows between
+  the maintainer's private captures. The clone keeps the exact rows between
   sub-steps (`CarState::body_rows`). The force pass natively runs in the
   post-step (0x5B04E0 → vt+8 = 0x5B0530); the clone's sub-step now takes it
   there too (see **Order of a frame and a sub-step** below), but on the
@@ -1484,7 +1484,7 @@ drivetrain at +0x4C and the tuning block at +0x54.
   own state at 0x8374F0 keeps those), and the tuning block 0x8901B0
   reads downforce 0.1845 / 0.2175 (stock 0.145 / 0.15 + 1.0 × 0.0395 /
   0.0675); the clone had 0.1711 / 0.1946 (gain 0.66) and now matches the
-  block field for field up to +0x2A0 (`devprobes/src/bin/rec_dump.rs`). The
+  block field for field up to +0x2A0 (the maintainer's probe `rec_dump`). The
   clone applies it to the player's car (`player_car`) and its shop
   ratings (`perf_record`); AI rides take 0x6399E0(1, …) (the refit, not
   ported, see **AI car looks**). The flag at +0x50 + 0x44 (68) is also set
@@ -2523,7 +2523,7 @@ The game's world collision step (0x5FFA60) runs after the cars have moved.
   candidate and reported an overlap 0.4 m above a road face, and each such
   false floor contact pushed the car up by at least 0.3 m/s: cars hopped on
   flat road and rolled over after a side hit. Probe:
-  `devprobes/src/bin/weight_probe.rs`.) No candidate returns 0 (0x59811A loads
+  the maintainer's probe `weight_probe`.) No candidate returns 0 (0x59811A loads
   0x7D7D3C = 0.0), which 0x5B33A0 takes as overlap. In the
   segment/segment case with both points inside, the direction is the best
   of the edges' cross product and the two perpendiculars, judged by the

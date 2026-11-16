@@ -8,7 +8,7 @@ pub(super) const RT_COST_4K: f32 = 7.87;
 /// night, GPU busy ms at 4K on the reference desktop GPU over Original, whose 8x MSAA
 /// TAA and Upscaling replace: TAA 1.58 vs 2.38; over no AA it is +0.50).
 pub(super) const TAA_COST_4K: f32 = -0.8;
-/// The budget table's fixes (docs/perf-budget.md, docs/evidence/perf-budget/hints-4k.tsv):
+/// The budget table's fixes (docs/perf-budget.md, the maintainer's private capture):
 /// the hints of the rows the budget table measures are its 4K numbers — the
 /// tier's cost in the player's play setup with every newest row on ("everything
 /// max", leave-one-out, the row's heavy scene noted in the TSV), not alone
@@ -108,7 +108,7 @@ pub(super) const RAIN_DETAIL_NEXT_GEN_COST_4K: f32 = 0.45;
 /// without SSAA, `--bench drive 600` at clock 162, 4K, mean of 2 runs.
 pub(super) const WET_INTERACTION_COST_4K: f32 = 0.97;
 pub(super) const WET_INTERACTION_HIGH_COST_4K: f32 = 1.09;
-/// Assets and distance (docs/assets-distance.md, docs/benchmarks/assets-distance/),
+/// Assets and distance (docs/assets-distance.md, the maintainer's private captures),
 /// measured GPU ms at 4K (racing, 5 + 5 runs): Smooth Car Shapes over
 /// Original (−0.03 ms, not significant) and World Detail Extreme over
 /// Ultra's world detail (+0.10 ms, p 0.095; +0.15 ms at 1080p Ultra).

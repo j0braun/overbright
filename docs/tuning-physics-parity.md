@@ -5,9 +5,9 @@ docs/race-ai-parity.md), then the drag rub, then the tuning/parts sweep.
 **Verified** = traced in SPEED2.EXE, **observed** = read under Wine with
 the parity harness (docs/parity-harness.md), **inferred** / **open** as
 marked. Raw runs: `<work dir>/tuning-work/runs/<name>/`;
-extracts in `docs/evidence/tuning-physics-parity/`.
+extracts in the maintainer's private captures.
 
-## New harness fields (tools/parity/fields.toml)
+## New harness fields (the maintainer's `fields.toml`)
 
 Drivetrain and wheels, context only (tol −1), each with a clone accessor
 in `src/bin/game/parity.rs`: mover car +0x34; mover +0x48 the engine
@@ -108,7 +108,7 @@ at launch speeds the rigid body's alone removes it (exp_rb2; evidence
 `aistats.txt` and the run dirs). Not the per-player serialisers
 (0x60A66A, circuit_nocars).
 
-**What changes (observed).** `tools/parity/snapdiff.py --attach` stops the
+**What changes (observed).** `$OB_PRIVATE/tools/parity/snapdiff.py --attach` stops the
 original's game thread right before the snapshot (EB FE over the jmp at
 0x57D060) and right after it (EB FE at 0x581110), both at the same loop
 counter, and diffs the player car's objects (evidence
@@ -146,7 +146,7 @@ m/s; Wine −0.031..−0.036); in circuit_s1g the clone's CORSA drops 0.032
 against the original's 0.033 at frame 17.
 
 **Ported: the tyres' part (captured sub-step by sub-step).**
-`tools/parity/substep.py` stops the original before (0x5B73D8) and after
+the maintainer's tool `substep.py` stops the original before (0x5B73D8) and after
 (0x5B73E3) every call of the physics mover's integrator 0x5AA490 across a
 snapshot (evidence `substep-capture.txt`, a COROLLA's spinning rear wheel,
 loop 400, 16 frames after the green). The take zeroes the tyre's drive
@@ -324,9 +324,9 @@ upgrade state follows it (block + 0x2B0: category levels 0–3, unique flags
 block − 0x30 (+0x08 the class area, +0x0C 0x59A360's acceleration area,
 +0x14..+0x20 the launch figures of 0x5B06B0). The engine's data pointer
 ([[car +0x34] +0x48] +0x18) is block + 0x1F0 (record +0x300: idle, redline,
-max rpm), so `tools/parity/recdump.py` reads all three from a running
+max rpm), so the maintainer's tool `recdump.py` reads all three from a running
 original (free roam), and the harness's native.json already held each
-car's block (car +0x20). `devprobes/src/bin/block_sweep` rebuilds the clone's
+car's block (car +0x20). the maintainer's probe `block_sweep` rebuilds the clone's
 record from the same fitted parts and uniques (`car::tuned_record`) and
 compares word for word (race-tuned runs on the parsed handling after
 `race::apply_tune`); the game's own load with the dyno tuning is dumped

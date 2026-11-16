@@ -146,7 +146,7 @@ change is a different (equally smooth) sampling; the downsample fold and the til
   them).
 * SSIM / FLIP against Ultra or the Cinematic smoke work are meaningless for a different look and were not used.
 
-## Evidence (`docs/evidence/smoke-volumetric/`, Original | Ultra | Cinematic-billboards | Cinematic-volumetric)
+## Evidence (the maintainer's private captures, Original | Ultra | Cinematic-billboards | Cinematic-volumetric)
 
 A player's real settings (`the player's options file`'s enh lines) + the row; `scripts/cap.sh`.
 * `start_*`: `--shot qrstart` NFSU2_FRAMES=300 NFSU2_THROTTLE=1 NFSU2_SHOT_STEP=1 (burnout at the start line).
@@ -178,8 +178,8 @@ NOS bar meter colour".
 
 `nfsu2::shadow::neon_color` returns the underglow's colour as the **D3D colour bytes B, G, R, A** (what
 world.efx's diffuse takes; its test: MAGENTA base R 230, G 26, B 189 → `[189, 26, 230, 255]`). This page's
-game.rs hook read them as R, G, B, so red and blue swapped. the finished-career save Skyline (`player-settings/
-the finished-career save-20261104`, `devprobes/src/bin/save_parts`: slot 0x9A **YELLOW**, 0x9B CORAL) has a yellow neon: R≈1, G≈0.8,
+game.rs hook read them as R, G, B, so red and blue swapped. The player's finished-career Skyline
+(the maintainer's probe `save_parts`: slot 0x9A **YELLOW**, 0x9B CORAL) has a yellow neon: R≈1, G≈0.8,
 B≈0 became (0, 0.8, 1) — exactly the NOS gauge's light blue — and, × 4 gain over a 3.2 m radius under the car,
 it lit the whole lower cloud. Evidence: `neon_yellow_orig_g10b_g10c.webp` (Original | This page: cyan smoke round a
 yellow neon | The smoke integration: a yellow glow low round the car). MAGENTA (this work's only neon capture) hides the swap
@@ -211,7 +211,7 @@ night scene, and black lumps where the billow shading darkened it. Changes (all 
 
 `NFSU2_SMOKE3_LOOK` takes the new names too (`tint, spread, scene, near, shadow`).
 
-### Evidence (`docs/evidence/smoke-volumetric/`, 1080p, the player's enh settings + Cinematic)
+### Evidence (the maintainer's private captures, 1080p, the player's enh settings + Cinematic)
 
 * `neon_yellow_orig_g10b_g10c.webp`: Original | This page | The smoke integration, `--bench explore`, NFSU2_NEON=YELLOW.
 * `g10c_explore_g10b_g10c.webp`: This page | The smoke integration, the standing burnout in the yard (frame 150), and `g10c_explore_crop_100pct.webp`.

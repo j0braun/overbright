@@ -96,7 +96,7 @@ replaced with the scene integration rather than counted twice.
 
 The win-burnout worker captured the shared native mode-5 chassis under
 Wine in the isolated review prefix. Artifact:
-`review/win-burnouts/native-finish-rwd.json` in the private workspace.
+the maintainer's private capture in the private workspace.
 It uses a 240SX win, instrumented finish/lap fields and candidate flags
 to isolate EndingNis01; native eligibility and wheel dispatch were left
 intact. Of 59 mode-5 samples, 45 had additive 2.5 and front brake
@@ -150,7 +150,7 @@ torque.y += first * F.y + second * L.y
 
 The intervening global vector +0x86B390/+0x86B394 was (0,0) in the native
 capture. REA/Ghidra output and its executable digest are preserved under
-`evidence/nis-torque/`. This maps the consumer; **active torque response
+the maintainer's private captures. This maps the consumer; **active torque response
 has not yet been matched under Wine**. No body-torque integration is
 claimed or added by this change.
 

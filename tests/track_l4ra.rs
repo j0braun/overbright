@@ -1113,7 +1113,7 @@ fn wall_contact_takes_the_searchs_last_points() {
 /// queries of the player's PEUGOT against one highway wall at 120 km/h and
 /// the yellow barrels at 60, 120 and 200 km/h (the contact log under Wine,
 /// every float as bits,
-/// `docs/evidence/prop-hits/query-bits.tsv`), each run from the pair's
+/// the maintainer's private capture), each run from the pair's
 /// logged state before it on the logged transforms, give the original's
 /// distance, closest points and kept vertices to the last bit — among them
 /// the time-of-impact query 12 µm over the warm boundary (0.003174 m) that
@@ -1188,7 +1188,7 @@ fn wall_and_barrel_queries_match_the_original_to_the_bit() {
 /// every one of 77 car–car contacts, docs/prop-hits.md §7f). One rear
 /// contact (the PEUGOT into a PICKUP) and one side contact (into an SUV,
 /// the PEUGOT's centre of mass moved after an earlier hit: its offset as
-/// logged), `docs/evidence/prop-hits/carcar-contacts.tsv`: the pair's
+/// logged), the maintainer's private capture: the pair's
 /// queries of the contact's frame, each from its logged entry state, give
 /// the original's bits, and the last one's midpoint is the original's point.
 #[test]

@@ -9,7 +9,7 @@ The helper retains each impulse's 1000 linear and 10 angular cap, wheel iteratio
 `bump_stop_loop_matches_native_hard_landing` exercises the actual production helper across all 17 recorded bump groups / 39 calls. Its CSV contains native pre/post linear and angular momenta, actual cached velocities/spin/mass/normals, and hubs transformed by the captured body matrix. Generate it with:
 
 ```
-python3 internal evidence: positive-dt-native/replay_bumps.py --fixture
+python3 $OB_PRIVATE/docs/evidence/positive-dt-native/replay_bumps.py --fixture
 ```
 
 Expected group momentum changes are taken directly from the native raw snapshots. The test checks both linear and angular changes with absolute vector error below 1e-5; that threshold was not widened. A second regression checks separating/zero-impulse visits, absent visits, and per-wheel caps. The initial two-wheel native regression failed with the extracted old sequential loop: linear impulse Z was 3.1053867 instead of 3.4981685.

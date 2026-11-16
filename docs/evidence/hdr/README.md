@@ -5,7 +5,7 @@ in-game post passes and display transform into an HDR texture; no HDR
 display on this machine). Machine shared with other jobs (load 9–29).
 
 ## Grade LUT against the original (Wine, apitrace replay)
-`devprobes/src/bin/grade_lut.rs wine IN OUT R G B W`; IN = the back buffer after the
+`$OB_PRIVATE/devprobes/src/bin/grade_lut.rs wine IN OUT R G B W`; IN = the back buffer after the
 frame's last scene draw (input of StretchRect → screen copy 0), OUT = the
 render target after screenfilter.efx's p2 draw. Snapshots by
 `$OB_PRIVATE/wine/runs/<run>/retrace.sh` (d3dretrace on DXVK, display :220)

@@ -33,4 +33,4 @@ No FPS limit, timestep cap or tolerance change is part of this correction. Groun
 
 The old shared production selector failed at native step 135 wheel 0: 38.538696 versus next-force load 38.334827. The corrected selector passes all 550 groups / 2200 wheel cases with unchanged 1e-5 absolute error. The exporter also verifies the captured Handling and live suspension-record bytes for every group. Fixture regeneration is byte-identical.
 
-The release library run passed 460 tests (7 ignored); track/contact passed 26, including held-car and zero-impulse bump refreshes; high-refresh driving passed 1 with the existing reverse case ignored on this base. Commands and environment are retained in internal evidence: suspension-load-phase/validation.txt. No full-substep equivalence follows from these projected component tests.
+The release library run passed 460 tests (7 ignored); track/contact passed 26, including held-car and zero-impulse bump refreshes; high-refresh driving passed 1 with the existing reverse case ignored on this base. Commands and environment are retained in internal evidence. No full-substep equivalence follows from these projected component tests.

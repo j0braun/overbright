@@ -177,7 +177,7 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
   * A row from the graph at 0x7EC430 is picked by |v| (+0x430) × 4 / S,
     S = [car +0x10] +0x20 (100 when car +0x10 is null). Car +0x10 is not
     0x5B06B0's set-up object: under Wine (circuit_s1_pinned, fields
-    `setup_*`, `trap*`, docs/evidence/n-ai/) it points into a static array,
+    `setup_*`, `trap*`, the maintainer's private captures) it points into a static array,
     0x890170 + 0x940 · slot (the racers' records; +0x00 the car type index,
     +0x18 the performance rating 196.70 / 195.92 / 179.79 = 0x5B4DD0's area),
     and its +0x20 read 73.7595 (206, player and rival), 67.0541 (240SX),
@@ -265,7 +265,7 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
     T.z)), b = trunc(2000 T.x) binary angles (0x7FB740 / 0x7FB744; the z
     turn's factor 0x7FB748 is 0). So the eye moves by −offset (along the
     weighted acceleration) and the view pitches / turns by up to ~1°.
-  * **Observed** (Wine, the parity cave at 60 fps; tools/parity
+  * **Observed** (Wine, the parity cave at 60 fps; the maintainer's tools
     scenarios crash_wall, impact_wall_bumper, impact_wall_150,
     prop_barrels_120; docs/evidence/impact-shake/): the slot starts on
     the frame of the contact (weighted 481, 456, 1317 and 386 m/s²), the
@@ -595,7 +595,7 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
   agree (a3, b1, j2 clear; b3 blocked by plain walls, flags 0x16).
   **Chase camera parked under the event** (2026-11-06; **verified**
   in the disassembly, **observed** in the <work dir> captures re-decoded,
-  `docs/evidence/crash-camera-park/`). Every start of kind 6 / 7 calls the
+  the maintainer's private captures). Every start of kind 6 / 7 calls the
   factory with the keep flag (0x6022F0 case 5 / 6, 0x604CD3, 0x604FD3:
   `push 1`, unless game state 5): the current mover goes to player +0x23C
   (the one there to +0x240) and vtable +0x40 (0x4440A0 for the chase
@@ -1016,12 +1016,12 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
 
 Code: `src/hydraulics.rs` (input, physics, garage), `src/audio/hydraulics.rs`
 (CARSFX_Hydraulics), `drive::CarState::hydraulics`, `style::hydraulics`,
-`devprobes/src/bin/hydraulics_parts.rs`. Shots: `hydro`, `hydro_bounce` (free roam,
+the maintainer's probe `hydraulics_parts`. Shots: `hydro`, `hydro_bounce` (free roam,
 the original's key timelines; `HYDRO_LOG=1` prints every frame,
 `NFSU2_HYDRO_CAR=350Z` a stock car of that type), `hydroshop`.
 
 * **The part** (car specialties slot 0xA1, cost category 0x24; all 46 car
-  types have the same four, `devprobes/src/bin/hydraulics_parts.rs`): NO HYDRAULICS
+  types have the same four, the maintainer's probe `hydraulics_parts`): NO HYDRAULICS
   (6411A0F4, level 0), LVL 1 / 2 / 3 HYDRAULICS (1DB68B76, 4EA9E8D7,
   7F9D4638) at $750 / $1100 / $1600, 100 / 200 / 300 visual points
   (Visual Rating 0.20 for level 1 in the original's Customize), each

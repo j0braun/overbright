@@ -80,7 +80,7 @@ path, banks checked byte for byte).
 Evidence: `docs/evidence/s3-audio/` (vanilla SPEED2.EXE, private copy
 `a private Wine copy`, display :202, `--audio-file`; recorder `record.py` of
 `nis-audio-patterns`, all bytes restored, 0 lost). The new scenes' updates
-are appended to `nis-audio-patterns/native-updates.txt` (`fixture.py`).
+are appended to the maintainer's private capture (`fixture.py`).
 
 * **Event clock = native frame ticks (verified, all captures).** The scene
   event clock adds each frame's world dt, `ticks / 1800` from 0x57EAE0 with

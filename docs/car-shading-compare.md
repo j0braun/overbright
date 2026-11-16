@@ -13,7 +13,7 @@ main menu with a fresh profile (DDAY_PLAYER_CAR, Rachel's 350Z, same turntable p
 matches the free-roam start after Rachel's SMS (`fastnav.py freeroam`).
 
 Region means (0-255, R G B; orig → clone delta), after the fix below. Crops in
-`docs/evidence/car-shading/` (orig | clone | |diff|×4):
+the maintainer's private captures (orig | clone | |diff|×4):
 
 | Frame | car crop Δ | body Δ | rim Δ | glass / hood Δ |
 |---|---|---|---|---|
@@ -43,7 +43,7 @@ Min/Range) equal one of the clone's light-material constant sets (0x5BD4B0 on GL
 5e-6: paint METPAINTSILVER, rims MAGSILVER, glass WINDSHIELD / WINDOWMASK, CHROME, MOLDINGS, RUBBER,
 BRAKEDISC(_DIFFUSE), BOTTOM, DECAL, HEADLIGHTGLASS, BRAKELIGHT(GLASS), CLEARPLASTIC, ALUMINUM,
 DEFAULT, LICENSEPLATE, DULLPLASTIC (PLAINNOTHING has the same constants as DRIVER). The 21 distinct
-sets are internal evidence: car-shading/fe-240sx-car-efx.txt (count, 22 values, matched material).
+sets are internal evidence (count, 22 values, matched material).
 HarmonicCoeff / LocalEyePos / the env cube / the post chain were checked against traces on
 2026-10-29..11-01 (formats.md, "Car shading checked against the running original") and are not
 re-traced here; the matched-frame means above show no change since.

@@ -1305,7 +1305,7 @@ See also internal notes (the differences list for review).
 * **0x5337E0** (in 0x541430): milestones (0x83840C, 0x40 each) with +0x34
   = 2 whose +0x38 is the won event and whose visit entry +6 is 1 get state
   +4 = 2 (offered) and the marker table is rebuilt (0x533320). No milestone
-  in the shipped data has +0x34 = 2 (all are 3 or 4; `devprobes/src/bin/milestones`),
+  in the shipped data has +0x34 = 2 (all are 3 or 4; the maintainer's probe `milestones`),
   so it does nothing; the clone leaves it out.
 * **Visit-table +6 / +4** (career +0x7B00; 0x512F10 finds or adds):
   +6 = 1 won (0x541430), 2 a race started unless won (0x541170) or the
@@ -1741,7 +1741,7 @@ offer stuck; the car moved through memory onto its spot (661, −537).
   shows UI_MagazineSelect's frame lit); Wine pr03's three samples 3.6 s
   apart fall on one phase of the 1.2 s loop (dark 640–1200 ms), so they
   do not show it off. The clone keeps the pulse.
-* **Unused packages** (`devprobes/src/bin/packages` against the clone's sources;
+* **Unused packages** (the maintainer's probe `packages` against the clone's sources;
   the exe's name strings and their references): online only (UI_OL*,
   PC_OL_*, UI_DateEntry 0x4BA3BB for the age entry, the "animating"
   dialogs — 0x526C50 picks GenericDialog_Animate_* only for the request
@@ -2043,7 +2043,7 @@ the save then lives in the prefix's `AppData/Local/NFS Underground 2/NAME`,
 not `game/save`). Its 66 patch sites
 touch FE object lookups and rendering (0x4FF9D0 callers, 0x5BE…–0x5D2…),
 none of the career code (career base 0x85AD40). Rounds 1–5 ran with it on.
-Saves: `devprobes/src/bin/career_saves.rs` (new: `PARTS=<rating>` fits level-1
+Saves: the maintainer's probe `career_saves` (new: `PARTS=<rating>` fits level-1
 visual parts until the visual rating reaches it; `RATING=<r>` runs the city
 start's DVD offers first; `SHOOT=<hash>` prints a shoot's pay; tag `m` = the
 stage's first world challenge on offer; the NAMES dump lists milestones,

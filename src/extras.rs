@@ -30,7 +30,7 @@ pub struct Extras {
     pub hud_info: u8,
     /// Reduced Flashing (§4): caps the full-screen flashes.
     pub reduced_flashing: bool,
-    /// Power Saving (docs/benchmarks/d5-pacing/README.md): frame caps
+    /// Power Saving (the maintainer's private capture): frame caps
     /// that save power where they change nothing the player watches
     /// ([`POWER_NAMES`], [`power_cap`]); 0 Off (native: uncapped).
     pub power_saving: u8,

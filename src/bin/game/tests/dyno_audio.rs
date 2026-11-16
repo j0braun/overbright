@@ -51,7 +51,7 @@ fn dyno_enter_waveform_capture() {
     std::fs::write(out, pcm.iter().flat_map(|v| v.to_le_bytes()).collect::<Vec<u8>>()).unwrap();
 }
 
-/// The dyno's music dip (docs/l1-leftovers.md §L3.4): under Wine
+/// The dyno's music dip (the maintainer's private notes §L3.4): under Wine
 /// (the finished-career save, master / game music 1.0) the song's level (+0xBC >> 8) holds
 /// 17–18 into DynoEnter, falls to 10 as SFXCTL_Tunnel's f2 turns 1
 /// (the car in L4RG's kind-0x14 zone, ~7 s in) and rises to 19 when

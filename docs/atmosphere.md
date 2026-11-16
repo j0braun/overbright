@@ -86,7 +86,7 @@ Tuning aids: `NFSU2_ATMO_LOOK=haze=…,height=…,rain=…,rain_height=…,ambie
 The audit found five volume paths with their own air (fog Next-Gen ×(1 + 1.3 rain), Low/High's own
 ×(1 + 0.3 rain), the car lights' air ×(1 + 1.5 rain), Rain Next-Gen's haze, Rain Detail's wet-air lamp
 halos), fog Next-Gen lifting the blacks (Δp5 +0.63 average, neon +1.99) and lamp halos on top of the
-native glow sprites (docs/gfx-issues-2026-11.md, issue 5). The narrow interface above was only
+native glow sprites (the maintainer's private notes, issue 5). The narrow interface above was only
 half true: nothing but this pass read `medium()`.
 * **(a) One medium** — `render::enh::volumes::medium` (`Medium { extinction, height, thickness }` from
   `atmosphere::medium`): the froxels take its extinction and height; the car lights' air its thickness
@@ -303,7 +303,7 @@ changes its recommendation asked for:
 * Tuning aids kept: `NFSU2_NIGHT_SKY_COVER`, `_RAIN`, `_TIME`, `_DEBUG`, and `NFSU2_SKY_GLOW`.
 
 ## Cost (GPU busy ms/frame, reference desktop GPU (RADV), 3840 × 2160, `--bench explore 600` frozen at two night spots,
-perf.sh's Ultra preset + the rows, 2 interleaved runs; internal evidence: atmosphere/scripts/cost.sh, raw lines
+perf.sh's Ultra preset + the rows, 2 interleaved runs; internal evidence, raw lines
 in `costs-4k.txt`)
 
 | config (mean of 2 runs) | spot E (street, lamps) | spot G (park, skyline) |
@@ -352,7 +352,7 @@ more than 1 %, 1 − SSIM 6.6e−5, the change's own frame-to-frame motion 0.034
 it). The reference integrated GPU at level Medium in rain: the tint 0.412 ms → none, the apply 1.158 → 1.123. With
 the lens drops (World Detail 4–5, the player's settings) the drops sit between the two and the tint runs as before.
 
-## Evidence (`docs/evidence/atmosphere/`, 1280 × 720 at 66 %, the game's chase camera, frame 60 of a frozen
+## Evidence (the maintainer's private captures, 1280 × 720 at 66 %, the game's chase camera, frame 60 of a frozen
 `--bench explore`; Original | Ultra | Next-Gen = Ultra + Volumetric Fog Next-Gen + Sky Next-Gen)
 
 * Six night spots: `atmo_core_*` (City Core plaza), `atmo_neon_*` (the shops' neon street), `atmo_skyline_*`

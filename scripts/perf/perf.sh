@@ -127,7 +127,7 @@ run_one() {
     [ "$preset" = orig ] || env+=(NFSU2_BENCH_ENH="$enh")
     [ "$scene" = rain ] && { scene=drive; env+=(NFSU2_RAIN_CLOCK=162); }
     # Scene water = explore with the camera orbiting the Beacon Hill fountain steps (docs/water.md's
-    # worst case N, docs/evidence/water/scripts/orbit.py).
+    # worst case N, the maintainer's private capture).
     if [ "$scene" = water ]; then
       scene=explore
       [ -s "$out/track_water.txt" ] || python3 "$REPO/docs/evidence/water/scripts/orbit.py" -827 714 36 20 6 > "$out/track_water.txt"

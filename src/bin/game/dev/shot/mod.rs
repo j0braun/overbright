@@ -1,5 +1,5 @@
 //! `--shot <screen> <out.png>` (docs/checks.md): the screenshot harness.
-//! Transitional: `shot` is one long fn, moved whole (docs/refactor/); its
+//! Transitional: `shot` is one long fn, moved whole (the maintainer's private notes); its
 //! target table is cut into files later.
 use crate::*;
 

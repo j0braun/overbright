@@ -1679,7 +1679,7 @@ original (vanilla, `$OB_PRIVATE/wine/runs/<run>`, wined3d-Vulkan on the GPU —
 DXVK hit `Command submission failed: -13` at the profile save twice that
 morning, as other copies did — 1280 × 960, free roam after the career
 start) driven along six long straights (the car teleported with speed,
-Up held 8 s, starts from `devprobes/src/bin/lod_straights`),
+Up held 8 s, starts from the maintainer's probe `lod_straights`),
 30 fps frames (ffmpeg x11grab, wall-clock pts) and view 1's camera
 (0x8760E0: eye +0x40, forward +0x50, matrix +0x00, angle +0xC4) polled at
 ~85 Hz; the clone rendered the same eye, orientation and angle per frame

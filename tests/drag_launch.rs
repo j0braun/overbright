@@ -1,5 +1,5 @@
 //! Stage-4 drag launch parity (docs/drag-stage4-parity.md): the
-//! original's launch as `tools/parity/subtrap.py` captured it sub-step by
+//! original's launch as the maintainer's tool `subtrap.py` captured it sub-step by
 //! sub-step under Wine. Ignored without NFSU2_ROOT.
 mod common;
 

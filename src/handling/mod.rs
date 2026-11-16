@@ -191,8 +191,8 @@ mod tests {
     /// Every up-shift of the finished-career save's Skyline (class 0, up-shift rpm 9400
     /// in every gear) the original graded under Wine in a stage-4 drag
     /// (S4_H_DRAG_15 runs h15_b..f, and two edge points of h15_n / d9_a:
-    /// q = 0.5002 and 8.9 rpm past the point; tools/parity/dragshift.py, evidence
-    /// docs/evidence/drag-stage4/grades.tsv): (gear index, the shown rpm on
+    /// q = 0.5002 and 8.9 rpm past the point; the maintainer's tool `dragshift.py`, evidence
+    /// the maintainer's private capture): (gear index, the shown rpm on
     /// the frame before the request, the original's +0x68). The clone's
     /// grading gives the same for each.
     #[test]

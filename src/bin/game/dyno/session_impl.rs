@@ -51,7 +51,7 @@ impl Game {
     /// DynoEnter on the loaded dyno track (`menu` without it). Also after
     /// a test run's Return to Dyno (**observed** under Wine: the
     /// session's reload put the car on mode 5 under 0xB3B2B197 for ~9 s
-    /// before the Dyno Shop came back; `docs/evidence/dyno-exit/`).
+    /// before the Dyno Shop came back; the maintainer's private captures).
     pub(crate) fn dyno_enter_scene(&mut self, menu: Mode) -> Mode {
         use nfsu2::shop_scene::{Scene, SceneKind, origin};
         let Some(d) = self.sim.drive.as_ref() else { return menu };
@@ -98,7 +98,7 @@ impl Game {
     /// the finished-career save's Lancer, Circuit: as Test Run was picked, 0x827E1C became
     /// BinHash("DynoExit") 0xB7DEC9B3 and the car went on mode 5 for 6 s,
     /// off the rollers and down the ramp, before the test run's track
-    /// 4705 loaded with race type 1; `docs/evidence/dyno-exit/`).
+    /// 4705 loaded with race type 1; the maintainer's private captures).
     /// **Verified**: the Test Run ends the dyno session's race (race type
     /// 8, 0x89E7E6 set): the race flow's mode 7 handler 0x603EC0 (state
     /// table 0x80214C entry 7) case 1, with +0x44 set (0x60A878 at the

@@ -5,7 +5,7 @@ usage:
   perfstat.py summary DIR [--label L] [--md FILE] [--json FILE]
       per label and config: every metric's run values, median, MAD, noise
       and the smallest change the run count can detect (MDE); --json writes
-      a baseline file (docs/benchmarks/baseline-*/baseline.json).
+      a baseline file (baseline.json).
   perfstat.py compare DIR --base A --new B [--md FILE] [--json FILE]
       A/B of two labels run interleaved by perf.sh (the gate); exit 1 on a
       regression or a config that only one arm ran.

@@ -107,7 +107,7 @@ scene's start, a dt-0 placement frame: `start_shop_scene`,
 `start_career_scene`, `play_race_ending` (flow/scenes.rs),
 `dyno_enter_scene`, `exit_dyno_scene` (dyno/session_impl.rs), and the
 Enter skip's seek in the input phase (input/dispatch.rs, its end can open
-the shop there); and the game's tests (tests/scenes.rs). They are not
+the shop there); and the game's tests (src/bin/game/tests/scenes.rs). They are not
 ticks and stay calls of the same session step through the wrapper.
 
 **Contact sounds.** The library's process-wide queues

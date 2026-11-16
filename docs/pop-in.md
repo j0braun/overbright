@@ -79,7 +79,7 @@ or a few pixels across:
 * The largest temporal spikes of every arm (20,000 pixels at 720p,
   frames 728–942) are the native animated chevron signs, not pops.
 * Routes (`--bench racing 3600`, events 80 / 100 / 120 / 140, every 10th
-  frame at 1280 × 720; internal evidence: pop-in/pixel-ab-events.txt):
+  frame at 1280 × 720; internal evidence):
 
   | event | Original vs its oracle, mean / max px (frames ≥ 200 px) | Ultra before vs after, mean / max px (frames ≥ 200 px) |
   |---|---|---|
@@ -92,7 +92,7 @@ or a few pixels across:
   a far hill's tree line (ev120 frame 2900) and a roof prop (ev140 frame
   460) drawn half by the screen-door pattern after this work where before they
   had already finished their 0.25 s fade
-  (internal evidence: pop-in/ev120_f2900_orig_before_after.jpg,
+  (internal evidence,
   `ev140_f460_orig_before_after.jpg`: rows Original, Ultra before, Ultra
   after). The 4 × 4 dither stays visible for the 1 s of the dissolve
   without TAA (here SSAA 2×, 720p); `SECTION_FADE_SECONDS` is the knob.

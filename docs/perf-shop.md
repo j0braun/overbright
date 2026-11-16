@@ -8,7 +8,7 @@ Saves: the player's a community save (stage 4, LANCEREVO8, every part fitted, no
 owned) and a control run (load, enter, exit, save, no purchase). Shop
 CC_PERF_SHOP (player moved onto its trigger). Captures and saves are in
 `<work dir>/perfshop-work/{wine,saves}`; side by sides in
-`docs/evidence/perf-shop/` (left original, right clone fixed; `brand_part`
+the maintainer's private captures (left original, right clone fixed; `brand_part`
 original / clone before / clone fixed).
 
 Key by key: categories → Engine opens on Choose Individual Parts (the
@@ -130,7 +130,7 @@ without one leaves the record as loaded (the control save: floats 0).
   internal fixture saves of a community career (control, after buys, unbranded)):
   both runs byte-identical, and the clone loading the original's save
   gives the same shop ratings and visual rating as after its purchases.
-  Evidence: internal evidence: perf-shop/record-store.txt.
+  Evidence: internal evidence.
 
 ## Open
 * The strip's frame on Choose Individual Parts (the green frame round the

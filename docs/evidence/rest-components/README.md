@@ -10,7 +10,7 @@ Reproduce with LLVM mc, GNU ld i386pe and Wine:
 
 ```
 NFSU2_EXE='/path/to/game/SPEED2.EXE' NFSU2_PROBE_DIR='/private/temp/dir' \
-python3 internal evidence: rest-components/native_threshold.py
+python3 $OB_PRIVATE/docs/evidence/rest-components/native_threshold.py
 ```
 
 `bump-hulls.json` contains the final clone collision fixture vertices with

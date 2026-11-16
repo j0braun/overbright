@@ -1247,7 +1247,7 @@ mod post_load_tests {
 
     /// The free-roam post-load against the original's memory after the
     /// intro (career stage 1, L4RA), read under Wine: the private set's
-    /// `docs/evidence/free-roam-routes/` holds junctions_mem.bin (the
+    /// the maintainer's private captures holds junctions_mem.bin (the
     /// table, 32 bytes each) and records_mem.bin (u16 id, u32 length, the
     /// record's bytes).
     #[test]

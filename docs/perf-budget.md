@@ -131,7 +131,7 @@ Every hint the table measures is now its 4K number (below).
 ## IGPU class (the reference integrated GPU: a 2-CU RDNA2 iGPU, `IGPU=1`)
 
 `IGPU=1 REPS=2 budget.sh` (300 frames, 2 runs, 1920×1080 only, 1470 s;
-the same binary; internal evidence: perf-budget/budget-igpu.md; World Detail 5, the bench's default:
+the same binary; internal evidence; World Detail 5, the bench's default:
 everything raised, 8× MSAA. A fresh install on this class runs World Detail 3: Original 4.0–5.8 ms,
 Medium 17.5–28.4, High 37.5–67.7 at 1080p, upper bounds measured under build load, docs/perf-integrated-gpu.md
 "The Enhanced levels at World Detail 3"). GPU busy median ms/frame [p95]:
@@ -202,7 +202,7 @@ scripts/checks/perfgate.sh seed   OUT NEW_BIN [NOTE]           # first baseline:
   no FAIL, no "worse"; GPU noise 0.5–3 % (needed 3 %), main / workers CPU
   noise 6–30 % (so CPU changes below ~10–60 % cannot fail the gate on this
   shared machine: the CPU columns catch only large CPU regressions; the
-  GPU column is the precise one). internal evidence: perf-budget/perfgate-seed-AA.md.
+  GPU column is the precise one). internal evidence.
 
 ### How the maintainer runs it after each merge
 
@@ -916,8 +916,8 @@ The hint of every row the table measures is now its 4K number under "everything 
 tiers as (max − Off) − (max − tier)); before, most were measured alone over
 Original, several far off (SSAA 2x 0.01 vs 10.15 ms). Measured on the frame-budget fixes' binary
 where the row changed since 99e726f or the tier was not in this work's table (29 configs,
-3 × 300 frames at 4K, internal evidence: perf-budget/dx0b-runs.md), else this work's. The list
-with scenes and sources is internal evidence: perf-budget/hints-4k.tsv; the test
+3 × 300 frames at 4K, internal evidence), else this work's. The list
+with scenes and sources is internal evidence; the test
 `frontend::graphics_table::cost_tests::cost_hints_follow_the_budget_table` keeps every
 listed hint within 1.5× or 0.3 ms of it (45 tiers).
 
@@ -941,7 +941,7 @@ listed hint within 1.5× or 0.3 ms of it (45 tiers).
 | Headlight Beams 0.21 → 0; Light Probes 0 → 0.2; Rain Detail 0.24 / 0.27 → 0.11 / 0.12; Spray 0.25 → 0.01; Wet Car 0.02 → 0; Lens Drops 0.01 → 0; Wet Roads 0.04 → 0; Dynamic Lamps 0.03 → 0; LOD Fade 0 → 0.1; World Detail Extreme 0.1 → 0 | below the noise under max (n.s.) |
 
 Ambient Occlusion since its passes were made cheaper (docs/perf-integrated-gpu.md, "Ambient
-Occlusion: the same occlusion for less"; internal evidence: perf-budget/ssao-algorithms.md): its four
+Occlusion: the same occlusion for less"; internal evidence): its four
 passes at 4K with every row up 1.01 → 0.80 ms racing, 1.01 → 0.81 rain (the GPU timer rows; the hint
 0.96 stays within the test's 0.3 ms).
 
@@ -953,10 +953,10 @@ replays and photo mode; the racing leave-one-out, 0.02, is not its scene).
 
 * **Measured**: the garage builds a changed FE car on a thread (`draw_garage`:
   `Car::load_upgraded` + its renderer; the frame never waits). The part shows when
-  the build is done. `devprobes/src/bin/part_latency.rs` replays that work (350Z): 17–25 ms
+  the build is done. the maintainer's probe `part_latency` replays that work (350Z): 17–25 ms
   load + 3–7 ms renderer = 21–32 ms per change, first and repeated alike (vinyls the
   most: VINYLS.BIN, 17 MB, was read whole per change). In the game (windowed,
-  private Xvfb, `scripts/preview_xtest.sh` body + graphics shops, 42 changes; new log
+  private Xvfb, the maintainer's `preview_xtest.sh` body + graphics shops, 42 changes; new log
   line `preview shown after N ms` with `NFSU2_PREVIEW_LOG`): **median 17.3 ms (body
   shop), 24.8 ms (graphics shop), max 90 ms** — 2–11 frames at 120 Hz.
 * **Fix** (exact: the same deterministic build, only earlier):
@@ -978,7 +978,7 @@ replays and photo mode; the racing leave-one-out, 0.02, is not its scene).
   textures and buffers, only while a shop is up.
 * Checks: `--shot finished_shop_checks` asserts that every list step asks for a ride
   that was built ahead (25 steps in the body shop, carbon fibre, specialties and neon
-  lists); `scripts/preview_xtest.sh run` (windowed on its own Xvfb) 0 failures with
+  lists); `$OB_PRIVATE/scripts/preview_xtest.sh run` (windowed on its own Xvfb) 0 failures with
   and without the prefetch.
 
 ### Gate
@@ -992,7 +992,7 @@ replays and photo mode; the racing leave-one-out, 0.02, is not its scene).
   the same set, a temporary baseline dir with gate.sh's base binary): **pass**, rain
   `max` 4K 28.82 → 28.77 ms (−0.2 %). The +3.9 % is in main between the budget base and
   the fixes base (the shadow-softness pass / the volumetric smoke / a texture-material pass since removed / the depth and lamps pass), not the frame-budget fixes; `current` should be re-accepted on the
-  merged main. `docs/evidence/perf-budget/dx0b-perfgate-vs-{current,<base>}.md`.
+  merged main. Reports: internal evidence.
 
 ## The new effects' costs (2026-11-05)
 
@@ -1035,7 +1035,7 @@ Image check (4K, urt): casino canopy still SSIM 0.9993 (0.6 % of pixels > 2 leve
 rain drive 0.9994–0.9998, race start 0.99998, racing 0.9993–0.9998; luminance mean / p5 / p95 unchanged
 (casino 93.43 / 9.1 / 220.9 both); motion (rain drive 40 frames, casino crawl 5 cm / frame): temporal
 SD, frame deltas and second differences within ±0.2 % of before (no new shimmer). Crops 100 / 200 %:
-`docs/evidence/perf-budget/dx1/` (left before, right after). FLIP: not run (no FLIP tool on this
+the maintainer's private captures (left before, right after). FLIP: not run (no FLIP tool on this
 machine; SSIM + per-pixel deltas + crops instead). Design: `docs/shadow-softness.md` "2026-11-05: the rays at half resolution, outside the colour shader".
 
 ### 2. Volume_fx light smoke: already inside its budget on <base> (no change)
@@ -1076,12 +1076,12 @@ binaries differ (md5 base binary, the effects-performance pass 6884d236…). `pe
 ## The Next-Gen tiers — costs, tiers, GPU classes (2026-11-06)
 
 Base main. Nothing native is involved: every row here is a clone deviation; Original is
-untouched (gate below). Measured with `perf.sh bench` through internal evidence: dx2/scripts/bench-nx.sh
+untouched (gate below). Measured with `perf.sh bench` through internal evidence
 (reference desktop GPU: 3 runs × 300 frames, `ORDER=alternate`; reference integrated GPU, `IGPU=1`: 2 runs × 300 frames at 1080p),
 GPU busy median of the run medians, `NFSU2_BENCH_RIVAL_NOS=8` (the rivals' flames for Sparks & Fire). The
 row's step is measured over **max** (perf.sh `MAX`, the player's play setup + every newest row) on the reference desktop GPU
 and over **Modern** (the preset with its weather rows) on the iGPU. Load average 30–170 (other jobs).
-Raw tables: internal evidence: dx2/nx-rx7800xt-max.txt, `nx-igpu-modern.txt`, `carlights-sky-steps.txt`.
+Raw tables: internal evidence, `nx-igpu-modern.txt`, `carlights-sky-steps.txt`.
 
 ### Per effect (GPU ms; reference desktop GPU over max, its own pass in brackets; iGPU over Modern 1080p)
 
@@ -1151,7 +1151,7 @@ when the class changed something.
 | Modern | unchanged | unchanged | unchanged (its rows are already the light ladder: Beams On, Rain On, no fog) |
 | Ultra | Ultra without Enhanced Glass (below) | = High: **no step** (the obvious one, MSAA 8x for SSAA 2x, measured 0.5–0.9 ms *slower* at 4K here; no mid card to measure — open) | MSAA 8x, half-size glow (Post High), native smoke, Rain Detail On, no Volumetric Fog, no Animated Water, no Wet Road Interaction |
 
-Measured (GPU ms, internal evidence: dx2/presets.txt): iGPU 1080p explore / racing / rain — Modern 29.5 / 47.6 /
+Measured (GPU ms, internal evidence): iGPU 1080p explore / racing / rain — Modern 29.5 / 47.6 /
 51.4, Ultra (High class) 79.2 [p95 289] / 97.6 / 152.1, **Ultra (Integrated class) 39.2 / 62.7 / 72.0** (2 runs).
 reference desktop GPU, Ultra without Enhanced Glass: racing 4K 9.78 → 9.35, race start 4K 10.67 → 10.28, racing 1080p
 2.79 → 2.67 (3 runs).
@@ -1163,8 +1163,8 @@ Clean untouched; Beams kept; Mid = High; no Next-Gen in any preset).
 ### The look direction's verdicts applied (docs/look-direction.md "Per-row verdict")
 
 Original + one row at the look direction's six audit spots (street, casino neon, Coal Harbor docks, Jackson Heights, rain
-street, Quick Race start; the original's cameras, `tools/look`), Δ against clone Original
-(internal evidence: dx2/look-audit-nx-rows.txt):
+street, Quick Race start; the original's cameras, the maintainer's tools), Δ against clone Original
+(internal evidence):
 
 | row | Δmean | Δp5 | Δp95 | ΔRMS | Δglow | Δsky | R1–R6 | verdict |
 |---|---|---|---|---|---|---|---|---|
@@ -1189,7 +1189,7 @@ keep their the look direction tuning.
   +40 %, workers +18 %); every GPU column better (rain max 4K 27.71 → 22.96 ms, Ultra 4K 14.00 → 9.06). Against the
   <base> binary (same set, a temporary baseline dir): **pass**, every config within ±0.1 % GPU, rain max 4K CPU
   +4–7 % n.s. — the CPU change is main's between the two bases, not the effects-tiers pass (changes nothing max draws).
-  `docs/evidence/dx2/perfgate-vs-{99e726f,<base>}.md`.
+  Reports: internal evidence.
 * **New baseline** accepted from the effects-tiers pass gated binary: `$OB_PRIVATE/perf-baselines/20261106-0446-b7ee3bcf464b`
   (`current`; sha256 b7ee3bcf…, the <base> A/B run's arm).
 
@@ -1202,10 +1202,10 @@ keep their the look direction tuning.
 ## Final performance / look pass on the effects (2026-11-06)
 
 Base main <base> (FSR 2). Scope freeze: no new effect or row. Nothing native is
-involved; Original is byte-identical (gate below). Benches internal evidence: dx3/scripts/bench.sh (perf.sh bench,
+involved; Original is byte-identical (gate below). Benches internal evidence (perf.sh bench,
 `ORDER=alternate`, 300 frames; reference desktop GPU 3 runs, reference integrated GPU `IGPU=1` 2 runs), GPU busy median of the run
-medians; raw tables internal evidence: dx3/benches.txt; look metrics `look-audit-{base,dx3,ultra-glass}.txt`
-(the look direction's six audit spots + the rain harbour, the original's cameras, `tools/look`, Δ vs clone Original).
+medians; raw tables internal evidence; look metrics `look-audit-{base,dx3,ultra-glass}.txt`
+(the look direction's six audit spots + the rain harbour, the original's cameras, the maintainer's tools, Δ vs clone Original).
 
 | item | before | after | look (Δ vs Original, 7 spots) |
 |---|---|---|---|

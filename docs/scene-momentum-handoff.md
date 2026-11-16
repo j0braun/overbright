@@ -10,4 +10,4 @@ Scope: corrected internal state consistency in the existing scripted-placement a
 
 ## Expanded countdown regression
 
-The selectable diagnostic now accepts ROLLOVER_TRACK from its enumerated drag-mode list. All10 tracks(4201,4401,4402,4212,4213,4221,4222,4223,4404,4211) passed at60 and240Hz:20 asset-backed runs with three opponents, green reached, and no pregreen rollover. Seed20261103, player stationary. Track4201 also passed500Hz. Reproducer and per-run logs are review/drag-track-sweep.py and review/drag-track-sweep.json in the private workspace. This expands countdown coverage, not native race trajectory or every collision coverage.
+The selectable diagnostic now accepts ROLLOVER_TRACK from its enumerated drag-mode list. All10 tracks(4201,4401,4402,4212,4213,4221,4222,4223,4404,4211) passed at60 and240Hz:20 asset-backed runs with three opponents, green reached, and no pregreen rollover. Seed20261103, player stationary. Track4201 also passed500Hz. Reproducer and per-run logs are the maintainer's private captures in the private workspace. This expands countdown coverage, not native race trajectory or every collision coverage.

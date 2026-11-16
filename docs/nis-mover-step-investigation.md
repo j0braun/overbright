@@ -3,7 +3,7 @@
 This extends `race-start-wheelspin.md` with the consumer of the target stored by
 0x5A40B0. Evidence is original executable disassembly, not a live trajectory
 comparison. The source digest, exact function extents and constants are retained
-in internal evidence: nis-mover-step/metadata.json; raw instructions are alongside it.
+in internal evidence; raw instructions are alongside it.
 No production scene or physics code changes accompany this investigation.
 
 ## Target application before integration
@@ -103,8 +103,8 @@ the offline audit. The private wineserver is stopped by the probe's finally bloc
 Reproduce with the verified executable and a private output directory:
 
 ```
-python3 internal evidence: nis-mover-step/probe-target.py /path/SPEED2.EXE /private/probe
-python3 internal evidence: nis-mover-step/check-target.py
+python3 $OB_PRIVATE/docs/evidence/nis-mover-step/probe-target.py /path/SPEED2.EXE /private/probe
+python3 $OB_PRIVATE/docs/evidence/nis-mover-step/check-target.py
 ```
 
 This closes the target helper's basic setter/cache ambiguity. Full moving-scene
@@ -140,7 +140,7 @@ transition lifetime and integration frequency remain to be verified.
 
 ### Static placement-counter lifetime
 
-internal evidence: nis-mover-step/placement-lifetime.asm retains the reset and transfer
+internal evidence retains the reset and transfer
 sites from the same digest-verified executable; its companion JSON records exact
 instruction ranges and the assembly digest. This establishes these operations:
 
@@ -200,7 +200,7 @@ also remain open. The complete native setter must include these branches;
 this evidence does not justify wiring a partial setter into live playback.
 
 Reproduce with `probe-target-state.py ORIGINAL_EXE PRIVATE_OUTPUT_DIRECTORY`,
-then run `python3 internal evidence: nis-mover-step/check-target-state.py against the
+then run `python3 $OB_PRIVATE/docs/evidence/nis-mover-step/check-target-state.py` against the
 retained fixtures. No playable-package behavior changes accompany this evidence.
 
 ### Teleport placement also resets controller state
@@ -236,7 +236,7 @@ and live transition timing remain to be captured.
 
 ### Static component integration and force dispatch
 
-internal evidence: nis-mover-step/component-traversal.asm retains five complete
+internal evidence retains five complete
 instruction ranges freshly extracted from the digest-verified executable.
 The companion JSON retains their boundaries, assembly digest and PE-mapped
 vtable entries. This resolves the dispatch sequence left open above; it does
@@ -343,7 +343,7 @@ reporting component bits rather than relying on the older tolerance test.
 The FINIT-default fixture differs in 8/64 cases (12 components, maximum
 absolute error 0.0000009536743). The PC24 fixture differs in 22/64 cases
 (34 components, maximum absolute error 0.00012207031). The complete output
-is retained in internal evidence: nis-mover-step/rust-precision-comparison.txt.
+is retained in internal evidence.
 
 This is a diagnostic, not a passing parity gate. Its successful process exit
 means the comparison ran, not that arithmetic matches. Neither fixture

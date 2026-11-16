@@ -5,9 +5,9 @@ with the original. **Verified** = traced in SPEED2.EXE (disassembly /
 REA), **observed** = read from the running original under Wine,
 **inferred** / **open** as marked. Code: `PartDb::visual_rating`
 (src/formats/parts.rs), `car::ride_visual_rating` (src/car.rs; the game's
-`Game::visual_rating_car` now calls it). Tools: `tools/rating/rating.py`
-(+ `rating.s`, the probe cave), `tools/rating/fixture.py`,
-`devprobes/src/bin/visual_rating_sweep`. Evidence: `docs/evidence/rating-flash/`.
+`Game::visual_rating_car` now calls it). Tools: the maintainer's tool `rating.py`
+(+ `rating.s`, the probe cave), the maintainer's tool `fixture.py`,
+the maintainer's probe `visual_rating_sweep`. Evidence: the maintainer's private captures.
 
 ## The formula (verified)
 
@@ -49,7 +49,7 @@ REA), **observed** = read from the running original under Wine,
 
 ## Under Wine (observed)
 
-`tools/rating/rating.py OUT SAVE[:PROFILE]... --sweep` boots each save in
+`$OB_PRIVATE/tools/rating/rating.py OUT SAVE[:PROFILE]... --sweep` boots each save in
 the private Wine copy, drives it to free roam and installs a probe cave
 (`rating.s`, at 0x782B00 in place of the main loop's frame-time call
 0x5812EC, game thread): it builds the career ride as 0x528420 does and
@@ -81,7 +81,7 @@ slot's last part. `visual_rating_sweep compare` rates the same parts.
 ## Tests
 
 * `tests/visual_rating.rs::native_rides_rate_as_the_original` — fixture
-  `tests/fixtures/visual_rating/rides.txt` (`tools/rating/fixture.py`: 11
+  `tests/fixtures/visual_rating/rides.txt` (the maintainer's tool `fixture.py`: 11
   saves' career rides and 1 884 swept rides, one per slot and native
   rating, the 1-ulp cases included), bit for bit.
 * `tests/visual_rating.rs::native_saves_rate_as_the_original` — eight

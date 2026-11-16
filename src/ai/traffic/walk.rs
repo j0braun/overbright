@@ -254,7 +254,7 @@ impl TrafficLane {
     /// walk's first point) stays. Under Wine a car's walk took
     /// junction 947 (record 734 cp 16 → 492 cp 4) at 13.98 s and held it
     /// straight on 2 s later with +0x354 at the junction's s
-    /// (`docs/evidence/world-systems-p5e/`); the original's traffic turned at
+    /// (the maintainer's private captures); the original's traffic turned at
     /// intersection 3 in 0 of 18 passes in freeroam_stand, the clone's in
     /// 51 of 104 before.
     pub(super) fn extend(&mut self, f: &RouteFile, reach: f32) {

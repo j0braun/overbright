@@ -1203,7 +1203,7 @@ struct DumpPlayer<'a> {
 
 fn watch_walks(t: &Traffic, walks: &mut [(Passed, Option<Vec2>)], modes: &mut Modes, pl: Option<DumpPlayer>) {
     // TURN_DUMP=<file>: every second frame (≈ 30 a second, as
-    // tools/parity/trafwalk.py samples the original) one trafwalk-format
+    // the maintainer's tool `trafwalk.py` samples the original) one trafwalk-format
     // row per placed car — frame, slot, mover, place, heading (°), speed,
     // action (2 Avoid Cars, 17 Obey, 7 Drive Traffic Lane) — and the
     // tracked object's id (the player usize::MAX, racers below it).
@@ -1316,7 +1316,7 @@ fn watch_walks(t: &Traffic, walks: &mut [(Passed, Option<Vec2>)], modes: &mut Mo
 /// Turns per junction point, the clone against the original
 /// (`cargo test --release --features dev-harness --bin game -- --ignored
 /// traffic_turn_stats --nocapture`). `TURN_NATIVE` = the original's
-/// `native-walk.tsv` (tools/parity/trafwalk.py: each traffic car's walk
+/// `native-walk.tsv` (the maintainer's tool `trafwalk.py`: each traffic car's walk
 /// by record id and control point); `TURN_AT=x,y,z[,heading°]` the
 /// player's stand (free roam, a career at stage 1), `TURN_SECONDS` (300),
 /// `TURN_SEEDS` (1: the default stream; n: also NFSU2_TRAFFIC_SEED

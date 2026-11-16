@@ -153,7 +153,7 @@ Default values (`enh.motion_blur 0`, `enh.depth_of_field 0`): `blur_and_dof`
 returns before any allocation (no `BlurDof`, no pass), the native speed
 blur's call is unchanged. Parity gates (`perf.sh parity`, base = this copy
 before this work, both fast-build binaries): **all gates passed**
-(internal evidence: motionblur-dof/parity-gates.txt): Original images of the
+(internal evidence): Original images of the
 5 bench scenes at 1280×960 and 3840×2160 (70 frames), the window path at
 144 Hz (40 frames), Modern / Ultra racing and explore (28 frames), 15 shots
 — all AE 0; audio WAVs identical; state hashes identical over firstrace,

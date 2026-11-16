@@ -76,7 +76,7 @@ impl GameRng {
 /// <TAB> file:line` (the caller, through `#[track_caller]`), so the draws per call site and per
 /// generator instance (the shared `Game::rng`, a race's `CarField::rng`, an encounter or
 /// traffic stream) can be set beside the original's per-site counts
-/// (tools/parity/rngsites.py). Off (one relaxed load) without the variable.
+/// (the maintainer's tool `rngsites.py`). Off (one relaxed load) without the variable.
 #[cfg(feature = "dev-harness")]
 pub mod draw_log {
     use std::io::Write;
