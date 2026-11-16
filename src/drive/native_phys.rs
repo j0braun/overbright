@@ -15,6 +15,7 @@ fn record(upright: bool) -> ContactRecord {
         point: Vec3::ZERO,
         upright,
         wall: upright,
+        floor: !upright,
         sounded: false,
         slide: 0.0,
         id: 0,
@@ -174,4 +175,74 @@ fn a_frames_first_substep_integrates_the_forces_taken_before_its_input() {
     step(&mut braked, Controls { brake: 1.0, ..gas }, one);
     assert!(braked.wheels[0].spin < held.wheels[0].spin - 0.05, "{} {}", braked.wheels[0].spin, held.wheels[0].spin);
     assert!(braked.velocity.x < held.velocity.x, "{} {}", braked.velocity.x, held.velocity.x);
+}
+
+/// 0x5ED230 → 0x5A01C0: a car with no wheel down counts as on the ground
+/// only through a contact with a floor-like track polygon (|n.z| over 0.7,
+/// 0x7844D8), not a wall's; car contacts never count.
+#[test]
+fn grounded_reads_a_floor_contact_not_a_wall() {
+    let mut state = CarState::new(Vec3::ZERO, 0.0);
+    for w in &mut state.wheels {
+        w.on_ground = false;
+    }
+    assert!(!state.grounded());
+    let note = |wall: bool, floor: bool, touching: Touching| ContactNote {
+        life: 0.0,
+        age: 0.0,
+        point: Vec3::ZERO,
+        touching,
+        wall,
+        floor,
+        impulse: 0.0,
+    };
+    state.contacts = vec![note(true, false, Touching::Track { upright: true })];
+    assert!(!state.grounded(), "a wall");
+    state.contacts = vec![note(false, false, Touching::Car { speed: 0.0 })];
+    assert!(!state.grounded(), "a car");
+    state.contacts = vec![note(false, true, Touching::Track { upright: false })];
+    assert!(state.grounded(), "a floor");
+    state.contacts.clear();
+    state.wheels[2].on_ground = true;
+    assert!(state.grounded(), "a wheel down");
+}
+
+/// The rigid body keeps its centre of mass itself (body +0x20): once put
+/// there exactly it reads back to the bit, where `position + R·c` again
+/// rounds it by a float step at world coordinates. The bench wall's first
+/// contact (original under Wine, bench_wall_hold): centre of mass
+/// (1715.825, −887.3716, 24.0987) and point (1717.4397, −887.6633, 24.0012)
+/// give the arm's y −0.29174805, whose product with the 12.7 push along x
+/// decides the yaw kick off the wall.
+#[test]
+fn the_centre_of_mass_is_kept_exactly() {
+    let local = Vec3::new(0.3, 0.0, 0.3);
+    let mut state = CarState::new(Vec3::ZERO, 0.0);
+    state.orientation = glam::Quat::from_rotation_z(-0.1794);
+    let com = Vec3::new(1715.824951171875, -887.37158203125, 24.09874153137207);
+    state.set_com_world(com, local);
+    assert_eq!(state.com_world(local), com);
+    let point = Vec3::new(1717.439697265625, -887.663330078125, 24.00115966796875);
+    assert_eq!((point - state.com_world(local)).y, -0.29174805);
+    // A push-out moves both.
+    state.shift_body(Vec3::new(-0.005, 0.0, 0.0), local);
+    assert_eq!(state.com_world(local), com + Vec3::new(-0.005, 0.0, 0.0));
+}
+
+/// Back to a moment of the span (0x593640 → 0x593290, 0x43D0C0): the
+/// centre of mass at start + (end − start) · g, g = (span − t) / span.
+#[test]
+fn back_to_puts_the_centre_of_mass_between_the_span_ends() {
+    let local = Vec3::new(0.3, 0.0, 0.3);
+    let mut state = CarState::new(Vec3::ZERO, 0.0);
+    let start_com = Vec3::new(1715.82458, -887.3712, 24.1021);
+    state.set_com_world(start_com, local);
+    let start = state.pose();
+    let end_com = Vec3::new(1715.83411, -887.3729, 24.1036);
+    state.set_com_world(end_com, local);
+    let (t, span) = (0.004f32, 0.016f32);
+    state.back_to(&start, t, span, local);
+    let g = (span - t) / span;
+    let d = end_com - start_com;
+    assert_eq!(state.com_world(local), Vec3::new(g * d.x + start_com.x, g * d.y + start_com.y, g * d.z + start_com.z));
 }

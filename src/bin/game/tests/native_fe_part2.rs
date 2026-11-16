@@ -85,6 +85,102 @@ fn unique_rim_names_use_the_brand_table() {
     assert!(seen, "a 5Zigen rim");
 }
 
+/// Carbon fibre's Convert Trunk (0x5664A0 at 0x566686, +0x1D5 set): the
+/// Accept asks first, No focused, the browser dimmed — in a career with
+/// the stock trunk not owned the purchase question (0x3175F2B0), else
+/// "Do you want to convert your trunk to carbon fiber?" (0x2B950C36). No
+/// fits nothing; Yes (0x51123592 → 0x566F12) fits the carbon trunk, and
+/// the next Accept asks to revert (0xA645A29E).
+#[test]
+#[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
+fn carbon_convert_asks_first() {
+    let mut game = career("CARBQ");
+    game.profile.as_mut().unwrap().cash = 1_000_000;
+    let open = |game: &Game| {
+        let mut m = game.parts_browser_in(Some(0x5E), 0, None);
+        let Mode::Menu(Menu::Parts(b)) = &mut m else { panic!("carbon fibre") };
+        let at = b.categories.iter().position(|c| c.slot == 0x60).expect("Convert Trunk");
+        b.categories[at].locked = false;
+        b.category = at;
+        (m, at)
+    };
+    let (m, at) = open(&game);
+    game.mode = m;
+    let before = game.profile.as_ref().unwrap().installed.get(&0x60).copied();
+    game.menu_key(Key::Accept).unwrap();
+    let text = game.label(0x3175_F2B0, "?");
+    assert!(
+        matches!(&game.mode, Mode::Menu(Menu::Dialog(d, _))
+            if d.text == text && d.selected == 1
+                && d.dim_under.is_some_and(|(p, _)| p == "UI_GenericParts_Browser")),
+        "the purchase question, No focused"
+    );
+    assert_eq!(game.profile.as_ref().unwrap().installed.get(&0x60).copied(), before, "nothing fitted yet");
+    // No: back on the strip, nothing fitted.
+    game.menu_key(Key::Accept).unwrap();
+    assert!(matches!(&game.mode, Mode::Menu(Menu::Parts(b)) if b.category == at && b.part.is_none()), "No: the strip");
+    assert_eq!(game.profile.as_ref().unwrap().installed.get(&0x60).copied(), before, "No fits nothing");
+    // Outside a career (or with the stock part owned) the plain question.
+    game.profile.as_mut().unwrap().owned.insert((0x60, 0xC8D3_13AC));
+    assert_eq!(game.carbon_question(0x60), 0x2B95_0C36);
+    let (m, _) = open(&game);
+    game.mode = m;
+    game.menu_key(Key::Accept).unwrap();
+    if let Mode::Menu(Menu::Dialog(d, _)) = &mut game.mode {
+        d.selected = 0;
+    }
+    game.menu_key(Key::Accept).unwrap();
+    let fitted = game.profile.as_ref().unwrap().installed.get(&0x60).copied();
+    assert!(fitted.is_some_and(|h| h != 0xC8D3_13AC) && fitted != before, "Yes: the carbon trunk");
+    assert_eq!(game.carbon_question(0x60), 0xA645_A29E, "then the revert question");
+}
+
+/// Carbon fibre's Hood (0x5664A0 at 0x566786): with a vinyl of kind 0x14 on
+/// a layer, opening the hoods first warns "Installing a carbon fiber hood
+/// will cause any hood vinyls to be removed" (0xB3BBB11D; with a decal on
+/// 0x61..0x68 the decals one, 0x9796DFB4), one OK, over the opened list;
+/// without such a vinyl the list opens at once.
+#[test]
+#[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
+fn carbon_hood_warns_about_hood_vinyls() {
+    let mut game = career("CARBH");
+    game.profile.as_mut().unwrap().cash = 1_000_000;
+    let car = game.profile.as_ref().unwrap().car.clone();
+    let vinyl = game.game_data.parts.parts_for(&car, 0x40).into_iter().find(|p| p.kind & 0x1F == 0x14).map(|p| p.hash);
+    let vinyl = vinyl.expect("a vinyl of kind 0x14 for the car");
+    // A hood to list (a stage-1 car has no carbon one unlocked yet).
+    let hood = game.game_data.parts.parts_for(&car, 9).into_iter().find(|p| p.level != 0).expect("a hood").hash;
+    let hood = game.browser_part(9, game.car_part(9, hood).unwrap());
+    let open = |game: &mut Game| {
+        let mut m = game.parts_browser_in(Some(0x5E), 0, None);
+        let Mode::Menu(Menu::Parts(b)) = &mut m else { panic!("carbon fibre") };
+        let at = b.categories.iter().position(|c| c.slot == 9).expect("Hood");
+        b.categories[at].locked = false;
+        if b.categories[at].parts.is_empty() {
+            b.categories[at].parts.push(hood.clone());
+        }
+        b.category = at;
+        game.mode = m;
+        game.menu_key(Key::Accept).unwrap();
+    };
+    assert_eq!(game.carbon_hood_warning(), None);
+    open(&mut game);
+    assert!(!matches!(&game.mode, Mode::Menu(Menu::Dialog(..))), "no hood vinyl: no warning");
+    game.profile.as_mut().unwrap().installed.insert(0x40, vinyl);
+    assert_eq!(game.carbon_hood_warning(), Some(0xB3BB_B11D));
+    open(&mut game);
+
+    let text = game.label(0xB3BB_B11D, "?");
+    assert!(
+        matches!(&game.mode, Mode::Menu(Menu::Dialog(d, o))
+            if d.text == text && d.buttons.len() == 1
+                && matches!(o.first(), Some(Mode::Menu(Menu::Parts(b))) if b.part.is_some())),
+        "the warning over the opened list"
+    );
+    game.menu_key(Key::Accept).unwrap();
+    assert!(matches!(&game.mode, Mode::Menu(Menu::Parts(b)) if b.part.is_some()), "OK: the hoods' list");
+}
+
 /// 0x5664A0 → 0x566D98 (the Select and the Accept block): in a career an
 /// unowned part above level 0 asks "Would you like to purchase this
 /// part?" (0x44B7167F, No focused, the browser dimmed); Yes (0x09F00F07)

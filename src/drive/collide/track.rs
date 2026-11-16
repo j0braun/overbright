@@ -100,7 +100,11 @@ impl CarState {
     }
 
     pub(crate) fn pose(&self) -> Pose {
-        Pose { position: self.position, orientation: self.orientation, velocity: self.velocity }
+        let com = match self.body_com {
+            Some((p, q, c)) if p == self.position && q == self.orientation => Some(c),
+            _ => None,
+        };
+        Pose { position: self.position, orientation: self.orientation, velocity: self.velocity, com }
     }
 
     /// The hull's points in the world for a pose ([`Car::hull_points`]).
@@ -235,9 +239,9 @@ impl CarState {
         at += (Self::com_at(car, start) - at) * f;
         let raw_end = Self::raw_at(car, &self.pose());
         let raw = narrow::Side::hull(raw_end + (Self::raw_at(car, start) - raw_end) * f, &car.hull_links);
-        self.back_to(start, f);
+        self.back_to(start, t, span, Vec3::from(h.centre_of_mass));
         let rot = Mat3::from_quat(self.orientation);
-        let com = self.position + rot * Vec3::from(h.centre_of_mass);
+        let com = self.com_world(Vec3::from(h.centre_of_mass));
         // The polygon's normal (0x593E00). It is turned toward the car only
         // when X+0x64 is set, that is, the face's byte 0 is nonzero (0x5AA203;
         // the gate at 0x593E34); otherwise the raw normal stays. The turn's A
@@ -257,13 +261,13 @@ impl CarState {
         // and all (round 13).
         if stuck && self.rest != 2 {
             let offset = contact::push_out(&hull, &corners, at, normal, raw, self.pairs.entry(key).or_default());
-            self.position += offset;
+            self.shift_body(offset, Vec3::from(h.centre_of_mass));
             at += offset;
             for p in &mut hull {
                 *p += offset;
             }
         }
-        let com = self.position + rot * Vec3::from(h.centre_of_mass);
+        let com = self.com_world(Vec3::from(h.centre_of_mass));
         // The contact point: midway between the pair's closest points as
         // they stand (0x594010 reads pair +0xC0 / +0xD0): 0x5B2620 measures
         // nothing after the time of impact's search or the push-out, so they
@@ -287,6 +291,7 @@ impl CarState {
             point,
             upright: normal.z.abs() < 0.1,
             wall: normal.z.abs() < 0.7,
+            floor: normal.z.abs() > 0.7,
             sounded: false,
             sound: (9, Vec3::ZERO),
             slide: 0.0,
@@ -313,6 +318,18 @@ impl CarState {
             crash: self.crash,
         };
         let slide = slide_speed(self.velocity + self.spin.cross(point - com), normal);
+        if crate::env_value_os!("NFSU2_SUBSTEP_DUMP")
+            .is_some_and(|n| car.car_type.name.eq_ignore_ascii_case(&n.to_string_lossy()))
+        {
+            let v = self.velocity + self.spin.cross(point - com);
+            eprintln!(
+                "SUBSTEP TRACK-IN key {key:?} t {t:.5} span {span:.5} v {:?} w {:?} com {:?} vn {}",
+                self.velocity,
+                self.spin,
+                com,
+                v.dot(normal)
+            );
+        }
         if let Some((linear, angular)) = contact::impulse(&body, point - com, normal, restitution, friction) {
             // Every push's contact effects (0x5A9630 → 0x5DC4D0): the pair's
             // surface against the car's (28). **Inferred**: a wall is
@@ -442,12 +459,22 @@ impl CarState {
         self.last_sub = 0.0;
     }
 
-    /// Back to a moment in the span (0x593640): pose and velocity blended
-    /// toward the start by `f`; the angular momentum stays.
-    pub(crate) fn back_to(&mut self, start: &Pose, f: f32) {
-        self.position = self.position.lerp(start.position, f);
+    /// Back to a moment in the span (0x593640): `t` seconds before the
+    /// span's end. The centre of mass is put at the pose 0x593290 gives
+    /// (**verified**): start + (end − start) · g with g = (span − t) / span,
+    /// the start being the body's saved +0xB0, in f32 in that order
+    /// (0x43D0C0: g · d, then + start); the orientation and velocity are
+    /// blended toward the start by t / span; the angular momentum stays.
+    pub(crate) fn back_to(&mut self, start: &Pose, t: f32, span: f32, com_local: Vec3) {
+        let f = if span > 1e-6 { t / span } else { 0.0 };
+        let end_com = self.com_world(com_local);
+        let start_com = start.com.unwrap_or_else(|| start.position + Mat3::from_quat(start.orientation) * com_local);
+        let g = if span > 1e-6 { (span - t) / span } else { 1.0 };
+        let d = end_com - start_com;
+        let com = Vec3::new(g * d.x + start_com.x, g * d.y + start_com.y, g * d.z + start_com.z);
         self.orientation = self.orientation.lerp(start.orientation, f).normalize();
         self.velocity = self.velocity.lerp(start.velocity, f);
+        self.set_com_world(com, com_local);
     }
 
     /// The style manager's contact callback's gate (0x56FB30, from each

@@ -145,7 +145,7 @@ fn age_contacts(cars: &mut [Racer], field: &mut CarField, dt: f32) {
 /// the poses the collision sweep starts from.
 fn motion_frames(
     cars: &mut [Racer],
-    field: &CarField,
+    field: &mut CarField,
     world: &World,
     dt: f32,
     post_motion: &mut impl FnMut(usize, &mut Racer),
@@ -166,7 +166,7 @@ fn motion_frames(
         let c = &mut cars[i];
         c.state.frame_dt = dt;
         c.state.restep = false;
-        c.state.simulate(c.car, world, c.input, dt, contacts);
+        crate::handling::with_world_rng(&mut field.rng, || c.state.simulate(c.car, world, c.input, dt, contacts));
         post_motion(i, c);
         c.state.restep = true;
         c.state.since_collision += dt;
@@ -487,7 +487,7 @@ fn resolve_event(
             starts[i] = c.state.pose();
             spans[i] = t;
             if t > 0.0 {
-                c.state.simulate(c.car, world, c.input, t, true);
+                crate::handling::with_world_rng(&mut field.rng, || c.state.simulate(c.car, world, c.input, t, true));
             }
             // The body sweeps again (0x5FFC78 → 0x5B23C0).
             resweep(cars, field, world, radii, starts, spans, track_cache, &[i]);
@@ -524,7 +524,7 @@ fn resolve_event(
                 spans[k] = t;
                 if t > 0.0 {
                     let c = &mut cars[k];
-                    c.state.simulate(c.car, world, c.input, t, true);
+                    crate::handling::with_world_rng(&mut field.rng, || c.state.simulate(c.car, world, c.input, t, true));
                 }
             }
             // A, then B (0x5FFC78).
@@ -543,7 +543,7 @@ fn resolve_event(
                 spans[k] = t;
                 if t > 0.0 {
                     let c = &mut cars[k];
-                    c.state.simulate(c.car, world, c.input, t, true);
+                    crate::handling::with_world_rng(&mut field.rng, || c.state.simulate(c.car, world, c.input, t, true));
                 }
                 resweep(cars, field, world, radii, starts, spans, track_cache, &[k]);
                 props.sweep(world, cars);
@@ -581,6 +581,7 @@ fn contact_notes(cars: &mut [Racer], field: &CarField) {
                         point: r.point,
                         touching: Touching::Track { upright: r.upright },
                         wall: r.wall,
+                        floor: r.floor,
                         impulse: r.impulse,
                     },
                 )
@@ -597,6 +598,7 @@ fn contact_notes(cars: &mut [Racer], field: &CarField) {
                         point: p.point,
                         touching: Touching::Car { speed: speeds[other] },
                         wall: false,
+                        floor: false,
                         impulse: p.impulse,
                     },
                 ));

@@ -190,6 +190,9 @@ pub(crate) enum LotDeal {
         price: i32,
         owned: bool,
     },
+    /// The carbon fibre convert / revert question's Yes (0x51123592 →
+    /// 0x566F12): `Game::carbon_convert` on the strip's category.
+    Convert { sub: Option<u8>, category: usize },
     /// The Custom Gauges purchase question's Yes (0x09F00F07 / 0x51123592
     /// in 0x563D10): `Game::fit_custom_gauge` with the picker's picks.
     FitGauge(Box<nfsu2::frontend::custom_hud::ChooseCustomHud>),

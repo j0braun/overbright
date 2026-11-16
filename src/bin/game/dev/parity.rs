@@ -550,7 +550,14 @@ fn global_value(game: &Game, accessor: &str) -> f64 {
         "cash" => game.profile.as_ref().map_or(f64::NAN, |p| p.cash as f64),
         // [0x890080] +0xF8: the race's world generator (the AI's speed
         // offsets, junction and pass draws), as the original's signed dword.
-        "world_rng" => race.map_or(f64::NAN, |r| f64::from(r.racers.cars.rng.0 as i32)),
+        // Free roam: the world's car field (the traffic's while it is
+        // loaded, else the encounters').
+        "world_rng" => race
+            .map(|r| r.racers.cars.rng.0)
+            .or_else(|| {
+                game.sim.traffic.as_ref().map(|t| t.field.rng.0).or(game.sim.encounters.as_ref().map(|e| e.field.rng.0))
+            })
+            .map_or(f64::NAN, |x| f64::from(x as i32)),
         _ => f64::NAN,
     }
 }
@@ -1093,6 +1100,8 @@ fn put_stance(d: &mut Drive, v: &[f32]) {
     let s = &mut d.state;
     s.orientation = glam::Quat::from_mat3(&rot).normalize();
     s.position = v3(0) - s.orientation * Vec3::from(d.car.car_type.handling.centre_of_mass);
+    // The original's centre of mass exactly (body +0x20).
+    s.set_com_world(v3(0), Vec3::from(d.car.car_type.handling.centre_of_mass));
     s.velocity = v3(12);
     s.publish_forward_speed();
     s.spin = v3(15);

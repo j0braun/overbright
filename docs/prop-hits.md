@@ -734,6 +734,11 @@ before (so the next stream step sees +0x5C0 go 0 → 1), the other left in mode 
 
 ## 8. Open
 
+* The contact refresh 0x593710 (before and after each impulse) runs the whole post-step 0x5B04E0 with
+  h = 0 (components, the clutch machine 0x5A1410, the rest test, the force pass); the clone refreshes
+  only the suspensions, after the impulse. Where the bench wall's runs part next
+  (docs/cornering-parity.md section 6; the centre of mass is now kept exactly, as the original's).
+
 * The original's front wheels pull unequally at a downshift while the clone's do not (§7c; the
   transplant does not carry the drivetrain's split): it sets which way a car pressed square
   against a wall pivots off.

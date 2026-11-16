@@ -39,8 +39,13 @@ pub struct ContactRecord {
     pub life: f32,
     pub point: Vec3,
     pub upright: bool,
-    /// |n.z| < 0.7 (0x5A01C0, the rest test's wall contact).
+    /// |n.z| < 0.7: a wall-like polygon (the clone's own reading, for its
+    /// checks and probes; no native test reads it).
     pub wall: bool,
+    /// |n.z| > 0.7 (0x5A01C0: either side a track polygon, class 3, whose
+    /// normal's z, polygon +0x60 → +0x78, is over 0.7 at 0x7844D8): the
+    /// body rests on a floor-like polygon (0x5ED230's contact test).
+    pub floor: bool,
     /// The record's sound object has had its first push (0x46A1F0, +0x18).
     pub sounded: bool,
     /// The sliding speed of its last push (+0x40, the push's third
@@ -75,8 +80,10 @@ pub struct ContactNote {
     pub age: f32,
     pub point: Vec3,
     pub touching: Touching,
-    /// A track polygon with |n.z| < 0.7 (0x5A01C0).
+    /// A track polygon with |n.z| < 0.7 (the clone's own wall reading).
     pub wall: bool,
+    /// A track polygon with |n.z| > 0.7 (0x5A01C0); never a car.
+    pub floor: bool,
     /// The record's summed pushes |J| (+0x60, 0x5A9689), which the
     /// traffic's stuck test reads (0x408DE0: over 30 the car stops).
     pub impulse: f32,

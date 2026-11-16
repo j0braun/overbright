@@ -95,18 +95,26 @@ not the velocity along the heading); a held track (route or typed) is drawn agai
 bVar5 while the car is upside down (0x5FB060: 0x441B40 > 0 or car +0xB8 < 0). Replay bench
 (`--bench replay 3600`, 30 s replayed) unchanged shot for shot
 (internal evidence vs `clone-shots-after.txt`: the bench car
-never slows under 20 m/s). **Still open**: Jump's flight prediction 0x5EC3E0 (traced in outline:
-it steps the car's four wheel points (+0x130 + 0x40i, the set-up's +0x20 + 0x30i) along the velocity
-+0x70 with gravity 0x7FBEF0 plus the downforce term ((set-up +0x264 + +0x268) × 0.3 × speed /
-+0x110) against the road height 0x5E72F0, in ftol(3.0 × rate) steps — the rate is the FPU value
-0x75BED4 converts, not traced), the typed mover's +0x84 request and pushes (0x444530 / 0x44B040),
-the generic groups and +0x1C34, the route group key.
+never slows under 20 m/s). **Still open**: the typed mover's +0x84 request and pushes (0x444530 /
+0x44B040), the generic groups and +0x1C34, the route group key.
+
+**Jump's long flight (ported).** 0x441B40 (**verified**): the weight is 5 (1.0 0x784250 × 5
+0x786F9C) when car +0xB8 < 0, or when 0x5ED230 holds and the flight prediction
+0x5EC3E0(3.0, &height, &airtime, 1) gives a height over 1.0 (0x784250) and an airtime over 1.5 s
+(0x785110), both strict. 0x5ED230: a wheel down (car +0x424 > 0), else any contact of the body
+(+0x3C, walked by 0x5A0830) for which 0x5A01C0 holds — either side a track polygon (class 3) whose
+normal's |z| is over 0.7 (0x7844D8): resting on a floor-like polygon. The prediction is the jump
+event camera's (`jump_flight`, docs/formats.md, 0x5EC3E0) over a 3 s window, so a car on the
+ground heading off a long drop gets Jump's weight and its held shot is drawn again (0x5FB060's
+0x441B40 > 0 test). Clone: `sim::replay::camera::long_flight`, `CarState::grounded` (0x5ED230;
+the rest classifier 0x5993F5 reads it too, `ContactNote::floor`). Test
+`sim::replay::camera::slip_tests::replay_jump_camera_takes_a_long_predicted_flight`. Not compared
+under Wine shot for shot (the replay's draws use the clone's own random state, below).
 
 **Inferred** in the clone: the Corner curvature from the velocity's turn over the frame
 (the ring +0x264's writer and cadence are not traced; for a car on a circle any three points
 give its radius); the Speed top from `launch_times` (0x5B06B0's port, as the belt reads it);
-the replay clock as the typed fraction's time. **Open**: Jump's
-flight prediction (only upside down counts), the typed mover's pushes (0x444530 /
+the replay clock as the typed fraction's time. **Open**: the typed mover's pushes (0x444530 /
 0x44B040) and its +0x84 re-draw, the airborne re-draw's flight part, the
 generic groups and the camera manager's fixed track (+0x1C34), and the route group key
 (0x5EC0B0's record +0x0A, compared by the clone as the AI route record id). The random

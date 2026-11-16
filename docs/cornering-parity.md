@@ -198,9 +198,47 @@ Up to the first wall contact every case is as close or closer; after a contact t
 within a few frames either way (the contacts' push-outs, docs/prop-hits.md §7c–7d: the wall hold
 agrees through the hit at frame 116 and parts at frame 120, where the original's yaw rate turns
 −0.0032 and the clone's +0.0021 in one run, −0.0029 / −0.0032 in the others); which way the car
-pivots off the wall is decided there, not in the drivetrain (open, collision code).
-Left at +1: the launch's 5 % on the front wheels' Fx in an engaging clutch (open) and the 0.7 %
-at the handbrake turn's key frame (the steering's running means are not carried, section 1).
+pivots off the wall is decided there, not in the drivetrain. A fresh capture of the original with
+the per-contact log (`PARITY_CONTACT_ALL=1 PARITY_CONTACT_EXACT=1`, run wallA) and the earlier three
+runs settle the first cause (`docs/evidence/native-sim/wall-pivot-com.txt`):
+
+* **The centre of mass is the rigid body's own state (verified, ported).** The original integrates
+  and keeps body +0x20 itself; the time of impact's pose (0x593290) and the move back to the contact's
+  moment (0x593640) put it at start + (end − start) · g, g = (span − t) / span, in f32 in that order
+  (0x43D0C0), from the start saved at the span's begin (0x593220: +0xB0, velocity +0xC0). The clone
+  kept the car's origin and rebuilt the centre of mass as origin + R·c each time, and moved back by
+  blending the origin: one float step off at world coordinates (6e-5 m in y at −887). At the bench
+  wall's first contact the arm's y is multiplied by the 12.7 push along x, so that step changed the yaw
+  kick by 40 % (ΔL.z −0.00106 against the original's −0.00074) and the car left the wall turning the
+  other way in one run. Now `CarState::com_world` / `set_com_world` / `shift_body` keep it exactly
+  (the sub-step's integration, push-outs, `back_to`): the first contact's arm is the original's to the
+  printed digit (y −0.29174805), ΔL.z −0.00075, yaw rate after it −0.001751 against −0.001749 (before
+  −0.001842). In all four runs the car now turns off the wall the same way as the original (headings
+  at 10 s: −99 / −101, −90 / −99, −98 / −55 twice); how soon it leaves still differs.
+* **Next difference (observed, open).** After the push at the upper front point (clock 52384) the
+  original's next time-of-impact search (0x5B4BF0, the clone's algorithm) overlaps at every one of
+  its eight tries and ends stuck (push-out, no impulse); the clone's finds a clear time halfway and
+  applies the 0.3 m/s minimum push. Where the poses part is open: the contact refresh 0x593710
+  (before and after each impulse) runs the whole post-step 0x5B04E0 with h = 0 — every component's
+  update, the drivetrain's clutch machine 0x5A1410 included, the rest test and the force pass — where
+  the clone refreshes only the suspensions (`refresh_suspension`).
+Left at +1: the 0.7 % at the handbrake turn's key frame (the steering's running means are not
+carried, section 1).
+
+**The launch's 5 % at +1 is the pedals, not the clutch (observed).** In the launch runs the
+original's brake input (input +0x2DC, the pedal the mover reads) is 1/255 from the run's start to
+the throttle key at frame 60, and its raw gas 1/255 (in neutral 0.00298, the neutral graph):
+the brake handler 0x407EB0 takes the greatest of its three rows (key +0x2D8, analog +0x2D9,
+analog alternate +0x2DA) × 1/255 (0x784548), so a row reads 1 — the values a controller at rest
+gives (the combined byte 0x7E, `pad::driving`'s test `poll_and_driving`). The harness's original
+under Wine sees such a device; the clone's run had none, so its brake was 0. The transplant at
+frame 52 falls in that window: the brake's torque on all four wheels (torq_rr / torq_rl −0.0081
+in the original, 0 in the clone) is the difference. With the clone's brake held at 1/255 up to the
+throttle key (a trial build; the three native runs of launch20 kept), frame +1 agrees:
+FL Fx 0.2736 / 0.2740, 0.1265 / 0.1260, 0.1280 / 0.1283 (before 0.2873, 0.1396, 0.1421), the
+engine and input shaft within 0.01 rad/s. No clutch rule differs. Evidence:
+`docs/evidence/native-sim/launch-resting-brake.txt`. That a keyboard-only player's original reads
+0 there (no device) is **inferred** (the harness has no run without one).
 
 ## Tools
 

@@ -273,6 +273,44 @@ mod tests {
         assert!((rate(&q) / rate(&g) - 0.4).abs() < 1e-5, "{} {}", rate(&q), rate(&g));
     }
 
+    /// 0x594720 inside a world step draws its three offsets from the world
+    /// generator (0x5EA510 on [0x890080] +0xF8), Rand_Float(hi − lo) + lo
+    /// for +0x78, +0x7C, +0x80 in that order, and leaves the generator
+    /// three draws on; outside one the drivetrain's own sequence.
+    #[test]
+    fn shift_rerolls_draw_from_the_lent_world_generator() {
+        let mut h = test_handling();
+        h.shift_ranges = [[-500.0, 140.0], [0.0, 0.01], [-650.0, 200.0]];
+        let mut d = super::Drivetrain::seeded(&h, 7);
+        let mut world = crate::opponents::GameRng(0x2468_ACE1);
+        let mut expect = world.clone();
+        let want: Vec<f32> = h.shift_ranges.iter().map(|[lo, hi]| expect.unit(hi - lo) + lo).collect();
+        super::with_world_rng(&mut world, || d.reroll(&h));
+        assert_eq!(d.offsets().to_vec(), want);
+        assert_eq!(world.0, expect.0, "three world draws");
+        let before = world.0;
+        d.reroll(&h);
+        assert_eq!(world.0, before, "no world generator lent: none drawn");
+    }
+
+    /// The original's reroll under Wine (corner_launch20 run 1, the 3rd →
+    /// 2nd change at frame 65, free-roam ranges −100..0): from the world
+    /// generator's state at frame 64 (0x67B5B54F) the offsets read at
+    /// frame 65 and the state after it (three draws, 0x4BD7ACF5).
+    #[test]
+    fn shift_reroll_matches_the_originals_capture() {
+        let mut h = test_handling();
+        h.shift_ranges = [[-100.0, 0.0]; 3];
+        let mut d = super::Drivetrain::seeded(&h, 7);
+        let mut world = crate::opponents::GameRng(0x67B5_B54F);
+        super::with_world_rng(&mut world, || d.reroll(&h));
+        let o = d.offsets();
+        for (got, want) in o.iter().zip([-18.9767_f32, -9.51665, -19.1812]) {
+            assert!((got - want).abs() < 1e-4, "{o:?}");
+        }
+        assert_eq!(world.0, 0x4BD7_ACF5);
+    }
+
     #[test]
     fn held_clutch_opens_in_every_state_with_full_power() {
         use super::{Drivetrain, Shift};

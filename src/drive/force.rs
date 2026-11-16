@@ -334,7 +334,7 @@ impl CarState {
         let rot = self.body_rows();
         let (fwd, up) = (rot * Vec3::X, rot * Vec3::Z);
         let com_local = Vec3::from(h.centre_of_mass);
-        let com = self.position + rot * com_local;
+        let com = self.com_world(com_local);
         let pose = SubstepPose { rot, fwd, up, com, com_local };
         let (speed_now, spin_now) = (self.velocity.length(), self.spin.length());
         let rot = self.integrate(h, &pose, force, torque, speed_now, spin_now, holding, dt);
@@ -374,7 +374,7 @@ impl CarState {
         let rot = self.body_rows();
         let (fwd, up) = (rot * Vec3::X, rot * Vec3::Z);
         let com_local = Vec3::from(h.centre_of_mass);
-        let com = self.position + rot * com_local;
+        let com = self.com_world(com_local);
         let pose = SubstepPose { rot, fwd, up, com, com_local };
 
         let (compressions, contacts) = self.wheel_contacts(world, h, table, &pose);
@@ -1108,7 +1108,7 @@ impl CarState {
         self.spin = super::integrate::spin_of(h, self.ground_inertia, stepped, self.angular_momentum);
         let rows = super::rigid::orthonormal(stepped);
         self.set_body_rows(rows);
-        self.position = new_com - rows * com_local;
+        self.set_com_world(new_com, com_local);
         // The rest test (0x5ABB10, in the same post-step 0x5B04E0) still
         // sees the un-cleaned rows.
         stepped

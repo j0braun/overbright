@@ -2168,6 +2168,11 @@ fn shop_step(game: &mut Game, bot: &mut Bot) -> Result<()> {
         bot.say(game, &format!("{package}: toggle slot {:#x} on for {cost} (rating {now:.2} + {gain:.2})", c.slot));
         goto(game, bot, ci)?;
         bot.menu(game, Key::Accept)?;
+        // The convert question (0x5664A0 at 0x566686 / 0x566895): Yes.
+        if let Mode::Menu(Menu::Dialog(d, _)) = &game.mode {
+            bot.say(game, &format!("{package} dialog {:?}", d.text));
+            answer_question(game, bot, true)?;
+        }
         bot.shops += 1;
         bot.say(game, &format!("{package}: rating now {:.2}", game.visual_rating()));
         return Ok(());

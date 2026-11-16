@@ -13,8 +13,7 @@ pub(crate) fn track_cameras(root: &std::path::Path, region: &str) -> Vec<CameraG
 // prov: inferred game.replay_typed_input
 /// path's curvature (0x5EB320; **inferred** here from the velocity's turn
 /// over the frame, the game's ring of logged points not being traced) and
-// prov: open game.replay_typed_input-2
-/// the slip angle (0x59FA20). The flight prediction (Jump) is **open**.
+/// the slip angle (0x59FA20) and Jump's long flight (`long_flight`).
 pub(crate) fn replay_typed_input(
     d: &Drive,
     top: f32,
@@ -36,7 +35,7 @@ pub(crate) fn replay_typed_input(
     nfsu2::track_camera::TypedInput {
         nitrous: d.state.nitrous.and_then(|mut t| (t.level() > 0).then(|| t.fraction())),
         upside_down: (d.state.orientation * Vec3::Z).z < 0.0,
-        long_flight: false,
+        long_flight: long_flight(d),
         forward_speed: forward,
         speed: v.length(),
         top,
@@ -45,6 +44,24 @@ pub(crate) fn replay_typed_input(
         wheel_slip: exported_slip_sum(&d.state.wheels),
         rpm: d.state.shown_rpm,
     }
+}
+
+/// The Jump camera's flight test (0x441B40, **verified**): only while
+/// 0x5ED230 holds (a wheel down or a floor contact, `CarState::grounded`),
+/// the flight prediction 0x5EC3E0(3.0, &height, &airtime, 1) — the same
+/// prediction the jump event camera makes (`jump_flight`) over a 3 s
+/// window — must give a height over 1.0 (0x784250) and an airtime over
+/// 1.5 s (0x785110); the weight is then 1.0 × 5 (0x786F9C).
+pub(crate) fn long_flight(d: &Drive) -> bool {
+    if !d.state.grounded() {
+        return false;
+    }
+    flight_is_long(jump_flight(d, 3.0))
+}
+
+/// 0x441BA0..0x441BC0: height > 1.0 and airtime > 1.5 (both strictly).
+pub(crate) fn flight_is_long(f: nfsu2::event_camera::Flight) -> bool {
+    f.height > 1.0 && f.airtime > 1.5
 }
 
 /// The Burnout camera's wheel slip (0x441D82..0x441D94): car +0x3B4 +
@@ -175,7 +192,27 @@ impl ReplayCamera {
 
 #[cfg(test)]
 mod slip_tests {
-    use super::exported_slip_sum;
+    use super::{exported_slip_sum, flight_is_long};
+    use nfsu2::event_camera::{Flight, predict_flight};
+
+    /// The replay's Jump camera (0x441B40): a car on the ground heading
+    /// fast off a 20 m drop is predicted a long flight (height over 1 m,
+    /// over 1.5 s in the air) and Jump's weight 5 is drawn; the same car on
+    /// flat ground, or a short hop, gets none.
+    #[test]
+    fn replay_jump_camera_takes_a_long_predicted_flight() {
+        let cliff = |p: glam::Vec3| (if p.x < 10.0 { 0.0 } else { -20.0 }, glam::Vec3::Z);
+        let flat = |_: glam::Vec3| (0.0, glam::Vec3::Z);
+        let v = glam::Vec3::new(30.0, 0.0, 0.0);
+        let long = predict_flight(glam::Vec3::ZERO, v, 30.0, 3.0, 0.0, &cliff, true);
+        assert!(flight_is_long(long), "{long:?}");
+        let none = predict_flight(glam::Vec3::ZERO, v, 30.0, 3.0, 0.0, &flat, true);
+        assert!(!flight_is_long(none), "{none:?}");
+        assert!(!flight_is_long(Flight { height: 1.0, airtime: 2.0, mean: 0.0 }));
+        assert!(!flight_is_long(Flight { height: 3.0, airtime: 1.5, mean: 0.0 }));
+        let input = nfsu2::track_camera::TypedInput { long_flight: true, ..Default::default() };
+        assert_eq!(nfsu2::track_camera::typed_weight(nfsu2::track_camera::TYPED_JUMP, &input), 5.0);
+    }
 
     /// The Burnout camera reads the car's exported slip (car +0x3B4 + 8i),
     /// not the wheels' own slip: gripping tyres turning a little faster
