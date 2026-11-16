@@ -54,6 +54,59 @@ Known difference (inferred, by design): inside the scene, additive draws
 can now exceed 1.0 before a later blend over them (native saturates at
 each write); the final clip removes it where nothing blends over it.
 
+## Blur where it can be lit (`post/glow_skip.rs`, glow_skip.wgsl, glow_need.wgsl)
+Exact: the same shaders draw every texel they drew before; a texel left
+out is one whose every tap is 0, so its result is the 0 its target holds.
+* The prefilter's entries (`fs_overbright_mrt_hdr_flag`, `fs_overbright_sat_flag`:
+  the plain entries' functions, and a flag) mark each 8 x 8 tile of the
+  glow where A can be other than 0: where a channel of overbright's input
+  is above OVERBRIGHTOFFSET (at or below it, x and so A are 0). The flag
+  is taken from the input, not from A: testing A made the driver keep A
+  at full precision and write it with another rounding (one half-float
+  step on a few texels; found by comparing the shaders' machine code).
+  Which entry runs follows the glow's source: at 1× and under SSAA (the
+  image resolved to the screen's size first, docs/ssaa-screen-passes.md)
+  the 1× prefilter `fs_overbright_mrt_hdr_flag` on that image; with a
+  scaled glow (Render Scale, FSR) `fs_box_hdr` into C, then
+  `fs_overbright_sat_flag` on C.
+* Two small dispatches widen the marks by the blur's reach (`reach`: the
+  farthest texel `gauss` reads, 10 at Half-Size, 18 at Full-Size; in tiles
+  `reach_tiles`, 2 / 3): the pass across can be other than 0 only within
+  that many tiles across of a marked tile (its taps sit on the texel's own
+  row; the rows beside it are fetched at a weight of 0 at most), the pass
+  down within that many down of those.
+* One quad per tile writes the need into a Depth16 mask (0 both passes,
+  0.5 the pass down only, 1 neither, cleared to 1); the two blur passes are
+  drawn at depths 0.25 and 0.75 against it (compare Greater, vertex shaders
+  `vs_glow_across` / `vs_glow_down`: `vs_main`'s triangle and uv at another
+  depth). B is cleared before the pass across and A before the pass down
+  (after the pass across read it): where the pass down does not run, A is
+  0 (every such tile is outside the marked ones, where the prefilter's A
+  is 0 too).
+* Cost (docs/evidence/perf-budget/glow-blur.md): the player's 4K settings
+  (SSAA 2x: the glow's source resolved to the screen's size first) 0.92 →
+  0.53 ms racing, 0.98 → 0.74 ms in the night rain; the integrated GPU at
+  1920x1080, High (Full-Size) 9.5 → 5.3 ms, Medium (Half-Size) 1.56 → 1.03
+  ms. The two clears are cheap with the driver's colour compression (DCC,
+  RADV's default: a clear writes its metadata only); with it off
+  (`RADV_DEBUG=nodcc`, the parity gates' setting for their pictures) they
+  write the whole targets and the gain at 4K shrinks to about 0.1 ms or
+  none. Open: at Medium on the
+  integrated GPU the streak buffer's add after it measures about 0.07–0.10
+  ms slower with this path, however A is written (cleared, kept, zeros,
+  or whole again); not explained.
+* The marked tiles in the racing bench: 12–44 % of the Full-Size glow at
+  3840x2160, 17–28 % at 1920x1080; the pass across ran on 23–51 %, the pass
+  down on 35–68 % of the tiles (racing, rain, free roam).
+* Devices without storage writes in a fragment shader or storage reads in a
+  vertex shader (`glow_skip::supported`) keep the full passes.
+* Tried and dropped (docs/evidence/perf-budget/glow-blur.md): the blur in
+  one compute dispatch through workgroup memory (the Gaussian's taps as
+  loads and multiply-adds instead of the bilinear pairs), separable or as
+  2D tiles, with the prefilter in the kernel or read: slower on both GPUs
+  (the bilinear pairs take two texels a fetch for free); 4 x 4 tiles (a
+  tighter need, but its widening and quads cost more than they save).
+
 ## Fallbacks
 `render::hdr_supported` (at device creation): `Rgba16Float` must be
 renderable, blendable, filterable and resolvable at every MSAA count the
@@ -75,6 +128,9 @@ buffer passes +0.8). Breakdown in the evidence README.
 ## Tests
 `qol` round-trip / range (`enh.hdr_post`), options row order and step,
 `scene_mode_tests` (format mapping), `hdr_sigma_matches_the_native_blur_variance`;
+`glow_skip::tests` (the reach is `gauss`'s farthest texel; the need covers
+every texel the blur can light, random glows against the exact supports;
+the flagging and tested passes are the plain ones);
 GPU (ignored, run explicitly): `postfx::tests::hdr_passes_build_and_run`
 (every pass, both glow sizes, MSAA 4, alpha 0, no validation error,
 formats back to native when off).

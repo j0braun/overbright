@@ -53,7 +53,8 @@ own plain dark look, the Go font (BSD-3-Clause, `src/launcher/fonts/`).
   a state (`headless::STATES`, listed by `--list-screens`) is a screen with
   that data changed to what a player can meet: `no-game`, `check-ok`,
   `wrong-version`, `not-a-game-folder`, `files-missing`, `checking`,
-  `first-start`, `probe-failed`, `long-values` (a long German path, many
+  `first-start`, `probe-failed`, `no-vulkan` (the probe found no Vulkan
+  driver: the line names the package to install), `long-values` (a long German path, many
   languages, a long pad name), `unofficial`, `start-failed`,
   `unreadable-folder`, `import-done`, `import-empty` and the Mods page's
   `mods-empty`, `mods-busy`, `mods-results`, `mods-remove`, `mods-hud-complete`,
@@ -141,8 +142,9 @@ ok=1
   "used last time" (game-root.txt), "set by NFSU2_ROOT", "the current
   folder"; a Browse… button.
 - `about`: the version line (`build_info::version_line`), GPL-3.0-or-later
-  in plain words, "you need your own copy of the game", not affiliated with
-  EA; buttons Licence (GPL-3.0) and Third-party notices: `licence` /
+  in plain words, "you need your own copy of the game", EA's disclaimer word
+  for word ("Overbright is not affiliated with Electronic Arts. EA has not
+  endorsed and does not support this product."); buttons Licence (GPL-3.0) and Third-party notices: `licence` /
   `notices` show `LICENSE` / `THIRD-PARTY-NOTICES.md` built in
   (`include_str!`), reflowed, scrolled with the arrows, Page Up/Down,
   Home/End and the wheel; Back at the top. The renders use a fixed sample

@@ -110,6 +110,13 @@ pub(crate) fn run() -> i32 {
                 .and_then(|root| nfsu2::exe_tables::init(&root).ok())
                 .map(|_| nfsu2::launcher::probe::first_run((info.vendor, info.device)));
         }
+        // Linux: what is missing and the packages to install, in the
+        // player's words (`platform::vulkan`); the launcher shows it. wgpu's
+        // own words go to stderr (the launcher's log).
+        Err(e) if cfg!(target_os = "linux") => {
+            eprintln!("no GPU adapter: {e}");
+            p.error = Some(nfsu2::platform::vulkan::no_adapter_line())
+        }
         Err(e) => p.error = Some(format!("no GPU adapter: {e}")),
     }
     print!("{}", p.to_text());

@@ -29,7 +29,8 @@ struct RtVis {
     inv: mat4x4<f32>,
     // xy the scene's size (pixels), zw the blocks'.
     sizes: vec4<f32>,
-    // x the cleared depth (1, 0 with Reversed-Z).
+    // x the cleared depth (1, 0 with Reversed-Z), yz the scene pixels per
+    // grid pixel (1, or the supersampling's: `rt_shadow::grid`).
     misc: vec4<f32>,
 };
 @group(0) @binding(6) var<uniform> rv: RtVis;
@@ -63,7 +64,9 @@ fn rv_slot(light: u32, vis: f32) -> u32 {
 @compute @workgroup_size(8, 8)
 fn cs_rt_vis(@builtin(global_invocation_id) id: vec3<u32>) {
     if f32(id.x) >= rv.sizes.z || f32(id.y) >= rv.sizes.w { return; }
-    let q = vec2<i32>(id.xy) * 2;
+    // The block's scene pixel: under its first grid pixel (2 id when the
+    // grid is the scene's).
+    let q = vec2<i32>(floor((vec2<f32>(id.xy) * 2.0 + 0.5) * rv.misc.yz));
     let d = rv_depth(q);
     if d == rv.misc.x {
         textureStore(vis_out, vec2<i32>(id.xy), vec4<u32>(0u));

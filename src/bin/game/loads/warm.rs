@@ -14,14 +14,22 @@ pub(crate) struct WarmedFor {
     pub(crate) mirror: bool,
     /// Photo Mode's row (its grade and depth of field).
     pub(crate) photo: bool,
+    /// The garage scenes' sample count (`display::front_msaa_samples`).
+    pub(crate) front_samples: u32,
 }
 
 impl WarmedFor {
     /// `opts` without the per-frame fields (the temporal decision and the
     /// output size the last frame drew with).
-    pub(crate) fn new(opts: &nfsu2::render::RenderOptions, samples: u32, mirror: bool, photo: bool) -> WarmedFor {
+    pub(crate) fn new(
+        opts: &nfsu2::render::RenderOptions,
+        samples: u32,
+        mirror: bool,
+        photo: bool,
+        front_samples: u32,
+    ) -> WarmedFor {
         let opts = nfsu2::render::RenderOptions { temporal_frame: false, output_size: None, ..*opts };
-        WarmedFor { opts, samples, mirror, photo }
+        WarmedFor { opts, samples, mirror, photo, front_samples }
     }
 }
 
@@ -78,6 +86,13 @@ pub(crate) fn warm_passes(
             }
         }));
     }
+    // The shops' garage scenes over this drive (their worlds at the
+    // front end's count).
+    let front_samples = w.front_samples;
+    jobs.push(Box::new(move || {
+        let _t = nfsu2::prof::span("warm: garage scenes");
+        nfsu2::render::native::world::record::warm_front_scene_programs(gpu, format, front_samples, opts)
+    }));
     if let Some(c) = car_renderer {
         jobs.push(Box::new(move || {
             let _t = nfsu2::prof::span("warm: car renderer");
@@ -184,7 +199,7 @@ impl Game {
     pub(crate) fn program_set(&self) -> Option<nfsu2::render::enh::warm::ProgramSet> {
         let w = self.platform.window.as_ref()?;
         let t = self.warm_target(&w.gpu);
-        Some(nfsu2::render::enh::warm::ProgramSet::new(&t.opts, w.config.format, t.samples, t.mirror, t.photo))
+        Some(nfsu2::render::enh::warm::ProgramSet::new(&t.opts, w.config.format, t.samples, t.mirror, t.photo, t.front_samples))
     }
 
     /// [`ProgramsAhead`], once a frame: with no drive in memory (a drive's
@@ -220,7 +235,8 @@ impl Game {
         // a garage's or the loading screen's).
         let samples = nfsu2::render::display::drive_msaa_samples(&self.settings.custom, gpu, &opts);
         let mirror = self.settings.rearview && self.settings.players[0].camera <= 1;
-        WarmedFor::new(&opts, samples, mirror, self.settings.enh.photo_mode)
+        let front = nfsu2::render::display::front_msaa_samples(&self.settings.custom, gpu, &opts);
+        WarmedFor::new(&opts, samples, mirror, self.settings.enh.photo_mode, front)
     }
 
     /// A Graphics row changed with a drive in memory (the options in the

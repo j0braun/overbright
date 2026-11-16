@@ -91,6 +91,10 @@ pub const NO_MODS: &str = "No mods are included either. Texture and HUD mods you
 they belong to their authors.";
 pub const NOT_AFFILIATED: &str =
     "Overbright is a free reimplementation (GPL-3.0-or-later), not affiliated with or endorsed by Electronic Arts.";
+/// The about screen's disclaimer: Electronic Arts' own wording for fan
+/// projects, word for word (also README.md's and README.txt's).
+pub const EA_DISCLAIMER: &str =
+    "Overbright is not affiliated with Electronic Arts. EA has not endorsed and does not support this product.";
 /// The about screen's line for a build without a source link (no
 /// `OB_SOURCE_URL`; the release check fails on it).
 pub const UNOFFICIAL: &str = "This is an unofficial build without a source link: \
@@ -135,7 +139,9 @@ fn gpu_text(m: &Model) -> (String, super::draw::Rgb) {
         ProbeState::Pending => ("Checking this computer…".into(), theme::DIM),
         ProbeState::Ready(p) => match p.gpu_line() {
             Some(l) => (l, theme::TEXT),
-            None => (format!("Not found: {}", p.error.as_deref().unwrap_or("no graphics adapter")), theme::ERROR),
+            // The probe's own words (on Linux what is missing and what to
+            // install, `platform::vulkan`).
+            None => (p.error.clone().unwrap_or_else(|| "Not found: no graphics adapter".into()), theme::ERROR),
         },
         ProbeState::Failed(e) => (format!("Not checked: {e}"), theme::ERROR),
     }
@@ -309,7 +315,7 @@ pub fn build(b: &mut Builder, m: &Model, screen: Screen) {
             b.gap(16.0);
             b.body(OWN_COPY);
             b.gap(16.0);
-            b.dim(NOT_AFFILIATED);
+            b.dim(EA_DISCLAIMER);
             b.gap(18.0);
             b.buttons(
                 Align::Left,
@@ -699,7 +705,11 @@ fn build_main(b: &mut Builder, m: &Model) {
         ],
     );
     let (gpu, gpu_col) = gpu_text(m);
-    if !on && gpu_col == theme::ERROR {
+    if !on && gpu_col == theme::ERROR && matches!(m.probe, ProbeState::Ready(_)) {
+        // The probe ran and found no adapter: the game cannot start until
+        // a driver is installed (the line says which).
+        b.status(Mark::Error, &format!("Graphics card: {gpu}"));
+    } else if !on && gpu_col == theme::ERROR {
         b.status(Mark::Error, &format!("Graphics card: {gpu} (display and graphics: in the game's Options)"));
     } else if !on {
         b.status(

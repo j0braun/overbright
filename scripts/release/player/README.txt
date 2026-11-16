@@ -20,8 +20,16 @@ Overbright is not affiliated with Electronic Arts. EA has not endorsed and does 
 product. "Need for Speed" and "Need for Speed Underground 2" are trademarks of their owner.
 
 @@linux
-Requirements: Linux x86-64 with glibc 2.35 or newer (Ubuntu 22.04, Debian 12, Fedora 36 and later),
-X11 or Wayland, a graphics driver with Vulkan, ALSA or PulseAudio/PipeWire for sound.
+Requirements: Linux x86-64 with glibc 2.28 or newer, X11 or Wayland, ALSA or PulseAudio/PipeWire
+for sound, and a Vulkan driver with the Vulkan loader: Mesa 22 or newer for AMD and Intel graphics,
+or NVIDIA's own driver. Tested: Ubuntu 22.04 and 24.04, Linux Mint 22, Debian 12 and 13, Fedora 40
+and later, AlmaLinux 9 (RHEL 9 family), Arch (SteamOS is Arch-based), openSUSE Leap 15.6 and
+Tumbleweed. Ubuntu 20.04 and Debian 11 start it but ship an older Mesa; RHEL 8 starts it, drawing
+there was not tested. If the launcher says no Vulkan driver was found, install one:
+  Ubuntu, Debian, Mint:  sudo apt install libvulkan1 mesa-vulkan-drivers
+  Fedora, RHEL family:   sudo dnf install vulkan-loader mesa-vulkan-drivers
+  Arch, SteamOS:         sudo pacman -S vulkan-icd-loader vulkan-radeon   (Intel: vulkan-intel)
+  openSUSE:              sudo zypper install libvulkan1 libvulkan_radeon libvulkan_intel
 
 Starting
 --------

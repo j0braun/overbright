@@ -240,7 +240,15 @@ impl WorldRenderer {
             let [e1, e2] = [1, 2].map(|f| {
                 gpu.world_shared().equal_pipelines(&gpu.device, self.arrays, scene.mode, self.scene_format, f)
             });
-            std::sync::Arc::new(DepthPrepass { depth: d.depth.clone(), equal: [e0.clone(), e1, e2] })
+            let [d0, ..] = &d.equal_dry;
+            let [d1, d2] = [1, 2].map(|f| {
+                DepthPrepass::dry_for(gpu.world_shared(), &gpu.device, self.arrays, scene.mode, self.scene_format, f)
+            });
+            std::sync::Arc::new(DepthPrepass {
+                depth: d.depth.clone(),
+                equal: [e0.clone(), e1, e2],
+                equal_dry: [d0.clone(), d1, d2],
+            })
         });
         let built = ScenePipelines {
             mode: scene.mode,

@@ -125,12 +125,22 @@ pub struct ProgramSet {
     pub samples: u32,
     pub mirror: bool,
     pub photo: bool,
+    /// The front-end scenes' sample count (the garage scenes':
+    /// `display::front_msaa_samples`).
+    pub front_samples: u32,
 }
 
 impl ProgramSet {
-    pub fn new(opts: &RenderOptions, format: wgpu::TextureFormat, samples: u32, mirror: bool, photo: bool) -> ProgramSet {
+    pub fn new(
+        opts: &RenderOptions,
+        format: wgpu::TextureFormat,
+        samples: u32,
+        mirror: bool,
+        photo: bool,
+        front_samples: u32,
+    ) -> ProgramSet {
         let opts = RenderOptions { temporal_frame: false, output_size: None, ..*opts };
-        ProgramSet { opts, format, samples, mirror, photo }
+        ProgramSet { opts, format, samples, mirror, photo, front_samples }
     }
 }
 
@@ -145,10 +155,14 @@ impl ProgramSet {
 /// once, a second asker waits for it). Returns once all are made.
 pub fn drive_programs(gpu: &Gpu, set: &ProgramSet) {
     let _t = crate::prof::span("programs ahead");
-    let ProgramSet { opts, format, samples, photo, .. } = set;
-    let (format, samples) = (*format, *samples);
+    let ProgramSet { opts, format, samples, photo, front_samples, .. } = set;
+    let (format, samples, front_samples) = (*format, *samples, *front_samples);
     let mut jobs: Vec<Box<dyn FnOnce() + Send + '_>> = Vec::new();
-    jobs.push(Box::new(move || crate::render::native::world::record::warm_scene_programs(gpu, format, samples, opts)));
+    jobs.push(Box::new(move || {
+        crate::render::native::world::record::warm_scene_programs(gpu, format, samples, opts);
+        // The main menu's garage scene (its world at the menus' count).
+        crate::render::native::world::record::warm_front_scene_programs(gpu, format, front_samples, opts);
+    }));
     jobs.push(Box::new(move || crate::render::car::warm_programs(gpu, format, samples, opts)));
     jobs.push(Box::new(move || frame_passes(gpu, opts, Shape { format, samples })));
     // The post chain's additions for a drive's frames, on a copy of the

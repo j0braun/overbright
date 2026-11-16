@@ -278,6 +278,13 @@ fn fs_trace(@builtin(position) frag: vec4<f32>) -> @location(0) vec4<f32> {
     if reach <= 0.05 {
         return vec4<f32>(0.0);
     }
+    // A ray turning this much to the camera has no confidence whatever it
+    // meets (`facing` below is 0) and the filter takes every tap by its
+    // confidence: it is not marched. (After the reach: the ray list's
+    // `rt_ray` takes the head above it as written; rt/trace.rs.)
+    if p.right.w < 1.5 && r.z <= -0.4 {
+        return vec4<f32>(0.0);
+    }
     let end = origin + r * reach;
     let s0 = to_trace(origin);
     let s1 = to_trace(end);
@@ -469,31 +476,19 @@ fn fs_denoise(@builtin(position) frag: vec4<f32>) -> @location(0) vec4<f32> {
 // the reflection term the world (or car) pass added is swapped for the
 // traced one by its confidence; the planar capture's (or the cube's)
 // bright authored highlights (lamp flares, headlight pools) stay. Alpha
-// (the bleach mask) is kept.
-@fragment
-fn fs_composite(@builtin(position) frag: vec4<f32>) -> @location(0) vec4<f32> {
-    let c = vec2<i32>(frag.xy);
-    let base = textureLoad(color_tex, c, 0);
+// (the bleach mask) is kept. -> the change to the scene's colour at c,
+// w 1 where there is one (0: the scene stays as it is).
+fn composite_change(c: vec2<i32>, frag: vec2<f32>) -> vec4<f32> {
     let term = textureLoad(term_tex, c, 0);
-    if p.right.w > 1.5 {
-        return textureSampleLevel(ssr_tex, samp, frag.xy / p.size.xy, 0.0);
-    }
     let tint = textureLoad(tint_tex, c, 0);
     let car = is_car(textureLoad(surface_tex, c, 0).z);
-    if p.right.w > 0.5 {
-        let sd = textureSampleLevel(ssr_tex, samp, frag.xy / p.size.xy, 0.0);
-        let dd = raw_depth(c);
-        let surf = textureLoad(surface_tex, c, 0);
-        let ok = select(0.0, 1.0, abs(linear(dd) - surf.w) <= 0.02 * surf.w + 0.15);
-        return vec4<f32>(term.a, sd.a, ok * 0.5 + select(0.0, 0.5, car), 1.0);
-    }
     if term.a <= 0.002 {
-        return base;
+        return vec4<f32>(0.0);
     }
     let surface = textureLoad(surface_tex, c, 0);
     let d = raw_depth(c);
     if is_sky(d) {
-        return base;
+        return vec4<f32>(0.0);
     }
     // The road: its mask's depth is the scene's (anything nearer was
     // drawn over it). A car: its mask is not behind the scene (its glass
@@ -501,9 +496,9 @@ fn fs_composite(@builtin(position) frag: vec4<f32>) -> @location(0) vec4<f32> {
     let gap = surface.w - linear(d);
     let tol = 0.02 * surface.w + 0.15;
     if (!car && abs(gap) > tol) || (car && gap > tol) {
-        return base;
+        return vec4<f32>(0.0);
     }
-    let s = textureSampleLevel(ssr_tex, samp, frag.xy / p.size.xy, 0.0);
+    let s = textureSampleLevel(ssr_tex, samp, frag / p.size.xy, 0.0);
     var conf = clamp(s.a, 0.0, 1.0);
     if !car && p.forward.w < 0.5 {
         // The native capture flips each prop about its own origin (no true
@@ -516,5 +511,37 @@ fn fs_composite(@builtin(position) frag: vec4<f32>) -> @location(0) vec4<f32> {
     var refl = mix(planar, s.rgb, conf);
     let keep = smoothstep(0.55, 1.0, max(planar.r, max(planar.g, planar.b)));
     refl = mix(refl, max(refl, planar), keep);
-    return vec4<f32>(base.rgb + term.a * tint.rgb * (refl - planar), base.a);
+    return vec4<f32>(term.a * tint.rgb * (refl - planar), 1.0);
+}
+
+@fragment
+fn fs_composite(@builtin(position) frag: vec4<f32>) -> @location(0) vec4<f32> {
+    let c = vec2<i32>(frag.xy);
+    let base = textureLoad(color_tex, c, 0);
+    if p.right.w > 1.5 {
+        return textureSampleLevel(ssr_tex, samp, frag.xy / p.size.xy, 0.0);
+    }
+    if p.right.w > 0.5 {
+        let term = textureLoad(term_tex, c, 0);
+        let car = is_car(textureLoad(surface_tex, c, 0).z);
+        let sd = textureSampleLevel(ssr_tex, samp, frag.xy / p.size.xy, 0.0);
+        let dd = raw_depth(c);
+        let surf = textureLoad(surface_tex, c, 0);
+        let ok = select(0.0, 1.0, abs(linear(dd) - surf.w) <= 0.02 * surf.w + 0.15);
+        return vec4<f32>(term.a, sd.a, ok * 0.5 + select(0.0, 0.5, car), 1.0);
+    }
+    let change = composite_change(c, frag.xy);
+    if change.w == 0.0 {
+        return base;
+    }
+    return vec4<f32>(base.rgb + change.rgb, base.a);
+}
+
+// The same change added onto the scene by the blend (ONE / ONE, the
+// alpha kept): no copy of the scene to read. A half-float scene only (the
+// change is signed); its sum is rounded once by the blend instead of by
+// the target's write, which may differ in the last bit of a half.
+@fragment
+fn fs_composite_add(@builtin(position) frag: vec4<f32>) -> @location(0) vec4<f32> {
+    return vec4<f32>(composite_change(vec2<i32>(frag.xy), frag.xy).rgb, 0.0);
 }

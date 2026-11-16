@@ -119,11 +119,12 @@ scripts/release/container/build.sh --linux <source dir> <out dir>     # a workin
 scripts/release/container/build.sh --windows --dev-harness --tests --fast <source dir> <out dir>
 ```
 
-- Needs podman (rootless is fine), git, rsync, python3 and binutils. The first run builds the image (an
-  Ubuntu 22.04 image pinned by digest, Rust from the official archives pinned by version and SHA-256,
-  mingw-w64 from Ubuntu).
-- **Linux:** `x86_64-unknown-linux-gnu` against glibc 2.35, so the binary runs on any x86-64 distribution
-  with glibc 2.35 or newer. A binary built directly on a newer system usually needs that system's glibc.
+- Needs podman (rootless is fine), git, rsync, python3 and binutils. The first run builds the two images:
+  Windows in an Ubuntu 22.04 image (pinned by digest, mingw-w64 from Ubuntu), Linux in an AlmaLinux 8 image
+  (pinned by digest); both with Rust from the official archives pinned by version and SHA-256.
+- **Linux:** `x86_64-unknown-linux-gnu` against glibc 2.28, so the binary runs on any x86-64 distribution
+  with glibc 2.28 or newer (the distributions it was run on: docs/releasing.md, "Linux: what a player
+  needs"). A binary built directly on a newer system usually needs that system's glibc.
 - **Windows:** `x86_64-pc-windows-gnu`, cross-compiled with mingw-w64; GUI-subsystem programs with an icon,
   a version resource and a manifest; only system DLLs needed (`scripts/release/check_pe.py`).
 - Output in `<out dir>/dist/linux/` and `<out dir>/dist/windows/`; `--dev-harness` adds a separate harness

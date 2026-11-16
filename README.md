@@ -53,9 +53,29 @@ directly ([docs/launcher.md](docs/launcher.md)). Building from source: [BUILDING
 
 | | Linux | Windows |
 |---|---|---|
-| System | 64-bit x86, glibc 2.35 or newer (Ubuntu 22.04+, Debian 12+, Fedora 36+, Arch, SteamOS, openSUSE Tumbleweed) | Windows 10 or 11, 64-bit. Experimental: tested under Wine, not yet on real hardware |
-| Graphics | A Vulkan driver (Mesa or the GPU vendor's) | A Vulkan driver (Direct3D 12 is a fallback, untested) |
+| System | 64-bit x86 (x86-64), glibc 2.28 or newer, X11 or Wayland | Windows 10 or 11, 64-bit. Experimental: tested under Wine, not yet on real hardware |
+| Graphics | The Vulkan loader and a Vulkan driver: Mesa 22 or newer for AMD and Intel graphics, or NVIDIA's own driver | A Vulkan driver (Direct3D 12 is a fallback, untested) |
 | Sound | PipeWire, PulseAudio or ALSA | Built in |
+
+On Linux without a Vulkan driver, the launcher and the game say which package to install (Ubuntu, Debian, Mint:
+`sudo apt install libvulkan1 mesa-vulkan-drivers`; Fedora: `sudo dnf install vulkan-loader mesa-vulkan-drivers`;
+Arch, SteamOS: `vulkan-icd-loader` with `vulkan-radeon` or `vulkan-intel`).
+
+The Linux archive was run in a container of each of these distributions, on Mesa's software Vulkan driver
+(lavapipe; no real GPUs): `--version`, the game check, the menu and free roam drawn, the launcher
+([docs/releasing.md](docs/releasing.md), "Linux: what a player needs").
+
+| distribution | glibc | Mesa | result |
+|---|---|---|---|
+| Ubuntu 22.04, 24.04 | 2.35, 2.39 | 23.2, 25.2 | works |
+| Linux Mint 22 | 2.39 | 25.2 | works |
+| Debian 12, 13 | 2.36, 2.41 | 22.3, 25.0 | works |
+| Fedora 40, 41, 45 | 2.39, 2.40, 2.44 | 24.1, 25.0, 26.2 | works |
+| AlmaLinux 9 (RHEL 9 family) | 2.34 | 25.2 | works |
+| Arch (stands in for SteamOS) | 2.44 | 26.2 | works |
+| openSUSE Leap 15.6, Tumbleweed | 2.38, 2.44 | 23.3, 26.2 | works |
+| Ubuntu 20.04, Debian 11 | 2.31 | 21.2, 20.3 | starts, checks the game, the launcher runs; that Mesa's software driver cannot draw the game (needs Mesa 22) |
+| AlmaLinux 8 (RHEL 8 family) | 2.28 | 23.1 | starts, checks the game, the launcher runs; its software driver does not start, so drawing was not tested |
 
 ## What is in
 

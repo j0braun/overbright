@@ -1980,3 +1980,65 @@ ms: integrated GPU 1080p World Detail 3 Medium racing 11.2 → 7.5 (frame
 8.8; desktop GPU 4K every row up racing 6.1 → 4.5 (frame 18.9 → 16.9, 53
 → 59 fps), rain 6.6 → 5.3, race start 5.5 → 4.8. Main-thread CPU +0.15–0.27
 ms per frame. Evidence: `docs/evidence/perf-budget/lamp-culling.txt`.
+
+## Modern + RT's traced shadows: the colour shader's registers
+
+Reference desktop GPU, the player's 4K settings (SSAA 2x, Modern + RT, ray-traced reflections),
+`--bench racing 300`, GPU ms per pass; A and B interleaved, the paired difference's median over the
+pairs; load average 20–45 from other jobs. Shader statistics: `RADV_DEBUG=shaderstats` (needed /
+allocated VGPRs per lane, waves per SIMD in wave32 units). Design: `docs/shadow-softness.md`
+"The gather first". Evidence: `docs/evidence/perf-budget/rt-shadow-gather.md`.
+
+| step | world PS | reflect PS | main view | frame |
+|---|---|---|---|---|
+| before | 126 / 144 / 10 | 161 / 168 / 9 | 6.12 [6.02–6.27] | 19.03 |
+| the gather first, ids packed (exact) | 120 / 120 / 12 (22 of 33 pipelines) | 151 / 168 / 9 | 6.01 [5.85–6.12], **−0.15** paired | 18.98, −0.12 paired |
+| + the gather's short cuts (uniform blocks, no light; exact) | 120 / 120 / 12 (22 of 33) | 153 / 168 / 9 | 5.88 / 5.87 vs 6.10 / 6.12 (2 rounds), **−0.23** | 18.69 / 18.68 vs 18.85 / 18.88, −0.18 |
+
+Then, under supersampling only (non-exact there; identical without it): the blocks follow the screen
+(`docs/shadow-softness.md` "The blocks follow the screen under supersampling"). Against the step
+before, interleaved pairs, paired median (GPU ms):
+
+| scene | rt shadows | main view | frame |
+|---|---|---|---|
+| racing (3 pairs) | 0.86 → 0.45 (−0.40) | −0.02 | 18.67 → 18.21 (**−0.45**) |
+| race start (2) | 0.91 → 0.48 (−0.44) | −0.01 | 20.45 → 19.99 (−0.46) |
+| night rain (2) | 1.01 → 0.52 (−0.49) | −0.05 | 22.86 → 22.28 (−0.58) |
+| photo mode (2) | 0.82 → 0.43 (−0.39) | −0.05 | 18.68 → 18.21 (−0.47) |
+
+Then the road's dry-road pipelines (exact; `docs/wet-roads-ssr.md` "The road's dry-road pipelines"),
+dry racing against the step before, paired medians:
+
+| | road PS registers needed / allocated / waves | main view | frame |
+|---|---|---|---|
+| Modern + RT, the player's 4K settings (3 pairs) | 153 / 168 / 9 → 123–125 / 144 / 10 | 5.80 → 5.62 (−0.22) | 18.12 → 17.99 (−0.19) |
+| Modern, the same settings (2 pairs) | 143 / 144 / 10 → 115–116 / 120 / 12 | 4.93 → 4.62 (−0.31) | 16.33 → 16.01 (−0.32) |
+| integrated GPU, Medium, 1920 × 1080, detail 3 (2 pairs) | 79–80 / 80 / 12 → 60–62 / 64 / 16 | 11.44 → 10.27 (−1.17) | 24.6 → 23.4 (−1.2) |
+| integrated GPU, High, the same (2 pairs) | | 11.88 → 11.02 (−0.87) | 44.9 → 43.8 (−1.1) |
+
+Night rain (the road wet: the full set) is unchanged (−0.03 main view, one pair). The integrated GPU's
+runs were in its slow state (another job's build load: SSAO occlusion 2.0–3.5 ms instead of ~1.0);
+the main view's difference was the same in each pair. All four steps against before them, racing at
+the player's 4K settings: 18.9 → 18.0 ms (53 → 55.6 fps).
+
+## The glow's blur where it can be lit
+
+High Precision Post's two blur passes run only on the 8 x 8 tiles of the glow their result can light
+(docs/hdr-post.md "Blur where it can be lit"; exact: frames identical). GPU timestamps, racing, medians
+of interleaved runs (docs/evidence/perf-budget/glow-blur.md):
+
+| | glow chain (prefilter, need, blur) | frame |
+|---|---|---|
+| desktop GPU, the player's 4K settings (SSAA 2x, Full-Size Glow; the glow from the resolved image) | 0.92 → 0.53 ms | 17.69 → 17.23 ms |
+| the same, night rain | 0.98 → 0.74 ms | 21.2 → 21.0 ms |
+| integrated GPU 1920×1080, World Detail 3, High (Full-Size) | 9.47 → 5.25 ms | 47.8 → 44.5 ms |
+| integrated GPU 1920×1080, World Detail 3, Medium (Half-Size) | 1.56 → 1.03 ms (the streak add after it +0.07–0.10: open) | 25.2 → 25.0 ms |
+
+## Screen-space reflections: the composite by the blend
+
+With a half-float scene (High Precision Post) the reflections' composite is added onto the scene by the
+blend instead of read from a copy of it (docs/wet-roads-ssr.md; at most two 8-bit steps on 0.03–0.28 % of
+the pixels). Racing, the player's 4K settings: copy + depth pyramid 0.74 → 0.56 ms, composite 0.39 → 0.31 ms,
+frame 18.70 → 18.28 ms (again on a later tree, after SSAA's resolve: 0.73 → 0.57 and 0.38 → 0.31 ms; with the glow's
+blur where lit, the frame 17.89 → 17.27 ms); integrated GPU 1920×1080 High: 1.07 → 0.80 and 0.74 → 0.60 ms
+(docs/evidence/perf-budget/ssr-composite.md, also the march's counts).

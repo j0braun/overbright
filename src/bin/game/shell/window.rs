@@ -358,7 +358,15 @@ impl Game {
         let instance = ahead.as_ref().map_or_else(Gpu::new_instance, |a| a.instance.clone());
         drop(t);
         let t = nfsu2::prof::span("window: surface");
-        let surface = instance.create_surface(window.clone())?;
+        // Without a Vulkan backend (no loader, or no driver) Linux fails
+        // here already: the player's line (`platform::vulkan`), wgpu's after.
+        let surface = instance.create_surface(window.clone()).map_err(|e| {
+            if cfg!(target_os = "linux") {
+                anyhow::anyhow!("{}: {e}", nfsu2::platform::vulkan::no_adapter_line())
+            } else {
+                anyhow::Error::new(e)
+            }
+        })?;
         drop(t);
         // The overlay's GPU passes need timestamp queries on the device
         // (asked for only with the overlay's options set).

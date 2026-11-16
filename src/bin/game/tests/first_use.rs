@@ -319,6 +319,43 @@ fn the_ray_traced_rows_are_ready_before_their_first_frame() {
     assert!(made.is_empty(), "ray traced with the native FSAA (list {list}) free roam: made in its frames: {made:?}");
 }
 
+/// Rain wetting the road mid-drive (Wet Roads on: the road's draws leave
+/// their dry-road pipelines, `DepthPrepass::equal_dry`, for the full ones)
+/// makes nothing in its frames, at every preset with Wet Roads, and Modern
+/// + RT where the device traces: both sets are the load's. And the dry
+/// frames before it make nothing either.
+#[test]
+#[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
+fn rain_starting_mid_drive_makes_no_programs() {
+    super::test_isolation::exclusive();
+    let mut wet_presets = 0;
+    for preset in nfsu2::qol::PRESETS {
+        for rt in [false, true] {
+            let mut game = game_at(preset);
+            if !game.settings.enh.wet_roads {
+                continue;
+            }
+            wet_presets += usize::from(!rt);
+            if rt {
+                if !nfsu2::qol::rt_supported() {
+                    continue;
+                }
+                game.settings.enh.modern_lighting = 3;
+                game.settings.apply_enhancements();
+            }
+            game.explore(None).unwrap();
+            let made = made_by_frames(&mut game, 10);
+            assert!(made.is_empty(), "{} (RT {rt}) dry: made in its frames: {made:?}", preset.name());
+            let d = game.sim.drive.as_mut().unwrap();
+            d.weather.amount = 1.0;
+            d.weather.road_wet = 0.5;
+            let made = made_by_frames(&mut game, 10);
+            assert!(made.is_empty(), "{} (RT {rt}) the road wet: made in its frames: {made:?}", preset.name());
+        }
+    }
+    assert!(wet_presets > 0, "no preset with Wet Roads");
+}
+
 /// The temporal rows and the upscalers (TAA; Upscaling Quality, Balanced
 /// and Performance; FSR 1's three tiers; FSR 2's five) at the Enhanced
 /// levels Low, Medium and High and on the Extreme preset, each on a device

@@ -53,7 +53,8 @@ pub(crate) fn run(game: &mut Game) -> Result<()> {
     let opts = nfsu2::render::RenderOptions::in_force();
     let samples = nfsu2::render::display::drive_msaa_samples(&game.settings.custom, &gpu, &opts);
     let mirror = game.settings.rearview && game.settings.players[0].camera <= 1;
-    let set = nfsu2::render::enh::warm::ProgramSet::new(&opts, format, samples, mirror, game.settings.enh.photo_mode);
+    let front = nfsu2::render::display::front_msaa_samples(&game.settings.custom, &gpu, &opts);
+    let set = nfsu2::render::enh::warm::ProgramSet::new(&opts, format, samples, mirror, game.settings.enh.photo_mode, front);
     let built = nfsu2::render::pipelines_built();
 
     step(1);

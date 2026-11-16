@@ -1,12 +1,14 @@
 #!/bin/bash
 # Checks a Linux release binary for portability: no "x86 ISA needed" note (it would refuse older
-# CPUs), glibc symbol versions <= 2.35 (Ubuntu 22.04), the shared libraries the game is allowed to
-# need, no RPATH/RUNPATH, and no build machine home paths in its strings.
+# CPUs), glibc symbol versions <= 2.28 (AlmaLinux 8, the release build's image: Containerfile.linux),
+# the shared libraries the game is allowed to need, no RPATH/RUNPATH, and no build machine home paths
+# in its strings. libdl and libpthread are glibc's own (a binary linked against glibc < 2.34 names
+# them; newer glibc keeps them as empty compatibility libraries).
 #   check_linux.sh <elf>        exit 0 when every check passes
 set -uo pipefail
 bin=${1:?usage: check_linux.sh <elf>}
-GLIBC_MAX=2.35
-ALLOWED="libudev.so.1 libasound.so.2 libgcc_s.so.1 libm.so.6 libc.so.6 ld-linux-x86-64.so.2"
+GLIBC_MAX=2.28
+ALLOWED="libudev.so.1 libasound.so.2 libgcc_s.so.1 libm.so.6 libc.so.6 ld-linux-x86-64.so.2 libdl.so.2 libpthread.so.0"
 fail=0
 ok() { echo "ok    $*"; }
 bad() { echo "FAIL  $*"; fail=1; }

@@ -760,6 +760,24 @@ fn a_refused_folder_offers_another() {
     assert_eq!(focus(&a), "use");
 }
 
+/// No Vulkan driver: the main screen says so in plain words with the
+/// command that installs one (the probe's line, `platform::vulkan`), not
+/// wgpu's message and not the "set them in the game's Options" hint (the
+/// game cannot start until a driver is there).
+#[test]
+fn no_vulkan_driver_says_what_to_install() {
+    let fonts = Fonts::new();
+    let env = FakeEnv;
+    for (w, h) in [(960, 720), (1280, 720)] {
+        let a = super::headless::state_app(&env, &fonts, "no-vulkan", w, h, 1.0).unwrap();
+        let t = all_text(&a);
+        for words in ["no Vulkan driver for this graphics card was found", "sudo apt install libvulkan1", "NVIDIA"] {
+            assert!(t.contains(words), "{w}x{h}: {words:?} not in {t}");
+        }
+        assert!(!t.contains("in the game's Options") && !t.contains("noop"), "{w}x{h}: {t}");
+    }
+}
+
 /// The main screen: the game folder in plain text before its Change
 /// button (both ends of a long path kept), About and Import saves at the
 /// left, Quit and Play at the right; Play is the widest of them.

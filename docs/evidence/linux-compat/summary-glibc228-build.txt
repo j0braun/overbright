@@ -1,0 +1,15 @@
+ubuntu-20.04    FAIL  glibc 2.31  Ubuntu 20.04.6 LTS           | bare lacks: libasound.so.2 | llvmpipe Mesa 21.2.6 (LLVM 12.0.0) | shot main rc=101 0 bytes 1 s panics/validation=2
+ubuntu-22.04    works glibc 2.35  Ubuntu 22.04.5 LTS           | bare lacks: libasound.so.2 | llvmpipe Mesa 23.2.1-1ubuntu3.1~22.04.4 (LLV | shots main 4 s explore 79 s
+ubuntu-24.04    works glibc 2.39  Ubuntu 24.04.5 LTS           | bare lacks: libasound.so.2 | llvmpipe Mesa 25.2.8-0ubuntu0.24.04.4 (LLVM  | shots main 6 s explore 2 s
+mint-22         works glibc 2.39  Ubuntu 24.04.5 LTS           | bare lacks: - | llvmpipe Mesa 25.2.8-0ubuntu0.24.04.4 (LLVM  | shots main 8 s explore 6 s
+debian-11       FAIL  glibc 2.31  Debian GNU/Linux 11 (bullsey | bare lacks: libasound.so.2 | llvmpipe Mesa 20.3.5 (LLVM 11.0.1) | shot main rc=139 0 bytes 16 s panics/validation=2
+debian-12       works glibc 2.36  Debian GNU/Linux 12 (bookwor | bare lacks: libasound.so.2 | llvmpipe Mesa 22.3.6 (LLVM 15.0.6) | shots main 13 s explore 85 s
+debian-13       works glibc 2.41  Debian GNU/Linux 13 (trixie) | bare lacks: libasound.so.2 | llvmpipe Mesa 25.0.7-2+deb13u1 (LLVM 19.1.7) | shots main 11 s explore 5 s
+fedora-40       works glibc 2.39  Fedora Linux 40 (Container I | bare lacks: libasound.so.2 | llvmpipe Mesa 24.1.7 (LLVM 18.1.6) | shots main 6 s explore 78 s
+fedora-41       works glibc 2.40  Fedora Linux 41 (Container I | bare lacks: libasound.so.2 | llvmpipe Mesa 25.0.7 (LLVM 19.1.7) | shots main 8 s explore 3 s
+fedora-latest   works glibc 2.44  Fedora Linux 45 (Container I | bare lacks: libasound.so.2 | llvmpipe Mesa 26.2.6 (LLVM 23.1.2) | shots main 5 s explore 4 s
+alma-8          FAIL  glibc 2.28  AlmaLinux 8.10 (Cerulean Leo | bare lacks: libasound.so.2 | no Vulkan adapter: game --probe rc=1: error=no Vulkan driver for this graphics card was found. Overbright draws with Vulkan: install one with "sudo dnf install vulkan-loader mesa-vulkan-drivers" (Mesa 22 or newer; for an NVIDIA card, NVIDIA's own driver), then start again|ok=0|
+alma-9          works glibc 2.34  AlmaLinux 9.8 (Olive Jaguar) | bare lacks: libasound.so.2 | llvmpipe Mesa 25.2.7 (LLVM 21.1.8) | shots main 7 s explore 4 s
+arch            works glibc 2.44  Arch Linux                   | bare lacks: libasound.so.2 | llvmpipe Mesa 26.2.7-arch1.1 (LLVM 23.1.4) | shots main 8 s explore 3 s
+opensuse-leap   works glibc 2.38  openSUSE Leap 15.6           | bare lacks: libasound.so.2 | llvmpipe Mesa 23.3.4 (LLVM 17.0.6) | shots main 7 s explore 86 s
+opensuse-tw     works glibc 2.44  openSUSE Tumbleweed          | bare lacks: libasound.so.2 | llvmpipe Mesa 26.2.6 (LLVM 23.1.4) | shots main 6 s explore 3 s

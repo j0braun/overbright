@@ -603,6 +603,7 @@ fn render_offscreen(game: &mut Game, s: &Setup, env: &ShotEnv) -> Result<Offscre
             size: scene_size,
             samples,
             ssao_texel_scale: scene_size.1 as f32 / height.max(1) as f32,
+            out_size: (width, height),
             // The shaders' clock at 0, the blur's at 1 s, the world clock
             // as the drive stands (a still is its own tick).
             clocks: crate::render::clocks::DrawClocks::still(0.0, 1.0, Some(d.clock)),

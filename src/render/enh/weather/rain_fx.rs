@@ -194,8 +194,10 @@ pub fn counts(rain_detail: u8, spray_on: bool, rain: f32, covered: bool, _lamps:
 
 pub struct WeatherFx {
     device: wgpu::Device,
-    /// The device's [`crate::render::Gpu::build_tag`].
-    tag: u64,
+    /// The device's program cache: the pipelines a warm-up's copy made
+    /// (a drive's, the menus' garage scenes', `WeatherFx::warm`) are the
+    /// ones this one's draws take.
+    programs: crate::render::core::device_cache::Programs,
     /// The device's pipeline cache (`Gpu::pipeline_cache`).
     cache: Option<wgpu::PipelineCache>,
     frame: wgpu::Buffer,
@@ -294,7 +296,7 @@ impl WeatherFx {
         };
         WeatherFx {
             device: device.clone(),
-            tag: gpu.tag,
+            programs: crate::render::core::device_cache::Programs::of(gpu),
             cache: gpu.disk_pipeline_cache().cloned(),
             frame,
             puffs,
@@ -527,7 +529,7 @@ impl WeatherFx {
                     _ => (entry, "fs_main"),
                 };
                 let groups = [Some(&self.layouts[usize::from(depth_ms)]), Some(&self.haze_layout)];
-                let layout = crate::render::core::device_cache::uncached_pipeline_layout(&self.device, &wgpu::PipelineLayoutDescriptor {
+                let layout = self.programs.pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                     label: Some("weather fx"),
                     bind_group_layouts: if entry == "haze_up" { &groups[..] } else { &groups[..1] },
                     immediate_size: 0,
@@ -542,7 +544,7 @@ impl WeatherFx {
                     alpha: wgpu::BlendComponent::REPLACE,
                 });
                 let write_mask = if entry == "haze_half" { wgpu::ColorWrites::ALL } else { wgpu::ColorWrites::COLOR };
-                crate::render::core::device_cache::uncached_render_pipeline(&self.device, self.tag, &wgpu::RenderPipelineDescriptor {
+                self.programs.render_pipeline(&wgpu::RenderPipelineDescriptor {
                     label: Some(entry),
                     layout: Some(&layout),
                     vertex: wgpu::VertexState {

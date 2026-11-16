@@ -60,6 +60,11 @@ pub(crate) const LF_ML_LOW: u16 = 128;
 /// The NIS characters' pipelines under Modern + RT (their rays in the
 /// colour shader; every other draw reads the half-resolution pass).
 pub(crate) const LF_ML_CHAR: u16 = 256;
+/// The main view's road (`Effect::Reflect`) pipelines for a frame whose
+/// road is dry (its wet.x 0): the Wet Roads branch compiled out
+/// (`D9_WET` false), whose terms otherwise set the function's register
+/// allocation for every road pixel ([`DepthPrepass::equal_dry`]).
+pub(crate) const LF_DRY: u16 = 512;
 
 /// The feature set of the options in force, as `lamps::plan_lamps`
 /// sets the main view's uniforms from them: lamps.x (Dynamic Lamps or
@@ -186,6 +191,10 @@ impl SceneMode {
                 c.push(("D9_ML_CHAR", on(LF_ML_CHAR)));
             }
         }
+        // The dry road's set only (the others keep the default, true).
+        if f & LF_DRY != 0 {
+            c.push(("D9_WET", 0.0));
+        }
         c
     }
 
@@ -233,6 +242,30 @@ pub(crate) struct ScenePipelines {
 pub(crate) struct DepthPrepass {
     pub(crate) depth: HashMap<DepthKey, wgpu::RenderPipeline>,
     pub(crate) equal: [HashMap<PipelineKey, wgpu::RenderPipeline>; 3],
+    /// The road's (`Effect::Reflect`) of `equal`, for a frame whose road is
+    /// dry (the lamps' module only; [`LF_DRY`]): the same draw, the same
+    /// pixels (the branch they leave out is not taken on a dry road), in
+    /// fewer registers. Empty without the lamps.
+    pub(crate) equal_dry: [HashMap<PipelineKey, wgpu::RenderPipeline>; 3],
+}
+
+impl DepthPrepass {
+    /// `mode`'s dry-road set of `equal[fade]` (empty without the lamps).
+    pub(crate) fn dry_for(
+        shared: &WorldShared,
+        device: &wgpu::Device,
+        arrays: bool,
+        mode: SceneMode,
+        format: wgpu::TextureFormat,
+        fade: u8,
+    ) -> HashMap<PipelineKey, wgpu::RenderPipeline> {
+        if !mode.lamps {
+            return HashMap::new();
+        }
+        let keys: Vec<PipelineKey> = depth_prepass_keys().into_iter().filter(|k| k.effect == Effect::Reflect).collect();
+        let dry = SceneMode { lamp_features: mode.lamp_features | LF_DRY, ..mode };
+        shared.equal_pipelines_of(device, arrays, dry, format, fade, &keys)
+    }
 }
 
 /// The colour pipelines' keys a pre-pass draw can have.
@@ -623,11 +656,24 @@ impl WorldShared {
         format: wgpu::TextureFormat,
         fade: u8,
     ) -> HashMap<PipelineKey, wgpu::RenderPipeline> {
+        self.equal_pipelines_of(device, arrays, scene, format, fade, &depth_prepass_keys())
+    }
+
+    /// [`WorldShared::equal_pipelines`] for `keys` only.
+    #[track_caller]
+    pub(crate) fn equal_pipelines_of(
+        &self,
+        device: &wgpu::Device,
+        arrays: bool,
+        scene: SceneMode,
+        format: wgpu::TextureFormat,
+        fade: u8,
+        keys: &[PipelineKey],
+    ) -> HashMap<PipelineKey, wgpu::RenderPipeline> {
         use rayon::prelude::*;
         let at = std::panic::Location::caller();
         let mode =
             self.mode_modern(device, arrays, false, scene.lamps, scene.modern, scene.bias_q != 0);
-        let keys = depth_prepass_keys();
         let id = |k: PipelineKey| (arrays, scene, format, fade, k);
         let missing: Vec<PipelineKey> = {
             let built = self.built_equal.lock().unwrap();
