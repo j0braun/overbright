@@ -85,6 +85,12 @@ impl Tank {
         if self.running.is_some() { 0 } else { self.stage_of() }
     }
 
+    /// The running shot's stage as 0x59FA40 answers it, without its stop of
+    /// an empty shot (`level` does that).
+    pub fn running_stage(&self) -> usize {
+        if self.running.is_none() { 0 } else { self.stage_of() }
+    }
+
     /// The running shot's stage (0x59FA40, each frame from the mover
     /// 0x5ABD75 into engine +0x84 and from the grip set-up 0x5A5106): 0
     /// without one; an empty one stops.

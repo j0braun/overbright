@@ -244,4 +244,3 @@ game.race_status_clock_end	inferred	docs/formats.md	the race status clock +0x14 
 game.race_idle_brake	open	docs/formats.md	the race input object analog brake byte +0x2D9 = 1 (idle brake 1/255 from the green) is measured; which device state sends event 0x95 = 1 at registration (0x579370) is open, and whether free roam has it is not measured.
 props.sound.splash_flag	inferred	docs/prop-hits.md	the drum's splashed flag (+0x50C) set when its sound is posted, not at the object's start after the five-object cap
 audio.collision.copy_life	inferred	docs/prop-hits.md	a started collision object's mix copy kept while its layers or splash play (its end with its record is not traced)
-ai.track_slip_export	open	docs/formats.md	the AI's slip tracker 0x4057C0 reads the car's exported slip pair (+0x3B4 / +0x3B8 + 8i), the clone the wheels' own slip: the MeloMvr / NIS write-back's lateral half (0x5A2B70) is not modelled.

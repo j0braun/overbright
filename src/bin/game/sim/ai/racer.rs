@@ -309,7 +309,7 @@ fn racer_drag_actions_step(
     // (0x784550), as target (+0x230, observed from the first think
     // in every drag run), not the line speed.
     *target = DRAG_TARGET_SPEED;
-    let lane_path = r.lane.ai_path(route, routes, state.position, field_rng);
+    let lane_path = r.lane.ai_path(route, routes, state.position, nfsu2::ai::traffic::Other::half_box(&car.hull).y, field_rng);
     // `NFSU2_DRAG_LANE_LOG=1` (harness knob): an AI racer's lane as the player's.
     if debug_env().drag_lane_log.is_some() {
         let has: Vec<usize> = (2..=5).filter(|&l| route.has_lane(routes, l)).collect();

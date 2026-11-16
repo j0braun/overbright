@@ -1,0 +1,13 @@
+# Native walk points (stage-4 drag S4_H_DRAG_15, track 4213 backward), RX7 (slot 3): point 3 of the walk.
+# rc = +0x5C (record | cp << 16); lo / hi lanes 2..5 (+0x1C.. / +0x30..); ad = lane adjustments (+0x08..).
+1280 rc 524558 lo -4.79628 -12.5702 -18.4214 -24.108 hi 26.2115 18.4376 12.5864 6.89981 ad -1.18086 0.121682 0.478409 0.0599365
+1310 rc 393486 lo -6.46555 -12.4485 -17.943 -24.0481 hi 24.5423 18.5593 13.0648 6.95975 ad 0 0 0 0
+1340 rc 196878 lo -6.46555 -12.4485 -17.943 -24.0481 hi 24.5423 18.5593 13.0648 6.95975 ad 0 0 0 0
+1380 rc 262413 lo -5.97714 -15.2568 -17.943 -15.2568 hi 25.0307 15.751 13.0648 15.751 ad 0 0 0 0
+1400 rc 196877 lo -6.22189 -14.0314 -18.2614 -19.3795 hi 24.7859 16.9764 12.7464 11.6283 ad 0.244749 -1.2254 0.318427 4.12272
+# clone lane_room (record 270 = index 8, backward): cp 6: -6.47/24.54 -12.45/18.56 -17.94/13.06 -24.05/6.96; cp 8: -5.98/25.03 -12.45/18.56 -17.94/13.06 -24.05/6.96
+# (cp 8 differs from the native by the native lane adjustments, which the clone's racer points do not carry).
+# Slip trackers: driver +0x274 / +0x278 against the sums of the previous frame's exported pair (car +0x3B4 / +0x3B8 + 8i) beyond 4 m/s.
+car 1: 1895 frames, 146 with a nonzero tracker, 0 mismatches
+car 2: 1895 frames, 80 with a nonzero tracker, 0 mismatches
+car 3: 1895 frames, 104 with a nonzero tracker, 0 mismatches

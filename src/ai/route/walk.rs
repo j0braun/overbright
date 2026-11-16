@@ -13,6 +13,10 @@ pub(super) struct FuturePoint {
     pub(super) offset: f32,
     /// +0x04: the racing line's lateral adjustment.
     pub(super) adjust: f32,
+    /// +0x08 + 4·(lane − 2): lanes 2–5's lateral adjustments (0x41A180
+    /// bends them as it bends lane 0's; travelled backward the lanes are
+    /// 6–9 in the record and the slots stay 2–5).
+    pub(super) lane_adjust: [f32; 4],
     /// +0x40 lane 0, +0x44.. lanes 2–5; −1 not yet set.
     pub(super) speed: [f32; 5],
     /// +0x74: inserted across a junction gap (0x418DA0); its racing-line
@@ -57,6 +61,9 @@ pub struct RacerRoute {
     /// race rivals set it from their number; [`RacerRoute::start`] keeps 12 s
     /// for the encounter racers, whose car +0x0A is not read (**open**).
     pub branch_hold: f32,
+    /// A drag race's racer (0x89E7D8 / 0x890108): 0x422220 joins records by
+    /// dropping the list's last point instead of walking past the new one.
+    pub drag: bool,
     /// The human controller's walk (controller kind 1, 0x413CC0's first
     /// test: junction types 2 and 8 taken before the hold and every other
     /// test, 0x5DCBF0(2)).
@@ -139,13 +146,24 @@ impl RacerRoute {
     /// points (vt+0x30(0) = 0x42CDC0), then with them when that found
     /// none; see [`RacerRoute::find`]. `direction` is the car's way.
     pub fn start(routes: &AiRoutes, position: Vec3, direction: Vec2) -> Option<RacerRoute> {
+        RacerRoute::start_in(routes, position, direction, false)
+    }
+
+    /// [`RacerRoute::start`] for a racer of a drag race (`drag`: 0x89E7D8 /
+    /// 0x890108), whose walk joins records as 0x422220's drag branch does.
+    pub fn start_in(routes: &AiRoutes, position: Vec3, direction: Vec2, drag: bool) -> Option<RacerRoute> {
         let (record, cp, backward) = RacerRoute::find(routes, position, direction, None, false)
             .or_else(|| RacerRoute::find(routes, position, direction, None, true))?;
-        Some(RacerRoute::from_node(routes, position, record, cp, backward))
+        Some(RacerRoute::from_node_in(routes, position, record, cp, backward, drag))
     }
 
     pub(super) fn from_node(routes: &AiRoutes, position: Vec3, record: usize, cp: usize, backward: bool) -> RacerRoute {
+        RacerRoute::from_node_in(routes, position, record, cp, backward, false)
+    }
+
+    fn from_node_in(routes: &AiRoutes, position: Vec3, record: usize, cp: usize, backward: bool, drag: bool) -> RacerRoute {
         let mut route = RacerRoute {
+            drag,
             points: vec![FuturePoint {
                 record,
                 cp,
@@ -153,6 +171,7 @@ impl RacerRoute {
                 s: 0.0,
                 offset: 0.0,
                 adjust: 0.0,
+                lane_adjust: [0.0; 4],
                 speed: [-1.0; 5],
                 inserted: None,
             }],
@@ -212,6 +231,7 @@ impl RacerRoute {
             s: 0.0,
             offset: 0.0,
             adjust: 0.0,
+            lane_adjust: [0.0; 4],
             speed: [-1.0; 5],
             inserted: None,
         });
@@ -430,6 +450,7 @@ impl RacerRoute {
             s: 0.0,
             offset: 0.0,
             adjust: 0.0,
+            lane_adjust: [0.0; 4],
             speed: [-1.0; 5],
             inserted: None,
         }];
@@ -664,7 +685,7 @@ impl RacerRoute {
             if guard > 100 {
                 return;
             }
-            let last = self.points.last().cloned().expect("a point");
+            let mut last = self.points.last().cloned().expect("a point");
             let (from_record, from_cp, mut forward) = cursor.take().unwrap_or((last.record, last.cp, !last.backward));
             let Some((mut record, mut cp, f2, mut junction)) = self.step(f, from_record, from_cp, forward) else {
                 self.dead_end = true;
@@ -677,6 +698,53 @@ impl RacerRoute {
                     // Along the last point's direction to the new point.
                     let p = f.records[record].points[cp].position.truncate();
                     f.along(last.record, last.cp, last.backward, p) - last.offset
+                }
+                Some(j) if !j.turn() && self.drag => {
+                    // A drag race (0x422220's branch for 0x89E7D8 /
+                    // 0x890108): while the new point lies under 3 m on,
+                    // the list's last point is dropped (its segment added to
+                    // the distance, so the new point keeps its place); a list
+                    // of one counts from 0. Record 278's last point on 4213
+                    // backward gives way to record 277's first (observed).
+                    let mut d =
+                        f.along(last.record, last.cp, last.backward, f.records[record].points[cp].position.truncate());
+                    let mut base = last.s;
+                    while d < 3.0 && !self.points.is_empty() {
+                        let n = self.points.len();
+                        if n < 2 {
+                            d = 0.0;
+                            base = 0.0;
+                        } else {
+                            let step = self.points[n - 1].s - self.points[n - 2].s;
+                            d += step;
+                            base -= step;
+                        }
+                        self.points.pop();
+                    }
+                    if self.points.is_empty() {
+                        // A list of one counts from 0: the new point starts
+                        // the list again.
+                        self.current = 0;
+                        self.turns.clear();
+                        self.points.push(FuturePoint {
+                            record,
+                            cp,
+                            backward: !forward,
+                            s: 0.0,
+                            offset: 0.0,
+                            adjust: 0.0,
+                            lane_adjust: [0.0; 4],
+                            speed: [-1.0; 5],
+                            inserted: None,
+                        });
+                        continue;
+                    }
+                    self.current = self.current.min(self.points.len() - 1);
+                    self.turns.retain(|t| t.fp < self.points.len());
+                    // The new point's place stays base + d; it now follows
+                    // the list's new last point.
+                    last = self.points.last().cloned().expect("a point");
+                    base + d - last.s
                 }
                 Some(j) if !j.turn() => {
                     // Offline, points closer than 3 m ahead are walked past.
@@ -710,6 +778,7 @@ impl RacerRoute {
                 s: last.s + d,
                 offset: 0.0,
                 adjust: 0.0,
+                lane_adjust: [0.0; 4],
                 speed: [-1.0; 5],
                 inserted: None,
             };

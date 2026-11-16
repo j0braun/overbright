@@ -46,8 +46,8 @@ pub struct AiDriver {
     pub event: u8,
     /// +0x258: when the front wheels left the ground.
     takeoff: Option<f64>,
-    /// +0x25C: just hit something.
-    hit: bool,
+    /// +0x25C: the nitrous hold (set while a shot runs, 0x421F45).
+    nitrous_hold: bool,
     /// +0x260: last frame's target speed.
     pub prev_target: f32,
     /// +0x230: this frame's target speed (vt+0x38; 0 with no path).
@@ -98,7 +98,7 @@ impl AiDriver {
             stuck: false,
             event: 0,
             takeoff: None,
-            hit: false,
+            nitrous_hold: false,
             prev_target: 0.0,
             target_speed: 0.0,
             path_len: 0,
@@ -381,12 +381,17 @@ impl AiDriver {
             gas = 0.0;
             brake = 0.0;
         }
-        // Just hit something (0x59FA40): full throttle while the target
-        // holds (not in drag races). The clone has no crash level, so this
-        // never starts.
-        if self.hit {
+        // The nitrous hold (0x421F45..0x421FB0): while a shot runs (0x59FA40
+        // on the car, its stage 1–3) the hold (+0x25C) is set; while it is
+        // set the pedals are the throttle cap (+0x22C) and no brake, until
+        // a drag race (0x89E7D8 / 0x890108) or a target (+0x230) under the
+        // last frame's (+0x260) clears it — after the shot too.
+        if car.nitrous.as_ref().is_some_and(|t| t.running_stage() != 0) {
+            self.nitrous_hold = true;
+        }
+        if self.nitrous_hold {
             if handling.race.drag() || target_speed < self.prev_target {
-                self.hit = false;
+                self.nitrous_hold = false;
             } else {
                 gas = self.throttle_cap;
                 brake = 0.0;
@@ -569,22 +574,22 @@ impl AiDriver {
         (e1, e2, e3)
     }
 
-    /// The wheels' slip beyond 4 m/s, summed (0x4057C0): along the wheels
-    /// (negated when reversing) and across them.
-    // prov: open ai.track_slip_export
-    /// **Open**: 0x4057C0 reads the car's exported pair (car +0x3B4 /
-    /// +0x3B8 + 8i, from 0x4057E4), not the wheels' own slip. On the
-    /// physics mover that is the wheels' +0x100 (`exported_slip`) and
-    /// +0x104 (the speed across the wheel, stored in both of the tyre
-    /// pass's branches, 0x5A8606 / 0x5A86AB); on the MeloMvr and the NIS
-    /// mover the write-back 0x5A2B70 copies the chassis' +0x90 + 8i, whose
-    /// lateral half the clone does not model, so this still reads `slip` /
-    /// `lateral_slip`.
+    /// The wheels' slip beyond 4 m/s (0x7839F4 / 0x7839F8), summed
+    /// (0x4057C0): along the wheels (negated when the car's forward speed
+    /// +0x3EC is negative) into the tracker at +0x274, |across| into
+    /// +0x278. 0x4057C0 reads the car's exported pair (car +0x3B4 / +0x3B8
+    /// + 8i, from 0x4057E4), not the wheels' own slip: on the physics
+    /// mover the wheels' +0x100 (`exported_slip`: the slip while the tyre
+    /// slides, 0 while it grips, 0x5A8600 / 0x5A86A1) and +0x104 (the speed
+    /// across the wheel, stored in both of the tyre pass's branches,
+    /// 0x5A8606 / 0x5A86AB: `lateral_slip`); on the MeloMvr and the NIS
+    /// mover the write-back 0x5A2B70 copies the chassis' pair +0x90 + 8i
+    /// (`melo.rs` / `nis.rs` set both halves).
     pub(super) fn track_slip(&mut self, car: &CarState, dt: f32) {
         let (mut lon, mut lat) = (0.0, 0.0);
         for w in &car.wheels {
-            if w.slip.abs() > 4.0 {
-                lon += w.slip;
+            if w.exported_slip.abs() > 4.0 {
+                lon += w.exported_slip;
             }
             if w.lateral_slip.abs() > 4.0 {
                 lat += w.lateral_slip.abs();
@@ -750,4 +755,87 @@ pub(super) fn cross_track(path: &[Vec3], p: Vec3) -> f32 {
 /// body origin plus the handling's offset turned with the body.
 pub(super) fn centre_of_mass(car: &CarState, h: &Handling) -> Vec3 {
     car.position + car.orientation * Vec3::from(h.centre_of_mass)
+}
+
+#[cfg(test)]
+mod native_tests {
+    use super::*;
+
+    fn handling() -> Handling {
+        crate::handling::parse_handling(&vec![0u8; 0x1000])
+    }
+
+    fn input(path: &[Vec3], target: f32) -> DriverInputs<'_> {
+        DriverInputs { path, target_speed: target, enabled: true, green: true, countdown: false, since_green: 10.0, clock: 10.0 }
+    }
+
+    /// 0x4057C0 sums the car's exported slip pair (car +0x3B4 / +0x3B8 +
+    /// 8i), not the wheels' own slip: a wheel whose own slip is over 4 m/s
+    /// but whose export is 0 adds nothing. Under Wine (stage-4 drag, three
+    /// rivals, 1895 frames each) the trackers +0x274 / +0x278 equalled the
+    /// sums of the previous frame's exported pair on every frame.
+    #[test]
+    fn the_slip_tracker_reads_the_exported_pair() {
+        let h = handling();
+        let mut d = AiDriver::new(&h, false, 1.0);
+        let mut car = CarState::new(Vec3::ZERO, 0.0);
+        car.velocity = Vec3::new(20.0, 0.0, 0.0);
+        car.publish_forward_speed();
+        for w in &mut car.wheels {
+            w.slip = 9.0;
+            w.exported_slip = 0.0;
+            w.lateral_slip = 0.0;
+        }
+        d.track_slip(&car, 1.0 / 60.0);
+        assert_eq!((d.lon_slip.cur, d.lat_slip.cur), (0.0, 0.0));
+        car.wheels[2].exported_slip = 6.5;
+        car.wheels[3].exported_slip = -5.0;
+        car.wheels[0].exported_slip = 3.9;
+        car.wheels[1].lateral_slip = -4.5;
+        d.track_slip(&car, 1.0 / 60.0);
+        assert_eq!(d.lon_slip.cur, 1.5);
+        assert_eq!(d.lat_slip.cur, 4.5);
+    }
+
+    /// 0x421F45..0x421FB0: while a nitrous shot runs (0x59FA40) the driver
+    /// holds the throttle cap and no brake whatever the target, until the
+    /// target falls under the last frame's (and never in a drag race).
+    /// Under Wine an outrun rival given goal 1 at the end (target 43 m/s at
+    /// 57 m/s) kept accelerating through its shot.
+    #[test]
+    #[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
+    fn a_running_shot_holds_the_throttle() {
+        let h = handling();
+        let path = [Vec3::new(40.0, 0.0, 0.0), Vec3::new(400.0, 0.0, 0.0)];
+        let run = |shot: bool| {
+            let mut d = AiDriver::new(&h, false, 1.0);
+            let mut car = CarState::new(Vec3::ZERO, 0.0);
+            car.velocity = Vec3::new(57.0, 0.0, 0.0);
+            car.publish_forward_speed();
+            for w in &mut car.wheels {
+                w.on_ground = true;
+            }
+            let mut tank = crate::nitrous::Tank::new(6.0, 3);
+            if shot {
+                assert!(tank.start());
+            }
+            car.nitrous = Some(tank);
+            let mut c = d.update(&car, &h, false, &input(&path, 43.0), 1.0 / 60.0);
+            for _ in 0..30 {
+                c = d.update(&car, &h, false, &input(&path, 43.0), 1.0 / 60.0);
+            }
+            (d, car, c)
+        };
+        let (_, _, free) = run(false);
+        assert!(free.gas < 0.01, "no shot: no throttle 14 m/s over the target ({}, {})", free.gas, free.brake);
+        let (mut d, mut car, held) = run(true);
+        assert_eq!((held.gas, held.brake), (1.0, 0.0), "a running shot holds the throttle");
+        // The shot over, the hold stays while the target holds ...
+        car.nitrous.as_mut().unwrap().stop();
+        let c = d.update(&car, &h, false, &input(&path, 43.0), 1.0 / 60.0);
+        assert_eq!((c.gas, c.brake), (1.0, 0.0));
+        // ... and a lower target ends it.
+        d.update(&car, &h, false, &input(&path, 42.0), 1.0 / 60.0);
+        assert!(!d.nitrous_hold);
+    }
 }

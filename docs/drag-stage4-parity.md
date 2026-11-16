@@ -616,6 +616,55 @@ is the race status's +0x14 × 0.00025 (formats.md, "Place"), whole ticks: at exa
 recorded race_clock in both games) it is not over 1 s; the clone's summed f32 clock read just over 1.0 there and refilled a frame early. Now the
 style detectors get the clock in whole ticks: the refill comes at frame 61 in both (f2: 24000 → 25600).
 
+### 8.6 Lane splits: the lane room ported, the stops not yet
+
+A fresh native run of S4_H_DRAG_15 (dragshift.py with lane keeping; rivals PEUGOT, 3000GT, RX7) recorded
+the rivals' walk points (controller +0x370: count +0x374, points +0x378 + 4k, each point's +0x54, record
++0x5C, rooms +0x18.. / +0x2C.., lane adjustments +0x04..) and the slip trackers. Evidence:
+`docs/evidence/native-ai/` (`drag-room.txt`, `finishes.txt`).
+
+* **The lane room (verified, observed; ported).** 0x41D530 clamps each lane path point's offset with
+  0x40FC80 to the point's room for the lane less a margin (formats/career-2.md, "Lane room"); the clone's
+  `RacerRoute::lane_path` had no clamp. The room is the point's own (0x41FD50's backward pass steps by
+  Δs × 99999 and never binds) and matches the native points to 0.01 m where the point's lane adjustment
+  is 0 (test `lane_room_matches_the_originals_walk_points`). In a drag race 0 is always inside the room,
+  so the clamp binds only where a road edge comes within the margin of a lane path.
+* **The stops before the two ports below (observed).** Replays of w4, f2 and d1 with the base: four of
+  nine rival runs stopped before the line (w4 WRX at 1271.6, f2 ECLIPSE at 1669.4 and 350Z at 1667.7, d1 RX7
+  at 1409.7); natively all of them drive on (the 240SX's natively totaled run at 569 is another case).
+* **The drag walk joins records as the original (verified, observed; ported).** 0x422220, at a junction
+  that is no turn: outside drag races a new point under 3 m on is walked past (the next one taken); in a drag
+  race (0x89E7D8 / 0x890108) the list's last point is dropped instead, its segment added to the distance,
+  until the new point lies 3 m on (a list of one starts again from the new point). So on 4213 backward record
+  278's last point gives way to record 277's first, which the clone had dropped (it kept the old record's end
+  and took record 277's second point). `RacerRoute::drag` (`start_in`, the race set-up's rivals and the
+  player's DragSteer). **Observed** (d2's walk points, 216 points at frames 900 … 1600): 199 of them are in the
+  clone's walks started at the rivals' poses (the rest lie behind the start), and the 8 m points' lane 2–5
+  adjustments match within 0.10 m where the two walks have the same point before (record 278 point 1 + 8 m:
+  lane 2 −3.40 against −3.50) (test `drag_walks_join_records_and_bend_lanes_as_the_original`).
+* **Lane adjustments (verified, observed; ported).** 0x41A180 bends lanes 2–5 (FuturePoint +0x08..+0x14) as it
+  bends the racing line (+0x04): each lane's own Hermite between its places at two control points, the
+  tangents from the place before and to the next plain point (0x4122C0 on the lane). 0x419B20 / 0x60BFB0
+  take the lateral off the adjusted lane, 0x41D530 lays the path on it and 0x40B840 / 0x40B780 take the
+  room off it (`RacerRoute::smooth`, `lane_place`; `lane_lateral`, `nearest_lane`, `lane_path`).
+* **AvoidAvoidable's path (verified; ported).** Its update 0x42F330 calls 0x42BF00 (or with no object
+  0x420D40) every update; 0x42BF00 with no lane to move to rebuilds the action's path on the controller's
+  lane record from where the car is (0x42BFA9 → 0x420D40). The clone returned the path driven before, so a
+  rival whose record had just moved to the next lane went on along the old one. Now `DragLane::record_path`
+  (test `avoid_without_a_lane_drives_the_records_path_from_here`).
+* **The stops (observed; fixed).** Replays of d3 (a fresh native run: TIBURON, IMPREZAWRX, TIBURON), w4 and f2
+  (`docs/evidence/native-ai/finishes.txt`): base 5 of 9 rival runs stopped before the line (d3 IMPREZAWRX at
+  1667.4 and TIBURON at 1669.5, w4 WRX at 1271.6, f2 ECLIPSE at 1669.4 and 350Z at 1667.7); now none, as in
+  the original (the 240SX natively totaled at 569 in w4 is another case: the clone's drives on).
+* **The rivals' nitrous (observed).** Each shot starts when 0x40D850 passes with no shot running and ends when
+  it fails (§9); a shot needs at least the row's +0x570 seconds left (0.5–2 s), all four wheels down, the
+  driven wheels' exported slip under 2 m/s, the row's gear (+0x588 + 1) and the rpm inside 0x402590's band.
+  What is left at the line follows from when those hold: natively 2190 / 0 / 0 (d3), 1465 / 200 / 0 (f2),
+  0 / 0 (w4) ticks; the clone 0 / 0 / 5956, 3198 / 0 / 0, 0 / 0 / 0. An earlier run's 10800 and 4867 left
+  natively against the clone's empty tanks (d2) came with the clone's rivals 4–6 m/s faster on the old walk;
+  on the native walk the paces agree within 1–3 m/s (d3 at 1100 / 1400 / 1700 m). No rule differs; the shots'
+  timing follows each run's gear changes.
+
 ## 9. 2026-11-05: the rivals' nitrous (verified, observed; fixed)
 
 `outrun-pace.md` §3–§4: 0x40D850's rpm band was inverted (0x402590 returns 1 *outside* the band; a
@@ -629,8 +678,9 @@ PEUGOT 30.74 s, native 30.63; the drag-finish pass's clone: two of three stopped
 
 * The bank and reputation after leaving UI_PostRace on this stage-4 win (8.2; the reward screen's 300 / 2200
   match, the settlement itself is formats.md's stage-1 sprint observation).
-* Rivals (8.4): the clone's lane convergence and wall contacts on 4213's lane splits, the drag AI's nitrous
-  end (0x42AD24..0x42AD55), their 4–9 m/s deficit; with them the rivals' rows of the results.
+* Rivals (8.4, 8.6): none stops on 4213's lane splits any more (lane room, lane adjustments, the drag walk's
+  record join and AvoidAvoidable's path ported); the rivals' rows of the results are not compared run for run
+  (their shots' timing follows each run's gear changes, 8.6). The drag AI's nitrous end is fixed (§9).
 * The fence contact's friction direction (7.1, the closest-point normal 0x594010); the crest after the
   fence's second touch is chaotic natively (7.1).
 * Whether the free-roam hand-over's first frames are drawn (7.4).

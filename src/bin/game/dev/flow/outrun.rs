@@ -10,7 +10,8 @@ pub(crate) fn outrun_log_row(game: &Game, frame: u32) -> Option<String> {
     let i = o.map(|o| o.opponent).or(e.target).or_else(|| e.cars.iter().position(|c| c.active))?;
     let r = &e.cars[i];
     let goal = match (o.is_some_and(|o| o.opponent == i), r.controller.goal) {
-        (true, Some(true)) => 5,
+        (_, Some(nfsu2::ai::encounter_controller::EncounterGoal::RoadRace)) => 1,
+        (true, Some(nfsu2::ai::encounter_controller::EncounterGoal::Chase)) => 5,
         (true, _) => 6,
         _ => 9,
     };

@@ -51,7 +51,7 @@ impl Actions {
                 if !(2..=5).contains(&to) || !crate::ai::drag::lane_allowed(route, scene.routes, from, to, true, true) {
                     continue;
                 }
-                let path = route.lane_path(scene.routes, me.position, to, crate::ai::drag::AI_RATE);
+                let path = route.lane_path(scene.routes, me.position, to, crate::ai::drag::AI_RATE, crate::ai::drag::ROOM_MARGIN + me.half.y);
                 if clear(&path, &list, own, me, CLEAR_LOOK) {
                     lane.lane = Some(to);
                     lane.rate = crate::ai::drag::AI_RATE;
@@ -79,6 +79,11 @@ impl Actions {
             self.nitrous_query = true;
             2.0 * CAP
         };
-        Some(Steer { path: driven.to_vec(), cap: Some(cap), pedals: true, reset: false })
+        // 0x42BF00 found no lane: it rebuilds the action's path on the
+        // controller's lane record (0x42BFA9 → 0x420D40) from where the car
+        // is now, every update; the path driven before is not kept.
+        let path = lane.record_path(route, scene.routes, me.position, me.half.y).unwrap_or_else(|| driven.to_vec());
+        self.last_path = path.clone();
+        Some(Steer { path, cap: Some(cap), pedals: true, reset: false })
     }
 }

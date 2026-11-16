@@ -99,11 +99,38 @@ impl Nitrous {
     }
 }
 
+/// An encounter racer's goal while it is out of goal 9 (AIGoalOffsetPursuit):
+/// the outrun's goals 5 / 6 and, from the outrun's end, "Win road race".
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum EncounterGoal {
+    /// Goal 1, "Win road race" (vtable 0x784768, 0x40CA20): the end of an
+    /// outrun gives it to every AI racer out (0x5F84A0 → 0x42EFB0 →
+    /// 0x42CD60 → 0x42AA20(1)). Its vtable is goal 6's but for slot +0x24
+    /// (0x50D510: no target car) and slot +0x28 (0x41BCF0 → 0x413CC0, the
+    /// ordinary racer junctions).
+    RoadRace,
+    /// Goal 5 (0x4285A0, vtable 0x784B58): chase a car.
+    Chase,
+    /// Goal 6 (0x428510, vtable 0x784BA8): lead the outrun.
+    Lead,
+}
+
+impl EncounterGoal {
+    /// The goal's type (+0x14).
+    pub fn type_id(self) -> i32 {
+        match self {
+            EncounterGoal::RoadRace => 1,
+            EncounterGoal::Chase => 5,
+            EncounterGoal::Lead => 6,
+        }
+    }
+}
+
 /// Owns the action and its retained driver output across full/fallback calls.
 #[derive(Clone, Debug, Default)]
 pub struct Controller {
     pub schedule: ThinkSchedule,
-    pub goal: Option<bool>, // Some(true): chase; Some(false): lead.
+    pub goal: Option<EncounterGoal>,
     pub actions: Option<crate::ai::actions::Actions>,
     pub output: Option<crate::ai::actions::Steer>,
     pub target_speed: f32,
@@ -122,9 +149,9 @@ impl Controller {
     }
 
     /// 402070: changed goal deletes its action; same-goal retarget keeps it.
-    pub fn assign_goal(&mut self, chase: bool) -> bool {
-        if self.goal == Some(chase) { return false; }
-        self.goal = Some(chase);
+    pub fn assign_goal(&mut self, goal: EncounterGoal) -> bool {
+        if self.goal == Some(goal) { return false; }
+        self.goal = Some(goal);
         self.actions = None;
         true
     }
@@ -228,12 +255,12 @@ mod tests {
     #[test]
     fn retarget_retains_action_but_goal_change_destroys_it() {
         let mut controller = Controller::default();
-        controller.assign_goal(false);
+        controller.assign_goal(EncounterGoal::Lead);
         controller.actions = Some(crate::ai::actions::Actions::default());
         controller.schedule.last_tick = 1234;
-        assert!(!controller.assign_goal(false));
+        assert!(!controller.assign_goal(EncounterGoal::Lead));
         assert!(controller.actions.is_some());
-        assert!(controller.assign_goal(true));
+        assert!(controller.assign_goal(EncounterGoal::Chase));
         assert!(controller.actions.is_none());
         assert_eq!(controller.schedule.last_tick, 1234);
     }
@@ -241,11 +268,11 @@ mod tests {
     #[test]
     fn placement_reset_recovers_suspension_without_fabricating_a_goal_reset() {
         let mut controller = Controller::default();
-        controller.assign_goal(false);
+        controller.assign_goal(EncounterGoal::Lead);
         controller.actions = Some(crate::ai::actions::Actions::default());
         controller.schedule.last_tick = 12345;
         controller.suspended = true;
-        controller.assign_goal(true);
+        controller.assign_goal(EncounterGoal::Chase);
         assert!(controller.suspended, "402070 does not clear +710");
         controller.actions = Some(crate::ai::actions::Actions::default());
         controller.reset_placement(2);

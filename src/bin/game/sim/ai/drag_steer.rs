@@ -21,7 +21,7 @@ impl DragSteer {
             // The player's car (number 0): no start hold (0x5EF000); the
             // route's clock is never set here, so a 12 s hold blocked every
             // branch for good.
-            route: nfsu2::ai::route::RacerRoute::start(routes, state.position, Vec2::new(heading.cos(), heading.sin()))
+            route: nfsu2::ai::route::RacerRoute::start_in(routes, state.position, Vec2::new(heading.cos(), heading.sin()), true)
                 .map(|mut r| {
                     r.branch_hold = nfsu2::ai::route::start_hold(0);
                     r
@@ -57,7 +57,7 @@ impl DragSteer {
             car.car_type.suv,
             &*self.accel,
         );
-        let path = self.lane.player_path(route, routes, state.position, state.velocity.length());
+        let path = self.lane.player_path(route, routes, state.position, state.velocity.length(), nfsu2::ai::traffic::Other::half_box(&car.hull).y);
         // `NFSU2_DRAG_LANE_LOG=1` (a harness knob, not the game's, the
         // parity harness's lane plans): the player's lane, the lanes its
         // point's record has and where each ends along the list, per frame.

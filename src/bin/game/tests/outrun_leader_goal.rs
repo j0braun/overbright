@@ -2,6 +2,7 @@
 //! leader.
 
 use crate::*;
+use nfsu2::ai::encounter_controller::EncounterGoal::{Chase, Lead, RoadRace};
 
 /// Native (0x42EDF0 state 4 while race type 7, 0x42EF04..0x42EF36 →
 /// 0x4285A0; **verified**): on every manager update, L = race
@@ -54,14 +55,14 @@ fn outrun_cars_out_chase_the_leader() {
     e.outrun = Some(Outrun { opponent: 0, clock: 0.0, start_tick: 4000, player: 10.0, rival: 0.0, player_leads: false });
     e.think(ai, 1.0 / 60.0, d, node, &[], None);
     let goals: Vec<_> = e.cars.iter().map(|c| c.controller.goal).collect();
-    assert_eq!(goals[..3], [Some(false), Some(true), Some(true)]);
+    assert_eq!(goals[..3], [Some(Lead), Some(Chase), Some(Chase)]);
     let kept: Vec<bool> = e.cars.iter().map(|c| c.controller.actions.is_some()).collect();
     // The player takes the lead: goal 5 for every AI car; the others'
     // goal 5 is only retargeted (their actions stay).
     e.outrun.as_mut().unwrap().player_leads = true;
     e.think(ai, 1.0 / 60.0, d, node, &[], None);
     let goals: Vec<_> = e.cars.iter().map(|c| c.controller.goal).collect();
-    assert_eq!(goals[..3], [Some(true), Some(true), Some(true)]);
+    assert_eq!(goals[..3], [Some(Chase), Some(Chase), Some(Chase)]);
     for i in 1..3 {
         if kept[i] {
             assert!(e.cars[i].controller.actions.is_some(), "car {i}: a retarget keeps the action");
@@ -74,15 +75,18 @@ fn outrun_cars_out_chase_the_leader() {
     assert_eq!(e.cars[2].controller.goal, None);
 }
 
-/// Native (**traced**): after an outrun ends (0x5F84A0 →
-/// 0x42EFB0, the manager in DEACTIVATE_OPPONENT, state 5) nothing assigns a
-/// goal — goals 5 / 6 are built only in state 4 (0x42A9E0 / 0x42EF36) and
-/// goal 9 only in state 3 (0x42A860) — so the cars still out keep their
-/// goal 5 / 6 until 0x40BF60 / 0x40BFB0 park them; the clone put them back
-/// on goal 9 (`goal9_think`) once `outrun` was cleared.
+/// Native (**verified**): the outrun's end (0x5F84A0) calls 0x42EFB0,
+/// whose first call 0x42CD60 gives every AI racer out (0x5ED440) whose goal
+/// is not of type 1 the goal "Win road race" (0x42AA20(1) → 0x40CA20, type
+/// 1, vtable 0x784768; 0x402070 drops the old goal and its action). The cars
+/// drive on with it until 0x40BF60 / 0x40BFB0 park them. **Observed** under
+/// Wine (outrun_brake_p14 b1–b3): goal 1 on the end's frame, action 6 the
+/// next, the catch-up 0.75 and the target at three quarters of the race
+/// pace (b1 43 m/s, speed 57) until the car is parked about 2 s later. The
+/// clone had kept goals 5 / 6 at the outrun's pace.
 #[test]
 #[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
-fn outrun_cars_keep_their_goals_after_the_end() {
+fn outrun_cars_take_goal_1_after_the_end() {
     let mut game = Game::new().unwrap();
     let mut profile = Profile::new("OutrunGoal5");
     profile.skip_intro(&game.game_data.career, &game.game_data.root, "PEUGOT", &mut game.rng);
@@ -119,15 +123,28 @@ fn outrun_cars_keep_their_goals_after_the_end() {
     e.outrun = Some(Outrun { opponent: 0, clock: 0.0, start_tick: 4000, player: 0.0, rival: 10.0, player_leads: true });
     e.think(ai, 1.0 / 60.0, d, node, &[], None);
     let racing: Vec<_> = e.cars.iter().map(|c| c.controller.goal).collect();
-    assert_eq!(racing[..3], [Some(true), Some(true), Some(true)]);
+    assert_eq!(racing[..3], [Some(Chase), Some(Chase), Some(Chase)]);
     // The end (`Encounters::race`: the result taken, `ended` kept), then
-    // state 5: the same goals, think after think.
+    // state 5: goal 1 for every car out, its action dropped once and then
+    // chosen afresh (a same-goal think keeps it).
     e.ended = e.outrun.take();
     e.state = 5;
+    e.think(ai, 1.0 / 60.0, d, node, &[], None);
+    let goals: Vec<_> = e.cars.iter().map(|c| c.controller.goal).collect();
+    assert_eq!(goals[..3], [Some(RoadRace); 3], "goal 1 after the end");
     for _ in 0..30 {
         e.think(ai, 1.0 / 60.0, d, node, &[], None);
         let goals: Vec<_> = e.cars.iter().map(|c| c.controller.goal).collect();
-        assert_eq!(goals[..3], racing[..3], "the goals stay after the end");
+        assert_eq!(goals[..3], [Some(RoadRace); 3], "goal 1 stays");
+    }
+    // Goal 1's speed: the offline racer's × 0.75 with no race on (no
+    // leader's 0.84, no pursuit cap).
+    for c in &e.cars[..3] {
+        let route = c.route.as_ref().unwrap();
+        let mut probe = c.speed.clone();
+        let mut rng = nfsu2::opponents::GameRng(7);
+        let full = probe.update(&ai.tuning, route, &mut rng, 1e6, None, 1.0 / 60.0);
+        assert!(c.driver_plan.1 <= full * 0.75 * 1.05 + 0.5, "target {} against 0.75 × {}", c.driver_plan.1, full);
     }
     // Back in state 0 (`ended` cleared there): goal 9 again.
     e.ended = None;

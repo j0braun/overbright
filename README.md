@@ -124,12 +124,6 @@ original, with its switch, is in [docs/native-deviations.md](docs/native-deviati
 - **Physics after a wall hit:** from the same start, your car stays within a few centimetres of the original's
   path through braking, cornering, handbrake turns and launches. Held against a wall it turns off the wall the
   same way as in the original, but can leave it a few seconds sooner or later.
-- **AI in slides:** the rivals' slip tracking reads each wheel's own slip; the original reads a value its scene
-  mover writes back, which is not ported. How much this changes their driving was not measured.
-- **Stage-4 drag rivals:** on drags with lane splits (e.g. event 4213) a rival can scrape a wall where its lane
-  ends and stop before the line, where the original's rivals finish; late in the race the original's rivals
-  also run a few m/s faster (their nitrous comes in several shots, Overbright's in one).
-- **After an outrun:** when an outrun ends, the original's rival drives on at speed; Overbright's brakes.
 - **Carbon fibre:** before Convert Trunk / Convert Body Kits asks its question, the original turns the camera to
   the rear; Overbright keeps the view.
 - **Saves:** a save of the original from any career stage, loaded and saved again in Overbright, comes out byte

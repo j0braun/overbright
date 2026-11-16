@@ -118,25 +118,27 @@ for the steering rate).
   that of |dx|/r; 0 when r² ≤ 1e-4), put in its quadrant (dx < 0: 0x8000 −
   a; dy < 0: 0x10000 − a; both a + 0x8000). Within 8 units of the exact
   angle (`table_angle_follows_atan2`).
-* **Crash level 0x59FA40** (verified in Ghidra; not ported). It returns
-  0..3 for a car with +0x420 set and not 0x7FFFFFFF (the crash timer):
-  u = x / T with T = (car +0x414) × 0.00025 and x = 0x592490 (the timer
-  at +0x41C less now, both × 0.00025, 0x865188 / 0x8651A8 by 0x5F0100).
-  u ≤ 0 gives 0 and resets (0x592510 clears +0x420 and stores +0x41C);
-  u > 1.7 gives 3, 1.4 < u ≤ 1.7 gives 2, 0 < u ≤ 1.4 gives 1 (the
-  thresholds at 0x7A1798 = 0.0, 1.4, 1.7). It is called with ECX = car +0x40
-  (0x421F45: `mov ecx,[driver +0x220]`; 0x421F4B: `add ecx,0x40`), so the
-  +0x420, +0x414 and +0x41C above are relative to that block (car +0x460,
-  +0x454, +0x45C).
-  The clone has no crash state, so it never fires. **Verified** (0x421F4E,
-  the "just hit" branch in 0x421030, after the speed control and the countdown
-  block at 0x421ECE and before the stuck override at 0x422034): a nonzero level
-  sets the driver's latch +0x25C; while
-  the latch is set, the drag flags 0x89E7D8 / 0x890108 (drag and its online
-  twin) are clear and the target speed (+0x230) has not dropped below last
-  frame's (+0x260), gas (+0x20C) is the throttle cap (+0x22C) and brake
-  (+0x214) is 0 (0x5EB920, 0x5EB900(0)); otherwise the latch clears. The
-  The constructor 0x425AB0 writes +0x22C (0x425B44..0x425B67, verified):
+* **Nitrous hold** (verified; ported, `AiDriver::nitrous_hold`). 0x59FA40
+  (ECX = car +0x40, from 0x421F45..0x421F4E) is the nitrous stage of a
+  running shot: 0 with no shot (+0x420 = car +0x460 is 0 or 0x7FFFFFFF),
+  else 1 + the highest i with the tank fraction (0x5925C0) over 0x7A1798[i]
+  = {0, 1.4, 1.7}; an empty shot is stopped (0x592510). The mover stores it
+  at engine +0x84 (0x5ABD75), the grip set-up indexes 0x7A17AC with it
+  (0x5A5106). In 0x421030, after the speed control and the countdown block
+  (0x421ECE) and before the stuck override (0x422034): a nonzero stage sets
+  the driver's latch +0x25C (0x421F61); while it is set, outside a drag race
+  (0x89E7D8 / 0x890108) and with the target (+0x230) not under last frame's
+  (+0x260, written at 0x421FBD), gas (+0x20C) is the throttle cap (+0x22C)
+  and the brake 0 (0x5EB920, 0x5EB900(0)); otherwise the latch clears. The
+  latch outlives the shot until the target falls. **Observed** under Wine
+  (outrun_brake_p14 b1, b3, b6, b9): after the outrun's end the rival's
+  target dropped to three quarters (43 m/s at 57 m/s) and it kept
+  accelerating (57 → 61 m/s in 2 s) through the shot that started there;
+  in a fresh run with no shot at the end (350Z, gas and brake recorded) the
+  rival braked to its new target (32 → 24.5 m/s, brake 0.75 then 0).
+  The clone had read 0x59FA40 as a crash level its cars never have, so the
+  latch never set and its rivals braked to the target.
+* **Throttle cap +0x22C.** The constructor 0x425AB0 writes +0x22C (0x425B44..0x425B67, verified):
   0x783A28[0x89E804] when its controller's +0x14 object has class 2 at +4,
   else 1.0 (0x784250, verified). It is not the only store to +0x22C: the
   sibling constructor 0x425E40 (vtable 0x784F40) zeroes it at 0x425E76, and
@@ -145,30 +147,47 @@ for the steering rate).
   0x89E804 has three direct writers, 0x5323F5 (a career event's +0x7D),
   0x53F775 (Quick Race drag: the difficulty) and 0x5400C5 (not traced;
   see Difficulty: settings and effects), and one read, in the
-  constructor. Only the level's
-  nonzero test is used (0x421030 tests iVar11 == 0). The level is the car's
-  nitrous stage (the name is inferred; the physics use is verified): 0x59FA40
-  runs with ECX = car +0x40 (0x421F45..0x421F4E), returns 0..3 from its time
-  fraction against 0.0 / 1.4 / 1.7 (0x7A1798), and also ends an empty shot
-  (0x592510 on the u <= 0 path). The caller at 0x5ABD75 stores the result at
-  [esi +0x48] +0x84 (0x5ABD7D); the grip set-up 0x5A5106 indexes 0x7A17AC
-  with it. The shot is started by 0x59FB00, called from the AI request
-  0x420810 (also 0x5F8910, 0x602BE0). The clone's `hit` latch is not fed a
-  level (driver.rs), so `hit` still never starts; porting it needs the
-  nonzero test at 0x421F4E and a read that ends an empty shot, as 0x59FA40
-  does. The AI request's shot start (0x420810) is not checked for order
-  against this read. Car +0x4D8
-  (verified): the car init routine 0x604270 sets 1.0f; the step sets 1.4f
+  constructor.
+* **Car +0x4D8** (verified): the car init routine 0x604270 sets 1.0f; the step sets 1.4f
   (0x3FB33333) through the setter 0x5EBBF0 (its only caller) while the stuck
   flag +0x24C is set, when it also brakes and handbrakes (0x5EB900, 0x5EB910)
   and cuts the throttle (0x5EB920(0)). The setter copies the value to a
   mover's +0x6C when car +0x28 is 1; 0x5F47DE stores a new mover at car +0x34
   and copies +0x4D8 into its +0x6C (disassembly); the per-car snapshot routine
   0x5FB600 ("Car%d" section) saves it with 0x571780. What reads that +0x6C is
-  not traced. Car +0x3B8 **inferred**: the lateral slip is the clone's contact
-  sideways speed. Its float readers are at 0x5A29DF and 0x5ABA6A (an add at
-  0x5ED4BA), and integer accesses at 0x58BAC4..0x58E7E1 use it on an object
-  not identified, so its meaning is still **open**.
+  not traced.
+* **Slip trackers** (0x4057C0, from 0x421030; verified, observed; ported,
+  `AiDriver::track_slip`): over the four wheels of the car's exported pair
+  (car +0x3B4 / +0x3B8 + 8i, ECX = driver +0x220 → +0x40 → +0x374), the
+  along-wheel values beyond ±4 m/s (0x7839F4) summed, negated when the
+  forward speed +0x3EC is negative, into the tracker at driver +0x274; the
+  |across| values beyond 4 m/s (0x7839F8) into +0x278 (0x576BC0, value at
+  tracker +0x7C). The pair is the wheels' +0x100 / +0x104 on the physics
+  mover (the tyre pass 0x5A8290: +0x100 the slip +0x118 while sliding, 0
+  while gripping, 0x5A8600 / 0x5A86A1; +0x104 the contact's speed across
+  the wheel in both branches, 0x5A8606 / 0x5A86AB) and the chassis' +0x90 +
+  8i on the MeloMvr and the NIS mover (write-back 0x5A2B70). **Observed**
+  (stage-4 drag, three rivals on the physics mover, 1895 frames each): both
+  trackers equal the sums of the previous frame's exported pair on every
+  frame (the driver runs before the mover). The clone had summed the
+  wheels' own slip; past 4 m/s the two differ only for a wheel spinning on
+  a car at rest (the export is 0 with no travel), and in the same capture
+  the own slip and the export beyond 4 m/s never differed: no change to the
+  rivals' driving was measurable (the replays' sim values are unchanged).
+  The career playthrough's state first differs at step 1173 (free-roam
+  traffic) with this read alone (reverting it moves the first difference to
+  the drag lane changes at step 2468): the clone's traffic and belt cars keep
+  a stale `exported_slip` after a mover switch (slip 0, export 6–14 m/s;
+  120 604 wheel-frames in one playthrough, movers 4 / 1 / 2), where the
+  original zeroes the pair when it builds a BeltMover (0x5A93B0 → 0x59F890)
+  and at a placement (0x5F52F1 → 0x59F890) and the belt update writes it each
+  frame. **Ported since** (traced): the TrafficMover's frame 0x408820 clears
+  every wheel's pair (0x408BC5 / 0x408BC7); the BeltMover's 0x59EC90 writes
+  along = its speed − the velocity along the body's forward row (+0x90),
+  across = −the velocity along its left row (+0xA0), for every wheel
+  (0x59F344..0x59F378, 0x59F402 / 0x59F408; `belt_slip_pair`). Wheel-frames
+  with a mismatch between own slip and export beyond 4 m/s in one playthrough:
+  120 604 → 17 760, all of them the belt's own pair (slip 0 there).
 
 ## AI route layer (src/formats/ai_routes.rs, src/ai/route.rs)
 
@@ -228,7 +247,9 @@ Everything above the low-level driver; verified except where noted.
   car's velocity (speed > 1) or forward vector decides. **Clone**: the
   old-node blend is not used (in a race the record decides anyway);
   the walk's start passes no race coordinate.
-* **Walk** (0x422220 / 0x41EC20): a point per control point; at a point's
+* **Walk** (0x422220 / 0x41EC20): a point per control point (at a junction that is
+  no turn a new point under 3 m on is walked past, but in a drag race the list's last
+  point is dropped instead, docs/drag-stage4-parity.md 8.6); at a point's
   junctions, a type 3 against the direction ends the walk; a junction whose
   bit 18 differs from the direction is taken when it is type 2 (goal slot
   11, 0x40DDE0) or when, through 0x41CFA0 → goal slot 10 (0x41BCF0 →
@@ -280,7 +301,10 @@ Everything above the low-level driver; verified except where noted.
   after i1 minus P1 (i1's direction, vt+0x1C, with none). Only the lateral
   moves: 0x4123C0 gives the curve point's lateral off the control point
   less (lane offset + adjust), added to +0x04; lanes 2–5 (+0x08…) bend the
-  same way. The clone ports this as `RacerRoute::smooth`: run after the
+  same way, each on its own lane's places (ported since for racers as well:
+  `FuturePoint::lane_adjust`, read by `lane_lateral`, `nearest_lane` and
+  `lane_path`; native values of lanes 2–5 differ where the two walks differ,
+  docs/drag-stage4-parity.md 8.6). The clone ports this as `RacerRoute::smooth`: run after the
   extend and the speeds, from the update's first new point backed past two
   plain ones, and at the route's start (0x418DA0 now only inserts the
   flagged points; the bend is the separate pass). The port that bent each
@@ -3049,8 +3073,21 @@ meters" (0xA227EAD5). Quick Race's Outrun (race type 8) is the split-screen
   (offline, not mode 4) calls 0x5F84A0: race state 0, +0xBE8 = 1, laps 1,
   in game mode 1 0x541330(player status = 6), player +0x250 = 0 for the
   humans, the racers past the humans dropped (0x5F7960), then 0x42EFB0
-  (0x42CD60; NONE when 0x89E7C0 = 2 and 0x89E7C4 = 0, else
-  DEACTIVATE_OPPONENT). 0x541330 (career): a win adds the stage
+  (NONE when 0x89E7C0 = 2 and 0x89E7C4 = 0, else DEACTIVATE_OPPONENT),
+  whose first call 0x42CD60 gives every AI racer out (world list from
+  +0x14, 0x5ED440) whose goal (+0x6FC) is not of type 1 the goal "Win road
+  race" (0x42AA20(1) → 0x40CA20, type 1, vtable 0x784768; 0x402070 ends the
+  old goal and its action). Goal 1's vtable is goal 6's (0x784BA8) but for
+  slot +0x24 (0x50D510: no target car) and slot +0x28 (0x41BCF0 → 0x413CC0,
+  the ordinary racer junctions instead of 0x413F50's). With race type 0 the
+  catch-up (0x4172D0) is 0.75 and 0x41C5E0 takes the offline racer's speed,
+  no cap (slot +0x4C 0x40DDD0 = 1e9). The cars drive on with it until
+  0x40BF60 / 0x40BFB0 park them. **Observed** (outrun_brake_p14 b1, b2, b3,
+  b6, b9): goal 1 on the end's frame (action 0), action 6 from the next
+  think, `ai_catch` 0.75, target 43 / 31 / 39 / 40 / 39 m/s; parked (goal 0)
+  about 2 s later. Clone: `EncounterGoal::RoadRace` for every car out from
+  the end (`Encounters::think` while `ended`); it had kept goals 5 / 6 at
+  the outrun's pace (test `outrun_cars_take_goal_1_after_the_end`). 0x541330 (career): a win adds the stage
   definition's +0x02 to the bank (career +0x7134) and counts in the stage
   record's +0xDC; a loss takes it off, at least 0; then 0x529BE0, 0x533AA0
   (the magazine triggers, condition 2 reads +0xDC), 0x5110C0, 0x533320,

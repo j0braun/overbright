@@ -158,7 +158,8 @@ Up; neither was compared race by race against the original in this work (**open*
   keyboard bot could not win either, outrun.md).
 * The MeloMvr's landing after a crest: b1 native 6 → 5, clone 6 → 4 at the same frame (wheel spin
   at touch-down; the gearbox 0x5AB1A0 itself matches the port).
-* After the outrun ends the original's rival drives on in goal 1 at ~40 m/s (catch-up 0.75); the
-  clone's brakes towards the pre-challenge pursuit cap (not traced here).
-* Drag (§4): the native WRX's 1.8 s, the 240SX's crash, the rivals' lane convergence (0x40FC80 /
-  0x60BFB0).
+* (Done since: after the outrun ends every car out takes goal 1, "Win road race", at three quarters of
+  the offline racer's speed, 0x42EFB0 → 0x42CD60, and a rival whose nitrous shot runs holds the
+  throttle, 0x421F45; formats/ai.md, Outrun "The end" and AI driver "Nitrous hold".)
+* Drag (§4): the native WRX's 1.8 s, the 240SX's crash, the rivals' lane convergence
+  (drag-stage4-parity.md 8.6).

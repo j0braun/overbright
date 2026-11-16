@@ -690,7 +690,7 @@ fn cars(game: &Game) -> Vec<CarView<'_>> {
                 ai: Some((&x.controls, x.controller.actions.as_ref())),
                 target: Some(x.controller.target_speed),
                 catch: None,
-                goal: x.controller.goal.map(|chase| if chase { 5 } else { 6 }),
+                goal: x.controller.goal.map(|g| g.type_id()),
                 look: None,
                 path_n: None,
                 drag: false,
@@ -805,8 +805,7 @@ fn enc_rows(game: &Game, out: &mut String) {
         });
         let goal = match (pursuit, c.controller.goal) {
             (Some(_), _) => 9,
-            (None, Some(true)) => 5,
-            (None, Some(false)) => 6,
+            (None, Some(g)) => g.type_id(),
             (None, None) => -1,
         };
         let (g_dist, g_off) = pursuit.unwrap_or((0.0, 0.0));

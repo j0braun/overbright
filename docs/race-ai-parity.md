@@ -683,8 +683,9 @@ the clone's probe. Answers with addresses: `$OB_PRIVATE/audit/binary/TRAF4-answe
 * **Honk / flash draws** (0x40D5C0, docs/rng.md): ported at all 9 sites: 0x426E4F is the same
   chooser code as 0x426CFF (traffic goals 8 and 7), so the traffic proposal's one call covers both (docs/rng.md).
 * **Outrun end**: `Encounters::ended` keeps the last outrun from its end to manager state 0;
-  the cars still out keep goal 5 / 6 (the clone put them on goal 9). Test
-  `outrun_cars_keep_their_goals_after_the_end`.
+  the cars still out keep goal 5 / 6 (the clone put them on goal 9). Corrected later: the end's
+  0x42EFB0 first calls 0x42CD60, which gives every car out goal 1, "Win road race" (formats/ai.md,
+  Outrun, "The end"; test `outrun_cars_take_goal_1_after_the_end`).
 * **Driver event 4** (0x420810): posted when the think planned the racer's path afresh
   (`RacerRoute::take_replanned`: 0x420D40's 0x41D160(0, 0), GetUnstuck's first path); the driver's
   trackers skip their rate for that update (race rivals and encounter racers; never traffic).

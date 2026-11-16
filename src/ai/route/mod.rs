@@ -30,6 +30,7 @@ mod walk;
 pub use human::{HumanRoad, HumanStep, ROAD_PATH_SPEED, human_append};
 pub use lane_speeds::{RaceLap, field_class, speed_mode};
 use path::LinePoint;
+pub use path::lane_room;
 pub use query::Located;
 pub use target_speed::{CatchUp, LineSpeed, SpeedTarget, catch_up_multiplier};
 #[cfg(test)]
@@ -803,6 +804,7 @@ mod tests {
                 s: i as f32 * 100.0,
                 offset: 0.0,
                 adjust: 0.0,
+                lane_adjust: [0.0; 4],
                 speed: [30.0; 5],
                 inserted: None,
             })
@@ -851,6 +853,7 @@ mod tests {
             s,
             offset: 0.0,
             adjust: 0.0,
+            lane_adjust: [0.0; 4],
             speed: [30.0; 5],
             inserted: None,
         };
@@ -904,6 +907,7 @@ mod tests {
                     s: cp as f32 * 100.0,
                     offset: 0.0,
                     adjust: 0.0,
+                    lane_adjust: [0.0; 4],
                     speed: [speed; 5],
                     inserted: None,
                 })
@@ -919,6 +923,7 @@ mod tests {
             dead_end: false,
             clock: 0.0,
             branch_hold: 12.0,
+            drag: false,
             human: false,
             rng: GameRng::default(),
             race_coord: None,

@@ -260,8 +260,10 @@ impl RacerRoute {
     pub fn lane_lateral(&self, routes: &AiRoutes, position: Vec3, l: usize) -> f32 {
         let Some(p) = self.points.get(self.current) else { return 0.0 };
         let f = &routes.file;
+        let adj = if (2..=5).contains(&l) { p.lane_adjust[l - 2] } else { 0.0 };
         f.lateral(p.record, p.cp, p.backward, position.truncate())
             - lane_offset(&f.records[p.record].points[p.cp], lane(l, p.backward))
+            - adj
     }
 
     /// The traffic lane nearest the car (0x40F4A0): of the lanes 2–5 its
@@ -277,9 +279,9 @@ impl RacerRoute {
             .filter(|&l| f.records[p.record].lanes[lane(l, p.backward)])
             .filter(|&l| window.is_none_or(|(lo, hi)| l < lo || l > hi))
             .min_by(|&a, &b| {
-                (lane_offset(cp, lane(a, p.backward)) - side)
+                (lane_offset(cp, lane(a, p.backward)) + p.lane_adjust[a - 2] - side)
                     .abs()
-                    .total_cmp(&(lane_offset(cp, lane(b, p.backward)) - side).abs())
+                    .total_cmp(&(lane_offset(cp, lane(b, p.backward)) + p.lane_adjust[b - 2] - side).abs())
             })
     }
 
@@ -305,6 +307,12 @@ impl RacerRoute {
     /// the car's as (record, control point, s, lane-0 speed).
     pub fn upcoming(&self, n: usize) -> Vec<(usize, usize, f32, f32)> {
         self.points.iter().skip(self.current).take(n).map(|p| (p.record, p.cp, p.s, p.speed[0])).collect()
+    }
+
+    /// The list's points as (record id, control point, +0x58, lane 0's
+    /// adjustment +0x04, lanes 2–5's +0x08..+0x14).
+    pub fn lane_adjusts(&self, f: &RouteFile) -> Vec<(u16, usize, f32, f32, [f32; 4])> {
+        self.points.iter().map(|p| (f.records[p.record].id, p.cp, p.offset, p.adjust, p.lane_adjust)).collect()
     }
 
     /// Check aid: the list's points (record, cp, backward, s, offset,
