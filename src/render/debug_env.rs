@@ -108,10 +108,32 @@ pub fn nfsu2_rt_flat() -> bool {
 pub fn nfsu2_rt_debug_glow() -> bool {
     text("NFSU2_RT_DEBUG").is_some_and(|v| v == "glow")
 }
+/// `NFSU2_RT_DEBUG`: `primary` shows where the primary reflection's rays
+/// took the screen's picture (red, by its weight), their traced hit (green)
+/// or met nothing (blue) (a check aid).
+pub fn nfsu2_rt_debug_primary() -> bool {
+    text("NFSU2_RT_DEBUG").is_some_and(|v| v == "primary")
+}
 /// `NFSU2_RT_QUARTER`: `0` traces every reflection pixel every frame in
 /// the ray-traced tier (a check aid); unset or anything else: the quarter rate.
 pub fn nfsu2_rt_quarter() -> bool {
     text("NFSU2_RT_QUARTER").is_none_or(|v| v != "0")
+}
+/// `NFSU2_RT_PRIMARY`: `0` keeps the screen march first on wet roads and
+/// cars in the ray-traced tier, the rays only where it is unsure (a check
+/// aid); unset or anything else: the rays decide those reflections.
+pub fn nfsu2_rt_primary() -> bool {
+    text("NFSU2_RT_PRIMARY").is_none_or(|v| v != "0")
+}
+/// `NFSU2_RT_SHADOW_STILL`: `1` keeps Modern + RT's traced shadow blocks as
+/// one frame makes them (no history, no turning of their sample pixel, disc
+/// quarter or the rest's pick; a check aid).
+pub fn nfsu2_rt_shadow_still() -> bool {
+    text("NFSU2_RT_SHADOW_STILL").is_some_and(|v| v == "1")
+}
+/// `NFSU2_RT_SHADOW_STILL=2`: the history kept, nothing turned (a check aid).
+pub fn nfsu2_rt_shadow_unturned() -> bool {
+    text("NFSU2_RT_SHADOW_STILL").is_some_and(|v| v == "2")
 }
 /// `NFSU2_RT_CHAR_RAYS`: `1` keeps the NIS characters' Modern + RT rays in
 /// their colour shader (a check aid); unset: the traced shadows' blocks.

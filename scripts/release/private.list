@@ -452,3 +452,4 @@ docs/evidence/checks/rate-2026-11-12-u2b.txt        # a rate run of one change b
 docs/evidence/checks/rate-2026-11-13-*.txt          # rate runs recorded at merges; docs/checks.md and rate-columns.txt read none of them
 docs/evidence/np-fix-1/playthrough.txt              # the playthrough log of one change's gate
 docs/evidence/perf-rain/bench.md                    # a before/after bench of one change against named builds
+docs/evidence/rt-next/

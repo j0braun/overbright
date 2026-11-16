@@ -501,6 +501,7 @@ impl WorldRenderer {
                 main_proj,
                 params.camera.position,
                 scene_mode.clear_depth(),
+                params.time,
             );
         }
         rt_tlas

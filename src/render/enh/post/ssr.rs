@@ -179,6 +179,17 @@ pub(crate) struct Targets {
     /// trace and the resolve's two histories (colour, depth), written in turn.
     pub(crate) half: Option<wgpu::TextureView>,
     hist: Option<[(wgpu::TextureView, wgpu::TextureView); 2]>,
+    /// With the list: each listed ray's path to its hit, at the list's
+    /// target's size (the half trace's at the quarter rate; the resolve
+    /// reprojects a mirror's history by the reflected point).
+    dist: Option<wgpu::TextureView>,
+}
+
+/// The ray-traced tier's rays decide the reflection of wet roads and cars
+/// (docs/rt-reflections.md "Primary on wet roads and cars");
+/// `NFSU2_RT_PRIMARY=0`: they only fill where the march is unsure (a check aid).
+pub fn rt_primary() -> bool {
+    crate::render::debug_env::nfsu2_rt_primary()
 }
 
 /// The ray-traced tier traces at a quarter of the trace's pixels a frame,
@@ -217,6 +228,8 @@ pub struct Ssr {
     traced_frames: u64,
     /// [`quarter_rate`] when made (the list's test turns it off).
     pub(crate) quarter: bool,
+    /// The rays decide wet roads' and cars' reflections ([`rt_primary`]).
+    pub(crate) primary: bool,
     /// The ray list's programs ([`crate::render::rt::list_path`]), made on
     /// first use.
     rt_list: Option<crate::render::rt::ListTrace>,
@@ -372,6 +385,7 @@ impl Ssr {
             prev: None,
             traced_frames: 0,
             quarter: quarter_rate(),
+            primary: rt_primary(),
             #[cfg(test)]
             fragment_rays: false,
         }
@@ -393,7 +407,7 @@ impl Ssr {
             };
             let layout = crate::render::core::device_cache::bind_group_layout(gpu, &wgpu::BindGroupLayoutDescriptor {
                 label: Some("ssr resolve"),
-                entries: &[tex(0, false), tex(1, true), tex(2, false)],
+                entries: &[tex(0, false), tex(1, true), tex(2, false), tex(3, false)],
             });
             (layout, [None, None])
         });
@@ -599,6 +613,11 @@ impl Ssr {
                 )
                 .create_view(&Default::default())
             }),
+            dist: list.then(|| {
+                let size = if self.quarter { ((trace_size.0 + 1) / 2, (trace_size.1 + 1) / 2) } else { trace_size };
+                target_with(gpu, "ssr rt ray paths", size, crate::render::rt::DIST_FORMAT, 1, wgpu::TextureUsages::STORAGE_BINDING)
+                    .create_view(&Default::default())
+            }),
             hist: (list && self.quarter).then(|| {
                 std::array::from_fn(|_| {
                     (
@@ -677,9 +696,17 @@ impl Ssr {
             prev_right: pc.basis[0].extend(0.0).to_array(),
             prev_up: pc.basis[1].extend(0.0).to_array(),
             prev_forward: pc.basis[2].extend(0.0).to_array(),
-            prev_proj: [pc.scale.0, pc.scale.1, 0.0, 0.0],
+            prev_proj: [pc.scale.0, pc.scale.1, if frame.rt.is_some() && self.primary { 1.0 } else { 0.0 }, 0.0],
         };
         gpu.queue.write_buffer(&self.uniform, 0, bytemuck::bytes_of(&u));
+        // Which pixels the rays decide (the list path's passes; a wet frame:
+        // all, nothing marches first).
+        let primary = match (&frame.rt, &t.list) {
+            (Some(_), Some(_)) if self.primary && !debug => {
+                if frame.mask.wet { crate::render::rt::Primary::All } else { crate::render::rt::Primary::Some }
+            }
+            _ => crate::render::rt::Primary::Off,
+        };
         let dummy_depth = &self.dummy_depth[ms];
         let group = |depth: &wgpu::TextureView,
                      hiz: &wgpu::TextureView,
@@ -797,6 +824,9 @@ impl Ssr {
             Pass::Linear,
             &group(&frame.depth, dummy, dummy, true, dummy, dummy),
         );
+        // (The pyramid whole even when nothing marches first: the primary
+        // reflection asks the march where its ray misses or the screen hides
+        // its hit.)
         for l in 1..t.levels.len() {
             pass(
                 encoder,
@@ -826,8 +856,15 @@ impl Ssr {
                         term: &frame.mask.term,
                         surface: &frame.mask.surface,
                         uniform: &self.uniform,
+                        hiz: &t.hiz,
+                        scene,
+                        tint: &frame.mask.tint,
+                        glow: glow.unwrap_or(&self.dummy),
+                        sampler: &self.sampler,
+                        dist: t.dist.as_ref().expect("the list's ray paths"),
                     },
                     t.half.as_ref().filter(|_| quarter),
+                    primary,
                 ),
                 None => crate::render::rt::ssr_trace(gpu, encoder, &self.layouts, &mut self.rt, ms, rt, t, &trace_group),
             },
@@ -847,6 +884,10 @@ impl Ssr {
                     wgpu::BindGroupEntry { binding: 0, resource: wgpu::BindingResource::TextureView(half) },
                     wgpu::BindGroupEntry { binding: 1, resource: wgpu::BindingResource::TextureView(&last.0) },
                     wgpu::BindGroupEntry { binding: 2, resource: wgpu::BindingResource::TextureView(&last.1) },
+                    wgpu::BindGroupEntry {
+                        binding: 3,
+                        resource: wgpu::BindingResource::TextureView(t.dist.as_ref().expect("the list's ray paths")),
+                    },
                 ],
             });
             let main = group(dummy_depth, &self.dummy, &self.dummy, true, &self.dummy, &t.kinds);
@@ -1356,6 +1397,9 @@ mod tests {
     /// those: the trace pixels whose march result (the plain SSR trace's,
     /// as the f16 target holds it) has a confidence below 0.98, each with
     /// that result (0 for the early outs and misses); no validation error.
+    /// With the primary reflection (wet roads and cars: the rays decide) the
+    /// two forms again agree bit for bit (the list form's primary pixels from
+    /// its primary pass), and the list holds none of those pixels.
     #[test]
     #[ignore = "requires a GPU with ray queries; run explicitly for the ray list"]
     fn ray_list_traces_what_the_fragment_form_traces() {
@@ -1389,7 +1433,9 @@ mod tests {
                 mask0[(y * N + x) as usize] = road;
             }
         }
-        for (wet, samples, full) in [(true, 1u32, true), (true, 1, false), (false, 1, true), (true, 4, true)] {
+        for (wet, samples, full, primary) in
+            [(true, 1u32, true, false), (true, 1, false, false), (false, 1, true, false), (true, 4, true, false), (true, 1, true, true), (false, 1, false, true)]
+        {
             let scene = texture(&gpu, wgpu::TextureFormat::Rgba8Unorm, 1);
             let t = texture(&gpu, wgpu::TextureFormat::Rgba16Float, 1);
             write(&gpu, &t, &term, 8);
@@ -1419,7 +1465,7 @@ mod tests {
                 full,
                 rt,
             };
-            let what = format!("wet {wet} samples {samples} full {full}");
+            let what = format!("wet {wet} samples {samples} full {full} primary {primary}");
             // (the trace target's f16 texels, the picture, the list)
             let run = |rt: Option<crate::render::rt::FrameRt>, fragment_rays: bool| {
                 let scope = gpu.device.push_error_scope(wgpu::ErrorFilter::Validation);
@@ -1427,6 +1473,7 @@ mod tests {
                 let mut ssr = Ssr::new(&gpu, wgpu::TextureFormat::Rgba8Unorm);
                 ssr.fragment_rays = fragment_rays;
                 ssr.quarter = false;
+                ssr.primary = primary;
                 let mut encoder = gpu.device.create_command_encoder(&Default::default());
                 let view = scene.create_view(&Default::default());
                 ssr.run(&gpu, &mut encoder, &view, (N, N), (N, N), wgpu::TextureFormat::Rgba8Unorm, &frame(rt), None);
@@ -1448,6 +1495,31 @@ mod tests {
             assert!(fragment == listed, "{what}: the trace target differs from the fragment form's");
             assert!(fragment_picture == listed_picture, "{what}: the picture differs from the fragment form's");
             assert_ne!(plain, fragment, "{what}: the rays changed the trace (a test that traces)");
+            if primary {
+                let (w, h) = size;
+                let primary_px = |q: (u32, u32)| {
+                    let m = |q: u32, s: u32| (((q as f32 + 0.5) * N as f32 / s as f32) as u32).min(N - 1);
+                    let (mx, my) = (m(q.0, w), m(q.1, h));
+                    mask0[(my * N + mx) as usize] && (wet || ((20..28).contains(&mx) && (50..58).contains(&my)))
+                };
+                // The primary pixels (a wet road, a car) are traced by the
+                // primary pass, never listed; on a wet frame nothing is (no
+                // march, the fragment pass skipped).
+                if wet {
+                    assert_eq!(head[0], 0, "{what}: listed on a wet frame");
+                }
+                for e in &px {
+                    let q = (e & 0x7FFF, (e >> 15) & 0x7FFF);
+                    assert!(!primary_px(q), "{what}: primary {q:?} listed");
+                }
+                let all = (0..h).flat_map(|y| (0..w).map(move |x| (x, y))).filter(|&q| primary_px(q)).count();
+                let traced = (0..h)
+                    .flat_map(|y| (0..w).map(move |x| (x, y)))
+                    .filter(|&(x, y)| primary_px((x, y)) && fragment[((y * w + x) * 4 + 3) as usize] != 0)
+                    .count();
+                assert!(all >= 16 && traced * 2 > all, "{what}: {traced} of {all} primary pixels with a result");
+                continue;
+            }
             // The pixels that need a ray: the trace pixels on the mask
             // (its texel as mask_texel takes it) whose march result's
             // confidence is below 0.98.

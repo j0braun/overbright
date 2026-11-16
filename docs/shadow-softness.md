@@ -136,7 +136,9 @@ Measuring aids: `--bench explore` with `NFSU2_BENCH_AT=x,y,z,deg` (the car place
 `NFSU2_BENCH_AT_DRIVE=n`, `NFSU2_BENCH_FREEZE_MOVE=dx,dy,dz` (a frozen view crawling);
 `scripts/` here (`seq.sh` still/crawl dumps, `tvar.py` temporal SD, `cost.sh`).
 
-## 2026-11-05: the rays at half resolution, outside the colour shader
+## The rays at half resolution, outside the colour shader
+(As first built; the rays per light, the gather and the record changed since: "Every light: the rest
+resampled" below.)
 Modern + RT's cost (racing 4K, the player's settings + Modern + RT: +7.5 ms over Modern) was the
 rays in the world's colour shader: 2 + 1 + 1 + 1 per pixel, and the ray-query code's registers held
 every world pixel's shader (+1.5 ms with no ray traced at all). Now (`render/rt_shadow.rs`,
@@ -218,3 +220,49 @@ the gather's arithmetic are the ones before (frames identical). The output's siz
 renderer through `WorldRenderer::set_screen_size` (`FrameInputs::out_size`). Cost and the picture
 report: `docs/perf-budget.md`, `docs/evidence/perf-budget/rt-shadow-gather.md`. Not native (no
 counterpart in SPEED2.EXE).
+
+## Every light: the rest resampled (Modern + RT)
+The blocks traced only the two strongest lights; the rest kept their fallback shadow, and which two a
+block traced changed from block to block, so a lit sign showed a stair-step of 2 × 2-pixel blocks
+where one light's traced shadow met another's fallback. Now (`rt_shadow.wgsl`, `mlrt.wgsl`):
+* **A history by light.** Each frame a block samples another pixel of its 2 × 2 and another quarter
+  of the area light's disc set (one ray per traced light a frame, four frames a cycle), and keeps the
+  last frame's record, reprojected by the camera (bilinear over the four blocks where its point was,
+  on the same surface: view depth and normal). A light the block traced before blends its visibility
+  with that history (at least 1/16 per world tick: about a quarter second; the same at any frame
+  rate), held first to the range of this frame's rays of that light over the block's 3 × 3 (in
+  workgroup memory, a margin of 0.15): a moving shadow leaves no trail. The new rays enter as their
+  3 × 3 mean (spatially resolved first, then blended in time).
+* **The rest resampled.** The emitters past those two (neon, signs; the lamps keep their fallback)
+  share one visibility per block: the ratio of their shadowed to their unshadowed light. One emitter
+  is picked with a probability in proportion to its unshadowed light at the block (resampled
+  importance sampling over every light of the cluster: a weighted reservoir filled in the ranking
+  loop itself, each light entering once as it passes or leaves the running top two, one uniform
+  number a block rescaled at each step; a golden-ratio sequence over the frames stratifies the picks)
+  and one ray traced to its centre (a disc across the line to it reaches behind the wall that carries
+  it). Its visibility is an unbiased estimate of the ratio; the block's history averages it (its own
+  mean over up to 64 frames, then the same least blend), dropped where the rest's light changes 2×.
+  In the colour pass the estimator is per light: a traced light takes its own visibility where a block
+  traced it and the rest's where not; an untraced emitter takes the rest's, at half the traced
+  lights' depth (`ML_REST_DEPTH`: at full depth the wet road before the casino's neon lost luma p95 4
+  levels); lamps outside the two keep their layers and ellipsoids.
+* **The colour pass gathers 2 × 2 blocks** (bilinear) instead of the 3 × 3 tent: each record now
+  holds its whole disc set and 2 × 2 of pixels. The record packs its view depth as f16 and its normal
+  as 2 × 8 bits beside the two lights (15-bit visibility and a flag for an emitter) and the rest
+  (16-bit visibility, its frames, its light's log2).
+* **The characters' box once.** The first pass leaves out the box the NIS characters' pass traced last
+  frame; that pass covers it joined with this frame's (race start: the blocks there traced once, not
+  twice). If the characters vanish, that box keeps the last frame's blocks for one frame.
+* Check aids: `NFSU2_RT_SHADOW_STILL=1` (no history, nothing turned), `=2` (history, nothing turned).
+
+Measured (the reference player's 4K settings, Modern + RT and Ray Traced reflections, 4 interleaved
+pairs against the tree before, load 4-9, GPU busy ms; with the reflections' primary rays, docs/rt-reflections.md):
+racing 12.16 → 12.19, night rain 14.97 → 14.65, race start 14.01 → 13.85, free roam 9.13 → 9.26: the
+blocks' pass +0.03 … +0.12 (race start −0.29: the characters' box once), the colour pass −0.08 … −0.14
+(the 2 × 2 gather). Pictures: the sign beside the racing bench's road keeps smooth soft shadows where the
+blocks' stair-step was, at rest and in motion (`evidence/rt-next/shadows_*`); at the wet spots against
+before (reflections march-first in both): 0.01-4.5 % of the pixels > 3 %, luma mean −0.3 … 0, p5 equal,
+p95 −1.5 … 0. Ten frames: frame-to-frame change (pixels > 3 %) racing frozen 1.94 → 1.96 %, casino in rain
+still 1.35 → 1.39 %, racing in motion 15.06 → 15.24 %. Open: in motion a faint fine grid of the
+reprojected history is visible at 200 % on such signs; updating half the blocks a frame (a
+checkerboard) was tried and dropped (the halves' histories drift apart into a checker).

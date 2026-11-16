@@ -5,7 +5,7 @@
 
 struct RtParams {
     eye: vec4<f32>,   // the eye in the world; w the reach (m)
-    misc: vec4<f32>,  // x: instances, y: textured hits, z: layers, w: the glow debug view
+    misc: vec4<f32>,  // x: instances, y: textured hits, z: layers, w: the debug views (1 glow, 2 primary)
     cars: vec4<f32>,  // x: the cars' glows
     // The cars' glows' records (rt/geometry.rs `Glow::surface`, three each):
     // in the uniform, so every lane reads the same words (scalar loads).
@@ -161,7 +161,120 @@ fn rt_cast(o: vec3<f32>, d: vec3<f32>, tmin: f32, tmax: f32, mask: u32) -> RayIn
 }
 
 fn rt_fill(c: vec4<f32>, origin: vec3<f32>, r: vec3<f32>, n: vec3<f32>, car: bool, term: vec4<f32>, hit_car: bool) -> vec4<f32> {
-    if c.a >= 0.98 {
+    return rt_trace(c, origin, r, n, car, term, false);
+}
+
+// The surfaces whose reflection the ray decides (the primary reflection,
+// docs/rt-reflections.md "Primary on wet roads and cars"): a wet road and a
+// car's paint and glass, when the tier asks for it (p.prev_proj.z; not in
+// the debug views). Their trace pixels are not marched: every one casts.
+fn rt_is_primary(car: bool) -> bool {
+    return p.prev_proj.z > 0.5 && p.right.w < 0.5 && (car || p.fog_color.w >= 0.5);
+}
+
+// Whether `rt_primary` ran (the primary pass writes only those pixels).
+var<private> g_rt_was_primary: bool = false;
+// The ray's hit is hidden on screen by something nearer (`rt_screen`).
+var<private> g_rt_hidden: bool = false;
+
+// The primary reflection at trace pixel `frag_in` (its head's values): the
+// ray's; on a wet road, where something on screen hides its hit or the ray
+// meets nothing, the screen march's hit takes its place by the march's confidence where
+// the march hits well before the ray (the march sees what the traced scene
+// leaves out: alpha-tested railings and foliage, the characters, moved
+// props). `ssr_march` is fs_trace as ssr.wgsl writes it
+// (rt/trace.rs `march_fn`).
+fn rt_primary_at(frag_in: vec4<f32>, origin: vec3<f32>, r: vec3<f32>, n: vec3<f32>, car: bool, term: vec4<f32>) -> vec4<f32> {
+    g_rt_hidden = false;
+    let c = rt_primary(origin, r, n, car, term);
+    // (A miss too: the march may meet what the traced scene leaves out. A
+    // wet road's only: a car's paint and glass show little of it, and
+    // their rays are most of a dry race's.)
+    let missed = g_rt_dist < 0.0;
+    if !(g_rt_hidden || missed) || car || rt.misc.w > 0.5 {
+        return c;
+    }
+    let dist = select(g_rt_dist, 1.0e9, missed);
+    let m = ssr_march(frag_in);
+    g_rt_dist = select(dist, g_march_path, missed && g_march_path >= 0.0);
+    // Only a march hit well before the ray's: what lies on the ray and is
+    // not traced (the march hitting the hidden hit's own neighbourhood, or
+    // what the eye sees past it, is no better than the ray).
+    if g_march_path < 0.0 || g_march_path > dist * 0.9 - 0.5 {
+        return c;
+    }
+    return vec4<f32>(mix(c.rgb, m.rgb, m.a), max(c.a, m.a));
+}
+// The march's path to its hit (`ssr_march`; -1 none).
+var<private> g_march_path: f32 = -1.0;
+
+fn rt_primary(origin: vec3<f32>, r: vec3<f32>, n: vec3<f32>, car: bool, term: vec4<f32>) -> vec4<f32> {
+    g_rt_was_primary = true;
+    return rt_trace(vec4<f32>(0.0), origin, r, n, car, term, true);
+}
+
+// The ray's path to its hit (m), -1 for a miss: the quarter rate's resolve
+// reprojects a mirror's history by the reflected point (the list's compute
+// pass stores it beside the result).
+var<private> g_rt_dist: f32 = -1.0;
+
+// Where the ray's hit (`hv`, view space) is on screen and the screen shows
+// it (the pyramid's nearest depth there within the traced low LOD's offset
+// of the hit), its colour as the march takes a hit's (the scene's, its fog
+// taken off, the glow sprites there, a car's path fog) and in a its weight
+// (faded at the screen's edges); else a 0. `origin`: the reflecting point.
+// The drawn scene is the exact lit picture: where it holds the ray's hit,
+// it is taken in place of the traced hit's colour (FidelityFX Hybrid
+// Reflections' reuse of the screen).
+fn rt_screen(hv: vec3<f32>, origin: vec3<f32>, car: bool) -> vec4<f32> {
+    if hv.z <= p.depth.x * 1.5 {
+        return vec4<f32>(0.0);
+    }
+    let size = p.size.zw;
+    let s = to_trace(hv);
+    if any(s < vec2<f32>(0.0)) || any(s >= size) {
+        return vec4<f32>(0.0);
+    }
+    let cell_z = textureLoad(hiz_tex, clamp(vec2<i32>(s), vec2<i32>(0), vec2<i32>(size) - 1), 0).r;
+    if abs(cell_z - hv.z) > max(0.6, 0.05 * hv.z) {
+        // Something on screen in front of the hit: either between the eye
+        // and the hit (the traced colour is right) or on the ray itself and
+        // not in the traced scene (alpha-tested railings and foliage, the
+        // characters, moved props: the march sees it). `rt_primary_at` asks
+        // the march.
+        g_rt_hidden = cell_z < hv.z;
+        return vec4<f32>(0.0);
+    }
+    let hm = mask_texel(s);
+    if overlay_hit(hm, cell_z) {
+        return vec4<f32>(0.0);
+    }
+    let hsurf = textureLoad(surface_tex, hm, 0);
+    let near_car = hsurf.w > 0.0 && is_car(hsurf.z);
+    let hit_car = near_car && abs(hsurf.w - cell_z) <= 0.04 * hsurf.w + 0.2;
+    let at = s / size;
+    let edge = smoothstep(0.0, 0.07, min(min(at.x, 1.0 - at.x), min(at.y, 1.0 - at.y)));
+    var colour = textureSampleLevel(color_tex, samp, at, 0.0).rgb;
+    if !hit_car && p.fog.w > 0.5 {
+        let f = fog_at(hv.z);
+        colour = max((colour - p.fog_color.rgb * (1.0 - f)) / max(f, 0.35), vec3<f32>(0.0));
+    }
+    let path = length(hv - origin);
+    if p.up.w > 0.5 && !near_car {
+        colour += min(textureSampleLevel(glow_tex, samp, at, 0.0).rgb * GLOW_STEADY, vec3<f32>(1.0)) * smoothstep(2.0, 4.0, path);
+    }
+    if car && p.fog.w > 0.5 {
+        let f = fog_at(path);
+        colour = colour * f + p.fog_color.rgb * (1.0 - f);
+    }
+    return vec4<f32>(colour, edge);
+}
+
+// rt_fill's work; `primary`: the ray decides the reflection (the pixel was
+// not marched, c is 0): where the screen holds its hit, the screen's colour.
+fn rt_trace(c: vec4<f32>, origin: vec3<f32>, r: vec3<f32>, n: vec3<f32>, car: bool, term: vec4<f32>, primary: bool) -> vec4<f32> {
+    g_rt_dist = -1.0;
+    if c.a >= 0.98 && !primary {
         return c;
     }
     let o = rt.eye.xyz + p.right.xyz * origin.x + p.up.xyz * origin.y + p.forward.xyz * origin.z;
@@ -180,6 +293,21 @@ fn rt_fill(c: vec4<f32>, origin: vec3<f32>, r: vec3<f32>, n: vec3<f32>, car: boo
     // The neon, signs and light glows the ray passes on its way to the hit
     // (or to its reach: a lamp against the sky).
     let missed = h.kind == RAY_QUERY_INTERSECTION_NONE;
+    // The primary reflection: the screen's picture where it holds the hit
+    // (then no glow ray: the screen's glow sprites are taken there).
+    var screen = vec4<f32>(0.0);
+    if primary && !missed {
+        g_rt_dist = path;
+        let hw = start + d * path - rt.eye.xyz;
+        screen = rt_screen(vec3<f32>(dot(hw, p.right.xyz), dot(hw, p.up.xyz), dot(hw, p.forward.xyz)), origin, car);
+        if rt.misc.w > 1.5 {
+            // NFSU2_RT_DEBUG=primary (a check aid).
+            return vec4<f32>(screen.a, 1.0 - screen.a, 0.0, 1.0);
+        }
+        if screen.a >= 1.0 && rt.misc.w < 0.5 {
+            return vec4<f32>(screen.rgb, 1.0 - smoothstep(0.85, 1.0, path / rt.eye.w));
+        }
+    }
     var glow = vec3<f32>(0.0);
     // Not from a dry road: its reflection is held to the native term's
     // luminance below, which the glow could not pass.
@@ -188,7 +316,10 @@ fn rt_fill(c: vec4<f32>, origin: vec3<f32>, r: vec3<f32>, n: vec3<f32>, car: boo
         glow = rt_glow(start, d, select(0.25, 0.12, car), glow_reach, length(origin), car);
         glow += rt_car_glows(start, d, select(0.25, 0.12, car), glow_reach, length(origin), car);
     }
-    if rt.misc.w > 0.5 {
+    if primary && missed && rt.misc.w > 1.5 {
+        return vec4<f32>(0.0, 0.0, 1.0, 1.0);
+    }
+    if rt.misc.w > 0.5 && rt.misc.w < 1.5 {
         // NFSU2_RT_DEBUG=glow (a check aid): the glow alone, strong.
         return vec4<f32>(glow * 20.0, 1.0);
     }
@@ -222,6 +353,9 @@ fn rt_fill(c: vec4<f32>, origin: vec3<f32>, r: vec3<f32>, n: vec3<f32>, car: boo
         let lp = dot(term.rgb, vec3<f32>(0.299, 0.587, 0.114));
         let lc = dot(col, vec3<f32>(0.299, 0.587, 0.114));
         col = col * min(1.0, lp / max(lc, 1e-5));
+    }
+    if primary {
+        col = mix(col, screen.rgb, screen.a);
     }
     let conf = 1.0 - smoothstep(0.85, 1.0, path / rt.eye.w);
     let a = c.a + (1.0 - c.a) * conf;

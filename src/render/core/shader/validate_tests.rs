@@ -430,8 +430,10 @@ fn world_text_is_the_old_file() {
     // 129_099, 0x5e49_6c40_8c8c_df4d there); then 135_159, 0xbb99_edb7_338b_e7e0 before Modern + RT's lamp shadow
     // rays took instance mask 3 instead of 0xFF (the reflections' glowing instance, mask 4, is not theirs; the
     // scene had no instance outside masks 1 and 2 before, so the same hits; made in parallel from 128_469:
-    // 128_469, 0xf89a_25b6_4c4f_91bc there).
-    assert_old_text(ShaderId::World, 135_159, 0x4b8a_8e57_54bc_3fc1);
+    // 128_469, 0xf89a_25b6_4c4f_91bc there); then 135_159, 0x4b8a_8e57_54bc_3fc1 before Modern + RT's blocks
+    // took the emitters' resampled rest, their history and a 2 x 2 gather (`mlrt.wgsl`, the light loop's rest
+    // lookup; Modern + RT's module only, docs/shadow-softness.md "Every light: the rest resampled").
+    assert_old_text(ShaderId::World, 137_115, 0x4d83_640d_2de8_4e80);
 }
 
 #[test]
