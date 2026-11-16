@@ -82,7 +82,31 @@ struct Uniform {
     forward: [f32; 4],
     fog: [f32; 4],
     fog_color: [f32; 4],
+    /// The quarter-rate trace (ssr.wgsl `Params`): this frame's pixel of each
+    /// 2 × 2, half size on, history valid; the last frame's eye (relative),
+    /// basis and projection scales.
+    jitter: [f32; 4],
+    prev_eye: [f32; 4],
+    prev_right: [f32; 4],
+    prev_up: [f32; 4],
+    prev_forward: [f32; 4],
+    prev_proj: [f32; 4],
 }
+
+/// The last traced frame's camera (the quarter-rate history's reprojection).
+#[derive(Clone, Copy)]
+struct PrevCamera {
+    eye: glam::Vec3,
+    basis: [glam::Vec3; 3],
+    scale: (f32, f32),
+}
+
+/// The order this frame's pixel of each 2 × 2 takes over four frames.
+const JITTER: [[f32; 2]; 4] = [[0.0, 0.0], [1.0, 1.0], [1.0, 0.0], [0.0, 1.0]];
+
+/// The quarter-rate resolve's history: its colour and its surface's depth
+/// (negative on a car).
+const HIST_DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::R32Float;
 
 /// The pyramid's format (linear depth, metres) and the trace's.
 const HIZ_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::R32Float;
@@ -151,6 +175,17 @@ pub(crate) struct Targets {
     /// (the trace target then a storage texture too); None: the rays stay
     /// in the trace's fragment pass.
     pub(crate) list: Option<crate::render::rt::ListBuffers>,
+    /// The quarter-rate trace (with the list, [`quarter_rate`]): the half-size
+    /// trace and the resolve's two histories (colour, depth), written in turn.
+    pub(crate) half: Option<wgpu::TextureView>,
+    hist: Option<[(wgpu::TextureView, wgpu::TextureView); 2]>,
+}
+
+/// The ray-traced tier traces at a quarter of the trace's pixels a frame,
+/// rebuilt with the history (docs/rt-reflections.md "Quarter rate");
+/// `NFSU2_RT_QUARTER=0`: every pixel every frame (a check aid).
+pub fn quarter_rate() -> bool {
+    crate::render::debug_env::nfsu2_rt_quarter()
 }
 
 impl Targets {
@@ -173,6 +208,15 @@ pub struct Ssr {
     /// Group 1's layout and the ray-query trace pipelines (single,
     /// multisampled depth), made on first use.
     rt: Option<(wgpu::BindGroupLayout, [Option<wgpu::RenderPipeline>; 2])>,
+    /// The quarter-rate resolve's group 1 layout and pipelines (single,
+    /// multisampled depth), made on first use; the history written last; the
+    /// last traced frame's camera and the frame count (the jitter).
+    resolve: Option<(wgpu::BindGroupLayout, [Option<wgpu::RenderPipeline>; 2])>,
+    hist_cur: usize,
+    prev: Option<PrevCamera>,
+    traced_frames: u64,
+    /// [`quarter_rate`] when made (the list's test turns it off).
+    pub(crate) quarter: bool,
     /// The ray list's programs ([`crate::render::rt::list_path`]), made on
     /// first use.
     rt_list: Option<crate::render::rt::ListTrace>,
@@ -323,16 +367,86 @@ impl Ssr {
             dummy,
             rt: None,
             rt_list: None,
+            resolve: None,
+            hist_cur: 0,
+            prev: None,
+            traced_frames: 0,
+            quarter: quarter_rate(),
             #[cfg(test)]
             fragment_rays: false,
         }
+    }
+
+    /// The quarter-rate resolve's pipeline for a depth multisampled (`ms` 1)
+    /// or not, and its group 1 layout.
+    fn resolve_pipeline(&mut self, gpu: &Gpu, ms: usize) -> (wgpu::BindGroupLayout, wgpu::RenderPipeline) {
+        let (layout, pipelines) = self.resolve.get_or_insert_with(|| {
+            let tex = |binding, filterable| wgpu::BindGroupLayoutEntry {
+                binding,
+                visibility: wgpu::ShaderStages::FRAGMENT,
+                ty: wgpu::BindingType::Texture {
+                    sample_type: wgpu::TextureSampleType::Float { filterable },
+                    view_dimension: wgpu::TextureViewDimension::D2,
+                    multisampled: false,
+                },
+                count: None,
+            };
+            let layout = crate::render::core::device_cache::bind_group_layout(gpu, &wgpu::BindGroupLayoutDescriptor {
+                label: Some("ssr resolve"),
+                entries: &[tex(0, false), tex(1, true), tex(2, false)],
+            });
+            (layout, [None, None])
+        });
+        let layouts = &self.layouts;
+        let pipeline = pipelines[ms]
+            .get_or_insert_with(|| {
+                let source = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/render/ssr.wgsl"));
+                let src = if ms == 1 { multisampled(source) } else { source.to_string() };
+                let src = format!("{src}\n{}", include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/render/ssr_resolve.wgsl")));
+                let shader = crate::render::core::device_cache::module(gpu, wgpu::ShaderModuleDescriptor {
+                    label: Some("ssr resolve"),
+                    source: wgpu::ShaderSource::Wgsl(src.into()),
+                });
+                let pl = crate::render::core::device_cache::pipeline_layout(gpu, &wgpu::PipelineLayoutDescriptor {
+                    label: Some("ssr resolve"),
+                    bind_group_layouts: &[Some(&layouts[ms]), Some(layout)],
+                    immediate_size: 0,
+                });
+                let target = |format| Some(wgpu::ColorTargetState { format, blend: None, write_mask: wgpu::ColorWrites::ALL });
+                crate::render::core::device_cache::render_pipeline(gpu, &wgpu::RenderPipelineDescriptor {
+                    label: Some("fs_resolve"),
+                    layout: Some(&pl),
+                    vertex: wgpu::VertexState {
+                        module: &shader,
+                        entry_point: Some("vs_main"),
+                        compilation_options: Default::default(),
+                        buffers: &[],
+                    },
+                    fragment: Some(wgpu::FragmentState {
+                        module: &shader,
+                        entry_point: Some("fs_resolve"),
+                        compilation_options: Default::default(),
+                        targets: &[target(TRACE_FORMAT), target(HIST_DEPTH_FORMAT)],
+                    }),
+                    primitive: wgpu::PrimitiveState::default(),
+                    depth_stencil: None,
+                    multisample: wgpu::MultisampleState::default(),
+                    multiview_mask: None,
+                    cache: gpu.disk_pipeline_cache(),
+                })
+            })
+            .clone();
+        (layout.clone(), pipeline)
     }
 
     /// The ray-traced trace's programs for a depth multisampled when `ms`
     /// (the path the device takes), made now: a drive's warm-up
     /// (docs/first-use-builds.md).
     pub fn warm_rt(&mut self, gpu: &Gpu, ms: bool) {
-        crate::render::rt::warm_trace(gpu, &self.layouts, &mut self.rt, &mut self.rt_list, ms);
+        crate::render::rt::warm_trace(gpu, &self.layouts, &mut self.rt, &mut self.rt_list, ms, self.quarter);
+        if self.quarter && crate::render::rt::list_path(gpu) {
+            self.resolve_pipeline(gpu, usize::from(ms));
+        }
     }
 
     fn pipelines(
@@ -474,7 +588,28 @@ impl Ssr {
             skip: target(gpu, "ssr skip depth", trace_size, SKIP_FORMAT, 1).create_view(&Default::default()),
             kinds: target(gpu, "ssr mask kinds", trace_size, KINDS_FORMAT, 1).create_view(&Default::default()),
             list: list.then(|| crate::render::rt::ListBuffers::new(gpu, trace_size)),
+            half: (list && self.quarter).then(|| {
+                target_with(
+                    gpu,
+                    "ssr half trace",
+                    ((trace_size.0 + 1) / 2, (trace_size.1 + 1) / 2),
+                    TRACE_FORMAT,
+                    1,
+                    wgpu::TextureUsages::STORAGE_BINDING,
+                )
+                .create_view(&Default::default())
+            }),
+            hist: (list && self.quarter).then(|| {
+                std::array::from_fn(|_| {
+                    (
+                        target(gpu, "ssr resolved", trace_size, TRACE_FORMAT, 1).create_view(&Default::default()),
+                        target(gpu, "ssr resolved depth", trace_size, HIST_DEPTH_FORMAT, 1)
+                            .create_view(&Default::default()),
+                    )
+                })
+            }),
         });
+        self.prev = None;
     }
 
     /// The reflections of `frame` put into `scene` (`size` big, in
@@ -499,9 +634,25 @@ impl Ssr {
             self.targets = None;
         }
         self.ensure_targets(gpu, size, out, frame.full, frame.rt.is_some());
-        let t = self.targets.as_ref().unwrap();
         let ms = usize::from(frame.samples > 1);
+        let debug = crate::env_parsed!("NFSU2_SSR_DEBUG", f32).unwrap_or(0.0) != 0.0;
+        // The quarter rate: this frame's pixel of each 2 × 2, the history's
+        // camera (dropped after a cut: the eye 20 m away).
+        let quarter = frame.rt.is_some() && self.targets.as_ref().is_some_and(|t| t.half.is_some()) && !debug;
+        let resolve = quarter.then(|| self.resolve_pipeline(gpu, ms));
         let [right, up, forward] = frame.basis;
+        let eye = frame.rt.as_ref().map_or(glam::Vec3::ZERO, |r| r.eye);
+        let prev = self.prev.filter(|c| quarter && c.eye.distance(eye) < 20.0);
+        let jitter = JITTER[(self.traced_frames % 4) as usize];
+        if quarter {
+            self.traced_frames += 1;
+            self.hist_cur ^= 1;
+            self.prev = Some(PrevCamera { eye, basis: frame.basis, scale: frame.scale });
+        } else {
+            self.prev = None;
+        }
+        let pc = prev.unwrap_or(PrevCamera { eye, basis: frame.basis, scale: frame.scale });
+        let t = self.targets.as_ref().unwrap();
         let u = Uniform {
             size: [size.0 as f32, size.1 as f32, t.trace_size.0 as f32, t.trace_size.1 as f32],
             depth: [frame.near, frame.far, if frame.reversed { 1.0 } else { 0.0 }, (t.levels.len() - 1) as f32],
@@ -516,6 +667,17 @@ impl Ssr {
                 c[3] = if frame.mask.wet { 1.0 } else { 0.0 };
                 c
             },
+            jitter: [
+                jitter[0],
+                jitter[1],
+                if quarter { 1.0 } else { 0.0 },
+                if prev.is_some() { 1.0 } else { 0.0 },
+            ],
+            prev_eye: (pc.eye - eye).extend(0.0).to_array(),
+            prev_right: pc.basis[0].extend(0.0).to_array(),
+            prev_up: pc.basis[1].extend(0.0).to_array(),
+            prev_forward: pc.basis[2].extend(0.0).to_array(),
+            prev_proj: [pc.scale.0, pc.scale.1, 0.0, 0.0],
         };
         gpu.queue.write_buffer(&self.uniform, 0, bytemuck::bytes_of(&u));
         let dummy_depth = &self.dummy_depth[ms];
@@ -553,7 +715,6 @@ impl Ssr {
         // The scene-sized copy and composite only where the world's
         // mask was drawn (its depth not at the clear value), when the mask
         // has a depth of the scene's size; the debug views take every pixel.
-        let debug = crate::env_parsed!("NFSU2_SSR_DEBUG", f32).unwrap_or(0.0) != 0.0;
         let mask_depth = frame.mask.depth.as_ref().filter(|d| {
             let t = d.texture();
             !debug
@@ -666,6 +827,7 @@ impl Ssr {
                         surface: &frame.mask.surface,
                         uniform: &self.uniform,
                     },
+                    t.half.as_ref().filter(|_| quarter),
                 ),
                 None => crate::render::rt::ssr_trace(gpu, encoder, &self.layouts, &mut self.rt, ms, rt, t, &trace_group),
             },
@@ -674,6 +836,43 @@ impl Ssr {
                 crate::prof::gpu::mark(encoder, "graphics: ssr trace");
             }
         }
+        // The quarter rate's full-size trace: the half trace and the history.
+        let mut traced = &t.trace;
+        if let (Some((layout, pipeline)), Some(half), Some(hist)) = (&resolve, &t.half, &t.hist) {
+            let (cur, last) = (&hist[self.hist_cur], &hist[self.hist_cur ^ 1]);
+            let inputs = gpu.device.create_bind_group(&wgpu::BindGroupDescriptor {
+                label: Some("ssr resolve"),
+                layout,
+                entries: &[
+                    wgpu::BindGroupEntry { binding: 0, resource: wgpu::BindingResource::TextureView(half) },
+                    wgpu::BindGroupEntry { binding: 1, resource: wgpu::BindingResource::TextureView(&last.0) },
+                    wgpu::BindGroupEntry { binding: 2, resource: wgpu::BindingResource::TextureView(&last.1) },
+                ],
+            });
+            let main = group(dummy_depth, &self.dummy, &self.dummy, true, &self.dummy, &t.kinds);
+            let mut rp = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("ssr resolve"),
+                color_attachments: &[&cur.0, &cur.1].map(|view| {
+                    Some(wgpu::RenderPassColorAttachment {
+                        view,
+                        depth_slice: None,
+                        resolve_target: None,
+                        ops: wgpu::Operations { load: clear, store: wgpu::StoreOp::Store },
+                    })
+                }),
+                depth_stencil_attachment: None,
+                timestamp_writes: None,
+                occlusion_query_set: None,
+                multiview_mask: None,
+            });
+            rp.set_pipeline(pipeline);
+            rp.set_bind_group(0, &main, &[]);
+            rp.set_bind_group(1, &inputs, &[]);
+            rp.draw(0..3, 0..1);
+            drop(rp);
+            crate::prof::gpu::mark(encoder, "graphics: rt resolve");
+            traced = &cur.0;
+        }
         pass(
             encoder,
             "ssr filter",
@@ -681,7 +880,7 @@ impl Ssr {
             clear,
             Some((&t.skip, false)),
             Pass::Denoise,
-            &group(dummy_depth, &self.dummy, &self.dummy, true, &t.trace, &t.kinds),
+            &group(dummy_depth, &self.dummy, &self.dummy, true, traced, &t.kinds),
         );
         crate::prof::gpu::mark(encoder, "graphics: ssr filter");
         let composite_group = group(&frame.depth, &self.dummy, &t.copy, true, &t.filtered, &self.dummy);
@@ -1131,9 +1330,19 @@ mod tests {
             tlas,
             colors: buffer(bytemuck::cast_slice(&colors), wgpu::BufferUsages::STORAGE),
             uniform: buffer(
-                bytemuck::cast_slice(&[0.0f32, 0.0, 0.0, crate::render::rt::REACH, 2.0, 0.0, 0.0, 0.0]),
+                &{
+                    let mut u = vec![0.0f32; 12 + 3 * 4 * crate::render::rt::MAX_CAR_GLOWS];
+                    u[3] = crate::render::rt::REACH;
+                    u[4] = 2.0;
+                    bytemuck::cast_slice(&u).to_vec()
+                },
                 wgpu::BufferUsages::UNIFORM,
             ),
+            // (misc.y 0: the flat colours above, no textured hit.)
+            surfaces: buffer(bytemuck::bytes_of(&[0u32; 12]), wgpu::BufferUsages::STORAGE),
+            hit_tex: crate::render::rt::hit_texture(gpu, 1, &mut |_| None),
+            hit_samp: crate::render::rt::hit_sampler(device),
+            eye: glam::Vec3::ZERO,
         }
     }
 
@@ -1217,6 +1426,7 @@ mod tests {
                 write(&gpu, &scene, &colour, 4);
                 let mut ssr = Ssr::new(&gpu, wgpu::TextureFormat::Rgba8Unorm);
                 ssr.fragment_rays = fragment_rays;
+                ssr.quarter = false;
                 let mut encoder = gpu.device.create_command_encoder(&Default::default());
                 let view = scene.create_view(&Default::default());
                 ssr.run(&gpu, &mut encoder, &view, (N, N), (N, N), wgpu::TextureFormat::Rgba8Unorm, &frame(rt), None);
@@ -1318,6 +1528,33 @@ mod tests {
         let exp = ((b >> 23) & 0xFF) as i32 - 127 + 15;
         let man = ((b >> 13) & 0x3FF) as u16;
         sign | ((exp as u16) << 10) | man
+    }
+
+    /// The quarter rate's resolve (appended to both depth forms) parses and
+    /// validates; the four frames' jitter takes each pixel of a 2 × 2 once;
+    /// the trace pass maps its fragment first; the uniform is the shader's.
+    #[test]
+    fn quarter_rate_resolve_validates_and_the_jitter_covers_each_pixel() {
+        let src = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/render/ssr.wgsl"));
+        let resolve = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/render/ssr_resolve.wgsl"));
+        for s in [src.to_string(), multisampled(src)] {
+            let module = wgpu::naga::front::wgsl::parse_str(&format!("{s}\n{resolve}")).expect("parse");
+            wgpu::naga::valid::Validator::new(
+                wgpu::naga::valid::ValidationFlags::all(),
+                wgpu::naga::valid::Capabilities::all(),
+            )
+            .validate(&module)
+            .expect("valid");
+            assert!(module.entry_points.iter().any(|e| e.name == "fs_resolve"));
+        }
+        // Four frames take each pixel of a 2 × 2 once.
+        let mut seen: Vec<[u32; 2]> = JITTER.iter().map(|j| [j[0] as u32, j[1] as u32]).collect();
+        seen.sort();
+        assert_eq!(seen, vec![[0, 0], [0, 1], [1, 0], [1, 1]]);
+        // The trace pass stands for its pixel: its first line.
+        assert!(src.contains("fn fs_trace(@builtin(position) frag_in: vec4<f32>) -> @location(0) vec4<f32> {\n    let frag = trace_frag(frag_in);\n"));
+        // The uniform's size is the shader's struct (14 vec4).
+        assert_eq!(std::mem::size_of::<Uniform>(), 14 * 16);
     }
 
     /// Both variants of the passes parse and validate (naga, no GPU):

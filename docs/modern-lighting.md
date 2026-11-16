@@ -350,4 +350,5 @@ is redistributed, not added. Now (Modern + RT, Bold, 10 the look direction spots
 The rays left the world's colour shader: a compute pass after the depth pre-pass traces the two
 strongest lights per 2 × 2 block, the colour pass gathers them (`render/rt_shadow.rs`; design in
 `docs/shadow-softness.md` "2026-11-05: the rays at half resolution, outside the colour shader", numbers in `docs/perf-budget.md` "The new effects' costs": racing 4K with the player's
-settings RT +7.4 → +2.7 ms over Modern). NIS characters keep the in-shader rays.
+settings RT +7.4 → +2.7 ms over Modern). NIS characters take the blocks too: drawn into the depth first and
+the blocks traced again over their box (docs/shadow-softness.md).

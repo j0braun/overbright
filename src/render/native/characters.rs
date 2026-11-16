@@ -184,6 +184,25 @@ impl CharacterRenderer {
             return;
         }
         gpu.queue.write_buffer(&self.vertices, 0, bytemuck::cast_slice(vertices));
+        let scene = world.scene_pipelines();
+        // Modern + RT: the characters into the depth first and the traced
+        // shadows' blocks again over their box, so their colour pass reads
+        // their lights' rays as the world's pixels do (their own pipelines
+        // traced them in the colour shader, every pixel at the scene's size).
+        // `NFSU2_RT_CHAR_RAYS=1` keeps the in-shader rays (a check aid).
+        let plan = world.rt_shadow_plan.lock().unwrap().clone();
+        let blocks = match (&plan, &scene.depth) {
+            (Some(plan), Some(prepass))
+                if !scene.characters.is_empty() && !crate::render::debug_env::nfsu2_rt_char_rays() =>
+            {
+                self.depth_pass(world, encoder, depth, &prepass.depth, runs);
+                let (lo, hi) = screen_box(vertices, view_proj, plan.blocks());
+                plan.record_region(encoder, depth, lo, hi);
+                crate::prof::gpu::mark(encoder, "characters: rt shadows");
+                true
+            }
+            _ => false,
+        };
         let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("characters"),
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
@@ -207,15 +226,82 @@ impl CharacterRenderer {
         pass.set_vertex_buffer(1, self.instance.slice(..));
         for &(tex, first, count) in runs {
             let (slot, key) = self.textures[&tex];
-            // Modern + RT's character pipelines (their own rays).
-            let scene = world.scene_pipelines();
-            pass.set_pipeline(scene.characters.get(&key).unwrap_or(&scene.pipelines[&key]));
+            // Modern + RT's character pipelines (their own rays) unless the
+            // blocks hold them.
+            let own = if blocks { None } else { scene.characters.get(&key) };
+            pass.set_pipeline(own.unwrap_or(&scene.pipelines[&key]));
             // A pipeline set clears the immediates: bind the slot afresh.
             let mut bound = usize::MAX;
             world.set_texture(&mut pass, slot, &mut bound);
             pass.draw(first..first + count, 0..1);
         }
     }
+}
+
+impl CharacterRenderer {
+    /// The characters' opaque runs into `depth` with the main view's
+    /// pre-pass pipelines (blended runs write no depth there either).
+    fn depth_pass(
+        &self,
+        world: &WorldRenderer,
+        encoder: &mut wgpu::CommandEncoder,
+        depth: &wgpu::TextureView,
+        pipelines: &HashMap<crate::render::DepthKey, wgpu::RenderPipeline>,
+        runs: &[(u32, u32, u32)],
+    ) {
+        let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            label: Some("characters depth"),
+            color_attachments: &[],
+            depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                view: depth,
+                depth_ops: Some(wgpu::Operations { load: wgpu::LoadOp::Load, store: wgpu::StoreOp::Store }),
+                stencil_ops: None,
+            }),
+            timestamp_writes: None,
+            occlusion_query_set: None,
+            multiview_mask: None,
+        });
+        pass.set_bind_group(0, &world.scene_group(), &[]);
+        pass.set_bind_group(2, &world.no_reflection, &[]);
+        pass.set_vertex_buffer(0, self.vertices.slice(..));
+        pass.set_vertex_buffer(1, self.instance.slice(..));
+        for &(tex, first, count) in runs {
+            let (slot, key) = self.textures[&tex];
+            if key.blend != crate::formats::texture::Blend::None {
+                continue;
+            }
+            let k = crate::render::DepthKey { reflect: false, alpha_test: key.alpha_test, fade: 0 };
+            let Some(p) = pipelines.get(&k) else { continue };
+            pass.set_pipeline(p);
+            // A pipeline set clears the immediates: bind the slot afresh.
+            let mut bound = usize::MAX;
+            world.set_texture(&mut pass, slot, &mut bound);
+            pass.draw(first..first + count, 0..1);
+        }
+    }
+}
+
+/// The blocks (of a `blocks` grid over the screen) the skinned `vertices`
+/// cover under `view_proj`, one block of margin (the blocks' normals read
+/// their neighbours); the whole grid when a corner is behind the eye.
+fn screen_box(vertices: &[Vertex], view_proj: Mat4, blocks: (u32, u32)) -> ((u32, u32), (u32, u32)) {
+    let (mut lo, mut hi) = (glam::Vec2::splat(f32::MAX), glam::Vec2::splat(f32::MIN));
+    for v in vertices {
+        let c = view_proj * Vec3::from(v.position).extend(1.0);
+        if c.w <= 1e-3 {
+            return ((0, 0), blocks);
+        }
+        let n = glam::Vec2::new(c.x, c.y) / c.w;
+        lo = lo.min(n);
+        hi = hi.max(n);
+    }
+    let b = glam::Vec2::new(blocks.0 as f32, blocks.1 as f32);
+    // NDC y up, blocks y down.
+    let a = (glam::Vec2::new(lo.x, -hi.y) * 0.5 + 0.5) * b;
+    let z = (glam::Vec2::new(hi.x, -lo.y) * 0.5 + 0.5) * b;
+    let a = (a - 1.0).max(glam::Vec2::ZERO).min(b);
+    let z = (z + 1.0).max(glam::Vec2::ZERO).min(b).ceil();
+    ((a.x as u32, a.y as u32), (z.x as u32, z.y as u32))
 }
 
 /// One frame's skinning (no GPU access; on the main thread or a render
@@ -296,6 +382,17 @@ mod tests {
         assert!(within_corner_budget([80_000, 80_000].into_iter()));
         assert!(!within_corner_budget([80_000, 80_001].into_iter()));
         assert!(!within_corner_budget([usize::MAX, 1].into_iter()));
+    }
+
+    /// The characters' box in blocks: a corner's projection with a block's
+    /// margin, clamped to the grid; the whole grid when one is behind the eye.
+    #[test]
+    fn screen_box_covers_the_corners_with_a_margin() {
+        let v = |x: f32, y: f32| Vertex { position: [x, y, 0.5], color: [0; 4], uv: [0.0; 2] };
+        let (lo, hi) = screen_box(&[v(-0.5, 0.5), v(0.0, 0.0)], Mat4::IDENTITY, (100, 50));
+        assert_eq!((lo, hi), ((24, 11), (51, 26)));
+        let behind = Mat4::from_cols_array(&[1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, -1.0, 0.0, 0.0, 0.0, 0.0]);
+        assert_eq!(screen_box(&[v(0.0, 0.0)], behind, (100, 50)), ((0, 0), (100, 50)));
     }
 
     /// The crowd skinned on a render thread ([`CharacterRenderer::start`]'s

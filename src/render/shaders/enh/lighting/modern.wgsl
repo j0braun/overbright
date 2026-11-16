@@ -448,7 +448,7 @@ fn ml_relight(p: vec3<f32>, bake: vec3<f32>, ng_in: vec3<f32>, n_in: vec3<f32>, 
         // Faces the light grazes are left lit (the traced low LOD of a
         // curved facade shades the drawn one there).
         let graze = select(smoothstep(0.1, 0.35, dot(ng, dir)), 1.0, ch);
-        let vis = mix(1.0, ml_ray(p, ng, l.position.xyz, ml_light_radius(l), 0xFFu, clusters[first + i], select(ML_RAY_SAMPLES_REST, ML_RAY_SAMPLES, j == 0u)), ML_SHADOW_DEPTH * graze);
+        let vis = mix(1.0, ml_ray(p, ng, l.position.xyz, ml_light_radius(l), 0x03u, clusters[first + i], select(ML_RAY_SAMPLES_REST, ML_RAY_SAMPLES, j == 0u)), ML_SHADOW_DEPTH * graze);
         let dv = vis - selv[j];
         if pack {
             lit += colour * (now * dv);

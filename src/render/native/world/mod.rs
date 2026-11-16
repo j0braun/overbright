@@ -147,6 +147,9 @@ pub struct WorldRenderer {
     pub(in crate::render) screen_size: (u32, u32),
     /// Modern + RT's half-resolution traced shadows (made on first use).
     pub(in crate::render) rt_shadow: Option<rt_shadow::RtShadow>,
+    /// This frame's pass of them, for the NIS characters' own blocks
+    /// (`characters.rs`: drawn later, after they are in the depth).
+    pub(in crate::render) rt_shadow_plan: std::sync::Mutex<Option<rt_shadow::Plan>>,
     /// Basis used by retained cube faces; reset when storage changes.
     pub(in crate::render) environment_enhanced: Option<bool>,
     /// The newest face-schedule index whose faces are in the cube
@@ -398,6 +401,7 @@ impl WorldRenderer {
             view_size: (0, 0),
             screen_size: (0, 0),
             rt_shadow: None,
+            rt_shadow_plan: std::sync::Mutex::new(None),
             environment_enhanced: None,
             env_tick: None,
             main_lod: MAIN_LOD,

@@ -427,8 +427,11 @@ fn world_text_is_the_old_file() {
     // lamps' modules only); then 128_469, 0xe290_d4d5_ea1d_c825 before the lamps' module's alpha-0 entries
     // (`fs_world_clear` / `fs_nofog_clear`) and the falling rain lit at its drops' corners (`rain_lit.wgsl`): new
     // entry points inside the LAMPS blocks only, the native modules unchanged (made in parallel from 122_409:
-    // 129_099, 0x5e49_6c40_8c8c_df4d there).
-    assert_old_text(ShaderId::World, 135_159, 0xbb99_edb7_338b_e7e0);
+    // 129_099, 0x5e49_6c40_8c8c_df4d there); then 135_159, 0xbb99_edb7_338b_e7e0 before Modern + RT's lamp shadow
+    // rays took instance mask 3 instead of 0xFF (the reflections' glowing instance, mask 4, is not theirs; the
+    // scene had no instance outside masks 1 and 2 before, so the same hits; made in parallel from 128_469:
+    // 128_469, 0xf89a_25b6_4c4f_91bc there).
+    assert_old_text(ShaderId::World, 135_159, 0x4b8a_8e57_54bc_3fc1);
 }
 
 #[test]

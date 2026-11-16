@@ -59,20 +59,20 @@ pub(in crate::render) const ANCHORS: [(&str, &str); 5] = [
 /// fs_trace's head in ssr.wgsl, the ray's inputs from the pixel (its
 /// mask texel, surface, origin, normal, reflected ray): what the list's
 /// compute pass recomputes, as the same text.
-const HEAD_START: &str = "fn fs_trace(@builtin(position) frag: vec4<f32>) -> @location(0) vec4<f32> {\n";
+const HEAD_START: &str = "fn fs_trace(@builtin(position) frag_in: vec4<f32>) -> @location(0) vec4<f32> {\n";
 const HEAD_END: &str = "    // The ray's reach: the distance, and not behind the near plane.\n";
 
 /// (ssr.wgsl text, its list form): where the RT form calls `rt_fill`, the
 /// result goes to `rt_keep` (`zero`: the early outs and the miss, whose
 /// result is 0).
 pub(in crate::render) const LIST_ANCHORS: [(&str, &str); 5] = [
-    (ANCHORS[0].0, "    if reach <= 0.05 {\n        return rt_keep(vec4<f32>(0.0), frag.xy, true);\n    }"),
-    (ANCHORS[1].0, "    if dist < 1.0 {\n        return rt_keep(vec4<f32>(0.0), frag.xy, true);\n    }"),
-    (ANCHORS[2].0, "    if !hit {\n        return rt_keep(vec4<f32>(0.0), frag.xy, true);\n    }"),
-    (ANCHORS[3].0, "    return rt_keep(vec4<f32>(colour, edge * travel * facing), frag.xy, false);\n}"),
+    (ANCHORS[0].0, "    if reach <= 0.05 {\n        return rt_keep(vec4<f32>(0.0), frag_in.xy, true);\n    }"),
+    (ANCHORS[1].0, "    if dist < 1.0 {\n        return rt_keep(vec4<f32>(0.0), frag_in.xy, true);\n    }"),
+    (ANCHORS[2].0, "    if !hit {\n        return rt_keep(vec4<f32>(0.0), frag_in.xy, true);\n    }"),
+    (ANCHORS[3].0, "    return rt_keep(vec4<f32>(colour, edge * travel * facing), frag_in.xy, false);\n}"),
     (
         ANCHORS[4].0,
-        "    if p.right.w < 1.5 && r.z <= -0.4 {\n        return rt_keep(vec4<f32>(0.0), frag.xy, true);\n    }",
+        "    if p.right.w < 1.5 && r.z <= -0.4 {\n        return rt_keep(vec4<f32>(0.0), frag_in.xy, true);\n    }",
     ),
 ];
 
@@ -164,14 +164,31 @@ pub fn list_trace_source(ssr: &str) -> String {
 /// split between the shader's queries: one query keeps all of it.
 pub(in crate::render) const ONE_QUERY: [(&str, &str); 2] = [
     (
-        "    var h = rt_cast(start, d, select(0.25, 0.12, car), rt.eye.w, 0xFFu);\n",
-        "    var rq: ray_query;\n    rayQueryInitialize(&rq, rt_tlas, RayDesc(RAY_FLAG_FORCE_OPAQUE, 0xFFu, select(0.25, 0.12, car), rt.eye.w, start, d));\n    while rayQueryProceed(&rq) {}\n    var h = rayQueryGetCommittedIntersection(&rq);\n",
+        "    var h = rt_cast(start, d, select(0.25, 0.12, car), rt.eye.w, 0x03u);\n",
+        "    var rq: ray_query;\n    rayQueryInitialize(&rq, rt_tlas, RayDesc(RAY_FLAG_FORCE_OPAQUE, 0x03u, select(0.25, 0.12, car), rt.eye.w, start, d));\n    while rayQueryProceed(&rq) {}\n    var h = rayQueryGetCommittedIntersection(&rq);\n",
     ),
     (
         "        h = rt_cast(start + d * h.t, d, 0.01, rt.eye.w - h.t, 0x01u);\n",
         "        rayQueryInitialize(&rq, rt_tlas, RayDesc(RAY_FLAG_FORCE_OPAQUE, 0x01u, 0.01, rt.eye.w - h.t, start + d * h.t, d));\n        while rayQueryProceed(&rq) {}\n        h = rayQueryGetCommittedIntersection(&rq);\n",
     ),
 ];
+
+/// rt.wgsl's glow ray (`rt_glow`) inlined in `rt_fill` on its one query
+/// `rq` (a second query would halve the traversal stack RADV keeps in
+/// workgroup memory: measured +0.4 ms on the trace's rays at 4K).
+fn glow_on_one_query(rt: &str) -> String {
+    const CALL: &str = "        glow = rt_glow(start, d, select(0.25, 0.12, car), glow_reach, length(origin), car);\n";
+    let start = rt.find("    // GLOW BODY").expect("rt.wgsl: rt_glow's body");
+    let start = start + rt[start..].find('\n').unwrap() + 1;
+    let end = rt.find("    // GLOW END").expect("rt.wgsl: rt_glow's end");
+    let body = rt[start..end].replace("&gq", "&rq");
+    let inline = format!(
+        "        {{\n        let o = start;\n        let tmin = select(0.25, 0.12, car);\n        let tmax = glow_reach;\n        let ed = length(origin);\n        let from_car = car;\n{}        glow = sum;\n        }}\n",
+        body.lines().map(|l| format!("    {l}\n")).collect::<String>()
+    );
+    assert!(rt.matches(CALL).count() == 1, "rt.wgsl: rt_glow's call");
+    rt.replacen(CALL, &inline, 1)
+}
 
 /// The list's compute pass: ssr.wgsl and rt.wgsl (its casts on one query,
 /// [`ONE_QUERY`]), `rt_ray` (fs_trace's head as written, then `rt_fill`
@@ -185,8 +202,9 @@ pub fn list_rays_source(ssr: &str) -> String {
         assert!(rt.matches(from).count() == 1, "rt.wgsl anchor missing: {from}");
         rt = rt.replacen(from, to, 1);
     }
+    rt = glow_on_one_query(&rt);
     format!(
-        "enable wgpu_ray_query;\n{ssr}\n{rt}\n// fs_trace's head (ssr.wgsl), then rt_fill on the march's result c.\nfn rt_ray(frag: vec4<f32>, c: vec4<f32>) -> vec4<f32> {{\n{head}    return rt_fill(c, origin, r, n, car, term, false);\n}}\n{LIST_RAYS}"
+        "enable wgpu_ray_query;\n{ssr}\n{rt}\n// fs_trace's head (ssr.wgsl), then rt_fill on the march's result c.\nfn rt_ray(frag_in: vec4<f32>, c: vec4<f32>) -> vec4<f32> {{\n{head}    return rt_fill(c, origin, r, n, car, term, false);\n}}\n{LIST_RAYS}"
     )
 }
 
@@ -203,7 +221,7 @@ pub fn list_path(gpu: &Gpu) -> bool {
         && caps.flags.contains(wgpu::DownlevelFlags::FRAGMENT_WRITABLE_STORAGE)
         && format.allowed_usages.contains(wgpu::TextureUsages::STORAGE_BINDING)
         && format.flags.contains(wgpu::TextureFormatFeatureFlags::STORAGE_WRITE_ONLY)
-        && gpu.device.limits().max_storage_buffers_per_shader_stage >= 3
+        && gpu.device.limits().max_storage_buffers_per_shader_stage >= 6
         && gpu.device.limits().max_storage_textures_per_shader_stage >= 1
 }
 
@@ -301,6 +319,9 @@ pub(in crate::render) struct ListTrace {
     /// The fragment pass's group 1 (the list, written).
     list_layout: wgpu::BindGroupLayout,
     fragment: [Option<wgpu::RenderPipeline>; 2],
+    /// The same at the quarter rate: a half-size target, no mask depth
+    /// (its early outs skip the pixels without a mask).
+    fragment_half: [Option<wgpu::RenderPipeline>; 2],
     /// The compute pass's groups: the mask and the trace's uniform, the
     /// traced scene, the list and the trace target.
     rays_layouts: [wgpu::BindGroupLayout; 3],
@@ -381,13 +402,21 @@ impl ListTrace {
             compilation_options: Default::default(),
             cache: gpu.disk_pipeline_cache(),
         });
-        ListTrace { list_layout, fragment: [None, None], rays_layouts, rays }
+        ListTrace { list_layout, fragment: [None, None], fragment_half: [None, None], rays_layouts, rays }
     }
 
-    /// The fragment pass for a depth multisampled (`ms` 1) or not.
-    pub(in crate::render) fn fragment(&mut self, gpu: &Gpu, layouts: &[wgpu::BindGroupLayout; 2], ms: usize) -> &wgpu::RenderPipeline {
+    /// The fragment pass for a depth multisampled (`ms` 1) or not; `half`:
+    /// the quarter rate's (no mask depth).
+    pub(in crate::render) fn fragment(
+        &mut self,
+        gpu: &Gpu,
+        layouts: &[wgpu::BindGroupLayout; 2],
+        ms: usize,
+        half: bool,
+    ) -> &wgpu::RenderPipeline {
         let list_layout = &self.list_layout;
-        self.fragment[ms].get_or_insert_with(|| {
+        let slot = if half { &mut self.fragment_half[ms] } else { &mut self.fragment[ms] };
+        slot.get_or_insert_with(|| {
             let src = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/render/ssr.wgsl"));
             let src = if ms == 1 { multisampled(src) } else { src.to_string() };
             let shader = crate::render::core::device_cache::module(gpu, wgpu::ShaderModuleDescriptor {
@@ -399,14 +428,20 @@ impl ListTrace {
                 bind_group_layouts: &[Some(&layouts[ms]), Some(list_layout)],
                 immediate_size: 0,
             });
-            trace_pipeline(gpu, &pl, &shader, "fs_trace rt list")
+            trace_pipeline(gpu, &pl, &shader, if half { "fs_trace rt list half" } else { "fs_trace rt list" }, !half)
         })
     }
 }
 
 /// The trace's fragment pipeline (vs_trace / fs_trace into the trace
 /// target, against the trace-sized mask depth).
-fn trace_pipeline(gpu: &Gpu, layout: &wgpu::PipelineLayout, shader: &wgpu::ShaderModule, label: &str) -> wgpu::RenderPipeline {
+fn trace_pipeline(
+    gpu: &Gpu,
+    layout: &wgpu::PipelineLayout,
+    shader: &wgpu::ShaderModule,
+    label: &str,
+    mask_depth: bool,
+) -> wgpu::RenderPipeline {
     crate::render::core::device_cache::render_pipeline(gpu, &wgpu::RenderPipelineDescriptor {
         label: Some(label),
         layout: Some(layout),
@@ -423,7 +458,7 @@ fn trace_pipeline(gpu: &Gpu, layout: &wgpu::PipelineLayout, shader: &wgpu::Shade
             targets: &[Some(wgpu::ColorTargetState { format: TRACE_FORMAT, blend: None, write_mask: wgpu::ColorWrites::ALL })],
         }),
         primitive: wgpu::PrimitiveState::default(),
-        depth_stencil: Some(skip_test()),
+        depth_stencil: mask_depth.then(skip_test),
         multisample: wgpu::MultisampleState::default(),
         multiview_mask: None,
         cache: gpu.disk_pipeline_cache(),
@@ -443,7 +478,7 @@ fn rt_pipeline(gpu: &Gpu, layouts: &[wgpu::BindGroupLayout; 2], layout: &wgpu::B
         bind_group_layouts: &[Some(&layouts[ms]), Some(layout)],
         immediate_size: 0,
     });
-    trace_pipeline(gpu, &pl, &shader, "fs_trace rt")
+    trace_pipeline(gpu, &pl, &shader, "fs_trace rt", true)
 }
 
 /// The ray-traced trace's programs for a depth multisampled when `ms`,
@@ -456,10 +491,11 @@ pub(in crate::render) fn warm_trace(
     fragment: &mut Option<(wgpu::BindGroupLayout, [Option<wgpu::RenderPipeline>; 2])>,
     list: &mut Option<ListTrace>,
     ms: bool,
+    quarter: bool,
 ) {
     let ms = usize::from(ms);
     if list_path(gpu) {
-        list.get_or_insert_with(|| ListTrace::new(gpu)).fragment(gpu, layouts, ms);
+        list.get_or_insert_with(|| ListTrace::new(gpu)).fragment(gpu, layouts, ms, quarter);
     } else {
         let (layout, pipelines) =
             fragment.get_or_insert_with(|| (crate::render::rt::layout(gpu, wgpu::ShaderStages::FRAGMENT), [None, None]));
@@ -489,13 +525,9 @@ pub(in crate::render) fn ssr_trace(
     let rt_group = gpu.device.create_bind_group(&wgpu::BindGroupDescriptor {
         label: Some("ssr rt"),
         layout,
-        entries: &[
-            wgpu::BindGroupEntry { binding: 0, resource: rt.tlas.as_binding() },
-            wgpu::BindGroupEntry { binding: 1, resource: rt.colors.as_entire_binding() },
-            wgpu::BindGroupEntry { binding: 2, resource: rt.uniform.as_entire_binding() },
-        ],
+        entries: &rt.entries(),
     });
-    let mut rp = begin_trace(encoder, t, "ssr rt trace");
+    let mut rp = begin_trace(encoder, &t.trace, Some(&t.skip), "ssr rt trace");
     rp.set_pipeline(pipeline);
     rp.set_bind_group(0, trace_group, &[]);
     rp.set_bind_group(1, &rt_group, &[]);
@@ -506,17 +538,22 @@ pub(in crate::render) fn ssr_trace(
 }
 
 /// The trace's render pass: the target cleared, the mask depth tested.
-fn begin_trace<'a>(encoder: &'a mut wgpu::CommandEncoder, t: &crate::render::ssr::Targets, label: &str) -> wgpu::RenderPass<'a> {
+fn begin_trace<'a>(
+    encoder: &'a mut wgpu::CommandEncoder,
+    target: &wgpu::TextureView,
+    skip: Option<&wgpu::TextureView>,
+    label: &str,
+) -> wgpu::RenderPass<'a> {
     encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
         label: Some(label),
         color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-            view: &t.trace,
+            view: target,
             depth_slice: None,
             resolve_target: None,
             ops: wgpu::Operations { load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT), store: wgpu::StoreOp::Store },
         })],
-        depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
-            view: &t.skip,
+        depth_stencil_attachment: skip.map(|view| wgpu::RenderPassDepthStencilAttachment {
+            view,
             depth_ops: None,
             stencil_ops: None,
         }),
@@ -549,9 +586,12 @@ pub(in crate::render) fn ssr_trace_list(
     list: &ListBuffers,
     trace_group: &wgpu::BindGroup,
     inputs: ListInputs<'_>,
+    half: Option<&wgpu::TextureView>,
 ) {
     let lt = slot.get_or_insert_with(|| ListTrace::new(gpu));
-    let fragment = lt.fragment(gpu, layouts, ms).clone();
+    let fragment = lt.fragment(gpu, layouts, ms, half.is_some()).clone();
+    // The quarter rate: the half-size trace, without the mask depth.
+    let target = half.unwrap_or(&t.trace);
     let entry = |binding, resource| wgpu::BindGroupEntry { binding, resource };
     let group = |layout, entries: &[wgpu::BindGroupEntry<'_>]| {
         gpu.device.create_bind_group(&wgpu::BindGroupDescriptor { label: Some("ssr rt list"), layout, entries })
@@ -563,7 +603,7 @@ pub(in crate::render) fn ssr_trace_list(
     ]);
     // The count and the groups from 0 (y and z stay 1).
     encoder.clear_buffer(&list.head, 0, Some(8));
-    let mut rp = begin_trace(encoder, t, "ssr rt list trace");
+    let mut rp = begin_trace(encoder, target, half.is_none().then_some(&t.skip), "ssr rt list trace");
     rp.set_pipeline(&fragment);
     rp.set_bind_group(0, trace_group, &[]);
     rp.set_bind_group(1, &list_group, &[]);
@@ -576,16 +616,12 @@ pub(in crate::render) fn ssr_trace_list(
         entry(4, R::TextureView(inputs.surface)),
         entry(7, inputs.uniform.as_entire_binding()),
     ]);
-    let scene_group = group(&lt.rays_layouts[1], &[
-        entry(0, rt.tlas.as_binding()),
-        entry(1, rt.colors.as_entire_binding()),
-        entry(2, rt.uniform.as_entire_binding()),
-    ]);
+    let scene_group = group(&lt.rays_layouts[1], &rt.entries());
     let out_group = group(&lt.rays_layouts[2], &[
         entry(0, list.head.as_entire_binding()),
         entry(1, list.px.as_entire_binding()),
         entry(2, list.c.as_entire_binding()),
-        entry(3, R::TextureView(&t.trace)),
+        entry(3, R::TextureView(target)),
     ]);
     {
         let mut cp = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor { label: Some("ssr rt rays"), timestamp_writes: None });

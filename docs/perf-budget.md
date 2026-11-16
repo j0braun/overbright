@@ -1914,6 +1914,17 @@ would run the light loop again (the RT variant's ranking alone is 0.47 ms of the
 1.05 ms). Tracing them at the blocks' half resolution (the world's rt_shadow pass) would change the
 values. Left as is; evidence: `docs/evidence/perf-budget/rt-ray-list.txt`.
 
+**The NIS characters' rays, moved after all (prototype, not exact).** `characters.rs`: with Modern +
+RT the characters' opaque runs are first drawn into the scene's depth with the main view's pre-pass
+pipelines, then the traced shadows' pass runs again over their screen box only (`Plan::record_region`,
+the dispatch's first block in a dynamic-offset uniform, `rv_first`), and their colour pass takes the
+world's pipelines, which read the blocks (no ray in their colour shader). The values change where the
+blocks' half resolution and gather differ from the per-pixel rays: race start frames 100-111, 0.03 % of
+the pixels > 3 %, max 24 levels, 1 − SSIM 2e-5, luma unchanged, frame-to-frame change unchanged.
+Measured (the reference player's 4K settings, 3 interleaved triples): race start 15.09 → 13.99 ms (the
+draws' bucket 2.42 → 0.67, the characters' blocks 0.38). `NFSU2_RT_CHAR_RAYS=1` keeps the in-shader
+rays (a check aid).
+
 **Wave sizes (RADV).** RADV compiles every shader that holds a ray query in the ray-query wave size
 (32), whether the query is reached or not; the Modern + RT world colour shaders hold the characters'
 (dead outside their pipelines) and so run in wave32, the list's compute pass too, its fragment pass in

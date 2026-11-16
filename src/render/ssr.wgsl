@@ -11,6 +11,16 @@ struct Params {
                          // with Enhanced Reflections' true mirror
     fog: vec4<f32>,      // the main view's FogValue (x, y, z), w 1 when on
     fog_color: vec4<f32>, // w 1 on a wet road (Wet Roads)
+    // The ray-traced tier's quarter-rate trace (ssr.rs, docs/rt-reflections.md):
+    // xy this frame's pixel of each 2 × 2 (0 or 1), z 1 when the trace runs at
+    // half size, w 1 when the history holds the last frame; the last frame's
+    // eye (relative to this one's), basis and projection scales (xy).
+    jitter: vec4<f32>,
+    prev_eye: vec4<f32>,
+    prev_right: vec4<f32>,
+    prev_up: vec4<f32>,
+    prev_forward: vec4<f32>,
+    prev_proj: vec4<f32>,
 }
 
 @group(0) @binding(0) var depth_tex: texture_depth_2d;
@@ -241,6 +251,15 @@ fn fog_at(z: f32) -> f32 {
 // glow / (1 − the per-frame decay, 0x5CBB6A: 120, 90, 170 of 255).
 const GLOW_STEADY: vec3<f32> = vec3<f32>(255.0 / 135.0, 255.0 / 165.0, 255.0 / 85.0);
 
+// The trace pixel a fragment of the trace pass stands for: itself, or at the
+// quarter rate (a half-size pass, p.jitter.z) this frame's pixel of its 2 × 2.
+fn trace_frag(f: vec4<f32>) -> vec4<f32> {
+    if p.jitter.z < 0.5 {
+        return f;
+    }
+    return vec4<f32>(floor(f.xy) * 2.0 + 0.5 + p.jitter.xy, f.zw);
+}
+
 // The ray march (the trace's size): from the road's (or a car's) point
 // along the reflected view, a stackless walk of the depth pyramid — a
 // whole cell the ray stays in front of is skipped and the next one taken
@@ -251,7 +270,8 @@ const GLOW_STEADY: vec3<f32> = vec3<f32>(255.0 / 135.0, 255.0 / 165.0, 255.0 / 8
 // confidence (0: a miss; faded at the screen's edges, toward the ray's
 // reach and for rays turning to the camera).
 @fragment
-fn fs_trace(@builtin(position) frag: vec4<f32>) -> @location(0) vec4<f32> {
+fn fs_trace(@builtin(position) frag_in: vec4<f32>) -> @location(0) vec4<f32> {
+    let frag = trace_frag(frag_in);
     let m = mask_texel(frag.xy);
     let term = textureLoad(term_tex, m, 0);
     let surface = textureLoad(surface_tex, m, 0);
