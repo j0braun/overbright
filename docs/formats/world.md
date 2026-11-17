@@ -1675,7 +1675,7 @@ how its code is laid out; no frame, sound or save byte changes.
 
 ## Pop-in: what appears when, original vs clone (2026-11-01)
 
-Player report "pop-in still seems a bit harsh". Compared at full speed: the
+Issue: pop-in still looked harsh. Compared at full speed: the
 original (vanilla, `$OB_PRIVATE/wine/runs/<run>`, wined3d-Vulkan on the GPU —
 DXVK hit `Command submission failed: -13` at the profile save twice that
 morning, as other copies did — 1280 × 960, free roam after the career

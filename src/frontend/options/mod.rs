@@ -552,7 +552,7 @@ mod tests {
             let mut s = Settings::default();
             s.detail = d;
             s.custom = custom_presets(1);
-            s.custom[2] = 0; // stale low values (a player report)
+            s.custom[2] = 0; // stale low values (seen in a real options file)
             s.custom_raised[2] = Some(0);
             for _ in 0..3 {
                 change(RowId::GraphicsPreset, &mut s, 0, true, false);

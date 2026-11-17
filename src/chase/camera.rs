@@ -69,7 +69,7 @@ pub struct ChaseCamera {
 /// base (0x5F17A5: `mov byte [edx+0xb], 1` with edx = player + 0x20, which
 /// is why a search for byte stores at +0x2B found none); nothing else
 /// writes it (no other store to the player's +0x2B; +0x20 / +0x21 are
-/// refilled from the player's settings 0x83AA79 / 0x83AA7A, +0x2B is not).
+/// refilled from the player-settings bytes 0x83AA79 / 0x83AA7A, +0x2B is not).
 /// It read 1 under Wine in free roam and races, so false.
 pub(super) const LOOK_BACK_TABLE: bool = false;
 pub(super) const LOOK_BACK: [(Vec3, u16); 2] =

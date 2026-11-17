@@ -1,10 +1,10 @@
 # Performance shop: individual parts, packages, brand screen (perf-shop round, 2026-11-04)
 
-Player report: "performance shop: you can't buy parts
-independently, only the packages; select brand UI broken".
+Issue: in the performance shop parts could not be bought one by one, only as packages,
+and the brand screen was broken.
 
 ## Wine walk (vanilla SPEED2.EXE, fastgpu.sh, 1280×960, no WidescreenFix)
-Saves: the player's a community save (stage 4, LANCEREVO8, every part fitted, nothing
+Saves: a community save (stage 4, LANCEREVO8, every part fitted, nothing
 owned) and a control run (load, enter, exit, save, no purchase). Shop
 CC_PERF_SHOP (player moved onto its trigger). Captures and saves are in
 `<work dir>/perfshop-work/{wine,saves}`; side by sides in

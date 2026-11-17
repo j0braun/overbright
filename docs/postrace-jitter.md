@@ -1,7 +1,6 @@
 # Post-race animation jitter (2026-11-04)
 
-Player report: "post race
-animation still jitters". User display settings: 3840×2160 full screen,
+Issue: the post-race animation still jittered. Display: 3840×2160 full screen,
 VSync off (Mailbox), monitors at 59.98 / 74.96 Hz.
 
 ## Reproduction (`--flow postrace`, `src/bin/game/post_race.rs`)
@@ -74,8 +73,8 @@ phase near a vblank flips frames between 1 and 3 vblanks.
   **Note for review / user**: this changes the 2026-10-31 rule "cut-scenes
   keep the native 1/30 s" from a render cap to the world cadence: the
   simulation still runs the original's 30 updates a second with its ticks;
-  only the drawing is at the display's rate (as decided 2026-11-04 for
-  60 fps). `--bench scene` still measures the old limiter path.
+  only the drawing is at the display's rate (the 60 fps
+  rule). `--bench scene` still measures the old limiter path.
 * `Game::camera_mover` (scene shots), `first_race::interval` (no 1/30 s
   cap), `SNAP_FRAME`.
 

@@ -1,11 +1,9 @@
 # Pop-in at World Detail Ultra / Extreme (2026-11-06)
 
-Player report: "pop-in pretty noticeable" at World Detail Ultra
-(Detail Distance 200 % + Keep All Loaded, LOD Fade on; their play setup
-`<the player's options file>`, 3840 × 2160). Note:
-the player's live options file of 2026-11-06 has World
-Detail High and no Enhancements lines (native), so the player may also be
-seeing the native pops; both are measured below.
+Issue: pop-in clearly visible at World Detail Ultra
+(Detail Distance 200 % + Keep All Loaded, LOD Fade on; the play setup,
+3840 × 2160). At World Detail High with no Enhancements lines (native) the
+native pops show as well; both are measured below.
 
 Nothing here is native: the original's pops are the native lists and size
 culls traced in docs/formats.md "Pop-in: what appears when" (lod180, 2026-11-01;
@@ -55,7 +53,7 @@ Abrupt events with a projected radius ≥ 2 px (≥ 32 px in brackets);
 | lamp shadow (Extreme) | – | – | – | 56 (56) | 0, 56 gradual |
 | frames with an abrupt pop | 397 (13.2 %) | ~260 (8.7 %) | 0 | 922 (30.7 %) | 0 |
 
-`--bench racing 3000` (user setup, 4K): before scenery 1874, sections 82,
+`--bench racing 3000` (play setup, 4K): before scenery 1874, sections 82,
 car LOD 29, car cull 29; after 0 abrupt (sections 82 and 42 scenery
 gradual). Note: the first Extreme-before scenery count (3275) included the
 instances of sections leaving the set (a meter bug fixed before the after
@@ -146,8 +144,8 @@ measurable cost.
 
 | | before | after |
 |---|---|---|
-| drive, user setup | 9.54 mean / 9.58 median | 9.55 / 9.58 |
-| racing, user setup | 9.94 / 10.09 | 9.89 / 10.05 |
+| drive, play setup | 9.54 mean / 9.58 median | 9.55 / 9.58 |
+| racing, play setup | 9.94 / 10.09 | 9.89 / 10.05 |
 | drive, Extreme (+ Modern Lighting 2 and a de-lit texture option since removed) | 14.55 / 14.52 | 14.48 / 14.41 |
 
 Within run-to-run noise (budget ≤ +1 ms). Draw CPU 1.19 → 1.22 ms mean

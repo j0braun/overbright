@@ -856,12 +856,12 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
     `display::wait_until`, `ShopRun::holds_cars`, `Game::scene_frame_cap`):
     the window's frame waits until 1/30 s after the last frame's start
     while a scene holds the cars (types 0 / 2 up to header +0x30, the rest
-    while the scene runs; an Enter-skipped scene, the player's choice, ends
+    while the scene runs; an Enter-skipped scene (agreed deviation) ends
     the cap with it), sleeping to within 1 ms and spinning the rest (the
     original spins all of it), before input and the simulation; the
     scene and the world advance by the measured frame time (the game
     clock), as V does. The 1/120 cap outside scenes is **not ported**
-    (user's choice); `NFSU2_FRAME_CAP` stays an optional extra cap (the
+    (agreed deviation, docs/native-deviations.md); `NFSU2_FRAME_CAP` stays an optional extra cap (the
     longer period wins). `--bench scene` measures the pacing (a stage 1
     circuit's start scene on the real clock; reference desktop GPU, 2026-10-31: 177–179
     capped frames, p50 33.334 ms, sd 0.04 ms on a quiet machine, p99 ≈ 39
@@ -1309,8 +1309,8 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
   resumes the original's four saves and plays each quit point (new
   career left before the lot, Quit to Main Menu in D-Day A, the car
   bought with the save and without, the garage, a race), the game left
-  being a reload of the file. Fixed 2026-10-31 (player report "buying the
-  first car and then leaving the game places you at the airport"): the
+  being a reload of the file. Fixed 2026-10-31 (issue: buying the
+  first car and then leaving the game placed the car at the airport): the
   clone kept no place on entering a shop, so its car-lot save held the
   flag with no place and Resume fell back to ForwardStartingPosition;
   and the garage's Yes did not set the flag, so a race's save resumed at

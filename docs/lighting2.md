@@ -181,7 +181,7 @@ Presets by cost: **Modern** gains Headlight Beams and Light Probes (next to the 
 street with the most coloured probes found), start (Quick Race grid, City Core signs), crowd
 (S2_STREET_4 start from above, rivals' beams), garage (qrcars, front end). Each `<scene>_off_all.webp`
 = Original | all three rows; `user_<scene>_before_after.webp` = the player's real options
-(`the player's options file`) | the same + the three rows; zooms `start_{beams,probes,
+(the play setup's options file) | the same + the three rows; zooms `start_{beams,probes,
 glass}_zoom.webp`, `night_glass_zoom.webp`, `tunnel_probes_zoom.webp`. Changed pixels (AE, any
 channel) vs Original: crowd all 2.9 % (beams), start 0.79 %, neon 0.17 %, tunnel 0.13 %, night
 0.07 %; garage 0 (front end: no beams, probes or glass by design).

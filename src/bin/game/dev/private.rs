@@ -75,7 +75,7 @@ pub(crate) fn skip_line(what: &str) -> String {
 pub(crate) fn require(rel: &str, what: &str) -> anyhow::Result<Vec<u8>> {
     match read(rel)? {
         Some(b) => Ok(b),
-        // In a test (user_reports' finished-career starts) a missing file fails that
+        // In a test (reported_issues' finished-career starts) a missing file fails that
         // test: such tests carry the OB_PRIVATE ignore (docs/testing.md).
         None if cfg!(test) => panic!("{}", skip_line(what)),
         None => {

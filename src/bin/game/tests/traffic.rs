@@ -277,8 +277,8 @@ fn race_traffic_probe() {
     );
 }
 
-/// The traffic circling detector (player report: "sometimes
-/// they drive in a circle"): per placed car, a 10 s window of its
+/// The traffic circling detector (traffic cars sometimes drove in
+/// circles): per placed car, a 10 s window of its
 /// unwrapped heading; a car whose heading turns more than 300° within
 /// the window while it moves (mean speed over 1 m/s), or that turns
 /// over 300° within 25 m of where it was 10 s earlier, is circling. The

@@ -1,7 +1,7 @@
 # Stage-4 drags with the finished-career save's Skyline, original vs clone (2026-11-05)
 
-Player report: "doesn't seem native to me, check every angle; I saw that blue
-shifting got the short shift message". **Verified** = traced in SPEED2.EXE, **observed** =
+Issue: the stage 4 drag did not look native, and a blue-zone shift got the short shift
+message. **Verified** = traced in SPEED2.EXE, **observed** =
 read under Wine, **inferred** / **open** as marked. Evidence: the maintainer's private captures.
 
 ## Verdict

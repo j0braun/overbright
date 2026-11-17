@@ -262,7 +262,7 @@ impl Effects {
         // first and then moving it by the car's velocity (the clone until
         // then) put each new flame a frame's travel ahead of the exhaust —
         // 0.8 m at 180 km/h, inside the car's body, so the flame vanished
-        // at speed (a player report).
+        // at speed.
         if emit_first {
             self.car_effects(library, cars, scene_flames);
         }

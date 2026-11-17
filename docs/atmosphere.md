@@ -123,7 +123,7 @@ where the local light (not the shared veil) lifts them; a higher quantile remove
 ## The one volume: headlights in rain
 With Volumetric Fog Next-Gen the froxel medium is the only air: every light feeds it once.
 
-**What stacked (measured, rain, the oncoming car 30 m off, box around it, the player's options).** Over
+**What stacked (measured, rain, the oncoming car 30 m off, box around it, the play setup's options).** Over
 Original the box was +30.4 luma (pixels ≥ 240 in it: 448 → 2947 at 4K, the "≈ 7×"). By elimination: the
 medium's copy of the Next-Gen car lights' cones −17.6 (it took every cone again at 0.3, without the march's
 near cut-off and aureole and with its gain not bound to the rain rule: the light right in front of each car
@@ -160,7 +160,7 @@ Next-Gen alone +3.0, both +24.4: the same beams lit the same air twice.
 * Sky Next-Gen no longer draws into the road reflections (they keep their native clear black; the cars' cube
   faces still show it), see "Sky Next-Gen" below.
 
-**Measured** (rain, clock 167, the player's options = every Next-Gen tier with Modern Lighting ray traced; "max"
+**Measured** (rain, clock 167, the play setup's options = every Next-Gen tier with Modern Lighting ray traced; "max"
 the same within ±1; Δ against Original at the same frame, luma 0–255; the box ahead of each headlight's air:
 around the oncoming car, ahead of the player's car):
 
@@ -192,7 +192,7 @@ added), the blacks Δp5 ≤ +0.3 for the volume itself. The original game draws 
 is the enhancement, held to what the original's road pool already shows.
 
 Cost (GPU busy, median of frames 30+, `--bench drive 300` in rain, two runs each, the reference desktop GPU):
-1080p the player's options 5.65 → 5.52 ms, max 6.89 → 6.76; 4K 18.39 → 18.04, 22.10 → 21.33 (the car lights'
+1080p the play setup's options 5.65 → 5.52 ms, max 6.89 → 6.76; 4K 18.39 → 18.04, 22.10 → 21.33 (the car lights'
 march no longer runs; the medium's extra lights cost less than it). The presets ±0.03 (noise).
 
 At this point Volumetric Fog Low / High (Ultra, Extreme) still ran their own cone pass (Δp5 +0.57..+0.85 at the
@@ -285,7 +285,7 @@ changes its recommendation asked for:
 * Everything else as the prototype: the dome's palette statistics (made at every load, < 5 ms, so the row can be
   switched in game), the dome's native shading (texel × v0 × 2, fogged), drawn after the opaque world over the
   dome's pixels (depth-tested), the skymorph fade, the moon (atan2 angle, not acos) and hashed stars.
-* **A night sky (the second graphics-audit round, audit fix 4, decision 2026-11-12)**: at dusk/dawn the Next-Gen sky had replaced
+* **A night sky (the second graphics-audit round, audit fix 4)**: at dusk/dawn the Next-Gen sky had replaced
   the painted sunset clouds with one smooth pink blob (audit `dusk__o+sky1` Δsky +8.8, Next-Gen preset +9.4).
   Now its weight follows the game's own sky state (`sky_ng::night_weight`, from `crate::sky`'s `SkyFrame`):
   1 on the table's night pairs (index 2 / 6, `SKY_NIGHT_A`), 0 on sunrise / sunset (0 / 4), and through the
@@ -335,7 +335,7 @@ ray clamped at the 0.05 cosine (outside any field of view the game takes) puts e
 
 | tier, GPU (7 interleaved runs each) | `cs_inject` before → after (ms) |
 |---|---|
-| Next-Gen, the reference desktop GPU, 4K, the player's rows: rain / racing | 0.114 → 0.061 / 0.172 → 0.055 |
+| Next-Gen, the reference desktop GPU, 4K, the play setup's rows: rain / racing | 0.114 → 0.061 / 0.172 → 0.055 |
 | High, the reference integrated GPU, 1080p, World Detail 3, level High: rain / racing | 0.668 → 0.548 / 0.772 → 0.455 |
 
 ## The rain's tint folded into the apply
@@ -350,7 +350,7 @@ instead of two (Medium in rain, 1080p, 19 frames at rest and in motion: at most 
 more than 1 %, 1 − SSIM 6.6e−5, the change's own frame-to-frame motion 0.034 levels;
 `tests::fog_rain_paths::rain_tint_folded_into_the_fog_keeps_the_frames`, `PostFx::set_plain_tint` keeps the pass for
 it). The reference integrated GPU at level Medium in rain: the tint 0.412 ms → none, the apply 1.158 → 1.123. With
-the lens drops (World Detail 4–5, the player's settings) the drops sit between the two and the tint runs as before.
+the lens drops (World Detail 4–5, the play setup) the drops sit between the two and the tint runs as before.
 
 ## Evidence (the maintainer's private captures, 1280 × 720 at 66 %, the game's chase camera, frame 60 of a frozen
 `--bench explore`; Original | Ultra | Next-Gen = Ultra + Volumetric Fog Next-Gen + Sky Next-Gen)
@@ -379,7 +379,7 @@ receding into haze, a moonlit sky with drifting clouds lit from below by the cit
 car reflections, and the haze hidden behind volumetric smoke. It keeps NFSU2's palette and grade (the far
 haze converges to the native fog colour). Against the references it is **not at their level**:
 (1) the effect is deliberately subtle in dry weather — the native fog already covers the distance and the
-user's grade is dark; Heat / Unbound push much denser, bloomier fog; (2) light shafts are physically shadowed
+play setup's grade is dark; Heat / Unbound push much denser, bloomier fog; (2) light shafts are physically shadowed
 only by the Lamp Shadows layers (≤ 12 lamps within 70 m, 140° down; cars as no occluder) and the shafts read
 only where geometry hangs under a lamp — open streets show cones and halos, not crisp god rays; neon and signs
 glow but cast no shafts (no shadow maps for them); (3) froxel resolution (≈ 24 px tiles at 4K) gives soft

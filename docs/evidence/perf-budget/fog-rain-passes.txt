@@ -1,7 +1,7 @@
 # Fog, volumes and rain, pass by pass (docs/perf-budget.md "Fog, volumes and rain: the same pictures for less")
 # GPU busy ms per frame (median of the runs' medians, frames 30+; [min-max] over the runs) and each pass's ms per frame.
 # Arms: base = the tree before, new = with the changes; a measuring build times the fog's, the volumes', the rain's and the lens drops' dispatches apart (labels PROBE ...).
-# The reference desktop GPU at 3840x2160, the player's rows (SSAA 2x, ray tracing, every row up), --bench drive at clock 162 (rain) and --bench racing, 300 frames, 7 runs per arm interleaved.
+# The reference desktop GPU at 3840x2160, the play setup's rows (SSAA 2x, ray tracing, every row up), --bench drive at clock 162 (rain) and --bench racing, 300 frames, 7 runs per arm interleaved.
 
 ## rain, base -> lens drops in place + haze left out + fog light cull + resolve
 base                        gpu  23.270 (23.201-24.532) n 7 load 32
@@ -66,7 +66,7 @@ rain-ov                        gpu  69.715 (68.075-70.055) n 5 load 20
     graphics: ssao apply                                   2.160 [2.116-2.170] ->   2.203 [2.044-2.371] +0.043
     graphics: ssr filter                                   1.066 [0.860-1.120] ->   1.103 [1.004-1.200] +0.038
 
-## the player's settings at 3840x2160, 5 runs per arm: base -> the six changes (measuring builds; rain and racing)
+## the play setup at 3840x2160, 5 runs per arm: base -> the six changes (measuring builds; rain and racing)
 rain-pb                        gpu  23.530 (23.383-23.938) n 5 load 23
 rain-ov                        gpu  22.818 (22.607-23.043) n 5 load 22
   delta -0.711 ms
@@ -93,7 +93,7 @@ racing-ov                      gpu  19.030 (18.890-19.114) n 5 load 23
     (between submissions)                                  0.799 [0.262-1.131] ->   0.813 [0.444-1.571] +0.014
 
 ## the whole frame, the game without the measuring marks, 7 runs per arm interleaved: base -> the six changes
-# the player's settings, 3840x2160, 300 frames
+# the play setup, 3840x2160, 300 frames
 rain-base                      gpu  23.417 (23.195-23.497) n 7 load 26
 rain-fin                       gpu  22.786 (22.686-22.894) n 7 load 26
   delta -0.630 ms
@@ -156,7 +156,7 @@ rain-fin                       gpu  70.609 (69.579-72.727) n 7 load 27
     graphics: ssr mask                                     5.314 [5.158-5.631] ->   5.428 [5.207-5.780] +0.114
 
 ## pictures, base -> the six changes, frames 0, 60, 120, 200-215 (two runs of base: identical bytes)
-# 3840x2160 the player's settings
+# 3840x2160 the play setup
 TOTAL 19 frames, 0 identical; worst >1% 0.0000 % >3% 0.0000 % max 1
 MOTION frame-to-frame mean |change| ref 9.827 test 9.827; the change's own frame-to-frame mean 0.0001 (max 0.0001)
 # 1920x1080 Medium
@@ -180,7 +180,7 @@ rain-m4                        gpu  67.512 (67.294-69.154) n 4 load 51
     graphics: ssr mask                                     4.565 [4.511-4.576]
 rain-m5                        gpu  67.185 (65.044-68.843) n 4 load 50
     graphics: ssr mask                                     4.418 [4.310-4.547]
-# the player's settings, 4K, 4 runs per arm
+# the play setup, 4K, 4 runs per arm
 rain-m0                        gpu  22.702 (22.687-22.724) n 4 load 42
     graphics: ssr mask                                     0.739 [0.737-0.741]
 rain-m1                        gpu  21.264 (21.212-21.280) n 4 load 41
@@ -195,7 +195,7 @@ rain-m5                        gpu  22.643 (22.580-22.671) n 4 load 45
     graphics: ssr mask                                     0.680 [0.677-0.682]
 
 ## the mask from the main view with the hidden road's pass (plain = the mask pass as before), interleaved
-# the player's settings, 4K, 7 runs per arm (pictures: 19 frames identical)
+# the play setup, 4K, 7 runs per arm (pictures: 19 frames identical)
 rain-plain                     gpu  22.715 (22.650-22.777) n 7 load 16
 rain-mrt                       gpu  22.405 (22.338-22.499) n 7 load 16
   delta -0.310 ms

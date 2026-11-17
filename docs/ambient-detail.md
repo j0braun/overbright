@@ -13,7 +13,7 @@ eye (**inferred**). Original stays the default and byte-identical (see "Parity")
 Not in any preset (the presets reset it to Off: a preset + the row reads as Custom), so the Modern / Ultra / Extreme
 presets render exactly as before. The effects-tiers pass's look audit (docs/perf-budget.md "The Next-Gen tiers — costs, tiers, GPU classes"): R1–R6 met (Δmean −0.03) but the
 props change ≤ 0.04 % of the frame at the chase camera, so the row stays manual; Next-Gen costs +0.37 ms at 4K
-(the player's max setup) and +7.8 ms on the reference integrated GPU.
+(the max setup) and +7.8 ms on the reference integrated GPU.
 
 ## What each tier does
 

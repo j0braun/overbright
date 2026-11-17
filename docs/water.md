@@ -1,7 +1,6 @@
 # Animated Water (clone deviation, opt-in)
 
-Wave G this work (roadmap `research/roadmap-2026-11-04.md` this work; design note: "fix the water
-fountains, there's a static water texture; the native game has it as well"). One Graphics row,
+The fountains' water is a static texture, in the native game as well. One Graphics row,
 off by default (native, byte-identical):
 
 | row (Graphics → Effects) | values | options.txt |
@@ -100,8 +99,8 @@ with falling water, 687 / 645 landings.
   deterministic (two runs at `NFSU2_RAIN_CLOCK=120` md5-identical, 120.5 differs) and frames
   above 60 Hz move smoothly.
 
-## The casino square's arcing jets (player report)
-A player screenshot (Animated Water Off): the casino square's big arcing jets over the round basins
+## The casino square's arcing jets
+A screenshot (Animated Water Off): the casino square's big arcing jets over the round basins
 "look like a frozen texture". View: the casino round fountains (XO_ROUNDFOUNTAINA ×5 around
 (−326, −547)) with their arcs, XO_FOUNTAINWTRA_1A_LL_00 (28 placements in Bayview: 23 here and at
 the jackpot basin (−337, −701) and the plaza fountain (−432, −112), 5 at the park fountain).
@@ -154,7 +153,7 @@ the jackpot basin (−337, −701) and the plaza fountain (−432, −112), 5 at
 * Tests: `arcs_and_falls` (an arc's shape, flow direction, apex and jet; a fall and a lip are
   not arcs), `bayview_water_census` (the 28 arcs, one apex each, nothing else).
 
-## Realistic (the row's top tier; design note: "better water rendering at the fountains, still not looking like a modern game")
+## Realistic (the row's top tier: fountain water closer to a modern game)
 Clone deviation, opt-in, manual only. Nothing native to compare with: SPEED2.EXE has no water system
 (above). `src/render/water_hq.rs` + `water_hq.wgsl` (appended to `water.wgsl`, whose module, pipelines
 and uniform for On are untouched; the tier writes one more uniform). The same triangles as On, the
@@ -224,7 +223,7 @@ canals and pond and the far ocean (left native: their worldreflect draw keeps th
 Wet Roads and SSR; replacing it would lose that), shadows on the water, spray colliding with cars.
 Every constant is by eye against the clone's own frames.
 
-## Next-Gen (the row's fourth tier; design note after playing Realistic: "animated water is also not like I wanted it")
+## Next-Gen (the row's fourth tier, past Realistic)
 Clone deviation, opt-in, manual only, `enh.water 3` (the row's tier names are strings: **no new label
 id**). Nothing native to compare with (SPEED2.EXE has no water system, above); every constant is by eye
 (**inferred**). `src/render/water_ng.rs` (CPU: charts, allocation, slots, mist; GPU half `Ng`),
@@ -326,7 +325,7 @@ constant changed, 1.5 → 2.4.)
 **Evidence** (the maintainer's private captures, `scripts/evidence.sh`): `<view>_off_realistic_nextgen_night_rain.webp`
 (C R N P W B L S, Off | Realistic | Next-Gen, rows night clock 120 and rain clock 162, 1280 × 960 at half
 size); `<C|B|N|R>_motion_realistic_nextgen_0.1s.webp` (clock 120.0–120.7); `B_user_settings.jpg`
-(a player's real settings: TAA, SSR Ultra, Volumetric Fog…; window path, `--bench explore`); crops.
+(the play setup: TAA, SSR Ultra, Volumetric Fog…; window path, `--bench explore`); crops.
 Two runs of a shot are md5-identical. Also shot without panic / validation: MSAA 4x, TAA, Modern
 Lighting.
 
@@ -513,8 +512,8 @@ against the noise). Raw: `water-work/cost/`.
 * `C_motion_off_on_night.webp`: eight frames 0.1 s apart (clock 120.0–120.7). The Off column is
   still because the shot harness draws the native water at time 0 (`FrameParams::time` 0 in
   shots); in the game the native flip-book and scroll move with the frame time.
-* `B_on_user_settings_night.webp`: the jackpot basin On with a player's real settings
-  (`the player's options file`: SSAA 2x, SSR Ultra, Volumetric Fog, …), no
+* `B_on_user_settings_night.webp`: the jackpot basin On with the play setup
+  (the play setup's options file: SSAA 2x, SSR Ultra, Volumetric Fog, …), no
   panic / validation.
 * `cost.txt`: the cost runs' summary.
 * `scripts/`: `shoot.sh`, `crops.sh`, `orbit.py` (bench camera tracks), `cost.sh`. Shot aid added
@@ -528,8 +527,8 @@ against the noise). Raw: `water-work/cost/`.
   at 1280 × 960, half size.
 * `C_motion_on_realistic_0.1s.webp`, `B_motion_on_realistic_0.1s.webp`: eight frames 0.1 s apart
   (clock 120.0–120.7), On | Realistic.
-* `cost.txt`: the cost runs. The MSAA path (aa_msaa 4), TAA and a player's real settings
-  (`the player's options file` + `enh.water 2`) shot without panic / validation.
+* `cost.txt`: the cost runs. The MSAA path (aa_msaa 4), TAA and the play setup
+  (the play setup's options file + `enh.water 2`) shot without panic / validation.
 
 `render::water::tests`: `water_textures_by_name`, `animation_time_is_the_world_clock`,
 `ranges_merge_where_they_touch`, `mips_halve_to_one_texel`, `bayview_water_census` (asset: the

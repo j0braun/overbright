@@ -15,7 +15,6 @@ docs/particles-smoke.md:=58b4488227f6:owner-remark:object owner (game semantics)
 docs/sparks-fire.md:*:owner-remark:emitter owner (game semantics)
 docs/outrun-think-scheduling.md:=1836a47e597c:owner-remark:object owner (game semantics)
 docs/parity-harness.md:=6fdc2c4f6ae3:owner-remark:handler owners (code semantics)
-docs/io-robustness.md:=f9a85f958d23:owner-remark:code owners of the render path
 docs/formats*.md:=8a0475e110f6:private-path:heading anchors of the session log ("Wine captures", "Wine side")
 docs/perf-overlay.md:*:hardware:Linux hwmon driver names
 # the app data folder name used by the code today (src/platform/dirs.rs APP)

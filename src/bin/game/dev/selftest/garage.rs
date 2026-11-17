@@ -1,7 +1,7 @@
 use crate::*;
 
-/// A player report ("the car stays in that position when
-/// returning to the car preview"), checked against the original under
+/// The car kept a part view's position when returning to the car
+/// preview; checked against the original under
 /// Wine: Back from a body part's list and from the rim sizes
 /// returns the camera to the base view (0x55EF90 / 0x55FCF0 →
 /// 0x4C2140) while the car keeps the part view's angle and steer, and

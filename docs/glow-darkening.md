@@ -3,7 +3,7 @@
 Clone deviations only (nothing traced; no native counterpart): the opt-in rows that darken
 (SSAO, Contact Shadows, Lamp Shadows, Volumetric Fog's extinction, TAA's history clamp) checked
 against the additive layers (underglow, glow sprites, streaks, flames, headlight pools), and the
-car's shadow stack at a player's real settings (`<the player's options file>`;
+car's shadow stack at the play setup (`<the play setup's options file>`;
 report on development build 20261104-1930: "shadows and neon on highest settings look a bit off").
 All rows off: md5-identical to the build before (explore, race, qrstart, neon_car, garage_neon,
 intro, drift, drag, qrcars 1280×960); Ultra alone, Lamp Shadows, Volumetric Fog: AE 0.
@@ -45,7 +45,7 @@ multiply.
   `the_rectangles_follow_the_shaders_terms` (the constants are ssao.wgsl's),
   `tests::first_use::the_occlusion_glow_rectangles_draw_the_same` (a city circuit's start and first frames
   with and without the rectangles, High, Ultra, Extreme, Ultra at 25 %), the bench dumps at Medium, High,
-  Medium with 8x MSAA (the multisampled apply) and the player's settings, byte-identical; speed in
+  Medium with 8x MSAA (the multisampled apply) and the play setup, byte-identical; speed in
   docs/perf-integrated-gpu.md "The occlusion apply's car loop".
 * **Contact Shadows** (world.wgsl `contact_visibility`, lamps.rs `contact_share`): (1) a car's
   contact shadow keeps 1 − glow of its depth, glow = the underglow's brightest channel × drawn alpha
@@ -72,7 +72,7 @@ Driving (`--bench drive`, LANCEREVO8, frame 450, after): SSAO −1.7 %, Contact 
 TAA + SSAO −1.9 %; Lamp Shadows +1.0 %; no darkening row left. TAA: the glow is low frequency, its
 clip does not darken it. Volumetric Fog is additive (its extinction applies to its own scatter).
 
-## The player's settings (scripts/stack.sh + an internal box script; `boxes-before.txt` / `boxes-after.txt`)
+## The play setup (scripts/stack.sh + an internal box script; `boxes-before.txt` / `boxes-after.txt`)
 Road luma (0–255) 0–0.5 m behind the bumper, chase cam, standing; 'far' ≈ 1 m behind = 59.7 / 57:
 
 | | Original | user before | user after | user, Contact off |
@@ -81,18 +81,18 @@ Road luma (0–255) 0–0.5 m behind the bumper, chase cam, standing; 'far' ≈ 
 | MAGENTA underglow | 76.2 | **45.6** (−40 %) | 73.2 (−4 %) | 74.4 |
 
 Per layer (no neon, on Ultra): native shadow alone 40.7; + Contact 23.8 → 32.7; + SSAO 25 39.2;
-+ Lamp Shadows High 40.8 (no lamp near; Dynamic Lamps off for the player); stack 23.1 → 31.6. The
-rest of the player's 'user − contact' drop (40.7 → 35.8) is the grade of the other rows (High
++ Lamp Shadows High 40.8 (no lamp near; Dynamic Lamps off in the play setup); stack 23.1 → 31.6. The
+rest of the play setup's 'user − contact' drop (40.7 → 35.8) is the grade of the other rows (High
 Precision Post 2, Wet Roads, SSR: 'far' 59.7 → 57.1). Car Shadow/Neon Ultra's grid refine:
 ≤ 0.4 levels anywhere in these crops (shape, offset unchanged). Garage (`garage_neon`): user =
 Original within 0.05 levels, unchanged by this work (no SSAO/contact in the front end).
 Crops: `user_chase_{explore,neon_car}_orig-before-after.webp`, `user_high_*`; driving with the
-user's values (frames 440–450): glow-box luma 97.9 Original / 99.2 user, frame-to-frame |ΔY|
+play setup's values (frames 440–450): glow-box luma 97.9 Original / 99.2 user, frame-to-frame |ΔY|
 6.0 / 7.4 (SSR + wet road; Contact on/off 7.4 / 7.5: no shimmer from the shadows).
 
 ## Open
 * **SSR** reflects the underglow's tubes / glow as vertical magenta streaks under the car (crops,
-  `user_chase_neon_car_*`, right): the main "off" left at the player's settings; SSR owner.
+  `user_chase_neon_car_*`, right): the main "off" left at the play setup; open for SSR.
 * Contact Shadows still darken the road under the car's body (−20 % in the box behind the
   bumper, which reaches under the overhang); judged against Original only, no native frame.
 * SSAO's residual on the road beside the glow (~1 %) and in the world pass's own additive

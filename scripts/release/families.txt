@@ -24,6 +24,34 @@
 \b[Tt]h[e] owner\b
 \bowner'?s\b
 
+[owner-wording]
+# How a private conversation leaks into the text: quoted requests and reports, decisions with a date, the
+# settings or machine of one person used as a test setup. Write the rule or behaviour itself instead.
+\b[Pp]la[y]er reports?\b
+\b[Uu]se[r] reports?\b
+\b[Oo]wne[r] reports?\b
+\b[Dd]esig[n] notes?\b
+\b(the |a )?(reference |reported )?pla[y]er'?s (settings|setup|rows|options|set|max|values)\b
+\breference pla[y]er\b
+\b[Uu]se[r]'s (settings|setup|set|options|rows|max|values|choice|scope|requirement|repeat|decision|correction|request|all-max|desktop|machine|Wayland|car|[Ll]ancer)\b
+\b[Uu]se[r]s? (settings|setup|options|rows|choice|decision|correction|request)\b
+\([Uu]se[r], (same|that|this) day\b
+\b[Uu]se[r] (choice|decision|correction|request)\b
+\b[Uu]se[r]'s ["“]
+\([Uu]se[r]\)
+\b[Oo]wne[r] (rows|row|settings|rain|setup|choice|rule|wants?|said|asked)\b
+(?<![\w.])\([Oo]wne[r]\)
+\b[Oo]wne[r] (after|base)\b
+\b[Oo]wne[r]'s rule\b
+\b(decided|decision|agreed|requested|choice)\b[^.\n]{0,16}\b20[0-9]{2}-[0-9]{2}-[0-9]{2}
+\b[Rr]eported by (the |a )?(pla[y]er|tester|use[r]|owne[r]|maintainer)
+\btester'?s (machine|report|PC|desktop)\b
+\bplay-?tes[t] reports?\b
+\b(his|her) (machine|desktop|PC|computer|GPU|settings|save|setup|screen|monitor)\b
+\b(gaining|retook|retake|retakes) the maintainer\b
+\bthe maintainer (test|change|fixed|instruction)\b
+\bmaintainer's (instruction|play setup|machine)\b
+
 [agent-wording]
 \b[Tt]h[e] lead\b
 \blead ag[e]nt\b

@@ -443,7 +443,7 @@ impl Game {
             // flushed (0x482970(1)) and a pending request freed
             // (0x575640). GB_NOS (record 13 of SoundFX_Select, an
             // 89.5 s stream) lasts only while the shot runs; the
-            // clone let it play out (a player report).
+            // clone let it play out.
             Some(false) => {
                 a.soundfx.gb_nos = false;
                 a.streams.stop_nis(&a.mixer);

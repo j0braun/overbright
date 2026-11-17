@@ -1,5 +1,5 @@
 Ray-traced reflections: the rays from a list in a compute pass (docs/rt-reflections.md "The ray list")
-Reference desktop GPU (RADV, Vulkan), 3840x2160, the reference player's settings: SSAA 2x, Ray Traced
+Reference desktop GPU (RADV, Vulkan), 3840x2160, the play setup: SSAA 2x, Ray Traced
 reflections, Modern + RT lighting, every other row as the player has it (World Detail values incl.).
 Base = the tree before this change; new = with it. Shots `--shot <target>` at 3840x2160, bench `--bench`.
 
@@ -11,7 +11,7 @@ Base = the tree before this change; new = with it. Shots `--shot <target>` at 38
    the store keeps the payload).
 
 2. Pictures, md5 of the PNG (first 12 hex), base | new
-   owner settings      race     ffb108db1bd6 | ffb108db1bd6   (new log: "ray-traced trace 3840x2160,
+   play setup      race     ffb108db1bd6 | ffb108db1bd6   (new log: "ray-traced trace 3840x2160,
                        qrstart  56f3ab882f57 | 56f3ab882f57    its rays from a list in a compute pass")
                        intro    50bdbdaea74a | 50bdbdaea74a
                        rain     7a8ccc5a1fa9 | 7a8ccc5a1fa9   (explore_rain, the night shower)

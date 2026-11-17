@@ -2,7 +2,7 @@ use crate::frontend::fe_ids;
 use super::*;
 
 /// The feature mask a single-player race or free roam asks for (0x6000A0
-/// with 0x5EA8F0, 0x5F33C0, 0x5EA8D0, 0x5F32B0), by the player's options
+/// with 0x5EA8F0, 0x5F33C0, 0x5EA8D0, 0x5F32B0), by the player options
 /// (0x83AA64 + player × 0x28): the minimap when the map mode is not Off
 /// (0x5EA8F0, 1), the gauges (0x5F32B0: 0x5EA940's 0x40), the score
 /// (0x5EA8D0, 0x2_0000); racing, the lap info (0x508), the split time

@@ -152,7 +152,7 @@ route walk's current point, is nearer the car than the controller's
 streaming. A **win was not obtainable** with the keyboard bot: on the
 bot's own run (`native-bot-chase.txt`) the rival reached 64 m/s while the
 player's Evo, braking for bends, held ~44; with a 40 m head start the
-rival retook the maintainer within 2.5 s in both games.
+rival retook first place within 2.5 s in both games.
 
 Remaining **open**: a win; action 19's offset geometry; the leader's road
 node for review rule; the route's bend speeds against the native ones;
@@ -207,7 +207,7 @@ with row 3 (stage 5) — within Medium's rows; this is consistent, not a distrib
 ahead until its racer +0x24 = 0 (it leads), then the rival lifted 400 m: status 7, the player
 wins at once):
 
-| | stage 4 (user's a community save copy, +0xDC 3) | stage 5 (`stage5_start`, +0xDC 5) |
+| | stage 4 (a community save copy, +0xDC 3) | stage 5 (`stage5_start`, +0xDC 5) |
 |---|---|---|
 | bank | 1,000,007,600 → +250 | 148,300 → 148,700 (+400) |
 | +0xDC | 3 → 4 | 5 → 6 |

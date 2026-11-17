@@ -1,6 +1,6 @@
 # Garage FE car: part changes built off the frame
 
-Player report: "fps tanks when picking different rims".
+Issue: the frame rate dropped sharply while picking different rims.
 
 ## Cause (measured)
 `draw_garage` (src/bin/game.rs) rebuilt the whole FE car on every change of

@@ -60,6 +60,22 @@ class TextFamilies(unittest.TestCase):
             self.assertTrue(has(s, "owner-remark"), s)
         self.assertFalse(has("a user interface", "owner-remark"))
 
+    def test_owner_wording(self):
+        # Quoted reports and requests, dated decisions, one person's settings or machine as a test setup.
+        for s in [J("Play", "er report: \"it looks off\""), J("(a pla", "yer report)"), J("Use", "r report (2026-11-04)"),
+                  J("Own", "er report 2026-11-12"), J("Desi", "gn note: \"add it\""), J("at the pla", "yer's settings"),
+                  J("the refer", "ence player's 4K settings"), J("4K, us", "er settings"), J("us", "er's setup"),
+                  J("Enter skips (us", "er choice)"), J("us", "er decis", "ion 2026-10-31"), J("(us", "er, same day)"),
+                  J("SSAO (us", "er's \"no difference\")"), J("Volumetric Fog Low (us", "er)"), J("own", "er rows 4K"),
+                  J("Rate rule (own", "er):"), J("Own", "er's rule: never locked"), J("decis", "ion 2026-11-12"),
+                  J("as deci", "ded 2026-11-04 for 60 fps"), J("repor", "ted by the player"), J("a test", "er's machine"),
+                  J("on hi", "s desktop"), J("retook the main", "tainer"), J("the maint", "ainer's instruction")]:
+            self.assertTrue(has(s, "owner-wording"), s)
+        for s in ["the player's car", "a player-settings record", "the play setup at 4K", "agreed deviation",
+                  "concatenate(owner)", J("the own", "er car's light"), "Wheel integration review correction (2026-11-03)",
+                  "for p in orig modern user max", "the maintainer's private set", "Rachel needs her car back"]:
+            self.assertFalse(has(s, "owner-wording"), s)
+
     def test_agent_wording(self):
         for s in [J("per th", "e lead"), J("other ag", "ents load"), J("the br", "ief says"), J("a sub", "agent")]:
             self.assertTrue(has(s, "agent-wording"), s)

@@ -1,7 +1,7 @@
 # High Precision Post's blur: what was measured (docs/hdr-post.md "Blur where it can be lit")
 
 GPU timestamps per pass, `--bench racing 200` unless named, headless; the desktop GPU at 3840x2160 with
-the player's 4K settings (SSAA 2x: scene 5431x3055, Full-Size Glow at 3840x2160, scaled prefilter);
+the play setup at 4K (SSAA 2x: scene 5431x3055, Full-Size Glow at 3840x2160, scaled prefilter);
 the integrated GPU at 1920x1080, World Detail 3, the Medium (Half-Size Glow 960x540) and High (Full-Size
 Glow 1920x1080) levels. Medians of interleaved runs (base, new, base, new ...), the range in brackets.
 Other jobs shared the machine (load average 15–42).
@@ -30,7 +30,7 @@ more than that (1.8 ms on the integrated GPU): not kept.
 ## After SSAA's resolve to the screen's size (docs/ssaa-screen-passes.md; the later tree)
 Under SSAA with High Precision Post the glow's source is the image resolved to the screen's size and its
 prefilter the 1× one (`fs_overbright_mrt_hdr_flag`). One build with the passes marked apart and the full
-passes switched in by a measuring aid (not in the tree), interleaved, 150 frames, the player's 4K settings,
+passes switched in by a measuring aid (not in the tree), interleaved, 150 frames, the play setup at 4K,
 desktop GPU, load 33–39:
 
 | | prefilter | need | across | down | glow chain | frame | runs |

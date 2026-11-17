@@ -16,7 +16,7 @@
 #
 # Environment: SET=quick|standard|full|igpu|loads|d3|d4|d4ab|d6|d8|d11|gate (bench; default standard), CONFIGS (a list
 # instead of SET), IGPU=1 (a second, integrated GPU: IGPU_DEVICE=vendor:device, e.g. in scripts/local.env), ORDER=alternate,
-# PRESET_<name> (enh lines of a preset; PRESET_user = a maintainer's play setup, machine-local: scripts/local.env),
+# PRESET_<name> (enh lines of a preset; PRESET_user = a play setup, machine-local: scripts/local.env),
 # REPS (default 5), FRAMES (default 600), GATES (parity; default "images window enhanced shots audio sim"), SHOTS and
 # SHOT_BASE_MAP (parity shots; "new=old …": the base draws a renamed target under its old name, set by gate.sh),
 # PIXDIFF (the pixdiff binary; default: built next to the game binary), NFSU2_ROOT (required), PERF_WORK
@@ -94,7 +94,7 @@ configs() {
     # The depth pre-pass work's A/B set: the main view's depth pre-pass and the lamps' specialisation (4K Ultra / Extreme every scene,
     # Ultra 1080p, Modern 4K (MSAA 8x), Original 1080p as the control).
     d8) for s in racing explore rain race; do for p in ultra extreme; do echo $s-$p-3840x2160; done; done; echo racing-ultra-1920x1080 racing-modern-3840x2160 racing-orig-1920x1080 ;;
-    # The SSR / motion-blur work's A/B set: SSR / motion blur / submissions (4K Ultra / Extreme / the player's settings every scene,
+    # The SSR / motion-blur work's A/B set: SSR / motion blur / submissions (4K Ultra / Extreme / the play setup every scene,
     # racing user / Ultra 1080p, Original 1080p as the control).
     d11) for s in racing explore rain race; do for p in ultra extreme user; do echo $s-$p-3840x2160; done; done; echo racing-user-1920x1080 racing-ultra-1920x1080 racing-orig-1920x1080 ;;
     loads) echo transitions ;;

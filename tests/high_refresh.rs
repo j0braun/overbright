@@ -1,7 +1,7 @@
 //! The simulation at any display rate (docs/uncapped-fps.md).
 //!
-//! User decision (2026-11-04): "the original does not run at those high
-//! framerates, so it should work like at 30 or 60 fps". The world therefore
+//! The original does not run at high frame rates, so the game must behave
+//! as at 30 or 60 fps whatever the display rate. The world therefore
 //! advances on a fixed cadence (`nfsu2::frame_clock::Cadence`, used by
 //! `Game::redraw`): one update per 1/60 s of real time, each the original's
 //! 60 fps frame (0x57EAE0: 30, 29, 31 ticks of 1/1800 s, split by the

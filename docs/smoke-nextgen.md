@@ -1,6 +1,6 @@
 # Tyre smoke toward current games (clone deviation, opt-in)
 
-Design note: "smoke looks better but still not like in new games". Scope (user's scope freeze): polish
+Goal: smoke closer to current games. Scope (frozen): polish
 of the **existing** Particles row's Cinematic tier (the Cinematic smoke work / the volumetric smoke `volume_fx` / the smoke integration, docs/smoke-volumetric.md),
 in place: no new row, no new tier, no new option label. Nothing here exists in SPEED2.EXE and nothing new
 was traced; the native emitters still decide where, when and how much smoke spawns (docs/formats.md
@@ -96,7 +96,7 @@ sprites only added light; not isolated).
 
 ## 5. Motion and temporal stability (look rule E7)
 
-* Racing bench (circuit, 1080p, user settings + Cinematic + Per-Object blur, frames 1100–1103 at 67 mph):
+* Racing bench (circuit, 1080p, play setup + Cinematic + Per-Object blur, frames 1100–1103 at 67 mph):
   **pixel-identical** to the smoke integration (no smoke there; the temporal pass writes nothing outside smoke). The
   benches reach no smoke at > 50 m/s; that check is open.
 * Drive-off through the burnout (`--bench explore` frames 170–330, `motion_driveoff_*`): no ghost of the
