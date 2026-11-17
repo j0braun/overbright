@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Reproducible release archives (scripts/release/package.sh, docs/releasing.md).
+"""Reproducible release archives (scripts/release/package.sh, docs/building-releases.md).
 
   archive.py tar   STAGE TOP OUT.tar.gz EPOCH    STAGE/TOP/** into a gzip'd tar
   archive.py zip   STAGE TOP OUT.zip    EPOCH    STAGE/TOP/** into a zip

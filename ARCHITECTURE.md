@@ -89,5 +89,4 @@ loads run on worker threads behind the original's loading screens.
   (docs/checks.md).
 - `scripts/checks/gate.sh`: the checks plus parity against a base build: frames, audio and simulation hashes
   (docs/perf-gates.md); `RATE=1` adds the rate gate.
-- `scripts/checks/provenance.py`, `layering.sh`, `scripts/release/scan.py` (provenance tags, render layering,
-  release scan).
+- `scripts/checks/provenance.py`, `layering.sh` (provenance tags, render layering).

@@ -6,17 +6,16 @@
 # Builds `game` with the default features (no `dev-harness`) into its own target dir
 # ($CARGO_TARGET_DIR/ship: the checks' own binary in $CARGO_TARGET_DIR/release stays the harness build),
 # then asserts:
-#   1. none of the harness's strings is in it: the private test saves (their file and profile names, read from
-#      the [leak-strings] section of scripts/release/families.private.txt by `scan.py leak-terms`), the
-#      harness's flags (--selftest, --playthrough, --flow, --photo; not --shot / --bench: Mark Spot's
+#   1. none of the harness's strings is in it: the private test saves' file and profile names (in the
+#      maintainer's checkout, from the privacy scan's leak terms), the harness's flags (--selftest, --playthrough, --flow, --photo; not --shot / --bench: Mark Spot's
 #      report names `game --shot race` and `game --bench explore 600` for the developers) and variables (NFSU2_STATE_HASH,
 #      NFSU2_SHOT_DATA, NFSU2_SHOT_MS, NFSU2_SHOT_REAL_SAVE, NFSU2_DEV_SHOP, NFSU2_AUDIO_WAV);
 #   2. every NFSU2_SHOT_* string left is one the game itself writes or reads: Mark Spot's repro lines
 #      (src/mark_spot.rs: SAVE, CAR, AT, HOLD, LOOK, SIZE, ENH, EVENT) and the enhancement override
 #      the renderer reads (src/render/debug_env.rs: ENH);
 #   3. a harness flag (`--selftest`, `--dev-harness`) ends in the usage error: exit code 2, "unknown option".
-# Without the private file the save names are not searched: the check says so ("private terms: NOT LOADED"),
-# runs the rest, and ends "RELEASE: ok, private terms NOT LOADED (...)" with exit status 3, never a plain ok.
+# Without the privacy scan (a public checkout) or its private terms the save names are not searched: the check
+# says so ("privacy scan: maintainer tool, not in this checkout" / "private terms: NOT LOADED"), runs the rest, and ends "RELEASE: ok, private terms NOT LOADED (...)" with exit status 3, never a plain ok.
 # Last line: "RELEASE: ok (size N bytes)" or "RELEASE: FAIL (...)". Exit status 0 only on ok.
 set -u -o pipefail
 HERE=$(cd "$(dirname "$0")" && pwd)
@@ -34,13 +33,16 @@ cargo build --release --bin game --target-dir "$SHIP_TARGET" || { echo "RELEASE:
 BIN=$SHIP_TARGET/release/game
 F=()
 strings -n 4 "$BIN" > "$O/strings.txt"
-# The private save names (scripts/release/families.private.txt, never published).
-PRIV_LOADED=1
-if PRIV_TERMS=$(python3 -I "$REPO/scripts/release/scan.py" leak-terms 2> "$O/leak-terms.txt"); then
+# The private save names (the maintainer's privacy scan; never published).
+PRIV_LOADED=1 SCAN=$REPO/scripts/release/scan.py
+if [ ! -f "$SCAN" ]; then
+  PRIV_LOADED=0; PRIV_TERMS=""
+  echo "release: privacy scan: maintainer tool, not in this checkout"
+elif PRIV_TERMS=$(python3 -I "$SCAN" leak-terms 2> "$O/leak-terms.txt"); then
   echo "release: private terms: loaded $(echo -n "$PRIV_TERMS" | grep -c .)"
 else
   PRIV_LOADED=0; PRIV_TERMS=""
-  echo "release: private terms: NOT LOADED (scripts/release/families.private.txt needs the maintainer's private set (OB_PRIVATE)); the private save names were not searched"
+  echo "release: private terms: NOT LOADED (needs the maintainer's private set (OB_PRIVATE)); the private save names were not searched"
 fi
 for s in $PRIV_TERMS --selftest --playthrough --flow --photo NFSU2_STATE_HASH NFSU2_SHOT_DATA NFSU2_SHOT_MS \
   NFSU2_SHOT_REAL_SAVE NFSU2_DEV_SHOP NFSU2_AUDIO_WAV; do

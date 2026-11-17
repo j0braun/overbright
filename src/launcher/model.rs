@@ -268,7 +268,7 @@ impl Model {
 }
 
 /// Where the source code of this build is published: `OB_SOURCE_URL` as
-/// the release build sets it (docs/releasing.md), when it is a web
+/// the release build sets it (docs/building-releases.md), when it is a web
 /// address; None otherwise (an ordinary build, or the release script's
 /// placeholder): the about screen then says it is an unofficial build.
 pub fn source_url() -> Option<String> {

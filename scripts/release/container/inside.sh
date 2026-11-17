@@ -23,7 +23,7 @@ if command -v x86_64-w64-mingw32-gcc > /dev/null; then x86_64-w64-mingw32-gcc --
 # lack ERROR_COMMITMENT_MINIMUM (winerror.h: 635): mimalloc 3 needs both (SRW locks; Windows 10 is the
 # oldest supported system anyway).
 export CFLAGS_x86_64_pc_windows_gnu="-D_WIN32_WINNT=0x0A00 -DERROR_COMMITMENT_MINIMUM=635"
-# Reproducible C parts (docs/releasing.md "Reproducibility"): mimalloc puts __DATE__/__TIME__ into the
+# Reproducible C parts (docs/building-releases.md "Reproducibility"): mimalloc puts __DATE__/__TIME__ into the
 # binary. GCC takes them from SOURCE_DATE_EPOCH; a fixed value (not the commit's time) keeps a build
 # independent of which commit first filled the crate cache (cargo does not rebuild C code when only
 # SOURCE_DATE_EPOCH changes; the -D below is in CFLAGS, which it does watch, so a cache built before this
@@ -47,7 +47,7 @@ build() { # build <name> <triple> <target dir> <exe suffix>
     # incoming values in the same order (same code, different bytes), so the game crate's hash, the
     # names of its promoted symbols and the build-id changed from build to build. This option names
     # them after the module's source name instead (`<crate>.<crate hash>-cgu.<n>`: unique, fixed);
-    # the generated code is unchanged (docs/releasing.md "Reproducibility").
+    # the generated code is unchanged (docs/building-releases.md "Reproducibility").
     rf="$rf -C llvm-args=-use-source-filename-for-promoted-locals"
     [ "$name" = windows ] && rf="$rf -C link-arg=-Wl,--no-insert-timestamp"
     export RUSTFLAGS="$rf"

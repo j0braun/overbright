@@ -68,7 +68,7 @@ fn version_stamp() -> (String, String) {
     println!("cargo:rustc-env=OB_VERSION={version}");
     println!("cargo:rustc-env=OB_COMMIT={commit}");
     // Where the source code is published (scripts/release/package.sh's
-    // SOURCE_URL, set by the release maker; docs/releasing.md); empty in an
+    // SOURCE_URL, set by the release maker; docs/building-releases.md); empty in an
     // ordinary build. For the about screen (`env!("OB_SOURCE_URL")`).
     println!("cargo:rerun-if-env-changed=OB_SOURCE_URL");
     println!("cargo:rustc-env=OB_SOURCE_URL={}", get("OB_SOURCE_URL").unwrap_or_default());
@@ -91,9 +91,8 @@ fn test_cfgs() {
         println!("cargo:rustc-cfg=ob_game");
     }
     // The private set: $OB_PRIVATE, else (until it moves out) this
-    // repository while it still holds the captures and saves (a public
-    // tree, scripts/release/public_tree.py, has none: its private tests are
-    // ignored with the reason).
+    // repository while it still holds the captures and saves (the public
+    // repository has none: its private tests are ignored with the reason).
     let private = std::env::var_os("OB_PRIVATE").filter(|d| !d.is_empty()).map(std::path::PathBuf::from);
     let private = private.unwrap_or_else(|| std::env::var_os("CARGO_MANIFEST_DIR").map(Into::into).unwrap_or_default());
     if private.is_dir() && (std::env::var_os("OB_PRIVATE").is_some_and(|d| !d.is_empty()) || private.join("tests/fixtures/native_saves").is_dir()) {
