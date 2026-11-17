@@ -58,7 +58,13 @@ pub const EDITIONS: &[Edition] = &[Edition {
 /// documents ($OB_PRIVATE/research/openug2-study-2026-11-05.md; only
 // prov: inferred fingerprint.OTHER_EXE_BUILDS
 /// the hash's ends were recorded, so this match is **inferred**).
-pub const OTHER_EXE_BUILDS: &[(u64, &str, &str, &str)] = &[(4_800_512, "f9dd86c0", "24168a7", "another SPEED2.EXE build (4,800,512 bytes)")];
+/// The 5,987,978-byte build is the European 1.2 release's copy-protected
+/// retail executable (SafeDisc; recognised by its sections whatever its
+/// hash, [`crate::exe_tables::Exe::protected`]).
+pub const OTHER_EXE_BUILDS: &[(u64, &str, &str, &str)] = &[
+    (4_800_512, "f9dd86c0", "24168a7", "another SPEED2.EXE build (4,800,512 bytes)"),
+    (5_987_978, "4d51643c", "818f", "the European 1.2 release's copy-protected SPEED2.EXE (5,987,978 bytes)"),
+];
 
 /// Files of loaders and mods next to the game (they do not change what the
 /// clone reads, but tell a report reader the install is modded).
@@ -231,6 +237,9 @@ impl Fingerprint {
                         Err(crate::exe_tables::Error::TablesDiffer { version, .. }) => {
                             s += &format!("ERROR: {}; Overbright does not start with it.\n", crate::qol::setup::exe_differs_line(version))
                         }
+                        Err(crate::exe_tables::Error::Protected { .. }) => {
+                            s += &format!("ERROR: {}\n", crate::qol::setup::exe_protected_line())
+                        }
                         Err(e) => s += &format!("ERROR: {}\n", e.to_string().lines().next().unwrap_or_default()),
                     }
                 } else {
@@ -336,6 +345,7 @@ mod tests {
         assert!(other_exe("SPEED2.EXE", 4_800_512, "f9dd86c0aaaa24168a7").is_some());
         assert!(other_exe("SPEED2.EXE", 4_800_512, "00dd86c0aaaa24168a7").is_none());
         assert!(other_exe("GLOBAL/GlobalB.lzc", 4_800_512, "f9dd86c0aaaa24168a7").is_none());
+        assert!(other_exe("SPEED2.EXE", 5_987_978, "4d51643caaaa818f").is_some_and(|n| n.contains("copy-protected")));
     }
 
     /// The player's install (NFSU2_ROOT) is the known edition.

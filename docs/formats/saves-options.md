@@ -860,8 +860,8 @@ is native; nothing was traced for it beyond the native facts cited.
   2). The folder is then checked for nine key files (`setup::KEY_FILES`):
   missing ones are listed with the same help and the clone exits; sizes
   are checked on every start, the XXH3 of the eight smaller ones (22 MB)
-  when the folder was found rather than given, against the North American
-  1.2 install (SPEED2.EXE 4,788,224 bytes); a difference is logged as
+  when the folder was found rather than given, against the European
+  1.2 install (SPEED2.EXE without copy protection, 4,788,224 bytes); a difference is logged as
   "another version or modded", not an error. `game --check-game [dir]`
   prints the report. The game folder is only read. The asset cache then
   builds itself on first use under the native loading screen (unchanged;

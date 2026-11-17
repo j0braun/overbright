@@ -51,10 +51,11 @@ pub fn named_app<'e>(env: &'e FakeEnv, fonts: &Fonts, name: &str, w: u32, h: u32
 
 /// The named states: (name, the screen it is shown on). The fake data of
 /// each comes from [`state_model`].
-pub const STATES: [(&str, Screen); 31] = [
+pub const STATES: [(&str, Screen); 32] = [
     ("no-game", Screen::FirstRun),
     ("check-ok", Screen::Check),
     ("wrong-version", Screen::Check),
+    ("protected-exe", Screen::Check),
     ("not-a-game-folder", Screen::Check),
     ("files-missing", Screen::Check),
     ("checking", Screen::Main),
@@ -124,6 +125,15 @@ pub fn state_model(name: &str) -> Option<(Screen, Model)> {
             ],
             false,
         ),
+        "protected-exe" => {
+            let line = crate::qol::setup::exe_protected_line();
+            check(
+                &mut m,
+                None,
+                vec![(Mark::Error, line.as_str()), (Mark::Ok, "All 10 files Overbright needs are present")],
+                false,
+            )
+        }
         "not-a-game-folder" => check(
             &mut m,
             Some("/data/player/Downloads"),
