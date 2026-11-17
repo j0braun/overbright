@@ -52,7 +52,8 @@ own plain dark look, the Go font (BSD-3-Clause, `src/launcher/fonts/`).
   screen with fixed fake data (`model::FakeEnv`), no window, no files read;
   a state (`headless::STATES`, listed by `--list-screens`) is a screen with
   that data changed to what a player can meet: `no-game`, `check-ok`,
-  `wrong-version`, `not-a-game-folder`, `files-missing`, `checking`,
+  `wrong-version`, `protected-exe` (the copy-protected retail SPEED2.EXE),
+  `not-a-game-folder`, `files-missing`, `checking`,
   `first-start`, `probe-failed`, `no-vulkan` (the probe found no Vulkan
   driver: the line names the package to install), `long-values` (a long German path, many
   languages, a long pad name), `unofficial`, `start-failed`,
@@ -350,8 +351,10 @@ Harkinian, OpenGOAL, devilutionX, fheroes2, CorsixTH, ScummVM; general
 launchers such as Prism and Heroic), not native:
 - **Every refusal carries its fix.** A folder the check refuses says why in
   one sentence by what is wrong (`screens::advice`: another SPEED2.EXE
-  version → "works with version 1.2 of the PC game. Update this copy with
-  the official 1.2 patch"; most files missing → "the game's files are not
+  version → "its SPEED2.EXE is not the version 1.2 executable whose game
+  data Overbright reads"; the copy-protected retail executable → its own
+  line naming it and linking the issue where the work is followed
+  (docs/exe-tables.md, "Which executables work"); most files missing → "the game's files are not
   here … the one that holds SPEED2.EXE and the GLOBAL, FRONTEND and TRACKS
   folders"; a few missing → reinstall / copy again), and its main button is
   "Choose another folder…" (the browser beside the refused folder; Cancel

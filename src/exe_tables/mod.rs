@@ -7,8 +7,11 @@
 //! [`init`] maps `SPEED2.EXE` (found without regard to case,
 //! [`crate::game_fs`]; read-only) and builds every table once
 //! ([`Tables`]). The build the clone is traced on (size and XXH3-64 of
-//! [`crate::qol::setup::KEY_FILES`]) is taken as it is. Any other file (a
-//! no-CD or widescreen patch of it, another version) is read the same way
+//! [`crate::qol::setup::KEY_FILES`]) is taken as it is. The copy-protected
+//! retail executable (SafeDisc: its `.text` and `.data` are encrypted) is
+//! recognised by its section table and refused with its own message
+//! ([`Error::Protected`]). Any other file (a widescreen patch of the
+//! supported build, another version) is read the same way
 //! and then every table is checked against the SHA-256 the source pins for
 //! it ([`Tables::verify`]; the hashes, never the data): all equal → a
 //! modified copy whose game data matches, accepted with a note; any
@@ -57,6 +60,9 @@ pub enum Error {
     /// differ from that build's (another version or layout): its size,
     /// the version if known, the tables that differ.
     TablesDiffer { path: PathBuf, size: u64, version: Option<&'static str>, tables: Vec<String> },
+    /// The copy-protected retail executable (SafeDisc, [`Exe::protected`]):
+    /// its code and data are encrypted, so no table can be read from it.
+    Protected { path: PathBuf, size: u64 },
     /// Not a Windows executable the section table can be read from.
     NotPe(PathBuf),
     /// A table's address range lies outside the executable's sections.
@@ -88,6 +94,13 @@ impl std::fmt::Display for Error {
                     &crate::qol::setup::ExeProblem::Differs { size: *size, version: *version, tables }
                 )
             ),
+            Error::Protected { path, size } => {
+                write!(
+                    f,
+                    "{}",
+                    crate::qol::setup::exe_help(path, &crate::qol::setup::ExeProblem::Protected { size: *size })
+                )
+            }
             Error::NotPe(p) => {
                 write!(
                     f,
@@ -109,6 +122,8 @@ pub type Result<T> = std::result::Result<T, Error>;
 /// One section of the PE image: where it lives in memory and in the file.
 #[derive(Clone, Copy, Debug)]
 struct Section {
+    /// The section's name, NUL-padded to 8 bytes.
+    name: [u8; 8],
     va: u32,
     virtual_size: u32,
     raw_offset: u32,
@@ -119,7 +134,13 @@ struct Section {
 pub struct Exe {
     data: Data,
     sections: Vec<Section>,
+    /// The entry point's virtual address.
+    entry: u32,
 }
+
+/// The names of the two sections SafeDisc adds to the executable it
+/// protects; the retail SPEED2.EXE starts in the second (docs/exe-tables.md).
+pub const SAFEDISC_SECTIONS: [&[u8]; 2] = [b"stxt774", b"stxt371"];
 
 enum Data {
     Mapped(memmap2::Mmap),
@@ -132,7 +153,7 @@ pub enum Edition {
     /// The build the clone is traced on (size and hash).
     Known,
     /// Another file whose every table equals the known build's
-    /// ([`Tables::verify`]): a patched copy (no-CD, widescreen).
+    /// ([`Tables::verify`]): a patched copy (a widescreen patch, for one).
     Modified { size: u64 },
 }
 
@@ -166,6 +187,7 @@ impl Exe {
             return Ok((Exe::parse(data, path)?, Edition::Known));
         }
         match Exe::parse(data, path) {
+            Ok(e) if e.protected() => Err(Error::Protected { path: path.to_path_buf(), size: len }),
             Ok(e) => Ok((e, Edition::Modified { size: len })),
             // Not even a section table: certainly not the supported build.
             Err(_) => Err(Error::TablesDiffer {
@@ -202,17 +224,36 @@ impl Exe {
         let count = u16_at(pe + 6)? as usize;
         let optional = u16_at(pe + 20)? as usize;
         let base = u32_at(pe + 24 + 28)?;
+        let entry = base.wrapping_add(u32_at(pe + 24 + 16)?);
         let mut sections = Vec::with_capacity(count);
         for i in 0..count {
             let s = pe + 24 + optional + 40 * i;
             sections.push(Section {
+                name: data.get(s..s + 8).ok_or_else(bad)?.try_into().unwrap(),
                 va: base.checked_add(u32_at(s + 12)?).ok_or_else(bad)?,
                 virtual_size: u32_at(s + 8)?,
                 raw_size: u32_at(s + 16)?,
                 raw_offset: u32_at(s + 20)?,
             });
         }
-        Ok(Exe { data, sections })
+        Ok(Exe { data, sections, entry })
+    }
+
+    /// Whether this is the copy-protected retail executable: SafeDisc's
+    /// sections `stxt774` / `stxt371` are there, or the program starts in
+    /// a section whose name begins with `stxt` (the unprotected build
+    /// starts in `.text`).
+    pub fn protected(&self) -> bool {
+        let name = |s: &Section| {
+            let n = s.name.iter().position(|&c| c == 0).unwrap_or(8);
+            s.name[..n].to_vec()
+        };
+        let starts_in_stxt = self
+            .sections
+            .iter()
+            .find(|s| self.entry >= s.va && (self.entry as u64) < s.va as u64 + s.virtual_size.max(s.raw_size) as u64)
+            .is_some_and(|s| s.name.starts_with(b"stxt"));
+        starts_in_stxt || self.sections.iter().any(|s| SAFEDISC_SECTIONS.contains(&name(s).as_slice()))
     }
 
     /// `len` bytes at virtual address `va`, from one section: the file's

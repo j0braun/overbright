@@ -10,6 +10,10 @@ features (higher resolutions, modern graphics options) are optional and can be s
 YOU NEED YOUR OWN COPY OF THE GAME. No game files are included: you need your own PC copy of the
 game, an installed Need for Speed Underground 2 with your own SPEED2.EXE, version 1.2 (the folder
 that holds SPEED2.EXE).
+Today Overbright can read the game data of the European 1.2 release's SPEED2.EXE without copy
+protection (4,788,224 bytes). The copy-protected retail SPEED2.EXE (SafeDisc) is recognised but
+cannot be read yet; support for it is being worked on:
+https://github.com/j0braun/overbright/issues/16
 
 No texture art and no mods are included either. Texture packages (TexMod .tpf files, TexWizard
 packs) and the HUD mod that you have can be added in the launcher: the main screen's Mods row opens the Mods page, which adds,

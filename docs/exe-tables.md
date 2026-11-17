@@ -11,16 +11,21 @@ language file by their hash.
 * `init(root)` — once, in `Game::new` before anything else loads: finds `SPEED2.EXE`
   through `game_fs` (any case), maps it read-only (memmap2) and builds every table
   (`load`). The edition rule:
-  1. **the supported build** (size and XXH3-64 of `qol::setup::KEY_FILES[0]`, 4,788,224
-     bytes, NFSU2 PC 1.2): taken as it is (the whole-file hash already proves every table);
-  2. **any other file** (no-CD and widescreen patches change a few code bytes): read the
+  1. **the supported build** (size and XXH3-64 of `qol::setup::KEY_FILES[0]`: the European
+     NFSU2 PC 1.2 release's `SPEED2.EXE` without copy protection, 4,788,224 bytes, SHA-256
+     `8f6a9ae2…dfe2a297`; docs/game-fingerprint.md): taken as it is (the whole-file hash
+     already proves every table);
+  2. **the copy-protected retail executable** (SafeDisc; the European 1.2 release's is
+     5,987,978 bytes): refused before any table is read (`Error::Protected`). See
+     "Which executables work" below;
+  3. **any other file** (a widescreen patch, for one, changes a few code bytes): read the
      same way, then every table — the code-held values and strings included — is checked
      against the SHA-256 of its `Debug` text pinned in `tables::FIELD_PINS` (hashes only,
      never the data; `Tables::verify`, 0.59 ms for all 65). All equal: accepted
      (`Edition::Modified`), with one log line and an Info line on `--check-game` / the
      launcher's check screen: "SPEED2.EXE is a modified copy of the supported version;
      its game data matches";
-  3. **any table different or unreadable** (another version or layout, a broken section
+  4. **any table different or unreadable** (another version or layout, a broken section
      table): refused before anything runs with the plain-words message
      (`qol::setup::exe_help` / `exe_differs_line`): "this SPEED2.EXE is <version from the
      fingerprint> / an unknown version: its data tables differ from the supported 1.2
@@ -47,6 +52,42 @@ language file by their hash.
 * `exe()` — the mapped executable, for string access by address.
 
 Cost: about 0.3 ms at start, see "Start-up" below.
+
+## Which executables work
+
+| `SPEED2.EXE` | size | works today |
+|---|---|---|
+| European 1.2 release without copy protection (the supported build) | 4,788,224 B | yes |
+| a copy of it with a few code bytes changed and every table equal | any | yes (`Edition::Modified`, a note on the check screens) |
+| the copy-protected retail executable (SafeDisc), European 1.2 | 5,987,978 B | **no, not yet**: recognised and named |
+| another build of 1.2 (4,800,512 B, `fingerprint::OTHER_EXE_BUILDS`) | 4,800,512 B | no: its tables are at other addresses (refused as a differing version) |
+| version 1.0 or 1.1, other releases | — | no: refused when a table differs, or as copy-protected |
+
+**The copy-protected retail executable.** The retail PC game's `SPEED2.EXE` is
+protected with SafeDisc. Measured on the European 1.2 release's (5,987,978 bytes,
+SHA-256 `4d51643c…818f`): its section table holds SafeDisc's sections `stxt774` and
+`stxt371`, and its entry point (0x93309E) lies in `stxt371` (the supported build starts
+in `.text` at 0x75BCC7). `.text`, `.rdata`, `.data` and `.rsrc` have the supported
+build's addresses and sizes, but `.text` and `.data` are encrypted (7.999 and 7.98
+bits/byte of entropy against 6.74 and 4.69), so the tables in `.data` and in code cannot
+be read; `.rdata` is plain. Read as an ordinary file, its first engine record's string
+pointer is an encrypted dword, and the loader used to fail with "table … lies outside
+the program".
+
+`Exe::protected` recognises it by its header alone: a section named `stxt774` or
+`stxt371` (`SAFEDISC_SECTIONS`), or an entry point in a section whose name starts with
+`stxt`. `Exe::open` then returns `Error::Protected` and every place that reports on the
+executable says the same thing in plain words (`qol::setup::exe_help`,
+`exe_protected_line`): this is the copy-protected retail executable, Overbright cannot
+read its game data yet, and support for it is being worked on (issue
+https://github.com/j0braun/overbright/issues/16). The start message adds that
+Overbright does not remove copy protection; the launcher's check screen refuses the
+folder with the same line (`screens::advice`). Overbright never decrypts the file and
+never points to another executable. Tests: `exe_tables::tests::
+the_protected_executable_is_recognised_and_named` (a synthetic PE with those sections;
+the start message, `--check-game` and the check lines),
+`launcher::tests::the_protected_executable_is_named_with_its_issue` (the check screen's
+state `protected-exe` at every size).
 
 ## The tables
 
