@@ -1,6 +1,6 @@
 # Next-Gen rain (clone deviation, opt-in)
 
-Design note (wave NX): every effect at the "next-gen" level of the next-gen water water. A fourth value on the
+Every effect at the "next-gen" level of the Next-Gen water. A fourth value on the
 existing **Rain Detail** row (Graphics page, Weather group): Off / On / High / **Next-Gen**
 (`enh.rain_detail 3`, `qol::RAIN_NEXT_GEN`, `qol::rain_next_gen()`). No new label id: the row keeps
 0xC104E0A2 (`options::RAIN_DETAIL`); the tier name is a string of the row. Not in any preset (manual,
@@ -86,7 +86,7 @@ GPU busy median ms/frame; configs carry Wet Car + Spray + Lens Drops (internal e
 Next-Gen over Original at 4K: about +0.85 ms (budget +1.5). Of the 0.94 ms pass, the haze is ~0.65
 (mostly its full-screen blend at 4K: a half-resolution in-scatter cost the same as quarter, the
 per-pixel loop moved out did not change it), streaks ~0.1, splashes ~0.05. History: full-resolution
-haze 1.30 ms, half-res bilateral 1.19, quarter-res filtered 0.94. At the player's settings (SSAA) the
+haze 1.30 ms, half-res bilateral 1.19, quarter-res filtered 0.94. At the play setup (SSAA) the
 pass scales with the supersampled pixels (1080p: 0.68 ms before the haze optimisation). Row cost in
 graphics_table.rs: 0.9 (4K).
 
@@ -95,7 +95,7 @@ With any Volumetric Fog tier the froxel medium holds the rain's air (docs/atmosp
 in-scatter and its extinction are 0 (`rain_share` 0), so `fs_haze_half` writes zeros and `fs_haze_up` discards
 every pixel (alpha 1 − e^0 = 0, light 0). `weather_fx::haze_draws` says so from the frame's air values, and the
 draw leaves both passes out (`counts().haze` 0): the same frames, byte for byte
-(`tests::fog_rain_paths::rain_haze_left_out_under_the_fog_draws_the_plain_frames`). 4K, SSAA 2x, the player's rows,
+(`tests::fog_rain_paths::rain_haze_left_out_under_the_fog_draws_the_plain_frames`). 4K, SSAA 2x, the play setup's rows,
 rain at clock 162 (7 interleaved runs each): the quarter-resolution pass 0.074 [0.073..0.074] ms and the full-screen
 one 0.090 [0.089..0.090] → none. Without Volumetric Fog the haze runs as before.
 
@@ -108,7 +108,7 @@ one 0.090 [0.089..0.090] → none. Without Volumetric Fog the haze runs as befor
 - `spot-*-orig-ultra-ng.webp`: Original | Ultra-like (rain High) | Next-Gen, `--shot explore` 1080p at clock 165:
   City Core, casino canopy (under a cover zone: no rain, the haze and halos beyond), garage approach,
   the fountain plaza ("highway" spot −897.9, 726.1), neon district. `highway-crop100-ultra-ng.webp` at 100 %.
-- `drive-user-00100/00400-high-ng.webp`: the player's settings + High | + Next-Gen, `--bench drive`
+- `drive-user-00100/00400-high-ng.webp`: the play setup + High | + Next-Gen, `--bench drive`
   (11 / 50 mph); `drive-user-00400-road-ng-crop100.webp`; `sequence-drive-ng-200-500.webp` (motion).
 - `car-4k-ultra-ng-crop100.webp`: 4K rear of the car, High | Next-Gen.
 

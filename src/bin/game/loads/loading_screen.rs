@@ -23,8 +23,7 @@ pub(crate) struct LoadingGate {
 /// opens PC_Loading.fng (0x57FF95 → 0x555E90, unless 0x52CF70 finds it
 /// up) before it reads Global\FrontEndMemoryFile.bin; the boot screens
 /// (0x4D9580) come after. The clone follows [`LOADING_DELAY_MS`] here too
-/// (user correction 2026-11-05: every loading screen, the start's
-/// included): the screen goes up only once the start's work still running
+/// (every loading screen, the start's included): the screen goes up only once the start's work still running
 /// with the window open (`resumed`: window, audio device) has taken
 /// 200 ms, and a start done sooner presents no PC_Loading frame at all.
 /// `enh.boot_loading_min_ms` (opt-in; 0 = the 200 ms rule) instead shows

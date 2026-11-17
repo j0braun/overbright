@@ -188,7 +188,7 @@ tests `tests/native_save.rs`, selftest `selftest_profiles`.
   settings — `CarSlot::tuning`), the current slot (once the player
   has a car), the inbox; the options above, the EA Trax play mode included
   (`Settings::trax_random`, shown on the jukebox and flipped by its
-  triggers). A Quick Race record or a player's settings the clone did not
+  triggers). A Quick Race record or a player-settings record the clone did not
   change keeps its bytes (Free Run's record holds 0 laps, which the clone
   reads as 1). Every other byte is kept from the file the profile was
   loaded from (a new profile starts from the original's own fresh profile,
@@ -292,7 +292,7 @@ tests `tests/native_save.rs`, selftest `selftest_profiles`.
   previously saved game?" and then "Are you sure you want to save the
   profile named Sawa?". The clone does the same (`LotDeal::LeaveCrib`,
   `changed_since_snapshot`; selftest: a change in the garage asks, none
-  goes straight). **Open**: the player's report of a question the clone
+  goes straight). **Open**: a reported case of a question the clone
   skipped was not reproduced; a change made before the garage's INIT
   (outside it) asks nothing in either game.
 * **Help bar**: the profile name (EB406FEC) is the current profile's; the
@@ -325,7 +325,7 @@ tests `tests/native_save.rs`, selftest `selftest_profiles`.
   original has no rename (a name typed over another's in any case is
   that profile, as above). What is shown: MC_List the folder's name (as
   under Wine), the help bar and the save question the payload's own name
-  (profile +0, `NativeSave::name`). **Clone choice** (design note):
+  (profile +0, `NativeSave::name`). **Clone choice**:
   folders that differ only in case (possible on Linux only, e.g. "the finished-career save"
   and "the finished-career save" made by older clone builds) are one profile: listed once,
   as the folder whose profile file is the newest (equal times: the exact
@@ -544,8 +544,7 @@ private copy `$OB_PRIVATE/wine/runs/<run>` (wined3d, Xvfb :161).
 
 ## Display modes and aspect (clone deviation)
 
-Agreed deviation (design note: "add 4k option and support for new gen
-monitors"). Native facts first (**verified** from the assembly), then what
+Agreed deviation: 4K and other modern monitor resolutions. Native facts first (**verified** from the assembly), then what
 the clone does instead (`render::display`, `frontend::options`,
 `render::ui`, `render::camera`, `bin/game.rs`).
 
@@ -625,8 +624,8 @@ the clone does instead (`render::display`, `frontend::options`,
     their native margins to the edge (in canvas units, scaled with the
     screen). What lies off the canvas stays hidden: each run is scissored
     to the canvas as its place moves it.
-  * **Fills reach the screen's edges** (design note: "overlays in
-    menus are not adapted to widescreens"; `render::ui`, one rule from the
+  * **Fills reach the screen's edges** (the menus' overlays
+    adapt to wide screens; `render::ui`, one rule from the
     package data, no per-screen list). A *fill* is an unturned quad that
     is flat (untextured but not a hairline, or a `White16x16*` image,
     `Place::fill`) or magnifies its texture at least 4 × on both axes
@@ -698,7 +697,7 @@ the clone does instead (`render::display`, `frontend::options`,
       layout (0x8401: buttons under the map panel's right end). One rule
       in `frontend::element_place` (the help bar's top-level object, its
       state's RealGroup), so the mouse's rectangles (recorded from the same
-      quads) follow it. Before (2026-11-01 player report) the In_Game and
+      quads) follow it. Before (2026-11-01) the In_Game and
       garage-map buttons went to the screen's corners, outside the panel.
       Checked at 1280 × 960, 1920 × 1080, 2560 × 1080, 3440 × 1440:
       in-game and garage World Map, SMS inbox / message / intro SMS,
@@ -721,8 +720,8 @@ the clone does instead (`render::display`, `frontend::options`,
     stretched (checked against <base> at 1280 × 960: main, career,
     explore, race, qrstart, drift, drag, engage, ending, custcars, pause,
     loading).
-  * Scale with the resolution (design note: "menus and overlays
-    should scale to the higher resolutions"): every 2D quad — FE menus,
+  * Scale with the resolution (menus and overlays
+    scale to higher resolutions): every 2D quad — FE menus,
     dialogs, help bar, HUD, mirror, loading screen and tips, movies,
     subtitles, SMS, world maps, and the clone's own F3 overlay (with its
     deviations rows) and toasts — is drawn on the canvas, so it
@@ -735,7 +734,7 @@ the clone does instead (`render::display`, `frontend::options`,
   * Text and art at any size: sampled as fe.efx samples them (bilinear),
     no sharpening or upscaling unless HD UI Art is on (see "2D
     enhancements"; the earlier glyph sharpening above 960 lines and the
-    runtime Super-xBR copies are removed, design note).
+    runtime Super-xBR copies are removed).
   * Stretched (Original): the native behaviour above (stretched canvas,
     Vert− views); kept as the original's look, and what Restore Native
     picks.
@@ -771,7 +770,7 @@ the clone does instead (`render::display`, `frontend::options`,
 
 ## QoL (clone deviation): Enhancements page, saves, crash reports, first run (2026-10-31)
 
-Agreed deviations (design note), each **opt-in**: with the defaults
+Agreed deviations, each **opt-in**: with the defaults
 the clone behaves and renders as before (shots pixel-identical, bar the
 Display page's new last row). Code: `src/qol.rs` (`Enhancements`, `saves`,
 `crash`, `setup`), `frontend::options` (rows, options.txt),
@@ -861,8 +860,8 @@ is native; nothing was traced for it beyond the native facts cited.
   2). The folder is then checked for nine key files (`setup::KEY_FILES`):
   missing ones are listed with the same help and the clone exits; sizes
   are checked on every start, the XXH3 of the eight smaller ones (22 MB)
-  when the folder was found rather than given, against the North American
-  1.2 install (SPEED2.EXE 4,788,224 bytes); a difference is logged as
+  when the folder was found rather than given, against the European
+  1.2 install (SPEED2.EXE without copy protection, 4,788,224 bytes); a difference is logged as
   "another version or modded", not an error. `game --check-game [dir]`
   prints the report. The game folder is only read. The asset cache then
   builds itself on first use under the native loading screen (unchanged;
@@ -882,8 +881,7 @@ options.txt and listed while on) and Render Scale above 100 % merged into
 SSAA (same image). See docs/graphics-settings-audit.md; the row
 descriptions below still hold.
 
-Agreed deviation (design note: "build extra graphics features for a
-non native / QoL menu"). Every row **opt-in**, every default native: with
+Agreed deviation: extra graphics features in a non-native QoL menu. Every row **opt-in**, every default native: with
 the page native the renderer takes the same path as before — no pass, no
 target, no size changes — and every shot is pixel-identical to <base> but
 for the shots' own run-to-run noise (checked: all 70 shots of checks.sh
@@ -1377,10 +1375,9 @@ passes), `render::postfx::PostFx::apply` (the hand-over), `render`
 
 ## 2D enhancements (clone deviation): HD UI Art (2026-11-01; revised ui3; sharp wired for pack art)
 
-Agreed deviation (design note: font and 2D rendering may use modern
-techniques as long as it still looks native). Feedback on the first version
-(2026-11-01): "unless HD art is active no font or UI upscaling; current
-HD UI art and font does look AI-generated". So:
+Agreed deviation: font and 2D rendering may use modern techniques as long as the
+result still looks native. The first version's upscaled font and UI art looked
+artificial, so:
 
 * **Off (default) = native sampling at every size.** Every front-end
   quad, glyphs included, samples its texture as fe.efx does

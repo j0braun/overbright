@@ -31,7 +31,8 @@ Lookup is case-insensitive (`viv::find_ci`), as for the game's own files.
 
 | edition | SPEED2.EXE | GlobalB.lzc |
 |---|---|---|
-| NFSU2 PC 1.2, the traced build (the player's install, `EDITIONS[0]`; all nine files' hashes recorded) | 4,788,224 B `8f6a9ae2…dfe2a297` | 5,145,778 B `ad015fdb…4a2d6e90` |
+| NFSU2 PC 1.2, European release, `SPEED2.EXE` without copy protection: the traced build (`EDITIONS[0]`; all nine files' hashes recorded; region byte 0x7FA73C = 6, the European value) | 4,788,224 B `8f6a9ae2…dfe2a297` | 5,145,778 B `ad015fdb…4a2d6e90` |
+| NFSU2 PC 1.2, European release, the copy-protected retail `SPEED2.EXE` (SafeDisc; `OTHER_EXE_BUILDS`; hash measured on a copy; refused with its own message, docs/exe-tables.md "Which executables work") | 5,987,978 B `4d51643c…818f` | — |
 | another SPEED2.EXE build (`OTHER_EXE_BUILDS`, **inferred**: only size and the hash's ends known, from the OpenUG2 study $OB_PRIVATE/research/openug2-study-2026-11-05.md) | 4,800,512 B `f9dd86c0…24168a7` | — |
 
 The player's install also holds dinput8.dll + SCRIPTS/NFSUnderground2.WidescreenFix.asi
@@ -42,13 +43,17 @@ The player's install also holds dinput8.dll + SCRIPTS/NFSUnderground2.Widescreen
 `fingerprint::tests`: SHA-256 vectors; the edition table's shape; an empty
 folder (all missing → unknown); a modified EXE and a lower-case
 `global/globalb.lzc` (flagged, found) with dinput8.dll listed; the other
-build's partial match; with NFSU2_ROOT: the reference install is the known
+builds' partial matches (the copy-protected one named as such); with NFSU2_ROOT: the reference install is the known
 edition, and a copy whose GlobalB.lzc has one byte (+0x3E0) flipped is
 "UNKNOWN OR MODIFIED: GLOBAL/GlobalB.lzc" (the OpenUG2 case).
 
+Which of these executables Overbright starts with today: docs/exe-tables.md,
+"Which executables work" (the supported build and copies of it with the
+same tables; not yet the copy-protected retail executable).
+
 ## Open
 
-Other retail editions (EU / other languages, 1.0 / 1.1 patches, Steam-less
-re-releases) have no recorded hashes: they show as unknown until a user
-sends a `--check-game` output. Whether the clone runs correctly on them is
-not known.
+Other retail editions (other languages, 1.0 / 1.1, re-releases) have no
+recorded hashes: they show as unknown until a user sends a `--check-game`
+output. Overbright refuses any whose data tables differ from the supported
+build's.

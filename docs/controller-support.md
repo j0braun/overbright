@@ -85,7 +85,7 @@ is exactly why it feels broken on a modern pad.
 
 | row (label id) | values | native |
 |---|---|---|
-| Controller Layout (0xC104E033) | Auto / Modern / Original | **Auto** (design decision 2026-11-11, a device-presentation default; Original is the native value) |
+| Controller Layout (0xC104E033) | Auto / Modern / Original | **Auto** (a device-presentation default; Original is the native value) |
 | Stick Dead Zone (…34) | 0–25 % | 0 % |
 | Trigger Dead Zone (…35) | 0–20 % | 0 % |
 | Stick Saturation (…36) | 100 / 95 / 90 / 85 / 80 % | 100 % |
@@ -101,7 +101,7 @@ game clock: the same at 30 / 60 / 120 / 200 Hz (tests). A Modern pad's map is ke
 with the last byte XOR 0x4D, so the native and Modern maps never overwrite each other (the profile keeps only
 the attached pads' blocks, as the original: switching the layout and saving drops the other layout's custom map).
 
-### Controller Layout Auto (the default; design decision 2026-11-11)
+### Controller Layout Auto (the default)
 
 A device-presentation default, like the display mode: documented and switchable.
 
@@ -125,7 +125,7 @@ A device-presentation default, like the display mode: documented and switchable.
   native, and those stay off / native by default.
 * options.txt: Auto writes nothing; Original is now written (`enh.pad_layout 0`), Modern `enh.pad_layout 1`.
   A file from before the change (no line) gets Auto.
-* For docs/native-deviations.md (lead's list): "Controller Layout defaults to Auto: standard gamepads get the
+* For docs/native-deviations.md: "Controller Layout defaults to Auto: standard gamepads get the
   Modern layout (analog triggers as pedals, Start pauses, exact analog, pad button names); Original (the
   DirectInput presentation) for legacy devices, wheels, pads with custom Original bindings, or by choice."
 

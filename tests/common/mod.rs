@@ -246,7 +246,7 @@ impl Drop for Scratch {
 
 /// The text of every `.rs` file under `paths` (each a file or a folder,
 /// relative to `root`, the crate root, which the caller passes as the
-/// manifest folder from `env!` (so the release scan sees the paths);
+/// manifest folder from `env!`;
 /// folders walked recursively, sorted by path),
 /// joined in the order given. Tests that look at source text read a tree
 /// with this, not one file, so they keep passing while code moves between

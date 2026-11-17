@@ -230,7 +230,7 @@ pub fn cost_ms(id: RowId, s: &Settings, out: (u32, u32)) -> Option<f32> {
     let (mut gpu_4k, fixed) = tier.cost?;
     // MSAA on top of SSAA multiplies the supersampled scene's samples:
     // The settings conflict audit measured 8x under SSAA 2x at +9.6 ms (racing 4K, 8.70 → 18.30
-    // ms, the player's setup); other counts and SSAA factors scaled from it
+    // ms, the play setup); other counts and SSAA factors scaled from it
     // by samples and the SSAA's pixels (**inferred**).
     if id == RowId::AaMsaa
         && let Some(k) = crate::qol::ssaa_scale(s.enh.post_aa)

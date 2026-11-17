@@ -271,7 +271,7 @@ fn the_known_build_matches_every_pin() {
 }
 
 /// A patched copy (a few code bytes changed outside every table, as a
-/// no-CD or widescreen patch does): accepted, its tables bit-identical.
+/// widescreen patch does): accepted, its tables bit-identical.
 #[test]
 #[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
 fn a_patched_copy_with_the_same_data_is_accepted() {
@@ -367,6 +367,85 @@ fn sections_map_addresses() {
     assert_eq!(exe.read::<u32>(0x40_1080).unwrap(), 0);
     assert!(matches!(exe.bytes(0x40_10FE, 4), Err(Error::Range { .. })));
     assert!(matches!(exe.bytes(0x40_0000, 4), Err(Error::Range { .. })));
+}
+
+/// A synthetic PE with the given sections (name, RVA; 0x200 bytes each,
+/// the first raw at file offset 0x400) and the entry point at `entry`
+/// (an RVA): the shape of the copy-protected retail executable's header,
+/// none of its bytes.
+fn synthetic_pe(sections: &[(&[u8], u32)], entry: u32) -> Vec<u8> {
+    let raw = 0x400 + 0x200 * sections.len();
+    let mut b = vec![0u8; raw];
+    b[..2].copy_from_slice(b"MZ");
+    b[0x3C..0x40].copy_from_slice(&0x40u32.to_le_bytes());
+    b[0x40..0x44].copy_from_slice(b"PE\0\0");
+    b[0x44..0x46].copy_from_slice(&0x14Cu16.to_le_bytes());
+    b[0x46..0x48].copy_from_slice(&(sections.len() as u16).to_le_bytes());
+    b[0x54..0x56].copy_from_slice(&0xE0u16.to_le_bytes());
+    b[0x58..0x5A].copy_from_slice(&0x10Bu16.to_le_bytes());
+    b[0x58 + 16..0x58 + 20].copy_from_slice(&entry.to_le_bytes());
+    b[0x58 + 28..0x58 + 32].copy_from_slice(&0x40_0000u32.to_le_bytes());
+    for (i, (name, rva)) in sections.iter().enumerate() {
+        let s = 0x58 + 0xE0 + 40 * i;
+        b[s..s + name.len()].copy_from_slice(name);
+        b[s + 8..s + 12].copy_from_slice(&0x200u32.to_le_bytes());
+        b[s + 12..s + 16].copy_from_slice(&rva.to_le_bytes());
+        b[s + 16..s + 20].copy_from_slice(&0x200u32.to_le_bytes());
+        b[s + 20..s + 24].copy_from_slice(&(0x400 + 0x200 * i as u32).to_le_bytes());
+    }
+    b
+}
+
+/// The copy-protected retail executable is recognised by its header alone
+/// (SafeDisc's `stxt774` / `stxt371` sections, the start in `stxt371`) and
+/// refused with its own message: what it is, that Overbright cannot read
+/// it yet, where the work is followed; no folder advice and no word about
+/// other executables. The same message reaches `--check-game` and the
+/// launcher's check screen. A synthetic file: no game data needed.
+#[test]
+fn the_protected_executable_is_recognised_and_named() {
+    let protected: &[(&[u8], u32)] =
+        &[(b".text", 0x1000), (b".rdata", 0x2000), (b".data", 0x3000), (b"stxt774", 0x4000), (b"stxt371", 0x5000)];
+    let bytes = synthetic_pe(protected, 0x5010);
+    assert!(Exe::from_bytes(bytes.clone()).unwrap().protected());
+    // Either sign alone is enough: the sections, or a start in a `stxt` section.
+    let only_sections = synthetic_pe(&protected[..], 0x1010);
+    assert!(Exe::from_bytes(only_sections).unwrap().protected());
+    let only_entry = synthetic_pe(&[(b".text", 0x1000), (b"stxt999", 0x2000)], 0x2004);
+    assert!(Exe::from_bytes(only_entry).unwrap().protected());
+    // The unprotected layout: the plain sections, the start in `.text`.
+    let plain =
+        synthetic_pe(&[(b".text", 0x1000), (b".rdata", 0x2000), (b".data", 0x3000), (b".rsrc", 0x4000)], 0x1010);
+    assert!(!Exe::from_bytes(plain).unwrap().protected());
+
+    let dir = crate::testkit::Scratch::new("exe-protected");
+    std::fs::write(dir.path().join(EXE), &bytes).unwrap();
+    let e = check_folder(dir.path()).expect_err("the protected executable was accepted");
+    assert!(matches!(&e, Error::Protected { size, .. } if *size == bytes.len() as u64), "{e:?}");
+    assert!(matches!(load(dir.path()), Err(Error::Protected { .. })));
+    let text = e.to_string();
+    for words in [
+        "copy-protected retail SPEED2.EXE",
+        "cannot read them yet",
+        "being worked on",
+        crate::qol::setup::PROTECTED_EXE_ISSUE,
+    ] {
+        assert!(text.contains(words), "{words:?} not in {text}");
+    }
+    let lower = text.to_lowercase();
+    for banned in ["no-cd", "nocd", "no cd", "crack", "patch", "--set-root", "choose an install"] {
+        assert!(!lower.contains(banned), "{banned:?} in {text}");
+    }
+
+    let fp = crate::fingerprint::compute(dir.path());
+    assert!(fp.report().contains(&format!("ERROR: {}", crate::qol::setup::exe_protected_line())), "{}", fp.report());
+    let lines = crate::qol::setup::check_lines(&crate::qol::setup::check(dir.path(), false), Some(&fp));
+    assert!(
+        lines
+            .iter()
+            .any(|(m, t)| *m == crate::qol::setup::Mark::Error && *t == crate::qol::setup::exe_protected_line()),
+        "{lines:?}"
+    );
 }
 
 /// What reading the tables costs (diagnostic: `cargo test --release

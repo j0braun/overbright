@@ -1,6 +1,6 @@
 # Weather package (clone deviations, opt-in)
 
-Design note: "add better weather effects", "the car can be affected as well, like appearing wet".
+Better weather effects, the car included (it can look wet).
 Four rows in a new **Weather** group of the Graphics page (`frontend/graphics_table.rs`), all **Off**
 by default (native, byte-identical). Nothing here exists in SPEED2.EXE. The original's weather
 schedule is unchanged and is what drives everything below: where and when it rains, the rain amount,
@@ -102,7 +102,7 @@ transition: The wet-roads and SSR work's Wet Roads already fades with `road_wet`
 Checked by md5 of the PNGs, fast build, 1280 × 960:
 - Original against this copy's base: explore, intro, qrcars, race, qrstart, drift, drag and
   the rain shot (`NFSU2_RAIN_CLOCK=170`) are **identical**.
-- The player's settings with all four weather rows on against off, in **dry** explore, qrstart and intro:
+- The play setup with all four weather rows on against off, in **dry** explore, qrstart and intro:
   **identical**. A dry car and a dry road draw nothing new.
 - Parity gates (`perf.sh parity`, full release, <base> against this copy; internal evidence):
   - images: Original, 5 scenes × 1280 × 960 / 4K, AE 0.
@@ -131,10 +131,10 @@ RDNA2 iGPU, on a shared machine (raw: the maintainer's private captures).
 | Spray & Splashes | 0.12 | 0.23 | 2.31 |
 | Lens Drops | 0 (within noise) | 0 | – |
 | all four | 0.14 | 0.42–0.49 | 3.53 |
-| all four over the player's settings | 0.14–0.40 | 0.48–1.53 | – |
+| all four over the play setup | 0.14–0.40 | 0.48–1.53 | – |
 
 - Spray's mist is fill rate. The first version (two noise octaves, 12 mist puffs/s a wheel) cost
-  0.69 ms at 4K and 1.53 ms at the player's settings at 4K. One octave, an early discard and 8 puffs/s
+  0.69 ms at 4K and 1.53 ms at the play setup at 4K. One octave, an early discard and 8 puffs/s
   brought it to 0.23 / 0.48 (`cost/summary-r1.txt` before, `summary-r2-mist.txt` after).
 - The all-frame GPU medians move with the other jobs' load (the r2 run overlapped the parity
   gate). The pass timestamps are the stable figure.
@@ -151,7 +151,7 @@ copy at their own places, and the drops are drawn onto the scene itself sampling
 texels and blends over the same pixel as before: the same frame, byte for byte
 (`tests::fog_rain_paths::lens_drops_in_place_draw_the_plain_frames`). Without High Precision Post (the native
 look, 8-bit targets of two formats) and when the image is not the scene (the streak copy before it) the pass
-runs as it was. 4K, SSAA 2x, the player's rows, rain at clock 162 (7 interleaved runs each): the copy 0.458
+runs as it was. 4K, SSAA 2x, the play setup's rows, rain at clock 162 (7 interleaved runs each): the copy 0.458
 [0.456..0.460] ms → none, the drops 0.032 → 0.048 (the texels' copy in it): −0.44 ms a rain frame
 (docs/perf-budget.md "Fog, volumes and rain: the same pictures for less").
 
@@ -185,7 +185,7 @@ velocity.
   lights mirrored in the wet road, puddle splashes, rooster tails, arch spray, body sheeting. It runs the spray
   pool and Wet Roads' surface while on.
 - Splashes (Rain Detail) are no longer placed at depth edges, on or under cars, or under covers
-  (`weather_fx.wgsl` `splash_ground`; player report "splash … overlayed on objects").
+  (`weather_fx.wgsl` `splash_ground`; splashes had shown over objects).
 - The spray pool reuses its slots in turn when full (was `Vec::remove(0)`).
 
 ## The Next-Gen rain work Next-Gen (2026-11-05, docs/rain-nextgen.md)

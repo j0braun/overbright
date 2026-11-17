@@ -45,7 +45,7 @@ traffic") 307 / 311 / 244 ms. The traffic-mover parity builds a belt for every t
 (`build_belt_state`, 3 new call sites), whose first build asks
 `launch_times` for the quarter-mile speed; traffic types are past the
 factor tables, so each ran the full 999,999 steps. With the fix below:
-main 225 / 234 ms, this copy 61 / 17 ms (lead's "a" binary
+main 225 / 234 ms, this copy 61 / 17 ms (a second build
 17 / 28 ms) — internal notes.
 
 Changes:
@@ -83,8 +83,8 @@ Not changed (measured, reasons):
   the class needs the loaded cars; a speculative start for a predicted
   class saves at most the car loads' 8–10 ms. Not done.
 * The garage / shop first frame (36–67 ms; `Platform::load`'s JDLZ, the FE
-  car load, `static_envmap`): under the 200 ms target; a preload is the
-  roadmap's IDEA item, left to the maintainer.
+  car load, `static_envmap`): under the 200 ms target; a preload is
+  an open idea.
 
 ## 2. Frame pacing and power
 

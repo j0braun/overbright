@@ -1,7 +1,6 @@
 # Particles High / Ultra: GPU particles and detailed smoke (clone deviation, opt-in)
 
-Design note "can you make
-smoke more detailed"). Nothing here exists in SPEED2.EXE and nothing new was traced: the native
+More detailed smoke. Nothing here exists in SPEED2.EXE and nothing new was traced: the native
 particle system (docs/formats.md "Particle effects": spawn 0x491E50, update 0x492E10, render
 0x48BDF0 → 0x5C0E20 / 0x5C7E90) is unchanged and still decides **where, when and how many**
 particles spawn. Off (Original) is the default and byte-identical, except for the post-race scene smoke
@@ -66,7 +65,7 @@ The mean is small; the cost is fill rate when a cloud covers much of the screen 
 cost up to +13.8 ms (p99) at 4K; lighting per vertex and 2 octaves brought it here.
 On the iGPU it is expensive: +2.8 / +4.6 ms on average and frames of 50–73 ms inside a thick
 cloud (the row's help names it). Graphics-row costs: High 0.13, Ultra 0.23 ms at 4K. Ultra preset: Ultra (cheap on a discrete
-GPU on average). With a player's real settings (the player's options file, SSAA 2x at 1280 × 960,
+GPU on average). With the play setup (the play setup's options file, SSAA 2x at 1280 × 960,
 `--bench racing 410`, drift): mean 1.72 → 1.80 (High) / 1.84 (Ultra), p95 1.85 → 2.30 / 2.48 ms.
 
 ## Evidence (the maintainer's private captures, Original | High | Ultra unless named)
@@ -74,14 +73,14 @@ GPU on average). With a player's real settings (the player's options file, SSAA 
   NFSU2_FRAMES=450 NFSU2_THROTTLE=1 NFSU2_SHOT_STEP=1): the trail behind the car lingers and breaks
   into wisps; under the bumper it fades into the road instead of a hard sprite edge.
 * `drift_orig_ultra.webp`, `drift_taa_orig_ultra.webp` (TAA), `drift_user_settings_orig_high_ultra.webp`
-  (the player's settings file): `--bench racing`, NFSU2_BENCH_KIND=drift, frame 400.
+  (the play setup's options file): `--bench racing`, NFSU2_BENCH_KIND=drift, frame 400.
 * `purge_orig_high_ultra.webp`: `NOS_SHOT=1 NOS_PURGE=1 --shot explore` (hood and wheel purge
   plumes, recoloured by the purge part as native).
 * `night_lamps_orig_ultra.webp`: the burnout at night (NFSU2_RAIN_CLOCK=93, Dynamic Lamps on).
 * `scripts/bench.sh` (costs), `scripts/ident.sh` (byte identity).
 
-## Scene smoke: the post-race burnout (native path, player report)
-Player: "burnout in the post-race scene is missing smoke". **Cause** (clone): the race's ending
+## Scene smoke: the post-race burnout (native path)
+Issue: the burnout in the post-race scene had no smoke. **Cause** (clone): the race's ending
 scene (EndingNis01..04) plays while the post-race menus are up (`Mode::Menu`), and
 `Game::particle_effects` returned early for every mode but Explore / Race, so the NIS mover's
 sliding wheels (`drive::nis` 0x5AB550: skid above 6 m/s, `docs/nis-mover.md`) never reached the

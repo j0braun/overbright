@@ -1,6 +1,6 @@
 # Outrun rival pace and the drag rivals' nitrous (2026-11-05)
 
-Player report: "outrun racers too easy". The racer-traffic parity (world-systems-parity.md §12) had measured the clone's
+Issue: the outrun racers were too easy. The racer-traffic parity (world-systems-parity.md §12) had measured the clone's
 rival at 26–41 m/s and 21–40 s to pull 300 m ahead against the original's 35–47 m/s and 9–14 s,
 but over different starts (eight native outruns against twelve traffic seeds of one start) and
 with the player's throttle held, so the player's own crashes decided most of the outrun's length.

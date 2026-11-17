@@ -718,7 +718,7 @@ frame (≈ 39.5 s) in two native races (not traced).
 
 (Clone runs on native sprint s1's ticks; `sprint-table.md`.)
 
-**Outrun rivals (lead's scope addition; traced, observed).** The challenge's rival runs goal 6
+**Outrun rivals (scope addition; traced, observed).** The challenge's rival runs goal 6
 (Chase car, vtable 0x784B58, chooser 0x42D6F0: the same proposal list as 0x42D0F0) and goal 5 when
 the player leads; both goals' slot +0x20 is 0x40CA60 (= 1, as "Win road race" 0x784768; read from
 the vtables), so 0x42F330 runs 0x428FD0 and the sweep 0x4275E0 exactly as for race racers. The clone's

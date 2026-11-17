@@ -591,9 +591,16 @@ pub fn build(b: &mut Builder, m: &Model, screen: Screen) {
 /// it (the check's lines).
 pub fn advice(c: &super::model::CheckResult) -> &'static str {
     let errors = || c.lines.iter().filter(|(m, _)| *m == Mark::Error).map(|(_, t)| t.as_str());
-    if errors().any(|t| t.contains("SPEED2.EXE") && (t.contains("tables differ") || t.contains("not the version"))) {
-        "Overbright cannot use this folder: it works with version 1.2 of the PC game. Update this copy with the \
-         official 1.2 patch, or choose a folder with another copy."
+    if errors().any(|t| t.contains("SPEED2.EXE") && t.contains("copy-protected")) {
+        // The line itself names the executable and links the issue.
+        "Overbright cannot use this folder yet: its SPEED2.EXE is the copy-protected retail executable, whose \
+         game data is encrypted. Overbright does not remove copy protection; reading this executable is being \
+         worked on (link above)."
+    } else if errors()
+        .any(|t| t.contains("SPEED2.EXE") && (t.contains("tables differ") || t.contains("not the version")))
+    {
+        "Overbright cannot use this folder: its SPEED2.EXE is not the version 1.2 executable whose game data \
+         Overbright reads. Choose a folder with another copy."
     } else if errors().any(|t| t.contains("not a complete game folder")) {
         "Overbright cannot use this folder: the game's files are not here. Choose the folder the game was \
          installed to: the one that holds SPEED2.EXE and the GLOBAL, FRONTEND and TRACKS folders."

@@ -1,7 +1,6 @@
 # Car highlight from the scene, not the camera rig (clone deviation)
 
-Player report: "remove in the higher settings the light source on the trunk, super noticeable
-with Rachel's car". The bright yellow-green patch in the middle of the 350Z's trunk (the D-Day intro, the
+Issue: a bright light spot on the car's trunk at the higher settings, most visible on Rachel's car. The bright yellow-green patch in the middle of the 350Z's trunk (the D-Day intro, the
 chase camera) is the **native** car light: it is in the original too (Wine, `$OB_PRIVATE/wine/compare/
 orig/intro.png`, and the look-direction spots' frames of the original (internal evidence)). The Original
 look keeps it exactly; the car shading enhancements now light the highlight from the scene instead.
@@ -25,8 +24,8 @@ look keeps it exactly; the car shading enhancements now light the highlight from
   geometry: the key light (0.5, above the camera) — a reflection off the trunk lid from a chase camera
   points up (chase camera pitched 10°, lid tilted 25°: w at R = 0.50 from the key, 0.15 from the fill, 0.03 from the rim; **computed**, not measured per light under Wine).
 
-Bisect (the intro, the player's settings, `work/bisect`: mean luma of the trunk centre, 160×60 px): Original
-206.3; user settings 213.0; user minus Modern Lighting 207.8; minus Enhanced Paint 212.6; minus Enhanced
+Bisect (the intro, the play setup, `work/bisect`: mean luma of the trunk centre, 160×60 px): Original
+206.3; play setup 213.0; play setup minus Modern Lighting 207.8; minus Enhanced Paint 212.6; minus Enhanced
 Reflections 212.3; minus Headlight Beams (Off or On instead of Next-Gen), Light Probes or Dynamic Lamps
 213.0; every car row off 206.2. So no enhancement makes the patch; Modern Lighting adds ~+5 on top.
 After this change: **159.9** (the paint and its environment reflection).
@@ -50,7 +49,7 @@ Original: `compute` = `compute_with(…, false)` (the same sums; byte-identical,
 
 ## Look rules (docs/look-direction.md, the maintainer's tools, the look direction spots with the original's cameras, 1280×960)
 
-The change alone, user settings (perf.sh USER; the look direction's `user`) after − before, 16 spots: Δmean **−1.18**
+The change alone, play setup (perf.sh USER; the look direction's `user`) after − before, 16 spots: Δmean **−1.18**
 (R1 ±2.5), Δp5 −0.18 (R2 ≤ +1), Δp95 **−2.38** (R3 ±4), Δglow −0.09 (±0.2), ΔRMS −0.88 (R4 ≥ −2), Δsat
 +0.005 (R5 ±0.02), Δsky 0.00; crushed 2.57 → 2.67 %. Ultra −1.30 / −0.25 / −2.48 / −0.09 / −0.95;
 max −1.34 / −0.13 / −3.61 / −0.11 / −1.24. Against the original (Wine, 11 dry spots): user mean 68.4 vs
@@ -62,8 +61,8 @@ Table: internal evidence.
 
 ## Evidence (the maintainer's private captures)
 
-`intro_350z_car_200.webp` (Rachel's 350Z, the intro, 200 %: Original (Wine) | clone Original | user
-before | user after); three other cars at 100 % (clone Original | user before | user after, the Wine frame
+`intro_350z_car_200.webp` (Rachel's 350Z, the intro, 200 %: Original (Wine) | clone Original | play setup
+before | play setup after); three other cars at 100 % (clone Original | play setup before | after, the Wine frame
 first where the look direction has one): `street_lancer_100.webp`, `downtown_car_100.webp` (Lancer), `qrstart_206s_100.webp`
 (two 206s), `drift_grid_100.webp` (Focus, 206, RX-8 from behind). Full frames: the work dir
 (`<work dir>/nx6b/work/spots`, `before/`, `after/`).

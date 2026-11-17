@@ -3,8 +3,8 @@ use crate::*;
 #[path = "../../../../tests/common/mod.rs"]
 mod testkit;
 
-/// A player report: after winning the final race against
-/// Caleb (S5_CIRCUIT_36) the car's ending scene sank under the map. The
+/// After winning the final race against Caleb (S5_CIRCUIT_36) the
+/// car's ending scene once sank under the map. The
 /// start line there rises ~2 m across the scene; the ending's cars run
 /// on their NIS movers and must keep their wheels on the road in every
 /// ending scene. Real assets, no GPU; run with isolated XDG homes.
@@ -55,8 +55,7 @@ fn final_race_ending_keeps_the_car_on_the_road() {
     unsafe { std::env::remove_var("NFSU2_ENDING_NIS") };
 }
 
-/// The post-race burnout (player report, "burnout in the
-/// post-race scene is missing smoke"): EndingNis01's winner spins its
+/// The post-race burnout (it once had no smoke): EndingNis01's winner spins its
 /// rears (brake 0.2, additive 2.5 from frame 0) under the post-race
 /// menus, and the original smokes there (Wine, `native-finish-rwd`,
 /// docs/particles-smoke.md "Scene smoke"). The particle step runs in

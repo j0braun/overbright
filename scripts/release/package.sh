@@ -1,5 +1,5 @@
 #!/bin/bash
-# The player archives of one commit (docs/releasing.md): builds Linux and Windows in the release container
+# The player archives of one commit (docs/building-releases.md): builds Linux and Windows in the release container
 # (container/build.sh, `git archive <commit>`, no developer harness), assembles
 #   overbright-<version>-linux-x86_64.tar.gz    overbright-<version>-windows-x86_64.zip
 # and checks them. Nothing is uploaded or published: the archives stay in <out dir>.
@@ -20,7 +20,8 @@
 #   PKG_DISPLAY  an X display number of your own for Wine (default: Xvfb picks a free one)
 # Out dir: build/ (container/build.sh's; kept for --no-build), stage/, check/, wine/ (the Wine prefix),
 # the two archives, SHA256SUMS, checks.txt (every check line). Exit 0 only when every check is ok; 3 when every
-# check is ok but the maintainer's private search terms (families.private.txt) were not there to search for.
+# check is ok but the maintainer's privacy scan or its private search terms were not there (a public checkout:
+# "privacy scan: maintainer tool, not in this checkout").
 set -u -o pipefail
 HERE=$(cd "$(dirname "$0")" && pwd)
 REPO=${REPO:-$(cd "$HERE/../.." && pwd)}
@@ -217,16 +218,19 @@ for flag in --selftest --dev-harness; do
     if [ $rc = 2 ] && echo "$out" | grep -q "unknown option $flag"; then ok "game $flag: usage error (rc 2)"
     else bad "game $flag: rc $rc: $(echo "$out" | head -2 | tr '\n' ' ')"; fi
 done
-# The private save names come from families.private.txt (never published; scan.py also finds it in $OB_PRIVATE):
-# without it they are not searched, so the archives cannot be shown clean of them. As in release_check.sh the run
-# then never ends in a plain ok: every other check passing ends "PACKAGE: ok, private terms NOT LOADED" with exit
-# status 3 (what a public checkout without the maintainer's set can reach; a release needs exit 0).
-PRIV_MISSING=0
-if PRIV_TERMS=$(python3 -I "$HERE/scan.py" leak-terms 2> "$W/leak-terms.txt"); then
+# The private save names come from the maintainer's privacy scan (never published): without it they are not
+# searched, so the archives cannot be shown clean of them. As in release_check.sh the run then never ends in a
+# plain ok: every other check passing ends "PACKAGE: ok, ..." with exit status 3 (what a public checkout can
+# reach; a release needs exit 0).
+PRIV_MISSING=0 SCAN=$HERE/scan.py HAVE_SCAN=1
+if [ ! -f "$SCAN" ]; then
+    PRIV_TERMS=""; PRIV_MISSING=1 HAVE_SCAN=0
+    say "SKIP  privacy scan: maintainer tool, not in this checkout"
+elif PRIV_TERMS=$(python3 -I "$SCAN" leak-terms 2> "$W/leak-terms.txt"); then
     ok "private terms: loaded $(echo -n "$PRIV_TERMS" | grep -c .)"
 else
     PRIV_TERMS=""; PRIV_MISSING=1
-    say "SKIP  private terms: NOT LOADED (scripts/release/families.private.txt needs the maintainer's private set (OB_PRIVATE)): the private save names were not searched"
+    say "SKIP  private terms: NOT LOADED (needs the maintainer's private set (OB_PRIVATE)): the private save names were not searched"
 fi
 for b in "$L/game" "$WD/game.exe"; do
     found=""
@@ -237,16 +241,16 @@ for b in "$L/game" "$WD/game.exe"; do
     if [ -z "$found" ]; then ok "no harness strings in $(basename "$b")"; else bad "harness strings in $(basename "$b"):$found"; fi
 done
 
-# 5. privacy and game data in everything that ships (scan.py archive: text, binary strings, embedded bytes)
-REFS=(--game-ref "$NFSU2_ROOT")
+# 5. privacy and game data in everything that ships (the privacy scan: text, binary strings, embedded bytes)
+REFS=(--game-ref "${NFSU2_ROOT:-/nonexistent}")
 for r in "$B/src/tests/fixtures/native_saves" "$B/src/src/formats/native_save_fresh.bin" "${OB_PRIVATE:-/nonexistent}/saves/native_save_fresh.bin" "$HOME/.local/share/NFS Underground 2"; do
     [ -e "$r" ] && REFS+=(--game-ref "$r")
 done
-[ -d "${NFSU2_ROOT:-/nonexistent}" ] || bad "embedded game data: NFSU2_ROOT is not set (scripts/local.env)"
-for d in "$L" "$WD"; do
+[ $HAVE_SCAN = 1 ] && { [ -d "${NFSU2_ROOT:-/nonexistent}" ] || bad "embedded game data: NFSU2_ROOT is not set (scripts/local.env)"; }
+[ $HAVE_SCAN = 1 ] && for d in "$L" "$WD"; do
     n=$(basename "$d")
     # Without the private patterns (PRIV_MISSING, counted above) the public ones are still searched (--no-private):
-    # scan.py would otherwise stop at its NOT LOADED line with no verdict.
+    # the scan would otherwise stop at its NOT LOADED line with no verdict.
     NOPRIV=(); [ $PRIV_MISSING = 1 ] && NOPRIV=(--no-private)
     python3 -I "$HERE/scan.py" archive "${NOPRIV[@]}" "$d" "${REFS[@]}" > "$W/scan-$n.txt" 2>&1
     # The verdict lines (text/strings, embedded game data), each followed by up to 12 of its findings.
@@ -254,9 +258,9 @@ for d in "$L" "$WD"; do
         /^(ok|FAIL)/ { v = substr($0, 1, 6); printf "%s%s: %s\n%s", v, n, substr($0, 7), det; det = ""; k = 0 }' \
         "$W/scan-$n.txt" | tee -a "$LOG"
     grep -q '^ok .*archive text' "$W/scan-$n.txt" || { grep -q '^FAIL .*archive text' "$W/scan-$n.txt" \
-        || say "FAIL  $n: archive text: no verdict from scan.py ($W/scan-$n.txt)"; FAILS=$((FAILS + 1)); }
+        || say "FAIL  $n: archive text: no verdict from the privacy scan ($W/scan-$n.txt)"; FAILS=$((FAILS + 1)); }
     grep -q '^ok .*embedded game data' "$W/scan-$n.txt" || { grep -q '^FAIL .*embedded game data' "$W/scan-$n.txt" \
-        || say "FAIL  $n: embedded game data: no verdict from scan.py ($W/scan-$n.txt)"; FAILS=$((FAILS + 1)); }
+        || say "FAIL  $n: embedded game data: no verdict from the privacy scan ($W/scan-$n.txt)"; FAILS=$((FAILS + 1)); }
 done
 
 # 6. the Linux programs from the unpacked archive: empty HOME, no GPU, no display
@@ -268,6 +272,8 @@ if [ -d "${NFSU2_ROOT:-/nonexistent}" ]; then
     run_lin "$L/game" --check-game "$NFSU2_ROOT" > "$W/check-game.txt" 2>&1; rc=$?
     [ $rc = 0 ] && ok "game --check-game <NFSU2_ROOT>: rc 0, $(wc -l < "$W/check-game.txt") lines" \
         || bad "game --check-game: rc $rc ($(tail -2 "$W/check-game.txt" | tr '\n' ' '))"
+else
+    say "SKIP  game --check-game: NFSU2_ROOT is not set (scripts/local.env)"
 fi
 rm -f "$C/about-linux.png"
 run_lin "$L/overbright" --render about --size 1280x720 "$C/about-linux.png" > "$W/render.txt" 2>&1; rc=$?
@@ -327,8 +333,9 @@ fi
 
 # 8. what a human must still do
 [ "$SOURCE_URL" = SOURCE_URL ] && say "NOTE  SOURCE_URL is the placeholder: set SOURCE_URL=<public repository> for a release"
-[ -z "${DXC_DIR:-}" ] && say "NOTE  no dxcompiler.dll in the Windows archive (DXC_DIR unset; docs/releasing.md)"
+[ -z "${DXC_DIR:-}" ] && say "NOTE  no dxcompiler.dll in the Windows archive (DXC_DIR unset; docs/building-releases.md)"
 say "sha256: $(tr '\n' ' ' < "$OUT/SHA256SUMS")"
+if [ $FAILS = 0 ] && [ $HAVE_SCAN = 0 ]; then say "PACKAGE: ok, privacy scan not run ($LIN.tar.gz, $WIN.zip)"; exit 3; fi
 if [ $FAILS = 0 ] && [ $PRIV_MISSING = 1 ]; then say "PACKAGE: ok, private terms NOT LOADED ($LIN.tar.gz, $WIN.zip)"; exit 3; fi
 if [ $FAILS = 0 ]; then say "PACKAGE: ok ($LIN.tar.gz, $WIN.zip)"; exit 0; fi
 say "PACKAGE: FAIL ($FAILS checks)"; exit 1

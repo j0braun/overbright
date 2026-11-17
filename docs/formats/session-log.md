@@ -50,7 +50,7 @@ subject chapter, not here.
 
 ## Session (2026-10-29): dialogs, race start scene, scene lens, turbo
 
-* **Empty New Career dialogs** (player report "empty sms pops up";
+* **Empty New Career dialogs** (an empty SMS popped up;
   **fixed**). The FEng clock a screen hands `layout` is the time since the
   screen opened (`now - opened`), and every script start time in its
   `ScreenState` is on that clock. MC_Main (Save/Load: "Would you like to
@@ -72,8 +72,8 @@ subject chapter, not here.
   **Observed** under Wine: with the profile made at boot, main menu Career
   goes straight into the airport scene (capture.py `intro`); the clone,
   which makes no profile at boot, shows UI_StartCareer then MC_Main.
-* **Shop dialogs over free roam** (player report: leaving the garage or the
-  car lot "shows the dialog but the world building with the car inside";
+* **Shop dialogs over free roam** (leaving the garage or the
+  car lot showed the dialog over the world being built with the car inside;
   **fixed**). A dialog is a screen pushed over the one that opened it; the
   front end's scene (GarageMain) is its own object and stays under it.
   The clone drew free roam behind every `Menu::Dialog` (the car parked

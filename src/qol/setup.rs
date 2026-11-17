@@ -1,7 +1,8 @@
 use std::path::{Path, PathBuf};
 
 /// The files the clone cannot start without, with the sizes of the
-/// North American 1.2 release (SPEED2.EXE 4,788,224 bytes) and, for the
+/// European 1.2 release (SPEED2.EXE without copy protection, 4,788,224
+/// bytes) and, for the
 /// smaller ones, their XXH3-64. A different size or hash is reported as
 /// "different version or modded", not an error; a missing file is.
 /// SPEED2.EXE (L1, docs/launcher.md): the clone never runs it, but an
@@ -190,6 +191,7 @@ pub fn check_lines(c: &Check, fp: Option<&crate::fingerprint::Fingerprint>) -> V
                         let line = exe_differs_line(version).replacen("this ", "This ", 1);
                         v.push((Mark::Error, line + "; Overbright does not start with it"))
                     }
+                    Err(crate::exe_tables::Error::Protected { .. }) => v.push((Mark::Error, exe_protected_line())),
                     Err(e) => v.push((Mark::Error, e.to_string().lines().next().unwrap_or_default().to_string())),
                 }
             } else if !line.is_empty() {
@@ -245,11 +247,25 @@ pub enum ExeProblem<'a> {
     /// Not the supported build and its data tables differ from it:
     /// its size, the version if known, the tables that differ.
     Differs { size: u64, version: Option<&'a str>, tables: &'a [String] },
+    /// The copy-protected retail executable (SafeDisc): its size.
+    Protected { size: u64 },
+}
+
+/// Where the work on reading the copy-protected retail executable is
+/// followed.
+pub const PROTECTED_EXE_ISSUE: &str = "https://github.com/j0braun/overbright/issues/16";
+
+/// The check screens' line for the copy-protected retail SPEED2.EXE.
+pub fn exe_protected_line() -> String {
+    format!(
+        "This SPEED2.EXE is the copy-protected retail executable (SafeDisc): Overbright cannot read its game data yet. \
+         Support for it is being worked on: {PROTECTED_EXE_ISSUE}"
+    )
 }
 
 /// The check screens' and the log's note for a SPEED2.EXE that is not the
 /// supported build byte for byte but whose every data table is
-/// ([`crate::exe_tables::Edition::Modified`]: no-CD and widescreen patches).
+/// ([`crate::exe_tables::Edition::Modified`]: a widescreen patch, for one).
 pub fn exe_modified_line() -> &'static str {
     "SPEED2.EXE is a modified copy of the supported version; its game data matches"
 }
@@ -265,10 +281,12 @@ pub fn exe_differs_line(version: Option<&str>) -> String {
 
 /// The message when the game folder's SPEED2.EXE cannot be used
 /// ([`crate::exe_tables`]): missing, or its data tables differ from the
-/// supported build's. Overbright reads numbers and names from SPEED2.EXE
-/// at start, so it starts only when they are the 1.2 release's (a patched
-/// copy with the same data is fine); the same voice and folder advice as
-/// [`help`].
+/// supported build's, or the copy-protected retail executable. Overbright
+/// reads numbers and names from SPEED2.EXE at start, so it starts only when
+/// they are the supported build's (a patched copy with the same data is
+/// fine); the same voice and folder advice as [`help`]. The protected
+/// executable's message says what it is and where the work on it is
+/// followed, without folder advice.
 pub fn exe_help(exe: &Path, problem: &ExeProblem) -> String {
     let mut s = match problem {
         ExeProblem::Differs { size, version, tables } => {
@@ -278,13 +296,21 @@ pub fn exe_help(exe: &Path, problem: &ExeProblem) -> String {
                 tables.join(", ")
             };
             format!(
-                "{} ({size} bytes): {}.\nDiffering: {list}.\nOverbright reads its tables from the North American 1.2 release's SPEED2.EXE ({} bytes; a patched copy whose tables are unchanged also works) and does not start with other data: it would drive and sound wrong.\n",
+                "{} ({size} bytes): {}.\nDiffering: {list}.\nOverbright reads its tables from the European 1.2 release's SPEED2.EXE without copy protection ({} bytes; a copy of it whose tables are unchanged also works) and does not start with other data: it would drive and sound wrong.\n",
                 exe.display(),
                 exe_differs_line(*version),
                 KEY_FILES[0].1
             )
         }
         ExeProblem::Missing => format!("{} is missing.\n", exe.display()),
+        ExeProblem::Protected { size } => {
+            return format!(
+                "{} ({size} bytes) is the copy-protected retail SPEED2.EXE (SafeDisc). Its code and game data are encrypted, \
+                 and Overbright cannot read them yet: support for this executable is being worked on ({PROTECTED_EXE_ISSUE}).\n\
+                 Overbright does not remove copy protection and does not change the game's files.\n",
+                exe.display()
+            );
+        }
     };
     s += "Choose an install of Need for Speed Underground 2 (PC), version 1.2.\n";
     let root = exe.parent();

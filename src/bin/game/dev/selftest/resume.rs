@@ -1,7 +1,7 @@
 use crate::*;
 
 /// Where Resume Career puts the player for each point a player may leave
-/// the game at (a player report: the first car bought, the game left,
+/// the game at (once, with the first car bought and the game left,
 /// Resume put the car back at the airport). 0x495A30: with DDAY_EVENT_B
 /// won the garage (UI_CareerCrib), whose Return to Explore Mode sets
 /// career +0x8744 (0x4AF616); else, the intro movie played (0x86347C),
