@@ -1092,7 +1092,7 @@ impl Env for FakeEnv {
             hud_mod: false,
         };
         Model {
-            version: "version 0.1.0".into(),
+            version: format!("version {}", env!("CARGO_PKG_VERSION")),
             root: Some(FakeEnv::root()),
             found: vec![
                 Found { path: FakeEnv::root(), source: "found on this computer".into() },
@@ -1149,7 +1149,7 @@ impl Env for FakeEnv {
             import: Import { scan: Some(self.scan_saves(Path::new(FAKE_SAVES))), done: None },
             logs_dir: PathBuf::from("/data/player/.local/share/overbright/logs"),
             saves_dir: PathBuf::from("/data/player/.local/share/NFS Underground 2"),
-            build: "Overbright 0.1.0 (commit unknown, linux-x86_64)".into(),
+            build: format!("Overbright {} (commit unknown, linux-x86_64)", env!("CARGO_PKG_VERSION")),
             source: Some("https://example.org/overbright".into()),
             notices: FAKE_NOTICES,
             native_dialog: false,
@@ -1413,7 +1413,7 @@ impl FakeEnv {
     /// A probe as a real one reads (fixed values).
     pub fn probe() -> Probe {
         Probe {
-            version: "Overbright 0.1.0 (commit unknown, linux-x86_64)".into(),
+            version: format!("Overbright {} (commit unknown, linux-x86_64)", env!("CARGO_PKG_VERSION")),
             adapter: Some(super::probe::Adapter {
                 name: "Example GPU 7000".into(),
                 backend: "Vulkan".into(),

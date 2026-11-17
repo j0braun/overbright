@@ -8,7 +8,7 @@
 //!
 //! ```text
 //! probe=1
-//! version=Overbright 0.1.0 (commit unknown, linux-x86_64)
+//! version=Overbright 0.2.1 (commit unknown, linux-x86_64)
 //! adapter.name=Example GPU (driver name)
 //! adapter.backend=Vulkan
 //! adapter.type=DiscreteGpu
@@ -387,7 +387,7 @@ mod tests {
     #[test]
     fn written_and_read_back() {
         let p = Probe {
-            version: "Overbright 0.1.0 (commit unknown, linux-x86_64)".into(),
+            version: format!("Overbright {} (commit unknown, linux-x86_64)", env!("CARGO_PKG_VERSION")),
             adapter: Some(Adapter {
                 name: "Some GPU\nwith a break".into(),
                 backend: "Vulkan".into(),
