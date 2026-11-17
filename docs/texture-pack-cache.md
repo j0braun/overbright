@@ -1,6 +1,6 @@
 # Texture pack cache and compression (clone deviation, opt-in path only)
 
-Design note: the imported community road textures are liked; loads with any world pack were
+Loads with any world pack were
 slow (measured city loads of 0.3–0.95 s rising to 0.7–5.6 s) because the world texture arrays were rebuilt from the
 pack's files on every load, never cached. This work changes only the pack path's speed and memory.
 With no world pack (row Off, no variable) nothing here runs and the native track cache is used

@@ -1523,8 +1523,8 @@ Explore mode's and races' traffic. Verified except where noted.
   0x624CBD…0x625A79 unless the draw's argument +0x2C is set, which the
   world pass 0x6316E0 passes as 0: `lod_gate` slot 0x21); brakes, spoiler (+0x1928), mirrors
   (+0x1BA8), exhaust and plate take their slot's model at the LOD.
-  **Measured** (2026-10-29, gps93, player report "traffic LOD too
-  aggressive"): a copy of SPEED2.EXE with a logger jumped to from
+  **Measured** (2026-10-29, gps93; issue: traffic LOD too
+  aggressive): a copy of SPEED2.EXE with a logger jumped to from
   0x6167CB (code cave 0x782B00, ring at 0x8BB800 in .data's page slack;
   the copy only, deleted afterwards) recorded each traffic draw's final
   LOD, size (esp+0x58), car position ([ebp+0x10]) and eye ([view +0x40]
@@ -2947,7 +2947,7 @@ draws nothing there).
 Verified unless marked. The game's help text says it: tuner cars on the
 road, "marked on your Mini-map as orange triangles", are challenged "by
 pressing the Enter Race / Shop key when prompted" (0x9FD2C234); the
-outrun is won by gaining the maintainer and opening "a distance of over 300
+outrun is won by taking first place and opening "a distance of over 300
 meters" (0xA227EAD5). Quick Race's Outrun (race type 8) is the split-screen
 / online mode (see Outrun / Free Run); the career's runs as race state
 0x89E7B0 = 7 inside free roam.
@@ -3197,7 +3197,7 @@ meters" (0xA227EAD5). Quick Race's Outrun (race type 8) is the split-screen
 * **Outrun end under Wine, round 10** (2026-10-31, race10, vanilla,
   wined3d, `a private Wine copy`, the stage-2 save s2a.sav; scripts
   `race10-tmp/win.py`, `tprival.py`, `chase9.py`, `pin2.py`). **Win**
-  (`compare/race116/a private Wine copy.png`): with the player in the maintainer
+  (`compare/race116/a private Wine copy.png`): with the player in first place
   ("1st /2", the meter 149 Feet in green) and standing against a kerb
   while the challenged car drove off the other way, the run ended once
   it was ~356 m off: "You Won the Outrun!" / "Your time: 56.09" / "Bank

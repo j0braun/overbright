@@ -1,6 +1,6 @@
 # Linux distributions: the release archive in containers
 
-docs/releasing.md, "Linux: what a player needs". Made with `scripts/release/distros/run.sh` (rootless
+docs/building-releases.md, "Linux: what a player needs". Made with `scripts/release/distros/run.sh` (rootless
 podman, no network, no devices, the game folder read-only, Mesa's software Vulkan driver lavapipe):
 
 - `summary-glibc235-build.txt`: the archive built on Ubuntu 22.04 (glibc 2.35), the base source.

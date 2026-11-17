@@ -264,7 +264,7 @@ The native particles' pass (`sprites.rs` `draw_native_particles`, its own GPU ma
 draws the falling rain with world.efx (`Effect::World`, fogged: docs/formats.md "Drop draw"), so with the lamps'
 module every pixel of every drop ran the whole lamp shading (`lamp_shade`: the cluster loop, Lamp Shadows, Contact
 Shadows, beams, Modern Lighting's relight and rays). About 260 drops (0.06 × 1.4 m quads, RAINDROP's alpha at most
-68/255 times the template's 0x1C) cost 0.28–0.30 ms at the player's settings in 4K rain and 0.60–0.70 ms on the
+68/255 times the template's 0x1C) cost 0.28–0.30 ms at the play setup in 4K rain and 0.60–0.70 ms on the
 integrated GPU (1080p, World Detail 3, Medium and High); with the drops drawn with the cheap `fs_nofog` program
 (a measurement only) 0.022 / 0.17: the shading was nine tenths of the pass. The smoke and the other particles
 (worldnodepth) take no lamp light and cost 0.006 ms.
@@ -275,7 +275,7 @@ Two changes, Enhanced only (the lamps' module; the native modules are not touche
    `fs_nofog_clear` (fragment.wgsl, `pipelines::clear_skip`): a fragment whose alpha (texel.a · v0.a, as `shade`
    makes it) is 0 blends src · 0 + dst · 1, the target as it was, no depth written; it is discarded before the
    lamps (a demote: the derivatives the neighbours take are unchanged). RAINDROP is 39 % transparent texels.
-   Byte-identical (4K the player's settings and 1080p High rain, 17 frames each, md5 of the pixels).
+   Byte-identical (4K the play setup and 1080p High rain, 17 frames each, md5 of the pixels).
 2. **The drops lit at their corners** (`rain_lit.wgsl`, `DropPipelines`, `sprites::DropProbe`). The fogged colour
    is linear in the texel: rgb = texel.rgb · K + S, K and S depending on the position (the lamps, shadows, beams,
    Modern Lighting's light and specular), not on the texel. A probe pass draws each drop as a 2 × 2 block of a
@@ -290,7 +290,7 @@ Measured (GPU timer queries, median of interleaved runs [range]; probe + pass):
 
 | | base | 1. alpha 0 | 2. corners |
 |---|---|---|---|
-| 4K the player's settings, rain (4 runs, load 24–31) | 0.295 [0.294..0.298] | 0.259 [0.256..0.262] | 0.032 + 0.029 |
+| 4K the play setup, rain (4 runs, load 24–31) | 0.295 [0.294..0.298] | 0.259 [0.256..0.262] | 0.032 + 0.029 |
 | frame (GPU busy) | 18.95 [18.88..18.98] | 18.98 | 18.74 [18.65..18.81] |
 | integrated GPU High rain (2 runs each, slow state) | 0.68–0.70 | 0.637 | 0.05 + 0.24 |
 | integrated GPU Medium rain (2 runs, mixed state) | 0.602 [0.576..0.629] | 0.521 | 0.05 + 0.27 |

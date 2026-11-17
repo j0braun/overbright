@@ -85,8 +85,8 @@ mod tests {
         assert_eq!(aid_ahead(80.0), 120.0);
     }
 
-    /// MARKER_GPS_AID on the intro's way to the car lot (player report: the
-    /// clone's arrow pointed right at the airport where the original's
+    /// MARKER_GPS_AID on the intro's way to the car lot (the clone's arrow
+    /// once pointed right at the airport where the original's
     /// points left). The original under Wine (2026-11-01, new
     /// career, Rachel's 350Z driven up the airport road): the car's centre
     /// of mass (car +0x60), its forward row (+0x90) and the kept aid point

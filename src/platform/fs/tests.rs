@@ -1,5 +1,5 @@
 //! Windows only (run under Wine by the container's test binary; the real
-//! proof is NTFS on a tester's machine). Each test prints what the plain
+//! proof is NTFS on a real Windows machine). Each test prints what the plain
 //! `std::fs::rename` did in the same situation, so a run shows whether the
 //! platform modelled the conflict at all.
 

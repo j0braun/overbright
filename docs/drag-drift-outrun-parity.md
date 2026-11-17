@@ -3,7 +3,7 @@
 **Verified** = traced in SPEED2.EXE, **observed** = read under Wine,
 **inferred** / **open** as marked. Evidence: the maintainer's private captures.
 
-## 0. Outrun variety (design note: "I often see the same car")
+## 0. Outrun variety (the same rival car appearing often)
 
 ### Verdict
 
@@ -56,7 +56,7 @@ once it has been out and is parked again.
 ### Under Wine (observed)
 
 `a private Wine copy`, display :226, DXVK, vanilla (no widescreen fix), the
-user's `a community save-latest`: garage → Return to Explore Mode → read the three
+save `a community save-latest`: garage → Return to Explore Mode → read the three
 records' +0x10 (car type, names from the car table 0x8A1CCC + 0x890·n) →
 pause, Jump to Garage, repeat (`native-loads.txt`). Player car 28 (EVO),
 stage 0x862838 = 4, difficulty 0x83AC30 = 1. Within a stay the records do
@@ -112,7 +112,7 @@ hitch possible; opt-in). Tests:
   traced. A fresh stage-1 save was not run under Wine; its 7-car pool is
   from the rule (see above).
 
-### The firstrace flow after the RNG fix (lead, 2026-11-04)
+### The firstrace flow after the RNG fix (2026-11-04)
 
 With the set-up's draws taken over, `--flow firstrace` failed: "first race
 uncapped: rival 1 turned 20.1°, rival 2 22.5°" (limit 16°).
@@ -137,7 +137,7 @@ uncapped: rival 1 turned 20.1°, rival 2 22.5°" (limit 16°).
   (`NFSU2_FIRSTRACE_LOG=1`, now with the action and the line-up). Whether the
   original's pack does the same could not be checked per seed; a harness run
   of the stage-0 race needs a native save with it open (none in the
-  fixtures) — **open**, raised with the maintainer.
+  fixtures) — **open**.
 * firstdrag (6 runs, 0 failures), postrace and the playthrough (171 races,
   ending seen) passed with the change on the old base.
 * **Rebased on main (2026-11-05: the test isolation, the tuning-physics parity's snapshot port and
@@ -247,4 +247,4 @@ the skill row stays the clone's draw). New field `behind` (racer +0x24,
 
 Not done: the lane AI, shifts, heat / blow, the drag target 1000 and the
 green release wait for the tuning-physics parity's launch physics (docs/race-ai-parity.md, Open A
-/ C), by the maintainer's instruction.
+/ C).

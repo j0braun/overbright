@@ -1,5 +1,4 @@
-//! User reports 2026-11 (the maintainer's private notes): asset-backed
-//! reproductions run through the live entry points (`Game::step`,
+//! Reported issues: asset-backed reproductions run through the live entry points (`Game::step`,
 //! `Game::key`). They load the original's assets: without NFSU2_ROOT they
 //! are ignored with that reason (docs/testing.md). The `#[ignore]`d ones
 //! also need a GPU or private XDG homes and run only on request
@@ -192,8 +191,8 @@ fn drag_run(start: Start, hz: f32, skip: Option<f32>, nos_at: Option<f32>, seed:
     run
 }
 
-/// User report: "first drag: opponents tipping, the finish message says
-/// second". The matrix: fresh careers in stage 1 cars and the finished-career
+/// The first drag: opponents tipping, and the finish message saying
+/// second. The matrix: fresh careers in stage 1 cars and the finished-career
 /// save, 60 / 144 / 240 Hz, the start scene played out or skipped with
 /// Enter at 0 / 10 / 50 / 95 % of it, with and without nitrous, three
 /// grid seeds.
@@ -406,8 +405,8 @@ enum Situation {
     Intro,
 }
 
-/// User report: "player nitro flames sometimes missing". On the window's
-/// draw path at a reported player's sizes and Enhancements: in each active,
+/// The player's nitrous flames sometimes missing. On the window's
+/// draw path at the reported sizes and Enhancements: in each active,
 /// non-purge NOS frame (sampled), the flames' CPU quads and their visible
 /// pixels. Needs a GPU. `NITRO_SIZES=1920x1080,…`, `NITRO_ENH="k v;k v|…"`
 /// (configurations apart by `|`), `NITRO_CARS`, `NITRO_SITUATIONS`.
@@ -772,7 +771,7 @@ fn set_effects_order(game: &mut Game, order: EffectsOrder) {
     }
 }
 
-/// User report (2026-11-04 answer): the player's flames go missing at
+/// The player's flames went missing at
 /// higher frame rates. The window loop (`Game::advance` + `draw_between`,
 /// the 1/60 s world cadence with interpolated drawing) at 60 / 120 / 144 /
 /// 240 / 360 Hz frame intervals: every drawn frame of an active, non-purge
@@ -864,7 +863,7 @@ fn player_nitro_flames_visible_at_display_rates() {
     assert!(misses.is_empty(), "{misses:#?}");
 }
 
-/// Player report: the player's flames go missing at
+/// The player's flames went missing at
 /// high speed. The first career drag on the finished-career save's Lancer (NOS fitted) on
 /// the player's keys (W, Left Shift near the red line, Left Alt from 1.5 s
 /// after the green), drawn through the window loop at `NITRO_LOOP` (60 /
@@ -1050,7 +1049,7 @@ fn flames_stay_at_the_exhaust_at_speed_and_scene_flames_fire() {
     assert_eq!(nfsu2::shop_scene::effects::intensity(&ev, 4, nfsu2::shop_scene::effects::NITRO, 5.5), 0.0);
 }
 
-/// User report (2026-11-04): the opponents' flames on the start line. A
+/// The opponents' flames on the start line. A
 /// race start scene with SEQ_CAR_NITRO (`NFSU2_INTRO_NIS`, default 25:
 /// car 4 at frames 0, 4, 18, 30, 68, 100, car 2 at 87) on the window path:
 /// per drawn update the scene cars' flame particles and their visible
@@ -1112,9 +1111,8 @@ fn start_scene_flames_visible() {
     assert!(visible > 0, "{scene}: no flame visible");
 }
 
-/// Owner report (2026-11-01 14:56, the maintainer's private notes, item c): "outrun
-/// rivals don't switch into race mode; in the original they are much
-/// harder". Native: while the manager tries to engage (state 3) every
+/// Outrun rivals did not switch into race mode and were much easier than
+/// in the original. Native: while the manager tries to engage (state 3) every
 /// encounter car runs goal 9 (0x42A860 → 0x428630) whose slot +0x4C
 /// (0x40DC00, table 0x81E378) caps the driver's speed — 40 mph beyond
 /// 100 m of a standing player, 60 mph within (observed under Wine: 17.881
@@ -1123,7 +1121,7 @@ fn start_scene_flames_visible() {
 /// leading, slot +0x4C = 0x40DDD0 = 1e9, no cap). So the rival visibly
 /// changes gear from a cruise to race pace. Before the fix
 /// the clone had no cap: the car cruised at 0.75 × its race target and the
-/// challenge raised that by 0.84 / 0.75 = 1.12 only — the report. Reverting
+/// challenge raised that by 0.84 / 0.75 = 1.12 only — the issue. Reverting
 /// the cap (`goal9_think`, `f.state == 3`) fails the ratio below.
 #[test]
 #[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]

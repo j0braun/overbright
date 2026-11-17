@@ -1,6 +1,6 @@
 # Front-end screens over the world (2026-11-04)
 
-Player report: "is it normal that sponsor pick has a black background?" — no. The original draws the
+Issue: the sponsor pick had a black background. The original draws the
 post-race Sponsorships page (UI_Sponsorship_new) over the race's world; the clone drew it on black.
 
 ## Native behaviour

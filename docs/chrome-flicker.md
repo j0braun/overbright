@@ -1,11 +1,11 @@
 # A community save Lancer "chrome trunk" flicker and dry-road reflection strength (2026-11-04)
 
-Player report: 
-- "a community save Lancer, chrome trunk, reflection is flickering";
-- "on dry road a lot of reflection now".
+Issues:
+- on a community save's Lancer the chrome trunk's reflection flickered;
+- dry roads showed too much reflection.
 
 ## Cause of the flicker: the carbon trunk drawn as a mirror (docs/car-materials.md)
-The player's save (a community save; the maintainer's probe `save_parts`) fits these parts to the
+The save (a community save; the maintainer's probe `save_parts`) fits these parts to the
 LANCEREVO8:
 - KIT_CARBON (0x5D) and TRUNK_CARBON (0x60);
 - the TRAP CARBON FIBRE hood;
@@ -34,8 +34,8 @@ Trunk lid 200×36+540+612, driving off, acc_mean (acc>16 %):
 | setting | 60 Hz | 144 Hz | 240 Hz |
 |---|---|---|---|
 | native, before / after | 2.73 / 2.54 | 1.42 / 1.36 | 0.85 / 0.81 |
-| user's max, before | 6.57 (8.9 %) | 3.95 (4.1 %) | 2.24 (1.6 %) |
-| user's max, after | 5.98 (7.8 %) | 3.67 (3.6 %) | 2.09 (1.4 %) |
+| max setup, before | 6.57 (8.9 %) | 3.95 (4.1 %) | 2.24 (1.6 %) |
+| max setup, after | 5.98 (7.8 %) | 3.67 (3.6 %) | 2.09 (1.4 %) |
 
 At 144 Hz, dropping one row at a time from max (after):
 
@@ -78,8 +78,8 @@ Measurement (the maintainer's `road_reflection.py`, 1280×960 shots, lower half)
 | Wet Roads (dry road: native path) | 1.00 | 1.00 | 1.00 |
 | **SSR Full, before** | **1.24** | **1.26** | **1.48** |
 | SSR Full, after | 0.87 | 1.09 | 1.15 |
-| user's max, before | 1.17 | 0.66 | 1.06 |
-| user's max, after | 0.54 | 0.46 | 0.66 |
+| max setup, before | 1.17 | 0.66 | 1.06 |
+| max setup, after | 0.54 | 0.46 | 0.66 |
 
 `dry_road_reflection.txt` has the share of pixels changed by more than 4 levels. The before and after
 masks differ slightly; the ratios are within each run.

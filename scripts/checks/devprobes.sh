@@ -9,7 +9,7 @@
 # that breaks a probe is caught; the fix belongs in the same change. Part of `checks.sh full` only.
 # Environment: REPO (default this script's repo), CARGO_TARGET_DIR (default REPO/target), CARGO_BUILD_JOBS.
 # Exit status: cargo's (0 = every probe compiles); 3 when the tree has no devprobes/ (a public checkout: the probes
-# are part of the maintainer's private set, scripts/release/private.list). Last line: "devprobes: N binaries
+# are part of the maintainer's private set). Last line: "devprobes: N binaries
 # checked, ok|FAILED" or "devprobes: SKIP ...".
 set -u -o pipefail
 HERE=$(cd "$(dirname "$0")" && pwd)

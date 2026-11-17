@@ -199,9 +199,8 @@ from the repository itself for now, because the captures are still there.
 When the private set is absent, the test is ignored with the reason. When the
 set is present, a missing file fails the test. Without `OB_PRIVATE`, the
 repository counts as the private set only while it still holds
-`tests/fixtures/native_saves/` (build.rs): the public tree
-(`scripts/release/public_tree.py`, docs/release-scan.md) has none, so there
-every private test is ignored with its reason. A test never `include_bytes!`
+`tests/fixtures/native_saves/` (build.rs): the public repository has none,
+so there every private test is ignored with its reason. A test never `include_bytes!`
 or `include_str!` a private file: the public tree would not compile.
 
 The developer harness reads the maintainer's saves the same way at run time

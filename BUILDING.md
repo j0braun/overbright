@@ -84,17 +84,17 @@ and explains each difference (CONTRIBUTING.md).
 
 ## Without the private set
 
-The maintainer keeps a private set next to the public repository (scripts/release/private.list: recordings
-and saves of the original, developer notes and probes, the release scanner's private search terms). It is
-not needed to build, test or check a change; without it these are reported, never passed silently:
+The maintainer keeps a private set of files that is not in this repository (test data such as saves of the
+original, developer notes and tools). It is not needed to build, test or check a change; without it these are reported, never passed silently:
 
 - `cargo test`: the private tests are *ignored* with the reason `needs OB_PRIVATE (…)` or
   `needs NFSU2_ROOT (…) and OB_PRIVATE (…)`; the checks count them apart from the game-file tests
   (`data tests ignored: …`) and pass.
 - the self-test's resume steps from the original's saves, the shots that need a private save
   (`garage_neon`): `SKIP: … needs the maintainer's private set (OB_PRIVATE)`.
-- the release check and `scripts/release/package.sh`: `private terms NOT LOADED` (the maintainer's save names
-  are not searched in the binaries), exit status 3 instead of 0.
+- the release check and `scripts/release/package.sh`: the maintainer's privacy scan is not in the repository
+  (`privacy scan: maintainer tool, not in this checkout`); every other check runs, and the run ends with exit
+  status 3 instead of 0.
 - `scripts/tests/` (the importer tests) and `devprobes/`: not in the repository, recorded as skipped
   (`devprobes.sh` says so and exits 3).
 - the gate's parity: the shots that need a private save (`shots: SKIP (…)`) and the `parity` scenario of the
@@ -103,7 +103,6 @@ not needed to build, test or check a change; without it these are reported, neve
   unless you name a save of your own (`HALO_SAVE`, `SAVE:NAME` arguments).
 - `scripts/checks/perfgate.sh`: the two "max" configs of its set need a play setup of your own
   (`PRESET_user` in `scripts/local.env`); without it they are left out and the verdict names them.
-- `scan.py text`: use `--no-private` (CONTRIBUTING.md).
 
 Some technical documents cite the maintainer's evidence or tools (`tools/`, `review/`, `devprobes/`, files
 under `docs/evidence/` and the like) that are in the private set only; the text still states what was found.
@@ -123,14 +122,14 @@ scripts/release/container/build.sh --windows --dev-harness --tests --fast <sourc
   Windows in an Ubuntu 22.04 image (pinned by digest, mingw-w64 from Ubuntu), Linux in an AlmaLinux 8 image
   (pinned by digest); both with Rust from the official archives pinned by version and SHA-256.
 - **Linux:** `x86_64-unknown-linux-gnu` against glibc 2.28, so the binary runs on any x86-64 distribution
-  with glibc 2.28 or newer (the distributions it was run on: docs/releasing.md, "Linux: what a player
+  with glibc 2.28 or newer (the distributions it was run on: docs/building-releases.md, "Linux: what a player
   needs"). A binary built directly on a newer system usually needs that system's glibc.
 - **Windows:** `x86_64-pc-windows-gnu`, cross-compiled with mingw-w64; GUI-subsystem programs with an icon,
   a version resource and a manifest; only system DLLs needed (`scripts/release/check_pe.py`).
 - Output in `<out dir>/dist/linux/` and `<out dir>/dist/windows/`; `--dev-harness` adds a separate harness
   build for the checks (never shipped). Builds of the same commit are byte-identical.
 - `scripts/release/package.sh` turns one commit into the two player archives and checks them
-  (docs/releasing.md).
+  (docs/building-releases.md).
 
 ## Building on Windows
 

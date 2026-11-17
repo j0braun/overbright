@@ -200,7 +200,7 @@ fn wrong_way_tracks(kinds: &[(career::EventKind, u8)]) -> (Vec<String>, Vec<Stri
 
 /// Every Street X track, both directions, two laps on the AI racer
 /// controller: no WRONG WAY while the car goes on along the road
-/// (a player report; the clone's road polyline had a backward
+/// (the clone's road polyline once had a backward
 /// closing piece past the loop's end, 4607), and a U-turn shows it.
 #[test]
 #[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]

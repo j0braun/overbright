@@ -1,6 +1,6 @@
 # Wet Road Interaction (clone deviation, opt-in)
 
-Design note: "can we have the wet road interact with the car on a visual level". One row in the
+The wet road interacts with the car visually. One row in the
 Graphics page's **Weather** group, **Off** by default (native, byte-identical):
 
 | row | values | options.txt | label id | presets |
@@ -138,7 +138,7 @@ User after playing: "I don't see much interaction from the car with the rain on 
 does look, but out of place, not next gen like the other effects". Same row, same label (0xC104E0AC), same
 values (Off / On / High); **no new label id**. Help texts say what it now does.
 
-### 1. Does it run at the player's settings? (checked, `--bench drive` at clock 162, the player's options + the
+### 1. Does it run at the play setup? (checked, `--bench drive` at clock 162, the play setup's options + the
 plan's rows: wet_interaction 1, wet_roads 1, ssr 1, wet_car 1, rain_detail 2, spray 1, lens_drops 1, Modern
 Lighting 3 @ 75 %, SSAA 2x)
 - Trail map: running (NFSU2_WET_ROAD_DEBUG=1: every car's wheels stamp it; ~14 cars, ~500 stamps a frame).
@@ -188,7 +188,7 @@ On: the grid above, 16 Ki volume particles, 96 steps. High (cinematic): finer gr
 × 1.6 the spray, plus this work's finer trail map and 32 mirrored lights.
 
 ### Cost
-`--bench drive 600` at clock 162 (night, rain 0.70, 3 rivals + traffic), the player's settings **without SSAA**
+`--bench drive 600` at clock 162 (night, rain 0.70, 3 rivals + traffic), the play setup **without SSAA**
 (`enh.post_aa 0`), GPU busy ms/frame, reference desktop GPU (a shared machine; mean / median of 2 runs; raw:
 internal evidence, round "final"):
 
@@ -216,7 +216,7 @@ spray and the volume ended in brick-shaped edges. The droplets' weather pass got
   ahead entirely (now a veil: the car ahead and its lights read through it, `before_after_0501`).
 - SSIM / FLIP against this work are meaningless (a new effect); not used.
 
-### Evidence (the maintainer's private captures, before = this work at c1983de On, after = the stronger wet interaction On; the player's settings
+### Evidence (the maintainer's private captures, before = this work at c1983de On, after = the stronger wet interaction On; the play setup
 at 1080p, `--bench drive` from clock 162)
 | file | what |
 |---|---|
@@ -258,7 +258,7 @@ constant is by eye.
 
 ## Polish of the wet drive ("driving on wet roads still looks off")
 
-Scope (user's scope freeze): the existing rows only — Wet Road Interaction, Spray & Splashes, Wet Car,
+Scope (frozen): the existing rows only — Wet Road Interaction, Spray & Splashes, Wet Car,
 Rain Detail; no new row, no new label id. Nothing here exists in SPEED2.EXE and nothing was traced or
 observed under Wine for it (there is no native spray, track or splash to capture): **inferred / by eye**,
 held to docs/look-direction.md's rules with the maintainer's tools numbers. The reference frame is the clone's
@@ -267,7 +267,7 @@ replayed under Wine at the same frame).
 
 ### Diagnosis (before = the base with the look direction)
 Recorded with `--bench drive` (a career sprint, the player on the racer AI, 3 rivals + traffic; the frames
-repeat run to run) at 1920×1080 and 3840×2160, the player's play setup (`the player's options file`,
+repeat run to run) at 1920×1080 and 3840×2160, the play setup (the play setup's options file,
 perf.sh USER) plus the weather rows at their tops (Wet Road Interaction High, Rain Detail High, Wet Car,
 Spray, Lens Drops): heavy rain (clock 162: rain 0.70), the rain stopping and the road drying (clock 196: rain
 0.7 → 0 by frame ~300, road wetness 1 → 0.32 by frame 1200), chase and bumper cameras, 33–75 mph, launch,
@@ -346,7 +346,7 @@ harbour, race start; standing cars, so no spray): the row and Ultra / max are un
 Rain Detail High's splashes p95 +1.37 → +1.27 at the rain spots.
 
 ### Cost (internal evidence)
-`perf.sh bench` A/B, rain (drive at clock 162), 3840 × 2160, "max" (the player's setup + every newest row),
+`perf.sh bench` A/B, rain (drive at clock 162), 3840 × 2160, "max" (the play setup + every newest row),
 3 reps × 600 frames interleaved, GPU busy median; a shared machine (load 15–170), noise ≈ ±0.3 ms:
 
 | row (max − max with the row off) | before | after |
@@ -389,13 +389,13 @@ march_tuning_defaults_are_inert` (the smoke and the fountain mist march as befor
 - `NFSU2_SPRAY_LOOK=k=v,…` (tuning aid) and `NFSU2_SPRAY_STEP` / `NFSU2_SPRAY_JITTER` override the constants.
 
 
-## The glow shell, the washed road and the distance veil at max settings (design note)
+## The glow shell, the washed road and the distance veil at max settings
 
-Player report (screenshot internal evidence, 4K, SSAA 2x, every Next-Gen
+Issue (screenshot internal evidence, 4K, SSAA 2x, every Next-Gen
 tier, rain, the finished-career save's Skyline with a yellow underglow at 217 km/h in the chase camera): a cyan glow shell
-around the car's silhouette ("blueish smoke … it shouldn't be there"), the road around and ahead of the car
-washed out, and (follow-up) "light should be rendered more in the distance, now it looks like a transparent
-black texture disappearing when coming close". Nothing here is native code: **inferred / by eye**, held to
+around the car's silhouette (a bluish smoke that should not be there), the road around and ahead of the car
+washed out, and lights that should reach further into the distance looked like a transparent black
+texture that disappeared when coming close. Nothing here is native code: **inferred / by eye**, held to
 docs/look-direction.md with the maintainer's tools numbers. Base: <base> (main + the maintainer's `shadow::neon_rgb`
 fix of the spray's underglow colour, B,G,R bytes read as R,G,B: yellow lit cyan).
 
@@ -413,8 +413,8 @@ A single `--shot` frame shows no spray (the pool starts with the first drawn fra
    behind the body, leaving its outside as a rim that hugs the spoiler, the flanks and the rear window: the
    shell. With the row off the shell was gone; every other row left it (`bis/` grids in the work dir).
 2. **The underglow lit that volume strongly** (`wet_spray::scene_lights`): two point lights 0.15 m up, reach
-   3.2 m, gain ×4: the whole plume around the body glowed in the underglow's colour (cyan with the colour bug
-   the maintainer fixed, yellow after it).
+   3.2 m, gain ×4: the whole plume around the body glowed in the underglow's colour (cyan with a colour bug
+   since fixed, yellow after it).
 3. **The road wash** around the car: The Next-Gen car-lights work's underglow area light on the road (`car_lights::LOOK.neon_road`
    0.45, reach 1.8 m) added on top of the native underglow pool on a wet road: p95 +13.8, glow +0.64 against
    the same frame without it (R3: ±4 / ±0.2). The rest of the white road ahead is the **native** look in the
@@ -471,7 +471,7 @@ blue in the light the rows add there. <base>: 6.49 / −6.43 → FAIL; 1.61 / �
 - The max preset at the rain highway is still +6..8 mean over the Original (rows other than these).
 
 ## Rain splash report ("splash effect of rain sometimes is overlayed on objects")
-- At the player's settings (`the player's options file`) the weather package rows are off: Rain
+- At the play setup (the play setup's options file) the weather package rows are off: Rain
   Detail's splashes are not drawn at all.
 - The oval "splashes" on the median barrier are the **native lens drops** (rain_drop.efx, 0x5C7AC0,
   `render/rain.rs`): screen-space drops that refract the frame copy. They appear identically with every

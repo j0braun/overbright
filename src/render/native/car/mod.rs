@@ -434,7 +434,7 @@ mod paint_tests {
         assert_eq!(module_index(<CarMode as CarModeExt>::NATIVE), 0);
     }
 
-    /// User report 2026-11-04 ("raindrops on my car", docs/car-raindrops.md):
+    /// Spots like raindrops on the paint (docs/car-raindrops.md):
     /// the flake must read as paint, not water. Each cell's glint is the
     /// filtered mean of the sub-pixel flakes' lobe with a bounded spread, not
     /// a single tilted normal's glint (isolated bright cells), and the grain

@@ -1,6 +1,6 @@
 # Player nitro coverage investigation
 
-Baseline40db6b5; production effects are unchanged. User's car/situation remains unknown. The retained test-profile log has an empty career-car field and cannot identify the driven vehicle.
+Baseline40db6b5; production effects are unchanged. The car and situation of the report remain unknown. The retained test-profile log has an empty career-car field and cannot identify the driven vehicle.
 
 ## Marker/configuration coverage
 

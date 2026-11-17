@@ -73,8 +73,8 @@ impl GarageScene {
 /// The garage's FE car, its parts and performance parts.
 pub(crate) type GarageCarKey = (String, std::collections::BTreeMap<u8, u32>, std::collections::BTreeSet<u8>);
 
-/// A part change's FE car built off the main thread (clone deviation, user
-/// report 2026-11-04 "fps tanks when picking different rims"): the car
+/// A part change's FE car built off the main thread (clone deviation: the
+/// frame rate dropped sharply while picking different rims): the car
 /// load (`Car::load_upgraded`) and its renderer (textures and buffers
 /// uploaded) for the key, which `draw_garage` puts in place of the shown
 /// car once done. Off with [`GARAGE_ASYNC`] (the headless shots and

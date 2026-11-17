@@ -775,7 +775,7 @@ The drawing (0x531050 per point, **verified**; the walker 0x531280 passes the no
   **open**. Clone: `Game::dyno_handling` (the upgraded record tuned with
   the dyno's settings) for the chart lines and the record (before
   2026-11-01 both used the untuned car).
-* **The car on the dyno's rollers** (2026-11-01; player report: the
+* **The car on the dyno's rollers** (2026-11-01; issue: the
   car floated, the animation was stiff, the wheels did not turn):
   * **Rollers** (**verified**): the dyno manager (made only in race type 8,
     0x5FC4E5) holds four objects at +0x40 (0xD0 each, 0x56D060: the model
@@ -2844,19 +2844,19 @@ The drawing (0x531050 per point, **verified**; the walker 0x531280 passes the no
     (0x428030's window along the GPS node) is the clone's polyline of the
     whole route (`Node::points`), the nearest node by plain distance and
     the car projected on its stretch (0x4198C0 / 0x40AE30 bodies not
-    traced). **Fixed** (2026-10-29, gps93; player report "at the airport
-    no GPS arrow"): only the `--shot` render placed the solid; the
+    traced). **Fixed** (2026-10-29, gps93; issue: no GPS arrow at
+    the airport): only the `--shot` render placed the solid; the
     window's draw never did, so in play the arrow stayed hidden. Both now
     take `Game::gps_aid_target` (free roam, no scene, no outrun, follower
     1 / 2) and `gps_aid_transform`. The original under Wine shows it from
     the D-Day script's GPS (player +0x114 = 1, +0x120 = (1725.2, −787.3,
     23.75) about 20 s after Rachel's SMS). Enter does not skip the career
     fly-over in the original (frames every 2 s after Enter: the scene
-    went on); the clone's skip is the player's choice and ends the scene as
+    went on); the clone's skip is an agreed deviation and ends the scene as
     its own end does. No smoothing: the point is taken again each frame
     (kept only while none is found), the matrix built from it at once.
-    **Fixed** (2026-11-01; player report "in the intro at the
-    airport the GPS arrow points right, the original's left"): the clone
+    **Fixed** (2026-11-01; issue: in the intro at the
+    airport the GPS arrow pointed right, the original's left): the clone
     kept free roam's traffic pool, and with it the route network pruned
     by the stage's barriers (0x578070 → 0x5E9E90), across free-roam
     entries, so a new career after a later career's free roam routed over
@@ -3226,7 +3226,9 @@ Images in `<work dir>/cheats-tmp` (`w_*.png`, `all_list.png`,
   rating bars of a sponsor car (the original drew them almost empty) are
   not compared in detail.
 
-## Race lines and the post-race exit (2026-11-01; player report "the spectator shouting can still be played after the race")
+## Race lines and the post-race exit (2026-11-01)
+
+Issue: the spectators' shouting could still play after the race.
 
 The race's crowd, starter and flag-girl voices are not AEMS events (no flare,
 starter or countdown sound exists in the HUD or scene code): they are the NIS

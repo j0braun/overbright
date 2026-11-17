@@ -2,7 +2,7 @@
 //! race (the profile `skip_intro` leaves at the stage 1 city start, whose
 //! open list holds DRAG_1), its start scene played through and then raced
 //! on the player's keys (gas held, Shift Up near the red line, the arrow
-//! keys round traffic ahead, as `user_reports::drag_run`), driven frame by
+//! keys round traffic ahead, as `reported_issues::drag_run`), driven frame by
 //! frame as the window drives it (`Game::advance` at the display's
 //! interval; a scene's world updates at 1/30 s) at several display rates and grid
 //! seeds; then the pause's Restart and the same again. Each rival is

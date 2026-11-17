@@ -7,7 +7,7 @@ the addresses below were re-read in SPEED2.EXE where this work relied on them. M
 **traced** (the code), **measured** (the running original, RNG-T), **open**.
 
 Goal (PLAN.md "RNG scope"): the same generators, draw sites and order within a routine — not a
-bit-exact stream for its own sake. Rate rule (owner): every shared- and world-generator draw is
+bit-exact stream for its own sake. Rate rule: every shared- and world-generator draw is
 made on the fixed 1/60 s simulation update, never per drawn frame (the original draws per drawn
 frame, one world update per frame: at 60 fps the two agree).
 

@@ -2,8 +2,7 @@
 
 Roadmap wave UX, the settings rework, second half: one streamlined page for every clone setting, built on the settings model's settings model
 (`docs/settings-model.md`). Nothing here is native — the original has no such page; it is a clone deviation on the
-Enhancements entry of the Display options (agreed deviation "Enhancements page", design note; the settings rework plan
-2026-11-05). The original's own screens (Audio / Display / Gameplay / Player, Customize Display, the pause's) are
+Enhancements entry of the Display options (agreed deviation "Enhancements page"; the settings rework plan). The original's own screens (Audio / Display / Gameplay / Player, Customize Display, the pause's) are
 unchanged: same rows, values, look and flow. Defaults stay native; options.txt keeps every key.
 
 * Code: `src/frontend/settings_page.rs` (rows, presets, 60 fps pick, detail lines, reset, strings),
@@ -153,7 +152,7 @@ heaviest-scene GPU time at the current output fits **12.5 ms** (three quarters o
 frame spikes and unbenched scenes); Original when none fits (the detail line then says even Original needs
 ~X ms and points to a lower resolution or Upscaling). The row reads "60 FPS (High)" while the values are that
 preset. It is a one-time choice of fixed values: no dynamic resolution, nothing changes while playing, no
-upscaler is chosen for you (design note: no "60 fps at 4K" preset). Estimates (`settings_page::preset_ms`):
+upscaler is chosen for you (no "60 fps at 4K" preset). Estimates (`settings_page::preset_ms`):
 High class — measured at 1920×1080 and 3840×2160, linear in pixels between and beyond (inferred off the two
 sizes); Integrated — measured at 1920×1080, proportional to pixels (inferred elsewhere); **Mid — twice the High
 class (inferred: no mid-class card measured, as the effects-tiers pass)**.

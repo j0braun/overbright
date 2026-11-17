@@ -65,7 +65,7 @@ Arch, SteamOS: `vulkan-icd-loader` with `vulkan-radeon` or `vulkan-intel`).
 
 The Linux archive was run in a container of each of these distributions, on Mesa's software Vulkan driver
 (lavapipe; no real GPUs): `--version`, the game check, the menu and free roam drawn, the launcher
-([docs/releasing.md](docs/releasing.md), "Linux: what a player needs").
+([docs/building-releases.md](docs/building-releases.md), "Linux: what a player needs").
 
 | distribution | glibc | Mesa | result |
 |---|---|---|---|

@@ -914,8 +914,8 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
   res-2 backings) are **open**; the flag-0x40 rule now holds for every
   package (see **Help bar in the career and in game**). Selftest:
   activate on a marker, deactivate.
-  **No free destination** (**verified** 2026-11-01; player report
-  "on the map you can't set your own destination"): the original has no
+  **No free destination** (**verified** 2026-11-01; the map offers
+  no own destination): the original has no
   free cursor, waypoint or pan. The handler 0x4E08E0 takes only Left /
   Right (marker step), Up / Down (legend focus), Accept (legend toggle),
   C / BUTTON1 (the GPS button 0x4B10C0), `[` / `]` (the fixed zoom records
@@ -1157,10 +1157,10 @@ the original's key timelines; `HYDRO_LOG=1` prints every frame,
   min(corner, follow) (`garage::Turntable::car_transform_on`).
   **Inferred**: the clone runs it in 1/60 s steps up to the menu's time.
 
-## Specialties: hydraulics level 3 and the purge (2026-11-01, specials; player report on the finished-career save)
+## Specialties: hydraulics level 3 and the purge (2026-11-01, specials; the finished-career save)
 
-Player report (the finished-career save): "level 3 hydraulics in the shop not
-working, also nitro purge". Wine: `$OB_PRIVATE/wine/runs/<run>` through
+Issue (the finished-career save): level 3 hydraulics in the shop and the nitrous purge
+did not work. Wine: `$OB_PRIVATE/wine/runs/<run>` through
 `fastgpu.sh` (:178, `--audio-file`), the finished-career save loaded, IND_CAR_SPECIALTY_2
 entered from free roam (car moved to (732, −1175), Enter, Enter Shop);
 captures in `<work dir>/specials-tmp` (`h3m.png` LVL 3 pumping,

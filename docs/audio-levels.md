@@ -1,7 +1,7 @@
 # Audio levels and the master volume (2026-11-11)
 
-Player report: "some effects are louder or quieter than the original, also
-setting main volume low makes the audio kinda broken". This work traced the
+Issue: some effects played louder or quieter than in the original, and a low main volume
+made the audio sound broken. This work traced the
 option volumes in SPEED2.EXE, measured the original under Wine (private copy
 `a private Wine copy`, fastgpu `--audio-file`, the option floats written live with
 `peek.py`) against the clone's offline mix in the same scene (career free

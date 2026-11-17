@@ -81,7 +81,7 @@ impl BootStep {
     /// an entry" flag (0x4C622A; Wine: 0 with no profile
     /// on disk, 1 with one, set before blank.vp6 opens). Not modelled here:
     /// the PSA movie is missing from the reference install.
-    #[allow(dead_code)] // the native rule; Enter skips every movie (user choice)
+    #[allow(dead_code)] // the native rule; Enter skips every movie (agreed deviation)
     pub(crate) fn skippable(self) -> bool {
         self == BootStep::Intro
     }

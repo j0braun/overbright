@@ -1,7 +1,7 @@
 # This page weather evidence (docs/weather.md)
 
-All crops show **Off | On**. "Off" is a player's real settings
-(`<the player's options file>`, via the maintainer's private capture; SSAA 2x, Enhanced
+All crops show **Off | On**. "Off" is the play setup
+(`<the play setup's options file>`, via the maintainer's private capture; SSAA 2x, Enhanced
 Paint, Wet Roads, SSR, lamps, …). "On" is the same settings plus the weather rows.
 
 | file | what |
@@ -11,7 +11,7 @@ Paint, Wet Roads, SSR, lamps, …). "On" is the same settings plus the weather r
 | `wet_car_4k_off_on.webp` | 3840×2160, clock 165, Wet Car alone: darker, glossier paint, film on the roof. |
 | `wet_car_4k_glass_zoom_off_on.webp` | The same, rear window and roof ×2.5: beads on the glass (top: dry look, Off). |
 
-Scripts: the maintainer's private capture (the player's settings as NFSU2_SHOT_ENH / NFSU2_BENCH_ENH) and
+Scripts: the maintainer's private capture (the play setup as NFSU2_SHOT_ENH / NFSU2_BENCH_ENH) and
 the maintainer's private capture (costs).
 | `options_graphics_base_new.webp` | The only parity-gate shot difference: the Graphics page's new "Weather" group row. |
 | `gates.txt` | `perf.sh parity` <base> vs this copy (full release). |

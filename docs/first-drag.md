@@ -1,7 +1,7 @@
 # First career drag: rivals tipping over (2026-11-04)
 
-Player report: "rival tipping over … I thought it was on the first career drag
-race". Earlier the November report triage (internal notes b) found tipping only
+Issue: a rival tipping over, apparently in the first career drag
+race. Earlier the November report triage (internal notes b) found tipping only
 after a rival was totaled; this work reproduces it on the real start path
 and finds why rivals were totaled so often.
 

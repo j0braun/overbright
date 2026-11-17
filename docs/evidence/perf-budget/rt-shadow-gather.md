@@ -1,6 +1,6 @@
 # Modern + RT's gather: measurements behind docs/perf-budget.md "the colour shader's registers"
 
-Reference desktop GPU, 3840x2160, the player's settings (SSAA 2x: scene 5431x3055, 4.15 M blocks),
+Reference desktop GPU, 3840x2160, the play setup (SSAA 2x: scene 5431x3055, 4.15 M blocks),
 `--bench racing 300`, one GPU-timed run per arm unless "paired" (interleaved A/B pairs).
 
 ## Where the gather's cost sits (prototypes, main view ms; base 6.08–6.20 over 9 runs)
@@ -77,6 +77,6 @@ GPU Medium 79–80 / 80 / 12 → 60–62 / 64 / 16. Pipelines at a drive's load:
 | integrated GPU Medium, 2 pairs (slow state) | 11.44 [11.33–11.55], 10.27 [10.18–10.35] | 24.64, 23.44 |
 | integrated GPU High, 2 pairs (slow state) | 11.88 [11.81–11.95], 11.02 [10.99–11.04] | 44.93, 43.81 |
 Cold (no pipeline cache, the driver's cache off), one run each on a loaded machine: `--prepare` with the
-player's options 353 pipelines in 2.96 s → 359 in 3.42 s; a drive's load at the player's 4K settings
+play setup's options 353 pipelines in 2.96 s → 359 in 3.42 s; a drive's load at the play setup at 4K
 436 → 442 pipelines, load 6.8 → 4.9 s (noise from other jobs: no increase seen).
 

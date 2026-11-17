@@ -432,7 +432,7 @@ equal}_pipelines`), `world.wgsl` (`fs_depth_alpha_test`, `fs_depth_fade`,
 * Same depth bits in two pipelines: the lamps' module's clip position is
   `@invariant` (only there; no change on RADV, AE 0). Proven by dumps
   (AE 0 against the single pass: Modern MSAA 8×, Ultra, Extreme, the
-  user's settings, racing / explore / rain / race start, Modern Lighting
+  play setup, racing / explore / rain / race start, Modern Lighting
   tiers 1–3).
 * `NFSU2_DEPTH_PREPASS=0`: the single pass as before; `=2`: the pre-pass
   with the colour pass's own LESSEQUAL pipelines (measurement only).
@@ -461,7 +461,7 @@ equal}_pipelines`), `world.wgsl` (`fs_depth_alpha_test`, `fs_depth_fade`,
   fragment shaders 7 757 → 4 690 instructions, 108 → 84 VGPRs, 14 → 18
   waves/SIMD; Modern Lighting (Modern) 9 729 → 6 481 instructions, 144 →
   120 VGPRs, 10 → 12 waves.
-* Exact for Dynamic Lamps / Ultra / Extreme / the player's settings / Modern
+* Exact for Dynamic Lamps / Ultra / Extreme / the play setup / Modern
   Lighting Low (AE 0). Modern Lighting Modern and Modern + RT: the folded
   Surface Detail branch changes the compiler's rounding by 1/255 on 1
   pixel in 1–3 of 61 frames (racing, race start; 0 in explore; SSIM
@@ -515,7 +515,7 @@ only (Screen-Space Reflections, Motion Blur tiers); nothing traced in
 SPEED2.EXE, no native behaviour changed; the Original path is untouched
 (gate: Original images, shots, audio, state hashes identical). Every step
 is exact (AE 0 in dumps and in the gate, Extreme / Extreme FSR / the
-user's settings). Results: internal notes.
+play setup). Results: internal notes.
 
 ### Step 1: SSR only where the mask needs it
 `render/ssr.rs`, `ssr.wgsl`, `render/mod.rs` (`Mask::depth`); details in
@@ -679,7 +679,7 @@ They are made again when switched back on.
 | Ultra 4K | 3273 | 2439 | −834 | 0 |
 | Extreme 4K | 3936 | 2695 | −1241 | −446 |
 | Extreme FSR 4K | 2070 | 1532 | −538 | (MS streak −176) |
-| user's settings 4K | 3574 | 2572 | −1002 | — |
+| play setup 4K | 3574 | 2572 | −1002 | — |
 | max 4K | 4008 | 3162 | −846 | −443 |
 | race start max 4K | 4492 | 3163 | −1329 | — |
 | Original 1080p (3 runs) | 617 / 973 / 878 | 624 / 636 / 629 | −0…−349, now steady | 0 |
@@ -740,7 +740,7 @@ load (inferred cost < 1 ms): open, needs `SET=loads REPS≥10`.
 The native particles' pass (`draw_native_particles`, render/native/world/sprites.rs) had no GPU mark of its own:
 its time went to the next mark in the encoder, the spray volume's build ("graphics: volume fx build") with Wet Road
 Interaction on, else the weather effects ("graphics: weather fx"). Measured with the passes' dispatches timed apart
-(night rain, `--bench drive` at clock 162): at 4K with the player's rows the "volume fx build" of 0.48 ms was the
+(night rain, `--bench drive` at clock 162): at 4K with the play setup's rows the "volume fx build" of 0.48 ms was the
 build's 0.07 ms (splat, resolve, bounds, light) and the native particles' 0.39 ms; on the reference integrated GPU at
 level High 0.32 ms and 1.15–1.24 ms. The pass is now marked "graphics: native particles" (a timestamp after it;
 nothing drawn changes), so the build's and the weather effects' rows hold only their own work.

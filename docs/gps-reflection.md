@@ -1,7 +1,7 @@
 # GPS arrow kept out of reflections (2026-11-04)
 
-Player report: "the GPS arrow should not be visible in the reflections". The player's settings
-(the player's options file) have Screen-Space Reflections Full, Wet Roads and
+Issue: the GPS arrow showed in the reflections. The play setup
+(the play setup's options file) has Screen-Space Reflections Full, Wet Roads and
 Enhanced Reflections on.
 
 ## Native (traced, SPEED2.EXE)
@@ -25,7 +25,7 @@ Enhanced Reflections on.
   arrow. Its placement goes in with view flags 0, and the 0x40 of those views culls it
   (`WorldView::culls`). Test: `gps_aid_is_drawn_in_the_main_view_only`.
 - **Leak: SSR.** The trace reads the main view's colour and depth, where the arrow is. Car rays (the
-  rear glass) and wet-road rays hit it. With the player's settings the 350Z's rear window showed the
+  rear glass) and wet-road rays hit it. With the play setup the 350Z's rear window showed the
   arrow (`rear_window_before_after.jpg`, middle left). It was not the glow sprites: still there with
   NFSU2_SSR_NOGLOW=1. With SSR off it is gone.
 - **Fix (SSR only):**
@@ -39,7 +39,7 @@ Enhanced Reflections on.
     ray goes on past the arrow as past something thin. Misses keep the planar or cube image, which
     never holds the arrow.
 - Native and SSR-off paths are unchanged: the overlay pass exists only in the SSR mask pass. The
-  native `--shot intro` was byte-identical before and after (max diff 0). With the player's settings,
+  native `--shot intro` was byte-identical before and after (max diff 0). With the play setup,
   the only pixels that changed were the rear window (bbox 549,558–669,623 of 1280×960).
 
 ## Other markers (checked)
@@ -56,7 +56,7 @@ Enhanced Reflections on.
 
 ## Evidence
 the maintainer's private captures:
-- `rear_window_before_after.jpg`: the original; the clone native; the player's settings before / after;
+- `rear_window_before_after.jpg`: the original; the clone native; the play setup before / after;
   the same in rain.
 - `intro_user_full_before_after.jpg`.
 

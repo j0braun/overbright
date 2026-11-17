@@ -73,7 +73,7 @@ crosswalk/lane paint slightly raised (plausible); two façades with painted wind
 were rejected; parking bays, lit walls and sign-like art are rejected by the edge measure.
 In game (1920×1080, `scripts/scenes.sh`; pixels changed > 1 % vs the same settings without the row):
 Materials 0.00–0.14 % (rain neon 0.14 %), Materials + Normals 0.17–0.66 % (tunnel 0.66 %, rain neon
-0.65 %, user's options 0.16–0.57 %). Crops (top before, bottom after): `tunnel_road_off_vs_nrm.jpg`
+0.65 %, the play setup's options 0.16–0.57 %). Crops (top before, bottom after): `tunnel_road_off_vs_nrm.jpg`
 (headlit asphalt grain), `rain_start_off_vs_nrm.jpg` (wet reflection broken up),
 `rain_neon_off_vs_mat.jpg` (Materials: not visible by eye), `neon_user_vs_user_nrm.jpg`,
 `night_off_vs_nrm.jpg`, `rain_crowd_user_vs_user_nrm.jpg`.
@@ -168,7 +168,7 @@ unchanged. Pixels changed (AE, whole frame): wheel 0.05–0.4 %, front 0.002–0
 * **Cars**: the car mask module with the row on is car.wgsl + car_surface.wgsl + car_ssr.wgsl whose
   world normal is `surface_world_normal` (derivatives taken at the top, before the alpha test's
   discard; `ssr_mask_source(true)`).
-User's options, 1920×1080, row 0 vs 2 (fuzz 2 %): explore 0.24 %, intro 0.18 %, qrstart 0.11 % of
+The play setup's options, 1920×1080, row 0 vs 2 (fuzz 2 %): explore 0.24 %, intro 0.18 %, qrstart 0.11 % of
 pixels changed; no streaks, no arrow reflections, no validation errors.
 
 ## Texture packs
@@ -180,7 +180,7 @@ the original's stay valid. Checked: a 4× SKYLINE_TIRE.png car pack made a new 5
 
 ## The car Surface Detail cost and parity
 internal evidence → `cost-explore-user-community.txt`: full release build, the player's
-real options file (`the player's options file`: SSR 2, lamp shadows 2, …; Surface Detail is **off**
+real options file (the play setup's options file: SSR 2, lamp shadows 2, …; Surface Detail is **off**
 there, so "on" = that file + `enh.surface_detail 2`), the player's a community save (`NFSU2_FLOW_LOAD`),
 `--bench explore 300`, 3 reps interleaved, medians; cold = no `surface-maps` cache (world + car maps
 made), warm = cached. Load average ≈ 10.

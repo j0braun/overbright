@@ -1,6 +1,6 @@
 # Screen-space reflections: the composite by the blend, and the march (docs/wet-roads-ssr.md)
 
-GPU timestamps per pass, `--bench racing 200`; the desktop GPU at 3840x2160 with the player's 4K settings
+GPU timestamps per pass, `--bench racing 200`; the desktop GPU at 3840x2160 with the play setup at 4K
 (SSAA 2x, ray-traced reflections, High Precision Post), the integrated GPU at 1920x1080, World Detail 3,
 High (SSR at half the screen's size). Medians of interleaved runs, ranges in brackets; load average 15–42.
 

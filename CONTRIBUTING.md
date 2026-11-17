@@ -61,7 +61,6 @@ from the reference desktop (16 threads, warm compiler cache) on a public checkou
 
 | command | time | needs |
 |---|---|---|
-| `python3 scripts/release/scan.py text --no-private` and `scan.py binary` | seconds | python3 |
 | `scripts/checks/gate.sh <outdir> <base> extreme` | ~20 min | a Vulkan GPU; the build and test steps of BUILDING.md |
 | … with `RATE=1` (timing, input, audio, harness) | +4 min | |
 | … with `FRESH=1` (the launcher) | +3 min | Xvfb, xdotool; mutter for the Wayland part |
@@ -95,10 +94,8 @@ check without Mesa's software Vulkan driver. Without the private set the steps t
 - Private paths (home folders, machine names), personal names, local settings files (`scripts/local.env`).
 - Code or assets taken from the original, from other games, or from mods.
 
-`scripts/release/scan.py` (docs/release-scan.md) finds most of these; run `scan.py text` and `scan.py binary`
-before you send a change. Without the maintainer's private pattern file (`families.private.txt`, not in the
-public repository) `scan.py text` says `private patterns: NOT LOADED` and exits 3: run
-`scan.py text --no-private` instead, which checks the public patterns (the maintainer's run covers the rest).
+Look over your diff for these before you send a change; every pull request is reviewed for them before it is
+merged.
 
 ## Third-party code
 

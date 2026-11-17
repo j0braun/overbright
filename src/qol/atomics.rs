@@ -501,7 +501,7 @@ pub struct CarShadingRows {
 /// Enhanced Car Paint or Enhanced Reflections together with the scene's
 /// light on the car — Light Probes, or Screen-Space Reflections (the
 /// scene reflected in the paint; the High / Ultra / Extreme
-/// presets and a reported player's settings). Lower (false): the Original and
+/// presets and a reported settings combination). Lower (false): the Original and
 /// the cheap rows alone (Balanced: Paint; Paint / Reflections without
 /// probes or SSR; every other row).
 pub fn scene_lights_car(r: CarShadingRows) -> bool {
@@ -711,7 +711,7 @@ mod car_highlight_rule_tests {
     /// in pairs: Original and the lower settings keep the native rig
     /// highlight, the higher ones and every ray-traced tier remove it.
     #[test]
-    fn the_rig_highlight_follows_the_owners_table() {
+    fn the_rig_highlight_follows_the_table() {
         for class in [GpuClass::High, GpuClass::Mid, GpuClass::Integrated] {
             for p in PRESETS {
                 let mut e = Enhancements::default();
@@ -747,11 +747,11 @@ mod car_highlight_rule_tests {
         }
     }
 
-    /// A reported player's settings (Enhanced Paint + Enhanced Reflections + SSR Ultra, no probes, no
-    /// Modern Lighting) count as higher.
+    /// A reported settings combination (Enhanced Paint + Enhanced Reflections + SSR Ultra, no probes, no
+    /// Modern Lighting) counts as higher.
     #[test]
-    fn the_owners_settings_are_higher() {
-        let owner = CarShadingRows { ssr: 2, enhanced_paint: true, enhanced_reflections: true, ..Default::default() };
-        assert!(scene_lights_car(owner));
+    fn reported_settings_are_higher() {
+        let reported = CarShadingRows { ssr: 2, enhanced_paint: true, enhanced_reflections: true, ..Default::default() };
+        assert!(scene_lights_car(reported));
     }
 }

@@ -170,7 +170,7 @@ LABEL` lists every GPU pass of a bench set with its share per config.
 
 2026-11-05: `SET=gate` (the regression gate's 8 configs,
 `scripts/checks/perfgate.sh`), `CONFIGS="cfg …"` instead of a set, presets
-`ultra26` (Preset::Ultra of 99e726f), `user` (the player's play setup), `max`
+`ultra26` (Preset::Ultra of 99e726f), `user` (the play setup), `max`
 (user + every newest row at its top) and any `PRESET_<name>` (`@MAX@` =
 MAX's lines), the scene `water` (explore orbiting the Beacon Hill fountain
 steps), `IGPU=1`, `ORDER=alternate`; `perfstat.py gate`; `budget.sh` /

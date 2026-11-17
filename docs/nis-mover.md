@@ -97,10 +97,10 @@ same layout, Car1 spinning its fronts in tyre smoke at the line, Car3/Car4
 parked from their drive-in. `NFSU2_NIS_PROBE=1` logs every scene car's
 mover per frame (slot, count, pose, speed, wheels, controls).
 
-## Race endings (player report, final race vs Caleb)
+## Race endings (final race vs Caleb)
 
-Design note: "after winning the last caleb race, my cars drift
-animation glitched under the map". The final race is S5_CIRCUIT_36; its
+Issue: after winning the last race against Caleb, the player's car's drift
+animation glitched under the map. The final race is S5_CIRCUIT_36; its
 ending scene is one of EndingNis01–04 (0x436840 case 1, the start line of
 the circuit, origin at the line's ground turned 180°). The clone placed the
 ending car at the channel's height above the origin (origin z + channel z,

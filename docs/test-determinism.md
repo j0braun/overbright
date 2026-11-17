@@ -60,7 +60,7 @@ menu timings under heavy load can differ; no failure seen from it.
   thread-local until the test's thread ends, also after a panic). A test
   that changes Enhancements, photo mode, output size or other display
   globals calls `test_isolation::exclusive()` first (done in
-  `user_reports::offscreen_window` and the nitro-window test): it waits for
+  `reported_issues::offscreen_window` and the nitro-window test): it waits for
   the running game tests to end, holds new ones off, and the native
   defaults are put back when it ends. `rivals_hold_the_line…` no longer
   re-points `XDG_DATA_HOME` for the process.

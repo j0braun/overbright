@@ -3,8 +3,8 @@
 **2026-11-06**: the fine octave, directional billow shading, the temporal resolve, longer steps
 and the smoke's density constants are in docs/smoke-nextgen.md (same cost; the constants below are the smoke integration's).
 
-Design note after playing Particles **Cinematic** (the Cinematic smoke work's billboards, docs/smoke-cinematic.md): "looks
-cheap and not modern". Lead 2026-11-05: the "next-gen" bar (simulated, volumetric, lit by the scene) now
+Particles **Cinematic** (the Cinematic smoke work's billboards, docs/smoke-cinematic.md) looked
+cheap and dated in play. The "next-gen" bar (simulated, volumetric, lit by the scene) now
 applies to every enhanced effect, and this system is to be reused by spray, fountain mist,
 rain, sparks / nitrous fire and atmosphere.
 
@@ -148,7 +148,7 @@ change is a different (equally smooth) sampling; the downsample fold and the til
 
 ## Evidence (the maintainer's private captures, Original | Ultra | Cinematic-billboards | Cinematic-volumetric)
 
-A player's real settings (`the player's options file`'s enh lines) + the row; `scripts/cap.sh`.
+The play setup (the play setup's options file's enh lines) + the row; `scripts/cap.sh`.
 * `start_*`: `--shot qrstart` NFSU2_FRAMES=300 NFSU2_THROTTLE=1 NFSU2_SHOT_STEP=1 (burnout at the start line).
 * `drift_*`: `--bench racing` NFSU2_BENCH_KIND=drift, frame 400, 1080p.
 * `post_*`: `--shot ending` NFSU2_SHOT_CAR=240SX NFSU2_ENDING_NIS=1 NFSU2_SHOT_MS=2500 (post-race burnout).
@@ -255,7 +255,7 @@ bounds once into workgroup memory and leaves at once when none of its 4³ voxels
 nine accumulators and zeroes them with plain atomic loads and stores (no other pass touches them meanwhile);
 the bricks its voxels mark are gathered in workgroup memory (its 4³ voxels lie in one brick, the footprint
 reaches the 3 × 3 × 3 round it) and each set once. The integer sums, the volumes and the brick marks are the
-ones the old pass made. The wet spray's resolve at 4K with the player's rows 0.031 → 0.023 ms; on the reference
+ones the old pass made. The wet spray's resolve at 4K with the play setup's rows 0.031 → 0.023 ms; on the reference
 integrated GPU at level High in rain 0.269 → 0.190 ms (7 interleaved runs each).
 
 ## The march specialised to its renderer's look
@@ -269,7 +269,7 @@ mist's march (none of the three) is 72 registers, 20 waves, 1,465 instructions (
 keeps all three (the program as before). The warm-up makes one march for each set the users take (`WARM_LOOKS`).
 The same arithmetic; only the compiler's rounding of the smaller program differs: one level on at most seven pixels
 of a 480 × 270 frame of night rain (`tests::fog_rain_paths::volume_march_specialised_keeps_the_frames`,
-`set_plain_march` makes every march with all three). The wet spray's march at 4K with the player's rows 0.414 [0.412..0.417] →
+`set_plain_march` makes every march with all three). The wet spray's march at 4K with the play setup's rows 0.414 [0.412..0.417] →
 0.368 [0.365..0.378] ms; on the reference integrated GPU at level High in rain 7.11 [7.07..7.21] → 6.63 [6.56..6.69]
 ms; Ambient Detail's (the light set, racing at 4K) 0.203 → 0.187 (5 interleaved runs each).
 

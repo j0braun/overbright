@@ -1,6 +1,6 @@
 # Nitrous in Street X and drift races (2026-11-04)
 
-Player report: "for street x is it allowed to use nos? I still can trigger it".
+Question: may nitrous be used in Street X? The clone let it fire.
 
 **Answer (verified):** no. In the original, a car has no nitrous in a drift or
 Street X race, even with a nitrous package installed. The key does nothing: there

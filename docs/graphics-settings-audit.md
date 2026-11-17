@@ -1,8 +1,7 @@
 # Graphics settings audit and the preset page (2026-11-04)
 
-Design note: "check if every graphic setting does make the image look
-better or even different, we dont want effects that only cost but add
-nothing". SSAA is kept whatever the audit says (user, same day). This file
+Goal: every graphics setting must make the image better or at least different; an effect that
+only costs and adds nothing goes. SSAA is kept whatever the audit says. This file
 holds the audit, what was removed or merged and why, and the new Graphics
 page the presets are built on. All of it is a **clone deviation** (nothing
 here exists in SPEED2.EXE); "Original" is the native image and stays the
@@ -66,7 +65,7 @@ default, byte-identical (no render code changed in this work).
 | AA SSAA 2x | 10.6/188 | 7.1/173 | 14.8/228 | 7.2/202 | 8.0/202 | 14.5/215 | 9.9/240, 0.992 | +0.05 | −0.17 | visible; drops native MSAA, so ≈ free |
 | AA SSAA 4x | 9.1/219 | 5.2/156 | 15.4/222 | 6.9/220 | 6.9/220 | 15.1/221 | 10.9/207, 0.991 | +0.35 | +1.57 | visible, costly at 4K (kept) |
 | AA SSAA 8x / 9x / 16x | 10.0–10.7 | 5.9–6.5 | 17.2–17.9 | 7.1–7.3 | 7.0–8.2 | 16.7–17.4 | 12.2–12.7 | +1.35 / +1.51 / +3.61 | +5.87 / +6.60 / +14.65 | visible over 4x (4x vs 16x: 6–10 % px, max ~110), very costly (kept) |
-| AA: MSAA Override 4x / 16x | = MSAA 4x / 8x | | | | | | | | | same image as the AA row's MSAA; 16x falls back to 8x on this GPU; kept for combinations (design note) |
+| AA: MSAA Override 4x / 16x | = MSAA 4x / 8x | | | | | | | | | same image as the AA row's MSAA; 16x falls back to 8x on this GPU; kept for combinations |
 | AA: MSAA Override Off (with MSAA 4x) | 0 vs no-MSAA | | | | | | 1.5 vs native 8x | −0.03 | −1.16 | turns native MSAA off: a performance choice |
 | AA: Post Filter FXAA / SMAA | = AA FXAA / SMAA | | | | | | | +0.12 / +0.16 | +0.12 / +0.35 | same image as the AA row's; kept for combinations |
 | AA: Post Filter SMAA+FXAA | 4.3/166 | 3.4/181 | 5.5/188 | 2.0/193 | 2.6/193 | 5.2/211 | 3.0/213, 0.994 | +0.22 | +0.46 | visible |
@@ -120,8 +119,7 @@ pause menu item).
   Render Scale row now offers 50–100 % only and sits under Performance.
 * **Duplicates kept on purpose**: AA: MSAA Override and AA: Post Filter
   render exactly the AA row's MSAA / FXAA / SMAA images; they exist for the
-  combinations (SSAA + MSAA, MSAA + SMAA, SMAA + FXAA, MSAA Off), a user
-  decision of 2026-11-02. Values within a row that look alike (Shadow
+  combinations (SSAA + MSAA, MSAA + SMAA, SMAA + FXAA, MSAA Off). Values within a row that look alike (Shadow
   High vs Ultra, Car Reflection 256 vs 1024, SSAA 8x vs 9x) were kept:
   each still differs measurably and costs little.
 * Resolution notes: SSAA's gain over 4x is larger at 1080p (4x vs 16x
@@ -216,9 +214,8 @@ Shots `options_graphics`, `options_graphics_custom`,
 
 # Named tiers, one row per concept (2026-11-04)
 
-Design note: "bring them to the new modern standard, make that for
-every setting" and "the car details settings, update rate etc. this should
-be streamlined, no settings should be double in what they are doing". All
+Goal: every setting at a modern standard, and the car detail settings (update rate etc.)
+streamlined so that no two settings do the same thing. All
 clone deviations (no native counterpart); defaults, the Original preset and
 Restore Native stay native.
 
