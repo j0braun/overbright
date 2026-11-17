@@ -339,8 +339,8 @@ fi
 if [ "$SET" = full ] || [ -n "${RELEASE:-}" ]; then
   run release 3600 "$HERE/release_check.sh" "$O/release"
   say "release rc=$RC ${STEP_S[release]} s: $(tail -1 "$O/release.log" | cut -c1-200)"
-  # rc 3: everything passed but the private save names were not searched (no families.private.txt).
-  # Without the private set that is expected: the terms are the maintainer's own (scan.py, families.private.txt).
+  # rc 3: everything passed but the private save names were not searched (no privacy scan or no private terms).
+  # Without the private set that is expected: the terms are the maintainer's own.
   if [ $RC = 3 ]; then skip_private "release: the private save names not searched (needs the maintainer's private set (OB_PRIVATE))"
   else [ $RC = 0 ] || { grep -E '^(release|error)' "$O/release.log" | head -20 | tee -a "$OUT"; fail release; }; fi
 fi

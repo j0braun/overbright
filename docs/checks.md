@@ -94,8 +94,8 @@ shots that the base knows by their own name or by an old one (`shot_renames.py p
 without the shot table lists the variants under their old names. The finished-career variants are named
 `finished_career_<target>` (the screen with the finished-career save as the profile): `finished_career_shop_checks`,
 `finished_career_specials_hydro3`, `finished_career_specials_purge`, `finished_career_dynorun`, and the prefix on any
-other target. The map holds the old names of the maintainer's private set and is on `scripts/release/private.list`;
-without it the map is empty.
+other target. The map holds the old names of the maintainer's private set and is part of that set; without it
+the map is empty.
 
 ## Renamed private fixtures
 
@@ -104,7 +104,7 @@ A base binary reads the private set's files by the names it was built with. A fi
 OLD to its NEW in the set the parity reads (`fixture_renames.py alias`: its own copy of the new tree, or, when the
 caller names `OB_PRIVATE`, a copy of that set made of links; never the caller's folder itself) and prints
 `gate: renamed private fixtures: aliased N under their old names for the base`. The new binary reads only the new
-names. The map holds the old names and is on `scripts/release/private.list`; without it the map is empty.
+names. The map holds the old names and is part of the private set; without it the map is empty.
 
 ## Determinism (run to run, one binary)
 
@@ -252,7 +252,8 @@ A step that did not run never counts as passed:
   shot or flow that exits 3 with a `SKIP: ... needs the maintainer's private
   set (OB_PRIVATE)` line, each such `SKIP:` line of the selftest (the
   selftest itself still has to pass), and the release check's
-  `RELEASE: ok, private terms NOT LOADED` (exit 3). In a public checkout
+  `RELEASE: ok, private terms NOT LOADED` (exit 3; in a public checkout after
+  `release: privacy scan: maintainer tool, not in this checkout`). In a public checkout
   `scripts/tests/` and `devprobes/` are absent (both are private): the
   importer tests and the devprobes step are recorded as skipped, never failed.
   The gate's parity (perf.sh) does the same without the set (no

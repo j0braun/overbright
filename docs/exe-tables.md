@@ -104,8 +104,8 @@ stored table 0x8181D8 is exactly min(65535, trunc(65536·sin(iπ/512))) with no 
 now the formula alone (`SINE_CLONE_DEVIATION` removed); the data test compares all 257
 entries with no exception, `quarter_sine_is_the_exact_formula` states the six values.
 
-Small tables of the same families stay in the source for now (each under the scanner's
-64-byte run): e.g. drive/tables.rs MAX_ANGLE, STEER_SPEED, LOCK_GAIN, the drift-assist
+Small tables of the same families stay in the source for now (each under the release
+check's 64-byte run): e.g. drive/tables.rs MAX_ANGLE, STEER_SPEED, LOCK_GAIN, the drift-assist
 rows; ai/driver SPEED_*, TABLE_P/I/D; carfx SHIFT_BANKS, TURBO_BANKS; enviro PLANES*;
 vp6 MC_TYPE; drift START_SPEED / KEEP_SPEED, AI_DIFFICULTY; garage SHOTS, PLATFORMS and
 TOUR_SHOTS (the clone's tour values are rounded, not the executable's: 0.1998 for
