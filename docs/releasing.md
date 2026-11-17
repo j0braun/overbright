@@ -29,8 +29,8 @@ exit status 3 instead of 0: what a public checkout can reach. A release needs ex
 | `overbright.desktop`, `overbright.png` (256 px icon) | (optional, `DXC_DIR`: `dxcompiler.dll`, `dxil.dll`, `LICENSE-DXC.txt`) |
 
 Each archive has one top folder named like the archive. `<version>` is `git describe --tags --always` of the
-commit, without the `v` of a tag such as `v0.1.0`: tag the commit first (`git tag v0.1.0 <commit>`) to get a
-readable version (`0.1.0`).
+commit, without the `v` of a tag such as `v0.2.1`: tag the commit first (`git tag v0.2.1 <commit>`) to get a
+readable version (`0.2.1`).
 
 - **Not shipped:** the developer tools the build also makes (`car_check`, `inspect`, `world`, `frontend`,
   `dump_textures`, ...: maintainer tools) and **`overbright-upscale`**. The texture-pack generator is for
