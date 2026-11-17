@@ -150,7 +150,7 @@ Two third-party mods made for the original's "Binary" mod tool, converted togeth
   for 27 tracks. The check finds it complete."; "HUD mod not set up: files are missing or damaged in … :
   <the files> … Download the mod again and extract all of it."; "This is not the HUD mod: …"; another
   version of the mods converts but the check says the game keeps its own HUD.
-* Checked against the real downloads (on the maintainer's machine, outside the tree): the same 710 file
+* Checked against the real downloads (outside the tree): the same 710 file
   names and decoded pixels as the earlier Python conversion. Tests use stand-ins made in the test
   (`hud_mod::tests`, `formats::zip::tests`, `launcher::tests::hud_mod_from_its_downloads`).
 

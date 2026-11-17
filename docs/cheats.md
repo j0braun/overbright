@@ -5,7 +5,7 @@ re-checked in memory under Wine, the bonus codes' saves compared, new
 profiles fixed). The full trace of the manager, table and effects is
 also in `docs/formats.md` "Cheat codes"; this file is the summary of
 record. Sponsor cars and vinyls are ported as traced but were not
-re-examined (design note).
+re-examined.
 
 Wine: `$OB_PRIVATE/wine/runs/<run>`, `fastgpu.sh` on :193,
 `--wined3d` (DXVK hung on the boot's "Save complete." dialog once:

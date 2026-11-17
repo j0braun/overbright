@@ -1,7 +1,7 @@
 use crate::*;
 
-/// The race's lines end with it (a player report: "the spectator
-/// shouting can still be played after the race"). The start scene's line
+/// The race's lines end with it (the spectators' shouting could still
+/// play after the race). The start scene's line
 /// (the starter, the crowd, NIS kind 2) and the ending scene's (the crowd
 /// at the line, kind 6, ~50 s long) are NIS stream lines; the original
 /// purges them (and the speech line) as the post-race menu or the pause

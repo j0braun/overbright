@@ -19,7 +19,7 @@ adapter, `NFSU2_RT=0` never). No new label id (a tier of the SSR row).
 
 The ray-tracing rework (the sections "Textured, glowing hits", "Light glows in the reflections",
 "Quarter rate" below, the NIS characters' rays in the world's traced-shadow pass, docs/perf-budget.md,
-and the hit textures built on the GPU) against the tree before it, the reference player's 4K settings
+and the hit textures built on the GPU) against the tree before it, the play setup at 4K
 (SSAA 2x, Modern + RT, Ray Traced reflections), GPU busy ms per frame:
 
 | scene | before | after |
@@ -116,7 +116,7 @@ The first step of the ray-tracing rework: a hit no longer takes its triangle's f
   measured +0.4 ms). A miss keeps the march's result (no glow over the sky).
 * `NFSU2_RT_FLAT=1` keeps the flat colours (frames identical to before, checked); cars keep the
   flat colour for now.
-* Measured (the reference player's 4K settings, 4 interleaved pairs, load 12-20): racing frame
+* Measured (the play setup at 4K, 4 interleaved pairs, load 12-20): racing frame
   13.99 → 14.21 ms, the rays 0.99 → 1.17; night rain 16.95 → 17.14, rays 1.11 → 1.32; VRAM
   +150 MB. The layers are made on the GPU (`hit_texture_gpu`, `rt_hit_shrink.wgsl`: each world texture
   uploaded as the game stores it, DXT with its mips, and all eight levels of its layer written by one
@@ -151,7 +151,7 @@ nothing. Now:
 * **Dry roads** cast no glow ray (their reflection is held to the native term's luminance, which the
   glow could not pass): a dry race costs nothing more.
 * `NFSU2_RT_DEBUG=glow` shows the glow term alone (× 20), a check aid.
-Measured (the reference player's 4K settings, 3 interleaved triples, load 11-16): racing (dry)
+Measured (the play setup at 4K, 3 interleaved triples, load 11-16): racing (dry)
 13.99 / 14.14 / 14.28 ms (today / textured / + glows), rays 0.99 / 1.16 / 1.12; night rain
 16.98 / 17.33 / 17.54, rays 1.10 / 1.34 / 1.67. Pictures, night-rain race start frames 100-111 vs
 today: luma mean +0.3 … +0.6, p5 equal, p95 +1.1 … +3.0; 3-7 % of the pixels > 3 % at the wet spots;
@@ -179,7 +179,7 @@ trace pixel every frame:
   and the fragment form (no list) always do.
 * The history follows frames, not world ticks: at a low frame rate it covers more time (the clamp keeps
   it from trailing). VRAM: two full-size history pairs and the half trace, about +215 MB at 4K.
-Measured (the reference player's 4K settings, 3 interleaved triples, load 8): racing 13.88 today →
+Measured (the play setup at 4K, 3 interleaved triples, load 8): racing 13.88 today →
 14.14 (glows) → **12.72** ms; night rain 16.73 → 17.51 → **15.50**: the trace 1.85 → 0.71 ms, its rays
 1.52 → 0.46, the resolve 0.33. Pictures against the full rate (frames 100-111): rain 0.93 % of the
 pixels > 3 %, racing 0.12 %, luma mean / p5 / p95 within 0.1; frame-to-frame change −0.4 % of the
@@ -214,7 +214,7 @@ A wet road's and a car's paint and glass reflection is decided by the ray, not b
 * `NFSU2_RT_PRIMARY=0` keeps the march first (the previous form, a check aid); `NFSU2_RT_DEBUG=primary`
   shows red where the screen's colour was taken, green the traced hit's, blue a miss.
 
-Measured (the reference player's 4K settings, Modern + RT, 4 interleaved pairs against the tree before,
+Measured (the play setup at 4K, Modern + RT, 4 interleaved pairs against the tree before,
 load 4-9, GPU busy ms): with the traced shadows' changes of docs/shadow-softness.md "Every light"
 (which pay for the dry frames' rays) racing 12.32 → 12.31, night rain 15.03 → 14.74, race start
 14.13 → 13.94, free roam 9.12 → 9.31. The reflections alone: night rain −0.6 ms (the march gone: trace
@@ -290,7 +290,7 @@ The trace pass: 0.30–0.39 → 0.64–0.90 ms (1080p), 1.09–1.39 → 1.97–3
 (4K). VRAM peak about +350 MB at 4K (noisy metric). Draw-thread CPU
 +0.1–0.15 ms in racing (car keys hashed per frame). Tier cost: 3.3 ms at 4K
 (over Off). Shared machine (load avg ~50–110), reference desktop GPU.
-With the ray list (above; the reference player's 4K SSAA 2x settings with Modern + RT, 7 runs per
+With the ray list (above; the play setup at 4K (SSAA 2x) with Modern + RT, 7 runs per
 arm): the trace 3.17 → 2.55 ms racing, 3.31 → 2.99 race start, 3.62 → 2.91 rain, 2.79 → 2.45 free
 roam; the frame 19.02 → 18.55, 20.27 → 19.95, 23.45 → 22.87, 13.06 → 12.74 ms; 27–45 % of the trace's
 pixels need a ray (docs/perf-budget.md "Ray-traced reflections: the rays from a list").

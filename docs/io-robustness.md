@@ -72,7 +72,7 @@ Thread creation failing elsewhere (render workers, loaders joined with
 `expect` in `game.rs`) is not handled: the game cannot run without them.
 The render-side self-check cache (`postfx.rs`, `post-check` verdict) is
 still written with a plain `fs::write` (a cut-off file reads as
-"separate passes", a valid state); left for the render owners.
+"separate passes", a valid state): open.
 
 ## Fuzzing (2026-11-05)
 

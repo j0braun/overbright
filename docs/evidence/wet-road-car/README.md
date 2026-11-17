@@ -14,7 +14,7 @@ Rain scenes at world clock 162 (`NFSU2_RAIN_CLOCK`, night, rain 0.70).
 | trail-map-debug.webp | `NFSU2_WET_ROAD_DEBUG=1`: the trail map on the road (R track, G wake, B closeness) behind every car |
 | sequence-drive-rain.webp | frames 240–300 every 3rd, 640 × 360, animated (lights mirrored moving with the cars, spray) |
 | cost.txt | `--bench drive 600` at clock 162, GPU busy mean / median, weather pass; orig, wetroads, on, high × 1080p / 4K × 3 reps |
-| splash-report-*.webp | the player's "splash on the barrier" (2026-11-05): `--shot explore_rain`; the oval on the median barrier is the native lens drop (rain_drop.efx, 0x5C7AC0), present with every enhancement off (Original) and unchanged by Wet Roads or SSR (crop: Original / user settings without Wet Roads / without SSR, 300 %) |
+| splash-report-*.webp | a "splash on the barrier" seen in play: `--shot explore_rain`; the oval on the median barrier is the native lens drop (rain_drop.efx, 0x5C7AC0), present with every enhancement off (Original) and unchanged by Wet Roads or SSR (crop: Original / play setup without Wet Roads / without SSR, 300 %) |
 
 Drift in the rain: the drift events' track (the stadium) has no rain, so the slip-driven spray is shown on the street
 circuit's corners only; the slip's effect on the spray is in `wet_road::tests::spray_follows_speed_slip_and_puddles`.

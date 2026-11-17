@@ -145,7 +145,7 @@ run_config() {
     for i in 1 2 3 4 5 6; do move $((100 + i * 40)) $((100 + i * 30)); done
     shot movie
     check movie-no-cursor bash -c "grep -q 'tag=Movie' '$LOG' && ! grep 'tag=Movie' '$LOG' | grep -q 'cursor=1'"
-    # Skip to the splash (Enter skips the movies: user choice).
+    # Skip to the splash (Enter skips the movies: agreed deviation).
     for _ in $(seq 1 20); do tag | grep -q '^Splash' && break; key Return; sleep 0.6; done
     move 300 300; move 320 310
     # Agreed deviation (docs/native-deviations.md; `cursor_shown`): no cursor before

@@ -325,7 +325,7 @@ pixdiff compares. Every case must give the expected verdict (the count is on the
 
 ## Rate gate v2 (on by default, `RATE=strict`)
 
-Owner's rule: the game is never locked to 30 or 60 fps, and gameplay and look
+Rule: the game is never locked to 30 or 60 fps, and gameplay and look
 are identical at 30, 60, 120 and 200 fps (reference: the original at a steady
 60 fps). The gate runs
 ONE binary against itself across display schedules; it is not base vs new.

@@ -28,8 +28,8 @@ simulation is unchanged by construction.
   Beacon Hill fountain steps, docs/water.md's worst case N).
 * Presets (perf.sh): `orig`; `modern` (the perf harness's Modern line); `ultra26` (new:
   `Preset::Ultra` exactly as qol.rs has it on 99e726f); `extreme`;
-  `user` (new: the player's play setup, `the player's options file`:
-  its enh lines and World Detail custom values — SSAA 2x + MSAA override,
+  `user` (new: the play setup, a custom settings set kept in scripts/local.env as
+  `PRESET_user`: its enh lines and World Detail custom values — SSAA 2x + MSAA override,
   SSR full, SSAO 25 %, Volumetric Fog Low, …); `max` (new: `user` + every
   newer row at its top: Modern Lighting + RT, Particles Cinematic, Water
   Realistic, Wet Road Interaction High, Rain Detail High, Wet Car, Spray,
@@ -38,7 +38,7 @@ simulation is unchanged by construction.
   World Detail Extreme, Dynamic Lamps).
 * Per effect: **leave-one-out** from `max` — max minus (max with that one
   row down) in the row's heavy scene; "step up" rows the other way. So the
-  cost is what the row costs in the player's real setup, with every
+  cost is what the row costs in a real play setup, with every
   interaction (a row feeding SSR, Modern Lighting, …) included. p = the
   run-level Mann-Whitney U (4 + 4 runs: smallest p 0.029), noise = pooled
   1.4826 MAD / median. "Own passes" = the row's own GPU passes (timestamps)
@@ -58,12 +58,12 @@ simulation is unchanged by construction.
 | Modern | 1.23 | 2.28 | 1.93 | 2.14 | 1.38 | 5.73 | 8.03 | 7.85 | 7.99 | 6.08 |
 | Ultra (Preset::Ultra) | 2.60 [6.8] | 3.76 | 3.92 | 4.85 | 3.04 [17.6] | 10.14 [26.4] | 13.33 | 14.09 | 17.78 | 11.00 [59.6] |
 | Extreme | 3.21 [7.2] | 4.62 | 4.96 | 5.97 | 3.78 [15.0] | 12.95 [28.3] | 16.23 | 19.26 | 22.11 | 14.39 [27.8] |
-| user's setup | 2.42 | 3.25 | 3.55 | 3.61 | 2.38 | 9.66 | 11.89 | 12.97 | 13.84 | 8.77 |
+| play setup | 2.42 | 3.25 | 3.55 | 3.61 | 2.38 | 9.66 | 11.89 | 12.97 | 13.84 | 8.77 |
 | **everything max** | 4.19 | 8.57 | 8.28 | 8.56 | 5.50 [19.2] | 15.58 | **26.09** | **30.07** | **30.53** [37.5] | 19.51 [45.0] |
 
 CPU (main thread / render workers ms/frame): Original 0.6–0.9 / 0.8–1.7,
 Ultra 1.1–2.0 / 1.4–3.0, max 1.4–2.6 / 1.6–3.4 at either size (the CPU
-does not scale with the size). **The player's setup at 4K runs at 9–14 ms
+does not scale with the size). **The play setup at 4K runs at 9–14 ms
 (70–110 fps); everything max at 4K at 16–31 ms (32–64 fps): not 60 fps in
 racing, the race start or rain.** p95 brackets only where p95 > 1.3 × the
 median: the spikes are Ultra's smoke (explore; Cinematic removes them,
@@ -98,7 +98,7 @@ cameras stay near the car — open for the effects-performance pass). **The fram
 | Motion Blur Per-Object → Original | racing | +0.58 | +2.06 | 2.24 | 1.16 | | hint low by 0.9 ms |
 | Depth of Field Cinematic → Original | racing | +0.20 | +0.02 n.s. | 0.00 | 1.30 | | only in scenes / replays / photo (0 while racing) |
 | Light Probes → Off | racing | +0.18 | +0.12 n.s. | 0.02 | 0.00 | | (see the water spikes above) |
-| **SSAA 2x → Native 8x MSAA** | racing | **+2.69** | **+10.80** | | 0.01 | | the largest single cost of the player's setup; hint wrong (0.01) |
+| **SSAA 2x → Native 8x MSAA** | racing | **+2.69** | **+10.80** | | 0.01 | | the largest single cost of the play setup; hint wrong (0.01) |
 | Enhanced Glass → Off | race | +0.15 | +0.65 | 1.88 | 0.33 | | hint low |
 | Contact Shadows → Off | race | +0.27 | +0.94 | | – | | |
 | Car Reflection 1024 / Car Shadow Ultra / Enhanced Paint / Smooth Cars → native | race | ≤ +0.15 | ≤ +0.17 | | – | | small |
@@ -110,7 +110,7 @@ CPU deltas per row: mostly within ±0.6 ms main / workers — at or under
 this machine's CPU noise; none is a clear CPU cost except Modern Lighting
 (+0.3–0.6 ms main) and the World Detail rows (+0.1–0.35 ms main).
 
-**Budgets for the NX units** (allowed extra GPU ms in the player's max setup,
+**Budgets for the NX units** (allowed extra GPU ms in the max setup,
 measured here; a unit must stay inside, the gate catches a regression):
 
 | effect | budget | now |
@@ -119,7 +119,7 @@ measured here; a unit must stay inside, the gate catches a regression):
 | Water (Realistic) | ≤ +1.5 ms 4K with a fountain on screen | +0.65 net (passes 3.6) |
 | Wet road (Interaction) | ≤ +1 ms 1080p rain (On); High: ≤ +1 ms 1080p, 4K reported | +0.82 1080p, +2.65 4K |
 | Modern Lighting (Modern Lighting phase 2 / the shadow-softness pass shadows) | ≤ +2 ms 1080p Modern; RT reported | ≈ +1.6 (Modern), RT +2.1 / +5.7 |
-| Everything max, the player's play setup at 4K | ≤ 16.7 ms in every scene is the goal (60 fps) | 16–31 ms: over in racing / race / rain; first targets SSAA 2x (10.8), Modern Lighting RT (5.7), SSR (5.4), wet interaction (2.7), HP post (2.5), motion blur (2.1) — the effects-performance pass |
+| Everything max, the play setup at 4K | ≤ 16.7 ms in every scene is the goal (60 fps) | 16–31 ms: over in racing / race / rain; first targets SSAA 2x (10.8), Modern Lighting RT (5.7), SSR (5.4), wet interaction (2.7), HP post (2.5), motion blur (2.1) — the effects-performance pass |
 
 **UI cost hints** (graphics_table.rs `*_COST_4K`) measured alone over
 Original; under max several are low: SSAA 2x (0.01 vs 10.8 at 4K),
@@ -141,11 +141,11 @@ Medium 17.5–28.4, High 37.5–67.7 at 1080p, upper bounds measured under build
 | Original | 10.2 [12.9] | 12.6 [15.2] | 15.3 [18.1] | 12.5 [15.1] |
 | Modern | 33.8 | 68.4 | 57.4 | 70.3 |
 | Ultra (Preset::Ultra) | 128.5 [249.9] | 142.2 | 155.9 | 186.6 |
-| user's setup | 87.7 | 137.0 | 133.5 | 151.9 |
+| play setup | 87.7 | 137.0 | 133.5 | 151.9 |
 | everything max | 158.7 | 220.8 | 271.9 | 257.1 |
 
 At World Detail 5 Original holds 60 fps on the iGPU at 1080p (10–15 ms); Modern is 15–30
-fps; Ultra, the player's setup and max are 4–11 fps (the SSAA 2x scene alone
+fps; Ultra, the play setup and max are 4–11 fps (the SSAA 2x scene alone
 doubles the fill). The iGPU budget is therefore Original / a Low tier:
 any row offered to integrated GPUs should be measured with `IGPU=1` (per-row
 leave-one-out there is not in this run: 2-CU timings at ~150 ms/frame make
@@ -157,7 +157,7 @@ discrete GPU (1.1–3.3 / 1.3–3.7 ms).
 Own VRAM peak (fdinfo, `--bench racing`, 4K, reference desktop GPU) after the VRAM and post pass'
 allocator blocks, target pool and off-tier release (`docs/perf-gpu.md`
 "the VRAM and post pass"): Original 1354 MiB, Modern 1549, Ultra 2439, Extreme 2695,
-Extreme FSR 1532, the player's setup 2572, max 3162 (race start 3163);
+Extreme FSR 1532, the play setup 2572, max 3162 (race start 3163);
 before 1369 / 2103 / 3273 / 3936 / 2070 / 3574 / 4008 (4492). 1080p
 Original ~630 MiB (before 617–973, run to run). reference integrated GPU (VRAM
 carve-out + GTT, 1080p): Original racing 669 → 560 MiB, race start
@@ -176,7 +176,7 @@ scripts/checks/perfgate.sh seed   OUT NEW_BIN [NOTE]           # first baseline:
 * **Set** (`perf.sh` `SET=gate`, 8 configs): racing / explore / race start
   Original 1080p (the main thread and the native path), racing Original 4K,
   racing Ultra 4K (preset), explore Extreme 1080p (smoke, CPU of
-  the enhancements), rain `max` 4K (the player's play setup plus every newest
+  the enhancements), rain `max` 4K (the play setup plus every newest
   row, the heaviest config: ~28 ms), race start `max` 1080p. 5 runs per arm
   (Mann-Whitney 5 + 5: smallest p 0.008; 3 + 3 can never flag), 300 frames,
   arms adjacent per config and rotated each repetition (`perf.sh bench`).
@@ -615,7 +615,7 @@ lines' "from the key", median [min–max] ms; load average 12–45 on 16 threads
 program at times; integrated-GPU numbers not split by its slow state (the waits here are CPU and disk bound).
 Tables, the first start and the harness's transitions: `docs/evidence/perf-budget/start-and-menus.txt`.
 
-| wait | discrete, owner rows 4K | discrete, Original | integrated, owner rows 1080p | integrated, Original |
+| wait | discrete, play-setup rows 4K | discrete, Original | integrated, play-setup rows 1080p | integrated, Original |
 |---|---|---|---|---|
 | the start's window part (event loop to swap chain) | 93 → 29 | 55 → 18 | 75 → 22 | 48 → 19 |
 | process start → first frame | 154 → 162 | 92 → 80 | 136 → 104 | 92 → 88 |
@@ -625,7 +625,7 @@ Tables, the first start and the harness's transitions: `docs/evidence/perf-budge
 
 The start's total moves less than its window part: the game's data (`Game::new`) now ends with the event loop
 made beside its loaders (its part grows by what the event loop took), and its spread is the disk's. The
-harness's transitions at the reference player's rows (discrete, 4K, 3 runs each): menu → free roam with the world loaded
+harness's transitions at the play setup's rows (discrete, 4K, 3 runs each): menu → free roam with the world loaded
 ahead 158 → 72, another region's race loaded ahead 140 → 108, back from it 306 → 221, menu → Quick Race circuit
 422 → 324; the first frames' "world: lamps" 61–69 → 18–19 ms (Surface Detail's array zeroed on the GPU).
 The table's "after" is an earlier build in which the main menu's scene made ahead also made its renderers; the
@@ -912,7 +912,7 @@ enhanced images are byte-identical (below).
 ### 3. The Graphics page's cost hints
 
 The hint of every row the table measures is now its 4K number under "everything max"
-(the tier's cost in the player's play setup with every newest row on; intermediate
+(the tier's cost in the play setup with every newest row on; intermediate
 tiers as (max − Off) − (max − tier)); before, most were measured alone over
 Original, several far off (SSAA 2x 0.01 vs 10.15 ms). Measured on the frame-budget fixes' binary
 where the row changed since 99e726f or the tier was not in this work's table (29 configs,
@@ -1001,11 +1001,11 @@ adjacent, reference desktop GPU, load average 5–60 from other jobs), GPU busy 
 internal notes (compare.md, summary.txt, image-metrics.txt). Presets: `urt` = the player's play
 setup (perf.sh `USER`) + Modern Lighting Modern + RT at strength 75 %, `um` the same with Modern,
 `max` = perf.sh `MAX`. Nothing native is involved (Modern + RT has no counterpart in SPEED2.EXE);
-Original, Ultra, Extreme, the player's setup and Modern Lighting Low / Modern are byte-identical (gate).
+Original, Ultra, Extreme, the play setup and Modern Lighting Low / Modern are byte-identical (gate).
 
 ### 1. Modern + RT shadows: half-resolution rays outside the colour shader (non-exact, approved class)
 
-Measured first: the RT tier cost +7.4 ms over Modern at racing 4K (user's setup); with the ray count
+Measured first: the RT tier cost +7.4 ms over Modern at racing 4K (play setup); with the ray count
 forced to 0 still +1.5 ms (the ray-query code's registers in every world pixel's shader), 2 rays to
 the strongest light alone +7.2 (the other three lights' rays +0.26). Steps (racing 4K urt, GPU ms):
 
@@ -1079,7 +1079,7 @@ Base main. Nothing native is involved: every row here is a clone deviation; Orig
 untouched (gate below). Measured with `perf.sh bench` through internal evidence
 (reference desktop GPU: 3 runs × 300 frames, `ORDER=alternate`; reference integrated GPU, `IGPU=1`: 2 runs × 300 frames at 1080p),
 GPU busy median of the run medians, `NFSU2_BENCH_RIVAL_NOS=8` (the rivals' flames for Sparks & Fire). The
-row's step is measured over **max** (perf.sh `MAX`, the player's play setup + every newest row) on the reference desktop GPU
+row's step is measured over **max** (perf.sh `MAX`, the play setup + every newest row) on the reference desktop GPU
 and over **Modern** (the preset with its weather rows) on the iGPU. Load average 30–170 (other jobs).
 Raw tables: internal evidence, `nx-igpu-modern.txt`, `carlights-sky-steps.txt`.
 
@@ -1246,7 +1246,7 @@ medians; raw tables internal evidence; look metrics `look-audit-{base,dx3,ultra-
 
 ### 5. The max setup at 4K: SSAA 2x vs FSR 2 Quality (goal ≥ 60 fps)
 
-`max` = perf.sh MAX (the player's play setup — SSAA 2x — plus every newest row at its top), `ng` = max + every
+`max` = perf.sh MAX (the play setup — SSAA 2x — plus every newest row at its top), `ng` = max + every
 Next-Gen row (rain, beams, fog, sky, ambient, sparks, water), `…q` = the same with `enh.upscale 8` (FSR 2 Quality,
 which turns SSAA / MSAA off). reference desktop GPU, 3 runs × 300 frames. GPU busy median [frame time p50 / p99]:
 
@@ -1663,7 +1663,7 @@ frame's update + draw (main thread, wall ms) and the programs it made, median [m
 | Medium, native FSAA off | TAA | 11.6 → 10.6 | 0 → 0 | 20.1 → 19.4 / 0 |
 | Medium, native FSAA off | FSR 2 Quality | 24.6 [23.4..30.5] → **12.1 [10.8..16.8]** | 10 → 0 | 20.0 → 19.0 / 0 |
 
-(the last two rows 5 runs each). So with the native FSAA off (the player's settings) only FSR 2 changes for
+(the last two rows 5 runs each). So with the native FSAA off (the play setup) only FSR 2 changes for
 the first frame; with it on, every temporal row. The load (`load_ms`, nothing loaded ahead in the bench)
 moved inside its spread (e.g. Medium FSR 2 450 → 436, TAA 452 → 503 ms; FSAA off FSR 2 421 [407..458] →
 475 [441..497]: the programs the first frame made are made by the load's warm-up there; after the menus'
@@ -1874,7 +1874,7 @@ The Ray Traced reflections' rays left the SSR trace's fragment pass (docs/rt-ref
 list"): the fragment pass keeps the screen march and lists the pixels where `rt_fill` would trace; a
 compute pass traces each listed pixel on a lane of its own and writes its result into the trace target.
 The same values: every picture and every bench frame compared is byte-identical (below). Reference
-desktop GPU, 3840x2160, the reference player's settings (SSAA 2x, Ray Traced reflections, Modern + RT);
+desktop GPU, 3840x2160, the play setup (SSAA 2x, Ray Traced reflections, Modern + RT);
 7 interleaved runs per arm, 150 frames, the median of the runs' GPU busy medians [min .. max], each series
 under the measuring lock with the desktop GPU idle before it (load average 31-56 from other units):
 
@@ -1921,7 +1921,7 @@ the dispatch's first block in a dynamic-offset uniform, `rv_first`), and their c
 world's pipelines, which read the blocks (no ray in their colour shader). The values change where the
 blocks' half resolution and gather differ from the per-pixel rays: race start frames 100-111, 0.03 % of
 the pixels > 3 %, max 24 levels, 1 − SSIM 2e-5, luma unchanged, frame-to-frame change unchanged.
-Measured (the reference player's 4K settings, 3 interleaved triples): race start 15.09 → 13.99 ms (the
+Measured (the play setup at 4K, 3 interleaved triples): race start 15.09 → 13.99 ms (the
 draws' bucket 2.42 → 0.67, the characters' blocks 0.38). `NFSU2_RT_CHAR_RAYS=1` keeps the in-shader
 rays (a check aid).
 
@@ -1948,7 +1948,7 @@ buffer at the screen's size (−0.06 ms: its glow sprites' depth copy eats the s
 
 ## Fog, volumes and rain: the same pictures for less
 
-The night-rain frame at the player's settings (4K, SSAA 2x, every row up, ray tracing: `--bench drive` at clock 162,
+The night-rain frame at the play setup (4K, SSAA 2x, every row up, ray tracing: `--bench drive` at clock 162,
 rain 0.70) and the integrated GPU's Medium and High levels (1080p, World Detail 3), pass by pass with each pass's
 dispatches timed apart (a measuring build; raw runs and tables: `docs/evidence/perf-budget/fog-rain-passes.txt`).
 Each change below computes the same effect with less work; the frames it leaves byte-identical say so.
@@ -1964,7 +1964,7 @@ Each change below computes the same effect with less work; the frames it leaves 
 | The SSR mask's road term from the main view | the main view's road writes the mask's term and surface from the `wet_surface` its colour takes; the mask pass draws the road's depth and kind, and works the term out only for the road the main view hides; wet road, discrete GPU (docs/wet-roads-ssr.md "The mask from the main view") | 4K rain: mask 0.738 → 0.220, main view 6.87 → 7.18, frame 22.72 → 22.41; integrated GPU High rain: mask 5.51 → 0.92, main view 15.80 → 20.14 (−0.25: not taken there) | identical |
 
 The whole frame with the six changes (the game without the measuring marks, before → after, GPU busy ms, median of 7
-interleaved runs [range]): at the player's settings in 4K rain 23.42 [23.20..23.50] → 22.79 [22.69..22.89] (−0.63:
+interleaved runs [range]): at the play setup in 4K rain 23.42 [23.20..23.50] → 22.79 [22.69..22.89] (−0.63:
 lens drops 0.47 → 0.05, weather fx 0.24 → 0.08, atmosphere 0.42 → 0.36, volume fx march 0.56 → 0.51), racing 19.11
 → 18.99, free roam 14.14 → 14.12. On the reference integrated GPU at 1080p, World Detail 3: Medium rain 28.66
 [27.13..28.97] → 28.05 [26.93..28.59] (rain tint 0.40 → 0), racing 24.70 → 24.56, free roam 17.46 → 16.82; High rain
@@ -1994,7 +1994,7 @@ ms per frame. Evidence: `docs/evidence/perf-budget/lamp-culling.txt`.
 
 ## Modern + RT's traced shadows: the colour shader's registers
 
-Reference desktop GPU, the player's 4K settings (SSAA 2x, Modern + RT, ray-traced reflections),
+Reference desktop GPU, the play setup at 4K (SSAA 2x, Modern + RT, ray-traced reflections),
 `--bench racing 300`, GPU ms per pass; A and B interleaved, the paired difference's median over the
 pairs; load average 20–45 from other jobs. Shader statistics: `RADV_DEBUG=shaderstats` (needed /
 allocated VGPRs per lane, waves per SIMD in wave32 units). Design: `docs/shadow-softness.md`
@@ -2022,7 +2022,7 @@ dry racing against the step before, paired medians:
 
 | | road PS registers needed / allocated / waves | main view | frame |
 |---|---|---|---|
-| Modern + RT, the player's 4K settings (3 pairs) | 153 / 168 / 9 → 123–125 / 144 / 10 | 5.80 → 5.62 (−0.22) | 18.12 → 17.99 (−0.19) |
+| Modern + RT, the play setup at 4K (3 pairs) | 153 / 168 / 9 → 123–125 / 144 / 10 | 5.80 → 5.62 (−0.22) | 18.12 → 17.99 (−0.19) |
 | Modern, the same settings (2 pairs) | 143 / 144 / 10 → 115–116 / 120 / 12 | 4.93 → 4.62 (−0.31) | 16.33 → 16.01 (−0.32) |
 | integrated GPU, Medium, 1920 × 1080, detail 3 (2 pairs) | 79–80 / 80 / 12 → 60–62 / 64 / 16 | 11.44 → 10.27 (−1.17) | 24.6 → 23.4 (−1.2) |
 | integrated GPU, High, the same (2 pairs) | | 11.88 → 11.02 (−0.87) | 44.9 → 43.8 (−1.1) |
@@ -2030,7 +2030,7 @@ dry racing against the step before, paired medians:
 Night rain (the road wet: the full set) is unchanged (−0.03 main view, one pair). The integrated GPU's
 runs were in its slow state (another job's build load: SSAO occlusion 2.0–3.5 ms instead of ~1.0);
 the main view's difference was the same in each pair. All four steps against before them, racing at
-the player's 4K settings: 18.9 → 18.0 ms (53 → 55.6 fps).
+the play setup at 4K: 18.9 → 18.0 ms (53 → 55.6 fps).
 
 ## The glow's blur where it can be lit
 
@@ -2040,7 +2040,7 @@ of interleaved runs (docs/evidence/perf-budget/glow-blur.md):
 
 | | glow chain (prefilter, need, blur) | frame |
 |---|---|---|
-| desktop GPU, the player's 4K settings (SSAA 2x, Full-Size Glow; the glow from the resolved image) | 0.92 → 0.53 ms | 17.69 → 17.23 ms |
+| desktop GPU, the play setup at 4K (SSAA 2x, Full-Size Glow; the glow from the resolved image) | 0.92 → 0.53 ms | 17.69 → 17.23 ms |
 | the same, night rain | 0.98 → 0.74 ms | 21.2 → 21.0 ms |
 | integrated GPU 1920×1080, World Detail 3, High (Full-Size) | 9.47 → 5.25 ms | 47.8 → 44.5 ms |
 | integrated GPU 1920×1080, World Detail 3, Medium (Half-Size) | 1.56 → 1.03 ms (the streak add after it +0.07–0.10: open) | 25.2 → 25.0 ms |
@@ -2049,7 +2049,7 @@ of interleaved runs (docs/evidence/perf-budget/glow-blur.md):
 
 With a half-float scene (High Precision Post) the reflections' composite is added onto the scene by the
 blend instead of read from a copy of it (docs/wet-roads-ssr.md; at most two 8-bit steps on 0.03–0.28 % of
-the pixels). Racing, the player's 4K settings: copy + depth pyramid 0.74 → 0.56 ms, composite 0.39 → 0.31 ms,
+the pixels). Racing, the play setup at 4K: copy + depth pyramid 0.74 → 0.56 ms, composite 0.39 → 0.31 ms,
 frame 18.70 → 18.28 ms (again on a later tree, after SSAA's resolve: 0.73 → 0.57 and 0.38 → 0.31 ms; with the glow's
 blur where lit, the frame 17.89 → 17.27 ms); integrated GPU 1920×1080 High: 1.07 → 0.80 and 0.74 → 0.60 ms
 (docs/evidence/perf-budget/ssr-composite.md, also the march's counts).
@@ -2059,6 +2059,6 @@ blur where lit, the frame 17.89 → 17.27 ms); integrated GPU 1920×1080 High: 1
 With the lamps' module the falling rain's drops ran the whole lamp shading per pixel (docs/lamps-shadows.md "The
 falling rain under the lamps"). Alpha-0 fragments are now left before the shading (exact), and the drops take
 their light from their four corners (a probe pass; the colour is linear in the texel). "graphics: native
-particles" in 4K rain at the player's settings: 0.295 → 0.259 (exact step) → 0.032 (probe, "graphics: rain drop
+particles" in 4K rain at the play setup: 0.295 → 0.259 (exact step) → 0.032 (probe, "graphics: rain drop
 probe") + 0.029; frame 18.95 → 18.74. Integrated GPU (1080p, World Detail 3): High 0.68–0.70 → 0.05 + 0.24,
 Medium 0.60 → 0.05 + 0.27. Raw runs: `docs/evidence/perf-budget/rain-drops-lit.txt`.

@@ -23,7 +23,7 @@ Exit status: `text` and `binary` exit 1 on any hit that is not allowed; `tables`
 ## Files (all in scripts/release/)
 | file | role |
 |---|---|
-| `families.txt` | generic pattern data: one regex per line in `[private-path]`, `[owner-remark]`, `[agent-wording]`, `[hardware]`; `[unit-allow]` and `[hyphen-allow]` = tokens the unit-code and hyphen-code regexes must not report. Extend here. |
+| `families.txt` | generic pattern data: one regex per line in `[private-path]`, `[owner-remark]`, `[owner-wording]`, `[agent-wording]`, `[hardware]`; `[unit-allow]` and `[hyphen-allow]` = tokens the unit-code and hyphen-code regexes must not report. Extend here. |
 | `families.private.txt` | maintainer/machine/game-copy specific patterns (same format, plus `[plan-p]`, and `[leak-strings]`: fixed strings, one per line, that must not be in a shipped binary, read by `leak-terms`); listed in `private.list`, never published. |
 | `allow.txt` | `path:key:family:reason`; path is an fnmatch glob, family may be `*`; key is `*` (every line of the file) or `=HASH`, the first 12 hex digits of the SHA-256 of the allowed line without leading and trailing white space (`scan.py allow-key PATH LINE` prints it). A keyed entry follows its line when lines are added or removed above it and stops matching when that line is reworded; another line with the same token is not allowed by it. Line numbers are refused. Matching text hits are reported as allowed and do not fail. |
 | `allow-binary.txt` | `pattern:class:reason` (fnmatch glob or path prefix): embedded/non-text files that may stay public. |
@@ -38,6 +38,7 @@ Generic patterns live in `families.txt` (public). Everything that names this pro
 - **private-path**: home-directory paths (`/home/<name>`), the maintainer's work and agent folders, the game-copy download folder, work-folder shapes (`wf`, `base`, `tgt` plus a number), copies of the original-game prefix named after a task, scratch paths of the build tooling, local environment files and the private task queue file.
 - **personal-name**: the maintainer's login and save/profile name, community save names, private fixture folders (private file only).
 - **owner-remark**: quoted remarks of the maintainer ("the" plus the word for the player, "report" wording, a speaker-label prefix, dated quotes in parentheses, "the" plus the word for the maintainer and its possessive).
+- **owner-wording**: traces of a private conversation written as text: quoted reports and requests (the word for the player, user or maintainer plus "report", a "design" plus "note" label), a decision or choice with a date, one person's settings, setup or machine used as a test setup, a test setup named after a person. Write the rule or the behaviour itself, and describe a test setup by its hardware and settings. No allow entry covers this family.
 - **agent-wording**: wording of the delegation workflow (the coordinating role, other/parallel/work assistants, delegated helpers, task descriptions) and the names of the assistant tools (private file). Plain "agent" alone is not matched, because the game has AI drivers.
 - **hardware**: GPU/CPU model families and sensor names (generic part); the exact model strings and device ids of the build machine and its hostname (private file).
 - **third-party-mod**: names of the private HD UI / map mods and their source site (private file).

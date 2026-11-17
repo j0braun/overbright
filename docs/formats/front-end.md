@@ -1028,7 +1028,7 @@ The menus are FEng packages: FRONTEND/FrontB.lzc (137), GLOBAL/GlobalB.lzc
     "WrongWayText" string or hash): in memory it reads 0x40000001
     (hidden), so the original never draws it in a Street X race. The
     clone drew it through every Street X race from the green light (the
-    user's repeat "WRONG WAY" report); `Hud::quads` now hides every
+    a recurring "WRONG WAY" report); `Hud::quads` now hides every
     drawing object no shown element claims (with the shown elements'
     group members), outside drag races. Comparing the clone's hides with
     that memory read left one difference, SplitTimeText (shown in the
@@ -1420,7 +1420,7 @@ The menus are FEng packages: FRONTEND/FrontB.lzc (137), GLOBAL/GlobalB.lzc
   end's load the first load step (0x580E6C: 0x865484 = 0x57FF20); 0x57FF20 closes loading_boot.fng
   and opens PC_Loading.fng (0x57FF95) before the front end's files, so the start always shows it
   ahead of the boot list below (observed under Wine: ~0.13 s, then LS_BlankMovie). The clone shows
-  it under the 200 ms rule like every loading screen (design correction 2026-11-05: not at all when
+  it under the 200 ms rule like every loading screen (not at all when
   the start is done sooner; `BootLoading`; `enh.boot_loading_min_ms` opt-in minimum).
 * **Boot sequence** (**verified** unless marked; `BootStep`, `game.rs`):
   0x4D9730 builds the list object 0x836488 (0x4D9580) from the names at
@@ -1828,7 +1828,7 @@ The menus are FEng packages: FRONTEND/FrontB.lzc (137), GLOBAL/GlobalB.lzc
   track load; PC_Loading goes up, the world and car load on a worker
   thread while the main thread keeps drawing the package (its dots
   animate), and it comes down after the load. **Deliberate difference
-  (the player's choice, 2026-10-29):** the original shows PC_Loading for
+  (agreed deviation):** the original shows PC_Loading for
   every track load; the clone puts it up only once a load has run 150 ms
   (`LOADING_DELAY_MS`, `LoadingGate`; always before a new world's
   renderer is built), so a load that keeps the region's world in memory
@@ -2365,7 +2365,7 @@ the maintainer's probe `pad_probe` lists what the game sees.
   wheels), GetDeviceState into 0x86FFC0 + 0x110·ch; DIERR_INPUTLOST
   (0x8007001E) releases the channel. On channel 1 with the EMS PS2 adapter
   (0B43:0003, 0x8005B0) lX, lY, lZ, lRz all at 10000 read as 0. The two
-  states are copied to 0x870760 +0. Clone deviation (user's requirement):
+  states are copied to 0x870760 +0. Clone deviation (hot-plug support):
   gilrs's Connected / Disconnected attach and detach at once (hot-plug),
   and an attached pad gets the profile's block for its GUID.
 * **The record** (0x874C40, 0x370 bytes; keyboard 0x5C1090 type 0x13): +8 a
@@ -2984,8 +2984,7 @@ the prompt element → +0x60 the slots) and frames at 30 fps.
   MouseInput and MouseWheel feed `Game::mouse_event`; the frame's update
   samples them. A press and its release inside one frame (a quick tap,
   tap-to-click) count as held for that frame (clone choice; the
-  original's immediate GetDeviceState could lose it). Fixed after the
-  user's report: the help bar's Quit Game slot (bit 1) now opens the quit
+  original's immediate GetDeviceState could lose it). Fixed since: the help bar's Quit Game slot (bit 1) now opens the quit
   question (it sent the 'Q' key into the screen, which ignored it); MC_Main's
   Yes / No and its messages ("Save complete." Continue) take hover and
   click as the dialogs do (MC_Main's handler 0x4FB8F0 has no mouse case;
@@ -2996,7 +2995,7 @@ the prompt element → +0x60 the slots) and frames at 30 fps.
   plays (0x8383AC) or a load runs; always on the front end with no world
   loaded (g_GameState 3, the splash included, as the original); the menus
   over the world (pause, maps, the dyno) and the replay keep the 2 s rule.
-  **Agreed deviations (design note):** no cursor while driving (free
+  **Agreed deviations:** no cursor while driving (free
   roam, races, the in-engine scenes; the original shows it 2 s after a
   move, observed above), and the system cursor is hidden over the window
   in every mode (the original hides it in full screen only).
@@ -3136,8 +3135,8 @@ back and a bought part stayed. Found and fixed:
 
 ## List openings (2026-11-04): which Customize lists open on the installed item
 
-Player report: "when selecting custom gauges it should, like the other parts, jump
-to the one already installed". Traced in SPEED2.EXE; confirmed under Wine (fastgpu, DXVK,
+Issue: selecting custom gauges should, like the other parts, start at the one already
+installed. Traced in SPEED2.EXE; confirmed under Wine (fastgpu, DXVK,
 1280×960, no WidescreenFix, `$OB_PRIVATE/wine/runs/<run>` on :189, profile the finished-career save from
 `the finished-career save`, main-menu Customize on the RX-7). Frames in
 the maintainer's private captures; slot reads from the FE ride 0x8392C0 (+0x590 + 4·slot, 0x610300).

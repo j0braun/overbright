@@ -36,8 +36,7 @@ fn head_start_reads_whole_ticks() {
     assert_eq!(whole_ticks(1.000_000_1), 1.0);
 }
 
-/// Player report ("the sound on high speed plus nitro
-/// doesn't stop after slowing down"): a shot started with the tank over
+/// The nitrous sound at high speed must stop after slowing down: a shot started with the tank over
 /// 1.5 (0x4850A1) asks for GB_NOS, an 89.5 s NIS stream; the shot's end
 /// stops the NIS stream at once (0x484FAB..0x484FFE, 0x7227CB), so it
 /// sounds only while the shot runs. Free roam, the throttle 1 s, then

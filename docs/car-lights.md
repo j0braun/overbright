@@ -87,7 +87,7 @@ at 200 %). Row detail cost: `graphics_table.rs` CAR_LIGHTS_COST_4K (1.15 over Of
 
 Docs/perf-budget.md "The Next-Gen tiers — costs, tiers, GPU classes": the halos' air density is made once per lamp on the CPU
 (`car_lights::air_at`, the shader's formula; `GpuPoint.colour.w`) instead of per pixel and lamp: the pass
-0.62 → 0.52 ms (4K racing, the player's max setup), 14.0 → 10.3 ms on the reference integrated GPU (1080p); images within
+0.62 → 0.52 ms (4K racing, the max setup), 14.0 → 10.3 ms on the reference integrated GPU (1080p); images within
 4 / 255 at < 1 pixel in a million. Row hint 1.15 → 0.7 (over On, under max).
 
 Docs/perf-budget.md "Final performance / look pass on the effects": (1) the cones' drifting density noise reads a periodic lattice

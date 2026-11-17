@@ -2,7 +2,7 @@
 
 Graphics page row **High Precision Post**: Off (default, native) /
 Half-Size Glow / Full-Size Glow. options.txt `enh.hdr_post` 0 / 1 / 2
-(written only when not 0). Wave G the High Precision Post work (design note). Nothing here
+(written only when not 0). The High Precision Post work. Nothing here
 is native or traced; it is a cleaner rendering of the traced chain in
 docs/formats.md "Screen filters".
 
@@ -83,7 +83,7 @@ out is one whose every tap is 0, so its result is the 0 its target holds.
   (after the pass across read it): where the pass down does not run, A is
   0 (every such tile is outside the marked ones, where the prefilter's A
   is 0 too).
-* Cost (docs/evidence/perf-budget/glow-blur.md): the player's 4K settings
+* Cost (docs/evidence/perf-budget/glow-blur.md): the play setup at 4K
   (SSAA 2x: the glow's source resolved to the screen's size first) 0.92 →
   0.53 ms racing, 0.98 → 0.74 ms in the night rain; the integrated GPU at
   1920x1080, High (Full-Size) 9.5 → 5.3 ms, Medium (Half-Size) 1.56 → 1.03

@@ -1,8 +1,8 @@
 # Shadow softness and stability under Modern Lighting (2026-11-05; clone deviation, opt-in)
 
-Player reports 2026-11-05, settings: Modern + RT at 75 %, Shadows Ultra, Lamp Shadows High, Contact
+Issues, settings: Modern + RT at 75 %, Shadows Ultra, Lamp Shadows High, Contact
 Shadows, SSAO 100, Dynamic Lamps, Surface Detail, 4K (options copied from
-the player's options file, read-only):
+the play setup's options file, read-only):
 1. the casino canopy (Neon district, under the light balls): a dark blotchy pattern on the road that
    flickers (screenshots 13-45-37/39; the two files are pixel-identical frames, the car standing);
 2. the flag girl at the first race start: "harsh lines";
@@ -11,14 +11,14 @@ the player's options file, read-only):
 Nothing here is native: SPEED2.EXE has the baked vertex light, the car's shadow texture and its
 harmonic only (docs/modern-lighting.md). With the Lighting row at Original nothing changes (Parity).
 
-## Root causes (toggle matrix, `work/` scripts below; 1920×1080, 350Z, the player's options)
-Each row: one option changed from the player's set. Still = car and camera held 60 frames
+## Root causes (toggle matrix, `work/` scripts below; 1920×1080, 350Z, the play setup's options)
+Each row: one option changed from the play setup. Still = car and camera held 60 frames
 (`NFSU2_BENCH_AT` + `NFSU2_BENCH_FREEZE=1`), per-pixel temporal SD on the road near the car
 (0,600–620,680 / 1100,600–1500,720 / the car 650,600–1100,900), rain (clock 162).
 
 | change | road L | road R | car | look |
 |---|---|---|---|---|
-| (user's set) | 1.07 | 0.94 | 1.37 | hard, black, faceted car shadow from one canopy light |
+| (play setup) | 1.07 | 0.94 | 1.37 | hard, black, faceted car shadow from one canopy light |
 | Modern Lighting off | 1.36 | 0.98 | 1.31 | no lamp/neon shadows |
 | Modern (no RT) | 1.07 | 0.94 | 1.37 | soft ellipsoid shadow |
 | Modern Low | 1.05 | 0.93 | 1.37 | |
@@ -104,7 +104,7 @@ the traffic and the rain); the small rise over before is the far region now lit 
 animation dark before). Driving: the cluster cut no longer exists below 262 144 indices (the casino
 needs ~101 k), so nothing flips per frame.
 
-## Cost (reference desktop GPU, the player's options, GPU busy median ms, 300-frame benches, 2 interleaved reps, fast build; GPU shared with other jobs)
+## Cost (reference desktop GPU, the play setup's options, GPU busy median ms, 300-frame benches, 2 interleaved reps, fast build; GPU shared with other jobs)
 | scene | Modern before | Modern after | Modern + RT before | Modern + RT after |
 |---|---|---|---|---|
 | casino canopy still 1080p | 2.82 | 4.98 | 4.20 | 8.03 |
@@ -139,7 +139,7 @@ Measuring aids: `--bench explore` with `NFSU2_BENCH_AT=x,y,z,deg` (the car place
 ## The rays at half resolution, outside the colour shader
 (As first built; the rays per light, the gather and the record changed since: "Every light: the rest
 resampled" below.)
-Modern + RT's cost (racing 4K, the player's settings + Modern + RT: +7.5 ms over Modern) was the
+Modern + RT's cost (racing 4K, the play setup + Modern + RT: +7.5 ms over Modern) was the
 rays in the world's colour shader: 2 + 1 + 1 + 1 per pixel, and the ray-query code's registers held
 every world pixel's shader (+1.5 ms with no ray traced at all). Now (`render/rt_shadow.rs`,
 `rt_shadow.wgsl`; numbers in `docs/perf-budget.md` "The new effects' costs"):
@@ -167,7 +167,7 @@ every world pixel's shader (+1.5 ms with no ray traced at all). Now (`render/rt_
   alpha-to-coverage) keep the light's fallback shadow (ellipsoid / lamp layer), as before for lights
   past the strongest four. Without the depth pre-pass (`NFSU2_DEPTH_PREPASS=0`) every pixel does.
 * Debug view 2 (`NFSU2_MODERN_LIGHTING_DEBUG=2`): blue counts the lights the blocks shadow.
-Image metrics vs before (4K, user's settings + Modern + RT; the maintainer's private captures):
+Image metrics vs before (4K, play setup + Modern + RT; the maintainer's private captures):
 casino canopy still SSIM 0.9993 (0.6 % of pixels > 2 levels, at shadow edges), rain drive 0.9994–0.9998,
 race start 0.99998; crawl / drive sequences: temporal SD and second differences equal to before
 (±0.2 %). Not native (no counterpart in SPEED2.EXE); the other tiers are byte-identical.
@@ -189,7 +189,7 @@ slopes) with the same expressions, and keeps only what the loop reads: the slots
 a register, and each slot's traced visibility (`ml_vis`, made once); the loop picks it by id
 (`ml_vis_slot`). Frames are identical (racing, race start, night rain at 4K). The world function
 now needs 120 (120, 12 waves) in 22 of its 33 pipelines (the LOD fade's need 122 and stay at 144);
-the reflect function 151–153 (still 168, 9 waves). Main view at the player's 4K settings, racing:
+the reflect function 151–153 (still 168, 9 waves). Main view at the play setup at 4K, racing:
 −0.15 ms (paired median of 6 interleaved runs; `docs/perf-budget.md`). What keeps the reflect
 function at 9 waves: the wet surface's terms (`wet_surface`) are live across the lighting, and
 `wet_surface` writes the roughness the lamps' specular reads (`g_surface`), so the two cannot simply
@@ -255,7 +255,7 @@ where one light's traced shadow met another's fallback. Now (`rt_shadow.wgsl`, `
   twice). If the characters vanish, that box keeps the last frame's blocks for one frame.
 * Check aids: `NFSU2_RT_SHADOW_STILL=1` (no history, nothing turned), `=2` (history, nothing turned).
 
-Measured (the reference player's 4K settings, Modern + RT and Ray Traced reflections, 4 interleaved
+Measured (the play setup at 4K, Modern + RT and Ray Traced reflections, 4 interleaved
 pairs against the tree before, load 4-9, GPU busy ms; with the reflections' primary rays, docs/rt-reflections.md):
 racing 12.16 → 12.19, night rain 14.97 → 14.65, race start 14.01 → 13.85, free roam 9.13 → 9.26: the
 blocks' pass +0.03 … +0.12 (race start −0.29: the characters' box once), the colour pass −0.08 … −0.14

@@ -31,10 +31,10 @@ PUBLIC_ROOTS = ["src/", "tests/", "scripts/checks/", "scripts/perf/", "build.rs"
 # The scanner's own files are scanned like any other (no exemption); the private pattern file is on private.list.
 SELF_EXCLUDE = []
 PRIVATE_FILE = "families.private.txt"
-FAMILIES = ["private-path", "personal-name", "owner-remark", "agent-wording", "hardware", "third-party-mod",
+FAMILIES = ["private-path", "personal-name", "owner-remark", "owner-wording", "agent-wording", "hardware", "third-party-mod",
             "unit-code", "hyphen-code", "commit-ref"]
 # Families counted in the plan's "private patterns" number (agent wording and unit codes are separate numbers).
-PRIVATE_UNION = ["private-path", "personal-name", "owner-remark", "hardware", "third-party-mod"]
+PRIVATE_UNION = ["private-path", "personal-name", "owner-remark", "owner-wording", "hardware", "third-party-mod"]
 # The plan's pattern P is data: the [plan-p] section of families.private.txt (summary comparison only).
 PLAN_UNIT = re.compile(r"\b(G|D|P|NX|UX|DX|MF|LK|GS|BF|CK|CT|DR|TP|WR|E|S|Q|U|R|M|L|A)[0-9]{1,3}[a-h]?\b")
 
@@ -815,7 +815,7 @@ def cmd_summary(a):
 
 # The privacy families; unit codes and commit ids are development jargon, not private, and licence texts are
 # full of tokens like them.
-ARCHIVE_FAMILIES = ["private-path", "personal-name", "owner-remark", "agent-wording", "hardware", "third-party-mod"]
+ARCHIVE_FAMILIES = ["private-path", "personal-name", "owner-remark", "owner-wording", "agent-wording", "hardware", "third-party-mod"]
 # Extra patterns for binaries: Windows home folders and the build's own scratch places.
 ARCHIVE_BINARY_EXTRA = [re.compile(r"[A-Za-z]:\\Users\\[^\\\x00]+", re.I), re.compile(r"/root/|/Users/[A-Za-z]")]
 GAME_WINDOW = 32        # bytes compared per fingerprint

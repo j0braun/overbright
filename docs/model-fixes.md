@@ -56,7 +56,7 @@ are fixed; the 3000GT is not.
 - `winding` / `shade` / `normals`: no part inverted; spinner and rim hubs carry the
   most off-face normals (hard edges smoothed), as designed.
 
-## Visual design note
+## Visual review
 
 Contact sheets: the maintainer's probe `model_sheets` (`model_sheets OUTDIR [--cars A,B] [--classes
 fb,rb,skirt,wide,hood,spoiler,roof,mirror,exhaust,overview,rims] [--traffic] [--rimref CAR]

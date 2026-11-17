@@ -1,10 +1,10 @@
 # Modern Lighting (phase 1 + phase 2 "bold"; clone deviation, opt-in)
 
-Phase 2 (design note picked the bold option): see **Phase 2** at the end — the Graphics →
+Phase 2 (the bold option): see **Phase 2** at the end — the Graphics →
 Lighting page's **Lighting** row (Original / Modern Low / Modern / Modern + RT) and **Lighting
 Strength** (Classic … Bold), the whole city, lamps + neon/signs + car lights, shadows, cars lit alike.
 
-Design note: "opt in later". Strictly opt-in: the original baked lighting stays
+Strictly opt-in: the original baked lighting stays
 the default and the classic look stays one toggle away. Phase 1 = this design and a working
 prototype for one district of Bayview behind a **hidden env switch** (no menu row yet).
 Nothing here is native: SPEED2.EXE lights the world with baked vertex colours only (world.efx
@@ -168,7 +168,7 @@ shader's constants and the MODERN stripping / nesting.
   `modern_light.rs`.
 
 ## Phase 2 "bold" (2026-11-05)
-Design note after this work: "i dont see much of a difference" → the bold option. Still a clone
+Phase 1 made too little visible difference, hence the bold option. Still a clone
 deviation, strictly opt-in; nothing native was traced for it (there is none: the bake and the
 packs' harmonic are all SPEED2.EXE has). With the row at Original the frame is byte-identical to
 before (see Parity).
@@ -312,9 +312,9 @@ Modern/Ultra/Extreme/Extreme-FSR AE 0, 15 shots AE 0 (no panic/validation), audi
 hashes identical over firstrace, firstdrag, postrace, the playthrough (82 412 steps) and the
 parity scenario (internal evidence).
 
-### Fixes after the first player check (lead / design note)
-* **Windowed start crashed** ("Surface::configure: Failed to wait for GPU to come idle") on the
-  user's Wayland desktop. Not Modern Lighting phase 2's: <base> (main) built from its own tree crashes the same
+### Fixes after the first play check
+* **Windowed start crashed** ("Surface::configure: Failed to wait for GPU to come idle") on a
+  Wayland desktop. Not Modern Lighting phase 2's: <base> (main) built from its own tree crashes the same
   way there, 2 of 2. wgpu-core 30 waits for the queue to drain before it reconfigures a surface and
   reports this error when a submission lands during the wait; the preload thread builds the world
   renderer and submits its uploads while the window is first resized. `game.rs::configure_surface`
@@ -327,7 +327,7 @@ parity scenario (internal evidence).
   have the plain layout). Now `lamp_main` stays the plain group and `lamp_main_rt` is bound only by
   the scene's pipelines while they are made with the RT layout (`WorldCore::scene_group`: the main
   draw, LOD fade, car shadows, particles, glows, characters). Matrix check
-  internal evidence: every tier × a player's real settings / Ultra /
+  internal evidence: every tier × the play setup / Ultra /
   Extreme × explore, race start, racing, rain, headless (NFSU2_RT=1), fails on any panic or
   validation error.
 

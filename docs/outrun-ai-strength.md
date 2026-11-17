@@ -1,8 +1,8 @@
 # Outrun opponents' strength (2026-11-04)
 
-Player report: "the outrun racers are still too easy and crash easily … checked
-with the finished-career save". Measured on the player's save
-(`<the player's options file>`, career car Skyline GT-R) in the
+Issue: the outrun racers were too easy and crashed easily (checked with the
+finished-career save). Measured on that save
+(`<the play setup's options file>`, career car Skyline GT-R) in the
 original under Wine (fastgpu, private copy `a private Wine copy`, display :194,
 vanilla, no widescreen fix) and in the clone (`--flow outrun`,
 `NFSU2_FLOW_SAVE`). Evidence: the maintainer's private captures.
@@ -26,7 +26,7 @@ after some lead changes) is fixed by the menus follow-up (§3).
 | median recovery to 80 % speed | 3.75 s (max 19.1) | 3.52 s | 3.76 s |
 | controller suspended (+0x710) | never (8 runs, 48 k rows) | 0 of 12 runs | 4 of 12 runs before the menus follow-up, 0 of 12 after (§3) |
 
-The crash rate in the maintainer test (the player put 40 m ahead every 5 s, so most
+The crash rate in the player-ahead test (the player put 40 m ahead every 5 s, so most
 contacts are the rival meeting the player or traffic while chasing) is about
 the same in both games; the original's rivals crash too. What made the clone
 "easy" was the speed (30 % below the original on straights), the zigzag path
@@ -69,7 +69,7 @@ This path is shared with race rivals (same function).
 
 Clone (before): in 4 of 12 lead runs the chaser (goal 5) was suspended and
 braked to a standstill until the race ended (L3 w40/w45, L5 w45/w55; e.g. L3
-w45 from (−220.8, −1577.1)). At the first full think after the maintainer change
+w45 from (−220.8, −1577.1)). At the first full think after that change
 the goal-5 search (0x41E540 → 0x41B820 → 0x41B230) returned as origin the
 first point of a record travelled backward (record index 720 cp 0, also 712 /
 347 cp 0 in the other runs) whose segment held both cars; the rebuilt list

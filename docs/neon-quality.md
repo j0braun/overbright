@@ -1,6 +1,6 @@
 # Neon underglow quality (Car Shadow / Neon Ultra), 2026-11-04
 
-Player report: the neon underglow looks low quality on Ultra (Ultra preset, every graphics row at max).
+Issue: the neon underglow looked low quality on Ultra (Ultra preset, every graphics row at max).
 
 ## What the neon is (traced, see formats.md "Car neon")
 * Ground glow: the shadow grid drawn a second time (0x622D3F..0x622F93; front end 0x616D40 → 0x617417)
@@ -37,14 +37,14 @@ Result: after-4k-max-blue.png vs before: blocks and contours gone, same footprin
 51.4 → 51.0 (−0.7 %). Unit test `neon_quality::tests::quantised_ramp_comes_back_smooth`: a 565-quantised
 block ramp (native steps 8 levels) comes back grey with every neighbour step < 1.5 levels, mean within 2 %.
 
-## Cutoff line while driving (design note: "underglow has a cutoff line")
+## Cutoff line while driving
 **Cause (measured).** The glow ends in a straight line at the shadow grid's edge (the car's box × 1.05,
 UV 0..1, 0x622D3F..0x622F93; formats.md "Car shadow"). Every `%s_NEON` mask (LANCEREVO8, COROLLA,
 PEUGOT, 350Z: the same 128×64 image) is still lit on its border: the rear / front columns hold 8–18 / 255
 over their middle rows (row 32 from u = 0: 8, 13, 13, 16, 24 …; column 125: up to 18), the side rows up
 to 8. world.efx doubles that and the neon colour scales it, so at full alpha 15–36 / 255 are added up
-to the grid edge and nothing beyond it. Profile across the rear edge, user's Lancer, MAGENTA, chase cam
-(`--shot neon_car`, NFSU2_SHOT_SAVE = the player's a community save): Original 1280×960 R−G 40 → 27 → 9 within 3 px;
+to the grid edge and nothing beyond it. Profile across the rear edge, a community save's Lancer, MAGENTA, chase cam
+(`--shot neon_car`, NFSU2_SHOT_SAVE = that save): Original 1280×960 R−G 40 → 27 → 9 within 3 px;
 2560×1440 max settings 30 → 24 → 9 within 4 px. The sampler (Repeat, as D3D's default WRAP) blends the
 border with the opposite border, which is lit too.
 **Native.** The same texture, grid and UVs are drawn by the original, which shows the same straight edges
@@ -67,11 +67,11 @@ are from the standing `neon_car` shot at 1280×960, glow region 120×45 px behin
 * Render scale 200, Wet Roads, road reflection, High Precision Post, Enhanced Reflections, Sharpen 100,
   Dynamic Lamps + Lamp Shadows: the glow as Ultra alone (region means within 1 %).
 * **SSR (1 and 2)**: reflects the neon tubes / glow as vertical magenta streaks behind the car and the
-  glow looks cut off above them (rows-b, `ssr`, `ssr1`, `max`). Not the neon path: open for the SSR owner
+  glow looks cut off above them (rows-b, `ssr`, `ssr1`, `max`). Not the neon path: open for SSR
   (exclude additive/no-fog draws such as the underglow from the SSR source, or fade streaks).
 * **Contact Shadows**: darken the road under the car's footprint (lamp_shade, fogged draws only); the
   additive glow is not multiplied, but on the darker road its outer part reads dimmer and more compact
-  (glow-region mean R −17 %, rows-b `contact`). Open for the lamps owner (skip the footprint where an
+  (glow-region mean R −17 %, rows-b `contact`). Open for Contact Shadows (skip the footprint where an
   underglow lights it).
 * **SSAO 100**: the post multiplies the finished scene, the glow included (glow-region mean R −9 %).
   Open (apply AO before additive passes).

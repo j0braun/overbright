@@ -1,7 +1,7 @@
 # Look direction: polish over quantity (2026-11-05)
 
-Design note: "we have so many effects and not enough quality and polish, game often too bright
-and is going to lose its character without getting to the 'next gen' look". This page sets the look
+Problem: many effects, not enough quality and polish; the game often too bright and losing its
+character without reaching a "next-gen" look. This page sets the look
 target and the energy rules for every enhancement, records what made the enhanced presets too bright or
 too flat, and gives a verdict per row. **Every later effect change follows the rules below**
 (the look rule).
@@ -61,7 +61,7 @@ used for brightness.
 |---|---|---|---|---|---|---|---|
 | original (Wine, DXVK) | 69.6 | 45.8 | 11.0 | 208.2 | 62.5 | 1.89 | 1.67 |
 | clone Original | 70.5 | 46.0 | 11.0 | 204.4 | 61.7 | 1.73 | 1.68 |
-| user settings, before → after | 71.6 → **69.6** | 47.4 → 45.8 | 11.8 → 11.5 | 205.2 → 203.1 | 61.5 → 60.8 | 1.74 → 1.65 | 1.34 → 1.47 |
+| play setup, before → after | 71.6 → **69.6** | 47.4 → 45.8 | 11.8 → 11.5 | 205.2 → 203.1 | 61.5 → 60.8 | 1.74 → 1.65 | 1.34 → 1.47 |
 | Ultra, before → after | 78.1 → **71.6** | 55.0 → 48.4 | 14.1 → 12.3 | 210.5 → 202.7 | 62.8 → 60.5 | 1.96 → 1.62 | 0.77 → 1.18 |
 | max, before → after | 69.7 → 69.0 | 53.2 → 48.1 | **19.4 → 12.3** | **182.1 → 199.7** | **51.9 → 58.8** | 1.44 → 1.52 | 0.35 → 0.98 |
 
@@ -80,7 +80,7 @@ Heights, rain street, Quick Race start; `audit-rows-before.txt` / `audit-rows-af
 | 2 | **Modern Lighting** (Bold) | −12.6 / −0.7 / **−33.9** / −0.44; garage p95 −100 | the strength halved the bake everywhere (lit facades, signs, the garage's turntable) and boosted the pools ×1.6: dark *and* flat, highlights and glow gone | −3.3 / −0.3 / −3.2 / −0.03 |
 | 3 | Volumetric Fog **High** (Ultra) | +8.0 / +1.3 / +11.0 / +0.39; rain +14.4 | purely additive cones (no extinction), 48 lamps, bloomed again by the native overbright | +1.3 / +0.3 / +1.7 / +0.06 |
 | 4 | Headlight Beams, the other cars' | drift start +10.7 / p95 **+58** | every grid car's projector added at 0.8 onto roads the bake already lights | drift +1.5 |
-| 5 | Volumetric Fog Low (user) | +2.8 / +0.4 / +2.6 | as 3 | +0.5 / +0.2 / +0.4 |
+| 5 | Volumetric Fog Low (play setup) | +2.8 / +0.4 / +2.6 | as 3 | +0.5 / +0.2 / +0.4 |
 | 6 | Dynamic Lamps | +2.6 / +0.4 / +1.0; Coal Harbor +6.8 | the dark gaps' bake ×1.7 (the lamps are already in the bake) | +1.7 / +0.3 / +0.8 |
 | 7 | small | Sky Next-Gen +0.5, Light Probes +0.3, Wet Roads +0.1, Surface Detail, Water, Wet Car, Enhanced Paint ≈ 0; darkeners SSAO −0.5, Lamp Shadows −0.4, Contact Shadows −0.4, Enhanced Reflections −0.4 (contrast, wanted); High Precision Post +0.1 (precision only) | — | unchanged |
 | 8 | Depth of Field (manual) | p95 −1.8 (−9 at the race start), RMS −0.6 | blur flattens the highlights in a still | unchanged (stays out of the presets) |

@@ -62,7 +62,7 @@ place under every mode; TAA / TAAU / FSR 1 / no upscaling are unchanged.
 | output (fragment) | display | RCAS (0.25 stops) into the scene, then the display-size depth for the late sprites | 0.35 |
 
 Total ≈ 1.9 ms at 4K Quality on the reference desktop GPU (`NFSU2_BENCH_JSON`
-gpu_parts, racing, user settings). Optimisations measured on the way:
+gpu_parts, racing, play setup). Optimisations measured on the way:
 16-bit motion textures and one 3 × 3 motion load shared by divergence and
 masks (depth clip 0.93 → 0.28 ms), FSR 2's approximate Lanczos for the
 history (no change, kept), 8-bit masks and luma history (accumulate
@@ -133,18 +133,17 @@ a stipple at Performance. The world renderer knows those draws
   cap (below) stay (without them the full frame measured worse: FLIP
   +0.002 / +0.007).
 
-## Results (reference desktop GPU, 4K, the player's settings + Modern Lighting 2)
-User settings = `<the player's options file>`'s
-enh lines (SSAA 2x, SSAO 25, HP Post 2, SSR 2, lamp shadows 2, volumetric
+## Results (reference desktop GPU, 4K, the play setup + Modern Lighting 2)
+Play setup = the enh lines of perf.sh's `user` preset (SSAA 2x, SSAO 25, HP Post 2, SSR 2, lamp shadows 2, volumetric
 Low, …) + `enh.modern_lighting 2`; `--bench racing` (`scripts/capture.sh`).
 
 ### Cost / benefit
-GPU busy median ms/frame, `--bench racing 600`, 4K, user settings (one
+GPU busy median ms/frame, `--bench racing 600`, 4K, play setup (one
 run each, `capture.sh`; racing is the heavy case):
 
-| config | ms | vs SSAA 2x (user's) |
+| config | ms | vs SSAA 2x (play setup) |
 |---|---|---|
-| SSAA 2x (user's) | 11.82 | — |
+| SSAA 2x (play setup) | 11.82 | — |
 | SSAA 4x (reference) | 19.84 | +8.0 |
 | TAA (native res) | 7.91 | −3.9 |
 | TAAU Quality (temporal tier) | 5.23 | −6.6 |
@@ -215,7 +214,7 @@ cuts: no trails, no doubled images, no reset artefacts after cuts).
 
 ### Animation mask, locks, motion blur / DOF after the upscaler
 Against **SSAA 4x** at the same frames (<base> binary "before", the FSR 2 masks pass
-"after"; the player's settings, `--bench racing`, 4K; NVIDIA FLIP LDR;
+"after"; the play setup, `--bench racing`, 4K; NVIDIA FLIP LDR;
 `scripts/d14b/`). Motion = the mean over two consecutive-frame windows
 (frames 440–463: far chevrons ~70 m ahead, two texture steps; 590–600:
 near barriers), crops of the barriers; temporal = mean |(X_t − X_t−1) −
@@ -276,7 +275,7 @@ render size and the temporal resolve of a surface whose look changes
 every frame, not FSR 2's history (a mask cannot bring back detail that is
 not rendered). Open (below).
 
-**Cost** (GPU busy median, `--bench racing 600`, 4K, the player's settings,
+**Cost** (GPU busy median, `--bench racing 600`, 4K, the play setup,
 before / after interleaved, 3 runs each; `scripts/d14b/cost2.sh`): FSR 2
 Quality 7.053 → 7.059 (the mask pass 0.015 ms), Performance 5.740 →
 5.747, Original 2.459 → 2.435 (untouched), Quality + Per-Object motion
@@ -287,7 +286,7 @@ display's 3840 × 2160 instead of 2560 × 1440: gather 0.24 → 0.56, resolve
 FSR 2 Quality 66.5 → 65.9 (the mask 0.023 ms), Performance 51.00 →
 51.04, Original 13.83 → 13.79, Quality + motion blur + DOF 69.8 → 77.0
 (+7.2 ms: the display-size the motion blur and DoF work passes, gather 1.4 → 4.6 ms). On the iGPU
-class the player's settings are far beyond its budget either way; FSR 2's
+class the play setup is far beyond its budget either way; FSR 2's
 own passes are ~22 ms of the 66 (accumulate 10.4 at 1080p). Motion blur /
 DOF after the upscaler costs 10 % there: a candidate for a render-size
 fallback on small GPUs (open).

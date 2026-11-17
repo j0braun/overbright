@@ -1,6 +1,6 @@
 # Reload Packs When Changed
 
-Clone deviation, opt-in (design note: "hot reload of ui, for the hd pack would be nice").
+Clone deviation, opt-in: the HD UI pack reloads while the game runs.
 Not a feature of SPEED2.EXE: nothing here was traced or compared under Wine; there is no native
 counterpart. Default **Off** = native: packs are read at startup (HD UI + Maps) or when a world /
 car loads (World Texture Pack, `NFSU2_WORLD_TEXTURE_PACK` / `NFSU2_CAR_TEXTURE_PACK`), byte-identical

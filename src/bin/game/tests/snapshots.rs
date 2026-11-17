@@ -149,7 +149,7 @@ fn live_state(game: &Game) -> &CarState {
 }
 
 /// An offscreen window on the real draw path (as `--bench` makes it; the
-/// user_reports tests' helper).
+/// reported_issues tests' helper).
 pub(crate) fn offscreen_window(game: &mut Game, width: u32, height: u32) {
     super::test_isolation::exclusive();
     let gpu = pollster::block_on(Gpu::new(None, Gpu::new_instance())).unwrap();

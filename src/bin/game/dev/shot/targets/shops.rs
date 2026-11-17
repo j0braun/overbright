@@ -314,8 +314,8 @@ pub(super) fn hydroshop(game: &mut Game, _cx: &ShotCtx) -> Result<Mode> {
     Ok(game.specialties_browser(5, Some(1)))
 }
 
-/// A player report (finished career: "level 3 hydraulics in the shop not
-/// working, also nitro purge"): `finished_career_specials_hydro3` buys and
+/// Level 3 hydraulics and the nitrous purge in the shop (finished career;
+/// both once did not work): `finished_career_specials_hydro3` buys and
 /// fits LVL 3 HYDRAULICS at IND_CAR_SPECIALTY_2 and shows its list
 /// with the car pumping (mode 3, 0x77D010's record);
 /// `finished_career_specials_purge` the Nitrous Purge list with Test N2O

@@ -1,7 +1,7 @@
 use crate::*;
 
-/// `game --bench rims [steps]` (a player report: "fps tanks when
-/// picking different rims"): UI_Rims_Browser's style strip from the main
+/// `game --bench rims [steps]` (the frame rate dropped sharply while
+/// picking different rims): UI_Rims_Browser's style strip from the main
 /// menu's Customize (SHOWROOM), stepped `steps` times (default 30, Right
 /// then Left at the strip's ends), each step's frame and the 9 after it
 /// drawn and the GPU waited for. Prints each step's frame ms and the

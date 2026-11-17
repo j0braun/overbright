@@ -1,7 +1,6 @@
 # Wet Roads and Screen-Space Reflections (clone deviations, opt-in)
 
-Wave G the wet-roads and SSR work (design note: "look if you can implement the screen
-space reflection"). Two Graphics page rows, both off by default (native):
+Screen-space reflections and wet roads. Two Graphics page rows, both off by default (native):
 
 | row | values | options.txt |
 |---|---|---|
@@ -242,13 +241,13 @@ not one opaque run) the mask pass works the term out itself, as before. Both set
 are made by the drive's load (`warm_drive`; nothing depends on the weather),
 `tests::first_use::the_mask_from_the_main_view_is_ready_before_its_first_frame`.
 
-Pixels: the same bytes. The player's settings in 4K night rain and level High at 1080p, 19 frames each (0, 60,
+Pixels: the same bytes. The play setup in 4K night rain and level High at 1080p, 19 frames each (0, 60,
 120, 200–215): identical to the mask pass's frames; 480 × 270, 120 frames
 (`tests::fog_rain_paths::ssr_mask_from_the_main_view_keeps_the_frames`). Without the hidden road's pass the SSR
 and RT filters' taps beside occluders lost its term: strips at the foot of walls and kerbs, up to 93 levels on
 0.4 % of the pixels at 4K (measured, not kept).
 
-Cost, night rain (`--bench drive` at clock 162), interleaved runs: the player's settings at 4K, 7 runs: frame
+Cost, night rain (`--bench drive` at clock 162), interleaved runs: the play setup at 4K, 7 runs: frame
 22.72 [22.65..22.78] → 22.41 [22.34..22.50] ms (mask 0.738 → 0.220, of it the hidden road 0.17; main view
 6.87 → 7.18). The reference integrated GPU at level High, 1080p, 7 runs (load 11–18): frame 68.78
 [66.09..70.37] → 66.62 [63.76..68.72] (mask 5.51 → 0.92; main view 15.80 → 20.14): the passes it touches −0.25
@@ -324,7 +323,7 @@ red, the wall and the alpha are unchanged, no validation error).
 - **Dry road at native strength.** On a dry road (Wet Roads' uniform not on), a road ray's traced
   colour is held to the planar term's luminance. Cars hit and darker detail stay as traced.
 - Measured as a share of the native reflection: SSR alone went from 1.24–1.48× to 0.87–1.15×, and the
-  user's max setup from 0.66–1.17× to 0.46–0.66× (Enhanced Reflections' weight).
+  the max setup from 0.66–1.17× to 0.46–0.66× (Enhanced Reflections' weight).
 - **Glow sprites.** They are no longer added at hits on a car's mask texel or within a 2–4 m path. A
   road ray under a car took its neon underglow's sprites, drawn as magenta streaks.
 - `ssr::Mask::wet` carries the wet flag in `fog_color.w`.
@@ -348,6 +347,6 @@ leaves out is one that frame would not have taken: frames identical, dry and wet
 with the scene's pipelines (the load's warm-up, the menus' programs made ahead, `--prepare`): rain
 wetting the road mid-drive switches sets without making anything (`first_use.rs`,
 `rain_starting_mid_drive_makes_no_programs`). Six more pipelines per scene mode (two road keys,
-three LOD Fade forms; cold, `--prepare` with the player's options made 359 instead of 353, +0.45 s);
+three LOD Fade forms; cold, `--prepare` with the play setup's options made 359 instead of 353, +0.45 s);
 the lamps' modules only (the native module's text is unchanged). Numbers:
 `docs/perf-budget.md` "Modern + RT's traced shadows: the colour shader's registers".

@@ -31,8 +31,8 @@ pub(super) fn boot_and_menus(game: &mut Game) -> Result<()> {
         game.mode = game.icon_menu(MenuKind::Main);
         game.garage_request();
     }
-    // A later career's free roam first, then back to the main menu (user
-    // report 2026-11-01: the intro's GPS arrow at the airport pointed
+    // A later career's free roam first, then back to the main menu (the
+    // intro's GPS arrow at the airport pointed
     // right where the original's points left): the pool and its network,
     // pruned by stage 5's barriers (0x578070 → 0x5E9E90), stayed for the
     // new career, whose route to the car lot then ran south.
@@ -742,8 +742,8 @@ pub(super) fn gps_to_garage(game: &mut Game) -> Result<()> {
         game.career_world.gps.as_ref().is_some_and(|g| g.target == career::DDAY_EVENT_B && g.at == crib_point),
         "the GPS to the garage"
     );
-    // The GPS must find its route once the lot's drive-out is over (user
-    // report: "no signal" right after leaving the car dealer).
+    // The GPS must find its route once the lot's drive-out is over (it
+    // once stayed at "no signal" right after leaving the car dealer).
     for _ in 0..600 {
         if game.scenes.shop.is_none() {
             break;
@@ -762,7 +762,7 @@ pub(super) fn gps_to_garage(game: &mut Game) -> Result<()> {
     // so the search finds no start node ("Unable to contact satellite",
     // state 1); the follower (0x42A360, state 3) starts it again every
     // frame the router is idle, so the GPS finds its route once the car is
-    // on the road (player report: "no signal" for good after the car dealer).
+    // on the road (it once stayed at "no signal" after the car dealer).
     let g = game.career_world.gps.as_ref().context("the GPS to the garage")?;
     anyhow::ensure!(
         st == Some((1, Some(0x1554_09E8))) && g.follower.state == 3 && g.router.state != 0,

@@ -121,7 +121,7 @@ impl Game {
         let bound = Acts { pause, camera, reset, up, down, engage, world_map, read_sms, career_stats };
         match &self.mode {
             // Back (Escape) on UI_Main does nothing, as in the original
-            // (seen under Wine, twice; user decision 2026-10-31): Q's quit
+            // (seen under Wine, twice): Q's quit
             // question and closing the window end the game.
             Mode::Menu(Menu::Icons(_, MenuKind::Main)) if key == Some(Key::Back) => {}
             // 'Q' / 'q' (0x558B80, the window's character): on a screen

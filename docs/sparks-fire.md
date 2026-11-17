@@ -5,7 +5,7 @@ Two parts:
 1. **Native** (default, every tier): the turbo's **flame pops** — car effect kind 10 (`CARFX_NITRO`,
    the nitrous flame's own emitters at the exhaust markers) fired at a shift and when revving in
    neutral, with no nitrous shot. The clone never fired them; ported (`src/carfx_pops.rs`). This is
-   the remaining native cause found for the player's report "player nitro flames sometimes missing".
+   the remaining native cause found for the player's nitrous flames sometimes missing.
 2. **Next-Gen** (opt-in row **Sparks & Fire**, clone deviation): the native spark and flame births
    drawn as simulated, emissive, light-casting sparks and flames with heat haze
    (`src/render/sparks_fire.rs`, `sparks_fire.wgsl`). Emit rules unchanged.
@@ -120,9 +120,9 @@ the native quads as before.
 * **Order / TAA**: drawn right after the smoke tiers, into the scene before the post chain; with TAA
   in the late pass with the temporal viewport (no jitter, no history), as the GPU particles work.
 
-### Tuning (player report, development build 20261105-2142: "spark is too much and the contact texture looks off")
+### Tuning (development build 20261105-2142: too many sparks, the contact texture looked off)
 
-**What was wrong** (reproduced at the player's settings and with the row on: `work/scr`, `work/before` of the unit):
+**What was wrong** (reproduced at the play setup and with the row on: `work/scr`, `work/before` of the unit):
 * every native spark birth threw 6 fragments with a scatter of 1.5–5 m/s **times up to 3 at speed**
   (`0.6 + 0.08·speed`) plus up to 2.5 m/s of lift, living up to 1.6 s (XEBO_ROAD_SprksA's 2 s): a
   130 km/h scrape kept ~780 fragments alive in a fountain several metres high; a 60 km/h brush along a
@@ -168,7 +168,7 @@ and hardly anything on a light touch.
   from the nearer neighbour in x and y, and depth-edge pixels take none (no silhouette fringe).
 * Flames, haze and the flame lights: unchanged.
 
-**Measured** (1280×960, 26 frames of 7 scenarios at the player's settings + the row, vs Original; the look direction
+**Measured** (1280×960, 26 frames of 7 scenarios at the play setup + the row, vs Original; the look direction
 `lstats.py` full frame, HUD masked; `nx5b-look-table.txt`; contact region 640×480 `nx5b-contact-energy.txt`):
 
 | | Δmean | Δp5 | Δp95 | ΔRMS | Δsat | Δglow |
@@ -180,7 +180,7 @@ and hardly anything on a light touch.
 Contact region, scrape at 130 km/h: Original 60–66, before 66–93, after 62–67 mean luma; car-to-car
 100 km/h: after −0.4…−2 vs Original (thin streaks instead of the native's round blobs). At the look direction spots
 (street, harbour neon, coal docks, Jackson Heights, rain street, Quick Race start), Original + the row and
-the player's settings + the row are **byte-identical** to without it (nothing records without a contact):
+the play setup + the row are **byte-identical** to without it (nothing records without a contact):
 R1–R6 Δ = 0. The row stays out of every preset.
 
 Scenarios (shot aids, not native): `NFSU2_FX_SPEED=km/h[,down m/s]` (the placed car rolling / falling),
@@ -219,7 +219,7 @@ between world updates (as this work).
 ## Evidence (the maintainer's private captures)
 * `native-shift-transitions.txt`: the Wine memory log (gear / clutch / emitter).
 * `scrape_orig_nextgen.webp`, `pop_orig_nextgen.webp`, `nitrous_orig_nextgen.webp`: the clone,
-  Original | Next-Gen, 100 % crops (user settings + the row, NFSU2_RAIN_CLOCK=93).
+  Original | Next-Gen, 100 % crops (play setup + the row, NFSU2_RAIN_CLOCK=93).
 * `scrape_motion_nextgen.webp`: four consecutive updates of the scrape.
 * `nx5b_scrape130_orig_before_after.webp` (crops, Original | This page | The sparks tuning), `nx5b_scrape130_motion.webp`
   (five frames 1/15 s apart, rows Original / this work / the sparks tuning), `nx5b_{car100,brush60,kerb55,dusk_scrape}_*_orig_before_after.webp`

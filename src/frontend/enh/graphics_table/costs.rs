@@ -104,7 +104,7 @@ pub(super) const RAIN_DETAIL_NEXT_GEN_COST_4K: f32 = 0.45;
 /// before:
 /// Wet Road Interaction's measured costs (docs/wet-road-car.md "Cost"): GPU ms over
 /// Original at 4K on the reference desktop GPU, heavy rain at night, four cars.
-/// volumetric spray: the row Off → On / High at the player's settings
+/// volumetric spray: the row Off → On / High at the play setup
 /// without SSAA, `--bench drive 600` at clock 162, 4K, mean of 2 runs.
 pub(super) const WET_INTERACTION_COST_4K: f32 = 0.97;
 pub(super) const WET_INTERACTION_HIGH_COST_4K: f32 = 1.09;

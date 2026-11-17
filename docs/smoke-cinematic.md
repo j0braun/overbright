@@ -6,7 +6,7 @@
 > below is kept only for comparisons (`NFSU2_SMOKE2_G10=1`). Steam changed: it starts from the current rain
 > (it started dry), lives shorter and evaporates. The cost table below is this work's.
 
-Design note: "can the smoke be better looking, still looks like native". Nothing here exists in
+Goal: better-looking smoke than the native look. Nothing here exists in
 SPEED2.EXE and nothing new was traced: the native particle system (docs/formats.md "Particle effects":
 spawn 0x491E50, update 0x492E10, render 0x48BDF0) is unchanged and still decides **where, when and how
 many** smoke particles spawn. Original stays the default and byte-identical (see "Parity").

@@ -105,4 +105,4 @@ mod traffic_paused_coast;
 #[cfg(test)]
 mod visuals;
 #[cfg(test)]
-mod user_reports;
+mod reported_issues;

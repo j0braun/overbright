@@ -116,4 +116,4 @@ steps) while the target is held by someone else (`ERROR_SHARING_VIOLATION` 32, `
 temporary name (`<name>.<tag>.<seq>.tmp`, which the stale-file sweep removes once nothing maps it) and puts the new
 file in its place; the mapping keeps reading the old data. Windows has no directory fsync: a durable write gets the
 file's `sync_all` (FlushFileBuffers) only. The `cfg(windows)` tests (`platform/fs/tests.rs`) run under Wine in the
-container build; Wine does not model every NTFS rule (see the Windows file-replacement report), so the proof is a tester's machine.
+container build; Wine does not model every NTFS rule (see the Windows file-replacement report), so the proof is a real Windows machine.

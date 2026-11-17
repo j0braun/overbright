@@ -32,7 +32,7 @@ it into an owned session is a separate state split).
 
 `TickInput<'a>` (≤ 104 bytes): `dt`, `world` (`WorldMode::{Menus, Explore,
 Race}`, the mode as the simulation reads it), `controls` (the input phase's
-driving controls), `lap_info` and `camera` (the player's options the rules
+driving controls), `lap_info` and `camera` (the play setup's options the rules
 read), `settings` (the tick's `TickSettings`), `ai: Option<&AiData>` and `route_triggers: &RouteTriggers` (shared,
 immutable data), and `roam: Option<&RoamInput>`: what free roam reads
 from the career and the data (the profile, the career data, the trick

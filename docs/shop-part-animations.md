@@ -1,8 +1,7 @@
 # Shop part-animation previews: spoiler on the trunk, Trunk Audio, Doors, split hoods
 
-Player reports: "when opening the trunk in the shop, only
-the trunk opens but the spoiler stays static", "trunk sound system in the
-shop still seems not finished", "door preview also not finished".
+Issues: opening the trunk in the shop moved only the trunk while the spoiler stayed
+static; the trunk audio and door previews were unfinished.
 Native captures: `$OB_PRIVATE/wine/runs/<run>/work` (display :188, the
 finished-career save copied in, main-menu Customize on its tuned 350Z, an RX7 career).
 Small copies: [evidence/shop-part-animations](evidence/shop-part-animations/).

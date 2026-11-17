@@ -1,7 +1,7 @@
 use crate::*;
 
 /// The career menu's ways into a career saved during the D-Day intro, as
-/// a player takes them (a player report: "Start New Career" left the car
+/// a player takes them ("Start New Career" once left the car
 /// held at the airport behind the SMS mailbox). Such a save (the intro
 /// movie played, 0x86347C = career +0x873C; no car of its own; Rachel's
 /// instruction read and other messages unread) offers "Resume Career"

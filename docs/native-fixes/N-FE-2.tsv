@@ -15,7 +15,7 @@ rim brand names (follow-up)	0x50E960	unique_part_name uses screens::rim_brand_na
 default settings (score-5 card)	0x5BE97C–0x5BE9BC	Default Settings on a score-5 card above detail 3: 800 x 600	frontend::native_fe_part2_tests::default_settings_on_a_score_five_card_take_800_by_600	certain
 ATI FSAA clear	0x5BEA05 / 0x5BF5B0	ATI FSAA clear is Win9x only: open note replaced	(doc only)	certain
 CPU speed	0x5CDD00 / 0x5C0AE0	cpu_mhz: base_frequency before max; non Intel/AMD vendors tier 1	(machine-dependent; no test)	likely
-GarageViewPhase	0x5683C2/0x56B8D0, 0x553547/0x56AA4B/0x56AAD5	menus::garage_view::screen_base_view_returns (decal Back from top; neon first tick and Back); garage-side call left to the maintainer	menus::garage_view::tests::decal_and_neon_screens_return_the_base_view	certain
+GarageViewPhase	0x5683C2/0x56B8D0, 0x553547/0x56AA4B/0x56AAD5	menus::garage_view::screen_base_view_returns (decal Back from top; neon first tick and Back); garage-side call open	menus::garage_view::tests::decal_and_neon_screens_return_the_base_view	certain
 refactor (a)	0x8CA76279	outrun meter group test and insert use fe_ids::OBJ_8CA76279 (same value)	(no behaviour change)	certain
 refactor (b)	0x4AA05C → 0x4AA0A4	cash_reward kind outside 1-4: clone already native (text kept, shown, ZoomIn); comment	(no change)	certain
 PSA skip flag	0x4C53D0 / 0x4A9C40	PSA skip flag explained in the dead native rule's doc (open tag removed)	(doc only)	certain
