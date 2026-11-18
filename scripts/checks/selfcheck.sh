@@ -195,6 +195,24 @@ expect fail datatests-private-here-alone datatests datatests-private-here-alone 
 expect pass datatests-private-here-all-ran datatests datatests-private-here-all-ran 0 0 0 OB_PRIVATE="$O/private-set"
 expect fail datatests-require-private datatests datatests-require-private 0 0 2 OB_REQUIRE=private
 
+# ---- the tests step's mask of the player's folders (home_mask.sh) --------------------------------------------------
+# homemask CASE SCRIPT: SCRIPT runs masked under a stand-in home (only ~/.local/share/overbright and ~/.cache/overbright
+# exist there); the case passes only when the verify passes and the stand-in folders are as before.
+homemask() {
+  local c=$1 script=$2 h="$O/$1.home"
+  mkdir -p "$h/.local/share/overbright" "$h/.cache/overbright"
+  ( unset XDG_DATA_HOME XDG_CACHE_HOME; export HOME="$h"
+    "$HERE/home_mask.sh" run "$O/$c.mask" bash -c "$script" || exit 3
+    "$HERE/home_mask.sh" verify "$O/$c.mask" ) || return 1
+  # The stand-in folders themselves stay as they were: the writes went into the mask.
+  [ -z "$(find "$h/.local/share/overbright" "$h/.cache/overbright" -mindepth 1)" ] && [ ! -e "$h/.local/share/NFS Underground 2" ]
+}
+expect pass homemask-untouched homemask homemask-untouched 'ls ~/.local/share/overbright > /dev/null'
+expect fail homemask-written homemask homemask-written 'echo x > ~/.local/share/overbright/options.txt'
+expect fail homemask-made-and-removed homemask homemask-made-and-removed 'f=~/.local/share/overbright/start-marker.txt; echo 1 > $f; rm $f'
+expect fail homemask-cache-written homemask homemask-cache-written 'mkdir ~/.cache/overbright/driver'
+expect fail homemask-absent-made homemask homemask-absent-made 'mkdir ~/".local/share/NFS Underground 2"'
+
 # ---- bench, perfstat, perfgate ---------------------------------------------------
 bench() { local c=$1; shift; stub "$O/$c/b" "$@"; CONFIGS="racing-orig-64x64 explore-orig-64x64" REPS=2 FRAMES=3 "$PERF" bench "$O/$c/out" new="$O/$c/b/game"; }
 expect pass bench-good bench bench-good

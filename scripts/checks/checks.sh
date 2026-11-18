@@ -116,7 +116,9 @@ fi
 # --no-fail-fast: every test binary runs. The total counts every "test result" line; a binary that
 # started ("Running" / "Doc-tests") without a result line crashed (signal, abort) and fails the step.
 if [ -z "${SKIP_TESTS:-}" ] && [ "$SET" != shots ]; then
-  run tests 3600 cargo test --release --no-fail-fast --features dev-harness
+  # The tests run with the player's own folders hidden behind empty ones (home_mask.sh: a user + mount namespace),
+  # so a test that resolves them anyway writes nothing real, and the step fails when anything landed there.
+  run tests 3600 "$HERE/home_mask.sh" run "$O/home-mask" cargo test --release --no-fail-fast --features dev-harness
   # A test that runs the game's own test binary as a child prints the child's "test result" lines too:
   # each binary's own result is the last one before the next header.
   read -r P F I B R < <(awk '
@@ -129,6 +131,9 @@ if [ -z "${SKIP_TESTS:-}" ] && [ "$SET" != shots ]; then
   say "tests: $TESTS; rc=$RC ${STEP_S[tests]} s"
   grep -E 'panicked|^error|signal:|SIGSEGV|SIGABRT|^failures:|^    [a-z_:0-9]+$' "$O/tests.log" | head -40 | tee -a "$OUT"
   if [ "$RC" != 0 ] || [ "$F" != 0 ] || [ "$B" != "$R" ] || [ "$P" = 0 ]; then fail "tests ($TESTS, rc=$RC)"; fi
+  "$HERE/home_mask.sh" verify "$O/home-mask" > "$O/home-mask.txt" 2>&1; HM=$?
+  tee -a "$OUT" < "$O/home-mask.txt"
+  [ $HM = 0 ] || fail "tests (wrote to the player's folders: $O/home-mask.txt)"
   # Data tests (docs/testing.md): counted by reason (game files, private set, both); a skip fails only
   # when this run could have avoided it (ck_data_tests: NFSU2_ROOT is set, or the private set is here).
   DT=$(ck_data_tests "$O/tests.log" "$REPO"); DRC=$?

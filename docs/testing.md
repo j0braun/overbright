@@ -138,6 +138,18 @@ each place that uses it:
 | `src/**` unit tests | `crate::testkit` (declared `cfg(test)` in src/lib.rs) |
 | game binary test modules (`src/bin/game/*.rs`) | `#[path = "../../../tests/common/mod.rs"] mod testkit;` inside the module |
 
+### The player's folders are off limits
+
+A test never reads or writes the player's own folders (`<data home>/overbright`,
+`<data home>/NFS Underground 2`, `<cache home>/overbright`, docs/platform-dirs.md),
+not even a file it removes again. When code under test has a default path
+there (the launcher's start marker, for one), give it a way to take the path
+from its caller and pass a folder of the test's own; a
+process-wide `std::env::set_var` of `XDG_DATA_HOME` / `NFSU2_DATA_DIR` is no way
+out, since the other tests of the binary run beside it on other threads. The
+checks' tests step runs the suite with those folders masked
+(`scripts/checks/home_mask.sh`) and fails when anything landed there.
+
 ## Fixtures from the game, and the fixture lock
 
 The repository does not carry copies of game data. A test that needs a table
