@@ -49,6 +49,26 @@ pub fn show_if_unseen(msg: &str) {
     let _ = msg;
 }
 
+/// A message for the player (not an error) shown on Windows in a message
+/// box when no one sees the output; nothing elsewhere (the caller prints).
+pub fn info_if_unseen(msg: &str) {
+    #[cfg(windows)]
+    if !OUTPUT_SEEN.load(Ordering::Relaxed) {
+        win::message_box_info("Overbright", msg);
+    }
+    #[cfg(not(windows))]
+    let _ = msg;
+}
+
+/// Whether the program's output reaches someone (a terminal, a redirect);
+/// always true off Windows.
+pub fn output_seen() -> bool {
+    #[cfg(windows)]
+    return OUTPUT_SEEN.load(Ordering::Relaxed);
+    #[cfg(not(windows))]
+    true
+}
+
 /// Windows' version and build number (`RtlGetVersion`: the real one, not
 /// the compatibility value `GetVersionEx` gives); for the launcher's log.
 #[cfg(windows)]
@@ -168,6 +188,16 @@ mod win {
         // SAFETY: two NUL-terminated UTF-16 strings that outlive the call.
         unsafe {
             MessageBoxW(std::ptr::null_mut(), text.as_ptr(), caption.as_ptr(), MB_OK | MB_ICONERROR | MB_SETFOREGROUND);
+        }
+    }
+
+    /// [`message_box`] with the information icon.
+    pub(super) fn message_box_info(caption: &str, text: &str) {
+        const MB_ICONINFORMATION: u32 = 0x40;
+        let (caption, text) = (wide(caption), wide(text));
+        // SAFETY: two NUL-terminated UTF-16 strings that outlive the call.
+        unsafe {
+            MessageBoxW(std::ptr::null_mut(), text.as_ptr(), caption.as_ptr(), MB_OK | MB_ICONINFORMATION | MB_SETFOREGROUND);
         }
     }
 }

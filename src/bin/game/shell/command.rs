@@ -13,6 +13,11 @@ pub(crate) enum Command {
     Help,
     /// `--probe`: the launcher's hardware check (`shell::probe`).
     Probe,
+    /// `--support-file [folder]`: the support file for a bug report
+    /// (`nfsu2::diag::support`), with no window.
+    SupportFile,
+    /// `--list-adapters`: the graphics adapters, for the support file.
+    ListAdapters,
     /// A flag this build does not know (`dev_hooks::unknown_flag`): the
     /// usage, exit code 2.
     Unknown(String),
@@ -73,6 +78,8 @@ impl Command {
             Some("--version") => return Command::Version,
             Some("--help" | "-h") => return Command::Help,
             Some("--probe") => return Command::Probe,
+            Some("--support-file") => return Command::SupportFile,
+            Some("--list-adapters") => return Command::ListAdapters,
             _ => {}
         }
         if let Some(flag) = crate::dev_hooks::unknown_flag(args) {
@@ -153,6 +160,8 @@ mod tests {
         assert_eq!(parse(&["--help"]), Command::Help);
         assert_eq!(parse(&["-h", "--no-boot"]), Command::Help);
         assert_eq!(parse(&["--probe"]), Command::Probe);
+        assert_eq!(parse(&["--support-file", "/x"]), Command::SupportFile);
+        assert_eq!(parse(&["--list-adapters"]), Command::ListAdapters);
         assert_eq!(parse(&[]), Command::Window { no_boot: false });
         assert_eq!(parse(&["--no-boot"]), Command::Window { no_boot: true });
         assert_eq!(parse(&["--set-root", "x"]), Command::SetRoot(Some("x".into())));

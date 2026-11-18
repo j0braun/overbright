@@ -103,9 +103,10 @@ original, with its switch, is in [docs/native-deviations.md](docs/native-deviati
   nothing (Wine's shader compiler rejects the shaders). If the game shows no picture on Windows, update the
   graphics driver so that Vulkan is available.
 - **On some Windows 11 PCs the launcher closes a second after it opens**
-  ([#19](https://github.com/j0braun/overbright/issues/19)). The cause is not known yet. The launcher writes
-  `launcher.log` in the settings folder from its first line (see "Reporting a problem"); please attach it to
-  the issue.
+  ([#19](https://github.com/j0braun/overbright/issues/19)). The cause is not known yet. Please run
+  `game.exe --support-file` from Overbright's folder (Win+R, the full path, then the flag) and attach the
+  support file it saves to the issue: it holds the launcher's log, the graphics adapters and Windows' own crash
+  entries for the launcher ([docs/troubleshooting.md](docs/troubleshooting.md)).
 - **One edition of the game's data was tested:** the European PC 1.2 release with English game files.
   A North American install is recognised by its CARS folder and gets that region's car lists, shared
   textures, credits and Best Buy code ([docs/region.md](docs/region.md)), but no North American install was
@@ -188,10 +189,12 @@ Delete `portable.txt` to go back.
 
 ## Reporting a problem
 
-Open an issue at [github.com/j0braun/overbright/issues](https://github.com/j0braun/overbright/issues) with the
-output of `game --check-game <your game folder>`, the newest log from the logs folder above, and your graphics
-settings. If the launcher closes by itself or does not open, attach `launcher.log` from the settings folder
-above (it is written from the launcher's first line; the run before is kept as `launcher.old.log`). A difference from the original game is a bug unless it is listed in
+Open an issue at [github.com/j0braun/overbright/issues](https://github.com/j0braun/overbright/issues) and attach
+a **support file**: one text file with the logs of the last starts, your settings, the game folder's check, the
+graphics adapters and drivers and the system, home folders and user names removed. In the game press
+**Ctrl+F8**; when the launcher or the game closes at once, run `game --support-file` (Windows: `game.exe
+--support-file`) from Overbright's folder. Where it goes, what it holds and where the logs are:
+[docs/troubleshooting.md](docs/troubleshooting.md). A difference from the original game is a bug unless it is listed in
 [docs/native-deviations.md](docs/native-deviations.md).
 
 ## Contributing

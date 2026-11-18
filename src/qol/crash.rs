@@ -21,6 +21,11 @@ pub fn set_adapter(info: &wgpu::AdapterInfo) {
     ));
 }
 
+/// The adapter line [`set_adapter`] kept (the support file's "in use").
+pub fn adapter() -> Option<String> {
+    ADAPTER.get().cloned()
+}
+
 /// The deviations line the report shows.
 pub fn set_deviations(text: String) {
     if let Ok(mut d) = DEVIATIONS.lock() {
@@ -120,6 +125,11 @@ pub fn install() {
             // and the report (Crash Reports, off by default) may not exist.
             let trace = symbol_names(&std::backtrace::Backtrace::force_capture().to_string());
             super::log_file::send(format!("[PANIC {thread}]{at}: {message}\nbacktrace:\n{trace}"));
+            // What the window, the display and the GPU did just before.
+            super::log_file::send(format!(
+                "[WARN events] the last events (a panic):\n{}",
+                scrub(&crate::diag::events::text())
+            ));
             super::log_file::flush(std::time::Duration::from_millis(500));
         }
         if super::crash_reports() {

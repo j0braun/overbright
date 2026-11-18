@@ -19,7 +19,7 @@ the frame loop and the glue that turns the library's parts into the running game
 | audio | `audio/` | The original's audio objects and mixer: banks, codecs, the engine chain, car and world sounds, speech, EA Trax and the interactive score, reverb. |
 | rendering | `render/` | The wgpu renderer, in three layers (below). |
 | input and platform | `pad/`, `platform/`, `allocator.rs`, `latency.rs` | Gamepads (gilrs), folders and paths per OS (docs/platform-dirs.md), the allocator choice, frame pacing. |
-| extras and tools | `qol/`, `overlay/`, `mark_spot.rs`, `photo.rs`, `upscale*.rs`, `texture_mods.rs`, `tpf_import.rs`, `texwizard_import.rs`, `hud_mod.rs`, `hd_ui_pack.rs`, `model_fixes.rs` | The opt-in quality-of-life features, the F3 overlay, report and photo tools, texture-pack generation, the texture mods' and the HUD mod's import. |
+| extras and tools | `qol/`, `diag/`, `overlay/`, `mark_spot.rs`, `photo.rs`, `upscale*.rs`, `texture_mods.rs`, `tpf_import.rs`, `texwizard_import.rs`, `hud_mod.rs`, `hd_ui_pack.rs`, `model_fixes.rs` | The opt-in quality-of-life features, the F3 overlay, the support file and event log (docs/troubleshooting.md), report and photo tools, texture-pack generation, the texture mods' and the HUD mod's import. |
 | launcher | `launcher/` (binary `src/bin/overbright.rs`) | The launcher: game-folder search and check, settings, the start choices, the Mods page (texture mods, the HUD mod), start. CPU-drawn (no wgpu), so it opens without a Vulkan driver (docs/launcher.md). |
 
 ### Rendering layers

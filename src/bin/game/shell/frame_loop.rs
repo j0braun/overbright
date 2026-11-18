@@ -2,6 +2,9 @@
 //! frame's update (`step`) and its drawing (`draw`).
 use crate::*;
 
+/// A frame interval this long (s) is an event of the diagnostics' ring.
+const STALL_EVENT_S: f32 = 0.25;
+
 impl Game {
     pub(crate) fn redraw(&mut self) -> Result<()> {
         // The game start's PC_Loading (only past 200 ms, or for the
@@ -78,6 +81,15 @@ impl Game {
             self.read_ahead_after_start();
         }
         let busy = now_t.elapsed().as_secs_f32();
+        // The diagnostics (docs/troubleshooting.md): the watchdog's
+        // heartbeat, and a long frame as an event.
+        nfsu2::diag::events::frame_drawn();
+        if interval >= STALL_EVENT_S {
+            nfsu2::diag::events::record(
+                nfsu2::diag::events::Kind::Stall,
+                format!("frame took {:.0} ms (its own work {:.0} ms)", interval * 1000.0, busy * 1000.0),
+            );
+        }
         self.waits_frame(interval * 1000.0);
         self.streak_window_sample(interval, busy - (stepped - probes_in_ticks).max(0.0), period);
         let record = if self.platform.perf_overlay.active(&self.settings.overlay) {

@@ -315,6 +315,10 @@ impl Game {
         // the game, none at all before the menus and while driving).
         window.set_cursor_visible(false);
         drop(made);
+        nfsu2::diag::events::record(
+            nfsu2::diag::events::Kind::Window,
+            format!("window made, asked {rw}x{rh}, got {:?}", window.inner_size()),
+        );
         let wayland = {
             #[cfg(all(unix, not(target_os = "macos")))]
             {
@@ -338,6 +342,10 @@ impl Game {
             self.settings.resolution = nfsu2::render::display::fit_mode(
                 &nfsu2::render::display::modes_on(self.settings.fullscreen),
                 self.settings.resolution,
+            );
+            nfsu2::diag::events::record(
+                nfsu2::diag::events::Kind::Window,
+                format!("monitor {:?}: {}x{}, scale {}, wayland {wayland}", name, size.0, size.1, m.scale_factor()),
             );
             log::info!(
                 "monitor {:?}: {}x{} at {:.2} Hz, scale {}",
@@ -430,6 +438,13 @@ impl Game {
         configure_surface(&surface, &gpu.device, &config);
         drop(t);
         let info = gpu.adapter.get_info();
+        nfsu2::diag::events::record(
+            nfsu2::diag::events::Kind::Surface,
+            format!(
+                "swap chain on {} ({:?}): {:?} {:?} at {}x{}",
+                info.name, info.backend, config.format, config.present_mode, config.width, config.height
+            ),
+        );
         nfsu2::qol::log_file::fact(&format!(
             "display: {} ({:?}, {} {}); swap chain {:?} {:?} {:?} at {}x{}; surface formats {}",
             info.name,
@@ -514,11 +529,22 @@ impl Game {
                         size.1,
                         mode.refresh_rate_millihertz() as f32 / 1000.0
                     );
+                    nfsu2::diag::events::record(
+                        nfsu2::diag::events::Kind::Window,
+                        format!("exclusive full screen {}x{}", size.0, size.1),
+                    );
                     window.set_fullscreen(Some(winit::window::Fullscreen::Exclusive(mode)));
                 }
-                None => window.set_fullscreen(Some(winit::window::Fullscreen::Borderless(monitor))),
+                None => {
+                    nfsu2::diag::events::record(
+                        nfsu2::diag::events::Kind::Window,
+                        format!("borderless full screen (asked {}x{}, desktop {desktop:?})", size.0, size.1),
+                    );
+                    window.set_fullscreen(Some(winit::window::Fullscreen::Borderless(monitor)))
+                }
             }
         } else {
+            nfsu2::diag::events::record(nfsu2::diag::events::Kind::Window, format!("windowed {}x{}", size.0, size.1));
             window.set_fullscreen(None);
             if let Some(now) = window.request_inner_size(winit::dpi::PhysicalSize::new(size.0, size.1)) {
                 w.resize(now.width, now.height);
@@ -532,7 +558,13 @@ impl ApplicationHandler for Game {
         if self.platform.window.is_none()
             && let Err(e) = self.create_window(event_loop)
         {
-            eprintln!("could not open a window: {e:#}");
+            // In the log and, on Windows with no console, in a message box:
+            // a start that ends here otherwise leaves no word.
+            log::error!("could not open a window: {e:#}");
+            nfsu2::diag::events::record(nfsu2::diag::events::Kind::Error, format!("could not open a window: {e:#}"));
+            nfsu2::diag::events::dump_to_log("no window");
+            nfsu2::qol::log_file::flush(std::time::Duration::from_millis(300));
+            nfsu2::console::show_if_unseen(&format!("could not open a window: {e:#}"));
             event_loop.exit();
         }
         self.loads.waits.start_part("window");
@@ -563,11 +595,27 @@ impl ApplicationHandler for Game {
 
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _: WindowId, event: WindowEvent) {
         match event {
-            WindowEvent::CloseRequested => event_loop.exit(),
+            WindowEvent::CloseRequested => {
+                nfsu2::diag::events::record(nfsu2::diag::events::Kind::Window, "close asked");
+                event_loop.exit()
+            }
             // Power Saving's background test.
-            WindowEvent::Focused(f) => self.pacing.focused = f,
-            WindowEvent::Occluded(o) => self.pacing.occluded = o,
-            WindowEvent::Resized(size) if size.width > 0 && size.height > 0 => {
+            WindowEvent::Focused(f) => {
+                self.pacing.focused = f;
+                nfsu2::diag::events::set_shown(f, self.pacing.occluded);
+            }
+            WindowEvent::Occluded(o) => {
+                self.pacing.occluded = o;
+                nfsu2::diag::events::set_shown(self.pacing.focused, o);
+            }
+            WindowEvent::Resized(size) => {
+                nfsu2::diag::events::record(
+                    nfsu2::diag::events::Kind::Window,
+                    format!("resized to {}x{}", size.width, size.height),
+                );
+                if size.width == 0 || size.height == 0 {
+                    return;
+                }
                 if let Some(w) = self.platform.window.as_mut() {
                     w.resize(size.width, size.height);
                 }
@@ -578,7 +626,8 @@ impl ApplicationHandler for Game {
             // A new HiDPI scale (another monitor, a changed setting): the
             // window keeps its size in physical pixels, the Resolution's
             // (winit would scale it).
-            WindowEvent::ScaleFactorChanged { mut inner_size_writer, .. } => {
+            WindowEvent::ScaleFactorChanged { mut inner_size_writer, scale_factor } => {
+                nfsu2::diag::events::record(nfsu2::diag::events::Kind::Window, format!("scale factor {scale_factor}"));
                 if let Some(w) = self.platform.window.as_ref().filter(|w| !w.applied.is_some_and(|a| a.1)) {
                     let _ = inner_size_writer
                         .request_inner_size(winit::dpi::PhysicalSize::new(w.config.width, w.config.height));
@@ -590,8 +639,13 @@ impl ApplicationHandler for Game {
             // the wheel and the cursor go through the tick queue: applied
             // at the start of the tick their arrival falls in
             // (`input::queue`), never between ticks.
+            WindowEvent::ModifiersChanged(m) => crate::shell::support::modifiers(m.state().control_key()),
             WindowEvent::KeyboardInput { event, .. } => {
                 if let PhysicalKey::Code(code) = event.physical_key {
+                    // Ctrl+F8: the recent events to the log and a support
+                    // file (docs/troubleshooting.md). The keys still go to
+                    // the game as any other.
+                    crate::shell::support::key(code, event.state == ElementState::Pressed, event.repeat);
                     if event.state == ElementState::Pressed && !event.repeat {
                         self.loads.waits.key();
                     }
@@ -616,7 +670,8 @@ impl ApplicationHandler for Game {
             }
             WindowEvent::RedrawRequested => {
                 if let Err(e) = self.redraw() {
-                    eprintln!("{e:#}");
+                    log::error!("frame: {e:#}");
+                    nfsu2::diag::events::record(nfsu2::diag::events::Kind::Error, format!("frame: {e:#}"));
                 }
             }
             _ => {}
@@ -624,6 +679,7 @@ impl ApplicationHandler for Game {
     }
 
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
+        nfsu2::diag::events::loop_turned();
         // The quit question's Quit Game (`quit_app`, set on a tick by a
         // key, a click or a controller) and a controller's Back on the
         // main menu end the event loop.
