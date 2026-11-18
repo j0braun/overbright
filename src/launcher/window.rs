@@ -77,6 +77,8 @@ struct Run<'e> {
     dropped: Vec<std::path::PathBuf>,
     /// The pointer shape set last.
     pointer: super::ui::Pointer,
+    /// The first picture was shown (logged once).
+    drawn: bool,
 }
 
 /// How long the game's picture takes to fade in.
@@ -587,6 +589,14 @@ impl Run<'_> {
                 self.canvas.to_xrgb(&mut buf);
                 if let Err(e) = buf.present() {
                     self.error = Some(format!("window present: {e}"));
+                } else if !self.drawn {
+                    self.drawn = true;
+                    log::info!("window: first picture shown");
+                    // The checks' way to see a panic reported (the log, the
+                    // message box, exit code 101; docs/launcher.md).
+                    if std::env::var_os("OB_LAUNCHER_PANIC_TEST").is_some() {
+                        panic!("a test panic after the first picture (OB_LAUNCHER_PANIC_TEST)");
+                    }
                 }
             }
             Err(e) => self.error = Some(format!("window buffer: {e}")),
@@ -730,6 +740,15 @@ impl ApplicationHandler for Run<'_> {
         });
         match made {
             Ok((w, s)) => {
+                let size = w.inner_size();
+                log::info!(
+                    "window: open, {}x{} at scale {}, {} monitor {:?}",
+                    size.width,
+                    size.height,
+                    w.scale_factor(),
+                    if is_wayland(el) { "Wayland" } else { "the system's" },
+                    primary.as_ref().map(|(_, f)| (f.size, f.modes.len()))
+                );
                 // The window's monitor until the probe tells the game's view.
                 if let Some(mon) = w.current_monitor()
                     && self.app.model.monitor.is_none()
@@ -743,6 +762,7 @@ impl ApplicationHandler for Run<'_> {
                 self.surface = Some(s);
             }
             Err(e) => {
+                log::error!("window: could not open: {e}");
                 self.error = Some(format!("the launcher window could not open: {e}"));
                 el.exit();
             }
@@ -933,7 +953,18 @@ pub fn run_with_root(env: &dyn Env, start: Start) -> Result<Outcome, String> {
     let model_root = model.root.clone();
     let app = App::new(env, model, start.screen, (960, 720), 1.0, &fonts);
     let el = EventLoop::new().map_err(|e| format!("no display for the launcher window: {e}"))?;
-    let pad = if std::env::var_os("NFSU2_NO_PADS").is_none() { gilrs::Gilrs::new().ok() } else { None };
+    let pad = if std::env::var_os("NFSU2_NO_PADS").is_none() {
+        match gilrs::Gilrs::new() {
+            Ok(g) => Some(g),
+            Err(e) => {
+                log::warn!("gamepads: not available ({e})");
+                None
+            }
+        }
+    } else {
+        None
+    };
+    log::info!("start: gamepads {}", if pad.is_some() { "on" } else { "off" });
     let probed_root = model_root.clone();
     let probe = start.probe.then(|| super::probe::spawn(start.game.exe.clone(), probed_root.clone()));
     let mut run = Run {
@@ -965,6 +996,7 @@ pub fn run_with_root(env: &dyn Env, start: Start) -> Result<Outcome, String> {
         traced: String::new(),
         dropped: Vec::new(),
         pointer: super::ui::Pointer::Default,
+        drawn: false,
     };
     el.run_app(&mut run).map_err(|e| e.to_string())?;
     // A game still running when the window was closed: wait for it, so

@@ -35,7 +35,7 @@
 #   l_hud       `--add-hud-mod` with the HUD mod stand-in (scripts/checks/hud_mod_standin.py) in that folder:
 #               "ok: HUD mod set up", the pack in the data folder (NFSU2_DATA_DIR, inside OUTDIR)
 #   l_tpf       `--add-packages` with a package made for another game: its result line says so
-#   l_start     tests/launcher_start.sh under Wine (the game.exe's --crash-test as the game): the failed start
+#   l_start     tests/launcher_start.sh under Wine (the game.exe's --crash-test as the game; launcher.log; a test panic: exit 101): the failed start
 #               opens the failure screen, a second launcher is refused, Play from the window fails again
 #   l_mouse     tests/launcher_mouse.sh under Wine: the folder browser by the mouse alone (wheel, double clicks,
 #               scroll bar, Open, the back button, places, path parts, This PC and the drives), the game folder

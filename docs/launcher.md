@@ -226,6 +226,41 @@ known; others are left out).
 - Windows: `overbright.exe` is a window program (no console); a start from
   a terminal attaches to it.
 
+**When the launcher does not open** (`src/launcher/start_log.rs`,
+`src/bin/overbright.rs`)
+- `launcher.log` in Overbright's folder, next to options.txt (Windows
+  `%LOCALAPPDATA%\Overbright\launcher.log`, Linux
+  `~/.local/share/overbright/launcher.log`; `NFSU2_DATA_DIR` moves it with
+  the rest): written from the launcher's first line by every window run
+  (the tool flags `--render`, `--version`, `--list-*`, `--add-*`, `--help`
+  leave it alone). It starts with the version line, the system (on Windows
+  the version and build number: Windows 11 is 10.0 build 22000 and later),
+  the program's path, the arguments and Overbright's folder, then the
+  start's steps (the game folder found, gamepads, the window's size and
+  scale, the first picture shown, the hardware check) and every log line
+  from Info up; each line is written at once, so a hard stop leaves the
+  steps before it. The previous run's file is kept as `launcher.old.log`;
+  a run that did not end with `end: the launcher closed normally` is noted
+  in the next run's header. Home folders are shown as `~`. `RUST_LOG`
+  still decides what reaches the terminal.
+- A panic on any thread is written to the file (message, place, thread,
+  call stack; a Windows release build's call stack shows addresses only)
+  before the thread unwinds. One that ends the launcher (the main thread,
+  or winit's event handlers, which hand it back to `main`) is caught in
+  `main`: exit code 101 and the message below.
+- Every failure that ends the launcher (an error or a panic) is printed to
+  stderr and, on Windows when no one sees stderr (a start from Explorer or
+  a shortcut), shown in a message box: one plain line of what happened,
+  the log's path and where to report it. "Overbright is already running."
+  is shown the same way; the lock is taken before the log is opened, so a
+  second start leaves the first one's log alone.
+- What a player attaches to a report: `launcher.log` (and
+  `launcher.old.log` when the problem was the start before), and after a
+  game start also the newest file in `logs/`.
+- Not caught: a stop the process cannot report (a stack overflow, the
+  system or a security program ending it); the log then ends at the last
+  step reached and the next start notes it.
+
 **The game's setup help** (`qol::setup::help` / `help_for`): plain words
 for players, the shipped program names per system (`overbright` /
 `./game --set-root "$HOME/Games/…"`, `overbright.exe` / `game.exe

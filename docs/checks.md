@@ -518,7 +518,7 @@ and our Xvfb (by PID) are stopped.
   characters, whatever the output dir's length: past MAX_PATH), `l_hud` (`--add-hud-mod` with the stand-in of scripts/checks/hud_mod_standin.py: the 7-Zip file
   chosen, its extracted folder and the map ZIP beside it used, 710 PNGs in the data folder), `l_tpf`
   (`--add-packages` with a package made for another game: its result line), `l_start`
-  (tests/launcher_start.sh under Wine: the failure screen after a crashing start), `l_mouse`
+  (tests/launcher_start.sh under Wine: the failure screen after a crashing start, launcher.log, a panic in the window reported with exit code 101), `l_mouse`
   (tests/launcher_mouse.sh under Wine: the folder browser, This PC and the drives, a game folder and a package
   by the mouse alone, docs/launcher.md "The mouse"), `l_play` (the launcher with
   "Start the game directly" starts `game.exe` beside it: the game's log reaches the title screen).

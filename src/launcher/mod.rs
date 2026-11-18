@@ -13,7 +13,8 @@
 //! * [`window::run_with_root`]: the window (keyboard, mouse, gamepad).
 //! * [`probe`]: `game --probe`'s format and its background run;
 //!   [`run`]: starting and watching the game, the lock, the skip rule's
-//!   Shift check; [`saves`]: importing the original's saves.
+//!   Shift check; [`saves`]: importing the original's saves;
+//!   [`start_log`]: the launcher's own log (`launcher.log`) and panic hook.
 
 pub mod backdrop;
 pub mod dirs;
@@ -27,6 +28,7 @@ pub mod probe;
 pub mod run;
 pub mod saves;
 pub mod screens;
+pub mod start_log;
 pub mod ui;
 #[cfg(windows)]
 mod win_dialog;
