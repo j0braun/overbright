@@ -56,7 +56,7 @@ own plain dark look, the Go font (BSD-3-Clause, `src/launcher/fonts/`).
   `not-a-game-folder`, `files-missing`, `checking`,
   `first-start`, `probe-failed`, `no-vulkan` (the probe found no Vulkan
   driver: the line names the package to install), `long-values` (a long German path, many
-  languages, a long pad name), `unofficial`, `start-failed`,
+  languages, a long pad name), `unofficial`, `portable` (About of a portable install), `start-failed`,
   `unreadable-folder`, `import-done`, `import-empty` and the Mods page's
   `mods-empty`, `mods-busy`, `mods-results`, `mods-remove`, `mods-hud-complete`,
   `mods-hud-incomplete`.
@@ -230,8 +230,8 @@ known; others are left out).
 `src/bin/overbright.rs`)
 - `launcher.log` in Overbright's folder, next to options.txt (Windows
   `%LOCALAPPDATA%\Overbright\launcher.log`, Linux
-  `~/.local/share/overbright/launcher.log`; `NFSU2_DATA_DIR` moves it with
-  the rest): written from the launcher's first line by every window run
+  `~/.local/share/overbright/launcher.log`; `NFSU2_DATA_DIR` and portable mode
+  move it with the rest): written from the launcher's first line by every window run
   (the tool flags `--render`, `--version`, `--list-*`, `--add-*`, `--help`
   leave it alone). It starts with the version line, the system (on Windows
   the version and build number: Windows 11 is 10.0 build 22000 and later),
@@ -618,6 +618,27 @@ States for `--render`: `prepare-running`, `prepare-done`, `prepare-failed`. Test
 `launcher::prepare::tests`, `the_prepare_step_is_offered_once_skippable_and_can_be_asked_for`,
 the fresh-machine walk's step p (started behind the main screen after the folder is used, its
 line, not started again, Prepare again to Done, the stamp, `prepared=1` from the probe).
+
+## Portable mode
+
+A file `portable.txt` (or a folder `portable`) beside `overbright` and `game` makes the install portable: both
+programs keep settings, saves, caches, logs, crash reports, screenshots and mods in `data/` beside them
+(`platform::dirs`, docs/platform-dirs.md "Portable mode"), the launcher's `launcher.lock` too.
+
+- The header shows `<version> · Portable` on every screen.
+- About shows where Overbright keeps its files (`Model::folders`, `Env::folders`). Outside portable mode it
+  has **Make portable** (`Env::make_portable`): it writes `portable.txt` beside the programs and looks again
+  (`dirs::refresh_portable`), so the rest of the session uses `data/` for everything: `launcher.log` goes on in
+  `data/launcher.log` (`start_log::follow`; the old file's last line names the new one), the lock is taken in
+  `data/` too, the log folder of a game started next is looked up at each start (`GameStart::logs`), and the
+  game folder, the HUD mod folder and the main page's choices are written into `data/` at once (options.txt's
+  other values start native). Its line says what to copy over to take the other settings, saves and mods along
+  (Overbright's folder and, on Linux, the profiles folder); nothing is moved. A folder that cannot be written
+  (an install under Program Files) shows the error. Turning it off: delete `portable.txt`.
+- The kept game folder (`game-root.txt`) and HUD mod folder (`texture-pack-root.txt`) are written relative to
+  the program folder when they are on the same drive (`qol::kept_paths`), read back from it, and shown resolved.
+- State `portable` (`--render portable`): the About page of a portable install. Tests
+  `about_shows_and_turns_on_portable_mode`, `start_log::tests::the_log_follows_a_moved_folder`.
 
 ## Open (next units)
 - Copy log (clipboard), a GPU class for the presets from the probe.

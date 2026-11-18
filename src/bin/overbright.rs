@@ -65,7 +65,7 @@ fn list_folder(dir: &str, kind: Option<&str>) -> Result<(), String> {
 /// packs in it.
 fn add_packages(paths: &[String]) -> Result<(), String> {
     let paths = model::expand_packages(paths.iter().map(std::path::PathBuf::from).collect());
-    let root = nfsu2::qol::setup::find();
+    let root = nfsu2::qol::kept_paths::find_game();
     let out = model::import_paths(&paths, root.as_deref(), &|t| eprintln!("{t}"));
     let mut ok = !out.is_empty();
     for o in &out {
@@ -104,7 +104,8 @@ fn add_hud_mod(paths: &[String]) -> Result<(), String> {
         println!("{word} {line}");
     }
     if let Some(dir) = &out.dir {
-        nfsu2::qol::setup::save_texture_pack(Some(dir)).map_err(|e| format!("the HUD mod folder was not kept: {e}"))?;
+        nfsu2::qol::kept_paths::keep_texture_pack(Some(dir))
+            .map_err(|e| format!("the HUD mod folder was not kept: {e}"))?;
         println!("folder: {}", dir.display());
     }
     if ok { Ok(()) } else { Err("the HUD mod was not set up".into()) }
@@ -269,7 +270,7 @@ fn run_cli(args: &[String]) -> Result<(), String> {
         return Ok(());
     }
     // (One launcher at a time: `main` holds the lock.)
-    let root = nfsu2::qol::setup::find();
+    let root = nfsu2::qol::kept_paths::find_game();
     let usable = root.as_ref().is_some_and(|r| nfsu2::qol::setup::check(r, false).ok());
     log::info!(
         "start: game folder {} ({}); game program {}",
@@ -280,7 +281,7 @@ fn run_cli(args: &[String]) -> Result<(), String> {
     let game = window::GameStart {
         exe: dirs::game_exe(),
         args: game_args,
-        logs: Some(dirs::logs()),
+        logs: true,
         root: root.clone().filter(|_| usable),
     };
     let mut failure = None;

@@ -749,6 +749,39 @@ fn about_names_the_source_or_says_unofficial() {
     assert!(t.contains("unofficial build without a source link") && !t.contains("Source code:"), "{t}");
 }
 
+/// Portable mode on the about screen: the folder where things are kept,
+/// Make portable (outside portable mode), what to copy after it, and
+/// "Portable" in the header of every screen once on.
+#[test]
+fn about_shows_and_turns_on_portable_mode() {
+    let fonts = Fonts::new();
+    let env = FakeEnv;
+    let texts = |a: &App| -> String {
+        a.ui.widgets.iter().flat_map(|w| w.texts.iter().map(|t| t.text.clone())).collect::<Vec<_>>().join(" ")
+    };
+    let mut a = app(&env, &fonts, Screen::About, 1280, 720, 1.0);
+    let t = texts(&a);
+    assert!(t.contains("/data/player/.local/share/overbright") && !t.contains("· Portable"), "{t}");
+    a.st.focus = Some("portable");
+    key(&mut a, &fonts, Key::Enter);
+    let (mark, text) = a.model.message.clone().expect("a message after Make portable");
+    assert_eq!(mark, Mark::Ok, "{text}");
+    assert!(
+        text.contains("/data/player/.local/share/overbright")
+            && text.contains("/data/player/.local/share/NFS Underground 2"),
+        "what to copy: {text}"
+    );
+    let (_, m) = super::headless::state_model("portable").unwrap();
+    for s in [Screen::About, Screen::Main] {
+        let a = App::new(&env, m.clone(), s, (1280, 720), 1.0, &fonts);
+        let t = texts(&a);
+        assert!(t.contains("· Portable"), "{s:?}: {t}");
+        if s == Screen::About {
+            assert!(t.contains("/media/player/SSD/Overbright/data") && a.ui.get("portable").is_none(), "{t}");
+        }
+    }
+}
+
 /// The display sizes and scalings players have (laptop 768p, 720p, 1080p,
 /// 4K at 100 / 150 / 200 %): every screen and every named state laid out
 /// clean. A page fits without scrolling whenever the window is at least

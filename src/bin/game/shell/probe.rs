@@ -106,7 +106,7 @@ pub(crate) fn run() -> i32 {
             // usable game folder they are left out (the launcher runs the
             // probe again with the chosen folder in NFSU2_ROOT), never a
             // panic.
-            p.first_run = nfsu2::qol::setup::find()
+            p.first_run = nfsu2::qol::kept_paths::find_game()
                 .and_then(|root| nfsu2::exe_tables::init(&root).ok())
                 .map(|_| nfsu2::launcher::probe::first_run((info.vendor, info.device)));
         }

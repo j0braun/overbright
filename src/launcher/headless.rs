@@ -51,7 +51,7 @@ pub fn named_app<'e>(env: &'e FakeEnv, fonts: &Fonts, name: &str, w: u32, h: u32
 
 /// The named states: (name, the screen it is shown on). The fake data of
 /// each comes from [`state_model`].
-pub const STATES: [(&str, Screen); 32] = [
+pub const STATES: [(&str, Screen); 33] = [
     ("no-game", Screen::FirstRun),
     ("check-ok", Screen::Check),
     ("wrong-version", Screen::Check),
@@ -65,6 +65,7 @@ pub const STATES: [(&str, Screen); 32] = [
     ("long-values", Screen::Main),
     ("skip-movies", Screen::Main),
     ("unofficial", Screen::About),
+    ("portable", Screen::About),
     ("start-failed", Screen::Failure),
     ("unreadable-folder", Screen::Browse),
     ("import-done", Screen::Import),
@@ -215,6 +216,12 @@ pub fn state_model(name: &str) -> Option<(Screen, Model)> {
             m.saved.skip_movies = true;
         }
         "unofficial" => m.source = None,
+        // A portable install: the header says so, the folder is beside
+        // the programs.
+        "portable" => {
+            m.folders.portable = true;
+            m.folders.data = PathBuf::from("/media/player/SSD/Overbright/data");
+        }
         "start-failed" => {
             let f = m.failure.as_mut().expect("the fake data has a failure");
             f.tail.clear();

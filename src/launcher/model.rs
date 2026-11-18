@@ -165,6 +165,23 @@ pub struct Model {
     pub hud: Option<HudCheck>,
     /// The prepare step (`game --prepare`, docs/prepare.md).
     pub prepare: Prepare,
+    /// Where settings, saves, caches and logs are kept (the about screen).
+    pub folders: Folders,
+}
+
+/// Where Overbright keeps its files (`platform::dirs`), as the about
+/// screen shows them.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct Folders {
+    /// A portable install: everything in [`Folders::data`] beside the
+    /// programs (docs/platform-dirs.md, "Portable mode").
+    pub portable: bool,
+    /// Overbright's own folder (options.txt, logs, …).
+    pub data: PathBuf,
+    /// The log folder.
+    pub logs: PathBuf,
+    /// The profiles folder.
+    pub saves: PathBuf,
 }
 
 /// The prepare step's state: where its run is, and what the screens ask
@@ -457,6 +474,12 @@ pub trait Env {
     fn open_folder(&self, dir: &Path) -> Result<(), String>;
     /// The original game's save folder, where the system has a known one.
     fn original_saves(&self) -> Option<PathBuf>;
+    /// Where Overbright keeps its files now.
+    fn folders(&self) -> Folders;
+    /// Turns portable mode on (`portable.txt` beside the programs); from
+    /// then on this launcher and the game keep everything in the data
+    /// folder beside them.
+    fn make_portable(&self) -> Result<(), String>;
     /// What a save folder holds, against Overbright's profiles.
     fn scan_saves(&self, from: &Path) -> saves::Scan;
     /// Copies the new saves; the files copied.
@@ -802,7 +825,7 @@ impl Env for RealEnv {
         if let Some(r) = std::env::var_os("NFSU2_ROOT") {
             add(PathBuf::from(r), "NFSU2_ROOT");
         }
-        if let Some(r) = setup::saved_root() {
+        if let Some(r) = crate::qol::kept_paths::kept_root() {
             add(r, "kept");
         }
         if let Ok(cwd) = std::env::current_dir() {
@@ -841,6 +864,7 @@ impl Env for RealEnv {
             mods: Mods { list: self.mods(), ..Default::default() },
             hud: self.hud(&pack),
             prepare: Prepare::default(),
+            folders: self.folders(),
         }
     }
 
@@ -856,7 +880,7 @@ impl Env for RealEnv {
     }
 
     fn keep_root(&self, root: &Path) -> Result<(), String> {
-        setup::save_root(root).map_err(|e| e.to_string())
+        crate::qol::kept_paths::keep_root(root).map_err(|e| e.to_string())
     }
 
     fn save(&self, c: &Choices, first: Option<&FirstRun>) -> Result<(), String> {
@@ -865,8 +889,7 @@ impl Env for RealEnv {
 
     fn set_pack(&self, dir: &str) -> PackStatus {
         let d = dir.trim();
-        let r =
-            if d.is_empty() { setup::save_texture_pack(None) } else { setup::save_texture_pack(Some(Path::new(d))) };
+        let r = crate::qol::kept_paths::keep_texture_pack(if d.is_empty() { None } else { Some(Path::new(d)) });
         if let Err(e) = r {
             log::warn!("texture-pack folder not kept: {e}");
         }
@@ -907,6 +930,31 @@ impl Env for RealEnv {
 
     fn open_folder(&self, dir: &Path) -> Result<(), String> {
         super::run::open_folder(dir)
+    }
+
+    fn folders(&self) -> Folders {
+        Folders {
+            portable: crate::platform::dirs::portable_base().is_some(),
+            data: super::dirs::data_dir(),
+            logs: super::dirs::logs(),
+            saves: super::dirs::profiles(),
+        }
+    }
+
+    fn make_portable(&self) -> Result<(), String> {
+        let dir = crate::platform::dirs::program_dir().ok_or("the program's folder is not known")?;
+        crate::platform::dirs::make_portable(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+        crate::platform::dirs::refresh_portable();
+        // The rest of this session follows: the log, and the one-launcher
+        // lock (kept until the process ends).
+        super::start_log::follow(&super::dirs::data_dir());
+        static LOCK: std::sync::Mutex<Option<std::fs::File>> = std::sync::Mutex::new(None);
+        if let Ok(Some(l)) = super::run::single_instance(&super::dirs::lock_file())
+            && let Ok(mut g) = LOCK.lock()
+        {
+            *g = Some(l);
+        }
+        Ok(())
     }
 
     fn original_saves(&self) -> Option<PathBuf> {
@@ -995,7 +1043,7 @@ pub fn choices_of(s: &Settings) -> Choices {
         skip: s.enh.launcher_skip,
         skip_movies: s.enh.skips_movies(),
         skip_title: s.enh.skips_title(),
-        texture_pack: setup::saved_texture_pack().map(|p| p.display().to_string()).unwrap_or_default(),
+        texture_pack: crate::qol::kept_paths::kept_texture_pack().map(|p| p.display().to_string()).unwrap_or_default(),
         hud_mod: s.enh.hd_ui,
     }
 }
@@ -1156,6 +1204,7 @@ impl Env for FakeEnv {
             mods: Mods { list: self.mods(), ..Default::default() },
             hud: None,
             prepare: Prepare::default(),
+            folders: self.folders(),
         }
     }
 
@@ -1232,6 +1281,19 @@ impl Env for FakeEnv {
     }
 
     fn open_folder(&self, _dir: &Path) -> Result<(), String> {
+        Ok(())
+    }
+
+    fn folders(&self) -> Folders {
+        Folders {
+            portable: false,
+            data: PathBuf::from("/data/player/.local/share/overbright"),
+            logs: PathBuf::from("/data/player/.local/share/overbright/logs"),
+            saves: PathBuf::from("/data/player/.local/share/NFS Underground 2"),
+        }
+    }
+
+    fn make_portable(&self) -> Result<(), String> {
         Ok(())
     }
 

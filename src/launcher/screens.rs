@@ -99,6 +99,9 @@ pub const EA_DISCLAIMER: &str =
 /// `OB_SOURCE_URL`; the release check fails on it).
 pub const UNOFFICIAL: &str = "This is an unofficial build without a source link: \
 ask whoever gave it to you for its source code.";
+/// The about screen's line under Make portable.
+pub const PORTABLE: &str = "Make portable keeps settings, saves, caches and logs in a folder named data beside \
+     Overbright, for a game carried on a portable drive. What is kept now stays where it is: copy it over to take it along.";
 pub const FREE: &str = "Overbright is free software: you can share and change it under the terms of the GNU General \
 Public License, version 3 or (at your option) any later version. It comes with no warranty.";
 
@@ -229,7 +232,11 @@ fn crumb_target(dir: &str, id: &str) -> Option<PathBuf> {
 }
 
 pub fn build(b: &mut Builder, m: &Model, screen: Screen) {
-    b.header(NAME, &m.version);
+    if m.folders.portable {
+        b.header(NAME, &format!("{} · Portable", m.version));
+    } else {
+        b.header(NAME, &m.version);
+    }
     if screen != Screen::Main {
         b.content_begin();
     }
@@ -321,6 +328,18 @@ pub fn build(b: &mut Builder, m: &Model, screen: Screen) {
                 Align::Left,
                 vec![Ctrl::button("licence", "Licence (GPL-3.0)"), Ctrl::button("notices", "Third-party notices")],
             );
+            b.gap(18.0);
+            if m.folders.portable {
+                b.status(Mark::Ok, "Portable: settings, saves, caches and logs are kept beside the program, in:");
+                line(b, &m.folders.data.display().to_string());
+            } else {
+                b.dim("Settings and logs are kept in:");
+                line(b, &m.folders.data.display().to_string());
+                b.gap(6.0);
+                b.buttons(Align::Left, vec![Ctrl::button("portable", "Make portable")]);
+                b.dim(PORTABLE);
+            }
+            message(b, m);
             b.footer(vec![Ctrl::primary("back", "Back")]);
             b.default_focus = Some("back");
         }
@@ -1652,6 +1671,49 @@ impl<'e> App<'e> {
                 }
             }
             (Screen::About, Event::Activate("back") | Event::Back) => self.go(Screen::Main),
+            (Screen::About, Event::Activate("portable")) => {
+                let before = self.model.folders.clone();
+                self.model.message = Some(match self.env.make_portable() {
+                    Ok(()) => {
+                        let now = self.env.folders();
+                        // The game folder and the launcher's choices are kept in the
+                        // new folder at once, so Play and a later start of the game
+                        // alone use them (the rest of options.txt starts native).
+                        if let Some(r) = self.model.root.clone()
+                            && let Err(e) = self.env.keep_root(&r)
+                        {
+                            log::warn!("game folder not kept in the portable folder: {e}");
+                        }
+                        if !self.model.choices.texture_pack.trim().is_empty() {
+                            self.model.pack_status = self.env.set_pack(&self.model.choices.texture_pack);
+                        }
+                        let first = self.model.probe.first_run().cloned();
+                        self.model.settings_file = false;
+                        if self.env.save(&self.model.choices, first.as_ref()).is_ok() {
+                            self.model.saved = self.model.choices.clone();
+                            self.model.settings_file = true;
+                        }
+                        self.model.logs_dir = now.logs.clone();
+                        self.model.saves_dir = now.saves.clone();
+                        // On Windows the profiles are inside Overbright's folder.
+                        let saves = if before.saves.starts_with(&before.data) {
+                            String::new()
+                        } else {
+                            format!(" and the folder {}", before.saves.display())
+                        };
+                        let text = format!(
+                            "Portable mode is on: from now on everything is kept in {}, the game folder and \
+                             the choices on this launcher's main page already. To take your other settings, saves \
+                             and mods along, copy what is in {}{saves} into it.",
+                            now.data.display(),
+                            before.data.display(),
+                        );
+                        self.model.folders = now;
+                        (Mark::Ok, text)
+                    }
+                    Err(e) => (Mark::Error, format!("Portable mode could not be turned on: {e}")),
+                });
+            }
             (Screen::About, Event::Activate("licence")) => self.go(Screen::Licence),
             (Screen::About, Event::Activate("notices")) => self.go(Screen::Notices),
             (Screen::Licence | Screen::Notices, Event::Activate("back") | Event::Back) => self.go(Screen::About),

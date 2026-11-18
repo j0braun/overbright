@@ -47,13 +47,16 @@ pub(crate) fn game_folder(command: &super::command::Command) -> Result<bool> {
             let c = setup::check(&dir, true);
             report(&dir, &c);
             anyhow::ensure!(c.ok(), "{}", setup::help(Some(&dir), Some(&c)));
-            setup::save_root(&dir)?;
+            nfsu2::qol::kept_paths::keep_root(&dir)?;
             println!("kept in {}", setup::saved_root_file().display());
             return Ok(false);
         }
         Command::CheckGame(dir) => {
-            let dir =
-                dir.as_ref().map(std::path::PathBuf::from).or_else(setup::find).context(setup::help(None, None))?;
+            let dir = dir
+                .as_ref()
+                .map(std::path::PathBuf::from)
+                .or_else(nfsu2::qol::kept_paths::find_game)
+                .context(setup::help(None, None))?;
             let c = setup::check(&dir, true);
             report(&dir, &c);
             // SHA-256 of the key files and the edition verdict.
@@ -74,7 +77,7 @@ pub(crate) fn game_folder(command: &super::command::Command) -> Result<bool> {
         }
         _ => {}
     }
-    let mut root = setup::find();
+    let mut root = nfsu2::qol::kept_paths::find_game();
     // No terminal prompt on Windows (the attached console belongs to the shell).
     if root.is_none() && !cfg!(windows) && std::io::stdin().is_terminal() {
         print!("{}\nGame folder: ", setup::help(None, None));
@@ -83,7 +86,7 @@ pub(crate) fn game_folder(command: &super::command::Command) -> Result<bool> {
         std::io::stdin().read_line(&mut line)?;
         let dir = std::path::PathBuf::from(line.trim());
         if !line.trim().is_empty() && setup::check(&dir, false).ok() {
-            setup::save_root(&dir)?;
+            nfsu2::qol::kept_paths::keep_root(&dir)?;
             println!("kept in {}", setup::saved_root_file().display());
         }
         root = Some(dir);
