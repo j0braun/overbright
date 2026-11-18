@@ -27,7 +27,7 @@ General: dark tiles show the _CF twin (carbon weave, CARBONFIBER material) - mid
 - TT (all 20): ok. VELOCITY cowl black (DULLPLASTIC). VALHALLA grille block unpainted (chrome family, as RX8). Antenna at roof rear passes through nothing.
 - 350Z rims_01..03, rimref_01..06: ok (stock D20 W23 vs aftermarket W26 drawn wider: sheet's width choice). MEISTER S2R (WORK_STYLE02): pinkish fleck on the lower lip in every car's tile = the lettering lead.
 
-## Wine checks (copy $OB_PRIVATE/wine/runs/<run>, display :219, career_end_won profile, main menu Customize -> Body Shop; raw frames <work dir>/wine)
+## Wine checks (a private Wine copy, display :219, career_end_won profile, main menu Customize -> Body Shop; raw frames kept with the maintainer's private evidence)
 - PEUGOT106 JETSTREAM scoop: the stock antenna runs through the scoop in the original too -> fixed behind the Fix row (antenna left out while a scoop is fitted).
 - MIATA Hoods list (and Carbon Fiber Hoods): ends at FACTOR X; the split hoods (COPPERHEAD, COBRA, VELOCITY, GATO, TRAP: part kind 5) are never offered; the clone's shop_parts drops them too (0x5449D0). The light Velocity cowl is unreachable data.
 - GOLF TWISTER: the dashed seam crack shows in the original as well (authoring T-junction); not fixed (needs re-triangulation).

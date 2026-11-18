@@ -8,8 +8,8 @@ your own installed copy of the original game. Its default look and behaviour fol
 features (higher resolutions, modern graphics options) are optional and can be switched off.
 
 YOU NEED YOUR OWN COPY OF THE GAME. No game files are included: you need your own PC copy of the
-game, an installed Need for Speed Underground 2 from any disc release, patched to version 1.2, of
-any region. Overbright reads the game's data files; it does not run or read SPEED2.EXE, so the
+game, an installed Need for Speed Underground 2 from any disc release, patched to version 1.2,
+of any region. Overbright reads the game's data files; it does not run or read SPEED2.EXE, so the
 copy-protected disc executable is fine.
 
 No texture art and no mods are included either. Texture packages (TexMod .tpf files, TexWizard
@@ -36,8 +36,8 @@ Starting
 --------
 1. Unpack this folder anywhere you like (for example ~/Games/overbright).
 2. Run ./overbright (the launcher). It looks for the original game (common install places, Wine
-   prefixes, Steam/Lutris-style folders); if it cannot find it, choose the folder that holds
-   SPEED2.EXE. Then press Play.
+   prefixes, Steam/Lutris-style folders); if it cannot find it, choose the folder that holds the
+   GLOBAL, FRONTEND and TRACKS folders. Then press Play.
    ./game starts the game directly, without the launcher; ./game --check-game /path/to/game checks
    a game folder and prints what it found.
 3. Optional, an entry in your applications menu: copy overbright.png to
@@ -52,7 +52,7 @@ Where Overbright keeps its files
   saved games (profiles)         ~/.local/share/NFS Underground 2/<profile name>/
   cache (rebuilt when missing)   ~/.cache/overbright/
 ($XDG_DATA_HOME and $XDG_CACHE_HOME replace ~/.local/share and ~/.cache when they are set. With
-NFSU2_DATA_DIR=<folder> everything is kept in that one folder, for a portable install.)
+NFSU2_DATA_DIR=<folder> everything is kept in that one folder.)
 @@windows
 Requirements: Windows 10 or 11 (64-bit), a graphics card with a Vulkan driver (Direct3D 12 is a
 fallback and untested). This Windows build was tested only under Wine on Linux.
@@ -74,8 +74,16 @@ Where Overbright keeps its files
   cache (rebuilt when missing)   %LOCALAPPDATA%\Overbright\cache\
 Overbright never writes into the original game's folder or its save folder
 (%LOCALAPPDATA%\NFS Underground 2). With NFSU2_DATA_DIR=<folder> everything is kept in that one
-folder, for a portable install.
+folder.
 @@end
+
+Portable mode
+-------------
+To keep everything next to the program (for example on a portable drive), put an empty file named
+portable.txt beside the launcher and the game, or use Make portable on the launcher's About page.
+Settings, saved games, the caches, logs, crash reports, screenshots and mods then go to the folder
+data beside them. Nothing already kept is moved: copy the folders above into data to take them
+along (saved games into data/NFS Underground 2). Delete portable.txt to go back.
 
 Known issues
 ------------

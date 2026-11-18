@@ -7,7 +7,7 @@ The native base transform and the mesh draw transform are different objects.
 
 Executable SHA256 remains
 `8f6a9ae2c4cfa01181d2fd755d99c6f4b7103f60273908ea1de1e719dfe2a297`.
-Private owned Wine prefix/game `a private Wine copy`, display 175,
+A private Wine copy, display 175,
 DXVK/RADV 1280×960. Original files/saves were untouched. The same bounded
 instrumented main-menu→reward entry described by `../cover-shadow` was used.
 It is renderer evidence, not natural career-progression evidence.

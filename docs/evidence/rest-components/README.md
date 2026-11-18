@@ -6,11 +6,11 @@ inputs and continuation stubs expose the near-zero decision only; this
 is not a full native collision replay. 1, 2 and 3 mm take the zero path;
 4 and 10 mm continue. Executable/code hashes are in native-threshold.json.
 
-Reproduce with LLVM mc, GNU ld i386pe and Wine:
+Reproduce with LLVM mc, GNU ld i386pe and Wine (the scripts are kept with the maintainer's private evidence):
 
 ```
 NFSU2_EXE='/path/to/game/SPEED2.EXE' NFSU2_PROBE_DIR='/private/temp/dir' \
-python3 $OB_PRIVATE/docs/evidence/rest-components/native_threshold.py
+python3 native_threshold.py
 ```
 
 `bump-hulls.json` contains the final clone collision fixture vertices with

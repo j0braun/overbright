@@ -112,7 +112,7 @@ Shift!" (h15_d), red needle at 9426 → "Over Rev!" and the orange gear digit (c
 
 ### Clone changes
 
-* `Drivetrain::drag_shift_light(h, gear)` / `drag_needle_blend(h, gear)` (src/handling.rs):
+* `Drivetrain::drag_shift_light(h, gear)` / `drag_needle_blend(h, gear)` (src/handling/):
   the shown rpm (`choice_rpm`, as the grade) and the gear passed in; `Hud::drag_last_gear`
   (+0x80) is passed from `src/bin/game.rs`.
 * Tests: `handling::tests::drag_light_reads_the_shown_rpm_and_blue_starts_before_the_grade`
@@ -128,7 +128,7 @@ Shift!" (h15_d), red needle at 9426 → "Over Rev!" and the orange gear digit (c
   (career +0x8740) into `stage4_start.sav` (the original's stage-4 career),
   so both games race the finished-career save's Skyline (all upgrades, class 0) in stage-4 events. Rivals are
   matched to that car by each game (0x532020).
-* **Native driver** `$OB_PRIVATE/tools/parity/dragshift.py SCEN OUT --deltas D1,D2,… [--nitro T]`:
+* **Native driver**: the private tool `dragshift.py SCEN OUT --deltas <list of shift times> [--nitro T]`:
   the harness's start (boot, Resume, put in the trigger, accept, held at the countdown), then
   real X key presses on the private Xvfb (Up held from the countdown, Left Shift, Left Alt),
   not the cave's handler events (the injected throttle is overridden in a drag,
@@ -142,11 +142,10 @@ Shift!" (h15_d), red needle at 9426 → "Over Rev!" and the orange gear digit (c
   models forced to the original's.
 * Scenarios `drag_s4_h15_finished`, `drag_s4_h17_finished`, `drag_s4_d9_finished`; new harness
   fields `dt_up6`, `dt_up7`, `heat` (engine +0x8C) and clone accessors for `dt_up2..7`,
-  `dt_e4`, `dt_f0`; `$OB_PRIVATE/tools/parity/shiftgrades.py OUT…` (the table above).
+  `dt_e4`, `dt_f0`; the private tool `shiftgrades.py OUT…` (the table above).
 * Each run ends when the player hits traffic or a wall at full speed (no steering in the
   driver): 8–13 s; the finish, results, ET and rewards were therefore not reached (**open**).
-* Wine: copy `$OB_PRIVATE/wine/runs/<run>`, display :239, wined3d; raw runs
-  `<work dir>/p9-work/runs/`.
+* Wine: a private Wine copy, display :239, wined3d; raw runs kept with the maintainer's private evidence.
 
 ## 3. Per-tick comparisons (three stage-4 drags)
 
@@ -184,7 +183,7 @@ clone).
   rpm / speed. The vertical motion before the crest already differs (vel.z −1.44 vs +0.09 at
   frame 330). **Open** (suspension over the crest).
 * **Sliding flag**: the clone sets the wheel's sliding flag when the friction circle clamps
-  (src/drive.rs, `state.sliding = true`); 0x59D610 does not write +0x160 (it scales +0x124 /
+  (src/drive/, `state.sliding = true`); 0x59D610 does not write +0x160 (it scales +0x124 /
   +0x128 and sets +0x170 only; +0x160 is written by the tyre force 0x5A8577 / 0x5A8616 and the
   reset 0x59CAC6 / 0x59F44D). Only the tyre smoke reads the clone's flag (render side; left
   as is, **open** for the particles unit).
@@ -224,8 +223,7 @@ first N frames, `--lanes` taps Left / Right around cars in the player's lane, `-
 takes screenshots after the race. The clone prints the same points with
 `NFSU2_SUBSTEP_DUMP=<car name>` (`CarState::debug_substep`, not native, off by default).
 Evidence: the maintainer's private captures (launch-substeps-n1.txt, speeds-after.txt).
-Wine copy `$OB_PRIVATE/wine/runs/<run>`, displays :247 / :248, raw runs
-`<work dir>/p9b-work/runs/` (n1: sub-steps + lanes; n2: lanes + nitrous 3.0–7.0 s).
+a private Wine copy, displays :247 / :248, raw runs kept with the maintainer's private evidence (n1: sub-steps + lanes; n2: lanes + nitrous 3.0–7.0 s).
 
 ### 5.1 The launch (verified, observed; fixed)
 
@@ -289,7 +287,7 @@ to the free-revving engine; the original's stays under 0.1. The car's pitch in t
 
 Tyre_FrictionCircle 0x59D610 scales +0x124 / +0x128 and writes +0x170 only; +0x160 comes
 from the tyre force (0x5A8577 / 0x5A8616) and the serialiser. The clone no longer sets
-`sliding` when the circle clamps (src/drive.rs); the tyre smoke reads the native flag.
+`sliding` when the circle clamps (src/drive/); the tyre smoke reads the native flag.
 
 ### 5.4 Rivals (verified, observed; class match fixed)
 
@@ -337,7 +335,7 @@ at 422 — the shot's length matches to 3 ticks, the refill and the end one fram
 
 ## 6. 2026-11-05: drag traffic, the lane table's coordinate, the finish, the hop's load term
 
-Wine copy `$OB_PRIVATE/wine/runs/<run>`, display :310, wined3d; raw runs `<work dir>/p10-work/runs/`
+a private Wine copy, display :310, wined3d; raw runs kept with the maintainer's private evidence
 (p1 probe + crash shots, p3 lane plan, p4 the finish). Evidence: the maintainer's private captures.
 New harness options: `dragshift.py --probe` (the traffic pool and world list every 30 frames),
 `--shots-from F`, `--seconds S`, `--taps X,Y,key;…`, `--lane-map FILE` (lane planning, below); parity
@@ -454,7 +452,7 @@ hairpin is not reproducible with the harness); the evidence is the disassembly a
 
 ## 7. 2026-11-05: the crest's "bump", the held pose, the finish, free-roam gear, racers and traffic
 
-Wine copy `$OB_PRIVATE/wine/runs/<run>`, display :331, wined3d; raw runs `<work dir>/p11-work/runs/`
+a private Wine copy, display :331, wined3d; raw runs kept with the maintainer's private evidence
 (c1: p4's plan with the sub-step trap armed at frame 255, `dragshift.py --substeps 40 --substeps-from 255`;
 f1 / f2: p4's plan to the finish, `--after 16 --continue 4`; g1 / g2: the free-roam resume probe,
 `p11-work/tools/probe_gear.py`). Evidence: the maintainer's private captures.
@@ -475,7 +473,7 @@ returns rigid body +0x1B0 (+0x170 without +0x158), and applies it with 0x43C9C0 
 With the unturned tensor the clone's j is 5.118 (native normal part 5.109); the native J at the
 clone's contact arm and car inertia gives the spin change (0.133, −0.154, −0.036), the original's
 (0.139, −0.167, −0.039), so the contact point agrees. Fix: `Prop::body_inverse_inertia` in the car and track
-impulses (src/smackable.rs; the rigid body's own updates still turn it). Test
+impulses (src/smackable/; the rigid body's own updates still turn it). Test
 `smackable::tests::car_push_takes_the_props_unturned_inverse_inertia`. Speeds after it (k4 = p4's plan):
 41.84 / 41.74 m/s at 270 (clone / original), before 42.49.
 
@@ -537,7 +535,7 @@ the same. The slow test's room check (99999 cost) and 0x42F505's bVar4 / bVar5 t
 
 ## 8. 2026-11-05: the replay to the finish, a won native run, the lane table's 80 m, HEAD START
 
-Wine copy `$OB_PRIVATE/wine/runs/<run>`, display :343, wined3d; raw runs `<work dir>/p13-work/runs/`
+a private Wine copy, display :343, wined3d; raw runs kept with the maintainer's private evidence
 (w1–w3: nitrous at 2 / 8 s, totaled at the crests; w4: won; w5–w7: boots hung; f2e / w4b: clone replays). Evidence:
 the maintainer's private captures (finish-w4.txt, the post-race screens).
 

@@ -4,7 +4,7 @@ Source inspected: `ae2dbbb` plus evidence commit . This follow-up changes no pro
 
 ## Boundary mapping
 
-| Native boundary | Clone location in src/drive.rs | Finding |
+| Native boundary | Clone location in src/drive/ | Finding |
 | --- | --- | --- |
 | 5B04E0 normal component traversal: body, wheel/suspension pairs, engine, clutch | substep, lines 1977–1998, 2129 onward, 2449–2477 | Clone measures suspension before its Euler integration; engine/clutch post runs after integration. Native normal-post has freshly changed compression before its rest/bump test. The implementations partition these operations differently. |
 | 5ABB10 rest test after normal-post | lines 2480–2503 | Clone also computes rest after normal post, and applies wheel/momentum rest changes. |
@@ -14,7 +14,7 @@ Source inspected: `ae2dbbb` plus evidence commit . This follow-up changes no pro
 
 ## Replaying actual native bump inputs
 
-Run `python3 $OB_PRIVATE/docs/evidence/positive-dt-native/replay_bumps.py`. Its saved output is `bump-replay.json`. It verifies the raw capture hash, reads each actual bump-entry hub, cached body matrix, normal, mass, velocity and spin, and compares the reconstructed impulse with the corresponding native x87 return. The matrix transform and cross product are supported by retained `bump-formula-disassembly.txt` (441000, 43D1E0, 59E1B0).
+The script `replay_bumps.py` (kept with the maintainer's private evidence) replays them. Its saved output is `bump-replay.json`. It verifies the raw capture hash, reads each actual bump-entry hub, cached body matrix, normal, mass, velocity and spin, and compares the reconstructed impulse with the corresponding native x87 return. The matrix transform and cross product are supported by retained `bump-formula-disassembly.txt` (441000, 43D1E0, 59E1B0).
 
 All 39 pairs match within an absolute 1e-5 check; observed maximum error is **5.901805821828532e-8**. The small residual includes Python-double versus native x87/f32 intermediate rounding; this is not bit-exact emulation. Every pair also verifies cached linear and angular velocity are byte-equivalent as decoded floats across the native impulse call.
 

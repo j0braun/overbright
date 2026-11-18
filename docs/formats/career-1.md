@@ -262,7 +262,7 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
   item's byte +0x1F × 1.1 + 127.5, 255) and, when the item's +0x21 is
   set, its size = (f × 0.000117647054 + 0.97) × its base size +0x24 /
   +0x28 (0x50CB00), so 0.985–1.0 of it).
-* **Graphics shop** (all in the clone; `src/frontend/graphics.rs`):
+* **Graphics shop** (all in the clone; `src/frontend/graphics/`):
   UI_ChoosePaintCategory (0x55A410 → 0x5571C0, options 0x548210): Paint
   (0x6A4C46A6, icon 0x550681A4; option +0x48/+0x4C = 2/0), Vinyls
   (0x78DEEA1C, 0x55778E5A; 0/1), Decals (0x4E933E83, 0xDA1DAE54; 1/2;
@@ -853,7 +853,7 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
   loop hands each car-table entry with +4 = 3 to 0x42F7A0, which passes it
   as the owner to 0x42E0B0 and on to 0x42C670; 0x604270 reads +4 at
   0x6043D4-0x6043DB; kinds 1 and 2 go through 0x606490 and fail the test).
-  The clone's traffic (src/ai/traffic.rs) has no per-car `Locator`; its
+  The clone's traffic (src/ai/traffic/) has no per-car `Locator`; its
   cars move by `TrafficLane` and `Slot` records. No hit (0x5D9ECE) zeroes
   the node, place and fraction and
   points +0x28 along +x, keeping +0x1C and +0x38. The node (+0x18) is
@@ -1153,7 +1153,7 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
     encounter racers are in the world list's AI range from the free-roam
     set-up, see **Minimap items**, Outrun racers). Under Wine the original's GPS shows "Unable to
     contact satellite" after the car lot's drive-out too (seen once, 15 s
-    after the drive-out was skipped with Enter, `a private Wine copy/shots/d6.png`;
+    after the drive-out was skipped with Enter;
     the same as the clone's selftest note).
 * **Drift driver** (CarDriver_DriftCtor 0x425E40, vtable 0x784F40, 0x250
   bytes, "DriftDriver::DoSnapshot" at slot 2 0x405A80; **verified**, ported

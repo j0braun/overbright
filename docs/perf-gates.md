@@ -1,11 +1,10 @@
-# Performance harness and parity gates (2026-11-04)
+# Performance harness and parity gates
 
-The gates every wave-D unit runs before and after a change: one command for
+The gates a performance change runs before and after: one command for
 the numbers (`perf.sh bench` + `perf.sh stats`), one for parity
-(`perf.sh parity`), one for a CPU profile (`perf.sh profile`). Method and
-the measured profile behind it: `$OB_PRIVATE/research/perf-playbook-2026-11-04.md`
-§1, §5. Scripts: `scripts/perf/`. Baseline: internal notes.
-2026-11-06: the regression gate's accepted baseline (`perfgate.sh`, `$OB_PRIVATE/perf-baselines/current`) is now
+(`perf.sh parity`), one for a CPU profile (`perf.sh profile`). The method and
+the measured profile behind it are kept with the maintainer's private evidence. Scripts: `scripts/perf/`.
+The regression gate's accepted baseline (`perfgate.sh`, the baseline folder's `current`) is
 `20261106-0446-b7ee3bcf464b` (main + the effects-tiers pass), replacing the frame-budget gate seed (99e726f); docs/perf-budget.md "The Next-Gen tiers — costs, tiers, GPU classes".
 
 Not native: measuring aids only. Every switch is an environment variable,
@@ -94,7 +93,7 @@ in flight).
   is indicative only (another time and load); gates are A/B.
 * `perfstat.py selftest` checks the exact U distribution and the verdicts.
 
-## Achievable precision on this machine (measured)
+## Achievable precision on the reference desktop (measured)
 
 Measured from the baseline run (internal notes;
 19 configs × 5 runs, load average 9–28 from other jobs' Wine sessions and
@@ -113,7 +112,7 @@ builds). Noise = run-to-run 1.4826 MAD / median; MDE = smallest change a
 | scene load ms | 13 % [65 %] | ≈26 % | loads: use `SET=loads` with REPS ≥ 10, and the trace |
 | frame wall p99 | 36 % [95 %] | — | not usable on this shared machine |
 
-So on this machine: **GPU costs to ≈1–2 %**, memory to ≈2 %, the main thread
+So on the reference desktop: **GPU costs to ≈1–2 %**, memory to ≈2 %, the main thread
 to ≈8 % via the p10 statistic (≈24 % via means), loads to ≈25 %. The CPU
 noise is cache/SMT contention from the other jobs' processes (thread CPU
 excludes preemption but not a slower core); a quiet machine should reach the
@@ -205,7 +204,7 @@ first frame: `scripts/perf/blocksample.py run OUT.tsv -- game --bench …` with
 `NFSU2_TIMING=1`, then `blocksample.py stages OUT.tsv…` (Linux; it reads its
 own child's `/proc` entries about every millisecond). Tracy
 (`--features profile-tracy`) stays possible but there is no capture tool on
-this machine.
+the reference desktop.
 
 ## Zero cost when off (proof)
 
@@ -239,7 +238,7 @@ this machine.
   read before the end; fixed after the run: `vm_hwm_end_kib`).
 
 ## Determinism notes
-* **RADV DCC:** on this machine (Mesa 26.2.5, reference desktop GPU) one pixel of the
+* **RADV DCC:** on the reference desktop (Mesa 26.2.5, reference desktop GPU) one pixel of the
   rain scene's 8x-multisampled frames (1280×960, (442, 400)) comes out up to
   3 off in ~2 % of frames, any frame, base vs base — never with
   `RADV_DEBUG=nodcc` (0 of 400), which gives the majority image every time;

@@ -65,10 +65,10 @@ prerequisites. It does not justify changing all `speed()` readers together.
 Build recorder with GNU `as --32`, `ld -m elf_i386 -Ttext=0x782b00
 -e mover_entry`, then `objcopy -O binary --only-section=.text`; verify hook
 symbol addresses against capture.py before installing any changed recorder.
-After the owned private fastgpu session reaches green:
+After the owned private fastgpu session reaches green (the scripts are kept with the maintainer's private evidence):
 
 ```
-python3 capture.py $OB_PRIVATE/wine/runs/<run> contact-reset --seconds 16
+python3 capture.py WINE_PREFIX contact-reset --seconds 16
 python3 decode.py contact-reset.json
 python3 test_decoder.py
 ```

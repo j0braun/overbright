@@ -1,7 +1,7 @@
 # Save points, save prompts and Autosave (2026-11-04)
 
-Traced in SPEED2.EXE (REA / Ghidra and `$OB_PRIVATE/dis/speed2.dis`);
-observed in the original under Wine (`a private Wine copy`, fastgpu, Xvfb :187,
+Traced in SPEED2.EXE (REA / Ghidra and a disassembly listing);
+observed in the original under Wine (a private Wine copy, fastgpu, Xvfb :187,
 evidence in the maintainer's private captures). **Verified** = traced; **observed** =
 seen under Wine; **inferred** / **open** as marked. Earlier rounds:
 formats.md "Save points, records, Delete Tuned Car" and
@@ -119,7 +119,7 @@ before (formats.md "Screens round 3C", open (1), the finished-career save).
 frees it); changed, or no profile current (0x83AA00), → 0x4A3100 mode 0x1141;
 unchanged with a profile → 0x461A18EE (0x5309F0, the dyno) at once; MC's
 result 0x8867412D → 0x461A18EE too (mode 0x1000). Observed under Wine
-(`a private Wine copy`, NAME just made, save prompts on; evidence
+(a private Wine copy, NAME just made, save prompts on; evidence
 internal evidence: the Customize dyno frames): Customize → Peugeot 206
 (a new TUNED record) → Dyno Yes → "Are you sure you want to save the profile
 named NAME?"; No → the dyno; Quit tuning, Dyno Yes again → the dyno at once.

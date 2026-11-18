@@ -12,7 +12,7 @@ SPEED2.EXE's top preset, whose Customize Display values include Full Screen Anti
 and rain splatter. A fresh install never starts there on an integrated GPU. The game's first-run estimate
 (`gpu_rating::estimate_detail`, from `display_defaults::first_run_display`: 0.2 × the card's score, 1 for
 any card not in the game's table, + 0.8 × the CPU's tier from its clock, truncated) gives World Detail 3
-on this machine (0.2 + 0.8 × 4 = 3.4; the clock read is the boost clock where cpufreq has no
+on the reference desktop (0.2 + 0.8 × 4 = 3.4; the clock read is the boost clock where cpufreq has no
 `base_frequency`, as here), 2 on a 15 W laptop whose base clock is under 2.4 GHz, and 0 on any Intel GPU.
 `custom_presets(3)` has no MSAA (Full Screen Anti-Aliasing 0), trilinear filtering, no bleach bypass and no
 rain splatter. What such a player's frame costs is "The Enhanced levels at World Detail 3" below; the

@@ -2,7 +2,7 @@
 
 The audio pass found the player's engine digitally silent in DynoEnter
 (`docs/evidence/s3-audio/waveform.md`). This pass measured where and why,
-under Wine (vanilla SPEED2.EXE, private copy `a private Wine copy`, fastgpu on
+under Wine (vanilla SPEED2.EXE, a private Wine copy, fastgpu on
 :207 with `--audio-file`), and fixed the chain. Evidence:
 `docs/evidence/engine-level/`.
 

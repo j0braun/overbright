@@ -12,8 +12,8 @@
 
 ## NFSU2_ROOT
 
-`NFSU2_ROOT` names the folder of your installed game, the one that holds `SPEED2.EXE`, `GLOBAL/`, `TRACKS/`
-and the rest:
+`NFSU2_ROOT` names the folder of your installed game, the one that holds `GLOBAL/`, `FRONTEND/`, `TRACKS/`
+and the rest (`SPEED2.EXE` is not needed):
 
 ```bash
 export NFSU2_ROOT="/path/to/Need for Speed Underground 2"
@@ -104,8 +104,9 @@ original, developer notes and tools). It is not needed to build, test or check a
 - `scripts/checks/perfgate.sh`: the two "max" configs of its set need a play setup of your own
   (`PRESET_user` in `scripts/local.env`); without it they are left out and the verdict names them.
 
-Some technical documents cite the maintainer's evidence or tools (`tools/`, `review/`, `devprobes/`, files
-under `docs/evidence/` and the like) that are in the private set only; the text still states what was found.
+Some technical documents mention evidence, scripts or tools of the private set ("kept with the maintainer's
+private evidence", "a private developer probe", "the private tool `parity.py`"); they name them without a path,
+and the text states what was found.
 
 ## The release container (Linux and Windows builds)
 

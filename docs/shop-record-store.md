@@ -84,7 +84,7 @@ summary internal evidence):
 * Test `body_shop_installs_store_the_ride_as_the_original`: the four
   visits byte for byte (the car slot; other slots untouched), the control
   resave, and the stale ride's derived slots against the original's
-  stored ones. Tool: `$OB_PRIVATE/devprobes/src/bin/record_derived.rs SAVE…`.
+  stored ones. Tool: a private developer probe (`record_derived SAVE…`).
 
 ## Open
 * Main-menu Customize: what 0x503950 stores there (the record behind

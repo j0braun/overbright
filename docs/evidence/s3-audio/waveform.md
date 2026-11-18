@@ -3,9 +3,9 @@
 Same car and save: the finished-career save's Lancer (the Wine copy's the finished-career save, also the
 clone's input), scene DynoEnter (pattern 1, 278 scripted updates).
 
-* Original: `a private Wine copy/s1.wav` (fastgpu `--audio-file`, music volumes 0
+* Original: a recording of a private Wine copy (fastgpu `--audio-file`, music volumes 0
   in this profile), cut at the recorded update ticks via `s1.sync.tsv`
-  (1 s pre-roll) → `native-dynoenter.wav` (work dir, not kept here).
+  (1 s pre-roll) → `native-dynoenter.wav` (kept with the maintainer's private evidence).
 * Clone: test `dyno_enter_waveform_capture` (NFSU2_WAVE_SAVE = the same
   save, NFSU2_PATTERN_PCM = out; offline mixer 48 kHz, one step per 1/30 s).
   The `--shot dynoenter` path with NFSU2_AUDIO_WAV gives the same result,

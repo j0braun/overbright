@@ -1,7 +1,7 @@
 # Audio captures (2026-11-04)
 
 Vanilla SPEED2.EXE (sha256 8f6a9ae2…2a297) in the private copy
-`$OB_PRIVATE/wine/runs/<run>` (WidescreenFix off), fastgpu on :202 with
+a private Wine copy (WidescreenFix off), fastgpu on :202 with
 `--audio-file`; recorder `../nis-audio-patterns/record.py` + `tick-hook.bin`
 (both 0x46FA30 call sites; all bytes restored, `restored: true`, 0 lost).
 

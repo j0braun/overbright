@@ -23,7 +23,7 @@ pub(super) const TARGETS: &[Target] = &[
 /// D-Day script's prompt, the phone icon); `intro_gps`: the script
 /// run through (the instruction read and closed), the GPS on the
 /// car lot. `intro`: as the Wine capture of the original takes it
-/// ($OB_PRIVATE/wine/capture.py: Rachel's SMS dismissed, then
+/// (the private capture script: Rachel's SMS dismissed, then
 /// 20 s standing): the script through and 20 s more.
 /// `intro_gps_error`: then the GPS engaged again from a point on no
 /// road (no start node: "Unable to contact satellite").

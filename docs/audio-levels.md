@@ -3,7 +3,7 @@
 Issue: some effects played louder or quieter than in the original, and a low main volume
 made the audio sound broken. This work traced the
 option volumes in SPEED2.EXE, measured the original under Wine (private copy
-`a private Wine copy`, fastgpu `--audio-file`, the option floats written live with
+a private Wine copy, fastgpu `--audio-file`, the option floats written live with
 `peek.py`) against the clone's offline mix in the same scene (career free
 roam, Rachel's 350Z at the airport car park, idle and a scripted drive), and
 fixed what differed. Evidence: the maintainer's private captures (tables, Wine

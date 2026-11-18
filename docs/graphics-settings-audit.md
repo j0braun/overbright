@@ -165,8 +165,8 @@ SSAA choice overrides it.
 | Ultra | Modern + SSAA 2x, Post-Processing Ultra, Road Reflection Ultra, Car Reflection Ultra, World Detail Ultra (incl. the old Keep All Loaded), Car Geometry Detail Ultra, **Screen-Space Reflections High** (half; Ultra/full stays manual) (volumetrics to add) the Lighting II work: Enhanced Glass. | +5.36 ms (measured; iGPU estimate: SSR High alone ≈ +14.5 ms) |
 
 Preset costs: measured as a whole in the small-settings pass (below); the earlier sums
-(Clean 1.9, Modern 2.7, Ultra 4.4 ms) were inferred, Ultra's was 1 ms low. 16x anisotropic filtering, part of "Clean"
-in the roadmap, is native at Detail 5 (Customize Display's Texture
+(Clean 1.9, Modern 2.7, Ultra 4.4 ms) were inferred, Ultra's was 1 ms low. 16x anisotropic filtering, part of the planned "Clean"
+preset, is native at Detail 5 (Customize Display's Texture
 Filtering), so the presets do not touch it.
 
 ## Crops (the maintainer's private captures, Off | On | difference ×8)

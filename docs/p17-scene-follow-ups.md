@@ -2,7 +2,7 @@
 
 Follow-ups of internal notes. **Verified** = traced in SPEED2.EXE;
 **observed** = seen in the original under Wine (vanilla SPEED2.EXE, no
-WidescreenFix, private copy `$OB_PRIVATE/wine/runs/<run>`, fastgpu on :170 with
+WidescreenFix, a private Wine copy, fastgpu on :170 with
 `--audio-file`, the finished-career save's profile; raw captures and videos in
 `<work dir>/p17-work/`). Evidence: `evidence/shop-scene-mover/`,
 the maintainer's private captures.
@@ -131,9 +131,8 @@ sim hash from step 76 (the playthrough passes).
 
 ## 5. 2026-11-06: this work's leftovers
 
-Wine: vanilla SPEED2.EXE, private copy `$OB_PRIVATE/wine/runs/<run>` on :181
-with `--audio-file`, the finished-career save's profile (Lancer), one instance; raw captures in
-`<work dir>/p18-work/`; poller internal evidence
+Wine: vanilla SPEED2.EXE, a private Wine copy on :181
+with `--audio-file`, the finished-career save's profile (Lancer), one instance; raw captures kept with the maintainer's private evidence; poller internal evidence
 (the player's car 0x8900AC → +4: mode +0x28, the body's gravity +0x160,
 centre of mass, velocity, the input's pedals, car +0x3E0..+0x43C).
 

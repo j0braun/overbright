@@ -33,7 +33,7 @@ subject chapter, not here.
 * **Comparison aids** (game `--shot`, not game behaviour): `NFS_NO_UI=1`
   leaves out the front end's and HUD quads (the apitrace pre-post
   snapshots have none); `NFS_FE_HW=h/w` as above; `NFS_REFLECTION_PNG`
-  (Road reflections). Side-by-sides: $OB_PRIVATE/wine/compare/fx70/.
+  (Road reflections). Side-by-sides are kept with the maintainer's private evidence.
 * **Quick Race car select after fx70** (pre-post, `NFS_NO_UI=1
   NFS_FE_HW=0.72057`, against orig-qrcars-prepost.png): floor and ring
   within 3 levels; remaining: the steam on the left (ported in fe72, see
@@ -152,7 +152,7 @@ subject chapter, not here.
   and online with +0x24A (0x6002DE); 0x4CA090 masks it off (0xFDFBFFFF)
   before the HUD elements, so its reader is **open**.
 * **Race starts and a finish under Wine** (2026-10-31, race4;
-  **observed**, `a private Wine copy` with wined3d at about 0.15–0.2× game speed,
+  **observed**, a private Wine copy with wined3d at about 0.15–0.2× game speed,
   Quick Race, Peugeot 206, Traffic Level Minimum, 3 opponents; sheets in
   compare/race112/orig-*-sheet.jpg). **Circuit** (Resort Loop) and
   **sprint** (track 4123): PC_Loading, the start scene between letterbox
@@ -191,7 +191,7 @@ subject chapter, not here.
   URL, lap KO and outrun starts and finishes (**open**). The a private Wine copy
   prefix's DirectInput key map matches the fixed one (Left steers).
 * **Race starts and finishes under Wine, round 5** (2026-10-31, race5;
-  **observed**, `a private Wine copy` with wined3d, Quick Race, Peugeot 206 on
+  **observed**, a private Wine copy with wined3d, Quick Race, Peugeot 206 on
   Auto, 1 lap; the player's car driven by `race5-tmp/follow.py` (an AI
   racer's trail) or `bot.py` on the clone's race line (`examples/
   race_line`); sheets in compare/race112/orig-*-sheet.jpg). **URL**
@@ -223,7 +223,7 @@ subject chapter, not here.
   barrier; at 1:37 of race time, with the three rivals finished, no
   "Hurry!" had shown, unlike the drift race).
 * **Lap KO under Wine, round 7** (2026-10-31, race7; **observed**,
-  `a private Wine copy` with wined3d, Quick Race Circuit with Lap KO On (laps 3
+  a private Wine copy with wined3d, Quick Race Circuit with Lap KO On (laps 3
   and 3 opponents forced, greyed), Peugeot 206 on Auto, the player left
   standing on the grid; montages `race7-tmp/kostart_m.jpg`,
   `kofin_m.jpg`). **Start**: as the circuit — the letterboxed scene (an
@@ -572,7 +572,7 @@ subject chapter, not here.
   The original's drift finish itself was not captured (round 5 ended by
   time-out).
 * **Race finishes, round 11** (2026-10-31, race11).
-  * **Drag finish** (**observed** under Wine, `a private Wine copy`, vanilla,
+  * **Drag finish** (**observed** under Wine, a private Wine copy, vanilla,
     wined3d, Quick Race Drag, Bayview Bridge (1.06 mi), Traffic None, 3
     opponents, Medium, Catch Up on, Peugeot 206; `race11-tmp/dragbot.py`:
     Up held, Left Shift at 6600 rpm, the racers read from race status
@@ -742,7 +742,7 @@ subject chapter, not here.
   CAR_AUDIO_PATTERN, burnouts, hydraulics), and what race status +0xC
   holds when the scene plays (1.0778 seen).
   **Observed** again (2026-10-30, career circuit STAGE_1_CIRCUIT_1
-  engaged from its marker, frames every 2 s, `a private Wine copy/shots/g_sheet*.png`):
+  engaged from its marker, frames every 2 s of a private Wine copy):
   PC_Loading, the scene (starter and a second girl between the cars, then
   the grid), the chase view with the tach alone, no 3-2-1 / "GO!" in any
   frame, then the minimap, position and leader board with the green light
@@ -829,10 +829,10 @@ subject chapter, not here.
 
 ## Front-end menu audit against the original (2026-10-29)
 
-Captured under Wine (private copy of a private Wine copy on Xvfb :92, capture.py
+Captured under Wine (a private Wine copy on Xvfb :92, capture.py
 `--only walk` + peek.py key/hold/shot) and compared side by side with
-`game --shot` in $OB_PRIVATE/wine/compare/menus92 (`orig/`, `clone/`,
-`sbs/`; `sbs.sh ORIG SHOT` redoes one). Checklist: internal notes.
+`game --shot` (`orig/`, `clone/`, `sbs/`, kept with the maintainer's private evidence; `sbs.sh ORIG SHOT`
+redoes one). Checklist: internal notes.
 **Verified** (REA / objdump) unless marked.
 
 * **GarageMain stays under the main menu's screens.** Of the 121 uses of
@@ -916,9 +916,9 @@ Captured under Wine (private copy of a private Wine copy on Xvfb :92, capture.py
 
 ## Shop sub-screens against the original (2026-10-30)
 
-Captured under Wine (private copy $OB_PRIVATE/wine/runs/<run>, wined3d on
+Captured under Wine (a private Wine copy, wined3d on
 Xvfb :100, main-menu Customize with the Peugeot 206) and compared with
-`game --shot <screen>_cust`; images in $OB_PRIVATE/wine/compare/menus100.
+`game --shot <screen>_cust`; images are kept with the maintainer's private evidence.
 **Verified** (objdump of SPEED2.EXE; the REA Ghidra provider did not start)
 unless marked.
 
@@ -1003,12 +1003,12 @@ unless marked.
 
 ## Shop sub-screens, round 2 (2026-10-30)
 
-Captured under Wine (private copy $OB_PRIVATE/wine/runs/<run>, wined3d on
+Captured under Wine (a private Wine copy, wined3d on
 Xvfb :132; main-menu Customize, Peugeot 206; the unlock-all byte 0x838464
 poked to 1 through /proc/pid/mem so that vinyls and every performance part
 list) against `game --shot <screen>_cust` (with `NFSU2_UNLOCK_ALL=1` where
-the original had the byte set); side by sides in
-$OB_PRIVATE/wine/compare/menus103 (orig left). **Verified** by objdump of
+the original had the byte set); side by sides (orig left) are
+kept with the maintainer's private evidence. **Verified** by objdump of
 SPEED2.EXE (the REA Ghidra provider did not start: no JDK at its JAVA_HOME)
 unless marked.
 
@@ -1139,7 +1139,7 @@ unless marked.
   5 (0x512920: 0x15D6B438 instead of `<NAME>_BODY` once entered; ported,
   see "Shop previews and engage message"). Selftest: the D-Day car lot and garage entries now pass
   through SCENE05 / SCENE06; `--shot carlot_first`.
-* **Under Wine** (the original, private copy $OB_PRIVATE/wine/runs/<run>,
+* **Under Wine** (the original, a private Wine copy,
   wined3d on Xvfb :141, memory read and written through /proc/pid/mem):
   a new career on the profile NAME, the car moved into CC_CAR_LOT_1's
   trigger during D-Day A. Before Accept the lot's visit entry read
@@ -1336,7 +1336,7 @@ See also internal notes (the differences list for review).
 
 ## Menus round 6: dyno, Custom HUD, status (2026-10-31; checked against the original under Wine)
 
-Side by sides in $OB_PRIVATE/wine/compare/menus112 (orig left).
+Side by sides kept with the maintainer's private evidence (orig left).
 
 * **Dyno entry** (**verified**): Customize's Performance Tuning / Dyno
   item (0x55E7A0) asks 0x54B649F1 in GenericDialog_MED (0x78F2F8), the
@@ -1414,7 +1414,7 @@ Side by sides in $OB_PRIVATE/wine/compare/menus112 (orig left).
 
 ## Menus round 7: post-race career screens, stage-2 status, DIM (2026-10-31; checked against the original under Wine)
 
-Side by sides in $OB_PRIVATE/wine/compare/menus112 (orig left; the
+Side by sides kept with the maintainer's private evidence (orig left; the
 `pr_*` and `*_s2` files are this round's). The original ran career3's
 clone-written stage-2 save (s2a; the original loads it) and won
 S2_SPRINT_3 by moving the car through memory onto its finish line
@@ -1658,7 +1658,7 @@ S2_SPRINT_3 by moving the car through memory onto its finish line
 
 ## Menus round 8: DVD reward, controls capture, sponsor signing, DynoEnter, vinyl-colour view (2026-10-31; checked against the original under Wine)
 
-Side by sides in $OB_PRIVATE/wine/compare/menus113/sbs (orig left).
+Side by sides kept with the maintainer's private evidence (orig left).
 The original ran career3's clone-written stage-3 save (s3a) with
 STAGE_3_DVD_1 (kind 4) set offered in the save's visit table and, in
 memory, the milestone's visual rating (record +0x3C) set to 0 so the
@@ -1813,7 +1813,7 @@ offer stuck; the car moved through memory onto its spot (661, −537).
   (`check_stage` returned for stage ≥ 5); fixed. The clone's other stage
   users already take 6 (`outrun::offered`, `world_map_max_zoom`, the
   stage-up line, BARRIERS_CAREER<n>).
-* **Under Wine** (wined3d, Xvfb :165, `a private Wine copy`): (1) the
+* **Under Wine** (wined3d, Xvfb :165, a private Wine copy): (1) the
   original's own stage-2 save
   at the city start: the marker table held the shops CC_CAR_LOT_1,
   CC_MEGALOW, CRIB_1 and UC_CAR_LOT only (the other stage-2 shops are
@@ -1837,8 +1837,8 @@ offer stuck; the car moved through memory onto its spot (661, −537).
 
 ## Menus round 9: the dyno chart and results, DynoEnter's origin, the Wine setup's code patches (2026-10-31; checked against the original under Wine)
 
-Side by sides in $OB_PRIVATE/wine/compare/menus114 (orig left). The
-original ran the a private Wine copy prefix (wined3d, Xvfb :160) with its
+Side by sides kept with the maintainer's private evidence (orig left). The
+original ran in a private Wine copy (wined3d, Xvfb :160) with its
 stage-3 save: garage (car moved through memory into CRIB_1's trigger box
 (643.6…664.7, −112.1…−90.9), Enter engages) → Performance Tuning / Dyno →
 Yes → DynoEnter (Wine de1–de30) → Mode Select (Circuit) → Yes → chart
@@ -1938,8 +1938,8 @@ Yes → DynoEnter (Wine de1–de30) → Mode Select (Circuit) → Yes → chart
 
 ## Menus round 10: the garage's idle tour, the Custom HUD list while picking, the magazine shoot under Wine, UI_DecalsOverlayInvis (2026-10-31; checked against the vanilla original under Wine)
 
-Captures in $OB_PRIVATE/wine/compare/menus115/orig. The original ran
-the a private Wine copy prefix with the WidescreenFix off (dinput8.dll renamed;
+Captures are kept with the maintainer's private evidence. The original ran
+in a private Wine copy with the WidescreenFix off (dinput8.dll renamed;
 memory 0x536A2F = 00 00 00 3F, 0x566052 the file's bytes). Without the
 fix the game keeps its profiles in the prefix's
 `AppData\Local\NFS Underground 2\<NAME>\<NAME>` (the fix's ini had sent
@@ -2038,7 +2038,7 @@ them to `game\save`). The game clock runs slow under wined3d: 0x8651A8
 ## Career audit round 6 (2026-10-31; **verified** from the assembly unless marked)
 
 All Wine runs of this round were taken with ThirteenAG's WidescreenFix **off**
-(`a private Wine copy/game/dinput8.dll` renamed `dinput8.dll.widescreenfix-off`;
+(the private Wine copy's `game/dinput8.dll` renamed `dinput8.dll.widescreenfix-off`;
 the save then lives in the prefix's `AppData/Local/NFS Underground 2/NAME`,
 not `game/save`). Its 66 patch sites
 touch FE object lookups and rendering (0x4FF9D0 callers, 0x5BE…–0x5D2…),
@@ -2139,8 +2139,8 @@ site → feature map `<work dir>/patchmap.md`, from the
 patched bytes, the disassembly and the fix's source). It is now renamed
 `dinput8.dll.widescreenfix-off` in the copies (a private Wine copy and
 a private Wine copy still have it). The original without it (a private Wine copy,
-wined3d, 1280 × 960) was captured again and set beside the clone in
-`$OB_PRIVATE/wine/compare/vanilla115` (orig / clone / sbs).
+wined3d, 1280 × 960) was captured again and set beside the clone (orig / clone / sbs;
+kept with the maintainer's private evidence).
 
 * **What the fix changed at 4:3** (installed ini: FixHUD 1 or 0 by copy,
   FixFOV 1 except look112, DisableCutsceneBorders 1, RainDropletsScale
@@ -2181,8 +2181,8 @@ wined3d, 1280 × 960) was captured again and set beside the clone in
   compared), the FE movie objects inside menus (none compared).
 * **Round 2** (2026-10-31, vanilla2; a private Wine copy, wined3d, :169,
   fresh profile → Start New Career → free roam at the airport, memory
-  read every frame sample; side by side in
-  `$OB_PRIVATE/wine/compare/vanilla2`):
+  read every frame sample; a side by side is
+  kept with the maintainer's private evidence):
   * **Steering** (**verified**, static): the patched test at 0x416D77
     compares |angle| with the .rdata 0.0 at 0x783AF4, so the original
     never zeroes the angle and the fix changed nothing; the steering
@@ -2241,10 +2241,9 @@ wined3d, 1280 × 960) was captured again and set beside the clone in
 
 ## Menus round 11: dialog backdrops, the pauses, Post Race, the dyno camera's rates (2026-10-31; checked against the vanilla original under Wine)
 
-Wine: a private copy (`$OB_PRIVATE/wine/runs/<run>`, vanilla game, no
-WidescreenFix, wined3d, Xvfb :193); side by sides in
-`$OB_PRIVATE/wine/compare/menus11/sbs` (original left, clone right,
-1280 × 960).
+Wine: a private copy (vanilla game, no
+WidescreenFix, wined3d, Xvfb :193); side by sides (original left, clone right,
+1280 × 960) are kept with the maintainer's private evidence.
 
 * **Dialog backdrops (the screen under a dialog)** (**verified**): a
   dialog is pushed over the asking screen (ShowDialog 0x558030), which
@@ -2347,9 +2346,9 @@ WidescreenFix, wined3d, Xvfb :193); side by sides in
 
 ## Menus round 12: UNDIM, the dim at every StartDim site, the dyno zoom keys (2026-10-31; checked against the vanilla original under Wine)
 
-Wine: `$OB_PRIVATE/wine/runs/<run>` (vanilla, no WidescreenFix, wined3d,
-own Xvfb :238); bursts and side by sides in
-`$OB_PRIVATE/wine/compare/menus12` (orig / clone / sbs).
+Wine: a private copy (vanilla, no WidescreenFix, wined3d,
+own Xvfb :238); bursts and side by sides (orig / clone / sbs) are
+kept with the maintainer's private evidence.
 
 * **UNDIM** (**verified**): IconScrollerMenu_StopDim 0x538CB0 is
   StartDim's counterpart. It re-enables the screen (+0x7B = 1; with +0x14C
@@ -2523,10 +2522,10 @@ Details: internal notes. Seen under Wine (fastgpu) and **verified** in SPEED2.EX
 
 ## Menus round 13: the shops' exit questions, UI_ICEMAIN's notices, the dyno's save question, the focused button, MC over its caller, the rims' question (2026-10-31; checked against the vanilla original under Wine)
 
-Wine: `$OB_PRIVATE/wine/runs/<run>` through `fastgpu.sh` (DXVK on the
+Wine: a private copy through `fastgpu.sh` (DXVK on the
 GPU, own Xvfb :213, no WidescreenFix), main-menu Customize with globals
-poked by `peek.py` where a career is needed; images in
-`$OB_PRIVATE/wine/compare/menus13` (orig / clone / sbs).
+poked by `peek.py` where a career is needed; images (orig / clone / sbs)
+are kept with the maintainer's private evidence.
 
 * **The focused button of a Yes / No question** (**verified**):
   0x5587A0's eighth argument goes to 0x558690 as the focused button
@@ -2682,7 +2681,7 @@ poked by `peek.py` where a career is needed; images in
 
 ## Menus round 14: the body shop's exit question, MC over the save points' callers, DIM on icon menus, the save prompts' focus, the small rows (2026-10-31; checked against the vanilla original under Wine)
 
-Wine: `$OB_PRIVATE/wine/runs/<run>` through `fastgpu.sh` (DXVK on the
+Wine: a private copy through `fastgpu.sh` (DXVK on the
 GPU, own Xvfb :141, no WidescreenFix): main-menu Customize with globals
 poked by `peek.py`, then career3's stage-2 save (s2a) for the sponsor
 popup; memory read through the session (FE objects found by their hash
@@ -2805,7 +2804,7 @@ at object +0x10). Images in `<work dir>/menus14-tmp`.
 
 ## Menus round 15: Quick Race against the original, the Options pages, the dialogs' focus, the language character map (2026-10-31; checked against the vanilla original under Wine)
 
-Wine: `$OB_PRIVATE/wine/runs/<run>` through `fastgpu.sh` (:152, fresh
+Wine: a private copy through `fastgpu.sh` (:152, fresh
 profile NAME, no WidescreenFix), 1280×960; memory read with `peek.py`.
 Images in `<work dir>/w` (original) and `c` (clone,
 `NFSU2_SHOT_KEYS`, a new shot knob: menu keys sent to a shot's screen).
@@ -2915,9 +2914,9 @@ Images in `<work dir>/w` (original) and `c` (clone,
 
 ## Screens round 160 (2026-11-01): 4:3 comparison fixes against the vanilla original under Wine
 
-Wine: `$OB_PRIVATE/wine/runs/<run>` (fresh profile, main-menu Customize with
+Wine: a private copy (fresh profile, main-menu Customize with
 0x850078 / 0x83898C poked for the career shop screens) and
-`$OB_PRIVATE/wine/runs/<run>` (the finished-career fixture
+a private Wine copy (the finished-career fixture
 `the finished-career save` as profile the finished-career save), both through `fastgpu.sh`, no
 WidescreenFix. Captures and side-by-sides in
 `<work dir>/screens-tmp` (orig / cmp, REPORT.md).
@@ -3067,7 +3066,7 @@ Per-screen table in internal notes ("Screens round 3C"); captures (`orig/`), clo
 
 ## Screens round 3B (2026-11-01): career shops, dyno and garage against the vanilla original
 
-Wine: `$OB_PRIVATE/wine/runs/<run>` through `fastgpu.sh` (DXVK, 1280×960, no
+Wine: a private copy through `fastgpu.sh` (DXVK, 1280×960, no
 WidescreenFix), the finished-career fixture `the finished-career save` (LANCEREVO8,
 km/h) and the early `stage1_win_streetx.sav` (206, mph, 275 cash). The shops
 were entered for real from free roam: the player's car was moved onto each
@@ -3176,7 +3175,7 @@ Quick Race HUDs.
 ## Screens fixes (scrfix, 2026-11-01): the open items of rounds 3B and 3C
 
 Traced in SPEED2.EXE; compared with the vanilla original under Wine (fastgpu, DXVK,
-1280×960, `$OB_PRIVATE/wine/runs/<run>`, the finished-career save, shops entered from free roam)
+1280×960, a private Wine copy, the finished-career save, shops entered from free roam)
 and the round 3B / 3C captures. Side by sides in <work dir>/cmp.
 
 * **Custom Gauges list** (**verified**): UI_CustomHUDOverlay's constructor 0x56C220

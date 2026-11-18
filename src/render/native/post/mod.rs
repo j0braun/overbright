@@ -1341,7 +1341,7 @@ mod tests {
 
     /// The LUT against the ported passes on the device: equal on the
     /// lattice, within ±3 steps (98 % within ±1) on every 24-bit colour
-    /// of a sample (examples/grade_lut.rs `verify` does all 2^24).
+    /// of a sample (the private developer probe `grade_lut verify` does all 2^24).
     #[test]
     #[ignore = "requires a GPU; run explicitly"]
     fn grade_lut_matches_the_native_passes() {

@@ -13,7 +13,7 @@ with all kits, bumpers, skirts, spoilers, hoods, scoops, mirrors, exhausts, the 
 part folders and every `CARS\WHEELS\GEOMETRY_*.BIN`); the maintainer's probe `model_fix_shot`
 renders clone close-ups (native / `--fix`, `--paint r,g,b`); the original was checked
 in SPEED2.EXE's main-menu Customize under Wine (`fastgpu.sh`, DXVK, copy
-`$OB_PRIVATE/wine/runs/<run>`, display :200, profile `career_end_won.sav` so every
+a private Wine copy, display :200, profile `career_end_won.sav` so every
 part is unlocked, WidescreenFix off). Raw captures: `<work dir>/models-work/{wine,shots}`.
 
 ## Fixes (confirmed in the original and in the clone)
@@ -88,7 +88,7 @@ checklist in the work dir):
 
 Wine checks were done in the original's main-menu Customize → Car Shop → Body Shop. Rims
 (after Exhaust Tips) gives a side view. Hoods, Roof Scoops and Carbon Fiber were also used. The
-copy is `$OB_PRIVATE/wine/runs/<run>` on display :208 with the `career_end_won` profile. Raw
+copy is a private Wine copy on display :208 with the `career_end_won` profile. Raw
 shots are in `<work dir>/models3-work/wine`.
 
 | Car | Part | Symptom | Original y/n | Fixed y/n | Crop |

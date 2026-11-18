@@ -567,7 +567,7 @@ from its own snapshots):
 **2026-11-05: the automatic replay camera's director gate, the reset flag, the typed groups (NOS, Jump, Speed, Corner, Burnout, PowerSlide: the replay's main shots under Wine) and their weights are in [replay-cameras.md](../replay-cameras.md); the type table 0x7EC1F8 is filled at runtime (observed), so "only the first filled" below describes the static image only.**
 **Track cameras** (**verified**; parsed by
 `src/formats/camera_tracks.rs`, test `camera_tracks_parse`; driven by
-`src/track_camera.rs` for the route cameras, test
+`src/track_camera/` for the route cameras, test
 `track_director_follows_a_route_camera`; **open**: the rest of the
 selection, listed after the motion below). The director calls 0x44FE80 on the camera manager 0x828770
 (0x5FB465), which takes a camera track either fixed (+0x1C34 ≥ 1: +0x1C5C,
@@ -631,7 +631,7 @@ vtable 0x788018, update 0x453F50).
   entry of type 1 is dropped without a draw, a picked type-1 track is not
   kept, and a draw with +0x224 clear first steps the shared generator
   once (0x5FB2EA) — all in `TrackDirector::direct_on`, which the replay
-  director uses (src/bin/game/update/replay.rs; its car record is
+  director uses (src/bin/game/sim/session/replay.rs; its car record is
   the clone's human road-node stand-in, **inferred**), with the car test
   `eye_in_car` against the rivals and the drawn traffic in the blocked
   closure for the route and typed draws. The live race's draw
@@ -648,7 +648,7 @@ vtable 0x788018, update 0x453F50).
   curve's end values come from locals of 0x451B70 whose conversion from
   the entry's focal lengths was not traced), and the ground step's origin
   height (+0x1C60's writer).
-* **The clone** (`src/track_camera.rs`, `TrackDirector`; the route
+* **The clone** (`src/track_camera/`, `TrackDirector`; the route
   groups only). On automatic, each director frame takes the route group of
   the car's record: the race record covering the car's race coordinate
   whose id and flags bit 1 key a group (the race's direction first), the
@@ -774,7 +774,7 @@ PAD_START, 7 / 8 PAD_LTRIGGER / RTRIGGER, 9..0x12 PAD_BUTTON0..9
 these tables: no pad bit sends it.
 * **FE events on the PC keys** (**verified** unless marked; the clone's
   keys for them are Key::Start, Button0, Button3 and Quit in
-  `src/frontend/screens.rs`, bound in `fn key` in `src/bin/game.rs`;
+  `src/frontend/screens/`, bound in `fn key` in `src/bin/game.rs`;
   BUTTON2 shares `,` with START and has no Key of its own). Pad
   messages by bit (table 0x7F7D20): 6 PAD_START 0xB5AF2461, 9 PAD_BUTTON0
   0xC519BFBF, 11 PAD_BUTTON2 0xC519BFC1, 12 PAD_BUTTON3 0xC519BFC2. No pad

@@ -22,7 +22,7 @@ path). The presets leave both rows alone (stylistic, like TAA).
 `qol::motion_blur()`, `qol::depth_of_field()`.
 
 ## Code
-`src/render/blur_dof.rs`, `blur_dof.wgsl` (new module); hooks: one field in
+`src/render/enh/post/blur_dof.rs`, `blur_dof.wgsl` (new module); hooks: one field in
 `PostFx` (`blur_dof`), `game.rs` `blur_and_dof` / `blur_cars` (the game's
 frame and the shots) and `draw_garage` (the turntable), two `Game` fields
 (`world_time`, `draw_alpha`: the drawn poses' time), the rows

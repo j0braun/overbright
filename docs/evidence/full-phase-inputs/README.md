@@ -6,11 +6,11 @@ This capture closes specific missing pointees for a subsequent production phase 
 
 The private original ran Quick Race Circuit with Peugeot 206 automatic. A controlled landing raised body Z by 0.6 m and set vertical momentum to native mass times −12 m/s; Up was pressed/released. Handling, suspension, wheel, engine and clutch values were read, not injected. `full-landing.json` retains exact writes, hook bytes, restore checks, executable/recorder hashes, pointers and payload layout. The owned session stopped after capture.
 
-Reproduce with the retained private-Wine method in CLAUDE.md, an owned prefix/display and GPU coordination. After entering that race:
+Reproduce with a private Wine copy, a display of its own and the GPU to itself. After entering that race (the scripts are kept with the maintainer's private evidence):
 
 ```
-python3 $OB_PRIVATE/docs/evidence/full-phase-inputs/capture.py OWNED_PREFIX OUTPUT_BASE --seconds 5 --drop .6 --vertical-speed -12
-python3 $OB_PRIVATE/docs/evidence/full-phase-inputs/decode.py OUTPUT_BASE
+python3 capture.py OWNED_PREFIX OUTPUT_BASE --seconds 5 --drop .6 --vertical-speed -12
+python3 decode.py OUTPUT_BASE
 ```
 
 The retained stream has 2,580 records in 559 consecutive complete groups; 112 rest-triggered and 17 bump-triggered zero-time traversals. No records were dropped, no groups are partial, and hooks were restored. `test_decoder.py` audits the stream and rejects six rehashed semantic corruptions: wheel owner, dynamic pointer, overflow, polygon source face, unused slot and truncated group. The positive audit also checks every fixed component pointer/vtable and every dynamic pointer/count.

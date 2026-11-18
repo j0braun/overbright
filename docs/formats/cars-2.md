@@ -359,7 +359,7 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
   the earlier notes, not re-traced here). Both need player +0x24 ≠ 0. The events 0x7F–0x81
   have no row in the Controls menu (no default key, **inferred** from the
   DIACTION table's 18 actions).
-* **Crash cameras and slow motion** (`src/event_camera.rs`,
+* **Crash cameras and slow motion** (`src/event_camera/`,
   verified unless marked). Player +0x24 is the Jump Camera option
   (0x83AA20 = settings +0x1C, copied by the director's constructor at
   0x5F180B); kinds 1..5 need 0x83AA24 (settings +0x20, 127.5) instead. Each kind
@@ -795,8 +795,7 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
   capture; the clone draws it so (see the frame's alpha-only quad).
 * **Front-end drawing against the original** (2026-10-31, `<work dir>`):
   pixel diffs of 19 static screens at 1280 × 960 against the original
-  under Wine (wined3d on Xvfb, vanilla, WidescreenFix off; images in
-  `$OB_PRIVATE/wine/compare/fedraw`: orig / before / after / heat).
+  under Wine (wined3d on Xvfb, vanilla, WidescreenFix off; images kept with the maintainer's private evidence: orig / before / after / heat).
   Causes found and fixed:
   * Mirrored and turned pieces (a 9-slice box's corners, e.g. the
     dialogs' U2_MENU_CORNER_WHITE at the upper right, size −x and 180°):
@@ -1014,7 +1013,7 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
 
 ## Hydraulics (2026-10-31, hydro; **verified** from the assembly unless marked; checked against the original under Wine)
 
-Code: `src/hydraulics.rs` (input, physics, garage), `src/audio/hydraulics.rs`
+Code: `src/hydraulics.rs` (input, physics, garage), `src/audio/car/hydraulics.rs`
 (CARSFX_Hydraulics), `drive::CarState::hydraulics`, `style::hydraulics`,
 the maintainer's probe `hydraulics_parts`. Shots: `hydro`, `hydro_bounce` (free roam,
 the original's key timelines; `HYDRO_LOG=1` prints every frame,
@@ -1160,7 +1159,7 @@ the original's key timelines; `HYDRO_LOG=1` prints every frame,
 ## Specialties: hydraulics level 3 and the purge (2026-11-01, specials; the finished-career save)
 
 Issue (the finished-career save): level 3 hydraulics in the shop and the nitrous purge
-did not work. Wine: `$OB_PRIVATE/wine/runs/<run>` through
+did not work. Wine: a private copy through
 `fastgpu.sh` (:178, `--audio-file`), the finished-career save loaded, IND_CAR_SPECIALTY_2
 entered from free roam (car moved to (732, −1175), Enter, Enter Shop);
 captures in `<work dir>/specials-tmp` (`h3m.png` LVL 3 pumping,

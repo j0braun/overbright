@@ -1,7 +1,7 @@
 # CAR_AUDIO_PATTERN — native scripted updates (2026-11-04)
 
 Vanilla SPEED2.EXE (sha256 8f6a9ae2…2a297), private Wine copy
-`$OB_PRIVATE/wine/runs/<run>` (WidescreenFix off), fastgpu on display :192
+a private Wine copy (WidescreenFix off), fastgpu on display :192
 with `--audio-file` (WAVs stay in the copy). See `docs/nis-audio-patterns.md`.
 
 * `tick-hook.S` / `.bin`: observer code at 0x782C00 (zero .text padding);

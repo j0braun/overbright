@@ -28,7 +28,7 @@ manual. `qol::volumetric_fog()` = 3 and `qol::sky()` = 1 switch them.
 | `src/render/volume_fx.rs`, `smoke_volume.rs`, `smoke_cinematic.rs` | additive accessors `medium()` (the smoke's density volume and placement) |
 | `src/render/mod.rs` | `WorldCore::sky_rows / sky_ng`, the sky's prepare (plan_views), panorama update (record_views), draws (draw_pass_faded); `set_weather` → `sky_ng::set_rain` |
 | `src/bin/game.rs` | `volumetric_frame` fills `Frame::next` for tier 3; `atmosphere_drive` adds the clock and the smoke medium |
-| `src/qol.rs`, `src/frontend/{options,graphics_table}.rs` | the tier, the row, label, help, costs |
+| `src/qol/`, `src/frontend/{options,graphics_table}.rs` | the tier, the row, label, help, costs |
 
 ## Volumetric Fog "Next-Gen" (`render::atmosphere`)
 

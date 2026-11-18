@@ -1,6 +1,6 @@
 # Item 4: clone rivals vs the original's rival trails (nearest point of any original rival line, m)
-# original: $OB_PRIVATE/audit/native-play/stage3/work/trail-c12-start.txt + trail-c12.txt (career S3_CIRCUIT_12, track 4002),
-#   $OB_PRIVATE/audit/native-play/npfix2/orig/orig-qr{1,2,3}.txt (Quick Race 2026-11-13: City Hall 4021, Switchback 4022, Palomino & 16th sprint 4102; Medium, 3 opponents, traffic minimum)
+# original: recorded rival trails, kept with the maintainer's private evidence: career S3_CIRCUIT_12 (track 4002),
+#   three Quick Races 2026-11-13: City Hall 4021, Switchback 4022, Palomino & 16th sprint 4102; Medium, 3 opponents, traffic minimum)
 # clone: tests::part_group_owned_bits::record_rival_trails (NPF2_EVENT / NPF2_TRACK), compare script below
 ## S3_CIRCUIT_12/4002
 orig grid [(-501.5, -889.0), (-500.6, -885.6), (-499.7, -882.3), (-498.8, -878.9), (-103.2, -833.5)]

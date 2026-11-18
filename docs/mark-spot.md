@@ -1,10 +1,10 @@
 # Mark This Spot (2026-11-05)
 
 Not native: an opt-in report aid (QoL family). Code: `src/mark_spot.rs`
-(the report), `src/bin/game/mark.rs` (what the game sees), hooks in
+(the report), `src/bin/game/enh/mark.rs` (what the game sees), hooks in
 `src/bin/game.rs` (`Game::key`, the `--shot` explore arm), the setting in
 `src/extras.rs` (`Extras::mark_spot`, options.txt `enh.mark_spot N`) and
-the row in `src/frontend/options.rs`.
+the row in `src/frontend/options/`.
 
 ## Setting
 

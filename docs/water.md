@@ -32,7 +32,7 @@ So the "static" look is native: a slow scroll and a 14-frame loop on a low-resol
 no lighting response, no splash. (Not re-observed under Wine in this work: the textures' scroll
 values and the flip-book are the verified native path the clone already draws.)
 
-## Water surfaces (`$OB_PRIVATE/devprobes/src/bin/water_census.rs [TRACK]`; asset test `bayview_water_census`)
+## Water surfaces (a private developer probe (`water_census [TRACK]`); asset test `bayview_water_census`)
 Bayview, L4RA (top LOD; centres in game coordinates, Z up). L4RD holds the same set (the race
 copy of the city); L4RB / L4RG only the panorama ocean; L4RC, L4RF, L4RH, L4RR none.
 
@@ -53,7 +53,7 @@ copy of the city); L4RB / L4RG only the panorama ocean; L4RC, L4RF, L4RH, L4RR n
 What `water::build` takes (top LOD / LOD B): 141 / 130 placements, 7007 / 4444 triangles, 110 / 106
 with falling water, 687 / 645 landings.
 
-## What On does (`src/render/water.rs`, `water.wgsl`)
+## What On does (`src/render/enh/volumes/water/`, `water.wgsl`)
 * **Replaces the water draws of the main view only.** `Draw::water` marks the draws whose texture
   is a water texture (`water::kind_of`; not on a reflective mesh); `WorldRenderer::set_hide_water`
   (set each frame by `water_prepare` in game.rs, = the row) makes the main view's draw list leave
@@ -104,7 +104,7 @@ A screenshot (Animated Water Off): the casino square's big arcing jets over the 
 "look like a frozen texture". View: the casino round fountains (XO_ROUNDFOUNTAINA ×5 around
 (−326, −547)) with their arcs, XO_FOUNTAINWTRA_1A_LL_00 (28 placements in Bayview: 23 here and at
 the jackpot basin (−337, −701) and the plaza fountain (−432, −112), 5 at the park fountain).
-* **The jets** (`$OB_PRIVATE/devprobes/src/bin/solid_uv.rs XO_FOUNTAINWTRA_1A_LL_00`): one material of 72 triangles,
+* **The jets** (a private developer probe (`solid_uv XO_FOUNTAINWTRA_1A_LL_00`)): one material of 72 triangles,
   `TRN_WATERFALL_A` (64×128 DXT3, alpha blend), local extent 28 × 4.3 × 6.9 m; **v runs along the
   arc** (mean |dP/dv| = (0.92, 0.04, 0.32): the jet's length), u across it, v spanning
   −0.37…1.29 (1.7 repeats over 28 m). Placements scale the jet non-uniformly (det 0.05–1.55).
@@ -155,7 +155,7 @@ the jackpot basin (−337, −701) and the plaza fountain (−432, −112), 5 at
 
 ## Realistic (the row's top tier: fountain water closer to a modern game)
 Clone deviation, opt-in, manual only. Nothing native to compare with: SPEED2.EXE has no water system
-(above). `src/render/water_hq.rs` + `water_hq.wgsl` (appended to `water.wgsl`, whose module, pipelines
+(above). `src/render/enh/volumes/water/hq.rs` + `water_hq.wgsl` (appended to `water.wgsl`, whose module, pipelines
 and uniform for On are untouched; the tier writes one more uniform). The same triangles as On, the
 same pick (`water::pick`), the same clock; only the drawing differs. Passes, into the scene before the
 temporal pass (`Water::draw_surfaces` hands over to `water_hq::Hq::draw`), each with its own GPU
@@ -226,7 +226,7 @@ Every constant is by eye against the clone's own frames.
 ## Next-Gen (the row's fourth tier, past Realistic)
 Clone deviation, opt-in, manual only, `enh.water 3` (the row's tier names are strings: **no new label
 id**). Nothing native to compare with (SPEED2.EXE has no water system, above); every constant is by eye
-(**inferred**). `src/render/water_ng.rs` (CPU: charts, allocation, slots, mist; GPU half `Ng`),
+(**inferred**). `src/render/enh/volumes/water/ng.rs` (CPU: charts, allocation, slots, mist; GPU half `Ng`),
 `water_ng_sim.wgsl` (compute, standalone), `water_ng.wgsl` (drawing, appended to `water.wgsl` +
 `water_hq.wgsl`). It builds on Realistic: its wet stone, its scene copy, its surface shading (moved into
 `surface_hq(SurfIn)`, a pure refactor: Realistic draws the same) and its pick. On's spray billboards are

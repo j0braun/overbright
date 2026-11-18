@@ -2,7 +2,7 @@
 
 All 147 authored `CAR_AUDIO_PATTERN` commands (25 event tracks, IDs 1–15,
 parameter always 1.0) now drive the car sound contexts natively, except
-DynoExit's (no clone flow). Code: `src/audio/scripted.rs` (banks, step,
+DynoExit's (no clone flow). Code: `src/audio/car/scripted.rs` (banks, step,
 cadence), `src/shop_scene/audio.rs` (order, clock, dispatch),
 `Game::engine_sound` / `Game::world_sfx_input` (binding, scripted gates).
 Evidence: `docs/evidence/nis-audio-patterns/` (vanilla SPEED2.EXE under Wine,
@@ -78,7 +78,7 @@ path, banks checked byte for byte).
 
 ## 2026-11-04: leftovers traced and captured
 Evidence: `docs/evidence/s3-audio/` (vanilla SPEED2.EXE, private copy
-`a private Wine copy`, display :202, `--audio-file`; recorder `record.py` of
+a private Wine copy, display :202, `--audio-file`; recorder `record.py` of
 `nis-audio-patterns`, all bytes restored, 0 lost). The new scenes' updates
 are appended to the maintainer's private capture (`fixture.py`).
 

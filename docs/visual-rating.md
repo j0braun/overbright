@@ -4,7 +4,7 @@ The car's visual rating (the stars, 0–10) and what it drives, compared
 with the original. **Verified** = traced in SPEED2.EXE (disassembly /
 REA), **observed** = read from the running original under Wine,
 **inferred** / **open** as marked. Code: `PartDb::visual_rating`
-(src/formats/parts.rs), `car::ride_visual_rating` (src/car.rs; the game's
+(src/formats/parts.rs), `car::ride_visual_rating` (src/car/; the game's
 `Game::visual_rating_car` now calls it). Tools: the maintainer's tool `rating.py`
 (+ `rating.s`, the probe cave), the maintainer's tool `fixture.py`,
 the maintainer's probe `visual_rating_sweep`. Evidence: the maintainer's private captures.
@@ -49,7 +49,7 @@ the maintainer's probe `visual_rating_sweep`. Evidence: the maintainer's private
 
 ## Under Wine (observed)
 
-`$OB_PRIVATE/tools/rating/rating.py OUT SAVE[:PROFILE]... --sweep` boots each save in
+the private tool `rating.py OUT SAVE[:PROFILE]... --sweep` boots each save in
 the private Wine copy, drives it to free roam and installs a probe cave
 (`rating.s`, at 0x782B00 in place of the main loop's frame-time call
 0x5812EC, game thread): it builds the career ride as 0x528420 does and

@@ -87,7 +87,7 @@ taken by `Game::new` and by `exclusive()`): the number of slots is the
 memory available when the first game test starts (`MemAvailable`), less
 2 GB kept free, in 1 GB steps, at least one; `OB_TEST_GAME_SLOTS=N` sets
 it. A 16 GB machine with 12 GB available runs at most 9 game tests at once
-whatever its core count; with 30 GB available (this machine) the slots
+whatever its core count; with 30 GB available (the reference desktop) the slots
 never bind and the run is as fast as before. `RUST_TEST_THREADS` is not
 needed for `cargo test` to fit in memory.
 
@@ -144,7 +144,7 @@ The repository does not carry copies of game data. A test that needs a table
 from the game regenerates it from the player's files:
 
 ```rust
-let raw = testkit::fixture("burnout-records", 1, |g| testkit::exe_bytes(g, 0x7E_A2B0, 16 * 0x1C));
+let raw = testkit::fixture("burnout-records", 1, |_| testkit::exe_bytes(0x7E_A2B0, 16 * 0x1C));
 ```
 
 * The first call per game runs the generator and stores the result in
@@ -175,12 +175,12 @@ To add a fixture that replaces a committed file:
    be deleted.
 
 Converted so far: `burnout-records@1` (src/shop_scene/wheels.rs) and
-`handling-peugot@1` (src/drive.rs, src/drive/native_cached_count.rs).
+`handling-peugot@1` (src/drive/, src/drive/native_cached_count.rs).
 The engine's tables are in the code (`nfsu2::exe_tables`, docs/exe-tables.md):
 a test pins the SHA-256 of each table's `Debug` text, and the data tests that
 compare them with the original read the reference executable through
 `testkit::reference_exe()` (`$OB_PRIVATE/exe/SPEED2.EXE`, else the game
-folder's; it must be the European 1.2 `SPEED2.EXE` without copy protection)
+folder's; it must be the European PC 1.2 release's `SPEED2.EXE` without copy protection)
 and carry the "game files and private set" ignore reason. `exe_bytes(va,
 len)` reads a range of it for a fixture. The fresh
 profile is written by `career::fresh_payload` and pinned the same way. The

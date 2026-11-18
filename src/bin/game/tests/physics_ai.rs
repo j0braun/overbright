@@ -457,7 +457,7 @@ fn drift_results_use_scores_despite_opposite_finish_order() {
 /// The world clock (0x7FB718) and the sky cycle (0x60FAB0) run through
 /// free roam with its traffic and through a race, and each world load
 /// starts them again at 1.0 s (0x576D00 from the world object's ctor
-/// 0x5FF4A0 and dtor 0x5FF700). Under Wine (research/tod-compare): the
+/// 0x5FF4A0 and dtor 0x5FF700). Under Wine: the
 /// sunrise pair until clock 60, night from about 81 s; resuming a career
 /// read 1.93 s on its first in-world frame. The clone had frozen the
 /// clock whenever traffic ran (`step_explore`'s field path) and in races.

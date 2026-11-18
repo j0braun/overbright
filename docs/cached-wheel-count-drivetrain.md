@@ -79,8 +79,10 @@ friction-circle inputs/limiting against the retained native wheel fields.
 
 ## Reproduction
 
+The scripts below are kept with the maintainer's private evidence.
+
 ```sh
-python3 $OB_PRIVATE/docs/evidence/cached-wheel-count/export.py
+python3 export.py
 cargo test --release --lib native_airborne_drivetrain -- --nocapture
 ```
 

@@ -10,12 +10,12 @@ A fresh private native session on display 174 retained those dependencies. The e
 
 `expanded-landing` has 2530 records, 550 complete groups, 112 rest-triggered zero refreshes and 15 bump-triggered zero refreshes, with zero dropped records. The initial control is a +0.6 m position perturbation and -12 m/s vertical velocity expressed through actual native mass/momentum; the metadata records every write and throttle key transition. Compression, handling, clutch and wheel values were not injected. The source executable SHA256 is unchanged, all hooks restored, and the owned Wine/Xvfb session is stopped.
 
-Reproduction uses the retained launcher with the owned prefix, followed by:
+Reproduction uses the retained launcher with the owned prefix, followed by (the scripts are kept with the maintainer's private evidence):
 
 ```
-python3 $OB_PRIVATE/wine/fastnav.py $OB_PRIVATE/wine/runs/<run> race
-python3 $OB_PRIVATE/docs/evidence/boundary-replay/capture.py $OB_PRIVATE/wine/runs/<run> /PRIVATE/OUTPUT/expanded-landing --seconds 2 --drop .6 --vertical-speed -12
-python3 $OB_PRIVATE/docs/evidence/boundary-replay/decode.py /PRIVATE/OUTPUT/expanded-landing
+python3 fastnav.py WINE_PREFIX race
+python3 capture.py WINE_PREFIX /PRIVATE/OUTPUT/expanded-landing --seconds 2 --drop .6 --vertical-speed -12
+python3 decode.py /PRIVATE/OUTPUT/expanded-landing
 ```
 
 The capture pauses the game before disabling logging, then validates complete groups. Actual native dt and ticks are retained; reproduction is not promised bit-identical. Runtime navigation/capture logs are in the sibling `positive-dt-boundary-replay-runtime` directory. `test_decode.py` reproduces the summary and rejects a rehashed changed live engine pointer and a rehashed truncated group.
@@ -39,10 +39,10 @@ Compression, rate and preload are unchanged between those zero boundaries. The l
 
 `WheelState::suspension_load` extracts the existing production arithmetic without changing operation order or pass scheduling. The ordinary tyre loop calls it before applying camber. The `native_zero_refresh_recomputes_suspension_loads` test constructs a CarState and seeds every wheel compression/rate read by that component from the native snapshots. Handling comes from the captured native car record; its two suspension records are byte-checked against the live suspension-record pointees. Preload comes from native suspension +0x88.
 
-The test executes the shared production component calculation in native wheel order for both traversals, comparing all 60 wheel results from the 15 bump groups to native first-pass and zero-pass loads at absolute error below 1e-5. Its fixture is generated only from raw input/output snapshots:
+The test executes the shared production component calculation in native wheel order for both traversals, comparing all 60 wheel results from the 15 bump groups to native first-pass and zero-pass loads at absolute error below 1e-5. Its fixture is generated only from raw input/output snapshots (the scripts are kept with the maintainer's private evidence):
 
 ```
-python3 $OB_PRIVATE/docs/evidence/boundary-replay/fixture.py
+python3 fixture.py
 cargo test --release --lib native_zero_refresh_recomputes_suspension_loads
 ```
 

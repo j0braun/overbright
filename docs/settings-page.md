@@ -1,6 +1,6 @@
 # The settings page (2026-11-06)
 
-Roadmap wave UX, the settings rework, second half: one streamlined page for every clone setting, built on the settings model's settings model
+The settings rework, second half: one streamlined page for every clone setting, built on the settings model
 (`docs/settings-model.md`). Nothing here is native — the original has no such page; it is a clone deviation on the
 Enhancements entry of the Display options (agreed deviation "Enhancements page"; the settings rework plan). The original's own screens (Audio / Display / Gameplay / Player, Customize Display, the pause's) are
 unchanged: same rows, values, look and flow. Defaults stay native; options.txt keeps every key.

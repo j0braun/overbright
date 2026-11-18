@@ -3,7 +3,7 @@
 Issue: the outrun racers were too easy and crashed easily (checked with the
 finished-career save). Measured on that save
 (`<the play setup's options file>`, career car Skyline GT-R) in the
-original under Wine (fastgpu, private copy `a private Wine copy`, display :194,
+original under Wine (fastgpu, a private Wine copy, display :194,
 vanilla, no widescreen fix) and in the clone (`--flow outrun`,
 `NFSU2_FLOW_SAVE`). Evidence: the maintainer's private captures.
 **Verified** = traced in SPEED2.EXE; **observed** = read under Wine;

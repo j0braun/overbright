@@ -22,7 +22,7 @@ Original assets and saves were read-only. Investigation worktree starts at
   records the live fields and SHA256 of the 1160-byte table.
 
 Snapshot provenance: reflection worker's owned Wine prefix
-`$OB_PRIVATE/wine/runs/<run>`, PID 888452, display :157.
+a private Wine copy, PID 888452, display :157.
 The worker read `peek.Session.u32(0x82DADC/0x82DAE0)` and then
 `read(pointer,count*0x74)` while `fastnav.py freeroam` navigated a fresh profile.
 The exact screen was not recorded. This proves the native table contents in

@@ -43,7 +43,7 @@ its period changed, as the clone has no limiter.
 
 ## Method (original)
 
-Own Wine copy `$OB_PRIVATE/wine/runs/<run>`, fastgpu on Xvfb :182, fresh
+Its own private Wine copy, fastgpu on Xvfb :182, fresh
 profile → free roam (Rachel's 350Z, DDAY_PLAYER_CAR), teleport to
 (356.6, −478.4) heading −119.4° (the game re-places the car there from
 (361, −462)), wait until at rest. The machine (load 40) could not hold a
@@ -60,8 +60,7 @@ input ω), engine +0x14/+0x78.., input pedals and the timing globals. All
 patches were restored after each run (vtable, call, T = 1/120). Runs repeat
 to 3 decimals (f120r/rb/rc). Tools and the per-run table:
 the maintainer's private captures (cap.py, rec.s, dec.py, ana.py,
-native-runs.csv, rate_probe.rs); raw captures in
-`<work dir>/fps-work/raw/`.
+native-runs.csv, rate_probe.rs); raw captures kept with the maintainer's private evidence.
 
 ## Tables (t = world seconds after the first frame with the pedal down)
 
@@ -1270,7 +1269,7 @@ identical at 30 / 120 / 200 Hz (100 of 100 frames each).
   `reversing_from_rest_follows_the_native_cycle` (cycle per rate and both
   outcomes vs the native values). It fails on the old raw-dt stepping at
   120 fps (cycle 0 only).
-* `src/drive.rs`: not changed.
+* `src/drive/`: not changed.
 
 ## Open
 

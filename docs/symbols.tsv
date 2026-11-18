@@ -1,4 +1,4 @@
-# SPEED2.EXE symbol database (sha256 8f6a9ae2...2a297). Source of truth for REA/Ghidra names; see $OB_PRIVATE/symbols/apply.md.
+# SPEED2.EXE symbol database (sha256 8f6a9ae2...2a297). Source of truth for REA/Ghidra names.
 # kinds: function (Ghidra entry), label (code address with no Ghidra function), global, const, vtable, struct-field (Type_t+0xOFF; documentation only, not applied).
 # confidence: verified = name follows a traced claim in docs/formats.md; inferred = role guessed from context. doc_ref line numbers are as of 2026-10-29.
 address	kind	name	description	confidence	doc_ref

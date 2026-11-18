@@ -5,7 +5,8 @@
 ### Native first
 
 The default build is the original game, exactly: its rules, its timing, its look and its sound. "Native"
-means checked against the original executable (`SPEED2.EXE`, PC 1.2), not remembered or guessed.
+means checked against the original executable (`SPEED2.EXE` of the European PC 1.2 release), not remembered or
+guessed.
 
 - Trace a behaviour in the executable (a disassembler or decompiler such as Ghidra) and, where it can be
   seen, confirm it in the running original (the original under Wine; docs/parity-workflow.md and
@@ -88,7 +89,8 @@ check without Mesa's software Vulkan driver. Without the private set the steps t
 ## What must never be committed
 
 - Game data in any form: files of the game, extracted or converted assets, textures, sounds, movies, text
-  dumps, tables copied from the executable (read them from the player's copy at run time; docs/exe-tables.md).
+  dumps, byte dumps of the executable. The engine's numbers are written in `src/exe_tables/` as named
+  constants, formulas or tables from open decoders, each with what it is (docs/exe-tables.md).
 - Screenshots or video frames of the original or of Overbright drawing the game's assets.
 - Save games and profiles (yours or anyone else's), memory captures and traces of the original.
 - Private paths (home folders, machine names), personal names, local settings files (`scripts/local.env`).

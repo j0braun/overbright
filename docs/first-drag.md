@@ -5,7 +5,7 @@ race. Earlier the November report triage (internal notes b) found tipping only
 after a rival was totaled; this work reproduces it on the real start path
 and finds why rivals were totaled so often.
 
-## Reproduction (`--flow firstdrag`, `src/bin/game/first_drag.rs`)
+## Reproduction (`--flow firstdrag`, `src/bin/game/dev/first_drag.rs`)
 
 A fresh profile past the intro (`skip_intro`, Peugeot: stage 1 city start,
 open list CIRCUIT_1, DRAG_1, …), the first open drag (STAGE_1_DRAG_1, the
@@ -57,7 +57,7 @@ none: a racer object gives the near / far speed, a traffic object (0x6148D0)
 leaves the line speed (in a drag race +0x1F0 = the cap, 0x42F330) — so a
 rival with every reachable lane blocked still rams.
 
-**Fix** (`Actions::drag_avoid`, src/ai/actions.rs; called from
+**Fix** (`Actions::drag_avoid`, src/ai/actions/; called from
 `racer_think`'s drag branch, src/bin/game.rs): the above, on the clone's
 road entries and sweep (the same `sweep` / `clear` as the road
 AvoidAvoidable, whose box stepping is itself **inferred**, see that doc).

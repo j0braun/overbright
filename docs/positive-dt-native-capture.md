@@ -111,7 +111,7 @@ rate. This is not an uninstrumented trajectory or performance comparison.
 
 Owned runtime paths:
 
-- Wine: `$OB_PRIVATE/wine/runs/<run>`, display `:174` (stopped).
+- Wine: a private copy, display `:174` (stopped).
 - Worktree: an internal run folder, based on `ae2dbbb`.
 - Runtime logs/full decoded JSON: an internal run folder.
 
@@ -140,10 +140,10 @@ alone, define the preserved trial. New playback need not be bit-identical.
 All native sessions must be coordinated with other GPU work and stopped
 through the owned-prefix supervisor afterward.
 
-Offline audit (no game, Wine or clone simulation required):
+Offline audit (no game, Wine or clone simulation required) (the scripts are kept with the maintainer's private evidence):
 
 ```
-python3 $OB_PRIVATE/docs/evidence/positive-dt-native/test_decoder.py
+python3 test_decoder.py
 ```
 
 This audits all three complete streams, verifies raw/compressed hashes,

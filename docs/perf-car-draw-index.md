@@ -29,7 +29,7 @@ read with vector loads per vertex and per pixel and held in vector registers.
 - Pipelines: the sets and their count are unchanged (each set is built from the chosen form).
   `warm_tests` still passes, and no pipelines are built after the first frame.
 
-## Measured (this machine; docs/evidence/perf-car-draw-index/)
+## Measured (the reference desktop; docs/evidence/perf-car-draw-index/)
 
 The race start, 1080p, has 4 cars on screen. Per frame that is about 495 car draws and about
 27,900 triangles, with 52 pipeline switches, 197 texture bind-group switches, 4 group-1 binds

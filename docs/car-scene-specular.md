@@ -1,8 +1,7 @@
 # Car highlight from the scene, not the camera rig (clone deviation)
 
 Issue: a bright light spot on the car's trunk at the higher settings, most visible on Rachel's car. The bright yellow-green patch in the middle of the 350Z's trunk (the D-Day intro, the
-chase camera) is the **native** car light: it is in the original too (Wine, `$OB_PRIVATE/wine/compare/
-orig/intro.png`, and the look-direction spots' frames of the original (internal evidence)). The Original
+chase camera) is the **native** car light: it is in the original too (frames of the original under Wine and the look-direction spots' frames, kept with the maintainer's private evidence). The Original
 look keeps it exactly; the car shading enhancements now light the highlight from the scene instead.
 
 ## The native light (traced)

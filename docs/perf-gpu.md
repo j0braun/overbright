@@ -1,7 +1,6 @@
 # GPU frame time and render encoding (2026-11-05)
 
-Wave D this work (roadmap §4 wave D, rules (1)–(5)): the GPU profile per
-pass, then faster ways to the same frames — less CPU spent encoding the
+The GPU profile per pass, then faster ways to the same frames — less CPU spent encoding the
 render passes on the render workers, the LOD Fade bookkeeping on the main
 thread, the pipeline cache for the last pipelines built without it.
 Nothing here was traced in SPEED2.EXE and no native behaviour changed:
@@ -152,7 +151,7 @@ with the texture unchanged re-sent the immediates in 0 of 70 735 changes
    test depth, the lamp shadow pipelines, weather fx, the glass copy) take
    the device's on-disk `PipelineCache` like the others. They are
    built lazily on first use, not on the load path; there is nothing to
-   measure on this machine (Mesa's own shader cache is warm): it only
+   measure on the reference desktop (Mesa's own shader cache is warm): it only
    saves a driver compile on a cold cache.
 
 ## Results
@@ -248,9 +247,8 @@ the pipelines are built on first use and Mesa's shader cache is warm).
 
 ## Audit round 2 (2026-11-05)
 
-Wave D the second performance audit (roadmap §4 wave D; the player's rule of 2026-11-05: the
-**enhancements** may use non-bit-exact forms when the gain is large and
-nothing looks cheaper; the Original look stays byte-identical). Base: the
+The second performance audit. The rule it follows: the **enhancements** may use non-bit-exact
+forms when the gain is large and nothing looks cheaper; the Original look stays byte-identical. Base: the
 loading-and-pacing copy (main + that pass). Results, gates, image metrics and crops:
 internal notes. Nothing here was traced in SPEED2.EXE; no
 native behaviour changed (Original images, the 144 Hz window path, the 15
@@ -317,7 +315,7 @@ noise. Hotspots ≥ 1 % of their domain, before this work:
    the full-size pass as before (gate: AE 0 against s1 on Ultra / Extreme /
    Extreme FSR).
 3. **Car shaders without the scratch spill** (s3; `car.wgsl` `car_lamps`;
-   the deep research's item 7, `$OB_PRIVATE/research/perf-deep-2026-11-05.md`).
+   item 7 of a performance study kept with the maintainer's private evidence).
    `car_lamps` read `draw.lamps[i * 2u]` from the private copy of the
    draw's record with a loop index, which made the compiler keep the whole
    560-byte record in scratch memory for every pixel of every car draw, in
@@ -394,8 +392,7 @@ puff, which took it from +0.34 to +0.22 ms.
 
 ## Depth pre-pass and lamp shader specialisation (2026-11-05)
 
-The depth and lamps pass (deep research `$OB_PRIVATE/research/perf-deep-2026-11-05.md`
-items 8 and 9). Enhanced lighting only: every change below is in the
+The depth and lamps pass (items 8 and 9 of the same study). Enhanced lighting only: every change below is in the
 lamps' module path (`SceneMode::lamps`: Dynamic Lamps, Lamp Shadows,
 Contact Shadows, Headlight Beams, Surface Detail or Modern Lighting on).
 The Original path, its module text and its pipelines are untouched (test
@@ -509,8 +506,7 @@ draws: +0.2–0.5 ms per frame summed over the workers (off the main thread;
 
 ## SSR, motion blur tiles, submissions (2026-11-05)
 
-The SSR / blur / submit pass (deep research `$OB_PRIVATE/research/perf-deep-2026-11-05.md`
-items 11, 12, 13 and the depth and lamps pass's open "cars in the pre-pass"). Enhanced passes
+The SSR / blur / submit pass (items 11, 12, 13 of the same study and the depth and lamps pass's open "cars in the pre-pass"). Enhanced passes
 only (Screen-Space Reflections, Motion Blur tiers); nothing traced in
 SPEED2.EXE, no native behaviour changed; the Original path is untouched
 (gate: Original images, shots, audio, state hashes identical). Every step
@@ -602,8 +598,7 @@ frame is a few bind groups; inferred noise from the shared machine).
 
 ## Render-target memory (2026-11-05)
 
-The VRAM and post pass (deep research `$OB_PRIVATE/research/perf-deep-2026-11-05.md`
-§4.11 "Memory", plan item the VRAM and post pass). Memory only: no pass, shader or draw
+The VRAM and post pass (the same study's §4.11 "Memory"). Memory only: no pass, shader or draw
 changed, nothing traced in SPEED2.EXE (no native behaviour touched). The
 Original look keeps its own targets; every step is exact (gate below).
 

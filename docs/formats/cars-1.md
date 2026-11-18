@@ -62,10 +62,10 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
   (not on 0x5BB5C0's list: alpha 0.959 / 0.704; the trace shows that
   material's constants on the main-menu 350Z's glass).
 * **Car shading checked against the running original** (verified,
-  2026-10-29; apitrace 14 over DXVK of SPEED2.EXE under Wine, private
-  setup $OB_PRIVATE/wine/runs/<run>, retraced with d3dretrace
-  `--snapshot`; frames and side-by-sides in
-  $OB_PRIVATE/wine/runs/<run>/compare). car.efx's technique "car" (the
+  2026-10-29; apitrace 14 over DXVK of SPEED2.EXE under Wine in a
+  private Wine copy, retraced with d3dretrace
+  `--snapshot`; the frames and side-by-sides are kept with the maintainer's private evidence).
+  car.efx's technique "car" (the
   effect also holds "car_fixed_envmap" and "car_fixed", unused at max
   detail) is drawn with all 24 vertex constants in one
   SetVertexShaderConstantF and EnvmapMin/Range as ps c0/c1. On the Quick
@@ -89,8 +89,8 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
   car is drawn twice per frame, first into the floor-reflection target
   (render target 0x5D79FF0, WorldView row y = +up: the car mirrored),
   then into the main target.
-* **Re-compared 2026-10-30** against the original's frames in
-  $OB_PRIVATE/wine/compare/orig (main.png: Rachel's 350Z on the
+* **Re-compared 2026-10-30** against the original's frames (main.png:
+  Rachel's 350Z on the
   turntable; qrcars.png; intro.png): the current clone (`--shot
   main_dday`, `qrcars`, `intro`) now matches them — saturated paint, the
   violet-white glass and hood, the bright violet-white rim and tyre edges
@@ -120,8 +120,7 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
   (0x638672…0x6386DB; its use is not traced).
 * **Paint and reflections compared frame by frame** (2026-11-01;
   the original at full speed on DXVK (fastgpu), the finished-career save's finished-career
-  save in both games; images in $OB_PRIVATE/research/paint-compare,
-  orig | clone | |diff|×4): the career garage (Evo, red paint, carbon
+  save in both games; images orig | clone | |diff|×4, kept with the maintainer's private evidence): the career garage (Evo, red paint, carbon
   trunk, aftermarket rims and brakes), Customize → Paint on the RX-7 with
   Gloss, Metallic and Pearlescent swatches 0 and 4 (the base paint has
   only these three categories, `]` cycles them; no matte), free roam at
@@ -146,8 +145,8 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
   the particles stepped; with NFSU2_SHOT_SAVE the profile's garage).
   Against an apitrace of the original (the finished-career save's save, frame 10800): the
   headlight pool and the marker's ground smoke now match (see the headlight
-  pass and **Ring** under Emitter draws); frames in
-  $OB_PRIVATE/research/garexit-compare. The top-left HUD shows in both
+  pass and **Ring** under Emitter draws); frames kept with the maintainer's private evidence. The
+  top-left HUD shows in both
   the garage's engage icon (car between two arrows, pulsing) over the SMS
   phone.
 * **Per-part paint materials** (verified; render info setup 0x638DE8…
@@ -2792,7 +2791,7 @@ The game's world collision step (0x5FFA60) runs after the cars have moved.
     +0x38 under −0.5) totals the car (+0x964; racer status 9, see "Drag
     drop-out") — ported as CarState `totaled`.
 * **Knock-over props** (smackables; src/formats/smackable.rs,
-  src/smackable.rs; verified except where noted):
+  src/smackable/; verified except where noted):
   * Kinds: the track bundle's `0x34026` chunk (L4RA: 79), 0x100 bytes each
     from a 16-byte aligned start, read by 0x5B0E40: list links at +0,
     name at +8 (`ZCS_PylonA`; the `ZCS_` volumes in the bundle's
@@ -2933,7 +2932,7 @@ The game's world collision step (0x5FFA60) runs after the cars have moved.
     info's and the polygon's (vtable 0x7A22B0 +0x70 / +0x74 → 0x5AA060:
     0.001), j at least 0.3·m. Records (the pair's, refreshed by a push,
     gone 0.3 s after the last) count in +0x18 (0x5A05A0 / 0x59E540).
-  * The clone (`src/smackable.rs`; `drive::step_world`, which
+  * The clone (`src/smackable/`; `drive::step_world`, which
     `bin/game.rs` runs for the player in free roam, all racers in races
     and the cars in traffic, keeping the props' poses across renderers)
     follows 0x5FFA60: every woken prop's frame runs with the cars' before
@@ -3037,7 +3036,7 @@ The game's world collision step (0x5FFA60) runs after the cars have moved.
     0x5E72F0 writes the same byte through its int* argument), and a prop's is
     info +0xD0 (vtable 0x7A26A0 +0x58 → 0x5B1CB0). The clone's wall/floor split
     is therefore an approximation, a port gap.
-  * **Particle effects** (`src/particles.rs`; verified unless marked):
+  * **Particle effects** (`src/particles/`; verified unless marked):
     * Descriptions: chunk `0x35021` (GLOBALB 92, L4RA 37), body aligned
       to 16, version 4 at +8, count +0xC, 0x220-byte records from +0x10
       (loader 0x491C70, list 0x830D08, GLOBALB's first). Fields: +8 name
@@ -3170,7 +3169,7 @@ The game's world collision step (0x5FFA60) runs after the cars have moved.
       (XEE_Event_CARLOT_IconA_01 … SmokeB, 92 instances in STREAML4RA)
       carry `FREE_ROAM`'s hash (0xEA5E404F), so they run in career free roam
       past stage 0 only. **Checked under Wine** (2026-11-01,
-      `a private Wine copy`, IND_GRAPHICS): at career stage 0 (0x862838 = 0)
+      a private Wine copy, IND_GRAPHICS): at career stage 0 (0x862838 = 0)
       the list at 0x88A28C held four other hashes and no marker showed;
       with `FREE_ROAM` (0xEA5E404F) written into a free slot the marker
       emitters ran. The four instances at the shop (descriptions
@@ -3307,7 +3306,7 @@ The game's world collision step (0x5FFA60) runs after the cars have moved.
       front end's steam, every smoke) and fogged the quads; it now passes
       the colour as it is through the no-fog pipeline (`render_particles`).
       Checked under Wine (wined3d) at the STAGE_0 circuit / sprint markers
-      and the main menu's steam ($OB_PRIVATE/wine/compare/look112).
+      and the main menu's steam (frames kept with the maintainer's private evidence).
       **Open**: the link
       from the quads 0x5C7E90 to 0x5C5590, the blend states (0x5C5590 not
       traced), and the group cap (the clone does not bound it: 0x488730 creates the pool
@@ -3356,7 +3355,7 @@ The game's world collision step (0x5FFA60) runs after the cars have moved.
       stays in the countdown, so it shows none).
     * **Open**: the other car effects' mounting and trigger, the props' attached
       effects, and the key objects (+0x70 velocity, +0x30 colour).
-  * Impact sounds (**verified** unless marked; `src/audio/collision.rs`):
+  * Impact sounds (**verified** unless marked; `src/audio/world/collision.rs`):
     the record's constructor (0x5A9490 → 0x483E20 → 0x481CD0) makes one
     sound object for it in the manager's list (the list object is M+0x3C,
     M being the pointer at 0x82B884; its list header is +0x24; none when its

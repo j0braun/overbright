@@ -27,7 +27,7 @@ game draws beneath it). Environment: `NFSU2_OVERLAY=minimal|standard|full`
 (start layout; also for `--bench`), `NFSU2_PERF_CSV=path` (log to that
 file; also for `--bench`, e.g. from scripts/perf), `NFSU2_SHOT_FPS=
 minimal|standard|full` (a `--shot` with the overlay; made-up frame figures,
-this machine's metrics; `NFSU2_SHOT_ENH="overlay.position 1;overlay.scale
+the reference desktop's metrics; `NFSU2_SHOT_ENH="overlay.position 1;overlay.scale
 150"`).
 
 ## Layouts
@@ -193,9 +193,9 @@ Minimal's box lies inside Standard's at the same corner and scale, over at
 most as many of the HUD's pixels. At 21:9 the panel keeps to the 16:9
 area the HUD uses.
 
-## Sources (Linux; `src/overlay/sources.rs`)
+## Sources (Linux; `src/overlay/system/sources.rs`)
 
-| metric | source | this machine (reference desktop GPU + reference integrated GPU) |
+| metric | source | the reference desktop (reference desktop GPU + reference integrated GPU) |
 |---|---|---|
 | CPU load, per core | `/proc/stat` deltas (busy = all − idle − iowait) | yes |
 | CPU clock | cpufreq `scaling_cur_freq` per core | yes |

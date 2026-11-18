@@ -483,7 +483,7 @@ files, the build script and the compiler version) and reused by later gates agai
 
 ## Wine smoke (`wine_smoke.sh`, 2026-11-12)
 
-The Windows build (`x86_64-pc-windows-gnu`, the developer harness) under Wine on this machine, headless:
+The Windows build (`x86_64-pc-windows-gnu`, the developer harness) under Wine on the reference desktop, headless:
 a private Xvfb (`-displayfd`, or `WINE_DISPLAY=<n>`), a fresh private `WINEPREFIX` under the output dir (never
 `~/.wine`, never the original-game prefix) pinned to the x11 driver right after `wineboot`; every Wine process
 (`winepath` included) gets `DISPLAY` = that Xvfb, no `WAYLAND_DISPLAY` / `XDG_SESSION_TYPE` and

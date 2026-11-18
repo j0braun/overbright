@@ -37,7 +37,7 @@ a dead end ahead is not any of these failures.
 ## Active-outrun context evidence
 
 the maintainer's private captures preserves two atomic stopped-process snapshots
-from owned private session `a private Wine copy`, game PID 936476,
+from owned private session in a private Wine copy, game PID 936476,
 display 157. `capture-nitro-context.py` records the diagnostic challenge, player
 placement and momentum writes; these are controlled setups, not natural driving.
 The session was stopped after capture. `check-nitro-context.py` verifies all

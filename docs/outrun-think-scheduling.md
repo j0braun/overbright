@@ -45,10 +45,10 @@ frame is the correct clone clock boundary.
 ## Retained evidence and reproduction
 
 the maintainer's private captures contains raw binary outputs, inputs and
-metadata hashes. Run:
+metadata hashes. Run (the scripts are kept with the maintainer's private evidence):
 
 ```
-python3 $OB_PRIVATE/docs/evidence/outrun/check-think.py
+python3 check-think.py
 ```
 
 The isolated PE oracle (`native-think-gate-probe.py EXE PRIVATE_OUTPUT_DIR`)
@@ -67,7 +67,7 @@ was **goal 6**, not goal 5. Class 2 was observed live; class 1/drag are covered
 only by the isolated oracle. Racer-list begin/end were 1/4, while this owner's
 ID was 100 and its relative racer slot was 0.
 
-Capture used owned `a private Wine copy`, display 157, game PID 888452,
+Capture used a private Wine copy, display 157, game PID 888452,
 supervisor 888205, a private copied prefix/game and fresh career. The script
 forced a challenge and player lead placement/momentum, then deliberately cleared
 one action pointer. These are diagnostic interventions, not natural driving.

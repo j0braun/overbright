@@ -12,8 +12,8 @@ Code: `src/audio/` (abk, gin, fe, collision, engine, mixer). All from SPEED2.EXE
 module record, +0x30 call relocations (count, offsets; each patched to
 node table 0x817FE0[id]), +0x34 pointer relocations (dword += bank base),
 +0x38 events (count, then {record + 4, name block, type}; the name block
-is {u32, name at +4}: "FX_TURBO_01", "PlayCommonSample"; the clone read it
-from +8 until <work dir>). A module record is 0x3C +
+is {u32, name at +4}: "FX_TURBO_01", "PlayCommonSample"; the clone once read it
+from +8). A module record is 0x3C +
 (byte +0x24 + byte +0x27)·4 bytes: +0x28 code start, +0x2C code end (the
 instance template starts there), +0x30 instance size, then byte +0x24
 template offsets that get the bank base: the sound players' (node 27,
@@ -22,7 +22,7 @@ template offsets that get the bank base: the sound players' (node 27,
 install: FE_COMMON_MB "CommonSample" (19 sounds), FE_MB "FrontEndSample"
 and "FrontEndSample_loop" (71 each).
 
-**AEMS event graphs** (<work dir> pass, verified; `src/audio/aems.rs`, probe
+**AEMS event graphs** (verified; `src/audio/aems/`, probe
 the maintainer's probe `aems_probe`). A module's code (record +0x28) is x86 emitted by
 the bank compiler: `push esi; mov esi,[esp+8]`, then only `push esi; call
 id` (ESI = the node's block; the file holds the node id, the loader patches
@@ -70,7 +70,7 @@ amplitude); 29 a glide to +0x18 over +0x10 ms (× +0x14 / 4096, no
 overshoot); 30 min(sum, +4); 31 max(+4 − +8, +0); 32 min(+8 × +4, +0); 33
 / 34 min / max of two; 35 +8 × +4 × f32 +0; 37 byte +0x19 read once; 38 /
 39 (0x7200A2, 0x7201C2) a sub-event output and a named value (SWTN banks
-only; ported in <work dir>, see "Sweeteners and the decel crackle"); 5 and 9
+only; ported, see "Sweeteners and the decel crackle"); 5 and 9
 are unused. x87 `fistp` rounds to nearest (even).
 Sound player (node 27, 0x720D57): +0x18 the state (0 stop, 1 play, 2
 release), +0x14 the list index (clamped), +4 the list (count, then 12-byte
@@ -236,8 +236,8 @@ signed byte rec(p)+0x5F is written by 0x723C41 (see the angle-word bullet).
   each pushing exactly two arguments, so the callee's third slot is the
   caller's stack: 0x473F5A, 0x47412F and 0x474285. At 0x473F5A (the engine
   update 0x473E60, called at 0x47433F from the code at 0x474310, which does not
-  set EDI) and that was wrong: the third slot holds a pushed zero (see the <work dir>
-  pass below), so the pan is 0 there if the callee pops four bytes (checked only
+  set EDI) and that was wrong: the third slot holds a pushed zero (see the angle-slots
+  bullet below), so the pan is 0 there if the callee pops four bytes (checked only
   for vtable 0x78AF30; the class of ESI is not identified). The dword angle is
   the result of `[vtable+0x3C](0)` on the object (one argument; the second pushed
   zero stays on the stack; class not identified; the other two callers do the
@@ -267,7 +267,7 @@ signed byte rec(p)+0x5F is written by 0x723C41 (see the angle-word bullet).
   (pushed last) of the call 0x725DB5 at 0x724A02 (the call's writes to
   [0x8B44A5] are not traced); other
   entries into 0x724AF6 are not traced.
-* Open, all needed for stereo (after the <work dir> pass: not complete, nothing
+* Open, all needed for stereo (after the audio pass: not complete, nothing
   ported). The angle word rec(p)+0x1C and the pan are traced only as far as the
   two bullets above. The writer of the flag rec(p)+0x4E is not identified (68
   listing lines use +0x4E; the writers for this record are not separated out).
@@ -278,7 +278,7 @@ signed byte rec(p)+0x5F is written by 0x723C41 (see the angle-word bullet).
   fld1 then fstp, its only direct store; read at seven sites, 0x720897,
   0x722052, 0x722286, 0x723436, 0x723F6E, 0x724008 and 0x72773F, not traced;
   the name is inferred).
-* Angle source of the engine objects (<work dir> pass; verified unless marked;
+* Angle source of the engine objects (verified unless marked;
   still not complete, nothing ported). The object with vtable 0x78AF30 is
   registry entry "CARSFX_PlayerEngine": record 0x7ED458 = {name 0x788C54,
   0x7ED138, factory 0x47D6E0, type 0x10080}; the name string is at 0x788C54.
@@ -333,7 +333,7 @@ signed byte rec(p)+0x5F is written by 0x723C41 (see the angle-word bullet).
   REA returns no procedure at 0x76AA15, which follows a ret at 0x76AA14. The
   listener frame, the unit of the 16-bit azimuth (0x10000 = 360 degrees is
   inferred) and the sign convention are not established.
-* Angle slots, pan inputs and the object label (<work dir> pass; verified unless
+* Angle slots, pan inputs and the object label (verified unless
   marked as inferred or not traced; the angle source is still not complete,
   nothing ported). Vtable
   0x78AF30 holds 0x45E390 (slot 0x38) at 0x78AF68, 0x45E3B0 (slot 0x3C) at
@@ -360,7 +360,7 @@ signed byte rec(p)+0x5F is written by 0x723C41 (see the angle-word bullet).
   as its third dword. The setter reads it at [ebp+0x10] (0x7240A6) and
   range-checks it against 0xFFFFC000..0x3FFF (0x7240A9–0x7240BA). So the pan is
   0 at all three sites on that condition; the pop count of other callees is not
-  verified. This corrects the <work dir> bullet (that slot is not EDI) and the earlier
+  verified. This corrects the earlier bullet (that slot is not EDI) and the earlier
   count of one push at 0x474285 (there are two, at 0x474274 and 0x474276). The
   setter's exits seen (0x7240A4, after `leave`; 0x724129; 0x72413D) are plain
   `ret`. The instruction after each call is not an `add esp`, so the three
@@ -416,12 +416,12 @@ engine's EE/SPU bank layers (the +0xB0 block, see "Engine volume") and the
 _DCL decel recording's voice; the .csi event files (EVT_SYS, "MOIR") and
 .fx; the scrape (FX_Scrape), the traffic horn and bottom-out, DriveBy,
 Hydraulics and Rain (see "Road, wind, bottom-out, AI and traffic sounds,
-<work dir> pass": RoadNoise, WindNoise, WindWeather, BottomOut, the AI engines,
+pass": RoadNoise, WindNoise, WindWeather, BottomOut, the AI engines,
 the traffic engines and whooshes are ported there); SparkChatter is the
 decel crackle; no music or speech in this install.
 
 
-**Car effect sounds** (<work dir> pass; verified unless marked; `src/audio/carfx.rs`,
+**Car effect sounds** (verified unless marked; `src/audio/car/`,
 probes the maintainer's probe `sfx_banks`, the maintainer's probe `sfx_players`).
 
 * Registry (records {name, list head 0x7ED138, factory, type}; the type is
@@ -463,8 +463,8 @@ probes the maintainer's probe `sfx_banks`, the maintainer's probe `sfx_players`)
   2026-11-04; `carfx::purging(stage, speed, gas)`). Bank
   (0x465830): Nitrous_01 for nitrous level 2 or 3, else Nitrous_00. Each frame
   (+0x28, 0x45F4B0) the event's volume = slot 0x38 level (0..0x7FFF) and its
-  angle = slot 0x3C: the mix map's (ported in <work dir>, see "Mix map, <work dir> pass").
-  <work dir>: the blocks (0x457E70): FX_NITROUS {variant 0..2, volume, azimuth,
+  angle = slot 0x3C: the mix map's (ported, see "Mix map").
+  The blocks (0x457E70): FX_NITROUS {variant 0..2, volume, azimuth,
   stop flag 0..1}, the stop (0x45F2A0) sets the flag and dispatches; FX_PURGE
   (0x45F2D0) starts all zero and per frame (0x45F4B0) gets {level[1],
   azimuth, stop flag (0x45F3E0), 0x45E3D0 = 0x1000 unless paused}; an event
@@ -480,16 +480,16 @@ probes the maintainer's probe `sfx_banks`, the maintainer's probe `sfx_players`)
   (0x45E730) with variant 1 for the up-shift states 1–3 (+0x78), else 0.
   Volume (0x45E730): t = (round(rpm) − 1500)/6500 clamped (0 when ≤ 0), k =
   trunc(512 − 512·(0.1 + 0.9t)), level × ((fade[k] × record volume) >> 15) >>
-  15, clamped 0..0x7FFF, level = slot 0x38 (0 up, 1 down; the mix map's since <work dir>,
+  15, clamped 0..0x7FFF, level = slot 0x38 (0 up, 1 down; the mix map's,
   was 0x7FFF). fade = 0x7EF7F8 = trunc(32767·cos(π/2·k/511)) (all 512
   checked). The flags +0x71 / +0x72 play CAR_SWTN ("ShiftDisengage",
   0x4720D0 / 0x4722B0) on the engine's banks only at ≥ 7000 rpm: **open**
-  (not ported). <work dir>: the event block (0x45E730 → 0x7358C0 at 0x45E990): {variant
+  (not ported). The event block (0x45E730 → 0x7358C0 at 0x45E990): {variant
   0..2, volume, 0x1000, azimuth, 0, (context +0xA8 = 2)}, the last event
   released first; the graph picks the sample (variant 1 → entry 1). The
   +0xA8 flag's meaning is **open** (the clone 0). The
   rpm-blip state machine of 0x482D50 (states 1–7, jump table 0x483114) is
-  ported in <work dir> (see "Engine transients, <work dir> pass").
+  ported (see "Engine transients").
 * **Registry layout** (verified): the records are {type, name,
   list head, factory}, 16 bytes, the type dword first (each class's slot 1
   returns the address of its record's type, slot 2 the name: e.g. 0x45C4B0
@@ -510,7 +510,7 @@ probes the maintainer's probe `sfx_banks`, the maintainer's probe `sfx_players`)
   ENV_COMMON, FX_MAIN_MEM, WIND_00, FX_Rain, TRAFFIC, FX_Misc,
   Hydraulics_00. None of RoadNoise, Wind, SparkChatter, BottomOut or the
   traffic objects is traced or ported.
-* **Turbo** (<work dir> pass; verified unless marked; `carfx::Turbo`, ported).
+* **Turbo** (verified unless marked; `carfx::Turbo`, ported).
   Bank (slot +0x18, 0x465AF0): [record +0] under sound\Turbo\ (0x7ED188);
   the record (bind 0x45EB30) is 0x7F3338 + 24 · n with n = dword +8 of
   the 0x7F2230 entry [sound index][turbo level], turbo level = 0x5995F0(car
@@ -556,7 +556,7 @@ probes the maintainer's probe `sfx_banks`, the maintainer's probe `sfx_players`)
   0x2000), +0x10 the azimuth (slot 0x3C, 0..0xFFFF), +0x14 = clamp(sound
   state +0xB0, 0, 0x400), +0x18 = clamp(trunc(rpm), 0, 10000). The bank's
   module has two sound players, list indices 0 and 4 (both loops; MED_0: 2
-  and 4); the list's 1–3 are one-shots. <work dir>: the event block (0x458260) is the event +4 on: {variant 0..5,
+  and 4); the list's 1–3 are one-shots. The event block (0x458260) is the event +4 on: {variant 0..5,
   volume 0..0x7FFF, spool 0..0x2000, azimuth, the sound state's +0xB0
   0..0x400, rpm 0..10000}; 0x45ECE0 rewrites the whine's p1..p5 and the
   blow-off's p1 each frame. The FX_TURBO_01 graph (run by the clone) reads
@@ -567,8 +567,8 @@ probes the maintainer's probe `sfx_banks`, the maintainer's probe `sfx_players`)
   **Inferred**: the per-tick spool steps scaled to 60 ticks a second; the
   levels from the mix map. **Open**: whether the object exists
   for cars with no turbo part (the clone: always).
-* **Skids** (<work dir> pass, completed <work dir>; verified unless marked; ported in
-  `src/audio/skids.rs`). CARSFX_Skids
+* **Skids** (verified unless marked; ported in
+  `src/audio/car/skids.rs`). CARSFX_Skids
   (vtable 0x78AE48): attach 0x473B40 (type 1 Wheel → +0x13C, 2 Skid →
   +0x138, 8 → +0x140), bind 0x460840 (events +0xC4 = 2 when the car's
   [ctx+0x2C]→+4 is 1, 1 for 2–4, else 0), bank 0x465B90: 0x7ED1F8[2 · drift
@@ -597,13 +597,13 @@ probes the maintainer's probe `sfx_banks`, the maintainer's probe `sfx_players`)
   (0.64, 12.3, 1.9), (0.85, 11, 0.64), (0.64, 12.3, 1.9). The skid banks hold
   five loops each (SKID_PAV 32 kHz, the others 36 kHz) and 7 / 5 sound
   players: which loop sounds for which parameter is the AEMS graph's (run
-  since <work dir>).
-  <work dir> (verified unless marked): **SFXCTL_Wheel** update 0x46EA50 (slot
+  since then).
+  Verified unless marked: **SFXCTL_Wheel** update 0x46EA50 (slot
   +0x14 0x47BE80): +0x90 / +0x94 = the sums of the car's slip pair (+0x3B4
   + 8i longitudinal, +0x3B8 + 8i lateral) over wheels 1, 2 on the ground
   (+0x390 + i), +0x98 / +0x9C over wheels 0, 3 (order FL, FR, RR, RL);
-  +0xA0 + 4i = |car +0x3D4 + 4i| (traced in <work dir>: the side wheels' spin,
-  see "Skids, <work dir>" below); 0x45BFB0: +0xB0 = car +0x394
+  +0xA0 + 4i = |car +0x3D4 + 4i| (traced: the side wheels' spin,
+  see "Skids, the wheel gates" below); 0x45BFB0: +0xB0 = car +0x394
   (wheel 0's surface) when it equals +0x3A0, +0xB4 = +0x398 when it equals
   +0x39C, else kept (race type 8 with no ghosts forces 25: not ported);
   0x46E8B0: +0xE8 = 0 when wheels 0 and 3 are both up, +0xE9 for 1 and 2.
@@ -634,7 +634,7 @@ probes the maintainer's probe `sfx_banks`, the maintainer's probe `sfx_players`)
   0x460A70: event 0 the left side (surface +0xB0, ground +0xE8,
   intensities +0x1A0..), event 1 the right; the layer volume 11579 on
   surfaces 14, 15, 22, else 0x7FFF, 0 off the ground. 0x460C70: p0–p2 =
-  (level × volume) >> 15 (levels 3, 5, 4 / 0, 2, 1; the mix map's since <work dir>, was
+  (level × volume) >> 15 (levels 3, 5, 4 / 0, 2, 1; the mix map's, was
   0x7FFF), p3, p4 (0..0x400), p5 (0..0x3FF) the intensities, p6 the
   azimuth, p7 drift, p8–p10 0x1000, p11 = T(|ang|·57.3) (0..180), p12 =
   T(speed·2.237) (0..1000), p13 0, p14 = T(0x5ED4A0: front lateral slip /
@@ -649,7 +649,7 @@ probes the maintainer's probe `sfx_banks`, the maintainer's probe `sfx_players`)
   at +0xC0 and its +0x80 (a 0..0x7FFF volume) are not identified, nor the
   mix map's level. So the clone's engine gain 0.5 + 0.5 · throttle is **not
   native** (no traced replacement yet).
-  <work dir> (verified; full notes in `analysis/engine-volume-chain.md`, **not
+  Verified (full notes in docs/engine-volume-chain.md; **not
   ported**): +0xC0 is SFXCTL_HybridMotor (type 6, vtable 0x789FE4, update
   0x47C3D0; 0x473BCC belongs to CARSFX_Skids). Its +0x80 is the volume:
   with the context's hybrid flag (+0x78: engine entry 0x7F0DE0 +0x10 ≠ 0;
@@ -664,11 +664,10 @@ probes the maintainer's probe `sfx_banks`, the maintainer's probe `sfx_players`)
   T(rec +0x28 · FC · G). SetRPM gets max(HM +0xF8, the GIN's minimum rpm),
   +0xF8 = rec +0x20 + (clamp(rpm, 1000, 10000) − 1000)/9000 · (rec +0x1C −
   rec +0x20). Not ported because the FC targets and the second (decel)
-  voice need the open state fields; the clone kept 0.5 + 0.5 · throttle until
-  <work dir> (see "Engine volume chain, <work dir> pass" below: now ported).
+  voice need the open state fields; the clone kept 0.5 + 0.5 · throttle before (see "Engine volume chain" below: now ported).
 
-* **Engine volume chain, <work dir> pass** (verified unless marked; ported in
-  `src/audio/hybrid.rs`, replacing the clone's 0.5 + 0.5 · throttle).
+* **Engine volume chain** (verified unless marked; ported in
+  `src/audio/engine_chain/`, replacing the clone's 0.5 + 0.5 · throttle).
   Registry (records {type, name, list head, factory} from 0x7ED230):
   SFXCTL_Physics 0x7ED2F4 (factory 0x470A00 → ctor 0x45D210, vtable
   0x78A008, update slot +0x14 0x484C50), SFXCTL_AccelTrans 0x7ED2D4
@@ -710,8 +709,8 @@ probes the maintainer's probe `sfx_banks`, the maintainer's probe `sfx_players`)
     (rpm), +0x90, +0xAC (the throttle: +0xC0 is "AccelTrans.+0xC0"), stepped
     by 0x46B100: shape 0 linear, 1 hold, 2 t², 3 1 − (t − 1)², 6 a curve via
     0x468160) and ends the states when the rpm ramp is done (2 → 3 → 0;
-    off throttle → 4). Ported in <work dir> with the SFXCTL_Shifting blip
-    machine 0x482D50 (see "Engine transients, <work dir> pass"). 0x5ECD80(car) = car +0x28 = 1 and
+    off throttle → 4). Ported with the SFXCTL_Shifting blip
+    machine 0x482D50 (see "Engine transients"). 0x5ECD80(car) = car +0x28 = 1 and
     [[car+0x34]+0x4C]+0x48 ≠ 0: the human car changing gear (**verified**
     under Wine; the drivetrain's `pending`); 0x470540 / 0x4701A0 then
     take the Shifting table even in state 0 (rec84 lerp / fixed gains).
@@ -756,9 +755,9 @@ probes the maintainer's probe `sfx_banks`, the maintainer's probe `sfx_players`)
   goes to the two channels with the N_t = 2 table weights at its azimuth
   row (see "Mixer channel law"); at azimuth 0 each channel gets 180 / 255;
   a mono device gets 127 / 255 (N_t = 1). The azimuths and the distance
-  attenuation come from the mix map since <work dir> (see "Mix map, <work dir> pass";
+  attenuation come from the mix map (see "Mix map";
   channel 0 = the right speaker, **inferred**).
-* **Skids, <work dir>**: the wheel gates' car field. SFXCTL_Wheel reads car
+* **Skids, the wheel gates**: the wheel gates' car field. SFXCTL_Wheel reads car
   (+0x44 → +0x30) +0x3D4, +0x3D8, +0x3DC, +0x3E0 (0x46EA82–0x46EA9B).
   +0x3D4 is only zeroed (0x5A93E7) and copied by the replay snapshot
   (0x59F6E1); +0x3D8 is an integer (0x5A8EA1, from 0x59E440), a denormal
@@ -798,8 +797,8 @@ probes the maintainer's probe `sfx_banks`, the maintainer's probe `sfx_players`)
   comes from the chassis' +0x90 + 8i (0x5A2B70), whose lateral half the
   clone does not model.
 
-* **Engine transients, <work dir> pass** (verified unless marked; ported in
-  `src/audio/transients.rs`, driven by `hybrid::HybridMotor::update`).
+* **Engine transients** (verified unless marked; ported in
+  `src/audio/car/transients/`, driven by `hybrid::HybridMotor::update`).
   - **Interpolator** 0x459990(from, to, ms, shape) / 0x46B100(dt):
     {elapsed, duration s (ms · 0.001; ≤ 0 → 0.01 s), from, to, shape,
     value, done}; done when elapsed > duration (strict). Shapes (table
@@ -918,7 +917,7 @@ probes the maintainer's probe `sfx_banks`, the maintainer's probe `sfx_players`)
     +0x48 (the context rpm) with `_ftol` (truncation; the clone rounded
     the car's rpm before). CARSFX_Turbo's rpm is ctx +0x48 and its boost
     Engine +0x130 (slot 0x38), shifting = Shifting state ≠ 0.
-* **Sweeteners and the decel crackle, <work dir> pass** (verified unless marked;
+* **Sweeteners and the decel crackle** (verified unless marked;
   `carfx::PlayerSfx::swtn_update`). CARSFX_Shift's bank slot (0x465990)
   loads a second bank when the record +0xD4 (0x7F3040 + 12 · ctx +0x7C,
   record 0 past 0x2B; `carfx::SWTN`) names one: sound\Engine\ (0x7ED164)
@@ -934,7 +933,7 @@ probes the maintainer's probe `sfx_banks`, the maintainer's probe `sfx_players`)
     10000), clamp(((trunc(ramp) · record +4) >> 15) · level >> 15, 0,
     0x8013), the azimuth 0..0x10000, 0, 0}; the ramp 0x7F095C (0x4599E0:
     {26000, 32767, 4000, 7000, in, out}) gives 32767 at ≥ 7000; level =
-    slot 0x38 index 3 / 2 (the mix map's since <work dir>).
+    slot 0x38 index 3 / 2.
   - CARSFX_SparkChatter (registry 0x7ED3C8, factory 0x47CC40 when
     0x43E910 ≥ 0x500, ctor 0x472C10, vtable 0x78ACB0; attach 0x472C80:
     type 3 → +0xB0, 8 → +0xFC; bind 0x45F6E0: +0x9C ctx for owner kinds 1
@@ -965,8 +964,8 @@ probes the maintainer's probe `sfx_banks`, the maintainer's probe `sfx_players`)
     clamp(+0x14, +8, +0xC) goes to the named value (0x7356D0); returns 0
     (no installed bank uses it). Both ported (`aems::Instance::messages`
     keeps what they send; nothing in the clone listens).
-* **Mix map, <work dir> pass** (verified unless marked; ported in
-  `src/audio/mixmap.rs`, test `audio::mixmap::tests`). Replaces the <work dir>
+* **Mix map** (verified unless marked; ported in
+  `src/audio/mixmap/`, test `audio::mixmap::tests`). Replaces the earlier
   note (load only).
   - **Load.** 0x4869A0 picks 0x7EDE4C[k]: k = 2 (DRG) with the drag flags
     0x89E7D8 / 0x890108, 3 (URL) with 0x89E7E1, 1 (DFT) with the drift
@@ -1082,7 +1081,7 @@ probes the maintainer's probe `sfx_banks`, the maintainer's probe `sfx_players`)
     car (classes 8, 0xA **inferred** as the car), its right / left wheel
     pairs (0xB / 0xC: SFXCTL_3DRightWheelPos / LeftWheelPos, verified in round 2 of the sound comparison: SFXCTL_Wheel's two points 1.5 m ahead and 0.8 m to each side, 0x46E8B0), AI cars
     (section 2 class 8) and traffic (section 3 class 0). Every other
-    field of an existing object is 0 (<work dir>: the nitrous, bottom-out and
+    field of an existing object is 0 (as for the nitrous, bottom-out and
     traffic fields are given, see "Ducking inputs" below).
   - **Player slots** (MAPOUTPUT, defaults, 5 m behind the car, idle):
     engine 23064; shift 23091 / 23091 / 18342 ×4; turbo 4879 ×3; nitrous
@@ -1096,14 +1095,14 @@ probes the maintainer's probe `sfx_banks`, the maintainer's probe `sfx_players`)
     90° speaker, channel 0, is the right one; `mixer` now sends it to the
     device's channel 1.
 
-**Road, wind, bottom-out, AI and traffic sounds, <work dir> pass** (verified
-unless marked; ported in `src/audio/roadwind.rs`, `traffic.rs`,
+**Road, wind, bottom-out, AI and traffic sounds** (verified
+unless marked; ported in `src/audio/world/env/`, `traffic.rs`,
 `stitch.rs`; render probe the maintainer's probe `car_audio_render`; self-test "road
 / wind voices"). Vtable slots of the sound objects: +0x10 attach, +0x14
 bind, +0x18 bank, +0x1C start, +0x20 stop, +0x24 update(dt), +0x28 per
 frame, +0x38 / +0x3C the mix map's level / azimuth (0x45E390 / 0x45E3B0),
 +0x44 / +0x48 (engines) start / per frame. All the levels and azimuths
-below are the mix map's slots ("Mix map, <work dir> pass"), object classes 6
+below are the mix map's slots ("Mix map"), object classes 6
 RoadNoise, 7 WindNoise, 10 WindWeather, 11 BottomOut (section 1), 0 the
 AI engine (section 2), 0 TrafficEngine, 1 TrafficWoosh (section 3).
 
@@ -1254,7 +1253,7 @@ AI engine (section 2), 0 TrafficEngine, 1 TrafficWoosh (section 3).
   +0xB8 = the clock; +0xC (field 2) := 1. Per frame 0x47E8D0: +0xC = 0;
   the whoosh updated with slot 2; released when rel ≤ 15, when its layers
   end or while paused.
-* **Scrape** (`src/audio/scrape.rs`, verified; FX_Scrape, the second
+* **Scrape** (`src/audio/car/scrape.rs`, verified; FX_Scrape, the second
   event of `FX_Misc_MB.abk`, slot 0x82C5D8, record 0x7EDDF0, block ctor
   0x458010 {0..0x7FFF, 0..9000, 0..0xFFFF, 0..16, 0..0x7F}).
   * Record +0x40 is the push's third argument: Contact_ApplyImpulse
@@ -1326,8 +1325,8 @@ AI engine (section 2), 0 TrafficEngine, 1 TrafficWoosh (section 3).
   frame; **inferred**: the mix reads it before 0x47F100 clears it),
   TrafficWoosh f2, TrafficEngine f3. The tunnel (SFXCTL_Tunnel, class 7
   fields 0–2) needs tunnel geometry the clone lacks: 0.
-* **Against the original under Wine** (recordings in
-  $OB_PRIVATE/wine/runs/<run>/rec, 48 kHz stereo, free roam after Start
+* **Against the original under Wine** (recordings of
+  a private Wine copy, 48 kHz stereo, free roam after Start
   New Career: Rachel's 350Z at the airport, raining, chase camera; the
   clone's the maintainer's probe `car_audio_render`, engine entry 0, no rain). RMS
   (L / R dBFS): idle −29.3 / −27.9 (original) vs −35.6 / −35.6 (clone);
@@ -1453,7 +1452,7 @@ The checklist is docs/sound-audit.md. **Verified** (traced) unless marked.
   (value 1) or 2 (value 4) — the maintainer's probe `nis_start_probe`. Not modelled:
   the tournament and split-screen adjustments. **Under Wine** (Quick Race
   circuit, Resort Loop, Peugeot 206, Crowds on; memory reads every 0.25
-  s, $OB_PRIVATE/wine/runs/<run>/logs/sound_probe.txt): flow +0 / +8 /
+  s): flow +0 / +8 /
   +0x18 / +0x1C went 0/0/0/0 → 1/1/2/1 (LOADING) → 3/0/2/1 (PRERACE) →
   4/0/2/1 (race), so the third key is 1 there; the clone passes 1
   always (**inferred** for other race kinds; who writes +0x1C = 3 is
@@ -1713,7 +1712,7 @@ targets Ghidra has no function at) unless marked.
 ### Sound round 5
 
 * **Levels checked under Wine (verified).** The original (wined3d,
-  `a private Wine copy`, audio into ALSA's null device: a private
+  a private Wine copy, audio into ALSA's null device: a private
   `ALSA_CONFIG_PATH`, so 0x7FAAA8 = 1 and the sound objects exist) read
   with fresh options (0x83AA28: master 1, speech 1, menu music **0.7**,
   game music 1, effects 1, engine 1, tires 1): main menu — the music
@@ -2712,7 +2711,7 @@ from `SDATA/sdat.viv`) unless marked. Clone: `audio::mixer` (`mix_gain`,
   keeps no gain state (its level never changes).
 * **Cost** (`mixer::cost::render_cost`, ignored by default: 24 loops with
   gains moving every game frame, 10 s at 44100 in 512-frame callbacks,
-  this machine): 85 ms before, 55–59 ms after (voices mixed per chunk, not
+  the reference desktop): 85 ms before, 55–59 ms after (voices mixed per chunk, not
   per frame).
 * **Captures** (`NFSU2_AUDIO_WAV`; shots now also write `<file>.stops`:
   each stop's frame and the step a cut would leave): explore 4, race 3,
@@ -2965,8 +2964,8 @@ there.
 First comparison of the clone's sound with the original's actual output
 (`fastgpu.sh --audio-file`, Wine dsound → PulseAudio null sink; the clone's
 offline capture `NFSU2_AUDIO_WAV` with `--flow soak`, new phase
-`keys:secs` with `NFSU2_SOAK_KEYS`, volumes `NFSU2_SOAK_VOL`). Report and
-tables: `<work dir>/soundcmp-tmp/REPORT.md`.
+`keys:secs` with `NFSU2_SOAK_KEYS`, volumes `NFSU2_SOAK_VOL`). The report and
+tables are kept with the maintainer's private evidence.
 
 * **Output scale (verified).** SndMix_Render 0x729574 mixes each chunk into
   16-bit channel buffers and SndMix_Interleave 0x72CD6A only interleaves
@@ -3025,9 +3024,8 @@ Both games recorded under the same conditions (the original by
 `fastgpu.sh --audio-file` with `sndwatch.py` / `parmwatch.py` and memory
 reads; the clone by `--flow soak` with the new check aids below), compared
 by event parameter blocks first and by the audio where the blocks agree.
-Recordings and scripts: `$OB_PRIVATE/wine/runs/<run>/rec/`,
-`<work dir>/sound2-tmp/` (ovol.py, tprobe.py, vtscan.py,
-crun.sh). New check aids in the clone: `NFSU2_EVENT_LOG=path` (every AEMS
+The recordings and scripts (ovol.py, tprobe.py, vtscan.py, crun.sh) are
+kept with the maintainer's private evidence. New check aids in the clone: `NFSU2_EVENT_LOG=path` (every AEMS
 event start, parameter block and end with the capture time,
 `audio::aems::log`; the counterpart of parmwatch), `NFSU2_MIX_TRACE=
 "s.copy.class,…"` (a mix-map master channel's inputs once a second),
@@ -3058,7 +3056,7 @@ traffic engine's level for given position fields).
    0.43, −12.3 −8.8 −2.1 −11.0 −12.8 −18.1 −26.7 (250–500 Hz ~2 dB low in
    that one window). **Round 3**: not a defect. The bed is not
    steady (wind, planes, traffic), and one 8 s window says little: over
-   the original's a1 capture (`a private Wine copy/rec/a1.wav`, 8 s windows from
+   the original's a1 capture (8 s windows from
    100 to 1700 s, Welch PSD of the mono mix, octave bands 31 Hz…8 kHz as
    dB of the total) the 50 quiet idle windows
    (−28…−31.5 dBFS, 4–8 kHz under −33 dB) give −15.9 −7.1 −2.7 **−10.6**

@@ -6,7 +6,7 @@
 //! The street lamps' share of the bake is modelled per pixel as physical
 //! point lights (inverse square × cosine, windowed to the authored outer
 //! radius) whose intensity and colour were fitted to the bake itself
-//! (`examples/modern_light_fit.rs`); that share is then relit: shadowed
+//! (the private developer probe `modern_light_fit`); that share is then relit: shadowed
 //! by Lamp Shadows' layers and the cars, given the per-pixel normal, and a
 //! specular lobe. Everything the lamps do not explain (sky, neon, the
 //! artists' paint, bounce) stays the bake.
@@ -27,7 +27,7 @@ pub fn pool(rel: Vec3, n: Vec3, outer: f32) -> f32 {
 
 /// The fitted softening (m²): the lamp's light as from a source of this
 /// size, which widens the pool's core the way the bake's is wide
-/// (`examples/modern_light_fit.rs` searches it).
+/// (the private developer probe `modern_light_fit` searches it).
 pub const POOL_SOFT: f32 = 150.0;
 
 /// [`pool`] with the softening `soft` (m²): (POOL_REF² + soft) / (d² +
@@ -103,7 +103,7 @@ pub fn parse_switch(switch: Option<&str>, boxed: Option<&str>) -> Option<([f32; 
 
 /// The fitted channel gains on a lamp's authored colour (/255): the bake's
 /// lamp share on Bayview's roads is `GAIN × colour / 255 × pool`
-/// (`examples/modern_light_fit.rs`, FIT_ROAD=1: per-channel least squares
+/// (the private developer probe `modern_light_fit`, FIT_ROAD=1: per-channel least squares
 /// over 187 238 road vertices, r² 0.37 / 0.35 / 0.29; the native weight
 /// curve explains r² 0.17). Warm: the bake's pools are sodium-tinted where
 /// the packs' colours are grey.

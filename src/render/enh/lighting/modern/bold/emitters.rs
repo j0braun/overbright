@@ -10,7 +10,7 @@ pub const EMITTER_GAIN: f32 = 1.3;
 /// An additive texture that lights its surroundings: the signs and the
 /// neon (SGN_*, *NEON*), not the fake light beams, the flare / mist
 /// sprites, the distant city grid, the headlight glows or the windows
-/// (measured: `examples/modern_light_inventory.rs`).
+/// (measured with the private developer probe `modern_light_inventory`).
 pub fn emissive_name(name: &str) -> bool {
     let n = name.to_ascii_uppercase();
     (n.starts_with("SGN_") || n.contains("NEON") || n.contains("_SIGN"))

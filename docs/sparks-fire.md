@@ -55,7 +55,7 @@ While a shot runs (0x59FA40) and the race status (0x890118 → +0) is 0..3 (befo
 roam is 4), 0x61FB10(13, 1.0) — the purge kind — fires as well. The player cannot start a shot
 before the green in the clone; **open** whether the original lets one run there.
 
-### Under Wine (**observed**, `a private Wine copy`, :215, fresh career, D-Day free roam, Rachel's 350Z)
+### Under Wine (**observed**, a private Wine copy, :215, fresh career, D-Day free roam, Rachel's 350Z)
 * ride +0x2F0 floats: cat 4 = 1.98 → 0x5995F0(4) = 2; ride +0x328 = 0 → L = 2 (intensity 0.571).
   The clone gives her car turbo level 2 (`car::tests::rachels_turbo_level_fires_the_pops`).
 * Standing: gear 2 (first), +0x924 = 1. Driving off on the keys: gear 2 → 3 with the clutch open,
@@ -135,7 +135,7 @@ the native quads as before.
   flood light; and the light splat's normals from screen derivatives lit a fringe of pixels along the
   car's silhouette.
 
-**The original's sparks (Wine, DXVK, `a private Wine copy`, a race on the Coal Harbor wall, 30 fps frames,
+**The original's sparks (Wine, DXVK, a private Wine copy, a race on the Coal Harbor wall, 30 fps frames,
 `nx5b_native_wine_scrape.webp` / `_hit.webp`; observed)**: a compact, white-yellow glow trail at the contact
 (the GlowA sprites, 1.2 m, inheriting 0.5 of the car's velocity), small spark dots within ~1 m, staying at
 the contact's height, a little smoke; no light on the surroundings, no spray above the car.

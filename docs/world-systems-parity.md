@@ -3,9 +3,8 @@
 Traffic, collisions, cameras, audio mix and saves compared with SPEED2.EXE under Wine
 through the parity harness (docs/parity-harness.md). **Verified** = traced in the
 disassembly, **observed** = read under Wine, **inferred** / **open** as marked. Raw runs:
-`<work dir>/world-work/runs/<name>/` (Wine copy `a private Wine copy`, display :223,
-wined3d); reports, car lists, statistics in the maintainer's private captures. The audio and camera parity: raw runs in
-`<work dir>/p5b-work/runs/<name>/` (Wine copy `a private Wine copy`, display :233,
+`<work dir>/world-work/runs/<name>/` (a private Wine copy, display :223,
+wined3d); reports, car lists, statistics in the maintainer's private captures. The audio and camera parity: raw runs kept with the maintainer's private evidence (a private Wine copy, display :233,
 wined3d), tables and frames in the maintainer's private captures, harness additions in
 docs/parity-harness.md.
 
@@ -21,17 +20,17 @@ docs/parity-harness.md.
   speed, and the traffic-only `mover` car +0x28, `traffic_action` [[car+0x2C]+0x6F8]+0x204,
   `parked` [car+0x2C]+0x77C — the byte 0x4112A0 reads, verified — `drawn` car +0x550).
   diff.py leaves traffic out of the car match (`clone.tsv.traffic` lists the clone's slots).
-* `$OB_PRIVATE/tools/parity/trafficstats.py OUT`: pool statistics per side (placed, within 50–250 m,
+* the private tool `trafficstats.py OUT`: pool statistics per side (placed, within 50–250 m,
   the jam share of 0x4112A0, placements per minute and where, speeds, mover and action
-  shares). `$OB_PRIVATE/devprobes/src/bin/traffic_lane_offsets OUT`: each traffic sample's signed distance from
-  the nearest lane centre line running its way. `$OB_PRIVATE/devprobes/src/bin/traffic_lanes_near X Y R`.
+  shares). a private developer probe (`traffic_lane_offsets OUT`): each traffic sample's signed distance from
+  the nearest lane centre line running its way. a private developer probe (`traffic_lanes_near X Y R`).
 * `[start] kind = "free_roam"`: the save resumed to free roam, the cave holds at once
   (trigger: the traffic level 0x89E7A8 as it is), arms on the next frame; the clone puts its
   player on the original's frame-0 pose (kept when within 1 m / 2.6°). `place` (a teleport
   while held) froze the original's car for a second and then reset it to a road spot: not
   usable at a standstill.
 * Camera fields (global, view 1 = 0x8760E0): `cam_eye` +0x40, `cam_fwd` +0x50, `cam_fov`
-  +0xC4 (binary angle); `$OB_PRIVATE/tools/parity/camstats.py OUT` prints the eye relative to the car.
+  +0xC4 (binary angle); the private tool `camstats.py OUT` prints the eye relative to the car.
 * Native AI fields are not recorded for free-roam encounter racers that are not out: their
   [car+0x2C]+0x6F8 read 1.0f and faulted the cave (page fault at 0x782C4C).
 
@@ -243,7 +242,7 @@ could (none observed). Consistent with menus114; nothing to port.
 
 ## 7. 2026-11-05: scrape level, the mix, traffic movers
 
-Wine copy `a private Wine copy` (display :281, wined3d), raw runs in `<work dir>/p5c-work/runs/`,
+a private Wine copy (display :281, wined3d), raw runs kept with the maintainer's private evidence,
 evidence in the maintainer's private captures.
 
 **FX_Scrape's level (fixed, verified).** The writer of the scrape object's +0xD4 / +0xD8 / +0xDC
@@ -325,7 +324,7 @@ or block write is likely — not traced further (**open**); the yaw was not re-r
 
 ## 8. 2026-11-05: the traffic's walk, its lane window and the BeltMover
 
-Wine copy `a private Wine copy` (display :285, wined3d), raw runs in `<work dir>/p5d-work/runs/`
+a private Wine copy (display :285, wined3d), raw runs kept with the maintainer's private evidence
 (`walkprobe1.tsv`, `walkprobe2.tsv`: every traffic car's walk and stale road entries read through
 `/proc` with `walkprobe.py`, no cave fields), evidence in the maintainer's private captures. Every clone
 figure below is the mean over six traffic seeds (`NFSU2_TRAFFIC_SEED`, a harness knob that varies the
@@ -407,11 +406,11 @@ not reached).
 
 ## 9. 2026-11-05: turns at intersections, the obey share
 
-Wine copy `a private Wine copy` (display :290, wined3d), raw runs in `<work dir>/p5e-work/runs/`
+a private Wine copy (display :290, wined3d), raw runs kept with the maintainer's private evidence
 (`nat5/cache.tsv`: every traffic car's junction cache and walk read through `/proc` with
 `cacheprobe.py`, no cave fields; the cave was given the player's fields only — with the encounter
 racers' fields the cave faulted at 0x782C53 reading 0x00FFFF14 in three runs). Evidence in
-the maintainer's private captures. `$OB_PRIVATE/devprobes/src/bin/traffic_intersections [REGION] [REC CP]` lists the intersections, their crossing
+the maintainer's private captures. a private developer probe (`traffic_intersections [REGION] [REC CP]`) lists the intersections, their crossing
 points and the control points flagged with each (or one point's junctions); `obeywin.py`, `turns.py`,
 `xtime.py` (evidence dir) bin the obey share by distance to a crossing point, count turns and time
 the passes through intersection 3. Clone figures are means over six traffic seeds (0, 11 … 55); the
@@ -480,7 +479,7 @@ driver's side not traced); impact sound start volume.
 
 ## 10. 2026-11-05: the free-roam jam, race stops, the walk's steps
 
-Wine copy `a private Wine copy` (display :292, wined3d), raw runs in `<work dir>/p5f-work/nat/`
+a private Wine copy (display :292, wined3d), raw runs kept with the maintainer's private evidence
 (`fsA` … `fsC`: free roam 200 s, `rcA`, `rcB`, `race2`: STAGE_1_CIRCUIT_1; the cave given the player's
 fields only, `PARITY_HUMAN_ONLY=1` in the maintainer's tool `native.py`, because with the encounter racers' or the
 rivals' it faulted at 0x782C53 reading 0x00FFFF14/15 every time; the traffic read through `/proc` by
@@ -645,8 +644,8 @@ first think.
 
 ## 12. 2026-11-05: the racers' traffic avoidance (AvoidAvoidable end to end)
 
-Traced in SPEED2.EXE (Ghidra + the disassembly); observed under Wine (copies `a private Wine copy` :312 and
-`a private Wine copy` :313, wined3d; raw runs in `<work dir>/p12-work/nat/`). Scenarios
+Traced in SPEED2.EXE (Ghidra + the disassembly); observed under Wine (copies a private Wine copy :312 and
+a private Wine copy :313, wined3d; raw runs kept with the maintainer's private evidence). Scenarios
 `circuit_traffic_p12` / `sprint_traffic_p12` record only the fields the statistics read (`[run]
 skip`): with the full field set the cave faulted at 0x782C53 reading 0x00FFFF15 again (as in the traffic-in-race parity /
 The traffic-jam parity), with the reduced set all twelve runs went through. New fields: `ai_obj` (action +0x218),

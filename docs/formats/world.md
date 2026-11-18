@@ -718,7 +718,7 @@ pass under the road reflection's **Contents**), so 0x5CCCE0 is not ported.
   (0x5D6580's first test) are left to the flares' own tests (**inferred**
   equivalent), and the cull's instance order to the placements' order
   (**inferred**; only a full pool would show it).
-  **Observed** under Wine (race8, `a private Wine copy`, wined3d, Quick Race Free
+  **Observed** under Wine (race8, a private Wine copy, wined3d, Quick Race Free
   Run, Peugeot 206, the car placed by memory writes; side-by-sides in
   compare/race115): at the traffic light at (1169.9, −304.0) facing +y the
   amber XO_TRAFFICLIGHTC glow blinks (on in three of four grabs ~1 s
@@ -796,7 +796,7 @@ resolve them. Its mesh flags are 0. `src/sky.rs` has the cycle.
   * State 1 (a 0–0.5 ramp) is never entered.
   * Reset (index 0, everything 0) is 0x60F750, run on unload (0x5816A7).
 * **When the clock runs and restarts (2026-11-01; verified, and
-  observed under Wine, `research/tod-compare/`).** 0x576D00 sets the tick
+  observed under Wine).** 0x576D00 sets the tick
   0x865188 to 4000 and the clock 0x7FB718 to 1.0 s (and the frame times
   0x86514C / 0x865150 / 0x865154 to 0). It is called from the world
   object's ctor 0x5FF4A0 (World_Start 0x60A690 at 0x60A743) and its dtor
@@ -1121,7 +1121,7 @@ it).
   GameRng (the original shares 0x7EA624). `NFSU2_RAIN_CLOCK=<s>` starts
   the clock of a track load there (and a `--shot` steps the weather 5 s
   up to it). Compared under Wine at the airport (clock 152–155, rain
-  0.75): `$OB_PRIVATE/wine/compare/weather107/rain-sbs.png`.
+  0.75; a side-by-side kept with the maintainer's private evidence).
 
 ## Effect selection (verified)
 
@@ -1404,7 +1404,7 @@ bench.
   (sampled clamped, `UiRenderer::set_texture_clamped`). **Inferred**:
   D3D9's half-pixel offsets of the two full-target quads (sub-texel).
 * **Observed** (2026-10-31, wined3d, Quick Race circuit 1, Peugeot 206,
-  vanilla, `a private Wine copy`): Far camera → C → Bumper before the green
+  vanilla, a private Wine copy): Far camera → C → Bumper before the green
   light: no mirror; at the green light the mirror appears, a trapezoid at
   about (417…860, 72…150) of 1280 × 960 (top edge wider), the street
   behind flipped across, the clear (no sky) and the near ground outside
@@ -1676,7 +1676,7 @@ how its code is laid out; no frame, sound or save byte changes.
 ## Pop-in: what appears when, original vs clone (2026-11-01)
 
 Issue: pop-in still looked harsh. Compared at full speed: the
-original (vanilla, `$OB_PRIVATE/wine/runs/<run>`, wined3d-Vulkan on the GPU —
+original (vanilla, a private Wine copy, wined3d-Vulkan on the GPU —
 DXVK hit `Command submission failed: -13` at the profile save twice that
 morning, as other copies did — 1280 × 960, free roam after the career
 start) driven along six long straights (the car teleported with speed,

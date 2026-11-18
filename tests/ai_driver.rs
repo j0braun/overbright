@@ -1,4 +1,4 @@
-//! The AI driver (src/ai/driver.rs) driving the clone's cars.
+//! The AI driver (src/ai/driver/) driving the clone's cars.
 
 mod common;
 
@@ -70,7 +70,7 @@ fn drives_a_straight_path_at_the_target_speed() {
     assert!(off < 3.0, "{off} m off the line");
 }
 
-/// Explore traffic (src/ai/traffic.rs): the traffic models (+0x844 = 2)
+/// Explore traffic (src/ai/traffic/): the traffic models (+0x844 = 2)
 /// load, and one spawned on an L4RA lane keeps to its lane for 10 s.
 #[test]
 #[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]

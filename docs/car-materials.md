@@ -5,7 +5,7 @@ The visual model review found the carbon parts light grey and flat and the FUSIO
 Those the visual model review crops came from two different scenes: the original's Body Shop and the clone's sheet tool,
 which has its own lighting and env cube. This work compared both in the **same scene**: main menu →
 Customize → G35 (and LANCER EVOLUTION VIII) → Car Shop → Body Shop. The original ran under Wine
-(`fastgpu.sh`, own copy `a private Wine copy`, display :211, profile from `career_end_won`). The clone ran
+(`fastgpu.sh`, its own private Wine copy, display :211, profile from `career_end_won`). The clone ran
 with `NFSU2_SHOT_SAVE=tests/fixtures/native_saves/career_end_won.sav NFSU2_SHOT_KEYS=… --shot custcars`
 and the same key path. Raw frames are in the work dir.
 
@@ -122,8 +122,8 @@ shift 0 px). Yes fits the carbon trunk and leaves the view of the last list (Sid
 view in that run); No returns to the strip with the same view. The strip keeps whatever view the
 last list set, so after the Rear Bumpers list the question shows the car's rear, which can
 look like a turn. The clone keeps the view under the dialog (`garage_update_request`) and
-after Yes. Test `tests::native_fe_part2::carbon_convert_keeps_the_view`; frames
-`docs/evidence/car-materials/rx8_convert_trunk_question_view_wine.jpg` (strip, question; brightened).
+after Yes. Test `tests::native_fe_part2::carbon_convert_keeps_the_view`; the frames (strip, question;
+brightened) are kept with the maintainer's private evidence.
 
 ## Seen on the way (open, not changed)
 - Re-entering the original's car select lists the tuned car at the end.
