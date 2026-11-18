@@ -82,6 +82,11 @@ pub struct Gpu {
 
 /// Which adapter (the software-GPU check reads it).
 fn log_adapter(adapter: &wgpu::Adapter) {
+    let i = adapter.get_info();
+    crate::diag::events::record(
+        crate::diag::events::Kind::Gpu,
+        format!("adapter chosen: {} ({:?}, {:?}, driver {} {})", i.name, i.device_type, i.backend, i.driver, i.driver_info),
+    );
     log::info!("GPU adapter: {} ({:?}, {:?})", adapter.get_info().name, adapter.get_info().device_type, adapter.get_info().backend);
 }
 
@@ -138,6 +143,10 @@ impl Gpu {
             for a in &adapters {
                 let i = a.get_info();
                 log::info!("GPU candidate: {} ({:?}, {:?}, driver {})", i.name, i.device_type, i.backend, i.driver);
+                crate::diag::events::record(
+                    crate::diag::events::Kind::Gpu,
+                    format!("candidate: {} ({:?}, {:?}, driver {})", i.name, i.device_type, i.backend, i.driver),
+                );
             }
             let mut last = None;
             for i in backend::adapter_order(&cands) {
@@ -145,6 +154,10 @@ impl Gpu {
                     Ok(g) => return Ok(g),
                     Err(e) => {
                         log::warn!("GPU {} ({:?}) did not open: {e:#}; trying the next", adapters[i].get_info().name, adapters[i].get_info().backend);
+                        crate::diag::events::record(
+                            crate::diag::events::Kind::Gpu,
+                            format!("{} ({:?}) did not open: {e:#}", adapters[i].get_info().name, adapters[i].get_info().backend),
+                        );
                         last = Some(e);
                     }
                 }
@@ -317,6 +330,18 @@ impl Gpu {
     /// HDR the menus offer.
     fn publish(&self) {
         let (adapter, device) = (&self.adapter, &self.device);
+        // A lost device (a driver reset, a removed GPU) in the log with the
+        // events before it (docs/troubleshooting.md); a device dropped at
+        // the game's end is no loss.
+        device.set_device_lost_callback(|reason, message| {
+            if reason == wgpu::DeviceLostReason::Destroyed {
+                return;
+            }
+            log::error!("GPU device lost ({reason:?}): {message}");
+            crate::diag::events::record(crate::diag::events::Kind::Gpu, format!("device lost ({reason:?}): {message}"));
+            crate::diag::events::dump_to_log("GPU device lost");
+            crate::qol::log_file::flush(std::time::Duration::from_millis(300));
+        });
         crate::qol::set_rt_support(device.features().contains(rt::FEATURE));
         crate::qol::set_rt_offered(rt::adapter_can(adapter));
         crate::qol::set_gpu_caps(device.limits().max_texture_dimension_2d, adapter.get_info().device_type);

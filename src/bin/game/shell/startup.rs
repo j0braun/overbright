@@ -93,6 +93,18 @@ pub(crate) fn main() -> Result<()> {
     if command == Command::Probe {
         std::process::exit(super::probe::run());
     }
+    // `--support-file [folder]`: the support file, no window (also when
+    // the game cannot open one; docs/troubleshooting.md).
+    if command == Command::SupportFile {
+        std::process::exit(i32::from(nfsu2::diag::support::cli(&args, None).unwrap_or(1)));
+    }
+    // `--list-adapters`: the adapters, for the support file.
+    if command == Command::ListAdapters {
+        for l in nfsu2::diag::support::adapter_lines() {
+            println!("{l}");
+        }
+        return Ok(());
+    }
     // A flag the game does not know (the developer harness's, in a build
     // without it): the usage, exit code 2.
     if let Command::Unknown(flag) = &command {
@@ -120,6 +132,8 @@ pub(crate) fn main() -> Result<()> {
         Ok(true) => {}
         Ok(false) => return Ok(()),
         Err(e) => {
+            log::error!("no usable game folder: {e:#}");
+            nfsu2::qol::log_file::flush(std::time::Duration::from_millis(300));
             nfsu2::console::fatal(&e.to_string());
             std::process::exit(2);
         }
@@ -141,6 +155,9 @@ pub(crate) fn main() -> Result<()> {
     if let Command::VerifyCache(names) = &command {
         return verify_cache(names);
     }
+    if matches!(command, Command::Window { .. }) {
+        start_diagnostics(&args);
+    }
     let result = run(&command, &args);
     // A first run's cache files are finished before the process ends; the
     // window's exit waits at most `EXIT_FLUSH` for them (docs/exit.md: the
@@ -157,9 +174,41 @@ pub(crate) fn main() -> Result<()> {
         nfsu2::cache::flush();
     }
     if let Err(e) = &result {
+        // In the log file too (a player's report then has the reason).
+        log::error!("the game stopped: {e:#}");
+        nfsu2::diag::events::record(nfsu2::diag::events::Kind::Error, format!("the game stopped: {e:#}"));
+        nfsu2::qol::log_file::flush(std::time::Duration::from_millis(300));
         nfsu2::console::show_if_unseen(&format!("{e:#}"));
     }
     result
+}
+
+/// The window run's diagnostics (docs/troubleshooting.md): the first line
+/// of the log names the start, the event ring's clock starts, a crash that
+/// is no panic (Windows) is written to the log, and the watchdog watches
+/// for hangs. Reads clocks and counters only.
+fn start_diagnostics(args: &[String]) {
+    use nfsu2::diag::{events, native_crash};
+    events::start();
+    let portable = nfsu2::platform::dirs::portable_base().is_some();
+    let line = format!(
+        "start: {}; arguments {args:?}; portable {}; Overbright's folder {}",
+        nfsu2::build_info::version_line(),
+        if portable { "yes" } else { "no" },
+        nfsu2::platform::dirs::app().display()
+    );
+    nfsu2::qol::log_file::fact(&line);
+    events::record(events::Kind::Start, line);
+    native_crash::install(|line| {
+        nfsu2::qol::log_file::send(format!("[ERROR crash] {line}"));
+        events::record(events::Kind::Error, line.to_string());
+        nfsu2::qol::log_file::send(format!(
+            "[WARN events] the last events (a native crash):\n{}",
+            nfsu2::qol::crash::scrub(&events::text())
+        ));
+        nfsu2::qol::log_file::flush(std::time::Duration::from_millis(500));
+    });
+    events::watchdog();
 }
 
 /// The data folder a headless mode works in (`XDG_DATA_HOME`), before any

@@ -26,6 +26,8 @@ pub(crate) struct Waits {
     /// The start's parts (ms since `main`), until its line is written.
     start: Vec<(&'static str, f64)>,
     started_logged: bool,
+    /// The screen the diagnostics' events last named.
+    event_screen: Option<Screen>,
     /// Tests: the lines kept here instead of the log, with the hooks on
     /// whatever the log does.
     #[cfg(test)]
@@ -66,6 +68,7 @@ impl Waits {
 
     /// A drive's load begins (`drive_in`).
     pub(crate) fn load_begin(&mut self, what: &str) {
+        nfsu2::diag::events::record(nfsu2::diag::events::Kind::Load, format!("{what}: loading"));
         if self.on() {
             self.tracker.load = Some(waits::Load::begin(what.to_string(), Instant::now(), counters()));
         }
@@ -81,6 +84,10 @@ impl Waits {
     /// The load ended; a failed one is no wait of its own (its error is
     /// logged where it is handled).
     pub(crate) fn load_end(&mut self, ok: bool) {
+        nfsu2::diag::events::record(
+            nfsu2::diag::events::Kind::Load,
+            if ok { "load done" } else { "load FAILED" },
+        );
         self.load_part("the rest");
         if !ok {
             self.tracker.load = None;
@@ -138,6 +145,12 @@ impl Game {
     /// A window frame drawn (`redraw`, after its drawing): `interval_ms`
     /// since the frame before began.
     pub(crate) fn waits_frame(&mut self, interval_ms: f32) {
+        // The diagnostics' events: a new screen (one compare a frame).
+        let screen = self.wait_screen();
+        if self.loads.waits.event_screen != Some(screen) {
+            self.loads.waits.event_screen = Some(screen);
+            nfsu2::diag::events::record(nfsu2::diag::events::Kind::Screen, screen_name(self));
+        }
         if !self.loads.waits.on() {
             return;
         }

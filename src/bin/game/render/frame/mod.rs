@@ -569,6 +569,26 @@ impl FrameDraw<'_, '_, '_, '_> {
                 self.v.occluded
             );
         }
+        // The diagnostics' events (docs/troubleshooting.md): an image
+        // shown, or why none came.
+        match &acquired {
+            Some(wgpu::CurrentSurfaceTexture::Success(_)) => nfsu2::diag::events::image_shown(),
+            Some(wgpu::CurrentSurfaceTexture::Suboptimal(_)) => {
+                nfsu2::diag::events::image_shown();
+                nfsu2::diag::events::record(nfsu2::diag::events::Kind::Surface, "image suboptimal");
+            }
+            Some(other) => nfsu2::diag::events::record(
+                nfsu2::diag::events::Kind::Surface,
+                match other {
+                    wgpu::CurrentSurfaceTexture::Timeout => "no image: timeout",
+                    wgpu::CurrentSurfaceTexture::Occluded => "no image: occluded",
+                    wgpu::CurrentSurfaceTexture::Outdated => "no image: outdated, reconfiguring",
+                    wgpu::CurrentSurfaceTexture::Lost => "no image: surface lost, reconfiguring",
+                    _ => "no image: other",
+                },
+            ),
+            None => {}
+        }
         let frame = match acquired {
             None => None,
             Some(wgpu::CurrentSurfaceTexture::Success(t) | wgpu::CurrentSurfaceTexture::Suboptimal(t)) => Some(t),

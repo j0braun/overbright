@@ -137,6 +137,13 @@ so are the `wait:` and `drive:` lines (what the player waited for and the drives
 `~`. Not written: the developer harness's runs, `--check-game`, `--set-root`, `--verify-cache`, `--crash-test`,
 the tests, or with `NFSU2_LOG_FILE=0`.
 
+The log's first line after the header is always `[INFO game] start: …` (the version, the arguments, portable mode
+and Overbright's folder). An error that ends the game (no usable game folder, no window, a failed start) is
+written as an `[ERROR …]` line before the process ends. A crash, a hang of 10 s, a lost GPU device and Ctrl+F8
+add the recent events (`[WARN events] the last events (…)`), and on Windows a crash that is no panic adds one
+`[ERROR crash] native crash: …` line (docs/troubleshooting.md). Support files
+(`overbright-support-<UTC time>.txt`, the newest 5 kept) are written to the same folder.
+
 ## The game's files, any case (`game_fs`)
 
 SPEED2.EXE opens its files through Win32 (case-blind on NTFS) and asks for upper-case names

@@ -74,6 +74,7 @@ pub mod drift;
 pub mod style;
 pub mod drive;
 pub mod event_camera;
+pub mod diag;
 pub mod difficulty;
 pub mod dyno;
 pub mod fog;
