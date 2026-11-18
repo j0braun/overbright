@@ -85,11 +85,28 @@ impl Drivetrain {
     /// A gear request (the tail of 0x5AA970): a new target other than the
     /// current gear; going up from gear 1 or higher in a drag race grades
     /// the shift (0x5A1710 → 0x594F30) at the engine's rpm.
-    /// A manual shift (0x5AA970 with an explicit gear, the player's
-    /// shift input): one gear up or down from the current one, reverse
-    /// (0) to top.
+    /// A manual shift, the human input's handlers for Transmission Manual
+    /// (input mode +0x2C0 = 1; 0x407FC0 up, 0x4080B0 down, **verified**):
+    /// they step the gear request +0x1E4 (here the target gear, which is
+    /// the request the gearbox was last given) and 0x5AA970 takes it.
+    /// Up: not in reverse (request 0), at most the top gear (the gear
+    /// count + 1). Down: only from first gear (2) or higher, so first goes
+    /// to neutral and neutral stays (**observed** under Wine in free roam:
+    /// 1st → N → N → 1st, never reverse).
     pub fn shift(&mut self, h: &Handling, up: bool) {
-        let gear = if up { (self.gear + 1).min(h.gearbox.ratios.len() - 1) } else { self.gear.saturating_sub(1) };
+        let request = self.target_gear;
+        let top = h.gearbox.ratios.len() - 1;
+        let gear = if up {
+            if request == 0 || request >= top {
+                return;
+            }
+            request + 1
+        } else {
+            if request < NEUTRAL + 1 {
+                return;
+            }
+            request - 1
+        };
         self.request(h, gear);
     }
 

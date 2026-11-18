@@ -304,6 +304,15 @@ impl Game {
         // Racer info +0x20 (0x5F17F9): the player's Transmission option;
         // a drag race forces manual (0x5EB440).
         drive.state.manual |= self.settings.players[0].manual;
+        // Free roam has no start hold to release: with the manual gearbox
+        // the car stands in first gear from the start (**observed** under
+        // Wine, a new career's first free roam with Transmission Manual:
+        // input mode +0x2C0 = 1, gear request +0x1E4 = 2, car gear +0x434
+        // = 2; which store puts it there is **open**: the set-up's
+        // request = car gear, 0x407280, or the input's vt+0x30).
+        if race == RaceMode::FreeRoam && drive.state.manual {
+            drive.state.gear_request = Some(nfsu2::handling::NEUTRAL + 1);
+        }
         // The log's waits: the old drive gone, the HUD's textures, the
         // barriers and placements (docs/waits-log.md).
         self.loads.waits.load_part("set-up");

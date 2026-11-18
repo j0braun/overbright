@@ -527,6 +527,28 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
     no longer ask for reverse (0x407E4E). **Observed**: at the green light
     the gear goes 1 → 2 (first) by itself and the HUD gear turns from N to
     an orange N for a frame, then 1.
+  * Manual shifts (**verified**, 0x407FC0 up / 0x4080B0 down): the human
+    input's constructor registers them (0x41E19F…0x41E1F2) on the player
+    car's own event map for events 0x9B / 0x9D (up) and 0x9C / 0x9E
+    (down), so they work wherever the player drives, free roam included.
+    Mode 1 (Transmission Manual) steps the request +0x1E4: up only when it
+    is not 0 (reverse) and below the gear count + 1; down only from 2
+    (first) or higher. Mode 3 steps from the car gear; mode 2 (not reached in
+    single-player play) sets the request to −2 and steps +0x1E8 from the
+    car gear; mode 0 passes the event on (0x50D520).
+    **Observed** under Wine, a new career's first free roam with the
+    Transmission byte 0x83AA79 = 1: input mode +0x2C0 = 1, request 2 and
+    car gear +0x434 = 2 (first) at the start; Left Shift twice → 3, 4;
+    Left Ctrl → 3, 2, 1 (neutral), 1 (stays: never reverse); Left Shift → 2.
+    Which store puts the free-roam car in first gear at the start (the
+    set-up's request = car gear, 0x407280, or vt+0x30) is **open**.
+    Clone: `Game::explore_key` and `Game::race_key` both pass Shift Up /
+    Shift Down (keyboard rows, controller actions 7 / 8) to
+    `CarState::shift` → `Drivetrain::shift` on the target gear (the last
+    request); the free-roam drive-in asks for first gear with the manual
+    gearbox; not during a shop's drive-in / drive-out scene or the D-Day
+    script (0x605C80 binds only pause, skip and Read SMS there). Tests:
+    `tests::manual_gears`.
   * Drag gas in neutral (0x407A30, decompiled): in a drag race with the
     car in neutral (+0x434 = 1), as in URL races, the gas moves at most
     +1/s and −1.5/s from last frame's (+0x20C); then, when the pedal
