@@ -165,12 +165,12 @@ mod tests {
     use super::*;
 
     #[test]
-    #[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
+    #[cfg_attr(not(all(ob_game, ob_private)), ignore = "needs NFSU2_ROOT (the player's own game files) and OB_PRIVATE (private captures and saves)")]
     fn burnout_preserves_all_sixteen_native_event_records() {
         use crate::testkit;
         // Actual 0x1C-byte records from SPEED2.EXE VA 0x7EA2B0.
         // 0x430EA0 rebases the first ten on start, the last six on end.
-        let raw = testkit::fixture("burnout-records", 1, |g| testkit::exe_bytes(g, 0x7E_A2B0, 16 * 0x1C));
+        let raw = testkit::fixture("burnout-records", 1, |_| testkit::exe_bytes(0x7E_A2B0, 16 * 0x1C));
         let mut native = Vec::new();
         for (i, record) in raw.chunks_exact(28).enumerate() {
             let word = |offset| u32::from_le_bytes(record[offset..offset + 4].try_into().unwrap());

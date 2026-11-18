@@ -312,9 +312,12 @@ impl Game {
                 let parts: Vec<screens::BrowserPart> = listed
                     .iter()
                     // AD_BESTBUY (kind 0x16) is skipped while the region
-                    // 0x570A40 is not 0 — the static 6 at 0x7FA73C.
+                    // 0x570A40 is not 0 (6 in the European release).
                     .filter(|p| {
-                        p.kind == kind && !(kind == 0x16 && p.hash == nfsu2::formats::hash::bin_hash("AD_BESTBUY"))
+                        p.kind == kind
+                            && !(kind == 0x16
+                                && nfsu2::region::get() != 0
+                                && p.hash == nfsu2::formats::hash::bin_hash("AD_BESTBUY"))
                     })
                     .map(|p| {
                         let (hash, name, _, owned, _) = self.browser_part(0x40, p);

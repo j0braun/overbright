@@ -68,6 +68,69 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
 
+## FFmpeg (VP6 and MPEG audio tables)
+
+Used in `src/exe_tables/third_party/ffmpeg_vp6.rs` and
+`src/exe_tables/third_party/ffmpeg_mpegaudio.rs`: the VP6 decoder's tables
+(libavcodec `vp56data.c`, at revision 83386a1f62c0, and
+`vp6data.h`, revision 492a3b4b895c) and the MPEG-1 layer III Huffman code tables
+and synthesis window of ISO/IEC 11172-3 (libavcodec `mpegaudiodec_common.c`,
+revision 24914d60df9d, and `mpegaudiodsp_data.c`, revision 15a0fb58a329),
+transcribed to Rust as tables only; no decoder code is taken. Upstream:
+https://ffmpeg.org (https://github.com/FFmpeg/FFmpeg). Licence: GNU Lesser
+General Public License, version 2.1 or (at your option) any later version.
+The LGPL-2.1-or-later permits distribution under the GNU GPL version 3 (its
+section 3), which is how these tables are distributed in Overbright.
+
+```
+Copyright (C) 2006  Aurelien Jacobs <aurel@gnuage.org>
+copyright (c) 2002 Fabrice Bellard
+
+FFmpeg is free software; you can redistribute it and/or
+modify it under the terms of the GNU Lesser General Public
+License as published by the Free Software Foundation; either
+version 2.1 of the License, or (at your option) any later version.
+
+FFmpeg is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+Lesser General Public License for more details.
+```
+
+## vgmstream (MicroTalk tables)
+
+Used in `src/exe_tables/third_party/vgmstream_utk.rs`: the MicroTalk (UTK)
+decoder's reflection coefficients, codebooks and pulse commands from
+`src/coding/libs/utkdec.c` (at revision 9cb615c990f1), transcribed
+to Rust as tables only. Upstream: https://github.com/vgmstream/vgmstream.
+Licence: ISC (vgmstream's `COPYING`):
+
+```
+Copyright (c) 2008-2025 Adam Gashlin, Fastelbja, Ronny Elfert, bnnm,
+                        Christopher Snowhill, NicknineTheEagle, bxaimc,
+                        Thealexbarney, CyberBotX, EdnessP, et al
+
+Portions Copyright (c) 2004-2008, Marko Kreen
+Portions Copyright 2001-2007  jagarl / Kazunori Ueno <jagarl@creator.club.ne.jp>
+Portions Copyright (c) 1998, Justin Frankel/Nullsoft Inc.
+Portions Copyright (C) 2006 Nullsoft, Inc.
+Portions Copyright (c) 2005-2007 Paul Hsieh
+Portions Copyright (C) 2000-2004 Leshade Entis, Entis-soft.
+Portions Public Domain originating with Sun Microsystems
+
+Permission to use, copy, modify, and distribute this software for any
+purpose with or without fee is hereby granted, provided that the above
+copyright notice and this permission notice appear in all copies.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+```
+
 ## Format references (no code taken)
 
 These mod formats are read by Overbright's own code, written from the public

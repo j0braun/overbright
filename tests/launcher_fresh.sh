@@ -2,12 +2,12 @@
 # The launcher's first run on a fresh machine (docs/launcher.md, "Tests"), end to end with the
 # shipping `game` and `overbright` side by side, on a private X display (never the desktop's):
 # an empty HOME, no NFSU2_ROOT, no saved game folder, nothing but PATH in the environment.
-#   a. `game --probe` exits 0 with the adapter and the modes and without first_run lines;
+#   a. `game --probe` exits 0 with the adapter, the modes and the first_run lines (no game folder needed);
 #   b. the launcher opens on the first-run screen;
 #   c. a wrong folder is refused in plain words ("Use this folder" off);
-#   e. a SPEED2.EXE with a table byte flipped is refused with the message; one with a few code
-#      bytes flipped (a patched copy) shows the "modified copy ... game data matches" note and is
-#      accepted (used: the probe runs again with that folder);
+#   e. SPEED2.EXE is not needed: a folder whose SPEED2.EXE is a copy-protected one (a synthetic
+#      header with SafeDisc's sections) is accepted with an information line; a folder without
+#      SPEED2.EXE is accepted and used (the probe runs again with that folder);
 #   p. the prepare step (docs/prepare.md) runs by itself once the folder is used, behind the main screen
 #      (no screen of its own, the line beside Play says what it does) and is not started again;
 #      "Prepare again" opens its screen and runs to its end (Done, Continue), the stamp is in the cache
@@ -26,8 +26,8 @@
 # texts, its controls' ids, "(off)" and boxes) and kept as screenshots in <work dir>.
 #
 # Usage: tests/launcher_fresh.sh <dir holding game and overbright> <X display | auto> <work dir>
-# NFSU2_ROOT must name the player's game folder (the trees are symlinks to it; nothing is copied
-# but SPEED2.EXE, twice, as temporary edited copies in <work dir>). "auto" starts a private Xvfb
+# NFSU2_ROOT must name the player's game folder (the trees are symlinks to it; nothing is copied:
+# one tree has no SPEED2.EXE, one a small synthetic stand-in made in <work dir>). "auto" starts a private Xvfb
 # (-displayfd) and stops it by PID. RADV on Xvfb has no DRI3: the game presents through Mesa's
 # software path (MESA_VK_WSI_DEBUG=sw), which only this test sets.
 # Last line: "FRESH: PASS" or "FRESH: FAIL (<step>)". Exit 0 only on PASS.
@@ -35,7 +35,7 @@ set -u -o pipefail
 BIN=$(cd "${1:?bin dir}" && pwd) DISP=${2:?display} W=${3:?work dir}
 for t in xdotool python3; do command -v $t > /dev/null || { echo "FRESH: FAIL (no $t)"; exit 1; }; done
 [ -x "$BIN/game" ] && [ -x "$BIN/overbright" ] || { echo "FRESH: FAIL (no game / overbright in $BIN)"; exit 1; }
-[ -f "${NFSU2_ROOT:-/nonexistent}/SPEED2.EXE" ] || [ -d "${NFSU2_ROOT:-/nonexistent}" ] || { echo "FRESH: FAIL (NFSU2_ROOT)"; exit 1; }
+[ -d "${NFSU2_ROOT:-/nonexistent}" ] || { echo "FRESH: FAIL (NFSU2_ROOT)"; exit 1; }
 mkdir -p "$W"; W=$(cd "$W" && pwd)
 rm -rf "$W/home" "$W/trees" "$W"/*.out "$W"/*.png "$W"/*.txt
 mkdir -p "$W/home" "$W/trees"
@@ -71,8 +71,8 @@ launch() {
 }
 
 # ---- the folders ------------------------------------------------------------------------------
-# a: the game with every name case-swapped (symlinks); b: the same, SPEED2.EXE a patched copy
-# (code bytes flipped, tables intact); c: the same, one table byte flipped (exe-tables tests).
+# a: the game with every name case-swapped (symlinks); b: the same without SPEED2.EXE; c: the same,
+# SPEED2.EXE a synthetic copy-protected header (SafeDisc's section names, nothing of the game).
 python3 -I - "$NFSU2_ROOT" "$W/trees" << 'EOF' || fail "trees"
 import os, sys
 src, top = sys.argv[1], sys.argv[2]
@@ -84,15 +84,20 @@ for t in "abc":
         os.makedirs(out, exist_ok=True)
         for f in files:
             os.symlink(os.path.join(d, f), os.path.join(out, f.swapcase()))
-exe = next(f for f in os.listdir(src) if f.upper() == "SPEED2.EXE")
-data = open(os.path.join(src, exe), "rb").read()
-for t, flip in (("b", range(0x1100, 0x1108)), ("c", [0x7E9228 - 0x400000])):
-    b = bytearray(data)
-    for k in flip:
-        b[k] ^= 0x5A if t == "b" else 1
-    p = os.path.join(top, "game-" + t, exe.swapcase())
-    os.remove(p)
-    open(p, "wb").write(b)
+for t in "bc":
+    for f in os.listdir(os.path.join(top, "game-" + t)):
+        if f.upper() == "SPEED2.EXE":
+            os.remove(os.path.join(top, "game-" + t, f))
+h = bytearray(0x400)
+h[:2] = b"MZ"
+h[0x3C:0x40] = (0x80).to_bytes(4, "little")
+h[0x80:0x84] = b"PE\0\0"
+h[0x86:0x88] = (2).to_bytes(2, "little")
+h[0x94:0x96] = (0xE0).to_bytes(2, "little")
+s = 0x80 + 24 + 0xE0
+h[s:s + 7] = b"stxt774"
+h[s + 40:s + 47] = b"stxt371"
+open(os.path.join(top, "game-c", "speed2.exe"), "wb").write(h)
 EOF
 A=$W/trees/game-a B=$W/trees/game-b C=$W/trees/game-c
 
@@ -102,10 +107,10 @@ run "$BIN/game" --probe > "$W/probe.out" 2> "$W/probe.err"; rc=$?
 [ $rc = 0 ] || fail "game --probe rc $rc: $(tail -3 "$W/probe.err")"
 grep -q '^adapter.name=.' "$W/probe.out" && grep -q '^modes=[0-9]' "$W/probe.out" && grep -q '^monitor.exclusive=' "$W/probe.out" \
   || fail "probe output without adapter / modes / monitor: $(cat "$W/probe.out")"
-grep -q '^first_run' "$W/probe.out" && fail "first_run lines without a game folder"
+grep -q '^first_run.resolution=' "$W/probe.out" || fail "no first_run lines: $(cat "$W/probe.out")"
 grep -q '^ok=1' "$W/probe.out" || fail "probe not ok"
 [ -e "$DATA/options.txt" ] && fail "the probe wrote options.txt"
-ok "rc 0, $(grep '^adapter.name=' "$W/probe.out" | cut -d= -f2-), no first_run lines"
+ok "rc 0, $(grep '^adapter.name=' "$W/probe.out" | cut -d= -f2-), first_run lines"
 # What the probe says once the folder is known (step f compares the launcher's rows with it).
 run env NFSU2_ROOT="$A" "$BIN/game" --probe > "$W/probe-a.out" 2>&1
 FR_RES=$(sed -n 's/^first_run.resolution=//p' "$W/probe-a.out")
@@ -179,28 +184,28 @@ shot c-wrong-folder
 ok "refused: $(grep -F '[error]' "$W/screen.txt" | head -1 | sed 's/^  \[error\] //' | cut -c1-90)"
 X xdotool key Escape
 
-# ---- e. SPEED2.EXE: a table byte flipped (refused), a patched copy (accepted) -------------------
+# ---- e. SPEED2.EXE not needed: a copy-protected one (information only), none at all (used) -------
 STEP=e
 screen first-run 2 || fail "Back did not return to the first-run screen"
 typepath "$C"
-screen check 2 || fail "no check screen for the changed table"
-grep -qE '^  \[button use \(off\)' "$W/screen.txt" || fail "a SPEED2.EXE with other tables can be used: $(cat "$W/screen.txt")"
-has "its data tables differ from the supported 1.2 release" || fail "no table message: $(cat "$W/screen.txt")"
-shot e-tables-differ
-ok "table byte flipped: refused ($(grep -F '[error]' "$W/screen.txt" | head -1 | cut -c11-100))"
+screen check 2 || fail "no check screen for the copy-protected executable"
+has "SPEED2.EXE is the copy-protected retail executable; Overbright does not need it" || fail "no information line: $(cat "$W/screen.txt")"
+grep -qE '^  \[button use @' "$W/screen.txt" || fail "a folder with the copy-protected SPEED2.EXE cannot be used: $(cat "$W/screen.txt")"
+grep -qF '[error]' "$W/screen.txt" && fail "an error line for the copy-protected SPEED2.EXE: $(cat "$W/screen.txt")"
+shot e-protected-exe
+ok "copy-protected SPEED2.EXE: information line, usable"
 X xdotool key Escape
 screen first-run 3 || fail "Back did not return to the first-run screen"
 typepath "$B"
-screen check 3 || fail "no check screen for the patched copy"
-has "SPEED2.EXE is a modified copy of the supported version; its game data matches" || fail "no modified-copy note: $(cat "$W/screen.txt")"
-grep -qE '^  \[button use @' "$W/screen.txt" || fail "the patched copy cannot be used: $(cat "$W/screen.txt")"
-grep -qF "differs from the known release" "$W/screen.txt" && grep -qF "SPEED2.EXE —" "$W/screen.txt" && fail "SPEED2.EXE also listed as differing"
-shot e-modified-copy
+screen check 3 || fail "no check screen for the folder without SPEED2.EXE"
+grep -qE '^  \[button use @' "$W/screen.txt" || fail "the folder without SPEED2.EXE cannot be used: $(cat "$W/screen.txt")"
+grep -qF "SPEED2" "$W/screen.txt" && fail "SPEED2.EXE named for a folder without it: $(cat "$W/screen.txt")"
+shot e-no-exe
 X xdotool key Return   # Use this folder (focused)
 screen main 1 || fail "Use did not open the main screen"
 wait_for "probe: the game folder changed" 1 10 || fail "no new probe for the chosen folder"
 wait_for "first-run values [0-9]" 1 30 || fail "the new probe gave no first-run values: $(grep 'probe:' "$L")"
-ok "patched copy: note shown, used; probe run again with it ($(grep -oE 'first-run values [^;]*$' "$L" | tail -1))"
+ok "no SPEED2.EXE: used; probe run again with it ($(grep -oE 'first-run values [^;]*$' "$L" | tail -1))"
 
 # ---- p. the prepare step: by itself behind the main screen once the folder is used, then "Prepare again" to its end ----
 STEP=p
@@ -248,7 +253,7 @@ click change || fail "no Change button"
 screen first-run 4 || fail "Change did not open the first-run screen"
 typepath "$A"
 screen check 4 || fail "no check screen for the case-swapped folder"
-has "recognised" && has "All 10 files Overbright needs are present" || fail "case-swapped folder not recognised: $(cat "$W/screen.txt")"
+has "recognised" && has "All 9 files Overbright needs are present" || fail "case-swapped folder not recognised: $(cat "$W/screen.txt")"
 grep -qE '^  \[button use @' "$W/screen.txt" || fail "case-swapped folder cannot be used"
 grep -qiF "dinput8.dll" "$W/screen.txt" || fail "the mod files in another case not found: $(cat "$W/screen.txt")"
 shot d-case-swapped

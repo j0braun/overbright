@@ -106,6 +106,7 @@ pub mod prof;
 pub mod qol;
 pub mod race;
 pub mod rear_view;
+pub mod region;
 pub mod screen_flash;
 pub mod screen_tint;
 pub mod sky;

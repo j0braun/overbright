@@ -129,8 +129,6 @@ impl Game {
         let early = early();
         let root = nfsu2::game_root();
         let _t = nfsu2::prof::span("Game::new");
-        // R8: the player's SPEED2.EXE, its edition checked, and every table read from it (docs/exe-tables.md).
-        nfsu2::exe_tables::init(&root)?;
         // The front end's packages and the career's data load side by side.
         let (assets, data, beside) = std::thread::scope(|s| {
             let assets = s.spawn(|| Assets::load(&root));

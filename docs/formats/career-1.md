@@ -734,8 +734,8 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
     10). Any other source takes the player's car's scaled rating.
   * Car: an entry car of bin_hash "RANDOM" is drawn (0x4FEAF0, called with
     the player's car allowed) from the pool 0x7F6DC0 — 0x570A40 returns
-    0x7FA73C, a static 6 nothing writes, so the first pool 0x7F6DA4 is never
-    used — or the SUVs 0x7F6DDC when the event's +0x0D is 1. The pool is
+    0x7FA73C, a static 6 nothing writes, so the first pool 0x7F6DA4 (region
+    0's; docs/region.md) is never used in the European release — or the SUVs 0x7F6DDC when the event's +0x0D is 1. The pool is
     shuffled (each place swapped with place `random(n)`), then with a margin
     from 0.03 doubled before each pass, the first car whose scaled rating
     (0x5B69A0) is at most skill + margin is taken. Otherwise the entry's
@@ -1916,7 +1916,8 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
 * **Credits** (Credits.fng, screen 0x4B8800; **verified**): the lines of
   CREDITS\<prefix><language>.TXT (UTF-16; 0x4B8808: in English NA_ for
   region 0, UK_ for a European region (0x570A50); the region 0x7FA73C is 6
-  in this executable, so UK_ENGLISH.TXT). The
+  in this executable, so UK_ENGLISH.TXT; a US install, docs/region.md,
+  reads NA_ENGLISH.TXT). The
   Event Handler sends 0xE6E946B8 at 320 ms; each one clones CreditsArea
   with the next line (from the first again after the last) running
   RollCredit (5200 ms), whose own 0xE6E946B8 at 300 ms brings the next

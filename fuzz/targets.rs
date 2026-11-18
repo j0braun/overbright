@@ -403,13 +403,6 @@ pub fn speech_bank(d: &[u8]) {
     black_box(bank.fit(&speech::lines::outrun(8, 1)));
 }
 
-/// SPEED2.EXE's PE section table and every table address read through it
-/// (`exe_tables`: a modified or broken executable is read before it is
-/// refused).
-pub fn pe_sections(b: &[u8]) {
-    nfsu2::exe_tables::fuzz_probe(b);
-}
-
 macro_rules! t {
     ($n:ident, $($s:expr),*) => { Target { name: stringify!($n), seeds: &[$($s),*], run: $n } };
 }
@@ -488,7 +481,6 @@ pub const TARGETS: &[Target] = &[
     t!(ealayer3, Seed::Viv("SDATA/sdat.viv", b"SCHl")),
     t!(utk, Seed::Viv("SDATA/sdat.viv", b"SCHl")),
     t!(gin, Seed::File("SOUND/ENGINE/GIN_Mazda_RX7_DCL.gin")),
-    t!(pe_sections, Seed::File("SPEED2.EXE")),
     t!(
         speech_bank,
         Seed::Viv("SDATA/sdat.viv", b"\x03\x11\x3c\x07"),

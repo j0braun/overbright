@@ -102,13 +102,7 @@ pub(crate) fn run() -> i32 {
             });
             // What the window's first start does without options.txt
             // (`create_window`: `first_run_display(card)` on the defaults).
-            // They are read with a table of the player's SPEED2.EXE: without a
-            // usable game folder they are left out (the launcher runs the
-            // probe again with the chosen folder in NFSU2_ROOT), never a
-            // panic.
-            p.first_run = nfsu2::qol::kept_paths::find_game()
-                .and_then(|root| nfsu2::exe_tables::init(&root).ok())
-                .map(|_| nfsu2::launcher::probe::first_run((info.vendor, info.device)));
+            p.first_run = Some(nfsu2::launcher::probe::first_run((info.vendor, info.device)));
         }
         // Linux: what is missing and the packages to install, in the
         // player's words (`platform::vulkan`); the launcher shows it. wgpu's

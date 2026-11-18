@@ -175,10 +175,36 @@ pub fn fixture(name: &str, version: u32, generate: impl FnOnce(&Game) -> Vec<u8>
     bytes
 }
 
-/// Bytes `len` at virtual address `va` of SPEED2.EXE (its sections sit at
-/// their virtual offsets in the file: file offset = VA − 0x400000).
-pub fn exe_bytes(g: &Game, va: usize, len: usize) -> Vec<u8> {
-    let exe = std::fs::read(g.root.join("SPEED2.EXE")).expect("reading SPEED2.EXE");
+/// The reference executable: the European 1.2 release's SPEED2.EXE
+/// without copy protection (4,788,224 bytes, the build Overbright's tables
+/// were taken from; docs/exe-tables.md, "Tests"). Read from
+/// `$OB_PRIVATE/exe/SPEED2.EXE` when that file is there, else from the
+/// game folder. Overbright itself never reads it; only the data tests that
+/// compare Overbright's tables with the original's do, and they carry
+/// `#[cfg_attr(not(all(ob_game, ob_private)), ignore = "...")]`. Another
+/// build there fails the test with the reason.
+pub fn reference_exe() -> Vec<u8> {
+    assert!(cfg!(ob_private), "this test reads the reference executable but is not marked to need the private set (docs/testing.md)");
+    let private = std::env::var_os("OB_PRIVATE").filter(|d| !d.is_empty()).map(|d| PathBuf::from(d).join("exe/SPEED2.EXE"));
+    let path = match private.filter(|p| p.is_file()) {
+        Some(p) => p,
+        None => nfsu2::game_fs::path(&game().root, "SPEED2.EXE"),
+    };
+    let bytes = std::fs::read(&path).unwrap_or_else(|e| panic!("the reference executable {}: {e}", path.display()));
+    let (_, size, sha) = nfsu2::fingerprint::EDITIONS[0].files[0];
+    assert!(
+        bytes.len() as u64 == size && nfsu2::fingerprint::sha256_hex(&bytes) == sha,
+        "{} is not the reference executable (the European 1.2 SPEED2.EXE without copy protection, {size} bytes)",
+        path.display()
+    );
+    bytes
+}
+
+/// Bytes `len` at virtual address `va` of the reference executable
+/// ([`reference_exe`]; its sections sit at their virtual offsets in the
+/// file: file offset = VA − 0x400000).
+pub fn exe_bytes(va: usize, len: usize) -> Vec<u8> {
+    let exe = reference_exe();
     let at = va.checked_sub(0x40_0000).expect("a VA above the image base");
     exe.get(at..at + len).unwrap_or_else(|| panic!("VA {va:#x}+{len:#x} outside SPEED2.EXE")).to_vec()
 }

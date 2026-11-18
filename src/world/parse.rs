@@ -23,17 +23,24 @@ use crate::formats::visibility::Visibility;
 
 use super::*;
 
-/// Files outside the track that hold texture packs the world refers to.
-pub(super) const SHARED_TEXTURE_FILES: &[&str] = &[
-    "GLOBAL/GLOBALB.BUN",
-    "GLOBAL/GLOBALA.BUN",
-    "GLOBAL/InGameCommon.bun",
-    "TRACKS/LOC4DYNTEX.BIN",
-    // The region's textures (0x57FC5E): GLOBALTEXTURESNA.BIN for region 0
-    // (US), else ROW. The region 0x7FA73C is 6 in this executable (its
-    // data, never written), so ROW.
-    "GLOBAL/GlobalTexturesROW.bin",
-];
+/// Files outside the track that hold texture packs the world refers to, in
+/// the game's region ([`crate::region`]).
+pub(super) fn shared_texture_files() -> [&'static str; 5] {
+    shared_texture_files_in(crate::region::get())
+}
+
+/// The same in `region`: the last is the region's textures (0x57FC5E),
+/// GlobalTexturesNA.bin for region 0 (US), else ROW (the European
+/// release's region 0x7FA73C is 6).
+pub(super) fn shared_texture_files_in(region: u32) -> [&'static str; 5] {
+    [
+        "GLOBAL/GLOBALB.BUN",
+        "GLOBAL/GLOBALA.BUN",
+        "GLOBAL/InGameCommon.bun",
+        "TRACKS/LOC4DYNTEX.BIN",
+        if region == 0 { "GLOBAL/GlobalTexturesNA.bin" } else { "GLOBAL/GlobalTexturesROW.bin" },
+    ]
+}
 
 /// Floors and walls from the render triangles, for a track without
 /// collision packs: upward faces are floors, steep ones walls (a stand-in).
@@ -172,7 +179,7 @@ impl World {
     /// folder), which its cache is keyed on.
     pub fn sources(name: &str) -> Vec<String> {
         let mut v = vec![format!("TRACKS/{name}.BUN"), format!("TRACKS/STREAM{name}.BUN")];
-        v.extend(SHARED_TEXTURE_FILES.iter().map(|s| s.to_string()));
+        v.extend(shared_texture_files().iter().map(|s| s.to_string()));
         v
     }
 
@@ -192,7 +199,7 @@ impl World {
             },
             || {
                 use rayon::prelude::*;
-                SHARED_TEXTURE_FILES.par_iter().map(|shared| crate::game_fs::read(game_root, shared)).collect::<Vec<_>>()
+                shared_texture_files().par_iter().map(|shared| crate::game_fs::read(game_root, shared)).collect::<Vec<_>>()
             },
         );
         let track_bun = track_bun.with_context(|| format!("reading {name}.BUN"))?;
@@ -289,7 +296,7 @@ impl World {
         // merged in the listed order.)
         let shared_packs: Vec<_> = {
             use rayon::prelude::*;
-            SHARED_TEXTURE_FILES
+            shared_texture_files()
                 .par_iter()
                 .zip(&shared_files)
                 .map(|(shared, bytes)| {
@@ -300,7 +307,7 @@ impl World {
                 })
                 .collect()
         };
-        for ((shared, bytes), parsed) in SHARED_TEXTURE_FILES.iter().zip(&shared_files).zip(shared_packs) {
+        for ((shared, bytes), parsed) in shared_texture_files().iter().zip(&shared_files).zip(shared_packs) {
             match (bytes, parsed) {
                 (Ok(_), Some((emitters, packs))) => {
                     if let Some(e) = emitters {
@@ -479,5 +486,16 @@ impl World {
         }
         self.solid_by_hash.insert(solid.hash, self.solids.len());
         self.solids.push(solid);
+    }
+}
+
+#[cfg(test)]
+mod region_tests {
+    /// 0x57FC5E: the NA texture pack for region 0, ROW for any other.
+    #[test]
+    fn shared_textures_by_region() {
+        assert_eq!(super::shared_texture_files_in(0)[4], "GLOBAL/GlobalTexturesNA.bin");
+        assert_eq!(super::shared_texture_files_in(6)[4], "GLOBAL/GlobalTexturesROW.bin");
+        assert_eq!(super::shared_texture_files_in(0)[..4], super::shared_texture_files_in(6)[..4]);
     }
 }

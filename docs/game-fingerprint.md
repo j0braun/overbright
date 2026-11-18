@@ -4,19 +4,26 @@ Not native: clone tooling (first-run QoL family). Code: `src/fingerprint.rs`,
 hooks in `src/bin/game.rs` (`--check-game`, the window start) and
 `src/qol.rs` (`crash::report`).
 
-The clone is traced on one build of SPEED2.EXE (docs/formats.md's addresses
-are that build's) and reads GLOBAL/GlobalB.lzc's car, upgrade and career
-rows. A different EXE or a modded GlobalB.lzc can look and play
-differently, so the build is now recorded where reports are made:
+The clone reads GLOBAL/GlobalB.lzc's car, upgrade and career rows and the
+other data files; a modded GlobalB.lzc can look and play differently, so
+the data's edition is recorded where reports are made. `SPEED2.EXE` is
+fingerprinted for the reports only: Overbright does not read it
+(docs/exe-tables.md), so it is never part of the verdict, and a folder
+without it, or with the copy-protected retail executable, is fine.
 
 * `game --check-game [dir]`: after the existing size / XXH3 lines, a
   `fingerprint (SHA-256):` block — size and SHA-256 of SPEED2.EXE,
   GLOBAL/GlobalB.lzc, GLOBAL/GLOBALB.BUN, GLOBAL/InGameCommon.bun,
   FRONTEND/FrontB.lzc, LANGUAGES/English.bin, CARS/TEXTURES.BIN,
   CARS/WHEELS/TEXTURES.BIN, TRACKS/L4RA.BUN (`fingerprint::FILES`), each
-  "known" or "MODIFIED or unknown version"; then `edition: …` and, for an
-  unknown or modified one, a WARNING line ("the clone still runs"); loader
-  / mod files next to the game (dinput8.dll, d3d9.dll, SCRIPTS) are listed.
+  "known" or "MODIFIED or unknown version" (SPEED2.EXE: also "copy-protected
+  retail executable", recognised by SafeDisc's sections `stxt774` /
+  `stxt371`, `fingerprint::safedisc`); then `edition: …` over the data files
+  and, for an unknown or modified one, a WARNING line ("Overbright still
+  runs"); a note that SPEED2.EXE is not needed (and what it is, when it is
+  not the reference build: `Fingerprint::exe_note`, also an Info line on the
+  launcher's check screen); loader / mod files next to the game (dinput8.dll,
+  d3d9.dll, SCRIPTS) are listed.
 * The window start: the same fingerprint on a background thread
   (`fingerprint::start`, about 27 MB read); the summary is logged — `info`
   for the known edition, `warn` otherwise — and kept. The game never stops
@@ -32,7 +39,7 @@ Lookup is case-insensitive (`viv::find_ci`), as for the game's own files.
 | edition | SPEED2.EXE | GlobalB.lzc |
 |---|---|---|
 | NFSU2 PC 1.2, European release, `SPEED2.EXE` without copy protection: the traced build (`EDITIONS[0]`; all nine files' hashes recorded; region byte 0x7FA73C = 6, the European value) | 4,788,224 B `8f6a9ae2…dfe2a297` | 5,145,778 B `ad015fdb…4a2d6e90` |
-| NFSU2 PC 1.2, European release, the copy-protected retail `SPEED2.EXE` (SafeDisc; `OTHER_EXE_BUILDS`; hash measured on a copy; refused with its own message, docs/exe-tables.md "Which executables work") | 5,987,978 B `4d51643c…818f` | — |
+| NFSU2 PC 1.2, European release, the copy-protected retail `SPEED2.EXE` (SafeDisc; `OTHER_EXE_BUILDS`; hash measured on a copy; named for information, works like any other) | 5,987,978 B `4d51643c…818f` | — |
 | another SPEED2.EXE build (`OTHER_EXE_BUILDS`, **inferred**: only size and the hash's ends known, from the OpenUG2 study $OB_PRIVATE/research/openug2-study-2026-11-05.md) | 4,800,512 B `f9dd86c0…24168a7` | — |
 
 The player's install also holds dinput8.dll + SCRIPTS/NFSUnderground2.WidescreenFix.asi
@@ -43,17 +50,17 @@ The player's install also holds dinput8.dll + SCRIPTS/NFSUnderground2.Widescreen
 `fingerprint::tests`: SHA-256 vectors; the edition table's shape; an empty
 folder (all missing → unknown); a modified EXE and a lower-case
 `global/globalb.lzc` (flagged, found) with dinput8.dll listed; the other
-builds' partial matches (the copy-protected one named as such); with NFSU2_ROOT: the reference install is the known
+builds' partial matches (the copy-protected one named as such); the
+executable never decides the edition (`the_executable_does_not_decide_the_edition`:
+missing, another build, SafeDisc sections); with NFSU2_ROOT: the reference install is the known
 edition, and a copy whose GlobalB.lzc has one byte (+0x3E0) flipped is
 "UNKNOWN OR MODIFIED: GLOBAL/GlobalB.lzc" (the OpenUG2 case).
 
-Which of these executables Overbright starts with today: docs/exe-tables.md,
-"Which executables work" (the supported build and copies of it with the
-same tables; not yet the copy-protected retail executable).
+Every executable works, and so does none: docs/exe-tables.md, "Which
+executables work".
 
 ## Open
 
 Other retail editions (other languages, 1.0 / 1.1, re-releases) have no
 recorded hashes: they show as unknown until a user sends a `--check-game`
-output. Overbright refuses any whose data tables differ from the supported
-build's.
+output. Overbright starts with all of them.

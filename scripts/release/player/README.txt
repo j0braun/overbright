@@ -8,12 +8,9 @@ your own installed copy of the original game. Its default look and behaviour fol
 features (higher resolutions, modern graphics options) are optional and can be switched off.
 
 YOU NEED YOUR OWN COPY OF THE GAME. No game files are included: you need your own PC copy of the
-game, an installed Need for Speed Underground 2 with your own SPEED2.EXE, version 1.2 (the folder
-that holds SPEED2.EXE).
-Today Overbright can read the game data of the European 1.2 release's SPEED2.EXE without copy
-protection (4,788,224 bytes). The copy-protected retail SPEED2.EXE (SafeDisc) is recognised but
-cannot be read yet; support for it is being worked on:
-https://github.com/j0braun/overbright/issues/16
+game, an installed Need for Speed Underground 2 from any disc release, patched to version 1.2, of
+any region. Overbright reads the game's data files; it does not run or read SPEED2.EXE, so the
+copy-protected disc executable is fine.
 
 No texture art and no mods are included either. Texture packages (TexMod .tpf files, TexWizard
 packs) and the HUD mod that you have can be added in the launcher: the main screen's Mods row opens the Mods page, which adds,
@@ -65,7 +62,7 @@ Starting
 1. Unpack this folder anywhere you like (for example into your Documents or next to the game).
 2. Run overbright.exe (the launcher). It looks for the original game (the registry, the usual
    "EA GAMES" folders, its own folder and the folder above it); if it cannot find it, choose the
-   folder that holds SPEED2.EXE. Then press Play.
+   folder that holds the GLOBAL, FRONTEND and TRACKS folders. Then press Play.
    game.exe starts the game directly, without the launcher.
    Windows may warn that the program is not signed ("Windows protected your PC"); choose
    "More info", then "Run anyway".

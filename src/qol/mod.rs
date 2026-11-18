@@ -36,7 +36,6 @@ pub use render_scale::*;
 /// its backtrace, and the last log lines. Nothing is ever sent anywhere.
 pub mod crash;
 /// The folders kept in Overbright's files, relative in a portable install.
-pub mod kept_paths;
 /// The game's log file: `<logs>/game-<time>.log`, the last 5 kept.
 pub mod log_file;
 /// Durable profile writes and rolling backups.
@@ -800,7 +799,7 @@ mod tests {
     }
 
     /// L1: the language list of a LANGUAGES folder (any case; the shared
-    /// tables left out), SPEED2.EXE found in any case, the shared check
+    /// tables left out), SPEED2.EXE not needed, the shared check
     /// wording, and the kept texture-pack folder (in a sandboxed data
     /// folder).
     #[test]
@@ -812,11 +811,9 @@ mod tests {
         }
         assert_eq!(setup::installed_languages(&d), ["English", "French", "German"]);
         assert!(setup::installed_languages(&d.join("nope")).is_empty());
-        std::fs::write(d.join("speed2.exe"), b"x").unwrap();
-        assert_eq!(setup::key_file_path(&d, "SPEED2.EXE"), d.join("speed2.exe"));
         let c = setup::check(&d, false);
-        assert!(!c.missing.iter().any(|m| m == "SPEED2.EXE") && c.different.iter().any(|m| m == "SPEED2.EXE"));
-        assert_eq!(setup::KEY_FILES[0].0, "SPEED2.EXE");
+        assert!(!c.missing.iter().chain(&c.different).any(|m| m == "SPEED2.EXE"));
+        assert!(!setup::KEY_FILES.iter().any(|(f, ..)| f.eq_ignore_ascii_case("SPEED2.EXE")));
         // The wording: one line per missing file, the differing ones named.
         let lines = setup::check_lines(&c, None);
         assert_eq!(lines.iter().filter(|(m, _)| *m == setup::Mark::Error).count(), 1, "many missing: one line");
@@ -824,7 +821,7 @@ mod tests {
         let few = setup::Check { missing: vec!["TRACKS/L4RA.BUN".into()], different: Vec::new() };
         assert_eq!(setup::check_lines(&few, None), [(setup::Mark::Error, "Missing: TRACKS/L4RA.BUN — reinstall or copy the full game folder".to_string())]);
         // (The folder check finds every key file in any case, so the dummy `languages/English.bin` differs too.)
-        assert!(lines.iter().any(|(m, t)| *m == setup::Mark::Warn && t.contains("2 files differ") && t.contains("SPEED2.EXE") && t.contains("English.bin")));
+        assert!(lines.iter().any(|(m, t)| *m == setup::Mark::Warn && t.contains("1 file differs") && t.contains("English.bin")));
         let fine = setup::Check::default();
         let lines = setup::check_lines(&fine, None);
         assert_eq!(lines[0].0, setup::Mark::Ok);

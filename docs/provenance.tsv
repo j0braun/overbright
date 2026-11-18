@@ -99,7 +99,7 @@ frontend.career.store_visual	open	docs/formats.md	(Customize) only the part slot
 frontend.career.style_score	inferred	docs/formats.md	0 without a style manager. Inferred: owner +0x14 → +0x904 is at
 frontend.career.to_native	inferred	docs/formats.md	order is kept; new ones follow in hash order (inferred:
 frontend.career.world_triggers	inferred	docs/formats.md	the corners of the box it covers (inferred from the shops').
-frontend.cheats.REGION	inferred	docs/formats.md	region values read from this build are inferred to be retail).
+region.detect	inferred	docs/region.md	that a North American install's CARS folder has CIVIC and RSX and neither CORSA nor PEUGOT106 (inferred).
 frontend.dday.holds_input	inferred	docs/formats.md	of 0x551080 (+0x118 the last reading; inferred across a load:
 frontend.options.CUSTOM_CAPS	inferred	docs/formats.md	filtering 2 (trilinear + anisotropic), the toggles 1. Inferred: the
 frontend.options.DEFAULT_KEYS	inferred	docs/formats.md	names (inferred: the OS supplies them), "Shift" / "Alt" / "Ctrl"

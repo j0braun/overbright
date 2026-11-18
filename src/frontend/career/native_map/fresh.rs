@@ -54,12 +54,7 @@ fn put(p: &mut [u8], at: usize, v: u32) {
 /// hash, the stock car's type index, the number 0x52A800 keeps at memory
 /// +0x434 — the previous entry's third dword, 0 for the first).
 fn ranked_rides() -> Vec<(u32, u32, u32)> {
-    let exe = crate::exe_tables::exe();
-    let ints = exe
-        .initialised_dwords_with(0x77_D3B0, 0x86_41A8, 0x12, &|callee, pushed| {
-            (callee == 0x43_DB50).then(|| pushed.and_then(|va| exe.cstr(va).ok()).map_or(0, bin_hash))
-        })
-        .unwrap_or_else(|e| panic!("{e}"));
+    let ints = &crate::exe_tables::tables().ranked_rides;
     (0..6).map(|k| (ints[1 + 3 * k], ints[2 + 3 * k], ints[3 * k])).collect()
 }
 
@@ -141,10 +136,9 @@ fn setup_curve(h: &crate::handling::Handling) -> (Vec<f32>, f32) {
 
 /// The payload of a new profile named "NAME", from the player's game data
 /// (`types`: GLOBALB's car type records in order, `ctx` for the stock
-/// parts) and executable ([`crate::exe_tables`]).
+/// parts) and the engine's tables ([`crate::exe_tables`]).
 pub fn fresh_payload(types: &[(String, Vec<u8>)], ctx: &NativeContext) -> Vec<u8> {
     let mut p = vec![0u8; PAYLOAD_LEN];
-    let exe = crate::exe_tables::exe();
     // The stock list (0x516500).
     let mut stock = Vec::new();
     for (i, (name, r)) in types.iter().enumerate() {
@@ -295,9 +289,9 @@ pub fn fresh_payload(types: &[(String, Vec<u8>)], ctx: &NativeContext) -> Vec<u8
         p[o + 8] = 0;
         p[o + 9] = 0;
     }
-    let car = |va: u32| exe.read::<u32>(va).map_or(0, stock_id);
-    put(&mut p, r + 4, car(0x7F_AA48));
-    put(&mut p, r + 8, car(0x7F_AA4C));
+    let cars = crate::exe_tables::tables().qr_default_cars;
+    put(&mut p, r + 4, stock_id(cars[0]));
+    put(&mut p, r + 8, stock_id(cars[1]));
     // Difficulty 1, save prompts on (0x515AA0).
     p[DIFFICULTY] = 1;
     p[SAVE_PROMPTS] = 1;

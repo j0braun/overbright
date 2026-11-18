@@ -91,10 +91,9 @@ Tests: `platform::dirs` unit tests (the layout on both OSes, the marker, kept pa
 HOME / LOCALAPPDATA / APPDATA / TMPDIR: nothing written outside `data/`; `--set-root` kept relative and found
 again from another folder; without the marker the old place and bytes).
 
-**Open:** `qol::setup::save_root` / `saved_root` / `save_texture_pack` / `saved_texture_pack` should apply
-`dirs::store_path` / `dirs::load_path` themselves (and `setup::find` then needs no wrapper). Until then every
-caller goes through `qol::kept_paths`, which wraps them. Not checked on a real Windows machine or a removable
-drive.
+`qol::setup::save_root` / `save_texture_pack` apply `dirs::store_path` and `saved_root` / `saved_texture_pack`
+apply `dirs::load_path` themselves, so `setup::find` (the kept folder first) and every caller get the resolved
+folder. **Open:** not checked on a real Windows machine or a removable drive.
 
 ## Paths (`platform::paths`)
 

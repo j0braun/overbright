@@ -835,8 +835,6 @@ fn a_refused_folder_offers_another() {
     let fonts = Fonts::new();
     let env = FakeEnv;
     for (state, words) in [
-        ("wrong-version", "not the version 1.2 executable whose game data Overbright reads"),
-        ("protected-exe", "copy-protected retail executable"),
         ("not-a-game-folder", "the game's files are not here"),
         ("files-missing", "some of the game's files are missing"),
     ] {
@@ -855,37 +853,6 @@ fn a_refused_folder_offers_another() {
     let a = super::headless::state_app(&env, &fonts, "check-ok", 1280, 720, 1.0).unwrap();
     assert!(a.ui.get("another").is_none() && a.ui.get("use").unwrap().enabled);
     assert_eq!(focus(&a), "use");
-}
-
-/// The copy-protected retail SPEED2.EXE: the check screen names it, says
-/// Overbright cannot read it yet, links the issue where the work is
-/// followed, and suggests no other executable; drawn whole at every size.
-#[test]
-fn the_protected_executable_is_named_with_its_issue() {
-    let fonts = Fonts::new();
-    let env = FakeEnv;
-    for (w, h) in SIZES {
-        let a = super::headless::state_app(&env, &fonts, "protected-exe", w, h, 1.0).unwrap();
-        let what = format!("protected-exe {w}x{h}");
-        let mut ui = a.ui.clone();
-        ui.view.h = ui.content_h.max(ui.view.h);
-        check_layout(&ui, &fonts, &what);
-        let t = all_text(&a);
-        for words in [
-            "This SPEED2.EXE is the copy-protected retail executable (SafeDisc)",
-            "cannot read its game data yet",
-            "being worked on",
-            "github.com/j0braun/overbright/issues/16",
-            "does not remove copy protection",
-        ] {
-            assert!(t.contains(words), "{what}: {words:?} not in {t}");
-        }
-        let lower = t.to_lowercase();
-        for banned in ["no-cd", "nocd", "no cd", "crack", "patch"] {
-            assert!(!lower.contains(banned), "{what}: {banned:?} in {t}");
-        }
-        assert!(!a.ui.get("use").unwrap().enabled, "{what}: Use this folder is on");
-    }
 }
 
 /// No Vulkan driver: the main screen says so in plain words with the

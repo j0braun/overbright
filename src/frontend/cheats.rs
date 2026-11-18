@@ -85,17 +85,18 @@ pub const CODES: [Code; 20] = [
 /// names at 0x7F7C6C into records 73–80 of the 91 at garage +0x9BD8).
 pub const SPONSOR_CARS: [&str; 8] = ["CHINGY", "CAPONE", "D3", "SHINESTREET", "DAVIDCHOE", "JAPANTUNING", "SNOOP_DOGG", "THE_DOORS"];
 
-/// The region byte 0x7FA73C (6 in this SPEED2.EXE; see the target note:
-// prov: inferred frontend.cheats.REGION
-/// region values read from this build are **inferred** to be retail).
-/// 0x575780 clears needmybestbuy's enabled byte (+0x32) when it is not 0,
-/// so that code does nothing here (read as 0 in memory under Wine).
-pub const REGION: u32 = 6;
-
-/// Entry `i`'s enabled byte (+0x32): 1 for all but needmybestbuy outside
-/// region 0.
+/// Entry `i`'s enabled byte (+0x32) in the game's region
+/// ([`crate::region`]): see [`enabled_in`].
 pub fn enabled(i: usize) -> bool {
-    !(REGION != 0 && matches!(CODES.get(i), Some(Code { effect: Effect::Vinyl("AD_BESTBUY"), .. })))
+    enabled_in(crate::region::get(), i)
+}
+
+/// Entry `i`'s enabled byte (+0x32) in `region` (the byte 0x7FA73C):
+/// 0x575780 clears needmybestbuy's when the region is not 0, so in the
+/// European release (6) that code does nothing (read as 0 in memory under
+/// Wine); every other entry is 1.
+pub fn enabled_in(region: u32, i: usize) -> bool {
+    !(region != 0 && matches!(CODES.get(i), Some(Code { effect: Effect::Vinyl("AD_BESTBUY"), .. })))
 }
 
 /// The active flags (+0x30), one bit per entry.
@@ -310,8 +311,11 @@ mod tests {
         assert_eq!(typed("xxYoDoGg"), vec![Matched { index: 10, new: true, bonus: 0 }]);
         // Again: active already, so no sound.
         assert_eq!(typed("yodogg"), vec![Matched { index: 10, new: false, bonus: 0 }]);
-        // needmybestbuy is disabled in region 6.
+        // needmybestbuy is disabled in region 6, enabled in region 0.
         assert!(typed("needmybestbuy").is_empty());
+        let bestbuy = CODES.iter().position(|c| matches!(c.effect, Effect::Vinyl("AD_BESTBUY"))).unwrap();
+        assert!(!enabled_in(crate::region::EUROPE, bestbuy) && enabled_in(crate::region::US, bestbuy));
+        assert!((0..CODES.len()).filter(|&i| i != bestbuy).all(|i| enabled_in(0, i) && enabled_in(6, i)));
         typed("gottaedge");
         let bank: Vec<u32> = typed("regmybankordermebaby").iter().map(|m| m.bonus).collect();
         typed("gimmevisual1regmebaby");

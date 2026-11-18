@@ -10,7 +10,7 @@ the frame loop and the glue that turns the library's parts into the running game
 | area | modules | what |
 |---|---|---|
 | file formats | `formats/` | Pure parsers for the original's files: bundle chunks, string hashes, solids, scenery, textures, tracks and visibility, compressed packs (JDLZ, Huffman), VIV archives, VP6 video, routes, roads, collision, native saves, texture-mod packages (TexMod `.tpf`, TexWizard packs, ZIP). They take bytes and return data; every parser is a fuzz target (docs/fuzzing.md). |
-| the player's game files | `game_fs/`, `exe_tables/`, `fingerprint.rs`, `cache/` | Case-insensitive access to the game folder; the tables read from the player's `SPEED2.EXE` (docs/exe-tables.md); the version fingerprint; the cache of converted world and car data. |
+| the player's game files | `game_fs/`, `exe_tables/`, `fingerprint.rs`, `cache/` | Case-insensitive access to the game folder; the engine's tables in code (docs/exe-tables.md); the version fingerprint; the cache of converted world and car data. |
 | world and cars | `world/`, `car/`, `ground.rs`, `collision.rs`, `smackable/`, `fog.rs`, `sky.rs`, `weather.rs` | A track assembled from the parsers, cars from their parts, the ground and wall queries, knock-over props, fog, sky, the weather cycle. |
 | simulation | `drive/`, `handling/`, `contact.rs`, `race.rs`, `drift.rs`, `style.rs`, `nitrous.rs`, `tuning/`, `frame_clock.rs`, `interpolate.rs`, `rng_sites.rs` | Driving (sub-steps, rigid body, suspension, tyres, brakes, aero, steering), engine and drivetrain, contacts, race modes and scoring, the tick clock and interpolation, the original's random-number draw sites. |
 | AI | `ai/`, `outrun.rs`, `opponents.rs`, `ai_looks.rs` | Race AI, routes and the road network, traffic, the outrun encounters. |
@@ -76,7 +76,7 @@ differently at different frame rates. Overbright takes the original at 60 fps as
 ## Data flow at start
 
 `game` finds the game folder (`NFSU2_ROOT`, the kept folder, `--set-root`, the current folder), checks it,
-maps `SPEED2.EXE` and loads its tables (`exe_tables::init`), then loads the front end from the game's
+then loads the front end from the game's
 packages. Worlds and cars are converted once into the cache (`cache/`) and loaded from it afterwards;
 loads run on worker threads behind the original's loading screens.
 

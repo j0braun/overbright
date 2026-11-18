@@ -1,22 +1,21 @@
 //! Game-version fingerprint (clone tooling; no native counterpart).
 //!
-//! SHA-256 of SPEED2.EXE, GLOBAL/GlobalB.lzc and the other key files,
-//! compared with the editions the clone knows, so `--check-game`, the log
-//! and crash reports say clearly which game build the player runs: the
-//! clone was traced on one SPEED2.EXE (addresses in docs/formats.md are
-//! that build's), and a modified GlobalB.lzc changes cars, upgrades and
-//! career rows. An unknown or modified data file is a warning only: the
-//! game keeps running; an unknown SPEED2.EXE stops the start, since the
-//! clone reads its tables from it ([`crate::exe_tables`]). Reads only;
+//! SHA-256 of GLOBAL/GlobalB.lzc and the other key data files, compared
+//! with the editions the clone knows, so `--check-game`, the log and crash
+//! reports say clearly which game data the player runs: a modified
+//! GlobalB.lzc changes cars, upgrades and career rows. An unknown or
+//! modified data file is a warning only: the game keeps running.
+//! SPEED2.EXE is fingerprinted too, for the reports only: Overbright does
+//! not read it ([`crate::exe_tables`]), so it is not part of the verdict
+//! and may be missing, copy-protected or of any build. Reads only;
 //! docs/game-fingerprint.md.
 
 use sha2::{Digest, Sha256};
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
-/// The files fingerprinted, in report order: the executable first (its
-/// build decides whether the traced addresses apply), then the data the
-/// clone reads at start.
+/// The files fingerprinted, in report order: the executable first (for
+/// the reports only, [`EXE`]), then the data the clone reads at start.
 pub const FILES: [&str; 9] = [
     "SPEED2.EXE",
     "GLOBAL/GlobalB.lzc",
@@ -28,6 +27,9 @@ pub const FILES: [&str; 9] = [
     "CARS/WHEELS/TEXTURES.BIN",
     "TRACKS/L4RA.BUN",
 ];
+
+/// The executable's name: reported, never part of the verdict.
+pub const EXE: &str = "SPEED2.EXE";
 
 /// An edition the clone knows: its name and each file's size and SHA-256.
 pub struct Edition {
@@ -53,14 +55,13 @@ pub const EDITIONS: &[Edition] = &[Edition {
 }];
 
 /// Other SPEED2.EXE builds known only by size and part of their hash
-/// (prefix, suffix): another build, whose addresses differ from the
-/// traced one. The 4,800,512-byte build is the one the OpenUG2 project
-/// documents ($OB_PRIVATE/research/openug2-study-2026-11-05.md; only
+/// (prefix, suffix), named in the reports. The 4,800,512-byte build is
+/// the one the OpenUG2 project documents ($OB_PRIVATE/research/openug2-study-2026-11-05.md; only
 // prov: inferred fingerprint.OTHER_EXE_BUILDS
 /// the hash's ends were recorded, so this match is **inferred**).
 /// The 5,987,978-byte build is the European 1.2 release's copy-protected
-/// retail executable (SafeDisc; recognised by its sections whatever its
-/// hash, [`crate::exe_tables::Exe::protected`]).
+/// retail executable (SafeDisc; any protected build is also recognised by
+/// its sections, [`safedisc`]).
 pub const OTHER_EXE_BUILDS: &[(u64, &str, &str, &str)] = &[
     (4_800_512, "f9dd86c0", "24168a7", "another SPEED2.EXE build (4,800,512 bytes)"),
     (5_987_978, "4d51643c", "818f", "the European 1.2 release's copy-protected SPEED2.EXE (5,987,978 bytes)"),
@@ -95,6 +96,8 @@ pub struct Fingerprint {
     pub files: Vec<FilePrint>,
     /// The loader / mod files present ([`MOD_MARKERS`]).
     pub mods: Vec<String>,
+    /// SPEED2.EXE is the copy-protected retail executable ([`safedisc`]).
+    pub exe_protected: bool,
 }
 
 /// The overall verdict.
@@ -145,6 +148,29 @@ fn locate(root: &Path, rel: &str) -> Option<PathBuf> {
     crate::game_fs::find(root, rel)
 }
 
+/// SafeDisc's section names in a protected executable.
+const SAFEDISC_SECTIONS: [&[u8]; 2] = [b"stxt774", b"stxt371"];
+
+/// Whether an executable's header names SafeDisc's sections (the
+/// copy-protected retail executable); `head` is the file's first bytes
+/// (4 KiB hold the section table).
+pub fn safedisc(head: &[u8]) -> bool {
+    let u16_at = |o: usize| head.get(o..o + 2).map(|b| u16::from_le_bytes([b[0], b[1]]) as usize);
+    let u32_at = |o: usize| head.get(o..o + 4).map(|b| u32::from_le_bytes(b.try_into().unwrap()) as usize);
+    let Some(pe) = u32_at(0x3C).filter(|&pe| head.get(..2) == Some(b"MZ") && head.get(pe..pe + 4) == Some(b"PE\0\0"))
+    else {
+        return false;
+    };
+    let (Some(count), Some(optional)) = (u16_at(pe + 6), u16_at(pe + 20)) else { return false };
+    (0..count).any(|i| {
+        let at = pe + 24 + optional + 40 * i;
+        head.get(at..at + 8).is_some_and(|n| {
+            let n = &n[..n.iter().position(|&c| c == 0).unwrap_or(8)];
+            SAFEDISC_SECTIONS.contains(&n)
+        })
+    })
+}
+
 /// Fingerprint the game folder `root` (reads about 27 MB).
 pub fn compute(root: &Path) -> Fingerprint {
     let files = FILES
@@ -174,18 +200,43 @@ pub fn compute(root: &Path) -> Fingerprint {
             mods.push(name);
         }
     }
-    Fingerprint { root: root.to_path_buf(), files, mods }
+    let exe_protected = locate(root, EXE).and_then(|p| {
+        use std::io::Read;
+        let mut head = Vec::new();
+        std::fs::File::open(p).ok()?.take(4096).read_to_end(&mut head).ok()?;
+        Some(safedisc(&head))
+    }) == Some(true);
+    Fingerprint { root: root.to_path_buf(), files, mods, exe_protected }
 }
 
 impl Fingerprint {
+    /// The verdict over the data files (SPEED2.EXE left out).
     pub fn verdict(&self) -> Verdict {
-        let first = self.files.first().and_then(|f| f.edition);
+        let data = || self.files.iter().filter(|f| f.file != EXE);
+        let first = data().find_map(|f| f.edition);
         if let Some(e) = first
-            && self.files.iter().all(|f| f.edition == Some(e))
+            && data().all(|f| f.edition == Some(e))
         {
             return Verdict::Known(e);
         }
-        Verdict::Unknown(self.files.iter().filter(|f| f.edition.is_none() || f.edition != first).map(|f| f.file.to_string()).collect())
+        Verdict::Unknown(data().filter(|f| f.edition.is_none() || f.edition != first).map(|f| f.file.to_string()).collect())
+    }
+
+    /// What the check screens say about SPEED2.EXE, if anything: it is
+    /// not needed, whichever build it is.
+    pub fn exe_note(&self) -> Option<String> {
+        let f = self.files.iter().find(|f| f.file == EXE)?;
+        match &f.state {
+            State::Read { .. } if self.exe_protected => Some(
+                "SPEED2.EXE is the copy-protected retail executable; Overbright does not need it and does not read it"
+                    .to_string(),
+            ),
+            State::Read { size, sha256 } if f.edition.is_none() => Some(format!(
+                "SPEED2.EXE is {}; Overbright does not need it and does not read it",
+                other_exe(EXE, *size, sha256).unwrap_or("another build")
+            )),
+            _ => None,
+        }
     }
 
     /// A short line for logs and crash reports.
@@ -218,6 +269,7 @@ impl Fingerprint {
                 State::Read { size, sha256 } => {
                     let note = match f.edition {
                         Some(_) => "known".to_string(),
+                        None if f.file == EXE && self.exe_protected => "copy-protected retail executable".to_string(),
                         None => other_exe(f.file, *size, sha256).map_or_else(|| "MODIFIED or unknown version".to_string(), |n| format!("{n} (inferred)")),
                     };
                     format!("{size} bytes {sha256} {note}")
@@ -229,23 +281,12 @@ impl Fingerprint {
             Verdict::Known(e) => s += &format!("edition: {e}\n"),
             Verdict::Unknown(v) => {
                 s += &format!("edition: UNKNOWN OR MODIFIED ({}).\n", v.join(", "));
-                if self.files.first().is_some_and(|f| f.edition.is_none() && matches!(f.state, State::Read { .. })) {
-                    // Overbright reads its tables from SPEED2.EXE: a patched
-                    // copy with the supported data runs, other data does not.
-                    match crate::exe_tables::check_folder(&self.root) {
-                        Ok(_) => s += &format!("note: {}.\n", crate::qol::setup::exe_modified_line()),
-                        Err(crate::exe_tables::Error::TablesDiffer { version, .. }) => {
-                            s += &format!("ERROR: {}; Overbright does not start with it.\n", crate::qol::setup::exe_differs_line(version))
-                        }
-                        Err(crate::exe_tables::Error::Protected { .. }) => {
-                            s += &format!("ERROR: {}\n", crate::qol::setup::exe_protected_line())
-                        }
-                        Err(e) => s += &format!("ERROR: {}\n", e.to_string().lines().next().unwrap_or_default()),
-                    }
-                } else {
-                    s += "WARNING: Overbright is made for one build of SPEED2.EXE and its data; another version or a modded install may look or play differently. Overbright still runs.\n";
-                }
+                s += "WARNING: Overbright is made for one edition of the game's data; another version or a modded install may look or play differently. Overbright still runs.\n";
             }
+        }
+        s += &format!("note: {EXE} is not needed: Overbright does not read it (any copy, or none, works).\n");
+        if let Some(n) = self.exe_note() {
+            s += &format!("note: {n}.\n");
         }
         if !self.mods.is_empty() {
             s += &format!("mod files present (ignored by Overbright): {}\n", self.mods.join(", "));
@@ -317,7 +358,8 @@ mod tests {
         let d = fake_root("empty");
         let f = compute(&d);
         assert!(f.files.iter().all(|f| f.state == State::Missing));
-        assert_eq!(f.verdict(), Verdict::Unknown(FILES.iter().map(|s| s.to_string()).collect()));
+        assert_eq!(f.verdict(), Verdict::Unknown(FILES[1..].iter().map(|s| s.to_string()).collect()));
+        assert!(f.report().contains("SPEED2.EXE is not needed"));
         assert!(f.report().contains("UNKNOWN OR MODIFIED"));
         assert!(f.summary().starts_with("UNKNOWN OR MODIFIED"));
         std::fs::remove_dir_all(&d).unwrap();
@@ -346,6 +388,47 @@ mod tests {
         assert!(other_exe("SPEED2.EXE", 4_800_512, "00dd86c0aaaa24168a7").is_none());
         assert!(other_exe("GLOBAL/GlobalB.lzc", 4_800_512, "f9dd86c0aaaa24168a7").is_none());
         assert!(other_exe("SPEED2.EXE", 5_987_978, "4d51643caaaa818f").is_some_and(|n| n.contains("copy-protected")));
+    }
+
+    /// SPEED2.EXE is never part of the verdict: a folder whose data files
+    /// are all known is the known edition with any executable or none, and
+    /// a copy-protected one is named as information only.
+    #[test]
+    fn the_executable_does_not_decide_the_edition() {
+        let mut head = vec![0u8; 0x400];
+        head[..2].copy_from_slice(b"MZ");
+        head[0x3C..0x40].copy_from_slice(&0x80u32.to_le_bytes());
+        head[0x80..0x84].copy_from_slice(b"PE\0\0");
+        head[0x86..0x88].copy_from_slice(&2u16.to_le_bytes());
+        head[0x94..0x96].copy_from_slice(&0xE0u16.to_le_bytes());
+        let sections = 0x80 + 24 + 0xE0;
+        head[sections..sections + 5].copy_from_slice(b".text");
+        assert!(!safedisc(&head));
+        head[sections + 40..sections + 47].copy_from_slice(b"stxt371");
+        assert!(safedisc(&head));
+        assert!(!safedisc(b"MZ"));
+        let known = |exe: State| Fingerprint {
+            root: PathBuf::new(),
+            files: FILES
+                .iter()
+                .zip(EDITIONS[0].files)
+                .map(|(&file, &(_, size, h))| FilePrint {
+                    file,
+                    state: if file == EXE { exe.clone() } else { State::Read { size, sha256: h.into() } },
+                    edition: (file != EXE).then_some(EDITIONS[0].name),
+                })
+                .collect(),
+            mods: Vec::new(),
+            exe_protected: false,
+        };
+        assert_eq!(known(State::Missing).verdict(), Verdict::Known(EDITIONS[0].name));
+        assert_eq!(known(State::Missing).exe_note(), None);
+        let other = State::Read { size: 5_987_978, sha256: "4d51643c00818f".into() };
+        assert_eq!(known(other.clone()).verdict(), Verdict::Known(EDITIONS[0].name));
+        assert!(known(other.clone()).exe_note().unwrap().contains("does not need it"));
+        let protected = Fingerprint { exe_protected: true, ..known(other) };
+        assert!(protected.exe_note().unwrap().contains("copy-protected retail executable"));
+        assert!(!protected.report().contains("ERROR"), "{}", protected.report());
     }
 
     /// The player's install (NFSU2_ROOT) is the known edition.

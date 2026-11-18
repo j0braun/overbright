@@ -161,10 +161,9 @@ mod tests {
     /// Every bank against the executable's bytes (0x46FA30's switch and the
     /// tables it names), when the game is available.
     #[test]
-    #[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
+    #[cfg_attr(not(all(ob_game, ob_private)), ignore = "needs NFSU2_ROOT (the player's own game files) and OB_PRIVATE (private captures and saves)")]
     fn banks_match_the_executable() {
-        let root = crate::testkit::game_root();
-        let exe = std::fs::read(std::path::Path::new(&root).join("SPEED2.EXE")).unwrap();
+        let exe = crate::testkit::reference_exe();
         let read = |va: usize, n: usize| &exe[va - 0x400000..va - 0x400000 + n];
         let u32_at = |va: usize| u32::from_le_bytes(read(va, 4).try_into().unwrap()) as usize;
         for id in 1..=15 {

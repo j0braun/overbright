@@ -50,7 +50,7 @@ WM_CHAR); memory read with `peek.py`. Evidence: the maintainer's private capture
 | 5 vinyl codes | 7, hash AD_<name> | Sponsor vinyl in shops / Customize | 0x579DB0 (0x51556B, 0x529DB7) |
 
 needmybestbuy is disabled (+0x32 = 0 in memory; region byte 0x7FA73C =
-6). Kind 5 value 0 (0x8383C8, read by 0x527530) has no code. These are
+6) outside region 0 (docs/region.md). Kind 5 value 0 (0x8383C8, read by 0x527530) has no code. These are
 every caller of each query (call-site grep of `speed2.dis`); no other
 code reads the manager or the table.
 

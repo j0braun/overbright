@@ -297,9 +297,3 @@ test = false
 doc = false
 bench = false
 
-[[bin]]
-name = "pe_sections"
-path = "fuzz_targets/pe_sections.rs"
-test = false
-doc = false
-bench = false

@@ -857,11 +857,12 @@ is native; nothing was traced for it beyond the native facts cited.
   `~/Games/…`) — the first holding GLOBAL/GLOBALB.BUN and
   FRONTEND/FrontB.lzc. None found: on a terminal the clone asks for the
   folder (kept when complete), else prints how to give it and exits (code
-  2). The folder is then checked for nine key files (`setup::KEY_FILES`):
+  2). The folder is then checked for nine key data files (`setup::KEY_FILES`;
+  SPEED2.EXE is not among them, docs/exe-tables.md):
   missing ones are listed with the same help and the clone exits; sizes
   are checked on every start, the XXH3 of the eight smaller ones (22 MB)
   when the folder was found rather than given, against the European
-  1.2 install (SPEED2.EXE without copy protection, 4,788,224 bytes); a difference is logged as
+  1.2 install; a difference is logged as
   "another version or modded", not an error. `game --check-game [dir]`
   prints the report. The game folder is only read. The asset cache then
   builds itself on first use under the native loading screen (unchanged;

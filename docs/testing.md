@@ -176,9 +176,13 @@ To add a fixture that replaces a committed file:
 
 Converted so far: `burnout-records@1` (src/shop_scene/wheels.rs) and
 `handling-peugot@1` (src/drive.rs, src/drive/native_cached_count.rs).
-Tables of SPEED2.EXE the game itself needs are read at run time by
-`nfsu2::exe_tables` (docs/exe-tables.md); their data tests pin the SHA-256 of
-each table's `Debug` text (`exe_tables::tests`), not its bytes. The fresh
+The engine's tables are in the code (`nfsu2::exe_tables`, docs/exe-tables.md):
+a test pins the SHA-256 of each table's `Debug` text, and the data tests that
+compare them with the original read the reference executable through
+`testkit::reference_exe()` (`$OB_PRIVATE/exe/SPEED2.EXE`, else the game
+folder's; it must be the European 1.2 `SPEED2.EXE` without copy protection)
+and carry the "game files and private set" ignore reason. `exe_bytes(va,
+len)` reads a range of it for a fixture. The fresh
 profile is written by `career::fresh_payload` and pinned the same way. The
 old files stay in docs/evidence until a later release step deletes the G-class
 files.

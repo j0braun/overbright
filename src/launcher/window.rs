@@ -51,7 +51,7 @@ struct Run<'e> {
     running: Option<Running>,
     probe: Option<std::sync::mpsc::Receiver<Result<Probe, String>>>,
     /// The game folder the last probe was run with (a new folder: run
-    /// again, its first-run values read that folder's SPEED2.EXE).
+    /// again, so the probe's result belongs to the chosen folder).
     probed_root: Option<std::path::PathBuf>,
     /// Run `game --probe` at all (the real machine).
     probing: bool,
@@ -209,8 +209,8 @@ impl Run<'_> {
         }
     }
 
-    /// Runs the probe again when the game folder changed (the first-run
-    /// values need the chosen folder's SPEED2.EXE).
+    /// Runs the probe again when the game folder changed (its result
+    /// belongs to the folder it was run with).
     fn reprobe(&mut self) {
         if !self.probing || self.app.model.root.is_none() || self.app.model.root == self.probed_root {
             return;

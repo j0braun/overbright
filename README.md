@@ -42,8 +42,7 @@ packs; the HUD is hidden.
 
 ## Getting started
 
-1. Install the PC version of Need for Speed Underground 2. Overbright needs your own `SPEED2.EXE`,
-   version 1.2 (the folder that holds it). Which `SPEED2.EXE` works today: see [Requirements](#requirements).
+1. Install the PC version of Need for Speed Underground 2 from your disc and patch it to version 1.2.
 2. Download the archive for your system from [Releases](https://github.com/j0braun/overbright/releases) and
    unpack it anywhere.
 3. Start `overbright` (`overbright.exe` on Windows). It finds the game or asks for its folder. Press Play.
@@ -59,10 +58,10 @@ directly ([docs/launcher.md](docs/launcher.md)). Building from source: [BUILDING
 | Graphics | The Vulkan loader and a Vulkan driver: Mesa 22 or newer for AMD and Intel graphics, or NVIDIA's own driver | A Vulkan driver (Direct3D 12 is a fallback, untested) |
 | Sound | PipeWire, PulseAudio or ALSA | Built in |
 
-The game: your own install of Need for Speed Underground 2 for PC, version 1.2. Overbright reads the game data
-in `SPEED2.EXE`, and today it can read only the European 1.2 release's `SPEED2.EXE` without copy protection
-(4,788,224 bytes) or a copy of it whose game data is unchanged. The copy-protected retail `SPEED2.EXE` (SafeDisc)
-is recognised but cannot be read yet ([issue #16](https://github.com/j0braun/overbright/issues/16)).
+The game: your own install of Need for Speed Underground 2 for PC from any disc release, patched to version 1.2,
+of any region. Overbright reads the game's data files (models, textures, sounds, text, tracks); it does not
+run or read `SPEED2.EXE`, so the copy-protected disc executable is fine, and the folder works without it too.
+The engine's own numbers are part of Overbright ([docs/exe-tables.md](docs/exe-tables.md)).
 
 On Linux without a Vulkan driver, the launcher and the game say which package to install (Ubuntu, Debian, Mint:
 `sudo apt install libvulkan1 mesa-vulkan-drivers`; Fedora: `sudo dnf install vulkan-loader mesa-vulkan-drivers`;
@@ -101,15 +100,10 @@ original, with its switch, is in [docs/native-deviations.md](docs/native-deviati
   Direct3D 12 is tried only when no Vulkan driver opens, and it is untested: under Wine it opens but draws
   nothing (Wine's shader compiler rejects the shaders). If the game shows no picture on Windows, update the
   graphics driver so that Vulkan is available.
-- **The copy-protected retail `SPEED2.EXE` does not work yet.** The game as sold on disc, patched to 1.2,
-  has a SafeDisc-protected `SPEED2.EXE` whose game data is encrypted; Overbright recognises it and says so,
-  but cannot read it yet. Support for it is being worked on in
-  [issue #16](https://github.com/j0braun/overbright/issues/16). Overbright does not remove copy protection.
-- **One executable works today:** the European 1.2 release's `SPEED2.EXE` without copy protection
-  (4,788,224 bytes, docs/game-fingerprint.md), and copies of it whose game data is unchanged. Overbright
-  refuses any other `SPEED2.EXE` whose data tables differ (1.0, 1.1, other builds of 1.2) with a message
-  naming them ([docs/exe-tables.md](docs/exe-tables.md), "Which executables work"). Only English game
-  files were tested.
+- **One edition of the game's data was tested:** the European 1.2 release with English game files.
+  Other regions and languages start, and their data is reported as "unknown" by `game --check-game`;
+  nothing about them was tested. Overbright carries the European 1.2 release's engine numbers; whether
+  another release's executable used different ones is not known.
 - **Controllers** were tested with a virtual Xbox 360 pad only. Rumble, PlayStation and Switch pads and the
   Steam Deck's controls were not tried on real hardware.
 

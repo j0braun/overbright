@@ -1,12 +1,14 @@
-//! The tables read from the player's SPEED2.EXE (or computed from their
-//! formula) equal the constants the source carried before (R8): each
-//! table's `Debug` text is pinned by its SHA-256, taken from the old
-//! constants (docs/evidence/exe-tables/phase-a.txt), so the data does not
-//! come back through the tests.
+//! The engine's tables equal the original's: every table's `Debug` text
+//! hashes to the value the reference executable gives (no game data
+//! needed), and with the reference executable at hand (the maintainer's
+//! private set, `testkit::reference_exe`) every table equals the one read
+//! from it, entry for entry.
 
 use super::*;
 
-/// (table, SHA-256 of its `Debug` text as the old constant had it).
+/// (table, SHA-256 of its `Debug` text as the reference executable gives
+/// it), finer than [`FIELD_PINS`]: the VP6 tables and the patterns one by
+/// one, the arcsine's first 192 entries, the generated sine and arctangent.
 const PINS: &[(&str, &str)] = &[
     ("slot_shots", "638b8afafb5796a98d98faccd90da2243f0be7829284acd6f29d95ce636ae10e"),
     ("vinyl_shots", "6a2aa13b820f262a335cd6aabeef269ae54aa6b6e726e5a1ae15891f8137e260"),
@@ -213,26 +215,79 @@ fn debug_text(t: &Tables, name: &str) -> String {
 }
 
 #[test]
-#[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
-fn every_table_equals_the_old_constant() {
-    let t = init(&crate::testkit::game_root()).unwrap_or_else(|e| panic!("{e}"));
+fn every_table_equals_its_pin() {
+    let t = tables();
     let differ: Vec<&str> = PINS
         .iter()
         .filter(|(name, sha)| crate::fingerprint::sha256_hex(debug_text(t, name).as_bytes()) != *sha)
         .map(|p| p.0)
         .collect();
-    assert!(differ.is_empty(), "tables unlike the old constants: {differ:?}");
+    assert!(differ.is_empty(), "tables unlike the original's: {differ:?}");
+    let fields = t.field_texts();
+    assert_eq!(FIELD_PINS.len(), fields.len());
+    let differ: Vec<&str> = fields
+        .iter()
+        .filter(|(name, text)| {
+            FIELD_PINS.iter().find(|p| p.0 == *name).is_none_or(|p| crate::fingerprint::sha256_hex(text.as_bytes()) != p.1)
+        })
+        .map(|(name, _)| *name)
+        .collect();
+    assert!(differ.is_empty(), "tables unlike the original's: {differ:?}");
 }
 
-/// The computed tables equal the player's executable byte for byte
-/// (the sine too, with no exception: 0x8181D8, docs/exe-tables.md).
+/// The tables computed from their formulas ([`generated`]).
+const FORMULA: [&str; 3] = ["asin", "db_to_lin", "lin_to_db"];
+/// The decoders' tables from vgmstream and FFmpeg ([`third_party`]).
+const DECODERS: [&str; 7] = ["utk_rc", "utk_codebooks", "utk_commands", "mp3_huff", "mp3_linbits", "mp3_window_rows", "vp6"];
+
+/// The reference executable's tables ([`reader::read_tables`]), read once.
+fn reference() -> &'static Tables {
+    static T: std::sync::OnceLock<&'static Tables> = std::sync::OnceLock::new();
+    T.get_or_init(|| {
+        let exe: &'static reader::Exe = Box::leak(Box::new(reader::Exe::from_bytes(crate::testkit::reference_exe()).unwrap()));
+        Box::leak(Box::new(reader::read_tables(exe).unwrap_or_else(|e| panic!("{e}"))))
+    })
+}
+
+/// The built-in tables named by `pick` that differ from the reference
+/// executable's.
+fn differing(pick: &dyn Fn(&str) -> bool) -> Vec<&'static str> {
+    let ours = tables().field_texts();
+    let theirs = reference().field_texts();
+    assert_eq!(ours.len(), theirs.len());
+    ours.iter().zip(&theirs).filter(|((n, a), (_, b))| pick(n) && a != b).map(|((n, _), _)| *n).collect()
+}
+
+/// The formula tables equal the executable's entry for entry (the sine
+/// and the arctangent too: 0x8181D8, 0x7EACB0).
 #[test]
-#[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
-fn generated_tables_equal_the_executable() {
-    init(&crate::testkit::game_root()).unwrap_or_else(|e| panic!("{e}"));
-    let exe = exe();
+#[cfg_attr(not(all(ob_game, ob_private)), ignore = "needs NFSU2_ROOT (the player's own game files) and OB_PRIVATE (private captures and saves)")]
+fn formula_tables_equal_the_executable() {
+    assert_eq!(differing(&|n| FORMULA.contains(&n)), Vec::<&str>::new());
+    let exe = reader::Exe::from_bytes(crate::testkit::reference_exe()).unwrap();
     assert_eq!(&exe.array::<u8, 256>(generated::ATAN_TABLE_VA).unwrap(), generated::atan_table());
     assert_eq!(&exe.array::<u16, 257>(generated::QUARTER_SINE_VA).unwrap(), generated::quarter_sine());
+    let asin: [(u16, u32); 208] = exe.records(0x7E_A628, 8, |r| Ok((r.u16(0), r.u32(4)))).unwrap();
+    assert_eq!(asin, generated::asin_table().map(|(a, s)| (a, s.to_bits())));
+}
+
+/// The decoders' tables from vgmstream and FFmpeg equal the executable's.
+#[test]
+#[cfg_attr(not(all(ob_game, ob_private)), ignore = "needs NFSU2_ROOT (the player's own game files) and OB_PRIVATE (private captures and saves)")]
+fn decoder_tables_equal_the_executable() {
+    assert_eq!(differing(&|n| DECODERS.contains(&n)), Vec::<&str>::new());
+    // The window bit for bit (`Debug` shows -0.0 and 0.0 apart, but not
+    // every float's bits).
+    let ours = tables().mp3_window_rows.as_flattened().iter().map(|v| v.to_bits()).collect::<Vec<_>>();
+    let theirs = reference().mp3_window_rows.as_flattened().iter().map(|v| v.to_bits()).collect::<Vec<_>>();
+    assert_eq!(ours, theirs);
+}
+
+/// Every tuning constant equals the executable's ([`constants`]).
+#[test]
+#[cfg_attr(not(all(ob_game, ob_private)), ignore = "needs NFSU2_ROOT (the player's own game files) and OB_PRIVATE (private captures and saves)")]
+fn tuning_constants_equal_the_executable() {
+    assert_eq!(differing(&|n| !FORMULA.contains(&n) && !DECODERS.contains(&n)), Vec::<&str>::new());
 }
 
 /// Native rule (docs/exe-tables.md, quarter sine): the event VM's sine 0x7254CF reads the
@@ -245,99 +300,6 @@ fn quarter_sine_is_the_exact_formula() {
     let six: Vec<u16> = [11, 13, 15, 19, 20, 21].iter().map(|&i| t[i]).collect();
     assert_eq!(six, [4420, 5222, 6023, 7623, 8022, 8421]);
     assert_eq!((t[0], t[256]), (0, 65535));
-}
-
-/// A copy of the player's SPEED2.EXE in a scratch folder with `edit`
-/// applied to its bytes (file offset = VA − 0x400000 in every section of
-/// this build); nothing is committed.
-fn edited_copy(tag: &str, edit: impl FnOnce(&mut Vec<u8>)) -> crate::testkit::Scratch {
-    let root = crate::testkit::game_root();
-    let mut bytes = std::fs::read(crate::game_fs::path(&root, EXE)).unwrap();
-    edit(&mut bytes);
-    let dir = crate::testkit::Scratch::new(tag);
-    std::fs::write(dir.path().join(EXE), bytes).unwrap();
-    dir
-}
-
-/// The supported build itself: known, every table equal to its pin.
-#[test]
-#[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
-fn the_known_build_matches_every_pin() {
-    let root = crate::testkit::game_root();
-    assert_eq!(check_folder(&root).unwrap(), Edition::Known);
-    let t = init(&root).unwrap();
-    assert_eq!(t.verify(), Vec::<String>::new());
-    assert_eq!(FIELD_PINS.len(), t.field_texts().len());
-}
-
-/// A patched copy (a few code bytes changed outside every table, as a
-/// widescreen patch does): accepted, its tables bit-identical.
-#[test]
-#[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
-fn a_patched_copy_with_the_same_data_is_accepted() {
-    let dir = edited_copy("exe-patched", |b| {
-        for k in 0x1100..0x1108 {
-            b[k] ^= 0x5A;
-        }
-    });
-    let (_, patched, edition) = load(dir.path()).unwrap_or_else(|e| panic!("{e}"));
-    assert!(matches!(edition, Edition::Modified { .. }), "{edition:?}");
-    assert!(matches!(check_folder(dir.path()), Ok(Edition::Modified { .. })));
-    let real = init(&crate::testkit::game_root()).unwrap();
-    assert!(patched.field_texts() == real.field_texts(), "a patched copy's tables differ");
-}
-
-/// A copy with one byte of a table changed: refused, the table named.
-#[test]
-#[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
-fn a_copy_with_other_data_is_refused() {
-    let dir = edited_copy("exe-other-data", |b| b[0x7E_9228 - 0x40_0000] ^= 1);
-    let e = match load(dir.path()) {
-        Err(e) => e,
-        Ok(_) => panic!("a SPEED2.EXE with another steering table was accepted"),
-    };
-    let Error::TablesDiffer { tables, version, .. } = &e else { panic!("{e}") };
-    assert_eq!(tables, &vec!["steer_response".to_string()]);
-    assert_eq!(*version, None);
-    let text = e.to_string();
-    assert!(
-        text.contains("an unknown version: its data tables differ from the supported 1.2 release")
-            && text.contains("steer_response")
-            && text.contains("--set-root"),
-        "{text}"
-    );
-}
-
-/// A file of the wrong size whose section table is broken: refused with
-/// the message, no panic.
-#[test]
-#[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
-fn a_broken_executable_is_refused() {
-    let dir = edited_copy("exe-broken", |b| {
-        b.truncate(1000);
-        b[0x3C..0x40].copy_from_slice(&0xFFFF_FF00u32.to_le_bytes());
-    });
-    let e = load(dir.path()).err().expect("a broken SPEED2.EXE was accepted");
-    assert!(matches!(&e, Error::TablesDiffer { size: 1000, .. }), "{e}");
-    assert!(e.to_string().contains("data tables differ"), "{e}");
-    for n in [0usize, 2, 64, 0x200, 1000] {
-        fuzz_probe(&vec![0x4D; n]);
-    }
-}
-
-/// What verifying every table costs (diagnostic: `cargo test --release
-/// exe_tables_verify_cost -- --ignored --nocapture`), best of 20.
-#[test]
-#[ignore = "diagnostic timing"]
-fn exe_tables_verify_cost() {
-    let t = init(&crate::testkit::game_root()).unwrap();
-    let mut best = f64::MAX;
-    for _ in 0..20 {
-        let s = std::time::Instant::now();
-        assert!(t.verify().is_empty());
-        best = best.min(s.elapsed().as_secs_f64() * 1e3);
-    }
-    eprintln!("exe_tables: verify every table {best:.3} ms");
 }
 
 /// The section reader: addresses map through the section table, data
@@ -361,111 +323,25 @@ fn sections_map_addresses() {
     for (k, v) in b[0x200..0x210].iter_mut().enumerate() {
         *v = k as u8 + 1;
     }
-    let exe = Exe::from_bytes(b).unwrap();
+    let exe = reader::Exe::from_bytes(b).unwrap();
     assert_eq!(&*exe.bytes(0x40_1000, 4).unwrap(), &[1, 2, 3, 4]);
     assert_eq!(&*exe.bytes(0x40_100E, 4).unwrap(), &[15, 16, 0, 0]);
     assert_eq!(exe.read::<u32>(0x40_1080).unwrap(), 0);
-    assert!(matches!(exe.bytes(0x40_10FE, 4), Err(Error::Range { .. })));
-    assert!(matches!(exe.bytes(0x40_0000, 4), Err(Error::Range { .. })));
+    assert!(matches!(exe.bytes(0x40_10FE, 4), Err(reader::Error::Range { .. })));
+    assert!(matches!(exe.bytes(0x40_0000, 4), Err(reader::Error::Range { .. })));
 }
 
-/// A synthetic PE with the given sections (name, RVA; 0x200 bytes each,
-/// the first raw at file offset 0x400) and the entry point at `entry`
-/// (an RVA): the shape of the copy-protected retail executable's header,
-/// none of its bytes.
-fn synthetic_pe(sections: &[(&[u8], u32)], entry: u32) -> Vec<u8> {
-    let raw = 0x400 + 0x200 * sections.len();
-    let mut b = vec![0u8; raw];
-    b[..2].copy_from_slice(b"MZ");
-    b[0x3C..0x40].copy_from_slice(&0x40u32.to_le_bytes());
-    b[0x40..0x44].copy_from_slice(b"PE\0\0");
-    b[0x44..0x46].copy_from_slice(&0x14Cu16.to_le_bytes());
-    b[0x46..0x48].copy_from_slice(&(sections.len() as u16).to_le_bytes());
-    b[0x54..0x56].copy_from_slice(&0xE0u16.to_le_bytes());
-    b[0x58..0x5A].copy_from_slice(&0x10Bu16.to_le_bytes());
-    b[0x58 + 16..0x58 + 20].copy_from_slice(&entry.to_le_bytes());
-    b[0x58 + 28..0x58 + 32].copy_from_slice(&0x40_0000u32.to_le_bytes());
-    for (i, (name, rva)) in sections.iter().enumerate() {
-        let s = 0x58 + 0xE0 + 40 * i;
-        b[s..s + name.len()].copy_from_slice(name);
-        b[s + 8..s + 12].copy_from_slice(&0x200u32.to_le_bytes());
-        b[s + 12..s + 16].copy_from_slice(&rva.to_le_bytes());
-        b[s + 16..s + 20].copy_from_slice(&0x200u32.to_le_bytes());
-        b[s + 20..s + 24].copy_from_slice(&(0x400 + 0x200 * i as u32).to_le_bytes());
-    }
-    b
-}
-
-/// The copy-protected retail executable is recognised by its header alone
-/// (SafeDisc's `stxt774` / `stxt371` sections, the start in `stxt371`) and
-/// refused with its own message: what it is, that Overbright cannot read
-/// it yet, where the work is followed; no folder advice and no word about
-/// other executables. The same message reaches `--check-game` and the
-/// launcher's check screen. A synthetic file: no game data needed.
-#[test]
-fn the_protected_executable_is_recognised_and_named() {
-    let protected: &[(&[u8], u32)] =
-        &[(b".text", 0x1000), (b".rdata", 0x2000), (b".data", 0x3000), (b"stxt774", 0x4000), (b"stxt371", 0x5000)];
-    let bytes = synthetic_pe(protected, 0x5010);
-    assert!(Exe::from_bytes(bytes.clone()).unwrap().protected());
-    // Either sign alone is enough: the sections, or a start in a `stxt` section.
-    let only_sections = synthetic_pe(&protected[..], 0x1010);
-    assert!(Exe::from_bytes(only_sections).unwrap().protected());
-    let only_entry = synthetic_pe(&[(b".text", 0x1000), (b"stxt999", 0x2000)], 0x2004);
-    assert!(Exe::from_bytes(only_entry).unwrap().protected());
-    // The unprotected layout: the plain sections, the start in `.text`.
-    let plain =
-        synthetic_pe(&[(b".text", 0x1000), (b".rdata", 0x2000), (b".data", 0x3000), (b".rsrc", 0x4000)], 0x1010);
-    assert!(!Exe::from_bytes(plain).unwrap().protected());
-
-    let dir = crate::testkit::Scratch::new("exe-protected");
-    std::fs::write(dir.path().join(EXE), &bytes).unwrap();
-    let e = check_folder(dir.path()).expect_err("the protected executable was accepted");
-    assert!(matches!(&e, Error::Protected { size, .. } if *size == bytes.len() as u64), "{e:?}");
-    assert!(matches!(load(dir.path()), Err(Error::Protected { .. })));
-    let text = e.to_string();
-    for words in [
-        "copy-protected retail SPEED2.EXE",
-        "cannot read them yet",
-        "being worked on",
-        crate::qol::setup::PROTECTED_EXE_ISSUE,
-    ] {
-        assert!(text.contains(words), "{words:?} not in {text}");
-    }
-    let lower = text.to_lowercase();
-    for banned in ["no-cd", "nocd", "no cd", "crack", "patch", "--set-root", "choose an install"] {
-        assert!(!lower.contains(banned), "{banned:?} in {text}");
-    }
-
-    let fp = crate::fingerprint::compute(dir.path());
-    assert!(fp.report().contains(&format!("ERROR: {}", crate::qol::setup::exe_protected_line())), "{}", fp.report());
-    let lines = crate::qol::setup::check_lines(&crate::qol::setup::check(dir.path(), false), Some(&fp));
-    assert!(
-        lines
-            .iter()
-            .any(|(m, t)| *m == crate::qol::setup::Mark::Error && *t == crate::qol::setup::exe_protected_line()),
-        "{lines:?}"
-    );
-}
-
-/// What reading the tables costs (diagnostic: `cargo test --release
-/// exe_tables_cost -- --ignored --nocapture`): mapping and checking the
-/// executable, then building every table, best of 20.
+/// What building the tables costs (diagnostic: `cargo test --release
+/// exe_tables_cost -- --ignored --nocapture`), best of 20.
 #[test]
 #[ignore = "diagnostic timing"]
 fn exe_tables_cost() {
-    let root = crate::testkit::game_root();
-    let leaked: &'static Exe = Box::leak(Box::new(Exe::open(&root).unwrap().0));
-    let (mut open, mut load) = (f64::MAX, f64::MAX);
+    let mut best = f64::MAX;
     for _ in 0..20 {
         let t = std::time::Instant::now();
-        let e = Exe::open(&root).unwrap();
-        open = open.min(t.elapsed().as_secs_f64() * 1e3);
-        drop(e);
-        let t = std::time::Instant::now();
-        let tables = Tables::load(leaked).unwrap();
-        load = load.min(t.elapsed().as_secs_f64() * 1e3);
+        let tables = Tables::builtin();
+        best = best.min(t.elapsed().as_secs_f64() * 1e3);
         drop(tables);
     }
-    eprintln!("exe_tables: map + edition check {open:.3} ms, all tables {load:.3} ms");
+    eprintln!("exe_tables: all tables {best:.3} ms");
 }

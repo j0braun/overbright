@@ -29,9 +29,8 @@
 //! launchers). `monitor.modes` (the monitor's own video modes) and
 //! `monitor.exclusive` (0 on Wayland: no exclusive full screen) give the
 //! launcher the facts the game's Resolution row is built from
-//! (`display::modes_for`); `first_run.*` is left out when no usable game
-//! folder is known (the values read a table of the player's SPEED2.EXE;
-//! the launcher runs the probe again with the folder in `NFSU2_ROOT`). Without an adapter the probe prints `error=<text>` and
+//! (`display::modes_for`); `first_run.*` gives the first start's display
+//! values (`first_run_display`, from the engine's graphics card table). Without an adapter the probe prints `error=<text>` and
 //! `ok=0` and exits 1; without a display `monitor=none` (the modes are then
 //! the fixed list).
 
@@ -289,9 +288,8 @@ pub const TIMEOUT: Duration = Duration::from_secs(20);
 
 /// Runs `exe --probe` and reads its result; a failure in plain words
 /// (with the last line the game printed to stderr). `root`: the game
-/// folder the player chose, given to the probe as `NFSU2_ROOT` (its
-/// first-run values read that folder's SPEED2.EXE); None leaves the
-/// environment as it is.
+/// folder the player chose, given to the probe as `NFSU2_ROOT`; None
+/// leaves the environment as it is.
 pub fn run(exe: &Path, root: Option<&Path>, timeout: Duration) -> Result<Probe, String> {
     use std::io::Read;
     use std::process::{Command, Stdio};
