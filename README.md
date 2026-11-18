@@ -157,6 +157,19 @@ original, with its switch, is in [docs/native-deviations.md](docs/native-deviati
 - Integrated GPUs run the original look well; the heavier upgrades want a dedicated GPU (each option shows
   its cost on the settings page).
 
+**Map editor (preview)**
+
+- **Race tools are not in this preview:** the editor cannot create races or place start, grid, checkpoints and
+  finish yet. A race already written into a map mod file ([docs/map-editor.md](docs/map-editor.md)) still loads,
+  simulates and tests.
+- The simulation's results table is not sorted, and the player's car can show as first with no time.
+- Below about 1280 pixels wide the toolbar is cramped, and some menu items do nothing yet.
+- Moved or deleted buildings and street furniture keep their original collision, and copied props have none;
+  knock-over props behave normally.
+- At the default night time the whole-map view is dark.
+- Copy and paste in the editor's text fields work only inside the editor; screen readers are not supported yet.
+- Tested on Linux; on Windows only under Wine.
+
 A difference from the original that is not listed here or in docs/native-deviations.md is a bug: please
 report it.
 
@@ -178,9 +191,9 @@ screen, exports them and shows your edited versions live in such a pack
 
 The map editor (`overbright-editor`, a **preview**; opened from the launcher's Dev page, or on a map mod from the Mods
 page) is a desktop program: fly over the
-city, move, delete and add props, and make races of your own on the city's roads. **Test race** saves and starts
-the game beside the editor straight on the race's grid with only that mod; the game ends when the race does and
-the editor marks the race tested. Map mods are saved in Overbright's data folder and applied on top of the
+city, move, delete and add props, simulate a map mod's race without a window and watch the replay. Building and
+editing races is not in this preview yet. **Test race** saves and starts the game beside the editor straight on
+the race's grid with only that mod; the game ends when the race does and the editor marks the race tested. Map mods are saved in Overbright's data folder and applied on top of the
 original data; the game's files and your career save are never changed
 ([docs/map-editor.md](docs/map-editor.md)). The launcher's Mods page turns map mods on and off, imports and
 exports them as `.zip` files, and opens one in the editor.
