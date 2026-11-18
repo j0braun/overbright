@@ -23,6 +23,77 @@ use std::time::{Duration, Instant};
 pub const START_SECS: f32 = 10.0;
 /// The game's line when its window cannot open (`shell::window`).
 pub const NO_WINDOW: &str = "could not open a window";
+/// The start of the game's machine line naming what went wrong
+/// ([`ErrorKind::line`]), printed on its own line before the error text.
+pub const KIND_PREFIX: &str = "error.kind=";
+
+/// What kind of problem stopped the game, as the game names it on its
+/// `error.kind=` line (or as the launcher infers it from the end): the
+/// failure screen shows a title, one sentence and one fixing button for
+/// each.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub enum ErrorKind {
+    /// The game folder is missing or incomplete (`files-missing`).
+    GameFiles,
+    /// No graphics adapter or driver the game can draw with (`gpu`).
+    NoGpu,
+    /// The game window could not open (`no-window`).
+    NoWindow,
+    /// The game crashed (a panic; `crash`).
+    Crash,
+    /// The game program itself could not be started (the launcher's own
+    /// kind: `game` missing beside the launcher, or not runnable).
+    NoProgram,
+    /// Anything else.
+    #[default]
+    Other,
+}
+
+impl ErrorKind {
+    pub const ALL: [ErrorKind; 6] = [
+        ErrorKind::GameFiles,
+        ErrorKind::NoGpu,
+        ErrorKind::NoWindow,
+        ErrorKind::Crash,
+        ErrorKind::NoProgram,
+        ErrorKind::Other,
+    ];
+
+    /// The word on the `error.kind=` line.
+    pub fn word(self) -> &'static str {
+        match self {
+            ErrorKind::GameFiles => "files-missing",
+            ErrorKind::NoGpu => "gpu",
+            ErrorKind::NoWindow => "no-window",
+            ErrorKind::Crash => "crash",
+            ErrorKind::NoProgram => "no-program",
+            ErrorKind::Other => "other",
+        }
+    }
+
+    /// The kind a line names (`error.kind=gpu`), if it is such a line.
+    pub fn parse(line: &str) -> Option<ErrorKind> {
+        let w = line.trim().strip_prefix(KIND_PREFIX)?;
+        ErrorKind::ALL.into_iter().find(|k| k.word() == w.trim())
+    }
+
+    /// The line the game prints before its error text.
+    pub fn line(self) -> String {
+        format!("{KIND_PREFIX}{}", self.word())
+    }
+
+    /// The kind of an error that stopped the game's window from opening
+    /// (its whole chain as text): no adapter or driver, or the window.
+    pub fn of_window_error(text: &str) -> ErrorKind {
+        let t = text.to_ascii_lowercase();
+        if ["adapter", "vulkan", "dx12", "gpu", "device"].iter().any(|w| t.contains(w)) {
+            ErrorKind::NoGpu
+        } else {
+            ErrorKind::NoWindow
+        }
+    }
+}
+
 /// The output lines kept for the failure screen and the log.
 pub const TAIL: usize = 200;
 /// The launcher's log files kept, the new one included.
@@ -35,6 +106,8 @@ struct Shared {
     /// The game said its window could not open (it then ends with exit
     /// code 0: a failure all the same).
     no_window: bool,
+    /// The game's `error.kind=` line, if it printed one.
+    kind: Option<ErrorKind>,
     /// Every line goes to the file (the game writes no log of its own).
     file_all: bool,
     file: Option<std::io::BufWriter<std::fs::File>>,
@@ -51,10 +124,19 @@ impl Shared {
         if line.starts_with(NO_WINDOW) {
             self.no_window = true;
         }
+        // The machine line is for the launcher: kept in the file, not
+        // in the lines the failure screen shows.
+        let kind = ErrorKind::parse(&line);
+        if kind.is_some() {
+            self.kind = kind;
+        }
         if self.file_all
             && let Some(f) = self.file.as_mut()
         {
             let _ = writeln!(f, "[{from}] {}", crate::qol::crash::scrub(&line));
+        }
+        if kind.is_some() {
+            return;
         }
         if self.tail.len() == TAIL {
             self.tail.pop_front();
@@ -81,6 +163,8 @@ pub struct Ended {
     pub panicked: bool,
     /// The game's window could not open ([`NO_WINDOW`]).
     pub no_window: bool,
+    /// The game's `error.kind=` line, if it printed one.
+    pub named: Option<ErrorKind>,
     /// The last lines it printed (stdout and stderr, in order of reading).
     pub tail: Vec<String>,
     /// The launcher's log file, if one could be written.
@@ -90,6 +174,17 @@ pub struct Ended {
 impl Ended {
     pub fn failed(&self) -> bool {
         self.panicked || self.no_window || self.code != Some(0)
+    }
+
+    /// What went wrong: the game's own `error.kind=` line, else a panic
+    /// line (a crash) or the window line; [`ErrorKind::Other`] otherwise.
+    pub fn kind(&self) -> ErrorKind {
+        match self.named {
+            Some(k) => k,
+            None if self.panicked => ErrorKind::Crash,
+            None if self.no_window => ErrorKind::NoWindow,
+            None => ErrorKind::Other,
+        }
     }
 
     /// A failure within [`START_SECS`].
@@ -185,6 +280,7 @@ pub fn start(exe: &Path, args: &[String], log_dir: Option<&Path>, root: Option<&
             Err(e) => log::warn!("launcher log not written: {e}"),
         }
     }
+    let marker = super::dirs::start_marker();
     let mut cmd = Command::new(exe);
     if let Some(r) = root {
         cmd.env("NFSU2_ROOT", r);
@@ -204,6 +300,16 @@ pub fn start(exe: &Path, args: &[String], log_dir: Option<&Path>, root: Option<&
         .stderr(Stdio::piped())
         .spawn()
         .map_err(|e| format!("the game could not be started ({}): {e}", exe.display()))?;
+    // The start marker: the game is starting. It goes once the start is
+    // past (START_SECS) or the game ends; one left over means the
+    // launcher and the game went down together during a start.
+    if std::fs::write(&marker, format!("pid {}\n", child.id())).is_ok() {
+        let (m, pid) = (marker.clone(), child.id());
+        std::thread::spawn(move || {
+            std::thread::sleep(Duration::from_secs_f32(START_SECS));
+            clear_marker_of(&m, pid);
+        });
+    }
     let shared = Arc::new(Mutex::new(shared));
     let mut readers = Vec::new();
     let out = child.stdout.take().map(|s| Box::new(s) as Box<dyn std::io::Read + Send>);
@@ -252,6 +358,7 @@ impl Running {
     }
 
     fn finish(&mut self, code: Option<i32>) -> Ended {
+        clear_marker_of(&super::dirs::start_marker(), self.child.id());
         let secs = self.started.elapsed().as_secs_f32();
         // The readers end at the pipes' end (a child the game started could
         // keep them open: wait at most a second).
@@ -266,7 +373,15 @@ impl Running {
         }
         let mut sh = self.shared.lock().unwrap_or_else(|e| e.into_inner());
         let tail: Vec<String> = sh.tail.iter().cloned().collect();
-        let e = Ended { code, secs, panicked: sh.panicked, no_window: sh.no_window, tail, log: self.log.clone() };
+        let e = Ended {
+            code,
+            secs,
+            panicked: sh.panicked,
+            no_window: sh.no_window,
+            named: sh.kind,
+            tail,
+            log: self.log.clone(),
+        };
         let file_all = sh.file_all;
         if let Some(f) = sh.file.as_mut() {
             if e.failed() && !file_all {
@@ -330,8 +445,25 @@ pub fn open_folder(dir: &Path) -> Result<(), String> {
         .map_err(|e| format!("{prog}: {e}"))
 }
 
-/// Whether a Shift key is held now (the skip rule's way back to the
-/// launcher). Windows: GetAsyncKeyState. X11 (and XWayland): the server's
+/// Removes the start marker if it is the one of the game `pid`.
+fn clear_marker_of(marker: &Path, pid: u32) {
+    if std::fs::read_to_string(marker).is_ok_and(|t| t.trim() == format!("pid {pid}")) {
+        let _ = std::fs::remove_file(marker);
+    }
+}
+
+/// Whether the last start did not finish (its marker is still there).
+pub fn start_unfinished() -> bool {
+    super::dirs::start_marker().is_file()
+}
+
+/// Forgets an unfinished start (the player chose what to do about it).
+pub fn clear_start_marker() {
+    let _ = std::fs::remove_file(super::dirs::start_marker());
+}
+
+/// Whether a Shift or Ctrl key is held now (the skip rule's way back to
+/// the launcher). Windows: GetAsyncKeyState. X11 (and XWayland): the server's
 /// key map (XQueryKeymap, libX11 loaded at run time). Wayland gives a
 /// program without a focused window no keyboard state, so there Shift is
 /// seen only through XWayland when DISPLAY is set; `--launcher` (or the
@@ -344,8 +476,9 @@ pub fn shift_held() -> bool {
             fn GetAsyncKeyState(key: i32) -> i16;
         }
         const VK_SHIFT: i32 = 0x10;
-        // SAFETY: a plain documented call.
-        (unsafe { GetAsyncKeyState(VK_SHIFT) } as u16 & 0x8000) != 0
+        const VK_CONTROL: i32 = 0x11;
+        // SAFETY: plain documented calls.
+        [VK_SHIFT, VK_CONTROL].into_iter().any(|k| (unsafe { GetAsyncKeyState(k) } as u16 & 0x8000) != 0)
     }
     #[cfg(all(unix, not(target_os = "macos")))]
     {
@@ -370,7 +503,12 @@ fn x11_shift_held() -> bool {
         let mut keys = [0 as std::os::raw::c_char; 32];
         (x.XQueryKeymap)(d, keys.as_mut_ptr());
         let mut held = false;
-        for sym in [x11_dl::keysym::XK_Shift_L, x11_dl::keysym::XK_Shift_R] {
+        for sym in [
+            x11_dl::keysym::XK_Shift_L,
+            x11_dl::keysym::XK_Shift_R,
+            x11_dl::keysym::XK_Control_L,
+            x11_dl::keysym::XK_Control_R,
+        ] {
             let kc = (x.XKeysymToKeycode)(d, sym as std::os::raw::c_ulong) as usize;
             if kc != 0 && (keys[kc / 8] as u8) & (1 << (kc % 8)) != 0 {
                 held = true;

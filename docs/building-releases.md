@@ -31,7 +31,7 @@ The shipped game has no developer harness. `--no-build` reuses `<out>/build` fro
 
 | `overbright-<version>-linux-x86_64.tar.gz` | `overbright-<version>-windows-x86_64.zip` |
 |---|---|
-| `overbright` (the launcher), `game` | `overbright.exe` (the launcher), `game.exe` |
+| `overbright` (the launcher), `game`, `overbright-editor` (the map editor, a preview) | `overbright.exe` (the launcher), `game.exe`, `overbright-editor.exe` |
 | `README.txt`, `LICENSE`, `THIRD-PARTY-NOTICES.md` | `README.txt`, `LICENSE.txt`, `THIRD-PARTY-NOTICES.md` (CRLF) |
 | `THIRD-PARTY-LICENSES.txt` (crates + Rust std, Linux build) | `THIRD-PARTY-LICENSES.txt` (crates + Rust std + mingw-w64 runtime + libgcc) |
 | `overbright.desktop`, `overbright.png` (256 px icon) | (optional, `DXC_DIR`: `dxcompiler.dll`, `dxil.dll`, `LICENSE-DXC.txt`) |

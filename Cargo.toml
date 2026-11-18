@@ -56,6 +56,15 @@ block_compression = { version = "0.11.0", default-features = false, features = [
 # The packs' manifest, `pack.toml`. MIT OR Apache-2.0.
 toml = { version = "1.1.4", default-features = false, features = ["parse", "serde"] }
 serde = { version = "1.0.229", features = ["derive"] }
+# The desktop map editor's UI (`overbright-editor`, src/editor/): egui with
+# its winit input and wgpu renderer, on the wgpu / winit versions above.
+# Pinned exactly: egui changes its API between minor versions. MIT OR
+# Apache-2.0. Without egui's default fonts (not all GPL-compatible) and
+# without the system clipboard (its Windows crate ships no licence text);
+# winit itself brings the X11 and Wayland backends.
+egui = { version = "=0.37.0", default-features = false }
+egui-winit = { version = "=0.37.0", default-features = false }
+egui-wgpu = { version = "=0.37.0", default-features = false }
 
 [target.'cfg(unix)'.dependencies]
 # The allocator's memory probe (/proc/meminfo, sysctl) before main.
@@ -102,6 +111,10 @@ codegen-units = 1
 
 [target.'cfg(target_os = "linux")'.dependencies]
 cpal = { version = "0.18", features = ["pulseaudio"] }
+# The launcher's system folder dialog (docs/launcher.md "Choosing the game
+# folder"): the desktop's file chooser through the XDG portal (libdbus is
+# opened at run time), else zenity. MIT.
+rfd = { version = "0.18", default-features = false, features = ["xdg-portal"] }
 
 
 # The launcher (`overbright`, src/launcher/, docs/launcher.md): a CPU-drawn
@@ -112,6 +125,11 @@ cpal = { version = "0.18", features = ["pulseaudio"] }
 [[bin]]
 name = "overbright"
 path = "src/bin/overbright.rs"
+
+# The desktop map editor (src/editor/, docs/map-editor.md).
+[[bin]]
+name = "overbright-editor"
+path = "src/bin/overbright-editor.rs"
 
 [dependencies.softbuffer]
 version = "0.4.8"

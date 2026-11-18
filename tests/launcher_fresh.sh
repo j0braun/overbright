@@ -4,20 +4,20 @@
 # an empty HOME, no NFSU2_ROOT, no saved game folder, nothing but PATH in the environment.
 #   a. `game --probe` exits 0 with the adapter, the modes and the first_run lines (no game folder needed);
 #   b. the launcher opens on the first-run screen;
-#   c. a wrong folder is refused in plain words ("Use this folder" off);
+#   c. a wrong folder is refused in plain words (no "Use this folder");
 #   e. SPEED2.EXE is not needed: a folder whose SPEED2.EXE is a copy-protected one (a synthetic
-#      header with SafeDisc's sections) is accepted with an information line; a folder without
+#      header with SafeDisc's sections) is accepted and not talked about; a folder without
 #      SPEED2.EXE is accepted and used (the probe runs again with that folder);
 #   p. the prepare step (docs/prepare.md) runs by itself once the folder is used, behind the main screen
 #      (no screen of its own, the line beside Play says what it does) and is not started again;
-#      "Prepare again" opens its screen and runs to its end (Done, Continue), the stamp is in the cache
+#      Settings › Advanced › "Get shaders ready again" opens its screen and runs to its end (Done, Continue), the stamp is in the cache
 #      folder and `game --probe` says prepared=1;
 #   d. a folder whose files are all in another case (symlinks to the real game, names case-swapped)
 #      is accepted and used: the probe runs again with it;
-#   f. the Display / Resolution / Graphics rows are live with the probe's first-run values, the
+#   f. Settings' Screen / Resolution / Graphics rows are live with the probe's first-run values, the
 #      same as `game --probe` prints for that folder;
-#   g. nothing is written before Play (no options.txt); then Display changed and Play: options.txt
-#      holds the first-run values + the choice;
+#   g. nothing is written before a change (no options.txt); Screen changed: kept at once; then Play:
+#      options.txt holds the first-run values + the choice;
 #   h. Play starts the game; its log file appears in the logs folder and reports its start
 #      (`game start: done`); the game window is closed as a player would (WM_DELETE_WINDOW); the
 #      game ends with 0 and the launcher logs "a normal end" and exits 0;
@@ -60,12 +60,12 @@ X() { env -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE DISPLAY="$DISP" "$@"; }
 shot() { command -v import > /dev/null && X import -window root "$W/$1.png" 2> /dev/null; }
 # The fresh machine: nothing but these.
 run() {
-  (cd "$H" && exec env -i HOME="$H" PATH=/usr/bin:/bin DISPLAY="$DISP" LANG=C.UTF-8 NFSU2_NO_PADS=1 NFSU2_AUDIO_HOST=none \
+  (cd "$H" && exec env -i HOME="$H" PATH=/usr/bin:/bin DISPLAY="$DISP" LANG=C.UTF-8 NFSU2_NO_PADS=1 OVERBRIGHT_OWN_PICKER=1 NFSU2_AUDIO_HOST=none \
     MESA_VK_WSI_DEBUG=sw RUST_LOG="info,launcher::screen=debug" "$@")
 }
 # The launcher in the background, its output in $L; LPID is its own PID (stopped by it).
 launch() {
-  (cd "$H" && exec env -i HOME="$H" PATH=/usr/bin:/bin DISPLAY="$DISP" LANG=C.UTF-8 NFSU2_NO_PADS=1 NFSU2_AUDIO_HOST=none \
+  (cd "$H" && exec env -i HOME="$H" PATH=/usr/bin:/bin DISPLAY="$DISP" LANG=C.UTF-8 NFSU2_NO_PADS=1 OVERBRIGHT_OWN_PICKER=1 NFSU2_AUDIO_HOST=none \
     MESA_VK_WSI_DEBUG=sw RUST_LOG="info,launcher::screen=debug" "$BIN/overbright" > "$L" 2>&1) &
   LPID=$!
 }
@@ -149,11 +149,26 @@ click() { # click <id> [right]: the control's middle, or its right arrow (a cycl
   [ "$side" = right ] && x=$(($1 + $3 - $4 / 2))
   X xdotool mousemove --window "$WIN" $x $(($2 + $4 / 2)) click 1
 }
-typepath() { # the first-run screen's path field: emptied, the path typed, Enter (Check)
+typepath() { # the first-run screen's path field (clicked: the default focus is Choose folder…): emptied, the path typed, Enter (Check)
+  click path || fail "no path field"
+  sleep 0.3
   X xdotool key End
   X xdotool key --repeat 300 --delay 1 BackSpace
   X xdotool type --delay 2 "$1"
   X xdotool key Return
+}
+
+goto_advanced() { # the main screen's page bar: Settings, then Advanced settings
+  local n
+  click page:settings || fail "no Settings page: $(cat "$W/screen.txt")"
+  n=$(grep -c "screen settings$" "$L"); screen settings "$n" || fail "Settings did not open"
+  click advanced || fail "no Advanced settings row"
+  n=$(grep -c "screen settings-adv$" "$L"); screen settings-adv "$n" || fail "Advanced did not open"
+}
+goto_settings() {
+  local n
+  click page:settings || fail "no Settings page: $(cat "$W/screen.txt")"
+  n=$(grep -c "screen settings$" "$L"); screen settings "$n" || fail "Settings did not open"
 }
 
 # ---- b. the first-run screen ------------------------------------------------------------------
@@ -162,7 +177,7 @@ screen first-run 1 || fail "no first-run screen: $(tail -5 "$L")"
 WIN=$(X xdotool search --onlyvisible --name '^Overbright$' | head -1)
 [ -n "$WIN" ] || fail "no launcher window on $DISP"
 X xdotool windowfocus "$WIN" 2> /dev/null; sleep 0.3
-has "No game folder was found" || fail "first-run screen without the no-folder line: $(cat "$W/screen.txt")"
+has "No installed copy was found" || fail "first-run screen without the no-folder line: $(cat "$W/screen.txt")"
 grep -qE '^  \[field path ' "$W/screen.txt" || fail "no path field"
 shot b-first-run
 # The window's icon (the exe icon's drawing, platform::icon: 64 x 64).
@@ -178,10 +193,10 @@ ok "window $WIN on $DISP ($ICON), first-run screen, no folder found"
 STEP=c
 typepath "$H"
 screen check 1 || fail "no check screen"
-grep -qE '^  \[button use \(off\)' "$W/screen.txt" || fail "a wrong folder can be used: $(cat "$W/screen.txt")"
-has "this is not a complete game folder" && has "Overbright cannot use this folder" || fail "no plain-words refusal: $(cat "$W/screen.txt")"
+grep -qE '^  \[button use ' "$W/screen.txt" && fail "a wrong folder can be used: $(cat "$W/screen.txt")"
+has "No game here" && has "GLOBAL, FRONTEND and TRACKS" || fail "no plain-words refusal: $(cat "$W/screen.txt")"
 shot c-wrong-folder
-ok "refused: $(grep -F '[error]' "$W/screen.txt" | head -1 | sed 's/^  \[error\] //' | cut -c1-90)"
+ok "refused: $(grep -F '[message]' "$W/screen.txt" | head -1 | sed 's/^  \[message\] //' | cut -c1-90)"
 X xdotool key Escape
 
 # ---- e. SPEED2.EXE not needed: a copy-protected one (information only), none at all (used) -------
@@ -189,11 +204,12 @@ STEP=e
 screen first-run 2 || fail "Back did not return to the first-run screen"
 typepath "$C"
 screen check 2 || fail "no check screen for the copy-protected executable"
-has "SPEED2.EXE is the copy-protected retail executable; Overbright does not need it" || fail "no information line: $(cat "$W/screen.txt")"
+has "Ready" || fail "no verdict line: $(cat "$W/screen.txt")"
+grep -qF "SPEED2" "$W/screen.txt" && fail "SPEED2.EXE talked about though it is not used: $(cat "$W/screen.txt")"
 grep -qE '^  \[button use @' "$W/screen.txt" || fail "a folder with the copy-protected SPEED2.EXE cannot be used: $(cat "$W/screen.txt")"
 grep -qF '[error]' "$W/screen.txt" && fail "an error line for the copy-protected SPEED2.EXE: $(cat "$W/screen.txt")"
 shot e-protected-exe
-ok "copy-protected SPEED2.EXE: information line, usable"
+ok "copy-protected SPEED2.EXE: usable, not mentioned"
 X xdotool key Escape
 screen first-run 3 || fail "Back did not return to the first-run screen"
 typepath "$B"
@@ -215,7 +231,7 @@ grep -q "screen prepare$" "$L" && fail "the prepare step opened its screen by it
 seen=""
 for _ in $(seq 40); do
   n=$(grep -c "screen main$" "$L"); screen main "$n" || fail "no main screen while preparing"
-  has "in the background" && { seen=1; break; }
+  has "Getting the shaders ready" && { seen=1; break; }
   grep -qE "prepare: (Done|Failed)" "$L" && break
   sleep 0.1
 done
@@ -224,9 +240,10 @@ wait_for "prepare: (Done|Failed)" 1 300 || fail "the prepare run did not end: $(
 grep -q "prepare: Done" "$L" || fail "the prepare run failed: $(grep 'prepare:' "$L" | tail -3)"
 sleep 1
 n=$(grep -c "screen main$" "$L"); screen main "$n" || fail "no main screen after the run"
-has "in the background" && fail "the main screen still says it is preparing: $(cat "$W/screen.txt")"
+has "Getting the shaders ready" && fail "the main screen still says it is preparing: $(cat "$W/screen.txt")"
 [ "$(grep -c 'prepare: started' "$L")" = 1 ] || fail "the prepare step was started a second time"
-click prepare || fail "no Prepare again button: $(cat "$W/screen.txt")"
+goto_advanced
+click prepare || fail "no Get shaders ready again row: $(cat "$W/screen.txt")"
 wait_for "prepare: started" 2 10 || fail "Prepare again did not start a run"
 wait_for "prepare: Done" 2 300 || fail "the prepare run did not finish: $(grep 'prepare:' "$L" | tail -3)"
 # The launcher draws the screen again a frame after it logs the Done line (later on a busy machine): read the
@@ -234,7 +251,7 @@ wait_for "prepare: Done" 2 300 || fail "the prepare run did not finish: $(grep '
 done_ok=""
 for _ in $(seq 15); do
   n=$(grep -c "screen prepare$" "$L"); screen prepare "$n" || fail "no prepare screen after the run"
-  has "Done." && grep -qE '^  \[button continue @' "$W/screen.txt" && { done_ok=1; break; }
+  has "Shaders ready" && grep -qE '^  \[button continue @' "$W/screen.txt" && { done_ok=1; break; }
   sleep 0.2
 done
 [ -n "$done_ok" ] || fail "no Done line and Continue: $(cat "$W/screen.txt")"
@@ -249,13 +266,16 @@ ok "ran by itself behind the main screen (${seen:+its line shown, }not started a
 
 # ---- d. every name in another case ------------------------------------------------------------
 STEP=d
-click change || fail "no Change button"
+goto_advanced
+click storage || fail "no Storage row"
+n=$(grep -c "screen storage$" "$L"); screen storage "$n" || fail "Storage did not open"
+click change || fail "no Game folder Change… button"
 screen first-run 4 || fail "Change did not open the first-run screen"
 typepath "$A"
 screen check 4 || fail "no check screen for the case-swapped folder"
 has "recognised" && has "All 9 files Overbright needs are present" || fail "case-swapped folder not recognised: $(cat "$W/screen.txt")"
 grep -qE '^  \[button use @' "$W/screen.txt" || fail "case-swapped folder cannot be used"
-grep -qiF "dinput8.dll" "$W/screen.txt" || fail "the mod files in another case not found: $(cat "$W/screen.txt")"
+has "Ready" || fail "no verdict line for the case-swapped folder: $(cat "$W/screen.txt")"
 shot d-case-swapped
 VLINE=$(grep -F 'recognised' "$W/screen.txt" | sed 's/^  \[ok\] //')
 m0=$(grep -c "screen main$" "$L")
@@ -271,12 +291,14 @@ grep 'first-run values' "$L" | tail -1 | grep -qF "first-run values ${FR_RES} de
   || fail "the launcher's first-run values differ from game --probe's ($FR_RES detail $FR_DETAIL): $(grep 'first-run values' "$L" | tail -1)"
 sleep 0.5
 n=$(grep -c "screen main$" "$L"); screen main "$n" || fail "no main screen after the probe"
-for c in display resolution graphics; do
-  grep -qE "^  \[cycle $c @" "$W/screen.txt" || fail "the $c row is not live: $(cat "$W/screen.txt")"
-done
-grep -qE "^  \[cycle resolution @.*\] ${FR_RES/x/ × }" "$W/screen.txt" || fail "Resolution is not the first-run $FR_RES: $(grep resolution "$W/screen.txt")"
-has "$A" || fail "the Game row does not show the folder"
+has "$A" || fail "the main screen does not show the folder"
 shot f-main
+goto_settings
+for c in display resolution graphics; do
+  grep -qE "^  \[value $c @" "$W/screen.txt" || fail "the $c row is not live: $(cat "$W/screen.txt")"
+done
+grep -qE "^  \[value resolution @.*\] Resolution ${FR_RES/x/ × }" "$W/screen.txt" || fail "Resolution is not the first-run $FR_RES: $(grep resolution "$W/screen.txt")"
+shot f-settings
 ok "Display, Resolution ($FR_RES), Graphics live; first-run detail $FR_DETAIL as game --probe prints"
 
 # ---- g. nothing written before Play; then the first write -------------------------------------
@@ -287,15 +309,19 @@ grep -qF "$A" "$DATA/game-root.txt" || fail "game-root.txt does not hold the use
 WANT_FS=$(sed -n 's/^first_run.fullscreen=//p' "$W/probe-a.out")
 click display right || fail "no Display row"
 sleep 0.5
-n=$(grep -c "screen main$" "$L"); screen main "$n"
+n=$(grep -c "screen settings$" "$L"); screen settings "$n"
 NOW_FS=$((1 - WANT_FS))
-want_word=Windowed; [ $NOW_FS = 1 ] && want_word="Full screen"
-grep -qE "^  \[cycle display @.*\] $want_word" "$W/screen.txt" || fail "Display did not change to $want_word: $(grep display "$W/screen.txt")"
-[ -e "$DATA/options.txt" ] && fail "options.txt written on a change (before Play)"
-ok "no options.txt before Play; Display changed (fullscreen $WANT_FS -> $NOW_FS)"
+want_word=Window; [ $NOW_FS = 1 ] && want_word="Full screen"
+grep -qE "^  \[value display @.*\] Screen $want_word" "$W/screen.txt" || fail "Screen did not change to $want_word: $(grep display "$W/screen.txt")"
+# Settings are kept when they change (with the first-run values the game's first start would write).
+[ -e "$DATA/options.txt" ] || fail "options.txt not written on the change"
+grep -qx "fullscreen $NOW_FS" "$DATA/options.txt" || fail "options.txt without the change: $(grep fullscreen "$DATA/options.txt")"
+ok "nothing written before a change; Screen changed and kept at once (fullscreen $WANT_FS -> $NOW_FS)"
 
 # ---- h. Play: the game starts, is closed, the launcher reports a normal end --------------------
 STEP=h
+click page:game || fail "no Game page"
+n=$(grep -c "screen main$" "$L"); screen main "$n" || fail "the Game page did not open"
 click play || fail "no Play button"
 wait_for "game started \(pid [0-9]+\)" 1 30 || fail "Play did not start the game: $(tail -5 "$L")"
 GPID=$(grep -oE 'game started \(pid [0-9]+' "$L" | grep -oE '[0-9]+$' | tail -1)
@@ -367,10 +393,14 @@ grep -q "screen first-run" "$L" && fail "the first-run screen was shown again"
 WIN=$(X xdotool search --onlyvisible --name '^Overbright$' | head -1)
 shot i-second-start
 X xdotool windowfocus "$WIN" 2> /dev/null; sleep 0.3
-X xdotool key Escape
+X xdotool key Escape     # Quit Overbright? (Stay focused)
+sleep 0.3
+X xdotool key Right      # Quit
+sleep 0.2
+X xdotool key Return
 for _ in $(seq 100); do kill -0 "$LPID" 2> /dev/null || break; sleep 0.1; done
 wait "$LPID"; rc=$?; LPID=""
 [ $rc = 0 ] || fail "launcher exit $rc after Escape"
-ok "main screen, folder $(basename "$A"), Escape quits (exit 0)"
+ok "main screen, folder $(basename "$A"), Escape asks, Quit quits (exit 0)"
 stop
 echo "FRESH: PASS"

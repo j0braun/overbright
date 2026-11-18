@@ -1082,3 +1082,146 @@ pub(crate) fn mix_kind(mode: RaceMode) -> u8 {
         0
     }
 }
+
+impl Game {
+    /// The desktop map editor's test run (`shell::cli::MapTest`): the
+    /// loaded career save's car (its parts too), else the Quick Race car
+    /// select's first car, and then the save let go, so nothing in the run
+    /// writes it; then the custom race on its base event's set-up (as a
+    /// race outside the career: no progress, no reward) or free roam at the
+    /// spot. The mod was chosen at the start (`tools::map::set_only`).
+    pub(crate) fn start_map_test(&mut self, t: &crate::shell::cli::MapTest) -> Result<()> {
+        match self.profile.take() {
+            Some(p) if !p.car.is_empty() => {
+                let installed = nfsu2::car::with_derived_slots(&p.installed, &self.game_data.parts, &p.car);
+                self.quick.parts = Some((installed, p.perf.clone()));
+                self.quick.car = Some(p.car);
+            }
+            _ => {
+                self.quick.parts = None;
+                self.quick.car = Some(
+                    self.qr_cars(self.quick.filter).first().map(|c| c.name.clone()).context("no Quick Race car")?,
+                );
+            }
+        }
+        log::info!("map test: car {}", self.quick.car.as_deref().unwrap_or("?"));
+        if let Some(id) = &t.race {
+            let race = nfsu2::tools::map::find_race(&t.folder, id)
+                .with_context(|| format!("map mod {} has no race {id}", t.folder))?;
+            let checked = nfsu2::tools::map::race::road_net(
+                &self.game_data.root,
+                self.game_data.career.tracks.get(&race.track).context("the race's base track")?,
+            )
+            .and_then(|net| nfsu2::tools::map::race::check(&net, &race).map_err(|(leg, why)| anyhow::anyhow!("leg {leg}: {why}")));
+            checked.with_context(|| format!("race {id} cannot be raced"))?;
+            let event = map_race_event(&self.game_data.career, &race)
+                .with_context(|| format!("no career event of this mode on track {}", race.track))?;
+            log::info!("map test: racing {id} on track {} (event {event})", race.track);
+            self.sim.map_race = Some(race);
+            let r = self.start_race(event, true, false);
+            if r.is_err() {
+                self.sim.map_race = None;
+            }
+            return r;
+        }
+        let (at, heading) = t.at.context("a race or a spot")?;
+        self.explore(Some((at, heading.to_radians())))
+    }
+}
+
+/// The career event a custom race borrows its set-up from: one on its
+/// base track and direction of the same race mode (circuit and sprint
+/// share theirs), an event of the same kind first.
+pub(crate) fn map_race_event(career: &career::CareerData, race: &nfsu2::tools::map::CustomRace) -> Option<usize> {
+    use nfsu2::tools::map::RaceKind;
+    let want = match race.kind {
+        RaceKind::Circuit | RaceKind::Sprint => RaceMode::FreeRoam,
+        RaceKind::StreetX => RaceMode::StreetX,
+        RaceKind::Drift => RaceMode::Drift,
+    };
+    // The race's first round is the one raced (`start_round`).
+    let fits = |e: &&career::Event| {
+        let (track, variant) = e.races.first().map_or((e.track, e.variant), |r| (r.0, r.1));
+        track == race.track && (variant & 1 != 0) == race.backward && e.race_mode() == want
+    };
+    let same_kind = |e: &&career::Event| match race.kind {
+        RaceKind::Circuit => e.kind == career::EventKind::Circuit,
+        RaceKind::Sprint => e.kind == career::EventKind::Sprint,
+        _ => true,
+    };
+    career.events.iter().filter(fits).find(same_kind).or_else(|| career.events.iter().find(fits)).map(|e| e.index)
+}
+
+#[cfg(test)]
+mod map_test_tests {
+    use crate::*;
+    use nfsu2::tools::map::{CustomRace, MapMod, RaceKind, store};
+
+    /// A mod in this test's data folder holding a short sprint over the
+    /// first three checkpoints of a career sprint's track.
+    fn sprint_mod(game: &Game, folder: &str) -> (CustomRace, career::Route) {
+        let event = game
+            .game_data
+            .career
+            .events
+            .iter()
+            .find(|e| e.kind == career::EventKind::Sprint && e.races.first().is_none_or(|r| r.1 & 1 == 0))
+            .expect("a sprint")
+            .clone();
+        let number = event.races.first().map_or(event.track, |r| r.0);
+        let track = game.game_data.career.tracks[&number].clone();
+        let native = career::load_route(&game.game_data.root, &track, false).unwrap();
+        let mut race = CustomRace::new("short", number, RaceKind::Sprint);
+        race.checkpoints = native.checkpoints[..3].to_vec();
+        let m = MapMod { name: "Test".into(), races: vec![race.clone()], ..Default::default() };
+        let dir = store::maps_dir();
+        store::save(&dir, folder, &m).unwrap();
+        store::set_enabled(&dir, folder, true).unwrap();
+        nfsu2::tools::map::reload_active();
+        (race, native)
+    }
+
+    #[test]
+    #[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
+    fn a_test_run_races_the_custom_race_without_the_save() {
+        let mut game = Game::new().unwrap();
+        let (race, native) = sprint_mod(&game, "test-run");
+        let mut profile = Profile::new("MAP_TEST_RUN");
+        profile.skip_intro(&game.game_data.career, &game.game_data.root, "PEUGOT", &mut game.rng);
+        let car = profile.car.clone();
+        game.profile = Some(profile);
+        let t = crate::shell::cli::MapTest { folder: "test-run".into(), race: Some("short".into()), ..Default::default() };
+        game.start_map_test(&t).unwrap();
+        assert!(game.profile.is_none(), "the save let go: nothing in the run writes it");
+        assert_eq!(game.quick.car.as_deref(), Some(car.as_str()), "the save's car");
+        let Mode::Race(r) = &game.mode else { panic!("on the grid") };
+        assert_eq!(r.route.checkpoints, race.checkpoints);
+        assert!(r.route.road.length < native.road.length);
+        assert!(r.quick, "a race outside the career");
+        assert!(matches!(game.test_view(), crate::shell::cli::TestView::Racing { laps: 1 }));
+        for _ in 0..60 {
+            game.advance(1.0 / 60.0).unwrap();
+        }
+        // An unknown race is refused, not raced.
+        let mut game = Game::new().unwrap();
+        let bad = crate::shell::cli::MapTest { race: Some("nope".into()), ..t };
+        assert!(game.start_map_test(&bad).is_err());
+    }
+
+    #[test]
+    #[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
+    fn a_test_run_drives_from_the_spot() {
+        let mut game = Game::new().unwrap();
+        let (_, route) = sprint_mod(&game, "test-roam");
+        game.profile = None;
+        // A spot on a city sprint's grid (on the road), heading 90°.
+        let at = route.grid.first().map(|g| g.0).unwrap_or(route.checkpoints[0].extend(0.0));
+        let t = crate::shell::cli::MapTest { folder: "test-roam".into(), at: Some((at, 90.0)), ..Default::default() };
+        game.start_map_test(&t).unwrap();
+        assert!(matches!(game.mode, Mode::Explore));
+        assert!(game.quick.car.is_some(), "a stock car without a save");
+        let d = game.sim.drive.as_ref().unwrap();
+        assert!(d.state.position.truncate().distance(at.truncate()) < 5.0, "{} vs {at}", d.state.position);
+        assert!((d.state.heading().to_degrees() - 90.0).abs() < 5.0, "{}", d.state.heading().to_degrees());
+    }
+}

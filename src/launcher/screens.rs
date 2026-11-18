@@ -9,7 +9,11 @@ use std::path::{Path, PathBuf};
 use super::draw::theme;
 use super::font::{Cut, Face, Fonts};
 use super::layout::{Align, Builder, Ctrl, Link, build_fit};
-use super::model::{BrowseFor, DirEntry, Env, Graphics, Model, ProbeState, other_languages, path_parts, windows_form};
+use super::model::{
+    BrowseFor, Dialog, DialogAsk, DirEntry, Env, Graphics, Issue, Model, Picked, ProbeState, Problem, Verdict,
+    other_languages, path_parts, windows_form,
+};
+use super::run::ErrorKind;
 use super::ui::{Event, Input, Key, Mark, Rect, Ui, UiState, apply_edit, handle};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -27,10 +31,21 @@ pub enum Screen {
     /// The prepare step (`game --prepare`): its bar, Skip.
     Prepare,
     Widgets,
+    /// Settings: screen, resolution, graphics, movies, the start choice.
+    Settings,
+    /// Settings › Advanced: the rarely used rows and this computer.
+    Advanced,
+    /// The last start did not finish: safe settings offered.
+    Recover,
+    /// Settings › Advanced › Storage: portable mode and every folder.
+    Storage,
+    /// The developer tools: the map editor, the game with the editor
+    /// tools, the support file and the logs.
+    Dev,
 }
 
 impl Screen {
-    pub const ALL: [Screen; 12] = [
+    pub const ALL: [Screen; 17] = [
         Screen::FirstRun,
         Screen::Check,
         Screen::Main,
@@ -43,6 +58,11 @@ impl Screen {
         Screen::Mods,
         Screen::Prepare,
         Screen::Widgets,
+        Screen::Settings,
+        Screen::Advanced,
+        Screen::Recover,
+        Screen::Storage,
+        Screen::Dev,
     ];
 
     pub fn name(self) -> &'static str {
@@ -53,17 +73,43 @@ impl Screen {
             Screen::About => "about",
             Screen::Licence => "licence",
             Screen::Notices => "notices",
-            Screen::Failure => "failure",
+            Screen::Failure => "crash",
             Screen::Browse => "browse",
             Screen::Import => "import",
             Screen::Mods => "mods",
             Screen::Prepare => "prepare",
             Screen::Widgets => "widgets",
+            Screen::Settings => "settings",
+            Screen::Advanced => "settings-adv",
+            Screen::Recover => "recover",
+            Screen::Storage => "storage",
+            Screen::Dev => "dev",
         }
     }
 
     pub fn parse(s: &str) -> Option<Screen> {
-        Screen::ALL.into_iter().find(|x| x.name() == s)
+        match s {
+            "failure" => Some(Screen::Failure),
+            _ => Screen::ALL.into_iter().find(|x| x.name() == s),
+        }
+    }
+
+    /// The page in the top bar this screen belongs to (Game, Settings,
+    /// Mods), if any.
+    pub fn page(self) -> Option<usize> {
+        match self {
+            Screen::Main | Screen::Prepare => Some(0),
+            Screen::Settings
+            | Screen::Advanced
+            | Screen::Storage
+            | Screen::About
+            | Screen::Licence
+            | Screen::Notices
+            | Screen::Import => Some(1),
+            Screen::Mods => Some(2),
+            Screen::Dev => Some(3),
+            _ => None,
+        }
     }
 
     /// A long document: the page scrolls instead of shrinking.
@@ -79,13 +125,18 @@ pub enum Outcome {
     Quit,
     /// Start the game (saved first).
     Play,
+    /// End and start the launcher again (a change that applies at a start).
+    Restart,
 }
 
 /// The name shown.
 pub const NAME: &str = "Overbright";
 /// The line every first screen carries.
-pub const OWN_COPY: &str = "Overbright needs your own installed copy of Need for Speed Underground 2 (PC). \
-Nothing from the original game is included; Overbright reads your copy and never changes it.";
+pub const OWN_COPY: &str = "Overbright needs your own copy of Need for Speed Underground 2 for PC, any region, \
+patched to 1.2. Nothing from the original game is included; Overbright reads your copy and never changes it.";
+/// What the game folder is, by what it holds.
+pub const GAME_FOLDER: &str = "The game folder is the one the game was installed to: it holds the folders GLOBAL, \
+FRONTEND and TRACKS.";
 /// The first-run screen's line on mods.
 pub const NO_MODS: &str = "No mods are included either. Texture and HUD mods you have can be added later under Mods; \
 they belong to their authors.";
@@ -119,6 +170,18 @@ pub struct App<'e> {
     pub ui: Ui,
     /// Where the folder browser, about and the import go back to.
     pub back: Screen,
+    /// The page slide and Play's glow.
+    pub motion: super::anim::Motion,
+    /// Files being copied to a new folder on a worker.
+    pub copy_job: Option<
+        std::sync::mpsc::Receiver<(crate::platform::dirs::Location, PathBuf, Result<(usize, u64), String>)>,
+    >,
+    /// Keys are ignored until then (just after the system's folder dialog).
+    pub keys_after: Option<std::time::Instant>,
+    /// The support file being written on a worker.
+    pub support_job: Option<std::sync::mpsc::Receiver<Result<PathBuf, String>>>,
+    /// The map editor started from the Mods page, while it is open.
+    pub editor_job: Option<Box<dyn super::model::EditorJob>>,
 }
 
 fn res_text(m: &Model, r: (u32, u32)) -> String {
@@ -232,103 +295,176 @@ fn crumb_target(dir: &str, id: &str) -> Option<PathBuf> {
 }
 
 pub fn build(b: &mut Builder, m: &Model, screen: Screen) {
-    if m.folders.portable {
-        b.header(NAME, &format!("{} · Portable", m.version));
-    } else {
-        b.header(NAME, &m.version);
-    }
-    if screen != Screen::Main {
-        b.content_begin();
+    let setup = matches!(screen, Screen::FirstRun | Screen::Check)
+        || (screen == Screen::Browse && m.browse.purpose == BrowseFor::Game && m.root.is_none());
+    match screen.page() {
+        Some(p) => b.top_bar(&PAGES, Some(p), screen == Screen::Main, None),
+        None if setup => b.top_bar(&[], None, false, Some("Setup")),
+        None => b.top_bar(&[], None, false, None),
     }
     match screen {
-        Screen::FirstRun => {
-            b.heading("Find your game");
-            b.body(OWN_COPY);
-            b.gap(4.0);
-            b.dim(NO_MODS);
-            b.gap(14.0);
-            if m.found.is_empty() {
-                b.body("No game folder was found on this computer.");
-            } else {
-                b.dim("Found on this computer:");
-                b.gap(6.0);
-                let items: Vec<(String, String)> =
-                    m.found.iter().map(|f| (f.path.display().to_string(), f.source.clone())).collect();
-                b.list("found", &items, m.found_sel, items.len().clamp(1, 4));
-                b.default_focus = Some("found");
-            }
-            b.gap(16.0);
-            b.dim(if m.found.is_empty() {
-                "Type the path of the folder the game was installed to (the one that holds the GLOBAL folder), \
-                 or browse for it:"
-            } else {
-                "Or type the folder's path (the folder that holds the GLOBAL folder), or browse for it:"
-            });
-            b.gap(6.0);
-            b.buttons(
-                Align::Left,
-                vec![
-                    Ctrl::button("browse", "Browse…"),
-                    Ctrl::Field { id: "path", text: m.path_input.clone(), placeholder: "Game folder".into() },
-                ],
-            );
-            if m.found.is_empty() {
-                b.default_focus = Some("path");
-            }
-            message(b, m);
-            b.gap(12.0);
-            b.dim(NOT_AFFILIATED);
-            b.footer(vec![Ctrl::button("quit", "Quit"), Ctrl::primary("check", "Check folder")]);
+        Screen::FirstRun => build_first(b, m),
+        Screen::Check => build_check(b, m),
+        Screen::Settings => build_settings(b, m),
+        Screen::Advanced => build_advanced(b, m),
+        Screen::Storage => build_storage(b, m),
+        Screen::Dev => build_dev(b, m),
+        Screen::Recover => build_recover(b, m),
+        Screen::Failure => build_crash(b, m),
+        _ => build_page(b, m, screen),
+    }
+    let version =
+        format!("{}{}", m.version, portable_note(m));
+    b.footer_legends(&version, legends_for(m, screen));
+    match &m.ask {
+        Some(Dialog::Quit) if matches!(screen, Screen::Main | Screen::FirstRun) => {
+            b.dialog("Quit Overbright?", "The game will not start.", &[("stay", "Stay"), ("quit", "Quit")])
         }
-        Screen::Check => {
-            b.heading("Game folder");
-            let path = m.check.as_ref().map(|c| c.root.display().to_string()).unwrap_or_default();
-            line(b, &path);
-            b.gap(14.0);
-            if let Some(c) = &m.check {
-                for (mark, text) in &c.lines {
-                    b.status(*mark, text);
-                }
-                if !c.usable {
-                    b.gap(6.0);
-                    b.body(advice(c));
-                }
+        Some(Dialog::Reset) if screen == Screen::Settings => b.dialog(
+            "Back to defaults?",
+            "Screen, resolution, graphics, intro movies and the start choice go back to what Overbright picked \
+             for this computer. Mods and the game folder stay as they are.",
+            &[("keep_settings", "Keep my settings"), ("reset_yes", "Back to defaults")],
+        ),
+        _ => {}
+    }
+    if screen == Screen::Storage {
+        match &m.ask {
+            Some(Dialog::MoveLocation(loc, to)) => {
+                let what = loc_name(*loc);
+                b.dialog(
+                    &format!("Put {} here?", what.to_lowercase()),
+                    &format!(
+                        "{}\nOverbright can copy the files that are there now and check every one arrived; the \
+                         old folder and its files stay until you delete them. Overbright and the game use the new \
+                         folder from their next start.",
+                        to.display()
+                    ),
+                    &[("loc_copy", "Copy the files and use it"), ("loc_empty", "Use it, start empty"), ("loc_cancel", "Cancel")],
+                );
             }
-            message(b, m);
-            let usable = m.check.as_ref().is_some_and(|c| c.usable);
-            if usable {
-                b.footer(vec![Ctrl::button("back", "Back"), Ctrl::primary("use", "Use this folder")]);
-            } else {
-                // The way out of a refused folder is the main button.
-                b.footer(vec![
-                    Ctrl::button("back", "Back"),
-                    Ctrl::Button { id: "use", text: "Use this folder".into(), primary: false, enabled: false },
-                    Ctrl::primary("another", "Choose another folder…"),
-                ]);
+            Some(Dialog::PortableOn) => {
+                let data = m.portable.data.as_ref().map_or(String::new(), |d| d.display().to_string());
+                b.dialog(
+                    "Keep everything beside Overbright?",
+                    &format!(
+                        "From the next start settings, saves, caches, logs and mods are kept in {data}. \
+                         Overbright writes portable.txt beside the program. Nothing is deleted: what is kept now \
+                         stays in {} unless you copy it.",
+                        m.portable.home.display()
+                    ),
+                    &[("port_copy", "Copy my files and turn on"), ("port_on", "Turn on, start empty"), ("port_cancel", "Cancel")],
+                );
             }
-            b.default_focus = Some(if usable { "use" } else { "another" });
+            Some(Dialog::PortableOff) => {
+                let data = m.portable.data.as_ref().map_or(String::new(), |d| d.display().to_string());
+                b.dialog(
+                    "Keep the files in your home folders again?",
+                    &format!(
+                        "From the next start they are kept in {}. Overbright removes portable.txt; the folder {data} \
+                         and everything in it stays.",
+                        m.portable.home.display()
+                    ),
+                    &[("port_copy_back", "Copy my files back and turn off"), ("port_off", "Turn off"), ("port_cancel", "Cancel")],
+                );
+            }
+            _ => {}
         }
+    }
+    if screen == Screen::Mods
+        && let Some(key) = &m.mods.confirm
+    {
+        let lines = pack_lines(m);
+        let name = lines.iter().find(|l| &l.key == key).map_or(key.as_str(), |l| l.name.as_str());
+        b.dialog(
+            &format!("Remove {name}?"),
+            "Overbright deletes its copy. Your downloaded file stays where it is.",
+            &[("keep", "Keep it"), ("remove_yes", "Remove")],
+        );
+    }
+}
+
+/// The footer's portable note: the state in force, and what the next
+/// start brings when the switch was changed in this session.
+pub fn portable_note(m: &Model) -> &'static str {
+    let now = m.folders.portable || m.portable.on;
+    match (now, m.portable.marker) {
+        (true, false) if m.portable.program.is_some() && m.portable.changed => " · Portable · off after restart",
+        (false, true) => " · Portable after restart",
+        (true, _) => " · Portable",
+        _ => "",
+    }
+}
+
+/// The pages in the top bar.
+pub const PAGES: [(&str, &str); 4] =
+    [("page:game", "Game"), ("page:settings", "Settings"), ("page:mods", "Mods"), ("page:dev", "Dev")];
+
+/// The legends under a screen: what the buttons do there.
+pub fn legends_for(m: &Model, screen: Screen) -> Vec<super::legends::Action> {
+    use super::legends::{Btn, action};
+    if m.ask.is_some() {
+        return vec![action(Btn::Confirm, "Select"), action(Btn::Back, "Cancel")];
+    }
+    let mut v = vec![action(Btn::Confirm, "Select")];
+    match screen {
+        Screen::Main => {
+            v.push(action(Btn::Back, "Quit"));
+            v.push(action(Btn::Pages, "Pages"));
+        }
+        Screen::Settings => {
+            v.push(action(Btn::Change, "Change"));
+            v.push(action(Btn::Y, "Back to defaults"));
+            v.push(action(Btn::Back, "Back"));
+        }
+        Screen::Advanced => {
+            v.push(action(Btn::Change, "Change"));
+            v.push(action(Btn::Back, "Back"));
+        }
+        Screen::Dev => {
+            v.push(action(Btn::Pages, "Pages"));
+            v.push(action(Btn::Back, "Back"));
+        }
+        Screen::Mods => {
+            v[0] = action(Btn::Confirm, "Turn on or off");
+            v.push(action(Btn::Y, "Add a mod"));
+            v.push(action(Btn::X, "Remove"));
+            v.push(action(Btn::Back, "Back"));
+        }
+        Screen::FirstRun => v.push(action(Btn::Back, "Quit")),
+        Screen::Browse => {
+            v.push(action(Btn::X, "Use this folder"));
+            v.push(action(Btn::Back, "Back"));
+        }
+        _ => v.push(action(Btn::Back, "Back")),
+    }
+    v
+}
+
+/// The screens kept from before the redesign, on the slab.
+fn build_page(b: &mut Builder, m: &Model, screen: Screen) {
+    match screen {
         Screen::Main => build_main(b, m),
         Screen::About => {
-            b.heading("About Overbright");
+            b.page_title("About Overbright", Some("Settings"));
             b.body(&m.build);
             b.gap(6.0);
             match &m.source {
                 Some(url) => b.body(&format!("Source code: {url}")),
                 None => b.status(Mark::Warn, UNOFFICIAL),
             }
-            b.gap(16.0);
+            b.gap(10.0);
             b.body(FREE);
-            b.gap(16.0);
+            b.gap(10.0);
             b.body(OWN_COPY);
-            b.gap(16.0);
+            b.gap(10.0);
             b.dim(EA_DISCLAIMER);
-            b.gap(18.0);
+            b.gap(10.0);
             b.buttons(
                 Align::Left,
                 vec![Ctrl::button("licence", "Licence (GPL-3.0)"), Ctrl::button("notices", "Third-party notices")],
             );
-            b.gap(18.0);
+            b.gap(10.0);
             if m.folders.portable {
                 b.status(Mark::Ok, "Portable: settings, saves, caches and logs are kept beside the program, in:");
                 line(b, &m.folders.data.display().to_string());
@@ -361,43 +497,6 @@ pub fn build(b: &mut Builder, m: &Model, screen: Screen) {
             }
             b.default_focus = Some("back");
         }
-        Screen::Failure => {
-            let f = m.failure.as_ref();
-            b.heading(if f.is_some_and(|f| f.during_start) {
-                "The game stopped during its start"
-            } else {
-                "The game stopped"
-            });
-            b.body(&format!("It ended with {}.", f.map_or("an unknown result", |f| f.how.as_str())));
-            b.gap(10.0);
-            let tail: Vec<String> =
-                f.map(|f| f.tail.iter().rev().take(TAIL_SHOWN).rev().cloned().collect()).unwrap_or_default();
-            if tail.is_empty() {
-                b.dim("It printed nothing.");
-            } else {
-                b.dim("Its last lines:");
-                b.gap(6.0);
-                b.panel(&tail);
-            }
-            b.gap(12.0);
-            b.body("What you can try: update the graphics driver; set Display to Windowed or Graphics to Original, then Try again.");
-            b.gap(8.0);
-            let where_ = match f.and_then(|f| f.log.as_ref()) {
-                Some(l) => format!("The whole log: {}", l.display()),
-                None => format!("Logs folder: {}", m.logs_dir.display()),
-            };
-            b.dim(&where_);
-            b.dim("When you ask for help, send this log file along.");
-            b.gap(10.0);
-            b.buttons(Align::Left, vec![Ctrl::button("open_logs", "Open log folder")]);
-            message(b, m);
-            b.footer(vec![
-                Ctrl::button("quit", "Quit"),
-                Ctrl::button("settings", "Settings"),
-                Ctrl::primary("retry", "Try again"),
-            ]);
-            b.default_focus = Some("retry");
-        }
         Screen::Browse => {
             let br = &m.browse;
             b.heading(match br.purpose {
@@ -406,6 +505,9 @@ pub fn build(b: &mut Builder, m: &Model, screen: Screen) {
                 BrowseFor::Saves => "Choose the original game's save folder",
                 BrowseFor::Packages => "Add texture packages",
                 BrowseFor::HudMod => "Add the HUD mod",
+                BrowseFor::MapMod => "Import a map mod",
+                BrowseFor::MapExport => "Export the map mod to…",
+                BrowseFor::Location => "Choose the new folder",
             });
             // The places, then the folder shown as clickable parts.
             let places: Vec<Link> = std::iter::once(Link::Sep("Places:".into()))
@@ -481,6 +583,10 @@ pub fn build(b: &mut Builder, m: &Model, screen: Screen) {
                      this folder” takes the folder shown above: the mod's extracted folder, or the one that holds \
                      both downloads."
                 }
+                BrowseFor::Game => {
+                    "Open (or a double click) enters a folder; “Use this folder” takes the chosen game folder, else \
+                     the one above."
+                }
                 _ => {
                     "A double click (or Enter, or Open) opens the folder chosen in the list; “Use this folder” takes \
                      the one shown above."
@@ -501,7 +607,7 @@ pub fn build(b: &mut Builder, m: &Model, screen: Screen) {
             b.footer(foot);
         }
         Screen::Import => {
-            b.heading("Import saves from the original game");
+            b.page_title("Import saves", Some("Settings"));
             b.body(
                 "Copies your profiles from the original game's save folder into Overbright's own. \
                  The original's files are only read: nothing there is changed, moved or deleted.",
@@ -563,6 +669,14 @@ pub fn build(b: &mut Builder, m: &Model, screen: Screen) {
         }
         Screen::Mods => build_mods(b, m),
         Screen::Prepare => build_prepare(b, m),
+        Screen::FirstRun
+        | Screen::Check
+        | Screen::Failure
+        | Screen::Settings
+        | Screen::Advanced
+        | Screen::Recover
+        | Screen::Storage
+        | Screen::Dev => {}
         Screen::Widgets => {
             b.label_column(&["Cycle", "Text field", "Buttons"]);
             b.heading("Widget test screen");
@@ -606,266 +720,923 @@ pub fn build(b: &mut Builder, m: &Model, screen: Screen) {
     }
 }
 
-/// What to do about a folder Overbright cannot use, by what is wrong with
-/// it (the check's lines).
-pub fn advice(c: &super::model::CheckResult) -> &'static str {
-    let errors = || c.lines.iter().filter(|(m, _)| *m == Mark::Error).map(|(_, t)| t.as_str());
-    if errors().any(|t| t.contains("not a complete game folder")) {
-        "Overbright cannot use this folder: the game's files are not here. Choose the folder the game was \
-         installed to: the one that holds the GLOBAL, FRONTEND and TRACKS folders."
-    } else if errors().any(|t| t.starts_with("Missing")) {
-        "Overbright cannot use this folder: some of the game's files are missing. Reinstall the game or copy \
-         the whole game folder again, then choose it."
-    } else {
-        "Overbright cannot use this folder. Choose a complete install of the game (PC, version 1.2)."
-    }
+/// A problem in the player's words: a title naming it, one sentence with
+/// the fix, and the one button that does it (its id and text). No file
+/// sizes, checksums, addresses or command lines.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Words {
+    pub title: &'static str,
+    pub sentence: &'static str,
+    pub fix: (&'static str, &'static str),
 }
 
-/// The game's state on the main screen, beside Play: its mark and words.
-pub fn game_state(m: &Model) -> (Mark, String) {
-    match (&m.root, &m.probe) {
-        (None, _) => (Mark::Warn, "Not found yet: choose the game's folder".into()),
-        (Some(_), ProbeState::Pending) => (Mark::Info, "Found · PC version 1.2 · checking this computer…".into()),
-        (Some(_), ProbeState::Ready(p)) if !p.ok() => {
-            (Mark::Warn, "Found · PC version 1.2 · no graphics adapter answered (see below)".into())
-        }
-        (Some(_), ProbeState::Failed(_)) => {
-            (Mark::Warn, "Found · PC version 1.2 · this computer was not checked".into())
-        }
-        (Some(_), _) => match &m.prepare.state {
-            // The prepare step running by itself (`Prepare::background`).
-            super::prepare::State::Idle | super::prepare::State::Running { .. }
-                if m.prepare.background =>
-            {
-                (Mark::Info, m.prepare.state.background_words())
-            }
-            _ => (Mark::Ok, "Found · PC version 1.2 · ready to play".into()),
+/// The check screen's words for a folder Overbright cannot use.
+pub fn problem_words(p: Problem) -> Words {
+    let another = ("another", "Choose another folder…");
+    match p {
+        Problem::OwnFolder => Words {
+            title: "This is Overbright's folder",
+            sentence: "Choose the folder the game was installed to: it holds GLOBAL, FRONTEND and TRACKS.",
+            fix: another,
+        },
+        Problem::NoGame => Words {
+            title: "No game files here",
+            sentence: "Choose the folder the game was installed to: it holds GLOBAL, FRONTEND and TRACKS.",
+            fix: another,
+        },
+        Problem::Missing(_) => Words {
+            title: "Some game files are missing",
+            sentence: "Install the game again from its discs, or copy the whole game folder again, then check again.",
+            fix: ("recheck", "Check again"),
+        },
+        Problem::Unreadable => Words {
+            title: "Overbright cannot read this folder",
+            sentence: "Choose a folder you have access to, or copy the game to one.",
+            fix: another,
         },
     }
 }
 
-/// The game's Skip Intro Movies and Skip Title Screen rows (Enhancements
-/// page, options.txt `enh.skip_movies` / `enh.skip_title`): independent.
-fn game_skip_boxes(b: &mut Builder, c: &super::model::Choices) {
-    b.checkboxes(&[
-        ("skip_movies", "Skip the intro movies", c.skip_movies),
-        ("skip_title", "Skip the title screen", c.skip_title),
-    ]);
+/// The failure screen's words for how the game stopped.
+pub fn failure_words(k: ErrorKind, during_start: bool) -> Words {
+    let retry = ("retry", "Try again");
+    match k {
+        ErrorKind::GameFiles => Words {
+            title: "The game files are not complete",
+            sentence: "The game could not read all of its files. Check the game folder again, or choose the one \
+                       the game was installed to.",
+            fix: ("folder", "Check the game folder"),
+        },
+        ErrorKind::NoGpu => Words {
+            title: "No graphics driver the game can use",
+            sentence: "Overbright draws with Vulkan. Install or update the graphics driver for your card, then try \
+                       again.",
+            fix: retry,
+        },
+        ErrorKind::NoWindow => Words {
+            title: "The game window could not open",
+            sentence: "Start it in a window instead of full screen.",
+            fix: ("windowed", "Play windowed"),
+        },
+        ErrorKind::Crash => Words {
+            title: "The game stopped unexpectedly",
+            sentence: "Try again. If it happens again, send the log file when you ask for help.",
+            fix: retry,
+        },
+        ErrorKind::NoProgram => Words {
+            title: "The game could not be started",
+            sentence: "Overbright's game program is missing or cannot run. Unpack the whole Overbright download \
+                       again, into a folder of its own.",
+            fix: retry,
+        },
+        ErrorKind::Other if during_start => Words {
+            title: "The game stopped during its start",
+            sentence: "Try again. If it happens again, set Display to Windowed or Graphics to Original, and send \
+                       the log file when you ask for help.",
+            fix: retry,
+        },
+        ErrorKind::Other => Words {
+            title: "The game stopped",
+            sentence: "Try again. If it happens again, send the log file when you ask for help.",
+            fix: retry,
+        },
+    }
 }
 
-/// The launcher's own start choice.
-fn launcher_skip_box(b: &mut Builder, c: &super::model::Choices) {
-    b.checkbox("skip", "Start the game directly next time (hold Shift while starting to see this window)", c.skip);
+/// The game's state on the main screen, beside Play: its mark and words,
+/// from the full check of the folder in use (never assumed) and this
+/// computer's check.
+pub fn game_state(m: &Model) -> (Mark, String) {
+    let Some(root) = &m.root else { return (Mark::Warn, "Not found yet: choose the game's folder".into()) };
+    let (mark, folder) = match m.check.as_ref().filter(|c| &c.root == root).map(|c| c.verdict()) {
+        Some(Verdict::Ready) => (Mark::Ok, "Ready to play"),
+        // The notes (files that differ from the known release) are the
+        // check screen's; the game starts with them.
+        Some(Verdict::Notes) => (Mark::Ok, "Ready to play"),
+        Some(Verdict::Refused(p)) => {
+            return (Mark::Error, format!("{}: choose another folder", problem_words(p).title));
+        }
+        None => (Mark::Info, "Game folder not checked yet"),
+    };
+    // "Ready to play" only once this computer is checked too; before,
+    // the folder's part alone.
+    let found = if mark == Mark::Ok { "Game folder checked" } else { folder };
+    match &m.probe {
+        ProbeState::Pending => (Mark::Info, format!("{found} · checking this computer…")),
+        ProbeState::Ready(p) if !p.ok() => (Mark::Warn, format!("{found} · no graphics adapter answered (see below)")),
+        ProbeState::Failed(_) => (Mark::Warn, format!("{found} · this computer was not checked")),
+        _ => match &m.prepare.state {
+            // The prepare step running by itself (`Prepare::background`).
+            super::prepare::State::Idle | super::prepare::State::Running { .. } if m.prepare.background => {
+                (Mark::Info, m.prepare.state.background_words())
+            }
+            _ => (mark, folder.into()),
+        },
+    }
 }
 
-/// The main screen: the game and Play (the hero), the start settings and
-/// Mods in their own panels, the computer's facts as a quiet strip, the
-/// rarely used pages as small buttons at the bottom.
+/// The title the system folder dialog (and the own browser) carries.
+pub fn dialog_title(p: BrowseFor) -> &'static str {
+    match p {
+        BrowseFor::Game => "Choose the game folder (it holds GLOBAL, FRONTEND and TRACKS)",
+        BrowseFor::TexturePack => "Choose the HUD mod folder",
+        BrowseFor::Saves => "Choose the original game's save folder",
+        BrowseFor::Packages => "Choose the folder that holds the texture packages",
+        BrowseFor::HudMod => "Choose the HUD mod's folder",
+        BrowseFor::MapMod => "Choose the map mod (a folder with map.obmap, or its .zip)",
+        BrowseFor::MapExport => "Choose the folder to export the map mod to",
+        BrowseFor::Location => "Choose the new folder",
+    }
+}
+
+/// Whether Play can do its job now.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PlayState {
+    Ready,
+    /// This computer is being checked (the probe runs).
+    Checking,
+    /// The check found no graphics adapter the game can use.
+    NoGpu,
+}
+
+pub fn play_state(m: &Model) -> PlayState {
+    match &m.probe {
+        ProbeState::Pending => PlayState::Checking,
+        ProbeState::Ready(p) if !p.ok() => PlayState::NoGpu,
+        _ => PlayState::Ready,
+    }
+}
+
+/// The main screen: the game's name and state, Play (or the fix in its
+/// place), the summary rows that open their pages.
 fn build_main(b: &mut Builder, m: &Model) {
     let c = &m.choices;
-    // The hero: the game, its state and folder; Play beside it.
-    let hero = b.card_begin();
-    let (x0, x1) = (b.x0, b.x1);
-    let narrow = b.width() < b.m.s(560.0);
-    let play_w = if narrow { b.width() } else { b.m.s(220.0).min(b.width() * 0.4) };
-    let play_h = b.m.s(72.0);
-    if !narrow {
-        b.x1 = x1 - play_w - b.m.s(24.0);
-    }
-    let top = b.y;
-    let hs = b.m.heading();
-    b.para("Need for Speed Underground 2", Face::Bold, hs, theme::TEXT);
-    b.gap(6.0);
-    let (mark, state) = game_state(m);
+    let t = super::draw::theme();
+    b.game_title("Need for Speed Underground 2");
+    let issue = main_issue(m);
+    let (mark, state) = main_status(m, issue.as_ref());
     b.status(mark, &state);
-    let root = m.root.as_ref().map_or("No game folder chosen".into(), |r| r.display().to_string());
+    if let Some(r) = &m.root {
+        let size = b.fs_min(Face::Body, 15.0, 14.0);
+        let full = r.display().to_string();
+        let shown = b.fonts.fit(Face::Body, size, &full, b.width(), Cut::Middle);
+        let (sw, sh) = (b.fonts.width(Face::Body, size, &shown), b.fonts.line_height(Face::Body, size));
+        let rect = Rect::new(b.x0, b.y, b.width(), sh);
+        b.widgets.push(super::ui::Widget {
+            id: None,
+            rect,
+            kind: super::ui::Kind::Label,
+            texts: vec![super::ui::text_of(Rect::new(b.x0, b.y, sw, sh), shown, &full, Face::Body, size, t.dim)],
+            enabled: true,
+        });
+        b.y += sh;
+        if m.just_found {
+            b.gap(4.0);
+            b.status(Mark::Info, "Found your game in this folder. Play keeps it for the next start.");
+        }
+    }
+    b.gap(6.0);
+    if let Some(i) = issue.as_ref().filter(|i| i.blocks_play()) {
+        // The fix takes Play's place; the summary rows wait for it.
+        let w = i.words();
+        // No driver: the check's own line says what to install here.
+        let text = match (&m.probe, i) {
+            (ProbeState::Ready(p), Issue::NoVulkan) if p.error.is_some() => {
+                let e = p.error.clone().unwrap_or_default();
+                let mut c = e.chars();
+                c.next().map_or(e.clone(), |f| f.to_uppercase().chain(c).collect::<String>() + ".")
+            }
+            _ => w.text.clone(),
+        };
+        b.message_with(i.mark(), &w.title, &text, issue_buttons(&w));
+        b.default_focus = w.buttons.first().map(|x| x.0);
+    } else {
+        let checking = play_state(m) == PlayState::Checking;
+        b.play("play", if m.starting { "Starting…" } else { "Play" }, m.starting || checking);
+        b.default_focus = if checking { None } else { Some("play") };
+        let screen = if display_rows_on(m) {
+            format!("{} · {}", res_text(m, c.resolution), if c.fullscreen { "Full screen" } else { "Window" })
+        } else {
+            "Set at the game's first start".into()
+        };
+        b.sum_row("row_graphics", "Graphics", &c.graphics.label());
+        b.sum_row("row_screen", "Screen", &screen);
+        b.sum_row("row_mods", "Mods", &mods_summary(m));
+        shader_block(b, m, true);
+    }
+    message(b, m);
+}
+
+/// What the shaders' preparation is at, for its block.
+#[derive(Clone, Debug, PartialEq)]
+pub enum Shaders {
+    /// Nothing to show (prepared, or not known yet).
+    Quiet,
+    /// The hardware check says they are not prepared, and no run goes on.
+    NotPrepared,
+    /// A run goes on.
+    Running,
+    /// A run just finished ("Shaders ready", for a few seconds).
+    JustReady,
+    /// A run did not finish (its reason).
+    Failed(String),
+}
+
+pub fn shaders(m: &Model) -> Shaders {
+    use super::prepare::State;
+    let p = &m.prepare;
+    match &p.state {
+        State::Running { .. } => Shaders::Running,
+        State::Idle if p.wanted || (p.background && p.started.is_some()) => Shaders::Running,
+        State::Done if p.done_at.is_some() => Shaders::JustReady,
+        State::Failed(e) => Shaders::Failed(e.clone()),
+        _ => match &m.probe {
+            ProbeState::Ready(pr) if pr.ok() && pr.prepared == Some(false) && p.state != State::Done && m.root.is_some() => {
+                Shaders::NotPrepared
+            }
+            _ => Shaders::Quiet,
+        },
+    }
+}
+
+/// The shaders' block: what preparing them gives, how far a run is (bar,
+/// percent, step, time left), its button. Play stays the main button.
+/// `main`: on the main screen (Prepare now / Stop); else the prepare
+/// screen (Stop / Continue).
+fn shader_block(b: &mut Builder, m: &Model, main: bool) {
+    let why = "Preparing them once makes the first race start smoothly, without stutter.";
+    let p = &m.prepare;
+    let left = p.started.and_then(|s| p.state.time_left(s.elapsed()));
+    let progress = Some((p.state.fraction(), p.state.progress_words(left)));
+    let stop = Ctrl::button(if main { "prepare_stop" } else { "skip" }, "Stop");
+    match shaders(m) {
+        Shaders::Quiet => {}
+        Shaders::NotPrepared => {
+            b.gap(10.0);
+            b.message_with(
+                Mark::Info,
+                "Shaders aren't prepared yet",
+                &format!("{why} It takes from a few seconds to about a minute; you can play while it runs."),
+                vec![Ctrl::button("prepare_now", "Prepare now")],
+            );
+        }
+        Shaders::Running => {
+            b.gap(10.0);
+            let text = if main { format!("{why} You can play now; the first race may load a little slower.") } else { why.to_string() };
+            b.message_progress(Mark::Busy, "Getting the shaders ready", &text, progress, vec![stop]);
+        }
+        Shaders::JustReady => {
+            b.gap(10.0);
+            b.message_progress(
+                Mark::Ok,
+                "Shaders ready",
+                "The first race starts without stutter.",
+                Some((1.0, "100 %".into())),
+                Vec::new(),
+            );
+        }
+        Shaders::Failed(e) => {
+            b.gap(10.0);
+            b.message_with(
+                Mark::Warn,
+                "Shaders aren't prepared yet",
+                &format!("Preparing did not finish: {e}. The game works without it; the first race may load a little slower."),
+                vec![Ctrl::button("prepare_now", "Try again")],
+            );
+        }
+    }
+}
+
+/// What stops Play on the main screen (or notes beside it), if anything:
+/// the folder gone or refused, no graphics driver.
+pub fn main_issue(m: &Model) -> Option<Issue> {
+    let root = m.root.as_ref()?;
+    if let Some(c) = m.check.as_ref().filter(|c| &c.root == root) {
+        match c.verdict() {
+            Verdict::Refused(Problem::NoGame) if !root.is_dir() => {
+                return Some(Issue::FolderGone { path: root.clone() });
+            }
+            Verdict::Refused(p) => return Some(Issue::of_problem(p)),
+            Verdict::Notes => {}
+            Verdict::Ready => {}
+        }
+    }
+    if play_state(m) == PlayState::NoGpu {
+        return Some(Issue::NoVulkan);
+    }
+    None
+}
+
+/// The status line under the game's name.
+fn main_status(m: &Model, issue: Option<&Issue>) -> (Mark, String) {
+    if m.root.is_none() {
+        return (Mark::Warn, "No game folder chosen".into());
+    }
+    if issue.is_some_and(|i| i.blocks_play()) {
+        return (Mark::Error, "Not ready: see below".into());
+    }
+    match play_state(m) {
+        PlayState::Checking => return (Mark::Busy, "Checking…".into()),
+        PlayState::NoGpu => return (Mark::Error, "Not ready: see below".into()),
+        PlayState::Ready => {}
+    }
+    let notes = m.check.as_ref().is_some_and(|c| c.verdict() == Verdict::Notes);
+    if notes {
+        (Mark::Ok, "Ready · version 1.2 · some game files are not the original ones".into())
+    } else {
+        (Mark::Ok, "Ready · version 1.2 · English".into())
+    }
+}
+
+/// An issue's buttons as controls, the first the main one.
+fn issue_buttons(w: &super::model::Words) -> Vec<Ctrl> {
+    w.buttons
+        .iter()
+        .enumerate()
+        .map(|(i, (id, l))| if i == 0 { Ctrl::primary(id, l) } else { Ctrl::button(id, l) })
+        .collect()
+}
+
+/// The first-run screen: the rule, the copies found (or none), the way to
+/// choose the folder.
+fn build_first(b: &mut Builder, m: &Model) {
+    b.page_title("Find your game", None);
+    b.body(RULE);
+    b.gap(14.0);
+    if m.found.is_empty() {
+        b.body("No installed copy was found on this computer.");
+        b.gap(10.0);
+        b.buttons(Align::Left, vec![Ctrl::primary("browse", "Choose the game folder…")]);
+        b.default_focus = Some("browse");
+        b.gap(8.0);
+        b.dim(&format!("It is the folder with GLOBAL, FRONTEND and TRACKS in it. {}", USUAL_PLACE));
+    } else {
+        b.dim("Found on this computer:");
+        b.gap(6.0);
+        let items: Vec<(String, String)> =
+            m.found.iter().map(|f| (f.path.display().to_string(), f.source.clone())).collect();
+        b.list("found", &items, m.found_sel, items.len().clamp(1, 4));
+        b.default_focus = Some("found");
+        b.gap(10.0);
+        b.buttons(
+            Align::Left,
+            vec![Ctrl::primary("check", "Use this copy"), Ctrl::button("browse", "Choose another folder…")],
+        );
+    }
+    b.gap(12.0);
+    b.dim("Or type the folder's path:");
+    b.gap(4.0);
     b.buttons(
         Align::Left,
-        vec![Ctrl::path(root), Ctrl::button("change", if m.root.is_some() { "Change…" } else { "Find game…" })],
+        vec![Ctrl::Field { id: "path", text: m.path_input.clone(), placeholder: "Game folder".into() }],
     );
-    let left_bottom = b.y;
-    b.x1 = x1;
-    let r = if narrow {
-        b.gap(12.0);
-        Rect::new(x0, b.y, play_w, play_h)
-    } else {
-        Rect::new(x1 - play_w, top + ((left_bottom - top - play_h) / 2.0).max(0.0).round(), play_w, play_h)
-    };
-    b.big_button("play", "Play", r);
-    b.y = left_bottom.max(r.bottom());
-    b.card_end(hero);
-    b.default_focus = Some("play");
+    message(b, m);
+    b.gap(12.0);
+    b.dim(NO_MODS);
+    b.gap(4.0);
+    b.dim(NOT_AFFILIATED);
+}
 
-    // The start settings and Mods: side by side when wide, else stacked.
-    let wide = b.width() >= b.m.s(760.0);
-    let (cx0, cx1) = (b.x0, b.x1);
-    let gap = b.m.s(super::layout::CARD_GAP);
-    let split = if wide { cx0 + ((cx1 - cx0 - gap) * 0.62).round() } else { cx1 };
-    let row_y = b.y;
-    b.x1 = split;
-    let set = b.card_begin();
-    b.section("Start settings");
-    b.label_column(&["Display", "Resolution", "Graphics"]);
+/// The chosen folder and its verdict: the error with its fix under it, or
+/// Ready with Use this folder.
+fn build_check(b: &mut Builder, m: &Model) {
+    let t = super::draw::theme();
+    b.page_title("Find your game", None);
+    b.body(RULE);
+    b.gap(12.0);
+    let size = b.fs_min(Face::Body, 15.0, 14.0);
+    b.para("Game folder", Face::Body, size, t.dim);
+    b.gap(4.0);
+    let path = m.check.as_ref().map(|c| c.root.display().to_string()).unwrap_or_default();
+    line(b, &path);
+    b.gap(12.0);
+    let verdict = m.check.as_ref().map_or(Verdict::Refused(Problem::NoGame), |c| c.verdict());
+    match verdict {
+        Verdict::Refused(p) => {
+            let i = Issue::of_problem(p);
+            let w = i.words();
+            b.message_with(Mark::Error, &w.title, &w.text, issue_buttons(&w));
+            b.default_focus = w.buttons.first().map(|x| x.0);
+        }
+        v => {
+            b.status(
+                Mark::Ok,
+                if v == Verdict::Notes { "Ready · some game files are not the original ones" } else { "Ready" },
+            );
+            b.gap(6.0);
+            let mut ctrls = vec![Ctrl::primary("use", "Use this folder")];
+            if v == Verdict::Notes {
+                ctrls
+                    .push(Ctrl::button("show_files", if m.show_files { "Hide the files" } else { "Show which files" }));
+            }
+            b.buttons(Align::Left, ctrls);
+            b.default_focus = Some("use");
+        }
+    }
+    let refused = matches!(verdict, Verdict::Refused(_));
+    if (m.show_files || !refused)
+        && let Some(c) = &m.check
+        && (m.show_files || verdict == Verdict::Ready)
+    {
+        b.gap(6.0);
+        for (mark, text) in &c.lines {
+            b.status(*mark, text);
+        }
+    }
+    message(b, m);
+}
+
+/// The suggested graphics for this computer (the probe's first-run
+/// values), if known.
+fn suggested_graphics(m: &Model) -> Option<Graphics> {
+    m.probe.first_run().map(|f| if f.detail == 0 { Graphics::Original } else { Graphics::Enhanced })
+}
+
+/// Settings: the start settings as value rows, the description of the
+/// focused row at the right.
+fn build_settings(b: &mut Builder, m: &Model) {
+    let c = &m.choices;
+    b.page_title("Settings", None);
+    let cols = b.columns(700.0);
+    b.in_column(cols.left);
     let on = display_rows_on(m);
+    if !m.gamescope {
+        b.value_row(
+            "display",
+            "Screen",
+            if c.fullscreen { "Full screen" } else { "Window" },
+            &["Full screen".into(), "Window".into()],
+            false,
+            on,
+        );
+    }
     let modes: Vec<String> = m.modes().iter().map(|&r| res_text(m, r)).collect();
-    b.row(
-        "Display",
-        vec![Ctrl::Cycle {
-            id: "display",
-            value: if c.fullscreen { "Full screen" } else { "Windowed" }.into(),
-            values: vec!["Full screen".into(), "Windowed".into()],
-            enabled: on,
-        }],
-    );
-    b.row(
-        "Resolution",
-        vec![Ctrl::Cycle { id: "resolution", value: res_text(m, c.resolution), values: modes, enabled: on }],
-    );
+    if m.gamescope {
+        b.value_row(
+            "resolution",
+            "Resolution",
+            &format!("{} · set by Steam", res_text(m, c.resolution)),
+            &modes,
+            false,
+            false,
+        );
+    } else {
+        b.value_row("resolution", "Resolution", &res_text(m, c.resolution), &modes, false, on);
+    }
     let mut gvals: Vec<String> = GRAPHICS.iter().map(|g| g.label()).collect();
     gvals.push(c.graphics.label());
-    b.row(
-        "Graphics",
-        vec![
-            Ctrl::Cycle { id: "graphics", value: c.graphics.label(), values: gvals, enabled: on },
-            Ctrl::dim(match c.graphics {
-                Graphics::Original => "Exactly the 2004 game",
-                Graphics::Enhanced => "Enhanced, quality Low; Medium, High and every row in the game's Graphics page",
-                _ => "Set in the game's Graphics page; pick one here to replace it",
-            }),
-        ],
+    let suggested = suggested_graphics(m) == Some(c.graphics.clone());
+    b.value_row("graphics", "Graphics", &c.graphics.label(), &gvals, suggested, on);
+    b.value_row(
+        "skip_movies",
+        "Intro movies",
+        if c.skip_movies { "Skip" } else { "Play" },
+        &["Play".into(), "Skip".into()],
+        false,
+        on,
     );
-    let (gpu, gpu_col) = gpu_text(m);
-    if !on && gpu_col == theme::ERROR && matches!(m.probe, ProbeState::Ready(_)) {
-        // The probe ran and found no adapter: the game cannot start until
-        // a driver is installed (the line says which).
-        b.status(Mark::Error, &format!("Graphics card: {gpu}"));
-    } else if !on && gpu_col == theme::ERROR {
-        b.status(Mark::Error, &format!("Graphics card: {gpu} (display and graphics: in the game's Options)"));
-    } else if !on {
+    b.value_row(
+        "skip_title",
+        "Title screen",
+        if c.skip_title { "Skip" } else { "Show" },
+        &["Show".into(), "Skip".into()],
+        false,
+        on,
+    );
+    b.value_row(
+        "skip",
+        "When Overbright starts",
+        if c.skip { "Start the game directly" } else { "Show this window" },
+        &["Start the game directly".into(), "Show this window".into()],
+        false,
+        true,
+    );
+    {
+        let set = super::legends::GlyphSet::for_input(b.st.input);
+        b.row_note_glyph("To come back here, hold", super::legends::hold_glyph(set), "while Overbright starts.");
+    }
+    if !on {
         b.status(
             Mark::Info,
             match &m.probe {
-                ProbeState::Pending => "Display and graphics: available once this computer is checked.",
+                ProbeState::Pending => "Screen and graphics: available once this computer is checked.",
                 ProbeState::Ready(p) if p.ok() && m.root.is_none() => {
-                    "Display and graphics: available once the game folder is chosen."
+                    "Screen and graphics: available once the game folder is chosen."
                 }
-                _ => "Display and graphics: set them in the game's Options after its first start.",
+                _ => "Screen and graphics: set them in the game's Options after its first start.",
             },
         );
     }
-    // The game's skip boxes, under Graphics: like the display rows they
-    // are options.txt values, which cannot be written before the game's
-    // first run values are known (`SaveError::FirstRunPending`), so they
-    // are shown only once they can be.
-    if on {
-        game_skip_boxes(b, c);
+    b.sum_row("advanced", "Advanced settings", "");
+    b.gap(18.0);
+    b.buttons(Align::Left, vec![Ctrl::button("reset", "Back to defaults")]);
+    message(b, m);
+    let left_bottom = b.y;
+    if let Some(r) = cols.right {
+        let focus = b.st.focus.unwrap_or("display");
+        let (h, text) = describe_setting(m, focus, b.st.input);
+        b.describe(r, &h, &text);
     }
-    if !wide {
-        launcher_skip_box(b, c);
-    }
-    b.card_end(set);
-    let set_bottom = b.y;
-    if wide {
-        b.x0 = split + gap;
-        b.x1 = cx1;
-        b.y = row_y;
-    } else {
-        b.x0 = cx0;
-        b.x1 = cx1;
-    }
-    let mods = b.card_begin();
-    b.section("Mods");
-    b.dim(&mods_summary(m));
-    let on: Vec<&str> = m.mods.list.iter().filter(|(e, _)| e.on).map(|(_, i)| i.name.as_str()).take(3).collect();
-    for n in &on {
-        b.gap(4.0);
-        let size = b.m.small();
-        let t = b.fonts.fit(Face::Regular, size, &format!("· {n}"), b.width(), super::font::Cut::End);
-        b.para(&t, Face::Regular, size, theme::TEXT);
-    }
-    b.gap(10.0);
-    b.buttons(Align::Left, vec![Ctrl::button("mods", "Mods…")]);
-    b.card_end(mods);
-    // Wide: the start choice under Mods, the right column's second card.
-    let next = wide.then(|| {
-        let i = b.card_begin();
-        launcher_skip_box(b, c);
-        b.card_end(i);
-        i
-    });
-    // Both panels end on the same line when side by side.
-    // The right column's last card ends where the settings do.
-    let last = next.unwrap_or(mods);
-    if wide {
-        let bottom = b.y.max(set_bottom);
-        let g = b.m.s(super::layout::CARD_GAP);
-        b.widgets[set].rect.h = bottom - g - b.widgets[set].rect.y;
-        b.widgets[last].rect.h = bottom - g - b.widgets[last].rect.y;
-        b.y = bottom;
-    }
-    b.x0 = cx0;
-    b.x1 = cx1;
+    b.y = left_bottom.max(b.widgets.last().map_or(0.0, |w| w.rect.bottom()));
+    b.default_focus = Some(if m.gamescope { "graphics" } else { "display" });
+}
 
-    // This computer: a quiet strip.
-    let others = other_languages(&m.languages);
-    let lang = if others.is_empty() {
-        "English".to_string()
-    } else {
-        format!("English (also installed, not supported yet: {})", others.join(", "))
-    };
-    let pad = m.controller.clone().unwrap_or_else(|| "No controller (keyboard and mouse work)".into());
-    let strip_from = b.widgets.len();
-    let strip_text = format!("Language: {lang}   ·   Graphics card: {gpu}   ·   Controller: {pad}");
-    let size = b.m.small();
-    if gpu_col == theme::ERROR && !display_rows_on(m) {
-        b.para(&format!("Language: {lang}   ·   Controller: {pad}"), Face::Regular, size, theme::PAGE_DIM);
-    } else if gpu_col == theme::ERROR {
-        b.status(Mark::Error, &format!("Graphics card: {gpu}"));
-        b.para(&format!("Language: {lang}   ·   Controller: {pad}"), Face::Regular, size, theme::PAGE_DIM);
-    } else {
-        b.para(&strip_text, Face::Regular, size, theme::PAGE_DIM);
+/// The words beside the focused settings row.
+pub fn describe_setting(m: &Model, id: &str, input: super::platform_deck::InputKind) -> (String, String) {
+    let c = &m.choices;
+    match id {
+        "resolution" => (
+            res_text(m, c.resolution),
+            "The size of the game's picture. \"your screen\" fills the screen at its own sharpness.".into(),
+        ),
+        "graphics" => {
+            let sug = if suggested_graphics(m) == Some(c.graphics.clone()) {
+                "Suggested for your graphics card.\n"
+            } else {
+                ""
+            };
+            (
+                c.graphics.label(),
+                format!(
+                    "{sug}• Original: exactly the 2004 game.\n• Enhanced: more detail and light; the same art and \\
+                     colours as the 2004 game.\nEach graphics row can be changed in the game: Options › Display › \\
+                     Enhancements."
+                ),
+            )
+        }
+        "skip_movies" => ("Intro movies".into(), "Play or skip the publisher and intro movies at each start.".into()),
+        "skip_title" => (
+            "Title screen".into(),
+            "Show or skip the \"Press Enter\" title screen: Skip goes straight on to the menus.".into(),
+        ),
+        "skip" => (
+            "When Overbright starts".into(),
+            format!(
+                "Show this window: this page comes first, Play starts the game.\nStart the game directly: the game \\
+                 opens at once. {} Starting with --launcher works too.",
+                come_back(input)
+            ),
+        ),
+        "advanced" => (
+            "Advanced settings".into(),
+            "Text size, motion, launcher sounds, shaders, the support file, Storage (where files are kept), saves \
+             from the original game and About."
+                .into(),
+        ),
+        "reset" => (
+            "Back to defaults".into(),
+            "Puts screen, resolution, graphics, intro movies and the start choice back to what Overbright picked \\
+             for this computer."
+                .into(),
+        ),
+        _ => (
+            if c.fullscreen { "Full screen" } else { "Window" }.into(),
+            "Full screen fills the screen; Window keeps the game in a window on the desktop.".into(),
+        ),
     }
-    if let Some((mark, text)) = &m.message {
-        b.gap(6.0);
-        b.status(*mark, text);
+}
+
+/// The hint on the way back to this window, for the last input (a pad
+/// player is never told about keys).
+pub fn come_back(k: super::platform_deck::InputKind) -> &'static str {
+    use super::platform_deck::InputKind as K;
+    match k {
+        K::Xbox | K::Deck => "To come back here, hold View while Overbright starts.",
+        K::PlayStation => "To come back here, hold Create while Overbright starts.",
+        K::Keyboard | K::Mouse => "To come back here, hold Shift while Overbright starts.",
     }
-    let strip_end = b.widgets.len();
-    let content_bottom = b.y;
-    b.footer_split(
-        vec![
-            Ctrl::button("about", "About"),
-            Ctrl::button("import", "Import saves…"),
-            Ctrl::Button {
-                id: "prepare",
-                text: "Prepare again".into(),
-                primary: false,
-                enabled: m.root.is_some(),
-            },
-        ],
-        vec![Ctrl::button("quit", "Quit")],
+}
+/// The rule every first screen states.
+pub const RULE: &str = "Overbright plays your own copy of Need for Speed Underground 2 for PC. Any disc install with patch 1.2 works, \
+     from any region.";
+#[cfg(windows)]
+const USUAL_PLACE: &str = "Usually: C:\\Program Files (x86)\\EA GAMES\\Need for Speed Underground 2";
+#[cfg(not(windows))]
+const USUAL_PLACE: &str = "With Wine or Proton it is inside the prefix, under drive_c.";
+
+/// Settings › Advanced.
+fn build_advanced(b: &mut Builder, m: &Model) {
+    let c = &m.choices;
+    b.page_title("Advanced", Some("Settings"));
+    let cols = b.columns(700.0);
+    b.in_column(cols.left);
+    b.value_row(
+        "text_size",
+        "Text size",
+        &format!("{} %", m.prefs.text),
+        &super::model::Prefs::TEXT_SIZES.map(|v| format!("{v} %")),
+        false,
+        true,
     );
-    // No dead half-screen: the panels grow to the footer, the strip moves
-    // down with them.
-    let footer_top = b.widgets[strip_end..].iter().map(|w| w.rect.y).fold(f32::INFINITY, f32::min);
-    let free = (footer_top - b.m.s(12.0) - content_bottom).floor();
-    if free > 0.0 && footer_top.is_finite() {
-        b.widgets[set].rect.h += free;
-        if wide {
-            b.widgets[last].rect.h += free;
+    b.value_row(
+        "motion",
+        "Motion",
+        if m.prefs.reduced_motion { "Reduced" } else { "Full" },
+        &["Full".into(), "Reduced".into()],
+        false,
+        true,
+    );
+    b.value_row(
+        "sounds",
+        "Launcher sounds",
+        if m.prefs.sounds { "On" } else { "Off" },
+        &["Off".into(), "On".into()],
+        false,
+        true,
+    );
+    if m.root.is_some() {
+        b.sum_row("prepare", "Get shaders ready again", "");
+    }
+    b.sum_row("import", "Import saves", "from the original game");
+    b.sum_row("storage", "Storage", if m.portable.on { "Portable: beside the program" } else { "Where Overbright keeps its files" });
+    b.sum_row("about", "About Overbright", "");
+    message(b, m);
+    if let Some(p) = &m.support {
+        b.gap(8.0);
+        b.buttons(Align::Left, vec![Ctrl::button("open_support", "Open folder")]);
+        let _ = p;
+    }
+    let left_bottom = b.y;
+    if let Some(r) = cols.right {
+        let (gpu, _) = gpu_text(m);
+        let pad = m.controller.clone().unwrap_or_else(|| "None (keyboard and mouse work)".into());
+        let others = other_languages(&m.languages);
+        let lang = if others.is_empty() { "English".to_string() } else { "English (other languages: not yet)".into() };
+        b.describe(r, "This computer", &format!("Graphics card: {gpu}\nController: {pad}\nGame language: {lang}"));
+    }
+    b.y = left_bottom.max(b.widgets.last().map_or(0.0, |w| w.rect.bottom()));
+    b.default_focus = Some("text_size");
+}
+
+/// The Dev page: the map editor (its button, for the desktop editor), the
+/// game with the editor tools, the support file and the logs, the
+/// overlay's key; what the focused row does at the right.
+fn build_dev(b: &mut Builder, m: &Model) {
+    b.page_title("Dev", None);
+    let cols = b.columns(700.0);
+    b.in_column(cols.left);
+    b.section_a("Map editor");
+    b.buttons(Align::Left, vec![map_editor_button(m)]);
+    if !m.editor_here {
+        b.status(Mark::Error, "The map editor's program (overbright-editor) is not beside the launcher.");
+    }
+    b.dim("A preview: it works, but it is not finished. Keep a copy of map mods you care about.");
+    editor_status(b, m);
+    b.section_a("Editor tools in the game");
+    b.sum_row("editor_play", "Play with editor tools", "F7 · F8");
+    b.dim("F7: the texture editor");
+    b.dim("F8: the free camera");
+    b.dim("F3: the performance overlay (in every start)");
+    b.section_a("Reports");
+    b.sum_row("support", "Support file", "Save…");
+    b.sum_row("dev_logs", "Logs folder", "Open");
+    if let Some(p) = &m.support {
+        b.gap(6.0);
+        b.status(Mark::Ok, &format!("Support file saved: {}", p.display()));
+        b.buttons(Align::Left, vec![Ctrl::button("open_support", "Open folder")]);
+    }
+    message(b, m);
+    let left_bottom = b.y;
+    if let Some(r) = cols.right {
+        let (h, t) = match b.st.focus.unwrap_or("editor_play") {
+            "support" => (
+                "Support file",
+                "One text file for a bug report: this computer, the game's check, the settings and the last logs, \
+                 with your home folder left out. It is saved in the logs folder.",
+            ),
+            "dev_logs" => ("Logs folder", "The game's and the launcher's logs, crash reports and support files."),
+            "map_editor" => (
+                "Map editor (preview)",
+                "The desktop map editor in its own window: props, custom races, test runs in the game and AI \
+                 simulations. It is a preview: not every part is finished.",
+            ),
+            _ => (
+                "Editor tools",
+                "Starts the game once with --editor: F7 opens the texture editor, F8 the free camera. Your next \
+                 start from Play is a normal one.",
+            ),
+        };
+        b.describe(r, h, t);
+    }
+    b.y = left_bottom.max(b.widgets.last().map_or(0.0, |w| w.rect.bottom()));
+    b.default_focus = Some("editor_play");
+}
+
+/// The map editor's button: starts the desktop editor on its own Open /
+/// New; greyed when it is not beside the launcher (`dirs::editor_exe`) or
+/// while it is open.
+pub fn map_editor_button(m: &Model) -> Ctrl {
+    let open = matches!(m.mods.editor, super::model::EditorRun::Open(_));
+    Ctrl::Button {
+        id: "map_editor",
+        text: "Open map editor (preview)".into(),
+        primary: false,
+        enabled: m.editor_here && !open,
+    }
+}
+
+/// The Storage page's rows: ids for Change…, Open and Reset.
+pub const LOC_IDS: [(&str, &str, &str); 7] = [
+    ("loc_saves_change", "loc_saves_open", "loc_saves_reset"),
+    ("loc_settings_change", "loc_settings_open", "loc_settings_reset"),
+    ("loc_cache_change", "loc_cache_open", "loc_cache_reset"),
+    ("loc_logs_change", "loc_logs_open", "loc_logs_reset"),
+    ("loc_screenshots_change", "loc_screenshots_open", "loc_screenshots_reset"),
+    ("loc_packs_change", "loc_packs_open", "loc_packs_reset"),
+    ("loc_maps_change", "loc_maps_open", "loc_maps_reset"),
+];
+
+/// A folder's name on the Storage page.
+pub fn loc_name(l: crate::platform::dirs::Location) -> &'static str {
+    use crate::platform::dirs::Location as L;
+    match l {
+        L::Saves => "Saved games",
+        L::Settings => "Settings",
+        L::Cache => "Cache (assets and shaders)",
+        L::Logs => "Logs, crash reports and support files",
+        L::Screenshots => "Screenshots",
+        L::Packs => "Texture packs",
+        L::Maps => "Map mods",
+    }
+}
+
+/// Settings › Advanced › Storage: portable mode, then every folder with its
+/// path, Change…, Open and Reset to default.
+fn build_storage(b: &mut Builder, m: &Model) {
+    let t = super::draw::theme();
+    b.page_title("Storage", Some("Advanced"));
+    let p = &m.portable;
+    b.toggle("portable", "Portable mode", p.marker);
+    if p.marker != p.on && p.changed {
+        b.message_with(
+            Mark::Info,
+            if p.marker { "Portable mode: on after a restart" } else { "Portable mode: off after a restart" },
+            "Overbright uses the new folders when it starts again.",
+            vec![Ctrl::primary("restart", "Restart now")],
+        );
+    }
+    b.row_note(&if p.on {
+        format!("Everything is kept beside the program, in {}.", p.data.as_ref().map_or(String::new(), |d| d.display().to_string()))
+    } else if !p.writable {
+        "Overbright's folder can't be written to, so portable mode can't be turned on here: move Overbright to a \
+         folder you own."
+            .into()
+    } else {
+        "On: settings, saves, caches and logs are kept beside the program (for a portable drive).".into()
+    });
+    let small = b.fs_min(Face::Body, 15.0, 14.0);
+    let row = |b: &mut Builder, label: &str, path: &str, ctrls: Vec<Ctrl>, err: Option<&str>| {
+        b.section_a(label);
+        let shown = b.fonts.fit(Face::Body, small, path, b.width(), Cut::Middle);
+        let (sw, sh) = (b.fonts.width(Face::Body, small, &shown), b.fonts.line_height(Face::Body, small));
+        let r = Rect::new(b.x0, b.y, b.width(), sh);
+        b.widgets.push(super::ui::Widget {
+            id: None,
+            rect: r,
+            kind: super::ui::Kind::Label,
+            texts: vec![super::ui::text_of(Rect::new(b.x0, b.y, sw, sh), shown, path, Face::Body, small, t.ink)],
+            enabled: true,
+        });
+        b.y += sh + b.a(6.0);
+        if let Some(e) = err {
+            b.status(Mark::Error, e);
+        }
+        b.buttons(Align::Left, ctrls);
+    };
+    // Two columns when there is room: the game's folders and the saves and
+    // settings at the left, the rest at the right.
+    let cols = b.columns(600.0);
+    let x1_full = b.x1;
+    b.in_column(cols.left);
+    let game = m.root.as_ref().map_or("None chosen".to_string(), |r| r.display().to_string());
+    row(b, "Game folder", &game, vec![Ctrl::button("change", "Change…"), Ctrl::Button {
+        id: "game_open",
+        text: "Open".into(),
+        primary: false,
+        enabled: m.root.is_some(),
+    }], None);
+    let hud = m.choices.texture_pack.trim();
+    row(
+        b,
+        "HUD mod folder",
+        if hud.is_empty() { "None chosen" } else { hud },
+        vec![
+            Ctrl::button("pack_browse", "Change…"),
+            Ctrl::Button { id: "hud_open", text: "Open".into(), primary: false, enabled: !hud.is_empty() },
+            Ctrl::Button { id: "pack_forget", text: "Reset to default".into(), primary: false, enabled: !hud.is_empty() },
+        ],
+        None,
+    );
+    let mut left_bottom = 0.0;
+    for (i, l) in m.locations.iter().enumerate().take(LOC_IDS.len()) {
+        if i == 2 {
+            left_bottom = b.y;
+            if let Some(r) = cols.right {
+                b.in_column(r);
+            }
+        }
+        let (c, o, r) = LOC_IDS[i];
+        let path = l.path.as_ref().map_or("None (no place for it)".to_string(), |p| p.display().to_string());
+        let label = if l.custom { format!("{} · chosen by you", loc_name(l.loc)) } else { loc_name(l.loc).to_string() };
+        row(
+            b,
+            &label,
+            &path,
+            vec![
+                Ctrl::button(c, "Change…"),
+                Ctrl::Button { id: o, text: "Open".into(), primary: false, enabled: !l.missing && l.path.is_some() },
+                Ctrl::Button { id: r, text: "Reset to default".into(), primary: false, enabled: l.custom },
+            ],
+            l.missing.then_some("This folder is not there: its drive may be unplugged. Plug it in, or reset it."),
+        );
+    }
+    b.y = b.y.max(left_bottom);
+    b.x0 = cols.left.x;
+    b.x1 = x1_full;
+    if m.copy_busy {
+        b.gap(6.0);
+        b.status(Mark::Busy, "Copying the files…");
+    }
+    message(b, m);
+    b.default_focus = Some("portable");
+}
+
+/// The last start did not reach the game.
+fn build_recover(b: &mut Builder, m: &Model) {
+    b.page_title("Need for Speed Underground 2", None);
+    let w = Issue::StartUnfinished.words();
+    let mut ctrls = issue_buttons(&w);
+    ctrls.push(Ctrl::button("support", "Save support file…"));
+    b.message_with(Mark::Warn, &w.title, &w.text, ctrls);
+    b.default_focus = Some("safe");
+    support_line(b, m);
+    message(b, m);
+}
+
+/// The game stopped: what happened, the fix, the support file.
+fn build_crash(b: &mut Builder, m: &Model) {
+    let f = m.failure.as_ref();
+    let kind = f.map_or(ErrorKind::Other, |f| f.kind);
+    let during = f.is_some_and(|f| f.during_start);
+    let issue = match kind {
+        ErrorKind::NoGpu => Some(Issue::NoVulkan),
+        ErrorKind::NoWindow => Some(Issue::WindowFailed),
+        ErrorKind::Crash if !during => Some(Issue::Crashed { minutes: None }),
+        _ => None,
+    };
+    let (title, text, mut ctrls, first) = match &issue {
+        Some(i) => {
+            let w = i.words();
+            let first = w.buttons[0].0;
+            (w.title.clone(), w.text.clone(), issue_buttons(&w), first)
+        }
+        None => {
+            let w = failure_words(kind, during);
+            (w.title.to_string(), w.sentence.to_string(), vec![Ctrl::primary(w.fix.0, w.fix.1)], w.fix.0)
+        }
+    };
+    if !ctrls.iter().any(|c| matches!(c, Ctrl::Button { id: "support", .. })) {
+        ctrls.push(Ctrl::button("support", "Save support file…"));
+    }
+    ctrls.push(Ctrl::button("settings", "Settings"));
+    b.page_title("Need for Speed Underground 2", None);
+    b.message_with(Mark::Error, &title, &text, ctrls);
+    b.default_focus = Some(first);
+    let where_ = match f.and_then(|f| f.log.as_ref()) {
+        Some(l) => format!("The log file: {}", l.display()),
+        None => format!("Logs folder: {}", m.logs_dir.display()),
+    };
+    b.dim(&where_);
+    b.gap(8.0);
+    b.buttons(
+        Align::Left,
+        vec![
+            Ctrl::button("open_logs", "Open log folder"),
+            Ctrl::button("details", if m.failure_details { "Hide details" } else { "Details" }),
+        ],
+    );
+    if m.failure_details {
+        b.gap(10.0);
+        b.dim(&format!("It ended with {}.", f.map_or("an unknown result", |f| f.how.as_str())));
+        let tail: Vec<String> =
+            f.map(|f| f.tail.iter().rev().take(TAIL_SHOWN).rev().cloned().collect()).unwrap_or_default();
+        if tail.is_empty() {
+            b.dim("It printed nothing.");
         } else {
-            for w in &mut b.widgets[mods..strip_from] {
-                w.rect.y += free;
-                for t in &mut w.texts {
-                    t.rect.y += free;
-                }
-            }
+            b.gap(6.0);
+            b.panel(&tail);
         }
-        for w in &mut b.widgets[strip_from..strip_end] {
-            w.rect.y += free;
-            for t in &mut w.texts {
-                t.rect.y += free;
-            }
-        }
+    }
+    support_line(b, m);
+    message(b, m);
+}
+
+/// The support file written: where, and Open folder.
+fn support_line(b: &mut Builder, m: &Model) {
+    if let Some(p) = &m.support {
+        b.gap(10.0);
+        b.status(Mark::Ok, &format!("Support file saved: {}", p.display()));
+        b.buttons(Align::Left, vec![Ctrl::button("open_support", "Open folder")]);
     }
 }
 
@@ -880,44 +1651,56 @@ You can skip it: the game then does the same work during its first loads.";
 /// runs, Continue after.
 fn build_prepare(b: &mut Builder, m: &Model) {
     use super::prepare::State;
-    b.heading("Getting the game ready");
+    b.page_title("Get shaders ready", Some("Settings"));
     b.body(PREPARE_WHY);
-    b.gap(16.0);
+    b.gap(12.0);
     let state = &m.prepare.state;
+    let left = m.prepare.started.and_then(|s| state.time_left(s.elapsed()));
+    let running = matches!(state, State::Idle | State::Running { .. });
     match state {
-        State::Idle => line(b, "Starting…"),
-        State::Running { .. } => {
-            b.bar(state.fraction());
-            line(b, &state.words());
-        }
-        State::Done => {
-            b.bar(1.0);
-            b.status(Mark::Ok, &state.words());
-        }
-        State::Failed(_) => b.status(Mark::Warn, &state.words()),
+        State::Done => b.message_progress(
+            Mark::Ok,
+            "Shaders ready",
+            "The first race starts without stutter.",
+            Some((1.0, "100 %".into())),
+            vec![Ctrl::primary("continue", "Continue")],
+        ),
+        State::Failed(_) => b.message_with(
+            Mark::Warn,
+            "Shaders aren't prepared yet",
+            &state.words(),
+            vec![Ctrl::primary("continue", "Continue")],
+        ),
+        _ => b.message_progress(
+            Mark::Busy,
+            "Getting the shaders ready",
+            "You can stop at any time; what is ready so far is kept.",
+            Some((state.fraction(), state.progress_words(left))),
+            vec![Ctrl::button("skip", "Stop")],
+        ),
     }
     message(b, m);
-    let running = matches!(state, State::Idle | State::Running { .. });
-    b.footer(vec![if running {
-        Ctrl::button("skip", "Skip")
-    } else {
-        Ctrl::Button { id: "continue", text: "Continue".into(), primary: true, enabled: true }
-    }]);
     b.default_focus = Some(if running { "skip" } else { "continue" });
 }
 
 pub fn mods_summary(m: &Model) -> String {
-    let on = m.mods.list.iter().filter(|(e, _)| e.on).count();
-    let hud = m.choices.hud_mod && !m.choices.texture_pack.trim().is_empty();
-    match (on, hud) {
-        (0, false) => "None: the game's own textures".into(),
-        (0, true) => "HUD mod on".into(),
-        (n, h) => format!(
-            "{n} texture {} on{}",
-            if n == 1 { "package" } else { "packages" },
-            if h { ", HUD mod on" } else { "" }
-        ),
+    if m.mods.paused {
+        return "Off: the game's own textures".into();
     }
+    let packs = m.mods.list.iter().filter(|(e, _)| e.on).count() + m.mods.own.iter().filter(|o| o.on).count();
+    let hud = m.choices.hud_mod && !m.choices.texture_pack.trim().is_empty();
+    let maps = m.mods.maps.iter().filter(|r| r.on).count();
+    let mut parts = Vec::new();
+    if packs > 0 {
+        parts.push(format!("{packs} texture {}", if packs == 1 { "pack" } else { "packs" }));
+    }
+    if hud {
+        parts.push("HUD mod".to_string());
+    }
+    if maps > 0 {
+        parts.push(format!("{maps} map {}", if maps == 1 { "mod" } else { "mods" }));
+    }
+    if parts.is_empty() { "None: the game's own textures".into() } else { parts.join(" · ") }
 }
 
 /// The Mods page's one sentence on what can be added.
@@ -932,111 +1715,166 @@ fn mb(bytes: u64) -> String {
     if bytes >= 10_000_000 { format!("{} MB", bytes / 1_000_000) } else { format!("{:.1} MB", bytes as f64 / 1e6) }
 }
 
+/// The ids of the Mods page's pack rows and map rows (a row each, in order).
+pub const PACK_IDS: [&str; 24] = [
+    "pk0", "pk1", "pk2", "pk3", "pk4", "pk5", "pk6", "pk7", "pk8", "pk9", "pk10", "pk11", "pk12", "pk13", "pk14",
+    "pk15", "pk16", "pk17", "pk18", "pk19", "pk20", "pk21", "pk22", "pk23",
+];
+pub const MAP_IDS: [&str; 16] = [
+    "mp0", "mp1", "mp2", "mp3", "mp4", "mp5", "mp6", "mp7", "mp8", "mp9", "mp10", "mp11", "mp12", "mp13", "mp14", "mp15",
+];
+
+/// A texture pack row: Overbright's own packs first, then the imported
+/// packages (the loader's order).
+#[derive(Clone, Debug, PartialEq)]
+pub struct PackLine {
+    pub name: String,
+    pub detail: String,
+    pub on: bool,
+    pub usable: bool,
+    /// `own:<id>` for an own pack, the package's id otherwise.
+    pub key: String,
+}
+
+pub fn pack_lines(m: &Model) -> Vec<PackLine> {
+    let own = m.mods.own.iter().map(|o| PackLine {
+        name: o.name.clone(),
+        detail: match &o.refused {
+            Some(why) => format!("Can't be used: {why}"),
+            None if o.author.is_empty() => format!("{} textures · Overbright pack", o.textures),
+            None => format!("{} textures · by {}", o.textures, o.author),
+        },
+        on: o.on,
+        usable: o.refused.is_none(),
+        key: format!("own:{}", o.id),
+    });
+    let pk = m.mods.list.iter().map(|(e, i)| PackLine {
+        name: i.name.clone(),
+        detail: format!(
+            "{} textures · {}{}",
+            i.files,
+            mb(i.bytes),
+            if i.kind.is_empty() { String::new() } else { format!(" · {}", i.kind) }
+        ),
+        on: e.on,
+        usable: true,
+        key: e.id.clone(),
+    });
+    own.chain(pk).collect()
+}
+
+/// The words beside the HUD mod's switch.
+fn hud_words(m: &Model) -> Option<(Mark, String)> {
+    let dir = m.choices.texture_pack.trim();
+    if dir.is_empty() {
+        return None;
+    }
+    Some(match &m.hud {
+        Some(h) if h.complete => (Mark::Ok, "complete".into()),
+        Some(h) if h.is_pack => {
+            let mut t = format!("incomplete: {} of {} files", h.present, h.listed);
+            if !h.missing.is_empty() {
+                t += &format!("; missing {}", h.missing.join(", "));
+            }
+            if !h.maps {
+                t += "; the map calibration is missing";
+            }
+            (Mark::Warn, t + ". The game shows its own HUD until it is complete.")
+        }
+        Some(_) => (Mark::Error, "not a HUD mod folder (no hd-ui-pack.list)".into()),
+        None => (Mark::Info, dir.to_string()),
+    })
+}
+
+/// The Mods page: Use mods, the texture packs (own and imported) with
+/// their switches, the order only when two packs collide, the HUD mod,
+/// the map mods; About mods at the right.
 fn build_mods(b: &mut Builder, m: &Model) {
-    b.heading("Mods");
-    b.dim(MODS_INTRO);
-    b.gap(4.0);
-    let size = b.m.body();
-    b.para("Texture packages (the first in the list wins)", Face::Bold, size, theme::TEXT);
-    b.gap(6.0);
     let mods = &m.mods;
     let busy = mods.busy.is_some();
-    if mods.list.is_empty() {
+    b.page_title("Mods", None);
+    let cols = b.columns(700.0);
+    b.in_column(cols.left);
+    b.toggle("use_mods", "Use mods", !mods.paused);
+    if mods.paused {
+        b.row_note("Off: the game starts with its own textures, HUD and maps. Your list is kept.");
+    }
+    let live = !mods.paused;
+    b.section_a("Texture packs");
+    let lines = pack_lines(m);
+    if lines.is_empty() {
         b.dim("None added: the game shows its own textures.");
-        b.gap(4.0);
-    } else {
-        let items: Vec<(String, String)> = mods
-            .list
-            .iter()
-            .map(|(e, i)| {
-                let state = if e.on { "on" } else { "off" };
-                (format!("{}  ({state})", i.name), format!("{} textures, {}", i.files, mb(i.bytes)))
-            })
-            .collect();
-        b.list("pkgs", &items, mods.sel.min(items.len() - 1), items.len().clamp(1, 3));
-        b.default_focus = Some("pkgs");
     }
-    b.gap(6.0);
-    let has = !mods.list.is_empty() && !busy;
-    let sel = mods.sel.min(mods.list.len().saturating_sub(1));
-    let on = mods.list.get(sel).is_some_and(|(e, _)| e.on);
-    let btn = |id, text: &str, enabled| Ctrl::Button { id, text: text.into(), primary: false, enabled };
-    b.buttons(
-        Align::Left,
-        vec![
-            btn("add", "Add package…", !busy),
-            btn("toggle", if on { "Turn off" } else { "Turn on" }, has),
-            btn("up", "Move up", has && sel > 0),
-            btn("down", "Move down", has && sel + 1 < mods.list.len()),
-            btn("remove", "Remove…", has),
-        ],
-    );
-    if mods.list.is_empty() && !busy {
-        b.default_focus = Some("add");
+    for (i, l) in lines.iter().enumerate().take(PACK_IDS.len()) {
+        b.toggle_sub(PACK_IDS[i], &l.name, &l.detail, l.on && live, live && l.usable && !busy);
     }
-    if let Some(id) = &mods.confirm {
-        let name = mods.list.iter().find(|(e, _)| &e.id == id).map_or(id.as_str(), |(_, i)| i.name.as_str());
-        b.gap(8.0);
-        b.status(
+    if live && let Some(c) = &mods.conflict {
+        b.gap(6.0);
+        let ctrls = if !c.same_list {
+            Vec::new()
+        } else if mods.show_order {
+            let sel = mods.sel.min(lines.len().saturating_sub(1));
+            let own_n = mods.own.len();
+            let (lo, hi) = if sel < own_n { (0, own_n) } else { (own_n, lines.len()) };
+            let btn = |id, text: &str, enabled| Ctrl::Button { id, text: text.into(), primary: false, enabled };
+            vec![btn("up", "Move up", sel > lo), btn("down", "Move down", sel + 1 < hi)]
+        } else {
+            vec![Ctrl::button("order", "Change the order")]
+        };
+        b.message_with(
             Mark::Warn,
-            &format!(
-                "Remove “{name}”? Its converted copy in Overbright's folder is deleted; your package file is kept."
-            ),
+            "Two packs change the same textures",
+            &if c.same_list {
+                format!(
+                    "{} and {} both change {} textures. The one higher in the list is used.",
+                    c.first, c.second, c.textures
+                )
+            } else {
+                format!(
+                    "{} and {} both change {} textures. Overbright packs come before imported packs, so {} is \
+                     used there. Turn one off to choose.",
+                    c.first, c.second, c.textures, c.first
+                )
+            },
+            ctrls,
         );
-        b.buttons(Align::Left, vec![Ctrl::primary("remove_yes", "Remove it"), Ctrl::button("keep", "Keep it")]);
-        b.default_focus = Some("keep");
     }
+    b.gap(10.0);
+    b.buttons(Align::Left, vec![Ctrl::Button { id: "add", text: "Add a mod…".into(), primary: false, enabled: !busy }]);
     if let Some(t) = &mods.busy {
-        b.gap(8.0);
-        b.status(Mark::Info, t);
+        b.gap(6.0);
+        b.status(Mark::Busy, t);
     }
     for (mark, line) in &mods.results {
         b.status(*mark, line);
     }
-    b.gap(2.0);
-    b.rule();
-    b.gap(6.0);
-    b.para("HUD mod", Face::Bold, size, theme::TEXT);
-    b.gap(6.0);
-    let dir = m.choices.texture_pack.trim();
-    if dir.is_empty() {
-        b.dim(HUD_INTRO);
-    } else {
-        line(b, dir);
-        b.gap(4.0);
-        match &m.hud {
-            Some(h) if h.complete => {
-                b.status(Mark::Ok, &format!("Complete: {} of {} files, maps calibrated", h.present, h.listed))
+    message(b, m);
+    let left_bottom = b.y;
+    // The HUD and the map mods: the right column (under the left one when
+    // the window is narrow).
+    match cols.right {
+        Some(r) => b.in_column(r),
+        None => b.gap(8.0),
+    }
+    b.section_a("HUD");
+    match hud_words(m) {
+        Some((mark, words)) => {
+            b.toggle_sub("hud", "HD HUD and maps", &words, m.choices.hud_mod && live, live);
+            if mark == Mark::Warn || mark == Mark::Error {
+                b.status(mark, &words);
             }
-            Some(h) if h.is_pack => {
-                let mut t = format!("Incomplete: {} of {} files", h.present, h.listed);
-                if !h.missing.is_empty() {
-                    t += &format!("; missing {}", h.missing.join(", "));
-                    if h.listed - h.present > h.missing.len() {
-                        t += ", …";
-                    }
-                }
-                if !h.maps {
-                    t += "; the map calibration is missing";
-                }
-                b.status(Mark::Warn, &(t + ". The game shows its own HUD until it is complete."));
-            }
-            Some(_) => {
-                b.status(Mark::Error, "Not a HUD mod folder: it has no hd-ui-pack.list (the converted mod's index).")
-            }
-            None => {}
         }
+        None => b.dim(HUD_INTRO),
     }
     if let Some(t) = &mods.hud_busy {
-        b.gap(4.0);
-        b.status(Mark::Info, t);
+        b.status(Mark::Busy, t);
     }
     for (mark, line) in &mods.hud_results {
         b.status(*mark, line);
     }
-    b.checkbox("hud", "Use the HUD mod (the game's HD UI + Maps setting)", m.choices.hud_mod);
-    b.gap(4.0);
     let hud_busy = mods.hud_busy.is_some();
+    let dir = m.choices.texture_pack.trim();
+    b.gap(6.0);
     b.buttons(
         Align::Left,
         vec![
@@ -1045,12 +1883,70 @@ fn build_mods(b: &mut Builder, m: &Model) {
             Ctrl::Button { id: "pack_forget", text: "Forget folder".into(), primary: false, enabled: !dir.is_empty() },
         ],
     );
-    message(b, m);
-    b.footer(vec![Ctrl::primary("back", "Done")]);
-    if b.default_focus.is_none() {
-        b.default_focus = Some("back");
+    b.section_a("Map mods");
+    if mods.maps.is_empty() {
+        b.dim("None added: the game's own city. Make one in the map editor.");
+    }
+    let editing = matches!(mods.editor, super::model::EditorRun::Open(_));
+    for (i, r) in mods.maps.iter().enumerate().take(MAP_IDS.len()) {
+        b.toggle_sub(MAP_IDS[i], &r.name, &map_detail(r), r.on && live, live && !editing);
+    }
+    b.gap(6.0);
+    let any = !mods.maps.is_empty();
+    b.buttons(
+        Align::Left,
+        vec![
+            Ctrl::Button {
+                id: "map_open",
+                text: "Open in map editor".into(),
+                primary: false,
+                enabled: any && !editing && m.editor_here,
+            },
+            Ctrl::Button { id: "map_import", text: "Import a map mod…".into(), primary: false, enabled: !editing },
+            Ctrl::Button { id: "map_export", text: "Export…".into(), primary: false, enabled: any && !editing },
+        ],
+    );
+    editor_status(b, m);
+    b.gap(14.0);
+    b.dim(ABOUT_MODS);
+    b.y = left_bottom.max(b.y);
+    b.default_focus = Some(if lines.is_empty() { "add" } else { PACK_IDS[0] });
+}
+
+/// The map editor's state under its buttons (Mods and Dev pages): open on
+/// which mod, why it failed, or what it is.
+fn editor_status(b: &mut Builder, m: &Model) {
+    let mods = &m.mods;
+    match &mods.editor {
+        super::model::EditorRun::Open(f) => {
+            let name = f.as_ref().and_then(|f| mods.maps.iter().find(|r| &r.folder == f)).map(|r| r.name.as_str());
+            b.status(
+                Mark::Busy,
+                &match name {
+                    Some(n) => format!("The map editor is open on {n}. This page waits until it closes."),
+                    None => "The map editor is open. This page waits until it closes.".into(),
+                },
+            );
+        }
+        super::model::EditorRun::Failed(e) => b.status(Mark::Error, &format!("The map editor: {e}")),
+        super::model::EditorRun::Closed => b.dim("The map editor is its own window. Races are tested from it."),
     }
 }
+
+/// A map mod's line under its name: its races and prop edits.
+pub fn map_detail(r: &super::model::MapRow) -> String {
+    match (r.races, r.props) {
+        (0, 0) => "Empty".into(),
+        (n, 0) => super::model::count(n, "race", "races"),
+        (0, p) => super::model::count(p, "prop edit", "prop edits"),
+        (n, p) => format!("{} · {}", super::model::count(n, "race", "races"), super::model::count(p, "prop edit", "prop edits")),
+    }
+}
+
+/// The Mods page's side note.
+pub const ABOUT_MODS: &str = "Overbright copies each mod into its own folder; your game folder and your downloads are \
+never changed. Add a mod takes Overbright packs, TexMod packs (.tpf), TexWizard packs and map mods. Mods belong to their \
+authors.";
 
 /// One line of text shortened in the middle (a path).
 fn line(b: &mut Builder, s: &str) {
@@ -1078,8 +1974,21 @@ fn message(b: &mut Builder, m: &Model) {
 
 impl<'e> App<'e> {
     pub fn new(env: &'e dyn Env, model: Model, screen: Screen, size: (u32, u32), dpi: f32, fonts: &Fonts) -> App<'e> {
-        let mut a =
-            App { env, model, screen, st: UiState::default(), size, dpi, ui: Ui::default(), back: Screen::Main };
+        let mut a = App {
+            env,
+            model,
+            screen,
+            st: UiState::default(),
+            size,
+            dpi,
+            ui: Ui::default(),
+            back: Screen::Main,
+            motion: Default::default(),
+            support_job: None,
+            editor_job: None,
+            keys_after: None,
+            copy_job: None,
+        };
         a.rebuild(fonts);
         a
     }
@@ -1089,7 +1998,18 @@ impl<'e> App<'e> {
         // The state as it was: a second pass (the list grown) starts from
         // it, not from what the first pass's shorter list scrolled to.
         let before = (s == Screen::Browse).then(|| self.st.clone());
-        self.ui = build_fit(fonts, self.size.0, self.size.1, self.dpi, !s.document(), &mut self.st, |b| build(b, m, s));
+        let scale = f32::from(m.prefs.text) / 100.0;
+        self.ui = super::layout::build_fit_scaled(
+            fonts,
+            self.size.0,
+            self.size.1,
+            self.dpi,
+            // A long page scrolls instead of shrinking.
+            !s.document() && s != Screen::Storage,
+            scale,
+            &mut self.st,
+            |b| build(b, m, s),
+        );
         // The folder browser's list takes the room the window leaves.
         if s == Screen::Browse
             && let Some(super::ui::Kind::List { row_h, .. }) = self.ui.get("dirs").map(|w| &w.kind)
@@ -1125,6 +2045,8 @@ impl<'e> App<'e> {
             offered: true,
             background: false,
             prepared_graphics,
+            started: None,
+            done_at: None,
         };
         self.go(Screen::Prepare);
     }
@@ -1140,6 +2062,8 @@ impl<'e> App<'e> {
             offered: true,
             background: true,
             prepared_graphics,
+            started: None,
+            done_at: None,
         };
     }
 
@@ -1166,6 +2090,11 @@ impl<'e> App<'e> {
     }
 
     pub fn go(&mut self, s: Screen) {
+        if let (Some(a), Some(b)) = (self.screen.page(), s.page())
+            && a != b
+        {
+            self.motion.page_changed(if b > a { 1 } else { -1 });
+        }
         self.screen = s;
         let pointer = self.st.pointer;
         self.st = UiState { pointer, ..UiState::default() };
@@ -1174,6 +2103,11 @@ impl<'e> App<'e> {
 
     /// One input: the events it makes, acted on; the screen rebuilt.
     pub fn input(&mut self, input: &Input, fonts: &Fonts) -> Outcome {
+        if matches!(input, Input::Key(_) | Input::Text(_))
+            && self.keys_after.is_some_and(|t| std::time::Instant::now() < t)
+        {
+            return Outcome::Stay;
+        }
         match input {
             // The mouse's back button: the browser goes up a folder;
             // elsewhere it is Back (Escape).
@@ -1211,7 +2145,31 @@ impl<'e> App<'e> {
             .clamp(0.0, max);
             return Outcome::Stay;
         }
+        // The pages (LB / RB, Q / E) and the page actions (X, Y); a click
+        // on a legend does what its button does.
+        let input = &match input {
+            Input::MouseDown(x, y) => match self.legend_at(*x, *y) {
+                Some(k) => Input::Key(k),
+                None => input.clone(),
+            },
+            _ => input.clone(),
+        };
+        if let Input::Key(k @ (Key::PagePrev | Key::PageNext | Key::ActionX | Key::ActionY)) = input {
+            let o = self.page_key(*k);
+            self.rebuild(fonts);
+            return o;
+        }
         let events = handle(&self.ui, &mut self.st, input);
+        // The Mods page's chosen pack and map mod follow the focus.
+        if self.screen == Screen::Mods
+            && let Some(f) = self.ui.focused(&self.st)
+        {
+            if let Some(i) = PACK_IDS.iter().position(|p| *p == f) {
+                self.model.mods.sel = i;
+            } else if let Some(i) = MAP_IDS.iter().position(|p| *p == f) {
+                self.model.mods.map_sel = self.model.mods.maps.get(i).map(|r| r.folder.clone());
+            }
+        }
         let mut out = Outcome::Stay;
         for e in &events {
             let o = self.event(e);
@@ -1223,11 +2181,117 @@ impl<'e> App<'e> {
         out
     }
 
+    /// The key a click on a legend stands for.
+    fn legend_at(&self, x: f32, y: f32) -> Option<Key> {
+        use super::legends::Btn;
+        let w = self.ui.widgets.iter().find(|w| matches!(w.kind, super::ui::Kind::Legends { .. }))?;
+        let super::ui::Kind::Legends { actions } = &w.kind else { return None };
+        let u = self.ui.metrics.map_or(1.0, |m| m.u);
+        let fonts = super::font::Fonts::new();
+        Some(match super::legends::hit(&fonts, w.rect, self.st.input, actions, u, x, y)? {
+            Btn::Confirm => Key::Enter,
+            Btn::Back => Key::Escape,
+            Btn::X => Key::ActionX,
+            Btn::Y => Key::ActionY,
+            Btn::Pages => Key::PageNext,
+            Btn::Move | Btn::Change => return None,
+        })
+    }
+
+    /// LB / RB and the page actions.
+    fn page_key(&mut self, k: Key) -> Outcome {
+        if self.model.ask.is_some() {
+            return Outcome::Stay;
+        }
+        match (k, self.screen.page()) {
+            (Key::PagePrev, Some(p)) if !matches!(self.screen, Screen::Licence | Screen::Notices) => {
+                self.go_page((p + PAGES.len() - 1) % PAGES.len())
+            }
+            (Key::PageNext, Some(p)) if !matches!(self.screen, Screen::Licence | Screen::Notices) => {
+                self.go_page((p + 1) % PAGES.len())
+            }
+            (Key::ActionY, _) if self.screen == Screen::Settings => self.model.ask = Some(Dialog::Reset),
+            (Key::ActionY, _) if self.screen == Screen::Mods => return self.event(&Event::Activate("add")),
+            (Key::ActionX, _) if self.screen == Screen::Browse => return self.event(&Event::Activate("use")),
+            (Key::ActionX, _)
+                if self.screen == Screen::Mods
+                    && self.ui.focused(&self.st).is_some_and(|f| PACK_IDS.contains(&f)) =>
+            {
+                let f = self.ui.focused(&self.st).unwrap_or("pk0");
+                self.model.mods.sel = PACK_IDS.iter().position(|p| *p == f).unwrap_or(0);
+                return self.event(&Event::Activate("remove"));
+            }
+            // Space (X) on a switch or a box turns it; on a button presses it.
+            (Key::ActionX, _) => {
+                if let Some(w) = self.ui.focused(&self.st).and_then(|id| self.ui.get(id)) {
+                    let id = w.id.unwrap_or("");
+                    match w.kind {
+                        super::ui::Kind::Toggle { .. } | super::ui::Kind::Checkbox { .. } => {
+                            return self.event(&Event::Toggle(id));
+                        }
+                        super::ui::Kind::Button { .. } | super::ui::Kind::Play | super::ui::Kind::SumRow { .. } => {
+                            return self.event(&Event::Activate(id));
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            _ => {}
+        }
+        Outcome::Stay
+    }
+
     fn step<T: PartialEq + Clone>(list: &[T], v: &T, d: i32) -> T {
         let n = list.len() as i32;
         match list.iter().position(|x| x == v) {
             Some(i) => list[((i as i32 + d).rem_euclid(n)) as usize].clone(),
             None => list[if d > 0 { 0 } else { (n - 1) as usize }].clone(),
+        }
+    }
+
+    /// Choosing a folder for `purpose`, starting at `start`: the system's
+    /// folder dialog (opened by the window on a worker where it would block
+    /// the window, else at once), and Overbright's own browser when there
+    /// is none, the last input came from a gamepad (the system dialogs
+    /// are not made for one) or the launcher runs in gamescope (none
+    /// there). One dialog at a time.
+    pub fn choose_folder(&mut self, purpose: BrowseFor, start: Option<PathBuf>) {
+        if self.model.dialog.is_some() {
+            return;
+        }
+        if self.model.pad_input || self.model.gamescope {
+            self.browse(purpose, start);
+            return;
+        }
+        let title = dialog_title(purpose);
+        if self.env.background_dialog() {
+            self.model.dialog = Some(DialogAsk { purpose, title: title.into(), start, open: false });
+            self.model.message = Some((Mark::Info, "Choose the folder in the dialog that opened.".into()));
+        } else {
+            let r = self.env.folder_dialog(title, start.as_deref());
+            // The key that closed the dialog (Esc, Enter) may reach the
+            // window as well: keys are let through again shortly after.
+            if r != Picked::NoDialog {
+                self.keys_after = Some(std::time::Instant::now() + std::time::Duration::from_millis(300));
+            }
+            self.dialog_done(purpose, start, r);
+        }
+    }
+
+    /// The system dialog's answer: the folder taken for `purpose`; a
+    /// cancel changes nothing; no dialog: Overbright's own browser.
+    pub fn dialog_done(&mut self, purpose: BrowseFor, start: Option<PathBuf>, r: Picked) {
+        self.model.dialog = None;
+        if self.model.message.as_ref().is_some_and(|(m, _)| *m == Mark::Info) {
+            self.model.message = None;
+        }
+        match r {
+            Picked::Folder(d) => {
+                self.model.browse.purpose = purpose;
+                self.use_folder(d);
+            }
+            Picked::Cancelled => {}
+            Picked::NoDialog => self.browse(purpose, start),
         }
     }
 
@@ -1266,7 +2330,7 @@ impl<'e> App<'e> {
                     entries.retain(|e| !packages.iter().any(|p| p.path == e.path));
                     entries.extend(packages);
                 }
-                if b.purpose == BrowseFor::HudMod {
+                if matches!(b.purpose, BrowseFor::HudMod | BrowseFor::MapMod) {
                     entries.extend(self.env.list_archives(&dir));
                 }
                 b.entries = entries;
@@ -1308,6 +2372,32 @@ impl<'e> App<'e> {
                 self.go(Screen::Mods);
             }
             BrowseFor::HudMod => self.hud_pick(dir),
+            BrowseFor::Location => {
+                self.go(Screen::Storage);
+                if let Some(loc) = self.model.pick_loc.take() {
+                    self.model.ask = Some(Dialog::MoveLocation(loc, dir));
+                }
+            }
+            BrowseFor::MapMod => {
+                self.go(Screen::Mods);
+                self.import_map(&dir);
+            }
+            BrowseFor::MapExport => {
+                self.go(Screen::Mods);
+                if let Some(f) = self.model.mods.map_sel.clone().or_else(|| self.model.mods.maps.first().map(|r| r.folder.clone())) {
+                    self.model.mods.results = vec![match self.env.export_map(&f, &dir) {
+                        Ok(p) => (Mark::Ok, format!("Exported: {}", p.display())),
+                        Err(e) => (Mark::Error, format!("{f}: not exported: {e}")),
+                    }];
+                }
+            }
+            BrowseFor::Packages if self.env.mod_kind(&dir).is_some() => {
+                self.go(Screen::Mods);
+                match self.env.mod_kind(&dir) {
+                    Some(super::model::ModKind::Map) => self.import_map(&dir),
+                    _ => self.install_own(&dir),
+                }
+            }
             BrowseFor::Packages => {
                 // A folder of loose TexMod files is one package; else every
                 // package file in it.
@@ -1348,9 +2438,11 @@ impl<'e> App<'e> {
 
     /// A browser row is a package file (listed by [`Env::list_packages`]).
     fn is_package_row(&self, p: &Path) -> bool {
-        self.model.browse.entries.iter().any(|e| {
-            e.path == p && (e.note.starts_with("TexMod package") || e.note.starts_with("TexWizard pack"))
-        })
+        self.model
+            .browse
+            .entries
+            .iter()
+            .any(|e| e.path == p && (e.note.starts_with("TexMod package") || e.note.starts_with("TexWizard pack")))
     }
 
     /// A HUD mod download chosen: added to the parts found; both known:
@@ -1407,12 +2499,142 @@ impl<'e> App<'e> {
         }
     }
 
+    /// An Overbright pack folder installed (checked, copied).
+    fn install_own(&mut self, dir: &Path) {
+        let name = dir.file_name().map_or(String::new(), |n| n.to_string_lossy().into_owned());
+        self.model.mods.results = vec![match self.env.install_own(dir) {
+            Ok(id) => (Mark::Ok, format!("{name}: added as an Overbright pack ({id})")),
+            Err(e) => (Mark::Error, format!("{name}: not added: {e}")),
+        }];
+        self.refresh_mods();
+    }
+
+    /// A map mod imported.
+    fn import_map(&mut self, from: &Path) {
+        let name = from.file_name().map_or(String::new(), |n| n.to_string_lossy().into_owned());
+        self.model.mods.results = vec![match self.env.import_map(from) {
+            Ok(f) => (Mark::Ok, format!("{name}: map mod added ({f}); turn it on below")),
+            Err(e) => (Mark::Error, format!("{name}: not a map mod Overbright can read: {e}")),
+        }];
+        self.refresh_mods();
+    }
+
+    /// The Mods page's lists read again, and the collision check.
+    pub fn refresh_mods(&mut self) {
+        let m = &mut self.model.mods;
+        m.list = self.env.mods();
+        m.own = self.env.own_packs();
+        m.maps = self.env.maps();
+        self.check_conflict();
+    }
+
+    fn check_conflict(&mut self) {
+        let m = &mut self.model.mods;
+        m.conflict = self.env.conflict(&m.own, &m.entries());
+        if m.conflict.is_none() {
+            m.show_order = false;
+        }
+    }
+
+    /// "Use mods" turned off (every mod off for the game, what was on set
+    /// aside) or on (given back).
+    fn toggle_mods_in_use(&mut self) {
+        use super::model::Paused;
+        let m = &mut self.model;
+        if !m.mods.paused {
+            let p = Paused {
+                own: m.mods.own.iter().map(|o| (o.id.clone(), o.on)).collect(),
+                packages: m.mods.list.iter().map(|(e, _)| (e.id.clone(), e.on)).collect(),
+                maps: m.mods.maps.iter().filter(|r| r.on).map(|r| r.folder.clone()).collect(),
+                hud: m.choices.hud_mod,
+            };
+            if let Err(e) = self.env.set_paused(Some(&p)) {
+                m.mods.results = vec![(Mark::Error, format!("Mods could not be turned off: {e}"))];
+                return;
+            }
+            m.set_aside = Some(p);
+            m.mods.own.iter_mut().for_each(|o| o.on = false);
+            m.mods.list.iter_mut().for_each(|(e, _)| e.on = false);
+            m.choices.hud_mod = false;
+            m.mods.paused = true;
+            for r in m.mods.maps.iter_mut().filter(|r| r.on) {
+                r.on = false;
+                let _ = self.env.set_map(&r.folder, false);
+            }
+        } else {
+            let p = self.env.paused().or_else(|| m.set_aside.take()).unwrap_or_default();
+            let was = |l: &[(String, bool)], id: &str| l.iter().find(|(i, _)| i == id).is_none_or(|(_, on)| *on);
+            m.mods.own.iter_mut().for_each(|o| o.on = was(&p.own, &o.id) && o.refused.is_none());
+            m.mods.list.iter_mut().for_each(|(e, _)| e.on = was(&p.packages, &e.id));
+            m.choices.hud_mod = p.hud;
+            for r in m.mods.maps.iter_mut() {
+                r.on = p.maps.contains(&r.folder);
+                if r.on {
+                    let _ = self.env.set_map(&r.folder, true);
+                }
+            }
+            m.mods.paused = false;
+            let _ = self.env.set_paused(None);
+        }
+        self.save_pack_lists();
+        self.check_conflict();
+    }
+
+    /// The own packs' and the packages' order and on / off kept.
+    fn save_pack_lists(&mut self) {
+        let m = &mut self.model.mods;
+        let own: Vec<(String, bool)> = m.own.iter().map(|o| (o.id.clone(), o.on)).collect();
+        let r1 = self.env.save_own(&own);
+        let r2 = self.env.save_mods(&m.entries());
+        if let Err(e) = r1.and(r2) {
+            m.results = vec![(Mark::Error, format!("The list could not be kept: {e}"))];
+        }
+    }
+
+    /// The pack row `i` (own packs first, then the packages) turned on or off.
+    fn toggle_pack(&mut self, i: usize) {
+        let m = &mut self.model.mods;
+        m.sel = i;
+        let n = m.own.len();
+        if i < n {
+            if m.own[i].refused.is_none() {
+                m.own[i].on = !m.own[i].on;
+            }
+        } else if let Some((e, _)) = m.list.get_mut(i - n) {
+            e.on = !e.on;
+        }
+        self.save_pack_lists();
+        self.check_conflict();
+    }
+
+    /// The chosen pack moved by `d` within its own list.
+    fn move_pack(&mut self, d: i32) {
+        let m = &mut self.model.mods;
+        let n = m.own.len();
+        let i = m.sel;
+        let to = i as i32 + d;
+        let ok = if i < n { to >= 0 && (to as usize) < n } else { to >= n as i32 && (to as usize) < n + m.list.len() };
+        if !ok {
+            return;
+        }
+        let to = to as usize;
+        if i < n {
+            m.own.swap(i, to);
+        } else {
+            m.list.swap(i - n, to - n);
+        }
+        m.sel = to;
+        self.save_pack_lists();
+        self.check_conflict();
+        self.model.mods.show_order = true;
+    }
+
     /// An import's results shown and the list read again.
     pub fn finish_import(&mut self, out: Vec<crate::texture_mods::Outcome>) {
         self.model.mods.busy = None;
         self.model.mods.results =
             out.into_iter().map(|o| (if o.ok { Mark::Ok } else { Mark::Error }, o.line)).collect();
-        self.model.mods.list = self.env.mods();
+        self.refresh_mods();
     }
 
     /// Changes the chosen package's line (`f(list, chosen)`, a move by
@@ -1487,16 +2709,609 @@ impl<'e> App<'e> {
     }
 
     pub fn event(&mut self, e: &Event) -> Outcome {
+        if let Some(o) = self.event_a(e) {
+            return o;
+        }
+        let before = self.model.choices.clone();
+        let o = self.event_old(e);
+        // Settings are saved when they change (the launcher may not be
+        // shown again before the next start).
+        if matches!(self.screen, Screen::Settings | Screen::Advanced | Screen::Mods) && self.model.choices != before {
+            self.save();
+        }
+        o
+    }
+
+    /// The new screens' and dialogs' events (None: not handled here).
+    fn event_a(&mut self, e: &Event) -> Option<Outcome> {
+        let m = &mut self.model;
+        if m.ask.is_some() {
+            match e {
+                Event::Activate("quit") => return Some(self.quit()),
+                Event::Activate(id @ ("loc_copy" | "loc_empty")) => {
+                    if let Some(Dialog::MoveLocation(loc, to)) = m.ask.take() {
+                        let copy = *id == "loc_copy";
+                        self.move_location(loc, to, copy);
+                    }
+                }
+                Event::Activate(id @ ("port_copy" | "port_on" | "port_copy_back" | "port_off")) => {
+                    m.ask = None;
+                    let id = *id;
+                    self.switch_portable(id);
+                }
+                Event::Activate("reset_yes") => {
+                    self.reset_defaults();
+                    self.model.ask = None;
+                    self.st.focus = Some("reset");
+                }
+                Event::Activate(_) | Event::Back => {
+                    let was = m.ask.take();
+                    self.st.focus = match was {
+                        Some(Dialog::Reset) => Some("reset"),
+                        _ => None,
+                    };
+                }
+                _ => {}
+            }
+            return Some(Outcome::Stay);
+        }
+        match (self.screen, e) {
+            (_, Event::Activate("page:game")) => self.go_page(0),
+            (_, Event::Activate("page:settings")) => self.go_page(1),
+            (_, Event::Activate("page:mods")) => self.go_page(2),
+            (_, Event::Activate("page:dev")) => self.go_page(3),
+            (Screen::Dev, Event::Activate("editor_play")) => {
+                self.model.play_args = vec!["--editor".into()];
+                self.motion.play_pressed();
+                if self.save() {
+                    return Some(Outcome::Play);
+                }
+            }
+            (Screen::Dev, Event::Activate("dev_logs")) => {
+                let d = self.model.logs_dir.clone();
+                self.open_folder(&d);
+            }
+            (Screen::Dev, Event::Back) => self.go(Screen::Main),
+            (Screen::Main, Event::Activate("row_graphics")) => {
+                self.go(Screen::Settings);
+                self.st.focus = Some("graphics");
+            }
+            (Screen::Main, Event::Activate("row_screen")) => {
+                self.go(Screen::Settings);
+                self.st.focus = Some(if self.model.gamescope { "resolution" } else { "display" });
+            }
+            (Screen::Main, Event::Activate("another" | "recheck")) => self.go_folder_fix(e),
+            (Screen::Main, Event::Activate("driver_help" | "patch_help")) => {
+                self.model.message = Some((
+                    Mark::Info,
+                    "See docs/launcher.md in Overbright's folder (\"When the game does not start\").".into(),
+                ))
+            }
+            (Screen::Mods, Event::Toggle("use_mods")) => self.toggle_mods_in_use(),
+            (Screen::Mods, Event::Toggle(id)) if PACK_IDS.contains(id) => {
+                let i = PACK_IDS.iter().position(|p| p == id).unwrap_or(0);
+                self.toggle_pack(i);
+            }
+            (Screen::Mods, Event::Toggle(id)) if MAP_IDS.contains(id) => {
+                let i = MAP_IDS.iter().position(|p| p == id).unwrap_or(0);
+                if let Some(r) = self.model.mods.maps.get_mut(i) {
+                    r.on = !r.on;
+                    let (f, on) = (r.folder.clone(), r.on);
+                    self.model.mods.map_sel = Some(f.clone());
+                    if let Err(e) = self.env.set_map(&f, on) {
+                        self.model.mods.results = vec![(Mark::Error, format!("{f}: {e}"))];
+                    }
+                }
+            }
+            (Screen::Mods, Event::Activate("order")) => {
+                self.model.mods.show_order = true;
+                self.st.focus = Some("up");
+            }
+            (Screen::Mods, Event::Activate("up")) => self.move_pack(-1),
+            (Screen::Mods, Event::Activate("down")) => self.move_pack(1),
+            (Screen::Mods, Event::Activate("remove")) => {
+                let lines = pack_lines(&self.model);
+                self.model.mods.confirm = lines.get(self.model.mods.sel).map(|l| l.key.clone());
+                self.st.focus = None;
+            }
+            (Screen::Mods, Event::Activate("remove_yes")) if self.model.mods.confirm.as_deref().is_some_and(|k| k.starts_with("own:")) => {
+                let key = self.model.mods.confirm.take().unwrap_or_default();
+                let id = key.trim_start_matches("own:").to_string();
+                let name = self.model.mods.own.iter().find(|o| o.id == id).map_or(id.clone(), |o| o.name.clone());
+                self.model.mods.results = vec![match self.env.remove_own(&id) {
+                    Ok(()) => (Mark::Ok, format!("{name}: removed (your downloaded files are kept)")),
+                    Err(e) => (Mark::Error, format!("{name}: could not be removed: {e}")),
+                }];
+                self.refresh_mods();
+                self.model.mods.own.retain(|o| o.id != id || !matches!(self.model.mods.results[0].0, Mark::Ok));
+                let n = pack_lines(&self.model).len();
+                self.model.mods.sel = self.model.mods.sel.min(n.saturating_sub(1));
+            }
+            (Screen::Mods, Event::Activate("map_import")) => self.browse(BrowseFor::MapMod, None),
+            (Screen::Mods, Event::Activate("map_open")) => {
+                let f = self.model.mods.map_sel.clone().or_else(|| self.model.mods.maps.first().map(|r| r.folder.clone()));
+                if f.is_some() {
+                    self.open_editor(f);
+                }
+            }
+            (Screen::Dev, Event::Activate("map_editor")) => self.open_editor(None),
+            (Screen::Mods, Event::Activate("map_export")) => {
+                let start = super::dirs::home();
+                self.choose_folder(BrowseFor::MapExport, start);
+            }
+            (Screen::Main, Event::Activate("prepare_now")) => {
+                self.start_prepare_background();
+                self.st.focus = Some("play");
+            }
+            (Screen::Main, Event::Activate("prepare_stop")) => {
+                let p = &mut self.model.prepare;
+                p.stop = true;
+                p.wanted = false;
+                p.state = super::prepare::State::Idle;
+                p.background = false;
+                p.started = None;
+                self.st.focus = Some("play");
+            }
+            (Screen::Advanced, Event::Activate("storage")) => {
+                self.refresh_storage();
+                self.go(Screen::Storage);
+            }
+            (Screen::Storage, Event::Back) => {
+                self.go(Screen::Advanced);
+                self.st.focus = Some("storage");
+            }
+            (Screen::Storage, Event::Activate("restart")) => return Some(Outcome::Restart),
+            (Screen::Storage, Event::Toggle("portable")) => {
+                let p = &self.model.portable;
+                if !p.marker && !p.writable {
+                    self.model.message = Some((
+                        Mark::Error,
+                        "Overbright's folder can't be written to: portable mode stays off. Move Overbright to a \
+                         folder you own."
+                            .into(),
+                    ));
+                } else {
+                    self.model.ask = Some(if p.marker { Dialog::PortableOff } else { Dialog::PortableOn });
+                }
+            }
+            (Screen::Storage, Event::Activate("change")) => self.go(Screen::FirstRun),
+            (Screen::Storage, Event::Activate(id @ ("game_open" | "hud_open"))) => {
+                let p = if *id == "game_open" {
+                    self.model.root.clone()
+                } else {
+                    Some(PathBuf::from(self.model.choices.texture_pack.trim()))
+                };
+                if let Some(p) = p {
+                    self.open_folder(&p);
+                }
+            }
+            (Screen::Storage, Event::Activate("pack_browse")) => {
+                let t = self.model.choices.texture_pack.trim();
+                let start = (!t.is_empty()).then(|| PathBuf::from(t));
+                self.choose_folder(BrowseFor::TexturePack, start);
+            }
+            (Screen::Storage, Event::Activate("pack_forget")) => {
+                self.model.choices.texture_pack.clear();
+                self.model.pack_status = self.env.set_pack("");
+                self.model.hud = None;
+            }
+            (Screen::Storage, Event::Activate(id)) if LOC_IDS.iter().any(|(c, o, r)| c == id || o == id || r == id) => {
+                let i = LOC_IDS.iter().position(|(c, o, r)| c == id || o == id || r == id).unwrap_or(0);
+                if let Some(row) = self.model.locations.get(i).cloned() {
+                    let (c, o, _) = LOC_IDS[i];
+                    if *id == c {
+                        self.model.pick_loc = Some(row.loc);
+                        let start = row.path.as_ref().and_then(|p| p.parent().map(Path::to_path_buf));
+                        self.choose_folder(BrowseFor::Location, start);
+                    } else if *id == o {
+                        if let Some(p) = &row.path {
+                            self.open_folder(p);
+                        }
+                    } else {
+                        let r = self.env.set_location(row.loc, None);
+                        self.model.message = Some(match r {
+                            Ok(()) => (
+                                Mark::Ok,
+                                format!(
+                                    "{}: back to the default folder from the next start. The files in the folder you \
+                                     chose stay there.",
+                                    loc_name(row.loc)
+                                ),
+                            ),
+                            Err(e) => (Mark::Error, format!("{}: not reset: {e}", loc_name(row.loc))),
+                        });
+                        self.refresh_storage();
+                    }
+                }
+            }
+            (Screen::Settings, Event::Activate("advanced")) => self.go(Screen::Advanced),
+            (Screen::Settings, Event::Activate("reset")) => self.model.ask = Some(Dialog::Reset),
+            (Screen::Settings, Event::Back) => self.go(Screen::Main),
+            (Screen::Advanced, Event::Back) => {
+                self.go(Screen::Settings);
+                self.st.focus = Some("advanced");
+            }
+            (Screen::Advanced, Event::Step(id @ ("motion" | "sounds" | "text_size"), d)) => {
+                let p = &mut self.model.prefs;
+                match *id {
+                    "motion" => p.reduced_motion = !p.reduced_motion,
+                    "sounds" => p.sounds = !p.sounds,
+                    _ => {
+                        let sizes = super::model::Prefs::TEXT_SIZES;
+                        let i = sizes.iter().position(|v| *v == p.text).unwrap_or(0) as i32;
+                        p.text = sizes[(i + d).rem_euclid(sizes.len() as i32) as usize];
+                    }
+                }
+                self.apply_prefs();
+                if let Err(e) = self.env.save_prefs(&self.model.prefs) {
+                    self.model.message = Some((Mark::Error, format!("The launcher's settings could not be saved: {e}")));
+                }
+            }
+            (Screen::Check, Event::Activate("show_files")) => self.model.show_files = !self.model.show_files,
+            (Screen::Recover, Event::Activate("play")) => {
+                self.model.start_unfinished = false;
+                return Some(Outcome::Play);
+            }
+            (Screen::Recover | Screen::Failure, Event::Activate("safe")) => {
+                self.safe_settings();
+                self.model.start_unfinished = false;
+                if self.save() {
+                    return Some(Outcome::Play);
+                }
+            }
+            (Screen::Recover, Event::Activate("settings")) => {
+                self.model.start_unfinished = false;
+                self.go(Screen::Settings);
+            }
+            (Screen::Recover, Event::Back) => {
+                self.model.start_unfinished = false;
+                self.go(Screen::Main);
+            }
+            (Screen::Recover | Screen::Failure | Screen::Dev, Event::Activate("support")) => self.save_support(),
+            (_, Event::Activate("open_support")) => {
+                if let Some(p) = &self.model.support {
+                    self.env.reveal(p);
+                    if let Some(d) = p.parent()
+                        && let Err(err) = self.env.open_folder(d)
+                    {
+                        self.model.message =
+                            Some((Mark::Info, format!("Open this folder yourself: {} ({err})", d.display())));
+                    }
+                }
+            }
+            _ => return None,
+        }
+        Some(Outcome::Stay)
+    }
+
+    /// The Storage page's state read again.
+    pub fn refresh_storage(&mut self) {
+        self.model.locations = self.env.locations();
+        self.model.portable = self.env.portable();
+    }
+
+    fn open_folder(&mut self, p: &Path) {
+        if let Err(e) = self.env.open_folder(p) {
+            self.model.message = Some((Mark::Info, format!("Open this folder yourself: {} ({e})", p.display())));
+        }
+    }
+
+    /// A folder put elsewhere: the files copied first (on a worker; then
+    /// checked) when asked, the locations file written once they are there.
+    fn move_location(&mut self, loc: crate::platform::dirs::Location, to: PathBuf, copy: bool) {
+        let from = self.model.locations.iter().find(|r| r.loc == loc).and_then(|r| r.path.clone());
+        if !copy || from.as_ref().is_none_or(|f| !f.is_dir()) {
+            let r = self.env.set_location(loc, Some(&to));
+            self.location_done(loc, &to, r.map(|()| (0, 0)));
+            return;
+        }
+        let from = from.unwrap_or_default();
+        if self.env.background_support() {
+            let (tx, rx) = std::sync::mpsc::channel();
+            let (to2, from2) = (to.clone(), from.clone());
+            let spawned = std::thread::Builder::new().name("copy-folder".into()).spawn(move || {
+                let r = super::model::copy_folder(&from2, &to2)
+                    .and_then(|n| crate::platform::dirs::set_location(loc, Some(&to2)).map(|()| n).map_err(|e| e.to_string()));
+                let _ = tx.send((loc, to2, r));
+            });
+            if spawned.is_ok() {
+                self.model.copy_busy = true;
+                self.copy_job = Some(rx);
+                return;
+            }
+        }
+        let r = super::model::copy_folder(&from, &to).and_then(|n| self.env.set_location(loc, Some(&to)).map(|()| n));
+        self.location_done(loc, &to, r);
+    }
+
+    fn location_done(&mut self, loc: crate::platform::dirs::Location, to: &Path, r: Result<(usize, u64), String>) {
+        self.model.copy_busy = false;
+        self.model.message = Some(match r {
+            Ok((0, _)) => (Mark::Ok, format!("{}: {} from the next start.", loc_name(loc), to.display())),
+            Ok((n, bytes)) => (
+                Mark::Ok,
+                format!(
+                    "{}: {n} files ({}) copied to {} and checked; used from the next start. The old folder is kept.",
+                    loc_name(loc),
+                    mb(bytes),
+                    to.display()
+                ),
+            ),
+            Err(e) => (Mark::Error, format!("{}: not moved ({e}); it stays where it was.", loc_name(loc))),
+        });
+        self.refresh_storage();
+    }
+
+    /// Portable mode turned on or off, the files copied when asked.
+    fn switch_portable(&mut self, how: &str) {
+        let p = self.model.portable.clone();
+        let (Some(data), home) = (p.data.clone(), p.home.clone()) else { return };
+        let r = match how {
+            "port_copy" | "port_on" => {
+                let copied = if how == "port_copy" {
+                    super::model::copy_folder(&home, &data)
+                        .and_then(|a| {
+                            let saves = crate::frontend::profiles::FOLDER;
+                            super::model::copy_folder(&self.model.saves_dir, &data.join(saves)).map(|b| (a.0 + b.0, a.1 + b.1))
+                        })
+                } else {
+                    Ok((0, 0))
+                };
+                copied.and_then(|n| self.env.make_portable().map(|()| n))
+            }
+            _ => {
+                let copied = if how == "port_copy_back" {
+                    super::model::copy_folder(&data, &home)
+                } else {
+                    Ok((0, 0))
+                };
+                copied.and_then(|n| self.env.unmake_portable().map(|()| n))
+            }
+        };
+        self.model.message = Some(match (how, r) {
+            (_, Err(e)) => (Mark::Error, format!("Portable mode not changed: {e}")),
+            ("port_copy" | "port_on", Ok((n, _))) => (
+                Mark::Ok,
+                format!(
+                    "Portable mode is on: after a restart everything is kept in {}{}.",
+                    data.display(),
+                    if n > 0 { format!(" ({n} files copied there)") } else { String::new() }
+                ),
+            ),
+            (_, Ok((n, _))) => (
+                Mark::Ok,
+                format!(
+                    "Portable mode is off: after a restart everything is kept in {}{}. The folder {} stays.",
+                    home.display(),
+                    if n > 0 { format!(" ({n} files copied there)") } else { String::new() },
+                    data.display()
+                ),
+            ),
+        });
+        let ok = self.model.message.as_ref().is_some_and(|(k, _)| *k == Mark::Ok);
+        let before = self.model.portable.on;
+        self.refresh_storage();
+        // This run keeps the folders it started with until the restart.
+        self.model.portable.on = before;
+        if ok {
+            // The switch's new state, whatever the environment reports.
+            self.model.portable.marker = how == "port_copy" || how == "port_on";
+            self.model.portable.changed = true;
+            self.st.focus = Some("restart");
+        }
+    }
+
+    /// The launcher's own preferences put into force (motion, sounds; the
+    /// text size at the next build).
+    pub fn apply_prefs(&mut self) {
+        super::anim::set_reduced(self.model.prefs.reduced_motion);
+        super::sounds::set_enabled(self.model.prefs.sounds);
+    }
+
+    /// "Shaders ready" is on the screen (it goes away after a few seconds).
+    pub fn shaders_ready_shown(&self) -> bool {
+        self.screen == Screen::Main && shaders(&self.model) == Shaders::JustReady
+    }
+
+    /// The page `i` of the top bar (Game, Settings, Mods).
+    pub fn go_page(&mut self, i: usize) {
+        match i {
+            0 => self.go(Screen::Main),
+            1 => self.go(Screen::Settings),
+            3 => self.go(Screen::Dev),
+            _ => {
+                self.model.mods.list = self.env.mods();
+                self.model.mods.confirm = None;
+                self.go(Screen::Mods);
+            }
+        }
+    }
+
+    /// The main screen's folder fix: check the saved folder again, or
+    /// choose another.
+    fn go_folder_fix(&mut self, e: &Event) {
+        let root = self.model.root.clone();
+        if *e == Event::Activate("recheck") {
+            if let Some(r) = root {
+                self.model.check = Some(self.env.check(&r));
+            }
+        } else {
+            self.choose_folder(BrowseFor::Game, root.and_then(|r| r.parent().map(Path::to_path_buf)));
+        }
+    }
+
+    /// The safe start: the original graphics, in a window, without the HUD
+    /// mod or texture packs.
+    fn safe_settings(&mut self) {
+        let m = &mut self.model;
+        m.choices.graphics = Graphics::Original;
+        if m.choices.fullscreen {
+            m.choices.fullscreen = false;
+            m.choices.resolution = crate::render::display::fit_mode(&m.modes(), m.choices.resolution);
+        }
+        m.choices.hud_mod = false;
+        let list = self.env.mods();
+        if list.iter().any(|(e, _)| e.on) {
+            let off: Vec<_> = list
+                .into_iter()
+                .map(|(mut e, i)| {
+                    e.on = false;
+                    (e, i)
+                })
+                .collect();
+            let entries: Vec<_> = off.iter().map(|(e, _)| e.clone()).collect();
+            if let Err(err) = self.env.save_mods(&entries) {
+                log::warn!("texture packs not turned off for the safe start: {err}");
+            }
+            self.model.mods.list = off;
+        }
+    }
+
+    /// Settings back to what Overbright picks for this computer (the
+    /// probe's first-run values); mods and the game folder stay.
+    fn reset_defaults(&mut self) {
+        let m = &mut self.model;
+        if let Some(f) = m.probe.first_run().cloned() {
+            m.choices.fullscreen = f.fullscreen;
+            m.choices.resolution = f.resolution;
+            m.choices.graphics = if f.detail == 0 { Graphics::Original } else { Graphics::Enhanced };
+        } else if let Some(d) = m.desktop() {
+            m.choices.fullscreen = true;
+            m.choices.resolution = d;
+        }
+        m.choices.skip_movies = false;
+        m.choices.skip = false;
+        self.save();
+    }
+
+    /// The support file written (the failure's words and the game's last
+    /// lines in it); its place shown with Open folder.
+    fn save_support(&mut self) {
+        use crate::diag::support::SupportRequest;
+        let reason = match self.screen {
+            Screen::Recover => Some(Issue::StartUnfinished.words().title),
+            Screen::Failure => self.model.failure.as_ref().map(|f| format!("{:?}: {}", f.kind, f.how)),
+            _ => None,
+        };
+        let mut req = SupportRequest::launcher(reason);
+        req.game_root = self.model.root.clone();
+        if let Some(f) = &self.model.failure {
+            req.extra.push(("The game's last lines".into(), f.tail.join("\n")));
+        }
+        if self.model.support_busy {
+            return;
+        }
+        if self.env.background_support() {
+            // Asking the game program takes up to 20 s: on a worker, the
+            // window stays live ("Saving the support file…").
+            let (tx, rx) = std::sync::mpsc::channel();
+            let spawned = std::thread::Builder::new().name("support-file".into()).spawn(move || {
+                let _ = tx.send(crate::diag::support::write_support_file(&req).map_err(|e| e.to_string()));
+            });
+            if spawned.is_ok() {
+                self.model.support_busy = true;
+                self.model.message = Some((Mark::Busy, "Saving the support file…".into()));
+                self.support_job = Some(rx);
+                return;
+            }
+            self.model.message = Some((Mark::Error, "The support file could not be started.".into()));
+            return;
+        }
+        let r = self.env.support_file(&req).map_err(|e| e.to_string());
+        self.support_done(r);
+    }
+
+    fn support_done(&mut self, r: Result<PathBuf, String>) {
+        self.model.support_busy = false;
+        match r {
+            Ok(p) => {
+                self.model.message = Some((Mark::Ok, format!("Support file saved: {}", p.display())));
+                self.model.support = Some(p);
+            }
+            Err(err) => self.model.message = Some((Mark::Error, format!("The support file could not be saved: {err}"))),
+        }
+    }
+
+    /// Start the map editor on the mod in `folder` (None: its own Open /
+    /// New). One at a time: the page waits while it is open.
+    pub fn open_editor(&mut self, folder: Option<String>) {
+        if self.editor_job.is_some() {
+            return;
+        }
+        match self.env.start_editor(folder.as_deref(), self.model.root.as_deref()) {
+            Ok(job) => {
+                self.editor_job = Some(job);
+                self.model.mods.editor = super::model::EditorRun::Open(folder);
+            }
+            Err(e) => self.model.mods.editor = super::model::EditorRun::Failed(e),
+        }
+    }
+
+    /// The map editor's end: the page usable again, its map mods read
+    /// again (the editor may have made or changed one). True when it ended.
+    fn poll_editor(&mut self) -> bool {
+        let Some(end) = self.editor_job.as_mut().and_then(|j| j.poll()) else { return false };
+        self.editor_job = None;
+        self.model.mods.editor = match end {
+            Ok(()) => super::model::EditorRun::Closed,
+            Err(e) => super::model::EditorRun::Failed(e),
+        };
+        self.refresh_mods();
+        true
+    }
+
+    /// The window's poll: a finished support file shown, the map editor's
+    /// end. True when the screen changed.
+    pub fn poll_jobs(&mut self, fonts: &Fonts) -> bool {
+        if self.poll_editor() {
+            self.rebuild(fonts);
+            return true;
+        }
+        if let Some(rx) = &self.copy_job {
+            match rx.try_recv() {
+                Ok((loc, to, r)) => {
+                    self.copy_job = None;
+                    self.location_done(loc, &to, r);
+                    self.rebuild(fonts);
+                    return true;
+                }
+                Err(std::sync::mpsc::TryRecvError::Disconnected) => {
+                    self.copy_job = None;
+                    self.model.copy_busy = false;
+                    self.rebuild(fonts);
+                    return true;
+                }
+                Err(std::sync::mpsc::TryRecvError::Empty) => {}
+            }
+        }
+        let Some(rx) = &self.support_job else { return false };
+        match rx.try_recv() {
+            Ok(r) => {
+                self.support_job = None;
+                self.support_done(r);
+            }
+            Err(std::sync::mpsc::TryRecvError::Disconnected) => {
+                self.support_job = None;
+                self.support_done(Err("the worker stopped".into()));
+            }
+            Err(std::sync::mpsc::TryRecvError::Empty) => return false,
+        }
+        self.rebuild(fonts);
+        true
+    }
+
+    fn event_old(&mut self, e: &Event) -> Outcome {
         match (self.screen, e) {
             (_, Event::Activate("quit")) => return self.quit(),
-            (Screen::FirstRun, Event::Back) => return Outcome::Quit,
+            // Back never quits at once: it asks (as on the main screen).
+            (Screen::FirstRun, Event::Back) => self.model.ask = Some(Dialog::Quit),
             (Screen::FirstRun, Event::Select("found", i)) => self.model.found_sel = *i,
             (Screen::FirstRun, Event::Edit("path", ed)) => {
                 apply_edit(&mut self.model.path_input, &mut self.st.cursor, ed)
             }
             (Screen::FirstRun, Event::Activate("browse")) => {
                 let start = self.model.found.get(self.model.found_sel).map(|f| f.path.clone());
-                self.browse(BrowseFor::Game, start.and_then(|p| p.parent().map(Path::to_path_buf)));
+                self.choose_folder(BrowseFor::Game, start.and_then(|p| p.parent().map(Path::to_path_buf)));
             }
             (Screen::FirstRun, Event::Activate("check" | "found" | "path")) => {
                 let m = &mut self.model;
@@ -1519,7 +3334,13 @@ impl<'e> App<'e> {
             (Screen::Check, Event::Activate("back") | Event::Back) => self.go(Screen::FirstRun),
             (Screen::Check, Event::Activate("another")) => {
                 let start = self.model.check.as_ref().and_then(|c| c.root.parent().map(Path::to_path_buf));
-                self.browse(BrowseFor::Game, start);
+                self.choose_folder(BrowseFor::Game, start);
+            }
+            (Screen::Check, Event::Activate("recheck")) => {
+                if let Some(r) = self.model.check.as_ref().map(|c| c.root.clone()) {
+                    self.model.check = Some(self.env.check(&r));
+                    self.st.focus = None;
+                }
             }
             (Screen::Check, Event::Activate("use")) => {
                 if let Some(c) = self.model.check.clone().filter(|c| c.usable) {
@@ -1535,38 +3356,42 @@ impl<'e> App<'e> {
                     }
                 }
             }
-            (Screen::Main, Event::Activate("change")) => self.go(Screen::FirstRun),
-            (Screen::Main, Event::Back) => return self.quit(),
-            (Screen::Main, Event::Step(id @ ("display" | "resolution" | "graphics"), _))
-                if !display_rows_on(&self.model) =>
-            {
+            (Screen::Advanced, Event::Activate("change")) => self.go(Screen::FirstRun),
+            // Back (Escape, a pad's B) never leaves at once: it asks.
+            (Screen::Main, Event::Back) => self.model.ask = Some(Dialog::Quit),
+            (
+                Screen::Settings | Screen::Advanced,
+                Event::Step(id @ ("display" | "resolution" | "graphics" | "skip_movies" | "skip_title"), _),
+            ) if !display_rows_on(&self.model) => {
                 let _ = id;
             }
-            (Screen::Main, Event::Step("display", _)) => {
+            (Screen::Settings, Event::Step("display", _)) => {
                 // The size moves to one the other path offers, as the
                 // game's Screen Mode row does (`display::fit_mode`).
                 let m = &mut self.model;
                 m.choices.fullscreen = !m.choices.fullscreen;
                 m.choices.resolution = crate::render::display::fit_mode(&m.modes(), m.choices.resolution);
             }
-            (Screen::Main, Event::Step("resolution", d)) => {
+            (Screen::Settings, Event::Step("resolution", d)) => {
                 let m = &mut self.model;
                 let modes = m.modes();
                 if !modes.is_empty() {
                     m.choices.resolution = Self::step(&modes, &m.choices.resolution, *d);
                 }
             }
-            (Screen::Main, Event::Step("graphics", d)) => {
+            (Screen::Settings, Event::Step("graphics", d)) => {
                 self.model.choices.graphics = Self::step(&GRAPHICS, &self.model.choices.graphics, *d)
             }
-            (Screen::Main, Event::Toggle("skip")) => self.model.choices.skip = !self.model.choices.skip,
-            (Screen::Main, Event::Toggle("skip_movies")) => {
+            (Screen::Settings, Event::Toggle("skip") | Event::Step("skip", _)) => {
+                self.model.choices.skip = !self.model.choices.skip
+            }
+            (Screen::Settings, Event::Toggle("skip_movies") | Event::Step("skip_movies", _)) => {
                 self.model.choices.skip_movies = !self.model.choices.skip_movies
             }
-            (Screen::Main, Event::Toggle("skip_title")) => {
+            (Screen::Settings, Event::Toggle("skip_title") | Event::Step("skip_title", _)) => {
                 self.model.choices.skip_title = !self.model.choices.skip_title
             }
-            (Screen::Main, Event::Activate("mods")) => {
+            (Screen::Main, Event::Activate("mods" | "row_mods")) => {
                 self.model.mods.list = self.env.mods();
                 self.model.mods.confirm = None;
                 self.go(Screen::Mods);
@@ -1581,7 +3406,7 @@ impl<'e> App<'e> {
             (Screen::Mods, Event::Activate("pack_browse")) => {
                 let t = self.model.choices.texture_pack.trim();
                 let start = (!t.is_empty()).then(|| PathBuf::from(t));
-                self.browse(BrowseFor::TexturePack, start);
+                self.choose_folder(BrowseFor::TexturePack, start);
             }
             (Screen::Mods, Event::Activate("pack_forget")) => {
                 self.model.choices.texture_pack.clear();
@@ -1609,13 +3434,6 @@ impl<'e> App<'e> {
                 self.model.mods.confirm = None;
             }
             (Screen::Mods, Event::Activate("pkgs" | "toggle")) => self.edit_mods(|l, i| l[i].0.on = !l[i].0.on, 0),
-            (Screen::Mods, Event::Activate("up")) => self.edit_mods(|l, i| l.swap(i, i - 1), -1),
-            (Screen::Mods, Event::Activate("down")) => self.edit_mods(|l, i| l.swap(i, i + 1), 1),
-            (Screen::Mods, Event::Activate("remove")) => {
-                self.model.mods.confirm = self.model.mods.list.get(self.model.mods.sel).map(|(e, _)| e.id.clone());
-                // The question's own buttons take the focus ("Keep it").
-                self.st.focus = None;
-            }
             (Screen::Mods, Event::Activate("keep")) => {
                 self.model.mods.confirm = None;
                 self.st.focus = Some("remove");
@@ -1642,11 +3460,11 @@ impl<'e> App<'e> {
                     self.model.mods.sel = self.model.mods.sel.min(self.model.mods.list.len().saturating_sub(1));
                 }
             }
-            (Screen::Main, Event::Activate("about")) => {
-                self.back = Screen::Main;
+            (Screen::Advanced, Event::Activate("about")) => {
+                self.back = Screen::Advanced;
                 self.go(Screen::About);
             }
-            (Screen::Main, Event::Activate("import")) => {
+            (Screen::Advanced, Event::Activate("import")) => {
                 self.model.import.done = None;
                 if self.model.import.scan.is_none()
                     && let Some(d) = self.env.original_saves().filter(|d| d.is_dir())
@@ -1656,11 +3474,20 @@ impl<'e> App<'e> {
                 self.go(Screen::Import);
             }
             (Screen::Main, Event::Activate("play")) => {
+                self.motion.play_pressed();
+                if self.model.just_found
+                    && let Some(r) = self.model.root.clone()
+                {
+                    match self.env.keep_root(&r) {
+                        Ok(()) => self.model.just_found = false,
+                        Err(e) => log::warn!("the found game folder was not kept: {e}"),
+                    }
+                }
                 if self.save() {
                     return Outcome::Play;
                 }
             }
-            (Screen::About, Event::Activate("back") | Event::Back) => self.go(Screen::Main),
+            (Screen::About, Event::Activate("back") | Event::Back) => self.go(Screen::Advanced),
             (Screen::About, Event::Activate("portable")) => {
                 let before = self.model.folders.clone();
                 self.model.message = Some(match self.env.make_portable() {
@@ -1707,8 +3534,30 @@ impl<'e> App<'e> {
             (Screen::About, Event::Activate("licence")) => self.go(Screen::Licence),
             (Screen::About, Event::Activate("notices")) => self.go(Screen::Notices),
             (Screen::Licence | Screen::Notices, Event::Activate("back") | Event::Back) => self.go(Screen::About),
-            (Screen::Failure, Event::Activate("settings") | Event::Back) => self.go(Screen::Main),
+            (Screen::Failure, Event::Activate("settings")) => self.go(Screen::Settings),
+            (Screen::Failure, Event::Back) => self.go(Screen::Main),
             (Screen::Failure, Event::Activate("retry")) => return Outcome::Play,
+            (Screen::Failure, Event::Activate("details")) => self.model.failure_details = !self.model.failure_details,
+            (Screen::Failure, Event::Activate("folder")) => match self.model.root.clone() {
+                // The folder in use checked again: the check screen says
+                // what is missing and offers the fix.
+                Some(r) => {
+                    self.model.check = Some(self.env.check(&r));
+                    self.back = Screen::FirstRun;
+                    self.go(Screen::Check);
+                }
+                None => self.go(Screen::FirstRun),
+            },
+            (Screen::Failure, Event::Activate("windowed")) => {
+                let m = &mut self.model;
+                if m.choices.fullscreen {
+                    m.choices.fullscreen = false;
+                    m.choices.resolution = crate::render::display::fit_mode(&m.modes(), m.choices.resolution);
+                }
+                if self.save() {
+                    return Outcome::Play;
+                }
+            }
             (Screen::Failure, Event::Activate("open_logs")) => {
                 let dir = self
                     .model
@@ -1761,6 +3610,11 @@ impl<'e> App<'e> {
                         && self.model.browse.entries.iter().any(|e| e.path == d && e.note.contains("archive"))
                     {
                         self.hud_pick(d);
+                    } else if self.model.browse.purpose == BrowseFor::MapMod
+                        && (self.model.browse.entries.iter().any(|e| e.path == d && e.note.contains("archive"))
+                            || self.env.mod_kind(&d) == Some(super::model::ModKind::Map))
+                    {
+                        self.use_folder(d);
                     } else {
                         self.open_dir(d);
                     }
@@ -1779,19 +3633,28 @@ impl<'e> App<'e> {
                 }
             }
             (Screen::Browse, Event::Activate("system")) => {
-                let title = match self.model.browse.purpose {
-                    BrowseFor::Game => "Choose the game folder",
-                    BrowseFor::TexturePack => "Choose the texture-pack folder",
-                    BrowseFor::Saves => "Choose the original game's save folder",
-                    BrowseFor::Packages => "Choose the folder that holds the texture packages",
-                    BrowseFor::HudMod => "Choose the HUD mod's folder",
-                };
-                if let Some(d) = self.env.native_folder_dialog(title) {
-                    self.use_folder(d);
+                let title = dialog_title(self.model.browse.purpose);
+                let start = Some(self.model.browse.dir.clone()).filter(|d| !d.as_os_str().is_empty());
+                match self.env.folder_dialog(title, start.as_deref()) {
+                    Picked::Folder(d) => self.use_folder(d),
+                    Picked::Cancelled => {}
+                    Picked::NoDialog => {
+                        self.model.message = Some((Mark::Info, "The system's folder dialog could not open.".into()))
+                    }
                 }
             }
             (Screen::Browse, Event::Activate("use")) => {
-                let d = self.model.browse.dir.clone();
+                // The highlighted row when it is the game folder (its note
+                // says so): what a player choosing the game means; else the
+                // folder shown above.
+                let b = &self.model.browse;
+                let up = usize::from(!b.dir.as_os_str().is_empty());
+                let game_row = (b.purpose == BrowseFor::Game)
+                    .then(|| b.sel.checked_sub(up).and_then(|i| b.entries.get(i)))
+                    .flatten()
+                    .filter(|e| e.note == super::model::GAME_FOLDER_NOTE)
+                    .map(|e| e.path.clone());
+                let d = game_row.unwrap_or_else(|| b.dir.clone());
                 if !d.as_os_str().is_empty() {
                     self.use_folder(d);
                 }
@@ -1803,8 +3666,14 @@ impl<'e> App<'e> {
                 self.model.prepare.wanted = false;
                 self.go(Screen::Main);
             }
-            (Screen::Main, Event::Activate("prepare")) => self.start_prepare(),
-            (Screen::Import, Event::Activate("back") | Event::Back) => self.go(Screen::Main),
+            (Screen::Advanced, Event::Activate("prepare")) => self.start_prepare(),
+            // This computer checked again (a driver installed meanwhile):
+            // the window runs the probe.
+            (Screen::Main | Screen::Failure, Event::Activate("probe_again")) => {
+                self.model.probe = ProbeState::Pending;
+                self.model.probe_again = true;
+            }
+            (Screen::Import, Event::Activate("back") | Event::Back) => self.go(Screen::Advanced),
             (Screen::Import, Event::Activate("pick")) => {
                 let start = self
                     .model
@@ -1814,7 +3683,7 @@ impl<'e> App<'e> {
                     .map(|s| s.from.clone())
                     .or_else(|| self.env.original_saves())
                     .or_else(|| self.saves_start());
-                self.browse(BrowseFor::Saves, start);
+                self.choose_folder(BrowseFor::Saves, start);
             }
             (Screen::Import, Event::Activate("copy")) => {
                 if let Some(s) = self.model.import.scan.clone() {
@@ -1850,7 +3719,10 @@ impl<'e> App<'e> {
     fn save(&mut self) -> bool {
         let first = self.model.probe.first_run().cloned();
         let m = &mut self.model;
-        if !matches!(self.screen, Screen::Main | Screen::Failure) {
+        if !matches!(
+            self.screen,
+            Screen::Main | Screen::Failure | Screen::Settings | Screen::Advanced | Screen::Recover
+        ) {
             return true;
         }
         if m.choices.texture_pack != m.saved.texture_pack {

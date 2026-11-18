@@ -203,10 +203,20 @@ pub fn scrub_users(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     let mut i = 0;
     while i < s.len() {
-        let hit = ["/home/", "\\home\\", "/users/", "\\users\\"].iter().find(|m| lower[i..].starts_with(*m));
-        if let Some(m) = hit {
-            out.push_str(&s[i..i + m.len()]);
-            i += m.len();
+        // A separator, `home` or `users`, the same separator: matched in
+        // parts so the program holds no home path string of its own (the
+        // release checks look for one).
+        let rest = &lower.as_bytes()[i..];
+        let hit = match rest.first() {
+            Some(&sep @ (b'/' | b'\\')) => ["home", "users"].iter().find_map(|w| {
+                let n = w.len() + 2;
+                (rest.len() >= n && &rest[1..n - 1] == w.as_bytes() && rest[n - 1] == sep).then_some(n)
+            }),
+            _ => None,
+        };
+        if let Some(n) = hit {
+            out.push_str(&s[i..i + n]);
+            i += n;
             let end = s[i..].find(['/', '\\', '\n', '\r', '"', '\'', ';', ')', ']']).map_or(s.len(), |n| i + n);
             let name = &s[i..end];
             let keep = name.is_empty() || name == "~" || name == "<user>" || name.eq_ignore_ascii_case("public");

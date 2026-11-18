@@ -7,8 +7,10 @@ use super::screens::{App, Outcome, Screen};
 use super::ui::{Event, Input, Key, Kind, Mark, Metrics, Rect, Ui};
 
 /// The sizes every screen is laid out and rendered at: the smallest
-/// window, portrait, 720p, 1080p, 21:9 and 4K.
-pub const SIZES: [(u32, u32); 6] = [(640, 480), (800, 1280), (1280, 720), (1920, 1080), (2560, 1080), (3840, 2160)];
+/// window, portrait, 720p, the Steam Deck (1280 × 800), the common laptop
+/// (1366 × 768), 1080p, 21:9 and 4K.
+pub const SIZES: [(u32, u32); 8] =
+    [(640, 480), (800, 1280), (1280, 720), (1280, 800), (1366, 768), (1920, 1080), (2560, 1080), (3840, 2160)];
 
 fn app<'e>(env: &'e FakeEnv, fonts: &Fonts, s: Screen, w: u32, h: u32, dpi: f32) -> App<'e> {
     App::new(env, env.load(), s, (w, h), dpi, fonts)
@@ -49,11 +51,16 @@ fn check_layout(ui: &Ui, fonts: &Fonts, what: &str) {
                 assert!(!t.rect.overlaps(icon), "{what}: {:?} over its mark", t.text);
             }
         }
+        // A dialog lies over the page (its scrim first): the page behind
+        // it is not laid out against it.
+        let scrim = ui.widgets.iter().position(|w| matches!(w.kind, Kind::Scrim)).unwrap_or(usize::MAX);
         for (j, o) in ui.widgets.iter().enumerate().skip(i + 1) {
+            if i < scrim && j >= scrim {
+                continue;
+            }
             // A card holds the widgets inside it.
-            if matches!(w.kind, Kind::Card) && o.rect.inside(&w.rect)
-                || matches!(o.kind, Kind::Card) && w.rect.inside(&o.rect)
-            {
+            let holder = |k: &Kind| matches!(k, Kind::Card | Kind::Message { .. } | Kind::Dialog | Kind::Scrim);
+            if holder(&w.kind) && o.rect.inside(&w.rect) || holder(&o.kind) && w.rect.inside(&o.rect) {
                 continue;
             }
             assert!(
@@ -66,7 +73,8 @@ fn check_layout(ui: &Ui, fonts: &Fonts, what: &str) {
             );
         }
     }
-    let texts: Vec<_> = ui.widgets.iter().flat_map(|w| w.texts.iter()).collect();
+    let shown = ui.widgets.iter().position(|w| matches!(w.kind, Kind::Scrim)).unwrap_or(0);
+    let texts: Vec<_> = ui.widgets[shown..].iter().flat_map(|w| w.texts.iter()).collect();
     for (i, a) in texts.iter().enumerate() {
         for b in &texts[i + 1..] {
             assert!(
@@ -91,6 +99,10 @@ fn every_screen_fits_every_size() {
         for (w, h) in SIZES {
             let a = app(&env, &fonts, s, w, h, 1.0);
             let mut ui = a.ui.clone();
+            if matches!(s, Screen::Mods | Screen::Storage) {
+                // A long list of mods scrolls.
+                ui.view.h = ui.content_h.max(ui.view.h);
+            }
             if s.document() {
                 // A document scrolls; its Back button is in view at the top.
                 assert!(a.ui.get("back").unwrap().rect.bottom() <= h as f32, "{} {w}x{h}", s.name());
@@ -140,7 +152,7 @@ fn play_is_reachable_without_scrolling() {
             let a = App::new(&env, m, Screen::Main, (w, h), 1.0, &fonts);
             let what = format!("main {w}x{h} variant {variant}");
             check_layout(&a.ui, &fonts, &what);
-            for id in ["about", "import", "quit", "play"] {
+            for id in ["play", "row_graphics", "row_screen", "row_mods"] {
                 let r = a.ui.get(id).unwrap().rect;
                 assert!(r.bottom() <= h as f32 && a.st.scroll == 0.0, "{what}: {id} at {r:?}");
             }
@@ -225,57 +237,32 @@ fn focus_order_and_arrow_moves() {
     let env = FakeEnv;
     for (w, h) in SIZES {
         let mut a = app(&env, &fonts, Screen::Main, w, h, 1.0);
-        assert_eq!(
-            a.ui.focus_order(),
-            [
-                "change",
-                "play",
-                "display",
-                "resolution",
-                "graphics",
-                "skip_movies",
-                "skip_title",
-                "mods",
-                "skip",
-                "about",
-                "import",
-                "prepare",
-                "quit"
-            ],
-            "{w}x{h}"
-        );
+        assert_eq!(a.ui.focus_order(), ["play", "row_graphics", "row_screen", "row_mods"], "{w}x{h}");
         assert_eq!(focus(&a), "play", "the default focus");
         key(&mut a, &fonts, Key::Tab);
-        assert_eq!(focus(&a), "display", "Tab from Play: the settings");
+        assert_eq!(focus(&a), "row_graphics", "Tab from Play: the first row");
         key(&mut a, &fonts, Key::BackTab);
         key(&mut a, &fonts, Key::BackTab);
-        assert_eq!(focus(&a), "change");
-        key(&mut a, &fonts, Key::BackTab);
-        assert_eq!(focus(&a), "quit", "Shift+Tab wraps");
-        key(&mut a, &fonts, Key::Left);
-        assert_eq!(focus(&a), "prepare", "{w}x{h}: Left in the footer");
-        a.st.focus = Some("play");
-        key(&mut a, &fonts, Key::Left);
-        assert_eq!(focus(&a), "change", "{w}x{h}: Left from Play: the folder's button");
-        key(&mut a, &fonts, Key::Down);
-        assert!(["display", "mods"].contains(&focus(&a)), "{w}x{h}: Down into the panels: {}", focus(&a));
-        a.st.focus = Some("display");
-        for want in ["resolution", "graphics"] {
-            key(&mut a, &fonts, Key::Down);
-            assert_eq!(focus(&a), want, "{w}x{h}: Down");
-        }
-        // Every control is reached with the arrows alone: from Mods up and
-        // on to Play.
-        a.st.focus = Some("mods");
-        let mut seen = vec![focus(&a)];
-        for _ in 0..6 {
-            key(&mut a, &fonts, Key::Up);
-            seen.push(focus(&a));
-        }
-        assert!(seen.contains(&"play") || seen.contains(&"change"), "{w}x{h}: Up from Mods reaches the hero: {seen:?}");
+        assert_eq!(focus(&a), "row_mods", "Shift+Tab wraps");
         a.st.focus = Some("play");
         key(&mut a, &fonts, Key::Up);
         assert_eq!(focus(&a), "play", "no wrap at the top");
+        for want in ["row_graphics", "row_screen", "row_mods"] {
+            key(&mut a, &fonts, Key::Down);
+            assert_eq!(focus(&a), want, "{w}x{h}: Down");
+        }
+        // Settings: the rows top to bottom, then Back to defaults.
+        let mut s = app(&env, &fonts, Screen::Settings, w, h, 1.0);
+        assert_eq!(
+            s.ui.focus_order(),
+            ["display", "resolution", "graphics", "skip_movies", "skip_title", "skip", "advanced", "reset"],
+            "{w}x{h}"
+        );
+        assert_eq!(focus(&s), "display");
+        for want in ["resolution", "graphics", "skip_movies", "skip_title", "skip", "advanced", "reset"] {
+            key(&mut s, &fonts, Key::Down);
+            assert_eq!(focus(&s), want, "{w}x{h}: Down on Settings");
+        }
     }
 }
 
@@ -288,7 +275,7 @@ fn focus_order_and_arrow_moves() {
 fn resolution_list_per_display_path() {
     let fonts = Fonts::new();
     let env = FakeEnv;
-    let mut a = app(&env, &fonts, Screen::Main, 1280, 720, 1.0);
+    let mut a = app(&env, &fonts, Screen::Settings, 1280, 720, 1.0);
     assert!(a.model.choices.fullscreen);
     assert_eq!(a.model.modes(), vec![(1280, 720), (1600, 900), (1920, 1080)]);
     a.st.focus = Some("display");
@@ -314,7 +301,7 @@ fn resolution_list_per_display_path() {
 fn controls_change_the_model() {
     let fonts = Fonts::new();
     let env = FakeEnv;
-    let mut a = app(&env, &fonts, Screen::Main, 1280, 720, 1.0);
+    let mut a = app(&env, &fonts, Screen::Settings, 1280, 720, 1.0);
     a.st.focus = Some("display");
     key(&mut a, &fonts, Key::Right);
     assert!(!a.model.choices.fullscreen);
@@ -336,18 +323,20 @@ fn controls_change_the_model() {
     a.st.focus = Some("skip");
     key(&mut a, &fonts, Key::Space);
     assert!(a.model.choices.skip);
+    // A click on a value row's left arrow steps back.
+    let c = a.ui.get("display").unwrap().rect;
+    let fs = a.model.choices.fullscreen;
+    a.input(&Input::MouseDown(c.x + 4.0, c.cy()), &fonts);
+    assert_ne!(a.model.choices.fullscreen, fs);
     // The mouse: a click on Play (down and up on it) plays.
+    a.go(Screen::Main);
+    a.rebuild(&fonts);
     let r = a.ui.get("play").unwrap().rect;
     a.input(&Input::MouseDown(r.cx(), r.cy()), &fonts);
     assert_eq!(a.input(&Input::MouseUp(r.cx(), r.cy()), &fonts), Outcome::Play);
     // A press that leaves the button does nothing.
     a.input(&Input::MouseDown(r.cx(), r.cy()), &fonts);
     assert_eq!(a.input(&Input::MouseUp(1.0, 1.0), &fonts), Outcome::Stay);
-    // A click on a cycle's left arrow steps back.
-    let c = a.ui.get("display").unwrap().rect;
-    let fs = a.model.choices.fullscreen;
-    a.input(&Input::MouseDown(c.x + 4.0, c.cy()), &fonts);
-    assert_ne!(a.model.choices.fullscreen, fs);
 }
 
 #[test]
@@ -360,7 +349,7 @@ fn first_run_flow() {
     assert_eq!(a.model.found_sel, 1, "Down moves in the list");
     key(&mut a, &fonts, Key::Down);
     key(&mut a, &fonts, Key::Down);
-    assert_eq!(focus(&a), "path", "past the list's end: the next control");
+    assert!(["check", "browse"].contains(&focus(&a)), "past the list's end: the buttons under it");
     key(&mut a, &fonts, Key::Up);
     assert_eq!(focus(&a), "found");
     key(&mut a, &fonts, Key::Enter);
@@ -374,9 +363,12 @@ fn first_run_flow() {
     key(&mut a, &fonts, Key::Enter);
     assert_eq!(a.screen, Screen::Main);
     assert_eq!(a.model.languages, ["English", "French", "German"]);
-    // Escape on the first-run screen quits.
+    // Escape on the first-run screen asks; Quit quits.
     let mut b = app(&env, &fonts, Screen::FirstRun, 960, 720, 1.0);
-    assert_eq!(key(&mut b, &fonts, Key::Escape), Outcome::Quit);
+    assert_eq!(key(&mut b, &fonts, Key::Escape), Outcome::Stay);
+    assert_eq!(focus(&b), "stay");
+    b.st.focus = Some("quit");
+    assert_eq!(key(&mut b, &fonts, Key::Enter), Outcome::Quit);
 }
 
 #[test]
@@ -465,7 +457,7 @@ fn skip_boxes_round_trip_through_options_txt() {
     use crate::frontend::options::Settings;
     let fonts = Fonts::new();
     let env = FakeEnv;
-    let mut a = app(&env, &fonts, Screen::Main, 1280, 720, 1.0);
+    let mut a = app(&env, &fonts, Screen::Settings, 1280, 720, 1.0);
     assert!(!a.model.choices.skip_movies && !a.model.choices.skip_title, "off by default");
     a.st.focus = Some("skip_movies");
     key(&mut a, &fonts, Key::Space);
@@ -479,6 +471,8 @@ fn skip_boxes_round_trip_through_options_txt() {
     assert_eq!(super::model::choices_of(&back), a.model.choices);
     a.st.focus = Some("skip_title");
     key(&mut a, &fonts, Key::Space);
+    a.go(Screen::Settings);
+    a.rebuild(&fonts);
     a.st.focus = Some("skip_movies");
     key(&mut a, &fonts, Key::Space);
     assert!(!a.model.choices.skip_movies && a.model.choices.skip_title, "the title alone");
@@ -588,7 +582,7 @@ fn display_rows_follow_the_probe() {
     assert!(!super::screens::display_rows_on(&m));
     let fonts = Fonts::new();
     m.probe = super::model::ProbeState::Pending;
-    let a = App::new(&env, m, Screen::Main, (1280, 720), 1.0, &fonts);
+    let a = App::new(&env, m, Screen::Settings, (1280, 720), 1.0, &fonts);
     assert!(!a.ui.get("display").unwrap().enabled);
 }
 
@@ -596,7 +590,7 @@ fn display_rows_follow_the_probe() {
 fn about_licence_and_notices() {
     let fonts = Fonts::new();
     let env = FakeEnv;
-    let mut a = app(&env, &fonts, Screen::Main, 1280, 720, 1.0);
+    let mut a = app(&env, &fonts, Screen::Advanced, 1280, 720, 1.0);
     a.st.focus = Some("about");
     key(&mut a, &fonts, Key::Enter);
     assert_eq!(a.screen, Screen::About);
@@ -617,8 +611,12 @@ fn about_licence_and_notices() {
     a.model.notices = super::screens::NOTICES;
     key(&mut a, &fonts, Key::Enter);
     let all: String = a.ui.widgets.iter().flat_map(|w| &w.texts).map(|t| t.text.as_str()).collect::<Vec<_>>().join(" ");
-    assert!(all.contains("Go fonts"), "the notices list the font");
+    assert!(all.contains("Sofia Sans"), "the notices list the font");
     key(&mut a, &fonts, Key::Escape);
+    key(&mut a, &fonts, Key::Escape);
+    assert_eq!(a.screen, Screen::Advanced);
+    key(&mut a, &fonts, Key::Escape);
+    assert_eq!(a.screen, Screen::Settings);
     key(&mut a, &fonts, Key::Escape);
     assert_eq!(a.screen, Screen::Main);
     // Paragraphs: wrapped lines joined, list items and headings kept.
@@ -633,14 +631,23 @@ fn failure_screen_buttons() {
     let mut a = app(&env, &fonts, Screen::Failure, 1280, 720, 1.0);
     assert_eq!(focus(&a), "retry");
     let all: Vec<&str> = a.ui.widgets.iter().flat_map(|w| &w.texts).map(|t| t.text.as_str()).collect();
+    // The kind's title and one sentence; the game's own lines only
+    // behind Details.
+    assert!(all.iter().any(|t| t.contains("stopped unexpectedly")), "{all:?}");
+    assert!(!all.iter().any(|t| t.contains("note: run with")), "the tail hidden");
+    a.st.focus = Some("details");
+    key(&mut a, &fonts, Key::Enter);
+    let all: Vec<&str> = a.ui.widgets.iter().flat_map(|w| &w.texts).map(|t| t.text.as_str()).collect();
     assert!(all.iter().any(|t| t.contains("note: run with")), "the tail's last line shown");
-    assert!(all.iter().any(|t| t.contains("during its start")));
+    a.st.focus = Some("retry");
     assert_eq!(key(&mut a, &fonts, Key::Enter), Outcome::Play, "Try again");
     a.st.focus = Some("open_logs");
     assert_eq!(key(&mut a, &fonts, Key::Enter), Outcome::Stay);
+    a.st.focus = Some("support");
+    assert_eq!(key(&mut a, &fonts, Key::Enter), Outcome::Stay, "the support file");
     a.st.focus = Some("settings");
     key(&mut a, &fonts, Key::Enter);
-    assert_eq!(a.screen, Screen::Main);
+    assert_eq!(a.screen, Screen::Settings);
 }
 
 #[test]
@@ -696,7 +703,7 @@ fn folder_browser_flow() {
 fn import_flow() {
     let fonts = Fonts::new();
     let env = FakeEnv;
-    let mut a = app(&env, &fonts, Screen::Main, 1280, 720, 1.0);
+    let mut a = app(&env, &fonts, Screen::Advanced, 1280, 720, 1.0);
     a.st.focus = Some("import");
     key(&mut a, &fonts, Key::Enter);
     assert_eq!(a.screen, Screen::Import);
@@ -807,14 +814,20 @@ fn every_state_fits_every_size_and_scale() {
                 };
                 let what = format!("{name} {w}x{h} at {}%", dpi * 100.0);
                 let mut ui = a.ui.clone();
-                let may_scroll = a.screen.document() || (h as f32 / dpi) < 480.0;
+                // The main screen with the shaders' block may scroll (Play stays in view).
+                let shaders = a.screen == Screen::Main && super::screens::shaders(&a.model) != super::screens::Shaders::Quiet;
+                let may_scroll = a.screen.document() || matches!(a.screen, Screen::Mods | Screen::Storage) || shaders || (h as f32 / dpi) < 480.0;
                 if may_scroll {
                     ui.view.h = ui.content_h.max(ui.view.h);
                 }
                 check_layout(&ui, &fonts, &what);
                 assert!(a.ui.metrics.unwrap().body() >= 14.0 * dpi.min(1.5), "{what}: body text too small");
-                if a.screen == Screen::Main && !may_scroll {
-                    let r = a.ui.get("play").unwrap().rect;
+                // (Play is missing where its fix takes its place, and has no
+                // id under a question.)
+                if a.screen == Screen::Main
+                    && (!may_scroll || shaders)
+                    && let Some(r) = a.ui.get("play").map(|w| w.rect)
+                {
                     assert!(r.bottom() <= h as f32 && a.st.scroll == 0.0, "{what}: Play at {r:?}");
                 }
             }
@@ -834,14 +847,18 @@ fn all_text(a: &App) -> String {
 fn a_refused_folder_offers_another() {
     let fonts = Fonts::new();
     let env = FakeEnv;
-    for (state, words) in [
-        ("not-a-game-folder", "the game's files are not here"),
-        ("files-missing", "some of the game's files are missing"),
-    ] {
+    // Missing files: the fix is to check again after copying them.
+    let mut a = super::headless::state_app(&env, &fonts, "files-missing", 1280, 720, 1.0).unwrap();
+    assert!(all_text(&a).contains("Some game files are missing"), "{}", all_text(&a));
+    assert!(a.ui.get("use").is_none(), "no Use this folder for a refused folder");
+    assert_eq!(focus(&a), "recheck");
+    key(&mut a, &fonts, Key::Enter);
+    assert_eq!(a.screen, Screen::Check, "Check again stays on the check");
+    for (state, words) in [("not-a-game-folder", "No game here"), ("own-folder", "This is Overbright's folder")] {
         let mut a = super::headless::state_app(&env, &fonts, state, 1280, 720, 1.0).unwrap();
         let t = all_text(&a);
         assert!(t.contains(words), "{state}: {t}");
-        assert!(!a.ui.get("use").unwrap().enabled, "{state}: Use this folder is on");
+        assert!(a.ui.get("use").is_none(), "{state}: Use this folder is shown");
         assert_eq!(focus(&a), "another", "{state}: the default focus");
         let parent = a.model.check.as_ref().unwrap().root.parent().unwrap().to_path_buf();
         key(&mut a, &fonts, Key::Enter);
@@ -850,6 +867,8 @@ fn a_refused_folder_offers_another() {
         key(&mut a, &fonts, Key::Escape);
         assert_eq!(a.screen, Screen::Check, "{state}: Cancel goes back to the check");
     }
+    let a = super::headless::state_app(&env, &fonts, "not-a-game-folder", 1280, 720, 1.0).unwrap();
+    assert!(all_text(&a).contains("GLOBAL, FRONTEND and TRACKS"), "names the folder by its contents");
     let a = super::headless::state_app(&env, &fonts, "check-ok", 1280, 720, 1.0).unwrap();
     assert!(a.ui.get("another").is_none() && a.ui.get("use").unwrap().enabled);
     assert_eq!(focus(&a), "use");
@@ -866,7 +885,7 @@ fn no_vulkan_driver_says_what_to_install() {
     for (w, h) in [(960, 720), (1280, 720)] {
         let a = super::headless::state_app(&env, &fonts, "no-vulkan", w, h, 1.0).unwrap();
         let t = all_text(&a);
-        for words in ["no Vulkan driver for this graphics card was found", "sudo apt install libvulkan1", "NVIDIA"] {
+        for words in ["Vulkan driver for this graphics card was found", "sudo apt install libvulkan1", "NVIDIA"] {
             assert!(t.contains(words), "{w}x{h}: {words:?} not in {t}");
         }
         assert!(!t.contains("in the game's Options") && !t.contains("noop"), "{w}x{h}: {t}");
@@ -883,27 +902,28 @@ fn main_screen_hierarchy() {
     for (w, h) in [(960, 720), (1280, 720), (1920, 1080)] {
         let a = super::headless::state_app(&env, &fonts, "long-values", w, h, 1.0).unwrap();
         let what = format!("{w}x{h}");
-        let change = a.ui.get("change").unwrap().rect;
         let path =
             a.ui.widgets
                 .iter()
                 .flat_map(|w| &w.texts)
-                .find(|t| t.text.starts_with("/data/player/") && t.text.ends_with("Deutsche Version"))
-                .unwrap_or_else(|| panic!("{what}: the game path is not shown with both ends"));
-        assert!(path.rect.right() <= change.x && (path.rect.cy() - change.cy()).abs() < change.h / 2.0, "{what}");
-        assert_eq!(path.color, super::draw::theme::TEXT, "{what}: the path is plain text, not dim");
+                .find(|t| {
+                    let f = t.full.as_deref().unwrap_or(&t.text);
+                    f.starts_with("/data/player/") && f.ends_with("Deutsche Version")
+                })
+                .unwrap_or_else(|| panic!("{what}: the game path is not shown"));
         let r = |id| a.ui.get(id).unwrap().rect;
-        assert!(r("about").right() < r("quit").x && r("import").right() < r("quit").x, "{what}");
-        // Play: the hero's, the largest control, beside the game's state.
         let play = r("play");
-        let buttons = a.ui.widgets.iter().filter(|w| matches!(w.kind, Kind::Button { .. }) && w.id != Some("play"));
-        assert!(buttons.clone().count() >= 4, "{what}");
+        assert!(path.rect.bottom() <= play.y, "{what}: the folder above Play");
+        // Play: the largest control, above the summary rows.
         assert!(
-            buttons.into_iter().all(|w| w.rect.w * w.rect.h < play.w * play.h),
+            a.ui.widgets
+                .iter()
+                .filter(|w| w.id.is_some() && w.id != Some("play") && !matches!(w.kind, Kind::SumRow { .. }))
+                .all(|w| w.rect.w * w.rect.h < play.w * play.h),
             "{what}: Play is the largest button"
         );
-        assert!(play.y < r("display").y && play.x > change.x, "{what}: Play in the hero, right of the folder");
-        assert!(all_text(&a).contains("ready to play"), "{what}: the game's state beside Play");
+        assert!(play.bottom() <= r("row_graphics").y, "{what}: Play above the rows");
+        assert!(all_text(&a).contains("Ready"), "{what}: the game's state above Play");
     }
 }
 
@@ -965,33 +985,41 @@ fn mods_page_flow() {
     let fonts = Fonts::new();
     let env = FakeEnv;
     let mut a = app(&env, &fonts, Screen::Main, 1280, 720, 1.0);
-    a.st.focus = Some("mods");
+    a.st.focus = Some("row_mods");
     key(&mut a, &fonts, Key::Enter);
-    assert_eq!((a.screen, focus(&a)), (Screen::Mods, "pkgs"));
-    let ids = |a: &App| a.model.mods.list.iter().map(|(e, _)| (e.id.clone(), e.on)).collect::<Vec<_>>();
-    assert_eq!(ids(&a), [("roads-hd".to_string(), true), ("garage-redux".to_string(), false)]);
-    // Enter on the list switches the chosen package.
+    assert_eq!((a.screen, focus(&a)), (Screen::Mods, "pk0"));
+    let lines = |a: &App| super::screens::pack_lines(&a.model).into_iter().map(|l| (l.key, l.on)).collect::<Vec<_>>();
+    assert_eq!(
+        lines(&a),
+        [("own:night-roads".to_string(), false), ("roads-hd".to_string(), true), ("garage-redux".to_string(), false)],
+        "own packs first, then the imported ones"
+    );
+    // A row's switch: Enter or Space.
+    a.st.focus = Some("pk1");
     key(&mut a, &fonts, Key::Enter);
     assert!(!a.model.mods.list[0].0.on);
-    a.st.focus = Some("down");
+    key(&mut a, &fonts, Key::Space);
+    assert!(a.model.mods.list[0].0.on);
+    // Two packs on that change the same textures: said, the order only for
+    // packs of one list.
+    a.st.focus = Some("pk0");
     key(&mut a, &fonts, Key::Enter);
-    assert_eq!(ids(&a)[1].0, "roads-hd", "moved down, still chosen");
-    assert_eq!(a.model.mods.sel, 1);
-    assert!(!a.ui.get("down").unwrap().enabled, "the last cannot move down");
-    // Remove asks first; Escape keeps it.
-    a.st.focus = Some("remove");
-    key(&mut a, &fonts, Key::Enter);
+    assert!(a.model.mods.conflict.as_ref().is_some_and(|c| !c.same_list));
+    assert!(all_text(&a).contains("Two packs change the same textures") && a.ui.get("order").is_none());
+    // Remove (X) asks first; Escape keeps it.
+    a.st.focus = Some("pk1");
+    key(&mut a, &fonts, Key::ActionX);
     assert_eq!(a.model.mods.confirm.as_deref(), Some("roads-hd"));
     assert_eq!(focus(&a), "keep");
     key(&mut a, &fonts, Key::Escape);
     assert!(a.model.mods.confirm.is_none() && a.screen == Screen::Mods);
-    a.st.focus = Some("remove");
-    key(&mut a, &fonts, Key::Enter);
+    a.st.focus = Some("pk1");
+    key(&mut a, &fonts, Key::ActionX);
     a.st.focus = Some("remove_yes");
     key(&mut a, &fonts, Key::Enter);
-    assert!(a.model.mods.results[0].1.contains("removed (your package file is kept)"));
-    assert!(!ids(&a).iter().any(|(id, _)| id == "roads-hd"));
-    // Add: the browser lists packages with the folders; one imports.
+    assert!(a.model.mods.results[0].1.contains("removed (your package file is kept)"), "{:?}", a.model.mods.results);
+    assert!(!a.model.mods.list.iter().any(|(e, _)| e.id == "roads-hd"));
+    // Add a mod: the browser lists packages with the folders; one imports.
     a.st.focus = Some("add");
     key(&mut a, &fonts, Key::Enter);
     assert_eq!((a.screen, a.model.browse.purpose), (Screen::Browse, super::model::BrowseFor::Packages));
@@ -1011,16 +1039,68 @@ fn mods_page_flow() {
     a.st.focus = Some("use");
     key(&mut a, &fonts, Key::Enter);
     assert_eq!(a.model.mods.results.len(), 2);
-    // The HUD mod: the switch is the game's HD UI + Maps.
-    a.st.focus = Some("hud");
+    // Use mods: off sets every mod aside and keeps the list; on gives it back.
+    let before = lines(&a);
+    a.st.focus = Some("use_mods");
     key(&mut a, &fonts, Key::Space);
-    assert!(a.model.choices.hud_mod);
-    let mut s = crate::frontend::options::Settings::default();
-    super::model::apply_choices(&mut s, &a.model.choices);
-    assert!(s.enh.hd_ui);
+    assert!(a.model.mods.paused && lines(&a).iter().all(|(_, on)| !on));
+    assert!(!a.ui.get("pk0").unwrap().enabled, "the list is kept, greyed");
+    assert_eq!(super::screens::mods_summary(&a.model), "Off: the game's own textures");
+    key(&mut a, &fonts, Key::Space);
+    assert!(!a.model.mods.paused);
+    assert_eq!(lines(&a), before, "given back as it was");
+    // Map mods: a switch each.
+    a.st.focus = Some("mp1");
+    key(&mut a, &fonts, Key::Space);
+    assert!(a.model.mods.maps[1].on);
     key(&mut a, &fonts, Key::Escape);
     assert_eq!(a.screen, Screen::Main);
-    assert_eq!(super::screens::mods_summary(&a.model), "1 texture package on");
+}
+
+/// The order: Move up / Move down after "Change the order", within a list.
+#[test]
+fn mods_order_only_on_a_collision() {
+    let fonts = Fonts::new();
+    let env = FakeEnv;
+    let a = app(&env, &fonts, Screen::Mods, 1280, 720, 1.0);
+    assert!(a.ui.get("up").is_none() && a.ui.get("order").is_none(), "no order without a collision");
+    let mut a = super::headless::state_app(&env, &fonts, "mods-order", 1280, 720, 1.0).unwrap();
+    assert!(a.ui.get("up").unwrap().enabled && !a.ui.get("down").unwrap().enabled);
+    a.st.focus = Some("up");
+    key(&mut a, &fonts, Key::Enter);
+    assert_eq!(a.model.mods.list[0].0.id, "garage-redux", "moved up");
+    assert_eq!(a.model.mods.sel, 1);
+}
+
+/// The launcher's own preferences read back as written; Use mods' set-aside
+/// list too.
+#[test]
+fn launcher_prefs_and_paused_round_trip() {
+    use super::model::{Paused, Prefs};
+    let p = Prefs { text: 150, reduced_motion: true, sounds: true };
+    assert_eq!(Prefs::parse(&p.text()), p);
+    assert_eq!(Prefs::parse("text_size 999\n"), Prefs::default(), "an unknown size: 100 %");
+    assert!(!Prefs::default().sounds, "sounds are off by default");
+    let q = Paused {
+        own: vec![("night-roads".into(), true)],
+        packages: vec![("roads-hd".into(), false)],
+        maps: vec!["drift-park".into()],
+        hud: true,
+    };
+    assert_eq!(Paused::parse(&q.text()), q);
+}
+
+/// Text size above 100 %: the page keeps the larger text and scrolls.
+#[test]
+fn text_size_scales_the_page() {
+    let fonts = Fonts::new();
+    let env = FakeEnv;
+    let a = app(&env, &fonts, Screen::Settings, 1280, 720, 1.0);
+    let mut m = env.load();
+    m.prefs.text = 150;
+    let b = App::new(&env, m, Screen::Settings, (1280, 720), 1.0, &fonts);
+    let u = |a: &App| a.ui.metrics.unwrap().u;
+    assert!((u(&b) / u(&a) - 1.5).abs() < 0.01, "{} vs {}", u(&b), u(&a));
 }
 
 /// A 200-character game folder: drawn with its middle left out (both ends
@@ -1041,13 +1121,12 @@ fn a_long_path_is_drawn_short_and_traced_whole() {
         let mut m = env.load();
         m.root = Some(std::path::PathBuf::from(&path));
         let a = App::new(&env, m, Screen::Main, (w, h), 1.0, &fonts);
-        let shown = a
-            .ui
-            .widgets
-            .iter()
-            .flat_map(|w| w.texts.iter())
-            .find(|t| t.full.as_deref() == Some(path.as_str()))
-            .unwrap_or_else(|| panic!("{w}x{h}: the path is not on the main screen with its whole value"));
+        let shown =
+            a.ui.widgets
+                .iter()
+                .flat_map(|w| w.texts.iter())
+                .find(|t| t.full.as_deref() == Some(path.as_str()))
+                .unwrap_or_else(|| panic!("{w}x{h}: the path is not on the main screen with its whole value"));
         assert!(shown.text.len() < path.len() && shown.text.contains('…'), "{w}x{h}: {}", shown.text);
         let (head, tail) = shown.text.split_once('…').unwrap();
         assert!(path.starts_with(head) && path.ends_with(tail) && !head.is_empty() && !tail.is_empty());
@@ -1106,7 +1185,7 @@ fn hud_mod_from_its_downloads() {
     key(&mut a, &fonts, Key::Space);
     assert!(a.model.choices.hud_mod);
     let t = all_text(&a);
-    assert!(t.contains("Complete: 710 of 710 files"), "{t}");
+    assert!(t.contains("HD HUD and maps complete"), "{t}");
 }
 
 /// A fresh install: no packages, the sentence on what can be added, and
@@ -1118,8 +1197,10 @@ fn mods_page_when_empty() {
     let a = super::headless::state_app(&env, &fonts, "mods-empty", 1280, 720, 1.0).unwrap();
     assert_eq!(focus(&a), "add");
     let t = all_text(&a);
-    assert!(t.contains("Overbright ships no texture art") && t.contains("None added"), "{t}");
-    assert!(!a.ui.get("toggle").unwrap().enabled && !a.ui.get("remove").unwrap().enabled);
+    assert!(t.contains("Overbright copies each mod") && t.contains("None added"), "{t}");
+    assert!(a.ui.get("pk0").is_none() && !a.ui.get("map_export").unwrap().enabled);
+    assert!(a.ui.get("map_editor").is_none(), "the map editor's own button is on the Dev page");
+    assert!(!a.ui.get("map_open").unwrap().enabled, "no mod to open");
     assert_eq!(super::screens::mods_summary(&a.model), "None: the game's own textures");
 }
 
@@ -1322,19 +1403,19 @@ fn mouse_only_from_the_first_start_to_play() {
     assert_eq!(a.screen, Screen::Check);
     click(&mut a, &fonts, "use");
     assert_eq!(a.screen, Screen::Main);
+    click(&mut a, &fonts, "row_screen");
+    assert_eq!(a.screen, Screen::Settings);
     let fs = a.model.choices.fullscreen;
     let d = on_window(&a, "display");
-    click_at(&mut a, &fonts, d.right() - 4.0, d.cy());
-    assert_ne!(a.model.choices.fullscreen, fs, "the cycle's right arrow");
-    // The checkbox: on release inside; a press dragged off does nothing.
+    let Kind::ValueRow { right, .. } = a.ui.get("display").unwrap().kind else { panic!("a value row") };
+    click_at(&mut a, &fonts, right.cx(), d.cy());
+    assert_ne!(a.model.choices.fullscreen, fs, "the row's right arrow");
     let skip = a.model.choices.skip;
+    let Kind::ValueRow { right, .. } = a.ui.get("skip").unwrap().kind else { panic!("a value row") };
     let s = on_window(&a, "skip");
-    a.input(&Input::MouseDown(s.x + 4.0, s.cy()), &fonts);
-    assert_eq!(a.model.choices.skip, skip, "not on the press");
-    a.input(&Input::MouseUp(1.0, 1.0), &fonts);
-    assert_eq!(a.model.choices.skip, skip, "released outside");
-    click_at(&mut a, &fonts, s.x + 4.0, s.cy());
+    click_at(&mut a, &fonts, right.cx(), s.cy());
     assert_ne!(a.model.choices.skip, skip);
+    click(&mut a, &fonts, "page:game");
     assert_eq!(click(&mut a, &fonts, "play"), Outcome::Play);
 }
 
@@ -1345,15 +1426,19 @@ fn mouse_only_mods_add_and_remove() {
     let fonts = Fonts::new();
     let env = FakeEnv;
     let mut a = app(&env, &fonts, Screen::Main, 1280, 720, 1.0);
-    click(&mut a, &fonts, "mods");
+    click(&mut a, &fonts, "row_mods");
     assert_eq!(a.screen, Screen::Mods);
     let ids = |a: &App| a.model.mods.list.iter().map(|(e, _)| e.id.clone()).collect::<Vec<_>>();
     assert_eq!(ids(&a)[0], "roads-hd");
-    click(&mut a, &fonts, "remove");
+    // A click on a row chooses it (and turns it); the Remove legend asks.
+    click(&mut a, &fonts, "pk1");
+    assert_eq!(a.model.mods.sel, 1);
+    a.input(&Input::Key(Key::ActionX), &fonts);
     assert_eq!(a.model.mods.confirm.as_deref(), Some("roads-hd"));
     click(&mut a, &fonts, "keep");
     assert!(a.model.mods.confirm.is_none());
-    click(&mut a, &fonts, "remove");
+    a.st.focus = Some("pk1");
+    a.input(&Input::Key(Key::ActionX), &fonts);
     click(&mut a, &fonts, "remove_yes");
     assert!(!ids(&a).contains(&"roads-hd".to_string()));
     click(&mut a, &fonts, "add");
@@ -1364,7 +1449,7 @@ fn mouse_only_mods_add_and_remove() {
     row_click(&mut a, &fonts, "dirs", "roads-hd.tpf", true);
     assert_eq!(a.screen, Screen::Mods);
     assert!(a.model.mods.results[0].1.starts_with("roads-hd.tpf: 412 of 430 textures"), "{:?}", a.model.mods.results);
-    click(&mut a, &fonts, "back");
+    click(&mut a, &fonts, "page:game");
     assert_eq!(a.screen, Screen::Main);
 }
 
@@ -1433,18 +1518,20 @@ fn the_list_scroll_bar_and_hover() {
     click_at(&mut a, &fonts, track.cx(), track.y + 2.0);
     assert_eq!(list_state(&a, "dirs").0, 41 - 2 * shown);
     assert!(thumb.y > track.y, "the thumb was not at the top");
-    // Hover: the row under the pointer.
-    let (x, y) = row_at(&a, "dirs", "Folder 20").unwrap();
+    // Hover: the row under the pointer (one in view: row k is "Folder k").
+    let k = list_state(&a, "dirs").0 + 1;
+    let name = format!("Folder {k:02}");
+    let (x, y) = row_at(&a, "dirs", &name).unwrap();
     a.input(&Input::MouseMove(x, y), &fonts);
-    assert_eq!(a.st.hover_row, Some(("dirs", 20)));
+    assert_eq!(a.st.hover_row, Some(("dirs", k)));
     assert_eq!(a.ui.pointer_at(x, y, &a.st), super::ui::Pointer::Hand);
     // Chosen, then the pointer leaves: still chosen.
     click_at(&mut a, &fonts, x, y);
     a.input(&Input::MouseMove(1.0, 1.0), &fonts);
-    assert_eq!((list_state(&a, "dirs").1, a.st.hover_row), (20, None));
+    assert_eq!((list_state(&a, "dirs").1, a.st.hover_row), (k, None));
     // Open does what a double click does.
     click(&mut a, &fonts, "open");
-    assert_eq!(a.model.browse.dir, std::path::Path::new("/data/player/Games/Folder 20"));
+    assert_eq!(a.model.browse.dir, std::path::Path::new(&format!("/data/player/Games/{name}")));
 }
 
 /// The path's parts, the places, the Up button and the mouse's back button.
@@ -1481,7 +1568,7 @@ fn path_parts_places_and_back_button() {
     // Elsewhere the back button is Back.
     let mut b = app(&env, &fonts, Screen::About, 1280, 720, 1.0);
     b.input(&Input::MouseBack, &fonts);
-    assert_eq!(b.screen, Screen::Main);
+    assert_eq!(b.screen, Screen::Advanced);
 }
 
 #[test]
@@ -1574,7 +1661,7 @@ fn dropped_files_do_what_choosing_them_does() {
     m.input(&Input::Drop(vec![dl.join("hud-part.zip")]), &fonts);
     assert!(!m.model.mods.hud_results.is_empty() || m.model.mods.hud_busy.is_some());
     // The pointer is a hand over buttons, an arrow over plain text.
-    let p = on_window(&m, "back");
+    let p = on_window(&m, "add");
     assert_eq!(m.ui.pointer_at(p.cx(), p.cy(), &m.st), super::ui::Pointer::Hand);
     assert_eq!(m.ui.pointer_at(1.0, 1.0, &m.st), super::ui::Pointer::Default);
 }
@@ -1644,26 +1731,36 @@ fn the_prepare_step_is_offered_once_skippable_and_can_be_asked_for() {
     a.rebuild(&fonts);
     assert_eq!(focus(&a), "play", "Play keeps the focus");
     assert!(
-        a.ui.widgets
-            .iter()
-            .any(|w| w.texts.iter().any(|t| t.full.as_deref().unwrap_or(&t.text).contains("in the background: shader programs (2 of 5)"))),
+        a.ui.widgets.iter().any(|w| w.texts.iter().any(|t| t
+            .full
+            .as_deref()
+            .unwrap_or(&t.text)
+            .contains("Getting the shaders ready"))),
         "the main screen says what it is doing"
     );
     for (w, h) in SIZES {
         let mut b = app(&env, &fonts, Screen::Main, w, h, 1.0);
         b.model.prepare = a.model.prepare.clone();
         b.rebuild(&fonts);
-        check_layout(&b.ui, &fonts, &format!("main, prepare in the background {w}x{h}"));
+        let mut ui = b.ui.clone();
+        ui.view.h = ui.content_h.max(ui.view.h);
+        check_layout(&ui, &fonts, &format!("main, prepare in the background {w}x{h}"));
     }
     // Done: the line reads as before.
     a.model.prepare.state = State::Done;
     a.rebuild(&fonts);
-    assert!(!a.ui.widgets.iter().any(|w| w.texts.iter().any(|t| t.full.as_deref().unwrap_or(&t.text).contains("in the background"))));
+    assert!(
+        !a.ui.widgets.iter().any(|w| w.texts.iter().any(|t| t
+            .full
+            .as_deref()
+            .unwrap_or(&t.text)
+            .contains("in the background")))
+    );
     assert!(!a.offer_prepare(), "not offered again in this session");
-    // "Prepare again" on the main screen.
-    while focus(&a) != "prepare" {
-        key(&mut a, &fonts, Key::Tab);
-    }
+    // "Get shaders ready again" under Settings › Advanced.
+    a.go(Screen::Advanced);
+    a.rebuild(&fonts);
+    a.st.focus = Some("prepare");
     key(&mut a, &fonts, Key::Enter);
     assert_eq!(a.screen, Screen::Prepare);
     assert!(a.model.prepare.wanted);
@@ -1720,4 +1817,751 @@ fn the_prepare_step_is_offered_again_after_the_graphics_level_changed() {
     a.rebuild(&fonts);
     a.model.saved.graphics = level;
     assert!(!a.offer_prepare(), "once a session");
+}
+
+/// The game's `error.kind=` line: written and read back, kept out of the
+/// lines shown, and the kind inferred without one.
+#[test]
+fn the_games_error_kind_line() {
+    use super::run::{Ended, ErrorKind};
+    for k in ErrorKind::ALL {
+        assert_eq!(ErrorKind::parse(&k.line()), Some(k));
+    }
+    assert_eq!(ErrorKind::parse("error.kind=nonsense"), None);
+    assert_eq!(ErrorKind::parse("could not open a window"), None);
+    assert_eq!(
+        ErrorKind::of_window_error("no GPU adapter (Vulkan or DX12) that can show the window"),
+        ErrorKind::NoGpu
+    );
+    assert_eq!(ErrorKind::of_window_error("the display refused the size"), ErrorKind::NoWindow);
+    let ended = |named, panicked, no_window| Ended {
+        code: Some(2),
+        secs: 1.0,
+        panicked,
+        no_window,
+        named,
+        tail: Vec::new(),
+        log: None,
+    };
+    assert_eq!(ended(Some(ErrorKind::GameFiles), false, false).kind(), ErrorKind::GameFiles);
+    assert_eq!(ended(None, true, false).kind(), ErrorKind::Crash);
+    assert_eq!(ended(None, false, true).kind(), ErrorKind::NoWindow);
+    assert_eq!(ended(None, false, false).kind(), ErrorKind::Other);
+    // Every kind has a title, a sentence and one fixing button, with no
+    // developer text in them.
+    for k in ErrorKind::ALL {
+        for during in [false, true] {
+            let w = super::screens::failure_words(k, during);
+            let all = format!("{} {} {}", w.title, w.sentence, w.fix.1);
+            for bad in ["0x", "SPEED2", "--", "bytes", "hash", "North American"] {
+                assert!(!all.contains(bad), "{k:?}: {all}");
+            }
+            // The advice fits the kind: driver advice only without a
+            // graphics driver.
+            assert_eq!(all.contains("driver"), k == ErrorKind::NoGpu, "{k:?}: {all}");
+        }
+    }
+}
+
+/// The failure screen's fixing buttons: Play windowed turns full screen
+/// off and starts; the game-files kind checks the folder again.
+#[test]
+fn failure_fixes() {
+    let fonts = Fonts::new();
+    let env = FakeEnv;
+    let mut a = super::headless::state_app(&env, &fonts, "no-game-window", 1280, 720, 1.0).unwrap();
+    assert!(all_text(&a).contains("The game window didn't open"));
+    assert_eq!(focus(&a), "windowed");
+    assert!(a.model.choices.fullscreen);
+    assert_eq!(key(&mut a, &fonts, Key::Enter), Outcome::Play);
+    assert!(!a.model.choices.fullscreen, "Play windowed");
+    let mut a = app(&env, &fonts, Screen::Failure, 1280, 720, 1.0);
+    a.model.failure.as_mut().unwrap().kind = super::run::ErrorKind::GameFiles;
+    a.rebuild(&fonts);
+    assert_eq!(focus(&a), "folder");
+    key(&mut a, &fonts, Key::Enter);
+    assert_eq!(a.screen, Screen::Check);
+}
+
+/// The system folder dialog's answers: a folder is taken (a game folder
+/// checked), a cancel changes nothing, no dialog opens Overbright's own
+/// browser; a pad goes straight to the own browser.
+#[test]
+fn the_system_folder_dialog() {
+    use super::model::{BrowseFor, Picked};
+    let fonts = Fonts::new();
+    let env = FakeEnv;
+    let mut a = app(&env, &fonts, Screen::FirstRun, 960, 720, 1.0);
+    a.dialog_done(BrowseFor::Game, None, Picked::Cancelled);
+    assert_eq!(a.screen, Screen::FirstRun);
+    a.dialog_done(BrowseFor::Game, None, Picked::Folder(FakeEnv::root()));
+    assert_eq!(a.screen, Screen::Check);
+    assert_eq!(a.model.check.as_ref().unwrap().root, FakeEnv::root());
+    let mut a = app(&env, &fonts, Screen::FirstRun, 960, 720, 1.0);
+    a.dialog_done(BrowseFor::Game, Some("/data/player/Games".into()), Picked::NoDialog);
+    assert_eq!(a.screen, Screen::Browse);
+    assert_eq!(a.model.browse.dir, std::path::Path::new("/data/player/Games"));
+    let mut a = app(&env, &fonts, Screen::Import, 960, 720, 1.0);
+    a.model.pad_input = true;
+    a.choose_folder(BrowseFor::Saves, None);
+    assert_eq!((a.screen, a.model.browse.purpose), (Screen::Browse, BrowseFor::Saves));
+    assert!(a.model.dialog.is_none());
+}
+
+/// A chosen folder next to the game folder is taken for it; Overbright's
+/// own folder is refused with its own words; Windows' verbatim paths are
+/// shown plain.
+#[test]
+fn folders_near_the_game_and_overbrights_own() {
+    use super::model::{Problem, RealEnv, game_dir_near, is_overbright_dir, plain_windows_path};
+    let dir = std::env::temp_dir().join(format!("ob-launcher-near-{}", crate::unique_tag()));
+    let game = dir.join("EA GAMES").join("NFSU2");
+    std::fs::create_dir_all(game.join("GLOBAL")).unwrap();
+    let looks = |p: &std::path::Path| p.join("GLOBAL").is_dir();
+    assert_eq!(game_dir_near(&game, &looks), game);
+    assert_eq!(game_dir_near(&game.join("GLOBAL"), &looks), game, "one level up");
+    assert_eq!(game_dir_near(&dir.join("EA GAMES"), &looks), game, "one level down");
+    assert_eq!(game_dir_near(&dir, &looks), dir, "two levels: not guessed");
+    let own = dir.join("overbright-0.3.0");
+    std::fs::create_dir_all(&own).unwrap();
+    std::fs::write(own.join("overbright"), b"").unwrap();
+    assert!(is_overbright_dir(&own, None) && !is_overbright_dir(&game, None));
+    assert!(is_overbright_dir(&game, Some(&game)), "the folder this program runs from");
+    let c = RealEnv.check(&own);
+    assert_eq!(c.problem, Some(Problem::OwnFolder), "{c:?}");
+    assert!(!c.usable);
+    let c = RealEnv.check(&dir);
+    assert_eq!(c.problem, Some(Problem::NoGame), "{c:?}");
+    std::fs::remove_dir_all(&dir).unwrap();
+    assert_eq!(
+        plain_windows_path(r"\\?\C:\Program Files (x86)\EA GAMES").as_deref(),
+        Some(r"C:\Program Files (x86)\EA GAMES")
+    );
+    assert_eq!(plain_windows_path(r"\\?\UNC\srv\share\x").as_deref(), Some(r"\\srv\share\x"));
+    assert_eq!(plain_windows_path(r"C:\x"), None);
+}
+
+/// The check leaves out the notes nothing can be done about (mod files,
+/// what SPEED2.EXE is), and says why a folder is refused.
+#[test]
+fn check_result_lines_and_problem() {
+    use super::model::{Problem, Verdict, check_result};
+    use crate::qol::setup;
+    let root = std::path::Path::new("/nonexistent/overbright-test");
+    let ok = setup::Check { missing: Vec::new(), different: Vec::new() };
+    let r = check_result(root, &ok, None);
+    assert!(r.usable && r.problem.is_none() && r.verdict() == Verdict::Ready, "{r:?}");
+    let some = setup::Check { missing: vec!["TRACKS/L4RA.BUN".into()], different: Vec::new() };
+    let r = check_result(root, &some, None);
+    assert_eq!(r.problem, Some(Problem::NoGame), "not a game folder at all: {r:?}");
+    let all =
+        setup::Check { missing: setup::KEY_FILES.iter().map(|f| f.0.to_string()).collect(), different: Vec::new() };
+    assert_eq!(check_result(root, &all, None).verdict(), Verdict::Refused(Problem::NoGame));
+    let differ = setup::Check { missing: Vec::new(), different: vec!["GLOBAL/GlobalB.lzc".into()] };
+    assert_eq!(check_result(root, &differ, None).verdict(), Verdict::Notes);
+}
+
+/// "Use this folder" with the game folder's row highlighted takes that
+/// row (not the folder shown above, which holds it); with another row
+/// highlighted, the folder shown above.
+#[test]
+fn use_this_folder_takes_the_highlighted_game_folder() {
+    let fonts = Fonts::new();
+    let env = FakeEnv;
+    let mut a = app(&env, &fonts, Screen::Browse, 1280, 720, 1.0);
+    // "..", then Emulators, GOG, Heroic, Need for Speed Underground 2 (game folder).
+    a.model.browse.sel = 4;
+    a.event(&Event::Activate("use"));
+    assert_eq!(a.screen, Screen::Check);
+    assert_eq!(
+        a.model.check.as_ref().unwrap().root,
+        std::path::Path::new("/data/player/Games/Need for Speed Underground 2")
+    );
+    let mut a = app(&env, &fonts, Screen::Browse, 1280, 720, 1.0);
+    a.model.browse.sel = 2;
+    a.event(&Event::Activate("use"));
+    assert_eq!(a.model.check.as_ref().unwrap().root, std::path::Path::new("/data/player/Games"));
+}
+
+/// Inside gamescope (Steam Deck Game Mode) there is no system file
+/// chooser: folders are chosen in Overbright's own browser at once.
+#[test]
+fn gamescope_uses_the_own_browser() {
+    use super::model::{BrowseFor, in_gamescope};
+    let env_of = |pairs: &'static [(&'static str, &'static str)]| {
+        move |k: &str| pairs.iter().find(|(n, _)| *n == k).map(|(_, v)| std::ffi::OsString::from(v))
+    };
+    assert!(in_gamescope(&env_of(&[("SteamDeck", "1")])));
+    assert!(in_gamescope(&env_of(&[("SteamGamepadUI", "1")])));
+    assert!(in_gamescope(&env_of(&[("XDG_CURRENT_DESKTOP", "gamescope")])));
+    assert!(in_gamescope(&env_of(&[("GAMESCOPE_WAYLAND_DISPLAY", "gamescope-0")])));
+    assert!(!in_gamescope(&env_of(&[("XDG_CURRENT_DESKTOP", "KDE"), ("SteamDeck", "0")])));
+    assert!(!in_gamescope(&env_of(&[])));
+    let fonts = Fonts::new();
+    let env = FakeEnv;
+    let mut a = app(&env, &fonts, Screen::Import, 960, 720, 1.0);
+    a.model.gamescope = true;
+    a.choose_folder(BrowseFor::Saves, None);
+    assert_eq!(a.screen, Screen::Browse);
+    assert!(a.model.dialog.is_none(), "no system dialog asked for");
+}
+
+/// Play is the main, focused action only when the game can start: while
+/// this computer is checked it is an ordinary button; without a graphics
+/// driver Check again (beside the folder) takes the focus and runs the
+/// check again.
+#[test]
+fn play_is_the_main_action_only_when_the_game_can_start() {
+    let fonts = Fonts::new();
+    let env = FakeEnv;
+    let live = |a: &App| a.ui.get("play").is_some_and(|w| w.enabled);
+    let a = app(&env, &fonts, Screen::Main, 1280, 720, 1.0);
+    assert!(live(&a));
+    assert_eq!(focus(&a), "play");
+    let a = super::headless::state_app(&env, &fonts, "checking", 1280, 720, 1.0).unwrap();
+    assert!(!live(&a), "Play while checking");
+    let mut a = super::headless::state_app(&env, &fonts, "no-vulkan", 1280, 720, 1.0).unwrap();
+    assert!(a.ui.get("play").is_none(), "the fix takes Play's place");
+    assert_eq!(focus(&a), "probe_again");
+    key(&mut a, &fonts, Key::Enter);
+    assert!(a.model.probe_again && a.model.probe == super::model::ProbeState::Pending);
+}
+
+/// Back on the main screen (Escape, a pad's B) does not quit at once: it
+/// moves to Quit, and a second Back there quits.
+#[test]
+fn back_on_the_main_screen_goes_to_quit_first() {
+    let fonts = Fonts::new();
+    let env = FakeEnv;
+    let mut a = app(&env, &fonts, Screen::Main, 1280, 720, 1.0);
+    assert_eq!(key(&mut a, &fonts, Key::Escape), Outcome::Stay);
+    assert_eq!(a.model.ask, Some(super::model::Dialog::Quit));
+    assert_eq!(focus(&a), "stay", "Stay is focused");
+    assert_eq!(a.ui.focus_order(), ["stay", "quit"], "the page behind takes no focus");
+    assert_eq!(key(&mut a, &fonts, Key::Escape), Outcome::Stay, "Back closes the question");
+    assert_eq!((a.model.ask.clone(), focus(&a)), (None, "play"));
+    key(&mut a, &fonts, Key::Escape);
+    a.st.focus = Some("quit");
+    assert_eq!(key(&mut a, &fonts, Key::Enter), Outcome::Quit);
+}
+
+// ---- Contrast and glyph size on rendered pixels --------------------------------------------------
+
+/// WCAG 2 relative luminance of an sRGB colour.
+fn wcag_lum(c: [u8; 3]) -> f64 {
+    let f = |v: u8| {
+        let x = f64::from(v) / 255.0;
+        if x <= 0.040_45 { x / 12.92 } else { ((x + 0.055) / 1.055).powf(2.4) }
+    };
+    0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2])
+}
+
+fn wcag_ratio(a: [u8; 3], b: [u8; 3]) -> f64 {
+    let (x, y) = (wcag_lum(a), wcag_lum(b));
+    (x.max(y) + 0.05) / (x.min(y) + 0.05)
+}
+
+/// APCA (0.0.98G-4g constants) lightness contrast |Lc| of text on a background.
+fn apca_lc(text: [u8; 3], bg: [u8; 3]) -> f64 {
+    let y = |c: [u8; 3]| {
+        let f = |v: u8| (f64::from(v) / 255.0).powf(2.4);
+        let y = 0.212_672_9 * f(c[0]) + 0.715_152_2 * f(c[1]) + 0.072_175 * f(c[2]);
+        if y < 0.022 { y + (0.022 - y).powf(1.414) } else { y }
+    };
+    let (yt, yb) = (y(text), y(bg));
+    if (yb - yt).abs() < 0.0005 {
+        return 0.0;
+    }
+    let s = if yb > yt { (yb.powf(0.56) - yt.powf(0.57)) * 1.14 } else { (yb.powf(0.65) - yt.powf(0.62)) * 1.14 };
+    if s.abs() < 0.1 { 0.0 } else { (s.abs() - 0.027) * 100.0 }
+}
+
+/// The background under a text box on the rendered image: the median (by
+/// luminance) of the pixels along the box's edge one pixel outside it.
+fn background_of(img: &image::RgbaImage, r: Rect) -> [u8; 3] {
+    let (w, h) = (img.width() as i32, img.height() as i32);
+    let mut px: Vec<[u8; 3]> = Vec::new();
+    let (x0, y0, x1, y1) =
+        (r.x.floor() as i32 - 1, r.y.floor() as i32 - 1, r.right().ceil() as i32, r.bottom().ceil() as i32);
+    for x in x0..=x1 {
+        for y in [y0, y1] {
+            if (0..w).contains(&x) && (0..h).contains(&y) {
+                let p = img.get_pixel(x as u32, y as u32).0;
+                px.push([p[0], p[1], p[2]]);
+            }
+        }
+    }
+    px.sort_by(|a, b| wcag_lum(*a).total_cmp(&wcag_lum(*b)));
+    px[px.len() / 2]
+}
+
+/// The screens and states the contrast and size checks look at: every
+/// screen, and the states that change what is drawn on the main screen
+/// and the setup screens (dialogs aside: the page behind them is dimmed on
+/// purpose).
+fn checked_names() -> Vec<String> {
+    Screen::ALL
+        .iter()
+        .map(|s| s.name().to_string())
+        .chain(
+            [
+                "first-none",
+                "err-own",
+                "err-missing",
+                "main-checking",
+                "main-novulkan",
+                "main-gone",
+                "main-prepare",
+                "main-shaders",
+                "main-shaders-ready",
+                "settings-suggested",
+            ]
+            .map(String::from),
+        )
+        .collect()
+}
+
+/// Every text of every screen, measured on the rendered pixels against
+/// what is really under it: WCAG 2 at least 4.5:1, and APCA Lc at least
+/// 60 (reading text in the look's ink and secondary colours reaches 75
+/// and 70 on the slab; buttons' labels and the legends over the backdrop
+/// at least 60). Disabled controls and the licence texts aside.
+#[test]
+fn rendered_text_contrast() {
+    let fonts = Fonts::new();
+    let env = FakeEnv;
+    let t = super::draw::theme();
+    let mut bad = Vec::new();
+    for name in checked_names() {
+        for (w, h) in [(1280, 800), (1366, 768), (1920, 1080)] {
+            let a = super::headless::named_app(&env, &fonts, &name, w, h, 1.0).unwrap();
+            if a.screen.document() || a.screen == Screen::Widgets {
+                continue;
+            }
+            let img = super::headless::draw(&a, &fonts);
+            for wd in a.ui.widgets.iter().filter(|wd| wd.enabled) {
+                for tb in &wd.texts {
+                    if tb.rect.bottom() > h as f32 || tb.text.trim().is_empty() {
+                        continue;
+                    }
+                    let bg = background_of(&img, tb.rect);
+                    let c = [tb.color.0, tb.color.1, tb.color.2];
+                    let (r, lc) = (wcag_ratio(c, bg), apca_lc(c, bg));
+                    let reading = tb.color == t.ink && matches!(wd.kind, Kind::Label | Kind::Status { .. });
+                    let need_lc = if reading { 75.0 } else { 60.0 };
+                    if r < 4.5 || lc < need_lc {
+                        bad.push(format!("{name} {w}x{h}: {:?} {r:.1}:1 Lc {lc:.0} on {bg:?}", tb.text));
+                    }
+                }
+            }
+        }
+    }
+    assert!(bad.is_empty(), "{} texts under the contrast floor:\n{}", bad.len(), bad.join("\n"));
+}
+
+/// The smallest text: at 1280 × 800 a capital at least 9 px high and a line
+/// (ascender to descender) at least 12 px; at 1920 × 1080 every text at
+/// least 18 px of em (the Deck review's floor and aim, XAG 101).
+#[test]
+fn smallest_glyphs() {
+    let fonts = Fonts::new();
+    let env = FakeEnv;
+    let mut bad = Vec::new();
+    for name in checked_names() {
+        for (w, h, cap_min, em_min) in [(1280, 800, 9.0, 0.0), (1920, 1080, 0.0, 18.0)] {
+            let a = super::headless::named_app(&env, &fonts, &name, w, h, 1.0).unwrap();
+            for tb in a.ui.widgets.iter().flat_map(|wd| &wd.texts) {
+                if tb.text.trim().is_empty() {
+                    continue;
+                }
+                // The text calls take the line box; the em is that over
+                // the face's line box at 1 px of em.
+                let em = tb.size / fonts.box_size(super::font::text(tb.face, 1.0, 0.0));
+                let cap = fonts.cap_height(tb.face, em);
+                let line = fonts.line_height(tb.face, tb.size);
+                if cap < cap_min || line < 12.0 || em + 0.01 < em_min {
+                    bad.push(format!("{name} {w}x{h}: {:?} em {em:.1} cap {cap:.1} line {line:.0}", tb.text));
+                }
+            }
+        }
+    }
+    assert!(bad.is_empty(), "{} texts too small:\n{}", bad.len(), bad.join("\n"));
+}
+
+/// The Mods page's real calls on a sandboxed data folder: Overbright packs
+/// listed and turned off (order.txt), a collision found by texture, map
+/// mods listed and turned on (enabled.txt), "Use mods" kept in its file.
+#[test]
+fn mods_on_overbright_packs_and_map_mods() {
+    use super::model::{Env, Paused, RealEnv};
+    let dir = std::env::temp_dir().join(format!("ob-launcher-mods-{}", crate::unique_tag()));
+    crate::frontend::profiles::sandbox::enter(&dir);
+    let packs = crate::obpack::packs_dir();
+    assert!(packs.starts_with(&dir), "sandboxed: {}", packs.display());
+    let mut png = Vec::new();
+    image::RgbaImage::new(4, 4).write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png).unwrap();
+    for (id, name) in [("night-roads", "Night Roads"), ("wet-roads", "Wet Roads")] {
+        let mut mf = crate::obpack::Manifest::bare(id);
+        mf.name = name.into();
+        let p = crate::obpack::create(&packs, id, &mf).unwrap();
+        crate::obpack::put_png(&p, crate::obpack::Domain::World, 0x1234_5678, "ROAD", &png).unwrap();
+    }
+    let env = RealEnv;
+    let own = env.own_packs();
+    assert_eq!(own.iter().map(|o| (o.id.as_str(), o.on, o.textures)).collect::<Vec<_>>(), [
+        ("night-roads", true, 1),
+        ("wet-roads", true, 1)
+    ]);
+    let c = env.conflict(&own, &[]).expect("both change ROAD");
+    assert_eq!((c.first.as_str(), c.second.as_str(), c.textures, c.same_list), ("Night Roads", "Wet Roads", 1, true));
+    env.save_own(&[("wet-roads".into(), true), ("night-roads".into(), false)]).unwrap();
+    let own = env.own_packs();
+    assert_eq!((own[0].id.as_str(), own[1].on), ("wet-roads", false), "the order and off kept");
+    assert!(env.conflict(&own, &[]).is_none());
+    // Map mods.
+    let maps = crate::tools::map::store::maps_dir();
+    let m = crate::tools::map::MapMod { name: "Drift park".into(), ..Default::default() };
+    crate::tools::map::store::save(&maps, "drift-park", &m).unwrap();
+    assert_eq!(env.maps(), [super::model::MapRow { folder: "drift-park".into(), name: "Drift park".into(), on: false, races: 0, props: 0 }]);
+    env.set_map("drift-park", true).unwrap();
+    assert!(env.maps()[0].on);
+    // Use mods: off kept in its file until turned on again.
+    assert!(env.paused().is_none());
+    let p = Paused { maps: vec!["drift-park".into()], ..Default::default() };
+    env.set_paused(Some(&p)).unwrap();
+    assert_eq!(env.paused(), Some(p));
+    env.set_paused(None).unwrap();
+    assert!(env.paused().is_none());
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// The value rows with the "suggested" tag in force, at every size of the
+/// matrix, at 100 / 150 / 200 % display scale and 100 / 125 / 150 % text
+/// size: every text and the tag inside the row, nothing under an arrow,
+/// the tag clear of the value.
+#[test]
+fn value_rows_and_the_suggested_tag_never_clip() {
+    let fonts = Fonts::new();
+    let env = FakeEnv;
+    for (w, h) in SIZES {
+        for dpi in [1.0, 1.5, 2.0] {
+            for text in super::model::Prefs::TEXT_SIZES {
+                let (screen, mut m) = super::headless::state_model("settings-suggested").unwrap();
+                m.prefs.text = text;
+                let a = App::new(&env, m, screen, (w, h), dpi, &fonts);
+                let what = format!("settings-suggested {w}x{h} at {}% text {text}%", dpi * 100.0);
+                let mut ui = a.ui.clone();
+                ui.view.h = ui.content_h.max(ui.view.h);
+                check_layout(&ui, &fonts, &what);
+                let row = a.ui.get("graphics").unwrap();
+                let Kind::ValueRow { left, right, tag } = &row.kind else { panic!("{what}: graphics is not a value row") };
+                let tag = tag.unwrap_or_else(|| panic!("{what}: no tag on the suggested graphics"));
+                assert!(tag.inside(&row.rect), "{what}: the tag {tag:?} outside its row {:?}", row.rect);
+                assert!(!tag.overlaps(left) && !tag.overlaps(right), "{what}: the tag under an arrow");
+                for wd in a.ui.widgets.iter().filter(|wd| matches!(wd.kind, Kind::ValueRow { .. })) {
+                    let Kind::ValueRow { left, right, tag } = &wd.kind else { unreachable!() };
+                    for t in &wd.texts {
+                        assert!(t.rect.inside(&wd.rect), "{what}: {:?} outside its row", t.text);
+                        assert!(!t.rect.overlaps(left) && !t.rect.overlaps(right), "{what}: {:?} under an arrow", t.text);
+                        if t.text != "suggested"
+                            && let Some(tg) = tag
+                        {
+                            assert!(!t.rect.overlaps(tg), "{what}: {:?} under the tag", t.text);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// The shaders' block on the main screen: not prepared (Prepare now),
+/// running (bar, percent, step, Stop), just ready; Play stays focused and
+/// still plays; Stop and Prepare now do what they say.
+#[test]
+fn the_shaders_block() {
+    use super::screens::{Shaders, shaders};
+    let fonts = Fonts::new();
+    let env = FakeEnv;
+    let mut a = super::headless::state_app(&env, &fonts, "main-shaders", 1280, 720, 1.0).unwrap();
+    assert_eq!(shaders(&a.model), Shaders::NotPrepared);
+    assert!(all_text(&a).contains("Shaders aren't prepared yet") && a.ui.get("prepare_now").is_some());
+    assert_eq!(focus(&a), "play", "Play keeps the focus");
+    a.st.focus = Some("prepare_now");
+    key(&mut a, &fonts, Key::Enter);
+    assert!(a.model.prepare.wanted && a.model.prepare.background);
+    assert_eq!(focus(&a), "play");
+    let mut a = super::headless::state_app(&env, &fonts, "main-prepare", 1280, 720, 1.0).unwrap();
+    let t = all_text(&a);
+    assert!(t.contains("Getting the shaders ready") && t.contains("40 % · step 3 of 5: shader programs"), "{t}");
+    assert!(t.contains("left"), "the time left: {t}");
+    assert!(a.ui.widgets.iter().any(|w| matches!(w.kind, Kind::Bar { .. })));
+    assert_eq!(focus(&a), "play");
+    assert_eq!(key(&mut a, &fonts, Key::Enter), Outcome::Play, "Play still plays");
+    let mut a = super::headless::state_app(&env, &fonts, "main-prepare", 1280, 720, 1.0).unwrap();
+    a.st.focus = Some("prepare_stop");
+    key(&mut a, &fonts, Key::Enter);
+    assert!(a.model.prepare.stop && !a.model.prepare.background);
+    let a = super::headless::state_app(&env, &fonts, "main-shaders-ready", 1280, 720, 1.0).unwrap();
+    assert_eq!(shaders(&a.model), Shaders::JustReady);
+    assert!(all_text(&a).contains("Shaders ready") && a.shaders_ready_shown());
+    for (w, h) in SIZES {
+        for name in ["main-shaders", "main-prepare", "main-shaders-ready"] {
+            let a = super::headless::state_app(&env, &fonts, name, w, h, 1.0).unwrap();
+            let mut ui = a.ui.clone();
+            ui.view.h = ui.content_h.max(ui.view.h);
+            check_layout(&ui, &fonts, &format!("{name} {w}x{h}"));
+            let play = a.ui.get("play").unwrap().rect;
+            assert!(play.bottom() <= h as f32 && a.st.scroll == 0.0, "{name} {w}x{h}: Play in view");
+        }
+    }
+}
+
+/// Storage: every folder with Change…, Open and Reset; a missing drive
+/// says so and keeps Reset; a folder put elsewhere asks before copying;
+/// portable mode asks before turning on.
+#[test]
+fn storage_page() {
+    let fonts = Fonts::new();
+    let env = FakeEnv;
+    let mut a = app(&env, &fonts, Screen::Advanced, 1280, 720, 1.0);
+    a.st.focus = Some("storage");
+    key(&mut a, &fonts, Key::Enter);
+    assert_eq!(a.screen, Screen::Storage);
+    for (c, o, r) in super::screens::LOC_IDS {
+        assert!(a.ui.get(c).is_some() && a.ui.get(o).is_some() && a.ui.get(r).is_some(), "{c}");
+    }
+    for id in ["change", "game_open", "pack_browse", "hud_open", "pack_forget", "portable"] {
+        assert!(a.ui.get(id).is_some(), "{id}");
+    }
+    let m = super::headless::state_app(&env, &fonts, "storage-missing", 1280, 720, 1.0).unwrap();
+    assert!(all_text(&m).contains("its drive may be unplugged"));
+    assert!(m.ui.get("loc_cache_reset").unwrap().enabled && !m.ui.get("loc_cache_open").unwrap().enabled);
+    // Change… (no system dialog here: the own browser), Use this folder: the question.
+    a.st.focus = Some("loc_screenshots_change");
+    key(&mut a, &fonts, Key::Enter);
+    assert_eq!((a.screen, a.model.browse.purpose), (Screen::Browse, super::model::BrowseFor::Location));
+    a.st.focus = Some("use");
+    key(&mut a, &fonts, Key::Enter);
+    assert_eq!(a.screen, Screen::Storage);
+    assert!(matches!(a.model.ask, Some(super::model::Dialog::MoveLocation(crate::platform::dirs::Location::Screenshots, _))));
+    assert_eq!(focus(&a), "loc_copy");
+    a.st.focus = Some("loc_empty");
+    key(&mut a, &fonts, Key::Enter);
+    assert!(a.model.ask.is_none() && a.model.message.as_ref().is_some_and(|(k, _)| *k == Mark::Ok));
+    // Portable mode asks first.
+    a.st.focus = Some("portable");
+    key(&mut a, &fonts, Key::Space);
+    assert_eq!(a.model.ask, Some(super::model::Dialog::PortableOn));
+    for (w, h) in SIZES {
+        for name in ["storage", "storage-portable", "storage-custom", "storage-missing"] {
+            let a = super::headless::named_app(&env, &fonts, name, w, h, 1.0).unwrap();
+            let mut ui = a.ui.clone();
+            ui.view.h = ui.content_h.max(ui.view.h);
+            check_layout(&ui, &fonts, &format!("{name} {w}x{h}"));
+        }
+    }
+}
+
+/// The locations file: read and written; a folder put elsewhere is where
+/// every user of `platform::dirs` looks; Reset puts it back; a copy is
+/// checked and deletes nothing.
+#[test]
+fn locations_file_round_trip_and_copy() {
+    use crate::platform::dirs::{self, Location};
+    let dir = std::env::temp_dir().join(format!("ob-locations-{}", crate::unique_tag()));
+    crate::frontend::profiles::sandbox::enter(&dir);
+    let shots = dir.join("pictures");
+    let maps = dir.join("maps-elsewhere");
+    assert_eq!(dirs::screenshots(), dirs::app().join("Screenshots"));
+    dirs::set_location(Location::Screenshots, Some(&shots)).unwrap();
+    dirs::set_location(Location::Maps, Some(&maps)).unwrap();
+    assert!(dirs::locations_file().starts_with(&dir));
+    assert_eq!(dirs::screenshots(), shots);
+    assert_eq!(crate::tools::map::store::maps_dir(), maps);
+    let text = std::fs::read_to_string(dirs::locations_file()).unwrap();
+    assert_eq!(dirs::parse_locations(&text), [(Location::Screenshots, shots.clone()), (Location::Maps, maps.clone())]);
+    dirs::set_location(Location::Screenshots, None).unwrap();
+    assert_eq!(dirs::screenshots(), dirs::app().join("Screenshots"));
+    dirs::set_location(Location::Maps, None).unwrap();
+    assert!(!dirs::locations_file().exists(), "no file once nothing is put elsewhere");
+    // A copy: every file there with its size, the old ones kept.
+    let from = dir.join("from");
+    std::fs::create_dir_all(from.join("sub")).unwrap();
+    std::fs::write(from.join("a.txt"), b"abc").unwrap();
+    std::fs::write(from.join("sub/b.bin"), vec![7u8; 4096]).unwrap();
+    let to = dir.join("to");
+    assert_eq!(super::model::copy_folder(&from, &to).unwrap(), (2, 4099));
+    assert_eq!(std::fs::read(to.join("sub/b.bin")).unwrap().len(), 4096);
+    assert!(from.join("a.txt").is_file(), "nothing deleted");
+    assert!(dirs::location_missing(std::path::Path::new("/nonexistent-drive-ob/folder")));
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// The Dev page: fourth in the page bar (LB / RB go round all four); the
+/// map editor's button (preview); the game with the editor tools once; the
+/// support file and the logs.
+#[test]
+fn dev_page() {
+    let fonts = Fonts::new();
+    let env = FakeEnv;
+    let mut a = app(&env, &fonts, Screen::Mods, 1280, 720, 1.0);
+    key(&mut a, &fonts, Key::PageNext);
+    assert_eq!(a.screen, Screen::Dev);
+    key(&mut a, &fonts, Key::PageNext);
+    assert_eq!(a.screen, Screen::Main, "round to the first page");
+    key(&mut a, &fonts, Key::PagePrev);
+    assert_eq!(a.screen, Screen::Dev);
+    assert!(a.ui.get("map_editor").unwrap().enabled, "the editor is beside the launcher");
+    assert!(all_text(&a).contains("Open map editor (preview)"), "{}", all_text(&a));
+    let mut gone = app(&env, &fonts, Screen::Dev, 1280, 720, 1.0);
+    gone.model.editor_here = false;
+    gone.rebuild(&fonts);
+    assert!(!gone.ui.get("map_editor").unwrap().enabled, "greyed without the editor's program");
+    assert!(all_text(&gone).contains("is not beside the launcher"), "the reason is shown");
+    assert!(!all_text(&a).contains("is not beside the launcher"));
+    let t = all_text(&a);
+    assert!(t.contains("F7: the texture editor") && t.contains("F8: the free camera") && t.contains("F3"), "{t}");
+    assert_eq!(focus(&a), "editor_play");
+    assert_eq!(key(&mut a, &fonts, Key::Enter), Outcome::Play);
+    assert_eq!(a.model.play_args, ["--editor"]);
+    a.st.focus = Some("support");
+    key(&mut a, &fonts, Key::Enter);
+    assert!(a.model.support.is_some());
+    let adv = app(&env, &fonts, Screen::Advanced, 1280, 720, 1.0);
+    assert!(adv.ui.get("support").is_none(), "Advanced stays lean");
+    for (w, h) in SIZES {
+        for dpi in [1.0, 1.5] {
+            let a = app(&env, &fonts, Screen::Dev, w, h, dpi);
+            let mut ui = a.ui.clone();
+            ui.view.h = ui.content_h.max(ui.view.h);
+            check_layout(&ui, &fonts, &format!("dev {w}x{h} at {dpi}"));
+        }
+    }
+}
+
+/// Portable mode switched in Storage: the footer and the page say at once
+/// what the next start brings, with Restart now focused; after a restart
+/// (a new launcher, the marker as left) the footer is plain again.
+#[test]
+fn portable_switch_shows_its_state_at_once() {
+    let fonts = Fonts::new();
+    let env = FakeEnv;
+    let footer = |a: &App| {
+        a.ui.widgets
+            .iter()
+            .flat_map(|w| &w.texts)
+            .find(|t| t.text.starts_with(&a.model.version))
+            .map(|t| t.text.clone())
+            .unwrap_or_default()
+    };
+    // On.
+    let mut a = app(&env, &fonts, Screen::Storage, 1280, 720, 1.0);
+    assert_eq!(footer(&a), a.model.version, "the version alone, no name");
+    a.st.focus = Some("portable");
+    key(&mut a, &fonts, Key::Space);
+    a.st.focus = Some("port_on");
+    key(&mut a, &fonts, Key::Enter);
+    assert!(footer(&a).ends_with("· Portable after restart"), "{}", footer(&a));
+    assert_eq!(focus(&a), "restart");
+    assert!(all_text(&a).contains("Portable mode: on after a restart"));
+    assert_eq!(key(&mut a, &fonts, Key::Enter), Outcome::Restart);
+    // After the restart: in force.
+    let mut m = env.load();
+    m.portable.on = true;
+    m.portable.marker = true;
+    m.folders.portable = true;
+    let mut b = App::new(&env, m, Screen::Storage, (1280, 720), 1.0, &fonts);
+    assert!(footer(&b).ends_with("· Portable") && b.ui.get("restart").is_none(), "{}", footer(&b));
+    // Off.
+    b.st.focus = Some("portable");
+    key(&mut b, &fonts, Key::Space);
+    assert_eq!(b.model.ask, Some(super::model::Dialog::PortableOff));
+    b.st.focus = Some("port_off");
+    key(&mut b, &fonts, Key::Enter);
+    assert!(footer(&b).ends_with("· Portable · off after restart"), "{}", footer(&b));
+    assert_eq!(focus(&b), "restart");
+}
+
+/// The map editor: "Open in map editor" (Mods page) starts it on the
+/// chosen mod, the Dev page's button on its own Open / New; the page waits while it
+/// is open (one at a time), reads the map mods again when it closes, and
+/// says why when it could not start or ended badly.
+#[test]
+fn mods_page_starts_the_map_editor() {
+    use super::model::{EditorRun, FakeEditor};
+    let fonts = Fonts::new();
+    let env = FakeEnv;
+    let mut a = app(&env, &fonts, Screen::Mods, 1280, 720, 1.0);
+    let t = all_text(&a);
+    assert!(t.contains("2 races · 9 prop edits") && t.contains("14 prop edits"), "{t}");
+    assert!(a.ui.get("map_open").unwrap().enabled);
+    a.model.mods.map_sel = Some("open-docks".into());
+    a.event(&Event::Activate("map_open"));
+    a.rebuild(&fonts);
+    assert_eq!(a.model.mods.editor, EditorRun::Open(Some("open-docks".into())));
+    for id in ["map_open", "map_import", "map_export"] {
+        assert!(!a.ui.get(id).unwrap().enabled, "{id} waits while the editor is open");
+    }
+    assert!(all_text(&a).contains("The map editor is open on Open docks"), "{}", all_text(&a));
+    // A second start is not made (the Dev page's button is greyed too).
+    a.screen = Screen::Dev;
+    a.rebuild(&fonts);
+    assert!(!a.ui.get("map_editor").unwrap().enabled);
+    a.event(&Event::Activate("map_editor"));
+    a.screen = Screen::Mods;
+    a.rebuild(&fonts);
+    assert_eq!(a.model.mods.editor, EditorRun::Open(Some("open-docks".into())));
+    // It closes: the page is usable again.
+    let end = std::rc::Rc::new(std::cell::Cell::new(None));
+    a.editor_job = Some(Box::new(FakeEditor(end.clone())));
+    assert!(!a.poll_jobs(&fonts), "still open");
+    end.set(Some(Ok(())));
+    assert!(a.poll_jobs(&fonts));
+    assert!(a.editor_job.is_none() && a.model.mods.editor == EditorRun::Closed);
+    assert!(a.ui.get("map_open").unwrap().enabled);
+    // The editor on its own choice (Dev page), ending badly.
+    a.screen = Screen::Dev;
+    a.rebuild(&fonts);
+    a.event(&Event::Activate("map_editor"));
+    assert_eq!(a.model.mods.editor, EditorRun::Open(None));
+    let end = std::rc::Rc::new(std::cell::Cell::new(Some(Err("the map editor ended with exit status: 101".into()))));
+    a.editor_job = Some(Box::new(FakeEditor(end)));
+    assert!(a.poll_jobs(&fonts));
+    assert!(all_text(&a).contains("The map editor: the map editor ended with exit status: 101"), "{}", all_text(&a));
+    a.rebuild(&fonts);
+    assert!(a.ui.get("map_editor").unwrap().enabled, "it can be started again");
+}
+
+/// The real start: `overbright-editor --mod <folder>` beside the launcher
+/// (here a stand-in named by OB_EDITOR_EXE), with the game folder shown as
+/// NFSU2_ROOT; a missing editor is an error, not a hang.
+#[cfg(unix)]
+#[test]
+fn the_map_editor_starts_with_the_mod_and_the_game_folder() {
+    use super::model::{Env, RealEnv};
+    use std::os::unix::fs::PermissionsExt;
+    let dir = std::env::temp_dir().join(format!("ob-launcher-editor-{}", crate::unique_tag()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let exe = dir.join("overbright-editor");
+    std::fs::write(&exe, "#!/bin/sh\necho \"$* root=$NFSU2_ROOT\" > \"$(dirname \"$0\")/args\"\n").unwrap();
+    std::fs::set_permissions(&exe, std::fs::Permissions::from_mode(0o755)).unwrap();
+    // SAFETY: only the editor's start reads this variable.
+    unsafe { std::env::set_var("OB_EDITOR_EXE", &exe) };
+    assert_eq!(super::dirs::editor_exe(), exe);
+    let mut job = RealEnv.start_editor(Some("drift-park"), Some(std::path::Path::new("/games/nfsu2"))).unwrap();
+    let t0 = std::time::Instant::now();
+    let end = loop {
+        if let Some(e) = job.poll() {
+            break e;
+        }
+        assert!(t0.elapsed().as_secs() < 20);
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    };
+    assert_eq!(end, Ok(()));
+    assert_eq!(std::fs::read_to_string(dir.join("args")).unwrap(), "--mod drift-park root=/games/nfsu2\n");
+    unsafe { std::env::set_var("OB_EDITOR_EXE", dir.join("missing")) };
+    assert!(RealEnv.start_editor(None, None).err().unwrap().contains("could not be started"));
+    unsafe { std::env::remove_var("OB_EDITOR_EXE") };
+    let _ = std::fs::remove_dir_all(&dir);
 }

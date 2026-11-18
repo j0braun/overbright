@@ -1,7 +1,7 @@
-//! The map editor in the game (docs/map-editor.md): unreachable without
-//! `--editor`; with it, F8 in free roam opens it over the paused world,
-//! its edits reach the world and the mod file in Overbright's data folder,
-//! Esc saves and resumes; a custom race runs its own route.
+//! The free camera in the game (docs/map-editor.md): unreachable without
+//! `--editor`; with it, F8 in free roam opens it over the paused world, the
+//! held keys fly it, the wheel and Z / X set its speed and field of view, G
+//! puts the car at its aim point; a custom race runs its own route.
 use super::*;
 
 fn free_roam(name: &str) -> Game {
@@ -18,77 +18,81 @@ fn press(game: &mut Game, code: KeyCode) {
     game.key(code, &mut || {}).unwrap();
 }
 
+fn hold(game: &mut Game, code: KeyCode, ticks: usize) {
+    game.platform.keys.insert(code);
+    for _ in 0..ticks {
+        game.advance(1.0 / 60.0).unwrap();
+    }
+    game.platform.keys.remove(&code);
+}
+
 #[test]
 #[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
-fn the_editor_edits_props_and_saves_a_map_mod() {
-    let mut game = free_roam("MAP_EDITOR_TEST");
+fn the_free_camera_flies_and_puts_the_car_down() {
+    use crate::enh::free_camera::{FOV_RANGE, SPEED_START};
+    let mut game = free_roam("FREE_CAMERA_TEST");
     // Without --editor, F8 does nothing.
     nfsu2::tools::map::set_editor_enabled(false);
     press(&mut game, KeyCode::F8);
-    assert!(game.map_editor.is_none() && matches!(game.mode, Mode::Explore));
+    assert!(game.free_camera.is_none() && matches!(game.mode, Mode::Explore));
     nfsu2::tools::map::set_editor_enabled(true);
+    // Ctrl+F8 stays the support file's key.
+    game.platform.keys.insert(KeyCode::ControlLeft);
     press(&mut game, KeyCode::F8);
-    assert!(game.map_editor.is_some(), "F8 opens the editor in free roam");
+    game.platform.keys.remove(&KeyCode::ControlLeft);
+    assert!(game.free_camera.is_none(), "Ctrl+F8 is not the free camera's");
+    press(&mut game, KeyCode::F8);
+    assert!(game.free_camera.is_some(), "F8 opens the free camera in free roam");
     assert!(matches!(game.mode, Mode::Menu(Menu::Icons(_, MenuKind::ExplorePause))), "the world paused under it");
-    // The camera flies with the held keys.
-    let before = game.map_editor.as_ref().unwrap().ed.camera.position;
-    game.platform.keys.insert(KeyCode::KeyW);
-    for _ in 0..30 {
-        game.advance(1.0 / 60.0).unwrap();
+    // The HUD hidden, the strip shown; H hides the strip too.
+    assert!(!game.free_camera_quads().unwrap().is_empty());
+    press(&mut game, KeyCode::KeyH);
+    assert!(game.free_camera_quads().unwrap().is_empty());
+    press(&mut game, KeyCode::KeyH);
+    // The held keys fly the camera half a second at the start speed; the
+    // car stays where it was.
+    let car = game.sim.drive.as_ref().unwrap().state.position;
+    let before = game.free_camera.as_ref().unwrap().camera.position;
+    hold(&mut game, KeyCode::KeyW, 30);
+    let after = game.free_camera.as_ref().unwrap().camera.position;
+    let flown = after.distance(before);
+    assert!((flown - SPEED_START * 0.5).abs() < 1.0, "{before} -> {after}");
+    assert!(game.sim.drive.as_ref().unwrap().state.position.distance(car) < 0.05, "the world paused");
+    // Up with R; the wheel speeds it up.
+    let z = game.free_camera.as_ref().unwrap().camera.position.z;
+    game.platform.mouse.wheel = 3.0;
+    hold(&mut game, KeyCode::KeyR, 30);
+    let fc = game.free_camera.as_ref().unwrap();
+    assert!(fc.speed > SPEED_START * 1.9, "{}", fc.speed);
+    assert!(fc.camera.position.z - z > 15.0, "{z} -> {}", fc.camera.position.z);
+    // X widens the field of view up to its limit; Z narrows it.
+    hold(&mut game, KeyCode::KeyX, 600);
+    assert!((game.free_camera.as_ref().unwrap().fov_degrees() - FOV_RANGE.1).abs() < 0.1);
+    hold(&mut game, KeyCode::KeyZ, 60);
+    assert!(game.free_camera.as_ref().unwrap().fov_degrees() < FOV_RANGE.1 - 20.0);
+    // Other keys of the old editor do nothing (no pages, no saving).
+    for code in [KeyCode::Tab, KeyCode::F5, KeyCode::KeyT, KeyCode::KeyN, KeyCode::Space, KeyCode::Delete] {
+        press(&mut game, code);
     }
-    game.platform.keys.remove(&KeyCode::KeyW);
-    let after = game.map_editor.as_ref().unwrap().ed.camera.position;
-    assert!(after.distance(before) > 5.0, "{before} -> {after}");
-    // A small prop near the car, aimed at from 10 m away and picked.
-    let d = game.sim.drive.as_ref().unwrap();
-    let car = d.state.position;
-    let (i, centre) = (0..d.world.placements.len())
-        .filter(|&i| d.world.placements[i].flags & 0x0110 == 0)
-        .filter_map(|i| nfsu2::tools::map::edit::placement_sphere(&d.world, i).map(|s| (i, s)))
-        .filter(|(_, (_, r))| *r > 0.3 && *r < 3.0)
-        .min_by(|a, b| a.1.0.distance(car).total_cmp(&b.1.0.distance(car)))
-        .map(|(i, (c, _))| (i, c))
-        .expect("a small prop");
-    let ed = &mut game.map_editor.as_mut().unwrap().ed;
-    ed.camera = nfsu2::render::Camera::looking_at(centre + Vec3::new(0.0, -10.0, 1.0), centre);
-    press(&mut game, KeyCode::Space);
-    let picked = game.map_editor.as_ref().unwrap().ed.selected.expect("picked");
-    // The ray meets that prop or one in front of it.
-    let w = &game.sim.drive.as_ref().unwrap().world;
-    let at = w.placements[picked].transform.w_axis.truncate();
-    assert!(picked == i || at.distance(centre) < 12.0);
-    // Moved one step up: in the world, and as a move edit in the mod.
-    press(&mut game, KeyCode::PageUp);
-    let w = &game.sim.drive.as_ref().unwrap().world;
-    assert!((w.placements[picked].transform.w_axis.z - at.z - 0.25).abs() < 1e-4);
-    let ed = &game.map_editor.as_ref().unwrap().ed;
-    assert!(matches!(ed.map.props.as_slice(), [nfsu2::tools::map::PropEdit::Move { .. }]));
-    // Deleted: the move becomes a delete of the same original.
-    press(&mut game, KeyCode::Delete);
-    let w = &game.sim.drive.as_ref().unwrap().world;
-    assert!(w.placements[picked].flags & nfsu2::world::HIDDEN_FLAG != 0);
-    let ed = &game.map_editor.as_ref().unwrap().ed;
-    assert!(matches!(ed.map.props.as_slice(), [nfsu2::tools::map::PropEdit::Delete { .. }]));
-    // A race on the race page: N at the aim point, two more checkpoints.
-    press(&mut game, KeyCode::Tab);
-    press(&mut game, KeyCode::KeyN);
-    let ed = &game.map_editor.as_ref().unwrap().ed;
-    assert_eq!(ed.map.races.len(), 1, "{:?}", ed.status);
-    // Esc: saved, enabled, back to driving.
+    assert!(game.free_camera.is_some());
+    assert!(!nfsu2::tools::map::store::maps_dir().join("my-map").exists(), "nothing saved");
+    // Esc: back to driving.
     press(&mut game, KeyCode::Escape);
-    assert!(game.map_editor.is_none());
-    assert!(matches!(game.mode, Mode::Explore));
-    let dir = nfsu2::tools::map::store::maps_dir();
-    // The test's own data folder (`test_isolation`), never the player's.
-    assert!(dir.starts_with(nfsu2::platform::dirs::app()));
-    assert_eq!(nfsu2::tools::map::store::enabled(&dir), vec!["my-map".to_string()]);
-    let saved = nfsu2::tools::map::store::read_file(&dir.join("my-map").join("map.obmap")).unwrap();
-    assert_eq!(saved.props.len(), 1);
-    assert_eq!(saved.races.len(), 1);
-    // The world as edited stays so through a kept world's reset.
-    let w = &mut game.sim.drive.as_mut().unwrap().world;
-    assert!(w.reset_to_loaded(true));
-    assert!(w.placements[picked].flags & nfsu2::world::HIDDEN_FLAG != 0);
+    assert!(game.free_camera.is_none() && matches!(game.mode, Mode::Explore));
+    // G: the car to the ground point the camera looks at, then driving.
+    press(&mut game, KeyCode::F8);
+    let fc = game.free_camera.as_mut().unwrap();
+    let aim_at = car + Vec3::new(30.0, 0.0, 0.0);
+    fc.camera = nfsu2::render::Camera::looking_at(aim_at + Vec3::new(-6.0, 0.0, 6.0), aim_at);
+    let expect = {
+        let d = game.sim.drive.as_ref().unwrap();
+        crate::enh::free_camera::aim(&game.free_camera.as_ref().unwrap().camera, &d.world)
+    };
+    press(&mut game, KeyCode::KeyG);
+    assert!(game.free_camera.is_none() && matches!(game.mode, Mode::Explore));
+    let now = game.sim.drive.as_ref().unwrap().state.position;
+    assert!(now.truncate().distance(expect.truncate()) < 1.5, "{now} vs {expect}");
+    assert!(now.truncate().distance(car.truncate()) > 20.0, "{car} -> {now}");
     nfsu2::tools::map::set_editor_enabled(false);
 }
 

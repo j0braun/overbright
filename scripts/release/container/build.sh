@@ -117,8 +117,8 @@ run() { # run <image> <network: default|none> <env...>: inside.sh in the image
 status=0
 for t in $TARGETS; do
     case $t in
-        linux) for b in game overbright; do "$HERE/../check_linux.sh" "$OUT/dist/linux/$b" || status=1; done ;;
-        windows) for b in game overbright; do python3 "$HERE/../check_pe.py" --gui "$OUT/dist/windows/$b.exe" || status=1; done ;;
+        linux) for b in game overbright overbright-editor; do "$HERE/../check_linux.sh" "$OUT/dist/linux/$b" || status=1; done ;;
+        windows) for b in game overbright overbright-editor; do python3 "$HERE/../check_pe.py" --gui "$OUT/dist/windows/$b.exe" || status=1; done ;;
     esac
 done
 exit $status

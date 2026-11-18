@@ -17,7 +17,7 @@ pub const ENABLED: &str = "enabled.txt";
 
 /// The map mods' folder in Overbright's data folder (portable-aware).
 pub fn maps_dir() -> PathBuf {
-    crate::platform::dirs::app().join("maps")
+    crate::platform::dirs::maps()
 }
 
 /// A map mod read from `path` (a `map.obmap`), refused cleanly when it is

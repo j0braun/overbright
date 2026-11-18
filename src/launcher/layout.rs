@@ -92,7 +92,29 @@ pub struct Builder<'a> {
     /// The room left between the content and a footer at the window's
     /// bottom (px), for a growing list.
     pub slack: f32,
+    /// The page has look A's frame ([`Builder::top_bar`]): the slab, the
+    /// footer legends.
+    pub framed: bool,
+    /// The slab's widget (closed by [`Builder::footer_legends`]).
+    pub slab: Option<usize>,
+    /// The backdrop the page asks for.
+    pub scene: super::backdrop::Scene,
 }
+
+/// A two-column page's columns ([`Builder::columns`]); `right` is None when
+/// the window is too narrow for two (the right column then follows the left).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Columns {
+    pub left: Rect,
+    pub right: Option<Rect>,
+}
+
+/// A slab page's top, under the rail (look-A units).
+pub const SLAB_TOP: f32 = 104.0;
+/// The room under the slab for the footer (look-A units).
+pub const SLAB_BOTTOM: f32 = 86.0;
+/// The main screen's slab width (look-A units).
+pub const MAIN_SLAB_W: f32 = 740.0;
 
 /// An item of a row of links ([`Builder::links`]).
 pub enum Link {
@@ -122,6 +144,9 @@ impl<'a> Builder<'a> {
             content: None,
             grow: 0,
             slack: 0.0,
+            framed: false,
+            slab: None,
+            scene: super::backdrop::Scene::Plain,
         }
     }
 
@@ -193,6 +218,628 @@ impl<'a> Builder<'a> {
         self.y += t + bar + self.m.s(12.0);
     }
 
+    // ---- Look A's frame -------------------------------------------------
+
+    /// One look-A unit in px: 1 at 1366 × 768 (the mockups' size), from
+    /// the layout's own unit (1 at 960 × 720).
+    pub fn ua(&self) -> f32 {
+        self.m.u * 0.9375
+    }
+
+    /// The font size (the line box the text calls take) for an em size of
+    /// `v` look-A units (the mockups' CSS `font-size`).
+    pub fn fs(&self, f: Face, v: f32) -> f32 {
+        self.fonts.box_size(super::font::text(f, v * self.ua(), 0.0))
+    }
+
+    /// [`Builder::fs`], at least `min_em` px of em.
+    pub fn fs_min(&self, f: Face, v: f32, min_em: f32) -> f32 {
+        self.fonts.box_size(super::font::text(f, (v * self.ua()).max(min_em), 0.0))
+    }
+
+    /// The frame's vertical room (the top bar, the slab's margins, the
+    /// footer) in look-A units, pressed together when the window holds
+    /// less than the mockups' 768 units of height.
+    pub fn ac(&self, v: f32) -> f32 {
+        let room = self.m.h / self.ua() / 768.0;
+        (v * self.ua() * room.powi(3).clamp(0.5, 1.0)).round()
+    }
+
+    /// `v` look-A units in px, rounded.
+    pub fn a(&self, v: f32) -> f32 {
+        (v * self.ua()).round()
+    }
+
+    /// Where a footer's buttons end: inside the slab on a framed page,
+    /// else the window's bottom margin.
+    fn bottom_limit(&self) -> f32 {
+        if self.framed { self.m.h - self.ac(SLAB_BOTTOM) - self.a(20.0) } else { self.m.h - self.m.s(24.0) }
+    }
+
+    /// The top bar: Overbright's mark at the left; the page names at the
+    /// right (`pages`: id and name, `current` lit and the rail's dot under
+    /// it), or the `tag` ("Setup") instead of them; the rail across;
+    /// then the slab the page is laid out on (narrow on the main screen,
+    /// `main`). Text widths are measured, nothing is clipped.
+    pub fn top_bar(&mut self, pages: &[(Id, &str)], current: Option<usize>, main: bool, tag: Option<&str>) {
+        self.framed = true;
+        self.scene = if main { super::backdrop::Scene::Main } else { super::backdrop::Scene::Plain };
+        let t = super::draw::theme();
+        let (x0, x1) = (self.a(64.0), self.m.w - self.a(64.0));
+        let mid = self.ac(50.0);
+        // The mark and the name.
+        let ring = self.a(22.0);
+        self.push(None, Rect::new(x0, mid - ring / 2.0, ring, ring), Kind::Logo, Vec::new());
+        let bs = self.fs(Face::LabelItalic, 19.0);
+        let (bw, bh) =
+            (self.fonts.width(Face::LabelItalic, bs, super::screens::NAME), self.lh_of(Face::LabelItalic, bs));
+        let bx = x0 + ring + self.a(10.0);
+        let brand_at = self.widgets.len();
+        self.push(
+            None,
+            Rect::new(bx, mid - bh / 2.0, bw, bh),
+            Kind::Label,
+            vec![text(Rect::new(bx, mid - bh / 2.0, bw, bh), super::screens::NAME, Face::LabelItalic, bs, t.ink)],
+        );
+        let mut dot_x = x0;
+        match (current, tag) {
+            (_, None) if !pages.is_empty() => {
+                let cur = current.unwrap_or(usize::MAX);
+                // The names at their size when they fit right of the mark,
+                // else smaller (a narrow window at a large text size).
+                let brand_right = bx + bw + self.a(24.0);
+                let (fonts, ts0, pad0, gap0) = (self.fonts, self.fs(Face::LabelItalic, 21.0), self.a(18.0), self.a(6.0));
+                let fit = |k: f32| {
+                    let ts = ts0 * k;
+                    let (padx, gap) = (pad0 * k, gap0 * k);
+                    let widths: Vec<f32> =
+                        pages.iter().map(|(_, n)| fonts.width(Face::LabelItalic, ts, n) + 2.0 * padx).collect();
+                    let total: f32 = widths.iter().sum::<f32>() + gap * pages.len().saturating_sub(1) as f32;
+                    (ts, padx, gap, widths, total)
+                };
+                let mut k = 1.0;
+                let mut f = fit(k);
+                while x1 - f.4 - self.a(52.0) < brand_right && k > 0.55 {
+                    k -= 0.05;
+                    f = fit(k);
+                }
+                // Still no room: the mark alone (its name left out), the
+                // names smaller still.
+                if x1 - f.4 - self.a(52.0) < brand_right {
+                    self.widgets.remove(brand_at);
+                    let ring_right = x0 + ring + self.a(12.0);
+                    while x1 - f.4 - self.a(52.0) < ring_right && k > 0.25 {
+                        k -= 0.05;
+                        f = fit(k);
+                    }
+                }
+                let (ts, padx, gap, widths, total) = f;
+                let th = self.lh_of(Face::LabelItalic, ts);
+                // Room for the bumper glyphs on both sides (drawn by the legends).
+                let mut x = x1 - total - self.a(52.0);
+                let h = (th + self.a(12.0)).min(2.0 * (self.ac(84.0) - self.a(6.0) - mid)).max(th);
+                for (i, ((id, name), w)) in pages.iter().zip(&widths).enumerate() {
+                    let r = Rect::new(x, mid - h / 2.0, *w, h);
+                    let col = if i == cur { t.lime } else { t.dim };
+                    let tr = Rect::new(x + padx, mid - th / 2.0, w - 2.0 * padx, th);
+                    self.widgets.push(Widget {
+                        id: Some(id),
+                        rect: r,
+                        kind: Kind::PageTab { current: i == cur },
+                        texts: vec![text(tr, *name, Face::LabelItalic, ts, col)],
+                        enabled: true,
+                    });
+                    if i == cur {
+                        dot_x = r.cx();
+                    }
+                    x += w + gap;
+                }
+                // The bumpers' glyphs beside the names (a pad's last input).
+                let set = super::legends::GlyphSet::for_input(self.st.input);
+                if set.is_pad() {
+                    let g = super::legends::glyphs(set, super::legends::Btn::Pages);
+                    let (fonts, u) = (self.fonts, self.m.u);
+                    let gw = |g| super::legends::glyph_width(fonts, g, u);
+                    let gh = self.a(28.0);
+                    let first_x = x1 - total - self.a(52.0);
+                    let l = g[0];
+                    let lr = Rect::new(first_x - self.a(10.0) - gw(l), mid - gh / 2.0, gw(l), gh);
+                    self.push(None, lr, Kind::Glyph { glyph: l }, Vec::new());
+                    if let Some(&rg) = g.get(1) {
+                        let rr = Rect::new((x - gap + self.a(10.0)).min(x1 - gw(rg)), mid - gh / 2.0, gw(rg), gh);
+                        self.push(None, rr, Kind::Glyph { glyph: rg }, Vec::new());
+                    }
+                }
+            }
+            _ => {
+                let ns = self.fs(Face::LabelItalic, 16.0);
+                let tag = tag.unwrap_or("");
+                let (nw, nh) = (self.fonts.width(Face::LabelItalic, ns, tag), self.lh_of(Face::LabelItalic, ns));
+                let r = Rect::new(x1 - nw, mid - nh / 2.0, nw, nh);
+                self.push(None, r, Kind::Label, vec![text(r, tag, Face::LabelItalic, ns, t.dim)]);
+            }
+        }
+        let rail_y = self.ac(84.0);
+        let rh = self.a(2.0).max(2.0);
+        self.push(None, Rect::new(x0, rail_y - rh / 2.0, x1 - x0, rh), Kind::Rail { dot_x }, Vec::new());
+        // The slab.
+        let sx = self.a(36.0);
+        let sw = if main { self.a(MAIN_SLAB_W).min(self.m.w - 2.0 * sx) } else { self.m.w - 2.0 * sx };
+        let sy = self.ac(SLAB_TOP);
+        self.slab = Some(self.widgets.len());
+        self.push(None, Rect::new(sx, sy, sw, 0.0), Kind::Card, Vec::new());
+        self.x0 = x0;
+        self.x1 = sx + sw - self.a(28.0).max(x0 - sx);
+        self.y = sy + self.a(18.0);
+    }
+
+    fn lh_of(&self, f: Face, size: f32) -> f32 {
+        self.fonts.line_height(f, size)
+    }
+
+    /// Closes the slab: down to the footer's room, or past the content.
+    fn slab_end(&mut self) {
+        if let Some(i) = self.slab
+            && self.widgets[i].rect.h == 0.0
+        {
+            let bottom = (self.m.h - self.ac(SLAB_BOTTOM)).max(self.y + self.a(20.0));
+            let r = &mut self.widgets[i].rect;
+            r.h = bottom - r.y;
+        }
+    }
+
+    /// A page's title in lime italic, with its trail ("Settings ›") before it.
+    pub fn page_title(&mut self, title: &str, crumb: Option<&str>) {
+        let size = self.fs(Face::TitleItalic, 32.0);
+        self.title_at(title, crumb, size);
+    }
+
+    /// The main screen's big title (the game's name).
+    pub fn game_title(&mut self, title: &str) {
+        let size = self.fs(Face::TitleItalic, 42.0);
+        self.title_at(title, None, size);
+    }
+
+    fn title_at(&mut self, title: &str, crumb: Option<&str>, size: f32) {
+        let t = super::draw::theme();
+        let lh = self.lh_of(Face::TitleItalic, size);
+        let mut x = self.x0;
+        let mut texts = Vec::new();
+        if let Some(c) = crumb {
+            let c = format!("{c} › ");
+            let cw = self.fonts.width(Face::TitleItalic, size, &c);
+            texts.push(text(Rect::new(x, self.y, cw, lh), c, Face::TitleItalic, size, t.dim));
+            x += cw;
+        }
+        let v = self.fonts.fit(Face::TitleItalic, size, title, self.x1 - x, Cut::End);
+        let vw = self.fonts.width(Face::TitleItalic, size, &v);
+        texts.push(super::ui::text_of(Rect::new(x, self.y, vw, lh), v, title, Face::TitleItalic, size, t.lime));
+        self.push(None, Rect::new(self.x0, self.y, self.width(), lh), Kind::Label, texts);
+        self.y += lh + self.a(10.0);
+    }
+
+    /// A two-column page: the left column `left_w` look-A units wide (at
+    /// most 60 % of the slab), the right one the rest; None for the right
+    /// when it would be narrower than 280 units.
+    pub fn columns(&mut self, left_w: f32) -> Columns {
+        let gap = self.a(48.0);
+        let lw = self.a(left_w).min(self.width());
+        let rest = self.width() - lw - gap;
+        if rest < self.a(280.0) {
+            let left = Rect::new(self.x0, self.y, self.width(), 0.0);
+            return Columns { left, right: None };
+        }
+        Columns {
+            left: Rect::new(self.x0, self.y, lw, 0.0),
+            right: Some(Rect::new(self.x0 + lw + gap, self.y, rest, 0.0)),
+        }
+    }
+
+    /// What follows is laid out inside `r` (from its top).
+    pub fn in_column(&mut self, r: Rect) {
+        self.x0 = r.x;
+        self.x1 = r.right();
+        self.y = r.y;
+    }
+
+    /// The Play button: the big pill; `busy` while starting (not pressable).
+    pub fn play(&mut self, id: Id, label: &str, busy: bool) {
+        let t = super::draw::theme();
+        let r = Rect::new(
+            self.x0 + self.a(4.0),
+            self.y + self.a(8.0),
+            self.a(364.0).min(self.width() - self.a(8.0)),
+            self.a(88.0),
+        );
+        let size = self.fs(Face::PlayItalic, 38.0);
+        let v = self.fonts.fit(Face::PlayItalic, size, label, r.w - self.a(32.0), Cut::End);
+        let vw = self.fonts.width(Face::PlayItalic, size, &v);
+        let lh = self.lh_of(Face::PlayItalic, size);
+        let tr = Rect::new(r.x + ((r.w - vw) / 2.0).round(), r.y + ((r.h - lh) / 2.0).round(), vw, lh);
+        self.widgets.push(Widget {
+            id: Some(id),
+            rect: r,
+            kind: Kind::Play,
+            texts: vec![text(tr, v, Face::PlayItalic, size, t.on_play)],
+            enabled: !busy,
+        });
+        self.y = r.bottom() + self.a(28.0);
+    }
+
+    /// A row that opens something: its label, its value, a chevron.
+    pub fn sum_row(&mut self, id: Id, label: &str, value: &str) {
+        let t = super::draw::theme();
+        let h = self.a(48.0);
+        let r = Rect::new(self.x0, self.y, self.width(), h);
+        let size = self.fs(Face::LabelItalic, 19.0);
+        let lh = self.lh_of(Face::LabelItalic, size);
+        let ty = r.y + ((h - lh) / 2.0).round();
+        let pad = self.a(18.0);
+        let vx = r.x + (r.w * 0.4).round();
+        let arrow = Rect::new(r.right() - self.a(42.0), r.y + (h - self.a(24.0)) / 2.0, self.a(24.0), self.a(24.0));
+        let l = self.fonts.fit(Face::LabelItalic, size, label, vx - r.x - 2.0 * pad, Cut::End);
+        let lw = self.fonts.width(Face::LabelItalic, size, &l);
+        let v = self.fonts.fit(Face::LabelItalic, size, value, arrow.x - vx - pad, Cut::End);
+        let vw = self.fonts.width(Face::LabelItalic, size, &v);
+        let mut texts = vec![text(Rect::new(r.x + pad, ty, lw, lh), l, Face::LabelItalic, size, t.ink)];
+        if !value.is_empty() {
+            texts.push(super::ui::text_of(Rect::new(vx, ty, vw, lh), v, value, Face::LabelItalic, size, t.ink));
+        }
+        self.widgets.push(Widget { id: Some(id), rect: r, kind: Kind::SumRow { arrow }, texts, enabled: true });
+        self.y += h;
+    }
+
+    /// A label and a value stepped with the circled arrows (or Left /
+    /// Right); `suggested` adds the tag: after the right arrow when the row
+    /// has room for it, else under the value (the row grows). Nothing is
+    /// clipped and nothing lies under an arrow.
+    pub fn value_row(&mut self, id: Id, label: &str, value: &str, values: &[String], suggested: bool, enabled: bool) {
+        let _ = values;
+        let t = super::draw::theme();
+        let size = self.fs(Face::LabelItalic, 19.0);
+        let lh = self.lh_of(Face::LabelItalic, size);
+        let ts = self.fs_min(Face::LabelItalic, 14.0, 14.0);
+        let tlh = self.lh_of(Face::LabelItalic, ts);
+        let tw = self.fonts.width(Face::LabelItalic, ts, "suggested");
+        let (tpad, tgap) = (self.a(8.0), self.a(12.0));
+        let tag_box = (tw + 2.0 * tpad, tlh + self.a(8.0));
+        let base_h = self.a(52.0).max(lh + self.a(16.0));
+        let ar = self.a(14.0).max(8.0);
+        let pad = self.a(18.0);
+        let label_w = self.a(280.0).min(self.width() * 0.42);
+        let lx = self.x0 + label_w + ar;
+        // The right arrow's centre: the tag beside it when the value still
+        // has room for its widest value, else the tag goes under the value.
+        let room_beside = suggested && {
+            let rx = self.x1 - pad - tag_box.0 - tgap - ar;
+            rx - lx - 2.0 * ar >= self.a(160.0)
+        };
+        let rx = if room_beside { self.x1 - pad - tag_box.0 - tgap - ar } else { self.x1 - self.a(56.0).max(ar + pad) };
+        let rx = rx.max(lx + 2.0 * ar + self.a(60.0));
+        let below = suggested && !room_beside;
+        let h = if below { base_h + tag_box.1 + self.a(6.0) } else { base_h };
+        let r = Rect::new(self.x0, self.y, self.width(), h);
+        let cy = r.y + base_h / 2.0;
+        let left = Rect::new(lx - ar, cy - ar, 2.0 * ar, 2.0 * ar);
+        let right = Rect::new(rx - ar, cy - ar, 2.0 * ar, 2.0 * ar);
+        let ty = cy - lh / 2.0;
+        let l = self.fonts.fit(Face::LabelItalic, size, label, (left.x - r.x - 2.0 * pad).max(self.a(40.0)), Cut::End);
+        let lw = self.fonts.width(Face::LabelItalic, size, &l);
+        let inner = right.x - left.right() - self.a(16.0);
+        let v = self.fonts.fit(Face::LabelItalic, size, value, inner, Cut::End);
+        let vw = self.fonts.width(Face::LabelItalic, size, &v);
+        let vx = ((left.right() + right.x - vw) / 2.0).round();
+        let mut texts = vec![
+            super::ui::text_of(Rect::new(r.x + pad, ty, lw, lh), l, label, Face::LabelItalic, size, t.ink),
+            super::ui::text_of(Rect::new(vx, ty, vw, lh), v, value, Face::LabelItalic, size, t.ink),
+        ];
+        let tag = suggested.then(|| {
+            let tr = if room_beside {
+                Rect::new(right.right() + tgap, cy - tag_box.1 / 2.0, tag_box.0, tag_box.1)
+            } else {
+                let x = ((left.right() + right.x - tag_box.0) / 2.0).round();
+                Rect::new(x, r.y + base_h - self.a(4.0), tag_box.0, tag_box.1)
+            };
+            texts.push(text(
+                Rect::new(tr.x + tpad, tr.y + (tr.h - tlh) / 2.0, tw, tlh),
+                "suggested",
+                Face::LabelItalic,
+                ts,
+                t.lime,
+            ));
+            tr
+        });
+        self.widgets.push(Widget { id: Some(id), rect: r, kind: Kind::ValueRow { left, right, tag }, texts, enabled });
+        self.y += h;
+    }
+
+    /// A small line under the row before it (indented to the labels).
+    pub fn row_note(&mut self, s: &str) {
+        let t = super::draw::theme();
+        let size = self.fs_min(Face::Body, 15.0, 14.0);
+        let x = self.x0 + self.a(18.0);
+        // Clear of the row above's focus ring.
+        self.y += self.a(6.0);
+        let (texts, h) = self.lines(x, self.y, self.x1 - x, s, Face::Body, size, t.dim);
+        self.push(None, Rect::new(x, self.y, self.x1 - x, h), Kind::Label, texts);
+        self.y += h + self.a(6.0);
+    }
+
+    /// A small note under the row before it with a button's glyph inside
+    /// (`before`, the glyph, `after`), on one line when it fits.
+    pub fn row_note_glyph(&mut self, before: &str, glyph: super::legends::Glyph, after: &str) {
+        let t = super::draw::theme();
+        let size = self.fs_min(Face::Body, 15.0, 14.0);
+        let lh = self.lh_of(Face::Body, size);
+        let gw = super::legends::glyph_width(self.fonts, glyph, self.m.u);
+        let gh = self.a(28.0).max(lh);
+        let x = self.x0 + self.a(18.0);
+        let (bw, aw) = (self.fonts.width(Face::Body, size, before), self.fonts.width(Face::Body, size, after));
+        let gap = self.a(6.0);
+        if x + bw + gap + gw + gap + aw > self.x1 {
+            return self.row_note(&format!("{before} … {after}"));
+        }
+        let ty = self.y + ((gh - lh) / 2.0).round();
+        let r1 = Rect::new(x, ty, bw, lh);
+        self.push(None, r1, Kind::Label, vec![text(r1, before, Face::Body, size, t.dim)]);
+        let gr = Rect::new(x + bw + gap, self.y, gw, gh);
+        self.push(None, gr, Kind::Glyph { glyph }, Vec::new());
+        let r2 = Rect::new(gr.right() + gap, ty, aw, lh);
+        self.push(None, r2, Kind::Label, vec![text(r2, after, Face::Body, size, t.dim)]);
+        self.y += gh + self.a(6.0);
+    }
+
+    /// A switch row: the label, "On" / "Off" and the switch at the right.
+    /// A switch row with a second, smaller line under its label (what the
+    /// mod is), and whether it can be used.
+    pub fn toggle_sub(&mut self, id: Id, label: &str, sub: &str, on: bool, enabled: bool) {
+        if sub.is_empty() {
+            self.toggle(id, label, on);
+            if let Some(w) = self.widgets.last_mut() {
+                w.enabled = enabled;
+            }
+            return;
+        }
+        let t = super::draw::theme();
+        let size = self.fs(Face::LabelItalic, 19.0);
+        let small = self.fs_min(Face::LabelItalic, 15.0, 14.0);
+        let lh = self.lh_of(Face::LabelItalic, size);
+        let sh = self.lh_of(Face::LabelItalic, small);
+        let h = (lh + sh + self.a(16.0)).max(self.a(56.0));
+        let r = Rect::new(self.x0, self.y, self.width(), h);
+        let knob = Rect::new(r.right() - self.a(70.0), r.cy() - self.a(14.0), self.a(52.0), self.a(28.0));
+        let pad = self.a(18.0);
+        let word = if on { "On" } else { "Off" };
+        let ww = self.fonts.width(Face::LabelItalic, size, word);
+        let max = knob.x - ww - r.x - 3.0 * pad;
+        let top = r.y + ((h - lh - sh) / 2.0).round();
+        let l = self.fonts.fit(Face::LabelItalic, size, label, max, Cut::End);
+        let lw = self.fonts.width(Face::LabelItalic, size, &l);
+        let sv = self.fonts.fit(Face::LabelItalic, small, sub, max, Cut::End);
+        let sw = self.fonts.width(Face::LabelItalic, small, &sv);
+        let texts = vec![
+            super::ui::text_of(Rect::new(r.x + pad, top, lw, lh), l, label, Face::LabelItalic, size, t.ink),
+            super::ui::text_of(Rect::new(r.x + pad, top + lh, sw, sh), sv, sub, Face::LabelItalic, small, t.dim),
+            text(
+                Rect::new(knob.x - pad - ww, r.y + ((h - lh) / 2.0).round(), ww, lh),
+                word,
+                Face::LabelItalic,
+                size,
+                if on { t.lime } else { t.dim },
+            ),
+        ];
+        self.widgets.push(Widget { id: Some(id), rect: r, kind: Kind::Toggle { on, knob }, texts, enabled });
+        self.y += h;
+    }
+
+    /// A small section label in spaced italic capitals ("TEXTURE PACKS").
+    pub fn section_a(&mut self, s: &str) {
+        let t = super::draw::theme();
+        let size = self.fs_min(Face::TitleItalic, 14.0, 14.0);
+        let caps = s.to_uppercase();
+        self.y += self.a(14.0);
+        let lh = self.lh_of(Face::TitleItalic, size);
+        let w = self.fonts.width(Face::TitleItalic, size, &caps);
+        let r = Rect::new(self.x0, self.y, w, lh);
+        self.push(None, r, Kind::Label, vec![text(r, caps, Face::TitleItalic, size, t.dim)]);
+        self.y += lh + self.a(6.0);
+    }
+
+    pub fn toggle(&mut self, id: Id, label: &str, on: bool) {
+        let t = super::draw::theme();
+        let h = self.a(52.0);
+        let r = Rect::new(self.x0, self.y, self.width(), h);
+        let knob = Rect::new(r.right() - self.a(70.0), r.cy() - self.a(14.0), self.a(52.0), self.a(28.0));
+        let size = self.fs(Face::LabelItalic, 19.0);
+        let lh = self.lh_of(Face::LabelItalic, size);
+        let ty = r.y + ((h - lh) / 2.0).round();
+        let pad = self.a(18.0);
+        let word = if on { "On" } else { "Off" };
+        let ww = self.fonts.width(Face::LabelItalic, size, word);
+        let l = self.fonts.fit(Face::LabelItalic, size, label, knob.x - ww - r.x - 3.0 * pad, Cut::End);
+        let lw = self.fonts.width(Face::LabelItalic, size, &l);
+        let texts = vec![
+            text(Rect::new(r.x + pad, ty, lw, lh), l, Face::LabelItalic, size, t.ink),
+            text(
+                Rect::new(knob.x - pad - ww, ty, ww, lh),
+                word,
+                Face::LabelItalic,
+                size,
+                if on { t.lime } else { t.dim },
+            ),
+        ];
+        self.widgets.push(Widget { id: Some(id), rect: r, kind: Kind::Toggle { on, knob }, texts, enabled: true });
+        self.y += h;
+    }
+
+    /// A message box: its mark, title and text, and the buttons that do
+    /// the fix inside it (the first focused).
+    pub fn message(&mut self, mark: Mark, title: &str, text_s: &str) {
+        self.message_with(mark, title, text_s, Vec::new());
+    }
+
+    pub fn message_with(&mut self, mark: Mark, title: &str, text_s: &str, buttons: Vec<Ctrl>) {
+        self.message_progress(mark, title, text_s, None, buttons);
+    }
+
+    /// [`Builder::message_with`] with a progress bar (`fraction`) and its
+    /// words under the text.
+    pub fn message_progress(
+        &mut self,
+        mark: Mark,
+        title: &str,
+        text_s: &str,
+        progress: Option<(f32, String)>,
+        buttons: Vec<Ctrl>,
+    ) {
+        let t = super::draw::theme();
+        let i = self.widgets.len();
+        let (x0, x1) = (self.x0, self.x1);
+        let top = self.y;
+        self.push(None, Rect::new(x0, top, (x1 - x0).min(self.a(860.0)), 0.0), Kind::Message { mark }, Vec::new());
+        self.x0 = x0 + self.a(24.0);
+        self.x1 = x0 + (x1 - x0).min(self.a(860.0)) - self.a(24.0);
+        self.y = top + self.a(18.0);
+        let ts = self.fs(Face::TitleItalic, 22.0);
+        let th = self.lh_of(Face::TitleItalic, ts);
+        let tx = self.x0 + self.a(36.0);
+        let tt = self.fonts.fit(Face::TitleItalic, ts, title, self.x1 - tx, Cut::End);
+        let tw = self.fonts.width(Face::TitleItalic, ts, &tt);
+        let mut texts =
+            vec![super::ui::text_of(Rect::new(tx, self.y, tw, th), tt, title, Face::TitleItalic, ts, t.ink)];
+        self.y += th + self.a(8.0);
+        let bs = self.fs(Face::Body, 18.0);
+        let (body, h) = self.lines(self.x0, self.y, self.x1 - self.x0, text_s, Face::Body, bs, t.ink);
+        texts.extend(body);
+        self.y += h;
+        self.widgets[i].texts = texts;
+        if let Some((fraction, words)) = progress {
+            self.y += self.a(14.0);
+            let bh = self.a(14.0).max(8.0);
+            self.push(None, Rect::new(self.x0, self.y, self.x1 - self.x0, bh), Kind::Bar { fraction }, Vec::new());
+            self.y += bh + self.a(8.0);
+            let ps = self.fs_min(Face::BodySemi, 16.0, 14.0);
+            let (lines, h) = self.lines(self.x0, self.y, self.x1 - self.x0, &words, Face::BodySemi, ps, t.ink);
+            self.push(None, Rect::new(self.x0, self.y, self.x1 - self.x0, h), Kind::Label, lines);
+            self.y += h;
+        }
+        if !buttons.is_empty() {
+            self.y += self.a(16.0);
+            let y = self.y;
+            self.y = self.flow(self.x0, y, buttons, Align::Left);
+        }
+        self.y += self.a(20.0);
+        self.widgets[i].rect.h = self.y - top;
+        self.x0 = x0;
+        self.x1 = x1;
+        self.y += self.a(16.0);
+    }
+
+    /// The description panel at `r` (its height grows to the text): a
+    /// heading and the text's lines ("• " lines kept as list items).
+    pub fn describe(&mut self, r: Rect, heading: &str, body: &str) {
+        let t = super::draw::theme();
+        let pad = self.a(26.0);
+        let (x, w) = (r.x + pad, r.w - 2.0 * pad);
+        let mut y = r.y + pad;
+        let hs = self.fs(Face::TitleItalic, 21.0);
+        let hh = self.lh_of(Face::TitleItalic, hs);
+        let hv = self.fonts.fit(Face::TitleItalic, hs, heading, w, Cut::End);
+        let hw = self.fonts.width(Face::TitleItalic, hs, &hv);
+        let mut texts = vec![text(Rect::new(x, y, hw, hh), hv, Face::TitleItalic, hs, t.lime)];
+        y += hh + self.a(10.0);
+        let bs = self.fs(Face::Body, 17.0);
+        for para in body.split('\n') {
+            let (lines, h) = self.lines(x, y, w, para, Face::Body, bs, t.ink);
+            texts.extend(lines);
+            y += h + self.a(8.0);
+        }
+        let h = y - r.y + pad - self.a(8.0);
+        self.push(None, Rect::new(r.x, r.y, r.w, h.max(r.h)), Kind::Describe, texts);
+    }
+
+    /// A dialog over the page: the scrim, a centred box with its title,
+    /// text and buttons; the page behind takes no focus or clicks, the
+    /// first button has the focus.
+    pub fn dialog(&mut self, title: &str, body: &str, buttons: &[(Id, &str)]) {
+        let t = super::draw::theme();
+        for w in &mut self.widgets {
+            w.id = None;
+        }
+        self.push(None, Rect::new(0.0, 0.0, self.m.w, self.m.h), Kind::Scrim, Vec::new());
+        let i = self.widgets.len();
+        let bw = self.a(600.0).min(self.m.w - self.a(64.0));
+        let pad = self.a(32.0);
+        let (x0, x1) = (((self.m.w - bw) / 2.0).round(), ((self.m.w + bw) / 2.0).round());
+        self.push(None, Rect::new(x0, 0.0, bw, 0.0), Kind::Dialog, Vec::new());
+        let (sx0, sx1, sy) = (self.x0, self.x1, self.y);
+        self.x0 = x0 + pad;
+        self.x1 = x1 - pad;
+        let ts = self.fs(Face::TitleItalic, 28.0);
+        let th = self.lh_of(Face::TitleItalic, ts);
+        let tv = self.fonts.fit(Face::TitleItalic, ts, title, self.x1 - self.x0, Cut::End);
+        let tw = self.fonts.width(Face::TitleItalic, ts, &tv);
+        let mut texts =
+            vec![text(Rect::new(((self.m.w - tw) / 2.0).round(), pad, tw, th), tv, Face::TitleItalic, ts, t.lime)];
+        let mut y = pad + th + self.a(12.0);
+        let bs = self.fs(Face::Body, 18.0);
+        let (lines, h) = self.lines(0.0, y, self.x1 - self.x0, body, Face::Body, bs, t.ink);
+        for mut l in lines {
+            l.rect.x = ((self.m.w - l.rect.w) / 2.0).round();
+            texts.push(l);
+        }
+        y += h + self.a(24.0);
+        // The buttons, centred.
+        let ctrls: Vec<Ctrl> = buttons
+            .iter()
+            .enumerate()
+            .map(|(k, (id, l))| if k == 0 { Ctrl::primary(id, l) } else { Ctrl::button(id, l) })
+            .collect();
+        let gap = self.m.s(12.0);
+        let total: f32 =
+            ctrls.iter().map(|c| self.natural_w(c)).sum::<f32>() + gap * ctrls.len().saturating_sub(1) as f32;
+        let bx = (((self.m.w - total) / 2.0).max(self.x0)).round();
+        let end = self.flow(bx, y, ctrls, Align::Left);
+        let h = end + pad;
+        let top = ((self.m.h - h) / 2.0).max(0.0).round();
+        for w in &mut self.widgets[i + 1..] {
+            w.rect.y += top;
+            for tb in &mut w.texts {
+                tb.rect.y += top;
+            }
+        }
+        for tb in &mut texts {
+            tb.rect.y += top;
+        }
+        self.widgets[i].rect = Rect::new(x0, top, bw, h);
+        self.widgets[i].texts = texts;
+        self.default_focus = buttons.first().map(|b| b.0);
+        self.x0 = sx0;
+        self.x1 = sx1;
+        self.y = sy;
+    }
+
+    /// The footer under the slab: the version at the left, the button
+    /// legends at the right.
+    pub fn footer_legends(&mut self, version: &str, actions: Vec<super::legends::Action>) {
+        self.content_end();
+        self.slab_end();
+        let t = super::draw::theme();
+        let slab_bottom = self.slab.map_or(self.y, |i| self.widgets[i].rect.bottom());
+        let h = self.a(30.0);
+        let y = (self.m.h - self.ac(46.0) - h / 2.0 + self.a(14.0)).max(slab_bottom + self.ac(16.0));
+        let vs = self.fs_min(Face::LabelItalic, 15.0, 14.0);
+        let vh = self.lh_of(Face::LabelItalic, vs);
+        let vw = self.fonts.width(Face::LabelItalic, vs, version);
+        let x0 = self.a(64.0);
+        let vr = Rect::new(x0, y + (h - vh) / 2.0, vw, vh);
+        self.push(None, vr, Kind::Label, vec![text(vr, version, Face::LabelItalic, vs, t.dim)]);
+        let lx = x0 + vw + self.a(32.0);
+        let r = Rect::new(lx, y, self.m.w - self.a(64.0) - lx, h);
+        self.push(None, r, Kind::Legends { actions }, Vec::new());
+        self.y = r.bottom();
+    }
+
     /// Starts a card (a panel) at the current line: what follows is laid
     /// out inside it, `pad` units in; [`Builder::card_end`] closes it.
     pub fn card_begin(&mut self) -> usize {
@@ -224,6 +871,12 @@ impl<'a> Builder<'a> {
 
     /// The large main button at `r` (its text in the heading size, bold).
     pub fn big_button(&mut self, id: Id, label: &str, r: Rect) {
+        self.big_button_as(id, label, r, true);
+    }
+
+    /// [`Builder::big_button`], drawn as the main action (`primary`) or as
+    /// an ordinary button (the action cannot do its job yet).
+    pub fn big_button_as(&mut self, id: Id, label: &str, r: Rect, primary: bool) {
         let size = self.m.heading() * 1.25;
         let size = size.round();
         let v = self.fonts.fit(Face::Bold, size, label, r.w - self.m.s(24.0), Cut::End);
@@ -234,12 +887,12 @@ impl<'a> Builder<'a> {
             v,
             Face::Bold,
             size,
-            theme::ON_ACCENT,
+            if primary { theme::ON_ACCENT } else { theme::TEXT },
         );
         self.widgets.push(Widget {
             id: Some(id),
             rect: r,
-            kind: Kind::Button { primary: true, big: true },
+            kind: Kind::Button { primary, big: true },
             texts: vec![t],
             enabled: true,
         });
@@ -357,9 +1010,8 @@ impl<'a> Builder<'a> {
     /// after it.
     pub fn footer(&mut self, ctrls: Vec<Ctrl>) {
         self.content_end();
-        let margin = self.m.s(24.0);
         let probe_h = self.flow_height(ctrls.clone());
-        let at_bottom = self.m.h - margin - probe_h;
+        let at_bottom = self.bottom_limit() - probe_h;
         self.slack = (at_bottom - self.y - self.m.s(16.0)).max(0.0);
         let y = at_bottom.max(self.y + self.m.s(16.0));
         self.y = self.flow(self.x0, y, ctrls, Align::Right);
@@ -378,10 +1030,10 @@ impl<'a> Builder<'a> {
         if left.is_empty() || lw + self.m.s(32.0) + rw > self.width() {
             return self.footer(left.into_iter().chain(right).collect());
         }
-        let margin = self.m.s(24.0);
         let ch = self.ctrl_h();
-        self.slack = (self.m.h - margin - ch - self.y - self.m.s(16.0)).max(0.0);
-        let y = (self.m.h - margin - ch).max(self.y + self.m.s(16.0));
+        let limit = self.bottom_limit();
+        self.slack = (limit - ch - self.y - self.m.s(16.0)).max(0.0);
+        let y = (limit - ch).max(self.y + self.m.s(16.0));
         let bl = self.flow(self.x0, y, left, Align::Left);
         let br = self.flow(self.x1 - rw, y, right, Align::Right);
         self.y = bl.max(br);
@@ -397,7 +1049,7 @@ impl<'a> Builder<'a> {
                 w + 2.0 * ch + self.m.s(8.0)
             }
             Ctrl::Button { text, primary, .. } => {
-                let face = if *primary { Face::Bold } else { Face::Regular };
+                let face = Face::LabelItalic;
                 // The main button a little wider: the one thing to press.
                 let min = if *primary { 150.0 } else { 110.0 };
                 (f.width(face, size, text) + self.m.s(40.0)).max(self.m.s(min))
@@ -488,7 +1140,14 @@ impl<'a> Builder<'a> {
                 let inner = r.w - 2.0 * r.h;
                 let v = f.fit(Face::Regular, size, &value, inner, Cut::End);
                 let vw = f.width(Face::Regular, size, &v);
-                let t = super::ui::text_of(Rect::new(r.x + (r.w - vw) / 2.0, ty, vw, lh), v, &value, Face::Regular, size, theme::TEXT);
+                let t = super::ui::text_of(
+                    Rect::new(r.x + (r.w - vw) / 2.0, ty, vw, lh),
+                    v,
+                    &value,
+                    Face::Regular,
+                    size,
+                    theme::TEXT,
+                );
                 self.widgets.push(Widget {
                     id: Some(id),
                     rect: r,
@@ -499,11 +1158,12 @@ impl<'a> Builder<'a> {
                 r.h
             }
             Ctrl::Button { id, text: s, primary, enabled } => {
-                let face = if primary { Face::Bold } else { Face::Regular };
+                let face = Face::LabelItalic;
                 let v = f.fit(face, size, &s, r.w - self.m.s(20.0), Cut::End);
                 let vw = f.width(face, size, &v);
                 let col = if primary { theme::ON_ACCENT } else { theme::TEXT };
-                let t = super::ui::text_of(Rect::new(r.x + ((r.w - vw) / 2.0).round(), ty, vw, lh), v, &s, face, size, col);
+                let t =
+                    super::ui::text_of(Rect::new(r.x + ((r.w - vw) / 2.0).round(), ty, vw, lh), v, &s, face, size, col);
                 self.widgets.push(Widget {
                     id: Some(id),
                     rect: r,
@@ -542,7 +1202,7 @@ impl<'a> Builder<'a> {
                 let chars: Vec<char> = s.chars().collect();
                 let empty = chars.is_empty();
                 let (shown, from, col) = if empty {
-                    (f.fit(Face::Regular, size, &placeholder, inner, Cut::End), 0, theme::PLACEHOLDER)
+                    (f.fit(Face::Regular, size, &placeholder, inner, Cut::End), 0, super::draw::theme().dim)
                 } else if self.st.focus != Some(id) {
                     // Not being typed in: both ends of a long path.
                     (f.fit(Face::Regular, size, s.as_str(), inner - 2.0, Cut::Middle), 0, theme::TEXT)
@@ -745,7 +1405,14 @@ impl<'a> Builder<'a> {
             if nw > 0.0 {
                 let w = self.fonts.width(Face::Regular, ns, &note_fit);
                 let ny = ty + lh - nlh;
-                texts.push(super::ui::text_of(Rect::new(inner_x + inner_w - w, ny, w, nlh), note_fit, note, Face::Regular, ns, theme::DIM));
+                texts.push(super::ui::text_of(
+                    Rect::new(inner_x + inner_w - w, ny, w, nlh),
+                    note_fit,
+                    note,
+                    Face::Regular,
+                    ns,
+                    theme::DIM,
+                ));
             }
         }
         self.widgets.push(Widget {
@@ -814,14 +1481,19 @@ impl<'a> Builder<'a> {
 
     pub fn finish(mut self) -> Ui {
         self.content_end();
+        self.slab_end();
+        let slab_rect = self.slab.map(|i| self.widgets[i].rect);
         let bottom = self.widgets.iter().map(|w| w.rect.bottom()).fold(0.0, f32::max);
+        let pad = if self.framed { 0.0 } else { self.m.s(24.0) };
         Ui {
             widgets: self.widgets,
             view: Rect::new(0.0, 0.0, self.m.w, self.m.h),
-            content_h: (bottom + self.m.s(24.0)).max(self.m.h).min(f32::MAX),
+            content_h: (bottom + pad).max(self.m.h).min(f32::MAX),
             default_focus: self.default_focus,
             metrics: Some(self.m),
             slack: self.slack,
+            scene: self.scene,
+            slab: slab_rect,
         }
     }
 }
@@ -838,9 +1510,25 @@ pub fn build_fit(
     st: &mut UiState,
     f: impl Fn(&mut Builder),
 ) -> Ui {
+    build_fit_scaled(fonts, w, h, dpi, shrink, 1.0, st, f)
+}
+
+/// [`build_fit`] with the text size (`scale`, 1 = 100 %): above 100 % the
+/// page keeps the larger size and scrolls instead of shrinking back.
+#[allow(clippy::too_many_arguments)]
+pub fn build_fit_scaled(
+    fonts: &Fonts,
+    w: u32,
+    h: u32,
+    dpi: f32,
+    shrink: bool,
+    scale: f32,
+    st: &mut UiState,
+    f: impl Fn(&mut Builder),
+) -> Ui {
     let m0 = Metrics::for_size(w, h, dpi);
-    let floor = if shrink { super::ui::MIN_UNIT * dpi } else { m0.u };
-    let mut u = m0.u;
+    let mut u = m0.u * scale.max(1.0);
+    let floor = if shrink && scale <= 1.0 { super::ui::MIN_UNIT * dpi } else { u };
     loop {
         let mut b = Builder::new(fonts, m0.with_unit(u), st);
         f(&mut b);

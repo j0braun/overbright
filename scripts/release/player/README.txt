@@ -39,7 +39,8 @@ Starting
    prefixes, Steam/Lutris-style folders); if it cannot find it, choose the folder that holds the
    GLOBAL, FRONTEND and TRACKS folders. Then press Play.
    ./game starts the game directly, without the launcher; ./game --check-game /path/to/game checks
-   a game folder and prints what it found.
+   a game folder and prints what it found. ./overbright-editor is the map editor (a preview),
+   also opened from the launcher's Dev page.
 3. Optional, an entry in your applications menu: copy overbright.png to
    ~/.local/share/icons/hicolor/256x256/apps/overbright.png and overbright.desktop to
    ~/.local/share/applications/, then change the Exec= line in that copy to the full path of
@@ -63,7 +64,8 @@ Starting
 2. Run overbright.exe (the launcher). It looks for the original game (the registry, the usual
    "EA GAMES" folders, its own folder and the folder above it); if it cannot find it, choose the
    folder that holds the GLOBAL, FRONTEND and TRACKS folders. Then press Play.
-   game.exe starts the game directly, without the launcher.
+   game.exe starts the game directly, without the launcher. overbright-editor.exe is the map
+   editor (a preview), also opened from the launcher's Dev page.
    Windows may warn that the program is not signed ("Windows protected your PC"); choose
    "More info", then "Run anyway".
 

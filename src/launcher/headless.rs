@@ -8,7 +8,7 @@ use std::path::PathBuf;
 
 use super::draw::Canvas;
 use super::font::Fonts;
-use super::model::{Env, FakeEnv, Model, PackStatus, ProbeState};
+use super::model::{Env, FakeEnv, Graphics, Model, PackStatus, ProbeState, Problem};
 use super::screens::{App, Screen};
 use super::ui::{Mark, render as draw_ui};
 
@@ -36,7 +36,7 @@ pub fn draw(a: &App, fonts: &Fonts) -> image::RgbaImage {
 /// read with [`super::backdrop::load`]; `overbright --render … --game`).
 pub fn draw_with(a: &App, fonts: &Fonts, picture: Option<&super::backdrop::Picture>) -> image::RgbaImage {
     let mut c = Canvas::new(a.size.0, a.size.1);
-    let page = super::backdrop::compose(a.size.0, a.size.1, picture, 1.0);
+    let page = super::backdrop::backdrop_a(a.size.0, a.size.1, a.ui.scene, picture);
     super::ui::render_on(&a.ui, &a.st, fonts, &mut c, &page);
     c.to_image()
 }
@@ -51,11 +51,12 @@ pub fn named_app<'e>(env: &'e FakeEnv, fonts: &Fonts, name: &str, w: u32, h: u32
 
 /// The named states: (name, the screen it is shown on). The fake data of
 /// each comes from [`state_model`].
-pub const STATES: [(&str, Screen); 31] = [
+pub const STATES: [(&str, Screen); 57] = [
     ("no-game", Screen::FirstRun),
     ("check-ok", Screen::Check),
     ("not-a-game-folder", Screen::Check),
     ("files-missing", Screen::Check),
+    ("own-folder", Screen::Check),
     ("checking", Screen::Main),
     ("first-start", Screen::Main),
     ("probe-failed", Screen::Main),
@@ -65,6 +66,8 @@ pub const STATES: [(&str, Screen); 31] = [
     ("unofficial", Screen::About),
     ("portable", Screen::About),
     ("start-failed", Screen::Failure),
+    ("no-game-window", Screen::Failure),
+    ("failure-details", Screen::Failure),
     ("unreadable-folder", Screen::Browse),
     ("import-done", Screen::Import),
     ("import-empty", Screen::Import),
@@ -72,6 +75,8 @@ pub const STATES: [(&str, Screen); 31] = [
     ("mods-busy", Screen::Mods),
     ("mods-results", Screen::Mods),
     ("mods-remove", Screen::Mods),
+    ("mods-map-editor-open", Screen::Mods),
+    ("mods-map-editor-failed", Screen::Mods),
     ("mods-hud-complete", Screen::Mods),
     ("mods-hud-incomplete", Screen::Mods),
     ("mods-hud-waiting", Screen::Mods),
@@ -83,12 +88,42 @@ pub const STATES: [(&str, Screen); 31] = [
     ("prepare-running", Screen::Prepare),
     ("prepare-done", Screen::Prepare),
     ("prepare-failed", Screen::Prepare),
+    ("first-none", Screen::FirstRun),
+    ("first-several", Screen::FirstRun),
+    ("err-own", Screen::Check),
+    ("err-missing", Screen::Check),
+    ("main-checking", Screen::Main),
+    ("main-novulkan", Screen::Main),
+    ("main-gone", Screen::Main),
+    ("main-starting", Screen::Main),
+    ("main-quit", Screen::Main),
+    ("main-prepare", Screen::Main),
+    ("settings-reset", Screen::Settings),
+    ("mods-off", Screen::Mods),
+    ("main-first", Screen::Main),
+    ("storage-portable", Screen::Storage),
+    ("storage-custom", Screen::Storage),
+    ("storage-missing", Screen::Storage),
+    ("main-shaders", Screen::Main),
+    ("main-shaders-ready", Screen::Main),
+    ("settings-suggested", Screen::Settings),
+    ("mods-conflict", Screen::Mods),
+    ("mods-order", Screen::Mods),
 ];
 
 /// The fake data for the state `name` (None: not a state).
 pub fn state_model(name: &str) -> Option<(Screen, Model)> {
     let screen = STATES.iter().find(|s| s.0 == name)?.1;
     let mut m = FakeEnv.load();
+    // The wireframes' names for states that exist under another name.
+    let name = match name {
+        "first-none" => "no-game",
+        "err-own" => "own-folder",
+        "err-missing" => "files-missing",
+        "main-checking" => "checking",
+        "main-novulkan" => "no-vulkan",
+        n => n,
+    };
     let check = |m: &mut Model, root: Option<&str>, lines: Vec<(Mark, &str)>, usable: bool| {
         let c = m.check.as_mut().expect("the fake data has a check");
         if let Some(r) = root {
@@ -96,6 +131,12 @@ pub fn state_model(name: &str) -> Option<(Screen, Model)> {
         }
         c.lines = lines.into_iter().map(|(k, t)| (k, t.to_string())).collect();
         c.usable = usable;
+        let missing = c.lines.iter().filter(|(k, t)| *k == Mark::Error && t.starts_with("Missing")).count();
+        c.problem = match () {
+            _ if usable => None,
+            _ if missing > 0 => Some(Problem::Missing(missing)),
+            _ => Some(Problem::NoGame),
+        };
     };
     match name {
         "no-game" => {
@@ -131,6 +172,10 @@ pub fn state_model(name: &str) -> Option<(Screen, Model)> {
             ],
             false,
         ),
+        "own-folder" => {
+            check(&mut m, Some("/data/player/Games/overbright-0.3.0-linux-x86_64"), Vec::new(), false);
+            m.check.as_mut().expect("the fake data has a check").problem = Some(Problem::OwnFolder);
+        }
         "checking" => {
             m.probe = ProbeState::Pending;
             m.settings_file = false;
@@ -162,6 +207,7 @@ pub fn state_model(name: &str) -> Option<(Screen, Model)> {
             m.root = Some(PathBuf::from(
                 "/data/player/.wine/drive_c/Program Files (x86)/EA GAMES/Need for Speed Underground 2 - Deutsche Version",
             ));
+            m.check.as_mut().expect("the fake data has a check").root = m.root.clone().unwrap_or_default();
             m.languages = [
                 "English",
                 "German",
@@ -203,6 +249,103 @@ pub fn state_model(name: &str) -> Option<(Screen, Model)> {
             f.tail.clear();
             f.how = "the game program could not be started: No such file or directory (os error 2)".into();
             f.log = None;
+            f.kind = crate::launcher::run::ErrorKind::NoProgram;
+        }
+        "no-game-window" => {
+            let f = m.failure.as_mut().expect("the fake data has a failure");
+            f.kind = crate::launcher::run::ErrorKind::NoWindow;
+            f.how = "no game window, exit code 0".into();
+            f.tail = vec!["could not open a window: the display refused the size".into()];
+        }
+        "failure-details" => m.failure_details = true,
+        "first-several" => {}
+        "main-gone" => {
+            let gone = PathBuf::from("/media/player/USB/Need for Speed Underground 2");
+            m.root = Some(gone.clone());
+            let c = m.check.as_mut().expect("the fake data has a check");
+            c.root = gone;
+            c.usable = false;
+            c.problem = Some(Problem::NoGame);
+        }
+        "main-starting" => m.starting = true,
+        "main-first" => m.just_found = true,
+        "storage-portable" => {
+            m.portable.on = true;
+            let data = PathBuf::from("/data/player/Games/overbright-0.3.0/data");
+            for r in &mut m.locations {
+                r.path = r.path.as_ref().map(|p| {
+                    let rest = p.strip_prefix("/data/player/.local/share/overbright").or_else(|_| p.strip_prefix("/data/player/.local/share"));
+                    match rest {
+                        Ok(rest) => data.join(rest),
+                        Err(_) => data.join("cache"),
+                    }
+                });
+            }
+        }
+        "storage-custom" => {
+            use crate::platform::dirs::Location as L;
+            for r in &mut m.locations {
+                if r.loc == L::Screenshots {
+                    r.path = Some(PathBuf::from("/data/player/Pictures/NFSU2"));
+                    r.custom = true;
+                }
+            }
+        }
+        "storage-missing" => {
+            use crate::platform::dirs::Location as L;
+            for r in &mut m.locations {
+                if r.loc == L::Cache {
+                    r.path = Some(PathBuf::from("/media/player/USB-SSD/overbright-cache"));
+                    r.custom = true;
+                    r.missing = true;
+                }
+            }
+        }
+        "main-shaders" => {
+            if let ProbeState::Ready(p) = &mut m.probe {
+                p.prepared = Some(false);
+            }
+        }
+        "main-shaders-ready" => {
+            m.prepare.state = super::prepare::State::Done;
+            m.prepare.done_at = Some(std::time::Instant::now());
+        }
+        "settings-suggested" => {
+            // The probe's choice in force: the Graphics row carries the tag.
+            if let Some(f) = m.probe.first_run() {
+                m.choices.graphics = if f.detail == 0 { Graphics::Original } else { Graphics::Enhanced };
+            }
+        }
+        "main-quit" => m.ask = Some(super::model::Dialog::Quit),
+        "main-prepare" => {
+            m.prepare.background = true;
+            m.prepare.state = super::prepare::State::Running { n: 3, of: 5, what: "shader programs".into() };
+            m.prepare.started = std::time::Instant::now().checked_sub(std::time::Duration::from_secs(12));
+        }
+        "settings-reset" => m.ask = Some(super::model::Dialog::Reset),
+        "mods-off" => {
+            m.mods.paused = true;
+            m.mods.list.iter_mut().for_each(|(e, _)| e.on = false);
+        }
+        "mods-conflict" => {
+            m.mods.own[0].on = true;
+            m.mods.conflict = Some(super::model::Conflict {
+                first: "Night Roads".into(),
+                second: "City roads HD".into(),
+                textures: 214,
+                same_list: false,
+            });
+        }
+        "mods-order" => {
+            m.mods.list.iter_mut().for_each(|(e, _)| e.on = true);
+            m.mods.conflict = Some(super::model::Conflict {
+                first: "City roads HD".into(),
+                second: "Garage and shop redux".into(),
+                textures: 12,
+                same_list: true,
+            });
+            m.mods.show_order = true;
+            m.mods.sel = 2;
         }
         "unreadable-folder" => {
             m.browse.error = Some("That folder cannot be read: /root: Permission denied (os error 13)".into());
@@ -211,12 +354,25 @@ pub fn state_model(name: &str) -> Option<(Screen, Model)> {
             m.import.done = Some(vec!["NIGHTOWL/NIGHTOWL".into(), "NIGHTOWL DVD 1/NIGHTOWL DVD 1".into()]);
         }
         "import-empty" => m.import.scan = None,
-        "mods-empty" => m.mods.list.clear(),
+        "mods-empty" => {
+            m.mods.list.clear();
+            m.mods.own.clear();
+            m.mods.maps.clear();
+        }
         "prepare-running" => {
             m.prepare.state = super::prepare::State::Running { n: 2, of: 5, what: "shader programs".into() }
         }
         "prepare-done" => m.prepare.state = super::prepare::State::Done,
         "prepare-failed" => m.prepare.state = super::prepare::State::Failed("it ended with code 1".into()),
+        "mods-map-editor-open" => {
+            m.mods.map_sel = Some("drift-park".into());
+            m.mods.editor = super::model::EditorRun::Open(Some("drift-park".into()));
+        }
+        "mods-map-editor-failed" => {
+            m.mods.editor = super::model::EditorRun::Failed(
+                "the map editor could not be started (overbright-editor): No such file or directory".into(),
+            )
+        }
         "mods-busy" => {
             m.mods.busy = Some("Importing NFSU2 Redux HD Textures.tpf (1 of 2): 212 of 430 textures converted…".into())
         }
@@ -251,12 +407,8 @@ pub fn state_model(name: &str) -> Option<(Screen, Model)> {
             });
         }
         "mods-hud-waiting" => {
-            m.mods.hud_parts.hud =
-                Some(crate::hud_mod::Source::Dir("/data/player/mods/hud-part".into()));
-            m.mods.hud_results = vec![(
-                Mark::Info,
-                crate::hud_mod::waiting_line(&m.mods.hud_parts).expect("one part"),
-            )];
+            m.mods.hud_parts.hud = Some(crate::hud_mod::Source::Dir("/data/player/mods/hud-part".into()));
+            m.mods.hud_results = vec![(Mark::Info, crate::hud_mod::waiting_line(&m.mods.hud_parts).expect("one part"))];
         }
         "mods-hud-converting" => {
             m.mods.hud_busy = Some("Converting the HUD mod: 315 of 710 images…".into());

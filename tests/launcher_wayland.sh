@@ -57,7 +57,7 @@ for _ in $(seq 50); do [ -S "$XDG_RUNTIME_DIR/$SOCK" ] && break; sleep 0.2; done
 sleep 1
 "$PY" -I "$HERE/launcher_wayland.py" scale "$SC"
 L=$O/launcher.out
-(cd "$HOME" && exec env WAYLAND_DISPLAY=$SOCK NFSU2_NO_PADS=1 NFSU2_CACHE_DIR="$O/cache" \
+(cd "$HOME" && exec env WAYLAND_DISPLAY=$SOCK NFSU2_NO_PADS=1 OVERBRIGHT_OWN_PICKER=1 NFSU2_CACHE_DIR="$O/cache" \
   RUST_LOG="info,launcher::screen=debug,launcher::input=debug" "$OB" > "$L" 2>&1) &
 LPID=$!
 sleep 2

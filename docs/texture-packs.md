@@ -117,7 +117,13 @@ as BC7, decoded without BC), and the fuzz target `obpack` (fuzz/targets.rs: mani
 
 ## Texture packages and the HUD mod (the launcher's Mods page)
 
-For players: in the launcher, **Mods…** (on the main screen) sets up texture mods from files you have.
+For players: the launcher's **Mods** page (the Mods row on the main screen, or the page bar) sets up texture
+mods from files you have. It lists Overbright packs first, then the imported packages (the loader's order),
+each with its own switch; **Use mods** turns every mod off for the game and gives them back when turned on
+again (the list is kept; what was on is kept in `mods-paused.txt`). The order shows (Move up / Move down)
+only when two packs that are on change the same textures; an Overbright pack always comes before an imported
+one, so between those the page says which is used. **Add a mod…** also takes an Overbright pack folder
+(`obpack::install_folder`) and a map mod.
 The formats it takes:
 
 | What you have | Made with | Taken as |
@@ -132,7 +138,7 @@ The formats it takes:
 `.7z` and `.rar` downloads are not opened: extract them first. Images inside packages may be DDS (DXT1,
 DXT3, DXT5, uncompressed), BMP or PNG (TexMod), or any texture format of the game's own files (TexWizard).
 
-* **Add package…** opens the folder browser, which lists folders, TexMod packages (`.tpf`) and TexWizard
+* **Add a mod…** opens the folder browser, which lists folders, TexMod packages (`.tpf`) and TexWizard
   packs (folders and `.zip` files). Enter on a package imports it; **Import all here** imports every
   package in the folder shown, or the folder itself when it is a folder of loose TexMod files or a
   TexWizard pack; in a game folder with TexWizard, or its `TexturePacks` folder, it takes the packs
@@ -145,9 +151,10 @@ DXT3, DXT5, uncompressed), BMP or PNG (TexMod), or any texture format of the gam
   out) and how many are in a format Overbright cannot read; a package made for another game says so (its
   entries name another program than `SPEED2.EXE`), as does one none of whose textures is in your files
   (another version). Free disk space is checked first (twice the package's images).
-* The list: name (the package's own comment, else its file name), textures and size, on / off, **Move up** /
-  **Move down** (the first in the list wins where two replace the same texture), **Remove…** (asks first;
-  deletes only Overbright's converted copy, never your `.tpf`).
+* The list: name (the package's own comment, else its file name), textures and size, a switch; **Move up** /
+  **Move down** when two packs collide (the first in the list wins where two replace the same texture);
+  **Remove** (X, Space on a pad / keyboard; asks first; deletes only Overbright's converted copy, never your
+  `.tpf`).
 * **HUD mod** (the game's HD UI + Maps pack; see "The HUD mod" below): **Add HUD mod…** opens the folder
   browser, which lists folders and archives. It takes the two downloads as players have them: the Upscaled
   HUD part's extracted folder and the map part's `.zip` (or its extracted folder). Choosing one part looks for

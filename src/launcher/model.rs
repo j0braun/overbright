@@ -22,11 +22,271 @@ pub struct Found {
 /// A checked game folder, in plain words ([`setup::check_lines`]).
 #[derive(Clone, Debug, PartialEq)]
 pub struct CheckResult {
+    /// The folder checked: the one chosen, or the game folder one level
+    /// above or below it ([`game_dir_near`]), with its long names.
     pub root: PathBuf,
     pub lines: Vec<(Mark, String)>,
     /// No key file is missing and no line is an error (the game starts
     /// with it).
     pub usable: bool,
+    /// Why the folder cannot be used (None: it can).
+    pub problem: Option<Problem>,
+}
+
+/// Why a chosen folder cannot be used: each has a title, one sentence and
+/// one fixing button on the check screen (`screens::problem_words`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Problem {
+    /// Overbright's own folder (the commonest wrong pick).
+    OwnFolder,
+    /// No game here at all (or most of it missing).
+    NoGame,
+    /// Some of the files Overbright needs are missing (how many).
+    Missing(usize),
+    /// The folder cannot be read (no access).
+    Unreadable,
+}
+
+/// A problem the launcher shows, one per kind of situation: its title,
+/// cause and fix in the player's words ([`Issue::words`]), and the buttons
+/// that do the fix (the first is focused). Detected from the check's and
+/// the start's own results, never from message text.
+#[derive(Clone, Debug, PartialEq)]
+pub enum Issue {
+    /// Overbright's own folder was chosen.
+    OwnFolder,
+    /// No game files in the folder.
+    NoGame,
+    /// Another game's folder (by its name).
+    OtherGame { name: String },
+    /// Files the game needs are not there.
+    Missing { files: Vec<String> },
+    /// An older version than 1.2 (its version).
+    NeedsPatch { version: String },
+    /// The folder cannot be read.
+    Unreadable,
+    /// Some files differ from 1.2 (a mod in the game folder): not blocking.
+    Modified { files: Vec<String> },
+    /// The saved game folder is gone (an unplugged drive, a moved game).
+    FolderGone { path: PathBuf },
+    /// This computer has no usable Vulkan driver.
+    NoVulkan,
+    /// The game is running already.
+    AlreadyRunning,
+    /// The game's window could not open.
+    WindowFailed,
+    /// The last start did not reach the game.
+    StartUnfinished,
+    /// The game stopped during play (after `minutes`, when known).
+    Crashed { minutes: Option<u32> },
+    /// Overbright cannot write its own files.
+    CannotWrite { path: PathBuf },
+    /// A mod file Overbright cannot read (its extension).
+    ModUnreadable { ext: String },
+    /// The HUD mod lacks files.
+    HudIncomplete { missing: usize },
+}
+
+/// An issue's words: a title naming the problem, the cause and the fix,
+/// and the buttons (`(id, label)`, the first focused).
+#[derive(Clone, Debug, PartialEq)]
+pub struct Words {
+    pub title: String,
+    pub text: String,
+    pub buttons: Vec<(super::ui::Id, &'static str)>,
+}
+
+/// The button that opens the folder choice.
+pub const CHOOSE_GAME: (&str, &str) = ("another", "Choose the game folder…");
+/// The button that checks the folder again.
+pub const CHECK_AGAIN: (&str, &str) = ("recheck", "Check again");
+
+impl Issue {
+    pub fn words(&self) -> Words {
+        let w = |title: &str, text: String, buttons: Vec<(super::ui::Id, &'static str)>| Words {
+            title: title.into(),
+            text,
+            buttons,
+        };
+        let another = ("another", "Choose another folder…");
+        match self {
+            Issue::OwnFolder => w(
+                "This is Overbright's folder",
+                "Overbright and the game live in separate folders. Choose the folder the game was installed to.".into(),
+                vec![CHOOSE_GAME],
+            ),
+            Issue::NoGame => w(
+                "No game here",
+                "This folder doesn't contain Need for Speed Underground 2. Choose the folder with GLOBAL, FRONTEND \
+                 and TRACKS in it."
+                    .into(),
+                vec![CHOOSE_GAME],
+            ),
+            Issue::OtherGame { name } => Words {
+                title: format!("This is {name}"),
+                text: "Overbright only plays Need for Speed Underground 2. Choose that game's folder.".into(),
+                buttons: vec![CHOOSE_GAME],
+            },
+            Issue::Missing { files } => w(
+                "Some game files are missing",
+                format!(
+                    "{} the game needs {} not in this folder. This happens when an install or a copy stopped \
+                     early. Reinstall the game from its discs, or copy the whole folder again. Then check again.",
+                    count(files.len(), "file", "files"),
+                    if files.len() == 1 { "is" } else { "are" }
+                ),
+                vec![CHECK_AGAIN, ("show_files", "Show the missing files"), another],
+            ),
+            Issue::NeedsPatch { version } => w(
+                "Patch 1.2 needed",
+                format!(
+                    "This copy is version {version}. Overbright works with version 1.2. Install the official 1.2 \
+                     patch, then check again."
+                ),
+                vec![CHECK_AGAIN, ("patch_help", "How to get patch 1.2"), another],
+            ),
+            Issue::Unreadable => w(
+                "Overbright can't open this folder",
+                "Your account isn't allowed to read it. Choose a folder you can open, or copy the game to one you \
+                 own."
+                    .into(),
+                vec![another],
+            ),
+            Issue::Modified { files } => w(
+                "Ready",
+                format!(
+                    "{} {} not the original ones. The game may look or play differently.",
+                    count(files.len(), "game file", "game files"),
+                    if files.len() == 1 { "is" } else { "are" }
+                ),
+                vec![("show_files", "Show which files")],
+            ),
+            Issue::FolderGone { .. } => w(
+                "The game folder is not there",
+                "If it is on a drive that is unplugged, plug it in and check again. If you moved the game, choose \
+                 where it is now."
+                    .into(),
+                vec![CHECK_AGAIN, CHOOSE_GAME],
+            ),
+            Issue::NoVulkan => w(
+                "This computer has no Vulkan graphics driver",
+                "Overbright draws with Vulkan. Install the latest driver for your graphics card, then check again."
+                    .into(),
+                vec![("probe_again", "Check again"), ("driver_help", "How to install a driver")],
+            ),
+            Issue::AlreadyRunning => {
+                w("The game is already running", "Switch to its window, or close it first.".into(), vec![("ok", "OK")])
+            }
+            Issue::WindowFailed => w(
+                "The game window didn't open",
+                "This often happens with a full-screen size the screen doesn't support. Start once in a window, \
+                 then choose another size."
+                    .into(),
+                vec![("windowed", "Start in a window"), ("settings", "Settings")],
+            ),
+            Issue::StartUnfinished => w(
+                "The last start didn't finish",
+                "The game closed before its menu appeared. Start with safe settings: the original graphics, in a \
+                 window, without mods. You can change them back in Settings."
+                    .into(),
+                vec![("safe", "Start with safe settings"), ("play", "Start as usual"), ("settings", "Settings")],
+            ),
+            Issue::Crashed { minutes } => Words {
+                title: "The game closed unexpectedly".into(),
+                text: format!(
+                    "{}Your progress up to the last save is kept. Start it again. If it keeps happening, save a \
+                     support file and attach it to your report.",
+                    match minutes {
+                        Some(0) => "It stopped in its first minute of play. ".to_string(),
+                        Some(m) => format!("It stopped after {} of play. ", count(*m as usize, "minute", "minutes")),
+                        None => String::new(),
+                    }
+                ),
+                buttons: vec![
+                    ("retry", "Play again"),
+                    ("support", "Save support file…"),
+                    ("safe", "Start with safe settings"),
+                ],
+            },
+            Issue::CannotWrite { path } => Words {
+                title: "Overbright can't save its files".into(),
+                text: format!(
+                    "The disk is full or this folder is read-only: {}. Free some space, or move Overbright to a \
+                     folder you own.",
+                    path.display()
+                ),
+                buttons: vec![CHECK_AGAIN],
+            },
+            Issue::ModUnreadable { ext } => Words {
+                title: "This file isn't a texture pack Overbright can read".into(),
+                text: format!("It is a .{ext} archive. Extract it first, then add the folder."),
+                buttons: vec![("add", "Add a mod…")],
+            },
+            Issue::HudIncomplete { missing } => Words {
+                title: "The HUD mod is incomplete".into(),
+                text: format!(
+                    "{} of its files {} missing. Add the missing download, or turn the HUD mod off.",
+                    missing,
+                    if *missing == 1 { "is" } else { "are" }
+                ),
+                buttons: vec![("hud_add", "Add a mod…"), ("hud", "Turn it off")],
+            },
+        }
+    }
+
+    /// Play cannot do its job while this issue stands.
+    pub fn blocks_play(&self) -> bool {
+        !matches!(self, Issue::Modified { .. } | Issue::ModUnreadable { .. } | Issue::HudIncomplete { .. })
+    }
+
+    pub fn mark(&self) -> super::ui::Mark {
+        match self {
+            Issue::Modified { .. } => super::ui::Mark::Info,
+            Issue::HudIncomplete { .. } | Issue::StartUnfinished => super::ui::Mark::Warn,
+            _ => super::ui::Mark::Error,
+        }
+    }
+
+    /// The issue of a refused folder check.
+    pub fn of_problem(p: Problem) -> Issue {
+        match p {
+            Problem::OwnFolder => Issue::OwnFolder,
+            Problem::NoGame => Issue::NoGame,
+            Problem::Missing(n) => Issue::Missing { files: vec![String::new(); n] },
+            Problem::Unreadable => Issue::Unreadable,
+        }
+    }
+}
+
+impl From<Problem> for Issue {
+    fn from(p: Problem) -> Issue {
+        Issue::of_problem(p)
+    }
+}
+
+/// "1 file", "12 files".
+pub fn count(n: usize, one: &str, many: &str) -> String {
+    if n == 1 { format!("1 {one}") } else { format!("{n} {many}") }
+}
+
+/// How a check reads at a glance.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Verdict {
+    Ready,
+    /// Usable, with notes (files that differ from the known release).
+    Notes,
+    Refused(Problem),
+}
+
+impl CheckResult {
+    pub fn verdict(&self) -> Verdict {
+        match self.problem {
+            Some(p) => Verdict::Refused(p),
+            None if !self.usable => Verdict::Refused(Problem::NoGame),
+            None if self.lines.iter().any(|(m, _)| *m == Mark::Warn) => Verdict::Notes,
+            None => Verdict::Ready,
+        }
+    }
 }
 
 /// The Graphics row: the launcher offers the game's Graphics Mode,
@@ -109,9 +369,59 @@ impl PackStatus {
     }
 }
 
+/// A question over a page (its buttons; the safe one focused).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Dialog {
+    /// Quit the launcher without starting the game?
+    Quit,
+    /// Settings back to the suggested values?
+    Reset,
+    /// Remove this texture pack (its id)?
+    RemoveMod(String),
+    /// Two packs change the same textures.
+    Conflict,
+    /// Put this folder there (copy the files first, or start empty)?
+    MoveLocation(crate::platform::dirs::Location, PathBuf),
+    /// Turn portable mode on?
+    PortableOn,
+    /// Turn portable mode off?
+    PortableOff,
+}
+
 /// Everything the screens show.
 #[derive(Clone, Debug)]
 pub struct Model {
+    /// The question open over the page.
+    pub ask: Option<Dialog>,
+    /// Play was pressed: "Starting…" until the game's window appears.
+    pub starting: bool,
+    /// The check screen lists the files it found missing or changed.
+    pub show_files: bool,
+    /// The support file written last (Open folder shows it).
+    pub support: Option<PathBuf>,
+    /// The last start did not reach the game (the recovery screen).
+    pub start_unfinished: bool,
+    /// What "Use mods: Off" set aside (also kept in `mods-paused.txt`).
+    pub set_aside: Option<Paused>,
+    /// The launcher's own preferences.
+    pub prefs: Prefs,
+    /// The game folder was found on this computer at this start (not kept
+    /// from before): the main screen says where.
+    pub just_found: bool,
+    /// A support file is being written (on a worker).
+    pub support_busy: bool,
+    /// The Storage page's folders.
+    pub locations: Vec<LocRow>,
+    /// Portable mode's state.
+    pub portable: PortableInfo,
+    /// The desktop map editor is beside the launcher (`dirs::editor_exe`).
+    pub editor_here: bool,
+    /// The folder the folder choice is for.
+    pub pick_loc: Option<crate::platform::dirs::Location>,
+    /// Files are being copied (on a worker).
+    pub copy_busy: bool,
+    /// Arguments for the next start only (the Dev page's editor tools).
+    pub play_args: Vec<String>,
     pub version: String,
     /// The game folder in use (after a check, or kept).
     pub root: Option<PathBuf>,
@@ -165,6 +475,19 @@ pub struct Model {
     pub hud: Option<HudCheck>,
     /// The prepare step (`game --prepare`, docs/prepare.md).
     pub prepare: Prepare,
+    /// The system folder dialog asked for or open.
+    pub dialog: Option<DialogAsk>,
+    /// The last input came from a gamepad: folders are then chosen in
+    /// Overbright's own browser (pad-friendly), not the system dialog.
+    pub pad_input: bool,
+    /// The failure screen shows the game's own last lines.
+    pub failure_details: bool,
+    /// Running inside gamescope (Steam Deck Game Mode, [`in_gamescope`]):
+    /// it has no system file chooser, so folders are chosen in
+    /// Overbright's own browser.
+    pub gamescope: bool,
+    /// This computer's check asked for again (the window runs it).
+    pub probe_again: bool,
     /// Where settings, saves, caches and logs are kept (the about screen).
     pub folders: Folders,
 }
@@ -204,6 +527,12 @@ pub struct Prepare {
     /// prepared (for these settings' programs): a level saved since that
     /// differs makes the step offered (once a session, as at a first run).
     pub prepared_graphics: Option<Graphics>,
+    /// When the running prepare step started (the time left is estimated
+    /// from it).
+    pub started: Option<std::time::Instant>,
+    /// When the step that ran behind the main screen finished: "Shaders
+    /// ready" shows for a few seconds.
+    pub done_at: Option<std::time::Instant>,
 }
 
 /// The HUD mod folder's check (`hd_ui_pack::inspect`).
@@ -233,6 +562,297 @@ pub struct Mods {
     pub hud_busy: Option<String>,
     /// The HUD mod's last result lines.
     pub hud_results: Vec<(Mark, String)>,
+    /// Overbright's own packs (`obpack`), in the loader's order (they come
+    /// before the imported packages).
+    pub own: Vec<OwnPack>,
+    /// The map mods (`tools::map::store`).
+    pub maps: Vec<MapRow>,
+    /// "Use mods" is off: every mod is off for the game, the list kept
+    /// ([`Paused`]).
+    pub paused: bool,
+    /// The order is shown (Move up / Move down) after "Change the order".
+    pub show_order: bool,
+    /// Two packs that are on change the same textures.
+    pub conflict: Option<Conflict>,
+    /// The map mod chosen for Export and Open in map editor (its folder).
+    pub map_sel: Option<String>,
+    /// The map editor started from this page.
+    pub editor: EditorRun,
+}
+
+/// One of Overbright's own packs as the Mods page shows it.
+#[derive(Clone, Debug, PartialEq)]
+pub struct OwnPack {
+    pub id: String,
+    pub name: String,
+    pub author: String,
+    /// World and car textures it replaces.
+    pub textures: usize,
+    pub on: bool,
+    /// Why the pack cannot be used (never on then).
+    pub refused: Option<String>,
+}
+
+/// A map mod as the Mods page shows it.
+#[derive(Clone, Debug, PartialEq)]
+pub struct MapRow {
+    pub folder: String,
+    pub name: String,
+    pub on: bool,
+    /// Its custom races and prop edits.
+    pub races: usize,
+    pub props: usize,
+}
+
+/// The map editor as the Mods page shows it.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub enum EditorRun {
+    #[default]
+    Closed,
+    /// Open on this mod's folder (None: on its own Open / New).
+    Open(Option<String>),
+    /// It could not start, or ended with an error: the words.
+    Failed(String),
+}
+
+/// A map editor the launcher started (its end polled by the window).
+pub trait EditorJob {
+    /// None while it runs; then Ok, or the words for how it ended.
+    fn poll(&mut self) -> Option<Result<(), String>>;
+}
+
+/// The real editor process.
+struct EditorProcess(std::process::Child);
+
+impl EditorJob for EditorProcess {
+    fn poll(&mut self) -> Option<Result<(), String>> {
+        match self.0.try_wait() {
+            Ok(None) => None,
+            Ok(Some(st)) if st.success() => Some(Ok(())),
+            Ok(Some(st)) => Some(Err(format!("the map editor ended with {st}"))),
+            Err(e) => Some(Err(e.to_string())),
+        }
+    }
+}
+
+/// The fake data's editor: open until the test ends it.
+#[derive(Default)]
+pub struct FakeEditor(pub std::rc::Rc<std::cell::Cell<Option<Result<(), String>>>>);
+
+impl EditorJob for FakeEditor {
+    fn poll(&mut self) -> Option<Result<(), String>> {
+        self.0.take()
+    }
+}
+
+/// Two packs that change the same textures: the first wins.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Conflict {
+    pub first: String,
+    pub second: String,
+    pub textures: usize,
+    /// Both in the same list (own packs, or imported packages): their
+    /// order can be changed; else the own pack always comes first.
+    pub same_list: bool,
+}
+
+/// A folder on the Storage page: where it is, whether the player put it
+/// there, whether it is missing (a drive not there).
+#[derive(Clone, Debug, PartialEq)]
+pub struct LocRow {
+    pub loc: crate::platform::dirs::Location,
+    pub path: Option<PathBuf>,
+    pub custom: bool,
+    pub missing: bool,
+}
+
+/// Portable mode as the Storage page shows it.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct PortableInfo {
+    /// Portable mode in force for this run.
+    pub on: bool,
+    /// The marker beside the program now (the next start's state).
+    pub marker: bool,
+    /// The switch was changed in this session (a restart applies it).
+    pub changed: bool,
+    /// The program folder (None: not known).
+    pub program: Option<PathBuf>,
+    /// `<program>/data`.
+    pub data: Option<PathBuf>,
+    /// Where things are kept outside portable mode (Overbright's folder).
+    pub home: PathBuf,
+    /// The program folder can be written (portable mode can be turned on).
+    pub writable: bool,
+}
+
+/// Copies the folder `from` into `to` (merging; a file already there with
+/// the same size is kept), then checks every file arrived with its size.
+/// Nothing is deleted. The files and bytes copied.
+pub fn copy_folder(from: &Path, to: &Path) -> Result<(usize, u64), String> {
+    fn walk(from: &Path, to: &Path, n: &mut (usize, u64), list: &mut Vec<(PathBuf, PathBuf, u64)>) -> std::io::Result<()> {
+        std::fs::create_dir_all(to)?;
+        for e in std::fs::read_dir(from)? {
+            let e = e?;
+            let (src, dst) = (e.path(), to.join(e.file_name()));
+            let t = e.file_type()?;
+            if t.is_dir() {
+                // Never into itself (a new place inside the old one).
+                if dst.starts_with(from) && to.starts_with(&src) {
+                    continue;
+                }
+                walk(&src, &dst, n, list)?;
+            } else if t.is_file() {
+                let len = e.metadata()?.len();
+                if std::fs::metadata(&dst).map(|m| m.len()).ok() != Some(len) {
+                    std::fs::copy(&src, &dst)?;
+                }
+                n.0 += 1;
+                n.1 += len;
+                list.push((src, dst, len));
+            }
+        }
+        Ok(())
+    }
+    if !from.is_dir() {
+        return Ok((0, 0));
+    }
+    let mut n = (0, 0);
+    let mut list = Vec::new();
+    walk(from, to, &mut n, &mut list).map_err(|e| e.to_string())?;
+    for (_, dst, len) in &list {
+        match std::fs::metadata(dst) {
+            Ok(m) if m.len() == *len => {}
+            _ => return Err(format!("{} did not arrive whole", dst.display())),
+        }
+    }
+    Ok(n)
+}
+
+/// The launcher's own preferences (`launcher.txt` in Overbright's folder;
+/// the game's settings stay in options.txt).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Prefs {
+    /// Text size in percent: 100, 125 or 150.
+    pub text: u16,
+    pub reduced_motion: bool,
+    /// Launcher sounds (off by default).
+    pub sounds: bool,
+}
+
+impl Default for Prefs {
+    fn default() -> Prefs {
+        Prefs { text: 100, reduced_motion: false, sounds: false }
+    }
+}
+
+impl Prefs {
+    pub const FILE: &'static str = "launcher.txt";
+    pub const TEXT_SIZES: [u16; 3] = [100, 125, 150];
+
+    pub fn text(&self) -> String {
+        format!(
+            "# The launcher's own preferences.\ntext_size {}\nmotion {}\nsounds {}\n",
+            self.text,
+            if self.reduced_motion { "reduced" } else { "full" },
+            if self.sounds { "on" } else { "off" }
+        )
+    }
+
+    pub fn parse(t: &str) -> Prefs {
+        let mut p = Prefs::default();
+        for l in t.lines().map(str::trim) {
+            match l.split_once(' ') {
+                Some(("text_size", v)) => {
+                    p.text = v.trim().parse().ok().filter(|v| Prefs::TEXT_SIZES.contains(v)).unwrap_or(100)
+                }
+                Some(("motion", v)) => p.reduced_motion = v.trim() == "reduced",
+                Some(("sounds", v)) => p.sounds = v.trim() == "on",
+                _ => {}
+            }
+        }
+        p
+    }
+}
+
+/// The file that holds what "Use mods: Off" set aside.
+pub const PAUSED_FILE: &str = "mods-paused.txt";
+
+/// An own pack's row from the loader's list.
+fn own_row(l: crate::obpack::Listed) -> OwnPack {
+    match l.pack {
+        Ok(p) => OwnPack {
+            textures: p.index.world.len() + p.index.car.len(),
+            name: p.manifest.name.clone(),
+            author: p.manifest.author.clone(),
+            on: l.on,
+            refused: None,
+            id: l.id,
+        },
+        Err(e) => OwnPack { name: l.id.clone(), id: l.id, author: String::new(), textures: 0, on: false, refused: Some(e) },
+    }
+}
+
+/// The first pair of texture sets (in order) that share textures, and how many.
+pub fn first_conflict<T: Ord>(sets: &[(String, std::collections::BTreeSet<T>)]) -> Option<Conflict> {
+    for (i, (a, sa)) in sets.iter().enumerate() {
+        for (b, sb) in &sets[i + 1..] {
+            let n = sa.intersection(sb).count();
+            if n > 0 {
+                return Some(Conflict { first: a.clone(), second: b.clone(), textures: n, same_list: true });
+            }
+        }
+    }
+    None
+}
+
+/// A mod folder's kind ([`Env::mod_kind`]).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ModKind {
+    Own,
+    Map,
+}
+
+/// What "Use mods: Off" set aside, to give back when it is turned on
+/// again: each pack's and map mod's on / off and the HUD mod's switch
+/// (`mods-paused.txt` in Overbright's folder).
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct Paused {
+    pub own: Vec<(String, bool)>,
+    pub packages: Vec<(String, bool)>,
+    pub maps: Vec<String>,
+    pub hud: bool,
+}
+
+impl Paused {
+    pub fn text(&self) -> String {
+        let mut s = String::from("# Mods set aside while \"Use mods\" is off (the launcher gives them back).\n");
+        for (id, on) in &self.own {
+            s += &format!("own {} {id}\n", if *on { "on" } else { "off" });
+        }
+        for (id, on) in &self.packages {
+            s += &format!("package {} {id}\n", if *on { "on" } else { "off" });
+        }
+        for f in &self.maps {
+            s += &format!("map on {f}\n");
+        }
+        s += &format!("hud {}\n", if self.hud { "on" } else { "off" });
+        s
+    }
+
+    pub fn parse(text: &str) -> Paused {
+        let mut p = Paused::default();
+        for l in text.lines().map(str::trim).filter(|l| !l.is_empty() && !l.starts_with('#')) {
+            let mut w = l.split_whitespace();
+            match (w.next(), w.next(), w.next()) {
+                (Some("own"), Some(s), Some(id)) => p.own.push((id.into(), s == "on")),
+                (Some("package"), Some(s), Some(id)) => p.packages.push((id.into(), s == "on")),
+                (Some("map"), Some("on"), Some(f)) => p.maps.push(f.into()),
+                (Some("hud"), Some(s), None) => p.hud = s == "on",
+                _ => {}
+            }
+        }
+        p
+    }
 }
 
 impl Mods {
@@ -302,11 +922,42 @@ pub fn source_of(v: &str) -> Option<String> {
 /// A failed start, for the failure screen.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Failure {
+    /// What went wrong (the game's `error.kind=` line, or inferred).
+    pub kind: super::run::ErrorKind,
     pub during_start: bool,
     /// "exit code 101" and the like (`run::Ended::how`).
     pub how: String,
     pub tail: Vec<String>,
     pub log: Option<PathBuf>,
+}
+
+impl Failure {
+    /// The game program could not be started at all (`how`: why).
+    pub fn not_started(how: String) -> Failure {
+        Failure { kind: super::run::ErrorKind::NoProgram, during_start: true, how, tail: Vec::new(), log: None }
+    }
+}
+
+/// What the system's folder dialog gave.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Picked {
+    Folder(PathBuf),
+    /// The player closed it without a choice: nothing changes.
+    Cancelled,
+    /// There is no system dialog here (none installed, or it failed to
+    /// open): Overbright's own folder browser is used instead.
+    NoDialog,
+}
+
+/// A system folder dialog asked for and not answered yet (the window opens
+/// it on a worker thread where the dialog would block it, Linux).
+#[derive(Clone, Debug, PartialEq)]
+pub struct DialogAsk {
+    pub purpose: BrowseFor,
+    pub title: String,
+    pub start: Option<PathBuf>,
+    /// The worker has it (the dialog is open).
+    pub open: bool,
 }
 
 /// What the folder browser picks a folder for.
@@ -321,6 +972,13 @@ pub enum BrowseFor {
     Packages,
     /// The HUD mod's downloads (archives listed with the folders).
     HudMod,
+    /// A map mod to import: a folder holding `map.obmap`, the file, or a
+    /// `.zip` of one.
+    MapMod,
+    /// The folder a map mod is exported to.
+    MapExport,
+    /// A new place for one of Overbright's folders (Storage).
+    Location,
 }
 
 /// A folder in the browser's list.
@@ -484,9 +1142,104 @@ pub trait Env {
     fn scan_saves(&self, from: &Path) -> saves::Scan;
     /// Copies the new saves; the files copied.
     fn import_saves(&self, s: &saves::Scan) -> Result<Vec<String>, String>;
-    /// The system's own folder dialog (Windows); None when there is none
-    /// or it was cancelled.
-    fn native_folder_dialog(&self, _title: &str) -> Option<PathBuf> {
+    /// The system's own folder dialog ([`system_folder_dialog`]); the
+    /// fake data has none (Overbright's own browser opens).
+    fn folder_dialog(&self, _title: &str, _start: Option<&Path>) -> Picked {
+        Picked::NoDialog
+    }
+    /// The dialog is opened by the window on a worker thread (it would
+    /// block the window's drawing); else [`Env::folder_dialog`] is called
+    /// at once.
+    fn background_dialog(&self) -> bool {
+        false
+    }
+    /// Writes the support file (`diag::support`); its path.
+    fn support_file(&self, req: &crate::diag::support::SupportRequest) -> std::io::Result<PathBuf> {
+        crate::diag::support::write_support_file(req)
+    }
+    /// Shows a written file in the system's file manager.
+    fn reveal(&self, path: &Path) {
+        crate::diag::support::reveal(path)
+    }
+    /// Overbright's own packs, in the loader's order.
+    fn own_packs(&self) -> Vec<OwnPack>;
+    /// Keeps the own packs' order and on / off (`order.txt`).
+    fn save_own(&self, list: &[(String, bool)]) -> Result<(), String>;
+    /// Installs an Overbright pack folder; its id.
+    fn install_own(&self, src: &Path) -> Result<String, String>;
+    /// Deletes an installed Overbright pack (its compiled files too).
+    fn remove_own(&self, id: &str) -> Result<(), String>;
+    /// The first two packs that are on and change the same textures, own
+    /// packs first, then the packages, each in its order.
+    fn conflict(&self, own: &[OwnPack], packages: &[crate::texture_mods::Entry]) -> Option<Conflict>;
+    /// The map mods with their on / off.
+    fn maps(&self) -> Vec<MapRow>;
+    fn set_map(&self, folder: &str, on: bool) -> Result<(), String>;
+    /// Imports a map mod (folder, `map.obmap` or `.zip`); its folder name.
+    fn import_map(&self, from: &Path) -> Result<String, String>;
+    /// Exports a map mod as a `.zip` into `to`; the file written.
+    fn export_map(&self, folder: &str, to: &Path) -> Result<PathBuf, String>;
+    /// The Storage page's folders.
+    fn locations(&self) -> Vec<LocRow> {
+        use crate::platform::dirs;
+        dirs::Location::ALL
+            .into_iter()
+            .map(|loc| {
+                let custom = dirs::override_of(loc);
+                let path = dirs::location(loc);
+                let missing = custom.as_deref().is_some_and(dirs::location_missing);
+                LocRow { loc, path, custom: custom.is_some(), missing }
+            })
+            .collect()
+    }
+    /// Puts a folder elsewhere (None: back to its default).
+    fn set_location(&self, loc: crate::platform::dirs::Location, to: Option<&Path>) -> Result<(), String> {
+        crate::platform::dirs::set_location(loc, to).map_err(|e| e.to_string())
+    }
+    /// Portable mode's state.
+    fn portable(&self) -> PortableInfo {
+        PortableInfo::default()
+    }
+    /// Turns portable mode off (removes `portable.txt`; the data folder stays).
+    fn unmake_portable(&self) -> Result<(), String> {
+        Ok(())
+    }
+    /// The map editor's program is there (`overbright-editor` beside the
+    /// launcher, [`super::dirs::editor_exe`]).
+    fn editor_present(&self) -> bool {
+        super::dirs::editor_exe().is_file()
+    }
+    /// Starts the map editor (`overbright-editor`, [`super::dirs::editor_exe`])
+    /// on the mod in `folder`, or on its own Open / New; `root`: the game
+    /// folder shown, given as `NFSU2_ROOT`.
+    fn start_editor(&self, _folder: Option<&str>, _root: Option<&Path>) -> Result<Box<dyn EditorJob>, String> {
+        Err("no map editor here".into())
+    }
+    /// The launcher's own preferences.
+    fn prefs(&self) -> Prefs {
+        Prefs::default()
+    }
+    fn save_prefs(&self, _p: &Prefs) -> Result<(), String> {
+        Ok(())
+    }
+    /// Support files are written on a worker (the window's); else at once.
+    fn background_support(&self) -> bool {
+        false
+    }
+    /// What "Use mods: Off" set aside (None: mods are in use).
+    fn paused(&self) -> Option<Paused>;
+    fn set_paused(&self, p: Option<&Paused>) -> Result<(), String>;
+    /// Whether `dir` is an Overbright pack (a `pack.toml`, or `world/`,
+    /// `car/` or `any/` holding images) or a map mod (`map.obmap`).
+    fn mod_kind(&self, dir: &Path) -> Option<ModKind> {
+        if dir.join("map.obmap").is_file()
+            || dir.extension().is_some_and(|e| e.eq_ignore_ascii_case("obmap"))
+        {
+            return Some(ModKind::Map);
+        }
+        if dir.join("pack.toml").is_file() || ["world", "car", "any"].iter().any(|d| dir.join(d).is_dir()) {
+            return Some(ModKind::Own);
+        }
         None
     }
     /// The installed texture packages in the kept order.
@@ -636,7 +1389,8 @@ pub fn expand_packages(paths: Vec<PathBuf>) -> Vec<PathBuf> {
     paths
         .into_iter()
         .flat_map(|p| {
-            let found = if p.is_dir() && !p.join("texmod.def").is_file() && !crate::formats::texwizard::is_pack_dir(&p) {
+            let found = if p.is_dir() && !p.join("texmod.def").is_file() && !crate::formats::texwizard::is_pack_dir(&p)
+            {
                 crate::formats::texwizard::find_packs(&p)
             } else {
                 Vec::new()
@@ -723,7 +1477,11 @@ fn keep_installed(o: crate::texture_mods::Outcome) -> crate::texture_mods::Outco
         let mut list = tm::load();
         list.push(tm::Entry { id: id.clone(), on: true });
         if let Err(e) = tm::save(&list) {
-            return tm::Outcome { line: format!("{}: imported, but the list could not be kept: {e}", o.name), ok: false, ..o };
+            return tm::Outcome {
+                line: format!("{}: imported, but the list could not be kept: {e}", o.name),
+                ok: false,
+                ..o
+            };
         }
     }
     o
@@ -743,13 +1501,16 @@ pub fn source_words(source: &str, path: &Path) -> String {
 /// A folder's note in the browser: the game's folder, a save folder.
 pub fn dir_note(p: &Path) -> String {
     if setup::looks_like_game(p) {
-        "game folder".into()
+        GAME_FOLDER_NOTE.into()
     } else if p.file_name().is_some_and(|n| n.eq_ignore_ascii_case(crate::frontend::profiles::FOLDER)) {
         "saves".into()
     } else {
         String::new()
     }
 }
+
+/// The folder browser's note on a row that holds the game.
+pub const GAME_FOLDER_NOTE: &str = "game folder";
 
 /// The folders in `dir`, sorted by name (hidden ones left out).
 pub fn read_dirs(dir: &Path) -> Result<Vec<DirEntry>, String> {
@@ -800,8 +1561,137 @@ pub fn drives() -> Vec<DirEntry> {
         .collect()
 }
 
+/// The header's version: the number alone, beside the name
+/// ("Overbright … 0.3.0"), never a bare "version" next to the game's own.
 pub fn version() -> String {
-    format!("version {}", crate::build_info::VERSION)
+    crate::build_info::VERSION.to_string()
+}
+
+/// `p` with its long names: Windows' registry gives the install folder in
+/// 8.3 short form (`C:\PROGRA~2\EAGAME~1\…`); the file system's own
+/// spelling (`canonicalize`, its `\\?\` prefix taken off) is shown and
+/// kept instead. Unchanged elsewhere, for a path without a `~`, and when
+/// the folder cannot be read.
+pub fn long_path(p: &Path) -> PathBuf {
+    // Only a path with a short name in it: canonicalize would also turn
+    // a mapped drive (`Z:\Games`) into its share's name.
+    if !cfg!(windows) || !p.to_string_lossy().contains('~') {
+        return p.to_path_buf();
+    }
+    match std::fs::canonicalize(p) {
+        Ok(c) => plain_windows_path(&c.to_string_lossy()).map_or(c, PathBuf::from),
+        Err(_) => p.to_path_buf(),
+    }
+}
+
+/// A `\\?\` verbatim path in its ordinary form (`\\?\C:\x` →
+/// `C:\x`, `\\?\UNC\srv\share` → `\\srv\share`); None when it is
+/// not one.
+pub fn plain_windows_path(s: &str) -> Option<String> {
+    let rest = s.strip_prefix(r"\\?\")?;
+    Some(match rest.strip_prefix(r"UNC\") {
+        Some(unc) => format!(r"\\{unc}"),
+        None => rest.to_string(),
+    })
+}
+
+/// Whether `dir` is Overbright's own folder: the launcher beside it, or
+/// the folder this program runs from (`exe_dir`).
+pub fn is_overbright_dir(dir: &Path, exe_dir: Option<&Path>) -> bool {
+    let own = ["overbright", "overbright.exe"].iter().any(|n| dir.join(n).is_file());
+    own || exe_dir.is_some_and(|e| same_dir(e, dir))
+}
+
+fn same_dir(a: &Path, b: &Path) -> bool {
+    a == b || std::fs::canonicalize(a).ok().zip(std::fs::canonicalize(b).ok()).is_some_and(|(x, y)| x == y)
+}
+
+/// The game folder for a chosen `dir`: itself when it holds the game,
+/// else the folder above it (a pick of GLOBAL, or of Overbright unpacked
+/// inside the game folder), else the one folder below it that does (a
+/// pick of `EA GAMES`); `dir` itself when none does.
+pub fn game_dir_near(dir: &Path, looks: &dyn Fn(&Path) -> bool) -> PathBuf {
+    if looks(dir) {
+        return dir.to_path_buf();
+    }
+    if let Some(up) = dir.parent().filter(|u| !u.as_os_str().is_empty() && looks(u)) {
+        return up.to_path_buf();
+    }
+    let mut below: Vec<PathBuf> = std::fs::read_dir(dir)
+        .map(|d| d.filter_map(|e| e.ok()).map(|e| e.path()).filter(|p| p.is_dir() && looks(p)).collect())
+        .unwrap_or_default();
+    below.sort();
+    if below.len() == 1 { below.remove(0) } else { dir.to_path_buf() }
+}
+
+/// The system's folder dialog: Windows' own (`IFileOpenDialog`), on Linux
+/// and other systems the desktop's file chooser through the XDG portal,
+/// else zenity (rfd). `OVERBRIGHT_OWN_PICKER=1` and gamescope
+/// ([`in_gamescope`]) ask for Overbright's own browser instead.
+pub fn system_folder_dialog(title: &str, start: Option<&Path>) -> Picked {
+    if std::env::var_os("OVERBRIGHT_OWN_PICKER").is_some_and(|v| v != "0") || in_gamescope(&|k| std::env::var_os(k)) {
+        return Picked::NoDialog;
+    }
+    #[cfg(windows)]
+    {
+        let _ = start;
+        match super::win_dialog::pick_folder(title) {
+            Ok(Some(d)) => Picked::Folder(d),
+            Ok(None) => Picked::Cancelled,
+            Err(()) => Picked::NoDialog,
+        }
+    }
+    #[cfg(target_os = "linux")]
+    {
+        // rfd gives None both for a cancel and for no dialog at all (no
+        // portal answering and no zenity). Without a session bus and
+        // without zenity there is none; else an answer faster than a
+        // person can cancel means none opened.
+        let bus = std::env::var_os("DBUS_SESSION_BUS_ADDRESS").is_some()
+            || std::env::var_os("XDG_RUNTIME_DIR").is_some_and(|d| Path::new(&d).join("bus").exists());
+        if !bus && !on_path("zenity") {
+            return Picked::NoDialog;
+        }
+        let mut d = rfd::FileDialog::new().set_title(title);
+        if let Some(s) = start.filter(|s| s.is_dir()) {
+            d = d.set_directory(s);
+        }
+        let t = std::time::Instant::now();
+        match d.pick_folder() {
+            Some(p) => Picked::Folder(p),
+            None if t.elapsed() < NO_DIALOG_WITHIN => {
+                log::info!("folder dialog: none answered ({} ms)", t.elapsed().as_millis());
+                Picked::NoDialog
+            }
+            None => Picked::Cancelled,
+        }
+    }
+    #[cfg(not(any(windows, target_os = "linux")))]
+    {
+        let _ = (title, start);
+        Picked::NoDialog
+    }
+}
+
+/// Whether the launcher runs inside gamescope (`var`: the environment):
+/// Steam Deck Game Mode (`SteamDeck=1`, `SteamGamepadUI`) or a gamescope
+/// session (`XDG_CURRENT_DESKTOP` naming it, `GAMESCOPE_WAYLAND_DISPLAY`).
+/// Its portals offer no FileChooser (Valve's gamescope and holo backends),
+/// so no system folder dialog is tried there.
+pub fn in_gamescope(var: &dyn Fn(&str) -> Option<std::ffi::OsString>) -> bool {
+    var("SteamDeck").is_some_and(|v| v == "1")
+        || var("SteamGamepadUI").is_some()
+        || var("GAMESCOPE_WAYLAND_DISPLAY").is_some_and(|v| !v.is_empty())
+        || var("XDG_CURRENT_DESKTOP").is_some_and(|v| v.to_string_lossy().to_ascii_lowercase().contains("gamescope"))
+}
+
+/// A dialog that ends without a choice within this time never opened.
+#[cfg(target_os = "linux")]
+const NO_DIALOG_WITHIN: std::time::Duration = std::time::Duration::from_millis(300);
+
+#[cfg(target_os = "linux")]
+fn on_path(program: &str) -> bool {
+    std::env::var_os("PATH").is_some_and(|p| std::env::split_paths(&p).any(|d| d.join(program).is_file()))
 }
 
 /// The languages other than English, for the "not supported yet" note.
@@ -817,6 +1707,7 @@ impl Env for RealEnv {
         let (choices, file) = load_choices();
         let mut found: Vec<Found> = Vec::new();
         let mut add = |p: PathBuf, source: &str| {
+            let p = long_path(&p);
             if setup::looks_like_game(&p) && !found.iter().any(|f| f.path == p) {
                 let source = source_words(source, &p);
                 found.push(Found { path: p, source });
@@ -836,6 +1727,21 @@ impl Env for RealEnv {
         }
         let pack = choices.texture_pack.clone();
         Model {
+            ask: None,
+            starting: false,
+            show_files: false,
+            support: None,
+            start_unfinished: false,
+            set_aside: None,
+            prefs: self.prefs(),
+            just_found: false,
+            support_busy: false,
+            locations: self.locations(),
+            portable: self.portable(),
+            editor_here: self.editor_present(),
+            pick_loc: None,
+            copy_busy: false,
+            play_args: Vec::new(),
             version: version(),
             root: None,
             found,
@@ -861,22 +1767,40 @@ impl Env for RealEnv {
             source: source_url(),
             notices: super::screens::NOTICES,
             native_dialog: cfg!(windows),
-            mods: Mods { list: self.mods(), ..Default::default() },
+            mods: {
+                let list = self.mods();
+                let own = self.own_packs();
+                let conflict = self.conflict(&own, &list.iter().map(|(e, _)| e.clone()).collect::<Vec<_>>());
+                Mods { list, own, maps: self.maps(), paused: self.paused().is_some(), conflict, ..Default::default() }
+            },
             hud: self.hud(&pack),
             prepare: Prepare::default(),
+            dialog: None,
+            pad_input: false,
+            failure_details: false,
+            gamescope: in_gamescope(&|k| std::env::var_os(k)),
+            probe_again: false,
             folders: self.folders(),
         }
     }
 
     fn check(&self, root: &Path) -> CheckResult {
-        let c = setup::check(root, true);
-        let fp = crate::fingerprint::compute(root);
-        let lines: Vec<(Mark, String)> =
-            setup::check_lines(&c, Some(&fp)).into_iter().map(|(m, t)| (m.into(), t)).collect();
-        // A folder with an error line cannot be used, files all there or
-        // not.
-        let usable = c.ok() && !lines.iter().any(|(m, _)| *m == Mark::Error);
-        CheckResult { root: root.to_path_buf(), lines, usable }
+        let chosen = long_path(root);
+        let root = game_dir_near(&chosen, &setup::looks_like_game);
+        let refused =
+            |problem| CheckResult { root: root.clone(), lines: Vec::new(), usable: false, problem: Some(problem) };
+        if let Err(e) = std::fs::read_dir(&root)
+            && e.kind() == std::io::ErrorKind::PermissionDenied
+        {
+            return refused(Problem::Unreadable);
+        }
+        let exe = std::env::current_exe().ok();
+        if !setup::looks_like_game(&root) && is_overbright_dir(&root, exe.as_deref().and_then(Path::parent)) {
+            return refused(Problem::OwnFolder);
+        }
+        let c = setup::check(&root, true);
+        let fp = crate::fingerprint::compute(&root);
+        check_result(&root, &c, Some(&fp))
     }
 
     fn keep_root(&self, root: &Path) -> Result<(), String> {
@@ -969,15 +1893,180 @@ impl Env for RealEnv {
         saves::import(s, &super::dirs::profiles())
     }
 
-    fn native_folder_dialog(&self, title: &str) -> Option<PathBuf> {
+    fn folder_dialog(&self, title: &str, start: Option<&Path>) -> Picked {
+        system_folder_dialog(title, start)
+    }
+
+    // Windows' dialog runs its own message loop on the window's thread
+    // (it keeps the window drawn); the portal's and zenity's would block
+    // it, so they run on a worker.
+    fn background_dialog(&self) -> bool {
+        !cfg!(windows)
+    }
+
+    fn portable(&self) -> PortableInfo {
+        use crate::platform::dirs;
+        let program = dirs::program_dir();
+        let writable = program.as_ref().is_some_and(|p| {
+            let t = p.join(".overbright-write-test");
+            let ok = std::fs::write(&t, b"").is_ok();
+            let _ = std::fs::remove_file(&t);
+            ok
+        });
         #[cfg(windows)]
-        {
-            super::win_dialog::pick_folder(title)
-        }
+        let known = crate::platform::win::local_app_data();
         #[cfg(not(windows))]
-        {
-            let _ = title;
-            None
+        let known = None;
+        let home = dirs::resolve(dirs::Os::CURRENT, &|n: &str| std::env::var_os(n), known).app;
+        PortableInfo {
+            on: dirs::portable_base().is_some(),
+            marker: program.as_deref().is_some_and(dirs::is_portable),
+            changed: false,
+            data: program.as_deref().map(dirs::portable_data),
+            program,
+            home,
+            writable,
+        }
+    }
+
+    fn unmake_portable(&self) -> Result<(), String> {
+        let dir = crate::platform::dirs::program_dir().ok_or("the program's folder is not known")?;
+        if dir.join(crate::platform::dirs::PORTABLE_FOLDER).is_dir() {
+            return Err(format!(
+                "this install is marked by the folder {}; remove that folder to turn portable mode off",
+                dir.join(crate::platform::dirs::PORTABLE_FOLDER).display()
+            ));
+        }
+        match std::fs::remove_file(dir.join(crate::platform::dirs::PORTABLE_FILE)) {
+            Err(e) if e.kind() != std::io::ErrorKind::NotFound => Err(e.to_string()),
+            _ => Ok(()),
+        }
+    }
+
+    fn prefs(&self) -> Prefs {
+        std::fs::read_to_string(super::dirs::data_dir().join(Prefs::FILE)).map(|t| Prefs::parse(&t)).unwrap_or_default()
+    }
+
+    fn save_prefs(&self, p: &Prefs) -> Result<(), String> {
+        let f = super::dirs::data_dir().join(Prefs::FILE);
+        crate::qol::saves::write_atomic(&f, p.text().as_bytes(), false).map_err(|e| e.to_string())
+    }
+
+    fn background_support(&self) -> bool {
+        true
+    }
+
+    fn own_packs(&self) -> Vec<OwnPack> {
+        crate::obpack::list_in(&crate::obpack::packs_dir()).into_iter().map(own_row).collect()
+    }
+
+    fn save_own(&self, list: &[(String, bool)]) -> Result<(), String> {
+        let l: Vec<crate::obpack::OrderEntry> =
+            list.iter().map(|(id, on)| crate::obpack::OrderEntry { id: id.clone(), on: *on }).collect();
+        crate::obpack::save_order(&crate::obpack::packs_dir(), &l).map_err(|e| e.to_string())
+    }
+
+    fn install_own(&self, src: &Path) -> Result<String, String> {
+        crate::obpack::install_folder(src, &crate::obpack::packs_dir()).map_err(|e| format!("{e:#}"))
+    }
+
+    fn remove_own(&self, id: &str) -> Result<(), String> {
+        crate::obpack::remove(&crate::obpack::packs_dir(), &crate::obpack::compiled_root(), id)
+            .map_err(|e| format!("{e:#}"))
+    }
+
+    fn conflict(&self, own: &[OwnPack], packages: &[crate::texture_mods::Entry]) -> Option<Conflict> {
+        let packs_dir = crate::obpack::packs_dir();
+        let mut sets: Vec<(String, std::collections::BTreeSet<(bool, u32)>)> = Vec::new();
+        for o in own.iter().filter(|o| o.on && o.refused.is_none()) {
+            let Ok(p) = crate::obpack::Pack::open(&packs_dir.join(&o.id)) else { continue };
+            let mut set = std::collections::BTreeSet::new();
+            for (car, d) in [(false, crate::obpack::Domain::World), (true, crate::obpack::Domain::Car)] {
+                set.extend(p.index.domain(d).keys().map(|h| (car, *h)));
+            }
+            sets.push((o.name.clone(), set));
+        }
+        let pk = crate::texture_mods::packages_dir();
+        for e in packages.iter().filter(|e| e.on) {
+            let mut set = std::collections::BTreeSet::new();
+            for (car, sub) in [(false, "world"), (true, "car")] {
+                for f in std::fs::read_dir(pk.join(&e.id).join(sub)).into_iter().flatten().flatten() {
+                    let stem = f.path().file_stem().and_then(|s| s.to_str()).unwrap_or("").to_string();
+                    let hex = stem.trim_start_matches("0x").trim_start_matches("0X");
+                    if let Ok(h) = u32::from_str_radix(hex, 16) {
+                        set.insert((car, h));
+                    }
+                }
+            }
+            let name = crate::texture_mods::info(&pk, &e.id).map_or(e.id.clone(), |i| i.name);
+            sets.push((name, set));
+        }
+        let own_n = own.iter().filter(|o| o.on && o.refused.is_none()).count();
+        let names: Vec<&String> = sets.iter().map(|(n, _)| n).collect();
+        first_conflict(&sets).map(|mut c| {
+            let at = |n: &String| names.iter().position(|x| *x == n).unwrap_or(0) < own_n;
+            c.same_list = at(&c.first) == at(&c.second);
+            c
+        })
+    }
+
+    fn maps(&self) -> Vec<MapRow> {
+        let dir = crate::tools::map::store::maps_dir();
+        let on = crate::tools::map::store::enabled(&dir);
+        crate::tools::map::store::list(&dir)
+            .into_iter()
+            .map(|f| {
+                let m = crate::tools::map::store::read_file(&dir.join(&f).join(crate::tools::map::store::FILE)).ok();
+                let (races, props) = m.as_ref().map_or((0, 0), |m| (m.races.len(), m.props.len()));
+                let name = m.map(|m| m.name).filter(|n| !n.trim().is_empty()).unwrap_or_else(|| f.clone());
+                MapRow { on: on.contains(&f), name, folder: f, races, props }
+            })
+            .collect()
+    }
+
+    fn set_map(&self, folder: &str, on: bool) -> Result<(), String> {
+        crate::tools::map::store::set_enabled(&crate::tools::map::store::maps_dir(), folder, on)
+            .map_err(|e| format!("{e:#}"))
+    }
+
+    fn import_map(&self, from: &Path) -> Result<String, String> {
+        crate::tools::map::store::import(&crate::tools::map::store::maps_dir(), from).map_err(|e| format!("{e:#}"))
+    }
+
+    fn start_editor(&self, folder: Option<&str>, root: Option<&Path>) -> Result<Box<dyn EditorJob>, String> {
+        let exe = super::dirs::editor_exe();
+        let mut cmd = std::process::Command::new(&exe);
+        if let Some(f) = folder {
+            cmd.args(["--mod", f]);
+        }
+        if let Some(r) = root {
+            cmd.env("NFSU2_ROOT", r);
+        }
+        cmd.stdin(std::process::Stdio::null()).stdout(std::process::Stdio::null()).stderr(std::process::Stdio::null());
+        let child = cmd.spawn().map_err(|e| format!("the map editor could not be started ({}): {e}", exe.display()))?;
+        log::info!("map editor started (pid {}) on {}", child.id(), folder.unwrap_or("its own choice"));
+        Ok(Box::new(EditorProcess(child)))
+    }
+
+    fn export_map(&self, folder: &str, to: &Path) -> Result<PathBuf, String> {
+        let out = to.join(format!("{folder}.zip"));
+        crate::tools::map::store::export(&crate::tools::map::store::maps_dir(), folder, &out)
+            .map(|()| out)
+            .map_err(|e| format!("{e:#}"))
+    }
+
+    fn paused(&self) -> Option<Paused> {
+        std::fs::read_to_string(super::dirs::data_dir().join(PAUSED_FILE)).ok().map(|t| Paused::parse(&t))
+    }
+
+    fn set_paused(&self, p: Option<&Paused>) -> Result<(), String> {
+        let f = super::dirs::data_dir().join(PAUSED_FILE);
+        match p {
+            Some(p) => crate::qol::saves::write_atomic(&f, p.text().as_bytes(), false).map_err(|e| e.to_string()),
+            None => match std::fs::remove_file(&f) {
+                Err(e) if e.kind() != std::io::ErrorKind::NotFound => Err(e.to_string()),
+                _ => Ok(()),
+            },
         }
     }
 
@@ -1012,6 +2101,28 @@ impl Env for RealEnv {
     fn background_import(&self) -> bool {
         true
     }
+}
+
+/// A check's result from the file check (and the fingerprint): the
+/// lines, usable, and the problem when not. Two notes are left out, as
+/// nothing to act on: the mod files found (Overbright ignores them) and
+/// what SPEED2.EXE is (Overbright does not use it).
+pub fn check_result(root: &Path, c: &setup::Check, fp: Option<&crate::fingerprint::Fingerprint>) -> CheckResult {
+    let lines: Vec<(Mark, String)> = setup::check_lines(c, fp)
+        .into_iter()
+        .map(|(m, t)| (Mark::from(m), t))
+        .filter(|(m, t)| !(*m == Mark::Info && (t.starts_with("Mod files found") || t.starts_with("SPEED2.EXE"))))
+        .collect();
+    // A folder with an error line cannot be used, files all there or
+    // not.
+    let usable = c.ok() && !lines.iter().any(|(m, _)| *m == Mark::Error);
+    let problem = match c.missing.len() {
+        _ if usable => None,
+        0 => Some(Problem::NoGame),
+        n if n > 3 || !setup::looks_like_game(root) => Some(Problem::NoGame),
+        n => Some(Problem::Missing(n)),
+    };
+    CheckResult { root: root.to_path_buf(), lines, usable, problem }
 }
 
 pub fn pack_status(dir: &str) -> PackStatus {
@@ -1140,7 +2251,22 @@ impl Env for FakeEnv {
             hud_mod: false,
         };
         Model {
-            version: format!("version {}", env!("CARGO_PKG_VERSION")),
+            ask: None,
+            starting: false,
+            show_files: false,
+            support: None,
+            start_unfinished: false,
+            set_aside: None,
+            prefs: self.prefs(),
+            just_found: false,
+            support_busy: false,
+            locations: self.locations(),
+            portable: self.portable(),
+            editor_here: self.editor_present(),
+            pick_loc: None,
+            copy_busy: false,
+            play_args: Vec::new(),
+            version: env!("CARGO_PKG_VERSION").to_string(),
             root: Some(FakeEnv::root()),
             found: vec![
                 Found { path: FakeEnv::root(), source: "found on this computer".into() },
@@ -1171,6 +2297,7 @@ impl Env for FakeEnv {
             probe: ProbeState::Ready(FakeEnv::probe()),
             controller: Some("Xbox Wireless Controller".into()),
             failure: Some(Failure {
+                kind: super::run::ErrorKind::Crash,
                 during_start: true,
                 how: "a crash (panic), exit code 101".into(),
                 tail: [
@@ -1201,9 +2328,19 @@ impl Env for FakeEnv {
             source: Some("https://example.org/overbright".into()),
             notices: FAKE_NOTICES,
             native_dialog: false,
-            mods: Mods { list: self.mods(), ..Default::default() },
+            mods: {
+                let list = self.mods();
+                let own = self.own_packs();
+                let conflict = self.conflict(&own, &list.iter().map(|(e, _)| e.clone()).collect::<Vec<_>>());
+                Mods { list, own, maps: self.maps(), paused: self.paused().is_some(), conflict, ..Default::default() }
+            },
             hud: None,
             prepare: Prepare::default(),
+            dialog: None,
+            pad_input: false,
+            failure_details: false,
+            gamescope: false,
+            probe_again: false,
             folders: self.folders(),
         }
     }
@@ -1213,9 +2350,8 @@ impl Env for FakeEnv {
             missing: Vec::new(),
             different: vec!["GLOBAL/GlobalB.lzc".into(), "FRONTEND/FrontB.lzc".into()],
         };
-        let mut lines: Vec<(Mark, String)> =
-            setup::check_lines(&c, None).into_iter().map(|(m, t)| (m.into(), t)).collect();
-        lines.insert(
+        let mut r = check_result(root, &c, None);
+        r.lines.insert(
             0,
             (
                 Mark::Warn,
@@ -1223,16 +2359,18 @@ impl Env for FakeEnv {
                     .into(),
             ),
         );
-        lines.push((
-            Mark::Info,
-            "Mod files found next to the game: dinput8.dll, SCRIPTS (Overbright ignores them)".into(),
-        ));
-        CheckResult { root: root.to_path_buf(), lines, usable: true }
+        r
     }
 
     fn keep_root(&self, _root: &Path) -> Result<(), String> {
         Ok(())
     }
+
+    fn support_file(&self, _req: &crate::diag::support::SupportRequest) -> std::io::Result<PathBuf> {
+        Ok(PathBuf::from("/data/player/.local/share/overbright/logs/overbright-support-20261118-120000.txt"))
+    }
+
+    fn reveal(&self, _path: &Path) {}
 
     fn save(&self, _c: &Choices, _first: Option<&FirstRun>) -> Result<(), String> {
         Ok(())
@@ -1323,6 +2461,111 @@ impl Env for FakeEnv {
 
     fn import_saves(&self, s: &saves::Scan) -> Result<Vec<String>, String> {
         Ok(s.to_copy().map(|i| format!("{0}/{0}", i.name)).collect())
+    }
+
+    fn locations(&self) -> Vec<LocRow> {
+        use crate::platform::dirs::Location as L;
+        let base = PathBuf::from("/data/player/.local/share");
+        L::ALL
+            .into_iter()
+            .map(|loc| {
+                let path = match loc {
+                    L::Saves => base.clone(),
+                    L::Settings | L::Packs => base.join("overbright"),
+                    L::Maps => base.join("overbright/maps"),
+                    L::Cache => PathBuf::from("/data/player/.cache/overbright"),
+                    L::Logs => base.join("overbright/logs"),
+                    L::Screenshots => base.join("overbright/Screenshots"),
+                };
+                LocRow { loc, path: Some(path), custom: false, missing: false }
+            })
+            .collect()
+    }
+
+    fn set_location(&self, _loc: crate::platform::dirs::Location, _to: Option<&Path>) -> Result<(), String> {
+        Ok(())
+    }
+
+    fn portable(&self) -> PortableInfo {
+        PortableInfo {
+            on: false,
+            marker: false,
+            changed: false,
+            program: Some(PathBuf::from("/data/player/Games/overbright-0.3.0")),
+            data: Some(PathBuf::from("/data/player/Games/overbright-0.3.0/data")),
+            home: PathBuf::from("/data/player/.local/share/overbright"),
+            writable: true,
+        }
+    }
+
+    fn own_packs(&self) -> Vec<OwnPack> {
+        vec![OwnPack {
+            id: "night-roads".into(),
+            name: "Night Roads".into(),
+            author: "an author".into(),
+            textures: 214,
+            on: false,
+            refused: None,
+        }]
+    }
+
+    fn save_own(&self, _list: &[(String, bool)]) -> Result<(), String> {
+        Ok(())
+    }
+
+    fn install_own(&self, src: &Path) -> Result<String, String> {
+        Ok(src.file_name().map_or("pack".into(), |n| n.to_string_lossy().to_lowercase()))
+    }
+
+    fn remove_own(&self, _id: &str) -> Result<(), String> {
+        Ok(())
+    }
+
+    fn conflict(&self, own: &[OwnPack], packages: &[crate::texture_mods::Entry]) -> Option<Conflict> {
+        // The fake packs: Night Roads and City roads HD change the same 214 road textures.
+        let night = own.iter().any(|o| o.id == "night-roads" && o.on);
+        let roads = packages.iter().any(|e| e.id == "roads-hd" && e.on);
+        (night && roads).then(|| Conflict {
+            first: "Night Roads".into(),
+            second: "City roads HD".into(),
+            textures: 214,
+            same_list: false,
+        })
+    }
+
+    fn maps(&self) -> Vec<MapRow> {
+        vec![
+            MapRow { folder: "drift-park".into(), name: "Drift park".into(), on: true, races: 2, props: 9 },
+            MapRow { folder: "open-docks".into(), name: "Open docks".into(), on: false, races: 0, props: 14 },
+        ]
+    }
+
+    fn set_map(&self, _folder: &str, _on: bool) -> Result<(), String> {
+        Ok(())
+    }
+
+    fn import_map(&self, from: &Path) -> Result<String, String> {
+        Ok(from.file_stem().map_or("map".into(), |n| n.to_string_lossy().to_lowercase()))
+    }
+
+    fn export_map(&self, folder: &str, to: &Path) -> Result<PathBuf, String> {
+        Ok(to.join(format!("{folder}.zip")))
+    }
+
+    fn editor_present(&self) -> bool {
+        true
+    }
+
+    fn start_editor(&self, _folder: Option<&str>, _root: Option<&Path>) -> Result<Box<dyn EditorJob>, String> {
+        Ok(Box::new(FakeEditor::default()))
+    }
+
+    fn paused(&self) -> Option<Paused> {
+        None
+    }
+
+    fn set_paused(&self, _p: Option<&Paused>) -> Result<(), String> {
+        Ok(())
     }
 
     fn mods(&self) -> Vec<(crate::texture_mods::Entry, crate::texture_mods::Info)> {
@@ -1445,7 +2688,14 @@ impl Env for FakeEnv {
     fn hud(&self, dir: &str) -> Option<HudCheck> {
         let d = dir.trim();
         if d.ends_with("hud-mod") {
-            return Some(HudCheck { is_pack: true, listed: 710, present: 710, missing: Vec::new(), maps: true, complete: true });
+            return Some(HudCheck {
+                is_pack: true,
+                listed: 710,
+                present: 710,
+                missing: Vec::new(),
+                maps: true,
+                complete: true,
+            });
         }
         (!d.is_empty()).then(|| HudCheck {
             is_pack: true,

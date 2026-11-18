@@ -27,7 +27,7 @@ impl Game {
     /// clone's (no native step), the hit map is a layout.
     pub(crate) fn fe_tick(&mut self) {
         self.photo_close_update();
-        self.map_editor_close_update();
+        self.free_camera_close_update();
         self.fe_map_tick();
     }
 
@@ -49,7 +49,7 @@ impl Game {
             if matches!(&self.mode, Mode::Race(r) if r.replay.playback.is_some()) {
                 let _ = self.replay_quads(Vec::new(), now);
             }
-            if self.photo_quads().is_none() && self.map_editor.is_none() {
+            if self.photo_quads().is_none() && self.free_camera.is_none() {
                 let _ = self.menu_quads(now);
             }
         }

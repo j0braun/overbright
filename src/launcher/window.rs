@@ -19,6 +19,7 @@ use winit::window::{CursorIcon, Window, WindowId};
 use super::draw::Canvas;
 use super::font::Fonts;
 use super::model::{Env, Failure, ProbeState};
+use super::platform_deck::{self as deck, Dedup, InputKind, Source};
 use super::probe::Probe;
 use super::run::{Ended, Running};
 use super::screens::{App, Outcome, Screen};
@@ -61,10 +62,14 @@ struct Run<'e> {
     import: Option<std::sync::mpsc::Receiver<ImportMsg>>,
     /// The HUD mod's conversion running on its worker thread.
     hud_job: Option<std::sync::mpsc::Receiver<HudMsg>>,
+    /// The system folder dialog open on a worker (its answer).
+    dialog: Option<std::sync::mpsc::Receiver<super::model::Picked>>,
     /// The backdrop: the picture from the game folder (read on a worker
     /// thread), when it arrived (it fades in), the folder it is for, and
     /// the composed page for the canvas's size and fade step.
     picture: Option<super::backdrop::Picture>,
+    /// The backdrop's scene the page was composed for.
+    scene: super::backdrop::Scene,
     picture_rx: Option<std::sync::mpsc::Receiver<Option<super::backdrop::Picture>>>,
     picture_at: Option<Instant>,
     picture_root: Option<std::path::PathBuf>,
@@ -79,6 +84,14 @@ struct Run<'e> {
     pointer: super::ui::Pointer,
     /// The first picture was shown (logged once).
     drawn: bool,
+    /// One press counted once from the keyboard and a pad together
+    /// (Steam Input's desktop layout).
+    dup: Dedup,
+    /// The pointer is hidden (the last input was a key or a pad).
+    cursor_hidden: bool,
+    /// A text field had focus after the last input (gamescope: Steam's
+    /// keyboard opens when one gets it).
+    field_focused: bool,
 }
 
 /// How long the game's picture takes to fade in.
@@ -102,6 +115,9 @@ pub fn trace_texts(w: &super::ui::Widget) -> Vec<String> {
         })
         .collect()
 }
+
+/// How long "Shaders ready" stays on the main screen.
+pub const SHADERS_READY_FOR: Duration = Duration::from_secs(6);
 
 /// What the HUD mod's conversion worker reports.
 enum HudMsg {
@@ -131,17 +147,35 @@ impl GameStart {
 
 /// The failure screen's data for an ended run.
 pub fn failure_of(e: &Ended) -> Failure {
-    Failure { during_start: e.during_start(), how: e.how(), tail: e.tail.clone(), log: e.log.clone() }
+    Failure { kind: e.kind(), during_start: e.during_start(), how: e.how(), tail: e.tail.clone(), log: e.log.clone() }
 }
 
 impl Run<'_> {
     fn send(&mut self, input: Input) {
+        let (focus0, screen0) = (self.app.ui.focused(&self.app.st), self.app.screen);
         let out = self.app.input(&input, &self.fonts);
+        // The launcher's own sounds (off unless the player turned them on).
+        if super::sounds::allowed() && !matches!(input, Input::MouseMove(..)) {
+            if out == Outcome::Play || self.app.screen != screen0 {
+                super::sounds::play(super::sounds::Cue::Press);
+            } else if self.app.ui.focused(&self.app.st) != focus0 {
+                super::sounds::play(super::sounds::Cue::Move);
+            }
+        }
         match out {
             Outcome::Play => self.play(),
             Outcome::Stay => {}
+            Outcome::Restart => self.outcome = Outcome::Restart,
             o => self.outcome = o,
         }
+        // Gamescope has no keyboard of its own: Steam's shows when a text
+        // field gets focus by key or pad (a click opens nothing: a mouse
+        // there means a keyboard is near).
+        let field = self.focused_is_field();
+        if field && !self.field_focused && deck::is_gamescope() && deck::last_input() != InputKind::Mouse {
+            deck::open_keyboard();
+        }
+        self.field_focused = field;
         if let Some(w) = &self.window {
             // The pointer's shape for what is under it now.
             let (x, y) = self.mouse;
@@ -172,7 +206,11 @@ impl Run<'_> {
         }
         m.background = false;
         self.game.root = self.app.model.root.clone();
-        match self.game.start() {
+        // The Dev page's start with the editor tools: those arguments this once.
+        let extra = std::mem::take(&mut self.app.model.play_args);
+        let mut game = self.game.clone();
+        game.args.extend(extra);
+        match game.start() {
             Ok(r) => {
                 log::info!("game started (pid {})", r.id());
                 if let Some(w) = &self.window {
@@ -180,12 +218,15 @@ impl Run<'_> {
                 }
                 self.running = Some(r);
             }
-            Err(e) => self.show_failure(Failure { during_start: true, how: e, tail: Vec::new(), log: None }),
+            Err(e) => self.show_failure(Failure::not_started(e)),
         }
     }
 
     fn show_failure(&mut self, f: Failure) {
+        self.app.motion.play_reset();
+        self.app.model.starting = false;
         self.app.model.failure = Some(f);
+        self.app.model.failure_details = false;
         self.app.go(Screen::Failure);
         self.app.rebuild(&self.fonts);
         if let Some(w) = &self.window {
@@ -212,7 +253,8 @@ impl Run<'_> {
     /// Runs the probe again when the game folder changed (its result
     /// belongs to the folder it was run with).
     fn reprobe(&mut self) {
-        if !self.probing || self.app.model.root.is_none() || self.app.model.root == self.probed_root {
+        let again = std::mem::take(&mut self.app.model.probe_again);
+        if !self.probing || (!again && (self.app.model.root.is_none() || self.app.model.root == self.probed_root)) {
             return;
         }
         let root = self.app.model.root.clone();
@@ -245,6 +287,8 @@ impl Run<'_> {
             match super::prepare::start(&self.game.exe, self.app.model.root.as_deref()) {
                 Ok(job) => {
                     log::info!("prepare: started");
+                    m.started = Some(std::time::Instant::now());
+                    m.done_at = None;
                     self.prepare = Some(job);
                 }
                 Err(e) => m.state = super::prepare::State::Failed(e),
@@ -255,6 +299,9 @@ impl Run<'_> {
             let (state, ended) = job.poll(m.state.clone());
             if state != m.state {
                 log::info!("prepare: {state:?}");
+                if state == super::prepare::State::Done {
+                    m.done_at = Some(std::time::Instant::now());
+                }
                 m.state = state;
                 changed = true;
             }
@@ -377,6 +424,39 @@ impl Run<'_> {
         }
     }
 
+    /// Opens the system folder dialog asked for on a worker thread (the
+    /// portal's and zenity's calls block until the player answers; the
+    /// window keeps drawing meanwhile) and hands its answer to the screen.
+    fn poll_dialog(&mut self) {
+        if self.dialog.is_none()
+            && let Some(ask) = self.app.model.dialog.as_mut().filter(|a| !a.open)
+        {
+            ask.open = true;
+            let (title, start) = (ask.title.clone(), ask.start.clone());
+            let (tx, rx) = std::sync::mpsc::channel();
+            std::thread::spawn(move || {
+                let _ = tx.send(super::model::system_folder_dialog(&title, start.as_deref()));
+            });
+            self.dialog = Some(rx);
+        }
+        let Some(rx) = &self.dialog else { return };
+        let picked = match rx.try_recv() {
+            Ok(p) => p,
+            Err(std::sync::mpsc::TryRecvError::Empty) => return,
+            Err(std::sync::mpsc::TryRecvError::Disconnected) => super::model::Picked::NoDialog,
+        };
+        self.dialog = None;
+        if let Some(ask) = self.app.model.dialog.clone() {
+            log::info!("folder dialog: {picked:?}");
+            self.app.dialog_done(ask.purpose, ask.start, picked);
+        }
+        self.app.rebuild(&self.fonts);
+        if let Some(w) = &self.window {
+            w.focus_window();
+            w.request_redraw();
+        }
+    }
+
     /// Starts the HUD mod's queued conversion on a worker thread; reports
     /// its progress and its end to the Mods page.
     fn poll_hud(&mut self) {
@@ -480,6 +560,23 @@ impl Run<'_> {
         }
     }
 
+    /// The device just used: the legends follow it, the pointer hides on
+    /// a key or a pad and shows on a mouse movement.
+    fn used(&mut self, kind: InputKind) {
+        let changed = deck::note_input(kind);
+        self.app.st.input = kind;
+        let hide = kind != InputKind::Mouse;
+        if let Some(w) = &self.window {
+            if hide != self.cursor_hidden {
+                w.set_cursor_visible(!hide);
+            }
+            if changed {
+                w.request_redraw();
+            }
+        }
+        self.cursor_hidden = hide;
+    }
+
     fn focused_is_field(&self) -> bool {
         let ui = &self.app.ui;
         ui.focused(&self.app.st).and_then(|f| ui.get(f)).is_some_and(|w| matches!(w.kind, Kind::TextField { .. }))
@@ -494,6 +591,24 @@ impl Run<'_> {
         }
         let mut t = format!("screen {}\n", self.app.screen.name());
         for w in &self.app.ui.widgets {
+            // The legends: each one's box (where a test clicks it), as a button
+            // named `legend:<button>` with its words.
+            if let Kind::Legends { actions } = &w.kind {
+                let u = self.app.ui.metrics.map_or(1.0, |m| m.u);
+                let (_, items) = super::legends::items(&self.fonts, w.rect, self.app.st.input, actions, u);
+                for (btn, r) in items {
+                    let label = actions.iter().find(|a| a.btn == btn).map_or("", |a| a.label.as_str());
+                    t += &format!(
+                        "  [button legend:{} @{:.0},{:.0} {:.0}x{:.0}] {label}\n",
+                        format!("{btn:?}").to_lowercase(),
+                        r.x,
+                        r.y - self.app.st.scroll,
+                        r.w,
+                        r.h
+                    );
+                }
+                continue;
+            }
             let texts = trace_texts(w);
             if texts.is_empty() {
                 continue;
@@ -507,6 +622,7 @@ impl Run<'_> {
                     super::ui::Mark::Ok => "ok",
                     super::ui::Mark::Warn => "warn",
                     super::ui::Mark::Info => "info",
+                    super::ui::Mark::Busy => "busy",
                     super::ui::Mark::Error => "error",
                 },
                 Kind::Button { .. } => "button",
@@ -515,6 +631,18 @@ impl Run<'_> {
                 Kind::List { .. } => "list",
                 Kind::TextField { .. } => "field",
                 Kind::Link => "link",
+                Kind::Play => "play",
+                Kind::SumRow { .. } => "row",
+                Kind::PageTab { .. } => "page",
+                Kind::Rail { .. } => "rail",
+                Kind::ValueRow { .. } => "value",
+                Kind::Toggle { .. } => "toggle",
+                Kind::Message { .. } => "message",
+                Kind::Describe => "describe",
+                Kind::Scrim => "scrim",
+                Kind::Dialog => "dialog",
+                Kind::Legends { .. } => "legends",
+                Kind::Glyph { .. } => "glyph",
             };
             // A control: its id, "(off)" when it cannot be used, and its
             // box in window pixels (where a test clicks it).
@@ -584,8 +712,21 @@ impl Run<'_> {
         let (w, h) = (self.canvas.width(), self.canvas.height());
         if (self.page.0, self.page.1, self.page.2) != (w, h, step) || self.page.3.is_empty() {
             let pic = self.picture.as_ref().filter(|_| step > 0);
-            self.page = (w, h, step, super::backdrop::compose(w, h, pic, f32::from(step) / 10.0));
+            let scene = self.app.ui.scene;
+            self.page = (w, h, step, super::backdrop::backdrop_a(w, h, scene, pic).as_ref().clone());
+            self.scene = scene;
         }
+        if self.scene != self.app.ui.scene {
+            let pic = self.picture.as_ref().filter(|_| step > 0);
+            self.scene = self.app.ui.scene;
+            self.page.3 = super::backdrop::backdrop_a(w, h, self.scene, pic).as_ref().clone();
+        }
+        // The motion of this frame (the page slide, Play's glow).
+        let now = Instant::now();
+        if let Some(m) = self.app.ui.metrics {
+            self.app.motion.set_unit(m.u * 0.9375);
+        }
+        self.app.st.motion = self.app.motion.frame(now);
         render_on(&self.app.ui, &self.app.st, &self.fonts, &mut self.canvas, &self.page.3);
         match surface.buffer_mut() {
             Ok(mut buf) => {
@@ -620,7 +761,12 @@ impl Run<'_> {
         let mut inputs = Vec::new();
         let now = Instant::now();
         let is_move = |k: Key| matches!(k, Key::Up | Key::Down | Key::Left | Key::Right);
+        let mut kind = None;
         while let Some(ev) = g.next_event() {
+            if matches!(ev.event, gilrs::EventType::ButtonPressed(..) | gilrs::EventType::AxisChanged(..)) {
+                let p = g.gamepad(ev.id);
+                kind = Some(deck::pad_kind(p.name(), p.vendor_id()));
+            }
             match ev.event {
                 gilrs::EventType::ButtonReleased(b, _) => {
                     let k = match b {
@@ -642,8 +788,10 @@ impl Run<'_> {
                         gilrs::Button::DPadRight => Key::Right,
                         gilrs::Button::South | gilrs::Button::Start => Key::Enter,
                         gilrs::Button::East => Key::Escape,
-                        gilrs::Button::LeftTrigger => Key::BackTab,
-                        gilrs::Button::RightTrigger => Key::Tab,
+                        gilrs::Button::LeftTrigger => Key::PagePrev,
+                        gilrs::Button::RightTrigger => Key::PageNext,
+                        gilrs::Button::West => Key::ActionX,
+                        gilrs::Button::North => Key::ActionY,
                         _ => continue,
                     };
                     if is_move(k) {
@@ -697,6 +845,18 @@ impl Run<'_> {
             self.held = Some((k, now + REPEAT_EVERY));
             inputs.push(Input::Key(k));
         }
+        inputs.retain(|i| match i {
+            Input::Key(k) => self.dup.accept(*k, Source::Pad, now),
+            _ => true,
+        });
+        if !inputs.is_empty() {
+            self.app.model.pad_input = true;
+            let kind = kind.unwrap_or_else(|| {
+                let k = deck::last_input();
+                if k.is_pad() { k } else { deck::pad_kind("", None) }
+            });
+            self.used(kind);
+        }
         for i in inputs {
             self.send(i);
         }
@@ -717,15 +877,34 @@ impl ApplicationHandler for Run<'_> {
             let f = crate::platform::monitor::facts(&m);
             (m, f)
         });
-        let (lw, lh) =
-            primary.as_ref().map_or((960.0, 720.0), |(m, f)| initial_size(f.size.0, f.size.1, m.scale_factor()));
+        // Under gamescope (Deck Game Mode) the whole screen instead.
+        let gamescope = deck::is_gamescope();
+        let size = deck::window_size(
+            gamescope,
+            primary.as_ref().map(|(_, f)| f.size),
+            primary.as_ref().map_or(1.0, |(m, _)| m.scale_factor()),
+        );
+        let (lw, lh) = match size {
+            deck::WindowSize::Logical(w, h) => (w, h),
+            deck::WindowSize::Screen(..) => (960.0, 720.0),
+        };
         let attrs = Window::default_attributes()
             .with_title(super::screens::NAME)
-            .with_window_icon(crate::platform::icon::window_icon())
-            .with_inner_size(LogicalSize::new(lw, lh))
-            .with_min_inner_size(LogicalSize::new(lw.min(640.0), lh.min(480.0)));
+            .with_window_icon(crate::platform::icon::window_icon());
+        let attrs = match size {
+            deck::WindowSize::Screen(w, h) => {
+                log::info!("window: gamescope, the whole screen {w}x{h}");
+                attrs.with_inner_size(winit::dpi::PhysicalSize::new(w, h)).with_fullscreen(Some(
+                    winit::window::Fullscreen::Borderless(primary.as_ref().map(|(m, _)| m.clone())),
+                ))
+            }
+            deck::WindowSize::Logical(..) => attrs
+                .with_inner_size(LogicalSize::new(lw, lh))
+                .with_min_inner_size(LogicalSize::new(lw.min(640.0), lh.min(480.0))),
+        };
         // Centred on the primary monitor.
         let attrs = match &primary {
+            _ if gamescope => attrs,
             Some((m, f)) if f.size.0 > 0 && f.size.1 > 0 => {
                 let (scale, pos, size) = (m.scale_factor(), m.position(), f.size);
                 let (w, h) = ((lw * scale) as i32, (lh * scale) as i32);
@@ -756,7 +935,8 @@ impl ApplicationHandler for Run<'_> {
                 if let Some(mon) = w.current_monitor()
                     && self.app.model.monitor.is_none()
                 {
-                    self.app.model.monitor = Some(crate::render::display::MonitorInfo::from_winit(&mon, is_wayland(el)));
+                    self.app.model.monitor =
+                        Some(crate::render::display::MonitorInfo::from_winit(&mon, is_wayland(el)));
                 }
                 let size = w.inner_size();
                 self.app.resize((size.width.max(1), size.height.max(1)), w.scale_factor() as f32, &self.fonts);
@@ -798,6 +978,7 @@ impl ApplicationHandler for Run<'_> {
             WindowEvent::RedrawRequested => self.draw(),
             WindowEvent::ModifiersChanged(m) => self.mods = m.state(),
             WindowEvent::KeyboardInput { event, .. } if event.state == ElementState::Pressed => {
+                self.app.model.pad_input = false;
                 let shift = self.mods.shift_key();
                 let key = match &event.logical_key {
                     WKey::Named(n) => match n {
@@ -805,6 +986,9 @@ impl ApplicationHandler for Run<'_> {
                         NamedKey::ArrowDown => Some(Key::Down),
                         NamedKey::ArrowLeft => Some(Key::Left),
                         NamedKey::ArrowRight => Some(Key::Right),
+                        NamedKey::Tab if self.mods.control_key() => {
+                            Some(if shift { Key::PagePrev } else { Key::PageNext })
+                        }
                         NamedKey::Tab => Some(if shift { Key::BackTab } else { Key::Tab }),
                         NamedKey::Enter => Some(Key::Enter),
                         NamedKey::Escape => Some(Key::Escape),
@@ -817,23 +1001,43 @@ impl ApplicationHandler for Run<'_> {
                         NamedKey::Space if !self.focused_is_field() => Some(Key::Space),
                         _ => None,
                     },
+                    // Q / E: the pages; R: a page's second action (not
+                    // while a text field takes letters).
+                    WKey::Character(c) if !self.focused_is_field() && !self.mods.control_key() => {
+                        match c.to_ascii_lowercase().as_str() {
+                            "q" => Some(Key::PagePrev),
+                            "e" => Some(Key::PageNext),
+                            "r" => Some(Key::ActionY),
+                            _ => None,
+                        }
+                    }
                     _ => None,
                 };
                 if let Some(k) = key {
-                    self.send(Input::Key(k));
+                    if self.dup.accept(k, Source::Keyboard, Instant::now()) {
+                        self.used(InputKind::Keyboard);
+                        self.send(Input::Key(k));
+                    }
                 } else if let Some(t) = event.text.as_ref().filter(|t| t.chars().all(|c| !c.is_control())) {
                     if !self.mods.control_key() {
+                        self.used(InputKind::Keyboard);
                         self.send(Input::Text(t.to_string()));
                     }
                 }
             }
             WindowEvent::CursorMoved { position, .. } => {
+                let moved = (position.x as f32, position.y as f32) != self.mouse;
                 self.mouse = (position.x as f32, position.y as f32);
+                if moved {
+                    self.used(InputKind::Mouse);
+                }
                 log::debug!(target: "launcher::input", "cursor {:.1},{:.1} scale {}", position.x, position.y,
                     self.window.as_ref().map_or(1.0, |w| w.scale_factor()));
                 self.send(Input::MouseMove(self.mouse.0, self.mouse.1));
             }
             WindowEvent::MouseInput { state, button: MouseButton::Left, .. } => {
+                self.app.model.pad_input = false;
+                self.used(InputKind::Mouse);
                 let (x, y) = self.mouse;
                 self.send(if state == ElementState::Pressed { Input::MouseDown(x, y) } else { Input::MouseUp(x, y) });
             }
@@ -864,6 +1068,7 @@ impl ApplicationHandler for Run<'_> {
         self.poll_probe();
         self.poll_import();
         self.poll_hud();
+        self.poll_dialog();
         self.poll_backdrop();
         self.poll_game();
         self.poll_prepare();
@@ -874,6 +1079,42 @@ impl ApplicationHandler for Run<'_> {
             el.exit();
             return;
         }
+        let now = Instant::now();
+        if self.app.poll_jobs(&self.fonts)
+            && let Some(w) = &self.window
+        {
+            w.request_redraw();
+        }
+        if self.app.motion.busy(now)
+            && let Some(w) = &self.window
+        {
+            w.request_redraw();
+            let at = self.app.motion.next_frame(now).unwrap_or(now + Duration::from_millis(16));
+            el.set_control_flow(ControlFlow::WaitUntil(at));
+            return;
+        }
+        // A busy spinner turns (about 30 frames a second); a support file
+        // being written is polled.
+        // "Shaders ready" goes away by itself.
+        if self.app.shaders_ready_shown() && self.app.model.prepare.done_at.is_some_and(|t| t.elapsed() > SHADERS_READY_FOR) {
+            self.app.model.prepare.done_at = None;
+            self.app.rebuild(&self.fonts);
+            if let Some(w) = &self.window {
+                w.request_redraw();
+            }
+        }
+        if self.app.shaders_ready_shown() {
+            el.set_control_flow(ControlFlow::WaitUntil(now + Duration::from_millis(250)));
+            return;
+        }
+        let spinning = super::ui::spinning(&self.app.ui) && !super::anim::reduced();
+        if (spinning || self.app.model.support_busy) && self.running.is_none() {
+            if spinning && let Some(w) = &self.window {
+                w.request_redraw();
+            }
+            el.set_control_flow(ControlFlow::WaitUntil(now + Duration::from_millis(33)));
+            return;
+        }
         let fading = self.picture_rx.is_some()
             || self.picture_at.is_some_and(|t| t.elapsed() < FADE + Duration::from_millis(40));
         if fading {
@@ -882,6 +1123,8 @@ impl ApplicationHandler for Run<'_> {
             || self.probe.is_some()
             || self.import.is_some()
             || self.hud_job.is_some()
+            || self.dialog.is_some()
+            || self.app.model.dialog.is_some()
             || self.prepare.is_some()
         {
             el.set_control_flow(ControlFlow::WaitUntil(Instant::now() + Duration::from_millis(50)));
@@ -938,6 +1181,9 @@ pub struct Start {
     pub root: Option<std::path::PathBuf>,
     /// A failed start to show (the skip rule's start failed).
     pub failure: Option<Failure>,
+    /// The full check of the game folder, made before the window opens
+    /// (the main screen's state line says what it found).
+    pub check: Option<super::model::CheckResult>,
     /// Run `game --probe` in the background (the real machine).
     pub probe: bool,
     pub game: GameStart,
@@ -953,8 +1199,16 @@ pub fn run_with_root(env: &dyn Env, start: Start) -> Result<Outcome, String> {
         model.root = Some(r);
     }
     model.failure = start.failure;
+    if start.check.is_some() {
+        model.check = start.check;
+    }
+    // Found on this computer at this start (nothing kept from before): the
+    // main screen says where, and Play keeps it.
+    model.just_found = model.root.is_some() && crate::qol::setup::saved_root().is_none();
     let model_root = model.root.clone();
-    let app = App::new(env, model, start.screen, (960, 720), 1.0, &fonts);
+    let mut app = App::new(env, model, start.screen, (960, 720), 1.0, &fonts);
+    app.apply_prefs();
+    app.st.input = deck::default_input();
     let el = EventLoop::new().map_err(|e| format!("no display for the launcher window: {e}"))?;
     let pad = if std::env::var_os("NFSU2_NO_PADS").is_none() {
         match gilrs::Gilrs::new() {
@@ -991,7 +1245,9 @@ pub fn run_with_root(env: &dyn Env, start: Start) -> Result<Outcome, String> {
         prepare: None,
         import: None,
         hud_job: None,
+        dialog: None,
         picture: None,
+        scene: Default::default(),
         picture_rx: None,
         picture_at: None,
         picture_root: None,
@@ -1000,6 +1256,9 @@ pub fn run_with_root(env: &dyn Env, start: Start) -> Result<Outcome, String> {
         dropped: Vec::new(),
         pointer: super::ui::Pointer::Default,
         drawn: false,
+        dup: Dedup::default(),
+        cursor_hidden: false,
+        field_focused: false,
     };
     el.run_app(&mut run).map_err(|e| e.to_string())?;
     // A game still running when the window was closed: wait for it, so

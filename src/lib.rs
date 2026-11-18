@@ -151,6 +151,8 @@ pub mod exe_tables;
 pub mod game_fs;
 /// The launcher (`overbright`, docs/launcher.md).
 pub mod launcher;
+/// The desktop map editor (`overbright-editor`, docs/map-editor.md).
+pub mod editor;
 pub mod mark_spot;
 
 use std::path::PathBuf;

@@ -4,7 +4,7 @@
 //! ([`render`]) and input ([`handle`]) work on that list, and the layout
 //! tests measure it.
 
-use super::draw::{Canvas, Icon, Rgb, theme};
+use super::draw::{Canvas, Dir, Icon, Rgb, Rgba, Theme, select_width};
 use super::font::{Face, Fonts};
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -74,6 +74,8 @@ pub enum Mark {
     Warn,
     Info,
     Error,
+    /// Something is being checked (a spinner).
+    Busy,
 }
 
 impl From<crate::qol::setup::Mark> for Mark {
@@ -129,6 +131,32 @@ pub enum Kind {
     /// A flat button (a place or a part of the folder browser's path):
     /// its text only, a shade under the pointer.
     Link,
+    /// A page name in the top bar (`texts[0]`); the mouse's way to a page.
+    PageTab { current: bool },
+    /// The rail under the page names, its dot at `dot_x`.
+    Rail { dot_x: f32 },
+    /// The big Play button (a button; disabled while starting).
+    Play,
+    /// A row that opens something: `texts[0]` its label, `texts[1]` its
+    /// value, `arrow` the circled arrow's box (a button).
+    SumRow { arrow: Rect },
+    /// A label and a value stepped with Left / Right (a cycle); `tag`:
+    /// the "suggested" tag's box.
+    ValueRow { left: Rect, right: Rect, tag: Option<Rect> },
+    /// A switch (a checkbox); `knob`: the switch's box.
+    Toggle { on: bool, knob: Rect },
+    /// A message box: `texts[0]` its title, the rest its text.
+    Message { mark: Mark },
+    /// The description panel: `texts[0]` its heading, the rest its text.
+    Describe,
+    /// The dim layer behind a dialog.
+    Scrim,
+    /// A dialog's box: `texts[0]` its title.
+    Dialog,
+    /// The footer's button legends.
+    Legends { actions: Vec<super::legends::Action> },
+    /// One button glyph (beside the page names, inside a note).
+    Glyph { glyph: super::legends::Glyph },
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -144,6 +172,12 @@ pub struct Widget {
 impl Widget {
     pub fn focusable(&self) -> bool {
         self.id.is_some() && self.enabled
+    }
+
+    /// Reached with the keys and the pad: the page names are not (LB / RB
+    /// and Q / E change the page; the mouse clicks them).
+    pub fn key_focusable(&self) -> bool {
+        self.focusable() && !matches!(self.kind, Kind::PageTab { .. })
     }
 }
 
@@ -203,6 +237,10 @@ pub struct Ui {
     pub metrics: Option<Metrics>,
     /// The room left above a footer at the window's bottom (px).
     pub slack: f32,
+    /// The backdrop behind the page.
+    pub scene: super::backdrop::Scene,
+    /// The slab's box (the content's surface), if the page has one.
+    pub slab: Option<Rect>,
 }
 
 /// A drag the mouse is doing (button held).
@@ -267,6 +305,10 @@ pub struct UiState {
     /// rebuild leaves it where the mouse put it instead of scrolling the
     /// focused control back into view; a key turns this off.
     pub mouse_scrolled: bool,
+    /// The last input's kind (the legends and the pointer follow it).
+    pub input: super::platform_deck::InputKind,
+    /// The motion values of the frame being drawn.
+    pub motion: super::anim::Frame,
 }
 
 impl Default for UiState {
@@ -289,6 +331,8 @@ impl Default for UiState {
             field_all: false,
             last_down: None,
             mouse_scrolled: false,
+            input: Default::default(),
+            motion: Default::default(),
         }
     }
 }
@@ -331,6 +375,12 @@ pub enum Key {
     End,
     PageUp,
     PageDown,
+    /// The page before / after (LB / RB, Q / E, Ctrl+Shift+Tab / Ctrl+Tab).
+    PagePrev,
+    PageNext,
+    /// A page's own actions (X / Space, Y / R).
+    ActionX,
+    ActionY,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -384,7 +434,7 @@ impl Ui {
 
     /// The focusable widgets in focus order (build order).
     pub fn focus_order(&self) -> Vec<Id> {
-        self.widgets.iter().filter(|w| w.focusable()).filter_map(|w| w.id).collect()
+        self.widgets.iter().filter(|w| w.key_focusable()).filter_map(|w| w.id).collect()
     }
 
     /// The focus in force: the state's when that widget is still there and
@@ -424,9 +474,18 @@ impl Ui {
         }
         match self.widget_at(x, y, st).map(|w| &w.kind) {
             Some(Kind::TextField { .. }) => Pointer::Text,
-            Some(Kind::Button { .. } | Kind::Link | Kind::Cycle { .. } | Kind::Checkbox { .. } | Kind::List { .. }) => {
-                Pointer::Hand
-            }
+            Some(
+                Kind::Button { .. }
+                | Kind::Link
+                | Kind::Cycle { .. }
+                | Kind::Checkbox { .. }
+                | Kind::List { .. }
+                | Kind::Play
+                | Kind::SumRow { .. }
+                | Kind::PageTab { .. }
+                | Kind::ValueRow { .. }
+                | Kind::Toggle { .. },
+            ) => Pointer::Hand,
             _ => Pointer::Default,
         }
     }
@@ -437,7 +496,7 @@ impl Ui {
     pub fn neighbour(&self, from: Id, dx: i32, dy: i32) -> Option<Id> {
         let a = self.get(from)?.rect;
         let mut cands: Vec<(f32, f32, Id)> = Vec::new();
-        for w in self.widgets.iter().filter(|w| w.focusable() && w.id != Some(from)) {
+        for w in self.widgets.iter().filter(|w| w.key_focusable() && w.id != Some(from)) {
             let b = w.rect;
             let (along, across) = match (dx, dy) {
                 (0, 1) if b.y >= a.bottom() - 1.0 => (b.y - a.bottom(), (b.cx() - a.cx()).abs()),
@@ -617,7 +676,7 @@ pub fn handle(ui: &Ui, st: &mut UiState, input: &Input) -> Vec<Event> {
                 }
                 (Key::Up, _) => move_focus(ui, st, focus.and_then(|f| ui.neighbour(f, 0, -1))),
                 (Key::Down, _) => move_focus(ui, st, focus.and_then(|f| ui.neighbour(f, 0, 1))),
-                (Key::Left | Key::Right, Some(Kind::Cycle { .. })) => {
+                (Key::Left | Key::Right, Some(Kind::Cycle { .. } | Kind::ValueRow { .. })) => {
                     ev.push(Event::Step(focus.unwrap(), if *k == Key::Left { -1 } else { 1 }))
                 }
                 (Key::Left | Key::Right | Key::Home | Key::End, Some(Kind::TextField { .. })) => {
@@ -637,9 +696,11 @@ pub fn handle(ui: &Ui, st: &mut UiState, input: &Input) -> Vec<Event> {
                 (Key::Enter | Key::Space, Some(kind)) => {
                     let id = focus.unwrap();
                     match kind {
-                        Kind::Button { .. } | Kind::Link => ev.push(Event::Activate(id)),
-                        Kind::Checkbox { .. } => ev.push(Event::Toggle(id)),
-                        Kind::Cycle { .. } => ev.push(Event::Step(id, 1)),
+                        Kind::Button { .. } | Kind::Link | Kind::Play | Kind::SumRow { .. } | Kind::PageTab { .. } => {
+                            ev.push(Event::Activate(id))
+                        }
+                        Kind::Checkbox { .. } | Kind::Toggle { .. } => ev.push(Event::Toggle(id)),
+                        Kind::Cycle { .. } | Kind::ValueRow { .. } => ev.push(Event::Step(id, 1)),
                         Kind::List { .. } if *k == Key::Enter => ev.push(Event::Activate(id)),
                         Kind::TextField { .. } if *k == Key::Enter => ev.push(Event::Activate(id)),
                         Kind::TextField { .. } => {
@@ -727,8 +788,14 @@ pub fn handle(ui: &Ui, st: &mut UiState, input: &Input) -> Vec<Event> {
                 st.clicked = None;
             }
             match &w.kind {
-                Kind::Button { .. } | Kind::Link | Kind::Checkbox { .. } => st.pressed = Some(id),
-                Kind::Cycle { left, .. } => ev.push(Event::Step(
+                Kind::Button { .. }
+                | Kind::Link
+                | Kind::Checkbox { .. }
+                | Kind::Play
+                | Kind::SumRow { .. }
+                | Kind::PageTab { .. }
+                | Kind::Toggle { .. } => st.pressed = Some(id),
+                Kind::Cycle { left, .. } | Kind::ValueRow { left, .. } => ev.push(Event::Step(
                     id,
                     if left.contains(*x, py) || *x < w.rect.cx() - w.rect.w / 4.0 { -1 } else { 1 },
                 )),
@@ -781,7 +848,7 @@ pub fn handle(ui: &Ui, st: &mut UiState, input: &Input) -> Vec<Event> {
                 && ui.widget_at(*x, *y, st).and_then(|w| w.id) == Some(p)
             {
                 match ui.get(p).map(|w| &w.kind) {
-                    Some(Kind::Checkbox { .. }) => ev.push(Event::Toggle(p)),
+                    Some(Kind::Checkbox { .. } | Kind::Toggle { .. }) => ev.push(Event::Toggle(p)),
                     _ => ev.push(Event::Activate(p)),
                 }
             }
@@ -866,104 +933,246 @@ pub fn apply_edit(text: &mut String, cursor: &mut usize, e: &Edit) {
     *text = chars.into_iter().collect();
 }
 
-/// Draws the screen on the plain page (Overbright's own backdrop).
+/// Draws the screen on the look's own backdrop (the page's scene).
 pub fn render(ui: &Ui, st: &UiState, fonts: &Fonts, c: &mut Canvas) {
-    let page = super::backdrop::compose(c.width(), c.height(), None, 0.0);
+    let page = super::backdrop::backdrop_a(c.width(), c.height(), ui.scene, None);
     render_on(ui, st, fonts, c, &page);
 }
 
-/// Draws the screen over `page` (the backdrop's pixels, the canvas's size).
+/// The look's unit for skins: 1 at the mockups' 1366 × 768.
+fn look_unit(m: &Metrics) -> f32 {
+    (m.w / 1366.0).min(m.h / 768.0).max(0.5)
+}
+
+/// `r` on whole pixels (a ring drawn inside it stays solid).
+fn snap(r: Rect) -> Rect {
+    let (x0, y0, x1, y1) = (r.x.round(), r.y.round(), r.right().round(), r.bottom().round());
+    Rect::new(x0, y0, x1 - x0, y1 - y0)
+}
+
+/// A row that shows focus as the selection bar (the near-black bar with
+/// lime words), not as a ring outside.
+fn shows_bar(k: &Kind) -> bool {
+    matches!(
+        k,
+        Kind::Cycle { .. }
+            | Kind::ValueRow { .. }
+            | Kind::SumRow { .. }
+            | Kind::Toggle { .. }
+            | Kind::Checkbox { .. }
+            | Kind::Link
+    )
+}
+
+/// The busy spinner's turn for the frame being drawn (`Frame::spin`).
+static SPIN: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+
+/// Whether the screen shows a busy spinner (the window keeps drawing).
+pub fn spinning(ui: &Ui) -> bool {
+    ui.widgets.iter().any(|w| matches!(w.kind, Kind::Status { mark: Mark::Busy, .. }))
+}
+
+/// A status mark: a filled disc with its glyph cut in the page's dark
+/// (Busy: a lime arc).
+fn mark(c: &mut Canvas, r: Rect, mark: Mark, t: &Theme) {
+    let d = r.w.min(r.h);
+    let (cx, cy, rad) = (r.cx(), r.cy(), d / 2.0);
+    let glyph = Rect::new(cx - rad * 0.62, cy - rad * 0.62, rad * 1.24, rad * 1.24);
+    match mark {
+        Mark::Ok => {
+            c.disc(cx, cy, rad, t.ok.a(255));
+            c.icon(glyph, Icon::Check, t.on_mark);
+        }
+        Mark::Error => {
+            c.disc(cx, cy, rad, t.err.a(255));
+            c.icon(Rect::new(cx - rad * 0.5, cy - rad * 0.5, rad, rad), Icon::Cross, t.on_err);
+        }
+        Mark::Warn | Mark::Info => {
+            let (fill, on) = if mark == Mark::Warn { (t.warn, t.on_warn) } else { (t.info, t.on_mark) };
+            c.disc(cx, cy, rad, fill.a(255));
+            let w = (rad * 0.26).max(1.5);
+            let (top, bottom) = if mark == Mark::Warn { (-0.5, 0.12) } else { (-0.12, 0.5) };
+            let dot = if mark == Mark::Warn { 0.42 } else { -0.45 };
+            c.fill_round_a(Rect::new(cx - w / 2.0, cy + top * rad, w, (bottom - top) * rad), w / 2.0, on.a(255));
+            c.disc(cx, cy + dot * rad, w * 0.62, on.a(255));
+        }
+        Mark::Busy => {
+            let w = (rad * 0.24).max(2.0);
+            c.ring(cx, cy, rad, w, t.lime.a(60));
+            let turn = f32::from_bits(SPIN.load(std::sync::atomic::Ordering::Relaxed)) * 360.0;
+            c.arc(cx, cy, rad - w / 2.0, -90.0 + turn, 270.0, w, t.lime.a(255));
+        }
+    }
+}
+
+/// Draws the screen over `page` (the backdrop's pixels, the canvas's size)
+/// in the look's skins: the slab, pills, the selection bar for rows and a
+/// focus ring outside buttons (a page-coloured gap, then lime, at least
+/// 3 px), never the primary button's fill.
 pub fn render_on(ui: &Ui, st: &UiState, fonts: &Fonts, c: &mut Canvas, page: &[u8]) {
-    c.clear(theme::BG);
+    SPIN.store(st.motion.spin.to_bits(), std::sync::atomic::Ordering::Relaxed);
+    let t = super::draw::theme();
+    c.clear(t.page);
     c.fill_from(page);
     let m = ui.metrics.unwrap_or(Metrics::for_size(c.width(), c.height(), 1.0));
+    let ua = look_unit(&m);
+    let px = |v: f32| (v * ua).round().max(1.0);
     let focus = ui.focused(st);
     let dy = -st.scroll;
-    let radius = m.s(6.0);
-    let ring = m.s(2.0).max(2.0);
+    let slide = st.motion.slide_px;
+    let row_r = px(12.0);
+    let line = px(2.0);
+    if let Some(s) = ui.slab {
+        c.slab(s.offset(dy), px(16.0), t);
+    }
     for w in &ui.widgets {
-        let r = w.rect.offset(dy);
+        // The slab's content slides on a page change; the bars stay.
+        let dx = if slide != 0.0 && ui.slab.is_some_and(|s| w.rect.inside(&s)) { slide } else { 0.0 };
+        let shift = |q: Rect| Rect::new(q.x + dx, q.y + dy, q.w, q.h);
+        let r = shift(w.rect);
         if r.bottom() < 0.0 || r.y > ui.view.h {
             continue;
         }
         let focused = w.focusable() && w.id == focus;
         let hover = w.focusable() && w.id == st.hover;
+        let pressed = w.enabled && st.pressed.is_some() && st.pressed == w.id;
+        let bar = focused && shows_bar(&w.kind);
+        if bar {
+            c.fill_round_a(r, row_r, t.sel.a(255));
+        } else if hover && shows_bar(&w.kind) && w.enabled {
+            c.fill_round_a(r, row_r, t.hover);
+        }
         match &w.kind {
             Kind::Label => {}
-            Kind::Rule => c.fill_rect(r, theme::RULE),
-            Kind::Panel => {
-                c.fill_round(r, radius, theme::SURFACE);
-                c.stroke_round(r, radius, 1.0, theme::RULE);
+            Kind::Rule => c.fill_round_a(Rect::new(r.x, r.y, r.w, r.h.max(1.0)), 0.0, t.row_rule.fade(2.0)),
+            Kind::Panel | Kind::Describe => {
+                let pr = px(14.0);
+                c.fill_round_a(r, pr, t.panel);
+                c.top_edge(r, pr, t.slab_edge);
             }
-            Kind::Card => {
-                let cr = m.s(10.0);
-                c.fill_round(r, cr, theme::CARD);
-                c.stroke_round(r, cr, 1.0, theme::RULE);
-            }
-            Kind::Accent => c.fill_round(r, r.h / 2.0, theme::ACCENT),
+            Kind::Card => c.slab(r, px(16.0), t),
+            Kind::Accent => c.pill(r, Some(t.lime.a(255)), None),
             Kind::Logo => {
-                let n = r.w.round().max(8.0) as u32;
-                c.blit_rgba(r.x.round() as i32, r.y.round() as i32, n, n, &crate::platform::icon::rgba(n));
+                let ring = (r.w * 0.16).max(2.0);
+                c.ring(r.cx(), r.cy(), r.w.min(r.h) / 2.0, ring, t.lime.a(255));
             }
             Kind::Bar { fraction } => {
-                c.fill_round(r, r.h / 2.0, theme::SURFACE_PRESSED);
-                let w = (r.w * fraction.clamp(0.0, 1.0)).max(r.h);
-                c.fill_round(Rect::new(r.x, r.y, w.min(r.w), r.h), r.h / 2.0, theme::ACCENT);
+                c.pill(r, Some(t.bar_track), None);
+                let fw = (r.w * fraction.clamp(0.0, 1.0)).max(r.h);
+                c.pill(Rect::new(r.x, r.y, fw.min(r.w), r.h), Some(t.lime.a(255)), None);
             }
-            Kind::Status { mark, icon } => {
-                let (i, col) = match mark {
-                    Mark::Ok => (Icon::Check, theme::OK),
-                    Mark::Warn => (Icon::Warn, theme::WARN),
-                    Mark::Info => (Icon::Info, theme::INFO),
-                    Mark::Error => (Icon::Cross, theme::ERROR),
-                };
-                c.icon(icon.offset(dy), i, col);
-            }
+            Kind::Status { mark: mk, icon } => mark(c, shift(*icon), *mk, t),
             Kind::Button { primary, big } => {
-                let pressed = w.enabled && st.pressed.is_some() && st.pressed == w.id;
-                let fill = match (primary, w.enabled, pressed, hover) {
-                    (_, false, _, _) => theme::SURFACE,
-                    (true, _, true, _) => theme::ACCENT_PRESSED,
-                    (true, _, _, true) => theme::ACCENT_HOVER,
-                    (true, _, _, _) => theme::ACCENT,
-                    (false, _, true, _) => theme::SURFACE_PRESSED,
-                    (false, _, _, true) => theme::SURFACE_HOVER,
-                    (false, _, _, false) => theme::SURFACE,
-                };
-                c.fill_round(r, if *big { m.s(12.0) } else { radius }, fill);
+                let edge = line;
                 if !w.enabled {
-                    c.stroke_round(r, radius, 1.0, theme::RULE);
-                } else if !primary {
-                    c.stroke_round(r, radius, 1.0, theme::BORDER);
+                    c.pill(r, Some(t.button_fill), Some((edge, t.disabled)));
+                } else if *primary {
+                    let fill = if pressed {
+                        t.play_pressed
+                    } else if hover {
+                        t.play_hover
+                    } else {
+                        t.play
+                    };
+                    if focused && *big {
+                        c.glow(r, r.h / 2.0, px(40.0), t.lime.a(90));
+                    }
+                    c.pill(r, Some(fill.a(255)), None);
+                } else {
+                    c.pill(r, Some(t.button_fill), Some((edge, t.outline)));
+                    if hover || pressed {
+                        c.pill(r, Some(if pressed { t.pressed } else { t.hover }), None);
+                    }
                 }
             }
-            Kind::Cycle { left, right } => {
-                c.fill_round(r, radius, if hover && w.enabled { theme::SURFACE_HOVER } else { theme::SURFACE });
-                c.stroke_round(r, radius, 1.0, if w.enabled { theme::BORDER } else { theme::RULE });
-                let col = if w.enabled { if focused { theme::ACCENT } else { theme::DIM } } else { theme::DISABLED };
-                c.icon(left.offset(dy), Icon::ArrowLeft, col);
-                c.icon(right.offset(dy), Icon::ArrowRight, col);
+            Kind::Play => {
+                let glow = st.motion.play_glow.clamp(0.0, 1.0);
+                if focused || glow > 0.0 {
+                    let a = (90.0 + 120.0 * glow).min(255.0) as u8;
+                    c.glow(r, r.h / 2.0, px(40.0), t.lime.a(a));
+                }
+                let fill = if !w.enabled {
+                    t.play_busy
+                } else if pressed {
+                    t.play_pressed
+                } else if hover {
+                    t.play_hover
+                } else {
+                    t.play
+                };
+                c.pill(r, Some(fill.a(255)), None);
+            }
+            Kind::Cycle { left, right } | Kind::ValueRow { left, right, .. } => {
+                let col = if !w.enabled {
+                    t.disabled
+                } else if focused {
+                    t.lime
+                } else {
+                    t.ink
+                };
+                for (a, d) in [(shift(*left), Dir::Left), (shift(*right), Dir::Right)] {
+                    let rad = (a.w.min(a.h) / 2.0).min(px(14.0));
+                    c.circled_arrow((a.cx(), a.cy()), rad, d, line, col);
+                }
+                if let Kind::ValueRow { tag: Some(tag), .. } = &w.kind {
+                    let g = shift(*tag);
+                    c.fill_round_a(g, px(6.0), t.sel.a(200));
+                    c.stroke_round_a(g, px(6.0), 1.0, t.tag_edge);
+                }
+            }
+            Kind::SumRow { arrow } => {
+                if !focused {
+                    c.fill_round_a(Rect::new(r.x, r.bottom() - 1.0, r.w, 1.0), 0.0, t.row_rule);
+                }
+                let col = if !w.enabled {
+                    t.disabled
+                } else if focused {
+                    t.lime
+                } else {
+                    t.dim
+                };
+                let a = shift(*arrow);
+                let s = a.w.min(a.h).min(px(22.0));
+                c.chevron(Rect::new(a.cx() - s / 2.0, a.cy() - s / 2.0, s, s), Dir::Right, line, col);
             }
             Kind::Checkbox { checked, check } => {
-                let b = check.offset(dy);
-                c.fill_round(b, m.s(4.0), if *checked { theme::ACCENT } else { theme::SURFACE });
-                c.stroke_round(b, m.s(4.0), 1.0, if *checked { theme::ACCENT } else { theme::BORDER });
+                let b = shift(*check);
+                let br = px(5.0);
                 if *checked {
-                    let inset = b.w * 0.12;
+                    c.fill_round_a(b, br, t.lime.a(255));
+                    let inset = b.w * 0.14;
                     c.icon(
                         Rect::new(b.x + inset, b.y + inset, b.w - 2.0 * inset, b.h - 2.0 * inset),
                         Icon::Check,
-                        theme::ON_ACCENT,
+                        t.on_mark,
                     );
+                } else {
+                    c.fill_round_a(b, br, t.toggle_off.a(255));
+                    c.stroke_round_a(b, br, line, if w.enabled { t.toggle_off_edge } else { t.disabled }.a(255));
                 }
             }
+            Kind::Toggle { on, knob } => {
+                let k = shift(*knob);
+                let (fill, edge) = if *on { (t.toggle_on, t.lime) } else { (t.toggle_off, t.toggle_off_edge) };
+                let edge = if w.enabled { edge } else { t.disabled };
+                c.pill(k, Some(fill.a(255)), Some((line, edge)));
+                let kr = (k.h / 2.0 - line - px(2.0)).max(2.0);
+                let kx = if *on { k.right() - k.h / 2.0 } else { k.x + k.h / 2.0 };
+                let knob_c = if !w.enabled {
+                    t.disabled
+                } else if *on {
+                    t.lime
+                } else {
+                    t.dim
+                };
+                c.disc(kx, k.cy(), kr, knob_c.a(255));
+            }
             Kind::List { selected, first, row_h, pad, .. } => {
-                c.fill_round(r, radius, theme::SURFACE);
-                c.stroke_round(r, radius, 1.0, theme::BORDER);
+                let lr = px(10.0);
+                c.fill_round_a(r, lr, t.field);
+                c.stroke_round_a(r, lr, 1.0, t.field_edge);
                 let bar = list_bar(w, m.u);
-                let row_w = r.w - 2.0 * pad - bar.map_or(0.0, |(t, _)| t.w + m.s(4.0));
-                // The row under the pointer (not the selected one: that
-                // keeps its own shade).
+                let row_w = r.w - 2.0 * pad - bar.map_or(0.0, |(tr, _)| tr.w + m.s(4.0));
                 if let Some((id, row)) = st.hover_row
                     && Some(id) == w.id
                     && row != *selected
@@ -972,61 +1181,139 @@ pub fn render_on(ui: &Ui, st: &UiState, fonts: &Fonts, c: &mut Canvas, page: &[u
                 {
                     let hr = Rect::new(r.x + pad, r.y + pad + (row - first) as f32 * row_h, row_w, *row_h);
                     if hr.bottom() <= r.bottom() - pad + 0.5 {
-                        c.fill_round(hr, m.s(4.0), theme::SURFACE_HOVER);
+                        c.fill_round_a(hr, px(8.0), t.hover);
                     }
                 }
                 if let Some((track, thumb)) = bar {
                     let dragging = matches!(st.drag, Some(Drag::ListThumb { id, .. }) if Some(id) == w.id);
-                    c.fill_round(track.offset(dy), track.w / 2.0, theme::CARD);
-                    let col = if dragging || hover { theme::DIM } else { theme::BORDER };
-                    c.fill_round(thumb.offset(dy), thumb.w / 2.0, col);
+                    c.pill(shift(track), Some(t.bar_track.fade(0.6)), None);
+                    let col = if dragging || hover { t.ink } else { t.toggle_off_edge };
+                    c.pill(shift(thumb), Some(col.a(255)), None);
                 }
                 if *selected >= *first {
                     let row = (*selected - *first) as f32;
                     let sel = Rect::new(r.x + pad, r.y + pad + row * row_h, row_w, *row_h);
                     if sel.bottom() <= r.bottom() - pad + 0.5 {
-                        c.fill_round(sel, m.s(4.0), theme::SELECTED);
+                        c.fill_round_a(sel, px(8.0), t.sel.a(255));
+                        if focused {
+                            c.stroke_round_a(snap(sel), px(8.0), select_width(ua), t.lime.a(255));
+                        } else {
+                            c.stroke_round_a(sel, px(8.0), 1.0, t.tag_edge);
+                        }
                     }
                 }
             }
             Kind::TextField { empty, .. } => {
-                c.fill_round(r, radius, theme::SURFACE);
-                c.stroke_round(r, radius, 1.0, theme::BORDER);
+                let fr = px(10.0);
+                c.fill_round_a(r, fr, t.field);
+                c.stroke_round_a(r, fr, 1.0, t.field_edge);
                 if focused && st.field_all && !*empty {
-                    let t = w.texts[0].rect.offset(dy);
-                    c.fill_rect(Rect::new(t.x - 1.0, t.y, t.w + 2.0, t.h), theme::SELECTED);
+                    let tr = shift(w.texts[0].rect);
+                    c.fill_round_a(Rect::new(tr.x - 1.0, tr.y, tr.w + 2.0, tr.h), 2.0, t.lime.a(70));
                 }
             }
             Kind::Link => {
-                let pressed = st.pressed.is_some() && st.pressed == w.id;
-                if w.enabled && (hover || pressed) {
-                    c.fill_round(r, m.s(4.0), if pressed { theme::SURFACE_PRESSED } else { theme::SURFACE_HOVER });
+                if pressed {
+                    c.fill_round_a(r, row_r, t.pressed);
                 }
             }
+            Kind::PageTab { .. } => {
+                if pressed {
+                    c.fill_round_a(r, px(8.0), t.pressed);
+                }
+            }
+            Kind::Rail { dot_x } => c.rail(r.x, r.right(), r.cy(), *dot_x + dx, ua, t),
+            Kind::Message { mark: mk } => {
+                let mr = px(14.0);
+                c.fill_round_a(r, mr, t.message);
+                let col = match mk {
+                    Mark::Error => t.err,
+                    Mark::Warn => t.warn,
+                    Mark::Ok | Mark::Busy => t.lime,
+                    Mark::Info => t.dim,
+                };
+                c.left_edge(r, mr, px(4.0), col.a(255));
+                // The mark before the title, when the layout left room.
+                if let Some(tt) = w.texts.first() {
+                    let tr = shift(tt.rect);
+                    let d = (tr.h * 0.92).round();
+                    let x = tr.x - d - px(10.0);
+                    if x >= r.x + px(8.0) {
+                        mark(c, Rect::new(x, tr.cy() - d / 2.0, d, d), *mk, t);
+                    }
+                }
+            }
+            Kind::Scrim => c.fill_round_a(r, 0.0, t.scrim),
+            Kind::Dialog => {
+                let dr = px(16.0);
+                c.glow(Rect::new(r.x, r.y + px(20.0), r.w, r.h), dr, px(60.0), Rgba(0, 0, 0, 150));
+                let e = px(1.5);
+                c.stroke_round_a(Rect::new(r.x - e, r.y - e, r.w + 2.0 * e, r.h + 2.0 * e), dr + e, e, t.dialog_edge);
+                c.fill_round_a(r, dr, t.dialog.a(255));
+            }
+            Kind::Legends { actions } => super::legends::draw(c, fonts, r, st.input, actions, m.u, t),
+            Kind::Glyph { glyph } => {
+                super::legends::draw_glyph(c, fonts, *glyph, r.x, r.cy(), m.u, t);
+            }
         }
-        for t in &w.texts {
-            let col = if w.enabled { t.color } else { theme::DISABLED };
-            c.text(fonts, t.face, t.size, t.rect.x, t.rect.y + dy, &t.text, col);
+        if bar {
+            c.stroke_round_a(snap(r), row_r, select_width(ua), t.lime.a(255));
+        }
+        // The focused list's selected row: lime words like a bar.
+        let sel_row = match &w.kind {
+            Kind::List { selected, first, row_h, pad, .. } if focused && selected >= first => {
+                let y = w.rect.y + pad + (*selected - *first) as f32 * row_h;
+                Some((y, y + row_h))
+            }
+            _ => None,
+        };
+        let in_sel = |q: Rect| sel_row.is_some_and(|(a, b)| q.cy() > a && q.cy() < b);
+        for tx in &w.texts {
+            let col = if !w.enabled {
+                t.disabled
+            } else if let Kind::PageTab { current } = w.kind {
+                if current {
+                    t.lime
+                } else if hover {
+                    t.ink
+                } else {
+                    t.dim
+                }
+            } else if (bar || in_sel(tx.rect)) && tx.color == t.ink {
+                t.lime
+            } else {
+                tx.color
+            };
+            c.text(fonts, tx.face, tx.size, tx.rect.x + dx, tx.rect.y + dy, &tx.text, col);
         }
         if let (true, Kind::TextField { cursor, shown_from, empty, .. }) = (focused, &w.kind) {
             // The caret at the state's cursor (the end when not set).
-            let t = &w.texts[0];
-            let shown: Vec<char> = if *empty { Vec::new() } else { t.text.chars().collect() };
+            let tb = &w.texts[0];
+            let shown: Vec<char> = if *empty { Vec::new() } else { tb.text.chars().collect() };
             let at = st.cursor.min(*cursor).saturating_sub(*shown_from).min(shown.len());
-            let x = t.rect.x + fonts.width(t.face, t.size, &shown[..at].iter().collect::<String>());
-            c.fill_rect(Rect::new(x, t.rect.y + dy, ring.max(1.0), t.rect.h), theme::TEXT);
+            let x = tb.rect.x + dx + fonts.width(tb.face, tb.size, &shown[..at].iter().collect::<String>());
+            c.fill_rect(Rect::new(x, tb.rect.y + dy, line, tb.rect.h), t.ink);
         }
         if focused {
-            let o = ring + m.s(2.0);
-            let fr = Rect::new(r.x - o, r.y - o, r.w + 2.0 * o, r.h + 2.0 * o);
-            c.stroke_round(fr, radius + o, ring, theme::ACCENT);
+            match &w.kind {
+                // A field: the ring inside its own edge (the caret shows
+                // where typing goes).
+                Kind::TextField { .. } => {
+                    c.stroke_round_a(snap(r), px(10.0), select_width(ua), t.lime.a(255));
+                }
+                // A list: its selected row carries the ring.
+                Kind::List { .. } => {}
+                k if shows_bar(k) => {}
+                Kind::Button { .. } | Kind::Play => c.focus_ring(r, r.h / 2.0, ua, t),
+                _ => c.focus_ring(r, px(8.0), ua, t),
+            }
         }
     }
     // A scroll bar when the page is taller than the window (dragged by
     // its thumb, paged by a click beside it).
     if let Some((_, thumb)) = ui.page_bar(st) {
-        let col = if matches!(st.drag, Some(Drag::PageThumb { .. })) { theme::DIM } else { theme::BORDER };
-        c.fill_round(thumb, m.s(2.0), col);
+        let col = if matches!(st.drag, Some(Drag::PageThumb { .. })) { t.ink } else { t.toggle_off_edge };
+        c.pill(thumb, Some(col.a(255)), None);
     }
 }
 
@@ -1039,4 +1326,204 @@ pub fn text(rect: Rect, text: impl Into<String>, face: Face, size: f32, color: R
 pub fn text_of(rect: Rect, shown: String, full: &str, face: Face, size: f32, color: Rgb) -> TextBox {
     let whole = (shown != full).then(|| full.to_string());
     TextBox { full: whole, ..text(rect, shown, face, size, color) }
+}
+
+#[cfg(test)]
+mod skin_tests {
+    use super::*;
+    use crate::launcher::draw::theme;
+
+    /// A page with one of each look-A widget, laid out by hand at `w` × `h`
+    /// (mock units: 1 = 1 px at 1366 × 768), `focus` focused.
+    fn sample(w: u32, h: u32, focus: Id) -> (Ui, UiState) {
+        let m = Metrics::for_size(w, h, 1.0);
+        let k = (w as f32 / 1366.0).min(h as f32 / 768.0);
+        let r = |x: f32, y: f32, ww: f32, hh: f32| Rect::new(x * k, y * k, ww * k, hh * k);
+        let t = theme();
+        let tx = |rc: Rect, s: &str, face: Face, size: f32, col: Rgb| text(rc, s, face, (size * k).round(), col);
+        let mut ws = Vec::new();
+        let mut push = |id: Option<Id>, rect: Rect, kind: Kind, texts: Vec<TextBox>| {
+            ws.push(Widget { id, rect, kind, texts, enabled: true });
+        };
+        push(None, r(64.0, 38.0, 22.0, 22.0), Kind::Logo, vec![]);
+        push(
+            Some("page:game"),
+            r(966.0, 36.0, 70.0, 30.0),
+            Kind::PageTab { current: false },
+            vec![tx(r(976.0, 38.0, 60.0, 26.0), "Game", Face::LabelItalic, 21.0, t.dim)],
+        );
+        push(
+            Some("page:settings"),
+            r(1058.0, 36.0, 92.0, 30.0),
+            Kind::PageTab { current: true },
+            vec![tx(r(1068.0, 38.0, 80.0, 26.0), "Settings", Face::LabelItalic, 21.0, t.dim)],
+        );
+        push(None, r(64.0, 84.0, 1238.0, 2.0), Kind::Rail { dot_x: 1125.0 * k }, vec![]);
+        push(
+            Some("play"),
+            r(64.0, 262.0, 362.0, 86.0),
+            Kind::Play,
+            vec![tx(r(210.0, 285.0, 80.0, 40.0), "Play", Face::PlayItalic, 34.0, t.on_play)],
+        );
+        push(
+            Some("graphics"),
+            r(64.0, 286.0 + 200.0, 680.0, 50.0),
+            Kind::ValueRow {
+                left: r(344.0, 497.0, 28.0, 28.0),
+                right: r(605.0, 497.0, 28.0, 28.0),
+                tag: Some(r(645.0, 498.0, 81.0, 26.0)),
+            },
+            vec![
+                tx(r(82.0, 498.0, 120.0, 26.0), "Graphics", Face::LabelItalic, 19.0, t.ink),
+                tx(r(414.0, 498.0, 160.0, 26.0), "Enhanced · Medium", Face::LabelItalic, 19.0, t.ink),
+            ],
+        );
+        push(
+            Some("row"),
+            r(64.0, 380.0, 680.0, 52.0),
+            Kind::SumRow { arrow: r(700.0, 392.0, 20.0, 28.0) },
+            vec![
+                tx(r(82.0, 392.0, 120.0, 26.0), "Screen", Face::LabelItalic, 19.0, t.ink),
+                tx(r(344.0, 392.0, 200.0, 26.0), "1920 × 1080", Face::LabelItalic, 19.0, t.ink),
+            ],
+        );
+        push(
+            Some("mods"),
+            r(64.0, 560.0, 680.0, 52.0),
+            Kind::Toggle { on: true, knob: r(344.0, 574.0, 44.0, 24.0) },
+            vec![tx(r(82.0, 573.0, 120.0, 26.0), "City Roads HD", Face::LabelItalic, 19.0, t.ink)],
+        );
+        push(
+            Some("back"),
+            r(64.0, 630.0, 168.0, 48.0),
+            Kind::Button { primary: false, big: false },
+            vec![tx(r(88.0, 642.0, 130.0, 26.0), "Back to defaults", Face::LabelItalic, 17.0, t.ink)],
+        );
+        push(
+            None,
+            r(808.0, 122.0, 494.0, 200.0),
+            Kind::Describe,
+            vec![tx(r(834.0, 144.0, 200.0, 28.0), "Enhanced · Medium", Face::TitleItalic, 20.0, t.lime)],
+        );
+        push(
+            None,
+            r(808.0, 340.0, 494.0, 150.0),
+            Kind::Message { mark: Mark::Error },
+            vec![tx(r(860.0, 362.0, 300.0, 28.0), "This is Overbright's folder", Face::TitleItalic, 20.0, t.ink)],
+        );
+        push(
+            None,
+            r(834.0, 420.0, 26.0, 26.0),
+            Kind::Status { mark: Mark::Ok, icon: r(834.0, 420.0, 24.0, 24.0) },
+            vec![],
+        );
+        push(
+            None,
+            r(870.0, 420.0, 26.0, 26.0),
+            Kind::Status { mark: Mark::Warn, icon: r(870.0, 420.0, 24.0, 24.0) },
+            vec![],
+        );
+        push(
+            None,
+            r(906.0, 420.0, 26.0, 26.0),
+            Kind::Status { mark: Mark::Busy, icon: r(906.0, 420.0, 24.0, 24.0) },
+            vec![],
+        );
+        push(None, r(834.0, 460.0, 300.0, 8.0), Kind::Bar { fraction: 0.4 }, vec![]);
+        let ui = Ui {
+            widgets: ws,
+            view: Rect::new(0.0, 0.0, w as f32, h as f32),
+            content_h: h as f32,
+            default_focus: Some(focus),
+            metrics: Some(m),
+            slack: 0.0,
+            scene: super::super::backdrop::Scene::Plain,
+            slab: Some(r(36.0, 104.0, 1294.0, 578.0)),
+        };
+        let st = UiState { focus: Some(focus), ..UiState::default() };
+        (ui, st)
+    }
+
+    fn draw(w: u32, h: u32, focus: Id) -> (Ui, Canvas) {
+        let (ui, st) = sample(w, h, focus);
+        let fonts = Fonts::new();
+        let mut c = Canvas::new(w, h);
+        render(&ui, &st, &fonts, &mut c);
+        if let Some(dir) = std::env::var_os("OB_SKIN_PNG") {
+            let p = std::path::Path::new(&dir).join(format!("skins-{focus}-{w}x{h}.png"));
+            c.to_image().save(p).unwrap();
+        }
+        (ui, c)
+    }
+
+    fn px(c: &Canvas, x: i32, y: i32) -> Rgb {
+        let p = c.pixmap.pixel(x as u32, y as u32).unwrap();
+        Rgb(p.red(), p.green(), p.blue())
+    }
+
+    fn near(a: Rgb, b: Rgb) -> bool {
+        (i32::from(a.0) - i32::from(b.0)).abs()
+            + (i32::from(a.1) - i32::from(b.1)).abs()
+            + (i32::from(a.2) - i32::from(b.2)).abs()
+            < 60
+    }
+
+    /// Solid lime pixels in a row from (x, y) going right (`dir` 1) or
+    /// left, within `span` px: the widest run.
+    fn lime_run(c: &Canvas, x: f32, y: f32, dir: i32, span: i32) -> i32 {
+        let (mut best, mut run) = (0, 0);
+        for i in 0..span {
+            let xx = x as i32 + dir * i;
+            if xx < 0 || xx >= c.width() as i32 {
+                break;
+            }
+            if near(px(c, xx, y as i32), theme().lime) {
+                run += 1;
+                best = best.max(run);
+            } else {
+                run = 0;
+            }
+        }
+        best
+    }
+
+    /// The focus ring (outside buttons) and the selection bar's ring are at
+    /// least 3 px at every size, and the focused primary button keeps its
+    /// own fill (focus is a ring, not the primary style).
+    #[test]
+    fn focus_rings_at_least_3px() {
+        for (w, h) in [(640, 480), (800, 600), (1280, 800), (1366, 768), (1920, 1080), (3840, 2160)] {
+            let (ui, c) = draw(w, h, "play");
+            let p = ui.get("play").unwrap().rect;
+            let run = lime_run(&c, p.right(), p.cy(), 1, 40);
+            assert!(run >= 3, "{w}x{h}: Play's ring {run} px");
+            assert!(near(px(&c, (p.x + 12.0) as i32, p.cy() as i32), theme().play), "{w}x{h}: Play's fill");
+            let (ui, c) = draw(w, h, "back");
+            let b = ui.get("back").unwrap().rect;
+            let run = lime_run(&c, b.right(), b.cy(), 1, 40);
+            assert!(run >= 3, "{w}x{h}: a button's ring {run} px");
+            let (ui, c) = draw(w, h, "graphics");
+            let g = ui.get("graphics").unwrap().rect;
+            let run = lime_run(&c, g.x, g.cy(), 1, 20);
+            assert!(run >= 3, "{w}x{h}: the selection bar's ring {run} px");
+            assert!(
+                near(px(&c, (g.x + g.w * 0.45) as i32, (g.y + g.h * 0.85) as i32), theme().sel),
+                "{w}x{h}: the bar's fill"
+            );
+        }
+    }
+
+    /// The backdrop is cached per size and the streak stays out of the
+    /// plain scene.
+    #[test]
+    fn backdrop_cached_and_plain_has_no_streak() {
+        use super::super::backdrop::{Scene, backdrop_a};
+        let a = backdrop_a(320, 200, Scene::Main, None);
+        let b = backdrop_a(320, 200, Scene::Main, None);
+        assert!(std::sync::Arc::ptr_eq(&a, &b));
+        let plain = backdrop_a(320, 200, Scene::Plain, None);
+        let max = |v: &[u8]| v.chunks_exact(4).map(|p| u32::from(p[0])).max().unwrap();
+        assert!(max(&a) > 150, "the streak's hot end");
+        assert!(max(&plain) < 64, "plain stays dark: {}", max(&plain));
+    }
 }

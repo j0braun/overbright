@@ -109,7 +109,7 @@ threads always win a core.
   i.e. `CloseRequested`, which the game already ends on (`window.rs`). Alt+Tab out of exclusive full screen:
   the OS minimises the window; the surface is reconfigured on the size/occlusion events **[unverified]**.
 
-## Application manifest (`build_support/windows_res.rs`, RT_MANIFEST id 1, `game.exe` and `overbright.exe`)
+## Application manifest (`build_support/windows_res.rs`, RT_MANIFEST id 1, `game.exe`, `overbright.exe` and `overbright-editor.exe`)
 
 - `supportedOS` Windows 10/11 (`{8e0f7a12-bfb3-4fe8-b9a5-48fd50a15a9a}`): no version lies, current behaviour.
 - `dpiAware true/pm` + `dpiAwareness PerMonitorV2, PerMonitor`: physical pixels from the first window and
