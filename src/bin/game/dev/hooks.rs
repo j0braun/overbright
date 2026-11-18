@@ -43,6 +43,20 @@ pub(crate) fn parity_grid(game: &Game) -> Option<Vec2> {
     game.dev.parity_grid_at
 }
 
+/// `NFSU2_RNG_PIN=<place>:<hex>` (the RNG comparisons against the
+/// original's sequence log, docs/rng.md): the shared generator set to that
+/// state when the game reaches `place` (`entry`: free roam's set-up, before
+/// the encounter racers; `world`: free roam's world build; `race`: a race's
+/// set-up, before the line-up; `race_world`: a race's world build).
+pub(crate) fn rng_pin(game: &mut Game, at: &str) {
+    if let Some((place, hex)) = std::env::var("NFSU2_RNG_PIN").ok().as_deref().and_then(|v| v.split_once(':'))
+        && place == at
+        && let Ok(v) = u32::from_str_radix(hex.trim_start_matches("0x"), 16)
+    {
+        game.rng.0 = v;
+    }
+}
+
 /// A headless run's window size (NFSU2_SHOT_SIZE).
 pub(crate) fn headless_size() -> Option<(u32, u32)> {
     env_size("NFSU2_SHOT_SIZE")

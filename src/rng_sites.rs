@@ -119,6 +119,60 @@ pub fn honk(rng: &mut GameRng, closing: f32, traffic: bool) {
     }
 }
 
+/// A car render info's constructor (0x6381A0 at 0x6383A5): `Rand_Int(8)`
+/// on the shared generator into +0x3F8, which nothing reads (no other
+/// access to +0x3F8 of a render info in the executable, **verified**), so
+/// only the draw is kept. One per render info built: every world car's
+/// (0x63A5B0, from the car's attach 0x601120 and the model refresh
+/// 0x5F4660) and every front-end car's (0x63A660). **Measured** (the
+/// sequence log, docs/rng.md): the main menu's car, the world cars after
+/// a world build's rain set-up (the player and the other racers), one per
+/// car the traffic fill places, and one per placed traffic car again after
+/// Traffic_AssignModels (its model given).
+pub fn render_info(rng: &mut GameRng) {
+    rng.below(8);
+}
+
+/// The in-game audio objects' set-up draws on the shared generator, made
+/// only with the sound on (**measured**, the sequence log of the original
+/// with sound, docs/rng.md). The clone has no counterpart for these
+/// objects' state, so only the draws are kept.
+pub mod audio_setup {
+    use crate::opponents::GameRng;
+
+    /// The car accel-transition objects (0x45CADE `Rand_Int(2)`): three
+    /// draws at an in-game audio load.
+    pub fn accel_trans(rng: &mut GameRng) {
+        for _ in 0..3 {
+            rng.below(2);
+        }
+    }
+
+    /// The traffic sound's set-up in a race load (0x464217 `Rand_Int(14)`,
+    /// one draw; the routine's other branches 0x464097 `Rand_Int(4)` and
+    /// 0x464207 `Rand_Int(11)` were not seen).
+    pub fn traffic_add(rng: &mut GameRng) {
+        rng.below(14);
+    }
+
+    /// CARSFX_Stereo's slot 7 (0x4765F0 at 0x4765F5): `Rand_Int(2)`, nine
+    /// at every world build, after the traffic fill (**measured** in free
+    /// roam, a circuit and a drag race).
+    pub fn stereo_rolls(rng: &mut GameRng) -> [u32; 9] {
+        std::array::from_fn(|_| rng.below(2))
+    }
+
+    /// SfxCtlEngine (0x46F5AB `Rand_Int(100)`, 0x46F5BC
+    /// `Rand_Float(100.0)`): four pairs at every world build, after
+    /// Traffic_AssignModels.
+    pub fn engine_controls(rng: &mut GameRng) {
+        for _ in 0..4 {
+            rng.below(100);
+            rng.unit(100.0);
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     /// 0x40D5C0's draws: four, then the horn's under p, then the

@@ -110,12 +110,29 @@ pub fn drag_point(f: &RouteFile, pos: Option<Vec2>, coord: f32, reach: f32, flag
     best.1
 }
 
+/// The walk generator a new traffic lane takes (the clone's own: the
+/// original's route extension draws its junction odds on the world
+/// generator, 0x413C8E, which the clone's lanes do not share yet — open,
+/// docs/rng.md). Derived from the world generator's state without a draw:
+/// a placement makes no `Rand_Int(0x7FFFFFFF)` (**measured**, the sequence
+/// log: the fill's and the placer's world draws end with the lane picks).
+pub(super) fn lane_stream(rng: &GameRng) -> GameRng {
+    GameRng(rng.0 ^ 0x5A5A_A5A5)
+}
+
 /// 0x410CA0 in a drag race (0x89E7D8 / 0x890108; verified): with odds ½
 /// (0x5EA510) the lane of a random human racer (0x5EA4F0 over 0x8900BC ×
 /// 100000; its controller's lane, vt+0x1C, 2–9, taken on this side) when
-/// the record has it; else [`pick_lane`].
-pub(super) fn drag_lane(f: &RouteFile, s: Step, player_lane: Option<usize>, rng: &mut GameRng) -> Option<usize> {
-    if rng.unit(1.0) < 0.5 {
+/// the record has it; else [`pick_lane`]. With no human racer listed (the race set-up's fill,
+/// `humans` false) neither draw is made.
+pub(super) fn drag_lane(
+    f: &RouteFile,
+    s: Step,
+    player_lane: Option<usize>,
+    humans: bool,
+    rng: &mut GameRng,
+) -> Option<usize> {
+    if humans && rng.unit(1.0) < 0.5 {
         rng.below(100_000);
         if let Some(l) = player_lane.filter(|l| (2..=5).contains(l) && has_lane(f, s, *l)) {
             return Some(l);
@@ -712,7 +729,7 @@ impl TrafficLane {
                 let start = Step { lane: l, ..start };
                 let mut t = TrafficLane {
                     steps: VecDeque::from([start]),
-                    rng: GameRng(rng.below(0x7FFF_FFFF)),
+                    rng: lane_stream(rng),
                     obey: None,
                     avoid: None,
                     roomed: 0,
@@ -769,9 +786,9 @@ impl TrafficLane {
         let (record, cp) = drag_point(f, Some(pos), coord, DRAG_REACH, flag)?;
         let flag = flag ^ (f.records[record].flags & 2 != 0);
         let s = |flag: bool| Step { record, cp, backward: !flag, lane: 0 };
-        let (start, l) = drag_lane(f, s(flag), player_lane, rng)
+        let (start, l) = drag_lane(f, s(flag), player_lane, true, rng)
             .map(|l| (s(flag), l))
-            .or_else(|| drag_lane(f, s(!flag), player_lane, rng).map(|l| (s(!flag), l)))?;
+            .or_else(|| drag_lane(f, s(!flag), player_lane, true, rng).map(|l| (s(!flag), l)))?;
         let c = &f.records[record].points[cp];
         if !gate(c.position.truncate(), c.coord, coordinate_point(f, record, cp)) {
             return None;
@@ -779,7 +796,7 @@ impl TrafficLane {
         let start = Step { lane: l, ..start };
         let mut t = TrafficLane {
             steps: VecDeque::from([start]),
-            rng: GameRng(rng.below(0x7FFF_FFFF)),
+            rng: lane_stream(rng),
             obey: None,
             avoid: None,
             roomed: 0,
@@ -820,6 +837,7 @@ impl TrafficLane {
         index: usize,
         step: f32,
         player_lane: Option<usize>,
+        humans: bool,
         with: f32,
         gate: &dyn Fn(Vec2, f32, bool) -> bool,
         rng: &mut GameRng,
@@ -829,9 +847,9 @@ impl TrafficLane {
             let Some((record, cp)) = drag_point(f, None, 0.0, (index + k) as f32 * step, flag) else { continue };
             let flag = flag ^ (f.records[record].flags & 2 != 0);
             let s = |flag: bool| Step { record, cp, backward: !flag, lane: 0 };
-            let Some((start, l)) = drag_lane(f, s(flag), player_lane, rng)
+            let Some((start, l)) = drag_lane(f, s(flag), player_lane, humans, rng)
                 .map(|l| (s(flag), l))
-                .or_else(|| drag_lane(f, s(!flag), player_lane, rng).map(|l| (s(!flag), l)))
+                .or_else(|| drag_lane(f, s(!flag), player_lane, humans, rng).map(|l| (s(!flag), l)))
             else {
                 continue;
             };
@@ -842,7 +860,7 @@ impl TrafficLane {
             let start = Step { lane: l, ..start };
             let mut t = TrafficLane {
                 steps: VecDeque::from([start]),
-                rng: GameRng(rng.below(0x7FFF_FFFF)),
+                rng: lane_stream(rng),
                 obey: None,
                 avoid: None,
                 roomed: 0,
@@ -883,8 +901,12 @@ impl TrafficLane {
     /// gates it (`gate`, which holds that spacing); the flag flips by the record's +0x70 bit 1; 0x417C30 takes
     /// a lane on that side or else the other (0x410CA0, ten random picks
     /// then the first, outside drag races); 0x42C670 creates the car there.
+    /// The flips by +0x70 bit 1 are made only with the race road built
+    /// (`road`; free roam's entry fill has none: docs/formats/ai.md, "Fill
+    /// outside drag races", **verified**).
     pub fn fill_race(
         f: &RouteFile,
+        road: bool,
         with: f32,
         gate: &dyn Fn(Vec2, f32, bool) -> bool,
         rng: &mut GameRng,
@@ -903,7 +925,7 @@ impl TrafficLane {
             let mut sum = 0usize;
             for &ri in &races {
                 let rec = &f.records[ri];
-                if !side_has(ri, flag ^ (rec.flags & 2 != 0)) {
+                if !side_has(ri, flag ^ (road && rec.flags & 2 != 0)) {
                     continue;
                 }
                 sum += rec.points.len();
@@ -924,7 +946,7 @@ impl TrafficLane {
             if !gate(c.position.truncate(), c.coord, coordinate_point(f, record, cp)) {
                 continue;
             }
-            let flag = flag ^ (rec.flags & 2 != 0);
+            let flag = flag ^ (road && rec.flags & 2 != 0);
             let s = |flag: bool| Step { record, cp, backward: !flag, lane: 0 };
             let Some((start, l)) = pick_lane(f, s(flag), rng)
                 .map(|l| (s(flag), l))
@@ -935,7 +957,7 @@ impl TrafficLane {
             let start = Step { lane: l, ..start };
             let mut t = TrafficLane {
                 steps: VecDeque::from([start]),
-                rng: GameRng(rng.below(0x7FFF_FFFF)),
+                rng: lane_stream(rng),
                 obey: None,
                 avoid: None,
                 roomed: 0,

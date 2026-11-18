@@ -132,15 +132,12 @@ original, with its switch, is in [docs/native-deviations.md](docs/native-deviati
 **Differences from the original that are still open**
 
 - **Random choices:** rivals' line-ups and cars, traffic and outrun encounters follow the original's rules, and
-  most random draws happen at the original's places in its order, but not all of them (some car-set-up,
-  traffic-fill and audio draws). So the same save does not give the same picks the original would give;
+  most random draws happen at the original's places in its order, but not all of them (some front-end, audio
+  and traffic-walk draws). So the same save does not give the same picks the original would give;
   the odds are the same.
 - **Physics after a wall hit:** from the same start, your car stays within a few centimetres of the original's
   path through braking, cornering, handbrake turns and launches. Held against a wall it turns off the wall the
   same way as in the original, but can leave it a few seconds sooner or later.
-- **Saves:** a save of the original from any career stage, loaded and saved again in Overbright, comes out byte
-  for byte as the original's own load-and-save leaves it, and the original loads Overbright's saves. A save
-  made after a long session played in Overbright was not loaded back into the original in the last check.
 
 **Performance**
 

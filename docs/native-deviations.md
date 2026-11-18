@@ -221,11 +221,11 @@ build without the change.
 The following still differ from the original. These are defects, tracked as such, not deliberate choices
 (the player's view of each: README.md, "Known issues"):
 
-- **Random draws:** most draws are made at the original's places in its order (docs/rng.md); the car
-  render-info draws, the free-roam traffic fill and some audio draws are not yet (docs/rng.md "Open").
-  Line-ups, cars, traffic and encounters follow the original's rules but not its picks.
+- **Random draws:** the draws are made at the original's places in its order (docs/rng.md): a
+  race's set-up (line-up, looks, grid, world build, traffic) and free roam's entry match the
+  original's draw for draw from the same state; still different are the front-end cars' render
+  infos (one at Resume), some in-play audio draws and the traffic's route walk (docs/rng.md
+  "Open"), so a session reaches those set-ups with another state and its picks still differ.
 - **Physics:** a car held against a wall turns off it the same way as in the original, but leaves it
   sooner or later: from the second push of a hold the contacts' timing differs (docs/cornering-parity.md
   section 6).
-- **Not yet compared under Wine:** a save made after a long session loaded back into the original
-  (docs/world-systems-parity.md section 5).

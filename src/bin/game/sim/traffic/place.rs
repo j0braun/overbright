@@ -160,6 +160,9 @@ pub(crate) fn place_traffic(
     c.driver = nfsu2::ai::driver::AiDriver::new(&c.car.car_type.handling, c.car.car_type.suv, TRAFFIC_THROTTLE_CAP);
 }
 
+/// The set-up fill's placements, in pool order ([`traffic_fill_plan`]).
+pub(crate) type FillPlan = Vec<Option<(nfsu2::ai::traffic::TrafficLane, Vec3, f32)>>;
+
 /// The drag race set-up's traffic fill (0x6065C0's third loop → 0x42F7A0 →
 /// 0x42E4A0; verified, the disassembly; **observed** under Wine on the
 /// Bayview Bridge drag: ten cars on the control points from 452.5 to
@@ -174,56 +177,90 @@ pub(crate) fn place_traffic(
 /// races 0x42F7A0 goes to 0x42E0B0 and then 0x42E2C0
 /// ([`nfsu2::ai::traffic::TrafficLane::fill_race`]: random race-record
 /// points with bits 25 and 26), with the same gate and spacing.
-pub(crate) fn traffic_fill(
-    world: &World,
-    t: &mut Traffic,
-    player: &CarState,
+///
+/// Where the set-up's fill puts each of the pool's `n` cars, in pool order
+/// (the placements only: [`traffic_fill_apply`] puts the cars there once
+/// they have their models). The world generator's draws are the fill's
+/// (0x42E2C0 / 0x411110 / 0x42E4A0 on [0x890080] +0xF8); the caller makes
+/// a render info's shared draw for each car placed, as the original's car
+/// attach does right after the placement (**measured**, the sequence log).
+/// `race` is the race's road and drag set-up; free roam (None) tests every
+/// point in 2D: no listed car (the player and the cars placed so far)
+/// within the fill step (0x418110 with no race road built and no race
+/// status: 0x410FC0 alone, **verified**, the disassembly; the encounter
+/// racers taken as not listed, **inferred**).
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn traffic_fill_plan(
+    t: &Traffic,
+    n: usize,
+    me: Vec2,
     racers: &[(Vec2, Vec2)],
-    road: &nfsu2::formats::roads::RoadRoute,
-    p: DragPlace,
+    race: Option<(&nfsu2::formats::roads::RoadRoute, DragPlace)>,
     drag: bool,
-) {
+    rng: &mut nfsu2::opponents::GameRng,
+) -> FillPlan {
     use nfsu2::ai::traffic::TrafficLane;
-    t.filled = true;
-    let me = player.position.truncate();
-    for i in 0..t.cars.len() {
-        let placed: Vec<Vec2> = t
-            .cars
+    let mut plan: FillPlan = Vec::with_capacity(n);
+    for i in 0..n {
+        let placed: Vec<Vec2> = plan
             .iter()
-            .filter(|c| c.lane.is_some())
-            .map(|c| c.state.position.truncate())
+            .flatten()
+            .map(|p| p.1.truncate())
             .chain(racers.iter().map(|r| r.0))
             .chain(std::iter::once(me))
             .collect();
-        let coords: Vec<(f32, bool)> = t
-            .cars
-            .iter()
-            .filter(|c| c.lane.is_some())
-            .map(|c| (road.locate_once(c.state.position.truncate()), false))
-            .chain(racers.iter().map(|r| (road.locate_once(r.0), true)))
-            .chain(std::iter::once((p.coord, false)))
-            .collect();
         let gap = t.fill_step;
-        let gate = |at: Vec2, c: f32, coordinate: bool| {
-            drag_gate(road, &p, false, gap, &coords, &placed, me, at, c, coordinate)
+        let placed_now = match race {
+            Some((road, p)) => {
+                let coords: Vec<(f32, bool)> = plan
+                    .iter()
+                    .flatten()
+                    .map(|q| (road.locate_once(q.1.truncate()), false))
+                    .chain(racers.iter().map(|r| (road.locate_once(r.0), true)))
+                    .chain(std::iter::once((p.coord, false)))
+                    .collect();
+                let gate = |at: Vec2, c: f32, coordinate: bool| {
+                    drag_gate(road, &p, false, gap, &coords, &placed, me, at, c, coordinate)
+                };
+                if drag {
+                    // The set-up has no human racers listed yet: 0x410CA0
+                    // takes no human's lane (**measured**: no 0x410CF7 /
+                    // 0x410D1C draw in the fill).
+                    TrafficLane::fill_drag(&t.routes, i, t.fill_step, None, false, t.with, &gate, rng)
+                } else {
+                    TrafficLane::fill_race(&t.routes, true, t.with, &gate, rng)
+                }
+            }
+            None => {
+                let gate = |at: Vec2, _: f32, _: bool| !placed.iter().any(|&o| at.distance(o) < gap);
+                TrafficLane::fill_race(&t.routes, false, t.with, &gate, rng)
+            }
         };
-        let placed = if drag {
-            TrafficLane::fill_drag(&t.routes, i, t.fill_step, p.lane, t.with, &gate, &mut t.field.rng)
-        } else {
-            TrafficLane::fill_race(&t.routes, t.with, &gate, &mut t.field.rng)
-        };
-        if let Some((lane, at, heading)) = placed {
-            place_traffic(world, &mut t.cars[i], &t.routes, lane, at, heading);
+        plan.push(placed_now);
+    }
+    plan
+}
+
+/// The fill's placements put into effect on the pool's cars (in pool
+/// order); in a race the cars it could not place are dropped
+/// (`drop_unplaced`): only the cars 0x42F7A0 placed join the world list
+/// (0x6066FF..0x606713: the car is linked in when it returns one); the
+/// placer 0x42F910 walks the world list's traffic (+0x18 .. +0x10) and
+/// does nothing while that is empty (0x42F95B), so a pool car the fill
+/// could not place never appears in the race (**verified**; **observed**
+/// under Wine: the stage-4 drag S4_H_DRAG_15 made its 12 pool cars, car
+/// table 0x89E810 entries +4 = 3, but its world list held the 4 racers all
+/// race). In free roam they stay for the placer.
+pub(crate) fn traffic_fill_apply(world: &World, t: &mut Traffic, plan: FillPlan, drop_unplaced: bool) {
+    t.filled = true;
+    for (c, p) in t.cars.iter_mut().zip(plan) {
+        if let Some((lane, at, heading)) = p {
+            place_traffic(world, c, &t.routes, lane, at, heading);
         }
     }
-    // Only the cars 0x42F7A0 placed join the world list (0x6066FF..0x606713:
-    // the car is linked in when it returns one); the placer 0x42F910 walks
-    // the world list's traffic (+0x18 .. +0x10) and does nothing while that
-    // is empty (0x42F95B), so a pool car the fill could not place never
-    // appears in the race (**verified**; **observed** under Wine: the
-    // stage-4 drag S4_H_DRAG_15 made its 12 pool cars, car table 0x89E810
-    // entries +4 = 3, but its world list held the 4 racers all race).
-    t.cars.retain(|c| c.lane.is_some());
+    if drop_unplaced {
+        t.cars.retain(|c| c.lane.is_some());
+    }
 }
 
 /// 0x418110, the drag placements' gate (verified, the disassembly): before

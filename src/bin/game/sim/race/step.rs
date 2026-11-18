@@ -15,11 +15,11 @@ pub(crate) fn traffic_body(car: &Car, state: &CarState) -> nfsu2::ai::traffic::O
     }
 }
 
-/// The race set-up's traffic fill (0x6065C0 → 0x42F7A0), once: on the
-/// race's first frame, or the start scene's first (the game runs it while
-/// loading, before the scene).
+/// The race set-up's traffic fill (0x6065C0 → 0x42F7A0), once, when the
+/// load has not made it (`Game::race_world_cars` makes it in the load, as
+/// the game does): on the race's first frame, or the start scene's first.
 pub(crate) fn race_traffic_fill(d: &Drive, race: &mut Race, clock: f32, drag: bool) {
-    if let Some(t) = race.racers.traffic.as_mut().filter(|t| !t.filled) {
+    if let Some(t) = race.racers.traffic.as_ref().filter(|t| !t.filled && t.pool.is_none()) {
         let racers: Vec<(Vec2, Vec2)> =
             race.racers.rivals.iter().map(|r| (r.state.position.truncate(), r.state.velocity.truncate())).collect();
         let place = DragPlace {
@@ -31,9 +31,18 @@ pub(crate) fn race_traffic_fill(d: &Drive, race: &mut Race, clock: f32, drag: bo
         };
         // The fill's draws are the world's (0x42E2C0 / 0x411110 / 0x42E4A0
         // on [0x890080] +0xF8): the race field's generator.
-        std::mem::swap(&mut t.field.rng, &mut race.racers.cars.rng);
-        traffic_fill(&d.world, t, &d.state, &racers, &race.route.road, place, drag);
-        std::mem::swap(&mut t.field.rng, &mut race.racers.cars.rng);
+        let plan = traffic_fill_plan(
+            t,
+            t.cars.len(),
+            d.state.position.truncate(),
+            &racers,
+            Some((&race.route.road, place)),
+            drag,
+            &mut race.racers.cars.rng,
+        );
+        if let Some(t) = race.racers.traffic.as_mut() {
+            traffic_fill_apply(&d.world, t, plan, true);
+        }
     }
 }
 

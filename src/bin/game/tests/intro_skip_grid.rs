@@ -19,11 +19,12 @@ fn run(scene_number: u8, skip: Option<f32>, hz: f32) -> Handoff {
     game.profile = Some(profile);
     // Actual eligible picks from the first-career drag candidate list.
     // The pick (0x436A26) draws on the shared generator after the
-    // set-up's and the world build's draws, so the seeds that give these
-    // scenes changed (25: 0 → 21; 3 stays at 4).
+    // set-up's and the world build's draws (with the render infos and the
+    // traffic fill in the load), so the seeds that give these scenes move
+    // with them (25: 0; 3: 4).
     game.rng = nfsu2::opponents::GameRng(match scene_number {
         3 => 4,
-        25 => 21,
+        25 => 0,
         _ => unreachable!(),
     });
     let event =
@@ -157,4 +158,5 @@ fn intro_skip_preserves_ai_grid_handoff() {
     }
     assert!(errors.is_empty(), "intro-skip AI handoff mismatch: {errors:?}");
 }
+
 

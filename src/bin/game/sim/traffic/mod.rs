@@ -72,6 +72,8 @@ pub(crate) struct Traffic {
     pub(crate) stage: Option<u32>,
     pub(crate) routes: nfsu2::formats::ai_routes::RouteFile,
     pub(crate) cars: Vec<TrafficCar>,
+    /// The pool not yet given its models ([`Traffic::populate`]).
+    pub(crate) pool: Option<PoolSetup>,
     /// The traffic's car field. Its generator is not a stream of its own:
     /// in free roam it is the world generator (world +0xF8) whenever the
     /// traffic is loaded (the world's field, `Game::world_build`); in a
@@ -134,10 +136,9 @@ impl Traffic {
         player: Vec3,
         level: usize,
         reversed: bool,
-        rng: &mut nfsu2::opponents::GameRng,
         density: u8,
     ) -> Result<Traffic> {
-        use nfsu2::ai::traffic::{Crossings, TRAFFIC_THROTTLE_CAP, TrafficZone, assign_models, dense_pool, pool_size};
+        use nfsu2::ai::traffic::{Crossings, TrafficZone, dense_pool, pool_size};
         let path = nfsu2::game_fs::path(&root, &format!("TRACKS/ROUTES{region}/{}", files.0));
         let routes = nfsu2::formats::ai_routes::RouteFile::parse(
             &std::fs::read(&path).with_context(|| format!("reading {}", path.display()))?,
@@ -147,19 +148,64 @@ impl Traffic {
         let tuning = tuning.context("no AI tuning")?;
         let spacing: Vec<(f32, f32)> = (0..9).filter_map(|r| tuning.traffic_spacing(r)).collect();
         let track = track.context("no track record")?;
-        let models: Vec<&nfsu2::car::CarType> =
-            car_types.iter().filter(|t| t.traffic && nfsu2::game_fs::path(&root, &format!("CARS/{}", t.name)).is_dir()).collect();
+        let models: Vec<usize> = car_types
+            .iter()
+            .enumerate()
+            .filter(|(_, t)| t.traffic && nfsu2::game_fs::path(&root, &format!("CARS/{}", t.name)).is_dir())
+            .map(|(i, _)| i)
+            .collect();
         anyhow::ensure!(!models.is_empty(), "no traffic car models");
         let zone = TrafficZone::at(&zones, player.truncate()).map_or(0, |z| z.caps);
-        let caps: Vec<i8> = models.iter().map(|t| t.traffic_caps.get(zone).copied().unwrap_or(0)).collect();
+        let caps: Vec<i8> = models.iter().map(|&m| car_types[m].traffic_caps.get(zone).copied().unwrap_or(0)).collect();
         // Traffic Density (opt-in; 0 = native): a larger free-roam pool.
-        // Traffic_AssignModels 0x412BE0 (0x412C9A) draws on the shared
-        // generator at the world build (was a generator of the
-        // traffic's own).
-        let mut picks = assign_models(&caps, dense_pool(pool_size(&track.traffic, level, reversed), density), rng);
+        let size = dense_pool(pool_size(&track.traffic, level, reversed), density);
+        let pool = PoolSetup { models, caps, size, bounds: bounds.copied() };
+        let with = track.traffic_with.get(level).copied().unwrap_or(0.5);
+        let crossings = Crossings::new(&routes, size);
+        let fill_step = track.drag_fill[usize::from(reversed)];
+        Ok(Traffic {
+            region: region.into(),
+            stage: None,
+            routes,
+            cars: Vec::new(),
+            pool: Some(pool),
+            field: nfsu2::drive::CarField::new(traffic_seed()),
+            clock: 0.0,
+            with,
+            level,
+            timer: 0.0,
+            cursor: 0,
+            start: 0,
+            tries: (0, 0),
+            zones,
+            spacing,
+            crossings,
+            updates: 0,
+            fill_step,
+            filled: false,
+            paused: false,
+        })
+    }
+    /// The pool's cars (0x412BE0, Traffic_AssignModels): each given a
+    /// traffic model from the car types with record +0x844 = 2 and their
+    /// caps for the zone, drawing on the shared generator (0x412C9A), then
+    /// the models loaded side by side. The world build makes it after the
+    /// traffic fill and, in free roam, the career's slot events
+    /// (**measured**, the sequence log, docs/rng.md). No-op once made.
+    pub(crate) fn populate(
+        &mut self,
+        root: &std::path::Path,
+        car_types: &[nfsu2::car::CarType],
+        rng: &mut nfsu2::opponents::GameRng,
+    ) -> Result<()> {
+        use nfsu2::ai::traffic::{TRAFFIC_THROTTLE_CAP, assign_models};
+        let Some(pool) = self.pool.take() else { return Ok(()) };
+        let mut picks = assign_models(&pool.caps, pool.size, rng);
         // `TRAFFIC_MODEL=<name>` (a debugging knob for the shots, not the
         // game's): every pool car takes that model.
-        if let Some(m) = debug_env().traffic_model.clone().and_then(|w| models.iter().position(|t| t.name == w)) {
+        if let Some(m) =
+            debug_env().traffic_model.clone().and_then(|w| pool.models.iter().position(|&t| car_types[t].name == w))
+        {
             picks.iter_mut().for_each(|p| *p = m);
         }
         // Each model once, loaded side by side.
@@ -169,12 +215,11 @@ impl Traffic {
                 distinct.push(m);
             }
         }
-        let names: Vec<&str> = distinct.iter().map(|&m| models[m].name.as_str()).collect();
+        let names: Vec<&str> = distinct.iter().map(|&m| car_types[pool.models[m]].name.as_str()).collect();
         let mut loaded: HashMap<usize, std::sync::Arc<Car>> = HashMap::new();
         for (m, car) in distinct.into_iter().zip(load_cars(root, &names)) {
             loaded.insert(m, std::sync::Arc::new(car?));
         }
-        let mut cars = Vec::new();
         for m in picks {
             let car = loaded[&m].clone();
             let h = &car.car_type.handling;
@@ -184,9 +229,9 @@ impl Traffic {
             let driver = nfsu2::ai::driver::AiDriver::new(h, car.car_type.suv, TRAFFIC_THROTTLE_CAP);
             // The MeloMvr's skill grip reads the car's rating on the
             // skills' 0–10 scale (0x5B69A0(1, −1) on car +0x10).
-            let rating = bounds.map_or(0.0, |b| b.scale(h.performance_rating));
+            let rating = pool.bounds.map_or(0.0, |b| b.scale(h.performance_rating));
             let accel = std::sync::Arc::new(nfsu2::handling::acceleration(h));
-            cars.push(TrafficCar {
+            self.cars.push(TrafficCar {
                 car,
                 id: CarId::new(),
                 state: CarState::new(Vec3::splat(1e6), 0.0),
@@ -207,31 +252,23 @@ impl Traffic {
                 coast: None,
             });
         }
-        let with = track.traffic_with.get(level).copied().unwrap_or(0.5);
-        let crossings = Crossings::new(&routes, cars.len());
-        let fill_step = track.drag_fill[usize::from(reversed)];
-        Ok(Traffic {
-            region: region.into(),
-            stage: None,
-            routes,
-            cars,
-            field: nfsu2::drive::CarField::new(traffic_seed()),
-            clock: 0.0,
-            with,
-            level,
-            timer: 0.0,
-            cursor: 0,
-            start: 0,
-            tries: (0, 0),
-            zones,
-            spacing,
-            crossings,
-            updates: 0,
-            fill_step,
-            filled: false,
-            paused: false,
-        })
+        Ok(())
     }
+
+    /// The pool's size before [`Traffic::populate`] (its cars after).
+    pub(crate) fn pool_len(&self) -> usize {
+        self.pool.as_ref().map_or(self.cars.len(), |p| p.size)
+    }
+}
+
+/// What [`Traffic::populate`] needs: the traffic model types (indices into
+/// the car types), their caps for the zone, the pool's size and the
+/// performance bounds.
+pub(crate) struct PoolSetup {
+    models: Vec<usize>,
+    caps: Vec<i8>,
+    size: usize,
+    bounds: Option<nfsu2::opponents::Bounds>,
 }
 
 /// `NFSU2_TRAFFIC_SEED=<n>` (a harness knob, not the game's: the parity

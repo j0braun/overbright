@@ -25,7 +25,8 @@ impl Stereo {
     }
 
     /// Slot 7 (0x4765F0), run for an AI racer's context when the world
-    /// starts (0x60A7B3 → 0x458850 → the AI manager's slot 5 0x463BB0 →
+    /// starts (its `Rand_Int(2)` is one of the nine the world build makes,
+    /// [`crate::audio::collision::stereo_roll`]) (0x60A7B3 → 0x458850 → the AI manager's slot 5 0x463BB0 →
     /// the context's slot 4 0x469CD0 → 0x464BB0; round 14: the only direct
     /// call of 0x469CD0 found is 0x481F7D, so this path and the count per
     // prov: inferred audio.traffic.racer_roll
@@ -34,7 +35,7 @@ impl Stereo {
     /// counter 0x82CB6C (.bss, 0 at boot) to (+1) mod 6 and plays when it
     /// lands on 0.
     pub(super) fn racer_roll(&mut self, counter: &mut u32) {
-        self.variant = 8 + crate::audio::collision::rand(2) as i32;
+        self.variant = 8 + crate::audio::collision::stereo_roll() as i32;
         *counter = (*counter + 1) % 6;
         self.on = *counter == 0;
     }

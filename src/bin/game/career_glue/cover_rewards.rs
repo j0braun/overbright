@@ -182,7 +182,7 @@ impl Game {
                         v.open[flag] = false;
                         for &c in channels {
                             self.showcase.parts.request(anims, &styles, c, false, 1.0, now);
-                            Self::part_stitch(self.audio.as_mut(), c, false);
+                            Self::part_stitch(self.audio.as_mut(), &mut self.rng, c, false);
                         }
                     }
                 }
@@ -190,7 +190,7 @@ impl Game {
             screens::ShowcaseKey::Parts(channels, open) => {
                 for &c in channels {
                     self.showcase.parts.request(anims, &styles, c, open, 1.0, now);
-                    Self::part_stitch(self.audio.as_mut(), c, open);
+                    Self::part_stitch(self.audio.as_mut(), &mut self.rng, c, open);
                 }
             }
             screens::ShowcaseKey::Cycle => {
@@ -220,10 +220,14 @@ impl Game {
 
     /// CarPart_RequestAnim's sound in game (0x61F830 with [0x82B884]+0x90
     /// ≠ 1: the showcase runs in the world): 0x481500 on the FE_COMMON
-    /// player (`fe_rules::part_stitch`).
-    pub(crate) fn part_stitch(audio: Option<&mut Audio>, channel: usize, open: bool) {
+    /// player (`fe_rules::part_stitch`). The stitch layer's start draws
+    /// (0x45B280) are the game's shared generator's (`rng`), as every audio
+    /// object's (docs/rng.md).
+    pub(crate) fn part_stitch(audio: Option<&mut Audio>, rng: &mut nfsu2::opponents::GameRng, channel: usize, open: bool) {
         if let (Some(a), Some(n)) = (audio, nfsu2::audio::fe_rules::part_stitch(channel, open)) {
+            let saved = nfsu2::audio::collision::enter_game_rng(rng.0);
             a.part_stitches.start(n);
+            rng.0 = nfsu2::audio::collision::leave_game_rng(saved);
         }
     }
 

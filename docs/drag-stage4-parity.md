@@ -358,7 +358,7 @@ lateral off each, per frame).
   Routes4213B has either** (nor 4211, 4212, 4221, 4222, 4223 either way; 4201–4203, 4401–4404 have
   them), so those six drag tracks (the 500 m start-gap ones) run without traffic.
 * **Clone**: it found no point either, but placed the 12 cars after the green from its placer. Now
-  `traffic_fill` drops the pool cars the fill could not place (`t.cars.retain`), so its placer never sees
+  `traffic_fill_apply` drops the pool cars the fill could not place (`t.cars.retain`), so its placer never sees
   them; test `drag_fill_finds_no_point_on_4213_backward`; the maintainer's probe `drag_traffic_pool` lists every career
   drag's pool. p1 clone: no traffic, and the player now meets the same obstacle as the original.
 
