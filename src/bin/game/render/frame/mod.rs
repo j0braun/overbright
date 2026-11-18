@@ -138,7 +138,7 @@ impl Game {
     /// The HUD's and the menus' layout, the garage's request, the GPS
     /// aid's target, the dyno's rollers and camera, the display mode.
     fn prepare_frame(&mut self, now: f32, span: Option<nfsu2::prof::acc::Acc>) -> FramePrep {
-        let photo_quads = self.photo_quads();
+        let photo_quads = self.photo_quads().or_else(|| self.map_editor_quads());
         // The HUD's quads from the last tick's update (`overlay_update`
         // in `step`): a pure read here.
         let hud = if photo_quads.is_some() { Vec::new() } else { self.overlay_layout(now) };
@@ -169,6 +169,7 @@ impl Game {
         // Native Yes clears 0x7FA29C, which gates the cursor in 0x53790D.
         if !saving_showcase
             && self.photo.is_none()
+            && self.map_editor.is_none()
             && let Some(c) = self.cursor_quad(now)
         {
             menu.push(c);

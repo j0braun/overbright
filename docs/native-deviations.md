@@ -195,6 +195,9 @@ options file. Some combinations are resolved for you (for example Modern
 Lighting replaces Dynamic Lamps); the page says so and never changes the
 stored value.
 
+Map mods and the map editor (docs/map-editor.md): with no map mod listed in `maps/enabled.txt`, worlds and races
+are the original's; the editor is reachable only after a start with `--editor`.
+
 ## 4. Performance changes that do not alter the native look or gameplay
 
 These need no switch because the same frames, sounds and simulation come out,

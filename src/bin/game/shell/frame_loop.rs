@@ -368,8 +368,12 @@ impl Game {
             dev_hooks::frame_trace(self, &poses);
         }
         let swapped = self.photo_begin(poses.photo_rig);
-        let photo_camera = swapped.as_ref().is_some_and(|s| s.camera_swapped());
+        let editor = self.map_editor_begin();
+        let photo_camera = swapped.as_ref().is_some_and(|s| s.camera_swapped()) || editor.is_some();
         let r = self.draw_frame(poses, photo_camera, probe);
+        if let Some(s) = editor {
+            self.map_editor_end(s);
+        }
         if let Some(s) = swapped {
             self.photo_end(s);
         }

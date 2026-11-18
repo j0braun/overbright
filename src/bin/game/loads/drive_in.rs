@@ -540,7 +540,7 @@ impl Game {
                         None => {
                             // Its collision beside the car's load (the
                             // drive's placing made it afterwards).
-                            let world = World::load(root, region);
+                            let world = nfsu2::tools::map::load_world(root, region);
                             if let Ok(w) = &world {
                                 w.collision_ahead();
                             }

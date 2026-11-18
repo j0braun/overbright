@@ -21,12 +21,14 @@ use crate::formats::visibility::Visibility;
 mod anims;
 mod cache;
 mod data;
+mod map_overlay;
 mod parse;
 mod query;
 mod scenery;
 
 pub use self::anims::*;
 pub use self::data::*;
+pub use self::map_overlay::{MATCH_DISTANCE, parts_of, transform_of};
 use self::parse::*;
 pub use self::scenery::*;
 
@@ -137,6 +139,9 @@ pub struct World {
     /// Everything but the solids and textures as loaded (the cache's
     /// "w.rest" section): what [`World::reset_to_loaded`] restores.
     loaded: crate::cache::Bytes,
+    /// The map mods applied to this world (`tools::map`; empty without
+    /// any, docs/map-editor.md).
+    pub map_overlay: crate::tools::map::Applied,
 }
 
 #[cfg(test)]

@@ -13,6 +13,8 @@ impl Game {
         // Photo mode takes the mouse (the pause menu under it none).
         if self.photo.is_some() {
             self.photo_tick(dt);
+        } else if self.map_editor.is_some() {
+            self.map_editor_tick(dt);
         } else {
             self.fe_mouse()?;
         }

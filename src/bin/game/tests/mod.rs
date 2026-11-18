@@ -109,3 +109,6 @@ mod reported_issues;
 // The manual gearbox through the player's keys and controller.
 #[cfg(test)]
 mod manual_gears;
+// The map editor and custom races (docs/map-editor.md).
+#[cfg(test)]
+mod map_editor;
