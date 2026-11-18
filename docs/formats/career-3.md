@@ -2960,9 +2960,20 @@ The drawing (0x531050 per point, **verified**; the walker 0x531280 passes the no
   three times over two starts: identical the same way, 0x7FAA08 = 9 each time; the same event started
   again from the World Map (no restart) drew a new line-up (other cars, the player on slot 2 instead
   of 3). Evidence: docs/evidence/perf-budget/restart-line-up.txt.
-* **Open**: Next Race not seen under Wine (no tournament race finished in the original; its path is
-  message 9's code with the same argument); whether a restarted tournament race's own record
-  (+0x14 state) counts a finish from before the restart in the points (0x513EB0) is not traced.
+* **Next Race seen under Wine** (fastgpu.sh, the `stage5_win1` save, stage 5's first URL tournament
+  S5_URL_1, event +0x08 = 0xF874A549, three races of three laps): race 1 on track 4712 started with
+  0x7FAA08 = 0x10 and the race record 0x85EF48 = 0x85BAB8; after the race's results and the standings
+  the Post Race menu read Next Race, Return to Explore Mode, Restart, Race Stats, Replay, Quit to Main
+  Menu; Next Race posted message 10 (0x7FAA08 = 0xA), moved the record to 0x85C7DC (+0xD24) and started
+  track 4714 with the six racer records [0x89E810] identical to race 1's but for +0x8F8, grid slots
+  (+0x03) 6, 2, 3, 4, 5, 1 both times (and so after a Restart of race 1 before it). To finish race 1
+  the harness put the player's rigid body (+0x20..+0xE0) on the last rival's of 0.2 s before, every
+  20 ms, so the race's own lap count and finish ran; nothing of the field was written. A Quick Race URL
+  race is a single race in the original too: its Post Race menu has no Next Race. Evidence:
+  docs/evidence/perf-budget/restart-line-up.txt. Test
+  `tests::race_again::next_race_takes_the_url_tournament_to_its_second_track_with_its_field`.
+* **Open**: whether a restarted tournament race's own record (+0x14 state) counts a finish from before
+  the restart in the points (0x513EB0) is not traced.
 * Clone: `Field::looks` and `Field::slots` (kept by `line_up_rivals`), `RaceFlow::restart`
   (`start_race_from`), docs/native-fixes/race-again.tsv. The race's rivals' cars are taken again by the
   set-up for the same load keys (`Loads::raced_cars`; docs/perf-budget.md "A race raced again").

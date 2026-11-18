@@ -40,3 +40,9 @@ A restart's rivals: Restart and Next Race keep the field in the original; the cl
   a restart with the cars kept against one that loads them: the same field, generator and 30 steps of
   state hashes; a tournament's Next Race: the same line-up, looks and slots on race 2 with the cars of
   race 1, and Restart there stays on race 2.
+
+Next Race under Wine (stage5_win1 save, S5_URL_1 = 0xF874A549, six racers, 0x940 bytes each at [0x89E810]):
+  race 1 green:      track 4712, 0x7FAA08 0x10, record 0x85BAB8, grid +0x03 = 6 2 3 4 5 1
+  race 1 restarted:  track 4712, 0x7FAA08 0x9,  record 0x85BAB8, every record equal but +0x8F8
+  race 2 (Next Race): track 4714, 0x7FAA08 0xA, record 0x85C7DC, every record equal to race 1's but +0x8F8
+  (the player finished race 1 by following the last rival's rigid body 0.2 s behind; Quick Race URL: single race, no Next Race)

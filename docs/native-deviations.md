@@ -221,5 +221,5 @@ The following still differ from the original. These are defects, tracked as such
 - **Physics:** a car held against a wall turns off it the same way as in the original, but leaves it
   sooner or later: from the second push of a hold the contacts' timing differs (the contact refresh,
   docs/cornering-parity.md section 6).
-- **Not yet compared under Wine:** a tournament's Next Race (Restart was), a save made after a long session
-  loaded back into the original (docs/world-systems-parity.md section 5).
+- **Not yet compared under Wine:** a save made after a long session loaded back into the original
+  (docs/world-systems-parity.md section 5).

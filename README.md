@@ -139,11 +139,6 @@ original, with its switch, is in [docs/native-deviations.md](docs/native-deviati
   for byte as the original's own load-and-save leaves it, and the original loads Overbright's saves. A save
   made after a long session played in Overbright was not loaded back into the original in the last check.
 
-**Not yet compared with the original under Wine**
-
-- **Next Race in a tournament:** it follows the traced rule (the same field races again, like Restart, which was
-  compared), but the tournament case itself was not run side by side.
-
 **Performance**
 
 - **The F3 performance overlay's system rows** (CPU and GPU load, clocks, temperatures, memory) show "n/a" on
