@@ -8,7 +8,7 @@ in HD too (§3).
 
 ## 1. PC_Loading at game start (the 200 ms rule, a deviation)
 
-**Traced** (`$OB_PRIVATE/dis/speed2.dis`):
+**Traced** (a disassembly listing of SPEED2.EXE):
 * WinMain's tail (0x580E5C..0x580E76) and 0x5817E0 (0x581813) set the main loop's pending load
   step 0x865484 (`g_LoadHandler`, name inferred) to **0x57FF20** (`FrontEndLoader_Load`) and
   0x86548C to 0x7A07A8.
@@ -21,12 +21,12 @@ in HD too (§3).
 
 **Observed under Wine** (SPEED2.EXE 1.2, fastgpu.sh/DXVK, fresh profile, x11grab of the Wine
 desktop window at 30 fps from its creation): PC_Loading (PC_load.tga, "LOADING", the bars) for
-frames 18–21 (~0.13 s on this machine), then LS_BlankMovie's black, then FMVOpening
+frames 18–21 (~0.13 s on the reference desktop), then LS_BlankMovie's black, then FMVOpening
 (internal evidence: the original's frames and `timings.txt`). The original's start load is shorter
 than the clone's 200 ms rule, which would therefore have hidden it.
 
-**Clone** (`game.rs`: `BootLoading`, `run`, `resumed`, `redraw`), **deviation** (design correction
-2026-11-05; CLAUDE.md): the start follows [`LOADING_DELAY_MS`] (200 ms) like every other load
+**Clone** (`game.rs`: `BootLoading`, `run`, `resumed`, `redraw`), **deviation** (a design
+correction): the start follows [`LOADING_DELAY_MS`] (200 ms) like every other load
 (track loads, `LoadingGate`). `run` arms `BootLoading` for the windowed game (the headless modes
 never open a window); `BootLoading::frame` gives a PC_Loading frame only once the start's work
 still running with the window open (`resumed`: the window, then the audio device) has taken 200 ms,
@@ -51,9 +51,9 @@ frame. The log says which (`game start: done after N ms, PC_Loading shown / not 
 
 ## 2. The loading screens' textures and the HD UI pack
 
-`$OB_PRIVATE/devprobes/src/bin/loading_textures [HD pack]` lists every texture of the loading packages and whether the
-pack covers it, and what PC_Loading draws. With the player's pack
-(`$OB_PRIVATE/packs/upscaled-hud-detailed-map`, 4× almost everywhere):
+a private developer probe (`loading_textures [HD pack]`) lists every texture of the loading packages and whether the
+pack covers it, and what PC_Loading draws. With a player's HD HUD pack
+(4× almost everywhere):
 
 | texture | size | where | HD UI pack | generator |
 |---|---|---|---|---|
@@ -97,7 +97,7 @@ Enter Key", `screens::Splash`, formats.md "Boot sequence"). It is **not** a load
 exactly as it was (waits for Enter, the native 30 s return to the intro, no layout, timing, fade or
 text change); only its picture gets HD, with HD UI Art on.
 
-`$OB_PRIVATE/devprobes/src/bin/loading_textures [HD pack]` now lists UG_LS_Splash and what it draws
+a private developer probe (`loading_textures [HD pack]`) now lists UG_LS_Splash and what it draws
 (`Splash::quads` at 1 s, and at 6 s with the prompt up):
 
 | texture | size | UG_LS_Splash draws | HD UI pack | generator |
@@ -111,7 +111,7 @@ So the title screen is the same art as PC_Loading (and MC_Background, Loading): 
 needed; the generator now also collects the title screen's package (`upscale_pack::TITLE_PACKAGES`,
 read by `collect_loading`, so `overbright-upscale --ui` / `--ui-out` covers it by itself) and the
 loading-image file is used wherever PC_LOAD is drawn. Generated with
-`overbright-upscale --ui-out $OB_PRIVATE/packs/generated-ui --hd $OB_PRIVATE/packs/upscaled-hud-detailed-map`
+`overbright-upscale --ui-out <output folder> --hd <the HD HUD pack's folder>`
 (14 textures: 7 covered by the HD UI pack, 4 flat, 1 small, 2 upscaled: PC_LOAD and U2_LOADING_BG,
 12.8 MB, 12 s).
 

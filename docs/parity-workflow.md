@@ -18,7 +18,7 @@ marked.
    arm in `car_value` / `global_value`) and a tolerance once the fix lands; the test
    `every_field_accessor_is_known` fails until the accessor exists.
 2. **Record the original once** (it does not change with the fix):
-   `$OB_PRIVATE/tools/parity/parity.py run SCENARIO.toml OUT` writes `native.tsv`, `native.json`,
+   the private tool `parity.py run SCENARIO.toml OUT` writes `native.tsv`, `native.json`,
    `native.rec` + `native.layout.json` (exact bits), then runs the clone and the diff. Keep OUT.
    Use a pinned scenario (§3) when the comparison needs the same opponents, grid and draws.
 3. **Before**: with the unchanged clone, `parity.py clone SCENARIO.toml OUT` →
@@ -30,7 +30,7 @@ marked.
 6. **Judge** with the rules of §2 and put the before/after summary lines and the fix's
    field rows (a few frames around the change) into `docs/evidence/<topic>/`.
 
-Wall time on this machine (one game instance, wined3d on the GPU): a full `run` of a 20 s
+Wall time on the reference desktop (one game instance, wined3d on the GPU): a full `run` of a 20 s
 career-event scenario takes **3–4 min** (boot to free roam 45–100 s, race load and countdown
 ~20 s, the 20 s recording ~50 s of wall time under the fixed frame time, the clone 7 s, the
 diff ~50 s); a free-roam scenario of 8–12 s **45–70 s**; `clone` + diff alone **~1 min**.
@@ -74,7 +74,7 @@ Context fields (`tol = -1`, clone `context`) are recorded and printed but never 
 
 ## 3. Determinism of the original (observed 2026-11-11)
 
-Two recordings of the same scenario, compared bit for bit (`$OB_PRIVATE/tools/parity/detstats.py A B`
+Two recordings of the same scenario, compared bit for bit (the private tool `detstats.py A B`
 over `native.rec`); outputs in `docs/evidence/parity-workflow/`):
 
 * **Unpinned career race** (`circuit_s1`, twice): different from frame 0. The opponents'
@@ -104,7 +104,7 @@ over `native.rec`); outputs in `docs/evidence/parity-workflow/`):
   address), and the camera eye / direction from frame 26 at the 1e-4 level.
 
 **Update (2026-11-12)**: four pinned recordings of `circuit_s1_pinned` (00:25 of
-2026-11-12, one of 2026-11-11, two in `a private Wine copy`) agree on every car's place only to frame 264–280;
+2026-11-12, one of 2026-11-11, two in a private Wine copy) agree on every car's place only to frame 264–280;
 past the rivals' first-corner contacts they part, the player 8–131 m apart at 20 s
 (internal evidence). Compare this scenario per frame only to
 ~frame 260; beyond it, judge against the original's own spread. The clone pins the original's
@@ -258,14 +258,14 @@ flow state), `detstats.py` (run-to-run comparison, exact bits). Scenario keys: `
 11. **Unmatched pieces of the old notes**: `nos_left` (car +0x45C, i32) read float bit
     patterns in early runs (e.g. 1065353216 = 1.0f); check its type before relying on it.
 
-## Appendix: local setup (this machine)
+## Appendix: local setup
 
-Machine-specific; not part of the method.
+Setup-specific; not part of the method.
 
-* Wine tools: `$OB_PRIVATE/wine` (README.md, fastgpu.sh, peek.py; `$PARITY_WINE`). Each
-  agent uses its own copy `$OB_PRIVATE/wine-<name>` (`--copy` or `$PARITY_COPY`; native.py
-  refuses copies outside `$OB_PRIVATE/wine-*`) and its own Xvfb display ≥ 140 (`--display`
-  or `$PARITY_DISPLAY`); never the shared `wine/`, never `DISPLAY=:0`.
+* Wine tools: the maintainer's private Wine folder (README.md, fastgpu.sh, peek.py; `$PARITY_WINE`). Each
+  run uses its own copy of it (`--copy` or `$PARITY_COPY`; native.py refuses copies outside the
+  `wine-*` copies beside it) and its own Xvfb display ≥ 140 (`--display` or `$PARITY_DISPLAY`); never the
+  shared `wine/`, never the desktop's display.
 * A fresh copy of `wine/` updates its prefix on the first start, and the update hangs in
   Wine Mono's installer (`control.exe appwiz.cpl install_mono`). Update it once offline first:
   start a private Xvfb first, make a private runtime folder (`mkdir -p <copy>/xdg && chmod 700 <copy>/xdg`), then `env -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE XDG_RUNTIME_DIR=<copy>/xdg DISPLAY=:<your Xvfb> WINEPREFIX=<copy>/prefix WINEDLLOVERRIDES="mscoree=;mshtml=" wineboot -u`, and pin the prefix to X11 with the same environment: `wine reg add 'HKCU\Software\Wine\Drivers' /v Graphics /d x11 /f` (never run a Wine command with DISPLAY cleared: without an X display Wine falls back to the desktop session's default Wayland socket even when WAYLAND_DISPLAY is unset), then
@@ -273,11 +273,11 @@ Machine-specific; not part of the method.
 * Game files: `$NFSU2_ROOT` (parity.py's default is the maintainer's verified copy).
   Build: `. scripts/local.env; CARGO_TARGET_DIR=<own target> cargo build --release
   --bin game --features dev-harness`; `$PARITY_GAME` or `$CARGO_TARGET_DIR/release/game`.
-* Work dirs: `$PARITY_WORK` (the default is an older run folder under $OB_PRIVATE; set it); keep runs out of /tmp.
+* Work dirs: `$PARITY_WORK` (the default is an older private run folder; set it); keep runs out of /tmp.
 
-## Appendix: random-number draws per call site (RNG-T, 2026-11-12)
+## Appendix: random-number draws per call site
 
-* `$OB_PRIVATE/tools/parity/rngsites.py patch $OB_PRIVATE/wine-<you>` writes a patched SPEED2.EXE into **your own Wine
+* the private tool `rngsites.py patch <your Wine copy>` writes a patched SPEED2.EXE into **your own Wine
   copy's** game folder (the original kept as `SPEED2.EXE.orig`; `restore` puts it back): each of the 206 direct
   calls to a draw function (shared 0x43C1C0 / 0x43C1F0, world 0x5EA4F0 / 0x5EA510, the state-pointer forms
   0x43C140 / 0x43C170, the seed 0x43E6B0, speech 0x738750 / 0x738860, AEMS 0x724903) and the two inline seed
@@ -285,11 +285,11 @@ Machine-specific; not part of the method.
   instruction (stubs in the nop padding between functions; counts at 0x8BB600 +4·site, totals per draw
   function at 0x8BBB80). The stubs live in function padding below 0x780000, so the cave, `counters.py` and
   `subtrap.py` still work on the patched copy (the `Probes` of an earlier Wine run, which uses 0x8BB600, does not).
-* `$OB_PRIVATE/tools/parity/rngdraws.py OUT [--event circuit|drag|none] [--shop X,Y,Z] [--audio]` runs one session on it
+* the private tool `rngdraws.py OUT [--event circuit|drag|none] [--shop X,Y,Z] [--audio]` runs one session on it
   (boot, 600 menu frames, free-roam entry, 600 free-roam frames, then the event — shared generator pinned at
   the dialog — or the shop) with the per-site table recorded every frame through the cave;
-  `rngdraws.py report OUT` prints per phase and per frame. Results: $OB_PRIVATE/audit/binary/RNG-port-list.md
-  and the maintainer's private captures. Each row also holds player 1's NIS id (`[0x8900AC] +0x234`, `nis`), the camera
+  `rngdraws.py report OUT` prints per phase and per frame. The results (a port list per call site and
+  the captures) are kept with the maintainer's private evidence. Each row also holds player 1's NIS id (`[0x8900AC] +0x234`, `nis`), the camera
   director's gate (docs/rng.md).
 * Clone side (`dev-harness` builds): `NFSU2_RNG_LOG=<file>` logs every `GameRng` draw with its caller and
   generator instance (src/opponents.rs `draw_log`); the maintainer's tool `rnglog.py` sums two such logs by site.

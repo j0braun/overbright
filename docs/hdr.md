@@ -27,13 +27,13 @@ colour → colour function, so only it becomes the LUT.
   while driving).
 * **Use**: HDR Output's grade pass `fs_grade_lut` (trilinear between
   lattice codes, the cell found on the codes, not on i/31).
-* **Export**: `$OB_PRIVATE/devprobes/src/bin/grade_lut.rs cube OUT.cube [R G B W AMOUNT]` writes
+* **Export**: a private developer probe (`grade_lut cube OUT.cube [R G B W AMOUNT]`) writes
   a standard `.cube` (32³; its domain is uniform, the lattice codes are
   within 0.5/255 of i/31) and the exact strip as PNG.
 
 ### Verification (reference desktop GPU, RADV; `grade_lut verify`, `grade_lut wine`)
 Against the original (Wine, apitrace replays, private copy
-`$OB_PRIVATE/wine/runs/<run>`, display :220; traces of <work dir>). Each frame's
+a private Wine copy, display :220; traces of <work dir>). Each frame's
 back buffer after its last scene draw (the input the StretchRect 0x5CC8C0
 copies into screen copy 0) and the render target after the bleach's p2
 draw, snapshots of `d3dretrace --snapshot`:
@@ -132,7 +132,7 @@ frame texture and go through the display transform like every other frame.
 ## Platform support matrix
 | platform / backend | HDR10 PQ (`Rgb10a2Unorm`, BT2100_PQ) | scRGB (`Rgba16Float`, EXTENDED_SRGB_LINEAR) | how known |
 |---|---|---|---|
-| Linux, Vulkan (RADV 26.2.5), GNOME 51 Wayland (this machine) | **offered by the surface** (HDR10_ST2084 on A2B10G10R10 / A2R10G10B10 and 8 others) | not offered (BT709_LINEAR is not extended) | `vulkaninfo` surface formats, 2026-11-04 |
+| Linux, Vulkan (RADV 26.2.5), GNOME 51 Wayland (the reference desktop) | **offered by the surface** (HDR10_ST2084 on A2B10G10R10 / A2R10G10B10 and 8 others) | not offered (BT709_LINEAR is not extended) | `vulkaninfo` surface formats, 2026-11-04 |
 | Linux, Vulkan, KDE Plasma 6 Wayland | expected (Mesa WSI + wp_color_management_v1) | expected | inferred, not run |
 | Linux, X11 / Xwayland | not offered (no colour management on X) | no | inferred |
 | Windows, DX12 | yes (on `Rgb10a2Unorm`) | yes | wgpu 30 docs; not run |
@@ -142,7 +142,7 @@ frame texture and go through the display transform like every other frame.
 Detection is the surface's own capability list (`hdr_output::choose`); the
 row is greyed ("Not Supported") without either signal.
 
-### What was verified on this machine and what could not be
+### What was verified on the reference desktop and what could not be
 * The monitors (DP-1 Dell S2721D, DP-3 Dell S2725QS; EDID) carry **no HDR
   static metadata block**: they are SDR panels, and GNOME's HDR mode is off
   (`~/.config/monitors.xml` has no colour mode). HDR output **could not be

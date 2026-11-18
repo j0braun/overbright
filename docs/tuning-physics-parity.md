@@ -1,6 +1,6 @@
 # Tuning, parts and launch physics vs the original (2026-11-04)
 
-This page of the roadmap: launch physics first (the race-AI parity's open items A and C,
+This page covers launch physics first (the race-AI parity's open items A and C,
 docs/race-ai-parity.md), then the drag rub, then the tuning/parts sweep.
 **Verified** = traced in SPEED2.EXE, **observed** = read under Wine with
 the parity harness (docs/parity-harness.md), **inferred** / **open** as
@@ -10,7 +10,7 @@ extracts in the maintainer's private captures.
 ## New harness fields (the maintainer's `fields.toml`)
 
 Drivetrain and wheels, context only (tol −1), each with a clone accessor
-in `src/bin/game/parity.rs`: mover car +0x34; mover +0x48 the engine
+in `src/bin/game/dev/parity.rs`: mover car +0x34; mover +0x48 the engine
 (`eng_w` +0x14 crank speed rad/s, `eng_pedal` +0x78, `eng_power` +0x80,
 `eng_cut` +0x88), mover +0x4C the drivetrain (`clutch` +0x14, `shift`
 +0x44, `in_w` +0x4C, and native-only +0x50/+0x58/+0x5C/+0x60/+0x70, engine
@@ -108,7 +108,7 @@ at launch speeds the rigid body's alone removes it (exp_rb2; evidence
 `aistats.txt` and the run dirs). Not the per-player serialisers
 (0x60A66A, circuit_nocars).
 
-**What changes (observed).** `$OB_PRIVATE/tools/parity/snapdiff.py --attach` stops the
+**What changes (observed).** The private tool `snapdiff.py --attach` stops the
 original's game thread right before the snapshot (EB FE over the jmp at
 0x57D060) and right after it (EB FE at 0x581110), both at the same loop
 counter, and diffs the player car's objects (evidence
@@ -397,8 +397,7 @@ the original (`PartDb::visual_rating` is the earlier port).
 **State found.** Part 4 (the DUMMY_SNAPSHOT port, the drag rub push-out
 from the centres of mass), C (the drag AI shift offsets, the × 0.35 slow
 clutch, target 1000), the tuning sweep and the test isolation (docs/test-determinism.md)
-were already merged on main; the roadmap's
-"NOT merged" note was stale. The snapshot-tuning pass re-ran the stored native captures against
+were already merged on main. The snapshot-tuning pass re-ran the stored native captures against
 the base (the stage-4 drag to outrun-pace changes included) with `parity.py clone`.
 
 **Launches on <base> (observed, evidence `p15-launch-aistats.txt`).**

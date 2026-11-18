@@ -24,7 +24,7 @@ options.txt `enh.reload_packs 1`), after the HD UI row. With it on:
   (`texture-pack` beside the game or `NFSU2_TEXTURE_PACK`, watched while the HD UI row is on, even
   while incomplete) and the world and car pack folders (`texture_pack::root_of`). Polling, not
   inotify: no new dependency, and it follows folders that appear, disappear or are symlinks.
-  Measured cost of one poll (readdir + stat, this machine): 714 files 0.8 ms, 1598 files 1.9 ms,
+  Measured cost of one poll (readdir + stat, the reference desktop): 714 files 0.8 ms, 1598 files 1.9 ms,
   947 files 1.1 ms (`NFSU2_PACK_WATCH_TIME=<dir> cargo test --release --lib listing_cost -- --nocapture`).
 * Debounce: a file's (size, mtime) must stay the same for one whole tick before it counts; a file
   still being written keeps changing and waits.

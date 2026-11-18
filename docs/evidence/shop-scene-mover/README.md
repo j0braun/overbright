@@ -1,7 +1,7 @@
 # Shop / dyno scene cars on the NIS mover, dyno camera (2026-11-06)
 
 Vanilla SPEED2.EXE (sha256 8f6a9ae2…2a297) under Wine, private copy
-`$OB_PRIVATE/wine/runs/<run>` (WidescreenFix's ASI loader off), fastgpu on :170
+a private Wine copy (WidescreenFix's ASI loader off), fastgpu on :170
 with `--audio-file`, the finished-career save's profile (Lancer). Read-only polls; no writes.
 
 * `scenecap.py SESSION OUT.json [secs] [wait]`: waits for a world car (0x890080

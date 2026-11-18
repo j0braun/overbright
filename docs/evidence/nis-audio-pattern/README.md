@@ -35,7 +35,7 @@ this avoids misalignment after embedded jump-table data.
 
 ## Natural envelope capture
 
-Owned prefix: `$OB_PRIVATE/wine/runs/<run>`.
+Owned prefix: a private Wine copy.
 Private display 175; copied the finished-career save; game PID 1261098. Navigation was
 Title → load the finished-career save → Career → Resume → Garage → Return to Explore → nearby
 Body Shop dialog → Enter Shop. No hooks, placement writes or forced scene entry

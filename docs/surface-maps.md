@@ -209,7 +209,7 @@ mask uses the native module with the row off.
 car_map_only_inside_its_regions, pack_replacements_fit_and_key_apart}`,
 `render::car::…::surface_module_hooks_car_colour_only_when_on`,
 `world_source_strips_the_lamps` (SURFACE_SSR_DRY lamps-only), `mask_module_appends_to_the_native_car_shader`.
-Probe: `$OB_PRIVATE/devprobes/src/bin/car_surface_census.rs CAR… --maps` (classes, verdicts; `CAR_MAP_DIR` writes the maps).
+Probe: a private developer probe (`car_surface_census CAR… --maps`) (classes, verdicts; `CAR_MAP_DIR` writes the maps).
 
 ## Open
 * Grilles, badges and plates: relief is subtle under the night's harmonic light; no daylight scene.

@@ -4,7 +4,7 @@ Issue: in the first career race the animation stuttered, and two of the three
 opponents drove left and crashed into the player's car (after a restart, into
 the other racer).
 
-## Reproduction (`--flow firstrace`, `src/bin/game/first_race.rs`)
+## Reproduction (`--flow firstrace`, `src/bin/game/dev/first_race.rs`)
 
 A fresh profile past the intro (`skip_intro`, Peugeot), stage 0's first race
 (`STAGE0_RACES[0]`), its start scene played through (not skipped), driven as
@@ -38,7 +38,7 @@ whose point is 0x415D50(path, lane, lateral, point) → 0x4122C0 on the
 FuturePoint: control point geometry at its offset (+0x58 − +0x54 + s), lane
 position (0x401C40) + adjust (+0x04) + the lateral, then vt+0x38. 0x4122C0 does
 not read the +0x74 inserted flag. Fix: every path point is `line_point(…,
-lateral)` (`src/ai/route.rs`); the same fix was made independently by the outrun-strength
+lateral)` (`src/ai/route/`); the same fix was made independently by the outrun-strength
 outrun unit (`inserted_points_keep_the_lateral_on_the_path`,
 docs/outrun-ai-strength.md); this copy carries the identical code/comment.
 

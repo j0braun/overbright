@@ -41,7 +41,7 @@ original recorder script; it is not a boolean. The full record/decoder dword
 
 ## Capture intervention and ownership
 
-A fresh private copy/profile in `a private Wine copy`, display 174,
+A fresh profile in a private Wine copy, display 174,
 was navigated with the retained `fastnav.py ... freeroam` method. Source assets,
 original source, and user saves were not changed. Session paths, PID, hooks,
 original/patch bytes, all deliberate state writes and wall timestamps are in
@@ -91,11 +91,11 @@ is static evidence only here.
 
 ## Reproduction and verification
 
-Offline, from the repository root:
+Offline, from the repository root (the scripts are kept with the maintainer's private evidence):
 
 ```sh
-python3 $OB_PRIVATE/docs/evidence/outrun/belt-applicability/decode.py $OB_PRIVATE/docs/evidence/outrun/belt-applicability/follow.json
-python3 $OB_PRIVATE/docs/evidence/outrun/belt-applicability/test_decoder.py
+python3 decode.py follow.json
+python3 test_decoder.py
 ```
 
 The second command checks all captured groups and rejects ten rehashed
@@ -108,10 +108,10 @@ directory. Recorder rebuilding with GNU `as --32`, `ld -m elf_i386
 -Ttext=0x782b00 -e decision`, and `objcopy -O binary --only-section=.text`
 was byte-identical to `recorder.bin`.
 
-For a new authorized private session, navigate fresh free roam first, then:
+For a new authorized private session, navigate fresh free roam first, then (the scripts are kept with the maintainer's private evidence):
 
 ```sh
-python3 capture.py $OB_PRIVATE/wine/runs/<run> /absolute/owned/output/follow.json --seconds 65
+python3 capture.py WINE_PREFIX /absolute/owned/output/follow.json --seconds 65
 ```
 
 This depends on the retained private `peek.py`/fastgpu method, display ownership,

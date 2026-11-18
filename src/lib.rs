@@ -141,7 +141,7 @@ pub mod build_info;
 pub mod console;
 // Quality tooling (docs/game-fingerprint.md, docs/mark-spot.md).
 pub mod fingerprint;
-// Tables read from the player's SPEED2.EXE at start (docs/exe-tables.md).
+// The engine's tables, in code (docs/exe-tables.md).
 pub mod exe_tables;
 pub mod game_fs;
 /// The launcher (`overbright`, docs/launcher.md).

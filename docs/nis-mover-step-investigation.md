@@ -100,11 +100,11 @@ a complete independent formula comparison of the capped impulse branch. Two
 separate executions reproduced all output bytes identically. All48 cases passed
 the offline audit. The private wineserver is stopped by the probe's finally block.
 
-Reproduce with the verified executable and a private output directory:
+Reproduce with the verified executable and a private output directory (the scripts are kept with the maintainer's private evidence):
 
 ```
-python3 $OB_PRIVATE/docs/evidence/nis-mover-step/probe-target.py /path/SPEED2.EXE /private/probe
-python3 $OB_PRIVATE/docs/evidence/nis-mover-step/check-target.py
+python3 probe-target.py /path/SPEED2.EXE /private/probe
+python3 check-target.py
 ```
 
 This closes the target helper's basic setter/cache ambiguity. Full moving-scene
@@ -200,8 +200,8 @@ also remain open. The complete native setter must include these branches;
 this evidence does not justify wiring a partial setter into live playback.
 
 Reproduce with `probe-target-state.py ORIGINAL_EXE PRIVATE_OUTPUT_DIRECTORY`,
-then run `python3 $OB_PRIVATE/docs/evidence/nis-mover-step/check-target-state.py` against the
-retained fixtures. No playable-package behavior changes accompany this evidence.
+then run `check-target-state.py` against the retained fixtures (both scripts are
+kept with the maintainer's private evidence). No playable-package behavior changes accompany this evidence.
 
 ### Teleport placement also resets controller state
 

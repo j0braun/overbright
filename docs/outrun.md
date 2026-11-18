@@ -202,7 +202,7 @@ against the player's car rating (0x4FEAF0, −1 → 0x5B69A0) from the pool, and
 Wine (Medium, 1): the challenged rivals were an A3 with row 4 (stage 4, a community save) and a CORSA
 with row 3 (stage 5) — within Medium's rows; this is consistent, not a distribution check.
 
-**Observed under Wine** (the maintainer's private captures; Wine copy `a private Wine copy`, wined3d;
+**Observed under Wine** (the maintainer's private captures; a private Wine copy, wined3d;
 `outrun_win.py`: the sandbox save's +0xDC set, engaged as outrun.py does, the player put 15 m
 ahead until its racer +0x24 = 0 (it leads), then the rival lifted 400 m: status 7, the player
 wins at once):

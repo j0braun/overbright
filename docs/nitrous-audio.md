@@ -37,7 +37,7 @@ tank never triggers it.
   clone runs `PlayerSfx` for the player only (**inferred** mapping).
 
 ## Observed under Wine
-Run with vanilla SPEED2.EXE in the private copy `a private Wine copy` on display
+Run with vanilla SPEED2.EXE in a private Wine copy on display
 :217, with `--audio-file`. Quick Race Circuit, Peugeot 206. The tank was set
 through `peek` (car = [[0x8900B4] +4], size +0x454 = 8000, left +0x45C). The
 sequence was gas 3 s, Left Alt about 1.7 s, then release and brake. Script:

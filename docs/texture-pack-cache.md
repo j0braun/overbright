@@ -10,7 +10,7 @@ as before, byte for byte. No SPEED2.EXE behaviour is involved (the texture packs
 * `WorldRenderer::new` (src/render/mod.rs): with a world pack, the upload-ready arrays with the
   pack applied (`prepared::arrays_with_pack`) are written after the first load to a file of their own
   beside the track's: `<cache>/track-<REGION>-pack.nfc` (`TrackCache::pack_file` / `store_pack`,
-  src/cache.rs). It holds the same "gpu.meta" / "gpu.a*" sections as the native data (no geometry;
+  src/cache/). It holds the same "gpu.meta" / "gpu.a*" sections as the native data (no geometry;
   the track's file has it) and a "pack.key" section. The track's own file keeps the native arrays,
   so turning the pack off finds them unchanged. There is one file per track, for the most recent pack setup.
 * Validity: the file is a normal cache file over the track's game files (build id, sizes, times,
@@ -48,7 +48,7 @@ as before, byte for byte. No SPEED2.EXE behaviour is involved (the texture packs
   keep the quality at a quarter of the size (12.6 MB saved, about 5 %), but needs a third-party
   encoder (none vendored). Left open.
 
-## Measurements (this machine; shared, so the load numbers are noisy)
+## Measurements (the reference desktop; shared, so the load numbers are noisy)
 internal evidence: loads SET 10 runs, 4 arms; with the pack, city loads (load + first frame, median) 502 → 364 ms first load, 322 → 160 menu → free roam, 396 → 216 race → free roam, 466 → 258 Quick Race circuit (pack off unchanged: 277 / 278 ms); cold page cache 1.1–2.7 s → 0.6–1.0 s.
 
 ## Tools

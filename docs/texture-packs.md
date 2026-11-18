@@ -95,8 +95,9 @@ changing game files. Read from its public source (`TexWizard.h`, release 1.3) an
   point 0x75BCC7, the one TexWizard checks) there are 81 calls of 0x4901D0, as TexWizard patches; its 42
   sites below 0x536000 are the same, the other 39 and its loader addresses (call 0x57ED99, loader
   0x57FB40) are 16 bytes lower than this executable's (call 0x57EDA9 of 0x57FB50, which loads
-  `GLOBAL\GLOBALB.LZC`; inferred from the disassembly). TexWizard's table was made for the 4,800,512-byte
-  v1.2 executable; this one has 4,788,224 bytes, the same code moved by 16 bytes from there on. Per site:
+  `GLOBAL\GLOBALB.LZC`; inferred from the disassembly). TexWizard's table was made for another 1.2
+  executable, of 4,800,512 bytes; the traced one has 4,788,224 bytes, the same code moved by 16 bytes from
+  there on. Per site:
   docs/evidence/texwizard/hook-sites.tsv.
 * **Which packs, in which order**: `scripts/TexWizard.json` in the game folder, `{"packs": [FOLDER, …],
   "autoScan": true}` (folders relative to the game folder), then, unless `autoScan` is false, every folder

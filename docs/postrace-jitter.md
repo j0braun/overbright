@@ -3,7 +3,7 @@
 Issue: the post-race animation still jittered. Display: 3840×2160 full screen,
 VSync off (Mailbox), monitors at 59.98 / 74.96 Hz.
 
-## Reproduction (`--flow postrace`, `src/bin/game/post_race.rs`)
+## Reproduction (`--flow postrace`, `src/bin/game/dev/post_race.rs`)
 
 A race (start scene skipped) raced on the player's autopilot to the line,
 then recorded frame by frame as the window drives it (`Game::advance`):

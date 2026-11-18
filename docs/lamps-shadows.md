@@ -1,7 +1,6 @@
 # Dynamic Lamps, Lamp Shadows, Contact Shadows (clone deviations, opt-in)
 
-Wave G the lamps-and-shadows work (roadmap `research/roadmap-2026-11-04.md`, research report
-item 4). Three Graphics rows in the Lighting group (`frontend/graphics_table.rs`,
+Three Graphics rows in the Lighting group (`frontend/graphics_table.rs`,
 with their tiers' help and costs), all off by default (native,
 byte-identical). Presets: Modern = Dynamic Lamps On, Lamp Shadows Low,
 Contact Shadows On; Ultra = Lamp Shadows High; Original / Restore Native

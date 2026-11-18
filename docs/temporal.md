@@ -1,7 +1,6 @@
 # Temporal tier: TAA, Upscaling, Volumetric Fog (clone deviations, opt-in)
 
-Wave G this work (roadmap `research/roadmap-2026-11-04.md`, research report
-items 7 and 9). Nothing here exists in SPEED2.EXE (no temporal pass, no
+Nothing here exists in SPEED2.EXE (no temporal pass, no
 upscaler, no volumetric light: its fog is world.efx's per-vertex fog plus
 the horizon fog grid 0x5C7480); nothing was traced and nothing is native.
 All rows are off by default; with them off the image is the native one

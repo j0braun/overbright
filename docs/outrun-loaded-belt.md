@@ -106,15 +106,15 @@ retrospective red run.
 
 All runs use the read-only verified assets and private XDG/TMP paths via
 an internal run folder (retained below as `run.sh.txt`).
-From this worktree, invoke that wrapper with:
+From this worktree, invoke that wrapper with (the scripts are kept with the maintainer's private evidence):
 
 ```sh
 cargo test --lib --bin game
 cargo test --test track_l4ra --test high_refresh --test tuning_physics
 cargo test --bin game intro_skip_preserves_ai_grid_handoff -- --ignored --nocapture
 cargo run --bin game -- --selftest
-python3 $OB_PRIVATE/docs/evidence/outrun/belt-applicability/test_decoder.py
-python3 $OB_PRIVATE/docs/evidence/outrun/generate-belt-gates.py
+python3 test_decoder.py
+python3 generate-belt-gates.py
 ```
 
 Final results:512 library passed/12 ignored;20 game passed/12 ignored;

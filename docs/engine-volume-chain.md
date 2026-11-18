@@ -175,7 +175,7 @@ Idle-sweetener gate that moves HM+0x4 toward 0x7FFF or 0 by at most +0x3D7 / −
 - Engine +0x140 / +0x144 / +0x148 / +0x1C8 offsets, and the 3DCarPos source behind Engine.+0x138.
 - What 0x4669D0 computes, and whether the +0xB0 abk block is audible on PC.
 - Rev-limiter ramp durations: constant 0x7885EC = 450 combined with a global scale at 0x7F0064.
-## <work dir> answers (ported in src/audio/hybrid.rs; details in formats.md "Engine volume chain, <work dir> pass")
+## Answers (ported in src/audio/engine_chain/motor.rs; details in formats.md "Engine volume chain")
 - **ctx fields** (SFXCTL_Physics 0x484C50): +0x44 = throttle % slewed ±30 per update; +0x48 = (rpm − idle)/(max − idle)·9000 + 1000; **+0x4C = throttle input > 30 %**; +0x50 = gear; **+0x54 = throttle input %**.
 - **[[ctx+0x40]+0xD8]**: ctx+0x40 is the Physics controller; +0xD8 is set when the game state takes control away (then 0x46FA30 scripts the revs).
 - **AccelTrans +0xC8**: 0 idle, 1 tip-in (0x45CB70), 2 launch (0x45CC30), 3 launch settling, 4 lift during a transient; +0xC0 is its throttle ramp. Not ported (state 0).
@@ -185,7 +185,7 @@ Idle-sweetener gate that moves HM+0x4 toward 0x7FFF or 0 by at most +0x3D7 / −
 - **Rev limiter**: 450 · v · s ms with s = clamp(gear, 1, 5) (0x7F0050 map; 0x7F0064 is its output, not a global scale).
 - **The +0xB0 abk block is created on PC** (0x47D920): event "CAR" of the EE bank (CAR_xx_ENG_MB_EE.abk), now ported (`HybridMotor::abk_block`, `PlayerSfx::engine_abk`); it carries the steady layers (p4/p5 from HM +0x7C) and the rev-limiter layer (p25 from HM +0xB8). It uses no node 38/39 (only the SWTN banks do).
 - Still open: level[0] (mix map), HM+0x4 (slot 6), Engine +0x140/+0x144/+0x148/+0x1C8 during transients, the 3DCarPos cutoff source.
-## <work dir> (ported in src/audio/transients.rs; details in formats.md "Engine transients, <work dir> pass")
+## Engine transients (ported in src/audio/car/transients/; details in formats.md "Engine transients")
 - **AccelTrans** launch (0x45CC30) / tip-in (0x45CB70) / lift (state 4) and the **Shifting** blip machine (0x482D50, states 1–7, triggers 0x46EC70 / 0x46EE60) now run; while active their ramps replace Engine +0x128 (0x46F7D0) and the throttle filter (0x45C710), the shift adds the volume bump (+0xE0, 0x45C6C0) and the rpm / volume wobble (0x45C7A0), and HM's D0 filter and gain targets follow their states.
 - Engine +0x13C (0x46F9D0) rate-limits ctx rpm to −60 / +999 per update at ≤ 2500 rpm outside transients.
 - Still open: Engine +0x1C8 (no writer in the class: 0), +0x134 / 0x46F580, Physics +0xD8 (0x46FA30), the mix map's level[0].

@@ -1,8 +1,8 @@
-# Game-version fingerprint (2026-11-05)
+# Game-version fingerprint
 
 Not native: clone tooling (first-run QoL family). Code: `src/fingerprint.rs`,
 hooks in `src/bin/game.rs` (`--check-game`, the window start) and
-`src/qol.rs` (`crash::report`).
+`src/qol/` (`crash::report`).
 
 The clone reads GLOBAL/GlobalB.lzc's car, upgrade and career rows and the
 other data files; a modded GlobalB.lzc can look and play differently, so
@@ -38,9 +38,9 @@ Lookup is case-insensitive (`viv::find_ci`), as for the game's own files.
 
 | edition | SPEED2.EXE | GlobalB.lzc |
 |---|---|---|
-| NFSU2 PC 1.2, European release, `SPEED2.EXE` without copy protection: the traced build (`EDITIONS[0]`; all nine files' hashes recorded; region byte 0x7FA73C = 6, the European value) | 4,788,224 B `8f6a9ae2…dfe2a297` | 5,145,778 B `ad015fdb…4a2d6e90` |
-| NFSU2 PC 1.2, European release, the copy-protected retail `SPEED2.EXE` (SafeDisc; `OTHER_EXE_BUILDS`; hash measured on a copy; named for information, works like any other) | 5,987,978 B `4d51643c…818f` | — |
-| another SPEED2.EXE build (`OTHER_EXE_BUILDS`, **inferred**: only size and the hash's ends known, from the OpenUG2 study $OB_PRIVATE/research/openug2-study-2026-11-05.md) | 4,800,512 B `f9dd86c0…24168a7` | — |
+| European PC 1.2 release, `SPEED2.EXE` without copy protection: the traced build (`EDITIONS[0]`; all nine files' hashes recorded; region byte 0x7FA73C = 6, the European value) | 4,788,224 B `8f6a9ae2…dfe2a297` | 5,145,778 B `ad015fdb…4a2d6e90` |
+| European PC 1.2 release, the copy-protected retail `SPEED2.EXE` (SafeDisc; `OTHER_EXE_BUILDS`; hash measured on a copy; named for information, works like any other) | 5,987,978 B `4d51643c…818f` | — |
+| another SPEED2.EXE build (`OTHER_EXE_BUILDS`, **inferred**: only size and the hash's ends known, from a study of the OpenUG2 project, kept with the maintainer's private evidence) | 4,800,512 B `f9dd86c0…24168a7` | — |
 
 The player's install also holds dinput8.dll + SCRIPTS/NFSUnderground2.WidescreenFix.asi
 (the WidescreenFix mod): reported as "mod files present (ignored by the clone)".

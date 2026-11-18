@@ -6,8 +6,8 @@ sounds, text, tracks) from the player's installed files and carries the engine's
 constants** in its own code. The numbers, curves and names the original keeps in its
 executable are written in `src/exe_tables/` with the values of the reference executable, the
 European PC 1.2 release (`SPEED2.EXE` without copy protection, 4,788,224 bytes, SHA-256
-`8f6a9ae2…dfe2a297`). So any retail copy of the game, patched to 1.2, starts: with the
-copy-protected disc executable, without any executable, of any region.
+`8f6a9ae2…dfe2a297`). So any retail copy of the game, patched to 1.2, starts: with the copy-protected
+disc executable, without any executable, of any region (docs/region.md).
 
 Three sources, one holder:
 
@@ -146,8 +146,8 @@ resampled through a graph storing (n − 1) / span, single precision as the x87 
 under Direct3D — `handling::acceleration_area`, which the physics uses, rounds
 differently and is unchanged). **Inferred:** the u16 3 at +0xA of the first twelve Quick
 Race entries (the record's constructor is not traced). The old file (SHA-256
-e623c3ac…c1e3, 54,966 bytes) leaves the tree (private set:
-`$OB_PRIVATE/saves/native_save_fresh.bin`, which `package.sh` uses as a scan reference).
+e623c3ac…c1e3, 54,966 bytes) left the tree; it is kept with the maintainer's private evidence, and `package.sh` uses it as a scan
+reference.
 `tests/native_save.rs` `new_profiles_after_bonus_codes_match_the_originals` checks two
 profiles the original created under Wine against the clone's, byte for byte.
 

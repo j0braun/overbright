@@ -90,7 +90,7 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
     forward), so the camera turns by +roll about forward: the clone's
     `PhotoCamera::up` (checked against two original covers of camera
     0x05582DE8, roll 28.2°: Wine menus113 `dvdreward` and `the finished-career save DVD 2`).
-    Side by side (research/mag-compare): the car's place, size and tilt
+    Side by side (kept with the maintainer's private evidence): the car's place, size and tilt
     now approximate the original's Four on the Floor cover. **SHADOWFE
     ported (2026-11-03)**: instrumented native reward entry and an on/off/
     restored capture establish the three order-2/effect-13 strips between
@@ -894,7 +894,7 @@ The drawing (0x531050 per point, **verified**; the walker 0x531280 passes the no
   divides f = (x − L) / (H − L) at 0x5B407C with no guard, then stores
   each member lo + f·(hi − lo). A zero mean span has x = L, so f = 0 / 0,
   a NaN under the x87's masked invalid operation, and both members take
-  NaN. The clone's pair branch of `write` (src/tuning.rs) divides the same way.
+  NaN. The clone's pair branch of `write` (src/tuning/) divides the same way.
   The no-opener case (**verified as undefined in the game**): with no
   opener, 0x5B2990 returns at once. 0x59AE50 searches the table at 0x86B340
   (24-byte rows; the parameter byte at +5; a nonzero byte at the row's first
@@ -1140,7 +1140,7 @@ The drawing (0x531050 per point, **verified**; the walker 0x531280 passes the no
   2 s in, read and closed, the GPS on the car lot, the car held) and the
   `intro_prompt` (state 2: the phone prompt, kind 0x14), `intro_gps`
   (the script run through) and `intro` shots. `intro` matches the Wine
-  capture of the original ($OB_PRIVATE/wine/capture.py: Rachel's SMS
+  capture of the original (the private capture script: Rachel's SMS
   dismissed, then 20 s standing): the script is over, so the HUD is free
   roam's (0x6000A0's `+0x28 == 0` branch): Bank (high 0x80000, career),
   minimap with the GPS (low 1), tach / speedo, nitrous (see Nitrous), the
@@ -1233,8 +1233,8 @@ The drawing (0x531050 per point, **verified**; the walker 0x531280 passes the no
   round 11; before, the clone left them). **Open**: +0x428 (left out: taken as ≥ 3), the
   wheel states (taken as never 2/3), body +0x12C, the 1 s at-rest timer
   (0x5EBF70 after 4000 ticks with a wheel mover).
-* **Driving vs the original, round 2** (2026-10-31, physics2; private
-  Wine copy $OB_PRIVATE/wine/runs/<run> on :163, `donut.py` /
+* **Driving vs the original, round 2** (2026-10-31, physics2; a private
+  Wine copy on :163, `donut.py` /
   `brake.py` / `steer.py` / `slip.py` there; clone `INTRO_POSE`,
   `INTRO_KEYS`, `INTRO_WHEELS`, 25 Hz):
   * **Input** (**observed**): in this Wine copy the Left arrow does not
@@ -1264,8 +1264,8 @@ The drawing (0x531050 per point, **verified**; the walker 0x531280 passes the no
     same wall at ~(1742, −740) (22.3 → 19.1 m/s / 22.8 → 19.0 m/s).
   * **Open**: the 240SX, COROLLA and an SUV (needs the car lot in the
     original), slides at speed, airborne and landing, the AI cars.
-* **Driving vs the original, round 3** (2026-10-31, physics3; Wine copy
-  $OB_PRIVATE/wine/runs/<run> on :163, Quick Race → Free Run (its car
+* **Driving vs the original, round 3** (2026-10-31, physics3; a private
+  Wine copy on :163, Quick Race → Free Run (its car
   select lists 206, Focus, Corolla, 240SX, 106, Corsa, Escalade, 350Z,
   GTO, Evo; Free Run starts at (1695.17, −883.59), −10.2°); scripts there:
   `qrboot.py` (boot to the main menu, then serve peek), `turnto.py`,
@@ -2318,8 +2318,8 @@ The drawing (0x531050 per point, **verified**; the walker 0x531280 passes the no
   * **Not done** (**open**): nitrous, jumps and landing, traffic hits (this
     copy's free roam has no traffic), AI racers' physics, top speed per
     car, drift-race physics.
-* **Opening and driving vs the original** (2026-10-30; private
-  Wine copy $OB_PRIVATE/wine/runs/<run> on :131, `opening.py` shoots the
+* **Opening and driving vs the original** (2026-10-30; a private
+  Wine copy on :131, `opening.py` shoots the
   boot and the career start, `samp.py` / `accel.py` / `wspin.py` /
   `pursue.py` drive it and read the car through peek):
   * Order (**observed**): Start New Career → the splash-art LOADING
@@ -2731,7 +2731,7 @@ The drawing (0x531050 per point, **verified**; the walker 0x531280 passes the no
     (corrected 2026-10-30 from Wine captures with FixHUD=0; the earlier
     note took the triangle for the lot).
   * **Minimap items, checked 2026-10-30** (**verified** by REA unless
-    marked; Wine: wined3d, FixHUD=0, `$OB_PRIVATE/wine/runs/<run>/shots/h`):
+    marked; Wine: wined3d, FixHUD=0):
     - **Range** (0x4CA840, 0x4CA9F6..): an item at or past 1 window from
       the centre is hidden; past 10 instead only in free roam (0x89E7B0 =
       0) with the GPS on (0x501100 in 0–3), stage 0 (0x862838) or a world
@@ -2839,8 +2839,7 @@ The drawing (0x531050 per point, **verified**; the walker 0x531280 passes the no
     original's runs north (start way 0, g 3436.3 m, aid point (1725,
     −787)) — the raw route file still held junctions the free-roam
     post-load (0x5E9E90) retypes or drops; with that ported the intro
-    shot's arrow matches ($OB_PRIVATE/wine/compare/gps69/
-    cmp_after.png). **Approximated**: the look-ahead route
+    shot's arrow matches (a comparison kept with the maintainer's private evidence). **Approximated**: the look-ahead route
     (0x428030's window along the GPS node) is the clone's polyline of the
     whole route (`Node::points`), the nearest node by plain distance and
     the car projected on its stretch (0x4198C0 / 0x40AE30 bodies not
@@ -3108,7 +3107,7 @@ with /proc/pid/mem): the World Map, a tip and two pickups (below).
     (see the self-playing world animations above), drawn by the clone
     since world106; side by side at (−775, −775) they stand where the
     original's do, with the same additive look
-    (`$OB_PRIVATE/wine/compare/world106/C-beam-crop.png`). The car
+    (a crop kept with the maintainer's private evidence). The car
     lot's own XO_SHOPBEAM_CARLOT_1A / 1B are 10 m cones that point down
     onto the lot.
 * Tests: `tests/native_save.rs` `cash_pickups_pay_once_and_save_their_flag`;
@@ -3138,7 +3137,7 @@ with /proc/pid/mem): the World Map, a tip and two pickups (below).
 
 ## Cheat codes (2026-10-31, cheats; traced in SPEED2.EXE and checked under Wine)
 
-Wine: `$OB_PRIVATE/wine/runs/<run>` through `fastgpu.sh` (:151, profile NAME,
+Wine: a private copy through `fastgpu.sh` (:151, profile NAME,
 no WidescreenFix), 1280×960, memory read with `peek.py`, codes typed with
 `xdotool type` on the title screen. DXVK lost its device (submission
 -13) on the way into the main menu in three runs, with and without codes,

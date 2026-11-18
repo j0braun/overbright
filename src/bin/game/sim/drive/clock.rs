@@ -16,7 +16,7 @@ impl Drive {
     /// car) is a load in the game all the same (the race's track switch
     /// 0x581830 → 0x5815D0 → 0x60A9B0 → 0x5FF700, then World_Start), so it
     /// starts them as a new drive does. Observed under Wine: resuming a
-    /// career read 1.93 s on the first in-world frame (research/tod-compare).
+    /// career read 1.93 s on the first in-world frame.
     pub(crate) fn restart_clock(&mut self) {
         self.clock = rain_clock().unwrap_or(1.0);
         self.world_clock = Default::default();

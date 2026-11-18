@@ -9,15 +9,15 @@ Success paths are unchanged (parity gate, `docs/perf-gates.md`).
 ## Audited
 
 Every `unwrap` / `expect` / `panic!` / `unreachable!` / slice index outside
-tests in the code that touches files, devices or user data: `src/cache.rs`,
-`src/audio/mixer.rs` (device open, watchdog), `src/audio/streams.rs`
-(decoder threads), `src/formats/native_save.rs`, `src/frontend/profiles.rs`,
-`src/frontend/career.rs` (`Profile::from_native`: constant offsets, capped
-counts, map lookups only), `src/frontend/options.rs` (options.txt),
-`src/qol.rs` (saves, backups, crash reports, game-root file),
+tests in the code that touches files, devices or user data: `src/cache/`,
+`src/audio/mixer/` (device open, watchdog), `src/audio/streams/`
+(decoder threads), `src/formats/native_save.rs`, `src/frontend/profiles/`,
+`src/frontend/career/` (`Profile::from_native`: constant offsets, capped
+counts, map lookups only), `src/frontend/options/` (options.txt),
+`src/qol/` (saves, backups, crash reports, game-root file),
 `src/hd_ui_pack.rs`, `src/frontend/map_pack.rs`,
 `src/render/texture_pack.rs` + `src/upscale.rs` (`parse_dds`),
-`src/surface_maps.rs`, `src/bin/game/photo.rs`. The headless check tools in
+`src/surface_maps.rs`, `src/bin/game/enh/photo/`. The headless check tools in
 `src/bin/game.rs` (shots, bench dumps, flows) are out of scope: they are
 meant to fail loudly. Missing game files keep their existing clear error.
 

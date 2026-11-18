@@ -1,4 +1,4 @@
-//! The build id the asset cache keys on (`src/cache.rs`): a hash of every
+//! The build id the asset cache keys on (`src/cache/`): a hash of every
 //! library source file, so any change to a parser makes the caches stale.
 //! Also the version stamp (`OB_VERSION`, `OB_COMMIT`) and, for Windows
 //! targets, the icon, version resource and manifest of the player's two

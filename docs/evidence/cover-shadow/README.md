@@ -1,9 +1,8 @@
 # Reward-cover FE shadow (2026-11-03)
 
 This is an instrumented **native renderer** capture, not evidence that natural
-career reward progression completed. The private game/prefix was copied from
-`a private Wine copy` to `a private Wine copy`; original game/assets/saves
-were read-only. Private display :175, DXVK/RADV, 1280×960. The selected FOTF DVD
+career reward progression completed. It ran in a copy of a private Wine
+prefix; the original game, assets and saves were read-only. Private display :175, DXVK/RADV, 1280×960. The selected FOTF DVD
 is kind 4; kinds 3 and 4 use the same reward constructor and cover rendering.
 
 Natural stage-3 DVD navigation reached the reward SMS and paid the reward, but

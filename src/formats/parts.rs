@@ -73,7 +73,7 @@ pub struct Part {
 /// is `<seed><middle><name>_<LOD letter>` (240SX_KIT00_FRONT_BUMPER_A; the
 /// seed is the car for its own parts, see [`PartDb::model_seed`]);
 /// verified against every player car's GEOMETRY.BIN by
-/// `examples/stock_check.rs`.
+/// the private developer probe `stock_check`.
 #[derive(Clone, Copy, Debug)]
 pub struct Model {
     pub named: bool,

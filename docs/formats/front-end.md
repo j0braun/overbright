@@ -968,7 +968,7 @@ The menus are FEng packages: FRONTEND/FrontB.lzc (137), GLOBAL/GlobalB.lzc
   takes texture +0x58 (0x537A70 → 0x50C990) and shows (0x50CA50); else it
   stays hidden. The package's own texture (the city map) is never shown.
   **Observed** under Wine (2026-10-30; career stage 1,
-  STAGE_1_CIRCUIT_1, track 4013, `a private Wine copy/shots/f1.png`): the map
+  STAGE_1_CIRCUIT_1, track 4013, a screenshot of a private Wine copy): the map
   is the whole TRACKMAP<track> texture, uncropped — Bayview with the
   race's route outlined — exactly as the clone draws it (side by side
   `map_sbs.png`); the TRACKMAP files hold that one 512 × 512 texture and
@@ -993,7 +993,7 @@ The menus are FEng packages: FRONTEND/FrontB.lzc (137), GLOBAL/GlobalB.lzc
 * **Cash** — the wallet is career +0x7134 (0x861E74); a new career starts
   with 0x865128 + 0x86512C (0x53291D), which only the bonus codes set
   ($200 / $1000, 0x5760B0): 0 otherwise.
-* **HUD** (HUD_SingleRace, built at 0x4F8BF0; `src/frontend/hud.rs`).
+* **HUD** (HUD_SingleRace, built at 0x4F8BF0; `src/frontend/hud/`).
   Objects are found by `fe_hash` (0x505450: `bin_hash` of the name in
   upper case). Each element lists its objects and a feature mask (low,
   high words): tach 0x4F5100 and turbo 0x4F5A70 (0x10000060, 0), position
@@ -1938,9 +1938,8 @@ The menus are FEng packages: FRONTEND/FrontB.lzc (137), GLOBAL/GlobalB.lzc
 
 ## Front-end help bar, car select, track select (2026-10-29, checked against the original under Wine)
 
-Side-by-sides: $OB_PRIVATE/wine/compare (main, qrcars) and the capture
-steps in $OB_PRIVATE/wine/shots/orig/steps (Quick Race mode / track
-select). **Verified** (REA decompiles of SPEED2.EXE) unless marked.
+Side-by-sides (main, qrcars) and the capture steps (Quick Race mode /
+track select) are kept with the maintainer's private evidence. **Verified** (REA decompiles of SPEED2.EXE) unless marked.
 
 * **Screen records** (0x7F7DC8 UI_Main … 0x7F915C, stride 0x1C): +0 the
   package name, +4 the factory, +8 the help text hash, +0xC the help-bar
@@ -2066,8 +2065,7 @@ select). **Verified** (REA decompiles of SPEED2.EXE) unless marked.
     0x4EDA6A, …); its INIT (length 0, z −82) chains to Animate (0x5A8E4EBE,
     1200 ms, chained to itself: alpha 255 to 320 ms, down to 0 at 640 ms,
     0 to 1200 ms, z 1), so it pulses over the dark backing. Eight shots of
-    the original 0.15 s apart ($OB_PRIVATE/wine/compare/gps69/
-    qrtrack_pulse_original.png) show the green frame on and off; the
+    the original 0.15 s apart (kept with the maintainer's private evidence) show the green frame on and off; the
     earlier capture (qr66/qrtrack.png) was taken in the off phase. The
     clone draws the same (no change). The best times (0x502AA0 / 0x502C50, per track and
     direction) are not kept (the clone shows 0.00).
@@ -2110,7 +2108,7 @@ select). **Verified** (REA decompiles of SPEED2.EXE) unless marked.
 
 ## Front-end particles, performance brakes, shadow pull (2026-10-29)
 
-Side-by-sides: $OB_PRIVATE/wine/compare/fe72/. **Verified** (REA
+Side-by-sides are kept with the maintainer's private evidence. **Verified** (REA
 decompiles of SPEED2.EXE) unless marked.
 
 * **Front-end particles.** A platform file is an ordinary bundle: its
@@ -2184,8 +2182,8 @@ decompiles of SPEED2.EXE) unless marked.
 
 ## Help bar in the career and in game, package init, in-game dialogs (2026-10-29)
 
-Checked against the original under Wine ($OB_PRIVATE/wine/runs/<run>,
-capture.py with PEEK; side-by-sides in $OB_PRIVATE/wine/compare/menus73:
+Checked against the original under Wine (a private Wine copy,
+capture.py with PEEK; side-by-sides kept with the maintainer's private evidence:
 `orig/` the original, `clone/` the clone, `before/` / `after/` the clone's
 front-end screens before and after the flag-0x40 rule). **Verified** (REA
 decompiles and the objdump) unless marked.
@@ -2967,7 +2965,7 @@ the prompt element → +0x60 the slots) and frames at 30 fps.
   skip back / slow motion / skip forward / camera / back / hide buttons
   (play / pause 0xCBEDA229 is not tested): ported (see the clone's notes
   below). 0x544900 is a list widget's message function (owner **open**).
-* **Clone** (`frontend::mouse`, `src/bin/game/mouse.rs`): the window's
+* **Clone** (`frontend::mouse`, `src/bin/game/input/mouse/`): the window's
   events are sampled once a frame; actions go through the keyboard's path
   (`Game::menu_key`), so keys and pads are unchanged; a scroll bar's
   steps, its pages and the wheel's steps go through it **muted**, and an
@@ -3128,7 +3126,7 @@ back and a bought part stayed. Found and fixed:
   window tint, lights, nitrous purge, hydraulics, spinners, split hoods,
   doors; the report of a part staying until the shop was left did not
   reproduce here.
-* Checks: `$OB_PRIVATE/scripts/preview_xtest.sh run <dir> <display>` (each list
+* Checks: the private windowed test `preview_xtest.sh run <dir> <display>` (each list
   stepped with real keys and checked against the FE car the draw loaded,
   `NFSU2_PREVIEW_LOG`; then Back must restore the car's own part at once;
   a locked category is noted), the shots as before.
@@ -3137,8 +3135,8 @@ back and a bought part stayed. Found and fixed:
 
 Issue: selecting custom gauges should, like the other parts, start at the one already
 installed. Traced in SPEED2.EXE; confirmed under Wine (fastgpu, DXVK,
-1280×960, no WidescreenFix, `$OB_PRIVATE/wine/runs/<run>` on :189, profile the finished-career save from
-`the finished-career save`, main-menu Customize on the RX-7). Frames in
+1280×960, no WidescreenFix, a private Wine copy on :189, profile the finished-career save,
+main-menu Customize on the RX-7). Frames in
 the maintainer's private captures; slot reads from the FE ride 0x8392C0 (+0x590 + 4·slot, 0x610300).
 
 Every list selects with 0x5386B0 (IconScroller_SetSelected: the list offset −(item position),

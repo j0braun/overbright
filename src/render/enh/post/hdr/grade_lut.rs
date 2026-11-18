@@ -152,7 +152,7 @@ impl PostFx {
     /// Grades an RGBA8 image (`size`) with `frame`'s values by `mode` (the
     /// gain map `gain` when given, as an original's trace holds it; else
     /// [`gain_map`] of `frame.bleach`) and reads it back. For the LUT's
-    /// verification (examples/grade_lut.rs, tests).
+    /// verification (the private developer probe `grade_lut`, tests).
     pub fn grade_image(
         &mut self,
         gpu: &Gpu,

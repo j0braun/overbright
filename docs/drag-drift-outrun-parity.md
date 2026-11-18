@@ -55,7 +55,7 @@ once it has been out and is parked again.
 
 ### Under Wine (observed)
 
-`a private Wine copy`, display :226, DXVK, vanilla (no widescreen fix), the
+a private Wine copy, display :226, DXVK, vanilla (no widescreen fix), the
 save `a community save-latest`: garage → Return to Explore Mode → read the three
 records' +0x10 (car type, names from the car table 0x8A1CCC + 0x890·n) →
 pause, Jump to Garage, repeat (`native-loads.txt`). Player car 28 (EVO),

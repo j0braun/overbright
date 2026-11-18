@@ -42,7 +42,7 @@ packs; the HUD is hidden.
 
 ## Getting started
 
-1. Install the PC version of Need for Speed Underground 2 from your disc and patch it to version 1.2.
+1. Install the PC version of Need for Speed Underground 2 from your disc (any region) and patch it to version 1.2.
 2. Download the archive for your system from [Releases](https://github.com/j0braun/overbright/releases) and
    unpack it anywhere.
 3. Start `overbright` (`overbright.exe` on Windows). It finds the game or asks for its folder. Press Play.
@@ -60,8 +60,9 @@ directly ([docs/launcher.md](docs/launcher.md)). Building from source: [BUILDING
 
 The game: your own install of Need for Speed Underground 2 for PC from any disc release, patched to version 1.2,
 of any region. Overbright reads the game's data files (models, textures, sounds, text, tracks); it does not
-run or read `SPEED2.EXE`, so the copy-protected disc executable is fine, and the folder works without it too.
-The engine's own numbers are part of Overbright ([docs/exe-tables.md](docs/exe-tables.md)).
+run or read `SPEED2.EXE`, so the copy-protected disc executable is fine, and the folder works without an
+executable too. The engine's own numbers are part of Overbright ([docs/exe-tables.md](docs/exe-tables.md)). The region is taken from the installed car folders
+([docs/region.md](docs/region.md)).
 
 On Linux without a Vulkan driver, the launcher and the game say which package to install (Ubuntu, Debian, Mint:
 `sudo apt install libvulkan1 mesa-vulkan-drivers`; Fedora: `sudo dnf install vulkan-loader mesa-vulkan-drivers`;
@@ -87,7 +88,8 @@ The Linux archive was run in a container of each of these distributions, on Mesa
 
 The front end from the game's own menus, fonts and text; Career, Quick Race (every race type and Free Run),
 Customize, options, EA Trax, credits and profiles in the original's save format. Bayview in free roam with
-traffic, events, shops, outruns, sponsors and the ending; replays.
+traffic, events, shops, outruns, sponsors and the ending; replays. Automatic and manual gearboxes, keyboard,
+mouse and controllers. A portable mode that keeps everything beside the program (below).
 
 ## Known issues
 
@@ -100,10 +102,16 @@ original, with its switch, is in [docs/native-deviations.md](docs/native-deviati
   Direct3D 12 is tried only when no Vulkan driver opens, and it is untested: under Wine it opens but draws
   nothing (Wine's shader compiler rejects the shaders). If the game shows no picture on Windows, update the
   graphics driver so that Vulkan is available.
-- **One edition of the game's data was tested:** the European 1.2 release with English game files.
-  Other regions and languages start, and their data is reported as "unknown" by `game --check-game`;
-  nothing about them was tested. Overbright carries the European 1.2 release's engine numbers; whether
-  another release's executable used different ones is not known.
+- **On some Windows 11 PCs the launcher closes a second after it opens**
+  ([#19](https://github.com/j0braun/overbright/issues/19)). The cause is not known yet. The launcher writes
+  `launcher.log` in the settings folder from its first line (see "Reporting a problem"); please attach it to
+  the issue.
+- **One edition of the game's data was tested:** the European PC 1.2 release with English game files.
+  A North American install is recognised by its CARS folder and gets that region's car lists, shared
+  textures, credits and Best Buy code ([docs/region.md](docs/region.md)), but no North American install was
+  tried. Other languages start; their data is reported as "unknown" by `game --check-game`. Overbright
+  carries the European PC 1.2 release's engine numbers; whether another release's executable used different
+  ones is not known.
 - **Controllers** were tested with a virtual Xbox 360 pad only. Rumble, PlayStation and Switch pads and the
   Steam Deck's controls were not tried on real hardware.
 

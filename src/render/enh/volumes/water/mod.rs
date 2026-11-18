@@ -8,7 +8,7 @@
 //! streams with `TRN_WATER_SURFACE_A_LL` (scrolling) and the swimming
 //! pools with the still `ARC_POOL_A_DM` (docs/formats.md "Texture
 //! animation and scrolling"; the list of surfaces in docs/water.md, from
-//! `examples/water_census.rs`). Off (the default) is that, byte-identical.
+//! the private developer probe `water_census`). Off (the default) is that, byte-identical.
 //!
 //! On: the main view leaves those draws out (`WorldRenderer::set_hide_water`)
 //! and this module draws the same triangles, copied to world space at the

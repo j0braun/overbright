@@ -452,7 +452,7 @@ chain too (in the game the menus have made it).
 
 Animated Water at the casino square's fountains (`--bench explore 60`,
 1920×1080, the camera on an orbit of the fountains: `NFSU2_BENCH_CAMTRACK`
-from `$OB_PRIVATE/docs/evidence/water/scripts/orbit.py -326 -547 21 25 4 120`,
+from the private script `orbit.py -326 -547 21 25 4 120`,
 `NFSU2_BENCH_ENH="enh.water N"`, Extreme by `NFSU2_BENCH_PRESET=Extreme`;
 median of 3 interleaved runs), base → now:
 

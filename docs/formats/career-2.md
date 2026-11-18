@@ -563,8 +563,7 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
     vt+0x30 (`gear_request`); a manual gearbox now also takes reverse.
     Shots: `game --shot dragline` (the line, gas held), `draghud` (mid-run
     with shifts), `dragblown` (held at the limiter until the engine
-    blows); side by side with the original in
-    $OB_PRIVATE/wine/compare/drag91/. **Shift light** (fixed
+    blows); side by side with the original (kept with the maintainer's private evidence). **Shift light** (fixed
     2026-10-30, **verified**): HUD_Drag's Shift_light (0x25CF2F74, a
     32 × 32 image at (0, −132)) has INIT (white, chained to PulseGreen) and
     three 600 ms colour scripts with no chain and flags 0 (they hold their
@@ -1253,7 +1252,7 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
   0x30-byte records from A = (buf + 0x17) & ~0xF; registered for tag 0x34146
   at 0x77E720, with 0x5D84E0 as its third argument), so track 4000's marker
   comes from that file. The clone's
-  free_roam_start (src/frontend/career.rs) reads the same file,
+  free_roam_start (src/frontend/career/) reads the same file,
   TRACKS/ROUTESL4RA/TrackPosMarkersFreeRoam.bin. **Inferred**: the generic
   loader passes the file to 0x5D8480 by its chunk tag (not traced through
   0x57CF00). **Verified**: 0x5D8530 and 0x5D85E0 keep only records whose

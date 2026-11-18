@@ -2,8 +2,7 @@
 
 Original executable SHA256:
 `8f6a9ae2c4cfa01181d2fd755d99c6f4b7103f60273908ea1de1e719dfe2a297`.
-An ordinary main-menu RX8 capture used the owned
-`a private Wine copy` prefix/game, display 175, PID 972557,
+An ordinary main-menu RX8 capture used a private Wine copy, display 175, PID 972557,
 DXVK/RADV 1280×960. Only Return keys dismissed startup screens; no code or
 memory writes and no reward detour. Original assets/saves stayed untouched.
 The owned game stopped after capture. The complete final frame is

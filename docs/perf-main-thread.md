@@ -1,7 +1,6 @@
-# Main-thread CPU (2026-11-04)
+# Main-thread CPU
 
-Wave D this work (`$OB_PRIVATE/research/perf-playbook-2026-11-04.md` §4.2,
-§6): less CPU per frame on the main thread, the same frames, sound and
+Less CPU per frame on the main thread, the same frames, sound and
 simulation. No native behaviour changed and nothing here was traced in
 SPEED2.EXE: every change is a faster way to compute the same values (each
 one's argument below), proved by the perf harness's gates (`docs/perf-gates.md`) step by
@@ -301,7 +300,7 @@ one by one (the two found in the render modules are cached).
 
 ## CPU frame time (2026-11-05)
 
-Wave D the CPU frame pass (roadmap §4 wave D, rules (1)–(5)): less CPU per frame, the
+The CPU frame pass: less CPU per frame, the
 same frames, sound and simulation. Nothing here was traced in SPEED2.EXE
 and no native behaviour changed: each step computes the same values
 faster, or elsewhere. Base: main . Results, gates, profiles:

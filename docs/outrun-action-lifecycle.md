@@ -41,11 +41,11 @@ With debug/global `81CB88 == 0`, the ordinary action lifecycle is:
 The `81CB88 != 0` branch instead forces/updates type 6 and has separate allocation
 and replacement behavior; it must not be silently folded into the ordinary path.
 
-Reproduce the oracle without a game/GPU session:
+Reproduce the oracle without a game/GPU session (the scripts are kept with the maintainer's private evidence):
 
 ```
-python3 $OB_PRIVATE/docs/evidence/outrun/native-action-lifecycle-probe.py SPEED2.EXE PRIVATE_OUTPUT_DIR
-python3 $OB_PRIVATE/docs/evidence/outrun/check-action-lifecycle.py
+python3 native-action-lifecycle-probe.py SPEED2.EXE PRIVATE_OUTPUT_DIR
+python3 check-action-lifecycle.py
 ```
 
 The 16 state cases execute original `403120` and `401990`, covering every
@@ -72,7 +72,7 @@ comparison and thunk/vtable checks. The proposal order is GetUnstuck (`40E7C0`),
 IJustGotHit (`403320`), avoidance (`42BA20`), recovery (`403380`), Block
 (`414130`), Pass (`42B5B0`), then the default.
 
-`src/ai/actions.rs::Actions::think` already models that same native chooser, so
+`src/ai/actions/::Actions::think` already models that same native chooser, so
 reuse is appropriate after accounting for the goal context and existing fidelity
 limits. Encounter AI currently does not invoke it; it also lacks native persistent
 action state, exact ready/completion callbacks and output retention. Existing

@@ -177,7 +177,7 @@ table above.
 ## Totals
 
 2026-11-04: 67 rows: 60 present, **0 missing**, 0 open, 7 n/a.
-The rows the roadmap's C3 still listed as missing were already ported and
+The rows an earlier list still had as missing were already ported and
 their rows updated: F18 the menu mouse (`Game::fe_mouse`), F19 / C15
 the hydraulics (hydro), S5 Rachel's hints (round 12). Rachel's hint timers
 (career +0x887C, slots +0xA8 {ticks, kind, value}, the driving / FE clocks

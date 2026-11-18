@@ -7,9 +7,8 @@ with the player's throttle held, so the player's own crashes decided most of the
 This work compares like for like: the clone starts from each native outrun's frame-0 pose (both
 cars, the rival's model and tank, now also the world tick) and the player is scripted the same in
 both games. **Verified** = traced in SPEED2.EXE (Ghidra / `speed2.dis`); **observed** = read under
-Wine (copy `a private Wine copy`, display :318, wined3d, the game's own frame cap, one instance at a time);
-**inferred** / **open** as marked. Evidence: the maintainer's private captures; raw runs in
-`<work dir>/` (`nat/`, `runs/`).
+Wine (a private Wine copy, display :318, wined3d, the game's own frame cap, one instance at a time);
+**inferred** / **open** as marked. Evidence: the maintainer's private captures; raw runs kept with the maintainer's private evidence (`nat/`, `runs/`).
 
 ## Verdict
 

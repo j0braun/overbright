@@ -11,9 +11,9 @@ is also compared with the default GPU's (reported only). The ICD comes from
 check prints `LAVAPIPE: SKIP` and passes. `checks.sh full` (or `LAVAPIPE=1`)
 runs it as step `lavapipe`.
 
-This machine has no system lavapipe; the check was run with Mesa
+The reference desktop has no system lavapipe; the check was run with Mesa
 26.2.5's `vulkan-swrast` package (CachyOS znver4 build, signature checked,
-extracted to $OB_PRIVATE/lavapipe, not installed) — `LVP_ICD=$OB_PRIVATE/lavapipe/lvp_icd.json`.
+extracted to a private folder, not installed) — `LVP_ICD=<that folder>/lvp_icd.json`.
 
 ## Result (evidence: docs/evidence/q1/lavapipe.txt)
 

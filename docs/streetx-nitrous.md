@@ -33,7 +33,7 @@ is no shot, no boost, no flames and no sound. The gauge is hidden too.
   separate, and the clone already had it (`hud::features`).
 
 ## Observed under Wine
-Setup: copy `$OB_PRIVATE/wine/runs/<run>` on display :213, profile `career_end_won.sav`.
+Setup: a private Wine copy on display :213, profile `career_end_won.sav`.
 In Quick Race, a Peugeot 206 got the Customize → Nitrous Oxide → Street Package
 (the "My Cars" entry). Readings came from `[[0x8900B4]+4]`, the player car. The
 script and logs are in the maintainer's private captures.

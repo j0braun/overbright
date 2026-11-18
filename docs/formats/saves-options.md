@@ -6,7 +6,7 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
 ## Native profile saves and the Profile Manager (2026-10-29; checked against the original under Wine)
 
 Code: `src/formats/native_save.rs` (container, payload offsets),
-`src/frontend/profiles.rs` (folder, list, current profile, MC texts), `Profile::from_native` / `to_native` and `NativeContext` in
+`src/frontend/profiles/` (folder, list, current profile, MC texts), `Profile::from_native` / `to_native` and `NativeContext` in
 `career.rs`, `Settings::apply_native` / `write_native` in `options.rs`,
 `McList` / `McMessage` in `screens.rs`, `McAct` and `mc_*` in game.rs.
 Fixtures: `tests/fixtures/native_saves/*.sav` (written by SPEED2.EXE),
@@ -391,7 +391,7 @@ tests `tests/native_save.rs`, selftest `selftest_profiles`.
 ### Save points, records, Delete Tuned Car, clone saves in the original (2026-10-31)
 
 **Verified** (REA / objdump of SPEED2.EXE) unless marked; Wine runs on a
-private copy `$OB_PRIVATE/wine/runs/<run>` (wined3d, Xvfb :161).
+private Wine copy (wined3d, Xvfb :161).
 
 * **A save the clone wrote loads in the original** (**verified** under
   Wine): the test `write_a_clone_save_for_the_original` (ignored; writes
@@ -772,7 +772,7 @@ the clone does instead (`render::display`, `frontend::options`,
 
 Agreed deviations, each **opt-in**: with the defaults
 the clone behaves and renders as before (shots pixel-identical, bar the
-Display page's new last row). Code: `src/qol.rs` (`Enhancements`, `saves`,
+Display page's new last row). Code: `src/qol/` (`Enhancements`, `saves`,
 `crash`, `setup`), `frontend::options` (rows, options.txt),
 `frontend::profiles::write_to`, `chase.rs`, `render::display::frame_cap`,
 `bin/game.rs` (`game_folder`, `overlay_quads`, `PerfOverlay`). Nothing here
@@ -1213,7 +1213,7 @@ passes), `render::postfx::PostFx::apply` (the hand-over), `render`
   Fade); the visible ones are block swaps (frame 1222: a lit tower
   swapped for another copy, 2,600 pixels). Frame strips (rows native,
   LOD Fade, Keep All Loaded, both; magnified crops):
-  `$OB_PRIVATE/research/lod-compare/` block_pop_f1222,
+  kept with the maintainer's private evidence: block_pop_f1222,
   car_lod_f404, scenery_f1320 / f2215, keep_loaded_f404_native_left,
   options_graphics_lod (the page). With LOD Fade 25 car switches in the
   first 1,230 frames were cross-faded at 1, 4 and 8 samples
@@ -1290,7 +1290,7 @@ passes), `render::postfx::PostFx::apply` (the hand-over), `render`
   the garage scenes' aspect (from the scene's size) can differ from the
   screen's by up to ~0.1 % at the odd scales (67, 85 %): invisible.
 * **gfx195 rows: checked** (2026-11-01). Native unchanged: with the page
-  native every in-game shot of `$OB_PRIVATE/lead/checks.sh` (explore,
+  native every in-game shot of the check set (explore,
   race, drift, drag, hood, bumper, replay, outrun …) is identical to the
   pixel to <base>'s at 1280 × 960; the front-end shots differ only by
   the shots' own run-to-run noise (<base> against itself the same
@@ -1300,7 +1300,7 @@ passes), `render::postfx::PostFx::apply` (the hand-over), `render`
   garage shots (`NFSU2_SHOT_ENH`, 1920 × 1080; the shots draw the game's
   scene multisampled with the page's MSAA or `NFSU2_MSAA`) and in
   `--bench explore|race` at 1080p and 4K: no panic or validation error.
-  Native-vs-on images: `$OB_PRIVATE/research/gfx-compare/` —
+  Native-vs-on images (kept with the maintainer's private evidence) —
   msaa8_a2c_palm_fsaa8-vs-msaa8 (native 8× FSAA against the page's 8×
   with alpha-to-coverage: the palm's fronds smooth),
   msaa_palm_native-vs-msaa4, smaa_car_native-vs-smaa and

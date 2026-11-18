@@ -1,6 +1,6 @@
 # Settings model and the conflict & redundancy audit (2026-11-06)
 
-Roadmap wave UX, the settings rework, first half ("Conflict & redundancy audit"). The settings page builds the new settings page on the
+The settings rework, first half ("Conflict & redundancy audit"). The settings page (docs/settings-page.md) is built on the
 data delivered here. Nothing here is native: every row audited is a clone enhancement (or a native Customize
 Display row an enhancement depends on); Original stays byte-identical (gate below).
 

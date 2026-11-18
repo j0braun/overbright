@@ -1,12 +1,12 @@
 # Shop part-animation previews: native vs clone (2026-11-04)
 
 Native: SPEED2.EXE (sha256 8f6a9ae2…2a297) under Wine, fastgpu.sh on :188,
-private copy $OB_PRIVATE/wine/runs/<run>, the finished-career save
+a private Wine copy, the finished-career save
 (sha256 1e0acea4…3b9453) copied into the prefix's AppData profile dir;
 Main Menu → Profile Manager → Load the finished-career save → Customize → the tuned 350Z →
 Change Interiors / Car Specialties. Keys: arrows, Return, Escape, `c`
 (Open/Close). Frames with `peek.py frames` (15–30 fps). Raw captures stay in
-$OB_PRIVATE/wine/runs/<run>/work.
+a private Wine copy.
 
 Clone: the same save and keys,
 `NFSU2_SHOT_SAVE=<the finished-career save> NFSU2_SHOT_KEYS="Right,Right,Accept,Right,Right,Right,Accept,…" NFSU2_SHOT_KEYS_GAP_MS=2500 [NFSU2_SHOT_MS=2500] game --shot custcars out.png`

@@ -107,7 +107,7 @@ and the original both smoke there, internal evidence).
   profile's car.
 
 ## Native byte-identity
-All CLAUDE.md shots at defaults (Original), md5 against the binary before this work (same copy,
+All the standard shots at defaults (Original), md5 against the binary before this work (same copy,
 own target): explore, intro, qrcars, race, qrstart, drift, drag **identical**; main / career
 differ as the base does from itself (the base against itself: 0 / 176 px on main). On Original
 `System::births` stays None, `quads` = `quads_where(|_| true)` (same quads, same order), and

@@ -38,7 +38,7 @@ about 150 MB, the history pairs and the half trace about 215 MB).
 Since then: the rays decide wet roads' and cars' reflections ("Primary on wet roads and cars"
 below). Still open: the hits are not relit by the lamp clusters or the headlights.
 
-## API status on this machine (verified 2026-11-05)
+## API status on the reference desktop (verified 2026-11-05)
 wgpu 30.0 (`wgpu-types` 30.0.1): `Features::EXPERIMENTAL_RAY_QUERY`
 ("may have major bugs … subject to breaking changes", Vulkan only,
 native only), needs `DeviceDescriptor::experimental_features =

@@ -82,13 +82,13 @@ shows it, On by default), Picture Size.
 
 ## Code
 `src/photo.rs` (rig, limits, sweep, rows, focus band, capture size),
-`src/render/photo_grade.rs` (the grade pass), `src/bin/game/photo.rs` (the
+`src/render/enh/post/photo_grade.rs` (the grade pass), `src/bin/game/enh/photo/` (the
 layer: open / close / keys / tick / draw swap / help bar / capture, and the
 `--photo` check); hooks in `src/bin/game.rs` (`Game::photo`, `act`,
 `key`, `update_world`, `pad_frame`, `draw` → `draw_frame`, the post chain's
-target, `blur_and_dof`), `src/render/blur_dof.rs` (`set_photo_dof`,
-`dof_wanted`, `photo_band`), `src/qol.rs` (`photo_mode`),
-`src/frontend/options.rs` (row), `src/frontend/screens.rs` (menu item,
+target, `blur_and_dof`), `src/render/enh/post/blur_dof.rs` (`set_photo_dof`,
+`dof_wanted`, `photo_band`), `src/qol/` (`photo_mode`),
+`src/frontend/options/` (row), `src/frontend/screens/` (menu item,
 clone label fallback).
 
 ## Checks

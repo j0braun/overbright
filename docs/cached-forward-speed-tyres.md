@@ -58,10 +58,10 @@ checks the production cache/read methods across velocity changes and refresh.
 These six observations do not cover the high-speed launch-grip ramp; that
 consumer's shared scalar selection is supported by its native reader trace.
 
-Reproduce fixture extraction and focused tests:
+Reproduce fixture extraction and focused tests (the scripts are kept with the maintainer's private evidence):
 
 ```
-python3 $OB_PRIVATE/docs/evidence/cached-forward-speed/export.py
+python3 export.py
 cargo test --release --lib native_cached_speed -- --nocapture
 ```
 

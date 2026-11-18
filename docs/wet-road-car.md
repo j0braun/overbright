@@ -419,7 +419,7 @@ A single `--shot` frame shows no spray (the pool starts with the first drawn fra
    0.45, reach 1.8 m) added on top of the native underglow pool on a wet road: p95 +13.8, glow +0.64 against
    the same frame without it (R3: ±4 / ±0.2). The rest of the white road ahead is the **native** look in the
    rain: the clone's Original path is as white at that frame (p95 214 vs 222 at max), and the original under
-   Wine washes the rain scene out the same way (`$OB_PRIVATE/research/rain-compare/orig-rain-*`; no Wine
+   Wine washes the rain scene out the same way (frames kept with the maintainer's private evidence; no Wine
    capture at this exact spot: **open**). Headlight Beams On, wet roads, SSR / RT, Rain Detail, Enhanced
    Reflections, Lens Drops, Wet Car and motion blur moved p95 by ≤ 1.
 4. **The distance veil** (Volumetric Fog Next-Gen, `atmosphere::LOOK.veil` 0.2): the haze's extinction, a

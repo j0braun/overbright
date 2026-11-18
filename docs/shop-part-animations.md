@@ -2,7 +2,7 @@
 
 Issues: opening the trunk in the shop moved only the trunk while the spoiler stayed
 static; the trunk audio and door previews were unfinished.
-Native captures: `$OB_PRIVATE/wine/runs/<run>/work` (display :188, the
+Native captures: a private Wine copy (display :188, the
 finished-career save copied in, main-menu Customize on its tuned 350Z, an RX7 career).
 Small copies: [evidence/shop-part-animations](evidence/shop-part-animations/).
 Clone shots from the same save: `NFSU2_SHOT_SAVE=<the finished-career save> NFSU2_SHOT_KEYS=…

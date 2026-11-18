@@ -16,7 +16,7 @@ interpolation instructions are retained in the preceding pattern-3 evidence.
 ## Native capture
 
 Owned display 175, private copied profile in
-`$OB_PRIVATE/wine/runs/<run>`, PID 1452697.
+a private Wine copy, PID 1452697.
 Natural navigation: load copied the finished-career save → Career/Resume → Garage/Return to Explore
 → nearby Body Shop confirmation → natural ShopEnter1 → Body Shop/Escape/confirm
 → natural ShopExit1 → Explore → nearby Body Shop confirmation → natural entry.

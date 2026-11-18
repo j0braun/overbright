@@ -255,7 +255,7 @@ retained steer (its lane path) and replaces the action as `think` with
 ## Native fixes against the pinned circuit (2026-11-12)
 
 Scenario `circuit_s1_pinned` (native recording of 2026-11-12 00:25, re-recorded twice in
-`a private Wine copy`; the clone pins the original's world generator at the arm, plan line `world_rng`,
+a private Wine copy; the clone pins the original's world generator at the arm, plan line `world_rng`,
 and steps its world update counter from `world_n`). **Verified** = traced in SPEED2.EXE,
 **observed** = read under Wine. Evidence: the maintainer's private captures; fix list:
 `docs/native-fixes/N-AI.tsv`.
@@ -275,7 +275,7 @@ and steps its world update counter from `world_n`). **Verified** = traced in SPE
 * **After**: first divergence frame 58: the 240SX's contact with the player one frame early
   (physics); every AI action change through frame 300 on the original's frame.
 * **The original repeats itself only to ~4.4 s.** Three pinned recordings of this scenario
-  (2026-11-12 00:25, one of 2026-11-11, and two in `a private Wine copy`) agree on every car's place
+  (2026-11-12 00:25, one of 2026-11-11, and two in a private Wine copy) agree on every car's place
   to frame 264–280; then the rivals' first-corner contacts part, and at 20 s the player's place
   differs between the original's own runs by 8–131 m (rivals up to 310 m). The ≈ 10 m player
   error at 20 s against one recording is inside that spread; per-frame comparisons of this
@@ -643,7 +643,7 @@ speed, race coordinates, the walk's front and parked cars as mode 0 rows; `race-
 ## The paused car coasts; inactive cars not drawn; honk draws, outrun end, driver event 4 (2026-11-12)
 
 **Verified** = traced in SPEED2.EXE, **observed** = read under Wine (the placement work's runs), **measured** =
-the clone's probe. Answers with addresses: `$OB_PRIVATE/audit/binary/TRAF4-answers.md`; fix list
+the clone's probe. The answers with addresses are kept with the maintainer's private evidence; fix list
 `docs/native-fixes/TRAF-4.tsv`; evidence `docs/evidence/traf-4/` (`episodes.py`, `switch.py`,
 `measures.txt`).
 

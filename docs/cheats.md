@@ -7,13 +7,13 @@ also in `docs/formats.md` "Cheat codes"; this file is the summary of
 record. Sponsor cars and vinyls are ported as traced but were not
 re-examined.
 
-Wine: `$OB_PRIVATE/wine/runs/<run>`, `fastgpu.sh` on :193,
+Wine: a private copy, `fastgpu.sh` on :193,
 `--wined3d` (DXVK hung on the boot's "Save complete." dialog once:
 game clock stopped), fresh profile, no WidescreenFix. Codes typed with
 `xdotool type` after `windowfocus` (`--window` alone delivers no
 WM_CHAR); memory read with `peek.py`. Evidence: the maintainer's private captures
 (`typing.jsonl`: manager and table after each code; `table.json`;
-`pm_create_question.png`); raw captures in `<work dir>/cheats-work/wine`.
+`pm_create_question.png`); raw captures kept with the maintainer's private evidence.
 
 ## Input (verified)
 * Only on the title screen UG_LS_Splash ("Press Enter Key"): its
@@ -95,7 +95,7 @@ code reads the manager or the table.
 * Shots: `NFSU2_CHEATS=all|code,code`, `qrsponsor`, `vinyls_sponsor`.
 
 ## Checked under Wine
-`$OB_PRIVATE/wine/runs/<run>`, fastgpu (DXVK) on :204 with `--audio-file`,
+a private Wine copy, fastgpu (DXVK) on :204 with `--audio-file`,
 fresh profile; evidence in the maintainer's private captures, raw in
 `<work dir>/s6-work/wine/`.
 * **gimmevisual2 alone opens nothing** (observed): gimmevisual2 then

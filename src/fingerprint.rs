@@ -56,7 +56,7 @@ pub const EDITIONS: &[Edition] = &[Edition {
 
 /// Other SPEED2.EXE builds known only by size and part of their hash
 /// (prefix, suffix), named in the reports. The 4,800,512-byte build is
-/// the one the OpenUG2 project documents ($OB_PRIVATE/research/openug2-study-2026-11-05.md; only
+/// the one the OpenUG2 project documents (a study kept with the maintainer's private evidence; only
 // prov: inferred fingerprint.OTHER_EXE_BUILDS
 /// the hash's ends were recorded, so this match is **inferred**).
 /// The 5,987,978-byte build is the European 1.2 release's copy-protected

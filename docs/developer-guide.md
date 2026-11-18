@@ -224,7 +224,7 @@ drawn or simulated):
   (they were copied into each car, ~37 MB a traffic car). The shared files,
   texture packs and part-file indexes are parsed once a run even when cars
   load in parallel (single-flight caches in `car.rs`).
-* **Asset cache** (`src/cache.rs`, `src/render/prepared.rs`): the parsed
+* **Asset cache** (`src/cache/`, `src/render/native/world/prepared.rs`): the parsed
   world, each car's models and texture packs and the shared part files'
   indexes, plus the world renderer's upload-ready data (the vertex and index
   buffers, the texture arrays' levels with rows padded to 256 bytes), in
@@ -374,7 +374,7 @@ differs), the first run of each discarded):
   file and rename) after a load that grew it; wgpu and the driver check
   the data is theirs (driver version included) and start empty
   otherwise. `NFSU2_NO_PIPELINE_CACHE=1` turns it off. Mesa keeps its own
-  shader cache, so on this machine it matters only when that is cold:
+  shader cache, so on the reference desktop it matters only when that is cold:
   with `MESA_SHADER_CACHE_DISABLE=true` the first load and its first
   frame take 220–235 ms without it and 150–155 ms with it.
 * **World animations.** The views tested a moved group (the 22 animated
@@ -558,7 +558,7 @@ new binaries alternated, three runs each with their own
   loaded ahead** in the menus before free roam (see "Loading" above).
 * **No stall after free roam starts.** `Encounters::ready` joined the
   encounter racers' car loads in the frame that places the first of them,
-  usually free roam's first few frames: 27–61 ms frames on this machine.
+  usually free roam's first few frames: 27–61 ms frames on the reference desktop.
   They are joined at the end of `explore` now, so free roam's first
   second has no frame over 11 ms; the time moved into the load, and the
   loads ahead above take it out again.

@@ -7,7 +7,7 @@
 //! files hold), so other data is left alone. Off (the default) = the files
 //! as shipped, untouched: every entry point returns at once.
 //!
-//! The errors were found by `examples/model_scan.rs` and confirmed in
+//! The errors were found by the private developer probe `model_scan` and confirmed in
 //! close-ups of the clone and of SPEED2.EXE under Wine (main-menu
 //! Customize); see docs/model-fixes.md for the evidence.
 use crate::formats::hash::bin_hash;

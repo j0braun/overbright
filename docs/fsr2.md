@@ -8,7 +8,7 @@ The temporal tier's / the native one (gate: Original byte-identical, below).
 (https://github.com/GPUOpen-Effects/FidelityFX-FSR2, tag v2.2.1, MIT,
 Copyright (c) 2022-2023 Advanced Micro Devices, Inc.); full notice in
 THIRD-PARTY-NOTICES.md. Ported to WGSL in `src/render/fsr2.wgsl` (its
-header names the source files per pass), driven by `src/render/fsr2.rs`.
+header names the source files per pass), driven by `src/render/enh/post/fsr2.rs`.
 
 ## Rows
 | row | values | options.txt |
@@ -162,7 +162,7 @@ column): Original 2.30, TAA 1.49, TAAU Q 1.42, FSR 2 Native AA 3.90
 
 ### Quality
 SSIM / FLIP (NVIDIA FLIP, LDR) against **SSAA 4x** (the best reference
-this machine renders at 4K), HUD masked; edge energy = Laplacian energy
+the reference desktop renders at 4K), HUD masked; edge energy = Laplacian energy
 relative to the reference (>100 % = sharper than it: RCAS and the LOD
 bias). Static = car and camera frozen at frame 300, frame 480 (180 frames
 of accumulation); motion = racing frames 450 and 600 (`scripts/metrics.py`).

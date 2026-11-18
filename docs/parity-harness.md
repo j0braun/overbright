@@ -1,4 +1,4 @@
-# Differential parity harness (2026-11-04)
+# Differential parity harness
 
 The step-by-step for proving a simulation fix against the original, the coverage table and the
 open gaps are in docs/parity-workflow.md.
@@ -13,13 +13,16 @@ Wine, **inferred** / **open** as marked.
 
 ## Use
 
+The harness's driver (`parity.py`, `native.py`, the scenarios) is one of the maintainer's private
+tools; the clone side is `--flow parity` in the developer harness.
+
 ```
 . scripts/local.env; cargo build --release --bin game --features dev-harness   # --flow parity is dev-harness only
 export NFSU2_ROOT=…; export CARGO_TARGET_DIR=…            # the game binary is $CARGO_TARGET_DIR/release/game
-$OB_PRIVATE/tools/parity/parity.py run $OB_PRIVATE/tools/parity/scenarios/circuit_s1.toml [OUT]   # original, clone, diff
-$OB_PRIVATE/tools/parity/parity.py clone $OB_PRIVATE/tools/parity/scenarios/circuit_s1.toml OUT   # clone + diff again (native kept)
-$OB_PRIVATE/tools/parity/parity.py diff OUT
-$OB_PRIVATE/tools/parity/parity.py summary OUT1 OUT2 …                                # the summary table
+parity.py run circuit_s1.toml [OUT]   # original, clone, diff
+parity.py clone circuit_s1.toml OUT   # clone + diff again (native kept)
+parity.py diff OUT
+parity.py summary OUT1 OUT2 …                                # the summary table
 ```
 
 `run` takes 3–5 minutes (boot ~2 min, the race at about 50 game frames per
@@ -36,7 +39,7 @@ wall second); `clone` takes seconds. OUT (default
 | `summary.txt` | the one-line summary `parity.py summary` prints |
 
 Options of `native.py` (passed after OUT): `--copy` (the Wine copy, default
-`$OB_PRIVATE/wine/runs/<run>`, or `$PARITY_COPY`), `--display` (default 206, or `$PARITY_DISPLAY`), `--keep`
+a private one, or `$PARITY_COPY`), `--display` (default 206, or `$PARITY_DISPLAY`), `--keep`
 (leave the session running). The session is started and stopped through
 `fastgpu.sh` (by PID, never by name).
 
@@ -61,8 +64,8 @@ inputs = [ { t = 0.0, key = "throttle" }, { t = 2.0, key = "left" }, { t = 2.5, 
 
 Keys: `throttle brake left right handbrake nitro shift_up shift_down`; `t`
 in seconds after the arm (frame = round(t × 60)); a negative `t` is held
-from the race's start (scene and countdown). `$OB_PRIVATE/devprobes/src/bin/parity_events SAVE
-[HASH…]` prints a native save's open events (and any listed by hash) with
+from the race's start (scene and countdown). A private developer probe (`parity_events SAVE
+[HASH…]`) prints a native save's open events (and any listed by hash) with
 their trigger boxes.
 
 ## Adding a field
@@ -226,8 +229,7 @@ A negative `tol` records the field without ever counting it as a divergence.
 ## Results (2026-11-04)
 
 All four starter scenarios ran end to end on both sides (original:
-`$OB_PRIVATE/wine/runs/<run>` on :206, wined3d; raw runs in
-`<work dir>/parity-work/runs/<name>/`; reports, plans and car
+a private Wine copy on :206, wined3d; raw runs kept with the maintainer's private evidence; reports, plans and car
 lists in the maintainer's private captures). 20 s from the arm each
 (1201 frames; the outrun 1199). Every run diverges at frame 0, i.e. the
 start states already differ; what differs is the finding:
@@ -282,7 +284,7 @@ The native race status and racer offsets used are listed under Fields.
   SMS inbox popping up in free roam, slow loads) are handled (`nav.py`:
   free roam only with no garage screen and the clock running; Escape on
   the inbox; 240 s load wait; the main menu's Left retried).
-* `$OB_PRIVATE/tools/parity/aistats.py OUT…`: per matched rival, speed at 1/2/5 s,
+* the private tool `aistats.py OUT…`: per matched rival, speed at 1/2/5 s,
   distance, mean target and catch-up from 6 s, action changes, reversing
   time, the worst crash drop.
 * **Drag input (open item 4)**: in drag_s1 the player's event-0x91 value
@@ -314,7 +316,7 @@ The native race status and racer offsets used are listed under Fields.
   (+0x10 the total; observed in free roam and a circuit). `[run] traffic = true` records it
   (fields with `traffic = true`; traffic-only `mover`, `traffic_action`, `parked`,
   `drawn`); diff.py does not match traffic cars; `trafficstats.py OUT` compares the pools,
-  `$OB_PRIVATE/devprobes/src/bin/traffic_lane_offsets OUT` the lane keeping.
+  a private developer probe (`traffic_lane_offsets OUT`) the lane keeping.
 * **`[start] kind = "free_roam"`**: held at once in free roam, armed the next frame; the
   clone takes the original's frame-0 player pose. Scenarios `freeroam_stand`,
   `crash_wall`, `circuit_traffic`.
@@ -341,7 +343,7 @@ The native race status and racer offsets used are listed under Fields.
 * **Tutorial movies**: `accept_race` presses Return every 10 s from 20 s
   while the race has not loaded (the first drift / drag plays its tutorial),
   with a screenshot each (`accept-N.png`).
-* `$OB_PRIVATE/devprobes/src/bin/drift_replay native.tsv SLOT CLASS TOP [FACTOR]`: the clone's
+* a private developer probe (`drift_replay native.tsv SLOT CLASS TOP [FACTOR]`): the clone's
   drift scorer on a car's recorded native kinematics.
 * Scenarios `drift_s1`, `outrun_stand`.
 
@@ -353,7 +355,7 @@ The native race status and racer offsets used are listed under Fields.
   factor, `dt_f0` the class. `dt_68`, `dt_78`, `dt_80`, `dt_cc`, `dt_d0`, `dt_dc`, `dt_e0`,
   `dt_e8` have clone accessors. A native path takes at most three pointer reads after the car
   (cave.py packs four offsets, the car's slot read being the first).
-* `$OB_PRIVATE/tools/parity/shifts.py OUT…`: per matched car, each gear change (frame, gears, frames not
+* the private tool `shifts.py OUT…`: per matched car, each gear change (frame, gears, frames not
   locked, shown rpm before, the grade).
 
 ## Additions (2026-11-05, docs/world-systems-parity.md)
@@ -366,7 +368,7 @@ The native race status and racer offsets used are listed under Fields.
   OUT/native.wav` (+ `native.sync.tsv`) and `native.py`'s EventWatch logs every live AEMS
   instance's parameter block with the sim clock every ~40 ms (`native-events.tsv`); the
   clone writes its offline mix (`NFSU2_PARITY_PCM`, 48 kHz f32, `clone.f32`) and its events
-  (`NFSU2_EVENT_LOG`, `clone-events.tsv`, time = frame / 60). `$OB_PRIVATE/tools/parity/audiomix.py OUT
+  (`NFSU2_EVENT_LOG`, `clone-events.tsv`, time = frame / 60). The private tool `audiomix.py OUT
   [name:t0-t1,…]` prints RMS dBFS per window for both mixes (the WAV placed on the frames
   through the sim clock) and, per event (CAR by its p0 slot, FX_ROADNOISE by side), the
   median parameter block of each side.
@@ -387,9 +389,9 @@ The native race status and racer offsets used are listed under Fields.
   native windows fell in the boot / front end: The audio and camera parity's "3–5 dB louder" was this).
 * Scenario `audio_freeroam_musiconly` (speech, effects, engine, tires 0 by the profile: the
   EA Trax alone; it lived where the audio and camera parity's game-music-0 run died).
-* `$OB_PRIVATE/devprobes/src/bin/trax_dump OUTDIR [S]` (the decoded songs, mono 11025 Hz) with
+* a private developer probe (`trax_dump OUTDIR [S]`) (the decoded songs, mono 11025 Hz) with
   internal evidence WAV T…` (which song and at what level a
-  native WAV plays); `$OB_PRIVATE/devprobes/src/bin/lane_speed_at FILE…` (lane speed bytes at points).
+  native WAV plays); a private developer probe (`lane_speed_at FILE…`) (lane speed bytes at points).
 * Reading AI state the cave faulted on: internal evidence polls
   through /proc (peek.Session) after `native.py … --keep` (no pointer chase in the game).
 
@@ -406,11 +408,11 @@ The native race status and racer offsets used are listed under Fields.
 * **Clone shifts fixed**: the clone flow put a scripted `shift_up` / `shift_down` only into the
   held-key set, so the clone's player never shifted on a scripted key (drag_s1 / the drag shift sweep clone
   players had no manual shifts). The press now also goes through the game's key handler.
-* `$OB_PRIVATE/tools/parity/dragshift.py SCEN OUT --deltas … [--nitro T --nitro-hold S]`: a drag driven
+* the private tool `dragshift.py SCEN OUT --deltas … [--nitro T --nitro-hold S]`: a drag driven
   like a player with real X keys on the session's Xvfb (Up, Left Shift, Left Alt), shifting
   in lockstep at chosen rpm under each gear's up-shift point; screenshots at each press and
   14 frames after; `--replan OUT` writes the key frames into native.json for `parity.py
-  clone`. `$OB_PRIVATE/tools/parity/shiftgrades.py OUT…`: each player up-shift's shown rpm, q, light,
+  clone`. The private tool `shiftgrades.py OUT…`: each player up-shift's shown rpm, q, light,
   formula grade, native grade, message, and the clone's.
 * `[start] garage_from = SAVE` (savepatch.py): another save's garage and current car slot in
   the scenario's save (the finished-career save's Skyline in the stage-4 career of stage4_start.sav).
@@ -457,7 +459,7 @@ The native race status and racer offsets used are listed under Fields.
 * `[run] stance = true` or `PARITY_STANCE=1` (career events): the plan's `stance` line puts the original player's
   exact frame-0 state (native.rec: centre of mass, rows, velocity, ω, L, compressions and rates, rest class) on the
   clone's player at the arm.
-* `$OB_PRIVATE/tools/parity/stance.py RUN [CLONE.tsv…]`: the player's frame-0 stance per wheel side by side, the speeds 0.5–4 s
+* the private tool `stance.py RUN [CLONE.tsv…]`: the player's frame-0 stance per wheel side by side, the speeds 0.5–4 s
   after the green, the one-frame pushes and the contact frames.
 
 ## Additions (the full transplant, docs/prop-hits.md §7b)

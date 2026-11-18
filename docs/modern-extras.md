@@ -17,7 +17,7 @@ per section.
 | **Reduced Flashing** (Enhancements) | Off / On | `enh.reduced_flashing 1` |
 
 Code: `src/extras.rs` (the values, HUD element scale, flash cap, CPU palette),
-`src/latency.rs` (pacer, display model, VRR probe), `src/render/fsr.rs` +
+`src/latency.rs` (pacer, display model, VRR probe), `src/render/enh/post/fsr.rs` +
 `fsr.wgsl` (FSR 1), `src/replay_cams.rs` (extra cameras, smooth slow
 motion), hooks in `qol.rs` (one `extras` field; FSR tiers), `enhance.rs`
 (FSR in place of the resample), `ui.rs` / `ui.wgsl` (palette pipelines),
@@ -53,7 +53,7 @@ acquire in `draw`, the present on a render thread).
   variably, frames are held 3 % under its top rate (`VRR_HEADROOM`), so
   FIFO never queues and the panel stays in its range. **Open**: Windows /
   macOS are not probed (VRR "unknown": no cap; the pacer still works).
-  This machine: DP-1 and DP-3 `vrr_capable` 1, `VRR_ENABLED` 0 on the
+  The reference desktop: DP-1 and DP-3 `vrr_capable` 1, `VRR_ENABLED` 0 on the
   desktop (checked with `modetest`, the probe agrees).
 * **The world cadence is untouched**: the pacer only moves when a frame
   starts; `frame_clock::Cadence` takes the real time that passed (fixed

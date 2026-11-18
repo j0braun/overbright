@@ -1,6 +1,6 @@
 # Loading waits, first-use pipelines and pacing (2026-11-05)
 
-Wave D this work (roadmap §4 wave D, rules (1)–(5)): shorter transitions and
+Shorter transitions and
 no first-use pipeline builds mid-play, the same frames, sound and
 simulation; an opt-in power-saving frame cap. Nothing here was traced in
 SPEED2.EXE: every change computes the same values sooner or with less work
@@ -50,7 +50,7 @@ main 225 / 234 ms, this copy 61 / 17 ms (a second build
 
 Changes:
 
-* **`handling::launch_times`** (`src/handling.rs`): the loop also stops
+* **`handling::launch_times`** (`src/handling/`): the loop also stops
   once every time that can still change is set — a time whose type factor
   is 0 stays 0 for the rest of the loop (`t · 0 = +0`, `t > 0`), so the
   game's remaining steps change nothing returned. Identical results:
@@ -67,7 +67,7 @@ Changes:
   full parse fails (a pack damaged in a block the filter skips would make
   the full parse fail as a whole while this one keeps the wanted textures;
   no shipped pack is).
-* **`AiRoutes::racing_speeds`** (`src/ai/route.rs`): its two maps keyed by
+* **`AiRoutes::racing_speeds`** (`src/ai/route/`): its two maps keyed by
   `LineNode` (`samples`, `near`) use the in-crate Fx hash (the main-thread pass'
   `fxhash.rs`): only looked up by key, never iterated, so the order (std's
   is random per run already) reaches no output.
@@ -148,11 +148,11 @@ first possible, in the load's first frame:
 
 * `PostFx::multisampled` builds the motion blur's multisampled lerp with
   the multisampled targets (`src/render/postfx.rs`);
-* `BlurDof::warm` (`src/render/blur_dof.rs`), called by `blur_and_dof`
+* `BlurDof::warm` (`src/render/enh/post/blur_dof.rs`), called by `blur_and_dof`
   the first frame the passes are wanted: every motion / DOF pipeline for
   the scene's format and sample count;
 * `Detail::warm` (`src/render/gpu_particles.rs`, the pipeline build split
-  out as `GpuSmoke::pipeline`) and `Water::warm` (`src/render/water.rs`),
+  out as `GpuSmoke::pipeline`) and `Water::warm` (`src/render/enh/volumes/water/`),
   called in `draw_frame` before the passes with the same arguments as
   their draws;
 * `WeatherFx::draw` builds all four of its pipelines the first frame it

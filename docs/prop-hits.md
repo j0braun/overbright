@@ -120,7 +120,7 @@ road in the original and 0.85–0.95 m in the clone. Not fixed: no native rule w
   `NFSU2_FX_GEAR`, `NFSU2_AUDIO_WAV`, `NFSU2_PROP_LOG=1`), and the parity flow
   (`parity.py clone`, the original's car state put on the clone's two frames before the hit,
   `[run] transplant`).
-* `$OB_PRIVATE/tools/parity/prophits.py OUT` / `scripts/clone_shot.py`: the hit frame (the car's first
+* the private tool `prophits.py OUT` / `scripts/clone_shot.py`: the hit frame (the car's first
   speed drop over 0.4 m/s a frame), the mix's RMS over the 0.5 s before the hit (the engine),
   the loudest 50 ms RMS and the peak of the second after it; per prop the distance travelled,
   the height reached and the time to rest.

@@ -8,7 +8,7 @@ formats.md "Replays".
 
 Evidence: the maintainer's private captures (the original's director per frame and its shots
 by group, the clone's shots before and after, frame sheets of both). Raw run:
-`<work dir>/p7-work/runs/replay1/` (Wine copy `a private Wine copy`, display :288,
+`<work dir>/p7-work/runs/replay1/` (a private Wine copy, display :288,
 wined3d; Quick Race circuit 4014 from `stage1_win_streetx.sav`, the Peugeot driven 60 s by
 `bot.py`, then Pause → Replay → `[` to the green light; `dirlog.py` polls the director).
 
@@ -72,7 +72,7 @@ Weights (0x441AF0..0x441F3A, constants read under Wine):
 | Burnout | 0x441D30 (**verified** in the gap sweep, constants read from the image): with the forward speed +0x42C within −10..20 (0x785BAC / 0x7850D8), clamp(Σ wheels' longitudinal slip +0x3B4 + 8i × 0.1 − 1, 0, 1); plus 10 × 1.1 / (1 + 1e-6) (0x786FB0, 0x787598, 0x787594) when the forward speed is also within −1..1 and the rpm is over 3000 (0x78759C; the rpm is 0x7FBED8 unless that is 100 — it is in the image — then car +0x440) | — |
 | PowerSlide | car +0x430 > 4: (\|slip\| − 5°) × 1.4324 + 0.1 within 0..1 (slip 0x59FA20 → 0x591DA0) | slip < 0 |
 
-## The clone (src/bin/game.rs `ReplayCamera`, `replay_typed_input`; src/track_camera.rs)
+## The clone (src/bin/game.rs `ReplayCamera`, `replay_typed_input`; src/track_camera/)
 
 **Before**: the route cameras only, drawn at any frame a chase view showed (no 1.5 / 4 s
 holds, no reset flag), a chase view drawn only by the 4 s chance (none at a track's end).

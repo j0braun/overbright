@@ -19,7 +19,7 @@ simulation is unchanged by construction.
   builds, Wine sessions and benches; the shadow-softness pass, the volumetric smoke, the quality tooling and the performance overlay active).
 * GPU = the run's median GPU busy ms/frame (timestamps), the median over
   the 4 runs; p95 the same for the 95th percentile; CPU = main thread /
-  render workers ms/frame (thread CPU; noisy on this machine, the perf harness:
+  render workers ms/frame (thread CPU; noisy on the reference desktop, the perf harness:
   12–35 % run to run).
 * Scenes (perf.sh): `explore` (free roam, the opening burnout: the smoke's
   heavy scene), `racing` (a circuit at speed), `race` (the race start: cars,
@@ -107,7 +107,7 @@ cameras stay near the car — open for the effects-performance pass). **The fram
 "n.s." = p ≥ 0.05 or within 2 × noise. Sum of the leave-one-out costs
 exceeds max − Original in places (interactions are counted in each row).
 CPU deltas per row: mostly within ±0.6 ms main / workers — at or under
-this machine's CPU noise; none is a clear CPU cost except Modern Lighting
+the reference desktop's CPU noise; none is a clear CPU cost except Modern Lighting
 (+0.3–0.6 ms main) and the World Detail rows (+0.1–0.35 ms main).
 
 **Budgets for the NX units** (allowed extra GPU ms in the max setup,
@@ -186,7 +186,7 @@ scripts/checks/perfgate.sh seed   OUT NEW_BIN [NOTE]           # first baseline:
   2 × the pooled run-to-run noise) **and** > the metric's floor. Reported
   only (never fail): GPU p95, process CPU, own VRAM, RAM, load. Exit 1 and
   `PERFGATE: FAIL (…)` naming config, metric, change and p.
-* **Baseline** (`$OB_PRIVATE/perf-baselines/`, not in the repo; override
+* **Baseline** (the maintainer's baseline folder, not in the repository; set it with
   `PERF_BASELINES`): one dir per accepted binary — `game` (the perf.sh-built
   binary), `summary.json` (its runs: values per metric and config),
   `compare.md`, `meta.txt` — and `current` → the accepted one. A/B against
@@ -207,9 +207,9 @@ scripts/checks/perfgate.sh seed   OUT NEW_BIN [NOTE]           # first baseline:
 ### How the maintainer runs it after each merge
 
 ```
-scripts/checks/gate.sh $OB_PRIVATE/lead/gates/<unit> <base>          # as before; leaves <out>/b/game
-scripts/checks/perfgate.sh run $OB_PRIVATE/lead/gates/<unit>/perf <out>/b/game
-#  PERFGATE: pass           -> scripts/checks/perfgate.sh accept $OB_PRIVATE/lead/gates/<unit>/perf "<unit> <commit>"
+scripts/checks/gate.sh <out> <base>                  # as before; leaves <out>/b/game
+scripts/checks/perfgate.sh run <out>/perf <out>/b/game
+#  PERFGATE: pass           -> scripts/checks/perfgate.sh accept <out>/perf "<change> <commit>"
 #  PERFGATE: FAIL (…)       -> rerun that config alone with REPS=10 (CONFIGS="cfg" perf.sh bench … base=… new=…);
 #                              a confirmed regression needs an approved reason (a new opt-in row costs only
 #                              where it is on: Original configs must never move) — then accept with that note.
@@ -978,7 +978,7 @@ replays and photo mode; the racing leave-one-out, 0.02, is not its scene).
   textures and buffers, only while a shop is up.
 * Checks: `--shot finished_shop_checks` asserts that every list step asks for a ride
   that was built ahead (25 steps in the body shop, carbon fibre, specialties and neon
-  lists); `$OB_PRIVATE/scripts/preview_xtest.sh run` (windowed on its own Xvfb) 0 failures with
+  lists); the private windowed test `preview_xtest.sh run` (on its own Xvfb) 0 failures with
   and without the prefetch.
 
 ### Gate
@@ -1190,7 +1190,7 @@ keep their the look direction tuning.
   <base> binary (same set, a temporary baseline dir): **pass**, every config within ±0.1 % GPU, rain max 4K CPU
   +4–7 % n.s. — the CPU change is main's between the two bases, not the effects-tiers pass (changes nothing max draws).
   Reports: internal evidence.
-* **New baseline** accepted from the effects-tiers pass gated binary: `$OB_PRIVATE/perf-baselines/20261106-0446-b7ee3bcf464b`
+* **New baseline** accepted from the effects-tiers pass gated binary: `20261106-0446-b7ee3bcf464b`
   (`current`; sha256 b7ee3bcf…, the <base> A/B run's arm).
 
 ### Open
@@ -1337,7 +1337,7 @@ looked for and measured:
   the HUD's layout (0.08 ms per frame) animates with the frame's clock, so it is needed per frame;
 * allocations per frame: the interpolated poses clone each drawn car's whole state (its collision caches
   included) per frame, 0.014 ms; Vec growth across the draw 0.035–0.057 ms; wgpu's staging buffer per
-  `write_buffer` 0.07–0.1 ms in the max configurations — each below this machine's CPU noise;
+  `write_buffer` 0.07–0.1 ms in the max configurations — each below the reference desktop's CPU noise;
 * a per-frame sort or rebuild: Keep All Loaded's look-ahead searched every visible list for each of the map's
   outlines on every call, twice a frame (fixed below); bind groups made each frame by enhanced passes (0.08 ms,
   the enhanced passes' code);
@@ -1464,7 +1464,7 @@ Medians [min..max] of 7 runs per arm; the frame's main thread CPU from the frame
 first-conflict frame was the "10.9 ms draw" of the circuit's tail at High and the race start's 7.3 ms one; what
 is left in it (about 1 ms over its neighbours) is, **inferred**, the first set's own work: the asked sections' cells and
 the set.
-The per-frame saving of the box test first is below this machine's noise (−0.04 ms median at High).
+The per-frame saving of the box test first is below the reference desktop's noise (−0.04 ms median at High).
 
 ### Proposed, not built
 
