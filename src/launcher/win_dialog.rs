@@ -1,6 +1,6 @@
-//! Windows' own folder dialog for the launcher's "System dialog…" button
-//! (the in-app browser works on every system; this is the familiar one on
-//! Windows): `IFileOpenDialog` with `FOS_PICKFOLDERS`. Declared by hand
+//! Windows' own folder dialog, which the launcher's folder buttons open
+//! first (`model::system_folder_dialog`; the in-app browser is the
+//! fallback and the pad's way): `IFileOpenDialog` with `FOS_PICKFOLDERS`. Declared by hand
 //! against the documented COM interfaces (ShObjIdl_core.h), as the tree's
 //! other Win32 calls are (`platform::win`), so no new dependency.
 //! Opened and cancelled by mouse under Wine (Wine's own dialog); not run on
@@ -79,8 +79,12 @@ unsafe extern "system" {
     fn CoTaskMemFree(p: *mut c_void);
 }
 
-/// The dialog; the folder chosen, None when cancelled or unavailable.
-pub fn pick_folder(title: &str) -> Option<PathBuf> {
+/// `HRESULT_FROM_WIN32(ERROR_CANCELLED)`: Show's answer to a cancel.
+const CANCELLED: Hr = 0x8007_04C7u32 as i32;
+
+/// The dialog: the folder chosen, `Ok(None)` when it was cancelled,
+/// `Err` when it could not be made or shown.
+pub fn pick_folder(title: &str) -> Result<Option<PathBuf>, ()> {
     // SAFETY: documented COM calls; every interface obtained is released,
     // the returned string freed with CoTaskMemFree, COM uninitialised
     // when this call initialised it.
@@ -94,7 +98,7 @@ pub fn pick_folder(title: &str) -> Option<PathBuf> {
             &IID_IFILE_OPEN_DIALOG,
             &mut dlg,
         );
-        let mut out = None;
+        let mut out = Err(());
         if hr >= 0 && !dlg.is_null() {
             let v = &**(dlg as *mut *const DialogVtbl);
             let mut opts = 0u32;
@@ -102,7 +106,11 @@ pub fn pick_folder(title: &str) -> Option<PathBuf> {
             (v.set_options)(dlg, opts | FOS_PICKFOLDERS | FOS_FORCEFILESYSTEM);
             let t: Vec<u16> = std::ffi::OsStr::new(title).encode_wide().chain([0]).collect();
             (v.set_title)(dlg, t.as_ptr());
-            if (v.show)(dlg, std::ptr::null_mut()) >= 0 {
+            let shown = (v.show)(dlg, std::ptr::null_mut());
+            if shown == CANCELLED {
+                out = Ok(None);
+            }
+            if shown >= 0 {
                 let mut item: *mut c_void = std::ptr::null_mut();
                 if (v.get_result)(dlg, &mut item) >= 0 && !item.is_null() {
                     let iv = &**(item as *mut *const ItemVtbl);
@@ -112,7 +120,7 @@ pub fn pick_folder(title: &str) -> Option<PathBuf> {
                         while *name.add(n) != 0 {
                             n += 1;
                         }
-                        out = Some(PathBuf::from(OsString::from_wide(std::slice::from_raw_parts(name, n))));
+                        out = Ok(Some(PathBuf::from(OsString::from_wide(std::slice::from_raw_parts(name, n)))));
                         CoTaskMemFree(name.cast());
                     }
                     (iv.release)(item);

@@ -78,10 +78,10 @@ L=$W/launcher.out
 LOGS="info,launcher::screen=debug,launcher::input=debug"
 if [ "$WINE" = 1 ]; then
   mkdir -p "$W/data"
-  (exec env -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE DISPLAY="$DISP" NFSU2_NO_PADS=1 OVERBRIGHT_NO_PREPARE=1 RUST_LOG="$LOGS" \
+  (exec env -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE DISPLAY="$DISP" NFSU2_NO_PADS=1 OVERBRIGHT_NO_PREPARE=1 OVERBRIGHT_OWN_PICKER=1 RUST_LOG="$LOGS" \
     NFSU2_DATA_DIR="$(winepath -w "$W/data" 2> /dev/null)" NFSU2_ROOT= wine "$OB" > "$L" 2>&1) &
 else
-  (cd "$H" && exec env -i HOME="$H" PATH=/usr/bin:/bin DISPLAY="$DISP" LANG=C.UTF-8 NFSU2_NO_PADS=1 OVERBRIGHT_NO_PREPARE=1 \
+  (cd "$H" && exec env -i HOME="$H" PATH=/usr/bin:/bin DISPLAY="$DISP" LANG=C.UTF-8 NFSU2_NO_PADS=1 OVERBRIGHT_NO_PREPARE=1 OVERBRIGHT_OWN_PICKER=1 \
     WINIT_X11_SCALE_FACTOR="$SCALE" NFSU2_CACHE_DIR="$W/cache" XDG_DATA_HOME="$W/data" RUST_LOG="$LOGS" "$OB" > "$L" 2>&1) &
 fi
 LPID=$!
@@ -270,7 +270,7 @@ fi
 # ---- j ----------------------------------------------------------------------------------------
 if [ -e "$H/NFSU2" ]; then
   STEP=j
-  [ "$(q screen)" = check ] && { click_id button back; wait_until 5 screen_is first-run || fail "Back"; }
+  [ "$(q screen)" = check ] && { click_id button legend:back; wait_until 5 screen_is first-run || fail "Back"; }
   wait_until 5 screen_is first-run || fail "not on the first-run screen: $(q screen)"
   click_id button browse
   wait_until 5 screen_is browse || fail "Browse…"
@@ -284,7 +284,7 @@ if [ -e "$H/NFSU2" ]; then
   click_id button use
   wait_until 10 screen_is main || fail "Use this folder did not reach the main screen"
   ok "the game folder chosen by the mouse: the main screen"
-  click_id button mods
+  click_id row row_mods
   wait_until 5 screen_is mods || fail "Mods"
   click_id button add
   wait_until 5 screen_is browse || fail "Add packages…"

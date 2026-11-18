@@ -558,13 +558,18 @@ impl ApplicationHandler for Game {
         if self.platform.window.is_none()
             && let Err(e) = self.create_window(event_loop)
         {
+            // The kind first, for the launcher's failure screen
+            // (`launcher::run::ErrorKind`), then the line it also knows.
+            let text = format!("{e:#}");
+            eprintln!("{}", nfsu2::launcher::run::ErrorKind::of_window_error(&text).line());
+            eprintln!("could not open a window: {text}");
             // In the log and, on Windows with no console, in a message box:
             // a start that ends here otherwise leaves no word.
-            log::error!("could not open a window: {e:#}");
-            nfsu2::diag::events::record(nfsu2::diag::events::Kind::Error, format!("could not open a window: {e:#}"));
+            log::error!("could not open a window: {text}");
+            nfsu2::diag::events::record(nfsu2::diag::events::Kind::Error, format!("could not open a window: {text}"));
             nfsu2::diag::events::dump_to_log("no window");
             nfsu2::qol::log_file::flush(std::time::Duration::from_millis(300));
-            nfsu2::console::show_if_unseen(&format!("could not open a window: {e:#}"));
+            nfsu2::console::show_if_unseen(&format!("could not open a window: {text}"));
             event_loop.exit();
         }
         self.loads.waits.start_part("window");

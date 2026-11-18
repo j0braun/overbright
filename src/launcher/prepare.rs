@@ -74,6 +74,29 @@ impl State {
 
     /// The main screen's state line for a run behind it (started by
     /// itself: `Prepare::background`).
+    /// "40 % · step 2 of 5: shader programs" (and the time left).
+    pub fn progress_words(&self, left: Option<std::time::Duration>) -> String {
+        let pct = (self.fraction() * 100.0).round() as u32;
+        let mut s = match self {
+            State::Running { n, of, what } if !what.is_empty() => format!("{pct} % · step {n} of {of}: {what}"),
+            State::Running { n, of, .. } => format!("{pct} % · step {n} of {of}"),
+            State::Done => "100 %".into(),
+            _ => format!("{pct} %"),
+        };
+        if let Some(l) = left {
+            let secs = l.as_secs().max(1);
+            s += &if secs < 60 { format!(" · about {secs} s left") } else { format!(" · about {} min left", secs.div_ceil(60)) };
+        }
+        s
+    }
+
+    /// The time left, from the time since the start and the part done.
+    pub fn time_left(&self, since_start: std::time::Duration) -> Option<std::time::Duration> {
+        let f = self.fraction();
+        (matches!(self, State::Running { .. }) && f > 0.05 && f < 1.0)
+            .then(|| since_start.mul_f32((1.0 - f) / f))
+    }
+
     pub fn background_words(&self) -> String {
         match self {
             State::Running { n, of, what } if !what.is_empty() => {

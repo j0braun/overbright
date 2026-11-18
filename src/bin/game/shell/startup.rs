@@ -113,6 +113,20 @@ pub(crate) fn main() -> Result<()> {
         eprintln!("game: unknown option {flag}\n{}", dev_hooks::USAGE);
         std::process::exit(2);
     }
+    // The desktop map editor's test run (`cli::MapTest`): only its mod for
+    // this run; a malformed one is a usage error.
+    match super::cli::MapTest::parse(&args) {
+        Ok(Some(t)) if matches!(command, Command::Window { .. }) => {
+            nfsu2::tools::map::set_only(Some(&t.folder));
+            log::info!("map test: mod {} ({})", t.folder, t.race.as_deref().map_or("free roam", |r| r));
+            let _ = super::cli::MAP_TEST.set(t);
+        }
+        Ok(_) => {}
+        Err(e) => {
+            eprintln!("game: {e}\n{}", dev_hooks::USAGE);
+            std::process::exit(2);
+        }
+    }
     // `--dev-harness`: this build has the developer harness (the checks
     // ask before they test a binary; a shipping build answers with the
     // usage error above).
@@ -134,6 +148,8 @@ pub(crate) fn main() -> Result<()> {
         Ok(true) => {}
         Ok(false) => return Ok(()),
         Err(e) => {
+            // The launcher's failure screen reads the kind (`launcher::run::ErrorKind`).
+            eprintln!("{}", nfsu2::launcher::run::ErrorKind::GameFiles.line());
             log::error!("no usable game folder: {e:#}");
             nfsu2::qol::log_file::flush(std::time::Duration::from_millis(300));
             nfsu2::console::fatal(&e.to_string());

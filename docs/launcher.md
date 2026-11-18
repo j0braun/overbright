@@ -4,7 +4,100 @@ Design: the platform work launcher design (its work list: prerequisites, probe,
 core, screens, start and watch, tests, packaging). Not native: SPEED2.EXE has no
 launcher; the game starts and works without it (NFSU2_ROOT, game-root.txt,
 `--set-root`, auto-detection all stay). Nothing from EA is shown or shipped:
-own plain dark look, the Go font (BSD-3-Clause, `src/launcher/fonts/`).
+its own dark look (a smoked slab, a rail under the page names, lime titles), set in
+Sofia Sans Semi Condensed (SIL OFL 1.1, `src/launcher/fonts/`, OFL.txt beside it).
+
+## The flow and the look (current)
+
+This section describes the launcher as it is now; the dated parts below record how it got there, and
+where they disagree this one holds.
+
+**When the launcher appears** (`src/bin/overbright.rs`, decided before any window is mapped):
+1. `--launcher` given (also the Steam launch option for "always show the launcher") → the main screen.
+2. Shift or Ctrl held, or a pad's View (Back / Select; LB where Steam takes View) held at start
+   (`platform_deck::held_at_start`; `OB_HELD_AT_START=0/1` answers for the start tests) → the main screen.
+3. No usable game folder saved → the setup screens (Find your game).
+4. The last start did not finish: the start marker (`start-marker.txt` in Overbright's folder, `dirs::start_marker`)
+   is written by `run::start` before the game runs and removed once the start is past (`run::START_SECS`) or the
+   game ended under the launcher's eyes; one left over means the launcher and the game went down together during
+   a start → the recovery screen ("The last start didn't finish": Start with safe settings, Start as usual,
+   Settings, Save support file…). Safe settings are the original graphics, a window, the HUD mod and texture
+   packs off; they stay until changed in Settings / Mods.
+5. "When Overbright starts" is "Show this window" (the default, `launcher.skip` off) → the main screen.
+6. Otherwise the game starts at once and the launcher waits for it; a failed start opens the crash screen. A
+   graphics check that fails shows up as the game's own `error.kind=gpu` line: the crash screen then shows
+   "This computer has no Vulkan graphics driver" with Check again.
+
+**Pages and screens** (`screens::Screen`, `--render <name>`): the top bar carries Overbright's mark and the
+pages Game · Settings · Mods (LB / RB, Q / E, Ctrl+Tab, or a click; the rail's dot marks the page); the content
+sits on one smoked slab; the footer has the version and the button legends of the last input (`legends`).
+- `main`: the game's name, its state ("Ready · version 1.2 · English", "Checking…"), the folder, Play (focused),
+  and three rows that open their pages: Graphics, Screen, Mods. When Play cannot work its fix takes Play's place
+  (`main-novulkan`, `main-gone`); B / Esc asks before quitting (`main-quit`, Stay focused). The shaders run in
+  their own block (`main-prepare`, `main-shaders`, `main-shaders-ready`).
+- `settings`: Screen (hidden under gamescope), Resolution (read-only there), Graphics (the probe's choice tagged
+  "suggested"), Intro movies, Title screen, When Overbright starts, Advanced settings ›, Back to defaults (Y / R; asks first,
+  `settings-reset`); a description of the focused row at the right. Settings are saved when they change.
+- `settings-adv`: Text size (100 / 125 / 150 %: above 100 % the page keeps the larger text and
+  scrolls), Motion (Full / Reduced), Launcher sounds (off by default: a soft tick on a focus move and a press,
+  synthesised, through cpal; never in tests or with `NFSU2_AUDIO_HOST=none`), Get shaders ready again,
+  Storage › (below), Import saves, About Overbright (licence, notices, Make portable); This computer at the right.
+- `dev` (the fourth page, Game · Settings · Mods · Dev; LB / RB, Q / E go round all four): Map editor (the
+  "Open map editor (preview)" button, `screens::map_editor_button`: starts the desktop map editor on its own
+  Open / New; greyed with a line saying why when `overbright-editor` is not beside the launcher, `dirs::editor_exe`),
+  "Start the game with the editor tools" (this one start with `--editor`: F7 the texture editor, F8 the free
+  camera; `Model::play_args`), Support file (Save…) and the Logs folder (Open), the F3 overlay's
+  key; a description of the focused row at the right. Advanced keeps the rest.
+- `storage` (`storage-portable`, `storage-custom`, `storage-missing`; Settings › Advanced › Storage): Portable
+  mode as a switch (on: asks, offers to copy what is kept now into `<program>/data`, writes `portable.txt`;
+  off: asks, offers to copy back, removes `portable.txt`, the data folder stays; refused cleanly when the program
+  folder cannot be written; applies from the next start: the footer says "Portable after restart" / "Portable ·
+off after restart" and the page offers Restart now, focused, which starts the launcher again with the same
+arguments (`Outcome::Restart`; the new one waits for the old one's lock)), then every folder with its path, Change… (the system
+  folder dialog, Overbright's own browser with a pad or on the Deck), Open and Reset to default: game folder, HUD
+  mod folder and the `platform::dirs::Location`s (docs/platform-dirs.md "Folders put elsewhere"). Change… asks
+  "Copy the files and use it" (copied on a worker, checked, the old folder kept) or "Use it, start empty". A
+  folder on a drive that is not there says so and keeps Reset. The page scrolls when the window is short.
+- `mods` (`mods-empty`, `mods-off`, `mods-conflict`, `mods-order`, `mods-remove`, `mods-map-editor-open`,
+  `mods-map-editor-failed`): Use mods; Texture packs
+  (Overbright packs from `obpack`, then the imported TexMod / TexWizard packages, each with a switch; Remove is
+  X / Space and asks first); a message when two packs that are on change the same textures, with Change the
+  order (Move up / Move down) when both are in the same list; Add a mod…; HUD (HD HUD and maps, Add HUD mod…,
+  Choose folder…, Forget folder); Map mods (`tools::map::store`: a switch each with its races and prop
+  edits under the name; Open in map editor (the chosen mod; the editor's own Open / New is the Dev page's button), Import a
+  map mod…, Export… as a `.zip`). The map editor (`overbright-editor`, `dirs::editor_exe` beside the launcher,
+  `OB_EDITOR_EXE` names another) starts with `--mod <folder>` and the shown game folder as `NFSU2_ROOT`; one at a
+  time: while it is open the section's controls are greyed and a line says the page waits; when it closes the
+  map mods are read again (`App::poll_jobs`); a failed start or a bad exit is shown as an error line. The
+  editor is not the game: no start marker, no recovery screen. Use mods off sets every pack, the HUD mod and the map mods
+  off for the game and keeps what was on in `mods-paused.txt`; on gives it back. The page scrolls when the
+  list is long.
+- Setup: `first-run` / `first-none` / `first-several` (the copies found, or none with Choose the game folder…),
+  `check` / `err-own` / `err-missing` (the folder and its verdict: the error with its fix as the focused button).
+- `crash` (also `failure`), `recover`, `browse`, `import`, `prepare`, `about`, `licence`, `notices`.
+Every error is an `model::Issue` (one per situation: title, cause and fix, its buttons), never matched by text.
+"Save support file…" writes `diag::support` on a worker thread (the game program is asked for its
+hardware check, up to 20 s; the window stays live with "Saving the support file…") and offers Open folder;
+`overbright --support-file [folder]` does the same without a window. Text size, Motion and Launcher sounds are
+the launcher's own (`launcher.txt` in Overbright's folder). A crash of native code (Windows) is written to
+launcher.log (`diag::native_crash`). With a pad as the last input the page names carry the bumpers' glyphs and
+the Settings note shows the held button's glyph; at the first start that found the game the main screen
+says so, and Play keeps the folder. `--input pad|deck|ps|kbd|mouse` picks the legends of a render.
+
+**Look**: `draw::THEME_A` (page #050605, ink #EEF0E8, secondary #C8CCC0, lime #C6F087 for titles and focus,
+Play #F2F4EC), Sofia Sans Semi Condensed (italic for titles, Play, labels and buttons; upright for reading),
+focus rings at least 3 px and never in the primary style. Sizes follow the mockups' unit (1 at 1366 × 768,
+`Builder::ua`); the frame's vertical margins press together on short windows (`Builder::ac`).
+
+**Checks** (`launcher::tests`): every screen and state laid out at 640×480 … 3840×2160 with 1280×800 and
+1366×768 among them; `rendered_text_contrast` (WCAG 2 ≥ 4.5:1 and APCA Lc ≥ 60, reading text ≥ 75, measured
+against the rendered pixels under each text); `smallest_glyphs` (at 1280×800 a capital ≥ 9 px and a line ≥ 12 px,
+at 1920×1080 every text ≥ 18 px of em); the arrows reach every control; tests/launcher_render.rs compares the
+renders at the eight sizes. Start tests: tests/launcher_start.sh (also: Save support file… on the failure
+screen; under Wine the system folder dialog opened and cancelled), tests/launcher_fresh.sh (the pages:
+Settings › Advanced for the game folder and the shaders, Settings for the display rows, kept at once),
+tests/launcher_mouse.sh (scale 1 and 2; Back by its legend), tests/launcher_wayland.sh. The screen trace
+lists each legend as `[button legend:<button> …]`.
 
 ## Part one (2026-11-12)
 
@@ -140,7 +233,8 @@ ok=1
 - `first-run`: the found folders say where they come from in words: "found
   on this computer", "inside a Wine prefix" (a `drive_c` in the path),
   "used last time" (game-root.txt), "set by NFSU2_ROOT", "the current
-  folder"; a Browse… button.
+  folder"; a "Choose folder…" button, which opens the system's folder
+  dialog (see "Choosing the game folder").
 - `about`: the version line (`build_info::version_line`), GPL-3.0-or-later
   in plain words, "you need your own copy of the game", EA's disclaimer word
   for word ("Overbright is not affiliated with Electronic Arts. EA has not
@@ -157,22 +251,23 @@ ok=1
   --version` prints the version line and `source: <url>` or that sentence;
   `scripts/release/package.sh` fails a package whose launcher has no
   source link.
-- `failure`: "The game stopped during its start" (or "… stopped"), how
-  (exit code, panic, signal), its last 8 output lines in a box, what to
-  try, the log file's path; Open log folder (Explorer / `open` /
-  `xdg-open`; when that fails the path is shown), Settings (main), Try
-  again, Quit. No "Copy log": a clipboard needs a new dependency.
+- `failure`: a title naming what went wrong, one sentence with the fix
+  and one main button that does it, by the kind of error (see "Errors in
+  plain words"); the log file's path; Open log folder (Explorer / `open` /
+  `xdg-open`; when that fails the path is shown) and Details, which shows
+  how it ended (exit code, panic, signal) and the game's last 8 output
+  lines in a box; Settings (main), Quit. No "Copy log": a clipboard needs a
+  new dependency.
 - `browse`: the folder browser for the game folder, the texture-pack
   folder and the save import: the places, the folder shown as clickable
   parts, a list (".." first, then the subfolders sorted, hidden ones left
   out; notes "game folder", "saves") taking the room the window leaves,
   Enter or a double click opens the chosen row, Up one folder, a typed
   path (Enter), Cancel, Open, Use this folder; Windows' drives ("This PC")
-  above the drive roots (see "The mouse"). On Windows also
-  "Windows dialog…": `IFileOpenDialog` with `FOS_PICKFOLDERS`
-  (`src/launcher/win_dialog.rs`, the COM interfaces declared by hand, no new
-  dependency; opened and cancelled by mouse under Wine, where it is Wine's
-  own folder dialog; **not run** on Windows, no automated test opens it).
+  above the drive roots (see "The mouse"). It is the fallback of the
+  system's folder dialog, the way with a gamepad, and the Mods page's
+  pickers (they list package files with notes). On Windows also
+  "Windows dialog…" (the system dialog from inside it).
 - `import`: from (Windows: `%LOCALAPPDATA%\NFS Underground 2`, the
   original's folder (0x4A9C40); elsewhere a folder the player picks, the
   browser starting at the game folder's Wine prefix `drive_c/users`), to
@@ -190,6 +285,94 @@ is only read; Overbright's own folder as the source is refused. The player
 may also pick one profile's folder. Not checked: whether the original keeps
 anything else in its save folder (only profile and cover folders are
 known; others are left out).
+
+**Choosing the game folder** (`App::choose_folder`, `model::system_folder_dialog`)
+- "Choose folder…" (first run), "Choose another folder…" (a refused
+  folder), the save import's "Choose folder…" and the HUD mod folder's
+  "Choose folder…" open the **system's folder dialog**:
+  - Windows: `IFileOpenDialog` with `FOS_PICKFOLDERS`
+    (`src/launcher/win_dialog.rs`, the COM interfaces declared by hand),
+    on the window's thread (it runs its own message loop). Show's
+    `ERROR_CANCELLED` is a cancel; any other failure means no dialog.
+    Opened and cancelled by mouse under Wine, where it is Wine's own
+    folder dialog; **not run** on Windows, no automated test opens it.
+  - Linux: rfd 0.18 (MIT) with only its `xdg-portal` feature: the
+    desktop's file chooser through `org.freedesktop.portal.FileChooser`
+    (libdbus opened at run time, no build-time library), and zenity when
+    the portal does not answer. It runs on a worker thread, so the
+    launcher keeps drawing; the screen says "Choose the folder in the
+    dialog that opened." meanwhile, and one dialog is open at a time. The
+    dialog has no parent window (it may open beside the launcher, not on
+    it).
+  - rfd answers a cancel and "no dialog" alike. No dialog is assumed when
+    there is no session bus and no zenity on `PATH`, or when the answer
+    comes within 300 ms (faster than a person cancels).
+  - A cancel changes nothing. No dialog: **Overbright's own folder
+    browser** opens at the same place. It also opens instead of the
+    dialog when the last input came from a gamepad (desktop dialogs are
+    not made for one), inside gamescope (Steam Deck Game Mode:
+    `SteamDeck=1`, `SteamGamepadUI`, `GAMESCOPE_WAYLAND_DISPLAY`, or
+    `XDG_CURRENT_DESKTOP` naming gamescope; its portals have no
+    FileChooser), and always with `OVERBRIGHT_OWN_PICKER=1`.
+  - With no folder found, the first-run screen's default focus is
+    "Choose folder…", not the path field (a pad or Game Mode may have no
+    keyboard).
+- The folder chosen is checked (`RealEnv::check`):
+  - its long names: Windows' registry gives the install folder in 8.3
+    form (`C:\PROGRA~2\EAGAME~1\…`); `model::long_path` shows and keeps
+    the file system's spelling (`canonicalize`, its `\\?\` prefix taken off).
+    The found folders get the same.
+  - one level off is corrected (`model::game_dir_near`): a pick of
+    GLOBAL, or of Overbright unpacked inside the game folder, takes the
+    folder above; a pick of `EA GAMES` takes the one game folder below.
+  - **Overbright's own folder** (it holds `overbright` / `overbright.exe`,
+    or it is the folder the launcher runs from) and is no game folder is
+    refused with its own title, "This is Overbright's folder".
+  - a folder that cannot be read is refused as such.
+- The check screen's first line is the verdict: "Ready to play", "Ready
+  to play, with the notes below" (files that differ from the known
+  release), or, for a refused folder, the title as the heading, one
+  sentence with the fix and its button (Choose another folder…, or Check
+  again when some files are missing). Two notes are left out as nothing to
+  act on: the mod files found (Overbright ignores them) and what
+  SPEED2.EXE is (Overbright does not use it).
+
+**The state line is true** (`src/bin/overbright.rs`, `screens::game_state`)
+- Before the window opens, the folder found (`setup::find`: NFSU2_ROOT,
+  the kept folder, the current folder, the usual places) gets the same
+  full check as the check screen (files, sizes, checksums and the
+  fingerprint). A usable folder opens the main screen; a refused one opens
+  the check screen with the reason; none, the first-run screen.
+- The main screen's state line comes only from that check and the
+  computer's check: "Ready to play" once both passed, else "Game folder
+  checked · checking this computer…", "… · no graphics adapter answered
+  (see below)", "… · this computer was not checked". Play is the main, focused action only when
+  the game can start: while this computer is checked it is drawn as an
+  ordinary button and not focused; with no graphics adapter, "Check
+  again" beside the folder takes the focus and runs the check again
+  (`screens::play_state`). The skip rule ("Start the game directly")
+  starts the game only for a folder that passed the full check.
+
+**Errors in plain words** (`run::ErrorKind`, `screens::failure_words`)
+- The game prints a machine line, `error.kind=<kind>`, on its own line
+  before its error text: `files-missing` (the game folder check at its
+  start, `shell::startup`), `gpu` or `no-window` (its window or the
+  graphics device could not be made, `shell::window`; by the error's
+  words). The launcher reads it (the line is kept in the log, not in the
+  lines shown), else infers `crash` from a panic line and `no-window` from
+  "could not open a window"; `no-program` is the launcher's own (the game
+  program could not be started); anything else is `other`.
+- Each kind has a title, one sentence and one button; no file sizes,
+  checksums, addresses or command lines (test `the_games_error_kind_line`):
+
+  | kind | title | button |
+  |---|---|---|
+  | files-missing | The game files are not complete | Check the game folder (the check screen) |
+  | gpu | No graphics driver the game can use | Try again |
+  | no-window | The game window could not open | Play windowed (Display set to Windowed, saved, started) |
+  | crash | The game stopped unexpectedly | Try again |
+  | no-program | The game could not be started | Try again |
+  | other | The game stopped (during its start) | Try again |
 
 **Start and watch** (`src/launcher/run.rs`, `window.rs`,
 `src/bin/overbright.rs`)
@@ -211,13 +394,16 @@ known; others are left out).
   after a failure (its last lines); for runs with arguments, which leave no
   game log, all output (`[out]` / `[err]` lines). Home folders scrubbed to
   `~`.
+- Back on the main screen (Escape, a pad's B) never quits at once: it asks
+  ("Quit Overbright?", Stay focused).
 - One launcher at a time: `launcher.lock` in Overbright's folder, held with
   `File::try_lock` until the process ends (also after a crash); a second
   start says "Overbright is already running." and exits.
 - Skip: with `launcher.skip` set and a usable game folder, the launcher
   starts the game at once and shows nothing, unless `--launcher`, a held
-  Shift (Windows: GetAsyncKeyState; X11 / XWayland: XQueryKeymap through
-  x11-dl, loaded at run time) or a held pad Back / Select. A failed start
+  Shift or Ctrl (Windows: GetAsyncKeyState; X11 / XWayland: XQueryKeymap through
+  x11-dl, loaded at run time), a held pad View / Back, or a start that did
+  not finish (see "When the launcher appears" above). A failed start
   then opens the window on the failure screen. **Limit:** a pure Wayland
   session gives no keyboard state to a program without a focused window:
   Shift is seen only through XWayland; `--launcher` always works.
@@ -405,10 +591,15 @@ launchers such as Prism and Heroic), not native:
   the faint line (`RULE`).
 - A text field not being typed in shows both ends of a long path (the end
   only while typing, the caret's side).
-- Wording: "Check folder"; with nothing found the hint asks for "the folder
-  the game was installed to (the one that holds the GLOBAL folder)"; the GPU line
-  says "Checking this computer…"; the failure screen asks to send the log
-  file named when asking for help.
+- Wording: the game folder is named by what it holds ("the folder the game
+  was installed to: it holds GLOBAL, FRONTEND and TRACKS"); the copy the
+  player needs is "your own copy of Need for Speed Underground 2 for PC,
+  any region, patched to 1.2" (no file name); "Check this folder"; the
+  header shows the launcher's number alone beside its name (0.3.0, never
+  "version 0.3.0" beside the game's 1.2); the GPU line says "Checking this
+  computer…"; the Graphics row's Enhanced reads "More detail and light; the
+  same art and colours"; the other installed languages "not yet"; the
+  failure screen asks to send the log file named when asking for help.
 - **First window size**: 960 × 720 logical, at most 92 % of the monitor's
   width and 85 % of its height (`window::initial_size`: a 1366 × 768
   laptop gets 960 × 652 under its task bar), the minimum size no larger.
@@ -434,7 +625,7 @@ launchers such as Prism and Heroic), not native:
   so no text but the header's lies on the backdrop.
 - **The main screen** (`screens::build_main`): the hero panel holds the
   game ("Need for Speed Underground 2", its state with a mark —
-  "Found · PC version 1.2 · ready to play", "… checking this computer…",
+  "Ready to play", "… checking this computer…",
   what is wrong — the folder and Change… / Find game…) and **Play**, the
   largest control (a 220 × 72-unit button, `Builder::big_button`), right
   beside it, focused by default. Under it the **Start settings** panel
@@ -553,6 +744,9 @@ only after a key, `UiState::mouse_scrolled`).
   but not shown); the list taking the room the window leaves (`App::rebuild`, `Builder::list_grow`);
   Up one folder (from a drive's root: the drives); the mouse's back button goes up a folder (elsewhere it
   is Back); the footer Cancel, Windows dialog… (Windows), Open, Use this folder.
+  It opens when the system's folder dialog cannot (see "Choosing the game folder").
+  For the game folder, "Use this folder" takes the highlighted row when it is marked "game folder"
+  (what a player choosing the game means), else the folder shown above.
 - **Text fields**: a click puts the caret at the nearest character (`Kind::TextField::stops`; a field
   showing its text shortened in the middle puts it at the end); a double click selects the whole text
   (drawn on `SELECTED`), which typing, Backspace or Delete replace (`Edit::Clear`).
@@ -641,9 +835,8 @@ programs keep settings, saves, caches, logs, crash reports, screenshots and mods
 
 ## Start choices: skip the intro movies, skip the title screen
 
-The main screen's Start settings panel has, under Graphics, two checkboxes side by side (one under the other
-when the panel is narrow, `Builder::checkboxes`): **Skip the intro movies** (EA, THX, the warning screen and
-the intro) and **Skip the title screen** ("Press Enter" and its wait). Like the display rows they are
+Settings has the rows **Intro movies** (Play / Skip: EA, THX, the warning screen and the intro) and **Title
+screen** (Show / Skip: "Press Enter" and its wait). Like the display rows they are
 options.txt values, so they are shown only when the launcher can write them (`display_rows_on`: options.txt
 exists or the probe gave the first-run values); before that the panel's line says when they come. They are
 the game's own Enhancements rows Skip Intro Movies and Skip Title Screen (docs/start-and-menus.md):
@@ -651,4 +844,5 @@ the game's own Enhancements rows Skip Intro Movies and Skip Title Screen (docs/s
 `set_skips` through `save_choices` (options.txt's `enh.skip_movies` / `enh.skip_title`), so a change in either
 place shows in the other. Both ticked, nothing plays between the start and the main menu's profile step.
 Both are off by default (native). Render state `skip-movies` (the movies skipped, the title kept). Tests:
-`skip_boxes_round_trip_through_options_txt`, the focus order (… `graphics`, `skip_movies`, `skip_title`, `mods`, `skip` …).
+`skip_boxes_round_trip_through_options_txt`, the focus order on Settings (`display`, `resolution`, `graphics`,
+`skip_movies`, `skip_title`, `skip`, `advanced`, `reset`).

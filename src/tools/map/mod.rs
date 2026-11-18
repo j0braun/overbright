@@ -40,6 +40,9 @@ pub struct Applied {
 
 static EDITOR: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 type Mods = Arc<Vec<(String, MapMod)>>;
+/// `--map-mod <folder>` (a test run started by the desktop editor): this
+/// one mod for the whole run instead of `enabled.txt`'s list.
+static ONLY: RwLock<Option<String>> = RwLock::new(None);
 /// The enabled mods read, by the maps folder they were read from (a test
 /// with its own data folder has its own).
 static ACTIVE: RwLock<Option<HashMap<std::path::PathBuf, Mods>>> = RwLock::new(None);
@@ -53,13 +56,40 @@ pub fn set_editor_enabled(on: bool) {
     EDITOR.store(on, std::sync::atomic::Ordering::Relaxed);
 }
 
+/// Apply only the mod in `folder` for the rest of the run, whatever
+/// `enabled.txt` lists (None: the list again). Nothing is written.
+pub fn set_only(folder: Option<&str>) {
+    *ONLY.write().unwrap() = folder.map(str::to_string);
+    ACTIVE.write().unwrap().take();
+}
+
+/// The one mod [`set_only`] chose.
+pub fn only() -> Option<String> {
+    ONLY.read().unwrap().clone()
+}
+
+/// The mods in use read from `dir`: the [`set_only`] one, else the
+/// enabled ones.
+fn read_mods(dir: &std::path::Path, only: Option<String>) -> Vec<(String, MapMod)> {
+    match only {
+        Some(f) => match store::read_file(&dir.join(&f).join(store::FILE)) {
+            Ok(m) => vec![(f, m)],
+            Err(e) => {
+                log::warn!("map mod {f} not loaded: {e:#}");
+                Vec::new()
+            }
+        },
+        None => store::load_enabled(dir),
+    }
+}
+
 /// The enabled map mods, read from the data folder on first use.
 pub fn active() -> Mods {
     let dir = store::maps_dir();
     if let Some(m) = ACTIVE.read().unwrap().as_ref().and_then(|a| a.get(&dir)) {
         return m.clone();
     }
-    let mods: Mods = Arc::new(store::load_enabled(&dir));
+    let mods: Mods = Arc::new(read_mods(&dir, only()));
     if !mods.is_empty() {
         log::info!("map mods enabled: {}", mods.iter().map(|m| m.0.as_str()).collect::<Vec<_>>().join(", "));
     }
@@ -71,7 +101,7 @@ pub fn active() -> Mods {
 /// a save).
 pub fn reload_active() -> Mods {
     let dir = store::maps_dir();
-    let mods: Mods = Arc::new(store::load_enabled(&dir));
+    let mods: Mods = Arc::new(read_mods(&dir, only()));
     ACTIVE.write().unwrap().get_or_insert_with(HashMap::new).insert(dir, mods.clone());
     mods
 }
@@ -94,3 +124,25 @@ pub fn find_race(folder: &str, id: &str) -> Option<CustomRace> {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod only_tests {
+    use super::*;
+
+    #[test]
+    fn one_chosen_mod_replaces_the_enabled_list() {
+        let dir = std::env::temp_dir().join(format!("ob-map-only-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let m = |name: &str| MapMod { name: name.into(), ..Default::default() };
+        store::save(&dir, "on", &m("On")).unwrap();
+        store::save(&dir, "off", &m("Off")).unwrap();
+        store::set_enabled(&dir, "on", true).unwrap();
+        let before = std::fs::read_to_string(dir.join(store::ENABLED)).unwrap();
+        let names = |v: Vec<(String, MapMod)>| v.into_iter().map(|(f, _)| f).collect::<Vec<_>>();
+        assert_eq!(names(read_mods(&dir, None)), ["on"]);
+        assert_eq!(names(read_mods(&dir, Some("off".into()))), ["off"], "only the chosen one, on or off");
+        assert!(read_mods(&dir, Some("missing".into())).is_empty());
+        assert_eq!(std::fs::read_to_string(dir.join(store::ENABLED)).unwrap(), before, "the list is never written");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+}

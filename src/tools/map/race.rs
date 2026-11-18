@@ -116,3 +116,94 @@ pub fn route(net: &RoadNet, race: &CustomRace, ground: &dyn Fn(Vec2) -> Option<f
         backward: race.backward,
     })
 }
+
+/// A point on the road network: the nearest point of an open segment's
+/// centre line to some spot.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct RoadPoint {
+    /// The point on the centre line.
+    pub at: Vec2,
+    /// The line's direction there, in the segment's node order.
+    pub dir: Vec2,
+    pub segment: usize,
+    /// How far the spot was from `at`.
+    pub distance: f32,
+}
+
+/// The point of the network's centre lines nearest `p`, over the segments
+/// no closed barrier shuts (the ones a race can use).
+pub fn snap(net: &RoadNet, p: Vec2) -> Option<RoadPoint> {
+    let mut best: Option<RoadPoint> = None;
+    for (k, s) in net.segments.iter().enumerate() {
+        if s.barriers.iter().any(|&b| net.closed.get(b).copied().unwrap_or(false)) {
+            continue;
+        }
+        let end = s.end.min(net.nodes.len());
+        if end <= s.first {
+            continue;
+        }
+        let mut consider = |a: Vec2, b: Vec2| {
+            let ab = b - a;
+            let t = if ab.length_squared() > 1e-9 { ((p - a).dot(ab) / ab.length_squared()).clamp(0.0, 1.0) } else { 0.0 };
+            let at = a + ab * t;
+            let distance = at.distance(p);
+            if best.is_none_or(|b| distance < b.distance) {
+                best = Some(RoadPoint { at, dir: ab.normalize_or_zero(), segment: k, distance });
+            }
+        };
+        if end - s.first == 1 {
+            let a = net.nodes[s.first].0;
+            consider(a, a);
+        }
+        for n in s.first..end - 1 {
+            consider(net.nodes[n].0, net.nodes[n + 1].0);
+        }
+    }
+    best
+}
+
+/// The distance from `p` to the nearest point of a polyline (infinite for
+/// an empty one), and the index of the piece it is on.
+pub fn polyline_distance(line: &[Vec2], p: Vec2) -> (f32, usize) {
+    let mut best = (f32::INFINITY, 0);
+    if line.len() == 1 {
+        return (line[0].distance(p), 0);
+    }
+    for (k, w) in line.windows(2).enumerate() {
+        let ab = w[1] - w[0];
+        let t = if ab.length_squared() > 1e-9 { ((p - w[0]).dot(ab) / ab.length_squared()).clamp(0.0, 1.0) } else { 0.0 };
+        let d = (w[0] + ab * t).distance(p);
+        if d < best.0 {
+            best = (d, k);
+        }
+    }
+    best
+}
+
+/// Each checkpoint leg's road on its own (k → k + 1, a circuit's last
+/// back to the first): the nodes in driving order, or None when no road
+/// leads through. The editor's preview of a race that does not build as a
+/// whole.
+pub fn legs(net: &RoadNet, race: &CustomRace) -> Vec<Option<Vec<Vec2>>> {
+    closed(race).windows(2).map(|pair| net.route(pair, false).map(|r| net.polyline(&r))).collect()
+}
+
+/// The grid the race is started on: its own slots, else the default
+/// grid behind its start (the start being the first checkpoint facing
+/// the second when it has none), as [`route`] makes it.
+pub fn effective_grid(race: &CustomRace) -> Vec<Spot> {
+    if !race.grid.is_empty() {
+        return race.grid.clone();
+    }
+    match race.start.or_else(|| default_start(race)) {
+        Some(start) => default_grid(start),
+        None => Vec::new(),
+    }
+}
+
+/// The start a race without a start line gets: the first checkpoint,
+/// facing the second.
+pub fn default_start(race: &CustomRace) -> Option<Spot> {
+    let (a, b) = (*race.checkpoints.first()?, *race.checkpoints.get(1)?);
+    Some(Spot { position: a.extend(0.0), heading: (b - a).y.atan2((b - a).x).to_degrees() })
+}

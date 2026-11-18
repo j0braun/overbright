@@ -17,10 +17,12 @@
 //! The last three do what the window does with the same code (the
 //! player's real folders) and print its lines; for scripts, the Windows
 //! smoke and maintainers.
-//! With "Start the game directly next time" (`launcher.skip`) the game
-//! starts at once, unless Shift (or a pad's Back / Select) is held or
-//! `--launcher` is given; a failed start then opens the window on the
-//! failure screen. One launcher at a time. Arguments the launcher does not
+//! With "When Overbright starts: Start the game directly" (`launcher.skip`)
+//! the game starts at once, unless Shift or Ctrl (or a pad's View / Back)
+//! is held, `--launcher` is given, no usable game folder is saved, or the
+//! last start did not finish (its marker is left: the recovery screen); a
+//! failed start then opens the window on the crash screen.
+//! `--support-file [folder]` writes the support file (`diag::support`). One launcher at a time. Arguments the launcher does not
 //! know go to the game, as do all after `--`.
 
 // A window program on Windows (no console window from Explorer); a start
@@ -35,7 +37,10 @@ use nfsu2::launcher::{
     start_log, window,
 };
 
-const USAGE: &str = "usage: overbright [--launcher] [--screen <name>] [-- game args]\n       overbright --render <screen|state> --size WxH [--scale F] out.png\n       overbright --list-screens\n       overbright --version\n       overbright --list-folder <dir> [game|packages|hud]\n       overbright --add-packages <file|folder>…\n       overbright --add-hud-mod <file|folder>…";
+/// Set for a launcher started again by "Restart now".
+const RESTARTED: &str = "OB_LAUNCHER_RESTARTED";
+
+const USAGE: &str = "usage: overbright [--launcher] [--screen <name>] [-- game args]\n       overbright --render <screen|state> --size WxH [--scale F] [--input pad|deck|ps|kbd|mouse] out.png\n       overbright --support-file [folder]\n       overbright --list-screens\n       overbright --version\n       overbright --list-folder <dir> [game|packages|hud]\n       overbright --add-packages <file|folder>…\n       overbright --add-hud-mod <file|folder>…";
 
 /// `--list-folder`: the browser's rows (folders, then the package or
 /// archive files the purpose lists), one `name<TAB>note` line each.
@@ -97,15 +102,14 @@ fn add_hud_mod(paths: &[String]) -> Result<(), String> {
         let word = match mark {
             nfsu2::launcher::ui::Mark::Ok => "ok:",
             nfsu2::launcher::ui::Mark::Warn => "warning:",
-            nfsu2::launcher::ui::Mark::Info => "info:",
+            nfsu2::launcher::ui::Mark::Info | nfsu2::launcher::ui::Mark::Busy => "info:",
             nfsu2::launcher::ui::Mark::Error => "error:",
         };
         ok &= *mark == nfsu2::launcher::ui::Mark::Ok;
         println!("{word} {line}");
     }
     if let Some(dir) = &out.dir {
-        nfsu2::qol::setup::save_texture_pack(Some(dir))
-            .map_err(|e| format!("the HUD mod folder was not kept: {e}"))?;
+        nfsu2::qol::setup::save_texture_pack(Some(dir)).map_err(|e| format!("the HUD mod folder was not kept: {e}"))?;
         println!("folder: {}", dir.display());
     }
     if ok { Ok(()) } else { Err("the HUD mod was not set up".into()) }
@@ -114,6 +118,11 @@ fn add_hud_mod(paths: &[String]) -> Result<(), String> {
 fn main() -> ExitCode {
     nfsu2::console::attach();
     let args: Vec<String> = std::env::args().skip(1).collect();
+    // `--support-file [folder]`: the support file, before any window or
+    // graphics work (it must work when those fail).
+    if let Some(code) = nfsu2::diag::support::cli(&args, Some(dirs::game_exe())) {
+        return ExitCode::from(code);
+    }
     // The launcher's log from the first line (`start_log`, docs/launcher.md
     // "When the launcher does not open"), and a panic written to it.
     let logged = start_log::window_run(&args);
@@ -121,8 +130,18 @@ fn main() -> ExitCode {
     // taken before the log, so a second start leaves the first one's log
     // alone.
     let mut lock_error = None;
+    // Started again by the launcher itself (Restart now): the one before
+    // ends a moment later, its lock with it.
+    let restarted = std::env::var_os(RESTARTED).is_some();
     let _lock = if logged {
-        match run::single_instance(&dirs::lock_file()) {
+        let mut tries = if restarted { 100 } else { 1 };
+        let mut got = run::single_instance(&dirs::lock_file());
+        while matches!(got, Ok(None)) && tries > 1 {
+            tries -= 1;
+            std::thread::sleep(std::time::Duration::from_millis(100));
+            got = run::single_instance(&dirs::lock_file());
+        }
+        match got {
             Ok(Some(l)) => Some(l),
             Ok(None) => {
                 nfsu2::console::fatal("Overbright is already running.");
@@ -145,6 +164,9 @@ fn main() -> ExitCode {
         let _ = env_logger::Builder::from_default_env().try_init();
     }
     start_log::install_panic_hook();
+    // A crash of native code (Windows: an exception the panic hook never
+    // sees) written to launcher.log.
+    nfsu2::diag::native_crash::install(|text: &str| start_log::line(text));
     let result = std::panic::catch_unwind(|| run_cli(&args));
     let log = start_log::path();
     let told = |what: &str| if logged { start_log::failure_text(what, &log) } else { what.to_string() };
@@ -187,6 +209,7 @@ fn run_cli(args: &[String]) -> Result<(), String> {
     let mut out = None;
     let mut force = false;
     let mut picture_from: Option<String> = None;
+    let mut input: Option<nfsu2::launcher::platform_deck::InputKind> = None;
     let mut it = ours.iter();
     while let Some(a) = it.next() {
         match a.as_str() {
@@ -209,6 +232,17 @@ fn run_cli(args: &[String]) -> Result<(), String> {
                     .ok_or(format!("--scale F (0.5..4)\n{USAGE}"))?
             }
             "--launcher" => force = true,
+            "--input" if render.is_some() => {
+                use nfsu2::launcher::platform_deck::InputKind as K;
+                input = Some(match it.next().map(String::as_str) {
+                    Some("pad" | "xbox") => K::Xbox,
+                    Some("deck") => K::Deck,
+                    Some("ps") => K::PlayStation,
+                    Some("mouse") => K::Mouse,
+                    Some("kbd" | "keyboard") => K::Keyboard,
+                    _ => return Err(format!("--input pad|deck|ps|kbd|mouse\n{USAGE}")),
+                })
+            }
             "--game" if render.is_some() => {
                 picture_from = Some(it.next().ok_or(format!("--game <folder>\n{USAGE}"))?.clone())
             }
@@ -257,7 +291,12 @@ fn run_cli(args: &[String]) -> Result<(), String> {
         let out = out.ok_or(format!("--render needs an output file\n{USAGE}"))?;
         let fonts = nfsu2::launcher::font::Fonts::new();
         let env = model::FakeEnv;
-        let app = headless::named_app(&env, &fonts, &s, w, h, scale).ok_or(format!("{s}: no such screen or state"))?;
+        let mut app =
+            headless::named_app(&env, &fonts, &s, w, h, scale).ok_or(format!("{s}: no such screen or state"))?;
+        if let Some(k) = input {
+            app.st.input = k;
+            app.rebuild(&fonts);
+        }
         let picture = match &picture_from {
             Some(root) => Some(
                 nfsu2::launcher::backdrop::load(std::path::Path::new(root))
@@ -270,25 +309,28 @@ fn run_cli(args: &[String]) -> Result<(), String> {
         return Ok(());
     }
     // (One launcher at a time: `main` holds the lock.)
-    let root = nfsu2::qol::setup::find();
-    let usable = root.as_ref().is_some_and(|r| nfsu2::qol::setup::check(r, false).ok());
+    // The full check of the folder found (the check screen's), so the
+    // first screen says what is true; a refused folder opens on the check.
+    let check = nfsu2::qol::setup::find().map(|r| model::Env::check(&model::RealEnv, &r));
+    let usable = check.as_ref().is_some_and(|c| c.usable);
+    let root = check.as_ref().map(|c| c.root.clone());
     log::info!(
         "start: game folder {} ({}); game program {}",
         root.as_ref().map_or("none found".to_string(), |r| r.display().to_string()),
         if usable { "usable" } else { "not usable" },
         dirs::game_exe().display()
     );
-    let game = window::GameStart {
-        exe: dirs::game_exe(),
-        args: game_args,
-        logs: true,
-        root: root.clone().filter(|_| usable),
-    };
+    let game =
+        window::GameStart { exe: dirs::game_exe(), args: game_args, logs: true, root: root.clone().filter(|_| usable) };
     let mut failure = None;
-    // The skip rule: straight into the game, unless asked for the window.
-    if screen.is_none() && usable && model::load_choices().0.skip && !force {
-        if run::shift_held() || run::pad_back_held() {
-            log::info!("Shift / Back held: the launcher window");
+    // When the window shows (docs/launcher.md "When the launcher
+    // appears"): --launcher; Shift / Ctrl or a pad's View held; no usable
+    // game folder; a start that did not finish; the skip option off.
+    // Otherwise the game starts at once.
+    let unfinished = usable && run::start_unfinished();
+    if screen.is_none() && usable && !unfinished && model::load_choices().0.skip && !force {
+        if nfsu2::launcher::platform_deck::held_at_start() {
+            log::info!("Shift / Ctrl / View held: the launcher window");
         } else {
             match game.start() {
                 Ok(r) => {
@@ -299,20 +341,37 @@ fn run_cli(args: &[String]) -> Result<(), String> {
                     eprintln!("overbright: showing the failure screen ({})", e.how());
                     failure = Some(window::failure_of(&e));
                 }
-                Err(e) => failure = Some(model::Failure { during_start: true, how: e, tail: Vec::new(), log: None }),
+                Err(e) => failure = Some(model::Failure::not_started(e)),
             }
         }
     }
     let first = match (screen, &failure) {
         (Some(s), _) => s,
         (None, Some(_)) => Screen::Failure,
+        (None, None) if unfinished => {
+            log::info!("start: the last start did not finish");
+            run::clear_start_marker();
+            Screen::Recover
+        }
         (None, None) if usable => Screen::Main,
+        (None, None) if check.is_some() => Screen::Check,
         _ => Screen::FirstRun,
     };
     log::info!("start: the window, screen {}", first.name());
     let env = model::RealEnv;
-    let start = window::Start { screen: first, root: root.filter(|_| usable), failure, probe: true, game };
+    let start = window::Start { screen: first, root: root.filter(|_| usable), failure, check, probe: true, game };
     match window::run_with_root(&env, start)? {
+        Outcome::Restart => {
+            // The same program with the same arguments, once this one ends.
+            let exe = std::env::current_exe().map_err(|e| format!("restart: {e}"))?;
+            log::info!("restart: starting the launcher again");
+            std::process::Command::new(exe)
+                .args(args)
+                .env(RESTARTED, "1")
+                .spawn()
+                .map(|_| ())
+                .map_err(|e| format!("restart: {e}"))
+        }
         Outcome::Play | Outcome::Quit | Outcome::Stay => Ok(()),
     }
 }

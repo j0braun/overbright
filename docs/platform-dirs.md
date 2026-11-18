@@ -46,6 +46,24 @@ function, so the Windows rules are unit-tested on Linux.
 The test kit's fixture cache is `<cache home>/overbright-test-fixtures`, beside the player's cache rather than
 inside it.
 
+## Folders put elsewhere (`locations.txt`)
+
+The player can put each of these elsewhere (the launcher's Settings › Advanced › Storage): `dirs::Location`
+Saves ([`data_home`], the profiles' parent), Settings ([`app`]), Cache (the shipping game's [`cache`]; the
+developer and test caches are unchanged), Logs ([`logs`]; [`crashes`] becomes `<logs>/crashes`, and the support
+files go there), Screenshots, Packs ([`mods_root`]: Overbright packs `packs/`, imported packages, the generated
+`texture-pack/`) and Maps ([`maps`]). The choices are one `<key> <path>` line each in `locations.txt`
+(keys `saves settings cache logs screenshots packs maps`), kept in Overbright's default folder ([`default_app`]:
+`<data>/` in a portable install, so relative paths are taken from the program folder as with [`store_path`] /
+[`load_path`]). Every `platform::dirs` function reads it (again when its time stamp changes), so the game, the
+launcher and every tool use the same folders; `NFSU2_DATA_DIR`, the XDG variables and portable mode still decide
+the defaults. `dirs::set_location` writes it (atomically; the file is removed when nothing is put elsewhere).
+Moving files is the launcher's: it copies when asked (`launcher::model::copy_folder`: merged, each file's size
+checked afterwards, nothing deleted) and writes the new place only after the copy is complete. A chosen folder
+whose parent does not exist (`dirs::location_missing`: an unplugged drive) is shown with an error and Reset.
+Tests: `launcher::tests::locations_file_round_trip_and_copy`, `storage_page`,
+tests/portable_mode.rs `the_game_writes_its_log_where_the_locations_file_says`.
+
 ## Portable mode
 
 A file `portable.txt` or a folder `portable` beside the running executable (`dirs::is_portable`,

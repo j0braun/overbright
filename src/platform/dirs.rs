@@ -355,17 +355,16 @@ fn thread_data_home() -> Option<PathBuf> {
     None
 }
 
-/// The profiles' parent ([`Layout::data_home`]).
+/// The profiles' parent ([`Layout::data_home`], or where the player put
+/// the saves: [`Location::Saves`]).
 pub fn data_home() -> PathBuf {
-    thread_data_home().unwrap_or_else(|| layout().data_home)
+    override_of(Location::Saves).unwrap_or_else(|| thread_data_home().unwrap_or_else(|| layout().data_home))
 }
 
-/// Overbright's own folder ([`Layout::app`]).
+/// Overbright's own folder ([`Layout::app`], or where the player put the
+/// settings: [`Location::Settings`]).
 pub fn app() -> PathBuf {
-    match thread_data_home() {
-        Some(d) => d.join(APP),
-        None => layout().app,
-    }
+    override_of(Location::Settings).unwrap_or_else(default_app)
 }
 
 /// The settings files' folder: options.txt, game-root.txt.
@@ -373,14 +372,18 @@ pub fn config() -> PathBuf {
     app()
 }
 
-/// Crash reports (`qol::crash`).
+/// Crash reports (`qol::crash`): `crashes` beside the logs' default, or
+/// inside the folder the player chose for the logs.
 pub fn crashes() -> PathBuf {
-    app().join("crashes")
+    match override_of(Location::Logs) {
+        Some(d) => d.join("crashes"),
+        None => app().join("crashes"),
+    }
 }
 
-/// The game's log files (`qol::log_file`).
+/// The game's log files (`qol::log_file`), the support files too.
 pub fn logs() -> PathBuf {
-    app().join("logs")
+    override_of(Location::Logs).unwrap_or_else(|| app().join("logs"))
 }
 
 /// Mark This Spot reports (`mark_spot`).
@@ -395,12 +398,23 @@ pub fn perf() -> PathBuf {
 
 /// Photo Mode's pictures.
 pub fn screenshots() -> PathBuf {
-    app().join("Screenshots")
+    override_of(Location::Screenshots).unwrap_or_else(|| app().join("Screenshots"))
+}
+
+/// The folder that holds the texture packs: Overbright packs (`packs/`),
+/// the imported packages and the generated pack (`texture-pack/`).
+pub fn mods_root() -> PathBuf {
+    override_of(Location::Packs).unwrap_or_else(app)
 }
 
 /// The default texture-pack folder (`render::enh::assets::pack_select`).
 pub fn packs() -> PathBuf {
-    app().join("texture-pack")
+    mods_root().join("texture-pack")
+}
+
+/// The map mods' folder (`tools::map::store`).
+pub fn maps() -> PathBuf {
+    override_of(Location::Maps).unwrap_or_else(|| app().join("maps"))
 }
 
 /// The asset cache's default folder; `cache::dir` puts its own overrides
@@ -426,7 +440,11 @@ pub fn cache() -> Option<PathBuf> {
         }
         return developer_cache();
     }
-    if DEVELOPER.load(std::sync::atomic::Ordering::Relaxed) { developer_cache() } else { layout().cache }
+    if DEVELOPER.load(std::sync::atomic::Ordering::Relaxed) {
+        developer_cache()
+    } else {
+        override_of(Location::Cache).or_else(|| layout().cache)
+    }
 }
 
 /// Set by [`developer_program`].
@@ -503,6 +521,175 @@ pub fn test_cache_folder() -> PathBuf {
         .and_then(|exe| exe.ancestors().find(|d| d.file_name().is_some_and(|n| n == "deps")).map(|d| d.to_path_buf()))
         .and_then(|deps| deps.parent().map(|p| p.join("test-cache")))
         .unwrap_or_else(|| std::env::temp_dir().join("overbright-test-cache"))
+}
+
+// ------------------------------------------------------------ locations
+
+/// A folder the player can put elsewhere (Settings › Advanced › Storage).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Location {
+    /// The profiles' parent ([`data_home`]; the saves are in its
+    /// `NFS Underground 2`).
+    Saves,
+    /// Overbright's own folder ([`app`]: options.txt, game-root.txt, …).
+    Settings,
+    /// The asset and pipeline cache ([`cache`]; the shipping game's).
+    Cache,
+    /// Logs, crash reports and support files ([`logs`], [`crashes`]).
+    Logs,
+    /// Photo Mode's pictures ([`screenshots`]).
+    Screenshots,
+    /// Texture packs: Overbright packs, imported packages, the generated
+    /// pack ([`mods_root`]).
+    Packs,
+    /// Map mods ([`maps`]).
+    Maps,
+}
+
+impl Location {
+    pub const ALL: [Location; 7] = [
+        Location::Saves,
+        Location::Settings,
+        Location::Cache,
+        Location::Logs,
+        Location::Screenshots,
+        Location::Packs,
+        Location::Maps,
+    ];
+
+    /// Its key in the locations file.
+    pub fn key(self) -> &'static str {
+        match self {
+            Location::Saves => "saves",
+            Location::Settings => "settings",
+            Location::Cache => "cache",
+            Location::Logs => "logs",
+            Location::Screenshots => "screenshots",
+            Location::Packs => "packs",
+            Location::Maps => "maps",
+        }
+    }
+
+    pub fn from_key(k: &str) -> Option<Location> {
+        Location::ALL.into_iter().find(|l| l.key() == k)
+    }
+}
+
+/// The locations file's name: one `<key> <path>` line per folder put
+/// elsewhere. In a portable install it is in the data folder (its paths
+/// kept relative to the program folder on the same drive, as
+/// [`store_path`]); else in Overbright's default folder. Read before any
+/// other of Overbright's files.
+pub const LOCATIONS_FILE: &str = "locations.txt";
+
+/// The locations file of this process.
+pub fn locations_file() -> PathBuf {
+    default_app().join(LOCATIONS_FILE)
+}
+
+/// Overbright's folder without a Settings override (where the locations
+/// file lives).
+pub fn default_app() -> PathBuf {
+    match thread_data_home() {
+        Some(d) => d.join(APP),
+        None => layout().app,
+    }
+}
+
+/// The locations file's text read: the folders put elsewhere (relative
+/// paths taken from the program folder of a portable install). Pure apart
+/// from [`load_path`].
+pub fn parse_locations(text: &str) -> Vec<(Location, PathBuf)> {
+    let mut out: Vec<(Location, PathBuf)> = Vec::new();
+    for l in text.lines().map(str::trim).filter(|l| !l.is_empty() && !l.starts_with('#')) {
+        let Some((k, p)) = l.split_once(char::is_whitespace) else { continue };
+        let (Some(loc), p) = (Location::from_key(k), p.trim()) else { continue };
+        if !p.is_empty() && !out.iter().any(|(o, _)| *o == loc) {
+            out.push((loc, load_path(Path::new(p))));
+        }
+    }
+    out
+}
+
+/// The locations file's text for `list` (paths as [`store_path`] keeps them).
+pub fn format_locations(list: &[(Location, PathBuf)]) -> String {
+    let mut s = String::from("# Overbright: folders kept elsewhere (Settings › Advanced › Storage).\n");
+    for (l, p) in list {
+        s += &format!("{} {}\n", l.key(), store_path(p).display());
+    }
+    s
+}
+
+/// The folders put elsewhere, as the locations file says now (read again
+/// when it changed).
+pub fn overrides() -> Vec<(Location, PathBuf)> {
+    static SEEN: std::sync::Mutex<Option<(PathBuf, Option<std::time::SystemTime>, Vec<(Location, PathBuf)>)>> =
+        std::sync::Mutex::new(None);
+    let f = locations_file();
+    let mtime = std::fs::metadata(&f).and_then(|m| m.modified()).ok();
+    let mut seen = SEEN.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    if let Some((p, t, v)) = seen.as_ref()
+        && *p == f
+        && *t == mtime
+    {
+        return v.clone();
+    }
+    let v = mtime.map_or_else(Vec::new, |_| std::fs::read_to_string(&f).map(|t| parse_locations(&t)).unwrap_or_default());
+    *seen = Some((f, mtime, v.clone()));
+    v
+}
+
+/// Where `loc` is put by the player, if anywhere.
+pub fn override_of(loc: Location) -> Option<PathBuf> {
+    overrides().into_iter().find(|(l, _)| *l == loc).map(|(_, p)| p)
+}
+
+/// Puts `loc` at `to` (None: back to its default) in the locations file.
+/// Nothing is moved here (the launcher copies first, when asked).
+pub fn set_location(loc: Location, to: Option<&Path>) -> std::io::Result<()> {
+    let mut list: Vec<(Location, PathBuf)> = overrides().into_iter().filter(|(l, _)| *l != loc).collect();
+    if let Some(p) = to {
+        list.push((loc, p.to_path_buf()));
+    }
+    list.sort_by_key(|(l, _)| *l);
+    let f = locations_file();
+    if let Some(d) = f.parent() {
+        std::fs::create_dir_all(d)?;
+    }
+    if list.is_empty() {
+        return match std::fs::remove_file(&f) {
+            Err(e) if e.kind() != std::io::ErrorKind::NotFound => Err(e),
+            _ => Ok(()),
+        };
+    }
+    let tmp = f.with_extension("txt.tmp");
+    std::fs::write(&tmp, format_locations(&list))?;
+    std::fs::rename(&tmp, &f)
+}
+
+/// Where `loc` is by default (no override).
+pub fn default_location(loc: Location) -> Option<PathBuf> {
+    match loc {
+        Location::Saves => Some(thread_data_home().unwrap_or_else(|| layout().data_home)),
+        Location::Settings => Some(default_app()),
+        Location::Cache => layout().cache,
+        Location::Logs => Some(app().join("logs")),
+        Location::Screenshots => Some(app().join("Screenshots")),
+        Location::Packs => Some(app()),
+        Location::Maps => Some(app().join("maps")),
+    }
+}
+
+/// Where `loc` is now: the player's choice, else the default.
+pub fn location(loc: Location) -> Option<PathBuf> {
+    override_of(loc).or_else(|| default_location(loc))
+}
+
+/// Whether a chosen folder is on a drive that is not there (its root, or
+/// on Unix the mount point's parent chain, does not exist): the Storage
+/// page says so and offers Reset.
+pub fn location_missing(p: &Path) -> bool {
+    !p.exists() && p.parent().is_some_and(|parent| !parent.exists())
 }
 
 /// The player's home folders as they appear in text, with the token that

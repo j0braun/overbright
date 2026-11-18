@@ -26,6 +26,10 @@ pub(crate) struct Autopilot {
     /// (0x4260B0 at 0x42615A–0x4261B3: 0x425E40 when 0x890114, 0x89E7D9 or
     /// 0x890104 is set and neither 0x89E7D8 nor 0x890108).
     pub(crate) drift: Option<nfsu2::ai::driver::DriftDriver>,
+    /// Driving the whole race, from the grid (the map editor's simulation,
+    /// `enh::sim_stream`; never in play): the racer is not finished until
+    /// it is.
+    pub(crate) racing: bool,
 }
 
 impl Autopilot {
@@ -50,6 +54,7 @@ impl Autopilot {
             unstuck: Default::default(),
             lane: Default::default(),
             drift: drift.then(Default::default),
+            racing: false,
         }
     }
 }

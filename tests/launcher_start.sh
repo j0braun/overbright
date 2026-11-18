@@ -9,7 +9,11 @@
 #   3. Escape (Settings) and Enter (Play) start the stub again from the
 #      window: the failure screen again;
 #   4. a panic in the window (OB_LAUNCHER_PANIC_TEST) ends it with exit
-#      code 101 and is written to launcher.log.
+#      code 101 and is written to launcher.log;
+#   s. on the failure screen "Save support file…" (Tab from the fix, Enter) writes the support file into
+#      the logs folder while the window stays live;
+#   5. Windows (OB_WINE=1): with no game folder, Enter on "Choose the game folder…" opens the system's
+#      folder dialog (its title on the display), Escape cancels it and the first-run screen stays.
 # Usage: tests/launcher_start.sh <overbright binary> <X display, e.g. :153> <work dir> [stub]
 # (Wine: [stub] = a Windows game.exe, run with --crash-test, instead of cmd.exe and a batch file)
 # NFSU2_ROOT must name the game folder (the skip rule needs a usable one).
@@ -93,6 +97,22 @@ grep -q "exit code 101" "$LOG" || fail "log without the exit code: $(cat "$LOG")
 grep -q -E "no GPU adapter|crash test" "$LOG" || fail "log without the tail: $(cat "$LOG")"
 grep -q "a failed start" "$LOG" || fail "not judged a failed start"
 echo "log $LOG: ok"
+# s. Save support file… (the fix first, then the support file): written on a worker, the window answers.
+env -u WAYLAND_DISPLAY DISPLAY="$DISP" xdotool windowfocus "$WIN" 2>/dev/null
+sleep 0.3
+env -u WAYLAND_DISPLAY DISPLAY="$DISP" xdotool key Tab
+sleep 0.2
+env -u WAYLAND_DISPLAY DISPLAY="$DISP" xdotool key Return
+SUP=""
+for _ in $(seq 600); do
+  SUP=$(find "$DATA" -name 'overbright-support-*.txt' 2>/dev/null | head -1)
+  [ -n "$SUP" ] && break
+  kill -0 "$PID" 2>/dev/null || fail "the launcher ended while writing the support file"
+  sleep 0.1
+done
+[ -n "$SUP" ] || fail "no support file in $DATA after Save support file…"
+grep -q "Overbright" "$SUP" || fail "the support file is empty: $(head -3 "$SUP")"
+echo "support file $(basename "$SUP"): ok"
 # A second launcher: refused.
 env -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE DISPLAY="$DISP" NFSU2_NO_PADS=1 OB_GAME_EXE="$STUB" \
   $RUN > "$W/second.out" 2>&1
@@ -131,6 +151,50 @@ grep -q "^\[PANIC main\].*OB_LAUNCHER_PANIC_TEST" "$SLDIR/launcher.log" \
   || fail "the panic is not in launcher.log: $(cat "$SLDIR/launcher.log")"
 grep -q "stopped after an internal error" "$SLDIR/launcher.log" || fail "launcher.log has no end line"
 echo "panic: exit 101, in launcher.log: ok"
+# 5. Windows: the system folder dialog (IFileOpenDialog) from the first-run screen, cancelled.
+if [ "${OB_WINE:-}" = 1 ]; then
+  DDATA=$W/data-dialog; mkdir -p "$DDATA"
+  env -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE -u NFSU2_ROOT DISPLAY="$DISP" NFSU2_NO_PADS=1 \
+    NFSU2_DATA_DIR="$(winepath -w "$DDATA" 2>/dev/null)" $RUN > "$W/dialog.out" 2>&1 &
+  PID=$!
+  LWIN=""
+  for _ in $(seq 300); do
+    LWIN=$(env -u WAYLAND_DISPLAY DISPLAY="$DISP" xdotool search --name '^Overbright$' 2>/dev/null | head -1)
+    [ -n "$LWIN" ] && break
+    kill -0 "$PID" 2>/dev/null || fail "the launcher ended before its window: $(tail -3 "$W/dialog.out")"
+    sleep 0.1
+  done
+  [ -n "$LWIN" ] || fail "no launcher window for the dialog test"
+  sleep 2
+  env -u WAYLAND_DISPLAY DISPLAY="$DISP" xdotool windowfocus "$LWIN" 2>/dev/null
+  sleep 0.3
+  env -u WAYLAND_DISPLAY DISPLAY="$DISP" xdotool key Return
+  DWIN=""
+  for _ in $(seq 150); do
+    DWIN=$(env -u WAYLAND_DISPLAY DISPLAY="$DISP" xdotool search --name 'Choose the game folder' 2>/dev/null | head -1)
+    [ -n "$DWIN" ] && break
+    sleep 0.1
+  done
+  [ -n "$DWIN" ] || fail "Enter on Choose the game folder… opened no system dialog"
+  env -u WAYLAND_DISPLAY DISPLAY="$DISP" import -window root "$W/dialog.png" 2>/dev/null
+  env -u WAYLAND_DISPLAY DISPLAY="$DISP" xdotool windowfocus "$DWIN" 2>/dev/null
+  sleep 0.3
+  env -u WAYLAND_DISPLAY DISPLAY="$DISP" xdotool key --window "$DWIN" Escape
+  sleep 1
+  # Still open (a Wine that drops sent keys): its Cancel button, at the dialog's bottom right.
+  if env -u WAYLAND_DISPLAY DISPLAY="$DISP" xdotool search --name 'Choose the game folder' > /dev/null 2>&1; then
+    eval "$(env -u WAYLAND_DISPLAY DISPLAY="$DISP" xdotool getwindowgeometry --shell "$DWIN")"
+    env -u WAYLAND_DISPLAY DISPLAY="$DISP" xdotool mousemove $((X + WIDTH - 35)) $((Y + HEIGHT - 15)) click 1
+  fi
+  for _ in $(seq 100); do
+    env -u WAYLAND_DISPLAY DISPLAY="$DISP" xdotool search --name 'Choose the game folder' > /dev/null 2>&1 || break
+    sleep 0.1
+  done
+  env -u WAYLAND_DISPLAY DISPLAY="$DISP" xdotool search --name 'Choose the game folder' > /dev/null 2>&1 && fail "the dialog did not close on Escape"
+  kill -0 "$PID" 2>/dev/null || fail "the launcher ended after the dialog was cancelled"
+  kill "$PID" 2>/dev/null; wait "$PID" 2>/dev/null
+  echo "system folder dialog: opened and cancelled: ok"
+fi
 # Wine: stop this prefix's own server (WINEPREFIX is the caller's private one).
 [ "${OB_WINE:-}" = 1 ] && wineserver -k 2>/dev/null
 echo "PASS"

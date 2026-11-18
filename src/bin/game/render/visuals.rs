@@ -219,7 +219,7 @@ impl Game {
     /// draws with). Photo mode's view is swapped in as the frame swaps it.
     pub(crate) fn visuals_tick(&mut self) {
         let swapped = self.photo_begin(None);
-        let editor = self.map_editor_begin();
+        let editor = self.free_camera_begin();
         let world = self.sim.drive.is_some()
             && self.garage_fe.request.is_none()
             && (self.tuning_menu_over_world() || world_under(&self.mode, true));
@@ -248,7 +248,7 @@ impl Game {
             );
         }
         if let Some(s) = editor {
-            self.map_editor_end(s);
+            self.free_camera_end(s);
         }
         if let Some(s) = swapped {
             self.photo_end(s);

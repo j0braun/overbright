@@ -27,46 +27,32 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-## Go fonts (Go Regular, Go Bold)
+## Sofia Sans Semi Condensed (fonts)
 
-Used by the launcher (`src/launcher/fonts/Go-Regular.ttf`, `Go-Bold.ttf`,
-embedded in `overbright`). Upstream: https://go.googlesource.com/image,
-`font/gofont/ttfs` (fetched 2026-11-12 from github.com/golang/image, master;
-SHA-256 Go-Regular.ttf 197d9f37…be3, Go-Bold.ttf c18494ba…aa40). Licence:
-BSD-3-Clause (the files' own notice, `src/launcher/fonts/README-Go-fonts.txt`):
+Used by the launcher and the map editor (`src/launcher/fonts/SofiaSansSemiCondensed-*.ttf`,
+embedded in `overbright` and `overbright-editor`). Upstream: https://github.com/lettersoup/Sofia-Sans (the
+variable fonts `SofiaSansSemiCondensed[wght].ttf` and
+`SofiaSansSemiCondensed-Italic[wght].ttf`, as distributed by Google Fonts).
+The embedded files are modified versions: static instances at weights 450,
+600 (upright and italic), 700 and 800 (italic), subset to Latin, with the
+pair kerning moved into a `kern` table and renamed "Sofia Sans Semi Condensed
+Overbright"; `tools/cut_fonts.py` makes them. Licence: SIL Open Font License
+1.1 (full text in `src/launcher/fonts/OFL.txt`; the launcher embeds it as
+`font::LICENCE`):
 
 ```
-Copyright (c) 2016 Bigelow & Holmes Inc.. All rights reserved.
+Copyright 2019 The Sofia Sans Project Authors (https://github.com/lettersoup/Sofia-Sans)
 
-Distribution of this font is governed by the following license. If you do not
-agree to this license, including the disclaimer, do not distribute or modify
-this font.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-
-	* Redistributions of source code must retain the above copyright notice,
-	  this list of conditions and the following disclaimer.
-
-	* Redistributions in binary form must reproduce the above copyright notice,
-	  this list of conditions and the following disclaimer in the documentation
-	  and/or other materials provided with the distribution.
-
-	* Neither the name of Google Inc. nor the names of its contributors may be
-	  used to endorse or promote products derived from this software without
-	  specific prior written permission.
-
-DISCLAIMER: THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
-THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE
-FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+This Font Software is licensed under the SIL Open Font License, Version 1.1.
 ```
+
+## egui, egui-winit, egui-wgpu (map editor UI)
+
+The map editor (`overbright-editor`, `src/editor/`) draws its window with egui 0.37
+(https://github.com/emilk/egui), used as Rust crates, unmodified: MIT OR Apache-2.0,
+by Emil Ernerfeldt and the egui contributors. Their licence texts,
+with those of every other crate, are in THIRD-PARTY-LICENSES.txt of a release. egui's
+bundled default fonts are not built in (the editor uses the Sofia Sans faces above).
 
 ## FFmpeg (VP6 and MPEG audio tables)
 

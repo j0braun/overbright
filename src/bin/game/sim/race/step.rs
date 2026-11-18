@@ -289,7 +289,7 @@ fn autopilot_think(
             race_type,
             scene_camera: false,
             progress: None,
-            finished: true,
+            finished: !a.racing || parked,
             parked,
             catch_up: None,
         },

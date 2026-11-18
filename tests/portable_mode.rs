@@ -150,3 +150,36 @@ fn portable_install_keeps_the_game_folder_relative() {
     assert_eq!(kept, format!("{root_s}\n").into_bytes());
     assert!(!d.path("prog/data").exists());
 }
+
+/// A folder put elsewhere (the locations file, Settings › Advanced ›
+/// Storage) is where the game writes: its log goes into the chosen logs
+/// folder, not the default one; in a portable install the locations file
+/// sits in `data/` and a relative path is taken from the program folder.
+#[test]
+fn the_game_writes_its_log_where_the_locations_file_says() {
+    let i = Install::new("loc-home", false);
+    std::fs::create_dir_all(i.path("home/.local/share/overbright")).unwrap();
+    std::fs::write(
+        i.path("home/.local/share/overbright/locations.txt"),
+        format!("logs {}\n", i.path("elsewhere/logs").display()),
+    )
+    .unwrap();
+    let out = i.run(&[], None);
+    assert!(!String::from_utf8_lossy(&out.stderr).contains("panicked"));
+    let logs = i.files("elsewhere");
+    assert!(logs.iter().any(|f| f.starts_with("elsewhere/logs/game-")), "the log in the chosen folder: {logs:?}");
+    assert!(
+        !i.files("home").iter().any(|f| f.contains("/logs/")),
+        "nothing in the default logs folder: {:?}",
+        i.files("home")
+    );
+
+    let p = Install::new("loc-portable", true);
+    std::fs::create_dir_all(p.path("prog/data")).unwrap();
+    std::fs::write(p.path("prog/data/locations.txt"), "logs ../portable-logs\n").unwrap();
+    let out = p.run(&[], None);
+    assert!(!String::from_utf8_lossy(&out.stderr).contains("panicked"));
+    let logs = p.files("portable-logs");
+    assert!(logs.iter().any(|f| f.starts_with("portable-logs/game-")), "relative to the program folder: {logs:?}");
+    assert!(!p.files("prog/data").iter().any(|f| f.starts_with("prog/data/logs")), "{:?}", p.files("prog/data"));
+}

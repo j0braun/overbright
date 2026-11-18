@@ -74,7 +74,7 @@ if [ $BUILD = 1 ]; then
     say "build: rc=$rc $(( $(date +%s) - t )) s (build.log)"
     [ $rc = 0 ] || die "build (build.log)"
 fi
-for f in linux/game linux/overbright windows/game.exe windows/overbright.exe; do
+for f in linux/game linux/overbright linux/overbright-editor windows/game.exe windows/overbright.exe windows/overbright-editor.exe; do
     [ -f "$B/dist/$f" ] || die "no $B/dist/$f"
 done
 IMAGE=${IMAGE:-overbright-build:$(sha256sum "$HERE/container/Containerfile" | cut -c1-12)}
@@ -135,19 +135,19 @@ open(dest, "w", encoding="utf-8", newline="\n").write(text)
 EOF
 }
 crlf() { python3 -I -c 'import sys; d=open(sys.argv[1],"rb").read().replace(b"\r\n",b"\n"); open(sys.argv[2],"wb").write(d.replace(b"\n",b"\r\n"))' "$1" "$2"; }
-install -m 755 "$B/dist/linux/overbright" "$B/dist/linux/game" "$S/$LIN/"
+install -m 755 "$B/dist/linux/overbright" "$B/dist/linux/game" "$B/dist/linux/overbright-editor" "$S/$LIN/"
 install -m 644 "$B/src/LICENSE" "$B/src/THIRD-PARTY-NOTICES.md" "$W/overbright.png" \
     "$B/src/scripts/release/player/overbright.desktop" "$S/$LIN/"
 install -m 644 "$W/LICENSES-x86_64-unknown-linux-gnu.txt" "$S/$LIN/THIRD-PARTY-LICENSES.txt"
 readme linux LICENSE THIRD-PARTY-LICENSES.txt "$S/$LIN/README.txt"
-install -m 755 "$B/dist/windows/overbright.exe" "$B/dist/windows/game.exe" "$S/$WIN/"
+install -m 755 "$B/dist/windows/overbright.exe" "$B/dist/windows/game.exe" "$B/dist/windows/overbright-editor.exe" "$S/$WIN/"
 readme windows LICENSE.txt THIRD-PARTY-LICENSES.txt "$W/README-win.txt"
 crlf "$W/README-win.txt" "$S/$WIN/README.txt"
 crlf "$B/src/LICENSE" "$S/$WIN/LICENSE.txt"
 crlf "$B/src/THIRD-PARTY-NOTICES.md" "$S/$WIN/THIRD-PARTY-NOTICES.md"
 crlf "$W/LICENSES-x86_64-pc-windows-gnu.txt" "$S/$WIN/THIRD-PARTY-LICENSES.txt"
-LIN_FILES="LICENSE README.txt THIRD-PARTY-LICENSES.txt THIRD-PARTY-NOTICES.md game overbright overbright.desktop overbright.png"
-WIN_FILES="LICENSE.txt README.txt THIRD-PARTY-LICENSES.txt THIRD-PARTY-NOTICES.md game.exe overbright.exe"
+LIN_FILES="LICENSE README.txt THIRD-PARTY-LICENSES.txt THIRD-PARTY-NOTICES.md game overbright overbright-editor overbright.desktop overbright.png"
+WIN_FILES="LICENSE.txt README.txt THIRD-PARTY-LICENSES.txt THIRD-PARTY-NOTICES.md game.exe overbright-editor.exe overbright.exe"
 if [ -n "${DXC_DIR:-}" ]; then
     case $(cd "$DXC_DIR" && pwd)/ in "$REPO"/*) die "DXC_DIR must be outside the repository" ;; esac
     for f in dxcompiler.dll dxil.dll LICENSE-DXC.txt; do
@@ -193,8 +193,8 @@ lf=$(python3 -I -c 'import sys, pathlib; print(" ".join(p.name for p in sorted(p
     if p.suffix in (".txt", ".md") and b"\n" in p.read_bytes().replace(b"\r\n", b"")))' "$WD")
 [ -z "$lf" ] && ok "zip text files: CRLF line ends" || bad "zip text files with LF-only lines: $lf"
 
-# 2. the version stamp: in all four binaries, equal to the archive name's
-for b in "$L/game" "$L/overbright" "$WD/game.exe" "$WD/overbright.exe"; do
+# 2. the version stamp: in all six binaries, equal to the archive name's
+for b in "$L/game" "$L/overbright" "$L/overbright-editor" "$WD/game.exe" "$WD/overbright.exe" "$WD/overbright-editor.exe"; do
     n=$(basename "$(dirname "$b")")/$(basename "$b")
     if grep -aqF "$VERSION" "$b" && grep -aqF "$COMMIT" "$b"; then ok "version stamp $n: $VERSION ($COMMIT)"
     else bad "version stamp $n: '$VERSION' / '$COMMIT' not in the binary"; fi
@@ -205,7 +205,7 @@ case "$(basename "$TAR")/$(basename "$ZIP")" in
 esac
 
 # 3. portability and Windows resources
-for b in game overbright; do
+for b in game overbright overbright-editor; do
     if "$HERE/check_linux.sh" "$L/$b" > "$W/cl-$b.txt" 2>&1; then ok "check_linux.sh $b: $(grep -c '^ok' "$W/cl-$b.txt") ok"
     else bad "check_linux.sh $b: $(grep FAIL "$W/cl-$b.txt" | tr '\n' ' ')"; fi
     if python3 -I "$HERE/check_pe.py" --gui "$WD/$b.exe" > "$W/pe-$b.txt" 2>&1; then ok "check_pe.py --gui $b.exe: $(grep -c '^ok' "$W/pe-$b.txt") ok"

@@ -50,6 +50,12 @@ packs; the HUD is hidden.
 The launcher is optional: `game --check-game <folder>` checks a game folder, and `game` starts the game
 directly ([docs/launcher.md](docs/launcher.md)). Building from source: [BUILDING.md](BUILDING.md).
 
+With Settings › "When Overbright starts: Start the game directly" the game opens without the launcher. To see
+the launcher again, hold Shift or Ctrl (or View on a controller) while Overbright starts, or start it with
+`--launcher` (on a Steam Deck: add `--launcher` to the launch options). After a start that did not finish the
+launcher opens by itself and offers safe settings. `overbright --support-file` saves a support file for a bug
+report.
+
 ## Requirements
 
 | | Linux | Windows |
@@ -125,7 +131,7 @@ original, with its switch, is in [docs/native-deviations.md](docs/native-deviati
 **Deliberate changes you will notice**
 
 - **The first start opens a 1280×960 window**, not a full screen at the desktop's resolution. Pick the size and
-  full screen in the launcher's first screen or in the game's Display options.
+  full screen in the launcher's Settings or in the game's Display options.
 - **Enter skips every movie and in-game scene.** The original has its own skip rule for each; there is no switch
   back to those rules yet.
 
@@ -156,7 +162,7 @@ report it.
 
 ## Texture mods
 
-Overbright ships no texture art. In the launcher, Mods… adds texture mods you already have: TexMod packages
+Overbright ships no texture art. In the launcher, the Mods page turns mods on and off (Use mods: all at once) and adds texture mods you already have: TexMod packages
 (`.tpf`), TexWizard packs (a folder with `meta.json` and `textures.bin`, a `.zip` of one, or the packs a
 TexWizard install in your game folder loads) and the HD HUD mod (its HUD part, extracted, and its map part). Mods belong to their authors and
 stay on your computer; Overbright neither ships nor downloads any
@@ -170,9 +176,14 @@ screen, exports them and shows your edited versions live in such a pack
 
 ## Map mods
 
-Started with `--editor`, the game has a map editor (F8 in free roam): move, delete and add props, and make races
-of your own on the city's roads, raced from the editor. They are saved as map mods in Overbright's data folder
-and applied on top of the original data; the game's files are never changed ([docs/map-editor.md](docs/map-editor.md)).
+The map editor (`overbright-editor`, a **preview**; opened from the launcher's Dev page, or on a map mod from the Mods
+page) is a desktop program: fly over the
+city, move, delete and add props, and make races of your own on the city's roads. **Test race** saves and starts
+the game beside the editor straight on the race's grid with only that mod; the game ends when the race does and
+the editor marks the race tested. Map mods are saved in Overbright's data folder and applied on top of the
+original data; the game's files and your career save are never changed
+([docs/map-editor.md](docs/map-editor.md)). The launcher's Mods page turns map mods on and off, imports and
+exports them as `.zip` files, and opens one in the editor.
 
 ## Where your files go
 
@@ -187,14 +198,20 @@ Overbright never writes into the game's folder or the original's own save folder
 
 ### Portable mode
 
-To keep everything next to the program (a game carried on a portable drive), put an empty file named
-`portable.txt` (or a folder named `portable`) beside `overbright` and `game`, or use Make portable on the
-launcher's About page. Settings, saved games, the caches, logs, crash reports, screenshots and mods then go to
+To keep everything next to the program (a game carried on a portable drive), turn on Portable mode in the
+launcher (Settings › Advanced › Storage; it offers to copy what is kept now and can be turned off the same way),
+or put an empty file named `portable.txt` (or a folder named `portable`) beside `overbright` and `game`. Settings, saved games, the caches, logs, crash reports, screenshots and mods then go to
 the folder `data` beside them, and the game folder is remembered relative to the program when it is on the
 same drive. The launcher's header then says "Portable". Nothing already kept is moved: to take it along, copy
 the contents of the folders in the table above into `data` (saved games into `data/NFS Underground 2`; the cache
 can be left behind, it is rebuilt). On Windows the graphics driver's own shader cache stays in its usual place.
 Delete `portable.txt` to go back.
+
+The same Storage page shows every folder Overbright uses (game folder, HUD mod folder, saved games, settings,
+cache, logs and support files, screenshots, texture packs, map mods), each with Change…, Open and Reset to
+default. Changing one offers to copy the files there (each checked; the old folder is kept, nothing is deleted)
+and applies from the next start, to the launcher and the game alike. The choices are kept in `locations.txt`
+in the settings folder of the table above (in `data/` in portable mode, relative to the program where it can be).
 
 ## Reporting a problem
 

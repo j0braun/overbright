@@ -59,7 +59,7 @@ pub const ENCODER: &str = "bc7-fast-1";
 
 /// The installed packs' folder: `<data>/overbright/packs`.
 pub fn packs_dir() -> PathBuf {
-    crate::platform::dirs::app().join("packs")
+    crate::platform::dirs::mods_root().join("packs")
 }
 
 /// The compiled packs' folder in the asset cache (None: no cache, then

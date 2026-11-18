@@ -83,7 +83,9 @@ impl Command {
             Some("--list-adapters") => return Command::ListAdapters,
             _ => {}
         }
-        if let Some(flag) = crate::dev_hooks::unknown_flag(args) {
+        // The map editor's test-run flags take values (a spot may start
+        // with `-`): checked without them (`cli::MapTest`).
+        if let Some(flag) = crate::dev_hooks::unknown_flag(&super::cli::MapTest::strip(args)) {
             return Command::Unknown(flag.to_string());
         }
         match first {

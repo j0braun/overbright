@@ -26,6 +26,13 @@ pub fn lock_file() -> PathBuf {
     data_dir().join("launcher.lock")
 }
 
+/// The start marker: written before the game starts, removed once the
+/// start is past (or the game ended under the launcher's eyes). Left over,
+/// the last start did not finish: the launcher opens on its recovery screen.
+pub fn start_marker() -> PathBuf {
+    data_dir().join("start-marker.txt")
+}
+
 /// Overbright's profiles folder (`<data home>/NFS Underground 2`; the
 /// import of the original's saves copies into it).
 pub fn profiles() -> PathBuf {
@@ -59,5 +66,15 @@ pub fn game_exe() -> PathBuf {
         return PathBuf::from(p);
     }
     let name = if cfg!(windows) { "game.exe" } else { "game" };
+    std::env::current_exe().ok().and_then(|p| p.parent().map(|d| d.join(name))).unwrap_or_else(|| PathBuf::from(name))
+}
+
+/// The map editor's executable beside the launcher's (`overbright-editor`,
+/// `overbright-editor.exe`); `OB_EDITOR_EXE` names another (tests).
+pub fn editor_exe() -> PathBuf {
+    if let Some(p) = std::env::var_os("OB_EDITOR_EXE").filter(|p| !p.is_empty()) {
+        return PathBuf::from(p);
+    }
+    let name = if cfg!(windows) { "overbright-editor.exe" } else { "overbright-editor" };
     std::env::current_exe().ok().and_then(|p| p.parent().map(|d| d.join(name))).unwrap_or_else(|| PathBuf::from(name))
 }

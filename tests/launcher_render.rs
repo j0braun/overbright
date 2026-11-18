@@ -1,5 +1,6 @@
 //! The launcher (docs/launcher.md): every launcher screen drawn headless with the
-//! fixed fake data at the six sizes, and every named state (no game found, a
+//! fixed fake data at the eight sizes (the Steam Deck's 1280 × 800 and the
+//! laptop's 1366 × 768 among them), and every named state (no game found, a
 //! refused folder, …) at 1366 × 768 with 150 % scaling, compared with the
 //! committed renders in tests/launcher/ (our own images; nothing from the game). A changed look
 //! is re-blessed with `OB_LAUNCHER_BLESS=1 cargo test --release --test
@@ -7,7 +8,8 @@
 
 use nfsu2::launcher::{headless, screens::Screen};
 
-const SIZES: [(u32, u32); 6] = [(640, 480), (800, 1280), (1280, 720), (1920, 1080), (2560, 1080), (3840, 2160)];
+const SIZES: [(u32, u32); 8] =
+    [(640, 480), (800, 1280), (1280, 720), (1280, 800), (1366, 768), (1920, 1080), (2560, 1080), (3840, 2160)];
 /// The states' size and scale: a common laptop screen at 150 %.
 const STATE_SIZE: (u32, u32, f32) = (1366, 768, 1.5);
 

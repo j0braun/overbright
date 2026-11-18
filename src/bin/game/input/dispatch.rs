@@ -62,19 +62,19 @@ impl Game {
             nfsu2::render::pack_reload::request_full();
             return Ok(());
         }
-        // The map editor (`--editor`): F8 in free roam opens it, and it
+        // The free camera (`--editor`): F8 in free roam opens it, and it
         // takes every key while it is up. Ctrl+F8 is the support file's
-        // key (shell::support), never the editor's.
+        // key (shell::support), never the free camera's.
         let ctrl = self.platform.keys.contains(&KeyCode::ControlLeft) || self.platform.keys.contains(&KeyCode::ControlRight);
-        if self.map_editor.is_some() {
+        if self.free_camera.is_some() {
             if code == KeyCode::F8 && ctrl {
                 return Ok(());
             }
-            return self.map_editor_key(code);
+            return self.free_camera_key(code);
         }
         if code == KeyCode::F8 && !ctrl && nfsu2::tools::map::editor_enabled() {
-            self.map_editor_open();
-            if self.map_editor.is_some() {
+            self.free_camera_open();
+            if self.free_camera.is_some() {
                 return Ok(());
             }
         }

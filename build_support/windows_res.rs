@@ -104,9 +104,10 @@ struct Program {
 }
 
 /// The player's programs (the archives of scripts/release/package.sh).
-const PROGRAMS: [Program; 2] = [
+const PROGRAMS: [Program; 3] = [
     Program { bin: "game", identity: "Overbright.Game", description: "Overbright" },
     Program { bin: "overbright", identity: "Overbright.Launcher", description: "Overbright Launcher" },
+    Program { bin: "overbright-editor", identity: "Overbright.MapEditor", description: "Overbright Map Editor" },
 ];
 
 /// Writes the icon, the manifests and the resource scripts into `out_dir`,

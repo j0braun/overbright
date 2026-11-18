@@ -1,9 +1,9 @@
 //! The launcher (`overbright`, docs/launcher.md): a small window that
 //! finds and checks the player's game folder, shows the main choices
 //! (display, graphics, language, texture pack) and starts the game. It is
-//! drawn on the CPU (winit + softbuffer + tiny-skia + ab_glyph with the Go
-//! font), so it opens and can report a problem even when the graphics
-//! driver cannot start the game. Its own plain look; nothing from the game.
+//! drawn on the CPU (winit + softbuffer + tiny-skia + ab_glyph with Sofia Sans
+//! Semi Condensed), so it opens and can report a problem even when the graphics
+//! driver cannot start the game. Its own look (smoked slab, rail, lime titles); nothing from the game.
 //!
 //! * [`ui`]: widgets, focus and input; [`layout`]: sizes and placement;
 //!   [`draw`] / [`font`]: pixels; [`screens`]: the screens and what their
@@ -16,18 +16,22 @@
 //!   Shift check; [`saves`]: importing the original's saves;
 //!   [`start_log`]: the launcher's own log (`launcher.log`) and panic hook.
 
+pub mod anim;
 pub mod backdrop;
 pub mod dirs;
 pub mod draw;
 pub mod font;
 pub mod headless;
 pub mod layout;
+pub mod legends;
 pub mod model;
+pub mod platform_deck;
 pub mod prepare;
 pub mod probe;
 pub mod run;
 pub mod saves;
 pub mod screens;
+pub mod sounds;
 pub mod start_log;
 pub mod ui;
 #[cfg(windows)]

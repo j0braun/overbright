@@ -317,7 +317,8 @@ fn unix_candidates() -> Vec<PathBuf> {
 /// current folder, and [`candidates`] — the first that
 /// [`looks_like_game`].
 pub fn find() -> Option<PathBuf> {
-    if let Some(r) = std::env::var_os("NFSU2_ROOT") {
+    // An empty NFSU2_ROOT counts as unset (a start script that clears it).
+    if let Some(r) = std::env::var_os("NFSU2_ROOT").filter(|r| !r.is_empty()) {
         return Some(PathBuf::from(r));
     }
     let mut list = Vec::new();
