@@ -425,6 +425,10 @@ impl Game {
         if self.platform.mouse.at.is_none() || self.loads.loading.is_some() {
             return false;
         }
+        // The texture editor's panel needs the cursor (`--editor` only).
+        if crate::enh::texed::open() {
+            return true;
+        }
         // **Traced**: FE_DrawCursor 0x50B460 draws it while
         // (0x8651A8 − 0x83A9CC) × 0.00025 ≤ 2.0 (0x50B49E..0x50B4BD,
         // 0x7844C0), the real-time clock, not the package clock: up to

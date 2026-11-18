@@ -121,6 +121,10 @@ impl WorldCore {
             // Animated Water (docs/water.md): `render::water` draws them.
             order.retain(|&i| !self.draws[i as usize].water);
         }
+        // The texture editor's list (docs/texture-editor.md; off: not run).
+        if crate::tools::texed::recording() {
+            crate::tools::texed::note_world_slots(order.iter().filter_map(|&i| self.drawn_slot(i, plan.time)));
+        }
         let from_main = self.draw_pass_faded(
             encoder,
             color,
@@ -147,6 +151,19 @@ impl WorldCore {
         if let Some(m) = &plan.anim_mask {
             self.draw_anim_mask(encoder, m, &animated, plan.time);
             crate::prof::gpu::mark(encoder, "graphics: fsr2 animation mask");
+        }
+    }
+
+    /// Draw `i`'s texture slot at `time` (a flip-book's frame then), None
+    /// for the dome's.
+    fn drawn_slot(&self, i: u32, time: f32) -> Option<usize> {
+        match self.draws[i as usize].texture {
+            TextureRef::Fixed(t) => Some(t),
+            TextureRef::Animated(a) => {
+                let anim = &self.animations[a];
+                anim.frames.get((time * anim.fps) as usize % anim.frames.len().max(1)).copied()
+            }
+            TextureRef::Sky(_) => None,
         }
     }
 
@@ -1089,6 +1106,12 @@ impl WorldCore {
 }
 
 impl WorldRenderer {
+    /// The texture hash of world texture slot `slot` (the texture editor's
+    /// list; None: the white stand-in).
+    pub fn slot_hash(&self, slot: usize) -> Option<u32> {
+        self.pack_slots.get(slot).copied().flatten()
+    }
+
     /// Record the world into `color`/`depth` (both `_size` pixels; the
     /// reflection has its own fixed size).
     pub fn render(

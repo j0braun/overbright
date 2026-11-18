@@ -323,6 +323,16 @@ pub fn dds(b: &[u8]) {
     black_box(nfsu2::upscale::parse_dds(b).is_some());
 }
 
+/// Overbright packs (docs/texture-packs.md): the manifest, the order file,
+/// a file stem's key and a DX10 DDS.
+pub fn obpack(b: &[u8]) {
+    let text = String::from_utf8_lossy(b);
+    black_box(nfsu2::obpack::Manifest::parse(&text).map(|m| m.to_toml()).ok());
+    black_box(nfsu2::obpack::parse_order(&text).len());
+    black_box(nfsu2::obpack::index::key_of_stem(&text));
+    black_box(nfsu2::obpack::dds::parse_dx10(b).map(|e| e.data.len()));
+}
+
 pub fn abk(b: &[u8]) {
     if let Some(bank) = nfsu2::audio::abk::Bank::parse(b.to_vec()) {
         for i in 0..bank.samples.len().min(6) {
@@ -476,6 +486,7 @@ pub const TARGETS: &[Target] = &[
     t!(profile_text, Seed::Text("profile")),
     t!(globalb, Seed::File("GLOBAL/GLOBALB.BUN"), Seed::Top("GLOBAL/GLOBALB.BUN")),
     t!(dds, Seed::Text("dds")),
+    t!(obpack, Seed::Text("obpack")),
     t!(abk, Seed::File("SOUND/NOS/Nitrous_00_MB.abk"), Seed::File("SOUND/FE/FE_MB.abk")),
     t!(schl, Seed::Viv("SDATA/sdat.viv", b"SCHl")),
     t!(ealayer3, Seed::Viv("SDATA/sdat.viv", b"SCHl")),

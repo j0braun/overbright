@@ -32,11 +32,36 @@ pub(in crate::render) fn invalidate(hash: Option<u32>, name: Option<&str>) {
     cache.bytes = cache.bytes.saturating_sub(freed);
 }
 
+/// The texture editor's stand-ins (docs/texture-editor.md: the highlight),
+/// ahead of every pack; none while the editor is off.
+static OVERRIDES: Mutex<Option<HashMap<(Domain, u32), Arc<Replacement>>>> = Mutex::new(None);
+static ANY_OVERRIDE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// Put (Some) or take away (None) the editor's stand-in for texture `hash`.
+pub(in crate::render) fn set_override(domain: Domain, hash: u32, r: Option<Replacement>) {
+    let mut o = OVERRIDES.lock().unwrap_or_else(|e| e.into_inner());
+    let map = o.get_or_insert_with(HashMap::new);
+    match r {
+        Some(r) => {
+            map.insert((domain, hash), Arc::new(r));
+        }
+        None => {
+            map.remove(&(domain, hash));
+        }
+    }
+    ANY_OVERRIDE.store(!map.is_empty(), std::sync::atomic::Ordering::Relaxed);
+}
+
 pub(in crate::render) fn replacement(
     domain: Domain,
     t: &crate::formats::texture::Texture,
     max_dimension: u32,
 ) -> Option<Arc<Replacement>> {
+    if ANY_OVERRIDE.load(std::sync::atomic::Ordering::Relaxed)
+        && let Some(r) = OVERRIDES.lock().unwrap_or_else(|e| e.into_inner()).as_ref().and_then(|m| m.get(&(domain, t.hash)))
+    {
+        return Some(r.clone());
+    }
     let mut roots = roots(domain);
     if roots.is_empty() {
         return None;

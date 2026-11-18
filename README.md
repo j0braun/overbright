@@ -165,6 +165,12 @@ TexWizard install in your game folder loads) and the HD HUD mod (its HUD part, e
 stay on your computer; Overbright neither ships nor downloads any
 ([docs/texture-packs.md](docs/texture-packs.md)).
 
+Overbright's own pack format is a folder with a `pack.toml` (name, author, licence, priority) and the images
+in `world/`, `car/` and `any/`, named by the game's texture names; installed packs live in Overbright's data
+folder under `packs/`. Started with `--editor`, the game has a texture editor (F7) that lists the textures on
+screen, exports them and shows your edited versions live in such a pack
+([docs/texture-editor.md](docs/texture-editor.md)).
+
 ## Where your files go
 
 | | Linux | Windows |

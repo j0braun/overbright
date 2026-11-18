@@ -217,7 +217,7 @@ pub fn bpp(format: crate::formats::texture::PixelFormat) -> f32 {
     use crate::formats::texture::PixelFormat::*;
     match format {
         Dxt1 => 0.5,
-        Dxt3 | Dxt5 => 1.0,
+        Dxt3 | Dxt5 | Bc7 => 1.0,
         Bgra8 | Rgba8 => 4.0,
         P8 => 0.5,
     }

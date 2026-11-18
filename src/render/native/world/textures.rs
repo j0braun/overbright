@@ -126,6 +126,11 @@ pub(in crate::render) fn texture_layer_with_pack(
                 (wgpu::TextureFormat::Bc3RgbaUnorm, r.width, r.height, r.mips),
                 std::borrow::Cow::Owned(r.bytes.clone()),
             ),
+            // An Overbright pack's PNG compiled to BC7 (docs/texture-packs.md).
+            Some(PixelFormat::Bc7) if bc => (
+                (wgpu::TextureFormat::Bc7RgbaUnorm, r.width, r.height, r.mips),
+                std::borrow::Cow::Owned(r.bytes.clone()),
+            ),
             // TexMod imports keep their DXT3 art (docs/texmod-import.md).
             Some(PixelFormat::Dxt3) if bc => (
                 (wgpu::TextureFormat::Bc2RgbaUnorm, r.width, r.height, r.mips),

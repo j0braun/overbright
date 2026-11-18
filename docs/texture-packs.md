@@ -2,6 +2,119 @@
 
 No replacement world/car artwork is included: the game shows the player's own original textures.
 
+## Overbright packs (the own format)
+
+Overbright's own replacement-texture format. TexMod packages and TexWizard packs stay import-only (the
+launcher converts them, below); an Overbright pack is what the texture editor (docs/texture-editor.md)
+writes and what an author can publish directly. Code: `src/obpack/` (`obpack::Pack`, `obpack::sync`,
+`obpack::list_in`).
+
+### Layout
+
+```
+<data>/overbright/packs/<id>/         installed pack (<data>/packs/<id>/ in a portable install)
+  pack.toml                           the manifest (optional: without it the folder is a bare pack)
+  world/  ROAD_MAIN.png  0x5FB8BCD1.dds  signs/…   world textures (tracks, shop and garage scenes)
+  car/    …                                        car textures
+  any/    …                                        both (a key in world/ or car/ wins over any/)
+  preview.png, README.txt, LICENSE.txt             optional, copied on install
+<cache>/packs/<id>/                   compiled, never distributed (rebuilt when missing)
+  world/<HASH>.dds|png  car/<HASH>.dds|png  stamps.tsv
+```
+
+* `<id>`: the folder's name, lower-case letters, digits and `-`, at most 64 characters.
+* Subfolders below `world/`, `car/` and `any/` are searched (at most 8 deep); the key is the file stem, not
+  the path. Files other than `.png` / `.dds` (any case) are ignored. Folders and files starting with `.` are
+  skipped. At most 65,536 files.
+
+### Keys: texture names or hashes
+
+A file stem is
+
+* `0x` and 1 to 8 hex digits (`0xBEEF`, `0x5FB8BCD1`), or exactly 8 hex digits (`5FB8BCD1`, any case):
+  the texture's hash;
+* anything else: a texture name, hashed as the game hashes names (`bin_hash`, SPEED2.EXE 0x43DB50),
+  exactly as written. The game's texture names are upper case; a lower-case file name is another name.
+
+A texture's name and its hash are the same key. Matching is by hash only, so a name the game stores
+truncated still matches when the file carries the full name's hash.
+
+### Manifest: `pack.toml`
+
+```toml
+format = 1                    # required; 1 is the only format; a higher one is refused ("update Overbright")
+name = "Night Roads"          # required, at most 80 characters
+author = "Someone"            # or authors = ["A", "B"]
+licence = "CC-BY-4.0"         # or license = …; an SPDX id is recommended
+priority = 0                  # -1000000..1000000: higher first among packs the player has not ordered
+version = "1.0.0"             # optional
+description = "…"             # optional
+compress = "bc7"              # bc7 (default) or none (keep PNGs as RGBA8)
+source = "editor"             # informational: what made the pack
+```
+
+Unknown keys and tables are ignored (so later fields do not break older readers). Text fields lose control
+characters.
+
+### Refused packs
+
+A pack is listed with its reason and never used when: its id is not valid; `pack.toml` is not TOML, larger
+than 64 KB, has no or a wrong `format`, no `name`, a priority out of range or an unknown `compress`; two
+images in one domain folder stand for one texture (`ROAD.png` and `ROAD.dds`, or a name and its hash);
+folders are nested too deep; there are too many files. A single image that does not decode is left out (a
+warning in the log; the editor shows it), the rest of the pack is used.
+
+### Order
+
+One list, the first pack that has a texture wins (as for the launcher's packages). `packs/order.txt`:
+
+```
+# Overbright packs v1
+on night-roads
+off signs-hd
+```
+
+Packs it names come first, in its order, `off` ones unused; packs it does not name follow, on, by `priority`
+(higher first), then by id. The editor puts its pack first. The loader's whole order: the developer
+variables (`NFSU2_WORLD_TEXTURE_PACK`, `NFSU2_CAR_TEXTURE_PACK`), then the Overbright packs, then the
+launcher's imported TexMod / TexWizard packages, then the World Texture Pack row's folders. No pack folder,
+or nothing on: the loader's native path, nothing read.
+
+### Formats and compiling
+
+| file | accepted | compiled to |
+|---|---|---|
+| PNG (8-bit, up to 4096 × 4096, 128 MB decoded) | yes | BC7 DDS (DX10) with its full mip chain (alpha-weighted 2 × 2 boxes), when the size is a whole number of 4 × 4 blocks; otherwise, or with `compress = "none"`, the PNG as is (RGBA8, mips made at load) |
+| DDS DX9 FourCC DXT1 / DXT3 / DXT5 | yes | as is |
+| DDS DX10, DXGI BC1 / BC2 / BC3 / BC7, UNORM or SRGB (71–78, 98, 99) | yes | as is (SRGB uploaded as the same bits; the renderer samples it as UNORM, as the game's own textures) |
+| other DDS formats, arrays, cube maps, TGA, JPG, KTX2 | no | left out with a reason |
+
+Compiling runs once per changed image: `stamps.tsv` keeps each texture's source, size, time and encoder, and
+an image is built again only when one of them changed (removed images' files are removed). The loader asks
+for packs at most every half second while a world or a car loads; the first load after installing a big PNG
+pack compiles it (the launcher can compile ahead with `obpack::sync`, which reports progress). BC7 uses
+`block_compression` 0.11 (MIT; a CPU port of Intel's ISPC texture compressor kernels) with its "fast"
+settings; a PNG's colours change by a few levels at most in smooth areas. Without BC support on the GPU the
+BC7 levels are decoded on the CPU (the same crate). The replacement changes pixels only: the original
+texture's record (blend, alpha test, scrolling, UVs) stays, as for every pack.
+
+### For the launcher (API)
+
+* `obpack::packs_dir()`, `obpack::compiled_root()`; `obpack::list_in(packs)` → every pack folder with on/off
+  and the pack or why it is refused, in the loader's order; `load_order` / `save_order` (on/off, order);
+  `Pack::manifest` (name, author, licence, priority, version, description), `Pack::index` (textures per
+  domain, ignored files), `obpack::winner` (which pack supplies a texture).
+* `obpack::install_folder(src, packs)` (checked, staged, renamed into place; copies only the manifest, images
+  and preview/README/LICENSE), `obpack::remove(packs, compiled, id)`, `obpack::sync(pack, out, progress)`.
+
+### Tests
+
+`obpack::tests` (manifest round trip and refusals, keys by name and hash, domains and `any/`, bad packs
+refused, order and priority, compile to BC7 / PNG / DDS with stamps, DX10 round trip and refusals, the
+loader's roots, create / put / install / remove), `render::…::texture_pack::tests::
+overbright_pack_reaches_the_world_layer_as_bc7` (a pack in a data folder reaches the world renderer's layer
+as BC7, decoded without BC), and the fuzz target `obpack` (fuzz/targets.rs: manifest, order, keys, DX10).
+
 ## Texture packages and the HUD mod (the launcher's Mods page)
 
 For players: in the launcher, **Mods…** (on the main screen) sets up texture mods from files you have.
