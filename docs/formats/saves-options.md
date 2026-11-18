@@ -9,7 +9,8 @@ Code: `src/formats/native_save.rs` (container, payload offsets),
 `src/frontend/profiles/` (folder, list, current profile, MC texts), `Profile::from_native` / `to_native` and `NativeContext` in
 `career.rs`, `Settings::apply_native` / `write_native` in `options.rs`,
 `McList` / `McMessage` in `screens.rs`, `McAct` and `mc_*` in game.rs.
-Fixtures: `tests/fixtures/native_saves/*.sav` (written by SPEED2.EXE),
+Fixtures: `tests/fixtures/native_saves/*.sav` (written by SPEED2.EXE; maintainer only (private test set),
+the tests are ignored without it, docs/testing.md),
 tests `tests/native_save.rs`, selftest `selftest_profiles`.
 
 * **Where** (**verified**): 0x4A9C40 calls SHGetFolderPathA(0, 0x801C =
@@ -107,8 +108,7 @@ tests `tests/native_save.rs`, selftest `selftest_profiles`.
     final event is won with the stage's milestones, or every event of a
     stage without one, and then calls 0x528330(stage), which advances
     the career only when that is the current stage; only the record reset
-    0x500700 clears it; **verified**; the clone's `Profile::stage_done`,
-    <work dir>),
+    0x500700 clears it; **verified**; the clone's `Profile::stage_done`),
     +0xFD the definition's +0x100 as a signed byte widened to a dword (the
     stage number; 0 with no definition). +0xC4 and +0xEC…+0xF8 are 0 in
     every save (**not traced**; the copy 0x511940 moves them with the rest).
@@ -167,8 +167,8 @@ tests `tests/native_save.rs`, selftest `selftest_profiles`.
     guidInstance (0x5B8120 → GetDeviceInfo; the loader gives a block to
     the device with that GUID, so the order does not matter) — a block whose
     device is not attached is lost at the next save (the writer has only
-    the attached records; **verified** under Wine with a community save,
-    <work dir>; the clone keeps only the attached controllers' maps), +0x10 device
+    the attached records; **verified** under Wine with a community save;
+    the clone keeps only the attached controllers' maps), +0x10 device
     +0x344 (four axis ids), +0x20 +0x354 (their values), +0x30 +0x364
     (four flags), +0x34 +0x368 (0x5B8260 assigns an axis to a role by
     +0x33C), +0x35 device +0x18 (32 dwords: each button's action, 0x5B8470
@@ -1014,8 +1014,8 @@ passes), `render::postfx::PostFx::apply` (the hand-over), `render`
     0.71 → 0.71; 4K explore 1.95 → 1.95 / 1.95, race 2.20 → 2.14 / 2.17
     (noise); draw CPU 0.9–1.4 ms either way. Effect on the Wine-matched
     routes: Detail Distance 300 % adds 0–35 pixels a frame (distant lamp
-    poles, barrier ends; `<work dir>/lod-tmp/crops/
-    detail300_r1_180.png`), Car Detail 300 % puts a van 40 m away at LOD
+    poles, barrier ends; crop `detail300_r1_180.png`,
+    kept outside the repository), Car Detail 300 % puts a van 40 m away at LOD
     A instead of B (`crops/cardetail300_40m.png`, native left).
   * LOD Fade: Off / On (2026-11-01) — see **LOD Fade** below.
   * Keep All Loaded: Off / On (2026-11-01) — see **Keep All
@@ -1259,7 +1259,7 @@ passes), `render::postfx::PostFx::apply` (the hand-over), `render`
   garage shots; the race-start, mirror (hood / bumper), replay and drift
   shots; all on at once; a live change mid-run in `--bench explore` /
   `race` with `NFSU2_BENCH_ENH_SWITCH`): no panic or validation error.
-  Crops (native first): `<work dir>/gfx-tmp/crops/`
+  Crops (native first, kept outside the repository):
   aa_explore_cmp1/2 (render scale, FXAA, CAS on a palm tree),
   roadrefl_*_cmp, carrefl_*_cmp, menu_graphics_*.
 * **Cost** (reference desktop GPU, `--bench explore|race 300` with the bench's
@@ -1433,8 +1433,8 @@ artificial, so:
   files `ui2d-vector.nfc` / `ui2d-hd.nfc` (removed from the cache folder
   at the first cache use, `cache::OBSOLETE`), and the examples
   ui2d_bake / ui2d_glyph_diff / ui2d_upscale_eval / ui_upscale_cmp.
-* **Evidence**: the interrupted agent left captures under
-  `<work dir>/ev/`. Fresh private-branch checks and comparisons
+* **Evidence**: captures of an interrupted run are kept
+  outside the repository. Fresh private-branch checks and comparisons
   are described in internal notes.
 * **Open**: no comparison against the original under Wine at those
   sizes for the Off path beyond the traced sampler state (the original at

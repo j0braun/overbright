@@ -3,7 +3,7 @@
 - `start-stretch.txt`, `cmp_trails.py`: item 4, the clone's rivals against the original's recorded rival
   lines (S3_CIRCUIT_12 and three Quick Race tracks); the raw trails are kept with the maintainer's private evidence.
 - Item 2 under Wine (2026-11-13): the original's stage-2
-  save after the body shop (`tests/fixtures/native_saves/stage2_body.sav`, only bit 0x286.0 for the
+  save after the body shop (`tests/fixtures/native_saves/stage2_body.sav`, private test set; only bit 0x286.0 for the
   spoilers) loaded; the garage's Body Parts Storage, Spoilers: JORGEN, ROCKER 5, AIRFORCE, ARROW,
   BARRACUDA, WILDFIRE, RIPPER, … (`g5.jpg`, `g6-1..6.jpg`); the strip's Carbon Fiber open, Wide Body
   Kits locked (`g7.jpg`, `g8.jpg`); Carbon Fiber Spoilers lists the carbon JORGEN (`c3.jpg`); the storage list ends with the unique

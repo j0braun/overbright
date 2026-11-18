@@ -35,7 +35,7 @@ wall-3 | base: 0.023/0.004/0.111 [frame 51 (+1) fx_fl -0.84515 | -0.616] | h1: 0
 # bench_wall_hold run 2 frame 60 (2nd -> 1st): fx FL / FR -6.454 / -6.634 | -6.453 / -6.628 (base -6.428 / -6.602),
 #   yaw rate at frame 65 -0.00140 | -0.00140; the wheel hop's grip 0.913971 (count 3) on both
 
-# circuit_s1_launch (pinned stage-1 circuit, tools/parity/stance.py): |v| m/s at 0.5 / 1 / 2 / 3 / 4 s after the green
+# circuit_s1_launch (pinned stage-1 circuit, tools/parity/stance.py, maintainer only: private parity tools): |v| m/s at 0.5 / 1 / 2 / 3 / 4 s after the green
 # two native runs (the same up to 3 s); the 4 s value follows the shunts of the car behind (pushes).
 # cl1-base
 original          1.297  4.319  9.441 14.025 15.893  pushes [(59, 1.707), (62, 0.326), (69, 0.362), (78, 0.367), (109, 0.377), (252, 0.365), (257, 0.161), (259, 0.168)]  contact 59..300 (160)

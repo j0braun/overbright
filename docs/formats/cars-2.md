@@ -460,12 +460,12 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
   255): lifting the car 6 m at 24.7 m/s started kind 6 at once (the
   place +0x270 set 60 m ahead), the mover stayed the chase camera there
   (sight blocked) and the kind ended when the wheels touched 1.9 s
-  later. The mover's own pose with a clear sight line: **seen** in <work dir> (below).
+  later. The mover's own pose with a clear sight line: **seen** in the crash captures (below).
   **Sound**: the track collision sample's volume byte +60 (≤ 127) while
   the car's director runs kind 6 (0x47A770) and the bottom-out knock
   (0x47EB77) read the kind; neither is changed here (see Sound rounds).
   The HUD: HUD_BuildFeatures 0x6000A0 reads +0x58 and gives no features
-  for kinds 1, 6, 7 (**ported** <work dir>, `hud::Input::event_camera`). Replays: the clone's playback does not run the events and
+  for kinds 1, 6, 7 (**ported**, `hud::Input::event_camera`). Replays: the clone's playback does not run the events and
   keeps its replay cameras (**inferred**: the original's replay director
   0x5FB060 owns the camera; kinds 1, 2 stamp +0x68 outside replays only).
   **Inferred** deviations: the human car's route (+0x2C) as a fresh racer
@@ -536,11 +536,11 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
 * **Crash camera under Wine** (fastgpu, Quick Race 4014 forward,
   the 206, Jump Camera on: +0x24 = 127.5). The player's rigid body
   (vtable 0x7A20CC: +0x20 position, +0x30 axes, +0x70 / +0xA0 momentum and
-  velocity) was put head-on in a rival's path (`crash.sh`, `tele.py` in
-  <work dir>), with a 70 Hz memory log of the director, the car,
+  velocity) was put head-on in a rival's path (`crash.sh`, `tele.py`,
+  maintainer tools), with a 70 Hz memory log of the director, the car,
   the view 0x8760E0 (+0x40 eye, +0x50 forward, +0x60 look-at, +0xC4 field
-  of view) and the mover, and 30 fps frames. Strips:
-  <work dir> (clear crash shot),
+  of view) and the mover, and 30 fps frames. Strips
+  (kept outside the repository): the clear crash shot,
   `b3_strip.jpg` (sight blocked, then kind 7), `j2_strip.jpg` (jump
   camera, clear, eye under an overpass). Seen:
   * Kind 6 started on the frame of the hit (push ≥ 30, rival against the
@@ -581,7 +581,7 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
   * The car's node is 0x4198C0 with flag 1: the nearest node, then on while
     it lies behind the car — the first node at or ahead of it (the clone
     took the node behind: every place 8 m short).
-  * Until <work dir> the trigger's 0x5F1EF0 test read the race road's points
+  * Before the fix the trigger's 0x5F1EF0 test read the race road's points
     (30–55 m apart), so on Quick Race straights it never placed; it now
     reads the same list.
   **Sight test**: the factory's own cache (0x5E0B50 at 0x5F2945) first
@@ -594,7 +594,7 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
   place (flags 0x12) where the original's camera ran; now all four
   agree (a3, b1, j2 clear; b3 blocked by plain walls, flags 0x16).
   **Chase camera parked under the event** (2026-11-06; **verified**
-  in the disassembly, **observed** in the <work dir> captures re-decoded,
+  in the disassembly, **observed** in the crash captures re-decoded,
   the maintainer's private captures). Every start of kind 6 / 7 calls the
   factory with the keep flag (0x6022F0 case 5 / 6, 0x604CD3, 0x604FD3:
   `push 1`, unless game state 5): the current mover goes to player +0x23C
@@ -741,7 +741,7 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
   which sent it down the turned path (angle −π, UVs swapped) and drew the
   corner a pixel off with the texture wrapped: MC_Main's and the LAN
   screen's "notch" (gaps row 6). Float noise up to 1e-5 of the length now
-  counts as unturned (**verified** against gaps120 b1 / <work dir> lan_6).
+  counts as unturned (**verified** against the captures gaps120 b1 and lan_6).
 * **Front-end quad submission** (**verified**; `render::ui`): every FE
   polygon (images 0x536A60, strings, movies, coloured images) is built by
   0x51A1C0 (corners −0.5…0.5 through the object's matrix, vertex 0 upper
@@ -793,7 +793,7 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
   alpha through additive blending (0.8 × 0.8 + 0, the alpha on the colour
   factors), so the world shows through about a third, as in the Wine
   capture; the clone draws it so (see the frame's alpha-only quad).
-* **Front-end drawing against the original** (2026-10-31, `<work dir>`):
+* **Front-end drawing against the original** (2026-10-31):
   pixel diffs of 19 static screens at 1280 × 960 against the original
   under Wine (wined3d on Xvfb, vanilla, WidescreenFix off; images kept with the maintainer's private evidence: orig / before / after / heat).
   Causes found and fixed:
@@ -1113,8 +1113,8 @@ the original's key timelines; `HYDRO_LOG=1` prints every frame,
   roam and in races other than drift and street X, standing or under 30
   mph (modes from under 10 mph).
 * **Live comparison** (fastgpu, a private Wine copy, career free
-  roam, Rachel's 350Z; level given by writing 0x7E949C = 2; refs in
-  <work dir> `refA2.json` / `refB2.json`; clone `hydro` /
+  roam, Rachel's 350Z; level given by writing 0x7E949C = 2; refs
+  `refA2.json` / `refB2.json` (kept outside the repository); clone `hydro` /
   `hydro_bounce` with `NFSU2_HYDRO_CAR=350Z`): mode entry 0.23 s vs 0.22–
   0.23 s; the corners 0 → 0.2 in 0.40 s in both; front up: forward.z
   +0.084 (original) / +0.073 (clone, stock 350Z), all four up: the body
@@ -1162,7 +1162,7 @@ Issue (the finished-career save): level 3 hydraulics in the shop and the nitrous
 did not work. Wine: a private copy through
 `fastgpu.sh` (:178, `--audio-file`), the finished-career save loaded, IND_CAR_SPECIALTY_2
 entered from free roam (car moved to (732, −1175), Enter, Enter Shop);
-captures in `<work dir>/specials-tmp` (`h3m.png` LVL 3 pumping,
+captures kept outside the repository (`h3m.png` LVL 3 pumping,
 `pum.png` / `pu20.png` Test N2O Purge, `ev_purge.tsv` / `ev_gpurge.tsv`
 sound events). Clone shots `finished_specials_hydro3`, `finished_specials_purge`
 (checks in the shot; the shot fails on a mismatch).

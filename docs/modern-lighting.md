@@ -13,6 +13,8 @@ below about the bake is **measured from the game's data** (the maintainer's prob
 EA produced the bake is **not traced** (offline tools, not in SPEED2.EXE) and stays **inferred**.
 
 ## What the bake holds (measured, `cargo run --release -p devprobes --bin modern_light_fit`)
+
+The probe is maintainer only (private developer probes, not in the public repository).
 Bayview (L4RA): 2233 light-pack lamps (all point lights, outer 30 m / inner 10 m, grey
 (150,150,150) or bluish (110,110,125); docs/lamps-shadows.md), 4.13 M vertices of the main-LOD
 placements (sky section and additive textures left out), 187 238 of them on the reflective road

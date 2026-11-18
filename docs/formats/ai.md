@@ -286,7 +286,7 @@ Everything above the low-level driver; verified except where noted.
   list's last point and stalled on reversed 4601 / 4606), and the gap is filled with points every 8 m along the
   last point's direction (0x418DA0: trunc(d/8) − 1 points, flagged +0x74)
   — after every new point that is not a turn entry, junction or not
-  (0x4224A7 / 0x4224B6 → 0x4226E1; read under Wine, <work dir>: the grid's list
+  (0x4224A7 / 0x4224B6 → 0x4226E1; read under Wine: the grid's list
   had them inside record 476 and 655; the clone had them across junctions
   only until then).
   After the extend (0x422220) and the speeds (0x40A8C0), before the turns
@@ -1470,7 +1470,7 @@ Explore mode's and races' traffic. Verified except where noted.
   (a contact sheet kept with the maintainer's private evidence),
   with no non-finite or lifted wheel pose over 20 s of free roam. The
   reported van without wheels was not reproduced (the shots drew no
-  traffic before <work dir>; the window always did). 2026-10-30:
+  traffic before a later fix; the window always did). 2026-10-30:
   PANELVAN and TAXI draw with four wheels from 6 m (LOD A) and 35 m
   (LOD B, `TRAFFIC_VIEW=far`); the wheels' LOD C model is the `_B` one
   (the part's model column), and past LOD C (size < 10, ~110 m) the
@@ -1996,7 +1996,7 @@ Explore mode's and races' traffic. Verified except where noted.
   the chassis' +0x13C, which 0x598AD0 reads: the torque curves at
   rpm ÷ k, the drive × (1 + 3 (k − 1)) and the driven wheels' lever ÷ 1.25
   (1 + 2.5 (k − 1)) (0x598C6E..0x598CB7; **verified** the outrun-pace pass, ported); grip × (1 − 0.025·0x5ED5E0, the road's wetness at
-  the car via 0x61E390 (**corrected 2026-10-30, <work dir>**: 0x8A1F34 is not a
+  the car via 0x61E390 (**corrected 2026-10-30**: 0x8A1F34 is not a
   weather object but the data pointer (+0x0C) of the "Rain" parameter map
   object 0x8A1F28, filled by the map loader; no instruction names it, yet
   under Wine it rains. So the grip drops by up to 2.5 % while it rains at
@@ -2192,8 +2192,8 @@ Explore mode's and races' traffic. Verified except where noted.
   keeps a car within 250 m of race coordinate alone, and 0x5F12B0 /
   0x5F0FC0 measure from the world's slots +0x80/+0xE0, which in a
   one-player race hold the player alone (world +0x14 = 1, slot 1 unset:
-  **observed**). **Starts** (0x417D80, verified,
-  <work dir>): the walk's start is not always the racer's own road. 0x42E9F0
+  **observed**). **Starts** (0x417D80, verified):
+  the walk's start is not always the racer's own road. 0x42E9F0
   asks 0x417D80 for up to 3 starts {record, point, backward byte}: the
   first the racer's node; then, over the route manager's records
   (0x88D21C, count 0x88D218) other than the racer's, whose box (+0x60 /
@@ -3150,7 +3150,7 @@ meters" (0xA227EAD5). Quick Race's Outrun (race type 8) is the split-screen
   the race status state counts as 4 (racing) for review messages; no
   countdown shows. Stage 0 offers none (its intro flags are not modelled).
 * **Observed under Wine** (race9, vanilla, wined3d; the clone-written
-  stage-2 save <work dir> as the profile, Resume
+  stage-2 save as the profile, Resume
   Career → the garage → Return to Explore Mode, the SMS inbox closed;
   memory through the peek loop, `race9-tmp/enc9.py`, `chase9.py`): the
   manager (race status +0xC40, embedded: +0x00 the state, +0x04 the mode

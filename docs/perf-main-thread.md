@@ -213,7 +213,7 @@ is not part of this work; with change 1 in place it can be tried again
 
 This page's six steps re-applied one by one on main (the temporal tier … the Animated Water work, the parity passes,
 the test isolation since this work's base), each a 3-way merge of this work's step trees
-(`<work dir>/d2-work/s(k-1)` → `sk`) into the copy, the
+(step tree k-1 → k) into the copy, the
 conflicts resolved by hand, the measuring aid (`NFSU2_SHOT_CLOCK`) first
 as step 0. Each step's full-release binary gated against the one before
 (`perf.sh parity` with all gates + the five front-end shots on

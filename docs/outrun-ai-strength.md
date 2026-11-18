@@ -140,8 +140,8 @@ documented lead intervention every 5 s and brakes from 60 s), logged by
 `NFSU2_FLOW_SAVE`, `NFSU2_FLOW_POSE`, `NFSU2_FLOW_PATH`,
 `NFSU2_FLOW_LEAD_EVERY`, `NFSU2_FLOW_END_AT`, four traffic draws through
 `NFSU2_FLOW_WAIT` 40/45/50/55). `stats.py` / `agg.py` count crashes, recovery,
-speeds; `cmp.py` puts both rivals side by side. Raw logs stay in
-`<work dir>/`.
+speeds; `cmp.py` puts both rivals side by side. Raw logs are not in the
+repository.
 
 Tests: `tests/ai_route.rs::encounter_racing_speeds_match_the_original_for_class_0`
 (asset), `game.rs tests::encounter_class_comes_from_the_upgraded_cars` (asset),

@@ -47,7 +47,7 @@ new open-part animation capture.
 
 ```
 /usr/bin/python3 reconstruct.py /tmp/lighting-regenerated
-NFSU2_ROOT=/path/to/game CARGO_TARGET_DIR=../magazine-target cargo run --release -p devprobes --bin fe_reflection_lighting_probe
+NFSU2_ROOT=/path/to/game CARGO_TARGET_DIR=../magazine-target cargo run --release -p devprobes --bin fe_reflection_lighting_probe   # maintainer only (private developer probes)
 ```
 
 The script regenerates `body-constants.bin`, `camera.bin`, and

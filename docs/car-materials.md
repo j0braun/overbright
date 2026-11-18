@@ -7,7 +7,7 @@ which has its own lighting and env cube. This work compared both in the **same s
 Customize → G35 (and LANCER EVOLUTION VIII) → Car Shop → Body Shop. The original ran under Wine
 (`fastgpu.sh`, its own private Wine copy, display :211, profile from `career_end_won`). The clone ran
 with `NFSU2_SHOT_SAVE=tests/fixtures/native_saves/career_end_won.sav NFSU2_SHOT_KEYS=… --shot custcars`
-and the same key path. Raw frames are in the work dir.
+and the same key path (the save is maintainer only (private test set)). Raw frames are in the work dir.
 
 ## Cause: carbon parts took the paint's light material (fixed, native path)
 The texture side was already traced and ported (`Carbon`, 0x636850 / 0x634B0B…0x634E69). The light

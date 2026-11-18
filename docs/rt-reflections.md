@@ -324,7 +324,7 @@ ssr.wgsl once; the RT module parses and validates in naga),
 `bayview_world_geometry_fits` (game data; skipped without NFSU2_ROOT: >
 100 k triangles, within the 24-bit custom index with the cars' room);
 `qol::tests::ray_traced_tier_falls_back_to_ultra_without_ray_queries`;
-`enh.ssr` clamps at 3. GPU check: `cargo run --release -p devprobes --bin rt_probe`.
+`enh.ssr` clamps at 3. GPU check: `cargo run --release -p devprobes --bin rt_probe` (maintainer only (private developer probes, not in the public repository)).
 The ray list: `render::rt::tests::list_sources_follow_the_rt_form` (both
 modules parse and validate, both depth forms; the fragment pass is the RT
 form with its five `rt_fill` calls sent to `rt_keep` and no ray query; the

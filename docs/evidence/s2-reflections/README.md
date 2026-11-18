@@ -1,6 +1,6 @@
 # Reflection / wet-road leftovers (2026-11-04)
 
-Build: <work dir>, reference desktop GPU, RADV; shots `--shot` at 1920×1080
+Build: the base + this change, reference desktop GPU, RADV; shots `--shot` at 1920×1080
 (`NFSU2_SHOT_ENH`), scenes as in docs/graphics-settings-audit.md (explore = dusk free
 roam, rain = `NFSU2_RAIN_CLOCK=170 explore`, qrstart, motion = circuit after 600 frames
 at full throttle, intro = night free roam).

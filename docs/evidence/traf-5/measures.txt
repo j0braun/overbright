@@ -12,7 +12,7 @@ stream8: 171 s, cars listed 12.0, non-parked 7.4; belt samples 7687: <60 m 48.2 
 stream9: 171 s, cars listed 12.0, non-parked 9.2; belt samples 9770: <60 m 36.4 %, Avoid 35.6 %, inactive 1.2 %
 stream10: 171 s, cars listed 12.0, non-parked 8.9; belt samples 13084: <60 m 54.2 %, Avoid 34.5 %, inactive 18.6 %
 TOTAL belt 105474: <60 m 50.2 %, Avoid 39.6 %, inactive 7.1 %, placements 28.4/min, parks 9.0/min
-<work dir>/clone-qr-base.tsv {(2, 4): 202, (2, 3): 653, (4, 2): 135, (3, 4): 306} young belt 58 %
+clone-qr-base.tsv {(2, 4): 202, (2, 3): 653, (4, 2): 135, (3, 4): 306} young belt 58 %
 clone-qr-base.tsv {'behind': 355, 'ahead': 115} ahead 24 %
 clone-qr-base.tsv
   mode 2: 4423 s, Avoid 5.1 %, new episodes 1 (0.0/min), median len 3.3 s (n 1)
@@ -35,7 +35,7 @@ stream9: 170 s, cars listed 12.0, non-parked 8.9; belt samples 4178: <60 m 26.5 
 stream10: 171 s, cars listed 12.0, non-parked 5.2; belt samples 4675: <60 m 10.2 %, Avoid 3.5 %, inactive 3.1 %
 stream11: 171 s, cars listed 12.0, non-parked 9.0; belt samples 7967: <60 m 49.5 %, Avoid 17.2 %, inactive 17.9 %
 TOTAL belt 61439: <60 m 27.3 %, Avoid 13.2 %, inactive 17.2 %, placements 23.5/min, parks 10.2/min
-<work dir>/clone-qr-ww.tsv {(2, 4): 174, (2, 3): 547, (4, 2): 142, (3, 4): 106} young belt 43 %
+clone-qr-ww.tsv {(2, 4): 174, (2, 3): 547, (4, 2): 142, (3, 4): 106} young belt 43 %
 clone-qr-ww.tsv {'behind': 64, 'ahead': 413} ahead 87 %
 clone-qr-ww.tsv
   mode 2: 4171 s, Avoid 6.7 %, new episodes 0 (0.0/min), median len 0.0 s (n 0)
@@ -46,45 +46,45 @@ clone-qr-ww.tsv
 clone-qr-ww.tsv {'placed': 272, '->0': 178, '->4': 106, '->2': 14}
 ## native
 TOTAL belt 19120: <60 m 18.9 %, Avoid 11.9 %, inactive 32.5 %, placements 28.2/min, parks 15.3/min
-<work dir>/nat/qr4/native-walk.tsv {(4, 2): 28, (2, 3): 24, (2, 4): 26, (3, 4): 6} young belt 50 %
-<work dir>/nat/qr4/native-walk.tsv {'behind': 5, 'ahead': 31} ahead 86 %
-<work dir>/nat/qr4/native-walk.tsv
+nat/qr4/native-walk.tsv {(4, 2): 28, (2, 3): 24, (2, 4): 26, (3, 4): 6} young belt 50 %
+nat/qr4/native-walk.tsv {'behind': 5, 'ahead': 31} ahead 86 %
+nat/qr4/native-walk.tsv
   mode 2: 468 s, Avoid 2.4 %, new episodes 0 (0.0/min), median len 0.0 s (n 0)
   mode 3: 408 s, Avoid 63.9 %, new episodes 40 (5.9/min), median len 3.6 s (n 39)
   mode 4: 377 s, Avoid 11.6 %, new episodes 13 (2.1/min), median len 4.0 s (n 13)
   tracked at start: {(3, 'player/racer'): 14, (3, 'traffic m2'): 13, (3, 'traffic m3'): 12, (3, 'traffic m4'): 1, (4, 'player/racer'): 6, (4, 'traffic m2'): 2, (4, 'traffic m4'): 5}
   avoid carried across mover change: {(3, 0): 2, (3, 4): 2, (4, 2): 6, (2, 0): 2, (2, 3): 2}
 TOTAL belt 9175: <60 m 54.1 %, Avoid 6.0 %, inactive 38.7 %, placements 22.4/min, parks 8.4/min
-<work dir>/nat/qr5/native-walk.tsv {(2, 4): 18, (4, 2): 14, (2, 3): 28, (3, 4): 6} young belt 13 %
-<work dir>/nat/qr5/native-walk.tsv {'ahead': 26, 'behind': 6} ahead 81 %
-<work dir>/nat/qr5/native-walk.tsv
+nat/qr5/native-walk.tsv {(2, 4): 18, (4, 2): 14, (2, 3): 28, (3, 4): 6} young belt 13 %
+nat/qr5/native-walk.tsv {'ahead': 26, 'behind': 6} ahead 81 %
+nat/qr5/native-walk.tsv
   mode 2: 239 s, Avoid 0.4 %, new episodes 3 (0.8/min), median len 1.7 s (n 1)
   mode 3: 800 s, Avoid 86.5 %, new episodes 46 (3.4/min), median len 5.4 s (n 40)
   mode 4: 219 s, Avoid 6.3 %, new episodes 6 (1.6/min), median len 2.4 s (n 6)
   tracked at start: {(0, 'player/racer'): 1, (2, 'traffic m2'): 2, (2, 'traffic m4'): 1, (3, 'none'): 1, (3, 'player/racer'): 8, (3, 'traffic m2'): 18, (3, 'traffic m3'): 18, (3, 'traffic m4'): 1, (4, 'player/racer'): 1, (4, 'traffic m4'): 5}
   avoid carried across mover change: {(3, 0): 5, (3, 4): 3, (4, 2): 1, (2, 3): 4}
 TOTAL belt 9063: <60 m 38.8 %, Avoid 11.7 %, inactive 29.7 %, placements 20.0/min, parks 9.6/min
-<work dir>/nat/qr1/native-walk.tsv {(4, 2): 8, (2, 3): 11, (2, 4): 7, (3, 4): 5} young belt 27 %
-<work dir>/nat/qr1/native-walk.tsv {'ahead': 18, 'behind': 5} ahead 78 %
-<work dir>/nat/qr1/native-walk.tsv
+nat/qr1/native-walk.tsv {(4, 2): 8, (2, 3): 11, (2, 4): 7, (3, 4): 5} young belt 27 %
+nat/qr1/native-walk.tsv {'ahead': 18, 'behind': 5} ahead 78 %
+nat/qr1/native-walk.tsv
   mode 2: 656 s, Avoid 2.2 %, new episodes 0 (0.0/min), median len 0.0 s (n 0)
   mode 3: 295 s, Avoid 56.8 %, new episodes 17 (3.5/min), median len 9.9 s (n 16)
   mode 4: 185 s, Avoid 9.9 %, new episodes 2 (0.6/min), median len 9.1 s (n 2)
   tracked at start: {(0, 'traffic m0'): 1, (0, 'traffic m2'): 1, (3, 'player/racer'): 2, (3, 'traffic m2'): 7, (3, 'traffic m3'): 7, (3, 'traffic m4'): 1, (4, 'traffic m2'): 2}
   avoid carried across mover change: {(3, 0): 1, (3, 4): 2, (4, 0): 1, (0, 2): 2, (2, 4): 1, (4, 2): 2, (2, 3): 1}
 TOTAL belt 11063: <60 m 26.7 %, Avoid 18.5 %, inactive 7.9 %, placements 22.9/min, parks 10.0/min
-<work dir>/nat/qr2/native-walk.tsv {(2, 4): 15, (4, 2): 12, (2, 3): 32, (3, 4): 4} young belt 13 %
-<work dir>/nat/qr2/native-walk.tsv {'ahead': 22, 'behind': 7} ahead 76 %
-<work dir>/nat/qr2/native-walk.tsv
+nat/qr2/native-walk.tsv {(2, 4): 15, (4, 2): 12, (2, 3): 32, (3, 4): 4} young belt 13 %
+nat/qr2/native-walk.tsv {'ahead': 22, 'behind': 7} ahead 76 %
+nat/qr2/native-walk.tsv
   mode 2: 308 s, Avoid 0.5 %, new episodes 0 (0.0/min), median len 0.0 s (n 0)
   mode 3: 780 s, Avoid 79.6 %, new episodes 41 (3.2/min), median len 11.3 s (n 38)
   mode 4: 213 s, Avoid 17.2 %, new episodes 3 (0.8/min), median len 6.0 s (n 3)
   tracked at start: {(3, 'player/racer'): 10, (3, 'traffic m2'): 16, (3, 'traffic m3'): 14, (3, 'traffic m4'): 1, (4, 'traffic m2'): 1, (4, 'traffic m4'): 2}
   avoid carried across mover change: {(4, 2): 2, (2, 3): 2, (3, 0): 5, (3, 4): 3}
 TOTAL belt 8133: <60 m 11.8 %, Avoid 2.3 %, inactive 16.0 %, placements 27.1/min, parks 11.3/min
-<work dir>/nat/qr3/native-walk.tsv {(4, 2): 11, (2, 3): 43, (2, 4): 13, (3, 4): 3} young belt 26 %
-<work dir>/nat/qr3/native-walk.tsv {'ahead': 21, 'behind': 4} ahead 84 %
-<work dir>/nat/qr3/native-walk.tsv
+nat/qr3/native-walk.tsv {(4, 2): 11, (2, 3): 43, (2, 4): 13, (3, 4): 3} young belt 26 %
+nat/qr3/native-walk.tsv {'ahead': 21, 'behind': 4} ahead 84 %
+nat/qr3/native-walk.tsv
   mode 2: 359 s, Avoid 1.9 %, new episodes 0 (0.0/min), median len 0.0 s (n 0)
   mode 3: 804 s, Avoid 69.3 %, new episodes 58 (4.3/min), median len 5.1 s (n 50)
   mode 4: 163 s, Avoid 4.1 %, new episodes 3 (1.1/min), median len 7.2 s (n 3)

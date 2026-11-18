@@ -277,12 +277,12 @@ ms; Ambient Detail's (the light set, racing at 4K) 0.203 → 0.187 (5 interleave
 ## Parity
 
 Original: `Effects::step` records nothing, `particle_quads` takes the native path, nothing of this runs; the
-Extreme presets keep `enh.particles 2`. `scripts/checks/gate.sh … <work dir>/g10 extreme`
+Extreme presets keep `enh.particles 2`. `scripts/checks/gate.sh … <out dir> extreme`
 (2026-11-05): base and new binaries (differ); checks
 PASS, 28 shots 0 differ, 144 Hz window path, enhanced Modern / Ultra / Extreme, audio and five simulation
 hashes identical: **PARITY: all gates passed**.
 
-2026-11-05: `scripts/checks/gate.sh … <work dir>/g10b extreme`: base
+2026-11-05: `scripts/checks/gate.sh … <out dir> extreme` (second run): base
 44b9a38f7cf13bb9926952682f0a699c vs new e2840c8c65ca2ce85202d9d0d8956daf (differ); checks PASS (1031 tests,
 selftest, 28 shots, first race / drag, post race, playthrough), 28 shots 0 differ, window path, enhanced
 Modern / Ultra / Extreme, audio and five simulation hashes identical: **PARITY: all gates passed**.

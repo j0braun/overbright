@@ -47,7 +47,7 @@ LANCEREVO8: door sill right, hood under, wide-body decals)?
 ## Observed under Wine (vanilla, fastgpu :221, CC_BODYSHOP_1, a community save-latest)
 Memory reads (peek.py) of the records 0x8406E4 + 0x7F8·i and the ride
 0x8392C0, saves after each visit (internal fixture saves of a community career,
-raw dumps in `<work dir>/bodyshop-work/{saves,mem,wine}`;
+raw dumps (saves, memory, Wine runs) kept outside the repository;
 summary internal evidence):
 1. Load, garage, free roam: records unchanged (stale slots kept).
 2. LANCEREVO8 (wide body kind 4, TRAP hood with HOODUNDER), hood ERASER

@@ -184,8 +184,8 @@ package scales as on the other pages (4:3 panel centred on ultrawide; shots at 3
 ## Strings and label ids
 
 Main page labels 0xC1_04E0_65..6A (Graphics Mode, Enhanced Quality, Ray Tracing, Advanced, HDR Calibration, Rain on
-the Lens; unused in this copy and the main checkout). New labels (`options::clone_label`), 0xC1_04E0_80..88, checked unused in this copy, `the main checkout` and the <work dir>
-copies (2026-11-06): 80 Compare, 81 Show, 82 Image Quality, 83 Lighting & Effects, 84 Weather & Water,
+the Lens; unused in this copy and the main checkout). New labels (`options::clone_label`), 0xC1_04E0_80..88, checked unused in this copy, the main checkout and the
+parallel copies: 80 Compare, 81 Show, 82 Image Quality, 83 Lighting & Effects, 84 Weather & Water,
 85 Gameplay & Accessibility, 86 Packs, 87 Reset Group to Native, 88 Nothing Matches the Filter (Display and
 Performance reuse 0x57 / 0x46). Every other text the page adds is in `settings_page::text` (one table keyed by
 `Text`, `{}` placeholders filled by `fill`), ready for a translation table; the rows' own help and tier texts stay

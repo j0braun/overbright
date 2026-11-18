@@ -1,4 +1,4 @@
-# The impact shake, original (Wine, parity cave at 60 fps) and clone, per scenario (tools/parity/scenarios).
+# The impact shake, original (Wine, parity cave at 60 fps) and clone, per scenario (tools/parity/scenarios, maintainer only: private parity tools).
 # hit row = first frame with the weighted car +0x80 >= 250; start = first frame the slot runs; dur = frames the slot runs (and seconds);
 # shaken views = frames whose view takes a non-zero offset (the strobe); peak rot = the rule's turn (a, b) on the recorded view.
 crash_wall           native hit row 190 w  481.1 start row 190 (+0) amp 0.1328 m dur 0.567 s (33 frames, 19 shaken views) peak disp 0.1328 m peak rot 0.91 deg

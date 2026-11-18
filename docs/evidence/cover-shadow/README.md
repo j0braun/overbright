@@ -80,7 +80,7 @@ Use a private target/cache and the read-only verified game root:
 
 ```
 CARGO_TARGET_DIR=../magazine-target cargo test --release --lib cover_
-CARGO_TARGET_DIR=../magazine-target cargo build --release --bin game -p devprobes --bin cover_shadow_probe
+CARGO_TARGET_DIR=../magazine-target cargo build --release --bin game -p devprobes --bin cover_shadow_probe   # maintainer only (private developer probes)
 NFSU2_ROOT=".../Need for Speed Underground 2" ../magazine-target/release/cover_shadow_probe --gpu
 NFSU2_ROOT=".../Need for Speed Underground 2" XDG_CACHE_HOME=../cover-shadow-runtime/cache NFSU2_SHOWCASE_EVIDENCE=../cover-shadow-runtime/clone NFSU2_BENCH_SIZE=640x480 ../magazine-target/release/game --selftest-showcase
 ```

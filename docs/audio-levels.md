@@ -7,8 +7,8 @@ a private Wine copy, fastgpu `--audio-file`, the option floats written live with
 `peek.py`) against the clone's offline mix in the same scene (career free
 roam, Rachel's 350Z at the airport car park, idle and a scripted drive), and
 fixed what differed. Evidence: the maintainer's private captures (tables, Wine
-readings, the scripts that regenerate them; raw WAVs stay in
-`<work dir>/a1-work/`).
+readings, the scripts that regenerate them; raw WAVs are not in the
+repository).
 
 ## 1. The native volume chain (verified unless marked)
 

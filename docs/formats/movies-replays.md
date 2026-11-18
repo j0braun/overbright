@@ -727,8 +727,8 @@ vtable 0x788018, update 0x453F50).
     drew without this test; the original has no per-frame sight test
     either, so a drawn shot runs on whatever passes later. Whether the
     original's test refuses that very shot is not checked (**open**). A
-    clone replay of 4014 from the green light after the port (round 2,
-    <work dir>) shows track shots of the car
+    clone replay of 4014 from the green light after the port (round 2)
+    shows track shots of the car
     throughout and no black frame.
 The PC key behind each event: the events are
 FE pad messages (the table values at 0x7F7D20 entries 6 to 8 are **verified** in this pass; the names are the base's bin-hash claim, not re-derived here): 0xB5AF2461 PAD_START,

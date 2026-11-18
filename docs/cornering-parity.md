@@ -93,10 +93,10 @@ end of the last sub-step, the clone's at its start): compare forces, spins and s
 ## 4. The cases (keys replayed, 3 original runs each)
 
 Free roam on the straight highway stretch south-east of the barrels (heading 120.6°,
-scenarios `tools/parity/scenarios/corner_*.toml`), the player rolled at frame 30; the clone
+scenarios `tools/parity/scenarios/corner_*.toml`, maintainer only (private parity tools, not in the public repository)), the player rolled at frame 30; the clone
 transplanted before frame 32 (braking) or 52 (the rest, so the steering means had filled).
-Wheels FL FR RR RL; "first" = the first quantity beyond noise (tolerances in
-`<work dir>/cmp.py`: 1 mm, 1 mm/s, 0.01 rad/s, 1 N).
+Wheels FL FR RR RL; "first" = the first quantity beyond noise (tolerances of
+the comparison script: 1 mm, 1 mm/s, 0.01 rad/s, 1 N).
 
 | case | from | first difference | apart at 1 / 2 / 5 s (3 runs) | contact |
 |---|---|---|---|---|

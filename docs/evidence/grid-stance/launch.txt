@@ -1,5 +1,6 @@
 # The launch residual on the pinned stage-1 circuit (circuit_s1_launch.toml: throttle from the green, frame 0 = the
-# green; the player's |v| m/s 0.5 / 1 / 2 / 3 / 4 s after it; tools/parity/stance.py). "pushes" = frames whose speed
+# green; the player's |v| m/s 0.5 / 1 / 2 / 3 / 4 s after it; tools/parity/stance.py,
+# maintainer only (private parity tools)). "pushes" = frames whose speed
 # rises by more than 0.15 m/s in one frame (the 240SX directly behind shunting the player; car mode 2, one contact
 # record on both cars from frame 59 on).
 speed after the green (m/s) at 0.5 1 2 3 4 s; pushes (frame: +dv); contact frames

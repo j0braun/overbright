@@ -337,7 +337,7 @@ completed and stopped its owned wineserver; no original image is retained here.
 
 ### Direct Rust comparison of both precision fixtures
 
-`cargo run --release -p devprobes --bin nis_target_precision_probe` now compares the
+`cargo run --release -p devprobes --bin nis_target_precision_probe` (maintainer only (private developer probes, not in the public repository)) now compares the
 actual `apply_target` helper against both retained original-code fixtures,
 reporting component bits rather than relying on the older tolerance test.
 The FINIT-default fixture differs in 8/64 cases (12 components, maximum

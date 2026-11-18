@@ -14,7 +14,7 @@ part folders and every `CARS\WHEELS\GEOMETRY_*.BIN`); the maintainer's probe `mo
 renders clone close-ups (native / `--fix`, `--paint r,g,b`); the original was checked
 in SPEED2.EXE's main-menu Customize under Wine (`fastgpu.sh`, DXVK, copy
 a private Wine copy, display :200, profile `career_end_won.sav` so every
-part is unlocked, WidescreenFix off). Raw captures: `<work dir>/models-work/{wine,shots}`.
+part is unlocked, WidescreenFix off). Raw captures (Wine runs, shots) are kept outside the repository.
 
 ## Fixes (confirmed in the original and in the clone)
 
@@ -66,8 +66,8 @@ using the part's carbon twin where it has one. Each tile is aimed at the fitted 
 geometry. The overview shows the five fixed angles (front 3/4, rear 3/4, side, low front, wheel
 close-ups) in stock and dark paint, at LOD A and LOD B. Rims: every style the car takes. A `.tsv`
 next to each sheet lists its tiles. The full set covers 29 player cars and 15 traffic cars: 680
-sheets with 17 963 tiles, a few minutes on the reference desktop GPU. It lives in
-`<work dir>/models3-work/sheets`. Downscaled samples are in
+sheets with 17 963 tiles, a few minutes on the reference desktop GPU. It is kept
+outside the repository. Downscaled samples are in
 the maintainer's private captures (every car's front-bumper and overview sheet, the G35 roofs,
 and the first rim reference sheet).
 
@@ -89,7 +89,7 @@ checklist in the work dir):
 Wine checks were done in the original's main-menu Customize → Car Shop → Body Shop. Rims
 (after Exhaust Tips) gives a side view. Hoods, Roof Scoops and Carbon Fiber were also used. The
 copy is a private Wine copy on display :208 with the `career_end_won` profile. Raw
-shots are in `<work dir>/models3-work/wine`.
+shots are kept outside the repository.
 
 | Car | Part | Symptom | Original y/n | Fixed y/n | Crop |
 |---|---|---|---|---|---|

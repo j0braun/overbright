@@ -6,8 +6,8 @@ and the brand screen was broken.
 ## Wine walk (vanilla SPEED2.EXE, fastgpu.sh, 1280×960, no WidescreenFix)
 Saves: a community save (stage 4, LANCEREVO8, every part fitted, nothing
 owned) and a control run (load, enter, exit, save, no purchase). Shop
-CC_PERF_SHOP (player moved onto its trigger). Captures and saves are in
-`<work dir>/perfshop-work/{wine,saves}`; side by sides in
+CC_PERF_SHOP (player moved onto its trigger). Captures and saves are kept
+outside the repository; side by sides in
 the maintainer's private captures (left original, right clone fixed; `brand_part`
 original / clone before / clone fixed).
 

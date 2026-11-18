@@ -63,8 +63,8 @@ Table: internal evidence.
 `intro_350z_car_200.webp` (Rachel's 350Z, the intro, 200 %: Original (Wine) | clone Original | play setup
 before | play setup after); three other cars at 100 % (clone Original | play setup before | after, the Wine frame
 first where the look direction has one): `street_lancer_100.webp`, `downtown_car_100.webp` (Lancer), `qrstart_206s_100.webp`
-(two 206s), `drift_grid_100.webp` (Focus, 206, RX-8 from behind). Full frames: the work dir
-(`<work dir>/nx6b/work/spots`, `before/`, `after/`).
+(two 206s), `drift_grid_100.webp` (Focus, 206, RX-8 from behind). Full frames (spots, before,
+after) are kept outside the repository.
 
 ## Self-assessment and open
 

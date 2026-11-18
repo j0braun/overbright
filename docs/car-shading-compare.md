@@ -36,8 +36,8 @@ post-chain rounds (see formats.md "Re-compared 2026-10-30").
 
 ## Constants compared (apitrace)
 An apitrace of the original (QR car select, stock 240SX; frame 10600 of the trace, both the floor
-reflection pass and the main pass, 197 car.efx draws, VS8 = car.efx vs_1_1) was dumped with
-<work dir> --consts`. Every draw's material constants (VS c18 DiffuseMin, c19
+reflection pass and the main pass, 197 car.efx draws, VS8 = car.efx vs_1_1) was dumped with the
+trace tool's `--consts` option. Every draw's material constants (VS c18 DiffuseMin, c19
 DiffuseRange, c20/21 Specular Min/Range, c22 SpecularPower, c23 EnvmapPower, PS c0/c1 Envmap
 Min/Range) equal one of the clone's light-material constant sets (0x5BD4B0 on GLOBALB 0x135200) to
 5e-6: paint METPAINTSILVER, rims MAGSILVER, glass WINDSHIELD / WINDOWMASK, CHROME, MOLDINGS, RUBBER,

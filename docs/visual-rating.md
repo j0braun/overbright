@@ -81,7 +81,7 @@ slot's last part. `visual_rating_sweep compare` rates the same parts.
 ## Tests
 
 * `tests/visual_rating.rs::native_rides_rate_as_the_original` — fixture
-  `tests/fixtures/visual_rating/rides.txt` (the maintainer's tool `fixture.py`: 11
+  `tests/fixtures/visual_rating/rides.txt` (maintainer only (private test set); the maintainer's tool `fixture.py`: 11
   saves' career rides and 1 884 swept rides, one per slot and native
   rating, the 1-ulp cases included), bit for bit.
 * `tests/visual_rating.rs::native_saves_rate_as_the_original` — eight

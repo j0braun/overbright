@@ -3,8 +3,8 @@
 The race AI compared frame by frame with the original (SPEED2.EXE under
 Wine, the maintainer's tools, docs/parity-harness.md) from the same save, grid,
 cars and inputs. **Verified** = traced in SPEED2.EXE, **observed** = read
-under Wine, **inferred** / **open** as marked. Raw runs:
-`<work dir>/raceai-work/runs/<name>/`; reports, plans, car lists
+under Wine, **inferred** / **open** as marked. Raw runs are
+kept outside the repository; reports, plans, car lists
 and `aistats-after.txt` in the maintainer's private captures. The player only
 holds the throttle in these scenarios (it hits walls and rivals), so after
 the first seconds the comparison is statistical (aistats), not per frame.

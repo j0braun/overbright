@@ -3,6 +3,7 @@
 HUD's map icon 60..210 x 180..340 left out) luma p95 / mean / p50 (Rec.709 on sRGB codes)."""
 import sys, os
 import numpy as np
+# Maintainer only (private test set): lstats comes from the private look tools under $OB_PRIVATE.
 sys.path.insert(0, os.path.expandvars('$OB_PRIVATE/tools/look'))
 from lstats import load
 for p in sys.argv[1:]:
