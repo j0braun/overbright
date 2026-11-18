@@ -126,7 +126,9 @@ frame, one world update per frame: at 60 fps the two agree).
   0x5B608F in the mover's construction; the clone's drivetrain starts with its own offsets and draws
   nothing there); (b) the contact refresh 0x593710 runs the clutch machine with h = 0 before and
   after every impulse (0x5B2620 → 0x5B04E0), so a car in state 1 during a contact rerolls there too;
-  the clone runs no drivetrain update in a contact; (c) the order of a frame's rerolls among the world
+  the clone runs no drivetrain update in a contact (a port of the whole refresh was measured and
+  left out of the default build, docs/cornering-parity.md section 6: it moves the car's motion after
+  a push as well, and the captures showed no gain); (c) the order of a frame's rerolls among the world
   generator's other users (the cars' motion against the traffic's think).
 * `pick_lane`'s frequency (the clone ≈ 6.6 a frame driving vs the original's ≈ 22 a placement).
   The placer's order inside a pass is settled ("Traffic placer pass" above).

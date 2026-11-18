@@ -219,7 +219,7 @@ The following still differ from the original. These are defects, tracked as such
   render-info draws, the free-roam traffic fill and some audio draws are not yet (docs/rng.md "Open").
   Line-ups, cars, traffic and encounters follow the original's rules but not its picks.
 - **Physics:** a car held against a wall turns off it the same way as in the original, but leaves it
-  sooner or later: from the second push of a hold the contacts' timing differs (the contact refresh,
-  docs/cornering-parity.md section 6).
+  sooner or later: from the second push of a hold the contacts' timing differs (docs/cornering-parity.md
+  section 6).
 - **Not yet compared under Wine:** a save made after a long session loaded back into the original
   (docs/world-systems-parity.md section 5).
