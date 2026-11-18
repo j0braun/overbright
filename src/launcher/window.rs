@@ -114,15 +114,18 @@ enum HudMsg {
 pub struct GameStart {
     pub exe: std::path::PathBuf,
     pub args: Vec<String>,
-    /// The launcher's log folder (None: no log file).
-    pub logs: Option<std::path::PathBuf>,
+    /// Whether the launcher writes its log of the game, into the log folder
+    /// (`dirs::logs`, looked up at each start: portable mode may have been
+    /// turned on since).
+    pub logs: bool,
     /// The game folder to play (given to the game as `NFSU2_ROOT`).
     pub root: Option<std::path::PathBuf>,
 }
 
 impl GameStart {
     pub fn start(&self) -> Result<Running, String> {
-        super::run::start(&self.exe, &self.args, self.logs.as_deref(), self.root.as_deref())
+        let logs = self.logs.then(super::dirs::logs);
+        super::run::start(&self.exe, &self.args, logs.as_deref(), self.root.as_deref())
     }
 }
 

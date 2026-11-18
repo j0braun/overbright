@@ -59,6 +59,17 @@ pub(crate) fn main() -> Result<()> {
         // SAFETY: a plain glibc call, before any thread is started.
         unsafe { mallopt(M_ARENA_MAX, 4) };
     }
+    // A portable install keeps the driver's shader caches in its data
+    // folder too (`platform::dirs::driver_cache_vars`; nothing otherwise).
+    let portable = nfsu2::platform::dirs::portable_base();
+    for (name, dir) in nfsu2::platform::dirs::driver_cache_vars(
+        nfsu2::platform::dirs::Os::CURRENT,
+        &|n: &str| std::env::var_os(n),
+        portable.as_deref(),
+    ) {
+        // SAFETY: set before any thread is started.
+        unsafe { std::env::set_var(name, dir) };
+    }
     // Windows GUI build: the starting terminal's console, if any.
     nfsu2::console::attach();
     // env_logger as before, with the crash report's log ring and panic
@@ -176,6 +187,7 @@ fn headless_data(command: &Command) -> TempData {
         }
         // SAFETY: set before any thread is started.
         unsafe { std::env::set_var("XDG_DATA_HOME", &dir) };
+        nfsu2::platform::dirs::ignore_portable();
     }
     // The flows too: a folder of their own unless NFSU2_FLOW_DATA names
     // one (a copy of the profiles to replay); never the player's own.
@@ -186,6 +198,7 @@ fn headless_data(command: &Command) -> TempData {
         made.0 = Some(dir.clone());
         // SAFETY: set before any thread is started.
         unsafe { std::env::set_var("XDG_DATA_HOME", &dir) };
+        nfsu2::platform::dirs::ignore_portable();
     }
     #[cfg(feature = "dev-harness")]
     if matches!(command, Command::Flow(_)) {
@@ -199,6 +212,7 @@ fn headless_data(command: &Command) -> TempData {
         }
         // SAFETY: set before any thread is started.
         unsafe { std::env::set_var("XDG_DATA_HOME", &dir) };
+        nfsu2::platform::dirs::ignore_portable();
     }
     #[cfg(feature = "dev-harness")]
     if matches!(command, Command::Selftest | Command::SelftestShowcase | Command::Bench(..) | Command::Photo(..)) {
@@ -216,6 +230,7 @@ fn headless_data(command: &Command) -> TempData {
         }
         // SAFETY: set before any thread is started.
         unsafe { std::env::set_var("XDG_DATA_HOME", &dir) };
+        nfsu2::platform::dirs::ignore_portable();
     }
     made
 }

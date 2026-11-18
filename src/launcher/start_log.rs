@@ -32,7 +32,9 @@ pub const OLD_NAME: &str = "launcher.old.log";
 pub const END: &str = "end: the launcher closed normally";
 
 static FILE: Mutex<Option<std::fs::File>> = Mutex::new(None);
-static PATH: OnceLock<PathBuf> = OnceLock::new();
+static PATH: Mutex<Option<PathBuf>> = Mutex::new(None);
+/// The arguments [`start`] was given (for [`follow`]'s header).
+static ARGS: OnceLock<Vec<String>> = OnceLock::new();
 static PANIC: Mutex<Option<String>> = Mutex::new(None);
 
 /// Whether these arguments (the program name left out) are a window run
@@ -48,7 +50,7 @@ pub fn window_run(args: &[String]) -> bool {
 /// The log's path for this run (where [`start`] put it), or where it would
 /// be in Overbright's folder.
 pub fn path() -> PathBuf {
-    PATH.get().cloned().unwrap_or_else(|| super::dirs::data_dir().join(NAME))
+    PATH.lock().ok().and_then(|p| p.clone()).unwrap_or_else(|| super::dirs::data_dir().join(NAME))
 }
 
 /// Whether a run's log ended by itself ([`END`] is its last line).
@@ -111,17 +113,43 @@ pub fn start(args: &[String]) {
     if log::set_boxed_logger(Box::new(Logger { inner })).is_ok() {
         log::set_max_level(level);
     }
-    let dir = super::dirs::data_dir();
-    match open_in(&dir, args) {
+    let _ = ARGS.set(args.to_vec());
+    open_here(&super::dirs::data_dir(), args);
+}
+
+/// Opens the log in `dir` ([`open_in`]) as this run's file.
+fn open_here(dir: &Path, args: &[String]) -> bool {
+    match open_in(dir, args) {
         Ok(p) => {
-            let _ = PATH.set(p.clone());
             if let Ok(mut g) = FILE.lock() {
                 *g = std::fs::OpenOptions::new().append(true).open(&p).ok();
             }
+            if let Ok(mut path) = PATH.lock() {
+                *path = Some(p);
+            }
+            true
         }
         Err(e) => {
-            eprintln!("overbright: no launcher log in {}: {e}", crate::qol::crash::scrub(&dir.display().to_string()))
+            eprintln!("overbright: no launcher log in {}: {e}", crate::qol::crash::scrub(&dir.display().to_string()));
+            false
         }
+    }
+}
+
+/// Overbright's folder moved while the launcher runs (portable mode turned
+/// on): the log goes on in the new folder's `launcher.log`, the old file
+/// ends with a line naming it. Nothing when [`start`] wrote no log or the
+/// folder is the same.
+pub fn follow(dir: &Path) {
+    let Some(args) = ARGS.get() else { return };
+    let old = path();
+    if old.parent() == Some(dir) {
+        return;
+    }
+    line(&format!("the log goes on in {}", dir.join(NAME).display()));
+    finish();
+    if open_here(dir, args) {
+        line(&format!("the log goes on from {}", old.display()));
     }
 }
 
@@ -260,6 +288,33 @@ mod tests {
         assert!(!std::fs::read_to_string(&p).unwrap().contains("note:"));
         assert!(ended_normally(&std::fs::read_to_string(dir.join(OLD_NAME)).unwrap()));
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// Portable mode turned on while the launcher runs: the log goes on in
+    /// the new folder, the old file ends normally and names the new one.
+    /// The only test that uses this module's open file.
+    #[test]
+    fn the_log_follows_a_moved_folder() {
+        let base = std::env::temp_dir().join(format!("ob-start-log-follow-{}", crate::unique_tag()));
+        let (a, b) = (base.join("home"), base.join("prog/data"));
+        let _ = ARGS.set(vec!["--launcher".into()]);
+        assert!(open_here(&a, &["--launcher".into()]));
+        line("before");
+        follow(&b);
+        line("after");
+        let old = std::fs::read_to_string(a.join(NAME)).unwrap();
+        assert!(old.contains("before") && old.contains(&format!("the log goes on in {}", b.join(NAME).display())));
+        assert!(ended_normally(&old), "{old}");
+        let new = std::fs::read_to_string(b.join(NAME)).unwrap();
+        assert!(new.contains("the log goes on from") && new.contains("after") && !new.contains("before"), "{new}");
+        assert_eq!(path(), b.join(NAME));
+        // The same folder again: nothing changes.
+        follow(&b);
+        assert_eq!(std::fs::read_to_string(b.join(NAME)).unwrap().matches("goes on from").count(), 1);
+        if let Ok(mut g) = FILE.lock() {
+            *g = None;
+        }
+        std::fs::remove_dir_all(&base).unwrap();
     }
 
     #[test]

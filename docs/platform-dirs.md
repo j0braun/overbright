@@ -24,7 +24,7 @@ function, so the Windows rules are unit-tested on Linux.
   layout is one level down, inside its own folder.
 - Overrides, every OS:
   - `NFSU2_DATA_DIR` (set, not empty): everything in that one folder (profiles' folder, Overbright's files flat,
-    `cache/`), a portable install.
+    `cache/`). Portable mode ("Portable mode" below) uses the same layout in `data/` beside the programs.
   - `XDG_DATA_HOME` / `XDG_CACHE_HOME` (on Windows: set and not empty) keep Linux's layout. The developer harness
     isolates its runs through `XDG_DATA_HOME` (`--shot`, `--selftest`, `--flow`, `--bench`, `--playthrough`;
     `scripts/checks/*.sh`), so it works the same on Windows.
@@ -45,6 +45,56 @@ function, so the Windows rules are unit-tested on Linux.
 
 The test kit's fixture cache is `<cache home>/overbright-test-fixtures`, beside the player's cache rather than
 inside it.
+
+## Portable mode
+
+A file `portable.txt` or a folder `portable` beside the running executable (`dirs::is_portable`,
+`dirs::portable_base`; looked up once per process, `dirs::refresh_portable` looks again) makes the install
+portable: `dirs::layout` is `resolve_portable(…, Some(<program folder>))`, which lays everything out in
+`<program folder>/data` as `NFSU2_DATA_DIR` does (data home, Overbright's folder flat, `cache/`; the
+developer cache `cache-dev/`). `NFSU2_DATA_DIR` still comes first; the cache's own switches still decide the
+cache. Without the marker every function returns what it did before, byte for byte (`resolve` is
+`resolve_portable(…, None)`; the tests compare them).
+
+- **Kept paths.** In a portable install the game folder (`game-root.txt`) and the HUD mod folder
+  (`texture-pack-root.txt`) are written relative to the program folder when both are on the same drive
+  (`dirs::store_path`: the same drive letter or share on Windows, compared without case; the same file system
+  elsewhere), e.g. `../Games/Need for Speed Underground 2`, else absolute. A relative path read back is taken
+  from the program folder (`dirs::load_path`, `..` applied to the text), not from the current folder. Outside
+  portable mode both are the identity.
+- **The driver's shader cache** (Linux and other Unix): the game sets `MESA_SHADER_CACHE_DIR` and
+  `__GL_SHADER_DISK_CACHE_PATH` to `data/cache/driver` before any thread starts, unless the environment sets
+  them (`dirs::driver_cache_vars`). Windows' drivers keep theirs where they decide (outside Overbright's control).
+- **The developer harness**: its isolated runs (shots, flows, the selftest, the playthrough) call
+  `dirs::ignore_portable`, so they keep their data in the folder they chose even in a portable install.
+- **Turning it on**: the launcher's About page (`dirs::make_portable`: writes `portable.txt`, nothing else) or
+  the file by hand. Nothing is migrated: copy Overbright's folder (and on Linux `~/.local/share/NFS Underground
+  2`, into `data/NFS Underground 2`) to take settings and saves along; the cache rebuilds itself.
+
+### Everything Overbright reads or writes outside its own folder
+
+| What | Where (default) | Portable | Code |
+|---|---|---|---|
+| options.txt, game-root.txt, texture-pack-root.txt, texture-mods.txt | `<app>` | `data/` | `dirs::config`, `qol::setup`, `texture_mods::list_file` |
+| profiles, backups | `<data home>/NFS Underground 2[ Backups]` | `data/NFS Underground 2[ Backups]` | `frontend::profiles::root`, `dirs::data_home` |
+| asset cache, pipeline cache (`wgpu_pipeline_cache_*`), surface maps, the post self-check's verdict | `dirs::cache` | `data/cache/` (`data/cache-dev/` for developer builds) | `cache::dir`, `render::core::pipeline_cache` |
+| logs (game and launcher), crash reports, marks, perf CSVs, screenshots | `<app>/logs`, `crashes`, `marks`, `perf`, `Screenshots` | under `data/` | `dirs::logs` … `dirs::screenshots` |
+| texture packs, imported mods, the converted HUD mod | `<app>/texture-pack` | `data/texture-pack/` | `dirs::packs`, `texture_mods`, `hud_mod` |
+| launcher.lock | `<app>` | `data/` | `launcher::dirs::lock_file` |
+| driver shader cache | the driver's (`~/.cache/mesa_shader_cache*`, `%LOCALAPPDATA%\<vendor>\…`) | Linux: `data/cache/driver`; Windows: unchanged | `dirs::driver_cache_vars` |
+| read only: the registry's `Install Dir`, `%ProgramFiles%`, the Wine/Steam/Lutris places | — | unchanged (only read) | `qol::setup::candidates`, `platform::win` |
+| read only: the original's saves (`%LOCALAPPDATA%\NFS Underground 2`, the import) and the home folder (the browser) | — | unchanged (only read) | `launcher::dirs::original_saves`, `home` |
+| temporary folders | the system's temp folder | tests and the developer harness only | — |
+
+Tests: `platform::dirs` unit tests (the layout on both OSes, the marker, kept paths, the driver variables) and
+`tests/portable_mode.rs` (the game binary linked into a program folder with the marker and run under a fake
+HOME / LOCALAPPDATA / APPDATA / TMPDIR: nothing written outside `data/`; `--set-root` kept relative and found
+again from another folder; without the marker the old place and bytes).
+
+**Open:** `qol::setup::save_root` / `saved_root` / `save_texture_pack` / `saved_texture_pack` should apply
+`dirs::store_path` / `dirs::load_path` themselves (and `setup::find` then needs no wrapper). Until then every
+caller goes through `qol::kept_paths`, which wraps them. Not checked on a real Windows machine or a removable
+drive.
 
 ## Paths (`platform::paths`)
 

@@ -26,9 +26,16 @@
 //! folder — the profiles' folder, Overbright's files and `cache/` — a
 //! portable install. `NFSU2_CACHE_DIR` / `NFSU2_NO_CACHE` still decide the
 //! cache over it (`cache::dir`).
+//!
+//! Portable mode (every OS): a file `portable.txt` or a folder `portable`
+//! beside the executables ([`portable_base`]) puts everything in the
+//! folder `data` beside them, laid out as with `NFSU2_DATA_DIR` (which
+//! still comes first). Paths Overbright keeps in its files (the game
+//! folder, the HUD mod folder) are then kept relative to the program
+//! folder when they are on the same drive ([`store_path`], [`load_path`]).
 
 use std::ffi::OsString;
-use std::path::PathBuf;
+use std::path::{Component, Path, PathBuf};
 
 /// Overbright's folder inside a shared, XDG-style data or cache folder.
 pub const APP: &str = "overbright";
@@ -68,9 +75,21 @@ pub struct Layout {
 /// Local AppData known folder (`local_app_data`; None falls back to
 /// `%LOCALAPPDATA%`). Pure: no file-system access.
 pub fn resolve(os: Os, var: &dyn Fn(&str) -> Option<OsString>, local_app_data: Option<PathBuf>) -> Layout {
+    resolve_portable(os, var, local_app_data, None)
+}
+
+/// [`resolve`] for a program folder `portable` that is a portable install
+/// ([`portable_base`]): everything in `<portable>/data`, laid out as with
+/// `NFSU2_DATA_DIR`, which still comes first. None: [`resolve`]. Pure.
+pub fn resolve_portable(
+    os: Os,
+    var: &dyn Fn(&str) -> Option<OsString>,
+    local_app_data: Option<PathBuf>,
+    portable: Option<&Path>,
+) -> Layout {
     let name = APP;
     let non_empty = |name: &str| var(name).filter(|v| !v.is_empty()).map(PathBuf::from);
-    if let Some(dir) = non_empty(DATA_DIR_VAR) {
+    if let Some(dir) = non_empty(DATA_DIR_VAR).or_else(|| portable.map(portable_data)) {
         return Layout { data_home: dir.clone(), app: dir.clone(), cache: Some(dir.join("cache")) };
     }
     let xdg_cache = non_empty("XDG_CACHE_HOME").map(|d| d.join(name));
@@ -108,7 +127,198 @@ pub fn layout() -> Layout {
     let known = super::win::local_app_data();
     #[cfg(not(windows))]
     let known = None;
-    resolve(Os::CURRENT, &|name: &str| std::env::var_os(name), known)
+    resolve_portable(Os::CURRENT, &|name: &str| std::env::var_os(name), known, portable_base().as_deref())
+}
+
+/// The marker file of a portable install, beside the executables.
+pub const PORTABLE_FILE: &str = "portable.txt";
+/// The marker folder of a portable install (the same as [`PORTABLE_FILE`]).
+pub const PORTABLE_FOLDER: &str = "portable";
+/// The data folder of a portable install, beside the executables.
+pub const PORTABLE_DATA: &str = "data";
+
+/// The data folder of the portable install in `program_dir`.
+pub fn portable_data(program_dir: &Path) -> PathBuf {
+    program_dir.join(PORTABLE_DATA)
+}
+
+/// Whether `program_dir` (the executables' folder) holds a portable
+/// install's marker: a file `portable.txt` or a folder `portable`.
+pub fn is_portable(program_dir: &Path) -> bool {
+    program_dir.join(PORTABLE_FILE).is_file() || program_dir.join(PORTABLE_FOLDER).is_dir()
+}
+
+/// [`portable_base`] once looked up (None inside: not portable).
+static PORTABLE: std::sync::RwLock<Option<Option<PathBuf>>> = std::sync::RwLock::new(None);
+/// Set by [`ignore_portable`].
+static NO_PORTABLE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// The program folder (the running executable's) when it is a portable
+/// install ([`is_portable`]), else None. Looked up once per process and
+/// kept; [`refresh_portable`] looks again.
+pub fn portable_base() -> Option<PathBuf> {
+    if NO_PORTABLE.load(std::sync::atomic::Ordering::Relaxed) {
+        return None;
+    }
+    if let Some(p) = PORTABLE.read().unwrap_or_else(std::sync::PoisonError::into_inner).clone() {
+        return p;
+    }
+    refresh_portable()
+}
+
+/// Looks for the portable marker again (the launcher after turning
+/// portable mode on or off) and returns [`portable_base`].
+pub fn refresh_portable() -> Option<PathBuf> {
+    let found = program_dir().filter(|d| is_portable(d));
+    *PORTABLE.write().unwrap_or_else(std::sync::PoisonError::into_inner) = Some(found.clone());
+    if NO_PORTABLE.load(std::sync::atomic::Ordering::Relaxed) { None } else { found }
+}
+
+/// The developer harness's isolated runs (shots, flows, the selftest, the
+/// playthrough) keep their data in the folder they chose, also when the
+/// build sits in a portable install: portable mode is off for the rest of
+/// the process.
+pub fn ignore_portable() {
+    NO_PORTABLE.store(true, std::sync::atomic::Ordering::Relaxed);
+}
+
+/// The running executable's folder.
+pub fn program_dir() -> Option<PathBuf> {
+    let exe = std::env::current_exe().ok()?;
+    exe.parent().map(Path::to_path_buf)
+}
+
+/// Turns portable mode on for the program folder `program_dir`: writes
+/// [`PORTABLE_FILE`] there (nothing else is written or moved). Takes
+/// effect for this process after [`refresh_portable`].
+pub fn make_portable(program_dir: &Path) -> std::io::Result<PathBuf> {
+    let f = program_dir.join(PORTABLE_FILE);
+    if !f.is_file() {
+        std::fs::write(
+            &f,
+            "Overbright portable mode: settings, saves, caches and logs are kept in the folder `data` beside \
+             this file. Delete this file to keep them in the home folders again.\n",
+        )?;
+    }
+    Ok(portable_data(program_dir))
+}
+
+/// The form a path is kept in Overbright's files: in a portable install
+/// ([`portable_base`]), relative to the program folder when both are on
+/// the same drive; else (and outside portable mode) `p` as it is.
+pub fn store_path(p: &Path) -> PathBuf {
+    match portable_base() {
+        Some(base) if same_drive(&base, p) => relative_to(&base, p).unwrap_or_else(|| p.to_path_buf()),
+        _ => p.to_path_buf(),
+    }
+}
+
+/// A path read from Overbright's files: a relative one ([`store_path`])
+/// is taken from the program folder of a portable install; anything else
+/// (and every path outside portable mode) as it is.
+pub fn load_path(p: &Path) -> PathBuf {
+    match portable_base() {
+        Some(base) if p.is_relative() && !p.as_os_str().is_empty() => join_relative(&base, p),
+        _ => p.to_path_buf(),
+    }
+}
+
+/// `base` joined with the relative path `rel`, its `..` and `.` applied
+/// to the text (so the folder shows without them). Pure.
+pub fn join_relative(base: &Path, rel: &Path) -> PathBuf {
+    let mut out = base.to_path_buf();
+    for c in rel.components() {
+        match c {
+            Component::ParentDir => {
+                // Never above the root (`/..` is `/`).
+                if out.parent().is_some() {
+                    out.pop();
+                }
+            }
+            Component::CurDir => {}
+            other => out.push(other.as_os_str()),
+        }
+    }
+    out
+}
+
+/// `target` relative to the folder `base`, both absolute and plain (no
+/// `.` or `..`): the parts after their shared start, with one `..` per
+/// part of `base` left. None when they have no shared root (another drive
+/// letter or network share on Windows, compared without case) or either
+/// is not absolute and plain. Pure.
+pub fn relative_to(base: &Path, target: &Path) -> Option<PathBuf> {
+    let plain =
+        |p: &Path| p.is_absolute() && p.components().all(|c| !matches!(c, Component::ParentDir | Component::CurDir));
+    if !plain(base) || !plain(target) {
+        return None;
+    }
+    let key = |c: Component| -> OsString {
+        match c {
+            // Windows' drive letters and shares, without case.
+            Component::Prefix(p) => p.as_os_str().to_ascii_uppercase(),
+            other => other.as_os_str().to_os_string(),
+        }
+    };
+    let b: Vec<OsString> = base.components().map(key).collect();
+    let t: Vec<Component> = target.components().collect();
+    let shared = b.iter().zip(t.iter().map(|c| key(*c))).take_while(|(x, y)| **x == *y).count();
+    // The root (and on Windows the drive or share) must be shared.
+    let root = base.components().take_while(|c| matches!(c, Component::Prefix(_) | Component::RootDir)).count();
+    if shared < root {
+        return None;
+    }
+    let mut out = PathBuf::new();
+    for _ in shared..b.len() {
+        out.push("..");
+    }
+    for c in &t[shared..] {
+        out.push(c.as_os_str());
+    }
+    if out.as_os_str().is_empty() {
+        out.push(".");
+    }
+    Some(out)
+}
+
+/// Whether `a` and `b` are on the same drive: on Windows the same drive
+/// letter or share ([`relative_to`] checks it), elsewhere the same file
+/// system (the device of the nearest folder that exists).
+fn same_drive(a: &Path, b: &Path) -> bool {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+        let dev = |p: &Path| p.ancestors().find_map(|d| std::fs::metadata(d).ok()).map(|m| m.dev());
+        matches!((dev(a), dev(b)), (Some(x), Some(y)) if x == y)
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = (a, b);
+        true
+    }
+}
+
+/// The driver's own shader caches, which live in the home folders
+/// unless told otherwise: in a portable install, the variables that move
+/// them into `<data>/cache/driver` (Mesa's `MESA_SHADER_CACHE_DIR`,
+/// NVIDIA's `__GL_SHADER_DISK_CACHE_PATH`), those the environment does not
+/// set already. Linux and other Unix only: Windows' drivers keep theirs
+/// where they decide. Empty outside portable mode.
+pub fn driver_cache_vars(
+    os: Os,
+    var: &dyn Fn(&str) -> Option<OsString>,
+    portable: Option<&Path>,
+) -> Vec<(&'static str, PathBuf)> {
+    let Some(base) = portable else { return Vec::new() };
+    if os != Os::Unix || var(DATA_DIR_VAR).is_some_and(|v| !v.is_empty()) {
+        return Vec::new();
+    }
+    let dir = portable_data(base).join("cache").join("driver");
+    ["MESA_SHADER_CACHE_DIR", "__GL_SHADER_DISK_CACHE_PATH"]
+        .into_iter()
+        .filter(|n| var(n).is_none())
+        .map(|n| (n, dir.clone()))
+        .collect()
 }
 
 /// Test isolation: a thread's own data home (`frontend::profiles::sandbox`).
@@ -237,13 +447,13 @@ fn in_test_binary() -> bool {
 /// The developer cache: the player's cache folder's sibling,
 /// `$XDG_CACHE_HOME/overbright-dev` (else `~/.cache/overbright-dev`;
 /// Windows `<Local AppData>\Overbright\cache-dev`; with `NFSU2_DATA_DIR`,
-/// its `cache-dev`).
+/// or in a portable install, the data folder's `cache-dev`).
 pub fn developer_cache() -> Option<PathBuf> {
     #[cfg(windows)]
     let known = super::win::local_app_data();
     #[cfg(not(windows))]
     let known = None;
-    resolve_developer_cache(Os::CURRENT, &|name: &str| std::env::var_os(name), known)
+    resolve_developer_cache(Os::CURRENT, &|name: &str| std::env::var_os(name), known, portable_base().as_deref())
 }
 
 /// The developer cache's folder name in the XDG-style places.
@@ -255,9 +465,10 @@ pub fn resolve_developer_cache(
     os: Os,
     var: &dyn Fn(&str) -> Option<OsString>,
     local_app_data: Option<PathBuf>,
+    portable: Option<&Path>,
 ) -> Option<PathBuf> {
     let non_empty = |name: &str| var(name).filter(|v| !v.is_empty()).map(PathBuf::from);
-    if let Some(dir) = non_empty(DATA_DIR_VAR) {
+    if let Some(dir) = non_empty(DATA_DIR_VAR).or_else(|| portable.map(portable_data)) {
         return Some(dir.join("cache-dev"));
     }
     if let Some(x) = non_empty("XDG_CACHE_HOME") {
@@ -435,6 +646,133 @@ mod tests {
         })
         .join()
         .unwrap();
+    }
+
+    /// Portable mode: everything in `<program>/data`, on every OS, over
+    /// the XDG folders and Windows' Local AppData; `NFSU2_DATA_DIR` still
+    /// first. Without a program folder the layout is [`resolve`]'s.
+    #[test]
+    fn portable_install_keeps_everything_in_its_data_folder() {
+        let prog = Path::new("/media/u/SSD/Overbright");
+        let data = prog.join("data");
+        let full = env(&[
+            ("HOME", "/home/u"),
+            ("XDG_DATA_HOME", "/x"),
+            ("XDG_CACHE_HOME", "/c"),
+            ("LOCALAPPDATA", "C:/Users/u/AppData/Local"),
+        ]);
+        for os in [Os::Unix, Os::Windows] {
+            let l = resolve_portable(os, &full, Some(PathBuf::from("/lad")), Some(prog));
+            assert_eq!(l, Layout { data_home: data.clone(), app: data.clone(), cache: Some(data.join("cache")) });
+            let dev = resolve_developer_cache(os, &full, Some(PathBuf::from("/lad")), Some(prog));
+            assert_eq!(dev, Some(data.join("cache-dev")));
+            let over = env(&[("HOME", "/home/u"), ("NFSU2_DATA_DIR", "/p")]);
+            assert_eq!(resolve_portable(os, &over, None, Some(prog)).app, Path::new("/p"), "{os:?}");
+            // An empty NFSU2_DATA_DIR is not set.
+            let empty = env(&[("HOME", "/home/u"), ("NFSU2_DATA_DIR", "")]);
+            assert_eq!(resolve_portable(os, &empty, None, Some(prog)).app, data, "{os:?}");
+            for c in [&[][..], &[("HOME", "/home/u")][..], &[("HOME", "/home/u"), ("XDG_DATA_HOME", "/x")][..]] {
+                let var = env(c);
+                assert_eq!(resolve_portable(os, &var, None, None), resolve(os, &var, None), "{os:?} {c:?}");
+            }
+        }
+        let home = env(&[("HOME", "/home/u")]);
+        assert_eq!(
+            resolve_developer_cache(Os::Unix, &home, None, None),
+            Some(PathBuf::from("/home/u/.cache/overbright-dev"))
+        );
+    }
+
+    /// The marker: a file `portable.txt` or a folder `portable` beside the
+    /// programs; anything else (a folder named portable.txt, a file named
+    /// portable, nothing) is no portable install. `make_portable` writes
+    /// the file and nothing else.
+    #[test]
+    fn portable_marker_file_or_folder() {
+        let base = std::env::temp_dir().join(format!("nfsu2-portable-marker-{}", crate::unique_tag()));
+        let d = |n: &str| {
+            let p = base.join(n);
+            std::fs::create_dir_all(&p).unwrap();
+            p
+        };
+        let none = d("none");
+        assert!(!is_portable(&none));
+        let file = d("file");
+        std::fs::write(file.join("portable.txt"), "").unwrap();
+        assert!(is_portable(&file));
+        let folder = d("folder");
+        std::fs::create_dir(folder.join("portable")).unwrap();
+        assert!(is_portable(&folder));
+        let wrong = d("wrong");
+        std::fs::create_dir(wrong.join("portable.txt")).unwrap();
+        std::fs::write(wrong.join("portable"), "").unwrap();
+        assert!(!is_portable(&wrong));
+        let made = d("made");
+        assert_eq!(make_portable(&made).unwrap(), made.join("data"));
+        assert!(is_portable(&made));
+        let names: Vec<_> = std::fs::read_dir(&made).unwrap().map(|e| e.unwrap().file_name()).collect();
+        assert_eq!(names, vec![OsString::from("portable.txt")], "only the marker is written");
+        // Again: the file is kept as it is.
+        std::fs::write(made.join("portable.txt"), "mine").unwrap();
+        make_portable(&made).unwrap();
+        assert_eq!(std::fs::read_to_string(made.join("portable.txt")).unwrap(), "mine");
+        std::fs::remove_dir_all(&base).unwrap();
+    }
+
+    /// Kept paths: relative to the program folder (`..` up, then down),
+    /// absolute when there is no shared root; read back to the same
+    /// folder.
+    #[cfg(unix)]
+    #[test]
+    fn kept_paths_relative_to_the_program_folder() {
+        let prog = Path::new("/media/u/SSD/Overbright");
+        let cases = [
+            ("/media/u/SSD/Games/Underground", "../Games/Underground"),
+            ("/media/u/SSD/Overbright/game", "game"),
+            ("/media/u/SSD/Overbright", "."),
+            ("/media/u/SSD", ".."),
+            ("/", "../../../.."),
+            ("/home/u/Games/Need for Speed Underground 2", "../../../../home/u/Games/Need for Speed Underground 2"),
+        ];
+        for (target, rel) in cases {
+            let got = relative_to(prog, Path::new(target)).unwrap_or_else(|| panic!("{target}"));
+            assert_eq!(got, Path::new(rel), "{target}");
+            assert_eq!(join_relative(prog, &got), Path::new(target), "{target} back");
+        }
+        // Not absolute or not plain: kept as given.
+        assert_eq!(relative_to(prog, Path::new("Games/Underground")), None);
+        assert_eq!(relative_to(prog, Path::new("/media/u/../u/SSD")), None);
+        assert_eq!(relative_to(Path::new("rel"), Path::new("/a")), None);
+        assert_eq!(join_relative(Path::new("/"), Path::new("../../a")), Path::new("/a"));
+    }
+
+    /// Windows: another drive letter or share is no shared root, so the
+    /// path stays absolute; the drive letter's case does not matter.
+    #[cfg(windows)]
+    #[test]
+    fn kept_paths_on_windows_drives() {
+        let prog = Path::new(r"E:\Overbright");
+        assert_eq!(relative_to(prog, Path::new(r"E:\Games\Underground")).unwrap(), Path::new(r"..\Games\Underground"));
+        assert_eq!(relative_to(prog, Path::new(r"e:\Games\Underground")).unwrap(), Path::new(r"..\Games\Underground"));
+        assert_eq!(join_relative(prog, Path::new(r"..\Games\Underground")), Path::new(r"E:\Games\Underground"));
+        assert_eq!(relative_to(prog, Path::new(r"C:\Games\Underground")), None);
+        assert_eq!(relative_to(Path::new(r"\\srv\share\Overbright"), Path::new(r"\\srv\other\Underground")), None);
+    }
+
+    /// The driver's shader caches go into the data folder of a portable
+    /// install on Linux, unless the environment sets them; nothing on
+    /// Windows, outside portable mode or with `Underground_DATA_DIR`.
+    #[test]
+    fn driver_caches_follow_a_portable_install_on_linux() {
+        let prog = Path::new("/media/u/SSD/Overbright");
+        let dir = prog.join("data/cache/driver");
+        let got = driver_cache_vars(Os::Unix, &env(&[("HOME", "/home/u")]), Some(prog));
+        assert_eq!(got, vec![("MESA_SHADER_CACHE_DIR", dir.clone()), ("__GL_SHADER_DISK_CACHE_PATH", dir.clone())]);
+        let got = driver_cache_vars(Os::Unix, &env(&[("MESA_SHADER_CACHE_DIR", "/mine")]), Some(prog));
+        assert_eq!(got, vec![("__GL_SHADER_DISK_CACHE_PATH", dir)]);
+        assert!(driver_cache_vars(Os::Unix, &env(&[]), None).is_empty());
+        assert!(driver_cache_vars(Os::Windows, &env(&[]), Some(prog)).is_empty());
+        assert!(driver_cache_vars(Os::Unix, &env(&[("NFSU2_DATA_DIR", "/p")]), Some(prog)).is_empty());
     }
 
     #[test]

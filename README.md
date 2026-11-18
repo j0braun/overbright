@@ -180,6 +180,17 @@ stay on your computer; Overbright neither ships nor downloads any
 Overbright never writes into the game's folder or the original's own save folder
 ([docs/platform-dirs.md](docs/platform-dirs.md)).
 
+### Portable mode
+
+To keep everything next to the program (a game carried on a portable drive), put an empty file named
+`portable.txt` (or a folder named `portable`) beside `overbright` and `game`, or use Make portable on the
+launcher's About page. Settings, saved games, the caches, logs, crash reports, screenshots and mods then go to
+the folder `data` beside them, and the game folder is remembered relative to the program when it is on the
+same drive. The launcher's header then says "Portable". Nothing already kept is moved: to take it along, copy
+the contents of the folders in the table above into `data` (saved games into `data/NFS Underground 2`; the cache
+can be left behind, it is rebuilt). On Windows the graphics driver's own shader cache stays in its usual place.
+Delete `portable.txt` to go back.
+
 ## Reporting a problem
 
 Open an issue at [github.com/j0braun/overbright/issues](https://github.com/j0braun/overbright/issues) with the

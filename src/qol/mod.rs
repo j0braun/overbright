@@ -35,6 +35,8 @@ pub use render_scale::*;
 /// the version, the OS, the GPU adapter, the deviations on, the panic and
 /// its backtrace, and the last log lines. Nothing is ever sent anywhere.
 pub mod crash;
+/// The folders kept in Overbright's files, relative in a portable install.
+pub mod kept_paths;
 /// The game's log file: `<logs>/game-<time>.log`, the last 5 kept.
 pub mod log_file;
 /// Durable profile writes and rolling backups.
