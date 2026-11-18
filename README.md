@@ -135,8 +135,6 @@ original, with its switch, is in [docs/native-deviations.md](docs/native-deviati
 - **Physics after a wall hit:** from the same start, your car stays within a few centimetres of the original's
   path through braking, cornering, handbrake turns and launches. Held against a wall it turns off the wall the
   same way as in the original, but can leave it a few seconds sooner or later.
-- **Carbon fibre:** before Convert Trunk / Convert Body Kits asks its question, the original turns the camera to
-  the rear; Overbright keeps the view.
 - **Saves:** a save of the original from any career stage, loaded and saved again in Overbright, comes out byte
   for byte as the original's own load-and-save leaves it, and the original loads Overbright's saves. A save
   made after a long session played in Overbright was not loaded back into the original in the last check.

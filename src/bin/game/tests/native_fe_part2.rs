@@ -135,6 +135,43 @@ fn carbon_convert_asks_first() {
     assert_eq!(game.carbon_question(0x60), 0xA645_A29E, "then the revert question");
 }
 
+/// Carbon fibre's Convert Trunk leaves GarageMain's view where it was: no
+/// path of 0x5664A0 for the question, its Yes or its No calls 0x4C2100
+/// (the view's only way in besides the idle tour), and under Wine the
+/// question's frames match the strip's frame outside the dialog (dimmed to
+/// 0.40, correlation 0.99 to 1.00), Yes leaves the previous list's view on
+/// (docs/car-materials.md, "The camera under the convert question").
+#[test]
+#[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
+fn carbon_convert_keeps_the_view() {
+    let mut game = career("CARBV");
+    game.profile.as_mut().unwrap().cash = 1_000_000;
+    let car = game.profile.as_ref().unwrap().car.clone();
+    let stock = (0x60, 0xC8D3_13AC);
+    game.profile.as_mut().unwrap().owned.insert(stock);
+    let mut m = game.parts_browser_in(Some(0x5E), 0, None);
+    let Mode::Menu(Menu::Parts(b)) = &mut m else { panic!("carbon fibre") };
+    let at = b.categories.iter().position(|c| c.slot == 0x60).expect("Convert Trunk");
+    b.categories[at].locked = false;
+    b.category = at;
+    game.mode = m;
+    let view = |game: &mut Game| {
+        game.garage_request().expect("GarageMain under the browser");
+        let (_, _, v) = game.garage_fe.view.as_ref().expect("a view");
+        (v.camera, v.car_angle, v.steer)
+    };
+    let before = view(&mut game);
+    game.menu_key(Key::Accept).unwrap();
+    assert!(matches!(&game.mode, Mode::Menu(Menu::Dialog(..))), "the convert question");
+    assert_eq!(view(&mut game), before, "the question keeps the view ({car})");
+    if let Mode::Menu(Menu::Dialog(d, _)) = &mut game.mode {
+        d.selected = 0;
+    }
+    game.menu_key(Key::Accept).unwrap();
+    assert!(matches!(&game.mode, Mode::Menu(Menu::Parts(b)) if b.category == at), "Yes: the strip");
+    assert_eq!(view(&mut game), before, "Yes keeps the view");
+}
+
 /// Carbon fibre's Hood (0x5664A0 at 0x566786): with a vinyl of kind 0x14 on
 /// a layer, opening the hoods first warns "Installing a carbon fiber hood
 /// will cause any hood vinyls to be removed" (0xB3BBB11D; with a decal on
