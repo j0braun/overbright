@@ -80,6 +80,8 @@ pub(crate) fn main() -> Result<()> {
     log::info!("allocator: {}", nfsu2::allocator::describe());
     let args: Vec<String> = std::env::args().skip(1).collect();
     let command = Command::parse(&args);
+    // The modding tools are reachable only with `--editor` (docs/map-editor.md).
+    nfsu2::tools::map::set_editor_enabled(args.iter().any(|a| a == "--editor"));
     if command == Command::Version {
         println!("{}", nfsu2::build_info::version_line());
         return Ok(());

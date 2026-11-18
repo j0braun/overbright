@@ -36,6 +36,8 @@ impl Game {
         // (Return to Explore Mode from its pause) must not be kept, or
         // every menu after it holds the song (`music_context_of`: Paused).
         self.sim.paused_race = None;
+        // A custom race ends with it.
+        self.sim.map_race = None;
         // A fresh start in the city builds the player's car anew: no marker
         // trigger yet (+0x9AC).
         if at.is_none() {

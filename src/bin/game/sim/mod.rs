@@ -68,6 +68,9 @@ pub(crate) struct SimSession {
     /// posted, waiting for the audio's `impact_sounds` (were process-wide
     /// queues in `nfsu2::audio`); the tick's come in `TickEvents::contacts`.
     pub(crate) contact_sounds: nfsu2::drive::ContactSounds,
+    /// The map editor's custom race being raced (its route in place of
+    /// its base track's, `Game::map_race_route`); None outside one.
+    pub(crate) map_race: Option<nfsu2::tools::map::CustomRace>,
 }
 
 impl SimSession {
@@ -91,6 +94,7 @@ impl SimSession {
             lens: Default::default(),
             traffic_paints: Vec::new(),
             contact_sounds: Default::default(),
+            map_race: None,
         }
     }
 }

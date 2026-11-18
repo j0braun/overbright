@@ -60,6 +60,9 @@ pub(crate) struct Game {
     pub(crate) garage_fe: garage::GarageFe,
     /// Photo mode (docs/photo-mode.md), up over the pause menu.
     pub(crate) photo: Option<photo::Photo>,
+    /// The map editor (docs/map-editor.md; `--editor` only), up over the
+    /// explore pause menu.
+    pub(crate) map_editor: Option<crate::enh::map_editor::MapEditor>,
     /// Controller extras (Rumble): the model and the gear it last saw.
     pub(crate) rumble: nfsu2::pad::extras::Rumble,
     pub(crate) rumble_gear: Option<usize>,
@@ -196,6 +199,7 @@ impl Game {
             scenes: Default::default(),
             garage_fe: Default::default(),
             photo: None,
+            map_editor: None,
             rumble: Default::default(),
             rumble_gear: None,
             showcase: Default::default(),

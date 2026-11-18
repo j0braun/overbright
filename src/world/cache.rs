@@ -287,6 +287,7 @@ impl World {
             anim_track,
             cache: _,
             loaded: _,
+            map_overlay: _,
         } = self;
         gps_aid.put(w);
         dyno_rollers.put(w);
@@ -382,6 +383,7 @@ impl World {
             anim_track: P::get(r)?,
             cache: None,
             loaded: Default::default(),
+            map_overlay: Default::default(),
         })
     }
 }

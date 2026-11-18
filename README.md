@@ -171,6 +171,12 @@ folder under `packs/`. Started with `--editor`, the game has a texture editor (F
 screen, exports them and shows your edited versions live in such a pack
 ([docs/texture-editor.md](docs/texture-editor.md)).
 
+## Map mods
+
+Started with `--editor`, the game has a map editor (F8 in free roam): move, delete and add props, and make races
+of your own on the city's roads, raced from the editor. They are saved as map mods in Overbright's data folder
+and applied on top of the original data; the game's files are never changed ([docs/map-editor.md](docs/map-editor.md)).
+
 ## Where your files go
 
 | | Linux | Windows |

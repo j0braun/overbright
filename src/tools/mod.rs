@@ -3,5 +3,6 @@
 //! `--editor`, then opened with their hotkey.
 //! Native play never reaches this code.
 
+pub mod map;
 pub mod overlay;
 pub mod texed;

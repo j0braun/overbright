@@ -17,7 +17,11 @@ impl Game {
         // gives its traffic models anew for the zone the player is in then.
         // Drop free roam's pool, so `explore` builds it again.
         self.sim.traffic = None;
-        let route = career::load_route(&self.game_data.root, track, variant & 1 != 0)?;
+        // A custom race of the map editor runs its own route on the track.
+        let route = match self.map_race_route(track) {
+            Some(r) => r?,
+            None => career::load_route(&self.game_data.root, track, variant & 1 != 0)?,
+        };
         let (at, heading) = route.grid.first().copied().unwrap_or_else(|| {
             let a = route.checkpoints[0];
             let b = route.checkpoints[1];
@@ -202,6 +206,7 @@ impl Game {
             self.drive_to_grid(&track, variant, event.race_mode(), tuning_mode_for(event.kind), !quick)?;
         drop(t_grid);
         let laps = if route.loops { laps.max(1) as u32 } else { 1 };
+        let laps = self.sim.map_race.as_ref().filter(|_| route.loops).map_or(laps, |r| r.laps);
         // A drift race scores the player's drifts (0x5F7A10: the style
         // manager for the drift mask, the drift manager on the car's class).
         let mode = event.race_mode();

@@ -187,7 +187,7 @@ impl Preload {
             .spawn(move || {
                 Self::pool().install(move || {
                     let _t = nfsu2::prof::span("preload: world");
-                    let world = World::load(&root, &region);
+                    let world = nfsu2::tools::map::load_world(&root, &region);
                     // Its collision too, which the drive's first placing
                     // made in the region's first frame (the same object).
                     if let Ok(w) = &world {
