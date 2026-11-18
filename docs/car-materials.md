@@ -94,7 +94,7 @@ fibre strip), **verified** in the disassembly; label texts from the game's langu
   strip built again (0x545D40), the install sound (0x521290), the strip shown and UNDIM. No
   (0x5674D8): the strip shown again, nothing fitted.
 
-Neither the question nor its answers call the camera (below, "The camera's turn to the rear"). Clone: `parts_toggle_key`,
+Neither the question nor its answers call the camera (below, "The camera under the convert question"). Clone: `parts_toggle_key`,
 `Game::carbon_question`, `Game::carbon_convert`, `LotDeal::Convert`. Test
 `tests::native_fe_part2::carbon_convert_asks_first`. Not re-run under Wine for this change.
 
@@ -108,14 +108,22 @@ and the hoods' list opens under it (0x566862 → 0x55EDE0, which sets +0x1D9 = l
 0x5674D8 (strip and list shown, UNDIM 0x79031C). Clone: `Game::carbon_hood_warning`, `parts_step`.
 Test `tests::native_fe_part2::carbon_hood_warns_about_hood_vinyls`.
 
-## The camera's turn to the rear (open)
+## The camera under the convert question (no turn; matches)
 No path of the browser's handler 0x5664A0 for the carbon strip moves the garage camera: the convert
-question, its Yes and No, and the strip's own Accept make no 0x4C2100 call. The handler's only delayed
-view request is on its tick (0xC98356BA at 0x567645: +0x1D6 set and over 0.5 s since +0x1CC, then
-0x50E580(slot, the list's part) → 0x4C2100), and nothing in the executable sets +0x1D6 but the
-constructor's 0 (0x55E930): dead. The list's opening (0x55EDE0) requests the view of the highlighted
-part (0x55EEE8); the trunk and the kits have no list. Where the turn seen under Wine comes from is
-**open**.
+question, its Yes and No, and the strip's own Accept make no 0x4C2100 call, and 0x4C2100 (→ 0x4C1D40
+→ 0x4A55E0) is the view's only way in besides the idle tour 0x4A5BD0 (23 direct call sites, no
+pointer to it in the executable). The handler's tick request (0xC98356BA at 0x567645: +0x1D6 set
+and over 0.5 s since +0x1CC) is dead: nothing but the constructor's 0 (0x55E930) writes +0x1D6.
+**Verified under Wine** (career_end_won profile, main menu Customize → RX-8 → Car Shop → Body Shop →
+Carbon Fiber → Convert Trunk, frames at 30 fps): Accept hides the strip (0x52EBA0(0)) and dims the
+browser, which uncovers the backdrop behind the strip but leaves the camera as it was; outside the
+dialog the question's frame equals the strip's frame dimmed to 0.40 (correlation 0.99 to 1.00, best
+shift 0 px). Yes fits the carbon trunk and leaves the view of the last list (Side Mirrors' front
+view in that run); No returns to the strip with the same view. The strip keeps whatever view the
+last list set, so after the Rear Bumpers list the question shows the car's rear, which can
+look like a turn. The clone keeps the view under the dialog (`garage_update_request`) and
+after Yes. Test `tests::native_fe_part2::carbon_convert_keeps_the_view`; frames
+`docs/evidence/car-materials/rx8_convert_trunk_question_view_wine.jpg` (strip, question; brightened).
 
 ## Seen on the way (open, not changed)
 - Re-entering the original's car select lists the tuned car at the end.
