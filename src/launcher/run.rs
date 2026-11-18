@@ -151,6 +151,8 @@ pub struct Running {
     started: Instant,
     shared: Arc<Mutex<Shared>>,
     readers: Vec<std::thread::JoinHandle<()>>,
+    /// The start marker this start wrote (removed at the end).
+    marker: PathBuf,
     pub log: Option<PathBuf>,
 }
 
@@ -249,6 +251,18 @@ pub fn game_logs_itself(args: &[String]) -> bool {
 /// given to the game as `NFSU2_ROOT` so it plays the folder the player
 /// chose even when another one is set in the environment.
 pub fn start(exe: &Path, args: &[String], log_dir: Option<&Path>, root: Option<&Path>) -> Result<Running, String> {
+    start_marked(exe, args, log_dir, root, super::dirs::start_marker())
+}
+
+/// [`start`] with the start marker at `marker` (the tests keep it in their
+/// own folder: the default one is in the player's data folder).
+fn start_marked(
+    exe: &Path,
+    args: &[String],
+    log_dir: Option<&Path>,
+    root: Option<&Path>,
+    marker: PathBuf,
+) -> Result<Running, String> {
     let mut shared = Shared { file_all: !game_logs_itself(args), ..Default::default() };
     let mut log = None;
     if let Some(dir) = log_dir {
@@ -280,7 +294,6 @@ pub fn start(exe: &Path, args: &[String], log_dir: Option<&Path>, root: Option<&
             Err(e) => log::warn!("launcher log not written: {e}"),
         }
     }
-    let marker = super::dirs::start_marker();
     let mut cmd = Command::new(exe);
     if let Some(r) = root {
         cmd.env("NFSU2_ROOT", r);
@@ -334,7 +347,7 @@ pub fn start(exe: &Path, args: &[String], log_dir: Option<&Path>, root: Option<&
             }
         }));
     }
-    Ok(Running { child, started: Instant::now(), shared, readers, log })
+    Ok(Running { child, started: Instant::now(), shared, readers, marker, log })
 }
 
 impl Running {
@@ -358,7 +371,7 @@ impl Running {
     }
 
     fn finish(&mut self, code: Option<i32>) -> Ended {
-        clear_marker_of(&super::dirs::start_marker(), self.child.id());
+        clear_marker_of(&self.marker, self.child.id());
         let secs = self.started.elapsed().as_secs_f32();
         // The readers end at the pipes' end (a child the game started could
         // keep them open: wait at most a second).
@@ -555,9 +568,17 @@ mod tests {
         use std::os::unix::fs::PermissionsExt;
         std::fs::set_permissions(&stub, std::fs::Permissions::from_mode(0o755)).unwrap();
         let logs = dir.join("logs");
+        // Never the player's data folder: every start here keeps its marker
+        // in the test's own folder.
+        let marker = dir.join("start-marker.txt");
+        let start = |exe: &Path, args: &[String], logs: Option<&Path>, root: Option<&Path>| {
+            start_marked(exe, args, logs, root, marker.clone())
+        };
         let r = start(&stub, &["--windowed".into()], Some(&logs), None).unwrap();
+        assert!(marker.is_file(), "the start writes its marker where it is told");
         let e = r.wait();
         assert_eq!(e.code, Some(101));
+        assert!(!marker.exists(), "the start's end removes its marker");
         assert!(e.panicked && e.failed() && e.during_start(), "{e:?}");
         assert!(e.tail.iter().any(|l| l == "no GPU adapter") && e.tail.iter().any(|l| l.contains("--windowed")));
         let text = std::fs::read_to_string(e.log.as_ref().unwrap()).unwrap();
