@@ -2180,7 +2180,7 @@ RenderInfo_t+0x2D44	struct-field	RenderInfo_t.part_anims	part animations	verifie
 0x5947D0	function	Drivetrain_DrivenSlip	mean slip (+0x16C) of the driven wheels	verified	formats.md:2712
 0x43C570	function	Atan2_16	atan2(y, x) as a u16 binary angle (args x, y)	verified	formats.md:2712
 0x5AA840	function	Drivetrain_Settle	clutch-locked engine settle against the gearbox, first-gear relief	verified	formats.md:2712
-0x7FC800	global	g_PhysicsSubstepDt	the sub-step dt the wheel spin derivative divides the slip by	inferred	formats.md:2712
+0x7FC800	global	g_PhysicsSubstepDt	the physics sub-step length: written before each integration (0x5B73D8, NIS 0x5AB51A), cleared by 0x5ABB10 at rest/bump, by the physics/Melo/mode-5 mover constructors and by the world update before the cars (0x609D00) and after the collision step (0x60A0BA); a contact refresh runs at its value	verified	formats/cars-1.md:Contact refresh at a resolution
 0x479220	function	Music_BuildPlaylistMasks	profile playlist 0x83ACB8 → front-end / game song masks, then 0x46BAA0 on [audio +0xA0]	verified	formats.md (Sound round 4)
 0x46BAA0	function	Music_SetPlaylist	music object: masks +0x84/+0x8C, pools +0x88/+0x90, counts, mode +0x9C, last positions +0xA8/+0xAC = -1	verified	formats.md (Sound round 4)
 0x459B80	function	MusicObj_Ctor	music object (0xD4 bytes, vtable 0x789DB8): +0x84 all 27 songs, +0x9C sequential	verified	formats.md (Sound round 4)
@@ -2605,7 +2605,7 @@ RenderInfo_t+0x2D44	struct-field	RenderInfo_t.part_anims	part animations	verifie
 0x82DAF0	global	g_FlareBlink	pool 1 type 13 drawn while set (0 / -1, inverted every 0.5 s)	verified	formats.md:Light glow sprites (pooled flares)
 0x7F3D44	const	g_FlarePoolCapacity	the pools' capacities: 200, 50	verified	formats.md:Light glow sprites (pooled flares)
 0x803A70	const	g_ReflectorCos	0.96: the cone of the reflectors (flare types 10-12) in 0x490920 modes 3/4	verified	formats.md:Light glow sprites (pooled flares)
-0x593710	function	CarCollisionBody_RefreshMover	vt+0x38: the mover's vt+4 (0x5B04E0) when the body has a rigid body; called by Contact_ResolveEarliest before and after the impulse	verified	formats.md:Contacts (suspension refresh)
+0x593710	function	CarCollisionBody_RefreshMover	vt+0x38: the mover's vt+4 (0x5B04E0) when the body has a rigid body, at the sub-step length 0x7FC800 as it stands; called by Contact_ResolveEarliest before and after the impulse	verified	formats/cars-1.md:Contact refresh at a resolution
 0x5B04E0	function	Mover_UpdateComponents	every component's vt+0x1C with the current g_PhysicsSubstepDt, then 0x5ABB10, then vt+8	verified	formats.md:Contacts (suspension refresh)
 0x5A87A0	function	Suspension_Update	compression +0x1C, rate +0x20 only when the sub-step is over 0.0001 s, force +0x24	verified	formats.md:Contacts (suspension refresh)
 0x7A25DC	vtable	vt_DriveMover	mover (+8 subobject) vtable; vt+4 = Mover_UpdateComponents	verified	formats.md:Contacts (suspension refresh)
@@ -3674,7 +3674,7 @@ CarDriver_t+0x1D9	struct-field	CarDriver_t.keep_path	0x420D40 keeps the path's f
 0x57D010	function	Replay_DummySnapshotCheck	every 100 loops (0x7FB724 % 100 == 0) while recording: jmp 0x57C190	verified	tuning-physics-parity.md
 0x57BFF0	function	Replay_SerialiseAll	walks race params, input buffer, world (0x60A620); DUMMY_SNAPSHOT runs it in take mode (+0x40)	verified	tuning-physics-parity.md
 0x578470	function	Snapshot_Matrix	serialises a 4x4, rewriting rows 0-2 w = 0, row 3 w = 1 for a rotation	verified	tuning-physics-parity.md
-0x593290	function	CarBody_PositionAt	collision body vt+0x34: position (vt+0x08) and rows interpolated back to a moment of the span	verified	tuning-physics-parity.md:B
+0x593290	function	CarBody_PositionAt	collision body vt+0x34: the centre of mass and the rows at a moment of the span, each element start + (end - start) * (span - t) / span (not renormalised); the end's own when span <= 1e-6	verified	tuning-physics-parity.md:B
 0x593B50	function	CarBody_Position	collision body vt+0x08: owner +0x60 (the centre of mass), or [+0x68]+0x20	verified	tuning-physics-parity.md:B
 0x5F61A0	function	Car_UpdateLightsOn	car update (0x6049D2): owner kind 1 (the player) skipped; +0x93D lights on = 1 unless +0x925 (never set non-zero) runs the flicker timing	verified	lighting2.md
 0x5EC170	function	Car_SetLightFlicker	stores the flicker timing +0x92C..+0x938 and flags +0x926..+0x928 when the last one has run out	verified	lighting2.md
@@ -3759,7 +3759,7 @@ CarDriver_t+0x1D9	struct-field	CarDriver_t.keep_path	0x420D40 keeps the path's f
 0x5B22C0	function	Pair_Dtor	collision pair destructor: drops its record (0x5AE480), unlinks, both bodies' +0x16 − 1	verified	world-systems-parity.md §11
 0x5938D0	function	CarBody_BindMover	body +0x64 / +0x68 from the car's mover (+0x34) while +0x5C is set (0x5F46B0 writes it per mode)	verified	world-systems-parity.md §11
 0x59C990	function	Wheel_Serialize	the wheel's snapshot serialiser; take (+0x40) / restore (+0x41) branch zeroes +0x108, lock +0x10C (0x59CA6A), +0x124/+0x128, sliding +0x160 (0x59CAC6), load +0x164	verified	drag-stage4-parity.md
-0x59D040	function	Wheel_ClearForces	in the wheel vtable next to 0x59D360 (0x7A210C): clears +0x108, +0x124, +0x128, +0x118, direction gate +0x110; when it runs is not traced	inferred	drag-stage4-parity.md
+0x59D040	function	Wheel_TidyUp	wheel vt+0x1C (the mover post-step 0x5B04E0 and zero-time refreshes): clears +0x108, +0x124, +0x128, +0x118, wraps the angle +0x24, stops a spin that changes sign against the direction +0x110 (0 forward, 1 still, 2 backward) and sets +0x110 from the spin vs ±1e-5	verified	formats/cars-1.md:Wheel direction
 0x57FF20	function	FrontEndLoader_Load	game-start load handler: closes loading_boot.fng (0x5379B0), opens PC_Loading.fng (0x57FF95) unless up, then 0x57D910 with Global\FrontEndMemoryFile.bin	verified	loading-image.md
 0x865484	global	g_LoadHandler	the main loop's pending load step (WinMain 0x580E6C and 0x581813 set it to 0x57FF20)	inferred	loading-image.md
 0x5EBE10	function	Car_ShiftFlamePop	from Car_Frame with the gear (+0x434): a gear change (physics mover, or 0.5 s after the last) or, on the physics mover above first gear, the clutch locking (+0x448 0→1) fires car effect 10 at L·2/7, L = 0x5995F0(4) (+0.5 with ride +0x328), L ≥ 2; sound ctx events 1 / 9	verified	docs/sparks-fire.md

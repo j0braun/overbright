@@ -1,0 +1,41 @@
+Wall hold: the contact refresh, the wheel direction and the moment transform (bench_wall_hold;
+a trial port, not in the default build: docs/cornering-parity.md section 6)
+
+Captures: five runs of the original under Wine (runs A-E), the contact log with every pair and exact
+floats (PARITY_CONTACT_ALL=1 PARITY_CONTACT_EXACT=1) and the player's integrator calls stopped before
+(A) and after (B) each 0x5AA490 call (PARITY_SUBTRAP=100-300, tools/parity/subtrap.py). The clone runs
+from each run's full transplant at frame 50 (and 70 / 90 / 110 for the outcome table).
+
+1. The first push's re-step, run A, frame 117 (velocity m/s; input shaft, clutch torque sent):
+   first re-step integration          A: v                          B: v                     in       sent
+   original                         -0.50916  0.09662  0.01261   -0.44501  0.08496  0.02466   517.0327  0.19667
+   clone before (rate kept)         -0.50916  0.09660  0.01257   -0.44414  0.08478  0.02524   517.7203  0.15139
+   clone after                      -0.50916  0.09660  0.01257   -0.44501  0.08494  0.02463   517.0308  0.19668
+   The original's four damper rates (suspension +0x20) read 0.0 at the re-step's A; its front load
+   term +0x164 3.80458, the clone's before 3.88610 (the end-of-span rate 0.0155 m/s kept).
+
+2. Wheel direction (0x59D040), run A frame 139, third re-step integration: the original's braked
+   right rear wheel reads exactly 0.0 rad/s (slip -0.072609); the clone's before went to -0.005367.
+
+3. The moment transform (0x593290): the time of impact's tries take the transform blended from the
+   span's start and end; at the contacts that went out of step the original answered 0.003174 m
+   (12 um over the query's overlap boundary) where the clone, on its blended world points, answered
+   overlap. Ported with the push-out moving the body's own transform.
+
+First contact out of step (velocity or position over 2 mm/s / 2 mm at the contact), transplant 50:
+   run        A    B    C    D    E
+   before     4    2    2    5    5
+   after     34    5   23    6   24
+Beyond that the runs part on a time-of-impact try that flips on a few float steps of the state
+(z 2 ulps apart at run D's contact 6): the transplant's own first-frame noise (docs/prop-hits.md 7e).
+
+Outcome, 20 clone runs (5 original runs x transplant at 50, 70, 90, 110): the frame the heading
+passes -45 deg (the car turned off the wall), clone less original (original: A 466, B 484, C 514,
+D 495, E 544; every original run turns negative):
+   before: 18 turn off the wall the original's way, 2 do not leave it by frame 600;
+           error median +4, mean |e| 37.6, max 113 frames
+   after:  12 turn off the original's way (error median 0, mean |e| 21.3, max 69 frames),
+           7 turn the other way, 1 does not leave it by frame 600
+
+Partial ports, the same 20 holds: refresh length only 14 / 5 other way / 1 on the wall (median +6,
+max 112); transform only 18 / 2 / 0 (median -9, max 74).

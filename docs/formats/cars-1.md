@@ -2544,28 +2544,49 @@ The game's world collision step (0x5FFA60) runs after the cars have moved.
   group-bit, vt+0x54 and 0x592970 filters; the creator 0x5A0350 rejects none,
   and the gate 0x5B5060 restricts only type-4 bodies (+0x11) to partners of
   type 0 or 1.
-* **Suspension refresh at a resolution** (**verified**, round 7;
-  `CarState::refresh_suspension`): 0x5B2620 calls each body's vt+0x38
-  before and after 0x5AF0F0 (after the move back, 0x593640, and the
-  push-out). For the car collision body (vtable 0x7A2478) that is 0x593710:
-  with a rigid body (+0x5C) it jumps to the vt+4 of the object at +0x64,
-  the drive mover's +8 subobject (vtable 0x7A25DC, live: mover + 8), i.e.
-  0x5B04E0: every component in its list (+0xC; live order: rigid body
-  0x59C600, then wheel 0x59D040 / suspension 0x5A87A0 for each wheel,
-  0x5AA770, 0x5A1410) gets its vt+0x1C update, then 0x5ABB10, then vt+8
-  (0x5B0530). The sub-step length 0x7FC800 is 0 then (the movers write it
-  only inside their sub-step loops, 0x5AB084 / 0x5AB51A; read 0 between
-  frames live), and the suspension update 0x5A87A0 stores the compression
-  at the moved-back pose (+0x1C, clamped to the travel; +0x80 the contact
-  flag) but writes its rate +0x20 only when the sub-step is over 0.0001 s.
-  So the first sub-step of the rest of the span measures the damper's rate
-  from the moved-back pose, not from where the span ended. (The clone took
-  the stale end-of-span compression: a resolution 0.03 s back gave a rate
-  of 9 m/s and loads of 37–48 against 3 — the roll and lift of the
-  ≥10 m/s wall hits.) **Inferred** (not ported): the refresh's own force
-  +0x24 (old rate) and the other components' dt-0 updates, including the
-  rest test inside 0x5ABB10, have no lasting effect the clone needs; the
-  clone does not store them.
+* **Contact refresh at a resolution** (**verified**; the clone's `CarState::refresh_suspension`
+  stores the compressions only, at length 0: see the end of this item):
+  0x5B2620 calls each body's vt+0x38 before and after 0x5AF0F0 (after the
+  move back, 0x593640, and the push-out). For the car collision body
+  (vtable 0x7A2478) that is 0x593710: with a rigid body (+0x5C) it jumps to
+  the vt+4 of the object at +0x64, the drive mover's +8 subobject (vtable
+  0x7A25DC, live: mover + 8), i.e. 0x5B04E0: every component in its list
+  (+0xC; live order: rigid body 0x59C600, then wheel 0x59D040 / suspension
+  0x5A87A0 for each wheel, the engine 0x5AA770, the clutch 0x5A1410) gets
+  its vt+0x1C update, then 0x5ABB10 (rest test, bump stops), then vt+8
+  (0x5B0530, the force pass the next integration takes).
+  **The sub-step global 0x7FC800 is not 0 there.** Its writers: the physics
+  mover before each integration (0x5B73D8), the NIS mover (0x5AB51A),
+  0x5ABB10 when the rest test holds the car or a bump stop is visited
+  (0x5ABBDF, before its zero-time refresh 0x5A0D90), the physics, Melo and
+  mode-5 mover constructors (0x5B62BB in 0x5B5CD0, 0x5B6DE5, 0x5B7098),
+  and the world update 0x609CF0 before the cars' frames (0x609D00) and
+  after the collision step 0x5FFA60 (0x60A0BA). Between the cars' movers
+  and the collision step nothing clears it, so a contact's refreshes run
+  at the length of the last physics sub-step of the frame (of the last car
+  stepped, or of the last re-step after a contact). It reads 0 between
+  frames, which is what a memory read sees. Consequences: the suspension
+  update 0x5A87A0 (rate +0x20 = (new − stored compression) / 0x7FC800 when
+  over 0.0001 s, 0x5A8877) rates the move back in the refresh before the
+  impulse and, at the same pose, rates 0 in the refresh after it, so the
+  rest of the span starts with every damper rate 0 (**observed** under
+  Wine, sub-step capture of `bench_wall_hold`: all four +0x20 read 0.0 at
+  the re-step's first integration); the engine's heat steps 0x5A0F40 /
+  0x5A11F0 take that length too. The clone keeps the stale rate (the old
+  reading of 0x7FC800 as 0): its front loads after a wall push are 2 %
+  high and the first re-step sub-step's velocity change 1–5 % off. A port
+  (with the wheel direction below and 0x593290's transform) makes the wall
+  hold's pushes agree far longer but turned 7 of 20 test holds off the wall
+  the other way, which no original run does; it is not in the default
+  (docs/cornering-parity.md §6, **open**).
+* **Wheel direction** (0x59D040, the wheel's vt+0x1C, **verified**): the
+  tidy-up keeps which way the wheel turned (+0x110: 0 forward, 1 still, 2
+  backward; a new wheel 1, 0x5A81E0). A wheel at 0 whose spin is now ≤ 0,
+  or at 2 whose spin is now > 0, is stopped (+0x28 = 0); then +0x110 from
+  the spin against ±1e-5 (0x7845A0, 0x7A1EA0). So a wheel's spin never
+  changes sign within one integration (**observed**: a braked rear wheel
+  pressed against a wall reads exactly 0.0 where the clone's went to
+  −0.005 rad/s). Not ported (part of the trial above; **open**).
 * **Impulse** (0x5AF0F0): the contact point is midway between the two
   closest points; the normal is the polygon's (+0x70), turned by 0x593E00
   (**verified** from the disassembly: stdcall, ret 0x10, this in
