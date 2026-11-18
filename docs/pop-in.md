@@ -34,7 +34,7 @@ Two instruments, both measuring aids (off unless the variable is set):
   against after gives every pixel this work changes; consecutive frames give
   the temporal change (pops as spikes over the local median).
 
-Scripts (work dir, not in the repo): `<work dir>/g14-work/`
+Scripts (maintainer only, not in the repository):
 `meter.sh`, `oracle.sh`, `spikes.sh`, `ab2.sh`, `pxstat.py`, `spstat.py`.
 
 ## Sources ranked (pop meter, `--bench drive 3000`, COROLLA, 3840 × 2160)

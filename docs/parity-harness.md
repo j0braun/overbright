@@ -27,7 +27,7 @@ parity.py summary OUT1 OUT2 …                                # the summary tab
 
 `run` takes 3–5 minutes (boot ~2 min, the race at about 50 game frames per
 wall second); `clone` takes seconds. OUT (default
-`$PARITY_WORK/<name>`, `<work dir>/parity-work/runs`) holds:
+`$PARITY_WORK/<name>`, a scratch folder of your choice) holds:
 
 | file | what |
 |---|---|
@@ -49,7 +49,7 @@ A scenario is a small TOML file in the maintainer's tools:
 
 ```toml
 name = "sprint_s1"
-save = "tests/fixtures/native_saves/stage1_win_streetx.sav"   # native save (repo-relative or absolute)
+save = "tests/fixtures/native_saves/stage1_win_streetx.sav"   # native save (repo-relative or absolute; this one is in the private test set)
 profile = "NAME"                                               # the profile folder it is installed as
 [start]
 kind = "career_event"            # or "outrun"
@@ -183,7 +183,7 @@ A negative `tol` records the field without ever counting it as a divergence.
   plan; `same_grid = false` under `[run]` turns it off). Which rule draws
   the slot natively is **open**.
 * **Outrun** (`kind = "outrun"`): the first encounter car out and driving
-  is followed (`outrun.py`, the <work dir> method): the player is put 60 m and
+  is followed (`outrun.py`, the outrun parity's method): the player is put 60 m and
   then 10 m behind it at its speed with the throttle held (a cave event)
   until the career offers the challenge (0x860A58 = 2), which Enter takes.
   The cave holds the game at the first frame with race type 7 while it is
@@ -527,7 +527,7 @@ The native race status and racer offsets used are listed under Fields.
   z rows (+0x140 / +0x1C0) and the pair's state before the query: kept sets, counts and warm flag
   (+0xF0..+0x118) and the dirty flag (+0x220), printed as `z A … B …`, `entry A … B … warm n dirty n`
   and `d …` (the distance's exact float with `PARITY_CONTACT_EXACT=1`).
-* `devprobes` `query_replay TRACK CAR native-contacts.tsv… [-v]`: every logged query of a hull or
+* `devprobes` `query_replay TRACK CAR native-contacts.tsv… [-v]` (maintainer only, like the developer probes): every logged query of a hull or
   track-polygon pair that the pair measured, run through the clone's query from its entry state on
   the logged transforms; counts per pair kind how many give the original's distance, closest points
   and kept sets to the last bit (`-v` lists the others with their bits).

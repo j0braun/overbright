@@ -2,8 +2,8 @@
 
 Traffic, collisions, cameras, audio mix and saves compared with SPEED2.EXE under Wine
 through the parity harness (docs/parity-harness.md). **Verified** = traced in the
-disassembly, **observed** = read under Wine, **inferred** / **open** as marked. Raw runs:
-`<work dir>/world-work/runs/<name>/` (a private Wine copy, display :223,
+disassembly, **observed** = read under Wine, **inferred** / **open** as marked. Raw runs
+(kept outside the repository; a private Wine copy, display :223,
 wined3d); reports, car lists, statistics in the maintainer's private captures. The audio and camera parity: raw runs kept with the maintainer's private evidence (a private Wine copy, display :233,
 wined3d), tables and frames in the maintainer's private captures, harness additions in
 docs/parity-harness.md.
@@ -385,7 +385,7 @@ mover's slot +0x10 (0x570A70, 1) → mode 4. The think's end 0x422150 rebuilds t
 sections is on mode 4 with no path; the scene's pause (0x4099B0, mode 0) moves nothing; at race state 3
 0x409A30 asks for mode 2 (→ 4) and the resumed thinks build the belts, which accelerate through the
 countdown. **Now** `traffic_stream` applies the rule each frame (stream test `streamed_in`, observed
-under Wine in <work dir>), the belt is built and stepped as the racers' (`build_belt_state`, `step_belt_state`, kinematic in
+under Wine), the belt is built and stepped as the racers' (`build_belt_state`, `step_belt_state`, kinematic in
 the collision step), and `traffic_coast` runs the belt cars' thinks from the scene's cut (race state 3;
 until the traffic-mover parity the clone's traffic did not think before the green). Parity `mover` reads 4.
 
@@ -566,7 +566,7 @@ points (0x415D50); the impact-sound start volume (not reached).
 ## 11. 2026-11-05: race stops re-measured, unloaded bodies, the path's walk points, impact volume
 
 Traced in SPEED2.EXE (Ghidra / the disassembly); no new Wine run — the native figures are the traffic-jam parity's
-probe runs (`<work dir>/p5f-work/nat/`) re-read. Evidence and scripts in
+probe runs (native side) re-read. Evidence and scripts in
 the maintainer's private captures. Clone figures over six traffic seeds (0, 11 … 55), `multirace.sh`;
 `NFSU2_TRAFFIC_STOPLOG=<file>` (harness knob) logs each car stopped for good with the rule and
 the nearest other car; parity fields `stopped` (controller +0x710) and `recs` (body +0x18) added.

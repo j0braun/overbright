@@ -79,7 +79,7 @@ per solid). Sheets: `model_sheets OUT --smooth` (new flag).
 ### Review (every player car, before / after)
 
 `model_sheets` full sets, native (`bin/model_sheets-base`, the copy before
-this work) and `--smooth`, in `<work dir>/assets-work/sheets/full/{base,smooth}`:
+this work) and `--smooth` (the sheets are kept outside the repository):
 29 player cars × 11 classes (fb, rb, skirt, wide, hood, spoiler, roof,
 mirror, exhaust, overview, rims) + the 15 traffic cars, 788 sheet pairs,
 22 452 tiles (with `--smooth` each tile is aimed at the unsmoothed parts,
@@ -201,8 +201,8 @@ a race is; `Traffic::load` is called with density 0 for races. A graphics
 preset keeps the value (gameplay). Applies when free roam loads.
 
 Measured (`--bench explore 3600`, 60 s standing at the garage exit,
-`NFSU2_BENCH_ENH="enh.traffic_density N"`, logs in
-`<work dir>/assets-work/traffic/`): traffic cars on the road at
+`NFSU2_BENCH_ENH="enh.traffic_density N"`, logs kept outside the
+repository): traffic cars on the road at
 the end 10 / 15 / 19 (Native / More / Dense); simulation thread CPU 0.07 /
 0.22 / 0.20 ms a frame, process CPU 1.84 / 2.93 / 2.84 ms a frame (one run
 each; the update CPU is quantised and noisy at n = 1, docs/perf-gates.md:

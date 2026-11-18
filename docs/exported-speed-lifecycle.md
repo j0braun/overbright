@@ -98,7 +98,7 @@ cargo test --lib --test track_l4ra --test high_refresh --test tuning_physics --b
 cargo test --bin game intro_skip_preserves_ai_grid_handoff -- --ignored --nocapture
 NFSU2_INTRO_NIS=13 cargo test --bin game race_start_wheel_phase_survives_scene_placement -- --ignored --nocapture
 cargo run --bin game -- --selftest
-cargo check -p devprobes --bin hit_replay -p devprobes --bin weight_probe
+cargo check -p devprobes --bin hit_replay -p devprobes --bin weight_probe   # maintainer only (private developer probes)
 ```
 
 Results: library511 passed/12 existing ignored; game19 passed/12 ignored;

@@ -3,8 +3,8 @@
 Follow-ups of internal notes. **Verified** = traced in SPEED2.EXE;
 **observed** = seen in the original under Wine (vanilla SPEED2.EXE, no
 WidescreenFix, a private Wine copy, fastgpu on :170 with
-`--audio-file`, the finished-career save's profile; raw captures and videos in
-`<work dir>/p17-work/`). Evidence: `evidence/shop-scene-mover/`,
+`--audio-file`, the finished-career save's profile; raw captures and videos
+kept outside the repository). Evidence: `evidence/shop-scene-mover/`,
 the maintainer's private captures.
 
 ## 1. Shop and dyno scene cars on the NIS mover — fixed
@@ -119,7 +119,7 @@ mover's 0x5AB1A0 / +0x430 export under a scene is not ported.
 * CareerNis1 on the mover was not captured (a new career); the car stands
   at its single key, the same code path.
 
-## Checks (gate against <work dir>, CHECKS=full, extreme)
+## Checks (gate against the base, CHECKS=full, extreme)
 Checks PASS (1232 tests, selftest, 275 shots, the four flows). Parity:
 images, window path, enhanced (extreme / extreme_fsr), audio and the
 firstrace / firstdrag / postrace / parity sims identical; two intended
@@ -138,7 +138,7 @@ centre of mass, velocity, the input's pedals, car +0x3E0..+0x43C).
 
 1. **The 8 cm height — not a bug (measurement).** this work's clone runs used
    the player's own finished-career save (a Skyline) while the original ran the
-   Wine copy's finished-career save (a Lancer; = `tests/fixtures/native_saves/career_complete.sav`).
+   Wine copy's finished-career save (a Lancer; = `tests/fixtures/native_saves/career_complete.sav`, maintainer only (private test set)).
    With the Lancer (centre of mass (0.29, 0, 0.145)) the clone's origin is
    on the original's height in all three scenes: mean dz −0.000 (ShopEnter1),
    0.000 (ShopExit1), 0.001 m (DynoEnter); frame 0 of DynoEnter 42.901 vs

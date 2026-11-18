@@ -27,7 +27,7 @@ WM_CHAR); memory read with `peek.py`. Evidence: the maintainer's private capture
   ring's last characters, a–z without case (Wine: "NeedPerformance1"
   matched; "xxneedperformance2" matched). No time limit.
 * A match runs 0x579CC0: only for an enabled entry (+0x32); the first
-  time plays the FE SELECT sound (0x51DE70(_, 8); observed, <work dir>: one
+  time plays the FE SELECT sound (0x51DE70(_, 8); observed under Wine: one
   PlayCommonSample id 4 per code as its last letter was typed, the id the
   title's Enter plays too); group switch-off
   0x576060 (all groups 0); active (+0x30) = 1; kind 5 → 0x5760B0; manager
@@ -68,7 +68,8 @@ code reads the manager or the table.
   ordermebaby typed on the title):
   * boot's "Would you like to create a new profile?" (none current, state
     2): no reset, the profile keeps the career in memory — **saved with
-    200** (`tests/fixtures/native_saves/cheats_boot_create.sav`);
+    200** (`tests/fixtures/native_saves/cheats_boot_create.sav`; the saves named on this page are
+    maintainer only (private test set));
     Start New Career on it ("Start New Career" that resumes) went
     straight to the intro with 200.
   * Profile Manager → Create with NAME current → Yes: bank 1200 in
@@ -96,8 +97,8 @@ code reads the manager or the table.
 
 ## Checked under Wine
 a private Wine copy, fastgpu (DXVK) on :204 with `--audio-file`,
-fresh profile; evidence in the maintainer's private captures, raw in
-`<work dir>/s6-work/wine/`.
+fresh profile; evidence in the maintainer's private captures (raw runs
+not in the repository).
 * **gimmevisual2 alone opens nothing** (observed): gimmevisual2 then
   regmybank typed on the title (entries 3 and 17 active, bank 200), boot's
   create declined, main-menu Customize → Peugeot 206 → Body Shop → Front

@@ -33,7 +33,7 @@ colour → colour function, so only it becomes the LUT.
 
 ### Verification (reference desktop GPU, RADV; `grade_lut verify`, `grade_lut wine`)
 Against the original (Wine, apitrace replays, private copy
-a private Wine copy, display :220; traces of <work dir>). Each frame's
+a private Wine copy, display :220; traces kept outside the repository). Each frame's
 back buffer after its last scene draw (the input the StretchRect 0x5CC8C0
 copies into screen copy 0) and the render target after the bleach's p2
 draw, snapshots of `d3dretrace --snapshot`:
@@ -113,7 +113,7 @@ format the compositor shows as sRGB. The surface's list is in the driver's
 order, and a colour-managed Wayland desktop puts 16-bit formats before the
 8-bit ones: RADV 26.2.5 under GNOME 51 lists `Bgra8UnormSrgb, Rgba8UnormSrgb,
 Rgba16Float, Rgba16Unorm, Rgb10a2Unorm, Bgra8Unorm, Rgba8Unorm`
-(`devprobes surface_formats` on a headless mutter). Taking the first non-sRGB
+(`devprobes surface_formats` on a headless mutter; maintainer only (private developer probes, not in the public repository)). Taking the first non-sRGB
 one gave a 16-bit float swap chain, and every read-back of a target in that
 format (photo mode's picture, the showcase and magazine-cover pictures) assumed
 4 bytes a pixel and failed wgpu's validation (a crash). The game now takes

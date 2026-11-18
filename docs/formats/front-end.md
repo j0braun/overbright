@@ -1006,7 +1006,7 @@ The menus are FEng packages: FRONTEND/FrontB.lzc (137), GLOBAL/GlobalB.lzc
   0x4F4E70 (0x1), cash reward 0x4F5060 (0, 0x80) and bank 0x4F4F10
   (0, 0x80000); the outrun meter 0x4F87E0 (0, 0x40, HUD_FEATURE_GETAWAY_METER,
   update 0x4DABD0, see Outrun) is built in every HUD.
-  - **Hide all at build** (**verified** 2026-10-31, <work dir> wrongway, in the
+  - **Hide all at build** (**verified** 2026-10-31, run wrongway, in the
     disassembly and in the original's memory under Wine): outside a drag
     race (0x89E7D8 / 0x890108) and with 0x89E7E5 and 0x836474 clear (**not
     traced**), the constructor 0x4F8BF0 first calls 0x52CFD0(package, 0):
@@ -1277,7 +1277,7 @@ The menus are FEng packages: FRONTEND/FrontB.lzc (137), GLOBAL/GlobalB.lzc
     polygons) that, when blocked, takes 0x40F180's nearest clear node
     (flags 0x1020, the race coordinate) and its record's direction; the
     drag lane offset (AI_RequestLane, 0x5E2DB0).
-    **Confirmed under Wine** (2026-10-31, <work dir> wrongway, `fastgpu.sh`,
+    **Confirmed under Wine** (2026-10-31, run wrongway, `fastgpu.sh`,
     racer = 0x8900AC, flag racer +0x248): driving Quick Race Street X
     (Industrial Park Tracks 2 = 4602 and 3) with keys along the road, with
     a weave and at up to 40 m/s, never set the flag (four runs, about 9
@@ -2553,7 +2553,7 @@ the maintainer's probe `pad_probe` lists what the game sees.
 ## Shop previews and engage message (2026-10-31, the finished-career save)
 
 Traced in SPEED2.EXE and checked under Wine (fastgpu, a copy of the player's
-finished career, `tests/fixtures/native_saves/career_complete.sav`).
+finished career, `tests/fixtures/native_saves/career_complete.sav`, maintainer only (private test set)).
 
 * **Engage message** (Shop_EngageMessage 0x512920, from the dialog setup
   0x4998E0): kind 0 (the garage) 0x987EECDA; a shop whose visit-table entry
@@ -2737,7 +2737,7 @@ the prompt element → +0x60 the slots) and frames at 30 fps.
   0x9803F6E2; each screen class does its own hit tests on the cursor less
   (320, 240) (0x50CD70). 0x50CD00(x, y, pos, size) and 0x52D030 test
   pos ≤ p ≤ pos + size on both axes (**both edges inclusive**, corrected
-  in <work dir>). 0x52D030 / 0x52D110 (press) / 0x52D0A0 (**held**) read the
+  since). 0x52D030 / 0x52D110 (press) / 0x52D0A0 (**held**) read the
   object's rectangle through 0x51DA00, which has **no visibility test**:
   hidden arrows and frames still take clicks (0x537A70 finds an object
   only if it is an image). The wheel helper 0x50CDA0: lZ < 0 is +1 (down

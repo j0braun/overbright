@@ -1,5 +1,5 @@
 Scripts of the engine-bed comparison (docs/audio-levels.md §2b).
-Original (PARITY_TOOLS = tools/parity, PARITY_WINE = a fastgpu tools copy, a private Wine copy and Xvfb display):
+Original (PARITY_TOOLS = tools/parity, maintainer only (private parity tools); PARITY_WINE = a fastgpu tools copy, a private Wine copy and Xvfb display):
   rt_free.py SAVE OUT --copy C --display N --mode roll|idle|launch --kmh V --gear G --ratio R --secs S --fixed 120 [--at x,y,z,deg]
   drive_rt_f.py SCENARIO.toml OUT --copy C --display N   (RT_FIXED=120: the first drag at the 120 fps cadence)
   beside them: native_poll.py (audio-levels scripts), hmpoll.py COPY OUT SECS LOG, ratepoll.py COPY OUT LOG

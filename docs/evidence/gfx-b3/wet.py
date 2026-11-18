@@ -6,6 +6,7 @@ draws the same rain or not, docs/wet-roads-ssr.md), cov = % box px with dY > 4, 
 energy (mean |Y - box3x3(Y)|, speckle) as a ratio to Original's."""
 import sys, os, glob
 import numpy as np
+# Maintainer only (private test set): lstats comes from the private look tools under $OB_PRIVATE.
 sys.path.insert(0, os.path.expandvars('$OB_PRIVATE/tools/look'))
 from lstats import load, stats
 ROAD = {'rain': [(0, 400, 568, 602), (880, 1270, 568, 600)],

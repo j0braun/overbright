@@ -277,7 +277,7 @@ pixels (the sky's red-violet, the road's beige). Checked numerically: the
 three passes turn the original's pre-filter sky (72, 61, 80) into
 (61, 41, 56); the original shows (59, 39, 55).
 **Checked against the original's own passes (2026-11-04, docs/hdr.md):**
-apitrace snapshots of two free-roam frames (<work dir>'s fr.trace frame 13971,
+apitrace snapshots of two free-roam frames (fr.trace frame 13971,
 dark.trace frame 15478), back buffer before the copy → render target after
 p2: the ported three passes give 99.9987 % / 99.984 % of the 1 228 800
 pixels exactly, the rest ±1 (FILTERBLEND fitted: 0.760 / 0.848; **inferred**,
@@ -1108,8 +1108,8 @@ it).
   217.86–218.85 and again 504.09–505.10 to 577.80–578.81, as the formula
   gives (144.42–218.17, + 360). Under Wine at 120 fps most frames are ≤ 9
   ms, so the object steps only on the slower frames there (the wetness
-  holds for seconds, the amount ramps unevenly). The clone (fixed in
-  <work dir>): `step_explore` with traffic or an encounter racer out and
+  holds for seconds, the amount ramps unevenly). The clone (fixed
+  since): `step_explore` with traffic or an encounter racer out and
   the live race never ran `Drive::tick_clock`, so the clock stood at 1.0 in
   real play and it never rained (nor did the sky reach night). Recovery
   ticks `step_explore` and the live `race_frame`, keeping the countdown
@@ -1685,7 +1685,7 @@ Up held 8 s, starts from the maintainer's probe `lod_straights`),
 (0x8760E0: eye +0x40, forward +0x50, matrix +0x00, angle +0xC4) polled at
 ~85 Hz; the clone rendered the same eye, orientation and angle per frame
 (`NFSU2_BENCH_CAMTRACK`, `TrackPose` in bin/game.rs; `lod-tmp/cl.sh`).
-Side by sides: `<work dir>/lod-tmp/cmp_r1.png`, `r1_57.png`,
+Side by sides (kept outside the repository): `cmp_r1.png`, `r1_57.png`,
 `r1_85.png`, `r6_76.png` (original top / left).
 
 * **Which sections are drawn** (**verified**, per frame, per view):

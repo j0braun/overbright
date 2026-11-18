@@ -5,7 +5,7 @@ not sure if they behave like native at all". The "yellow cones" are the highway'
 impact barrels, kind `ZCS_Barrel_A` (L4RA: 227 placements, mostly in groups of 3–5 at the
 gores; info: mass 0.9 t, inertia diagonal from the info, break impulse 0, restitution 0.005,
 friction 0.3 held, material `WATER_DRUM`). The group measured is the one at 379.4 −1477 35.8
-(3 barrels in the car's line). `devprobes prop_census` lists every kind and placement.
+(3 barrels in the car's line). `devprobes prop_census` (maintainer only (private developer probes, not in the public repository)) lists every kind and placement.
 
 ## 1. What the report describes, and why (first round of measurements)
 

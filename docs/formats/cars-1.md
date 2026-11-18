@@ -443,8 +443,8 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
     shift), its brakes at the MARKER_BRAKE shift (|y| 0.8125) with the
     camber turn above, rather than 0x6162F0's +0x1C face and centred
     brakes, which the clone drew before. **Open**: the spinners (in game
-    only in the clone). The showroom wheels' z (**verified** 2026-11-01,
-    <work dir>): the FE car's wheel frames (0x5F6830 with its bit in +0x5B0:
+    only in the clone). The showroom wheels' z (**verified**
+    2026-11-01): the FE car's wheel frames (0x5F6830 with its bit in +0x5B0:
     record +0x120 + 0x30·i through [car +0x20]) and its placement 0x4A6670
     (lift = mean(radius − wheel z), the frames' z less min(corner, +0x178))
     read the FE car's own physics object, FE car +0x20 → 0x5B5360(1) →
@@ -1134,8 +1134,8 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
     at the ends). `--shot neon_car` fits a slot 0x9A part to Rachel's car
     by name (NFSU2_NEON, default MAGENTA); `--shot neon` with NFSU2_NEON
     set does the same in the specialties garage.
-  * **Neon tubes** (verified in the disassembly, ported 2026-10-31,
-    <work dir>; `shadow::neon_tube_quads`, `shadow::neon_tube_color`,
+  * **Neon tubes** (verified in the disassembly, ported 2026-10-31;
+    `shadow::neon_tube_quads`, `shadow::neon_tube_color`,
     `Car::neon_tubes`, `neon_tubes` / `tube_view` in game.rs). The bright
     bars along the sills are not the shadow grid's underglow but these:
     * Markers (0x6357A0..0x635901, at the car's build): +0x2C14 = 0, then
@@ -2516,7 +2516,7 @@ The game's world collision step (0x5FFA60) runs after the cars have moved.
   edge's cross product with the normal, dotted with the point) takes the
   **unturned** normal kept at esp+0xB0 (A's triangles 0x597245 / 0x597304 /
   0x5973C3, B's 0x597B17 / 0x597BD6 / 0x597C95; the turned copy goes only to
-  the output direction, 0x5977CD–0x5977FA) — **verified**. (Before <work dir> the
+  the output direction, 0x5977CD–0x5977FA) — **verified**. (Before the fix the
   clone tested with the turned normal, so a triangle under the hull never
   matched; warm-started from remembered edges the query then found no
   candidate and reported an overlap 0.4 m above a road face, and each such
@@ -2605,7 +2605,7 @@ The game's world collision step (0x5FFA60) runs after the cars have moved.
   the raw normal. The clone keeps the flag per polygon (`TrackPolygon.turn` in
   ground.rs, group != 0; a track without collision packs has no face records and
   keeps the turn) and applies it in drive.rs resolve_track and smackable.rs
-  resolve_track. Checked in <work dir>: the gate sits inside 0x593E00, the callee of
+  resolve_track. Checked again: the gate sits inside 0x593E00, the callee of
   all six direct call sites (the four listed below and the push-out calls
   0x5B435B and 0x5B437E), and no jump targets 0x593E34-0x593E3F, so every call
   runs it. DAT_007FBF18 is 1 in the file image; REA xrefs and the disassembly both
@@ -2628,7 +2628,7 @@ The game's world collision step (0x5FFA60) runs after the cars have moved.
   at 0x5AA345 in 0x5AA290, is not traced, and the X and P pointers of the contact
   pairs are not traced to that object. The clone already carries the per-polygon
   flag into both track-contact paths (drive.rs:1640, smackable.rs:551 and :999),
-  so the <work dir> pass made no code change. **Open:** P+0x100 for a car body. 0x5A9DF0 (REA
+  so that pass made no code change. **Open:** P+0x100 for a car body. 0x5A9DF0 (REA
   callers 0x5ADB30 (call at 0x5ADCF9), 0x5ADD60 (jumps at 0x5ADDEF and
   0x5ADE0D) and 0x5AEC30 (call at 0x5AEE75, the car collision body's
   constructor, which stores its vtable 0x7A2478 at 0x5AEC6F); it also calls
@@ -2984,7 +2984,7 @@ The game's world collision step (0x5FFA60) runs after the cars have moved.
     `particles`, see "Particle effects" below): a push on a contact
     record (0x5A9630: the impulse summed at +0x50, |J| at +0x60, the point
     and the sliding speed v kept at +0x40 — the third argument, see
-    "Scrape" under the <work dir> sounds, the crash check 0x59FB80) within 50 m of
+    "Scrape" in audio.md, the crash check 0x59FB80) within 50 m of
     the view (0x5F0FC0) takes the pair's surface (0x592C20: each body's
     vtable +0x58 — a prop's is info +0xD0, 0x5B1CB0, the index 0x5D7B60
     found for the hash at +0xD4 in the 0x98-byte table at 0x800EE4 — the

@@ -416,8 +416,8 @@ subject chapter, not here.
   (see "Finishes at full speed, round 151").
 * **Finishes at full speed, round 151** (finish151, 2026-10-31; fastgpu,
   vanilla EXE, Quick Race defaults, Peugeot 206 on Auto, 30 fps recordings
-  with a memory log of race status and every racer block,
-  <work dir>). **The way in**: no teleport. 10 s past the green
+  with a memory log of race status and every racer block).
+  **The way in**: no teleport. 10 s past the green
   (race status +0x10) `fin.py` writes the player's racer block (found in
   +0xBD0 by its car, block +0) +0x08 / +0x09 = the race's laps (+0xBE8)
   and its finish line's tick (+0x30 + 4·+0xBF7) = now; 0x608C11 finishes
@@ -1847,8 +1847,8 @@ Yes → DynoEnter (Wine de1–de30) → Mode Select (Circuit) → Yes → chart
 * **The Wine setup patches the game's code** (**verified**, memory
   against the file): the game folder carries ThirteenAG's WidescreenFix
   (dinput8.dll ASI loader, SCRIPTS/NFSUnderground2.WidescreenFix.asi;
-  run.sh forces `dinput8=n,b`). It rewrites 66 places in .text (list in
-  <work dir>/wsfix_patches.txt: jumps into the fix,
+  run.sh forces `dinput8=n,b`). It rewrites 66 places in .text (list kept
+  outside the repository: jumps into the fix,
   changed constants), among them:
   * 0x53D133..0x53D13A, inside UI_DynoChart_Build (0x53D0B0): the
     graph's position pointer and the call to 0x5202C0 become the floats
@@ -2000,7 +2000,7 @@ them to `game\save`). The game clock runs slow under wined3d: 0x8651A8
 * **Magazine shoot (kind 3) under the vanilla game** (not captured):
   a stage-3 save with STAGE_3_SHOW_3_PICTURE (0xA60CE3D2) added to the
   visit table as (hash, 2, 0, 0, 0) (written with
-  `native_save::set_visits`; <work dir>/s3a_mag.sav) and the car moved
+  `native_save::set_visits`) and the car moved
   onto its spot (−1295, 797)
   gives the engage SMS "View Your Magazine Cover" ("You made it on to the
   cover of a magazine. Go check it out!", Continue; mag_sms). Keyboard
@@ -2134,8 +2134,8 @@ challenges, purses and senders).
 
 Until 2026-10-31 07:12 every Wine copy loaded ThirteenAG's widescreen fix
 (game/dinput8.dll + SCRIPTS/NFSUnderground2.WidescreenFix.asi), which
-patches 66 places in .text (list `<work dir>/wsfix_patches.txt`;
-site → feature map `<work dir>/patchmap.md`, from the
+patches 66 places in .text (a list and a
+site → feature map, kept outside the repository, from the
 patched bytes, the disassembly and the fix's source). It is now renamed
 `dinput8.dll.widescreenfix-off` in the copies (a private Wine copy and
 a private Wine copy still have it). The original without it (a private Wine copy,
@@ -2685,7 +2685,7 @@ Wine: a private copy through `fastgpu.sh` (DXVK on the
 GPU, own Xvfb :141, no WidescreenFix): main-menu Customize with globals
 poked by `peek.py`, then career3's stage-2 save (s2a) for the sponsor
 popup; memory read through the session (FE objects found by their hash
-at object +0x10). Images in `<work dir>/menus14-tmp`.
+at object +0x10). Images are kept outside the repository.
 
 * **The body shop's exit question** (**verified**, ported): the generic
   parts browser's Back (0x911AB364 → 0x5671DA): in a category (+0x1D9)
@@ -2806,7 +2806,7 @@ at object +0x10). Images in `<work dir>/menus14-tmp`.
 
 Wine: a private copy through `fastgpu.sh` (:152, fresh
 profile NAME, no WidescreenFix), 1280×960; memory read with `peek.py`.
-Images in `<work dir>/w` (original) and `c` (clone,
+Images (kept outside the repository) of the original and the clone (the clone with
 `NFSU2_SHOT_KEYS`, a new shot knob: menu keys sent to a shot's screen).
 
 * **A new profile's Quick Race records** (**verified**, fixed): the
@@ -2918,8 +2918,8 @@ Wine: a private copy (fresh profile, main-menu Customize with
 0x850078 / 0x83898C poked for the career shop screens) and
 a private Wine copy (the finished-career fixture
 `the finished-career save` as profile the finished-career save), both through `fastgpu.sh`, no
-WidescreenFix. Captures and side-by-sides in
-`<work dir>/screens-tmp` (orig / cmp, REPORT.md).
+WidescreenFix. Captures and side-by-sides are kept
+outside the repository.
 
 * **Prices and cash** (**verified**): every price, the help bar's and the
   screens' cash print `%$d` (0x78F744: the number grouped by thousands,
@@ -2996,8 +2996,8 @@ WidescreenFix. Captures and side-by-sides in
 
 ## Screens round 2 (2026-11-01): fixes from the 1280×960 comparison against the vanilla original under Wine
 
-Per-screen table in internal notes ("Screens round 2"); captures and side by sides in
-<work dir>/screens2-tmp (orig/, cmp/, sheets/).
+Per-screen table in internal notes ("Screens round 2"); captures and side by sides are
+kept outside the repository.
 
 **Career World Map (UI_CareerWorldMap, the crib's).** Traced:
 * The screen's arrows (0x4B1590, run after every step 0x4E0E50 / 0x4CC140 and by the list fill
@@ -3026,7 +3026,7 @@ Per-screen table in internal notes ("Screens round 2"); captures and side by sid
 
 **Crib questions.** The crib's accepts (0x0C407210 in 0x4AF3A0) play the Event Handler's FORWARD
 first (the objects' FADEOUT), so "Are you sure you want to quit to the main menu?" (0xCB5E3178,
-0x4AF80B) stands over the garage scene alone, as Return to Explore Mode's does (Wine <work dir>
+0x4AF80B) stands over the garage scene alone, as Return to Explore Mode's does (Wine capture
 b_quit_q; the clone drew the menu dimmed under it). The crib's Save (0x4AF740 on 0x0C407210)
 drops the snapshot (0x5032C0) and runs the save point 0x4A3100 with mode 0xC41 — not the Profile
 Manager's 0x4A51: without 0x200, autosave on skips "Are you sure…" (Wine, the finished-career save: "Do you
@@ -3039,7 +3039,7 @@ Map, as under Wine).
 ## Screens round 3C (2026-11-01): front end against the vanilla original under Wine
 
 Per-screen table in internal notes ("Screens round 3C"); captures (`orig/`), clone shots
-(`clone/`) and side by sides (`cmp/`, orig | clone | difference) in <work dir>/scrC-tmp.
+(`clone/`) and side by sides (`cmp/`, orig | clone | difference) are kept outside the repository.
 
 * **Profile name entry** (MC_Main, **verified**): the text entry's white bar 0x557FE993 (1×18,
   U2_Menu_Box_White) has an INIT chained to 0x16A259, which parks it at (−10, −300), off the
@@ -3071,8 +3071,8 @@ WidescreenFix), the finished-career fixture `the finished-career save` (LANCEREV
 km/h) and the early `stage1_win_streetx.sav` (206, mph, 275 cash). The shops
 were entered for real from free roam: the player's car was moved onto each
 shop's world trigger (`bin/tp.py`, every copy of its position) and the engage
-dialog answered. Captures, side-by-sides and contact sheets in
-`<work dir>/scrB-tmp` (orig / cmp / sheets, results.tsv). Per-screen
+dialog answered. Captures, side-by-sides and contact sheets are kept
+outside the repository. Per-screen
 table in internal notes.
 
 * **Visual Rating widget on entering a shop** (**verified**): only 0x557ED0 /
@@ -3125,8 +3125,8 @@ table in internal notes.
 ## Screens round 3A (2026-11-01): in-game and career screens against the vanilla original under Wine
 
 Per-screen table in internal notes ("Screens round 3A"); captures, side by sides
-(orig | clone | difference) and contact sheets in `<work dir>/scrA-tmp`
-(`orig/`, `clone/`, `cmp/`, `sheets/`). Original: fastgpu (DXVK, 1280×960, no WidescreenFix),
+(orig | clone | difference) and contact sheets are kept
+outside the repository. Original: fastgpu (DXVK, 1280×960, no WidescreenFix),
 saves garage.sav (stage 1 free roam), the finished-career save (World Map races, Quick Race with the
 RX-7) and a fresh profile (the D-Day intro); finishes by finish151's racer-block write
 (`bin/fin.py`). Clone: the same saves through `NFSU2_SHOT_SAVE`, `--bench race` dumps for the
@@ -3176,7 +3176,7 @@ Quick Race HUDs.
 
 Traced in SPEED2.EXE; compared with the vanilla original under Wine (fastgpu, DXVK,
 1280×960, a private Wine copy, the finished-career save, shops entered from free roam)
-and the round 3B / 3C captures. Side by sides in <work dir>/cmp.
+and the round 3B / 3C captures. Side by sides are kept outside the repository.
 
 * **Custom Gauges list** (**verified**): UI_CustomHUDOverlay's constructor 0x56C220
   first runs the parts overlay's base 0x56BF80 (whose 0x5606F0 fills the list and

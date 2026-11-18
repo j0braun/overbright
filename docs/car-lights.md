@@ -54,7 +54,7 @@ Sky Next-Gen (+5.7, audit fix 4) and the Extreme stack with the cars' restored h
 Cost: GPU unchanged (racing 1080p 0.99/0.99 → 0.995/0.988 ms); CPU 108 rays × ≤ 64 lamps per frame.
 
 ## Headlight Beams Off slower than On (the frame-budget gate's finding)
-Not fixed here: The frame-budget fixes (`<work dir>/dx0b`, `render::lamps::bin_sphere`) bins a Modern Lighting car
+Not fixed here: The frame-budget fixes (`render::lamps::bin_sphere`) bins a Modern Lighting car
 headlight (kind 3, `SUB_HEAD`, what `modern_light_bold::car_lights` adds per other car when Beams are Off)
 by its cone instead of its whole 28 m sphere, which is the cause (inferred there; Beams On replaces those
 cluster lights with the beams). Not duplicated (plan).

@@ -7,8 +7,8 @@ The rest of the replay (manager, markers, keys, route-camera motion and visibili
 formats.md "Replays".
 
 Evidence: the maintainer's private captures (the original's director per frame and its shots
-by group, the clone's shots before and after, frame sheets of both). Raw run:
-`<work dir>/p7-work/runs/replay1/` (a private Wine copy, display :288,
+by group, the clone's shots before and after, frame sheets of both). Raw run
+(kept outside the repository; a private Wine copy, display :288,
 wined3d; Quick Race circuit 4014 from `stage1_win_streetx.sav`, the Peugeot driven 60 s by
 `bot.py`, then Pause → Replay → `[` to the green light; `dirlog.py` polls the director).
 

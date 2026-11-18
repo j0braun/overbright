@@ -8,8 +8,8 @@ here exists in SPEED2.EXE); "Original" is the native image and stays the
 default, byte-identical (no render code changed in this work).
 
 ## Method
-* Build: <work dir> (the base + High Precision Post + Enhanced Car
-  Paint). reference desktop GPU, RADV (Mesa 26.2.5), Vulkan. Machine shared with other
+* Build: the base + High Precision Post + Enhanced Car
+  Paint. Reference desktop GPU, RADV (Mesa 26.2.5), Vulkan. Machine shared with other
   agents (load average 10–20 during the runs).
 * Scenes (`--shot`, deterministic run to run, 0 px difference between two
   base runs except the menu): **night** free roam (`explore`), **rain**
@@ -45,7 +45,7 @@ default, byte-identical (no render code changed in this work).
   "Medium" here (0.3–1 ms) is 3–10 ms there.
 * Data: internal evidence (the `*.tsv` tables), scripts in
   `.../scripts/` (`run.sh`, `run_msaa8.sh`, `bench.sh`, `pops.sh`,
-  `imgdiff.py`, `table.py`); raw shots in `<work dir>/settings-work`.
+  `imgdiff.py`, `table.py`); raw shots are kept outside the repository.
 
 ## Results (changed % / max delta; "4K worst" adds SSIM)
 
@@ -353,8 +353,7 @@ Pages: `ui-g6b-*.png`.
 
 # Restore Native, HD UI + Maps, presets as a whole (2026-11-04)
 
-Clone deviations only; Original stays byte-identical. Build <work dir>
-(base + this work), reference desktop GPU, RADV. The machine was shared (load average
+Clone deviations only; Original stays byte-identical. Build: the base + this work, reference desktop GPU, RADV. The machine was shared (load average
 23–40, other builds and benches); all GPU timings are GPU busy
 medians of `--bench explore 300` (timestamps), the values interleaved per
 repetition (3 reps, base at start and end). The 4K and 1080p GPU numbers

@@ -178,8 +178,8 @@ frame, sound or simulation changes (gate byte-identical).
   the load's warm-up and the first `ensure_ambient` only if the world still gives the same surfaces,
   `AmbientDetail::made_for`, docs/ambient-detail.md "When the props are placed")
   and `CarRenderer::warm(gpu, samples)` (scene, wet and LOD Fade sets into the device's shared
-  cache). The game calls them at the end of `drive_in_loaded` (game-side list:
-  `<work dir>/perf2-game-side.md`, not in this tree while `src/bin/game` is frozen).
+  cache). The game calls them at the end of `drive_in_loaded` (the game-side list
+  is not in this tree).
 * **Car and horizon fog modes**: `CarMode` and the horizon fog's mode carry `lamp_features: 0` (their pipelines never
   read it; each new lamp-row combination rebuilt the same car set, ~7 ms).
 * **Audio (the audio-banks pass part)**: banks are shared process-wide while held (`audio/banks/cache.rs`

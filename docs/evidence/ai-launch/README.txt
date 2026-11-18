@@ -6,7 +6,7 @@ Original: SPEED2.EXE under Wine, private Xvfb, memory reads only.
   rt1, rt2     the same drag at the original's own pace with every frame 1/120 s (the engine-bed method:
                docs/evidence/engine-bed/scripts/drive_rt_f.py with RT_FIXED=120), WAV recorded
   circ-n1, -n2 first circuit (STAGE_1_CIRCUIT_1), lockstep 1/60 s
-Clone: tools/parity/parity.py clone on the same plans (drag120-n1's for the 1/120 s replay; the scenario's key
+Clone (tools/parity/ is maintainer only, the private parity tools): tools/parity/parity.py clone on the same plans (drag120-n1's for the 1/120 s replay; the scenario's key
 times doubled so that its frames land on the 1/120 s frames), with audio and NFSU2_AUDIO_STEMS_SPLIT.
 
 Fields (tools/parity/fields.toml): xslip_* = car +0x3B4 + 8i (the exported slip), spin_* = mover +0x38.. +0x28,

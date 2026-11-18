@@ -30,6 +30,7 @@ The revised fixture uses a controlled flat course, preserving original car, upgr
 Use the verified asset root recorded in `runtime-summary.json`, private XDG data/cache directories, and a private Cargo target. Commands:
 
 ```sh
+# maintainer only (private developer probes):
 cargo run --release -p devprobes --bin nitro_marker_coverage > marker-inventory.jsonl
 cargo run --release -p devprobes --bin nitro_frame_coverage > frame-survival.log
 NFSU2_HEADLESS_ONLY=1 cargo test --release --bin game tests::player_nitro_car_frame_coverage -- --ignored --exact --nocapture

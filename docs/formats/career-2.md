@@ -695,8 +695,8 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
   f > 1 (0x4C7B20's x87 test; **verified** 2026-10-31, reports): a full
   tank (f = 1.0) keeps NOS_Line hidden and the plain colour +0x2C with
   the mask at −28° — the clone had taken f ≥ 1, so a full tank showed
-  the bright 0x9600B4FA ring (side by side at the airport start,
-  <work dir>). Ported: tank, key, torque,
+  the bright 0x9600B4FA ring (side by side at the airport start).
+  Ported: tank, key, torque,
   grip, gauge; the tuning sliders 16 / 17 reach the physics through the
   tuned record. **AI nitrous** (verified unless noted; ported for drag
   races, `CarState::ai_nitrous_ok`): a racer's driving action (lane
@@ -1490,7 +1490,7 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
   ret). That routine has no direct call, but its only reference is a
   code-pointer word at 0x79499C, so its use is not traced and ISP_TRY_MS
   stays inferred (clone src/bin/game.rs line 65).
-  **With a network** (the original under Wine, <work dir> 2026-10-31: on_1–on_8,
+  **With a network** (the original under Wine, 2026-10-31: on_1–on_8,
   cn_1–cn_10, r3; gaps120 on1–on9) UI_OLISPConnect gives way to
   **UI_OLEALogin** (record 0x7F907C: factory 0x4E3C50, help hash 0xE720F694,
   mask 0x405; class 0x4D0690, vtable 0x795ED8, handler 0x4F0060): "EA Login"

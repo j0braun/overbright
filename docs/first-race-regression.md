@@ -27,7 +27,7 @@ Path dump at the green (grid slots 3 m apart, racing line 1.8–4.6 m off the
 cars): the path points alternated between the car's own lateral and the racing
 line every 8 m, e.g. the right-hand rival (+4.6 m off the line): (13.6, 1.8)
 (21.2, 7.2) (35.2, 5.8) (42.1, 10.0) … (m ahead, m left). Every point inserted
-by 0x418DA0 (every 8 m, inside records too since <work dir>) was drawn at its
+by 0x418DA0 (every 8 m, inside records too since an earlier fix) was drawn at its
 smoothed racing-line place (`FuturePoint::inserted`) without the lateral, so
 the driver steered at the line: the rival turned 16° within 2 s and crossed
 the player's lane ~6 m ahead of the player (closer with a quicker launch);

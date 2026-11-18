@@ -2408,7 +2408,7 @@ here: no Java) and **observed** under Wine unless marked. Ported in
   then reaches 2 and 3 (torque and grip × 1.4 / 1.7). **Observed**: a
   SPRAY SHOW (100 points) during a shot took left 16000 → 17067 in a 4 s
   tank (= 100 / 15 × 0.01 × 16000), and the total read 100.
-* **Negative refills, end to end** (2026-10-31, <work dir> nosneg; **verified**
+* **Negative refills, end to end** (2026-10-31, run nosneg; **verified**
   instruction by instruction with REA / Ghidra and **observed** under
   Wine). Answers "does a negative trick only take the nitrous above one
   full tank?": **no**. It takes the excess first, then goes on below full,
@@ -2454,8 +2454,8 @@ here: no Java) and **observed** under Wine unless marked. Ported in
       drift it is **inferred** to be set (see above).
   * **Observed** (Wine, career free roam, Rachel's 350Z, 4 s tank = 16000
     ticks). Tank left was **written by hand** before each run. The player
-    was teleported at 25 m/s into a traffic car (`hit.py` in
-    <work dir>). Logged left / total / +0x194:
+    was teleported at 25 m/s into a traffic car (`hit.py`, a
+    maintainer tool). Logged left / total / +0x194:
     * Above full: 28000 → 27552 → 27072 → 26581 → 26080 for TRAFFIC HITs
       of −42, −45, −46 and −47 (total 0 → −180).
     * Just over full: 16800 → **15968** (−78: 800 off the excess, then 32
@@ -2537,7 +2537,7 @@ here: no Java) and **observed** under Wine unless marked. Ported in
   0x796578) by +0x7A and is hidden without the gauges option byte
   0x83AA64). Not seen on screen under Wine: no trick scored in the
   attempts (a burnout and a slide against the airport wall; style total
-  0), nor in <work dir> (Alt_L / burnout / a slide in free roam: the element's
+  0), nor in a later run (Alt_L / burnout / a slide in free roam: the element's
   queue, element +0x20, stayed empty at sim-rate ≈ 0.1× real time, so
   a popup would last about 10 s real; the trick list was never fed).
 * **Popups, ported** (**verified** from the code unless marked):
@@ -2873,7 +2873,7 @@ PEUGOT, the clone's car-type order taken as the game's, **inferred**):
   **Round 3, fixed** (2026-11-01; Wine, a rival
   teleported by its rigid body (car +0x34 → +0x20) into the pocket at
   (−291.5, 102.5) heading −140°, standing, logged every tick:
-  <work dir>, `wait_tp.py`, logs `w/a4.tsv`, `w/a6.tsv`):
+  `wait_tp.py`, logs `w/a4.tsv`, `w/a6.tsv`):
   put there at race clock 7 s (in its start hold), the original never
   starts a GetUnstuck: a contact record against the west wall at the
   front-left corner (along +1.7 m, right +0.8 m) held 0.4 s, pushed each

@@ -233,7 +233,7 @@ level with the old Low (0.09); 64 × 36 × 32 is 0.08.
   tier); it is now one workgroup scanning them in parallel, the same floor.
 
 **Look** (1920 × 1080, Original + the row against Original, the audit's spots and the rain-light scenes, 13
-scenes; `<work dir>` metrics, the sheets in the report): Δp5 before → after, max over the scenes (mean): Low
+scenes; metrics from the measuring run, the sheets in the report): Δp5 before → after, max over the scenes (mean): Low
 +0.50 → **+0.21** (+0.18 → +0.05), High +1.50 → **+0.21** (+0.44 → +0.05), Next-Gen +0.56 → **+0.21** (+0.09 →
 +0.04; the overpass's sign above); Δmean max Low +0.56 → +0.27, High +1.00 → +0.27, Next-Gen +0.40 → +0.30. In
 rain at 4K the oncoming car's box pixels ≥ 240 against Original: the row alone 1.0–1.5× at 30 / 80 m (before up

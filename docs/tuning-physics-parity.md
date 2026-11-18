@@ -4,7 +4,7 @@ This page covers launch physics first (the race-AI parity's open items A and C,
 docs/race-ai-parity.md), then the drag rub, then the tuning/parts sweep.
 **Verified** = traced in SPEED2.EXE, **observed** = read under Wine with
 the parity harness (docs/parity-harness.md), **inferred** / **open** as
-marked. Raw runs: `<work dir>/tuning-work/runs/<name>/`;
+marked. Raw runs are kept outside the repository;
 extracts in the maintainer's private captures.
 
 ## New harness fields (the maintainer's `fields.toml`)
@@ -370,7 +370,7 @@ the original (`PartDb::visual_rating` is the earlier port).
 ## Tests
 
 * `tests/tuning_physics.rs::upgraded_blocks_match_the_originals` (five
-  native blocks in `tests/fixtures/native_blocks`).
+  native blocks in `tests/fixtures/native_blocks`, maintainer only (private test set)).
 * `tests/tuning_physics.rs::neutral_tuning_keeps_the_uniques_bonus` (fails
   without `remove_uniques`).
 

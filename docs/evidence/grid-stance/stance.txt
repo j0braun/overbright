@@ -1,7 +1,7 @@
 # The player's grid stance, the original (SPEED2.EXE under Wine, the parity cave at 1/60 s) against the clone
 # (--flow parity), STAGE_1_CIRCUIT_1 with the shared generator pinned (tools/parity/scenarios/circuit_s1_stance.toml,
 # circuit_s1_launch.toml), the player's PEUGOT on grid slot 0. Native values exact (f32 from native.rec); tables by
-# tools/parity/stance.py. Graphics options at level 5, every row at its maximum (optcheck.py; physics does not read them).
+# tools/parity/stance.py (maintainer only: private parity tools). Graphics options at level 5, every row at its maximum (optcheck.py; physics does not read them).
 #
 # 1. The countdown's first frame (race status 3), arm = "countdown":
 frame 0 (the arm)          original             clone

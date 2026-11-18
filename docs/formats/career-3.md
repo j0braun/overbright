@@ -22,7 +22,7 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
   (career +0x8868, saved by 0x514530); no instruction stores to it directly
   (it is in .bss; the flag setter 0x496390 writes 0x8635A9..B8 only).
   Yet the original's own saves hold 1 from the first stage-1 save on (0 in
-  the car lot's: <work dir> s01 0, s02 / s06 1), and with such a save loaded
+  the car lot's: saves s01 0, s02 / s06 1), and with such a save loaded
   its explore pause lists Return to Explore Mode, **Jump to Garage?**,
   Options, Replay, Quit to Main Menu (seen under Wine, variants round
   2026-10-31). The clone offers it once DDAY_EVENT_B is won, when its save
@@ -53,7 +53,7 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
   Magazine" / "View DVD"; "mag name" 0x9E302291 the title, "mag body"
   0x3554DEB1 `<cover>_BODY`; MagThumb (hidden by the constructor 0x550DE0) is given the selected item's cover (milestone +0x28) as its texture — the FrontB texture `MAGAZINE_SETUP_<MAG>` (128 × 32, the logo) — and shown on every tick 0xC98356BA (0x54B2A2 → 0x495500; **verified**, Wine menus113 v2). Accept (0x53DE70) stores the
   cover at 0x837FD8 and opens UI_MagazineView.
-* **Cover pose and view (2026-11-01, <work dir> "mag"; `draw_cover`,
+* **Cover pose and view (2026-11-01, run "mag"; `draw_cover`,
   `Game::open_cover`)**:
   * **UI_MagazineView shows the saved file** (**observed** under Wine,
     the finished-career save copy, Garage → View Rewards → View Magazines): Accept on a
@@ -675,8 +675,8 @@ The drawing (0x531050 per point, **verified**; the walker 0x531280 passes the no
     **inferred**). 0x0C407210 (Select) calls the row's vtable +0x24 and
     0x9803F6E2 the graph widget's +0x24: not traced.
 * **Tuning screens' layout and numbers** (**verified** unless marked,
-  2026-11-01; compared with <work dir>'s frames of the original under
-  Wine, <work dir>/dyno-tmp/full-m2…m7; supersedes the
+  2026-11-01; compared with frames of the original under
+  Wine, full-m2…m7, kept outside the repository; supersedes the
   **inferred** 40 px rows, handle travel and highlight colour of "Slider
   screens" above):
   * Row geometry (the option list 0x552790): 0x51FF90 reads TITLE_MASTER
@@ -1334,7 +1334,7 @@ The drawing (0x531050 per point, **verified**; the walker 0x531280 passes the no
     airborne and landing, traffic hits, the assists' on/off cases (both
     runs had Stability Control off, car +0x464 = 1), AI racers' physics.
 * **Driving vs the original, round 4** (2026-10-31, physics4; same Wine
-  copy and Free Run; `klog.py` / `rlog.py` in <work dir> log the
+  copy and Free Run; `klog.py` / `rlog.py` (maintainer tools, not in the repository) log the
   car with its collision body's +0x120 / +0x124, the record count
   0x86B24C and the first records of the list [0x890080] + 8):
   * **Logged position** (**verified**, live + REA): car +0x60 is the
@@ -1410,7 +1410,7 @@ The drawing (0x531050 per point, **verified**; the walker 0x531280 passes the no
     m/s), gear changes of the remaining cars, the 240SX slalom margin,
     drift races.
 * **Driving vs the original, round 5** (2026-10-31, physics5; same Wine
-  copy and Free Run; scripts in <work dir>: `olog.py` (pose, gear,
+  copy and Free Run; maintainer scripts: `olog.py` (pose, gear,
   wheel torques, records, raw car/body/wheel dumps), `fast.py` (one line
   per game frame: heading, car +0x110 = ω in the world, the first record's
   |J| sum +0x60 and points +0x20 / +0x30), `dlog.py` (drivetrain state
@@ -1501,7 +1501,7 @@ The drawing (0x531050 per point, **verified**; the walker 0x531280 passes the no
     at 31.9 m/s in 4th), more cars' shift points, the 240SX slalom
     margin, drift races.
 * **Driving vs the original, round 6** (2026-10-31, physics6; same Wine
-  copy and Free Run at 20 frames a second; `flog.py` in <work dir>
+  copy and Free Run at 20 frames a second; `flog.py` (maintainer tool)
   logs every game frame: centre of mass, heading, v, vz, car +0x110 (ω,
   world), the rotation rows and every contact record (made, last push,
   point +0x30, |J| sum +0x60)):
@@ -1575,7 +1575,7 @@ The drawing (0x531050 per point, **verified**; the walker 0x531280 passes the no
   renamed to dinput8.dll.widescreenfix-off afterwards): none of its 65
   patched sites lies in the physics —
   the nearest are 0x5BE858..0x5D2B75, the options/post-FX/present code.
-  `flog2.py` in <work dir> reads the clock, the car, the head
+  `flog2.py` (maintainer tool) reads the clock, the car, the head
   record and its pair's count (+0x240) in one request and drops samples
   whose clock moved during it):
   * **Torn samples in rounds 5–6** (**found**): `flog.py` read the record
@@ -1631,7 +1631,7 @@ The drawing (0x531050 per point, **verified**; the walker 0x531280 passes the no
   frame-time cap.
 * **Driving vs the original, round 15** (2026-10-31, physics15; Wine copy
   a private Wine copy on :203 through `fastgpu.sh`; rounds 13/14's cave logger
-  and replay, tools in <work dir>: `lg.py`, `rep.py`, `cl.sh`,
+  and replay, maintainer tools: `lg.py`, `rep.py`, `cl.sh`,
   `cmp.py`, `cmpw.py`, `summ.py` (per-segment heading / speed differences
   at 0.5 / 1 / 2 / 4 / 8 s, against round 14's replays), `hopaddr.py` (now
   also logs mover +0x60, the rest class), `tl.py` (the logger plus a
@@ -1767,7 +1767,7 @@ The drawing (0x531050 per point, **verified**; the walker 0x531280 passes the no
     logger's key-up delay, not the tank). The engine's stage (+0x84) is the
     tank's at the mover call (0x5ABD75), stage 1 throughout. **Refill**: not
     reproduced (`n2`: the handbrake slides scored no style points; the
-    tank stayed empty), so the refill rests on <work dir>'s observation (Style
+    tank stayed empty), so the refill rests on the earlier round's observation (Style
     points and the nitrous refill). The first test drained the tank
     without the logger; it was refilled for `n1` by writing +0x45C = 8000.
   * **Traffic hit** (item 4; **verified** live): `tl.py` logs the traffic
@@ -1785,8 +1785,8 @@ The drawing (0x531050 per point, **verified**; the walker 0x531280 passes the no
     2.34 / 1.74° at 0.16 s, 1.68 / 0.72° at 0.4 s.
 * **Driving vs the original, round 14** (2026-10-31, physics14; Wine copy
   a private Wine copy on :191 through `fastgpu.sh`, Quick Race Free Run, auto;
-  round 13's cave logger and replay with the changes below; tools in
-  <work dir>: `lg.py`, `rep.py`, `cl.sh`, `cmp.py`, `cmpw.py`
+  round 13's cave logger and replay with the changes below; maintainer
+  tools: `lg.py`, `rep.py`, `cl.sh`, `cmp.py`, `cmpw.py`
   (chosen columns side by side), `hopaddr.py`; logs `x2` 206, `f1` Focus,
   `c2` Corolla, and round 13's `d1` / `x1` / `z1` replayed again):
   * **Replay sync fixed** (tooling, not physics): a `sync` line now also
@@ -1902,7 +1902,7 @@ The drawing (0x531050 per point, **verified**; the walker 0x531280 passes the no
 * **Driving vs the original, round 13** (2026-10-31, physics13; Wine copy
   a private Wine copy on :173 through `fastgpu.sh` (DXVK on the GPU, full speed,
   120 frames a second, game clock = real time), Quick Race Free Run, auto;
-  tools in <work dir>):
+  maintainer tools):
   * **Method: a code cave logs every mover call** (`cave.s`, `lg.py`). The
     drive mover's vtable slot 0x7A25EC (Mover_UpdateFrame 0x5B72E0, the
     only reference; thiscall, one float dt, `ret 4`) is pointed at a stub
@@ -2033,7 +2033,7 @@ The drawing (0x531050 per point, **verified**; the walker 0x531280 passes the no
 * **Driving vs the original, round 12** (2026-10-31, physics12; Wine copy
   a private Wine copy on :163, Quick Race circuit Resort Loop, Traffic Level
   Maximum (byte 0x83AAC8 + 20 × type, type 0x83AAB4 = 0), 3 opponents,
-  Peugeot 206 (PEUGOT), auto; tools in <work dir>: `tlog.py`
+  Peugeot 206 (PEUGOT), auto; maintainer tool `tlog.py`
   logs the player and a second car per frame (mode +0x28, +0x60 / +0x70,
   rows +0x90…, spin +0x110, the player's wheel spins), `HIT=` teleports
   the player's rigid body behind a car (body +0x20 pos, rows +0x30 /
@@ -2118,8 +2118,8 @@ The drawing (0x531050 per point, **verified**; the walker 0x531280 passes the no
     (`narrow::distance_at`, round 5).
   * Steering: not touched (the vanilla round 2 agent re-measures it).
 * **Driving vs the original, round 11** (2026-10-31, physics11; Wine copy
-  a private Wine copy on :163, Quick Race Free Run, 240SX, auto; tools in
-  <work dir>: `klog2.py` = round 10's `klog.py` plus `SLOW=rate`,
+  a private Wine copy on :163, Quick Race Free Run, 240SX, auto; maintainer
+  tools: `klog2.py` = round 10's `klog.py` plus `SLOW=rate`,
   `RECS=1` and the wheel spins / world step per frame; `cmp.py` lines a
   Wine log up with a clone log at the first touchdown):
   * **Sub-steps in the original** (method): the world's slow-motion rate
@@ -2179,7 +2179,7 @@ The drawing (0x531050 per point, **verified**; the walker 0x531280 passes the no
     set up in the Wine copy; the wall-reverse contact query (round 8).
 * **Driving vs the original, round 10** (2026-10-31, physics10; Wine copy
   a private Wine copy on :163, Quick Race Free Run, 240SX, auto; the logger
-  `klog.py` in <work dir> (a peek loop with writes, `boot2.py`)
+  `klog.py` (maintainer tool; a peek loop with writes, `boot2.py`)
   logs the car each frame with the wheels' +0x118 slip, +0x11C, +0x124,
   +0x164 load and the suspensions' (mover +0x28..+0x34) +0x1C / +0x20 /
   +0x24, and can *kick* the car: rigid body [mover +0x20] +0x20 z += dz,
@@ -2273,7 +2273,7 @@ The drawing (0x531050 per point, **verified**; the walker 0x531280 passes the no
     player's, the wall-reverse and 45° planter items of round 8.
 * **Driving vs the original, round 8** (2026-10-31, physics8; Wine copy
   a private Wine copy on :163, Free Run, 20 frames a second, clone `INTRO_HZ=20
-  INTRO_STEP_HZ=20`; `flog4.py` in <work dir> logs per frame the
+  INTRO_STEP_HZ=20`; `flog4.py` (maintainer tool) logs per frame the
   car, the records near it with their pair, that pair's +0x10 / +0x14 /
   +0x15 / +0x220 / +0x240 / +0x20, the car's collision body (+0x19,
   +0x120, its start state +0x6C / +0xB0 / +0xC0 from 0x593220) and, with
@@ -3142,7 +3142,7 @@ no WidescreenFix), 1280×960, memory read with `peek.py`, codes typed with
 `xdotool type` on the title screen. DXVK lost its device (submission
 -13) on the way into the main menu in three runs, with and without codes,
 so the comparison runs used `--wined3d` (wined3d's Vulkan renderer).
-Images in `<work dir>/cheats-tmp` (`w_*.png`, `all_list.png`,
+Images kept outside the repository (`w_*.png`, `all_list.png`,
 `sp_list.png`, `vg_all.png`, `w2_*.png`).
 
 * **Input** (**verified**): the manager is the global 0x865930 (built at

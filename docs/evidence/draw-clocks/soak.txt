@@ -1,4 +1,4 @@
-soak 2026-11-13T01:57:30+01:00: <work dir>/game-new (fca738aef2fa5305) runs 3 scenes [drive race racing explore rain] sizes [1280x960] frames 600 every 100; PAR=1 LOAD=0 IOLOAD=0 CACHE=shared RADV_DEBUG=nodcc; loadavg 94.16 144.62 153.29
+soak 2026-11-13T01:57:30+01:00: game-new (fca738aef2fa5305) runs 3 scenes [drive race racing explore rain] sizes [1280x960] frames 600 every 100; PAR=1 LOAD=0 IOLOAD=0 CACHE=shared RADV_DEBUG=nodcc; loadavg 94.16 144.62 153.29
 drive-1280x960: 2 runs compared with run 1: 0 differ, 0 failed
 race-1280x960: 2 runs compared with run 1: 0 differ, 0 failed
 racing-1280x960: 2 runs compared with run 1: 0 differ, 0 failed
