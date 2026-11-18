@@ -106,3 +106,6 @@ mod traffic_paused_coast;
 mod visuals;
 #[cfg(test)]
 mod reported_issues;
+// The manual gearbox through the player's keys and controller.
+#[cfg(test)]
+mod manual_gears;

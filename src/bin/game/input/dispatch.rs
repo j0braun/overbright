@@ -228,7 +228,7 @@ impl Game {
     /// `dispatch` in free roam: the pause, the World Map, Engage, the
     /// career status, Read SMS, the camera and the reset.
     fn explore_key(&mut self, acts: Acts) {
-        let Acts { pause, camera, reset, world_map, engage, career_stats, read_sms, .. } = acts;
+        let Acts { pause, camera, reset, up, down, world_map, engage, career_stats, read_sms } = acts;
         // While the D-Day script runs only pause (0xBD), skip (0xBE,
         // disabled) and Read SMS (0xC2) are bound (0x605C80(0xA)).
         let held = self.career_world.dday.holds_input();
@@ -270,6 +270,17 @@ impl Game {
             }
         } else if camera {
             self.cycle_camera();
+        } else if (up || down) && self.scenes.shop.is_none() {
+            // The human input's shift handlers (0x407FC0 / 0x4080B0) are
+            // registered by its constructor (0x41E19F…0x41E1F2) on the
+            // player car's own event map, so free roam shifts as a race
+            // does (observed under Wine: Left Shift / Left Ctrl move the
+            // gear in a new career's first free roam with Transmission
+            // Manual). A shop's drive-in / drive-out scene drives the car
+            // itself.
+            if let Some(d) = self.sim.drive.as_mut() {
+                d.state.shift(&d.car, up);
+            }
         } else if reset && let Some(d) = self.sim.drive.as_mut() {
             // 0x602BE0 case 0xA1 takes no race type: free roam resets as a
             // race does (0x6009B0), behind the same gate.
