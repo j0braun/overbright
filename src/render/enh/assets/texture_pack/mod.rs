@@ -234,6 +234,59 @@ mod tests {
         assert_eq!(key, (wgpu::TextureFormat::Rgba8Unorm, 2, 1, 1));
     }
 
+    /// An Overbright pack (docs/texture-packs.md) in the data folder reaches
+    /// the world layer: its PNG compiled to BC7, used as is with BC and
+    /// decoded with its mips without; the car domain has nothing.
+    #[test]
+    fn overbright_pack_reaches_the_world_layer_as_bc7() {
+        const CHILD: &str = "NFSU2_OBPACK_TEST_CHILD";
+        if crate::render::debug_env::test_child(CHILD).is_none() {
+            let (data, cache) = (Pack::new(), Pack::new());
+            let dir = data.0.join("packs/roads/world");
+            std::fs::create_dir_all(&dir).unwrap();
+            std::fs::write(dir.parent().unwrap().join("pack.toml"), "format = 1\nname = \"Roads\"\n").unwrap();
+            image::RgbaImage::from_pixel(8, 4, image::Rgba([90, 80, 70, 255])).save(dir.join("road.png")).unwrap();
+            let status = std::process::Command::new(std::env::current_exe().unwrap())
+                .args(["--exact", "render::enh::assets::texture_pack::tests::overbright_pack_reaches_the_world_layer_as_bc7"])
+                .env(CHILD, "1")
+                .env("NFSU2_DATA_DIR", &data.0)
+                .env("NFSU2_CACHE_DIR", &cache.0)
+                .env_remove("NFSU2_WORLD_TEXTURE_PACK")
+                .env_remove("NFSU2_CAR_TEXTURE_PACK")
+                .env_remove("NFSU2_TEXTURE_PACK")
+                .status()
+                .unwrap();
+            assert!(status.success());
+            assert!(cache.0.join("packs/roads/world").join(format!("{:08X}.dds", crate::formats::hash::bin_hash("road"))).is_file());
+            return;
+        }
+        crate::hd_ui_pack::initialize(false);
+        use crate::formats::texture::{Blend, PixelFormat, Scroll, Texture};
+        let t = Texture {
+            name: "road".into(),
+            hash: crate::formats::hash::bin_hash("road"),
+            width: 2,
+            height: 1,
+            format: PixelFormat::Rgba8,
+            mip_count: 1,
+            data: vec![255; 8].into(),
+            palette: vec![],
+            alpha_test: false,
+            blend: Blend::None,
+            rendering_order: 0,
+            late_buckets: false,
+            scroll: Scroll::default(),
+        };
+        let (key, bytes) = crate::render::texture_layer_with_pack(Domain::World, Some(&t), true, 4096);
+        assert_eq!(key, (wgpu::TextureFormat::Bc7RgbaUnorm, 8, 4, 4));
+        assert_eq!(bytes.len(), (2 + 1 + 1 + 1) * 16);
+        let (key, bytes) = crate::render::texture_layer_with_pack(Domain::World, Some(&t), false, 4096);
+        assert_eq!(key, (wgpu::TextureFormat::Rgba8Unorm, 8, 4, 4));
+        assert!(bytes.chunks_exact(4).all(|p| p[3] == 255 && (p[0] as i32 - 90).abs() <= 4));
+        let (key, _) = crate::render::texture_layer_with_pack(Domain::Car, Some(&t), true, 4096);
+        assert_eq!(key, (wgpu::TextureFormat::Rgba8Unorm, 2, 1, 1));
+    }
+
     #[test]
     fn safe_name_fallback_and_invalid_files() {
         let p = Pack::new();

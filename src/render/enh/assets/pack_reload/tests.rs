@@ -302,6 +302,19 @@ fn renderers_follow_changes_on_the_gpu() {
     if arrays {
         assert_eq!(shape(&r), Some((4, 4)));
     }
+    // The texture editor's highlight: drawn instead of the original and
+    // every pack, then taken away again; the slot names its texture.
+    assert_eq!(r.slot_hash(1), Some(sky));
+    highlight(false, sky, Some((12, 4, vec![200; 12 * 4 * 4])));
+    assert!(r.sync_texture_pack(&gpu, &world));
+    if arrays {
+        assert_eq!(shape(&r), Some((12, 4)));
+    }
+    highlight(false, sky, None);
+    assert!(r.sync_texture_pack(&gpu, &world));
+    if arrays {
+        assert_eq!(shape(&r), Some((4, 4)));
+    }
     // A change for a texture the world does not have: nothing to do.
     publish(WORLD, Some(Key::Hash(sky ^ 1)));
     assert!(!r.sync_texture_pack(&gpu, &world));

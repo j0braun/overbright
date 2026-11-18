@@ -161,6 +161,10 @@ impl Game {
                 &mut menu,
             );
         }
+        // The texture editor's panel (`--editor`, F7; none while closed).
+        if !saving_showcase {
+            self.texture_editor_quads(&mut menu);
+        }
         // The cursor over the front end (0x5378D0 → 0x50B460).
         // Native Yes clears 0x7FA29C, which gates the cursor in 0x53790D.
         if !saving_showcase

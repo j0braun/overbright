@@ -63,7 +63,8 @@ pub(crate) enum Command {
     /// the output are `args[1]` and `args[2]`, as before).
     #[cfg(feature = "dev-harness")]
     Shot(Vec<String>),
-    /// The game in its window; `--no-boot` skips the boot screens.
+    /// The game in its window; `--no-boot` skips the boot screens,
+    /// `--editor` turns the modding tools on (docs/texture-editor.md).
     Window { no_boot: bool },
 }
 

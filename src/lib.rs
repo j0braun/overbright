@@ -140,6 +140,10 @@ pub mod world;
 // The release build: version stamp, the Windows console and start errors.
 pub mod build_info;
 pub mod console;
+// The opt-in modding tools (texture and map editors; docs/texture-editor.md).
+pub mod tools;
+// Overbright's own texture-pack format (docs/texture-packs.md).
+pub mod obpack;
 // Quality tooling (docs/game-fingerprint.md, docs/mark-spot.md).
 pub mod fingerprint;
 // The engine's tables, in code (docs/exe-tables.md).

@@ -12,7 +12,7 @@ pub(crate) use crate::dev::hooks::{
 pub(crate) use stubs::*;
 
 /// The game's own command line (`unknown_flag`'s message).
-pub(crate) const USAGE: &str = "usage: game [--no-boot] | --check-game [game folder] | --set-root <game folder> | --verify-cache [track ...] | --prepare | --crash-test | --support-file [folder] | --version | --help";
+pub(crate) const USAGE: &str = "usage: game [--no-boot] [--editor] | --check-game [game folder] | --set-root <game folder> | --verify-cache [track ...] | --prepare | --crash-test | --support-file [folder] | --version | --help";
 
 #[cfg(not(feature = "dev-harness"))]
 mod stubs {
@@ -57,11 +57,11 @@ mod stubs {
     /// No NFSU2_FRAME_TRACE (tick-snapshot measuring aid).
     pub(crate) fn frame_trace(_game: &Game, _poses: &crate::render::snapshot::FramePoses) {}
 
-    /// The game's own flags: --no-boot, --check-game, --set-root,
+    /// The game's own flags: --no-boot, --editor, --check-game, --set-root,
     /// --verify-cache, --crash-test; any other flag is unknown.
     pub(crate) fn unknown_flag(args: &[String]) -> Option<&str> {
-        const KNOWN: [&str; 6] =
-            ["--no-boot", "--check-game", "--set-root", "--verify-cache", "--crash-test", "--prepare"];
+        const KNOWN: [&str; 7] =
+            ["--no-boot", "--editor", "--check-game", "--set-root", "--verify-cache", "--crash-test", "--prepare"];
         args.iter().map(String::as_str).find(|a| a.starts_with('-') && !KNOWN.contains(a))
     }
 }

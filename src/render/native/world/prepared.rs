@@ -229,11 +229,13 @@ struct Meta {
 }
 crate::persist!(Meta { bc, max_layers, slot_hashes, slots, arrays });
 
-const FORMATS: [wgpu::TextureFormat; 4] = [
+const FORMATS: [wgpu::TextureFormat; 5] = [
     wgpu::TextureFormat::Rgba8Unorm,
     wgpu::TextureFormat::Bc1RgbaUnorm,
     wgpu::TextureFormat::Bc2RgbaUnorm,
     wgpu::TextureFormat::Bc3RgbaUnorm,
+    // Overbright packs' compiled PNGs (pack-applied arrays only).
+    wgpu::TextureFormat::Bc7RgbaUnorm,
 ];
 
 /// The cache's sections for this data.

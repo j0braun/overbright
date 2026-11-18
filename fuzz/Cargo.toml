@@ -297,3 +297,10 @@ test = false
 doc = false
 bench = false
 
+
+[[bin]]
+name = "obpack"
+path = "fuzz_targets/obpack.rs"
+test = false
+doc = false
+bench = false

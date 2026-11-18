@@ -103,6 +103,32 @@ pub(crate) fn publish(domains: u8, key: Option<Key>) {
     GENERATION.store(g, Ordering::Release);
 }
 
+/// The texture editor (docs/texture-editor.md): texture `hash` of the world
+/// (`car` false) or the cars changed in a pack; the renderers load it again
+/// from the next frame.
+pub fn texture_changed(car: bool, hash: u32) {
+    publish(if car { CAR } else { WORLD }, Some(Key::Hash(hash)));
+}
+
+/// The texture editor's highlight: texture `hash` drawn with `rgba` (top
+/// level, `w` × `h`, its mips made here) instead of its own and every pack's,
+/// or (None) as before.
+pub fn highlight(car: bool, hash: u32, image: Option<(u32, u32, Vec<u8>)>) {
+    let domain = if car { Domain::Car } else { Domain::World };
+    let r = image.map(|(w, h, rgba)| {
+        let levels = crate::upscale::mip_chain(&rgba, w, h);
+        texture_pack::Replacement {
+            width: w,
+            height: h,
+            mips: levels.len() as u32,
+            format: None,
+            bytes: levels.into_iter().flat_map(|l| l.2).collect(),
+        }
+    });
+    texture_pack::set_override(domain, hash, r);
+    texture_changed(car, hash);
+}
+
 /// The changes for `domain` after generation `seen`, and the generation
 /// they reach (to store once they are done).
 pub(in crate::render) fn since(seen: u64, domain: Domain) -> (u64, Pending) {

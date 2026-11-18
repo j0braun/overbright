@@ -69,7 +69,8 @@ fn decode(path: &Path, max_dimension: u32) -> image::ImageResult<Replacement> {
 /// `import_tpf` write it).
 fn decode_dds(path: &Path, max_dimension: u32) -> Result<Replacement, String> {
     let bytes = std::fs::read(path).map_err(|e| e.to_string())?;
-    let e = crate::upscale::parse_dds(&bytes).ok_or("not a DXT1/DXT3/DXT5 DDS with whole 4x4 blocks")?;
+    // DX9 DXT1/3/5, or DX10 BC1/2/3/7 (Overbright packs' compiled PNGs).
+    let e = crate::obpack::parse_any_dds(&bytes).ok_or("not a DXT1/DXT3/DXT5 or DX10 BC1/BC2/BC3/BC7 DDS with whole 4x4 blocks")?;
     if e.width > max_dimension || e.height > max_dimension {
         return Err(format!("{}x{} exceeds {max_dimension}", e.width, e.height));
     }

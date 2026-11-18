@@ -625,6 +625,19 @@ fn text_seeds(kind: &str) -> Vec<Vec<u8>> {
             vec![s.options_text().into_bytes()]
         }
         "profile" => vec![b"name FUZZ\ncash 1200\ncar COROLLA\nstage 2\nreputation 40\nwon 5\nsponsor 1 2\nsms 1 0 0 0 0\nsms 5 1 1 0 0 7 8 9\n".to_vec()],
+        "obpack" => {
+            let mut dds = vec![0u8; 148 + 16];
+            dds[..4].copy_from_slice(b"DDS ");
+            for (i, v) in [(1usize, 124u32), (2, 0x2_1007), (3, 4), (4, 4), (7, 1), (20, 4), (32, 98), (33, 3), (35, 1)] {
+                dds[i * 4..i * 4 + 4].copy_from_slice(&v.to_le_bytes());
+            }
+            dds[84..88].copy_from_slice(b"DX10");
+            vec![
+                b"format = 1\nname = \"Roads\"\nauthor = \"A\"\nlicence = \"CC0-1.0\"\npriority = 5\ncompress = \"none\"\n".to_vec(),
+                b"# Overbright packs v1\non roads\noff signs\n".to_vec(),
+                dds,
+            ]
+        }
         "dds" => {
             let mut d = vec![0u8; 128 + 8 * 4];
             d[..4].copy_from_slice(b"DDS ");

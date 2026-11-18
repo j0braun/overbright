@@ -134,6 +134,10 @@ impl Game {
                 self.key_released(code);
             }
             InputEvent::CursorMoved(_) | InputEvent::Button(_) | InputEvent::Wheel(_) => {
+                // The texture editor's panel takes its clicks and wheel.
+                if crate::enh::texed::mouse(self, &event) {
+                    return;
+                }
                 let now = self.now();
                 // A move's real-time stamp (0x50B492 stores 0x8651A8 in
                 // 0x83A9CC when the cursor is not where it was drawn).
@@ -149,6 +153,10 @@ impl Game {
     /// A key pressed: the typed text to the screens that take it, the key
     /// itself (not its auto-repeats) to the game, then held.
     fn key_down(&mut self, code: KeyCode, text: Option<&str>, repeat: bool) {
+        // The texture editor (`--editor` only; docs/texture-editor.md).
+        if crate::enh::texed::key(code, text, repeat) {
+            return;
+        }
         nfsu2::pad::extras::set_prompt(None);
         // MC_Main's name editor takes the typed text (0x551280); Backspace
         // edits there.

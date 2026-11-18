@@ -33,6 +33,9 @@ pub enum PixelFormat {
     Bgra8,
     /// 32-bit RGBA, for textures the clone generates itself.
     Rgba8,
+    /// BC7: 16 bytes per block. Never in the game's files: only Overbright
+    /// texture packs compiled from PNG (`obpack`, docs/texture-packs.md).
+    Bc7,
 }
 
 impl PixelFormat {
@@ -55,7 +58,7 @@ impl PixelFormat {
     }
 
     pub fn is_block_compressed(self) -> bool {
-        matches!(self, Self::Dxt1 | Self::Dxt3 | Self::Dxt5)
+        matches!(self, Self::Dxt1 | Self::Dxt3 | Self::Dxt5 | Self::Bc7)
     }
 
     /// Bytes for one mip level of the given size.
@@ -65,7 +68,7 @@ impl PixelFormat {
         let blocks = w.div_ceil(4) * h.div_ceil(4);
         match self {
             Self::Dxt1 => blocks * 8,
-            Self::Dxt3 | Self::Dxt5 => blocks * 16,
+            Self::Dxt3 | Self::Dxt5 | Self::Bc7 => blocks * 16,
             Self::P8 => w * h,
             Self::Bgra8 | Self::Rgba8 => w * h * 4,
         }
@@ -373,6 +376,20 @@ impl Texture {
                     // the missing entries are transparent black.
                     let p = self.palette.get(i as usize * 4..i as usize * 4 + 4).unwrap_or(&[0; 4]);
                     dst.copy_from_slice(&[p[2], p[1], p[0], p[3]]);
+                }
+            }
+            PixelFormat::Bc7 => {
+                let blocks_x = w.div_ceil(4);
+                let mut texels = [0u8; 64];
+                for (n, block) in self.data.chunks_exact(16).take(blocks_x * h.div_ceil(4)).enumerate() {
+                    block_compression::decode::decode_block_bc7(block, &mut texels, 16);
+                    let (bx, by) = ((n % blocks_x) * 4, (n / blocks_x) * 4);
+                    for (i, texel) in texels.chunks_exact(4).enumerate() {
+                        let (x, y) = (bx + i % 4, by + i / 4);
+                        if x < w && y < h {
+                            rgba[(y * w + x) * 4..][..4].copy_from_slice(texel);
+                        }
+                    }
                 }
             }
             PixelFormat::Dxt1 | PixelFormat::Dxt3 | PixelFormat::Dxt5 => {

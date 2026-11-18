@@ -141,6 +141,11 @@ pub(crate) fn run(command: &Command, args: &[String]) -> Result<()> {
     // The start-up's draws come after the seed (0x57ED5C before 0x57ED7C):
     // made again on the clock's state.
     game.boot_draws();
+    // `--editor`: the modding tools can be opened (docs/texture-editor.md).
+    if args.iter().any(|a| a == "--editor") {
+        nfsu2::tools::texed::enable();
+        log::info!("modding tools on: F7 opens the texture editor");
+    }
     // The boot screens first (0x4D9580), unless asked to skip them.
     if !matches!(command, Command::Window { no_boot: true }) {
         let _t = nfsu2::prof::span("start: boot screen");
