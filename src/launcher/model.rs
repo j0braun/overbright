@@ -420,6 +420,9 @@ pub struct Model {
     pub pick_loc: Option<crate::platform::dirs::Location>,
     /// Files are being copied (on a worker).
     pub copy_busy: bool,
+    /// What the open copy question would copy (looked at before it is
+    /// asked; `transfer::plan`).
+    pub copy_plan: Option<super::transfer::Plan>,
     /// Arguments for the next start only (the Dev page's editor tools).
     pub play_args: Vec<String>,
     pub version: String,
@@ -681,51 +684,11 @@ pub struct PortableInfo {
     pub data: Option<PathBuf>,
     /// Where things are kept outside portable mode (Overbright's folder).
     pub home: PathBuf,
+    /// The profiles' parent outside portable mode (the data home: the
+    /// saves are in its `NFS Underground 2`).
+    pub home_saves: PathBuf,
     /// The program folder can be written (portable mode can be turned on).
     pub writable: bool,
-}
-
-/// Copies the folder `from` into `to` (merging; a file already there with
-/// the same size is kept), then checks every file arrived with its size.
-/// Nothing is deleted. The files and bytes copied.
-pub fn copy_folder(from: &Path, to: &Path) -> Result<(usize, u64), String> {
-    fn walk(from: &Path, to: &Path, n: &mut (usize, u64), list: &mut Vec<(PathBuf, PathBuf, u64)>) -> std::io::Result<()> {
-        std::fs::create_dir_all(to)?;
-        for e in std::fs::read_dir(from)? {
-            let e = e?;
-            let (src, dst) = (e.path(), to.join(e.file_name()));
-            let t = e.file_type()?;
-            if t.is_dir() {
-                // Never into itself (a new place inside the old one).
-                if dst.starts_with(from) && to.starts_with(&src) {
-                    continue;
-                }
-                walk(&src, &dst, n, list)?;
-            } else if t.is_file() {
-                let len = e.metadata()?.len();
-                if std::fs::metadata(&dst).map(|m| m.len()).ok() != Some(len) {
-                    std::fs::copy(&src, &dst)?;
-                }
-                n.0 += 1;
-                n.1 += len;
-                list.push((src, dst, len));
-            }
-        }
-        Ok(())
-    }
-    if !from.is_dir() {
-        return Ok((0, 0));
-    }
-    let mut n = (0, 0);
-    let mut list = Vec::new();
-    walk(from, to, &mut n, &mut list).map_err(|e| e.to_string())?;
-    for (_, dst, len) in &list {
-        match std::fs::metadata(dst) {
-            Ok(m) if m.len() == *len => {}
-            _ => return Err(format!("{} did not arrive whole", dst.display())),
-        }
-    }
-    Ok(n)
 }
 
 /// The launcher's own preferences (`launcher.txt` in Overbright's folder;
@@ -1741,6 +1704,7 @@ impl Env for RealEnv {
             editor_here: self.editor_present(),
             pick_loc: None,
             copy_busy: false,
+            copy_plan: None,
             play_args: Vec::new(),
             version: version(),
             root: None,
@@ -1917,7 +1881,8 @@ impl Env for RealEnv {
         let known = crate::platform::win::local_app_data();
         #[cfg(not(windows))]
         let known = None;
-        let home = dirs::resolve(dirs::Os::CURRENT, &|n: &str| std::env::var_os(n), known).app;
+        let plain = dirs::resolve(dirs::Os::CURRENT, &|n: &str| std::env::var_os(n), known);
+        let (home, home_saves) = (plain.app, plain.data_home);
         PortableInfo {
             on: dirs::portable_base().is_some(),
             marker: program.as_deref().is_some_and(dirs::is_portable),
@@ -1925,6 +1890,7 @@ impl Env for RealEnv {
             data: program.as_deref().map(dirs::portable_data),
             program,
             home,
+            home_saves,
             writable,
         }
     }
@@ -2265,6 +2231,7 @@ impl Env for FakeEnv {
             editor_here: self.editor_present(),
             pick_loc: None,
             copy_busy: false,
+            copy_plan: None,
             play_args: Vec::new(),
             version: env!("CARGO_PKG_VERSION").to_string(),
             root: Some(FakeEnv::root()),
@@ -2494,6 +2461,7 @@ impl Env for FakeEnv {
             program: Some(PathBuf::from("/data/player/Games/overbright-0.3.0")),
             data: Some(PathBuf::from("/data/player/Games/overbright-0.3.0/data")),
             home: PathBuf::from("/data/player/.local/share/overbright"),
+            home_saves: PathBuf::from("/data/player/.local/share"),
             writable: true,
         }
     }

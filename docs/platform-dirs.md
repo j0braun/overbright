@@ -58,8 +58,8 @@ files go there), Screenshots, Packs ([`mods_root`]: Overbright packs `packs/`, i
 [`load_path`]). Every `platform::dirs` function reads it (again when its time stamp changes), so the game, the
 launcher and every tool use the same folders; `NFSU2_DATA_DIR`, the XDG variables and portable mode still decide
 the defaults. `dirs::set_location` writes it (atomically; the file is removed when nothing is put elsewhere).
-Moving files is the launcher's: it copies when asked (`launcher::model::copy_folder`: merged, each file's size
-checked afterwards, nothing deleted) and writes the new place only after the copy is complete. A chosen folder
+Moving files is the launcher's: it copies when asked, by the rules of "Copying between places" below, and
+writes the new place only after the copy is complete. A chosen folder
 whose parent does not exist (`dirs::location_missing`: an unplugged drive) is shown with an error and Reset.
 Tests: `launcher::tests::locations_file_round_trip_and_copy`, `storage_page`,
 tests/portable_mode.rs `the_game_writes_its_log_where_the_locations_file_says`.
@@ -87,7 +87,48 @@ cache. Without the marker every function returns what it did before, byte for by
   `dirs::ignore_portable`, so they keep their data in the folder they chose even in a portable install.
 - **Turning it on**: the launcher's About page (`dirs::make_portable`: writes `portable.txt`, nothing else) or
   the file by hand. Nothing is migrated: copy Overbright's folder (and on Linux `~/.local/share/NFS Underground
-  2`, into `data/NFS Underground 2`) to take settings and saves along; the cache rebuilds itself.
+  2`, into `data/NFS Underground 2`) to take settings and saves along; the cache rebuilds itself. The Storage
+  page's switch can copy them, on and off ("Copying between places").
+- **Every program**: the game, the launcher and the map editor (`overbright-editor`: the map mods in
+  `dirs::maps`, its recent list `editor-recent.txt` in `dirs::config`, the game folder through
+  `qol::setup::saved_root`, the driver variables as the game) find everything through `platform::dirs`, so a
+  portable install or the locations file applies to all of them alike.
+
+### Copying between places
+
+The launcher copies Overbright's files when portable mode is turned on or off (Settings › Advanced › Storage,
+"Copy my files …") and when a folder is put elsewhere ("Copy and use it"); `launcher::transfer`:
+
+- **Looked at first.** `transfer::plan` walks the source and compares it with the target without writing
+  anything; the question lists what will be copied, what is already there with the same bytes and what is
+  already there with other bytes, before the player chooses. The full list goes to the launcher's log.
+- **What is there wins.** No file in the target is overwritten. An incoming file that differs from the one
+  there is kept beside it as `<name>.from-portable` (portable off), `<name>.from-home` (portable on) or
+  `<name>.from-old-folder` (a folder put elsewhere), `-2`, `-3`, … when that name holds other bytes; the same
+  bytes are not copied again. A file that appears in the target between the question and the copy is treated
+  the same way.
+- **Replace only when chosen.** When files other than settings differ, the question also offers "Copy, replace
+  (backups kept)": the target's file is first copied to `<name>.before-copy` (`-2`, … never over an earlier
+  backup), then replaced. The safe copy is the first, focused button.
+- **Settings are never replaced**: options.txt, game-root.txt, texture-pack-root.txt, launcher.txt,
+  locations.txt, editor-recent.txt, texture-mods.txt, mods-paused.txt, a map mod's `enabled.txt` /
+  `editor.toml`, a texture pack's `order.txt`, and every other `.txt` / `.toml` file at the top of Overbright's
+  folder (`transfer::is_settings`): with "replace" too they are only kept beside.
+- **Kept paths are rewritten** for the target (`dirs::rebase_kept_text`, `dirs::rebase_path`): game-root.txt,
+  texture-pack-root.txt and every `locations.txt` line. A path relative to the portable program folder becomes
+  absolute in an ordinary folder; going into a portable install an absolute path becomes relative to the
+  program folder when on the same drive. Files kept beside are rewritten the same way.
+- **Where things go.** Portable on: Overbright's folder into `data/`, the profiles and their backups into
+  `data/NFS Underground 2[ Backups]`. Portable off: `data/` into Overbright's folder, `data/NFS Underground
+  2[ Backups]` into the data home's (`~/.local/share/NFS Underground 2` on Linux). A folder put elsewhere: its
+  files; for Saves (the profiles' parent, a shared folder) only `NFS Underground 2[ Backups]`.
+- **Never copied**: the caches (`cache/`, `cache-dev/`; they rebuild), `launcher.lock`, `start-marker.txt`,
+  `portable.txt` and temporary `*.tmp` files. Nothing is deleted from the source; every file written is checked
+  for its full size.
+
+Tests: `launcher::transfer::tests` (existing files win, a late file wins, replace keeps a backup and never
+touches settings, kept paths rewritten both ways), `launcher::tests::portable_off_keeps_the_home_settings_byte_identical`
+(a home folder with its own settings left byte-identical by "copy back"), `locations_file_round_trip_and_copy`.
 
 ### Everything Overbright reads or writes outside its own folder
 
@@ -99,6 +140,7 @@ cache. Without the marker every function returns what it did before, byte for by
 | logs (game and launcher), crash reports, marks, perf CSVs, screenshots | `<app>/logs`, `crashes`, `marks`, `perf`, `Screenshots` | under `data/` | `dirs::logs` … `dirs::screenshots` |
 | texture packs, imported mods, the converted HUD mod | `<app>/texture-pack` | `data/texture-pack/` | `dirs::packs`, `texture_mods`, `hud_mod` |
 | launcher.lock | `<app>` | `data/` | `launcher::dirs::lock_file` |
+| map mods, the map editor's recent list (`editor-recent.txt`) | `<app>/maps`, `<app>` | `data/maps/`, `data/` | `dirs::maps`, `dirs::config`, `editor::app` |
 | driver shader cache | the driver's (`~/.cache/mesa_shader_cache*`, `%LOCALAPPDATA%\<vendor>\…`) | Linux: `data/cache/driver`; Windows: unchanged | `dirs::driver_cache_vars` |
 | read only: the registry's `Install Dir`, `%ProgramFiles%`, the Wine/Steam/Lutris places | — | unchanged (only read) | `qol::setup::candidates`, `platform::win` |
 | read only: the original's saves (`%LOCALAPPDATA%\NFS Underground 2`, the import) and the home folder (the browser) | — | unchanged (only read) | `launcher::dirs::original_saves`, `home` |
@@ -107,7 +149,8 @@ cache. Without the marker every function returns what it did before, byte for by
 Tests: `platform::dirs` unit tests (the layout on both OSes, the marker, kept paths, the driver variables) and
 `tests/portable_mode.rs` (the game binary linked into a program folder with the marker and run under a fake
 HOME / LOCALAPPDATA / APPDATA / TMPDIR: nothing written outside `data/`; `--set-root` kept relative and found
-again from another folder; without the marker the old place and bytes).
+again from another folder; without the marker the old place and bytes; the map editor drawing a mod off-screen
+writes its recent list and the driver's cache only into `data/`).
 
 `qol::setup::save_root` / `save_texture_pack` apply `dirs::store_path` and `saved_root` / `saved_texture_pack`
 apply `dirs::load_path` themselves, so `setup::find` (the kept folder first) and every caller get the resolved

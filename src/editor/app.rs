@@ -136,10 +136,18 @@ pub fn mod_region(cli: Option<&str>, view: &ModView, m: &MapMod) -> String {
         .unwrap_or_else(|| DEFAULT_REGION.to_string())
 }
 
-/// The recently opened mods' list, beside the maps folder (Overbright's
-/// own folder).
+/// The recently opened mods' list's file name.
+pub const RECENT_FILE: &str = "editor-recent.txt";
+
+/// The recently opened mods' list: in Overbright's own folder
+/// (`platform::dirs::config`, so a portable install's `data/` and the
+/// locations file are honoured) for the map mods' folder in use; beside
+/// another maps folder given with `--maps`.
 fn recent_file(maps: &Path) -> PathBuf {
-    maps.parent().unwrap_or(maps).join("editor-recent.txt")
+    if maps == crate::platform::dirs::maps() {
+        return crate::platform::dirs::config().join(RECENT_FILE);
+    }
+    maps.parent().unwrap_or(maps).join(RECENT_FILE)
 }
 
 /// The recently opened mods, newest first.

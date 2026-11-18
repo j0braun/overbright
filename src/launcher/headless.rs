@@ -51,7 +51,7 @@ pub fn named_app<'e>(env: &'e FakeEnv, fonts: &Fonts, name: &str, w: u32, h: u32
 
 /// The named states: (name, the screen it is shown on). The fake data of
 /// each comes from [`state_model`].
-pub const STATES: [(&str, Screen); 57] = [
+pub const STATES: [(&str, Screen); 58] = [
     ("no-game", Screen::FirstRun),
     ("check-ok", Screen::Check),
     ("not-a-game-folder", Screen::Check),
@@ -104,6 +104,7 @@ pub const STATES: [(&str, Screen); 57] = [
     ("storage-portable", Screen::Storage),
     ("storage-custom", Screen::Storage),
     ("storage-missing", Screen::Storage),
+    ("storage-copy-back", Screen::Storage),
     ("main-shaders", Screen::Main),
     ("main-shaders-ready", Screen::Main),
     ("settings-suggested", Screen::Settings),
@@ -323,6 +324,37 @@ pub fn state_model(name: &str) -> Option<(Screen, Model)> {
             m.prepare.started = std::time::Instant::now().checked_sub(std::time::Duration::from_secs(12));
         }
         "settings-reset" => m.ask = Some(super::model::Dialog::Reset),
+        "storage-copy-back" => {
+            // Portable mode off with files to copy back, some different
+            // from those already in the home folder.
+            m.portable.on = true;
+            m.portable.marker = true;
+            let item = |shown: &str, len: u64, settings: bool| super::transfer::Item {
+                from: PathBuf::from("/data/player/Games/overbright-0.3.0/data").join(shown),
+                to: PathBuf::from("/data/player/.local/share/overbright").join(shown),
+                shown: shown.into(),
+                len,
+                settings,
+            };
+            m.copy_plan = Some(super::transfer::Plan {
+                copy: vec![
+                    item("texture-mods.txt", 120, true),
+                    item("NFS Underground 2/RYO/RYO", 210_000, false),
+                    item("maps/docks/map.obmap", 3_400, false),
+                    item("maps/docks/editor.toml", 90, false),
+                    item("Screenshots/photo-1.png", 2_400_000, false),
+                ],
+                same: vec![item("logs/game-1.log", 4_000, false)],
+                differ: vec![
+                    item("game-root.txt", 60, true),
+                    item("options.txt", 900, true),
+                    item("NFS Underground 2/MIA/MIA", 210_000, false),
+                ],
+                source: "portable".into(),
+                paths: super::transfer::Paths::default(),
+            });
+            m.ask = Some(super::model::Dialog::PortableOff);
+        }
         "mods-off" => {
             m.mods.paused = true;
             m.mods.list.iter_mut().for_each(|(e, _)| e.on = false);

@@ -38,6 +38,18 @@ fn new_app(cli: &Cli) -> App {
 }
 
 fn main() -> ExitCode {
+    // A portable install keeps the driver's shader caches in its data
+    // folder too, as the game does (`platform::dirs::driver_cache_vars`;
+    // nothing otherwise).
+    let portable = nfsu2::platform::dirs::portable_base();
+    for (name, dir) in nfsu2::platform::dirs::driver_cache_vars(
+        nfsu2::platform::dirs::Os::CURRENT,
+        &|n: &str| std::env::var_os(n),
+        portable.as_deref(),
+    ) {
+        // SAFETY: set before any thread is started.
+        unsafe { std::env::set_var(name, dir) };
+    }
     nfsu2::console::attach();
     let _ = env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).try_init();
     if std::env::args().nth(1).as_deref() == Some("--version") {
