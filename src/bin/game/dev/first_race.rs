@@ -6,7 +6,8 @@
 //! pause's Restart and the same again. Each rival's lateral path from the
 //! green is measured: a rival whose heading turns more than [`MAX_YAW`]
 //! degrees off the race road's direction in the first
-//! [`WINDOW`] s, or comes within [`MIN_GAP`] m of the player, fails the
+//! [`WINDOW`] s while it drives the racing line (JustDrive; an avoidance
+//! or a hit ends its check, as the original takes those at the start too), or comes within [`MIN_GAP`] m of the player, fails the
 //! flow; so does a drawn frame whose motion of the player's car is off
 //! its speed × the frame's length by more than [`MAX_PACING`].
 use crate::*;
@@ -136,6 +137,7 @@ pub(super) fn drive_race(
     let mut green: Option<Vec<f32>> = None;
     let mut anchors: Vec<(f32, Vec3)> = Vec::new();
     let mut driven: Vec<f32> = Vec::new();
+    let mut avoided: Vec<bool> = Vec::new();
     let mut last_drawn: Option<Vec3> = None;
     let mut throttle = false;
     let mut skipped = false;
@@ -205,6 +207,7 @@ pub(super) fn drive_race(
             run.lateral = vec![0.0; race.racers.rivals.len()];
             run.line_rate = vec![0.0; race.racers.rivals.len()];
             run.yaw = vec![0.0; race.racers.rivals.len()];
+            avoided = vec![false; race.racers.rivals.len()];
             anchors =
                 race.racers.rivals.iter().map(|r| (r.route.as_ref().map_or(0.0, |x| x.lateral()), r.state.position)).collect();
             driven = vec![0.0; race.racers.rivals.len()];
@@ -218,7 +221,19 @@ pub(super) fn drive_race(
                 let road = &race.route.road;
                 let dir = road.direction(road.locate_once(r.state.position.truncate()));
                 let fwd = r.state.forward().truncate().normalize_or(Vec2::X);
-                run.yaw[i] = run.yaw[i].max(dir.perp_dot(fwd).atan2(dir.dot(fwd)).abs().to_degrees());
+                // The heading check is the racing line's (JustDrive): once
+                // a rival has taken another action (an AvoidAvoidable at
+                // the player or a racer, a hit), its path is that action's
+                // and no longer checked. The original proposes such
+                // actions at the human from the start too (the sequence
+                // log of STAGE_1_CIRCUIT_1: 0x40D5C0's draws, made right
+                // before those actions' constructors, 8 and 71 frames past
+                // the green with the traffic hundreds of metres off;
+                // docs/rng.md).
+                avoided[i] |= r.actions.kind != nfsu2::ai::actions::Kind::JustDrive;
+                if !avoided[i] {
+                    run.yaw[i] = run.yaw[i].max(dir.perp_dot(fwd).atan2(dir.dot(fwd)).abs().to_degrees());
+                }
                 let lat = r.route.as_ref().map_or(0.0, |x| x.lateral());
                 driven[i] = r.state.position.truncate().distance(anchors[i].1.truncate());
                 if driven[i] >= 5.0 {

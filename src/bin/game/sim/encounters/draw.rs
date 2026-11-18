@@ -61,7 +61,10 @@ impl EncounterDraw {
             ride = nfsu2::ai_looks::Ride::stock(parts, &car_types[k]);
             row = r.parse().unwrap_or(row);
         }
-        Some((c, ride.installed, row, rng.below(0x7FFF_FFFF)))
+        // No seed of the racer's own is drawn: per racer the original
+        // makes the 26-car shuffle, the paint, the neon part and the skill
+        // row (**measured**, the sequence log, docs/rng.md).
+        Some((c, ride.installed, row, 0))
     }
 
     /// 0x532020(0) for one racer: its performance matched to the

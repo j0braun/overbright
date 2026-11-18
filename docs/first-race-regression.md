@@ -13,7 +13,12 @@ that holds the cars updates the world at 1/30 s and is drawn in between,
 docs/postrace-jitter.md; before, the scene limiter's 1/30 s frames) (`NFSU2_FIRSTRACE_HZ`, default
 60,144,240 and uncapped = 1–4 ms jittered frames), throttle held from the
 green; then the pause's Restart and the same again. Per rival: its heading off
-the race road's direction, its offset off the racing line, the smallest gap
+the race road's direction while it drives the racing line (JustDrive: once it
+takes an avoidance or is hit, its path is that action's and the heading is no
+longer checked; the original proposes such actions at the human from the
+start too, 8 and 71 frames past the green of STAGE_1_CIRCUIT_1 in the sequence
+log, docs/rng.md, with the traffic hundreds of metres away), its offset off the
+racing line, the smallest gap
 between any two cars (first 6 s after the green); per drawn frame: the
 player's drawn position (the `draw_between` blend) against speed × interval.
 `NFSU2_FIRSTRACE_LOG=1` prints a row per world tick (each rival's road

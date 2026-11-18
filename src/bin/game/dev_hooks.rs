@@ -6,7 +6,7 @@
 #[cfg(feature = "dev-harness")]
 pub(crate) use crate::dev::hooks::{
     audio_capture_frame, audio_tick_end, check_tick_dt, frame_trace, headless_size, parity_grid, rain_clock_override, record_state, replay_controls,
-    teleport, unknown_flag,
+    rng_pin, teleport, unknown_flag,
 };
 #[cfg(not(feature = "dev-harness"))]
 pub(crate) use stubs::*;
@@ -23,6 +23,9 @@ mod stubs {
     pub(crate) fn rain_clock_override() -> Option<f32> {
         None
     }
+
+    /// No NFSU2_RNG_PIN.
+    pub(crate) fn rng_pin(_game: &mut Game, _at: &str) {}
 
     /// No NFSU2_STATE_HASH sink.
     pub(crate) fn record_state(_game: &Game, _dt: f32) {}

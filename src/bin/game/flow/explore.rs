@@ -1,5 +1,10 @@
 use crate::*;
 
+/// The encounter racers career free roam sets up (0x540790: 0x89E7C4 = 3 →
+/// 0x53F010(3)), whose cars' render infos the world build makes after the
+/// player's (**measured**: four before the traffic fill).
+const ENCOUNTER_RACERS: usize = 3;
+
 impl Game {
     pub(crate) fn explore(&mut self, at: Option<(Vec3, f32)>) -> Result<()> {
         // A snapshot no save point took is stale in the city.
@@ -110,14 +115,18 @@ impl Game {
     }
 
     /// Free roam's set-up and world build, in the original's order of
-    /// draws: the career's encounter racers around `at` (0x540790
-    /// → 0x53F010(3)), the world build (`Game::world_build`: the world
-    /// generator's seed, the traffic slots, the rain), in a career the DVD
-    /// covers and the open events (0x5412E0 → 0x5331D0, 0x533320 →
-    /// 0x527D40: the slot-event picks), the traffic's models
-    /// (Traffic_AssignModels 0x412C9A) on the shared generator, the speech
-    /// library's re-seed. The world generator then sits in the world's car
-    /// field: the traffic's while traffic is loaded, else the encounters'.
+    /// draws (**measured**, the sequence log, docs/rng.md): the career's
+    /// encounter racers around `at` (0x540790 → 0x53F010(3)), with the
+    /// sound the in-game audio load (speech re-seed, accel transitions),
+    /// the world build (`Game::world_build`: the world generator's seed,
+    /// the traffic slots, the rain), the world cars' render infos, the
+    /// traffic fill (world generator, a render info per car placed), in a
+    /// career the DVD covers and the open events (0x5412E0 → 0x5331D0,
+    /// 0x533320 → 0x527D40: the slot-event picks), CARSFX_Stereo's rolls,
+    /// the traffic's models (Traffic_AssignModels 0x412C9A), SfxCtlEngine's
+    /// draws and the placed cars' render infos again. The world generator
+    /// then sits in the world's car field: the traffic's while traffic is
+    /// loaded, else the encounters'.
     /// The original builds the world, and so the traffic pool, on every
     /// free-roam entry; the clone does too (it kept the pool between
     /// entries before, so the models were not drawn again).
@@ -145,6 +154,7 @@ impl Game {
         let offered = ahead.len();
         self.loads.encounters_taken = (0, 0);
         let mut encounters = None;
+        dev_hooks::rng_pin(self, "entry");
         if !self.race_flow.quick_free_run
             && self.profile.is_some()
             && let (Some(ai), Some(d)) = (self.sim.ai.as_ref(), self.sim.drive.as_ref())
@@ -177,21 +187,16 @@ impl Game {
             let asked = encounters.as_ref().and_then(|e| e.pending.as_ref()).map_or(0, |p| p.1.len());
             self.loads.encounters_taken = (offered - ahead.len(), asked);
         }
-        let world = self.world_build();
-        if career {
-            // 0x5412E0 offers the stage's DVD covers the car's visual
-            // rating reaches (0x5331D0) and rebuilds the open events and
-            // the marker table (0x533320 → 0x527D40): every city start in a
-            // career, after a race or a shop as after Resume. A settled win
-            // leaves its event in the list until here.
-            let rating = self.visual_rating();
-            if let Some(p) = self.profile.as_mut() {
-                p.offer_covers(&self.game_data.career, rating);
-                p.refresh_open(&self.game_data.career, &mut self.rng);
-            }
-            self.refresh_event_triggers();
-        }
-        let traffic = {
+        // The in-game audio load's re-seed of the speech library and its
+        // objects' draws come before the world build here (sound on).
+        let early = self.audio_load_early(0, false);
+        dev_hooks::rng_pin(self, "world");
+        let mut world = self.world_build();
+        self.audio_load_late(early, false);
+        // The world cars' render infos: the player's and the encounter
+        // racers' (0x53F010(3)), then the traffic fill's.
+        self.render_infos(1 + if encounters.is_some() { ENCOUNTER_RACERS } else { 0 });
+        let mut traffic = {
             let _t = nfsu2::prof::span("explore Traffic::load");
             let mut traffic = Traffic::load(
                 &self.game_data.root,
@@ -204,7 +209,6 @@ impl Game {
                 at,
                 level,
                 false,
-                &mut self.rng,
                 nfsu2::qol::traffic_density(),
             )
             .map_err(|e| eprintln!("traffic: {e:#}"))
@@ -220,6 +224,41 @@ impl Game {
             }
             traffic
         };
+        // The world's set-up fill (0x42F7A0 → 0x42E2C0) on the world
+        // generator, a render info for each car placed (**measured**, the
+        // sequence log: 16 cars in 33 tries on the stage-1 save).
+        let plan = traffic.as_ref().map(|t| {
+            crate::sim::traffic::place::traffic_fill_plan(t, t.pool_len(), at.truncate(), &[], None, false, &mut world)
+        });
+        let placed = plan.as_ref().map_or(0, |p| p.iter().flatten().count());
+        self.render_infos(placed);
+        if career {
+            // 0x5412E0 offers the stage's DVD covers the car's visual
+            // rating reaches (0x5331D0) and rebuilds the open events and
+            // the marker table (0x533320 → 0x527D40): every city start in a
+            // career, after a race or a shop as after Resume. A settled win
+            // leaves its event in the list until here.
+            let rating = self.visual_rating();
+            if let Some(p) = self.profile.as_mut() {
+                p.offer_covers(&self.game_data.career, rating);
+                p.refresh_open(&self.game_data.career, &mut self.rng);
+            }
+            self.refresh_event_triggers();
+        }
+        self.stereo_rolls();
+        if let Some(t) = traffic.as_mut()
+            && let Err(e) = t.populate(&self.game_data.root, &self.game_data.car_types, &mut self.rng)
+        {
+            eprintln!("traffic: {e:#}");
+            traffic = None;
+        }
+        self.traffic_models_draws(placed);
+        if let (Some(t), Some(plan), Some(d)) = (traffic.as_mut(), plan, self.sim.drive.as_ref()) {
+            crate::sim::traffic::place::traffic_fill_apply(&d.world, t, plan, false);
+        }
+        self.placed_traffic_renderers(
+            traffic.iter().flat_map(|t| t.cars.iter().filter(|c| c.lane.is_some()).map(|c| (&c.id, &*c.car))),
+        );
         self.sim.traffic = traffic;
         // The world generator in the world's car field.
         match (self.sim.traffic.as_mut(), encounters.as_mut()) {
@@ -227,7 +266,6 @@ impl Game {
             (None, Some(e)) => e.field.rng = world,
             _ => {}
         }
-        self.speech_seed();
         // The wait lives in the career object (+0x5D14), not the race
         // status, so it carries over from one free-roam load to the next.
         if let (Some(e), Some(p)) = (encounters.as_mut(), self.profile.as_ref()) {

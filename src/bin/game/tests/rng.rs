@@ -16,14 +16,15 @@ fn steps(from: u32, n: usize) -> u32 {
 /// The start-up (0x57ED20's chain after the seed 0x57ED5C): 120 lens
 /// draws (0x57ED7C → 0x5C2FA0), the input binding's (0x5795BB), the
 /// traffic list's first build (0x412840 with no world, 15 × 2): 151 shared
-/// draws, as measured on the original with the sound off (RNG-T c1 `boot`).
+/// draws, as measured on the original with the sound off (c1 `boot`), then
+/// the main menu's car render info (0x6383A5; the sequence log): 152.
 #[test]
 #[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
-fn the_start_up_makes_the_originals_151_shared_draws() {
+fn the_start_up_makes_the_originals_151_shared_draws_and_the_menu_cars() {
     testkit::game();
     let game = Game::new().unwrap();
     assert_eq!(game.sim.traffic_paints, vec![270; 15], "15 traffic types, 270 paints each (0x631A30)");
-    assert_eq!(game.rng.0, steps(0x1234_5678, 151));
+    assert_eq!(game.rng.0, steps(0x1234_5678, 152));
 }
 
 /// A world build (0x5FF4A0): the world seed (0x5FF557, the shared draw is

@@ -64,6 +64,9 @@ pub(crate) struct SimSession {
     pub(crate) lens: nfsu2::weather::LensSetup,
     /// The traffic models' paint counts (0x412840's draws).
     pub(crate) traffic_paints: Vec<u32>,
+    /// The main menu's car render info draw is still to come
+    /// (`Game::menu_car_draw`).
+    pub(crate) menu_car_pending: bool,
     /// The contact sounds (impacts, scrape pushes) the physics
     /// posted, waiting for the audio's `impact_sounds` (were process-wide
     /// queues in `nfsu2::audio`); the tick's come in `TickEvents::contacts`.
@@ -93,6 +96,7 @@ impl SimSession {
             spots: Default::default(),
             lens: Default::default(),
             traffic_paints: Vec::new(),
+            menu_car_pending: false,
             contact_sounds: Default::default(),
             map_race: None,
         }

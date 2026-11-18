@@ -123,6 +123,10 @@ pub(crate) struct Audio {
     /// The speech library's audio-start init (0x4866F0) made
     /// (`Game::speech_start`).
     pub(crate) speech_seeded: bool,
+    /// The mix map kind (0x4869A0: drag 2, drift 1, else 0) of the last
+    /// in-game audio load that re-seeded the speech library
+    /// (`Game::audio_load_early`).
+    pub(crate) mix_kind: Option<u8>,
     /// The audio's tick clock ([`Game::audio_tick_begin`]): mixer frames
     /// in all ticks so far, those of the tick running, and the part of a
     /// frame left over ([`nfsu2::frame_clock::UNITS`] × frames).
@@ -196,6 +200,8 @@ impl Game {
         if let Some(saved) = saved {
             self.rng.0 = nfsu2::audio::collision::leave_game_rng(saved);
         }
+        // The main menu's car after the sound's start-up draws.
+        self.menu_car_draw();
         // The sounds the tick's HUD update queued (it runs
         // before the audio manager, 0x5811D0 steps 16 / 18), last as they
         // were posted from the draw right after the tick before.
@@ -279,6 +285,7 @@ impl Game {
             fx_rate: 0,
             reverb_debug: (0,),
             speech_seeded: false,
+            mix_kind: None,
             tick_frames: (0, 0, 0),
             stepping: false,
         }

@@ -32,8 +32,8 @@ pub(crate) struct EncounterCar {
     pub(crate) speed: nfsu2::ai::route::SpeedTarget,
     pub(crate) driver: nfsu2::ai::driver::AiDriver,
     pub(crate) controls: nfsu2::drive::AiControls,
-    /// The racer's own seed (its row's draw at the set-up, kept for the RNG
-    /// unit). No think draws from it: the speed offset draws the world's
+    /// The racer's own generator state (0: the set-up draws no seed for
+    /// it). No think draws from it: the speed offset draws the world's
     /// generator (0x41C71E: 0x5EA510 with ECX = [0x890080]).
     #[allow(dead_code)]
     pub(crate) rng: nfsu2::opponents::GameRng,

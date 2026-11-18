@@ -120,7 +120,7 @@ impl Game {
                 if self.showcase.shut[flag] {
                     for &c in channels {
                         self.showcase.parts.request(anims, &styles, c, false, 1.0, now);
-                        Self::part_stitch(self.audio.as_mut(), c, false);
+                        Self::part_stitch(self.audio.as_mut(), &mut self.rng, c, false);
                     }
                 }
             }

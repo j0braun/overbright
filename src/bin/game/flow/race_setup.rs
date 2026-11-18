@@ -81,9 +81,13 @@ impl Game {
         self.sim.zone = (None, None, 0);
         let mut race =
             Race::new(route, laps, mode, true, style, drift, self.settings.jump_camera);
-        // The test run's world build.
+        // The test run's world build, the in-game audio load around it and
+        // the player car's render info (as a race's, **inferred**: not
+        // measured for a test run).
+        let early = self.audio_load_early(mix_kind(mode), false);
         race.racers.cars.rng = self.world_build();
-        self.speech_seed();
+        self.audio_load_late(early, false);
+        self.render_infos(1);
         race.order = vec![0];
         race.test = Some((number, mode));
         // Not a race Restart sets up again (`start_race_from`).
@@ -163,6 +167,7 @@ impl Game {
     ) -> Result<()> {
         // A race builds the player's car anew: no marker trigger (+0x9AC).
         (self.career_world.marker_trigger, self.career_world.marker) = (None, None);
+        dev_hooks::rng_pin(self, "race");
         // A Quick Race's opponents draw from the pool for the player's car
         // (0x53EEA0: 0x4FEAF0 with the player's car record, its SUV flag).
         let quick_race = quick && Some(index) == self.quick.event;
@@ -280,8 +285,13 @@ impl Game {
         }
         // The load after the set-up (0x526980 → World_Start 0x60A690): the
         // world build's draws (`Game::world_build`), its generator the race
-        // field's (the clone once drew the seed before the line-up).
+        // field's (the clone once drew the seed before the line-up). With
+        // the sound, the in-game audio load comes first when the mix map's
+        // kind changes, else after the rain set-up (`audio_load_early`).
+        let early = self.audio_load_early(mix_kind(mode), true);
+        dev_hooks::rng_pin(self, "race_world");
         race.racers.cars.rng = self.world_build();
+        self.audio_load_late(early, true);
         // Traffic (0x4FE9F0 from the set-up, 0x42F910 each frame) at the
         // race's level: a career race its event's byte +0x36 (0x5322F0),
         // a Quick Race its mode record's (0x526730 / 0x526840). The
@@ -327,12 +337,12 @@ impl Game {
                 at,
                 level.min(3),
                 race.reversed,
-                &mut self.rng,
                 0,
             )
             .map_err(|e| eprintln!("race traffic: {e:#}"))
             .ok();
         }
+        self.race_world_cars(&mut race);
         // The racing lines' speeds for the field (0x5E9E90): the field's
         // class ([`nfsu2::ai::route::field_class`]), an AI SUV, the track's
         // speed mode.
@@ -378,8 +388,6 @@ impl Game {
         if let (Some(t), Some(routes)) = (race.racers.traffic.as_mut(), race.racers.ai_routes.as_ref()) {
             t.routes = routes.file.clone();
         }
-        // MixMap_Select's speech re-seed at the load (0x486A2C).
-        self.speech_seed();
         race.order = (0..=race.racers.rivals.len()).collect();
         race.reference = race.lap_reference();
         let t_scene = nfsu2::prof::span("start_round: race_start_scene");
@@ -408,6 +416,53 @@ impl Game {
         self.race_flow.last_race = Some((index, from_map, quick));
         self.sim.replay = None;
         Ok(())
+    }
+
+    /// A race load's world cars after the world build (**measured**, the
+    /// sequence log, docs/rng.md): the render infos of the player and the
+    /// rivals, the set-up's traffic fill (0x6065C0 → 0x42F7A0, on the
+    /// world generator) with a render info for each car placed,
+    /// CARSFX_Stereo's rolls, the traffic's models (Traffic_AssignModels
+    /// 0x412C9A), SfxCtlEngine's draws and the placed cars' render infos
+    /// again; the cars the fill could not place are dropped.
+    pub(crate) fn race_world_cars(&mut self, race: &mut Race) {
+        self.render_infos(1 + race.racers.rivals.len());
+        let drag = race.drag;
+        let plan = race.racers.traffic.as_ref().map(|t| {
+            let racers: Vec<(Vec2, Vec2)> =
+                race.racers.rivals.iter().map(|r| (r.state.position.truncate(), r.state.velocity.truncate())).collect();
+            let place = crate::sim::traffic::place::DragPlace {
+                coord: race.racers.me.along,
+                lane: None,
+                clock: race.timing.clock.min(-1e-3),
+                start_line: race.route.start_at,
+                start_gap: race.start_gap,
+            };
+            let me = self.sim.drive.as_ref().map_or(Vec2::ZERO, |d| d.state.position.truncate());
+            crate::sim::traffic::place::traffic_fill_plan(
+                t,
+                t.pool_len(),
+                me,
+                &racers,
+                Some((&race.route.road, place)),
+                drag,
+                &mut race.racers.cars.rng,
+            )
+        });
+        let placed = plan.as_ref().map_or(0, |p| p.iter().flatten().count());
+        self.render_infos(placed);
+        self.stereo_rolls();
+        if let Some(t) = race.racers.traffic.as_mut()
+            && let Err(e) = t.populate(&self.game_data.root, &self.game_data.car_types, &mut self.rng)
+        {
+            eprintln!("race traffic: {e:#}");
+            race.racers.traffic = None;
+        }
+        self.traffic_models_draws(placed);
+        if let (Some(t), Some(plan), Some(d)) = (race.racers.traffic.as_mut(), plan, self.sim.drive.as_ref()) {
+            crate::sim::traffic::place::traffic_fill_apply(&d.world, t, plan, true);
+        }
+        self.placed_traffic_renderers(race.racers.traffic.iter().flat_map(|t| t.cars.iter().map(|c| (&c.id, &*c.car))));
     }
 
     /// Put the event's opponents on the grid (0x5260C0): the line-up
@@ -521,6 +576,57 @@ impl Game {
         nfsu2::opponents::line_up(event, rng, stage, player_car, player_rating, &ratings, &preset_car)
     }
 
+    /// The event's line-up drawn and dressed as the race set-up 0x5260C0
+    /// does it, racer by racer: each entrant's car pick (0x4FEC15, or a
+    /// preset's car) and then its looks (0x6399E0(1, 1) → 0x6374C0 and
+    /// 0x632ED0), before the next entrant's pick (**measured**, the
+    /// sequence log: a circuit's, a sprint's and a drag's set-up). Only the
+    /// first `limit` entrants are dressed (the grid's room). A Quick Race
+    /// (`quick`) picks every racer first and then dresses them (0x53EEA0,
+    /// then 0x532020 for every AI racer, as free roam's encounter set-up,
+    /// which the log shows picking all before dressing; **inferred** for
+    /// Quick Race, not logged).
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn lineup_dressed(
+        &self,
+        event: &career::Event,
+        ai: &AiData,
+        player: (usize, f32),
+        quick: bool,
+        drag: bool,
+        limit: usize,
+        rng: &mut nfsu2::opponents::GameRng,
+    ) -> (Vec<nfsu2::opponents::Entrant>, Vec<RivalKey>) {
+        let (mut lineup, mut fits) = (Vec::new(), Vec::new());
+        let bench = debug_env().bench_rival_cars.clone();
+        for o in &event.opponents {
+            let mut one = event.clone();
+            one.opponents = vec![o.clone()];
+            for mut e in self.new_lineup(&one, ai, player, rng) {
+                // Bench aid (not native): NFSU2_BENCH_RIVAL_CARS=NAME,NAME
+                // forces the rivals' car types (for side-by-side runs with
+                // the original).
+                if let Some(name) = bench.as_deref().and_then(|v| v.split(',').nth(lineup.len()))
+                    && let Some(i) =
+                        name.trim().parse::<usize>().ok().filter(|&i| i < self.game_data.car_types.len()).or_else(
+                            || self.game_data.car_types.iter().position(|t| t.name.eq_ignore_ascii_case(name.trim())),
+                        )
+                {
+                    e.car = i;
+                }
+                if !quick && lineup.len() < limit {
+                    fits.push(self.rival_fit(&e, quick, drag, ai, player.0, rng));
+                }
+                lineup.push(e);
+            }
+        }
+        if quick {
+            let n = lineup.len().min(limit);
+            fits = self.rival_fits(&lineup[..n], quick, drag, ai, player.0, rng);
+        }
+        (lineup, fits)
+    }
+
     /// The entries' cars as `line_up_rivals` loads them: their looks and
     /// performance (the dressing draws from `rng`, in entry order).
     pub(crate) fn rival_fits(
@@ -532,52 +638,62 @@ impl Game {
         player_car: usize,
         rng: &mut nfsu2::opponents::GameRng,
     ) -> Vec<RivalKey> {
+        lineup.iter().map(|e| self.rival_fit(e, quick, drag, ai, player_car, rng)).collect()
+    }
+
+    /// One entrant's car: its performance and its looks (a preset's parts,
+    /// else dressed by that performance, drawing from `rng`).
+    pub(crate) fn rival_fit(
+        &self,
+        e: &nfsu2::opponents::Entrant,
+        quick: bool,
+        drag: bool,
+        ai: &AiData,
+        player_car: usize,
+        rng: &mut nfsu2::opponents::GameRng,
+    ) -> RivalKey {
         let human = self.human_perf(ai);
         let player_perf = self.player_car().2;
         let player_nitrous =
-            nfsu2::performance::state_float(&self.game_data.career.packages, &|id| player_perf.contains(&id), 2) * 0.333_333_34;
-        lineup
-            .iter()
-            .map(|e| {
-                let preset =
-                    e.preset.and_then(|h| self.game_data.presets.iter().find(|p| nfsu2::formats::hash::bin_hash(&p.name) == h));
-                let record = &self.game_data.car_records[e.car].1;
-                let packages = &self.game_data.career.packages;
-                // A preset's own performance (+0x48 / +0x2F4) first;
-                // **inferred** that the skill source's fit follows it.
-                let mut fitted = preset.map(|p| p.perf(packages)).unwrap_or_default();
-                match (quick, e.source, human.as_ref()) {
-                    (true, _, Some(h)) | (false, 1, Some(h)) => {
-                        fitted = nfsu2::ai::route::match_to_human(&ai.presets, &ai.bounds, e.car, h, record, packages)
-                    }
-                    (false, 0 | 3, _) => {
-                        fitted = nfsu2::ai::route::fit_performance(
-                            &ai.presets,
-                            &ai.bounds,
-                            e.car,
-                            player_car,
-                            e.skill,
-                            record,
-                            packages,
-                            drag,
-                        );
-                        nfsu2::performance::refit(&mut fitted, packages, player_nitrous, &[2]);
-                        nfsu2::performance::ai_refit(&mut fitted, packages);
-                    }
-                    _ => nfsu2::performance::ai_refit(&mut fitted, packages),
-                }
-                let ty = &self.game_data.car_types[e.car];
-                let installed = match preset {
-                    Some(p) => p.installed(),
-                    None => {
-                        let mut ride = nfsu2::ai_looks::Ride::stock(&self.game_data.parts, ty);
-                        ride.dress(rng, nfsu2::performance::state_levels(packages, &|id| fitted.contains(&id)));
-                        ride.installed
-                    }
-                };
-                (ty.name.clone(), installed, fitted)
-            })
-            .collect()
+            nfsu2::performance::state_float(&self.game_data.career.packages, &|id| player_perf.contains(&id), 2)
+                * 0.333_333_34;
+        let preset =
+            e.preset.and_then(|h| self.game_data.presets.iter().find(|p| nfsu2::formats::hash::bin_hash(&p.name) == h));
+        let record = &self.game_data.car_records[e.car].1;
+        let packages = &self.game_data.career.packages;
+        // A preset's own performance (+0x48 / +0x2F4) first;
+        // **inferred** that the skill source's fit follows it.
+        let mut fitted = preset.map(|p| p.perf(packages)).unwrap_or_default();
+        match (quick, e.source, human.as_ref()) {
+            (true, _, Some(h)) | (false, 1, Some(h)) => {
+                fitted = nfsu2::ai::route::match_to_human(&ai.presets, &ai.bounds, e.car, h, record, packages)
+            }
+            (false, 0 | 3, _) => {
+                fitted = nfsu2::ai::route::fit_performance(
+                    &ai.presets,
+                    &ai.bounds,
+                    e.car,
+                    player_car,
+                    e.skill,
+                    record,
+                    packages,
+                    drag,
+                );
+                nfsu2::performance::refit(&mut fitted, packages, player_nitrous, &[2]);
+                nfsu2::performance::ai_refit(&mut fitted, packages);
+            }
+            _ => nfsu2::performance::ai_refit(&mut fitted, packages),
+        }
+        let ty = &self.game_data.car_types[e.car];
+        let installed = match preset {
+            Some(p) => p.installed(),
+            None => {
+                let mut ride = nfsu2::ai_looks::Ride::stock(&self.game_data.parts, ty);
+                ride.dress(rng, nfsu2::performance::state_levels(packages, &|id| fitted.contains(&id)));
+                ride.installed
+            }
+        };
+        (ty.name.clone(), installed, fitted)
     }
 
     pub(crate) fn predict_encounters(&self, car: &Car) -> Option<Vec<RivalKey>> {
@@ -618,8 +734,7 @@ impl Game {
         }
         let mut rng = nfsu2::opponents::GameRng(self.rng.0);
         let player = self.lineup_player(&d.car);
-        let lineup = self.new_lineup(event, ai, player, &mut rng);
-        Some(self.rival_fits(&lineup, false, event.race_mode().drag(), ai, player.0, &mut rng))
+        Some(self.lineup_dressed(event, ai, player, false, event.race_mode().drag(), usize::MAX, &mut rng).1)
     }
 
     /// The rivals' cars of the Quick Race set up in event slot `index`
@@ -647,8 +762,7 @@ impl Game {
         let index = self.game_data.car_types.iter().position(|t| t.name.eq_ignore_ascii_case(&car)).unwrap_or(0);
         let player = (index, handling.performance_rating);
         let mut rng = nfsu2::opponents::GameRng(self.rng.0);
-        let lineup = self.new_lineup(&event, ai, player, &mut rng);
-        Some(self.rival_fits(&lineup, true, mode.drag(), ai, player.0, &mut rng))
+        Some(self.lineup_dressed(&event, ai, player, true, mode.drag(), usize::MAX, &mut rng).1)
     }
 
     /// A race over (paused for a Restart, or ended): its rivals' cars, each
@@ -677,25 +791,18 @@ impl Game {
         let player_car = player.0;
         let difficulty = self.difficulty();
         let throttle = self.sim.race_globals.throttle_level;
+        // A new field: each entrant picked and dressed in turn
+        // (`lineup_dressed`); a field kept from a race before is dressed
+        // below when its looks are not kept.
+        let quick = self.quick.event == Some(race.event);
+        let mut dressed = None;
         if race.field.lineup.is_empty() {
             let mut rng = nfsu2::opponents::GameRng(self.rng.0);
-            race.field.lineup = self.new_lineup(event, ai, player, &mut rng);
+            let limit = race.route.grid.len().saturating_sub(1);
+            let (lineup, fits) = self.lineup_dressed(event, ai, player, quick, race.drag, limit, &mut rng);
+            race.field.lineup = lineup;
+            dressed = Some(fits);
             self.rng = rng;
-            // Bench aid (not native): NFSU2_BENCH_RIVAL_CARS=NAME,NAME forces
-            // the rivals' car types (for side-by-side runs with the original).
-            if let Some(v) = debug_env().bench_rival_cars.clone() {
-                for (e, name) in race.field.lineup.iter_mut().zip(v.split(',')) {
-                    if let Some(i) = name
-                        .trim()
-                        .parse::<usize>()
-                        .ok()
-                        .filter(|&i| i < self.game_data.car_types.len())
-                        .or_else(|| self.game_data.car_types.iter().position(|t| t.name.eq_ignore_ascii_case(name.trim())))
-                    {
-                        e.car = i;
-                    }
-                }
-            }
         }
         // The cars load side by side (as the traffic's do); the rest goes
         // in grid order, so the random draws keep their order.
@@ -718,10 +825,16 @@ impl Game {
         let (fits, slots) = if kept {
             (race.field.looks.clone(), race.field.slots.clone())
         } else {
-            let quick = self.quick.event == Some(race.event);
-            let mut rng = nfsu2::opponents::GameRng(self.rng.0);
-            let fits = self.rival_fits(&race.field.lineup[..entries], quick, race.drag, ai, player_car, &mut rng);
-            self.rng = rng;
+            let fits = match dressed {
+                Some(fits) => fits,
+                None => {
+                    let mut rng = nfsu2::opponents::GameRng(self.rng.0);
+                    let fits =
+                        self.rival_fits(&race.field.lineup[..entries], quick, race.drag, ai, player_car, &mut rng);
+                    self.rng = rng;
+                    fits
+                }
+            };
             // The grid slots (0x5264B0, after the line-up's and looks'
             // draws): the player moves off slot 0 when the order puts it
             // elsewhere.
@@ -956,5 +1069,16 @@ impl Game {
             }
         }
         Ok(())
+    }
+}
+
+/// The mix map's kind (MixMap_Select 0x4869A0): drag 2, drift 1, else 0.
+pub(crate) fn mix_kind(mode: RaceMode) -> u8 {
+    if mode.drag() {
+        2
+    } else if mode.drift() {
+        1
+    } else {
+        0
     }
 }

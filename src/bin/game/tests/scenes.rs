@@ -133,8 +133,10 @@ fn race_start_wheel_phase_survives_scene_placement() {
     game.quick.tracks = game.quick_track_select(mode, 0.0);
     let event = game.quick_event(mode);
     game.quick.car = Some("350Z".into());
+    // A seed whose draw picks a scene with moving cars (IntroNis08).
+    game.rng = nfsu2::opponents::GameRng(0);
     game.start_race(event, true, false).unwrap();
-    // Whichever intro the race draws (NFSU2_INTRO_NIS=n forces IntroNis<n>).
+    // The intro the race draws (NFSU2_INTRO_NIS=n forces IntroNis<n>).
     let kind = game.scenes.shop.as_ref().unwrap().scene.kind;
     match std::env::var("NFSU2_INTRO_NIS").ok().and_then(|v| v.parse::<u8>().ok()) {
         Some(n) => assert_eq!(kind, nfsu2::shop_scene::SceneKind::Intro(n)),
@@ -714,3 +716,4 @@ fn an_ending_read_ahead_is_the_one_loaded_at_the_finish() {
     }
     assert!(played >= 4, "endings checked: {played}");
 }
+

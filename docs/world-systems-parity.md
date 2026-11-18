@@ -227,8 +227,12 @@ first win, the finished career, and the clone-written `clone_s5_final` (test
 `every_stage_save_rewrites_as_the_original_resaves_it`). So a clone save of any of these
 stages is byte for byte the original's own resave, which the original loads
 (finished_resaved.sav, docs/save-points.md); `clone_s5_final` was loaded in the original before
-(internal notes). Saves after clone *play* at each stage were not cross-loaded
-under Wine this pass.
+(internal notes). A save after a long session of clone *play* loads in the
+original: the developer playthrough's finished career (170 races, 69 shop visits, 10
+photo shoots, 5 save reloads; stage 6, bank 290,963) loaded under Wine through the
+main menu, Career, Resume and the garage into free roam, with the original's career
+reading stage 6 and the bank 290,963 (career +0x7AF8 / +0x7134 at 0x85AD40) at each
+step.
 
 ## 6. Split screen
 

@@ -285,6 +285,8 @@ Setup-specific; not part of the method.
   instruction (stubs in the nop padding between functions; counts at 0x8BB600 +4·site, totals per draw
   function at 0x8BBB80). The stubs live in function padding below 0x780000, so the cave, `counters.py` and
   `subtrap.py` still work on the patched copy (the `Probes` of an earlier Wine run, which uses 0x8BB600, does not).
+  `rngsites.py patch-seq` adds the sequence log (every shared / world / state-pointer / seed / speech draw in
+  order with the shared state before it; docs/rng.md "The sequence log"); `rngdraws.py … --seq` dumps it.
 * the private tool `rngdraws.py OUT [--event circuit|drag|none] [--shop X,Y,Z] [--audio]` runs one session on it
   (boot, 600 menu frames, free-roam entry, 600 free-roam frames, then the event — shared generator pinned at
   the dialog — or the shop) with the per-site table recorded every frame through the cave;

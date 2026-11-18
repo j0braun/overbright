@@ -251,7 +251,7 @@ mod tests {
             let gate = |at: Vec2, c: f32, coordinate: bool| {
                 !coordinate && c - 308.0 >= 100.0 && !placed.iter().any(|p| p.0.distance(at) < 31.0)
             };
-            let (_, at, _) = TrafficLane::fill_drag(&f, j, 31.0, None, 0.5, &gate, &mut rng).expect("placed");
+            let (_, at, _) = TrafficLane::fill_drag(&f, j, 31.0, None, false, 0.5, &gate, &mut rng).expect("placed");
             let c = f
                 .records
                 .iter()
@@ -296,7 +296,7 @@ mod tests {
         assert!(!any(&h15), "4213B: a drag fill point");
         assert!(any(&bridge), "4201F: no drag fill point");
         let mut rng = GameRng(7);
-        assert!((0..12).all(|j| TrafficLane::fill_drag(&h15, j, 31.0, None, 0.5, &|_, _, _| true, &mut rng).is_none()));
+        assert!((0..12).all(|j| TrafficLane::fill_drag(&h15, j, 31.0, None, false, 0.5, &|_, _, _| true, &mut rng).is_none()));
     }
 
     #[test]
@@ -373,7 +373,7 @@ mod tests {
         let mut placed: Vec<Vec2> = Vec::new();
         for _ in 0..10 {
             let gate = |at: Vec2, _: f32, _: bool| !placed.iter().any(|p| p.distance(at) < 31.0);
-            let Some((t, at, _)) = TrafficLane::fill_race(&f, 0.5, &gate, &mut rng) else { continue };
+            let Some((t, at, _)) = TrafficLane::fill_race(&f, true, 0.5, &gate, &mut rng) else { continue };
             let s = t.steps[0];
             let r = &f.records[s.record];
             assert!(r.is_race() && s.cp >= 1 && s.cp + 2 <= r.points.len());

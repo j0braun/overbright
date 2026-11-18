@@ -137,7 +137,11 @@ impl Game {
                 self.profile = Profile::load();
                 let Some(p) = self.profile.as_mut() else { return Ok(None) };
                 p.upgrade_save(&self.game_data.career);
-                p.refresh_open(&self.game_data.career, &mut self.rng);
+                // The open events are not in the save (career +0x71C8 holds
+                // event-record pointers) and the load picks none: the
+                // original makes no slot-event draw at a profile load or at
+                // Resume, its first after the load is the city start's
+                // 0x527D40 (**measured**, the sequence log, docs/rng.md).
                 p.start_career(&self.game_data.career);
                 if let Some(mut d) = self.sim.drive.take() {
                     let device = self.platform.window.as_ref().map(|w| w.gpu.device.clone());

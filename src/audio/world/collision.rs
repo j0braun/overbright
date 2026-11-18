@@ -154,6 +154,26 @@ pub fn leave_game_rng(saved: u32) -> u32 {
     SEED.with(|s| s.replace(saved))
 }
 
+thread_local! {
+    /// CARSFX_Stereo's rolls (0x4765F5) the world build drew on the game's
+    /// generator (`crate::rng_sites::audio_setup::stereo_rolls`), taken by
+    /// the racers' stereo objects in order instead of a draw of their own.
+    static STEREO_ROLLS: std::cell::RefCell<std::collections::VecDeque<u32>> = const {
+        std::cell::RefCell::new(std::collections::VecDeque::new())
+    };
+}
+
+/// The world build's stereo rolls (0x4765F5), replacing any left over.
+pub fn set_stereo_rolls(rolls: &[u32]) {
+    STEREO_ROLLS.with(|q| *q.borrow_mut() = rolls.iter().copied().collect());
+}
+
+/// The next of the world build's stereo rolls, or a draw of its own when
+/// none is left (a world built without them: a test, no sound at the build).
+pub(crate) fn stereo_roll() -> u32 {
+    STEREO_ROLLS.with(|q| q.borrow_mut().pop_front()).unwrap_or_else(|| rand(2))
+}
+
 /// A draw site that takes a `GameRng` (EA Trax's pick, 0x46B6F0) on the
 /// audio's current generator ([`enter_game_rng`]).
 pub(crate) fn with_rng<R>(f: impl FnOnce(&mut crate::opponents::GameRng) -> R) -> R {
