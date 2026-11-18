@@ -23,7 +23,6 @@ fn candidate() -> Option<PathBuf> {
     match std::env::var_os("NFSU2_TEXTURE_PACK") {
         Some(p) => (!p.is_empty()).then(|| PathBuf::from(p)),
         None => crate::qol::setup::saved_texture_pack()
-            .map(|p| crate::platform::dirs::load_path(&p))
             .or_else(|| std::env::current_exe().ok()?.parent().map(|p| p.join("texture-pack"))),
     }
 }

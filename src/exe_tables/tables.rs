@@ -1,8 +1,9 @@
-//! Every table the clone reads from SPEED2.EXE, by address, type and count
-//! (docs/exe-tables.md lists them with their users). Built once by
-//! [`Tables::load`] from the checked executable.
+//! The engine's tables in one struct, as their users read them
+//! ([`super::Table`]): built once from the constants, the formulas and the
+//! decoders' standard tables (docs/exe-tables.md lists every table with
+//! its users).
 
-use super::{Error, Exe, Rec, Result};
+use super::constants::{car_audio as au, driving as dr, frontend as fe, garage as ga};
 use crate::audio::car::skids::SkidRecord;
 use crate::audio::car::transients::ShiftRec;
 use crate::audio::engine_chain::{Rec80, Rec84};
@@ -34,7 +35,7 @@ pub struct Vp6Tables {
     pub coeff_group_huffman: [i8; 64],
 }
 
-/// The tables, read once at start ([`super::init`]).
+/// The tables, built once on first use ([`super::tables`]).
 #[derive(Debug)]
 pub struct Tables {
     // ---- car physics and driving
@@ -103,7 +104,7 @@ pub struct Tables {
     pub decels: [Rec84; 37],
     /// The 15 scripted car-audio patterns (0x7F0070..0x7F08F8,
     /// {u16 rpm, u16 throttle}).
-    pub patterns: [Vec<(u16, u8)>; 15],
+    pub patterns: [&'static [(u16, u8)]; 15],
     /// The music contexts' score events (0x7ECC10, dword pairs).
     pub score_events: [(i16, i16); 31],
     /// The trains (0x7ED798, 12-byte entries).
@@ -173,315 +174,94 @@ pub struct Tables {
     pub ranked_rides: [u32; 0x12],
 }
 
-/// Rows of `N` plain values `row_stride` bytes apart.
-fn rows<T: bytemuck::Pod, const W: usize, const N: usize>(exe: &Exe, va: u32, row_stride: u32) -> Result<[[T; W]; N]> {
-    let v: Vec<[T; W]> = (0..N as u32).map(|r| exe.array::<T, W>(va + r * row_stride)).collect::<Result<_>>()?;
-    Ok(v.try_into().unwrap_or_else(|_| unreachable!()))
-}
-
-fn arr<T, const N: usize>(v: Vec<T>) -> [T; N] {
-    v.try_into().unwrap_or_else(|_| unreachable!())
-}
-
-/// A garage view at `o` of a record ([`Shot`]: angle, steer, field of
-/// view, target, eye).
-fn shot(r: &Rec<'_, '_>, o: usize) -> Shot {
-    let v = |o: usize| glam::Vec3::new(r.f32(o), r.f32(o + 4), r.f32(o + 8));
-    Shot { car_angle: r.f32(o), steer: r.f32(o + 4), fov: r.f32(o + 8), target: v(o + 0xC), eye: v(o + 0x18) }
-}
-
-fn byte(va: u32, v: u32) -> Result<u8> {
-    u8::try_from(v).map_err(|_| Error::Shape { va, what: "a value past a byte" })
-}
-
-/// One light of a setup (+0x20 + i·0x1C: flag, θ, φ, r, g, b, intensity).
-fn rig(exe: &Exe, va: u32) -> Result<[RigLight; 3]> {
-    exe.records(va + 0x20, 0x1C, |r| {
-        Ok(RigLight {
-            camera_relative: r.u32(0) != 0,
-            theta: r.f32(4),
-            phi: r.f32(8),
-            colour: glam::Vec3::new(r.f32(12), r.f32(16), r.f32(20)),
-            intensity: r.f32(24),
-        })
-    })
-}
-
-const PATTERNS: [(u32, usize); 15] = [
-    (0x7F_0070, 73),
-    (0x7F_0198, 40),
-    (0x7F_0238, 27),
-    (0x7F_02A8, 31),
-    (0x7F_0328, 28),
-    (0x7F_0398, 23),
-    (0x7F_03F8, 20),
-    (0x7F_0448, 68),
-    (0x7F_0558, 57),
-    (0x7F_0640, 35),
-    (0x7F_06D0, 31),
-    (0x7F_0750, 30),
-    (0x7F_07C8, 48),
-    (0x7F_0888, 28),
-    (0x7F_08F8, 25),
-];
-
 impl Tables {
-    pub fn load(exe: &'static Exe) -> Result<Tables> {
-        let engines: [Rec80; 43] = exe.records(0x7F_0DE0, 0x4C, |r: &Rec<'static, '_>| {
-            Ok(Rec80 {
-                gin: r.str_ptr(0x0C)?,
-                hybrid: r.u32(0x10) != 0,
-                decel: r.u32(0x14) as usize,
-                rpm_max: r.f32(0x1C),
-                rpm_min: r.f32(0x20),
-                vol_a: r.i32(0x24),
-                vol_b: r.i32(0x28),
-                d0: r.f32(0x2C),
-                a1: r.f32(0x30),
-                b1: r.f32(0x34),
-                a0: r.f32(0x38),
-                b0: r.f32(0x3C),
-                fixed_a: r.f32(0x40),
-                fixed_b: r.f32(0x44),
-                cutoff: r.i32(0x48),
-            })
-        })?;
-        let launch_index: [u8; 43] = exe.records(0x7F_0DE0, 0x4C, |r| byte(0x7F_0DE0, r.u32(0x18)))?;
-        let gins = engines.map(|e| e.gin.strip_prefix("GIN_").and_then(|g| g.strip_suffix(".gin")).unwrap_or(e.gin));
-        let level_entries = |off: usize| -> Result<[[u8; 4]; 33]> {
-            exe.records(0x7F_2230, 48, |r| Ok(std::array::from_fn(|l| r.u32(12 * l + off) as u8)))
-        };
-        let lateral_rows: [[f32; 6]; 6] = rows(exe, 0x7F_C744, 24)?;
-        let mut lateral = [exe.array::<f32, 6>(0x86_B34C)?; 7];
-        lateral[1..].copy_from_slice(&lateral_rows);
-        let skid_class = {
-            let cases = exe.switch_returns(0x45_8F28, 3)?;
-            let index: [u8; 32] = exe.array(0x45_8F34)?;
-            let mut out = [0u8; 32];
-            for (o, &i) in out.iter_mut().zip(&index) {
-                *o = byte(
-                    0x45_8F34,
-                    *cases.get(i as usize).ok_or(Error::Shape { va: 0x45_8F34, what: "a case past the jump table" })?,
-                )?;
-            }
-            out
-        };
-        let mp3_huff = {
-            let ptrs: [u32; 32] = exe.array(0x7D_0C30)?;
-            let mut starts: Vec<u32> = ptrs.iter().copied().filter(|&p| p != 0).collect();
-            starts.sort_unstable();
-            starts.dedup();
-            let mut out: [Option<Box<[i16]>>; 32] = Default::default();
-            for (o, &p) in out.iter_mut().zip(&ptrs) {
-                if p != 0 {
-                    let end = starts.iter().copied().find(|&s| s > p).unwrap_or(0x7D_0C30);
-                    *o = Some(exe.vec::<i16>(p, ((end - p) / 2) as usize)?.into_boxed_slice());
-                }
-            }
-            out
-        };
-        let i32_bytes = |va: u32, n: usize| -> Result<Vec<u8>> {
-            exe.vec::<i32>(va, n)?.into_iter().map(|v| byte(va, v as u32)).collect()
-        };
-        let i32_signed = |va: u32, n: usize| -> Result<Vec<i8>> {
-            Ok(exe.vec::<i32>(va, n)?.into_iter().map(|v| v as i8).collect())
-        };
-        let vp6 = Vp6Tables {
-            ac_dequant: exe.array(0x7C_4618)?,
-            dc_dequant: exe.array(0x7C_4C18)?,
-            zigzag: arr(i32_bytes(0x7C_5218, 64)?),
-            coeff_group: arr(i32_signed(0x7C_56F0, 64)?),
-            default_reorder: exe.array(0x7C_5A30)?,
-            ref_of_type: arr(i32_bytes(0x7C_5AB0, 10)?),
-            dccv_update: exe.array(0x7C_5FC0)?,
-            reorder_update: exe.array(0x7C_5FD8)?,
-            runv_update: exe.array(0x7C_6018)?,
-            runv_default: exe.array(0x7C_6034)?,
-            ract_update: exe.array(0x7C_6050)?,
-            dccv_lc: exe.array(0x7C_61E0)?,
-            vector_update: exe.array(0x7C_6258)?,
-            mb_stats_presets: exe.array(0x7C_62A8)?,
-            mb_stats_default: exe.array(0x7C_6668)?,
-            cat_table: exe.array(0x7C_5630)?,
-            candidates: exe.array(0x7C_5528)?,
-            bilinear: exe.array(0x81_6708)?,
-            token_base: exe.array(0x7C_58F8)?,
-            coeff_group_huffman: arr(i32_signed(0x7C_5928, 64)?),
-        };
-        let vinyl_groups = {
-            let calls = exe.pushed_args(0x54_6040, 0x54_5930, 28)?;
-            let v: Vec<(u8, u32, u32)> = calls
-                .iter()
-                .map(|a| match a.as_slice() {
-                    [label, icon, kind] => Ok((byte(0x54_6040, *kind)?, *icon, *label)),
-                    _ => Err(Error::Shape { va: 0x54_6040, what: "a vinyl group call without three arguments" }),
-                })
-                .collect::<Result<_>>()?;
-            arr(v)
-        };
-        Ok(Tables {
-            steer_response: exe.array(0x7E_9228)?,
-            steer_response_drift: exe.array(0x7E_9330)?,
-            lateral,
-            drift_tune: rows(exe, 0x7F_C2E4, 0x144)?,
-            street_x_tune: rows(exe, 0x7F_C33C, 0x144)?,
-            drag_tune: rows(exe, 0x7F_C394, 0x144)?,
-            zero_60_factor: exe.array(0x7F_C120)?,
-            zero_100_factor: exe.array(0x7F_C1D8)?,
-            surface_weight: exe.records(0x80_0EE0, 0x98, |r| Ok(r.f32(0x34)))?,
-            shake: rows(exe, 0x7E_C430, 16)?,
-            drift_level_speed: exe.array(0x79_DA78)?,
-            drift_level_points: rows(exe, 0x79_DA90, 16)?,
-            drift_virtual_scores: exe.records(0x7F_A5C0, 52, |r| Ok((r.u32(0) as u16, r.f32s::<12>(4))))?,
-            ai_lock: exe.array(0x7E_9074)?,
-            ai_table_rate_speed: exe.array(0x7E_909C)?,
-            asin: exe.records(0x7E_A628, 8, |r| Ok((r.u16(0), r.f32(4))))?,
-            collision_levels: exe.array(0x7E_CB78)?,
-            collision_gain: exe.array(0x7F_34A0)?,
-            db_to_lin: exe.array(0x7E_DE88)?,
-            lin_to_db: exe.array(0x7E_E7F0)?,
-            engine_levels: level_entries(0)?,
-            shifts: level_entries(4)?,
-            turbos: level_entries(8)?,
-            swtn: exe.records(0x7F_3040, 12, |r| {
-                let name = r.str_ptr(0)?;
-                let n = name
-                    .strip_prefix("SWTN_CAR_")
-                    .and_then(|s| s.get(..2))
-                    .and_then(|s| s.parse::<u8>().ok())
-                    .ok_or(Error::Shape { va: 0x7F_3040, what: "a sweetener bank not named SWTN_CAR_<nn>" })?;
-                Ok((n, r.i32(4), r.i32(8)))
-            })?,
-            gins,
-            shift_recs: exe.records(0x7F_2860, 0x60, |r| {
-                Ok(ShiftRec {
-                    up_delay: r.f32(0x08),
-                    up_drop: r.i32(0x0C),
-                    up_drop_ms: r.i32(0x10),
-                    up_add: r.i32(0x14),
-                    up_add_ms: r.i32(0x18),
-                    bump_ms: r.i32(0x1C),
-                    bump: r.f32(0x20),
-                    wob_vol: r.i32(0x24),
-                    wob_vol_period: r.i32(0x28),
-                    wob_vol_ms: r.i32(0x2C),
-                    wob_rpm: r.i32(0x30),
-                    wob_rpm_period: r.i32(0x34),
-                    wob_rpm_ms: r.i32(0x38),
-                    down_delay: r.f32(0x40),
-                    down_drop: r.i32(0x44),
-                    down_drop_ms: r.i32(0x48),
-                    down_add: r.i32(0x4C),
-                    down_blip_ms: r.i32(0x50),
-                    down_fall: r.i32(0x54),
-                    down_fall_ms: r.i32(0x58),
-                    settle: r.f32(0x5C),
-                })
-            })?,
-            launches: exe.records(0x7F_3248, 20, |r| Ok((r.f32(0), r.i32(4), r.i32(8), r.i32(12), r.i32(16))))?,
-            launch_index,
-            skid_records: exe.records(0x7F_2F20, 0x48, |r| {
-                Ok(SkidRecord {
-                    long_scale: r.f32(0x00),
-                    long_hi: r.f32(0x04),
-                    long_lo: r.f32(0x08),
-                    lat_scale: r.f32(0x0C),
-                    lat_hi: r.f32(0x10),
-                    lat_lo: r.f32(0x14),
-                    l3_up: r.i32(0x18),
-                    l3_down: r.i32(0x1C),
-                    l3_mix: r.f32(0x20),
-                    wheel_threshold: r.f32(0x28),
-                    hold: r.f32(0x2C),
-                    l2_up: r.i32(0x30),
-                    l2_down: r.i32(0x34),
-                    l2_mix: r.f32(0x38),
-                    off_side: r.f32(0x3C),
-                    angle_in0: r.f32(0x40),
-                    angle_in1: r.f32(0x44),
-                })
-            })?,
-            skid_class,
-            sound_index: arr(exe
-                .switch_returns(0x45_930C, 31)?
-                .into_iter()
-                .map(|v| byte(0x45_930C, v))
-                .collect::<Result<_>>()?),
-            engines,
-            decels: exe.records(0x7F_1AA8, 0x34, |r: &Rec<'static, '_>| {
-                Ok(Rec84 {
-                    gin: r.str_ptr(0)?,
-                    vol_a: r.i32(0x04),
-                    vol_d: r.i32(0x08),
-                    rpm0: r.i32(0x0C),
-                    rpm1: r.i32(0x10),
-                    up: r.f32(0x14),
-                    down: r.f32(0x18),
-                    d0: r.f32(0x1C),
-                    a1: r.f32(0x24),
-                    b1: r.f32(0x28),
-                    a0: r.f32(0x2C),
-                    b0: r.f32(0x30),
-                })
-            })?,
-            patterns: arr(PATTERNS
-                .iter()
-                .map(|&(va, n)| exe.records_vec(va, 4, n, |r| Ok((r.u16(0), byte(va, r.u16(2) as u32)?))))
-                .collect::<Result<_>>()?),
-            score_events: exe.records(0x7E_CC10, 8, |r| Ok((r.i32(0) as i16, r.i32(4) as i16)))?,
-            trains: exe.records(0x7E_D798, 12, |r| Ok((r.u32(0), r.u32(4))))?,
-            utk_rc: exe.array(0x81_9208)?,
-            utk_codebooks: rows(exe, 0x81_9308, 256)?,
-            utk_commands: exe.records(0x81_9508, 12, |r| Ok((r.u32(0) as u8, r.u32(4) as u8, r.f32(8))))?,
-            mp3_huff,
-            mp3_linbits: exe.array(0x7D_0CC0)?,
-            mp3_window_rows: rows(exe, 0x7D_1600, 128)?,
-            vp6,
-            in_game_rig: rig(exe, 0x7F_3F00)?,
-            default_rig: rig(exe, 0x7F_3E10)?,
-            slot_shots: [
-                exe.records(0x7F_4608, 0x3C, |r| Ok((r.u32(8), shot(r, 0xC))))?,
-                exe.records(0x7F_4608 + 0x31 * 0x3C, 0x3C, |r| Ok((r.u32(8), shot(r, 0xC))))?,
+    /// Every table from the code ([`super::constants`], [`super::generated`],
+    /// [`super::third_party`]).
+    pub fn builtin() -> Tables {
+        Tables {
+            steer_response: dr::STEER_RESPONSE,
+            steer_response_drift: dr::STEER_RESPONSE_DRIFT,
+            lateral: dr::LATERAL,
+            drift_tune: dr::DRIFT_TUNE,
+            street_x_tune: dr::STREET_X_TUNE,
+            drag_tune: dr::DRAG_TUNE,
+            zero_60_factor: dr::ZERO_60_FACTOR,
+            zero_100_factor: dr::ZERO_100_FACTOR,
+            surface_weight: dr::SURFACE_WEIGHT,
+            shake: dr::SHAKE,
+            drift_level_speed: dr::DRIFT_LEVEL_SPEED,
+            drift_level_points: dr::DRIFT_LEVEL_POINTS,
+            drift_virtual_scores: dr::DRIFT_VIRTUAL_SCORES,
+            ai_lock: dr::AI_LOCK,
+            ai_table_rate_speed: dr::AI_TABLE_RATE_SPEED,
+            asin: *super::generated::asin_table(),
+            collision_levels: au::COLLISION_LEVELS,
+            collision_gain: au::COLLISION_GAIN,
+            db_to_lin: *super::generated::db_to_lin(),
+            lin_to_db: *super::generated::lin_to_db(),
+            engine_levels: au::ENGINE_LEVELS,
+            shifts: au::SHIFTS,
+            turbos: au::TURBOS,
+            swtn: au::SWTN,
+            // The GIN bank names less "GIN_" and ".gin".
+            gins: au::ENGINES.map(|e| e.gin.strip_prefix("GIN_").and_then(|g| g.strip_suffix(".gin")).unwrap_or(e.gin)),
+            shift_recs: au::SHIFT_RECS,
+            launches: au::LAUNCHES,
+            launch_index: au::LAUNCH_INDEX,
+            skid_records: au::SKID_RECORDS,
+            skid_class: au::SKID_CLASS,
+            sound_index: au::SOUND_INDEX,
+            engines: au::ENGINES,
+            decels: au::DECELS,
+            patterns: [
+                &au::PATTERN_1,
+                &au::PATTERN_2,
+                &au::PATTERN_3,
+                &au::PATTERN_4,
+                &au::PATTERN_5,
+                &au::PATTERN_6,
+                &au::PATTERN_7,
+                &au::PATTERN_8,
+                &au::PATTERN_9,
+                &au::PATTERN_10,
+                &au::PATTERN_11,
+                &au::PATTERN_12,
+                &au::PATTERN_13,
+                &au::PATTERN_14,
+                &au::PATTERN_15,
             ],
-            vinyl_shots: [
-                exe.records(0x7F_5D40, 0x3C, |r| Ok(shot(r, 0xC)))?,
-                exe.records(0x7F_5D40 + 7 * 0x3C, 0x3C, |r| Ok(shot(r, 0xC)))?,
-            ],
-            suv_engine_shot: exe.records::<_, 1>(0x7F_5D00, 0x3C, |r| Ok(shot(r, 0xC)))?[0],
-            world_map_zooms: exe.records(0x7F_42C8, 16, |r| Ok((r.f32(0), r.f32(4), r.f32(8), r.u32(12))))?,
-            magazine_lines: exe.records(0x7F_A3F0, 8, |r| Ok((r.u32(0), r.u32(4))))?,
-            dvd_lines: exe.records(0x7F_A490, 8, |r| Ok((r.u32(0), r.u32(4))))?,
-            rating_lines: exe.array(0x7F_A4DC)?,
-            part_type_names: exe.records(0x80_333C, 8, |r: &Rec<'static, '_>| r.str_ptr(0))?,
-            slot_types: arr(exe
-                .vec::<u32>(0x80_2960, 0xAA)?
-                .into_iter()
-                .map(|v| byte(0x80_2960, v))
-                .collect::<Result<_>>()?),
-            slot_categories: arr(exe
-                .initialised_dwords(0x50_1920, 0x83_7D30, 0xAA)?
-                .into_iter()
-                .map(|v| byte(0x50_1920, v))
-                .collect::<Result<_>>()?),
-            vinyl_categories: arr(exe
-                .switch_returns(0x50_2020, 28)?
-                .into_iter()
-                .map(|v| byte(0x50_2020, v))
-                .collect::<Result<_>>()?),
-            opponent_cars: exe.array(0x7F_6DA4)?,
-            vinyl_groups,
-            opponent_names: exe.records(0x7F_6CD0, 4, |r: &Rec<'static, '_>| r.str_ptr(0))?,
-            ea_trax: exe
-                .records(0x7E_CD80, 16, |r: &Rec<'static, '_>| Ok((r.str_ptr(0)?, r.str_ptr(4)?, r.str_ptr(8)?)))?,
-            ea_trax_where: exe.records(0x7E_CD80, 16, |r: &Rec<'static, '_>| r.str_ptr(12))?,
-            tuning_names: arr(exe.switch_returns(0x50_FF40, 25)?),
-            qr_default_cars: exe.array(0x7F_AA48)?,
-            ranked_rides: arr(exe.initialised_dwords_with(0x77_D3B0, 0x86_41A8, 0x12, &|callee, pushed| {
-                (callee == 0x43_DB50)
-                    .then(|| pushed.and_then(|va| exe.cstr(va).ok()).map_or(0, crate::formats::hash::bin_hash))
-            })?),
-            card_scores: exe.records(0x80_05C0, 12, |r| Ok((r.u32(0), r.u32(4), r.f32(8) as u8)))?,
-        })
+            score_events: au::SCORE_EVENTS,
+            trains: au::TRAINS,
+            utk_rc: super::third_party::vgmstream_utk::UTK_RC_TABLE,
+            utk_codebooks: super::third_party::vgmstream_utk::UTK_CODEBOOKS,
+            utk_commands: super::third_party::vgmstream_utk::UTK_COMMANDS,
+            mp3_huff: super::third_party::mp3_huffman_trees(),
+            mp3_linbits: super::third_party::mp3_linbits(),
+            mp3_window_rows: super::third_party::mp3_window_rows(),
+            vp6: super::third_party::vp6(),
+            in_game_rig: ga::IN_GAME_RIG,
+            default_rig: ga::DEFAULT_RIG,
+            slot_shots: ga::SLOT_SHOTS,
+            vinyl_shots: ga::VINYL_SHOTS,
+            suv_engine_shot: ga::SUV_ENGINE_SHOT,
+            world_map_zooms: fe::WORLD_MAP_ZOOMS,
+            magazine_lines: fe::MAGAZINE_LINES,
+            dvd_lines: fe::DVD_LINES,
+            rating_lines: fe::RATING_LINES,
+            part_type_names: fe::PART_TYPE_NAMES,
+            slot_types: fe::SLOT_TYPES,
+            slot_categories: fe::SLOT_CATEGORIES,
+            vinyl_categories: fe::VINYL_CATEGORIES,
+            opponent_cars: fe::OPPONENT_CARS,
+            vinyl_groups: fe::VINYL_GROUPS,
+            opponent_names: fe::OPPONENT_NAMES,
+            ea_trax: fe::EA_TRAX,
+            ea_trax_where: fe::EA_TRAX_WHERE,
+            tuning_names: fe::TUNING_NAMES,
+            card_scores: fe::CARD_SCORES,
+            qr_default_cars: fe::QR_DEFAULT_CARS,
+            ranked_rides: fe::RANKED_RIDES,
+        }
     }
 }
 
@@ -556,26 +336,11 @@ impl Tables {
             ("ranked_rides", format!("{:?}", self.ranked_rides)),
         ]
     }
-
-    /// The tables whose SHA-256 (of the `Debug` text) is not the one the
-    /// supported build gives ([`FIELD_PINS`]); empty when all equal.
-    pub fn verify(&self) -> Vec<String> {
-        self.field_texts()
-            .into_iter()
-            .filter(|(name, text)| {
-                FIELD_PINS
-                    .iter()
-                    .find(|p| p.0 == *name)
-                    .is_none_or(|p| crate::fingerprint::sha256_hex(text.as_bytes()) != p.1)
-            })
-            .map(|(name, _)| name.to_string())
-            .collect()
-    }
 }
 
-/// The SHA-256 of each table's `Debug` text as the supported build (NFSU2
-/// PC 1.2) gives it: hashes only, never the data. A modified SPEED2.EXE is
-/// accepted when every table matches ([`super::load`]).
+/// The SHA-256 of each table's `Debug` text as the reference executable
+/// gives it (European PC 1.2): a test checks the built-in tables against
+/// these in any checkout, and a data test against the executable itself.
 pub const FIELD_PINS: &[(&str, &str)] = &[
     ("steer_response", "97c9d4db9902554aea087dddb38927c577d3fcafcf8d75c6adc56c7642d267fd"),
     ("steer_response_drift", "7128c7f08971f38da4ebc05425c1cf5d996ca28208a674cc8e877eba817cf775"),
@@ -642,25 +407,4 @@ pub const FIELD_PINS: &[(&str, &str)] = &[
     ("card_scores", "743fdc46be9929eeccb70a9397d09c9fc8f03eaf6bbc8ab6f4f92ba0e5d1423e"),
     ("qr_default_cars", "4bf4e88fcf270fedb7c9ab1126d20bf33ab7ab74816395f48391320127a49af2"),
     ("ranked_rides", "8040550a1a0f45e23596219fe4f1da5efbbf56492cdda571ac0e559fb5b90ea6"),
-];
-
-/// Read every address [`Tables::load`] reads, ignoring the results (the
-/// fuzz target: any bytes must give errors, never a panic or a hang).
-pub(super) fn probe(exe: &Exe) {
-    for va in PROBE_VAS {
-        let _ = exe.bytes(va, 4096);
-        let _ = exe.vec::<u32>(va, 64);
-        let _ = exe.cstr(va);
-        let _ = exe.cstr_at_ptr(va);
-        let _ = exe.switch_returns(va, 32);
-        let _ = exe.pushed_args(va, 0x54_5930, 28);
-        let _ = exe.records_vec(va, 0x4C, 43, |r| Ok((r.str_ptr(0x0C).map(str::len), r.f32(0x1C))));
-    }
-    let _ = exe.initialised_dwords(0x50_1920, 0x83_7D30, 0xAA);
-    let _ = exe.initialised_dwords_with(0x77_D3B0, 0x86_41A8, 0x12, &|_, p| p);
-}
-
-const PROBE_VAS: [u32; 16] = [
-    0x7E_9228, 0x7F_C744, 0x86_B34C, 0x7F_0DE0, 0x45_8F28, 0x45_930C, 0x7D_0C30, 0x7C_4618, 0x54_6040, 0x50_1920,
-    0x50_2020, 0x50_FF40, 0x77_D3B0, 0x80_333C, 0x7E_CD80, 0x7F_4608,
 ];

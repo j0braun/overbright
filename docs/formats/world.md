@@ -1432,7 +1432,7 @@ bench.
 * Region textures (0x57FC5E): GLOBAL/GLOBALTEXTURESNA.BIN for region 0
   (US), else GLOBALTEXTURESROW.BIN; the region 0x7FA73C (0 US, 1 and 5–9
   by language, 2/10 KR, 3 JP, 4 TW, 11 CN, 12 TH; 0x571390) is 6 in this
-  executable's data and never written, so ROW, which holds the Best Buy
+  executable's data and never written, so ROW (a US install, docs/region.md, takes NA), which holds the Best Buy
   billboards' texture. Six other solid texture references in L4RA
   (trailer, factory and power tower props) are in no file of the game.
   **Verified:** they get the default texture. GetTextureInfo (0x4901D0;

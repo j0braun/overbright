@@ -825,7 +825,7 @@ impl Env for RealEnv {
         if let Some(r) = std::env::var_os("NFSU2_ROOT") {
             add(PathBuf::from(r), "NFSU2_ROOT");
         }
-        if let Some(r) = crate::qol::kept_paths::kept_root() {
+        if let Some(r) = crate::qol::setup::saved_root() {
             add(r, "kept");
         }
         if let Ok(cwd) = std::env::current_dir() {
@@ -873,14 +873,14 @@ impl Env for RealEnv {
         let fp = crate::fingerprint::compute(root);
         let lines: Vec<(Mark, String)> =
             setup::check_lines(&c, Some(&fp)).into_iter().map(|(m, t)| (m.into(), t)).collect();
-        // A folder with an error line (a SPEED2.EXE whose tables differ:
-        // the game refuses it) cannot be used, files all there or not.
+        // A folder with an error line cannot be used, files all there or
+        // not.
         let usable = c.ok() && !lines.iter().any(|(m, _)| *m == Mark::Error);
         CheckResult { root: root.to_path_buf(), lines, usable }
     }
 
     fn keep_root(&self, root: &Path) -> Result<(), String> {
-        crate::qol::kept_paths::keep_root(root).map_err(|e| e.to_string())
+        crate::qol::setup::save_root(root).map_err(|e| e.to_string())
     }
 
     fn save(&self, c: &Choices, first: Option<&FirstRun>) -> Result<(), String> {
@@ -889,7 +889,7 @@ impl Env for RealEnv {
 
     fn set_pack(&self, dir: &str) -> PackStatus {
         let d = dir.trim();
-        let r = crate::qol::kept_paths::keep_texture_pack(if d.is_empty() { None } else { Some(Path::new(d)) });
+        let r = crate::qol::setup::save_texture_pack(if d.is_empty() { None } else { Some(Path::new(d)) });
         if let Err(e) = r {
             log::warn!("texture-pack folder not kept: {e}");
         }
@@ -1043,7 +1043,7 @@ pub fn choices_of(s: &Settings) -> Choices {
         skip: s.enh.launcher_skip,
         skip_movies: s.enh.skips_movies(),
         skip_title: s.enh.skips_title(),
-        texture_pack: crate::qol::kept_paths::kept_texture_pack().map(|p| p.display().to_string()).unwrap_or_default(),
+        texture_pack: crate::qol::setup::saved_texture_pack().map(|p| p.display().to_string()).unwrap_or_default(),
         hud_mod: s.enh.hd_ui,
     }
 }
@@ -1099,8 +1099,8 @@ pub fn apply_choices(s: &mut Settings, c: &Choices) {
 /// Writes the choices through the game's own code (`Settings::load_text`
 /// → change → `write_file`). Without options.txt it starts from the game's
 /// defaults plus the first-run display values `game --probe` computed
-/// (`first`: `first_run_display(card)` in the game, which reads a table of
-/// the player's SPEED2.EXE — the launcher itself reads no game file), the
+/// (`first`: `first_run_display(card)` in the game — the launcher itself
+/// reads no game file), the
 /// detail estimate applied as `first_run_display` does
 /// (`estimated_detail`); exactly what the game's first start writes. With
 /// no first-run values it writes nothing ([`SaveError::FirstRunPending`]).

@@ -51,11 +51,9 @@ pub fn named_app<'e>(env: &'e FakeEnv, fonts: &Fonts, name: &str, w: u32, h: u32
 
 /// The named states: (name, the screen it is shown on). The fake data of
 /// each comes from [`state_model`].
-pub const STATES: [(&str, Screen); 33] = [
+pub const STATES: [(&str, Screen); 31] = [
     ("no-game", Screen::FirstRun),
     ("check-ok", Screen::Check),
-    ("wrong-version", Screen::Check),
-    ("protected-exe", Screen::Check),
     ("not-a-game-folder", Screen::Check),
     ("files-missing", Screen::Check),
     ("checking", Screen::Main),
@@ -109,38 +107,16 @@ pub fn state_model(name: &str) -> Option<(Screen, Model)> {
             None,
             vec![
                 (Mark::Ok, "Version: the known release (sizes and checksums match)"),
-                (Mark::Ok, "All 10 files Overbright needs are present"),
+                (Mark::Ok, "All 9 files Overbright needs are present"),
             ],
             true,
         ),
-        "wrong-version" => check(
-            &mut m,
-            None,
-            vec![
-                (
-                    Mark::Error,
-                    "This SPEED2.EXE is version 1.0: its data tables differ from the supported 1.2 release; \
-                     Overbright does not start with it",
-                ),
-                (Mark::Ok, "All 10 files Overbright needs are present"),
-            ],
-            false,
-        ),
-        "protected-exe" => {
-            let line = crate::qol::setup::exe_protected_line();
-            check(
-                &mut m,
-                None,
-                vec![(Mark::Error, line.as_str()), (Mark::Ok, "All 10 files Overbright needs are present")],
-                false,
-            )
-        }
         "not-a-game-folder" => check(
             &mut m,
             Some("/data/player/Downloads"),
             vec![(
                 Mark::Error,
-                "10 of the 10 files Overbright needs are missing (SPEED2.EXE, GLOBAL/GLOBALB.BUN, …): \
+                "9 of the 9 files Overbright needs are missing (GLOBAL/GLOBALB.BUN, GLOBAL/GlobalB.lzc, …): \
                  this is not a complete game folder",
             )],
             false,

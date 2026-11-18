@@ -140,12 +140,26 @@ impl Bounds {
     }
 }
 
-/// The pools of car type indices random opponents come from (0x4FEAF0):
-/// the SUVs (0x7F6DDC) when the event is an SUV event (+0x0D = 1), else
-/// 0x7F6DC0 — 0x570A40 returns 0x7FA73C, which is 6 and never written, so
-/// the game never takes the first pool (0x7F6DA4).
+/// The pool of car type indices random opponents come from in the game's
+/// region ([`crate::region`]; see [`car_pool_in`]).
 pub fn car_pool(suv_event: bool) -> &'static [u8] {
-    if suv_event { &crate::frontend::career::OPPONENT_SUVS } else { &crate::frontend::career::OPPONENT_CARS_ALT }
+    car_pool_in(crate::region::get(), suv_event)
+}
+
+/// The pool of car type indices random opponents come from (0x4FEAF0) in
+/// `region` (0x570A40 returns the byte 0x7FA73C): the SUVs (0x7F6DDC)
+/// when the event is an SUV event (+0x0D = 1), else 0x7F6DA4 (ending in
+/// CIVIC, RSX) for region 0 and 0x7F6DC0 (ending in CORSA, PEUGOT106) for
+/// any other.
+pub fn car_pool_in(region: u32, suv_event: bool) -> &'static [u8] {
+    use crate::frontend::career::{OPPONENT_CARS_ALT, OPPONENT_SUVS};
+    if suv_event {
+        &OPPONENT_SUVS
+    } else if region == 0 {
+        &crate::exe_tables::tables().opponent_cars
+    } else {
+        &OPPONENT_CARS_ALT
+    }
 }
 
 /// Draw a random opponent's car (0x4FEAF0): the pool is shuffled (each

@@ -322,9 +322,9 @@ mod world_map_zoom_tests {
     /// Hill → Jackson Heights → Coal Harbor East → Coal Harbor West → Full
     /// Map and `[` wrapped back, each window matching the clone's.
     #[test]
-    #[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
+    #[cfg_attr(not(all(ob_game, ob_private)), ignore = "needs NFSU2_ROOT (the player's own game files) and OB_PRIVATE (private captures and saves)")]
     fn zoom_records_and_limits_match_the_executable() {
-        let exe = std::fs::read(crate::testkit::game_root().join("SPEED2.EXE")).unwrap();
+        let exe = crate::testkit::reference_exe();
         let u32_at = |va: usize| u32::from_le_bytes(exe[va - 0x400000..va - 0x400000 + 4].try_into().unwrap());
         for (i, z) in WORLD_MAP_ZOOMS.iter().enumerate() {
             let r = 0x7F42C8 + 16 * i;

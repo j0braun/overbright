@@ -14,8 +14,8 @@ own plain dark look, the Go font (BSD-3-Clause, `src/launcher/fonts/`).
   apply). options.txt dispatches `launcher.*` keys to it
   (`frontend/settings/options_txt.rs`), so the game, which rewrites
   options.txt from its model, keeps the line. Restore Native leaves it.
-- `qol::setup`: SPEED2.EXE is the first of `KEY_FILES` (4,788,224 bytes,
-  XXH3 0x153fcccc6ea82f90), found in any case (`key_file_path`);
+- `qol::setup`: `KEY_FILES` are the game's data files (SPEED2.EXE is not
+  needed, docs/exe-tables.md), found in any case (`key_file_path`);
   `installed_languages(root)`; `saved_texture_pack[_file]` /
   `save_texture_pack` (`texture-pack-root.txt` beside game-root.txt, the same
   atomic write as game-root.txt); `check_lines(check, fingerprint)` + `Mark`:
@@ -52,7 +52,6 @@ own plain dark look, the Go font (BSD-3-Clause, `src/launcher/fonts/`).
   screen with fixed fake data (`model::FakeEnv`), no window, no files read;
   a state (`headless::STATES`, listed by `--list-screens`) is a screen with
   that data changed to what a player can meet: `no-game`, `check-ok`,
-  `wrong-version`, `protected-exe` (the copy-protected retail SPEED2.EXE),
   `not-a-game-folder`, `files-missing`, `checking`,
   `first-start`, `probe-failed`, `no-vulkan` (the probe found no Vulkan
   driver: the line names the package to install), `long-values` (a long German path, many
@@ -385,13 +384,9 @@ run on the player's own game data (OpenRCT2, OpenMW's wizard, Ship of
 Harkinian, OpenGOAL, devilutionX, fheroes2, CorsixTH, ScummVM; general
 launchers such as Prism and Heroic), not native:
 - **Every refusal carries its fix.** A folder the check refuses says why in
-  one sentence by what is wrong (`screens::advice`: another SPEED2.EXE
-  version → "its SPEED2.EXE is not the version 1.2 executable whose game
-  data Overbright reads"; the copy-protected retail executable → its own
-  line naming it and linking the issue where the work is followed
-  (docs/exe-tables.md, "Which executables work"); most files missing → "the game's files are not
-  here … the one that holds SPEED2.EXE and the GLOBAL, FRONTEND and TRACKS
-  folders"; a few missing → reinstall / copy again), and its main button is
+  one sentence by what is wrong (`screens::advice`: most files missing →
+  "the game's files are not here … the one that holds the GLOBAL, FRONTEND
+  and TRACKS folders"; a few missing → reinstall / copy again), and its main button is
   "Choose another folder…" (the browser beside the refused folder; Cancel
   comes back to the check). "Use this folder" stays, off (the fresh-machine
   walk reads it).
@@ -411,7 +406,7 @@ launchers such as Prism and Heroic), not native:
 - A text field not being typed in shows both ends of a long path (the end
   only while typing, the caret's side).
 - Wording: "Check folder"; with nothing found the hint asks for "the folder
-  the game was installed to (the one that holds SPEED2.EXE)"; the GPU line
+  the game was installed to (the one that holds the GLOBAL folder)"; the GPU line
   says "Checking this computer…"; the failure screen asks to send the log
   file named when asking for help.
 - **First window size**: 960 × 720 logical, at most 92 % of the monitor's
@@ -636,7 +631,7 @@ programs keep settings, saves, caches, logs, crash reports, screenshots and mods
   (Overbright's folder and, on Linux, the profiles folder); nothing is moved. A folder that cannot be written
   (an install under Program Files) shows the error. Turning it off: delete `portable.txt`.
 - The kept game folder (`game-root.txt`) and HUD mod folder (`texture-pack-root.txt`) are written relative to
-  the program folder when they are on the same drive (`qol::kept_paths`), read back from it, and shown resolved.
+  the program folder when they are on the same drive (`qol::setup::save_root` / `saved_root`), read back from it, and shown resolved.
 - State `portable` (`--render portable`): the About page of a portable install. Tests
   `about_shows_and_turns_on_portable_mode`, `start_log::tests::the_log_follows_a_moved_folder`.
 

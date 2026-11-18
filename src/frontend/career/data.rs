@@ -245,7 +245,10 @@ impl Milestone {
 }
 
 impl CareerData {
+    /// The career data of `root`; also sets the game's region from its
+    /// CARS folder ([`crate::region::init`]), which the car lists follow.
     pub fn load(root: &Path) -> Result<CareerData> {
+        crate::region::init(root);
         let file = crate::game_fs::read(root, "GLOBAL/GlobalB.lzc")?;
         let data = crate::formats::jdlz::decompress(&file)?;
         let career = chunks(&data, 0).find(|c| c.id == 0x8003_4A10).context("no career chunk")?;

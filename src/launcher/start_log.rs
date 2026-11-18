@@ -303,7 +303,9 @@ mod tests {
         follow(&b);
         line("after");
         let old = std::fs::read_to_string(a.join(NAME)).unwrap();
-        assert!(old.contains("before") && old.contains(&format!("the log goes on in {}", b.join(NAME).display())));
+        // The log scrubs home folders (a temporary folder under home, as the checks use, reads as ~).
+        let moved = crate::qol::crash::scrub(&format!("the log goes on in {}", b.join(NAME).display()));
+        assert!(old.contains("before") && old.contains(&moved), "{old}");
         assert!(ended_normally(&old), "{old}");
         let new = std::fs::read_to_string(b.join(NAME)).unwrap();
         assert!(new.contains("the log goes on from") && new.contains("after") && !new.contains("before"), "{new}");

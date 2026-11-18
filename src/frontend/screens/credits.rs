@@ -4,7 +4,8 @@ use super::*;
 /// Credits.fng (screen 0x4B8800): the lines of CREDITS\UK_ENGLISH.TXT
 /// (UTF-16; "CREDITS\%s%s.TXT" of a prefix and the language name,
 /// 0x4B8808: in English NA_ for region 0, UK_ for a European region
-/// (0x570A50) — this executable's region 0x7FA73C is 6, so UK_). The Event Handler's script sends 0xE6E946B8
+/// (0x570A50); the European release's region 0x7FA73C is 6, so UK_,
+/// a US install's ([`crate::region`]) NA_ENGLISH.TXT). The Event Handler's script sends 0xE6E946B8
 /// at 320 ms; each 0xE6E946B8 clones CreditsArea (0xE6093486) with the
 /// next line (0x511360; after the last, from the first again, 0x511340)
 /// and runs RollCredit (0x587E5F53, 5200 ms) on it, whose own 0xE6E946B8
@@ -15,6 +16,11 @@ pub struct Credits {
     pub opened: f32,
 }
 
+/// The English credits file in `region` (0x4B8808).
+pub fn credits_file(region: u32) -> &'static str {
+    if region == 0 { "CREDITS/NA_ENGLISH.TXT" } else { "CREDITS/UK_ENGLISH.TXT" }
+}
+
 pub const AREA: u32 = fe_ids::AREA;
 pub const ROLL: u32 = fe_ids::ROLL;
 pub const FIRST: f32 = 320.0;
@@ -23,7 +29,7 @@ pub const ROLL_LENGTH: f32 = 5200.0;
 
 impl Credits {
     pub fn load(root: &std::path::Path, opened: f32) -> Credits {
-        let bytes = crate::game_fs::read(root, "CREDITS/UK_ENGLISH.TXT").unwrap_or_default();
+        let bytes = crate::game_fs::read(root, credits_file(crate::region::get())).unwrap_or_default();
         let units: Vec<u16> = bytes.chunks_exact(2).map(|c| u16::from_le_bytes([c[0], c[1]])).collect();
         let text = String::from_utf16_lossy(&units);
         let lines =
@@ -59,5 +65,15 @@ impl Credits {
             quads.extend(layout(assets, package, &line, t));
         }
         quads
+    }
+}
+
+#[cfg(test)]
+mod region_tests {
+    /// 0x4B8808's English prefix: NA_ for region 0, UK_ for a European one.
+    #[test]
+    fn credits_file_by_region() {
+        assert_eq!(super::credits_file(crate::region::US), "CREDITS/NA_ENGLISH.TXT");
+        assert_eq!(super::credits_file(crate::region::EUROPE), "CREDITS/UK_ENGLISH.TXT");
     }
 }

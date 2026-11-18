@@ -1,16 +1,12 @@
 use std::path::{Path, PathBuf};
 
 /// The files the clone cannot start without, with the sizes of the
-/// European 1.2 release (SPEED2.EXE without copy protection, 4,788,224
-/// bytes) and, for the
-/// smaller ones, their XXH3-64. A different size or hash is reported as
-/// "different version or modded", not an error; a missing file is.
-/// SPEED2.EXE (L1, docs/launcher.md): the clone never runs it, but an
-/// install without it is not a whole game folder (and the fingerprint and
-/// the launcher's version line read it); its name is matched without
-/// regard to case ([`key_file_path`]).
-pub const KEY_FILES: [(&str, u64, Option<u64>); 10] = [
-    ("SPEED2.EXE", 4_788_224, Some(0x153f_cccc_6ea8_2f90)),
+/// European 1.2 release and, for the smaller ones, their XXH3-64. A
+/// different size or hash is reported as "different version or modded",
+/// not an error; a missing file is. SPEED2.EXE is not among them:
+/// Overbright never runs or reads it (its tables are in the code,
+/// [`crate::exe_tables`]), so any retail copy works, copy-protected or not.
+pub const KEY_FILES: [(&str, u64, Option<u64>); 9] = [
     ("GLOBAL/GLOBALB.BUN", 8_008_064, Some(0x18a8_155e_0fa1_6b74)),
     ("GLOBAL/GlobalB.lzc", 5_145_778, Some(0x8759_a0f3_dfa2_069c)),
     ("GLOBAL/InGameCommon.bun", 1_595_640, Some(0xa513_2edd_efdc_655a)),
@@ -58,7 +54,7 @@ pub fn check(root: &Path, hash: bool) -> Check {
 }
 
 /// Where a [`KEY_FILES`] entry is under `root`: every game file is found
-/// without regard to case ([`crate::game_fs`]), SPEED2.EXE included.
+/// without regard to case ([`crate::game_fs`]).
 pub fn key_file_path(root: &Path, file: &str) -> PathBuf {
     crate::game_fs::path(root, file)
 }
@@ -66,7 +62,9 @@ pub fn key_file_path(root: &Path, file: &str) -> PathBuf {
 /// Whether `root` looks like the game folder (its main data files are
 /// there).
 pub fn looks_like_game(root: &Path) -> bool {
-    crate::game_fs::path(root, "GLOBAL/GLOBALB.BUN").is_file() && crate::game_fs::path(root, "FRONTEND/FrontB.lzc").is_file()
+    crate::game_fs::path(root, "GLOBAL/GlobalB.lzc").is_file()
+        && crate::game_fs::path(root, "FRONTEND/FrontB.lzc").is_file()
+        && crate::game_fs::path(root, "TRACKS").is_dir()
 }
 
 /// The file a folder chosen by `--set-root` or the prompt is kept in
@@ -75,13 +73,19 @@ pub fn saved_root_file() -> PathBuf {
     crate::platform::dirs::config().join("game-root.txt")
 }
 
+/// The kept game folder, resolved: a path kept relative to a portable
+/// install is taken from its program folder (`platform::dirs::load_path`).
 pub fn saved_root() -> Option<PathBuf> {
     let text = std::fs::read_to_string(saved_root_file()).ok()?;
     let p = PathBuf::from(text.trim());
-    (!text.trim().is_empty()).then_some(p)
+    (!text.trim().is_empty()).then(|| crate::platform::dirs::load_path(&p))
 }
 
+/// Keeps `root` as the game folder, in a portable install relative to the
+/// program folder when on the same drive (`platform::dirs::store_path`;
+/// docs/platform-dirs.md, "Portable mode").
 pub fn save_root(root: &Path) -> std::io::Result<()> {
+    let root = crate::platform::dirs::store_path(root);
     super::saves::write_atomic(&saved_root_file(), format!("{}\n", root.display()).as_bytes(), false)
 }
 
@@ -93,19 +97,23 @@ pub fn saved_texture_pack_file() -> PathBuf {
     saved_root_file().with_file_name("texture-pack-root.txt")
 }
 
-/// The kept texture-pack folder, if one was chosen.
+/// The kept texture-pack folder, if one was chosen, resolved as
+/// [`saved_root`] resolves.
 pub fn saved_texture_pack() -> Option<PathBuf> {
     let text = std::fs::read_to_string(saved_texture_pack_file()).ok()?;
     let p = PathBuf::from(text.trim());
-    (!text.trim().is_empty()).then_some(p)
+    (!text.trim().is_empty()).then(|| crate::platform::dirs::load_path(&p))
 }
 
-/// Keeps `dir` as the texture-pack folder (the same atomic write as
-/// [`save_root`]); `None` forgets it (the file removed).
+/// Keeps `dir` as the texture-pack folder (the same atomic write and
+/// portable form as [`save_root`]); `None` forgets it (the file removed).
 pub fn save_texture_pack(dir: Option<&Path>) -> std::io::Result<()> {
     let file = saved_texture_pack_file();
     match dir {
-        Some(d) => super::saves::write_atomic(&file, format!("{}\n", d.display()).as_bytes(), false),
+        Some(d) => {
+            let d = crate::platform::dirs::store_path(d);
+            super::saves::write_atomic(&file, format!("{}\n", d.display()).as_bytes(), false)
+        }
         None => match std::fs::remove_file(&file) {
             Err(e) if e.kind() != std::io::ErrorKind::NotFound => Err(e),
             _ => Ok(()),
@@ -160,44 +168,20 @@ pub enum Mark {
 /// version line and the mod files; without it the version is judged by
 /// [`KEY_FILES`]' sizes and hashes alone.
 pub fn check_lines(c: &Check, fp: Option<&crate::fingerprint::Fingerprint>) -> Vec<(Mark, String)> {
-    use crate::fingerprint::{State, Verdict};
+    use crate::fingerprint::Verdict;
     let mut v = Vec::new();
-    // SPEED2.EXE judged by its tables (the note or the error below): not
-    // also listed as "differs" with "may still run".
-    let mut exe_judged = false;
     match fp.map(|f| (f, f.verdict())) {
         Some((_, Verdict::Known(e))) => v.push((Mark::Ok, format!("Version: {e} — recognised"))),
-        Some((f, Verdict::Unknown(files))) => {
-            let exe = f.files.iter().find(|p| p.file == "SPEED2.EXE");
-            let line = match exe.map(|p| (&p.state, p.edition)) {
-                Some((State::Read { size, sha256 }, None)) => match crate::fingerprint::other_exe("SPEED2.EXE", *size, sha256) {
-                    Some(n) => format!("Version: {n} — not the version Overbright was made with"),
-                    None => format!("Version: SPEED2.EXE ({size} bytes) is not a version Overbright knows"),
-                },
-                // SPEED2.EXE missing or unreadable: the missing lines say it.
-                _ if !c.missing.is_empty() => String::new(),
-                _ => format!("Version not recognised ({} {} differ from the known release)", files.len(), if files.len() == 1 { "file" } else { "files" }),
-            };
-            // Overbright reads its tables from SPEED2.EXE ([`crate::exe_tables`]):
-            // another executable is fine when every table is the supported
-            // build's (a patched copy), else the game does not start.
-            let exe_unknown = matches!(exe.map(|p| (&p.state, p.edition)), Some((State::Read { .. }, None)));
-            if exe_unknown {
-                exe_judged = true;
-                match crate::exe_tables::check_folder(&f.root) {
-                    Ok(_) => v.push((Mark::Info, exe_modified_line().to_string())),
-                    Err(crate::exe_tables::Error::TablesDiffer { version, .. }) => {
-                        // A line of its own: capitalised ("This SPEED2.EXE is …").
-                        let line = exe_differs_line(version).replacen("this ", "This ", 1);
-                        v.push((Mark::Error, line + "; Overbright does not start with it"))
-                    }
-                    Err(crate::exe_tables::Error::Protected { .. }) => v.push((Mark::Error, exe_protected_line())),
-                    Err(e) => v.push((Mark::Error, e.to_string().lines().next().unwrap_or_default().to_string())),
-                }
-            } else if !line.is_empty() {
-                v.push((Mark::Warn, line + "; the game may look or play differently"));
-            }
-        }
+        // Missing files: the missing lines say it.
+        Some((_, Verdict::Unknown(_))) if !c.missing.is_empty() => {}
+        Some((_, Verdict::Unknown(files))) => v.push((
+            Mark::Warn,
+            format!(
+                "Version not recognised ({} {} differ from the known release); the game may look or play differently",
+                files.len(),
+                if files.len() == 1 { "file" } else { "files" }
+            ),
+        )),
         None if c.ok() && c.different.is_empty() => v.push((Mark::Ok, "Version: the known release (sizes and checksums match)".into())),
         None => {}
     }
@@ -205,17 +189,19 @@ pub fn check_lines(c: &Check, fp: Option<&crate::fingerprint::Fingerprint>) -> V
     if c.missing.is_empty() {
         v.push((Mark::Ok, format!("All {n} files Overbright needs are present")));
     }
-    let different: Vec<&String> = c.different.iter().filter(|f| !(exe_judged && f.as_str() == KEY_FILES[0].0)).collect();
-    if !different.is_empty() {
-        let k = different.len();
+    if !c.different.is_empty() {
+        let k = c.different.len();
         v.push((
             Mark::Warn,
             format!(
                 "{k} {} from the known release (modded or another edition): {} — the game may still run",
                 if k == 1 { "file differs" } else { "files differ" },
-                different.iter().map(|f| f.as_str()).collect::<Vec<_>>().join(", ")
+                c.different.join(", ")
             ),
         ));
+    }
+    if let Some(note) = fp.and_then(|f| f.exe_note()) {
+        v.push((Mark::Info, note));
     }
     if let Some(f) = fp
         && !f.mods.is_empty()
@@ -238,86 +224,6 @@ pub fn check_lines(c: &Check, fp: Option<&crate::fingerprint::Fingerprint>) -> V
         }
     }
     v
-}
-
-/// What is wrong with the game folder's SPEED2.EXE ([`exe_help`]).
-pub enum ExeProblem<'a> {
-    /// Not there or not readable.
-    Missing,
-    /// Not the supported build and its data tables differ from it:
-    /// its size, the version if known, the tables that differ.
-    Differs { size: u64, version: Option<&'a str>, tables: &'a [String] },
-    /// The copy-protected retail executable (SafeDisc): its size.
-    Protected { size: u64 },
-}
-
-/// Where the work on reading the copy-protected retail executable is
-/// followed.
-pub const PROTECTED_EXE_ISSUE: &str = "https://github.com/j0braun/overbright/issues/16";
-
-/// The check screens' line for the copy-protected retail SPEED2.EXE.
-pub fn exe_protected_line() -> String {
-    format!(
-        "This SPEED2.EXE is the copy-protected retail executable (SafeDisc): Overbright cannot read its game data yet. \
-         Support for it is being worked on: {PROTECTED_EXE_ISSUE}"
-    )
-}
-
-/// The check screens' and the log's note for a SPEED2.EXE that is not the
-/// supported build byte for byte but whose every data table is
-/// ([`crate::exe_tables::Edition::Modified`]: a widescreen patch, for one).
-pub fn exe_modified_line() -> &'static str {
-    "SPEED2.EXE is a modified copy of the supported version; its game data matches"
-}
-
-/// The check screens' line for a SPEED2.EXE whose data tables differ from
-/// the supported build's: its version when the fingerprint knows it.
-pub fn exe_differs_line(version: Option<&str>) -> String {
-    format!(
-        "this SPEED2.EXE is {}: its data tables differ from the supported 1.2 release",
-        version.unwrap_or("an unknown version")
-    )
-}
-
-/// The message when the game folder's SPEED2.EXE cannot be used
-/// ([`crate::exe_tables`]): missing, or its data tables differ from the
-/// supported build's, or the copy-protected retail executable. Overbright
-/// reads numbers and names from SPEED2.EXE at start, so it starts only when
-/// they are the supported build's (a patched copy with the same data is
-/// fine); the same voice and folder advice as [`help`]. The protected
-/// executable's message says what it is and where the work on it is
-/// followed, without folder advice.
-pub fn exe_help(exe: &Path, problem: &ExeProblem) -> String {
-    let mut s = match problem {
-        ExeProblem::Differs { size, version, tables } => {
-            let list = if tables.len() > 4 {
-                format!("{}, … ({} in all)", tables[..4].join(", "), tables.len())
-            } else {
-                tables.join(", ")
-            };
-            format!(
-                "{} ({size} bytes): {}.\nDiffering: {list}.\nOverbright reads its tables from the European 1.2 release's SPEED2.EXE without copy protection ({} bytes; a copy of it whose tables are unchanged also works) and does not start with other data: it would drive and sound wrong.\n",
-                exe.display(),
-                exe_differs_line(*version),
-                KEY_FILES[0].1
-            )
-        }
-        ExeProblem::Missing => format!("{} is missing.\n", exe.display()),
-        ExeProblem::Protected { size } => {
-            return format!(
-                "{} ({size} bytes) is the copy-protected retail SPEED2.EXE (SafeDisc). Its code and game data are encrypted, \
-                 and Overbright cannot read them yet: support for this executable is being worked on ({PROTECTED_EXE_ISSUE}).\n\
-                 Overbright does not remove copy protection and does not change the game's files.\n",
-                exe.display()
-            );
-        }
-    };
-    s += "Choose an install of Need for Speed Underground 2 (PC), version 1.2.\n";
-    let root = exe.parent();
-    let tail = help(root, None);
-    // The folder advice of `help` without its first line.
-    s += tail.split_once('\n').map_or("", |(_, rest)| rest);
-    s
 }
 
 /// The usual places of an install. Windows: [`windows_candidates`] with
@@ -443,7 +349,7 @@ pub fn help_for(root: Option<&Path>, check: Option<&Check>, windows: bool) -> St
         }
         _ => s += "Overbright could not find your copy of Need for Speed Underground 2 (PC).\n",
     }
-    s += "The game folder is the one that holds SPEED2.EXE and the GLOBAL, FRONTEND and TRACKS folders.\n";
+    s += "The game folder is the one that holds the GLOBAL, FRONTEND and TRACKS folders.\n";
     let (launcher, game, example) = if windows {
         ("overbright.exe", "game.exe", r#""C:\Program Files (x86)\EA GAMES\Need for Speed Underground 2""#)
     } else {

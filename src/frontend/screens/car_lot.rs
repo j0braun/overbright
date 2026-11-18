@@ -387,17 +387,44 @@ pub(super) fn lot_bar(state: &mut ScreenState, package: &crate::frontend::feng::
 pub const LOGO: u32 = fe_ids::LOGO;
 pub const BADGE: u32 = fe_ids::BADGE;
 
-/// The car lot's make and badge names by region (0x511E60): this
-/// executable's region 0x7FA73C is 6 (0x570A50: a European one) and the
-/// clone runs in English (language 0x7F70D0 = 0), so the Corsa (car type
-/// 7) shows VAUXHALL and the CORSA badge, the Miata (4) MX5 and the Tiburon
-/// (11) COUPE; every other car its own make and name. (Region 0 keeps
-/// MIATA / TIBURON; Japan, Korea and the other languages have their own.)
+/// The car lot's make and badge names in the game's region
+/// ([`crate::region`]; see [`region_logos_in`]).
 pub fn region_logos<'a>(car: &'a str, make: Option<&'a str>) -> (Option<&'a str>, &'a str) {
+    region_logos_in(crate::region::get(), car, make)
+}
+
+/// The car lot's make and badge names by region (0x511E60). The clone runs
+/// in English (language 0x7F70D0 = 0). In a European region (0x570A50;
+/// the European release's 0x7FA73C is 6) the Corsa (car type 7) shows
+/// VAUXHALL and the CORSA badge, the Miata (4) MX5 and the Tiburon (11)
+/// COUPE; every other car its own make and name. Region 0 keeps every
+/// car's own (MIATA, TIBURON). Japan, Korea and the other languages have
+/// their own and are not handled.
+pub fn region_logos_in<'a>(region: u32, car: &'a str, make: Option<&'a str>) -> (Option<&'a str>, &'a str) {
+    if region == 0 {
+        return (make, car);
+    }
     match car {
         "CORSA" => (Some("VAUXHALL"), "CORSA"),
         "MIATA" => (make, "MX5"),
         "TIBURON" => (make, "COUPE"),
         _ => (make, car),
+    }
+}
+
+#[cfg(test)]
+mod region_tests {
+    use super::region_logos_in;
+
+    /// 0x511E60 in English: a European region renames the Corsa, Miata and
+    /// Tiburon; region 0 keeps every car's own make and name.
+    #[test]
+    fn logos_by_region() {
+        assert_eq!(region_logos_in(6, "CORSA", Some("OPEL")), (Some("VAUXHALL"), "CORSA"));
+        assert_eq!(region_logos_in(6, "MIATA", Some("MAZDA")), (Some("MAZDA"), "MX5"));
+        assert_eq!(region_logos_in(6, "TIBURON", Some("HYUNDAI")), (Some("HYUNDAI"), "COUPE"));
+        for car in ["CORSA", "MIATA", "TIBURON", "CIVIC"] {
+            assert_eq!(region_logos_in(0, car, Some("MAKE")), (Some("MAKE"), car));
+        }
     }
 }

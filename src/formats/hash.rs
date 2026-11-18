@@ -2,8 +2,15 @@
 //! materials). Verified against the data: `bin_hash("PAN_STADIUM_Z_E96")`
 //! equals the hash stored in that solid's header (0x3BE35F00).
 
-pub fn bin_hash(name: &str) -> u32 {
-    name.bytes().fold(0xFFFF_FFFF_u32, |h, c| h.wrapping_mul(33).wrapping_add(c as u32))
+pub const fn bin_hash(name: &str) -> u32 {
+    let b = name.as_bytes();
+    let mut h = 0xFFFF_FFFF_u32;
+    let mut i = 0;
+    while i < b.len() {
+        h = h.wrapping_mul(33).wrapping_add(b[i] as u32);
+        i += 1;
+    }
+    h
 }
 
 /// Continue a hash with more text: `bin_hash_from(bin_hash(a), b)` is
