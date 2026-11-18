@@ -49,6 +49,13 @@ pub fn show_if_unseen(msg: &str) {
     let _ = msg;
 }
 
+/// Windows' version and build number (`RtlGetVersion`: the real one, not
+/// the compatibility value `GetVersionEx` gives); for the launcher's log.
+#[cfg(windows)]
+pub fn windows_version() -> Option<(u32, u32, u32)> {
+    win::version()
+}
+
 #[cfg(windows)]
 mod win {
     use std::ffi::c_void;
@@ -125,6 +132,35 @@ mod win {
             }
             true
         }
+    }
+
+    /// RTL_OSVERSIONINFOW (wdm.h).
+    #[repr(C)]
+    struct OsVersionInfo {
+        size: u32,
+        major: u32,
+        minor: u32,
+        build: u32,
+        platform: u32,
+        service_pack: [u16; 128],
+    }
+
+    #[link(name = "ntdll")]
+    unsafe extern "system" {
+        fn RtlGetVersion(info: *mut OsVersionInfo) -> i32;
+    }
+
+    pub(super) fn version() -> Option<(u32, u32, u32)> {
+        let mut v = OsVersionInfo {
+            size: std::mem::size_of::<OsVersionInfo>() as u32,
+            major: 0,
+            minor: 0,
+            build: 0,
+            platform: 0,
+            service_pack: [0; 128],
+        };
+        // SAFETY: a documented call filling a structure whose size field is set.
+        (unsafe { RtlGetVersion(&mut v) } == 0).then_some((v.major, v.minor, v.build))
     }
 
     pub(super) fn message_box(caption: &str, text: &str) {

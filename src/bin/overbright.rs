@@ -32,7 +32,7 @@ use std::process::ExitCode;
 use nfsu2::launcher::{
     dirs, headless, model, run,
     screens::{Outcome, Screen},
-    window,
+    start_log, window,
 };
 
 const USAGE: &str = "usage: overbright [--launcher] [--screen <name>] [-- game args]\n       overbright --render <screen|state> --size WxH [--scale F] out.png\n       overbright --list-screens\n       overbright --version\n       overbright --list-folder <dir> [game|packages|hud]\n       overbright --add-packages <file|folder>…\n       overbright --add-hud-mod <file|folder>…";
@@ -112,13 +112,56 @@ fn add_hud_mod(paths: &[String]) -> Result<(), String> {
 
 fn main() -> ExitCode {
     nfsu2::console::attach();
-    let _ = env_logger::Builder::from_default_env().try_init();
     let args: Vec<String> = std::env::args().skip(1).collect();
-    match run_cli(&args) {
-        Ok(()) => ExitCode::SUCCESS,
-        Err(e) => {
-            nfsu2::console::fatal(&format!("overbright: {e}"));
+    // The launcher's log from the first line (`start_log`, docs/launcher.md
+    // "When the launcher does not open"), and a panic written to it.
+    let logged = start_log::window_run(&args);
+    // One launcher at a time (the lock is held until the process ends);
+    // taken before the log, so a second start leaves the first one's log
+    // alone.
+    let mut lock_error = None;
+    let _lock = if logged {
+        match run::single_instance(&dirs::lock_file()) {
+            Ok(Some(l)) => Some(l),
+            Ok(None) => {
+                nfsu2::console::fatal("Overbright is already running.");
+                return ExitCode::SUCCESS;
+            }
+            Err(e) => {
+                lock_error = Some(e);
+                None
+            }
+        }
+    } else {
+        None
+    };
+    if logged {
+        start_log::start(&args);
+        if let Some(e) = lock_error {
+            log::warn!("no launcher lock ({e}); going on");
+        }
+    } else {
+        let _ = env_logger::Builder::from_default_env().try_init();
+    }
+    start_log::install_panic_hook();
+    let result = std::panic::catch_unwind(|| run_cli(&args));
+    let log = start_log::path();
+    let told = |what: &str| if logged { start_log::failure_text(what, &log) } else { what.to_string() };
+    match result {
+        Ok(Ok(())) => {
+            start_log::finish();
+            ExitCode::SUCCESS
+        }
+        Ok(Err(e)) => {
+            start_log::line(&format!("end: the launcher stopped: {e}"));
+            nfsu2::console::fatal(&told(&format!("overbright: {e}")));
             ExitCode::from(2)
+        }
+        Err(_) => {
+            let what = start_log::panic_message().unwrap_or_else(|| "(no message)".into());
+            start_log::line("end: the launcher stopped after an internal error");
+            nfsu2::console::fatal(&told(&format!("The launcher stopped after an internal error: {what}")));
+            ExitCode::from(101)
         }
     }
 }
@@ -225,20 +268,15 @@ fn run_cli(args: &[String]) -> Result<(), String> {
         img.save(&out).map_err(|e| format!("{out}: {e}"))?;
         return Ok(());
     }
-    // One launcher at a time (the lock is held until the process ends).
-    let _lock = match run::single_instance(&dirs::lock_file()) {
-        Ok(Some(l)) => Some(l),
-        Ok(None) => {
-            nfsu2::console::fatal("Overbright is already running.");
-            return Ok(());
-        }
-        Err(e) => {
-            log::warn!("no launcher lock ({e}); going on");
-            None
-        }
-    };
+    // (One launcher at a time: `main` holds the lock.)
     let root = nfsu2::qol::setup::find();
     let usable = root.as_ref().is_some_and(|r| nfsu2::qol::setup::check(r, false).ok());
+    log::info!(
+        "start: game folder {} ({}); game program {}",
+        root.as_ref().map_or("none found".to_string(), |r| r.display().to_string()),
+        if usable { "usable" } else { "not usable" },
+        dirs::game_exe().display()
+    );
     let game = window::GameStart {
         exe: dirs::game_exe(),
         args: game_args,
@@ -270,6 +308,7 @@ fn run_cli(args: &[String]) -> Result<(), String> {
         (None, None) if usable => Screen::Main,
         _ => Screen::FirstRun,
     };
+    log::info!("start: the window, screen {}", first.name());
     let env = model::RealEnv;
     let start = window::Start { screen: first, root: root.filter(|_| usable), failure, probe: true, game };
     match window::run_with_root(&env, start)? {

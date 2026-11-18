@@ -85,11 +85,19 @@ Known issues
 The list of known issues and differences from the original, with what you notice and any way
 around it, is in the README at @SOURCE_URL@ (section "Known issues").
 
+If the launcher closes by itself
+--------------------------------
+The launcher writes launcher.log in the settings folder above from its first line (the run before
+is kept as launcher.old.log). When it stops, it says so in a message box with the log's path. If
+the window closes without a message, open the settings folder (on Windows type
+%LOCALAPPDATA%\Overbright in Explorer's address bar) and attach launcher.log to your report.
+
 Reporting a problem
 -------------------
 Please open an issue at @SOURCE_URL@/issues and include:
 - what you did and what happened (a screenshot helps),
 - this version line: Overbright @VERSION@ (commit @COMMIT@),
+- launcher.log from the settings folder above,
 - the newest log file from the logs folder above (the launcher's "Open log folder" button shows it)
   and, after a crash, the newest file from the crashes folder.
 Log files and crash reports show your home folder as "~"; please look through them before posting.

@@ -4,9 +4,12 @@
 #   1. with "Start the game directly" set, the launcher starts it at once,
 #      sees the failed start and opens its window on the failure screen
 #      (the tail shown; checked in the launcher's log and a screenshot);
-#   2. a second launcher meanwhile refuses to start;
+#   2. a second launcher meanwhile refuses to start, and the first one's
+#      launcher.log holds its steps up to the window;
 #   3. Escape (Settings) and Enter (Play) start the stub again from the
-#      window: the failure screen again.
+#      window: the failure screen again;
+#   4. a panic in the window (OB_LAUNCHER_PANIC_TEST) ends it with exit
+#      code 101 and is written to launcher.log.
 # Usage: tests/launcher_start.sh <overbright binary> <X display, e.g. :153> <work dir> [stub]
 # (Wine: [stub] = a Windows game.exe, run with --crash-test, instead of cmd.exe and a batch file)
 # NFSU2_ROOT must name the game folder (the skip rule needs a usable one).
@@ -95,6 +98,13 @@ env -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE DISPLAY="$DISP" NFSU2_NO_PADS=1 OB_GA
   $RUN > "$W/second.out" 2>&1
 grep -q "already running" "$W/second.out" || fail "a second launcher started: $(cat "$W/second.out")"
 echo "second launcher refused: ok"
+# The launcher's own log (launcher.log next to options.txt): its steps up
+# to the window; the refused second start left it alone.
+SLDIR=$APPDIR; [ "${OB_WINE:-}" = 1 ] && SLDIR=$DATA
+grep -q "window: first picture shown" "$SLDIR/launcher.log" 2>/dev/null \
+  || fail "launcher.log without the window's steps: $(cat "$SLDIR/launcher.log" 2>&1)"
+[ ! -e "$SLDIR/launcher.old.log" ] || fail "the second launcher moved the first one's launcher.log"
+echo "launcher.log: ok"
 # Settings (Escape), then Play (Enter, the main screen's default): again.
 env -u WAYLAND_DISPLAY DISPLAY="$DISP" xdotool mousemove --window "$WIN" 5 5
 env -u WAYLAND_DISPLAY DISPLAY="$DISP" xdotool windowfocus "$WIN" 2>/dev/null
@@ -110,6 +120,17 @@ sleep 1
 env -u WAYLAND_DISPLAY DISPLAY="$DISP" import -window root "$W/failure2.png"
 kill "$PID" 2>/dev/null
 wait "$PID" 2>/dev/null
+# 4. A panic in the window (OB_LAUNCHER_PANIC_TEST): exit code 101, the
+#    panic and the log's path on stderr, the panic in launcher.log.
+env -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE DISPLAY="$DISP" NFSU2_NO_PADS=1 OB_GAME_EXE="$STUB" \
+  OB_LAUNCHER_PANIC_TEST=1 timeout 60 $RUN --launcher > "$W/panic.out" 2>&1
+CODE=$?
+[ "$CODE" = 101 ] || fail "a panic ended the launcher with $CODE, not 101: $(cat "$W/panic.out")"
+grep -q "launcher.log" "$W/panic.out" || fail "the panic message does not name the log: $(cat "$W/panic.out")"
+grep -q "^\[PANIC main\].*OB_LAUNCHER_PANIC_TEST" "$SLDIR/launcher.log" \
+  || fail "the panic is not in launcher.log: $(cat "$SLDIR/launcher.log")"
+grep -q "stopped after an internal error" "$SLDIR/launcher.log" || fail "launcher.log has no end line"
+echo "panic: exit 101, in launcher.log: ok"
 # Wine: stop this prefix's own server (WINEPREFIX is the caller's private one).
 [ "${OB_WINE:-}" = 1 ] && wineserver -k 2>/dev/null
 echo "PASS"

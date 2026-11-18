@@ -184,7 +184,8 @@ Overbright never writes into the game's folder or the original's own save folder
 
 Open an issue at [github.com/j0braun/overbright/issues](https://github.com/j0braun/overbright/issues) with the
 output of `game --check-game <your game folder>`, the newest log from the logs folder above, and your graphics
-settings. A difference from the original game is a bug unless it is listed in
+settings. If the launcher closes by itself or does not open, attach `launcher.log` from the settings folder
+above (it is written from the launcher's first line; the run before is kept as `launcher.old.log`). A difference from the original game is a bug unless it is listed in
 [docs/native-deviations.md](docs/native-deviations.md).
 
 ## Contributing
