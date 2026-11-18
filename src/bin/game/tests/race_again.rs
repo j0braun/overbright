@@ -201,3 +201,36 @@ fn a_tournament_keeps_its_field_from_race_to_race() {
     }
     assert!(checked >= 2, "tournaments checked: {checked}");
 }
+
+/// Next Race in the original, seen under Wine (stage 5's first URL
+/// tournament, S5_URL_1, event +0x08 = 0xF874A549, from the
+/// `stage5_win1` save): race 1 on track 4712, then Next Race posts
+/// message 10 (0x7FAA08), moves the race record 0x85EF48 on by 0xD24 and
+/// starts track 4714 with every racer record [0x89E810] (0x940 bytes
+/// each, six racers) unchanged but for +0x8F8, as a Restart leaves them:
+/// the same rivals, looks and grid slots (+0x03: 6, 2, 3, 4, 5, 1). The
+/// clone's Next Race for that event: its second race on 4714 with the
+/// field of the first.
+#[test]
+#[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
+fn next_race_takes_the_url_tournament_to_its_second_track_with_its_field() {
+    testkit::game();
+    let mut game = career_at(5, 0);
+    let what = "S5_URL_1";
+    let event = game.game_data.career.events.iter().find(|e| e.unlock == 0xF874_A549).expect(what).clone();
+    let tracks: Vec<u16> = event.races.iter().map(|r| r.0).collect();
+    assert_eq!(tracks.get(..2), Some(&[4712u16, 4714][..]), "{what}: its first two tracks");
+    game.start_race(event.index, false, false).unwrap();
+    let first = field(&game, what);
+    steps(&mut game, 120);
+    let Mode::Race(race) = &game.mode else { unreachable!() };
+    let next = (race.event, race.quick, race.from_map, race.round + 1, race.field.clone());
+    game.race_flow.next_round = Some(next);
+    game.keep_replay(game.icon_menu(MenuKind::PostRace));
+    act(&mut game, Action::NextRace, MenuKind::PostRace, what);
+    let second = field(&game, what);
+    let Mode::Race(race) = &game.mode else { unreachable!() };
+    assert_eq!(event.races[race.round].0, 4714, "{what}: the second race's track");
+    assert_eq!(second.0, first.0, "{what}: the rivals, looks and grid slots");
+    assert_eq!(second.1, first.1, "{what}: the player's grid slot");
+}
