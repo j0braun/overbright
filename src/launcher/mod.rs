@@ -33,6 +33,7 @@ pub mod saves;
 pub mod screens;
 pub mod sounds;
 pub mod start_log;
+pub mod transfer;
 pub mod ui;
 #[cfg(windows)]
 mod win_dialog;

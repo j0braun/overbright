@@ -223,6 +223,64 @@ pub fn load_path(p: &Path) -> PathBuf {
     }
 }
 
+/// The files in Overbright's folder that keep a folder path (one path
+/// per file): the game folder and the HUD mod / texture-pack folder.
+pub const PATH_FILES: [&str; 2] = ["game-root.txt", "texture-pack-root.txt"];
+
+/// A kept path moved between two ways of keeping it: `from` / `to` are
+/// the program folder when the path is read from / written for a portable
+/// install (None: an ordinary folder, where paths are kept absolute). A
+/// relative path is first taken from `from`'s program folder; it is then
+/// kept relative to `to`'s when on the same drive, else absolute. A
+/// relative path with no portable source stays as it is.
+pub fn rebase_path(p: &Path, from: Option<&Path>, to: Option<&Path>) -> PathBuf {
+    if p.as_os_str().is_empty() {
+        return p.to_path_buf();
+    }
+    let abs = match from {
+        Some(base) if p.is_relative() => join_relative(base, p),
+        _ => p.to_path_buf(),
+    };
+    if abs.is_relative() {
+        return abs;
+    }
+    match to {
+        Some(base) if same_drive(base, &abs) => relative_to(base, &abs).unwrap_or(abs),
+        _ => abs,
+    }
+}
+
+/// The text of a file that keeps paths ([`PATH_FILES`]: the whole text is
+/// one path; [`LOCATIONS_FILE`]: `<key> <path>` lines, comments kept) with
+/// every path moved by [`rebase_path`]. Other files: None (copied as they
+/// are).
+pub fn rebase_kept_text(name: &str, text: &str, from: Option<&Path>, to: Option<&Path>) -> Option<String> {
+    if PATH_FILES.contains(&name) {
+        let t = text.trim();
+        if t.is_empty() {
+            return Some(text.to_string());
+        }
+        return Some(format!("{}\n", rebase_path(Path::new(t), from, to).display()));
+    }
+    if name != LOCATIONS_FILE {
+        return None;
+    }
+    let mut out = String::new();
+    for line in text.lines() {
+        let l = line.trim();
+        match l.split_once(char::is_whitespace) {
+            Some((k, p)) if !l.starts_with('#') && Location::from_key(k).is_some() && !p.trim().is_empty() => {
+                out += &format!("{k} {}\n", rebase_path(Path::new(p.trim()), from, to).display());
+            }
+            _ => {
+                out += line;
+                out.push('\n');
+            }
+        }
+    }
+    Some(out)
+}
+
 /// `base` joined with the relative path `rel`, its `..` and `.` applied
 /// to the text (so the folder shows without them). Pure.
 pub fn join_relative(base: &Path, rel: &Path) -> PathBuf {

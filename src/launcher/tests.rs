@@ -2391,7 +2391,9 @@ fn locations_file_round_trip_and_copy() {
     std::fs::write(from.join("a.txt"), b"abc").unwrap();
     std::fs::write(from.join("sub/b.bin"), vec![7u8; 4096]).unwrap();
     let to = dir.join("to");
-    assert_eq!(super::model::copy_folder(&from, &to).unwrap(), (2, 4099));
+    let plan = super::transfer::location_plan(Location::Screenshots, &from, &to, None);
+    let done = super::transfer::apply(&plan, super::transfer::Choice::Keep).unwrap();
+    assert_eq!((done.copied, done.bytes), (2, 4099));
     assert_eq!(std::fs::read(to.join("sub/b.bin")).unwrap().len(), 4096);
     assert!(from.join("a.txt").is_file(), "nothing deleted");
     assert!(dirs::location_missing(std::path::Path::new("/nonexistent-drive-ob/folder")));
@@ -2563,5 +2565,85 @@ fn the_map_editor_starts_with_the_mod_and_the_game_folder() {
     unsafe { std::env::set_var("OB_EDITOR_EXE", dir.join("missing")) };
     assert!(RealEnv.start_editor(None, None).err().unwrap().contains("could not be started"));
     unsafe { std::env::remove_var("OB_EDITOR_EXE") };
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// Portable mode switched off with "copy my files back" into a home
+/// folder that already has its own settings: the question lists them as
+/// different and kept (no replace offered for settings), and after the
+/// copy they are byte for byte what they were; the portable copies sit
+/// beside them with their kept paths made absolute, and the saves go to
+/// the data home's profiles folder.
+#[cfg(unix)]
+#[test]
+fn portable_off_keeps_the_home_settings_byte_identical() {
+    let fonts = Fonts::new();
+    let env = FakeEnv;
+    let dir = std::env::temp_dir().join(format!("ob-portable-off-{}", crate::unique_tag()));
+    let prog = dir.join("Games/overbright");
+    let data = prog.join("data");
+    let share = dir.join("home/.local/share");
+    let home = share.join("overbright");
+    let put = |p: &std::path::Path, b: &[u8]| {
+        std::fs::create_dir_all(p.parent().unwrap()).unwrap();
+        std::fs::write(p, b).unwrap();
+    };
+    put(&data.join("game-root.txt"), b"../Need for Speed Underground 2\n");
+    put(&data.join("options.txt"), b"portable options\n");
+    put(&data.join("launcher.txt"), b"text 150\n");
+    put(&data.join("NFS Underground 2/ABC/ABC"), b"save");
+    put(&data.join("maps/m/map.obmap"), b"map");
+    put(&data.join("cache/big.bin"), b"cache");
+    put(&data.join("launcher.lock"), b"");
+    let mine: [(&str, &[u8]); 3] = [
+        ("game-root.txt", b"/media/games/Need for Speed Underground 2\n"),
+        ("options.txt", b"my options\n"),
+        ("launcher.txt", b"text 100\n"),
+    ];
+    for (n, b) in mine {
+        put(&home.join(n), b);
+    }
+    let mut a = app(&env, &fonts, Screen::Storage, 1280, 720, 1.0);
+    a.model.portable = super::model::PortableInfo {
+        on: true,
+        marker: true,
+        changed: false,
+        program: Some(prog.clone()),
+        data: Some(data.clone()),
+        home: home.clone(),
+        home_saves: share.clone(),
+        writable: true,
+    };
+    a.rebuild(&fonts);
+    a.st.focus = Some("portable");
+    key(&mut a, &fonts, Key::Space);
+    assert_eq!(a.model.ask, Some(super::model::Dialog::PortableOff));
+    let t = all_text(&a);
+    assert!(t.contains("kept as they are: game-root.txt, launcher.txt, options.txt"), "{t}");
+    assert!(
+        t.contains("To copy: 2 files") && t.contains("maps (1 file)") && t.contains("NFS Underground 2 (1 file)"),
+        "{t}"
+    );
+    assert!(a.ui.get("port_copy_back_replace").is_none(), "settings are never replaced: no replace offered");
+    assert_eq!(focus(&a), "port_copy_back", "the safe copy is the default");
+    key(&mut a, &fonts, Key::Enter);
+    assert!(a.model.message.as_ref().is_some_and(|(k, _)| *k == Mark::Ok), "{:?}", a.model.message);
+    for (n, b) in mine {
+        assert_eq!(std::fs::read(home.join(n)).unwrap(), b, "{n} untouched");
+    }
+    assert_eq!(
+        std::fs::read_to_string(home.join("game-root.txt.from-portable")).unwrap(),
+        format!("{}\n", dir.join("Games/Need for Speed Underground 2").display()),
+        "the portable copy beside it, its path absolute"
+    );
+    assert_eq!(std::fs::read(home.join("options.txt.from-portable")).unwrap(), b"portable options\n");
+    assert_eq!(std::fs::read(share.join("NFS Underground 2/ABC/ABC")).unwrap(), b"save");
+    assert_eq!(std::fs::read(home.join("maps/m/map.obmap")).unwrap(), b"map");
+    assert!(
+        !home.join("cache").exists()
+            && !home.join("NFS Underground 2").exists()
+            && !home.join("launcher.lock").exists()
+    );
+    assert!(data.join("options.txt").is_file(), "nothing deleted");
     let _ = std::fs::remove_dir_all(&dir);
 }

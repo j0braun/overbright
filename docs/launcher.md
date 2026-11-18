@@ -48,15 +48,18 @@ sits on one smoked slab; the footer has the version and the button legends of th
   "Start the game with the editor tools" (this one start with `--editor`: F7 the texture editor, F8 the free
   camera; `Model::play_args`), Support file (Save…) and the Logs folder (Open), the F3 overlay's
   key; a description of the focused row at the right. Advanced keeps the rest.
-- `storage` (`storage-portable`, `storage-custom`, `storage-missing`; Settings › Advanced › Storage): Portable
-  mode as a switch (on: asks, offers to copy what is kept now into `<program>/data`, writes `portable.txt`;
-  off: asks, offers to copy back, removes `portable.txt`, the data folder stays; refused cleanly when the program
+- `storage` (`storage-portable`, `storage-custom`, `storage-missing`, `storage-copy-back`; Settings › Advanced ›
+  Storage): Portable mode as a switch (on: asks, offers to copy what is kept now into `<program>/data`, writes
+  `portable.txt`; off: asks, offers to copy back, removes `portable.txt`, the data folder stays; every copy
+  question lists first what will be copied, what is already there and what differs, and never overwrites a
+  file already there, docs/platform-dirs.md "Copying between places"; refused cleanly when the program
   folder cannot be written; applies from the next start: the footer says "Portable after restart" / "Portable ·
 off after restart" and the page offers Restart now, focused, which starts the launcher again with the same
 arguments (`Outcome::Restart`; the new one waits for the old one's lock)), then every folder with its path, Change… (the system
   folder dialog, Overbright's own browser with a pad or on the Deck), Open and Reset to default: game folder, HUD
   mod folder and the `platform::dirs::Location`s (docs/platform-dirs.md "Folders put elsewhere"). Change… asks
-  "Copy the files and use it" (copied on a worker, checked, the old folder kept) or "Use it, start empty". A
+  "Copy and use it" (the plan listed first; copied on a worker by the same rules, checked, the old folder kept),
+  "Use it, copy nothing" and, when files other than settings differ, "Copy, replace (backups kept)". A
   folder on a drive that is not there says so and keeps Reset. The page scrolls when the window is short.
 - `mods` (`mods-empty`, `mods-off`, `mods-conflict`, `mods-order`, `mods-remove`, `mods-map-editor-open`,
   `mods-map-editor-failed`): Use mods; Texture packs

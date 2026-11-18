@@ -174,7 +174,7 @@ pub struct App<'e> {
     pub motion: super::anim::Motion,
     /// Files being copied to a new folder on a worker.
     pub copy_job: Option<
-        std::sync::mpsc::Receiver<(crate::platform::dirs::Location, PathBuf, Result<(usize, u64), String>)>,
+        std::sync::mpsc::Receiver<(crate::platform::dirs::Location, PathBuf, Result<super::transfer::Done, String>)>,
     >,
     /// Keys are ignored until then (just after the system's folder dialog).
     pub keys_after: Option<std::time::Instant>,
@@ -332,40 +332,59 @@ pub fn build(b: &mut Builder, m: &Model, screen: Screen) {
         match &m.ask {
             Some(Dialog::MoveLocation(loc, to)) => {
                 let what = loc_name(*loc);
+                let plan = copy_words(m);
+                let mut buttons = vec![("loc_copy", "Copy and use it"), ("loc_empty", "Use it, copy nothing")];
+                if m.copy_plan.as_ref().is_some_and(super::transfer::Plan::replaceable) {
+                    buttons.push(("loc_copy_replace", "Copy, replace (backups kept)"));
+                }
+                buttons.push(("loc_cancel", "Cancel"));
                 b.dialog(
                     &format!("Put {} here?", what.to_lowercase()),
                     &format!(
-                        "{}\nOverbright can copy the files that are there now and check every one arrived; the \
-                         old folder and its files stay until you delete them. Overbright and the game use the new \
-                         folder from their next start.",
+                        "{}\n{plan}\nNothing already there is overwritten, and the old folder and its files stay \
+                         until you delete them. Overbright and the game use the new folder from their next start.",
                         to.display()
                     ),
-                    &[("loc_copy", "Copy the files and use it"), ("loc_empty", "Use it, start empty"), ("loc_cancel", "Cancel")],
+                    &buttons,
                 );
             }
             Some(Dialog::PortableOn) => {
                 let data = m.portable.data.as_ref().map_or(String::new(), |d| d.display().to_string());
+                let plan = copy_words(m);
+                let mut buttons =
+                    vec![("port_copy", "Copy my files and turn on"), ("port_on", "Turn on, copy nothing")];
+                if m.copy_plan.as_ref().is_some_and(super::transfer::Plan::replaceable) {
+                    buttons.push(("port_copy_replace", "Copy, replace (backups kept)"));
+                }
+                buttons.push(("port_cancel", "Cancel"));
                 b.dialog(
                     "Keep everything beside Overbright?",
                     &format!(
                         "From the next start settings, saves, caches, logs and mods are kept in {data}. \
                          Overbright writes portable.txt beside the program. Nothing is deleted: what is kept now \
-                         stays in {} unless you copy it.",
+                         stays in {} unless you copy it.\n{plan}",
                         m.portable.home.display()
                     ),
-                    &[("port_copy", "Copy my files and turn on"), ("port_on", "Turn on, start empty"), ("port_cancel", "Cancel")],
+                    &buttons,
                 );
             }
             Some(Dialog::PortableOff) => {
                 let data = m.portable.data.as_ref().map_or(String::new(), |d| d.display().to_string());
+                let plan = copy_words(m);
+                let mut buttons =
+                    vec![("port_copy_back", "Copy my files back and turn off"), ("port_off", "Turn off, copy nothing")];
+                if m.copy_plan.as_ref().is_some_and(super::transfer::Plan::replaceable) {
+                    buttons.push(("port_copy_back_replace", "Copy, replace (backups kept)"));
+                }
+                buttons.push(("port_cancel", "Cancel"));
                 b.dialog(
                     "Keep the files in your home folders again?",
                     &format!(
                         "From the next start they are kept in {}. Overbright removes portable.txt; the folder {data} \
-                         and everything in it stays.",
+                         and everything in it stays.\n{plan}",
                         m.portable.home.display()
                     ),
-                    &[("port_copy_back", "Copy my files back and turn off"), ("port_off", "Turn off"), ("port_cancel", "Cancel")],
+                    &buttons,
                 );
             }
             _ => {}
@@ -382,6 +401,12 @@ pub fn build(b: &mut Builder, m: &Model, screen: Screen) {
             &[("keep", "Keep it"), ("remove_yes", "Remove")],
         );
     }
+}
+
+/// The open copy question's lines: what would be copied, what is already
+/// there, what differs (`transfer::Plan::words`).
+fn copy_words(m: &Model) -> String {
+    m.copy_plan.as_ref().map_or_else(|| "Nothing to copy.".to_string(), super::transfer::Plan::words)
 }
 
 /// The footer's portable note: the state in force, and what the next
@@ -1711,6 +1736,30 @@ belong to their authors.";
 /// The HUD mod section's sentence on what it takes.
 pub const HUD_INTRO: &str = "Not set up: the game shows its own HUD and maps. Add HUD mod… takes the downloads.";
 
+/// The copy's choice for the files that differ: replace only when the
+/// button says so.
+fn copy_choice(id: &str) -> super::transfer::Choice {
+    if id.ends_with("_replace") { super::transfer::Choice::Replace } else { super::transfer::Choice::Keep }
+}
+
+/// What a copy kept beside or backed up, for its message.
+fn kept_words(d: &super::transfer::Done) -> String {
+    let mut s = String::new();
+    if !d.beside.is_empty() {
+        s += &format!(
+            "; {} already there kept, the copies beside them",
+            super::model::count(d.beside.len(), "different file", "different files")
+        );
+    }
+    if !d.backups.is_empty() {
+        s += &format!(
+            "; {} kept as .before-copy",
+            super::model::count(d.backups.len(), "replaced file", "replaced files")
+        );
+    }
+    s
+}
+
 fn mb(bytes: u64) -> String {
     if bytes >= 10_000_000 { format!("{} MB", bytes / 1_000_000) } else { format!("{:.1} MB", bytes as f64 / 1e6) }
 }
@@ -2375,6 +2424,9 @@ impl<'e> App<'e> {
             BrowseFor::Location => {
                 self.go(Screen::Storage);
                 if let Some(loc) = self.model.pick_loc.take() {
+                    let from = self.model.locations.iter().find(|r| r.loc == loc).and_then(|r| r.path.clone());
+                    let base = if self.model.portable.on { self.model.portable.program.clone() } else { None };
+                    self.model.copy_plan = from.map(|f| super::transfer::location_plan(loc, &f, &dir, base.as_deref()));
                     self.model.ask = Some(Dialog::MoveLocation(loc, dir));
                 }
             }
@@ -2728,13 +2780,21 @@ impl<'e> App<'e> {
         if m.ask.is_some() {
             match e {
                 Event::Activate("quit") => return Some(self.quit()),
-                Event::Activate(id @ ("loc_copy" | "loc_empty")) => {
+                Event::Activate(id @ ("loc_copy" | "loc_empty" | "loc_copy_replace")) => {
                     if let Some(Dialog::MoveLocation(loc, to)) = m.ask.take() {
-                        let copy = *id == "loc_copy";
-                        self.move_location(loc, to, copy);
+                        let choice = copy_choice(id);
+                        let plan = m.copy_plan.take();
+                        self.move_location(loc, to, (*id != "loc_empty").then_some(plan).flatten(), choice);
                     }
                 }
-                Event::Activate(id @ ("port_copy" | "port_on" | "port_copy_back" | "port_off")) => {
+                Event::Activate(
+                    id @ ("port_copy"
+                    | "port_on"
+                    | "port_copy_back"
+                    | "port_off"
+                    | "port_copy_replace"
+                    | "port_copy_back_replace"),
+                ) => {
                     m.ask = None;
                     let id = *id;
                     self.switch_portable(id);
@@ -2745,6 +2805,7 @@ impl<'e> App<'e> {
                     self.st.focus = Some("reset");
                 }
                 Event::Activate(_) | Event::Back => {
+                    m.copy_plan = None;
                     let was = m.ask.take();
                     self.st.focus = match was {
                         Some(Dialog::Reset) => Some("reset"),
@@ -2871,7 +2932,9 @@ impl<'e> App<'e> {
                             .into(),
                     ));
                 } else {
-                    self.model.ask = Some(if p.marker { Dialog::PortableOff } else { Dialog::PortableOn });
+                    let on = !p.marker;
+                    self.model.copy_plan = super::transfer::portable_plan(p, &self.model.saves_dir, on);
+                    self.model.ask = Some(if on { Dialog::PortableOn } else { Dialog::PortableOff });
                 }
             }
             (Screen::Storage, Event::Activate("change")) => self.go(Screen::FirstRun),
@@ -2996,22 +3059,31 @@ impl<'e> App<'e> {
         }
     }
 
-    /// A folder put elsewhere: the files copied first (on a worker; then
-    /// checked) when asked, the locations file written once they are there.
-    fn move_location(&mut self, loc: crate::platform::dirs::Location, to: PathBuf, copy: bool) {
-        let from = self.model.locations.iter().find(|r| r.loc == loc).and_then(|r| r.path.clone());
-        if !copy || from.as_ref().is_none_or(|f| !f.is_dir()) {
+    /// A folder put elsewhere: the files of `plan` copied first (on a
+    /// worker; then checked) when asked, the locations file written once
+    /// they are there.
+    fn move_location(
+        &mut self,
+        loc: crate::platform::dirs::Location,
+        to: PathBuf,
+        plan: Option<super::transfer::Plan>,
+        choice: super::transfer::Choice,
+    ) {
+        let Some(plan) = plan.filter(|p| !p.copy.is_empty() || !p.differ.is_empty()) else {
             let r = self.env.set_location(loc, Some(&to));
-            self.location_done(loc, &to, r.map(|()| (0, 0)));
+            self.location_done(loc, &to, r.map(|()| super::transfer::Done::default()));
             return;
+        };
+        for l in plan.log_lines() {
+            log::info!("storage copy: {l}");
         }
-        let from = from.unwrap_or_default();
         if self.env.background_support() {
             let (tx, rx) = std::sync::mpsc::channel();
-            let (to2, from2) = (to.clone(), from.clone());
+            let to2 = to.clone();
             let spawned = std::thread::Builder::new().name("copy-folder".into()).spawn(move || {
-                let r = super::model::copy_folder(&from2, &to2)
-                    .and_then(|n| crate::platform::dirs::set_location(loc, Some(&to2)).map(|()| n).map_err(|e| e.to_string()));
+                let r = super::transfer::apply(&plan, choice).and_then(|n| {
+                    crate::platform::dirs::set_location(loc, Some(&to2)).map(|()| n).map_err(|e| e.to_string())
+                });
                 let _ = tx.send((loc, to2, r));
             });
             if spawned.is_ok() {
@@ -3019,22 +3091,32 @@ impl<'e> App<'e> {
                 self.copy_job = Some(rx);
                 return;
             }
+            return self.location_done(loc, &to, Err("the copy could not be started".into()));
         }
-        let r = super::model::copy_folder(&from, &to).and_then(|n| self.env.set_location(loc, Some(&to)).map(|()| n));
+        let r = super::transfer::apply(&plan, choice).and_then(|n| self.env.set_location(loc, Some(&to)).map(|()| n));
         self.location_done(loc, &to, r);
     }
 
-    fn location_done(&mut self, loc: crate::platform::dirs::Location, to: &Path, r: Result<(usize, u64), String>) {
+    fn location_done(
+        &mut self,
+        loc: crate::platform::dirs::Location,
+        to: &Path,
+        r: Result<super::transfer::Done, String>,
+    ) {
         self.model.copy_busy = false;
         self.model.message = Some(match r {
-            Ok((0, _)) => (Mark::Ok, format!("{}: {} from the next start.", loc_name(loc), to.display())),
-            Ok((n, bytes)) => (
+            Ok(d) if d.copied == 0 && d.beside.is_empty() => {
+                (Mark::Ok, format!("{}: {} from the next start.", loc_name(loc), to.display()))
+            }
+            Ok(d) => (
                 Mark::Ok,
                 format!(
-                    "{}: {n} files ({}) copied to {} and checked; used from the next start. The old folder is kept.",
+                    "{}: {} ({}) copied to {} and checked{}; used from the next start. The old folder is kept.",
                     loc_name(loc),
-                    mb(bytes),
-                    to.display()
+                    super::model::count(d.copied, "file", "files"),
+                    mb(d.bytes),
+                    to.display(),
+                    kept_words(&d)
                 ),
             ),
             Err(e) => (Mark::Error, format!("{}: not moved ({e}); it stays where it was.", loc_name(loc))),
@@ -3042,48 +3124,48 @@ impl<'e> App<'e> {
         self.refresh_storage();
     }
 
-    /// Portable mode turned on or off, the files copied when asked.
+    /// Portable mode turned on or off, the files copied when asked (the
+    /// plan the question showed; files already there win).
     fn switch_portable(&mut self, how: &str) {
         let p = self.model.portable.clone();
         let (Some(data), home) = (p.data.clone(), p.home.clone()) else { return };
-        let r = match how {
-            "port_copy" | "port_on" => {
-                let copied = if how == "port_copy" {
-                    super::model::copy_folder(&home, &data)
-                        .and_then(|a| {
-                            let saves = crate::frontend::profiles::FOLDER;
-                            super::model::copy_folder(&self.model.saves_dir, &data.join(saves)).map(|b| (a.0 + b.0, a.1 + b.1))
-                        })
-                } else {
-                    Ok((0, 0))
-                };
-                copied.and_then(|n| self.env.make_portable().map(|()| n))
+        let plan = self.model.copy_plan.take();
+        let copy = matches!(how, "port_copy" | "port_copy_replace" | "port_copy_back" | "port_copy_back_replace");
+        let turn_on = matches!(how, "port_copy" | "port_on" | "port_copy_replace");
+        let copied = match plan.filter(|_| copy) {
+            Some(plan) => {
+                for l in plan.log_lines() {
+                    log::info!("portable copy: {l}");
+                }
+                super::transfer::apply(&plan, copy_choice(how))
             }
-            _ => {
-                let copied = if how == "port_copy_back" {
-                    super::model::copy_folder(&data, &home)
-                } else {
-                    Ok((0, 0))
-                };
-                copied.and_then(|n| self.env.unmake_portable().map(|()| n))
+            None => Ok(super::transfer::Done::default()),
+        };
+        let r = copied
+            .and_then(|n| if turn_on { self.env.make_portable() } else { self.env.unmake_portable() }.map(|()| n));
+        let copied_words = |d: &super::transfer::Done| {
+            if d.copied > 0 || !d.beside.is_empty() {
+                format!(" ({} copied there{})", super::model::count(d.copied, "file", "files"), kept_words(d))
+            } else {
+                String::new()
             }
         };
-        self.model.message = Some(match (how, r) {
-            (_, Err(e)) => (Mark::Error, format!("Portable mode not changed: {e}")),
-            ("port_copy" | "port_on", Ok((n, _))) => (
+        self.model.message = Some(match r {
+            Err(e) => (Mark::Error, format!("Portable mode not changed: {e}")),
+            Ok(d) if turn_on => (
                 Mark::Ok,
                 format!(
                     "Portable mode is on: after a restart everything is kept in {}{}.",
                     data.display(),
-                    if n > 0 { format!(" ({n} files copied there)") } else { String::new() }
+                    copied_words(&d)
                 ),
             ),
-            (_, Ok((n, _))) => (
+            Ok(d) => (
                 Mark::Ok,
                 format!(
                     "Portable mode is off: after a restart everything is kept in {}{}. The folder {} stays.",
                     home.display(),
-                    if n > 0 { format!(" ({n} files copied there)") } else { String::new() },
+                    copied_words(&d),
                     data.display()
                 ),
             ),
@@ -3095,7 +3177,7 @@ impl<'e> App<'e> {
         self.model.portable.on = before;
         if ok {
             // The switch's new state, whatever the environment reports.
-            self.model.portable.marker = how == "port_copy" || how == "port_on";
+            self.model.portable.marker = turn_on;
             self.model.portable.changed = true;
             self.st.focus = Some("restart");
         }
