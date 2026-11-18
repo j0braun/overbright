@@ -218,10 +218,33 @@ runs settle the first cause (`docs/evidence/native-sim/wall-pivot-com.txt`):
 * **Next difference (observed, open).** After the push at the upper front point (clock 52384) the
   original's next time-of-impact search (0x5B4BF0, the clone's algorithm) overlaps at every one of
   its eight tries and ends stuck (push-out, no impulse); the clone's finds a clear time halfway and
-  applies the 0.3 m/s minimum push. Where the poses part is open: the contact refresh 0x593710
-  (before and after each impulse) runs the whole post-step 0x5B04E0 with h = 0 — every component's
-  update, the drivetrain's clutch machine 0x5A1410 included, the rest test and the force pass — where
-  the clone refreshes only the suspensions (`refresh_suspension`).
+  applies the 0.3 m/s minimum push.
+* **The contact refresh ported in full does not settle it (observed).** 0x5B2620 calls the body's
+  vt+0x38 (0x593710 → 0x5B04E0 with h = 0) before and after the impulse (0x5B2787 / 0x5B278F, the
+  impulse 0x5B2794, then 0x5B279E / 0x5B27A6): every component's update (the clutch machine 0x5A1410
+  and its world-generator reroll in the Changing state included), 0x5ABB10 (the rest test and the
+  bump stops, which change the velocity) and the force pass that the re-run frame's first integration
+  takes. The clone refreshes only the suspensions after the impulse and takes a new force pass at the
+  re-run's first sub-step. A port of the whole refresh, before and after, was tried against four new
+  captures of the original (bench_wall_hold, `PARITY_CONTACT_ALL=1 PARITY_CONTACT_EXACT=1`):
+
+  | run | heading at frames 540 / 600 (deg), original | clone today | clone with the refresh | first contact out of step |
+  |---|---|---|---|---|
+  | B | −69.5 / −97.6 | −67.5 / −97.0 | −30.3 / −53.0 | 4th (clock 67559) |
+  | C | −69.7 / −97.8 | −81.6 / −99.6 | −89.3 / −99.7 | 2nd (clock 50128) |
+  | D | −43.1 / −79.0 | −27.9 / −46.9 | −47.5 / −84.6 | 6th (clock 51333) |
+  | E | −88.7 / −99.5 | −72.5 / −97.9 | −78.4 / −99.3 | 5th (clock 50076) |
+
+  The first contact out of step is the same contact with and without the refresh in every run, and
+  the end headings come out better in two runs and worse in one, so the port is not in the default
+  build. In every run that contact is a different depth of the time-of-impact bisection: the
+  original's search ends at 1/16 of the span (run B: t 0.00104 of 0.01667 s, distance 0) where the
+  clone's ends at 1/2 (t 0.0084), or the original stops 8.7 mm out (run C, t 0.0063) where the
+  clone's touches at t 0.0021. The frame ends before it agree to about 1 mm/s in velocity and 2 mm
+  in position, so the overlap tests at the search's tries flip on millimetres: what is left is the
+  frame's motion right after a push (the vertical velocity one frame after the first push is
+  0.0267 against 0.0238 m/s in run B), which needs per-sub-step captures of the original (the
+  maintainer's `subtrap.py`) through a push and the frame after it. Open.
 Left at +1: the 0.7 % at the handbrake turn's key frame (the steering's running means are not
 carried, section 1).
 
