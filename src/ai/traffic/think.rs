@@ -70,13 +70,17 @@ impl TrafficLane {
                 // The goal's proposal (0x4145B0): 0x402ED0 with look 99999,
                 // so any object in the window is taken at time 0, then its
                 // time within 5 s and 0x4140E0's keep (no intersection
-                // ahead here: kept).
+                // ahead here: kept). Its pass for a racer over 20 m/s needs
+                // the goal's kind 2 (slot +0x68 → 0x40C9C0); the traffic's
+                // "Be traffic car" goal (0x7848A0) is kind 1, so it never
+                // applies (docs/formats/ai.md "Actions").
                 let near = self
                     .car_ahead(f, &own, speed, &entries, None, NEVER)
                     .filter(|s| s.time <= AVOID_LANE_TIME)
                     .map(|s| Avoid { target: s.id, time: s.time, look: AVOID_LOOK, asked: MOVER_TOP_SPEED });
-                // 0x426E4F (the traffic goal 8's chooser 0x426D70; goal 7's
-                // 0x426C20 is the same code, its call at 0x426CFF): 0x40D5C0
+                // 0x426CFF (the traffic goal 7's chooser 0x426C20; the
+                // ambient goal 8's 0x426D70 is the same code, its call at
+                // 0x426E4F): 0x40D5C0
                 // before the action's constructor at the human's car (own
                 // kind 4: always).
                 if let Some(e) = near.and_then(|a| entries.iter().find(|e| e.other.id == a.target)).filter(|e| e.other.human) {

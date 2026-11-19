@@ -716,11 +716,12 @@ The menus are FEng packages: FRONTEND/FrontB.lzc (137), GLOBAL/GlobalB.lzc
     0x44CE00 builds a look-at from eye to target with z up (0x444DE0) and
     writes the field of view to camera +0xC4 as `(int)(fov·65536)/360`, so
     view 1's projection (0x5C7ED0, `Camera::game_fov`) applies. Camera
-    state 1 (the constructor's) moves the eye only on the right stick (y
-    −6.5..−0.1, z 1.2..5.2); state 0 blends to a new record.
+    state 1 (the constructor's) moves the eye only on the mouse's lift
+    rate (y −6.5..−0.1, z 1.2..5.2; see **Turning the car** below);
+    state 0 blends to a new record.
   * Update (0x4D82D0, on message 0xC98356BA and at the end of the
-    constructor): the car turns only on the right stick (+0x248, 0x4A5D90)
-    or in the idle camera tour (after 300 s of 0x8651A8 − 0x837AA0 times
+    constructor): the car turns only on the mouse's turn rate (+0x248,
+    0x4A5D90; **Turning the car** below) or in the idle camera tour (after 300 s of 0x8651A8 − 0x837AA0 times
     0.00025 against 0x7F45D4; shots from 0x7F4608, the next when 0x7FB708
     has moved on by the integer 1200 at 0x7F45D0); a car change turns the
     platform by ±120° over 0.5 s and, when it ends, picks camera record 1
@@ -781,7 +782,7 @@ The menus are FEng packages: FRONTEND/FrontB.lzc (137), GLOBAL/GlobalB.lzc
     (0x4C1D40: +0x124 = camera +0x14C; +0x11C the angle, +0x120 the
     shorter of the up and down distances from the angle mod 360 to the
     record's, a tie going down, +0x138 the way; +0x12C / +0x130 steer and
-    its difference; the right-stick rates +0x248 / +0x24C zeroed) turns
+    its difference; the mouse's rates +0x248 / +0x24C zeroed) turns
     linearly: f = +0x128 ÷ +0x124, angle = +0x11C ± f · +0x120, steer =
     +0x12C + f · +0x130 (0x4D8A85…0x4D8B09), only while camera +0x30 is
     set, so a reset (0x453320 clears it) stops the turn where it is.
@@ -902,7 +903,74 @@ The menus are FEng packages: FRONTEND/FrontB.lzc (137), GLOBAL/GlobalB.lzc
     turns the platform +120°, the lot's constructor's car included. The
     clone had excluded the lots from that swing; `Game::garage_request`
     now swings their first car of another type as well.
-  * **Open**: the clone has no right-stick turning or idle tour; in a
+  * **Turning the car** (**verified**; ported: `garage::View::drag_step`,
+    `View::drag_input`, `DragInput`, `mouse_grid`; tests
+    `garage::drag_tests`, `tests::garage_drag`). On PC only the mouse
+    turns the car on the platform: hold the **middle button** and drag.
+    - Input (0x4A5D90, GarageMain's tick 0xC98356BA after its update
+      0x4D82D0): g_Mouse (0x8763D0, polled once a frame by 0x5BF870)
+      keeps the cursor on a 640 × 480 grid of the whole client area
+      (0x5BF760: GetCursorPos less the client origin, × 640 / width and
+      × 480 / height, truncated) and its move since the last frame (+0x14
+      / +0x18 = 0x8763E4 / 0x8763E8). While the middle button is held (+0x27 =
+      0x8763F7) the turn rate +0x248 = 0.5 (0x784260) × dx and the lift
+      rate +0x24C = 0.5 × dy; the idle tour stops where it stands
+      (0x8363FC = 0) and its clock restarts (0x837AA0). The release
+      (+0x29) zeroes the rates (+0x240 is the constructor's 1). The wheel
+      (+0x1C) turns nothing: it (and the frame after it, 0x83640D) only
+      stops the tour and restarts its clock, except with
+      UI_GenericParts_Browser up. Nothing is read while the reward
+      screens' flag 0x838578 is set (0x510C30: UI_MagazineSelect for
+      magazines / DVDs, set by 0x53DDC0 / 0x53DE00, cleared by 0x53DE40;
+      **not observed**: a fresh profile under Wine has no rewards). The
+      test for GenericDialog.fng (zero the rates) matches no dialog the
+      menus show (they are the sized GenericDialog_SMALL / _MED /
+      _LARGE): under Wine the car turned under the quit and the
+      profile-save dialogs.
+    - Update (0x4D82D0, the next frame): unless a flagged part view
+      locks it (+0x167, below), 0x4A5660 hands a changed rate to the
+      camera (0x4454A0 / 0x4454E0: state 1 unless it blends; the lift
+      into camera +0x144); any rate ends a part view (0x453320(1): back
+      to the base view over at least 2.5 s, camera +0x30 cleared) and the
+      tour (0x453380), and restarts the tour's clock. With no part view
+      and no tour the car turns by `dt · 60 · +0x248` degrees (0x865194
+      the frame time), kept within 0..360; the steer stays. The camera
+      mover in state 1 (0x44CE00) moves the eye z by `dt · 60 · +0x24C ·
+      0.1` every frame, clamped to 1.2..5.2 (y to −6.5..−0.1).
+    - So: a drag to the right raises the car's angle (+0x274), to the
+      left lowers it; down lifts the camera, up lowers it. At 60 fps a
+      640-wide unit (2 px of a 1280-wide window) turns the car 0.5° and
+      lifts the eye 0.05. The original scales this with its frame time:
+      at its own 120 fps cap it is half (Wine, main menu: 100 units →
+      25.3° at 1/120 s, 50.4° with 0x865558 at 1/60; 50 units up → eye z
+      −1.27 / −2.5). The clone steps it on its 60 Hz ticks, so a drag
+      turns the car by the same angle at 30, 60, 120 and 200 fps (the
+      60 fps figure); the drawn frames between ticks turn it the short
+      way across 360°. The turntable sound's pitch follows |+0x248|
+      (0x7EC858, see the FE car turn in audio.md).
+    - Where (Wine, a fresh profile; keyboard, mouse and a virtual Xbox
+      360 pad): it turned on the main menu, Quick Race's mode, track,
+      options and car select, the Car Shop's categories, the Body Shop's
+      strip and parts list and the Profile Manager, and under the quit
+      and save dialogs: everywhere GarageMain is up. The career's crib,
+      car lots, shops and performance screens stand on the same
+      GarageMain (**inferred** from the code; not reached under Wine).
+      In a part view a drag returned the camera to the base view (camera
+      +0x30 1 → 0, a 2.5 s blend) while the car turned at once. No key
+      (arrows, WASD, Q / E, keypad, Home / End, Page Up / Down, Insert /
+      Delete, `[` `]`), no pad input (both sticks, d-pad, buttons,
+      triggers; the pad moved the menu) and neither the left nor the
+      right button turned it.
+    - The pad path that exists is a console one: GarageMain's +0x23C
+      block registers 0x4A5740 for the JOY events 0x40–0x4A (0x7F45D8;
+      JOY_EVENT_CARSEL_ORBIT_LEFT … _INOUT, names at 0x7FAD80: digital
+      ±value / 255, analog (value − 128) / 128 into the same rates), but
+      none of the PC's 83 input descriptors (0x7FDD10) emits them.
+    - **Not ported**: the part-view lock +0x167 (0x4C2100's fourth
+      argument, 1 from 0x50E580, 0x55CE10 and 0x5676D8: the mouse is
+      ignored until that view's turn ends); the clone lets a drag end
+      those views at once.
+  * **Open**: in a
     car change the old car staying on its disc (GarageMain's two FE cars
     +0x4C / +0x50 by +0x54), the sounds (0x51DE40(5 / 4, 0x17)), the
     states 1 / 3 waiting on the car's loader (+0x2CD0 / +0x2CE0) and
@@ -2367,8 +2435,8 @@ decompiles and the objdump) unless marked.
   the panel). See `docs/notes/front-end/fe-backdrops.md`.
 * **Open** (left from the menus audit): the career name / cash capture;
   the mailbox's second message record; the pause's Jump to Garage flag;
-  the World Map's selection ring with the GPS on (the original showed
-  none on its GPS target, the clone's career state differed); the mouse.
+  the mouse. (The World Map's selection ring with the GPS on is resolved:
+  see the In-game World Map's selection pulse in docs/formats/cars-2.md.)
 
 ## Gamepads and joysticks (2026-10-31; **verified** from the assembly unless marked)
 

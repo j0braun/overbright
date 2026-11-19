@@ -2644,7 +2644,7 @@ RenderInfo_t+0x2D44	struct-field	RenderInfo_t.part_anims	part animations	verifie
 0x7292BC	function	SndMix_ChunkStart	the declick accumulators into the buses / channels	verified	formats.md (Sound round 9)
 0x46C470	function	Music_SetStreamSend	0x723BC1 on the stream voice 0x82B620[]	verified	formats.md (Sound round 9)
 0x73BB60	function	Music_RunCommand	command +9 (switch 0x73C55C): 7 set send, 16 fade send	verified	formats.md (Sound round 9)
-0x4A5D90	function	FEGarage_MouseCamera	PC mouse on GarageMain: wheel (0x8763EC) or a held button (0x8763F7, rates +0x248/+0x24C from 0x8763E4/E8) end the idle tour and restart its clock	verified	formats.md (Menus round 10)
+0x4A5D90	function	FEGarage_MouseCamera	PC mouse on GarageMain: the held middle button (0x8763F7) sets the turn / lift rates +0x248 / +0x24C to half the cursor's move (0x8763E4 / E8), its release (0x8763F9) zeroes them; the wheel (0x8763EC) or the button end the idle tour and restart its clock	verified	formats/front-end.md (Turning the car)
 0x4A5740	function	FEGarage_CameraAction	camera actions 0x42-0x4A (digital ±1/255, analog (v-128)/128) into GarageMain +0x23C rates	verified	formats.md (Menus round 10)
 0x4A5660	function	FEGarage_ApplyCameraRates	pushes the +0x23C rates to the mover; true when any is non-zero	verified	formats.md (Menus round 10)
 0x4A5BD0	function	FEGarage_TourStep	idle tour step: record by slot, 0x451200 at the current +0x150, car turn set up, 0x837AA0 = now	verified	formats.md (Menus round 10)

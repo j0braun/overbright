@@ -157,6 +157,9 @@ pub enum Kind {
     Legends { actions: Vec<super::legends::Action> },
     /// One button glyph (beside the page names, inside a note).
     Glyph { glyph: super::legends::Glyph },
+    /// A small picture (`size` × `size` RGBA), drawn scaled into the box
+    /// (a saved cover on the Saves page).
+    Picture { rgba: std::sync::Arc<Vec<u8>>, size: u32 },
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -381,6 +384,11 @@ pub enum Key {
     /// A page's own actions (X / Space, Y / R).
     ActionX,
     ActionY,
+    /// Shortcuts of the Saves page: Ctrl+B, F2, Ctrl+E, Ctrl+Z.
+    BackUp,
+    Rename,
+    Export,
+    Undo,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -1057,6 +1065,36 @@ pub fn render_on(ui: &Ui, st: &UiState, fonts: &Fonts, c: &mut Canvas, page: &[u
                 c.top_edge(r, pr, t.slab_edge);
             }
             Kind::Card => c.slab(r, px(16.0), t),
+            Kind::Picture { rgba, size } => {
+                let (w, h) = (r.w.round().max(1.0) as u32, r.h.round().max(1.0) as u32);
+                let n = *size as usize;
+                if rgba.len() < n * n * 4 {
+                    // No picture: a placeholder (its words are the widget's text).
+                    c.fill_round_a(r, px(4.0), t.panel);
+                    c.stroke_round(r, px(4.0), 1.0, t.dim);
+                } else {
+                    // Bilinear from the small picture to the box.
+                    let mut out = vec![0u8; (w * h * 4) as usize];
+                    for y in 0..h as usize {
+                        let fy = ((y as f32 + 0.5) * n as f32 / h as f32 - 0.5).clamp(0.0, (n - 1) as f32);
+                        let (y0, ty) = (fy.floor() as usize, fy.fract());
+                        let y1 = (y0 + 1).min(n - 1);
+                        for x in 0..w as usize {
+                            let fx = ((x as f32 + 0.5) * n as f32 / w as f32 - 0.5).clamp(0.0, (n - 1) as f32);
+                            let (x0, tx) = (fx.floor() as usize, fx.fract());
+                            let x1 = (x0 + 1).min(n - 1);
+                            for ch in 0..4 {
+                                let p = |xx: usize, yy: usize| f32::from(rgba[(yy * n + xx) * 4 + ch]);
+                                let top = p(x0, y0) * (1.0 - tx) + p(x1, y0) * tx;
+                                let bot = p(x0, y1) * (1.0 - tx) + p(x1, y1) * tx;
+                                out[(y * w as usize + x) * 4 + ch] = (top * (1.0 - ty) + bot * ty).round() as u8;
+                            }
+                        }
+                    }
+                    c.blit_rgba(r.x.round() as i32, r.y.round() as i32, w, h, &out);
+                    c.stroke_round(r, px(4.0), 1.0, t.dim);
+                }
+            }
             Kind::Accent => c.pill(r, Some(t.lime.a(255)), None),
             Kind::Logo => {
                 let ring = (r.w * 0.16).max(2.0);

@@ -433,7 +433,7 @@ impl TrafficLane {
     /// +0x04 above −0x783750) the lane changes: 0x4146C0 on the lane, then
     /// ±1 and ±2, −1 first when its +0x00 (the relative velocity to the
     /// right) is positive, else +1; the first it may take is set
-    /// (0x405410), and when none is the car is blocked. Then 0x402ED0 with
+    /// (0x405410, the car's own lane too), and when none is the car is blocked. Then 0x402ED0 with
     /// the look on its lane: an object found becomes the tracked one (a new
     /// one: look 30 m) with its time (+0x21C); standing (under 0.5 m/s) the
     /// look grows to at least 30 m and the distance (and 0x40F4A0 asks for
@@ -467,11 +467,10 @@ impl TrafficLane {
                 .map(|c| c as usize)
                 .find(|&c| self.lane_free(f, own, speed, entries, a, c))
             {
-                Some(c) => {
-                    if c != s0.lane {
-                        self.set_lane(f, c);
-                    }
-                }
+                // 0x424DFB (verified): 0x405410 also for the lane the car
+                // is on, so while the tracked human's car is avoided the
+                // path is planned afresh on every think.
+                Some(c) => self.set_lane(f, c),
                 None => blocked = true,
             }
         }

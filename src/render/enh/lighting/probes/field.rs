@@ -303,6 +303,22 @@ pub fn set_burst_serial(on: bool) {
     BURST_SERIAL.store(if on { 2 } else { 1 }, std::sync::atomic::Ordering::Relaxed);
 }
 
+static READ_BACK_LAG: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// A check aid (the tests): a frame finds the last single probe's
+/// read-back still pending, as on a GPU busy with other work, so the
+/// one-a-frame bakes stall and an arrival burst meets a read-back in
+/// flight. Off outside the tests that set it ([`set_read_back_lag`]).
+pub fn read_back_lag() -> bool {
+    READ_BACK_LAG.load(std::sync::atomic::Ordering::Relaxed)
+}
+
+/// Sets [`read_back_lag`] for the process (the tests).
+#[doc(hidden)]
+pub fn set_read_back_lag(on: bool) {
+    READ_BACK_LAG.store(on, std::sync::atomic::Ordering::Relaxed);
+}
+
 /// The published field's baked cubes, one per probe (None: not baked
 /// yet); None without a field. A check aid.
 pub fn published_baked() -> Option<Vec<Option<[Vec3; 6]>>> {

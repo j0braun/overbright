@@ -225,3 +225,9 @@ module only appends to car.wgsl and keeps the native colour/alpha as base); `qol
   probe into a read-back buffer of its own and waits for the GPU once for all of them;
   `NFSU2_PROBE_BURST_SERIAL=1` waits after each probe instead (a check and measuring aid; the baked field is
   the same, game test `the_arrival_burst_bakes_the_same_field_with_one_wait`; docs/notes/performance/budget.md "Load times").
+* A burst that is due while the last one-a-frame probe's read-back is still on the GPU (a slow or busy GPU)
+  waits for that read-back first and runs in the same frame, so a drive's or a race's first frame always has
+  its nearest probes (before, the burst was put off until a frame found the read-back done, and the first
+  frames lit the cars without them). Game test
+  `the_race_start_bakes_its_nearest_probes_with_a_read_back_in_flight` holds every read-back as pending
+  (`probes::set_read_back_lag`, a test aid) and compares the race's first frames with an idle GPU's.

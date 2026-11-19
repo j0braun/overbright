@@ -29,7 +29,7 @@ where they disagree this one holds.
    "This computer has no Vulkan graphics driver" with Check again.
 
 **Pages and screens** (`screens::Screen`, `--render <name>`): the top bar carries Overbright's mark and the
-pages Game · Settings · Mods (LB / RB, Q / E, Ctrl+Tab, or a click; the rail's dot marks the page); the content
+pages Game · Settings · Mods · Saves · Dev (LB / RB, Q / E, Ctrl+Tab, or a click; the rail's dot marks the page); the content
 sits on one smoked slab; the footer has the version and the button legends of the last input (`legends`).
 - `main`: the game's name, its state ("Ready · version 1.2 · English", "Checking…"), the folder, Play (focused),
   and three rows that open their pages: Graphics, Screen, Mods. When Play cannot work its fix takes Play's place
@@ -41,8 +41,8 @@ sits on one smoked slab; the footer has the version and the button legends of th
 - `settings-adv`: Text size (100 / 125 / 150 %: above 100 % the page keeps the larger text and
   scrolls), Motion (Full / Reduced), Launcher sounds (off by default: a soft tick on a focus move and a press,
   synthesised, through cpal; never in tests or with `NFSU2_AUDIO_HOST=none`), Get shaders ready again,
-  Storage › (below), Import saves, About Overbright (licence, notices, Make portable); This computer at the right.
-- `dev` (the fourth page, Game · Settings · Mods · Dev; LB / RB, Q / E go round all four): Map editor (the
+  Storage › (below), Import saves (opens the Saves page), About Overbright (licence, notices, Make portable); This computer at the right.
+- `dev` (the fifth page; LB / RB, Q / E go round all five): Map editor (the
   "Open map editor (preview)" button, `screens::map_editor_button`: starts the desktop map editor on its own
   Open / New; greyed with a line saying why when `overbright-editor` is not beside the launcher, `dirs::editor_exe`),
   "Start the game with the editor tools" (this one start with `--editor`: F7 the texture editor, F8 the free
@@ -79,7 +79,10 @@ arguments (`Outcome::Restart`; the new one waits for the old one's lock)), then 
   `check` / `err-own` / `err-missing` and the game check's states `check-ok`, `check-movies-missing`,
   `check-details`, `check-changed`, `check-unknown-edition`, `check-no-english` (the folder and its verdict; see
   "The game check" below).
-- `crash` (also `failure`), `recover`, `browse`, `import`, `prepare`, `about`, `licence`, `notices`.
+- `saves` (the fourth page; `saves-empty`, `saves-found`, `saves-conflict`, `saves-detail-covers`, `saves-backups`,
+  `saves-ask-delete`, `saves-undo`, `saves-busy`, `saves-bad-file`, `saves-long-names`): the profiles and the
+  original game's saves, see "Saves" below.
+- `crash` (also `failure`), `recover`, `browse`, `prepare`, `about`, `licence`, `notices`.
 Every error is an `model::Issue` (one per situation: title, cause and fix, its buttons), never matched by text.
 "Save support file…" writes `diag::support` on a worker thread (the game program is asked for its
 hardware check, up to 20 s; the window stays live with "Saving the support file…") and offers Open folder;
@@ -102,8 +105,94 @@ at 1920×1080 every text ≥ 18 px of em); the arrows reach every control; tests
 renders at the eight sizes. Start tests: tests/launcher_start.sh (also: Save support file… on the failure
 screen; under Wine the system folder dialog opened and cancelled), tests/launcher_fresh.sh (the pages:
 Settings › Advanced for the game folder and the shaders, Settings for the display rows, kept at once),
-tests/launcher_mouse.sh (scale 1 and 2; Back by its legend), tests/launcher_wayland.sh. The screen trace
+tests/launcher_mouse.sh (scale 1 and 2; Back by its legend; the Saves page's import and backup), tests/launcher_wayland.sh. The screen trace
 lists each legend as `[button legend:<button> …]`.
+
+## Saves
+
+The fourth page (`screens::Screen::Saves`, `src/launcher/saves_page.rs`; the file work in `src/launcher/saves/`).
+Settings › Advanced › Import saves opens it too. Not native: SPEED2.EXE has no such screen; what the page writes
+is the original's own layout and format, so the original reads it.
+
+**The list** (one row per profile of Overbright's profiles folder, `profiles::list_in`, the last played first): the
+folder's name, the career stage, the money, the current car and when it was last played; the chosen profile's
+detail (at the right, or one line under the list in a narrow window with its actions behind Actions…): races
+entered, reputation, the payload's own name when it differs from the folder's ("The game shows it as …"), "Saved
+covers (N)" with its newest four saved magazine covers and DVD pictures, each the cover's own picture made small
+(the 512 × 512 picture in the cover's file, `native_save::read_picture`) captioned "Magazine 2" / "DVD 1" (a
+framed "Can't be read" placeholder when the file is not a picture the game wrote; the renders show a "Cover"
+placeholder, as they carry nothing of the game's), and "and N more"; then its backups. The actions: Back up,
+Backups… and More… (Rename…, Duplicate; Export…, Back up all; Delete… on its own row). Read from the file's header and a few career
+fields without loading the profile (`saves::summary`):
+- stage: career +0x7AF8 (`native_save::STAGE`), the index of the current stage record; 0x528330 adds one when
+  the current stage's record is completed (its caller 0x532C70 sets the record's +0xFC latch first). Shown as
+  "Prologue" (0), "Stage 1" … "Stage 5", "Career complete" (6). The maintainer's saves read 0 at the career's start
+  and at the car lot, 1–5 in the stage saves and 6 in the finished careers.
+- money: career +0x7134; races entered: career +0x872C; reputation: the eight stage records' +0xE0 summed.
+- car: career +0x8740 names a slot by its +4 id; that slot's record's car type hash (the bin hash of the type's
+  name) is looked up in the game folder's GLOBAL/GLOBALB.BUN (read once, on the worker). The internal type name
+  and manufacturer are shown ("NISSAN 350Z"); before the car lot "No car yet"; without a game folder or for a
+  type the folder does not have "Car not known". The game's localized car label is **open**.
+- last played: the profile file's time (the payload has no date; imports and restores keep the source's time).
+- "can't be loaded by the game": the file fails the header checks of the original's reader (size, magic,
+  header checksum, block type; 0x6FD3F0…0x6FD6E8). Section checksums are not checked by the loader (0x6FD73C),
+  so they are not flagged.
+
+**Import** (`saves::sources`, `saves::plan`, `saves::import`): on opening the page and on Find saves, a bounded
+scan looks for the original's save folder: Windows `%LOCALAPPDATA%\NFS Underground 2` (0x4A9C40); on Linux inside
+the game folder's own Wine prefix, `$WINEPREFIX`, `~/.wine`, Steam's Proton prefixes (native and Flatpak), Lutris
+(`~/Games/*`), Bottles (native and Flatpak) and Heroic prefixes, each under `drive_c/users/*/AppData/Local/` and,
+for older prefixes, `drive_c/users/*/Local Settings/Application Data/` (**inferred**: the XP layout, not seen in a
+prefix here). Each place found shows "N new · M already here" and Import N saves…, which shows the plan first: per
+profile "new", "already here" (the same bytes, also an earlier import's renamed copy), "a profile of this name is
+already here: imported as NAME2", or "can't be loaded by the game: skipped"; then one button. Choose folder… takes
+any folder (the system dialog; Overbright's browser with a pad), Choose zip… a `.zip` (Overbright's browser lists
+the archives); a dropped folder or zip does the same. The widescreen fix's own save folder
+(CustomUserFilesDirectoryInGameDir) is not looked for (**open**): Choose folder… takes it.
+
+**A name Overbright has already (any case)**: the profile is imported as a copy under a free name, `NAME2`,
+`NAME3`, …, kept to 7 letters and digits when the name was (the name editor's limit, 0x551280). The folder, the
+file and the payload's name (profile +0x00, 32 bytes, `NativeSave::set_name`) change, the container's checksums
+with them, nothing else; its saved covers are renamed with it (`NAME2 DVD 1`). The original loads such a copy:
+under Wine, a finished career renamed to MIKE2 as the only profile gave "Load complete." and MIKE2 in the main
+menu's help bar (the file is pinned by its SHA-256 in `tests/native_save.rs`
+`a_renamed_copy_loads_under_its_new_name`, which also loads it in Overbright under the new name).
+
+**Back up, restore, export, rename, duplicate, delete** (`saves::store`, on a worker thread: `saves::jobs`; the page
+shows a busy line and greys the actions meanwhile; the page takes no input while the game runs, as every page):
+- Back up (Y, Ctrl+B) / Back up all: a snapshot folder beside the profiles, never in their folder (the original
+  lists every entry of its folder as a profile, 0x6FC01E):
+  `<data home>/NFS Underground 2 Backups/<NAME>/launcher-<YYYYMMDD-HHMMSS UTC>[-n]/` holding `NAME/NAME`, the
+  covers in the same layout and `backup.txt` (why: manual, before-delete, before-rename, before-replace,
+  before-undo; the name; the time; one "sha256 size path" line per file). The game's own Save Backups files
+  (`<NAME>.<stamp>`, `qol::saves`) are in the same folder; the game's pruning lists files only, so it never
+  removes a snapshot. Snapshots are kept until the player deletes one (Backups… › Delete backup…, asks).
+- Times are shown in the player's local time zone, the date in the system's short form
+  (`launcher::localtime`: the C library's `%x` of LC_TIME on Linux, GetDateFormatW / GetTimeFormatW on Windows);
+  the backup folders' names and `backup.txt` keep UTC.
+- Backups… lists the chosen profile's backups (launcher snapshots and the game's own); Restore brings one back:
+  under its name when no profile has it, else it asks "Restore as a copy" (focused, the next free name) or
+  "Replace NAME" (the current one backed up first).
+- Export… (Ctrl+E) writes `<chosen folder>/<NAME>.zip` (`NAME (2).zip`, … when taken): stored entries
+  `NFS Underground 2/<NAME>/<NAME>` and its covers, the original's layout; it imports here on any computer and
+  unpacks by hand into the original's folder.
+- Rename… (F2): letters and digits, 1 to 7, not a name in use (any case); written under the new name (payload name
+  included), then the old files removed. Duplicate asks, then makes `NAME2`. Delete… (Delete on a profile) asks
+  (Cancel focused) and takes the profile's saved covers with it (`store::DELETE_COVERS`; the backup taken first holds
+  them). Rename, Duplicate and Delete offer Undo (Ctrl+Z) for 10 seconds; Undo puts the snapshot back (under its
+  name, or as a copy when the name was taken meanwhile) and removes what the step made.
+- Safety: nothing is overwritten (every file is written as `<file>.part`, read back and compared by SHA-256, then
+  linked into a name that did not exist; the asked Replace is the only replace, after its snapshot); a step that
+  fails half way removes what it wrote; a failed snapshot cancels its step; left-over `.part` files are ignored by
+  the list and removed when the page reads the folder again. Sources (the original's folders, prefixes, zips) are
+  only read; Overbright's own folder as a source is refused. Zips: entries `[folders/]X/X` of a profile's size
+  (54,966 bytes) or a saved cover's (1,048,612), at most 64; paths out of the archive, other sizes and a save twice
+  are left out (listed).
+- Tests: `launcher::saves::*` (byte-identical import, snapshot → restore and export → import with times kept, the
+  source tree unchanged, a copy that fails half way leaves nothing, bad zips, the game's pruning keeps snapshots,
+  the renamed fixtures differ only in the name bytes and checksums), `launcher::tests::saves_page_flow` and
+  `import_flow`, the renders (`saves` and the `saves-*` states at the seven sizes), tests/launcher_mouse.sh step k
+  (a profile in a fake home's `~/.wine` found, imported byte for byte and backed up, by the mouse alone).
 
 ## Part one (2026-11-12)
 
@@ -155,7 +244,7 @@ lists each legend as `[button legend:<button> …]`.
   `first-start`, `probe-failed`, `no-vulkan` (the probe found no Vulkan
   driver: the line names the package to install), `long-values` (a long German path, many
   languages, a long pad name), `unofficial`, `portable` (About of a portable install), `start-failed`,
-  `unreadable-folder`, `import-done`, `import-empty` and the Mods page's
+  `unreadable-folder`, the Saves page's `saves-*` and the Mods page's
   `mods-empty`, `mods-busy`, `mods-results`, `mods-remove`, `mods-hud-complete`,
   `mods-hud-incomplete`.
 - Folders: `src/launcher/dirs.rs`, through `platform::dirs` (the home folder and the game's executable
@@ -181,7 +270,7 @@ device, no log file. `key=value` lines, unknown keys ignored, exit 0 (or 1
 with `error=` and `ok=0` without an adapter):
 ```
 probe=1
-version=Overbright 0.3.1 (commit unknown, linux-x86_64)
+version=Overbright 0.4.0 (commit unknown, linux-x86_64)
 adapter.name=…            adapter.backend=Vulkan   adapter.type=DiscreteGpu
 adapter.pci=1002:1234     adapter.driver=…         adapter.vram=<bytes, 0 unknown>
 gpu.class=high            (qol::classify_gpu: the presets' tiers)
@@ -276,23 +365,8 @@ ok=1
   system's folder dialog, the way with a gamepad, and the Mods page's
   pickers (they list package files with notes). On Windows also
   "Windows dialog…" (the system dialog from inside it).
-- `import`: from (Windows: `%LOCALAPPDATA%\NFS Underground 2`, the
-  original's folder (0x4A9C40); elsewhere a folder the player picks, the
-  browser starting at the game folder's Wine prefix `drive_c/users`), to
-  (Overbright's profiles folder), one line per profile ("will be copied
-  (148 KB)" / "already in Overbright's folder; kept as it is") and the
-  saved cover pictures counted; "Copy N saves" copies, then lists the files
-  copied.
-
-**Import saves** (`src/launcher/saves.rs`): a save is a folder holding a
-file of its own name (any case): profiles `NAME/NAME` and saved covers
-`NAME DVD n/…`, `NAME Magazine n/…`. Every file of such a folder is copied
-(to `<file>.part`, then renamed) into Overbright's profiles folder. A name
-Overbright already has (any case) is skipped, never overwritten; the source
-is only read; Overbright's own folder as the source is refused. The player
-may also pick one profile's folder. Not checked: whether the original keeps
-anything else in its save folder (only profile and cover folders are
-known; others are left out).
+- `import` (replaced by the Saves page, "Saves" below): the first import screen copied the original's
+  profiles that Overbright did not have yet.
 
 **Choosing the game folder** (`App::choose_folder`, `model::system_folder_dialog`)
 - "Choose folder…" (first run), "Choose another folder…" (a refused

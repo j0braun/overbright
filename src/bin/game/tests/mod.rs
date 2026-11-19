@@ -68,6 +68,7 @@ mod snapshots;
 mod draw_clocks;
 // The garage's own scene between ticks.
 mod garage_between;
+mod garage_drag;
 mod garage_lot_turn;
 // The garage scenes draw no weather.
 mod garage_drive_ticks;

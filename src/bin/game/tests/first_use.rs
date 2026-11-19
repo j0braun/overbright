@@ -688,6 +688,62 @@ fn the_race_rivals_take_renderers_built_with_their_loads() {
     }
 }
 
+/// Light Probes' arrival burst at a race's start (the probes the race's
+/// barriers switched, baked again nearest first) meets the last
+/// one-a-frame probe's read-back still on the GPU when the GPU is busy
+/// (`probes::read_back_lag` holds every read-back as pending at the
+/// frame's check): the burst waits for it and runs in the race's first
+/// frame all the same, so the first frames are the ones an idle GPU draws.
+/// At the Modern preset (Light Probes on), from the Engage dialog.
+#[test]
+#[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
+fn the_race_start_bakes_its_nearest_probes_with_a_read_back_in_flight() {
+    super::test_isolation::exclusive();
+    nfsu2::surface_maps::set_blocking(true);
+    let run = |lag: bool| -> Vec<Vec<u8>> {
+        nfsu2::render::probes::set_read_back_lag(lag);
+        let mut game = game_at(nfsu2::qol::Preset::Modern);
+        assert!(game.settings.enh.light_probes, "Light Probes on at the Modern preset");
+        let e = game
+            .game_data
+            .career
+            .stage_events(&game.game_data.root, 1)
+            .iter()
+            .find(|e| {
+                e.kind == career::EventKind::Circuit
+                    && game.game_data.career.tracks.get(&e.races[0].0).is_some_and(|t| t.region == EXPLORE_REGION)
+            })
+            .map(|e| e.index)
+            .unwrap();
+        game.explore(None).unwrap();
+        game.mode = Mode::Menu(Menu::Engage(Engage {
+            event: e,
+            message: 3,
+            opened: 0.0,
+            focus: Default::default(),
+            purse: game.game_data.career.events[e].reward,
+        }));
+        for _ in 0..20 {
+            game.step_for(1.0 / 60.0).unwrap();
+            game.draw().unwrap();
+        }
+        game.start_race(e, false, false).unwrap();
+        let mut pictures = Vec::new();
+        for _ in 0..5 {
+            game.step_for(1.0 / 60.0).unwrap();
+            game.draw().unwrap();
+            pictures.push(picture(&mut game));
+        }
+        nfsu2::render::probes::set_read_back_lag(false);
+        pictures
+    };
+    let idle = run(false);
+    let busy = run(true);
+    for (i, (a, b)) in idle.iter().zip(&busy).enumerate() {
+        assert!(a == b, "the race's frame {i} differs with the probes' read-back in flight");
+    }
+}
+
 /// The shop exit with a part fitted (a new car on the kept world): the
 /// drive's Animated Water kept across the car change (`Water::for_new_drive`)
 /// is the water a new drive builds. Two games do the same exit at the casino
