@@ -530,6 +530,8 @@ fn traffic_stop(
             )
         });
         let imp = c.state.contacts.iter().map(|n| n.impulse).fold(0.0f32, f32::max);
+        // The hardest record's age (seconds since it was made).
+        let life = c.state.contacts.iter().max_by(|a, b| a.impulse.total_cmp(&b.impulse)).map_or(0.0, |n| n.life);
         traffic_stop_log(
             clock,
             i,
@@ -537,7 +539,7 @@ fn traffic_stop(
             speed,
             c.belt.belt.is_some(),
             c.mover.is_some(),
-            &format!("{why}\t{near}\t{imp:.1}"),
+            &format!("{why}\t{near}\t{imp:.1}\t{life:.2}"),
         );
     }
     c.stopped = true;
@@ -913,5 +915,54 @@ mod tests {
         assert!(!placed_active(false, false, false, false));
         assert!(placed_active(false, false, false, true));
         assert!(placed_active(false, true, false, false));
+    }
+}
+
+/// Probe (NFSU2_TRAFFIC_CONTACTLOG): every car-car contact record that
+/// involves a traffic car, written when it ends: the clock it was first
+/// seen, the kinds of the two cars (P the player, R an encounter car, T
+/// traffic) and its largest summed pushes (+0x60). `encounters` is the
+/// count of encounter slots (their identities follow the player's).
+pub(crate) fn traffic_contact_log(clock: f32, field: &nfsu2::drive::CarField, encounters: usize) {
+    use std::collections::HashMap;
+    use std::io::Write;
+    type Live = HashMap<u64, (String, f32, f32)>;
+    static LOG: std::sync::OnceLock<Option<std::sync::Mutex<(std::fs::File, Live)>>> = std::sync::OnceLock::new();
+    let log = LOG.get_or_init(|| {
+        debug_env()
+            .traffic_contactlog
+            .clone()
+            .and_then(|p| std::fs::File::create(p).ok())
+            .map(|f| std::sync::Mutex::new((f, HashMap::new())))
+    });
+    let Some(m) = log else { return };
+    let Ok(mut g) = m.lock() else { return };
+    let (f, live) = &mut *g;
+    let kind = |id: u64| {
+        if id == 0 {
+            'P'
+        } else if id <= encounters as u64 {
+            'R'
+        } else {
+            'T'
+        }
+    };
+    let mut seen = std::collections::HashSet::new();
+    for (a, b, rec, imp) in field.records() {
+        let (ka, kb) = (kind(a), kind(b));
+        if ka != 'T' && kb != 'T' {
+            continue;
+        }
+        seen.insert(rec);
+        let mut k = [ka, kb];
+        k.sort_unstable();
+        let e = live.entry(rec).or_insert((format!("{}-{}", k[0], k[1]), 0.0, clock));
+        e.1 = e.1.max(imp);
+    }
+    let gone: Vec<u64> = live.keys().copied().filter(|r| !seen.contains(r)).collect();
+    for r in gone {
+        if let Some((k, imp, t0)) = live.remove(&r) {
+            let _ = writeln!(f, "rec\t{t0:.2}\t{k}\t{imp:.1}");
+        }
     }
 }

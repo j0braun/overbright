@@ -12,6 +12,7 @@ use super::record::{Phase, Playback, Recording, SPEEDS};
 use super::run::{SimChild, What, args};
 use crate::editor::app::Overlay as ViewOverlay;
 use crate::editor::overlay::{Overlay, colour, label2d, line2d};
+use crate::editor::modes::{self, SIMULATE, SIMULATE_WORLD};
 use crate::editor::state::{EditorState, Issue, Level, Panel, View};
 use crate::editor::theme;
 
@@ -20,8 +21,9 @@ pub const TAB: &str = "simulate";
 /// Validation entries from a simulation start with this.
 pub const ISSUE_PREFIX: &str = "Simulation: ";
 /// The bottom panel's height at least while this tab shows (the toolbar
-/// rows, the results of a full grid and the first events under them).
-pub const MIN_HEIGHT: f32 = 300.0;
+/// rows, the legend, the slot note, the results of a full grid and the
+/// first events under them).
+pub const MIN_HEIGHT: f32 = 400.0;
 /// Lines read from the game per frame at most (the rest next frame).
 const LINES_PER_FRAME: usize = 4000;
 /// A car's box around its position (the body's centre): half length, half
@@ -229,7 +231,7 @@ impl Panel for SimHook {
         if was_running && !sim.running() {
             s.status = match &sim.play.phase {
                 Phase::Failed(why) => format!("Simulation failed: {why}"),
-                _ => format!("Simulation done ({})", sim.rec.end.as_deref().unwrap_or("game ended")),
+                _ => format!("Simulation: {}. {}", end_words(sim.rec.end.as_deref()), problems_words(&sim)),
             };
         }
         if sim.play.playing || sim.running() {
@@ -258,9 +260,10 @@ impl Panel for SimTool {
     fn ui(&mut self, s: &mut EditorState, ui: &mut egui::Ui) {
         let mut sim = self.0.borrow_mut();
         let text = if sim.running() { "Stop simulation" } else { "Simulate" };
+        let tip = if sim.running() { "Stop the simulation (what ran so far stays)".to_string() } else { tool_tip(s) };
         let r = ui
             .add(egui::Button::new(egui::RichText::new(text).font(theme::font(theme::LABEL, 15.0))))
-            .on_hover_text("Run the race (or the traffic around the camera) with the AI driving every car");
+            .on_hover_text(tip);
         if r.clicked() {
             if sim.running() {
                 sim.stop();
@@ -271,6 +274,60 @@ impl Panel for SimTool {
             }
         }
     }
+}
+
+/// The toolbar button's tooltip: what it will run, then who drives.
+fn tool_tip(s: &EditorState) -> String {
+    match what_now(s) {
+        What::Race(id) => {
+            let name = s.session.map.races.iter().find(|r| r.id == id).map_or(id.clone(), |r| r.name.clone());
+            format!("Simulate {name}\n{}", SIMULATE.tooltip())
+        }
+        What::World(..) => format!(
+            "Simulate the traffic around the camera\n{}\n{SIMULATE_WORLD}\nSelect a race in the Races tree to simulate it.",
+            SIMULATE.lead()
+        ),
+    }
+}
+
+/// How the run ended, in plain words (the stream's END reason).
+fn end_words(end: Option<&str>) -> String {
+    match end {
+        None | Some("finish") => "finished, every racer is through".to_string(),
+        Some("limit") => "stopped at the time limit".to_string(),
+        Some("quit") => "stopped".to_string(),
+        Some(e) => format!("ended ({e})"),
+    }
+}
+
+/// How many problems the run added to Validation, in words.
+fn problems_words(sim: &Sim) -> String {
+    let race = sim.what.as_ref().is_some_and(|w| w.mode() == SimMode::Race);
+    match (race, sim.issued.len()) {
+        (false, _) => String::new(),
+        (true, 0) => "No problems found.".to_string(),
+        (true, 1) => "1 problem added to Validation.".to_string(),
+        (true, n) => format!("{n} problems added to Validation."),
+    }
+}
+
+/// The colour key for the cars drawn over the view.
+fn legend(ui: &mut egui::Ui) {
+    ui.horizontal_wrapped(|ui| {
+        ui.weak("Cars:");
+        let keys = [
+            (colour::SELECT, "Your slot (AI) and the car you follow"),
+            (colour::INK, "Opponents"),
+            (colour::DIM, "Traffic"),
+            (colour::WARN, "Street racers"),
+        ];
+        for (c, text) in keys {
+            let (r, _) = ui.allocate_exact_size(egui::vec2(12.0, 12.0), egui::Sense::hover());
+            ui.painter().rect_filled(r, 2.0, c);
+            ui.label(text);
+            ui.add_space(6.0);
+        }
+    });
 }
 
 /// The race chosen, else the world at the camera's spot.
@@ -301,6 +358,11 @@ impl Panel for SimTab {
     fn ui(&mut self, s: &mut EditorState, ui: &mut egui::Ui) {
         let mut sim = self.0.borrow_mut();
         let sim = &mut *sim;
+        let world_run = sim.what.as_ref().is_some_and(|w| w.mode() == SimMode::World);
+        ui.horizontal_wrapped(|ui| {
+            ui.label(egui::RichText::new(SIMULATE.lead()).font(theme::font(theme::LABEL, 15.0)).color(theme::lime()));
+            ui.label(if world_run { SIMULATE_WORLD } else { SIMULATE.what });
+        });
         ui.horizontal(|ui| {
             let race = s.race.and_then(|k| s.session.map.races.get(k)).map(|r| (r.id.clone(), r.name.clone()));
             if sim.running() {
@@ -310,30 +372,50 @@ impl Panel for SimTab {
             } else {
                 let label = race.as_ref().map_or("Simulate race".to_string(), |r| format!("Simulate {}", r.1));
                 let r = ui.add_enabled(race.is_some(), theme::main_action(&label));
-                if r.on_disabled_hover_text("Choose a race (Races)").clicked()
+                if r.on_hover_text(SIMULATE.what).on_disabled_hover_text("Choose a race (Races)").clicked()
                     && let Some((id, _)) = &race
                 {
                     sim.start(s, &crate::editor::testplay::game_exe(), What::Race(id.clone()));
                 }
-                if ui.button("Simulate world").on_hover_text("Traffic and street racers around the camera").clicked() {
+                if ui.button("Simulate world").on_hover_text(SIMULATE_WORLD).clicked() {
                     let w = world_spot(s);
                     sim.start(s, &crate::editor::testplay::game_exe(), w);
                 }
-                ui.label("Seed");
-                ui.add(egui::DragValue::new(&mut sim.seed).range(0..=u32::MAX as u64));
+                ui.label("Seed").on_hover_text(modes::SEED_TIP);
+                ui.add(egui::DragValue::new(&mut sim.seed).range(0..=u32::MAX as u64)).on_hover_text(modes::SEED_TIP);
             }
             ui.separator();
             let phase = match &sim.play.phase {
                 Phase::Idle => "No simulation yet".to_string(),
-                Phase::Starting => "Starting the game…".into(),
-                Phase::Running => "Running".into(),
-                Phase::Done => format!("Done ({})", sim.rec.end.as_deref().unwrap_or("ended")),
+                Phase::Starting => "Starting the game without a window…".into(),
+                Phase::Running => "Running in the game, shown here as it arrives".into(),
+                Phase::Done => {
+                    let mut w = end_words(sim.rec.end.as_deref());
+                    w[..1].make_ascii_uppercase();
+                    w
+                }
                 Phase::Failed(why) => format!("Failed: {why}"),
             };
             let colour = if matches!(sim.play.phase, Phase::Failed(_)) { theme::error() } else { theme::dim() };
             ui.colored_label(colour, phase);
+            if !sim.running() && sim.rec.span().is_some() {
+                let words = problems_words(sim);
+                if !sim.issued.is_empty() {
+                    ui.colored_label(theme::warn(), words);
+                    if ui.small_button("Show Validation").clicked() {
+                        request_tab(ui.ctx(), "validation");
+                    }
+                } else if !words.is_empty() {
+                    ui.weak(words);
+                }
+            }
         });
-        let Some((lo, hi)) = sim.rec.span() else { return };
+        let Some((lo, hi)) = sim.rec.span() else {
+            if !sim.running() {
+                intro(ui);
+            }
+            return;
+        };
         ui.horizontal(|ui| {
             if ui.button(if sim.play.playing { "Pause" } else { "Play" }).on_hover_text("Space").clicked() {
                 sim.play.toggle(&sim.rec);
@@ -361,8 +443,9 @@ impl Panel for SimTab {
                     ui.selectable_value(&mut sim.play.follow, Some(id), n);
                 }
             });
-            ui.checkbox(&mut sim.traces, "Lines");
+            ui.checkbox(&mut sim.traces, "Lines").on_hover_text("Each racer's driven line");
         });
+        legend(ui);
         ui.separator();
         let mut seek: Option<(f32, u32)> = None;
         let world = sim.rec.header.as_ref().is_some_and(|h| h.mode == SimMode::World);
@@ -373,6 +456,11 @@ impl Panel for SimTab {
             let racers = cars.iter().filter(|c| c.kind == CarKind::Encounter).count();
             ui.weak(format!("{traffic} traffic cars and {racers} street racers on the road"));
         } else {
+            let player = |r: &super::record::Standing| sim.rec.cars.get(&r.car).is_some_and(|c| c.kind == CarKind::Player);
+            let st: Vec<_> = st.into_iter().filter(|r| modes::SHOW_AI_SLOT || !player(r)).collect();
+            if st.iter().any(player) {
+                ui.colored_label(theme::dim(), modes::SLOT_NOTE);
+            }
             results_table(ui, sim, &st);
         }
         ui.separator();
@@ -411,8 +499,9 @@ impl Panel for SimTab {
 /// The results: place, car, time, best lap, laps; the followed car in lime,
 /// a racer without a finish when the run ended "did not finish".
 fn results_table(ui: &mut egui::Ui, sim: &Sim, st: &[super::record::Standing]) {
-    egui::Grid::new("sim.results").striped(true).num_columns(5).min_col_width(56.0).show(ui, |ui| {
-        for h in ["Place", "Car", "Time", "Best lap", "Laps"] {
+    egui::Grid::new("sim.results").striped(true).num_columns(6).min_col_width(56.0).show(ui, |ui| {
+        let laps = sim.rec.header.as_ref().map_or(0, |h| h.laps);
+        for h in ["Place", "Car", "Time", "Best lap", "Laps done"] {
             ui.strong(h);
         }
         ui.end_row();
@@ -429,11 +518,17 @@ fn results_table(ui: &mut egui::Ui, sim: &Sim, st: &[super::record::Standing]) {
             }
             if r.dnf {
                 ui.colored_label(theme::warn(), "did not finish");
+            } else if let Some(t) = r.time {
+                ui.monospace(clock(t));
             } else {
-                ui.monospace(r.time.map_or("-".into(), clock));
+                ui.weak(if r.place == 0 { "on the grid" } else { "racing" });
             }
             ui.monospace(r.best.map_or("-".into(), clock));
-            ui.monospace(r.laps.len().to_string());
+            let done = r.laps.len();
+            ui.monospace(if laps > 0 { format!("{done} of {laps}") } else { done.to_string() });
+            if sim.rec.cars.get(&r.car).is_some_and(|c| c.kind == CarKind::Player) {
+                ui.weak(modes::SLOT_ROW);
+            }
             ui.end_row();
         }
     });
@@ -452,8 +547,25 @@ fn event_text(e: &super::format::Event) -> String {
     }
 }
 
+/// The empty tab: the three ways to try a race and the help page.
+fn intro(ui: &mut egui::Ui) {
+    ui.add_space(6.0);
+    ui.weak("To drive it yourself:");
+    for m in modes::ALL.into_iter().filter(|m| m.name != SIMULATE.name) {
+        ui.horizontal_wrapped(|ui| {
+            ui.strong(m.lead());
+            ui.label(m.what);
+        });
+    }
+    ui.add_space(4.0);
+    if ui.button(format!("Help: {}", modes::HELP_TITLE)).clicked() {
+        modes::request_help(ui.ctx());
+    }
+}
+
 /// A car's colour: the followed one lime, the player's slot lime, racers
-/// ink, traffic grey, street racers the info tone.
+/// ink, traffic grey (a 1.6-point outline, so it shows over the city), street
+/// racers amber.
 fn car_colour(c: &CarSample, followed: bool) -> Color32 {
     if followed {
         return colour::SELECT;
@@ -503,7 +615,7 @@ impl ViewOverlay for SimOverlay {
                     let followed = sim.play.follow == Some(c.id);
                     let t = Mat4::from_rotation_translation(c.rotation, c.position);
                     let col = car_colour(c, followed);
-                    let w = if c.kind.races() { 2.0 } else { 1.2 };
+                    let w = if c.kind.races() { 2.0 } else { 1.6 };
                     o.box_outline(t, -CAR_HALF + Vec3::Z * CAR_BOTTOM, CAR_HALF + Vec3::Z * CAR_TOP, col, w);
                     if let Some(p) = place(c.id) {
                         o.label(
@@ -607,6 +719,17 @@ mod tests {
         sim.rec = Recording::default();
         sync_issues(&mut sim, &mut s);
         assert_eq!(s.session.issues.len(), 1);
+    }
+
+    #[test]
+    fn how_a_run_ended_in_words() {
+        assert_eq!(end_words(Some("finish")), "finished, every racer is through");
+        assert_eq!(end_words(Some("limit")), "stopped at the time limit");
+        assert_eq!(end_words(Some("quit")), "stopped");
+        let mut sim = Sim { what: Some(What::Race("r".into())), ..Default::default() };
+        assert_eq!(problems_words(&sim), "No problems found.");
+        sim.issued = vec![Issue { level: Level::Warning, text: "x".into(), race: None, at: None }; 2];
+        assert_eq!(problems_words(&sim), "2 problems added to Validation.");
     }
 
     #[test]

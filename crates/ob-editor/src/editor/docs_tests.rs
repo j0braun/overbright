@@ -124,3 +124,21 @@ fn toolbar_tools_and_tabs_are_named() {
         assert!(doc.contains(&format!("**{t}**")), "the {t} tab");
     }
 }
+
+#[test]
+fn the_three_test_modes_say_who_drives_in_the_doc_and_the_ui() {
+    use super::modes::{DRIVE_HERE, SIMULATE, TEST_RACE};
+    let doc = doc();
+    for (m, who) in [(SIMULATE, "the AI"), (TEST_RACE, "you"), (DRIVE_HERE, "you")] {
+        let key = if m.key.is_empty() { String::new() } else { format!(" ({})", m.key) };
+        assert!(doc.contains(&format!("| **{}**{key} | {who} |", m.name)), "{} in the testing table", m.name);
+    }
+    assert!(doc.contains(&format!("**Help ▸ {}**", super::modes::HELP_TITLE)));
+    // The menu items and the toolbar buttons carry the same words.
+    assert_eq!(Command::TestRace.tip(), Some(TEST_RACE.tooltip()));
+    assert_eq!(Command::DriveHere.tip(), Some(DRIVE_HERE.tooltip()));
+    let menu = read("src/editor/menu.rs");
+    assert!(menu.contains("on_hover_text(super::modes::TEST_RACE.tooltip())"));
+    assert!(menu.contains("on_hover_text(super::modes::DRIVE_HERE.tooltip())"));
+    assert!(read("src/editor/sim/panel.rs").contains("SIMULATE.tooltip()"));
+}

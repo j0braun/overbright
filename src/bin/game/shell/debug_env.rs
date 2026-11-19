@@ -77,6 +77,8 @@ pub(crate) struct DebugEnv {
     pub(crate) input_probe: Option<String>,
     /// NFSU2_TRAFFIC_STOPLOG.
     pub(crate) traffic_stoplog: Option<OsString>,
+    /// NFSU2_TRAFFIC_CONTACTLOG.
+    pub(crate) traffic_contactlog: Option<OsString>,
     /// NFSU2_DRAG_LANE_LOG.
     pub(crate) drag_lane_log: Option<OsString>,
     /// NFSU2_INPUT_LOG.
@@ -174,6 +176,7 @@ impl DebugEnv {
             replay_camlog: value("NFSU2_REPLAY_CAMLOG"),
             input_probe: value("NFSU2_INPUT_PROBE"),
             traffic_stoplog: std::env::var_os("NFSU2_TRAFFIC_STOPLOG"),
+            traffic_contactlog: std::env::var_os("NFSU2_TRAFFIC_CONTACTLOG"),
             drag_lane_log: std::env::var_os("NFSU2_DRAG_LANE_LOG"),
             input_log: std::env::var_os("NFSU2_INPUT_LOG"),
             bench_routedump: std::env::var_os("NFSU2_BENCH_ROUTEDUMP"),

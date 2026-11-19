@@ -969,3 +969,43 @@ fn settings_20_is_the_constructors_127_5() {
         assert_eq!(NativeSave::parse(b).unwrap().f32(native_save::SETTINGS_20), native_save::SETTINGS_20_DEFAULT);
     }
 }
+
+/// A profile imported or restored under a new name (the launcher's Saves
+/// page, `launcher::saves::store::Files::renamed`): the folder, the file
+/// and the payload's name change, nothing else but the checksums. The game
+/// lists it under the new folder name, loads it with the new name, and its
+/// own save writes the same bytes back.
+#[test]
+#[cfg_attr(not(all(ob_game, ob_private)), ignore = "needs NFSU2_ROOT (the player's own game files) and OB_PRIVATE (private captures and saves)")]
+fn a_renamed_copy_loads_under_its_new_name() {
+    use nfsu2::launcher::saves::store::{FileCopy, Files};
+    let (_, ctx) = context();
+    let root = std::env::temp_dir().join(format!("ob-renamed-{}", nfsu2::unique_tag()));
+    for f in ["career_complete_resaved.sav", "garage.sav", "stage4_win1.sav"] {
+        let b = common::private(&format!("tests/fixtures/native_saves/{f}"));
+        let files = Files { profile: FileCopy { name: "NAME".into(), bytes: b.clone(), mtime: None }, covers: Vec::new() };
+        let renamed = files.renamed("MIKE2").unwrap();
+        let _ = std::fs::remove_dir_all(&root);
+        renamed.write_all(&root).unwrap();
+        assert_eq!(nfsu2::frontend::profiles::list_in(&root), ["MIKE2"], "{f}");
+        let file = nfsu2::frontend::profiles::find_in(&root, "mike2");
+        let bytes = std::fs::read(&file).unwrap();
+        let s = NativeSave::parse(&bytes).unwrap();
+        let p = Profile::from_native(&s, &ctx);
+        assert_eq!(p.name, "MIKE2", "{f}");
+        // Everything but the name as the original's file.
+        let orig = Profile::from_native(&NativeSave::parse(&b).unwrap(), &ctx);
+        assert_eq!((p.cash, p.stage, p.races_entered), (orig.cash, orig.stage, orig.races_entered), "{f}");
+        if f == "career_complete_resaved.sav" {
+            assert_eq!(p.to_native(&s, &ctx).to_bytes(), bytes, "the game's own save of it: the same bytes");
+            // The file the original loaded under Wine as its only profile
+            // ("Load complete.", the help bar showing MIKE2;
+            // docs/formats/saves-options.md).
+            assert_eq!(
+                nfsu2::launcher::saves::store::sha256(&bytes),
+                "9ab470c0d3d7168b3543b41b7c65358f0def33df74810eecaadfc1f4fc36375e"
+            );
+        }
+    }
+    let _ = std::fs::remove_dir_all(&root);
+}

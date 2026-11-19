@@ -172,6 +172,17 @@ impl CarField {
         self.has_record(i)
     }
 
+    /// Each live car-car contact record (probe use): the two cars'
+    /// identities ([`CarField::bind`]), the record's identity and its
+    /// summed pushes (+0x60).
+    pub fn records(&self) -> Vec<(u64, u64, u64, f32)> {
+        self.pairs
+            .iter()
+            .filter(|(_, p)| p.record.is_some())
+            .filter_map(|(&(a, b), p)| Some((*self.ids.get(a)?, *self.ids.get(b)?, p.id, p.impulse)))
+            .collect()
+    }
+
     /// The identities ([`CarField::bind`]) of the cars the car named `id`
     /// has a live contact record with (its body's record list, car +0x3C).
     pub fn partners(&self, id: u64) -> Vec<u64> {

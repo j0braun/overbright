@@ -199,6 +199,7 @@ pub(crate) fn step_explore_traced(
     }
     if let (Some(t), Some(before)) = (t.as_deref_mut(), before) {
         traffic_settle(&d.world, &mut t.cars, &placed, &before, dt);
+        traffic_contact_log(t.clock, &t.field, e.as_deref().map_or(0, |e| e.cars.len()));
     }
     d.state.finish_world_update(player_sample);
     d.impact_trigger();

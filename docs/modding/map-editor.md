@@ -184,6 +184,19 @@ already in `.editor/` stays, and the old one is then left where it was).
 
 ## Testing a race
 
+There are three ways to try a mod. They differ in who drives and where it shows:
+
+| Button | Who drives | What it does |
+|---|---|---|
+| **Simulate** | the AI | The game races the selected race with the AI in every car, without a window. You watch it in the **Simulate** tab and see where cars got stuck. With no race selected, it shows the traffic around the camera. |
+| **Test race** (F5) | you | You race the selected race in the game window. Finishing it marks the race tested. |
+| **Drive here** (Shift+F5) | you | You drive freely in the game window, with this mod loaded, from the ground the camera looks at. |
+
+Each button says this when hovered, and the **Simulate** tab says it at its top.
+**Help ▸ How to test your race** puts it on one page with a good order: Simulate to find the spots where the AI
+has trouble, Test race to drive it yourself, Drive here to look around. While Test race or Drive here has the game window open, a
+strip over the view says so; `Esc` in the game ends the run, and you can keep editing.
+
 **Test race** (F5) writes the mod as it is in the editor, unsaved changes included, to its run copy
 `<mod folder>/.editor/run/map.obmap` (through a temporary file, so the game never reads half a file) and starts
 the game next to the editor on that copy:
@@ -252,13 +265,23 @@ The editor reads the stream while it arrives and never waits for the game. The t
 (Space), speed 0.25x to 8x, a scrub bar over everything recorded so far, the camera (**Free camera** or behind a
 racer) and **Lines** (each racer's driven line). The cars are drawn as boxes in the 3D view and as arrows on the
 map (the player's slot and the followed car lime, opponents light, traffic grey, street racers amber), with each
-racer's place. Below are the results (place, car, time, best lap, laps) in finishing order: finished racers by
+racer's place; a key under the scrub bar names the colours. Below are the results (place, car, time, best lap,
+laps done) in finishing order: finished racers by
 time, then the rest by their place on the road (no places before the green light); a racer without a finish when
-the run ended is last, as "did not finish". The player's slot, which the AI drives here, is "Your slot (AI)".
+the run ended is last, as "did not finish"; a racer still on the road shows "racing". The player's slot, which
+the AI drives here, is "Your slot (AI)", marked "AI-driven, not your time", with a note over the table: its place
+and time are the AI's, and Test race gives your own. The tab says how the run ended (every racer through, the
+time limit, or stopped) and how many problems it added to Validation, with **Show Validation**. The same seed
+runs the same race again; another seed changes the AI's and the traffic's choices.
 Under the table the events (green light, laps, finishes, crashes, stuck, wrong way), each with **Show**. A racer
 that stood still for 4 s after the green, drove against the race's direction for 2 s, or lost 6 m/s or more in
 one tick becomes a warning in the Validation tab, named by the checkpoint it was heading for: "Simulation: AI got
 stuck before checkpoint 3".
+
+For pictures of these screens without a window, `overbright-editor --shot` also takes `--hover
+simulate|drive-here|test-race` (the button's tooltip), `--dialog how-to-test|controls` (a help page) and `--run
+test-race|drive-here` (starts the run in the first frame; only with `OB_GAME_EXE` naming a stand-in game, so a
+shot never opens the real one).
 
 ### Simulation stream
 

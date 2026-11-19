@@ -199,6 +199,9 @@ fn note_recent(maps: &Path, folder: &str) {
 
 // --- command line -------------------------------------------------------------
 
+/// `--hover` values and the toolbar items they name.
+const HOVER: [(&str, &str); 3] = [("simulate", "Simulate"), ("drive-here", "Drive here"), ("test-race", "Test race")];
+
 /// `overbright-editor [--mod <folder>] [--region <code>] [--maps <dir>]
 /// [--shot out.png --size WxH [--scale F] [--mode props|races] [--view 3d|map|street|whole|top] [--light work|game] [--tab <name>]]`
 #[derive(Clone, Debug, PartialEq)]
@@ -225,6 +228,14 @@ pub struct Cli {
     pub select: Vec<usize>,
     /// A recorded simulation to show (`--sim stream.txt[@seconds[:car]]`, the car followed).
     pub sim: Option<String>,
+    /// A toolbar button the pointer rests on, its tooltip shown
+    /// (`--hover simulate|drive-here|test-race`).
+    pub hover: Option<String>,
+    /// A help page open (`--dialog how-to-test|controls`).
+    pub dialog: Option<String>,
+    /// Test race or Drive here started in the first frame (`--run
+    /// test-race|drive-here`; only with `OB_GAME_EXE` naming a stand-in).
+    pub run: Option<menu::Command>,
 }
 
 impl Default for Cli {
@@ -244,11 +255,14 @@ impl Default for Cli {
             tab: None,
             select: Vec::new(),
             sim: None,
+            hover: None,
+            dialog: None,
+            run: None,
         }
     }
 }
 
-pub const USAGE: &str = "usage: overbright-editor [--mod <folder>] [--region <code>] [--maps <dir>]\n       overbright-editor --shot out.png [--size WxH] [--scale F] [--mod <folder>] [--region <code>] [--mode props|races] [--tool <name>] [--view 3d|map|street|whole|top] [--light work|game] [--tab browser|validation|simulate|log] [--select N,M] [--sim stream.txt[@seconds[:car]]]";
+pub const USAGE: &str = "usage: overbright-editor [--mod <folder>] [--region <code>] [--maps <dir>]\n       overbright-editor --shot out.png [--size WxH] [--scale F] [--mod <folder>] [--region <code>] [--mode props|races] [--tool <name>] [--view 3d|map|street|whole|top] [--light work|game] [--tab browser|validation|simulate|log] [--select N,M] [--sim stream.txt[@seconds[:car]]] [--hover simulate|drive-here|test-race] [--dialog how-to-test|controls] [--run test-race|drive-here]";
 
 impl Cli {
     pub fn parse<I: IntoIterator<Item = String>>(args: I) -> Result<Cli> {
@@ -315,6 +329,29 @@ impl Cli {
                 }
                 "--tab" => c.tab = Some(val("--tab")?.to_ascii_lowercase()),
                 "--sim" => c.sim = Some(val("--sim")?),
+                "--hover" => {
+                    let v = val("--hover")?.to_ascii_lowercase();
+                    ensure!(HOVER.iter().any(|h| h.0 == v), "--hover: `{v}` (simulate, drive-here or test-race)");
+                    c.hover = Some(v);
+                }
+                "--dialog" => {
+                    let v = val("--dialog")?.to_ascii_lowercase();
+                    ensure!(v == "how-to-test" || v == "controls", "--dialog: `{v}` (how-to-test or controls)");
+                    c.dialog = Some(v);
+                }
+                "--run" => {
+                    let v = val("--run")?.to_ascii_lowercase();
+                    c.run = Some(match v.as_str() {
+                        "test-race" => menu::Command::TestRace,
+                        "drive-here" => menu::Command::DriveHere,
+                        _ => bail!("--run: `{v}` (test-race or drive-here)"),
+                    });
+                    // A shot never starts the real game (it would open a window).
+                    ensure!(
+                        std::env::var_os("OB_GAME_EXE").is_some_and(|p| !p.is_empty()),
+                        "--run needs OB_GAME_EXE naming a stand-in game"
+                    );
+                }
                 "--select" => {
                     let v = val("--select")?;
                     c.select = v
@@ -752,6 +789,8 @@ pub enum Dialog {
         text: String,
     },
     Controls,
+    /// Help ▸ How to test your race.
+    HowToTest,
 }
 
 /// What waits on the unsaved-changes question.
@@ -801,6 +840,8 @@ pub struct App {
     /// view's animations at a fixed time, so two runs give the same
     /// picture.
     pub fixed_clock: bool,
+    /// The toolbar item a `--shot` rests the pointer on (its name).
+    pub shot_hover: Option<&'static str>,
 }
 
 /// From this window width (points) up the tree opens by itself; below it
@@ -873,6 +914,7 @@ impl App {
             view_rect: egui::Rect::NOTHING,
             tree_rail: false,
             fixed_clock: false,
+            shot_hover: None,
         }
     }
 
@@ -1130,6 +1172,7 @@ impl App {
             }
             A::Tab(t) => self.tab = t,
             A::Controls => self.dialog = Some(Dialog::Controls),
+            A::HowToTest => self.dialog = Some(Dialog::HowToTest),
         }
     }
 
@@ -1146,6 +1189,23 @@ impl App {
             egui::Panel::top("toolbar").exact_size(TOOLBAR_H).show(ui, |ui| menu::toolbar(self, ui, &mut actions));
         }
         egui::Panel::bottom("status").exact_size(26.0).show(ui, |ui| menu::status(self, ui));
+        // While Test race or Drive here has the game window open.
+        if self.state.is_some()
+            && let Some(words) = super::testplay::strip(ui.ctx())
+        {
+            // The hint line's look, over the view.
+            egui::Panel::top("game-window")
+                .exact_size(26.0)
+                .resizable(false)
+                .show_separator_line(false)
+                .frame(egui::Frame::NONE.fill(theme::over_page(theme::tokens().slab)).inner_margin(egui::Margin::symmetric(10, 0)))
+                .show(ui, |ui| {
+                    ui.horizontal_centered(|ui| ui.add(egui::Label::new(menu::game_job(&words)).truncate()));
+                });
+        }
+        if super::modes::take_help_request(ui.ctx()) {
+            actions.push(menu::Action::HowToTest);
+        }
         if let Some(s) = self.state.as_mut() {
             let p = &mut self.panels;
             let layout = &mut self.layout;
@@ -1544,6 +1604,22 @@ impl App {
                         keep = false;
                     }
                 }
+                Dialog::HowToTest => {
+                    ui.label(theme::title(super::modes::HELP_TITLE));
+                    let h = (ui.ctx().content_rect().height() - 160.0).max(200.0);
+                    ui.set_max_width(560.0);
+                    egui::ScrollArea::vertical().max_height(h).show(ui, |ui| {
+                        for (head, text) in super::modes::help() {
+                            ui.add_space(6.0);
+                            ui.label(egui::RichText::new(head).font(theme::font(theme::LABEL, 15.0)).color(theme::lime()));
+                            ui.label(text);
+                        }
+                    });
+                    ui.add_space(6.0);
+                    if ui.button("Close").clicked() {
+                        keep = false;
+                    }
+                }
                 Dialog::Controls => {
                     ui.label(theme::title("Controls"));
                     let h = (ui.ctx().content_rect().height() - 160.0).max(200.0);
@@ -1746,12 +1822,22 @@ pub fn shot(app: &mut App, gpu: &Gpu, size: (u32, u32), scale: f32, out: &Path) 
     // The same picture on every run: no clocks.
     app.fixed_clock = true;
     app.panels.viewport.fix_clock(SHOT_CLOCK);
-    for frame in 0..4 {
+    if app.shot_hover.is_some() {
+        app.ctx.all_styles_mut(|s| s.interaction.tooltip_delay = 0.0);
+    }
+    // A tooltip or a dialog needs a few more frames to fade in.
+    let frames = if app.shot_hover.is_some() || app.dialog.is_some() { 12 } else { 4 };
+    for frame in 0..frames {
+        // The pointer on the item named, once the toolbar has laid out.
+        let at = app.shot_hover.and_then(|name| {
+            menu::toolbar_fit(&app.ctx)?.items.iter().find(|i| i.0 == name).map(|i| i.1.center())
+        });
         let mut raw = egui::RawInput {
             screen_rect: Some(rect),
             time: Some(frame as f64 / 60.0),
             predicted_dt: 1.0 / 60.0,
             focused: true,
+            events: at.map(|p| vec![egui::Event::PointerMoved(p)]).unwrap_or_default(),
             ..Default::default()
         };
         raw.viewports.entry(egui::ViewportId::ROOT).or_default().native_pixels_per_point = Some(scale);
@@ -1849,6 +1935,15 @@ pub fn apply_cli_view(app: &mut App, cli: &Cli) {
     if let Some(f) = &cli.sim {
         super::sim::panel::load_recording(&app.ctx, f);
     }
+    app.shot_hover = cli.hover.as_deref().and_then(|h| HOVER.iter().find(|x| x.0 == h)).map(|x| x.1);
+    match cli.dialog.as_deref() {
+        Some("how-to-test") => app.act(menu::Action::HowToTest),
+        Some("controls") => app.act(menu::Action::Controls),
+        _ => {}
+    }
+    if let Some(c) = cli.run {
+        menu::post(&app.ctx, c);
+    }
     if let Some(t) = &cli.tab {
         if t == "log" {
             app.tab = "log";
@@ -1928,6 +2023,15 @@ mod tests {
             assert_eq!(p(&["--light", light]).unwrap().light.as_deref(), Some(light));
         }
         assert!(p(&["--light", "bright"]).is_err());
+        assert_eq!(p(&["--hover", "Test-Race"]).unwrap().hover.as_deref(), Some("test-race"));
+        assert!(p(&["--hover", "save"]).is_err());
+        assert_eq!(p(&["--dialog", "how-to-test"]).unwrap().dialog.as_deref(), Some("how-to-test"));
+        assert!(p(&["--dialog", "about"]).is_err());
+        // `--run` only with a stand-in game named (a shot never starts the real one).
+        if std::env::var_os("OB_GAME_EXE").is_none() {
+            assert!(p(&["--run", "test-race"]).unwrap_err().to_string().contains("OB_GAME_EXE"));
+        }
+        assert!(p(&["--run", "fly"]).is_err());
         for bad in [
             &["--mod"][..],
             &["--mod", "../up"],

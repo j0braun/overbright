@@ -60,6 +60,7 @@ fn reset_globals() {
     nfsu2::frontend::options::Settings::default().apply_enhancements();
     nfsu2::render::blur_dof::set_photo_mode(false);
     nfsu2::render::probes::set_burst_serial(false);
+    nfsu2::render::probes::set_read_back_lag(false);
     nfsu2::qol::set_output_size((0, 0));
     nfsu2::frontend::career::UNLOCK_ALL.store(false, std::sync::atomic::Ordering::Relaxed);
     // A test's rain scene (`--shot explore_rain`'s clock): also put back

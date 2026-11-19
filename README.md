@@ -56,6 +56,10 @@ More about starting:
   `--launcher` (on a Steam Deck: add `--launcher` to the launch options).
 - If a start did not finish, the launcher opens by itself next time and offers safe settings.
 - `overbright --support-file` saves a support file for a bug report.
+- Your saves from the original game: the launcher's **Saves** page finds them (on Windows, and on Linux inside
+  Wine, Proton, Lutris, Bottles and Heroic prefixes) and imports copies; your original files are only read. The
+  same page backs up, restores, exports (as a `.zip`), renames, copies and deletes profiles, and makes a backup
+  before every change.
 - Building from source: [BUILDING.md](BUILDING.md).
 
 ## Requirements
@@ -218,6 +222,7 @@ and off, imports and exports them as `.zip` files, and opens one in the editor.
 |---|---|---|
 | Settings, logs, crash reports | `~/.local/share/overbright/` | `%LOCALAPPDATA%\Overbright\` |
 | Saved games | `~/.local/share/NFS Underground 2/` | `%LOCALAPPDATA%\Overbright\NFS Underground 2\` |
+| Backups of saved games (the launcher's Saves page, Save Backups) | `~/.local/share/NFS Underground 2 Backups/` | `%LOCALAPPDATA%\Overbright\NFS Underground 2 Backups\` |
 | Cache (rebuilt when missing) | `~/.cache/overbright/` | `%LOCALAPPDATA%\Overbright\cache\` |
 
 Overbright never writes into the game's folder or the original's own save folder

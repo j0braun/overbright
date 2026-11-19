@@ -1742,13 +1742,14 @@ targets Ghidra has no function at) unless marked.
   and +0xE8 = the time; the update (+0x14, 0x4793D0) stops it once
   0x43E5C0's elapsed passes 100 (0x784258; **inferred** ms), else sets
   {level slot 6, 3000 + 500 · clamp(m, 0, 1)}, m the mean of the last 5
-  |FE car +0x248| (the right-stick turn rate, stored at 0x7EC858 by
+  |FE car +0x248| (the mouse's turn rate, stored at 0x7EC858 by
   0x4D8C31; average 0x82C6E8 via 0x576980 / 0x576920; ramp 0x7EFFFC),
   and slot 5 on its +4 one-shot. The FEHUD slots include the effects and
   master volumes (SFXCTL_MasterVol control 3), so the clone divides them
   by its effects bus (`Game::fe_event_levels`). Clone: `fe::FeEvents`
-  (test `fe_events_play_at_the_hud_levels`); the clone's FE car has no
-  stick turn, so m = 0 (the native value with the stick idle). Check:
+  (test `fe_events_play_at_the_hud_levels`); m is the clone's |turn
+  rate| while the mouse turns the car (front-end.md "Turning the car"),
+  else the last one, 0 until the mouse has turned it. Check:
   `NFSU2_SOAK=menu:30 NFSU2_AUDIO_WAV=x.wav NFSU2_AUDIO_DEBUG=1 game
   --flow soak` logs "FE sound 3 (PlayCommonSample 3) level 4235".
 * **Rain (CARSFX_Rain, verified unless marked).** Id 0x10090 (section

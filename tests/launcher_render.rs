@@ -3,7 +3,7 @@
 //! laptop's 1366 × 768 among them), and every named state (no game found, a
 //! refused folder, …) at 1366 × 768 with 150 % scaling, compared with the
 //! committed renders in tests/launcher/ (our own images; nothing from the game), and
-//! the game check's states at the seven sizes too. A changed look
+//! the game check's and the Saves page's states at the seven sizes too. A changed look
 //! is re-blessed with `OB_LAUNCHER_BLESS=1 cargo test --release --test
 //! launcher_render` and the PNGs looked at before they are committed.
 
@@ -65,7 +65,12 @@ fn screens_match_their_renders() {
     let checks = CHECK_STATES.iter().flat_map(|n| {
         SIZES.map(|(w, h)| (format!("state-{n}-{w}x{h}"), headless::render_state(n, w, h, 1.0).expect("a state")))
     });
-    for (name, img) in screens.chain(states).chain(checks) {
+    // The Saves page's states also at every size (a page of lists and
+    // actions that stack on narrow windows).
+    let saves = headless::STATES.iter().filter(|(n, _)| n.starts_with("saves-")).flat_map(|(n, _)| {
+        SIZES.map(|(w, h)| (format!("state-{n}-{w}x{h}"), headless::render_state(n, w, h, 1.0).expect("a state")))
+    });
+    for (name, img) in screens.chain(states).chain(checks).chain(saves) {
         let path = dir().join(format!("{name}.png"));
         if bless {
             std::fs::create_dir_all(dir()).unwrap();

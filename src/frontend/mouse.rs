@@ -284,6 +284,10 @@ pub struct Mouse {
     pub released: bool,
     /// The wheel since the last frame (lZ: > 0 away from the player).
     pub wheel: f32,
+    /// The middle button held (+0x27) and let go since the last frame
+    /// (+0x29): GarageMain turns the car with it (`garage::DragInput`).
+    pub middle: bool,
+    pub middle_released: bool,
 }
 
 impl Mouse {
@@ -307,5 +311,6 @@ impl Mouse {
         self.pressed = false;
         self.released = false;
         self.wheel = 0.0;
+        self.middle_released = false;
     }
 }

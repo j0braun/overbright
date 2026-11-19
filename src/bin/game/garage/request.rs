@@ -224,6 +224,17 @@ impl Game {
         // Free roam is not drawn behind a shop's dialogs.
         if matches!(self.mode, Mode::Menu(Menu::Dialog(..) | Menu::LotDeal(_))) && self.garage_fe.view.is_some() {
             let now = self.now() / 1000.0;
+            // GarageMain keeps ticking under a dialog: the mouse turns the
+            // car there too (Wine: the quit and profile-save dialogs).
+            let (input, dt) = (self.platform.mouse_state.garage.take().unwrap_or_default(), self.pacing.frame_dt);
+            if let Some((.., view)) = self.garage_fe.view.as_mut() {
+                let changed = view.drag_step(now, dt);
+                let drawn = *view;
+                view.drag_input(input, nfsu2::garage::DragScreen::default(), now);
+                if changed && let Some(last) = self.garage_fe.last.as_mut() {
+                    last.view = drawn;
+                }
+            }
             return self.garage_fe.last.clone().map(|r| GarageRequest { now, ..r });
         }
         if !shows {
@@ -278,7 +289,7 @@ impl Game {
         self.lot_swing(now);
         let garage_left = self.garage_fe.left;
         let (swing, view) = self.garage_view_tick(request, returns, now, dt)?;
-        self.car_turn_sound(view.at(now).car_angle);
+        self.car_turn_sound(view.at(now).car_angle, view.turn_rate());
         // The swing's sound (0x4D82D0: 0x51DE40(5 / 4, 0x17)) as it starts.
         if swing && let Some(id) = nfsu2::audio::fe_rules::garage_swing(garage_left) {
             self.fe_id(id);
@@ -487,8 +498,27 @@ impl Game {
         }
         // The idle tour (0x4D82D0; car class 0 as above).
         view.tick(now, dt, false);
-        let view = *view;
-        Some((swing, view))
+        // The mouse's turn and the camera's lift (0x4D89DA…, 0x44CE00).
+        let _ = view.drag_step(now, dt);
+        let drawn = *view;
+        // GarageMain's tick reads the mouse after its update (0x4A5D90).
+        let input = self.platform.mouse_state.garage.take().unwrap_or_default();
+        let screen = self.garage_drag_screen();
+        if let Some((.., view)) = self.garage_fe.view.as_mut() {
+            view.drag_input(input, screen, now);
+        }
+        Some((swing, drawn))
+    }
+
+    /// What 0x4A5D90 checks before it reads the mouse: the reward
+    /// screens' flag 0x838578 (set by UI_MagazineSelect's openers 0x53DDC0
+    /// / 0x53DE00, cleared on its way back 0x53DE40) and the generic parts
+    /// browser (the wheel only). Dialogs: `garage_update_request`.
+    fn garage_drag_screen(&self) -> nfsu2::garage::DragScreen {
+        nfsu2::garage::DragScreen {
+            blocked: matches!(&self.mode, Mode::Menu(Menu::Icons(_, MenuKind::Covers(_)) | Menu::Cover(..))),
+            parts_browser: matches!(&self.mode, Mode::Menu(Menu::Parts(b)) if b.package == "UI_GenericParts_Browser"),
+        }
     }
 
     /// GarageMain (0x4D82D0) for the lot's asked car, with no turn under

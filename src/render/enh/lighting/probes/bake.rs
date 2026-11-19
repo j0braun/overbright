@@ -122,7 +122,10 @@ impl WorldRenderer {
         let _ = device.poll(wgpu::PollType::Poll);
         let mut baker = self.probes.take().unwrap();
         if let Some((probe, done)) = baker.pending.clone() {
-            match done.state() {
+            // A read-back still on the GPU, or held as if it were
+            // (`read_back_lag`, a test aid).
+            let state = if read_back_lag() { MapState::Pending } else { done.state() };
+            match state {
                 MapState::Ready if baker.discard => {
                     baker.readback.unmap();
                     baker.pending = None;
@@ -150,7 +153,30 @@ impl WorldRenderer {
             crate::render::enh::tick_views::Due::Draw => true,
             crate::render::enh::tick_views::Due::Ticks(v) => !v.is_empty(),
         };
-        let plan = baker.field.read().unwrap().plan(eye);
+        let mut plan = baker.field.read().unwrap().plan(eye);
+        // Arrival while the last single probe's read-back is still on the
+        // GPU (a slow or busy GPU): that read-back is waited for here, so
+        // the burst runs in this frame as on a GPU that had finished it,
+        // instead of a frame or more later (the first frame of a drive or a
+        // race would light the cars without their nearest probes).
+        if matches!(plan, BakePlan::Burst(_))
+            && let Some((probe, done)) = baker.pending.clone()
+        {
+            match done.wait(64, || device.poll(wgpu::PollType::wait_indefinitely()).is_ok()) {
+                MapState::Ready if baker.discard => {
+                    baker.readback.unmap();
+                    baker.pending = None;
+                    baker.discard = false;
+                }
+                MapState::Ready => baker.finish(probe),
+                _ => {
+                    warn_read_back_failed();
+                    baker.pending = None;
+                    baker.discard = false;
+                }
+            }
+            plan = baker.field.read().unwrap().plan(eye);
+        }
         match plan {
             // Arrival: every unbaked probe within the burst radius now. Each
             // probe is drawn and copied into a read-back buffer of its own

@@ -51,7 +51,7 @@ pub fn named_app<'e>(env: &'e FakeEnv, fonts: &Fonts, name: &str, w: u32, h: u32
 
 /// The named states: (name, the screen it is shown on). The fake data of
 /// each comes from [`state_model`].
-pub const STATES: [(&str, Screen); 64] = [
+pub const STATES: [(&str, Screen); 72] = [
     ("no-game", Screen::FirstRun),
     ("check-ok", Screen::Check),
     ("check-movies", Screen::Check),
@@ -75,8 +75,16 @@ pub const STATES: [(&str, Screen); 64] = [
     ("no-game-window", Screen::Failure),
     ("failure-details", Screen::Failure),
     ("unreadable-folder", Screen::Browse),
-    ("import-done", Screen::Import),
-    ("import-empty", Screen::Import),
+    ("saves-empty", Screen::Saves),
+    ("saves-found", Screen::Saves),
+    ("saves-conflict", Screen::Saves),
+    ("saves-detail-covers", Screen::Saves),
+    ("saves-backups", Screen::Saves),
+    ("saves-ask-delete", Screen::Saves),
+    ("saves-undo", Screen::Saves),
+    ("saves-busy", Screen::Saves),
+    ("saves-bad-file", Screen::Saves),
+    ("saves-long-names", Screen::Saves),
     ("mods-empty", Screen::Mods),
     ("mods-busy", Screen::Mods),
     ("mods-results", Screen::Mods),
@@ -429,10 +437,60 @@ pub fn state_model(name: &str) -> Option<(Screen, Model)> {
         "unreadable-folder" => {
             m.browse.error = Some("That folder cannot be read: /root: Permission denied (os error 13)".into());
         }
-        "import-done" => {
-            m.import.done = Some(vec!["NIGHTOWL/NIGHTOWL".into(), "NIGHTOWL DVD 1/NIGHTOWL DVD 1".into()]);
+        "saves-empty" => {
+            m.saves.rows.clear();
+            m.saves.backups.clear();
+            m.saves.found = Some(Vec::new());
         }
-        "import-empty" => m.import.scan = None,
+        "saves-found" => {
+            m.saves.rows.clear();
+            m.saves.backups.clear();
+        }
+        "saves-conflict" => {
+            m.saves.plan = Some(super::saves_page::fake_plan(PathBuf::from(super::model::FAKE_SAVES)))
+        }
+        "saves-detail-covers" => {
+            let r = &mut m.saves.rows[0];
+            r.s.covers = (1..=8)
+                .map(|n| super::saves::summary::Cover {
+                    name: format!("NIGHTOWL Magazine {n}"),
+                    dvd: false,
+                    n,
+                    bytes: 1_048_612,
+                })
+                .collect();
+            r.thumbs = (1..=4).map(|n| super::saves_page::fake_cover(2 * n)).collect();
+            r.s.payload_name = Some("NightOwl".into());
+        }
+        "saves-backups" => {
+            m.saves.show_backups = true;
+            m.saves.actions = true;
+        }
+        "saves-ask-delete" => m.ask = Some(super::model::Dialog::SaveDelete("NIGHTOWL".into())),
+        "saves-undo" => {
+            m.saves.rows.remove(0);
+            m.saves.undo = Some(super::saves::store::Undo {
+                remove: None,
+                restore: Some(PathBuf::from(
+                    "/data/player/.local/share/NFS Underground 2 Backups/NIGHTOWL/launcher-20261118-120000",
+                )),
+                said: "Deleted NIGHTOWL".into(),
+            });
+        }
+        "saves-busy" => m.saves.busy = Some("Backing up, then deleting…".into()),
+        "saves-bad-file" => {
+            m.saves.sel = 1;
+            m.saves.rows[1].s.problem = Some("header checksum".into());
+        }
+        "saves-long-names" => {
+            let r = &mut m.saves.rows[0];
+            r.s.name = "THEFINISHEDCAREERSAVEFROMOLDERBUILDS".into();
+            r.car = "MITSUBISHI LANCEREVO8".into();
+            r.s.cash = 1_000_006_300;
+            if let Some(f) = m.saves.found.as_mut().and_then(|f| f.first_mut()) {
+                f.source.label = "Steam (Proton) prefix 1234567890 in /media/player/Spiele-SSD/SteamLibrary".into();
+            }
+        }
         "mods-empty" => {
             m.mods.list.clear();
             m.mods.own.clear();

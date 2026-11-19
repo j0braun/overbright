@@ -179,6 +179,22 @@ pub(crate) fn event_shot(
     d.camera = camera;
 }
 
+/// The view leaves the player's own car out (bumper and driver always, the
+/// hood while looking back: `ChaseCamera::hides_car`, the chase mover's
+/// camera +0x280 that the car list's draw 0x60D584 skips) only while the
+/// chase mover is the view's. Under a scene's own camera (`scene`: a race's
+/// start scene up to its cut, an ending) the car is drawn whatever the
+/// player's view and the Look Back key (**observed** under Wine, a Quick
+/// Race start scene: in the bumper view the player's car is in every shot;
+/// in the hood view, Look Back tapped through the scene, it never blinks).
+/// The NIS leaves the player no camera mover (type 0, 0x430490), so no
+/// chase update runs to change +0x280 there (**inferred** as the reason).
+pub(crate) fn player_car_hidden(mode: &Mode, drive: &Drive, scene: Option<&ShopRun>) -> bool {
+    native_mover_type(mode, Some(drive)) == 1
+        && !scene.is_some_and(ShopRun::camera_holds_view)
+        && drive.chase.hides_car()
+}
+
 /// The type of the first player's camera mover (player +0x238 → +0x0C, the
 /// type Camera_Factory 0x5F1FE0 built) for the views the clone has: the
 /// showcase's 0x14 (0x501290), a replay's track camera 0x12 (0x5FB5B2),
