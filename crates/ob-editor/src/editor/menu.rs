@@ -44,6 +44,8 @@ pub enum Action {
     View(View),
     Tab(&'static str),
     Controls,
+    /// Help ▸ How to test your race.
+    HowToTest,
     /// Show or hide the hint line under the view.
     Hint(bool),
 }
@@ -75,6 +77,16 @@ impl Command {
         Command::TestRace,
         Command::DriveHere,
     ];
+
+    /// What the menu item says when hovered (the test modes say who
+    /// drives and where it shows).
+    pub fn tip(self) -> Option<String> {
+        match self {
+            Command::TestRace => Some(super::modes::TEST_RACE.tooltip()),
+            Command::DriveHere => Some(super::modes::DRIVE_HERE.tooltip()),
+            _ => None,
+        }
+    }
 
     /// Why `self` cannot run on `s` now (the menu shows it disabled with
     /// this text), or None when a part takes and runs it.
@@ -399,9 +411,10 @@ fn command(ui: &mut egui::Ui, s: Option<&EditorState>, text: &str, key: &str, c:
         None => Some("Open a map mod first"),
     };
     let r = ui.add_enabled(why.is_none(), egui::Button::new(text).shortcut_text(key));
-    let r = match why {
-        Some(why) => r.on_disabled_hover_text(why),
-        None => r,
+    let r = match (why, c.tip()) {
+        (Some(why), _) => r.on_disabled_hover_text(why),
+        (None, Some(tip)) => r.on_hover_text(tip),
+        (None, None) => r,
     };
     if r.clicked() {
         post(ui.ctx(), c);
@@ -499,6 +512,9 @@ pub fn bar(app: &App, ui: &mut egui::Ui, out: &mut Vec<Action>) {
         ui.menu_button("Help", |ui| {
             if ui.button("Controls").clicked() {
                 out.push(Action::Controls);
+            }
+            if ui.button("How to test your race").clicked() {
+                out.push(Action::HowToTest);
             }
         });
         // The mod and region at the right; a dot while unsaved.
@@ -834,13 +850,13 @@ pub fn toolbar(app: &mut App, ui: &mut egui::Ui, out: &mut Vec<Action>) {
             let r = if errors {
                 r.on_disabled_hover_text("Fix the errors in Validation first")
             } else {
-                r.on_hover_text("Test the selected race in the game (F5)")
+                r.on_hover_text(super::modes::TEST_RACE.tooltip())
             };
             if r.clicked() {
                 post(ui.ctx(), Command::TestRace);
             }
             let test_rect = r.rect;
-            let r = ui.button(label_job(drive, None, false, true)).on_hover_text("Start the game here (Shift+F5)");
+            let r = ui.button(label_job(drive, None, false, true)).on_hover_text(super::modes::DRIVE_HERE.tooltip());
             if r.clicked() {
                 post(ui.ctx(), Command::DriveHere);
             }
@@ -881,11 +897,7 @@ pub fn hint_job(s: &EditorState, p: &Props, r: &Races) -> egui::text::LayoutJob 
     let small = egui::FontId::proportional(13.0);
     let mut job = egui::text::LayoutJob::default();
     job.append(&format!("{} tool", tool.name()), 0.0, egui::TextFormat::simple(theme::font(theme::LABEL, 14.0), theme::lime()));
-    let chip = |job: &mut egui::text::LayoutJob, key: &str, lead: f32| {
-        let mut f = egui::TextFormat::simple(egui::FontId::proportional(12.0), theme::ink());
-        f.background = theme::rgb(theme::tokens().page);
-        job.append(&format!(" {key} "), lead, f);
-    };
+    let chip = hint_chip;
     // The way back first: it must show on the narrowest window.
     if tool.armed() {
         chip(&mut job, "Esc", 14.0);
@@ -900,6 +912,26 @@ pub fn hint_job(s: &EditorState, p: &Props, r: &Races) -> egui::text::LayoutJob 
     job.append(" + ", 0.0, egui::TextFormat::simple(small.clone(), theme::dim()));
     chip(&mut job, "WASD", 0.0);
     job.append(" fly", 0.0, egui::TextFormat::simple(small, theme::ink()));
+    job
+}
+
+/// A key chip in a hint-line job (`Esc`, `RMB`).
+fn hint_chip(job: &mut egui::text::LayoutJob, key: &str, lead: f32) {
+    let mut f = egui::TextFormat::simple(egui::FontId::proportional(12.0), theme::ink());
+    f.background = theme::rgb(theme::tokens().page);
+    job.append(&format!(" {key} "), lead, f);
+}
+
+/// The game-window strip's words, set like the hint line: "Game window
+/// open", what runs, `Esc` in the game ends it (`modes`).
+pub fn game_job(what: &str) -> egui::text::LayoutJob {
+    let small = egui::FontId::proportional(13.0);
+    let mut job = egui::text::LayoutJob::default();
+    let lead = egui::TextFormat::simple(theme::font(theme::LABEL, 14.0), theme::lime());
+    job.append(super::modes::STRIP_LEAD, 0.0, lead);
+    job.append(what, 18.0, egui::TextFormat::simple(small.clone(), theme::ink()));
+    hint_chip(&mut job, "Esc", 18.0);
+    job.append(&format!(" {}", super::modes::STRIP_END), 0.0, egui::TextFormat::simple(small, theme::ink()));
     job
 }
 

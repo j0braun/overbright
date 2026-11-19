@@ -173,6 +173,10 @@ mod in_game_map {
     pub const ZOOM_LABEL: u32 = crate::frontend::fe_ids::ZOOM_LABEL;
     /// The selection marker group (0x4B07F0 / 0x4B0850).
     pub const SELECTION: u32 = crate::frontend::fe_ids::SELECTION;
+    /// The selection group's two rings (Minimap_GPS_Selector, 50 × 50):
+    /// their INIT (length 0) chains to PULSE (1600 ms, looping: size 28.75
+    /// → 70, alpha 0 → 255 → 0; the second ring 400 ms behind the first).
+    pub const RINGS: [u32; 2] = [0x4F64_9313, 0x4F64_9314];
     /// PLAYERCARINDICATOR: the player's icon (0x4E0440, type 0x10) and the
     /// shown check box's colour (row +0x18, 0x4B0D50).
     pub const PLAYER: u32 = crate::frontend::fe_ids::IN_GAME_MAP_PLAYER;
@@ -434,6 +438,10 @@ impl InGameWorldMap {
         // console footer ("blah 1", "blah", "Back", the $JOY_EVENT_
         // glyphs) and the second "Full Map" (0x632B4FA8).
         package_init(&mut state, package);
+        // The rings pulse from the package's start: 0x51CF80's "Pulse" on
+        // the group (0x4967F0, 0x4E0440) finds no script of that name on
+        // it and does nothing; the rings' own INIT → PULSE chain runs.
+        state.chained.extend(RINGS);
         if let Some(t) = self.texture {
             state.image.insert(MAP, t);
         }
@@ -469,7 +477,6 @@ impl InGameWorldMap {
             Some((_, at)) => {
                 state.position.insert(SELECTION, at);
                 state.shown.insert(SELECTION);
-                state.run(SELECTION, "Pulse", 0.0);
             }
             None => {
                 state.hidden.insert(SELECTION);
@@ -568,3 +575,78 @@ impl InGameWorldMap {
 
 /// UI_InGame_WorldMap's help-bar mask (screen record 0x7F827C +0xC).
 pub const WORLD_MAP_HELP: u32 = 0x1_8400;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The selection's two rings (0x4E0440 / 0x4967F0 show the group on
+    /// the selected marker; the rings' INIT → PULSE runs on the FEng clock
+    /// from the screen's opening): one 1600-ms package loop (1333 screen
+    /// ms at `FE_RATE`), size 28.75 → 70, alpha 0 → 255 → 0, the second
+    /// ring 400 package ms behind. The same moment gives the same rings at
+    /// 30, 60, 120 and 200 fps.
+    #[test]
+    #[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
+    fn selection_rings_pulse() {
+        let assets = crate::frontend::Assets::load(&crate::testkit::game_root()).expect("loading the game's front end assets");
+        let (cx, cy, span, _) = WORLD_MAP_ZOOMS[0];
+        let (uc, vc) = (cx / 512.0 + span / 1024.0, cy / 512.0 + span / 1024.0);
+        let trigger = crate::frontend::career::Trigger {
+            name: 0,
+            position: glam::Vec3::ZERO,
+            gps: glam::Vec3::ZERO,
+            min: Vec2::ZERO,
+            max: Vec2::ZERO,
+            polygon: [Vec2::ZERO; 8],
+            points: 0,
+        };
+        let icon = MapIcon {
+            group: map_group(9),
+            kind: 9,
+            at: Vec2::new(uc * 1000.0, -vc * 1000.0),
+            heading: None,
+            sponsor: false,
+            target: Some((0x1234, trigger)),
+        };
+        let selector = assets.texture_for("Minimap_GPS_Selector.tga").expect("Minimap_GPS_Selector");
+        // With the GPS on that marker (Deactivate GPS) and off.
+        for gps in [Some(0x1234), None] {
+            let map = InGameWorldMap::new(0.0, 1, None, [0.0, 0.0, 1000.0], vec![icon], [false; 14], gps);
+            assert_eq!(map.selected, Some(0));
+            let rings = |t: f32| -> Vec<(f32, f32)> {
+                map.quads_with_bar(&assets, t, false)
+                    .iter()
+                    .filter(|q| q.texture == Some(selector))
+                    .map(|q| ((q.rect[1].x - q.rect[0].x).round(), (q.color[3] * 255.0).round()))
+                    .collect()
+            };
+            let ms = |package: f32| package / crate::frontend::FE_RATE;
+            // Package ms 0: both rings clear (not drawn); 200: ring 1
+            // 37.8 wide and opaque, ring 2 (400 ms behind) at 28.75 and
+            // half clear; 600: ring 1 56 wide at alpha 180.
+            let near = |r: &[(f32, f32)], w: f32, a: f32| r.iter().any(|q| (q.0 - w).abs() <= 1.0 && (q.1 - a).abs() <= 2.0);
+            let b = rings(ms(200.0));
+            let c = rings(ms(600.0));
+            assert!(rings(ms(0.0)).is_empty(), "{gps:?}: clear at the start: {:?}", rings(ms(0.0)));
+            assert!(b.len() == 2 && near(&b, 38.0, 255.0) && near(&b, 29.0, 128.0), "{gps:?}: 200 ms: {b:?}");
+            assert!(c.len() == 2 && near(&c, 56.0, 180.0), "{gps:?}: 600 ms: {c:?}");
+            // One loop later the same.
+            assert_eq!(rings(ms(200.0 + 1600.0)), b, "{gps:?}: loops every 1600 package ms");
+            // The moment, not the frame rate, picks the rings: frames
+            // stepped at 30, 60, 120 and 200 fps show the same rings at
+            // every 100 ms.
+            let at_rate = |fps: u32| -> Vec<Vec<(f32, f32)>> {
+                (1..=fps * 2)
+                    .filter(|frame| frame % (fps / 10) == 0)
+                    .map(|frame| rings(frame as f32 * 1000.0 / fps as f32))
+                    .collect()
+            };
+            let reference = at_rate(60);
+            assert_eq!(reference.len(), 20);
+            for fps in [30, 120, 200] {
+                assert_eq!(at_rate(fps), reference, "{gps:?}: {fps} fps");
+            }
+        }
+    }
+}

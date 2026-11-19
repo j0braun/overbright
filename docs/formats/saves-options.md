@@ -334,6 +334,15 @@ tests `tests/native_save.rs`, selftest `selftest_profiles`.
   automatically; deleting removes the chosen one, and the next newest is
   listed then). Tests: `profiles::case_tests`, `tests/profiles_case.rs`
   (own XDG_DATA_HOME), selftest `selftest_profiles`.
+* **A profile under another name** (**verified** under Wine): the folder, the
+  file and the payload's name (profile +0x00, 32 bytes) changed together, the
+  container's checksums recomputed, nothing else. A finished career renamed so
+  (`launcher::saves::store::Files::renamed`, the launcher's import and restore
+  copies, rename and duplicate) as the only profile of a private Wine copy:
+  "Load complete." and MIKE2 in the main menu's help bar. Test
+  `tests/native_save.rs` `a_renamed_copy_loads_under_its_new_name` (the same
+  file, by its SHA-256; Overbright lists and loads it under the new name and
+  its own save writes the same bytes back).
 * **Settings before a profile is loaded** (**verified**; `Settings::load`).
   The options other than the display ones live only in the profile: the
   profile object's settings start as 0x5116E0's defaults (every volume

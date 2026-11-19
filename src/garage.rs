@@ -25,7 +25,7 @@ use std::collections::HashMap;
 use std::path::Path;
 
 use anyhow::{Context, Result};
-use glam::{Mat4, Vec3};
+use glam::{Mat4, Vec2, Vec3};
 
 use crate::car::Wheel;
 use crate::formats::bundle::{chunks, walk};
@@ -140,6 +140,82 @@ pub struct View {
     hold_from: f32,
     /// The camera mover's shortest blend (+0x150) as the last view set it.
     blend_min: f32,
+    /// A part view holds the camera (camera +0x30: set by 0x4532B0 with a
+    /// record, cleared by the return 0x453320).
+    part_view: bool,
+    /// The mouse's turn of the car and lift of the camera ([`Drag`]).
+    drag: Drag,
+}
+
+/// Turning the car with the mouse (**verified**, 0x4A5D90 / 0x4A5660 /
+/// 0x4D82D0 / 0x44CE00; docs/formats/front-end.md "Turning the car"):
+/// while the middle button is held, GarageMain's tick (0xC98356BA) stores
+/// half the cursor's move of the frame, in 640 × 480 units of the window
+/// (0x5BF760: `trunc(x · 640 / width)`, `trunc(y · 480 / height)`), as the
+/// car's turn rate +0x248 and the camera's lift rate +0x24C (0x4A5E16…
+/// 0x4A5E34); the release (or a GenericDialog up) zeroes them. The next
+/// update turns the car by `dt · 60 · +0x248` degrees (0x4D8B4A) and the
+/// camera mover, in its follow state 1, lifts the eye by `dt · 60 ·
+/// +0x24C · 0.1` within 1.2..5.2 (y held within −6.5..−0.1; 0x44CE5A).
+/// No key or pad button feeds these rates.
+#[derive(Clone, Copy, Debug, PartialEq, Default)]
+struct Drag {
+    /// +0x248 / +0x24C.
+    rates: Vec2,
+    /// +0x260 / +0x264: the rates 0x4A5660 last handed the camera (it
+    /// hands one on only when it changed).
+    passed: Vec2,
+    /// Camera +0x144: the lift rate the camera holds (0x4454E0).
+    lift: f32,
+    /// The camera mover is in state 1 (+0x2C = 1: the constructor's, read
+    /// under Wine; 0x4454A0 / 0x4454E0 from any state but a blend's 0):
+    /// it follows the lift rate.
+    follow: bool,
+    /// +0x165: the rates were not zero at the last update (0x4D89EF).
+    active: bool,
+    /// 0x83640D: the wheel turned at the last tick (0x4A5DF3).
+    wheel: bool,
+}
+
+/// The mouse as GarageMain's tick reads it (0x4A5D90): the cursor's move
+/// this frame in 640 × 480 units of the window (g_Mouse +0x14 / +0x18),
+/// the middle button held (+0x27) and let go (+0x29), the wheel (+0x1C).
+#[derive(Clone, Copy, Debug, PartialEq, Default)]
+pub struct DragInput {
+    pub moved: (i32, i32),
+    pub held: bool,
+    pub released: bool,
+    pub wheel: bool,
+}
+
+/// Where 0x4A5D90 runs: `blocked` when the reward screens' flag
+/// 0x838578 is set (UI_MagazineSelect and the covers it opens: nothing
+/// is read), `parts_browser` with UI_GenericParts_Browser.fng up (the
+/// wheel ignored). Its test for GenericDialog.fng (zero the rates, ignore
+/// the wheel) matches none of the dialogs, which are the sized
+/// GenericDialog_SMALL / _MED / _LARGE packages: under Wine the car
+/// turned under the quit and the profile-save dialogs.
+#[derive(Clone, Copy, Debug, PartialEq, Default)]
+pub struct DragScreen {
+    pub blocked: bool,
+    pub parts_browser: bool,
+}
+
+/// The rate per unit of cursor travel (0x784260: × 0.5); a 60 Hz update
+/// (`dt · 60` = 1) turns the car that many degrees per 640-wide unit.
+pub const DRAG_TURN_RATE: f32 = 0.5;
+/// The camera's lift factor (0x44CE4A: × 0.1) and its eye's bounds
+/// (0x44CE75…0x44CEC2).
+pub const DRAG_LIFT: f32 = 0.1;
+pub const DRAG_EYE_Z: (f32, f32) = (1.2, 5.2);
+pub const DRAG_EYE_Y: (f32, f32) = (-6.5, -0.1);
+
+/// The cursor's place on the original's 640 × 480 mouse grid: 0x5BF760
+/// scales the client point by 640 / width and 480 / height and truncates
+/// (0x75BED4).
+pub fn mouse_grid(px: Vec2, size: (f32, f32)) -> (i32, i32) {
+    let g = |p: f32, n: f64, s: f32| if s > 0.0 { (f64::from(p) * n / f64::from(s)) as i32 } else { 0 };
+    (g(px.x, 640.0, size.0), g(px.y, 480.0, size.1))
 }
 
 /// The idle tour (0x4D82D0, 0x4D88C1…0x4D89D4; **verified**, Wine menus115
@@ -267,7 +343,7 @@ impl View {
         let shot = SHOTS[record];
         // The mover's +0x150 before any view: 2.5 as read under Wine in
         // the garage (**inferred**: the constructor's value not traced).
-        View { camera: shot, car_angle: shot.car_angle, steer: shot.steer, blend: None, turn: None, platform_angle: 0.0, disc: 0, outgoing_disc: None, change: None, idle_since: None, touring: false, hold_from: f32::NEG_INFINITY, blend_min: BASE_BLEND_MIN }
+        View { camera: shot, car_angle: shot.car_angle, steer: shot.steer, blend: None, turn: None, platform_angle: 0.0, disc: 0, outgoing_disc: None, change: None, idle_since: None, touring: false, hold_from: f32::NEG_INFINITY, blend_min: BASE_BLEND_MIN, part_view: false, drag: Drag { follow: true, ..Drag::default() } }
     }
 
     /// The view at `now` (seconds): the camera eased along its blend
@@ -332,6 +408,9 @@ impl View {
         let Some(shot) = slot_shot(slot, suv, engine, vinyl_group) else { return };
         self.blend_min = PART_BLEND_MIN;
         self.show(shot, now, dt);
+        // 0x4532B0: camera +0x30; 0x4C1D40 zeroes the mouse's rates.
+        self.part_view = true;
+        self.drag.rates = Vec2::ZERO;
     }
 
     /// 0x4C1DCE…0x4C1EE1 / 0x4A5BD0: the camera blends to `shot` (at
@@ -344,6 +423,8 @@ impl View {
         let current = here.car_angle.rem_euclid(360.0);
         let (up, down) = if shot.car_angle > current { (shot.car_angle - current, current + 360.0 - shot.car_angle) } else { (shot.car_angle + 360.0 - current, current - shot.car_angle) };
         let delta = if down > up { up } else { -down };
+        // 0x451200: a blend puts the camera mover in state 0.
+        self.drag.follow = false;
         *self = View {
             camera: here.camera,
             car_angle: here.car_angle,
@@ -366,7 +447,125 @@ impl View {
         self.idle_since = Some(now);
         self.blend_min = BASE_BLEND_MIN;
         let duration = blend_duration(&here.camera, &to, 0.0, dt, BASE_BLEND_MIN);
+        self.part_view = false;
+        self.drag.follow = false;
         *self = View { camera: here.camera, car_angle: here.car_angle, steer: here.steer, blend: Some(Blend { from: here.camera, to, start: now, duration }), turn: None, ..*self };
+    }
+
+    /// GarageMain's update after the tour (0x4D89DA…0x4D8B76) and the
+    /// camera mover's state 1 (0x44CE00), with the rates the last tick's
+    /// mouse left ([`View::drag_input`]): rates that changed go to the
+    /// camera (state 1 unless it blends); any rate stops a part view
+    /// (0x453320(1): back to the base view, the car's turn stopped) and
+    /// the idle tour (0x453380: the base view at the tour's shortest
+    /// blend) and restarts the tour's clock; then, with no part view and
+    /// no tour, the car turns by `dt · 60 · rate` degrees, kept within
+    /// 0..360 (0x4D8B76…0x4D8BA6). Nothing changes while every rate is
+    /// zero and the eye stays within its bounds, so a view the mouse
+    /// never touched stays as before. Whether it changed the view.
+    pub fn drag_step(&mut self, now: f32, dt: f32) -> bool {
+        let before = (self.car_angle, self.camera, self.blend, self.turn);
+        let r = self.drag.rates;
+        let blending = self.blend.is_some_and(|b| now - b.start < b.duration);
+        if r.x != self.drag.passed.x {
+            self.drag.passed.x = r.x;
+            if !blending {
+                self.follow(now);
+            }
+        }
+        if r.y != self.drag.passed.y {
+            self.drag.passed.y = r.y;
+            if !blending {
+                self.follow(now);
+                self.drag.lift = r.y;
+            }
+        }
+        let active = r != Vec2::ZERO;
+        if active && self.part_view {
+            self.reset(0, now, dt);
+        }
+        self.drag.active = active;
+        if active {
+            self.idle_since = Some(now);
+            if self.touring {
+                self.touring = false;
+                self.to_base(now, dt);
+            }
+        }
+        if active && !self.part_view && !self.touring {
+            // The tour's turn stops where it is.
+            if self.turn.is_some() {
+                let here = self.at(now);
+                (self.car_angle, self.steer, self.turn) = (here.car_angle, here.steer, None);
+            }
+            let mut a = self.car_angle + dt * 60.0 * r.x;
+            if a >= 360.0 {
+                a -= 360.0;
+            }
+            if a < 0.0 {
+                a += 360.0;
+            }
+            self.car_angle = a;
+        }
+        if self.drag.follow {
+            let step = dt * 60.0;
+            let eye = &mut self.camera.eye;
+            eye.z += self.drag.lift * DRAG_LIFT * step;
+            eye.z = eye.z.max(DRAG_EYE_Z.0).min(DRAG_EYE_Z.1);
+            eye.y = eye.y.max(DRAG_EYE_Y.0).min(DRAG_EYE_Y.1);
+        }
+        before != (self.car_angle, self.camera, self.blend, self.turn)
+    }
+
+    /// The camera mover to state 1 (0x4454A0 / 0x4454E0): its finished
+    /// blend's camera is where the mouse moves it from.
+    fn follow(&mut self, now: f32) {
+        if !self.drag.follow {
+            self.camera = self.at(now).camera;
+            self.blend = None;
+            self.drag.follow = true;
+        }
+    }
+
+    /// 0x453380: the camera back to the base view at the current shortest
+    /// blend (+0x150); the car stays.
+    fn to_base(&mut self, now: f32, dt: f32) {
+        let here = self.at(now);
+        let to = SHOTS[0];
+        let duration = blend_duration(&here.camera, &to, 0.0, dt, self.blend_min);
+        self.drag.follow = false;
+        self.blend = Some(Blend { from: here.camera, to, start: now, duration });
+        self.camera = here.camera;
+    }
+
+    /// GarageMain's tick after its update (0x4A5D90, at 0x4D8E9D): the
+    /// rates for the next update from this frame's mouse. A turned wheel
+    /// (and the frame after it) restarts the tour's clock and ends the
+    /// tour where it stands, unless the generic parts browser is up; a
+    /// held middle button sets the rates to half the cursor's move and
+    /// does the same; its release zeroes them.
+    pub fn drag_input(&mut self, input: DragInput, screen: DragScreen, now: f32) {
+        if screen.blocked {
+            return;
+        }
+        if !screen.parts_browser && (input.wheel || self.drag.wheel) {
+            self.drag.wheel = input.wheel;
+            self.touring = false;
+            self.idle_since = Some(now);
+        }
+        if input.held {
+            self.drag.rates = Vec2::new(input.moved.0 as f32, input.moved.1 as f32) * DRAG_TURN_RATE;
+            self.touring = false;
+            self.idle_since = Some(now);
+        }
+        if input.released {
+            self.drag.rates = Vec2::ZERO;
+        }
+    }
+
+    /// The car's turn rate +0x248 (|it| is the turntable sound's 0x7EC858).
+    pub fn turn_rate(&self) -> f32 {
+        self.drag.rates.x
     }
 
     /// GarageMain's per-frame idle tour (0x4D88C1…0x4D89D4, see
@@ -396,6 +595,8 @@ impl View {
             }
             TOUR_INDEX.store(i, std::sync::atomic::Ordering::Relaxed);
             self.idle_since = Some(now);
+            // 0x4A5BD0 zeroes the mouse's rates.
+            self.drag.rates = Vec2::ZERO;
             self.show(TOUR_SHOTS[usize::from(suv)][i - 42], now, dt);
         }
     }
@@ -962,3 +1163,89 @@ mod reflection_plane_tests {
     }
 }
 
+
+#[cfg(test)]
+mod drag_tests {
+    use super::*;
+
+    const DT: f32 = 1.0 / 60.0;
+
+    fn held(dx: i32, dy: i32) -> DragInput {
+        DragInput { moved: (dx, dy), held: true, released: false, wheel: false }
+    }
+
+    /// The middle button's drag: half the move a frame is the rate, and the
+    /// next update turns the car `dt · 60 · rate` degrees (0.5° per
+    /// 640-wide unit at 60 Hz), kept within 0..360; the vertical move lifts
+    /// the eye by a tenth of that, within 1.2..5.2; the release stops both.
+    #[test]
+    fn the_middle_button_turns_the_car_and_lifts_the_camera() {
+        let mut v = View::new(0);
+        let start = v.car_angle;
+        // The update before the read uses no rate yet (0x4D82D0 runs first).
+        assert!(!v.drag_step(0.0, DT));
+        v.drag_input(held(20, 0), DragScreen::default(), 0.0);
+        assert!(v.drag_step(DT, DT));
+        assert!((v.car_angle - (start + 10.0)).abs() < 1e-4, "{}", v.car_angle);
+        // Held without a move: the rate is zero, the car stays.
+        v.drag_input(held(0, 0), DragScreen::default(), DT);
+        assert!(!v.drag_step(2.0 * DT, DT));
+        // Past 360 it wraps (305.77 + 10 + 60 = 375.77 → 15.77).
+        v.drag_input(held(120, 0), DragScreen::default(), 2.0 * DT);
+        v.drag_step(3.0 * DT, DT);
+        assert!((v.car_angle - (start + 70.0 - 360.0)).abs() < 1e-3, "{}", v.car_angle);
+        // Down lifts the eye: 20 units → rate 10 → 1.0 a 60 Hz update.
+        let z = v.camera.eye.z;
+        v.drag_input(held(0, 20), DragScreen::default(), 3.0 * DT);
+        v.drag_step(4.0 * DT, DT);
+        assert!((v.camera.eye.z - (z + 1.0)).abs() < 1e-4, "{}", v.camera.eye.z);
+        for i in 0..10 {
+            v.drag_step((5 + i) as f32 * DT, DT);
+        }
+        assert_eq!(v.camera.eye.z, DRAG_EYE_Z.1);
+        v.drag_input(held(0, -200), DragScreen::default(), 15.0 * DT);
+        v.drag_step(16.0 * DT, DT);
+        assert_eq!(v.camera.eye.z, DRAG_EYE_Z.0);
+        // The release zeroes the rates: nothing moves after it.
+        v.drag_input(DragInput { released: true, ..DragInput::default() }, DragScreen::default(), 16.0 * DT);
+        let (a, e) = (v.car_angle, v.camera.eye);
+        assert!(!v.drag_step(17.0 * DT, DT));
+        assert_eq!((v.car_angle, v.camera.eye), (a, e));
+    }
+
+    /// Any rate stops a part view: back to the base view (0x453320(1))
+    /// over at least 2.5 s, the car turned by the mouse from where the
+    /// view's turn left it; the reward screens' flag reads nothing; the
+    /// wheel ends the idle tour without a rate.
+    #[test]
+    fn a_drag_leaves_a_part_view_and_the_reward_screens_take_none() {
+        let mut v = View::new(0);
+        v.part_view = true;
+        v.drag_input(held(10, 0), DragScreen { blocked: true, ..DragScreen::default() }, 0.0);
+        assert_eq!(v.turn_rate(), 0.0, "0x838578 set: 0x4A5D90 reads nothing");
+        v.drag_input(held(10, 0), DragScreen::default(), 0.0);
+        let before = v.car_angle;
+        v.drag_step(DT, DT);
+        assert!(!v.part_view);
+        let b = v.blend.expect("the blend back to the base view");
+        assert!(b.duration >= BASE_BLEND_MIN && b.to == SHOTS[0]);
+        assert!((v.car_angle - (before + 5.0)).abs() < 1e-4);
+        let mut t = View::new(0);
+        t.touring = true;
+        t.drag_input(DragInput { wheel: true, ..DragInput::default() }, DragScreen::default(), 1.0);
+        assert!(!t.touring && t.idle_since == Some(1.0));
+        let mut p = View::new(0);
+        p.touring = true;
+        p.drag_input(DragInput { wheel: true, ..DragInput::default() }, DragScreen { parts_browser: true, ..DragScreen::default() }, 1.0);
+        assert!(p.touring, "the generic parts browser ignores the wheel");
+    }
+
+    /// 0x5BF760's grid: the window's width is 640 units, its height 480,
+    /// truncated.
+    #[test]
+    fn the_mouse_grid_is_the_whole_window() {
+        assert_eq!(mouse_grid(Vec2::new(1279.0, 959.0), (1280.0, 960.0)), (639, 479));
+        assert_eq!(mouse_grid(Vec2::new(3.0, 3.0), (1920.0, 1080.0)), (1, 1));
+        assert_eq!(mouse_grid(Vec2::new(-1.0, 5.0), (1280.0, 960.0)), (0, 2));
+    }
+}

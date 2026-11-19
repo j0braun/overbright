@@ -336,6 +336,17 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
   So bumper and driver never draw the player's car, the hood only while
   looking back. **Inferred**: the car's shadow (queued apart, 0x6162F0)
   still draws.
+  Only while the chase mover is the view's (`player_car_hidden`): under a
+  scene's own camera (a race's start scene up to its cut, an ending) the
+  player's car is drawn in every view. **Observed** under Wine, a Quick
+  Race start scene: in the bumper view the car is in every shot; in the
+  hood view, with Look Back tapped through the scene, it never blinks; once
+  the chase camera takes over (the countdown) the rule above applies again.
+  The NIS leaves the player no camera mover (type 0, 0x430490), so no chase
+  update runs there; the camera mover base keeps +0x280 across a change
+  (constructor 0x44AB90 and destructor 0x44B1CC copy it, neither clears it),
+  so why the scene's view still draws the car is **open** (another view
+  object or car pointer is the likely reason, not traced).
 * Race modes in 0x453570: in drift (0x89E7D9) and URL (0x89E7E2)
   races (or their online twins) the blended tuning's eye lag scale
   (+0x40) is zeroed; the shake's amplitude (0x7EBE90[kind], 1.0 for all)
@@ -882,7 +893,23 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
   shown only strictly inside the map (0x496760), 11 × 11 at zoom 0 and 15
   × 15 zoomed; objects `<NAME>%d` (table 0x7F4348, format 0x78F6F4) from a
   per-type counter starting at 1 (AI racers 0; 0x835F38). Left / Right
-  step the selection (group 0xE2848973 with "Pulse", 0x4B0850). The clone
+  step the selection (group 0xE2848973, 0x4B0850). **Selection pulse**
+  (verified: package data, 0x4E0440 / 0x4967F0 / 0x51CF80, and the
+  original under Wine): the selected marker gets the group SELECTION
+  moved onto it and shown (0x51D4E0, 0x50CA50); the code's "Pulse" call
+  (0x51CF80) looks the script up on the group itself, which has none, so it
+  does nothing. The pulse is the group's two rings 0x4F649313 / 0x4F649314
+  (Minimap_GPS_Selector, 50 × 50), whose INIT (length 0) chains to PULSE:
+  1600 package ms (1.33 s), looping (flags 1); size 28.75 → 37.8 (200 ms)
+  → 56 (600) → 70 (1200, held), alpha 0 → 255 (200) → 180 (600) → 0
+  (1200); the second ring runs the same 400 ms later. It runs on the FEng
+  clock from the package's start, so moving the selection does not
+  restart it. With the GPS on (0x501100 in 0–3) the constructor selects
+  only the marker whose hash (0x514160) is the GPS target 0x838590: after
+  "Activate GPS" on the map the reopened map pulses on that marker
+  (Wine: about 1.3 s per cycle); the new career's car-lot GPS names no
+  map marker, so that map opens with no selection. The clone kept the
+  rings at INIT (one still ring); it now runs their chain. The clone
   (`screens::InGameWorldMap`, `--shot ingamemap`, NFSU2_MAP_ZOOM /
   NFSU2_MAP_SELECT) does all of that; it hides the second "Full Map"
   string 0x632B4FA8 (flag 0x40, see below). **GPS** (**verified**,

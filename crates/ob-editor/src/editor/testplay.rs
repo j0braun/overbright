@@ -231,8 +231,33 @@ pub struct TestPanel {
 /// How often a running test is looked at while the window is idle.
 const POLL_EVERY: std::time::Duration = std::time::Duration::from_millis(250);
 
+fn strip_id() -> egui::Id {
+    egui::Id::unique("editor.testplay.strip")
+}
+
+/// The game-window strip's words while a test runs (the shell draws it
+/// over the view; `modes::strip`).
+pub fn strip(ctx: &egui::Context) -> Option<String> {
+    ctx.data(|d| d.get_temp::<String>(strip_id()))
+}
+
 impl super::state::Panel for TestPanel {
     fn ui(&mut self, s: &mut EditorState, ui: &mut egui::Ui) {
+        self.run(s, ui);
+        let words = self.test.as_ref().map(|t| super::modes::strip(t.race.as_ref().map(|r| r.name.as_str())));
+        ui.ctx().data_mut(|d| match words {
+            Some(w) => {
+                d.insert_temp(strip_id(), w);
+            }
+            None => {
+                d.remove::<String>(strip_id());
+            }
+        });
+    }
+}
+
+impl TestPanel {
+    fn run(&mut self, s: &mut EditorState, ui: &mut egui::Ui) {
         let ctx = ui.ctx().clone();
         let race = super::menu::take(&ctx, super::menu::Command::TestRace);
         let drive = super::menu::take(&ctx, super::menu::Command::DriveHere);

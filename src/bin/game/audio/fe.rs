@@ -79,12 +79,14 @@ impl Game {
     /// 0x49 starts once (FE_MB's FrontEndSample_loop, index 50: a sample
     /// looped over its whole length); the first update it stands still
     /// StopFESound 0x49 (0x458560) stops it.
-    pub(crate) fn car_turn_sound(&mut self, angle: f32) {
+    pub(crate) fn car_turn_sound(&mut self, angle: f32, rate: f32) {
         let levels = self.fe_event_levels();
         let Some(a) = self.audio.as_mut() else { return };
         let (last, playing, stopped) = &mut a.car_turn;
         if angle != *last {
             *last = angle;
+            // 0x4D8C31: 0x7EC858 = |+0x248| while the angle changes.
+            a.car_turn_rate = rate.abs();
             if !*playing {
                 a.fe.play(&mut a.mixer, 0x49, &levels);
                 *playing = true;

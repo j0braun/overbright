@@ -702,6 +702,9 @@ fn folder_browser_flow() {
     assert_eq!(b.screen, Screen::Mods);
 }
 
+/// Settings › Advanced › Import saves opens the Saves page; a found
+/// source shows its plan, Import brings the profiles in; Choose folder…
+/// picks the original's folder in the browser and shows its plan.
 #[test]
 fn import_flow() {
     let fonts = Fonts::new();
@@ -709,20 +712,133 @@ fn import_flow() {
     let mut a = app(&env, &fonts, Screen::Advanced, 1280, 720, 1.0);
     a.st.focus = Some("import");
     key(&mut a, &fonts, Key::Enter);
-    assert_eq!(a.screen, Screen::Import);
-    assert_eq!(focus(&a), "copy");
-    assert_eq!(a.ui.get("copy").unwrap().texts[0].text, "Copy 3 saves");
+    assert_eq!(a.screen, Screen::Saves);
+    assert_eq!(focus(&a), "find");
+    assert!(a.model.saves.found.is_some(), "looked for the original's saves");
+    a.st.focus = Some("src0");
     key(&mut a, &fonts, Key::Enter);
-    let done = a.model.import.done.clone().unwrap();
-    assert_eq!(done, ["NIGHTOWL/NIGHTOWL", "NIGHTOWL DVD 1/NIGHTOWL DVD 1", "NIGHTOWL Magazine 3/NIGHTOWL Magazine 3"]);
-    assert!(!a.ui.get("copy").unwrap().enabled, "nothing left to copy");
+    assert_eq!(focus(&a), "import_go");
+    assert_eq!(a.ui.get("import_go").unwrap().texts[0].text, "Import 2 saves");
+    let text = all_text(&a);
+    assert!(text.contains("TUNER: a profile of this name is already here: imported as TUNER2"), "{text}");
+    assert!(text.contains("NIGHTOWL: already here"), "{text}");
+    key(&mut a, &fonts, Key::Enter);
+    assert!(a.model.saves.plan.is_none());
+    assert!(a.model.saves.rows.iter().any(|r| r.s.name == "RACER"));
+    assert_eq!(a.model.saves.row().unwrap().s.name, "RACER", "the imported profile chosen");
+    assert!(all_text(&a).contains("Imported 2 profiles."));
+    a.model.pad_input = true;
     a.st.focus = Some("pick");
     key(&mut a, &fonts, Key::Enter);
     assert_eq!((a.screen, a.model.browse.purpose), (Screen::Browse, super::model::BrowseFor::Saves));
     a.st.focus = Some("use");
     key(&mut a, &fonts, Key::Enter);
-    assert_eq!(a.screen, Screen::Import);
-    assert!(a.model.import.done.is_none());
+    assert_eq!(a.screen, Screen::Saves);
+    assert!(a.model.saves.plan.is_some(), "the chosen folder's plan shown");
+}
+
+/// The Saves page: Delete asks (Cancel focused), deletes and offers
+/// Undo; Rename takes a name of letters and digits; Duplicate asks; the
+/// keys X, Y, Delete and F2 do what their legends say; a restore over a
+/// profile of that name asks as a copy first.
+#[test]
+fn saves_page_flow() {
+    let fonts = Fonts::new();
+    let env = FakeEnv;
+    let mut a = app(&env, &fonts, Screen::Main, 1280, 720, 1.0);
+    a.go_page(3);
+    a.rebuild(&fonts);
+    assert_eq!(a.screen, Screen::Saves);
+    assert_eq!(focus(&a), "saves_list");
+    assert_eq!(a.model.saves.row().unwrap().s.name, "NIGHTOWL");
+    // Delete key on the list: the question, Cancel focused.
+    key(&mut a, &fonts, Key::Delete);
+    assert_eq!(a.model.ask, Some(super::model::Dialog::SaveDelete("NIGHTOWL".into())));
+    assert_eq!(focus(&a), "save_cancel");
+    assert!(all_text(&a).contains("Its 3 saved covers go with it."));
+    key(&mut a, &fonts, Key::Escape);
+    let t = all_text(&a);
+    assert!(t.contains("Saved covers (3)") && t.contains("DVD 1") && t.contains("Magazine 2"), "{t}");
+    key(&mut a, &fonts, Key::Delete);
+    key(&mut a, &fonts, Key::Escape);
+    assert_eq!(a.model.ask, None);
+    assert!(a.model.saves.rows.iter().any(|r| r.s.name == "NIGHTOWL"), "nothing deleted");
+    key(&mut a, &fonts, Key::Delete);
+    a.st.focus = Some("delete_yes");
+    key(&mut a, &fonts, Key::Enter);
+    assert!(!a.model.saves.rows.iter().any(|r| r.s.name == "NIGHTOWL"));
+    assert!(all_text(&a).contains("Deleted NIGHTOWL"));
+    assert!(a.ui.get("undo").is_some());
+    key(&mut a, &fonts, Key::Undo);
+    assert!(a.model.saves.undo.is_none());
+    assert!(all_text(&a).contains("Undone: Deleted NIGHTOWL."));
+    // Undo goes away by itself.
+    a.model.saves.undo = Some(super::saves::store::Undo { remove: None, restore: None, said: "x".into() });
+    a.model.saves.undo_until = Some(std::time::Instant::now());
+    assert!(a.poll_saves() && a.model.saves.undo.is_none());
+    // Rename: a bad name refused, a good one done.
+    a.model.saves.sel = 0;
+    a.st.focus = Some("saves_list");
+    key(&mut a, &fonts, Key::Rename);
+    assert_eq!(focus(&a), "rename_field");
+    a.input(&Input::Text("BAD NAME".into()), &fonts);
+    key(&mut a, &fonts, Key::Enter);
+    assert!(all_text(&a).contains("A name is 1 to 7 letters or digits."));
+    a.model.saves.renaming = Some("OWL".into());
+    a.st.focus = Some("rename_ok");
+    key(&mut a, &fonts, Key::Enter);
+    assert_eq!(a.model.saves.row().unwrap().s.name, "OWL");
+    assert!(all_text(&a).contains("Renamed NIGHTOWL to OWL"), "{:?} {}", a.model.saves.undo, all_text(&a));
+    // Y: back up.
+    key(&mut a, &fonts, Key::ActionY);
+    assert!(all_text(&a).contains("backed up."), "{}", all_text(&a));
+    // Duplicate asks first (under More…, with the less used actions).
+    a.model.saves.more = false;
+    a.rebuild(&fonts);
+    assert!(a.ui.get("duplicate").is_none() && a.ui.get("delete").is_none());
+    a.st.focus = Some("more");
+    key(&mut a, &fonts, Key::Enter);
+    assert!(a.ui.get("rename").is_some() && a.ui.get("export").is_some() && a.ui.get("delete").is_some());
+    a.st.focus = Some("duplicate");
+    key(&mut a, &fonts, Key::Enter);
+    assert!(matches!(a.model.ask, Some(super::model::Dialog::SaveDuplicate(_))));
+    a.st.focus = Some("duplicate_yes");
+    key(&mut a, &fonts, Key::Enter);
+    assert!(a.model.saves.row().unwrap().s.name.ends_with('2'));
+    // A backup of a profile that is there: as a copy (focused) or Replace.
+    a.model.saves.sel = 0;
+    let name = a.model.saves.row().unwrap().s.name.clone();
+    a.model.saves.backups[0].name = name.clone();
+    a.st.focus = Some("backups");
+    key(&mut a, &fonts, Key::Enter);
+    assert!(a.model.saves.show_backups);
+    a.st.focus = Some("restore");
+    key(&mut a, &fonts, Key::Enter);
+    assert!(matches!(a.model.ask, Some(super::model::Dialog::SaveRestore(_))));
+    assert_eq!(focus(&a), "restore_copy");
+    key(&mut a, &fonts, Key::Enter);
+    assert!(all_text(&a).contains(&format!("Restored as {name}2.")));
+    // Back leaves the actions, then the page.
+    key(&mut a, &fonts, Key::Escape);
+    key(&mut a, &fonts, Key::Escape);
+    assert_eq!(a.screen, Screen::Main);
+}
+
+/// The relative times and dates of "last played".
+#[test]
+fn saves_times() {
+    use super::saves_page::{ago, date};
+    super::localtime::fixed();
+    let t0 = std::time::UNIX_EPOCH + std::time::Duration::from_secs(1_795_003_200);
+    let before = |s: u64| Some(t0 - std::time::Duration::from_secs(s));
+    assert_eq!(ago(t0, before(10)), "just now");
+    assert_eq!(ago(t0, before(600)), "10 min ago");
+    assert_eq!(ago(t0, before(7200)), "2 h ago");
+    assert_eq!(ago(t0, before(86_400)), "1 day ago");
+    assert_eq!(ago(t0, before(3 * 86_400)), "3 days ago");
+    assert_eq!(date(t0), "18 Nov 2026");
+    assert_eq!(ago(t0, before(30 * 86_400)), "19 Oct 2026");
+    assert_eq!(date(std::time::UNIX_EPOCH), "1 Jan 1970");
 }
 
 #[test]
@@ -1904,7 +2020,7 @@ fn the_system_folder_dialog() {
     a.dialog_done(BrowseFor::Game, Some("/data/player/Games".into()), Picked::NoDialog);
     assert_eq!(a.screen, Screen::Browse);
     assert_eq!(a.model.browse.dir, std::path::Path::new("/data/player/Games"));
-    let mut a = app(&env, &fonts, Screen::Import, 960, 720, 1.0);
+    let mut a = app(&env, &fonts, Screen::Saves, 960, 720, 1.0);
     a.model.pad_input = true;
     a.choose_folder(BrowseFor::Saves, None);
     assert_eq!((a.screen, a.model.browse.purpose), (Screen::Browse, BrowseFor::Saves));
@@ -2002,7 +2118,7 @@ fn gamescope_uses_the_own_browser() {
     assert!(!in_gamescope(&env_of(&[])));
     let fonts = Fonts::new();
     let env = FakeEnv;
-    let mut a = app(&env, &fonts, Screen::Import, 960, 720, 1.0);
+    let mut a = app(&env, &fonts, Screen::Saves, 960, 720, 1.0);
     a.model.gamescope = true;
     a.choose_folder(BrowseFor::Saves, None);
     assert_eq!(a.screen, Screen::Browse);
@@ -2411,6 +2527,8 @@ fn dev_page() {
     let fonts = Fonts::new();
     let env = FakeEnv;
     let mut a = app(&env, &fonts, Screen::Mods, 1280, 720, 1.0);
+    key(&mut a, &fonts, Key::PageNext);
+    assert_eq!(a.screen, Screen::Saves);
     key(&mut a, &fonts, Key::PageNext);
     assert_eq!(a.screen, Screen::Dev);
     key(&mut a, &fonts, Key::PageNext);

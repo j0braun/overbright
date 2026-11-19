@@ -45,6 +45,8 @@ pub(crate) enum InputEvent {
     Button(bool),
     /// The wheel, in lines (> 0 away from the player).
     Wheel(f32),
+    /// The middle button pressed (true) or let go.
+    Middle(bool),
 }
 
 impl InputEvent {
@@ -133,7 +135,7 @@ impl Game {
                 self.platform.keys.remove(&code);
                 self.key_released(code);
             }
-            InputEvent::CursorMoved(_) | InputEvent::Button(_) | InputEvent::Wheel(_) => {
+            InputEvent::CursorMoved(_) | InputEvent::Button(_) | InputEvent::Wheel(_) | InputEvent::Middle(_) => {
                 // The texture editor's panel takes its clicks and wheel.
                 if crate::enh::texed::mouse(self, &event) {
                     return;

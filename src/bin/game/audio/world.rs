@@ -159,9 +159,9 @@ impl Game {
         };
         let Some(a) = self.audio.as_mut() else { return };
         // The FE sounds' events (the FE_MB player's update 0x4793D0 and the
-        // library ticks). The garage's turn rate (0x7EC858 = |car +0x248|,
-        // the right stick's) is 0: the clone's FE car has no stick turn.
-        a.fe.update(&mut a.mixer, &fe_levels, 0.0, dt);
+        // library ticks), with the garage's turn rate (0x7EC858 = |car
+        // +0x248|, the mouse's turn; 0 until the mouse turns the car).
+        a.fe.update(&mut a.mixer, &fe_levels, a.car_turn_rate, dt);
         // The FE_COMMON player's update (0x4815B0): its stitch slot at
         // SFXObj_FEHUD's slot 4.
         a.part_stitches.update(&mut a.mixer, fe_levels[4], dt);

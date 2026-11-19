@@ -1415,3 +1415,99 @@ fn collected_world_icons_go_at_once() {
     go(&mut game, mid(&t), 1.0 / 60.0);
     assert_eq!(alive(&game, "XEE_GAME_TIP"), 0, "the tip's particles went with the effect");
 }
+
+/// The player's car under a race's start scene camera is drawn whatever
+/// the player's own view (as in the original, observed under Wine: in the
+/// bumper view the car is in every shot of the scene; in the hood view,
+/// Look Back tapped through the scene, it never blinks). The first intro
+/// race (stage 0's first circuit in Rachel's 350Z), driven as the window
+/// does at 30, 60, 120, 144 and 240 fps and at an uneven uncapped rate: in
+/// the bumper view with no key, and in the hood view with Look Back and
+/// the nitrous key tapped from the scene's second 0.5 on. While the scene's
+/// camera is the view the car is never left out (`player_car_hidden`, the
+/// draw's test); after the cut the view's own rule applies again (the
+/// bumper view leaves the car out, as before). Needs a GPU.
+#[test]
+#[ignore = "requires original assets, a GPU and isolated XDG homes"]
+fn race_start_scene_draws_the_player_car_in_every_view() {
+    let (w, h) = (320u32, 240u32);
+    let uncapped = [1.0 / 300.0, 1.0 / 90.0, 1.0 / 165.0, 1.0 / 240.0, 1.0 / 120.0];
+    let rates: [(&str, &[f32]); 6] = [
+        ("30", &[1.0 / 30.0]),
+        ("60", &[1.0 / 60.0]),
+        ("120", &[1.0 / 120.0]),
+        ("144", &[1.0 / 144.0]),
+        ("240", &[1.0 / 240.0]),
+        ("uncapped", &uncapped),
+    ];
+    // (camera setting: 0 bumper, 1 hood; keys tapped)
+    for (camera, keys) in [(0u8, &[][..]), (1, &[KeyCode::KeyB, KeyCode::AltLeft][..])] {
+        for (rate, dts) in rates {
+            let mut game = Game::new().unwrap();
+            super::test_isolation::exclusive();
+            offscreen_window(&mut game, w, h);
+            game.settings.players[0].camera = camera;
+            game.pacing.clock = Some(0.0);
+            new_career_dday(&mut game, true);
+            let e = game
+                .game_data
+                .career
+                .events
+                .iter()
+                .position(|e| e.unlock == dday::STAGE0_RACES[0])
+                .expect("stage 0's first race");
+            game.start_race(e, false, false).unwrap();
+            let (mut scene_frames, mut checked, mut after_cut) = (0, 0, 0);
+            let mut hidden_after_cut = false;
+            let mut t = 0.0f32;
+            for f in 0..60 * 60 {
+                let dt = dts[f % dts.len()];
+                t += dt;
+                // From the scene's second 0.5 on, each key down 0.25 s of
+                // every 0.5 s (the keys in turn).
+                let phase = (t / 0.25) as usize;
+                for (i, k) in keys.iter().enumerate() {
+                    if t >= 0.5 && phase % 2 == 0 && (phase / 2) % keys.len() == i {
+                        game.platform.keys.insert(*k);
+                    } else {
+                        game.platform.keys.remove(k);
+                    }
+                }
+                game.pacing.clock = game.pacing.clock.map(|c| c + f64::from(dt));
+                let alpha = game.advance(dt).unwrap();
+                game.draw_between(alpha).unwrap();
+                let Mode::Race(r) = &game.mode else { panic!("left the race") };
+                let clock = r.timing.clock;
+                let in_scene = game.scenes.shop.as_ref().is_some_and(|run| run.camera_holds_view());
+                // Past the scene's first half second (its own shots).
+                let shot = game.scenes.shop.as_ref().is_some_and(|run| run.frame >= 15.0);
+                let hidden = player_car_hidden(&game.mode, game.sim.drive.as_ref().unwrap(), game.scenes.shop.as_ref());
+                if in_scene {
+                    scene_frames += 1;
+                    assert!(
+                        !hidden,
+                        "camera {camera} at {rate} fps: the player's car left out under the scene's camera (frame {f})"
+                    );
+                    if shot {
+                        checked += 1;
+                    }
+                } else if clock < 0.0 {
+                    after_cut += 1;
+                    hidden_after_cut |= hidden;
+                }
+                if clock >= 0.0 {
+                    break;
+                }
+            }
+            game.platform.keys.clear();
+            eprintln!(
+                "camera {camera} at {rate}: {scene_frames} scene frames ({checked} past its first half second), {after_cut} after the cut, left out there {hidden_after_cut}"
+            );
+            assert!(checked >= 10, "camera {camera} at {rate} fps: the scene ran ({scene_frames} frames)");
+            assert!(after_cut > 0, "camera {camera} at {rate} fps: the countdown ran");
+            if camera == 0 {
+                assert!(hidden_after_cut, "the bumper view leaves the car out once the chase camera is the view");
+            }
+        }
+    }
+}

@@ -16,7 +16,9 @@
 #      folder" at the drive's root goes back to the drives;
 #   j. (NFSU2_ROOT set) Back, Browse…, the game (a link "NFSU2" in the home folder) by a double click, Use
 #      this folder, Use this folder: the main screen; Mods, Add packages…, the package folder by a double
-#      click, the package by a double click: the Mods page with the package's result line.
+#      click, the package by a double click: the Mods page with the package's result line;
+#   k. (Linux, NFSU2_ROOT set) the Saves page: the original's profile in the home folder's ~/.wine found,
+#      imported byte for byte (Import), then backed up beside the profiles (Back up).
 # The screens are read from the launcher's own output (RUST_LOG launcher::screen=debug: each control's
 # box, each list's rows and scroll bar); the window's origin from its cursor lines (launcher::input) after
 # one pointer move, so a window manager's or Wine's frame does not matter. Screenshots in <work dir>.
@@ -64,6 +66,24 @@ mkdir -p "$H"
 for i in $(seq -w 1 30); do mkdir -p "$H/Folder $i/Other"; done
 mkdir -p "$H/Folder 27/Deep/Target" "$H/Folder 27/Deep/Other" "$H/Mods pack"
 rm -f "$H/NFSU2"; [ -n "${NFSU2_ROOT:-}" ] && [ -d "$NFSU2_ROOT" ] && ln -s "$NFSU2_ROOT" "$H/NFSU2"
+# A profile of the original in the home folder's Wine prefix (the Saves page finds and imports it): the
+# game's container (0x6FD3F0) around an empty payload named WINEKID.
+python3 -I - "$H/.wine/drive_c/users/me/AppData/Local/NFS Underground 2/WINEKID/WINEKID" << 'PY'
+import os, struct, sys
+T = []
+for i in range(256):
+  c = i << 24
+  for _ in range(8): c = ((c << 1) ^ 0x04C11DB7) & 0xffffffff if c & 0x80000000 else (c << 1) & 0xffffffff
+  T.append(c)
+def ck(d):
+  r = ~struct.unpack('>I', d[:4])[0] & 0xffffffff
+  for b in d[4:]: r = (((r << 8) & 0xffffffff) | b) ^ T[r >> 24]
+  return ~r & 0xffffffff
+p = bytearray(0xD692); n = 0x993E + 0x2AE5 + 0xDDE; p[n:n + 7] = b'WINEKID'; p = bytes(p)
+s1 = struct.pack('<II', 0x10D, len(p))
+h = struct.pack('<6I', 0x4D433032, 0x24 + len(p), 8, len(p), ck(s1), ck(p)); h += struct.pack('<I', ck(h))
+os.makedirs(os.path.dirname(sys.argv[1]), exist_ok=True); open(sys.argv[1], 'wb').write(h + s1 + p)
+PY
 # A package made for another game (the Mods page reports it in its result line).
 python3 -I - "$H/Mods pack/other-game.tpf" << 'PY'
 import sys, zipfile
@@ -296,6 +316,26 @@ if [ -e "$H/NFSU2" ]; then
   wait_until 60 done_line || fail "no result line for the package: $(cat "$W/screen.txt")"
   X import -window root "$W/mods-$SCALE.png" 2> /dev/null
   ok "Mods > Add packages > the package by double clicks: $(done_line | cut -c1-110)"
+  if [ "$WINE" != 1 ]; then
+    STEP=k
+    click_id page page:saves
+    wait_until 5 screen_is saves || fail "the Saves page did not open"
+    wait_until 30 eval '[ -n "$(q box button src0)" ] && ! grep -q "(off)" <<< "$(grep "button src0" "$W/screen.txt")" && echo yes' \
+      || fail "the save in the home folder's Wine prefix was not found: $(cat "$W/screen.txt")"
+    click_id button src0
+    wait_until 5 eval '[ -n "$(q box button import_go)" ] && echo yes' || fail "no import plan: $(cat "$W/screen.txt")"
+    click_id button import_go
+    wait_until 30 q has "Imported 1 profile." || fail "not imported: $(cat "$W/screen.txt")"
+    cmp -s "$H/.wine/drive_c/users/me/AppData/Local/NFS Underground 2/WINEKID/WINEKID" "$W/data/NFS Underground 2/WINEKID/WINEKID" \
+      || fail "the imported profile differs from the original's"
+    # A narrow window keeps the profile's actions behind Actions….
+    [ -n "$(q box button backup)" ] || { click_id button actions; wait_until 5 eval '[ -n "$(q box button backup)" ] && echo yes'; }
+    click_id button backup
+    wait_until 30 q has "WINEKID: backed up." || fail "not backed up: $(cat "$W/screen.txt")"
+    ls -d "$W/data/NFS Underground 2 Backups/WINEKID"/launcher-* > /dev/null 2>&1 || fail "no backup folder"
+    X import -window root "$W/saves-$SCALE.png" 2> /dev/null
+    ok "Saves: the original's save found in ~/.wine, imported byte for byte, backed up beside the profiles"
+  fi
 fi
 stop
 echo "MOUSE: PASS"

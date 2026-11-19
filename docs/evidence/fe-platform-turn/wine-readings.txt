@@ -1,0 +1,37 @@
+# Turning the car on the front end's platform: the original under Wine (DXVK, private display, no audio),
+# a fresh profile, window 1280 x 960. GarageMain found by its vtable 0x7954C0 (+0x118 == +0x23C, +0x240 == 1);
+# read: car angle +0x274, rates +0x23C+0xC/+0x10/+0x14, camera +0x2C state / +0x30 part view / eye +0xA0..+0xA8,
+# steer 0x7F45A4, platform 0x8363F0, frame time 0x865194. Drags with xdotool: press at the centre, 20 moves, release.
+#
+# main menu, 0x865194 = 1/120 (the original's own cap)
+middle, 20 x +10 px (100 units right)   angle 305.773 -> 331.106   (+25.33)
+middle, 20 x -5 px (50 units up)        eye z 1.3997 -> 1.2000     (clamped)
+middle, 20 x +5 px (50 units down)      eye z 1.2000 -> 2.4667     (+1.267)
+middle, 40 x +10 px (200 units down)    eye z 2.4667 -> 5.2000     (clamped)
+left,   20 x +10 px                     angle unchanged
+right,  20 x +10 px                     angle unchanged
+no button, 20 x +10 px                  angle unchanged
+wheel 5 up, 5 down                      angle unchanged
+# main menu, 0x865558 written to 1/60 (0x865194 = 1/60)
+middle, 20 x +10 px (100 units right)   angle 331.106 -> 21.523    (+50.42, wrapped at 360)
+middle, 20 x -5 px (50 units up)        eye z 5.2000 -> 2.7000     (-2.50)
+# keys held 0.6 s each on the main menu: KP_4 KP_6 KP_8 KP_2 a d w s q e Home End Prior Next Insert Delete [ ]
+angle and eye unchanged
+# virtual Xbox 360 pad (uinput 045e:028e) attached before the game started; the d-pad and left stick moved the
+# main menu's icons (Quick Race -> Options); right stick full right / left / up 1.5 s each, left stick, THUMBR,
+# THUMBL, X, Y, LB, RB, both triggers
+angle 305.773 and eye z 1.3997 unchanged throughout
+# screens, middle 20 x +10 px each (1/120 s frames), angle before -> after
+Quick Race mode select       305.773 -> 331.023
+Quick Race track select      356.356 -> 21.856
+Quick Race options           21.856 -> 47.023
+Quick Race car select        47.023 -> 72.356   (and 20 x +6 px down: eye z -> 2.915)
+Car Shop categories (-10 px) 72.356 -> 46.190
+Body Shop strip              46.190 -> 74.023
+Body Shop Front Bumpers list (part view: camera +0x30 = 1, state 2, eye z 1.2033, steer 21.67)
+                             249.739 -> 294.906; camera +0x30 -> 0, state 0 (blend back), 3 s later the base eye
+                             (0, -4, 1.3997), steer 21.67 kept
+save-profile dialog          294.906 -> 324.156
+quit dialog                  324.156 -> 10.739
+Profile Manager              10.739 -> 34.739
+# the angle carried over between screens (back on the main menu at 10.739); nothing reset it
