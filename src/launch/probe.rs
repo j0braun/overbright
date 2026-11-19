@@ -8,7 +8,7 @@
 //!
 //! ```text
 //! probe=1
-//! version=Overbright 0.4.1 (commit unknown, linux-x86_64)
+//! version=Overbright 0.4.2 (commit unknown, linux-x86_64)
 //! adapter.name=Example GPU (driver name)
 //! adapter.backend=Vulkan
 //! adapter.type=DiscreteGpu
