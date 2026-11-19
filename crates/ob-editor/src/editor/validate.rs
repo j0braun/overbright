@@ -6,7 +6,7 @@
 //! The checks are pure functions of the mod and the base tracks' road
 //! networks; [`refresh`] runs them on the editor state and fills
 //! `EditorState::issues`. Whether a race was tested since its last change
-//! is kept next to the mod in `tested.txt` ([`Tested`]); the mod's
+//! is kept in the mod's `.editor/tested.txt` ([`Tested`]); the mod's
 //! exports leave it out.
 
 use std::collections::HashMap;
@@ -36,8 +36,8 @@ pub const FAR_M: f32 = 1500.0;
 /// A grid slot moved onto the road keeps at most this much of its offset
 /// across the road (two cars side by side).
 const GRID_SIDE_M: f32 = 2.0;
-/// The file next to the mod that records the tested races.
-pub const TESTED_FILE: &str = "tested.txt";
+/// The file in the mod's `.editor/` folder that records the tested races.
+pub const TESTED_FILE: &str = crate::tools::map::store::TESTED;
 
 /// A one-click fix of a validation entry.
 #[derive(Clone, Debug, PartialEq)]
@@ -135,6 +135,7 @@ impl Tested {
         let mut ids: Vec<_> = self.0.iter().collect();
         ids.sort();
         let text: String = ids.iter().map(|(id, h)| format!("{id} {h:016x}\n")).collect();
+        std::fs::create_dir_all(dir)?;
         let tmp = dir.join(format!("{TESTED_FILE}.tmp"));
         std::fs::write(&tmp, text)?;
         std::fs::rename(&tmp, dir.join(TESTED_FILE))?;
@@ -159,6 +160,20 @@ pub fn fingerprint(r: &CustomRace) -> u64 {
 
 fn km(m: f32) -> String {
     if m >= 1000.0 { format!("{:.1} km", m / 1000.0) } else { format!("{m:.0} m") }
+}
+
+/// What a custom race is limited to: the base track's road network covers
+/// only the area around that track's own race (docs/tracing/ai-lanes.md),
+/// never the whole region.
+pub const AREA_NOTE: &str = "a race uses only its base track's roads";
+
+/// The size of the area `net`'s roads cover ("1.2 km × 800 m").
+pub fn area(net: &RoadNet) -> Option<String> {
+    let mut it = net.nodes.iter().map(|&(p, _)| p);
+    let first = it.next()?;
+    let (lo, hi) = it.fold((first, first), |(lo, hi), p| (lo.min(p), hi.max(p)));
+    let d = hi - lo;
+    Some(format!("{} × {}", km(d.x), km(d.y)))
 }
 
 /// A free race id like `base`, `base-2`, ….
@@ -247,7 +262,12 @@ pub fn race_checks(
     for (i, &c) in r.checkpoints.iter().enumerate() {
         if let Some(rp) = near(c).filter(|rp| rp.distance > CHECKPOINT_OFF_ROAD_M) {
             out.push(
-                warn(format!("checkpoint {} is {:.0} m from the road", i + 1, rp.distance))
+                warn(format!(
+                    "checkpoint {} is {:.0} m from base track {}'s roads; {AREA_NOTE}",
+                    i + 1,
+                    rp.distance,
+                    r.track
+                ))
                     .at(c, point(RacePart::Checkpoint, i)),
             );
         }
@@ -266,9 +286,22 @@ pub fn race_checks(
                 let barrier = why.starts_with("no road")
                     && net.route(&pair, false).is_none()
                     && open.route(&pair, false).is_some();
-                let text = if barrier { format!("{why}: a race barrier of track {} closes it", r.track) } else { why };
+                let text = if barrier {
+                    format!("{why}: a race barrier of track {} closes it", r.track)
+                } else if why.starts_with("no road") {
+                    format!("{why} on base track {}'s roads; {AREA_NOTE}", r.track)
+                } else {
+                    why
+                };
                 let mut c = err(text).at(a, point(RacePart::Checkpoint, leg));
-                if let Some((t, _)) = others.iter().find(|(t, o)| *t != r.track && race::check(o, r).is_ok()) {
+                // Only a track whose own roads reach every checkpoint: a
+                // route that builds from far-off road nodes is not the race.
+                let reaches = |o: &RoadNet| {
+                    r.checkpoints.iter().all(|&c| race::snap(o, c).is_some_and(|rp| rp.distance <= CHECKPOINT_OFF_ROAD_M))
+                };
+                if let Some((t, _)) =
+                    others.iter().find(|(t, o)| *t != r.track && reaches(o) && race::check(o, r).is_ok())
+                {
                     c = c.fix(Fix::TryTrack(*t));
                 }
                 out.push(c);
@@ -279,12 +312,13 @@ pub fn race_checks(
                         Level::Info,
                         k,
                         format!(
-                            "{name}: {} on track {}, {}{}, {} checkpoints",
+                            "{name}: {} on track {}, {}{}, {} checkpoints; it stays on that track's roads{}",
                             r.kind.name(),
                             r.track,
                             km(route.road.length),
                             if r.kind.loops() { " a lap" } else { "" },
-                            r.checkpoints.len()
+                            r.checkpoints.len(),
+                            area(net).map_or(String::new(), |a| format!(" (an area of {a})"))
                         ),
                     );
                     c.ok = true;
@@ -404,13 +438,13 @@ pub fn blocks(checks: &[Check], k: usize) -> bool {
 
 /// The ground under `p` in the edited world (0 with none).
 pub fn ground(s: &EditorState, p: Vec2) -> f32 {
-    s.world.grid_ground(p.extend(1.0e5)).unwrap_or(0.0)
+    s.session.world.grid_ground(p.extend(1.0e5)).unwrap_or(0.0)
 }
 
-/// Run the checks on `s` and fill `s.issues` with them.
+/// Run the checks on `s` and fill `s.session.issues` with them.
 pub fn refresh(s: &mut EditorState, region_tracks: &[u16], tested: &Tested) -> Vec<Check> {
-    let out = checks(&s.map, &s.nets, region_tracks, tested);
-    s.issues = out
+    let out = checks(&s.session.map, &s.nets, region_tracks, tested);
+    s.session.issues = out
         .iter()
         .map(|c| Issue { level: c.level, text: c.text.clone(), race: c.race, at: c.at.map(|p| p.extend(ground(s, p))) })
         .collect();
@@ -491,12 +525,12 @@ pub fn fix_race(map: &mut MapMod, k: usize, fix: &Fix, net: Option<&RoadNet>, gr
 
 /// Apply `fix` to race `k` as one undo step.
 pub fn apply(s: &mut EditorState, k: usize, fix: &Fix) {
-    let Some(track) = s.map.races.get(k).map(|r| r.track) else { return };
+    let Some(track) = s.session.map.races.get(k).map(|r| r.track) else { return };
     let net = s.nets.get(&track).and_then(|n| n.clone());
-    let heights = |p: Vec2| s.world.grid_ground(p.extend(1.0e5)).unwrap_or(0.0);
-    let mut map = s.map.clone();
+    let heights = |p: Vec2| s.session.world.grid_ground(p.extend(1.0e5)).unwrap_or(0.0);
+    let mut map = s.session.map.clone();
     if fix_race(&mut map, k, fix, net.as_ref(), &heights) {
-        s.map = map;
+        s.session.map = map;
         commit(s, &fix.label());
     }
 }
@@ -531,23 +565,47 @@ pub fn colour(c: &Check) -> egui::Color32 {
     }
 }
 
+/// A level's mark, drawn (the editor's fonts have no symbol glyphs): a
+/// cross in a disc for an error, a triangle for a warning, a tick for a
+/// passed check, a dot for information.
+pub fn mark(ui: &mut egui::Ui, c: &Check) {
+    let (rect, _) = ui.allocate_exact_size(egui::vec2(14.0, 14.0), egui::Sense::hover());
+    let p = ui.painter();
+    let col = colour(c);
+    let o = rect.center();
+    let stroke = egui::Stroke::new(1.8, col);
+    match (c.level, c.ok) {
+        (Level::Error, _) => {
+            p.circle_stroke(o, 6.0, egui::Stroke::new(1.4, col));
+            p.line_segment([o + egui::vec2(-3.0, -3.0), o + egui::vec2(3.0, 3.0)], stroke);
+            p.line_segment([o + egui::vec2(-3.0, 3.0), o + egui::vec2(3.0, -3.0)], stroke);
+        }
+        (Level::Warning, _) => {
+            let tri = vec![o + egui::vec2(0.0, -6.5), o + egui::vec2(6.5, 5.5), o + egui::vec2(-6.5, 5.5)];
+            p.add(egui::Shape::closed_line(tri, egui::Stroke::new(1.4, col)));
+            p.line_segment([o + egui::vec2(0.0, -2.5), o + egui::vec2(0.0, 1.5)], stroke);
+            p.circle_filled(o + egui::vec2(0.0, 3.5), 0.9, col);
+        }
+        (_, true) => {
+            p.line(vec![o + egui::vec2(-5.0, 0.5), o + egui::vec2(-1.5, 4.0), o + egui::vec2(5.0, -4.0)], stroke);
+        }
+        _ => {
+            p.circle_filled(o, 2.5, col);
+        }
+    }
+}
+
 /// The Validation tab: one row per entry with Show and its fix.
 pub fn panel(s: &mut EditorState, checks: &[Check], ui: &mut egui::Ui) -> bool {
     let mut changed = false;
     if checks.is_empty() {
-        ui.label("No races yet: Race ▸ New race.");
+        ui.label("No races yet: Race > New race.");
     }
     egui::ScrollArea::vertical().auto_shrink([false, true]).show(ui, |ui| {
         for (i, c) in checks.iter().enumerate() {
             ui.push_id(i, |ui| {
                 ui.horizontal(|ui| {
-                    let mark = match (c.level, c.ok) {
-                        (Level::Error, _) => "✖",
-                        (Level::Warning, _) => "⚠",
-                        (_, true) => "✔",
-                        _ => "ℹ",
-                    };
-                    ui.label(egui::RichText::new(mark).color(colour(c)));
+                    mark(ui, c);
                     ui.label(&c.text);
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         if let (Some(fix), Some(k)) = (&c.fix, c.race)

@@ -29,8 +29,10 @@ pub enum Page {
     Races,
 }
 
-/// What a race edit works on.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+/// What a race edit works on (in JSON `checkpoint`, `grid`, `start`,
+/// `finish`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum RacePart {
     #[default]
     Checkpoint,
@@ -107,8 +109,10 @@ pub fn pick(world: &World, eye: Vec3, dir: Vec3) -> Option<usize> {
 
 // ---- prop operations ----------------------------------------------------
 
-/// Why a prop edit was not made.
+/// Why an edit was not made (a prop edit here, any [`super::ops::Op`]
+/// run by a [`super::session::MapSession`]). New reasons may be added.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum Refused {
     /// No such placement in the world.
     NoPlacement,
@@ -121,6 +125,17 @@ pub enum Refused {
     Added,
     /// The region has no solid of that name.
     NoSolid,
+    /// The mod has no race of that id.
+    NoRace,
+    /// The race has no such point.
+    NoPoint,
+    /// The race holds no more points of that kind.
+    Full,
+    /// Another race or add of the mod has that id.
+    IdTaken,
+    /// A value out of range: a position off the map or not a number, an
+    /// id or a text the file format does not allow, a lap count.
+    BadValue,
 }
 
 impl std::fmt::Display for Refused {
@@ -131,6 +146,11 @@ impl std::fmt::Display for Refused {
             Refused::NotEdited => "Not changed by this map mod",
             Refused::Added => "Added by this map mod: delete it instead",
             Refused::NoSolid => "The region has no such solid",
+            Refused::NoRace => "The map mod has no such race",
+            Refused::NoPoint => "The race has no such point",
+            Refused::Full => "The race holds no more points of that kind",
+            Refused::IdTaken => "That id is already in use",
+            Refused::BadValue => "Value out of range",
         })
     }
 }
@@ -164,10 +184,14 @@ impl PropState {
     }
 }
 
-/// The edit index in `map` of the placement `i` when this mod (`folder`)
-/// added it.
-pub fn own_add(world: &World, folder: &str, i: usize) -> Option<usize> {
-    world.map_overlay.added.get(&i).filter(|(f, _)| f == folder).map(|(_, k)| *k)
+/// The id of placement `i`'s add when this mod (`folder`) added it.
+pub fn own_add<'w>(world: &'w World, folder: &str, i: usize) -> Option<&'w str> {
+    world.map_overlay.added.get(&i).filter(|(f, _)| f == folder).map(|(_, id)| id.as_str())
+}
+
+/// The index in `map.props` of this mod's add of placement `i`.
+fn own_add_edit(map: &MapMod, folder: &str, world: &World, i: usize) -> Option<usize> {
+    map.add_index(own_add(world, folder, i)?)
 }
 
 /// The index in `map.props` of this mod's edit of the original `target`.
@@ -177,7 +201,7 @@ fn edit_of(map: &MapMod, target: &PropRef) -> Option<usize> {
 
 /// What this mod (`map`, kept in `folder`) does to placement `i`.
 pub fn prop_state(map: &MapMod, folder: &str, world: &World, region: &str, i: usize) -> PropState {
-    if let Some(k) = own_add(world, folder, i) {
+    if let Some(k) = own_add_edit(map, folder, world, i) {
         return PropState::Added(k);
     }
     if world.map_overlay.added.contains_key(&i) {
@@ -212,15 +236,17 @@ pub fn set_transform(
     if i >= world.placements.len() {
         return Err(Refused::NoPlacement);
     }
-    if let Some(k) = own_add(world, folder, i) {
-        if let Some(PropEdit::Add { position: p, rotation: r, .. }) = map.props.get_mut(k) {
+    if own_add(world, folder, i).is_some() {
+        if let Some(PropEdit::Add { position: p, rotation: r, .. }) =
+            own_add_edit(map, folder, world, i).and_then(|k| map.props.get_mut(k))
+        {
             (*p, *r) = (position, rotation);
         }
     } else if world.map_overlay.added.contains_key(&i) {
         return Err(Refused::OtherMod);
     } else {
         let target = world.placement_ref(region, i).ok_or(Refused::NoPlacement)?;
-        world.map_overlay.originals.entry(i).or_insert_with(|| target.clone());
+        world.note_original(i, &target);
         let was_deleted = matches!(edit_of(map, &target).map(|k| &map.props[k]), Some(PropEdit::Delete { .. }));
         map.props.retain(|e| e.target() != Some(&target));
         map.props.push(PropEdit::Move { target, position, rotation });
@@ -238,19 +264,16 @@ pub fn delete(map: &mut MapMod, folder: &str, world: &mut World, region: &str, i
     if i >= world.placements.len() {
         return Err(Refused::NoPlacement);
     }
-    if let Some(k) = own_add(world, folder, i) {
-        map.props.remove(k);
-        world.map_overlay.added.remove(&i);
-        for (f, kk) in world.map_overlay.added.values_mut() {
-            if f == folder && *kk > k {
-                *kk -= 1;
-            }
+    if own_add(world, folder, i).is_some() {
+        if let Some(k) = own_add_edit(map, folder, world, i) {
+            map.props.remove(k);
         }
+        world.map_overlay.added.remove(&i);
     } else if world.map_overlay.added.contains_key(&i) {
         return Err(Refused::OtherMod);
     } else {
         let target = world.placement_ref(region, i).ok_or(Refused::NoPlacement)?;
-        world.map_overlay.originals.entry(i).or_insert_with(|| target.clone());
+        world.note_original(i, &target);
         map.props.retain(|e| e.target() != Some(&target));
         map.props.push(PropEdit::Delete { target });
     }
@@ -333,16 +356,17 @@ pub fn add(
     rotation: Mat3,
 ) -> Result<Added, Refused> {
     let edit = map.props.len();
+    let id = map.fresh_add_id();
     let placement = match world {
         Some(w) => {
             let i = w.add_placement(solid, transform_of(position, rotation)).ok_or(Refused::NoSolid)?;
             w.map_overlay.first_added.get_or_insert(i);
-            w.map_overlay.added.insert(i, (folder.to_string(), edit));
+            w.map_overlay.added.insert(i, (folder.to_string(), id.clone()));
             Some(i)
         }
         None => None,
     };
-    map.props.push(PropEdit::Add { region: region.into(), solid: solid.into(), position, rotation });
+    map.props.push(PropEdit::Add { id, region: region.into(), solid: solid.into(), position, rotation });
     Ok(Added { edit, placement })
 }
 
@@ -908,15 +932,24 @@ pub(crate) mod tests {
         set_transform(&mut m, FOLDER, &mut w, REGION, n, Vec3::new(41.0, 0.0, 0.0), Mat3::IDENTITY).unwrap();
         assert!(matches!(&m.props[0], PropEdit::Add { position, .. } if *position == Vec3::new(41.0, 0.0, 0.0)));
         assert_eq!(reset(&mut m, FOLDER, &mut w, None, n), Err(Refused::Added));
-        // Deleting the first add renumbers the second.
+        // Deleting the first add keeps the second's id; the file names it.
+        assert_eq!(w.map_overlay.added.get(&(n + 1)), Some(&(FOLDER.to_string(), "a2".to_string())));
         delete(&mut m, FOLDER, &mut w, REGION, n).unwrap();
         assert_eq!(m.props.len(), 1);
-        assert_eq!(w.map_overlay.added.get(&(n + 1)), Some(&(FOLDER.to_string(), 0)));
+        assert_eq!(w.map_overlay.added.get(&(n + 1)), Some(&(FOLDER.to_string(), "a2".to_string())));
+        assert_eq!(prop_state(&m, FOLDER, &w, REGION, n + 1), PropState::Added(0));
+        assert!(m.write().contains("[prop.add]\nid = a2\n"));
+        assert_eq!(MapMod::parse(&m.write()).unwrap(), m);
+        // The next add takes an id no add has.
+        let c = add(&mut m, FOLDER, Some(&mut w), REGION, "XC_CONE_01", Vec3::ONE, Mat3::IDENTITY).unwrap();
+        assert_eq!(m.props[c.edit].add_id(), Some("a3"));
         // The mod applied from scratch gives the same added placement.
         let mut again = world();
         again.apply_map_mods(REGION, &[(FOLDER.into(), m.clone())]);
-        assert_eq!(again.placements.len(), n + 1);
+        assert_eq!(again.placements.len(), n + 2);
         assert_eq!(again.placements[n].solid, 1);
+        assert_eq!(again.map_overlay.placement_of_add(FOLDER, "a2"), Some(n));
+        assert_eq!(again.map_overlay.placement_of_add(FOLDER, "a3"), Some(n + 1));
     }
 
     #[test]

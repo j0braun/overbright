@@ -31,6 +31,18 @@ Faults: one per line in the file `faults` next to this script (absent: none), ea
   prepgrow          every --prepare run adds bytes to a cache file (not idempotent)
   loadgrow          a --bench after a prepare run adds bytes to the pipeline cache
   levelstale        --probe says prepared=1 whatever the Graphics level in options.txt (no program key)
+Called as `overbright-editor` (a copy of this file under that name) it answers the map editor's `--shot OUT
+--size WxH [--scale F] [--mod M --mode props|races ...]` with a PNG of that size (rows of grey stripes; on a world
+screen a chequered view in the middle), and refuses to run with a display variable set (a window could open).
+Its screen: `start` without --mod, else `props_3d` / `races_map` by --mode. Faults (SCREEN: one screen or `all`):
+  edrc:SCREEN       exit 1 after writing the PNG
+  edpanic:SCREEN    a "panicked at" line in the log
+  ednoshot:SCREEN   no PNG written
+  edsize:SCREEN     the PNG one pixel narrower than asked
+  edflat:SCREEN     the whole image one colour
+  edworld:SCREEN    the middle of the window (the view) one colour
+  edclip:SCREEN     the log says "editor layout: toolbar clipped: …" (a world screen says "… toolbar fits …" otherwise)
+  ednondet:SCREEN   one pixel differs on every run (the picture is not repeatable)
 """
 import json
 import os
@@ -124,7 +136,81 @@ def rate_outputs():
         open(wav, 'wb').write(b'RIFF-stub-' + b'A' * 64)
 
 
+def png_rows(path, w, h, row):
+    """A w x h RGBA PNG whose row y is the bytes row(y) (4 * w of them)."""
+    raw = b''.join(b'\0' + row(y) for y in range(h))
+    def chunk(t, d):
+        return struct.pack('>I', len(d)) + t + d + struct.pack('>I', zlib.crc32(t + d) & 0xffffffff)
+    data = b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', struct.pack('>IIBBBBB', w, h, 8, 6, 0, 0, 0)) + chunk(b'IDAT', zlib.compress(raw, 1)) + chunk(b'IEND', b'')
+    os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
+    open(path, 'wb').write(data)
+
+
+def editor(a):
+    """The map editor's --shot (see the module's notes)."""
+    for var in ('DISPLAY', 'WAYLAND_DISPLAY'):
+        if os.environ.get(var):
+            print(f'Error: {var}={os.environ[var]} is set: the stand-in refuses (a window could open)', file=sys.stderr)
+            return 1
+    if a[:1] == ['--version']:
+        print('Overbright stub (commit stub, linux-x86_64) map editor (preview)')
+        return 0
+    opts = {}
+    i = 0
+    while i < len(a):
+        if a[i].startswith('--') and i + 1 < len(a):
+            opts[a[i]] = a[i + 1]
+            i += 2
+        else:
+            print(f'Error: unknown argument {a[i]}', file=sys.stderr)
+            return 2
+    out = opts.get('--shot')
+    if not out:
+        print('Error: the stand-in only draws shots', file=sys.stderr)
+        return 2
+    w, h = (int(v) for v in opts.get('--size', '1600x900').split('x'))
+    screen = 'start' if '--mod' not in opts else ('races_map' if opts.get('--mode') == 'races' else 'props_3d')
+    def ed(kind):
+        return has(kind, screen) or f'{kind}:all' in F
+    if ed('edsize'):
+        w -= 1
+    flat = ed('edflat')
+    noise = (random.randrange(w), random.randrange(h)) if ed('ednondet') else None
+    x0, x1 = int(w * 0.3), int(w * 0.7)
+    y0, y1 = int(h * 0.3), int(h * 0.7)
+    def row(y):
+        if flat:
+            return bytes([40, 40, 40, 255]) * w
+        g = (y * 37) % 200 + 20
+        line = bytes([g, g, g, 255]) * w
+        if screen != 'start' and y0 <= y < y1:
+            if ed('edworld'):
+                mid = bytes([90, 90, 90, 255]) * (x1 - x0)
+            else:
+                mid = b''.join(bytes([200, 60, 60, 255]) * 8 if ((x // 8) + (y // 8)) % 2 else bytes([20, 20, 60, 255]) * 8
+                               for x in range(x0, x1, 8))[:4 * (x1 - x0)]
+            line = line[:4 * x0] + mid + line[4 * x1:]
+        if noise and y == noise[1]:
+            x = noise[0]
+            line = line[:4 * x] + bytes([random.randrange(256), 7, 7, 255]) + line[4 * x + 4:]
+        return line
+    print(f'[stub INFO  ob_editor] screen {screen}')
+    if screen != 'start':
+        if ed('edclip'):
+            print('editor layout: toolbar clipped: Test race cut off (1270..1290 of 0..1280)')
+        else:
+            print(f'editor layout: toolbar fits ({w} points wide, tier 0): Select · Move · Test race')
+    if not ed('ednoshot'):
+        png_rows(out, w, h, row)
+        print(f'wrote {out} ({w}x{h})')
+    if ed('edpanic'):
+        print(f"thread 'main' panicked at src/stub.rs:1:1: stub panic in the editor's {screen}")
+    return 1 if ed('edrc') else 0
+
+
 def main(a):
+    if os.path.basename(sys.argv[0]) == 'overbright-editor':
+        return editor(a)
     rc = 0
     name = ''
     ad = adapter()

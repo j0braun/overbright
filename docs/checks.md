@@ -22,6 +22,7 @@ scripts/checks/soak_images.sh <game> <outdir> [runs]   # the gate's image dumps 
 scripts/checks/fuzz.sh                           # the fuzz smoke: every parser target on mutated inputs (docs/fuzzing.md; FUZZ_SECS, FUZZ_ITERS, FUZZ_ONLY)
 scripts/checks/release_check.sh [outdir]          # the shipping binary (no dev-harness): no harness strings, harness flags give the usage error
 scripts/checks/resolutions.sh <outdir> [game]    # the resolution matrix, every size x aspect option x 15 screens (docs/resolutions.md; RES_SET=family|all, RES_MOUSE=1, RES_REPORT_ONLY=1)
+scripts/checks/editor_shots.sh <outdir> [editor]  # the map editor's shot matrix, headless (EDITOR_SET=all|family, EDITOR_SIZES; "Editor shots")
 scripts/checks/wine_smoke.sh <outdir> [game]     # the Windows dev-harness game.exe under Wine (report-only in full; "Wine smoke")
 scripts/checks/wine_smoke.sh --selfcheck <outdir> [game]   # every Wine smoke check on a broken input: each must fail
 scripts/checks/wine_smoke.sh --env-check <outdir>  # the Wine runs' environment on a stand-in for wine (no Wine needed)
@@ -505,6 +506,31 @@ cadence) makes tick keying the default for the flows outside rate runs.
 `scripts/local.env`) the base binary is kept per base source tree (keyed by a hash of `src/`, `examples/`, the build
 files, the build script and the compiler version) and reused by later gates against the same base.
 
+## Editor shots (`editor_shots.sh`)
+
+The map editor (`overbright-editor`, docs/map-editor.md) draws its whole window off-screen with `--shot`; this
+step runs it on three screens at the sizes of the resolution matrix (`resolutions.py`'s `MATRIX`; `EDITOR_SET=family`:
+its `FAMILY_SET`) plus `2560x1440@1.5` and `3840x2160@2` (display scales; `EDITOR_SCALES`):
+`start` (no map mod open), `props_3d` (a map mod made by the script, with no edits, open on the city with the
+props' side in front and the 3D view, the prop browser below) and `races_map` (the races' side in front on the 2D
+road-network map, the validation list). Every run starts with no display variable at all (`DISPLAY`, `WAYLAND_DISPLAY` unset), so an editor that
+tried to open a window would fail; each cell has its own data, cache and maps folders under the output dir.
+A cell passes when the run exits 0, its log has no panic / validation-error line, the PNG has exactly the asked
+pixel size, the image is not one flat colour (grey standard deviation ≥ `EDITOR_MIN_STD`, 0.02) and, on the two
+world screens, the middle 30 % of the window (the view) is not flat either and the log says `editor layout:
+toolbar fits` (the editor checks its own toolbar after the last frame: no item cut off at the window's edge or on
+top of another; otherwise it logs `editor layout: toolbar clipped: …` with the items, and the cell fails). A
+`--shot` runs on a fixed clock (no frame time in the status bar, the view's animations at a fixed time), so the
+first world cell is drawn a second time and must give the same picture pixel for pixel (`EDITOR_REPEAT=0` skips
+this; a `repeat` line in results.txt). Sizes whose window in points (size ÷
+scale) is below the editor's smallest window, 960×600, are listed as `n/a` and not run (640×480 and 800×600 of
+the matrix). `checks.sh full` runs the family set (a failing cell fails the set); `EDITOR_SHOTS=1` adds it to
+fast, `EDITOR_SHOTS=off` leaves it out. The whole matrix (75 cells) took about 2.5 minutes here at `JOBS=2`.
+Last line `EDITOR_SHOTS: N cells, P pass, F fail; K sizes under the smallest window (S s)`. selfcheck.sh runs it
+on the stand-in editor (`selfcheck_stub.py` under the editor's name): a good run passes; a failing exit, a panic
+line, no PNG, a wrong size, a flat image, a flat view, a clipped toolbar, a picture that differs between two runs,
+an unknown screen, a missing binary and a copy of the script that keeps `DISPLAY` must each fail.
+
 ## Wine smoke (`wine_smoke.sh`, 2026-11-12)
 
 The Windows build (`x86_64-pc-windows-gnu`, the developer harness) under Wine on the reference desktop, headless:
@@ -546,6 +572,16 @@ and our Xvfb (by PID) are stopped.
   (tests/launcher_mouse.sh under Wine: the folder browser, This PC and the drives, a game folder and a package
   by the mouse alone, docs/launcher.md "The mouse"), `l_play` (the launcher with
   "Start the game directly" starts `game.exe` beside it: the game's log reaches the title screen).
+- The map editor (`overbright-editor.exe` beside the build's programs, `WINE_EDITOR=` to name one; a build made
+  here must have it, with `WINE_EXE` and none found it is skipped; `LINUX_EDITOR` draws the references):
+  `e_start` (`--shot` with no map mod open, 1280×720), `e_props` (a map mod made here open on the city, the
+  props' side in front, the 3D view: the world loaded and drawn under Wine, 1280×720) and `e_races` (the races'
+  side in front on the 2D map, 1600×960 at display scale 1.5): each exits 0, writes a PNG of the asked size, and `e_start` and `e_races` match
+  the Linux editor's shot with the same arguments within the tolerance (both sides name their maps folder
+  relatively, so the opening screen prints the same text). The 3D view is not the same run to run even on Linux
+  (the world's streaming: a few hundred to a few thousand pixels between two Linux runs), so `e_props` only reports
+  its comparison and instead needs the view in the middle of the window not to be one flat colour. `--selfcheck` adds the editor cut to 64 KiB (`e_start`) and
+  a good editor's `e_start` compared with `e_races`'s image.
 - `w_window`: the game in its window on the Xvfb (no flags, Vulkan through Mesa's software present), reading the
   monitor and its modes and reaching the title screen (Enter skips the boot movies).
 - Drive-letter paths: `winepath -w` cuts its answer at MAX_PATH (Wine 11: a 282-character folder came back as its

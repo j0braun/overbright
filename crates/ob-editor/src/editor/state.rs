@@ -1,20 +1,23 @@
-//! The editor's shared state: one map mod open on one region. Every panel
-//! reads and changes this; edits end in [`commit`], which records an undo
-//! step and applies the mod to the world again.
+//! The editor's shared state: one map mod open on one region (a
+//! [`MapSession`]) and the window's own state. Every panel reads and
+//! changes this; edits are [`Op`](crate::tools::map::ops::Op)s run through
+//! [`super::undo::run`], or in-place edits ended by [`commit`], each one
+//! undo step.
 
 use std::collections::HashMap;
 use std::path::PathBuf;
 
 use glam::Vec3;
 
-use super::undo::Undo;
 use crate::draw::camera::Camera;
 use crate::formats::roads::RoadNet;
 use crate::tools::map::MapMod;
-use crate::tools::map::edit::RacePart;
+use crate::tools::map::assets::{GameAssets, MapAssets};
 use crate::world::World;
 
-/// The editor's two modes (Tab switches).
+/// Which kind of thing is selected, and so which tools and properties
+/// apply: a prop (`Props`) or a race point (`Races`). There are no
+/// separate editing modes; selecting in the tree or the view sets it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum Mode {
     #[default]
@@ -30,73 +33,36 @@ pub enum View {
     Map,
 }
 
-/// The selected part of the current race: a checkpoint, a grid slot, the
-/// start or the finish line (`index` within the part).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct RacePoint {
-    pub part: RacePart,
-    pub index: usize,
-}
+pub use crate::tools::map::ops::RacePoint;
+pub use crate::tools::map::session::{Issue, Level, MapSession};
 
-/// How bad a validation entry is.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub enum Level {
-    Info,
-    Warning,
-    /// Blocks Test race.
-    Error,
-}
-
-/// One validation entry: its text and where "Show" takes the camera.
-#[derive(Clone, Debug, PartialEq)]
-pub struct Issue {
-    pub level: Level,
-    pub text: String,
-    /// The race it is about (index into `map.races`).
-    pub race: Option<usize>,
-    /// The spot to show.
-    pub at: Option<Vec3>,
-}
-
-/// The whole editor state.
+/// The whole editor state: the open mod (`session`: the mod, its world,
+/// the undo history) and what only the window has (camera, selection,
+/// tools, views).
 pub struct EditorState {
     /// The game folder (`NFSU2_ROOT`).
     pub root: PathBuf,
-    /// The region being edited ("L4RA").
-    pub region: String,
     /// The map mods' folder (`<data>/maps`).
     pub maps: PathBuf,
-    /// The mod being edited: its folder name under `maps`.
-    pub folder: String,
-    pub map: MapMod,
-    /// The original world as loaded, never edited. Only its placements and
-    /// knock-over props are filled (the rest lives once, in `world`).
-    pub base: World,
-    /// `base` with `map` applied: what the viewport draws.
-    pub world: World,
-    /// Selected placements (indices into `world.placements`).
+    /// The mod being edited, its region and world, the undo history
+    /// (`session.folder`: its folder name under `maps`).
+    pub session: MapSession,
+    /// Selected placements (indices into `session.world.placements`).
     pub selection: Vec<usize>,
-    /// The race being edited (index into `map.races`).
+    /// The race being edited (index into `session.map.races`).
     pub race: Option<usize>,
     pub point: Option<RacePoint>,
     pub camera: Camera,
     pub mode: Mode,
     pub view: View,
-    pub undo: Undo,
-    /// Changed since the last save.
-    pub dirty: bool,
     /// The status bar's last message.
     pub status: String,
-    /// Validation results (the Races unit fills them).
-    pub issues: Vec<Issue>,
-    /// Road networks by base track, read on first use (None: unreadable).
+    /// Road networks by base track, read on first use through `assets`
+    /// (None: unreadable).
     pub nets: HashMap<u16, Option<RoadNet>>,
-    /// Placements moved or hidden since the viewport last looked
-    /// (`world.take_changed()` holds which).
-    pub world_changed: bool,
-    /// The set of added placements changed: the renderer must be built
-    /// again.
-    pub adds_changed: bool,
+    /// The game data the editor reads (tracks, road networks): the game
+    /// folder's unless given.
+    pub assets: Box<dyn MapAssets>,
 }
 
 /// A panel of the window.
@@ -117,40 +83,29 @@ impl EditorState {
         world: World,
         camera: Camera,
     ) -> EditorState {
-        let mut base = World::default();
-        base.placements = world.placements.clone();
-        base.smackables = world.smackables.clone();
-        let mut s = EditorState {
+        let race = (!map.races.is_empty()).then_some(0);
+        EditorState {
+            assets: Box::new(GameAssets::new(root.clone())),
             root,
-            region: region.to_string(),
             maps,
-            folder: folder.to_string(),
-            undo: Undo::new(&map),
-            map,
-            base,
-            world,
+            session: MapSession::new(region, folder, map, world),
             selection: Vec::new(),
-            race: None,
+            race,
             point: None,
             camera,
             mode: Mode::Props,
             view: View::ThreeD,
-            dirty: false,
             status: String::new(),
-            issues: Vec::new(),
             nets: HashMap::new(),
-            world_changed: true,
-            adds_changed: true,
-        };
-        s.race = (!s.map.races.is_empty()).then_some(0);
-        super::undo::apply_map(&mut s);
-        s
+        }
     }
 }
 
-/// Record the edit just made to `s.map` as one undo step named `label`
-/// ("Move XC_CONE_01") and apply the mod to the world again. Nothing
-/// happens when the mod did not change.
+/// Record the edit just made to `s.session.map` as one undo step named
+/// `label` ("Move XC_CONE_01") and apply the mod to the world again.
+/// Nothing happens when the mod did not change. (Panels that still edit
+/// the mod in place; new code runs an [`Op`](crate::tools::map::ops::Op)
+/// through [`super::undo::run`].)
 pub fn commit(s: &mut EditorState, label: &str) {
     super::undo::commit(s, label);
 }

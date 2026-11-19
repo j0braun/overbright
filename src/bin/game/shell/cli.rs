@@ -197,15 +197,19 @@ pub(crate) fn run(command: &Command, args: &[String]) -> Result<()> {
 }
 
 /// A test run the desktop map editor starts (docs/map-editor.md, "Test
-/// race"): `--map-mod <folder>` with `--map-race <id>` or `--map-at
-/// x,y,z,heading`, and `--map-result <file>`. All opt-in: without them the
+/// race"): `--map-mod <folder>` or `--map-file <path>` with `--map-race
+/// <id>` or `--map-at x,y,z,heading`, and `--map-result <file>`. All opt-in: without them the
 /// start is the game's own. Such a run applies only that mod (never
 /// `enabled.txt`), skips the boot screens and menus, lets go of the loaded
 /// career save (nothing is saved), and ends when the race ends or on Esc.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub(crate) struct MapTest {
-    /// The mod's folder under `<data>/maps`.
+    /// The mod's folder under `<data>/maps` (with `--map-file`: the name
+    /// the run knows the file's mod by, `store::folder_of_file`).
     pub(crate) folder: String,
+    /// `--map-file`: the mod is read from this file instead of the folder
+    /// (the editor's run copy of unsaved changes).
+    pub(crate) file: Option<std::path::PathBuf>,
     /// The custom race to race, straight onto its grid.
     pub(crate) race: Option<String>,
     /// Free roam from this spot (world x, y, z; heading in degrees around
@@ -219,8 +223,8 @@ pub(crate) struct MapTest {
 }
 
 /// The test-run flags; each takes one value.
-pub(crate) const MAP_FLAGS: [&str; 7] =
-    ["--map-mod", "--map-race", "--map-at", "--map-result", "--stream", "--sim-seed", "--sim-seconds"];
+pub(crate) const MAP_FLAGS: [&str; 8] =
+    ["--map-mod", "--map-file", "--map-race", "--map-at", "--map-result", "--stream", "--sim-seed", "--sim-seconds"];
 
 /// The simulation's switches (no value).
 pub(crate) const SIM_SWITCHES: [&str; 2] = ["--simulate", "--simulate-world"];
@@ -235,7 +239,7 @@ impl MapTest {
     /// combination that names no run.
     pub(crate) fn parse(args: &[String]) -> std::result::Result<Option<MapTest>, String> {
         let mut t = MapTest::default();
-        let (mut folder, mut seen) = (None, false);
+        let (mut folder, mut file, mut seen) = (None, None::<std::path::PathBuf>, false);
         let (mut mode, mut stream, mut seed, mut seconds) = (None, None, None, None);
         let mut i = 0;
         while i < args.len() {
@@ -262,6 +266,13 @@ impl MapTest {
                             return Err(format!("--map-mod: `{v}` is not a map mod folder name (a-z, 0-9, - and _)"));
                         }
                         folder = Some(v);
+                    }
+                    "--map-file" => {
+                        twice(file.is_some())?;
+                        if v.is_empty() {
+                            return Err("--map-file needs a path".into());
+                        }
+                        file = Some(v.into());
                     }
                     "--map-race" => {
                         twice(t.race.is_some())?;
@@ -300,9 +311,24 @@ impl MapTest {
         if !seen {
             return Ok(None);
         }
-        t.folder = folder.ok_or("--map-race, --map-at, --map-result and --simulate need --map-mod <folder>")?;
+        match (folder, file) {
+            (Some(_), Some(_)) => return Err("--map-mod and --map-file cannot be used together".into()),
+            (Some(f), None) => t.folder = f,
+            (None, Some(p)) => {
+                t.folder = nfsu2::tools::map::store::folder_of_file(&p);
+                t.file = Some(p);
+            }
+            (None, None) => {
+                return Err(
+                    "--map-race, --map-at, --map-result and --simulate need --map-mod <folder> or --map-file <path>"
+                        .into(),
+                );
+            }
+        }
         match (&t.race, &t.at) {
-            (None, None) => return Err("--map-mod needs --map-race <id> or --map-at x,y,z,heading".into()),
+            (None, None) => {
+                return Err("--map-mod / --map-file need --map-race <id> or --map-at x,y,z,heading".into());
+            }
             (Some(_), Some(_)) => return Err("--map-race and --map-at cannot be used together".into()),
             _ => {}
         }
@@ -519,6 +545,32 @@ mod map_test_tests {
         ] {
             assert!(MapTest::parse(&args(bad)).is_err(), "{bad:?}");
         }
+    }
+
+    #[test]
+    fn a_map_file_stands_in_for_the_folder() {
+        let run = "/d/maps/my-map/.editor/run/map.obmap";
+        let t = MapTest::parse(&args(&["--map-file", run, "--map-race", "dock", "--map-result", "r.txt"]))
+            .unwrap()
+            .unwrap();
+        assert_eq!((t.folder.as_str(), t.race.as_deref()), ("my-map", Some("dock")), "the run copy plays as its mod");
+        assert_eq!(t.file.as_deref(), Some(std::path::Path::new(run)));
+        let t = MapTest::parse(&args(&["--map-file", "/x/yard/map.obmap", "--map-at", "1,2,3,4", "--simulate-world"]))
+            .unwrap()
+            .unwrap();
+        assert_eq!((t.folder.as_str(), t.simulate.map(|s| s.mode)), ("yard", Some(nfsu2::tools::map::sim::format::SimMode::World)));
+        assert_eq!(MapTest::parse(&args(&["--map-mod", "m", "--map-race", "r"])).unwrap().unwrap().file, None);
+        for bad in [
+            &["--map-file"][..],
+            &["--map-file", ""],
+            &["--map-file", "a/map.obmap"],
+            &["--map-file", "a/map.obmap", "--map-mod", "m", "--map-race", "r"],
+            &["--map-file", "a/map.obmap", "--map-file", "b/map.obmap", "--map-race", "r"],
+        ] {
+            assert!(MapTest::parse(&args(bad)).is_err(), "{bad:?}");
+        }
+        let a = args(&["--map-file", "-odd/map.obmap", "--map-race", "r", "--no-boot"]);
+        assert_eq!(MapTest::strip(&a), args(&["--no-boot"]), "a path may start with -");
     }
 
     #[test]

@@ -43,6 +43,7 @@ block_compression = { version = "0.11.0", default-features = false, features = [
 toml = { version = "1.1.4", default-features = false, features = ["parse", "serde"] }
 serde = { version = "1.0.229", features = ["derive"] }
 semver = "1.0.28"
+serde_json = { version = "1.0.137", features = ["float_roundtrip"] }
 libc = "0.2"
 ab_glyph = "0.2.32"
 proptest = { version = "1", default-features = false, features = ["std"] }
@@ -98,6 +99,9 @@ block_compression.workspace = true
 # The packs' manifest, `pack.toml`. MIT OR Apache-2.0.
 toml.workspace = true
 serde.workspace = true
+# Map edits as JSON (`tools::map::ops`: the editor's operations, read and
+# written by the map tools). MIT OR Apache-2.0.
+serde_json.workspace = true
 
 [target.'cfg(unix)'.dependencies]
 # The allocator's memory probe (/proc/meminfo, sysctl) before main.

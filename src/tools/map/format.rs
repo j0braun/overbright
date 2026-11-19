@@ -9,6 +9,7 @@
 //! section = 1407
 //! solid = XO_CONE_01
 //! at = 10 20 3
+//! nth = 1
 //! position = 11 20 3
 //! rotation = 1 0 0 0 1 0 0 0 1
 //! [race]
@@ -24,8 +25,17 @@
 //! not parse or lies out of range is refused with its line number, and
 //! nothing of the file is used. Numbers are written in Rust's shortest
 //! round-trip form, so writing and reading again gives the same values.
+//!
+//! Two keys are written only when they differ from their default, so a
+//! file without them reads and writes byte for byte as before: `nth` on a
+//! move or delete (which of several original placements at exactly the
+//! same place it names, default 0) and `id` on an add (its name within
+//! the mod, default `a<n>` for the mod's n-th add).
 
 use glam::{Mat3, Vec2, Vec3};
+use serde::{Deserialize, Serialize};
+
+use super::ops::glam_json;
 
 /// The first word of every map mod file.
 pub const MAGIC: &str = "overbright-map";
@@ -45,10 +55,13 @@ pub const MAX_LAPS: u32 = 20;
 /// Coordinates further from the origin than this are refused (the game's
 /// regions lie within a few kilometres).
 pub const MAX_COORD: f32 = 100_000.0;
-const MAX_TEXT: usize = 200;
+/// A name, author, description or race name: at most this many characters.
+pub const MAX_TEXT: usize = 200;
 
-/// A whole map mod.
-#[derive(Clone, Debug, Default, PartialEq)]
+/// A whole map mod. Its JSON form (serde, [`super::ops`]) has the same
+/// fields; vectors are arrays and rotations their three rows.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct MapMod {
     pub name: String,
     pub author: String,
@@ -58,26 +71,49 @@ pub struct MapMod {
 }
 
 /// An original placement, named by where the original data has it: its
-/// region, its streaming section, its solid's name and its position.
-#[derive(Clone, Debug, PartialEq)]
+/// region, its streaming section, its solid's name and its position, and
+/// `nth` among the original placements of that section and solid at
+/// exactly that position (in the original's order; 0 for the first or
+/// only one).
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct PropRef {
     pub region: String,
     pub section: u32,
     pub solid: String,
+    #[serde(with = "glam_json::vec3")]
     pub at: Vec3,
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub nth: u32,
 }
 
 /// One change to a region's scenery.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "edit", rename_all = "snake_case", deny_unknown_fields)]
 pub enum PropEdit {
     /// An original placement put somewhere else (`rotation`'s rows are
     /// its local x, y and z axes in world coordinates, the game's Z-up
     /// row-vector convention).
-    Move { target: PropRef, position: Vec3, rotation: Mat3 },
+    Move {
+        target: PropRef,
+        #[serde(with = "glam_json::vec3")]
+        position: Vec3,
+        #[serde(with = "glam_json::mat3")]
+        rotation: Mat3,
+    },
     /// An original placement hidden.
     Delete { target: PropRef },
-    /// A new placement of a solid the region has loaded.
-    Add { region: String, solid: String, position: Vec3, rotation: Mat3 },
+    /// A new placement of a solid the region has loaded; `id` names it
+    /// within the mod (unique, kept through save and load).
+    Add {
+        id: String,
+        region: String,
+        solid: String,
+        #[serde(with = "glam_json::vec3")]
+        position: Vec3,
+        #[serde(with = "glam_json::mat3")]
+        rotation: Mat3,
+    },
 }
 
 impl PropEdit {
@@ -95,10 +131,31 @@ impl PropEdit {
             PropEdit::Add { .. } => None,
         }
     }
+
+    /// An added placement's id (None for a move or delete).
+    pub fn add_id(&self) -> Option<&str> {
+        match self {
+            PropEdit::Add { id, .. } => Some(id),
+            _ => None,
+        }
+    }
 }
 
-/// The race types a custom race can be.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+fn is_zero(n: &u32) -> bool {
+    *n == 0
+}
+
+/// The id the mod's `n`-th add (1-based) has when the file gives none.
+pub fn default_add_id(n: usize) -> String {
+    format!("a{n}")
+}
+
+/// At most this `nth` (no original has more placements at one place).
+pub const MAX_NTH: u32 = 65_535;
+
+/// The race types a custom race can be (in JSON by [`RaceKind::name`]).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum RaceKind {
     Circuit,
     Sprint,
@@ -130,14 +187,17 @@ impl RaceKind {
 
 /// A marker: a position and a heading (degrees around +z from +x, the
 /// game's convention).
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Spot {
+    #[serde(with = "glam_json::vec3")]
     pub position: Vec3,
     pub heading: f32,
 }
 
 /// A race of the player's own on a base track's road network.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct CustomRace {
     /// Unique within the mod: `a-z`, `0-9`, `-`, `_`.
     pub id: String,
@@ -151,6 +211,7 @@ pub struct CustomRace {
     pub laps: u32,
     /// The checkpoints in driving order (world x, y). A circuit closes the
     /// loop from the last back to the first.
+    #[serde(with = "glam_json::vec2s")]
     pub checkpoints: Vec<Vec2>,
     /// The start grid, pole first.
     pub grid: Vec<Spot>,
@@ -322,15 +383,41 @@ fn prop_ref(b: &Block) -> Result<PropRef, FormatError> {
     let (s, sl) = b.need("section")?;
     let (so, sol) = b.need("solid")?;
     let (at, atl) = b.need("at")?;
+    let nth = match b.one("nth")? {
+        Some((v, l)) => v
+            .parse()
+            .ok()
+            .filter(|n| *n <= MAX_NTH)
+            .ok_or_else(|| FormatError { line: l, message: format!("`{v}` is not a count (0 to {MAX_NTH})") })?,
+        None => 0,
+    };
     Ok(PropRef {
         region: region(r, rl)?,
         section: s.parse().map_err(|_| FormatError { line: sl, message: format!("`{s}` is not a section number") })?,
         solid: solid(so, sol)?,
         at: vec3(at, atl)?,
+        nth,
     })
 }
 
 impl MapMod {
+    /// The index in `props` of the add named `id`.
+    pub fn add_index(&self, id: &str) -> Option<usize> {
+        self.props.iter().position(|e| e.add_id() == Some(id))
+    }
+
+    /// An id no add of this mod has: the default of the next add when it
+    /// is free (so it is not written), else one above the largest in use.
+    pub fn fresh_add_id(&self) -> String {
+        let ids: std::collections::HashSet<&str> = self.props.iter().filter_map(PropEdit::add_id).collect();
+        let next = default_add_id(ids.len() + 1);
+        if !ids.contains(next.as_str()) {
+            return next;
+        }
+        let top = ids.iter().filter_map(|i| i.strip_prefix('a')?.parse::<usize>().ok()).max().unwrap_or(0);
+        (top + 1..).map(default_add_id).find(|i| !ids.contains(i.as_str())).unwrap_or(next)
+    }
+
     /// Read a map mod file's text; anything wrong refuses the whole file.
     pub fn parse(src: &str) -> Result<MapMod, FormatError> {
         let mut lines = src.lines().enumerate().map(|(i, l)| (i + 1, l.trim()));
@@ -383,7 +470,7 @@ impl MapMod {
         for b in &blocks {
             match b.kind.as_str() {
                 "prop.move" => {
-                    b.check_keys(&["region", "section", "solid", "at", "position", "rotation"])?;
+                    b.check_keys(&["region", "section", "solid", "at", "nth", "position", "rotation"])?;
                     let (p, pl) = b.need("position")?;
                     let (r, rl) = b.need("rotation")?;
                     m.props.push(PropEdit::Move {
@@ -393,16 +480,23 @@ impl MapMod {
                     });
                 }
                 "prop.delete" => {
-                    b.check_keys(&["region", "section", "solid", "at"])?;
+                    b.check_keys(&["region", "section", "solid", "at", "nth"])?;
                     m.props.push(PropEdit::Delete { target: prop_ref(b)? });
                 }
                 "prop.add" => {
-                    b.check_keys(&["region", "solid", "position", "rotation"])?;
+                    b.check_keys(&["id", "region", "solid", "position", "rotation"])?;
+                    // No `id`: the default, given once all adds are read.
+                    let id = match b.one("id")? {
+                        Some((v, _)) if valid_id(v) => v.to_string(),
+                        Some((v, l)) => return err(l, format!("`{v}` is not an id (a-z, 0-9, - and _, at most 40)")),
+                        None => String::new(),
+                    };
                     let (r, rl) = b.need("region")?;
                     let (s, sl) = b.need("solid")?;
                     let (p, pl) = b.need("position")?;
                     let (ro, rol) = b.need("rotation")?;
                     m.props.push(PropEdit::Add {
+                        id,
                         region: region(r, rl)?,
                         solid: solid(s, sl)?,
                         position: vec3(p, pl)?,
@@ -418,11 +512,29 @@ impl MapMod {
                 return err(b.line, format!("more than {MAX_RACES} races"));
             }
         }
-        // A placement changed by two edits is ambiguous.
+        // A placement changed by two edits is ambiguous; an add's id names
+        // one add.
         let mut seen = std::collections::HashSet::new();
-        for (b, p) in blocks.iter().filter(|b| b.kind.starts_with("prop.")).zip(&m.props) {
+        let mut add_ids = std::collections::HashSet::new();
+        let mut adds = 0;
+        for (b, p) in blocks.iter().filter(|b| b.kind.starts_with("prop.")).zip(&mut m.props) {
+            if let PropEdit::Add { id, .. } = p {
+                adds += 1;
+                if id.is_empty() {
+                    *id = default_add_id(adds);
+                }
+                if !add_ids.insert(id.clone()) {
+                    return err(b.line, format!("add id `{id}` used twice"));
+                }
+            }
             if let Some(t) = p.target()
-                && !seen.insert((t.region.clone(), t.section, t.solid.clone(), t.at.to_array().map(f32::to_bits)))
+                && !seen.insert((
+                    t.region.clone(),
+                    t.section,
+                    t.solid.clone(),
+                    t.at.to_array().map(f32::to_bits),
+                    t.nth,
+                ))
             {
                 return err(b.line, "this placement is already changed by an earlier edit");
             }
@@ -510,7 +622,11 @@ impl MapMod {
         let target = |s: &mut String, t: &PropRef| {
             let _ =
                 writeln!(s, "region = {}\nsection = {}\nsolid = {}\nat = {}", t.region, t.section, t.solid, v3(t.at));
+            if t.nth > 0 {
+                let _ = writeln!(s, "nth = {}", t.nth);
+            }
         };
+        let mut adds = 0;
         for p in &self.props {
             match p {
                 PropEdit::Move { target: t, position, rotation } => {
@@ -522,10 +638,15 @@ impl MapMod {
                     s.push_str("\n[prop.delete]\n");
                     target(&mut s, t);
                 }
-                PropEdit::Add { region, solid, position, rotation } => {
+                PropEdit::Add { id, region, solid, position, rotation } => {
+                    adds += 1;
+                    s.push_str("\n[prop.add]\n");
+                    if *id != default_add_id(adds) {
+                        let _ = writeln!(s, "id = {id}");
+                    }
                     let _ = writeln!(
                         s,
-                        "\n[prop.add]\nregion = {region}\nsolid = {solid}\nposition = {}\nrotation = {}",
+                        "region = {region}\nsolid = {solid}\nposition = {}\nrotation = {}",
                         v3(*position),
                         rot(*rotation)
                     );

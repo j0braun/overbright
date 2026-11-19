@@ -110,6 +110,17 @@ for t in x86_64-unknown-linux-gnu x86_64-pc-windows-gnu; do
     fi
 done
 
+# The map editor's own crates (its UI: egui and its winit / wgpu parts; the game does not use them) are listed as
+# linked in both files: the list covers the editor's package, not only the game's.
+for t in x86_64-unknown-linux-gnu x86_64-pc-windows-gnu; do
+    miss=""
+    for c in egui egui-winit egui-wgpu; do
+        grep -qE "^$c [0-9][^ ]* +linked " "$W/LICENSES-$t.txt" 2> /dev/null || miss="$miss $c"
+    done
+    [ -z "$miss" ] && ok "third-party licences $t: the map editor's crates (egui, egui-winit, egui-wgpu) listed" \
+        || bad "third-party licences $t: the map editor's crates missing:$miss"
+done
+
 # ---- the icon (build_support/icon_art.rs of the commit) -------------------------------------------------------
 rustc -O --edition 2021 -o "$W/icon_rgba" "$B/src/scripts/release/icon_rgba.rs" > "$W/icon.log" 2>&1 || die "icon_rgba ($W/icon.log)"
 "$W/icon_rgba" 256 > "$W/icon.rgba" && python3 -I "$HERE/archive.py" png "$W/icon.rgba" 256 "$W/overbright.png" || die "icon png"
@@ -275,6 +286,9 @@ if [ -d "${NFSU2_ROOT:-/nonexistent}" ]; then
 else
     say "SKIP  game --check-game: NFSU2_ROOT is not set (scripts/local.env)"
 fi
+out=$(run_lin "$L/overbright-editor" --version 2>&1); rc=$?
+want="Overbright $VERSION (commit $COMMIT, linux-x86_64) map editor (preview)"
+[ $rc = 0 ] && [ "$(echo "$out" | head -1)" = "$want" ] && ok "overbright-editor --version: $out" || bad "overbright-editor --version: rc $rc '$out' (want '$want')"
 rm -f "$C/about-linux.png"
 run_lin "$L/overbright" --render about --size 1280x720 "$C/about-linux.png" > "$W/render.txt" 2>&1; rc=$?
 if [ $rc = 0 ] && [ "$(head -c 8 "$C/about-linux.png" 2> /dev/null | od -An -tx1 | tr -d ' \n')" = 89504e470d0a1a0a ]; then
@@ -318,6 +332,10 @@ else
         want="Overbright $VERSION (commit $COMMIT, windows-x86_64)"
         [ $rc = 0 ] && [ "$out" = "$want" ] && ok "wine game.exe --version: $out" \
             || bad "wine game.exe --version: rc $rc '$out' (want '$want')"
+        out=$(Wn timeout 120 wine "$WD/overbright-editor.exe" --version 2> "$OUT/wine/editor-version.err" | tr -d '\r'); rc=$?
+        want="Overbright $VERSION (commit $COMMIT, windows-x86_64) map editor (preview)"
+        [ $rc = 0 ] && [ "$(echo "$out" | head -1)" = "$want" ] && ok "wine overbright-editor.exe --version: $out" \
+            || bad "wine overbright-editor.exe --version: rc $rc '$out' (want '$want')"
         rm -f "$C/about-windows.png"
         Wn timeout 180 wine "$WD/overbright.exe" --render about --size 1280x720 "$(winepath -w "$C/about-windows.png" 2> /dev/null)" \
             > "$OUT/wine/render.log" 2>&1; rc=$?

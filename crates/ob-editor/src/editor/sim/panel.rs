@@ -14,12 +14,14 @@ use crate::editor::app::Overlay as ViewOverlay;
 use crate::editor::overlay::{Overlay, colour, label2d, line2d};
 use crate::editor::state::{EditorState, Issue, Level, Panel, View};
 use crate::editor::theme;
-use crate::tools::map::store;
 
 /// The bottom tab's key (`--tab simulate`).
 pub const TAB: &str = "simulate";
 /// Validation entries from a simulation start with this.
 pub const ISSUE_PREFIX: &str = "Simulation: ";
+/// The bottom panel's height at least while this tab shows (the toolbar
+/// rows, the results of a full grid and the first events under them).
+pub const MIN_HEIGHT: f32 = 300.0;
 /// Lines read from the game per frame at most (the rest next frame).
 const LINES_PER_FRAME: usize = 4000;
 /// A car's box around its position (the body's centre): half length, half
@@ -63,7 +65,7 @@ pub type Shared = Rc<RefCell<Sim>>;
 /// The validation warnings of a recording for race `race` (index into
 /// `map.races`): one per problem ("Simulation: AI got stuck before
 /// checkpoint 3"), with the spot to show. The race checks may call this to
-/// list them with their own; the frame hook keeps them in `s.issues`.
+/// list them with their own; the frame hook keeps them in `s.session.issues`.
 pub fn issues(rec: &Recording, race: Option<usize>) -> Vec<Issue> {
     rec.problems().into_iter().map(|p| Issue { level: Level::Warning, text: p.text(), race, at: p.at }).collect()
 }
@@ -88,7 +90,8 @@ pub fn publish_map(ctx: &egui::Context, centre: Vec2, scale: f32, rect: Rect) {
     ctx.data_mut(|d| d.insert_temp(ctx_id("map"), (centre, scale, rect)));
 }
 
-fn map_transform(ctx: &egui::Context) -> Option<(Vec2, f32, Rect)> {
+/// The map view's transform as last published.
+pub fn map_transform(ctx: &egui::Context) -> Option<(Vec2, f32, Rect)> {
     ctx.data(|d| d.get_temp(ctx_id("map")))
 }
 
@@ -103,30 +106,30 @@ impl Sim {
         self.child.is_some()
     }
 
-    /// Save the mod and start the game simulating `what`.
+    /// Write the mod's run copy (unsaved changes included; `map.obmap`
+    /// is not written) and start the game simulating `what`.
     pub fn start(&mut self, s: &mut EditorState, exe: &std::path::Path, what: What) {
         self.stop();
-        let mut m = s.map.clone();
-        if m.name.trim().is_empty() {
-            m.name = s.folder.clone();
-        }
-        if let Err(e) = store::save(&s.maps, &s.folder, &m) {
-            s.status = format!("Not saved: {e:#}");
-            return;
-        }
-        s.dirty = false;
+        let file = match super::super::testplay::write_run_copy(s) {
+            Ok(f) => f,
+            Err(e) => {
+                s.status = e;
+                return;
+            }
+        };
         self.race = match &what {
-            What::Race(id) => s.map.races.iter().position(|r| &r.id == id),
+            What::Race(id) => s.session.map.races.iter().position(|r| &r.id == id),
             What::World(..) => None,
         };
-        match SimChild::start(exe, &args(&s.folder, &what, self.seed), &s.root) {
+        let unsaved = if s.session.dirty { " (unsaved changes)" } else { "" };
+        match SimChild::start(exe, &args(&file, &what, self.seed), &s.root) {
             Ok(c) => {
                 self.child = Some(c);
                 self.rec = Recording::default();
                 self.play.start();
                 s.status = match &what {
-                    What::Race(_) => "Simulating the race…".into(),
-                    What::World(..) => "Simulating the world around the camera…".into(),
+                    What::Race(_) => format!("Simulating the race…{unsaved}"),
+                    What::World(..) => format!("Simulating the world around the camera…{unsaved}"),
                 };
                 self.what = Some(what);
             }
@@ -197,12 +200,12 @@ fn sync_issues(sim: &mut Sim, s: &mut EditorState) {
     } else {
         Vec::new()
     };
-    let present = |i: &Issue| s.issues.iter().any(|x| x == i);
+    let present = |i: &Issue| s.session.issues.iter().any(|x| x == i);
     if now == sim.issued && now.iter().all(present) {
         return;
     }
-    s.issues.retain(|i| !i.text.starts_with(ISSUE_PREFIX));
-    s.issues.extend(now.iter().cloned());
+    s.session.issues.retain(|i| !i.text.starts_with(ISSUE_PREFIX));
+    s.session.issues.extend(now.iter().cloned());
     sim.issued = now;
 }
 
@@ -272,7 +275,7 @@ impl Panel for SimTool {
 
 /// The race chosen, else the world at the camera's spot.
 fn what_now(s: &EditorState) -> What {
-    match s.race.and_then(|k| s.map.races.get(k)) {
+    match s.race.and_then(|k| s.session.map.races.get(k)) {
         Some(r) if s.mode == crate::editor::state::Mode::Races => What::Race(r.id.clone()),
         _ => world_spot(s),
     }
@@ -299,7 +302,7 @@ impl Panel for SimTab {
         let mut sim = self.0.borrow_mut();
         let sim = &mut *sim;
         ui.horizontal(|ui| {
-            let race = s.race.and_then(|k| s.map.races.get(k)).map(|r| (r.id.clone(), r.name.clone()));
+            let race = s.race.and_then(|k| s.session.map.races.get(k)).map(|r| (r.id.clone(), r.name.clone()));
             if sim.running() {
                 if ui.button("Stop").clicked() {
                     sim.stop();
@@ -362,56 +365,33 @@ impl Panel for SimTab {
         });
         ui.separator();
         let mut seek: Option<(f32, u32)> = None;
-        ui.columns(2, |cols| {
-            let world = sim.rec.header.as_ref().is_some_and(|h| h.mode == SimMode::World);
-            let st = if world { Vec::new() } else { sim.rec.standings(sim.play.time) };
-            if st.is_empty() {
-                let cars = sim.play.cars(&sim.rec);
-                let traffic = cars.iter().filter(|c| c.kind == CarKind::Traffic).count();
-                let racers = cars.iter().filter(|c| c.kind == CarKind::Encounter).count();
-                cols[0].weak(format!("{traffic} traffic cars and {racers} street racers on the road"));
-            } else {
-                egui::Grid::new("sim.results").striped(true).num_columns(5).show(&mut cols[0], |ui| {
-                    for h in ["Place", "Car", "Time", "Best lap", "Laps"] {
-                        ui.strong(h);
-                    }
-                    ui.end_row();
-                    for r in &st {
-                        ui.label(if r.place == 0 { "-".to_string() } else { r.place.to_string() });
-                        let name = sim.rec.name(r.car);
-                        if sim.play.follow == Some(r.car) {
-                            ui.colored_label(theme::lime(), name);
-                        } else {
-                            ui.label(name);
-                        }
-                        ui.monospace(r.time.map_or("-".into(), clock));
-                        ui.monospace(r.best.map_or("-".into(), clock));
-                        ui.monospace(r.laps.len().to_string());
-                        ui.end_row();
-                    }
-                });
-            }
-            let shown: Vec<_> =
-                sim.rec.events.iter().filter(|e| e.kind != EventKind::Checkpoint || e.car == 0).cloned().collect();
-            if shown.is_empty() {
-                cols[1].weak("No events yet");
-            }
+        let world = sim.rec.header.as_ref().is_some_and(|h| h.mode == SimMode::World);
+        let st = if world { Vec::new() } else { sim.rec.standings(sim.play.time) };
+        if st.is_empty() {
+            let cars = sim.play.cars(&sim.rec);
+            let traffic = cars.iter().filter(|c| c.kind == CarKind::Traffic).count();
+            let racers = cars.iter().filter(|c| c.kind == CarKind::Encounter).count();
+            ui.weak(format!("{traffic} traffic cars and {racers} street racers on the road"));
+        } else {
+            results_table(ui, sim, &st);
+        }
+        ui.separator();
+        let shown: Vec<_> =
+            sim.rec.events.iter().filter(|e| e.kind != EventKind::Checkpoint || e.car == 0).cloned().collect();
+        if shown.is_empty() {
+            ui.weak("No events yet");
+        }
+        // The events scroll on their own in the space left under the table
+        // (the table stays in view).
+        let left = (ui.clip_rect().bottom() - ui.cursor().top() - 4.0).max(80.0);
+        egui::ScrollArea::vertical().id_salt("sim.events").max_height(left).auto_shrink([false, true]).show(ui, |ui| {
             for e in shown.iter().rev().take(200) {
-                cols[1].horizontal(|ui| {
+                ui.horizontal(|ui| {
                     let c = if e.kind.is_problem() { theme::warn() } else { theme::dim() };
                     ui.monospace(clock(e.time));
-                    let what = match e.kind {
-                        EventKind::Start => "Green light".to_string(),
-                        EventKind::Checkpoint => format!("checkpoint {}", e.checkpoint),
-                        EventKind::Lap => format!("lap {} in {}", e.checkpoint, clock(e.value)),
-                        EventKind::Finish => format!("finished in {}", clock(e.value)),
-                        EventKind::Crash => format!("crash ({:.0} km/h lost)", e.value * 3.6),
-                        EventKind::Stuck => format!("stuck before checkpoint {}", e.checkpoint),
-                        EventKind::WrongWay => format!("wrong way before checkpoint {}", e.checkpoint),
-                    };
                     let who =
                         if e.kind == EventKind::Start { String::new() } else { format!("{}: ", sim.rec.name(e.car)) };
-                    ui.colored_label(c, format!("{who}{what}"));
+                    ui.colored_label(c, format!("{who}{}", event_text(e)));
                     if e.kind != EventKind::Start && ui.small_button("Show").clicked() {
                         seek = Some((e.time, e.car));
                     }
@@ -425,6 +405,50 @@ impl Panel for SimTab {
         if ui.ctx().input(|i| i.key_pressed(egui::Key::Space)) && !ui.ctx().egui_wants_keyboard_input() {
             sim.play.toggle(&sim.rec);
         }
+    }
+}
+
+/// The results: place, car, time, best lap, laps; the followed car in lime,
+/// a racer without a finish when the run ended "did not finish".
+fn results_table(ui: &mut egui::Ui, sim: &Sim, st: &[super::record::Standing]) {
+    egui::Grid::new("sim.results").striped(true).num_columns(5).min_col_width(56.0).show(ui, |ui| {
+        for h in ["Place", "Car", "Time", "Best lap", "Laps"] {
+            ui.strong(h);
+        }
+        ui.end_row();
+        for r in st {
+            ui.label(if r.place == 0 { "-".to_string() } else { r.place.to_string() });
+            let name = sim.rec.name(r.car);
+            let car =
+                if sim.play.follow == Some(r.car) { ui.colored_label(theme::lime(), name) } else { ui.label(name) };
+            if sim.rec.cars.get(&r.car).is_some_and(|c| c.kind == CarKind::Player) {
+                car.on_hover_text(format!(
+                    "The player's slot ({}), driven by the AI in a simulation",
+                    label_name(&sim.rec, r.car)
+                ));
+            }
+            if r.dnf {
+                ui.colored_label(theme::warn(), "did not finish");
+            } else {
+                ui.monospace(r.time.map_or("-".into(), clock));
+            }
+            ui.monospace(r.best.map_or("-".into(), clock));
+            ui.monospace(r.laps.len().to_string());
+            ui.end_row();
+        }
+    });
+}
+
+/// An event in words ("lap 2 in 1:02.3").
+fn event_text(e: &super::format::Event) -> String {
+    match e.kind {
+        EventKind::Start => "Green light".to_string(),
+        EventKind::Checkpoint => format!("checkpoint {}", e.checkpoint),
+        EventKind::Lap => format!("lap {} in {}", e.checkpoint, clock(e.value)),
+        EventKind::Finish => format!("finished in {}", clock(e.value)),
+        EventKind::Crash => format!("crash ({:.0} km/h lost)", e.value * 3.6),
+        EventKind::Stuck => format!("stuck before checkpoint {}", e.checkpoint),
+        EventKind::WrongWay => format!("wrong way before checkpoint {}", e.checkpoint),
     }
 }
 
@@ -458,6 +482,10 @@ impl ViewOverlay for SimOverlay {
         } else {
             Vec::new()
         };
+        // The places the results table shows (none before the green).
+        let race = sim.rec.header.as_ref().is_some_and(|h| h.mode == SimMode::Race);
+        let st = if race { sim.rec.standings(sim.play.time) } else { Vec::new() };
+        let place = |id: u32| st.iter().find(|r| r.car == id && r.place > 0).map(|r| r.place);
         let trace_colour = |id: u32| {
             let c = if id == 0 || sim.play.follow == Some(id) { colour::SELECT } else { colour::INK };
             c.gamma_multiply(0.55)
@@ -477,10 +505,10 @@ impl ViewOverlay for SimOverlay {
                     let col = car_colour(c, followed);
                     let w = if c.kind.races() { 2.0 } else { 1.2 };
                     o.box_outline(t, -CAR_HALF + Vec3::Z * CAR_BOTTOM, CAR_HALF + Vec3::Z * CAR_TOP, col, w);
-                    if c.kind.races() && c.place > 0 {
+                    if let Some(p) = place(c.id) {
                         o.label(
                             c.position + Vec3::Z * 2.2,
-                            &format!("P{} {}", c.place, short(&label_name(&sim.rec, c.id))),
+                            &format!("P{p} {}", short(&label_name(&sim.rec, c.id))),
                             col,
                         );
                     }
@@ -517,8 +545,8 @@ impl ViewOverlay for SimOverlay {
                         col,
                         Stroke::new(1.0, colour::SHADOW),
                     ));
-                    if c.kind.races() && c.place > 0 {
-                        label2d(painter, at - egui::vec2(0.0, len + 8.0), &format!("P{}", c.place), col);
+                    if let Some(p) = place(c.id) {
+                        label2d(painter, at - egui::vec2(0.0, len + 8.0), &format!("P{p}"), col);
                     }
                     if followed {
                         line2d(painter, at - egui::vec2(len, 0.0), at + egui::vec2(len, 0.0), col, 1.0);
@@ -530,7 +558,7 @@ impl ViewOverlay for SimOverlay {
     }
 }
 
-/// The car's own name for a label (no "(player slot)").
+/// The car's own name for a label (its model, not "Your slot (AI)").
 fn label_name(rec: &Recording, id: u32) -> String {
     rec.cars.get(&id).map(|c| c.name.clone()).filter(|n| !n.is_empty()).unwrap_or_else(|| rec.name(id))
 }
@@ -566,19 +594,19 @@ mod tests {
             crate::world::World::default(),
             crate::draw::camera::Camera::new(Vec3::ZERO, 0.0, 0.0),
         );
-        s.issues.push(Issue { level: Level::Error, text: "no road".into(), race: Some(0), at: None });
+        s.session.issues.push(Issue { level: Level::Error, text: "no road".into(), race: Some(0), at: None });
         let mut sim = Sim { rec, what: Some(What::Race("r".into())), race: Some(0), ..Default::default() };
         sync_issues(&mut sim, &mut s);
         sync_issues(&mut sim, &mut s);
-        assert_eq!(s.issues.len(), 2, "the race's own issue kept, the warning once");
+        assert_eq!(s.session.issues.len(), 2, "the race's own issue kept, the warning once");
         // The race checks rebuilt the list: the warning comes back.
-        s.issues.retain(|i| !i.text.starts_with(ISSUE_PREFIX));
+        s.session.issues.retain(|i| !i.text.starts_with(ISSUE_PREFIX));
         sync_issues(&mut sim, &mut s);
-        assert_eq!(s.issues.len(), 2);
+        assert_eq!(s.session.issues.len(), 2);
         // A new run without problems clears it.
         sim.rec = Recording::default();
         sync_issues(&mut sim, &mut s);
-        assert_eq!(s.issues.len(), 1);
+        assert_eq!(s.session.issues.len(), 1);
     }
 
     #[test]

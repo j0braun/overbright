@@ -12,6 +12,7 @@ fn sample() -> MapMod {
         section: 1407,
         solid: "XO_CONE_01".into(),
         at: Vec3::new(10.25, -20.5, 3.125),
+        nth: 0,
     };
     let mut race = CustomRace::new("docks-loop", 4001, RaceKind::Circuit);
     race.name = "Docks Loop, fast".into();
@@ -33,8 +34,17 @@ fn sample() -> MapMod {
                 position: Vec3::new(11.0, -20.5, 3.125),
                 rotation: Mat3::from_rotation_z(0.3),
             },
+            PropEdit::Delete { target: PropRef { section: 1408, nth: 2, ..target.clone() } },
             PropEdit::Delete { target: PropRef { section: 1408, ..target } },
             PropEdit::Add {
+                id: "a1".into(),
+                region: "L4RB".into(),
+                solid: "XO_BARREL".into(),
+                position: Vec3::new(0.1, 0.2, 0.3),
+                rotation: Mat3::IDENTITY,
+            },
+            PropEdit::Add {
+                id: "kiosk-7".into(),
                 region: "L4RB".into(),
                 solid: "XO_BARREL".into(),
                 position: Vec3::new(0.1, 0.2, 0.3),
@@ -60,6 +70,34 @@ fn a_map_mod_reads_back_as_written() {
     // A value may hold `=`; a line break in a name is written as a space.
     let named = MapMod { name: "a = b\nc".into(), ..Default::default() };
     assert_eq!(MapMod::parse(&named.write()).unwrap().name, "a = b c");
+}
+
+/// A file written before `nth` and add ids: read and written again byte
+/// for byte; its adds take their default ids and keep them.
+#[test]
+fn a_file_without_nth_or_ids_writes_back_byte_identical() {
+    let old = "overbright-map 1\nname = Old\n\n[prop.move]\nregion = L4RA\nsection = 1407\nsolid = XO_CONE_01\n\
+               at = 10.25 -20.5 3.125\nposition = 11 -20.5 3.125\nrotation = 1 0 0 0 1 0 0 0 1\n\n[prop.delete]\n\
+               region = L4RA\nsection = 1408\nsolid = XO_CONE_01\nat = 10.25 -20.5 3.125\n\n[prop.add]\n\
+               region = L4RA\nsolid = XO_BARREL\nposition = 0.1 0.2 0.3\nrotation = 1 0 0 0 1 0 0 0 1\n\n\
+               [prop.add]\nregion = L4RA\nsolid = XO_CONE_01\nposition = 1 2 3\nrotation = 1 0 0 0 1 0 0 0 1\n";
+    let m = MapMod::parse(old).unwrap();
+    assert_eq!(m.write(), old);
+    assert!(m.props.iter().filter_map(PropEdit::target).all(|t| t.nth == 0));
+    let ids: Vec<_> = m.props.iter().filter_map(PropEdit::add_id).collect();
+    assert_eq!(ids, ["a1", "a2"]);
+    assert_eq!(m.add_index("a2"), Some(3));
+    // Without the first add the second keeps its id, now written.
+    let mut less = m.clone();
+    less.props.remove(2);
+    let text = less.write();
+    assert!(text.contains("[prop.add]\nid = a2\nregion = L4RA\nsolid = XO_CONE_01"), "{text}");
+    assert_eq!(MapMod::parse(&text).unwrap(), less);
+    assert_eq!(less.fresh_add_id(), "a3");
+    assert_eq!(MapMod::default().fresh_add_id(), "a1");
+    // `nth = 0` given is the default (not written back).
+    let zero = old.replacen("at = 10.25 -20.5 3.125\n", "at = 10.25 -20.5 3.125\nnth = 0\n", 1);
+    assert_eq!(MapMod::parse(&zero).unwrap(), m);
 }
 
 #[test]
@@ -95,7 +133,13 @@ fn bad_map_mods_are_refused_with_their_line() {
     refuse(&good.replacen("checkpoint = 0 0", "checkpoint = 0 0 0", 1), "expected 2 numbers");
     refuse(&good.replacen("id = s_2", "id = docks-loop", 1), "used twice");
     refuse(&good.replacen("id = s_2", "id = Has Space", 1), "not a race id");
-    refuse(&good.replacen("section = 1408", "section = 1407", 1), "already changed");
+    refuse(&good.replacen("nth = 2\n", "", 1), "already changed");
+    refuse(&good.replacen("nth = 2", "nth = -1", 1), "not a count");
+    refuse(&good.replacen("nth = 2", "nth = 70000", 1), "not a count");
+    refuse(&good.replacen("nth = 2", "nth = 2\nnth = 3", 1), "given twice");
+    refuse(&good.replacen("id = kiosk-7", "id = a1", 1), "add id `a1` used twice");
+    refuse(&good.replacen("id = kiosk-7", "id = Kiosk 7", 1), "not an id");
+    refuse(&good.replacen("[prop.add]\n", "[prop.add]\nnth = 1\n", 1), "unknown key `nth`");
     refuse(&good.replacen("backward = yes", "backward = maybe", 1), "yes or no");
     refuse(&good.replacen("region = L4RB", "region = ../x", 1), "not a region");
     refuse(&format!("{good}\n[race]\nid = x\ntrack = 1\nmode = sprint\nname = a\nname = b\n"), "given twice");
@@ -162,6 +206,50 @@ fn the_store_saves_lists_imports_and_exports() {
 }
 
 #[test]
+fn the_run_copy_and_the_editor_files_live_in_dot_editor() {
+    let s = testkit::Scratch::new("map-sidecars");
+    let dir = s.path().join("maps");
+    let m = sample();
+    store::save(&dir, "docks", &m).unwrap();
+    let saved = std::fs::read(dir.join("docks").join(store::FILE)).unwrap();
+    // The run copy: written whole beside the editor's files, the mod untouched.
+    let mut unsaved = m.clone();
+    unsaved.name = "Docks, unsaved".into();
+    let run = store::write_run_copy(&dir, "docks", &unsaved).unwrap();
+    assert_eq!(run, dir.join("docks/.editor/run/map.obmap"));
+    assert_eq!(store::read_file(&run).unwrap(), unsaved);
+    assert_eq!(std::fs::read(dir.join("docks").join(store::FILE)).unwrap(), saved);
+    assert!(store::write_run_copy(&dir, "../up", &m).is_err());
+    assert_eq!(store::folder_of_file(&run), "docks", "a run copy plays as its mod");
+    assert_eq!(store::folder_of_file(std::path::Path::new("/x/yard/map.obmap")), "yard");
+    assert_eq!(store::folder_of_file(std::path::Path::new("/x/My Yard/map.obmap")), "map-file");
+    assert_eq!(store::folder_of_file(std::path::Path::new("map.obmap")), "map-file");
+    assert_eq!(store::list(&dir), ["docks"], "`.editor` is no mod");
+    // An older editor's files move into `.editor/` once; one there already stays.
+    for (i, name) in store::SIDECARS.iter().enumerate() {
+        std::fs::write(dir.join("docks").join(name), format!("old {i}")).unwrap();
+    }
+    std::fs::write(store::editor_dir(&dir, "docks").join("tested.txt"), "new").unwrap();
+    assert_eq!(store::move_old_sidecars(&dir, "docks").unwrap(), 3);
+    for (i, name) in store::SIDECARS.iter().enumerate() {
+        let moved = std::fs::read_to_string(store::editor_dir(&dir, "docks").join(name)).unwrap();
+        if *name == "tested.txt" {
+            assert_eq!(moved, "new");
+            assert!(dir.join("docks").join(name).is_file(), "kept when the new one exists");
+        } else {
+            assert_eq!(moved, format!("old {i}"));
+            assert!(!dir.join("docks").join(name).exists());
+        }
+    }
+    assert_eq!(store::move_old_sidecars(&dir, "docks").unwrap(), 0, "once");
+    // Export takes only the mod.
+    let out = s.path().join("out");
+    store::export(&dir, "docks", &out).unwrap();
+    let names: Vec<_> = std::fs::read_dir(&out).unwrap().flatten().map(|e| e.file_name()).collect();
+    assert_eq!(names, [std::ffi::OsString::from(store::FILE)]);
+}
+
+#[test]
 fn the_default_grid_stands_behind_the_start() {
     let start = Spot { position: Vec3::new(10.0, 0.0, 2.0), heading: 0.0 };
     let g = race::default_grid(start);
@@ -190,7 +278,7 @@ fn no_map_mod_leaves_the_world_as_loaded() {
     // A mod for another region only.
     let other = MapMod {
         props: vec![PropEdit::Delete {
-            target: PropRef { region: "L4RB".into(), section: 0, solid: "X".into(), at: Vec3::ZERO },
+            target: PropRef { region: "L4RB".into(), section: 0, solid: "X".into(), at: Vec3::ZERO, nth: 0 },
         }],
         ..Default::default()
     };
@@ -229,12 +317,14 @@ fn a_map_mod_moves_hides_and_adds_placements() {
             PropEdit::Move { target: ra.clone(), position: to, rotation: Mat3::IDENTITY },
             PropEdit::Delete { target: rb.clone() },
             PropEdit::Add {
+                id: "a1".into(),
                 region: "L4RA".into(),
                 solid: ra.solid.clone(),
                 position: to + Vec3::Y,
                 rotation: Mat3::IDENTITY,
             },
             PropEdit::Add {
+                id: "a2".into(),
                 region: "l4ra".into(),
                 solid: "NO_SUCH_SOLID".into(),
                 position: to,
@@ -253,7 +343,7 @@ fn a_map_mod_moves_hides_and_adds_placements() {
     assert!(w.placements[b].flags & crate::world::HIDDEN_FLAG != 0);
     assert_eq!(w.placements[n].solid, plain.placements[a].solid);
     assert_eq!(w.placements[n].transform.w_axis.truncate(), to + Vec3::Y);
-    assert_eq!(w.map_overlay.added.get(&n), Some(&("docks".to_string(), 2)));
+    assert_eq!(w.map_overlay.added.get(&n), Some(&("docks".to_string(), "a1".to_string())));
     assert_eq!(w.map_overlay.missing, 1);
     // Named by the original's place, not the moved one.
     assert_eq!(w.placement_ref("L4RA", a), Some(ra));
@@ -301,4 +391,103 @@ fn a_custom_race_with_too_few_checkpoints_is_refused() {
     r.checkpoints = vec![Vec2::new(0.0, 0.0)];
     assert!(race::check(&net, &r).is_err());
     assert!(race::route(&net, &r, &|_| None).is_err());
+}
+
+/// The original placements of one section and solid at exactly one place
+/// in L4RA, beyond the first of each such group ("twins", named apart
+/// only by `nth`).
+const L4RA_TWINS: usize = 257;
+
+/// The groups of original placements of one section and solid at exactly
+/// one place (more than one each), in the original's order.
+fn twin_groups(w: &crate::world::World) -> Vec<Vec<usize>> {
+    let mut groups: std::collections::BTreeMap<(u32, usize, [u32; 3]), Vec<usize>> = Default::default();
+    for (i, p) in w.placements.iter().enumerate() {
+        // `+ 0.0`: -0 and 0 are one place.
+        let at = (p.transform.w_axis.truncate() + Vec3::ZERO).to_array().map(f32::to_bits);
+        groups.entry((p.section, p.solid, at)).or_default().push(i);
+    }
+    let mut out: Vec<Vec<usize>> = groups.into_values().filter(|g| g.len() > 1).collect();
+    out.sort();
+    out
+}
+
+/// Twins are named apart, edit independently (from a file and in the
+/// editor, each after the others moved) and come back the same on reload.
+#[test]
+#[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
+fn twin_placements_edit_independently_and_reload() {
+    let root = testkit::game_root();
+    let plain = crate::world::World::load(&root, "L4RA").unwrap();
+    let groups = twin_groups(&plain);
+    let twins: usize = groups.iter().map(|g| g.len() - 1).sum();
+    eprintln!("L4RA: {twins} twins in {} groups", groups.len());
+    assert_eq!(twins, L4RA_TWINS);
+    for g in &groups {
+        for (n, &i) in g.iter().enumerate() {
+            let r = plain.placement_ref("L4RA", i).unwrap();
+            assert_eq!(r.nth as usize, n, "placement {i}");
+            assert_eq!(plain.find_placement(&r), Some(i), "{r:?}");
+        }
+    }
+    // A mod hides the first of each group and moves each twin up by its
+    // nth metres.
+    let mut m = MapMod::default();
+    for g in &groups {
+        for (n, &i) in g.iter().enumerate() {
+            let target = plain.placement_ref("L4RA", i).unwrap();
+            m.props.push(match n {
+                0 => PropEdit::Delete { target },
+                // Upright: some originals are scaled, which a move does
+                // not keep.
+                _ => PropEdit::Move { position: target.at + Vec3::Z * n as f32, target, rotation: Mat3::IDENTITY },
+            });
+        }
+    }
+    let text = m.write();
+    let m = MapMod::parse(&text).unwrap();
+    assert_eq!(m.write(), text);
+    let check = |w: &crate::world::World| {
+        assert_eq!(w.map_overlay.missing, 0);
+        for g in &groups {
+            let at = plain.placements[g[0]].transform.w_axis.truncate();
+            for (n, &i) in g.iter().enumerate() {
+                let (p, hidden) = (&w.placements[i], crate::world::HIDDEN_FLAG);
+                // (Some originals start hidden: scenery group members.)
+                assert_eq!(p.flags & hidden != 0, n == 0 || plain.placements[i].flags & hidden != 0, "placement {i}");
+                assert_eq!(p.transform.w_axis.truncate(), at + Vec3::Z * n as f32, "placement {i}");
+            }
+        }
+    };
+    let mut w = crate::world::World::load(&root, "L4RA").unwrap();
+    w.apply_map_mods("L4RA", &[("twins".into(), m.clone())]);
+    check(&w);
+    assert_eq!((w.map_overlay.moved, w.map_overlay.deleted), (twins, groups.len()));
+    // Each keeps its name after the others moved.
+    for g in &groups {
+        for &i in g {
+            assert_eq!(w.placement_ref("L4RA", i), plain.placement_ref("L4RA", i));
+        }
+    }
+    // A kept world's reset comes back to the world with the mod.
+    w.placements[groups[0][1]].transform = glam::Mat4::IDENTITY;
+    assert!(w.reset_to_loaded(false));
+    check(&w);
+    // The editor's way, one after another: each named apart from those
+    // already moved, and the saved mod gives the same world.
+    let (mut e, mut ew) = (MapMod::default(), crate::world::World::load(&root, "L4RA").unwrap());
+    let g = groups.iter().max_by_key(|g| g.len()).unwrap();
+    for (n, &i) in g.iter().enumerate() {
+        let at = ew.placements[i].transform.w_axis.truncate();
+        edit::set_transform(&mut e, "twins", &mut ew, "L4RA", i, at + Vec3::X * (n + 1) as f32, Mat3::IDENTITY)
+            .unwrap();
+    }
+    let e = MapMod::parse(&e.write()).unwrap();
+    let nths: Vec<u32> = e.props.iter().filter_map(PropEdit::target).map(|t| t.nth).collect();
+    assert_eq!(nths, (0..g.len() as u32).collect::<Vec<_>>());
+    let mut again = crate::world::World::load(&root, "L4RA").unwrap();
+    again.apply_map_mods("L4RA", &[("twins".into(), e)]);
+    for &i in g {
+        assert_eq!(again.placements[i].transform, ew.placements[i].transform, "placement {i}");
+    }
 }

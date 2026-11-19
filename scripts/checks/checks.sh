@@ -3,7 +3,8 @@
 #
 #   checks.sh fast    OUTDIR   merge set: build, cargo test, selftest, the prepare check, the fast-shots.txt shots, the four flows (< ~8 min)
 #   checks.sh full    OUTDIR   nightly set: + every --shot target (shot_targets.py), each twice (determinism),
-#                              intro GPS, rain flow, showcase, 1080p shot, drive bench, playthrough, combination matrix, resolution matrix
+#                              intro GPS, rain flow, showcase, 1080p shot, drive bench, playthrough, combination matrix, resolution matrix,
+#                              the map editor's shot matrix (EDITOR_SHOTS=1 runs it in fast too)
 #   checks.sh shots   OUTDIR T…  just those shot targets (twice with DET=1)
 #   (fast and full also run the provenance-tag check and the importer unit tests; full, or LAVAPIPE=1, the lavapipe
 #   check (SKIP without the driver is recorded as skipped, LAVAPIPE=require fails instead); full also selfcheck.sh,
@@ -26,7 +27,7 @@ set -u -o pipefail
 HERE=$(cd "$(dirname "$0")" && pwd)
 REPO=${REPO:-$(cd "$HERE/../.." && pwd)}
 SET=${1:-}; O=${2:-}
-case $SET in fast|full|shots) ;; *) sed -n '2,19p' "$0"; exit 2 ;; esac
+case $SET in fast|full|shots) ;; *) sed -n '2,20p' "$0"; exit 2 ;; esac
 [ -n "$O" ] || { echo "checks.sh: OUTDIR missing" >&2; exit 2; }
 shift 2
 [ "$SET" != shots ] || [ $# -gt 0 ] || { echo "checks.sh: shots needs at least one target" >&2; exit 2; }
@@ -285,6 +286,19 @@ if [ "$SET" = full ]; then
     RES_SET=${RES_SET:-family} run resolutions 7200 "$HERE/resolutions.sh" "$O/resolutions" "$BIN"
     say "resolutions rc=$RC: $(grep -E '^RESOLUTIONS( SELFTEST)?:' "$O/resolutions.log" | tail -2 | tr '\n' ' ' | cut -c1-400)"
     [ $RC = 0 ] || { grep -E '^FAIL ' "$O/resolutions/results.txt" 2> /dev/null | head -10 | cut -c1-200 | tee -a "$OUT"; fail resolutions; }
+  fi
+fi
+
+# The map editor's shot matrix (editor_shots.sh, docs/checks.md "Editor shots"): `overbright-editor --shot` headless on
+# three screens at one size per aspect family and two display scales (EDITOR_SET=all: every size of the resolution
+# matrix); full, or EDITOR_SHOTS=1 in fast; EDITOR_SHOTS=off skips it. A failing cell fails the set.
+if [ "$SET" = full ] || [ -n "${EDITOR_SHOTS:-}" ]; then
+  if [ "${EDITOR_SHOTS:-}" = off ]; then
+    say "editor_shots: SKIP (EDITOR_SHOTS=off)"; SKIPPED+=(editor_shots)
+  else
+    EDITOR_SET=${EDITOR_SET:-family} run editor_shots 3600 "$HERE/editor_shots.sh" "$O/editor_shots" "$CARGO_TARGET_DIR/$CK_PDIR/overbright-editor"
+    say "editor_shots rc=$RC ${STEP_S[editor_shots]} s: $(grep -E '^EDITOR_SHOTS:' "$O/editor_shots.log" | tail -1 | cut -c1-200)"
+    [ $RC = 0 ] || { grep -E '^FAIL ' "$O/editor_shots/results.txt" 2> /dev/null | head -10 | cut -c1-200 | tee -a "$OUT"; fail editor_shots; }
   fi
 fi
 

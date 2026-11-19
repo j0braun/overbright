@@ -248,11 +248,12 @@ def main():
     num = {h: i + 1 for i, (h, _) in enumerate(order)}
     out = []
     out.append(f"Third-party licences of the Overbright programs ({a.target})\n")
-    out.append("The player's programs (overbright, game) are built from Overbright's own source code (GPL-3.0-or-later,")
-    out.append("see LICENSE) and the Rust crates below, each under its own licence. \"linked\" crates are compiled")
-    out.append("into the programs; \"build time\" crates (procedural macros and what only they use) generate code")
-    out.append("while compiling and are not linked. Other third-party material (fonts, shaders, algorithms) is")
-    out.append("listed in THIRD-PARTY-NOTICES.md. All crates come from https://crates.io/crates/<name>/<version>.")
+    out.append("The player's programs (overbright, game, overbright-editor) are built from Overbright's own source")
+    out.append("code (GPL-3.0-or-later, see LICENSE) and the Rust crates below, each under its own licence.")
+    out.append("\"linked\" crates are compiled into the programs; \"build time\" crates (procedural macros and what")
+    out.append("only they use) generate code while compiling and are not linked. Other third-party material (fonts,")
+    out.append("shaders, algorithms) is listed in THIRD-PARTY-NOTICES.md. All crates come from")
+    out.append("https://crates.io/crates/<name>/<version>.")
     out.append("After the crates' licence texts: the Rust standard library's notices and, for Windows, the")
     out.append("runtime libraries of the compiler toolchain that are linked into the programs.\n")
     w = max(len(f"{pkgs[c]['name']} {pkgs[c]['version']}") for c in crates)

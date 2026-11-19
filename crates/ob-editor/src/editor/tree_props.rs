@@ -25,9 +25,9 @@ pub struct Row {
 /// this region's edits.
 pub fn rows(s: &EditorState) -> [Vec<Row>; 3] {
     let mut out: [Vec<Row>; 3] = Default::default();
-    let overlay = &s.world.map_overlay;
-    for (k, e) in s.map.props.iter().enumerate() {
-        if !e.region().eq_ignore_ascii_case(&s.region) {
+    let overlay = &s.session.world.map_overlay;
+    for (k, e) in s.session.map.props.iter().enumerate() {
+        if !e.region().eq_ignore_ascii_case(&s.session.region) {
             continue;
         }
         let (group, solid, section, placement) = match e {
@@ -35,8 +35,8 @@ pub fn rows(s: &EditorState) -> [Vec<Row>; 3] {
                 let i = overlay.originals.iter().find(|(_, r)| *r == target).map(|(i, _)| *i);
                 (usize::from(matches!(e, PropEdit::Delete { .. })), target.solid.clone(), Some(target.section), i)
             }
-            PropEdit::Add { solid, .. } => {
-                let i = overlay.added.iter().find(|(_, (f, kk))| *f == s.folder && *kk == k).map(|(i, _)| *i);
+            PropEdit::Add { id, solid, .. } => {
+                let i = overlay.placement_of_add(&s.session.folder, id);
                 (2, solid.clone(), None, i)
             }
         };
@@ -57,7 +57,7 @@ pub fn ui(s: &mut EditorState, ui: &mut Ui) -> Option<Event> {
     let groups = rows(s);
     let total: usize = groups.iter().map(Vec::len).sum();
     let mut event = None;
-    egui::CollapsingHeader::new(RichText::new(format!("Props  ·  {total} edits")).color(colour(THEME_A.ink)))
+    egui::CollapsingHeader::new(RichText::new(format!("Props  ·  {total} {}", if total == 1 { "edit" } else { "edits" })).color(colour(THEME_A.ink)))
         .id_salt("tree-props")
         .default_open(true)
         .show(ui, |ui| {

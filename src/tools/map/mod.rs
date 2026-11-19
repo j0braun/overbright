@@ -12,9 +12,12 @@
 //! The editor itself (free camera, picking, the edits) is opt-in: only a
 //! start with `--editor` makes it reachable ([`editor_enabled`]).
 
+pub mod assets;
 pub mod edit;
 pub mod format;
+pub mod ops;
 pub mod race;
+pub mod session;
 pub mod sim;
 pub mod store;
 
@@ -29,21 +32,35 @@ pub struct Applied {
     /// The original placements a mod moved or hid, with their names as
     /// the original data has them.
     pub originals: HashMap<usize, PropRef>,
-    /// The added placements: the mod folder and the index of its edit.
-    pub added: HashMap<usize, (String, usize)>,
+    /// Where the original placements a mod moved stood before (exactly),
+    /// so they keep their names and their twins' `nth`.
+    pub original_at: HashMap<usize, glam::Vec3>,
+    /// The added placements: the mod folder and the add's id.
+    pub added: HashMap<usize, (String, String)>,
     /// The first added placement (all after it are added).
     pub first_added: Option<usize>,
     pub moved: usize,
     pub deleted: usize,
     /// Edits naming a placement or solid the world does not have.
     pub missing: usize,
+    /// The originals indexed for naming them, and what the editor's live
+    /// re-apply keeps (`World::reapply_map_mod`).
+    pub index: crate::world::MapIndex,
+}
+
+impl Applied {
+    /// The placement the add `id` of the mod in `folder` became.
+    pub fn placement_of_add(&self, folder: &str, id: &str) -> Option<usize> {
+        self.added.iter().find(|(_, (f, a))| f == folder && a == id).map(|(i, _)| *i)
+    }
 }
 
 static EDITOR: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 type Mods = Arc<Vec<(String, MapMod)>>;
-/// `--map-mod <folder>` (a test run started by the desktop editor): this
-/// one mod for the whole run instead of `enabled.txt`'s list.
-static ONLY: RwLock<Option<String>> = RwLock::new(None);
+/// `--map-mod <folder>` or `--map-file <path>` (a test run started by the
+/// desktop editor): this one mod for the whole run instead of
+/// `enabled.txt`'s list.
+static ONLY: RwLock<Option<Only>> = RwLock::new(None);
 /// The enabled mods read, by the maps folder they were read from (a test
 /// with its own data folder has its own).
 static ACTIVE: RwLock<Option<HashMap<std::path::PathBuf, Mods>>> = RwLock::new(None);
@@ -57,26 +74,54 @@ pub fn set_editor_enabled(on: bool) {
     EDITOR.store(on, std::sync::atomic::Ordering::Relaxed);
 }
 
-/// Apply only the mod in `folder` for the rest of the run, whatever
-/// `enabled.txt` lists (None: the list again). Nothing is written.
-pub fn set_only(folder: Option<&str>) {
-    *ONLY.write().unwrap() = folder.map(str::to_string);
+/// The one mod a run applies ([`set_only`]).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Only {
+    /// The mod in `<maps>/<folder>/map.obmap` (`--map-mod`).
+    Folder(String),
+    /// A mod file anywhere (`--map-file`, the editor's run copy of unsaved
+    /// changes), known in the run as the mod `folder` (its races are found
+    /// under that name).
+    File { folder: String, path: std::path::PathBuf },
+}
+
+impl Only {
+    /// The name the run knows the mod by.
+    pub fn folder(&self) -> &str {
+        match self {
+            Only::Folder(f) | Only::File { folder: f, .. } => f,
+        }
+    }
+
+    /// The file it is read from (`dir`: the maps folder).
+    pub fn path(&self, dir: &std::path::Path) -> std::path::PathBuf {
+        match self {
+            Only::Folder(f) => dir.join(f).join(store::FILE),
+            Only::File { path, .. } => path.clone(),
+        }
+    }
+}
+
+/// Apply only this mod for the rest of the run, whatever `enabled.txt`
+/// lists (None: the list again). Nothing is written.
+pub fn set_only(only: Option<Only>) {
+    *ONLY.write().unwrap() = only;
     ACTIVE.write().unwrap().take();
 }
 
 /// The one mod [`set_only`] chose.
-pub fn only() -> Option<String> {
+pub fn only() -> Option<Only> {
     ONLY.read().unwrap().clone()
 }
 
 /// The mods in use read from `dir`: the [`set_only`] one, else the
 /// enabled ones.
-fn read_mods(dir: &std::path::Path, only: Option<String>) -> Vec<(String, MapMod)> {
+fn read_mods(dir: &std::path::Path, only: Option<Only>) -> Vec<(String, MapMod)> {
     match only {
-        Some(f) => match store::read_file(&dir.join(&f).join(store::FILE)) {
-            Ok(m) => vec![(f, m)],
+        Some(o) => match store::read_file(&o.path(dir)) {
+            Ok(m) => vec![(o.folder().to_string(), m)],
             Err(e) => {
-                log::warn!("map mod {f} not loaded: {e:#}");
+                log::warn!("map mod {} not loaded: {e:#}", o.folder());
                 Vec::new()
             }
         },
@@ -141,8 +186,17 @@ mod only_tests {
         let before = std::fs::read_to_string(dir.join(store::ENABLED)).unwrap();
         let names = |v: Vec<(String, MapMod)>| v.into_iter().map(|(f, _)| f).collect::<Vec<_>>();
         assert_eq!(names(read_mods(&dir, None)), ["on"]);
-        assert_eq!(names(read_mods(&dir, Some("off".into()))), ["off"], "only the chosen one, on or off");
-        assert!(read_mods(&dir, Some("missing".into())).is_empty());
+        assert_eq!(names(read_mods(&dir, Some(Only::Folder("off".into())))), ["off"], "only the chosen one, on or off");
+        assert!(read_mods(&dir, Some(Only::Folder("missing".into()))).is_empty());
+        // A file anywhere, known by the folder it was given.
+        let copy = dir.join("on").join(store::EDITOR_DIR).join(store::RUN_DIR).join(store::FILE);
+        store::write_run_copy(&dir, "on", &m("On, unsaved")).unwrap();
+        let file = Only::File { folder: "on".into(), path: copy.clone() };
+        let got = read_mods(&dir, Some(file));
+        assert_eq!((got.len(), got[0].0.as_str(), got[0].1.name.as_str()), (1, "on", "On, unsaved"));
+        assert_eq!(store::read_file(&dir.join("on").join(store::FILE)).unwrap().name, "On", "the saved mod is untouched");
+        let gone = Only::File { folder: "on".into(), path: dir.join("nowhere.obmap") };
+        assert!(read_mods(&dir, Some(gone)).is_empty());
         assert_eq!(std::fs::read_to_string(dir.join(store::ENABLED)).unwrap(), before, "the list is never written");
         let _ = std::fs::remove_dir_all(&dir);
     }

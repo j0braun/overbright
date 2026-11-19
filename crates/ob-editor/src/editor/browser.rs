@@ -144,9 +144,9 @@ pub struct Browser {
 
 impl Browser {
     fn entries(&mut self, s: &EditorState) -> &[Entry] {
-        let key = (s.world.placements.len(), s.map.props.len());
+        let key = (s.session.world.placements.len(), s.session.map.props.len());
         if self.cache.as_ref().is_none_or(|c| c.0 != key) {
-            self.cache = Some((key, entries(&s.world)));
+            self.cache = Some((key, entries(&s.session.world)));
         }
         &self.cache.as_ref().unwrap().1
     }

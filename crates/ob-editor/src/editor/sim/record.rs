@@ -8,6 +8,10 @@ use glam::Vec3;
 
 use super::format::{CarInfo, CarKind, CarSample, Event, EventKind, Frame, Header, Line, ResultRow};
 
+/// What the player's slot is called in the results, events and follow list:
+/// in a simulation the AI drives it.
+pub const PLAYER_SLOT: &str = "Your slot (AI)";
+
 /// The playback speeds offered.
 pub const SPEEDS: [f32; 6] = [0.25, 0.5, 1.0, 2.0, 4.0, 8.0];
 
@@ -80,15 +84,14 @@ impl Recording {
         self.frames.get(k.saturating_sub(1))
     }
 
-    /// The car's name ("Racer 3" when the stream gave none).
+    /// The car's name ("Racer 3" when the stream gave none; the player's
+    /// slot, which the AI drives in a simulation, is "Your slot (AI)").
     pub fn name(&self, id: u32) -> String {
         match self.cars.get(&id) {
-            Some(c) if !c.name.is_empty() => match c.kind {
-                CarKind::Player => format!("{} (player slot)", c.name),
-                _ => c.name.clone(),
-            },
+            Some(c) if c.kind == CarKind::Player => PLAYER_SLOT.into(),
+            Some(c) if !c.name.is_empty() => c.name.clone(),
             Some(c) => match c.kind {
-                CarKind::Player => "Player slot".into(),
+                CarKind::Player => PLAYER_SLOT.into(),
                 CarKind::Racer => format!("Racer {id}"),
                 CarKind::Traffic => format!("Traffic {id}"),
                 CarKind::Encounter => format!("Street racer {id}"),
@@ -122,9 +125,13 @@ impl Recording {
         v
     }
 
-    /// The results table: the stream's result lines when it ended, else
-    /// the race as it stands at `time` (place, laps done, finish time).
+    /// The results table at `time`, in order: the stream's result lines
+    /// once the run has ended there, else the race as it stands (finished
+    /// racers by finish time, then the rest by their place on the road).
+    /// Racers without a finish when the run ended are last, marked
+    /// `dnf`; before the green light nobody has a place yet (grid order).
     pub fn standings(&self, time: f32) -> Vec<Standing> {
+        let ended = self.end.is_some() && self.span().is_some_and(|(_, end)| time >= end);
         let laps_done = |id: u32| -> Vec<f32> {
             self.events
                 .iter()
@@ -132,17 +139,29 @@ impl Recording {
                 .map(|e| e.value)
                 .collect()
         };
-        if !self.results.is_empty() && self.end.is_some() && self.span().is_some_and(|(_, end)| time >= end) {
+        if ended && !self.results.is_empty() {
             let mut v: Vec<Standing> = self
                 .results
                 .iter()
-                .map(|r| Standing { car: r.car, place: r.place, time: r.time, best: r.best, laps: r.laps.clone() })
+                .map(|r| Standing {
+                    car: r.car,
+                    place: r.place,
+                    time: r.time.filter(|_| r.place > 0),
+                    best: r.best,
+                    laps: r.laps.clone(),
+                    dnf: r.place == 0,
+                })
                 .collect();
-            v.sort_by_key(|s| (if s.place == 0 { u32::MAX } else { s.place }, s.car));
+            v.sort_by(|a, b| {
+                (a.dnf, a.place, a.time.unwrap_or(f32::MAX), a.car)
+                    .partial_cmp(&(b.dnf, b.place, b.time.unwrap_or(f32::MAX), b.car))
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            });
             return v;
         }
         let Some(f) = self.frame_at(time) else { return Vec::new() };
-        let mut v: Vec<Standing> = f
+        let started = time >= 0.0;
+        let mut v: Vec<(Standing, u32)> = f
             .cars
             .iter()
             .filter(|c| c.kind.races())
@@ -150,17 +169,34 @@ impl Recording {
                 let laps = laps_done(c.id);
                 let finish =
                     self.events.iter().find(|e| e.car == c.id && e.kind == EventKind::Finish && e.time <= time);
-                Standing {
+                let s = Standing {
                     car: c.id,
-                    place: c.place,
+                    place: 0,
                     time: finish.map(|e| e.value),
                     best: laps.iter().copied().reduce(f32::min),
                     laps,
-                }
+                    dnf: ended && finish.is_none(),
+                };
+                (s, c.place)
             })
             .collect();
-        v.sort_by_key(|s| (if s.place == 0 { u32::MAX } else { s.place }, s.car));
-        v
+        // Finished first by time, then on the road by the game's place
+        // (none = last), the unfinished at the end last of all.
+        v.sort_by(|(a, pa), (b, pb)| {
+            let key = |s: &Standing, p: u32| {
+                (s.dnf, s.time.is_none(), s.time.unwrap_or(0.0), if p == 0 { u32::MAX } else { p }, s.car)
+            };
+            key(a, *pa).partial_cmp(&key(b, *pb)).unwrap_or(std::cmp::Ordering::Equal)
+        });
+        v.into_iter()
+            .enumerate()
+            .map(|(k, (mut s, _))| {
+                if started && !s.dnf {
+                    s.place = k as u32 + 1;
+                }
+                s
+            })
+            .collect()
     }
 
     /// The problems (stuck, wrong way, crashes) for the race's validation,
@@ -194,6 +230,8 @@ pub struct Standing {
     pub time: Option<f32>,
     pub best: Option<f32>,
     pub laps: Vec<f32>,
+    /// Did not finish: the run ended without this racer's finish.
+    pub dnf: bool,
 }
 
 /// A problem the simulation found, for the Validation list.
@@ -471,11 +509,46 @@ mod tests {
         let st = rec.standings(1.0);
         assert_eq!((st[0].car, st[0].place, st[1].place), (0, 1, 0), "the final results, unfinished last");
         assert_eq!(rec.name(1), "Rival");
-        assert_eq!(rec.name(0), "Player slot");
+        assert_eq!(rec.name(0), "Your slot (AI)");
+        assert!(st[1].dnf && st[1].time.is_none(), "did not finish");
         let t = rec.trace(0, 0.0, 10);
         assert_eq!(t.len(), 1);
         assert_eq!(t[0].len(), 7);
         assert_eq!(rec.racers(), vec![0, 1]);
+    }
+
+    #[test]
+    fn results_sort_by_finish_and_put_the_unfinished_last() {
+        let ev = |time: f32, kind, car| Event { tick: 0, time, kind, car, checkpoint: 0, value: time };
+        let row = |car, place, time: Option<f32>| ResultRow { car, place, time, best: time, laps: Vec::new() };
+        // Before the green: grid order, nobody placed (the player's slot is
+        // not "first" yet).
+        let mut rec = race(121, None);
+        rec.push(Line::Car(CarInfo { id: 0, kind: CarKind::Player, name: "PEUGOT".into() }));
+        let st = rec.standings(-0.5);
+        assert_eq!(st.iter().map(|s| (s.car, s.place)).collect::<Vec<_>>(), vec![(1, 0), (0, 0)]);
+        assert_eq!(rec.name(0), "Your slot (AI)", "the slot's label, not its car");
+        // A finished racer goes ahead of one still on the road, whatever
+        // the road place says.
+        rec.push(Line::Event(ev(0.5, EventKind::Finish, 0)));
+        let st = rec.standings(1.0);
+        assert_eq!(st.iter().map(|s| (s.car, s.place)).collect::<Vec<_>>(), vec![(0, 1), (1, 2)]);
+        assert!(st.iter().all(|s| !s.dnf), "the run goes on");
+        // The run ended without result lines (time limit): no finish = DNF.
+        rec.push(Line::End("limit".into()));
+        let st = rec.standings(1.0);
+        assert_eq!((st[0].car, st[0].place, st[0].dnf), (0, 1, false));
+        assert_eq!((st[1].car, st[1].place, st[1].dnf), (1, 0, true));
+        // Result lines in the stream's order (by car) come out by place,
+        // the unfinished last; before the end the race as it stood shows.
+        let mut rec = race(121, Some("finish"));
+        for (car, place, time) in [(0, 0, None), (1, 2, Some(14.7)), (2, 3, Some(15.3)), (3, 1, Some(14.1))] {
+            rec.push(Line::Result(row(car, place, time)));
+        }
+        let st = rec.standings(1.0);
+        assert_eq!(st.iter().map(|s| s.car).collect::<Vec<_>>(), vec![3, 1, 2, 0]);
+        assert_eq!(st.iter().map(|s| s.dnf).collect::<Vec<_>>(), vec![false, false, false, true]);
+        assert_eq!(rec.standings(0.5).len(), 2, "mid-run: the frame's racers");
     }
 
     #[test]
