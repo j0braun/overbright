@@ -133,6 +133,9 @@ pub(crate) fn render_garage(
 ) -> bool {
     let Some(request) = request else { return false };
     let Some(g) = garage.as_mut().filter(|g| g.platform.name == request.platform) else { return false };
+    // The drive's ticks (published when a shop or the crib opens over
+    // free roam) are not this scene's: its effects step per draw.
+    let _drive_ticks = nfsu2::render::enh::tick_views::SetAside::new();
     let renderer = g.renderer.get_or_insert_with(|| WorldRenderer::new(gpu, &g.platform.world, format, opts));
     // Full Screen Anti-Aliasing: the game's back buffer is multisampled
     // (0x5B9B3B), so the front end's scene is too.

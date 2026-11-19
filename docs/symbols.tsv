@@ -500,7 +500,7 @@ address	kind	name	description	confidence	doc_ref
 0x5E7E80	function	World_QueryGroundThunk	thunk to 0x5E72F0	verified	formats.md:3127
 0x5E8790	function	AIRoute_PrecomputeSpeeds	racing-line speed precompute per control point	verified	formats.md:6934
 0x5EA510	function	Rand_Float01	random float on a generator	inferred	formats.md:7304
-0x5EA540	function	Race_FinishHold	finish hold time	verified	formats.md:5732
+0x5EA540	function	Race_FinishHold	finish hold time; ends the nitrous shot (0x592510)	verified	formats.md:5732
 0x5EB5E0	function	World_FindMarker	look up start markers (grid)	verified	formats.md:4932
 0x5EBA40	function	Car_SetController	controller type (1 human, 3 AI)	verified	formats.md:4246
 0x5EC070	function	Car_IsTrafficOrHidden	traffic/hidden car test	inferred	formats.md:7764
