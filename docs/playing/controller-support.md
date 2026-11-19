@@ -63,8 +63,9 @@ All under **Enhancements → Controller**. Each is off, or at the original's val
 | Pause on Disconnect | Off / On | Off |
 | Safe Axis Binding | Off / On | Off |
 
-- **Rumble** shakes the pad on bumps and hard speed changes, on rough ground, on a nitrous shot and on a gear
-  change. The original has no rumble for pads.
+- **Rumble** shakes the pad on bumps and hard speed changes, on textured ground (kerbs, pavement), on rough
+  ground, on a nitrous shot and on a gear change. The original has no rumble for pads. On Windows it uses the
+  pad's motors through Windows.Gaming.Input (XInput pads); this was not yet tried on a real Windows PC.
 - **Pause on Disconnect** opens the pause menu when the pad you drive with is unplugged in a race or free
   roam. Without it, the car keeps rolling.
 - **Safe Axis Binding**: when you bind an axis on the Controls page, only the axis you moved most is bound;
@@ -138,8 +139,10 @@ filters off.
   0x5C9FE0, bump jolt 0x5C9770 (speed change > 4 within 0.15 s, or the wheels' +0x370.. sum > 0.05),
   0x5C9DA0 on surface 0xD. These are DirectInput force-feedback effects for wheels; a pad under DirectInput
   has no actuators, so the original gives a pad no rumble. The Rumble setting models the jolt (strong motor,
-  by the speed change) and adds weak-motor rumble for surface 0xD (**inferred** to be "rough"), a nitrous
-  shot and a gear change.
+  by the speed change, and by the wheels' suspension travel over 0.05 m in a tick: the travel is **inferred**
+  to be what the +0x370.. sum measures) and the terrain effect's road texture (weak motor, 0x5C9FE0's surface
+  table: surfaces 8–11 and 15–17, amplitude / 2 × min(1, speed / 13 m/s); plain asphalt gives none), and adds
+  weak-motor rumble for surface 0xD (**inferred** to be "rough"), a nitrous shot and a gear change.
 - **Which device drives** (partly traced): player p's device byte 0x864788[p] (0xFF = default 0x7F9414[p])
   is set by the event-1 handler 0x571A30, registered by 0x579560. What raises event 1 is **open**, so "the
   first attached pad drives" stays **inferred**.

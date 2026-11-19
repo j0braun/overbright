@@ -33,6 +33,9 @@ folder cannot be written, next to the program, then to the temporary folder. The
 - the graphics adapters and drivers and the one the game picks (`game --list-adapters`), and the launcher's
   hardware check (`game --probe`), each asked in a process of its own with a 20 s limit: a driver that crashes
   or hangs while listing shows up as that (with its exit code, e.g. `0xc0000005 (access violation)`);
+- made in the game (Ctrl+F8): the graphics adapter and the audio output in use (the sound device, its sample
+  rate, its channel count and layout, e.g. `6 channels (5.1 …)`, and the sample format); the game's log has the
+  same `audio:` line from each time the output opens;
 - on Windows, the Application event log's recent crash entries for `overbright.exe` and `game.exe` (the
   faulting module and the exception code of a start that ended without a word);
 - the settings files (options.txt, the kept game and texture-pack folders);
