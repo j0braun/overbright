@@ -237,8 +237,8 @@ pub fn scrub_users(s: &str) -> String {
 
 fn default_game_exe(origin: Origin) -> PathBuf {
     match origin {
-        Origin::Launcher => crate::launcher::dirs::game_exe(),
-        _ => std::env::current_exe().unwrap_or_else(|_| crate::launcher::dirs::game_exe()),
+        Origin::Launcher => crate::platform::dirs::game_exe(),
+        _ => std::env::current_exe().unwrap_or_else(|_| crate::platform::dirs::game_exe()),
     }
 }
 

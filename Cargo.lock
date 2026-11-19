@@ -1762,9 +1762,6 @@ dependencies = [
  "block_compression",
  "bytemuck",
  "cpal",
- "egui",
- "egui-wgpu",
- "egui-winit",
  "env_logger",
  "gilrs",
  "glam",
@@ -1775,6 +1772,7 @@ dependencies = [
  "memmap2",
  "mimalloc",
  "miniz_oxide 0.8.9",
+ "ob-testkit",
  "pollster 0.4.0",
  "profiling",
  "proptest",
@@ -1860,6 +1858,31 @@ dependencies = [
  "quote",
  "syn 2.0.119",
 ]
+
+[[package]]
+name = "ob-editor"
+version = "0.3.0"
+dependencies = [
+ "ab_glyph",
+ "anyhow",
+ "egui",
+ "egui-wgpu",
+ "egui-winit",
+ "env_logger",
+ "glam",
+ "image",
+ "log",
+ "nfsu2",
+ "ob-testkit",
+ "pollster 0.4.0",
+ "toml",
+ "wgpu",
+ "winit",
+]
+
+[[package]]
+name = "ob-testkit"
+version = "0.3.0"
 
 [[package]]
 name = "objc-sys"

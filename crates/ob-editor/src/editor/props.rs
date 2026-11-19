@@ -10,7 +10,7 @@ use egui::{Color32, Pos2, Rect, RichText, Stroke, Ui};
 use glam::{Mat3, Vec3, Vec4};
 
 use super::state::{EditorState, Panel, commit, project};
-use crate::launcher::draw::{Rgb, THEME_A};
+use crate::launch::theme::{Rgb, THEME_A};
 use crate::tools::map::edit::{self, PropState};
 use crate::world::World;
 
@@ -764,8 +764,46 @@ mod tests {
     use crate::draw::camera::Camera;
     use crate::tools::map::{MapMod, PropEdit};
 
+    /// A flat floor at z = 0 with two cones standing on it and a barrier
+    /// 2 m above it (the library's `tools::map::edit` tests use the same).
+    fn world() -> crate::world::World {
+        use glam::Mat4;
+        let solid = |name: &str| crate::formats::solid::Solid {
+            name: name.into(),
+            hash: crate::formats::hash::bin_hash(name),
+            bbox_min: [-0.5, -0.5, 0.0],
+            bbox_max: [0.5, 0.5, 1.0],
+            textures: Vec::new(),
+            vertices: Vec::new(),
+            normals: Vec::new(),
+            light_materials: Vec::new(),
+            indices: Vec::new(),
+            materials: Vec::new(),
+            mesh_flags: 0,
+            markers: Vec::new(),
+            light_markers: Vec::new(),
+        };
+        let mut w = crate::world::World::flat(200.0);
+        w.solids = vec![solid("XC_CONE_01"), solid("XC_BARRIER_03")];
+        let place = |solid, at: Vec3| crate::world::Placement {
+            solid,
+            low_solid: None,
+            mid_solid: None,
+            transform: Mat4::from_translation(at),
+            section: 618,
+            flags: 0,
+            cull_radius: 5.0,
+        };
+        w.placements = vec![
+            place(0, Vec3::new(10.0, 0.0, 0.0)),
+            place(0, Vec3::new(20.0, 0.0, 0.0)),
+            place(1, Vec3::new(30.0, 0.0, 2.0)),
+        ];
+        w
+    }
+
     fn state() -> EditorState {
-        let world = crate::tools::map::edit::tests::world();
+        let world = world();
         let camera = Camera::looking_at(Vec3::new(0.0, -20.0, 10.0), Vec3::new(10.0, 0.0, 0.0));
         EditorState::new("root".into(), "L4RA", "maps".into(), "my-map", MapMod::default(), world, camera)
     }

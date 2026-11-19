@@ -1,7 +1,12 @@
 # Architecture
 
-One Cargo package, `nfsu2` (a library and several binaries), plus, in the maintainer's full tree only, the `devprobes`
-workspace member (developer probes, not built by default; not in the public repository) and a separate `fuzz/` crate. The library holds everything that can be tested
+A Cargo workspace. The main package, `nfsu2` (a library and several binaries), sits on `crates/ob-testkit` (the
+test kit, a dev-dependency; docs/testing.md). The map editor is a leaf crate on the library, `crates/ob-editor`
+(its `src/editor/` and the `overbright-editor` binary; docs/map-editor.md), so the game's dependency tree has
+no egui; what the game and the editor share (the simulation stream, `tools::map::sim`) is in the library. In the maintainer's full tree only there is also the `devprobes`
+workspace member (developer probes, not built by default; not in the public repository), and `fuzz/` is a separate crate.
+Package dependencies point one way only, from the programs down to the library and from there to the kit
+(`cargo metadata` shows no edge back up). The library holds everything that can be tested
 without a window; the game binary (`src/bin/game.rs` + `src/bin/game/`) holds the application: the window,
 the frame loop and the glue that turns the library's parts into the running game.
 
@@ -20,7 +25,7 @@ the frame loop and the glue that turns the library's parts into the running game
 | rendering | `render/` | The wgpu renderer, in three layers (below). |
 | input and platform | `pad/`, `platform/`, `allocator.rs`, `latency.rs` | Gamepads (gilrs), folders and paths per OS (docs/platform-dirs.md), the allocator choice, frame pacing. |
 | extras and tools | `qol/`, `diag/`, `overlay/`, `mark_spot.rs`, `photo.rs`, `upscale*.rs`, `texture_mods.rs`, `tpf_import.rs`, `texwizard_import.rs`, `hud_mod.rs`, `hd_ui_pack.rs`, `model_fixes.rs` | The opt-in quality-of-life features, the F3 overlay, the support file and event log (docs/troubleshooting.md), report and photo tools, texture-pack generation, the texture mods' and the HUD mod's import. |
-| launcher | `launcher/` (binary `src/bin/overbright.rs`) | The launcher: game-folder search and check, settings, the start choices, the Mods page (texture mods, the HUD mod), start. CPU-drawn (no wgpu), so it opens without a Vulkan driver (docs/launcher.md). |
+| launcher | `launcher/` (binary `src/bin/overbright.rs`), `launch/` | The launcher: game-folder search and check, settings, the start choices, the Mods page (texture mods, the HUD mod), start. CPU-drawn (no wgpu), so it opens without a Vulkan driver (docs/launcher.md). `launch/` is the contract the game and the map editor share with it (`game --probe`'s report, `game --prepare`'s lines, the `error.kind=` line, the look's colour tokens); the game binary, the map editor and the rest of the library name no `launcher::` path (a few library tests still use the launcher's model). |
 
 ### Rendering layers
 
@@ -48,7 +53,8 @@ original's frames byte for byte, which the gate checks.
 | `dev/`, `dev_hooks.rs` | The developer harness (`--shot`, `--selftest`, `--flow`, `--bench`, `--playthrough`, parity, audio capture). Compiled only with the Cargo feature `dev-harness`; the game's paths call it only through `dev_hooks.rs`, which is a set of no-op stubs without the feature (layering rule 3). |
 | `tests/` | The game binary's tests (built with `dev-harness`). |
 
-Other binaries in `src/bin/`: `overbright` (the launcher), `overbright-upscale` (texture-pack generator) and
+The map editor's binary is `crates/ob-editor/src/bin/overbright-editor.rs`. Other binaries in `src/bin/`:
+`overbright` (the launcher), `overbright-upscale` (texture-pack generator) and
 developer tools (`inspect`, `world`, `car_check`, `car_inspect`, `car_textures`, `dump_textures`,
 `bundle_dump`, `frontend`). `examples/` holds public check programs; `devprobes/` (private set) the developer probes.
 

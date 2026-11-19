@@ -30,7 +30,7 @@ pub enum Target {
 /// The game's executable beside the editor's (`game`, `game.exe`);
 /// `OB_GAME_EXE` names another (tests).
 pub fn game_exe() -> PathBuf {
-    crate::launcher::dirs::game_exe()
+    crate::platform::dirs::game_exe()
 }
 
 /// The game's command line for a test run.

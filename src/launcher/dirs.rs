@@ -54,20 +54,10 @@ pub fn original_saves() -> Option<PathBuf> {
     None
 }
 
-/// The player's home folder (the folder browser's Home).
-pub fn home() -> Option<PathBuf> {
-    std::env::var_os(if cfg!(windows) { "USERPROFILE" } else { "HOME" }).map(PathBuf::from)
-}
-
-/// The game's executable beside the launcher's (`game`, `game.exe`);
-/// `OB_GAME_EXE` names another (the start tests' stub game).
-pub fn game_exe() -> PathBuf {
-    if let Some(p) = std::env::var_os("OB_GAME_EXE").filter(|p| !p.is_empty()) {
-        return PathBuf::from(p);
-    }
-    let name = if cfg!(windows) { "game.exe" } else { "game" };
-    std::env::current_exe().ok().and_then(|p| p.parent().map(|d| d.join(name))).unwrap_or_else(|| PathBuf::from(name))
-}
+// The home folder and the game's executable beside this program: the
+// library's (`platform::dirs`), as the map editor and the support file
+// need them too.
+pub use crate::platform::dirs::{game_exe, home};
 
 /// The map editor's executable beside the launcher's (`overbright-editor`,
 /// `overbright-editor.exe`); `OB_EDITOR_EXE` names another (tests).

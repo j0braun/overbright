@@ -581,6 +581,24 @@ pub fn test_cache_folder() -> PathBuf {
         .unwrap_or_else(|| std::env::temp_dir().join("overbright-test-cache"))
 }
 
+// ------------------------------------------------------------ programs
+
+/// The player's home folder (the folder browser's Home).
+pub fn home() -> Option<PathBuf> {
+    std::env::var_os(if cfg!(windows) { "USERPROFILE" } else { "HOME" }).map(PathBuf::from)
+}
+
+/// The game's executable beside this program's (the launcher's, the map
+/// editor's: `game`, `game.exe`);
+/// `OB_GAME_EXE` names another (the start tests' stub game).
+pub fn game_exe() -> PathBuf {
+    if let Some(p) = std::env::var_os("OB_GAME_EXE").filter(|p| !p.is_empty()) {
+        return PathBuf::from(p);
+    }
+    let name = if cfg!(windows) { "game.exe" } else { "game" };
+    std::env::current_exe().ok().and_then(|p| p.parent().map(|d| d.join(name))).unwrap_or_else(|| PathBuf::from(name))
+}
+
 // ------------------------------------------------------------ locations
 
 /// A folder the player can put elsewhere (Settings › Advanced › Storage).

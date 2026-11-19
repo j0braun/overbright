@@ -87,7 +87,8 @@ launcher.log (`diag::native_crash`). With a pad as the last input the page names
 the Settings note shows the held button's glyph; at the first start that found the game the main screen
 says so, and Play keeps the folder. `--input pad|deck|ps|kbd|mouse` picks the legends of a render.
 
-**Look**: `draw::THEME_A` (page #050605, ink #EEF0E8, secondary #C8CCC0, lime #C6F087 for titles and focus,
+**Look**: `draw::THEME_A` (the tokens are the library's `launch::theme`, which the map editor and the
+game's free-camera panel wear too; page #050605, ink #EEF0E8, secondary #C8CCC0, lime #C6F087 for titles and focus,
 Play #F2F4EC), Sofia Sans Semi Condensed (italic for titles, Play, labels and buttons; upright for reading),
 focus rings at least 3 px and never in the primary style. Sizes follow the mockups' unit (1 at 1366 × 768,
 `Builder::ua`); the frame's vertical margins press together on short windows (`Builder::ac`).
@@ -155,7 +156,8 @@ lists each legend as `[button legend:<button> …]`.
   `unreadable-folder`, `import-done`, `import-empty` and the Mods page's
   `mods-empty`, `mods-busy`, `mods-results`, `mods-remove`, `mods-hud-complete`,
   `mods-hud-incomplete`.
-- Folders: `src/launcher/dirs.rs`, through `platform::dirs`
+- Folders: `src/launcher/dirs.rs`, through `platform::dirs` (the home folder and the game's executable
+  beside the program are `platform::dirs::{home, game_exe}`, which the map editor and the support file use too)
   (docs/platform-dirs.md): Overbright's folder (options.txt, game-root.txt,
   texture-pack-root.txt, `launcher.lock`), `logs/`, the profiles folder,
   the original's save folder (Windows only), the game exe beside the
@@ -170,7 +172,8 @@ only after a change.
 ## Part two (2026-11-12)
 
 **`game --probe`** (`src/bin/game/shell/probe.rs`; the format in
-`src/launcher/probe.rs`, one definition for both sides). Handled before the
+`src/launch/probe.rs` in the library, one definition for both sides; the launcher runs it from
+`src/launcher/probe.rs`). Handled before the
 command-line check and the game-folder search: no game files, no window, no
 device, no log file. `key=value` lines, unknown keys ignored, exit 0 (or 1
 with `error=` and `ok=0` without an adapter):
@@ -363,7 +366,8 @@ known; others are left out).
   (`screens::play_state`). The skip rule ("Start the game directly")
   starts the game only for a folder that passed the full check.
 
-**Errors in plain words** (`run::ErrorKind`, `screens::failure_words`)
+**Errors in plain words** (`launch::error::ErrorKind`, the game↔launcher contract in the library;
+`screens::failure_words`)
 - The game prints a machine line, `error.kind=<kind>`, on its own line
   before its error text: `files-missing` (the game folder check at its
   start, `shell::startup`), `gpu` or `no-window` (its window or the
@@ -473,7 +477,7 @@ for players, the shipped program names per system (`overbright` /
   first-run, browser, import, about/licence and failure flows; Play
   reachable without scrolling; the first-run trap of `save_choices` and its
   use of the probe's card (sandboxed data folder).
-- `launcher::probe::tests`: a captured `game --probe` output
+- `launch::probe::tests`: a captured `game --probe` output
   (`tests/launcher/probe-sample.txt`, adapter name and ids replaced) parses;
   write → read round trip; errors. `launcher::saves::tests`: a copy into a
   temporary folder, the source unchanged. `launcher::run::tests`: a stub
@@ -815,7 +819,7 @@ the run; **Skip** there stops the child at any time; Done / failed end in **Cont
 `OVERBRIGHT_NO_PREPARE` (set at all) keeps it from starting by itself (the mouse test sets it;
 "Prepare again" still works). The launcher stops a run still going when its window closes.
 States for `--render`: `prepare-running`, `prepare-done`, `prepare-failed`. Tests:
-`launcher::prepare::tests`, `the_prepare_step_is_offered_once_skippable_and_can_be_asked_for`,
+`launch::prepare::tests` (the lines), `launcher::prepare::tests` (the state), `the_prepare_step_is_offered_once_skippable_and_can_be_asked_for`,
 the fresh-machine walk's step p (started behind the main screen after the folder is used, its
 line, not started again, Prepare again to Done, the stamp, `prepared=1` from the probe).
 

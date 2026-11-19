@@ -9,14 +9,14 @@ use super::validate::{self, Check};
 use crate::tools::map::edit::RacePart;
 use crate::tools::map::race;
 
-fn rgb(c: crate::launcher::draw::Rgb) -> egui::Color32 {
+fn rgb(c: crate::launch::theme::Rgb) -> egui::Color32 {
     egui::Color32::from_rgb(c.0, c.1, c.2)
 }
 
 /// Draw the branch.
 pub fn tree(races: &mut Races, s: &mut EditorState, ui: &mut egui::Ui) {
     races.update(s);
-    let t = crate::launcher::draw::THEME_A;
+    let t = crate::launch::theme::THEME_A;
     let checks = races.checks.clone();
     let mut pick: Option<(usize, Option<RacePoint>, bool)> = None;
     egui::CollapsingHeader::new(format!("Races  ({})", s.map.races.len()))

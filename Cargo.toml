@@ -1,18 +1,28 @@
 [package]
 name = "nfsu2"
+version.workspace = true
+edition.workspace = true
+description = "Reimplementation of Need for Speed: Underground 2 (2004) in Rust and wgpu."
+license.workspace = true
+
+# The workspace (ARCHITECTURE.md): this package (the library, the game, the launcher, the tools),
+# the map editor (crates/ob-editor, a leaf on the library) and the test kit (crates/ob-testkit,
+# dev only). Dependencies point down only: nothing here depends on the editor. The default members
+# are this package and the editor, so `cargo build --release --bins` makes all three player
+# programs. The developer probes (devprobes/, the maintainer's private probes) are a member but not
+# a default one: a plain `cargo build`/`cargo test` here builds only the game, the editor, their
+# tools and the public examples; `cargo check --release -p devprobes` (scripts/checks/devprobes.sh)
+# keeps the probes compiling.
+[workspace]
+members = [".", "crates/ob-editor", "crates/ob-testkit"]
+exclude = ["fuzz"]
+default-members = [".", "crates/ob-editor"]
+
+# One version for every package of the workspace (the release's).
+[workspace.package]
 version = "0.3.0"
 edition = "2024"
-description = "Reimplementation of Need for Speed: Underground 2 (2004) in Rust and wgpu."
 license = "GPL-3.0-or-later"
-
-# The developer probes (devprobes/, the maintainer's private probes) are a member but not a
-# default one: a plain `cargo build`/`cargo test` here builds only the game, its tools and the
-# public examples; `cargo check --release -p devprobes` (scripts/checks/devprobes.sh) keeps the
-# probes compiling.
-[workspace]
-members = ["."]
-exclude = ["fuzz"]
-default-members = ["."]
 
 [dependencies]
 anyhow = "1"
@@ -56,15 +66,6 @@ block_compression = { version = "0.11.0", default-features = false, features = [
 # The packs' manifest, `pack.toml`. MIT OR Apache-2.0.
 toml = { version = "1.1.4", default-features = false, features = ["parse", "serde"] }
 serde = { version = "1.0.229", features = ["derive"] }
-# The desktop map editor's UI (`overbright-editor`, src/editor/): egui with
-# its winit input and wgpu renderer, on the wgpu / winit versions above.
-# Pinned exactly: egui changes its API between minor versions. MIT OR
-# Apache-2.0. Without egui's default fonts (not all GPL-compatible) and
-# without the system clipboard (its Windows crate ships no licence text);
-# winit itself brings the X11 and Wayland backends.
-egui = { version = "=0.37.0", default-features = false }
-egui-winit = { version = "=0.37.0", default-features = false }
-egui-wgpu = { version = "=0.37.0", default-features = false }
 
 [target.'cfg(unix)'.dependencies]
 # The allocator's memory probe (/proc/meminfo, sysctl) before main.
@@ -74,6 +75,8 @@ libc = "0.2"
 # Property-based fuzzing of the file readers (tests/fuzz_readers.rs).
 # MIT OR Apache-2.0.
 proptest = { version = "1", default-features = false, features = ["std"] }
+# The test kit (crates/ob-testkit, docs/testing.md).
+ob-testkit = { path = "crates/ob-testkit" }
 
 [features]
 # Tracy: `cargo build --release --features profile-tracy`, then connect the
@@ -125,11 +128,6 @@ rfd = { version = "0.18", default-features = false, features = ["xdg-portal"] }
 [[bin]]
 name = "overbright"
 path = "src/bin/overbright.rs"
-
-# The desktop map editor (src/editor/, docs/map-editor.md).
-[[bin]]
-name = "overbright-editor"
-path = "src/bin/overbright-editor.rs"
 
 [dependencies.softbuffer]
 version = "0.4.8"

@@ -148,7 +148,8 @@ Plain text, one record per line; readers skip records they do not know.
 Times are seconds on the race clock (negative before the green; the start scene sets it back once) or since the
 start in free roam; positions in world metres, the rotation a unit quaternion, speed in m/s. Ids: the player's
 slot 0, opponents 1.., traffic 100.., street racers 200... The stream format and the problem detection live in
-`src/editor/sim/` (`format.rs`, `detect.rs`); the game's side is `src/bin/game/enh/sim_stream.rs`.
+the library, `src/tools/map/sim/` (`format.rs`, `detect.rs`), which the game writes the stream with and the
+editor reads it with (`editor::sim` re-exports them); the game's side is `src/bin/game/enh/sim_stream.rs`.
 
 ## The game's free camera
 
@@ -237,16 +238,21 @@ does not have is skipped and counted in the log.
 - `src/world/map_overlay.rs`: applies the edits to a loaded world. The game loads worlds through
   `tools::map::load_world` (`World::load`, then the mods for the region). The asset cache keeps the original
   world.
-- `src/editor/`: the desktop editor's library (state, undo, panels, viewport). `testplay.rs` handles the test
-  hand-off: it saves, starts the game (`game` beside the editor; `OB_GAME_EXE` names another), polls it, reads
-  the result line and keeps the tested marks. `src/bin/overbright-editor.rs` is the window.
+- `crates/ob-editor/`: the desktop editor, a crate of its own on the game library (`nfsu2`), so the game's
+  dependency tree has no egui. `src/editor/` there is its library (state, undo, panels, viewport); the
+  library's modules it uses are imported in its `lib.rs` under their own names, so its `crate::world`,
+  `crate::render`, … paths name the game library's. `testplay.rs` handles the test hand-off: it saves, starts
+  the game (`game` beside the editor; `OB_GAME_EXE` names another), polls it, reads the result line and keeps
+  the tested marks. `src/bin/overbright-editor.rs` is the window. Its tests run with the workspace's
+  (`cargo test`; `cargo test -p ob-editor` alone), the portable-mode test of the editor binary included
+  (`crates/ob-editor/tests/portable_mode.rs`).
 - The game: `shell/cli.rs` (`MapTest`: the flags, the end watch, the result line), `flow/race_setup.rs`
   (`start_map_test`, `map_race_event`), and `Game::map_race_route`, which `drive_to_grid` asks before reading a
   track's own route.
 - The launcher: the Mods page's Map mods section (`launcher/screens.rs`), `Env::start_editor` and
   `dirs::editor_exe` (docs/launcher.md).
 - Tests: `src/tools/map/tests.rs` (round trip, refusals, store, world and route with the game's files),
-  `tools::map` `one_chosen_mod_replaces_the_enabled_list`, `src/editor/testplay.rs` (arguments, result lines,
+  `tools::map` `one_chosen_mod_replaces_the_enabled_list`, `crates/ob-editor/src/editor/testplay.rs` (arguments, result lines,
   tested marks, the whole hand-off with a stand-in game), `shell/cli.rs` (the flags and the run's end),
   `flow/race_setup.rs` (a test run on a custom race and from a spot, with the game's files), and
   `launcher/tests.rs` (`mods_page_starts_the_map_editor`, `the_map_editor_starts_with_the_mod_and_the_game_folder`).

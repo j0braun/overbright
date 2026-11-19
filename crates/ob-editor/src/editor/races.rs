@@ -309,12 +309,12 @@ pub fn preview(net: Option<&RoadNet>, r: &CustomRace, ground: &dyn Fn(Vec2) -> f
     }
 }
 
-fn rgb(c: crate::launcher::draw::Rgb) -> egui::Color32 {
+fn rgb(c: crate::launch::theme::Rgb) -> egui::Color32 {
     egui::Color32::from_rgb(c.0, c.1, c.2)
 }
 
-fn theme() -> crate::launcher::draw::Theme {
-    crate::launcher::draw::THEME_A
+fn theme() -> crate::launch::theme::Theme {
+    crate::launch::theme::THEME_A
 }
 
 impl Races {

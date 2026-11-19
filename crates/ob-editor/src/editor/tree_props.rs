@@ -7,7 +7,7 @@ use egui::{RichText, Ui};
 
 use super::props::{colour, delete_selection, reset_selection};
 use super::state::EditorState;
-use crate::launcher::draw::THEME_A;
+use crate::launch::theme::THEME_A;
 use crate::tools::map::PropEdit;
 
 /// One row of the branch: the edit, the placement it is in the world

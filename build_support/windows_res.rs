@@ -1,8 +1,9 @@
 //! The Windows executable's resources (build.rs, Windows targets only): the
 //! application icon, the version information and the application manifest,
 //! compiled with the target's resource compiler and linked into the player's
-//! two programs: the game (`game.exe`) and the launcher (`overbright.exe`).
-//! The tool binaries get none.
+//! programs: the game (`game.exe`) and the launcher (`overbright.exe`) from
+//! build.rs, the map editor (`overbright-editor.exe`) from
+//! crates/ob-editor/build.rs. The tool binaries get none.
 //!
 //! The icon is drawn in code (build_support/icon_art.rs, shared with the
 //! window icon, `platform::icon`): Overbright's mark, the launcher's lime
@@ -112,13 +113,14 @@ const PROGRAMS: [Program; 3] = [
 
 /// Writes the icon, the manifests and the resource scripts into `out_dir`,
 /// compiles them with the target's resource compiler and links each result
-/// into its program (`PROGRAMS`). A missing resource compiler is a warning,
+/// into its program (those of `PROGRAMS` named in `bins`: the calling
+/// package's). A missing resource compiler is a warning,
 /// not an error: the programs then have no icon, no version information and
 /// no manifest.
-pub fn build(out_dir: &Path, version: &str, commit: &str) {
+pub fn build(out_dir: &Path, version: &str, commit: &str, bins: &[&str]) {
     let ico = out_dir.join("overbright.ico");
     std::fs::write(&ico, self::ico()).expect("write overbright.ico");
-    for p in &PROGRAMS {
+    for p in PROGRAMS.iter().filter(|p| bins.contains(&p.bin)) {
         build_one(out_dir, &ico, p, version, commit);
     }
 }
