@@ -53,6 +53,8 @@ mod rivals_ahead;
 #[cfg(test)]
 mod race_again;
 #[cfg(test)]
+mod rumble_feed;
+#[cfg(test)]
 mod rate;
 mod replay;
 mod rng;

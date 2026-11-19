@@ -174,6 +174,7 @@ pub fn build(req: &SupportRequest) -> String {
         section("hardware check (game --probe)", &ask(&exe, &["--probe"]));
     } else {
         section("graphics adapter in use", &crate::qol::crash::adapter().unwrap_or_else(|| "(not opened yet)".into()));
+        section("audio output in use", &crate::qol::crash::audio_output().unwrap_or_else(|| "(none opened)".into()));
     }
     if cfg!(windows) {
         section("Windows crash events for Overbright", &windows_events());
@@ -819,6 +820,7 @@ mod tests {
             "environment",
             "game folder",
             "graphics adapter in use",
+            "audio output in use",
             "caller's part",
             "settings files",
             "logs",
