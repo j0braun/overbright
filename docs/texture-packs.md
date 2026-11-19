@@ -197,7 +197,7 @@ How it is kept (`src/texture_mods.rs`):
 
 TexWizard (R-033, GPL-3.0) is a script for the original game that replaces textures by name, without
 changing game files. Read from its public source (`TexWizard.h`, release 1.3) and wiki; implemented in
-`src/formats/texwizard.rs` (reading) and `src/texwizard_import.rs` (conversion):
+`crates/ob-formats/src/formats/texwizard.rs` (reading) and `src/texwizard_import.rs` (conversion):
 * **A pack** is a folder with `meta.json` and `textures.bin`. `meta.json` is
   `{"textures": [["ORIGINAL", "NEW"], …]}` (TexWizard Packer adds `"links"`, the files the originals come
   from, which the game does not use). Each name is a texture name, hashed with the game's string hash

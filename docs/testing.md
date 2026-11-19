@@ -169,7 +169,7 @@ let raw = testkit::fixture("burnout-records", 1, |_| testkit::exe_bytes(0x7E_A2B
 * The first call per game runs the generator and stores the result in
   `$XDG_CACHE_HOME/overbright-test-fixtures/<game fingerprint>/<name>@<version>`
   (default `~/.cache/...`), outside the repository. The game fingerprint is
-  the SHA-256 over the hashes of the files that `src/fingerprint.rs` checks.
+  the SHA-256 over the hashes of the files that `crates/ob-core/src/fingerprint.rs` checks.
 * `tests/fixtures.lock` pins each fixture's SHA-256 and size:
   `name@version sha256 size  # source`. The pin is the hash of the file the
   repository used to carry. Every load, whether from the cache or freshly

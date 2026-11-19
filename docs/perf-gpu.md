@@ -603,7 +603,7 @@ changed, nothing traced in SPEED2.EXE (no native behaviour touched). The
 Original look keeps its own targets; every step is exact (gate below).
 
 ### Measuring: the allocator report
-`NFSU2_VRAM_REPORT=file` (`prof::allocator_report`, written at a
+`NFSU2_VRAM_REPORT=file` (`prof::gpu::allocator_report`, written at a
 `--bench`'s end; nothing when unset): wgpu-hal's gpu-allocator report
 grouped by label (count, MiB), with the allocated and reserved totals and
 the process's own VRAM/GTT now (amdgpu fdinfo). The bench JSON's

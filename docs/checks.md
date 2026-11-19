@@ -17,6 +17,7 @@ scripts/checks/halo.sh <outdir> [game]   # the glow shell / blue tint around the
 scripts/checks/perfgate.sh run <outdir> <outdir of gate.sh>/b/game   # perf regression gate vs the accepted baseline (docs/perf-budget.md)
 scripts/checks/selfcheck.sh <outdir>             # the gates' self-test: broken inputs must fail, good ones pass (~20 s)
 scripts/checks/devprobes.sh                      # the developer probes (devprobes/) still compile: cargo check -p devprobes
+scripts/checks/crate_layers.sh [repo]            # the crate layers: no new upward reference, package edges only down, no dev-harness in the shipped tree (ARCHITECTURE.md "Layers"; in fast and full)
 scripts/checks/soak_images.sh <game> <outdir> [runs]   # the gate's image dumps N times with one binary (run-to-run flakes; "Image soak")
 scripts/checks/fuzz.sh                           # the fuzz smoke: every parser target on mutated inputs (docs/fuzzing.md; FUZZ_SECS, FUZZ_ITERS, FUZZ_ONLY)
 scripts/checks/release_check.sh [outdir]          # the shipping binary (no dev-harness): no harness strings, harness flags give the usage error

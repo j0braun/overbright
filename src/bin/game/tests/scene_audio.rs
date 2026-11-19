@@ -841,7 +841,7 @@ fn a_custom_trax_list_applies_after_the_title() {
             let name = "TRAX_LIST";
             let mut custom = Settings::default();
             custom.trax[0] = song0;
-            let mut save = nfsu2::formats::native_save::NativeSave::fresh(name);
+            let mut save = nfsu2::frontend::career::fresh_save(name);
             custom.write_native(&mut save);
             profiles::write(name, &save).unwrap();
             profiles::load(name).unwrap();

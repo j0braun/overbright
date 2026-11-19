@@ -96,30 +96,6 @@ pub(super) fn quad(
     });
 }
 
-/// A camera projection (`render::camera`): the aspect it was asked for,
-/// the game camera's angle (`game_fov`; None: a free camera's vertical
-/// angle `fov_y`, photo mode), the matrix's m00, m11; `consts` the
-/// camera's x / y FOV factors. For a game camera `display::view_aspect`'s
-/// (h / w, m00 factor) are recorded too.
-pub fn projection(aspect: f32, game_fov: Option<f32>, fov_y: f32, m00: f32, m11: f32, consts: (f32, f32)) {
-    with(|s| {
-        s.fov_consts = consts;
-        let (fov, hw, across) = match game_fov {
-            Some(f) => {
-                let (hw, across) = crate::render::display::view_aspect(aspect);
-                (f, hw, across)
-            }
-            // A free camera: fov negative, its vertical angle.
-            None => (-fov_y, 0.0, 0.0),
-        };
-        let key = (aspect, fov, hw, across, m00, m11);
-        match s.projections.iter_mut().find(|p| (p.0, p.1, p.2, p.3, p.4, p.5) == key) {
-            Some(p) => p.6 += 1,
-            None => s.projections.push((aspect, fov, hw, across, m00, m11, 1)),
-        }
-    });
-}
-
 fn place_json(p: Place) -> String {
     format!("{{\"x\":{},\"y\":{},\"fill\":{},\"stretch\":{},\"hud\":{}}}", p.x, p.y, p.fill, p.stretch, p.hud)
 }
@@ -138,7 +114,15 @@ fn esc(s: &str) -> String {
 /// The end of a `record_encoder` call: write the dump.
 pub(super) fn finish(frame: &UiFrame, size: (u32, u32)) {
     let Some(path) = target() else { return };
-    let Some(mut s) = STATE.lock().ok().and_then(|mut g| g.take()) else { return };
+    // The game-FOV projections are recorded by the camera (`draw::camera::projections`).
+    let views = crate::draw::camera::projections::take();
+    let Some(mut s) = STATE.lock().ok().and_then(|mut g| g.take()).or_else(|| views.is_some().then(State::default)) else {
+        return;
+    };
+    if let Some((list, consts)) = views {
+        s.projections = list;
+        s.fov_consts = consts;
+    }
     s.frames += 1;
     let mode = match crate::render::display::aspect_mode() {
         AspectMode::Wide => "wide",

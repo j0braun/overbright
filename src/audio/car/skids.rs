@@ -4,28 +4,8 @@
 //! FX_SKID graph of SOUND/SKIDS (verified unless marked; see "Skids" in
 //! docs/formats.md).
 
-/// The tuning records 0x7F2F20 + 0x48·k (18 dwords; +0x18, +0x1C,
-/// +0x30, +0x34 ints).
-#[derive(Clone, Copy, Debug)]
-pub struct SkidRecord {
-    pub long_scale: f32,
-    pub long_hi: f32,
-    pub long_lo: f32,
-    pub lat_scale: f32,
-    pub lat_hi: f32,
-    pub lat_lo: f32,
-    pub l3_up: i32,
-    pub l3_down: i32,
-    pub l3_mix: f32,
-    pub wheel_threshold: f32,
-    pub hold: f32,
-    pub l2_up: i32,
-    pub l2_down: i32,
-    pub l2_mix: f32,
-    pub off_side: f32,
-    pub angle_in0: f32,
-    pub angle_in1: f32,
-}
+// The record type sits with the engine's tables (`exe_tables::records`).
+pub use crate::exe_tables::records::SkidRecord;
 
 
 pub static RECORDS: crate::exe_tables::Table<[SkidRecord; 4]> = crate::exe_tables::Table::new(|t| &t.skid_records);

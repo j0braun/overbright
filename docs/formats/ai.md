@@ -189,7 +189,7 @@ for the steering rate).
   with a mismatch between own slip and export beyond 4 m/s in one playthrough:
   120 604 → 17 760, all of them the belt's own pair (slip 0 there).
 
-## AI route layer (src/formats/ai_routes.rs, src/ai/route/)
+## AI route layer (crates/ob-formats/src/formats/ai_routes.rs, src/ai/route/)
 
 Everything above the low-level driver; verified except where noted.
 

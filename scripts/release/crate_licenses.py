@@ -8,7 +8,7 @@ M.json is `cargo metadata --format-version 1 --locked --offline --filter-platfor
 tree with the default features (the shipping build: no dev-harness). The crates are the normal-dependency
 closure of the root packages (the workspace's packages that hold the player's programs: `nfsu2` with the game
 and the launcher, `ob-editor` with the map editor; dev- and build-dependencies left out, the roots themselves
-not listed); proc-macro crates and what only they
+not listed, nor the workspace's library crates under them); proc-macro crates and what only they
 use are listed as "build time" (they generate code at compile time and are not linked). The licence texts
 are the crates' own files (LICENSE*, LICENCE*, COPYING*, NOTICE*, COPYRIGHT*, UNLICENSE*, the manifest's
 license-file, LICENSES/*) from the crate sources cargo already downloaded; identical texts are written once
@@ -126,7 +126,10 @@ def closure(meta, root_names):
                 todo.append(d)
         return seen - set(roots)
 
-    every, linked = walk(False), walk(True)
+    # The workspace's own crates (ob-core and the other library layers) are Overbright's code, under its
+    # licence: not listed.
+    own = set(meta.get("workspace_members", []))
+    every, linked = walk(False) - own, walk(True) - own
     return pkgs, roots, every, linked
 
 

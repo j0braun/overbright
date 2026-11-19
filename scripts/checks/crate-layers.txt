@@ -1,0 +1,57 @@
+# The library's layers (scripts/checks/crate_layers.py, ARCHITECTURE.md "Layers"): bottom to top. A module may
+# name modules of its own layer and the layers below, never one above.
+#
+# crate NAME SOURCE-ROOT   a layer, and the folder its modules are read from (more than one crate may read
+#                          the same folder while its modules move out)
+crate ob-core crates/ob-core/src
+crate ob-formats crates/ob-formats/src
+crate nfsu2 src
+
+# MODULE-PATH CRATE        the module and everything under it (longest prefix wins; <root> = the crate root's
+#                          own items: the env macros, game_root, unique_tag)
+<root> ob-core
+build_info ob-core
+cache ob-core
+cache::verify nfsu2
+console ob-core
+diag ob-core
+diag::support nfsu2
+draw ob-core
+failed_load ob-core
+fingerprint ob-core
+frame_clock ob-core
+fxhash ob-core
+game_clock ob-core
+game_fs ob-core
+game_rng ob-core
+log_file ob-core
+platform ob-core
+platform::icon nfsu2
+platform::monitor nfsu2
+prof ob-core
+prof::gpu nfsu2
+region ob-core
+
+exe_tables ob-formats
+formats ob-formats
+
+# Every other module: nfsu2 (the top layer).
+
+# The workspace's packages, bottom to top (scripts/checks/crate_layers.sh, from `cargo metadata`): a package's
+# normal and build dependencies name only packages listed before it (the test kit is a dev-dependency only).
+# A package not in the workspace yet is skipped.
+package ob-testkit
+package ob-core
+package ob-formats
+package nfsu2
+package ob-editor
+package devprobes
+
+# forbid PACKAGE CRATE…: crates that must not be in the package's dependency tree (normal and build edges).
+forbid ob-core wgpu winit cpal egui
+forbid ob-formats wgpu winit cpal egui
+forbid nfsu2 egui
+
+# wasm PACKAGE…: packages that must build for the web (`cargo check --target wasm32-unknown-unknown`; skipped,
+# with a line, where that target is not installed).
+wasm ob-core ob-formats

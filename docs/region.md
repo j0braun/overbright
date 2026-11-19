@@ -3,7 +3,7 @@
 The executable keeps the game's region in the byte 0x7FA73C, read by
 0x570A40 (the value) and 0x570A50 (European: 1 or 5–9). No code writes it;
 the European PC 1.2 release stores 6. Overbright reads no executable, so it
-takes the region from the installed data (`src/region.rs`):
+takes the region from the installed data (`crates/ob-core/src/region.rs`):
 
 * the CARS folder has CIVIC and RSX and has neither CORSA nor PEUGOT106:
   region 0 (North America);

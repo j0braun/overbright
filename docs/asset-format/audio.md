@@ -30,16 +30,16 @@ Schemas: [`sound-bank`](schemas/sound-bank.schema.json), [`engine-recording`](sc
 Not on this page:
 
 - The engine-sound records, engine choice per car, car-audio curves and every other number built into the engine
-  (`src/exe_tables/constants/car_audio.rs`): [engine-tables.md](engine-tables.md). They refer to items here by key.
+  (`crates/ob-formats/src/exe_tables/constants/car_audio.rs`): [engine-tables.md](engine-tables.md). They refer to items here by key.
 - Movie soundtracks (inside `MOVIES/*.vp6`): [movies.md](movies.md). Song titles, artists and albums shown in the
-  chyron: engine constants built into the engine (`src/exe_tables/constants/frontend.rs`, [engine-tables.md](engine-tables.md)). Option volumes: native profile saves (docs/formats/saves-options.md).
+  chyron: engine constants built into the engine (`crates/ob-formats/src/exe_tables/constants/frontend.rs`, [engine-tables.md](engine-tables.md)). Option volumes: native profile saves (docs/formats/saves-options.md).
 - `SOUND/EVT_SYS/*.csi` (8 files, 1,180 bytes): "MOIR" switch tables no engine code reads. The importer keeps
   them whole in the residual (`fate = "kept"`, reason "not read by the engine").
 - The collision-audio stitch records (chunk 0x8003B500 in front-end and in-game bundles): not yet owned by a kind
   and kept in the residual ([README.md](README.md) §3, "Not yet owned by a kind").
 - The BIG4 archive itself (header, directory, 64-byte alignment fill): a `viv` container in the residual map
   ([residual.md](residual.md) §3.1); its entries become the kinds above. The original's rule that a file in the
-  archive wins over a loose file of the same name (`src/formats/viv.rs:24-30`) has no counterpart: a base set has
+  archive wins over a loose file of the same name (`crates/ob-formats/src/formats/viv.rs:24-30`) has no counterpart: a base set has
   one copy of each item, and packs override through layering.
 
 ## 2. Files and keys
@@ -726,7 +726,7 @@ Keys differing only in case are `CONV.13` (§2.3); a line or stream override wit
   bitstream lets a better decoder replace it without re-importing.
 - The engine reads the GIN files and mix-map / reverb files through direct opens today
   (`src/audio/engine.rs:36-43`, `src/bin/game/audio/engine.rs:135`, `src/audio/mixmap/parse.rs:182-196`,
-  `src/audio/reverb/graph.rs:200-207`), besides the archive's (`src/formats/viv.rs:103,145`); all move behind the
+  `src/audio/reverb/graph.rs:200-207`), besides the archive's (`crates/ob-formats/src/formats/viv.rs:103,145`); all move behind the
   asset layer.
 
 ## 11. Sizes and timing

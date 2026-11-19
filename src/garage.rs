@@ -31,7 +31,6 @@ use crate::car::Wheel;
 use crate::formats::bundle::{chunks, walk};
 use crate::formats::hash::bin_hash;
 use crate::formats::texture::Texture;
-use crate::render::Camera;
 use crate::world::{Placement, World};
 
 /// The platform `name`'s file, FRONTEND/PLATFORMS/<name>.BIN (its name
@@ -59,23 +58,8 @@ pub const DISCS: [Vec3; 3] = [Vec3::new(0.0, 5.4, 0.0), Vec3::new(4.7, -2.7, 0.0
 /// contact point this far up, and the LOCK model this far over its disc.
 pub const TYRE_HEIGHT: f32 = 0.15;
 
-/// One of GarageMain's two camera set-ups (0x7F608C + 0x30·n; the
-/// constructor takes record +0x55, 0, and 0x4D82D0 switches to record 1
-/// for an SUV, car type +0x88A).
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct Shot {
-    /// +0x00: the turntable angle in degrees (GarageMain +0x274, through
-    /// +0x9D·4).
-    pub car_angle: f32,
-    /// +0x04: the front wheels' steer in degrees (0x7F45A4).
-    pub steer: f32,
-    /// +0x08: the field of view in degrees (camera +0x80 → +0xC4).
-    pub fov: f32,
-    /// +0x0C: what the camera looks at (+0x90).
-    pub target: Vec3,
-    /// +0x18: the eye (+0xA0).
-    pub eye: Vec3,
-}
+// The record type sits with the engine's tables (`exe_tables::records`).
+pub use crate::exe_tables::records::Shot;
 
 pub const SHOTS: [Shot; 2] = [
     Shot { car_angle: 305.772_9, steer: 30.0, fov: 32.0, target: Vec3::new(0.0, 4.0, 1.3), eye: Vec3::new(0.0, -4.0, 1.3997) },
@@ -433,18 +417,6 @@ impl View {
     /// angle is +0x144 (0x4A74EF), the outgoing car's while the turn runs.
     pub fn platform_turntable(&self) -> Turntable {
         self.outgoing().unwrap_or(self.turntable())
-    }
-}
-
-impl Shot {
-    /// The garage camera: a look-at with z up (0x444DE0: right =
-    /// (0, 0, −1) × forward, no roll while +0xB8 is 0) and view 1's
-    /// projection of the field of view (`Camera::game_fov`).
-    pub fn camera(&self) -> Camera {
-        let fov = self.fov.to_radians();
-        let mut camera = Camera::look_at(self.eye, self.target, Vec3::Z, fov);
-        camera.game_fov = Some(fov);
-        camera
     }
 }
 

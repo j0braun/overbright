@@ -624,7 +624,7 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
   (0x63AFC7) only for record +0x844 ≠ 2 and only if the file exists (0x57CAD0), so the
   six version-4 VINYLS.BIN files under folders that are no car type (IMPREZA, LANCER,
   NEON, S2000, SPINNER, MIRRORS) are never read by the original.
-* **Part database** (GLOBALB 0x80034602, loader 0x636CDB; `src/formats/parts.rs`).
+* **Part database** (GLOBALB 0x80034602, loader 0x636CDB; `crates/ob-formats/src/formats/parts.rs`).
   Its children are read from right after their 8-byte headers, not from
   the 16-byte aligned payload: 0x34603 header (a pointer slot and a count
   per table), 0x34606 string pool (dword indexed), 0x3460C attribute lists
@@ -2857,7 +2857,7 @@ The game's world collision step (0x5FFA60) runs after the cars have moved.
     (0x593C60). In drag races any push of 30 or more (or the body matrix
     +0x38 under −0.5) totals the car (+0x964; racer status 9, see "Drag
     drop-out") — ported as CarState `totaled`.
-* **Knock-over props** (smackables; src/formats/smackable.rs,
+* **Knock-over props** (smackables; crates/ob-formats/src/formats/smackable.rs,
   src/smackable/; verified except where noted):
   * Kinds: the track bundle's `0x34026` chunk (L4RA: 79), 0x100 bytes each
     from a 16-byte aligned start, read by 0x5B0E40: list links at +0,

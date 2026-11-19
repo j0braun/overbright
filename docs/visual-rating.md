@@ -4,7 +4,7 @@ The car's visual rating (the stars, 0–10) and what it drives, compared
 with the original. **Verified** = traced in SPEED2.EXE (disassembly /
 REA), **observed** = read from the running original under Wine,
 **inferred** / **open** as marked. Code: `PartDb::visual_rating`
-(src/formats/parts.rs), `car::ride_visual_rating` (src/car/; the game's
+(crates/ob-formats/src/formats/parts.rs), `car::ride_visual_rating` (src/car/; the game's
 `Game::visual_rating_car` now calls it). Tools: the maintainer's tool `rating.py`
 (+ `rating.s`, the probe cave), the maintainer's tool `fixture.py`,
 the maintainer's probe `visual_rating_sweep`. Evidence: the maintainer's private captures.

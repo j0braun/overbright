@@ -305,6 +305,12 @@ pub fn fresh_payload(types: &[(String, Vec<u8>)], ctx: &NativeContext) -> Vec<u8
     save.payload
 }
 
+/// A new profile named `name`: [`fresh_profile`] renamed (what a profile
+/// the clone creates starts from).
+pub fn fresh_save(name: &str) -> NativeSave {
+    NativeSave::fresh(fresh_profile(), name)
+}
+
 /// The new profile (the payload of a profile named "NAME"), written once
 /// per process from the player's game folder ([`crate::game_root`]) the
 /// first time a profile is created.

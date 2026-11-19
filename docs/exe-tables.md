@@ -4,7 +4,7 @@ Overbright does not read `SPEED2.EXE`. Like other long-lived engine reimplementa
 (OpenMW, OpenRCT2, OpenTTD and others), it reads the game's **assets** (models, textures,
 sounds, text, tracks) from the player's installed files and carries the engine's **rules and
 constants** in its own code. The numbers, curves and names the original keeps in its
-executable are written in `src/exe_tables/` with the values of the reference executable, the
+executable are written in `crates/ob-formats/src/exe_tables/` with the values of the reference executable, the
 European PC 1.2 release (`SPEED2.EXE` without copy protection, 4,788,224 bytes, SHA-256
 `8f6a9ae2…dfe2a297`). So any retail copy of the game, patched to 1.2, starts: with the copy-protected
 disc executable, without any executable, of any region (docs/region.md).

@@ -1,0 +1,32 @@
+[package]
+name = "ob-core"
+version.workspace = true
+edition.workspace = true
+description = "Overbright's bottom layer: game folder access, asset cache, platform folders, clocks, logs."
+license.workspace = true
+publish = false
+build = "build.rs"
+# Hands its build id to the crates above it (build_support/build_id.rs).
+links = "ob_core"
+
+# No window, GPU or audio crate and no other Overbright crate
+# (scripts/checks/crate_layers.sh).
+[dependencies]
+anyhow.workspace = true
+bytemuck = { workspace = true, features = ["extern_crate_alloc"] }
+glam.workspace = true
+log.workspace = true
+memmap2.workspace = true
+rayon.workspace = true
+sha2.workspace = true
+xxhash-rust.workspace = true
+
+[target.'cfg(unix)'.dependencies]
+libc.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true
+
+[features]
+# The developer harness's hooks (the root package's `dev-harness` turns it on).
+dev-harness = []

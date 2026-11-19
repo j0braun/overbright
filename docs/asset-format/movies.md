@@ -15,7 +15,7 @@ Schemas: [`movie`](schemas/movie.schema.json), [`movie-table`](schemas/movie-tab
 
 | Original | Reference install | Kind here | Engine reader today |
 |---|---|---|---|
-| `MOVIES/*.vp6` (chunks `MVhd`, `MV0K`, `MV0F`, `SCHl`, `SCCl`, `SCDl`, `SCEl`) | 32 files, 261,189,624 bytes | `ob.movie` | `src/movie.rs:127` (container), `src/formats/vp6.rs:431` (VP6), `src/movie.rs:189-262` (EA-XA) |
+| `MOVIES/*.vp6` (chunks `MVhd`, `MV0K`, `MV0F`, `SCHl`, `SCCl`, `SCDl`, `SCEl`) | 32 files, 261,189,624 bytes | `ob.movie` | `src/movie.rs:127` (container), `crates/ob-formats/src/formats/vp6.rs:431` (VP6), `src/movie.rs:189-262` (EA-XA) |
 | `GLOBAL/GLOBALB.BUN` chunks 0x39020 (the movie table: name and sound volume) | 40 chunks of 40 bytes | `ob.movie-table` | `src/movie.rs:317` |
 | `MOVIES/movies.tag` | 1 file, 0 bytes | – | not read by the engine; kept whole (empty) in the residual |
 
@@ -92,7 +92,7 @@ Size 32. Each frame:
 Frames are the `MV0K` / `MV0F` payloads in file order. IVF has no key-frame flag: a frame is a key frame when the
 first bit of its VP6 header is 0, which is exactly when the original chunk is `MV0K` (all 29,051 frames of the
 reference install, measured). The first frame MUST be a key frame. Every original frame is VP6 version 7,
-profile 0, progressive (`src/formats/vp6.rs:7-14`); a frame the engine's decoder refuses (version > 7, profile
+profile 0, progressive (`crates/ob-formats/src/formats/vp6.rs:7-14`); a frame the engine's decoder refuses (version > 7, profile
 ≠ 0, interlaced) is `MOV.2`.
 
 Why IVF: it is the smallest open framing that holds VP6 unchanged and that common tools read: FFmpeg 8.1 opens an

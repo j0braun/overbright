@@ -243,7 +243,7 @@ done
 
 # 5. privacy and game data in everything that ships (the privacy scan: text, binary strings, embedded bytes)
 REFS=(--game-ref "${NFSU2_ROOT:-/nonexistent}")
-for r in "$B/src/tests/fixtures/native_saves" "$B/src/src/formats/native_save_fresh.bin" "${OB_PRIVATE:-/nonexistent}/saves/native_save_fresh.bin" "$HOME/.local/share/NFS Underground 2"; do
+for r in "$B/src/tests/fixtures/native_saves" "$B/src/src/formats/native_save_fresh.bin" "$B/src/crates/ob-formats/src/formats/native_save_fresh.bin" "${OB_PRIVATE:-/nonexistent}/saves/native_save_fresh.bin" "$HOME/.local/share/NFS Underground 2"; do
     [ -e "$r" ] && REFS+=(--game-ref "$r")
 done
 [ $HAVE_SCAN = 1 ] && { [ -d "${NFSU2_ROOT:-/nonexistent}" ] || bad "embedded game data: NFSU2_ROOT is not set (scripts/local.env)"; }

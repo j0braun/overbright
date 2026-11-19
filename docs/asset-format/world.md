@@ -215,7 +215,7 @@ world/L4RA/effects.bin
 | `extras` | table | – | no | – | conventions §9. |
 
 Layout `stream_section` (0x50 bytes, alignment 4; the engine reads `name`, `number` and, in the original files,
-the byte range, `src/formats/track.rs:28`):
+the byte range, `crates/ob-formats/src/formats/track.rs:28`):
 
 | Offset | Size | Type | Field | Unit | Notes |
 |---|---|---|---|---|---|
@@ -715,7 +715,7 @@ Layout `anim_instance` (0xA0 bytes, alignment 16; 0x43A460 → 0x43A040, 0x43A4A
 | `extras` | table | – | no | – | conventions §9. |
 
 `map`: one entry per `0x8003B601` (docs/formats/world.md "Parameter maps and fog", verified;
-`src/formats/parameter_map.rs`). This kind is stored at the **values** level (§6): the fields below are what the
+`crates/ob-formats/src/formats/parameter_map.rs`). This kind is stored at the **values** level (§6): the fields below are what the
 engine reads; the chunks' exact bytes are a shadow in the residual.
 
 | Field | Type | Unit | Req. | Default | Meaning |
@@ -989,7 +989,7 @@ loaded world gave 1,375 and 296 [to verify which placements it included].)
 ### 6.2 Proofs (per region, at import; repeated by `overbright-studio-cli base verify`)
 
 - **Eq1, values**: for each decoder of §5, the `xxh3-128` of its result encoded with the asset cache's flat encoding
-  (`src/cache/persist.rs`, the `persist!` lists of the parsed structs) from the original bytes equals the same from
+  (`crates/ob-core/src/cache/persist.rs`, the `persist!` lists of the parsed structs) from the original bytes equals the same from
   the base set's files. And region-wide: the world model the engine builds (`World::parse` up to the
   `w.rest` cache section, with solids and textures from their pages) is byte-equal from both sources, including
   `missing_solids` and the order of every list.

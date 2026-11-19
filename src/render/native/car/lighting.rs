@@ -14,17 +14,8 @@ use glam::{Mat3, Mat4, Vec3, Vec4};
 
 use crate::formats::lights::{LightPack, WorldLight};
 
-/// One of a lighting setup's three directional lights (+0x20 + i·0x1C:
-/// flag, θ°, φ°, red, green, blue, intensity).
-#[derive(Clone, Copy, Debug)]
-pub struct RigLight {
-    /// Fixed to the camera rather than the world.
-    pub camera_relative: bool,
-    pub theta: f32,
-    pub phi: f32,
-    pub colour: Vec3,
-    pub intensity: f32,
-}
+// The record type sits with the engine's tables (`exe_tables::records`).
+pub use crate::exe_tables::records::RigLight;
 
 /// The in-game setup (0x7F3F00, static data nothing writes): a key light
 /// from straight above the camera, a fill and a rim, all white.
@@ -100,15 +91,13 @@ fn sin_radians(x: f32) -> f32 {
     (a as f32 * (std::f32::consts::TAU / 65536.0)).sin()
 }
 
-impl RigLight {
-    /// Its direction (0x48A310 with θ + 180° and 90° − φ, then, for a
-    /// camera light, 0x48ED60's (−y, −z, x) in camera axes).
-    pub fn direction(&self, camera: &CameraAxes) -> Vec3 {
-        let (sa, ca) = binary_angle(self.theta + 180.0).sin_cos();
-        let (sb, cb) = binary_angle(90.0 - self.phi).sin_cos();
-        let d = Vec3::new(sb * ca, sb * sa, cb);
-        if self.camera_relative { -d.y * camera.right - d.z * camera.down + d.x * camera.forward } else { d }
-    }
+/// A rig light's direction (0x48A310 with θ + 180° and 90° − φ, then, for
+/// a camera light, 0x48ED60's (−y, −z, x) in camera axes).
+pub fn rig_direction(light: &RigLight, camera: &CameraAxes) -> Vec3 {
+    let (sa, ca) = binary_angle(light.theta + 180.0).sin_cos();
+    let (sb, cb) = binary_angle(90.0 - light.phi).sin_cos();
+    let d = Vec3::new(sb * ca, sb * sa, cb);
+    if light.camera_relative { -d.y * camera.right - d.z * camera.down + d.x * camera.forward } else { d }
 }
 
 /// A light as the harmonic sees it: unit direction towards it, colour.
@@ -300,7 +289,7 @@ impl CarLighting {
     ) -> CarLighting {
         let at = car_world.w_axis.truncate();
         let mut lobes: Vec<Lobe> =
-            rig.iter().map(|l| Lobe { direction: l.direction(camera), colour: l.colour * l.intensity }).collect();
+            rig.iter().map(|l| Lobe { direction: rig_direction(l, camera), colour: l.colour * l.intensity }).collect();
         lobes.extend(nearby(packs, scene, at));
 
         // 0x48ED60: unit directions, the specular channel the colour's
@@ -435,7 +424,7 @@ mod tests {
     fn the_key_light_comes_from_above_the_camera() {
         let camera = CameraAxes::look(Vec3::Y, Vec3::Z);
         assert!((camera.down - -Vec3::Z).length() < 1e-6);
-        let d = IN_GAME_RIG[0].direction(&camera);
+        let d = rig_direction(&IN_GAME_RIG[0], &camera);
         assert!((d - Vec3::Z).length() < 1e-3, "{d}");
     }
 

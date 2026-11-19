@@ -916,7 +916,7 @@ resolve them. Its mesh flags are 0. `src/sky.rs` has the cycle.
 ## Parameter maps and fog (verified)
 
 L4RA.BUN container 0x8003B600 holds 13 named, position-dependent tables.
-`src/formats/parameter_map.rs` documents the layout and the quadtree lookup
+`crates/ob-formats/src/formats/parameter_map.rs` documents the layout and the quadtree lookup
 (SPEED2.EXE 0x5F0940). Fog is computed as follows:
 
 * 0x614310 samples "Normal Fog" (objects at 0x8A1E90 + 0x30·(view − 1))

@@ -12,15 +12,15 @@ build = "build.rs"
 # never depend on it, so egui is not in the game's dependency tree.
 [dependencies]
 nfsu2 = { path = "../..", default-features = false }
-anyhow = "1"
-glam = { version = "0.32", features = ["bytemuck"] }
-wgpu = "30"
-winit = "0.30"
-pollster = "0.4"
-image = { version = "0.25", default-features = false, features = ["png"] }
-log = "0.4"
-env_logger = "0.11"
-toml = { version = "1.1.4", default-features = false, features = ["parse", "serde"] }
+anyhow.workspace = true
+glam.workspace = true
+wgpu.workspace = true
+winit.workspace = true
+pollster.workspace = true
+image.workspace = true
+log.workspace = true
+env_logger.workspace = true
+toml.workspace = true
 # The editor's UI: egui with its winit input and wgpu renderer, on the
 # wgpu / winit versions above. Pinned exactly: egui changes its API between
 # minor versions. MIT OR Apache-2.0. Without egui's default fonts (not all
@@ -35,7 +35,7 @@ egui-wgpu = { version = "=0.37.0", default-features = false }
 ob-testkit = { path = "../ob-testkit" }
 # The font test reads the faces' glyph tables (already in the tree through
 # the launcher's text, Apache-2.0).
-ab_glyph = "0.2.32"
+ab_glyph.workspace = true
 
 [features]
 # The game library's allocator choice and developer harness, as the root

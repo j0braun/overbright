@@ -1,37 +1,5 @@
-#[derive(Clone, Copy, Debug)]
-pub struct Rec80 {
-    pub gin: &'static str,
-    pub hybrid: bool,
-    pub decel: usize,
-    pub rpm_max: f32,
-    pub rpm_min: f32,
-    pub vol_a: i32,
-    pub vol_b: i32,
-    pub d0: f32,
-    pub a1: f32,
-    pub b1: f32,
-    pub a0: f32,
-    pub b0: f32,
-    pub fixed_a: f32,
-    pub fixed_b: f32,
-    pub cutoff: i32,
-}
-
-#[derive(Clone, Copy, Debug)]
-pub struct Rec84 {
-    pub gin: &'static str,
-    pub vol_a: i32,
-    pub vol_d: i32,
-    pub rpm0: i32,
-    pub rpm1: i32,
-    pub up: f32,
-    pub down: f32,
-    pub d0: f32,
-    pub a1: f32,
-    pub b1: f32,
-    pub a0: f32,
-    pub b0: f32,
-}
+// The record types sit with the engine's tables (`exe_tables::records`).
+pub use crate::exe_tables::records::{Rec80, Rec84};
 
 /// The engine records (0x7F0DE0, 0x4C bytes): accel GIN (+0x0C), hybrid flag (+0x10),
 /// decel record (+0x14), rpm max / min (+0x1C / +0x20), layer volumes (+0x24 / +0x28),

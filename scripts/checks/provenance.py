@@ -55,7 +55,12 @@ def main():
             reg[pid] = kind
     tags = {}
     untagged = []
-    for root, dirs, files in os.walk(os.path.join(repo, "src")):
+    # The library's source: src/ and the workspace crates' src/ (crates/<name>/src).
+    roots = [os.path.join(repo, "src")]
+    crates = os.path.join(repo, "crates")
+    if os.path.isdir(crates):
+        roots += [os.path.join(crates, c, "src") for c in sorted(os.listdir(crates)) if os.path.isdir(os.path.join(crates, c, "src"))]
+    for root, dirs, files in (w for r in roots for w in os.walk(r)):
         dirs.sort()
         for name in sorted(files):
             if not name.endswith(".rs"):
@@ -83,7 +88,7 @@ def main():
                 errors.append(f"{rel}:{n}: tag {pid} says {kind}, docs/provenance.tsv says {reg[pid]}")
     for pid in sorted(reg):
         if pid not in tags:
-            errors.append(f"docs/provenance.tsv: {pid} has no tag in src/ (resolved? remove the row, or tag its site)")
+            errors.append(f"docs/provenance.tsv: {pid} has no tag in the source (resolved? remove the row, or tag its site)")
     counts = {k: sum(1 for v in reg.values() if v == k) for k in KINDS}
     nsites = sum(len(v) for v in tags.values())
     if "--list" in sys.argv:

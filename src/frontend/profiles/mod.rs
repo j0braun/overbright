@@ -77,7 +77,7 @@ mod tests {
                 let home = sandbox::enter(&parent);
                 assert!(sandbox::active() && data_home() == home && root() == home.join(FOLDER));
                 assert_eq!(current_name(), None, "a new sandbox has no current profile");
-                set_current(name, NativeSave::fresh(name));
+                set_current(name, crate::frontend::career::fresh_save(name));
                 std::thread::sleep(std::time::Duration::from_millis(20));
                 update_current(|s| s.set_name(name));
                 assert_eq!(sandbox::enter(&parent), home, "entered once per thread");
@@ -199,7 +199,7 @@ mod failure_tests {
             sandboxed("read");
             assert!(read("NOBODY").is_err(), "missing");
             assert!(load("NOBODY").is_err() && current_name().is_none(), "a failed load leaves no current profile");
-            let good = NativeSave::fresh("GOOD");
+            let good = crate::frontend::career::fresh_save("GOOD");
             write("GOOD", &good).unwrap();
             assert_eq!(read("GOOD").unwrap(), good);
             let path = find("GOOD");
@@ -231,7 +231,7 @@ mod failure_tests {
             // A file where the profiles' folder goes: nothing can be made
             // under it (read-only in effect, for any user).
             std::fs::write(home.join(FOLDER), b"in the way").unwrap();
-            assert!(write("BLOCKED", &NativeSave::fresh("BLOCKED")).is_err());
+            assert!(write("BLOCKED", &crate::frontend::career::fresh_save("BLOCKED")).is_err());
             assert!(write_cover("BLOCKED DVD 1", &crate::formats::native_save::picture(&[0; 4], 1, 1)).is_err());
             assert!(delete("BLOCKED").is_err());
             assert!(list().is_empty());

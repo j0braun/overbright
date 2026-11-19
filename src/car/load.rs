@@ -177,7 +177,7 @@ impl Sources {
         let car_dir = crate::game_fs::path(game_root, &format!("CARS/{name}"));
         let geometry =
             crate::cache::SourceBytes::open(&crate::game_fs::path(&car_dir, "GEOMETRY.BIN")).context("reading car geometry")?;
-        let solids: Vec<Solid> = crate::cache::file_cached(&crate::game_fs::path(&car_dir, "GEOMETRY.BIN"), "solids", || {
+        let solids: Vec<Solid> = crate::cache::file_cached(crate::BUILD_ID, &crate::game_fs::path(&car_dir, "GEOMETRY.BIN"), "solids", || {
             let mut solids = Vec::new();
             for list in bundle::chunks(&geometry, 0).filter(|c| c.id == id::SOLID_LIST) {
                 solids.extend(parse_solid_list(list)?);
@@ -190,7 +190,7 @@ impl Sources {
         // the cars (table 0x7FA978): CARS\TEXTURES.BIN and the rims'
         // CARS\WHEELS\TEXTURES.BIN (BRAKES and PLATES are empty).
         let file = crate::game_fs::path(&car_dir, "TEXTURES.BIN");
-        let own = crate::cache::file_cached(&file, "textures", || {
+        let own = crate::cache::file_cached(crate::BUILD_ID, &file, "textures", || {
             let data = crate::cache::SourceBytes::open(&file).with_context(|| format!("reading {}", file.display()))?;
             texture_packs(&data)
         })?;
@@ -1425,19 +1425,21 @@ mod read_once_tests {
     /// The physics-only car (each dyno pull) takes GLOBALB.BUN
     /// from the run's shared copy, as a full car load does: the 8 MB file
     /// is read from disk at most once however many cars load.
+    // The read notes are a developer-harness aid (`game_fs::record_reads`).
+    #[cfg(feature = "dev-harness")]
     #[test]
     #[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
     fn physics_cars_read_globalb_once_a_run() {
         let root = crate::testkit::game_root();
         let path = crate::game_fs::path(&root, "GLOBAL/GLOBALB.BUN");
-        crate::game_fs::READS.with(|r| r.borrow_mut().clear());
+        crate::game_fs::record_reads();
         let fresh = Car::load_physics(&root, "PEUGOT", &[], &|_| false, None).unwrap();
         for _ in 0..3 {
             let again = Car::load_physics(&root, "PEUGOT", &[], &|_| false, None).unwrap();
             assert_eq!(format!("{:?}", again.car_type), format!("{:?}", fresh.car_type));
         }
         Car::load(&root, "PEUGOT").unwrap();
-        let own = crate::game_fs::READS.with(|r| r.borrow().iter().filter(|p| p.ends_with("GLOBALB.BUN")).count());
+        let own = crate::game_fs::recorded_reads().iter().filter(|p| p.ends_with("GLOBALB.BUN")).count();
         assert_eq!(own, 0, "GLOBALB.BUN read past the shared copy");
         assert_eq!(crate::car::assets::shared_file_reads::of(&path), 1, "GLOBALB.BUN read from disk once");
     }

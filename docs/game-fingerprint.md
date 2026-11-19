@@ -1,6 +1,6 @@
 # Game-version fingerprint
 
-Not native: clone tooling (first-run QoL family). Code: `src/fingerprint.rs`,
+Not native: clone tooling (first-run QoL family). Code: `crates/ob-core/src/fingerprint.rs`,
 hooks in `src/bin/game.rs` (`--check-game`, the window start) and
 `src/qol/` (`crash::report`).
 

@@ -187,7 +187,7 @@ The requirements as README.md and the archive's README.txt state them, and how t
 - **Sound**: ALSA, directly or through PulseAudio's or PipeWire's ALSA plugin.
 
 **No Vulkan driver.** On Linux the game draws only with Vulkan, so "no adapter" means no loader or no
-driver. `src/platform/vulkan.rs` words it for the player and names the packages for the distribution
+driver. `crates/ob-core/src/platform/vulkan.rs` words it for the player and names the packages for the distribution
 (`/etc/os-release`: apt, dnf, pacman, zypper; any other: "the Vulkan loader and Mesa's Vulkan drivers"):
 
 > no Vulkan driver for this graphics card was found. Overbright draws with Vulkan: install one with

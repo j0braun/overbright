@@ -3261,7 +3261,7 @@ traffic engine's level for given position fields).
 
 ## Speech and music archive (SDATA/sdat.viv; 2026-10-29)
 
-Ported in `src/formats/viv.rs`, `src/audio/{schl,microtalk,ealayer3,
+Ported in `crates/ob-formats/src/formats/viv.rs`, `src/audio/{schl,microtalk,ealayer3,
 mp3_tables,speech,music,streams}.rs`; tests `tests/speech_music.rs`, the
 selftest's "streams" step, probe the maintainer's probe `speech_probe`.
 

@@ -15,6 +15,11 @@ extern crate self as nfsu2;
 #[path = "../tests/common/mod.rs"]
 pub(crate) mod testkit;
 
+// The build id's own test (build_support/build_id.rs).
+#[cfg(test)]
+#[path = "../build_support/build_id.rs"]
+mod build_id;
+
 #[cfg(test)]
 mod testkit_tests {
     /// Every lock line parses into a 64-digit hash and a size.
@@ -29,43 +34,11 @@ mod testkit_tests {
     }
 }
 
-pub mod formats {
-    pub mod ai_routes;
-    pub mod bundle;
-    pub mod camera_tracks;
-    pub mod collision;
-    pub mod eagl;
-    pub mod hash;
-    pub mod huff;
-    pub mod jdlz;
-    pub mod lights;
-    pub mod magazines;
-    pub mod native_save;
-    pub mod parameter_map;
-    pub mod parts;
-    pub mod reader;
-    pub mod roads;
-    pub mod scenery;
-    pub mod smackable;
-    pub mod solid;
-    pub mod texture;
-    pub mod texwizard;
-    pub mod tpf;
-    pub mod texture_anim;
-    pub mod track;
-    pub mod visibility;
-    pub mod viv;
-    pub mod vp6;
-    pub mod world_anim;
-    pub mod zam;
-    pub mod zip;
-}
 pub mod ai;
 pub mod ai_looks;
 pub mod carfx_pops;
 pub mod track_camera;
 pub mod audio;
-pub mod cache;
 pub mod car;
 pub mod character;
 pub mod chase;
@@ -75,22 +48,17 @@ pub mod drift;
 pub mod style;
 pub mod drive;
 pub mod event_camera;
-pub mod diag;
 pub mod difficulty;
 pub mod dyno;
 pub mod fog;
-pub mod frame_clock;
-pub mod game_clock;
 pub mod latency;
 pub mod extras;
-pub mod failed_load;
 pub mod replay_cams;
 pub mod racer_reset;
 pub mod interpolate;
 #[cfg(feature = "mimalloc")]
 pub mod allocator;
 pub mod frontend;
-pub mod fxhash;
 pub mod garage;
 pub mod part_anim;
 pub mod glow;
@@ -103,12 +71,9 @@ pub mod pad;
 pub mod particles;
 pub mod performance;
 pub mod photo;
-pub mod platform;
-pub mod prof;
 pub mod qol;
 pub mod race;
 pub mod rear_view;
-pub mod region;
 pub mod screen_flash;
 pub mod screen_tint;
 pub mod sky;
@@ -124,7 +89,6 @@ pub mod model_fixes;
 pub mod car_smooth;
 pub mod movie;
 pub mod game_assets;
-pub mod draw;
 pub mod render;
 pub mod neon_quality;
 pub mod surface_maps;
@@ -139,18 +103,11 @@ pub mod shadow;
 pub mod shop_scene;
 pub mod weather;
 pub mod world;
-// The release build: version stamp, the Windows console and start errors.
-pub mod build_info;
-pub mod console;
 // The opt-in modding tools (texture and map editors; docs/texture-editor.md).
 pub mod tools;
 // Overbright's own texture-pack format (docs/texture-packs.md).
 pub mod obpack;
-// Quality tooling (docs/game-fingerprint.md, docs/mark-spot.md).
-pub mod fingerprint;
-// The engine's tables, in code (docs/exe-tables.md).
-pub mod exe_tables;
-pub mod game_fs;
+// Quality tooling (docs/mark-spot.md).
 /// The launcher (`overbright`, docs/launcher.md).
 pub mod launcher;
 /// The game↔launcher contract (probe and prepare formats, the error
@@ -158,67 +115,67 @@ pub mod launcher;
 pub mod launch;
 pub mod mark_spot;
 
-use std::path::PathBuf;
+/// The library's build id (build_support/build_id.rs): the asset caches its
+/// code makes are named and checked by it.
+pub const BUILD_ID: cache::BuildId = cache::BuildId::from_hex(env!("OB_BUILD_ID"));
 
-/// Whether the environment variable `$name` is set, read once per call
-/// site (debugging switches tested on frame paths cost a `getenv`, a
-/// lock and a scan of the environment, every frame). The variables are
-/// set before the game starts.
-#[macro_export]
-macro_rules! env_set {
-    ($name:literal) => {{
-        static SET: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
-        *SET.get_or_init(|| std::env::var_os($name).is_some())
-    }};
-}
-
-/// `$name`'s value (as `std::env::var(..).ok()`), read once per call site
-/// (see [`env_set!`]): an `Option<&'static str>`.
-#[macro_export]
-macro_rules! env_value {
-    ($name:literal) => {{
-        static VALUE: std::sync::OnceLock<Option<String>> = std::sync::OnceLock::new();
-        VALUE.get_or_init(|| std::env::var($name).ok()).as_deref()
-    }};
-}
-
-/// `$name`'s value (as `std::env::var_os`), read once per call site (see
-/// [`env_set!`]): an `Option<&'static OsStr>`.
-#[macro_export]
-macro_rules! env_value_os {
-    ($name:literal) => {{
-        static VALUE: std::sync::OnceLock<Option<std::ffi::OsString>> = std::sync::OnceLock::new();
-        VALUE.get_or_init(|| std::env::var_os($name)).as_deref()
-    }};
-}
-
-/// `$name` parsed as a `$t`, read once per call site (see [`env_set!`]).
-#[macro_export]
-macro_rules! env_parsed {
-    ($name:literal, $t:ty) => {{
-        static VALUE: std::sync::OnceLock<Option<$t>> = std::sync::OnceLock::new();
-        *VALUE.get_or_init(|| std::env::var($name).ok().and_then(|v| v.parse::<$t>().ok()))
-    }};
-}
-
-/// Where the installed game lives: `$NFSU2_ROOT`, else the current directory.
-pub fn game_root() -> PathBuf {
-    std::env::var_os("NFSU2_ROOT").map(PathBuf::from).unwrap_or_else(|| PathBuf::from("."))
-}
-
-/// A tag for temporary file and folder names that stays unique between
-/// processes even when they share a PID (each `bwrap --unshare-pid` run is
-/// PID 2): the PID, the start time in nanoseconds and a per-process count.
-pub fn unique_tag() -> String {
-    use std::sync::atomic::{AtomicU32, Ordering};
-    use std::sync::OnceLock;
-    static START: OnceLock<u128> = OnceLock::new();
-    static SEQ: AtomicU32 = AtomicU32::new(0);
-    let start = *START.get_or_init(|| std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_nanos()));
-    format!("{}-{start:x}-{}", std::process::id(), SEQ.fetch_add(1, Ordering::Relaxed))
-}
 
 pub mod hd_ui_pack;
 
 // Performance overlay (docs/perf-overlay.md).
 pub mod overlay;
+
+// The bottom layer, crates/ob-core (ARCHITECTURE.md "Layers"): its modules
+// at their old paths. The parts of `cache`, `diag`, `platform` and `prof`
+// that need the library (the cache check, the support file, winit, wgpu)
+// stay here, beside the re-exported rest.
+pub use ob_core::{
+    build_info, console, draw, failed_load, fingerprint, frame_clock, fxhash, game_clock, game_fs, game_rng, log_file,
+    region,
+};
+pub use ob_core::{env_parsed, env_set, env_value, env_value_os, game_root, persist, persist_enum, unique_tag};
+
+// The file-format parsers and the engine's tables (docs/exe-tables.md),
+// crates/ob-formats.
+pub use ob_formats::{exe_tables, formats};
+
+/// The asset cache (`ob_core::cache`) and `--verify-cache`.
+pub mod cache {
+    pub use ob_core::cache::*;
+    mod verify;
+    pub use self::verify::*;
+}
+
+/// Diagnostics (`ob_core::diag`) and the support file.
+pub mod diag {
+    pub use ob_core::diag::*;
+    pub mod support;
+}
+
+/// Operating-system specifics (`ob_core::platform`) and the winit parts:
+/// the window icon and the monitors' modes.
+pub mod platform {
+    pub use ob_core::platform::*;
+    pub mod icon;
+    pub mod monitor;
+}
+
+/// Timings (`ob_core::prof`) and the GPU's.
+pub mod prof {
+    pub use ob_core::prof::*;
+    /// GPU time per part of the frame, from timestamp queries (the bench
+    /// turns them on; a no-op otherwise, and on devices without
+    /// [`gpu::FEATURES`]). `gpu::mark(encoder, "x")` writes a timestamp
+    /// after the commands recorded so far: the time since the previous mark
+    /// goes to "x". Each encoder of a frame starts with a mark of its own
+    /// ([`gpu::GAP`]), so the GPU's wait between submissions is not charged
+    /// to a part.
+    ///
+    /// The read-back never stalls the frame: each frame's marks go to one of
+    /// [`gpu::RING`] query sets, resolved and copied after the frame's last
+    /// submission ([`gpu::end_frame`]) and mapped asynchronously; a frame is
+    /// read when its map has completed, a few frames later (`device.poll`
+    /// without waiting). Only when the ring comes round to a set still being
+    /// read does it wait, for that set alone.
+    pub mod gpu;
+}

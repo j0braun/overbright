@@ -119,7 +119,7 @@ pub(crate) fn game_folder(command: &super::command::Command) -> Result<bool> {
 /// `game --verify-cache [track …]`: the asset cache against a fresh parse
 /// of the game's files (every cached track, or those named).
 pub(crate) fn verify_cache(names: &[String]) -> Result<()> {
-    for line in nfsu2::cache::verify(&nfsu2::game_root(), names)? {
+    for line in nfsu2::cache::verify(nfsu2::BUILD_ID, &nfsu2::game_root(), names)? {
         println!("{line}");
     }
     Ok(())

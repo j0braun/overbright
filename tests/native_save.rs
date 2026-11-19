@@ -128,7 +128,7 @@ fn clone_progress_reaches_the_file() {
 #[test]
 #[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
 fn a_new_profile_starts_from_the_originals_fresh_one() {
-    let s = NativeSave::fresh("RAY");
+    let s = career::fresh_save("RAY");
     assert_eq!(s.name(), "RAY");
     let b = s.to_bytes();
     assert_eq!(b.len(), native_save::FILE_LEN);
@@ -209,7 +209,7 @@ fn options_round_trip_and_reach_the_file() {
 fn garage_records_are_where_the_writer_puts_them() {
     use native_save::*;
     let mycar = NativeSave::parse(fixtures()[3].1).unwrap();
-    let fresh = NativeSave::fresh("NAME");
+    let fresh = career::fresh_save("NAME");
     assert_eq!(mycar.u32(LIST_COUNT), 0x1F);
     assert_eq!(mycar.u32(SLOT_COUNT), 5);
     let car = GARAGE_CARS;
@@ -287,7 +287,7 @@ fn my_cars_load_and_write_back() {
     let back = Profile::from_native(&w, &ctx);
     assert!(back.my_cars.iter().all(Option::is_none));
     assert_eq!(back.menu_car.as_ref().map(|c| c.0.as_str()), Some("PEUGOT"));
-    let fresh = Profile::from_native(&NativeSave::fresh("NAME"), &ctx);
+    let fresh = Profile::from_native(&career::fresh_save("NAME"), &ctx);
     // 0x521110's clear: the head 0 but the filter 2, the car record zero.
     let o = native_save::GARAGE_CARS;
     assert_eq!(w.u32(o + 4), 0);
@@ -815,7 +815,7 @@ fn new_profiles_after_bonus_codes_match_the_originals() {
         assert_eq!(s.u32(native_save::CASH), bank, "{name}");
         let mut p = Profile::new(name);
         p.cash = t.creation_cash(name == "TWO", nfsu2::frontend::cheats::pay_now(200, false, 0));
-        let ours = p.to_native(&NativeSave::fresh(name), &ctx);
+        let ours = p.to_native(&career::fresh_save(name), &ctx);
         let diff: Vec<usize> = (0..native_save::PAYLOAD_LEN).filter(|&i| ours.payload[i] != s.payload[i]).collect();
         assert!(diff.is_empty(), "{name}: {} bytes differ, first at {:#x}", diff.len(), diff[0]);
         assert_eq!(ours.to_bytes(), bytes, "{name}");
@@ -956,4 +956,16 @@ fn unknown_win_and_cover_hashes_are_kept() {
     let back = Profile::from_native(&s, &ctx).to_native(&s, &ctx);
     assert_eq!(back.u32(o + native_save::ST_NORMAL + 4 * free), unknown);
     assert_eq!(back.u32(o + native_save::ST_COVERS), unknown);
+}
+
+/// Settings +0x20 (0x83AA24) is 127.5 in the fresh save and in the
+/// original's saves (the finished-career save with the Jump Camera off included): the
+/// event cameras' gate for kinds 1..5 is open natively.
+#[test]
+#[cfg_attr(not(all(ob_game, ob_private)), ignore = "needs NFSU2_ROOT (the player's own game files) and OB_PRIVATE (private captures and saves)")]
+fn settings_20_is_the_constructors_127_5() {
+    assert_eq!(career::fresh_save("NAME").f32(native_save::SETTINGS_20), native_save::SETTINGS_20_DEFAULT);
+    for b in [&common::private("tests/fixtures/native_saves/career_complete.sav")[..], &common::private("tests/fixtures/native_saves/career_end_won.sav"), &common::private("tests/fixtures/native_saves/stage5_win1.sav")] {
+        assert_eq!(NativeSave::parse(b).unwrap().f32(native_save::SETTINGS_20), native_save::SETTINGS_20_DEFAULT);
+    }
 }

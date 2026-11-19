@@ -12,7 +12,7 @@ Prior art taken: Unreal's split between editor assets, per-platform cooked outpu
 cache (https://dev.epicgames.com/documentation/en-us/unreal-engine/using-derived-data-cache-in-unreal-engine);
 Godot's import cache keyed by the source's hash and the importer's format version
 (https://docs.godotengine.org/en/stable/tutorials/assets_pipeline/import_process.html). Kept from Overbright: the
-asset cache's framing, writes, temporary files and pruning (docs/asset-cache.md, `src/cache/**`).
+asset cache's framing, writes, temporary files and pruning (docs/asset-cache.md, `crates/ob-core/src/cache/**`).
 
 ## 1. Cook units
 
@@ -30,7 +30,7 @@ one **target**.
 ## 2. Two layers inside the cache
 
 1. **Model entries**: the merged decoded model of a cook unit (what the engine consumes: placements, records,
-   vertices, texture records), in the cache's flat encoding (`src/cache/persist.rs`: little-endian, fields in
+   vertices, texture records), in the cache's flat encoding (`crates/ob-core/src/cache/persist.rs`: little-endian, fields in
    declaration order, floats as bits, maps sorted, large arrays 16-aligned). Keyed by the **trace of its lookups** (§3) and the
    **layout hash** (§4). They survive Overbright updates that do not change the model's types.
 2. **Prepared entries**: build-specific data derived from model entries (texture arrays as uploaded, merged vertex
@@ -66,7 +66,7 @@ bump fails the build.
 Checking digests must not mean reading every source file at each start. Per bundle, the cache keeps the bundle's
 size, modification time and (Unix) inode and the digests of its entries as last verified ([layout.md](layout.md)
 §5); while those match, the recorded digests are trusted, exactly as the asset cache trusts a game file's
-size/time/inode today (`src/cache/format.rs` `SourceFile`). A folder-form pack (being edited) is checked per file
+size/time/inode today (`crates/ob-core/src/cache/format.rs` `SourceFile`). A folder-form pack (being edited) is checked per file
 the same way.
 
 ## 4. The layout hash
@@ -79,14 +79,14 @@ recursively). The **layout hash** is the XXH3-64 of that description for all typ
 - a change elsewhere in the code does not, and the entries survive the update (which the build id does not allow
   today: every update re-parses everything);
 - `--verify-cache` prints the descriptions, and a test pins each section kind's hash so a change shows up in review
-  (as `exe_tables` pins its tables, `src/exe_tables/tests.rs` `FIELD_PINS`).
+  (as `exe_tables` pins its tables, `crates/ob-formats/src/exe_tables/tests.rs` `FIELD_PINS`).
 
 The **cooker version** (an integer per unit kind) is bumped when cooking logic changes without a type change (a
 merge rule fixed, say).
 
 ## 5. Framing
 
-The existing framing (docs/asset-cache.md; `src/cache/format.rs`) with format 3:
+The existing framing (docs/asset-cache.md; `crates/ob-core/src/cache/format.rs`) with format 3:
 
 | Offset | Size | Type | Field | Notes |
 |---|---|---|---|---|
@@ -131,7 +131,7 @@ instead:
 cook derived; this roughly halves today's track cache (139 MB for a 118.5 MB source) [guess]. `bundle` indexes the header's `bundles` list, whose entries are of three sorts: a stored
 bundle entry's file (the common case), a file of a folder-form pack (a plain file, mapped whole), and, in a linked
 base set only, an original file in the game folder (by path, size and SHA-256; [import.md](import.md) §4.2). On
-desktop the reader maps each source once and hands out slices (the cache's `Bytes::Mapped`, `src/cache/bytes.rs`,
+desktop the reader maps each source once and hands out slices (the cache's `Bytes::Mapped`, `crates/ob-core/src/cache/bytes.rs`,
 extended to these mappings); on the web it reads the range from storage. A reference into a deflated entry is not
 allowed: such payloads are copied into the entry.
 

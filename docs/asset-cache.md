@@ -1,7 +1,7 @@
 # The asset cache: names, versions, writes, temporary files, the developer folder
 
 What the game's files are parsed into (tracks, cars' models and textures) is kept in cache files
-(src/cache/, framing in `src/cache/format.rs`). This page holds the rules that keep the cache correct when
+(crates/ob-core/src/cache/, framing in `crates/ob-core/src/cache/format.rs`). This page holds the rules that keep the cache correct when
 several builds and several processes share a folder. No SPEED2.EXE behaviour is involved: the original has no
 such cache. A single player with one build sees the same cache contents and the same pictures as before.
 
@@ -30,9 +30,13 @@ such cache. A single player with one build sees the same cache contents and the 
   a skip and does not fail on it.
 
 ## Names and versions
-* A cache file is `<kind>.<build id>.nfc`. The build id (build.rs) hashes every library source file
-  (`src/` without `src/bin`), `Cargo.lock` and the enabled features. It is the cache's only version, and it
-  is in the file's name **and** in its header (checked on open). So:
+* A cache file is `<kind>.<build id>.nfc`. The build id is the one of the crate whose code makes the file
+  (build_support/build_id.rs, each library crate's build.rs; `nfsu2::BUILD_ID` for the caches the library
+  makes today): it hashes that crate's source files (`src/` without `src/bin`), `Cargo.lock`, the crate's
+  enabled features and the build ids of the workspace crates it depends on, so a change anywhere on the
+  file's path changes it and a change in a crate above does not (`every_input_changes_the_build_id`). Every
+  cache call takes it (`CacheFile::open`, `cache::write`, `file_cached`, `TrackCache`). It is the cache's
+  only version, and it is in the file's name **and** in its header (checked on open). So:
   * a build never reads a file another source tree wrote: a change of what a kind stores (a new field in the
     car solids, say) changes the build id without anyone bumping a number;
   * two builds of different sources never write the same file, so neither finds the other's entry stale and

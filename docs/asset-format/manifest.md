@@ -111,7 +111,7 @@ import = "import.toml"
 | Field | Type | Req. | Default | Meaning |
 |---|---|---|---|---|
 | `edition` | string `[a-z0-9-]{1,32}` | yes | – | The importer's edition key ([import.md](import.md) §3), `custom` for an unknown or modified install, or the community set's own name. |
-| `region` | enum `na`, `eu` | yes | – | The original's region behaviour the set follows (src/region.rs: NA = region 0, every European release = 6). |
+| `region` | enum `na`, `eu` | yes | – | The original's region behaviour the set follows (crates/ob-core/src/region.rs: NA = region 0, every European release = 6). |
 | `languages` | array<string> | yes | – | The language keys a player can choose: the `text/<language>/` units with role `player` that hold a string table ([text.md](text.md) §2). |
 | `profile` | string `<name>/<major>` | yes | – | The **required-items profile** the set satisfies (§5). |
 | `import` | logicalPath | for imported sets | – | The import record, normally `import.toml`. |

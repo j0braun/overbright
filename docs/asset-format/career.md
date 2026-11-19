@@ -39,7 +39,7 @@ row of the table is this page's.
 |---|---|
 | Events, stages, sponsors, brands, shops, milestones, cash pickups, car unlocks, messages, world challenges, tricks, track records, magazine setups, map calibration | **data**: the base set (this page) |
 | Where events, shops, photo spots, cash pickups and tips are; start grids; shop positions | **data**: route triggers and markers ([roads-ai.md](roads-ai.md)) |
-| Region 0's opponent pool (0x7F6DA4) and the Quick Race opponent names (0x7F6CD0); magazine, DVD and rating lines (`MAGAZINE_LINES`, `DVD_LINES`, `RATING_LINES`); World Map zooms | **engine tables** in the table holder (`opponent_cars`, `opponent_names`, `magazine_lines`, `dvd_lines`, `rating_lines`, `world_map_zooms`; `src/exe_tables/constants/frontend.rs:9`, `:19`, `:43`, `:57`, `:194`, `:230`) |
+| Region 0's opponent pool (0x7F6DA4) and the Quick Race opponent names (0x7F6CD0); magazine, DVD and rating lines (`MAGAZINE_LINES`, `DVD_LINES`, `RATING_LINES`); World Map zooms | **engine tables** in the table holder (`opponent_cars`, `opponent_names`, `magazine_lines`, `dvd_lines`, `rating_lines`, `world_map_zooms`; `crates/ob-formats/src/exe_tables/constants/frontend.rs:9`, `:19`, `:43`, `:57`, `:194`, `:230`) |
 | The alternate and SUV opponent pools (0x7F6DC0, 0x7F6DDC); car-lot exclusions (0x7F7C50 / 0x7F7C48); Quick Race's always-offered cars (0x7F7C28 / 0x7F7C08); neighbourhood names (0x800C38); reputation by winning margin and reward class (0x7F7AC8); visual-rating steps (0x7FA230); minimap icons (0x7F4348); AI throttle caps (0x783A28) | **engine constants** written in the modules that use them (`src/frontend/career/events.rs:147`, `:151`; `lists.rs:7`–`14`; `triggers.rs:75`; `rewards.rs:53`; `src/frontend/screens/ingame_map.rs:142`; `src/ai/driver/mod.rs:104`) |
 | Open-event picking (0x527D40), stage ends (0x532C70), sponsor offers (0x500610, 0x500670), race pay (0x532E60), car unlock checks (0x513C50), start cash (cheat bonuses) | **engine code**, not data |
 
@@ -372,7 +372,7 @@ window_size = 200.0
 ### 3.4 `ob.magazines` (`frontend/magazines/magazines.toml`)
 
 From `MAGAZINES_FRONTEND.BIN` (`0x30230`: three counts, then 64 camera slots of 0x38, 32 environment-map slots of
-0x18, 32 setup slots of 0x68; `src/formats/magazines.rs:1`) and `MAGAZINES_SHOWCASE.BIN` (`0x30231`: three counts,
+0x18, 32 setup slots of 0x68; `crates/ob-formats/src/formats/magazines.rs:1`) and `MAGAZINES_SHOWCASE.BIN` (`0x30231`: three counts,
 then 64 camera slots of 0x2C, 32 light slots of 0x0C, 32 setup slots of 0x38). The counts are the list lengths here.
 Unused slots are zero in the first file; in the second every unused camera slot holds the same default camera
 (params `[0.0, 0.0, 3.0, 0.0, 0.0, 0.0, 45.0, 0.0, 0.0]`, hash 0). The importer checks both (else the file is `kept`).
@@ -437,7 +437,7 @@ envmaps = ["0xC2082D5F"]
 Why so narrow: **M** fields are values the engine reads as numbers or names of other items; none is a key, a count,
 a stage membership, a category or a rule input whose evaluation is not yet traced. Magazine setups are refused
 because the cover pick draws on the game's random generator as many times as the counts say
-(`src/formats/magazines.rs:204`), so changing them changes later draws. Lists are replaced whole (`races`,
+(`crates/ob-formats/src/formats/magazines.rs:204`), so changing them changes later draws. Lists are replaced whole (`races`,
 `opponents`) under the conditions of CRR.5 and CRR.6. Clashes are reported per item and field (layering §4).
 Wildcards: none. `disabled` is refused for every item of this page (MRG.3): an event, stage or shop that the engine
 treated as absent would change the order and the counts a native save follows (§1.2).

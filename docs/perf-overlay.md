@@ -263,7 +263,7 @@ needed). Frame columns are the draw thread's figures at its last refresh
 `tests/fixtures/overlay/root/` (a small hand-written /proc + /sys tree:
 two AMD cards, k10temp, nvme hwmon, cpufreq, diskstats with partitions,
 zram and loop). Hooks: `frontend/options.rs` (Settings `overlay` field,
-`overlay.*` lines, four rows), `prof.rs` (`gpu::ready/active/set_active`),
+`overlay.*` lines, four rows), `prof/gpu.rs` (`gpu::ready/active/set_active`),
 `bin/game.rs` (F3, the frame push, the quads, `gpu::want` before the
 window's device, `NFSU2_SHOT_FPS` / `NFSU2_SHOT_ENH`, the bench's push,
 the loading gate's time), `lib.rs`.

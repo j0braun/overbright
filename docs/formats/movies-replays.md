@@ -3,7 +3,7 @@
 Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; the tags
 (**verified**, **inferred**, **open**) are explained there.
 
-## Movies (src/movie.rs, src/formats/vp6.rs; verified except where noted)
+## Movies (src/movie.rs, crates/ob-formats/src/formats/vp6.rs; verified except where noted)
 
 * **Where the career intro plays** (**verified**): the career start
   0x495A30 (after MC_Main's 0x461A18EE, and on Resume) goes to the crib
@@ -151,7 +151,7 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
   sample covers 2 × 2 pixels. No post-processing: 0x700AFF sets level 0
   (0x702593(…, 0, 0)), so 0x70288E hands out the decoded frame.
 * **VP6** (the codec behind 0x702C9D, C paths; **verified** as ported,
-  tables at their addresses in src/formats/vp6.rs). Header (0x707CF8,
+  tables at their addresses in crates/ob-formats/src/formats/vp6.rs). Header (0x707CF8,
   plain bits): inter flag, quantizer (6), separated flag; a key frame adds
   version (5; above 7 refused), profile (2), interlace (1, not ported),
   then a 16-bit coefficient offset when separated or in profile 0, the
@@ -566,7 +566,7 @@ from its own snapshots):
   `REPLAY\REPLAY0.BIN`; the pool writer 0x57D200 has no caller but 0x57D400.
 **2026-11-05: the automatic replay camera's director gate, the reset flag, the typed groups (NOS, Jump, Speed, Corner, Burnout, PowerSlide: the replay's main shots under Wine) and their weights are in [replay-cameras.md](../replay-cameras.md); the type table 0x7EC1F8 is filled at runtime (observed), so "only the first filled" below describes the static image only.**
 **Track cameras** (**verified**; parsed by
-`src/formats/camera_tracks.rs`, test `camera_tracks_parse`; driven by
+`crates/ob-formats/src/formats/camera_tracks.rs`, test `camera_tracks_parse`; driven by
 `src/track_camera/` for the route cameras, test
 `track_director_follows_a_route_camera`; **open**: the rest of the
 selection, listed after the motion below). The director calls 0x44FE80 on the camera manager 0x828770

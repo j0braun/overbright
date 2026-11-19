@@ -50,7 +50,7 @@ impl Profile {
             .then(crate::frontend::profiles::current_save)
             .flatten()
             .or_else(|| crate::frontend::profiles::read(&name).ok())
-            .unwrap_or_else(|| crate::formats::native_save::NativeSave::fresh(&name));
+            .unwrap_or_else(|| crate::frontend::career::fresh_save(&name));
         let s = self.to_native(&base, ctx);
         if write {
             crate::frontend::profiles::write(&name, &s)?;
@@ -75,7 +75,7 @@ impl Profile {
     pub fn native_payload(&self) -> Option<Vec<u8>> {
         let ctx = NativeContext::get()?;
         let base = crate::frontend::profiles::current_save().unwrap_or_else(|| {
-            crate::formats::native_save::NativeSave::fresh(&crate::frontend::profiles::sanitize(&self.name))
+            crate::frontend::career::fresh_save(&crate::frontend::profiles::sanitize(&self.name))
         });
         let mut s = self.to_native(&base, ctx);
         // The options live in the profile too (`Settings::write_native`

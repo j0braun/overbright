@@ -132,7 +132,7 @@ own blend state), which is therefore a required item of every base set ([manifes
 | `world/<REGION>` | everything of a loaded region except cars: scenery, sky, roads, particles, glows, rain, reflections | world | the region's sets whose stream sections are loaded, in index order; then `global`: `GlobalB`, `GlobalB_2`, `GLOBALA`, `InGameCommon`, `InGameCommon_2`, `LOC4DYNTEX`, and `GlobalTexturesNA` (region 0) or `GlobalTexturesROW` (else) (src/world/parse.rs:35, :236, :414) |
 | `cars/<NAME>` | the car `NAME` wherever it is drawn (region, shop, scene), its shadow included | car | `cars/<NAME>` `TEXTURES`; `cars/common` `TEXTURES`; `cars/WHEELS` `TEXTURES`; then `global` `GlobalB`, `GlobalB_2` (src/car/load.rs:188, :425). Vinyl images are looked up only in `cars/<NAME>` `VINYLS` (src/car/skin.rs:138) |
 | `scenes/<NAME>` | an in-engine scene's own models (characters) | world | the scene's sets in index order (src/character.rs:509); then the `world/<REGION>` path of the loaded region [to verify] |
-| `frontend` (menus) | menus, loading screens, magazines | ui | `FrontB`, `FrontB_2`, `GlobalB`, `GlobalB_2`, `GLOBALA`, `InGameCommon`, `InGameCommon_2`, `InGameRace`, `InGameFreeRoam`, `InGameDrag`, `InGameDrift`, `HUD_CustomTextures_ALL`, `LanguageTextures`; `TRACKMAP<n>` when the screen asks for track *n* (src/frontend/assets.rs:62, :172); the magazine set of the detail level for the magazine screens (src/formats/magazines.rs:98) |
+| `frontend` (menus) | menus, loading screens, magazines | ui | `FrontB`, `FrontB_2`, `GlobalB`, `GlobalB_2`, `GLOBALA`, `InGameCommon`, `InGameCommon_2`, `InGameRace`, `InGameFreeRoam`, `InGameDrag`, `InGameDrift`, `HUD_CustomTextures_ALL`, `LanguageTextures`; `TRACKMAP<n>` when the screen asks for track *n* (src/frontend/assets.rs:62, :172); the magazine set of the detail level for the magazine screens (crates/ob-formats/src/formats/magazines.rs:98) |
 | `frontend` (in-game screens) | the HUD, pause and result screens | ui | as the menus, except that a texture an in-game file holds in another form than `FrontB` resolves to the in-game file's copy (src/frontend/assets.rs:153) [to verify: the original holds `FrontB` unloaded in game] |
 | `frontend` (shops) | a shop's or garage's models and environment map | world | the shop's sets (`frontend/platforms/<X>/textures/<X>`, its faces from `<X>_2` there or from `frontend/envmaps/<X>/textures/<X>`); `GlobalB`'s glow and neon textures; `FrontB` for the names the shop asks for (src/garage.rs:570, :502) |
 
@@ -343,7 +343,7 @@ Flip-books (water, blinking signs, the star layer): a record per animation in th
 | `anim` | array<table> | – | yes | – | Records, below. |
 | `anim.hash` | hash32 | – | yes | – | Record +0x18: the base hash, the key. References to this hash in the views that see the file are animated. |
 | `anim.name` | name | – | no | none | Record +0x00 (≤ 23 characters). |
-| `anim.fps` | u32 | 1/s | yes, except in `merge` entries | – | Record +0x20: frames per second. Frame `i = trunc(t · fps) mod n` (src/formats/texture_anim.rs:35). |
+| `anim.fps` | u32 | 1/s | yes, except in `merge` entries | – | Record +0x20: frames per second. Frame `i = trunc(t · fps) mod n` (crates/ob-formats/src/formats/texture_anim.rs:35). |
 | `anim.frames` | array<ref `texture`> | – | yes, except in `merge` entries | – | The frames in order (the frame table `0x30300103`); the record's count +0x1C is their number. Each resolves in the view like any reference; a view draws the animation only when more than one frame resolves (src/render/native/world/build/textures.rs:61). |
 | `anim.op`, `anim.disabled` | | | mod packs | | §4. |
 
@@ -493,13 +493,13 @@ of both forms.
 ### 5.1 Decoding
 
 The importer walks every chunk tree (whole-file JDLZ unwrapped first: `FrontB.lzc`, `GlobalB.lzc`,
-`InGameCommon.lzc`), and for each `0xB3300000` runs Overbright's parser (src/formats/texture.rs:183
-`parse_texture_pack`; blocks: :230 with src/formats/jdlz.rs and src/formats/huff.rs), giving the engine's model
+`InGameCommon.lzc`), and for each `0xB3300000` runs Overbright's parser (crates/ob-formats/src/formats/texture.rs:183
+`parse_texture_pack`; blocks: :230 with crates/ob-formats/src/formats/jdlz.rs and crates/ob-formats/src/formats/huff.rs), giving the engine's model
 (`Texture`, :157), the **Eq1 reference** (§6). It then writes one set file and one image per texture: the record's
 fields from the entry, the image's levels from the pack's data (`data[0..size]`, levels largest first, re-ordered
 smallest first into the KTX file), the palette into `OBpalette`. Packs of two files of one unit whose textures are
 identical (`GlobalB.lzc`/`GLOBALB.BUN`, `InGameCommon.lzc`/`.bun`) are written once; both files' residual maps name
-the same items. For each `0xB0300100` it runs src/formats/texture_anim.rs:43.
+the same items. For each `0xB0300100` it runs crates/ob-formats/src/formats/texture_anim.rs:43.
 
 ### 5.2 The texture entry (0x7C bytes, `0x33310004` and the end of each version-5 block)
 
@@ -540,7 +540,7 @@ the same items. For each `0xB0300100` it runs src/formats/texture_anim.rs:43.
 | 0x66 | 2 | `u8[2]` | pad | – | 0 (checked). |
 | 0x68 | 20 | `u8[20]` | run-time | – | Zero in files (checked): the owning pack (+0x68, 0x48FDCA), the texture resolved from +0x2C (+0x6C), the platform texture and palette (+0x70, +0x74; 0x48FDCD, 0x48FDD4; tested by 0x48FE00), +0x78 [open]. |
 
-Size 0x7C, alignment 4. What the engine reads (src/formats/texture.rs:295): +0x0C, +0x24, +0x30–+0x3C (to cut the
+Size 0x7C, alignment 4. What the engine reads (crates/ob-formats/src/formats/texture.rs:295): +0x0C, +0x24, +0x30–+0x3C (to cut the
 data), +0x44, +0x46, +0x4A, +0x4E, +0x51, +0x52, +0x54, +0x55 (`== 1`), +0x56, +0x58–+0x61.
 
 **Format record** (0x20 bytes, `0x33310005`, and after the entry in each version-5 block). Every field is derived;
@@ -631,7 +631,7 @@ Each block is JDLZ (2,520) or HUFF (52,384; the twelve version-4 blocks are HUFF
 format record. The six **version-4** packs (vinyls of NEON, MIRRORS, S2000, SPINNER — empty — and IMPREZA, LANCER,
 six textures each) hold the entries in a plain `0x33310004`/`0x33310005` table and only pixels and palette in the
 blocks (layout `blocks_and_table`). Today's parser reads the compressed path for them and takes pixel bytes for the
-entry, so those twelve vinyl images are dropped as "unknown compression" (src/formats/texture.rs:198, :298); see
+entry, so those twelve vinyl images are dropped as "unknown compression" (crates/ob-formats/src/formats/texture.rs:198, :298); see
 §10.
 
 ### 5.6 Residual
@@ -690,10 +690,10 @@ Size 0x10, alignment 4.
 
 | Kind | Level | Proof |
 |---|---|---|
-| texture set | **Eq1** per set: `H(parse_texture_pack(original pack)) == H(set loaded from the base set)`, `H` over the model's flat encoding (src/formats/texture.rs:470: name, hash, size, format, levels, pixel bytes, palette, render state, scroll) | at import, every set |
+| texture set | **Eq1** per set: `H(parse_texture_pack(original pack)) == H(set loaded from the base set)`, `H` over the model's flat encoding (crates/ob-formats/src/formats/texture.rs:470: name, hash, size, format, levels, pixel bytes, palette, render state, scroll) | at import, every set |
 | texture set, plain pack | **Eq2**: the encoder (§5.2–5.4) gives back the pack chunk's bytes except the padding chunks (residual fill nodes) | at import, every pack |
 | texture set, block-compressed pack | **Eq2** for each decoded block (entry, format record, pixels, palette, fills) and for the pack's other chunks; each block is a compressed node, only the block records are kept (§5.6) | at import |
-| texture animation | **Eq1** (src/formats/texture_anim.rs:64) and **Eq2** (fixed records, §5.7) | at import |
+| texture animation | **Eq1** (crates/ob-formats/src/formats/texture_anim.rs:64) and **Eq2** (fixed records, §5.7) | at import |
 | search paths, overrides | **Eq3**: the shot, load and cache gates (parity.md §3); a check at import that no view of §2.3 holds two different textures under one hash (a warning, and no promise, for `custom` editions) | gates |
 
 - The image bytes are the original bytes (BC blocks, BGRA texels, P8 indices, palettes): equality of images is
@@ -723,7 +723,7 @@ Size 0x10, alignment 4.
 - **Override payloads**: DDS and KTX 2.0 images from stored entries are referenced; PNG images are compiled once
   (BC7 or RGBA8, the encoder id `bc7-fast-1` as today, src/obpack/mod.rs) and the result copied into the entry.
 - **Build-specific (prepared, not normative)**: the world texture arrays and their map (`gpu.a*`, `w.tdmap`,
-  src/cache/track.rs:24), P8 expanded through the palette at upload, BC decoded to RGBA8 for `web-nobc`, opaque
+  crates/ob-core/src/cache/track.rs:24), P8 expanded through the palette at upload, BC decoded to RGBA8 for `web-nobc`, opaque
   DXT3/DXT5 override images turned into BC1 (src/upscale.rs:887), surface classification and HD/upscale data.
   Today's equivalents (`w.tex.*`, `w.td.<hash>` in the track cache, src/world/cache.rs:77; the cars' `textures`
   file caches; the menus' `ui2d` cache) become these sections.

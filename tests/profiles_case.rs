@@ -2,7 +2,6 @@
 //! system: the public API in a data home of its own (XDG_DATA_HOME set in
 //! this test binary's only test, so it never sees the player's saves).
 
-use nfsu2::formats::native_save::NativeSave;
 use nfsu2::frontend::profiles;
 
 #[test]
@@ -15,9 +14,9 @@ fn profiles_resolve_case_insensitively() {
     assert!(profiles::root().starts_with(&home));
 
     // Create "Kim", then save as "KIM": one folder, one file.
-    profiles::write("Kim", &NativeSave::fresh("Kim")).unwrap();
+    profiles::write("Kim", &nfsu2::frontend::career::fresh_save("Kim")).unwrap();
     assert!(profiles::exists("KIM") && profiles::exists("kim"));
-    profiles::write("KIM", &NativeSave::fresh("KIM")).unwrap();
+    profiles::write("KIM", &nfsu2::frontend::career::fresh_save("KIM")).unwrap();
     assert_eq!(profiles::list(), ["Kim"]);
     assert!(!profiles::root().join("KIM").exists());
     // The payload keeps the name it was saved under (the help bar's).
@@ -29,7 +28,7 @@ fn profiles_resolve_case_insensitively() {
     // A duplicate made outside (Linux only): one entry, the newest file.
     std::thread::sleep(std::time::Duration::from_millis(20));
     std::fs::create_dir_all(profiles::root().join("KIM")).unwrap();
-    std::fs::write(profiles::root().join("KIM/KIM"), NativeSave::fresh("Dup").to_bytes()).unwrap();
+    std::fs::write(profiles::root().join("KIM/KIM"), nfsu2::frontend::career::fresh_save("Dup").to_bytes()).unwrap();
     assert_eq!(profiles::list(), ["KIM"]);
     assert_eq!(profiles::read("Kim").unwrap().name(), "Dup");
     // Delete by any case removes only that one; the other is listed again.

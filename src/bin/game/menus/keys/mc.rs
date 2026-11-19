@@ -57,7 +57,7 @@ impl Game {
             Some(McOutcome::Done { name, save }) => {
                 let then = self.save_flow.mc_create_then.take().unwrap_or(AfterSave::CustomizeDyno);
                 let name = profiles::sanitize(&name);
-                profiles::set_current(&profiles::resolve(&name), nfsu2::formats::native_save::NativeSave::fresh(&name));
+                profiles::set_current(&profiles::resolve(&name), nfsu2::frontend::career::fresh_save(&name));
                 let mut p = Profile::new(&name);
                 p.cash = nfsu2::frontend::cheats::creation_cash(m.replacing, self.fe.boot_cash);
                 let dyno = matches!(then, AfterSave::CustomizeDyno);
@@ -132,7 +132,7 @@ impl Game {
                 let name = profiles::sanitize(&name);
                 // The file the name opens: an existing folder of any case
                 // (`profiles::resolve`); the payload keeps the typed name.
-                profiles::set_current(&profiles::resolve(&name), nfsu2::formats::native_save::NativeSave::fresh(&name));
+                profiles::set_current(&profiles::resolve(&name), nfsu2::frontend::career::fresh_save(&name));
                 let mut p = Profile::new(&name);
                 p.cash = nfsu2::frontend::cheats::creation_cash(m.replacing, self.fe.boot_cash);
                 self.profile = Some(p);
