@@ -131,8 +131,24 @@ pub struct Calibration {
     pub peak: f32,
     pub paper: f32,
     pub transfer: Transfer,
-    /// Show the calibration pattern (the HDR Calibration page is open).
-    pub pattern: bool,
+    /// The calibration pattern's rectangle (fractions of the output: left,
+    /// top, right, bottom) while the HDR Calibration page is open.
+    pub pattern: Option<[f32; 4]>,
+}
+
+/// Where `NFSU2_HDR_PATTERN=1` draws the pattern off the calibration page:
+/// a band across the lower middle of the output.
+pub const PATTERN_FALLBACK: [f32; 4] = [0.08, 0.53, 0.92, 0.78];
+
+/// The pattern's rectangle on a `size` output for an area of the 640×480
+/// canvas (top left, bottom right; centre-placed like the option rows):
+/// fractions of the output, as `Calibration::pattern` takes them.
+pub fn pattern_rect((lo, hi): (glam::Vec2, glam::Vec2), size: (u32, u32)) -> [f32; 4] {
+    use crate::render::display::{Place, UiFrame};
+    let frame = UiFrame::new(size);
+    let (a, b) = (frame.to_pixels(lo, Place::CENTRE), frame.to_pixels(hi, Place::CENTRE));
+    let (w, h) = (size.0.max(1) as f32, size.1.max(1) as f32);
+    [a.x / w, a.y / h, b.x / w, b.y / h]
 }
 
 /// BT.2408's reference white and a common HDR10 peak, the defaults when the
@@ -142,7 +158,7 @@ pub const DEFAULT_PEAK: f32 = 1000.0;
 
 impl Default for Calibration {
     fn default() -> Calibration {
-        Calibration { peak: DEFAULT_PEAK, paper: DEFAULT_PAPER, transfer: Transfer::Gamma22, pattern: false }
+        Calibration { peak: DEFAULT_PEAK, paper: DEFAULT_PAPER, transfer: Transfer::Gamma22, pattern: None }
     }
 }
 
@@ -224,6 +240,8 @@ pub use crate::render::debug::hdr_evidence::*;
 struct Params {
     a: [f32; 4],
     b: [f32; 4],
+    /// The calibration pattern's rectangle (fractions of the output).
+    c: [f32; 4],
 }
 
 /// The display transform pass.
@@ -367,11 +385,12 @@ impl DisplayTransform {
                 cal.transfer.index(),
             ],
             b: [
-                if cal.pattern { 1.0 } else { 0.0 },
+                if cal.pattern.is_some() { 1.0 } else { 0.0 },
                 if unclipped.is_some() { 1.0 } else { 0.0 },
                 size.0 as f32,
                 size.1 as f32,
             ],
+            c: cal.pattern.unwrap_or([0.0; 4]),
         };
         gpu.queue.write_buffer(&self.uniform, 0, bytemuck::bytes_of(&params));
         let group = gpu.device.create_bind_group(&wgpu::BindGroupDescriptor {

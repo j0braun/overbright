@@ -11,7 +11,7 @@ pub(crate) fn fake_hdr() {
         nfsu2::qol::set_hdr_output_support(Some(signal));
     }
     if std::env::var("NFSU2_HDR_PATTERN").is_ok_and(|v| v == "1") {
-        nfsu2::qol::set_hdr_pattern(true);
+        nfsu2::qol::set_hdr_pattern(Some(nfsu2::render::hdr_output::PATTERN_FALLBACK));
     }
 }
 

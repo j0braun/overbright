@@ -34,10 +34,12 @@ impl Game {
                 match &mut self.mode {
                     Mode::Menu(Menu::TuneSliders(t)) => t.selected = r.0,
                     Mode::Menu(Menu::Options(o)) => {
+                        o.left = Some(o.selected);
                         o.selected = r.0;
                         o.moved = c.now;
                     }
                     Mode::Menu(Menu::QrOptions(o)) => {
+                        o.left = Some(o.selected);
                         o.selected = r.0;
                         o.moved = c.now;
                     }

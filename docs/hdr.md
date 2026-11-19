@@ -97,8 +97,17 @@ the renderers' format; a last pass writes the swap chain:
   draws and graded image + streaks.
 
 ### Calibration (the Display page)
-While the page is open the transform draws a pattern in a band under the
-rows (`hdr_output.wgsl` `pattern`): a 10 000-nit box holding a square at
+While the page is open the transform draws a pattern in the page's free
+rows (`hdr_output.wgsl` `pattern`): `OptionsScreen::calibration_area` takes
+the list's empty row slots, from a quarter row under the last row shown to a
+quarter row above the help text, from the names' left edge to the right
+arrows' right edge, on the menu's 640 × 480 canvas; the frame maps it to the
+output like the rows (`hdr_output::pattern_rect`), so the pattern scales and
+moves with the menu at every size, aspect ratio and Aspect Ratio option and
+never covers a row, the help text or the scroll bar (the resolution matrix's
+`hdr` check). Keys, pad and mouse work on the rows as on any page; the
+pattern takes no input. A page with less than one row's height free shows no
+pattern. In the pattern, left to right: a 10 000-nit box holding a square at
 the Peak Brightness value (raise it until the square disappears); paper
 white beside half of it; black steps of SDR codes 0, 1, 2, 3, 4, 6, 8, 12
 through the chosen gamma; alternating black/white lines beside the solid
@@ -163,7 +172,8 @@ PNG of the PQ signal, BT.2020; scRGB is written as PQ) and
 `out.hdr-preview.png` (tone-mapped: light up to 0.8 × paper white as SDR,
 the rest compressed to white at the peak), and prints the brightest pixel
 and the share above paper white. `--shot options_graphics_display` is the
-calibration page; `NFSU2_HDR_PATTERN=1` forces the pattern elsewhere.
+calibration page (`settings_display`, from the pause `pause_settings_display`); `NFSU2_HDR_PATTERN=1` forces
+the pattern elsewhere, in a fixed band across the lower middle (`PATTERN_FALLBACK`).
 
 ## Native byte-identity (HDR Output Off)
 md5 of `--shot` against a <base> build: main, explore, intro, qrcars,

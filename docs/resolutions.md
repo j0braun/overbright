@@ -40,7 +40,7 @@ Options per size (the display options the settings offer):
 | `wide` | Aspect Ratio = Wide — the clone's default | canvas = the largest centred 4:3 box (whole pixels); elements keep their 4:3 size, side elements move out by the reach (to the centred 16:9 safe area, `side_reach`), fills reach the edges; 3D: the vertical angle of 4:3 at **every** aspect (`view_aspect` = (0.75, (4/3)/aspect)): Hor+ wider than 4:3, native at 4:3, narrower (5:4, portrait) the 4:3 picture with its sides cropped (was the native Vert−); front-end 3D scenes capped at 2.4:1 (`scene_bars`) |
 | `wide_hudfull` | Wide + Enhancements HUD Layout = Full Width (HUD screens only) | as `wide`, the HUD's reach to the screen edges |
 
-Screens (the existing `--shot` targets; 15 screens):
+Screens (the existing `--shot` targets; 17 screens):
 
 | screen | target | kind |
 |---|---|---|
@@ -59,6 +59,8 @@ Screens (the existing `--shot` targets; 15 screens):
 | photo mode | `photo` (`NFSU2_PHOTO_SIZE`) | 3D (free camera) + help bar |
 | post-race | `results` | front end |
 | race-start scene | `qrstart` | 3D with cinematic bars |
+| HDR calibration (`hdr_calibration`) | `settings_display` with `NFSU2_HDR_FAKE=pq`, `enh.hdr_output 1` | front end + the HDR test pattern |
+| HDR calibration from the pause (`hdr_calibration_pause`) | `pause_settings_display`, the same HDR environment | menu over the world + the HDR test pattern |
 
 Mouse: the existing `--shot mouse_*` targets (`mouse_main`, `mouse_options`, `mouse_settings`, `mouse_parts`,
 `mouse_map`, `mouse_carlot`, `mouse_lists`, `mouse_controls`; each puts the pointer on a widget and asserts the
@@ -89,7 +91,8 @@ vertices with its scissor, the mouse's rectangles of that layout with the game's
 | `fov` | no projection at the target's aspect, or m00 / m11 off the rule (Hor+ / Vert−); a free camera (photo) must keep its vertical angle |
 | `flat` | a 3D screen has a uniform non-black band (≥ 98 % of an edge strip within ±3 of its median, brighter than 20): the clear colour, nothing of the scene drawn there |
 | `bars` | movie / loading: the pillar / letterbox not black or the picture black; a 32:9 front-end scene: its cap bars not black; a 3D screen: a black bar at a side edge; the race start: the cinematic bar not across the top |
-| `flat` known | `KNOWN` in resolutions.py: Stretched at 1080×1920 (free roam, race, pause) keeps the original's Vert− and its band (Results); reported `XFAIL`, not counted, as long as `flat` is the cell's only failure |
+| `flat` known | `KNOWN` in resolutions.py: Stretched at 1080×1920 (free roam, race, pause, the pause's HDR calibration) keeps the original's Vert− and its band (Results); reported `XFAIL`, not counted, as long as `flat` is the cell's only failure. `resind` known: the pause's HDR calibration at 1600×1200, whose help line quotes the HDR pass's cost at the shot's own size (text, not layout) |
+| `hdr` | the HDR calibration screens: no pattern logged (`hdr pattern: px …` in the shot's log) or no `<shot>.hdr-preview.png`; the pattern box outside the menu's canvas or under 8 px; a drawn quad (row text, arrow, scroll bar, help text…) partly under it (only quads that hold it whole, the panel and full-screen fills, may); the preview shows no black frame or no peak box at the logged box |
 | `resind` | the image differs from the same aspect's smallest matrix size by more than resolution: downscaled (box) to it, mean abs diff > 10 or > 3 % of pixels off by > 48 (calibrated: finer 3D detail at a higher size gives a mean up to ~6 with 1–2 % of edge pixels) |
 
 Contact sheets per aspect and option: `OUTDIR/sheet_<aspect>_<option>.jpg`; the per-family table
@@ -107,7 +110,7 @@ the run, breaks one thing at a time and requires the check meant for it to fail 
 1.5× in x (`scale`, `text`), a widget's hit test missed (`mouse`), m11 × 1.1 (`fov`), the earlier Vert− rule in
 portrait (`fov`), a flat band over the bottom 15 % (`flat`), a grey pillar on a movie and a black side bar on
 the 3D view (`bars`), a fifth of the frame moved (`resind` thresholds), rc 101 + a panic line (`run`), no dump
-(`dump`). A check that does not catch its breakage fails the step (`RESOLUTIONS SELFTEST: n/15`).
+(`dump`), the HDR pattern moved onto a row's text or removed, and a logged box off the drawn pattern (`hdr`). A check that does not catch its breakage fails the step (`RESOLUTIONS SELFTEST: n/15`).
 
 ## Display-mode handling (window code, read 2026-11-11)
 

@@ -7,6 +7,27 @@ pub(crate) use cars::*;
 pub(crate) use scene::*;
 pub(crate) use view::*;
 
+/// The HDR calibration pattern's rectangle on a `size` output (fractions,
+/// `hdr_output::Calibration::pattern`): on the calibration page its free
+/// rows (`OptionsScreen::calibration_area`), nothing when the page has no
+/// room; `forced` (`NFSU2_HDR_PATTERN=1`) shows it off the page too, in
+/// the fixed band.
+pub(crate) fn hdr_pattern(
+    mode: &Mode,
+    settings: &options::Settings,
+    assets: &nfsu2::frontend::Assets,
+    size: (u32, u32),
+    forced: bool,
+) -> Option<[f32; 4]> {
+    use nfsu2::render::hdr_output;
+    match mode {
+        Mode::Menu(Menu::Options(o)) if o.calibrating() => o
+            .calibration_area(assets, settings, crate::input::FORCE_FEEDBACK)
+            .map(|area| hdr_output::pattern_rect(area, size)),
+        _ => forced.then_some(hdr_output::PATTERN_FALLBACK),
+    }
+}
+
 /// The frame's layout and the world's per-frame values (before the GPU).
 pub(crate) struct FramePrep {
     hud: Vec<Quad>,
@@ -258,13 +279,14 @@ impl FrameDraw<'_, '_, '_, '_> {
         self.r.state.streak.gpu_harvest(&w.gpu);
         // HDR Output switched (the Display page): the swap chain again.
         // The Display page is the calibration screen: its test pattern
-        // shows while it is open.
-        let calibrating = matches!(self.v.mode, Mode::Menu(Menu::Options(o)) if matches!(o.category, options::Category::GraphicsGroup(options::GraphicsGroup::Display) | options::Category::Settings(nfsu2::frontend::settings_model::UxGroup::Display)));
-        let pattern_env = {
-            static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
-            *ON.get_or_init(|| debug_env().hdr_pattern.as_deref() == Some("1"))
-        };
-        nfsu2::qol::set_hdr_pattern(calibrating || pattern_env);
+        // shows in its free rows while it is open.
+        nfsu2::qol::set_hdr_pattern(hdr_pattern(
+            self.v.mode,
+            self.v.settings,
+            &self.v.game_data.assets,
+            (w.config.width, w.config.height),
+            debug_env().hdr_pattern.as_deref() == Some("1"),
+        ));
         // Here, before anything of this frame is written to the GPU (the
         // switch waits for the GPU and recalls the staging belt).
         w.sync_hdr();

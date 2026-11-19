@@ -10,6 +10,10 @@ struct Params {
     // x: the calibration pattern (1 on), y: the unclipped image is this
     // frame's (1), zw: the output's size in pixels.
     b: vec4<f32>,
+    // The calibration pattern's rectangle, fractions of the output: xy its
+    // top left, zw its bottom right (the calibration page's free rows,
+    // placed on the CPU from the menu's layout).
+    c: vec4<f32>,
 }
 
 @group(0) @binding(0) var sdr: texture_2d<f32>;
@@ -80,8 +84,9 @@ fn pq(nits: vec3<f32>) -> vec3<f32> {
 }
 
 // The calibration pattern (the Display page is the calibration screen),
-// in nits; a < 0 outside it. A band under the page's four rows, left to
-// right:
+// in nits; a < 0 outside it. It fills the rectangle `p.c` (the page's
+// free rows under its last row, inside the menu: never over a row or the
+// help text), left to right in quarters:
 // * peak: a 10 000-nit box holding a square at the chosen peak; at the
 //   display's real peak the inner square disappears;
 // * paper white: a patch at the chosen paper white beside one at half;
@@ -90,24 +95,30 @@ fn pq(nits: vec3<f32>) -> vec3<f32> {
 // * gamma: lines alternating black and paper white beside a patch at the
 //   SDR code whose light is their average under the chosen transfer
 //   (equal at the right transfer, seen from a distance).
+// The peak box and its square are square in pixels (sized by the band's
+// height), whatever the band's shape.
 fn pattern(uv: vec2<f32>, px: vec2<f32>) -> vec4<f32> {
-    let lo = vec2<f32>(0.08, 0.53);
-    let hi = vec2<f32>(0.92, 0.78);
+    let lo = p.c.xy;
+    let hi = p.c.zw;
     if any(uv < lo) || any(uv > hi) {
         return vec4<f32>(0.0, 0.0, 0.0, -1.0);
     }
     let paper = p.a.x;
     let peak = p.a.y;
     let q = (uv - lo) / (hi - lo);
+    // The band's width over its height, in pixels.
+    let band = (hi - lo) * p.b.zw;
+    let wide = band.x / max(band.y, 1.0);
     let black = vec4<f32>(vec3<f32>(0.0), 1.0);
     let inside_y = q.y > 0.15 && q.y < 0.85;
-    // Peak.
+    // Peak (in band heights from the quarter's centre).
     if q.x < 0.25 {
-        let d = abs(q - vec2<f32>(0.125, 0.5));
-        if d.x < 0.035 && d.y < 0.15 {
+        let d = abs(vec2<f32>((q.x - 0.125) * wide, q.y - 0.5));
+        let outer = min(0.35, 0.1 * wide);
+        if max(d.x, d.y) < outer * 0.43 {
             return vec4<f32>(vec3<f32>(peak), 1.0);
         }
-        if d.x < 0.09 && d.y < 0.35 {
+        if max(d.x, d.y) < outer {
             return vec4<f32>(vec3<f32>(10000.0), 1.0);
         }
         return black;

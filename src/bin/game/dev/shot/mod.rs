@@ -844,8 +844,26 @@ fn write_outputs(game: &mut Game, s: Setup, keys: Keys, drawn: Offscreen, out: &
     // tone-mapped preview `<out>.hdr-preview.png`.
     if let Some(signal) = nfsu2::qol::hdr_output_signal().filter(|_| nfsu2::qol::hdr_output_active()) {
         // The Display page is the calibration screen (as in `redraw`).
-        let calibrating = matches!(&game.mode, Mode::Menu(Menu::Options(o)) if matches!(o.category, options::Category::GraphicsGroup(options::GraphicsGroup::Display) | options::Category::Settings(nfsu2::frontend::settings_model::UxGroup::Display)));
-        nfsu2::qol::set_hdr_pattern(calibrating || std::env::var("NFSU2_HDR_PATTERN").is_ok_and(|v| v == "1"));
+        let pattern = crate::render::frame::hdr_pattern(
+            &game.mode,
+            &game.settings,
+            &game.game_data.assets,
+            (width, height),
+            std::env::var("NFSU2_HDR_PATTERN").is_ok_and(|v| v == "1"),
+        );
+        nfsu2::qol::set_hdr_pattern(pattern);
+        // For the resolution matrix's check (scripts/checks/resolutions.py):
+        // the pattern's pixel box.
+        match pattern {
+            Some(r) => println!(
+                "hdr pattern: px {:.1} {:.1} {:.1} {:.1}",
+                r[0] * width as f32,
+                r[1] * height as f32,
+                r[2] * width as f32,
+                r[3] * height as f32
+            ),
+            None => println!("hdr pattern: none"),
+        }
         let unclipped = post.take_unclipped();
         hdr_shot(&gpu, &view, unclipped.as_ref(), signal, (width, height), out)?;
     }
