@@ -86,7 +86,12 @@ impl Game {
         // An in-engine scene in game (a race's intro: the flow's
         // CAMERA_FLYBY, state 7 via 0x481210(2)) stops the song; the front
         // end's pass (0x47B080 with audio +0x90 = 1) does not look at one.
-        let scene = self.scenes.shop.is_some();
+        // Not a race's ending scene: it plays in the race's flow, whose
+        // song goes on through it and the post-race screens over it
+        // (state 7 keeps an EA Trax song, 0x47AD0F; observed: the same
+        // song from "Winner!" through Event Results and Post Race).
+        let scene =
+            self.scenes.shop.as_ref().is_some_and(|r| !matches!(r.scene.kind, nfsu2::shop_scene::SceneKind::Ending(_)));
         match mode {
             // A movie: the front end stops its song (state 1 → 0xB, a new
             // one after it), the game holds it (state 5 → 6), 0x482350
@@ -158,6 +163,13 @@ impl Game {
                         _ => self.music_context_of(under),
                     };
                 }
+                // The screens over a loaded world run in the game's audio
+                // mode (+0x90 ≠ 1: only the front end's load,
+                // 0x5783E0 → 0x486B30, sets 1), so the game's song goes
+                // on: the post-race chain (Event Results, UI_PostRaceReward,
+                // UI_SponsorPopup and the sponsorship screen after it, all
+                // in the race's flow) and the status screen (flow mode
+                // 0x13, which 0x4810F0 does not hold).
                 let over_game = matches!(
                     m,
                     Menu::Engage(_)
@@ -165,10 +177,13 @@ impl Game {
                         | Menu::Challenge(_)
                         | Menu::Results(..)
                         | Menu::Stats(_)
+                        | Menu::Reward(_)
+                        | Menu::SponsorPopup(_)
+                        | Menu::Status(_)
                         | Menu::SmsMailbox(_)
                         | Menu::SmsViewer(_)
                         | Menu::Icons(_, MenuKind::PostRace)
-                );
+                ) || (matches!(m, Menu::Icons(_, MenuKind::Sponsor)) && self.sim.drive.is_some());
                 if scene && (paused || over_game) {
                     MusicContext::Stopped
                 } else if paused {

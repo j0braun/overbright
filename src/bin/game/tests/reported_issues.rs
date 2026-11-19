@@ -1295,3 +1295,53 @@ fn race_start_nitro_waits_for_the_countdown() {
         assert_eq!(fired, nitro, "a press in the countdown starts a shot");
     }
 }
+
+/// 0x606CC0 → 0x5EA540 (verified): the local player's finish ends a
+/// running nitrous shot (0x5EA63E jumps to 0x592510 on the car's tank)
+/// before the driving keys are removed (0x605C80), so a Nitrous key still
+/// held over the line does not burn the rest of the tank. The first career
+/// drag on the finished-career save's car, the key held from the green; the
+/// race ends by a drop-out (status 9), which takes the same finish path.
+#[test]
+#[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
+fn finishing_on_nitrous_ends_the_shot() {
+    testkit::game();
+    let mut game = Game::new().unwrap();
+    load_finished_career(&mut game).unwrap();
+    game.rng = nfsu2::opponents::GameRng(4);
+    let event =
+        game.game_data.career.stage_events(&game.game_data.root, 1).into_iter().find(|e| e.kind == career::EventKind::Drag).unwrap().index;
+    game.start_race(event, false, false).unwrap();
+    game.platform.keys.insert(KeyCode::Enter);
+    game.key(KeyCode::Enter, &mut || {}).unwrap();
+    game.platform.keys.remove(&KeyCode::Enter);
+    game.platform.keys.insert(KeyCode::KeyW);
+    let dt = 1.0 / 60.0;
+    let mut at_finish = None;
+    for _ in 0..60 * 30 {
+        game.step_for(dt).unwrap();
+        let Mode::Race(r) = &game.mode else { panic!("the race ended early") };
+        if r.timing.clock < 0.5 {
+            continue;
+        }
+        game.platform.keys.insert(KeyCode::AltLeft);
+        let d = game.sim.drive.as_mut().unwrap();
+        let tank = d.state.nitrous.expect("the finished-career car has nitrous");
+        match at_finish {
+            None if r.racers.me.finished.is_some() => {
+                assert!(tank.running.is_none(), "the finish ended the shot: {tank:?}");
+                assert!(tank.remaining() > 0.0, "nitrous left in the tank: {tank:?}");
+                at_finish = Some((tank.remaining(), r.timing.clock));
+            }
+            None if tank.running.is_some_and(|t| t > 0.25) => d.state.totaled = true,
+            None => {}
+            Some((left, clock)) => {
+                assert_eq!(tank.remaining(), left, "no shot after the finish: {tank:?}");
+                if r.timing.clock > clock + 1.0 {
+                    return;
+                }
+            }
+        }
+    }
+    panic!("the run never got past its finish: {at_finish:?}");
+}

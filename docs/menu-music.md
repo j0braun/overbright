@@ -46,6 +46,24 @@ machinery itself (masks, pools, Sequential / Random) is in docs/formats.md, "Sou
    in the main menu (0x47AC50(1, 0): no −2) the front end draws from its pool where it stopped
    (observed: pool 0x3E → song 4, pool 0x2E). No song is forced there.
 
+7. **A race's end (traced, observed).** The race's song plays on through "Winner!", the post-race
+   flow's load of the ending scene, the ending scene, Event Results, UI_PostRaceReward,
+   UI_SponsorPopup, the sponsorship screen and Post Race. The load is the running flow's LOADING
+   (0x481210(1) → 0x4813A0 → 0x47AC50(7)), and state 7 (0x47AD0F) stops the stream only when game
+   music × master² × 32767 truncates to 0 (0x47AD49..0x47AD72; the score plays then) or when an
+   interactive score piece plays (+0x14 ≥ 0x1B). Observed (Quick Race, the human's finish written
+   into the race record): song 24 and its stream from the race through the load (flow state 1),
+   the ending scene (flow state 7) and Event Results to Post Race; the level dips and comes back
+   (mix map), the song does not change. The post-race screens are in the game's audio mode
+   (+0x90 ≠ 1: only the front end's load, 0x5783E0 → 0x486B30, sets 1), so the game's side.
+8. **Where a song does change in a career (traced).** A race or free-roam start sets a new flow
+   up: 0x60A898 → 0x481440 → state 2 (0x47ADC6) stops the song unconditionally; the next game
+   song starts in the race. Entering a shop or the garage loads the front end: its end 0x5800A0
+   (game state 3) calls 0x480C30(−1) → state 1, which stops the stream and lets the front end pick
+   (0x47B080 with +0x90 = 1, 0x46B330 then reads the shop's score context). So a new song on
+   entering a shop, on leaving it and at a race's start is the original's; a new one on the
+   post-race screens is not.
+
 ## Observations (Wine, three cold starts)
 
 | Situation | Original | Clone before | Clone after |
@@ -84,6 +102,10 @@ black screen, a known Wine flake) had four different random states and all playe
   song goes on. Before, an unchanged list kept the title's emptied pool.
 - Test `tests::scene_audio::a_custom_trax_list_applies_after_the_title` (song 0 Off, Racing
   and Menu; five boot seeds each).
+- The race's end: `Game::begin_loading_in_flow` (the ending scene's load stops only a score
+  piece), the ending scene left out of `music_context`'s scene test, and the post-race chain
+  (Event Results, UI_PostRaceReward, UI_SponsorPopup, the sponsorship screen over the race) and
+  the status screen on the game's side. Test `tests::scene_audio::a_race_song_plays_on_through_the_results`.
 - **Inferred**: the original applies the loaded profile when "Load complete." is answered
   (the pools refilled after Continue, observed); the clone applies it as the message opens.
   Only the refill's moment differs, a few seconds while the title's song plays.
