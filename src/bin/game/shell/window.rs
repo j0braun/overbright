@@ -605,9 +605,14 @@ impl ApplicationHandler for Game {
                 event_loop.exit()
             }
             // Power Saving's background test.
+            // Either way the held keys and modifiers are let go
+            // (`InputEvent::Focus`): their releases may have gone to another
+            // window (Alt-Tab).
             WindowEvent::Focused(f) => {
                 self.pacing.focused = f;
                 nfsu2::diag::events::set_shown(f, self.pacing.occluded);
+                crate::shell::support::modifiers(false);
+                self.input_now(InputEvent::Focus(f));
             }
             WindowEvent::Occluded(o) => {
                 self.pacing.occluded = o;
@@ -644,7 +649,14 @@ impl ApplicationHandler for Game {
             // the wheel and the cursor go through the tick queue: applied
             // at the start of the tick their arrival falls in
             // (`input::queue`), never between ticks.
-            WindowEvent::ModifiersChanged(m) => crate::shell::support::modifiers(m.state().control_key()),
+            WindowEvent::ModifiersChanged(m) => {
+                crate::shell::support::modifiers(m.state().control_key());
+                self.input_now(InputEvent::Alt(m.state().alt_key()));
+            }
+            // The system's made-up presses and releases at a focus change
+            // (X11) are not the player's: the focus lets every key go and
+            // the modifiers come with `ModifiersChanged`.
+            WindowEvent::KeyboardInput { is_synthetic: true, .. } => {}
             WindowEvent::KeyboardInput { event, .. } => {
                 if let PhysicalKey::Code(code) = event.physical_key {
                     // Ctrl+F8: the recent events to the log and a support
@@ -701,6 +713,8 @@ impl ApplicationHandler for Game {
 /// `Game` fields).
 pub(crate) struct Platform {
     pub(crate) keys: HashSet<KeyCode>,
+    /// The system's Alt modifier (`InputEvent::Alt`), for Alt+Enter.
+    pub(crate) alt: bool,
     pub(crate) window: Option<WindowState>,
     /// The quit question was answered Quit Game: the event loop ends.
     pub(crate) quit_app: bool,
@@ -738,6 +752,7 @@ impl Platform {
     pub(crate) fn new(perf_overlay: nfsu2::overlay::Overlay) -> Platform {
         Platform {
             keys: HashSet::new(),
+            alt: false,
             window: None,
             quit_app: false,
             perf_overlay,

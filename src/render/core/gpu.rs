@@ -458,7 +458,13 @@ impl Gpu {
             // Metal and DX12, the first adapter found.
             // Windows: Vulkan and DX12 (`backend::instance_backends`).
             backends: backend::instance_backends(cfg!(windows), wgpu::Backends::from_env()),
-            flags: wgpu::InstanceFlags::default(),
+            // wgpu's own switches (`WGPU_DEBUG`, `WGPU_VALIDATION`, ...)
+            // on top of the build's default, only when set: `WGPU_DEBUG=1`
+            // puts source lines into the shaders handed to the driver,
+            // which avoids a pipeline-compile crash in AMD's Windows Vulkan
+            // driver (wgpu #6329; docs/troubleshooting.md "A crash in the
+            // graphics driver").
+            flags: wgpu::InstanceFlags::default().with_env(),
             memory_budget_thresholds: Default::default(),
             backend_options: backend_options(),
             display: None,

@@ -121,13 +121,32 @@ impl DeviceCache {
 }
 
 #[track_caller]
+#[track_caller]
 fn timed<T>(counter: &AtomicU64, f: impl FnOnce() -> T) -> T {
     timed_at(counter, std::panic::Location::caller(), f)
 }
 
-fn timed_at<T>(counter: &AtomicU64, at: &std::panic::Location<'_>, f: impl FnOnce() -> T) -> T {
+std::thread_local! {
+    /// What this thread is making now (a shader module or a pipeline, and
+    /// where it is asked for), for the line a native crash writes: a
+    /// driver that crashes while it compiles names the program.
+    static MAKING: std::cell::Cell<Option<(&'static str, &'static std::panic::Location<'static>)>> =
+        const { std::cell::Cell::new(None) };
+}
+
+/// What the calling thread is making now ([`MAKING`]), in words: `making a
+/// pipeline (src/render/fsr.rs:120)`. None outside a build.
+pub fn making_here() -> Option<String> {
+    let (what, at) = MAKING.try_with(std::cell::Cell::get).ok().flatten()?;
+    Some(format!("making a {what} ({}:{})", at.file(), at.line()))
+}
+
+fn timed_at<T>(counter: &AtomicU64, at: &'static std::panic::Location<'static>, f: impl FnOnce() -> T) -> T {
+    let what = if std::ptr::eq(counter, &MODULE_NS) { "shader module" } else { "pipeline" };
+    let before = MAKING.try_with(|m| m.replace(Some((what, at)))).ok().flatten();
     let t = std::time::Instant::now();
     let v = f();
+    let _ = MAKING.try_with(|m| m.set(before));
     let ns = t.elapsed().as_nanos() as u64;
     counter.fetch_add(ns, Ordering::Relaxed);
     static LOG: OnceLock<bool> = OnceLock::new();
@@ -351,5 +370,16 @@ mod tests {
         assert_eq!(x, y);
         assert_ne!(x, z);
         assert_eq!(crate::render::pipelines_built() - p0, 2);
+    }
+
+    #[test]
+    fn a_build_names_itself_for_a_crash_line() {
+        assert_eq!(super::making_here(), None);
+        let inside = super::timed(&super::PIPELINE_NS, super::making_here);
+        let inside = inside.expect("named while it builds");
+        assert!(inside.starts_with("making a pipeline (") && inside.contains("device_cache.rs:"), "{inside}");
+        let module = super::timed(&super::MODULE_NS, super::making_here).unwrap();
+        assert!(module.starts_with("making a shader module ("), "{module}");
+        assert_eq!(super::making_here(), None);
     }
 }

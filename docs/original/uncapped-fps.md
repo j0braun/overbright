@@ -305,11 +305,15 @@ arrived.
   type text, as before), key releases (modifiers are held keys, so they
   are queued too), the clicking button's press / release, the wheel and
   the cursor's moves. Everything a key does is queued with it, the F3
-  overlay layouts and Alt+Enter included (they read Shift / Alt from the
-  queued held keys, so they stay in order with them).
+  overlay layouts and Alt+Enter included (F3 reads Shift from the queued
+  held keys; Alt+Enter reads the system's Alt modifier, queued with the
+  keys from `ModifiersChanged`, so both stay in order with them). A focus
+  change is queued too: it lets every held key and the Alt modifier go,
+  as a key let go in another window (Alt-Tab) sends no release. Only the
+  keyboard's Enter reaches Alt+Enter; a controller's Select never does.
 * **Immediate (presentation only):** resize, move, scale factor and the
-  monitor; focus and occlusion (read only by Power Saving's cap and a
-  swap-chain log line: no game state); the close request (ends the event
+  monitor; focus and occlusion (Power Saving's cap and a swap-chain log
+  line; the focus's key release goes through the queue, above); the close request (ends the event
   loop; nothing of the game runs for it); the redraw. The quit question's
   Quit Game (`quit_app`) is set on a tick and ends the event loop right
   after (`about_to_wait`; before, only a key's own handler checked it, so

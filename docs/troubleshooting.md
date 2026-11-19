@@ -109,6 +109,27 @@ The **Details** button lists the missing and changed files by name and the movie
 - A game start that fails writes the reason to its log as an `[ERROR …]` line (no usable game folder, no
   window, an error that ended the game), and the launcher's failure screen shows the game's last output.
 
+## A crash in the graphics driver
+
+When the game closes and its log names a graphics driver in the `native crash` line (for example
+`at amdvlk64.dll+0x…`, AMD's Vulkan driver), the driver itself stopped, usually while it turned one of the
+game's shaders into a program for the graphics card. The line names the thread that crashed and, when it was
+making one, the shader module or pipeline and where the game asked for it (`on thread programs, making a
+pipeline (src/…:…)`); it ends with what to try. In order:
+
+1. **Update the graphics driver** from the card maker (on a handheld or a laptop, the maker's or AMD's,
+   NVIDIA's or Intel's current one). Driver updates fix most of these.
+2. **Set Graphics to Original** in the launcher (or start once with the launcher's safe start). The game then
+   builds far fewer shader programs, so a crash in one of the Enhanced effects' programs does not happen.
+
+A maintainer may ask you for one more start to narrow it down, for example with wgpu's `WGPU_DEBUG=1`
+switch (it hands the driver the shaders with their source lines; a known crash of AMD's Windows Vulkan driver
+while it builds a program depends on that, [wgpu #6329](https://github.com/gfx-rs/wgpu/issues/6329)). The
+reply then says how to start the game with it.
+
+Whatever helped, please send a support file (above): it names the driver version and the settings, which is
+what a fix needs.
+
 ## For maintainers: reading a report
 
 1. `summary` and `what happened`: who wrote the file and why.
@@ -116,7 +137,8 @@ The **Details** button lists the missing and changed files by name and the movie
 3. `graphics adapters` and `hardware check`: no adapter, a software adapter (llvmpipe, Microsoft Basic
    Render Driver) or a failed listing explain most black screens and crashes at the window.
 4. `Windows crash events`: the faulting module of a start that ended at once (an overlay DLL, a graphics
-   driver, a missing runtime: `0xc0000135`).
+   driver, a missing runtime: `0xc0000135`). A crash inside a graphics driver adds what to try to the game
+   log's `native crash` line (`diag::native_crash::driver_hint`, "A crash in the graphics driver" above).
 5. `logs`: `launcher.log` says how far the launcher came (a log without its last line `end: the launcher closed
    normally` stopped hard); the game's log has the events.
 
