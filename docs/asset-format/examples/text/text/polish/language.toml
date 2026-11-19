@@ -1,0 +1,5 @@
+# A language unit that holds only the save library's texts (ob.language, text.md 2 and 3.1):
+# memcard/LOCALE_POLISH.loc has no string table beside it, so the unit is never offered to players.
+schema = "ob.language/1.0"
+name = "Polish"
+role = "save_text"

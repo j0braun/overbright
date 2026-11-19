@@ -1,0 +1,16 @@
+schema = "ob.mesh-patch/1.0"
+
+# The model-fixes pack's patches of cars/GOLF (a patch file changes only its own unit's solids, meshes.md 3.9).
+# The hashes and vertex counts are the reference install's; vertex numbers are made up.
+
+# GOLF KIT01 front bumper: the grille slats sample a painted texel of the skin;
+# move them to the black trim box the car's other skin-mapped mouldings use.
+[[solid]]
+target = "solid:cars/GOLF/GEOMETRY.BIN.0/GOLF_KIT01_FRONT_BUMPER_A"
+guard = { hash = "0x34886201", vertex_count = 983 }
+
+[[solid.vertex_patch]]
+attribute = "TEXCOORD_0"
+vertices = [118, 119, 131, 132]
+from = [0.043, 0.854]
+to = [0.795, 0.719]

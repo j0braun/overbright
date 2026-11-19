@@ -1,0 +1,30 @@
+schema = "ob.texture-index/1.0"
+
+# The region's texture sets in search order: the stream sections' packs in the
+# order of the region's section table, each set with the stream section that loads it.
+# Illustrative excerpt.
+
+[[set]]
+id = "A21"
+group = "A21"
+section = "section:L4RA/121"
+
+[[set]]
+id = "A25"
+group = "A25"
+section = "section:L4RA/125"
+
+[[set]]
+id = "A25_2"                 # the second pack of stream section A25
+group = "A25"
+section = "section:L4RA/125"
+
+[[set]]
+id = "Y0"                    # a shared-texture stream section
+group = "Y0"
+section = "section:L4RA/2500"
+
+[[anims]]
+id = "A21"                   # A21.anims.toml
+group = "A21"
+section = "section:L4RA/121"

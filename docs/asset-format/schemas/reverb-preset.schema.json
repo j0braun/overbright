@@ -1,0 +1,153 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "reverb-preset.schema.json",
+  "title": "ob.reverb-preset: a reverb preset (every byte of an .fx file)",
+  "description": "audio.md 3.7",
+  "type": "object",
+  "properties": {
+    "schema": {
+      "type": "string",
+      "pattern": "^ob\\.reverb\\-preset/1\\.[0-9]+$"
+    },
+    "name": {
+      "$ref": "common.schema.json#/$defs/name"
+    },
+    "op": {
+      "enum": [
+        "replace"
+      ]
+    },
+    "version": {
+      "$ref": "common.schema.json#/$defs/u16"
+    },
+    "config": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "module": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9
+                },
+                "channels": {
+                  "$ref": "common.schema.json#/$defs/u8"
+                },
+                "p2": {
+                  "$ref": "common.schema.json#/$defs/i16"
+                },
+                "p4": {
+                  "$ref": "common.schema.json#/$defs/i16"
+                },
+                "p6": {
+                  "$ref": "common.schema.json#/$defs/i16"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "channels",
+                "p2"
+              ],
+              "description": "audio.md 3.7: kinds 1, 4, 5, 7 are 8-byte records with p4 and p6",
+              "if": {
+                "properties": {
+                  "kind": {
+                    "enum": [
+                      1,
+                      4,
+                      5,
+                      7
+                    ]
+                  }
+                }
+              },
+              "then": {
+                "required": [
+                  "p4",
+                  "p6"
+                ]
+              },
+              "else": {
+                "not": {
+                  "anyOf": [
+                    {
+                      "required": [
+                        "p4"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "p6"
+                      ]
+                    }
+                  ]
+                }
+              }
+            },
+            "maxItems": 255
+          },
+          "link": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "from": {
+                  "$ref": "common.schema.json#/$defs/u32"
+                },
+                "to": {
+                  "$ref": "common.schema.json#/$defs/u32"
+                },
+                "u_0x08": {
+                  "$ref": "common.schema.json#/$defs/u8"
+                },
+                "input": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 255
+                },
+                "u_0x0a": {
+                  "$ref": "common.schema.json#/$defs/u16"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "from",
+                "to",
+                "u_0x08",
+                "input",
+                "u_0x0a"
+              ]
+            },
+            "maxItems": 255
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "module",
+          "link"
+        ]
+      },
+      "minItems": 6,
+      "maxItems": 6
+    },
+    "extras": {
+      "$ref": "common.schema.json#/$defs/extras"
+    },
+    "ext": {
+      "$ref": "common.schema.json#/$defs/ext"
+    }
+  },
+  "required": [
+    "schema",
+    "name",
+    "version",
+    "config"
+  ],
+  "additionalProperties": false
+}

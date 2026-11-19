@@ -1,0 +1,59 @@
+schema = "ob.texture-set/1.0"
+
+# One original texture pack (made-up values). Records keep the pack's order
+# (ascending hash); every image is a KTX 2.0 file in the folder A21/.
+
+[tpk]
+version = 5
+name = "TRACK"
+path = 'Location4\TempTextures.tpk'
+
+[[texture]]
+hash = "0x636C197D"
+name = "ANM_WATERA_"
+image = "A21/636C197D.ktx2"     # BC2 (DXT3), 7 levels
+width_px = 64
+height_px = 64
+alpha_usage = 2
+blend = 1
+u_0x57 = 0
+
+[[texture]]
+hash = "0x652CF9A9"
+name = "ROAD_MAIN"
+image = "A21/652CF9A9.ktx2"     # BC1 (DXT1), 8 levels
+width_px = 128
+height_px = 128
+alpha_usage = 2
+u_0x4f = 3
+
+[[texture]]
+hash = "0xC9E6D6EE"
+name = "ANM_WATERA_001"
+image = "A21/C9E6D6EE.ktx2"
+width_px = 64
+height_px = 64
+alpha_usage = 2
+blend = 1
+u_0x57 = 0
+
+[[texture]]
+hash = "0xC9E6D6EF"
+name = "ANM_WATERA_002"
+image = "A21/C9E6D6EF.ktx2"
+width_px = 64
+height_px = 64
+alpha_usage = 2
+blend = 1
+u_0x57 = 0
+
+[[texture]]
+hash = "0xEA1CB863"
+name = "SGN_DOCKS_NEW"
+image = "A21/EA1CB863.ktx2"     # R8_UINT indices + OBpalette (P8)
+width_px = 256
+height_px = 64
+alpha_usage = 1
+rendering_order = 5
+scroll = { kind = 1, speed_1024th = [256, 0] }
+tpk = { data_offset = 0x2400, palette_offset = 0x0 }

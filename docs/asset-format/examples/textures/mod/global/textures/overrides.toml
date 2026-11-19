@@ -1,0 +1,29 @@
+schema = "ob.texture-overrides/1.0"
+
+# A mod pack's overrides for every view (the global scope). Images live under
+# images/ next to this file; an image there with no entry here is an
+# image-only entry for all renderers.
+
+[[texture]]
+name = "ROAD_MAIN"                  # key: bin_hash("ROAD_MAIN") = 0x652CF9A9
+image = "images/roads/ROAD_MAIN.png"
+draw = ["world"]                    # only where the world renderer draws it
+
+[[texture]]
+hash = "0x029A22F7"                 # LICENSE_PLATE
+image = "images/plate.dds"
+draw = ["car"]
+
+[[texture]]
+hash = "0x1A33CBB5"                 # 3RDPERSON_TURBORED_1
+image = "images/hud/turbo.ktx2"
+draw = ["ui"]
+blend = 2                           # an explicit render-state change
+
+[[texture]]
+name = "SGN_HARBOUR_NEW"            # a texture no lower layer has
+op = "add"
+image = "images/signs/harbour.png"
+width_px = 256
+height_px = 64
+alpha_usage = 1

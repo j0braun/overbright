@@ -1,0 +1,12 @@
+# A mod pack's tables/slot_shots.toml: the garage camera for one part view moved (a struct field
+# inside a tuple inside two nested arrays).
+schema = "ob.engine-table/1.0"
+table = "slot_shots"
+
+[[set]]
+at = [0, 3, 1, "fov"]
+value = 50.0
+
+[[set]]
+at = [0, 3, 1, "eye"]
+value = [2.5, 1.5, 0.75]

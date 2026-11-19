@@ -1,0 +1,12 @@
+# A credits text (ob.credits, text.md 3.4): one line per element; made-up lines.
+# The last element is empty because the original file ends with a line break.
+schema = "ob.credits/1.0"
+bom = true
+line_ending = "crlf"
+lines = [
+  "DEMO STUDIO",
+  "",
+  "Lead Designer",
+  "A. Example",
+  "",
+]

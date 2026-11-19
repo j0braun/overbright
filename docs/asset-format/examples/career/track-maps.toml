@@ -1,0 +1,11 @@
+# global/maps/track-maps.toml as the HUD mod's legacy pack gives it (career.md 3.3, 4.1): merges only.
+schema = "ob.track-maps/1.0"
+
+[[track]]
+number = 4701
+left = 160.0
+window_size = 200.0
+
+[[track]]
+number = 4014
+zoom = 1.25

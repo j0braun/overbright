@@ -1,0 +1,36 @@
+# A shortened scene table (made-up entries).
+schema = "ob.scene-table/1.0"
+
+track_list = [
+  [ { track = 1407, scene_mask = 0x0003, entries_low = 0x00000003, entries_high = 0, endings = 0x0001 } ],
+  [],
+]
+
+[[race_start]]
+scene = "scene:IntroNis08"
+variant = 0
+flags = 0x4F
+min_racers = 2
+max_racers = 4
+start_kind = 0
+
+[[race_start]]
+scene = "scene:IntroNis12"
+variant = 1
+flags = 0x41
+min_racers = 2
+max_racers = 4
+start_kind = 1
+
+[[ending]]
+scene = "scene:EndingNis01"
+variant = 0
+flags = 0x40
+
+[[multiplayer_start]]
+scene = "scene:IntroNis08"
+flags = 0x43
+min_racers = 2
+max_racers = 2
+start_kind = 0
+slot_cars = [1, 2, 0, 0]

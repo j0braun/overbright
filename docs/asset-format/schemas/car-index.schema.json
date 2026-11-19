@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "car-index.schema.json",
+  "title": "Overbright asset format: the car type order (ob.car-index)",
+  "description": "cars.md 3.1. global/cars/index.toml: the car types in the original's table order. A car type's position is its type index, which the engine's own tables use (engine-tables.md). Base sets only in 1.0; a mod pack holding this file is refused (MRG.3).",
+  "type": "object",
+  "properties": {
+    "schema": { "type": "string", "pattern": "^ob\\.car-index/1\\.[0-9]+$" },
+    "order": {
+      "description": "Car type names, position = type index (GLOBALB 0x34600 order). Each names global/cars/types/<NAME>.toml.",
+      "type": "array",
+      "items": { "type": "string", "pattern": "^[A-Za-z0-9_]{1,31}$" },
+      "uniqueItems": true,
+      "minItems": 1,
+      "maxItems": 255
+    },
+    "extras": { "$ref": "common.schema.json#/$defs/extras" },
+    "ext": { "$ref": "common.schema.json#/$defs/ext" }
+  },
+  "required": ["schema", "order"],
+  "additionalProperties": false
+}

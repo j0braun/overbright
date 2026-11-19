@@ -1,0 +1,17 @@
+# A race start scene with one character (made-up values).
+schema = "ob.scene/1.0"
+name = "IntroNis08"
+type = 0
+cars = 4
+length_frames = 455
+marks_frames = [260, 180]
+description = "Flag girl runs from side, looks at cars, starts race"
+
+[[character]]
+name = "0x6D2C11F0"
+flags = 0x20
+axes = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
+translation = [3.25, 12.5, 0.0]
+solids = ["solid:FLAG_GIRL_MODEL_7", "solid:FLAG_GIRL_MODEL_7", "solid:FLAG_GIRL_MODEL_7"]
+anim = "anim:two_flag_girl_idle_starts_01_07_s"
+skeleton = "skeleton:Bip11"

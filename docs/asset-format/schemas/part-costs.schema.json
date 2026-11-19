@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "part-costs.schema.json",
+  "title": "Overbright asset format: part cost table (ob.part-costs)",
+  "description": "cars.md 3.5. global/parts/costs.toml: career chunk 0x34A1C, 0x28-byte records, one per cost category, in order.",
+  "type": "object",
+  "properties": {
+    "schema": { "type": "string", "pattern": "^ob\\.part-costs/1\\.[0-9]+$" },
+    "category": {
+      "type": "array",
+      "maxItems": 255,
+      "items": {
+        "type": "object",
+        "properties": {
+          "number": { "description": "+0x00 u32: the cost category (1-based; equals the record's position + 1). The key.", "type": "integer", "minimum": 1, "maximum": 255 },
+          "op": { "$ref": "common.schema.json#/$defs/op" },
+          "level": {
+            "description": "Levels 1-3 at +0x04, +0x10, +0x1C (12 bytes each).",
+            "type": "object",
+            "properties": {
+              "1": { "$ref": "#/$defs/level" },
+              "2": { "$ref": "#/$defs/level" },
+              "3": { "$ref": "#/$defs/level" }
+            },
+            "additionalProperties": false
+          },
+          "extras": { "$ref": "common.schema.json#/$defs/extras" }
+        },
+        "required": ["number"],
+        "additionalProperties": false
+      }
+    },
+    "extras": { "$ref": "common.schema.json#/$defs/extras" },
+    "ext": { "$ref": "common.schema.json#/$defs/ext" }
+  },
+  "required": ["schema"],
+  "additionalProperties": false,
+  "$defs": {
+    "level": {
+      "type": "object",
+      "properties": {
+        "points": { "description": "+0 i16: visual points (0x501860).", "$ref": "common.schema.json#/$defs/i16" },
+        "price": { "description": "+2 i16: price (0x514280); -1 none.", "$ref": "common.schema.json#/$defs/i16" },
+        "unlock": { "description": "+4 u8: what unlocks it (0x515360): 1 an event won, 2 normal, 3 URL, 4 sponsor wins in the stage; others open.", "$ref": "common.schema.json#/$defs/u8" },
+        "unlock_level": { "description": "+5 i8: the level the unlock test is asked for (0x515470).", "$ref": "common.schema.json#/$defs/i8" },
+        "unlock_value": { "description": "+8 u32: the unlock's argument (an event hash, or a count in the low 16 bits).", "$ref": "common.schema.json#/$defs/u32" }
+      },
+      "additionalProperties": false
+    }
+  }
+}

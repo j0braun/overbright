@@ -1,0 +1,186 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "mix-map.schema.json",
+  "title": "ob.mix-map: a mix map's sections (raw words)",
+  "description": "audio.md 3.6",
+  "type": "object",
+  "properties": {
+    "schema": {
+      "type": "string",
+      "pattern": "^ob\\.mix\\-map/1\\.[0-9]+$"
+    },
+    "name": {
+      "$ref": "common.schema.json#/$defs/name"
+    },
+    "op": {
+      "enum": [
+        "replace"
+      ]
+    },
+    "section": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "control": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "common.schema.json#/$defs/u32"
+                },
+                "level": {
+                  "$ref": "common.schema.json#/$defs/u32"
+                },
+                "input": {
+                  "$ref": "common.schema.json#/$defs/u32"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "id",
+                "level",
+                "input"
+              ]
+            }
+          },
+          "control_3d": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "common.schema.json#/$defs/u32"
+                },
+                "variant": {
+                  "type": "array",
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "common.schema.json#/$defs/u32"
+                    },
+                    "minItems": 6,
+                    "maxItems": 6
+                  },
+                  "maxItems": 15
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "id",
+                "variant"
+              ]
+            }
+          },
+          "event": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "$ref": "common.schema.json#/$defs/u32"
+              },
+              "minItems": 7,
+              "maxItems": 7
+            }
+          },
+          "sub": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "common.schema.json#/$defs/u32"
+                },
+                "w1": {
+                  "$ref": "common.schema.json#/$defs/u32"
+                },
+                "out": {
+                  "$ref": "common.schema.json#/$defs/u32"
+                },
+                "words": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "common.schema.json#/$defs/u32"
+                  },
+                  "maxItems": 255
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "id",
+                "w1",
+                "words"
+              ]
+            }
+          },
+          "master": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "common.schema.json#/$defs/u32"
+                },
+                "w1": {
+                  "$ref": "common.schema.json#/$defs/u32"
+                },
+                "out": {
+                  "$ref": "common.schema.json#/$defs/u32"
+                },
+                "words": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "common.schema.json#/$defs/u32"
+                  },
+                  "maxItems": 255
+                },
+                "map": {
+                  "type": "object",
+                  "properties": {
+                    "head": {
+                      "$ref": "common.schema.json#/$defs/u32"
+                    },
+                    "entries": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "common.schema.json#/$defs/u32"
+                      },
+                      "maxItems": 15
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "head",
+                    "entries"
+                  ]
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "id",
+                "w1",
+                "words"
+              ]
+            }
+          }
+        },
+        "additionalProperties": false,
+        "description": "audio.md 3.6: one section, blocks in file order"
+      },
+      "maxItems": 32
+    },
+    "extras": {
+      "$ref": "common.schema.json#/$defs/extras"
+    },
+    "ext": {
+      "$ref": "common.schema.json#/$defs/ext"
+    }
+  },
+  "required": [
+    "schema",
+    "name",
+    "section"
+  ],
+  "additionalProperties": false
+}

@@ -1,0 +1,25 @@
+# A language's strings (ob.strings, text.md 3.2), in the original text order. The texts are
+# made up except DEFAULT_STRING's label, which the public docs name. Texts are basic strings on
+# one line with escapes (text.md 3.3): DEMO_DIALOG_BODY ends with the control U+0085, written
+# as an escape; DEMO_SUBTITLE_01 is kept in byte form.
+schema = "ob.strings/1.0"
+
+[[string]]
+hash = "0x881F8EFA"
+label = "DEFAULT_STRING"
+text = "Demo default text"
+
+[[string]]
+hash = "0x00CF7174"
+label = "DEMO_DIALOG_TITLE"
+text = "Demo dialog™"
+
+[[string]]
+hash = "0xE0F4C000"
+label = "DEMO_DIALOG_BODY"
+text = "Please wait\u0085"
+
+[[string]]
+hash = "0x078CFCEF"
+label = "DEMO_SUBTITLE_01"
+bytes = "hex:44656d6f81"

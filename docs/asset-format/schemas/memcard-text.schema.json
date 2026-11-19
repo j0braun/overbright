@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "memcard-text.schema.json",
+  "title": "Overbright asset format: the save library's texts (ob.memcard-text)",
+  "description": "text.md section 3.6. text/<language>/memcard.toml: the texts of one memcard/LOCALE_<LOCALE>.loc file, by index.",
+  "type": "object",
+  "properties": {
+    "schema": { "type": "string", "pattern": "^ob\\.memcard-text/1\\.[0-9]+$" },
+    "op": { "$ref": "common.schema.json#/$defs/op" },
+    "locale": { "description": "<LOCALE> of the original file name", "type": "string", "pattern": "^[A-Z][A-Z_]{0,39}$" },
+    "header": { "description": "The LOCH and LOCI blocks (open)", "$ref": "common.schema.json#/$defs/bytes" },
+    "text": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "text": { "type": "string", "maxLength": 1024 },
+          "extra_nul": { "type": "integer", "minimum": 0, "maximum": 8 }
+        },
+        "required": ["text"],
+        "additionalProperties": false
+      },
+      "maxItems": 256
+    },
+    "extras": { "$ref": "common.schema.json#/$defs/extras" },
+    "ext": { "$ref": "common.schema.json#/$defs/ext" }
+  },
+  "required": ["schema", "locale", "text"],
+  "additionalProperties": false
+}

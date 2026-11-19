@@ -1,0 +1,21 @@
+# One section of a mix map (made-up words): a control, a 3D control with one
+# variant, an event control, one sub channel and one master channel.
+schema = "ob.mix-map/1.0"
+name = "MAPOUTPUTDRG"
+
+[[section]]
+control = [ { id = 0x60000010, level = 0x000003E8, input = 0x40000020 } ]
+control_3d = [ { id = 0x01000030, variant = [ [0x00001000, 0x00010000, 0, 50, 0, 200] ] } ]
+event = [ [0x02000040, 600, 0x60000010, 0x40000024, 0x0000000C, 0x00000000, 0x0000003C] ]
+
+[[section.sub]]
+id = 0x00020050
+w1 = 0x03E80000
+out = 0x00000001
+words = [0x40000020, 0x80000060]
+
+[[section.master]]
+id = 0x10010070
+w1 = 0x00008000
+words = [0x00020050]
+map = { head = 0x00000001, entries = [0x00010000] }

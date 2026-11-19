@@ -1,0 +1,11 @@
+# A licence agreement text (ob.legal-text, text.md 3.5); made-up lines.
+schema = "ob.legal-text/1.0"
+encoding = "windows-1252"
+bom = false
+line_ending = "crlf"
+lines = [
+  "DEMO LICENCE AGREEMENT",
+  "",
+  "\tThis text is an example™ only.",
+  "© Example",
+]

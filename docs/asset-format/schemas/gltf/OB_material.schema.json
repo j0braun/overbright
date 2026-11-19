@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "OB_material.schema.json",
+  "title": "OB_material glTF material extension",
+  "description": "meshes.md 3.8: informative; what a draw range draws with. The engine ignores it; the mesh import path (meshes.md 4.5) reads it. The extension's version is in the glTF root object: #/$defs/root.",
+  "type": "object",
+  "properties": {
+    "texture": {
+      "type": "string",
+      "pattern": "^texture:\\S{1,200}$"
+    },
+    "light_material": {
+      "description": "A light material's bare hash (conventions.md 6.6), as in OB_solid.light_materials.",
+      "$ref": "common.schema.json#/$defs/hash32"
+    },
+    "flags": {
+      "$ref": "common.schema.json#/$defs/u32"
+    },
+    "extras": {
+      "$ref": "common.schema.json#/$defs/extras"
+    }
+  },
+  "required": [
+    "texture"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "root": {
+      "description": "meshes.md 3.1: the extension's entry in the glTF root object's extensions, once per file: the lowest version of the extension that reads the file (versioning.md 1, 2.1).",
+      "type": "object",
+      "properties": {
+        "version": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+$"
+        }
+      },
+      "required": [
+        "version"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

@@ -1,0 +1,6 @@
+# Made-up values in the shape of world/L4RA/routes/roads/4001.toml (roads-ai.md 3.3); the .bin is not shipped.
+schema = "ob.road-net/1.0"
+region = "L4RA"
+track = 4001
+nodes = { file = "4001.bin", offset = 0, count = 233, layout = "road_node", digest = "xxh3-128:0f1e2d3c4b5a69788796a5b4c3d2e1f0" }
+segments = { file = "4001.bin", offset = 5632, count = 41, layout = "road_segment", digest = "xxh3-128:00112233445566778899aabbccddeeff" }

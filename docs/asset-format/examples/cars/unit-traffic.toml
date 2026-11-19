@@ -1,0 +1,21 @@
+# cars/TAXI/unit.toml: a traffic car whose TEXTURES.BIN and VINYLS.BIN are empty files.
+schema = "ob.car-unit/1.0"
+name = "TAXI"
+role = "car"
+car = "car:TAXI"
+
+[[file]]
+original = "GEOMETRY.BIN"
+state = "data"
+kind = "meshes"
+paths = ["meshes/GEOMETRY.BIN.0.gltf"]
+
+[[file]]
+original = "TEXTURES.BIN"
+state = "empty"
+kind = "textures"
+
+[[file]]
+original = "VINYLS.BIN"
+state = "empty"
+kind = "vinyls"

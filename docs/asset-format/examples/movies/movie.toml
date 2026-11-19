@@ -1,0 +1,19 @@
+# One movie (made-up sizes): 80 VP6 frames at 25 frames per second in
+# video.ivf; the EA-XA sound stream and its interleave in audio.bin.
+schema = "ob.movie/1.0"
+name = "ealogo_en"
+width = 512
+height = 512
+frames = 80
+largest_frame = 11552
+rate = 819175
+scale = 32767
+video = { file = "video.ivf", codec = "vp6", digest = "xxh3-128:9a1f04c37be25d6018e4f2a9c3b70d55" }
+
+[audio]
+stream = { file = "audio.bin", offset = 0, count = 92616, layout = "ea_stream" }
+order = { file = "audio.bin", offset = 92624, count = 85, layout = "chunk_order" }
+codec = "ea_xa"
+channels = 2
+rate_hz = 32000
+frames = 101431

@@ -1,0 +1,11 @@
+# A mod pack's global/parts/db.toml: new colour values for one vinyl colour part.
+schema = "ob.part-db/1.0"
+
+[[part]]
+group = "0x2C8E7A11"
+hash = "0x4F00A1B2"
+
+[part.attributes]
+RED = 200
+GREEN = 40
+BLUE = 40

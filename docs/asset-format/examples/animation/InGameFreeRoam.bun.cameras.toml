@@ -1,0 +1,40 @@
+# One generic camera group: a shop scene's camera, keyed by the scene header's hash (made-up shots).
+schema = "ob.camera-tracks/1.0"
+kind = "generic"
+
+[[group]]
+key = 0xE39FF628            # bin_hash("ShopEnter1")
+
+[[group.track]]
+name = "Track 0"
+duration_s = 0.0
+u_0x00 = 0x0012FC08
+u_0x04 = 0x0012FC08
+u_0x08 = 0x0012FBFC
+
+[[group.track.entry]]
+mover = 0x13
+spline = 1
+u_0x03 = 1
+eye_space = 3
+look_space = 3
+start = 0.0
+tangent = [1.0, 1.0]
+eye = [[6.5, -4.0, 1.4], [5.0, -2.5, 1.2]]
+look = [[0.0, 0.0, 0.8], [0.0, 1.5, 0.8]]
+fov = [45.0, 45.0]
+params = [[0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0]]
+tail = "hex:252564640000008000007f80000000320000000000000000"
+
+[[group.track.entry]]
+mover = 0x13
+blend = 1
+spline = 1
+eye_space = 3
+look_space = 3
+start = 0.55
+tangent = [1.0, 1.0]
+eye = [[-1.5, 3.0, 1.0], [-1.5, 5.0, 1.0]]
+look = [[0.0, 0.0, 0.7], [0.0, 2.0, 0.7]]
+fov = [38.0, 38.0]
+params = [[0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0]]

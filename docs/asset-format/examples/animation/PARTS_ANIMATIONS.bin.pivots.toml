@@ -1,0 +1,109 @@
+# The 21 part-animation rest matrices of a car (made-up values).
+schema = "ob.part-pivots/1.0"
+car_hash = "0x0150FB80"   # bin_hash("240SX")
+u_0x00 = 0x0000000C
+
+[[pivot]]
+label = "HOOD_REG"
+axes = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
+translation = [0.856, 0.0, 0.623]
+
+[[pivot]]
+label = "HOOD_FRONT"
+axes = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
+translation = [0.856, 0.0, 0.623]
+
+[[pivot]]
+label = "LEFT_HOOD_SPLIT"
+axes = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
+translation = [0.62, 0.74, 0.55]
+
+[[pivot]]
+label = "RIGHT_HOOD_SPLIT"
+axes = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
+translation = [0.62, -0.74, 0.55]
+
+[[pivot]]
+label = "FRONT_HOOD_SPLIT"
+axes = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
+translation = [1.9, 0.0, 0.5]
+
+[[pivot]]
+label = "BACK_HOOD_SPLIT"
+axes = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
+translation = [0.2, 0.0, 0.66]
+
+[[pivot]]
+label = "LEFT_DOOR_REG"
+axes = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
+translation = [0.62, 0.74, 0.55]
+
+[[pivot]]
+label = "LEFT_DOOR_SCISSOR"
+axes = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
+translation = [0.62, 0.74, 0.55]
+
+[[pivot]]
+label = "LEFT_DOOR_SUICIDE"
+axes = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
+translation = [0.62, 0.74, 0.55]
+
+[[pivot]]
+label = "RIGHT_DOOR_REG"
+axes = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
+translation = [0.62, -0.74, 0.55]
+
+[[pivot]]
+label = "RIGHT_DOOR_SCISSOR"
+axes = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
+translation = [0.62, -0.74, 0.55]
+
+[[pivot]]
+label = "RIGHT_DOOR_SUICIDE"
+axes = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
+translation = [0.62, -0.74, 0.55]
+
+[[pivot]]
+label = "TRUNK_REG"
+axes = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
+translation = [-1.75, 0.0, 0.81]
+
+[[pivot]]
+label = "LEFT_DOOR_WIDE1"
+axes = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
+translation = [0.62, 0.74, 0.55]
+
+[[pivot]]
+label = "LEFT_DOOR_WIDE2"
+axes = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
+translation = [0.62, 0.74, 0.55]
+
+[[pivot]]
+label = "LEFT_DOOR_WIDE3"
+axes = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
+translation = [0.62, 0.74, 0.55]
+
+[[pivot]]
+label = "LEFT_DOOR_WIDE4"
+axes = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
+translation = [0.62, 0.74, 0.55]
+
+[[pivot]]
+label = "RIGHT_DOOR_WIDE1"
+axes = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
+translation = [0.62, -0.74, 0.55]
+
+[[pivot]]
+label = "RIGHT_DOOR_WIDE2"
+axes = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
+translation = [0.62, -0.74, 0.55]
+
+[[pivot]]
+label = "RIGHT_DOOR_WIDE3"
+axes = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
+translation = [0.62, -0.74, 0.55]
+
+[[pivot]]
+label = "RIGHT_DOOR_WIDE4"
+axes = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
+translation = [0.62, -0.74, 0.55]

@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "OB_marker.schema.json",
+  "title": "OB_marker glTF node extension",
+  "description": "meshes.md 3.5: one record of a solid's marker chunk 0x13401A; the matrix is the node's own matrix. The extension's version is in the glTF root object: #/$defs/root.",
+  "type": "object",
+  "properties": {
+    "hash": {
+      "$ref": "common.schema.json#/$defs/hash32"
+    },
+    "kind": {
+      "$ref": "common.schema.json#/$defs/u32"
+    },
+    "u_0x08": {
+      "$ref": "common.schema.json#/$defs/u32"
+    },
+    "u_0x0c": {
+      "$ref": "common.schema.json#/$defs/u32"
+    },
+    "extras": {
+      "$ref": "common.schema.json#/$defs/extras"
+    }
+  },
+  "required": [
+    "hash"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "root": {
+      "description": "meshes.md 3.1: the extension's entry in the glTF root object's extensions, once per file: the lowest version of the extension that reads the file (versioning.md 1, 2.1).",
+      "type": "object",
+      "properties": {
+        "version": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+$"
+        }
+      },
+      "required": [
+        "version"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

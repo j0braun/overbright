@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "world-anims.schema.json",
+  "title": "world/<REGION>/anims.toml (ob.world-anims)",
+  "description": "world.md 3.6: world-animation entities (0x37080) and instances (0x37090), in file order. The animations are animation.md's bank channels, found by hash. Base sets only (WLD.10).",
+  "type": "object",
+  "properties": {
+    "schema": { "type": "string", "pattern": "^ob\\.world-anims/1\\.[0-9]+$" },
+    "entity": { "type": "array", "items": { "$ref": "#/$defs/entity" } },
+    "instance": { "type": "array", "items": { "$ref": "#/$defs/instance" } },
+    "extras": { "$ref": "common.schema.json#/$defs/extras" },
+    "ext": { "$ref": "common.schema.json#/$defs/ext" }
+  },
+  "required": ["schema", "entity", "instance"],
+  "additionalProperties": false,
+  "$defs": {
+    "mat4": { "type": "array", "minItems": 16, "maxItems": 16, "items": { "$ref": "common.schema.json#/$defs/f32" } },
+    "entity": {
+      "description": "Layout anim_entity (0x70 bytes); the const row +0x00 is not written",
+      "type": "object",
+      "properties": {
+        "hash": { "$ref": "common.schema.json#/$defs/hash32" },
+        "parent": { "$ref": "common.schema.json#/$defs/hash32" },
+        "solid": { "$ref": "common.schema.json#/$defs/hash32" },
+        "tree": { "$ref": "common.schema.json#/$defs/hash32" },
+        "animation": { "$ref": "common.schema.json#/$defs/hash32" },
+        "u_0x28": { "$ref": "common.schema.json#/$defs/u32" },
+        "rest": { "$ref": "#/$defs/mat4" },
+        "extras": { "$ref": "common.schema.json#/$defs/extras" }
+      },
+      "required": ["hash", "parent", "solid", "tree", "animation", "rest"],
+      "additionalProperties": false
+    },
+    "instance": {
+      "description": "Layout anim_instance (0xA0 bytes); the const row +0x3E is not written",
+      "type": "object",
+      "properties": {
+        "id": { "$ref": "common.schema.json#/$defs/u32" },
+        "tree": { "$ref": "common.schema.json#/$defs/hash32" },
+        "u_0x08": { "$ref": "common.schema.json#/$defs/u32" },
+        "flags": { "$ref": "common.schema.json#/$defs/u32" },
+        "speed": { "$ref": "common.schema.json#/$defs/f32" },
+        "delay_s": { "$ref": "common.schema.json#/$defs/vec2" },
+        "range": { "type": "array", "minItems": 2, "maxItems": 2, "items": { "$ref": "common.schema.json#/$defs/u16" } },
+        "keys": { "type": "array", "minItems": 2, "maxItems": 2, "items": { "$ref": "common.schema.json#/$defs/hash32" } },
+        "range_flag": { "$ref": "common.schema.json#/$defs/u32" },
+        "window": { "type": "array", "minItems": 4, "maxItems": 4, "items": { "$ref": "common.schema.json#/$defs/u8" } },
+        "hold": { "$ref": "common.schema.json#/$defs/u16" },
+        "transform": { "$ref": "#/$defs/mat4" },
+        "u_0x80": { "type": "array", "minItems": 8, "maxItems": 8, "items": { "$ref": "common.schema.json#/$defs/u32" } },
+        "extras": { "$ref": "common.schema.json#/$defs/extras" }
+      },
+      "required": ["id", "tree", "flags", "speed", "delay_s", "range", "keys", "window", "hold", "transform"],
+      "additionalProperties": false
+    }
+  }
+}

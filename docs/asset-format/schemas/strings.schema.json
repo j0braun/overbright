@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "strings.schema.json",
+  "title": "Overbright asset format: a language's string table (ob.strings)",
+  "description": "text.md section 3.2. text/<language>/strings.toml: strings keyed by label hash, in the original text order.",
+  "type": "object",
+  "properties": {
+    "schema": { "type": "string", "pattern": "^ob\\.strings/1\\.[0-9]+$" },
+    "string": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/entry" },
+      "maxItems": 1000000
+    },
+    "extras": { "$ref": "common.schema.json#/$defs/extras" },
+    "ext": { "$ref": "common.schema.json#/$defs/ext" }
+  },
+  "required": ["schema"],
+  "additionalProperties": false,
+  "$defs": {
+    "entry": {
+      "type": "object",
+      "properties": {
+        "op": { "$ref": "common.schema.json#/$defs/op" },
+        "hash": { "description": "bin_hash of the label: the item key", "$ref": "common.schema.json#/$defs/hash32" },
+        "label": { "description": "The label's name when known", "type": "string", "pattern": "^[A-Za-z0-9_]{1,63}$" },
+        "text": { "type": "string", "maxLength": 4096 },
+        "bytes": { "description": "The stored bytes, without the NUL, when the text form is not proven (text.md 3.3)", "$ref": "common.schema.json#/$defs/bytes" },
+        "extras": { "$ref": "common.schema.json#/$defs/extras" }
+      },
+      "required": ["hash"],
+      "not": { "required": ["text", "bytes"] },
+      "additionalProperties": false
+    }
+  }
+}

@@ -1,0 +1,330 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "magazines.schema.json",
+  "title": "ob.magazines: photo-shoot cameras, cover setups, environment maps, showcase (career.md 3.4)",
+  "type": "object",
+  "required": [
+    "schema"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema": {
+      "type": "string",
+      "pattern": "^ob\\.magazines/1\\.[0-9]+$"
+    },
+    "camera": {
+      "type": "array",
+      "maxItems": 64,
+      "items": {
+        "$ref": "#/$defs/camera"
+      }
+    },
+    "envmap": {
+      "type": "array",
+      "maxItems": 32,
+      "items": {
+        "$ref": "#/$defs/envmap"
+      }
+    },
+    "setup": {
+      "type": "array",
+      "maxItems": 32,
+      "items": {
+        "$ref": "#/$defs/setup"
+      }
+    },
+    "showcase": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "camera": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "$ref": "#/$defs/showcaseCamera"
+          }
+        },
+        "light": {
+          "type": "array",
+          "maxItems": 32,
+          "items": {
+            "$ref": "#/$defs/showcaseLight"
+          }
+        },
+        "setup": {
+          "type": "array",
+          "maxItems": 32,
+          "items": {
+            "$ref": "#/$defs/showcaseSetup"
+          }
+        }
+      }
+    },
+    "extras": {
+      "$ref": "common.schema.json#/$defs/extras"
+    },
+    "ext": {
+      "$ref": "common.schema.json#/$defs/ext"
+    }
+  },
+  "$defs": {
+    "nameref": {
+      "$ref": "route-paths.schema.json#/$defs/nameref"
+    },
+    "list": {
+      "type": "array",
+      "items": {
+        "$ref": "route-paths.schema.json#/$defs/nameref"
+      }
+    },
+    "camera": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name"
+      ],
+      "properties": {
+        "op": {
+          "$ref": "common.schema.json#/$defs/op"
+        },
+        "name": {
+          "$ref": "#/$defs/nameref"
+        },
+        "flags": {
+          "$ref": "common.schema.json#/$defs/u8"
+        },
+        "car": {
+          "$ref": "common.schema.json#/$defs/vec2"
+        },
+        "lens": {
+          "$ref": "common.schema.json#/$defs/f32"
+        },
+        "target": {
+          "$ref": "common.schema.json#/$defs/vec3"
+        },
+        "eye": {
+          "$ref": "common.schema.json#/$defs/vec3"
+        },
+        "extra": {
+          "$ref": "common.schema.json#/$defs/vec2"
+        },
+        "roll_deg": {
+          "$ref": "common.schema.json#/$defs/f32"
+        },
+        "extras": {
+          "$ref": "common.schema.json#/$defs/extras"
+        }
+      }
+    },
+    "envmap": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name"
+      ],
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/nameref"
+        },
+        "light": {
+          "$ref": "#/$defs/nameref"
+        },
+        "file": {
+          "type": "string",
+          "maxLength": 15,
+          "pattern": "^[A-Za-z0-9_.-]*$"
+        },
+        "extras": {
+          "$ref": "common.schema.json#/$defs/extras"
+        }
+      }
+    },
+    "setup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name"
+      ],
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/nameref"
+        },
+        "counts": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/u32"
+          },
+          "minItems": 6,
+          "maxItems": 6
+        },
+        "backgrounds": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/list"
+            },
+            {
+              "maxItems": 3
+            }
+          ]
+        },
+        "mastheads": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/list"
+            },
+            {
+              "maxItems": 2
+            }
+          ]
+        },
+        "models": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/list"
+            },
+            {
+              "maxItems": 5
+            }
+          ]
+        },
+        "extra_layers": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/list"
+            },
+            {
+              "maxItems": 3
+            }
+          ]
+        },
+        "cameras": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/list"
+            },
+            {
+              "maxItems": 3
+            }
+          ]
+        },
+        "envmaps": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/list"
+            },
+            {
+              "maxItems": 2
+            }
+          ]
+        },
+        "extras": {
+          "$ref": "common.schema.json#/$defs/extras"
+        }
+      }
+    },
+    "showcaseCamera": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name"
+      ],
+      "properties": {
+        "op": {
+          "$ref": "common.schema.json#/$defs/op"
+        },
+        "name": {
+          "$ref": "#/$defs/nameref"
+        },
+        "params": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/f32"
+          },
+          "minItems": 9,
+          "maxItems": 9
+        },
+        "extras": {
+          "$ref": "common.schema.json#/$defs/extras"
+        }
+      }
+    },
+    "showcaseLight": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name"
+      ],
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/nameref"
+        },
+        "u_0x04": {
+          "$ref": "common.schema.json#/$defs/u32"
+        },
+        "u_0x08": {
+          "$ref": "common.schema.json#/$defs/u32"
+        }
+      }
+    },
+    "showcaseSetup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cover"
+      ],
+      "properties": {
+        "cover": {
+          "$ref": "#/$defs/nameref"
+        },
+        "counts": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/u32"
+          },
+          "minItems": 4,
+          "maxItems": 4
+        },
+        "mastheads": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/list"
+            },
+            {
+              "maxItems": 2
+            }
+          ]
+        },
+        "extra_layers": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/list"
+            },
+            {
+              "maxItems": 1
+            }
+          ]
+        },
+        "cameras": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/list"
+            },
+            {
+              "maxItems": 3
+            }
+          ]
+        },
+        "lights": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/list"
+            },
+            {
+              "maxItems": 2
+            }
+          ]
+        }
+      }
+    }
+  }
+}

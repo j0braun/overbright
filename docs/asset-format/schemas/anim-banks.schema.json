@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "anim-banks.schema.json",
+  "title": "ob.anim-banks: the EAGL objects (animation banks and skeletons) of one source file, or a pack's authored banks",
+  "description": "animation.md 3.2-3.3. Cross-file rules (index equals object, digests, overrides) are the page's ANI rules.",
+  "type": "object",
+  "$defs": {
+    "channelName": { "type": "string", "pattern": "^[!-~]{1,127}$" },
+    "channel": {
+      "type": "object",
+      "properties": {
+        "name": { "$ref": "#/$defs/channelName" },
+        "op": { "$ref": "common.schema.json#/$defs/op" },
+        "disabled": { "type": "boolean" },
+        "kinds": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/u16" } },
+        "slots": { "type": "array", "maxItems": 4096, "items": { "$ref": "common.schema.json#/$defs/u16" } },
+        "frames": { "type": "integer", "minimum": 1, "maximum": 65535 },
+        "width": { "type": "integer", "minimum": 1, "maximum": 64 },
+        "values": { "$ref": "common.schema.json#/$defs/arrayDescriptor" },
+        "extras": { "$ref": "common.schema.json#/$defs/extras" },
+        "ext": { "$ref": "common.schema.json#/$defs/ext" }
+      },
+      "required": ["name"],
+      "additionalProperties": false
+    },
+    "bone": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "maxLength": 63 },
+        "parent": { "type": "integer", "minimum": -1, "maximum": 254 },
+        "scale": { "$ref": "common.schema.json#/$defs/vec3" },
+        "rotation": { "$ref": "common.schema.json#/$defs/vec4" },
+        "translation": { "$ref": "common.schema.json#/$defs/vec3" },
+        "inverse_bind_axes": { "$ref": "common.schema.json#/$defs/mat3" },
+        "inverse_bind_translation": { "$ref": "common.schema.json#/$defs/vec3" }
+      },
+      "required": ["parent", "inverse_bind_axes", "inverse_bind_translation"],
+      "additionalProperties": false
+    }
+  },
+  "properties": {
+    "schema": { "type": "string", "pattern": "^ob\\.anim-banks/1\\.[0-9]+$" },
+    "source": { "type": "string", "maxLength": 100 },
+    "object": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "kind": { "enum": ["bank", "skeleton"] },
+          "encoding": { "enum": ["eagl", "keys", "bones"] },
+          "file": { "type": "string", "pattern": "^[A-Za-z0-9_-][A-Za-z0-9._-]{0,99}\\.eagl$" },
+          "digest": { "$ref": "common.schema.json#/$defs/digest" },
+          "decodes": { "type": "boolean", "default": true },
+          "name": { "type": "string", "pattern": "^[!-~]{1,63}$" },
+          "bones": { "$ref": "common.schema.json#/$defs/u16" },
+          "channel": { "type": "array", "maxItems": 4096, "items": { "$ref": "#/$defs/channel" } },
+          "bone": { "type": "array", "minItems": 1, "maxItems": 255, "items": { "$ref": "#/$defs/bone" } },
+          "extras": { "$ref": "common.schema.json#/$defs/extras" }
+        },
+        "required": ["kind", "encoding"],
+        "allOf": [
+          { "if": { "properties": { "encoding": { "const": "eagl" } } }, "then": { "required": ["file"] } },
+          { "if": { "properties": { "encoding": { "const": "bones" } } }, "then": { "required": ["bone", "name"], "properties": { "kind": { "const": "skeleton" } } } },
+          { "if": { "properties": { "encoding": { "const": "keys" } } }, "then": { "required": ["channel"], "properties": { "kind": { "const": "bank" }, "channel": { "items": { "anyOf": [ { "required": ["slots", "frames", "width", "values"] }, { "properties": { "op": { "const": "merge" } }, "required": ["op", "disabled"] } ] } } } } }
+        ],
+        "additionalProperties": false
+      }
+    },
+    "extras": { "$ref": "common.schema.json#/$defs/extras" },
+    "ext": { "$ref": "common.schema.json#/$defs/ext" }
+  },
+  "required": ["schema", "object"],
+  "additionalProperties": false
+}

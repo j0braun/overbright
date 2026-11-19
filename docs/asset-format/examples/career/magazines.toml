@@ -1,0 +1,42 @@
+# Made-up values in the shape of frontend/magazines/magazines.toml (career.md 3.4).
+schema = "ob.magazines/1.0"
+
+[[camera]]
+name = "0x1F00A3C4"
+flags = 0x05
+car = [0.0, 1.5]
+lens = 0.85
+target = [0.25, 0.0, 0.5]
+eye = [4.5, -2.25, 1.125]
+extra = [0.0, 0.0]
+roll_deg = 0.0
+
+[[envmap]]
+name = "0xC2082D5F"
+light = "0x3E7A9C01"
+file = "Showroom"
+
+[[setup]]
+name = "MAGAZINE_SETUP_EXAMPLE"
+counts = [1, 1, 1, 0, 1, 1]
+backgrounds = ["0x6A1B2C3D"]
+mastheads = ["0x6A1B2C3E"]
+models = ["0x6A1B2C3F"]
+cameras = ["0x1F00A3C4"]
+envmaps = ["0xC2082D5F"]
+
+[[showcase.camera]]
+name = "0x4E5F6071"
+params = [30.0, 12.5, 6.0, 0.0, 0.0, 0.75, 45.0, 0.0, 0.0]
+
+[[showcase.light]]
+name = "0xC2082D5F"
+u_0x04 = 0x7460827E
+u_0x08 = 0x1D46B1CF
+
+[[showcase.setup]]
+cover = "MAGAZINE_SETUP_EXAMPLE"
+counts = [1, 0, 1, 1]
+mastheads = ["0x6A1B2C3E"]
+cameras = ["0x4E5F6071"]
+lights = ["0xC2082D5F"]

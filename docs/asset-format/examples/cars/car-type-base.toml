@@ -1,0 +1,192 @@
+# global/cars/types/FOCUS.toml as a base set holds it (made-up values; fields equal to their
+# default -- 0, the derived names and indices -- are left out, as writers do).
+schema = "ob.car-type/1.0"
+name = "FOCUS"
+manufacturer = "FORD"
+skin_count = 1
+lot_flags = 0x02
+rim_size = 0x18
+rim_min = 0x0F
+rim_max = 0x12
+u_0x0d4 = 2.0
+u_0x0e0 = [1.25, 0.0, 0.25, 0.0, -0.25, 0.5, -0.0625, 0.0, 0.5, 0.0, 0.625, 0.0]
+kind_code = 0
+stock_paint = "0x1A2B3C4D"
+u_0x850 = "0x5E6F7A8B"
+traffic_caps = [5, 2, 2, 2, 2]
+skin_table = [1, 0, 0, 0, 0, 0, 0, 0]
+composited_skin = 1
+camera_count = 6
+split_camera_count = 6
+
+[chassis]
+centre_of_mass = [0.25, 0.0, 0.3125]
+mass_tonne = 1.125
+dimensions = [4.25, 1.75, 1.5]
+inertia_matrix = [0.5, 0.0, 0.0, 0.0, 0.0, 1.75, 0.0, 0.0, 0.0, 0.0, 2.0, 0.0, 0.0, 0.0, 0.0, 1.0]
+ground_yaw_inertia = 2.25
+
+[wheel.fl]
+position = [1.25, 0.75, 0.3125]
+radius = 0.3125
+width = 0.1875
+face = 0.8125
+face_wide = 0.875
+
+[wheel.fr]
+position = [1.25, -0.75, 0.3125]
+radius = 0.3125
+width = 0.1875
+face = -0.8125
+face_wide = -0.875
+
+[wheel.rr]
+position = [-1.375, -0.75, 0.3125]
+radius = 0.3125
+width = 0.1875
+face = -0.8125
+face_wide = -0.875
+
+[wheel.rl]
+position = [-1.375, 0.75, 0.3125]
+radius = 0.3125
+width = 0.1875
+face = 0.8125
+face_wide = 0.875
+
+[tyres.front]
+slip_angle_scale_deg = 12.0
+load_scale = 1.0
+lateral_scale = 1.0
+grip = 1.75
+sliding = 1.5
+
+[tyres.rear]
+slip_angle_scale_deg = 12.0
+load_scale = 1.0
+lateral_scale = 1.0
+grip = 1.75
+sliding = 1.5
+
+[suspension.front]
+progression = 4.5
+spring = 30.0
+bump = 2.5
+rebound = 3.0
+anti_roll = 10.0
+max_compression = 0.125
+max_extension = -0.125
+u_0x1c = 0.125
+
+[suspension.rear]
+progression = 4.5
+spring = 28.0
+bump = 2.25
+rebound = 2.75
+anti_roll = 8.0
+max_compression = 0.125
+max_extension = -0.125
+u_0x1c = 0.125
+
+[gearbox]
+neutral_shift = 0.75
+u_0x04 = 400.0
+final_drive_front = 4.0
+final_drive_rear = 4.0
+rear_split = 0.25
+clutch_stiffness = 0.0625
+forward_gears = 5
+clutch_rate = 2.5
+ratios = [-3.5, 0.0, 3.5, 2.0, 1.375, 1.0, 0.8125, 0.0]
+
+[engine]
+idle_rpm = 900.0
+redline_rpm = 6750.0
+max_rpm = 7250.0
+inertia = 0.00025
+torque_knm = [0.125, 0.15, 0.1625, 0.175, 0.1875, 0.1875, 0.175, 0.15, 0.125]
+braking_knm = [0.0125, 0.025, 0.0375]
+
+[aero]
+drag = 0.000375
+downforce = [0.125, 0.15]
+preload_downforce = 0.5
+
+[handling]
+steering_ratio = 1.0
+drift_grip = [0.0, 2.5]
+yaw_limit_airborne_knm = 15.0
+top_speed_mph = 120.0
+
+[brakes]
+brake_knm = 1.5
+handbrake_knm = 2.0
+balance = 0.375
+
+[upgrades.unique]
+weight = 0.0125
+rear_split = 0.25
+nitrous_power = 0.125
+grip_front = 0.0625
+grip_rear = 0.0625
+sliding_front = 0.0625
+sliding_rear = 0.0625
+
+[upgrades.weight]
+mass_factor = 0.9375
+ground_yaw_inertia = 2.0
+
+[upgrades.gearbox.1]
+neutral_shift = 0.75
+u_0x04 = 400.0
+final_drive_front = 3.875
+final_drive_rear = 3.875
+rear_split = 0.25
+clutch_stiffness = 0.0625
+forward_gears = 5
+clutch_rate = 4.0
+ratios = [-3.5, 0.0, 3.375, 2.0, 1.375, 1.0, 0.8125, 0.0]
+
+[upgrades.engine.0]
+inertia_delta = -0.0000625
+torque_delta_knm = [0.0, 0.0125, 0.0125, 0.025, 0.025, 0.025, 0.025, 0.0125, 0.0]
+
+[upgrades.engine.1]
+delta_rpm = [0.0, 250.0, 250.0]
+
+[upgrades.tyres.rear]
+slip_angle_scale_deg = 12.0
+load_scale = 1.0
+lateral_scale = 1.0
+grip = 1.875
+sliding = 1.625
+
+[upgrades.nitrous]
+capacity_s = 5.0
+shots = 5
+power = 0.5
+
+[upgrades.ride_height]
+front = -0.03125
+rear = -0.03125
+
+[camera.0]
+kind = 0
+tilt_bam16 = 0x0400
+eye = [-6.0, 0.0, 2.0]
+
+[camera.1]
+kind = 1
+tilt_bam16 = 0x0300
+eye = [-4.5, 0.0, 1.75]
+
+[gauges]
+drag_needle_deg = [-45.0, 45.0]
+
+[[ai_preset]]
+rating = 250.0
+parts = []
+
+[[ai_preset]]
+rating = 412.5
+parts = [0, 3, 6, 9, 12, 15]

@@ -1,0 +1,11 @@
+# world/L4RA/collision/1427.toml: the pack of stream section 1427, serving drivable section 1407 (made-up values).
+schema = "ob.collision/1.0"
+section = 1427
+width = 4
+height = 3
+origin = [-288.0, -1120.0]
+bounds_min = [-288.0, -1120.0, -127.0]
+bounds_max = [-160.0, -1024.0, 131.5]
+faces = { file = "1427.bin", offset = 0, count = 745, layout = "collision_face", digest = "xxh3-128:0f1e2d3c4b5a69788796a5b4c3d2e1f0" }
+refs = { file = "1427.bin", offset = 24064, count = 1102, layout = "collision_ref" }
+cells = { file = "1427.bin", offset = 28672, count = 12, layout = "collision_cell" }

@@ -1,0 +1,30 @@
+# world/L4RA/placements.toml in a mod pack "docks-remix" (made-up values).
+schema = "ob.placements/1.0"
+
+# Two cones at exactly the same spot in the original: indices 0 and 1 of scenery section 1407
+# (sections/1427.toml).
+[[placement]]
+key = "1407/0"
+guard = { solid = "solid:XO_CONE_01", position = [-215.25, -1037.5, 146.0] }
+position = [-214.0, -1036.0, 146.0]
+rotation = [0.0, 1.0, 0.0, -1.0, 0.0, 0.0, 0.0, 0.0, 1.0]
+
+[[placement]]
+key = "1407/1"
+guard = { solid = "solid:XO_CONE_01", position = [-215.25, -1037.5, 146.0] }
+disabled = true
+
+# A placement another pack added, moved further; docks-remix lists cone-pack in [dependencies] (ORD.2).
+[[placement]]
+key = "cone-pack:a3"
+position = [-220.0, -1030.0, 146.0]
+
+# A new cone: placement:L4RA/docks-remix:a1 (no op: an entry with this pack's local id is an addition).
+[[placement]]
+id = "a1"
+scenery = 1407
+solid = "solid:XO_CONE_01"
+flags = 0x0060
+radius_m = 0.75
+prop = "prop-kind:L4RA/ZCS_PylonA"
+position = [-212.0, -1035.0, 146.0]

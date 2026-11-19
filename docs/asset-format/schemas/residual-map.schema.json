@@ -1,0 +1,316 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "residual-map.schema.json",
+  "title": "Residual file map (ob.residual-map/1.0)",
+  "description": "residual.md section 3. Coverage (RES.1) and the rebuild check (RES.3) are cross-field rules checked by readers.",
+  "type": "object",
+  "properties": {
+    "schema": {
+      "type": "string",
+      "pattern": "^ob\\.residual-map/1\\.[0-9]+$"
+    },
+    "original": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240,
+      "pattern": "^[^/\\\\][^\\\\]*$"
+    },
+    "original_size": {
+      "$ref": "common.schema.json#/$defs/u64"
+    },
+    "original_digest": {
+      "$ref": "common.schema.json#/$defs/sha256"
+    },
+    "container": {
+      "enum": [
+        "plain",
+        "chunks",
+        "jdlz",
+        "huff",
+        "jdlz_chunks",
+        "viv",
+        "text"
+      ]
+    },
+    "content_size": {
+      "$ref": "common.schema.json#/$defs/u64"
+    },
+    "content_digest": {
+      "type": "string",
+      "pattern": "^xxh3-128:[0-9a-f]{32}$"
+    },
+    "node": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/node"
+      }
+    },
+    "extras": {
+      "$ref": "common.schema.json#/$defs/extras"
+    }
+  },
+  "required": [
+    "schema",
+    "original",
+    "original_size",
+    "original_digest",
+    "container",
+    "content_size",
+    "content_digest",
+    "node"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "node": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 240
+        },
+        "offset": {
+          "$ref": "common.schema.json#/$defs/u64"
+        },
+        "size": {
+          "$ref": "common.schema.json#/$defs/u64"
+        },
+        "fate": {
+          "enum": [
+            "decoded",
+            "kept",
+            "fill",
+            "container",
+            "copy",
+            "external"
+          ]
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]*:[^\\s]{1,200}$"
+          }
+        },
+        "proof": {
+          "enum": [
+            "bytes",
+            "patched",
+            "values"
+          ]
+        },
+        "kept": {
+          "$ref": "common.schema.json#/$defs/arrayDescriptor"
+        },
+        "fill": {
+          "$ref": "common.schema.json#/$defs/u8"
+        },
+        "reason": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "count": {
+          "$ref": "common.schema.json#/$defs/u32",
+          "minimum": 1
+        },
+        "copy": {
+          "type": "object",
+          "properties": {
+            "original": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240
+            },
+            "offset": {
+              "$ref": "common.schema.json#/$defs/u64"
+            },
+            "size": {
+              "$ref": "common.schema.json#/$defs/u64"
+            }
+          },
+          "required": [
+            "original",
+            "offset",
+            "size"
+          ],
+          "additionalProperties": false
+        },
+        "patch": {
+          "$ref": "common.schema.json#/$defs/arrayDescriptor"
+        },
+        "wrap": {
+          "enum": [
+            "jdlz",
+            "huff"
+          ]
+        },
+        "wrap_size": {
+          "$ref": "common.schema.json#/$defs/u64"
+        },
+        "wrap_digest": {
+          "$ref": "common.schema.json#/$defs/digest"
+        },
+        "external": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240
+            },
+            "size": {
+              "$ref": "common.schema.json#/$defs/u64"
+            },
+            "sha256": {
+              "$ref": "common.schema.json#/$defs/sha256"
+            }
+          },
+          "required": [
+            "path",
+            "size",
+            "sha256"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "path",
+        "offset",
+        "size",
+        "fate"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "fate": {
+                "const": "decoded"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "items",
+              "proof"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "fate": {
+                "const": "decoded"
+              },
+              "proof": {
+                "const": "values"
+              }
+            },
+            "required": [
+              "proof"
+            ]
+          },
+          "then": {
+            "required": [
+              "kept"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "fate": {
+                "const": "kept"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "kept"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "fate": {
+                "const": "fill"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "fill"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "fate": {
+                "const": "copy"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "copy"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "fate": {
+                "const": "decoded"
+              },
+              "proof": {
+                "const": "patched"
+              }
+            },
+            "required": [
+              "proof"
+            ]
+          },
+          "then": {
+            "required": [
+              "patch"
+            ]
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "wrap"
+            ]
+          },
+          "then": {
+            "required": [
+              "wrap_size",
+              "wrap_digest"
+            ],
+            "properties": {
+              "fate": {
+                "const": "container"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "fate": {
+                "const": "external"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "external"
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

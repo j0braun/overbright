@@ -1,0 +1,12 @@
+schema = "ob.mesh-patch/1.0"
+
+# The model-fixes pack's patches of cars/PEUGOT106. The triangle numbers are made up.
+
+# PEUGOT106 stock antenna: hidden while a roof scoop (slot 7) above level 0 is fitted.
+[[solid]]
+target = "solid:cars/PEUGOT106/GEOMETRY.BIN.0/PEUGOT106_BASE_A"
+guard = { hash = "0x700C6B24" }
+
+[[solid.hide_triangles]]
+triangles = [402, 403, 404, 405, 406, 407]
+when_part_fitted = 7

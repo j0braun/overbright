@@ -1,0 +1,124 @@
+# Made-up values in the shape of global/career/career.toml (career.md 3.1).
+schema = "ob.career/1.0"
+
+[[event]]
+name = "S2_CIRCUIT_3"
+kind = "circuit"
+category = "normal"
+stage = 2
+races = [{ track = 4013, variant = 0, laps = 2 }]
+marker = "EV_12"
+purse = 1500
+traffic = 1
+throttle = 3
+opponents = [
+  { name = "RACER_A", mode = 3, skill = 0, car = "RANDOM", difficulty = [1, 2, 3], block = 0 },
+  { name = "RACER_B", mode = 3, skill = 0, car = "RANDOM", difficulty = [1, 2, 3], block = 1 },
+]
+
+[[event]]
+name = "DDAY_EVENT_A"
+kind = "special"
+category = "scripted"
+stage = 0
+races = [{ track = 4000, variant = 0, laps = 1 }]
+goals = [{ kind = 4, target = "CC_CAR_LOT_1" }]
+
+[[event]]
+name = "S2_URL_3"
+kind = "circuit"
+category = "url"
+tier = 4
+requirement = 0x0A050300
+stage = 2
+races = [
+  { track = 1001, variant = 0, laps = 2 },
+  { track = 1002, variant = 1, laps = 2 },
+]
+purse = 4000
+throttle = 3
+opponents = [{ name = "RACER_C", mode = 3, skill = 6, car = "0x00000453", difficulty = [4, 5, 6] }]
+
+[[stage]]
+stage = 2
+outrun_bank = 100
+cover_cash = 100
+sponsors = ["STREETGLOW", "EUROLITE"]
+sponsor_wins = [1, 1, 0, 0, 0]
+final_event = "S2_URL_3"
+caps = [2, 2, 2, 2, 2, 3]
+required_wins = 10
+always_cap = 4
+skill_wins = 16
+skill = [0.0, 3.0]
+
+[[sponsor]]
+name = "STREETGLOW"
+purse = 600
+races = [1, 2, 0, 0]
+bonus = 1000
+reputation = 75
+
+[[brand]]
+name = "STREETGLOW"
+display = "Streetglow"
+
+[[milestone]]
+name = "STAGE_2_DVD_1"
+kind = 2
+stage = 2
+cash = 500
+cover = "0x2B1C0D9E"
+spot = "0x6C5D4E3F"
+offer = 0
+rating = 1.0
+
+[[shop]]
+name = "CC_CAR_LOT_1"
+trigger = "0x1A2B3C4D"
+scene_file = "CARLOT01.BIN"
+kind = 4
+announced = 1
+stage = 1
+
+[[cash_pickup]]
+cash = 250
+condition = 1
+flag = 0
+value = 2
+trigger = "0x215A0001"
+
+[[car_unlock]]
+car = "0x2D7C9B5D"
+u_0x04 = "S2_URL_3"                # inferred: the event for the other region setting
+event = "S2_URL_3"
+
+[[message]]
+name = "SMS_EXAMPLE_TIP"
+condition = 15
+category = 2
+icon = 3
+values = [0x5E3A0C11, 100]
+sender = "0x0BADF00D"
+
+[[challenge]]
+name = "STAGE_2_SHOW_1"
+marker = "EXAMPLE_SPOT_1"
+stage = 2
+condition = 0
+count = 3
+message = "SMS_EXAMPLE_TIP"
+milestone = "STAGE_2_DVD_1"
+time_s = 120
+kind = 3
+slots = [0, 0, 0]
+
+[[trick]]
+name = "0x7B3C1A20"
+index = 0
+continuous = 1
+mask = 4
+min_time = 0.1
+timeout_s = 0.3
+threshold = 50.0
+points = 120.0

@@ -1,0 +1,82 @@
+# world/L4RA/sections/1427.toml in the inline form a community base set or a test may use
+# (the importer writes the large lists as external arrays in 1427.bin instead). Made-up values.
+schema = "ob.section/1.0"
+number = 1427
+
+[[scenery]]
+number = 1427
+
+[[scenery.info]]
+name = "XO_LAMPPOST_01"
+lod = ["0xAC2D45D5", "0x5B6A7988", "0x00000000"]   # A = bin_hash("XO_LAMPPOST_01")
+radius_m = 4.5
+
+[[scenery.placement]]
+info = 0
+flags = 0x0060
+position = [-180.0, -1010.0, 146.0]
+rotation = [0.0, 1.0, 0.0, -1.0, 0.0, 0.0, 0.0, 0.0, 1.0]
+bbox_min = [-180.5, -1010.5, 146.0]
+bbox_max = [-179.5, -1009.5, 154.0]
+
+[[scenery]]
+number = 1407
+
+[[scenery.info]]
+name = "XO_CONE_01"
+lod = ["0x608A650A", "0x00000000", "0x00000000"]   # A = bin_hash("XO_CONE_01")
+radius_m = 0.75
+
+[[scenery.placement]]   # index 0: placement:L4RA/1407/0
+info = 0
+flags = 0x0060
+position = [-215.25, -1037.5, 146.0]
+rotation = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
+
+[[scenery.placement]]   # index 1: the same cone at exactly the same spot (an exact duplicate)
+info = 0
+flags = 0x0060
+position = [-215.25, -1037.5, 146.0]
+rotation = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
+
+[lights]
+u_tree_0x06 = 1
+u_tree_0x0a = 2
+
+[[lights.node]]
+centre = [-180.0, -1010.0, 150.0]
+count = -1
+half = [20.0, 20.0, 20.0]
+indices = [0]
+
+[[lights.light]]
+kind = 2
+on = 1
+colour = [255, 214, 160]
+position = [-180.0, -1010.0, 153.5]
+outer_m = 18.0
+direction = [0.0, 0.0, -1.0]
+intensity = 1.0
+inner_m = 4.0
+cone = 0.0
+
+[flares]
+box_min = [-181.0, -1011.0, 153.0]
+box_max = [-179.0, -1009.0, 154.0]
+
+[[flares.flare]]
+name = "0x0A0B0C0D"
+position = [-180.0, -1010.0, 153.5]
+direction = [0.0, 0.0, -1.0]
+kind = 1
+flags = 0
+
+[props]
+first_bit = 40
+
+[[props.prop]]   # stands in for the cone 1407/0 through scenery link 0
+kind = "0x5087DB01"   # bin_hash("ZCS_PylonA"), the prop kind's key
+link = 0
+bbox_min = [-215.5, -1037.75, 146.0]
+bbox_max = [-215.0, -1037.25, 146.8]
+transform = [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, -215.25, -1037.5, 146.0, 1.0]

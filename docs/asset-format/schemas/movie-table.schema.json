@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "movie-table.schema.json",
+  "title": "ob.movie-table: the movie table (name and sound volume per movie)",
+  "description": "movies.md 3.4",
+  "type": "object",
+  "properties": {
+    "schema": {
+      "type": "string",
+      "pattern": "^ob\\.movie\\-table/1\\.[0-9]+$"
+    },
+    "movie": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[\\x21-\\x7E]{1,30}$"
+          },
+          "volume": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 127
+          },
+          "op": {
+            "$ref": "common.schema.json#/$defs/op"
+          },
+          "disabled": {
+            "type": "boolean"
+          },
+          "extras": {
+            "$ref": "common.schema.json#/$defs/extras"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "name"
+        ]
+      },
+      "maxItems": 4096
+    },
+    "extras": {
+      "$ref": "common.schema.json#/$defs/extras"
+    },
+    "ext": {
+      "$ref": "common.schema.json#/$defs/ext"
+    }
+  },
+  "required": [
+    "schema",
+    "movie"
+  ],
+  "additionalProperties": false
+}

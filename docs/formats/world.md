@@ -106,6 +106,13 @@ and the sum of the material ranges equals the index count.
 * world.efx pass p0 sets CULLMODE = NONE and ZFUNC = LESSEQUAL (read from the
   effect's state table with a small fx_2_0 parser).
 
+* Version-4 headers (0x33310001 +0 = 4; six car vinyl files only): 0x494380 reads
+  0x33310004 as the 0x7C-byte entry table and 0x33310005 as the format records and
+  creates the textures from the table when the counts match (0x4919E0); the block
+  callbacks 0x494C10 / 0x494C80 take the entry from the end of each unpacked block
+  (block + size − 0x9C), the version-5 layout (**verified**). No version-4 pack is ever
+  loaded (cars-1.md, "Car types: count, ids and references").
+
 ## Tracks, streaming and visibility (verified)
 
 * `L4RA.BUN` 0x00034110: 0x50-byte records giving the section name, number,
@@ -123,6 +130,14 @@ and the sum of the material ranges equals the index count.
 * 0x00034151: first u32 is the detail limit, 20 in L4RA (0x800DFC).
   Sections limit..2·limit of a letter are the same places at other detail
   and share the collision pack of section − limit (0x5D3C20).
+* The first record of every region's table is `--`: number 0, +0x10 = 0 (1 in all
+  others), offset 0, a range that overlaps other sections' chunks (in L4RH and L4RR it
+  holds Z0's scenery section 2600). The original never loads it (**verified**, static):
+  sections are marked only by number through 0x5DACC0, fed by 0x5E5120's fixed
+  {2500, 2400, 2600} plus the current visible list and extra numbers each added only when
+  non-zero, and by lists looked up for positive numbers (0x5E5230…0x5E52C8); no 0x34153
+  list in the eight regions contains 0. The clone parses every record's range
+  (`src/world/parse.rs`), which places L4RH's and L4RR's SKYDOME twice.
 * 0x00034153: 255 visible-section lists, each `link[8], u32 section, u32,
   u32 count, u16 sections[72]`.
 * The renderer draws only the list for the camera's section. Drawing every

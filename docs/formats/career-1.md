@@ -20,6 +20,27 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
   (`bin_hash("EV_nn")`), +0x30 purse (the cash a win pays), +0x34 category (3 plain, 1
   sponsor, 2 URL, 0 scripted), +0x37 stage (1..5). 224 events; stage 1
   has five raceable ones.
+  * More event fields (record 0x88 bytes, table 0x8383E0, count 0x8383E4,
+    set by the loader 0x512C00, its jump table 0x512DDC; finder by hash
+    0x4FFC90). **Verified** against the data (all 224 records): +0x00 is
+    a u16 pool offset and +0x08 = `bin_hash` of that name; +0x06 (u16) is
+    the pool offset of the marker's name ("EV_68", "EVENT_LOCATOR_03"),
+    and `bin_hash` of it equals +0x28. +0x02 / +0x04 (u16): the movie
+    before the race and after the win (`career::Event::movie`,
+    `won_movie`). **Verified** (0x528610, the career car loader): when
+    the event being raced (career +0x8730) or the current event
+    (+0x8738) has a non-zero +0x2C, the player drives the car preset of
+    that hash (0x637280, then 0x61C290(1)) instead of the garage's car
+    (0x503510 on 0x83AD90); only DDAY_EVENT_A sets it (0xF7E19102 =
+    `bin_hash("DDAY_PLAYER_CAR")`). Goals (+0x35 count, 8 bytes each
+    from +0x38: kind byte, hash at +0x3C) are read only under +0x35
+    (0x4FFDE0); in the 222 events without goals +0x38..+0x3F hold stray
+    non-zero bytes (e.g. "me", "AC"), so an editor must keep them as
+    they are, and more than one goal would run into the opponents at
+    +0x40. +0x14 is 100 in 222 events and 0 in the D-Day pair: **open**
+    (no reader found by a scan of the career code). +0x0E, +0x15..+0x17,
+    +0x32, +0x33 and +0x80..+0x83 are 0 in every record (**open** whether
+    anything reads them).
 * **Car unlocks** (0x34A1F) — {u32 car type hash, u32 trigger, u32
   trigger}; a trigger matches an event's +0x08. Cars without a record are
   available from the start (Peugeot 206, Focus, Corolla, 240SX, Civic,
@@ -50,8 +71,14 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
   height put the cars inside the world (**verified**; the clone's
   `World::grid_height`).
 * **Stages** (0x34A18, 0x50 each; current stage 0x862838, runtime records
-  0x862018 + n × 0x104 with +0xFC unlocked, +0x100 the definition):
-  +0x01 sponsor count (0 for stages 0 and 1, else 5), +0x08 sponsor brand
+  0x862018 + n × 0x104 with +0xFC unlocked, +0x100 the definition;
+  the table is 0x83841C, count 0x838418, and its loader 0x512A70 turns
+  the five hashes at +0x08 into sponsor pointers through 0x512990;
+  fields with no reader found by a scan of every load through +0x100
+  and 0x83841C: +0x03, +0x05..+0x07 (+0x06 is 0x88 in all six),
+  +0x2C..+0x2F, +0x35, +0x36, +0x38..+0x3F and +0x4C (f32 10.0 in all
+  six), **open**):
+  +0x00 the stage number, +0x01 sponsor count (0 for stages 0 and 1, else 5), +0x08 sponsor brand
   hashes (their 0x34A19 records), +0x28 the event that ends the stage
   (DDAY_EVENT_B, none, S2_URL_3, S3_URL_8, S4_URL_7, and the last stage-5
   race), +0x40 wins required (3, 5, 10, 15, 20, 20). **Verified**: +0x40

@@ -1,0 +1,44 @@
+# A reverb preset (made-up values): configuration 1 is a plain input and
+# split, configuration 2 an input, a one-pole filter, an all-pass, a gain and
+# a split; configurations 3-6 are empty, as in every original file.
+schema = "ob.reverb-preset/1.0"
+name = "Garage"
+version = 0x0B00
+
+[[config]]
+module = [
+  { kind = 0, channels = 0, p2 = 0 },
+  { kind = 9, channels = 0x21, p2 = 0 },
+]
+link = [ { from = 0, to = 1, u_0x08 = 0, input = 1, u_0x0a = 0 } ]
+
+[[config]]
+module = [
+  { kind = 0, channels = 0, p2 = 0 },
+  { kind = 1, channels = 0, p2 = 0, p4 = 4000, p6 = 200 },
+  { kind = 7, channels = 0, p2 = 180, p4 = 35, p6 = 0 },
+  { kind = 6, channels = 0, p2 = 128 },
+  { kind = 9, channels = 0x21, p2 = 0 },
+]
+link = [
+  { from = 0, to = 1, u_0x08 = 0, input = 1, u_0x0a = 0 },
+  { from = 1, to = 2, u_0x08 = 0, input = 1, u_0x0a = 0 },
+  { from = 2, to = 3, u_0x08 = 0, input = 1, u_0x0a = 0 },
+  { from = 3, to = 4, u_0x08 = 0, input = 1, u_0x0a = 0 },
+]
+
+[[config]]
+module = []
+link = []
+
+[[config]]
+module = []
+link = []
+
+[[config]]
+module = []
+link = []
+
+[[config]]
+module = []
+link = []

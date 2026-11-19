@@ -1,0 +1,220 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "placements.schema.json",
+  "title": "world/<REGION>/placements.toml (ob.placements)",
+  "description": "world.md 3.9 and 4: a mod pack's moved, disabled and added placements in one region. Mod packs only (WLD.10). An entry with id and no op is an addition, one with key and no op a merge. Guards, keys, dependencies and clashes are checked against the layer stack (WLD.11..15, MRG.*, ORD.2); one stale entry refuses the whole pack.",
+  "type": "object",
+  "properties": {
+    "schema": {
+      "type": "string",
+      "pattern": "^ob\\.placements/1\\.[0-9]+$"
+    },
+    "placement": {
+      "type": "array",
+      "maxItems": 50000,
+      "items": {
+        "$ref": "#/$defs/entry"
+      }
+    },
+    "extras": {
+      "$ref": "common.schema.json#/$defs/extras"
+    },
+    "ext": {
+      "$ref": "common.schema.json#/$defs/ext"
+    }
+  },
+  "required": [
+    "schema",
+    "placement"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "solidRef": {
+      "type": "string",
+      "pattern": "^solid:([A-Za-z0-9_]{1,63}|0x[0-9A-F]{8})$"
+    },
+    "coord": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {
+        "oneOf": [
+          {
+            "type": "number",
+            "minimum": -100000,
+            "maximum": 100000
+          },
+          {
+            "$ref": "common.schema.json#/$defs/floatBits"
+          }
+        ]
+      }
+    },
+    "entry": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "enum": [
+            "merge",
+            "add"
+          ]
+        },
+        "key": {
+          "type": "string",
+          "pattern": "^([0-9]{1,5}/[0-9]{1,5}|[a-z0-9][a-z0-9_-]{0,63}:[a-z0-9][a-z0-9_-]{0,31})$"
+        },
+        "guard": {
+          "type": "object",
+          "properties": {
+            "solid": {
+              "$ref": "#/$defs/solidRef"
+            },
+            "position": {
+              "$ref": "common.schema.json#/$defs/vec3"
+            }
+          },
+          "required": [
+            "solid",
+            "position"
+          ],
+          "additionalProperties": false
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9_-]{0,31}$"
+        },
+        "scenery": {
+          "$ref": "common.schema.json#/$defs/u32"
+        },
+        "solid": {
+          "$ref": "#/$defs/solidRef"
+        },
+        "lod_b": {
+          "$ref": "#/$defs/solidRef"
+        },
+        "lod_c": {
+          "$ref": "#/$defs/solidRef"
+        },
+        "radius_m": {
+          "$ref": "common.schema.json#/$defs/f32"
+        },
+        "flags": {
+          "$ref": "common.schema.json#/$defs/u16"
+        },
+        "prop": {
+          "type": "string",
+          "pattern": "^prop-kind:[A-Za-z0-9]{2,8}/[A-Za-z0-9_]{1,23}$"
+        },
+        "position": {
+          "$ref": "#/$defs/coord"
+        },
+        "rotation": {
+          "$ref": "common.schema.json#/$defs/mat3"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "extras": {
+          "$ref": "common.schema.json#/$defs/extras"
+        }
+      },
+      "additionalProperties": false,
+      "if": {
+        "description": "An addition: op = add, or no op and this pack's own local id (layering.md 3.1, pack-scoped keys default to add)",
+        "anyOf": [
+          {
+            "properties": {
+              "op": {
+                "const": "add"
+              }
+            },
+            "required": [
+              "op"
+            ]
+          },
+          {
+            "not": {
+              "required": [
+                "op"
+              ]
+            },
+            "required": [
+              "id"
+            ]
+          }
+        ]
+      },
+      "then": {
+        "required": [
+          "id",
+          "scenery",
+          "solid",
+          "position"
+        ],
+        "not": {
+          "anyOf": [
+            {
+              "required": [
+                "key"
+              ]
+            },
+            {
+              "required": [
+                "guard"
+              ]
+            }
+          ]
+        }
+      },
+      "else": {
+        "required": [
+          "key"
+        ],
+        "not": {
+          "anyOf": [
+            {
+              "required": [
+                "id"
+              ]
+            },
+            {
+              "required": [
+                "scenery"
+              ]
+            },
+            {
+              "required": [
+                "solid"
+              ]
+            },
+            {
+              "required": [
+                "lod_b"
+              ]
+            },
+            {
+              "required": [
+                "lod_c"
+              ]
+            },
+            {
+              "required": [
+                "radius_m"
+              ]
+            },
+            {
+              "required": [
+                "flags"
+              ]
+            },
+            {
+              "required": [
+                "prop"
+              ]
+            }
+          ]
+        }
+      }
+    }
+  }
+}

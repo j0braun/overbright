@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "credits.schema.json",
+  "title": "Overbright asset format: a credits text (ob.credits)",
+  "description": "text.md section 3.4. text/<language>/credits/<FILE>.toml: the lines of one CREDITS file.",
+  "type": "object",
+  "properties": {
+    "schema": { "type": "string", "pattern": "^ob\\.credits/1\\.[0-9]+$" },
+    "op": { "$ref": "common.schema.json#/$defs/op" },
+    "bom": { "type": "boolean" },
+    "line_ending": { "enum": ["crlf", "lf"] },
+    "lines": {
+      "type": "array",
+      "items": { "type": "string", "maxLength": 4096 },
+      "maxItems": 100000
+    },
+    "extras": { "$ref": "common.schema.json#/$defs/extras" },
+    "ext": { "$ref": "common.schema.json#/$defs/ext" }
+  },
+  "required": ["schema", "lines"],
+  "additionalProperties": false
+}

@@ -1,0 +1,220 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "music-map.schema.json",
+  "title": "ob.music-map: the EA Trax map (nodes, events, stream table) and its streams",
+  "description": "audio.md 3.5",
+  "type": "object",
+  "properties": {
+    "schema": {
+      "type": "string",
+      "pattern": "^ob\\.music\\-map/1\\.[0-9]+$"
+    },
+    "map": {
+      "$ref": "common.schema.json#/$defs/name"
+    },
+    "streams_data": {
+      "allOf": [
+        {
+          "$ref": "common.schema.json#/$defs/arrayDescriptor"
+        },
+        {
+          "properties": {
+            "layout": {
+              "const": "ea_stream_set"
+            },
+            "offset": {
+              "const": 0
+            }
+          }
+        }
+      ]
+    },
+    "node": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "$ref": "common.schema.json#/$defs/u8"
+          },
+          "stream_id": {
+            "$ref": "common.schema.json#/$defs/u16"
+          },
+          "next": {
+            "$ref": "common.schema.json#/$defs/u16"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "stream_id",
+          "next"
+        ]
+      },
+      "maxItems": 65535
+    },
+    "event": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "start_node": {
+            "$ref": "common.schema.json#/$defs/u16"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "start_node"
+        ]
+      },
+      "maxItems": 255
+    },
+    "stream": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "offset": {
+                "type": "integer",
+                "minimum": 0,
+                "multipleOf": 128
+              },
+              "frames": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 4294967295,
+                "multipleOf": 32
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "offset",
+              "frames"
+            ],
+            "description": "audio.md 3.5 (base stream table)"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "index": {
+                "$ref": "common.schema.json#/$defs/u32"
+              },
+              "op": {
+                "description": "audio.md 3.5: required; replace (new audio) or merge (disabled only)",
+                "enum": [
+                  "merge",
+                  "replace"
+                ]
+              },
+              "disabled": {
+                "type": "boolean"
+              },
+              "source": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "description": "a file path relative to this TOML file's folder, no '..' (conventions 6.2)",
+                    "type": "string",
+                    "pattern": "^(?!.*(^|/)\\.\\.?(/|$))[A-Za-z0-9_-][A-Za-z0-9._-]{0,99}(/[A-Za-z0-9_-][A-Za-z0-9._-]{0,99})*$",
+                    "maxLength": 240
+                  },
+                  "format": {
+                    "enum": [
+                      "flac"
+                    ]
+                  },
+                  "digest": {
+                    "$ref": "common.schema.json#/$defs/digest"
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "file",
+                  "format"
+                ],
+                "description": "a payload of the pack's own (audio.md 3.8)"
+              },
+              "extras": {
+                "$ref": "common.schema.json#/$defs/extras"
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "index",
+              "op"
+            ],
+            "description": "audio.md 3.5 (mod pack override)",
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "op": {
+                      "const": "replace"
+                    }
+                  },
+                  "required": [
+                    "op"
+                  ],
+                  "not": {
+                    "properties": {
+                      "disabled": {
+                        "const": true
+                      }
+                    },
+                    "required": [
+                      "disabled"
+                    ]
+                  }
+                },
+                "then": {
+                  "required": [
+                    "source"
+                  ]
+                }
+              },
+              {
+                "if": {
+                  "properties": {
+                    "op": {
+                      "const": "merge"
+                    }
+                  },
+                  "required": [
+                    "op"
+                  ]
+                },
+                "then": {
+                  "not": {
+                    "required": [
+                      "source"
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "extras": {
+      "$ref": "common.schema.json#/$defs/extras"
+    },
+    "ext": {
+      "$ref": "common.schema.json#/$defs/ext"
+    }
+  },
+  "required": [
+    "schema",
+    "map"
+  ],
+  "dependentRequired": {
+    "streams_data": [
+      "node",
+      "event",
+      "stream"
+    ]
+  },
+  "additionalProperties": false
+}

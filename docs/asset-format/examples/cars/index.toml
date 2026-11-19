@@ -1,0 +1,3 @@
+# global/cars/index.toml of a small community base set (an imported base set lists all 46 types).
+schema = "ob.car-index/1.0"
+order = ["PEUGOT", "FOCUS", "COROLLA"]

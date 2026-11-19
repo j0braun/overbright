@@ -244,6 +244,8 @@ into the repository; and every commit is signed off with `git commit -s`.
 
 Building from source: [BUILDING.md](BUILDING.md). How the code is laid out: [ARCHITECTURE.md](ARCHITECTURE.md).
 What is known about the original's files and code, with addresses: [docs/formats.md](docs/formats.md).
+The planned asset format for base sets and mod packs (draft 1, a design, not implemented yet):
+[docs/asset-format/](docs/asset-format/README.md).
 
 ## How it was made
 

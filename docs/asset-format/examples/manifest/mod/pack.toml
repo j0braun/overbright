@@ -1,0 +1,33 @@
+format = 2
+kind = "mod"
+id = "docks-remix"
+name = "Docks remix"
+version = "1.2.0"
+authors = ["A. Modder"]
+licence = "CC-BY-4.0"
+overbright = ">=0.5"
+description = "New cones and a sprint through the docks."
+homepage = "https://example.org/docks-remix"
+origin = "own-work"
+share = "public"
+contents = ["world", "races", "textures"]
+affects_play = true
+
+[game]
+bases = ["nfsu2-pc12-*"]
+
+[dependencies]
+cone-pack = ">=1.0"
+
+[optional]
+hd-hud = "*"
+
+[conflicts]
+old-docks = "*"
+
+[[tested]]
+race = "docks-sprint"
+race_digest = "xxh3-128:5c1f0e6a9d3b4f2c8e7a1b0d9c6f3e21"
+car = "PEUGOT"
+time_s = 83.41
+overbright = "0.5.0"

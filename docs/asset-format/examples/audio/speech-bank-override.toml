@@ -1,0 +1,17 @@
+# A mod pack's overrides for one speech bank (made-up positions): one line gets the pack's own
+# recording, another is silenced for its original length; which line is picked never changes.
+# Line overrides always name their op (audio.md 3.4.3).
+schema = "ob.speech-bank/1.0"
+bank = "UG2_Speech"
+
+[[line]]
+entry = 3
+record = 17
+op = "replace"
+source = { file = "lines/line_3_17.flac", format = "flac" }
+
+[[line]]
+entry = 3
+record = 18
+op = "merge"
+disabled = true

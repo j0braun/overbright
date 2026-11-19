@@ -607,6 +607,23 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
   the top settings (all faces, world on). **Open:** the sky model the
   faces draw (0x8A1F10, scaled 0.004525²) — the clone's sky is a world
   placement, so the faces show black past 64 m.
+* **Car types: count, ids and references** (2026-11-18, static trace; **verified**
+  unless marked; summary and add-on limits in [docs/tracing/cars.md](../tracing/cars.md)):
+  the 0x34600 loader (0x636BF0) fixes up exactly 0x189E0 bytes = 46 records and never
+  reads the chunk size; the name-hash lookup 0x610140 compares record +0xD0 over 0x2E
+  records and returns the record or NULL; the car-lot unlock filter 0x513C50 keeps a
+  46-byte array on the stack indexed by the unlocked car's +0x840 and reads +0x840 of
+  0x610140's result without a NULL check (so does the preset ride setup at
+  0x6372A0…0x6372C9); the AI preset loader (0x59947C) fills a fixed 46-entry table at
+  0x86B0C8 (count, pointer) in chunk order; the stock list (0x516500), the traffic list
+  (0x41AAF0), the `CARTYPENAME_ANY` name list (0x5206E0) and a CRC-32 of the table
+  (0x60934F, 0x6099B8; use **open**) all walk 0x189E0 bytes. Slot groups (0x6101F0):
+  0x34607 is a 0x550-byte default table (0xAA slots × two group hashes, 0xFFFFFFFF = the
+  car's `bin_hash(name)`) followed by 16-byte per-car overrides {car hash, slot, group 0,
+  group 1}. Per-car files: `CARS\%s\VINYLS.BIN` (0x7A8D6C) is opened by the car loader
+  (0x63AFC7) only for record +0x844 ≠ 2 and only if the file exists (0x57CAD0), so the
+  six version-4 VINYLS.BIN files under folders that are no car type (IMPREZA, LANCER,
+  NEON, S2000, SPINNER, MIRRORS) are never read by the original.
 * **Part database** (GLOBALB 0x80034602, loader 0x636CDB; `src/formats/parts.rs`).
   Its children are read from right after their 8-byte headers, not from
   the 16-byte aligned payload: 0x34603 header (a pointer slot and a count
@@ -2458,6 +2475,35 @@ mode menu does not offer. Online twins: 0x890108, 0x890104/0x890114, 0x89010C,
     the ground lookup, the gather and the collision triangles
     (`collision::BarrierSwitches`, atomics).
 * A track without packs falls back to the render triangles.
+
+### Pack layout rules (verified)
+
+Checked against every pack of the eight shipped stream files (599 packs, 417,572 faces): rebuilt from its
+faces with these rules, each pack's `0x34136` and `0x34137` are byte-equal to the file, and its header and
+derived face fields match. The game builds none of this; it reads the lists as stored (0x5D8150).
+
+* **Header** `0x34131`: origin = ⌊min / 32⌋ · 32 of the faces' corner x and y; width and height =
+  ⌊(max − origin) / 32⌋ + 1; bounds = the minimum and maximum of every face's corner x, y and stored z
+  (base + z / 256, also for 0x04 walls, whose drawn z is replaced at load); bytes +2 and +3 are 0 on disk.
+  A pack with no faces (18 in L4RC, L4RF and L4RG) has origin (0, 0), a 1 × 1 grid and one empty cell.
+* **Face** `0x34134`: base height (i16 +4) = ⌊(z_min + z_max) / 2⌋ of the face's corners; byte 1 names, two bits
+  each, a corner holding the x minimum, y minimum, x maximum and y maximum (ties may name any of the tied
+  corners; the game reads only the coordinate, 0x5E0F8F..0x5E1035); +6 = 0xFFFF; flag 0x20 clear (the gather's
+  own mark, set at 0x5E107B and cleared at 0x5E1104).
+* **Cells** `0x34137`, row-major (index = row · width + column), each {first reference, count}, the cells'
+  lists back to back from 0. A face is a candidate for the cells from ⌊(min − origin) / 32⌋ to
+  ⌊(max − origin) / 32⌋ of its corner bounds in x and in y, clamped to the grid; so a face that ends exactly
+  on a cell's lower edge is listed in that cell, one that starts exactly on its upper edge is not.
+* **Mask** (the reference's u16): bit 4 · row + column for each of the cell's 8 m sub-cells that the face's
+  outline meets, touching included (a separating-axis test against the closed square). A candidate cell is
+  listed only when its mask is not 0.
+* **Order** in a cell: floors (no 0x02 or 0x08), then walls (0x02), then the other 0x08 faces, each by face
+  index.
+* `0x34135` is missing or empty in every shipped pack; no reader of its pointer (pack +0x10) was found.
+* Each face is stored in every pack whose drivable section it overlaps, and in some packs whose outline it
+  only comes near (up to about 18 m on L4RA; **inferred**, rule open); about a third of L4RA's faces sit in two
+  to five packs. No field ties a face to a scenery placement. What a moved, added or deleted prop needs:
+  [docs/tracing/collision.md](../tracing/collision.md).
 
 ## Contacts (verified except where noted)
 

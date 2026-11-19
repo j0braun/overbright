@@ -1,0 +1,221 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "sound-bank.schema.json",
+  "title": "ob.sound-bank: a sound bank's index (base set) or its overrides (mod pack)",
+  "description": "audio.md 3.2",
+  "type": "object",
+  "properties": {
+    "schema": {
+      "type": "string",
+      "pattern": "^ob\\.sound\\-bank/1\\.[0-9]+$"
+    },
+    "bank": {
+      "description": "<DIR>/<STEM> of the original SOUND/<DIR>/<STEM>.abk",
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_]{1,63}/[A-Za-z0-9_]{1,63}$"
+    },
+    "image": {
+      "allOf": [
+        {
+          "$ref": "common.schema.json#/$defs/arrayDescriptor"
+        },
+        {
+          "properties": {
+            "layout": {
+              "const": "abk_image"
+            },
+            "offset": {
+              "const": 0
+            }
+          }
+        }
+      ]
+    },
+    "module_count": {
+      "$ref": "common.schema.json#/$defs/u16"
+    },
+    "event": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 63
+          },
+          "module": {
+            "$ref": "common.schema.json#/$defs/u16"
+          },
+          "kind": {
+            "$ref": "common.schema.json#/$defs/u32"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "module",
+          "kind"
+        ]
+      }
+    },
+    "sound": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "slot": {
+                "$ref": "common.schema.json#/$defs/u16"
+              },
+              "present": {
+                "const": true
+              },
+              "codec": {
+                "enum": [
+                  "ea_xa"
+                ]
+              },
+              "channels": {
+                "$ref": "common.schema.json#/$defs/u8"
+              },
+              "rate_hz": {
+                "$ref": "common.schema.json#/$defs/u32"
+              },
+              "frames": {
+                "$ref": "common.schema.json#/$defs/u32"
+              },
+              "loop_start": {
+                "$ref": "common.schema.json#/$defs/i32"
+              },
+              "loop_length": {
+                "$ref": "common.schema.json#/$defs/i32"
+              },
+              "data_offset": {
+                "$ref": "common.schema.json#/$defs/u32"
+              },
+              "data_size": {
+                "$ref": "common.schema.json#/$defs/u32"
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "slot",
+              "codec",
+              "channels",
+              "rate_hz",
+              "frames",
+              "data_offset",
+              "data_size"
+            ],
+            "description": "audio.md 3.2.2 (base index)"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "slot": {
+                "$ref": "common.schema.json#/$defs/u16"
+              },
+              "present": {
+                "const": false
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "slot",
+              "present"
+            ],
+            "description": "audio.md 3.2.2: an empty slot"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "slot": {
+                "$ref": "common.schema.json#/$defs/u16"
+              },
+              "op": {
+                "enum": [
+                  "merge",
+                  "replace"
+                ]
+              },
+              "disabled": {
+                "type": "boolean"
+              },
+              "source": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "description": "a file path relative to this TOML file's folder, no '..' (conventions 6.2)",
+                    "type": "string",
+                    "pattern": "^(?!.*(^|/)\\.\\.?(/|$))[A-Za-z0-9_-][A-Za-z0-9._-]{0,99}(/[A-Za-z0-9_-][A-Za-z0-9._-]{0,99})*$",
+                    "maxLength": 240
+                  },
+                  "format": {
+                    "enum": [
+                      "flac"
+                    ]
+                  },
+                  "digest": {
+                    "$ref": "common.schema.json#/$defs/digest"
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "file",
+                  "format"
+                ],
+                "description": "a payload of the pack's own (audio.md 3.8)"
+              },
+              "loop": {
+                "type": "boolean"
+              },
+              "extras": {
+                "$ref": "common.schema.json#/$defs/extras"
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "slot"
+            ],
+            "description": "audio.md 3.2.3 (mod pack override)",
+            "if": {
+              "properties": {
+                "op": {
+                  "const": "replace"
+                }
+              },
+              "required": [
+                "op"
+              ]
+            },
+            "then": {
+              "required": [
+                "source"
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "extras": {
+      "$ref": "common.schema.json#/$defs/extras"
+    },
+    "ext": {
+      "$ref": "common.schema.json#/$defs/ext"
+    }
+  },
+  "required": [
+    "schema",
+    "bank",
+    "sound"
+  ],
+  "dependentRequired": {
+    "image": [
+      "module_count",
+      "event"
+    ]
+  },
+  "additionalProperties": false
+}

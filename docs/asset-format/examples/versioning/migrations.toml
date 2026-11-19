@@ -1,0 +1,14 @@
+schema = "ob.pack-migrations/1.0"
+
+# Version 1.3.0 of the pack renamed one of its own added placements and its race.
+[[rename]]
+kind = "placement"
+from = "L4RA/docks-remix:a12"
+to = "L4RA/docks-remix:crane-1"
+since = "1.3.0"
+
+[[rename]]
+kind = "race"
+from = "docks-remix:sprint"
+to = "docks-remix:docks-sprint"
+since = "1.3.0"

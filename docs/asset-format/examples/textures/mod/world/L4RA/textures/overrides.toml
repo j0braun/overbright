@@ -1,0 +1,15 @@
+schema = "ob.texture-overrides/1.0"
+
+# Overrides that apply only while region L4RA is the loaded world.
+
+[[texture]]
+hash = "0x636C197D"                 # ANM_WATERA_, frame 0 of the water flip-book
+image = "images/water0.ktx2"
+
+[[texture]]
+hash = "0xEA1CB863"                 # SGN_DOCKS_NEW: stop its scrolling here
+scroll = { kind = 0 }
+
+[[texture]]
+hash = "0x3405A420"                 # OBJ_FENCE_CHNLINK: hidden in this region
+disabled = true

@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "collision-shared.schema.json",
+  "title": "world/<REGION>/collision/shared.toml (ob.collision-shared)",
+  "description": "collision.md 3.2: the region's barrier groups (0x3412F; the list index is the faces' group byte) and the knock-over props' collision volumes (0x80034020, values level). Base sets only (COL.7).",
+  "type": "object",
+  "properties": {
+    "schema": { "type": "string", "pattern": "^ob\\.collision-shared/1\\.[0-9]+$" },
+    "barrier_group": { "type": "array", "maxItems": 256, "items": { "$ref": "#/$defs/barrierGroup" } },
+    "volume": { "type": "array", "items": { "$ref": "#/$defs/volume" } },
+    "extras": { "$ref": "common.schema.json#/$defs/extras" },
+    "ext": { "$ref": "common.schema.json#/$defs/ext" }
+  },
+  "required": ["schema", "barrier_group", "volume"],
+  "additionalProperties": false,
+  "$defs": {
+    "u16list": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/u16" } },
+    "barrierGroup": {
+      "description": "Layout barrier_group (32 bytes)",
+      "type": "object",
+      "properties": {
+        "hash": { "$ref": "common.schema.json#/$defs/hash32" },
+        "u_0x04": { "$ref": "common.schema.json#/$defs/u32" },
+        "on": { "$ref": "common.schema.json#/$defs/u8" },
+        "name": { "type": "string", "pattern": "^[\\x21-\\x7E]{1,22}$" },
+        "extras": { "$ref": "common.schema.json#/$defs/extras" }
+      },
+      "required": ["hash", "on", "name"],
+      "additionalProperties": false
+    },
+    "volume": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "pattern": "^[\\x21-\\x7E]{1,31}$" },
+        "hash": { "$ref": "common.schema.json#/$defs/hash32" },
+        "vertices": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/vec3" } },
+        "support": { "$ref": "#/$defs/u16list" },
+        "first": { "$ref": "#/$defs/u16list" },
+        "count": { "$ref": "#/$defs/u16list" },
+        "links": { "$ref": "#/$defs/u16list" },
+        "extras": { "$ref": "common.schema.json#/$defs/extras" }
+      },
+      "required": ["name", "hash", "vertices", "support", "first", "count", "links"],
+      "additionalProperties": false
+    }
+  }
+}

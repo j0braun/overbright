@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "texture-index.schema.json",
+  "title": "Texture index of a unit (ob.texture-index/1.0)",
+  "description": "textures.md section 3.1: the unit's texture sets and texture-animation files, in search order. Cross-file rules (file presence, unique ids, where `section` is required or refused: TEX.1; unlisted files: TEX.2; `op = \"add\"` only in mod packs: TEX.3) are checked by readers.",
+  "type": "object",
+  "properties": {
+    "schema": {
+      "type": "string",
+      "pattern": "^ob\\.texture-index/1\\.[0-9]+$"
+    },
+    "set": {
+      "description": "Texture sets in search order. Each names <id>.toml and the folder <id>/ next to this file.",
+      "type": "array",
+      "maxItems": 4096,
+      "items": {
+        "$ref": "#/$defs/entry"
+      }
+    },
+    "anims": {
+      "description": "Texture-animation files, each <id>.anims.toml next to this file, in the order their records apply.",
+      "type": "array",
+      "maxItems": 4096,
+      "items": {
+        "$ref": "#/$defs/entry"
+      }
+    },
+    "extras": {
+      "$ref": "common.schema.json#/$defs/extras"
+    },
+    "ext": {
+      "$ref": "common.schema.json#/$defs/ext"
+    }
+  },
+  "required": [
+    "schema"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "id": {
+      "description": "A set or animation-file id: also its file name stem.",
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,62}$"
+    },
+    "entry": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "group": {
+          "description": "The load group: what the engine loads together (an original file or a stream section).",
+          "$ref": "#/$defs/id"
+        },
+        "section": {
+          "description": "The stream section whose load brings this entry in (world.md). Required for the base set's entries in a world/<REGION> index, optional for a mod pack's there, refused in every other index (TEX.1).",
+          "type": "string",
+          "pattern": "^section:[A-Za-z0-9_]{1,63}/[0-9]{1,5}$"
+        },
+        "op": {
+          "$ref": "common.schema.json#/$defs/op"
+        },
+        "extras": {
+          "$ref": "common.schema.json#/$defs/extras"
+        }
+      },
+      "required": [
+        "id",
+        "group"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

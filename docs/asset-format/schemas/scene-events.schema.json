@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "scene-events.schema.json",
+  "title": "ob.scene-events: a scene's event track",
+  "description": "animation.md 3.7: one entry per EVENT line, its words as typed tokens. A pack's file merges events by `index` or appends with op = add.",
+  "type": "object",
+  "$defs": {
+    "token": {
+      "description": "The page's type token (animation.md 3.7): an integer, a finite float, or the word as written when it is in neither number form (ANI.7).",
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "string",
+          "pattern": "^\\S{1,200}$",
+          "not": {
+            "pattern": "^-?([0-9]+\\.?[0-9]*|\\.[0-9]+)f?$"
+          }
+        }
+      ]
+    }
+  },
+  "properties": {
+    "schema": {
+      "type": "string",
+      "pattern": "^ob\\.scene-events/1\\.[0-9]+$"
+    },
+    "event": {
+      "type": "array",
+      "maxItems": 65535,
+      "items": {
+        "type": "object",
+        "properties": {
+          "index": {
+            "$ref": "common.schema.json#/$defs/listKey"
+          },
+          "op": {
+            "$ref": "common.schema.json#/$defs/op"
+          },
+          "disabled": {
+            "type": "boolean"
+          },
+          "frame": {
+            "$ref": "#/$defs/token"
+          },
+          "kind": {
+            "description": "The line's third word as written, whatever its form.",
+            "type": "string",
+            "pattern": "^\\S{1,200}$"
+          },
+          "args": {
+            "type": "array",
+            "maxItems": 16,
+            "items": {
+              "$ref": "#/$defs/token"
+            }
+          },
+          "extras": {
+            "$ref": "common.schema.json#/$defs/extras"
+          },
+          "ext": {
+            "$ref": "common.schema.json#/$defs/ext"
+          }
+        },
+        "anyOf": [
+          {
+            "required": [
+              "index"
+            ]
+          },
+          {
+            "required": [
+              "frame",
+              "kind"
+            ]
+          }
+        ],
+        "additionalProperties": false
+      }
+    },
+    "extras": {
+      "$ref": "common.schema.json#/$defs/extras"
+    },
+    "ext": {
+      "$ref": "common.schema.json#/$defs/ext"
+    }
+  },
+  "required": [
+    "schema",
+    "event"
+  ],
+  "additionalProperties": false
+}

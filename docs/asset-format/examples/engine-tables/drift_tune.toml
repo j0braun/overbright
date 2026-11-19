@@ -1,0 +1,14 @@
+# A mod pack's tables/drift_tune.toml: two numbers of the drift race tune changed, each with
+# the built-in value it was changed from.
+schema = "ob.engine-table/1.0"
+table = "drift_tune"
+
+[[set]]
+at = [0, 4]
+value = 0.75
+guard = 0.5
+
+[[set]]
+at = [2, 10]
+value = 1.25
+guard = 1.0

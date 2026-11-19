@@ -1,0 +1,155 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "engine-recording.schema.json",
+  "title": "ob.engine-recording: one granular engine recording",
+  "description": "audio.md 3.3",
+  "type": "object",
+  "properties": {
+    "schema": {
+      "type": "string",
+      "pattern": "^ob\\.engine\\-recording/1\\.[0-9]+$"
+    },
+    "name": {
+      "$ref": "common.schema.json#/$defs/name"
+    },
+    "op": {
+      "$ref": "common.schema.json#/$defs/op"
+    },
+    "format": {
+      "enum": [
+        "gin",
+        "flac"
+      ]
+    },
+    "data": {
+      "allOf": [
+        {
+          "$ref": "common.schema.json#/$defs/arrayDescriptor"
+        },
+        {
+          "properties": {
+            "layout": {
+              "const": "gin_file"
+            },
+            "offset": {
+              "const": 0
+            }
+          }
+        }
+      ]
+    },
+    "source": {
+      "type": "object",
+      "properties": {
+        "file": {
+          "description": "a file path relative to this TOML file's folder, no '..' (conventions 6.2)",
+          "type": "string",
+          "pattern": "^(?!.*(^|/)\\.\\.?(/|$))[A-Za-z0-9_-][A-Za-z0-9._-]{0,99}(/[A-Za-z0-9_-][A-Za-z0-9._-]{0,99})*$",
+          "maxLength": 240
+        },
+        "format": {
+          "enum": [
+            "flac"
+          ]
+        },
+        "digest": {
+          "$ref": "common.schema.json#/$defs/digest"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "file",
+        "format"
+      ],
+      "description": "a payload of the pack's own (audio.md 3.8)"
+    },
+    "min_rpm": {
+      "$ref": "common.schema.json#/$defs/f32"
+    },
+    "max_rpm": {
+      "$ref": "common.schema.json#/$defs/f32"
+    },
+    "rate_hz": {
+      "type": "integer",
+      "minimum": 8000,
+      "maximum": 96000
+    },
+    "frames": {
+      "$ref": "common.schema.json#/$defs/u32"
+    },
+    "rpm_positions": {
+      "type": "array",
+      "items": {
+        "$ref": "common.schema.json#/$defs/u32"
+      },
+      "minItems": 2,
+      "maxItems": 4097
+    },
+    "cycle_starts": {
+      "type": "array",
+      "items": {
+        "$ref": "common.schema.json#/$defs/u32"
+      },
+      "minItems": 3,
+      "maxItems": 65537
+    },
+    "extras": {
+      "$ref": "common.schema.json#/$defs/extras"
+    },
+    "ext": {
+      "$ref": "common.schema.json#/$defs/ext"
+    }
+  },
+  "required": [
+    "schema",
+    "name",
+    "format",
+    "min_rpm",
+    "max_rpm",
+    "rate_hz",
+    "frames",
+    "rpm_positions",
+    "cycle_starts"
+  ],
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "format": {
+            "const": "gin"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "data"
+        ],
+        "not": {
+          "required": [
+            "source"
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "format": {
+            "const": "flac"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "source"
+        ],
+        "not": {
+          "required": [
+            "data"
+          ]
+        }
+      }
+    }
+  ],
+  "additionalProperties": false
+}

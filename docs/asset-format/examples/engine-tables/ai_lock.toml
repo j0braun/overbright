@@ -1,0 +1,6 @@
+# A mod pack's tables/ai_lock.toml: the AI steering lock by speed, replaced whole (made-up values).
+schema = "ob.engine-table/1.0"
+table = "ai_lock"
+op = "replace"
+made_for = "sha256:9028802df21e737e41ea7f42ff600b5a3653c3d1c355611071959e01e54dcbbb"
+value = [0.5, 0.45, 0.4, 0.35, 0.3, 0.25, 0.2, 0.175, 0.15, 0.125]
