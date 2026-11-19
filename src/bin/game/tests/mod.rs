@@ -104,6 +104,8 @@ mod start_and_menus;
 pub(crate) mod test_isolation;
 mod traffic;
 mod traffic_paused_coast;
+// The traffic parity harness (docs/traffic-harness.md).
+mod traffic_harness;
 #[cfg(test)]
 mod visuals;
 #[cfg(test)]

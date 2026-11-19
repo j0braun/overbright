@@ -90,7 +90,7 @@ pub(crate) fn scene_movers(
             return false;
         }
         state.restore_kinematics(k);
-        scene_mover_step(state, car, world, scene, origin, slot, frame, dt)
+        scene_mover_step(state, car, world, scene, origin, slot, frame, dt, false)
     };
     if drive(&mut d.state, &d.car, race.grid_slot + 1, &kinematics[0]) {
         race.racers.me = Progress::default();
@@ -110,6 +110,9 @@ pub(crate) fn scene_movers(
 /// axis' 16-bit heading as the target, the slot's authored wheel/torque
 /// controls. Every scene's bound cars go through it (0x439240 runs for race
 /// starts and endings alike). False when the scene has no channel for it.
+/// `paced`: the scene runs at the display's rate (a shop's), so the mover
+/// keeps its own 30 fps schedule (`nis::ScenePace`) rather than taking the
+/// frames given as the scene's.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn scene_mover_step(
     state: &mut CarState,
@@ -120,12 +123,29 @@ pub(crate) fn scene_mover_step(
     slot: usize,
     frame: f32,
     dt: f32,
+    paced: bool,
 ) -> bool {
-    let (at, rot) = scene.car_at(slot, frame.min(scene.length));
-    let at = origin.transform_point3(at).truncate();
-    let forward = origin.transform_vector3(rot * Vec3::X);
-    let heading = nfsu2::ai::driver::angle16(forward.x, forward.y);
     let mut mover = state.nis.take().unwrap_or_default();
+    if paced {
+        // A scene at the display's rate (the shops' drive-in / drive-out):
+        // the steps of a 30 fps run on the scene's own schedule
+        // (`nis::ScenePace`), however the world's updates slice the time.
+        let mut pace = mover.pace.unwrap_or_else(|| nfsu2::drive::nis::ScenePace::new(frame - dt * nfsu2::shop_scene::FPS, state));
+        pace.advance(dt);
+        while let Some((step, at_frame)) = pace.due() {
+            let first = mover.count == 0;
+            pace.before = nfsu2::interpolate::CarPose::of(state);
+            mover_step(state, car, world, scene, origin, slot, at_frame, step, &mut mover);
+            // The first step places the car (a teleport): nothing to draw
+            // it from.
+            if first {
+                pace.before = nfsu2::interpolate::CarPose::of(state);
+            }
+        }
+        mover.pace = Some(pace);
+        state.nis = Some(mover);
+        return true;
+    }
     // The mover runs on scene frames (`nis::SCENE_FRAME`); in game the
     // limiter already makes every frame one.
     mover.elapsed += dt;
@@ -134,10 +154,33 @@ pub(crate) fn scene_mover_step(
         return true;
     }
     let step = std::mem::take(&mut mover.elapsed);
+    mover_step(state, car, world, scene, origin, slot, frame, step, &mut mover);
+    state.nis = Some(mover);
+    true
+}
+
+/// One step of [`scene_mover_step`]'s mover: `step` seconds towards the
+/// slot's channel at scene frame `frame`.
+#[allow(clippy::too_many_arguments)]
+fn mover_step(
+    state: &mut CarState,
+    car: &Car,
+    world: &nfsu2::world::World,
+    scene: &nfsu2::shop_scene::Scene,
+    origin: glam::Mat4,
+    slot: usize,
+    frame: f32,
+    step: f32,
+    mover: &mut nfsu2::drive::nis::NisMover,
+) {
+    let (at, rot) = scene.car_at(slot, frame.min(scene.length));
+    let at = origin.transform_point3(at).truncate();
+    let forward = origin.transform_vector3(rot * Vec3::X);
+    let heading = nfsu2::ai::driver::angle16(forward.x, forward.y);
     mover.set_target(state, car, world, at, heading, step);
     let controls = nfsu2::shop_scene::wheels::controls(&scene.wheel_events, slot, frame);
     mover.nitro = nfsu2::shop_scene::wheels::effect(&scene.wheel_events, slot, 10, frame);
-    state.step_nis(car, world, &mut mover, controls, step);
+    state.step_nis(car, world, mover, controls, step);
     if debug_env().nis_probe {
         let w = |i: usize| {
             (state.wheels[i].spin, state.wheels[i].sliding, state.wheels[i].surface, state.wheels[i].on_ground)
@@ -156,8 +199,6 @@ pub(crate) fn scene_mover_step(
             controls
         );
     }
-    state.nis = Some(mover);
-    true
 }
 
 /// Native NIS wheel speeds (0x5AB890) with phase preserved across scene

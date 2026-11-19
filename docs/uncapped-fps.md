@@ -976,6 +976,42 @@ tick state now has a snapshot beside the world view's
   (tick, α) two schedules share (30 / 60 / 120 / 200 Hz, jittered) is the
   same.
 
+## The shops' drive-in and drive-out between ticks
+
+The original runs every in-engine scene under its 1/30 s limiter (0x437910
+→ 0x435F40), so its NIS mover (0x4309D0 → 0x5A40B0) takes one step per
+30 fps frame: frame times of 60, 60, 60, 60, 61 ticks of 1/1800 s (its sim
+clock in the drive-in capture, docs/evidence/shop-scene-mover/, counts
+133, 133, 133, 133, 136 of 1/4000 s per mover count). The shops' and the
+garage's drive-in / drive-out scenes are not held to 30 fps here
+(docs/native-deviations.md "High refresh rates"), so they tick at RACE
+(30, 29, 31). Before, `scene_mover_step` let those ticks build up to
+1/30 s, stepped with what had built up and threw the rest away: three
+ticks a step, so the car moved 20 times a second while the scene camera
+glided (at 60 fps and above).
+
+Now the car has its own 30 fps schedule (`nis::ScenePace`, only for a
+scene with a shop): each step's frame time from a `FrameClock` limited to
+1/30 s (60, 60, 60, 60, 61) and its target at the scene frame those steps
+reach, so the steps are those of a 30 fps run and a function of the scene
+alone, the same at any display rate. A step is taken once the world's
+scene time reaches the start of the frame it ends (one step ahead), and
+the tick snapshot captures the car between the pose before its newest
+step and after it at the world's scene time (`CarPose::drawn`, used by the
+capture, the refresh, `frame_poses` and the live frame), so the car moves
+on every drawn frame and stands where the camera's time puts it. The
+simulation writes nothing for the draw. The 61-tick frames make the
+schedule 1/1800 s per five steps longer than real time (0.33 %, as the
+original's scene clock); the scene still ends on the world's time.
+Cut-scenes (race starts, endings, the career's start, the dyno) are
+unchanged: under the 1/30 s ticks every tick is one step.
+
+**Tests**: `tests::scenes::shop_scene_car_takes_the_30_fps_steps_at_any_frame_rate`
+(ShopEnter1 / ShopExit1 at 30 / 60 / 120 / 200 fps: the same steps bit for
+bit, the limiter's frame times, no drawn frame standing still while the
+scene moves the car); `shop_and_dyno_scenes_drive_the_car_like_the_original`
+(the path per mover count against the original's).
+
 ## Native visuals on ticks (2026-11-13)
 
 The original's per-frame visuals step once per tick (`Game::visuals_tick`

@@ -566,7 +566,7 @@ the road entries the car's last think left (controller +0x5C, changed ones only)
   state when it is not listed); the race fill's cars start active (0x408CA0 / 0x409A30 at race
   states 3–4). Its share in the clone's races: 3.3 % of belt time; it moves the race numbers above
   by 1.6 points. Test `a_parked_car_placed_over_unloaded_world_stays_inactive`. World_DrawCars
-  (0x6317A2) also skips inactive cars; the clone still draws them (render, **open**).
+  (0x6317A2) also skips inactive cars, and so does the clone (below, Inactive cars not drawn).
 * **Soak** (`traffic_circling_soak` defaults: 12 spots × 240 s, 4 Quick Races × 240 s; 218 213
   frames): 1 circling car, the same as after the traffic walk fix (race 4014, 154.3 s, car 10, walk
   of 2 points, not avoiding, 3.5 m/s: the belt turn-round near its walk's end); not reproduced by
@@ -679,7 +679,11 @@ the clone's probe. The answers with addresses are kept with the maintainer's pri
   under Wine in this unit.
 * **Inactive cars not drawn** (0x6317A2): a patch in the private set (`traf4-render.patch`) against the
   base (render is a Phase 4 unit's): `traffic_drawn` (placed and active) in the car pass, the
-  road-car list and the rear view; test `world_draw_cars_skips_an_inactive_car`.
+  road-car list and the rear view; test `world_draw_cars_skips_an_inactive_car`. The car glows
+  (0x61AEA0 takes a car only when 0x60D580 does: +0x550 set) and the headlight pools (0x6154A0: the
+  same byte) skip such a car too, so the clone's head and brake glows, headlight pools and the
+  enhanced passes' car lists (car lights, occluders, reflections, motion inputs) take `traffic_drawn`
+  as well: no lamps floating where no car is drawn.
 * **Honk / flash draws** (0x40D5C0, docs/rng.md): ported at all 9 sites: 0x426E4F is the same
   chooser code as 0x426CFF (traffic goals 8 and 7), so the traffic proposal's one call covers both (docs/rng.md).
 * **Outrun end**: `Encounters::ended` keeps the last outrun from its end to manager state 0;

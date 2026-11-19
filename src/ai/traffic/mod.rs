@@ -862,6 +862,64 @@ mod tests {
         assert!(walk.iter().filter(|w| w.d == 0.0).all(|w| w.x == [0.0; 5]));
     }
 
+    /// 0x428720's lane check: record 492's lane 4 goes on into record 672
+    /// (junction 942), which has lane 3 only. The original's cars there
+    /// (career free roam, the player standing at the garage exit) moved
+    /// from lane 4 to 3 when the walk took the second point of 672 (20 of
+    /// 20, at x ≈ 407 on 492); the clone's cars kept lane 4 to the record's
+    /// end and turned across at the junction.
+    #[test]
+    #[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
+    fn a_lane_that_ends_ahead_is_left_before_the_record_ends() {
+        let path = crate::testkit::game_root().join("TRACKS/ROUTESL4RA/RoutesFreeRoam.bin");
+        let data = std::fs::read(path).expect("reading the game's data file");
+        let f = RouteFile::parse(&data);
+        let (Some(a), Some(b)) = (f.record(492), f.record(672)) else { panic!("records 492 and 672") };
+        for seed in [1, 2, 3, 77] {
+            let mut steps: VecDeque<Step> =
+                (2..=10).map(|cp| Step { record: a, cp, backward: false, lane: 4 }).collect();
+            let into = |cp: usize| {
+                let s = Step { record: b, cp, backward: false, lane: 4 };
+                Step { lane: keep_lane(&f, s, 4), ..s }
+            };
+            steps.push_back(into(2));
+            let mut t = TrafficLane {
+                steps,
+                rng: GameRng(seed),
+                obey: None,
+                avoid: None,
+                roomed: 0,
+                took_avoid: false,
+                behind: None,
+                kept: Vec::new(),
+                heading: None,
+                walked: 0.0,
+                last_turn: -99_999.0,
+                turned: None,
+                lead: (0, 0.0),
+                drag: false,
+            };
+            assert_eq!(t.steps[9].lane, 3, "672 has lane 3 only");
+            // The junction's target alone: lane 4 still reaches the walk's end.
+            let before = t.rng.0;
+            t.lane_check(&f);
+            assert!(t.steps.iter().take(9).all(|s| s.lane == 4) && t.rng.0 == before, "kept, no draw");
+            // The walk's second point on 672: lane 3 (lane 5 is not on 492).
+            t.steps.push_back(into(3));
+            t.lane_check(&f);
+            assert!(
+                t.steps.iter().all(|s| s.lane == 3),
+                "seed {seed}: {:?}",
+                t.steps.iter().map(|s| s.lane).collect::<Vec<_>>()
+            );
+            assert_ne!(t.rng.0, before, "one draw for the side");
+            // Now valid: no further draw.
+            let after = t.rng.0;
+            t.lane_check(&f);
+            assert_eq!(t.rng.0, after);
+        }
+    }
+
     #[test]
     #[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
     fn the_walk_reaches_as_far_as_the_originals() {

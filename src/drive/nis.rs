@@ -96,11 +96,87 @@ use super::{CarState, GRAVITY, ANGULAR_DAMPING, REST_DAMPING, sample, inertia_of
 /// native mover never sees a shorter frame. Callers stepping faster (tests,
 /// no limiter) let the time build up to one scene frame first: a shorter
 /// target interval would turn the (target - body)/dt velocity of 0x5A44B0
-/// into a stiff, oscillating correction.
+/// into a stiff, oscillating correction. The shops' scenes, not under the
+/// limiter here, keep the 30 fps run's steps instead ([`ScenePace`]).
 pub const SCENE_FRAME: f32 = 1.0 / 30.0;
 
 /// Native substep bound float[0x7FC040].
 pub const SUBSTEP: f32 = 0.014285714365541935;
+
+/// The 30 fps schedule of a scene car whose scene runs at the display's
+/// rate (the shops' drive-in / drive-out: docs/native-deviations.md "High
+/// refresh rates"; the original runs every scene under its 1/30 s limiter).
+/// The mover takes the steps a 30 fps run takes, whatever the world's
+/// updates: each step's frame time from the limiter's clock
+/// ([`FrameClock::frame_limited`] at 1/30 s: 60, 60, 60, 60, 61 ticks of
+/// 1/1800 s, as the original's sim clock counts them in the drive-in) and its
+/// target at the scene frame those steps reach, so the path per step is a
+/// function of the scene alone. A step is taken once the world's scene
+/// time reaches the start of the frame it ends (one step ahead), so the car
+/// can be drawn between its last two steps at the world's time
+/// ([`ScenePace::drawn`]) and moves on every drawn frame.
+///
+/// [`FrameClock::frame_limited`]: crate::frame_clock::FrameClock::frame_limited
+#[derive(Clone, Copy, Debug)]
+pub struct ScenePace {
+    /// The 1/30 s limiter's clock the steps' frame times come from.
+    pub clock: crate::frame_clock::FrameClock,
+    /// The scene frame the schedule starts at.
+    pub base: f32,
+    /// Ticks (1/1800 s) of the steps taken so far.
+    pub ticks: i64,
+    /// Ticks of the newest step.
+    pub span: i64,
+    /// Ticks of the newest step still ahead of the world's scene time.
+    pub ahead: i64,
+    /// The drawn pose before the newest step.
+    pub before: crate::interpolate::CarPose,
+}
+
+impl ScenePace {
+    /// A schedule starting at scene frame `base`, the body at `state`.
+    pub fn new(base: f32, state: &CarState) -> Self {
+        ScenePace {
+            clock: Default::default(),
+            base,
+            ticks: 0,
+            span: 0,
+            ahead: 0,
+            before: crate::interpolate::CarPose::of(state),
+        }
+    }
+
+    /// The world's scene time moved on by `dt` (whole ticks of 1/1800 s).
+    pub fn advance(&mut self, dt: f32) {
+        self.ahead -= (f64::from(dt) * 1800.0).round() as i64;
+    }
+
+    /// The next step when one is due: its frame time and the scene frame
+    /// it targets (the scene clock moves first, then the mover, as in a
+    /// 30 fps frame).
+    pub fn due(&mut self) -> Option<(f32, f32)> {
+        if self.ahead > 0 {
+            return None;
+        }
+        let (dt, ticks) = self.clock.frame_limited(crate::frame_clock::RAW_30, SCENE_FRAME);
+        self.ticks += i64::from(ticks);
+        self.span = i64::from(ticks);
+        self.ahead += self.span;
+        Some((dt, self.base + self.ticks as f32 / 60.0))
+    }
+
+    /// How far the world's scene time is through the newest step (0..1).
+    pub fn fraction(&self) -> f32 {
+        if self.span <= 0 { 1.0 } else { (1.0 - self.ahead as f32 / self.span as f32).clamp(0.0, 1.0) }
+    }
+
+    /// The car (`state`, after the newest step) as drawn at the world's
+    /// scene time: between the pose before that step and after it.
+    pub fn drawn(&self, state: &CarState) -> crate::interpolate::CarPose {
+        let now = crate::interpolate::CarPose::of(state);
+        crate::interpolate::CarPose::blend(&self.before, &now, self.fraction(), self.span as f32 / 1800.0).unwrap_or(now)
+    }
+}
 
 /// Mover state kept between frames: mover +0x60..+0x94 and chassis +0x130,
 /// plus the body's force/torque accumulators (+0x110/+0x120) and the NIS
@@ -123,6 +199,9 @@ pub struct NisMover {
     pub nitro: f32,
     /// Frame time not yet given to the mover (see [`SCENE_FRAME`]).
     pub elapsed: f32,
+    /// The shop drive-in / drive-out scenes' own 1/30 s schedule
+    /// ([`ScenePace`]); None where the frames given are the scene's frames.
+    pub pace: Option<ScenePace>,
     force: Vec3,
     torque: Vec3,
     loads: [f32; 4],

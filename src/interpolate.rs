@@ -40,6 +40,16 @@ impl CarPose {
         }
     }
 
+    /// The car as the tick leaves it to be drawn: [`CarPose::of`], or for a
+    /// scene car on its own 30 fps schedule (`nis::ScenePace`) the pose
+    /// between its last two mover steps at the world's scene time.
+    pub fn drawn(s: &CarState) -> CarPose {
+        match s.nis.as_ref().and_then(|m| m.pace.as_ref()) {
+            Some(p) => p.drawn(s),
+            None => CarPose::of(s),
+        }
+    }
+
     pub fn apply(&self, s: &mut CarState) {
         s.position = self.position;
         s.orientation = self.orientation;

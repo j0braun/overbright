@@ -29,7 +29,7 @@ pub(crate) fn temporal_cars(
         e.cars.iter().enumerate().filter(|(_, c)| c.active).map(|(i, c)| car(200 + i as u64, &*c.car, poses.car(&c.id, &c.state)))
     }));
     out.extend(traffic.into_iter().flat_map(|t| {
-        t.cars.iter().enumerate().filter(|(_, c)| c.lane.is_some()).map(|(i, c)| car(1000 + i as u64, &c.car, poses.car(&c.id, &c.state)))
+        t.cars.iter().enumerate().filter(|(_, c)| crate::render::frame::traffic_drawn(c)).map(|(i, c)| car(1000 + i as u64, &c.car, poses.car(&c.id, &c.state)))
     }));
     let eye = camera.position;
     out.sort_by(|a, b| {
@@ -64,7 +64,7 @@ pub(crate) fn blur_cars(
         e.cars.iter().enumerate().filter(|(_, c)| c.active).map(|(i, c)| (200 + i as u64, &*c.car, poses.car(&c.id, &c.state)))
     }));
     states.extend(traffic.into_iter().flat_map(|t| {
-        t.cars.iter().enumerate().filter(|(_, c)| c.lane.is_some()).map(|(i, c)| (1000 + i as u64, &*c.car, poses.car(&c.id, &c.state)))
+        t.cars.iter().enumerate().filter(|(_, c)| crate::render::frame::traffic_drawn(c)).map(|(i, c)| (1000 + i as u64, &*c.car, poses.car(&c.id, &c.state)))
     }));
     let spins: HashMap<u64, [f32; 4]> = states
         .iter()

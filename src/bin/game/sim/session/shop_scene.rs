@@ -85,14 +85,17 @@ impl Session<'_> {
             d.state.spin = Vec3::ZERO;
             d.state.angular_momentum = Vec3::ZERO;
         } else {
-            scene_mover_step(&mut d.state, &d.car, &d.world, &run.scene, run.origin, run.car_slot, run.frame, dt);
+            // The shops' scenes run at the display's rate (`Game::scene_frame_cap`):
+            // their car keeps the 30 fps run's steps (`nis::ScenePace`).
+            let paced = run.shop.is_some();
+            scene_mover_step(&mut d.state, &d.car, &d.world, &run.scene, run.origin, run.car_slot, run.frame, dt, paced);
         }
         d.state.finish_world_update(sample);
         d.hold(dt, &mut self.rng);
         if let Some(car) = run.companion.as_mut() {
             if ending {
                 let sample = car.state.begin_world_update(dt);
-                scene_mover_step(&mut car.state, &car.car, &d.world, &run.scene, run.origin, car.slot, run.frame, dt);
+                scene_mover_step(&mut car.state, &car.car, &d.world, &run.scene, run.origin, car.slot, run.frame, dt, run.shop.is_some());
                 car.state.finish_world_update(sample);
             } else {
                 car.frame(&run.scene, run.origin, previous_frame, run.frame);

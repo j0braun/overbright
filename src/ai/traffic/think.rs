@@ -53,7 +53,7 @@ impl TrafficLane {
     ) -> Option<(Vec<Vec3>, f32)> {
         crossings.leave(me);
         self.heading = Some(own.forward);
-        let (path, target) = self.update(f, position, speed)?;
+        let (path, target) = self.plan(f, position, speed, true)?;
         let p = position.truncate();
         let own = Other { position: p, z: position.z, ..*own };
         let found = (0..self.steps.len()).find_map(|k| {

@@ -21,6 +21,11 @@ pub(crate) const MARKER_EFFECTS: [(u8, u8, &str); 12] = [
     (2, 0, "XEE_BANK"),
 ];
 
+/// The marker effects' particles carry the key `MARKER_KEY + slot`: the
+/// key the original frees them by (0x494690). Below [`FLAME_KEY`], so
+/// they never take on a car's velocity.
+pub(crate) const MARKER_KEY: u32 = 0x4D4B_0000;
+
 impl Effects {
     /// Put each marker effect where it is wanted, or off (0x6054C0 per
     /// slot, 0x602230 when a slot is empty or its spot has no ground). One
@@ -43,7 +48,12 @@ impl Effects {
             {
                 continue;
             }
-            *slot = None;
+            // 0x602230 frees each emitter's particles with it (0x494690:
+            // the groups whose owner +0x0C is the emitter), so an icon
+            // turned off or moved leaves nothing behind to fade out.
+            if slot.take().is_some() {
+                self.system.free_key(MARKER_KEY + k as u32);
+            }
             let Some(w) = want else { continue };
             let z = if w.z == 0.0 {
                 match ground(w) {
@@ -67,9 +77,13 @@ impl Effects {
             let emitters = library
                 .group(nfsu2::formats::hash::bin_hash(MARKER_EFFECTS[k].2))
                 .into_iter()
-                .map(|d| nfsu2::particles::Emitter::new(d, transform, (self.rng.next() * 4.0e9) as u32))
+                .map(|d| {
+                    let mut e = nfsu2::particles::Emitter::new(d, transform, (self.rng.next() * 4.0e9) as u32);
+                    e.key = MARKER_KEY + k as u32;
+                    e
+                })
                 .collect();
-            *slot = Some((w, emitters));
+            self.markers[k] = Some((w, emitters));
         }
     }
 

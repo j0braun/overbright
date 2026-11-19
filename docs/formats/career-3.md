@@ -3114,6 +3114,35 @@ with /proc/pid/mem): the World Map, a tip and two pickups (below).
   selftest `selftest_markers` (tip once with its effect, a pickup once with
   its effect, HUD and save round trip, stage 2's hidden races on neither
   map while the others are on both).
+* **Motion over time (2026-11-19; side by side with the original under
+  Wine, DXVK at 120 fps, frames grabbed at 60 fps; the clone's
+  `--shot marker` with `NFSU2_SHOT_STEPS=n`, n updates of 1/30 s, and
+  `NFSU2_RAIN_CLOCK` chosen so the sky matches).** Same pose in both:
+  ENGAGE_TIPS from (1706.6, −859.6) heading 64.75°, the cash pickup
+  (501, −808) from (481, −808) heading 0°, the pickup (−690, −890) from
+  (−690, −905) heading 90°. Both icons pulse with a 0.500 s period
+  (two 1 s icons spawned at 2/s), big and saturated (the tip's red halo,
+  the bills' bright green) then small and pale; the strongly coloured
+  area, width, colour and phase profile match (tip: area 0/201/598 vs
+  0/182/571 px min/median/max, width up to 81 vs 80 px, colour 136,62,44
+  vs 138,65,44; bills: 0/960/2147 vs 0/931/2086 px, width 94 vs 94 px).
+  Neither icon bobs or spins (centroid steady within ~2 px in both); the
+  rings lie on the ground as one steady soft disc of the same size
+  (no visible pulse in either). Driving through: the pickup pays its
+  cash on the frame it is entered, the Bank figure jumps (no count-up),
+  "Bank Reward: 50" grows and fades in (CASH_ANIMATE) and PlayFESound
+  0x11 plays, the same in both; the tip ENGAGE_TIP_CAREER_PROG (urgent)
+  opens the mailbox at once (CommonSamples 0x10, 0x0D, 0x0F) and pays 25.
+  **Fixed**: the original's icon and ground ring are gone on the next
+  frame after the pickup is entered, because turning a marker effect off
+  (0x602230, from 0x605790 when the slot is empty and 0x6054C0 when its
+  spot moved) frees each emitter's particles with it (0x494690: the
+  particle groups whose owner +0x0C is the emitter). The clone dropped
+  only the emitters, so the icons spawned in the last second and the
+  rings of the last 2.5 s stayed and faded out where the pickup or tip
+  had been. The marker emitters now carry their slot as particle key
+  (`MARKER_KEY`) and `set_markers` frees that key with the slot. Test:
+  `tests::reported_issues::collected_world_icons_go_at_once`.
 
 ## Post Race and tournament standings (2026-10-31; verified)
 * **UI_postrace's remembered option**: the menu is built (0x4D71CB →
