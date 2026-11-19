@@ -32,14 +32,7 @@ impl Game {
             KeyCode::KeyQ => Some(Key::Quit),
             _ => None,
         };
-        // Alt+Enter toggles the Screen Mode anywhere (clone option).
-        if matches!(code, KeyCode::Enter | KeyCode::NumpadEnter)
-            && (self.platform.keys.contains(&KeyCode::AltLeft) || self.platform.keys.contains(&KeyCode::AltRight))
-        {
-            self.settings.fullscreen = !self.settings.fullscreen;
-            let _ = self.settings.save();
-            return Ok(());
-        }
+        // Alt+Enter (the Screen Mode) is the keyboard's alone: `key_down`.
         // F3 cycles the performance overlay's layouts anywhere (hidden,
         // Minimal, Standard, Full); Shift+F3 hides it (docs/notes/performance/overlay.md).
         if code == KeyCode::F3 {
