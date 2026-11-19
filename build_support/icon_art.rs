@@ -1,64 +1,86 @@
-// The game's icon, drawn in code (docs/platform-windows.md): an original placeholder (a
-// glowing amber ring with a light streak on a dark tile), nothing taken from
-// the game. Shared by build.rs (the .ico resource, build_support/windows_res.rs)
-// and the library (the window icon, `platform::icon`, through include!), so it
-// has no inner attributes and uses std only.
+// The app icon, drawn in code (docs/platform-windows.md): Overbright's mark as
+// the launcher draws it in its header (`Kind::Logo`, src/launcher/ui.rs): a
+// lime ring (`Theme::lime`), its width 0.32 of its outer radius, here on a
+// rounded tile in the launcher's page colours (`page_top` to `page_bottom`)
+// with the slab's faint edge light. Our own art, nothing taken from the game.
+// Shared by build.rs (the .ico resource, build_support/windows_res.rs), the
+// library (the window icon, `platform::icon`, through include!) and
+// scripts/release/icon_rgba.rs (the Linux PNG), so it has no inner attributes
+// and uses std only.
+//
+// Crisp at every size: the ring's radii are whole pixels around the tile's
+// centre (a pixel corner at even sizes), so its outermost and innermost rows
+// and columns are solid, and the ring is never under 2 px wide (a little
+// heavier than 0.32 at the small sizes, where rounding goes up). Edges are
+// antialiased analytically (coverage from the distance to the edge, 1 px ramp).
+
+/// The launcher's lime (`THEME_A.lime`, #C6F087).
+const LIME: [f32; 3] = [0xc6 as f32 / 255.0, 0xf0 as f32 / 255.0, 0x87 as f32 / 255.0];
+/// The launcher's page gradient, top and bottom (`page_top` #080A08, `page_bottom` #040504).
+const PAGE_TOP: [f32; 3] = [0x08 as f32 / 255.0, 0x0a as f32 / 255.0, 0x08 as f32 / 255.0];
+const PAGE_BOTTOM: [f32; 3] = [0x04 as f32 / 255.0, 0x05 as f32 / 255.0, 0x04 as f32 / 255.0];
+/// The slab's edge light (`slab_edge`, white at 23 / 255), the tile's rim.
+const RIM: f32 = 23.0 / 255.0;
+
+/// The ring's geometry at `n` px: (outer radius, inner radius) in pixels.
+pub fn ring_px(n: u32) -> (f32, f32) {
+    // Outer radius 0.62 of the half tile (a little more at the smallest sizes, so
+    // the mark keeps its weight in a 16 px taskbar slot).
+    let k = if n <= 16 {
+        0.72
+    } else if n <= 24 {
+        0.68
+    } else {
+        0.62
+    };
+    let outer = (k * n as f32 / 2.0).round().max(2.0);
+    let width = (0.32 * outer).round().max(2.0);
+    (outer, outer - width)
+}
 
 /// Draws the icon at `n`×`n` pixels: straight (not premultiplied) RGBA,
-/// rows top to bottom, 4×4 supersampled.
+/// rows top to bottom.
 pub fn draw(n: u32) -> Vec<[u8; 4]> {
-    const SS: u32 = 4;
+    let nf = n as f32;
+    let c = nf / 2.0;
+    let (outer, inner) = ring_px(n);
+    // The tile: the whole square with rounded corners (radius 0.2 of the side).
+    let corner = (0.2 * nf).max(2.0);
+    let half = nf / 2.0;
+    // The rim: 1 px at the small sizes, up to 2 px at 256.
+    let rim_w = (nf / 128.0).clamp(1.0, 2.0);
     let mut px = Vec::with_capacity((n * n) as usize);
     for y in 0..n {
         for x in 0..n {
-            let mut acc = [0f32; 4]; // premultiplied sum
-            for sy in 0..SS {
-                for sx in 0..SS {
-                    // Sample position in [-1, 1].
-                    let u = ((x * SS + sx) as f32 + 0.5) / (n * SS) as f32 * 2.0 - 1.0;
-                    let v = ((y * SS + sy) as f32 + 0.5) / (n * SS) as f32 * 2.0 - 1.0;
-                    let [r, g, b, a] = sample(u, v);
-                    acc[0] += r * a;
-                    acc[1] += g * a;
-                    acc[2] += b * a;
-                    acc[3] += a;
-                }
+            let (u, v) = (x as f32 + 0.5 - c, y as f32 + 0.5 - c);
+            // Signed distance to the rounded square's edge (negative inside).
+            let (qx, qy) = (u.abs() - (half - corner), v.abs() - (half - corner));
+            let out_d = (qx.max(0.0).powi(2) + qy.max(0.0).powi(2)).sqrt() + qx.max(qy).min(0.0) - corner;
+            let tile = (0.5 - out_d).clamp(0.0, 1.0);
+            if tile <= 0.0 {
+                px.push([0; 4]);
+                continue;
             }
-            let a = acc[3] / (SS * SS) as f32;
-            let un = |c: f32| if acc[3] > 0.0 { (c / acc[3]).clamp(0.0, 1.0) } else { 0.0 };
-            let q = |c: f32| (c * 255.0 + 0.5) as u8;
-            px.push([q(un(acc[0])), q(un(acc[1])), q(un(acc[2])), q(a)]);
+            // The page's vertical gradient.
+            let t = (y as f32 + 0.5) / nf;
+            let mut col = [0f32; 3];
+            for ((ch, top), bottom) in col.iter_mut().zip(PAGE_TOP).zip(PAGE_BOTTOM) {
+                *ch = top + (bottom - top) * t;
+            }
+            // The rim just inside the edge.
+            let rim = ((rim_w + 0.5 + out_d).clamp(0.0, 1.0)) * RIM;
+            for ch in &mut col {
+                *ch += (1.0 - *ch) * rim;
+            }
+            // The ring.
+            let r = (u * u + v * v).sqrt();
+            let ring = (outer - r + 0.5).clamp(0.0, 1.0) * (r - inner + 0.5).clamp(0.0, 1.0);
+            for (ch, lime) in col.iter_mut().zip(LIME) {
+                *ch += (lime - *ch) * ring;
+            }
+            let q = |f: f32| (f.clamp(0.0, 1.0) * 255.0 + 0.5) as u8;
+            px.push([q(col[0]), q(col[1]), q(col[2]), q(tile)]);
         }
     }
     px
-}
-
-/// One sample: colour (0..1) and coverage.
-fn sample(u: f32, v: f32) -> [f32; 4] {
-    // The tile: a rounded square, corner radius 0.32.
-    let (qx, qy) = ((u.abs() - 0.68).max(0.0), (v.abs() - 0.68).max(0.0));
-    if (qx * qx + qy * qy).sqrt() > 0.32 {
-        return [0.0; 4];
-    }
-    // Dark blue-grey, a little lighter at the top.
-    let mut c = [0.07 + 0.03 * (1.0 - v) * 0.5, 0.08 + 0.03 * (1.0 - v) * 0.5, 0.11 + 0.04 * (1.0 - v) * 0.5];
-    let mut add = |rgb: [f32; 3], k: f32| {
-        for i in 0..3 {
-            c[i] += rgb[i] * k;
-        }
-    };
-    // The ring: radius 0.52, half width 0.11, with a soft glow around it.
-    let r = (u * u + v * v).sqrt();
-    let d = (r - 0.52).abs();
-    let core = (1.0 - ((d - 0.11) / 0.03).clamp(0.0, 1.0)).max(0.0);
-    let glow = (-(d / 0.16).powi(2)).exp() * 0.45;
-    add([1.0, 0.62, 0.12], core);
-    add([1.0, 0.45, 0.05], glow);
-    // A hot inner edge on the ring.
-    add([1.0, 0.9, 0.6], (1.0 - ((d - 0.02).abs() / 0.03).clamp(0.0, 1.0)) * 0.5 * core);
-    // The streak: a thin cyan-white line through the middle, tilted, fading to the sides.
-    let t = v + 0.18 * u;
-    let line = (-(t / 0.035).powi(2)).exp() * (1.0 - (u.abs() / 0.95).powi(2)).max(0.0);
-    add([0.55, 0.85, 1.0], line * 0.9);
-    [c[0].min(1.0), c[1].min(1.0), c[2].min(1.0), 1.0]
 }

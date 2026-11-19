@@ -624,8 +624,9 @@ launchers such as Prism and Heroic), not native:
 
 ## The visual pass: identity, the main screen, the backdrop
 
-- **Identity, all our own**: the header is Overbright's icon (the amber
-  ring, `platform::icon`, drawn from build_support/icon_art.rs), the name
+- **Identity, all our own**: the header is Overbright's icon (then the amber
+  ring; the mark is now the lime ring, which the app icon in
+  build_support/icon_art.rs draws too), the name
   in bold and an amber bar under it; the one accent is the ring's amber
   (`theme::ACCENT` #FFA12E: the main button, the focus ring, the selection),
   with hover and pressed shades (`ACCENT_HOVER`, `ACCENT_PRESSED`,
