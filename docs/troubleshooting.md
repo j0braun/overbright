@@ -113,7 +113,9 @@ The **Details** button lists the missing and changed files by name and the movie
 
 When the game closes and its log names a graphics driver in the `native crash` line (for example
 `at amdvlk64.dll+0x…`, AMD's Vulkan driver), the driver itself stopped, usually while it turned one of the
-game's shaders into a program for the graphics card. The line ends with what to try. In order:
+game's shaders into a program for the graphics card. The line names the thread that crashed and, when it was
+making one, the shader module or pipeline and where the game asked for it (`on thread programs, making a
+pipeline (src/…:…)`); it ends with what to try. In order:
 
 1. **Update the graphics driver** from the card maker (on a handheld or a laptop, the maker's or AMD's,
    NVIDIA's or Intel's current one). Driver updates fix most of these.
