@@ -290,7 +290,7 @@ impl FrameDraw<'_, '_, '_, '_> {
         // Here, before anything of this frame is written to the GPU (the
         // switch waits for the GPU and recalls the staging belt).
         w.sync_hdr();
-        // Reload Packs When Changed (docs/pack-hot-reload.md): the pack
+        // Reload Packs When Changed (docs/modding/pack-hot-reload.md): the pack
         // watcher, and the HD UI Art row live; the maps' calibration follows.
         // The calibration (game data) in `drawn_update`, after the draw.
         if nfsu2::render::pack_reload::frame(self.v.settings.enh.hd_ui) {
@@ -351,11 +351,11 @@ impl FrameDraw<'_, '_, '_, '_> {
         // The Graphics page's Render Scale (clone deviation): the 3D scene
         // at that size, taken to the screen's after the post passes; the UI
         // stays at the screen's. Native: the screen's size.
-        // The temporal pass (docs/temporal.md): TAA / Upscaling on the
+        // The temporal pass (docs/notes/graphics/temporal.md): TAA / Upscaling on the
         // game's world only (the front end's scenes draw as before).
         let temporal_on = opts.temporal_frame;
         let upscaling = temporal_on && opts.upscale != 0;
-        // FSR 1 (docs/modern-extras.md) on the game's world only: the
+        // FSR 1 (docs/playing/modern-extras.md) on the game's world only: the
         // scene and the native post chain at the tier's share with the
         // native MSAA (the Render Scale path), EASU + RCAS taking it to the
         // screen's size in place of the resample (`enhance::Plan::fsr`),
@@ -1134,7 +1134,7 @@ fn temporal_late<'c>(
 /// SMS, dialogs) are packages pushed over the paused race or free roam
 /// (0x537990), so the world shows under them unchanged: under Wine the
 /// paused free roam's pixels outside the pause panel equal the unpaused
-/// frame's, no dim (docs/fe-backdrops.md). The front end proper (no
+/// frame's, no dim (docs/notes/front-end/fe-backdrops.md). The front end proper (no
 /// drive) is drawn alone.
 pub(crate) fn world_under(mode: &Mode, loaded: bool) -> bool {
     match mode {

@@ -55,14 +55,14 @@ pub const MAIN_MIN_SIZE: f32 = 17.0;
 /// The main view's size cull in force: [`MAIN_MIN_SIZE`] divided by the
 /// Graphics page's Detail Distance (clone deviation; 1 native).
 ///
-/// docs/pop-in.md: at World Detail Ultra / Extreme the size need
+/// docs/notes/graphics/pop-in.md: at World Detail Ultra / Extreme the size need
 /// is set on the output's pixels instead — a radius of
 /// [`crate::render::RenderOptions::DETAIL_FULL_PX`] output pixels (the cull's sizes are
 /// pixels of radius on a 512-wide view) — when that is smaller, so
 /// scenery comes in where it is a speck at any resolution, not at the
 /// 640-wide game's 17 px (×7.5 at 4K: a 64-pixel radius at 200 %).
 pub fn main_min_size(opts: &crate::render::RenderOptions) -> f32 {
-    // Pop-in measuring aid (NFSU2_POP_ORACLE=1, docs/pop-in.md): every
+    // Pop-in measuring aid (NFSU2_POP_ORACLE=1, docs/notes/graphics/pop-in.md): every
     // instance of the drawn sections drawn, the reference the pop counts
     // are taken against.
     if pop_meter::oracle() {

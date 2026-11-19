@@ -4,7 +4,7 @@ use anyhow::{Result, ensure};
 use glam::{Mat4, Vec3};
 use nfsu2::{car::{Car, WheelPose}, qol::Enhancements, render::{self, Gpu, Camera, car::{CarRenderer, static_envmap}, lighting::{CarLighting, DEFAULT_RIG}}};
 fn main() -> Result<()> {
-    // A developer tool: the developer cache, never the player's (docs/asset-cache.md).
+    // A developer tool: the developer cache, never the player's (docs/developing/asset-cache.md).
     nfsu2::platform::dirs::developer_program();
     let gpu = pollster::block_on(Gpu::new(None, wgpu::Instance::default()))?;
     let root = nfsu2::game_root();

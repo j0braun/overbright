@@ -1,4 +1,4 @@
-# The lamps' light-cluster loop in its subgroup form (docs/lamps-shadows.md "The cluster loop"): A/B on the integrated GPU
+# The lamps' light-cluster loop in its subgroup form (docs/notes/graphics/lamps-shadows.md "The cluster loop"): A/B on the integrated GPU
 # --bench <scene> 200, 1920x1080, NFSU2_BENCH_DETAIL=3 (a fresh install's World Detail there), arms interleaved,
 # 7 runs per arm, every series under the machine's measuring lock (docs/evidence/perf-integrated-gpu/scripts/passes.sh).
 # ms GPU per frame: each arm's median (min-max), and the paired per-run difference new - base (median, min..max).

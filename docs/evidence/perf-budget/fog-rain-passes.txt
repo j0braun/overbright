@@ -1,4 +1,4 @@
-# Fog, volumes and rain, pass by pass (docs/perf-budget.md "Fog, volumes and rain: the same pictures for less")
+# Fog, volumes and rain, pass by pass (docs/notes/performance/budget.md "Fog, volumes and rain: the same pictures for less")
 # GPU busy ms per frame (median of the runs' medians, frames 30+; [min-max] over the runs) and each pass's ms per frame.
 # Arms: base = the tree before, new = with the changes; a measuring build times the fog's, the volumes', the rain's and the lens drops' dispatches apart (labels PROBE ...).
 # The reference desktop GPU at 3840x2160, the play setup's rows (SSAA 2x, ray tracing, every row up), --bench drive at clock 162 (rain) and --bench racing, 300 frames, 7 runs per arm interleaved.

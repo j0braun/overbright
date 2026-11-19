@@ -509,7 +509,7 @@ impl PartDb {
 /// each round to f32: 1680 points give 3.3600001 (3 + 0.36), not
 /// f32(3.36) = 3.36 (**observed** under Wine: the original's 0x5234D0 for
 /// 1 680, 1 180, 1 320, 1 430, 1 445, 1 695 and 3 985 points;
-/// docs/visual-rating.md).
+/// docs/notes/graphics/visual-rating.md).
 pub fn rating_from_points(points: i32) -> f32 {
     if points >= 5000 {
         return 10.0;
@@ -523,7 +523,7 @@ mod tests {
     use super::*;
 
     /// The original's 0x5234D0 under Wine (bits read from its result,
-    /// docs/visual-rating.md): 24-bit x87 rounding of k + rest / 500.
+    /// docs/notes/graphics/visual-rating.md): 24-bit x87 rounding of k + rest / 500.
     #[test]
     fn rating_rounds_as_the_original() {
         for (points, bits) in [(0, 0u32), (1370, 0x402F_5C29), (1680, 0x4057_0A3E), (1445, 0x4038_F5C2), (3985, 0x40FF_0A3E), (4520, 0x4110_A3D7), (500, 0x3F80_0000), (5000, 0x4120_0000), (9000, 0x4120_0000)] {

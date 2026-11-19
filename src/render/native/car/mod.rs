@@ -39,7 +39,7 @@ pub use self::instance::*;
 pub use self::paint_type::*;
 pub use self::record::*;
 pub use self::shared::*;
-// Enhanced Glass (docs/lighting2.md): its pass and module.
+// Enhanced Glass (docs/notes/graphics/lighting2.md): its pass and module.
 use crate::render::enh::materials::car::glass;
 pub use crate::render::enh::materials::car::glass::record_glass_batch;
 
@@ -73,10 +73,10 @@ struct DrawUniform {
     /// Enhanced Car Paint (clone deviation): [`PaintType::params`] when the
     /// option is on, else zeros (native; car.wgsl skips the layer).
     paint: [f32; 4],
-    /// Dynamic Lamps (clone deviation, docs/lamps-shadows.md): four lamps
+    /// Dynamic Lamps (clone deviation, docs/notes/graphics/lamps-shadows.md): four lamps
     /// (position + outer radius, colour + inner radius); zeros natively.
     lamps: [[f32; 4]; 8],
-    /// Wet Car (clone deviation, docs/weather.md): the draw's wet values
+    /// Wet Car (clone deviation, docs/notes/graphics/weather.md): the draw's wet values
     /// (`wet_car::WetParams::uniform`); zeros natively and on a dry car.
     wet: [[f32; 4]; 3],
 }
@@ -340,7 +340,7 @@ mod open_part_matrix_tests {
 mod paint_tests {
     use super::*;
 
-    /// Wet Car (docs/weather.md): its modules only route the final
+    /// Wet Car (docs/notes/graphics/weather.md): its modules only route the final
     /// combine's result (native or Enhanced Paint's) through `wet_layer`;
     /// the native and paint modules have none of it, and a dry car is drawn
     /// with them (`wet_car::WetState::step` None → `CarMode` without wet).
@@ -434,7 +434,7 @@ mod paint_tests {
         assert_eq!(module_index(<CarMode as CarModeExt>::NATIVE), 0);
     }
 
-    /// Spots like raindrops on the paint (docs/car-raindrops.md):
+    /// Spots like raindrops on the paint (docs/notes/graphics/car-look.md "Spots like raindrops on a dry car"):
     /// the flake must read as paint, not water. Each cell's glint is the
     /// filtered mean of the sub-pixel flakes' lobe with a bounded spread, not
     /// a single tilted normal's glint (isolated bright cells), and the grain

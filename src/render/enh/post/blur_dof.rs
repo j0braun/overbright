@@ -1,6 +1,6 @@
 //! Motion blur (the Graphics page's "Motion Blur" Camera / Per-Object
 //! tiers) and depth of field (its "Depth Of Field" Cinematic tier): see
-//! docs/motionblur-dof.md. **Clone deviations**, opt-in; nothing here is
+//! docs/notes/graphics/motionblur-dof.md. **Clone deviations**, opt-in; nothing here is
 //! in SPEED2.EXE. The original's own speed blur (0x5CC470,
 //! `crate::motion_blur`, the "On" tier) and its depth of field switch
 //! (0x870CF0, whose pass 0x5CCCE0 never runs behind the chase camera and
@@ -117,7 +117,7 @@ pub fn set_photo_mode(on: bool) {
 static PHOTO_FOCUS: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
 static PHOTO_APERTURE: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
 
-/// Photo mode's depth of field (docs/photo-mode.md): focus distance
+/// Photo mode's depth of field (docs/playing/photo-mode.md): focus distance
 /// (m, 0 = the car looked at) and f-number (0 = none). While photo mode is
 /// up these alone decide the depth of field (the Graphics row's Cinematic
 /// not needed).

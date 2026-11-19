@@ -1,6 +1,6 @@
 //! Weather effects hosted by the world renderer (moved from render/mod.rs).
 //!
-//! Enhanced effects on ticks (docs/uncapped-fps.md, "Enhanced effects on ticks"): the
+//! Enhanced effects on ticks (docs/original/uncapped-fps.md, "Enhanced effects on ticks"): the
 //! effects' simulations step once per tick ([`WorldRenderer::enh_tick`],
 //! called by the game's tick hook with the tick's state, [`EnhTick`]); a
 //! drawn frame only reads what the last tick left (and applies the ticks'

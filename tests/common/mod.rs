@@ -1,4 +1,4 @@
-//! The test kit (crates/ob-testkit, docs/testing.md), bound to the game
+//! The test kit (crates/ob-testkit, docs/developing/testing.md), bound to the game
 //! crate. One file, compiled into each place that needs it:
 //! * integration tests (`tests/*.rs`): `mod common;`
 //! * the library's unit tests: `crate::testkit` (src/lib.rs, `cfg(test)`)

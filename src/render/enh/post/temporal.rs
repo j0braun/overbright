@@ -1,4 +1,4 @@
-//! The temporal pass (docs/temporal.md; a **clone deviation**, opt-in,
+//! The temporal pass (docs/notes/graphics/temporal.md; a **clone deviation**, opt-in,
 //! nothing like it in SPEED2.EXE): TAA (the Anti-Aliasing row's "TAA") and
 //! the temporal upscaler (the Upscaling row) in one resolve, temporal.wgsl.
 //!
@@ -305,7 +305,7 @@ pub struct Temporal {
     pub frame: u64,
     /// The drawn frames' place on the tick axis.
     span: crate::render::enh::tick_views::FrameSpan,
-    /// docs/fsr2.md: FSR 2's passes, run in place of the resolve
+    /// docs/notes/graphics/fsr2.md: FSR 2's passes, run in place of the resolve
     /// when an FSR 2 mode is chosen.
     pub(crate) fsr2: Option<crate::render::fsr2::Fsr2>,
 }
@@ -406,7 +406,7 @@ impl Temporal {
     }
 
     /// The programs of a frame into a scene of `format` made ahead
-    /// (docs/first-use-builds.md): the copy to the scene (TAA) and the
+    /// (docs/developing/first-use-builds.md): the copy to the scene (TAA) and the
     /// two-target resolve (Upscaling).
     pub fn warm(&mut self, gpu: &Gpu, format: wgpu::TextureFormat) {
         if !self.copies.contains_key(&format) {
@@ -421,7 +421,7 @@ impl Temporal {
 
     /// FSR 2's programs (its passes and its output into a scene of
     /// `format`) made ahead, as the temporal frame's first FSR 2 run makes
-    /// them (docs/first-use-builds.md).
+    /// them (docs/developing/first-use-builds.md).
     pub fn warm_fsr2(gpu: &Gpu, format: wgpu::TextureFormat) {
         crate::render::fsr2::Fsr2::new(gpu, std::mem::size_of::<GpuCar>() * MAX_CARS).warm(gpu, format);
     }

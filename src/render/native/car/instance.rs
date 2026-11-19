@@ -30,13 +30,13 @@ pub struct CarRenderer {
     pub(super) draw_buffer: wgpu::Buffer,
     pub(crate) draw_group: wgpu::BindGroup,
     pub(super) textures: Vec<wgpu::BindGroup>,
-    /// Surface Detail (docs/surface-maps.md "Cars"): the textures'
+    /// Surface Detail (docs/notes/graphics/surface-maps.md "Cars"): the textures'
     /// views and sampler (to bind a map with them), the groups with a map
     /// (bound instead of `textures` once made; the native shaders never
     /// read the map), the textures that may get one, and their builder.
     pub(super) texture_views: Vec<wgpu::TextureView>,
     pub(super) texture_sampler: wgpu::Sampler,
-    /// docs/pack-hot-reload.md: the pack changes seen, and per
+    /// docs/modding/pack-hot-reload.md: the pack changes seen, and per
     /// texture (`textures`' index) its source, to upload it again.
     pub(super) pack_seen: u64,
     pub(super) pack_textures: Vec<Option<crate::formats::texture::Texture>>,
@@ -419,7 +419,7 @@ impl CarRenderer {
                 }
                 None => (harmonic, self.part_harmonic[d.part]),
             };
-            // docs/car-scene-specular.md "Higher settings": with the scene
+            // docs/notes/graphics/car-look.md "Higher settings": with the scene
             // specular the environment reflection carries the body (1, the
             // native material, otherwise).
             let env = |v: [f32; 4]| {
@@ -465,7 +465,7 @@ impl CarRenderer {
     /// car's maps (on first use, in the background; shared by key with the
     /// other cars) and bind those that arrived (all of them at once in the
     /// headless modes, `surface_maps::blocking`).
-    /// docs/pack-hot-reload.md, Reload Packs When Changed: upload
+    /// docs/modding/pack-hot-reload.md, Reload Packs When Changed: upload
     /// again the textures whose car pack file changed (any size: each is a
     /// texture of its own). Their Surface Detail map is left off until the
     /// car is built again.

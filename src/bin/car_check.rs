@@ -3,7 +3,7 @@
 use nfsu2::car::Car;
 
 fn main() -> anyhow::Result<()> {
-    // A developer tool: the developer cache, never the player's (docs/asset-cache.md).
+    // A developer tool: the developer cache, never the player's (docs/developing/asset-cache.md).
     nfsu2::platform::dirs::developer_program();
     let name = std::env::args().nth(1).unwrap_or_else(|| "240SX".into());
     let root = nfsu2::game_root();

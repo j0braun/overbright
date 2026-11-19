@@ -9,25 +9,25 @@ means checked against the original executable (`SPEED2.EXE` of the European PC 1
 guessed.
 
 - Trace a behaviour in the executable (a disassembler or decompiler such as Ghidra) and, where it can be
-  seen, confirm it in the running original (the original under Wine; docs/parity-workflow.md and
-  docs/parity-harness.md describe the comparison tools).
+  seen, confirm it in the running original (the original under Wine; docs/developing/parity-workflow.md and
+  docs/developing/parity-harness.md describe the comparison tools).
 - Every claim carries its status: **verified** (traced in the executable, with addresses), **observed**
   (seen in the running original), **inferred** (a reasoned guess) or **open** (not known). An inference is
   never written down as a fact. "Verified" means traced, not that the picture matches: visuals are judged
   against the original's frames.
 - Code that rests on an inferred or open value carries a provenance tag, `// prov: inferred <id>` (or
   `open`), registered in docs/provenance.tsv; `scripts/checks/provenance.py` checks both sides
-  (docs/provenance.md).
-- A difference from the original that is not listed in docs/native-deviations.md is a bug.
+  (docs/developing/provenance.md).
+- A difference from the original that is not listed in docs/playing/native-deviations.md is a bug.
 
 ### Every extra is opt-in
 
 Anything that is not the original (graphics enhancements, quality-of-life settings, higher limits) is off by
 default, can be switched off again, and goes back to the original with Restore Native. With every extra off,
 frames, sound and simulation are byte-identical to the build without the extra; the gate checks this. A new
-deliberate deviation of the default build is a design decision: it is added to docs/native-deviations.md with
+deliberate deviation of the default build is a design decision: it is added to docs/playing/native-deviations.md with
 the way back to the original behaviour. Enhancements keep the original's character (its dark, contrasty
-nights, its colours, glow and grade; docs/look-direction.md) and do not brighten or flatten the image.
+nights, its colours, glow and grade; docs/notes/graphics/look-direction.md) and do not brighten or flatten the image.
 
 Performance work needs no switch when it does not change what comes out: the same frames, sounds and
 simulation, measured. Tiny invisible rounding is allowed when it is reported.
@@ -35,15 +35,15 @@ simulation, measured. Tiny invisible rounding is allowed when it is reported.
 ### Any frame rate
 
 The game is never locked to 30 or 60 fps. The world advances as the original's does at 60 fps, whatever the
-display's rate, and drawing is never capped (docs/uncapped-fps.md). Gameplay must be identical at 30, 60, 120
+display's rate, and drawing is never capped (docs/original/uncapped-fps.md). Gameplay must be identical at 30, 60, 120
 and 200 fps. A frame cap is never a fix for a rate-dependent bug.
 
 ## How a change is checked
 
 1. `cargo build --release --bins --examples --features dev-harness` and
    `cargo test --release --features dev-harness` (BUILDING.md). New logic comes with tests; data tests follow
-   docs/testing.md (ignored with a reason without the game, never passing silently).
-2. The checks and the gate (docs/checks.md): `CHECKS=full scripts/checks/gate.sh <outdir> <base>` builds the
+   docs/developing/testing.md (ignored with a reason without the game, never passing silently).
+2. The checks and the gate (docs/developing/checks.md): `CHECKS=full scripts/checks/gate.sh <outdir> <base>` builds the
    change and its base (a commit, e.g. the one your branch starts from, or a folder) and compares shots, flows,
    audio and simulation state. A change that should not change the output passes byte-identical. Without the
    maintainer's private set, the steps that need it are reported as skipped (BUILDING.md, "Without the private
@@ -51,7 +51,7 @@ and 200 fps. A frame cap is never a fix for a rate-dependent bug.
 3. A change that changes the output on purpose (a native fix, a new opt-in extra) lists every difference the
    gate reports and says why each one is expected. A native fix names the addresses it follows. Unexplained
    differences are bugs.
-4. The rate gate (`RATE=1`, docs/checks.md "Rate gate") compares the simulation across 30, 60, 120 and 200 Hz;
+4. The rate gate (`RATE=1`, docs/developing/checks.md "Rate gate") compares the simulation across 30, 60, 120 and 200 Hz;
    a change must not make a column that was identical differ.
 5. Headless only: the checks never open a window on your desktop.
 
@@ -90,7 +90,7 @@ check without Mesa's software Vulkan driver. Without the private set the steps t
 
 - Game data in any form: files of the game, extracted or converted assets, textures, sounds, movies, text
   dumps, byte dumps of the executable. The engine's numbers are written in `crates/ob-formats/src/exe_tables/` as named
-  constants, formulas or tables from open decoders, each with what it is (docs/exe-tables.md).
+  constants, formulas or tables from open decoders, each with what it is (docs/original/exe-tables.md).
 - Screenshots or video frames of the original or of Overbright drawing the game's assets.
 - Save games and profiles (yours or anyone else's), memory captures and traces of the original.
 - Private paths (home folders, machine names), personal names, local settings files (`scripts/local.env`).

@@ -6,7 +6,7 @@
 //! * [`render`] — a wgpu renderer for the world.
 //! * [`frontend`] — the menus, from the game's FEng packages, and the career.
 
-// The test kit (crates/ob-testkit, docs/testing.md), bound to this crate by
+// The test kit (crates/ob-testkit, docs/developing/testing.md), bound to this crate by
 // the file the integration tests and the game binary's tests use too; it
 // names this crate `nfsu2` as they do.
 #[cfg(test)]
@@ -103,11 +103,11 @@ pub mod shadow;
 pub mod shop_scene;
 pub mod weather;
 pub mod world;
-// The opt-in modding tools (texture and map editors; docs/texture-editor.md).
+// The opt-in modding tools (texture and map editors; docs/modding/texture-editor.md).
 pub mod tools;
-// Overbright's own texture-pack format (docs/texture-packs.md).
+// Overbright's own texture-pack format (docs/modding/texture-packs.md).
 pub mod obpack;
-// Quality tooling (docs/mark-spot.md).
+// Quality tooling (docs/playing/mark-spot.md).
 /// The launcher (`overbright`, docs/launcher.md).
 pub mod launcher;
 /// The game↔launcher contract (probe and prepare formats, the error
@@ -122,7 +122,7 @@ pub const BUILD_ID: cache::BuildId = cache::BuildId::from_hex(env!("OB_BUILD_ID"
 
 pub mod hd_ui_pack;
 
-// Performance overlay (docs/perf-overlay.md).
+// Performance overlay (docs/notes/performance/overlay.md).
 pub mod overlay;
 
 // The bottom layer, crates/ob-core (ARCHITECTURE.md "Layers"): its modules
@@ -135,7 +135,7 @@ pub use ob_core::{
 };
 pub use ob_core::{env_parsed, env_set, env_value, env_value_os, game_root, persist, persist_enum, unique_tag};
 
-// The file-format parsers and the engine's tables (docs/exe-tables.md),
+// The file-format parsers and the engine's tables (docs/original/exe-tables.md),
 // crates/ob-formats.
 pub use ob_formats::{exe_tables, formats};
 

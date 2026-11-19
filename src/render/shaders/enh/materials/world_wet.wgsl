@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------
-// Wet Roads and the SSR mask (clone deviations, docs/wet-roads-ssr.md).
+// Wet Roads and the SSR mask (clone deviations, docs/notes/graphics/reflections.md "Wet Roads and Screen-Space Reflections").
 // Nothing here runs on the native path (frame.wet.x = 0, no mask pass).
 // The planar capture (view 4, or Enhanced Reflections' plane) stays the
 // base; on top of it: a puddle mask from the texture's authored

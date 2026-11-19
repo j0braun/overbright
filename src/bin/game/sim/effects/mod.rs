@@ -34,12 +34,12 @@ pub(crate) struct Effects {
     /// Particles High / Ultra: the native smoke's births, detailed
     /// on the GPU (`render::gpu_particles`). Original: unused.
     pub(crate) detail: nfsu2::render::gpu_particles::Detail,
-    /// Particles Cinematic (docs/smoke-cinematic.md): the native
+    /// Particles Cinematic (docs/notes/graphics/smoke.md "Particles Cinematic: the simulation and the billboard drawing"): the native
     /// smoke's births as billows and haze at a reduced resolution.
     pub(crate) cinematic: nfsu2::render::smoke_cinematic::Cinematic,
-    /// Animated Water (docs/water.md): the water's mesh and GPU half.
+    /// Animated Water (docs/notes/graphics/water.md): the water's mesh and GPU half.
     pub(crate) water: nfsu2::render::water::Water,
-    /// Sparks & Fire (docs/sparks-fire.md): the native spark births as
+    /// Sparks & Fire (docs/notes/graphics/sparks-fire.md): the native spark births as
     /// thrown fragments, the flames and their lights. Original: unused.
     pub(crate) sparks_fire: nfsu2::render::sparks_fire::SparksFire,
     /// What the owner hands [`Effects::step`] and the window's draw:

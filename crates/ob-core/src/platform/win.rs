@@ -1,4 +1,4 @@
-//! Windows-only calls (`cfg(windows)`; docs/platform-dirs.md): the Local
+//! Windows-only calls (`cfg(windows)`; docs/playing/platform-dirs.md): the Local
 //! AppData known folder and the original's install folder in the registry.
 //! Declared by hand against the documented signatures (no binding crate;
 //! as `allocator.rs`' GlobalMemoryStatusEx).

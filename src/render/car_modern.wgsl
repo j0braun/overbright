@@ -1,7 +1,7 @@
 // ---- Modern Lighting for the cars (render/modern_light_bold.rs
 // `car_source`): appended to a car module only while the Lighting row is
 // on; the native car.wgsl never holds it. ----
-// Modern Lighting (clone deviation, docs/modern-lighting.md): the
+// Modern Lighting (clone deviation, docs/notes/graphics/modern-lighting.md): the
 // draw's four lights as the world's (modern_light_bold::light_pool: a
 // street lamp the fitted pool, neon / a car's light 1 at its source), as
 // diffuse through the material's diffuse scale, and a highlight.

@@ -1,0 +1,46 @@
+# Region
+
+The game came out in two regional editions: North America and the rest of the world (Europe). They differ in
+a few cars, the shared textures, the credits and a Best Buy bonus. Overbright picks the region from your
+installed game files, so you get your own edition's lists. There is nothing to set.
+
+## How Overbright picks the region
+
+Overbright looks at the game's `CARS` folder when the career data loads (`CareerData::load`; code:
+`crates/ob-core/src/region.rs`):
+
+- `CIVIC` and `RSX` are there, and neither `CORSA` nor `PEUGOT106`: region 0, North America.
+- Anything else: region 6, Europe. This is the value of the European PC 1.2 release.
+
+The original works differently: its executable stores the region as a constant byte at 0x7FA73C, read by
+0x570A40 (the value) and 0x570A50 (European: 1 or 5–9). No code writes it, and the European PC 1.2 release
+stores 6. Overbright does not read the executable, so it uses the car folders instead.
+
+**Checked:** the European install's `CARS` folder has `CORSA` and `PEUGOT106` and no `CIVIC` or `RSX`.
+**Inferred:** that a North American install's folder looks the other way round. This follows from the
+executable's own tables, which drop exactly CIVIC and RSX for a nonzero region and exactly CORSA and
+PEUGOT106 for region 0. No North American install was examined.
+
+## What changes with the region
+
+Each row was read from `SPEED2.EXE` (verified).
+
+| Reader | Region 0 | Other regions |
+|---|---|---|
+| 0x5022C0 lot exclusions | 0x7F7C48 = 7, 6 (CORSA, PEUGOT106) | 0x7F7C50 = 5, 18 (CIVIC, RSX) |
+| 0x529CD0 Quick Race free cars | 0x7F7C08 = 0, 1, 2, 5, 10, 25, 28, 22 | 0x7F7C28 = 0, 1, 2, 7, 10, 25, 28, 22 |
+| 0x4FEAF0 random opponents | 0x7F6DA4 (ends 5, 18) | 0x7F6DC0 (ends 7, 6) |
+| 0x57FC5E shared textures | GLOBAL/GlobalTexturesNA.bin | GLOBAL/GlobalTexturesROW.bin |
+| 0x4B8808 credits (English) | NA_ENGLISH.TXT | UK_ENGLISH.TXT (European regions) |
+| 0x511E60 lot make and badge (English) | every car's own | Corsa VAUXHALL / CORSA, Miata MX5, Tiburon COUPE (European regions) |
+| 0x575780 needmybestbuy, graphics shop AD_BESTBUY | enabled, listed | disabled, skipped |
+
+The SUV pool 0x7F6DDC is the same in every region. The other regions in the executable (Korea, Japan,
+Taiwan, China, Thailand; 0x571390) are never chosen.
+
+## Tests
+
+- `region::tests`: the installed data is 6; a made-up US listing is 0; with CORSA, or without RSX, it is 6.
+- `career::lists::region_tests`: the tables, and the lot and Quick Race lists in both regions on the
+  installed data.
+- The tests of each reader in cheats, credits, car_lot and world::parse.

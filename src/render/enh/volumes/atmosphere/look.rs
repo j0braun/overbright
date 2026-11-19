@@ -19,7 +19,7 @@ pub const EMITTERS: usize = 40;
 pub const LAMP_REACH: f32 = 260.0;
 pub const EMITTER_REACH: f32 = 140.0;
 
-/// A Volumetric Fog tier of the one medium (docs/atmosphere.md "The tiers: one medium at every fog tier"):
+/// A Volumetric Fog tier of the one medium (docs/notes/graphics/atmosphere.md "The tiers: one medium at every fog tier"):
 /// every tier is the same froxel medium with the same lights, energy rule and veil floors; the cheaper
 /// tiers take a coarser grid, a shorter range and fewer lights.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -37,7 +37,7 @@ pub struct Tier {
     pub shafts: bool,
     /// The temporal blend with the last frame's cells and the jittered slice sample. Off, a frame's cells
     /// depend on its own view alone: the picture at a tick is the same at every display rate (the rate
-    /// gate's Extreme frames, docs/checks.md), at the price of the history's smoothing.
+    /// gate's Extreme frames, docs/developing/checks.md), at the price of the history's smoothing.
     pub history: bool,
 }
 
@@ -117,7 +117,7 @@ pub struct Look {
     pub car_lamp: f32,
     /// The summed light's soft knee (scene units).
     pub knee: f32,
-    /// docs/look-direction.md: the share of the haze's extinction applied to the scene behind it.
+    /// docs/notes/graphics/look-direction.md: the share of the haze's extinction applied to the scene behind it.
     /// The native per-vertex fog already fades the scene toward FogColor; veiling it again darkens and
     /// flattens the frame (double fog). The medium's light is still integrated with the full extinction.
     pub veil: f32,
@@ -129,7 +129,7 @@ pub struct Look {
     pub tile: f32,
 }
 
-/// docs/look-direction.md, rules "no double fog" / "count the glow twice": the first look (haze 0.005, ambient 0.8, glow 0.18,
+/// docs/notes/graphics/look-direction.md, rules "no double fog" / "count the glow twice": the first look (haze 0.005, ambient 0.8, glow 0.18,
 /// lamp 130, emitter 110, knee 5, the haze veiling the scene fully) lifted the look spots' mean luma by +14
 /// (+63 at the casino's neon, +22 in the sky) and their blacks by +7.7: the native fog colour was put back
 /// on top of world.efx's own fog (double fog) and the sign halos on top of the native glow sprites and

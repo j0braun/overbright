@@ -1,4 +1,4 @@
-//! Surface Detail's GPU side (a clone deviation, opt-in; docs/surface-maps.md,
+//! Surface Detail's GPU side (a clone deviation, opt-in; docs/notes/graphics/surface-maps.md,
 //! `crate::surface_maps`): the generated normal maps as one RG8 snorm
 //! texture array ([`MAP_SIZE`]², full mips), bound at group 0 bindings 9–10
 //! of the world views (a 1-layer placeholder everywhere else), and per world
@@ -196,11 +196,11 @@ impl SurfaceMaps {
         // `super::zeroed_buffer`): `pump` writes its layers from the main
         // thread over many frames while the render threads submit the world
         // views that sample it, the first-write hazard of wgpu-core 30
-        // (docs/perf-main-thread.md §1). Unwritten layers read zeros either
+        // (docs/notes/performance/main-thread.md §1). Unwritten layers read zeros either
         // way (and are never sampled: their slots keep layer 0).
         zero_layers(device, queue, &texture, layers);
         let view = array_view(&texture);
-        // Texture packs (docs/surface-maps.md "Texture packs"): a slot the
+        // Texture packs (docs/notes/graphics/surface-maps.md "Texture packs"): a slot the
         // world pack replaces gets its map from the replacement's pixels
         // (looked up on the builder's thread).
         let jobs = jobs

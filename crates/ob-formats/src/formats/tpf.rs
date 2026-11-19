@@ -1,5 +1,5 @@
 //! TexMod packages (`.tpf`) and TexMod's texture hash (
-//! docs/texmod-import.md). A `.tpf` is a ZIP archive masked with the dword
+//! docs/modding/texmod-import.md). A `.tpf` is a ZIP archive masked with the dword
 //! 0x3FA43FA4 and encrypted with traditional PKWARE (ZipCrypto) under a
 //! fixed 42-byte password; its entries are named `<EXE>_0x<HASH>.<ext>`,
 //! with an optional `texmod.def` of `0xHASH|file` lines. TexMod keys a

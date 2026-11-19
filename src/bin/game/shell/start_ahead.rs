@@ -3,7 +3,7 @@
 //! in force, beside the game's data and the window's event loop; the window
 //! takes them when it is made (`Game::create_window`, `resumed`). Each is
 //! the object the window's own start made in turn before, so nothing drawn
-//! or heard changes; only the waits overlap (docs/start-and-menus.md).
+//! or heard changes; only the waits overlap (docs/original/start-and-menus.md).
 use crate::*;
 
 /// The window's devices being made ahead.

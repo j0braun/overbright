@@ -1,5 +1,5 @@
 // Wet Road Interaction's trail map (clone deviation,
-// docs/wet-road-car.md): a world-space torus around the camera, texel =
+// docs/notes/graphics/wet-road-car.md): a world-space torus around the camera, texel =
 // fract(world xy / size). R = the track (water pushed away), G = the wake's
 // freshness, B = closeness to the track × G, A = the wake's height × G.
 

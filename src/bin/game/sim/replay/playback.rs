@@ -55,7 +55,7 @@ pub(crate) struct Playback {
     /// [car +0x10] +0x20 for the Speed weight (0x441C22): the racer info's
     /// +0x30, the gearing top speed (`gearing_top_speed`).
     pub(crate) typed_top: f32,
-    /// Replay Cameras "Extended" (docs/modern-extras.md §3; clone
+    /// Replay Cameras "Extended" (docs/playing/modern-extras.md §3; clone
     /// deviation): smooth slow motion's speed (0: none; ½ or ¼), the
     /// extra cameras' state, and the drawn poses and camera before the last
     /// recorded frame played (the slow frames are drawn between them).

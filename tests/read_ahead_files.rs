@@ -1,8 +1,8 @@
-//! The files the game reads ahead (docs/read-ahead.md) are the ones its
+//! The files the game reads ahead (docs/developing/read-ahead.md) are the ones its
 //! loads read: a car's cache files under the names the cache gives them,
 //! its game files while there are none. It points the cache at a folder
 //! of its own, process-wide, so it runs in a binary of its own. Ignored
-//! without `NFSU2_ROOT` (docs/testing.md).
+//! without `NFSU2_ROOT` (docs/developing/testing.md).
 
 mod common;
 

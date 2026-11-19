@@ -1,4 +1,4 @@
-//! Weather effects (clone deviations, opt-in; docs/weather.md):
+//! Weather effects (clone deviations, opt-in; docs/notes/graphics/weather.md):
 //! Rain Detail (fine rain streaks lit by the street lamps and the cars'
 //! lights, ground splashes, the wet-air glow around lamps) and Spray &
 //! Splashes (wheel spray and mist behind cars on a wet road). Nothing here
@@ -52,7 +52,7 @@ pub const SPLASH_COUNT: [u32; 2] = [1200, 2500];
 /// ground and draw nothing).
 pub const NG_RAIN_COUNT: u32 = 26000;
 pub const NG_SPLASH_COUNT: u32 = 7000;
-/// Next-Gen rain haze (retuned to docs/look-direction.md, "no double fog" and "count the glow twice"):
+/// Next-Gen rain haze (retuned to docs/notes/graphics/look-direction.md, "no double fog" and "count the glow twice"):
 /// the lamps' and headlights' in-scatter at full rain (1/m), the rain mist's
 /// extinction (1/m), the share of that extinction veiling the scene again
 /// (`veil`: the native fog owns the attenuation, ≤ 0.25), the mist's own
@@ -735,7 +735,7 @@ mod tests {
         assert_eq!(counts(0, true, 0.0, false, 0, 50).spray, 50);
     }
 
-    /// The Next-Gen haze keeps docs/look-direction.md's "no double fog" (no second
+    /// The Next-Gen haze keeps docs/notes/graphics/look-direction.md's "no double fog" (no second
     /// fog: veil ≤ 0.25, the mist's light ≤ 0.1 of the fog colour, less over
     /// the sky) and its lamps' in-scatter tighter than their reach; the
     /// tuning aid parses.

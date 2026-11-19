@@ -1,5 +1,5 @@
 #!/bin/bash
-# A texture package the launcher keeps is picked up by the game's renderer (docs/texture-packs.md, "TexMod
+# A texture package the launcher keeps is picked up by the game's renderer (docs/modding/texture-packs.md, "TexMod
 # packages and the HUD mod"): the free-roam shot with a package that is on, off, and with no list at all.
 #
 #   texture_mod_shot.sh GAME OUTDIR      (GAME: a dev-harness build; NFSU2_ROOT: the player's game files)

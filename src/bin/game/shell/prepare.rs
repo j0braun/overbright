@@ -1,4 +1,4 @@
-//! `game --prepare` (docs/prepare.md): what a first drive would load and
+//! `game --prepare` (docs/developing/prepare.md): what a first drive would load and
 //! make while the player waits, done ahead with no window — the launcher
 //! offers it as a step with a progress bar, and the game never needs it.
 //!

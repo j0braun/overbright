@@ -1,4 +1,4 @@
-# Shared helpers of the check and perf scripts (docs/checks.md "Machine setup"). Source it after `set -u`:
+# Shared helpers of the check and perf scripts (docs/developing/checks.md "Machine setup"). Source it after `set -u`:
 #
 #   . "$(dirname "$0")/../lib/common.sh"
 #
@@ -15,7 +15,7 @@
 #                for lack of the set (src/bin/game/dev/private.rs, exit status 3) is then a failure, not a skip.
 # ck_data_tests LOG REPO  the data-test rule on a cargo test log (below).
 # CK_PROFILE, CK_PDIR  the Cargo profile of the checks' own builds and its output folder under the target dir:
-#                $CHECKS_PROFILE, default `gate` (Cargo.toml [profile.gate], docs/build-times.md); `release` for the
+#                $CHECKS_PROFILE, default `gate` (Cargo.toml [profile.gate], docs/developing/build-times.md); `release` for the
 #                shipped profile. Releases, perf.sh, perfgate, pgo.sh and release_check.sh always use --release.
 CK_LIB=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 CK_REPO=$(cd "$CK_LIB/../.." && pwd)
@@ -70,7 +70,7 @@ ck_private_here() {
   [ -d "$1/tests/fixtures/native_saves" ]
 }
 
-# ck_data_tests LOG REPO: the data-test rule of the checks (docs/testing.md) on a `cargo test` log. The ignored
+# ck_data_tests LOG REPO: the data-test rule of the checks (docs/developing/testing.md) on a `cargo test` log. The ignored
 # data tests are counted by reason: the game files alone ("needs NFSU2_ROOT ..."), the private set alone
 # ("needs OB_PRIVATE ..."), both. A skip fails only when this run could have avoided it: NFSU2_ROOT is set and a
 # test is ignored for the game files alone, or the private set is here (ck_private_here REPO, or

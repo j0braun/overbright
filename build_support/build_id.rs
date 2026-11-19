@@ -1,4 +1,4 @@
-//! The per-crate build id (build.rs of each library crate; docs/asset-cache.md
+//! The per-crate build id (build.rs of each library crate; docs/developing/asset-cache.md
 //! "Build id"): a hash of the crate's own sources (its `src/` without the
 //! programs in `src/bin/`), the workspace's Cargo.lock, the crate's enabled
 //! features and the build ids of the workspace crates it depends on. A cache

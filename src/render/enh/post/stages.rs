@@ -13,7 +13,7 @@ impl PostFx {
     /// The Graphics page's ambient occlusion now, into the scene as drawn
     /// so far (`scene`: the multisampled scene with `samples` > 1, else the
     /// scene texture; `size` its size; `texel_scale` the scene's height
-    /// over the screen's). docs/glow-darkening.md: the game runs it
+    /// over the screen's). docs/notes/graphics/car-look.md "Darkening settings against emissive light and the car's shadow": the game runs it
     /// on the lit scene before the additive layers (shadow texture and
     /// underglow, particles, glow sprites, horizon fog), so occlusion never
     /// multiplies emitted light; [`PostFx::set_ssao`] then stays None.
@@ -225,7 +225,7 @@ impl PostFx {
             self.stage = None;
             return None;
         };
-        // the combination matrix, docs/settings-model.md: switched on
+        // the combination matrix, docs/developing/settings-model.md: switched on
         // live, this chain still held the unstaged frames' multisampled
         // scene (and `samples` > 1); the stage draws the scene now, so drop
         // it as a start with Upscaling never had it (switching Off → TAA
@@ -260,7 +260,7 @@ impl PostFx {
         streaks: bool,
         glow: &mut dyn FnMut(&mut wgpu::CommandEncoder, &wgpu::TextureView, Option<&wgpu::TextureView>),
     ) {
-        // docs/fsr2.md: FSR 2's composition mask is what SSR adds
+        // docs/notes/graphics/fsr2.md: FSR 2's composition mask is what SSR adds
         // to the scene: the pre-passes run in three steps (resolve + SSAO,
         // SSR, Volumetric Fog; each takes its frame), the scene kept
         // before SSR and compared after it. Same passes, same order.

@@ -1,5 +1,5 @@
 //! Native visuals on ticks (the original's per-frame visual state;
-//! docs/uncapped-fps.md "Native visuals on ticks"): the original's
+//! docs/original/uncapped-fps.md "Native visuals on ticks"): the original's
 //! per-frame visual effects step once per tick, at the end of
 //! `Game::step` ([`Game::visuals_tick`]), and a drawn frame takes their
 //! values from the two tick snapshots and α ([`FrameVis`]), writing none of

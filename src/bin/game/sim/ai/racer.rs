@@ -461,7 +461,7 @@ fn racer_line_actions_step(
             // speed and, for an action whose vt+0x10 is true (Block),
             // the route update and the action's update (0x42ADA4 →
             // +0xB0); otherwise the driver keeps the last path
-            // (**verified** schedule, outrun-think-scheduling.md;
+            // (**verified** schedule, docs/notes/outrun/follow-ups.md "AIRacer Think scheduling and fallback evidence";
             // **observed** in races: each rival's action changes
             // only on frames ≡ its slot + const mod 8).
             let steer = if a.full || a.retained.is_none() {

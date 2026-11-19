@@ -29,7 +29,7 @@ pub(in crate::render) fn march_fn(ssr: &str) -> String {
         .replacen(PATH, &format!("{PATH}    g_march_path = path;\n"), 1)
 }
 
-/// The primary reflection's early out (`rt_is_primary`, docs/rt-reflections.md
+/// The primary reflection's early out (`rt_is_primary`, docs/notes/graphics/reflections.md "Ray-traced reflections (experimental)"
 /// "Primary on wet roads and cars"): once the reflected ray is known, before the
 /// march, a primary pixel's result is the ray's (`then`: the form's statement).
 fn primary_anchor(s: String, then: &str) -> String {
@@ -64,7 +64,7 @@ pub(in crate::render) const ANCHORS: [(&str, &str); 5] = [
     ),
 ];
 
-// ---- The ray list (docs/rt-reflections.md "The ray list") ----
+// ---- The ray list (docs/notes/graphics/reflections.md "The ray list") ----
 //
 // A ray query outside a compute shader keeps its traversal stack in
 // scratch memory on some drivers (RADV: 76 entries per lane), which every
@@ -101,7 +101,7 @@ pub(in crate::render) const LIST_ANCHORS: [(&str, &str); 5] = [
 /// The list's head: the count, then the compute pass's indirect
 /// dispatch (x, 1, 1) at [`ARGS_OFFSET`].
 const LIST_HEAD: &str = r#"
-// ---- The ray list (rt/trace.rs, docs/rt-reflections.md) ----
+// ---- The ray list (rt/trace.rs, docs/notes/graphics/reflections.md "Ray-traced reflections (experimental)") ----
 // Per listed pixel: x | y << 15, bit 31 for a result of 0 (the early outs,
 // the miss); else the march's result in rt_c. A primary pixel is neither
 // marched nor listed: the primary pass (`cs_rt_primary`) traces it.
@@ -142,7 +142,7 @@ fn rt_keep(c: vec4<f32>, frag: vec2<f32>, zero: bool) -> vec4<f32> {
 /// The compute pass: each lane a listed pixel (as many rounds as the
 /// list holds more than the groups' lanes).
 const LIST_RAYS: &str = r#"
-// ---- The ray list's rays (rt/trace.rs, docs/rt-reflections.md) ----
+// ---- The ray list's rays (rt/trace.rs, docs/notes/graphics/reflections.md "Ray-traced reflections (experimental)") ----
 struct RtHead {
     count: u32,
     groups: u32,
@@ -584,7 +584,7 @@ fn rt_pipeline(gpu: &Gpu, layouts: &[wgpu::BindGroupLayout; 2], layout: &wgpu::B
 }
 
 /// The ray-traced trace's programs for a depth multisampled when `ms`,
-/// made now (the drive's warm-up, docs/first-use-builds.md): the list
+/// made now (the drive's warm-up, docs/developing/first-use-builds.md): the list
 /// path's where the device takes it ([`list_path`]), else the fragment
 /// form's.
 pub(in crate::render) fn warm_trace(

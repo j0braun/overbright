@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Rate gate v2 summary (docs/checks.md "Rate gate"): the "number to move".
+"""Rate gate v2 summary (docs/developing/checks.md "Rate gate"): the "number to move".
 usage: ratetable.py FLOW.json ...   (ratediff.py --json files)
 
 Prints one table: a row per flow and rate, a column per state-hash column; a cell is "=" (identical to the reference

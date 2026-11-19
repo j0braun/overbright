@@ -70,7 +70,7 @@ impl BrandSelect {
         }
     }
 
-    /// The rows (Wine 2026-11-04, perf-shop round, `docs/perf-shop.md`;
+    /// The rows (Wine 2026-11-04, perf-shop round, `docs/notes/front-end/perf-shop.md`;
     /// positions **measured**, the widget's own layout code not traced):
     /// a row a title master's height (76) apart from the masters
     /// (0x51FF90 / 0x54F830). In each, the brand's logo (OPTION_IMAGE_n,

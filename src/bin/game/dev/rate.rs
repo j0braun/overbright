@@ -1,4 +1,4 @@
-//! The rate gate (docs/checks.md "Rate gate"):
+//! The rate gate (docs/developing/checks.md "Rate gate"):
 //! the display schedules the rate runs draw at, the simulated wall clock,
 //! the tick index flows key their inputs on, the headless frame's
 //! draw-side state updates, the α = 0 image dumps and the gate's

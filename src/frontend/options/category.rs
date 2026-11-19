@@ -41,7 +41,7 @@ pub enum Category {
     /// A group of the Graphics page's per-effect rows, from the
     /// Graphics page's group rows.
     GraphicsGroup(GraphicsGroup),
-    /// docs/settings-page.md: a group page of the settings page,
+    /// docs/developing/settings-page.md: a group page of the settings page,
     /// from the Enhancements hub's group rows.
     Settings(super::settings_model::UxGroup),
     /// The settings page's Advanced page: Compare, Show and the graphics
@@ -49,7 +49,7 @@ pub enum Category {
     Advanced,
 }
 
-/// The Graphics page's groups (docs/graphics-settings-audit.md): the
+/// The Graphics page's groups (docs/notes/graphics/graphics-settings-audit.md): the
 /// per-effect rows by area, under the preset row.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum GraphicsGroup {
@@ -58,10 +58,10 @@ pub enum GraphicsGroup {
     Reflections,
     Cars,
     Effects,
-    /// docs/weather.md: the rain, the wet cars, spray and lens drops.
+    /// docs/notes/graphics/weather.md: the rain, the wet cars, spray and lens drops.
     Weather,
     Performance,
-    /// HDR Output and its calibration (docs/hdr.md): the page is the
+    /// HDR Output and its calibration (docs/playing/hdr.md): the page is the
     /// calibration screen (its test pattern shows while it is open).
     Display,
 }

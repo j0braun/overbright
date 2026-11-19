@@ -1,6 +1,6 @@
 //! Ray-traced reflections (the Graphics page's Screen-Space
 //! Reflections row at "Ray Traced (experimental)"; a **clone deviation**,
-//! off by default; docs/rt-reflections.md). Nothing here is native: the
+//! off by default; docs/notes/graphics/reflections.md "Ray-traced reflections (experimental)"). Nothing here is native: the
 //! game has its planar road capture and the car's cube only.
 //!
 //! wgpu's `EXPERIMENTAL_RAY_QUERY` (Vulkan only, "may have major bugs"):
@@ -80,7 +80,7 @@ mod tests {
         module
     }
 
-    /// The ray list's two modules (docs/rt-reflections.md "The ray
+    /// The ray list's two modules (docs/notes/graphics/reflections.md "The ray
     /// list"), for both depth forms: the fragment pass is the RT form with
     /// each `rt_fill` call's result sent to `rt_keep` instead (the same
     /// five places, zero for the four whose result is 0) and holds no ray

@@ -1,5 +1,5 @@
 //! Surface Detail (Graphics page, Lighting group; a clone deviation, opt-in,
-//! docs/surface-maps.md): material-ID roughness / specular for the world's
+//! docs/notes/graphics/surface-maps.md): material-ID roughness / specular for the world's
 //! textures, and normal maps derived on the player's machine from the player's
 //! own game textures (nothing is shipped).
 //!

@@ -8,7 +8,7 @@
 // (`platform::dirs::cache`: the player's game `$XDG_CACHE_HOME/overbright`,
 // else `~/.cache/overbright`, `<Local AppData>\Overbright\cache` on
 // Windows; every other program the developer cache `overbright-dev`).
-// `NFSU2_NO_CACHE=1` turns it off. docs/asset-cache.md. Layout:
+// `NFSU2_NO_CACHE=1` turns it off. docs/developing/asset-cache.md. Layout:
 //
 // ```text
 // "NFSU2CCH" | format u32 | header length u64 | header hash u64 | header

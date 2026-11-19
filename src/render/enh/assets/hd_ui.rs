@@ -1,5 +1,5 @@
 //! Startup selection of the optional HD HUD and map pack. Changes require
-//! restart, unless Reload Packs When Changed (docs/pack-hot-reload.md)
+//! restart, unless Reload Packs When Changed (docs/modding/pack-hot-reload.md)
 //! puts the row in force live ([`set_live`]) and re-checks the folder
 //! ([`recheck`]).
 use std::{

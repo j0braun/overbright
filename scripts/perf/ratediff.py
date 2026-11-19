@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Rate gate v2 (docs/checks.md "Rate gate"): NFSU2_STATE_HASH tables of ONE flow run at several display rates,
+"""Rate gate v2 (docs/developing/checks.md "Rate gate"): NFSU2_STATE_HASH tables of ONE flow run at several display rates,
 compared ACROSS rates against a reference rate, column by column.
 
 usage: ratediff.py [--policy FILE] [--json OUT.json] [--flow NAME] [--strict] REF HZ=TABLE.tsv [HZ=TABLE.tsv ...]

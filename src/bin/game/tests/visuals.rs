@@ -1,4 +1,4 @@
-//! docs/uncapped-fps.md, "Native visuals on ticks": the original's
+//! docs/original/uncapped-fps.md, "Native visuals on ticks": the original's
 //! per-frame visuals (overbright level, nitrous blur, screen tint, fog,
 //! horizon fog, flare blink) step once per tick, so the values are the
 //! same at every display rate at equal ticks, and the 60 Hz values are
@@ -12,7 +12,7 @@ use nfsu2::horizon_fog::HorizonFog;
 use nfsu2::motion_blur::MotionBlur;
 use nfsu2::render::postfx::OverbrightLevel;
 use nfsu2::screen_tint::ScreenTintState;
-// The test kit (tests/common/mod.rs, docs/testing.md).
+// The test kit (tests/common/mod.rs, docs/developing/testing.md).
 #[path = "../../../../tests/common/mod.rs"]
 mod testkit;
 

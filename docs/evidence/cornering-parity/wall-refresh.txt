@@ -1,5 +1,5 @@
 Wall hold: the contact refresh, the wheel direction and the moment transform (bench_wall_hold;
-a trial port, not in the default build: docs/cornering-parity.md section 6)
+a trial port, not in the default build: docs/notes/parity/cornering-parity.md section 6)
 
 Captures: five runs of the original under Wine (runs A-E), the contact log with every pair and exact
 floats (PARITY_CONTACT_ALL=1 PARITY_CONTACT_EXACT=1) and the player's integrator calls stopped before
@@ -27,7 +27,7 @@ First contact out of step (velocity or position over 2 mm/s / 2 mm at the contac
    before     4    2    2    5    5
    after     34    5   23    6   24
 Beyond that the runs part on a time-of-impact try that flips on a few float steps of the state
-(z 2 ulps apart at run D's contact 6): the transplant's own first-frame noise (docs/prop-hits.md 7e).
+(z 2 ulps apart at run D's contact 6): the transplant's own first-frame noise (docs/notes/parity/prop-hits.md 7e).
 
 Outcome, 20 clone runs (5 original runs x transplant at 50, 70, 90, 110): the frame the heading
 passes -45 deg (the car turned off the wall), clone less original (original: A 466, B 484, C 514,

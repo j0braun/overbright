@@ -1,4 +1,4 @@
-Load times: the measurements behind docs/perf-budget.md "Load times".
+Load times: the measurements behind docs/notes/performance/budget.md "Load times".
 Binaries: perf.sh build (the measured profile). "discrete GPU" / "integrated GPU": the two GPUs of the reference desktop.
 The machine was shared during every series: other builds and comparisons ran (load average in each table's notes,
 16 hardware threads), and another program kept the discrete GPU's queue busy (its busy counter 72-100 %). The

@@ -477,7 +477,7 @@ fn resolve_event(
             // once (0x4024B8..0x4024DA). The clone had kept such a car on
             // its belt, which dragged it through the wall at Sprint 4122
             // backward's hairpin (−1500, 730) into the void
-            // (`rivals_keep_the_race_route`, docs/drag-stage4-parity.md
+            // (`rivals_keep_the_race_route`, docs/notes/parity/drag-stage4-parity.md
             // §6.7); the earlier stuck-at-barriers trouble that made it
             // keep them no longer shows (unloaded bodies meet nothing).
             off_belt(c);

@@ -1,4 +1,4 @@
-//! The temporal resolve as a compute pass (docs/temporal.md "The resolve
+//! The temporal resolve as a compute pass (docs/notes/graphics/temporal.md "The resolve
 //! as a compute pass"): TAA only (the input at the output's size), where it
 //! replaces the fragment resolve into the history. The same `resolve` of
 //! temporal.wgsl per output pixel, written through a storage texture, and

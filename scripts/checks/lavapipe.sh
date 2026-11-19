@@ -1,5 +1,5 @@
 #!/bin/bash
-# Software-GPU startup check (docs/software-gpu.md): `game --selftest` and a few shots on lavapipe
+# Software-GPU startup check (docs/developing/software-gpu.md): `game --selftest` and a few shots on lavapipe
 # (Mesa's llvmpipe Vulkan driver), as a machine without a GPU (or a CI runner) would start the game.
 #
 #   lavapipe.sh OUTDIR [BIN]      BIN default $CARGO_TARGET_DIR/release/game (REPO/target)
@@ -10,7 +10,7 @@
 # at all (the renderer's `GPU adapter: ` info line, RUST_LOG=info, or the bench's `adapter: ` line: without
 # it nothing proves lavapipe was used). The selftest opens no GPU and prints no adapter.
 # Each shot is also compared with the same shot on the default GPU (ImageMagick
-# `compare -fuzz 4%`, reported only: the light streaks differ on lavapipe, docs/software-gpu.md).
+# `compare -fuzz 4%`, reported only: the light streaks differ on lavapipe, docs/developing/software-gpu.md).
 # Every process is waited for by PID; nothing is killed by name.
 set -u -o pipefail
 HERE=$(cd "$(dirname "$0")" && pwd)

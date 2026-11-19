@@ -1,4 +1,4 @@
-// Animated Water, Next-Gen (clone deviation, opt-in; docs/water.md
+// Animated Water, Next-Gen (clone deviation, opt-in; docs/notes/graphics/water.md
 // "Next-Gen"): the compute half. Standalone module (render/water_ng.rs).
 //
 //   cs_particles: the jets' particles at the frame's time (analytic on

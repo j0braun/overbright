@@ -148,7 +148,7 @@ run_config() {
     # Skip to the splash (Enter skips the movies: agreed deviation).
     for _ in $(seq 1 20); do tag | grep -q '^Splash' && break; key Return; sleep 0.6; done
     move 300 300; move 320 310
-    # Agreed deviation (docs/native-deviations.md; `cursor_shown`): no cursor before
+    # Agreed deviation (docs/playing/native-deviations.md; `cursor_shown`): no cursor before
     # the menus, the splash included (the original shows it there).
     check splash-no-cursor bash -c "grep -q 'tag=Splash' '$LOG' && ! grep 'tag=Splash' '$LOG' | grep -q 'cursor=1'"
     shot splash

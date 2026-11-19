@@ -18,7 +18,7 @@ use crate::render::{
 /// (with the page's MSAA). [`SceneMode::NATIVE`] at one sample is the
 /// native path. The road reflection, the mirror and the cube keep the
 /// native depth (their own targets and pipelines). With `hdr` (the
-/// Graphics page's High Precision Post, docs/hdr-post.md) the scene and
+/// Graphics page's High Precision Post, docs/notes/graphics/hdr-post.md) the scene and
 /// the streak buffer are [`HDR_FORMAT`] and the scene's pipelines draw
 /// into that ([`SceneMode::target`]).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -28,14 +28,14 @@ pub struct SceneMode {
     pub coverage: bool,
     pub hdr: bool,
     /// Dynamic Lamps / Lamp Shadows / Contact Shadows (clone deviations,
-    /// docs/lamps-shadows.md): the main view's pipelines from world.wgsl
+    /// docs/notes/graphics/lamps-shadows.md): the main view's pipelines from world.wgsl
     /// with its LAMPS blocks (else without them: the native shaders).
     pub lamps: bool,
-    /// Modern Lighting (docs/modern-lighting.md): 0 off, 1 the lamps'
+    /// Modern Lighting (docs/notes/graphics/modern-lighting.md): 0 off, 1 the lamps'
     /// module with its MODERN blocks, 2 also with the ray-query (MLRT)
     /// lines and the traced scene at group 0 binding 11 (Modern + RT).
     pub modern: u8,
-    /// The temporal pass's texture LOD bias (docs/temporal.md), in
+    /// The temporal pass's texture LOD bias (docs/notes/graphics/temporal.md), in
     /// quarter mip levels: 0 native (the native modules); else the main
     /// view's world and car modules sample with `textureSampleBias`.
     pub bias_q: i8,
@@ -237,7 +237,7 @@ pub(crate) struct ScenePipelines {
 }
 
 /// The falling rain's drops under the lamps' module, lit at their corners
-/// (rain_lit.wgsl, docs/lamps-shadows.md "The falling rain under the
+/// (rain_lit.wgsl, docs/notes/graphics/lamps-shadows.md "The falling rain under the
 /// lamps"): the probe's two pipelines (K, S into [`DROP_PROBE_FORMAT`])
 /// and the drops' own (the scene's format and samples, the rain's key).
 pub(crate) struct DropPipelines {
@@ -471,7 +471,7 @@ impl WorldShared {
             + 16 * usize::from(modern)]
         .get_or_init(|| {
             // The lamps' cluster loop in its subgroup form where the device
-            // has subgroup operations (the same sums; docs/lamps-shadows.md
+            // has subgroup operations (the same sums; docs/notes/graphics/lamps-shadows.md
             // "The cluster loop"), else the plain loop: one form per device.
             let source = world_module_source_for(
                 lamps,
@@ -771,7 +771,7 @@ impl WorldShared {
     /// [`WorldShared::equal_pipelines`]' worldreflect keys ([`mrt_keys`])
     /// with the SSR mask's two targets after the scene's
     /// ([`make_pipeline_with`]'s `mrt`): the main view's opaque road with
-    /// the mask from the main view (docs/wet-roads-ssr.md).
+    /// the mask from the main view (docs/notes/graphics/reflections.md "Wet Roads and Screen-Space Reflections").
     pub(crate) fn mrt_pipelines(
         &self,
         device: &wgpu::Device,
@@ -1012,7 +1012,7 @@ pub(crate) fn clear_skip(key: PipelineKey, mode: SceneMode, fade: u8, equal: boo
 /// [`make_pipeline`]; with `equal` (after the depth pre-pass) the
 /// depth test is EQUAL and depth is not written; with `mrt` (worldreflect
 /// keys only) the `_mrt` entry, which also writes the SSR mask's term and
-/// surface (two more targets, [`WET_MASK_FORMAT`]: docs/wet-roads-ssr.md
+/// surface (two more targets, [`WET_MASK_FORMAT`]: docs/notes/graphics/reflections.md "Wet Roads and Screen-Space Reflections"
 /// "The mask from the main view").
 #[allow(clippy::too_many_arguments)]
 fn make_pipeline_with(
@@ -1159,7 +1159,7 @@ pub(crate) fn overlay_draws(
 /// two targets, depth-tested against the mask's own depth.
 /// Wet Roads' `Frame.wet` from (rain amount, the road's wetness from the
 /// rain, world clock): zero (the native path) until the rain has wetted
-/// the road, so a dry scene draws as the original (docs/wet-roads-ssr.md).
+/// the road, so a dry scene draws as the original (docs/notes/graphics/reflections.md "Wet Roads and Screen-Space Reflections").
 pub(crate) fn wet_uniform((rain, road_wet, clock): (f32, f32, f32)) -> [f32; 4] {
     if road_wet <= WET_MIN { [0.0; 4] } else { [1.0, rain, road_wet, clock] }
 }
@@ -1178,7 +1178,7 @@ pub(crate) fn make_wet_mask_pipeline(
     let vertex_attributes = wgpu::vertex_attr_array![0 => Float32x3, 1 => Unorm8x4, 2 => Float32x2];
     let instance_attributes = wgpu::vertex_attr_array![3 => Float32x4, 4 => Float32x4, 5 => Float32x4, 6 => Float32x4];
     // (`fs_wet_mask_kind*`: the tint alone, the term and the surface the
-    // main view's, docs/wet-roads-ssr.md "The mask from the main view".)
+    // main view's, docs/notes/graphics/reflections.md "The mask from the main view".)
     let writes = if entry.starts_with("fs_wet_mask_kind") { wgpu::ColorWrites::empty() } else { wgpu::ColorWrites::ALL };
     let target = Some(wgpu::ColorTargetState { format: WET_MASK_FORMAT, blend: None, write_mask: writes });
     let tint =
@@ -1372,7 +1372,7 @@ pub(crate) fn make_anim_mask_pipeline(
 #[cfg(test)]
 mod lamp_source_tests {
     /// Without the lamps the world module is the native shader: no lamp
-    /// code, no lamp bindings used (docs/lamps-shadows.md).
+    /// code, no lamp bindings used (docs/notes/graphics/lamps-shadows.md).
     #[test]
     fn world_source_strips_the_lamps() {
         let native = crate::render::world_source(false);

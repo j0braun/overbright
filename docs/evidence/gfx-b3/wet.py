@@ -2,7 +2,7 @@
 """wet.py DIR [ORIGDIR]: wetness/volume metrics per <scene>__<label>.png against <scene>__0orig.png
 (Rec.709 luma on sRGB codes, HUD masked as lstats does). Road boxes away from the car (1280x960, x0,x1,y0,y1):
 sheen = mean max(0, dY) in the boxes (light the wet road adds over the dry native road: the native road
-draws the same rain or not, docs/wet-roads-ssr.md), cov = % box px with dY > 4, hf = box high-frequency
+draws the same rain or not, docs/notes/graphics/reflections.md "Wet Roads and Screen-Space Reflections"), cov = % box px with dY > 4, hf = box high-frequency
 energy (mean |Y - box3x3(Y)|, speckle) as a ratio to Original's."""
 import sys, os, glob
 import numpy as np

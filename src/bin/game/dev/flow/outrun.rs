@@ -1,6 +1,6 @@
 use crate::*;
 
-/// One encounter car's row for the outrun logs (docs/outrun.md, "Live
+/// One encounter car's row for the outrun logs (docs/original/outrun.md, "Live
 /// comparison"): the same fields the native logger reads (goal type 9 / 6
 /// / 5, action type, mover 1/3/4, target speed, nitrous timers).
 pub(crate) fn outrun_log_row(game: &Game, frame: u32) -> Option<String> {
@@ -44,7 +44,7 @@ pub(crate) fn outrun_log_row(game: &Game, frame: u32) -> Option<String> {
     })
 }
 
-/// The live comparison's keyboard driver (docs/outrun.md; check aid, not
+/// The live comparison's keyboard driver (docs/original/outrun.md; check aid, not
 /// native), the rule of the maintainer's private capture: look 12 m +
 /// 0.6 s of speed along the path; steer while the target is over 0.03 rad
 /// off the car's forward axis; throttle unless faster than √(8 m/s² · R) +
@@ -116,7 +116,7 @@ impl OutrunBot {
     }
 }
 
-/// `--flow outrun`: an outrun against the original's (docs/outrun.md, Live
+/// `--flow outrun`: an outrun against the original's (docs/original/outrun.md, Live
 /// comparison). The finished-career save resumed to free roam; once an encounter car
 /// is out, the player is put `NFSU2_FLOW_BACK` (default 10) m behind it on
 /// its travel at its speed with the throttle held (the native capture's
@@ -128,7 +128,7 @@ pub(crate) fn flow_outrun(game: &mut Game) -> Result<()> {
     use std::io::Write;
     let dt = 1.0 / 60.0;
     // NFSU2_FLOW_SAVE: another native save file to resume (check aid: the
-    // finished-career save for docs/outrun-ai-strength.md).
+    // finished-career save for docs/notes/outrun/ai-strength.md).
     let bytes = match std::env::var("NFSU2_FLOW_SAVE") {
         Ok(path) => std::fs::read(path)?,
         Err(_) => crate::dev::private::require(crate::dev::private::FINISHED_CAREER, "--flow outrun (career_complete.sav)")?,
@@ -248,7 +248,7 @@ pub(crate) fn flow_outrun(game: &mut Game) -> Result<()> {
     {
         // Check aid: the rival's class (its upgraded car's and the stock
         // type's) and its racing-line bytes at record 1095 (control
-        // points 18; docs/outrun-ai-strength.md).
+        // points 18; docs/notes/outrun/ai-strength.md).
         let e = game.sim.encounters.as_ref().unwrap();
         let r = &e.cars[i];
         println!(

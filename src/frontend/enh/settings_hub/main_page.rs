@@ -2,7 +2,7 @@ use super::*;
 use crate::qol::{LEVELS, Level};
 
 // ---------------------------------------------------------------------
-// The streamlined graphics page (docs/settings-page.md "Graphics mode and
+// The streamlined graphics page (docs/developing/settings-page.md "Graphics mode and
 // quality levels"): the hub's first rows. Graphics Mode (Original /
 // Enhanced), Enhanced Quality (a level, or Custom), the main choices
 // (Upscaling, Anti-Aliasing, Ray Tracing, HDR Output, Motion Blur, Rain on
@@ -30,7 +30,7 @@ const MAIN_UPSCALE: [usize; 4] = [0, 1, 2, 3];
 /// on Advanced).
 const MAIN_AA: [usize; 7] = [0, qol::TAA as usize, 6, 7, 8, 9, 10];
 
-/// Measured level totals (docs/settings-page.md "Level costs",
+/// Measured level totals (docs/developing/settings-page.md "Level costs",
 /// `docs/evidence/settings-levels/levels.txt`): the heaviest of the bench
 /// scenes, GPU busy median ms per frame, as [`PRESET_COSTS`] (Anti-Aliasing
 /// Native; Original 0.70 / 2.60 / 15.0).

@@ -72,7 +72,7 @@ pub(crate) fn qol_rows(s: &Settings) -> Vec<Row> {
         row(RowId::PhotoMode, PHOTO_MODE_ROW, Kind::Cycle, on_off(e.photo_mode)),
         row(RowId::SkipMovies, SKIP_MOVIES, Kind::Cycle, on_off(e.skips_movies())),
         row(RowId::SkipTitle, SKIP_TITLE, Kind::Cycle, on_off(e.skips_title())),
-        // See docs/modern-extras.md.
+        // See docs/playing/modern-extras.md.
         row(RowId::LowLatency, LOW_LATENCY, Kind::Cycle, on_off(e.extras.low_latency)),
         row(
             RowId::PowerSaving,
@@ -117,7 +117,7 @@ pub(crate) fn qol_rows(s: &Settings) -> Vec<Row> {
             or_native(e.extras.hud_info == 100, format!("{}%", e.extras.hud_info)),
         ),
         row(RowId::ReducedFlashing, REDUCED_FLASHING, Kind::Cycle, on_off(e.extras.reduced_flashing)),
-        // See docs/perf-overlay.md.
+        // See docs/notes/performance/overlay.md.
         row(
             RowId::PerfOverlay,
             PERF_OVERLAY,
@@ -136,7 +136,7 @@ pub(crate) fn qol_rows(s: &Settings) -> Vec<Row> {
         row(RowId::OverlayScale, OVERLAY_SCALE, Kind::Cycle, Some(Value::Owned(format!("{}%", s.overlay.scale)))),
         row(RowId::OverlayLog, OVERLAY_LOG, Kind::Cycle, on_off(s.overlay.csv)),
         row(RowId::ReloadPacks, RELOAD_PACKS, Kind::Cycle, on_off(e.reload_packs)),
-        // See docs/controller-support.md.
+        // See docs/playing/controller-support.md.
         row(RowId::PadLayout, PAD_LAYOUT, Kind::Cycle, Some(pad_layout_value(e.pad.layout))),
         row(
             RowId::PadDeadzone,
@@ -179,7 +179,7 @@ pub(crate) fn qol_rows(s: &Settings) -> Vec<Row> {
 }
 
 /// A Graphics value's GPU cost class, from the audit's timings
-/// (docs/graphics-settings-audit.md: reference desktop GPU `--bench`, GPU busy time
+/// (docs/notes/graphics/graphics-settings-audit.md: reference desktop GPU `--bench`, GPU busy time
 /// added at 1080p; an integrated GPU pays roughly 8–12× as much).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Cost {
@@ -244,7 +244,7 @@ pub fn cost_ms(id: RowId, s: &Settings, out: (u32, u32)) -> Option<f32> {
 /// what its current value does and its cost at the current output. None
 /// for rows without one (the original's pages).
 pub fn detail(category: Category, id: RowId, s: &Settings) -> Option<String> {
-    // The settings page writes its own (docs/settings-page.md).
+    // The settings page writes its own (docs/developing/settings-page.md).
     if matches!(category, Category::Enhancements | Category::Settings(_) | Category::Advanced) {
         return crate::frontend::settings_page::detail(category, id, s);
     }
@@ -496,7 +496,7 @@ pub(crate) fn graphics_rows(s: &Settings) -> Vec<Row> {
                 RowId::RoadReflection | RowId::CarReflection if soft && !r.enhanced(s) => {}
                 _ => {}
             }
-            // docs/settings-model.md: a row another one overrides, or
+            // docs/developing/settings-model.md: a row another one overrides, or
             // that needs one that is off, says so and is greyed; its stored
             // value stays (switching back restores it).
             if let Some((text, enabled)) = crate::frontend::settings_model::shown(r.id, name, s) {

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 // The glow's C when the scene is not the screen's size (SSAA / Render
-// Scale, docs/post-scale.md): the box of the scene under each glow texel,
+// Scale, docs/notes/graphics/ssaa.md "Post effects under SSAA and Render Scale"): the box of the scene under each glow texel,
 // params.x × params.x bilinear taps offsets[0].xy apart.
 fn box_taps(uv: vec2<f32>) -> vec4<f32> {
     let n = i32(pass_.params.x);
@@ -43,7 +43,7 @@ fn fs_overbright_sat(in: VsOut) -> @location(0) vec4<f32> {
 }
 
 // ---------------------------------------------------------------------
-// SSAA with High Precision Post (docs/ssaa-screen-passes.md): the scene is
+// SSAA with High Precision Post (docs/notes/graphics/ssaa.md "Effect and post passes at the screen's size under SSAA"): the scene is
 // resolved to the screen's size before the passes after the bleach
 // bypass, which then run at the screen's size. offsets[1].xy: the scene's
 // texels per screen pixel.

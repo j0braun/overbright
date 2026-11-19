@@ -1,5 +1,5 @@
 //! The map mod file (`map.obmap`): a versioned, line-based text format
-//! (docs/map-editor.md, "File format").
+//! (docs/modding/map-editor.md, "File format").
 //!
 //! ```text
 //! overbright-map 1

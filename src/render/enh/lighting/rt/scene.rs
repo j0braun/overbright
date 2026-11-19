@@ -92,7 +92,7 @@ pub(in crate::render) struct Scene {
 /// The group-1 layout the RT trace pipelines are made with (`rt.wgsl`'s
 /// bindings, seen by the trace's fragment pass or by the ray list's
 /// compute pass, `visibility`); one per device and stage, so a warm-up's
-/// pipelines are the frame's (docs/first-use-builds.md).
+/// pipelines are the frame's (docs/developing/first-use-builds.md).
 pub fn layout(gpu: &Gpu, visibility: wgpu::ShaderStages) -> wgpu::BindGroupLayout {
     crate::render::core::device_cache::bind_group_layout(gpu, &wgpu::BindGroupLayoutDescriptor {
         label: Some("rt"),

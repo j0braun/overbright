@@ -67,7 +67,7 @@ pub(crate) fn apply(root: &Path, tracks: &mut HashMap<u16, Track>) -> anyhow::Re
     Ok(applied)
 }
 
-/// docs/pack-hot-reload.md: each track's six calibrated values as the
+/// docs/modding/pack-hot-reload.md: each track's six calibrated values as the
 /// game data has them, kept at load so a live HD UI Art change can undo
 /// the pack's calibration.
 static NATIVE: std::sync::Mutex<Option<HashMap<u16, [f32; 6]>>> = std::sync::Mutex::new(None);

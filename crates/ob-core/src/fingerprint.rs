@@ -8,7 +8,7 @@
 //! SPEED2.EXE is fingerprinted too, for the reports only: Overbright does
 //! not read it ([`crate::exe_tables`]), so it is not part of the verdict
 //! and may be missing, copy-protected or of any build. Reads only;
-//! docs/game-fingerprint.md.
+//! docs/developing/game-fingerprint.md.
 
 use sha2::{Digest, Sha256};
 use std::path::{Path, PathBuf};

@@ -1,4 +1,4 @@
-//! Particles Cinematic (docs/smoke-cinematic.md; a **clone
+//! Particles Cinematic (docs/notes/graphics/smoke.md "Particles Cinematic: the simulation and the billboard drawing"; a **clone
 //! deviation**, opt-in; nothing here exists in SPEED2.EXE). The Particles
 //! row's top tier, separate from High / Ultra's code path
 //! (`render::gpu_particles`, whose [`Feeder`] it shares unchanged): the

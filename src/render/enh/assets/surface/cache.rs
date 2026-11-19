@@ -33,7 +33,7 @@ pub fn map_for(t: &Texture, class: Class, reflect: bool) -> Option<NormalMap> {
     map_for_source(t, class, reflect, None)
 }
 
-/// A texture pack's replacement of a texture (docs/surface-maps.md "Texture
+/// A texture pack's replacement of a texture (docs/notes/graphics/surface-maps.md "Texture
 /// packs"): its bytes' hash (the cache key: one map per pack's file) and a
 /// decoder of its top level as RGBA8 (run on the builder's thread).
 pub struct PackSource {

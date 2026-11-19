@@ -65,7 +65,7 @@
 //! The start volume V (+0xC0) is the object's mix copy's level of its
 //! kind's slot, rewritten each frame (0x461CE0), and the playing layers
 //! follow it (0x47BB30 → 0x46CF70): **verified** and read under Wine
-//! (docs/prop-hits.md: 0 on the start frame, then 12999 near a
+//! (docs/notes/parity/prop-hits.md: 0 on the start frame, then 12999 near a
 //! barrel hit, falling as the car leaves; test
 //! `impact_level_follows_the_original_per_frame`). **Inferred**: +6 in
 //! milliseconds, the record's sound object (and its copy) living while
@@ -133,7 +133,7 @@ thread_local! {
     /// The state the audio's draws step: the game's shared generator
     /// (0x7EA624; Rand_Int 0x43C1C0 / Rand_Float 0x43C1F0) while the game's
     /// tick sounds run ([`enter_game_rng`] … [`leave_game_rng`]: the native
-    /// audio objects draw on it, docs/rng.md, rows R7 / R13 /
+    /// audio objects draw on it, docs/original/rng.md, rows R7 / R13 /
     /// R30 of docs/native-fixes/N-RNG.tsv), else the audio's own copy (0x12345678, the draws made outside
     /// that window: **open**). Per thread, so parallel tests keep theirs.
     static SEED: std::cell::Cell<u32> = const { std::cell::Cell::new(0x1234_5678) };
@@ -789,7 +789,7 @@ mod tests {
         // Measured: median 0.12 dB, 90th percentile 1.02 dB; the rest are
         // the frames where the original's level steps a frame before the
         // polled listener shows it (up to 2.9 dB), and beyond ~15 m the
-        // clone's level runs ~1 dB high (**open**, docs/prop-hits.md).
+        // clone's level runs ~1 dB high (**open**, docs/notes/parity/prop-hits.md).
         assert!(median <= 0.25 && p90 <= 1.25, "median {median} dB, p90 {p90} dB over {n} samples");
     }
 

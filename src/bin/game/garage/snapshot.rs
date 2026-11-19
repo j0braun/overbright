@@ -1,4 +1,4 @@
-//! The garage's own scene between two ticks (docs/uncapped-fps.md, "The
+//! The garage's own scene between two ticks (docs/original/uncapped-fps.md, "The
 //! garage scene between ticks"): the turntable, its camera, the FE car's
 //! hydraulics and part animations and the scene's particles, as each tick
 //! leaves them (`GarageSnapshot`, captured with the world view's tick

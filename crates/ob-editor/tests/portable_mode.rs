@@ -1,4 +1,4 @@
-//! Portable mode end to end for the map editor (docs/platform-dirs.md,
+//! Portable mode end to end for the map editor (docs/playing/platform-dirs.md,
 //! "Portable mode"; the game's side is the root package's
 //! tests/portable_mode.rs): the editor binary, linked into a program folder
 //! with `portable.txt` beside it, run under a fake home (HOME, XDG unset,

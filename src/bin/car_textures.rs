@@ -2,7 +2,7 @@
 //! (CAR `preset` loads DDAY_PLAYER_CAR with its parts).
 use nfsu2::car::Car;
 fn main() -> anyhow::Result<()> {
-    // A developer tool: the developer cache, never the player's (docs/asset-cache.md).
+    // A developer tool: the developer cache, never the player's (docs/developing/asset-cache.md).
     nfsu2::platform::dirs::developer_program();
     let a: Vec<String> = std::env::args().skip(1).collect();
     let root = nfsu2::game_root();

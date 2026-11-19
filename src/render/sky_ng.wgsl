@@ -1,4 +1,4 @@
-// Sky "Next-Gen" (clone deviation, opt-in: `enh.sky 1`; docs/atmosphere.md). Ported from the earlier night-sky
+// Sky "Next-Gen" (clone deviation, opt-in: `enh.sky 1`; docs/notes/graphics/atmosphere.md). Ported from the earlier night-sky
 // prototype (NFSU2_NIGHT_SKY), at the next-gen level: the clouds are rendered into a
 // low-resolution sky panorama (cs_panorama: a lat-long of the upper hemisphere, a quarter of its rows a frame),
 // lit from below by the city's glow; the main view's hemisphere and the reflection views (road mirror, the

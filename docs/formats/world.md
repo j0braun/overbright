@@ -299,7 +299,7 @@ for technique 0); it crushes the darks by luminance and warms grey/blue
 pixels (the sky's red-violet, the road's beige). Checked numerically: the
 three passes turn the original's pre-filter sky (72, 61, 80) into
 (61, 41, 56); the original shows (59, 39, 55).
-**Checked against the original's own passes (2026-11-04, docs/hdr.md):**
+**Checked against the original's own passes (2026-11-04, docs/playing/hdr.md):**
 apitrace snapshots of two free-roam frames (fr.trace frame 13971,
 dark.trace frame 15478), back buffer before the copy → render target after
 p2: the ported three passes give 99.9987 % / 99.984 % of the 1 228 800
@@ -366,7 +366,7 @@ blending) still draws alpha-blended (its alpha test is **open**).
 **Tint pass (verified; slot 2 drawn since the rain work, see Rain; slot 0 since the visual-rating parity).** 0x5C7870 runs when slot 0 (+0x0C) or
 slot 2 (+0x24) is enabled. Slot 0's descriptor 0x8769DC (callback
 0x5D7A70) is applied by the NIS event SCREEN_FLASH (0x4392E0 type 10 →
-0x5DBD80(1) on views 1–2, docs/nis-mover.md "SCREEN_FLASH"), by Take
+0x5DBD80(1) on views 1–2, docs/original/nis-mover.md "SCREEN_FLASH"), by Take
 Picture (0x501250 → 0x5DBD80(1); not ported) and when 0x883E30 is set,
 which nothing writes (only 0x5DBEC3 reads and clears it); slot 0's colour
 and amount replace slot 2's in the pass; slot 2 is set by the rain (0x61F1DB: colour
@@ -1013,7 +1013,7 @@ docs/formats/front-end.md, "Garage scenes: no weather"):
   (wetness 1 from the load, the amount 0 unless written, slot 2 never on). With 0x865558
   written to 1/60 the original runs at 60 frames a second, the weather steps (the
   wetness falls 1 → 0.42 in a few seconds after the shower) and the tinted frames match
-  the clone's Original (which plays as the original at 60, docs/uncapped-fps.md): at the
+  the clone's Original (which plays as the original at 60, docs/original/uncapped-fps.md): at the
   traffic light (1169.9, −304), the shower 0.7, mean luma without HUD and car 34.1 vs
   32.9; at 120 frames a second 40.0. Compare rain at 60 frames a second, with every
   option global 0x870CB0 + 8 … + 0x68 at its maximum (0x8764C8, same layout) read back
@@ -1457,7 +1457,7 @@ bench.
 * Region textures (0x57FC5E): GLOBAL/GLOBALTEXTURESNA.BIN for region 0
   (US), else GLOBALTEXTURESROW.BIN; the region 0x7FA73C (0 US, 1 and 5–9
   by language, 2/10 KR, 3 JP, 4 TW, 11 CN, 12 TH; 0x571390) is 6 in this
-  executable's data and never written, so ROW (a US install, docs/region.md, takes NA), which holds the Best Buy
+  executable's data and never written, so ROW (a US install, docs/playing/region.md, takes NA), which holds the Best Buy
   billboards' texture. Six other solid texture references in L4RA
   (trailer, factory and power tower props) are in no file of the game.
   **Verified:** they get the default texture. GetTextureInfo (0x4901D0;
@@ -1769,5 +1769,5 @@ Side by sides (kept outside the repository): `cmp_r1.png`, `r1_57.png`,
 * **2026-11-06**: World Detail Ultra / Extreme's pop-in work (scenery
   and cars drawn to 1.5 output pixels, 1 s section dissolves, traffic ring
   fade, lamp light / shadow fades), the pop meter (`NFSU2_POP_STATS`) and
-  the pixel oracle (`NFSU2_POP_ORACLE`): docs/pop-in.md. Clone deviations;
+  the pixel oracle (`NFSU2_POP_ORACLE`): docs/notes/graphics/pop-in.md. Clone deviations;
   the native rules above are unchanged.

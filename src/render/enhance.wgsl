@@ -290,7 +290,7 @@ fn fs_cas(in: VsOut) -> @location(0) vec4<f32> {
     // Around bright light (glow, lamps, neon) the negative lobe would
     // darken the pixels beside it below anything near them: a dark ring.
     // There the result is held at the 3×3 neighbourhood's minimum (no
-    // undershoot); elsewhere CAS is unchanged (docs/post-scale.md).
+    // undershoot); elsewhere CAS is unchanged (docs/notes/graphics/ssaa.md "Post effects under SSAA and Render Scale").
     let lo = min(min(min(d, e), min(f, b)), min(min(h, a), min(min(c, g), i)));
     let peak_luma = dot(mx2, vec3<f32>(0.299, 0.587, 0.114));
     let bright = smoothstep(BRIGHT_LO, BRIGHT_HI, peak_luma);

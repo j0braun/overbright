@@ -391,7 +391,7 @@ options! {
         apply [16 store HD_UI],
         parse bool;
 
-    /// Reload Packs When Changed (docs/pack-hot-reload.md): watch the
+    /// Reload Packs When Changed (docs/modding/pack-hot-reload.md): watch the
     /// HD UI pack and the world/car texture pack folders and reload changed
     /// images live; the HD UI Art and World Texture Pack rows then apply at
     /// once. Off = native (packs read at startup / load).
@@ -467,7 +467,7 @@ options! {
         apply [25 store SSAO],
         parse (|old, v| v.parse::<u32>().map_or(old, |v| nearest(&SSAO_STEPS, v.min(100) as u8)));
 
-    /// High Precision Post (docs/hdr-post.md): 0 off (native, the 8-bit
+    /// High Precision Post (docs/notes/graphics/hdr-post.md): 0 off (native, the 8-bit
     /// scene and screen passes), 1 the scene and the screen passes in
     /// half-float with the overbright glow at half size (filtered), 2 the
     /// same with the glow at the screen's size.
@@ -477,7 +477,7 @@ options! {
         apply [26 store HDR_POST],
         parse (|old, v| min_u32(old, v, 2));
 
-    /// Enhanced Car Paint (clone deviation, docs/car-paint-enhanced.md):
+    /// Enhanced Car Paint (clone deviation, docs/notes/graphics/car-paint-enhanced.md):
     /// clearcoat, metallic flake and pearl shift per NFSU2 paint type.
     /// Off = native car.efx.
     enhanced_paint: bool = false,
@@ -496,7 +496,7 @@ options! {
         apply [28 store LISTS_OPEN_INSTALLED],
         parse bool;
 
-    /// Outrun Variety (docs/drag-drift-outrun-parity.md §0): a parked
+    /// Outrun Variety (docs/notes/parity/drag-drift-outrun-parity.md §0): a parked
     /// encounter racer that has been on the road gets a new car for its
     /// slot, drawn by the set-up's own rule (same pool, player rating,
     /// skill rows, performance match and dress). Off = native: the
@@ -507,7 +507,7 @@ options! {
         apply [29 store OUTRUN_VARIETY],
         parse bool;
 
-    /// Wet Roads (docs/wet-roads-ssr.md): the road reflection with ripples,
+    /// Wet Roads (docs/notes/graphics/reflections.md "Wet Roads and Screen-Space Reflections"): the road reflection with ripples,
     /// normal distortion, roughness blur, vertical stretch and puddles,
     /// driven by the rain. Off = native.
     wet_roads: bool = false,
@@ -516,17 +516,17 @@ options! {
         apply [30 store WET_ROADS],
         parse bool;
 
-    /// Screen-Space Reflections (docs/wet-roads-ssr.md): 0 off (native),
+    /// Screen-Space Reflections (docs/notes/graphics/reflections.md "Wet Roads and Screen-Space Reflections"): 0 off (native),
     /// 1 traced at half the scene's size, 2 at its full size, 3 at full
     /// size with ray queries for what the screen misses (see
-    /// docs/rt-reflections.md; SSR Ultra where the device cannot trace).
+    /// docs/notes/graphics/reflections.md "Ray-traced reflections (experimental)"; SSR Ultra where the device cannot trace).
     ssr: u8 = 0,
         key "enh.ssr", presets reset, write 37,
         dev [35 tiers ["SSR half", "SSR full", "ray-traced reflections"]],
         apply [37 store SSR],
         parse (|old, v| min_u32(old, v, 3));
 
-    /// HUD Layout (docs/ultrawide.md): on screens wider than 16:9 the
+    /// HUD Layout (docs/playing/ultrawide.md): on screens wider than 16:9 the
     /// HUD's side elements stay in a centred 16:9 safe area (false,
     /// "Centered", the default) or go out to the screen's edges (true,
     /// "Full Width"). No effect at 16:9 and narrower.
@@ -536,7 +536,7 @@ options! {
         apply [67 call crate::render::display::set_hud_full_width],
         parse bool;
 
-    /// Dynamic Lamps (docs/lamps-shadows.md): the light packs' lamps as
+    /// Dynamic Lamps (docs/notes/graphics/lamps-shadows.md): the light packs' lamps as
     /// clustered per-pixel lights added to the world and the cars. Off =
     /// native.
     dynamic_lamps: bool = false,
@@ -545,7 +545,7 @@ options! {
         apply [38 store DYNAMIC_LAMPS],
         parse bool;
 
-    /// Lamp Shadows (docs/lamps-shadows.md): 0 off (native), 1 Low (4
+    /// Lamp Shadows (docs/notes/graphics/lamps-shadows.md): 0 off (native), 1 Low (4
     /// lamps, 512² maps, one tap), 2 High (12 lamps, 1024², 3×3 taps);
     /// with the player's headlight and the cars as soft occluders.
     lamp_shadows: u8 = 0,
@@ -554,7 +554,7 @@ options! {
         apply [39 store LAMP_SHADOWS],
         parse (|old, v| min_u32(old, v, 2));
 
-    /// Contact Shadows (docs/lamps-shadows.md): soft occlusion under the
+    /// Contact Shadows (docs/notes/graphics/lamps-shadows.md): soft occlusion under the
     /// cars, under the native shadow texture. Off = native.
     contact_shadows: bool = false,
         key "enh.contact_shadows", presets reset, write 41,
@@ -562,13 +562,13 @@ options! {
         apply [40 store CONTACT_SHADOWS],
         parse bool;
 
-    /// Upscaling (docs/temporal.md): 0 off (native), 1 Quality (67 %),
+    /// Upscaling (docs/notes/graphics/temporal.md): 0 off (native), 1 Quality (67 %),
     /// 2 Balanced (58 %), 3 Performance (50 %): the scene drawn at that
     /// share of the screen and reconstructed to it by the temporal pass
     /// (TAA's history). Turns the temporal path on whatever the
     /// Anti-Aliasing row says (MSAA / SSAA / post filters off).
     /// 4–6 FSR 1; 7–11 FSR 2 Native AA / Quality / Balanced /
-    /// Performance / Ultra Performance (docs/fsr2.md), on the same
+    /// Performance / Ultra Performance (docs/notes/graphics/fsr2.md), on the same
     /// temporal path.
     upscale: u8 = 0,
         key "enh.upscale", presets reset, write 42,
@@ -576,7 +576,7 @@ options! {
         apply [41 store UPSCALE],
         parse (|old, v| min_u32(old, v, UPSCALE_MAX));
 
-    /// Volumetric Fog (docs/temporal.md): 0 off (native), 1 Low (light
+    /// Volumetric Fog (docs/notes/graphics/temporal.md): 0 off (native), 1 Low (light
     /// cones under the light packs' lamps), 2 High (a froxel grid lit by
     /// the lamps and the headlights, thicker in rain).
     volumetric_fog: u8 = 0,
@@ -585,7 +585,7 @@ options! {
         apply [42 store VOLUMETRIC_FOG],
         parse (|old, v| min_u32(old, v, 3));
 
-    /// Sky (docs/atmosphere.md): 0 Original (the native SKYDOME), 1
+    /// Sky (docs/notes/graphics/atmosphere.md): 0 Original (the native SKYDOME), 1
     /// Next-Gen (a procedural night sky: moon, stars, drifting clouds lit
     /// by the city, in the dome's palette; `render::sky_ng`).
     sky: u8 = 0,
@@ -594,17 +594,17 @@ options! {
         apply [43 store SKY],
         parse (|old, v| min_u32(old, v, 1));
 
-    /// Particles (docs/particles-smoke.md): 0 Original (the native
+    /// Particles (docs/notes/graphics/smoke.md "Particles High and Ultra: GPU particles and detailed smoke"): 0 Original (the native
     /// quads), 1 High, 2 Ultra (the native smoke expanded into detailed
     /// GPU puffs, `render::gpu_particles`; emit rules unchanged), 3
-    /// Cinematic (docs/smoke-cinematic.md: `render::smoke_cinematic`).
+    /// Cinematic (docs/notes/graphics/smoke.md "Particles Cinematic: the simulation and the billboard drawing": `render::smoke_cinematic`).
     particles: u8 = 0,
         key "enh.particles", presets reset, write 45,
         dev [42 tiers ["particles high", "particles ultra", "particles cinematic"]],
         apply [44 store PARTICLES],
         parse (|old, v| min_u32(old, v, 3));
 
-    /// Sparks & Fire (docs/sparks-fire.md): 0 Original (the native
+    /// Sparks & Fire (docs/notes/graphics/sparks-fire.md): 0 Original (the native
     /// quads), 1 Next-Gen (`render::sparks_fire`: the native spark and
     /// flame births simulated and drawn as lit, emissive, light-casting
     /// sparks and flames with heat haze; emit rules unchanged).
@@ -614,14 +614,14 @@ options! {
         apply [45 store SPARKS_FIRE],
         parse (|old, v| min_u32(old, v, 1));
 
-    /// Animated Water (docs/water.md): off (native: the original's
+    /// Animated Water (docs/notes/graphics/water.md): off (native: the original's
     /// flip-book and scrolling water textures) or on (`render::water`:
     /// flowing, rippled, lit and reflecting fountain basins, pools and
     /// streams, moving falling-water sheets, spray and mist); 2 Realistic
-    /// (docs/water.md "Realistic": screen-space reflections,
+    /// (docs/notes/graphics/water.md "Realistic": screen-space reflections,
     /// refraction and absorption of what lies under the water, caustics,
     /// volumetric-looking jets, wet stone around the basins;
-    /// `render::water_hq`); 3 Next-Gen (docs/water.md "Next-Gen":
+    /// `render::water_hq`); 3 Next-Gen (docs/notes/graphics/water.md "Next-Gen":
     /// the jets breaking into simulated drops, simulated basins,
     /// volumetric mist; `render::water_ng`).
     water: u8 = 0,
@@ -634,7 +634,7 @@ options! {
             v.parse::<u32>().map_or(u8::from(v != "0"), |v| v.min(3) as u8)
         });
 
-    /// Ambient Detail (docs/ambient-detail.md, clone deviation): 0 Off
+    /// Ambient Detail (docs/notes/graphics/ambient-detail.md, clone deviation): 0 Off
     /// (native), 1 On (low-poly street props and litter off the race line,
     /// lit by the lamps and headlights), 2 Next-Gen (also leaves and paper
     /// whirled up by passing cars and the wind, tyre dust on dry roads,
@@ -645,7 +645,7 @@ options! {
         apply [54 store AMBIENT_DETAIL],
         parse (|old, v| min_u32(old, v, 2));
 
-    /// Weather (docs/weather.md): Wet Car (the cars wet with the rain
+    /// Weather (docs/notes/graphics/weather.md): Wet Car (the cars wet with the rain
     /// and road spray), Rain Detail (0 off, 1 On, 2 High: fine lit rain
     /// streaks, ground splashes, wet-air glow around lamps), Spray (wheel
     /// spray and mist behind cars on wet roads), Lens Drops (extra drops on
@@ -674,7 +674,7 @@ options! {
         apply [49 store LENS_DROPS],
         parse bool;
 
-    /// Wet Road Interaction (docs/wet-road-car.md): 0 off, 1 On, 2
+    /// Wet Road Interaction (docs/notes/graphics/wet-road-car.md): 0 off, 1 On, 2
     /// High. Tyre tracks and wakes on the wet road, the cars' lights
     /// reflected in it, puddle splashes, rooster tails, arch spray and
     /// water sheeting off the body. Off = the native look.
@@ -684,7 +684,7 @@ options! {
         apply [50 store WET_INTERACTION],
         parse (|old, v| min_u32(old, v, 2));
 
-    /// Fix Original Model Errors (docs/model-fixes.md): small load-time
+    /// Fix Original Model Errors (docs/notes/graphics/model-fixes.md): small load-time
     /// corrections of errors in the original car and rim models (markers,
     /// UVs, normals, light materials). Off = the files as shipped.
     fix_models: bool = false,
@@ -693,7 +693,7 @@ options! {
         apply [31 store FIX_MODELS],
         parse bool;
 
-    /// HDR Output (docs/hdr.md; Graphics → Display): the swap chain in an
+    /// HDR Output (docs/playing/hdr.md; Graphics → Display): the swap chain in an
     /// HDR signal (PQ or scRGB) where the display offers one. Off = SDR,
     /// the native image.
     hdr_output: bool = false,
@@ -723,7 +723,7 @@ options! {
         apply [36 store HDR_GAMMA],
         parse (|old, v| min_u32(old, v, 2));
 
-    /// Motion Blur's clone tiers (docs/motionblur-dof.md): 0 the
+    /// Motion Blur's clone tiers (docs/notes/graphics/motionblur-dof.md): 0 the
     /// original's speed blur (Customize Display's Motion Blur, native), 1
     /// Camera, 2 Per-Object.
     motion_blur: u8 = 0,
@@ -740,7 +740,7 @@ options! {
         apply [52 store DEPTH_OF_FIELD],
         parse (|old, v| min_u32(old, v, 1));
 
-    /// Photo Mode in Pause Menu (docs/photo-mode.md): the pause menu
+    /// Photo Mode in Pause Menu (docs/playing/photo-mode.md): the pause menu
     /// lists "Photo Mode". Off = the native pause menu.
     photo_mode: bool = false,
         key "enh.photo_mode", presets keep, write 36,
@@ -748,10 +748,10 @@ options! {
         apply [32 store PHOTO_MODE],
         parse bool;
 
-    /// docs/lighting2.md: Headlight Beams — every car's headlights
+    /// docs/notes/graphics/lighting2.md: Headlight Beams — every car's headlights
     /// as a projected beam (soft cone, brighter centre, near cut-off) lighting
     /// the road and walls; the player's with the Lamp Shadows' headlight shadow. Off =
-    /// native (the player's view-9 projector only). Next-Gen car lights (docs/car-lights.md):
+    /// native (the player's view-9 projector only). Next-Gen car lights (docs/notes/graphics/car-lights.md):
     /// 2 Next-Gen — also the car lights in the air (volumetric cones and
     /// halos), tail / brake / underglow light on the road, lens streaks and
     /// the cars lit by each other's lights.
@@ -783,7 +783,7 @@ options! {
         apply [57 store ENHANCED_GLASS],
         parse bool;
 
-    /// docs/surface-maps.md: Surface Detail — 0 Off (native), 1
+    /// docs/notes/graphics/surface-maps.md: Surface Detail — 0 Off (native), 1
     /// Materials (material-ID roughness / specular for the world's
     /// textures), 2 Materials + Normals (with normal maps generated from
     /// the player's own textures). Feeds the headlight projector, Dynamic
@@ -794,7 +794,7 @@ options! {
         apply [58 store SURFACE_DETAIL],
         parse (|old, v| min_u32(old, v, 2));
 
-    /// docs/modern-lighting.md: Modern Lighting — 0 Original (the
+    /// docs/notes/graphics/modern-lighting.md: Modern Lighting — 0 Original (the
     /// baked lighting, native), 1 Low (integrated GPUs), 2 Modern, 3 Modern
     /// + RT (ray-query shadows; Modern where the device cannot trace).
     modern_lighting: u8 = 0,
@@ -816,7 +816,7 @@ options! {
         apply [60 store MODERN_STRENGTH],
         parse (|old, v| v.parse::<u32>().map_or(old, |v| (v.min(100) / 25 * 25) as u8));
 
-    /// docs/modern-extras.md: Low Latency, Replay Cameras and the
+    /// docs/playing/modern-extras.md: Low Latency, Replay Cameras and the
     /// Accessibility rows (QoL: presets leave them alone).
     extras: crate::extras::Extras = crate::extras::Extras::default(),
         key nested, presets keep, write 62,
@@ -824,7 +824,7 @@ options! {
         apply [61 custom |e| { record("extras.apply", &e.extras); e.extras.apply() }],
         parse nested;
 
-    /// docs/controller-support.md: the Controller group (layout,
+    /// docs/playing/controller-support.md: the Controller group (layout,
     /// dead zones, saturation, steering linearity, rumble, pause on
     /// disconnect; QoL: presets leave them alone).
     pad: crate::pad::extras::PadOptions = crate::pad::extras::PadOptions::default(),
@@ -833,7 +833,7 @@ options! {
         apply none,
         parse nested;
 
-    /// Smooth Car Shapes (docs/assets-distance.md; Graphics → Cars):
+    /// Smooth Car Shapes (docs/notes/graphics/assets-distance.md; Graphics → Cars):
     /// low-poly silhouettes rounded at load (`car_smooth`). Off = the
     /// models as shipped.
     smooth_cars: bool = false,
@@ -842,7 +842,7 @@ options! {
         apply [62 store SMOOTH_CARS],
         parse bool;
 
-    /// World Detail Extreme (docs/assets-distance.md): beyond Ultra's
+    /// World Detail Extreme (docs/notes/graphics/assets-distance.md): beyond Ultra's
     /// look-ahead ring, the sections the native lists would show from
     /// within [`FAR_RING`] are drawn with their lowest LOD. Off = native.
     far_draw: bool = false,
@@ -859,7 +859,7 @@ options! {
         apply [64 store TRAFFIC_DENSITY],
         parse (|old, v| min_u32(old, v, 2));
 
-    /// docs/texture-pack-generator.md: World Texture Pack — 0 Off
+    /// docs/modding/texture-pack-generator.md: World Texture Pack — 0 Off
     /// (native), 1 On (the pack generated into the player's data dir; on a
     /// GPU under 8 GB the buildings' textures are held to 2×), 2 Lean (held
     /// to 2× always). Presets leave it alone (the pack is the player's own).
@@ -869,7 +869,7 @@ options! {
         apply [65 call crate::upscale_pack::set_choice],
         parse (|old, v| min_u32(old, v, 2));
 
-    /// docs/loading-image.md: the least time PC_Loading stays up over
+    /// docs/original/loading-image.md: the least time PC_Loading stays up over
     /// the game start's load, ms (opt-in). 0 = the 200 ms rule: shown only
     /// when the start takes over 200 ms, up until it is done.
     /// No menu row yet (options.txt only); presets leave it alone.
@@ -891,7 +891,7 @@ options! {
         apply none,
         parse bool;
 
-    /// docs/start-and-menus.md: Skip Title Screen (QoL, opt-in) — 0 Off
+    /// docs/original/start-and-menus.md: Skip Title Screen (QoL, opt-in) — 0 Off
     /// (native: the title screen, which takes Enter only after its 4 s,
     /// 0x4C564E), 1 On (the profile step where the title stood). 2 is an
     /// older options.txt's "Movies and Title Screen": read as this row On
@@ -903,7 +903,7 @@ options! {
         apply none,
         parse (|old, v| min_u32(old, v, 2));
 
-    /// docs/start-and-menus.md: Skip Intro Movies (QoL, opt-in) — Off
+    /// docs/original/start-and-menus.md: Skip Intro Movies (QoL, opt-in) — Off
     /// (native: the boot movies, which Enter skips), On (each boot movie
     /// passes as a missing movie file does, 0x566250). Independent of
     /// Skip Title Screen. Presets leave it alone.
@@ -945,24 +945,24 @@ pub const CAP_STEPS: [u16; 9] = [0, 30, 60, 75, 90, 120, 144, 165, 240];
 pub const BACKUP_STEPS: [u8; 5] = [0, 1, 3, 5, 10];
 pub const SCALE_STEPS: [u8; 9] = [50, 67, 75, 85, 100, 125, 150, 175, 200];
 pub const AA_STEPS: [u8; 12] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, TAA];
-/// The Anti-Aliasing row's TAA (docs/temporal.md): the temporal pass,
+/// The Anti-Aliasing row's TAA (docs/notes/graphics/temporal.md): the temporal pass,
 /// exclusive with MSAA / SSAA and the post filters.
 pub const TAA: u8 = 11;
 /// Upscaling's render shares: off, Quality, Balanced, Performance.
 /// Off, TAAU Quality / Balanced / Performance, FSR 1 Quality /
-/// Balanced / Performance (docs/modern-extras.md), FSR 2 Native AA /
-/// Quality / Balanced / Performance / Ultra Performance (docs/fsr2.md).
+/// Balanced / Performance (docs/playing/modern-extras.md), FSR 2 Native AA /
+/// Quality / Balanced / Performance / Ultra Performance (docs/notes/graphics/fsr2.md).
 pub const UPSCALE_STEPS: [u8; 12] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
 /// The Upscaling row's last value (FSR 2 Ultra Performance).
 pub const UPSCALE_MAX: u8 = 11;
-/// 3 Next-Gen (docs/atmosphere.md).
+/// 3 Next-Gen (docs/notes/graphics/atmosphere.md).
 pub const VOLUMETRIC_STEPS: [u8; 4] = [0, 1, 2, 3];
 pub const PARTICLE_STEPS: [u8; 4] = [0, 1, 2, 3];
 pub const MSAA_STEPS: [u8; 6] = [0, 1, 2, 4, 8, 16];
 pub const FILTER_STEPS: [u8; 5] = [0, 1, 2, 3, 4];
 /// The tiers' stored values (`frontend::graphics_table`): Off / Low /
 /// Medium / High etc. Each step was measured visibly different
-/// (docs/graphics-settings-audit.md "Tiers"); a saved value between two
+/// (docs/notes/graphics/graphics-settings-audit.md "Tiers"); a saved value between two
 /// maps to the nearest ([`nearest`]).
 pub const SHARPEN_STEPS: [u8; 4] = [0, 25, 75, 100];
 pub const ROAD_REFLECTION_STEPS: [u8; 3] = [0, 1, 2];
@@ -975,7 +975,7 @@ pub const SSAO_STEPS: [u8; 4] = [0, 25, 50, 100];
 /// Detail Distance: 300 % popped no less than 200 % (drive bench), so
 /// 200 % is the top.
 pub const DETAIL_STEPS: [u16; 3] = [100, 150, 200];
-/// docs/pop-in.md: World Detail Ultra / Extreme draw scenery down to
+/// docs/notes/graphics/pop-in.md: World Detail Ultra / Extreme draw scenery down to
 /// this radius in output pixels (a 3-pixel-wide speck), whatever the
 /// Detail Distance percentage gives at the resolution.
 pub const DETAIL_FULL_PX: f32 = 1.5;
@@ -1008,7 +1008,7 @@ pub fn step_in<T: Copy + PartialOrd>(list: &[T], v: T, right: bool) -> T {
 }
 
 impl Enhancements {
-    /// docs/settings-model.md "Engine rules": these values with the
+    /// docs/developing/settings-model.md "Engine rules": these values with the
     /// stacks the conflict audit resolved, as the renderer uses them
     /// ([`Enhancements::apply`]); the settings page shows the same rules
     /// (`frontend::settings_model::RULES`). A no-op on native values.

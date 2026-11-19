@@ -110,7 +110,7 @@ const DRAWS_DECL: &str = "@group(1) @binding(0) var<storage, read> draws: array<
 /// the flat interpolant the vertex stage passes on).
 const DRAW_READS: [&str; 2] = ["draws[draw_index]", "draws[in.draw_index]"];
 
-/// The draw index (docs/perf-car-draw-index.md): a car module form with the draw's
+/// The draw index (docs/notes/performance/car-draw-index.md): a car module form with the draw's
 /// entry index in an immediate (`car_draw`, 4 bytes, set before each draw)
 /// instead of the instance index / flat interpolant. The value is the
 /// same entry; the compiler then knows it is one per draw, so the 560-byte

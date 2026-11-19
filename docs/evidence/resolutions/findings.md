@@ -4,14 +4,14 @@
 camera at the ~161° vertical angle; Wide now keeps the 4:3 vertical angle below 4:3; Stretched keeps the
 original's rule and is listed as a known XFAIL); F2 closed by the 640 × 480 minimum window (320×240 left the
 matrix). The stale mode list and the row naming an unoffered size: fixed (lists per display path, rebuilt on a
-monitor change). Details: docs/resolutions.md "Results / the resolution fixes".
+monitor change). Details: docs/notes/graphics/resolutions.md "Results / the resolution fixes".
 
 Source: `scripts/checks/resolutions.sh` over the whole matrix (26 sizes x {stretched, wide, wide_hudfull on the
 HUD screens} x 15 screens, plus the 8 `mouse_*` shots x {wide, stretched} at every size: 1274 cells) on the
 merge base binary + this work's dump. Per-cell lines in `results.tsv.gz`, the table in `table.md`, the failures by
 check in `causes.txt`, contact sheets `sheet_*.jpg` (five of the 24, this folder; the rest stay in the run directory). Sorted by how many cells a cause breaks.
 "Original" = SPEED2.EXE at its own modes (640x480 ... 1600x1200, 4:3, and 1280x1024): it has no aspect handling
-(canvas stretched 0x5C5030, Vert- 0x5C7ED0; docs/ultrawide.md). Nothing was run under Wine for this work.
+(canvas stretched 0x5C5030, Vert- 0x5C7ED0; docs/playing/ultrawide.md). Nothing was run under Wine for this work.
 
 ## F1 - Portrait (9:16, narrower than 4:3): the 3D view leaves a flat band at the bottom (8 cells; check `flat`)
 
@@ -68,7 +68,7 @@ check in `causes.txt`, contact sheets `sheet_*.jpg` (five of the 24, this folder
   screens (a note, 3 groups per FE screen); no screen hit-tests those groups today.
 * The 21:9 sizes are three different aspects (2.370, 2.389, 2.400); 5:4, 32:9 and 9:16 have one size each: no
   downscale compare for them; their contact sheets were looked at (no defect beyond F1).
-* Real-window display modes (docs/resolutions.md "Display-mode handling"): stale mode list after a monitor
+* Real-window display modes (docs/notes/graphics/resolutions.md "Display-mode handling"): stale mode list after a monitor
   change and a Resolution row naming a size the borderless fallback does not output are **wrong** by
   reading; Wayland fractional scale, exclusive switches and monitor changes are **untested** (need a real
   display; nothing was opened on a desktop).

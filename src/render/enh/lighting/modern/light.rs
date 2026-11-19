@@ -1,5 +1,5 @@
 //! Modern Lighting, phase 1 (clone deviation, opt-in through a hidden
-//! switch; docs/modern-lighting.md). Nothing here is native: SPEED2.EXE
+//! switch; docs/notes/graphics/modern-lighting.md). Nothing here is native: SPEED2.EXE
 //! lights the world with its baked vertex colours only (world.efx
 //! `tex × v0 × 2`).
 //!

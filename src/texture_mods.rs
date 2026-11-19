@@ -1,4 +1,4 @@
-//! Texture mods set up in the launcher (docs/texture-packs.md, "TexMod
+//! Texture mods set up in the launcher (docs/modding/texture-packs.md, "TexMod
 //! packages"): TexMod packages (`.tpf`, or a folder of loose TexMod files)
 //! and TexWizard packs (a folder with `meta.json` and `textures.bin`, or a
 //! ZIP of one) the player has, converted into Overbright's data folder, one
@@ -8,7 +8,7 @@
 //! game shows the original textures (the loader's path is unchanged).
 //!
 //! * A package lives in `<packs>/imported/<id>/` (`platform::dirs::packs`):
-//!   `world/` and `car/` (the pack folders, docs/texture-packs.md),
+//!   `world/` and `car/` (the pack folders, docs/modding/texture-packs.md),
 //!   `import-tpf.tsv` or `import-texwizard.tsv` (the importer's report) and
 //!   `package.txt` (what the launcher shows). The single `imported/{world,car}` an earlier import
 //!   tool run wrote stays the World Texture Pack row's (not in the list).

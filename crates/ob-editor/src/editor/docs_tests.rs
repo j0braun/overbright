@@ -1,4 +1,4 @@
-//! docs/map-editor.md against the code: its Controls table is the key
+//! docs/modding/map-editor.md against the code: its Controls table is the key
 //! table ([`KEYS`] and the tools' keys, both ways), every menu item the
 //! menu bar draws has a `**Menu ▸ Item**` line and every such line names an
 //! item that exists, every [`Command`] is in a menu, and the toolbar's
@@ -13,7 +13,7 @@ fn read(rel: &str) -> String {
 }
 
 fn doc() -> String {
-    read("../../docs/map-editor.md")
+    read("../../docs/modding/map-editor.md")
 }
 
 /// The rows of the table under `## Controls`: (keys without backticks, what).
@@ -72,9 +72,9 @@ fn the_controls_table_is_the_key_table() {
         controls().into_iter().flat_map(|(_, rows)| rows).map(|(k, w)| (k, w.to_string())).collect();
     assert!(code.len() > 20, "{code:?}");
     let missing: Vec<_> = code.iter().filter(|r| !doc.contains(r)).collect();
-    assert!(missing.is_empty(), "keys the editor has but docs/map-editor.md's Controls table lacks: {missing:?}");
+    assert!(missing.is_empty(), "keys the editor has but docs/modding/map-editor.md's Controls table lacks: {missing:?}");
     let stale: Vec<_> = doc.iter().filter(|r| !code.contains(r)).collect();
-    assert!(stale.is_empty(), "Controls rows in docs/map-editor.md the key table does not have: {stale:?}");
+    assert!(stale.is_empty(), "Controls rows in docs/modding/map-editor.md the key table does not have: {stale:?}");
     assert_eq!(doc.len(), code.len(), "every row once");
     assert!(KEYS.iter().all(|b| doc.iter().any(|(k, _)| k == b.keys)));
 }
@@ -91,7 +91,7 @@ fn every_menu_item_and_command_is_documented_and_exists() {
     }
     // Every item drawn has its line in the doc.
     let missing: Vec<_> = items.iter().filter(|(p, _)| !doc.contains(&format!("**{p}**"))).map(|(p, _)| p).collect();
-    assert!(missing.is_empty(), "menu items without a **Menu ▸ Item** line in docs/map-editor.md: {missing:?}");
+    assert!(missing.is_empty(), "menu items without a **Menu ▸ Item** line in docs/modding/map-editor.md: {missing:?}");
     // Every `**Menu ▸ Item**` in the doc names an item that exists (Undo
     // and Redo are drawn with their step's name).
     let mut stale = Vec::new();
@@ -107,7 +107,7 @@ fn every_menu_item_and_command_is_documented_and_exists() {
         }
     }
     stale.dedup();
-    assert!(stale.is_empty(), "docs/map-editor.md names menu items the editor does not have: {stale:?}");
+    assert!(stale.is_empty(), "docs/modding/map-editor.md names menu items the editor does not have: {stale:?}");
 }
 
 #[test]

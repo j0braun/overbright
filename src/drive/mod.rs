@@ -378,7 +378,7 @@ mod tests {
 
     /// PlayerSteering +0x7C: 1/65536 of a turn, truncated toward zero.
     /// The shown rpm (car +0x440) replayed from the original: a COROLLA
-    /// rival's launch (circuit_s1, docs/tuning-physics-parity.md), each
+    /// rival's launch (circuit_s1, docs/notes/parity/tuning-physics-parity.md), each
     /// frame's value from the last one, the engine's speed after the update
     /// and the update's ticks; the fall is held to 2.5 / 0.0002 rpm/s, the
     /// rest closes 55 % a frame. Within 0.02 rpm over 50 frames.

@@ -357,7 +357,7 @@ fn slots_of(meta: &Meta, slot_hashes: &[Option<u32>]) -> Option<Vec<(u32, u32)>>
 }
 
 // ---------------------------------------------------------------------------
-// docs/texture-pack-cache.md: the world arrays with a texture pack
+// docs/modding/texture-pack-cache.md: the world arrays with a texture pack
 // applied, cached in a file of their own beside the track's
 // (`TrackCache::pack_file`), checked against the pack's fingerprint
 // (`texture_pack::fingerprint`, section "pack.key"). The track's own cache

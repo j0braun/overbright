@@ -1,5 +1,5 @@
 # Fixtures regenerated from the player's game files (tests/common/mod.rs, `fixture`;
-# docs/testing.md "Fixture lock"). One line each: name@version sha256 size  # source
+# docs/developing/testing.md "Fixture lock"). One line each: name@version sha256 size  # source
 # The hash is the one of the file the repository carried before; a generator that
 # reproduces it proves the test checks exactly what it checked before.
 burnout-records@1 00d0457864a4a59b25d6c373cd3dc12a7268b50325a6d9c40565409dc662e2ea 448  # SPEED2.EXE VA 0x7EA2B0, 16 x 0x1C records (was docs/evidence/nis-torque/burnout-records.bin)

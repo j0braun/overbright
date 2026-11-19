@@ -89,7 +89,7 @@ pub fn saved_root() -> Option<PathBuf> {
 
 /// Keeps `root` as the game folder, in a portable install relative to the
 /// program folder when on the same drive (`platform::dirs::store_path`;
-/// docs/platform-dirs.md, "Portable mode").
+/// docs/playing/platform-dirs.md, "Portable mode").
 pub fn save_root(root: &Path) -> std::io::Result<()> {
     let root = crate::platform::dirs::store_path(root);
     super::saves::write_atomic(&saved_root_file(), format!("{}\n", root.display()).as_bytes(), false)
@@ -264,7 +264,7 @@ pub fn candidates() -> Vec<PathBuf> {
     unix_candidates()
 }
 
-/// The Windows places, in this order (docs/platform-dirs.md): the
+/// The Windows places, in this order (docs/playing/platform-dirs.md): the
 /// original's registry `Install Dir` values as read (`registry`; the hive
 /// and view are unverified, so each is only a candidate), the installer's
 /// default folder `EA GAMES\Need for Speed Underground 2` under

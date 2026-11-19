@@ -76,7 +76,7 @@ impl WorldRenderer {
         let (passes, layer_of, headlight_layer) =
             plan_shadow_layers(gpu, params, state, lamps, fresh, g14, user_quality, headlight, eye, forward);
 
-        // The clusters' bounds (docs/lamps-shadows.md, "Per-pixel work"):
+        // The clusters' bounds (docs/notes/graphics/lamps-shadows.md, "Per-pixel work"):
         // the cars and lamps a pixel tests, culled per cluster.
         let view = ClusterView { view_proj, eye, forward };
         let spheres = cluster_spheres(view_proj, eye, forward);
@@ -269,7 +269,7 @@ impl WorldRenderer {
     }
 }
 
-/// docs/uncapped-fps.md, "Enhancement effects on ticks": the
+/// docs/original/uncapped-fps.md, "Enhancement effects on ticks": the
 /// lamps' section fades (World Detail Ultra / Extreme with LOD Fade) and
 /// the shadow layers' hand-out (at most [`NEW_LAYERS_PER_FRAME`] new
 /// layers a step), stepped once per world tick with that tick's eye,
@@ -651,7 +651,7 @@ fn upload_beams(
             }
         }
     }
-    // Next-Gen car lights (docs/car-lights.md): the tail / brake
+    // Next-Gen car lights (docs/notes/graphics/car-lights.md): the tail / brake
     // lights and the underglows after the beams (world.wgsl
     // `beam_light`, kinds 2 and 3), within the buffer before the
     // Modern Lighting params record.
@@ -716,7 +716,7 @@ fn write_frame_lamps(
     // native shaders): 1 Materials, 2 Materials + Normals.
     main.cull[2] = f32::from(surface.min(2));
     // NFSU2_SURFACE_DEBUG=1 (with Materials + Normals): the world shows
-    // its shading normals (a review aid; docs/surface-maps.md).
+    // its shading normals (a review aid; docs/notes/graphics/surface-maps.md).
     static DEBUG: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
     if surface >= 2 && *DEBUG.get_or_init(|| crate::render::debug_env::nfsu2_surface_debug()) {
         main.cull[2] = 3.0;

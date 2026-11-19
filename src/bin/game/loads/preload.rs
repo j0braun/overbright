@@ -81,7 +81,7 @@ pub(crate) type PreloadedRenderer =
     (wgpu::Device, wgpu::TextureFormat, WorldRenderer, nfsu2::render::enh::warm::WorldAhead);
 
 /// Loads done ahead, on threads of their own, while the player is in the
-/// menus (docs/native-deviations.md §4: the clone's loads hidden behind the front
+/// menus (docs/playing/native-deviations.md §4: the clone's loads hidden behind the front
 /// end; the game loads only on the track loader's steps). They are the
 /// same calls `drive_in` makes, so what it takes from here is what it
 /// would have loaded itself; it waits for one still running rather than

@@ -1,4 +1,4 @@
-# State hash columns (src/bin/game/dev/state_hash.rs) and which gate counts them (docs/checks.md "Rate gate").
+# State hash columns (src/bin/game/dev/state_hash.rs) and which gate counts them (docs/developing/checks.md "Rate gate").
 #   column  rate    parity
 # rate:   the cross-rate gate (perf.sh rate; ratediff.py). fail = a difference against the reference rate fails the
 #         rate gate; report = shown in the table, never fails; skip = not compared. RATE=strict (the gate's default)
@@ -38,7 +38,7 @@ aud      fail    report
 # any difference counts (the light streaks: the harness is always exact; the window falls back to a cheap form when
 # its offscreen tick draws would cost too much, which the gate does not draw). taa (Extreme with TAA) is the one class that differs by nature: the temporal pass
 # accumulates drawn frames (its sub-pixel jitter and the samples averaged depend on the frames drawn); it counts
-# only over its bound (mean |Δ| per frame, TAA_MEAN, rateimg.py; docs/uncapped-fps.md "Rate independence: what the
+# only over its bound (mean |Δ| per frame, TAA_MEAN, rateimg.py; docs/original/uncapped-fps.md "Rate independence: what the
 # gate guarantees").
 images@orig        fail                   -
 images@step        fail                   -

@@ -1,6 +1,6 @@
 #!/bin/bash
 # The Linux player archive on the common distributions, each in a container (podman, rootless): does it
-# start, find its libraries, check the game, draw frames, show the launcher? docs/building-releases.md, "Linux:
+# start, find its libraries, check the game, draw frames, show the launcher? docs/developing/building-releases.md, "Linux:
 # what a player needs".
 #
 #   run.sh [--keep-images] [--novk | --novk-only] <overbright-…-linux-x86_64.tar.gz | unpacked folder>

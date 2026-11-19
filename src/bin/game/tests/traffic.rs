@@ -559,7 +559,7 @@ fn traffic_circling_soak() {
 /// KNOWN DEFECT, open: on the default stream one traffic car (a PARCELVAN)
 /// "circles" about 80 s into the race on track 4014; other world streams
 /// (`NFSU2_TRAFFIC_SEED` 1-5) pass. Traced (`SOAK_TRACE`,
-/// docs/race-ai-parity.md "The traffic walk's turns"): not the walk — the car's walk runs
+/// docs/notes/parity/race-ai-parity.md "The traffic walk's turns"): not the walk — the car's walk runs
 /// straight down record 11 throughout. The car is on the BeltMover (mode 4,
 /// the world under it not loaded) in "Avoid Cars", which asks for 0 (a car
 /// on the next lane within 15 m, 0x424CB0); the belt built with target 0
@@ -567,7 +567,7 @@ fn traffic_circling_soak() {
 /// velocity 0.4 s ahead (0x59EC90 → 0x591B80), turns round 0.1 s after
 /// each think's rebuild — the original does the same (observed: belt cars
 /// reaching 0 flip by 180° and run backwards). What differs is how often:
-/// measured alike (throttle only from the green, docs/race-ai-parity.md
+/// measured alike (throttle only from the green, docs/notes/parity/race-ai-parity.md
 /// "Belt cars in "Avoid Cars"") the clone's race belt cars spend 38 % of their time in "Avoid
 /// Cars", 10 % of that under 3 m/s; the original's 9 % and 4 % (four runs,
 /// 1.6–17 %). The rules match (0x4145B0, 0x424CB0, 0x41CD10, 0x402ED0 re-read);
@@ -1245,6 +1245,23 @@ fn watch_walks(t: &Traffic, walks: &mut [(Passed, Option<Vec2>)], modes: &mut Mo
                 u8::from(c.held)
             )
         };
+        // TURN_ENTRIES=<file>: each car's road entries from its last think
+        // (`frame slot entries`, trafwalk's entries format; own entry `*`,
+        // then the lateral off the car's lane and the entry's walk step).
+        thread_local! {
+            static ENT: std::cell::RefCell<Option<std::io::BufWriter<std::fs::File>>> =
+                std::cell::RefCell::new(std::env::var("TURN_ENTRIES").ok().and_then(|p| std::fs::File::create(p).ok()).map(std::io::BufWriter::new));
+        }
+        ENT.with(|e| {
+            let mut e = e.borrow_mut();
+            let Some(e) = e.as_mut() else { return };
+            for i in 0..t.cars.len() {
+                if let Some(line) = nfsu2::ai::traffic::probe::take(i) {
+                    let _ = writeln!(e, "{n}\t{i}\t{line}");
+                }
+            }
+            let _ = e.flush();
+        });
         for (i, c) in t.cars.iter().enumerate() {
             // A paused car with its walk is listed by its mover, as
             // trafwalk lists the original's coasting parked cars.

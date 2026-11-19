@@ -6,7 +6,7 @@
 //! takes the new zone within 8 updates at every rate. Before, the draw
 //! count's phase at the updates could skip every lookup at 120/240 Hz.
 use super::*;
-// The test kit (tests/common/mod.rs, docs/testing.md).
+// The test kit (tests/common/mod.rs, docs/developing/testing.md).
 #[path = "../../../../tests/common/mod.rs"]
 mod testkit;
 

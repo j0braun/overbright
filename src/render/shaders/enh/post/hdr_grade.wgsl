@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------
-// HDR Output (clone deviation, off by default; docs/hdr.md): the grade
+// HDR Output (clone deviation, off by default; docs/playing/hdr.md): the grade
 // (screenfilter.efx's three passes) captured as a 32³ LUT, the strip
 // LUT_N² × LUT_N bound in `rampmap`'s place (texel (r + LUT_N·b, g) is
 // the native grade of the 8-bit colour (k(r), k(g), k(b)), k(i) =
@@ -9,7 +9,7 @@
 const LUT_N: u32 = 32u;
 
 // 0: trilinear interpolation (8 texels; measured closer to the native
-// passes over all 2^24 colours, docs/hdr.md), 1: tetrahedral (4).
+// passes over all 2^24 colours, docs/playing/hdr.md), 1: tetrahedral (4).
 override TETRA: bool = false;
 
 fn lattice_code(i: u32) -> f32 {

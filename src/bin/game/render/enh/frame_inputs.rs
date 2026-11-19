@@ -136,7 +136,7 @@ pub(crate) fn rt_cars<'a>(
     out
 }
 
-/// Volumetric Fog (docs/atmosphere.md) for a frame of the game's scene
+/// Volumetric Fog (docs/notes/graphics/atmosphere.md) for a frame of the game's scene
 /// drawn from `camera` into `depth`: the one froxel medium at the row's tier
 /// (Low, High, Next-Gen: the tier's grid, range and light counts), its lights
 /// the nearest light-pack lamps and signs, the Next-Gen car lights' cones (or,
@@ -208,7 +208,7 @@ pub(crate) fn volumetric_frame(
     })
 }
 
-/// Next-Gen car lights (docs/car-lights.md): the headlight cones and
+/// Next-Gen car lights (docs/notes/graphics/car-lights.md): the headlight cones and
 /// lamp halos in the air and the lens streaks for a frame drawn from
 /// `camera` into `depth` (None with the tier off or no car lights).
 #[allow(clippy::too_many_arguments)]
@@ -250,7 +250,7 @@ pub(crate) fn car_air_frame(
     })
 }
 
-/// Every drawn car's lights for this frame, docs/car-lights.md
+/// Every drawn car's lights for this frame, docs/notes/graphics/car-lights.md
 /// (`render::car_lights`; nothing with the tier off): the light markers, the
 /// headlight colour, the brake flag (car +0x944, held 0.5 s for the racers
 /// as `glow_quads` reads it) and the underglow with a drawn `%s_NEON`.
@@ -311,7 +311,7 @@ pub(crate) fn atmosphere_drive(v: &mut Option<nfsu2::render::volumetric::Frame>,
     }
 }
 
-/// Animated Water (docs/water.md): the world's main view leaves its
+/// Animated Water (docs/notes/graphics/water.md): the world's main view leaves its
 /// water draws to `render::water` while the row is on; this picks the
 /// frame's water and writes its view (the eight light-pack lamps nearest
 /// the eye, the car cube unless it is off, the world clock). Off: the
@@ -376,7 +376,7 @@ pub(crate) fn water_prepare(
 }
 
 /// The cars as boxes for Contact Shadows and Lamp Shadows (clone
-/// deviations, docs/lamps-shadows.md), the player's first (the headlight's
+/// deviations, docs/notes/graphics/lamps-shadows.md), the player's first (the headlight's
 /// own car); empty when both are off.
 /// `seconds`: the neon's clock ([`nfsu2::shadow::neon_color`]).
 pub(crate) fn car_occluders(

@@ -5,7 +5,7 @@ use crate::render::*;
 /// A buffer created initialised to zeros (mapped at creation, unmapped at
 /// once): the rule for every buffer the main thread writes with
 /// `queue.write_buffer` while render threads may submit command buffers
-/// that use it (docs/perf-main-thread.md §1). wgpu-core 30
+/// that use it (docs/notes/performance/main-thread.md §1). wgpu-core 30
 /// zero-fills a resource's uninitialised ranges at submission *after* the
 /// pending writes it takes then (a write landing in that window is wiped)
 /// and its init-status lock and the device trackers are taken in opposite

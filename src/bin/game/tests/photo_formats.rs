@@ -4,7 +4,7 @@
 //! format and read back as RGBA8 (`render::read_back_rgba8`). A real free
 //! roam (the player's game files), drawn offscreen.
 use super::*;
-// The test kit (tests/common/mod.rs, docs/testing.md).
+// The test kit (tests/common/mod.rs, docs/developing/testing.md).
 #[path = "../../../../tests/common/mod.rs"]
 mod testkit;
 

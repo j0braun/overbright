@@ -1,4 +1,4 @@
-//! The rate gate's flows (docs/checks.md "Rate gate"): `--flow menus`,
+//! The rate gate's flows (docs/developing/checks.md "Rate gate"): `--flow menus`,
 //! `--flow garage`, `--flow scenes`. Each is a fixed script of keys at
 //! world-update (tick) indices, driven tick by tick (`ticks::Frames`) in
 //! drawn frames on the rate run's schedule (`NFSU2_RATE`; without it 1/60 s

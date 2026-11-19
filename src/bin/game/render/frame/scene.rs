@@ -74,7 +74,7 @@ pub(crate) fn native_speed_blur(switches: Switches, tier: impl FnOnce() -> u8) -
 /// Fire's tiers (the births recorded), Wet Road Interaction and the
 /// weather rows (the spray, the trail map, the wet cars). A setting changed
 /// between a tick and a frame is drawn from the next tick on, with the
-/// state stepped with it (docs/frame-settings.md).
+/// state stepped with it (docs/developing/frame-settings.md).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) struct Stepped {
     pub(crate) switches: Switches,
@@ -343,7 +343,7 @@ fn place_markers(
 
 /// The cars' environment cube (g_CarEnvironmentMapEnable).
 ///
-/// docs/uncapped-fps.md, "Environment cube on ticks": the window's
+/// docs/original/uncapped-fps.md, "Environment cube on ticks": the window's
 /// faces follow the ticks, not the drawn frames. A frame renders, for
 /// each tick since the cube's last one up to the tick it draws
 /// (`env.drawn`), the faces due at that tick (0x5C397B, counter 0x870818 =
@@ -454,7 +454,7 @@ impl WorldScene<'_, '_> {
             WorldPass::Cars => self.cars(),
             WorldPass::RearView => self.rear_view()?,
             WorldPass::CharactersUnderAo => {
-                // docs/glow-darkening.md: the Graphics page's ambient
+                // docs/notes/graphics/car-look.md "Darkening settings against emissive light and the car's shadow": the Graphics page's ambient
                 // occlusion multiplies the lit scene only — the world, the cars
                 // and (drawn before the shadows then) the characters — before
                 // the additive layers drawn from here on (the shadow texture and
@@ -912,7 +912,7 @@ impl WorldScene<'_, '_> {
         drop(sub);
     }
 
-    /// The clone's motion blur and depth of field (docs/motionblur-dof.md)
+    /// The clone's motion blur and depth of field (docs/notes/graphics/motionblur-dof.md)
     /// on the lit scene, before the additive layers; a still's
     /// motion blur is the motion over the shutter taken from the
     /// velocities.
@@ -921,7 +921,7 @@ impl WorldScene<'_, '_> {
         let SceneCtx { gpu, post, color, depth, d, camera, game, encoder, .. } = &mut self.c;
         let cars = DrawnCars::of(game, CarSet { paused_race: inp.paused_fallback, traffic: TrafficSet::Live });
         let key = temporal_key(game.mode, inp.mover, game.shop_scene.is_some());
-        // Under FSR 2 (docs/fsr2.md) after the upscaler, on the
+        // Under FSR 2 (docs/notes/graphics/fsr2.md) after the upscaler, on the
         // display image (FSR 2's guide; below, before the late sprites).
         if !inp.blur_after_upscale {
             blur_and_dof(

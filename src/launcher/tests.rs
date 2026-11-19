@@ -237,16 +237,19 @@ fn focus_order_and_arrow_moves() {
     let env = FakeEnv;
     for (w, h) in SIZES {
         let mut a = app(&env, &fonts, Screen::Main, w, h, 1.0);
-        assert_eq!(a.ui.focus_order(), ["play", "row_graphics", "row_screen", "row_mods"], "{w}x{h}");
+        assert_eq!(a.ui.focus_order(), ["details", "play", "row_graphics", "row_screen", "row_mods"], "{w}x{h}");
         assert_eq!(focus(&a), "play", "the default focus");
         key(&mut a, &fonts, Key::Tab);
         assert_eq!(focus(&a), "row_graphics", "Tab from Play: the first row");
         key(&mut a, &fonts, Key::BackTab);
         key(&mut a, &fonts, Key::BackTab);
-        assert_eq!(focus(&a), "row_mods", "Shift+Tab wraps");
+        assert_eq!(focus(&a), "details", "Shift+Tab from Play: the game check above it");
         a.st.focus = Some("play");
         key(&mut a, &fonts, Key::Up);
-        assert_eq!(focus(&a), "play", "no wrap at the top");
+        assert_eq!(focus(&a), "details", "Up from Play: the game check");
+        key(&mut a, &fonts, Key::Up);
+        assert_eq!(focus(&a), "details", "no wrap at the top");
+        a.st.focus = Some("play");
         for want in ["row_graphics", "row_screen", "row_mods"] {
             key(&mut a, &fonts, Key::Down);
             assert_eq!(focus(&a), want, "{w}x{h}: Down");
@@ -2648,10 +2651,10 @@ fn portable_off_keeps_the_home_settings_byte_identical() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
-/// The movies on the check screen: missing movies alone make "Ready · some
-/// movies will not play" (not "files not the original ones"), the list
-/// opens and closes with its button, and its lines are the report's
-/// groups (the same report as `--check-game`).
+/// The movies on the check screen: missing movies alone make "Ready, some
+/// movies won't play" (not "changed game files"), the details open and
+/// close with their button, and the summary's counts are the asset
+/// report's groups (the same report as `--check-game`).
 #[test]
 fn check_screen_lists_the_movies() {
     use super::model::{Verdict, check_result, fake_assets};
@@ -2659,25 +2662,184 @@ fn check_screen_lists_the_movies() {
     let fonts = Fonts::new();
     let env = FakeEnv;
     let root = FakeEnv::root();
-    let c = setup::Check { assets: Some(fake_assets(&root, &["Scene05", "DriftTut"])), ..Default::default() };
+    let report = fake_assets(&root, &["Scene05", "DriftTut"]);
+    let c = setup::Check { assets: Some(report.clone()), ..Default::default() };
     let r = check_result(&root, &c, None);
     assert_eq!(r.verdict(), Verdict::Notes, "{r:?}");
-    assert!(!r.files_differ && r.usable, "{r:?}");
-    assert!(r.assets.iter().any(|(m, t)| *m == Mark::Warn && t.contains("missing: Scene05")), "{:?}", r.assets);
+    assert_eq!(r.state(), super::check::CheckState::MoviesMissing, "{r:?}");
+    let s = r.summary.as_ref().unwrap();
+    // The summary's counts are the report's groups.
+    for (g, (_, line)) in s.groups.iter().zip(report.groups()) {
+        let want = if g.missing.is_empty() {
+            format!("{}: all {} found", g.group.words(), g.total)
+        } else {
+            format!("{}: {} of {} found; missing: {}", g.group.words(), g.found, g.total, g.missing.join(", "))
+        };
+        assert!(line.starts_with(&want), "{line} / {want}");
+    }
+    assert_eq!(s.groups.len(), report.groups().len());
+    assert_eq!(s.movies_missing(), 2);
     let fine = setup::Check { assets: Some(fake_assets(&root, &[])), ..Default::default() };
     assert_eq!(check_result(&root, &fine, None).verdict(), Verdict::Ready);
     for (w, h) in SIZES {
-        let a = super::headless::state_app(&env, &fonts, "check-movies-missing", w, h, 1.0).unwrap();
+        let a = super::headless::state_app(&env, &fonts, "check-details", w, h, 1.0).unwrap();
         let t = all_text(&a);
-        assert!(t.contains("some movies will not play") && t.contains("Story movies"), "{w}x{h}: {t}");
+        assert!(t.contains("some movies won't play") && t.contains("Story movies"), "{w}x{h}: {t}");
         let mut ui = a.ui.clone();
         ui.view.h = ui.content_h.max(ui.view.h);
-        check_layout(&ui, &fonts, &format!("check-movies-missing {w}x{h}"));
+        check_layout(&ui, &fonts, &format!("check-details {w}x{h}"));
     }
-    let mut a = super::headless::state_app(&env, &fonts, "check-ok", 1280, 720, 1.0).unwrap();
-    assert!(!all_text(&a).contains("Story movies"));
-    assert!(a.ui.get("show_assets").is_some());
-    a.model.show_assets = !a.model.show_assets;
-    a.rebuild(&fonts);
-    assert!(all_text(&a).contains("Story movies"));
+    let mut a = super::headless::state_app(&env, &fonts, "check-movies-missing", 1280, 720, 1.0).unwrap();
+    assert!(!all_text(&a).contains("Story movies"), "the details are closed at first");
+    assert!(a.ui.get("details").is_some());
+    click(&mut a, &fonts, "details");
+    assert!(all_text(&a).contains("Story movies") && all_text(&a).contains("Hide details"));
+    assert_eq!(focus(&a), "details_list", "the list takes the focus");
+    key(&mut a, &fonts, Key::ActionY);
+    assert!(!all_text(&a).contains("Story movies"), "Y / R closes them again");
+}
+
+/// Each state of the game check: its title, the focused button (only
+/// the error states and the unrecognised copy move it off Use), no
+/// engineer's words, and the details by pad at the smallest size.
+#[test]
+fn check_states_words_and_focus() {
+    use super::check;
+    let fonts = Fonts::new();
+    let env = FakeEnv;
+    let states = [
+        ("check-ok", check::READY, "use"),
+        ("check-movies-missing", check::MOVIES_MISSING, "use"),
+        ("check-details", check::MOVIES_MISSING, "use"),
+        ("check-changed", check::CHANGED, "use"),
+        ("check-unknown-edition", check::UNKNOWN, "another"),
+        ("check-no-english", "The game's text file is missing", "another"),
+        ("err-missing", "Some game files are missing", "recheck"),
+    ];
+    // Words a player cannot act on: they stay in `--check-game` and the
+    // support file.
+    let banned = ["layout", "suffix", "SPEED2.EXE", "fallback", "known release", "edition's names", "_fr", "vp6"];
+    let hex = |t: &str| t.split(|c: char| !c.is_ascii_hexdigit()).any(|w| w.len() >= 16);
+    for (state, title, focused) in states {
+        for (w, h) in SIZES {
+            let mut a = super::headless::state_app(&env, &fonts, state, w, h, 1.0).unwrap();
+            let t = all_text(&a);
+            assert!(t.contains(title), "{state} {w}x{h}: {t}");
+            assert_eq!(focus(&a), focused, "{state} {w}x{h}");
+            if state.starts_with("check-movies") || state == "check-details" {
+                assert!(!t.contains("discs"), "{state}: no advice to copy from discs");
+            }
+            assert!(!t.contains("English for now"), "{state}: no promise");
+            if a.ui.get("details").is_some() && !a.model.show_details {
+                click(&mut a, &fonts, "details");
+            }
+            let t = all_text(&a);
+            for b in banned {
+                assert!(!t.contains(b), "{state} {w}x{h}: shows {b:?}: {t}");
+            }
+            assert!(!hex(&t), "{state}: a hash on the screen: {t}");
+        }
+    }
+    // The unrecognised copy is asked about: Use it anyway, not by default.
+    let a = super::headless::state_app(&env, &fonts, "check-unknown-edition", 1280, 720, 1.0).unwrap();
+    assert!(a.ui.get("use").is_some() && a.ui.get("support").is_some());
+    // The text file is named; the copy's language is said.
+    let a = super::headless::state_app(&env, &fonts, "check-no-english", 1280, 720, 1.0).unwrap();
+    let t = all_text(&a);
+    assert!(t.contains("LANGUAGES/English.bin") && t.contains("French"), "{t}");
+    assert!(a.ui.get("use").is_none(), "the game does not start without it");
+    // The details list scrolls to its last row by pad at the smallest size.
+    let mut a = super::headless::state_app(&env, &fonts, "check-details", 640, 480, 1.0).unwrap();
+    a.st.focus = Some("details_list");
+    let n = a.model.check.as_ref().unwrap().summary.as_ref().unwrap().details().len();
+    for _ in 0..n + 2 {
+        key(&mut a, &fonts, Key::Down);
+    }
+    assert_eq!(a.model.details_sel, n - 1, "the last row reached");
+    let last = a.model.check.as_ref().unwrap().summary.as_ref().unwrap().details()[n - 1].1.clone();
+    assert!(all_text(&a).contains(&last), "the last row is shown: {last}");
+}
+
+/// A summary row opens the details at its area; the main screen keeps
+/// the summary behind a closed drop-down.
+#[test]
+fn summary_rows_open_their_area() {
+    let fonts = Fonts::new();
+    let env = FakeEnv;
+    let mut a = super::headless::state_app(&env, &fonts, "check-movies-missing", 1280, 720, 1.0).unwrap();
+    click(&mut a, &fonts, "sum_movies");
+    assert!(a.model.show_details);
+    let s = a.model.check.as_ref().unwrap().summary.clone().unwrap();
+    assert!(s.details()[a.model.details_sel].1.starts_with("Start movies"), "{:?}", s.details());
+    let mut a = app(&env, &fonts, Screen::Main, 1280, 720, 1.0);
+    assert!(!all_text(&a).contains("Game files"), "closed by default");
+    click(&mut a, &fonts, "details");
+    let t = all_text(&a);
+    assert!(t.contains("Game files") && t.contains("Movies") && t.contains("Edition"), "{t}");
+}
+
+/// The check's summary: the known release, a changed one (a mod: some
+/// files still the known release's) and one not recognised (none are);
+/// the text file alone missing is its own refusal.
+#[test]
+fn check_summary_release_and_text() {
+    use super::check::{CheckState, Release};
+    let ok = super::headless::fake_check(&[], &[], &[], false);
+    assert_eq!(ok.summary.as_ref().unwrap().release, Release::Known);
+    assert_eq!(ok.state(), CheckState::Ready);
+    let changed = super::headless::fake_check(&[], &["GLOBAL/GlobalB.lzc"], &[], false);
+    assert_eq!(changed.summary.as_ref().unwrap().release, Release::Changed(vec!["GLOBAL/GlobalB.lzc".into()]));
+    assert_eq!(changed.state(), CheckState::Changed);
+    let unknown = super::headless::fake_check(&[], &[], &[], true);
+    assert_eq!(unknown.state(), CheckState::UnknownEdition);
+    assert!(unknown.usable, "asked about, not refused");
+    // A copy with another language's text only: the game folder's look,
+    // its text file missing.
+    let dir = std::env::temp_dir().join(format!("ob-check-text-{}", std::process::id()));
+    for d in ["GLOBAL", "FRONTEND", "TRACKS", "LANGUAGES"] {
+        std::fs::create_dir_all(dir.join(d)).unwrap();
+    }
+    for f in ["GLOBAL/GlobalB.lzc", "FRONTEND/FrontB.lzc", "LANGUAGES/French.bin"] {
+        std::fs::write(dir.join(f), b"").unwrap();
+    }
+    let c = crate::qol::setup::Check {
+        missing: vec![super::check::TEXT_FILE.into()],
+        different: Vec::new(),
+        assets: Some(crate::game_assets::scan(&dir)),
+    };
+    let r = super::model::check_result(&dir, &c, None);
+    assert_eq!(r.problem, Some(super::model::Problem::NoText), "{r:?}");
+    assert_eq!(r.issue(), Some(super::model::Issue::NoText { others: vec!["French".into()] }));
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// docs/troubleshooting.md's game check table names the screen's titles.
+#[test]
+fn troubleshooting_table_matches_the_check_screen() {
+    use super::check;
+    // Read at run time (the public tree's docs, not built into the test).
+    let doc = std::fs::read_to_string(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("docs").join("troubleshooting.md"))
+        .expect("docs/troubleshooting.md");
+    let at = doc.find("## What the game check says").expect("the game check section");
+    let section = &doc[at..];
+    let section = &section[..section[3..].find("\n## ").map_or(section.len(), |i| i + 3)];
+    let titles: Vec<String> = section
+        .lines()
+        .filter(|l| l.starts_with("| ") && !l.starts_with("| What") && !l.starts_with("|---"))
+        .map(|l| l.trim_start_matches("| ").split(" |").next().unwrap().trim().to_string())
+        .collect();
+    let want: Vec<String> = [
+        check::READY.to_string(),
+        check::MOVIES_MISSING.to_string(),
+        check::MENUS_MISSING.to_string(),
+        check::CHANGED.to_string(),
+        check::UNKNOWN.to_string(),
+        super::model::Issue::NoText { others: Vec::new() }.words().title,
+        super::model::Issue::Missing { files: Vec::new() }.words().title,
+        super::model::Issue::NoGame.words().title,
+        super::model::Issue::OwnFolder.words().title,
+        super::model::Issue::Unreadable.words().title,
+    ]
+    .to_vec();
+    assert_eq!(titles, want, "the table's first column, in the screen's order");
 }

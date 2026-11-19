@@ -1,6 +1,6 @@
 # scripts/checks/layering.sh rule 5: the global settings reads left in render code, one per line:
 # <file><TAB><the line's text, trimmed>. Shrinks as reads move onto FrameSettings; never grows.
-# A drawn frame's and a tick's reads all come in as values (docs/frame-settings.md); what is left, and why:
+# A drawn frame's and a tick's reads all come in as values (docs/developing/frame-settings.md); what is left, and why:
 #   src/render/core/gpu.rs                      start-up: the device's caps written into the store
 #   src/render/enh/lighting/rt/scene.rs         start-up: the rows as chosen decide the device's features
 #   src/render/native/display/present.rs        pacing: the frame cap of the frame loop, not a frame read

@@ -2,7 +2,7 @@
 //! (docs/native-fixes/N-FE-2.tsv; docs/formats.md "Native front-end fixes,
 //! part 2"), on sandbox profiles (`test_isolation`).
 use super::*;
-// The test kit (tests/common/mod.rs, docs/testing.md).
+// The test kit (tests/common/mod.rs, docs/developing/testing.md).
 #[path = "../../../../tests/common/mod.rs"]
 mod testkit;
 
@@ -140,7 +140,7 @@ fn carbon_convert_asks_first() {
 /// (the view's only way in besides the idle tour), and under Wine the
 /// question's frames match the strip's frame outside the dialog (dimmed to
 /// 0.40, correlation 0.99 to 1.00), Yes leaves the previous list's view on
-/// (docs/car-materials.md, "The camera under the convert question").
+/// (docs/notes/graphics/car-materials.md, "The camera under the convert question").
 #[test]
 #[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
 fn carbon_convert_keeps_the_view() {

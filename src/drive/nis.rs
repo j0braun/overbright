@@ -1,7 +1,7 @@
 //! The scene car mover (mode 5, NISMover): the target setter 0x5A40B0, the
 //! target application 0x5A44B0 (separate momentum and cached velocity are
 //! intentional: the impulse branch refreshes neither cache) and the mover's
-//! frame 0x5AB3D0, driving the race-start scene cars (docs/nis-mover.md).
+//! frame 0x5AB3D0, driving the race-start scene cars (docs/original/nis-mover.md).
 use glam::{Mat3, Quat, Vec2, Vec3};
 
 #[derive(Clone, Copy, Debug)]
@@ -87,7 +87,7 @@ fn capped(vector: Vec3, maximum: f32) -> Vec3 {
 // post 0x5AB890/0x5AB1A0/0x5A3710 (wheel spin overwrite, suspension) and
 // the NIS force pass 0x5AB140 -> 0x5AB550 (tyre loads along the body's up
 // only: the x/y tyre forces are zeroed at 0x5AB806) -> 0x5A46B0 (authored
-// body torque). See docs/nis-mover.md for what is traced and what is not.
+// body torque). See docs/original/nis-mover.md for what is traced and what is not.
 
 use super::{CarState, GRAVITY, ANGULAR_DAMPING, REST_DAMPING, sample, inertia_of};
 
@@ -104,7 +104,7 @@ pub const SCENE_FRAME: f32 = 1.0 / 30.0;
 pub const SUBSTEP: f32 = 0.014285714365541935;
 
 /// The 30 fps schedule of a scene car whose scene runs at the display's
-/// rate (the shops' drive-in / drive-out: docs/native-deviations.md "High
+/// rate (the shops' drive-in / drive-out: docs/playing/native-deviations.md "High
 /// refresh rates"; the original runs every scene under its 1/30 s limiter).
 /// The mover takes the steps a 30 fps run takes, whatever the world's
 /// updates: each step's frame time from the limiter's clock

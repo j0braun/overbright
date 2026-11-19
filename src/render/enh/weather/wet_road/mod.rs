@@ -1,7 +1,7 @@
-//! Wet Road Interaction (clone deviation, opt-in; docs/wet-road-car.md):
+//! Wet Road Interaction (clone deviation, opt-in; docs/notes/graphics/wet-road-car.md):
 //! the cars interact with the wet road. Nothing here is native: car.efx and
-//! worldreflect have no input for it (docs/car-raindrops.md,
-//! docs/wet-roads-ssr.md), so the original draws a wet road the same with
+//! worldreflect have no input for it (docs/notes/graphics/car-look.md "Spots like raindrops on a dry car",
+//! docs/notes/graphics/reflections.md "Wet Roads and Screen-Space Reflections"), so the original draws a wet road the same with
 //! or without cars on it. What it follows is native: the rain's amount
 //! (weather +0x1F0), the road's wetness from the rain (`Weather::road_wet`,
 //! the +0x509C rule from 0 at load), the world clock 0x7FB718, the cars'

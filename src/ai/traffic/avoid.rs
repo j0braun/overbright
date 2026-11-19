@@ -51,8 +51,9 @@ pub(super) struct Avoid {
 
 /// One of the controller's road entries (0x6148F0, 0x30 bytes at planner
 /// +0x08, the planner being controller +0x54; verified): the object's
-/// velocity less the car's in the frame of the walk's current point
-/// (rotated by 0x4000 − its angle): +0x00 to the right, +0x04 along
+/// velocity in the frame of its own walk point less the car's in the frame
+/// of the car's (each rotated by 0x4000 − the point's angle): +0x00 to the
+/// right, +0x04 along
 /// (closing while negative); its box's half extents across (+0x08) and
 /// along (+0x0C) the car's heading — cos²Δ·half y + sin²Δ·half x and the
 /// other way round, Δ the object's forward against the car's heading
@@ -78,6 +79,8 @@ pub(super) struct Entry {
     /// The walk point it is placed at, and its lateral off that point's
     /// line (right positive).
     pub(super) step: usize,
+    /// The walk point's metres along its control point (+0x58).
+    pub(super) d: f32,
     pub(super) lateral: f32,
     /// The walk point's per-lane offsets (FuturePoint +0x04, +0x08..+0x14:
     /// lane 0, lanes 2–5), which 0x4123C0 subtracts.
@@ -211,15 +214,19 @@ pub(super) const AVOID_STANDING: f32 = 0.5;
 impl TrafficLane {
     /// The road entries (0x6148F0, run by the path build 0x428720 on each
     /// think): the car's own and every object within the reach
-    /// ([`ENTRY_REACH`]), in the frame of the walk's current point.
-    /// 0x6148F0's race-coordinate test (|0x5D5CE0| ≤ 3 × the reach) is
+    /// ([`ENTRY_REACH`], 3D from the car, 0x61498C..0x614C17). The relative
+    /// velocity (+0x00 right, +0x04 along) is each one's velocity turned
+    /// into the frame of its own walk point (0x419C10's, 0x614D78..
+    /// 0x614EA7: 0x40ADD0, the point's control point's direction of travel)
+    /// less the car's turned into the frame of the car's point on its lane
+    /// (0x419BC0, 0x6149E5..0x614ADF; verified 2026-11-19 — the clone once
+    /// turned both by the walk's first control point, which on a bend made
+    /// an oncoming car's closing speed and side wrong). 0x6148F0's race-coordinate test (|0x5D5CE0| ≤ 3 × the reach) is
     /// not applied (the clone's traffic carries no +0x8FC; it reads 0 in
     // prov: inferred ai.traffic.entries
     /// free roam, **inferred** for races).
     pub(super) fn entries(&self, f: &RouteFile, own: &Other, speed: f32, others: &[Other]) -> Vec<Entry> {
         let Some(&s0) = self.steps.front() else { return Vec::new() };
-        let dir = f.direction(s0.record, s0.cp, s0.backward);
-        let right = Vec2::new(dir.y, -dir.x);
         let reach = ENTRY_REACH.max(ENTRY_REACH_TIME * speed);
         let heading = own.forward.normalize_or_zero();
         // The walk from the car's own point (its first).
@@ -227,29 +234,50 @@ impl TrafficLane {
         let first = walk.iter().position(|w| w.step == 0).unwrap_or(0) + self.lead.0;
         walk.drain(..first.min(walk.len().saturating_sub(1)));
         let places = self.walk_places(f, &walk);
+        // A walk point's frame: (right, along) by its control point's
+        // direction of travel.
+        let frame = |w: &WalkPoint, v: Vec2| {
+            let st = self.steps[w.step];
+            let d = f.direction(st.record, st.cp, st.backward);
+            Vec2::new(v.dot(Vec2::new(d.y, -d.x)), v.dot(d))
+        };
+        // The car's point on its own lane (0x419BC0 with the planner's lane).
+        let li = WALK_LANES.iter().position(|&l| l == s0.lane).unwrap_or(0);
+        let lane_places: Vec<(Vec2, f32)> =
+            walk.iter().zip(&places).map(|(w, p)| (self.walk_place(f, w, li), p.1)).collect();
+        let mine = frame(&walk[nearest_place(&lane_places, own.position, own.z)], own.velocity);
         let entry = |o: &Other| {
             let c = o.forward.normalize_or_zero().dot(heading);
             let k = c * c;
-            let rel = o.velocity - own.velocity;
             let at = nearest_place(&places, o.position, o.z);
             let w = walk[at];
             let st = self.steps[w.step];
+            let rel = frame(&w, o.velocity) - mine;
             Entry {
-                side: rel.dot(right),
-                closing: rel.dot(dir),
+                side: rel.x,
+                closing: rel.y,
                 across: k * o.half.y + (1.0 - k) * o.half.x,
                 along: (1.0 - k) * o.half.y + k * o.half.x,
                 // +0x54 − +0x58 + the distance along its control point.
                 s: w.s - w.d + f.along(st.record, st.cp, st.backward, o.position),
                 step: w.step,
+                d: w.d,
                 lateral: f.lateral(st.record, st.cp, st.backward, o.position),
                 x: w.x,
                 other: *o,
             }
         };
-        std::iter::once(entry(own))
-            .chain(others.iter().filter(|o| o.position.distance(own.position) <= reach).map(entry))
-            .collect()
+        let out: Vec<Entry> = std::iter::once(entry(own))
+            .chain(
+                others
+                    .iter()
+                    .filter(|o| o.position.extend(o.z).distance(own.position.extend(own.z)) <= reach)
+                    .map(entry),
+            )
+            .collect();
+        #[cfg(feature = "dev-harness")]
+        probe::record(self, f, own.id, &out);
+        out
     }
 
     /// Each walk point's place on lane 0 (0x4122C0 at its +0x54, lane 0:
@@ -359,10 +387,9 @@ impl TrafficLane {
         }
     }
 
-    /// 0x4146C0: whether the car may take lane `l` (2–5): the lane exists
-    /// where it is (0x412500 → 0x40AE90: the record's lane byte; its
-    /// reach test on walk +0xAC + 4·lane, whose writer is not traced, is
-    /// not applied) and 0x402ED0 on it (lateral 0, the action's look)
+    /// 0x4146C0: whether the car may take lane `l` (2–5): 0x412500 from
+    /// the car's lane ([`TrafficLane::lane_allowed`]: the lane exists where
+    /// it is and reaches the walk's end or 25 m farther) and 0x402ED0 on it (lateral 0, the action's look)
     /// finds nothing, or an object 0x4140E0 drops, or one reaching in over
     /// 5 s — or one that does is not the tracked one and reaches later than
     /// it (+0x21C).
@@ -376,7 +403,7 @@ impl TrafficLane {
         l: usize,
     ) -> bool {
         let Some(&s0) = self.steps.front() else { return false };
-        if !(2..=5).contains(&l) || (l != s0.lane && !has_lane(f, s0, l)) {
+        if !(2..=5).contains(&l) || (l != s0.lane && !self.lane_allowed(f, s0.lane, l)) {
             return false;
         }
         match self.car_ahead(f, own, speed, entries, Some(l), a.look) {
@@ -392,10 +419,11 @@ impl TrafficLane {
         for s in self.steps.iter_mut() {
             s.lane = keep_lane(f, *s, l);
         }
-        // The kept path is on the old lane: planned afresh (the car's
-        // offset off the new lane then differs from the path's, 0x41BFE0;
+        // Planned afresh: 0x405410 sets the lane state's rate (+0x08) to
+        // 0.151 (0x7E8E68), and 0x41BFE0 plans afresh while it reads that
+        // (verified in both; that 0x41BFE0's argument is the planner's
         // prov: inferred ai.traffic.set_lane
-        // **inferred** as a fresh plan in every case).
+        // +0x30C is **inferred** from its use as the lane).
         self.kept.clear();
     }
 
@@ -475,5 +503,52 @@ impl TrafficLane {
         a.asked = limit;
         self.avoid = Some(a);
         limit
+    }
+}
+
+/// The road entries each car's last think left, in the original's
+/// `trafwalk.py` entries format (probe use).
+#[cfg(feature = "dev-harness")]
+pub mod probe {
+    use super::*;
+    use std::cell::RefCell;
+    use std::collections::HashMap;
+
+    thread_local! {
+        static LAST: RefCell<HashMap<usize, String>> = RefCell::new(HashMap::new());
+    }
+
+    pub(super) fn record(t: &TrafficLane, f: &RouteFile, id: usize, es: &[Entry]) {
+        let Some(s0) = t.steps.front() else { return };
+        let mut line = format!("L{}", s0.lane);
+        for (k, e) in es.iter().enumerate() {
+            let who = if k == 0 { "*".to_string() } else { format!("{}", e.other.id as i64) };
+            line += &format!(
+                " {k}={who}:{:.1}:{:.2}:{:.2}:{:.2}:{:.2}:{:.2}:{}:{:.0}:{:.2}:{:.2}",
+                e.s,
+                t.off_lane(f, e, s0.lane),
+                e.across,
+                e.along,
+                e.closing,
+                e.side,
+                e.step,
+                e.d,
+                e.x[s0.lane - 1],
+                e.lateral
+            );
+        }
+        // The car's own walk point's place on its lane.
+        if let Some(e) = es.first() {
+            let st = t.steps[e.step.min(t.steps.len() - 1)];
+            let cp = &f.records[st.record].points[st.cp];
+            let q = f.point(st.record, st.cp, st.backward, e.d, lane_offset(cp, lane(s0.lane, st.backward)) + e.x[s0.lane - 1]);
+            line += &format!(" @{:.2},{:.2}", q.x, q.y);
+        }
+        LAST.with(|m| m.borrow_mut().insert(id, line));
+    }
+
+    /// The car's last entries (`id` its `Other::id`), taken.
+    pub fn take(id: usize) -> Option<String> {
+        LAST.with(|m| m.borrow_mut().remove(&id))
     }
 }

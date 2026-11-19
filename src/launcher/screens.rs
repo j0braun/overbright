@@ -457,6 +457,11 @@ pub fn legends_for(m: &Model, screen: Screen) -> Vec<super::legends::Action> {
             v.push(action(Btn::Back, "Back"));
         }
         Screen::FirstRun => v.push(action(Btn::Back, "Quit")),
+        // Details as a legend only while the screen offers it.
+        Screen::Check if m.check.as_ref().is_some_and(|c| c.summary.is_some()) => {
+            v.push(action(Btn::Y, if m.show_details { "Hide details" } else { "Details" }));
+            v.push(action(Btn::Back, "Back"));
+        }
         Screen::Browse => {
             v.push(action(Btn::X, "Use this folder"));
             v.push(action(Btn::Back, "Back"));
@@ -779,6 +784,11 @@ pub fn problem_words(p: Problem) -> Words {
             sentence: "Choose a folder you have access to, or copy the game to one.",
             fix: another,
         },
+        Problem::NoText => Words {
+            title: "The game's text file is missing",
+            sentence: "Choose a copy of the game that has its text file, LANGUAGES/English.bin.",
+            fix: another,
+        },
     }
 }
 
@@ -904,9 +914,16 @@ fn build_main(b: &mut Builder, m: &Model) {
     if let Some(r) = &m.root {
         let size = b.fs_min(Face::Body, 15.0, 14.0);
         let full = r.display().to_string();
-        let shown = b.fonts.fit(Face::Body, size, &full, b.width(), Cut::Middle);
+        // The game check's drop-down at the path's right (closed by
+        // default): the summary rows under the path when open.
+        let summary = m.check.as_ref().filter(|c| &c.root == r && c.usable).and_then(|c| c.summary.as_ref());
+        let link = summary.map(|_| if m.show_details { "Hide the game check" } else { "Game check" });
+        let pad = b.a(8.0);
+        let lw = link.map_or(0.0, |l| b.fonts.width(Face::Body, size, l).ceil() + 2.0 * pad);
+        let path_w = (b.width() - lw - if lw > 0.0 { b.a(16.0) } else { 0.0 }).max(0.0);
+        let shown = b.fonts.fit(Face::Body, size, &full, path_w, Cut::Middle);
         let (sw, sh) = (b.fonts.width(Face::Body, size, &shown), b.fonts.line_height(Face::Body, size));
-        let rect = Rect::new(b.x0, b.y, b.width(), sh);
+        let rect = Rect::new(b.x0, b.y, path_w, sh);
         b.widgets.push(super::ui::Widget {
             id: None,
             rect,
@@ -914,7 +931,27 @@ fn build_main(b: &mut Builder, m: &Model) {
             texts: vec![super::ui::text_of(Rect::new(b.x0, b.y, sw, sh), shown, &full, Face::Body, size, t.dim)],
             enabled: true,
         });
+        if let Some(l) = link {
+            let tw = b.fonts.width(Face::Body, size, l);
+            let x = b.x1 - lw;
+            b.widgets.push(super::ui::Widget {
+                id: Some("details"),
+                rect: Rect::new(x, b.y, lw, sh),
+                kind: super::ui::Kind::Link,
+                texts: vec![super::ui::text_of(Rect::new(x + pad, b.y, tw, sh), l.into(), l, Face::Body, size, theme::TEXT)],
+                enabled: true,
+            });
+        }
         b.y += sh;
+        if let Some(s) = summary.filter(|_| m.show_details) {
+            b.gap(6.0);
+            let rows = s.rows();
+            let labels: Vec<&str> = rows.iter().map(|r| r.2).collect();
+            let lw = b.lamp_label_w(&labels);
+            for (_, mark, label, value) in &rows {
+                b.lamp_row(None, *mark, label, lw, value);
+            }
+        }
         if m.just_found {
             b.gap(4.0);
             b.status(Mark::Info, "Found your game in this folder. Play keeps it for the next start.");
@@ -1041,7 +1078,7 @@ pub fn main_issue(m: &Model) -> Option<Issue> {
             Verdict::Refused(Problem::NoGame) if !root.is_dir() => {
                 return Some(Issue::FolderGone { path: root.clone() });
             }
-            Verdict::Refused(p) => return Some(Issue::of_problem(p)),
+            Verdict::Refused(p) => return Some(c.issue().unwrap_or(Issue::of_problem(p))),
             Verdict::Notes => {}
             Verdict::Ready => {}
         }
@@ -1065,13 +1102,12 @@ fn main_status(m: &Model, issue: Option<&Issue>) -> (Mark, String) {
         PlayState::NoGpu => return (Mark::Error, "Not ready: see below".into()),
         PlayState::Ready => {}
     }
-    let notes = m.check.as_ref().filter(|c| c.verdict() == Verdict::Notes);
-    if notes.is_some_and(|c| c.files_differ) {
-        (Mark::Ok, "Ready · version 1.2 · some game files are not the original ones".into())
-    } else if notes.is_some() {
-        (Mark::Ok, "Ready · version 1.2 · some movies will not play".into())
-    } else {
-        (Mark::Ok, "Ready · version 1.2 · English".into())
+    use super::check::CheckState;
+    match m.check.as_ref().filter(|c| Some(&c.root) == m.root.as_ref()).map(|c| c.state()) {
+        Some(CheckState::Changed) => (Mark::Ok, "Ready · version 1.2 · some game files are not the original ones".into()),
+        Some(CheckState::MoviesMissing) => (Mark::Ok, "Ready · version 1.2 · some movies will not play".into()),
+        Some(CheckState::UnknownEdition) => (Mark::Ok, "Ready · a copy Overbright doesn't recognise".into()),
+        _ => (Mark::Ok, "Ready · version 1.2 · English".into()),
     }
 }
 
@@ -1124,77 +1160,94 @@ fn build_first(b: &mut Builder, m: &Model) {
     b.dim(NOT_AFFILIATED);
 }
 
-/// The chosen folder and its verdict: the error with its fix under it, or
-/// Ready with Use this folder.
+/// The chosen folder and its verdict (docs/launcher.md, "The game
+/// check"): the path, the verdict card (lamp, title, one sentence, the
+/// fix or Use this folder focused), the summary rows of a usable folder
+/// and, on demand, the details list by area.
 fn build_check(b: &mut Builder, m: &Model) {
     let t = super::draw::theme();
-    b.page_title("Find your game", None);
-    b.body(RULE);
-    b.gap(12.0);
-    let size = b.fs_min(Face::Body, 15.0, 14.0);
-    b.para("Game folder", Face::Body, size, t.dim);
-    b.gap(4.0);
+    b.page_title("Game folder", None);
     let path = m.check.as_ref().map(|c| c.root.display().to_string()).unwrap_or_default();
-    line(b, &path);
+    let size = b.fs_min(Face::Body, 15.0, 14.0);
+    let shown = b.fonts.fit(Face::Body, size, &path, b.width(), Cut::Middle);
+    let (sw, sh) = (b.fonts.width(Face::Body, size, &shown), b.fonts.line_height(Face::Body, size));
+    b.widgets.push(super::ui::Widget {
+        id: None,
+        rect: Rect::new(b.x0, b.y, b.width(), sh),
+        kind: super::ui::Kind::Label,
+        texts: vec![super::ui::text_of(Rect::new(b.x0, b.y, sw, sh), shown, &path, Face::Body, size, t.dim)],
+        enabled: true,
+    });
+    b.y += sh;
     b.gap(12.0);
-    let verdict = m.check.as_ref().map_or(Verdict::Refused(Problem::NoGame), |c| c.verdict());
-    match verdict {
-        Verdict::Refused(p) => {
-            let i = Issue::of_problem(p);
-            let w = i.words();
+    let open = m.show_details;
+    let check = m.check.as_ref();
+    let summary = check.and_then(|c| c.summary.as_ref());
+    let issue = match check {
+        Some(c) => c.issue(),
+        None => Some(Issue::of_problem(Problem::NoGame)),
+    };
+    match (&issue, summary) {
+        (Some(i), _) => {
+            let mut w = i.words();
+            for x in &mut w.buttons {
+                if x.0 == "details" && open {
+                    x.1 = "Hide details";
+                }
+            }
             b.message_with(Mark::Error, &w.title, &w.text, issue_buttons(&w));
             b.default_focus = w.buttons.first().map(|x| x.0);
         }
-        v => {
-            let files_differ = m.check.as_ref().is_some_and(|c| c.files_differ);
-            b.status(
-                Mark::Ok,
-                match v {
-                    Verdict::Notes if files_differ => "Ready · some game files are not the original ones",
-                    // Only the movies or menu files: the game runs without them.
-                    Verdict::Notes => "Ready · some movies will not play",
-                    _ => "Ready",
-                },
-            );
-            b.gap(6.0);
-            let mut ctrls = vec![Ctrl::primary("use", "Use this folder")];
-            if v == Verdict::Notes {
-                ctrls
-                    .push(Ctrl::button("show_files", if m.show_files { "Hide the files" } else { "Show which files" }));
-            }
-            if m.check.as_ref().is_some_and(|c| !c.assets.is_empty()) {
-                ctrls.push(Ctrl::button(
-                    "show_assets",
-                    if m.show_assets { "Hide the movies" } else { "Show the movies" },
-                ));
-            }
-            b.buttons(Align::Left, ctrls);
+        (None, Some(s)) => {
+            let v = super::check::verdict(s, open);
+            let ctrls = v
+                .buttons
+                .iter()
+                .enumerate()
+                .map(|(i, (id, l))| if i == 0 { Ctrl::primary(id, l) } else { Ctrl::button(id, l) })
+                .collect();
+            b.message_with(v.mark, v.title, &v.text, ctrls);
+            b.default_focus = Some(v.focus);
+        }
+        (None, None) => {
+            // A usable folder without the full check (not met: the check
+            // screen always has one).
+            b.message_with(Mark::Ok, super::check::READY, "", vec![Ctrl::primary("use", "Use this folder")]);
             b.default_focus = Some("use");
         }
     }
-    let refused = matches!(verdict, Verdict::Refused(_));
-    // The movies' list takes the lines' place (one list open at a time:
-    // the page fits at every size).
-    let assets_open = m.show_assets && !refused;
-    if (m.show_files || !refused)
-        && !assets_open
-        && let Some(c) = &m.check
-        && (m.show_files || verdict == Verdict::Ready)
-    {
-        b.gap(6.0);
-        for (mark, text) in &c.lines {
-            b.status(*mark, text);
+    if let Some(s) = summary {
+        // The summary rows of a usable folder; at the smallest heights the
+        // open details take their place.
+        let tight = b.m.h < b.m.s(560.0);
+        if issue.is_none() && !(open && tight) {
+            summary_rows(b, s);
         }
-    }
-    // The movies and menu files by group (the same report as
-    // `--check-game`, game_assets).
-    if assets_open && let Some(c) = &m.check {
-        b.gap(6.0);
-        for (mark, text) in &c.assets {
-            b.status(*mark, text);
+        if open && (issue.is_none() || b.widgets.iter().any(|w| w.id == Some("details"))) {
+            details_list(b, m, s);
         }
     }
     message(b, m);
+}
+
+/// The summary rows: a lamp, the area, its value; each opens the details
+/// at its area.
+fn summary_rows(b: &mut Builder, s: &super::check::CheckSummary) {
+    let rows = s.rows();
+    let labels: Vec<&str> = rows.iter().map(|r| r.2).collect();
+    let lw = b.lamp_label_w(&labels);
+    for (id, mark, label, value) in &rows {
+        b.lamp_row(Some(id), *mark, label, lw, value);
+    }
+}
+
+/// The details list (scrolls with the pad, the keys and the wheel).
+fn details_list(b: &mut Builder, m: &Model, s: &super::check::CheckSummary) {
+    b.gap(8.0);
+    let items: Vec<(String, String)> = s.details().into_iter().map(|(_, t)| (t, String::new())).collect();
+    let n = items.len();
+    let rows = (n.min(3) + b.grow).min(n);
+    b.list("details_list", &items, m.details_sel, rows);
 }
 
 /// The suggested graphics for this computer (the probe's first-run
@@ -1697,7 +1750,7 @@ pub const PREPARE_WHY: &str = "Overbright can build its shader programs and read
 so the first drive starts without a loading screen. It takes from a few seconds to about a minute. \
 You can skip it: the game then does the same work during its first loads.";
 
-/// The prepare step (`game --prepare`, docs/prepare.md): what it is for, the
+/// The prepare step (`game --prepare`, docs/developing/prepare.md): what it is for, the
 /// bar and the step under it while it runs, how it ended; Skip while it
 /// runs, Continue after.
 fn build_prepare(b: &mut Builder, m: &Model) {
@@ -2072,7 +2125,7 @@ impl<'e> App<'e> {
         let (m, s) = (&self.model, self.screen);
         // The state as it was: a second pass (the list grown) starts from
         // it, not from what the first pass's shorter list scrolled to.
-        let before = (s == Screen::Browse).then(|| self.st.clone());
+        let before = matches!(s, Screen::Browse | Screen::Check).then(|| self.st.clone());
         let scale = f32::from(m.prefs.text) / 100.0;
         self.ui = super::layout::build_fit_scaled(
             fonts,
@@ -2085,9 +2138,15 @@ impl<'e> App<'e> {
             &mut self.st,
             |b| build(b, m, s),
         );
-        // The folder browser's list takes the room the window leaves.
-        if s == Screen::Browse
-            && let Some(super::ui::Kind::List { row_h, .. }) = self.ui.get("dirs").map(|w| &w.kind)
+        // The folder browser's and the check's details list take the
+        // room the window leaves.
+        let grows = match s {
+            Screen::Browse => Some("dirs"),
+            Screen::Check => Some("details_list"),
+            _ => None,
+        };
+        if let Some(list) = grows
+            && let Some(super::ui::Kind::List { row_h, .. }) = self.ui.get(list).map(|w| &w.kind)
         {
             let full = super::ui::Metrics::for_size(self.size.0, self.size.1, self.dpi).u;
             let grow = (self.ui.slack / row_h).floor() as usize;
@@ -2287,6 +2346,9 @@ impl<'e> App<'e> {
             }
             (Key::ActionY, _) if self.screen == Screen::Settings => self.model.ask = Some(Dialog::Reset),
             (Key::ActionY, _) if self.screen == Screen::Mods => return self.event(&Event::Activate("add")),
+            (Key::ActionY, _) if self.screen == Screen::Check && self.ui.get("details").is_some() => {
+                return self.event(&Event::Activate("details"));
+            }
             (Key::ActionX, _) if self.screen == Screen::Browse => return self.event(&Event::Activate("use")),
             (Key::ActionX, _)
                 if self.screen == Screen::Mods
@@ -3036,14 +3098,23 @@ impl<'e> App<'e> {
                     self.model.message = Some((Mark::Error, format!("The launcher's settings could not be saved: {e}")));
                 }
             }
-            (Screen::Check, Event::Activate("show_files")) => {
-                self.model.show_files = !self.model.show_files;
-                self.model.show_assets = false;
+            (Screen::Check | Screen::Main, Event::Activate("details")) => {
+                self.model.show_details = !self.model.show_details;
+                self.model.details_sel = 0;
+                if self.model.show_details && self.screen == Screen::Check {
+                    self.st.focus = Some("details_list");
+                }
             }
-            (Screen::Check, Event::Activate("show_assets")) => {
-                self.model.show_assets = !self.model.show_assets;
-                self.model.show_files = false;
+            (Screen::Check | Screen::Main, Event::Select("details_list", i)) => self.model.details_sel = *i,
+            (Screen::Check | Screen::Main, Event::Activate("details_list")) => {}
+            // A summary row opens the details at its area.
+            (Screen::Check | Screen::Main, Event::Activate(id @ ("sum_files" | "sum_movies" | "sum_edition"))) => {
+                let row = self.model.check.as_ref().and_then(|c| c.summary.as_ref()).map(|s| s.detail_row_of(id));
+                self.model.show_details = true;
+                self.model.details_sel = row.unwrap_or(0);
+                self.st.focus = Some("details_list");
             }
+            (Screen::Check, Event::Activate("support")) => self.save_support(),
             (Screen::Recover, Event::Activate("play")) => {
                 self.model.start_unfinished = false;
                 return Some(Outcome::Play);
@@ -3306,10 +3377,16 @@ impl<'e> App<'e> {
         let reason = match self.screen {
             Screen::Recover => Some(Issue::StartUnfinished.words().title),
             Screen::Failure => self.model.failure.as_ref().map(|f| format!("{:?}: {}", f.kind, f.how)),
+            Screen::Check => self.model.check.as_ref().map(|c| format!("game check: {:?}", c.state())),
             _ => None,
         };
         let mut req = SupportRequest::launcher(reason);
         req.game_root = self.model.root.clone();
+        if self.screen == Screen::Check
+            && let Some(c) = &self.model.check
+        {
+            req.game_root = Some(c.root.clone());
+        }
         if let Some(f) = &self.model.failure {
             req.extra.push(("The game's last lines".into(), f.tail.join("\n")));
         }

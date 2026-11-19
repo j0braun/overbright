@@ -96,7 +96,7 @@ pub struct PostFx {
     /// The frame's glow sprites alone, for the reflections to see (scene
     /// size, the streak buffer's format), when they go to the streaks.
     pub(crate) ssr_glow: Option<((u32, u32), wgpu::TextureFormat, std::sync::Arc<crate::render::pool::Target>)>,
-    /// The temporal pass (docs/temporal.md; clone deviation): its
+    /// The temporal pass (docs/notes/graphics/temporal.md; clone deviation): its
     /// history, and with Upscaling the stage the scene is drawn into at
     /// the lower size (its own targets, motion blur, horizon fog, SSAO,
     /// SSR), resolved into this one's scene at the screen's size.
@@ -104,22 +104,22 @@ pub struct PostFx {
     pub(crate) stage: Option<Box<PostFx>>,
     /// Volumetric Fog (clone deviation) and this frame's values.
     pub(crate) volumetric_frame: Option<crate::render::volumetric::Frame>,
-    /// Next-Gen car lights (docs/car-lights.md): the pass and this frame's.
+    /// Next-Gen car lights (docs/notes/graphics/car-lights.md): the pass and this frame's.
     pub(crate) car_lights: Option<crate::render::car_lights::CarLightsPass>,
     pub(crate) car_lights_frame: Option<crate::render::car_lights::Frame>,
     /// The rain's tint for the Volumetric Fog's apply to fold in this frame ([`PostFx::fold_tint`]), and
     /// whether it did (the tint pass then does not run).
     pub(crate) fog_tint: Option<[f32; 3]>,
     pub(crate) tint_folded: bool,
-    /// Volumetric Fog Next-Gen (docs/atmosphere.md).
+    /// Volumetric Fog Next-Gen (docs/notes/graphics/atmosphere.md).
     pub(crate) atmosphere: Option<crate::render::atmosphere::Atmosphere>,
-    /// HDR Output (docs/hdr.md; clone deviation): the grade LUT (made on
+    /// HDR Output (docs/playing/hdr.md; clone deviation): the grade LUT (made on
     /// first use), the post passes' unclipped image for the display
     /// transform, and whether this frame's apply wrote it.
     pub(crate) grade: Option<GradeLut>,
     pub(crate) unclipped: Option<((u32, u32), wgpu::TextureView)>,
     pub(crate) unclipped_fresh: bool,
-    /// docs/motionblur-dof.md; clone deviation: the motion blur and
+    /// docs/notes/graphics/motionblur-dof.md; clone deviation: the motion blur and
     /// depth of field passes, made on first use.
     pub blur_dof: Option<crate::render::blur_dof::BlurDof>,
     /// A timestamp to write where the streak buffer's commit is made
@@ -222,7 +222,7 @@ impl PostFx {
             ..Default::default()
         });
         // Created initialised (zeros, mapped at creation), as the gain map
-        // below is written at once (docs/perf-main-thread.md): the
+        // below is written at once (docs/notes/performance/main-thread.md): the
         // scene's command buffers bind these uniforms (the motion blur) and
         // are submitted from a render thread while the main thread writes
         // the post passes' slots; wgpu-core 30 zero-fills a buffer's or
@@ -430,7 +430,7 @@ impl PostFx {
     /// ([`StreakGlow::Commit`] 0). The game draws the scene of a tick no
     /// drawn frame stands on (a frame spanning several ticks, or one
     /// between ticks) and commits it here, so the buffer holds what the
-    /// 60 Hz frames left (docs/uncapped-fps.md, "Streak buffer on ticks").
+    /// 60 Hz frames left (docs/original/uncapped-fps.md, "Streak buffer on ticks").
     #[allow(clippy::too_many_arguments)]
     pub fn commit_tick(
         &mut self,
@@ -499,9 +499,9 @@ impl PostFx {
         let Some((size, hdr)) = self.targets.as_ref().map(|t| (t.size, t.hdr)) else { return };
         // The screen's size (the Graphics page's SSAA / Render Scale draw
         // the scene at another): the glow is made at the size native makes
-        // it for the screen (docs/post-scale.md). At 1× nothing changes.
+        // it for the screen (docs/notes/graphics/ssaa.md "Post effects under SSAA and Render Scale"). At 1× nothing changes.
         let out_size = output_size.unwrap_or(size);
-        // HDR Output (docs/hdr.md): the float chain is kept unclipped to
+        // HDR Output (docs/playing/hdr.md): the float chain is kept unclipped to
         // the end, the grade through the captured LUT.
         let hdr_output = hdr.is_some() && opts.hdr_output_active;
         let resolved = !self.scene_size_post && resolves_first(size, out_size, hdr, hdr_output);
@@ -1294,7 +1294,7 @@ impl PostFx {
 }
 
 /// Whether a chain resolves the scene (`size`) to the screen's size
-/// (`out_size`) before the bleach bypass (docs/ssaa-screen-passes.md): SSAA
+/// (`out_size`) before the bleach bypass (docs/notes/graphics/ssaa.md "Effect and post passes at the screen's size under SSAA"): SSAA
 /// (a scene larger than the screen both ways) with High Precision Post
 /// (`hdr`), not HDR Output. Everything else, and every frame without SSAA,
 /// runs as before.
@@ -1325,7 +1325,7 @@ struct ChainViews {
 mod tests {
     use super::*;
 
-    /// The grade LUT's lattice (HDR Output, docs/hdr.md): 32 points on
+    /// The grade LUT's lattice (HDR Output, docs/playing/hdr.md): 32 points on
     /// 8-bit codes from 0 to 255, so the LUT is the native grade there.
     #[test]
     fn grade_lattice_sits_on_8bit_codes() {
@@ -1593,7 +1593,7 @@ mod tests {
         ((e as u32) << 10 | ((b >> 13) & 0x3ff)) as u16
     }
 
-    /// SSAA with High Precision Post (docs/ssaa-screen-passes.md) on the
+    /// SSAA with High Precision Post (docs/notes/graphics/ssaa.md "Effect and post passes at the screen's size under SSAA") on the
     /// device: the chain that resolves to the screen's size before the
     /// bleach bypass against the one at the scene's size. The scene is
     /// exactly twice the screen, in 2 × 2 blocks of one colour each (some

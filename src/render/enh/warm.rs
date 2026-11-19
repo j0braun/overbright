@@ -1,5 +1,5 @@
 //! The Enhanced screen passes' programs made before the first frame that
-//! needs them (docs/first-use-builds.md): a drive's load, and the moment
+//! needs them (docs/developing/first-use-builds.md): a drive's load, and the moment
 //! a Graphics row is switched on in the menus.
 //!
 //! The passes make their shader modules and pipelines in their

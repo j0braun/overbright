@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""What each thread of a run waits for (Linux; docs/perf-budget.md "Load times").
+"""What each thread of a run waits for (Linux; docs/notes/performance/budget.md "Load times").
 
   blocksample.py run OUT.tsv -- CMD ARGS...   run CMD, stamp every output line (ms since the start) and sample each
                                               thread about every millisecond: running, or the system call it is

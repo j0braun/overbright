@@ -2,7 +2,7 @@
 
 Vanilla SPEED2.EXE (sha256 8f6a9ae2…2a297), private Wine copy
 a private Wine copy (WidescreenFix off), fastgpu on display :192
-with `--audio-file` (WAVs stay in the copy). See `docs/nis-audio-patterns.md`.
+with `--audio-file` (WAVs stay in the copy). See `docs/original/nis-audio-patterns.md`.
 
 * `tick-hook.S` / `.bin`: observer code at 0x782C00 (zero .text padding);
   `record.py` redirects both `call 0x46FA30` sites (0x47C593 racer path,

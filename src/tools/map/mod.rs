@@ -1,4 +1,4 @@
-//! Map mods and the map editor's logic (docs/map-editor.md).
+//! Map mods and the map editor's logic (docs/modding/map-editor.md).
 //!
 //! A map mod is an overlay in Overbright's own data folder
 //! (`<data>/maps/<folder>/map.obmap`, [`store`]): scenery edits (move,

@@ -32,7 +32,7 @@ pub struct Alpha {
     pub opaque: bool,
 }
 
-/// docs/modern-extras.md §4; clone deviation, opt-in: the
+/// docs/playing/modern-extras.md §4; clone deviation, opt-in: the
 /// colour-vision palette (1 deuteranopia, 2 protanopia, 3 tritanopia; 0
 /// native) and the quads it applies to (the in-game HUD's, by index in
 /// the frame's list), set by the frame before [`UiRenderer::record`].

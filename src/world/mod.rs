@@ -140,7 +140,7 @@ pub struct World {
     /// "w.rest" section): what [`World::reset_to_loaded`] restores.
     loaded: crate::cache::Bytes,
     /// The map mods applied to this world (`tools::map`; empty without
-    /// any, docs/map-editor.md).
+    /// any, docs/modding/map-editor.md).
     pub map_overlay: crate::tools::map::Applied,
 }
 

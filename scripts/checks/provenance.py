@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Provenance tags (docs/provenance.md): every code site resting on an
+"""Provenance tags (docs/developing/provenance.md): every code site resting on an
 inferred or open value carries a machine-checked tag
 
     // prov: inferred <ID>      (also open, choice)

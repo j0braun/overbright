@@ -25,7 +25,7 @@ pub struct Camera {
     pub up: Vec3,
     pub near: f32,
     pub far: f32,
-    /// The temporal pass's sub-pixel offset (docs/temporal.md), in
+    /// The temporal pass's sub-pixel offset (docs/notes/graphics/temporal.md), in
     /// clip space (NDC units): the projection is moved by it. Zero
     /// (native) everywhere but the main view's draw with TAA.
     pub jitter: Vec2,
@@ -138,7 +138,7 @@ mod tests {
     }
 }
 
-/// Developer harness only (docs/resolutions.md): with `NFSU2_UI_GEOM` set,
+/// Developer harness only (docs/notes/graphics/resolutions.md): with `NFSU2_UI_GEOM` set,
 /// every game-FOV projection the 3D views use is counted here, and the UI
 /// geometry dump (`render::native::ui::geom_dump`) takes them with each
 /// dump. Without the variable nothing is collected.

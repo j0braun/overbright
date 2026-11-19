@@ -1,5 +1,5 @@
 //! Car lighting and garage camera numbers of the original game, with the
-//! addresses they have in the reference executable (docs/exe-tables.md,
+//! addresses they have in the reference executable (docs/original/exe-tables.md,
 //! "Tuning constants").
 
 use crate::exe_tables::records::{RigLight, Shot};

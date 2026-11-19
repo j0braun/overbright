@@ -1,7 +1,7 @@
 // Clone deviation, Modern + RT only: the strongest
 // lights' ray-traced shadows at half the scene's resolution, after the main
 // view's depth pre-pass and before its colour pass (render/rt_shadow.rs,
-// docs/perf-budget.md, the new effects' costs). Before this pass every pixel traced its rays inside
+// docs/notes/performance/budget.md, the new effects' costs). Before this pass every pixel traced its rays inside
 // the world's colour shader (soft shadows: 2 + 1 + 1 + 1 rays per pixel, the shader's
 // registers and occupancy paid by every world pixel). Now one thread per
 // 2 × 2 pixel block: the scene point and face normal from the pre-pass's
@@ -12,7 +12,7 @@
 // depth and its normal; the colour pass gathers a 3 × 3 tent of blocks around
 // each pixel (all four quarters of every light's disc set, as the quad mean),
 // weighted by the pixel's own plane and normal (`ml_vis` in mlrt.wgsl).
-// The rest (docs/shadow-softness.md "Every light: the rest resampled"): the
+// The rest (docs/notes/graphics/shadow-softness.md "Every light: the rest resampled"): the
 // emitters past those two (neon, signs: no shadow layer; the lamps keep
 // their fallback) share one visibility, the ratio of their shadowed to
 // their unshadowed light at the block. It is estimated by resampled

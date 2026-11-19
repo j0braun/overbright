@@ -821,7 +821,7 @@ The drawing (0x531050 per point, **verified**; the walker 0x531280 passes the no
     heights, above the floor before the ramp (it floated); then
     (2026-11-01) it kept the scene's place and heading and stood the car on
     the floor under its wheels. The scene-camera follow-ups: the car runs the NIS mover itself (as
-    every scene's, observed under Wine; `p17-scene-follow-ups.md` §1) and
+    every scene's, observed under Wine; `docs/notes/parity/scene-follow-ups.md` §1) and
     stays where it ends on the rollers (no re-placement on the grid).
 * **Tuning in the physics** (`tuning::apply`, applied to the player's car
   in `drive_in`; **verified** unless marked): the car's set-up 0x5B4DD0
@@ -1705,7 +1705,7 @@ The drawing (0x531050 per point, **verified**; the walker 0x531280 passes the no
     including a full-compression stop moving upward (no impulse). Native
     dispatch, fresh machine-code threshold probe, recovered original x2
     capture, red/green tests and remaining component-order limits are in
-    `docs/rest-component-refresh.md` and `docs/evidence/rest-components/`.
+    `docs/notes/physics/fixes.md "Rest and bump-stop component refresh"` and `docs/evidence/rest-components/`.
   * **206 clutch-slip remainder** (round 14's open item): with the second
     pass in (not kept, above) the clutch ramp, the lock frame (222) and the
     at-rest cycle were frame-exact; as kept (without it) the launch is
@@ -1821,7 +1821,7 @@ The drawing (0x531050 per point, **verified**; the walker 0x531280 passes the no
     15 mph (0x7FC114): the largest max(0, min(load / 3 · slip, slip))
     (+0x164, +0x118; 3 = 0x7FC110; both from the force pass after the
     frame's last integration, i.e. the end state: The drag-physics parity / the drag-traffic pass sub-step
-    capture, ported as `CarState::end_loads` / `hop_loads`, docs/drag-stage4-parity.md
+    capture, ported as `CarState::end_loads` / `hop_loads`, docs/notes/parity/drag-stage4-parity.md
     §6.6) over 0.5 (0x784260) starts it: g =
     graph 0x7FC924 (points 0x7FC0CC: 0 → 1, 5 → 0.8, 9 → 0.9, 12.6 →
     0.833, 17.1 → 0.72, 25 → 0.65; 0x40C840), grip = g / k (k the shift
@@ -2975,7 +2975,7 @@ The drawing (0x531050 per point, **verified**; the walker 0x531280 passes the no
   the restart in the points (0x513EB0) is not traced.
 * Clone: `Field::looks` and `Field::slots` (kept by `line_up_rivals`), `RaceFlow::restart`
   (`start_race_from`), docs/native-fixes/race-again.tsv. The race's rivals' cars are taken again by the
-  set-up for the same load keys (`Loads::raced_cars`; docs/perf-budget.md "A race raced again").
+  set-up for the same load keys (`Loads::raced_cars`; docs/notes/performance/budget.md "A race raced again").
 
 ## Hidden races, engage tips and cash pickups (2026-10-30; checked against the original under Wine)
 
@@ -3255,7 +3255,7 @@ Images kept outside the repository (`w_*.png`, `all_list.png`,
   `vinyls_sponsor` (the Sponsor group; `NFSU2_CAT=26` Contest);
   `NFSU2_CHEATS=all|code,code` types codes for any shot. **Inferred**: C
   (Customize) does nothing on a sponsor car (the help bar drops it).
-  **2026-11-04 (`docs/cheats.md`)**: a new profile's bank depends on
+  **2026-11-04 (`docs/playing/cheats.md`)**: a new profile's bank depends on
   MC_Main's question — the boot's create (no profile current) keeps the
   career in memory (Wine: saved with 200 after regmybank + ordermebaby),
   the Profile Manager's create over a current profile resets it (1200);

@@ -802,7 +802,7 @@ impl Props {
         let mut moved = std::mem::take(&mut self.moved);
         moved.sort_unstable();
         moved.dedup();
-        // NFSU2_PROP_LOG=1 (a check aid, docs/prop-hits.md): each prop
+        // NFSU2_PROP_LOG=1 (a check aid, docs/notes/parity/prop-hits.md): each prop
         // that moved this frame, its centre of mass, velocity, spin and
         // whether it still moves.
         if crate::env_value_os!("NFSU2_PROP_LOG").is_some() {
@@ -922,7 +922,7 @@ mod tests {
         }
     }
 
-    /// docs/drag-stage4-parity.md §7.1, observed under Wine: the finished-career save's
+    /// docs/notes/parity/drag-stage4-parity.md §7.1, observed under Wine: the finished-career save's
     /// Skyline (1.271 t) through a ZCS_FenceH on S4_H_DRAG_15 at frame 268
     /// changed its momentum by (−3.121, −1.645, 0.021), an impulse of
     /// (4.543, 2.394, 0.03) at the 1.85 t scale, 5.11 along the contact
@@ -1048,7 +1048,7 @@ mod tests {
     }
 
     /// 0x594010 / 0x5B2620 (traced; read under Wine at 200 km/h,
-    /// docs/prop-hits.md): the contact's point and normal are the pair's
+    /// docs/notes/parity/prop-hits.md): the contact's point and normal are the pair's
     /// last measured closest points, not measured again at the contact's
     /// moment — here measured with B off to the side, then B moved in line
     /// without a query: the push still runs along the old diagonal.

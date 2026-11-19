@@ -1,5 +1,5 @@
 //! Which graphics API and adapter the game runs on, the DX12 shader
-//! compiler, and what an adapter lacks (docs/platform-windows.md).
+//! compiler, and what an adapter lacks (docs/playing/platform-windows.md).
 //! No native counterpart: SPEED2.EXE is Direct3D 9 only.
 //!
 //! The decisions are pure functions of what is available, so they are
@@ -93,7 +93,7 @@ impl Dx12Choice {
             Dx12Choice::Dxc(p) => format!("DX12 shader compiler: DXC ({})", p.display()),
             Dx12Choice::Fxc(why) => format!(
                 "DX12 shader compiler: FXC, the last resort ({why}); slower pipeline builds and shader model 5.1 \
-                 (no multiview cube), see docs/platform-windows.md"
+                 (no multiview cube), see docs/playing/platform-windows.md"
             ),
         }
     }

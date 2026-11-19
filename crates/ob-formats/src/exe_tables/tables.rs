@@ -1,6 +1,6 @@
 //! The engine's tables in one struct, as their users read them
 //! ([`super::Table`]): built once from the constants, the formulas and the
-//! decoders' standard tables (docs/exe-tables.md lists every table with
+//! decoders' standard tables (docs/original/exe-tables.md lists every table with
 //! its users).
 
 use super::constants::{car_audio as au, driving as dr, frontend as fe, garage as ga};

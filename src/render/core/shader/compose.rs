@@ -16,7 +16,7 @@
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum VariantFlag {
     /// Dynamic Lamps, Lamp Shadows, Contact Shadows and the rest of the
-    /// lamps' module (clone deviations; docs/lamps-shadows.md).
+    /// lamps' module (clone deviations; docs/notes/graphics/lamps-shadows.md).
     Lamps,
     /// Modern Lighting, inside the lamps' module only.
     Modern,

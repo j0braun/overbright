@@ -1,4 +1,4 @@
-//! Path forms (docs/platform-dirs.md).
+//! Path forms (docs/playing/platform-dirs.md).
 
 use std::path::{Path, PathBuf};
 

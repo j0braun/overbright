@@ -14,7 +14,7 @@ pub(super) const ROWS: &[GraphicsRow] = &[
         offered: None,
         legacy: false,
     },
-    // See docs/lighting2.md.
+    // See docs/notes/graphics/lighting2.md.
     GraphicsRow {
         id: RowId::EnhancedGlass,
         label: ENHANCED_GLASS,
@@ -94,7 +94,7 @@ pub(super) const ROWS: &[GraphicsRow] = &[
         offered: None,
         legacy: false,
     },
-    // docs/assets-distance.md: load-time silhouette smoothing.
+    // docs/notes/graphics/assets-distance.md: load-time silhouette smoothing.
     GraphicsRow {
         id: RowId::SmoothCars,
         label: SMOOTH_CARS,

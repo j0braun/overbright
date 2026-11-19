@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Noise-aware statistics for the performance harness (docs/perf-gates.md).
+"""Noise-aware statistics for the performance harness (docs/developing/perf-gates.md).
 
 usage:
   perfstat.py summary DIR [--label L] [--md FILE] [--json FILE]
@@ -439,7 +439,7 @@ def cmd_compare(d, base=None, new=None, baseline=None, md=None, js=None):
     return 1 if regress or (only and not baseline) else 0
 
 
-# Regression gate (scripts/checks/perfgate.sh, docs/perf-budget.md): the
+# Regression gate (scripts/checks/perfgate.sh, docs/notes/performance/budget.md): the
 # metrics that fail the gate (times the change can make worse) and the ones
 # only reported (spikes, process totals, memory, loads).
 GATE_FAIL = ['gpu_med', 'draw_cpu_p10', 'cpu_render', 'cpu_main']

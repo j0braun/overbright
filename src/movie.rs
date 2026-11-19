@@ -294,7 +294,7 @@ pub fn file_name(name: &str) -> String {
 ///    not match other editions' data, where the original skips the logos,
 ///    the PSA, the career's scenes and the tutorials (seen under Wine with
 ///    the English data); the clone plays the installed file instead
-///    (docs/native-deviations.md, "Movie files"). The game-folder check
+///    (docs/playing/native-deviations.md, "Movie files"). The game-folder check
 ///    reports the same resolution.
 pub fn path(root: &Path, name: &str) -> Option<PathBuf> {
     crate::game_assets::resolve_movie(root, name).file

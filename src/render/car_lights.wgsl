@@ -1,4 +1,4 @@
-// Next-Gen car lights in the air and on the lens (docs/car-lights.md; a
+// Next-Gen car lights in the air and on the lens (docs/notes/graphics/car-lights.md; a
 // clone deviation, opt-in; every constant inferred, by eye).
 //
 // fs_march (reduced size): per pixel the light the night air scatters toward

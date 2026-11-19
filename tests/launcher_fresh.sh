@@ -7,8 +7,9 @@
 #   c. a wrong folder is refused in plain words (no "Use this folder");
 #   e. SPEED2.EXE is not needed: a folder whose SPEED2.EXE is a copy-protected one (a synthetic
 #      header with SafeDisc's sections) is accepted and not talked about; a folder without
-#      SPEED2.EXE is accepted and used (the probe runs again with that folder);
-#   p. the prepare step (docs/prepare.md) runs by itself once the folder is used, behind the main screen
+#      SPEED2.EXE and with three movies missing is accepted as "Ready, some movies won't play" (Use this
+#      folder focused) and used (the probe runs again with that folder);
+#   p. the prepare step (docs/developing/prepare.md) runs by itself once the folder is used, behind the main screen
 #      (no screen of its own, the line beside Play says what it does) and is not started again;
 #      Settings › Advanced › "Get shaders ready again" opens its screen and runs to its end (Done, Continue), the stamp is in the cache
 #      folder and `game --probe` says prepared=1;
@@ -88,6 +89,11 @@ for t in "bc":
     for f in os.listdir(os.path.join(top, "game-" + t)):
         if f.upper() == "SPEED2.EXE":
             os.remove(os.path.join(top, "game-" + t, f))
+# b also lacks three movies (two story, one tutorial): the game check's missing-movies state.
+movies = os.path.join(top, "game-b", "movies")
+for f in os.listdir(movies):
+    if f.upper().startswith(("SCENE05", "SCENE06", "DRIFTTUT")):
+        os.remove(os.path.join(movies, f))
 h = bytearray(0x400)
 h[:2] = b"MZ"
 h[0x3C:0x40] = (0x80).to_bytes(4, "little")
@@ -216,12 +222,15 @@ typepath "$B"
 screen check 3 || fail "no check screen for the folder without SPEED2.EXE"
 grep -qE '^  \[button use @' "$W/screen.txt" || fail "the folder without SPEED2.EXE cannot be used: $(cat "$W/screen.txt")"
 grep -qF "SPEED2" "$W/screen.txt" && fail "SPEED2.EXE named for a folder without it: $(cat "$W/screen.txt")"
+has "Ready, some movies won't play" && has "3 movies are missing (2 story, 1 tutorial)" \
+  || fail "no missing-movies verdict: $(cat "$W/screen.txt")"
+has "26 of 29" || fail "no movie count in the summary rows: $(cat "$W/screen.txt")"
 shot e-no-exe
 X xdotool key Return   # Use this folder (focused)
 screen main 1 || fail "Use did not open the main screen"
 wait_for "probe: the game folder changed" 1 10 || fail "no new probe for the chosen folder"
 wait_for "first-run values [0-9]" 1 30 || fail "the new probe gave no first-run values: $(grep 'probe:' "$L")"
-ok "no SPEED2.EXE: used; probe run again with it ($(grep -oE 'first-run values [^;]*$' "$L" | tail -1))"
+ok "no SPEED2.EXE, three movies missing: used; probe run again with it ($(grep -oE 'first-run values [^;]*$' "$L" | tail -1))"
 
 # ---- p. the prepare step: by itself behind the main screen once the folder is used, then "Prepare again" to its end ----
 STEP=p
@@ -273,11 +282,11 @@ click change || fail "no Game folder Change… button"
 screen first-run 4 || fail "Change did not open the first-run screen"
 typepath "$A"
 screen check 4 || fail "no check screen for the case-swapped folder"
-has "recognised" && has "All 9 files Overbright needs are present" || fail "case-swapped folder not recognised: $(cat "$W/screen.txt")"
+has "Ready to play" && has "9 of 9 · original" && has "Version 1.2" || fail "case-swapped folder not recognised: $(cat "$W/screen.txt")"
 grep -qE '^  \[button use @' "$W/screen.txt" || fail "case-swapped folder cannot be used"
 has "Ready" || fail "no verdict line for the case-swapped folder: $(cat "$W/screen.txt")"
 shot d-case-swapped
-VLINE=$(grep -F 'recognised' "$W/screen.txt" | sed 's/^  \[ok\] //')
+VLINE=$(grep -F 'Version 1.2' "$W/screen.txt" | sed 's/^  \[[^]]*\] //')
 m0=$(grep -c "screen main$" "$L")
 X xdotool key Return
 screen main $((m0 + 1)) || fail "Use did not open the main screen"

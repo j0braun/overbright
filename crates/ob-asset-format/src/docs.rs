@@ -20,7 +20,7 @@ use crate::names;
 use crate::rules::{CROSS_REFS, RESERVED, Rule};
 
 /// The specification's folder, relative to the repository.
-pub const DIR: &str = "docs/asset-format";
+pub const DIR: &str = "docs/modding/asset-format";
 
 /// The pages and schemas as text, by path relative to [`DIR`] (`conventions.md`, `schemas/pack.schema.json`).
 pub type Tree = BTreeMap<String, String>;

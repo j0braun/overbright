@@ -1,4 +1,4 @@
-//! `NFSU2_STATE_HASH=file` (parity gate, docs/perf-gates.md): after
+//! `NFSU2_STATE_HASH=file` (parity gate, docs/developing/perf-gates.md): after
 //! every simulation step (`Game::step`, whichever mode drives it: flows,
 //! the playthrough, the bench, shots) one line with the hash of the
 //! simulation's state, split by component so a divergence names where it
@@ -12,7 +12,7 @@
 //! Off (the variable unset) the step pays one cached load of an
 //! `Option`. Not native: a measuring aid.
 //!
-//! The rate gate (docs/checks.md "Rate gate"): after those eight
+//! The rate gate (docs/developing/checks.md "Rate gate"): after those eight
 //! columns, unchanged in meaning (the base-vs-new sim gate compares them
 //! with older binaries), come the v2 columns: `rate` (the cadence the
 //! state picks next: R race, S a 1/30 s scene, F the front end without a

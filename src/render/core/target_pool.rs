@@ -1,4 +1,4 @@
-//! Shared transient render targets (docs/perf-gpu.md "Render-target
+//! Shared transient render targets (docs/notes/performance/gpu.md "Render-target
 //! memory"). A pass that opts in asks the device's pool for a target by a
 //! [`Slot`] and its descriptor (size, format, samples, usage) instead of
 //! making its own; every pass asking for the same slot and descriptor gets

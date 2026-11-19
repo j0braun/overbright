@@ -1,8 +1,8 @@
 # Architecture
 
 A Cargo workspace. The main package, `nfsu2` (a library and several binaries), sits on the library's lower
-layers, `crates/ob-core` and `crates/ob-formats` (see Layers), and on `crates/ob-testkit` (the test kit, a dev-dependency; docs/testing.md). The map editor is a leaf crate on the library, `crates/ob-editor`
-(its `src/editor/` and the `overbright-editor` binary; docs/map-editor.md), so the game's dependency tree has
+layers, `crates/ob-core` and `crates/ob-formats` (see Layers), and on `crates/ob-testkit` (the test kit, a dev-dependency; docs/developing/testing.md). The map editor is a leaf crate on the library, `crates/ob-editor`
+(its `src/editor/` and the `overbright-editor` binary; docs/modding/map-editor.md), so the game's dependency tree has
 no egui; what the game and the editor share (the simulation stream, `tools::map::sim`) is in the library. In the maintainer's full tree only there is also the `devprobes`
 workspace member (developer probes, not built by default; not in the public repository), and `fuzz/` is a separate crate.
 Package dependencies point one way only, from the programs down to the library and from there to the kit
@@ -14,8 +14,8 @@ the frame loop and the glue that turns the library's parts into the running game
 
 | area | modules | what |
 |---|---|---|
-| file formats | `formats/` | Pure parsers for the original's files: bundle chunks, string hashes, solids, scenery, textures, tracks and visibility, compressed packs (JDLZ, Huffman), VIV archives, VP6 video, routes, roads, collision, native saves, texture-mod packages (TexMod `.tpf`, TexWizard packs, ZIP). They take bytes and return data; every parser is a fuzz target (docs/fuzzing.md). |
-| the player's game files | `game_fs/`, `game_assets.rs`, `exe_tables/`, `fingerprint.rs`, `cache/` | Case-insensitive access to the game folder; which file the game opens for a wanted name (movies, per edition) and the asset check; the engine's tables in code (docs/exe-tables.md); the version fingerprint; the cache of converted world and car data. |
+| file formats | `formats/` | Pure parsers for the original's files: bundle chunks, string hashes, solids, scenery, textures, tracks and visibility, compressed packs (JDLZ, Huffman), VIV archives, VP6 video, routes, roads, collision, native saves, texture-mod packages (TexMod `.tpf`, TexWizard packs, ZIP). They take bytes and return data; every parser is a fuzz target (docs/developing/fuzzing.md). |
+| the player's game files | `game_fs/`, `game_assets.rs`, `exe_tables/`, `fingerprint.rs`, `cache/` | Case-insensitive access to the game folder; which file the game opens for a wanted name (movies, per edition) and the asset check; the engine's tables in code (docs/original/exe-tables.md); the version fingerprint; the cache of converted world and car data. |
 | world and cars | `world/`, `car/`, `ground.rs`, `collision.rs`, `smackable/`, `fog.rs`, `sky.rs`, `weather.rs` | A track assembled from the parsers, cars from their parts, the ground and wall queries, knock-over props, fog, sky, the weather cycle. |
 | simulation | `drive/`, `handling/`, `contact.rs`, `race.rs`, `drift.rs`, `style.rs`, `nitrous.rs`, `tuning/`, `frame_clock.rs`, `interpolate.rs`, `rng_sites.rs` | Driving (sub-steps, rigid body, suspension, tyres, brakes, aero, steering), engine and drivetrain, contacts, race modes and scoring, the tick clock and interpolation, the original's random-number draw sites. |
 | AI | `ai/`, `outrun.rs`, `opponents.rs`, `ai_looks.rs` | Race AI, routes and the road network, traffic, the outrun encounters. |
@@ -23,7 +23,7 @@ the frame loop and the glue that turns the library's parts into the running game
 | front end and career | `frontend/` | The menus from the game's FEng packages, fonts and strings; the career, profiles and saves, the HUD, the options and the settings model of the Enhancements page. |
 | audio | `audio/` | The original's audio objects and mixer: banks, codecs, the engine chain, car and world sounds, speech, EA Trax and the interactive score, reverb. |
 | rendering | `render/` | The wgpu renderer, in three layers (below). |
-| input and platform | `pad/`, `platform/`, `allocator.rs`, `latency.rs` | Gamepads (gilrs), folders and paths per OS (docs/platform-dirs.md), the allocator choice, frame pacing. |
+| input and platform | `pad/`, `platform/`, `allocator.rs`, `latency.rs` | Gamepads (gilrs), folders and paths per OS (docs/playing/platform-dirs.md), the allocator choice, frame pacing. |
 | extras and tools | `qol/`, `diag/`, `overlay/`, `mark_spot.rs`, `photo.rs`, `upscale*.rs`, `texture_mods.rs`, `tpf_import.rs`, `texwizard_import.rs`, `hud_mod.rs`, `hd_ui_pack.rs`, `model_fixes.rs` | The opt-in quality-of-life features, the F3 overlay, the support file and event log (docs/troubleshooting.md), report and photo tools, texture-pack generation, the texture mods' and the HUD mod's import. |
 | launcher | `launcher/` (binary `src/bin/overbright.rs`), `launch/` | The launcher: game-folder search and check, settings, the start choices, the Mods page (texture mods, the HUD mod), start. CPU-drawn (no wgpu), so it opens without a Vulkan driver (docs/launcher.md). `launch/` is the contract the game and the map editor share with it (`game --probe`'s report, `game --prepare`'s lines, the `error.kind=` line, the look's colour tokens); the game binary, the map editor and the rest of the library name no `launcher::` path (a few library tests still use the launcher's model). |
 
@@ -47,7 +47,7 @@ The library is being cut into crates that only depend downward: `ob-core` (`crat
 `game_root`, the clocks, the game folder access, the asset cache, the platform folders, the fingerprint, the
 logs, the game's random numbers, the camera's values), `ob-formats` (`crates/ob-formats`: the file-format
 parsers and the engine's tables, on `ob-core` only), `ob-asset-format` (`crates/ob-asset-format`: the core of
-Overbright's own asset format, docs/asset-format/: exact floats, names, digests, bundles, the pack manifest,
+Overbright's own asset format, docs/modding/asset-format/: exact floats, names, digests, bundles, the pack manifest,
 layering, and the generator that keeps the specification's rule tables and schemas in step with the code; on
 `ob-formats`; nothing in the game reads through it yet), then the rest of the library. Each layer's
 modules are listed in `scripts/checks/crate-layers.txt`; `scripts/checks/crate_layers.sh` (in every checks set)
@@ -59,7 +59,7 @@ forbidden crate in a low package's tree (no wgpu, winit or cpal under `ob-core`,
 module that moves into a crate below is re-exported at its old place. Where a module is split (the cache check, the support
 file, the winit and wgpu parts of `platform` and `prof`), the library's `src/lib.rs` keeps the upper part
 beside the re-exported lower one. Each library crate has its own build id for the asset cache
-(docs/asset-cache.md) and passes `cargo check --target wasm32-unknown-unknown`.
+(docs/developing/asset-cache.md) and passes `cargo check --target wasm32-unknown-unknown`.
 
 ## The game binary (`src/bin/game.rs`, `src/bin/game/`)
 
@@ -82,7 +82,7 @@ developer tools (`inspect`, `world`, `car_check`, `car_inspect`, `car_textures`,
 
 The original steps its world once per main-loop frame by that frame's own length (at most 0.05 s), so it plays
 differently at different frame rates. Overbright takes the original at 60 fps as the reference
-(docs/uncapped-fps.md):
+(docs/original/uncapped-fps.md):
 
 1. Real time is counted in whole units of 1/36,000 s (`frame_clock::TickClock`), exact for the common rates.
 2. The world advances in ticks. A race tick is 1/60 s, stepped as the original's 60 fps frame
@@ -97,7 +97,7 @@ differently at different frame rates. Overbright takes the original at 60 fps as
 7. Drawing is never capped; an optional frame cap only limits drawing.
 8. The front end without a loaded world updates once per drawn frame; its timers are being moved onto ticks.
 9. The world state at tick n is therefore the same at 30, 60, 120 or 200 Hz.
-10. The rate gate (docs/checks.md) checks this by hashing the simulation state per tick at those rates.
+10. The rate gate (docs/developing/checks.md) checks this by hashing the simulation state per tick at those rates.
 
 ## Data flow at start
 
@@ -109,11 +109,11 @@ loads run on worker threads behind the original's loading screens.
 ## The checks
 
 - `cargo test --release --features dev-harness`: pure tests, data tests on the player's files (ignored with a
-  reason without them), private tests (docs/testing.md).
+  reason without them), private tests (docs/developing/testing.md).
 - `scripts/checks/checks.sh fast|full`: build, tests, the self-test, headless shots twice for determinism, the
   flows, the settings matrix, the resolution matrix, the fuzz smoke, the shipping-build check
-  (docs/checks.md).
+  (docs/developing/checks.md).
 - `scripts/checks/gate.sh`: the checks plus parity against a base build: frames, audio and simulation hashes
-  (docs/perf-gates.md); `RATE=1` adds the rate gate.
+  (docs/developing/perf-gates.md); `RATE=1` adds the rate gate.
 - `scripts/checks/provenance.py`, `layering.sh`, `crate_layers.sh` (provenance tags, render layering, the crate
   layers).

@@ -98,7 +98,7 @@ fn initial_camera(args: &Args, world: &World) -> Camera {
 }
 
 fn main() -> Result<()> {
-    // A developer tool: the developer cache, never the player's (docs/asset-cache.md).
+    // A developer tool: the developer cache, never the player's (docs/developing/asset-cache.md).
     nfsu2::platform::dirs::developer_program();
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
     let args = parse_args()?;

@@ -1,4 +1,4 @@
-// Particles Cinematic → volumetric (docs/smoke-volumetric.md). The
+// Particles Cinematic → volumetric (docs/notes/graphics/smoke.md "Volumetric effects and the volumetric Cinematic smoke"). The
 // smoke-specific half: each live Cinematic puff (smoke_cinematic.wgsl's
 // pool: the native smoke births, moved by its noise flow, wind and wakes)
 // becomes a volume_fx `Particle`: its size and opacity as the Cinematic billboard

@@ -1,4 +1,4 @@
-//! Test isolation for the game's unit tests (docs/test-determinism.md;
+//! Test isolation for the game's unit tests (docs/developing/test-determinism.md;
 //! test-only, `cfg(test)`).
 //!
 //! libtest runs every test on a thread of its own, all in one process, so
@@ -25,7 +25,7 @@
 //!   cores, so a many-core machine with little memory ran out of it. A game
 //!   test takes a memory slot ([`slot`]) before anything else; the number
 //!   of slots comes from the memory available when the first test starts
-//!   (docs/testing.md "Memory").
+//!   (docs/developing/testing.md "Memory").
 //!
 //! The guards live in a thread-local slot and are released when the test's
 //! thread ends (also after a panic).

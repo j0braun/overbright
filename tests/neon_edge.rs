@@ -1,4 +1,4 @@
-//! The underglow's "cutoff line" (docs/neon-quality.md): the native
+//! The underglow's "cutoff line" (docs/notes/graphics/neon-quality.md): the native
 //! `%s_NEON` masks are still lit on their border, so the glow stops in a
 //! straight line at the shadow grid's edge; Car Shadow / Neon Ultra's
 //! rebuild fades them to 0 there. Ignored without NFSU2_ROOT.

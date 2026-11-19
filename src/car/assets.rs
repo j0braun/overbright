@@ -128,7 +128,7 @@ pub fn wheel_composite_hashes(
 }
 
 /// The files a load of the car `name` reads (`Car::load_tuned`), for
-/// reading them ahead (`cache::read_ahead`, docs/read-ahead.md): its
+/// reading them ahead (`cache::read_ahead`, docs/developing/read-ahead.md): its
 /// GEOMETRY.BIN (read whole: the collision hull), the cache files of its
 /// solids and its textures (its TEXTURES.BIN without one), its part
 /// animations, and the cache files of the texture packs every car shares

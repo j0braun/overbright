@@ -35,14 +35,14 @@ struct Frame {
     hl_up: vec4<f32>,
     hl_forward: vec4<f32>,
     hl_color: vec4<f32>,
-    // Wet Roads (clone deviation, docs/wet-roads-ssr.md), main view only:
+    // Wet Roads (clone deviation, docs/notes/graphics/reflections.md "Wet Roads and Screen-Space Reflections"), main view only:
     // x = 1 on and the road wet (else 0, the native path), y = the rain's
     // amount (weather +0x1F0), z = the rain's road wetness (the native
     // +0x509C rule from rain only, `Weather::road_wet`), w = the world
     // clock (s, 0x7FB718: the ripples' time).
     wet: vec4<f32>,
     // Dynamic Lamps / Lamp Shadows / Contact Shadows (clone deviations,
-    // docs/lamps-shadows.md), main view only: x = 1 lamps on, y = the
+    // docs/notes/graphics/lamps-shadows.md), main view only: x = 1 lamps on, y = the
     // contact shadow's depth (0 off), z = Lamp Shadows (0 off, 1 Low,
     // 2 High), w = the car occluders. cluster: tiles x, y, slices,
     // slices / ln(far / near); cluster_near: x = near, y = the headlight's

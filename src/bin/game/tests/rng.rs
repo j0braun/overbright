@@ -1,7 +1,7 @@
 //! The shared generator (0x7EA624) and the world generator (world
-//! +0xF8) in the original's draw sites and order (docs/rng.md).
+//! +0xF8) in the original's draw sites and order (docs/original/rng.md).
 use super::*;
-// The test kit (tests/common/mod.rs, docs/testing.md).
+// The test kit (tests/common/mod.rs, docs/developing/testing.md).
 #[path = "../../../../tests/common/mod.rs"]
 mod testkit;
 

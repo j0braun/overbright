@@ -1,4 +1,4 @@
-//! The frame time the world advances by (0x57EAE0, docs/uncapped-fps.md).
+//! The frame time the world advances by (0x57EAE0, docs/original/uncapped-fps.md).
 //!
 //! **Verified** (disassembly 0x57EAE0..0x57ECB3, live under Wine
 //! 2026-11-04): the main loop 0x5811D0 hands 0x57EAE0 the measured frame
@@ -16,7 +16,7 @@
 //! rate gives a repeating tick pattern: 60 fps 30, 29, 31; 120 fps 15, 16,
 //! 14; 240 fps 8, 7, 7 (all three seen in the original's mover dt).
 //!
-//! The clone has no 1/120 limiter (drawing is uncapped, docs/native-deviations.md), so T = 0
+//! The clone has no 1/120 limiter (drawing is uncapped, docs/playing/native-deviations.md), so T = 0
 //! here, as in the original with its period set to 0.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct FrameClock {
@@ -39,7 +39,7 @@ impl FrameClock {
     /// `V = min(max(raw + carry, limit), 3/60)`. At a steady `raw` equal to
     /// the limit this gives the original's tick patterns: 1/30 s frames
     /// 60, 60, 60, 60, 61 ticks (every scene clock captured under Wine,
-    /// `docs/nis-audio-patterns.md`), 1/120 s frames 15, 15, 16, 15, 15.
+    /// `docs/original/nis-audio-patterns.md`), 1/120 s frames 15, 15, 16, 15, 15.
     pub fn frame_limited(&mut self, raw: f32, limit: f32) -> (f32, u32) {
         // x87 extended precision in the original; f64 holds every value
         // these few operations produce at this magnitude.
@@ -51,7 +51,7 @@ impl FrameClock {
     }
 }
 
-/// The tick clock (agreed deviation, docs/native-deviations.md "World
+/// The tick clock (agreed deviation, docs/playing/native-deviations.md "World
 /// update rate": the original does not run at those high frame rates, so
 /// the world works as at 30 or 60 fps, identical at 30,
 /// 60, 120 and 200 fps). Real time is counted in whole [`UNITS`]
@@ -110,9 +110,9 @@ pub const RAW_30: f32 = (1000.0f32 / 30.0) * 0.001;
 /// so a 60 Hz display's jitter does not alternate 0 and 2 ticks. Only for
 /// frames of about a period's length (the period less the snap or more):
 /// at a high or uncapped rate a tick taken early held the drawn fraction
-/// at 0 for two frames, then jumped (docs/first-race-regression.md); at
+/// at 0 for two frames, then jumped (docs/notes/parity/first-race-regression.md); at
 /// 3/4 of a period (80 Hz, R1) a 75 Hz display took every tick early
-/// (docs/postrace-jitter.md).
+/// (docs/notes/front-end/postrace-jitter.md).
 pub const SNAP: f64 = 0.002;
 /// [`SNAP`] in [`UNITS`].
 pub const SNAP_UNITS: i64 = 72;

@@ -1,5 +1,5 @@
 //! The decoders' standard tables, taken from open decoders instead of the
-//! original executable (docs/exe-tables.md, "Decoder tables"): the
+//! original executable (docs/original/exe-tables.md, "Decoder tables"): the
 //! MicroTalk tables from vgmstream ([`vgmstream_utk`], ISC), the MPEG-1
 //! layer III tables of ISO/IEC 11172-3 and the VP6 tables from FFmpeg
 //! ([`ffmpeg_mpegaudio`], [`ffmpeg_vp6`], LGPL-2.1-or-later). Each vendored

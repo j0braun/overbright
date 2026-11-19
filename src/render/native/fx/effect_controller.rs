@@ -1,7 +1,7 @@
 //! The NIS SCREEN_FLASH event: the white flashes of the race-start scenes
 //! (IntroNis05 / 10 / 22 / 24–27), drawn by the tint pass.
 //!
-//! Traced in SPEED2.EXE (docs/nis-mover.md "SCREEN_FLASH"):
+//! Traced in SPEED2.EXE (docs/original/nis-mover.md "SCREEN_FLASH"):
 //!
 //! * Parser 0x432D00: the name 0x785E48 maps to event type 10 (0x430B20);
 //!   the line's two values go to +0x08 (int) and +0x14 (float). Every

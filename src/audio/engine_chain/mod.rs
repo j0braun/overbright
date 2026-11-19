@@ -3,7 +3,7 @@
 //! rev limiter (0x46F610), SFXCTL_HybridMotor (0x47C3D0) turns it into the
 //! layer volumes, and CARSFX_PlayerEngine (0x474030 / 0x473E60) drives one
 //! granular voice per recording: the accel GIN (+0x80) and, for hybrid
-//! entries, the decel `_DCL` GIN (+0x84). See docs/engine-volume-chain.md.
+//! entries, the decel `_DCL` GIN (+0x84). See docs/original/engine-volume-chain.md.
 //!
 //! The SFXCTL_Shifting blip machine (0x482D50) and the SFXCTL_AccelTrans
 //! launch / tip-in machine (0x4831A0) run here too

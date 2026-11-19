@@ -1,5 +1,5 @@
 //! Overbright texture packs: the project's own replacement-texture format
-//! (docs/texture-packs.md, "Overbright packs"). A pack is a folder
+//! (docs/modding/texture-packs.md, "Overbright packs"). A pack is a folder
 //!
 //! ```text
 //! <data>/overbright/packs/<id>/

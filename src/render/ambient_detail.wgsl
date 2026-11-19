@@ -1,4 +1,4 @@
-// Ambient Detail's props (docs/ambient-detail.md; clone deviation, opt-in).
+// Ambient Detail's props (docs/notes/graphics/ambient-detail.md; clone deviation, opt-in).
 // Low-poly street props made in code (cans, bottles, cups, boxes, crumpled paper, leaves and newspaper as curled
 // cards), oil stains and drain grates as decals, grit chips and moths. Their materials are made here (nothing from
 // EA's art). Shaded like world.efx (colour x baked v0 x 2, fogged with the frame's FogValue) plus the scene's direct

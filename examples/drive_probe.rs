@@ -48,7 +48,7 @@ fn run(label: &str, s: &mut CarState, car: &nfsu2::car::Car, world: &nfsu2::worl
 }
 
 fn main() -> anyhow::Result<()> {
-    // A developer tool: the developer cache, never the player's (docs/asset-cache.md).
+    // A developer tool: the developer cache, never the player's (docs/developing/asset-cache.md).
     nfsu2::platform::dirs::developer_program();
     let root = nfsu2::game_root();
     let name = std::env::args().nth(1).unwrap_or_else(|| "240SX".into());

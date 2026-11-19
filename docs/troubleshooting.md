@@ -51,7 +51,7 @@ files.
 | Crash reports (Enhancements: Crash Reports) | `%LOCALAPPDATA%\Overbright\crashes\` | `~/.local/share/overbright/crashes/` |
 
 In portable mode (a `portable.txt` beside the programs) all of these are in the `data` folder beside the
-programs; `NFSU2_DATA_DIR` moves them too (docs/platform-dirs.md).
+programs; `NFSU2_DATA_DIR` moves them too (docs/playing/platform-dirs.md).
 
 ## The game's recent events
 
@@ -77,6 +77,27 @@ On Windows a crash that is no Rust panic (an access violation in a driver or an 
 adds one line to the game's log, `native crash: exception 0x… (…) at <module>+0x…`, before Windows ends the
 process. A stack overflow or an abort skips that line; Windows records it in the Application event log, which
 the support file reads.
+
+## What the game check says
+
+The launcher checks the game folder you choose (the **Game folder** screen) and shows one verdict. Its title
+is one of these:
+
+| What the screen says | What it means | What to do |
+|---|---|---|
+| Ready to play | Every file the game needs is there and is the original release (version 1.2). | Use this folder. |
+| Ready, some movies won't play | Some movies are not in the MOVIES folder. The game skips them, as the original does. | Use this folder; Details lists which ones. |
+| Ready, some menu files are missing | A menu file is missing; some menus may not load. | Use this folder; if a menu fails, save a support file. |
+| Ready, with changed game files | Some game files are not the original ones (a mod or another release). The game may look or play differently. | Use this folder; attach a support file to any report. |
+| This copy isn't recognised | None of the game files match the release Overbright knows. Overbright asks before it uses the folder. | Choose another folder, or Use it anyway; a support file helps add the release. |
+| The game's text file is missing | The copy has no `LANGUAGES/English.bin` (for example a copy with another language's text only). The game reads its menus and text from that file and does not start without it. | Choose a copy that has the file. |
+| Some game files are missing | Files the game needs are not in the folder (an install or a copy stopped early). | Reinstall or copy the whole folder again, then Check again. |
+| No game here | The folder is not the game's. | Choose the folder with GLOBAL, FRONTEND and TRACKS in it. |
+| This is Overbright's folder | Overbright's own folder was chosen. | Choose the folder the game was installed to. |
+| Overbright can't open this folder | Your account cannot read the folder. | Choose a folder you can open, or copy the game to one. |
+
+The **Details** button lists the missing and changed files by name and the movies per group. The full list
+(sizes, checksums, the file each movie plays from) is in `game --check-game` and in the support file.
 
 ## What players see when a start fails
 

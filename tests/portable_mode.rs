@@ -1,4 +1,4 @@
-//! Portable mode end to end (docs/platform-dirs.md, "Portable mode"): the
+//! Portable mode end to end (docs/playing/platform-dirs.md, "Portable mode"): the
 //! game binary, linked into a program folder with `portable.txt` beside
 //! it, run under a fake home (HOME, XDG unset, LOCALAPPDATA, APPDATA,
 //! TMPDIR all inside the test's folder): everything it writes lands in

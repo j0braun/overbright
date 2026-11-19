@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Temporal flicker of a region over a frame sequence (docs/chrome-flicker.md).
+"""Temporal flicker of a region over a frame sequence (docs/notes/graphics/car-look.md "Chrome trunk flicker and dry-road reflection strength").
 
 flicker.py RECT FRAME.png...   RECT = WxH+X+Y
 Prints: mean luma, mean per-pixel temporal std, p99 std, mean |frame-to-frame

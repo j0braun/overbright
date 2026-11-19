@@ -271,7 +271,7 @@ impl WorldRenderer {
     /// pop statistics are kept, and then nothing is uploaded or drawn
     /// differently).
     ///
-    /// docs/uncapped-fps.md, "Enhancement effects on ticks": with
+    /// docs/original/uncapped-fps.md, "Enhancement effects on ticks": with
     /// the game's ticks published (`render::enh::tick_views`) the fades
     /// step once per world tick, each with that tick's camera, sections and
     /// time, and a frame between two ticks draws what the last step left;

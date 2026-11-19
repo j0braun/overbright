@@ -1179,7 +1179,7 @@ mod file_tests {
 mod overlay_row_tests {
     use super::*;
 
-    /// docs/perf-overlay.md: the overlay's four rows after Reduced
+    /// docs/notes/performance/overlay.md: the overlay's four rows after Reduced
     /// Flashing, their labels known and unique, values cycled, saved in
     /// options.txt, reset by Restore Native, and no deviation.
     #[test]

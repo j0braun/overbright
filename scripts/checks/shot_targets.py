@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""List every `--shot` target of the game binary (docs/checks.md).
+"""List every `--shot` target of the game binary (docs/developing/checks.md).
 
 A tree with the shot table (src/bin/game/dev/shot/targets/, the
 binary answers `game --shot-list` with `name<TAB>group` lines) is asked:
@@ -56,7 +56,7 @@ def has_shot_list(repo):
 def binary_targets(repo, binary):
     """`<binary> --shot-list`: the table's targets."""
     cands = [binary, os.environ.get("SHOT_LIST_BIN")]
-    # The checks' profile folder (CHECKS_PROFILE, default gate; docs/build-times.md).
+    # The checks' profile folder (CHECKS_PROFILE, default gate; docs/developing/build-times.md).
     pdir = os.environ.get("CHECKS_PROFILE") or "gate"
     pdir = "debug" if pdir == "dev" else pdir
     if os.environ.get("CARGO_TARGET_DIR"):

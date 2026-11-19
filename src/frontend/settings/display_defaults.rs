@@ -108,7 +108,7 @@ impl Settings {
     pub fn apply_enhancements(&self) {
         // The settings page's Compare shows the original's look (the
         // Original preset's graphics values, QoL kept) without changing or
-        // saving anything (docs/settings-page.md).
+        // saving anything (docs/developing/settings-page.md).
         if crate::qol::comparing() {
             let mut e = self.enh;
             crate::qol::Preset::Original.apply(&mut e);
@@ -159,7 +159,7 @@ impl Settings {
     /// 0x4FEF80, drag 0x4FEFF0, 0x4FF0E0, the career / free roam path
     /// 0x4FF160 (0x526980 with its flag set) and 0x532575 — turns a 4 back
     /// into 3, Far. Under Wine a profile saved with 4 resumed to free roam
-    /// with the far view (2026-11-05, docs/world-systems-parity.md).
+    /// with the far view (2026-11-05, docs/notes/parity/world-systems-parity.md).
     pub fn race_camera(&mut self, drift: bool) {
         let p = &mut self.players[0];
         if drift {

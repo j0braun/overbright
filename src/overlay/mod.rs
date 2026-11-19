@@ -1,4 +1,4 @@
-//! The performance overlay, MangoHud-style (docs/perf-overlay.md). A
+//! The performance overlay, MangoHud-style (docs/notes/performance/overlay.md). A
 //! clone tool, not a game feature: F3 cycles hidden → Minimal → Standard →
 //! Full → hidden (Shift+F3 hides it); the Enhancements page picks the
 //! layout shown at start, its corner and scale, and a CSV log of every

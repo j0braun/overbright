@@ -1,6 +1,6 @@
 //! The values in force a frame's draw reads, copied once
 //! ([`RenderOptions::in_force`]; the frame's settings value is
-//! `render::FrameSettings`, docs/frame-settings.md).
+//! `render::FrameSettings`, docs/developing/frame-settings.md).
 
 use super::*;
 use crate::render::RenderOptions;

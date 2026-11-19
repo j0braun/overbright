@@ -1,4 +1,4 @@
-// Volumetric effects (docs/smoke-volumetric.md; clone deviation,
+// Volumetric effects (docs/notes/graphics/smoke.md "Volumetric effects and the volumetric Cinematic smoke"; clone deviation,
 // opt-in). A reusable particle → density volume → lit ray march renderer
 // and a GPU particle pool, shared by the Cinematic smoke and later
 // effects (spray, mist, steam, fire). Sections (volume_fx.rs `sections`):

@@ -1,6 +1,6 @@
 //! The harness on the
 //! tick cadence. The world advances only by ticks of the tick clock
-//! (`nfsu2::frame_clock::TickClock`, docs/uncapped-fps.md): 1/60 s (the
+//! (`nfsu2::frame_clock::TickClock`, docs/original/uncapped-fps.md): 1/60 s (the
 //! native 30, 29, 31 of 1/1800 s) or, while a scene holds the cars, 1/30 s
 //! (60, 60, 60, 60, 61). The harness steps the game the same way:
 //!

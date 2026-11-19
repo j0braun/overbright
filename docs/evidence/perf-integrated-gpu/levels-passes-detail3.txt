@@ -1,4 +1,4 @@
-# The Enhanced levels on the integrated GPU at World Detail 3 (a fresh install's there: docs/perf-integrated-gpu.md "World Detail").
+# The Enhanced levels on the integrated GPU at World Detail 3 (a fresh install's there: docs/notes/performance/integrated-gpu.md "World Detail").
 # scripts/passes.sh with NFSU2_BENCH_DETAIL=3, --bench <scene> 200, 2 runs per configuration, the tree's binary (with the
 # cluster loop's subgroup form and the occlusion's glow rectangles); five short series under the integrated GPU's
 # measuring lock, load average 17.69 42.13 (the other units' work; the CPU is not what bounds these frames).

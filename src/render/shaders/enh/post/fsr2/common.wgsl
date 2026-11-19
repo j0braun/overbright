@@ -1,4 +1,4 @@
-// FSR 2 temporal upscaler (docs/fsr2.md; a clone deviation, opt-in on
+// FSR 2 temporal upscaler (docs/notes/graphics/fsr2.md; a clone deviation, opt-in on
 // the Upscaling row). A WGSL port of the AMD FidelityFX Super Resolution
 // 2.2 passes (MIT licence, Copyright (c) 2022-2023 Advanced Micro Devices,
 // Inc.; THIRD-PARTY-NOTICES.md): reconstruct-and-dilate
@@ -7,7 +7,7 @@
 // (ffx_fsr2_accumulate.h, _upsample.h, _reproject.h,
 // _postprocess_lock_status.h, _common.h, _sample.h) and RCAS
 // (ffx_fsr2_rcas.h / ffx_fsr1.h). Differences from the original, all
-// because of the clone's inputs (see docs/fsr2.md):
+// because of the clone's inputs (see docs/notes/graphics/fsr2.md):
 // * motion vectors are made here from the depth and the drawn cars' rigid
 //   poses (the TAA pass's reprojection, temporal.wgsl), not read from a velocity
 //   buffer (the clone's renderer writes none);

@@ -2,7 +2,7 @@
 //! original (docs/native-fixes/NP-PLAY.tsv),
 //! on sandbox profiles (`test_isolation`).
 use super::*;
-// The test kit (tests/common/mod.rs, docs/testing.md).
+// The test kit (tests/common/mod.rs, docs/developing/testing.md).
 #[path = "../../../../tests/common/mod.rs"]
 mod testkit;
 

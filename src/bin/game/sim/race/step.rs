@@ -653,7 +653,7 @@ fn race_world_step(
     }
     // The replay manager's DUMMY_SNAPSHOT (0x57D010 → 0x57C190, before
     // the world update whose counter 0x7FB724 is a multiple of 100; see
-    // `CarState::snapshot_take` and docs/tuning-physics-parity.md).
+    // `CarState::snapshot_take` and docs/notes/parity/tuning-physics-parity.md).
     if race.replay.world_updates % 100 == 0 {
         d.state.snapshot_take();
         for r in race.racers.rivals.iter_mut() {

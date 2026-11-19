@@ -1,5 +1,5 @@
 //! The light-streak buffer commits once per tick, from that tick's own
-//! frame (docs/uncapped-fps.md, "Streak buffer on ticks").
+//! frame (docs/original/uncapped-fps.md, "Streak buffer on ticks").
 //!
 //! The original runs one streak pass per loop iteration (0x5CBB10 from the
 //! world render 0x5CAAE0): decay, the frame's glow sprites, then the

@@ -437,7 +437,7 @@ impl AiDriver {
     /// the racer has its goal: the input's brake reads 0 and the gear
     /// request −1 (none), while the gas (1 from the countdown) and the
     /// wheel angle stay as they were; the target speed is still 0
-    /// (**observed** under Wine on every rival, docs/race-ai-parity.md:
+    /// (**observed** under Wine on every rival, docs/notes/parity/race-ai-parity.md:
     /// the first frame with status 4 has gas 1, brake 0, gear request −1,
     /// steer 0, +0x230 = 0, no goal; the store that clears the brake is
     /// not traced). The next update's speed control (0x41D8D0) starts from

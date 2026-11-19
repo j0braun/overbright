@@ -1,4 +1,4 @@
-//! TexWizard texture packs (docs/texture-packs.md, "TexWizard packs"), read
+//! TexWizard texture packs (docs/modding/texture-packs.md, "TexWizard packs"), read
 //! as data. TexWizard (github.com/R-033/texwizard, GPL-3.0) is a script for
 //! the original game: at start it reads each pack's `meta.json`, has the
 //! game load the pack's `textures.bin` with its global files, and answers

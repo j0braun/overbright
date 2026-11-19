@@ -173,7 +173,7 @@ pub fn explore_pause_menu_with(career: bool, garage: bool, photo: bool) -> Vec<I
     v
 }
 
-/// Photo mode (docs/photo-mode.md, clone deviation): "Photo Mode" before "Quit
+/// Photo mode (docs/playing/photo-mode.md, clone deviation): "Photo Mode" before "Quit
 /// to Main Menu" when the Enhancements row "Photo Mode in Pause Menu" is
 /// on (default Off: the native list, unchanged). The icon is the Replay
 /// item's (the nearest the original has to a camera).

@@ -19,7 +19,7 @@ pub struct UiRenderer {
     /// `texture_pack::Domain::Ui`), which [`UiRenderer::record`] draws
     /// with ui.wgsl's `sharp` when magnified. Empty with HD UI Art off.
     pub(super) hd: crate::fxhash::FxHashSet<u32>,
-    /// docs/pack-hot-reload.md: the pack changes seen, and the
+    /// docs/modding/pack-hot-reload.md: the pack changes seen, and the
     /// textures bound from the assets (rebound when their file changes).
     pub(super) pack_seen: u64,
     pub(super) from_assets: crate::fxhash::FxHashSet<u32>,

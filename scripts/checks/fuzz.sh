@@ -1,5 +1,5 @@
 #!/bin/bash
-# The fuzz smoke (docs/fuzzing.md): every parser target of fuzz/targets.rs gets mutated inputs over seeds
+# The fuzz smoke (docs/developing/fuzzing.md): every parser target of fuzz/targets.rs gets mutated inputs over seeds
 # from the player's game files; no panic, no hang, no allocation above Formats' Limits.
 #
 #   fuzz.sh

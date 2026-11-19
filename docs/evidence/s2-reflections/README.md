@@ -1,7 +1,7 @@
 # Reflection / wet-road leftovers (2026-11-04)
 
 Build: the base + this change, reference desktop GPU, RADV; shots `--shot` at 1920×1080
-(`NFSU2_SHOT_ENH`), scenes as in docs/graphics-settings-audit.md (explore = dusk free
+(`NFSU2_SHOT_ENH`), scenes as in docs/notes/graphics/graphics-settings-audit.md (explore = dusk free
 roam, rain = `NFSU2_RAIN_CLOCK=170 explore`, qrstart, motion = circuit after 600 frames
 at full throttle, intro = night free roam).
 
@@ -29,7 +29,7 @@ Off), `wet_rain.jpg` (ripples at the world clock), `fog_explore.jpg` (fog once),
 `blend_motion.jpg` (Enhanced Reflections off: short fade into the native capture),
 `lamps_scale_intro.jpg` (item 8, below).
 
-## Lamp shadows under SSAA / Render Scale (lamp shadows vs docs/post-scale.md)
+## Lamp shadows under SSAA / Render Scale (lamp shadows vs docs/notes/graphics/ssaa.md "Post effects under SSAA and Render Scale")
 The soft taps are shadow-map texels (1.5 texel steps of a fixed 512²/1024² array,
 `shadow_visibility`), the offsets world metres, the normal normalised, the clusters
 16 × 9 screen tiles in NDC: no term depends on the scene's pixel size. Measured

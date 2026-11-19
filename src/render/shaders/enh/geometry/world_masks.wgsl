@@ -1,5 +1,5 @@
 // The SSR mask pass (main view's worldreflect draws again, into the mask's
-// own targets; docs/wet-roads-ssr.md): 0 = the reflection term as the
+// own targets; docs/notes/graphics/reflections.md "Wet Roads and Screen-Space Reflections"): 0 = the reflection term as the
 // main pass added it (rgb, unweighted) and its weight × fog; 1 = the
 // normal's x, y, the roughness and the view depth.
 struct MaskOut {
@@ -69,7 +69,7 @@ fn fs_overlay_mask(in: VertexOut, @builtin(view_index) view_index: u32) -> MaskO
     return MaskOut(vec4<f32>(0.0), vec4<f32>(0.0, 0.0, 0.0, depth), vec4<f32>(0.0, 0.0, 0.0, 1.0));
 }
 
-// docs/fsr2.md "Animation mask": FSR 2's animation mask, the main
+// docs/notes/graphics/fsr2.md "Animation mask": FSR 2's animation mask, the main
 // view's draws whose texture moves on a fixed surface (flip-books, UV
 // scrolls, water, the wet road's ripples): a coverage, which the pipeline's
 // blend scales by the draw's (reactive, composition) values (its blend
@@ -121,7 +121,7 @@ fn fs_anim_mask_light(in: VertexOut, @builtin(view_index) view_index: u32) -> @l
 }
 
 
-// The SSR mask's term and surface from the main view itself (docs/wet-roads-ssr.md "The mask from the main
+// The SSR mask's term and surface from the main view itself (docs/notes/graphics/reflections.md "The mask from the main
 // view"): with the depth pre-pass and one sample, the main view's worldreflect draws (the opaque block of
 // its order) are drawn in a pass of their own whose second and third targets are the mask's, and these
 // entries write there what `wet_mask` writes, from the one `wet_surface` the colour takes as well. The

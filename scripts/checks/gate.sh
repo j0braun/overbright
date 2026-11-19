@@ -1,5 +1,5 @@
 #!/bin/bash
-# Merge gate (docs/checks.md): the checks plus the parity of a base against this tree.
+# Merge gate (docs/developing/checks.md): the checks plus the parity of a base against this tree.
 #
 #   gate.sh OUTDIR BASE [extreme]
 #
@@ -12,7 +12,7 @@
 # under its old name in the parity's private set). "extreme": also the Extreme presets in the enhanced gate. The rate gate v2 on the new binary runs
 # by default (in checks.sh full, else in the parity) and counts: RATE=strict (the default) fails on any difference
 # across rates, RATE=1 on what scripts/checks/rate-columns.txt marks "fail" (since the final policy the same set),
-# RATE=0 leaves it out; docs/checks.md "Rate gate".
+# RATE=0 leaves it out; docs/developing/checks.md "Rate gate".
 # Identical binaries: fine when the game's sources (src/, examples/, build.rs, Cargo.*) are identical too
 # (a docs/scripts-only change; reported as such); a FAILURE when they differ (a stale or wrong build: the
 # parity would compare a binary with itself).
@@ -30,7 +30,7 @@ rm -rf "$G"; mkdir -p "$G"; G=$(cd "$G" && pwd)
 cd "$REPO" || exit 2
 echo "gate: $(date -Is) repo $REPO base $B local env $CK_LOCAL_ENV"
 export RATE=${RATE:-strict}
-# The checks step builds with the gate profile (CHECKS_PROFILE, docs/build-times.md); the parity's base and
+# The checks step builds with the gate profile (CHECKS_PROFILE, docs/developing/build-times.md); the parity's base and
 # candidate are both built by perf.sh build with the shipped release profile, so the parity compares like with like.
 export CHECKS_PROFILE=$CK_PROFILE
 echo "gate: checks profile $CK_PROFILE; parity builds: release (both sides)"

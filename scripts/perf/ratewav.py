@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Rate gate v2 audio (docs/checks.md "Rate gate"): the offline mix of one flow (NFSU2_AUDIO_WAV, pumped per world
+"""Rate gate v2 audio (docs/developing/checks.md "Rate gate"): the offline mix of one flow (NFSU2_AUDIO_WAV, pumped per world
 update) at several display schedules, compared byte for byte against the reference schedule's.
 usage: ratewav.py REF HZ=FILE.wav ...   ("ctl" = a second run at the reference: run-to-run determinism)
 Prints one line: per schedule "identical (N s)", the first differing sample's time, or a length difference.

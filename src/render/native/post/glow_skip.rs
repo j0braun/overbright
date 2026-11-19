@@ -1,5 +1,5 @@
 //! High Precision Post's blur only where its result can be other than 0
-//! (docs/hdr-post.md "Blur where it can be lit"). Exact: the same shaders
+//! (docs/notes/graphics/hdr-post.md "Blur where it can be lit"). Exact: the same shaders
 //! draw every texel they draw today; a texel left out is one whose every
 //! tap is 0, so its result is the 0 its target holds.
 //!

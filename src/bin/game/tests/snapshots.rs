@@ -1,9 +1,9 @@
-//! docs/uncapped-fps.md, "Tick snapshots": the frame's values
+//! docs/original/uncapped-fps.md, "Tick snapshots": the frame's values
 //! come from the two tick snapshots and α; the draw writes no simulation
 //! state. On a real free roam (the player's game files).
 use super::*;
 use nfsu2::interpolate::CarPose;
-// The test kit (tests/common/mod.rs, docs/testing.md).
+// The test kit (tests/common/mod.rs, docs/developing/testing.md).
 #[path = "../../../../tests/common/mod.rs"]
 mod testkit;
 

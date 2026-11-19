@@ -273,7 +273,7 @@ impl CarState {
         // nothing after the time of impact's search or the push-out, so they
         // are that search's last query's — at speed taken at another moment
         // of the search than the one the car is moved back to (read under
-        // Wine: 2.4 mm apart along the wall at 120 km/h, docs/prop-hits.md).
+        // Wine: 2.4 mm apart along the wall at 120 km/h, docs/notes/parity/prop-hits.md).
         let pair = self.pairs.entry(key).or_default();
         let (on_hull, on_polygon) = match pair.as_ref().and_then(|p| p.last()) {
             Some((_, x, y)) => (x, y),

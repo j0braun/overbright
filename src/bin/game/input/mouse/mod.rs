@@ -393,7 +393,7 @@ impl Game {
     // prov: inferred game.mouse.cursor_quad
     /// end, here no world loaded: **inferred** mapping) and else within
     /// 2 s of a move. Never while a load runs (the loading screen is not
-    /// the front end's frame). Agreed deviation (docs/native-deviations.md "Mouse cursor"): none
+    /// the front end's frame). Agreed deviation (docs/playing/native-deviations.md "Mouse cursor"): none
     /// while driving (free roam, races, the in-engine scenes; the
     /// original shows it there for 2 s after a move, seen under Wine);
     /// the menus over the world (pause, map, the dyno) and the replay keep
@@ -438,7 +438,7 @@ impl Game {
         let recent = !nfsu2::game_clock::real_over(self.real_now(), self.platform.mouse.moved_real, fm::SHOW_MS / 1000.0);
         match &self.mode {
             Mode::Menu(Menu::Movie(_)) => false,
-            // Agreed deviation (docs/native-deviations.md "Mouse cursor"): no cursor before the
+            // Agreed deviation (docs/playing/native-deviations.md "Mouse cursor"): no cursor before the
             // menus are reached; the original already shows it on the
             // "Press Enter Key" splash.
             Mode::Menu(Menu::Splash(_)) => false,

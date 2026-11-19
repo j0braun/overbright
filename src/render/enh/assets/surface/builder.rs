@@ -90,7 +90,7 @@ pub fn blocking() -> bool {
 }
 
 // ---------------------------------------------------------------------
-// Cars (docs/surface-maps.md "Cars"). A car's textures are atlases:
+// Cars (docs/notes/graphics/surface-maps.md "Cars"). A car's textures are atlases:
 // the skin holds the paint, the grille, the trim and the interior; the
 // tyre texture the rim and the sidewall. So a car map is made per texture
 // from the regions (UV triangles) of the draws whose light material has

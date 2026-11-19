@@ -34,7 +34,7 @@ pub enum PixelFormat {
     /// 32-bit RGBA, for textures the clone generates itself.
     Rgba8,
     /// BC7: 16 bytes per block. Never in the game's files: only Overbright
-    /// texture packs compiled from PNG (`obpack`, docs/texture-packs.md).
+    /// texture packs compiled from PNG (`obpack`, docs/modding/texture-packs.md).
     Bc7,
 }
 

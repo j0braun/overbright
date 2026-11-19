@@ -1,8 +1,8 @@
-//! Next-Gen car lights (docs/car-lights.md; a **clone deviation**,
+//! Next-Gen car lights (docs/notes/graphics/car-lights.md; a **clone deviation**,
 //! opt-in: the Headlight Beams row's third value, `enh.headlight_beams 2`).
 //! Nothing here exists in SPEED2.EXE; every look constant is **inferred**
 //! (by eye). What the original decides stays its own: which cars have lights
-//! (all of them, always on: docs/lighting2.md), where they are (the car
+//! (all of them, always on: docs/notes/graphics/lighting2.md), where they are (the car
 //! models' light markers, `glow::CarFlare`), their colour (render info
 //! +0x380 for the headlights) and when the brake lights are on (car +0x944,
 //! `CarState::brake_lights`).

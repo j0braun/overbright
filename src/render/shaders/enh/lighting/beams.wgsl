@@ -1,4 +1,4 @@
-// Headlight Beams (clone deviation, docs/lighting2.md): every car's
+// Headlight Beams (clone deviation, docs/notes/graphics/lighting2.md): every car's
 // headlights as view 9's projector (the native one is the player's only):
 // the eye on the car (+0.75 m up), its frustum (2.5 rad across, × 0.6
 // down), HeadlightTex (HEADLIGHTS: the soft cookie with its bright centre)
@@ -14,7 +14,7 @@
 // lamps): where the vertex colours already light the road brightly (a
 // race start under the lamps) several beams would wash the texture out. The player's takes Lamp
 // Shadows' headlight layer and the other cars; the rest no shadow.
-// Next-Gen car lights (docs/car-lights.md, `car_lights::world_glows`;
+// Next-Gen car lights (docs/notes/graphics/car-lights.md, `car_lights::world_glows`;
 // inferred, by eye): after the beams, position.w 2 a tail / brake light
 // (colour.w its reach, direction its facing: full light behind the car, a
 // quarter ahead of the lamp), 3 an underglow: a rectangle on the ground
@@ -51,7 +51,7 @@ fn car_glow_light(b: Lamp, p: vec3<f32>, n: vec3<f32>) -> vec3<f32> {
 }
 
 const BEAM_PEAK: f32 = 0.5;
-// Look rule "the bake is the anchor" (docs/look-direction.md): the other cars' beams are new light
+// Look rule "the bake is the anchor" (docs/notes/graphics/look-direction.md): the other cars' beams are new light
 // (the native projector is the player's only), held to the dark-gap budget:
 // 0.8 from a bake of 0.2 up washed the race starts' grids white (drift start
 // +10.7 mean, p95 +58); 0.3, gone from a bake of 0.25 (half the peak).

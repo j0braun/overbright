@@ -466,7 +466,7 @@ The menus are FEng packages: FRONTEND/FrontB.lzc (137), GLOBAL/GlobalB.lzc
       **Update (2026-11-04)**: all banks 1–15, native event order, slot
       binding, scripted gates and the vanilla 30-updates-a-second scene
       cadence (the 60 above was WidescreenFix's HighFPSCutscenes) — see
-      `docs/nis-audio-patterns.md`.
+      `docs/original/nis-audio-patterns.md`.
 * **Layout** (**verified**, `frontend::layout`) — the renderer walks the
   groups (0x52C5E0; a group with alpha 0 skips its children), gives each
   group a context (0x51B7F0) and queues each object (0x51A970: alpha 0 is
@@ -1452,7 +1452,7 @@ The menus are FEng packages: FRONTEND/FrontB.lzc (137), GLOBAL/GlobalB.lzc
 
 ### Boot, customize extras, magazine reward, loading tips (2026-10-28)
 
-* **Game start's PC_Loading** (**verified**, docs/loading-image.md): WinMain makes the front
+* **Game start's PC_Loading** (**verified**, docs/original/loading-image.md): WinMain makes the front
   end's load the first load step (0x580E6C: 0x865484 = 0x57FF20); 0x57FF20 closes loading_boot.fng
   and opens PC_Loading.fng (0x57FF95) before the front end's files, so the start always shows it
   ahead of the boot list below (observed under Wine: ~0.13 s, then LS_BlankMovie). The clone shows
@@ -1533,7 +1533,7 @@ The menus are FEng packages: FRONTEND/FrontB.lzc (137), GLOBAL/GlobalB.lzc
   (`game_assets::resolve_movie`: `<name>.vp6`, THX_logo.vp6 for
   THX_logo_fr; the text language's `<name>_<xx>.vp6`; `<name>_en.vp6`;
   any one `<name>_<xx>.vp6`; a deliberate deviation,
-  docs/native-deviations.md "Movie files"), so the US, European and
+  docs/playing/native-deviations.md "Movie files"), so the US, European and
   single-language data play; a screen with none of these files ends in the
   tick it opens (`movie::path`, `movie_tick`) and logs the names tried. **Open**:
   how an install shows these logos in English with this data; **inferred**:
@@ -1876,7 +1876,7 @@ The menus are FEng packages: FRONTEND/FrontB.lzc (137), GLOBAL/GlobalB.lzc
   (free roam ↔ city races, garage and shop exits, a car change: see
   `World::reset_to_loaded`) or reads the asset cache switches straight
   over. The load itself (the song stopped, the state reset) happens
-  either way. The game start's PC_Loading is exempt (docs/loading-image.md). **Not native (performance, 2026-10-30):** the clone loads
+  either way. The game start's PC_Loading is exempt (docs/original/loading-image.md). **Not native (performance, 2026-10-30):** the clone loads
   ahead (`Preload` in game.rs): free roam's world, its renderer and the
   player's car while the menus are up, another region's race while its
   Engage dialog is up; `drive_in` takes the result instead of loading.
@@ -1887,7 +1887,7 @@ The menus are FEng packages: FRONTEND/FrontB.lzc (137), GLOBAL/GlobalB.lzc
   drive, the post-race screens, a race's pause, a shop's screens, the
   garage, and the screens after them) load the encounter racers' cars of
   0x53F010(3) (`EncountersAhead`: its draws on a copy as it stands,
-  nothing drawing before them; docs/first-use-builds.md "Encounter racers
+  nothing drawing before them; docs/developing/first-use-builds.md "Encounter racers
   ahead"). The race or free roam takes a car loaded ahead
   only when its key (car, parts, performance packages) is the one it asks
   for, and loads any other itself, so a wrong guess costs time, never a
@@ -2364,7 +2364,7 @@ decompiles and the objdump) unless marked.
   original under Wine); the clone drew them on black. 2026-11-04: the
   post-race Sponsorships page too, and the world is not dimmed under any of
   them (frame 0x5D2860 has no FE gate; Wine pause frames identical outside
-  the panel). See `docs/fe-backdrops.md`.
+  the panel). See `docs/notes/front-end/fe-backdrops.md`.
 * **Open** (left from the menus audit): the career name / cash capture;
   the mailbox's second message record; the pause's Jump to Garage flag;
   the World Map's selection ring with the GPS on (the original showed
@@ -2589,7 +2589,7 @@ the maintainer's probe `pad_probe` lists what the game sees.
   0x865764 + 0x1C8p from 0x571FE0); the device arrows' Blink; the other
   two record tables' readers; under Wine the Controls pages with a pad
   were not captured (no pad in the prefix). The Controller extras:
-  `docs/controller-support.md`.
+  `docs/playing/controller-support.md`.
 
 ## Shop previews and engage message (2026-10-31, the finished-career save)
 
@@ -2735,7 +2735,7 @@ the prompt element → +0x60 the slots) and frames at 30 fps.
   with id 5 (its "ready", [BACK][0], already ported); Escape → id 5.
   Nothing else (no sound at the trigger, the tip's cash or the prompt's
   end).
-* **No other marker sounds** (searched): see docs/sound-audit.md H5–H7.
+* **No other marker sounds** (searched): see docs/notes/audio/sound-audit.md H5–H7.
 * **Clone** (`hud::Prompts`; `Hud::take_sounds` → `Game::fe_sound`):
   the queue, its steps, priorities, takeovers, draws in slot order and
   sounds as above; the marker's kind is queued / dropped when the

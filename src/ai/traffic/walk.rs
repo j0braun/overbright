@@ -71,6 +71,13 @@ pub struct TrafficLane {
     /// and its +0x58 (metres along `steps[0]`). The walk keeps the control
     /// point behind the car and the 8 m points on its segment.
     pub(super) lead: (usize, f32),
+    /// The walk points' lane offsets (FuturePoint +0x04, +0x08..+0x14) as
+    /// the smoothing 0x41A180 left them, per step: its control point's
+    /// (index 0, kept 0) and its 8 m points'. A point keeps its offsets
+    /// while it stays in the walk; only the run 0x428030 hands 0x41A180
+    /// (from the second-last control point before the extension on) is
+    /// smoothed again ([`TrafficLane::smooth`]).
+    pub(super) xs: VecDeque<Vec<[f32; 5]>>,
     /// A drag race's traffic (0x89E7D8 / 0x890108): 0x422220 keeps points
     /// under 3 m apart there.
     pub(super) drag: bool,
@@ -272,8 +279,42 @@ impl TrafficLane {
             && self.steps.len() > 1
         {
             self.steps.pop_back();
+            self.xs.truncate(self.steps.len());
             skip = pos + 1;
         }
+        // 0x428030 (verified): 0x41A180 runs after the extension from the
+        // walk's last point before it (its count less one; 0 for a walk
+        // the placement just built, whose count was 0).
+        let fresh = self.xs.is_empty();
+        let before = self.walk_count(f);
+        self.grow(f, reach, skip);
+        self.sync_xs(f);
+        self.smooth(f, if fresh { 0 } else { before.saturating_sub(1) });
+    }
+
+    /// The walk's points from the car's own (the walk's first, 0x419670
+    /// drops those before it): its control points and the 8 m points
+    /// between them.
+    pub(super) fn walk_count(&self, f: &RouteFile) -> usize {
+        let segs = (0..self.steps.len().saturating_sub(1)).map(|i| sub_points(self.seg(f, i))).sum::<usize>();
+        (self.steps.len() + segs).saturating_sub(self.lead.0)
+    }
+
+    /// [`TrafficLane::xs`] sized to the walk: a new step, or a step's new
+    /// 8 m points (0x418DA0 adds them with +0x04.. = 0), start at 0.
+    pub(super) fn sync_xs(&mut self, f: &RouteFile) {
+        self.xs.truncate(self.steps.len());
+        while self.xs.len() < self.steps.len() {
+            self.xs.push_back(Vec::new());
+        }
+        let n = self.steps.len();
+        for i in 0..n {
+            let want = 1 + if i + 1 < n { sub_points(self.seg(f, i)) } else { 0 };
+            self.xs[i].resize(want, [0.0; 5]);
+        }
+    }
+
+    fn grow(&mut self, f: &RouteFile, reach: f32, mut skip: usize) {
         let segs: Vec<f32> = (0..self.steps.len().saturating_sub(1)).map(|i| self.seg(f, i)).collect();
         // Both from the car's point (the walk's first).
         let mut length: f32 = segs.iter().sum::<f32>() - self.lead.1;
@@ -517,7 +558,7 @@ impl TrafficLane {
     }
 
     /// The walk as the original holds it (verified, 2026-11-05; observed
-    /// under Wine, docs/world-systems-parity.md §8): a FuturePoint per
+    /// under Wine, docs/notes/parity/world-systems-parity.md §8): a FuturePoint per
     /// control point (+0x58 = 0) and, before each next one, 0x418DA0's
     /// trunc(segment / 8) − 1 points every 8 m (0x783C68) along the same
     /// control point (+0x54 = its s + 8k, +0x58 = 8k, +0x74 = 1), then
@@ -537,54 +578,111 @@ impl TrafficLane {
     pub(super) fn walk_points(&self, f: &RouteFile) -> Vec<WalkPoint> {
         let mut walk = Vec::with_capacity(self.steps.len() * 2);
         let mut s = 0.0;
-        for (i, st) in self.steps.iter().enumerate() {
-            walk.push(WalkPoint { step: i, d: 0.0, s, x: [0.0; 5] });
+        let x = |i: usize, k: usize| self.xs.get(i).and_then(|v| v.get(k)).copied().unwrap_or([0.0; 5]);
+        for i in 0..self.steps.len() {
+            walk.push(WalkPoint { step: i, d: 0.0, s, x: x(i, 0) });
             let seg = self.seg(f, i);
-            let _ = st;
             if i + 1 < self.steps.len() {
                 for k in 1..=sub_points(seg) {
                     let d = SUB_POINT * k as f32;
-                    walk.push(WalkPoint { step: i, d, s: s + d, x: [0.0; 5] });
+                    walk.push(WalkPoint { step: i, d, s: s + d, x: x(i, k) });
                 }
             }
             s += seg;
         }
-        let anchors: Vec<usize> = (0..walk.len()).filter(|&i| walk[i].d == 0.0).collect();
+        walk
+    }
+
+    /// 0x41A180 (verified, 2026-11-19) from walk point `from` (counted from
+    /// the car's own, the walk's first): back over the points to the second
+    /// control point before it (the first point at the least), then on to
+    /// a control point A; for each run A → B of control points with 8 m
+    /// points between, per lane (0, 2–5) a cubic Hermite (0x574840,
+    /// 0x574C40) from A's place on the lane to B's (0x4122C0, the points'
+    /// own offsets included), the tangents 0.75 × (s_B − s_A) long
+    /// (0x43CEB0): at A the chord from the walk point before it — at the
+    /// walk's first point its vt+0x20, the control point's direction
+    /// against the travel — at B the chord to the next control point (none:
+    /// B's travel direction, vt+0x1C); each point between takes as its
+    /// offset for the lane the curve's lateral off its line at u = (s −
+    /// s_A) / (s_B − s_A) less the lane's offset (0x4123C0 added to the
+    /// offset it had). The points before the run keep the offsets an
+    /// earlier pass gave them; the clone once smoothed the whole walk again
+    /// on every use, from the car's point with the backward tangent, which
+    /// bent the lane at the car by up to 2 m on curves (its road entry then
+    /// read the car 2 m off its lane, and oncoming cars on a bend saw each
+    /// other in 0x402ED0's window).
+    pub(super) fn smooth(&mut self, f: &RouteFile, from: usize) {
+        let all = self.walk_points(f);
+        let base = self.lead.0.min(all.len().saturating_sub(1));
+        let mut walk: Vec<WalkPoint> = all[base..].to_vec();
+        let n = walk.len();
+        if n == 0 {
+            return;
+        }
+        let cp = |w: &[WalkPoint], i: usize| w[i].d == 0.0;
+        // Back to the second control point before `from`.
+        let mut p = from.min(n - 1) as isize;
+        let mut found = 0;
+        while p >= 0 && found < 2 {
+            if cp(&walk, p as usize) {
+                found += 1;
+            }
+            p -= 1;
+        }
+        let mut a = if p < 1 { 0 } else { p as usize };
         let scale =
             |v: Vec2, len: f32| if v.length_squared() > 0.0 { v.normalize() * len } else { Vec2::new(1.0, 0.0) };
-        for j in 0..anchors.len().saturating_sub(1) {
-            let (a, b) = (anchors[j], anchors[j + 1]);
-            if b - a < 2 {
-                continue;
+        while a < n {
+            while a < n && !cp(&walk, a) {
+                a += 1;
             }
-            let span = walk[b].s - walk[a].s;
-            let len = SPLINE_TANGENT * span;
-            let (sa, sb) = (self.steps[walk[a].step], self.steps[walk[b].step]);
-            for li in 0..WALK_LANES.len() {
-                let p0 = self.walk_place(f, &walk[a], li);
-                let p1 = self.walk_place(f, &walk[b], li);
-                let t0 = if a == 0 {
-                    scale(f.direction(sa.record, sa.cp, !sa.backward), len)
-                } else {
-                    scale(p0 - self.walk_place(f, &walk[a - 1], li), len)
-                };
-                let t1 = match anchors.get(j + 2) {
-                    Some(&c) => scale(self.walk_place(f, &walk[c], li) - p1, len),
-                    None => scale(f.direction(sb.record, sb.cp, sb.backward), len),
-                };
-                let c4 = t0 + t1 - 2.0 * (p1 - p0);
-                let c5 = 3.0 * (p1 - p0) - t1 - 2.0 * t0;
-                for m in a + 1..b {
-                    let u = (walk[m].s - walk[a].s) / span;
-                    let h = ((c4 * u + c5) * u + t0) * u + p0;
-                    let st = self.steps[walk[m].step];
-                    let cp = &f.records[st.record].points[st.cp];
-                    walk[m].x[li] = f.lateral(st.record, st.cp, st.backward, h)
-                        - lane_offset(cp, lane(WALK_LANES[li], st.backward));
+            let mut b = a + 1;
+            while b < n && !cp(&walk, b) {
+                b += 1;
+            }
+            if a < n && b < n && b - a > 1 {
+                let span = walk[b].s - walk[a].s;
+                let len = SPLINE_TANGENT * span;
+                let mut c = b + 1;
+                while c < n && !cp(&walk, c) {
+                    c += 1;
+                }
+                let (sa, sb) = (self.steps[walk[a].step], self.steps[walk[b].step]);
+                for li in 0..WALK_LANES.len() {
+                    let p0 = self.walk_place(f, &walk[a], li);
+                    let p1 = self.walk_place(f, &walk[b], li);
+                    let t0 = if a == 0 {
+                        scale(f.direction(sa.record, sa.cp, !sa.backward), len)
+                    } else {
+                        scale(p0 - self.walk_place(f, &walk[a - 1], li), len)
+                    };
+                    let t1 = if c < n {
+                        scale(self.walk_place(f, &walk[c], li) - p1, len)
+                    } else {
+                        scale(f.direction(sb.record, sb.cp, sb.backward), len)
+                    };
+                    let c4 = t0 + t1 - 2.0 * (p1 - p0);
+                    let c5 = 3.0 * (p1 - p0) - t1 - 2.0 * t0;
+                    for m in a + 1..b {
+                        let u = (walk[m].s - walk[a].s) / span;
+                        let h = ((c4 * u + c5) * u + t0) * u + p0;
+                        let st = self.steps[walk[m].step];
+                        let cpt = &f.records[st.record].points[st.cp];
+                        walk[m].x[li] = f.lateral(st.record, st.cp, st.backward, h)
+                            - lane_offset(cpt, lane(WALK_LANES[li], st.backward));
+                    }
                 }
             }
+            a = b;
         }
-        walk
+        // Back into the steps' offsets.
+        for w in &walk {
+            let k = if w.d == 0.0 { 0 } else { (w.d / SUB_POINT).round() as usize };
+            if let Some(v) = self.xs.get_mut(w.step).and_then(|v| v.get_mut(k)) {
+                *v = w.x;
+            }
+        }
     }
 
     /// A walk point's place on lane `WALK_LANES[li]` (0x4122C0 at its own

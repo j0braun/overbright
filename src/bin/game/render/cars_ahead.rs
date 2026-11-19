@@ -1,5 +1,5 @@
 //! Car renderers built ahead of the frame a car first shows
-//! (docs/first-use-builds.md "Car renderers ahead"). A traffic car of the
+//! (docs/developing/first-use-builds.md "Car renderers ahead"). A traffic car of the
 //! drive's pool or an encounter racer gets its renderer in the first frame
 //! that draws it (`for_each_drawn_car`); building one there took 2–3.6 ms
 //! of that frame. The cars are known before they show: the pool is made

@@ -235,12 +235,12 @@ pub(super) const MOTION_COPY: u32 = 7;
 /// High Precision Post's glow prefilter (written only with it on).
 pub(super) const PREFILTER: u32 = 8;
 /// The resolve to the screen's size under SSAA with High Precision Post
-/// (docs/ssaa-screen-passes.md): the bleach bypass's values, offsets[1]
+/// (docs/notes/graphics/ssaa.md "Effect and post passes at the screen's size under SSAA"): the bleach bypass's values, offsets[1]
 /// the scene's texels per screen pixel.
 pub(super) const RESOLVE: u32 = 9;
 pub(super) const ALL_SLOTS: u64 = 10;
 
-/// High Precision Post's glow blur (docs/hdr-post.md): one Gaussian pass
+/// High Precision Post's glow blur (docs/notes/graphics/hdr-post.md): one Gaussian pass
 /// across and one down standing in for filter.efx's two rounds of the
 /// ±1/±3-texel pair at half size. Its σ, in half-size texels, has the
 /// variance of those two rounds (2 · 11/3); at the screen's size it is
@@ -250,7 +250,7 @@ pub(super) const HDR_SIGMA_HALF: f32 = 2.708_013;
 pub(super) const HDR_SIGMA_FULL: f32 = 5.454_356;
 
 /// The glow targets' (A–C) size for a scene `scene` big shown `out` big
-/// (docs/post-scale.md): native, half the screen's (0x5BB850), or High
+/// (docs/notes/graphics/ssaa.md "Post effects under SSAA and Render Scale"): native, half the screen's (0x5BB850), or High
 /// Precision Post's 2, the screen's. With SSAA or Render Scale the scene
 /// is not the screen: the glow is then made at the size native makes it
 /// for the screen, so its taps (±1/±3 texels, σ) span the same part of the

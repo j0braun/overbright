@@ -1,7 +1,7 @@
 use super::*;
 
 pub(super) const ROWS: &[GraphicsRow] = &[
-    // Weather (docs/weather.md): only while it rains or the road and
+    // Weather (docs/notes/graphics/weather.md): only while it rains or the road and
     // cars are wet; the rain's schedule and amount stay the original's.
     GraphicsRow {
         id: RowId::WetCar,
@@ -55,7 +55,7 @@ pub(super) const ROWS: &[GraphicsRow] = &[
         offered: None,
         legacy: false,
     },
-    // docs/wet-road-car.md: only while the road is wet.
+    // docs/notes/graphics/wet-road-car.md: only while the road is wet.
     GraphicsRow {
         id: RowId::WetInteraction,
         label: WET_INTERACTION,

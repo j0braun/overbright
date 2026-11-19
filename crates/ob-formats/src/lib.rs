@@ -3,7 +3,7 @@
 //! chunks, hashes, solids, scenery, textures, tracks, compressed packs, VIV
 //! archives, VP6 video, routes, saves, texture-mod packages) and the numbers,
 //! curves and names the original keeps in its executable
-//! (docs/exe-tables.md). On ob-core only; the library (`nfsu2`) re-exports
+//! (docs/original/exe-tables.md). On ob-core only; the library (`nfsu2`) re-exports
 //! both modules at their old paths.
 
 // The bottom layer's modules at the paths these files name (`crate::…`).
@@ -11,7 +11,7 @@ pub(crate) use ob_core::{cache, draw, game_fs, game_rng, persist, persist_enum, 
 #[cfg(test)]
 use ob_core::{fingerprint, game_root};
 
-// The test kit (crates/ob-testkit, docs/testing.md) for this crate's unit
+// The test kit (crates/ob-testkit, docs/developing/testing.md) for this crate's unit
 // tests, bound to this crate under the name the kit expects.
 #[cfg(test)]
 extern crate self as nfsu2;
@@ -58,5 +58,5 @@ pub mod formats {
     pub mod zip;
 }
 
-// The engine's tables, in code (docs/exe-tables.md).
+// The engine's tables, in code (docs/original/exe-tables.md).
 pub mod exe_tables;

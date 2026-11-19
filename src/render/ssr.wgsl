@@ -1,5 +1,5 @@
 // Screen-space reflections on the wet road (the Graphics page's, a clone
-// deviation; see ssr.rs and docs/wet-roads-ssr.md).
+// deviation; see ssr.rs and docs/notes/graphics/reflections.md "Wet Roads and Screen-Space Reflections").
 
 struct Params {
     size: vec4<f32>,     // scene w, h; trace w, h
@@ -11,7 +11,7 @@ struct Params {
                          // with Enhanced Reflections' true mirror
     fog: vec4<f32>,      // the main view's FogValue (x, y, z), w 1 when on
     fog_color: vec4<f32>, // w 1 on a wet road (Wet Roads)
-    // The ray-traced tier's quarter-rate trace (ssr.rs, docs/rt-reflections.md):
+    // The ray-traced tier's quarter-rate trace (ssr.rs, docs/notes/graphics/reflections.md "Ray-traced reflections (experimental)"):
     // xy this frame's pixel of each 2 × 2 (0 or 1), z 1 when the trace runs at
     // half size, w 1 when the history holds the last frame; the last frame's
     // eye (relative to this one's), basis and projection scales (xy).
@@ -381,7 +381,7 @@ fn fs_trace(@builtin(position) frag_in: vec4<f32>) -> @location(0) vec4<f32> {
                 // other cars are.
                 let car_self = car && on_mask && is_car(hk) && abs(cell_z - z) < 2.0;
                 // An overlay (the GPS arrow) is no hit: the ray goes on
-                // past it, as past something thin (docs/gps-reflection.md).
+                // past it, as past something thin (docs/notes/graphics/reflections.md "The GPS arrow kept out of reflections").
                 // (Looked up only when it decides: no side effects.)
                 if !road_self && !car_self && !overlay_hit(hm, cell_z) {
                     t = mid;
@@ -422,7 +422,7 @@ fn fs_trace(@builtin(position) frag_in: vec4<f32>) -> @location(0) vec4<f32> {
     let path = length(hit_p - origin);
     if p.up.w > 0.5 && !near_car {
         // The glow sprites there, as the streak buffer adds them. Not on a
-        // car (docs/chrome-flicker.md): the sprites over a car are its
+        // car (docs/notes/graphics/car-look.md "Chrome trunk flicker and dry-road reflection strength"): the sprites over a car are its
         // own (neon tubes, lamps), which the native road capture never
         // holds; and only from 2–4 m on: a road ray reaching up under a
         // car (its neon tube, an additive mesh outside the mask) took the
@@ -431,7 +431,7 @@ fn fs_trace(@builtin(position) frag_in: vec4<f32>) -> @location(0) vec4<f32> {
         colour += min(textureSampleLevel(glow_tex, samp, at, 0.0).rgb * GLOW_STEADY, vec3<f32>(1.0)) * smoothstep(2.0, 4.0, path);
     }
     if !car && !hit_car && p.fog_color.w < 0.5 {
-        // A dry road (docs/chrome-flicker.md): the native road shows its
+        // A dry road (docs/notes/graphics/car-look.md "Chrome trunk flicker and dry-road reflection strength"): the native road shows its
         // planar capture at the texture's authored strength, rain or not.
         // The traced scene is brighter than that capture (1.24–1.48× the
         // native reflection's mean in explore / race start / night), so it

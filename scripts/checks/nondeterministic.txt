@@ -1,7 +1,7 @@
-# Shot targets that differ run to run with ONE binary (docs/checks.md). checks.sh and gate.sh do not fail
+# Shot targets that differ run to run with ONE binary (docs/developing/checks.md). checks.sh and gate.sh do not fail
 # on them in byte-for-byte comparisons; they are still run (rc, panic/validation).
 # Format: target  tag  reason. Tag "always": skipped in every comparison. Tag "wallclock": differs only with the
 # wall clock (SHOT_CLOCK= empty); with the default pinned clock (NFSU2_SHOT_CLOCK=0) it repeats byte for byte.
 # Survey 2026-11-05 (274 targets x 2 runs at 4 jobs): with the clock pinned at 0 none differ.
-# Game::now runs on the game's ticks, not on the wall clock (docs/uncapped-fps.md "Game time on ticks"): the 89 "wallclock" targets
+# Game::now runs on the game's ticks, not on the wall clock (docs/original/uncapped-fps.md "Game time on ticks"): the 89 "wallclock" targets
 # repeat byte for byte with the clock unpinned too (each shot twice, SHOT_CLOCK unset, all identical); removed.

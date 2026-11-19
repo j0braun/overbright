@@ -1,5 +1,5 @@
 //! What a player waits for and how smooth the drive was, in the game's own
-//! log file (docs/waits-log.md). A plain game run writes, at Info and to
+//! log file (docs/developing/waits-log.md). A plain game run writes, at Info and to
 //! its log file even while that keeps only warnings (`log_file::fact`):
 //!
 //! * `wait: start …` once, after the window's first frame: the time from
@@ -290,7 +290,7 @@ pub fn summarize(ms: &[f32]) -> Option<Summary> {
 
 /// The cache folder as a start finds it: its files and their size, the
 /// graphics driver's pipeline cache kept there (MB), and whether the
-/// launcher's prepare step's stamp is there (docs/prepare.md).
+/// launcher's prepare step's stamp is there (docs/developing/prepare.md).
 pub fn cache_state(dir: Option<&std::path::Path>) -> String {
     let Some(dir) = dir else { return "no cache folder".into() };
     let Ok(entries) = std::fs::read_dir(dir) else { return "cache folder empty (new)".into() };

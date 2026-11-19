@@ -10,7 +10,7 @@ Code: `crates/ob-formats/src/formats/native_save.rs` (container, payload offsets
 `career.rs`, `Settings::apply_native` / `write_native` in `options.rs`,
 `McList` / `McMessage` in `screens.rs`, `McAct` and `mc_*` in game.rs.
 Fixtures: `tests/fixtures/native_saves/*.sav` (written by SPEED2.EXE; maintainer only (private test set),
-the tests are ignored without it, docs/testing.md),
+the tests are ignored without it, docs/developing/testing.md),
 tests `tests/native_save.rs`, selftest `selftest_profiles`.
 
 * **Where** (**verified**): 0x4A9C40 calls SHGetFolderPathA(0, 0x801C =
@@ -193,7 +193,7 @@ tests `tests/native_save.rs`, selftest `selftest_profiles`.
   reads as 1). Every other byte is kept from the file the profile was
   loaded from (a new profile starts from the original's own fresh profile,
   the same bytes in three runs; since R8 written from its rules by
-  `career::fresh_payload`, docs/exe-tables.md). A car the
+  `career::fresh_payload`, docs/original/exe-tables.md). A car the
   original has not put in a slot gets a record of the type hash and its
   stock parts only (paint and the rest of a ride's record **not traced**).
   A slot whose car type the clone does not know keeps its car flag and
@@ -620,7 +620,7 @@ the clone does instead (`render::display`, `frontend::options`,
     `MAX_SPREAD`): front-end side elements always, the HUD unless the
     Enhancements row HUD Layout is Full Width (`UiFrame::hud_reach`,
     `Place::hud`); at 16:9 and narrower the safe area is the whole screen
-    (see docs/ultrawide.md). Anchored elements keep
+    (see docs/playing/ultrawide.md). Anchored elements keep
     their native margins to the edge (in canvas units, scaled with the
     screen). What lies off the canvas stays hidden: each run is scissored
     to the canvas as its place moves it.
@@ -727,7 +727,7 @@ the clone does instead (`render::display`, `frontend::options`,
     deviations rows) and toasts — is drawn on the canvas, so it
     scales by screen height / 480 (by width / 640 below 4:3); nothing is
     drawn at a fixed pixel size. The F3 overlay is anchored to its corner
-    (top left by default, `Place (−1, −1)`; docs/perf-overlay.md). Was
+    (top left by default, `Place (−1, −1)`; docs/notes/performance/overlay.md). Was
     fixed size before: the hairlines (the dyno graph's lines, one pixel
     natively, a D3D line strip) — now round(scale / 2) pixels, 1 up to 960
     lines, 2 at 1440p and 4K. Movies keep their 4:3 object, pillarboxed.
@@ -790,7 +790,7 @@ is native; nothing was traced for it beyond the native facts cited.
     replay cameras keep theirs.
   * HUD Layout: Centered (default) / Full Width — on screens wider than
     16:9 the HUD's side elements stay in a centred 16:9 safe area or go to
-    the screen's edges (`enh.hud_full_width`; docs/ultrawide.md). No
+    the screen's edges (`enh.hud_full_width`; docs/playing/ultrawide.md). No
     effect at 16:9 and narrower or with Aspect Ratio Stretched.
   * HUD Scale: Native (100 %), 50–150 % by 10 — the in-game HUD's quads
     only (`qol::scale_hud`; menus, the letterbox and scene overlays
@@ -858,7 +858,7 @@ is native; nothing was traced for it beyond the native facts cited.
   FRONTEND/FrontB.lzc. None found: on a terminal the clone asks for the
   folder (kept when complete), else prints how to give it and exits (code
   2). The folder is then checked for nine key data files (`setup::KEY_FILES`;
-  SPEED2.EXE is not among them, docs/exe-tables.md):
+  SPEED2.EXE is not among them, docs/original/exe-tables.md):
   missing ones are listed with the same help and the clone exits; sizes
   are checked on every start, the XXH3 of the eight smaller ones (22 MB)
   when the folder was found rather than given, against the European
@@ -879,7 +879,7 @@ each value with its GPU cost class. After an image and cost audit,
 Texture Filtering, Reflection Update Rate and Reversed-Z Depth left the
 page (no visible effect over native Detail 5; still read from
 options.txt and listed while on) and Render Scale above 100 % merged into
-SSAA (same image). See docs/graphics-settings-audit.md; the row
+SSAA (same image). See docs/notes/graphics/graphics-settings-audit.md; the row
 descriptions below still hold.
 
 Agreed deviation: extra graphics features in a non-native QoL menu. Every row **opt-in**, every default native: with
@@ -989,7 +989,7 @@ passes), `render::postfx::PostFx::apply` (the hand-over), `render`
     METPAINT* metallic, PEARL* pearl, CUSTOMPAINT_* candy, chrome/rims),
     with the cube looked up per pixel on those materials. A separate shader
     module (car.wgsl + car_paint.wgsl); off uses car.wgsl's native pipelines
-    unchanged. See docs/car-paint-enhanced.md.
+    unchanged. See docs/notes/graphics/car-paint-enhanced.md.
   * Car Reflection Res: Native (128, 0x7FEE6C), 256, 512, 1024 (1024
     added gfx195) — the cars'
     environment cube and its depth (one pass per face or the multiview
@@ -1089,7 +1089,7 @@ passes), `render::postfx::PostFx::apply` (the hand-over), `render`
     `Rgba16Float` targets with every native 8-bit saturation kept and the
     rounding dropped, the overbright glow at half or full size with one
     Gaussian of the native two rounds' variance, and a ±1-step dithered
-    clip back to 8 bits; see docs/hdr-post.md (evidence
+    clip back to 8 bits; see docs/notes/graphics/hdr-post.md (evidence
     docs/evidence/hdr-post/). Off unless the adapter can render, blend,
     filter and resolve the half-float scene at every offered MSAA count
     (`render::hdr_supported`). `SceneMode::hdr`, `PostFx::scene_format`.

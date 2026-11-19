@@ -156,7 +156,7 @@ pub(crate) fn selftest_boot(game: &mut Game) -> Result<()> {
     }
     game.mode = game.boot_screen(BootStep::EaLogo);
     game.menu_key(Key::Accept)?;
-    // Enter skips every boot movie (agreed deviation, docs/native-deviations.md "Skipping scenes"; natively the EA logo
+    // Enter skips every boot movie (agreed deviation, docs/playing/native-deviations.md "Skipping scenes"; natively the EA logo
     // does not skip).
     game.advance_for(1.0 / 60.0)?;
     anyhow::ensure!(

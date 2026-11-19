@@ -1,5 +1,5 @@
 
-// ---- Ray-traced reflections (rt.rs, docs/rt-reflections.md) ----
+// ---- Ray-traced reflections (rt.rs, docs/notes/graphics/reflections.md "Ray-traced reflections (experimental)") ----
 // Appended to ssr.wgsl for the trace pass of the "Ray Traced
 // (experimental)" tier only; the SSR modules never hold it.
 
@@ -152,7 +152,7 @@ fn rt_surface(tri: u32, bary: vec2<f32>, width: f32, flat: vec3<f32>) -> vec3<f3
 // ray leaves a car; `hit_car`: the march's hit is a car. The hit's colour
 // is its triangle's baked colour (world.efx tex × v0 × 2), fogged over the
 // path for a car's ray (as the march's), held to the planar term's
-// luminance on a dry road (docs/chrome-flicker.md) unless it is a car.
+// luminance on a dry road (docs/notes/graphics/car-look.md "Chrome trunk flicker and dry-road reflection strength") unless it is a car.
 fn rt_cast(o: vec3<f32>, d: vec3<f32>, tmin: f32, tmax: f32, mask: u32) -> RayIntersection {
     var rq: ray_query;
     rayQueryInitialize(&rq, rt_tlas, RayDesc(RAY_FLAG_FORCE_OPAQUE, mask, tmin, tmax, o, d));
@@ -165,7 +165,7 @@ fn rt_fill(c: vec4<f32>, origin: vec3<f32>, r: vec3<f32>, n: vec3<f32>, car: boo
 }
 
 // The surfaces whose reflection the ray decides (the primary reflection,
-// docs/rt-reflections.md "Primary on wet roads and cars"): a wet road and a
+// docs/notes/graphics/reflections.md "Primary on wet roads and cars"): a wet road and a
 // car's paint and glass, when the tier asks for it (p.prev_proj.z; not in
 // the debug views). Their trace pixels are not marched: every one casts.
 fn rt_is_primary(car: bool) -> bool {

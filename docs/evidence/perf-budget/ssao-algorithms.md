@@ -1,4 +1,4 @@
-# Ambient Occlusion: the passes before and after the four steps (docs/perf-integrated-gpu.md)
+# Ambient Occlusion: the passes before and after the four steps (docs/notes/performance/integrated-gpu.md)
 
 Method. The passes alone: the bench dumped the scene depth and the pass's uniform of real frames (Medium
 at 1920×1080 World Detail 3: racing at the start line (call 120) and under way (240), the race start (60),

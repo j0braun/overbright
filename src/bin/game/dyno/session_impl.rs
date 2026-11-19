@@ -42,7 +42,7 @@ impl Game {
     // prov: inferred game.enter_dyno_scene
     /// stands it on the dyno's grid (**inferred**: the track has no route,
     /// so the marker 0x431990 reads there is not traced). Enter skips it
-    /// (agreed deviation, docs/native-deviations.md "Skipping scenes").
+    /// (agreed deviation, docs/playing/native-deviations.md "Skipping scenes").
     pub(crate) fn enter_dyno_scene(&mut self) -> Mode {
         let menu = self.enter_dyno();
         self.dyno_enter_scene(menu)

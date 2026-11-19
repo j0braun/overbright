@@ -1,4 +1,4 @@
-//! Where Overbright keeps its files, per OS (docs/platform-dirs.md). One
+//! Where Overbright keeps its files, per OS (docs/playing/platform-dirs.md). One
 //! place builds every such path; [`resolve`] is a pure function of the
 //! environment so each OS's rules are tested on any OS.
 //!

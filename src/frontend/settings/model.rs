@@ -93,7 +93,7 @@ pub struct Settings {
     /// given back once no enhanced tier holds it (Restore Native, the
     /// Original preset); options.txt `enh.raised.N v`.
     pub custom_raised: [Option<u8>; 22],
-    /// docs/perf-overlay.md: the performance overlay's options
+    /// docs/notes/performance/overlay.md: the performance overlay's options
     /// (options.txt `overlay.*`).
     pub overlay: crate::overlay::Settings,
     /// +0x1C Jump Camera: 0 off, else on (the option writes 127, the

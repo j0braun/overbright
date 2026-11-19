@@ -22,5 +22,5 @@ Low's rows, integrated GPU 1080p, before they were trimmed (race start / rain, m
   High Precision Post +3.9 / +2.7   Wet Roads -- / +2.7 (rain only)   Enhanced Paint +2.2 / +0.2
   Car Reflection 256 ~+0.7          Wet Car +1.4 (rain)                the other Low rows within the noise
 -> High Precision Post, Wet Roads and the 256 car reflection start at Medium.
-Old presets for comparison (docs/settings-page.md "60 FPS"): High 2.41 / 7.20 / 50.9, Ultra 3.97 / 13.07 / 72.0
+Old presets for comparison (docs/developing/settings-page.md "60 FPS"): High 2.41 / 7.20 / 50.9, Ultra 3.97 / 13.07 / 72.0
 (desktop 1080p / 4K / integrated 1080p; Ultra with its SSAA 2x).

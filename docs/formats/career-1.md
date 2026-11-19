@@ -268,7 +268,7 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
     (0x5664A0, carbon mode +0x1D5, slot 0x60 / 0x5D). It first asks "Do
     you want to convert …?" with No focused (0x566686..0x566728 trunk,
     0x566895..0x5669E3 kits; No 0xB4623F67 → 0x5674D8; ported,
-    docs/car-materials.md); Yes (0x51123592) goes on at 0x566F12: the
+    docs/notes/graphics/car-materials.md); Yes (0x51123592) goes on at 0x566F12: the
     slot's other part (the non-none one while none is on, else the none
     one), in a career bought first unless owned (0x521BF0 → 0x503DB0):
     0x528A00 takes its 0x514280 price (level 3: the category's level-3
@@ -746,7 +746,7 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
   skill (param 7, or with param 7 < 0 0x5B69A0(1, −1) on racer info 0
   +0x20, the player's upgraded performance) plus a margin from 0.06
   doubling each pass is taken (0x4FEC50..0x4FECCC, re-traced 2026-11-04
-  for docs/drag-drift-outrun-parity.md; an older line here said "a random
+  for docs/notes/parity/drag-drift-outrun-parity.md; an older line here said "a random
   0–1"). The clone: see **Opponent line-up** and **AI car looks**
   (presets, 0x637280).
 * **Opponent line-up** (0x5260C0 with 0x4FEAF0, **verified**; the clone's
@@ -762,7 +762,7 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
   * Car: an entry car of bin_hash "RANDOM" is drawn (0x4FEAF0, called with
     the player's car allowed) from the pool 0x7F6DC0 — 0x570A40 returns
     0x7FA73C, a static 6 nothing writes, so the first pool 0x7F6DA4 (region
-    0's; docs/region.md) is never used in the European release — or the SUVs 0x7F6DDC when the event's +0x0D is 1. The pool is
+    0's; docs/playing/region.md) is never used in the European release — or the SUVs 0x7F6DDC when the event's +0x0D is 1. The pool is
     shuffled (each place swapped with place `random(n)`), then with a margin
     from 0.03 doubled before each pass, the first car whose scaled rating
     (0x5B69A0) is at most skill + margin is taken. Otherwise the entry's
@@ -1148,7 +1148,7 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
     NIS table +0x04 count, 8-byte records at +0x25C — hash, variant +4,
     flags +5; track masks at +0x91C, u16 at +10 via 0x4300F0; EndingNis01
     only when the results winner's tuned rear torque split is > 0.8
-    (0x42FED0; see `docs/race-ending-selection.md`); 0x42FF50 requires
+    (0x42FED0; see `docs/original/race-ending-selection.md`); 0x42FF50 requires
     0x40 and selects 0x80 by whether that winner is human; 0x42FF20 any scene with 1,600,000
     bytes free in the NIS pool, else EndingNis04; one drawn by 0x43C1C0;
     the dyno track 0x1262 takes DynoExit) and 0x43BAA0 → 0x43B8E0 →
@@ -1818,7 +1818,7 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
     position +0x910) plus 0x803E50..58, oriented by view 1's matrix
     (0x48B1E0(1) +0x40) — that frame's car and camera. At 60 fps one
     frame is one tick, so the clone schedules the faces per tick
-    (`display::env_faces_due`, docs/uncapped-fps.md "Environment cube on
+    (`display::env_faces_due`, docs/original/uncapped-fps.md "Environment cube on
     ticks"). **Inferred**: what loop 0x57FC59 serves (a render outside
     0x5811D0, counted the same).
   * Car Reflection Detail (0x870CBC): each face drawn clears and draws
@@ -1956,7 +1956,7 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
 * **Credits** (Credits.fng, screen 0x4B8800; **verified**): the lines of
   CREDITS\<prefix><language>.TXT (UTF-16; 0x4B8808: in English NA_ for
   region 0, UK_ for a European region (0x570A50); the region 0x7FA73C is 6
-  in this executable, so UK_ENGLISH.TXT; a US install, docs/region.md,
+  in this executable, so UK_ENGLISH.TXT; a US install, docs/playing/region.md,
   reads NA_ENGLISH.TXT). The
   Event Handler sends 0xE6E946B8 at 320 ms; each one clones CreditsArea
   with the next line (from the first again after the last) running

@@ -104,7 +104,7 @@ fn detail(rgba: &[u8], w: usize, h: usize) -> (Vec<f32>, Detail) {
 }
 
 /// Thresholds of [`normal_verdict`] (calibrated on Bayview's most visible
-/// textures, docs/surface-maps.md).
+/// textures, docs/notes/graphics/surface-maps.md).
 pub const MIN_RMS: f32 = 0.012;
 pub const MAX_EDGINESS: f32 = 9.0;
 

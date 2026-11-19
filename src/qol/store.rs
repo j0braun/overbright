@@ -11,7 +11,7 @@ impl Enhancements {
     /// new ones, never a mix), then the table's rows in their `apply` order
     /// (`options!`: the rows that call a setter elsewhere).
     pub fn apply_now(&self) {
-        // docs/settings-model.md: the values in force are the
+        // docs/developing/settings-model.md: the values in force are the
         // stored ones with the settings model's engine rules applied (a
         // redundant or conflicting row resolved); options.txt keeps the
         // stored values, so turning the overriding row off restores them.
@@ -50,7 +50,7 @@ pub(super) struct InForce {
     /// unknown), distinct from the requested fullscreen resolution
     /// (borderless fallback and resizes can change it).
     pub(super) output_size: u64,
-    /// docs/settings-page.md: the settings page's Compare — while set,
+    /// docs/developing/settings-page.md: the settings page's Compare — while set,
     /// `Settings::apply_enhancements` puts the Original preset's graphics
     /// values in force (QoL kept) instead of the stored ones; nothing is
     /// changed or saved. Session state, cleared when the page is left.
@@ -324,7 +324,7 @@ pub fn sparks_fire() -> u8 {
     read(|s| s.values.sparks_fire)
 }
 
-/// Weather (docs/weather.md): Wet Car in force.
+/// Weather (docs/notes/graphics/weather.md): Wet Car in force.
 pub fn wet_car() -> bool {
     read(|s| s.values.wet_car)
 }
@@ -334,7 +334,7 @@ pub fn rain_detail() -> u8 {
     read(|s| s.values.rain_detail)
 }
 
-/// Rain Detail's Next-Gen tier (docs/rain-nextgen.md): the
+/// Rain Detail's Next-Gen tier (docs/notes/graphics/rain-nextgen.md): the
 /// simulated rain volume, world-anchored splashes on every up-facing
 /// surface, rain haze and impacts on the cars.
 pub const RAIN_NEXT_GEN: u8 = 3;
@@ -375,44 +375,44 @@ pub fn depth_of_field() -> u8 {
     read(|s| s.values.depth_of_field)
 }
 
-/// Animated Water in force (docs/water.md).
+/// Animated Water in force (docs/notes/graphics/water.md).
 pub fn animated_water() -> bool {
     read(|s| s.values.water) != 0
 }
 
-/// Ambient Detail's tier (docs/ambient-detail.md): 0 Off, 1 On (the
+/// Ambient Detail's tier (docs/notes/graphics/ambient-detail.md): 0 Off, 1 On (the
 /// street props), 2 Next-Gen (also blown debris, tyre dust, steam, moths).
 pub fn ambient_detail() -> u8 {
     read(|s| s.values.ambient_detail)
 }
 
-/// Animated Water's tier (docs/water.md): 0 Off, 1 On,
+/// Animated Water's tier (docs/notes/graphics/water.md): 0 Off, 1 On,
 /// 2 Realistic (`render::water_hq`), 3 Next-Gen (`render::water_ng`).
 pub fn water_tier() -> u8 {
     read(|s| s.values.water)
 }
 
-/// Headlight Beams in force (docs/lighting2.md).
+/// Headlight Beams in force (docs/notes/graphics/lighting2.md).
 pub fn headlight_beams() -> bool {
     read(|s| s.values.headlight_beams) != 0
 }
 
-/// docs/car-lights.md: the Headlight Beams row at Next-Gen.
+/// docs/notes/graphics/car-lights.md: the Headlight Beams row at Next-Gen.
 pub fn car_lights_next_gen() -> bool {
     read(|s| s.values.headlight_beams) >= 2
 }
 
-/// Light Probes in force (docs/lighting2.md).
+/// Light Probes in force (docs/notes/graphics/lighting2.md).
 pub fn light_probes() -> bool {
     read(|s| s.values.light_probes)
 }
 
-/// Enhanced Glass in force (docs/lighting2.md).
+/// Enhanced Glass in force (docs/notes/graphics/lighting2.md).
 pub fn enhanced_glass() -> bool {
     read(|s| s.values.enhanced_glass)
 }
 
-/// Surface Detail in force (docs/surface-maps.md): 0 off, 1
+/// Surface Detail in force (docs/notes/graphics/surface-maps.md): 0 off, 1
 /// Materials, 2 Materials + Normals.
 pub fn surface_detail() -> u8 {
     read(|s| s.values.surface_detail)
@@ -471,7 +471,7 @@ pub fn enhanced_paint() -> bool {
     read(|s| s.values.enhanced_paint)
 }
 
-/// docs/car-scene-specular.md: the cars' harmonic highlight comes
+/// docs/notes/graphics/car-look.md "Car highlight from the scene, not the camera rig": the cars' harmonic highlight comes
 /// from the scene's lights only, not from the in-game rig's camera-fixed
 /// lights (0x7F3F00), whose highlight sits on whatever panel faces the
 /// camera (the trunk from the chase camera). The rule
@@ -501,7 +501,7 @@ pub struct CarShadingRows {
     pub light_probes: bool,
 }
 
-/// The rule (docs/car-scene-specular.md "Which
+/// The rule (docs/notes/graphics/car-look.md "Which
 /// settings"): whether the scene lights the car, so the native rig's
 /// camera-fixed highlight goes (true), or the native highlight stays
 /// exactly as in SPEED2.EXE (false). Higher (true): Modern Lighting at
@@ -523,7 +523,7 @@ pub fn reflection_every_frame() -> bool {
     read(|s| s.values.reflection_rate) != 0
 }
 
-/// Wet Roads in force (docs/wet-roads-ssr.md).
+/// Wet Roads in force (docs/notes/graphics/reflections.md "Wet Roads and Screen-Space Reflections").
 pub fn wet_roads() -> bool {
     read(|s| s.values.wet_roads)
 }
@@ -559,22 +559,22 @@ pub fn rt_supported() -> bool {
     read(|s| s.rt_supported)
 }
 
-/// Ray-traced reflections in force (docs/rt-reflections.md).
+/// Ray-traced reflections in force (docs/notes/graphics/reflections.md "Ray-traced reflections (experimental)").
 pub fn rt_reflections() -> bool {
     ssr() == 3
 }
 
-/// Dynamic Lamps in force (docs/lamps-shadows.md).
+/// Dynamic Lamps in force (docs/notes/graphics/lamps-shadows.md).
 pub fn dynamic_lamps() -> bool {
     read(|s| s.values.dynamic_lamps)
 }
 
-/// Lamp Shadows in force: 0 off, 1 Low, 2 High (docs/lamps-shadows.md).
+/// Lamp Shadows in force: 0 off, 1 Low, 2 High (docs/notes/graphics/lamps-shadows.md).
 pub fn lamp_shadows() -> u8 {
     read(|s| s.values.lamp_shadows)
 }
 
-/// Contact Shadows in force (docs/lamps-shadows.md).
+/// Contact Shadows in force (docs/notes/graphics/lamps-shadows.md).
 pub fn contact_shadows() -> bool {
     read(|s| s.values.contact_shadows)
 }
@@ -630,7 +630,7 @@ pub fn keep_loaded() -> bool {
     read(|s| s.values.keep_loaded)
 }
 
-/// docs/pop-in.md: World Detail Ultra / Extreme's pop-in fixes are
+/// docs/notes/graphics/pop-in.md: World Detail Ultra / Extreme's pop-in fixes are
 /// in force (Keep All Loaded on; `NFSU2_G14_OFF`, a measuring aid, keeps
 /// the tiers as they were before the pop-in work for A/B runs on one binary).
 pub fn pop_free() -> bool {
@@ -646,7 +646,7 @@ pub const LOD_FADE_SECONDS: f32 = 0.25;
 /// Distance's factor); a car keeps its LOD while its size is within this
 /// factor of the threshold either way.
 pub const LOD_FADE_KEEP: f32 = 0.85;
-/// docs/pop-in.md: at World Detail Ultra / Extreme with LOD Fade, a
+/// docs/notes/graphics/pop-in.md: at World Detail Ultra / Extreme with LOD Fade, a
 /// whole section joining or leaving the drawn set (a visible-list change,
 /// the look-ahead ring, the far set) cross-fades over this long instead of
 /// [`LOD_FADE_SECONDS`]: the two copies of a place share the pixels by the
@@ -708,7 +708,7 @@ mod car_highlight_rule_tests {
         }
     }
 
-    /// The table (docs/car-scene-specular.md "Which settings") over
+    /// The table (docs/notes/graphics/car-look.md "Which settings") over
     /// the presets at every GPU class and the car-shading rows alone and
     /// in pairs: Original and the lower settings keep the native rig
     /// highlight, the higher ones and every ray-traced tier remove it.

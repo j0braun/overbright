@@ -1,4 +1,4 @@
-// The temporal pass (docs/temporal.md; a clone deviation, opt-in):
+// The temporal pass (docs/notes/graphics/temporal.md; a clone deviation, opt-in):
 // TAA and the temporal upscaler in one resolve. Per output pixel: the
 // current frame reconstructed from the jittered input's 3x3 samples
 // (Blackman-Harris weights by each sample's true position), the history

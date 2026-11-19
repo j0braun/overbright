@@ -1,4 +1,4 @@
-//! The desktop map editor (`overbright-editor`, docs/map-editor.md): one
+//! The desktop map editor (`overbright-editor`, docs/modding/map-editor.md): one
 //! map mod on one region, drawn with the game's renderer inside an egui
 //! window. Everything here but `app` runs without a window, so the tests
 //! run headless.

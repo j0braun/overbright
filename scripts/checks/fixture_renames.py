@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Renamed private fixtures (scripts/checks/fixture-renames.txt, docs/checks.md "Renamed private fixtures").
+"""Renamed private fixtures (scripts/checks/fixture-renames.txt, docs/developing/checks.md "Renamed private fixtures").
 
 A base binary built before a fixture of the private set was renamed reads it under its old name. gate.sh gives
 the parity's private set both names:

@@ -1,11 +1,11 @@
 //! The front end's C++ timers on the real-time clock 0x8651A8, the
 //! specialties' and neon lists' purchase questions, the custom gauge picker
 //! hidden under its dialogs, the garage's sounds before the tick's.
-//! docs/uncapped-fps.md ("Menu timers on the real-time clock", "Front end
+//! docs/original/uncapped-fps.md ("Menu timers on the real-time clock", "Front end
 //! out of the draw"), docs/formats.md, docs/native-fixes/FE-3.tsv.
 use super::*;
 use crate::InputEvent;
-// The test kit (tests/common/mod.rs, docs/testing.md).
+// The test kit (tests/common/mod.rs, docs/developing/testing.md).
 #[path = "../../../../tests/common/mod.rs"]
 mod testkit;
 

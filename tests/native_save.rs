@@ -794,7 +794,7 @@ fn a_finished_career_says_no_first_career_hints() {
 }
 
 /// New profiles after regmybank and ordermebaby on the title (SPEED2.EXE
-/// under Wine, docs/cheats.md): cheats_boot_create.sav is the boot's
+/// under Wine, docs/playing/cheats.md): cheats_boot_create.sav is the boot's
 /// profile NAME (no profile current: the career in memory, bank 200 paid at
 /// once by regmybank), cheats_manager_create.sav the Profile Manager's
 /// Create made after it (TWO: "Creating a new profile will …" Yes resets
@@ -834,7 +834,7 @@ fn new_profiles_after_bonus_codes_match_the_originals() {
 /// the clone's own stage-5 save) loads into the clone and is written back
 /// as the original's own load-and-save would leave it: the input with the
 /// four hint dwords 0x529240 zeroes on load, nothing else
-/// (docs/world-systems-parity.md, Saves).
+/// (docs/notes/parity/world-systems-parity.md, Saves).
 #[test]
 #[cfg_attr(not(all(ob_game, ob_private)), ignore = "needs NFSU2_ROOT (the player's own game files) and OB_PRIVATE (private captures and saves)")]
 fn every_stage_save_rewrites_as_the_original_resaves_it() {

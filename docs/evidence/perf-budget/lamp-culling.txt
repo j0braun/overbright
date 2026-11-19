@@ -1,4 +1,4 @@
-# The world colour pass's lamp work culled per cluster (docs/lamps-shadows.md "Per-pixel work")
+# The world colour pass's lamp work culled per cluster (docs/notes/graphics/lamps-shadows.md "Per-pixel work")
 # GPU timer queries of `--bench` (200 frames), median over runs (min-max), "world: main view" and the whole frame's
 # GPU busy median, ms. Integrated GPU (2 CUs, RDNA2): 1920x1080, World Detail 3 (the first-run estimate), the levels'
 # rows (scripts levels.sh MED / HIGH). Desktop GPU, max4k: every row up (3840x2160, SSAA 2x, Modern Lighting + RT,

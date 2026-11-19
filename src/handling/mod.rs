@@ -142,7 +142,7 @@ mod tests {
         assert_eq!((d.target_gear, d.shift_bonus), (3, -1.0));
     }
 
-    /// docs/drag-stage4-parity.md: the drag tachometer's light
+    /// docs/notes/parity/drag-stage4-parity.md: the drag tachometer's light
     /// (0x4C7090 → 0x594F30 without the flag) reads the shown rpm (+0x440)
     /// and the tachometer's last gear (HUD +0x80), as the grading reads the
     /// shown rpm. Class 0, 1st gear (index 2): up-shift 6900, window 360.

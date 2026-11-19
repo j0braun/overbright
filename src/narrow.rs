@@ -820,7 +820,7 @@ mod tests {
         }
     }
 
-    /// 0x5AFBB0 / 0x5A1980 (docs/prop-hits.md §7): a support taken in a
+    /// 0x5AFBB0 / 0x5A1980 (docs/notes/parity/prop-hits.md §7): a support taken in a
     /// call lands its side's offset off the shape, a vertex kept from an
     /// earlier call is rebuilt true. Two turned cubes (one closest vertex
     /// each): the pair's first query sees A 0.3 m nearer along the gap;

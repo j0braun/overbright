@@ -1,4 +1,4 @@
-//! `--flow postrace` (docs/postrace-jitter.md): a race finished on the
+//! `--flow postrace` (docs/notes/front-end/postrace-jitter.md): a race finished on the
 //! player's autopilot and its post-race sequence — the 3 s "race over"
 //! hold behind the line, the switch to the ending scene (EndingNis*,
 //! 0x4309D0 → 0x5A40B0 mode 5) and the scene behind Event Results —

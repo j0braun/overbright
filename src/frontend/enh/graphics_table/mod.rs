@@ -1,4 +1,4 @@
-//! The Graphics page's rows as one table (docs/graphics-settings-audit.md
+//! The Graphics page's rows as one table (docs/notes/graphics/graphics-settings-audit.md
 //! "Tiers"): each row is a list of named quality tiers (Off / Low / Medium /
 //! High / Very High / Ultra, or the original's own values), each tier with
 //! a one-line description and its GPU cost, mapped onto the stored values

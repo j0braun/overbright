@@ -1,4 +1,4 @@
-//! docs/uncapped-fps.md, "Environment cube on ticks": the cars'
+//! docs/original/uncapped-fps.md, "Environment cube on ticks": the cars'
 //! environment cube follows the ticks. On a real free roam (the player's
 //! game files), through the real draw path on an offscreen window: the
 //! cube a frame samples (a digest of its six faces read back) at a tick
@@ -6,7 +6,7 @@
 //! renders no face.
 use super::*;
 use crate::dev::ticks::Frames;
-// The test kit (tests/common/mod.rs, docs/testing.md).
+// The test kit (tests/common/mod.rs, docs/developing/testing.md).
 #[path = "../../../../tests/common/mod.rs"]
 mod testkit;
 

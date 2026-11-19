@@ -123,7 +123,7 @@ pub(crate) fn car_lod(
     opts: &nfsu2::render::RenderOptions,
 ) -> Option<u8> {
     let fov = camera.game_fov.unwrap_or(camera.fov_y);
-    // docs/pop-in.md: World Detail Ultra / Extreme keep the cars'
+    // docs/notes/graphics/pop-in.md: World Detail Ultra / Extreme keep the cars'
     // top LOD (the Car Geometry Detail's start) while they are drawn, and
     // draw them down to `qol::DETAIL_FULL_PX` output pixels of radius: no
     // LOD switch, no pop at size 4.

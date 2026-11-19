@@ -1,4 +1,4 @@
-//! Photo mode's grade (docs/photo-mode.md; clone deviation, not in
+//! Photo mode's grade (docs/playing/photo-mode.md; clone deviation, not in
 //! SPEED2.EXE): after the game's own post chain (its tint, bleach bypass,
 //! overbright glow — the original grade, unchanged) one full-screen pass
 //! applies the photo's exposure (a gain, 2^EV), an optional bleach (a
@@ -168,7 +168,7 @@ impl PhotoGrade {
     }
 
     /// The pipeline a [`PhotoGrade::run`] into `format` uses, made now (a
-    /// warm-up's copy, docs/first-use-builds.md).
+    /// warm-up's copy, docs/developing/first-use-builds.md).
     pub fn warm(mut self, gpu: &Gpu, format: wgpu::TextureFormat) {
         self.pipeline(gpu, format);
     }

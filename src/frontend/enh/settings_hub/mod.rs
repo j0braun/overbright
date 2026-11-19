@@ -1,4 +1,4 @@
-//! The settings page (docs/settings-page.md) — the Enhancements entry
+//! The settings page (docs/developing/settings-page.md) — the Enhancements entry
 //! of the Display options as one page for every clone setting, built on
 //! The settings model ([`super::settings_model`]).
 //!

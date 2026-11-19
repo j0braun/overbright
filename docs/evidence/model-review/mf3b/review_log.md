@@ -3,7 +3,7 @@ General: dark tiles show the _CF twin (carbon weave, CARBONFIBER material) - mid
 - A3_hood_01: ok (FUSION chevrons white = chrome family/sheet env; TWISTER faint line across hood?)
 - A3_hood_02: VELOCITY (STYLE23) black arc near windshield - candidate, zoom
 - A3_spoiler_01..03: ok (CF twins dark carbon; stock = no spoiler)
-- A3_roof_01..03: ok (CF scoops light silver: CARBONFIBRE2 -> DEFAULT in the original too, docs/car-materials.md)
+- A3_roof_01..03: ok (CF scoops light silver: CARBONFIBRE2 -> DEFAULT in the original too, docs/notes/graphics/car-materials.md)
 - A3_mirror_01..02: ok
 - A3_exhaust_01: ok (low framing, tips sit under the bumper)
 - A3_overview_01: ok (front wheel slightly forward = known A3 arch fix, Fix row)

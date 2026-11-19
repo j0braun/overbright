@@ -52,12 +52,12 @@ sits on one smoked slab; the footer has the version and the button legends of th
   Storage): Portable mode as a switch (on: asks, offers to copy what is kept now into `<program>/data`, writes
   `portable.txt`; off: asks, offers to copy back, removes `portable.txt`, the data folder stays; every copy
   question lists first what will be copied, what is already there and what differs, and never overwrites a
-  file already there, docs/platform-dirs.md "Copying between places"; refused cleanly when the program
+  file already there, docs/playing/platform-dirs.md "Copying between places"; refused cleanly when the program
   folder cannot be written; applies from the next start: the footer says "Portable after restart" / "Portable ·
 off after restart" and the page offers Restart now, focused, which starts the launcher again with the same
 arguments (`Outcome::Restart`; the new one waits for the old one's lock)), then every folder with its path, Change… (the system
   folder dialog, Overbright's own browser with a pad or on the Deck), Open and Reset to default: game folder, HUD
-  mod folder and the `platform::dirs::Location`s (docs/platform-dirs.md "Folders put elsewhere"). Change… asks
+  mod folder and the `platform::dirs::Location`s (docs/playing/platform-dirs.md "Folders put elsewhere"). Change… asks
   "Copy and use it" (the plan listed first; copied on a worker by the same rules, checked, the old folder kept),
   "Use it, copy nothing" and, when files other than settings differ, "Copy, replace (backups kept)". A
   folder on a drive that is not there says so and keeps Reset. The page scrolls when the window is short.
@@ -76,7 +76,9 @@ arguments (`Outcome::Restart`; the new one waits for the old one's lock)), then 
   off for the game and keeps what was on in `mods-paused.txt`; on gives it back. The page scrolls when the
   list is long.
 - Setup: `first-run` / `first-none` / `first-several` (the copies found, or none with Choose the game folder…),
-  `check` / `err-own` / `err-missing` (the folder and its verdict: the error with its fix as the focused button).
+  `check` / `err-own` / `err-missing` and the game check's states `check-ok`, `check-movies-missing`,
+  `check-details`, `check-changed`, `check-unknown-edition`, `check-no-english` (the folder and its verdict; see
+  "The game check" below).
 - `crash` (also `failure`), `recover`, `browse`, `import`, `prepare`, `about`, `licence`, `notices`.
 Every error is an `model::Issue` (one per situation: title, cause and fix, its buttons), never matched by text.
 "Save support file…" writes `diag::support` on a worker thread (the game program is asked for its
@@ -112,7 +114,7 @@ lists each legend as `[button legend:<button> …]`.
   (`frontend/settings/options_txt.rs`), so the game, which rewrites
   options.txt from its model, keeps the line. Restore Native leaves it.
 - `qol::setup`: `KEY_FILES` are the game's data files (SPEED2.EXE is not
-  needed, docs/exe-tables.md), found in any case (`key_file_path`);
+  needed, docs/original/exe-tables.md), found in any case (`key_file_path`);
   `installed_languages(root)`; `saved_texture_pack[_file]` /
   `save_texture_pack` (`texture-pack-root.txt` beside game-root.txt, the same
   atomic write as game-root.txt); `check_lines(check, fingerprint)` + `Mark`:
@@ -158,13 +160,13 @@ lists each legend as `[button legend:<button> …]`.
   `mods-hud-incomplete`.
 - Folders: `src/launcher/dirs.rs`, through `platform::dirs` (the home folder and the game's executable
   beside the program are `platform::dirs::{home, game_exe}`, which the map editor and the support file use too)
-  (docs/platform-dirs.md): Overbright's folder (options.txt, game-root.txt,
+  (docs/playing/platform-dirs.md): Overbright's folder (options.txt, game-root.txt,
   texture-pack-root.txt, `launcher.lock`), `logs/`, the profiles folder,
   the original's save folder (Windows only), the game exe beside the
   launcher (`OB_GAME_EXE` names another: the start tests' stub).
 
 **Screens, first part**: `first-run` (found folders list, typed path,
-Check), `check` (path + `check_lines`, Use this folder / Back), `main`,
+Check), `check` (the game check: path, verdict card, summary rows, Details), `main`,
 `widgets` (all widgets). Settings are written through the game's own code
 (`model::save_choices`: `Settings::load_text` → change → `write_file`),
 only after a change.
@@ -202,7 +204,7 @@ ok=1
   `first_run_display(card)`, what `create_window` does without options.txt
   (0x5CECA0's detail estimate, which also reads the CPU's speed on this
   machine). The estimate reads a table of the player's SPEED2.EXE
-  (docs/exe-tables.md), so the lines are left out when no usable game
+  (docs/original/exe-tables.md), so the lines are left out when no usable game
   folder is known (a fresh machine); the launcher runs the probe again
   with the chosen folder in `NFSU2_ROOT` (below).
 - 0.03–0.3 s here (Vulkan instance + adapter).
@@ -335,20 +337,57 @@ known; others are left out).
     or it is the folder the launcher runs from) and is no game folder is
     refused with its own title, "This is Overbright's folder".
   - a folder that cannot be read is refused as such.
-- The check screen's first line is the verdict: "Ready to play", "Ready
-  to play, with the notes below" (files that differ from the known
-  release), or, for a refused folder, the title as the heading, one
-  sentence with the fix and its button (Choose another folder…, or Check
-  again when some files are missing). Two notes are left out as nothing to
-  act on: the mod files found (Overbright ignores them) and what
-  SPEED2.EXE is (Overbright does not use it).
-- The check's lines include the edition as the files show it and the
-  movies (all found, or which will not play; docs/game-fingerprint.md,
-  "Asset check"). Missing movies or menu files alone make "Ready · some
-  movies will not play" (the game runs without them). "Show the movies"
-  opens one line per group (start, story, tutorial and neighbourhood
-  movies, menu and text files): how many were found and which are
-  missing.
+- The check screen, **Game folder**, is described in "The game check" below.
+
+**The game check** (`src/launcher/check.rs`, `screens::build_check`)
+- What the player learns, in this order: can I play (one verdict), what
+  will be different (one or two sentences), what to do (the focused
+  button is the fix, or Use this folder), and on demand the proof
+  (Details). The page title is "Game folder"; the path is under it, dim,
+  shortened in its middle.
+- `check::summarize` builds a typed summary beside `setup::check_lines`
+  from the same check and the fingerprint: the key files (found, missing),
+  the release (known; changed: the known release with some data files
+  replaced, a mod; unknown: no data file is the known release's), the
+  movies and menu files per group (`game_assets::Report::group_counts`,
+  the same counts as `Report::groups`), the installed text languages and
+  the movies' language. `check_lines` stays the wording of
+  `--check-game` and the support file.
+- The verdict card (lamp, title, sentence, buttons) for every state:
+
+  | state | title | focused | other buttons |
+  |---|---|---|---|
+  | all there, the known release | Ready to play | Use this folder | Details |
+  | movies or menu files missing | Ready, some movies won't play / Ready, some menu files are missing | Use this folder | Details, Save support file… |
+  | some game files changed | Ready, with changed game files | Use this folder | Details, Save support file… |
+  | not a release Overbright knows | This copy isn't recognised (a question: Use it anyway?) | Choose another folder… | Use it anyway, Save support file…, Details |
+  | `LANGUAGES/English.bin` alone missing | The game's text file is missing | Choose another folder… | Details, Check again |
+  | other key files missing | Some game files are missing | Check again | Show the missing files, Choose another folder… |
+  | no game, Overbright's folder, unreadable, folder gone | `Issue::words` | the fix | |
+
+  Notes never block; the missing-movies sentence says only what happens
+  ("3 movies are missing (2 story, 1 tutorial). The game skips them, as the
+  original does."). A copy without the text file is refused: the game reads
+  its menus and text only from `LANGUAGES/English.bin`
+  (`frontend::assets::ASSET_FILES`) and its start refuses a folder without
+  it (`error.kind=files-missing`); a copy that holds only another
+  language's text file was checked that way.
+- Summary rows under the card of a usable folder: a lamp, the area, its
+  value; at most three: Game files ("9 of 9 · original", "· 2 changed",
+  "· 1 menu file missing"), Movies ("All 29", "26 of 29 · 3 won't play"),
+  Edition ("Version 1.2 · English text · English movies", "Not
+  recognised"). A row clicked (or Enter on it) opens Details at its area.
+- Details (one button; R or the pad's Y while it is offered, shown as a
+  legend): a scrolling list (Up / Down, the stick, the wheel) of the
+  missing and changed key files by name, the five groups ("Story movies:
+  14 of 16 · missing Scene05, Scene06"), the movies found under the copy's
+  own names, the text languages. It takes the room the window leaves; at
+  the smallest heights it takes the summary rows' place. No sizes, hashes
+  or file-layout words (test `check_states_words_and_focus`).
+- The main screen keeps the summary rows behind a closed "Game check"
+  row (Details opens and closes it).
+- docs/troubleshooting.md, "What the game check says", lists every title
+  with its meaning and fix (test `troubleshooting_table_matches_the_check_screen`).
 
 **The state line is true** (`src/bin/overbright.rs`, `screens::game_state`)
 - Before the window opens, the folder found (`setup::find`: NFSU2_ROOT,
@@ -679,7 +718,7 @@ launchers such as Prism and Heroic), not native:
 The main screen's **Mods** row says what is on ("None: the game's own textures", "2 texture packages on,
 HUD mod on") and opens the Mods page (`screens::build_mods`): one sentence that Overbright includes no
 texture art and what can be added (`screens::MODS_INTRO`: TexMod packages `.tpf`, TexWizard packs as a
-folder or `.zip`, the HD HUD mod; docs/texture-packs.md has the full table of formats); the texture packages
+folder or `.zip`, the HD HUD mod; docs/modding/texture-packs.md has the full table of formats); the texture packages
 (a list: name, textures, size, on / off; Add
 package…, Turn on / off (Enter on the list does the same), Move up, Move down, Remove… with a confirmation
 whose default is "Keep it"); the result line of each import; the HUD mod's folder, its check
@@ -690,13 +729,13 @@ game's settings code) and Choose folder… / Forget folder. The folder browser's
 here" takes `model::packages_here` (the folder itself when it is a package; in a game folder with TexWizard
 or its `TexturePacks`, the packs TexWizard loads, most important first, `formats::texwizard::find_packs`). An import runs on a worker thread (`window::poll_import`, the progress in a
 status line); closing the launcher meanwhile leaves only the temporary folder, removed the next time.
-docs/texture-packs.md has what is kept where and how the game picks the packages up. Tests:
+docs/modding/texture-packs.md has what is kept where and how the game picks the packages up. Tests:
 `launcher::tests::mods_page_flow`, `mods_page_when_empty`, `texture_mods::tests` (a package made in the
 test, the real import path on the player's game files, broken and foreign packages, the list, removal),
 `texture_pack::tests::launcher_texture_mods_reach_the_loader`; the renders `mods-*.png` and the states
 `mods-empty`, `mods-busy`, `mods-results`, `mods-remove`, `mods-hud-complete`, `mods-hud-incomplete`.
 
-**The HUD mod from its downloads** (`hud_mod`, docs/texture-packs.md "The HUD mod"): **Add HUD mod…**
+**The HUD mod from its downloads** (`hud_mod`, docs/modding/texture-packs.md "The HUD mod"): **Add HUD mod…**
 opens the folder browser (purpose `HudMod`: folders, and `.zip` / `.7z` / `.rar` files with their kind and
 size). Enter on a `.zip`, or "Use this folder", takes it (`App::hud_pick`): the part it is (HUD part:
 `assets/userstart.end`; map part: `Binary/script.end`) joins `Mods::hud_parts`, the other part is
@@ -808,7 +847,7 @@ comes as XInput2 scroll motion, once.
 
 ## The prepare step
 
-`Screen::Prepare` and `launcher::prepare` (docs/prepare.md): the game run with `--prepare` as a
+`Screen::Prepare` and `launcher::prepare` (docs/developing/prepare.md): the game run with `--prepare` as a
 child, its `step=` lines shown as a bar (`Kind::Bar`, `Builder::bar`) and a line. Started by
 itself once a session when `game --probe` says `prepared=0` for the folder in use and the main
 screen is up (`App::offer_prepare`, called by the window, which owns the child:
@@ -827,7 +866,7 @@ line, not started again, Prepare again to Done, the stamp, `prepared=1` from the
 
 A file `portable.txt` (or a folder `portable`) beside `overbright` and `game` makes the install portable: both
 programs keep settings, saves, caches, logs, crash reports, screenshots and mods in `data/` beside them
-(`platform::dirs`, docs/platform-dirs.md "Portable mode"), the launcher's `launcher.lock` too.
+(`platform::dirs`, docs/playing/platform-dirs.md "Portable mode"), the launcher's `launcher.lock` too.
 
 - The header shows `<version> · Portable` on every screen.
 - About shows where Overbright keeps its files (`Model::folders`, `Env::folders`). Outside portable mode it
@@ -854,7 +893,7 @@ Settings has the rows **Intro movies** (Play / Skip: EA, THX, the warning screen
 screen** (Show / Skip: "Press Enter" and its wait). Like the display rows they are
 options.txt values, so they are shown only when the launcher can write them (`display_rows_on`: options.txt
 exists or the probe gave the first-run values); before that the panel's line says when they come. They are
-the game's own Enhancements rows Skip Intro Movies and Skip Title Screen (docs/start-and-menus.md):
+the game's own Enhancements rows Skip Intro Movies and Skip Title Screen (docs/original/start-and-menus.md):
 `Choices::skip_movies` / `skip_title` read with `Enhancements::skips_movies` / `skips_title` and written with
 `set_skips` through `save_choices` (options.txt's `enh.skip_movies` / `enh.skip_title`), so a change in either
 place shows in the other. Both ticked, nothing plays between the start and the main menu's profile step.

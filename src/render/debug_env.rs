@@ -315,7 +315,7 @@ pub fn nfsu2_no_fused_post() -> bool {
     set("NFSU2_NO_FUSED_POST")
 }
 /// `NFSU2_SSAA_SCENE_SIZE`: under SSAA, the passes named (comma-separated: `ssao`, `post`; `all`) run at
-/// the scene's size as before they moved to the screen's (docs/ssaa-screen-passes.md), for comparisons. Read once.
+/// the scene's size as before they moved to the screen's (docs/notes/graphics/ssaa.md "Effect and post passes at the screen's size under SSAA"), for comparisons. Read once.
 pub fn ssaa_scene_size(pass: &str) -> bool {
     static NAMES: std::sync::OnceLock<Vec<String>> = std::sync::OnceLock::new();
     NAMES

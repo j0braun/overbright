@@ -1,4 +1,4 @@
-# Ambient Occlusion's apply pass: the cars' glow loop skipped outside their screen rectangles (docs/glow-darkening.md).
+# Ambient Occlusion's apply pass: the cars' glow loop skipped outside their screen rectangles (docs/notes/graphics/car-look.md "Darkening settings against emissive light and the car's shadow").
 # Integrated GPU, --bench <scene> 200, 1920x1080, NFSU2_BENCH_DETAIL=3, 7 interleaved runs per arm, under the measuring lock.
 # ms GPU per frame: each arm's median (min-max), and the paired per-run difference new - old (median, min..max).
 # s1 = the tree before this change (with the cluster loop); s2 = a first form (rectangles bounding the loop's 4 m reach:

@@ -11,9 +11,9 @@
 #   3. name the developer harness (`dev::` paths, `mod dev;`) outside `#[cfg(feature = "dev-harness")]`
 #      (or `#[cfg(all(test, feature = "dev-harness"))]`) on the item itself (the shipping
 #      binary leaves the harness out; the game's paths call it through `dev_hooks`).
-# The simulation's session (src/bin/game/sim/session/**: `Session::step`, docs/sim-session.md) must not
+# The simulation's session (src/bin/game/sim/session/**: `Session::step`, docs/developing/sim-session.md) must not
 #   4. reach the game, the renderer, the audio, the window, the HUD or the front end (rule 4 below).
-# Render code (src/render/**, docs/frame-settings.md) must not
+# Render code (src/render/**, docs/developing/frame-settings.md) must not
 #   5. add a global settings read: a `qol::` path or `RenderOptions::in_force(` (the frame's settings come in
 #      as `FrameSettings` / `RenderOptions` values) on a line not in scripts/checks/layering-settings-allow.txt
 #      (the reads left, matched by file and trimmed text, no line numbers; a converted read is taken off it).

@@ -1,4 +1,4 @@
-//! The texture editor's hooks into the game (docs/texture-editor.md): off
+//! The texture editor's hooks into the game (docs/modding/texture-editor.md): off
 //! unless the game was started with `--editor`; then F7 opens the panel.
 //! While it is open it takes the keyboard (key releases still reach the
 //! game) and the clicks and wheel over the panel; the game's own cursor

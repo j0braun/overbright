@@ -6,7 +6,7 @@ use crate::*;
 /// How long a track load runs before PC_Loading goes up (ms). The original
 /// shows it for every track load; the clone skips it for a load that is
 /// over sooner (a world kept in memory, a cached load): an agreed
-/// deviation (docs/native-deviations.md "Loading screens"; docs/formats.md, "Track loads and their loading screen").
+/// deviation (docs/playing/native-deviations.md "Loading screens"; docs/formats.md, "Track loads and their loading screen").
 pub(crate) const LOADING_DELAY_MS: f32 = 200.0;
 
 /// PC_Loading over a load in progress, drawn once the load has run
@@ -17,7 +17,7 @@ pub(crate) struct LoadingGate {
     pub(crate) since: Instant,
 }
 
-/// Boot loading screen (docs/loading-image.md): PC_Loading over the game start. The
+/// Boot loading screen (docs/original/loading-image.md): PC_Loading over the game start. The
 /// original's WinMain makes the front end's load its first load
 /// (0x580E6C: the load handler 0x865484 = 0x57FF20), and that handler
 /// opens PC_Loading.fng (0x57FF95 → 0x555E90, unless 0x52CF70 finds it

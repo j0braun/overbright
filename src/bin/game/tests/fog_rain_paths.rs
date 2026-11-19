@@ -1,10 +1,10 @@
-//! The fog's and the rain's faster passes draw the frames their plain forms draw (docs/atmosphere.md "Cost",
-//! docs/weather.md "Cost"): free roam at night in the rain with Volumetric Fog Next-Gen, Rain Detail
+//! The fog's and the rain's faster passes draw the frames their plain forms draw (docs/notes/graphics/atmosphere.md "Cost",
+//! docs/notes/graphics/weather.md "Cost"): free roam at night in the rain with Volumetric Fog Next-Gen, Rain Detail
 //! Next-Gen, the lens drops and High Precision Post, on the real draw path (an offscreen window), each pass's
 //! plain form switched on in one run and off in the other: the same frames, byte for byte where the pass does the
 //! same arithmetic (the tint's fold and the march's specialisation: to the rounding, their tests say how far).
 use super::*;
-// The test kit (tests/common/mod.rs, docs/testing.md).
+// The test kit (tests/common/mod.rs, docs/developing/testing.md).
 #[path = "../../../../tests/common/mod.rs"]
 mod testkit;
 
@@ -201,7 +201,7 @@ fn rain_tint_folded_into_the_fog_keeps_the_frames() {
 }
 
 /// The SSR mask's term and surface written by the main view's road, the hidden road's by the mask pass
-/// (docs/wet-roads-ssr.md "The mask from the main view"), draw the frames of the mask pass working them all
+/// (docs/notes/graphics/reflections.md "The mask from the main view"), draw the frames of the mask pass working them all
 /// out itself, byte for byte; and, on a device that takes it, the frames took it.
 #[test]
 #[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]

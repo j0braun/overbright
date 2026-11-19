@@ -1,4 +1,4 @@
-# Line endings (docs/platform-dirs.md): LF in the repository and in
+# Line endings (docs/playing/platform-dirs.md): LF in the repository and in
 # every checkout, Windows included, so build.rs's source hash, the
 # include_str! shaders and the source-reading tests see the same bytes on
 # every OS. Git decides text vs binary for the rest.

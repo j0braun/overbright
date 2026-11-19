@@ -1,4 +1,4 @@
-//! HDR Output (clone deviation, opt-in; docs/hdr.md). The native image is
+//! HDR Output (clone deviation, opt-in; docs/playing/hdr.md). The native image is
 //! SDR: SPEED2.EXE draws into an A8R8G8B8 back buffer and every pass
 //! saturates at 1. With HDR Output the frame is still made as before (the
 //! SDR frame, UI included, at paper white), and a last pass, the **display

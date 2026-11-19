@@ -1,4 +1,4 @@
-//! docs/uncapped-fps.md, "Enhanced effects on ticks": the
+//! docs/original/uncapped-fps.md, "Enhanced effects on ticks": the
 //! Enhanced effects that simulate or accumulate (Wet Car, the spray, the
 //! lens drops, the wet road's trail map, the smoke feeders, Sparks & Fire,
 //! Ambient Detail, the Next-Gen sky's rows) step on ticks, so the same
@@ -6,7 +6,7 @@
 //! the same effect state at every tick both reach. On the real draw path
 //! (an offscreen window), free roam in the rain with the effects on.
 use super::*;
-// The test kit (tests/common/mod.rs, docs/testing.md).
+// The test kit (tests/common/mod.rs, docs/developing/testing.md).
 #[path = "../../../../tests/common/mod.rs"]
 mod testkit;
 

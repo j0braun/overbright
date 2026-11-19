@@ -31,14 +31,10 @@ pub struct CheckResult {
     pub usable: bool,
     /// Why the folder cannot be used (None: it can).
     pub problem: Option<Problem>,
-    /// The movies and menu files the game will look for, one line per
-    /// group ([`crate::game_assets::Report::groups`]): the check screen's
-    /// expandable list. Empty without the full check.
-    pub assets: Vec<(Mark, String)>,
-    /// Whether a warning comes from the game files themselves (missing
-    /// or different key files, an unknown version), not only from the
-    /// movies or menu files.
-    pub files_differ: bool,
+    /// The check in the player's terms (the check screen's verdict,
+    /// summary rows and details); None for a folder refused before the
+    /// file check (unreadable, Overbright's own).
+    pub summary: Option<super::check::CheckSummary>,
 }
 
 /// Why a chosen folder cannot be used: each has a title, one sentence and
@@ -53,6 +49,10 @@ pub enum Problem {
     Missing(usize),
     /// The folder cannot be read (no access).
     Unreadable,
+    /// The text file the game reads its menus and text from is the only
+    /// file missing (a copy with another language's text only): the game
+    /// does not start without it.
+    NoText,
 }
 
 /// A problem the launcher shows, one per kind of situation: its title,
@@ -69,6 +69,9 @@ pub enum Issue {
     OtherGame { name: String },
     /// Files the game needs are not there.
     Missing { files: Vec<String> },
+    /// The text file the game reads is not there (the languages the copy
+    /// has instead).
+    NoText { others: Vec<String> },
     /// An older version than 1.2 (its version).
     NeedsPatch { version: String },
     /// The folder cannot be read.
@@ -143,7 +146,21 @@ impl Issue {
                     count(files.len(), "file", "files"),
                     if files.len() == 1 { "is" } else { "are" }
                 ),
-                vec![CHECK_AGAIN, ("show_files", "Show the missing files"), another],
+                vec![CHECK_AGAIN, ("details", "Show the missing files"), another],
+            ),
+            Issue::NoText { others } => w(
+                "The game's text file is missing",
+                format!(
+                    "The game reads its menus and text from {}, and this copy doesn't have it{}. The game can't \
+                     start without it. Choose a copy that has this file.",
+                    super::check::TEXT_FILE,
+                    match others.len() {
+                        0 => String::new(),
+                        1 => format!(" (its text is in {})", others[0]),
+                        _ => format!(" (its text is in {} and other languages)", others[0]),
+                    }
+                ),
+                vec![another, ("details", "Details"), CHECK_AGAIN],
             ),
             Issue::NeedsPatch { version } => w(
                 "Patch 1.2 needed",
@@ -167,7 +184,7 @@ impl Issue {
                     count(files.len(), "game file", "game files"),
                     if files.len() == 1 { "is" } else { "are" }
                 ),
-                vec![("show_files", "Show which files")],
+                vec![("details", "Details")],
             ),
             Issue::FolderGone { .. } => w(
                 "The game folder is not there",
@@ -262,6 +279,7 @@ impl Issue {
             Problem::NoGame => Issue::NoGame,
             Problem::Missing(n) => Issue::Missing { files: vec![String::new(); n] },
             Problem::Unreadable => Issue::Unreadable,
+            Problem::NoText => Issue::NoText { others: Vec::new() },
         }
     }
 }
@@ -288,17 +306,44 @@ pub enum Verdict {
 
 impl CheckResult {
     pub fn verdict(&self) -> Verdict {
-        match self.problem {
-            Some(p) => Verdict::Refused(p),
-            None if !self.usable => Verdict::Refused(Problem::NoGame),
-            None if self.lines.iter().any(|(m, _)| *m == Mark::Warn) => Verdict::Notes,
-            None => Verdict::Ready,
+        match self.state() {
+            super::check::CheckState::Refused(p) => Verdict::Refused(p),
+            super::check::CheckState::Ready => Verdict::Ready,
+            _ => Verdict::Notes,
         }
+    }
+
+    /// The check screen's state: refused, or the summary's
+    /// ([`super::check::CheckSummary::state`]); without a summary, by the
+    /// lines (a warning: files that differ).
+    pub fn state(&self) -> super::check::CheckState {
+        use super::check::CheckState;
+        match (self.problem, &self.summary) {
+            (Some(p), _) => CheckState::Refused(p),
+            _ if !self.usable => CheckState::Refused(Problem::NoGame),
+            (None, Some(s)) => s.state(),
+            (None, None) if self.lines.iter().any(|(m, _)| *m == Mark::Warn) => CheckState::Changed,
+            (None, None) => CheckState::Ready,
+        }
+    }
+
+    /// The issue of a refused folder, with what the check knows (the
+    /// missing files, the languages a copy without the text file has).
+    pub fn issue(&self) -> Option<Issue> {
+        let p = self.problem.or((!self.usable).then_some(Problem::NoGame))?;
+        let s = self.summary.as_ref();
+        Some(match p {
+            Problem::NoText => Issue::NoText { others: s.and_then(|s| s.no_text()).unwrap_or_default() },
+            Problem::Missing(_) if s.is_some() => {
+                Issue::Missing { files: s.map(|s| s.files_missing.clone()).unwrap_or_default() }
+            }
+            p => Issue::of_problem(p),
+        })
     }
 }
 
 /// The Graphics row: the launcher offers the game's Graphics Mode,
-/// Original or Enhanced (docs/settings-page.md "Graphics mode and quality
+/// Original or Enhanced (docs/developing/settings-page.md "Graphics mode and quality
 /// levels"); values set in the game that are neither show as they are and
 /// stay until the player picks one.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -403,10 +448,11 @@ pub struct Model {
     pub ask: Option<Dialog>,
     /// Play was pressed: "Starting…" until the game's window appears.
     pub starting: bool,
-    /// The check screen lists the files it found missing or changed.
-    pub show_files: bool,
-    /// The check screen lists the movies and menu files by group.
-    pub show_assets: bool,
+    /// The check's details list is open (the check screen; the main
+    /// screen's drop-down).
+    pub show_details: bool,
+    /// The details list's highlighted row.
+    pub details_sel: usize,
     /// The support file written last (Open folder shows it).
     pub support: Option<PathBuf>,
     /// The last start did not reach the game (the recovery screen).
@@ -486,7 +532,7 @@ pub struct Model {
     pub mods: Mods,
     /// What the HUD mod folder holds (None: no folder chosen).
     pub hud: Option<HudCheck>,
-    /// The prepare step (`game --prepare`, docs/prepare.md).
+    /// The prepare step (`game --prepare`, docs/developing/prepare.md).
     pub prepare: Prepare,
     /// The system folder dialog asked for or open.
     pub dialog: Option<DialogAsk>,
@@ -510,7 +556,7 @@ pub struct Model {
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Folders {
     /// A portable install: everything in [`Folders::data`] beside the
-    /// programs (docs/platform-dirs.md, "Portable mode").
+    /// programs (docs/playing/platform-dirs.md, "Portable mode").
     pub portable: bool,
     /// Overbright's own folder (options.txt, logs, …).
     pub data: PathBuf,
@@ -534,7 +580,7 @@ pub struct Prepare {
     pub offered: bool,
     /// The run started by itself (offered), behind the main screen: no
     /// screen of its own, a line beside Play says how far it is, and Play
-    /// stops it (the game makes what is missing, docs/prepare.md).
+    /// stops it (the game makes what is missing, docs/developing/prepare.md).
     pub background: bool,
     /// The Graphics row's value when the hardware check said the folder is
     /// prepared (for these settings' programs): a level saved since that
@@ -878,7 +924,7 @@ impl Model {
 }
 
 /// Where the source code of this build is published: `OB_SOURCE_URL` as
-/// the release build sets it (docs/building-releases.md), when it is a web
+/// the release build sets it (docs/developing/building-releases.md), when it is a web
 /// address; None otherwise (an ordinary build, or the release script's
 /// placeholder): the about screen then says it is an unofficial build.
 pub fn source_url() -> Option<String> {
@@ -1702,8 +1748,8 @@ impl Env for RealEnv {
         Model {
             ask: None,
             starting: false,
-            show_files: false,
-            show_assets: false,
+            show_details: false,
+            details_sel: 0,
             support: None,
             start_unfinished: false,
             set_aside: None,
@@ -1768,8 +1814,7 @@ impl Env for RealEnv {
                 lines: Vec::new(),
                 usable: false,
                 problem: Some(problem),
-                assets: Vec::new(),
-                files_differ: false,
+                summary: None,
             };
         if let Err(e) = std::fs::read_dir(&root)
             && e.kind() == std::io::ErrorKind::PermissionDenied
@@ -2100,20 +2145,17 @@ pub fn check_result(root: &Path, c: &setup::Check, fp: Option<&crate::fingerprin
     // A folder with an error line cannot be used, files all there or
     // not.
     let usable = c.ok() && !lines.iter().any(|(m, _)| *m == Mark::Error);
+    let only_text =
+        c.missing.len() == 1 && c.missing[0].eq_ignore_ascii_case(super::check::TEXT_FILE) && setup::looks_like_game(root);
     let problem = match c.missing.len() {
         _ if usable => None,
+        _ if only_text => Some(Problem::NoText),
         0 => Some(Problem::NoGame),
         n if n > 3 || !setup::looks_like_game(root) => Some(Problem::NoGame),
         n => Some(Problem::Missing(n)),
     };
-    let asset_lines: Vec<(Mark, String)> = c
-        .assets
-        .as_ref()
-        .map(|a| a.summary().into_iter().map(|(m, t)| (Mark::from(m), t)).collect())
-        .unwrap_or_default();
-    let files_differ = lines.iter().any(|l| l.0 == Mark::Warn && !asset_lines.contains(l));
-    let assets = c.assets.as_ref().map(|a| a.groups().into_iter().map(|(m, t)| (Mark::from(m), t)).collect()).unwrap_or_default();
-    CheckResult { root: root.to_path_buf(), lines, usable, problem, assets, files_differ }
+    let summary = Some(super::check::summarize(c, fp));
+    CheckResult { root: root.to_path_buf(), lines, usable, problem, summary }
 }
 
 pub fn pack_status(dir: &str) -> PackStatus {
@@ -2277,8 +2319,8 @@ impl Env for FakeEnv {
         Model {
             ask: None,
             starting: false,
-            show_files: false,
-            show_assets: false,
+            show_details: false,
+            details_sel: 0,
             support: None,
             start_unfinished: false,
             set_aside: None,

@@ -115,7 +115,7 @@ pub fn selected(car: bool) -> Option<PathBuf> {
     d.is_dir().then_some(d)
 }
 
-/// docs/texmod-import.md: the imported pack's folder for a domain,
+/// docs/modding/texmod-import.md: the imported pack's folder for a domain,
 /// `<pack dir>/imported/{world,car}` (what `import_tpf --install` writes,
 /// or a link to a pack made elsewhere).
 pub fn imported_dir(car: bool) -> PathBuf {

@@ -3,7 +3,7 @@
 use glam::Vec3;
 use nfsu2::drive::{CarState, Controls, STEP};
 fn main() -> anyhow::Result<()> {
-    // A developer tool: the developer cache, never the player's (docs/asset-cache.md).
+    // A developer tool: the developer cache, never the player's (docs/developing/asset-cache.md).
     nfsu2::platform::dirs::developer_program();
     let root = nfsu2::game_root();
     let world = nfsu2::world::World::load(&root, "L4RA")?;

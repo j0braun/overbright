@@ -7,7 +7,7 @@ use crate::render::*;
 /// but for the instances' cull values and moved flags, which only
 /// `move_placement` / `update_placement` change, between frames.
 pub struct WorldCore {
-    /// Sky Next-Gen (docs/atmosphere.md): the sky pair's palette rows
+    /// Sky Next-Gen (docs/notes/graphics/atmosphere.md): the sky pair's palette rows
     /// (made at every load) and the sky, made the first frame the row is on.
     pub(in crate::render) sky_rows: sky_ng::Rows,
     pub(in crate::render) sky_ng: std::sync::OnceLock<sky_ng::NightSky>,
@@ -22,7 +22,7 @@ pub struct WorldCore {
     /// The main frame's group 0 with the lamps' buffers while Dynamic
     /// Lamps or a shadow option is on ([`WorldCore::main_group`]).
     pub(in crate::render) lamp_main: std::sync::RwLock<Option<wgpu::BindGroup>>,
-    /// Ambient Detail (docs/ambient-detail.md): the props the main
+    /// Ambient Detail (docs/notes/graphics/ambient-detail.md): the props the main
     /// view's world pass draws last this frame (None: row off).
     pub(in crate::render) ambient_draw: std::sync::Mutex<Option<ambient_detail::DrawPlan>>,
     /// Modern + RT: the same with the traced scene at binding 11, for
@@ -45,7 +45,7 @@ pub struct WorldCore {
     pub(in crate::render) texture_scrolls: Vec<[f32; 8]>,
     /// The textures as arrays, when the device has immediates.
     pub(in crate::render) texture_arrays: Option<TextureArrays>,
-    /// Surface Detail (clone deviation, docs/surface-maps.md): per slot its
+    /// Surface Detail (clone deviation, docs/notes/graphics/surface-maps.md): per slot its
     /// material and normal map layer.
     pub(in crate::render) surface_slots: surface::SlotSurfaces,
     /// SKYMORPHTEXTURE's group per sky table entry.

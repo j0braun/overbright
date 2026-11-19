@@ -166,7 +166,7 @@ impl Encounters {
         // save: route manager +0x4674 (0x88E994) = 0 with a
         // COROLLA / CORSA / PEUGOT whose stock class is 3; the line bytes
         // of record 1095 matched the clone's class-0 speeds exactly;
-        // docs/outrun-ai-strength.md). Picked once the cars are in.
+        // docs/notes/outrun/ai-strength.md). Picked once the cars are in.
         let speeds = track.map(|t| {
             let suv = picks.iter().any(|p| car_types[p.0 as usize].suv);
             (suv, nfsu2::ai::route::speed_mode(t.flags, t.number))
@@ -230,7 +230,7 @@ impl Encounters {
             routes,
             cars: Vec::new(),
             // The world generator comes with the world build (0x5FF557,
-            // `Game::world_build`); the set-up draws no seeds (docs/rng.md: the
+            // `Game::world_build`); the set-up draws no seeds (docs/original/rng.md: the
             // clone's two extra draws here are gone).
             field: nfsu2::drive::CarField::new(0),
             target: None,

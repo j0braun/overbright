@@ -186,7 +186,7 @@ impl Game {
         self.speech_start();
         // The audio objects' Rand_Int / Rand_Float (turbo, stitch layers,
         // stereo, horns, bottom-out; EA Trax's pick) draw on the game's
-        // shared generator (0x7EA624, docs/rng.md), as the original's do
+        // shared generator (0x7EA624, docs/original/rng.md), as the original's do
         // (docs/native-fixes/N-RNG.tsv): the audio's generator is the game's for the
         // tick's sounds (the game draws nothing on its own copy in
         // between). Only with sound, as natively.

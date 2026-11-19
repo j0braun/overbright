@@ -2,7 +2,7 @@
 # World generator ([0x890080] +0xF8) draws per frame (steps between the frames' world_rng states), frames 1..120:
 # native.tsv 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 3 0 0 0 0 0 0 0 0 0 3 0 0 0 11 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 3 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 9 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
 # clone.tsv 0 0 0 0 0 0 0 0 0 0 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 0 0 0 0 0 0 7 0 0 0 0 0 3 0 0 0 3 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 3 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 19 0
-# The clone stands until the transplant at 52 (2 rerolls = 6 world draws a frame, the original's measured standing count, docs/rng.md); the original rolls from frame 30 (no rerolls).
+# The clone stands until the transplant at 52 (2 rerolls = 6 world draws a frame, the original's measured standing count, docs/original/rng.md); the original rolls from frame 30 (no rerolls).
 # Frame 65, the 3rd -> 2nd change (both games): from the original's world state at frame 64 (0x67B5B54F), lo + Rand_Float(hi - lo) for +0x78, +0x7C, +0x80 with the free-roam ranges -100..0:
 # computed -18.976715 -9.516655 -19.181183, state after 0x4BD7ACF5; the original read dt_78 -18.9767, dt_7c -9.51665, dt_80 -19.1812, world_rng at frame 65 0x4BD7ACF5.
 c0.gear      3|3  2|2

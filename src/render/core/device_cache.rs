@@ -5,7 +5,7 @@
 //! The passes ask for their programs through these functions instead of
 //! the device: the same descriptor gives the same object, so a pass made
 //! again (switched off and on, the upscaling stage's second post chain, a
-//! warm-up's throwaway copy, docs/first-use-builds.md) builds nothing, and
+//! warm-up's throwaway copy, docs/developing/first-use-builds.md) builds nothing, and
 //! a warm-up made before a frame that needs them leaves that frame nothing
 //! to build. The objects are the ones the device would make for the same
 //! descriptor (same source, same states), so what is drawn is the same.

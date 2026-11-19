@@ -1,5 +1,5 @@
 //! Replacing Overbright's own files (saves, options, caches) by rename,
-//! with the Windows rules (docs/platform-dirs.md).
+//! with the Windows rules (docs/playing/platform-dirs.md).
 //!
 //! Unix: [`rename_replace`] is `std::fs::rename`, nothing else.
 //!

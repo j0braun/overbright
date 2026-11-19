@@ -5,7 +5,7 @@
 //! HUD state (the rate gate's `hud` column) and the same HUD quads at the
 //! same tick, and drawing them twice or not at all changes nothing.
 use crate::*;
-// The test kit (tests/common/mod.rs, docs/testing.md).
+// The test kit (tests/common/mod.rs, docs/developing/testing.md).
 #[path = "../../../../tests/common/mod.rs"]
 mod testkit;
 

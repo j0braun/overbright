@@ -1,4 +1,4 @@
-//! The motion blur's motion on the ticks (docs/uncapped-fps.md, "Motion
+//! The motion blur's motion on the ticks (docs/original/uncapped-fps.md, "Motion
 //! blur on ticks"): the blur takes a frame's motion from the drawn state
 //! one tick before it, not from the last drawn frame, and its noise phase
 //! from the ticks it drew on, so a frame on a tick blurs the same at

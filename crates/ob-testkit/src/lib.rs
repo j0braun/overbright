@@ -1,4 +1,4 @@
-//! The test kit (docs/testing.md): one way for every test to reach the
+//! The test kit (docs/developing/testing.md): one way for every test to reach the
 //! player's game files, fixtures regenerated from them, and private
 //! captures, so a test that cannot run says so (IGNORED, with the reason)
 //! instead of passing without checking anything.
@@ -116,7 +116,7 @@ pub fn game(hooks: &'static Hooks) -> &'static Game {
         (hooks.use_test_cache)();
         assert!(
             hooks.ob_game,
-            "this test reads the game but is not marked `#[cfg_attr(not(ob_game), ignore = \"{NEEDS_GAME}\")]` (docs/testing.md), \
+            "this test reads the game but is not marked `#[cfg_attr(not(ob_game), ignore = \"{NEEDS_GAME}\")]` (docs/developing/testing.md), \
              or NFSU2_ROOT was unset when the tests were built"
         );
         let root = std::env::var_os("NFSU2_ROOT").filter(|r| !r.is_empty()).map(PathBuf::from);
@@ -201,14 +201,14 @@ pub fn fixture(hooks: &'static Hooks, name: &str, version: u32, generate: impl F
 
 /// The reference executable: the European 1.2 release's SPEED2.EXE
 /// without copy protection (4,788,224 bytes, the build Overbright's tables
-/// were taken from; docs/exe-tables.md, "Tests"). Read from
+/// were taken from; docs/original/exe-tables.md, "Tests"). Read from
 /// `$OB_PRIVATE/exe/SPEED2.EXE` when that file is there, else from the
 /// game folder. Overbright itself never reads it; only the data tests that
 /// compare Overbright's tables with the original's do, and they carry
 /// `#[cfg_attr(not(all(ob_game, ob_private)), ignore = "...")]`. Another
 /// build there fails the test with the reason.
 pub fn reference_exe(hooks: &'static Hooks) -> Vec<u8> {
-    assert!(hooks.ob_private, "this test reads the reference executable but is not marked to need the private set (docs/testing.md)");
+    assert!(hooks.ob_private, "this test reads the reference executable but is not marked to need the private set (docs/developing/testing.md)");
     let private = std::env::var_os("OB_PRIVATE").filter(|d| !d.is_empty()).map(|d| PathBuf::from(d).join("exe/SPEED2.EXE"));
     let path = match private.filter(|p| p.is_file()) {
         Some(p) => p,

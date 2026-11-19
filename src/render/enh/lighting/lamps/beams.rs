@@ -1,5 +1,5 @@
 use super::*;
-/// Headlight Beams (docs/lighting2.md): beams drawn per frame at most
+/// Headlight Beams (docs/notes/graphics/lighting2.md): beams drawn per frame at most
 /// (the player's and the nearest other cars').
 pub const MAX_BEAMS: usize = 16;
 /// Other cars' beams fade out between these distances from the eye.
@@ -11,7 +11,7 @@ pub(in crate::render) const BEAM_FADE: (f32, f32) = (110.0, 150.0);
 /// is set by the constructor (0x6045B0) and by 0x5F61A0 each update (its
 /// flicker branch needs +0x925, which only 0 is ever written to: 0x6045C3,
 /// 0x5F61E1, 0x5F62AA), and the player's (owner kind 1) is left as built;
-/// under Wine every car read on (docs/lighting2.md).
+/// under Wine every car read on (docs/notes/graphics/lighting2.md).
 pub fn gpu_beam(h: &[[f32; 4]; 5], player: bool, fade: f32) -> GpuLamp {
     GpuLamp {
         position: [h[0][0], h[0][1], h[0][2], if player { 1.0 } else { 0.0 }],

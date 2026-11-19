@@ -1,4 +1,4 @@
-//! Fuzzing of the file readers (docs/io-robustness.md, "Fuzzing"):
+//! Fuzzing of the file readers (docs/developing/io-robustness.md, "Fuzzing"):
 //! every reader that takes bytes from a game file, a save or options.txt
 //! gets malformed input — random bytes (proptest), and real chunks with
 //! truncated / oversized / lying chunk sizes, boundary counts and offsets,

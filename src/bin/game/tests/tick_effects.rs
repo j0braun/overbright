@@ -1,4 +1,4 @@
-//! docs/uncapped-fps.md, "Enhancement effects on ticks": the
+//! docs/original/uncapped-fps.md, "Enhancement effects on ticks": the
 //! tick-stepped enhancement effects (LOD Fade's per-instance fades, the
 //! lamps' section fades and shadow layers, the Next-Gen water's basins,
 //! the traced scene's car cache) hold the same state at equal ticks
@@ -6,7 +6,7 @@
 //! driven by a held key keyed on the tick, drawn offscreen at 30, 60, 120
 //! and 200 Hz and uncapped (uneven 1–4 ms frames).
 use super::*;
-// The test kit (tests/common/mod.rs, docs/testing.md).
+// The test kit (tests/common/mod.rs, docs/developing/testing.md).
 #[path = "../../../../tests/common/mod.rs"]
 mod testkit;
 

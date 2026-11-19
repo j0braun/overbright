@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use nfsu2::world::World;
 
 fn main() -> anyhow::Result<()> {
-    // A developer tool: the developer cache, never the player's (docs/asset-cache.md).
+    // A developer tool: the developer cache, never the player's (docs/developing/asset-cache.md).
     nfsu2::platform::dirs::developer_program();
     env_logger::init();
     let args: Vec<String> = std::env::args().skip(1).collect();

@@ -1,6 +1,6 @@
 //! The asset cache against a fresh parse (moved from track_l4ra.rs: it
 //! points the cache at a folder of its own, process-wide, so it runs in a
-//! binary of its own). Ignored without `NFSU2_ROOT` (docs/testing.md).
+//! binary of its own). Ignored without `NFSU2_ROOT` (docs/developing/testing.md).
 
 mod common;
 

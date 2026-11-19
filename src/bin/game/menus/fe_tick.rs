@@ -1,4 +1,4 @@
-//! The front end's state (docs/uncapped-fps.md "Front end out of the draw"):
+//! The front end's state (docs/original/uncapped-fps.md "Front end out of the draw"):
 //! what the drawn frame used to step, stepped once per tick instead. The garage
 //! and the dyno camera run before the tick's sounds (`fe_tick_before_sounds`,
 //! the original's order, steps 15 and 17 before 18 of 0x5811D0);

@@ -8,7 +8,7 @@ pub(crate) fn track_cameras(root: &std::path::Path, region: &str) -> Vec<CameraG
 }
 
 /// What the typed cameras' weight functions read of the replayed car
-/// (docs/replay-cameras.md): the nitrous shot, upside down (car +0xB8 < 0),
+/// (docs/notes/parity/replay-cameras.md): the nitrous shot, upside down (car +0xB8 < 0),
 /// the forward speed (+0x42C) and speed (+0x430), the set-up's +0x20, the
 // prov: inferred game.replay_typed_input
 /// path's curvature (0x5EB320; **inferred** here from the velocity's turn
@@ -72,7 +72,7 @@ pub(crate) fn exported_slip_sum(wheels: &[nfsu2::drive::WheelState; 4]) -> f32 {
 }
 
 /// The replay camera (the race camera director, 0x8900B4: 0x5FAFE0 and
-/// 0x5FB060; docs/replay-cameras.md): `index` (+0x21C) 0 is the automatic
+/// 0x5FB060; docs/notes/parity/replay-cameras.md): `index` (+0x21C) 0 is the automatic
 /// camera, 1–5 the chase views 0x802130[index] = VIEW_ORDER[index − 1];
 /// `last` (+0x218) the index at the director's last frame; `view` the chase
 /// view showing; `since` when a chase view was last drawn or the cameras

@@ -30,7 +30,7 @@ pub(super) const ROWS: &[GraphicsRow] = &[
         offered: None,
         legacy: false,
     },
-    // docs/particles-smoke.md: the native emitters, detailed smoke.
+    // docs/notes/graphics/smoke.md "Particles High and Ultra: GPU particles and detailed smoke": the native emitters, detailed smoke.
     GraphicsRow {
         id: RowId::Particles,
         label: PARTICLES,
@@ -63,7 +63,7 @@ pub(super) const ROWS: &[GraphicsRow] = &[
         offered: None,
         legacy: false,
     },
-    // docs/sparks-fire.md: the native spark and flame emitters, next-gen look.
+    // docs/notes/graphics/sparks-fire.md: the native spark and flame emitters, next-gen look.
     GraphicsRow {
         id: RowId::SparksFire,
         label: SPARKS_FIRE,
@@ -84,7 +84,7 @@ pub(super) const ROWS: &[GraphicsRow] = &[
         offered: None,
         legacy: false,
     },
-    // docs/motionblur-dof.md: Customize Display's Motion Blur
+    // docs/notes/graphics/motionblur-dof.md: Customize Display's Motion Blur
     // (g_MotionBlurEnable 0x870CDC: the speed blur 0x5CC470) with the
     // clone's motion-vector blur above it.
     GraphicsRow {
@@ -138,7 +138,7 @@ pub(super) const ROWS: &[GraphicsRow] = &[
         offered: None,
         legacy: false,
     },
-    // docs/water.md: the fountains', pools' and streams' water.
+    // docs/notes/graphics/water.md: the fountains', pools' and streams' water.
     GraphicsRow {
         id: RowId::AnimatedWater,
         label: ANIMATED_WATER,
@@ -171,7 +171,7 @@ pub(super) const ROWS: &[GraphicsRow] = &[
         offered: None,
         legacy: false,
     },
-    // docs/ambient-detail.md: street props, blown debris, dust, steam.
+    // docs/notes/graphics/ambient-detail.md: street props, blown debris, dust, steam.
     GraphicsRow {
         id: RowId::AmbientDetail,
         label: AMBIENT_DETAIL,

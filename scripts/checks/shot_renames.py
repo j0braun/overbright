@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Renamed shot targets (scripts/checks/shot-renames.txt, docs/checks.md "Renamed shot targets").
+"""Renamed shot targets (scripts/checks/shot-renames.txt, docs/developing/checks.md "Renamed shot targets").
 
 The parity compares shots by name between a base and a new binary. When a target is renamed, the base binary
 knows only the old name: gate.sh asks this script which name to run on the base side.

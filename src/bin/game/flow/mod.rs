@@ -36,7 +36,7 @@ pub(crate) struct RaceFlow {
     /// the career's set-up 0x5322F0 leaves them, so a career race runs with
     /// what the boot or the last Quick Race left. **Observed** under Wine:
     /// 1 and 1.0 from the boot's first frames, and 1 in a career race
-    /// after Resume Career (docs/race-ai-parity.md); the boot-time writer
+    /// after Resume Career (docs/notes/parity/race-ai-parity.md); the boot-time writer
     /// is not traced.
     pub(crate) catch_up_globals: (bool, Option<usize>),
     /// A career race's outcome not yet settled: the race's end files a

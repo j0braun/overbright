@@ -1,7 +1,7 @@
 //! The fuzz targets: one function per parser entry point that takes bytes
 //! from a file the player (or a mod, a download) controls. Shared by
 //! `fuzz/fuzz_targets/*.rs` (cargo-fuzz, nightly) and `tests/fuzz_smoke.rs`
-//! (stable, a mutation engine of its own); see docs/fuzzing.md.
+//! (stable, a mutation engine of its own); see docs/developing/fuzzing.md.
 //!
 //! A target must return for every input: no panic, no hang, no allocation
 //! beyond `Limits::max_alloc`. It never reads game files itself (the seeds,
@@ -323,7 +323,7 @@ pub fn dds(b: &[u8]) {
     black_box(nfsu2::upscale::parse_dds(b).is_some());
 }
 
-/// Overbright packs (docs/texture-packs.md): the manifest, the order file,
+/// Overbright packs (docs/modding/texture-packs.md): the manifest, the order file,
 /// a file stem's key and a DX10 DDS.
 pub fn obpack(b: &[u8]) {
     let text = String::from_utf8_lossy(b);

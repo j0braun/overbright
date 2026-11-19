@@ -1,10 +1,10 @@
 //! Reported issues: asset-backed reproductions run through the live entry points (`Game::step`,
 //! `Game::key`). They load the original's assets: without NFSU2_ROOT they
-//! are ignored with that reason (docs/testing.md). The `#[ignore]`d ones
+//! are ignored with that reason (docs/developing/testing.md). The `#[ignore]`d ones
 //! also need a GPU or private XDG homes and run only on request
 //! (`cargo test -- --ignored NAME`).
 use super::*;
-// The test kit (tests/common/mod.rs, docs/testing.md).
+// The test kit (tests/common/mod.rs, docs/developing/testing.md).
 #[path = "../../../../tests/common/mod.rs"]
 mod testkit;
 

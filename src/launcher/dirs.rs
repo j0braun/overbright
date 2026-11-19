@@ -1,5 +1,5 @@
 //! Where the launcher finds and keeps things: the game's own folders
-//! through `platform::dirs` (docs/platform-dirs.md), so the launcher and
+//! through `platform::dirs` (docs/playing/platform-dirs.md), so the launcher and
 //! the game always agree, on every OS.
 
 use std::path::PathBuf;

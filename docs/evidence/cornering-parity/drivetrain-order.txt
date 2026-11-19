@@ -1,4 +1,4 @@
-# The drivetrain's order (docs/cornering-parity.md §6, docs/formats.md 'Order of a frame and a sub-step').
+# The drivetrain's order (docs/notes/parity/cornering-parity.md §6, docs/formats.md 'Order of a frame and a sub-step').
 # The same native runs (three per case; bench_wall_hold and accel_straight recorded anew), the clone side
 # run three times: base = before; h1 = the transplant carries the power factor, not the reaction; p1 = h1
 # and the force pass at the end of the sub-step. Per run: apart at 1 / 2 / 5 s (m) [the first quantity

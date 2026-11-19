@@ -1,5 +1,5 @@
 //! Dynamic Lamps, Lamp Shadows and Contact Shadows (clone deviations,
-//! opt-in; docs/lamps-shadows.md). Nothing here exists in SPEED2.EXE: the
+//! opt-in; docs/notes/graphics/lamps-shadows.md). Nothing here exists in SPEED2.EXE: the
 //! original lights the world with baked vertex colours only and the cars
 //! with a harmonic built from the light packs (0x48E3D0 → 0x4893A0,
 //! `lighting.rs`). These options add on top of that, never replacing it:

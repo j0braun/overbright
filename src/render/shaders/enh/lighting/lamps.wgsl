@@ -1,12 +1,12 @@
 // ---------------------------------------------------------------------
 // Dynamic Lamps, Lamp Shadows, Contact Shadows (clone deviations, opt-in;
-// docs/lamps-shadows.md, render/lamps.rs). The lines between the LAMPS
+// docs/notes/graphics/lamps-shadows.md, render/lamps.rs). The lines between the LAMPS
 // markers are only in the lamps' module (`WorldShared::mode`): the native
 // one is this file without them, its shaders untouched. Only the main view's frame has
 // lamps.x / lamps.z / lamps.w set; every other view (and the native path)
 // skips all of it through uniform branches. No derivatives or implicit-LOD
 // samples here (the multiview cube copies `frame` into private storage).
-// For speed (docs/perf-gpu.md, lamp shader specialisation): the lamps' module specialised per feature
+// For speed (docs/notes/performance/gpu.md, lamp shader specialisation): the lamps' module specialised per feature
 // set by pipeline constants (`SceneMode::lamp_constants`). Each `false`
 // is set only where the option is off everywhere, so its uniform is 0 in
 // every frame and the branch it removes never ran: the same pixels, with
@@ -44,7 +44,7 @@ struct Occluder {
 @group(0) @binding(6) var<storage, read> occluders: array<Occluder>;
 @group(0) @binding(7) var shadow_maps: texture_depth_2d_array;
 @group(0) @binding(8) var shadow_samp: sampler_comparison;
-// Surface Detail (clone deviation, docs/surface-maps.md): the normal
+// Surface Detail (clone deviation, docs/notes/graphics/surface-maps.md): the normal
 // maps generated from the player's own textures (render/surface.rs).
 @group(0) @binding(9) var surface_maps: texture_2d_array<f32>;
 @group(0) @binding(10) var surface_samp: sampler;
@@ -244,7 +244,7 @@ fn lamp_light(p: vec3<f32>, n_in: vec3<f32>, screen: vec4<f32>) -> vec3<f32> {
     #if !SUBGROUPS
     return cluster_light(c, p, n);
     #else
-    // The same sum, one cluster at a time per subgroup (docs/lamps-shadows.md,
+    // The same sum, one cluster at a time per subgroup (docs/notes/graphics/lamps-shadows.md,
     // "The cluster loop"): the first active lane's cluster goes to every lane,
     // the lanes in it add its lamps in their order (the cluster's index and
     // so its lamp list are uniform: scalar loads, not one per lane) and leave;

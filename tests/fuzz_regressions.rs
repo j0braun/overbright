@@ -1,5 +1,5 @@
 //! Regression tests for what the fuzz targets found and what the audit
-//! findings listed (docs/fuzzing.md). The
+//! findings listed (docs/developing/fuzzing.md). The
 //! inputs are built here from a few header bytes; no game data.
 
 use nfsu2::formats::bundle::{self, Chunk};

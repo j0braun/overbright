@@ -36,7 +36,7 @@ cargo build --release --features dev-harness --bins --examples
 ```
 
 - `game` is the game, `overbright` the launcher; `inspect`, `world`, `car_check` and the other binaries in
-  `src/bin/` are developer tools (docs/developer-guide.md). `overbright-editor`, the map editor, is the crate
+  `src/bin/` are developer tools (docs/developing/developer-guide.md). `overbright-editor`, the map editor, is the crate
   `crates/ob-editor`, a default workspace member: the commands above build it too, and `cargo build
   --release -p nfsu2` leaves it out (the game itself never links its UI library, egui).
 - The **developer harness** (`--shot`, `--selftest`, `--flow`, `--bench`, `--playthrough`, the parity and
@@ -48,8 +48,8 @@ cargo build --release --features dev-harness --bins --examples
 - The developer probes (`devprobes/`) are part of the maintainer's private set and not in the public
   repository; with the set laid over a checkout they are a workspace member, checked with
   `cargo check --release -p devprobes`.
-- `scripts/pgo.sh` makes an optional profile-guided build (docs/developer-guide.md, "PGO").
-- docs/build-times.md has measured build times (cold, after a one-file change) and their method.
+- `scripts/pgo.sh` makes an optional profile-guided build (docs/developing/developer-guide.md, "PGO").
+- docs/developing/build-times.md has measured build times (cold, after a one-file change) and their method.
 
 ## Tests
 
@@ -63,12 +63,12 @@ cargo test --release --features dev-harness
 - **Private tests** replay recordings of the original that cannot be regenerated from the game files; they
   need the maintainer's private set (`OB_PRIVATE`) and are ignored with their reason otherwise.
 
-docs/testing.md has the details and the test kit. `scripts/checks/provenance.py` checks the provenance tags
-(docs/provenance.md); `scripts/checks/fuzz.sh` runs the parser fuzz smoke (docs/fuzzing.md).
+docs/developing/testing.md has the details and the test kit. `scripts/checks/provenance.py` checks the provenance tags
+(docs/developing/provenance.md); `scripts/checks/fuzz.sh` runs the parser fuzz smoke (docs/developing/fuzzing.md).
 
 ## The checks
 
-The check harness builds, tests and renders the game headless and compares the result (docs/checks.md). It
+The check harness builds, tests and renders the game headless and compares the result (docs/developing/checks.md). It
 needs `NFSU2_ROOT` (through `scripts/local.env`) and writes everything into the output folder you give it:
 
 ```bash
@@ -126,18 +126,18 @@ scripts/release/container/build.sh --windows --dev-harness --tests --fast <sourc
   Windows in an Ubuntu 22.04 image (pinned by digest, mingw-w64 from Ubuntu), Linux in an AlmaLinux 8 image
   (pinned by digest); both with Rust from the official archives pinned by version and SHA-256.
 - **Linux:** `x86_64-unknown-linux-gnu` against glibc 2.28, so the binary runs on any x86-64 distribution
-  with glibc 2.28 or newer (the distributions it was run on: docs/building-releases.md, "Linux: what a player
+  with glibc 2.28 or newer (the distributions it was run on: docs/developing/building-releases.md, "Linux: what a player
   needs"). A binary built directly on a newer system usually needs that system's glibc.
 - **Windows:** `x86_64-pc-windows-gnu`, cross-compiled with mingw-w64; GUI-subsystem programs with an icon,
   a version resource and a manifest; only system DLLs needed (`scripts/release/check_pe.py`).
 - Output in `<out dir>/dist/linux/` and `<out dir>/dist/windows/`; `--dev-harness` adds a separate harness
   build for the checks (never shipped). Builds of the same commit are byte-identical.
 - `scripts/release/package.sh` turns one commit into the two player archives and checks them
-  (docs/building-releases.md).
+  (docs/developing/building-releases.md).
 
 ## Building on Windows
 
 The supported way to get Windows binaries is the container's cross-build above; `scripts/checks/wine_smoke.sh`
 runs the Windows harness build under Wine. A native build on Windows uses rustup with the MSVC toolchain and
 the Visual Studio Build Tools, then `cargo build --release`; build.rs then compiles the resources with
-`rc.exe`. The Windows builds have not yet been tested on real Windows hardware (docs/platform-windows.md).
+`rc.exe`. The Windows builds have not yet been tested on real Windows hardware (docs/playing/platform-windows.md).

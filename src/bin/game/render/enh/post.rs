@@ -42,7 +42,7 @@ pub(crate) fn temporal_cars(
     out
 }
 
-/// The drawn cars for the motion blur (docs/motionblur-dof.md), as
+/// The drawn cars for the motion blur (docs/notes/graphics/motionblur-dof.md), as
 /// [`temporal_cars`] (same keys and boxes) with the player's marked and
 /// each wheel's spin (rad/s; a car whose wheels hold none, e.g. traffic,
 /// rolls them at its speed).

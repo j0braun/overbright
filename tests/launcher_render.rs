@@ -2,7 +2,8 @@
 //! fixed fake data at the seven sizes (the Steam Deck's 1280 × 800 and the
 //! laptop's 1366 × 768 among them), and every named state (no game found, a
 //! refused folder, …) at 1366 × 768 with 150 % scaling, compared with the
-//! committed renders in tests/launcher/ (our own images; nothing from the game). A changed look
+//! committed renders in tests/launcher/ (our own images; nothing from the game), and
+//! the game check's states at the seven sizes too. A changed look
 //! is re-blessed with `OB_LAUNCHER_BLESS=1 cargo test --release --test
 //! launcher_render` and the PNGs looked at before they are committed.
 
@@ -10,6 +11,17 @@ use nfsu2::launcher::{headless, screens::Screen};
 
 const SIZES: [(u32, u32); 7] =
     [(640, 480), (1280, 720), (1280, 800), (1366, 768), (1920, 1080), (2560, 1080), (3840, 2160)];
+/// The game check's states, also rendered at every size of [`SIZES`]
+/// (`state-<name>-<w>x<h>.png`).
+const CHECK_STATES: [&str; 7] = [
+    "check-ok",
+    "check-movies-missing",
+    "check-details",
+    "check-changed",
+    "check-unknown-edition",
+    "check-no-english",
+    "err-missing",
+];
 /// The states' size and scale: a common laptop screen at 150 %.
 const STATE_SIZE: (u32, u32, f32) = (1366, 768, 1.5);
 
@@ -50,7 +62,10 @@ fn screens_match_their_renders() {
         let img = headless::render_state(n, sw, sh, sd).expect("a state");
         (format!("state-{n}-{sw}x{sh}@{}", (sd * 100.0) as u32), img)
     });
-    for (name, img) in screens.chain(states) {
+    let checks = CHECK_STATES.iter().flat_map(|n| {
+        SIZES.map(|(w, h)| (format!("state-{n}-{w}x{h}"), headless::render_state(n, w, h, 1.0).expect("a state")))
+    });
+    for (name, img) in screens.chain(states).chain(checks) {
         let path = dir().join(format!("{name}.png"));
         if bless {
             std::fs::create_dir_all(dir()).unwrap();

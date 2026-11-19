@@ -163,7 +163,7 @@ impl WorldRenderer {
         // Wet Roads (clone deviation): the main view's worldreflect with
         // the weather's rain and wetness.
         // Only once rain has wetted the road (`Weather::road_wet`): a dry
-        // road keeps the native path (docs/wet-roads-ssr.md).
+        // road keeps the native path (docs/notes/graphics/reflections.md "Wet Roads and Screen-Space Reflections").
         // Wet Road Interaction works on Wet Roads' surface: its row
         // turns the surface on too.
         if let (true, Some(wet)) = (params.opts.wet_roads || params.opts.wet_interaction != 0, self.weather) {
@@ -350,7 +350,7 @@ impl WorldRenderer {
 
     /// Sky Next-Gen's frame (before the main view).
     fn prepare_sky_ng(&mut self, gpu: &Gpu, params: &FrameParams, scene_mode: SceneMode, main_fog: Fog) {
-        // Sky Next-Gen (docs/atmosphere.md): made the first frame the row is on, then prepared every frame.
+        // Sky Next-Gen (docs/notes/graphics/atmosphere.md): made the first frame the row is on, then prepared every frame.
         if sky_ng::enabled(params.opts) {
             let n = self
                 .core
@@ -441,7 +441,7 @@ impl WorldRenderer {
                     self.plan_wet_mask(gpu, scene_mode.reversed, reflecting, wet, params.opts)
                 });
         self.wet_mask_drawn = wet_mask.is_some();
-        // FSR 2's animation mask (docs/fsr2.md), the game's world
+        // FSR 2's animation mask (docs/notes/graphics/fsr2.md), the game's world
         // under an FSR 2 mode only; else nothing (and no targets).
         let fsr2_frame =
             params.opts.fsr2 && params.opts.temporal_frame && self.view_size.0 > 0 && self.view_size.1 > 0;
@@ -507,13 +507,13 @@ impl WorldRenderer {
         rt_tlas
     }
 
-    /// docs/car-lights.md: the projector's cookie (HEADLIGHTS) and
+    /// docs/notes/graphics/car-lights.md: the projector's cookie (HEADLIGHTS) and
     /// its sampler, for the car lights in the air.
     pub fn headlight_cookie(&self) -> (wgpu::TextureView, wgpu::Sampler) {
         self.headlight.clone()
     }
 
-    /// Ambient Detail (docs/ambient-detail.md): its props and state
+    /// Ambient Detail (docs/notes/graphics/ambient-detail.md): its props and state
     /// for this world, made the first time the row is on (a one-off
     /// placement, ~0.1 s for the city); nothing with the row off. Props
     /// made at the load or ahead of it, or kept from the last drive for this
@@ -686,7 +686,7 @@ impl WorldRenderer {
         sky_ng::set_rain(rain);
     }
 
-    /// Animated Water (docs/water.md): the main view leaves the water
+    /// Animated Water (docs/notes/graphics/water.md): the main view leaves the water
     /// textures' draws to `render::water` while set (off: native).
     pub fn set_hide_water(&mut self, hide: bool) {
         self.hide_water = hide;
@@ -795,7 +795,7 @@ impl WorldRenderer {
     /// The SSR mask's pipelines for `reversed` and `opts`, made where
     /// missing (the frame's [`Self::plan_wet_mask`], and a drive's warm-up).
     fn wet_mask_pipelines_for(&mut self, gpu: &Gpu, reversed: bool, opts: &RenderOptions) {
-        // Surface Detail (docs/surface-maps.md "SSR"): with the row on
+        // Surface Detail (docs/notes/graphics/surface-maps.md "SSR"): with the row on
         // (and the texture arrays its immediates need) the mask takes the
         // lamps' module, whose wet_mask reads the slot's material and map;
         // off, the native module as before.
@@ -849,7 +849,7 @@ impl WorldRenderer {
         self.wet_mask_pipelines_for(gpu, reversed, opts);
         // The mask from the main view where it was measured to pay: the wet road (the dry one's term is a few
         // taps) on a discrete GPU (on the integrated GPU its main view's extra targets cost what the mask
-        // pass saves, docs/wet-roads-ssr.md).
+        // pass saves, docs/notes/graphics/reflections.md "Wet Roads and Screen-Space Reflections").
         let mrt = if road && wet && self.mask_from_main_device(gpu) {
             self.mask_mrt_for(gpu, reversed, opts)
         } else {
@@ -880,7 +880,7 @@ impl WorldRenderer {
         on
     }
 
-    /// The mask from the main view's pipelines (docs/wet-roads-ssr.md "The mask from the main view"), made
+    /// The mask from the main view's pipelines (docs/notes/graphics/reflections.md "The mask from the main view"), made
     /// where missing (the frame's [`Self::plan_wet_mask`], and a drive's warm-up): with the depth pre-pass at
     /// one sample (its EQUAL road pipelines are the ones that write the mask), else None (the mask pass
     /// works the road's term out itself, as before).
@@ -929,7 +929,7 @@ impl WorldRenderer {
 }
 
 /// The mask pass working the road's term out itself, as before the main view wrote it (true): for the test
-/// that compares the two (docs/wet-roads-ssr.md "The mask from the main view").
+/// that compares the two (docs/notes/graphics/reflections.md "The mask from the main view").
 pub static PLAIN_SSR_MASK: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
 /// Frames whose main view wrote the SSR mask's term and surface (for the tests).
@@ -966,7 +966,7 @@ pub(in crate::render) struct MaskMrt {
 }
 
 // Refactor: from render/mod.rs
-/// Screen-Space Reflections' mask (clone deviation, docs/wet-roads-ssr.md):
+/// Screen-Space Reflections' mask (clone deviation, docs/notes/graphics/reflections.md "Wet Roads and Screen-Space Reflections"):
 /// the main view's worldreflect draws once more, after the main view, into
 /// targets of the scene's size with a depth of their own (the road
 /// against the road only; [`ssr`]'s composite drops pixels something else
@@ -990,7 +990,7 @@ pub(in crate::render) const WET_MASK_TINT_FORMAT: wgpu::TextureFormat = wgpu::Te
 /// The mask's colour format.
 pub(in crate::render) const WET_MASK_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba16Float;
 
-/// docs/fsr2.md "Animation mask" (clone deviation, FSR 2 only):
+/// docs/notes/graphics/fsr2.md "Animation mask" (clone deviation, FSR 2 only):
 /// the main view's draws whose texture moves on a still surface — the
 /// flip-books (`TextureRef::Animated`: blinking signs), the UV scrolls
 /// (scroll kinds 1 and 2: the chevron barriers step every 0.2 s) and the
@@ -1133,7 +1133,7 @@ impl AmbientWarm {
 mod anim_mask_tests {
     use crate::render::*;
 
-    /// docs/fsr2.md "Animation mask": the chevron barriers' scroll
+    /// docs/notes/graphics/fsr2.md "Animation mask": the chevron barriers' scroll
     /// (kind 2, a step every 0.2 s) is reactive on the frame it steps
     /// (and with no last frame) and only composition between its steps; a
     /// continuous scroll moves every frame; kinds 0 and 3 (a fixed offset)

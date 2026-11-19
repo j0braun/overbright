@@ -290,7 +290,7 @@ fn tuning_constants_equal_the_executable() {
     assert_eq!(differing(&|n| !FORMULA.contains(&n) && !DECODERS.contains(&n)), Vec::<&str>::new());
 }
 
-/// Native rule (docs/exe-tables.md, quarter sine): the event VM's sine 0x7254CF reads the
+/// Native rule (docs/original/exe-tables.md, quarter sine): the event VM's sine 0x7254CF reads the
 /// stored quarter sine 0x8181D8 as is, and the stored table is the exact
 /// formula: entries 11, 13, 15, 19, 20, 21 = 4420, 5222, 6023, 7623, 8022,
 /// 8421 (the clone had each one less).

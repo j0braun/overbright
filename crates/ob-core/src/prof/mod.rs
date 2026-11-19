@@ -3,7 +3,7 @@
 //! calling thread's CPU time). `NFSU2_TRACE=file.json` writes the same
 //! spans (and the bench's frame phases) as a Chrome trace (Perfetto /
 //! chrome://tracing): begin, length, thread, thread CPU — the loads'
-//! critical path across threads (docs/perf-gates.md). Both are off unless
+//! critical path across threads (docs/developing/perf-gates.md). Both are off unless
 //! set: a span is then one cached bool load.
 
 use std::sync::OnceLock;

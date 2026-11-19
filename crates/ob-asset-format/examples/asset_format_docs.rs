@@ -1,8 +1,8 @@
-//! Writes or checks the asset format specification's generated parts (docs/asset-format/: rule tables, the
+//! Writes or checks the asset format specification's generated parts (docs/modding/asset-format/: rule tables, the
 //! manifest's field tables, the schemas made from the code; ob_asset_format::docs).
 //!
 //! Usage: `cargo run -p ob-asset-format --example asset_format_docs -- --check|--write [DIR]`
-//! (DIR defaults to docs/asset-format under the current folder: run it from the repository's root). `--check` exits 1 and lists every difference.
+//! (DIR defaults to docs/modding/asset-format under the current folder: run it from the repository's root). `--check` exits 1 and lists every difference.
 use std::path::PathBuf;
 
 fn main() {

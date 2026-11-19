@@ -196,7 +196,7 @@ mod shared_part_tests {
     /// and `FULLROOF` alone with a roof scoop fitted (0x62315B); the two
     /// Carbon parts draw with the `CARBONFIBER` light material (render info
     /// +0x388) where the generic part draw remaps to it (0x6231B3,
-    /// 0x623451; docs/car-materials.md): a carbon hood's CARSKIN ranges,
+    /// 0x623451; docs/notes/graphics/car-materials.md): a carbon hood's CARSKIN ranges,
     /// with KIT_CARBON the bumpers' CARSKIN ranges and every generic part's
     /// 0xA7366AE6 ranges; never the spoiler (its own draw), never a stock
     /// car. Compared in the original's Body Shop (G35 DOUBLE-V carbon hood,
@@ -248,7 +248,7 @@ mod shared_part_tests {
             carbon(&v, &|n, h| n.contains("DOOR") && h == CARSKIN_HASH).iter().all(|&c| !c),
             "no wide body: the doors keep the paint"
         );
-        // A community save's Lancer (docs/chrome-flicker.md): TRUNK_CARBON
+        // A community save's Lancer (docs/notes/graphics/car-look.md "Chrome trunk flicker and dry-road reflection strength"): TRUNK_CARBON
         // fitted; its trunk drew the yellow gloss paint's material with the
         // carbon texture's alpha 1 (twice the skin's gloss weight), a
         // mirror. Now CARBONFIBER, as the original (Body Shop, same scene).
@@ -264,7 +264,7 @@ mod shared_part_tests {
     }
 
     /// were drawn together before, the closed roof z-fighting with the
-    /// sunroof (seen in the original's Body Shop, docs/model-fixes.md).
+    /// sunroof (seen in the original's Body Shop, docs/notes/graphics/model-fixes.md).
     #[test]
     #[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
     fn top_draws_one_roof_group() {
@@ -816,7 +816,7 @@ mod shading_trace_tests {
     /// and the material record's flags), and every such clone draw's set
     /// occurs in the frame. Paint METPAINTSILVER, rims MAGSILVER, glass WINDSHIELD /
     /// WINDOWMASK; DULLPLASTIC and LICENSEPLATE also without the env term
-    /// (mesh flag 0x100 clear). See docs/car-shading-compare.md.
+    /// (mesh flag 0x100 clear). See docs/notes/graphics/car-look.md "Car paint, reflections and rims against the original".
     #[test]
     #[cfg_attr(not(all(ob_game, ob_private)), ignore = "needs NFSU2_ROOT (the player's own game files) and OB_PRIVATE (private captures and saves)")]
     fn stock_240sx_constants_match_the_original_frame() {

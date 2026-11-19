@@ -8,7 +8,7 @@ use nfsu2::formats::solid::parse_solid_list;
 use nfsu2::formats::texture::parse_texture_pack;
 
 fn main() -> anyhow::Result<()> {
-    // A developer tool: the developer cache, never the player's (docs/asset-cache.md).
+    // A developer tool: the developer cache, never the player's (docs/developing/asset-cache.md).
     nfsu2::platform::dirs::developer_program();
     let car = std::env::args().nth(1).unwrap_or_else(|| "240SX".into());
     let root = nfsu2::game_root();

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The tail of a long bench run from its frame log (docs/perf-budget.md "CPU frame time and hitches").
+"""The tail of a long bench run from its frame log (docs/notes/performance/budget.md "CPU frame time and hitches").
 
   frametail.py LOG.tsv [TOP]    p50 / p95 / p99 / max of each column, then the slow frames, worst first
 

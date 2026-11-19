@@ -1,7 +1,7 @@
 //! The HUD's views of the simulation, built here by the HUD glue
 //! from plain simulation state (they lived on the simulation's types,
 //! `Race::drift_hud`, `Encounters::hud` and `Progress::status_label`,
-//! which made `sim/**` name the HUD's view structs; docs/sim-session.md).
+//! which made `sim/**` name the HUD's view structs; docs/developing/sim-session.md).
 
 use crate::*;
 

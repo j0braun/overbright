@@ -1,4 +1,4 @@
-//! The waits log's hooks (docs/waits-log.md): the game's screens, a
+//! The waits log's hooks (docs/developing/waits-log.md): the game's screens, a
 //! drive's load and its frames reach the lines, named with the game's own
 //! names only (no profile, car or folder).
 use super::*;

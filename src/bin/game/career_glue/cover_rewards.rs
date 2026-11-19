@@ -222,7 +222,7 @@ impl Game {
     /// ≠ 1: the showcase runs in the world): 0x481500 on the FE_COMMON
     /// player (`fe_rules::part_stitch`). The stitch layer's start draws
     /// (0x45B280) are the game's shared generator's (`rng`), as every audio
-    /// object's (docs/rng.md).
+    /// object's (docs/original/rng.md).
     pub(crate) fn part_stitch(audio: Option<&mut Audio>, rng: &mut nfsu2::opponents::GameRng, channel: usize, open: bool) {
         if let (Some(a), Some(n)) = (audio, nfsu2::audio::fe_rules::part_stitch(channel, open)) {
             let saved = nfsu2::audio::collision::enter_game_rng(rng.0);

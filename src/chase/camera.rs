@@ -41,7 +41,7 @@ pub struct ChaseCamera {
     /// after frame in free roam; view 1's forward z following the car's
     /// pitch for minutes in free roam and the stage-1 circuit). The clone
     /// faded it over the camera's first two seconds of life, so its chase
-    /// frame stayed level for good (docs/world-systems-parity.md).
+    /// frame stayed level for good (docs/notes/parity/world-systems-parity.md).
     since_ground: f32,
     fresh: bool,
     /// Looking back (mover +0x51, set through vtable +0x14 = 0x445A30 from
@@ -183,7 +183,7 @@ impl ChaseCamera {
     ///   mirrored (factor 1.0, 0x784250), eased; walls at 3 m (0x787094).
     ///
     /// The player's +0x2B read 1 under Wine (free roam, 2026-11-05;
-    /// docs/world-systems-parity.md): the far chase looked back from 5.53 m
+    /// docs/notes/parity/world-systems-parity.md): the far chase looked back from 5.53 m
     /// ahead of the centre of mass, 1.36 m up, the bumper from 1.30 m
     /// behind it, both the first frame — the mirror of their own eyes about
     // prov: open chase.set_look_back

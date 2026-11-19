@@ -1,5 +1,5 @@
 #!/bin/bash
-# Settings combination matrix (docs/settings-model.md "Matrix"): every Graphics row at every tier on Original and
+# Settings combination matrix (docs/developing/settings-model.md "Matrix"): every Graphics row at every tier on Original and
 # on "max" (every row at its top offered tier), every Customize Display value under max, every two rows at
 # their top tiers (pairs), each settings-model rule's rows at the tiers that make it fire, and each Enhanced quality
 # level with ray tracing and each main-page Upscaling / Anti-Aliasing choice (levels); each setting drawn

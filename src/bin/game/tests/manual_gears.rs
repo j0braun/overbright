@@ -7,7 +7,7 @@
 //! the automatic gearbox ignores them (mode 0 / 2 never reaches the
 //! request).
 use super::*;
-// The test kit (tests/common/mod.rs, docs/testing.md).
+// The test kit (tests/common/mod.rs, docs/developing/testing.md).
 #[path = "../../../../tests/common/mod.rs"]
 mod testkit;
 

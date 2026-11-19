@@ -39,7 +39,7 @@ impl Cinematic {
         self.prepared && self.gpu.is_some()
     }
 
-    /// docs/atmosphere.md: this frame's volumetric smoke medium (the
+    /// docs/notes/graphics/atmosphere.md: this frame's volumetric smoke medium (the
     /// density volume, its min corner, voxel edge and voxels), while the
     /// volumetric tier draws.
     pub fn medium(&self) -> Option<(wgpu::TextureView, glam::Vec3, f32, [u32; 3])> {

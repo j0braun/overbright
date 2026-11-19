@@ -13,7 +13,7 @@ use crate::formats::lights::{LightPack, WorldLight};
 pub struct CarLightOptions {
     /// The higher Enhanced settings or ray tracing (`qol::scene_car_specular`,
     /// the rule `qol::scene_lights_car`): the highlight from the
-    /// scene, not the camera rig (docs/car-scene-specular.md).
+    /// scene, not the camera rig (docs/notes/graphics/car-look.md "Car highlight from the scene, not the camera rig").
     pub scene_specular: bool,
     /// Dynamic Lamps: the light-pack lamps per pixel.
     pub dynamic_lamps: bool,
@@ -73,7 +73,7 @@ impl WorldLights<'_> {
         if let Some(l) = crate::render::modern_light_bold::car_lamps(at) {
             lighting.lamps = l;
         }
-        // Next-Gen car lights (docs/car-lights.md): the other cars'
+        // Next-Gen car lights (docs/notes/graphics/car-lights.md): the other cars'
         // lights and the car's own underglow among its four lamps (the
         // native-weight form; Modern Lighting's form is left as it is).
         if o.car_lights_next_gen && lighting.lamps[1][3] >= 0.0 {
@@ -83,7 +83,7 @@ impl WorldLights<'_> {
                     crate::render::car_lights::car_lamps(&cars, at, lighting.lamps, &crate::render::car_lights::look());
             }
         }
-        // Light Probes (docs/lighting2.md): the nearest baked
+        // Light Probes (docs/notes/graphics/lighting2.md): the nearest baked
         // probes' hue replaces the harmonic's ambient colour on each side,
         // energy-bounded (rgb only), then into the car's axes.
         if !o.light_probes {

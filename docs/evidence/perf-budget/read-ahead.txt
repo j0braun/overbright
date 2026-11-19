@@ -1,5 +1,5 @@
-Read-ahead and the real flow after a reboot: the measurements behind docs/perf-budget.md "A start after a reboot,
-the real flow" and docs/read-ahead.md.
+Read-ahead and the real flow after a reboot: the measurements behind docs/notes/performance/budget.md "A start after a reboot,
+the real flow" and docs/developing/read-ahead.md.
 
 The shipping game (built without the developer harness), plus measuring-only log lines (each wait from the key to
 the new screen's first frame; every frame over 80 ms), in a window on a private display, keys as a player in a

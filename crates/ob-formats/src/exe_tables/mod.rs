@@ -1,6 +1,6 @@
 //! The engine's tables: the numbers, curves and names the original game
 //! keeps in its executable, written in Overbright's own code
-//! (docs/exe-tables.md). Overbright does not read SPEED2.EXE: as other
+//! (docs/original/exe-tables.md). Overbright does not read SPEED2.EXE: as other
 //! engine reimplementations do, it reads the assets (models, textures,
 //! sounds, text, tracks) from the player's game files and carries the
 //! engine's rules and constants itself.

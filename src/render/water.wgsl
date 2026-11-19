@@ -1,4 +1,4 @@
-// Animated Water (clone deviation, opt-in; docs/water.md).
+// Animated Water (clone deviation, opt-in; docs/notes/graphics/water.md).
 //
 // The water textures' draws the main view leaves out while the row is on
 // (render/water.rs): the fountain basins, pools and streams (surfaces)

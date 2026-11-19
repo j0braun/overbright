@@ -1,4 +1,4 @@
-//! Particles High / Ultra (docs/particles-smoke.md; a **clone
+//! Particles High / Ultra (docs/notes/graphics/smoke.md "Particles High and Ultra: GPU particles and detailed smoke"; a **clone
 //! deviation**, opt-in; nothing here exists in SPEED2.EXE). The native
 //! particle system (`crate::particles`, 0x491E50 / 0x492E10 / 0x48BDF0)
 //! keeps running exactly as before: it decides where, when and how many

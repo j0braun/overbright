@@ -1,4 +1,4 @@
-//! `pack.toml`: an Overbright pack's manifest (docs/texture-packs.md).
+//! `pack.toml`: an Overbright pack's manifest (docs/modding/texture-packs.md).
 
 use anyhow::{Result, bail};
 use serde::Deserialize;
@@ -117,7 +117,7 @@ impl Manifest {
         // TOML basic strings: backslash and quote escaped (the text has no
         // control characters, [`clean`]).
         let q = |s: &str| format!("\"{}\"", s.replace('\\', "\\\\").replace('"', "\\\""));
-        let mut out = String::from("# Overbright texture pack (docs/texture-packs.md)\n");
+        let mut out = String::from("# Overbright texture pack (docs/modding/texture-packs.md)\n");
         out += &format!("format = {}\n", self.format.max(1));
         out += &format!("name = {}\n", q(&self.name));
         out += &format!("author = {}\n", q(&self.author));

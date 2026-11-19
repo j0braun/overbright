@@ -1,11 +1,11 @@
-//! docs/uncapped-fps.md, "Draw clocks": the draw's clocks are
+//! docs/original/uncapped-fps.md, "Draw clocks": the draw's clocks are
 //! the tick snapshots' blended by α: S_{n−1}'s at α = 0 and S_n's at α = 1
 //! bit for bit, monotonic over the drawn frames of any schedule, and the
 //! same at 30 / 60 / 120 / 200 Hz at equal (tick, α). On a real free roam
 //! (the player's game files).
 use super::*;
 use crate::render::clocks::DrawClocks;
-// The test kit (tests/common/mod.rs, docs/testing.md).
+// The test kit (tests/common/mod.rs, docs/developing/testing.md).
 #[path = "../../../../tests/common/mod.rs"]
 mod testkit;
 

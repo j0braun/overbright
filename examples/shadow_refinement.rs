@@ -5,7 +5,7 @@ use nfsu2::{shadow::{Shadow, ShadowVertex, Ground}, ground::GroundQuery, world::
 use std::{hint::black_box, time::Instant};
 include!("fixtures/shadow-refine-reference.rs");
 fn main() -> anyhow::Result<()> {
-    // A developer tool: the developer cache, never the player's (docs/asset-cache.md).
+    // A developer tool: the developer cache, never the player's (docs/developing/asset-cache.md).
     nfsu2::platform::dirs::developer_program();
     let root = nfsu2::game_root();
     let world = World::load(&root, "L4RA")?;

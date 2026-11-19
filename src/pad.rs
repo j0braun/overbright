@@ -207,7 +207,7 @@ pub struct PadMap {
     /// an action 1–4, so a new capture starts from the last one's values
     /// (zero at start-up). Not in the profile.
     pub axis_base: [i32; 8],
-    /// Clone extra (Controller Layout Modern, docs/controller-support.md):
+    /// Clone extra (Controller Layout Modern, docs/playing/controller-support.md):
     /// the analog bytes made from the axes without the DirectInput chain's
     /// 8-bit quirks (rest steering 1/128 right, full pedal 252/255). Not in
     /// the profile; false is native.
@@ -291,7 +291,7 @@ impl PadMap {
     /// left trigger, lRz the right, the triggers resting at −10000): the
     /// left stick steers, the right trigger is the throttle and the left the
     /// brake (separate pedals), Start pauses; see
-    /// docs/controller-support.md for the whole table. Rebinding on the
+    /// docs/playing/controller-support.md for the whole table. Rebinding on the
     /// Controls page works on it as on a native map.
     pub fn modern(caps: &Caps) -> PadMap {
         use act::*;

@@ -1,4 +1,4 @@
-# This page evidence: motion blur and depth of field (docs/motionblur-dof.md)
+# This page evidence: motion blur and depth of field (docs/notes/graphics/motionblur-dof.md)
 
 Clone frames only (these effects are not in SPEED2.EXE; nothing to compare
 under Wine). 1280 × 960, reference desktop GPU, World Detail 5 (native 8x MSAA).

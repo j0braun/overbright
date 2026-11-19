@@ -1,7 +1,7 @@
 //! The front end on the tick clock and game time from ticks, through
 //! the window's cadence (`Game::advance`) at 30 / 60 / 120 / 200 Hz.
 use crate::*;
-// The test kit (tests/common/mod.rs, docs/testing.md).
+// The test kit (tests/common/mod.rs, docs/developing/testing.md).
 #[path = "../../../../tests/common/mod.rs"]
 mod testkit;
 

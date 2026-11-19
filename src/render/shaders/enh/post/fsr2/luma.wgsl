@@ -1,7 +1,7 @@
 //!pass luma
 // The shading-change luma: exp of the mean log luma of each block
 // (u.misc.w px a side, a multiple of 8) of the input. FSR 2 takes 32 x 32
-// (its SPD mip 4); the clone uses a smaller block (docs/fsr2.md "Locks":
+// (its SPD mip 4); the clone uses a smaller block (docs/notes/graphics/fsr2.md "Locks":
 // the game's animated signs are not flagged reactive).
 @group(0) @binding(2) var input_color: texture_2d<f32>;
 @group(0) @binding(3) var out_luma: texture_storage_2d<rgba16float, write>;

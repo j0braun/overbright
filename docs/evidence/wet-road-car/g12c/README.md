@@ -1,4 +1,4 @@
-# Wet-driving evidence (docs/wet-road-car.md)
+# Wet-driving evidence (docs/notes/graphics/wet-road-car.md)
 
 Clone frames only (no native counterpart for the spray; the reference is the clone's Original path at the same
 `--bench drive` frame, which the look direction matched to the original's luminance). Fast release build, reference desktop GPU,

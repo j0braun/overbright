@@ -1,4 +1,4 @@
-//! The core of Overbright's own asset format (docs/asset-format/): the rules every file of the format follows,
+//! The core of Overbright's own asset format (docs/modding/asset-format/): the rules every file of the format follows,
 //! and the pieces every reader of it shares.
 //!
 //! - [`rules`]: the registry of rule ids; every refusal names one ([`Refusal`]).
@@ -18,7 +18,7 @@
 //! - [`docs`]: the generated parts of the specification (rule tables, field tables, schemas) and the check that
 //!   the pages and the code agree.
 //!
-//! Nothing in the game reads through this crate yet; the format is still a draft (docs/asset-format/README.md).
+//! Nothing in the game reads through this crate yet; the format is still a draft (docs/modding/asset-format/README.md).
 
 // A refusal carries its whole context (pack, path, field, message) and is only made on the cold path.
 #![allow(clippy::result_large_err)]

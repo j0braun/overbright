@@ -1,5 +1,5 @@
 //! The system timer's resolution while the game runs (
-//! docs/platform-windows.md). Windows: timeBeginPeriod(1) for the guard's
+//! docs/playing/platform-windows.md). Windows: timeBeginPeriod(1) for the guard's
 //! lifetime, so `Sleep` and the waits behind `std::thread::sleep` wake
 //! within about a millisecond instead of the default 15.6 ms tick (the
 //! frame limiter's sleep, `display::wait_until`). Elsewhere a no-op (Linux

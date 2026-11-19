@@ -13,7 +13,7 @@
 #   <source dir>: a working tree, copied without its git-ignored files.
 #
 # Environment: JOBS (default 4: cargo jobs and the container's CPU limit), PODMAN (default podman),
-# OB_SOURCE_URL (where the source is published; build.rs passes it on, docs/building-releases.md),
+# OB_SOURCE_URL (where the source is published; build.rs passes it on, docs/developing/building-releases.md),
 # IMAGE (the Windows image, default overbright-build:<hash of Containerfile>), IMAGE_LINUX (default
 # overbright-build-linux:<hash of Containerfile.linux>); each is built when missing.
 # Out dir: src/ (the copied tree), cargo-home/ (the crate cache, reused), target-linux/, target-windows/

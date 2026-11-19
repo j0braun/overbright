@@ -1,4 +1,4 @@
-// ---- The ray-traced tier's quarter-rate resolve (ssr.rs, docs/rt-reflections.md) ----
+// ---- The ray-traced tier's quarter-rate resolve (ssr.rs, docs/notes/graphics/reflections.md "Ray-traced reflections (experimental)") ----
 // Appended to ssr.wgsl for this pass only. The trace ran at half size, each
 // of its pixels standing for one pixel of its 2 × 2 (p.jitter.xy, a different
 // one each frame); this pass rebuilds the full-size trace for the filter:

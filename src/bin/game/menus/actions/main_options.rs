@@ -141,7 +141,7 @@ impl Game {
                 // event-record pointers) and the load picks none: the
                 // original makes no slot-event draw at a profile load or at
                 // Resume, its first after the load is the city start's
-                // 0x527D40 (**measured**, the sequence log, docs/rng.md).
+                // 0x527D40 (**measured**, the sequence log, docs/original/rng.md).
                 p.start_career(&self.game_data.career);
                 if let Some(mut d) = self.sim.drive.take() {
                     let device = self.platform.window.as_ref().map(|w| w.gpu.device.clone());

@@ -1,4 +1,4 @@
-//! Ambient Detail's street props (docs/ambient-detail.md; a **clone
+//! Ambient Detail's street props (docs/notes/graphics/ambient-detail.md; a **clone
 //! deviation**, opt-in; nothing here exists in SPEED2.EXE).
 //!
 //! Ported and finished from the earlier clutter prototype (`NFSU2_CLUTTER`):

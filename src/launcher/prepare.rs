@@ -1,4 +1,4 @@
-//! The launcher's side of `game --prepare` (docs/prepare.md): the game
+//! The launcher's side of `game --prepare` (docs/developing/prepare.md): the game
 //! run with that flag as a child, its progress lines read as they come.
 //! The step is offered, never needed: the game starts and works without
 //! it, and "Skip" stops the child (what it wrote so far stays whole).

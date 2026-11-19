@@ -1,6 +1,6 @@
-//! Animated Water, Realistic (clone deviation, opt-in; docs/water.md
+//! Animated Water, Realistic (clone deviation, opt-in; docs/notes/graphics/water.md
 //! "Realistic"). Nothing here is native (SPEED2.EXE has no water system;
-//! docs/water.md "What the original does").
+//! docs/notes/graphics/water.md "What the original does").
 //!
 //! The Animated Water row's top tier. It draws the same triangles as On
 //! (`render::water`, which picks them), with `water_hq.wgsl` appended to

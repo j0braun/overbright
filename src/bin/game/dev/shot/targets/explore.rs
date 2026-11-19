@@ -720,7 +720,7 @@ pub(super) fn explore(game: &mut Game, cx: &ShotCtx) -> Result<Mode> {
             log::info!("shot: car placed at {:?} (asked {:?})", d.state.position, &v[..3]);
             // NFSU2_FX_SPEED=km/h (shot aid, not native): the
             // placed car rolling forward at that speed (the wall
-            // scrapes and hits at speed, docs/sparks-fire.md).
+            // scrapes and hits at speed, docs/notes/graphics/sparks-fire.md).
             // `km/h,down`: also falling at `down` m/s (a bottom-out).
             let fx_speed: Vec<f32> = env.fx.speed.clone();
             if let Some(&kmh) = fx_speed.first() {
@@ -795,7 +795,7 @@ pub(super) fn explore(game: &mut Game, cx: &ShotCtx) -> Result<Mode> {
             }
         }
     }
-    // Sparks and fire (docs/sparks-fire.md): NFSU2_FX=1 steps the particles like
+    // Sparks and fire (docs/notes/graphics/sparks-fire.md): NFSU2_FX=1 steps the particles like
     // NOS_SHOT; NFSU2_FX_STEER=a|d holds a steering key from
     // NFSU2_FX_STEER_AT (frame, default 0); NFSU2_FX_FRAMES the
     // frame count (default 90).
@@ -959,7 +959,7 @@ pub(super) fn explore(game: &mut Game, cx: &ShotCtx) -> Result<Mode> {
     // `NFSU2_SHOT_ORBIT=deg,dist,height`: the camera `dist` m from
     // the car at `deg` from its nose (90 = its left), `height` m
     // above its position, looking at it (the neon shots,
-    // docs/neon-quality.md).
+    // docs/notes/graphics/neon-quality.md).
     if let Some(v) = std::env::var("NFSU2_SHOT_ORBIT")
         .ok()
         .map(|s| s.split(',').filter_map(|f| f.trim().parse::<f32>().ok()).collect::<Vec<_>>())
@@ -972,7 +972,7 @@ pub(super) fn explore(game: &mut Game, cx: &ShotCtx) -> Result<Mode> {
     }
     // `NFSU2_SHOT_LOOK=ex,ey,ez,tx,ty,tz[,fov]`: the camera at the
     // eye, looking at the target (world, Z up; the water crops,
-    // docs/water.md).
+    // docs/notes/graphics/water.md).
     if let Some(v) = std::env::var("NFSU2_SHOT_LOOK")
         .ok()
         .map(|s| s.split(',').filter_map(|f| f.trim().parse::<f32>().ok()).collect::<Vec<_>>())
@@ -993,7 +993,7 @@ pub(super) fn explore(game: &mut Game, cx: &ShotCtx) -> Result<Mode> {
     game.render.world = Some(WorldRenderer::new(&gpu, &d.world, format, &nfsu2::render::RenderOptions::in_force()));
     game.render.cars.set(&d.car_id, CarRenderer::new(&gpu, &d.car, format, &nfsu2::render::RenderOptions::in_force()));
     // NFSU2_SHOT_MARK=1: a mark-this-spot report of the shot's
-    // spot (docs/mark-spot.md: the report's command rebuilds it).
+    // spot (docs/playing/mark-spot.md: the report's command rebuilds it).
     if std::env::var_os("NFSU2_SHOT_MARK").is_some() {
         game.mark_spot();
     }

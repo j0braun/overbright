@@ -64,7 +64,7 @@ pub fn msaa_samples(custom: &[u8; 22], gpu: &crate::render::Gpu, opts: &crate::r
 /// a drive's frames run the temporal pass whenever it is chosen
 /// (`qol::set_temporal_frame` on the game's world), with no samples; a
 /// menu's, a garage's or a loading screen's keep the native MSAA. What a
-/// drive's programs are made ahead for (docs/first-use-builds.md).
+/// drive's programs are made ahead for (docs/developing/first-use-builds.md).
 pub fn drive_msaa_samples(custom: &[u8; 22], gpu: &crate::render::Gpu, opts: &crate::render::RenderOptions) -> u32 {
     msaa_samples(custom, gpu, &crate::render::RenderOptions { temporal_frame: opts.temporal, ..*opts })
 }

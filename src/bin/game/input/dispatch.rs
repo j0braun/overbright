@@ -41,20 +41,20 @@ impl Game {
             return Ok(());
         }
         // F3 cycles the performance overlay's layouts anywhere (hidden,
-        // Minimal, Standard, Full); Shift+F3 hides it (docs/perf-overlay.md).
+        // Minimal, Standard, Full); Shift+F3 hides it (docs/notes/performance/overlay.md).
         if code == KeyCode::F3 {
             self.platform.perf_overlay
                 .cycle(self.platform.keys.contains(&KeyCode::ShiftLeft) || self.platform.keys.contains(&KeyCode::ShiftRight));
             return Ok(());
         }
         // The Enhancements page's Mark Spot Key writes a report of this
-        // spot (off by default; docs/mark-spot.md).
+        // spot (off by default; docs/playing/mark-spot.md).
         if self.settings.enh.extras.mark_spot != 0 && mark::key_index(code) == self.settings.enh.extras.mark_spot {
             self.mark_spot();
             return Ok(());
         }
         // Ctrl+R reloads every texture pack, with Reload Packs When
-        // Changed on (docs/pack-hot-reload.md).
+        // Changed on (docs/modding/pack-hot-reload.md).
         if code == KeyCode::KeyR
             && nfsu2::qol::reload_packs()
             && (self.platform.keys.contains(&KeyCode::ControlLeft) || self.platform.keys.contains(&KeyCode::ControlRight))
@@ -161,7 +161,7 @@ impl Game {
                     self.track_undim();
                 }
             }
-            // Agreed deviation (docs/native-deviations.md "Skipping scenes"): Enter skips an in-engine scene
+            // Agreed deviation (docs/playing/native-deviations.md "Skipping scenes"): Enter skips an in-engine scene
             // (the career start fly-over, a shop's drive-in / drive-out) to
             // its end, as if it had played out.
             Mode::Explore

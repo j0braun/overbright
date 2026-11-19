@@ -334,7 +334,7 @@ pub fn pursuit_cap(distance: f32, target_speed: f32) -> f32 {
 }
 
 /// A road path for the live outrun comparison's driving bot (check aid,
-/// not native; docs/outrun.md): from the control point nearest `at`,
+/// not native; docs/original/outrun.md): from the control point nearest `at`,
 /// travelled along `dir`, the racer search (0x415130, `racer_search`)
 /// stepped until it moves, `seed` drawing its junctions, for `metres`.
 pub fn road_path(f: &crate::formats::ai_routes::RouteFile, at: glam::Vec3, dir: glam::Vec2, metres: f32, seed: u32) -> Vec<glam::Vec3> {

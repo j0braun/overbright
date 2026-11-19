@@ -269,7 +269,7 @@ impl Game {
         self.line_up_rivals(&event, &mut race, mode, order)?;
         drop(t_rivals);
         // The log's waits: the rivals' cars, a part of the race's load
-        // (docs/waits-log.md).
+        // (docs/developing/waits-log.md).
         let ((taken, asked), kept) = (self.loads.rivals_taken, self.loads.rivals_kept);
         if let Some(l) = self.loads.waits.load_mut().filter(|_| asked > 0) {
             l.notes.push(match kept {
@@ -419,7 +419,7 @@ impl Game {
     }
 
     /// A race load's world cars after the world build (**measured**, the
-    /// sequence log, docs/rng.md): the render infos of the player and the
+    /// sequence log, docs/original/rng.md): the render infos of the player and the
     /// rivals, the set-up's traffic fill (0x6065C0 → 0x42F7A0, on the
     /// world generator) with a render info for each car placed,
     /// CARSFX_Stereo's rolls, the traffic's models (Traffic_AssignModels

@@ -1,6 +1,6 @@
 //! The garage's scene over a loaded drive (a shop or the crib opened from
 //! free roam): the game publishes the drive's world ticks for the
-//! tick-stepped enhancement effects (docs/uncapped-fps.md, "Enhancement
+//! tick-stepped enhancement effects (docs/original/uncapped-fps.md, "Enhancement
 //! effects on ticks"), whose camera and drawn sections belong to the
 //! drive, not to the platform. The garage's renderers step per draw as
 //! without them: with LOD Fade on, the drive's ticks published and none

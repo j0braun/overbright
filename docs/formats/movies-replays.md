@@ -113,7 +113,7 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
   <name>_en.vp6 where this builds <name>_fr.vp6, so the original plays
   none of those (Wine: ealogo, THX_logo_fr, PSA, scene01). The clone looks
   up the built name first, then the installed language's file, without
-  case (`movie::path`; "Boot sequence"; docs/native-deviations.md "Movie
+  case (`movie::path`; "Boot sequence"; docs/playing/native-deviations.md "Movie
   files").
 * **Container** (0x700AFF, **verified**): chunks of a 4-byte tag and a
   little-endian size counting the 8-byte head. MVhd: +0x0C width, +0x0E
@@ -564,7 +564,7 @@ from its own snapshots):
   has one name, entry 0 = "REPLAY0.BIN" (0x79FEAC; entry 1 is NULL), and
   0x571980 clamps every slot to 0, so the file is always
   `REPLAY\REPLAY0.BIN`; the pool writer 0x57D200 has no caller but 0x57D400.
-**2026-11-05: the automatic replay camera's director gate, the reset flag, the typed groups (NOS, Jump, Speed, Corner, Burnout, PowerSlide: the replay's main shots under Wine) and their weights are in [replay-cameras.md](../replay-cameras.md); the type table 0x7EC1F8 is filled at runtime (observed), so "only the first filled" below describes the static image only.**
+**2026-11-05: the automatic replay camera's director gate, the reset flag, the typed groups (NOS, Jump, Speed, Corner, Burnout, PowerSlide: the replay's main shots under Wine) and their weights are in [replay-cameras.md](../playing/replay-cameras.md); the type table 0x7EC1F8 is filled at runtime (observed), so "only the first filled" below describes the static image only.**
 **Track cameras** (**verified**; parsed by
 `crates/ob-formats/src/formats/camera_tracks.rs`, test `camera_tracks_parse`; driven by
 `src/track_camera/` for the route cameras, test
@@ -717,7 +717,7 @@ vtable 0x788018, update 0x453F50).
     0x12 mover's +0x84 is set (typed tracks only; 0x828655 = 1), when
     0x441B40(car) > 0 (car +0xB8 < 0, or the flight prediction 0x5EC3E0(3)
     over 1 / 1.5) or car +0xB8 < 0; with no track drawn it goes back to a
-    chase view (0x5FA830). Ported (docs/replay-cameras.md): the airborne
+    chase view (0x5FA830). Ported (docs/notes/parity/replay-cameras.md): the airborne
     re-pick (0x441B40 > 0: upside down, or Jump's long predicted flight,
     `long_flight`) and the 1.5 s chase hold before a track
     (`ReplayCamera::gate`; the car test 0x5F1500 is `track_camera::eye_in_car`);

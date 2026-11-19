@@ -1,4 +1,4 @@
-//! The game's clocks on ticks (docs/uncapped-fps.md "Game time on ticks";
+//! The game's clocks on ticks (docs/original/uncapped-fps.md "Game time on ticks";
 //! the clock steps below were measured in the original under Wine):
 //! every clock the game state reads advances per tick
 //! ([`crate::frame_clock::TickClock`]) from that tick's quantised dt
@@ -61,7 +61,7 @@ pub struct GameClock {
     /// iteration of 0x5811D0 (steps 12–24: the world, the front end's
     /// tick, the HUD, the audio, the render) sees it before that
     /// iteration's own step (0x57A060, step 25), so the C++ menu timers
-    /// stamp and test this value (docs/uncapped-fps.md "Menu timers
+    /// stamp and test this value (docs/original/uncapped-fps.md "Menu timers
     /// on the real-time clock").
     pub real_tick: u64,
     /// 0x865194: the tick in progress's quantised dt (set by the game at

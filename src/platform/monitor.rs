@@ -1,5 +1,5 @@
 //! A monitor's facts read without letting a display driver's odd answer
-//! stop the program (docs/resolutions.md "Display-mode handling").
+//! stop the program (docs/notes/graphics/resolutions.md "Display-mode handling").
 //!
 //! winit's monitor calls can panic: on Windows its mode list asserts that
 //! every mode the system lists carries its size, depth and refresh fields

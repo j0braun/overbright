@@ -358,7 +358,7 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
   / 6.960, the clone's `lane_room` the same within 0.01 m; point 8, whose
   lane 2 adjustment is −1.181, read 1.18 m off the clone's then (31 % of
   the native rivals' recorded walk-point adjustments were nonzero; the
-  racer points now carry them, 0x41A180, docs/drag-stage4-parity.md 8.6,
+  racer points now carry them, 0x41A180, docs/notes/parity/drag-stage4-parity.md 8.6,
   and `lane_path` takes the room off them). The
   margin (0x41D530, 0x41D5F9..0x41D60F): 0x420D40's 1 m plus the car's own
   road entry's +0x08 (planner +0x10 + 0x30·own index), its half extent
@@ -408,7 +408,7 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
   there, so its rows fell ~400 m early) and the 80 m only for the player's
   DragCarController (controller type 2; an AI racer's is 3): ported,
   `RacerRoute::race_coord`, `table_allows(.., player)`
-  (docs/drag-stage4-parity.md §6.3). **Inferred**: the AI's run test
+  (docs/notes/parity/drag-stage4-parity.md §6.3). **Inferred**: the AI's run test
   applied only when its own lane is gone.
   The run test itself (0x40AA90, decompiled): a lane runs to the list's end
   when the last point's s (0 for an empty list) is at most its end (+0xAC +
@@ -675,7 +675,7 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
   0x96005A7D, +0x30 0x9600B4FA) shows in a race for a car with a tank
   (0x401860 > 0) outside drift (0x401910) and Street X (0x401930)
   races (0x600231). **No nitrous in drift and Street X races**
-  (**verified**, 2026-11-04, docs/streetx-nitrous.md): the race set-up's
+  (**verified**, 2026-11-04, docs/notes/parity/streetx-nitrous.md): the race set-up's
   drift and Street X tunes (0x5A7760 / 0x5A77D0, from 0x5B4DD0 modes 3 and
   10) clear the tuned block's capacity +0x2A0 (0x5A77BB / 0x5A782B), so
   0x591CE0 fills a 0 s tank and the key (0x6034C6, which itself has no
@@ -882,7 +882,7 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
     original spins all of it), before input and the simulation; the
     scene and the world advance by the measured frame time (the game
     clock), as V does. The 1/120 cap outside scenes is **not ported**
-    (agreed deviation, docs/native-deviations.md); `NFSU2_FRAME_CAP` stays an optional extra cap (the
+    (agreed deviation, docs/playing/native-deviations.md); `NFSU2_FRAME_CAP` stays an optional extra cap (the
     longer period wins). `--bench scene` measures the pacing (a stage 1
     circuit's start scene on the real clock; reference desktop GPU, 2026-10-31: 177–179
     capped frames, p50 33.334 ms, sd 0.04 ms on a quiet machine, p99 ≈ 39
@@ -1015,7 +1015,7 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
   while shifting (+0x48) or with no rating more than max(500, window)
   under the up-shift rpm (0x594F30 flag 0, 0x594F10, 0x5ECD40; the rpm is the car's shown
   rpm +0x440 and the gear the element's +0x80, the car's +0x434 of its last update — stage-4 drag parity,
-  docs/drag-stage4-parity.md: so the light is blue from max(500, w) under the point while a
+  docs/notes/parity/drag-stage4-parity.md: so the light is blue from max(500, w) under the point while a
   shift grades above 0 only from 0.95 w under it, "Short Shift!" under a blue light); else
   PulseRed at −1, PulseBlue up to 0.5 (not in reverse), PulseGreen over.
   The needle (object +0x20 = 3rdPersonNeedle, its own colour kept at

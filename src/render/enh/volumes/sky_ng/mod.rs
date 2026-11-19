@@ -1,4 +1,4 @@
-//! Sky "Next-Gen" (clone deviation, opt-in: the Graphics page's Sky row, `enh.sky 1`; docs/atmosphere.md).
+//! Sky "Next-Gen" (clone deviation, opt-in: the Graphics page's Sky row, `enh.sky 1`; docs/notes/graphics/atmosphere.md).
 //! Ported from the earlier night-sky prototype (`NFSU2_NIGHT_SKY`) and brought to the next-gen bar:
 //! a procedural night sky in the native dome's own palette (statistics of the sky pair's textures, the dome's
 //! native shading and fog applied): stars, a moon with a halo, and one drifting cloud layer (lower and heavier in

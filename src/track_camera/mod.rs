@@ -166,7 +166,7 @@ mod typed_tests {
     use crate::opponents::GameRng;
     use glam::{Mat4, Vec3};
 
-    /// The weights as 0x441AF0..0x441F3A compute them (docs/replay-cameras.md).
+    /// The weights as 0x441AF0..0x441F3A compute them (docs/notes/parity/replay-cameras.md).
     #[test]
     fn typed_weights_follow_the_games_functions() {
         let base = TypedInput { forward_speed: 30.0, speed: 30.0, top: 60.0, ..Default::default() };
