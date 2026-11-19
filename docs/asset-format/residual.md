@@ -211,6 +211,7 @@ residual chunk's bytes in a mod pack not marked `from-game-files` / `local-only`
 
 ## 7. Errors
 
+<!-- generated:rules -->
 | Rule | Text |
 |---|---|
 | RES.1 | Nodes do not cover the content exactly once, are out of order, or a node's range runs past `content_size`. |
@@ -220,6 +221,7 @@ residual chunk's bytes in a mod pack not marked `from-game-files` / `local-only`
 | RES.5 | A `copy` node whose source range lies outside its file, or copy nodes that refer to each other in a cycle. |
 | RES.6 | Patches out of order, outside the node, or a `patched` node whose patches exceed 1/16 of its size (then it is a `values` node with a shadow). |
 | RES.7 | An `external` node in an owned base set, or in any mod pack. |
+<!-- /generated -->
 
 ## 8. Sizes
 

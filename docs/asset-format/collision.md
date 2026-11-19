@@ -289,6 +289,7 @@ Tests:
 
 ## 8. Errors
 
+<!-- generated:rules -->
 | Rule | Text |
 |---|---|
 | COL.1 | A pack file whose `section` differs from its file name or names no stream section of the region; two packs for one stream section. |
@@ -300,6 +301,7 @@ Tests:
 | COL.7 | A mod pack holding a file of this page. |
 | COL.8 | More than 256 barrier groups, or two with the same name. |
 | COL.9 | A volume whose `support`, `first` or `count` length differs from its vertices, or whose links run outside `links` or name a missing vertex. |
+<!-- /generated -->
 
 ## 9. Versioning and extension
 

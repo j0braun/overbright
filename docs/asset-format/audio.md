@@ -680,6 +680,7 @@ Prepared data: none normative (decoded AEMS op lists may be cached as prepared e
 
 ## 8. Errors
 
+<!-- generated:rules -->
 | Rule | Text |
 |---|---|
 | AUD.1 | A bank image that does not parse: no `ABKC`, `file_size` ≠ the array's count, a table offset outside the image. |
@@ -693,6 +694,7 @@ Prepared data: none normative (decoded AEMS op lists may be cached as prepared e
 | AUD.9 | A reverb preset with a module kind above 9, `p4`/`p6` on a 4-byte kind (or missing on an 8-byte one), a link to a module that does not exist, or not exactly 6 configurations. |
 | AUD.10 | An EA stream that breaks §3.1.3: no `SCHl` first, a chunk size under 8 or past the range, an unknown codec, block frame counts that do not sum to the header's. |
 | AUD.11 | A `sound` override of a slot the base marks `present = false` (the engine never starts such a slot; overrides of items that do not exist at all are `MRG.1`). |
+<!-- /generated -->
 
 Keys differing only in case are `CONV.13` (§2.3); a line or stream override without `op` is `CONV.5`.
 

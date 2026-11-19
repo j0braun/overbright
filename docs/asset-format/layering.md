@@ -156,6 +156,7 @@ Base set versus pack is not a clash. A pack's own wildcard entry versus its own 
 
 ## 6. Checks at merge time
 
+<!-- generated:rules -->
 | Rule | Text |
 |---|---|
 | ORD.1 | `order.txt` without its first line, or of an unknown version. |
@@ -169,6 +170,7 @@ Base set versus pack is not a clash. A pack's own wildcard entry versus its own 
 | MRG.5 | In a pack not marked `from-game-files` / `local-only`: a file, array or byte range equal to an original file, a residual node or a base-set file or payload, or a file the journal records as derived from base-set content. |
 | MRG.6 | A mod pack with `residual/` or `import.toml`. |
 | CONV.15 | (from [conventions.md](conventions.md) §11) A new name colliding by hash with another name of the same kind. |
+<!-- /generated -->
 
 A refused pack is not mounted at all ([conventions.md](conventions.md) §11).
 

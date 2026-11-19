@@ -936,6 +936,7 @@ cache entry) stays build-specific prepared data, not normative.
 
 ## 8. Errors
 
+<!-- generated:rules -->
 | Rule | Text |
 |---|---|
 | CRS.1 | `index.toml` missing in a base set, a name in it without `types/<NAME>.toml`, or a type file not in it. |
@@ -952,6 +953,7 @@ cache entry) stays build-specific prepared data, not normative.
 | CRS.12 | Import (warning): a derived field differs from its derivation, a text field needs `raw_text`, or a record holds fill the encoder does not write (unused package slots, cost pads); the field is written explicitly, or those bytes become patches (a shadow beyond RES.6's limit). |
 | CRS.13 | Import (warning): the bytes after the last car record name a part group, so the original's past-the-end read would find a car; the edition is `custom`. |
 | MRG.3 | (from [layering.md](layering.md)) Every operation §4 refuses, with the field named. |
+<!-- /generated -->
 
 ## 9. Versioning and extension
 

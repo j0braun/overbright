@@ -1038,6 +1038,7 @@ loaded world gave 1,375 and 296 [to verify which placements it included].)
 
 ## 8. Errors
 
+<!-- generated:rules -->
 | Rule | Text |
 |---|---|
 | WLD.1 | A file of this page in the wrong place: `region` not the unit's name; a stream-section file whose `number` is not in `region.toml` or not its file name. |
@@ -1056,6 +1057,7 @@ loaded world gave 1,375 and 296 [to verify which placements it included].)
 | WLD.14 | An addition's `scenery` names no scenery section of the region. Refuses the whole pack (§4.3). |
 | WLD.15 | Warning, legacy format-1 map mods only: an edit that resolves to no placement is skipped and counted in the log; the pack stays mounted (§4.4). |
 | WLD.18 | A parameter map without rows, or a row whose length differs from its `types`. |
+<!-- /generated -->
 
 (`WLD.16` and `WLD.17` are reserved for the lights and flares merges of §9.)
 

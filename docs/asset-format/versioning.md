@@ -139,12 +139,21 @@ The specification is generated from, and checked against, the code that reads it
 | No game-folder access | the asset layer is the only code that opens game content; the game crate does not depend on the importer | a layering check (`scripts/checks/layering.sh` rule) fails on a planted game-path open or a dependency on the importer crate |
 
 One check script (`scripts/checks/asset_format.sh`, part of `checks.sh`) regenerates everything into a temporary
-folder, diffs it against the tree, validates examples and fixtures, and fails on any difference. A change to a
+folder, diffs it against the tree, validates examples and fixtures, and fails on any difference.
+
+**Implemented so far** (`crates/ob-asset-format`, module `docs`): the rule registry and every page's rule table
+(a test also fails on a rule id a page names that the registry lacks, and on a kind the README's registry names
+that references cannot); the field tables of `pack.toml` and the schemas `pack.schema.json` and
+`pack-migrations.schema.json`, made from the same field descriptions the reader checks files with; the manifest
+examples read and write back byte for byte. The check runs as the crate's test `docs_in_step` (so in every
+`cargo test`) and as `scripts/checks/asset_format.sh` (not yet a step of `checks.sh`). The rest of the table above
+follows with the kinds' readers. A change to a
 reader without its docs change, or the other way round, fails the check, so format changes and their documentation
 land in the same commit.
 
 ## 7. Errors
 
+<!-- generated:rules -->
 | Rule | Text |
 |---|---|
 | VER.1 | A file's schema minor is higher than this reader knows (the message names the release that added it, when known). |
@@ -153,3 +162,4 @@ land in the same commit.
 | VER.4 | A base set's import epoch is newer than this Overbright (an older release started on a newer base set): the launcher refuses and says which release made it. |
 | VER.5 | A rename table, applied as a whole (all renames at once, so two names may swap), leaves two items with one key. |
 | VER.6 | A file uses a field or enum value introduced after the minor version it declares (under-declared `schema`). |
+<!-- /generated -->

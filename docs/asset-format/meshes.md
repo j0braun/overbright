@@ -706,6 +706,7 @@ needs a stored bundle entry).
 
 ## 8. Errors
 
+<!-- generated:rules -->
 | Rule | Text |
 |---|---|
 | MSH.1 | A mesh file outside the profile (§3.1): not glTF 2.0, more or fewer than one buffer or scene, a data URI, a `.bin` of another stem, `OB_` names in `extensionsRequired`, no `OB_solid_list.schema` or one of another kind, an `OB_` extension in `extensionsUsed` without its `version` in the root `extensions` (or a root entry for one not used), no `OB_Z_UP` root or another rotation, a property the profile excludes. |
@@ -724,6 +725,7 @@ needs a stored bundle entry).
 | MSH.14 | A layout the unit's consumer cannot draw (`skinned60` outside scenes, `world24` on a car part that needs normals); missing UVs. |
 | MSH.15 | An export view (`extras.ob_view`) used as a pack's mesh file. |
 | MSH.16 | A mesh-patch target, or a `replace` node's `target`, outside the unit of the file that holds it. |
+<!-- /generated -->
 
 ## 9. Versioning and extension
 

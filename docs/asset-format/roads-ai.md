@@ -624,6 +624,7 @@ same `CustomRace` and the same race digest; the legacy conversion test (§5.5).
 
 ## 8. Errors
 
+<!-- generated:rules -->
 | Rule | Text |
 |---|---|
 | RTE.1 | The points array does not hold exactly the sum of the records' `point_count`s, or an array descriptor's layout does not match its field. |
@@ -640,6 +641,7 @@ same `CustomRace` and the same race digest; the legacy conversion test (§5.5).
 | RTE.12 | A race `name` over 200 characters or with a control character. |
 | RTE.13 | (warning) A race that cannot be raced: fewer than 2 checkpoints, a track number with no road network, a checkpoint leg with no way through the open network, or no career event of its mode on the base track. It is kept and shown with the reason, but not offered. |
 | RTE.14 | A `name` / `region` / `track` field that does not match the file's path. |
+<!-- /generated -->
 
 MRG.3 covers the refused operations of §4.
 

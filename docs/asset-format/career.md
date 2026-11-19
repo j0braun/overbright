@@ -531,6 +531,7 @@ loads unchanged without the pack.
 
 ## 8. Errors
 
+<!-- generated:rules -->
 | Rule | Text |
 |---|---|
 | CRR.1 | Two items of one table with the same key; a `hash` field in a mod pack, or one equal to `bin_hash(name)` (it is written only when they differ). |
@@ -545,6 +546,7 @@ loads unchanged without the pack.
 | CRR.10 | `magazines`: a list longer than its slots. |
 | CRR.11 | (warning) A track whose `region` has no `world/<REGION>/` unit in the stack: its races cannot run and it is not offered. |
 | CRR.12 | Two files of one pack set the same field of one item (§2). |
+<!-- /generated -->
 
 ## 9. Versioning and extension
 
