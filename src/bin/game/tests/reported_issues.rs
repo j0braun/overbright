@@ -1177,3 +1177,53 @@ fn outrun_rival_switches_from_pursuit_cruise_to_race_pace() {
     eprintln!("outrun race mode: cruise {cruise:.3} m/s (cap {cap:.3} at {distance:.0} m), race {race:.3} m/s");
     assert!(race >= 1.5 * cruise, "the challenge must switch to race pace: cruise {cruise:.2} → race {race:.2} m/s");
 }
+
+/// A career race on the free-roam drive (the same region and car: the drive
+/// is kept) hides the marker effects: the original's per-frame gate
+/// (0x605790: race type 0x89E7B0 non-zero → 0x605C37 turns all 12 slots
+/// off) takes the event, game-tip (SMS) and cash markers off together.
+/// Back in free roam the marker update places them again.
+#[test]
+#[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
+fn race_on_the_free_roam_drive_hides_the_markers() {
+    testkit::game();
+    let mut game = Game::new().unwrap();
+    let mut profile = Profile::new("RACE_MARKERS_TEST");
+    profile.skip_intro(&game.game_data.career, &game.game_data.root, "PEUGOT", &mut game.rng);
+    game.profile = Some(profile);
+    game.explore(None).unwrap();
+    let tip = MARKER_EFFECTS.iter().position(|e| e.2 == "XEE_GAME_TIP").unwrap();
+    let t = {
+        let p = game.profile.as_ref().unwrap();
+        *game.sim.route_triggers.tips().find(|t| p.tip_pending(&game.game_data.career, t.name)).expect("an unsent engage tip")
+    };
+    let near = |g: &mut Game| {
+        let d = g.sim.drive.as_mut().unwrap();
+        d.state.position = (t.position.truncate() + glam::Vec2::new(30.0, 0.0)).extend(d.state.position.z);
+        g.marker_effects();
+    };
+    let lit = |g: &Game| g.sim.drive.as_ref().unwrap().effects.markers.iter().filter(|m| m.is_some()).count();
+    near(&mut game);
+    assert!(game.sim.drive.as_ref().unwrap().effects.markers[tip].is_some(), "free roam: the tip's marker");
+    let event = game
+        .game_data
+        .career
+        .stage_events(&game.game_data.root, 1)
+        .iter()
+        .find(|e| {
+            e.kind == career::EventKind::Sprint
+                && game.game_data.career.tracks.get(&e.races[0].0).is_some_and(|t| t.region == EXPLORE_REGION)
+        })
+        .map(|e| e.index)
+        .expect("a city sprint");
+    game.start_race(event, false, false).unwrap();
+    assert!(matches!(game.mode, Mode::Race(_)), "racing");
+    assert!(lit(&game) > 0, "the race kept the free-roam drive (the path this covers)");
+    game.particle_effects(1.0 / 60.0, &crate::sim::TickSettings::take(&game.settings.custom));
+    assert_eq!(lit(&game), 0, "no marker effect in the race's first world update");
+    game.particle_effects(1.0 / 60.0, &crate::sim::TickSettings::take(&game.settings.custom));
+    assert_eq!(lit(&game), 0, "nor later");
+    game.mode = Mode::Explore;
+    near(&mut game);
+    assert!(game.sim.drive.as_ref().unwrap().effects.markers[tip].is_some(), "free roam again: the tip's marker back");
+}

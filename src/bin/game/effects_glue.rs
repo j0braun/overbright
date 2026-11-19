@@ -37,6 +37,15 @@ impl Game {
         }
         // Particle System (custom value 10, 0x870CEC).
         d.effects.system.particles_off = self.settings.custom[10] == 0;
+        // The marker effects' race gate (0x605790, every world update):
+        // with a race on (race type 0x89E7B0 non-zero, but for type 1
+        // with no laps) all 12 slots go off (0x605C37 → 0x602230): the
+        // event, game-tip (SMS) and cash markers together. A race on the
+        // free-roam drive would keep the last placement; back in free roam
+        // `marker_effects` places them again.
+        if matches!(self.mode, Mode::Race(_)) {
+            d.effects.set_markers(&d.world.emitters, [None; 12], |_| None);
+        }
         // The start scene's flag girl (0x436050 → 0x4335C0 → 0x433090).
         // prov: inferred game.particle_effects
         // **Inferred**: her flares fire before the world's particle update
