@@ -171,10 +171,13 @@ the streak buffer's `streak_probe_due` and probe bookkeeping (a decision
 before a frame is drawn); `qol::hdr_output_active()` in the window's
 swap-chain switch (`sync_hdr`).
 
-The store's atomics stay: they are the values in force that `in_force()` and
-`TickSettings::take()` copy, and the options screen, the launcher, the saves,
-start-up and the loads read them. Removing them needs the store to hold the
-effective `Enhancements` as one value (a later step of the settings refactor). Now read by nothing
+The store holds the values in force as one value (`qol::InForce`, src/qol/store.rs): the
+effective `Enhancements` (the stored values with the engine rules applied) and the device's and the session's
+facts (caps, MSAA mask, ray-tracing and HDR support, the HDR signal and display, output size, Compare, the
+temporal frame, the HDR pattern). No value lives in a global atomic: every getter reads through the store, every
+setter changes it one change at a time, and `Enhancements::apply_now` replaces the values in force in one change
+(a reader sees the old settings or the new ones, never half of an apply). `in_force()` and `TickSettings::take()`
+copy from it, and the options screen, the launcher, the saves, start-up and the loads read it. Now read by nothing
 else (only the two copies, the options screen, the launcher, the saves,
 start-up, the loads, the developer harness and tests): Anti-Aliasing and its
 filter and MSAA rows, Render Scale's FSR / FSR 2 tiers (Upscaling), Reversed-Z,

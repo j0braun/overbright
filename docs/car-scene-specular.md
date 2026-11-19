@@ -123,7 +123,7 @@ scene × option table; the car boxes (an internal script), on the audit's `lstat
 
 The rule: Original — native rig highlight, exactly; lower Enhanced levels — native, untouched;
 higher Enhanced levels — removed, the car lit by the scene; any ray-traced setting — removed. One rule in one
-place, `qol::scene_lights_car(CarShadingRows)` (src/qol/atomics.rs), read through `qol::scene_car_specular()`
+place, `qol::scene_lights_car(CarShadingRows)` (src/qol/store.rs), read through `qol::scene_car_specular()`
 by `CarLightOptions::current` (values in force: a ray-traced tier counts only while the device traces):
 
 * **higher** (removed): Modern Lighting at any tier (Low, Modern, Modern + RT); Screen-Space Reflections Ray
@@ -139,7 +139,7 @@ by `CarLightOptions::current` (values in force: a ray-traced tier counts only wh
   brightens the native patch (trunk 118.9 vs 108.8): the lamps add on top of the rig. (3) The streamlined
   levels (audit §4) do not exist in the tree yet: Low → lower, Medium/High → higher when they come (they hold
   the lighting merge and probes).
-* Tests: `qol::atomics::car_highlight_rule_tests` (every preset × GPU class, rows alone and in pairs, that
+* Tests: `qol::store::car_highlight_rule_tests` (every preset × GPU class, rows alone and in pairs, that
   play setup).
 
 ## Higher settings: no stand-in (GFX-T, 2026-11-12)

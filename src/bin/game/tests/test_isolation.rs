@@ -11,7 +11,7 @@
 //!   options (the flaky `wrong_way_street_x` / `rivals_keep_the_race_route`
 //!   of 2026-11-04). Each test thread now gets a sandbox of its own
 //!   (`profiles::sandbox`): an empty data folder and no current profile.
-//! * the Enhancements page's values (`qol`'s atomics, put in force by
+//! * the Enhancements page's values (`qol`'s settings store, put in force by
 //!   `Settings::apply_enhancements`, which every `Game::new` runs) and the
 //!   other display globals. A test that changes them takes [`exclusive`]:
 //!   it waits for every running game test to end and holds the others off

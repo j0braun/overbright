@@ -3,7 +3,7 @@
 //!
 //! * [`Enhancements`]: the Enhancements page's values (Display → Enhancements,
 //!   kept in options.txt as `enh.*` lines, written only when not native).
-//!   The values in force live in this module's globals ([`Enhancements::apply`]),
+//!   The values in force live in this module's settings store ([`Enhancements::apply`]),
 //!   read by the camera, the HUD, the frame loop and the profile writer.
 //! * [`saves`]: durable profile writes and rolling backups (the file's bytes
 //!   stay the native format).
@@ -12,9 +12,7 @@
 
 #[cfg(test)]
 use crate::frontend::Quad;
-use std::sync::atomic::{AtomicBool, AtomicI32, AtomicU8, AtomicU16, AtomicU64, Ordering};
 
-mod atomics;
 mod enhancements;
 mod frame;
 mod hdr;
@@ -22,14 +20,19 @@ mod hud_scale;
 mod levels;
 mod presets;
 mod render_scale;
+mod store;
 
-pub use atomics::*;
 pub use enhancements::*;
 pub use hdr::*;
 pub use hud_scale::*;
 pub use levels::*;
 pub use presets::*;
 pub use render_scale::*;
+pub use store::*;
+
+/// The store's former module name, as the settings table's tests name it.
+#[cfg(test)]
+use store as atomics;
 
 /// Local crash reports: a panic hook that writes `crash-<time>.txt` with
 /// the version, the OS, the GPU adapter, the deviations on, the panic and
@@ -46,7 +49,7 @@ pub mod setup;
 pub mod waits;
 
 /// Test isolation for the library's unit tests (docs/test-determinism.md;
-/// test-only): the Enhancements' globals above are process-wide and libtest
+/// test-only): the settings store above is process-wide and libtest
 /// runs the tests side by side, so a test that puts values in force
 /// (`Enhancements::apply`, photo mode) or asserts the defaults holds this
 /// guard: one such test at a time, the native defaults back when it ends

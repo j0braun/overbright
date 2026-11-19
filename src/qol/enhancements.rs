@@ -4,7 +4,7 @@ use super::*;
 /// [`Enhancements`] is declared once, in the `options!` table below, and the
 /// struct, its `Default` (the native values), the options.txt writer and
 /// parser, the deviation list, the presets' keep-list and `apply_now`'s
-/// stores are generated from it ([`OPTION_ROWS`]).
+/// rows are generated from it ([`OPTION_ROWS`]).
 ///
 /// A row: `field: type = native default, key "enh.…" | nested, presets
 /// keep | reset, write N, dev none | [N form], apply none | [N form], parse
@@ -18,9 +18,11 @@ use super::*;
 ///   (value 1, 2, …; the last label for every value above), `[N fmt |x| …]`
 ///   (the value when not the default), `[N custom |s, d, v| …]`; N is the
 ///   place in [`Enhancements::deviations`].
-/// * `apply [N atom STATIC]` (stored in that global), `[N call path]`,
-///   `[N custom |e| …]`; N is the place in [`Enhancements::apply_now`]
-///   (some setters derive others: the order is kept as it was).
+/// * `apply [N store NAME]` (a value in force: the settings store holds it,
+///   `apply_now` puts every value in force in one change; NAME is its name
+///   in the apply log), `[N call path]`, `[N custom |e| …]`; N is the place
+///   in [`Enhancements::apply_now`] (some setters derive others: the order
+///   is kept as it was).
 /// * `parse bool` (`!= "0"`), `nested`, or `(|old, value| new)` (the value
 ///   trimmed; `old` kept for a value that does not parse unless the rule
 ///   says otherwise).
@@ -138,8 +140,8 @@ macro_rules! options {
     (@apply $f:ident [$ty:ty] none) => {
         |_: &Enhancements| {}
     };
-    (@apply $f:ident [$ty:ty] [$r:literal atom $atom:ident]) => {
-        |e: &Enhancements| Put::<$ty>::put(&$atom, stringify!($atom), e.$f)
+    (@apply $f:ident [$ty:ty] [$r:literal store $name:ident]) => {
+        |e: &Enhancements| record_value::<$ty>(stringify!($name), e.$f)
     };
     (@apply $f:ident [$ty:ty] [$r:literal call $call:path]) => {
         |e: &Enhancements| {
@@ -176,7 +178,7 @@ pub struct OptionRow {
     pub parse: fn(&mut Enhancements, &str, &str) -> bool,
     /// Pushes the row's deviation label(s) (the 2nd argument: the defaults).
     pub deviation: fn(&Enhancements, &Enhancements, &mut Vec<String>),
-    /// Puts the value in force (the global it lives in).
+    /// Its part of putting the values in force (`apply_now`).
     pub apply: fn(&Enhancements),
 }
 
@@ -256,7 +258,7 @@ options! {
     fov_offset: i8 = 0,
         key "enh.fov", presets keep, write 1,
         dev [1 fmt |x| format!("FOV {:+}", x)],
-        apply [1 atom FOV_OFFSET],
+        apply [1 store FOV_OFFSET],
         parse (|old, v| v.parse::<i8>().map_or(old, |v| v.clamp(FOV_STEPS[0], FOV_STEPS[FOV_STEPS.len() - 1])));
 
     /// The in-game HUD's size, percent (each part kept at its corner or
@@ -264,7 +266,7 @@ options! {
     hud_scale: u8 = 100,
         key "enh.hud_scale", presets keep, write 2,
         dev [2 fmt |x| format!("HUD {}%", x)],
-        apply [2 atom HUD_SCALE],
+        apply [2 store HUD_SCALE],
         parse (|old, v| v.parse::<u8>().map_or(old, |v| v.clamp(HUD_STEPS[0], HUD_STEPS[HUD_STEPS.len() - 1])));
 
     /// A frame cap, frames per second. 0 = off (native: uncapped). The
@@ -272,7 +274,7 @@ options! {
     frame_cap: u16 = 0,
         key "enh.frame_cap", presets keep, write 3,
         dev [4 fmt |x| format!("cap {} fps", x)],
-        apply [3 atom FRAME_CAP],
+        apply [3 store FRAME_CAP],
         parse (|old, v| v.parse::<u16>().map_or(old, |v| if v == 0 { 0 } else { v.clamp(10, 1000) }));
 
     /// Profile writes flushed to the disk (fsync of the temporary file and
@@ -281,7 +283,7 @@ options! {
     durable_saves: bool = false,
         key "enh.durable_saves", presets keep, write 4,
         dev [5 flag "durable saves"],
-        apply [4 atom DURABLE],
+        apply [4 store DURABLE],
         parse bool;
 
     /// Rolling backups: the last N copies of a profile, taken before each
@@ -289,7 +291,7 @@ options! {
     save_backups: u8 = 0,
         key "enh.save_backups", presets keep, write 5,
         dev [6 fmt |x| format!("backups {}", x)],
-        apply [5 atom BACKUPS],
+        apply [5 store BACKUPS],
         parse (|old, v| v.parse::<u8>().map_or(old, |v| v.min(BACKUP_STEPS[BACKUP_STEPS.len() - 1])));
 
     /// A panic writes a report to [`crash::dir`]. Off = native (the
@@ -297,7 +299,7 @@ options! {
     crash_reports: bool = false,
         key "enh.crash_reports", presets keep, write 6,
         dev [7 flag "crash reports"],
-        apply [6 atom CRASH],
+        apply [6 store CRASH],
         parse bool;
 
     /// The Graphics page (docs/formats.md "Graphics enhancements"):
@@ -306,7 +308,7 @@ options! {
     render_scale: u8 = 100,
         key "enh.render_scale", presets reset, write 7,
         dev [8 custom |s, _, v| if s.render_scale != 100 && ssaa_scale(s.post_aa).is_none() { v.push(format!("render {}%", s.render_scale)) }],
-        apply [7 atom RENDER_SCALE],
+        apply [7 store RENDER_SCALE],
         parse (|old, v| v.parse::<u32>().map_or(old, |v| v.clamp(SCALE_STEPS[0].into(), SCALE_STEPS[SCALE_STEPS.len() - 1].into()) as u8));
 
     /// Anti-Aliasing: 0 off (native: Customize Display's Full Screen
@@ -319,28 +321,28 @@ options! {
     post_aa: u8 = 0,
         key "enh.post_aa", presets reset, write 8,
         dev [9 custom |s, _, v| if let Some(aa) = aa_name(s.post_aa) { v.push(aa.into()) }],
-        apply [8 atom POST_AA],
+        apply [8 store POST_AA],
         parse (|old, v| v.parse::<u32>().map_or(old, |v| v.min(u32::from(TAA)) as u8));
 
     /// Independent MSAA: 0 follows preset/native, 1 disables, 2/4/8/16 samples.
     aa_msaa: u8 = 0,
         key "enh.aa_msaa", presets reset, write 9,
         dev [10 fmt |x| format!("MSAA override {}", x)],
-        apply [9 atom AA_MSAA],
+        apply [9 store AA_MSAA],
         parse (|old, v| v.parse::<u8>().map_or(old, |v| if MSAA_STEPS.contains(&v) { v } else { 0 }));
 
     /// Post filter: 0 follows preset, 1 off, 2 FXAA, 3 SMAA, 4 SMAA then FXAA.
     aa_filter: u8 = 0,
         key "enh.aa_filter", presets reset, write 10,
         dev [11 fmt |x| format!("post filter {}", filter_name(x))],
-        apply [10 atom AA_FILTER],
+        apply [10 store AA_FILTER],
         parse (|old, v| v.parse::<u8>().map_or(old, |v| v.min(4)));
 
     /// Contrast-adaptive sharpening, percent (0 = off, native).
     sharpen: u8 = 0,
         key "enh.sharpen", presets reset, write 11,
         dev [12 fmt |x| format!("sharpen {}%", x)],
-        apply [11 atom SHARPEN],
+        apply [11 store SHARPEN],
         parse (|old, v| v.parse::<u32>().map_or(old, |v| nearest(&SHARPEN_STEPS, v.min(100) as u8)));
 
     /// The road reflection's image (view 4): 0 native 320 × 240, 1 half
@@ -348,14 +350,14 @@ options! {
     road_reflection: u8 = 0,
         key "enh.road_reflection", presets reset, write 12,
         dev [13 tiers ["road refl. half", "road refl. full"]],
-        apply [12 atom ROAD_REFLECTION],
+        apply [12 store ROAD_REFLECTION],
         parse (|old, v| min_u32(old, v, 2));
 
     /// The cars' environment cube's edge (native 128).
     car_reflection: u16 = 128,
         key "enh.car_reflection", presets reset, write 13,
         dev [14 fmt |x| format!("car refl. {}", x)],
-        apply [13 atom CAR_REFLECTION],
+        apply [13 store CAR_REFLECTION],
         parse (|old, v| {
             // Sizes map by their power of two (512 → 1024, the tie going up).
             v.parse::<u32>().map_or(old, |v| {
@@ -369,7 +371,7 @@ options! {
     detail_distance: u16 = 100,
         key "enh.detail_distance", presets reset, write 14,
         dev [15 fmt |x| format!("detail dist. {}%", x)],
-        apply [14 atom DETAIL_DISTANCE],
+        apply [14 store DETAIL_DISTANCE],
         parse (|old, v| v.parse::<u32>().map_or(old, |v| nearest(&DETAIL_STEPS, v.clamp(100, 300) as u16)));
 
     /// Car Detail Distance, percent (100 = native): the car draws' screen
@@ -378,7 +380,7 @@ options! {
     car_detail: u16 = 100,
         key "enh.car_detail", presets reset, write 15,
         dev [16 fmt |x| format!("car detail {}%", x)],
-        apply [15 atom CAR_DETAIL],
+        apply [15 store CAR_DETAIL],
         parse (|old, v| v.parse::<u32>().map_or(old, |v| nearest(&CAR_DETAIL_STEPS, v.clamp(100, 300) as u16)));
 
     /// Enable the installed HD HUD/map pack at startup. Changing this
@@ -386,7 +388,7 @@ options! {
     hd_ui: bool = false,
         key "enh.hd_ui", presets keep, write 16,
         dev [17 flag "HD UI + Maps"],
-        apply [16 atom HD_UI],
+        apply [16 store HD_UI],
         parse bool;
 
     /// Reload Packs When Changed (docs/pack-hot-reload.md): watch the
@@ -396,7 +398,7 @@ options! {
     reload_packs: bool = false,
         key "enh.reload_packs", presets keep, write 17,
         dev [18 flag "pack hot reload"],
-        apply [17 atom RELOAD_PACKS],
+        apply [17 store RELOAD_PACKS],
         parse bool;
 
     /// LOD Fade: the main view's scenery size cull and the car LOD
@@ -405,7 +407,7 @@ options! {
     lod_fade: bool = false,
         key "enh.lod_fade", presets reset, write 18,
         dev [19 flag "LOD fade"],
-        apply [18 atom LOD_FADE],
+        apply [18 store LOD_FADE],
         parse bool;
 
     /// Keep All Loaded: every section stays resident (as the clone's
@@ -415,7 +417,7 @@ options! {
     keep_loaded: bool = false,
         key "enh.keep_loaded", presets reset, write 19,
         dev [20 flag "keep all loaded"],
-        apply [19 atom KEEP_LOADED],
+        apply [19 store KEEP_LOADED],
         parse bool;
 
     /// Texture Filtering: 0 native (Customize Display's Texture Filtering,
@@ -424,7 +426,7 @@ options! {
     anisotropy: u8 = 0,
         key "enh.anisotropy", presets reset, write 20,
         dev [21 fmt |x| format!("aniso {}x", x)],
-        apply [20 atom ANISOTROPY],
+        apply [20 store ANISOTROPY],
         parse (|old, v| v.parse::<u32>().map_or(old, |v| if v < 2 { 0 } else { v.min(16).next_power_of_two().min(16) as u8 }));
 
     /// Reversed-Z depth: the scene's depth range reversed (near 1, far 0)
@@ -432,7 +434,7 @@ options! {
     reversed_z: bool = false,
         key "enh.reversed_z", presets reset, write 21,
         dev [22 flag "reversed-Z"],
-        apply [21 atom REVERSED_Z],
+        apply [21 store REVERSED_Z],
         parse bool;
 
     /// Shadow Quality: 0 native, 1 high, 2 ultra (the car shadow texture's
@@ -440,7 +442,7 @@ options! {
     shadows: u8 = 0,
         key "enh.shadows", presets reset, write 22,
         dev [23 tiers ["shadows high", "shadows ultra"]],
-        apply [22 atom SHADOWS],
+        apply [22 store SHADOWS],
         parse (|old, v| v.parse::<u32>().map_or(old, |v| nearest(&SHADOW_STEPS, v.min(2) as u8)));
 
     /// Reflection Update Rate: 0 native (Car Reflection Update Rate's face
@@ -448,21 +450,21 @@ options! {
     reflection_rate: u8 = 0,
         key "enh.reflection_rate", presets reset, write 24,
         dev [25 tiers ["refl. every frame"]],
-        apply [24 atom REFLECTION_RATE],
+        apply [24 store REFLECTION_RATE],
         parse (|old, v| min_u32(old, v, 1));
 
     /// Optional surface-aware car shading and filtered, higher-detail road reflections.
     enhanced_reflections: bool = false,
         key "enh.enhanced_reflections", presets reset, write 23,
         dev [24 flag "enhanced reflections"],
-        apply [23 atom ENHANCED_REFLECTIONS],
+        apply [23 store ENHANCED_REFLECTIONS],
         parse bool;
 
     /// Ambient occlusion strength, percent (0 = off, native).
     ssao: u8 = 0,
         key "enh.ssao", presets reset, write 25,
         dev [26 fmt |x| format!("SSAO {}%", x)],
-        apply [25 atom SSAO],
+        apply [25 store SSAO],
         parse (|old, v| v.parse::<u32>().map_or(old, |v| nearest(&SSAO_STEPS, v.min(100) as u8)));
 
     /// High Precision Post (docs/hdr-post.md): 0 off (native, the 8-bit
@@ -472,7 +474,7 @@ options! {
     hdr_post: u8 = 0,
         key "enh.hdr_post", presets reset, write 26,
         dev [27 tiers ["HP post (half glow)", "HP post (full glow)"]],
-        apply [26 atom HDR_POST],
+        apply [26 store HDR_POST],
         parse (|old, v| min_u32(old, v, 2));
 
     /// Enhanced Car Paint (clone deviation, docs/car-paint-enhanced.md):
@@ -481,7 +483,7 @@ options! {
     enhanced_paint: bool = false,
         key "enh.enhanced_paint", presets reset, write 27,
         dev [28 flag "enhanced paint"],
-        apply [27 atom ENHANCED_PAINT],
+        apply [27 store ENHANCED_PAINT],
         parse bool;
 
     /// Lists Open on Installed (docs/formats.md "List openings"): the
@@ -491,7 +493,7 @@ options! {
     lists_open_installed: bool = false,
         key "enh.lists_open_installed", presets keep, write 28,
         dev [29 flag "lists open on installed"],
-        apply [28 atom LISTS_OPEN_INSTALLED],
+        apply [28 store LISTS_OPEN_INSTALLED],
         parse bool;
 
     /// Outrun Variety (docs/drag-drift-outrun-parity.md §0): a parked
@@ -502,7 +504,7 @@ options! {
     outrun_variety: bool = false,
         key "enh.outrun_variety", presets keep, write 29,
         dev [30 flag "outrun variety"],
-        apply [29 atom OUTRUN_VARIETY],
+        apply [29 store OUTRUN_VARIETY],
         parse bool;
 
     /// Wet Roads (docs/wet-roads-ssr.md): the road reflection with ripples,
@@ -511,7 +513,7 @@ options! {
     wet_roads: bool = false,
         key "enh.wet_roads", presets reset, write 30,
         dev [31 flag "wet roads"],
-        apply [30 atom WET_ROADS],
+        apply [30 store WET_ROADS],
         parse bool;
 
     /// Screen-Space Reflections (docs/wet-roads-ssr.md): 0 off (native),
@@ -521,7 +523,7 @@ options! {
     ssr: u8 = 0,
         key "enh.ssr", presets reset, write 37,
         dev [35 tiers ["SSR half", "SSR full", "ray-traced reflections"]],
-        apply [37 atom SSR],
+        apply [37 store SSR],
         parse (|old, v| min_u32(old, v, 3));
 
     /// HUD Layout (docs/ultrawide.md): on screens wider than 16:9 the
@@ -540,7 +542,7 @@ options! {
     dynamic_lamps: bool = false,
         key "enh.dynamic_lamps", presets reset, write 39,
         dev [36 flag "dynamic lamps"],
-        apply [38 atom DYNAMIC_LAMPS],
+        apply [38 store DYNAMIC_LAMPS],
         parse bool;
 
     /// Lamp Shadows (docs/lamps-shadows.md): 0 off (native), 1 Low (4
@@ -549,7 +551,7 @@ options! {
     lamp_shadows: u8 = 0,
         key "enh.lamp_shadows", presets reset, write 40,
         dev [37 tiers ["lamp shadows low", "lamp shadows high"]],
-        apply [39 atom LAMP_SHADOWS],
+        apply [39 store LAMP_SHADOWS],
         parse (|old, v| min_u32(old, v, 2));
 
     /// Contact Shadows (docs/lamps-shadows.md): soft occlusion under the
@@ -557,7 +559,7 @@ options! {
     contact_shadows: bool = false,
         key "enh.contact_shadows", presets reset, write 41,
         dev [38 flag "contact shadows"],
-        apply [40 atom CONTACT_SHADOWS],
+        apply [40 store CONTACT_SHADOWS],
         parse bool;
 
     /// Upscaling (docs/temporal.md): 0 off (native), 1 Quality (67 %),
@@ -571,7 +573,7 @@ options! {
     upscale: u8 = 0,
         key "enh.upscale", presets reset, write 42,
         dev [39 custom |s, _, v| if let Some(u) = upscale_name(s.upscale) { v.push(format!("upscaling {u}")) }],
-        apply [41 atom UPSCALE],
+        apply [41 store UPSCALE],
         parse (|old, v| min_u32(old, v, UPSCALE_MAX));
 
     /// Volumetric Fog (docs/temporal.md): 0 off (native), 1 Low (light
@@ -580,7 +582,7 @@ options! {
     volumetric_fog: u8 = 0,
         key "enh.volumetric_fog", presets reset, write 43,
         dev [40 tiers ["volumetric fog low", "volumetric fog high", "volumetric fog next-gen"]],
-        apply [42 atom VOLUMETRIC_FOG],
+        apply [42 store VOLUMETRIC_FOG],
         parse (|old, v| min_u32(old, v, 3));
 
     /// Sky (docs/atmosphere.md): 0 Original (the native SKYDOME), 1
@@ -589,7 +591,7 @@ options! {
     sky: u8 = 0,
         key "enh.sky", presets reset, write 44,
         dev [41 tiers ["sky next-gen"]],
-        apply [43 atom SKY],
+        apply [43 store SKY],
         parse (|old, v| min_u32(old, v, 1));
 
     /// Particles (docs/particles-smoke.md): 0 Original (the native
@@ -599,7 +601,7 @@ options! {
     particles: u8 = 0,
         key "enh.particles", presets reset, write 45,
         dev [42 tiers ["particles high", "particles ultra", "particles cinematic"]],
-        apply [44 atom PARTICLES],
+        apply [44 store PARTICLES],
         parse (|old, v| min_u32(old, v, 3));
 
     /// Sparks & Fire (docs/sparks-fire.md): 0 Original (the native
@@ -609,7 +611,7 @@ options! {
     sparks_fire: u8 = 0,
         key "enh.sparks_fire", presets reset, write 46,
         dev [43 tiers ["sparks & fire next-gen"]],
-        apply [45 atom SPARKS_FIRE],
+        apply [45 store SPARKS_FIRE],
         parse (|old, v| min_u32(old, v, 1));
 
     /// Animated Water (docs/water.md): off (native: the original's
@@ -625,7 +627,7 @@ options! {
     water: u8 = 0,
         key "enh.water", presets reset, write 54,
         dev [51 tiers ["animated water", "animated water realistic", "animated water next-gen"]],
-        apply [53 atom WATER],
+        apply [53 store WATER],
         parse (|_, v| {
             // Override: a value that is not a number reads as
             // `!= "0"` (the old on/off row), not as the old value.
@@ -640,7 +642,7 @@ options! {
     ambient_detail: u8 = 0,
         key "enh.ambient_detail", presets reset, write 55,
         dev [52 tiers ["ambient detail", "ambient detail next-gen"]],
-        apply [54 atom AMBIENT_DETAIL],
+        apply [54 store AMBIENT_DETAIL],
         parse (|old, v| min_u32(old, v, 2));
 
     /// Weather (docs/weather.md): Wet Car (the cars wet with the rain
@@ -651,25 +653,25 @@ options! {
     wet_car: bool = false,
         key "enh.wet_car", presets reset, write 47,
         dev [44 flag "wet car"],
-        apply [46 atom WET_CAR],
+        apply [46 store WET_CAR],
         parse bool;
 
     rain_detail: u8 = 0,
         key "enh.rain_detail", presets reset, write 48,
         dev [45 tiers ["rain detail", "rain detail high", "rain detail next-gen"]],
-        apply [47 atom RAIN_DETAIL],
+        apply [47 store RAIN_DETAIL],
         parse (|old, v| min_u32(old, v, RAIN_NEXT_GEN));
 
     spray: bool = false,
         key "enh.spray", presets reset, write 49,
         dev [46 flag "spray and splashes"],
-        apply [48 atom SPRAY],
+        apply [48 store SPRAY],
         parse bool;
 
     lens_drops: bool = false,
         key "enh.lens_drops", presets reset, write 50,
         dev [47 flag "lens drops"],
-        apply [49 atom LENS_DROPS],
+        apply [49 store LENS_DROPS],
         parse bool;
 
     /// Wet Road Interaction (docs/wet-road-car.md): 0 off, 1 On, 2
@@ -679,7 +681,7 @@ options! {
     wet_interaction: u8 = 0,
         key "enh.wet_interaction", presets reset, write 51,
         dev [48 tiers ["wet road interaction", "wet road interaction high"]],
-        apply [50 atom WET_INTERACTION],
+        apply [50 store WET_INTERACTION],
         parse (|old, v| min_u32(old, v, 2));
 
     /// Fix Original Model Errors (docs/model-fixes.md): small load-time
@@ -688,7 +690,7 @@ options! {
     fix_models: bool = false,
         key "enh.fix_models", presets keep, write 35,
         dev [33 flag "model fixes"],
-        apply [31 atom FIX_MODELS],
+        apply [31 store FIX_MODELS],
         parse bool;
 
     /// HDR Output (docs/hdr.md; Graphics → Display): the swap chain in an
@@ -697,7 +699,7 @@ options! {
     hdr_output: bool = false,
         key "enh.hdr_output", presets keep, write 31,
         dev [32 flag "HDR output"],
-        apply [33 atom HDR_OUTPUT],
+        apply [33 store HDR_OUTPUT],
         parse bool;
 
     /// HDR calibration: peak brightness and paper white in nits (0 = Auto:
@@ -706,19 +708,19 @@ options! {
     hdr_peak: u16 = 0,
         key "enh.hdr_peak", presets keep, write 32,
         dev none,
-        apply [34 atom HDR_PEAK],
+        apply [34 store HDR_PEAK],
         parse (|old, v| v.parse::<u32>().map_or(old, |v| if v == 0 { 0 } else { nearest(&HDR_PEAK_STEPS, v.min(10000) as u16) }));
 
     hdr_paper: u16 = 0,
         key "enh.hdr_paper", presets keep, write 33,
         dev none,
-        apply [35 atom HDR_PAPER],
+        apply [35 store HDR_PAPER],
         parse (|old, v| v.parse::<u32>().map_or(old, |v| if v == 0 { 0 } else { nearest(&HDR_PAPER_STEPS, v.min(1000) as u16) }));
 
     hdr_gamma: u8 = 0,
         key "enh.hdr_gamma", presets keep, write 34,
         dev none,
-        apply [36 atom HDR_GAMMA],
+        apply [36 store HDR_GAMMA],
         parse (|old, v| min_u32(old, v, 2));
 
     /// Motion Blur's clone tiers (docs/motionblur-dof.md): 0 the
@@ -727,7 +729,7 @@ options! {
     motion_blur: u8 = 0,
         key "enh.motion_blur", presets reset, write 52,
         dev [49 tiers ["motion blur camera", "motion blur per-object"]],
-        apply [51 atom MOTION_BLUR],
+        apply [51 store MOTION_BLUR],
         parse (|old, v| min_u32(old, v, 2));
 
     /// Depth Of Field's clone tier: 0 the original's switch
@@ -735,7 +737,7 @@ options! {
     depth_of_field: u8 = 0,
         key "enh.depth_of_field", presets reset, write 53,
         dev [50 tiers ["depth of field cinematic"]],
-        apply [52 atom DEPTH_OF_FIELD],
+        apply [52 store DEPTH_OF_FIELD],
         parse (|old, v| min_u32(old, v, 1));
 
     /// Photo Mode in Pause Menu (docs/photo-mode.md): the pause menu
@@ -743,7 +745,7 @@ options! {
     photo_mode: bool = false,
         key "enh.photo_mode", presets keep, write 36,
         dev [34 flag "photo mode"],
-        apply [32 atom PHOTO_MODE],
+        apply [32 store PHOTO_MODE],
         parse bool;
 
     /// docs/lighting2.md: Headlight Beams — every car's headlights
@@ -756,7 +758,7 @@ options! {
     headlight_beams: u8 = 0,
         key "enh.headlight_beams", presets reset, write 56,
         dev [53 tiers ["headlight beams", "car lights next-gen"]],
-        apply [55 atom HEADLIGHT_BEAMS],
+        apply [55 store HEADLIGHT_BEAMS],
         parse (|_, v| {
             // Override: a value that is not a number reads as
             // `!= "0"` (the old on/off row), not as the old value.
@@ -769,7 +771,7 @@ options! {
     light_probes: bool = false,
         key "enh.light_probes", presets reset, write 57,
         dev [54 flag "light probes"],
-        apply [56 atom LIGHT_PROBES],
+        apply [56 store LIGHT_PROBES],
         parse bool;
 
     /// Enhanced Glass — car windows and lamp covers with the native
@@ -778,7 +780,7 @@ options! {
     enhanced_glass: bool = false,
         key "enh.enhanced_glass", presets reset, write 58,
         dev [55 flag "enhanced glass"],
-        apply [57 atom ENHANCED_GLASS],
+        apply [57 store ENHANCED_GLASS],
         parse bool;
 
     /// docs/surface-maps.md: Surface Detail — 0 Off (native), 1
@@ -789,7 +791,7 @@ options! {
     surface_detail: u8 = 0,
         key "enh.surface_detail", presets reset, write 59,
         dev [57 tiers ["surface detail materials", "surface detail materials + normals"]],
-        apply [58 atom SURFACE_DETAIL],
+        apply [58 store SURFACE_DETAIL],
         parse (|old, v| min_u32(old, v, 2));
 
     /// docs/modern-lighting.md: Modern Lighting — 0 Original (the
@@ -803,7 +805,7 @@ options! {
             2 => v.push(format!("modern lighting {}%", s.modern_strength)),
             _ => v.push(format!("modern lighting rt {}%", s.modern_strength)),
         }],
-        apply [59 atom MODERN_LIGHTING],
+        apply [59 store MODERN_LIGHTING],
         parse (|old, v| min_u32(old, v, 3));
 
     /// Modern Lighting's strength, 0 (classic: the bake relit) to
@@ -811,7 +813,7 @@ options! {
     modern_strength: u8 = MODERN_STRENGTH_DEFAULT,
         key "enh.modern_strength", presets reset, write 61,
         dev none,
-        apply [60 atom MODERN_STRENGTH],
+        apply [60 store MODERN_STRENGTH],
         parse (|old, v| v.parse::<u32>().map_or(old, |v| (v.min(100) / 25 * 25) as u8));
 
     /// docs/modern-extras.md: Low Latency, Replay Cameras and the
@@ -837,7 +839,7 @@ options! {
     smooth_cars: bool = false,
         key "enh.smooth_cars", presets reset, write 64,
         dev [60 flag "smooth car shapes"],
-        apply [62 atom SMOOTH_CARS],
+        apply [62 store SMOOTH_CARS],
         parse bool;
 
     /// World Detail Extreme (docs/assets-distance.md): beyond Ultra's
@@ -846,7 +848,7 @@ options! {
     far_draw: bool = false,
         key "enh.far_draw", presets reset, write 65,
         dev [61 flag "world detail extreme"],
-        apply [63 atom FAR_DRAW],
+        apply [63 store FAR_DRAW],
         parse bool;
 
     /// Traffic Density (Enhancements, gameplay): 0 Native, 1 More
@@ -854,7 +856,7 @@ options! {
     traffic_density: u8 = 0,
         key "enh.traffic_density", presets keep, write 66,
         dev [62 tiers ["traffic more", "traffic dense"]],
-        apply [64 atom TRAFFIC_DENSITY],
+        apply [64 store TRAFFIC_DENSITY],
         parse (|old, v| min_u32(old, v, 2));
 
     /// docs/texture-pack-generator.md: World Texture Pack — 0 Off
