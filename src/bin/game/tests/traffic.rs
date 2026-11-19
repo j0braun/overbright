@@ -1221,7 +1221,8 @@ fn watch_walks(t: &Traffic, walks: &mut [(Passed, Option<Vec2>)], modes: &mut Mo
         }
         // Placement columns (appended): player x,y · fwd x,y · player speed ·
         // car race coordinate · player race coordinate · the walk's front
-        // record id:cp:backward:lane · held. A parked car (no lane) is a
+        // record id:cp:backward:lane · held; last, the brake-light flag
+        // (car +0x944 for the traffic: the pedal over 0.05). A parked car (no lane) is a
         // mode 0 row, as trafwalk lists the original's parked cars.
         let extra = |c: &TrafficCar| {
             let Some(pl) = pl else { return String::new() };
@@ -1252,12 +1253,13 @@ fn watch_walks(t: &Traffic, walks: &mut [(Passed, Option<Vec2>)], modes: &mut Mo
                     let p = c.state.position;
                     let _ = writeln!(
                         w,
-                        "0\t{n}\t0\t{i}\t{i}\t0\t{:.2},{:.2},{:.2}\t0.0\t0.000\t-1\t-1\t0.00\t0.00\t0.0\t0\t0.00,0.00\t{}{}",
+                        "0\t{n}\t0\t{i}\t{i}\t0\t{:.2},{:.2},{:.2}\t0.0\t0.000\t-1\t-1\t0.00\t0.00\t0.0\t0\t0.00,0.00\t{}{}\t{}",
                         p.x,
                         p.y,
                         p.z,
                         u8::from(c.active),
-                        extra(c)
+                        extra(c),
+                        u8::from(c.state.brake_lights(false))
                     );
                 }
                 continue;
@@ -1275,7 +1277,7 @@ fn watch_walks(t: &Traffic, walks: &mut [(Passed, Option<Vec2>)], modes: &mut Mo
             let (tm, look, asked) = st.map_or((0.0, 0.0, 0.0), |(_, tm, look, asked)| (tm, look, asked));
             let _ = writeln!(
                 w,
-                "0\t{n}\t0\t{i}\t{i}\t{mode}\t{:.2},{:.2},{:.2}\t{:.1}\t{speed:.3}\t{act}\t{tgt}\t{asked:.2}\t{tm:.2}\t{look:.1}\t{}\t{:.2},{:.2}\t{}{}",
+                "0\t{n}\t0\t{i}\t{i}\t{mode}\t{:.2},{:.2},{:.2}\t{:.1}\t{speed:.3}\t{act}\t{tgt}\t{asked:.2}\t{tm:.2}\t{look:.1}\t{}\t{:.2},{:.2}\t{}{}\t{}",
                 p.x,
                 p.y,
                 p.z,
@@ -1284,7 +1286,8 @@ fn watch_walks(t: &Traffic, walks: &mut [(Passed, Option<Vec2>)], modes: &mut Mo
                 c.state.velocity.x,
                 c.state.velocity.y,
                 u8::from(c.active),
-                extra(c)
+                extra(c),
+                u8::from(c.state.brake_lights(false))
             );
         }
         let _ = w.flush();
@@ -1351,11 +1354,25 @@ fn traffic_turn_stats() {
             unsafe { std::env::set_var("NFSU2_TRAFFIC_SEED", seed.to_string()) };
         }
         if race {
-            game.settings.qr[0].traffic = std::env::var("TURN_TRAFFIC").ok().and_then(|v| v.parse().ok()).unwrap_or(3);
+            // TURN_QR=sprint|drag|drift|url|streetx: that Quick Race mode's first track
+            // instead of the circuit; TURN_TRAFFIC=keep leaves the mode's own level.
+            let qr = match std::env::var("TURN_QR").as_deref() {
+                Ok("sprint") => screens::QrMode::Sprint,
+                Ok("drag") => screens::QrMode::Drag,
+                Ok("drift") => screens::QrMode::Drift,
+                Ok("url") => screens::QrMode::Url,
+                Ok("streetx") => screens::QrMode::StreetX,
+                _ => screens::QrMode::Circuit,
+            };
+            let ty = nfsu2::frontend::quick_race::race_type(qr);
+            if let Some(level) = std::env::var("TURN_TRAFFIC").map_or(Some(3), |v| v.parse().ok()) {
+                game.settings.qr[ty].traffic = level;
+            }
+            println!("quick race type {ty} traffic level {}", game.settings.qr[ty].traffic);
             game.drop_drive();
             game.mode = game.icon_menu(MenuKind::Main);
             game.act(Action::QuickRace, MenuKind::Main).unwrap();
-            game.act(Action::QrMode(screens::QrMode::Circuit), MenuKind::QrMode).unwrap();
+            game.act(Action::QrMode(qr), MenuKind::QrMode).unwrap();
             for _ in 0..3 {
                 game.menu_key(Key::Accept).unwrap();
             }

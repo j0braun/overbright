@@ -292,9 +292,10 @@ fn loss_ending_uses_player_slot_for_wheel_controls() {
 /// (Wine, the finished-career save's Lancer; `docs/evidence/shop-scene-mover/`):
 /// ShopEnter1 and ShopExit1 at IND_BODYSHOP_1 and DynoEnter, the
 /// body's centre of mass per scene count turned into the car's origin
-/// (the clone's own centre of mass). The clone's origin stays within
-/// 0.15 m (shop) / 0.3 m (dyno: the faster drive, one count off) of
-/// the original's in x / y at every count, and DynoEnter ends on the
+/// (the clone's own centre of mass). The shops' car (on the 30 fps run's
+/// steps, `nis::ScenePace`) stays within 1 cm of the original's in x / y
+/// at every mover step; the dyno's origin within 0.3 m (the faster
+/// drive, one count off) at every 1/30 s frame, and DynoEnter ends on the
 /// rollers where the original's did (within 8 cm), which the channel
 /// placement missed by 0.29 m. Real assets, no GPU.
 #[test]
@@ -318,7 +319,7 @@ fn shop_and_dyno_scenes_drive_the_car_like_the_original() {
     };
     let save = nfsu2::formats::native_save::NativeSave::parse(&testkit::private("tests/fixtures/native_saves/career_complete.sav"))
     .unwrap();
-    let run = |kind: SceneKind| -> (Vec<(u32, Vec3)>, Vec3, Car, Vec3) {
+    let run = |kind: SceneKind| -> (Vec<(u32, Vec3)>, Vec<(u32, Vec3)>, Vec3, Car, Vec3) {
         let mut game = Game::new().unwrap();
         let ctx = career::NativeContext::get().unwrap();
         game.settings.apply_native(&save);
@@ -338,10 +339,17 @@ fn shop_and_dyno_scenes_drive_the_car_like_the_original() {
         // frame runs 1/60 ahead on each 61-tick frame, so it no longer
         // names the frame.
         let mut stepped = 0u32;
+        // And by the mover's count (the capture's count column).
+        let mut counts: Vec<(u32, Vec3)> = Vec::new();
         while game.scenes.shop.as_ref().is_some_and(|r| r.scene.kind == kind) {
             game.advance_for(1.0 / 30.0).unwrap();
             stepped += 1;
-            track.push((stepped, game.sim.drive.as_ref().unwrap().state.position));
+            let state = &game.sim.drive.as_ref().unwrap().state;
+            track.push((stepped, state.position));
+            if let Some(m) = state.nis {
+                counts.retain(|c: &(u32, Vec3)| c.0 != m.count as u32);
+                counts.push((m.count as u32, state.position));
+            }
             assert!(track.len() < 400);
         }
         // ShopExit1 hands the car back on its physics: three more
@@ -358,7 +366,7 @@ fn shop_and_dyno_scenes_drive_the_car_like_the_original() {
         }
         let d = game.sim.drive.as_ref().unwrap();
         let com = d.state.position + d.state.orientation * Vec3::from(d.car.car_type.handling.centre_of_mass);
-        (track, d.state.position, d.car.clone(), com)
+        (track, counts, d.state.position, d.car.clone(), com)
     };
     for (kind, text, limit) in [
         (
@@ -377,7 +385,7 @@ fn shop_and_dyno_scenes_drive_the_car_like_the_original() {
             0.3,
         ),
     ] {
-        let (track, end, car, end_com) = run(kind);
+        let (track, counts, end, car, end_com) = run(kind);
         let com = Vec3::from(car.car_type.handling.centre_of_mass);
         let origin = |c: Vec3, f: Vec3, u: Vec3| c - (f * com.x + u.cross(f) * com.y + u * com.z);
         let nat = native(text);
@@ -391,6 +399,30 @@ fn shop_and_dyno_scenes_drive_the_car_like_the_original() {
                 .fold(0.0f32, f32::max)
         });
         let worst = worst[0].min(worst[1]);
+        // Per mover step: the original's row at count c shows the body
+        // after c - 1 steps (its count goes up when the frame's target is
+        // set, before the world's step integrates it), the clone's car
+        // after c - 1 steps against it. A count the polls read twice
+        // (once mid-frame: count 114 at 0.151 m) is left out.
+        if kind == SceneKind::DynoEnter {
+            // Under the 1/30 s ticks: one step a frame (`track` above).
+        } else {
+        let once = |c: u32| nat.iter().filter(|n| n.0 == c).count() == 1;
+        let per_step: Vec<f32> = nat
+            .iter()
+            .filter(|n| once(n.0))
+            .filter_map(|&(c, cm, f, u)| Some((origin(cm, f, u) - counts.iter().find(|t| t.0 + 1 == c)?.1).truncate().length()))
+            .collect();
+        let step_worst = per_step.iter().fold(0.0f32, |a, &b| a.max(b));
+        let step_mean = per_step.iter().sum::<f32>() / per_step.len().max(1) as f32;
+        eprintln!(
+            "{kind:?}: per mover step ({} counts), worst x / y {step_worst:.4} m, mean {step_mean:.4} m",
+            per_step.len()
+        );
+        // The shops' scenes take the 30 fps run's steps
+        // (`nis::ScenePace`): within 1 cm of the original's at every step.
+        assert!(per_step.len() > 100 && step_worst < 0.01, "{kind:?}: a step {step_worst} m from the original's");
+        }
         // The height: the origin's z within 2 cm of the
         // original's on average (an earlier "8 cm under" compared the
         // finished-career save's Skyline with the original's Lancer).
@@ -400,7 +432,7 @@ fn shop_and_dyno_scenes_drive_the_car_like_the_original() {
             .collect();
         let mean_dz = dz.iter().sum::<f32>() / dz.len().max(1) as f32;
         eprintln!("{kind:?}: {} clone frames, worst x / y {worst:.3} m, mean dz {mean_dz:.3} m", track.len());
-        assert!(worst < limit, "{kind:?}: the clone's car {worst} m from the original's");
+        assert!(kind != SceneKind::DynoEnter || worst < limit, "{kind:?}: the clone's car {worst} m from the original's");
         assert!(dz.len() > 100 && mean_dz.abs() < 0.02, "{kind:?}: the origin {mean_dz} m off the original's height");
         if kind == SceneKind::Exit {
             // Where the original's car stood after the scene (mode 1,
@@ -421,6 +453,87 @@ fn shop_and_dyno_scenes_drive_the_car_like_the_original() {
             let (_, cm, f, u) = *nat.last().unwrap();
             let gap = (origin(cm, f, u) - end).truncate().length();
             assert!(gap < 0.08, "DynoEnter ends {gap} m from the original's place on the rollers");
+        }
+    }
+}
+
+/// The shops' drive-in / drive-out scenes run at the display's rate
+/// (docs/native-deviations.md "High refresh rates"); their car keeps the
+/// steps of the original's 30 fps run (`nis::ScenePace`): one mover step
+/// per 1/30 s frame of 60, 60, 60, 60, 61 ticks of 1/1800 s, the same steps
+/// bit for bit at 30, 60, 120 and 200 fps, and the car drawn between its
+/// last two steps, so it moves on every drawn frame while the scene drives
+/// it (before, it stood still for two of every three 60 Hz updates and
+/// moved 20 times a second). Real assets, no GPU.
+#[test]
+#[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
+fn shop_scene_car_takes_the_30_fps_steps_at_any_frame_rate() {
+    testkit::game();
+    use nfsu2::shop_scene::SceneKind;
+    let bits = |v: Vec3| v.to_array().map(f32::to_bits);
+    for kind in [SceneKind::Enter, SceneKind::Exit] {
+        let mut runs = Vec::new();
+        for fps in [30.0f32, 60.0, 120.0, 200.0] {
+            let mut game = Game::new().unwrap();
+            let mut profile = Profile::new("DRIVEIN_RATES");
+            profile.skip_intro(&game.game_data.career, &game.game_data.root, "PEUGOT", &mut game.rng);
+            game.profile = Some(profile);
+            game.explore(None).unwrap();
+            let shop = game.game_data.career.shops.iter().position(|s| s.name == "IND_BODYSHOP_1").unwrap();
+            assert!(game.start_shop_scene(kind, shop));
+            // Per mover step: its count, the body's place and the step's
+            // ticks.
+            let mut steps: Vec<(i32, [u32; 3], i64)> = Vec::new();
+            let (mut moving, mut still) = (0usize, 0usize);
+            let mut last: Option<Vec3> = None;
+            let mut frames = 0;
+            while game.scenes.shop.as_ref().is_some_and(|r| r.scene.kind == kind) {
+                let alpha = game.advance(1.0 / fps).unwrap();
+                frames += 1;
+                assert!(frames < 5000, "{kind:?} at {fps} fps: the scene does not end");
+                let d = game.sim.drive.as_ref().unwrap();
+                let Some(m) = d.state.nis else {
+                    last = None;
+                    continue;
+                };
+                let pace = m.pace.expect("a shop scene's car is on its 30 fps schedule");
+                if steps.last().is_none_or(|s| s.0 != m.count) {
+                    steps.push((m.count, bits(d.state.position), pace.span));
+                }
+                let drawn = game.frame_poses(alpha).player().position;
+                // While the scene drives the car (its newest step moved it
+                // over 1 cm: 0.3 m/s; at rest it settles by fractions of a
+                // millimetre), every drawn frame shows it somewhere new.
+                if let Some(l) = last
+                    && pace.before.position.distance(d.state.position) > 0.01
+                {
+                    moving += 1;
+                    still += usize::from(drawn == l);
+                }
+                last = Some(drawn);
+            }
+            eprintln!("{kind:?} at {fps} fps: {} steps, {frames} frames, {moving} moving, {still} still", steps.len());
+            assert!(moving > 30, "{kind:?} at {fps} fps: the scene moved the car");
+            assert_eq!(still, 0, "{kind:?} at {fps} fps: the drawn car stood still between moving frames");
+            // The 30 fps limiter's frames: 60, 60, 60, 60, 61 ticks.
+            for w in steps.windows(5).skip(1).filter(|_| fps >= 60.0) {
+                assert_eq!(w.iter().filter(|s| s.2 == 61).count(), 1, "{kind:?}: a 30 fps run's frame times");
+                assert!(w.iter().all(|s| s.2 == 60 || s.2 == 61));
+            }
+            runs.push((fps, steps));
+        }
+        // The world's ticks are the same at any rate (`frame_clock`), so
+        // are the car's steps, bit for bit. A 30 fps frame (two ticks) may
+        // hold two steps, so it sees only the second; from 60 fps on every
+        // step is seen.
+        let (_, all) = runs.last().unwrap();
+        assert!(all.len() > 100, "{kind:?}: {} steps", all.len());
+        assert!(all.windows(2).all(|w| w[1].0 == w[0].0 + 1), "{kind:?}: a step not seen at 200 fps");
+        for (fps, steps) in &runs {
+            assert!(*fps < 60.0 || steps.len() == all.len(), "{kind:?} at {fps} fps: {} steps, not {}", steps.len(), all.len());
+            let seen: Vec<_> = all.iter().filter(|a| steps.iter().any(|s| s.0 == a.0)).cloned().collect();
+            assert_eq!(seen.len(), steps.len(), "{kind:?} at {fps} fps: a step 200 fps did not take");
+            assert_eq!(steps, &seen, "{kind:?}: the car's steps at {fps} fps differ from 200 fps");
         }
     }
 }

@@ -128,7 +128,7 @@ pub(crate) fn rt_cars<'a>(
     out.extend(
         traffic
             .into_iter()
-            .flat_map(|t| t.cars.iter().filter(|c| c.lane.is_some()).map(|c| (&*c.car, poses.car(&c.id, &c.state).transform()))),
+            .flat_map(|t| t.cars.iter().filter(|c| crate::render::frame::traffic_drawn(c)).map(|c| (&*c.car, poses.car(&c.id, &c.state).transform()))),
     );
     out.sort_by(|a, b| {
         a.1.w_axis.truncate().distance_squared(eye).total_cmp(&b.1.w_axis.truncate().distance_squared(eye))
@@ -292,7 +292,7 @@ pub(crate) fn publish_car_lights(
     out.extend(
         traffic
             .into_iter()
-            .flat_map(|t| t.cars.iter().filter(|c| c.lane.is_some()).map(|c| one(&c.car, poses.car(&c.id, &c.state), false))),
+            .flat_map(|t| t.cars.iter().filter(|c| crate::render::frame::traffic_drawn(c)).map(|c| one(&c.car, poses.car(&c.id, &c.state), false))),
     );
     nfsu2::render::car_lights::publish(out, opts.car_lights_next_gen);
 }
@@ -419,7 +419,7 @@ pub(crate) fn car_occluders(
     out.extend(race.into_iter().flat_map(|r| r.racers.rivals.iter().map(|r| occ(&r.car, poses.car(&r.id, &r.state)))));
     out.extend(encounters.into_iter().flat_map(|e| e.cars.iter().filter(|c| c.active).map(|c| occ(&c.car, poses.car(&c.id, &c.state)))));
     out.extend(
-        traffic.into_iter().flat_map(|t| t.cars.iter().filter(|c| c.lane.is_some()).map(|c| occ(&c.car, poses.car(&c.id, &c.state)))),
+        traffic.into_iter().flat_map(|t| t.cars.iter().filter(|c| crate::render::frame::traffic_drawn(c)).map(|c| occ(&c.car, poses.car(&c.id, &c.state)))),
     );
     // The nearest first (the shaders take at most lamps::MAX_OCCLUDERS).
     let eye = camera.position;

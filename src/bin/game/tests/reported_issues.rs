@@ -1345,3 +1345,73 @@ fn finishing_on_nitrous_ends_the_shot() {
     }
     panic!("the run never got past its finish: {at_finish:?}");
 }
+
+/// A collected cash pickup's or engage tip's world icon goes at once, as in
+/// the original (seen under Wine at 60 fps: the XEE_BANK bills and their
+/// ground ring are drawn on one frame and gone on the next). Turning a
+/// marker effect off (0x602230, from 0x605790 when its slot is empty or
+/// 0x6054C0 when its spot moved) frees each emitter's particles with it
+/// (0x494690: the particle groups whose owner +0x0C is the emitter), so
+/// none of the 1 s icons or 2.5 s rings already spawned is left to fade.
+#[test]
+#[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
+fn collected_world_icons_go_at_once() {
+    testkit::game();
+    let mut game = Game::new().unwrap();
+    let mut profile = Profile::new("WORLD_ICONS_TEST");
+    profile.skip_intro(&game.game_data.career, &game.game_data.root, "PEUGOT", &mut game.rng);
+    game.profile = Some(profile);
+    game.explore(None).unwrap();
+    let home_z = game.sim.drive.as_ref().unwrap().state.position.z;
+    let mid = |t: &career::Trigger| {
+        if t.points > 0 {
+            t.polygon[..t.points as usize].iter().copied().sum::<glam::Vec2>() / t.points as f32
+        } else {
+            (t.min + t.max) * 0.5
+        }
+    };
+    let go = |g: &mut Game, at: glam::Vec2, secs: f32| {
+        for _ in 0..(secs * 60.0).round() as usize {
+            g.sim.drive.as_mut().unwrap().state.position = at.extend(home_z);
+            g.advance_for_each(1.0 / 60.0, |g, dt| {
+                g.particle_effects(dt, &crate::sim::TickSettings::take(&g.settings.custom));
+                Ok(())
+            })
+            .unwrap();
+        }
+    };
+    // The live particles of one marker effect's group.
+    let alive = |g: &Game, name: &str| {
+        let d = g.sim.drive.as_ref().unwrap();
+        let group = d.world.emitters.group(nfsu2::formats::hash::bin_hash(name));
+        d.effects.system.particles.iter().filter(|p| group.contains(&(p.description as usize))).count()
+    };
+    let (t, b) = {
+        let p = game.profile.as_ref().unwrap();
+        game.sim.route_triggers
+            .banks()
+            .find_map(|t| {
+                game.game_data.career.banks.iter().find(|b| b.trigger == t.name).filter(|b| p.bank_open(&game.game_data.career, b)).map(|b| (*t, *b))
+            })
+            .expect("an open cash pickup")
+    };
+    go(&mut game, mid(&t) + glam::Vec2::new(20.0, 0.0), 1.5);
+    let before = alive(&game, "XEE_BANK");
+    assert!(before > 0, "the pickup's icon and rings are up 20 m away");
+    let cash = game.profile.as_ref().unwrap().cash;
+    go(&mut game, mid(&t), 1.0 / 60.0);
+    assert_eq!(game.profile.as_ref().unwrap().cash, cash + b.cash as u32, "the pickup paid");
+    assert_eq!(alive(&game, "XEE_BANK"), 0, "its {before} particles went with the effect in the same update");
+    // An engage tip: its icon goes when the world runs again after its SMS.
+    let t = {
+        let p = game.profile.as_ref().unwrap();
+        *game.sim.route_triggers.tips().find(|t| p.tip_pending(&game.game_data.career, t.name)).expect("an unsent engage tip")
+    };
+    go(&mut game, mid(&t) + glam::Vec2::new(20.0, 0.0), 1.5);
+    assert!(alive(&game, "XEE_GAME_TIP") > 0, "the tip's icon is up 20 m away");
+    go(&mut game, mid(&t), 1.0 / 60.0);
+    assert!(!game.profile.as_ref().unwrap().tip_pending(&game.game_data.career, t.name), "the tip's SMS came");
+    game.mode = Mode::Explore;
+    go(&mut game, mid(&t), 1.0 / 60.0);
+    assert_eq!(alive(&game, "XEE_GAME_TIP"), 0, "the tip's particles went with the effect");
+}

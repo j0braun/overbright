@@ -124,7 +124,7 @@ impl Game {
                 }
             }
             let ring = ts.pop_free && ts.lod_fade;
-            for c in traffic.iter().flat_map(|t| t.cars.iter().filter(|c| c.lane.is_some())) {
+            for c in traffic.iter().flat_map(|t| t.cars.iter().filter(|c| crate::render::frame::traffic_drawn(c))) {
                 let share = if ring {
                     nfsu2::ai::traffic::ring_presence(c.state.position.distance(d.state.position))
                 } else {

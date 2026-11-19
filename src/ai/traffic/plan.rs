@@ -140,6 +140,53 @@ impl TrafficLane {
     /// 55 mph (controller slot +0x7C) with +0x1FC clear. Before that the
     /// 55 mph cap goes through [`crest_cap`] (0x41C45F).
     pub fn update(&mut self, f: &RouteFile, position: Vec3, speed: f32) -> Option<(Vec<Vec3>, f32)> {
+        self.plan(f, position, speed, false)
+    }
+
+    /// 0x428720's lane check after the walk's update (verified, the
+    /// decompile and the asm 0x428A6B–0x428C45; it runs once a think, from
+    /// 0x429E6B): the car keeps its lane (planner +0x30C) while the record
+    /// it is on has it (0x40AE90 on its walk point) and, for traffic (car
+    /// +0x24 not 2), the lane reaches the walk's last point (0x40AA90, see
+    /// [`TrafficLane::lane_reach`]). Otherwise one draw 0x5EA510(1.0)
+    /// picks a side: under 0.5 the lane below first, else the one above;
+    /// for k = 1, 2, 3 both lanes k away are tried in that order, and the
+    /// first in 2–5 that 0x412500 allows ([`TrafficLane::lane_allowed`]) is
+    /// set by 0x4053B0 (the lane only: its offset and rate are kept). With
+    /// none allowed a traffic or human controller (kind 3 or 1) takes the
+    /// lane 0x40F4A0 finds at its place, else lane 2: **not ported** (the
+    /// Lane request's flag is not traced), the car keeps its lane. So a car
+    /// moves over before the walk enters a record without its lane (record
+    /// 492's lane 4 into 672, which has only lane 3). The draw is on the
+    /// lane's walk stream (the original's world generator, as the junction
+    /// odds; docs/rng.md).
+    pub(super) fn lane_check(&mut self, f: &RouteFile) {
+        let Some(&s0) = self.steps.front() else { return };
+        let l = s0.lane;
+        if !(2..=5).contains(&l) {
+            return;
+        }
+        let (reach, last) = self.lane_reach(f);
+        if has_lane(f, s0, l) && last <= reach[l - 2] {
+            return;
+        }
+        let up_first = self.rng.unit(1.0) >= 0.5;
+        for k in 1..=3 {
+            let (up, down) = (l + k, l.wrapping_sub(k));
+            for c in if up_first { [up, down] } else { [down, up] } {
+                if self.lane_allowed(f, l, c) {
+                    for s in self.steps.iter_mut() {
+                        s.lane = keep_lane(f, *s, c);
+                    }
+                    return;
+                }
+            }
+        }
+    }
+
+    /// [`TrafficLane::update`]; `think`: a think's planner update (0x428720,
+    /// which also runs the lane check), not a path rebuild.
+    pub(super) fn plan(&mut self, f: &RouteFile, position: Vec3, speed: f32, think: bool) -> Option<(Vec<Vec3>, f32)> {
         let p = position.truncate();
         // The car's walk point (the road entry's +0x28, 0x419C10 →
         // 0x419B20 → 0x4198C0 with flags 0; verified, 2026-11-01): the walk
@@ -196,6 +243,9 @@ impl TrafficLane {
         if self.steps.len() < 2 {
             return None;
         }
+        if think {
+            self.lane_check(f);
+        }
         // The path (0x41D530 → 0x415D50, **verified**): one point per walk
         // point past the car's — the control points' and the 8 m points
         // between them — at most 20 (0x415D50: the path's count byte under
@@ -216,6 +266,22 @@ impl TrafficLane {
         let car_lateral = f.lateral(s0.record, s0.cp, s0.backward, p) - centre(s0) - walk.get(lead).map_or(0.0, lane_x);
         let mut lateral = car_lateral;
         let same = |a: Step, b: Step| a.record == b.record && a.cp == b.cp && a.backward == b.backward;
+        // A kept point's offset off the lane its walk point is on now: after
+        // the lane check moved the walk over (0x4053B0) a kept point still
+        // lies on the old lane, so its offset is taken across to the new
+        // one (0x41BFE0 and 0x41D530 compare and go on in the current lane's
+        // terms, 0x419C60 / 0x60BFB0 on the lane record's lane).
+        let rebase = |k: &(Step, f32, f32, Vec3)| {
+            let Some(w) = walk.iter().find(|w| same(self.steps[w.step], k.0) && (w.d - k.1).abs() < 1e-3) else {
+                return k.2;
+            };
+            let now = self.steps[w.step];
+            if now.lane == k.0.lane {
+                return k.2;
+            }
+            let x = |l: usize| WALK_LANES.iter().position(|&m| m == l).map_or(0.0, |li| w.x[li]);
+            k.2 + centre(k.0) + x(k.0.lane) - centre(now) - x(now.lane)
+        };
         // 0x420D40 with the driver's +0x1D9 set (traffic: observed): the
         // kept path's front stays unless 0x41BFE0 asks for a fresh plan —
         // the path is empty, or the car's offset off the lane differs from
@@ -243,7 +309,7 @@ impl TrafficLane {
             let mut old = std::mem::take(&mut self.kept);
             let at = old.iter().position(|k| ahead(k.3)).unwrap_or(old.len().saturating_sub(1));
             let replan = old.get(at).is_none_or(|k| {
-                let off = (car_lateral - k.2).abs();
+                let off = (car_lateral - rebase(k)).abs();
                 off > REPLAN && off > k.3.truncate().distance(p)
             });
             if !replan {
@@ -263,7 +329,7 @@ impl TrafficLane {
                         && let Some(i) =
                             walk.iter().position(|w| same(self.steps[w.step], last.0) && (w.d - last.1).abs() < 1e-3)
                     {
-                        lateral = last.2;
+                        lateral = rebase(last);
                         from = i + 1;
                         path.extend(old.iter().map(|k| k.3));
                         kept = old;

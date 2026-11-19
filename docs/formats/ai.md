@@ -1677,8 +1677,9 @@ Explore mode's and races' traffic. Verified except where noted.
   target's reach (walk +0xAC + 4·lane) is at least the last walk point's
   +0x54 (0x40AA90) or at least 25 m past the current lane's (0x40AF30);
   in a drag race each lane between must also pass 0x40AF30(−0.1) and
-  0x40B110. The reach floats' writer is **not traced**: the clone tests
-  the record only) and where 0x402ED0 (lateral 0, the action's look)
+  0x40B110. The reach floats are written by 0x418AE0 → 0x411CE0, see
+  Lane check below; the avoidance's lane test in the clone still tests
+  the record only (`lane_free`)) and where 0x402ED0 (lateral 0, the action's look)
   finds nothing, or an object 0x4140E0 drops, or one reaching in over
   5 s (0x783740), or one that is not the tracked object (0x60BEA0:
   pointer equality) and reaches later than +0x21C. Then 0x402ED0 on the
@@ -1713,6 +1714,41 @@ Explore mode's and races' traffic. Verified except where noted.
   traffic under Wine). 0x42F330 (the
   "stopping behind" logic below) is "Avoid Avoidable" (type 1, 0x785858),
   not a traffic action.
+* **Lane check** (verified in the decompile and the asm 0x428A6B–0x428C45
+  unless noted; ported, `TrafficLane::lane_check`, `lane_reach`,
+  `lane_allowed`): the planner update 0x428720 (once a think, 0x429E6B)
+  runs after the walk's update 0x428030, whose last step 0x418AE0 sets the
+  walk's lane reaches (walk +0xB0 lane 0, +0xB4 + 4·(lane − 2) lanes 2–5)
+  to 99999 and, from the car's point on, for the first point and every
+  point whose record (+0x5C) differs from the point before's, calls
+  0x411CE0: each lane the point's record lacks (+0x82 + lane, 6–9 for a
+  point walked backward) takes the least of its reach and the s (+0x54)
+  of the point's +0x68 (the point appended before it, 0x418F9C; null, s
+  0, for the walk's first, 0x41970B). Then: while the car's lane (+0x30C,
+  2–9) exists on the record of the car's walk point (0x40AE90) and, for a
+  car whose +0x24 is not 2, reaches the walk's last point (0x40AA90: last
+  +0x54 ≤ reach), nothing; else one draw 0x5EA510(1.0) — under 0.5 the
+  lane below first — and for k = 1..3 the lanes k below and above in that
+  order: the first in 2–5 that 0x412500 allows is set by 0x4053B0 (lane,
+  the record's +0x310 / +0x314 kept). With none, a controller of kind 1 or
+  3 takes 0x40F4A0's lane at its place (Lane request below), else lane 2
+  (**not ported**: the car keeps its lane). The path is rebuilt on the new
+  lane by the action (0x420D40): 0x41BFE0 compares the car's and the
+  kept path's offsets off the current lane, so the kept front stays and
+  the new lane's points ease over at the lane rate. **Observed** under
+  Wine (career free roam, the player standing at the garage exit, five
+  runs): every car on record 492's lane 4 (which goes on into record 672,
+  lane 3 only, by junction 942) moved to lane 3 when its walk took 672's
+  second point, about 100 m before the junction (planner +0x30C 4 → 3 at x
+  ≈ 407, 20 of 20); its path moved over from about 25 m later. So the
+  reach of a record entered by a junction is taken from its first point
+  (**inferred**: what +0x68 holds for a junction's target point is not
+  traced). These moves were most of the original's free-roam lane changes
+  (0.19–0.26 a car-minute; the clone, without the check, 0–0.07: its cars
+  kept lane 4 to the junction and crossed there). 0x41BFE0's distance for
+  a traffic controller (kind 3) is 10 m, not 1.5 m (0x7E8D94, the
+  racers'): **not applied** in the clone's path keep (`REPLAN`). The draw
+  is on the lane's walk stream (docs/rng.md).
 * **Think** (verified): the traffic controller's update (slot +0x0C,
   0x429D90) runs for a traffic car (car +0x14 → +4 = 3) only on world
   updates where the update counter 0x7FB724 (++ in 0x57A170) modulo twice

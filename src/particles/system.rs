@@ -143,6 +143,12 @@ impl System {
         e.timer = if span[0] == 0.0 { 0.0 } else { e.rng.spread(span) + left };
     }
 
+    /// 0x494690: free every live particle of one owner (its key), as
+    /// switching an emitter off with its particles does (0x602230).
+    pub fn free_key(&mut self, key: u32) {
+        self.particles.retain(|p| p.key != key);
+    }
+
     /// 0x492E10's particle half: age by `dt` (whole 1/1024 s), free the
     /// dead, advance the flip-book, and move: per axis v += (∓v²·drag)·dt
     /// (against the motion), z also −gravity·dt, then x += v·dt; carried

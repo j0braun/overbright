@@ -562,6 +562,8 @@ pass under the road reflection's **Contents**), so 0x5CCCE0 is not ported.
   0x8A1BF4 force the headlights (flag 1) / brake lights (flag 2: 1.85,
   centre 1) on. Class byte (render info +4 → +0x8E4 → +4) 0x0F drops the
   brake glows, 0x0E the headlight glows (0x615917).
+  Clone: a traffic car with +0x550 clear (`TrafficCar::active`) shows no
+  glow (`traffic_drawn`, as its body).
 * **Brake flag** (owner +0x944, **verified**, 0x5F62C0 from the car
   update 0x6049D9): b = the input block's brake pedal (car +0x30 →
   +0x214; 0 without one). b > 0.05 (0x7A5640) stamps +0x948 with the

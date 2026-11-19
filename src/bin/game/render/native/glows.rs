@@ -76,7 +76,10 @@ pub(crate) fn tube_view(camera: &nfsu2::render::Camera, aspect: f32) -> nfsu2::s
 /// This frame's glow sprites (0x5CBB10's 0x491860 and 0x61AEA0): the
 /// street lamps of the visible sections' flare packs, then the head and
 /// brake lights of the player, the race's rivals, career free roam's
-/// encounter racers and the traffic (the car render objects 0x890080).
+/// encounter racers and the traffic (the car render objects 0x890080;
+/// 0x61AEA0 takes a car only when 0x60D580 does, which needs +0x550
+/// (active) set as World_DrawCars does, so a traffic car that is not
+/// drawn shows no glow).
 /// `drawn`: the frame's drawn sections (`World::drawn_sections_at` at the
 /// camera).
 #[allow(clippy::too_many_arguments)]
@@ -146,7 +149,7 @@ pub(crate) fn glow_quads(
         car(&c.car, poses.car(&c.id, &c.state), true, 1.0);
     }
     let ring = opts.pop_free && opts.lod_fade;
-    for c in traffic.iter().flat_map(|t| t.cars.iter().filter(|c| c.lane.is_some())) {
+    for c in traffic.iter().flat_map(|t| t.cars.iter().filter(|c| crate::render::frame::traffic_drawn(c))) {
         // The traffic's flares follow its ring fade.
         let state = poses.car(&c.id, &c.state);
         let share =

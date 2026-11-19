@@ -199,6 +199,15 @@ pub(super) const SUB_POINT: f32 = 8.0;
 /// 0x41A180's tangent length, × the run's length.
 pub(super) const SPLINE_TANGENT: f32 = 0.75;
 
+/// A lane's reach while nothing on the walk ends it (0x418AE0: 99999,
+/// 0x47C34F80).
+pub(super) const LANE_REACH_NONE: f32 = 99_999.0;
+
+/// 0x412500's margin: a lane that does not reach the walk's end may still
+/// be taken when it reaches this much (m) farther than the car's
+/// (0x40AF30 with 25.0, 0x41C80000).
+pub(super) const LANE_REACH_MORE: f32 = 25.0;
+
 /// The lanes a FuturePoint keeps an offset for (+0x04, +0x08..+0x14).
 pub(super) const WALK_LANES: [usize; 5] = [0, 2, 3, 4, 5];
 
@@ -443,6 +452,58 @@ impl TrafficLane {
     /// control point +0x2C + lane × 1/65536 · 65536).
     pub fn lane_speed(&self, f: &RouteFile) -> f32 {
         self.steps.front().map_or(0.0, |&s| speed_byte(f, s))
+    }
+
+    /// How far along the walk each traffic lane 2–5 goes on (walk +0xB4 +
+    /// 4·(lane − 2)), and the walk's last point's s (+0x54), both from the
+    /// walk's first control point. 0x418AE0 (verified, called by 0x428030
+    /// after every extension) sets the reaches to 99999 and, from the car's
+    /// point on, for the first point and every point whose record differs
+    /// from the point before's, calls 0x411CE0: each lane its record lacks
+    /// (byte +0x82 + lane, 6–9 for a point walked backward) takes the least
+    /// of its reach and the s of the point's +0x68 (the point appended
+    /// before it, 0x418F9C; null, s 0, for the walk's first point after
+    /// 0x41970B). **Observed** under Wine (career free roam, the player
+    /// standing at the garage exit; 20 of 20 changes at record 492): a car
+    /// changes lanes when the walk holds the second point of a record
+    /// without its lane, not the first (the junction's target), so the
+    /// clone takes the s of the first point on that record (**inferred**:
+    /// what +0x68 holds for a junction's target point is not traced).
+    // prov: inferred ai.traffic.lane_reach
+    pub(super) fn lane_reach(&self, f: &RouteFile) -> ([f32; 4], f32) {
+        let mut reach = [LANE_REACH_NONE; 4];
+        let mut s = 0.0;
+        for (k, &st) in self.steps.iter().enumerate() {
+            if k > 0 {
+                s += self.seg(f, k - 1);
+            }
+            let first_on_record = k == 0 || self.steps[k - 1].record != st.record;
+            if first_on_record {
+                for (i, r) in reach.iter_mut().enumerate() {
+                    if !has_lane(f, st, i + 2) {
+                        *r = r.min(if k == 0 { 0.0 } else { s });
+                    }
+                }
+            }
+        }
+        (reach, s)
+    }
+
+    /// 0x412500 for a traffic car outside a drag race (verified; the car's
+    /// +0x24 is not 2, so the reach tests apply): lane `to` (2–5) exists
+    /// where the car is (0x40AE90 on its walk point) and either reaches the
+    /// walk's end (0x40AA90: the last point's s at most its reach) or
+    /// reaches at least 25 m (0x41C80000) farther than lane `from`
+    /// (0x40AF30). In a drag race 0x412500 also tests each lane between
+    /// (0x40AF30 with −0.1 and 0x40B110): **not ported**.
+    pub(super) fn lane_allowed(&self, f: &RouteFile, from: usize, to: usize) -> bool {
+        let Some(&s0) = self.steps.front() else { return false };
+        if !(2..=5).contains(&to) || !has_lane(f, s0, to) {
+            return false;
+        }
+        let (reach, last) = self.lane_reach(f);
+        let r = |l: usize| if (2..=5).contains(&l) { reach[l - 2] } else { LANE_REACH_NONE };
+        last <= r(to) || r(to) - r(from) >= LANE_REACH_MORE
     }
 
     /// The walk's step from point `i` to the next ([`gap`]); the last

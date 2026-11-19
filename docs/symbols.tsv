@@ -3867,3 +3867,5 @@ CarDriver_t+0x1D9	struct-field	CarDriver_t.keep_path	0x420D40 keeps the path's f
 0x57FB50	function	LoadGlobalChunks	loads GLOBAL\GLOBALB.LZC (0x57CF00, 0x57BD80) at the game start; called at 0x57EDA9, the call TexWizard replaces to load its packs	inferred	texture-packs.md (TexWizard packs)
 0x57CF00	function	ResourceFile_Create	resource file for a path (pushed by 0x57FB10 / 0x57FB50 with GLOBALA.BUN / GLOBALB.LZC)	inferred	texture-packs.md (TexWizard packs)
 0x57BD80	function	ResourceFile_BeginLoading	starts loading a resource file (after 0x57CF00)	inferred	texture-packs.md (TexWizard packs)
+0x602230	function	MarkerEffect_Off	marker effect slot off: frees each emitter and its particles (0x494690)	verified	formats/career-3.md (engage tips, cash pickups)
+0x494690	function	Particles_FreeOwner	frees the particle groups whose owner +0x0C is the emitter	verified	formats/career-3.md (engage tips, cash pickups)

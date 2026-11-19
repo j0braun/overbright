@@ -24,6 +24,7 @@ scripts/checks/release_check.sh [outdir]          # the shipping binary (no dev-
 scripts/checks/resolutions.sh <outdir> [game]    # the resolution matrix, every size x aspect option x 15 screens (docs/resolutions.md; RES_SET=family|all, RES_MOUSE=1, RES_REPORT_ONLY=1)
 scripts/checks/editor_shots.sh <outdir> [editor]  # the map editor's shot matrix, headless (EDITOR_SET=all|family, EDITOR_SIZES; "Editor shots")
 scripts/checks/wine_smoke.sh <outdir> [game]     # the Windows dev-harness game.exe under Wine (report-only in full; "Wine smoke")
+scripts/checks/traffic_harness.sh <outdir> [bin]  # the traffic harness, this game only: free roam standing and with the scripted player, statistics (report-only, in no set; docs/traffic-harness.md)
 scripts/checks/wine_smoke.sh --selfcheck <outdir> [game]   # every Wine smoke check on a broken input: each must fail
 scripts/checks/wine_smoke.sh --env-check <outdir>  # the Wine runs' environment on a stand-in for wine (no Wine needed)
 CHECKS=full scripts/checks/gate.sh …            # with the rate gate v2 (counted by default: RATE=strict; RATE=0 leaves it out)

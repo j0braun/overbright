@@ -68,7 +68,7 @@ impl Game {
         };
         if let Some(t) = traffic {
             cars.extend(
-                t.cars.iter().enumerate().filter(|(_, c)| c.lane.is_some()).map(|(i, c)| (1000 + i as u64, c.state.transform())),
+                t.cars.iter().enumerate().filter(|(_, c)| crate::render::frame::traffic_drawn(c)).map(|(i, c)| (1000 + i as u64, c.state.transform())),
             );
         }
         let key = render::enh::post::temporal_key(&self.mode, self.view_history_key(), self.scenes.shop.is_some());

@@ -215,7 +215,15 @@ impl FramePoses {
         FramePoses {
             alpha: 1.0,
             dt: 1.0 / 60.0,
-            player: drive.map(|d| d.state.clone()),
+            player: drive.map(|d| {
+                // A scene car on its own 30 fps schedule as drawn at the
+                // world's time (`CarPose::drawn`).
+                let mut s = d.state.clone();
+                if s.nis.is_some_and(|m| m.pace.is_some()) {
+                    CarPose::drawn(&d.state).apply(&mut s);
+                }
+                s
+            }),
             player_key: drive.map_or(0, |d| d.car_id.key()),
             cars: Vec::new(),
             camera: None,
@@ -350,7 +358,7 @@ impl Game {
         s.poses.clear();
         self.drawn_car_states(|k, c| {
             s.keys.push(k);
-            s.poses.push(CarPose::of(c));
+            s.poses.push(CarPose::drawn(c));
         });
         s.camera = self.sim.drive.as_ref().map(|d| d.camera);
         s.mover = self.view_history_key();
@@ -414,7 +422,7 @@ impl Game {
         let mut same = true;
         let mut i = 0;
         self.drawn_car_states(|k, c| {
-            same &= cur.keys.get(i) == Some(&k) && cur.poses.get(i) == Some(&CarPose::of(c));
+            same &= cur.keys.get(i) == Some(&k) && cur.poses.get(i) == Some(&CarPose::drawn(c));
             i += 1;
         });
         same &= i == cur.keys.len()
@@ -440,7 +448,7 @@ impl Game {
         s.poses.clear();
         self.drawn_car_states(|k, c| {
             s.keys.push(k);
-            s.poses.push(CarPose::of(c));
+            s.poses.push(CarPose::drawn(c));
         });
         s.camera = self.sim.drive.as_ref().map(|d| d.camera);
         s.mover = self.view_history_key();
@@ -523,7 +531,7 @@ impl Game {
         self.drawn_car_states(|k, s| live.push((k, s)));
         if live.len() == prev.poses.len() {
             for (i, &(key, s)) in live.iter().enumerate() {
-                let now = CarPose::of(s);
+                let now = CarPose::drawn(s);
                 let fresh = cur.keys.get(i) == Some(&key) && cur.poses.get(i) == Some(&now);
                 if !fresh || prev.keys.get(i) != Some(&key) {
                     continue;

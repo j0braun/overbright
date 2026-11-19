@@ -540,7 +540,10 @@ pub(super) fn marker(game: &mut Game, cx: &ShotCtx) -> Result<Mode> {
     if let Some(d) = game.sim.drive.as_mut() {
         d.place(at, heading);
     }
-    for _ in 0..60 {
+    // NFSU2_SHOT_STEPS=n: n updates of 1/30 s before the shot (default
+    // 60), for frame strips of the marker effects.
+    let steps: u32 = std::env::var("NFSU2_SHOT_STEPS").ok().and_then(|v| v.parse().ok()).unwrap_or(60);
+    for _ in 0..steps {
         game.advance_for_each(1.0 / 30.0, |g, dt| {
             g.particle_effects(dt, &crate::sim::TickSettings::take(&g.settings.custom));
             Ok(())

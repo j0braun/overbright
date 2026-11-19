@@ -244,3 +244,4 @@ game.race_status_clock_end	inferred	docs/formats.md	the race status clock +0x14 
 game.race_idle_brake	open	docs/formats.md	the race input object analog brake byte +0x2D9 = 1 (idle brake 1/255 from the green) is measured; which device state sends event 0x95 = 1 at registration (0x579370) is open, and whether free roam has it is not measured.
 props.sound.splash_flag	inferred	docs/prop-hits.md	the drum's splashed flag (+0x50C) set when its sound is posted, not at the object's start after the five-object cap
 audio.collision.copy_life	inferred	docs/prop-hits.md	a started collision object's mix copy kept while its layers or splash play (its end with its record is not traced)
+ai.traffic.lane_reach	inferred	docs/formats/ai.md	A lane's reach on a record entered by a junction is taken from its first point (observed timing; +0x68 of a junction target not traced).

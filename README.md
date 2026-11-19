@@ -155,8 +155,6 @@ original, with its switch, is in [docs/native-deviations.md](docs/native-deviati
   a little softer (each frame traces a quarter of the pixels and the rest come from a history). On wet roads
   and cars the rays decide the reflection; railings, foliage and the race-start crowd, which the traced scene
   leaves out, come from the screen where they are visible there.
-- **The drive into and out of the garage and the shops looks jerky above 30 fps:** the car moves about 20 times a
-  second while the camera moves smoothly. The menus themselves run at the full frame rate.
 - Integrated GPUs run the original look well; the heavier upgrades want a dedicated GPU (each option shows
   its cost on the settings page).
 
