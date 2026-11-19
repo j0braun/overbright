@@ -1511,3 +1511,51 @@ fn race_start_scene_draws_the_player_car_in_every_view() {
         }
     }
 }
+
+/// Alt-Tab away and back: the Alt release went to another window, so the
+/// game must not keep Alt as held. Enter after the focus came back, and a
+/// controller's Start / Select / A in a menu (which press Enter there),
+/// never toggle the Screen Mode; Alt+Enter with the system's Alt still does.
+#[test]
+#[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
+fn alt_tab_leaves_no_alt_held_for_enter() {
+    testkit::game();
+    use nfsu2::pad::host::Btn;
+    let mut game = Game::new().unwrap();
+    let mut p = Profile::new("ALT_TAB");
+    p.skip_intro(&game.game_data.career, &game.game_data.root, "PEUGOT", &mut game.rng);
+    game.profile = Some(p);
+    game.mode = game.world_map();
+    let start = game.settings.fullscreen;
+    let step = |game: &mut Game, events: &[InputEvent]| {
+        let t = game.pacing.clocks.tick;
+        for e in events {
+            game.input_at(t, e.clone());
+        }
+        game.advance(1.0 / 60.0).unwrap();
+    };
+    // Alt-Tab: Alt pressed here, the focus lost, Alt (and Tab) let go in
+    // the other window, the focus back.
+    step(&mut game, &[InputEvent::press(KeyCode::AltLeft), InputEvent::Alt(true), InputEvent::Focus(false)]);
+    step(&mut game, &[InputEvent::Focus(true)]);
+    assert!(!game.platform.alt && game.platform.keys.is_empty(), "the focus let every key go");
+    step(&mut game, &[InputEvent::press(KeyCode::Enter), InputEvent::KeyUp(KeyCode::Enter)]);
+    assert_eq!(game.settings.fullscreen, start, "Enter after Alt-Tab is Enter");
+    // A controller's buttons that press Enter on the menus, even with Alt
+    // held on the keyboard: never the Screen Mode.
+    game.mode = game.world_map();
+    step(&mut game, &[InputEvent::press(KeyCode::AltLeft), InputEvent::Alt(true)]);
+    game.platform.pads = nfsu2::pad::host::Host::scripted("0 connect 1 045e 0b12\n");
+    step(&mut game, &[]);
+    for b in [Btn::Start, Btn::Select, Btn::South] {
+        game.platform.pads.devices[0].inputs.buttons[b as usize] = true;
+        step(&mut game, &[]);
+        game.platform.pads.devices[0].inputs.buttons[b as usize] = false;
+        step(&mut game, &[]);
+        assert_eq!(game.settings.fullscreen, start, "{b:?} with Alt held is not Alt+Enter");
+        game.mode = game.world_map();
+    }
+    // The keyboard's Alt+Enter still toggles it.
+    step(&mut game, &[InputEvent::press(KeyCode::Enter), InputEvent::KeyUp(KeyCode::Enter)]);
+    assert_eq!(game.settings.fullscreen, !start, "Alt+Enter toggles the Screen Mode");
+}

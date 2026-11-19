@@ -47,6 +47,13 @@ pub(crate) enum InputEvent {
     Wheel(f32),
     /// The middle button pressed (true) or let go.
     Middle(bool),
+    /// The window's Alt modifier as the system reports it (winit's
+    /// `ModifiersChanged`): Alt+Enter reads it, not the held keys.
+    Alt(bool),
+    /// The window gained (true) or lost the keyboard focus: every held key
+    /// and the Alt modifier are let go. A key let go while another window
+    /// had the focus (Alt-Tab's Alt) sends no release to this one.
+    Focus(bool),
 }
 
 impl InputEvent {
@@ -135,6 +142,8 @@ impl Game {
                 self.platform.keys.remove(&code);
                 self.key_released(code);
             }
+            InputEvent::Alt(on) => self.platform.alt = on,
+            InputEvent::Focus(_) => self.release_all_keys(),
             InputEvent::CursorMoved(_) | InputEvent::Button(_) | InputEvent::Wheel(_) | InputEvent::Middle(_) => {
                 // The texture editor's panel takes its clicks and wheel.
                 if crate::enh::texed::mouse(self, &event) {
@@ -152,9 +161,30 @@ impl Game {
         }
     }
 
+    /// The focus changed: every held key let go (as its release would),
+    /// the Alt modifier and the support hotkey's Ctrl cleared.
+    pub(crate) fn release_all_keys(&mut self) {
+        let held: Vec<KeyCode> = self.platform.keys.drain().collect();
+        for code in held {
+            self.key_released(code);
+        }
+        self.platform.alt = false;
+        crate::shell::support::modifiers(false);
+    }
+
     /// A key pressed: the typed text to the screens that take it, the key
     /// itself (not its auto-repeats) to the game, then held.
     fn key_down(&mut self, code: KeyCode, text: Option<&str>, repeat: bool) {
+        // Alt+Enter toggles the Screen Mode anywhere (clone option). Only
+        // the keyboard's Enter with the system's Alt modifier: a
+        // controller's Select (which presses Enter on the menus, `pad_frame`)
+        // never goes through here.
+        if !repeat && matches!(code, KeyCode::Enter | KeyCode::NumpadEnter) && self.platform.alt {
+            self.settings.fullscreen = !self.settings.fullscreen;
+            let _ = self.settings.save();
+            self.platform.keys.insert(code);
+            return;
+        }
         // The texture editor (`--editor` only; docs/modding/texture-editor.md).
         if crate::enh::texed::key(code, text, repeat) {
             return;

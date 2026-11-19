@@ -978,6 +978,12 @@ impl ApplicationHandler for Run<'_> {
             }
             WindowEvent::RedrawRequested => self.draw(),
             WindowEvent::ModifiersChanged(m) => self.mods = m.state(),
+            // A modifier or key let go in another window (Alt-Tab) sends no
+            // release here: a focus change lets them go.
+            WindowEvent::Focused(_) => {
+                self.mods = ModifiersState::empty();
+                self.held = None;
+            }
             WindowEvent::KeyboardInput { event, .. } if event.state == ElementState::Pressed => {
                 self.app.model.pad_input = false;
                 let shift = self.mods.shift_key();
