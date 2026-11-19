@@ -38,6 +38,35 @@ pub fn status_name(code: u32) -> Option<&'static str> {
     })
 }
 
+/// The graphics driver a module file belongs to, when it is one: a crash
+/// inside a driver is the driver's, usually while it compiles a pipeline or
+/// presents.
+pub fn driver_of(module: &str) -> Option<&'static str> {
+    let m = module.to_ascii_lowercase();
+    let m = m.rsplit(['\\', '/']).next().unwrap_or(&m);
+    Some(match m {
+        "amdvlk64.dll" | "amdvlk32.dll" => "the AMD Vulkan driver",
+        "amdxc64.dll" | "amdxc32.dll" => "the AMD DirectX 12 driver",
+        "nvoglv64.dll" | "nvoglv32.dll" | "nvgpucomp64.dll" => "the NVIDIA Vulkan driver",
+        "nvwgf2umx.dll" | "nvwgf2um.dll" => "the NVIDIA DirectX driver",
+        "igvk64.dll" | "igvk32.dll" | "igc64.dll" => "the Intel Vulkan driver",
+        "igd12umd64.dll" | "igd12um64xel.dll" => "the Intel DirectX 12 driver",
+        "vulkan-1.dll" => "the Vulkan loader (or a layer it loaded)",
+        _ => return None,
+    })
+}
+
+/// What the crash line adds for a crash inside a graphics driver
+/// (`docs/troubleshooting.md` "A crash in the graphics driver").
+pub fn driver_hint(module: &str) -> Option<String> {
+    driver_of(module).map(|driver| {
+        format!(
+            "; inside {driver}: update the graphics driver; if it still happens, set Graphics to Original \
+             (docs/troubleshooting.md, \"A crash in the graphics driver\")"
+        )
+    })
+}
+
 /// Installs the filter with this sink (once; later calls do nothing).
 pub fn install(sink: impl Fn(&str) + Send + Sync + 'static) {
     if SINK.set(Box::new(sink)).is_err() {
@@ -112,7 +141,8 @@ mod win {
     unsafe extern "system" fn filter(info: *mut ExceptionPointers) -> i32 {
         unsafe {
             if let Some(record) = info.as_ref().and_then(|i| i.record.as_ref()) {
-                let at = match module_of(record.address) {
+                let module = module_of(record.address);
+                let at = match &module {
                     Some((m, off)) => format!("{m}+0x{off:x}"),
                     None => format!("0x{:x}", record.address as usize),
                 };
@@ -129,6 +159,9 @@ mod win {
                         _ => "using",
                     };
                     line += &format!(", {what} 0x{:x}", record.information[1]);
+                }
+                if let Some(hint) = module.as_ref().and_then(|(m, _)| super::driver_hint(m)) {
+                    line += &hint;
                 }
                 if let Some(sink) = super::SINK.get() {
                     sink(&line);
@@ -150,5 +183,29 @@ mod tests {
         assert_eq!(super::status_name(0xC000_0005), Some("access violation"));
         assert!(super::status_name(0xC000_0409).is_some_and(|n| n.contains("fast fail")));
         assert_eq!(super::status_name(1), None);
+    }
+
+    #[test]
+    fn a_crash_in_a_graphics_driver_says_what_to_try() {
+        assert_eq!(super::driver_of("amdvlk64.dll"), Some("the AMD Vulkan driver"));
+        assert_eq!(
+            super::driver_of("C:\\Windows\\System32\\DriverStore\\AMDVLK64.DLL"),
+            Some("the AMD Vulkan driver")
+        );
+        assert!(super::driver_of("nvoglv64.dll").is_some_and(|d| d.contains("NVIDIA")));
+        assert!(super::driver_of("igvk64.dll").is_some_and(|d| d.contains("Intel")));
+        assert!(super::driver_of("amdxc64.dll").is_some_and(|d| d.contains("DirectX 12")));
+        assert_eq!(super::driver_of("game.exe"), None);
+        assert_eq!(super::driver_of("ntdll.dll"), None);
+        // Update the driver, then Graphics Original; no other graphics API
+        // is suggested (the DirectX 12 path is untested).
+        for module in ["amdvlk64.dll", "amdxc64.dll", "nvwgf2umx.dll", "vulkan-1.dll"] {
+            let hint = super::driver_hint(module).unwrap();
+            assert!(hint.contains("update the graphics driver") && hint.contains("Original"), "{hint}");
+            let lower = hint.to_ascii_lowercase();
+            assert!(!lower.contains("dx12") && !lower.contains("wgpu_backend"), "{hint}");
+        }
+        assert!(super::driver_hint("amdvlk64.dll").unwrap().contains("AMD Vulkan driver"));
+        assert_eq!(super::driver_hint("kernelbase.dll"), None);
     }
 }

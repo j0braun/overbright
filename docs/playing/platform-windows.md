@@ -15,6 +15,8 @@ Unless a Wine result is named, nothing on this page has been checked on a real W
 - A dedicated graphics card is always preferred over integrated graphics.
 - The DirectX 12 path is untested. Under Wine it opens but draws nothing (see "DX12 shader compiler").
 - The log file lists every graphics card it found and the one it picked.
+- When the game crashes inside the graphics driver, its log says what to try:
+  [troubleshooting.md](../troubleshooting.md) "A crash in the graphics driver".
 
 ## For developers
 
