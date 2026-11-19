@@ -42,8 +42,12 @@ pub fn set_hdr_display_info(peak: Option<f32>, paper: Option<f32>) {
     HDR_DISPLAY_PAPER.store(paper.map_or(0, |v| v.clamp(0.0, 1000.0) as u16), Ordering::Relaxed);
 }
 
-pub fn set_hdr_pattern(on: bool) {
-    HDR_PATTERN.store(on, Ordering::Relaxed);
+/// The calibration pattern's rectangle (fractions of the output: left,
+/// top, right, bottom), None for no pattern.
+pub fn set_hdr_pattern(rect: Option<[f32; 4]>) {
+    if let Ok(mut p) = HDR_PATTERN.lock() {
+        *p = rect;
+    }
 }
 
 /// The display transform's calibration in force (Auto: the display's
@@ -66,7 +70,7 @@ pub fn hdr_calibration() -> crate::render::hdr_output::Calibration {
         peak,
         paper,
         transfer: Transfer::from_index(HDR_GAMMA.load(Ordering::Relaxed)),
-        pattern: HDR_PATTERN.load(Ordering::Relaxed),
+        pattern: HDR_PATTERN.lock().ok().and_then(|p| *p),
     }
 }
 

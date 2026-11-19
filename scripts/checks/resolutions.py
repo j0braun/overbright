@@ -52,6 +52,11 @@ KNOWN = {
     ("1080x1920", "stretched", "freeroam_hud"): "flat",
     ("1080x1920", "stretched", "race_hud"): "flat",
     ("1080x1920", "stretched", "pause"): "flat",
+    ("1080x1920", "stretched", "hdr_calibration_pause"): "flat",
+    # The calibration page's help line quotes the HDR pass's cost at the shot's own size ("+0.56 ms at
+    # 1600x1200"), so its text differs from the 640x480 reference's (no layout change).
+    ("1600x1200", "stretched", "hdr_calibration_pause"): "resind",
+    ("1600x1200", "wide", "hdr_calibration_pause"): "resind",
 }
 
 # screen -> (shot target, kind). kind: "fe" front end over the garage, "fe2d" front end without a 3D
@@ -75,7 +80,18 @@ SCREENS = {
     "photo": ("photo", "game"),
     "post_race": ("results", "fe"),
     "race_start": ("qrstart", "nis"),
+    "hdr_calibration": ("settings_display", "fe"),
+    "hdr_calibration_pause": ("pause_settings_display", "game"),
 }
+# Screens rendered with HDR Output on a faked HDR10 surface (`NFSU2_HDR_FAKE`): the calibration page, whose test
+# pattern (drawn by the display transform, `<shot>.hdr-preview.png`) must sit in the page's free rows: inside the
+# menu, over no row, text or other widget (the `hdr` check).
+SCREEN_ENV = {
+    "hdr_calibration": {"NFSU2_HDR_FAKE": "pq", "NFSU2_SHOT_ENH": "enh.hdr_output 1"},
+    "hdr_calibration_pause": {"NFSU2_HDR_FAKE": "pq", "NFSU2_SHOT_ENH": "enh.hdr_output 1"},
+}
+HDR_SCREENS = set(SCREEN_ENV)
+HDR_RE = re.compile(r"^hdr pattern: (none|px ([-\d.]+) ([-\d.]+) ([-\d.]+) ([-\d.]+))$", re.M)
 HUD_SCREENS = {"race_hud", "freeroam_hud", "photo"}
 # Options the settings offer for the display: Aspect Ratio (Wide = the clone's default, Stretched = the
 # original's behaviour) and, for the HUD, HUD Layout Full Width (Enhancements).
@@ -130,6 +146,7 @@ def plan(args):
                 if opt == "wide_hudfull" and sc not in HUD_SCREENS:
                     continue
                 env = dict(OPTIONS[opt])
+                env.update(SCREEN_ENV.get(sc, {}))
                 env["NFSU2_SHOT_SIZE"] = s
                 env["NFSU2_PHOTO_SIZE"] = s
                 cell = f"{s}__{opt}__{sc}"
@@ -230,12 +247,73 @@ def check_cell(cell_dir, w, h, opt, screen, kind):
         fails.append(("dump", "no geometry dump (UI pass not reached)"))
         return fails, notes, None
     g = json.load(open(gpath))
+    if screen in HDR_SCREENS:
+        m = HDR_RE.findall(text)
+        g["hdr_pattern"] = None if not m or m[-1][0] == "none" else [float(v) for v in m[-1][1:]]
+        prev = os.path.join(cell_dir, "shot.hdr-preview.png")
+        if not os.path.exists(prev):
+            fails.append(("hdr", "no HDR preview written (HDR Output not on)"))
+        elif g["hdr_pattern"] is not None:
+            try:
+                fails += hdr_pixels(load_rgb(prev), g["hdr_pattern"])
+            except Exception as ex:  # noqa: BLE001
+                fails.append(("hdr", f"unreadable HDR preview ({ex})"))
     judge(g, w, h, opt, screen, kind, fails, notes)
     return fails, notes, g
 
 
+def hdr_pattern_check(g, fails, notes):
+    """The calibration pattern's box (the game's log line): present, inside the menu's canvas, and over no drawn
+    quad except ones that hold it whole (the panel, full-screen fills): no row, text, arrow or scroll bar under it."""
+    r = g.get("hdr_pattern")
+    if r is None:
+        fails.append(("hdr", "no calibration pattern on the calibration page"))
+        return
+    cx, cy, cw, ch = g["canvas"]
+    if r[0] < cx - 1 or r[1] < cy - 1 or r[2] > cx + cw + 1 or r[3] > cy + ch + 1:
+        fails.append(("hdr", f"pattern {[round(v) for v in r]} outside the menu's canvas {[round(v) for v in g['canvas']]}"))
+    if r[2] - r[0] < 8 or r[3] - r[1] < 8:
+        fails.append(("hdr", f"pattern {[round(v) for v in r]} too small"))
+    over = []
+    for q in g["quads"]:
+        px = q["px"]
+        sc = q["scissor"]
+        vis = inter(inter(px, (sc[0], sc[1], sc[0] + sc[2], sc[1] + sc[3])) or (0, 0, 0, 0), (0, 0, *g["size"]))
+        if vis is None or area(vis) <= 4:
+            continue
+        hit = inter(vis, r)
+        # Shared edges and anti-aliased fringes are not an overlap.
+        if hit is None or (hit[2] - hit[0]) <= 1.5 or (hit[3] - hit[1]) <= 1.5:
+            continue
+        if vis[0] <= r[0] + 1 and vis[1] <= r[1] + 1 and vis[2] >= r[2] - 1 and vis[3] >= r[3] - 1:
+            continue  # holds the pattern whole: a backdrop
+        over.append(q["tex"] or "flat")
+    if over:
+        fails.append(("hdr", "pattern over " + ", ".join(sorted(set(over))[:6])))
+    notes.append(f"hdr pattern {[round(v) for v in r]}")
+
+
+def hdr_pixels(img, r):
+    """The preview shows the pattern at the logged box: its frame is black, its peak box bright."""
+    h, w = img.shape[:2]
+    x0, y0, x1, y1 = (int(math.ceil(r[0])) + 1, int(math.ceil(r[1])) + 1, int(r[2]) - 2, int(r[3]) - 2)
+    if x1 - x0 < 4 or y1 - y0 < 4 or x0 < 0 or y0 < 0 or x1 >= w or y1 >= h:
+        return [("hdr", f"pattern box {[round(v) for v in r]} off the image")]
+    lum = img.astype(np.float32).mean(axis=2)
+    ring = np.concatenate([lum[y0, x0:x1], lum[y1, x0:x1], lum[y0:y1, x0], lum[y0:y1, x1]])
+    fails = []
+    if (ring <= 3).mean() < 0.9:
+        fails.append(("hdr", f"no pattern frame at the logged box (black {(ring <= 3).mean() * 100:.0f}%)"))
+    pk = lum[(y0 + y1) // 2, x0 + int((x1 - x0) * 0.125)]
+    if pk < 200:
+        fails.append(("hdr", f"no peak box at the logged box (luma {pk:.0f})"))
+    return fails
+
+
 def judge(g, w, h, opt, screen, kind, fails, notes):
     """The geometry checks of one cell (canvas, reach, cut, outside, scale, text, mouse, fov) on its dump."""
+    if screen in HDR_SCREENS:
+        hdr_pattern_check(g, fails, notes)
     mode = g["aspect_mode"]
     want_mode = "stretched" if opt == "stretched" else "wide"
     if mode != want_mode:
@@ -336,7 +414,7 @@ def judge(g, w, h, opt, screen, kind, fails, notes):
     asp = w / h
     projs = g.get("projections", [])
     main = [p for p in projs if abs(p["aspect"] / asp - 1) < 1e-3]
-    if kind in ("game", "nis") and not projs and screen not in ("pause", "world_map"):
+    if kind in ("game", "nis") and not projs and screen not in ("pause", "world_map", "hdr_calibration_pause"):
         fails.append(("fov", "no 3D projection recorded"))
     if projs and not main:
         fails.append(("fov", f"no projection at the target's aspect {asp:.4f} (got {sorted({round(p['aspect'], 4) for p in projs})})"))
@@ -607,6 +685,7 @@ def selftest(outdir):
     wide_game = passing(lambda w, h, o, s_, k: o == "wide" and k == "game" and s_ == "freeroam_hud")
     tall_game = passing(lambda w, h, o, s_, k: o == "wide" and h > w and k == "game" and s_ == "freeroam_hud")
     pillar = passing(lambda w, h, o, s_, k: o == "wide" and w * 3 > h * 4 and k == "pillar")
+    hdr_cell = passing(lambda w, h, o, s_, k: s_ in HDR_SCREENS)
     mouse_cell = wide_fe
 
     def shift(q, dx, dy=0):
@@ -682,6 +761,22 @@ def selftest(outdir):
         img[:, :max(2, img.shape[1] // 50)] = 0
     expect("bars (3D side bar)", wide_game, lambda c: mut_img(c, black_side), "bars")
 
+    # hdr: the pattern moved onto a row's text, or gone.
+    def hdr_onto_text(g):
+        q = textured(g, True)
+        if q is None or g.get("hdr_pattern") is None:
+            return False
+        p = q["px"]
+        g["hdr_pattern"] = [p[0] - 4, p[1] - 4, p[0] + 60, p[3] + 4]
+    expect("hdr (pattern over a row)", hdr_cell, lambda c: mut_g(c, hdr_onto_text), "hdr")
+    expect("hdr (no pattern)", hdr_cell, lambda c: mut_g(c, lambda g: g.__setitem__("hdr_pattern", None)), "hdr")
+    if hdr_cell is not None and hdr_cell["g"].get("hdr_pattern"):
+        prev = load_rgb(os.path.join(hdr_cell["d"], "shot.hdr-preview.png"))
+        r = hdr_cell["g"]["hdr_pattern"]
+        moved = [r[0], r[1] - (r[3] - r[1]) * 1.5, r[2], r[1] - (r[3] - r[1]) * 0.5]
+        got = {k for k, _m in hdr_pixels(prev, moved)}
+        results.append(("hdr (logged box off the drawn pattern)", "hdr" in got and not hdr_pixels(prev, r),
+                        f"{os.path.basename(hdr_cell['d'])}: moved {sorted(got)}"))
     # resind: the compare's thresholds on a frame against itself with a fifth of it moved.
     if wide_game is not None:
         a = wide_game["img"]

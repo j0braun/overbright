@@ -424,9 +424,10 @@ pub(super) static HDR_SIGNAL: AtomicU8 = AtomicU8::new(0);
 /// What the display reports (nits, 0 unknown): peak, SDR white.
 pub(super) static HDR_DISPLAY_PEAK: AtomicU16 = AtomicU16::new(0);
 pub(super) static HDR_DISPLAY_PAPER: AtomicU16 = AtomicU16::new(0);
-/// The HDR Calibration page is open (the display transform draws its
-/// pattern).
-pub(super) static HDR_PATTERN: AtomicBool = AtomicBool::new(false);
+/// The calibration pattern's rectangle in the output (fractions of its
+/// width and height: left, top, right, bottom) while the HDR Calibration
+/// page is open; None: no pattern.
+pub(super) static HDR_PATTERN: std::sync::Mutex<Option<[f32; 4]>> = std::sync::Mutex::new(None);
 /// Reversed-Z depth asked for.
 pub fn reversed_z() -> bool {
     REVERSED_Z.load(Ordering::Relaxed)

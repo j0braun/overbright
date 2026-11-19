@@ -14,6 +14,7 @@ pub(super) const TARGETS: &[Target] = &[
     Target::name("pause_undim", pause),
     Target::name("pause_options", pause),
     Target::name("pause_audio", pause),
+    Target::name("pause_settings_display", pause),
     Target::name("pause_player", pause),
     Target::name("engage", pause),
     Target::name("reward", pause),
@@ -183,6 +184,15 @@ pub(super) fn pause(game: &mut Game, cx: &ShotCtx) -> Result<Mode> {
             std::mem::replace(&mut game.mode, Mode::Explore)
         }
         "pause_options" => game.icon_menu(MenuKind::PauseOptions(false)),
+        // The settings page's Display group (HDR calibration) from the pause,
+        // opened as the other options pages' shots (settled).
+        "pause_settings_display" => Mode::Menu(Menu::Options(options::OptionsScreen::new_in(
+            options::Category::Settings(nfsu2::frontend::settings_model::UxGroup::Display),
+            &game.settings,
+            FORCE_FEEDBACK,
+            Some(game.pause_context(false)),
+            OPTIONS_SHOT_AT,
+        ))),
         "pause_audio" | "pause_player" => {
             let c = if screen == "pause_audio" { options::Category::Audio } else { options::Category::Player };
             Mode::Menu(Menu::Options(options::OptionsScreen::new_in(

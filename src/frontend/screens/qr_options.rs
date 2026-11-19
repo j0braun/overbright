@@ -25,6 +25,8 @@ pub struct QrOptions {
     pub top: usize,
     pub opened: f32,
     pub moved: f32,
+    /// The row that lost the highlight at `moved`.
+    pub left: Option<usize>,
     pub blink: Option<(bool, f32)>,
 }
 
@@ -35,7 +37,7 @@ impl QrOptions {
     /// On the first enabled row (0x539660(0)).
     pub fn new(mode: QrMode, rows: &[Row], now: f32) -> QrOptions {
         let selected = rows.iter().position(|r| r.enabled).unwrap_or(0);
-        QrOptions { mode, selected, top: 0, opened: now, moved: now, blink: None }
+        QrOptions { mode, selected, top: 0, opened: now, moved: now, left: None, blink: None }
     }
 
     /// Up / Down move between enabled rows without wrapping (0x5390F0);
@@ -58,6 +60,7 @@ impl QrOptions {
                     }
                 }
                 if rows.get(i).is_some_and(|r| r.enabled) && i != self.selected {
+                    self.left = Some(self.selected);
                     self.selected = i;
                     self.moved = now;
                 }
@@ -106,6 +109,7 @@ impl QrOptions {
             self.top,
             self.selected,
             self.moved - self.opened,
+            self.left,
             self.blink.map(|(r, at)| (r, at - self.opened)),
         );
         // The list's scroll bar (option list +0x6C, 0x539337 …):

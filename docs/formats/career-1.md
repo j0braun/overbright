@@ -1733,7 +1733,13 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
   DATA_MASTER, track = width − 2 × 46, knob and handle by the value's
   fraction. Selection clamps and skips disabled rows (0x5390F0); selected
   row HIGHLIGHT, others UNHIGHLIGHT, disabled DISABLE, arrow BLINK on a
-  change (0x51E6C0). Back from Gameplay asks "turn off save prompts?" /
+  change (0x51E6C0). A move (0x50DB10) runs UnHighlight (vt+0x28) on the
+  old row and Highlight (vt+0x24) on the new row only, nothing when the row
+  is unchanged; the other rows keep the end state of the scripts they got
+  when the list was built, and scrolling (0x52FDC0) only moves the items'
+  objects. The clone times every other row's script from the screen's
+  opening (`slider_list::draw_rows_n`, test
+  `a_move_restarts_only_the_old_and_new_rows`). Back from Gameplay asks "turn off save prompts?" /
   "turn on Autosave?" when those changed (Yes leaves, No stays, 0x49C690).
 * **Effects wired in the clone**: units (HUD 0x4C7159: × 3.6 "KM/H" or
   × 2.237 "MPH"; race stats "km/h"/"mph"), the HUD masks (0x6000A0 with

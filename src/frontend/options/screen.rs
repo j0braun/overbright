@@ -26,6 +26,9 @@ pub struct OptionsScreen {
     pub opened: f32,
     /// When the selection last moved, ms (the highlight's start).
     pub moved: f32,
+    /// The row that lost the highlight at `moved` (its UnHighlight's
+    /// start; the other rows sit at their scripts' end state).
+    pub left: Option<usize>,
     /// The arrow that last blinked and when (0x51E6C0).
     pub blink: Option<(bool, f32)>,
     /// The player whose settings show (0x836364).
@@ -76,6 +79,7 @@ impl OptionsScreen {
             top: 0,
             opened: now,
             moved: now,
+            left: None,
             blink: None,
             player: 0,
             opened_save: (s.save_prompts, s.autosave),
@@ -126,6 +130,7 @@ impl OptionsScreen {
                     }
                 }
                 if rows.get(i).is_some_and(focusable) && i != self.selected {
+                    self.left = Some(self.selected);
                     self.selected = i;
                     self.moved = now;
                 }
@@ -304,6 +309,7 @@ impl OptionsScreen {
             self.top,
             self.selected,
             self.moved - self.opened,
+            self.left,
             self.blink.map(|(r, at)| (r, at - self.opened)),
             visible,
         );
@@ -322,6 +328,68 @@ impl OptionsScreen {
         }
         layout(assets, package, &state, now - self.opened)
     }
+}
+
+impl OptionsScreen {
+    /// HDR Output's calibration page (the Display group: the settings
+    /// page's and the graphics group page's): the display transform draws
+    /// its test pattern while it is open (docs/hdr.md "Calibration").
+    pub fn calibrating(&self) -> bool {
+        matches!(
+            self.category,
+            Category::GraphicsGroup(GraphicsGroup::Display)
+                | Category::Settings(super::settings_model::UxGroup::Display)
+        )
+    }
+
+    /// Where the calibration pattern goes on this page: the list's free row
+    /// slots under the last row shown and above the detail lines, across
+    /// the rows' columns (the names' left edge to the right arrows' right
+    /// edge), on the 640×480 canvas (top left origin, centre-placed like the
+    /// rows, so it scales and moves with the menu at every size and aspect).
+    /// None off the calibration pages and when the page has no room for it.
+    pub fn calibration_area(&self, assets: &Assets, s: &Settings, force_feedback: bool) -> Option<(Vec2, Vec2)> {
+        if !self.calibrating() {
+            return None;
+        }
+        let package = assets.package(self.category.package(self.pause.is_some()))?;
+        let rows = rows_in(self.category, s, self.player, force_feedback, self.pause);
+        let visible = self.category.visible();
+        let shown = rows.len().saturating_sub(self.top).min(visible);
+        let (rw, _) = object_size(package, RowParts::new(1).right).unwrap_or((24.0, 24.0));
+        let (lo, hi) = calibration_band(
+            master_box(package, TITLE_MASTER)?,
+            master_box(package, DATA_MASTER)?,
+            rw,
+            shown,
+            visible,
+            if visible == PAGE_VISIBLE { 4 } else { 2 },
+        )?;
+        let centre = crate::frontend::CANVAS * 0.5;
+        Some((lo + centre, hi + centre))
+    }
+}
+
+/// The calibration pattern's band in the list's coordinates (the masters'
+/// boxes, centre origin): from a quarter row under the `shown`th row to a
+/// quarter row above the detail lines (as [`detail_lines`] places them),
+/// from the names' left edge to the right arrow's right edge (`arrow_w`
+/// wide). None when less than one row's height is left.
+pub fn calibration_band(
+    (tl, ts): (Vec2, Vec2),
+    (dl, ds): (Vec2, Vec2),
+    arrow_w: f32,
+    shown: usize,
+    visible: usize,
+    detail_rows: usize,
+) -> Option<(Vec2, Vec2)> {
+    let margin = ts.y * 0.25;
+    let detail_top = if detail_rows == 4 { ts.y * (visible as f32 - 0.2) } else { ts.y * visible as f32 };
+    let top = tl.y + ts.y * shown as f32 + margin;
+    let bottom = tl.y + detail_top - margin;
+    let left = tl.x;
+    let right = (dl.x + ds.x + arrow_w).max(tl.x + ts.x);
+    (bottom - top >= ts.y && right > left).then(|| (Vec2::new(left, top), Vec2::new(right, bottom)))
 }
 
 /// Characters per detail line at [`DETAIL_SCALE`].
@@ -369,5 +437,63 @@ fn detail_lines(package: &super::feng::Package, state: &mut ScreenState, text: &
         state.position.insert(h, Vec2::new(tl.x, tl.y + y0 + dy * k as f32));
         state.size.insert(h, Vec2::splat(DETAIL_SCALE));
         state.run(h, "UNHIGHLIGHT", 0.0);
+    }
+}
+
+#[cfg(test)]
+mod calibration_tests {
+    use super::*;
+
+    /// Masters as the list reads them (top left, size; centre origin).
+    const TITLE: (Vec2, Vec2) = (Vec2::new(-250.0, -150.0), Vec2::new(240.0, 30.0));
+    const DATA: (Vec2, Vec2) = (Vec2::new(40.0, -150.0), Vec2::new(150.0, 30.0));
+
+    #[test]
+    fn the_band_takes_the_free_rows_between_the_last_row_and_the_help() {
+        let (lo, hi) = calibration_band(TITLE, DATA, 24.0, 5, PAGE_VISIBLE, 4).unwrap();
+        // Under the fifth row (its bottom at -150 + 5 × 30) with a margin.
+        assert!(lo.y >= -150.0 + 5.0 * 30.0);
+        // Above the help lines (from 6.8 rows down) with a margin.
+        assert!(hi.y <= -150.0 + 6.8 * 30.0);
+        assert!(hi.y - lo.y >= 30.0);
+        // Across the rows' columns: names to the right arrow.
+        assert_eq!(lo.x, -250.0);
+        assert_eq!(hi.x, 40.0 + 150.0 + 24.0);
+        // No room: a full page.
+        assert!(calibration_band(TITLE, DATA, 24.0, PAGE_VISIBLE, PAGE_VISIBLE, 4).is_none());
+        assert!(calibration_band(TITLE, DATA, 24.0, 6, PAGE_VISIBLE, 4).is_none());
+        // The graphics group page (8 rows, two help lines): four free rows.
+        let (lo, hi) = calibration_band(TITLE, DATA, 24.0, 4, VISIBLE, 2).unwrap();
+        assert!(lo.y >= -150.0 + 4.0 * 30.0 && hi.y <= -150.0 + 8.0 * 30.0);
+    }
+
+    #[test]
+    #[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
+    fn the_calibration_page_has_room_for_the_pattern() {
+        let root = crate::testkit::game_root();
+        let assets = Assets::load(&root).unwrap();
+        let mut s = Settings::default();
+        s.enh.hdr_output = true;
+        for category in [
+            Category::Settings(super::super::settings_model::UxGroup::Display),
+            Category::GraphicsGroup(GraphicsGroup::Display),
+        ] {
+            for pause in [None, Some(Pause::default())] {
+                let o = OptionsScreen::new_in(category, &s, false, pause, 0.0);
+                assert!(o.calibrating());
+                let (lo, hi) = o.calibration_area(&assets, &s, false).unwrap_or_else(|| panic!("{category:?} {pause:?}"));
+                let package = assets.package(category.package(pause.is_some())).unwrap();
+                let (tl, ts) = master_box(package, TITLE_MASTER).unwrap();
+                let rows = rows_in(category, &s, 0, false, pause).len().min(category.visible());
+                let centre = crate::frontend::CANVAS * 0.5;
+                // Under every row's box, inside the canvas, a row high at least.
+                assert!(lo.y >= tl.y + centre.y + ts.y * rows as f32, "{category:?}: {lo} under {rows} rows");
+                assert!(lo.x >= 0.0 && hi.x <= 640.0 && hi.y <= 480.0, "{category:?}: {lo} {hi}");
+                assert!(hi.y - lo.y >= ts.y, "{category:?}: {lo} {hi}");
+            }
+        }
+        // Off the calibration pages: none.
+        let o = OptionsScreen::new(Category::Audio, &s, false, 0.0);
+        assert!(o.calibration_area(&assets, &s, false).is_none());
     }
 }

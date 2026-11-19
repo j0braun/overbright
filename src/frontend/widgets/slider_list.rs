@@ -8,8 +8,9 @@ use crate::frontend::options::*;
 use crate::frontend::{Assets, ScreenState};
 
 /// The option list's rows (0x552790's layout, see [`OptionsScreen::quads`]):
-/// `rows[top..]` on the masters, `selected` highlighted since `moved`, the
-/// arrow that last moved blinking.
+/// `rows[top..]` on the masters, `selected` highlighted since `moved`,
+/// `left` (the row that lost the highlight then) unhighlighting since
+/// `moved`, the arrow that last moved blinking.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn draw_rows(
     assets: &Assets,
@@ -19,9 +20,10 @@ pub(crate) fn draw_rows(
     top: usize,
     selected: usize,
     moved: f32,
+    left: Option<usize>,
     blink: Option<(bool, f32)>,
 ) {
-    draw_rows_n(assets, package, state, rows, top, selected, moved, blink, VISIBLE);
+    draw_rows_n(assets, package, state, rows, top, selected, moved, left, blink, VISIBLE);
 }
 
 /// [`draw_rows`] with `visible` rows shown (the settings page: 7).
@@ -34,6 +36,7 @@ pub(crate) fn draw_rows_n(
     top: usize,
     selected: usize,
     moved: f32,
+    left: Option<usize>,
     blink: Option<(bool, f32)>,
     visible: usize,
 ) {
@@ -154,6 +157,16 @@ pub(crate) fn draw_rows_n(
         // page (Wine, round 3A: the object's current script read from
         // memory is 0x06B55037).
         let feedback_off = !row.enabled && row.id == RowId::Feedback;
+        // A move runs Highlight on the new row and UnHighlight on the old
+        // row only (0x50DB10: nothing when the row is unchanged, else
+        // vt+0x28 on the old item, vt+0x24 on the new). Every other row
+        // keeps the end state of the UnHighlight / Disable it got when
+        // the list was built (0x552790 / 0x539660), so its script runs
+        // from the screen's opening, not from the move. The items own
+        // their objects and keep their scripts while the list scrolls
+        // (0x52FDC0 only moves them), so the timing follows the row, not
+        // the slot.
+        let at = if top + k == selected || Some(top + k) == left { moved } else { 0.0 };
         for h in parts.all() {
             let has = |name: &str| {
                 package
@@ -162,16 +175,16 @@ pub(crate) fn draw_rows_n(
             };
             if feedback_off && (h == parts.name || h == parts.data) {
                 if has("DISABLED") {
-                    state.run(h, "DISABLED", moved);
+                    state.run(h, "DISABLED", at);
                 }
             } else if feedback_off {
                 if has("UNHIGHLIGHT") {
-                    state.run(h, "UNHIGHLIGHT", moved);
+                    state.run(h, "UNHIGHLIGHT", at);
                 }
             } else if has(script) {
-                state.run(h, script, moved);
+                state.run(h, script, at);
             } else if script == "DISABLE" && has("UNHIGHLIGHT") {
-                state.run(h, "UNHIGHLIGHT", moved);
+                state.run(h, "UNHIGHLIGHT", at);
             }
         }
         if focused_off {
@@ -296,4 +309,51 @@ fn place_slider(
     state.position.insert(parts.handle, Vec2::new(left + MARGIN + width * 0.5, knob_top + hh * 0.5));
     state.hidden.insert(parts.beg);
     state.hidden.insert(parts.end);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::frontend::screens::Key;
+
+    /// The scripts' start times on the list's objects after a move
+    /// (0x50DB10): the new row's Highlight and the old row's UnHighlight
+    /// start at the move; every other row keeps the start it got when the
+    /// list was built, so its arrows do not fade in again on each Up / Down.
+    fn starts(assets: &Assets, o: &OptionsScreen, s: &Settings) -> Vec<(usize, f32)> {
+        let package = assets.package(o.category.package(false)).unwrap();
+        let rows = rows_in(o.category, s, o.player, false, None);
+        let mut state = ScreenState::default();
+        let visible = o.category.visible();
+        draw_rows_n(assets, package, &mut state, &rows, o.top, o.selected, o.moved - o.opened, o.left, None, visible);
+        (1..=visible.min(rows.len()))
+            .filter_map(|n| state.scripts.get(&RowParts::new(n).left).map(|&(_, t)| (o.top + n - 1, t)))
+            .collect()
+    }
+
+    #[test]
+    #[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
+    fn a_move_restarts_only_the_old_and_new_rows() {
+        let root = crate::testkit::game_root();
+        let assets = Assets::load(&root).unwrap();
+        let mut s = Settings::default();
+        let mut o = OptionsScreen::new(Category::CustomDisplay, &s, false, 0.0);
+        let n = rows_in(o.category, &s, 0, false, None).len();
+        assert!(n > VISIBLE, "Customize Display scrolls ({n} rows)");
+        let mut now = 0.0;
+        // Down through the list, scrolling at the end.
+        while o.selected + 1 < n {
+            let before = o.selected;
+            now += 1000.0;
+            o.key(Key::Down, &mut s, false, true, now);
+            assert_eq!(o.left, Some(before));
+            let starts = starts(&assets, &o, &s);
+            assert!(!starts.is_empty());
+            for (row, t) in starts {
+                let expect = if row == o.selected || row == before { now } else { 0.0 };
+                assert_eq!(t, expect, "row {row} after the move {before} -> {}", o.selected);
+            }
+        }
+        assert!(o.top > 0, "the list scrolled");
+    }
 }
