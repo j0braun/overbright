@@ -18,7 +18,7 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use anyhow::{Context as _, Result};
-use nfsu2::editor::app::{self, App, Cli};
+use ob_editor::editor::app::{self, App, Cli};
 use nfsu2::render::Gpu;
 use winit::application::ApplicationHandler;
 use winit::event::WindowEvent;

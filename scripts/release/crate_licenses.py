@@ -2,11 +2,13 @@
 """The list of Rust crates built into the player's programs, with their licences and licence texts
 (scripts/release/package.sh, docs/building-releases.md).
 
-  crate_licenses.py --metadata M.json [--map /cargo-home=DIR] --target TRIPLE --out FILE [--root nfsu2]
+  crate_licenses.py --metadata M.json [--map /cargo-home=DIR] --target TRIPLE --out FILE [--root nfsu2 --root ob-editor]
 
 M.json is `cargo metadata --format-version 1 --locked --offline --filter-platform TRIPLE` of the released
 tree with the default features (the shipping build: no dev-harness). The crates are the normal-dependency
-closure of the root package (dev- and build-dependencies left out); proc-macro crates and what only they
+closure of the root packages (the workspace's packages that hold the player's programs: `nfsu2` with the game
+and the launcher, `ob-editor` with the map editor; dev- and build-dependencies left out, the roots themselves
+not listed); proc-macro crates and what only they
 use are listed as "build time" (they generate code at compile time and are not linked). The licence texts
 are the crates' own files (LICENSE*, LICENCE*, COPYING*, NOTICE*, COPYRIGHT*, UNLICENSE*, the manifest's
 license-file, LICENSES/*) from the crate sources cargo already downloaded; identical texts are written once
@@ -101,10 +103,10 @@ def satisfiable(expr):
         return False, [expr]
 
 
-def closure(meta, root_name):
+def closure(meta, root_names):
     pkgs = {p["id"]: p for p in meta["packages"]}
     nodes = {n["id"]: n for n in meta["resolve"]["nodes"]}
-    root = next(i for i, p in pkgs.items() if p["name"] == root_name and p["source"] is None)
+    roots = [next(i for i, p in pkgs.items() if p["name"] == r and p["source"] is None) for r in root_names]
 
     def normal_deps(nid):
         for d in nodes[nid]["deps"]:
@@ -112,7 +114,7 @@ def closure(meta, root_name):
                 yield d["pkg"]
 
     def walk(skip_proc_macro):
-        seen, todo = set(), [root]
+        seen, todo = set(roots), list(roots)
         while todo:
             n = todo.pop()
             for d in normal_deps(n):
@@ -122,10 +124,10 @@ def closure(meta, root_name):
                     continue
                 seen.add(d)
                 todo.append(d)
-        return seen
+        return seen - set(roots)
 
     every, linked = walk(False), walk(True)
-    return pkgs, root, every, linked
+    return pkgs, roots, every, linked
 
 
 def licence_files(crate_dir, license_file):
@@ -164,7 +166,7 @@ def main():
     ap.add_argument("--map", action="append", default=[], help="PREFIX=DIR: read a path under PREFIX from DIR")
     ap.add_argument("--target", required=True)
     ap.add_argument("--out", required=True)
-    ap.add_argument("--root", default="nfsu2")
+    ap.add_argument("--root", action="append", help="a root package (repeatable; default: nfsu2 and ob-editor)")
     ap.add_argument("--section", nargs=2, action="append", default=[], metavar=("TITLE", "FILE"),
                     help="append FILE (text; .html is turned into text) as a section: the Rust standard library's "
                          "notices, the toolchain's runtime libraries")
@@ -178,7 +180,7 @@ def main():
                 return Path(d + path[len(pre):])
         return Path(path)
 
-    pkgs, root, every, linked = closure(meta, a.root)
+    pkgs, roots, every, linked = closure(meta, a.root or ["nfsu2", "ob-editor"])
     crates = sorted(every, key=lambda i: (pkgs[i]["name"], pkgs[i]["version"]))
     problems = []
     texts = {}  # hash -> {"text", "users": [..], "file"}

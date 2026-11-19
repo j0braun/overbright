@@ -129,14 +129,21 @@ Rules:
   * `testkit::Scratch::new(tag)` makes a temporary folder for one test and
     removes it when dropped.
 
-Where the kit lives: `tests/common/mod.rs` is one source file, compiled into
-each place that uses it:
+Where the kit lives: the crate `crates/ob-testkit` (a dev-dependency, no
+dependencies of its own). What it needs from the game crate (the
+fingerprint, the tests' cache folder, the case-insensitive path lookup, the
+bundle reader) and the crate's `cfg(ob_game)` / `cfg(ob_private)` are bound
+in the crate under test by `ob_testkit::bind!()`, so the kit always talks to
+the copy of the game crate the test links and the crate graph keeps only
+downward edges. `tests/common/mod.rs` holds that one line for the `nfsu2`
+package and is compiled into each place that uses it:
 
 | From | How |
 |---|---|
 | `tests/*.rs` | `mod common;` |
 | `src/**` unit tests | `crate::testkit` (declared `cfg(test)` in src/lib.rs) |
 | game binary test modules (`src/bin/game/*.rs`) | `#[path = "../../../tests/common/mod.rs"] mod testkit;` inside the module |
+| another workspace crate's tests | `#[cfg(test)] mod testkit { ob_testkit::bind!(); }` (its build.rs declares `ob_game` / `ob_private` as the root build.rs does) |
 
 ### The player's folders are off limits
 

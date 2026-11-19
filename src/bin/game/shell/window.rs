@@ -559,9 +559,9 @@ impl ApplicationHandler for Game {
             && let Err(e) = self.create_window(event_loop)
         {
             // The kind first, for the launcher's failure screen
-            // (`launcher::run::ErrorKind`), then the line it also knows.
+            // (`launch::error::ErrorKind`), then the line it also knows.
             let text = format!("{e:#}");
-            eprintln!("{}", nfsu2::launcher::run::ErrorKind::of_window_error(&text).line());
+            eprintln!("{}", nfsu2::launch::error::ErrorKind::of_window_error(&text).line());
             eprintln!("could not open a window: {text}");
             // In the log and, on Windows with no console, in a message box:
             // a start that ends here otherwise leaves no word.

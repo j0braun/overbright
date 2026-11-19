@@ -15,6 +15,7 @@
 pub mod edit;
 pub mod format;
 pub mod race;
+pub mod sim;
 pub mod store;
 
 use std::collections::HashMap;

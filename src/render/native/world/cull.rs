@@ -50,7 +50,7 @@ pub fn scenery_cull_size(p: Vec3, r: f32, eye: Vec3, forward: Vec3, scale: f32) 
 /// truncated): 17 in the full-screen main view (23 in split screen,
 /// 0x5D66A4), 32 in the views whose cull base has 0x1800 (0x5D6730 /
 /// 0x5D673E).
-pub(crate) const MAIN_MIN_SIZE: f32 = 17.0;
+pub const MAIN_MIN_SIZE: f32 = 17.0;
 
 /// The main view's size cull in force: [`MAIN_MIN_SIZE`] divided by the
 /// Graphics page's Detail Distance (clone deviation; 1 native).
@@ -205,7 +205,7 @@ pub(crate) fn sky_part(authored: &Texture) -> Option<usize> {
 }
 
 /// Section 2600 (`Z0`) holds scenery that is drawn everywhere (the sky).
-pub(crate) const GLOBAL_SECTION: u32 = 2600;
+pub const GLOBAL_SECTION: u32 = 2600;
 
 /// An instance's bounding spheres as the views test them: its solid's
 /// sphere (`local`) placed by the matrix (radius × [`max_stretch`]), and

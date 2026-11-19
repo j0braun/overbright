@@ -148,8 +148,8 @@ pub(crate) fn main() -> Result<()> {
         Ok(true) => {}
         Ok(false) => return Ok(()),
         Err(e) => {
-            // The launcher's failure screen reads the kind (`launcher::run::ErrorKind`).
-            eprintln!("{}", nfsu2::launcher::run::ErrorKind::GameFiles.line());
+            // The launcher's failure screen reads the kind (`launch::error::ErrorKind`).
+            eprintln!("{}", nfsu2::launch::error::ErrorKind::GameFiles.line());
             log::error!("no usable game folder: {e:#}");
             nfsu2::qol::log_file::flush(std::time::Duration::from_millis(300));
             nfsu2::console::fatal(&e.to_string());

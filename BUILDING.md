@@ -30,13 +30,15 @@ The tests decide at **build** time whether the game is there (build.rs): after s
 ## Building on Linux
 
 ```bash
-cargo build --release                       # the shipping game and tools: target/release/game, overbright (launcher), …
+cargo build --release                       # the shipping game and tools: target/release/game, overbright (launcher), overbright-editor, …
 cargo build --release --features dev-harness --bins --examples
                                             # the game with the developer harness, the tools and the public examples
 ```
 
 - `game` is the game, `overbright` the launcher; `inspect`, `world`, `car_check` and the other binaries in
-  `src/bin/` are developer tools (docs/developer-guide.md).
+  `src/bin/` are developer tools (docs/developer-guide.md). `overbright-editor`, the map editor, is the crate
+  `crates/ob-editor`, a default workspace member: the commands above build it too, and `cargo build
+  --release -p nfsu2` leaves it out (the game itself never links its UI library, egui).
 - The **developer harness** (`--shot`, `--selftest`, `--flow`, `--bench`, `--playthrough`, the parity and
   audio-capture modes; `src/bin/game/dev/`) is the Cargo feature `dev-harness`, off by default. A build
   without it is the shipping game and answers those flags with a usage error

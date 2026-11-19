@@ -1,0 +1,12 @@
+[package]
+name = "ob-testkit"
+version.workspace = true
+edition.workspace = true
+description = "Overbright's test kit: the game files, fixtures and private captures for tests (dev only)."
+license.workspace = true
+publish = false
+
+# No dependencies: what the kit needs from the game crate (its fingerprint,
+# cache folder, path lookup, bundle reader) is bound in the crate under test
+# by `ob_testkit::bind!()`, so the kit sits below every crate that uses it.
+[dependencies]

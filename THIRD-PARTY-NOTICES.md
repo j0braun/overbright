@@ -48,7 +48,7 @@ This Font Software is licensed under the SIL Open Font License, Version 1.1.
 
 ## egui, egui-winit, egui-wgpu (map editor UI)
 
-The map editor (`overbright-editor`, `src/editor/`) draws its window with egui 0.37
+The map editor (`overbright-editor`, `crates/ob-editor/`) draws its window with egui 0.37
 (https://github.com/emilk/egui), used as Rust crates, unmodified: MIT OR Apache-2.0,
 by Emil Ernerfeldt and the egui contributors. Their licence texts,
 with those of every other crate, are in THIRD-PARTY-LICENSES.txt of a release. egui's

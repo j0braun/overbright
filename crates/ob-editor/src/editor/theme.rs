@@ -1,5 +1,5 @@
 //! The editor's look: the launcher's look-A tokens
-//! ([`crate::launcher::draw::THEME_A`]) mapped onto egui, and its type,
+//! ([`crate::launch::theme::THEME_A`]) mapped onto egui, and its type,
 //! Sofia Sans Semi Condensed (SIL OFL 1.1, src/launcher/fonts/OFL.txt):
 //! upright faces for reading text, italic ones for titles and buttons. Lime
 //! marks titles, focus, selection and the main action; errors and warnings
@@ -10,13 +10,13 @@ use std::sync::Arc;
 use egui::epaint::text::{FontData, FontDefinitions, FontFamily};
 use egui::{Color32, CornerRadius, FontId, Shadow, Stroke, TextStyle, Visuals};
 
-use crate::launcher::draw::{Rgb, Rgba, THEME_A, Theme};
+use crate::launch::theme::{Rgb, Rgba, THEME_A, Theme};
 
 macro_rules! face {
     ($name:literal) => {
         include_bytes!(concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/src/launcher/fonts/SofiaSansSemiCondensed-",
+            "/../../src/launcher/fonts/SofiaSansSemiCondensed-",
             $name,
             ".ttf"
         ))

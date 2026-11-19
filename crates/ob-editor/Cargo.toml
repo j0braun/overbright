@@ -1,0 +1,50 @@
+[package]
+name = "ob-editor"
+version.workspace = true
+edition.workspace = true
+description = "Overbright's desktop map editor (overbright-editor)."
+license.workspace = true
+publish = false
+build = "build.rs"
+
+# The map editor (src/editor/, the `overbright-editor` program,
+# docs/map-editor.md): a leaf on the game library. The game's own packages
+# never depend on it, so egui is not in the game's dependency tree.
+[dependencies]
+nfsu2 = { path = "../..", default-features = false }
+anyhow = "1"
+glam = { version = "0.32", features = ["bytemuck"] }
+wgpu = "30"
+winit = "0.30"
+pollster = "0.4"
+image = { version = "0.25", default-features = false, features = ["png"] }
+log = "0.4"
+env_logger = "0.11"
+toml = { version = "1.1.4", default-features = false, features = ["parse", "serde"] }
+# The editor's UI: egui with its winit input and wgpu renderer, on the
+# wgpu / winit versions above. Pinned exactly: egui changes its API between
+# minor versions. MIT OR Apache-2.0. Without egui's default fonts (not all
+# GPL-compatible) and without the system clipboard (its Windows crate ships
+# no licence text); winit itself brings the X11 and Wayland backends.
+egui = { version = "=0.37.0", default-features = false }
+egui-winit = { version = "=0.37.0", default-features = false }
+egui-wgpu = { version = "=0.37.0", default-features = false }
+
+[dev-dependencies]
+# The test kit (crates/ob-testkit, docs/testing.md).
+ob-testkit = { path = "../ob-testkit" }
+# The font test reads the faces' glyph tables (already in the tree through
+# the launcher's text, Apache-2.0).
+ab_glyph = "0.2.32"
+
+[features]
+# The game library's allocator choice and developer harness, as the root
+# package names them (a build of the workspace with `--features dev-harness`
+# turns it on here too).
+default = ["mimalloc"]
+mimalloc = ["nfsu2/mimalloc"]
+dev-harness = ["nfsu2/dev-harness"]
+
+[[bin]]
+name = "overbright-editor"
+path = "src/bin/overbright-editor.rs"

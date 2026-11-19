@@ -4,7 +4,8 @@
 //! TMPDIR all inside the test's folder): everything it writes lands in
 //! `<program>/data`, nothing in the fake home or anywhere else in the
 //! test's folder. Without the marker the same run keeps using the home
-//! folders, unchanged. No display, no window, no sound.
+//! folders, unchanged. No display, no window, no sound. The map editor's
+//! side is crates/ob-editor/tests/portable_mode.rs.
 
 #![cfg(unix)]
 
@@ -24,13 +25,9 @@ impl Install {
         for d in ["prog", "home", "appdata", "tmp", "cwd"] {
             std::fs::create_dir_all(base.join(d)).unwrap();
         }
-        for (name, src) in
-            [("game", env!("CARGO_BIN_EXE_game")), ("overbright-editor", env!("CARGO_BIN_EXE_overbright-editor"))]
-        {
-            let exe = base.join("prog").join(name);
-            if std::fs::hard_link(src, &exe).is_err() {
-                std::fs::copy(src, &exe).unwrap();
-            }
+        let exe = base.join("prog/game");
+        if std::fs::hard_link(env!("CARGO_BIN_EXE_game"), &exe).is_err() {
+            std::fs::copy(env!("CARGO_BIN_EXE_game"), &exe).unwrap();
         }
         if portable {
             std::fs::write(base.join("prog/portable.txt"), "").unwrap();
@@ -45,17 +42,10 @@ impl Install {
     /// The game with `args`, in `cwd` (default: the test's `cwd/`), with
     /// nothing of this machine's environment but PATH.
     fn run(&self, args: &[&str], cwd: Option<&Path>) -> Output {
-        self.run_program("game", args, cwd, &[])
-    }
-
-    /// The program `name` beside the game (`overbright-editor`) the same
-    /// way, with the extra variables `vars`.
-    fn run_program(&self, name: &str, args: &[&str], cwd: Option<&Path>, vars: &[(&str, &Path)]) -> Output {
-        Command::new(self.path("prog").join(name))
+        Command::new(self.path("prog/game"))
             .args(args)
             .current_dir(cwd.map(Path::to_path_buf).unwrap_or_else(|| self.path("cwd")))
             .env_clear()
-            .envs(vars.iter().map(|(k, v)| (*k, *v)))
             .env("PATH", std::env::var_os("PATH").unwrap_or_default())
             .env("HOME", self.path("home"))
             .env("LOCALAPPDATA", self.path("appdata"))
@@ -95,7 +85,6 @@ impl Install {
             .into_iter()
             .filter(|f| {
                 f != "prog/game"
-                    && f != "prog/overbright-editor"
                     && f != "prog/portable.txt"
                     && f != "prog/data"
                     && !f.starts_with("prog/data/")
@@ -196,47 +185,4 @@ fn the_game_writes_its_log_where_the_locations_file_says() {
     let logs = p.files("portable-logs");
     assert!(logs.iter().any(|f| f.starts_with("portable-logs/game-")), "relative to the program folder: {logs:?}");
     assert!(!p.files("prog/data").iter().any(|f| f.starts_with("prog/data/logs")), "{:?}", p.files("prog/data"));
-}
-
-/// The map editor in a portable install follows the same rules as the
-/// game: it finds the game folder kept in `data/game-root.txt`, opens the
-/// map mod in `data/maps`, keeps its recent list in `data/` and the
-/// driver's shader caches in `data/cache/driver`; nothing is written in
-/// the fake home or anywhere else. Without the marker the same run uses
-/// the home folders. Drawn off-screen (`--shot`): no window.
-#[test]
-#[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
-fn the_map_editor_writes_only_beside_the_program_when_portable() {
-    let root = nfsu2::platform::paths::absolute(&common::game_root());
-    // The asset cache: the tests' own (not the install's), so the run
-    // does not rebuild it.
-    let cache = nfsu2::platform::dirs::test_cache_folder();
-    let map = "overbright-map 1\nname = Portable test\n";
-    for portable in [true, false] {
-        let i = Install::new(if portable { "editor" } else { "editor-home" }, portable);
-        let data = if portable { i.path("prog/data") } else { i.path("home/.local/share/overbright") };
-        std::fs::create_dir_all(data.join("maps/portable-test")).unwrap();
-        std::fs::write(data.join("maps/portable-test/map.obmap"), map).unwrap();
-        std::fs::write(data.join("game-root.txt"), format!("{}\n", root.display())).unwrap();
-        let shot = data.join("shot.png");
-        let shot_s = shot.to_str().expect("a UTF-8 test path");
-        let out = i.run_program(
-            "overbright-editor",
-            &["--shot", shot_s, "--size", "320x240", "--mod", "portable-test"],
-            None,
-            &[("NFSU2_CACHE_DIR", &cache)],
-        );
-        let stderr = String::from_utf8_lossy(&out.stderr);
-        assert!(out.status.success(), "{stderr}");
-        assert!(shot.is_file(), "the picture: {stderr}");
-        assert_eq!(
-            std::fs::read_to_string(data.join("editor-recent.txt")).expect("the recent list in Overbright's folder"),
-            "portable-test\n"
-        );
-        if portable {
-            i.assert_only_data("the map editor");
-        } else {
-            assert!(!i.path("prog/data").exists(), "no data folder without the marker");
-        }
-    }
 }

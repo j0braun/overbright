@@ -6,8 +6,9 @@
 //! * [`render`] — a wgpu renderer for the world.
 //! * [`frontend`] — the menus, from the game's FEng packages, and the career.
 
-// The test kit (docs/testing.md), shared with tests/ and the game binary's
-// tests; it names this crate `nfsu2` as they do.
+// The test kit (crates/ob-testkit, docs/testing.md), bound to this crate by
+// the file the integration tests and the game binary's tests use too; it
+// names this crate `nfsu2` as they do.
 #[cfg(test)]
 extern crate self as nfsu2;
 #[cfg(test)]
@@ -152,8 +153,9 @@ pub mod exe_tables;
 pub mod game_fs;
 /// The launcher (`overbright`, docs/launcher.md).
 pub mod launcher;
-/// The desktop map editor (`overbright-editor`, docs/map-editor.md).
-pub mod editor;
+/// The game↔launcher contract (probe and prepare formats, the error
+/// kinds, the shared look's tokens): what the game names of the launcher.
+pub mod launch;
 pub mod mark_spot;
 
 use std::path::PathBuf;

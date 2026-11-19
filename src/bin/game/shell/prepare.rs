@@ -15,7 +15,7 @@
 //! * the first career race's region the same way, when it is another;
 //! * the current profile's car (with a profile).
 //!
-//! Progress goes to stdout as `key=value` lines (`nfsu2::launcher::prepare`
+//! Progress goes to stdout as `key=value` lines (`nfsu2::launch::prepare`
 //! reads them): `prepare=1`, then `step=<n>/<of> <what>` as each step
 //! starts, `ok=1` at the end (`error=…`, `ok=0` and exit code 1
 //! otherwise). The last step writes the stamp the probe reads

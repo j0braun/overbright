@@ -1,7 +1,7 @@
 //! `game --probe` (the launcher's hardware check, docs/launcher.md): the
 //! adapter the game would pick, the primary monitor and the Resolution
 //! row's list, the display values a first start would choose, the version
-//! — printed as `key=value` lines (`nfsu2::launcher::probe::Probe`). No
+//! — printed as `key=value` lines (`nfsu2::launch::probe::Probe`). No
 //! window is opened and no device is made: the adapter is asked for with
 //! the game's own options (`Gpu::adapter_options`) but without a window
 //! surface (the window's adapter is asked for with that surface; on a
@@ -9,7 +9,7 @@
 //! that is the same adapter — inferred, not checked on a multi-GPU
 //! laptop). Exits 0, or 1 without an adapter.
 
-use nfsu2::launcher::probe::{Adapter, Probe};
+use nfsu2::launch::probe::{Adapter, Probe};
 
 /// The primary monitor: size, refresh (mHz), video-mode sizes, and
 /// whether it has no exclusive full screen (a Wayland session, or modes
@@ -102,7 +102,7 @@ pub(crate) fn run() -> i32 {
             });
             // What the window's first start does without options.txt
             // (`create_window`: `first_run_display(card)` on the defaults).
-            p.first_run = Some(nfsu2::launcher::probe::first_run((info.vendor, info.device)));
+            p.first_run = Some(nfsu2::launch::probe::first_run((info.vendor, info.device)));
         }
         // Linux: what is missing and the packages to install, in the
         // player's words (`platform::vulkan`); the launcher shows it. wgpu's

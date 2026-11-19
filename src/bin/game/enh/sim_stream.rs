@@ -7,14 +7,14 @@
 //! player's car parked. No window and no audio device are opened. Each
 //! tick's cars and the race's events go to `--stream <file>` (`-` or no
 //! flag: standard output) in the editor's stream format
-//! (`nfsu2::editor::sim::format`). The run is deterministic for its seed
+//! (`nfsu2::tools::map::sim::format`). The run is deterministic for its seed
 //! (`--sim-seed`, default 1). It ends at the race's results, after
 //! `--sim-seconds` (default 900 for a race, 120 in free roam), or when
 //! standard input reads `quit`. Nothing is saved.
 use crate::*;
 
-use nfsu2::editor::sim::detect::{Tick, Watch, checkpoints_passed};
-use nfsu2::editor::sim::format::{
+use nfsu2::tools::map::sim::detect::{Tick, Watch, checkpoints_passed};
+use nfsu2::tools::map::sim::format::{
     CarInfo, CarKind, CarSample, Event, EventKind, Frame, Header, Line, ResultRow, SimMode, VERSION,
 };
 

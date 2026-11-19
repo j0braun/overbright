@@ -521,8 +521,8 @@ pub fn show(s: &mut EditorState, c: &Check) {
 
 /// The colour of a level (the launcher's semantic colours).
 pub fn colour(c: &Check) -> egui::Color32 {
-    let t = crate::launcher::draw::THEME_A;
-    let rgb = |c: crate::launcher::draw::Rgb| egui::Color32::from_rgb(c.0, c.1, c.2);
+    let t = crate::launch::theme::THEME_A;
+    let rgb = |c: crate::launch::theme::Rgb| egui::Color32::from_rgb(c.0, c.1, c.2);
     match c.level {
         Level::Error => rgb(t.err),
         Level::Warning => rgb(t.warn),

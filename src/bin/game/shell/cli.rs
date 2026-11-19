@@ -243,9 +243,9 @@ impl MapTest {
             if SIM_SWITCHES.contains(&flag) {
                 seen = true;
                 let m = if flag == "--simulate" {
-                    nfsu2::editor::sim::format::SimMode::Race
+                    nfsu2::tools::map::sim::format::SimMode::Race
                 } else {
-                    nfsu2::editor::sim::format::SimMode::World
+                    nfsu2::tools::map::sim::format::SimMode::World
                 };
                 if mode.replace(m).is_some() {
                     return Err("--simulate / --simulate-world given twice".into());
@@ -306,7 +306,7 @@ impl MapTest {
             (Some(_), Some(_)) => return Err("--map-race and --map-at cannot be used together".into()),
             _ => {}
         }
-        use nfsu2::editor::sim::format::SimMode;
+        use nfsu2::tools::map::sim::format::SimMode;
         match mode {
             None if stream.is_some() || seed.is_some() || seconds.is_some() => {
                 Err("--stream, --sim-seed and --sim-seconds need --simulate or --simulate-world".into())
@@ -523,7 +523,7 @@ mod map_test_tests {
 
     #[test]
     fn the_simulation_flags_parse_and_refuse() {
-        use nfsu2::editor::sim::format::SimMode;
+        use nfsu2::tools::map::sim::format::SimMode;
         let t = MapTest::parse(&args(&["--map-mod", "m", "--map-race", "r", "--simulate", "--stream", "-", "--sim-seed", "9"]))
             .unwrap()
             .unwrap();

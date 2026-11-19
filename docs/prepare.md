@@ -39,7 +39,7 @@ machine (`window-format.txt` in the cache folder, written when the window is mad
 first of the window's preference order (8-bit BGRA, what a surface offers nearly everywhere). A
 window that picks another format makes its own programs as before.
 
-Output: `key=value` lines on stdout (`launcher::prepare` reads them; other lines are ignored).
+Output: `key=value` lines on stdout (`launch::prepare` in the library defines them, `launcher::prepare` reads them; other lines are ignored).
 
 ```
 prepare=1
@@ -132,7 +132,7 @@ docs/perf-budget.md). The cache folder holds about 260 MB after it (the city's t
   `--verify-cache` passes; the same stamp with another Graphics level in options.txt (SSAO on)
   makes the probe say `prepared=0`. Passes at the defaults, High and Extreme. The self-check's
   stand-in game answers it (`levelstale`: a probe that ignores the level must fail the check).
-* `launcher::prepare::tests` (the lines, the state), `launcher::tests::
+* `launch::prepare::tests` (the lines), `launcher::prepare::tests` (the state), `launcher::tests::
   the_prepare_step_is_offered_once_skippable_and_can_be_asked_for` (started once behind the main
   screen, its line there at every size, Prepare again with Skip and Continue, every state's layout
   at every size),

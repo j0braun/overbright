@@ -240,9 +240,9 @@ impl Game {
         else {
             return Some(out);
         };
-        let t = &nfsu2::launcher::draw::THEME_A;
+        let t = &nfsu2::launch::theme::THEME_A;
         let rgb =
-            |c: nfsu2::launcher::draw::Rgb, a: f32| [c.0 as f32 / 255.0, c.1 as f32 / 255.0, c.2 as f32 / 255.0, a];
+            |c: nfsu2::launch::theme::Rgb, a: f32| [c.0 as f32 / 255.0, c.1 as f32 / 255.0, c.2 as f32 / 255.0, a];
         let (title, ink, dim) = (rgb(t.lime, 1.0), rgb(t.ink, 1.0), rgb(t.dim, 0.8));
         let flat = |lo: Vec2, hi: Vec2, color: [f32; 4], z: f32, place| Quad {
             texture: None,

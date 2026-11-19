@@ -3,7 +3,7 @@
 //! egui's painter (no renderer change; overlays draw over the world, with
 //! no depth test).
 //!
-//! Colours come from the launcher's tokens (`launcher::draw::THEME_A`):
+//! Colours come from the launcher's tokens (`launch::theme::THEME_A`):
 //! lime for the selection and focus, ink / dim for neutral marks, the
 //! semantic red / amber for errors and warnings.
 
@@ -12,7 +12,7 @@ use glam::{Mat4, Vec3};
 
 use super::camera::{project, project_segment};
 use crate::draw::camera::Camera;
-use crate::launcher::draw::{Rgb, Rgba, THEME_A};
+use crate::launch::theme::{Rgb, Rgba, THEME_A};
 
 /// An opaque token as an egui colour.
 pub const fn rgb(c: Rgb) -> Color32 {

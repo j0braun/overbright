@@ -790,7 +790,7 @@ impl App {
             }
             A::Export => {
                 if let Some(s) = &self.state {
-                    let home = crate::launcher::dirs::home().unwrap_or_default();
+                    let home = crate::platform::dirs::home().unwrap_or_default();
                     self.dialog =
                         Some(Dialog::Export { path: home.join(format!("{}.zip", s.folder)).display().to_string() });
                 }

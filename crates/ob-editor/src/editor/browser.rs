@@ -10,7 +10,7 @@ use glam::Vec3;
 
 use super::props::{camera_heading, colour, ground_under, place_new};
 use super::state::{EditorState, Panel, project};
-use crate::launcher::draw::THEME_A;
+use crate::launch::theme::THEME_A;
 use crate::tools::map::edit::MAX_PICK_RADIUS;
 use crate::world::{HIDDEN_FLAG, World};
 
