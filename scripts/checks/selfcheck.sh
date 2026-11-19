@@ -3,7 +3,7 @@
 # broken input and must FAIL, and a known-good input and must PASS. The game is replaced by
 # selfcheck_stub.py (PNGs, dump sets, bench JSON, WAVs, state hashes, the adapter line; faults from a
 # `faults` file next to it), so the whole run takes about a minute and needs no GPU or game data. The
-# real pixdiff is used (PIXDIFF, default $CARGO_TARGET_DIR/release/examples/pixdiff).
+# real pixdiff is used (PIXDIFF, default $CARGO_TARGET_DIR/<checks profile>/examples/pixdiff, docs/build-times.md).
 #
 #   selfcheck.sh OUTDIR [CASE_SUBSTRING]
 #
@@ -14,8 +14,9 @@ HERE=$(cd "$(dirname "$0")" && pwd)
 REPO=$(cd "$HERE/../.." && pwd)
 O=${1:?usage: selfcheck.sh OUTDIR [CASE_SUBSTRING]}; ONLY=${2:-}
 rm -rf "$O"; mkdir -p "$O"; O=$(cd "$O" && pwd)
-PIXDIFF=${PIXDIFF:-${CARGO_TARGET_DIR:-$REPO/target}/release/examples/pixdiff}
-[ -x "$PIXDIFF" ] || { echo "selfcheck: no pixdiff at $PIXDIFF (cargo build --release --example pixdiff)"; exit 2; }
+. "$REPO/scripts/lib/common.sh"
+PIXDIFF=${PIXDIFF:-${CARGO_TARGET_DIR:-$REPO/target}/$CK_PDIR/examples/pixdiff}
+[ -x "$PIXDIFF" ] || { echo "selfcheck: no pixdiff at $PIXDIFF (cargo build --profile $CK_PROFILE --example pixdiff)"; exit 2; }
 command -v python3 > /dev/null || { echo "selfcheck: no python3"; exit 2; }
 PERF="$REPO/scripts/perf/perf.sh"
 
@@ -142,7 +143,7 @@ checks() {
   local args=() envs=()
   while [ $# -gt 0 ] && [ "$1" != -- ]; do args+=("$1"); shift; done
   [ $# -gt 0 ] && { shift; envs=("$@"); }
-  stub "$O/$c/t/release" $f; mkdir -p "$O/$c/t/release/examples"; ln -sf "$PIXDIFF" "$O/$c/t/release/examples/pixdiff"
+  stub "$O/$c/t/$CK_PDIR" $f; mkdir -p "$O/$c/t/$CK_PDIR/examples"; ln -sf "$PIXDIFF" "$O/$c/t/$CK_PDIR/examples/pixdiff"
   env CARGO_TARGET_DIR="$O/$c/t" SKIP_BUILD=1 SKIP_TESTS=1 HISTORY="$O/$c/history.jsonl" JOBS=2 "${envs[@]}" \
     "$HERE/checks.sh" "$set" "$O/$c/out" "${args[@]}"
 }

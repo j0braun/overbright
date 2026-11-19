@@ -49,6 +49,7 @@ cargo build --release --features dev-harness --bins --examples
   repository; with the set laid over a checkout they are a workspace member, checked with
   `cargo check --release -p devprobes`.
 - `scripts/pgo.sh` makes an optional profile-guided build (docs/developer-guide.md, "PGO").
+- docs/build-times.md has measured build times (cold, after a one-file change) and their method.
 
 ## Tests
 

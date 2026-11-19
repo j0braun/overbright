@@ -13,6 +13,8 @@
 #   rate-columns.txt marks "fail", RATE=0 leaves it out)
 #
 # Environment: REPO (default this script's repo), CARGO_TARGET_DIR (default REPO/target), NFSU2_ROOT (required),
+# CHECKS_PROFILE (the Cargo profile of the build and the tests: gate, the default, or release; binaries in
+# CARGO_TARGET_DIR/<profile>/, release's in release/; docs/build-times.md),
 # scripts/local.env (machine settings, e.g. the build env; scripts/local.env.example), FAST_SHOTS_FILE (default fast-shots.txt),
 # JOBS (shots run side by side; default 4), SHOT_CLOCK (default 0 s; empty: wall clock), DET (fast: 0, full: 1; run each shot twice and pixdiff),
 # PREV (an earlier OUTDIR: every deterministic shot pixdiffed against it), SKIP_BUILD=1, SKIP_TESTS=1,
@@ -56,8 +58,9 @@ JOBS=${JOBS:-4}
 # cross-fades half way (docs/checks.md). SHOT_CLOCK= (empty) keeps the wall clock.
 SHOT_CLOCK=${SHOT_CLOCK-0}
 DET=${DET:-$([ "$SET" = fast ] && echo 0 || echo 1)}
-BIN=$CARGO_TARGET_DIR/release/game
-PIXDIFF=$CARGO_TARGET_DIR/release/examples/pixdiff
+BIN=$CARGO_TARGET_DIR/$CK_PDIR/game
+PIXDIFF=$CARGO_TARGET_DIR/$CK_PDIR/examples/pixdiff
+export CHECKS_PROFILE=$CK_PROFILE
 
 # Listed nondeterministic targets: "always", and "wallclock" ones when the clock is not pinned.
 NONDET=$(awk -v wall="$([ -z "$SHOT_CLOCK" ] && echo 1)" '!/^#/ && NF && ($2 == "always" || ($2 == "wallclock" && wall == 1)) {print $1}' "$HERE/nondeterministic.txt" | tr '\n' ' ')
@@ -85,14 +88,14 @@ run() {
   STEP_S[$name]=$(( $(date +%s) - t ))
 }
 
-say "checks $SET $(date -Is) repo $REPO target $CARGO_TARGET_DIR jobs $JOBS det $DET local env $CK_LOCAL_ENV"
+say "checks $SET $(date -Is) repo $REPO target $CARGO_TARGET_DIR profile $CK_PROFILE jobs $JOBS det $DET local env $CK_LOCAL_ENV"
 # bad_log NAME: fail the step when its log has a panic / validation-error line (render workers' panics do
 # not end the process, so rc 0 alone is not enough).
 bad_log() { local n; n=$(ck_bad "$O/$1.log"); [ "$n" = 0 ] || { say "  $1: $n panic/validation lines"; fail "$1 (panic/validation)"; }; }
 
 # ---- build -------------------------------------------------------------------
 if [ -z "${SKIP_BUILD:-}" ]; then
-  run build 3600 cargo build --release --bins --examples --features dev-harness
+  run build 3600 cargo build --profile "$CK_PROFILE" --bins --examples --features dev-harness
   say "build rc=$RC ${STEP_S[build]} s"
   if [ $RC != 0 ]; then grep -E '^error' -A8 "$O/build.log" | head -40 | tee -a "$OUT"; fail build; say "BUILD FAILED, stopping"; fi
 fi
@@ -118,7 +121,7 @@ fi
 if [ -z "${SKIP_TESTS:-}" ] && [ "$SET" != shots ]; then
   # The tests run with the player's own folders hidden behind empty ones (home_mask.sh: a user + mount namespace),
   # so a test that resolves them anyway writes nothing real, and the step fails when anything landed there.
-  run tests 3600 "$HERE/home_mask.sh" run "$O/home-mask" cargo test --release --no-fail-fast --features dev-harness
+  run tests 3600 "$HERE/home_mask.sh" run "$O/home-mask" cargo test --profile "$CK_PROFILE" --no-fail-fast --features dev-harness
   # A test that runs the game's own test binary as a child prints the child's "test result" lines too:
   # each binary's own result is the last one before the next header.
   read -r P F I B R < <(awk '
@@ -225,6 +228,10 @@ fi
 NPREV=""
 if [ -n "${PREV:-}" ] && [ -d "$PREV/shots" ]; then
   mkdir -p "$O/prev-a" "$O/prev-b"
+  # Like with like: an earlier run built with another profile is named (its header's "profile" word; runs
+  # from before the gate profile have none and were built with release).
+  PPROF=$(sed -n 's/^checks .* profile \([^ ]*\) .*/\1/p' "$PREV/checks.txt" 2>/dev/null | head -1); PPROF=${PPROF:-release}
+  [ "$PPROF" = "$CK_PROFILE" ] || say "note: PREV was built with profile $PPROF, this run with $CK_PROFILE"
   for s in $SHOTS; do is_nondet "$s" && continue; [ -s "$PREV/shots/$s.png" ] && [ -s "$O/shots/$s.png" ] || continue
     ln -sf "$PREV/shots/$s.png" "$O/prev-a/$s.png"; ln -sf "$O/shots/$s.png" "$O/prev-b/$s.png"; done
   "$PIXDIFF" "$O/prev-a" "$O/prev-b" > "$O/prev.pixdiff" 2>&1

@@ -18,10 +18,10 @@ cd "$REPO" || exit 2
 export CARGO_BUILD_JOBS=${CARGO_BUILD_JOBS:-6} CARGO_TARGET_DIR=${CARGO_TARGET_DIR:-$REPO/target}
 export FUZZ_SECS=${FUZZ_SECS:-2}
 N=$(grep -c '^    t!(' fuzz/targets.rs)
-# With the harness feature, like the checks' own build: a plain `cargo test` here relinks
-# $CARGO_TARGET_DIR/release/game as the shipping binary, and every later step that runs "$BIN"
-# with a harness flag then gets the usage error (the rate step did, 2026-11-12).
-cargo test --release --features dev-harness --test fuzz_smoke -- --nocapture
+# With the harness feature and the checks' profile, like the checks' own build: a plain `cargo test` here
+# relinks the game as the shipping binary, and every later step that runs "$BIN" with a harness flag then
+# gets the usage error (the rate step did, 2026-11-12).
+cargo test --profile "$CK_PROFILE" --features dev-harness --test fuzz_smoke -- --nocapture
 RC=$?
 # A data test that was ignored (no game) did not fuzz the real seeds.
 SEEDS="game seeds"; [ -n "${NFSU2_ROOT:-}" ] || SEEDS="built-in seeds only"

@@ -147,3 +147,13 @@ version = "0.2.32"
 # the tree through winit (no new crate).
 [target.'cfg(all(unix, not(target_os = "macos")))'.dependencies.x11-dl]
 version = "2.21"
+
+# Development and pre-merge builds (docs/build-times.md): the release
+# settings without LTO, 16 codegen units, incremental. Same results (no
+# fast-math), ~2.7x faster cold, ~20 s after a one-file change instead of
+# minutes. Never for releases, perf numbers or PGO: those use `--release`.
+[profile.gate]
+inherits = "release"
+lto = false
+codegen-units = 16
+incremental = true
