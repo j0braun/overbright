@@ -873,3 +873,63 @@ fn a_custom_trax_list_applies_after_the_title() {
         }
     }
 }
+
+/// A race's song goes on through its end: "Winner!", the post-race
+/// flow's load of the ending scene (state 7 keeps an EA Trax song with
+/// the game music on, 0x47AD0F), the ending scene and the post-race
+/// screens over it (the game's audio mode). Observed under Wine (Quick
+/// Race, a finish written into the race record): the same song from the
+/// race through Event Results and Post Race. The clone stopped it at the
+/// load and started another on Event Results.
+#[test]
+#[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
+fn a_race_song_plays_on_through_the_results() {
+    testkit::game();
+    let mut game = Game::new().unwrap();
+    game.settings.master = 1.0;
+    game.settings.game_music = 1.0;
+    game.settings.menu_music = 1.0;
+    game.audio = Some(game.new_audio(Mixer::offline(48000)));
+    game.quick.tracks = game.quick_track_select(screens::QrMode::Circuit, 0.0);
+    let event = game.quick_event(screens::QrMode::Circuit);
+    game.quick.car = Some("240SX".into());
+    game.start_race(event, true, false).unwrap();
+    let mut pcm = Vec::new();
+    let mut play = |game: &mut Game, secs: f32| {
+        for _ in 0..(secs * 60.0) as usize {
+            game.step_for(1.0 / 60.0).unwrap();
+            game.audio.as_ref().unwrap().mixer.pump(800, &mut pcm);
+        }
+    };
+    // Past the start scene and the countdown: the race's song.
+    for _ in 0..40 {
+        if matches!(&game.mode, Mode::Race(r) if r.timing.clock > 1.0) {
+            break;
+        }
+        play(&mut game, 0.5);
+    }
+    assert_eq!(game.music_context(), MusicContext::Game);
+    let song = game.audio.as_ref().unwrap().streams.song();
+    assert!(song.is_some(), "a song in the race");
+    let _ = game.finish_race(crate::flow::race_end::RaceEnd { time: 60.0 });
+    assert!(
+        game.scenes.shop.as_ref().is_some_and(|r| matches!(r.scene.kind, nfsu2::shop_scene::SceneKind::Ending(_))),
+        "the ending scene behind the results"
+    );
+    assert!(matches!(game.mode, Mode::Menu(Menu::Results(..))));
+    assert_eq!(game.music_context(), MusicContext::Game, "Event Results over the ending scene");
+    play(&mut game, 2.0);
+    assert_eq!(game.audio.as_ref().unwrap().streams.song(), song, "the same song on Event Results");
+    // The screens after it, still in the race's flow.
+    while matches!(game.mode, Mode::Menu(Menu::Results(..) | Menu::Reward(_))) {
+        game.menu_key(Key::Accept).unwrap();
+        play(&mut game, 0.5);
+    }
+    assert!(matches!(game.mode, Mode::Menu(Menu::Icons(_, MenuKind::PostRace))));
+    assert_eq!(game.audio.as_ref().unwrap().streams.song(), song, "the same song on Post Race");
+    let reward = crate::flow::race_end::Reward { reputation: 0, bank: 0, name: String::new(), opened: 0.0 };
+    for m in [Menu::SponsorPopup(0.0), Menu::Reward(reward)] {
+        game.mode = Mode::Menu(m);
+        assert_eq!(game.music_context(), MusicContext::Game, "the post-race chain is in the game's audio mode");
+    }
+}

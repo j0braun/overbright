@@ -3377,8 +3377,12 @@ selftest's "streams" step, probe the maintainer's probe `speech_probe`.
   1 start (front end, 0x480C30), 2 stop on leaving the game (0x481440 →
   0x47AF40), 5 pause (0x739030(…, 1)): the flow's PRERACE / PAUSE /
   9 (0x481210 with 3 / 6 / 9), PC_Loading over a running flow, any
-  game state but 3 / 6, a movie in game (0x8383AC); 6 resume; 7 stop
-  on the flow's LOADING / CAMERA_FLYBY (0x481210 with 1 / 2); 0xB stop
+  game state but 3 / 6, a movie in game (0x8383AC); 6 resume; 7
+  on the flow's LOADING / CAMERA_FLYBY (0x481210 with 1 / 2): it ends a
+  score piece and stops an EA Trax song only when game music × master²
+  is 0 (0x47AD0F; a race's song plays on through its post-race load,
+  observed, docs/menu-music.md); a new flow's set-up (0x60A898 →
+  0x481440) is state 2, which stops it; 0xB stop
   for a movie in the front end, back to 1 after it (a new song). The
   playing song's caption: Chyron_ShowSong. **Clone**
   (`streams::MusicContext`, `Game::music_context`, `Streams::

@@ -115,9 +115,10 @@ original, with its switch, is in [docs/native-deviations.md](docs/native-deviati
   entries for the launcher ([docs/troubleshooting.md](docs/troubleshooting.md)).
 - **One edition of the game's data was tested:** the European PC 1.2 release with English game files.
   A North American install is recognised by its CARS folder and gets that region's car lists, shared
-  textures, credits and Best Buy code ([docs/region.md](docs/region.md)), but no North American install was
-  tried. Other languages start; their data is reported as "unknown" by `game --check-game`. Overbright
-  carries the European PC 1.2 release's engine numbers; whether another release's executable used different
+  textures, credits and Best Buy code ([docs/region.md](docs/region.md)). Its movies, which are named without a
+  language suffix, play since 0.3.1 ([#107](https://github.com/j0braun/overbright/issues/107)); beyond that, no
+  North American install was tested. Other languages start; their data is reported as "unknown" by
+  `game --check-game`. Overbright carries the European PC 1.2 release's engine numbers; whether another release's executable used different
   ones is not known.
 - **Controllers** were tested with a virtual Xbox 360 pad only. Rumble, PlayStation and Switch pads and the
   Steam Deck's controls were not tried on real hardware.
@@ -154,6 +155,8 @@ original, with its switch, is in [docs/native-deviations.md](docs/native-deviati
   a little softer (each frame traces a quarter of the pixels and the rest come from a history). On wet roads
   and cars the rays decide the reflection; railings, foliage and the race-start crowd, which the traced scene
   leaves out, come from the screen where they are visible there.
+- **The drive into and out of the garage and the shops looks jerky above 30 fps:** the car moves about 20 times a
+  second while the camera moves smoothly. The menus themselves run at the full frame rate.
 - Integrated GPUs run the original look well; the heavier upgrades want a dedicated GPU (each option shows
   its cost on the settings page).
 

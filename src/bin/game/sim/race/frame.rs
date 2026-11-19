@@ -62,6 +62,15 @@ pub(crate) fn race_frame(
             }
             None => false,
         };
+        // The finish of the local player (0x606CC0 → 0x5EA540, once, its
+        // last instruction a jump to 0x592510 on the car's tank) ends a
+        // running nitrous shot: the key handlers are removed right after
+        // (0x605C80), so no release would end it.
+        if race.racers.me.finished.is_some()
+            && let Some(t) = d.state.nitrous.as_mut()
+        {
+            t.stop();
+        }
     } else {
         // Past the line an AI racer controller drives the player's car
         // (`Autopilot`); in a drift race its driver is the DriftDriver

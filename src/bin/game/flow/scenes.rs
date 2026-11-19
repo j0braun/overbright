@@ -418,7 +418,8 @@ impl Game {
         if let Some(d) = self.sim.drive.as_mut() {
             d.state.nis = None;
         }
-        self.begin_loading();
+        // The post-race flow's own LOADING: the race's song goes on.
+        self.begin_loading_in_flow();
         // The files read since the race started, when that is done
         // (`endings_ahead`): the same readings, not made again.
         let mut ahead = self.endings_ahead_take().unwrap_or_default();

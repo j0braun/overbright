@@ -43,11 +43,9 @@ impl Game {
     /// A track load starts: PC_Loading is due (drawn by
     /// [`LoadingGate`] once the load takes long enough).
     pub(crate) fn begin_loading(&mut self) {
-        let now = self.now();
-        let loading = screens::Loading { package: screens::Loading::PC, opened: now };
-        self.loads.loading = Some(loading);
-        self.loads.track_loads += 1;
-        // The flow's LOADING stops the song (0x481210(1) → state 7); the
+        self.open_loading();
+        // A race or free-roam start sets a new flow up, which stops the
+        // song (0x60A898 → 0x481440 → state 2, 0x47ADC6: 0x739320); the
         // next one starts once the race runs (0x47B080, not while
         // PC_Loading is up, 0x4A9330).
         if let Some(a) = self.audio.as_mut() {
@@ -61,6 +59,30 @@ impl Game {
                 None,
                 0.0,
             );
+        }
+    }
+
+    /// PC_Loading is due (drawn by [`LoadingGate`] once the load takes
+    /// long enough), with no change to the music.
+    fn open_loading(&mut self) {
+        let now = self.now();
+        let loading = screens::Loading { package: screens::Loading::PC, opened: now };
+        self.loads.loading = Some(loading);
+        self.loads.track_loads += 1;
+    }
+
+    /// A load inside the running flow (the race's ending scene: the
+    /// post-race flow's LOADING, 0x481210(1) → 0x4813A0 → state 7). State
+    /// 7 (0x47AD0F) ends an interactive score piece but keeps an EA Trax
+    /// song playing while the game music and the master are on (it stops
+    /// the stream only when game music × master² × 32767 truncates to 0,
+    /// 0x47AD49..0x47AD72, and then the score plays anyway). Observed:
+    /// a race's song goes on through "Winner!", the load, the ending
+    /// scene, Event Results and Post Race.
+    pub(crate) fn begin_loading_in_flow(&mut self) {
+        self.open_loading();
+        if let Some(a) = self.audio.as_mut() {
+            a.streams.stop_score(&a.mixer);
         }
     }
 
