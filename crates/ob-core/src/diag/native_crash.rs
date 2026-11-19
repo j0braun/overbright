@@ -1,7 +1,10 @@
 //! A crash that is no Rust panic, in words (Windows): an access violation
 //! inside a graphics driver or an injected overlay, an illegal instruction,
 //! a DLL that failed. Windows' unhandled-exception filter writes one line —
-//! the exception's code and name, its address and the module it lies in —
+//! the exception's code and name, its address and the module it lies in,
+//! the thread and what it was doing ([`set_context`]: the game names the
+//! shader module or pipeline it was making), and for a graphics driver
+//! what to try ([`driver_hint`]) —
 //! to the sink [`install`] was given (the game's log, the launcher's log),
 //! then lets Windows go on as before (Windows Error Reporting, the
 //! Application event the support file reads). Elsewhere nothing is
@@ -16,6 +19,28 @@ use std::sync::OnceLock;
 
 type Sink = Box<dyn Fn(&str) + Send + Sync>;
 static SINK: OnceLock<Sink> = OnceLock::new();
+/// What the crashing thread was doing, asked on that thread
+/// ([`set_context`]).
+static CONTEXT: OnceLock<fn() -> Option<String>> = OnceLock::new();
+
+/// A function the crash line asks, on the crashing thread, what that
+/// thread was doing (the game: the shader module or pipeline it was
+/// making). Once; later calls do nothing.
+pub fn set_context(f: fn() -> Option<String>) {
+    let _ = CONTEXT.set(f);
+}
+
+/// The crashing thread in words: its name and what it was doing.
+#[cfg_attr(not(windows), allow(dead_code))]
+fn thread_context() -> String {
+    let t = std::thread::current();
+    let mut s = format!("; on thread {}", t.name().unwrap_or("(no name)"));
+    if let Some(doing) = CONTEXT.get().and_then(|f| f()) {
+        s += ", ";
+        s += &doing;
+    }
+    s
+}
 
 /// The name of a Windows exception or exit code (NTSTATUS), when it is one
 /// a player meets.
@@ -160,6 +185,7 @@ mod win {
                     };
                     line += &format!(", {what} 0x{:x}", record.information[1]);
                 }
+                line += &super::thread_context();
                 if let Some(hint) = module.as_ref().and_then(|(m, _)| super::driver_hint(m)) {
                     line += &hint;
                 }
@@ -207,5 +233,15 @@ mod tests {
         }
         assert!(super::driver_hint("amdvlk64.dll").unwrap().contains("AMD Vulkan driver"));
         assert_eq!(super::driver_hint("kernelbase.dll"), None);
+    }
+
+    #[test]
+    fn the_line_names_the_thread_and_what_it_did() {
+        fn doing() -> Option<String> {
+            Some("making a pipeline (x.rs:1)".into())
+        }
+        super::set_context(doing);
+        let c = std::thread::Builder::new().name("programs".into()).spawn(super::thread_context).unwrap().join().unwrap();
+        assert_eq!(c, "; on thread programs, making a pipeline (x.rs:1)");
     }
 }

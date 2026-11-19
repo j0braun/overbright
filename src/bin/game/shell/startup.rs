@@ -228,6 +228,9 @@ fn start_diagnostics(args: &[String]) {
     );
     nfsu2::qol::log_file::fact(&line);
     events::record(events::Kind::Start, line);
+    // The crash line names the shader module or pipeline the crashing
+    // thread was making (a driver that crashes while it compiles).
+    native_crash::set_context(nfsu2::render::core::device_cache::making_here);
     native_crash::install(|line| {
         nfsu2::qol::log_file::send(format!("[ERROR crash] {line}"));
         events::record(events::Kind::Error, line.to_string());
