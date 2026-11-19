@@ -9,7 +9,7 @@
 #                                     an entry in a mask folder, a changed folder time (an entry made and removed
 #                                     again), or a folder that was missing before and exists now.
 #
-# The player's folders, as src/platform/dirs.rs resolves them on Linux without NFSU2_DATA_DIR:
+# The player's folders, as crates/ob-core/src/platform/dirs.rs resolves them on Linux without NFSU2_DATA_DIR:
 #   <data home>/overbright, <data home>/NFS Underground 2 (the profiles), <cache home>/overbright,
 #   <cache home>/overbright-dev; <data home> = $XDG_DATA_HOME (set, not empty) else ~/.local/share, <cache home> the
 #   same with XDG_CACHE_HOME and ~/.cache.

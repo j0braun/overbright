@@ -165,12 +165,12 @@ impl World {
             world.loaded = w.buf.into();
             return Ok(world);
         }
-        if let Some(file) = crate::cache::CacheFile::open(game_root, &kind, &srcs) {
+        if let Some(file) = crate::cache::CacheFile::open(crate::BUILD_ID, game_root, &kind, &srcs) {
             let _t = crate::prof::span("World::load: from the cache");
             match World::from_sections(&file) {
                 Some(mut w) => {
                     w.loaded = file.bytes("w.rest").unwrap_or_default();
-                    w.cache = Some(crate::cache::TrackCache::hit(game_root, kind, sources, file));
+                    w.cache = Some(crate::cache::TrackCache::hit(crate::BUILD_ID, game_root, kind, sources, file));
                     return Ok(w);
                 }
                 None => log::warn!("cache {kind}: does not decode, parsing"),
@@ -182,7 +182,7 @@ impl World {
             world.to_sections()
         };
         world.loaded = sections.iter().find(|s| s.0 == "w.rest").map(|s| s.1.clone()).unwrap_or_default();
-        world.cache = Some(crate::cache::TrackCache::miss(game_root, kind, sources, sections));
+        world.cache = Some(crate::cache::TrackCache::miss(crate::BUILD_ID, game_root, kind, sources, sections));
         Ok(world)
     }
 

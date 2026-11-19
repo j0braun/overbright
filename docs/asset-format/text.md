@@ -31,7 +31,7 @@ Schemas: [`language`](schemas/language.schema.json), [`strings`](schemas/strings
 
 Not on this page: the fonts themselves ([ui.md](ui.md) §3.2) and their glyph pages ([textures.md](textures.md));
 the texts authored inside menu packages (`St`, [ui.md](ui.md) §3.1); the EA Trax song titles, artists and albums
-of the music caption, which are built into the executable (`src/exe_tables/constants/frontend.rs:239`,
+of the music caption, which are built into the executable (`crates/ob-formats/src/exe_tables/constants/frontend.rs:239`,
 [engine-tables.md](engine-tables.md)); references to strings from other kinds (`string:0x…`, e.g. part names in
 [cars.md](cars.md)).
 
@@ -200,7 +200,7 @@ own code point). So:
 | `lines` | array<string ≤ 4,096> | – | yes | – | The lines, split at every line ending. A file that ends with a line ending has a last, empty element. These are exactly the lines the Credits screen rolls (`src/frontend/screens/credits.rs:31`: split at LF, CR removed). |
 
 The engine opens `CREDITS\%s%s.TXT` with a prefix and the upper-case language name (0x4B8808): in English `NA_`
-for region 0 and `UK_` for a European region (`src/region.rs:20`, `src/frontend/screens/credits.rs:20`), no prefix
+for region 0 and `UK_` for a European region (`crates/ob-core/src/region.rs:20`, `src/frontend/screens/credits.rs:20`), no prefix
 in the other languages. In the format: `text/<language>/credits/<PREFIX><LANGUAGE>.toml`. A missing file gives an
 empty roll, as today (`src/frontend/screens/credits.rs:32`). Lines may hold U+00A0 (nine in the French file), kept
 as is. Example: [`examples/text/text/english/credits/UK_ENGLISH.toml`](examples/text/text/english/credits/UK_ENGLISH.toml).

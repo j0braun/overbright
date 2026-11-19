@@ -13,7 +13,7 @@ original chunks can be rebuilt exactly (Eq2). Outside tools (Blender, any glTF v
 
 | Original | Solid lists / solids / with geometry (reference install) | Engine reader today |
 |---|---|---|
-| `TRACKS/STREAM<REGION>.BUN`, the lists inside each stream section | 2,704 / 28,985 / 28,906 (79 placeholders) | `src/world/parse.rs:117` → `src/formats/solid.rs:111` |
+| `TRACKS/STREAM<REGION>.BUN`, the lists inside each stream section | 2,704 / 28,985 / 28,906 (79 placeholders) | `src/world/parse.rs:117` → `crates/ob-formats/src/formats/solid.rs:111` |
 | `CARS/<CAR>/GEOMETRY.BIN` and the shared part groups (`EXHAUST`, `BRAKES`, `MIRRORS_*`, `SPOILER*`, `ROOF`, `AUDIO`, `PLATES`, `SPINNER`, `MIRRORS`) | 56 / 18,728 / 18,728 | `src/car/load.rs:182`, `src/car/assets.rs:176-229` |
 | `CARS/WHEELS/GEOMETRY*.BIN` (rims) | 24 / 5,074 / 5,074 | `src/car/assets.rs:203` |
 | `NIS/Scene_<NAME>_BundleB.bun` (skinned characters) | 140 / 140 / 140 | `src/character.rs:313-353` |
@@ -150,7 +150,7 @@ original's 2-byte zero pad after an odd count (15,612 solids) is not stored (the
 ### 3.2 Vertex layouts
 
 The vertex view holds the original vertex chunk's payload unchanged. Three layouts exist; the importer picks one
-with the engine's rule (`src/formats/solid.rs:248-251`, `src/character.rs:325-327`): mesh flag 0x01 →
+with the engine's rule (`crates/ob-formats/src/formats/solid.rs:248-251`, `src/character.rs:325-327`): mesh flag 0x01 →
 `skinned60`; flag 0x80 or 0x100 and at least 36 bytes a vertex → `lit36`; else `world24`.
 
 `world24`, 24 bytes, 4-aligned (STREAM, platforms, GLOBAL, FrontB; 28,672 + 48 + 30 + 14 meshes, and one car mesh):
@@ -197,11 +197,11 @@ derived value (§3.7), or in the buffer.
 | Field | Type | Unit | Req. | Default | Meaning |
 |---|---|---|---|---|---|
 | `hash` | hash32 | – | yes | – | Header +0x10, the solid's hash. Equals `bin_hash(node.name)` unless `name_truncated` (`MSH.8`). **verified** |
-| `name_truncated` | bool | – | no | `false` | The header holds 27 characters, and no completion of up to 4 characters matched the hash (`src/formats/hash.rs:25`): `node.name` holds those 27. Completed names are stored whole and not flagged (the engine uses the completion, `src/formats/solid.rs:181-186`). |
+| `name_truncated` | bool | – | no | `false` | The header holds 27 characters, and no completion of up to 4 characters matched the hash (`crates/ob-formats/src/formats/hash.rs:25`): `node.name` holds those 27. Completed names are stored whole and not flagged (the engine uses the completion, `crates/ob-formats/src/formats/solid.rs:181-186`). |
 | `layout` | enum | – | yes | – | `world24`, `lit36`, `skinned60` (§3.2), or `none` for a placeholder (vertex count 0: no mesh, no vertex or index view). |
 | `bbox_min`, `bbox_max` | vec3 | m, solid space | yes | – | Header +0x20 / +0x30 (**verified**; what the engine reads). Not equal to the vertex bounds in any of the 52,941 solids with vertices (measured) [inferred: padded]. |
 | `axes` | mat3 | – | no | identity | Header +0x40, +0x50, +0x60 (rows) [inferred: the solid's frame]. |
-| `translation` | vec3 | m | no | `[0.0, 0.0, 0.0]` | Header +0x70: the engine reads it (car render info +0x30, `src/formats/solid.rs:163`; the light flares' origin, `:212-221`). |
+| `translation` | vec3 | m | no | `[0.0, 0.0, 0.0]` | Header +0x70: the engine reads it (car render info +0x30, `crates/ob-formats/src/formats/solid.rs:163`; the light flares' origin, `:212-221`). |
 | `triangle_count` | u32 | – | yes | – | Header +0x14 [inferred: triangles; equals the draw ranges' indices ÷ 3 in 52,533 of 53,020 solids]. |
 | `u_0x0c` | u32 | – | no | `0x00000016` | **open** (0x16, 0x400016, 0x800016 occur). |
 | `u_0x18` | u32 | – | no | `0` | **open** (101 values; low 16 bits often 0x100 × draw-range count). |
@@ -214,13 +214,13 @@ derived value (§3.7), or in the buffer.
 | `light_materials` | array<hash32> | – | no | absent | Chunk 0x134013 in order (draw ranges index it). Absent = no chunk; `[]` = an empty chunk. At most 255. **Bare hashes** ([conventions.md](conventions.md) §6.6): light materials are not owned by a kind yet ([README.md](README.md) §3); the engine resolves these hashes against the light-material records of `GLOBAL/GLOBALB.BUN` (chunk 0x135200), which stay in the residual. |
 | `draw_ranges` | array<table> | – | yes | – | Chunk 0x134B02 records in order, below. At most 255 (`texture_slot` is a byte). |
 | `extra_chunks` | array<table> | – | no | `[]` | The solid's chunks no reader reads, in file order (0x134017, 0x134018, 0x134019 on 15,658 car solids, 43.6 MB): `{ id, bufferView }` for a body of 65 bytes or more, `{ id, bytes }` (≤ 64 bytes, may be empty) otherwise. **open** |
-| `mesh_error` | bool | – | no | `false` | The original mesh did not parse; the engine drops its geometry and flags (`src/formats/solid.rs:222-231`). The node has no mesh, `layout = "none"`, `mesh.flags = 0`, and the solid's chunk is kept in the residual. None in the reference install. |
+| `mesh_error` | bool | – | no | `false` | The original mesh did not parse; the engine drops its geometry and flags (`crates/ob-formats/src/formats/solid.rs:222-231`). The node has no mesh, `layout = "none"`, `mesh.flags = 0`, and the solid's chunk is kept in the residual. None in the reference install. |
 
 `mesh` (mesh header 0x134900):
 
 | Field | Type | Req. | Default | Meaning |
 |---|---|---|---|---|
-| `flags` | u32 | yes | – | +0x0C: 0x01 skinned, 0x40 world reflection, 0x80 car effect, 0x100 environment map (**verified**, `src/formats/solid.rs:77-80, 90-103`). |
+| `flags` | u32 | yes | – | +0x0C: 0x01 skinned, 0x40 world reflection, 0x80 car effect, 0x100 environment map (**verified**, `crates/ob-formats/src/formats/solid.rs:77-80, 90-103`). |
 | `triangle_count` | u32 | no | = `OB_solid.triangle_count` | +0x24 (differs in 487 solids). |
 | `u_0x08` | u32 | no | `0x10` | **open**; 0x10 in every mesh. |
 | `u_0x00`, `u_0x04`, `u_0x14`, `u_0x18`, `u_0x1c`, `u_0x20`, `u_0x28`, `u_0x2c`, `u_0x30`, `u_0x38`, `u_0x3c`, `u_0x40` | u32 | no | `0` | **open**; zero everywhere. |
@@ -255,7 +255,7 @@ record order, so tools show them as empties (exhaust tips, mirror, spoiler and p
 | Field | Type | Req. | Default | Meaning |
 |---|---|---|---|---|
 | `hash` | hash32 | yes | – | Record +0x00: the marker's name hash (`EXHAUST_LEFT`, `SPOILER`, `REAR_LICENSE_PLATE`, …; docs/formats/cars-1.md "Shared part models"). `node.name` holds the name when it is known. |
-| `kind` | u32 | no | `0` | Record +0x04 (0, 1, 3 occur): the light flares' kind (`src/formats/solid.rs:84-87`). |
+| `kind` | u32 | no | `0` | Record +0x04 (0, 1, 3 occur): the light flares' kind (`crates/ob-formats/src/formats/solid.rs:84-87`). |
 | `u_0x08`, `u_0x0c` | u32 | no | `0` | **open**; zero everywhere. |
 
 `node.matrix` holds record +0x10..+0x4F, the 16 floats in file order: the original's row-vector matrix (rows =
@@ -615,11 +615,11 @@ duplicated per draw range so each range's palette becomes the joint list). Expor
 
 | Source | Decoder | Output |
 |---|---|---|
-| any solid list | `parse_solid_list` (`src/formats/solid.rs:111`) for the model; the chunk walk of §3.7 for every other byte | one `.gltf` + `.bin` per list |
+| any solid list | `parse_solid_list` (`crates/ob-formats/src/formats/solid.rs:111`) for the model; the chunk walk of §3.7 for every other byte | one `.gltf` + `.bin` per list |
 | NIS lists | `SkinnedModel::parse` (`src/character.rs:317`) for the model | `skinned60` solids |
 
 Steps per list: walk the chunks; for each solid fill `OB_solid` from §3.7, copy the vertex payload (from the
-128-aligned start, `Chunk::payload`, `src/formats/bundle.rs:91`) and the index array (`max(first + count)` indices)
+128-aligned start, `Chunk::payload`, `crates/ob-formats/src/formats/bundle.rs:91`) and the index array (`max(first + count)` indices)
 into the buffer at 16-aligned offsets; complete names as the engine does (`complete_truncated_name`, up to 4
 characters); build markers, primitives, accessors (computing `POSITION` bounds), materials; then run the encoder
 (§6.2) and compare.
@@ -648,7 +648,7 @@ bytes kept, and the solids before and after it form runs of their own (none expe
 ### 6.1 Eq1 (values)
 
 `H(model from original) == H(model from base set)` per load unit, where the model is what the engine consumes:
-`Vec<Solid>` with its persisted fields (`src/formats/solid.rs:301-302`, including the derived `light_markers`), the
+`Vec<Solid>` with its persisted fields (`crates/ob-formats/src/formats/solid.rs:301-302`, including the derived `light_markers`), the
 part-file solid index (`src/car/assets.rs:213`, the lists' hashes), `SkinnedModel`s (`src/character.rs`), and, for
 the world, the solids after the region's first-match merge. Vertex and index bytes are equal by construction (they
 are the same bytes; their digests are compared too). The car loader also reads markers and header +0x70 straight from the
@@ -692,7 +692,7 @@ So the base set needs no shadow for meshes: 0 bytes, if every node passes at imp
 
 | Cook unit | Model sections | Zero-copy payloads | Prepared (not normative) |
 |---|---|---|---|
-| `world/<REGION>` | `solids` (all lists in stream-section load order, first-match merged as today) | `world24` vertex arrays (the engine's `Vertex` is the same 24-byte layout, `src/formats/solid.rs:28-35`) and all index arrays, as `extref`s into the stored `.bin` entries ([cooked.md](cooked.md) §5.1) | GPU buffers; the renderer's merged draw lists |
+| `world/<REGION>` | `solids` (all lists in stream-section load order, first-match merged as today) | `world24` vertex arrays (the engine's `Vertex` is the same 24-byte layout, `crates/ob-formats/src/formats/solid.rs:28-35`) and all index arrays, as `extref`s into the stored `.bin` entries ([cooked.md](cooked.md) §5.1) | GPU buffers; the renderer's merged draw lists |
 | `cars/<NAME>` (+ each shared part file) | `solids`; `solid-index` (per list, the solids' hashes: taken from the JSON alone, without reading the `.bin`) | index arrays; `lit36` vertex arrays once the engine reads them strided (today it splits them into `Vertex` + normals: prepared data) | split vertex arrays; the optional smoothing (`render/enh/assets/car_model/smooth.rs`) |
 | `scenes/<NAME>` | `skinned_models` | index arrays; `skinned60` vertex arrays once read strided | posed copies |
 | `frontend/platforms/<X>` (a garage platform's sub-unit) | `solids` | as world | |

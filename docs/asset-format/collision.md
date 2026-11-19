@@ -84,7 +84,7 @@ Layout `collision_header` (0x30 bytes, alignment 16; the encoder's view of the f
 | 0x20 | 12 | `f32[3]` | `bounds_max` | m | |
 | 0x2C | 4 | `u32` | `pad` | – | |
 
-Layout `collision_face` (0x20 bytes, alignment 2; decoded by 0x5D7F20 and 0x5D2CD0; `src/formats/collision.rs`):
+Layout `collision_face` (0x20 bytes, alignment 2; decoded by 0x5D7F20 and 0x5D2CD0; `crates/ob-formats/src/formats/collision.rs`):
 
 | Offset | Size | Type | Field | Unit | Notes |
 |---|---|---|---|---|---|
@@ -98,7 +98,7 @@ Layout `collision_face` (0x20 bytes, alignment 2; decoded by 0x5D7F20 and 0x5D2C
 | 0x10 | 8 | `i16[4]` | `y` | 1/8 m | |
 | 0x18 | 8 | `i16[4]` | `z` | 1/256 m | Above `base_m`. |
 
-A corner is `(x/8, y/8, base_m + z/256)` in binary32 as `src/formats/collision.rs:68` computes it; with flag 0x04
+A corner is `(x/8, y/8, base_m + z/256)` in binary32 as `crates/ob-formats/src/formats/collision.rs:68` computes it; with flag 0x04
 corners 0 and 3 are at z = −2048 and corners 1 and 2 at +2048.
 
 Face flags (byte 3; docs/formats/cars-1.md "Collision", **verified** unless marked):
@@ -258,7 +258,7 @@ per (placement key); and an "approximate" warning in the pack check.
 | prop volumes | Eq1 values | none: the parser keeps the smaller of the header's vertex count and the records (they differ in 106 of 646 volumes), clamps negative links to 0, and the vertex records hold 24 more bytes it does not read | the whole `0x80034020` chunk (L4RA 59,124 B; all regions 426,584 B) |
 
 Proofs (per region, at import and by `base verify`): Eq1, the `xxh3-128` of the flat encoding
-(`src/cache/persist.rs`) of each pack's `(section, faces)` and `CollisionGrid`, of the barrier group list and of the
+(`crates/ob-core/src/cache/persist.rs`) of each pack's `(section, faces)` and `CollisionGrid`, of the barrier group list and of the
 volume list, from the original and from the base set, are equal; Eq2, every pack and the barrier table re-encode to
 their original bytes.
 

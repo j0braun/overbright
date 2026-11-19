@@ -58,7 +58,7 @@ Changes:
   full loop as a reference for every car type at its own index and at 31
   and 45, all four figures bit for bit. Also speeds `DynoRun::of` for such
   types. The native loop is unchanged (0x5B06B0 runs the 999,999 steps).
-* **`texture::parse_texture_pack_where`** (`src/formats/texture.rs`):
+* **`texture::parse_texture_pack_where`** (`crates/ob-formats/src/formats/texture.rs`):
   the pack parse with a hash filter; a compressed block whose record hash
   (+0x00) is not wanted is not decompressed. `vinyl_layers` uses it.
   Identical textures in the same order: `vinyl_packs_filtered_parse_matches_full`

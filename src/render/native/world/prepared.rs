@@ -403,3 +403,75 @@ pub fn verify(file: &CacheFile, world: &World) -> Option<bool> {
     let meta = Meta::get(&mut r).ok()?;
     Some(Cached::open(file, meta.bc, meta.max_layers as usize).is_some_and(|c| c.matches(world)))
 }
+
+#[cfg(test)]
+mod tests {
+    /// The pack-applied arrays' file gives back exactly the arrays
+    /// stored (slots found by texture, in another order too), and nothing
+    /// for another pack fingerprint or another device's layout.
+    #[test]
+    fn pack_arrays_round_trip_and_key() {
+        use crate::formats::texture::{Blend, PixelFormat, Texture};
+        use crate::render::prepared;
+        use crate::cache::{CacheFile, write_now};
+        let dir = std::env::temp_dir().join(format!("nfsu2-cache-pack-{}", std::process::id()));
+        let root = dir.join("game");
+        std::fs::create_dir_all(&root).unwrap();
+        std::fs::write(root.join("T.BUN"), b"track").unwrap();
+        let tex = |hash: u32, w: u32, h: u32, format: PixelFormat, fill: u8| Texture {
+            name: format!("T{hash}"),
+            hash,
+            width: w,
+            height: h,
+            format,
+            mip_count: 1,
+            data: vec![fill; format.level_size(w, h)].into(),
+            palette: vec![],
+            alpha_test: false,
+            blend: Blend::None,
+            rendering_order: 0,
+            late_buckets: false,
+            scroll: Default::default(),
+        };
+        let ts = [
+            tex(1, 8, 8, PixelFormat::Dxt1, 3),
+            tex(2, 16, 8, PixelFormat::Dxt5, 9),
+            tex(3, 8, 8, PixelFormat::Dxt1, 7),
+            tex(4, 4, 4, PixelFormat::Rgba8, 200),
+        ];
+        let sources: Vec<Option<&Texture>> = vec![Some(&ts[0]), None, Some(&ts[1]), Some(&ts[2]), Some(&ts[3])];
+        let hashes: Vec<Option<u32>> = sources.iter().map(|t| t.map(|t| t.hash)).collect();
+        let arrays = prepared::arrays(&sources, true, 2);
+        let sections = prepared::pack_sections(&arrays, &hashes, true, 2, "key one").unwrap();
+        assert!(
+            sections.iter().all(|(n, _)| n != "gpu.vertices" && n != "gpu.indices"),
+            "no geometry: the track's file has it"
+        );
+        let cache = dir.join("cache");
+        write_now(&cache, &root, "track-T-pack", &["T.BUN".into()], &sections, crate::BUILD_ID).unwrap();
+        let file = CacheFile::open_in(&cache, crate::BUILD_ID, &root, "track-T-pack", &["T.BUN"]).unwrap();
+        let got = prepared::pack_arrays(&file, true, 2, "key one", &hashes).expect("same key: a hit");
+        assert_eq!(got.slots, arrays.slots);
+        assert_eq!(got.arrays.len(), arrays.arrays.len());
+        for (a, b) in got.arrays.iter().zip(&arrays.arrays) {
+            assert_eq!((a.key, a.layers, a.levels.len()), (b.key, b.layers, b.levels.len()));
+            for (x, y) in a.levels.iter().zip(&b.levels) {
+                assert!(
+                    (x.bytes_per_row, x.rows, x.extent) == (y.bytes_per_row, y.rows, y.extent)
+                        && x.data[..] == y.data[..]
+                );
+            }
+        }
+        // The same textures in another slot order: found by texture.
+        let other: Vec<Option<u32>> = vec![Some(3), Some(1), None];
+        assert_eq!(
+            prepared::pack_arrays(&file, true, 2, "key one", &other).unwrap().slots,
+            vec![arrays.slots[3], arrays.slots[0], arrays.slots[1]]
+        );
+        assert!(prepared::pack_arrays(&file, true, 2, "key one", &[Some(99)]).is_none(), "a texture it lacks");
+        assert!(prepared::pack_arrays(&file, true, 2, "key two", &hashes).is_none(), "another pack");
+        assert!(prepared::pack_arrays(&file, false, 2, "key one", &hashes).is_none(), "no BC on this device");
+        assert!(prepared::pack_arrays(&file, true, 4, "key one", &hashes).is_none(), "other array limits");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+}

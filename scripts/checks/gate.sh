@@ -54,7 +54,7 @@ PW="$G/perf-work"
 # scripts/local.env) it is built once per base source tree and build script, then reused.
 BKEY=""
 if [ -n "${GATE_BASE_CACHE:-}" ]; then
-  BKEY=$( { (cd "$G/src-a" && find src examples build.rs Cargo.toml Cargo.lock rustfmt.toml -type f 2>/dev/null | LC_ALL=C sort | xargs -r md5sum); md5sum < scripts/perf/perf.sh; md5sum < scripts/lib/common.sh; rustc -V; } | md5sum | cut -d' ' -f1)
+  BKEY=$( { (cd "$G/src-a" && find src crates build_support examples build.rs Cargo.toml Cargo.lock rustfmt.toml -type f 2>/dev/null | LC_ALL=C sort | xargs -r md5sum); md5sum < scripts/perf/perf.sh; md5sum < scripts/lib/common.sh; rustc -V; } | md5sum | cut -d' ' -f1)
 fi
 if [ -n "$BKEY" ] && [ -x "$GATE_BASE_CACHE/$BKEY/game" ] && [ -x "$GATE_BASE_CACHE/$BKEY/pixdiff" ]; then
   cp "$GATE_BASE_CACHE/$BKEY/game" "$GATE_BASE_CACHE/$BKEY/pixdiff" "$G/a/" && echo "gate: base binary from the cache ($BKEY)" | tee "$G/build-a.log"

@@ -41,7 +41,7 @@ pub(super) fn check_cache_file(gpu: &Gpu) -> Option<std::path::PathBuf> {
         "{}|{}|{}|{}|{}|{:?}",
         info.name, info.vendor, info.device, info.driver, info.driver_info, info.backend
     );
-    Some(check_cache_path(&base, &adapter, crate::cache::build_id(), check_stages(), check_variants()))
+    Some(check_cache_path(&base, &adapter, crate::BUILD_ID.0, check_stages(), check_variants()))
 }
 
 /// `<base>/post-check-<hash>.<build id>.txt`. The hash keys the verdict to

@@ -9,9 +9,9 @@ Success paths are unchanged (parity gate, `docs/perf-gates.md`).
 ## Audited
 
 Every `unwrap` / `expect` / `panic!` / `unreachable!` / slice index outside
-tests in the code that touches files, devices or user data: `src/cache/`,
+tests in the code that touches files, devices or user data: `crates/ob-core/src/cache/`,
 `src/audio/mixer/` (device open, watchdog), `src/audio/streams/`
-(decoder threads), `src/formats/native_save.rs`, `src/frontend/profiles/`,
+(decoder threads), `crates/ob-formats/src/formats/native_save.rs`, `src/frontend/profiles/`,
 `src/frontend/career/` (`Profile::from_native`: constant offsets, capped
 counts, map lookups only), `src/frontend/options/` (options.txt),
 `src/qol/` (saves, backups, crash reports, game-root file),

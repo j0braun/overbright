@@ -10,7 +10,7 @@ as before, byte for byte. No SPEED2.EXE behaviour is involved (the texture packs
 * `WorldRenderer::new` (src/render/mod.rs): with a world pack, the upload-ready arrays with the
   pack applied (`prepared::arrays_with_pack`) are written after the first load to a file of their own
   beside the track's: `<cache>/track-<REGION>-pack.nfc` (`TrackCache::pack_file` / `store_pack`,
-  src/cache/). It holds the same "gpu.meta" / "gpu.a*" sections as the native data (no geometry;
+  crates/ob-core/src/cache/). It holds the same "gpu.meta" / "gpu.a*" sections as the native data (no geometry;
   the track's file has it) and a "pack.key" section. The track's own file keeps the native arrays,
   so turning the pack off finds them unchanged. There is one file per track, for the most recent pack setup.
 * Validity: the file is a normal cache file over the track's game files (build id, sizes, times,

@@ -172,7 +172,7 @@ A binary struct is defined by a **layout table**, and a page defines every binar
 Every array inside a binary file starts at a multiple of its element's alignment, and at least 16 bytes. Large
 arrays the engine uses in place start at multiples of 64, the alignment of stored bundle entries
 ([layout.md](layout.md) §4), so they stay aligned in a mapped bundle; writers MAY use larger multiples (256, the
-asset cache's section alignment for wgpu row copies, `src/cache/format.rs` `SECTION_ALIGN`).
+asset cache's section alignment for wgpu row copies, `crates/ob-core/src/cache/format.rs` `SECTION_ALIGN`).
 
 ### 4.4 External arrays (`.bin` files and array descriptors)
 
@@ -303,7 +303,7 @@ its hash is of the full name, the format stores **what the engine uses**:
 - if the engine uses the truncated text (texture names, 23 characters), `name` holds that text and an optional
   `full_name` holds the completion when its hash proves it (tools only; [textures.md](textures.md));
 - if the engine completes the name and uses the completion (solid names, 27 characters,
-  `src/formats/hash.rs` `complete_truncated_name`), `name` holds the completion, and `name_truncated = true` marks a
+  `crates/ob-formats/src/formats/hash.rs` `complete_truncated_name`), `name` holds the completion, and `name_truncated = true` marks a
   name no completion matched ([meshes.md](meshes.md)).
 
 **Names that stand for original files** (a sound bank's file stem, a movie's file stem, an engine recording) are
@@ -318,7 +318,7 @@ names never start with `0x`).
 ### 6.4 32-bit hash keys
 
 The original names most things by `bin_hash(name)`: `h = 0xFFFFFFFF; for each byte c: h = h·33 + c (mod 2³²)`
-(verified, docs/formats/world.md "Strings → hashes"; `src/formats/hash.rs`). In text the hash is written as
+(verified, docs/formats/world.md "Strings → hashes"; `crates/ob-formats/src/formats/hash.rs`). In text the hash is written as
 `"0x"` + 8 upper-case hex digits (`"0x3BE35F00"`). Where a kind keys items by hash, it also stores the name when the
 name is known. Hashes are 32-bit, so new names can collide with existing ones: a writer MUST refuse a **new** name
 whose hash equals the hash of a different name already in the layer stack for the same kind (the Studio's checks
@@ -387,7 +387,7 @@ for a scoped reference.
 | Algorithm | Form | Used for |
 |---|---|---|
 | `sha256` | `sha256:` + 64 hex | Original files (the importer's verification, [import.md](import.md)); **everything compared between machines or against an untrusted party**: published `.obpk` files, mod-set pins, the pack identity a future online lobby compares. Collision resistance matters there. |
-| `xxh3-128` | `xxh3-128:` + 32 hex | Local content addressing: source files, bundles, arrays, cache keys (fast; the asset cache already uses XXH3-128, `src/cache/keys.rs`). XXH3 is not a cryptographic hash and is never used where someone could craft a collision (https://github.com/Cyan4973/xxHash). The name matches the multicodec table's `xxh3-128` (https://github.com/multiformats/multicodec). |
+| `xxh3-128` | `xxh3-128:` + 32 hex | Local content addressing: source files, bundles, arrays, cache keys (fast; the asset cache already uses XXH3-128, `crates/ob-core/src/cache/keys.rs`). XXH3 is not a cryptographic hash and is never used where someone could craft a collision (https://github.com/Cyan4973/xxHash). The name matches the multicodec table's `xxh3-128` (https://github.com/multiformats/multicodec). |
 
 - The 128-bit XXH3 value is written high 64 bits first.
 - **Digests of lists** (a pack's content, a unit's inputs) hash a defined byte sequence, never a text dump: a domain
@@ -454,7 +454,7 @@ Each kind page states its limits (file size, items per file, string lengths). De
 | Array nesting | 4 levels |
 
 A reader MUST check a limit before allocating for it (the parsers already follow this rule,
-`src/formats/reader.rs` `Limits`).
+`crates/ob-formats/src/formats/reader.rs` `Limits`).
 
 ## 11. Errors
 

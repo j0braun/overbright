@@ -337,3 +337,35 @@ pub fn parse_presets(globalb: &[u8]) -> Vec<Preset> {
         })
         .unwrap_or_default()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::parse_car_types;
+    use crate::formats::parts::{Part, PartDb, SLOT_TYPES};
+
+    /// The indexed searches return what a scan of every part does, for
+    /// every car type (and the shared groups' names) in every slot.
+    #[test]
+    #[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
+    fn indexed_search_matches_scan() {
+        let root = crate::testkit::game_root();
+        let g = std::fs::read(root.join("GLOBAL/GLOBALB.BUN")).unwrap();
+        let db = PartDb::load(&g).unwrap();
+        let mut cars: Vec<String> = parse_car_types(&g).unwrap().into_iter().map(|t| t.name).collect();
+        cars.push(String::new());
+        assert!(cars.len() > 30);
+        let ptrs = |v: Vec<&Part>| v.into_iter().map(|p| p as *const Part).collect::<Vec<_>>();
+        for car in &cars {
+            for slot in 0..SLOT_TYPES.len() + 1 {
+                let scan = db.slot_parts_scan(car, slot);
+                assert_eq!(ptrs(db.slot_parts(car, slot)), ptrs(scan.clone()), "{car} slot {slot:#x}");
+                let first = |level: Option<u8>| scan.iter().copied().find(|p| level.is_none_or(|l| p.level == l)).map(|p| p as *const Part);
+                assert_eq!(db.find(car, slot, None, Some(0)).map(|p| p as *const Part), first(Some(0)), "{car} slot {slot:#x}");
+                assert_eq!(db.find(car, slot, None, None).map(|p| p as *const Part), first(None), "{car} slot {slot:#x}");
+                if let Some(p) = scan.last() {
+                    assert_eq!(db.find(car, slot, Some(p.hash), None).map(|p| p.hash), Some(p.hash));
+                }
+            }
+        }
+    }
+}

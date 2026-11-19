@@ -23,7 +23,7 @@ Schemas: [`fe-package`](schemas/fe-package.schema.json), [`font`](schemas/font.s
 | Fonts: chunk 0x30201 in `GLOBAL/GLOBALA.BUN` (1) and in every `LANGUAGES/<Lang>.bin` (6 or 7 each) | 87 chunks, 377,872 bytes, 15 distinct fonts | `ob.font` | `src/frontend/feng/font.rs:55` |
 | The front-end asset set: which files the engine merges, in which order | 12 files (`ASSET_FILES`) | rules, §3.3 | `src/frontend/assets.rs:62`, `:83` |
 | HUD: packages, element tables, custom-gauge pictures | 4 single-player HUD packages, 8 split-screen ones, `HUD_World_Loading` | §3.4 (no kind of its own) | `src/frontend/hud/mod.rs:50` |
-| Garage platforms `FRONTEND/PLATFORMS/*.BIN`, environment maps `FRONTEND/ENVMAPS/*.bin` | 8 + 2 files | units, §3.5 | `src/garage.rs:570`, `src/formats/magazines.rs:88` |
+| Garage platforms `FRONTEND/PLATFORMS/*.BIN`, environment maps `FRONTEND/ENVMAPS/*.bin` | 8 + 2 files | units, §3.5 | `src/garage.rs:570`, `crates/ob-formats/src/formats/magazines.rs:88` |
 
 `GLOBAL/InGameCommon.bun` holds exactly the unpacked content of `InGameCommon.lzc` (measured) and is not read by
 Overbright; its nodes in the residual map name the same items.
@@ -68,9 +68,9 @@ text/<language>/
 |---|---|---|
 | `fe-package:<NAME>` | a package | `NAME` without `.fng`, case as stored; the engine's package map uses the same key (`src/frontend/assets.rs:134`). |
 | `fe-object:<NAME>/0xID` | an object of a package | `ID` = the object's `id` (`OP` word 0) as 8 upper-case hex digits. Used by references and by the layering extension point (§4). |
-| `font:<name>` | a font | Matched without case, by `fe_hash` of the name (`src/formats/hash.rs:158`), as the engine looks fonts up (`src/frontend/assets.rs:218`). Resolution order: the active language's `fonts/`, then `frontend/ui/fonts/` (§3.3). |
+| `font:<name>` | a font | Matched without case, by `fe_hash` of the name (`crates/ob-formats/src/formats/hash.rs:158`), as the engine looks fonts up (`src/frontend/assets.rs:218`). Resolution order: the active language's `fonts/`, then `frontend/ui/fonts/` (§3.3). |
 | `fe-platform:<NAME>` | the unit `frontend/platforms/<NAME>/` | `NAME` = the original file's stem (`Showroom`); the engine's table names (`SHOWROOM`, `src/garage.rs:52`) match it without case, as the original's file lookup does (a file-name key, conventions §6.3, `CONV.13`). |
-| `fe-envmap:<NAME>` | the unit `frontend/envmaps/<NAME>/` | Named by magazine records (`src/formats/magazines.rs:77`). |
+| `fe-envmap:<NAME>` | the unit `frontend/envmaps/<NAME>/` | Named by magazine records (`crates/ob-formats/src/formats/magazines.rs:77`). |
 
 Object name hashes repeat inside 209 of the 236 package chunks (library instances share names); the `id` never
 repeats within a package (measured), so it is the key.
@@ -139,7 +139,7 @@ MsgR, PkgR:  ( Mi MC (Ri Ru Rt)* )*
 | Field | Type | Unit | Req. | Default | Meaning |
 |---|---|---|---|---|---|
 | `id` | u32 | – | yes | – | `OP` word 0; the object's key (`fe-object:`). Events and focus refer to objects by it. |
-| `name_hash` | hash32 | – | yes | – | `Oh`: `fe_hash` of the object's name (the screens find objects by it, `src/formats/hash.rs:158`). |
+| `name_hash` | hash32 | – | yes | – | `Oh`: `fe_hash` of the object's name (the screens find objects by it, `crates/ob-formats/src/formats/hash.rs:158`). |
 | `name` | string ≤ 63, printable ASCII | – | no | – | The name when known (Overbright's name list, `src/frontend/fe_ids.rs`); `fe_hash(name)` MUST equal `name_hash` (`UI.10`). Informational. |
 | `kind` | enum | – | yes | – | `Ot`: `image` 1, `string` 2, `model` 3, `list` 4, `group` 5, `code_list` 6, `movie` 7, `effect` 8, `colored_image` 9, `anim_image` 10, `simple_image` 11, `multi_image` 12. |
 | `flags` | u32 | – | no | 0 | `OP` word 2. Bit 0 hidden at run time, 0x10000000 a button, 0x100000 a library instance, bit 31 a skipped group (docs/formats/front-end.md "Object"). |
@@ -392,11 +392,11 @@ whole, as the original loads the whole file:
 | `…/PartsShop01/` | `PartsShop01.BIN` | 4,075,520 | 6 solids, 2 packs (35) | same |
 | `…/PerfShop01/` | `PerfShop01.BIN` | 2,910,848 | 6 solids, 2 packs (24) | same |
 | `…/Showroom/` | `Showroom.BIN` | 3,989,168 | 6 solids, 2 packs (50), a texture animation, particle descriptions and emitters | same |
-| `frontend/envmaps/ElaborareGT/` | `FRONTEND/ENVMAPS/ElaborareGT.bin` | 2,098,176 | 1 pack, the six faces | `src/formats/magazines.rs:88` |
+| `frontend/envmaps/ElaborareGT/` | `FRONTEND/ENVMAPS/ElaborareGT.bin` | 2,098,176 | 1 pack, the six faces | `crates/ob-formats/src/formats/magazines.rs:88` |
 | `frontend/envmaps/Showroom/` | `FRONTEND/ENVMAPS/Showroom.bin` | 2,098,176 | 1 pack, the six faces | same |
 
 The solids (DISC01–03, BACKDROP, BACKDROP_FLOOR, PLATFORMBASE) follow [meshes.md](meshes.md); the texture packs,
-the six environment faces (named `XPOS` … `ZNEG` and found by name hash in the unit, `src/formats/magazines.rs:83`)
+the six environment faces (named `XPOS` … `ZNEG` and found by name hash in the unit, `crates/ob-formats/src/formats/magazines.rs:83`)
 and the texture animation follow [textures.md](textures.md). `FRONTEND/FRONTA.BUN` is empty (0 bytes): the
 residual records it.
 

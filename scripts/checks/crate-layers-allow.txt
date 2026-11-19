@@ -1,0 +1,3 @@
+# The upward references the tree still has (scripts/checks/crate_layers.py, ARCHITECTURE.md "Layers"): FILE PATH,
+# the referring file and the path it names, no line numbers. Only shrinks: a new upward reference fails the check,
+# and so does a line here that no longer matches one. `crate_layers.py --list` prints the current set.

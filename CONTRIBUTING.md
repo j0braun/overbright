@@ -89,7 +89,7 @@ check without Mesa's software Vulkan driver. Without the private set the steps t
 ## What must never be committed
 
 - Game data in any form: files of the game, extracted or converted assets, textures, sounds, movies, text
-  dumps, byte dumps of the executable. The engine's numbers are written in `src/exe_tables/` as named
+  dumps, byte dumps of the executable. The engine's numbers are written in `crates/ob-formats/src/exe_tables/` as named
   constants, formulas or tables from open decoders, each with what it is (docs/exe-tables.md).
 - Screenshots or video frames of the original or of Overbright drawing the game's assets.
 - Save games and profiles (yours or anyone else's), memory captures and traces of the original.

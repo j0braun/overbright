@@ -37,7 +37,7 @@ pub use render_scale::*;
 pub mod crash;
 /// The folders kept in Overbright's files, relative in a portable install.
 /// The game's log file: `<logs>/game-<time>.log`, the last 5 kept.
-pub mod log_file;
+pub use crate::log_file;
 /// Durable profile writes and rolling backups.
 pub mod saves;
 /// First run: finding the game folder and checking it.

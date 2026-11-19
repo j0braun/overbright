@@ -2,7 +2,7 @@
 
 No native counterpart: SPEED2.EXE is Direct3D 9 only. Everything here is the clone's own platform layer.
 Library code: `src/render/core/backend.rs` (the pure decisions, unit-tested on Linux), `src/render/core/gpu.rs`
-(`Gpu::new`, `new_instance`), `src/platform/{win,timer,icon}.rs`, `src/render/native/display/present.rs`
+(`Gpu::new`, `new_instance`), `crates/ob-core/src/platform/{win,timer,icon}.rs`, `src/render/native/display/present.rs`
 (`sleep_margin`), `src/upscale_pack.rs` (`lower_priority`), `build_support/{windows_res,icon_art}.rs`.
 **[unverified on real Windows]** unless a Wine result is named; the Wine smoke (docs/checks.md "Wine smoke")
 covers what Wine can show.

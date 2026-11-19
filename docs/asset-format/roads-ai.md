@@ -109,7 +109,7 @@ and the career's own names ([career.md](career.md)).
 The point count (`+0x40`) and record size (`+0x42`) are derived; the importer checks `size = 0x44 + 8·count` (true for
 all 1,036 shipped records).
 
-**`barrier`** — one `0x3414D` record (0x24 bytes, `src/formats/roads.rs:11`; item key `route-barrier:<REGION>/<i>`):
+**`barrier`** — one `0x3414D` record (0x24 bytes, `crates/ob-formats/src/formats/roads.rs:11`; item key `route-barrier:<REGION>/<i>`):
 
 | Field | Type | Unit | Req. | Default | Meaning |
 |---|---|---|---|---|---|
@@ -176,7 +176,7 @@ points = [[-1203.5, 455.25], [-980.0, 610.75], [-702.125, 640.5], [-1180.0, 300.
 
 The arrays are the original's records byte for byte (Eq2 by identity, §6). Every byte (conventions §4.2):
 
-`road_node` — 0x18 bytes, align 4 (`0x34148`, `src/formats/roads.rs:4`):
+`road_node` — 0x18 bytes, align 4 (`0x34148`, `crates/ob-formats/src/formats/roads.rs:4`):
 
 | Offset | Size | Type | Field | Unit | Notes |
 |---|---|---|---|---|---|
@@ -246,7 +246,7 @@ segments = { file = "4001.bin", offset = 5632, count = 41, layout = "road_segmen
 | `junctions` | array descriptor | – | no | absent | Layout `route_junction`. Absent: the file has no `0x34122` chunk (four shipped files); `count = 0`: an empty one. |
 | `intersections` | array descriptor | – | no | absent | Layout `route_intersection`; absent: no `0x34123` chunk (104 of 226 files). |
 
-`route_record` — 0x8C bytes, align 4 (`0x34121` header, `src/formats/ai_routes.rs:65`):
+`route_record` — 0x8C bytes, align 4 (`0x34121` header, `crates/ob-formats/src/formats/ai_routes.rs:65`):
 
 | Offset | Size | Type | Field | Unit | Notes |
 |---|---|---|---|---|---|
@@ -275,7 +275,7 @@ segments = { file = "4001.bin", offset = 5632, count = 41, layout = "road_segmen
 | 0x80 | 4 | `f32` | `u_0x80` | – | **open**; 999.0 in all but one record |
 | 0x84 | 8 | `u8[8]` | `lanes` | – | lanes 2–9 exist (0x410CA0). Today's parser reads its lane array from 0x82, so its lanes 0 and 1 are the high bytes of `u_0x80`; nothing reads them. |
 
-`route_point` — 0x38 bytes, align 4 (control point, `src/formats/ai_routes.rs:1072`):
+`route_point` — 0x38 bytes, align 4 (control point, `crates/ob-formats/src/formats/ai_routes.rs:1072`):
 
 | Offset | Size | Type | Field | Unit | Notes |
 |---|---|---|---|---|---|
@@ -306,7 +306,7 @@ at import and not stored):
 | 0x14 | 4 | `u32` | `u_0x14` | – | **open**; 0 everywhere |
 | 0x18 | 8 | `i16[4]` | `u_0x18` | – | **open** |
 
-`route_intersection` — 0x114 bytes, align 4 (`0x34123`, `src/formats/ai_routes.rs:139`):
+`route_intersection` — 0x114 bytes, align 4 (`0x34123`, `crates/ob-formats/src/formats/ai_routes.rs:139`):
 
 | Offset | Size | Type | Field | Unit | Notes |
 |---|---|---|---|---|---|
@@ -589,8 +589,8 @@ untested. The conversion test reads both forms and compares the `CustomRace` val
 | `ob.ai-tuning` | **Eq2** | identity | none |
 | `ob.race` | – | no original data; the legacy conversion is tested lossless | – |
 
-**Eq1 model** (what the engine consumes, hashed with the cache's flat encoding): `RoadNet` (`src/formats/roads.rs:42`,
-including `repaired`), `RouteFile` (`src/formats/ai_routes.rs:147`, including `record_tracks`), the trigger sets
+**Eq1 model** (what the engine consumes, hashed with the cache's flat encoding): `RoadNet` (`crates/ob-formats/src/formats/roads.rs:42`,
+including `repaired`), `RouteFile` (`crates/ob-formats/src/formats/ai_routes.rs:147`, including `record_tracks`), the trigger sets
 (`RouteTriggers`, `ResetZone`, `TrafficZone`), the barriers, each track's checkpoint list and loop flag, the marker
 lists and `AiTuning`. Because every route chunk except `0x3414C` is Eq2, a transitional reader can rebuild the
 original chunk and run today's parsers on it; Eq1 is still computed and compared for every file. Post-load products (the free-roam pruning per stage, `src/bin/game/loads/cache.rs:52`; the

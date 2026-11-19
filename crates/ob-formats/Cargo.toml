@@ -1,0 +1,31 @@
+[package]
+name = "ob-formats"
+version.workspace = true
+edition.workspace = true
+description = "Overbright's file-format parsers and the engine's tables."
+license.workspace = true
+publish = false
+build = "build.rs"
+# Hands its build id to the crates above it (build_support/build_id.rs).
+links = "ob_formats"
+
+# On ob-core only; no window, GPU or audio crate (scripts/checks/crate_layers.sh).
+[dependencies]
+ob-core = { path = "../ob-core" }
+anyhow.workspace = true
+block_compression.workspace = true
+bytemuck = { workspace = true, features = ["extern_crate_alloc"] }
+glam.workspace = true
+log.workspace = true
+lzma-rs.workspace = true
+memmap2.workspace = true
+miniz_oxide.workspace = true
+rayon.workspace = true
+
+[dev-dependencies]
+# The test kit (crates/ob-testkit, docs/testing.md).
+ob-testkit = { path = "../ob-testkit" }
+
+[features]
+# The developer harness's hooks (the root package's `dev-harness` turns it on).
+dev-harness = ["ob-core/dev-harness"]

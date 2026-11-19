@@ -162,7 +162,7 @@ owned-part bits use 0x2E when the part's group is no car (saves-options.md "Owne
 ### 4.3 Other counts
 
 * Part database: group index is a byte (part +7, ≤ 256 groups; 75 used), models / names / attribute lists
-  are u16 indices (**verified** field sizes, `src/formats/parts.rs`).
+  are u16 indices (**verified** field sizes, `crates/ob-formats/src/formats/parts.rs`).
 * Slots: 0xAA per car, program-wide.
 * Racer vs traffic: record +0x844 (0 racer, 2 traffic); 31 racer types and 15 traffic types in the
   reference data; traffic per zone is capped by record +0x854.

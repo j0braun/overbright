@@ -1772,6 +1772,8 @@ dependencies = [
  "memmap2",
  "mimalloc",
  "miniz_oxide 0.8.9",
+ "ob-core",
+ "ob-formats",
  "ob-testkit",
  "pollster 0.4.0",
  "profiling",
@@ -1860,6 +1862,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "ob-core"
+version = "0.3.0"
+dependencies = [
+ "anyhow",
+ "bytemuck",
+ "glam",
+ "libc",
+ "log",
+ "memmap2",
+ "proptest",
+ "rayon",
+ "sha2",
+ "xxhash-rust",
+]
+
+[[package]]
 name = "ob-editor"
 version = "0.3.0"
 dependencies = [
@@ -1878,6 +1896,23 @@ dependencies = [
  "toml",
  "wgpu",
  "winit",
+]
+
+[[package]]
+name = "ob-formats"
+version = "0.3.0"
+dependencies = [
+ "anyhow",
+ "block_compression",
+ "bytemuck",
+ "glam",
+ "log",
+ "lzma-rs",
+ "memmap2",
+ "miniz_oxide 0.8.9",
+ "ob-core",
+ "ob-testkit",
+ "rayon",
 ]
 
 [[package]]

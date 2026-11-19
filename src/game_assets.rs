@@ -393,6 +393,22 @@ pub fn wanted_movies() -> Vec<&'static str> {
     v
 }
 
+/// The asset report's lines for `root` ([`scan`]), logged once per start
+/// (after the fingerprint, `fingerprint::start`): the edition and the
+/// movies as the game will find them (the same lines as `--check-game`).
+pub fn log_report(root: &Path) {
+    let a = scan(root);
+    for (mark, line) in a.summary() {
+        match mark {
+            crate::qol::setup::Mark::Warn | crate::qol::setup::Mark::Error => log::warn!("game assets: {line}"),
+            _ => log::info!("game assets: {line}"),
+        }
+    }
+    for (_, line) in a.groups() {
+        log::info!("game assets: {line}");
+    }
+}
+
 /// Check `root` (reads only): the edition, and for every movie the game
 /// asks for and every menu and text file what the game opens
 /// ([`resolve_movie`], [`resolve_file`]: the game's own resolvers).

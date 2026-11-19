@@ -612,7 +612,7 @@ fn text_seeds(kind: &str) -> Vec<Vec<u8>> {
                 .to_vec(),
         ],
         "save" => {
-            let mut v = vec![nfsu2::formats::native_save::NativeSave::fresh("FUZZ").to_bytes(), nfsu2::formats::native_save::picture(&[128; 16 * 16 * 4], 16, 16)];
+            let mut v = vec![nfsu2::frontend::career::fresh_save("FUZZ").to_bytes(), nfsu2::formats::native_save::picture(&[128; 16 * 16 * 4], 16, 16)];
             // The original's save of a finished career, with the private set (OB_PRIVATE).
             if cfg!(ob_private) {
                 v.push(common::private("tests/fixtures/native_saves/career_complete.sav").to_vec());

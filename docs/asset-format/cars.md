@@ -15,9 +15,9 @@ parsers cited; the addresses are the reference executable's.
 | AI upgrade presets, one chunk per car type | GLOBALB 0x80034A30 → 0x34A31 (×46) | `ob.car-type` (`ai_preset`) | src/ai/route/mod.rs:444 |
 | Rating bounds and class curves | GLOBALB 0x80034A30 → 0x34A32, 0x34A33 | `ob.performance` | src/opponents.rs:120, src/ai/route/mod.rs:228 |
 | Preset rides (named cars with parts) | GLOBALB 0x30220 | `ob.car-presets` | src/car/record.rs:322 |
-| Part database | GLOBALB 0x80034602 (children 0x34603–0x3460C) | `ob.part-db` | src/formats/parts.rs:110 |
-| Slot groups | GLOBALB 0x34607 | `ob.part-db` (`slot_groups`) | src/formats/parts.rs:162 |
-| Part cost table | career container 0x80034A10 → 0x34A1C | `ob.part-costs` | src/formats/parts.rs:400 |
+| Part database | GLOBALB 0x80034602 (children 0x34603–0x3460C) | `ob.part-db` | crates/ob-formats/src/formats/parts.rs:110 |
+| Slot groups | GLOBALB 0x34607 | `ob.part-db` (`slot_groups`) | crates/ob-formats/src/formats/parts.rs:162 |
+| Part cost table | career container 0x80034A10 → 0x34A1C | `ob.part-costs` | crates/ob-formats/src/formats/parts.rs:400 |
 | Performance packages | career container → 0x34A15 | `ob.performance` | src/performance/packages.rs:42 |
 | Tuning unlocks (what fitted parts open on the dyno) | career container → 0x34A1A | `ob.performance` | src/tuning/parse.rs:14 |
 | The car folders | `CARS/<NAME>/`, `CARS/TEXTURES.BIN` | `ob.car-unit` (the unit manifest) | src/car/load.rs:163, src/car/assets.rs:240 |
@@ -438,7 +438,7 @@ perf_level = 2
 
 ### 3.4 `global/parts/db.toml` (`ob.part-db/1.0`) and `db.lists.bin`
 
-The part database is a set of pools that refer to each other by index (src/formats/parts.rs:1–13): parts point at
+The part database is a set of pools that refer to each other by index (crates/ob-formats/src/formats/parts.rs:1–13): parts point at
 a string (their name), an attribute list and a model; lists point at attributes; models point at strings. The
 engine consumes the pools as they are (`PartDb`), and two of its walks depend on positions inside them: the slot
 search returns parts in database order (0x61B990), and a part's owned-bit in the native save is its position among
@@ -453,7 +453,7 @@ aligned): 0x34603, 0x34606, 0x3460C, 0x34605, 0x3460A, 0x3460B, 0x34604.
 |---|---|---|---|---|---|
 | `schema` | string | – | yes | – | `ob.part-db/1.0` |
 | `header` | array<u32>[15] | – | base sets | – | Chunk 0x34603. Entries 8, 10, 12, 14 = attribute, group, model and part counts (`CRS.6`); the others **open** (zero except entry 2). |
-| `string` | array<table> | – | base sets, unless `string_pool` | – | Chunk 0x34606, the string pool, as elements `{ at = u32, text = string ≤ 1,000 }`: `at` = dword index of the string; `text` = its bytes as Windows-1252 (src/formats/parts.rs:585 `cp1252`, a one-to-one mapping, so the bytes come back exactly); NUL-terminated and zero-padded to a dword. `at` increases; a gap is zero dwords. |
+| `string` | array<table> | – | base sets, unless `string_pool` | – | Chunk 0x34606, the string pool, as elements `{ at = u32, text = string ≤ 1,000 }`: `at` = dword index of the string; `text` = its bytes as Windows-1252 (crates/ob-formats/src/formats/parts.rs:585 `cp1252`, a one-to-one mapping, so the bytes come back exactly); NUL-terminated and zero-padded to a dword. `at` increases; a gap is zero dwords. |
 | `string_pool` | array descriptor | – | instead of `string` | absent | Chunk 0x34606 as it is (layout `raw_u8`), when it is not strings and zero fill (a non-zero byte after a terminator): the engine keeps the pool as bytes, so it must come back exactly. Not used in the reference install. |
 | `lists` | array descriptor | – | base sets | – | Chunk 0x3460C (layout `u16`): the attribute lists as one array: at a list's index, a count, then that many attribute indices. Kept as one array because lists are shared (60 list offsets serve several parts) and one trailing `u16` belongs to no list. |
 | `attribute` | array<table> | – | base sets | – | Chunk 0x34605, records `part_attribute`, as elements `{ key = hash32, key_name = string, value = u32 }`; position = attribute index. `key_name` is the key's name when known (tools only; 51 distinct keys in the reference install). |
@@ -486,7 +486,7 @@ aligned): 0x34603, 0x34606, 0x3460C, 0x34605, 0x3460A, 0x3460B, 0x34604.
 | 0x02 | 2 | `u16` | `middle` | – | String index of the middle part; 0xFFFF none |
 | 0x04 | 32 | `u32[8]` | `names` | – | Two groups of four (LOD A–D), group by group; 0xFFFFFFFF none |
 
-A named model's solid is `bin_hash_from(seed, "<middle><name>_<LOD letter>")` (src/formats/parts.rs:325–360).
+A named model's solid is `bin_hash_from(seed, "<middle><name>_<LOD letter>")` (crates/ob-formats/src/formats/parts.rs:325–360).
 
 `part_attribute` (chunk 0x34605, 8 bytes, alignment 4):
 
@@ -705,13 +705,13 @@ vinyl part at them through `TEXTURE` (§4.3); adding vinyl *parts* waits with ad
 
 | What | Data (this page) | Engine constant (built into the program) |
 |---|---|---|
-| Region | the base set's `[base] region` ([manifest.md](manifest.md)) | the detection rule the importer runs (src/region.rs:55) |
+| Region | the base set's `[base] region` ([manifest.md](manifest.md)) | the detection rule the importer runs (crates/ob-core/src/region.rs:55) |
 | Car lot | record `lot_flags` bit 1, `geometry_path`, `kind_code`; unlocks ([career.md](career.md)) | lot exclusions by region (CIVIC, RSX / CORSA, PEUGOT106; src/frontend/career/lists.rs:7) |
 | Quick Race | as the lot | always-offered types by region (lists.rs:12); cheat cars |
 | Random opponents | AI upgrade presets, `bounds` | pools by region: region 0 `opponent_cars` (an engine table), region 6 `OPPONENT_CARS_ALT`, SUVs `OPPONENT_SUVS` (src/frontend/career/events.rs:147, :151) |
 | Traffic | `kind_code` = 2, `traffic_caps`, `skin_count`, `skin_table` | – (zones come with the tracks, [roads-ai.md](roads-ai.md)) |
 | AI looks | parts, presets | part chances, vinyl colour sets, paint matches (src/ai_looks.rs:28, :52, :63) |
-| Part exclusions | attributes `EXCLUDE_UG1`, `EXCLUDE_UG2`, `EXCLUDE_SUV` | which groups apply them (src/formats/parts.rs:34–39) |
+| Part exclusions | attributes `EXCLUDE_UG1`, `EXCLUDE_UG2`, `EXCLUDE_SUV` | which groups apply them (crates/ob-formats/src/formats/parts.rs:34–39) |
 | Shared part files loaded with the cars | the units (`role = part-group`, `wheels`) | the list 0x7FA978 (src/car/assets.rs:240); the rims by brand from the parts |
 | Fresh profile | `lot_flags`, `geometry_path`, `kind_code` | Quick Race default cars, ranked rides (engine tables) |
 | Per type index | – | 0–60 / 0–100 factors and the car sound index (31 racer types), the hatch list (src/car/parts.rs:288), the closed-scoop list (src/car/lod.rs:38) |
@@ -926,8 +926,8 @@ garage, car lot and race start.
 | `car_records` | `Vec<(String, [u8; 0x890])>`, the merged records encoded, in type order | `car_type_records` / `parse_car_types` on GLOBALB (src/car/record.rs:110, :126) |
 | `ai_presets` | `Presets` | src/ai/route/mod.rs:444 |
 | `car_presets` | `Vec<Preset>` | src/car/record.rs:322 |
-| `part_db` | `PartDb` (pools in order, private lists and attributes of overrides appended, slot groups) | src/formats/parts.rs:162 |
-| `part_costs` | `CostTable` | src/formats/parts.rs:400 |
+| `part_db` | `PartDb` (pools in order, private lists and attributes of overrides appended, slot groups) | crates/ob-formats/src/formats/parts.rs:162 |
+| `part_costs` | `CostTable` | crates/ob-formats/src/formats/parts.rs:400 |
 | `performance` | packages, tuning unlocks, bounds (`Bounds` and the stat ranges), `ClassCurves` | src/performance/packages.rs:42 and the others |
 
 About 0.6 MB in all; nothing is large enough to be a zero-copy payload. **Cook unit `cars/<NAME>`**: the unit

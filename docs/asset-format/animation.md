@@ -13,10 +13,10 @@ TOML. glTF 2.0 animation is offered as an export for viewing, never as stored da
 
 | Original | Reference install | Kind here | Engine reader today |
 |---|---|---|---|
-| Animation banks, chunk 0x00E34010, in `TRACKS/L4R?.BUN` (world animations), `NIS/Scene_*_BundleB.bun`, `CARS/<CAR>/PARTS_ANIMATIONS.bin` (29 cars), `GLOBAL/GLOBALB.BUN` and `GlobalB.lzc` | 806 banks (103 / 116 / 585 / 2), 2,328 channels, 5,897,184 bytes | `ob.anim-banks` + `.eagl` | `src/formats/eagl.rs:451` from `src/formats/world_anim.rs:200`, `src/character.rs:501`, `src/shop_scene.rs:166`; `src/formats/zam.rs:200` |
+| Animation banks, chunk 0x00E34010, in `TRACKS/L4R?.BUN` (world animations), `NIS/Scene_*_BundleB.bun`, `CARS/<CAR>/PARTS_ANIMATIONS.bin` (29 cars), `GLOBAL/GLOBALB.BUN` and `GlobalB.lzc` | 806 banks (103 / 116 / 585 / 2), 2,328 channels, 5,897,184 bytes | `ob.anim-banks` + `.eagl` | `crates/ob-formats/src/formats/eagl.rs:451` from `crates/ob-formats/src/formats/world_anim.rs:200`, `src/character.rs:501`, `src/shop_scene.rs:166`; `crates/ob-formats/src/formats/zam.rs:200` |
 | Skeletons, chunk 0x00E34009, in NIS bundles and the two GLOBAL files | 85 (83 / 2), 452,832 bytes | `ob.anim-banks` + `.eagl` | `src/character.rs:119-139` |
-| Part-animation pivots, chunk 0x00037100, in `PARTS_ANIMATIONS.bin` | 29 × 21 matrices, 39,904 bytes | `ob.part-pivots` | `src/formats/zam.rs:168-181` |
-| Camera tracks: 0x8003B200 route (`L4RA`, `L4RD`, `L4RG.BUN`), 0x8003B201 generic (`InGameRace`, `InGameDrag`, `InGameDrift`, `InGameFreeRoam.bun`), 0x8003B202 typed (`InGameCommon.bun`; its JDLZ twin `.lzc` holds the same) | 9 chunks, 210 groups, 486 tracks, 1,146 entries, 174,840 bytes (twin counted) | `ob.camera-tracks` | `src/formats/camera_tracks.rs:141`, `src/shop_scene.rs:241`, the replay director (docs/formats/movies-replays.md) |
+| Part-animation pivots, chunk 0x00037100, in `PARTS_ANIMATIONS.bin` | 29 × 21 matrices, 39,904 bytes | `ob.part-pivots` | `crates/ob-formats/src/formats/zam.rs:168-181` |
+| Camera tracks: 0x8003B200 route (`L4RA`, `L4RD`, `L4RG.BUN`), 0x8003B201 generic (`InGameRace`, `InGameDrag`, `InGameDrift`, `InGameFreeRoam.bun`), 0x8003B202 typed (`InGameCommon.bun`; its JDLZ twin `.lzc` holds the same) | 9 chunks, 210 groups, 486 tracks, 1,146 entries, 174,840 bytes (twin counted) | `ob.camera-tracks` | `crates/ob-formats/src/formats/camera_tracks.rs:141`, `src/shop_scene.rs:241`, the replay director (docs/formats/movies-replays.md) |
 | Scene headers, chunk 0x80037020 (0x37030 header, 0x37040 characters), one per NIS bundle | 42 scenes, 410 characters, 70,340 bytes | `ob.scene` | `src/shop_scene.rs:149-176`, `src/character.rs:496-511` |
 | Event tracks `NIS/Scene_<NAME>_EvtTrk.txt` | 35 files, 452 events, 34,097 bytes | `ob.scene-events` | `src/shop_scene.rs:546`, `src/shop_scene/{wheels,effects,audio}.rs`, `src/render/native/fx/effect_controller.rs:90` |
 | The scene table, chunk 0x80037050 in `GLOBAL/InGameCommon.bun` (0x37060, 0x37070) | 1, 22,236 bytes | `ob.scene-table` | `src/shop_scene.rs:373-420` (0x37070 only) |
@@ -86,7 +86,7 @@ A scene loads as one piece (`Scene::load`, `src/shop_scene.rs:143-147`; the crow
 | scene character, scene event | (scene, index) | – | one record / one event line |
 
 - **Lookup order is data.** Consumers search a unit's channels across all its banks in bank order and decide
-  differently on repeats: world animations keep the last channel of a name (`src/formats/world_anim.rs:200-215`),
+  differently on repeats: world animations keep the last channel of a name (`crates/ob-formats/src/formats/world_anim.rs:200-215`),
   the shop and race scenes the last (`src/shop_scene.rs:166-178`), the scene characters the first
   (`src/character.rs:501-507`, `posed`). So the order of objects and of channels in each object is kept
   ([conventions.md](conventions.md) §6.5), and replacements keep the replaced channel's place (§4.1).
@@ -102,18 +102,18 @@ end (the bytes before it are `0x11` fill in all 891 chunks), byte for byte: an E
 object (System V ABI, https://refspecs.linuxfoundation.org/elf/gabi4+/contents.html) written by EA's tool library
 (symbol `__EAGL_TOOLLIB_VERSION:::EAGL_TOOLLIB_VERSION-4`). Sections: `.data`, `.shstrtab`, `.strtab`,
 `.symtab`, and in most objects `.rel.data`; relocated words are `.data` offsets. Two NIS objects carry 40 bytes past
-the ELF's last section, kept as they are. What the decoder reads (`src/formats/eagl.rs`, `src/character.rs`,
-`src/formats/zam.rs`; tags as there):
+the ELF's last section, kept as they are. What the decoder reads (`crates/ob-formats/src/formats/eagl.rs`, `src/character.rs`,
+`crates/ob-formats/src/formats/zam.rs`; tags as there):
 
 | Structure | Where | Layout | Tag |
 |---|---|---|---|
-| Bank | symbol `__AnimationBank:::bank` | +0x04 channel count, +0x10 → channel pointers, +0x14 → name pointers (`src/formats/eagl.rs:451-484`) | verified |
+| Bank | symbol `__AnimationBank:::bank` | +0x04 channel count, +0x10 → channel pointers, +0x14 → name pointers (`crates/ob-formats/src/formats/eagl.rs:451-484`) | verified |
 | Skeleton | symbol `__Skeleton:::<name>` | +0x00 hash, +0x08 bone count, +0x10 bones of 0x70 bytes: scale xyz, parent `i32` (−1 root), rotation xyzw, translation xyz, the bone's index, inverse bind matrix (row-vector 4×4) (`src/character.rs:119-139`) | verified |
 | Compound, type 0x0F | channel pointer | +0x08 child count, +0x0A frame count, +0x0C child pointers; children evaluated last first, the earlier child wins a slot (`eagl.rs:151-189`) | verified (+0x04 inferred) |
 | Delta stream, types 0x0A (scalars) / 0x0B (quaternions) | child | +0x04 → stream (count, bits 4/8/16, per component offset/scale/initial, rows of quanta), +0x08 frame count, +0x0A pose slots (`eagl.rs:201-272`) | verified |
 | Block-keyed, types 0x15 (scalars) / 0x14 (vec3) | child | +0x04 → slots, +0x08 → key times or 0, +0x0C keys, +0x0E items, +0x10 log₂ keys a block, +0x11 constants; per-component min/range/delta tables, blocks of u16 + u8 deltas, then constants (`eagl.rs:274-415`) | verified (constant alignment inferred) |
 | ZAM key block | compound child (type 0) of a part-animation bank | +0x08 components per key (4 `_q`, 3 `_t`), +0x0C keys, raw f32 keys from +0x20, 30 a second (`zam.rs:1-23`, `:200-248`) | verified |
-| Types 0x00, 0x02, 0x11 | children in 22 L4RB banks, 42 NIS banks (`XO_Spotlight…`), the 2 GLOBAL banks | not decoded: the engine's decoder fails on them and the consumer gets **no channel of that object** (`parse_bank(...).unwrap_or_default()`, `src/character.rs:502`; `src/formats/world_anim.rs:201`) | open |
+| Types 0x00, 0x02, 0x11 | children in 22 L4RB banks, 42 NIS banks (`XO_Spotlight…`), the 2 GLOBAL banks | not decoded: the engine's decoder fails on them and the consumer gets **no channel of that object** (`parse_bank(...).unwrap_or_default()`, `src/character.rs:502`; `crates/ob-formats/src/formats/world_anim.rs:201`) | open |
 
 **Why passthrough** ([conventions.md](conventions.md) §4.6 rule 3; compressed animation curves are media
 bitstreams, and the rule is applied per kind, over all its items): the decoded frames of the NIS banks would be
@@ -221,7 +221,7 @@ interpolation, for base and authored channels alike.
 
 ### 3.4 Part-animation pivots (`ob.part-pivots/1.0`)
 
-Chunk 0x37100 (`src/formats/zam.rs:17-23`, `:168-181`): which rest matrix pairs with which animation is fixed by
+Chunk 0x37100 (`crates/ob-formats/src/formats/zam.rs:17-23`, `:168-181`): which rest matrix pairs with which animation is fixed by
 the engine (`zam::NAMES`). Schema: [`schemas/part-pivots.schema.json`](schemas/part-pivots.schema.json).
 
 | Field | Type | Unit | Req. | Default | Meaning |
@@ -263,7 +263,7 @@ Size 0x40, alignment 16.
 
 ### 3.5 Camera tracks (`ob.camera-tracks/1.0`)
 
-One file per camera chunk (docs/formats/movies-replays.md "Replays"; `src/formats/camera_tracks.rs`). Schema:
+One file per camera chunk (docs/formats/movies-replays.md "Replays"; `crates/ob-formats/src/formats/camera_tracks.rs`). Schema:
 [`schemas/camera-tracks.schema.json`](schemas/camera-tracks.schema.json).
 
 | Field | Type | Unit | Req. | Default | Meaning |
@@ -504,7 +504,7 @@ Channels are keyed by `name` within the unit. Base files hold complete elements 
   all of the unit's banks, lowest layer first. A disabled channel is left out of its bank's decoded list; lookups
   then fall through to the next match or to nothing, which each consumer already handles (a shop scene without
   `ZPM_Car1_t` does not play, `src/shop_scene.rs:189`; a part animation without channels stays shut,
-  `src/formats/zam.rs:128-131`).
+  `crates/ob-formats/src/formats/zam.rs:128-131`).
 - An override of a channel in an object with `decodes = false` is refused (`ANI.8`): the engine has no channels of
   it to replace.
 - A replacement's `slots` and `width` may differ from the original's; the consumer reads what it finds.
@@ -562,7 +562,7 @@ camera entry merged, one event added; with the pack off every model equals the b
 | `global` | `cameras/<src>` (groups per file), `scene_table` | – | – |
 
 Decoded channels are model data (what Eq1 compares). Scenes are small (the largest bank decodes to 300,888 floats,
-`src/formats/reader.rs:65`); caching them is optional, decoding on load takes milliseconds [guess].
+`crates/ob-formats/src/formats/reader.rs:65`); caching them is optional, decoding on load takes milliseconds [guess].
 
 ## 8. Errors
 
@@ -571,7 +571,7 @@ Decoded channels are model data (what Eq1 compares). Scenes are small (the large
 | ANI.1 | An `.eagl` file that is not an ELF32 little-endian relocatable object, lacks the `__AnimationBank` (banks) or `__Skeleton:::` (skeletons) symbol, or whose digest differs from `digest`. |
 | ANI.2 | A bank index that differs from its object: channel count, names or order; a skeleton name or bone count. |
 | ANI.3 | A `keys` channel whose `values` count is not a positive multiple of `width`, whose `width` is 0 or over 64, whose `slots` length differs from `width`, or whose `frames` is 0. |
-| ANI.4 | A bank over the decode limit (4,194,304 values, `src/formats/reader.rs:94`), or a channel name outside §2.3. |
+| ANI.4 | A bank over the decode limit (4,194,304 values, `crates/ob-formats/src/formats/reader.rs:94`), or a channel name outside §2.3. |
 | ANI.5 | Camera tracks over the limits: more groups than the kind allows (3,000 / 256 / 100), more than 255 entries in a track, a name over 13 characters; a group a pack adds with a `key` the merged file already has. |
 | ANI.6 | A scene whose `name` differs from its unit's `<NAME>`, is over 15 characters or outside `[A-Za-z0-9_]`, or whose `hash` is not `bin_hash(name)`; a description over 200 characters or outside printable ASCII. |
 | ANI.7 | An event with more than 16 arguments, a token outside the three forms (a string token in an integer or float form included), or a float token that is not finite. |

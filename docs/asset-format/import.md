@@ -26,11 +26,11 @@ provenance per item (OpenRCT2's `originalId`, https://github.com/OpenRCT2/object
 ## 2. Input
 
 The game folder the launcher already knows (found by `qol::setup::candidates` or chosen by the player,
-`game-root.txt`, docs/platform-dirs.md). Names are found without regard to case, as today (`src/game_fs.rs`).
+`game-root.txt`, docs/platform-dirs.md). Names are found without regard to case, as today (`crates/ob-core/src/game_fs.rs`).
 
 The importer reads the **content folders** (`CARS`, `FRONTEND`, `GLOBAL`, `LANGUAGES`, `MOVIES`, `NIS`, `SDATA`,
 `SOUND`, `TRACKS`, `CREDITS`, `SUBTITLES`, `memcard`) and skips everything else ([residual.md](residual.md) §5).
-`SPEED2.EXE` is fingerprinted for the record only, as `src/fingerprint.rs` does today, and never read for content.
+`SPEED2.EXE` is fingerprinted for the record only, as `crates/ob-core/src/fingerprint.rs` does today, and never read for content.
 
 ## 3. Editions
 
@@ -40,8 +40,8 @@ The importer knows **editions**: for each, a key, a name, the region, and the co
 
 | Key | Edition | State |
 |---|---|---|
-| `pc12-eu` | PC 1.2, European release (region 6) | known: the reference install; all content files' hashes recorded (today `src/fingerprint.rs` records nine) |
-| `pc12-na` | PC 1.2, North American release (region 0) | expected (its `CARS` folder differs, src/region.rs); hashes to be contributed [open] |
+| `pc12-eu` | PC 1.2, European release (region 6) | known: the reference install; all content files' hashes recorded (today `crates/ob-core/src/fingerprint.rs` records nine) |
+| `pc12-na` | PC 1.2, North American release (region 0) | expected (its `CARS` folder differs, crates/ob-core/src/region.rs); hashes to be contributed [open] |
 | `custom` | anything else: another release, a patched or modded install | imported as found; no parity promise |
 
 - The base set's id is `nfsu2-<key>` (`nfsu2-pc12-eu`); a `custom` import is `nfsu2-custom-<first 8 hex digits of
@@ -61,7 +61,7 @@ sound bank group), each with its own importer version. Units run in parallel, ea
 1. reads its original file(s) (memory-mapped, as the parsers do today);
 2. unwraps containers (JDLZ, HUFF, BIG4) and walks the chunk tree;
 3. decodes with Overbright's existing parsers into the in-memory model the engine uses today;
-4. hashes the model (**Eq1 reference hash**: the cache's flat encoding of the model, `src/cache/persist.rs`, hashed
+4. hashes the model (**Eq1 reference hash**: the cache's flat encoding of the model, `crates/ob-core/src/cache/persist.rs`, hashed
    with XXH3-128);
 5. writes the source-form files of its items into the staging bundles (the kind pages' import sections give the
    mapping);

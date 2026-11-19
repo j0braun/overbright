@@ -158,7 +158,7 @@ pub fn prepared_stamp(info: &wgpu::AdapterInfo, programs: u64) -> String {
 fn prepared_machine(info: &wgpu::AdapterInfo) -> String {
     format!(
         "build={:016x}\nadapter={:04x}:{:04x} {}\ndriver={} {}\n",
-        crate::cache::build_id(),
+        crate::BUILD_ID.0,
         info.vendor,
         info.device,
         info.name,

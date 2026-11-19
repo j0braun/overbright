@@ -1373,7 +1373,7 @@ fn run_frames(
     nfsu2::prof::gpu::finish(&game.platform.window.as_ref().unwrap().gpu.device);
     // The allocator's live textures/buffers by label (measuring aid).
     if let Some(path) = env.vram_report.as_ref()
-        && let Some(report) = nfsu2::prof::allocator_report(&game.platform.window.as_ref().unwrap().gpu.device)
+        && let Some(report) = nfsu2::prof::gpu::allocator_report(&game.platform.window.as_ref().unwrap().gpu.device)
     {
         let _ = std::fs::write(path, report);
     }

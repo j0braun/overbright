@@ -14,7 +14,7 @@ Reading the game through the format is a change of plumbing, never of behaviour.
 
 | Level | Name | Definition | Proven |
 |---|---|---|---|
-| **Eq1** | values | For every import unit, the in-memory model the engine uses, decoded from the original, equals the model loaded from the base set: `H(model from original) == H(model from base set)`, where `H` is XXH3-128 over the model's flat encoding (`src/cache/persist.rs`; order-sensitive, floats as bits). | At every import (step 5) and in CI on the reference install. |
+| **Eq1** | values | For every import unit, the in-memory model the engine uses, decoded from the original, equals the model loaded from the base set: `H(model from original) == H(model from base set)`, where `H` is XXH3-128 over the model's flat encoding (`crates/ob-core/src/cache/persist.rs`; order-sensitive, floats as bits). | At every import (step 5) and in CI on the reference install. |
 | **Eq2** | bytes | For a residual node, the kind's encoder run on the decoded items gives back the original bytes exactly ([residual.md](residual.md) §3.2). | At every import, per node. |
 | **Eq3** | behaviour | The game running on the base set reproduces the recorded baselines of the game running on the original files: frames, audio, simulation. | The gates (§3), in CI and before every merge that touches a reader. |
 
@@ -107,7 +107,7 @@ section table's first entry overlaps others in two regions so one scenery sectio
 | R.1 | **Order changes.** A writer or reader that sorts, deduplicates or iterates a hash map changes item order, and with it draw and cull order, "first match wins" lookups and RNG draws during loads. | Order is data (conventions §6.5); Eq1's encoding is order-sensitive; the load and RNG gates. |
 | R.2 | **Floats through text** lose a bit (double rounding when read through binary64). | Conventions §3.4 (a decimal's binary32 value defined as round₃₂(round₆₄(x)), shortest round-trip writes, `bits:` for the two values that need it); a test over every binary32 bit pattern class and an exhaustive nightly run. |
 | R.3 | **Raw-byte consumers** outside the parsers read original files later (streaming by offset, read-ahead, decoders). | §2 "What the model must contain"; the no-game-path check; the gates. |
-| R.4 | **Facts read from the folder**, not from a file's content: the region (from the `CARS` folder's contents, `src/region.rs`), the installed languages (`src/qol/setup.rs`), case-insensitive names. | The importer runs the same detection and records it (`[base] region`, `languages`); the engine reads those fields; Eq1 covers them. |
+| R.4 | **Facts read from the folder**, not from a file's content: the region (from the `CARS` folder's contents, `crates/ob-core/src/region.rs`), the installed languages (`src/qol/setup.rs`), case-insensitive names. | The importer runs the same detection and records it (`[base] region`, `languages`); the engine reads those fields; Eq1 covers them. |
 | R.5 | **Decoder state** across block boundaries, loop points and seeks, when audio is stored as decoded PCM. | The audio page fixes what is stored (whole decoded streams vs. blocks with predictor state); the audio gate. |
 | R.6 | **Stale cooked data** after a reader change. | Layout hash + cooker version + input digests ([cooked.md](cooked.md) §3–4); `--verify-cache`. |
 | R.7 | **Unknown or modified editions** give other values. | No promise for `custom`; the launcher says so; parity runs only on known editions. |

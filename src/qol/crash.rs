@@ -209,20 +209,8 @@ pub fn symbol_names(s: &str) -> String {
     out
 }
 
-/// The home folder replaced by `~`: `$HOME` and, on Windows,
-/// `%USERPROFILE%` (`platform::dirs::home_tokens`).
-pub fn scrub(s: &str) -> String {
-    scrub_homes(s, &crate::platform::dirs::home_tokens(&|name| std::env::var(name).ok()))
-}
-
-/// [`scrub`] with the home folders given.
-pub fn scrub_homes(s: &str, homes: &[(String, &str)]) -> String {
-    let mut out = s.to_string();
-    for (home, _) in homes {
-        out = out.replace(home.as_str(), "~");
-    }
-    out
-}
+/// The home folder replaced by `~` (with the log file, `log_file::scrub`).
+pub use crate::log_file::{scrub, scrub_homes};
 
 #[cfg(test)]
 mod tests {

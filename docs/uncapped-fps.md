@@ -1256,7 +1256,7 @@ identical at 30 / 120 / 200 Hz (100 of 100 frames each).
 
 ## Clone changes
 
-* `src/frame_clock.rs`: 0x57EAE0's arithmetic (T = 0, cut at 3/60 s), with
+* `crates/ob-core/src/frame_clock.rs`: 0x57EAE0's arithmetic (T = 0, cut at 3/60 s), with
   unit tests against the native tick patterns.
 * (superseded by the fixed cadence above) `src/bin/game.rs` `Game::redraw`: dt from the frame clock instead of
   `interval.min(0.1)`. Below 20 fps the world now slows as the original

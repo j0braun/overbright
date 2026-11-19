@@ -529,7 +529,7 @@ data_test!(magazines, {
 #[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
 fn native_save() {
     let _one = serial();
-    let s = native_save::NativeSave::fresh("PREFIX").to_bytes();
+    let s = nfsu2::frontend::career::fresh_save("PREFIX").to_bytes();
     truncations("native_save::NativeSave::parse", &s, |b| {
         black_box(native_save::NativeSave::parse(b).map(|s| s.name()).ok());
     });

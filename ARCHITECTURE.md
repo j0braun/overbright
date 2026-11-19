@@ -1,7 +1,7 @@
 # Architecture
 
-A Cargo workspace. The main package, `nfsu2` (a library and several binaries), sits on `crates/ob-testkit` (the
-test kit, a dev-dependency; docs/testing.md). The map editor is a leaf crate on the library, `crates/ob-editor`
+A Cargo workspace. The main package, `nfsu2` (a library and several binaries), sits on the library's lower
+layers, `crates/ob-core` and `crates/ob-formats` (see Layers), and on `crates/ob-testkit` (the test kit, a dev-dependency; docs/testing.md). The map editor is a leaf crate on the library, `crates/ob-editor`
 (its `src/editor/` and the `overbright-editor` binary; docs/map-editor.md), so the game's dependency tree has
 no egui; what the game and the editor share (the simulation stream, `tools::map::sim`) is in the library. In the maintainer's full tree only there is also the `devprobes`
 workspace member (developer probes, not built by default; not in the public repository), and `fuzz/` is a separate crate.
@@ -40,6 +40,22 @@ the frame loop and the glue that turns the library's parts into the running game
 settings (settings come in as values) and hold no global mutable state. Native ends where `render/enh/` and
 the `qol` / Enhancements-page settings begin; with every enhancement off, the native layers produce the
 original's frames byte for byte, which the gate checks.
+
+## Layers
+
+The library is being cut into crates that only depend downward: `ob-core` (`crates/ob-core`: the env macros,
+`game_root`, the clocks, the game folder access, the asset cache, the platform folders, the fingerprint, the
+logs, the game's random numbers, the camera's values), `ob-formats` (`crates/ob-formats`: the file-format
+parsers and the engine's tables, on `ob-core` only), then the rest of the library. Each layer's
+modules are listed in `scripts/checks/crate-layers.txt`; `scripts/checks/crate_layers.sh` (in every checks set)
+fails on a reference from a module to a higher layer that is not on `crate-layers-allow.txt` (the references
+still to be moved; the list only shrinks), on a package dependency that points up (`cargo metadata`), on a
+forbidden crate in a low package's tree (no wgpu, winit or cpal under `ob-core` and `ob-formats`) and on
+`dev-harness` switched on anywhere in the shipped packages' tree. The library keeps every `nfsu2::…` path: a
+module that moves into a crate below is re-exported at its old place. Where a module is split (the cache check, the support
+file, the winit and wgpu parts of `platform` and `prof`), the library's `src/lib.rs` keeps the upper part
+beside the re-exported lower one. Each library crate has its own build id for the asset cache
+(docs/asset-cache.md) and passes `cargo check --target wasm32-unknown-unknown`.
 
 ## The game binary (`src/bin/game.rs`, `src/bin/game/`)
 
@@ -95,4 +111,5 @@ loads run on worker threads behind the original's loading screens.
   (docs/checks.md).
 - `scripts/checks/gate.sh`: the checks plus parity against a base build: frames, audio and simulation hashes
   (docs/perf-gates.md); `RATE=1` adds the rate gate.
-- `scripts/checks/provenance.py`, `layering.sh` (provenance tags, render layering).
+- `scripts/checks/provenance.py`, `layering.sh`, `crate_layers.sh` (provenance tags, render layering, the crate
+  layers).

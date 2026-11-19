@@ -176,7 +176,7 @@ pub(crate) fn run(command: &Command, args: &[String]) -> Result<()> {
     // The game files' SHA-256 fingerprint on a background thread
     // (logged, a warning for an unknown or modified edition; kept for
     // crash reports and the Mark Spot report).
-    nfsu2::fingerprint::start(game.game_data.root.clone());
+    nfsu2::fingerprint::start(game.game_data.root.clone(), nfsu2::game_assets::log_report);
     // The game start's PC_Loading (0x57FF20 → 0x57FF95), under the
     // 200 ms rule ([`BootLoading`]).
     game.loads.boot_loading = Some(BootLoading::new(now_ms(game.pacing.started)));

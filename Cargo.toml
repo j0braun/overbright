@@ -6,25 +6,22 @@ description = "Reimplementation of Need for Speed: Underground 2 (2004) in Rust 
 license.workspace = true
 
 # The workspace (ARCHITECTURE.md): this package (the library, the game, the launcher, the tools),
-# the map editor (crates/ob-editor, a leaf on the library) and the test kit (crates/ob-testkit,
-# dev only). Dependencies point down only: nothing here depends on the editor. The default members
-# are this package and the editor, so `cargo build --release --bins` makes all three player
-# programs. The developer probes (devprobes/, the maintainer's private probes) are a member but not
-# a default one: a plain `cargo build`/`cargo test` here builds only the game, the editor, their
-# tools and the public examples; `cargo check --release -p devprobes` (scripts/checks/devprobes.sh)
-# keeps the probes compiling.
+# the library's lower layers (crates/ob-core, crates/ob-formats; ARCHITECTURE.md "Layers"), the map
+# editor (crates/ob-editor, a leaf on the library) and the test kit (crates/ob-testkit, dev only).
+# Dependencies point down only: nothing here depends on the editor. The default members are this
+# package, the library's layers and the editor, so `cargo build --release --bins` makes all three
+# player programs and `cargo test` runs every layer's tests. The developer probes (devprobes/, the
+# maintainer's private probes) are a member but not a default one: a plain `cargo build`/`cargo test`
+# here builds only the game, the editor, their tools and the public examples; `cargo check --release
+# -p devprobes` (scripts/checks/devprobes.sh) keeps the probes compiling.
 [workspace]
-members = [".", "crates/ob-editor", "crates/ob-testkit"]
+members = [".", "crates/ob-core", "crates/ob-formats", "crates/ob-editor", "crates/ob-testkit"]
 exclude = ["fuzz"]
-default-members = [".", "crates/ob-editor"]
+default-members = [".", "crates/ob-core", "crates/ob-formats", "crates/ob-editor"]
 
-# One version for every package of the workspace (the release's).
-[workspace.package]
-version = "0.3.0"
-edition = "2024"
-license = "GPL-3.0-or-later"
-
-[dependencies]
+# The versions every package of the workspace takes (`dep.workspace = true` in its manifest), so the
+# library's crates, the game and the leaf crates build against one copy of each.
+[workspace.dependencies]
 anyhow = "1"
 bytemuck = { version = "1", features = ["derive"] }
 glam = { version = "0.32", features = ["bytemuck"] }
@@ -34,16 +31,49 @@ pollster = "0.4"
 image = { version = "0.25", default-features = false, features = ["png"] }
 log = "0.4"
 env_logger = "0.11"
+rayon = "1"
+memmap2 = "0.9"
+xxhash-rust = { version = "0.8", features = ["xxh3"] }
+profiling = "1"
+sha2 = "0.10"
+miniz_oxide = "0.8"
+lzma-rs = { version = "0.3", default-features = false }
+block_compression = { version = "0.11.0", default-features = false, features = ["bc7", "bc15"] }
+toml = { version = "1.1.4", default-features = false, features = ["parse", "serde"] }
+serde = { version = "1.0.229", features = ["derive"] }
+libc = "0.2"
+ab_glyph = "0.2.32"
+proptest = { version = "1", default-features = false, features = ["std"] }
+
+# One version for every package of the workspace (the release's).
+[workspace.package]
+version = "0.3.0"
+edition = "2024"
+license = "GPL-3.0-or-later"
+
+[dependencies]
+# The library's lower layers (ARCHITECTURE.md "Layers"), re-exported at the old paths.
+ob-core = { path = "crates/ob-core" }
+ob-formats = { path = "crates/ob-formats" }
+anyhow.workspace = true
+bytemuck.workspace = true
+glam.workspace = true
+wgpu.workspace = true
+winit.workspace = true
+pollster.workspace = true
+image.workspace = true
+log.workspace = true
+env_logger.workspace = true
 # 0.18: its ALSA worker recovers from POLLERR (0.17.3 spun on it for good
 # after one xrun: the "no in-game sound" of 2026-11-01). On Linux the
 # PulseAudio host (a pure-Rust client; PipeWire's pulse server too) is
 # tried first, ALSA after it (`audio::mixer`).
 cpal = "0.18"
-rayon = "1"
-memmap2 = "0.9"
-xxhash-rust = { version = "0.8", features = ["xxh3"] }
+rayon.workspace = true
+memmap2.workspace = true
+xxhash-rust.workspace = true
 # CPU profiling scopes (no-ops unless a `profile-*` feature is on).
-profiling = "1"
+profiling.workspace = true
 # The game's allocator (`allocator.rs`): mimalloc by default, the lean or
 # the system allocator on small machines; `--no-default-features` builds
 # with the system allocator only.
@@ -52,29 +82,29 @@ mimalloc = { version = "0.1", optional = true, default-features = false }
 gilrs = "0.11"
 # SHA-256 of the game's key files (`fingerprint`: --check-game, crash
 # reports). RustCrypto, MIT OR Apache-2.0.
-sha2 = "0.10"
+sha2.workspace = true
 # Inflate for TexMod .tpf packages (`formats::tpf`, examples/import_tpf).
 # Already in the tree via png; MIT OR Zlib OR Apache-2.0.
-miniz_oxide = "0.8"
+miniz_oxide.workspace = true
 # LZMA for ZIP archives that use it (`formats::zip`: the HUD mod's map
 # download). Pure Rust, MIT.
-lzma-rs = { version = "0.3", default-features = false }
+lzma-rs.workspace = true
 # Overbright texture packs (`obpack`, docs/texture-packs.md): BC7 encode and
 # decode on the CPU (a port of Intel's ISPC texture compressor kernels; the
 # wgpu compute path is not built). MIT.
-block_compression = { version = "0.11.0", default-features = false, features = ["bc7", "bc15"] }
+block_compression.workspace = true
 # The packs' manifest, `pack.toml`. MIT OR Apache-2.0.
-toml = { version = "1.1.4", default-features = false, features = ["parse", "serde"] }
-serde = { version = "1.0.229", features = ["derive"] }
+toml.workspace = true
+serde.workspace = true
 
 [target.'cfg(unix)'.dependencies]
 # The allocator's memory probe (/proc/meminfo, sysctl) before main.
-libc = "0.2"
+libc.workspace = true
 
 [dev-dependencies]
 # Property-based fuzzing of the file readers (tests/fuzz_readers.rs).
 # MIT OR Apache-2.0.
-proptest = { version = "1", default-features = false, features = ["std"] }
+proptest.workspace = true
 # The test kit (crates/ob-testkit, docs/testing.md).
 ob-testkit = { path = "crates/ob-testkit" }
 
@@ -91,7 +121,7 @@ mimalloc = ["dep:mimalloc"]
 # error. The checks, the gate, perf.sh and pgo.sh build with it:
 # `cargo build --release --features dev-harness`; the game's tests need it
 # too (`cargo test --release --features dev-harness`).
-dev-harness = []
+dev-harness = ["ob-core/dev-harness", "ob-formats/dev-harness"]
 
 # Integration tests that use the developer harness's library aids
 # (`frontend::drawn_texts`): built only with `dev-harness`.
@@ -140,7 +170,7 @@ default-features = false
 features = ["std", "simd"]
 
 [dependencies.ab_glyph]
-version = "0.2.32"
+workspace = true
 
 # The launcher's "Shift held at start" check on X11 / XWayland
 # (XQueryKeymap; libX11 loaded at run time): x11-dl 2.21, MIT, already in

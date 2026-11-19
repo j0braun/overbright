@@ -293,6 +293,11 @@ if [ "$SET" != shots ]; then
   run provenance 120 python3 "$HERE/provenance.py" "$REPO"
   say "provenance rc=$RC: $(grep -E '^provenance: [0-9]+ ids' "$O/provenance.log" | cut -c13-160)"
   [ $RC = 0 ] || { grep -E '^provenance: ' "$O/provenance.log" | grep -v ' ids (' | head -20 | tee -a "$OUT"; fail provenance; }
+  # The workspace's layers (ARCHITECTURE.md "Layers"): no new upward reference, package edges only downward,
+  # no dev-harness in the shipped packages' tree.
+  run crate_layers 300 "$HERE/crate_layers.sh" "$REPO"
+  say "crate_layers rc=$RC: $(grep -E '^CRATE LAYERS: ok' "$O/crate_layers.log" | cut -c15-160)"
+  [ $RC = 0 ] || { grep -vE '^CRATE LAYERS: (ok|packages ok|dev-harness off|wasm32 check (ok|skipped)|[a-z-]+ has none)' "$O/crate_layers.log" | head -20 | tee -a "$OUT"; fail crate_layers; }
   # The importers' unit tests (scripts/tests) need Pillow: without it they are recorded as skipped. They are part
   # of the private set (with the importers they test): a public checkout has no scripts/tests/.
   if [ ! -d "$REPO/scripts/tests" ]; then

@@ -9,8 +9,8 @@ Rule prefix: `TBL`.
 
 The original game keeps many numbers, curves and names in its executable: the race tunes, the steering and lateral
 curves, the car sound records, the garage camera views, the opponent pools, the codec tables. Overbright carries
-them in its own code, `src/exe_tables/**` (docs/exe-tables.md): one process-wide `Tables` holder
-(src/exe_tables/tables.rs:40) with 65 tables built once by `Tables::builtin()` (:180) from three sources:
+them in its own code, `crates/ob-formats/src/exe_tables/**` (docs/exe-tables.md): one process-wide `Tables` holder
+(crates/ob-formats/src/exe_tables/tables.rs:40) with 65 tables built once by `Tables::builtin()` (:180) from three sources:
 
 | Source | Module | What |
 |---|---|---|
@@ -27,7 +27,7 @@ engine first uses a table.
 Not on this page: constants written elsewhere in the code (§3.4), and data that is in the game files (car records,
 packages, AI presets: [cars.md](cars.md); career data: [career.md](career.md)). The EA Trax song titles, artists and
 albums that the music caption and the jukebox show are this page's `ea_trax` table
-(`src/exe_tables/constants/frontend.rs:239`): engine constants, not text data ([text.md](text.md) §1).
+(`crates/ob-formats/src/exe_tables/constants/frontend.rs:239`): engine constants, not text data ([text.md](text.md) §1).
 
 **What a base set replaces.** A base set, imported or made by a community, provides the game's data files in this
 format. The engine's built-in tables are part of the Overbright program; no base set contains or replaces them. A
@@ -46,7 +46,7 @@ base set has none (`TBL.7`).
 
 | Item | Key | Notes |
 |---|---|---|
-| a table | `table:<name>` | `<name>` is the field name in `Tables` (`drift_tune`, `ai_lock`, …), the same name `FIELD_PINS` uses (src/exe_tables/tables.rs:344). |
+| a table | `table:<name>` | `<name>` is the field name in `Tables` (`drift_tune`, `ai_lock`, …), the same name `FIELD_PINS` uses (crates/ob-formats/src/exe_tables/tables.rs:344). |
 | one value inside a table | `table:<name>@<path>` | `<path>` is the entry's `at` joined with `/`: `table:drift_tune@0/4`, `table:slot_shots@0/3/1/fov`. |
 
 `tables/` is a unit of its own ([layout.md](layout.md) §2); it has no kind folders and allows no wildcards.
@@ -165,13 +165,13 @@ overridable.
 | `trains` | `[(u32, u32); 24]` | tunable | src/audio/world/enviro |
 | `utk_rc`, `utk_codebooks`, `utk_commands` | UTK decoder | decoder | src/audio/codec/utk.rs |
 | `mp3_huff`, `mp3_linbits`, `mp3_window_rows` | layer III decoder | decoder | src/audio/codec/mp3_tables.rs |
-| `vp6` | `Vp6Tables` | decoder | src/formats/vp6.rs, src/movie.rs |
+| `vp6` | `Vp6Tables` | decoder | crates/ob-formats/src/formats/vp6.rs, src/movie.rs |
 | `in_game_rig`, `default_rig` | `[RigLight; 3]` | tunable | src/render/native/car/lighting.rs |
 | `slot_shots`, `vinyl_shots`, `suv_engine_shot` | `[[(u32, Shot); 42]; 2]`, `[[Shot; 7]; 2]`, `Shot` | tunable | src/garage.rs |
 | `world_map_zooms` | `[(f32, f32, f32, u32); 6]` | tunable | src/frontend/screens/ingame_map.rs |
 | `magazine_lines`, `dvd_lines`, `rating_lines` | `[(u32, u32); 20]`, `[(u32, u32); 10]`, `[u32; 11]` | fixed (career texts and covers) | src/frontend/dday/hints.rs |
 | `part_type_names` | `[&str; 0x69]` | fixed (solid names of parts) | src/car/model.rs |
-| `slot_types`, `slot_categories`, `vinyl_categories` | `[u8; 0xAA]`, `[u8; 0xAA]`, `[u8; 28]` | fixed (the part database's structure and the native save's layout) | src/formats/parts.rs |
+| `slot_types`, `slot_categories`, `vinyl_categories` | `[u8; 0xAA]`, `[u8; 0xAA]`, `[u8; 28]` | fixed (the part database's structure and the native save's layout) | crates/ob-formats/src/formats/parts.rs |
 | `opponent_cars` | `[u8; 26]` (type indices) | tunable (region 0's pool only, §3.4) | src/opponents.rs |
 | `vinyl_groups` | `[(u8, u32, u32); 28]` | fixed (shop structure) | src/frontend/graphics/graphics_shop.rs |
 | `opponent_names` | `[&str; 53]` | tunable | src/frontend/quick_race/race_setup.rs |
@@ -193,7 +193,7 @@ the alternate opponent pool (the one region 6 uses) and the SUV pool (src/fronte
 neighbourhood names and their bits (0x800C38, src/frontend/career/triggers.rs:75), the reputation table by winning
 margin and reward class (0x7F7AC8, written as code in src/frontend/career/rewards.rs:53), the minimap icon names
 (0x7F4348, src/frontend/screens/ingame_map.rs:142), the AI throttle caps (0x783A28, src/ai/driver/mod.rs:104), the
-part-exclusion groups (src/formats/parts.rs:34–39), the AI looks' chances, colour sets and paint matches
+part-exclusion groups (crates/ob-formats/src/formats/parts.rs:34–39), the AI looks' chances, colour sets and paint matches
 (src/ai_looks.rs:28, :52, :63), the nitrous curve (src/nitrous.rs:12), the hatch and closed-scoop type lists
 (src/car/parts.rs:288, src/car/lod.rs:38), the shared car part files (src/car/assets.rs:240). Note that `opponent_cars` holds region 0's
 pool only, so an override of it changes nothing on a European install until the region-6 pool joins the holder.
@@ -235,9 +235,9 @@ no legacy conversion exists.
 
 **With an imported base set alone, the tables are the built-in ones, bit for bit** (Eq1 by construction): no
 `tables/` is read, `Tables::builtin().with_overrides(&[])` returns `Tables::builtin()`, and every `FIELD_PINS` hash
-(src/exe_tables/tables.rs:344) is unchanged. Tests:
+(crates/ob-formats/src/exe_tables/tables.rs:344) is unchanged. Tests:
 
-- `every_table_equals_its_pin` (src/exe_tables/tests.rs:218) runs on the holder as installed by the game's start
+- `every_table_equals_its_pin` (crates/ob-formats/src/exe_tables/tests.rs:218) runs on the holder as installed by the game's start
   path with an empty stack, and a second test compares every float of `with_overrides(&[])` with `builtin()` by
   bits (`Debug` text alone does not show a NaN's payload);
 - a fixture pack per class: a `tunable` override changes the table and the simulation hash; a `fixed`, `formula`,
@@ -254,10 +254,10 @@ canonical list of `(table, path, value bits)` after merging, empty for an import
 identity that saves, replays and the simulation gates record.
 
 **The hook.** Today `tables()` builds the holder on first use behind a `LazyLock`
-(src/exe_tables/mod.rs:70–76). With overrides:
+(crates/ob-formats/src/exe_tables/mod.rs:70–76). With overrides:
 
 ```rust
-// src/exe_tables/mod.rs (sketch)
+// crates/ob-formats/src/exe_tables/mod.rs (sketch)
 static TABLES: OnceLock<Tables> = OnceLock::new();
 
 /// Called once by the game's start path, after the layer stack is mounted and before
@@ -280,7 +280,7 @@ impl Tables {
 - **Immutable afterwards.** Tables never change while a process runs: the frame path keeps reading plain memory,
   and the simulation stays deterministic. A changed stack means a new game process (Studio's game link already
   starts the game with an explicit `--mods` stack).
-- `gins` is recomputed from the merged `engines` (as `builtin()` does, src/exe_tables/tables.rs:207).
+- `gins` is recomputed from the merged `engines` (as `builtin()` does, crates/ob-formats/src/exe_tables/tables.rs:207).
 
 ## 8. Errors
 
@@ -333,7 +333,7 @@ impl Tables {
 
 | What | Size |
 |---|---|
-| The built-in tables | 65 tables; about 4,200 lines of constants in `src/exe_tables/constants/` |
+| The built-in tables | 65 tables; about 4,200 lines of constants in `crates/ob-formats/src/exe_tables/constants/` |
 | Building them | about 0.1 ms (docs/exe-tables.md, `exe_tables_cost`) |
 | A typical override file | 0.2–5 KB (a few entries with guards); a full `replace` of the largest tunable table (`slot_shots`) ≈ 30 KB [guess] |
 | Parsing and applying a pack's overrides | < 1 ms [guess] |

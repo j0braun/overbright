@@ -106,7 +106,7 @@ can open it and Overbright can memory-map it.
 | Limits | a bundle < 4 GiB and ≤ 65,535 entries; a stored entry ≤ 1 GiB. A pack larger than that is stored as several bundles (§4, last paragraph); a single-file `.obpk` is therefore < 4 GiB |
 
 - **Reading**: the central directory is read once; a stored entry is a slice of the mapped file (zero copy; the
-  existing reader `src/formats/zip.rs` already maps the file); a deflated entry is inflated on use. Readers MUST
+  existing reader `crates/ob-formats/src/formats/zip.rs` already maps the file); a deflated entry is inflated on use. Readers MUST
   check every entry's CRC-32 when it is inflated and when the bundle is verified (§5); stored entries read from a
   verified bundle are not re-checked on each read.
 - A reader MUST refuse an entry name that breaks [conventions.md](conventions.md) §6.2, overlapping entries, an
@@ -135,7 +135,7 @@ The importer writes one bundle per load unit, so one load opens one file:
 
 - `import.toml` lists every bundle with its size and `xxh3-128` digest ([import.md](import.md) §6).
 - **Verification on mount**: a reader keeps, per bundle, the size, modification time and (Unix) inode it last
-  verified (in the cache folder, like the asset cache's source keys, `src/cache/format.rs`). When they match, the
+  verified (in the cache folder, like the asset cache's source keys, `crates/ob-core/src/cache/format.rs`). When they match, the
   bundle is trusted; otherwise it is hashed whole in the background (XXH3 runs at about 34 GB/s per core, so the disk decides: ≈ 0.1 s per 100 MB cold on an NVMe SSD with four readers, [performance.md](performance.md) §3.6) and compared
   with `import.toml`. The background verifier pauses itself while the game loads or streams
   ([import.md](import.md) §5). A mismatch makes the base set **damaged** (`LAY.3`, [import.md](import.md) §8).
@@ -145,7 +145,7 @@ The importer writes one bundle per load unit, so one load opens one file:
 ## 6. Writing safely
 
 Every writer (importer, Studio, CLI) writes a file to a temporary name in the same folder and renames it into
-place, as the asset cache and the map editor already do (`src/cache/temp.rs`, `src/tools/map/store.rs`). The
+place, as the asset cache and the map editor already do (`crates/ob-core/src/cache/temp.rs`, `src/tools/map/store.rs`). The
 importer builds a whole base set in `base/.staging-<id>/` and renames the folder into place last, so a base set is
 either complete or absent ([import.md](import.md) §5). A reader never mounts a `.staging-*` folder.
 

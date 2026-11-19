@@ -6,7 +6,7 @@ one into the clone's texture-pack folders (docs/texture-packs.md). **No pack con
 image is in the repo**; the tool reads the player's own download and game files. Pack off (no
 variable, World Texture Pack Off): the loader path is unchanged and the game is byte-identical.
 
-## The format (from retex's notes, implemented in `src/formats/tpf.rs`)
+## The format (from retex's notes, implemented in `crates/ob-formats/src/formats/tpf.rs`)
 * A `.tpf` is a ZIP archive with every dword XORed with 0x3FA43FA4 and every entry encrypted with
   traditional PKWARE ZipCrypto under TexMod's fixed 42-byte password, deflated. Entries are named
   `<EXE>_0x<HASH>.<dds|bmp|png>`; `texmod.def` holds `0xHASH|file` lines. The archive comment is

@@ -26,8 +26,9 @@ use crate::frontend::feng::state::ScreenState;
 /// rate, and hands the screens `Game::now()` = package ms / 1.2: every time
 /// a screen gives `layout`, `animate` or `run_package` (now and its
 /// scripts' starts) is in those front-end ms, so × 1.2 here is the package
-/// clock exactly; `host_time` answers front-end ms.
-pub const FE_RATE: f32 = 1.2;
+/// clock exactly; `host_time` answers front-end ms. Defined with the clock
+/// (`game_clock::FE_RATE`).
+pub use crate::game_clock::FE_RATE;
 
 /// An object's attributes at `now` (ms) from its own script alone (no
 /// package messages): the screen's script for it or INIT from 0.

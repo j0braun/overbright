@@ -140,12 +140,12 @@ pub fn read_ahead_files(game_root: &Path, name: &str) -> Vec<std::path::PathBuf>
     let geometry = crate::game_fs::path(&car_dir, "GEOMETRY.BIN");
     let textures = crate::game_fs::path(&car_dir, "TEXTURES.BIN");
     let mut files = vec![geometry.clone()];
-    files.extend(crate::cache::file_cached_entry(&geometry, "solids"));
-    files.push(crate::cache::file_cached_entry(&textures, "textures").unwrap_or(textures));
+    files.extend(crate::cache::file_cached_entry(crate::BUILD_ID, &geometry, "solids"));
+    files.push(crate::cache::file_cached_entry(crate::BUILD_ID, &textures, "textures").unwrap_or(textures));
     files.push(crate::game_fs::path(&car_dir, "PARTS_ANIMATIONS.BIN"));
     for shared in ["CARS/TEXTURES.BIN", "CARS/WHEELS/TEXTURES.BIN", "GLOBAL/GLOBALB.BUN"] {
         let p = crate::game_fs::path(game_root, shared);
-        files.push(crate::cache::file_cached_entry(&p, "textures").unwrap_or(p));
+        files.push(crate::cache::file_cached_entry(crate::BUILD_ID, &p, "textures").unwrap_or(p));
     }
     files
 }
@@ -157,7 +157,7 @@ pub(super) fn shared_textures(path: &Path) -> Result<std::sync::Arc<Vec<Texture>
     static PACKS: SingleFlight<Parsed> = SingleFlight::new();
     let parsed = PACKS.get(path, || {
         let parse = || -> Result<std::sync::Arc<Vec<Texture>>> {
-            let packs = crate::cache::file_cached(path, "textures", || {
+            let packs = crate::cache::file_cached(crate::BUILD_ID, path, "textures", || {
                 let data =
                     crate::cache::SourceBytes::open(path).with_context(|| format!("reading {}", path.display()))?;
                 texture_packs(&data)
@@ -210,7 +210,7 @@ pub(super) fn add_shared_part_solids(
     static INDEX: SingleFlight<std::sync::Arc<Vec<Vec<u32>>>> = SingleFlight::new();
     let lists = INDEX.get(file, || {
         let Ok(d) = crate::cache::SourceBytes::open(file) else { return std::sync::Arc::new(Vec::new()) };
-        let lists = crate::cache::file_cached(file, "solid-index", || {
+        let lists = crate::cache::file_cached(crate::BUILD_ID, file, "solid-index", || {
             Ok(part_file_lists(&d).iter().map(|l| l.iter().map(|e| e.0).collect()).collect())
         });
         std::sync::Arc::new(lists.unwrap_or_default())

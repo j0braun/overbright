@@ -218,14 +218,16 @@ mod read_once_tests {
     /// (the FE player's, the world's, the traffic's, the drive-bys') and the
     /// collision sounds: each bank file and InGameCommon.bun read once, the
     /// same bank shared, the lists as a fresh parse gives them.
+    // The read notes are a developer-harness aid (`game_fs::record_reads`).
+    #[cfg(feature = "dev-harness")]
     #[test]
     #[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
     fn stitch_banks_and_collision_read_each_file_once() {
         let root = crate::testkit::game_root();
-        crate::game_fs::READS.with(|r| r.borrow_mut().clear());
+        crate::game_fs::record_reads();
         let held: Vec<StitchBanks> = (0..4).map(|_| StitchBanks::load(&root).expect("stitch banks")).collect();
         let collision = crate::audio::collision::CollisionSounds::load(&root).expect("collision sounds");
-        let reads = crate::game_fs::READS.with(|r| r.borrow().clone());
+        let reads = crate::game_fs::recorded_reads();
         for f in ["SOUND/IG_GLOBAL/MB_Stich_Collision.abk", "SOUND/IG_GLOBAL/MB_Stitch_Whoosh.abk", "GLOBAL/InGameCommon.bun"] {
             assert!(reads.iter().filter(|r| r.as_str() == f).count() <= 1, "{f} read again: {reads:?}");
         }
@@ -239,21 +241,23 @@ mod read_once_tests {
     }
 
     /// A bank nobody holds is read again (Weak entries); one held is not.
+    // The read notes are a developer-harness aid (`game_fs::record_reads`).
+    #[cfg(feature = "dev-harness")]
     #[test]
     #[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
     fn shared_banks_live_while_held() {
         let root = crate::testkit::game_root();
         const P: &str = "SOUND/IG_GLOBAL/FX_Misc_MB.abk";
         let warm = prewarm_banks(&root, &[P]);
-        crate::game_fs::READS.with(|r| r.borrow_mut().clear());
+        crate::game_fs::record_reads();
         let mut a = CarFxSounds::new(&root);
         let mut b = CarFxSounds::new(&root);
         let (pa, pb) = (a.players(P, "x"), b.players(P, "x"));
         assert_eq!(pa, pb);
         assert!(a.bank(P).is_some() && b.bank(P).is_some());
-        assert_eq!(crate::game_fs::READS.with(|r| r.borrow().iter().filter(|r| r.as_str() == P).count()), 0);
+        assert_eq!(crate::game_fs::recorded_reads().iter().filter(|r| r.as_str() == P).count(), 0);
         drop((warm, a, b));
         let _c = shared_bank(&root, P).unwrap();
-        assert_eq!(crate::game_fs::READS.with(|r| r.borrow().iter().filter(|r| r.as_str() == P).count()), 1);
+        assert_eq!(crate::game_fs::recorded_reads().iter().filter(|r| r.as_str() == P).count(), 1);
     }
 }

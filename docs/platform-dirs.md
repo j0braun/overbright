@@ -1,6 +1,6 @@
 # Where Overbright keeps its files, finding the game, the log file
 
-`src/platform/` (and the log file). No native counterpart except where an address is given.
+`crates/ob-core/src/platform/` (and the log file). No native counterpart except where an address is given.
 
 ## Folders (`platform::dirs`)
 
@@ -178,7 +178,7 @@ RegQueryValueExA (IAT 0x783004) for `Install Dir` (0x7A30E4). The same key is op
 from HKLM at 0x5BEA30 (the options' registry values). **Unverified:** the view a real install wrote (the exe is
 32-bit, so on 64-bit Windows its HKLM reads land in `WOW6432Node` [gen]), and whether any installer or repack
 wrote HKCU. That is why each value is only a candidate checked like any other folder. The Windows code
-(`src/platform/win.rs`) is declared by hand against the documented signatures (no new dependency) and has not
+(`crates/ob-core/src/platform/win.rs`) is declared by hand against the documented signatures (no new dependency) and has not
 been compiled for Windows yet.
 
 `cfg(windows)` items: `platform::win` (`local_app_data`, `registry_install_dirs`, the extern blocks for

@@ -1,11 +1,13 @@
 //! `--verify-cache`.
 
+use std::path::Path;
+
 use super::*;
 
 /// `--verify-cache`: every track cache in the cache folder (or the tracks
 /// named) against a fresh parse of the game's files. Per track a line; Err
 /// when one differs.
-pub fn verify(root: &Path, names: &[String]) -> anyhow::Result<Vec<String>> {
+pub fn verify(build: BuildId, root: &Path, names: &[String]) -> anyhow::Result<Vec<String>> {
     let names: Vec<String> = if names.is_empty() {
         let dir = dir().ok_or_else(|| anyhow::anyhow!("the cache is off (NFSU2_NO_CACHE)"))?;
         let mut v: Vec<String> = std::fs::read_dir(&dir)
@@ -13,8 +15,8 @@ pub fn verify(root: &Path, names: &[String]) -> anyhow::Result<Vec<String>> {
                 rd.flatten()
                     .filter_map(|e| {
                         let n = e.file_name();
-                        let (kind, build) = split_name(n.to_str()?)?;
-                        (build == build_id()).then(|| kind.strip_prefix("track-").map(String::from))?
+                        let (kind, of) = split_name(n.to_str()?)?;
+                        (of == build.0).then(|| kind.strip_prefix("track-").map(String::from))?
                     })
                     .collect()
             })
@@ -29,7 +31,7 @@ pub fn verify(root: &Path, names: &[String]) -> anyhow::Result<Vec<String>> {
     for name in names {
         let sources = crate::world::World::sources(&name);
         let srcs: Vec<&str> = sources.iter().map(String::as_str).collect();
-        let Some(file) = CacheFile::open(root, &TrackCache::kind(&name), &srcs) else {
+        let Some(file) = CacheFile::open(build, root, &TrackCache::kind(&name), &srcs) else {
             out.push(format!("{name}: no valid cache"));
             continue;
         };
@@ -61,7 +63,7 @@ pub fn verify(root: &Path, names: &[String]) -> anyhow::Result<Vec<String>> {
                     .filter_map(|e| {
                         e.file_name()
                             .to_str()
-                            .filter(|n| n.starts_with("file-") && split_name(n).is_some_and(|(_, b)| b == build_id()))
+                            .filter(|n| n.starts_with("file-") && split_name(n).is_some_and(|(_, b)| b == build.0))
                             .map(String::from)
                     })
                     .collect()
@@ -79,7 +81,7 @@ pub fn verify(root: &Path, names: &[String]) -> anyhow::Result<Vec<String>> {
                 ["solid-index", "solids", "textures"].into_iter().find(|w| k.starts_with(&format!("{w}-")))
             });
             let Some(what) = what else { continue };
-            let Some(file) = CacheFile::open(Path::new(""), &header.kind, &[&source.rel]) else {
+            let Some(file) = CacheFile::open(build, Path::new(""), &header.kind, &[&source.rel]) else {
                 stale += 1;
                 continue;
             };
