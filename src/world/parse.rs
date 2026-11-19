@@ -107,6 +107,17 @@ pub(super) struct SectionData {
     scenery: Vec<(u32, crate::formats::scenery::ScenerySection)>,
 }
 
+/// Whether the game loads a streaming section's range. Sections are loaded
+/// only by number (0x5DACC0, fed by 0x5E5120's fixed list, the visible
+/// lists and the extra numbers, each taken only when not zero), so the
+/// table's first record, `--` (number 0, +0x10 = 0, a range from offset 0
+/// over whole chunks of other sections), is never loaded: in L4RH and L4RR
+/// its range holds Z0's scenery section (the SKYDOME), which would else be
+/// placed a second time.
+fn loads(section: &StreamingSection) -> bool {
+    section.number != 0
+}
+
 impl SectionData {
     fn parse(stream: &[u8], section: &StreamingSection) -> Result<SectionData> {
         let mut d = SectionData::default();
@@ -215,7 +226,7 @@ impl World {
         };
         drop(t_head);
 
-        // Pass 1: solids and textures from every section. The sections are
+        // Pass 1: solids and textures from every section the game loads ([`loads`]): they are
         // parsed side by side, each into lists of its own, and merged in
         // file order with the same rules as one pass in that order: the
         // first solid and texture of a hash win, the last flip-book of a
@@ -223,7 +234,7 @@ impl World {
         let t_pass1 = crate::prof::span("World::load: sections");
         let parsed: Vec<Result<SectionData>> = {
             use rayon::prelude::*;
-            sections.par_iter().map(|section| SectionData::parse(&stream, section)).collect()
+            sections.par_iter().filter(|s| loads(s)).map(|section| SectionData::parse(&stream, section)).collect()
         };
         let mut scenery = Vec::new();
         let mut objects = Vec::new();
@@ -497,5 +508,43 @@ mod region_tests {
         assert_eq!(super::shared_texture_files_in(0)[4], "GLOBAL/GlobalTexturesNA.bin");
         assert_eq!(super::shared_texture_files_in(6)[4], "GLOBAL/GlobalTexturesROW.bin");
         assert_eq!(super::shared_texture_files_in(0)[..4], super::shared_texture_files_in(6)[..4]);
+    }
+}
+
+#[cfg(test)]
+mod unloaded_record_tests {
+    use super::*;
+
+    /// The table's `--` record (number 0) is not loaded: in L4RH and L4RR,
+    /// whose `--` range holds Z0's scenery section, the SKYDOME is placed
+    /// once, under 2600, and no placement is under section 0.
+    #[test]
+    #[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
+    fn the_dash_record_is_not_loaded() {
+        let root = crate::testkit::game_root();
+        for region in ["L4RH", "L4RR"] {
+            let world = World::load(Path::new(&root), region).unwrap();
+            assert_eq!(world.sections.first().map(|s| (s.name.as_str(), s.number)), Some(("--", 0)), "{region}");
+            assert!(world.placements.iter().all(|p| p.section != 0), "{region}: a placement under section 0");
+            let dome = world.solid_named("SKYDOME").unwrap();
+            let domes: Vec<u32> = world.placements.iter().filter(|p| p.solid == dome).map(|p| p.section).collect();
+            assert_eq!(domes, [2600], "{region}");
+        }
+    }
+
+    /// No region's visible-section list names section 0, the only way
+    /// besides the fixed and extra numbers (never 0) a section is loaded.
+    #[test]
+    #[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
+    fn no_visible_list_names_section_zero() {
+        let root = crate::testkit::game_root();
+        for region in crate::upscale_pack::ALL_TRACKS {
+            let bun = crate::game_fs::read(&root, &format!("TRACKS/{region}.BUN")).unwrap();
+            let v = Visibility::parse(&bun).unwrap();
+            assert!(!v.lists.is_empty(), "{region}");
+            assert!(v.lists.iter().all(|l| !l.visible.contains(&0)), "{region}");
+            let first = parse_streaming_sections(&bun).unwrap().into_iter().next().unwrap();
+            assert_eq!((first.name.as_str(), first.number), ("--", 0), "{region}");
+        }
     }
 }
