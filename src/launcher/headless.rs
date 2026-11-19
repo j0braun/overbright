@@ -51,9 +51,11 @@ pub fn named_app<'e>(env: &'e FakeEnv, fonts: &Fonts, name: &str, w: u32, h: u32
 
 /// The named states: (name, the screen it is shown on). The fake data of
 /// each comes from [`state_model`].
-pub const STATES: [(&str, Screen); 58] = [
+pub const STATES: [(&str, Screen); 60] = [
     ("no-game", Screen::FirstRun),
     ("check-ok", Screen::Check),
+    ("check-movies", Screen::Check),
+    ("check-movies-missing", Screen::Check),
     ("not-a-game-folder", Screen::Check),
     ("files-missing", Screen::Check),
     ("own-folder", Screen::Check),
@@ -153,6 +155,18 @@ pub fn state_model(name: &str) -> Option<(Screen, Model)> {
             ],
             true,
         ),
+        // The movies list open: a US install (no language suffix), all
+        // found; then one with three story and tutorial movies missing.
+        "check-movies" | "check-movies-missing" => {
+            let root = FakeEnv::root();
+            let missing: &[&str] = if name == "check-movies" { &[] } else { &["Scene05", "Scene06", "DriftTut"] };
+            let c = crate::qol::setup::Check {
+                assets: Some(super::model::fake_assets(&root, missing)),
+                ..Default::default()
+            };
+            m.check = Some(super::model::check_result(&root, &c, None));
+            m.show_assets = true;
+        }
         "not-a-game-folder" => check(
             &mut m,
             Some("/data/player/Downloads"),

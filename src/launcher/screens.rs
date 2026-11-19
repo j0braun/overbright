@@ -1065,9 +1065,11 @@ fn main_status(m: &Model, issue: Option<&Issue>) -> (Mark, String) {
         PlayState::NoGpu => return (Mark::Error, "Not ready: see below".into()),
         PlayState::Ready => {}
     }
-    let notes = m.check.as_ref().is_some_and(|c| c.verdict() == Verdict::Notes);
-    if notes {
+    let notes = m.check.as_ref().filter(|c| c.verdict() == Verdict::Notes);
+    if notes.is_some_and(|c| c.files_differ) {
         (Mark::Ok, "Ready · version 1.2 · some game files are not the original ones".into())
+    } else if notes.is_some() {
+        (Mark::Ok, "Ready · version 1.2 · some movies will not play".into())
     } else {
         (Mark::Ok, "Ready · version 1.2 · English".into())
     }
@@ -1144,9 +1146,15 @@ fn build_check(b: &mut Builder, m: &Model) {
             b.default_focus = w.buttons.first().map(|x| x.0);
         }
         v => {
+            let files_differ = m.check.as_ref().is_some_and(|c| c.files_differ);
             b.status(
                 Mark::Ok,
-                if v == Verdict::Notes { "Ready · some game files are not the original ones" } else { "Ready" },
+                match v {
+                    Verdict::Notes if files_differ => "Ready · some game files are not the original ones",
+                    // Only the movies or menu files: the game runs without them.
+                    Verdict::Notes => "Ready · some movies will not play",
+                    _ => "Ready",
+                },
             );
             b.gap(6.0);
             let mut ctrls = vec![Ctrl::primary("use", "Use this folder")];
@@ -1154,17 +1162,35 @@ fn build_check(b: &mut Builder, m: &Model) {
                 ctrls
                     .push(Ctrl::button("show_files", if m.show_files { "Hide the files" } else { "Show which files" }));
             }
+            if m.check.as_ref().is_some_and(|c| !c.assets.is_empty()) {
+                ctrls.push(Ctrl::button(
+                    "show_assets",
+                    if m.show_assets { "Hide the movies" } else { "Show the movies" },
+                ));
+            }
             b.buttons(Align::Left, ctrls);
             b.default_focus = Some("use");
         }
     }
     let refused = matches!(verdict, Verdict::Refused(_));
+    // The movies' list takes the lines' place (one list open at a time:
+    // the page fits at every size).
+    let assets_open = m.show_assets && !refused;
     if (m.show_files || !refused)
+        && !assets_open
         && let Some(c) = &m.check
         && (m.show_files || verdict == Verdict::Ready)
     {
         b.gap(6.0);
         for (mark, text) in &c.lines {
+            b.status(*mark, text);
+        }
+    }
+    // The movies and menu files by group (the same report as
+    // `--check-game`, game_assets).
+    if assets_open && let Some(c) = &m.check {
+        b.gap(6.0);
+        for (mark, text) in &c.assets {
             b.status(*mark, text);
         }
     }
@@ -3010,7 +3036,14 @@ impl<'e> App<'e> {
                     self.model.message = Some((Mark::Error, format!("The launcher's settings could not be saved: {e}")));
                 }
             }
-            (Screen::Check, Event::Activate("show_files")) => self.model.show_files = !self.model.show_files,
+            (Screen::Check, Event::Activate("show_files")) => {
+                self.model.show_files = !self.model.show_files;
+                self.model.show_assets = false;
+            }
+            (Screen::Check, Event::Activate("show_assets")) => {
+                self.model.show_assets = !self.model.show_assets;
+                self.model.show_files = false;
+            }
             (Screen::Recover, Event::Activate("play")) => {
                 self.model.start_unfinished = false;
                 return Some(Outcome::Play);

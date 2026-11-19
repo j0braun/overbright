@@ -7,8 +7,9 @@ hooks in `src/bin/game.rs` (`--check-game`, the window start) and
 The clone reads GLOBAL/GlobalB.lzc's car, upgrade and career rows and the
 other data files; a modded GlobalB.lzc can look and play differently, so
 the data's edition is recorded where reports are made. `SPEED2.EXE` is
-fingerprinted for the reports only: Overbright does not read it
-(docs/exe-tables.md), so it is never part of the verdict, and a folder
+fingerprinted for the reports only: the game does not read it
+(docs/exe-tables.md; the asset check below reads its movie-name suffix for
+the report), so it is never part of the verdict, and a folder
 without it, or with the copy-protected retail executable, is fine.
 
 * `game --check-game [dir]`: after the existing size / XXH3 lines, a
@@ -33,6 +34,37 @@ without it, or with the copy-protected retail executable, is fine.
 * Mark-this-spot reports (docs/mark-spot.md): the same line.
 
 Lookup is case-insensitive (`viv::find_ci`), as for the game's own files.
+
+## Asset check (movies and menu files)
+
+Code: `src/game_assets.rs`. Report only: nothing here changes what the
+game opens. The game and the check use the same resolver
+(`game_assets::resolve_movie`, which `movie::path` calls), so the report
+says exactly which file plays.
+
+* Movie resolution, any case: the name the executable builds
+  (`<name>_fr.vp6` for most names), `<name>.vp6` (the US 1.2 English
+  edition has no suffix at all, plus a `movies.tag`), the text language's
+  `<name>_<xx>.vp6`, `<name>_en.vp6`, then any one `<name>_<xx>.vp6`
+  (docs/native-deviations.md, "Movie files"). A movie with none of these
+  is skipped as in the original; the game logs `movie <name>: no file
+  (tried …)`.
+* Edition from the files: the MOVIES layout (US: no suffix; European
+  multi-language: several suffixes; single-language: one; mixed; no
+  MOVIES folder), the LANGUAGES files, the text file the game loads
+  (`LANGUAGES/English.bin`), and the movie suffix the player's SPEED2.EXE
+  builds (the string after `%sMOVIES\%s%s`; read for the report only).
+* Inventory: the boot movies, the story movies, the tutorials and the
+  neighbourhood flybys the game asks for (`game_assets::wanted_movies`),
+  and the menu and text files (`frontend::assets::ASSET_FILES`), each with
+  the file found and how (the built name, no suffix, a language's file) or
+  missing with the names tried.
+* Where it shows: summary lines in `setup::check_lines` (the launcher's
+  check screen, `--check-game`, the support file); the per-group list
+  behind the check screen's "Show the movies"; the full per-file list in
+  `--check-game` and the support file ("game files the game looks for:");
+  the summary and group lines once in the start log (`game assets: …`,
+  from `fingerprint::start`'s thread).
 
 ## Known editions
 

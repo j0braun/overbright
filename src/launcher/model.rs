@@ -31,6 +31,14 @@ pub struct CheckResult {
     pub usable: bool,
     /// Why the folder cannot be used (None: it can).
     pub problem: Option<Problem>,
+    /// The movies and menu files the game will look for, one line per
+    /// group ([`crate::game_assets::Report::groups`]): the check screen's
+    /// expandable list. Empty without the full check.
+    pub assets: Vec<(Mark, String)>,
+    /// Whether a warning comes from the game files themselves (missing
+    /// or different key files, an unknown version), not only from the
+    /// movies or menu files.
+    pub files_differ: bool,
 }
 
 /// Why a chosen folder cannot be used: each has a title, one sentence and
@@ -397,6 +405,8 @@ pub struct Model {
     pub starting: bool,
     /// The check screen lists the files it found missing or changed.
     pub show_files: bool,
+    /// The check screen lists the movies and menu files by group.
+    pub show_assets: bool,
     /// The support file written last (Open folder shows it).
     pub support: Option<PathBuf>,
     /// The last start did not reach the game (the recovery screen).
@@ -1693,6 +1703,7 @@ impl Env for RealEnv {
             ask: None,
             starting: false,
             show_files: false,
+            show_assets: false,
             support: None,
             start_unfinished: false,
             set_aside: None,
@@ -1752,7 +1763,14 @@ impl Env for RealEnv {
         let chosen = long_path(root);
         let root = game_dir_near(&chosen, &setup::looks_like_game);
         let refused =
-            |problem| CheckResult { root: root.clone(), lines: Vec::new(), usable: false, problem: Some(problem) };
+            |problem| CheckResult {
+                root: root.clone(),
+                lines: Vec::new(),
+                usable: false,
+                problem: Some(problem),
+                assets: Vec::new(),
+                files_differ: false,
+            };
         if let Err(e) = std::fs::read_dir(&root)
             && e.kind() == std::io::ErrorKind::PermissionDenied
         {
@@ -2088,7 +2106,14 @@ pub fn check_result(root: &Path, c: &setup::Check, fp: Option<&crate::fingerprin
         n if n > 3 || !setup::looks_like_game(root) => Some(Problem::NoGame),
         n => Some(Problem::Missing(n)),
     };
-    CheckResult { root: root.to_path_buf(), lines, usable, problem }
+    let asset_lines: Vec<(Mark, String)> = c
+        .assets
+        .as_ref()
+        .map(|a| a.summary().into_iter().map(|(m, t)| (Mark::from(m), t)).collect())
+        .unwrap_or_default();
+    let files_differ = lines.iter().any(|l| l.0 == Mark::Warn && !asset_lines.contains(l));
+    let assets = c.assets.as_ref().map(|a| a.groups().into_iter().map(|(m, t)| (Mark::from(m), t)).collect()).unwrap_or_default();
+    CheckResult { root: root.to_path_buf(), lines, usable, problem, assets, files_differ }
 }
 
 pub fn pack_status(dir: &str) -> PackStatus {
@@ -2198,6 +2223,39 @@ pub fn save_choices(c: &Choices, first: Option<&FirstRun>) -> Result<(), SaveErr
 /// Fixed data for the renders and tests.
 pub struct FakeEnv;
 
+/// A fake asset report for the renders: the US layout (every movie
+/// without a language suffix, movies.tag), all found but `missing`.
+pub fn fake_assets(root: &Path, missing: &[&str]) -> crate::game_assets::Report {
+    use crate::game_assets::{Edition, Group, How, Item, Layout, Report, Resolved, movie_stem, wanted_movies};
+    let mut items: Vec<Item> = wanted_movies()
+        .into_iter()
+        .map(|n| {
+            let stem = movie_stem(n);
+            let gone = missing.iter().any(|m| m.eq_ignore_ascii_case(stem));
+            let plain = crate::movie::file_name(n) == format!("{n}.vp6");
+            let tried = vec![crate::movie::file_name(n), format!("{stem}.vp6"), format!("{stem}_en.vp6"), format!("{stem}_*.vp6")];
+            let (file, how) = match () {
+                _ if gone => (None, How::Missing),
+                _ if plain && stem == n => (Some(root.join("MOVIES").join(format!("{n}.vp6"))), How::Built),
+                _ => (Some(root.join("MOVIES").join(format!("{stem}.vp6"))), How::Plain),
+            };
+            Item { group: Group::of_movie(n), label: stem.to_string(), resolved: Resolved { want: n.to_string(), file, how, tried } }
+        })
+        .collect();
+    items.extend(crate::frontend::assets::ASSET_FILES.iter().map(|f| Item {
+        group: Group::Text,
+        label: f.to_string(),
+        resolved: Resolved { want: f.to_string(), file: Some(root.join(f)), how: How::Built, tried: vec![f.to_string()] },
+    }));
+    items.sort_by_key(|i| i.group);
+    let edition = Edition {
+        layout: Layout::Plain { tag: true },
+        languages: vec!["English".into()],
+        exe_suffix: None,
+    };
+    Report { edition, items }
+}
+
 impl FakeEnv {
     pub fn root() -> PathBuf {
         PathBuf::from("/data/player/Games/Need for Speed Underground 2")
@@ -2220,6 +2278,7 @@ impl Env for FakeEnv {
             ask: None,
             starting: false,
             show_files: false,
+            show_assets: false,
             support: None,
             start_unfinished: false,
             set_aside: None,
@@ -2316,6 +2375,7 @@ impl Env for FakeEnv {
         let c = setup::Check {
             missing: Vec::new(),
             different: vec!["GLOBAL/GlobalB.lzc".into(), "FRONTEND/FrontB.lzc".into()],
+            assets: Some(fake_assets(root, &[])),
         };
         let mut r = check_result(root, &c, None);
         r.lines.insert(

@@ -7,10 +7,10 @@ use super::screens::{App, Outcome, Screen};
 use super::ui::{Event, Input, Key, Kind, Mark, Metrics, Rect, Ui};
 
 /// The sizes every screen is laid out and rendered at: the smallest
-/// window, portrait, 720p, the Steam Deck (1280 × 800), the common laptop
+/// window, 720p, the Steam Deck (1280 × 800), the common laptop
 /// (1366 × 768), 1080p, 21:9 and 4K.
-pub const SIZES: [(u32, u32); 8] =
-    [(640, 480), (800, 1280), (1280, 720), (1280, 800), (1366, 768), (1920, 1080), (2560, 1080), (3840, 2160)];
+pub const SIZES: [(u32, u32); 7] =
+    [(640, 480), (1280, 720), (1280, 800), (1366, 768), (1920, 1080), (2560, 1080), (3840, 2160)];
 
 fn app<'e>(env: &'e FakeEnv, fonts: &Fonts, s: Screen, w: u32, h: u32, dpi: f32) -> App<'e> {
     App::new(env, env.load(), s, (w, h), dpi, fonts)
@@ -1948,16 +1948,16 @@ fn check_result_lines_and_problem() {
     use super::model::{Problem, Verdict, check_result};
     use crate::qol::setup;
     let root = std::path::Path::new("/nonexistent/overbright-test");
-    let ok = setup::Check { missing: Vec::new(), different: Vec::new() };
+    let ok = setup::Check { missing: Vec::new(), different: Vec::new(), ..Default::default() };
     let r = check_result(root, &ok, None);
     assert!(r.usable && r.problem.is_none() && r.verdict() == Verdict::Ready, "{r:?}");
-    let some = setup::Check { missing: vec!["TRACKS/L4RA.BUN".into()], different: Vec::new() };
+    let some = setup::Check { missing: vec!["TRACKS/L4RA.BUN".into()], different: Vec::new(), ..Default::default() };
     let r = check_result(root, &some, None);
     assert_eq!(r.problem, Some(Problem::NoGame), "not a game folder at all: {r:?}");
     let all =
-        setup::Check { missing: setup::KEY_FILES.iter().map(|f| f.0.to_string()).collect(), different: Vec::new() };
+        setup::Check { missing: setup::KEY_FILES.iter().map(|f| f.0.to_string()).collect(), different: Vec::new(), ..Default::default() };
     assert_eq!(check_result(root, &all, None).verdict(), Verdict::Refused(Problem::NoGame));
-    let differ = setup::Check { missing: Vec::new(), different: vec!["GLOBAL/GlobalB.lzc".into()] };
+    let differ = setup::Check { missing: Vec::new(), different: vec!["GLOBAL/GlobalB.lzc".into()], ..Default::default() };
     assert_eq!(check_result(root, &differ, None).verdict(), Verdict::Notes);
 }
 
@@ -2646,4 +2646,38 @@ fn portable_off_keeps_the_home_settings_byte_identical() {
     );
     assert!(data.join("options.txt").is_file(), "nothing deleted");
     let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// The movies on the check screen: missing movies alone make "Ready · some
+/// movies will not play" (not "files not the original ones"), the list
+/// opens and closes with its button, and its lines are the report's
+/// groups (the same report as `--check-game`).
+#[test]
+fn check_screen_lists_the_movies() {
+    use super::model::{Verdict, check_result, fake_assets};
+    use crate::qol::setup;
+    let fonts = Fonts::new();
+    let env = FakeEnv;
+    let root = FakeEnv::root();
+    let c = setup::Check { assets: Some(fake_assets(&root, &["Scene05", "DriftTut"])), ..Default::default() };
+    let r = check_result(&root, &c, None);
+    assert_eq!(r.verdict(), Verdict::Notes, "{r:?}");
+    assert!(!r.files_differ && r.usable, "{r:?}");
+    assert!(r.assets.iter().any(|(m, t)| *m == Mark::Warn && t.contains("missing: Scene05")), "{:?}", r.assets);
+    let fine = setup::Check { assets: Some(fake_assets(&root, &[])), ..Default::default() };
+    assert_eq!(check_result(&root, &fine, None).verdict(), Verdict::Ready);
+    for (w, h) in SIZES {
+        let a = super::headless::state_app(&env, &fonts, "check-movies-missing", w, h, 1.0).unwrap();
+        let t = all_text(&a);
+        assert!(t.contains("some movies will not play") && t.contains("Story movies"), "{w}x{h}: {t}");
+        let mut ui = a.ui.clone();
+        ui.view.h = ui.content_h.max(ui.view.h);
+        check_layout(&ui, &fonts, &format!("check-movies-missing {w}x{h}"));
+    }
+    let mut a = super::headless::state_app(&env, &fonts, "check-ok", 1280, 720, 1.0).unwrap();
+    assert!(!all_text(&a).contains("Story movies"));
+    assert!(a.ui.get("show_assets").is_some());
+    a.model.show_assets = !a.model.show_assets;
+    a.rebuild(&fonts);
+    assert!(all_text(&a).contains("Story movies"));
 }

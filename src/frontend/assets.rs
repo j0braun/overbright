@@ -72,7 +72,7 @@ pub const ASSET_FILES: [&str; 12] = [
     "GLOBAL/InGamePerformanceTuning.bun",
     "GLOBAL/HUD_CustomTextures_ALL.bin",
     "LANGUAGES/LanguageTextures.bin",
-    "LANGUAGES/English.bin",
+    crate::game_assets::TEXT_FILE,
 ];
 
 /// The TRACKMAP numbers kept as failed: the HUD's map and the world
@@ -86,7 +86,7 @@ impl Assets {
             packages: Default::default(),
             textures: Default::default(),
             fonts: HashMap::new(),
-            strings: Strings::parse(&crate::game_fs::read(root, "LANGUAGES/English.bin")?)?,
+            strings: Strings::parse(&crate::game_fs::read(root, crate::game_assets::TEXT_FILE)?)?,
             track_map_failed: crate::failed_load::FailedLoads::new(TRACK_MAPS_FAILED),
         };
         let files = ASSET_FILES;

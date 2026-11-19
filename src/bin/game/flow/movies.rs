@@ -110,10 +110,16 @@ impl MovieScreen {
     }
 
     /// Start the current name (0x566250: MOVIES path by 0x51C740; a
-    /// missing file ends it at once with 0xC3960EB9).
+    /// missing file ends it at once with 0xC3960EB9). The file is the one
+    /// `nfsu2::movie::path` gives (`game_assets::resolve_movie`).
     pub(crate) fn open(&mut self, root: &std::path::Path) {
         self.streaming = false;
-        self.player = self.queue.get(self.current).and_then(|n| nfsu2::movie::path(root, n)).and_then(|p| {
+        let found = self.queue.get(self.current).map(|n| nfsu2::game_assets::resolve_movie(root, n));
+        if let Some(r) = found.as_ref().filter(|r| r.file.is_none()) {
+            // Skipped as the original skips it; the names tried, for reports.
+            log::info!("movie {}: no file (tried {})", r.want, r.tried.join(", "));
+        }
+        self.player = found.and_then(|r| r.file).and_then(|p| {
             match nfsu2::movie::Player::open(&p) {
                 Ok(p) => Some(p),
                 Err(e) => {
