@@ -66,6 +66,8 @@ pub(crate) struct Game {
     /// Controller extras (Rumble): the model and the gear it last saw.
     pub(crate) rumble: nfsu2::pad::extras::Rumble,
     pub(crate) rumble_gear: Option<usize>,
+    /// Rumble: the wheels' suspension compression at the last tick.
+    pub(crate) rumble_travel: Option<[f32; 4]>,
     /// Show Off and the cover shots ([`career_glue::covers::Showcase`]).
     pub(crate) showcase: career_glue::covers::Showcase,
     /// The game's sounds: opened with the window, so headless runs
@@ -202,6 +204,7 @@ impl Game {
             free_camera: None,
             rumble: Default::default(),
             rumble_gear: None,
+            rumble_travel: None,
             showcase: Default::default(),
             audio: None,
         };

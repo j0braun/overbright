@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use std::sync::{Mutex, OnceLock};
 
 static ADAPTER: OnceLock<String> = OnceLock::new();
+static AUDIO_OUTPUT: Mutex<Option<String>> = Mutex::new(None);
 static DEVIATIONS: Mutex<String> = Mutex::new(String::new());
 static LOG: Mutex<VecDeque<String>> = Mutex::new(VecDeque::new());
 static KEEP_LOG: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
@@ -24,6 +25,19 @@ pub fn set_adapter(info: &wgpu::AdapterInfo) {
 /// The adapter line [`set_adapter`] kept (the support file's "in use").
 pub fn adapter() -> Option<String> {
     ADAPTER.get().cloned()
+}
+
+/// The audio output last opened (device, rate, channels; the support
+/// file's "audio output in use"). A reopened stream replaces it.
+pub fn set_audio_output(line: String) {
+    if let Ok(mut a) = AUDIO_OUTPUT.lock() {
+        *a = Some(line);
+    }
+}
+
+/// The line [`set_audio_output`] kept.
+pub fn audio_output() -> Option<String> {
+    AUDIO_OUTPUT.lock().ok().and_then(|a| a.clone())
 }
 
 /// The deviations line the report shows.

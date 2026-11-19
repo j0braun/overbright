@@ -14,6 +14,15 @@
 // prov: inferred render.rain.module
 //! made). **Inferred**: the samplers' filtering and addressing (linear,
 //! clamped here).
+//!
+//! The quad's side `w` is the same in clip x and y, so a drop is stretched
+//! with the screen: on a 16:9 screen it is a third wider than at 4:3. The
+//! Stretched aspect mode keeps that (native); in the Wide mode (the
+//! default, where every 2D element keeps its 4:3 shape) the quad and the
+//! sampled offset are narrowed in x by `display::view_aspect`'s m00 factor
+//! (4/3 ÷ the screen's aspect), so each drop has its 4:3 shape at any size.
+//! That is a program of its own (`wide_wgsl`); at a scale of 1 (4:3, or
+//! Stretched) the native program draws, unchanged.
 
 use crate::formats::texture::Texture;
 use crate::weather::{LensDrop, SPLATS};
@@ -53,6 +62,19 @@ struct V {
     return clamp(vec4<f32>(s.rgb * 1.2, t.a * d.w), vec4<f32>(0.0), vec4<f32>(1.0));
 }
 "#;
+
+/// [`WGSL`] for the Wide mode off 4:3: the quad's and the sampled offset's x
+/// side times the uniform's scale `k.x` ([`drop_x_scale`]). A module of its
+/// own, so the native one stays the very same program.
+fn wide_wgsl() -> String {
+    let s = WGSL
+        .replace("struct Drops { d: array<vec4<f32>, 20> };", "struct Drops { d: array<vec4<f32>, 20>, k: vec4<f32> };")
+        .replace("    let w = 0.12 * d.z;\n", "    let w = 0.12 * d.z;\n    let wx = w * drops.k.x;\n")
+        .replace("2.0 * d.x - 1.0 + c.x * w,", "2.0 * d.x - 1.0 + c.x * wx,")
+        .replace("t.g * w + (d.x - 0.25 * w)", "t.g * wx + (d.x - 0.25 * wx)");
+    debug_assert_eq!(s.matches("wx").count(), 5, "every x side scaled");
+    s
+}
 
 static PLAIN_COPY: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
@@ -102,10 +124,11 @@ struct Rects { r: array<vec4<f32>, 80> };
 /// `fs` samples the frame at `(t.g · s + x − s/4, −t.b · s + y + s/4)`, `s` = 0.12 × size, t in 0..1
 /// (the displacement texture's unorm channels), bilinear and clamped to the edge: the box
 /// x − s/4 ..= x + 3s/4 by y − 3s/4 ..= y + s/4 and the filter's neighbour, two texels more each way
-/// for the rounding. None when it lies off the image.
-pub fn drop_source_texels(d: &LensDrop, w: u32, h: u32) -> Option<[u32; 4]> {
+/// for the rounding; the x extent times `kx` ([`drop_x_scale`]). None when it lies off the image.
+pub fn drop_source_texels(d: &LensDrop, w: u32, h: u32, kx: f32) -> Option<[u32; 4]> {
     let s = 0.12 * d.size;
-    let (u0, u1) = (d.x - 0.25 * s, d.x + 0.75 * s);
+    let sx = s * kx;
+    let (u0, u1) = (d.x - 0.25 * sx, d.x + 0.75 * sx);
     let (v0, v1) = (d.y - 0.75 * s, d.y + 0.25 * s);
     if !(u0.is_finite() && u1.is_finite() && v0.is_finite() && v1.is_finite()) {
         return Some([0, 0, w, h]);
@@ -116,12 +139,26 @@ pub fn drop_source_texels(d: &LensDrop, w: u32, h: u32) -> Option<[u32; 4]> {
     (r[2] > r[0] && r[3] > r[1]).then_some(r)
 }
 
+/// The drops' x scale on a `w` × `h` target (module docs): 1 in the
+/// Stretched mode (native) and at 4:3, 4/3 ÷ the aspect in the Wide mode.
+pub fn drop_x_scale(w: u32, h: u32) -> f32 {
+    if w == 0 || h == 0 {
+        return 1.0;
+    }
+    if crate::render::display::aspect_mode() == crate::render::display::AspectMode::Stretched {
+        return 1.0;
+    }
+    // view_aspect's 4/3 ÷ (w / h), as one division so that 4:3 is exactly 1.
+    (4.0 * h as f32) / (3.0 * w as f32)
+}
+
 /// Lens Drops: at most this many chunks of [`SPLATS`] drops.
 const CHUNKS: usize = 4;
 const CHUNK_STRIDE: u64 = 512;
 
 pub struct LensPass {
-    pipelines: Vec<(wgpu::TextureFormat, wgpu::RenderPipeline)>,
+    /// Per target format: the native pipeline and the Wide mode's ([`wide_wgsl`]).
+    pipelines: Vec<(wgpu::TextureFormat, wgpu::RenderPipeline, wgpu::RenderPipeline)>,
     layout: wgpu::BindGroupLayout,
     sampler: wgpu::Sampler,
     uniform: wgpu::Buffer,
@@ -178,47 +215,47 @@ impl LensPass {
             label: Some("lens drops"),
             source: wgpu::ShaderSource::Wgsl(WGSL.into()),
         });
+        let wide_module = crate::render::core::device_cache::module(gpu, wgpu::ShaderModuleDescriptor {
+            label: Some("lens drops (wide)"),
+            source: wgpu::ShaderSource::Wgsl(wide_wgsl().into()),
+        });
         let blend = wgpu::BlendComponent {
             src_factor: wgpu::BlendFactor::SrcAlpha,
             dst_factor: wgpu::BlendFactor::OneMinusSrcAlpha,
             operation: wgpu::BlendOperation::Add,
         };
-        let pipelines = formats
-            .iter()
-            .map(|&format| {
-                (
-                    format,
-                    crate::render::core::device_cache::render_pipeline(gpu, &wgpu::RenderPipelineDescriptor {
-                        label: Some("lens drops"),
-                        layout: Some(&pipeline_layout),
-                        vertex: wgpu::VertexState {
-                            module: &module,
-                            entry_point: Some("vs"),
-                            buffers: &[],
-                            compilation_options: Default::default(),
-                        },
-                        fragment: Some(wgpu::FragmentState {
-                            module: &module,
-                            entry_point: Some("fs"),
-                            targets: &[Some(wgpu::ColorTargetState {
-                                format,
-                                blend: Some(wgpu::BlendState { color: blend, alpha: blend }),
-                                write_mask: wgpu::ColorWrites::COLOR,
-                            })],
-                            compilation_options: Default::default(),
-                        }),
-                        primitive: wgpu::PrimitiveState {
-                            topology: wgpu::PrimitiveTopology::TriangleStrip,
-                            ..Default::default()
-                        },
-                        depth_stencil: None,
-                        multisample: Default::default(),
-                        multiview_mask: None,
-                        cache: gpu.disk_pipeline_cache(),
-                    }),
-                )
+        let make = |format: wgpu::TextureFormat, module: &wgpu::ShaderModule| {
+            crate::render::core::device_cache::render_pipeline(gpu, &wgpu::RenderPipelineDescriptor {
+                label: Some("lens drops"),
+                layout: Some(&pipeline_layout),
+                vertex: wgpu::VertexState {
+                    module,
+                    entry_point: Some("vs"),
+                    buffers: &[],
+                    compilation_options: Default::default(),
+                },
+                fragment: Some(wgpu::FragmentState {
+                    module,
+                    entry_point: Some("fs"),
+                    targets: &[Some(wgpu::ColorTargetState {
+                        format,
+                        blend: Some(wgpu::BlendState { color: blend, alpha: blend }),
+                        write_mask: wgpu::ColorWrites::COLOR,
+                    })],
+                    compilation_options: Default::default(),
+                }),
+                primitive: wgpu::PrimitiveState {
+                    topology: wgpu::PrimitiveTopology::TriangleStrip,
+                    ..Default::default()
+                },
+                depth_stencil: None,
+                multisample: Default::default(),
+                multiview_mask: None,
+                cache: gpu.disk_pipeline_cache(),
             })
-            .collect();
+        };
+        let pipelines =
+            formats.iter().map(|&format| (format, make(format, &module), make(format, &wide_module))).collect();
         let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
             label: Some("lens drops"),
             mag_filter: wgpu::FilterMode::Linear,
@@ -335,10 +372,11 @@ impl LensPass {
         let Some((_, pipeline)) = self.copy_pipelines.iter().find(|(f, _)| *f == format) else { return false };
         let size = frame.texture().size();
         let (w, h) = (size.width, size.height);
+        let kx = drop_x_scale(w, h);
         let rects: Vec<[f32; 4]> = drops
             .iter()
             .take(SPLATS * CHUNKS)
-            .filter_map(|d| drop_source_texels(d, w, h))
+            .filter_map(|d| drop_source_texels(d, w, h, kx))
             .map(|[x0, y0, x1, y1]| {
                 let nx = |x: u32| x as f32 / w as f32 * 2.0 - 1.0;
                 let ny = |y: u32| 1.0 - y as f32 / h as f32 * 2.0;
@@ -418,7 +456,11 @@ impl LensPass {
         drops: &[LensDrop],
     ) {
         let Some((_, raindrop)) = &self.raindrop else { return };
-        let Some((_, pipeline)) = self.pipelines.iter().find(|(f, _)| *f == format) else { return };
+        let size = target.texture().size();
+        let kx = drop_x_scale(size.width, size.height);
+        let Some((_, native, wide)) = self.pipelines.iter().find(|(f, ..)| *f == format) else { return };
+        // The native program unless the drops are narrowed (module docs).
+        let pipeline = if kx == 1.0 { native } else { wide };
         let n = drops.len().min(SPLATS * CHUNKS);
         if n == 0 {
             return;
@@ -427,10 +469,12 @@ impl LensPass {
         // ones (clone deviation) in the next, each a draw of its own.
         let mut groups = Vec::new();
         for (c, chunk) in drops[..n].chunks(SPLATS).enumerate() {
-            let mut data = [[0.0f32; 4]; SPLATS];
+            // The 20 drops, then the x scale.
+            let mut data = [[0.0f32; 4]; SPLATS + 1];
             for (d, out) in chunk.iter().zip(data.iter_mut()) {
                 *out = [d.x, d.y, d.size, d.alpha];
             }
+            data[SPLATS] = [kx, 0.0, 0.0, 0.0];
             let offset = c as u64 * CHUNK_STRIDE;
             gpu.queue.write_buffer(&self.uniform, offset, bytemuck::cast_slice(&data));
             let group = gpu.device.create_bind_group(&wgpu::BindGroupDescriptor {
@@ -442,7 +486,7 @@ impl LensPass {
                         resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
                             buffer: &self.uniform,
                             offset,
-                            size: std::num::NonZeroU64::new((SPLATS * 16) as u64),
+                            size: std::num::NonZeroU64::new(((SPLATS + 1) * 16) as u64),
                         }),
                     },
                     wgpu::BindGroupEntry { binding: 1, resource: wgpu::BindingResource::TextureView(source) },
@@ -470,5 +514,19 @@ impl LensPass {
             pass.set_bind_group(0, group, &[]);
             pass.draw(0..4, 0..*count);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    /// The Wide program scales every x side of the quad and the sampled
+    /// offset; the native one is untouched.
+    #[test]
+    fn the_wide_program_scales_x_only() {
+        let w = super::wide_wgsl();
+        assert_eq!(w.matches("wx").count(), 5);
+        assert!(w.contains("2.0 * d.x - 1.0 + c.x * wx, 1.0 - 2.0 * d.y + c.y * w,"));
+        assert!(w.contains("t.g * wx + (d.x - 0.25 * wx), t.b * -w + (d.y + 0.25 * w)"));
+        assert!(!super::WGSL.contains("wx") && !super::WGSL.contains("k: vec4"));
     }
 }

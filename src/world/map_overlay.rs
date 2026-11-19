@@ -1414,8 +1414,11 @@ mod tests {
         if !adds.is_empty() && r.one_in(3) {
             return Some(PropKey::Added(adds[r.below(adds.len())].to_string()));
         }
-        // Mostly an original the mod already edits (twins among them).
-        let edited: Vec<usize> = s.world.map_overlay.originals.keys().copied().collect();
+        // Mostly an original the mod already edits (twins among them),
+        // sorted: the map's own order differs from run to run, and the
+        // ops must not.
+        let mut edited: Vec<usize> = s.world.map_overlay.originals.keys().copied().collect();
+        edited.sort_unstable();
         let i = if !edited.is_empty() && r.one_in(2) {
             edited[r.below(edited.len())]
         } else {
@@ -1503,6 +1506,29 @@ mod tests {
                 assert_same(&s.world, &full(&s.map), &format!("seed {seed} step {step} ({what})"));
             }
             assert!(s.map.props.len() > 10, "seed {seed}: {} edits", s.map.props.len());
+        }
+    }
+
+    /// An original deleted and put back at the place its move already
+    /// gives it, in one group (the mod the same as before): its knock-over
+    /// prop comes back too, whether the group is made or refused.
+    #[test]
+    fn a_delete_taken_back_in_one_group_keeps_the_knock_over_prop() {
+        for refused in [false, true] {
+            let mut s = MapSession::new(REGION, FOLDER, MapMod::default(), world());
+            let i = s.world.smackables[0].placement;
+            let key = s.key_of(i).unwrap();
+            let (position, rotation) = (Vec3::new(24.5, 29.5, 0.0), Mat3::IDENTITY);
+            s.run(Op::Place { key: key.clone(), position, rotation }).unwrap();
+            let props = s.world.smackables.len();
+            let mut ops = vec![Op::Delete { key: key.clone() }, Op::Place { key, position, rotation }];
+            if refused {
+                ops.push(Op::Delete { key: PropKey::Added("no-such-add".into()) });
+            }
+            let r = s.run(Op::Group { label: "Group".into(), ops });
+            assert_eq!(r.is_err(), refused);
+            assert_eq!(s.world.smackables.len(), props, "refused {refused}");
+            assert_same(&s.world, &full(&s.map), &format!("refused {refused}"));
         }
     }
 

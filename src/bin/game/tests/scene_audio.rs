@@ -933,3 +933,58 @@ fn a_race_song_plays_on_through_the_results() {
         assert_eq!(game.music_context(), MusicContext::Game, "the post-race chain is in the game's audio mode");
     }
 }
+
+/// A race's pause and its options (UI_PauseOptionsMain, UI_PauseOptions on
+/// each category) hold the race's song; Resume lets the same song go on.
+/// No front-end song starts over the paused race.
+#[test]
+#[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
+fn the_race_pause_options_hold_the_race_song() {
+    testkit::game();
+    let mut game = Game::new().unwrap();
+    game.settings.master = 1.0;
+    game.settings.game_music = 1.0;
+    game.settings.menu_music = 1.0;
+    game.audio = Some(game.new_audio(Mixer::offline(48000)));
+    game.quick.tracks = game.quick_track_select(screens::QrMode::Circuit, 0.0);
+    let event = game.quick_event(screens::QrMode::Circuit);
+    game.quick.car = Some("240SX".into());
+    game.start_race(event, true, false).unwrap();
+    let mut pcm = Vec::new();
+    let mut play = |game: &mut Game, secs: f32| {
+        for _ in 0..(secs * 60.0) as usize {
+            game.step_for(1.0 / 60.0).unwrap();
+            game.audio.as_ref().unwrap().mixer.pump(800, &mut pcm);
+        }
+    };
+    for _ in 0..40 {
+        if matches!(&game.mode, Mode::Race(r) if r.timing.clock > 1.0) {
+            break;
+        }
+        play(&mut game, 0.5);
+    }
+    assert_eq!(game.music_context(), MusicContext::Game);
+    let song = game.audio.as_ref().unwrap().streams.song();
+    assert!(song.is_some(), "a song in the race");
+    game.key(KeyCode::Escape, &mut || {}).unwrap();
+    assert!(matches!(game.mode, Mode::Menu(Menu::Icons(_, MenuKind::RacePause))), "{}", flow_mode(&game.mode));
+    play(&mut game, 0.5);
+    assert_eq!(game.music_context(), MusicContext::Paused);
+    game.act(Action::Options, MenuKind::RacePause).unwrap();
+    assert!(matches!(game.mode, Mode::Menu(Menu::Icons(_, MenuKind::PauseOptions(true)))), "{}", flow_mode(&game.mode));
+    for n in 0..4 {
+        game.mode = game.icon_menu(MenuKind::PauseOptions(true));
+        game.act(Action::PauseSetting(n), MenuKind::PauseOptions(true)).unwrap();
+        assert!(matches!(&game.mode, Mode::Menu(Menu::Options(o)) if o.pause.is_some()), "{n}: {}", flow_mode(&game.mode));
+        play(&mut game, 1.0);
+        assert_eq!(game.music_context(), MusicContext::Paused, "pause options category {n}");
+        assert_eq!(game.audio.as_ref().unwrap().streams.song(), song, "pause options category {n}: no new song");
+    }
+    // Back out to the pause and resume: the same song goes on.
+    game.mode = game.icon_menu(MenuKind::RacePause);
+    game.act(Action::ResumeRace, MenuKind::RacePause).unwrap();
+    assert!(matches!(game.mode, Mode::Race(_)), "{}", flow_mode(&game.mode));
+    play(&mut game, 1.0);
+    assert_eq!(game.music_context(), MusicContext::Game);
+    assert_eq!(game.audio.as_ref().unwrap().streams.song(), song, "the race's song after Resume");
+}
