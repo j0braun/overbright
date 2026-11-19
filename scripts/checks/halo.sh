@@ -12,9 +12,10 @@
 # Exit status: halo.py's; 2 a run failed; 3 skipped: no HALO_SAVE and no private set (the default save is private).
 set -u
 HERE=$(cd "$(dirname "$0")" && pwd); REPO=$(cd "$HERE/../.." && pwd)
-OUT=${1:?usage: halo.sh OUTDIR [GAME]}; G=${2:-$REPO/target/release/game}
+OUT=${1:?usage: halo.sh OUTDIR [GAME]}
 mkdir -p "$OUT"; OUT=$(cd "$OUT" && pwd)
 . "$REPO/scripts/lib/common.sh"; ck_local_env; ck_need_root
+G=${2:-${CARGO_TARGET_DIR:-$REPO/target}/$CK_PDIR/game}
 SAVE=${HALO_SAVE:-}
 if [ -n "$SAVE" ]; then [ -f "$SAVE" ] || ck_die "HALO_SAVE=$SAVE is not a file"
 elif ! SAVE=$(ck_private_file tests/fixtures/native_saves/career_complete.sav); then

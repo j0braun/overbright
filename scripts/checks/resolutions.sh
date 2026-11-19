@@ -29,7 +29,7 @@ ck_need_root
 ck_need_tools python3 timeout
 command -v magick > /dev/null || ck_need_tools convert montage identify
 O=${1:?usage: resolutions.sh OUTDIR [BIN]}
-BIN=${2:-${CARGO_TARGET_DIR:-$CK_REPO/target}/release/game}
+BIN=${2:-${CARGO_TARGET_DIR:-$CK_REPO/target}/$CK_PDIR/game}
 [ -x "$BIN" ] || ck_die "no binary $BIN"
 "$BIN" --dev-harness 2>/dev/null | grep -q 'dev-harness: on' || ck_die "$BIN has no dev harness (build with --features dev-harness)"
 mkdir -p "$O/cells"

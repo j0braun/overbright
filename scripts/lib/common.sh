@@ -14,10 +14,15 @@
 #                ($OB_PRIVATE names a folder, or REPO/tests/fixtures/native_saves exists). A step that skips
 #                for lack of the set (src/bin/game/dev/private.rs, exit status 3) is then a failure, not a skip.
 # ck_data_tests LOG REPO  the data-test rule on a cargo test log (below).
+# CK_PROFILE, CK_PDIR  the Cargo profile of the checks' own builds and its output folder under the target dir:
+#                $CHECKS_PROFILE, default `gate` (Cargo.toml [profile.gate], docs/build-times.md); `release` for the
+#                shipped profile. Releases, perf.sh, perfgate, pgo.sh and release_check.sh always use --release.
 CK_LIB=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 CK_REPO=$(cd "$CK_LIB/../.." && pwd)
 # The one panic / validation pattern (case-insensitive, ERE) every gate greps for.
 CK_PANIC_RE='panicked|validation error'
+ck_profile() { CK_PROFILE=${CHECKS_PROFILE:-gate}; case $CK_PROFILE in dev) CK_PDIR=debug ;; *) CK_PDIR=$CK_PROFILE ;; esac; }
+ck_profile
 
 ck_die() { echo "$(basename "$0"): $*" >&2; exit 2; }
 
@@ -33,6 +38,7 @@ ck_local_env() {
     CK_LOCAL_ENV=none
   fi
   export CK_LOCAL_ENV
+  ck_profile   # the machine's settings may name CHECKS_PROFILE
 }
 
 ck_need_root() {

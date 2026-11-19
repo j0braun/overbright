@@ -30,7 +30,7 @@ scripts/perf/perf.sh rate <outdir> <game>        # the rate gate v2 alone: hash 
 
 | set | what |
 |---|---|
-| fast | build (`--features dev-harness`; then `game --dev-harness` must answer `dev-harness: on`, else the set stops: a binary without the harness is never tested), `cargo test --release --no-fail-fast --features dev-harness` (run through `home_mask.sh`: the player's data and cache folders are hidden behind empty ones in a user + mount namespace, and the step fails when the tests wrote anything there, an entry made and removed again included; `home-mask.txt`), `--selftest`, `prepare.sh` (`game --prepare` on empty folders of its own: ends with `ok=1` and its stamp, a second run changes no cache file, a first load after it finds every pipeline in the pipeline cache, a killed run leaves no stamp and the next one passes; docs/prepare.md), the targets of `fast-shots.txt` (31 on 2026-11-11; the count is whatever the file lists, checks.txt prints it), the four flows side by side (`firstrace`, `firstdrag`, `postrace`, `--playthrough`) |
+| fast | build (`--features dev-harness`; then `game --dev-harness` must answer `dev-harness: on`, else the set stops: a binary without the harness is never tested), `cargo test --profile gate --no-fail-fast --features dev-harness` (run through `home_mask.sh`: the player's data and cache folders are hidden behind empty ones in a user + mount namespace, and the step fails when the tests wrote anything there, an entry made and removed again included; `home-mask.txt`), `--selftest`, `prepare.sh` (`game --prepare` on empty folders of its own: ends with `ok=1` and its stamp, a second run changes no cache file, a first load after it finds every pipeline in the pipeline cache, a killed run leaves no stamp and the next one passes; docs/prepare.md), the targets of `fast-shots.txt` (31 on 2026-11-11; the count is whatever the file lists, checks.txt prints it), the four flows side by side (`firstrace`, `firstdrag`, `postrace`, `--playthrough`) |
 | full | fast + every target of `shot_targets.py` (274), each run twice and pixdiffed (determinism), intro GPS (offline audio), `--flow rain`, `--selftest-showcase`, explore at 1080p, `--bench drive`, the combination matrix (`scripts/checks/matrix.sh`, the settings model: every Graphics tier on Original and on max, every Customize Display value under max, every pair of rows, every settings-model rule, four scenes, live switches; ~70 s; docs/settings-model.md), `devprobes.sh` (the ~160 developer probes in `devprobes/` type-check; a failure fails the set; `DEVPROBES=1` adds it to fast), `fuzz.sh` (the fuzz smoke, docs/fuzzing.md: 38 targets, 2 s each on mutated inputs over seeds from the player's files; a panic, a call over 3 s or an allocation over 256 MiB fails the set; `FUZZ=1` adds it to fast), `release_check.sh` (the shipping build without `dev-harness`, in `$CARGO_TARGET_DIR/ship`: none of the maintainer's save names, harness flags or harness variables in `strings`, the only `NFSU2_SHOT_*` left those of Mark Spot's report and the renderer's enhancement override, `--selftest` and `--dev-harness` exit 2 with the usage error; prints its size; `RELEASE=1` adds it to fast) , `resolutions.sh` (the resolution-matrix work / the resolution fixes, **a failing step**: `RES_SET=family`, one size per aspect family plus the minimum 640×480 and the portrait 1080×1920, 8 sizes; a FAIL cell fails the set (XFAIL = a case listed in `KNOWN`, the option's own rule), and so does its self-test when a check does not fail on deliberately broken input; prints its `RESOLUTIONS:` and `RESOLUTIONS SELFTEST:` lines into checks.txt; `RES_SET=off` leaves it out; docs/resolutions.md), `wine_smoke.sh` (the platform work, **report-only** except for the build: the Windows build under Wine, its `WINE_SMOKE:` line and seconds in checks.txt / `steps_s`; a Windows game that does not compile, `WINE_SMOKE: FAIL (build)`, fails the set as `wine_build`; `WINE_SMOKE=off` leaves it out, no wine/Xvfb/podman = skipped; "Wine smoke" below) |
 
 Environment: `CARGO_TARGET_DIR` (default `<repo>/target`), `JOBS` (shots
@@ -46,6 +46,28 @@ Output: `<outdir>/checks.txt` (one line per step), per-step logs, `shots/`
 and `shots2/` (PNG, log, `shots.tsv`: target, run, rc, panic/validation
 count, ms). Exit status 0 only when every step passed; last line
 `CHECKS: PASS|FAIL (…)`.
+
+## Build profile (`CHECKS_PROFILE`)
+
+The checks build and test with the **gate** profile (`Cargo.toml` `[profile.gate]`: the release settings
+without LTO, 16 codegen units, incremental; docs/build-times.md has the measured times). It computes the
+same results as the shipped profile (Rust does no fast-math); only build time and binary size differ.
+
+- `CHECKS_PROFILE=gate` (the default) or `CHECKS_PROFILE=release` (the shipped profile, e.g. to compare
+  with an older run), from the environment or `scripts/local.env`. `scripts/lib/common.sh` sets `CK_PROFILE`
+  and `CK_PDIR` from it.
+- Cargo keeps each profile in its own folder under the target dir: the checks' binaries are in
+  `target/gate/` (`game`, `examples/pixdiff`, …), the shipped profile's in `target/release/`; gate and
+  release artifacts never mix. The scripts that default to a binary (`resolutions.sh`, `lavapipe.sh`,
+  `halo.sh`, `wine_smoke.sh`, `texture_mod_shot.sh`, `selfcheck.sh`'s pixdiff, `shot_targets.py`) read
+  it from the profile's folder.
+- checks.txt's first line names the profile (`profile gate`). With `PREV=<earlier outdir>` a run built
+  with another profile is named (`note: PREV was built with profile …`; runs without the word were
+  release builds).
+- **Always the shipped profile (`--release`):** `gate.sh`'s parity (base and candidate are both built by
+  `perf.sh build`, so the parity compares like with like), `perfgate.sh` and every perf number,
+  `release_check.sh`, the fresh-start launcher build, `pgo.sh` and the release container. `gate.sh`
+  prints `gate: checks profile gate; parity builds: release (both sides)`.
 
 ## Summary line (diffable)
 
@@ -223,7 +245,8 @@ the gate's first line):
 | variable | used by | without it |
 |---|---|---|
 | `NFSU2_ROOT` | every script that starts the game | stops with a clear message (no default) |
-| build env (e.g. a fast-build file) | checks.sh's `cargo build` / `cargo test` | the plain release profile |
+| `CHECKS_PROFILE` | checks.sh's `cargo build` / `cargo test`, fuzz.sh, the scripts' default binary paths | `gate` |
+| build env (e.g. a fast-build file) | every `cargo` call (a fast-build file's `CARGO_PROFILE_RELEASE_*` values are the ones the gate profile sets itself) | the plain profiles |
 | `PERF_WORK` | perf.sh build / profile | `<repo>/target/perf-work` |
 | `PERF_BASELINES` | perfgate.sh | perfgate stops with a message |
 | `PRESET_user` | perf.sh / budget.sh / perfgate presets `user` and `max` (`max` = it + `MAX_ROWS`) | those presets stop with a message; perfgate's set leaves its two `max` configs out (skipped, named) |

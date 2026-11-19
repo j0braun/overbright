@@ -4,8 +4,8 @@
 A tree with the shot table (src/bin/game/dev/shot/targets/, the
 binary answers `game --shot-list` with `name<TAB>group` lines) is asked:
 the script runs `<game> --shot-list` and prints the names. The binary is
-the second argument, else $SHOT_LIST_BIN, else $CARGO_TARGET_DIR/release/game,
-else <repo>/target/release/game; a tree with the table and no such binary
+the second argument, else $SHOT_LIST_BIN, else $CARGO_TARGET_DIR/<profile>/game,
+else <repo>/target/<profile>/game (<profile>: $CHECKS_PROFILE, default gate); a tree with the table and no such binary
 is an error (its source has no match left to parse). How it decides: the
 tree has the table when one of its game sources holds `"--shot-list"`.
 
@@ -56,9 +56,12 @@ def has_shot_list(repo):
 def binary_targets(repo, binary):
     """`<binary> --shot-list`: the table's targets."""
     cands = [binary, os.environ.get("SHOT_LIST_BIN")]
+    # The checks' profile folder (CHECKS_PROFILE, default gate; docs/build-times.md).
+    pdir = os.environ.get("CHECKS_PROFILE") or "gate"
+    pdir = "debug" if pdir == "dev" else pdir
     if os.environ.get("CARGO_TARGET_DIR"):
-        cands.append(os.path.join(os.environ["CARGO_TARGET_DIR"], "release/game"))
-    cands.append(str(pathlib.Path(repo) / "target/release/game"))
+        cands.append(os.path.join(os.environ["CARGO_TARGET_DIR"], pdir, "game"))
+    cands.append(str(pathlib.Path(repo) / "target" / pdir / "game"))
     game = next((c for c in cands if c and os.access(c, os.X_OK)), None)
     if game is None:
         sys.exit(f"shot_targets.py: {repo} has the shot table (`--shot-list`) but no game binary was found (tried {[c for c in cands if c]})")

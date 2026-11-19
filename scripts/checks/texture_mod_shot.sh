@@ -16,10 +16,11 @@ O=${2:?usage: texture_mod_shot.sh GAME OUTDIR}
 HERE=$(cd "$(dirname "$0")" && pwd)
 REPO=$(cd "$HERE/../.." && pwd)
 TGT=${CARGO_TARGET_DIR:-$REPO/target}
-TEX_FIND=${TEX_FIND:-$TGT/release/examples/tex_find}
+P=${CHECKS_PROFILE:-gate}; [ "$P" = dev ] && P=debug
+TEX_FIND=${TEX_FIND:-$TGT/$P/examples/tex_find}
 : "${NFSU2_ROOT:?set NFSU2_ROOT to the game folder}"
 : "${NFSU2_CACHE_DIR:?NFSU2_CACHE_DIR: a cache folder of your own}"
-[ -x "$TEX_FIND" ] || { echo "no tex_find at $TEX_FIND (cargo build --release --examples)"; exit 2; }
+[ -x "$TEX_FIND" ] || { echo "no tex_find at $TEX_FIND (cargo build --profile ${CHECKS_PROFILE:-gate} --examples)"; exit 2; }
 mkdir -p "$O"; O=$(cd "$O" && pwd)
 
 # The prepared data folders (one per run: a shot may write into its data folder).

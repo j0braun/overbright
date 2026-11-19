@@ -19,7 +19,7 @@ ck_local_env
 REPO=$(cd "$HERE/../.." && pwd)
 O=${1:?usage: lavapipe.sh OUTDIR [BIN]}
 mkdir -p "$O"; O=$(cd "$O" && pwd)
-BIN=${2:-${CARGO_TARGET_DIR:-$REPO/target}/release/game}
+BIN=${2:-${CARGO_TARGET_DIR:-$REPO/target}/$CK_PDIR/game}
 ICD=${LVP_ICD:-$(ls /usr/share/vulkan/icd.d/lvp_icd*.json 2>/dev/null | head -1)}
 if [ -z "$ICD" ] || [ ! -f "$ICD" ]; then
   echo "LAVAPIPE: SKIP (no lavapipe ICD; install Mesa's vulkan-swrast or set LVP_ICD)" | tee "$O/lavapipe.txt"

@@ -30,6 +30,10 @@ rm -rf "$G"; mkdir -p "$G"; G=$(cd "$G" && pwd)
 cd "$REPO" || exit 2
 echo "gate: $(date -Is) repo $REPO base $B local env $CK_LOCAL_ENV"
 export RATE=${RATE:-strict}
+# The checks step builds with the gate profile (CHECKS_PROFILE, docs/build-times.md); the parity's base and
+# candidate are both built by perf.sh build with the shipped release profile, so the parity compares like with like.
+export CHECKS_PROFILE=$CK_PROFILE
+echo "gate: checks profile $CK_PROFILE; parity builds: release (both sides)"
 # The player's folders before the gate (its builds, checks and parity); compared at the end (ck_player_snapshot).
 ck_player_snapshot > "$G/player-before.txt"
 [ -z "$PLAYER_DIRS" ] || ck_player_watch "$G/player-games.txt"

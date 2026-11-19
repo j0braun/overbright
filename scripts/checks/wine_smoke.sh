@@ -73,8 +73,8 @@ mkdir -p "$O"; O=$(cd "$O" && pwd)
 # The game's asset cache: the caller's NFSU2_CACHE_DIR, else a folder of this run (never the player's cache).
 export NFSU2_CACHE_DIR="${NFSU2_CACHE_DIR:-$O/cache}"
 TGT=${CARGO_TARGET_DIR:-$REPO/target}
-LBIN=${2:-$TGT/release/game}
-PIXDIFF=${PIXDIFF:-$TGT/release/examples/pixdiff}
+LBIN=${2:-$TGT/$CK_PDIR/game}
+PIXDIFF=${PIXDIFF:-$TGT/$CK_PDIR/examples/pixdiff}
 SHOTS=${WINE_SHOTS:-main explore race qrcars career}
 TOL_PX=${WINE_TOL_PIXELS:-64}
 TOL_D=${WINE_TOL_DIFF:-4}
@@ -345,7 +345,7 @@ command -v wine > /dev/null || skip "no wine"
 command -v Xvfb > /dev/null || skip "no Xvfb"
 command -v winepath > /dev/null || skip "no winepath"
 ck_need_root
-[ -x "$PIXDIFF" ] || ck_die "no pixdiff at $PIXDIFF (cargo build --release --examples)"
+[ -x "$PIXDIFF" ] || ck_die "no pixdiff at $PIXDIFF (cargo build --profile $CK_PROFILE --examples)"
 # The Linux game shoots the references (all of them for vk_fallback and without WINE_REF): it needs the harness.
 [ "$("$LBIN" --dev-harness 2>&1)" = "dev-harness: on" ] || ck_die "$LBIN is not a dev-harness build (the Linux references)"
 
@@ -454,7 +454,7 @@ fi
 
 # ---- the launcher ---------------------------------------------------------------------------------------------
 LEXE=${WINE_LAUNCHER:-$(dirname "$EXE")/../windows/overbright.exe}
-LOB=${LINUX_LAUNCHER:-$TGT/release/overbright}
+LOB=${LINUX_LAUNCHER:-$TGT/$CK_PDIR/overbright}
 if [ "$SELFCHECK" = 0 ] && [ -f "$LEXE" ] && [ -x "$LOB" ]; then
   cp -f "$LEXE" "$O/exe/overbright.exe"
   say "launcher $LEXE md5 $(md5sum < "$LEXE" | cut -c1-12)"
