@@ -46,6 +46,12 @@ mod tests {
         let (hw, x) = view_aspect(9.0 / 16.0);
         assert!((hw - 0.75).abs() < 1e-6 && (x - 64.0 / 27.0).abs() < 1e-5);
         assert_eq!(view_aspect(1.25), (0.75, 4.0 / 3.0 / 1.25));
+        // The lens drops keep their 4:3 shape in the Wide mode (exactly
+        // native at 4:3).
+        use crate::render::rain::drop_x_scale;
+        assert_eq!(drop_x_scale(1280, 960), 1.0);
+        assert!((drop_x_scale(1920, 1080) - 0.75).abs() < 1e-6);
+        assert!((drop_x_scale(3440, 1440) - 4.0 / 3.0 / (3440.0 / 1440.0)).abs() < 1e-6);
         // Anchored elements: to the screen's edges at 16:9 and 5:4, to the
         // centred 16:9 safe area wider (the HUD to the edges with Full
         // Width, `ultrawide_reach`); nothing moves at 4:3.
@@ -68,6 +74,8 @@ mod tests {
         assert_eq!(UiFrame::new((3840, 2160)).reach, (0.0, 0.0));
         assert_eq!(canvas_rect((3840, 2160)), (0.0, 0.0, 3840.0, 2160.0));
         assert_eq!(view_aspect(2.0), (0.5, 1.0));
+        // Stretched (native): the drops stretch with the screen.
+        assert_eq!(crate::render::rain::drop_x_scale(1920, 1080), 1.0);
         set_aspect_mode(AspectMode::Wide);
     }
 

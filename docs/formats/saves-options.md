@@ -618,7 +618,8 @@ the clone does instead (`render::display`, `frontend::options`,
     rule, the 4:3 vertical angle with the sides cropped, the resolution fixes 2026-11-12;
     before, the native Vert− there grew the vertical angle to ≈ 161° at
     9:16 and the road under the camera fell inside the 0.5 m near plane).
-    Every FE / HUD element keeps its 4:3 size and shape: the canvas is
+    Every FE / HUD element keeps its 4:3 size and shape (the lens drops too, 0x5C7AC0's clip-space quads narrowed
+    by the same m00 factor, `rain::drop_x_scale`): the canvas is
     scaled evenly by the screen height (by the width below 4:3) and sits
     in the largest centred 4:3 box (`display::canvas_rect`); each quad
     carries a `display::Place` (x, y ∈ −1 / 0 / 1) and is moved that many

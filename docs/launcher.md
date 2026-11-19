@@ -270,7 +270,7 @@ device, no log file. `key=value` lines, unknown keys ignored, exit 0 (or 1
 with `error=` and `ok=0` without an adapter):
 ```
 probe=1
-version=Overbright 0.4.0 (commit unknown, linux-x86_64)
+version=Overbright 0.4.1 (commit unknown, linux-x86_64)
 adapter.name=…            adapter.backend=Vulkan   adapter.type=DiscreteGpu
 adapter.pci=1002:1234     adapter.driver=…         adapter.vram=<bytes, 0 unknown>
 gpu.class=high            (qol::classify_gpu: the presets' tiers)

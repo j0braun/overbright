@@ -111,11 +111,16 @@ pub(crate) struct CallbackStats {
 fn open_stream(mix: &Arc<Mutex<Mix>>, rate: Option<u32>, beat: &Beat) -> Option<(cpal::Stream, u32)> {
     for host in hosts() {
         // The 1024-frame buffer first, then the device's own choice.
-        if let Some(s) =
+        if let Some((stream, rate, what)) =
             open_stream_with(&host, mix, rate, true, beat).or_else(|| open_stream_with(&host, mix, rate, false, beat))
         {
-            log::info!("audio: {} output at {} Hz", host.id().name(), s.1);
-            return Some(s);
+            // The game's log and the support file name the output (the
+            // `fact` line is written whatever RUST_LOG filters).
+            let line = format!("{} output: {what}", host.id().name());
+            log::debug!("audio: {line}");
+            crate::qol::log_file::fact(&format!("audio: {line}"));
+            crate::qol::crash::set_audio_output(line);
+            return Some((stream, rate));
         }
     }
     None
@@ -127,7 +132,7 @@ fn open_stream_with(
     rate: Option<u32>,
     fixed_buffer: bool,
     beat: &Beat,
-) -> Option<(cpal::Stream, u32)> {
+) -> Option<(cpal::Stream, u32, String)> {
     let device = host.default_output_device()?;
     let supported = device.default_output_config().ok()?;
     let format = supported.sample_format();
@@ -174,7 +179,34 @@ fn open_stream_with(
     stream.play().ok()?;
     beat.beat.store(beat.base.elapsed().as_millis() as u64, std::sync::atomic::Ordering::Relaxed);
     beat.failed.store(false, std::sync::atomic::Ordering::Relaxed);
-    Some((stream, config.sample_rate))
+    let name = device.description().map_or_else(|_| "(unnamed device)".to_string(), |d| d.name().to_string());
+    let what = output_line(&name, config.sample_rate, config.channels, format, fixed);
+    Some((stream, config.sample_rate, what))
+}
+
+/// The output's description for the log and the support file: the
+/// device, its rate, its channels with the layout their count implies, the
+/// sample format and the buffer.
+pub(crate) fn output_line(
+    device: &str,
+    rate: u32,
+    channels: u16,
+    format: cpal::SampleFormat,
+    buffer: Option<u32>,
+) -> String {
+    let layout = match channels {
+        1 => "mono",
+        2 => "stereo",
+        4 => "quadraphonic",
+        6 => "5.1",
+        8 => "7.1",
+        _ => "other",
+    };
+    // `Mix::render`: the game's two channels go to the first pair, the
+    // others stay silent.
+    let fill = if channels > 2 { "; the game's stereo on the front left / right, the others silent" } else { "" };
+    let buffer = buffer.map_or_else(|| "the device's buffer".to_string(), |n| format!("{n}-frame buffer"));
+    format!("\"{device}\", {rate} Hz, {channels} channels ({layout}{fill}), {format:?}, {buffer}")
 }
 
 /// The output stream in sample format `T`: each callback stamps the
@@ -364,5 +396,21 @@ impl Mixer {
     /// The device stream's restarts so far ([`Mixer::keep_alive`]).
     pub fn restarts(&self) -> u32 {
         self.device.as_ref().map_or(0, |d| d.lock().unwrap_or_else(std::sync::PoisonError::into_inner).restarts)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    /// The log and the support file name the device, the rate, the
+    /// channels with their layout and the format.
+    #[test]
+    fn output_line_names_rate_channels_and_layout() {
+        let l = super::output_line("Speakers", 48000, 6, cpal::SampleFormat::F32, Some(1024));
+        assert_eq!(
+            l,
+            "\"Speakers\", 48000 Hz, 6 channels (5.1; the game's stereo on the front left / right, the others silent), F32, 1024-frame buffer"
+        );
+        let l = super::output_line("Headphones", 44100, 2, cpal::SampleFormat::I16, None);
+        assert_eq!(l, "\"Headphones\", 44100 Hz, 2 channels (stereo), I16, the device's buffer");
     }
 }

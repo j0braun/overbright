@@ -244,6 +244,7 @@ impl Game {
     pub(crate) fn rumble_tick(&mut self) {
         if self.settings.enh.pad.rumble == 0 || self.platform.pads.devices.is_empty() {
             if self.rumble_gear.take().is_some() {
+                self.rumble_travel = None;
                 self.rumble.reset();
                 self.platform.pads.set_rumble(0.0, 0.0);
             }
@@ -260,9 +261,17 @@ impl Game {
                 let gear = d.state.drivetrain.as_ref().map(|t| t.gear);
                 let shifted = gear.is_some() && self.rumble_gear.is_some_and(|g| Some(g) != gear);
                 self.rumble_gear = gear.or(Some(0));
+                // The suspension travel since the last tick (0 on the
+                // first: no jolt from a fresh car).
+                let now = d.state.wheels.each_ref().map(|w| w.compression);
+                let bump = self.rumble_travel.map_or(0.0, |was| {
+                    now.iter().zip(was).map(|(n, w)| (n - w).abs()).sum::<f32>()
+                });
+                self.rumble_travel = Some(now);
                 nfsu2::pad::extras::RumbleFeed {
                     speed: d.state.velocity.length(),
-                    bump: 0.0,
+                    bump,
+                    surfaces: d.state.wheels.each_ref().map(|w| w.surface),
                     // **Inferred**: surface 0xD, the one 0x5C9DA0's effect
                     // plays on.
                     rough: d.state.wheels.iter().any(|w| w.surface == 0xD),
@@ -273,6 +282,7 @@ impl Game {
             }
             None => {
                 self.rumble_gear = Some(0);
+                self.rumble_travel = None;
                 nfsu2::pad::extras::RumbleFeed::default()
             }
         };

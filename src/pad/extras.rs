@@ -268,9 +268,14 @@ impl PadOptions {
 pub struct RumbleFeed {
     /// The car's speed, m/s.
     pub speed: f32,
-    /// The wheels' suspension travel sum this tick (the original's bump
-    /// test reads the wheels' +0x370..).
+    /// The wheels' suspension travel this tick, m: the sum of each
+    /// wheel's compression change since the last tick (the original's
+    /// bump test reads a sum over the wheels' +0x370..+0x37C; that field's
+    /// meaning is **open**, the travel is **inferred** to match it).
     pub bump: f32,
+    /// The surfaces under the wheels (collision face byte 2): the road
+    /// texture's weak-motor buzz ([`surface_buzz`]).
+    pub surfaces: [u8; 4],
     /// Off the road (a rough surface).
     pub rough: bool,
     /// A nitrous shot is running.
@@ -281,12 +286,32 @@ pub struct RumbleFeed {
     pub driving: bool,
 }
 
+/// The road texture by surface, after the original's periodic terrain
+/// effect 0x5C9FE0 (formats.md, Force feedback, effect 4): the surface
+/// table's amplitude (8: 130, 9: 110, 10: 70, 11: 100, 15: 100, 16: 80,
+/// 17: 80, others none), magnitude amp / 2 × min(1, v / 13) × 39.2157 of
+/// DirectInput's 10000, here 0..1 on the weak motor; the strongest of the
+/// wheels' surfaces.
+pub fn surface_buzz(surfaces: &[u8; 4], speed: f32) -> f32 {
+    let amp = |s: u8| match s {
+        8 => 130.0,
+        9 => 110.0,
+        10 => 70.0,
+        11 | 15 => 100.0,
+        16 | 17 => 80.0,
+        _ => 0.0f32,
+    };
+    let a = surfaces.iter().map(|&s| amp(s)).fold(0.0, f32::max);
+    (a / 2.0 * (speed / 13.0).clamp(0.0, 1.0) * 39.2157 / 10000.0).clamp(0.0, 1.0)
+}
+
 /// The rumble model, after the original's force-feedback effects on a
 /// wheel (formats.md **Gamepads and joysticks** › Force feedback: the bump
 /// jolt 0x5C9770 when the speed changes by more than 4 within 0.15 s or the
 /// wheels' travel sum passes 0.05; the terrain effects by surface 0x5C9FE0):
 /// a strong motor pulse on a jolt, scaled by the speed change; the weak
-/// motor for rough ground (by speed), a nitrous shot and a gear change.
+/// motor for the road texture ([`surface_buzz`]), rough ground (by
+/// speed), a nitrous shot and a gear change.
 /// One step per 1/60 s world tick, so the same at every frame rate.
 #[derive(Clone, Debug, Default)]
 pub struct Rumble {
@@ -339,7 +364,8 @@ impl Rumble {
         self.shift = (self.shift - DT * 3.5).max(0.0);
         let rough = if f.rough { (f.speed / 30.0).clamp(0.0, 1.0) * 0.45 } else { 0.0 };
         let nitrous = if f.nitrous { 0.2 } else { 0.0 };
-        (strong, (rough + nitrous).max(shift).min(1.0))
+        let texture = surface_buzz(&f.surfaces, f.speed);
+        (strong, (rough + nitrous + texture).max(shift).min(1.0))
     }
 }
 
@@ -428,6 +454,30 @@ mod tests {
         f.speed = 30.0;
         assert!(r.step(&f).1 > 0.4);
         f.driving = false;
+        assert_eq!(r.step(&f), (0.0, 0.0));
+    }
+
+    /// A bump (the wheels' travel over 0.05 m in a tick) pulses the strong
+    /// motor; a textured surface buzzes the weak one by speed, plain
+    /// asphalt not at all.
+    #[test]
+    fn rumble_on_bumps_and_road_texture() {
+        let mut r = Rumble::default();
+        let mut f = RumbleFeed { speed: 20.0, driving: true, ..Default::default() };
+        assert_eq!(r.step(&f), (0.0, 0.0));
+        f.bump = 0.08;
+        let (s, _) = r.step(&f);
+        assert!(s >= 0.25, "{s}");
+        f.bump = 0.0;
+        r.reset();
+        f.surfaces = [8, 8, 0, 0];
+        let (_, w) = r.step(&f);
+        assert!((w - 0.2549).abs() < 1e-3, "{w}");
+        // Half of 13 m/s: half the buzz (a fresh model: no speed jolt).
+        r.reset();
+        f.speed = 6.5;
+        assert!((r.step(&f).1 - 0.1275).abs() < 1e-3);
+        f.surfaces = [0; 4];
         assert_eq!(r.step(&f), (0.0, 0.0));
     }
 }

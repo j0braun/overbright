@@ -158,11 +158,15 @@ impl MapSession {
         let before = self.map.clone();
         let mut change = Change { label, ..Change::default() };
         if let Err(e) = self.exec(op, &mut change) {
-            // Live world edits are taken back by applying the mod again.
+            // Live world edits are taken back by applying the mod again
+            // (also when the mod came back to what it was: a delete put
+            // back by a move leaves it as before, but not the world).
             if self.map != before {
                 let changed_adds = adds(&self.map) != adds(&before);
                 self.map = before;
                 self.apply(changed_adds);
+            } else {
+                self.settle();
             }
             return Err(e);
         }
@@ -177,6 +181,8 @@ impl MapSession {
     pub fn commit(&mut self, label: &str) -> bool {
         let before_adds: Vec<PropEdit> = adds(self.undo.current()).into_iter().cloned().collect();
         if !self.undo.record(label, &self.map) {
+            // The mod is as before, the world maybe not (see `run`).
+            self.settle();
             return false;
         }
         self.dirty = true;
@@ -221,6 +227,14 @@ impl MapSession {
         self.world.reapply_map_mod(&self.region, &self.folder, &self.map);
         self.world_changed = true;
         self.adds_changed |= adds_changed;
+    }
+
+    /// Apply the unchanged `map` again: the live world edits of ops that
+    /// left it as it was taken back (only what differs is redone).
+    fn settle(&mut self) {
+        if self.world.reapply_map_mod(&self.region, &self.folder, &self.map) {
+            self.world_changed = true;
+        }
     }
 
     /// The key placement `i` of the world goes by (None: no such
