@@ -37,6 +37,14 @@ pub(crate) struct GarageFe {
     /// +0x23D0 / +0x2CD8, the last one asked wins).
     pub(crate) crib_shown: Option<screens::CarChoice>,
     pub(crate) lot_queued: Option<screens::CarChoice>,
+    /// GarageMain state 1 (0x4D85F8): the lot's car of another type asked
+    /// for and being loaded; the old car stays on the front disc until it
+    /// is in, then the platform turns (`Game::lot_load`).
+    pub(crate) crib_loading: Option<screens::CarChoice>,
+    /// Since when (front-end seconds) the request holds a car of another
+    /// type back for its load (state 1; `GarageRequest::hold`): the lot's
+    /// `crib_loading` or a screen's own FE car change (`fe_car_swing`).
+    pub(crate) hold: Option<f32>,
     /// The FE car type GarageMain's loader last loaded (its +0x10, the
     /// car type the loader's 0x4D80C3 compares; `None` when a fresh
     /// GarageMain has loaded none: the constructor's +0x2CE0 = 1).
@@ -65,6 +73,8 @@ impl Default for GarageFe {
             crib_shown: None,
             type_shown: None,
             lot_queued: None,
+            crib_loading: None,
+            hold: None,
             parts_sounded: [false; 4],
             toggled: None,
             left: false,

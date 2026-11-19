@@ -228,6 +228,7 @@ impl Game {
         }
         if !shows {
             self.garage_fe.view = None;
+            (self.garage_fe.crib_loading, self.garage_fe.hold) = (None, None);
             self.garage_fe.last = None;
             self.garage_fe.phase = GarageViewPhase::Other;
             self.garage_fe.parts_sounded = [false; 4];
@@ -247,6 +248,7 @@ impl Game {
             // A fresh GarageMain's loader has no car yet (0x4C17DE: +0x2CE0
             // = 1 until its first car is in).
             self.garage_fe.type_shown = None;
+            self.garage_fe.hold = None;
         }
         let request = self.garage_view_request();
         // The Open/Close toggle lasts while its list is up on that part: a
@@ -291,7 +293,8 @@ impl Game {
         // only with it set and g_LightGlowEnable (0x870CE4) on.
         let headlights = Switches::from_custom(&self.settings.custom).light_glow
             && matches!(&self.mode, Mode::Menu(Menu::Parts(b)) if b.package == "UI_ICEMAIN" && b.sub.is_none() && b.part.is_some() && b.categories.get(b.category).is_some_and(|c| c.slot == 0x9F));
-        let view = self.fe_car_swing(swing, &car, view, now);
+        let view = self.fe_car_swing(swing, (&car, &installed, &perf), view, now);
+        let hold = self.garage_fe.hold.is_some();
         let purge = self.shop.purge_test && self.purge_list_open();
         let prefetch = self.fe_prefetch(&car, &installed, &perf);
         let request = GarageRequest {
@@ -309,6 +312,7 @@ impl Game {
             headlights,
             purge,
             prefetch,
+            hold,
         };
         self.garage_fe.last = Some(request.clone());
         Some(request)
@@ -408,6 +412,9 @@ impl Game {
         if lot.is_none() || self.garage_fe.lot.is_none() {
             self.garage_fe.crib = None;
             self.garage_fe.lot_queued = None;
+            if self.garage_fe.crib_loading.take().is_some() {
+                self.garage_fe.hold = None;
+            }
             self.garage_fe.crib_shown = lot.as_ref().map(|l| l.2.clone());
         }
         if let Some((up, stepped)) = change {
@@ -452,29 +459,12 @@ impl Game {
         dt: f32,
     ) -> Option<(bool, nfsu2::garage::View)> {
         let garage_left = self.garage_fe.left;
+        let changing = self.garage_fe.view.as_ref()?.2.changing(now);
+        let swing_at = if changing { None } else { self.lot_load(now) };
         let (_, last, view) = self.garage_fe.view.as_mut()?;
-        // GarageMain (0x4D82D0): a car asked for during a swing waits for
-        // its end (0x4D8030 queues it while the old car is held, state 2's
-        // end loads it: state 1), so the platform always ends a whole
-        // third round, the asked car on the front disc (Wine: Rights 0.45 s
-        // apart, three swings back to back, 0x8363F0 at 0 / 120 / 240).
-        // A car of another type swings (state 1 → 2, +0x2CE0 set); the
-        // same type with other parts is swapped in place (state 3); the
-        // crib's empty and locked slots always swing (0x4A7930 / 0x4A7960
-        // → +0x161 / +0x162).
-        let mut swing = false;
-        if !view.changing(now)
-            && let Some(asked) = self.garage_fe.lot_queued.take()
-            && self.garage_fe.crib_shown.as_ref() != Some(&asked)
-        {
-            let same_type = self.garage_fe.crib_shown.as_ref().is_some_and(|s| {
-                s.placeholder.is_none() && asked.placeholder.is_none() && s.name.eq_ignore_ascii_case(&asked.name)
-            });
-            swing = !same_type;
-            self.garage_fe.crib_shown = Some(asked);
-        }
-        if swing {
-            view.change_car(!garage_left, now);
+        let swing = swing_at.is_some();
+        if let Some(at) = swing_at {
+            view.change_car(!garage_left, at);
         }
         // A screen's return to the base view (0x4C2140): the camera blends
         // back, the car keeps its angle and steer. The menu's own request
@@ -501,6 +491,70 @@ impl Game {
         Some((swing, view))
     }
 
+    /// GarageMain (0x4D82D0) for the lot's asked car, with no turn under
+    /// way: a car asked for during a turn waits for its end (0x4D8030
+    /// queues it while the old car is held, state 2's end loads it), so the
+    /// platform always ends a whole third round, the asked car on the
+    /// front disc (Wine: Rights 0.45 s apart, three swings back to back,
+    /// 0x8363F0 at 0 / 120 / 240). The same type with other parts is
+    /// swapped in place (state 3); a car of another type is loaded first
+    /// with the old car still on the front disc (state 1, 0x4D85F8: the
+    /// loader's [+0x234]+0x2CD4), and once it is in the platform turns
+    /// (state 2, +0x2CE0 set), the old car riding out on its disc. The
+    /// crib's empty and locked slots (0x4A7930 / 0x4A7960 → +0x161 /
+    /// +0x162) have nothing to load and turn at once. The turn's start
+    /// (front-end seconds) when it begins now.
+    fn lot_load(&mut self, now: f32) -> Option<f32> {
+        if let Some(asked) = self.garage_fe.lot_queued.take() {
+            let shown = self.garage_fe.crib_shown.as_ref();
+            let same_type = shown.is_some_and(|s| {
+                s.placeholder.is_none() && asked.placeholder.is_none() && s.name.eq_ignore_ascii_case(&asked.name)
+            });
+            if shown == Some(&asked) || same_type {
+                if self.garage_fe.crib_loading.take().is_some() {
+                    self.garage_fe.hold = None;
+                }
+                self.garage_fe.crib_shown = Some(asked);
+            } else if self.garage_fe.crib_loading.as_ref() != Some(&asked) {
+                self.garage_fe.crib_loading = Some(asked);
+                self.garage_fe.hold = Some(now);
+            }
+        }
+        self.garage_fe.crib_loading.as_ref()?;
+        let (car, installed, perf) = self.fe_car_ride();
+        let at = self.garage_car_in(car, installed, perf, now)?;
+        let since = self.garage_fe.hold.take().unwrap_or(now);
+        self.garage_fe.crib_shown = self.garage_fe.crib_loading.take();
+        Some(at.max(since))
+    }
+
+    /// When the FE car (`car` with its parts) was in for the garage scene
+    /// (GarageMain state 1's test of its loader, [+0x234]+0x2CD4): the
+    /// scene's incoming car's time (`GarageScene::incoming`), or now when
+    /// it is shown already, there is no car to load, its build failed, or
+    /// no scene stands on this platform yet (its first tick builds the car
+    /// in the tick, `garage_scene_tick`). None while it is being built.
+    fn garage_car_in(
+        &self,
+        car: Option<String>,
+        installed: std::collections::BTreeMap<u8, u32>,
+        perf: std::collections::BTreeSet<u8>,
+        now: f32,
+    ) -> Option<f32> {
+        let Some(name) = car else { return Some(now) };
+        let platform = self.garage_fe.view.as_ref().map(|v| v.0.as_str());
+        let Some(g) = self.render.garage.as_ref().filter(|g| Some(g.platform.name.as_str()) == platform) else {
+            return Some(now);
+        };
+        let key: GarageCarKey = (name, installed, perf);
+        if g.car.as_ref().is_some_and(|(n, i, ..)| *n == key.0 && *i == key.1) && g.car_perf == key.2
+            || g.car_failed.remembers(&key)
+        {
+            return Some(now);
+        }
+        g.incoming.as_ref().filter(|i| i.0 == key).map(|i| i.3)
+    }
+
     /// The FE car the menu shows: its name, installed parts (the unique
     /// part previewed, the performance parts' visuals) and performance
     /// parts (`garage_request`).
@@ -522,7 +576,7 @@ impl Game {
             // shows as its record has it (0x511E00 builds the entry's ride
             // from the slot's car record, 0x413440 copies it into the FE
             // car); a stock lot car is stock.
-            Mode::Menu(Menu::CarLot(_)) => match self.garage_fe.crib_shown.as_ref() {
+            Mode::Menu(Menu::CarLot(_)) => match self.garage_fe.crib_loading.as_ref().or(self.garage_fe.crib_shown.as_ref()) {
                 // A sponsor car shows its preset (under Wine: the Chingy
                 // Navigator with its vinyl and neon).
                 Some(c) if c.preset.is_some() => (
@@ -572,13 +626,14 @@ impl Game {
         // with its level; a stock lot car has none, a slot car its slot's.
         let perf: std::collections::BTreeSet<u8> = match (&car, self.profile.as_ref()) {
             (_, _) if matches!(mode, Mode::Menu(Menu::CarLot(_))) => match mode {
-                Mode::Menu(Menu::CarLot(_)) => match self.garage_fe.crib_shown.as_ref() {
+                Mode::Menu(Menu::CarLot(_)) => match self.garage_fe.crib_loading.as_ref().or(self.garage_fe.crib_shown.as_ref()) {
                     Some(c) if c.preset.is_some() => {
                         c.preset.as_deref().and_then(|n| self.preset_ride(n)).map(|r| r.1).unwrap_or_default()
                     }
                     _ => self
-                        .garage_fe.crib_shown
+                        .garage_fe.crib_loading
                         .as_ref()
+                        .or(self.garage_fe.crib_shown.as_ref())
                         .and_then(|c| c.slot)
                         .and_then(|i| self.profile.as_ref()?.slot_ride(i))
                         .filter(|r| Some(&r.0) == car.as_ref())
@@ -617,23 +672,35 @@ impl Game {
     /// sound 69 (FE_MB 0x2E) and the turn on the garage after the dyno,
     /// on Resume Career (the main menu's RX-7 → the garage's Lancer)
     /// and on the main menu after the garage.
+    /// As in the lots, the turn waits for the new car's load (state 1), the
+    /// old car shown meanwhile (`GarageRequest::hold`).
     fn fe_car_swing(
         &mut self,
         swing: bool,
-        car: &Option<String>,
+        ride: (&Option<String>, &std::collections::BTreeMap<u8, u32>, &std::collections::BTreeSet<u8>),
         view: nfsu2::garage::View,
         now: f32,
     ) -> nfsu2::garage::View {
+        let car = ride.0;
         let mut view = view;
+        let other_type = car.is_some()
+            && self.garage_fe.type_shown.as_ref().is_none_or(|t| !t.as_deref().zip(car.as_deref()).is_some_and(|(a, b)| a.eq_ignore_ascii_case(b)));
         if swing {
             self.garage_fe.type_shown = Some(car.clone());
-        } else if car.is_some()
-            && self.garage_fe.type_shown.as_ref().is_none_or(|t| !t.as_deref().zip(car.as_deref()).is_some_and(|(a, b)| a.eq_ignore_ascii_case(b)))
+        } else if self.garage_fe.crib_loading.is_some() {
+            // The lot's own load (`lot_load`) holds.
+        } else if !other_type {
+            self.garage_fe.hold = None;
+        } else if !self.garage_fe.view.as_ref().is_some_and(|v| v.2.changing(now))
             // A car asked during a swing waits for its end (0x4D8030 queues
             // it while the old car is held, +0x23D0; state 2's end loads
             // it), so every swing turns a whole third.
-            && !self.garage_fe.view.as_ref().is_some_and(|v| v.2.changing(now))
         {
+            let Some(at) = self.garage_car_in(car.clone(), ride.1.clone(), ride.2.clone(), now) else {
+                self.garage_fe.hold.get_or_insert(now);
+                return view;
+            };
+            let at = at.max(self.garage_fe.hold.take().unwrap_or(now));
             self.garage_fe.type_shown = Some(car.clone());
             // A lot's steps swing above; a lot just opened hands its first
             // car to the loader from its constructor, which swings it in
@@ -642,7 +709,7 @@ impl Game {
             // 120 → 240).
             let left = self.garage_fe.left;
             if let Some((_, _, v)) = self.garage_fe.view.as_mut() {
-                v.change_car(!left, now);
+                v.change_car(!left, at);
                 view = v.at(now);
             }
             if let Some(id) = nfsu2::audio::fe_rules::garage_swing(left) {
@@ -776,6 +843,11 @@ pub(crate) struct GarageRequest {
     /// The parts a step in the shop's list would ask for next (the
     /// same car and performance parts), built ahead by `draw_garage`.
     pub(crate) prefetch: Vec<std::collections::BTreeMap<u8, u32>>,
+    /// GarageMain state 1: the car asked for is of another type than the
+    /// one shown and is being loaded; the scene builds it beside the shown
+    /// car (`GarageScene::incoming`) and keeps the shown car on the front
+    /// disc until the game starts the turn.
+    pub(crate) hold: bool,
 }
 
 /// A menu's call on GarageMain's view: a part slot's (0x4C2100) or back

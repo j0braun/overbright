@@ -106,6 +106,13 @@ pub(crate) fn selftest_garage_returns(game: &mut Game) -> Result<()> {
 /// car stands on the front disc, and once the keys stop the garage shows
 /// the selected car (`garage_request`'s car is the lot's), its turn over.
 /// The game's clock is stepped here (1/60 s frames) and given back after.
+/// The lot hammer's tick: the garage's update and its scene (built in the
+/// tick headless), as the game's front-end tick runs them; its request.
+fn lot_tick(game: &mut Game) -> Option<GarageRequest> {
+    game.garage_tick();
+    game.garage_fe.request.clone()
+}
+
 pub(crate) fn selftest_lot_hammer(game: &mut Game, what: &str) -> Result<()> {
     let Mode::Menu(Menu::CarLot(lot)) = &game.mode else { anyhow::bail!("{what}: not a car lot") };
     let (start, n) = (lot.selected, lot.cars.len());
@@ -116,10 +123,23 @@ pub(crate) fn selftest_lot_hammer(game: &mut Game, what: &str) -> Result<()> {
     let saved = game.pacing.clock;
     let mut t = f64::from(game.now()) / 1000.0;
     game.pacing.clock = Some(t);
-    game.garage_request();
+    lot_tick(game);
     let check_front = |game: &Game, at: &str| -> Result<()> {
         let Some((_, _, view)) = game.garage_fe.view.as_ref() else { anyhow::bail!("{what}: no garage view {at}") };
         let now = game.now() / 1000.0;
+        // A turn only runs with its new car in (GarageMain state 1): the
+        // scene shows the asked car from the turn's first tick.
+        if view.changing(now)
+            && let (Some(r), Some(g)) = (game.garage_fe.request.as_ref(), game.render.garage.as_ref())
+            && r.car.is_some()
+        {
+            anyhow::ensure!(
+                g.car.as_ref().map(|c| &c.0) == r.car.as_ref(),
+                "{what}: the platform turns without its new car {at}: {:?} asked, {:?} shown",
+                r.car,
+                g.car.as_ref().map(|c| &c.0)
+            );
+        }
         if !view.changing(now) {
             anyhow::ensure!(
                 view.at(now).turntable().car_in_front(),
@@ -157,7 +177,7 @@ pub(crate) fn selftest_lot_hammer(game: &mut Game, what: &str) -> Result<()> {
         for _ in 0..gap {
             t += 1.0 / 60.0;
             game.pacing.clock = Some(t);
-            game.garage_request().with_context(|| format!("{what}: no garage"))?;
+            lot_tick(game).with_context(|| format!("{what}: no garage"))?;
             check_front(game, &format!("after key {i}"))?;
             frames += 1;
         }
@@ -174,15 +194,15 @@ pub(crate) fn selftest_lot_hammer(game: &mut Game, what: &str) -> Result<()> {
         game.menu_key(if selected > start { Key::Left } else { Key::Right })?;
         t += 0.05;
         game.pacing.clock = Some(t);
-        game.garage_request();
+        lot_tick(game);
     }
     for _ in 0..180 {
         t += 1.0 / 60.0;
         game.pacing.clock = Some(t);
-        game.garage_request();
+        lot_tick(game);
         check_front(game, "after the keys")?;
     }
-    let request = game.garage_request().with_context(|| format!("{what}: no garage"))?;
+    let request = lot_tick(game).with_context(|| format!("{what}: no garage"))?;
     let Mode::Menu(Menu::CarLot(lot)) = &game.mode else { anyhow::bail!("{what}: the lot") };
     let want = lot.cars.get(lot.selected).filter(|c| c.placeholder.is_none()).map(|c| c.name.clone());
     anyhow::ensure!(request.car == want, "{what}: the garage shows {:?}, the lot has {:?} selected", request.car, want);
