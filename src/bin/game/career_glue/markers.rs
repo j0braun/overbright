@@ -198,6 +198,8 @@ impl Game {
     /// then the open events (0x5002E0: 7 an SUV race, else 5 a URL race,
     /// else 4 sprint, 2 street X, 1 drag, 3 drift, 0 the rest); the world
     /// challenges (15) and the DVD id 8 are never in the clone's.
+    /// In a race the gate (race type 0x89E7B0 non-zero) turns all 12 off
+    /// every world update: `particle_effects`.
     /// **Not traced**: 0x501290, which switches them all off (0x6022B0)
     /// and on (0x5F0C90), and its callers 0x499FA0 and 0x4CE770.
     pub(crate) fn marker_effects(&mut self) {
