@@ -418,6 +418,10 @@ fn game_folder(given: Option<&Path>) -> String {
         };
         v.push(format!("  {tag}: {line}"));
     }
+    v.push("game files the game looks for:".into());
+    for line in setup::check_details(&c) {
+        v.push(format!("  {line}"));
+    }
     v.join("\n")
 }
 

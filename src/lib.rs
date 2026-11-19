@@ -122,6 +122,7 @@ pub mod melo;
 pub mod model_fixes;
 pub mod car_smooth;
 pub mod movie;
+pub mod game_assets;
 pub mod draw;
 pub mod render;
 pub mod neon_quality;

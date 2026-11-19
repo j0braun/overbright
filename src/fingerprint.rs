@@ -309,7 +309,8 @@ pub fn current() -> Option<&'static Fingerprint> {
 
 /// Fingerprint `root` on a background thread (the window start; headless
 /// check modes skip it): the summary is logged (a warning when unknown or
-/// modified) and kept for crash reports.
+/// modified) and kept for crash reports; then the asset report's lines
+/// ([`crate::game_assets::scan`]) are logged once.
 pub fn start(root: PathBuf) {
     let spawned = std::thread::Builder::new().name("fingerprint".into()).spawn(move || {
         let f = compute(&root);
@@ -318,6 +319,18 @@ pub fn start(root: PathBuf) {
             Verdict::Unknown(_) => log::warn!("game files: {} (Overbright keeps running; see --check-game)", f.summary()),
         }
         let _ = CURRENT.set(f);
+        // Once per start: the edition and the movies as the game will
+        // find them (the same lines as `--check-game`).
+        let a = crate::game_assets::scan(&root);
+        for (mark, line) in a.summary() {
+            match mark {
+                crate::qol::setup::Mark::Warn | crate::qol::setup::Mark::Error => log::warn!("game assets: {line}"),
+                _ => log::info!("game assets: {line}"),
+            }
+        }
+        for (_, line) in a.groups() {
+            log::info!("game assets: {line}");
+        }
     });
     if let Err(e) = spawned {
         log::warn!("game fingerprint skipped (no thread: {e})");

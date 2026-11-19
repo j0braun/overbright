@@ -279,18 +279,6 @@ pub fn file_name(name: &str) -> String {
     format!("{name}{}", if plain { ".vp6" } else { "_fr.vp6" })
 }
 
-/// The installed language's file for a name: `<name>_en.vp6` where
-/// [`file_name`] gives "_fr" (the English data's ealogo_en, PSA_en,
-/// SceneNN_en, *Tut_en), `THX_logo.vp6` for "THX_logo_fr", the plain name
-/// otherwise.
-fn installed_language_name(name: &str) -> String {
-    if PLAIN.iter().any(|n| n.eq_ignore_ascii_case(name)) {
-        format!("{}.vp6", name.strip_suffix("_fr").unwrap_or(name))
-    } else {
-        format!("{name}_en.vp6")
-    }
-}
-
 /// A movie's file in MOVIES (names match without case, as Win32 opens
 /// them), `None` when there is none: the screen then ends at once.
 ///
@@ -300,14 +288,16 @@ fn installed_language_name(name: &str) -> String {
 ///    end 0xC3960EB9 at once and the screen is skipped (docs/formats.md,
 ///    "Boot sequence").
 // prov: choice movie.path
-/// 2. Without that file, the installed language's file
-///    ([`installed_language_name`]). This build's "_fr" names do not match
-///    the English data, where the original skips the logos, the PSA, the
-///    career's scenes and the tutorials (seen under Wine); the clone plays
-///    the installed file instead (docs/native-deviations.md, "Movie files").
+/// 2. Without that file, this install's own name for it, as
+///    [`crate::game_assets::resolve_movie`] finds it (no suffix, the text
+///    language's, `_en`, any one language's). This build's "_fr" names do
+///    not match other editions' data, where the original skips the logos,
+///    the PSA, the career's scenes and the tutorials (seen under Wine with
+///    the English data); the clone plays the installed file instead
+///    (docs/native-deviations.md, "Movie files"). The game-folder check
+///    reports the same resolution.
 pub fn path(root: &Path, name: &str) -> Option<PathBuf> {
-    let find = |file: &str| crate::game_fs::find(root, &format!("MOVIES/{file}")).filter(|p| p.is_file());
-    find(&file_name(name)).or_else(|| find(&installed_language_name(name)))
+    crate::game_assets::resolve_movie(root, name).file
 }
 
 /// The movie table (GLOBALB.BUN chunks 0x39020, the list at 0x8637BC):

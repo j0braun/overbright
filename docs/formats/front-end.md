@@ -1490,11 +1490,16 @@ The menus are FEng packages: FRONTEND/FrontB.lzc (137), GLOBAL/GlobalB.lzc
   holds ealogo_en/_dn/_du/_sw.vp6, PSA_en.vp6, THX_logo.vp6 and
   SceneNN_en / *Tut_en.vp6: this executable opens none of them, so the
   logos, the PSA, the career's scenes and the tutorials do not play with
-  it. The clone asks for the built name first (`movie::file_name`), then
-  the installed language's file (`<name>_en.vp6`, THX_logo.vp6 for
-  THX_logo_fr; a deliberate deviation, docs/native-deviations.md "Movie
-  files"), so with the English data it plays them; a screen with neither
-  file ends in the tick it opens (`movie::path`, `movie_tick`). **Open**:
+  it. The US 1.2 English edition names its movies without any suffix
+  (ealogo.vp6, PSA.vp6, Scene01.vp6, DriftTut.vp6, …, with a movies.tag).
+  The clone asks for the built name first
+  (`movie::file_name`), then this install's own name
+  (`game_assets::resolve_movie`: `<name>.vp6`, THX_logo.vp6 for
+  THX_logo_fr; the text language's `<name>_<xx>.vp6`; `<name>_en.vp6`;
+  any one `<name>_<xx>.vp6`; a deliberate deviation,
+  docs/native-deviations.md "Movie files"), so the US, European and
+  single-language data play; a screen with none of these files ends in the
+  tick it opens (`movie::path`, `movie_tick`) and logs the names tried. **Open**:
   how an install shows these logos in English with this data; **inferred**:
   another build of the executable (one built with "_en") or other files,
   neither at hand.

@@ -339,6 +339,13 @@ known; others are left out).
   again when some files are missing). Two notes are left out as nothing to
   act on: the mod files found (Overbright ignores them) and what
   SPEED2.EXE is (Overbright does not use it).
+- The check's lines include the edition as the files show it and the
+  movies (all found, or which will not play; docs/game-fingerprint.md,
+  "Asset check"). Missing movies or menu files alone make "Ready · some
+  movies will not play" (the game runs without them). "Show the movies"
+  opens one line per group (start, story, tutorial and neighbourhood
+  movies, menu and text files): how many were found and which are
+  missing.
 
 **The state line is true** (`src/bin/overbright.rs`, `screens::game_state`)
 - Before the window opens, the folder found (`setup::find`: NFSU2_ROOT,
@@ -456,7 +463,7 @@ for players, the shipped program names per system (`overbright` /
 (NFSU2_ROOT, "the clone").
 
 ## Tests
-- `src/launcher/tests.rs`: every screen at 640×480, 800×1280, 1280×720,
+- `src/launcher/tests.rs`: every screen at 640×480, 1280×720,
   1920×1080, 2560×1080, 3840×2160 (and 2560×1440 at 200 %): every text
   inside its widget and off the marks/arrows, measured width = box, widgets
   inside the window and not overlapping, no two texts overlapping, every

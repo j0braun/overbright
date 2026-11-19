@@ -215,7 +215,7 @@ game.update_world-3	inferred	docs/formats.md	the track's +0x94 bits). Inferred: 
 game.upload_movie	inferred	docs/formats.md	inferred: about +z) seen from the camera's eye towards its point
 game.upload_movie-2	inferred	docs/formats.md	/ 360; inferred: across the screen's width, h / w of 0x5C7ED0), then
 handling.launch_times	inferred	docs/replay-cameras.md,docs/tuning-physics-parity.md	quarter's t and v; it stops once all four are non-zero. Inferred: a
-movie.path	choice	docs/native-deviations.md,docs/formats.md	the movie's file: the name 0x51C740 builds first (verified: a constant "_fr" suffix, 0x79B1EC), then the installed language's file (<name>_en.vp6, THX_logo.vp6), which the original never opens: with English data it skips those movies (seen under Wine).
+movie.path	choice	docs/native-deviations.md,docs/formats.md	the movie's file: the name 0x51C740 builds first (verified: a constant "_fr" suffix, 0x79B1EC), then this install's own name (no suffix as in the US edition, the text language's, _en, any one <name>_<xx>.vp6; src/game_assets.rs), which the original never opens: with English data it skips those movies (seen under Wine).
 pad.host.analog	inferred	docs/formats.md	(inferred: the original's per-player device assignment,
 particles.direction	inferred	docs/formats.md	Inferred: the order the three turns compose in, and the draws;
 particles.module	inferred	docs/formats.md,docs/particles-smoke.md	Inferred (not bit-exact): the random draws (the game steps one

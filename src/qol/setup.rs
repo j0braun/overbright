@@ -24,6 +24,9 @@ pub struct Check {
     pub missing: Vec<String>,
     /// Files whose size or hash differs from the known release.
     pub different: Vec<String>,
+    /// The full check's asset report: the edition, the movies and menu
+    /// files the game will look for ([`crate::game_assets::scan`]).
+    pub assets: Option<crate::game_assets::Report>,
 }
 
 impl Check {
@@ -34,7 +37,7 @@ impl Check {
 
 /// Check `root` for [`KEY_FILES`] (only reads): each file there and
 /// of the known size, and with `hash` of the known XXH3 (about 22 MB
-/// read).
+/// read) and the asset report ([`crate::game_assets::scan`]).
 pub fn check(root: &Path, hash: bool) -> Check {
     let mut c = Check::default();
     for (file, size, known) in KEY_FILES {
@@ -49,6 +52,9 @@ pub fn check(root: &Path, hash: bool) -> Check {
             }
             _ => c.missing.push(file.to_string()),
         }
+    }
+    if hash {
+        c.assets = Some(crate::game_assets::scan(root));
     }
     c
 }
@@ -208,6 +214,11 @@ pub fn check_lines(c: &Check, fp: Option<&crate::fingerprint::Fingerprint>) -> V
     {
         v.push((Mark::Info, format!("Mod files found next to the game: {} (Overbright ignores them)", f.mods.join(", "))));
     }
+    // The edition and the movies (not for a folder that is mostly not a
+    // game: its error line says it).
+    if let Some(a) = c.assets.as_ref().filter(|_| c.missing.len() <= 3) {
+        v.extend(a.summary());
+    }
     if c.missing.len() > 3 {
         // Most of the game is not there: one line, not a list.
         v.push((
@@ -224,6 +235,14 @@ pub fn check_lines(c: &Check, fp: Option<&crate::fingerprint::Fingerprint>) -> V
         }
     }
     v
+}
+
+/// The asset report's full list ([`crate::game_assets::Report::details`]),
+/// empty without one: every movie and menu file the game will look for,
+/// the file it opens or the names tried (`--check-game`, the support
+/// file).
+pub fn check_details(c: &Check) -> Vec<String> {
+    c.assets.as_ref().map(|a| a.details()).unwrap_or_default()
 }
 
 /// The usual places of an install. Windows: [`windows_candidates`] with
@@ -392,7 +411,7 @@ mod tests {
     /// shipped program names.
     #[test]
     fn help_is_worded_for_each_system() {
-        let c = Check { missing: vec!["TRACKS/L4RA.BUN".into()], different: Vec::new() };
+        let c = Check { missing: vec!["TRACKS/L4RA.BUN".into()], ..Default::default() };
         for windows in [false, true] {
             for h in [help_for(None, None, windows), help_for(Some(Path::new("/g")), Some(&c), windows)] {
                 assert!(h.contains("Overbright") && h.contains("--set-root"), "{h}");

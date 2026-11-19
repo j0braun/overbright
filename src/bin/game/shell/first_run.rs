@@ -73,6 +73,11 @@ pub(crate) fn game_folder(command: &super::command::Command) -> Result<bool> {
                 };
                 println!("  {tag}: {}", nfsu2::qol::crash::scrub(&line));
             }
+            // Every movie and menu file the game will look for.
+            println!("game files the game looks for:");
+            for line in setup::check_details(&c) {
+                println!("  {line}");
+            }
             return Ok(false);
         }
         _ => {}

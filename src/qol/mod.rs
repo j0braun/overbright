@@ -818,7 +818,7 @@ mod tests {
         let lines = setup::check_lines(&c, None);
         assert_eq!(lines.iter().filter(|(m, _)| *m == setup::Mark::Error).count(), 1, "many missing: one line");
         assert!(lines.iter().any(|(_, t)| t.contains(&format!("{} of the {} files", c.missing.len(), setup::KEY_FILES.len()))));
-        let few = setup::Check { missing: vec!["TRACKS/L4RA.BUN".into()], different: Vec::new() };
+        let few = setup::Check { missing: vec!["TRACKS/L4RA.BUN".into()], ..Default::default() };
         assert_eq!(setup::check_lines(&few, None), [(setup::Mark::Error, "Missing: TRACKS/L4RA.BUN — reinstall or copy the full game folder".to_string())]);
         // (The folder check finds every key file in any case, so the dummy `languages/English.bin` differs too.)
         assert!(lines.iter().any(|(m, t)| *m == setup::Mark::Warn && t.contains("1 file differs") && t.contains("English.bin")));
