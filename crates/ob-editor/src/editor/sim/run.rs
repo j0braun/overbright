@@ -1,5 +1,5 @@
-//! The game as a child process for a simulation: started headless with
-//! the mod saved, its stream read on a thread (the window never waits on
+//! The game as a child process for a simulation: started headless on the
+//! mod's run copy (`--map-file`, unsaved changes included), its stream read on a thread (the window never waits on
 //! it), stopped with `quit` on its standard input.
 
 use std::io::{BufRead, Write};
@@ -29,9 +29,10 @@ impl What {
     }
 }
 
-/// The game's command line for a simulation streamed to standard output.
-pub fn args(folder: &str, what: &What, seed: u64) -> Vec<String> {
-    let mut a = vec!["--map-mod".to_string(), folder.to_string()];
+/// The game's command line for a simulation of the mod file `file`
+/// streamed to standard output.
+pub fn args(file: &Path, what: &What, seed: u64) -> Vec<String> {
+    let mut a = vec!["--map-file".to_string(), file.display().to_string()];
     match what {
         What::Race(id) => a.extend(["--map-race".into(), id.clone(), "--simulate".into()]),
         What::World(p, h) => {
@@ -136,13 +137,24 @@ mod tests {
 
     #[test]
     fn the_command_line_asks_for_a_headless_stream() {
+        let f = Path::new("/m/my-map/.editor/run/map.obmap");
         assert_eq!(
-            args("my-map", &What::Race("dock".into()), 7),
-            ["--map-mod", "my-map", "--map-race", "dock", "--simulate", "--stream", "-", "--sim-seed", "7"]
+            args(f, &What::Race("dock".into()), 7),
+            [
+                "--map-file",
+                "/m/my-map/.editor/run/map.obmap",
+                "--map-race",
+                "dock",
+                "--simulate",
+                "--stream",
+                "-",
+                "--sim-seed",
+                "7"
+            ]
         );
         assert_eq!(
-            args("m", &What::World(Vec3::new(1.5, -2.0, 3.0), 90.0), 1),
-            ["--map-mod", "m", "--map-at", "1.5,-2,3,90", "--simulate-world", "--stream", "-", "--sim-seed", "1"]
+            args(f, &What::World(Vec3::new(1.5, -2.0, 3.0), 90.0), 1)[2..],
+            ["--map-at", "1.5,-2,3,90", "--simulate-world", "--stream", "-", "--sim-seed", "1"]
         );
     }
 
@@ -159,7 +171,19 @@ mod tests {
         .unwrap();
         use std::os::unix::fs::PermissionsExt;
         std::fs::set_permissions(&exe, std::fs::Permissions::from_mode(0o755)).unwrap();
-        let mut c = SimChild::start(&exe, &[], s.path()).unwrap();
+        // Tried again while the script is "busy": a test on another thread
+        // may fork while it is still open for writing (ETXTBSY until that
+        // child execs).
+        let mut tries = 0;
+        let mut c = loop {
+            match SimChild::start(&exe, &[], s.path()) {
+                Err(e) if e.contains("os error 26") && tries < 100 => {
+                    tries += 1;
+                    std::thread::sleep(std::time::Duration::from_millis(20));
+                }
+                r => break r.unwrap(),
+            }
+        };
         let mut rec = super::super::record::Recording::default();
         let t = std::time::Instant::now();
         loop {

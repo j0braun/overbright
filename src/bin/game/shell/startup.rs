@@ -117,7 +117,18 @@ pub(crate) fn main() -> Result<()> {
     // this run; a malformed one is a usage error.
     match super::cli::MapTest::parse(&args) {
         Ok(Some(t)) if matches!(command, Command::Window { .. }) => {
-            nfsu2::tools::map::set_only(Some(&t.folder));
+            use nfsu2::tools::map::Only;
+            let only = match &t.file {
+                Some(path) => {
+                    if let Err(e) = nfsu2::tools::map::store::read_file(path) {
+                        eprintln!("game: --map-file: {e:#}");
+                        std::process::exit(2);
+                    }
+                    Only::File { folder: t.folder.clone(), path: path.clone() }
+                }
+                None => Only::Folder(t.folder.clone()),
+            };
+            nfsu2::tools::map::set_only(Some(only));
             log::info!("map test: mod {} ({})", t.folder, t.race.as_deref().map_or("free roam", |r| r));
             let _ = super::cli::MAP_TEST.set(t);
         }

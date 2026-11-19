@@ -185,22 +185,22 @@ fn engage_prompt_queue() {
     p.queue(0xC, 0, 0.0);
     assert_eq!(p.prompts[0].state, 1);
     assert_eq!(step(&mut p, 0.0), [c::ENGAGE_PHONE]);
-    assert_eq!(step(&mut p, 900.0), []);
+    assert!(step(&mut p, 900.0).is_empty());
     assert_eq!(step(&mut p, 1100.0), [c::ENGAGE_DPAD]);
     for t in [4100.0, 6000.0, 20000.0] {
-        assert_eq!(step(&mut p, t), []);
+        assert!(step(&mut p, t).is_empty());
         assert_eq!(p.prompts[0].state, 3, "a marker's prompt never rests");
     }
     // An SMS arrives: queued under the marker (priority 2 < 4).
     p.queue(0x13, 1, 20000.0);
-    assert_eq!(step(&mut p, 20100.0), []);
+    assert!(step(&mut p, 20100.0).is_empty());
     assert_eq!(p.prompts[1].state, 1);
     // The marker is left: the SMS flashes.
     p.drop_kind(0xC);
     assert_eq!(p.dropped.len(), 1);
     assert_eq!(step(&mut p, 21000.0), [c::ENGAGE_SMS]);
     assert_eq!(step(&mut p, 22100.0), [c::ENGAGE_DPAD]);
-    assert_eq!(step(&mut p, 25100.0), []);
+    assert!(step(&mut p, 25100.0).is_empty());
     assert_eq!(p.prompts[1].state, 4, "the SMS rests after 4 s");
     // Another message: from rest straight back to flashing, at the queue.
     p.queue(0x13, 2, 26000.0);
@@ -221,8 +221,8 @@ fn engage_prompt_queue() {
     // The D-Day prompt (0x14) is silent; its state 2 lasts its value.
     let mut q = Prompts::default();
     q.queue(0x14, 2, 0.0);
-    assert_eq!(step(&mut q, 0.0), []);
-    assert_eq!(step(&mut q, 1500.0), []);
+    assert!(step(&mut q, 0.0).is_empty());
+    assert!(step(&mut q, 1500.0).is_empty());
     assert_eq!(q.prompts[0].state, 2);
     step(&mut q, 2100.0);
     assert_eq!(q.prompts[0].state, 3);

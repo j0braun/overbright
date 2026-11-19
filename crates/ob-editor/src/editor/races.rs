@@ -1,56 +1,49 @@
-//! Races mode: the race being edited, its properties, the tools that put
-//! its start line, grid, checkpoints and finish on the road, the route
+//! Races: the race being edited, its properties, the tools that put its
+//! start line, grid, checkpoints and finish on the road, the route
 //! preview drawn over the viewport and the 2D map, and the validation
 //! behind it ([`super::validate`]).
 //!
 //! Every tool works on a world point (the viewport's ground point under
 //! the cursor, or the map view's x/y) and snaps it to the base track's
-//! road network unless snapping is off or Alt is held. Each gesture ends
-//! in one undo step.
-
-use std::collections::HashMap;
+//! road network unless snapping is off or Alt is held. Every edit is an
+//! [`Op`] run through [`undo::run`]: one undo step per click, per drag
+//! (on release) and per typed value. The tracks and their road networks
+//! are read through the state's [`MapAssets`](crate::tools::map::assets::MapAssets).
+//!
+//! The armed-tool rule: Select (the default) never adds, a click only
+//! picks; a race tool adds on a click until Esc or another tool; New race
+//! arms Start, and the start placed arms Checkpoint.
 
 use glam::{Vec2, Vec3};
 
-use super::state::{EditorState, Mode, Panel, RacePoint, commit, project};
+use super::state::{EditorState, Mode, Panel, RacePoint, project};
+use super::undo;
 use super::validate::{self, Check, Tested};
 use crate::formats::roads::RoadNet;
-use crate::frontend::career::Track;
 use crate::tools::map::edit::RacePart;
+use crate::tools::map::ops::{Op, kind_title};
 use crate::tools::map::race::{self, RoadPoint};
 use crate::tools::map::{CustomRace, MAX_CHECKPOINTS, MAX_GRID, MAX_LAPS, MapMod, RaceKind, Spot};
+
+pub use crate::tools::map::assets::TrackInfo;
 
 /// A click this close (metres) to a race point picks it instead of placing.
 pub const PICK_M: f32 = 5.0;
 /// The start and finish lines are drawn this wide.
 const LINE_HALF_M: f32 = 7.0;
+/// The race properties' label column.
+const LABEL_W: f32 = 72.0;
 
-/// The race tools (C / G / S / X; Select picks and drags only).
+/// The race tools (C / G / S / X on the shell's toolbar; Select picks and
+/// drags only, never adds).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum Tool {
-    Select,
     #[default]
+    Select,
     Checkpoint,
     Grid,
     Start,
     Finish,
-}
-
-impl Tool {
-    pub const ALL: [(Tool, &'static str, &'static str); 5] = [
-        (Tool::Select, "Select", "Q"),
-        (Tool::Checkpoint, "Checkpoint", "C"),
-        (Tool::Grid, "Grid", "G"),
-        (Tool::Start, "Start", "S"),
-        (Tool::Finish, "Finish", "X"),
-    ];
-}
-
-/// A base track a race can be on.
-#[derive(Clone, Debug, PartialEq)]
-pub struct TrackInfo {
-    pub number: u16,
-    pub name: String,
 }
 
 /// A race's route as drawn: the whole road when it builds, else each leg's.
@@ -63,15 +56,15 @@ pub struct Preview {
     pub length: f32,
 }
 
-/// Races mode's own state; the shell keeps one and calls its parts.
+/// The races' own state; the shell keeps one and calls its parts.
 #[derive(Default)]
 pub struct Races {
     pub tool: Tool,
     /// Snap placed points to the road network.
     pub snap: bool,
-    /// The region's race tracks (read on first use from the career data).
-    tracks: Option<Vec<TrackInfo>>,
-    records: HashMap<u16, Track>,
+    /// The region's race tracks (read on first use through the assets),
+    /// and the region they are of.
+    tracks: Option<(String, Vec<TrackInfo>)>,
     tested: Option<Tested>,
     /// What the checks and previews were made from.
     seen: Option<(MapMod, Vec<u16>)>,
@@ -79,7 +72,16 @@ pub struct Races {
     pub previews: Vec<Preview>,
     /// The point being dragged.
     dragging: Option<RacePoint>,
-    /// A text field being typed into (committed on focus loss).
+    /// A race being changed live (a drag, a dragged value): its index and
+    /// how it was before, put back when the gesture ends in its op.
+    live: Option<(usize, CustomRace)>,
+    /// The start placed next arms the Checkpoint tool (New race).
+    then_checkpoints: bool,
+    /// The race's name and id as typed, and the race they belong to.
+    name_text: String,
+    id_text: String,
+    text_of: Option<String>,
+    /// A text field being typed into (run as an op on focus loss).
     typing: bool,
 }
 
@@ -158,65 +160,56 @@ pub fn insert_index(
     }
 }
 
-/// Put `tool`'s point of race `r` at `at` (already snapped: `road` is
-/// the road there, when snapped). Returns the point made or moved and the
-/// undo step's name, or the reason it could not be.
-pub fn place(
-    r: &mut CustomRace,
+/// The op that puts `tool`'s point of race `r` at `at` (already snapped:
+/// `road` is the road there, when snapped), or the reason it cannot be.
+/// A checkpoint goes in at `insert_at`; the start and finish face along
+/// the road the race's way; the grid tool moves the selected slot, else
+/// adds one. Select never adds.
+pub fn place_op(
+    r: &CustomRace,
     tool: Tool,
     at: Vec3,
     road: Option<RoadPoint>,
     selected: Option<RacePoint>,
     insert_at: usize,
     camera_dir: Vec2,
-) -> Result<(RacePoint, String), String> {
+) -> Result<Op, String> {
     let xy = at.truncate();
     let dir = road.map_or(Vec2::ZERO, |rp| rp.dir);
+    let add = |part, index, heading| Op::AddPoint { race: r.id.clone(), part, index, position: at, heading };
     match tool {
         Tool::Select => Err("Select a point to move it".into()),
         Tool::Checkpoint => {
             if r.checkpoints.len() >= MAX_CHECKPOINTS {
                 return Err(format!("A race holds at most {MAX_CHECKPOINTS} checkpoints"));
             }
-            r.checkpoints.insert(insert_at, xy);
-            let n = insert_at + 1;
-            let verb = if insert_at + 1 == r.checkpoints.len() { "Add" } else { "Insert" };
-            Ok((RacePoint { part: RacePart::Checkpoint, index: insert_at }, format!("{verb} checkpoint {n}")))
+            Ok(add(RacePart::Checkpoint, Some(insert_at.min(r.checkpoints.len())), 0.0))
         }
         Tool::Start => {
             // Facing the first checkpoint (the second when the start is on the first).
             let want = r.checkpoints.iter().find(|c| c.distance(xy) > 10.0).map_or(camera_dir, |c| *c - xy);
-            r.start = Some(Spot { position: at, heading: heading_along(dir, want) });
-            Ok((RacePoint { part: RacePart::Start, index: 0 }, "Place start line".into()))
+            Ok(add(RacePart::Start, None, heading_along(dir, want)))
         }
         Tool::Finish => {
             let want = r.checkpoints.last().filter(|c| c.distance(xy) > 1.0).map_or(camera_dir, |c| xy - *c);
-            r.finish = Some(Spot { position: at, heading: heading_along(dir, want) });
-            Ok((RacePoint { part: RacePart::Finish, index: 0 }, "Place finish line".into()))
+            Ok(add(RacePart::Finish, None, heading_along(dir, want)))
         }
         Tool::Grid => {
-            if r.grid.is_empty() {
-                r.grid = race::effective_grid(r);
-            }
+            let grid = race::effective_grid(r);
             let heading = r.start.map_or_else(|| heading_along(dir, camera_dir), |s| s.heading);
             match selected {
-                Some(RacePoint { part: RacePart::Grid, index }) if index < r.grid.len() => {
-                    r.grid[index].position = at;
-                    Ok((RacePoint { part: RacePart::Grid, index }, format!("Move grid slot {}", index + 1)))
+                Some(p @ RacePoint { part: RacePart::Grid, index }) if index < grid.len() => {
+                    Ok(Op::MovePoint { race: r.id.clone(), point: p, position: at, heading: None })
                 }
-                _ if r.grid.len() < MAX_GRID => {
-                    r.grid.push(Spot { position: at, heading });
-                    let i = r.grid.len() - 1;
-                    Ok((RacePoint { part: RacePart::Grid, index: i }, format!("Add grid slot {}", i + 1)))
-                }
+                _ if grid.len() < MAX_GRID => Ok(add(RacePart::Grid, None, heading)),
                 _ => Err(format!("The grid is full ({MAX_GRID} slots): select a slot to move it")),
             }
         }
     }
 }
 
-/// Move point `p` of `r` to `at` (a drag); the start and finish keep
-/// their heading turned along the road when snapped.
+/// Move point `p` of `r` to `at` (live, while dragging); the start and
+/// finish keep their heading turned along the road when snapped.
 pub fn move_point(r: &mut CustomRace, p: RacePoint, at: Vec3, road: Option<RoadPoint>) -> bool {
     let turn = |s: Spot| {
         let h = s.heading.to_radians();
@@ -249,26 +242,16 @@ pub fn move_point(r: &mut CustomRace, p: RacePoint, at: Vec3, road: Option<RoadP
     true
 }
 
-/// Delete point `p` of `r`; the undo step's name.
-pub fn delete_point(r: &mut CustomRace, p: RacePoint) -> Option<String> {
-    match p.part {
-        RacePart::Checkpoint if p.index < r.checkpoints.len() => {
-            r.checkpoints.remove(p.index);
-            Some(format!("Delete checkpoint {}", p.index + 1))
-        }
-        RacePart::Grid => {
-            if r.grid.is_empty() {
-                r.grid = race::effective_grid(r);
-            }
-            (p.index < r.grid.len()).then(|| {
-                r.grid.remove(p.index);
-                format!("Delete grid slot {}", p.index + 1)
-            })
-        }
-        RacePart::Start => r.start.take().map(|_| "Delete start line".into()),
-        RacePart::Finish => r.finish.take().map(|_| "Delete finish line".into()),
-        _ => None,
-    }
+/// The op that puts point `p` where race `r` has it (the end of a live
+/// gesture; None: no such point).
+pub fn point_op(r: &CustomRace, p: RacePoint) -> Option<Op> {
+    let (position, heading) = match p.part {
+        RacePart::Checkpoint => (r.checkpoints.get(p.index)?.extend(0.0), None),
+        RacePart::Grid => race::effective_grid(r).get(p.index).map(|g| (g.position, Some(g.heading)))?,
+        RacePart::Start => r.start.map(|s| (s.position, Some(s.heading)))?,
+        RacePart::Finish => r.finish.map(|s| (s.position, Some(s.heading)))?,
+    };
+    Some(Op::MovePoint { race: r.id.clone(), point: p, position, heading })
 }
 
 /// The point after `p` of the same part, or before it after a delete.
@@ -279,18 +262,6 @@ fn after_delete(r: &CustomRace, p: RacePoint) -> Option<RacePoint> {
         _ => 0,
     };
     (n > 0).then(|| RacePoint { part: p.part, index: p.index.min(n - 1) })
-}
-
-/// A new race on `track` with a free id, its name "Race N".
-pub fn new_race(map: &mut MapMod, track: u16, kind: RaceKind) -> usize {
-    let mut n = map.races.len() + 1;
-    while map.races.iter().any(|r| r.id == format!("race-{n}")) {
-        n += 1;
-    }
-    let mut r = CustomRace::new(&format!("race-{n}"), track, kind);
-    r.name = format!("Race {n}");
-    map.races.push(r);
-    map.races.len() - 1
 }
 
 /// The route preview of `r` on `net`; `ground`: heights for the road.
@@ -317,6 +288,20 @@ fn theme() -> crate::launch::theme::Theme {
     crate::launch::theme::THEME_A
 }
 
+/// One row of the race properties: the name in the label column, the
+/// controls after it, wrapping onto more lines in a narrow panel.
+fn row<R>(ui: &mut egui::Ui, name: &str, add: impl FnOnce(&mut egui::Ui) -> R) -> R {
+    ui.horizontal_top(|ui| {
+        let size = egui::vec2(LABEL_W, ui.spacing().interact_size.y);
+        ui.allocate_ui_with_layout(size, egui::Layout::left_to_right(egui::Align::Center), |ui| {
+            ui.set_min_size(size);
+            ui.add(egui::Label::new(name).truncate());
+        });
+        ui.vertical(|ui| ui.horizontal_wrapped(add).inner).inner
+    })
+    .inner
+}
+
 impl Races {
     pub fn new() -> Races {
         Races { snap: true, ..Races::default() }
@@ -325,33 +310,16 @@ impl Races {
     /// The region's race tracks: those with a career event (whose set-up
     /// a custom race borrows), by number.
     pub fn tracks(&mut self, s: &EditorState) -> &[TrackInfo] {
-        if self.tracks.is_none() {
-            let mut list = Vec::new();
-            match crate::frontend::career::CareerData::load(&s.root) {
-                Ok(career) => {
-                    for t in career.tracks.values().filter(|t| t.region == s.region) {
-                        if career.events.iter().any(|e| e.races.first().map_or(e.track, |r| r.0) == t.number) {
-                            list.push(TrackInfo { number: t.number, name: t.name.clone() });
-                            self.records.insert(t.number, t.clone());
-                        }
-                    }
-                }
-                Err(e) => log::warn!("map editor: no career data: {e:#}"),
-            }
-            list.sort_by_key(|t| t.number);
-            self.tracks = Some(list);
+        if self.tracks.as_ref().is_none_or(|(region, _)| *region != s.session.region) {
+            self.tracks = Some((s.session.region.clone(), s.assets.tracks(&s.session.region)));
         }
-        self.tracks.as_deref().unwrap_or(&[])
+        self.tracks.as_ref().map_or(&[], |(_, t)| &t[..])
     }
 
     /// The road network of `track`, read once into `s.nets`.
     pub fn net<'s>(&mut self, s: &'s mut EditorState, track: u16) -> Option<&'s RoadNet> {
         if !s.nets.contains_key(&track) {
-            self.tracks(s);
-            let net = match self.records.get(&track) {
-                Some(t) => race::road_net(&s.root, t).map_err(|e| log::warn!("map editor: {e:#}")).ok(),
-                None => None,
-            };
+            let net = s.assets.road_net(track);
             s.nets.insert(track, net);
         }
         s.nets.get(&track).and_then(|n| n.as_ref())
@@ -366,19 +334,22 @@ impl Races {
     /// Checks and previews made again when the mod changed. Call once a
     /// frame before drawing.
     pub fn update(&mut self, s: &mut EditorState) {
+        if self.tool != Tool::Start {
+            self.then_checkpoints = false;
+        }
         let tracks: Vec<u16> = self.tracks(s).iter().map(|t| t.number).collect();
-        if self.seen.as_ref().is_some_and(|(m, t)| *m == s.map && *t == tracks) {
+        if self.seen.as_ref().is_some_and(|(m, t)| *m == s.session.map && *t == tracks) {
             return;
         }
         if self.tested.is_none() {
-            self.tested = Some(Tested::load(&s.maps.join(&s.folder)));
+            self.tested = Some(Tested::load(&crate::tools::map::store::editor_dir(&s.maps, &s.session.folder)));
         }
-        let race_tracks: Vec<u16> = s.map.races.iter().map(|r| r.track).collect();
+        let race_tracks: Vec<u16> = s.session.map.races.iter().map(|r| r.track).collect();
         for t in &race_tracks {
             self.net(s, *t);
         }
         // A broken route is tried on the region's other tracks.
-        let broken = s.map.races.iter().any(|r| {
+        let broken = s.session.map.races.iter().any(|r| {
             r.checkpoints.len() >= 2
                 && s.nets.get(&r.track).and_then(|n| n.as_ref()).is_some_and(|n| race::check(n, r).is_err())
         });
@@ -391,19 +362,19 @@ impl Races {
         self.checks = validate::refresh(s, &tracks, &tested);
         let ground = |p: Vec2| validate::ground(s, p);
         self.previews =
-            s.map.races.iter().map(|r| preview(s.nets.get(&r.track).and_then(|n| n.as_ref()), r, &ground)).collect();
-        self.seen = Some((s.map.clone(), tracks));
+            s.session.map.races.iter().map(|r| preview(s.nets.get(&r.track).and_then(|n| n.as_ref()), r, &ground)).collect();
+        self.seen = Some((s.session.map.clone(), tracks));
     }
 
     /// Why Test race cannot start for the current race (None: it can).
     pub fn test_blocked(&mut self, s: &mut EditorState) -> Option<String> {
         self.update(s);
-        let Some(k) = s.race.filter(|&k| k < s.map.races.len()) else { return Some("No race selected".into()) };
+        let Some(k) = s.race.filter(|&k| k < s.session.map.races.len()) else { return Some("No race selected".into()) };
         self.checks.iter().find(|c| c.race == Some(k) && c.level == super::state::Level::Error).map(|c| c.text.clone())
     }
 
     fn snapped(&mut self, s: &mut EditorState, at: Vec3, bypass: bool) -> (Vec3, Option<RoadPoint>) {
-        let Some(track) = s.race.and_then(|k| s.map.races.get(k)).map(|r| r.track) else { return (at, None) };
+        let Some(track) = s.race.and_then(|k| s.session.map.races.get(k)).map(|r| r.track) else { return (at, None) };
         if !self.snap || bypass {
             return (at, None);
         }
@@ -411,16 +382,39 @@ impl Races {
         (rp.at.extend(validate::ground(s, rp.at)), Some(rp))
     }
 
+    /// Race `k` about to change live: how it is now is kept for the op
+    /// that ends the gesture ([`Races::end_live`]).
+    fn begin_live(&mut self, s: &EditorState, k: usize) {
+        if self.live.is_none()
+            && let Some(r) = s.session.map.races.get(k)
+        {
+            self.live = Some((k, r.clone()));
+        }
+    }
+
+    /// The live gesture ended: the race is put back as it was and the op
+    /// `make` builds from how it is now is run (one undo step, none when
+    /// nothing changed).
+    fn end_live(&mut self, s: &mut EditorState, make: impl FnOnce(&CustomRace) -> Option<Op>) {
+        let Some((k, before)) = self.live.take() else { return };
+        let Some(now) = s.session.map.races.get(k).filter(|r| r.id == before.id).cloned() else { return };
+        s.session.map.races[k] = before;
+        if let Some(op) = make(&now) {
+            let _ = undo::run(s, op);
+        }
+    }
+
     /// A click at world point `at` in the viewport or the map: pick a
-    /// point near it, else use the tool there. `shift`: insert a
-    /// checkpoint into the route; `alt`: no snapping.
+    /// point near it, else use the armed tool there (Select only clears
+    /// the point). `shift`: insert a checkpoint into the route; `alt`: no
+    /// snapping.
     pub fn click(&mut self, s: &mut EditorState, at: Vec3, shift: bool, alt: bool) {
         self.update(s);
-        let Some(k) = s.race.filter(|&k| k < s.map.races.len()) else {
-            s.status = "Make a race first: Race ▸ New race".into();
+        let Some(k) = s.race.filter(|&k| k < s.session.map.races.len()) else {
+            s.status = "Make a race first: Race > New race".into();
             return;
         };
-        if !shift && let Some(p) = pick(&s.map.races[k], at.truncate(), PICK_M) {
+        if !shift && let Some(p) = pick(&s.session.map.races[k], at.truncate(), PICK_M) {
             s.point = Some(p);
             self.dragging = Some(p);
             return;
@@ -430,55 +424,63 @@ impl Races {
             return;
         }
         let (at, road) = self.snapped(s, at, alt);
-        let insert_at = insert_index(&s.map.races[k], self.previews.get(k), s.point, at.truncate(), shift);
+        let r = &s.session.map.races[k];
+        let insert_at = insert_index(r, self.previews.get(k), s.point, at.truncate(), shift);
         let f = s.camera.forward();
-        match place(&mut s.map.races[k], self.tool, at, road, s.point, insert_at, Vec2::new(f.x, f.y)) {
-            Ok((p, label)) => {
-                s.point = Some(p);
-                commit(s, &label);
+        match place_op(r, self.tool, at, road, s.point, insert_at, Vec2::new(f.x, f.y)) {
+            Ok(op) => {
+                if let Ok(c) = undo::run(s, op) {
+                    s.point = c.point;
+                    if self.tool == Tool::Start && self.then_checkpoints {
+                        self.tool = Tool::Checkpoint;
+                        self.then_checkpoints = false;
+                        s.status = "Start line placed: click the road for the checkpoints".into();
+                    }
+                }
             }
             Err(why) => s.status = why,
         }
     }
 
-    /// The pointer dragged to `at` with a point picked by [`Races::click`].
+    /// The pointer dragged to `at` with a point picked by [`Races::click`]
+    /// (the race changes live; the op is run on release).
     pub fn drag(&mut self, s: &mut EditorState, at: Vec3, alt: bool) {
         let (Some(p), Some(k)) = (self.dragging, s.race) else { return };
         let (at, road) = self.snapped(s, at, alt);
-        if let Some(r) = s.map.races.get_mut(k) {
+        self.begin_live(s, k);
+        if let Some(r) = s.session.map.races.get_mut(k) {
             move_point(r, p, at, road);
         }
+    }
+
+    /// A point picked by the last click is being dragged.
+    pub fn is_dragging(&self) -> bool {
+        self.dragging.is_some()
     }
 
     /// The drag ended: one undo step.
     pub fn release(&mut self, s: &mut EditorState) {
         if let Some(p) = self.dragging.take() {
-            let what = match p.part {
-                RacePart::Checkpoint => format!("Move checkpoint {}", p.index + 1),
-                RacePart::Grid => format!("Move grid slot {}", p.index + 1),
-                RacePart::Start => "Move start line".into(),
-                RacePart::Finish => "Move finish line".into(),
-            };
-            commit(s, &what);
+            self.end_live(s, |r| point_op(r, p));
         }
     }
 
     /// Delete the selected point (Del).
     pub fn delete_selected(&mut self, s: &mut EditorState) {
         let (Some(k), Some(p)) = (s.race, s.point) else { return };
-        let Some(r) = s.map.races.get_mut(k) else { return };
-        if let Some(label) = delete_point(r, p) {
-            s.point = after_delete(r, p);
-            commit(s, &label);
+        let Some(id) = s.session.map.races.get(k).map(|r| r.id.clone()) else { return };
+        if undo::run(s, Op::DeletePoint { race: id, point: p }).is_ok_and(|c| c.changed) {
+            s.point = s.session.map.races.get(k).and_then(|r| after_delete(r, p));
         }
     }
 
     /// A new race on the region's track whose roads pass nearest the
-    /// camera's view, the start-line tool chosen.
+    /// camera's view (the selected race's track when there is one); arms
+    /// Start, and the start placed arms Checkpoint.
     pub fn new_race(&mut self, s: &mut EditorState) {
         let f = s.camera.forward();
         let look = s.camera.position + f * if f.z < -0.05 { (s.camera.position.z / -f.z).min(300.0) } else { 50.0 };
-        let current = s.race.and_then(|k| s.map.races.get(k)).map(|r| r.track);
+        let current = s.race.and_then(|k| s.session.map.races.get(k)).map(|r| r.track);
         let tracks: Vec<u16> = self.tracks(s).iter().map(|t| t.number).collect();
         let track = current.or_else(|| {
             tracks
@@ -488,51 +490,43 @@ impl Races {
                 .map(|(t, _)| t)
         });
         let Some(track) = track else {
-            s.status = format!("No race track of region {} found", s.region);
+            s.status = format!("No race track of region {} found", s.session.region);
             return;
         };
-        let k = new_race(&mut s.map, track, RaceKind::Sprint);
-        (s.race, s.point, s.mode) = (Some(k), None, Mode::Races);
+        let Ok(c) = undo::run(s, Op::NewRace { track, kind: RaceKind::Sprint, id: None }) else { return };
+        let k = c.race.and_then(|id| s.session.race_index(&id));
+        (s.race, s.point, s.mode) = (k, None, Mode::Races);
         self.tool = Tool::Start;
-        commit(s, &format!("New race on track {track}"));
+        self.then_checkpoints = true;
         s.status = "New race: click the road for the start line, then for the checkpoints".into();
     }
 
     /// The selected checkpoint moved one place earlier or later.
     fn reorder(&mut self, s: &mut EditorState, later: bool) {
         let (Some(k), Some(RacePoint { part: RacePart::Checkpoint, index })) = (s.race, s.point) else { return };
-        let Some(r) = s.map.races.get_mut(k) else { return };
+        let Some(r) = s.session.map.races.get(k) else { return };
         let j = if later { index + 1 } else { index.wrapping_sub(1) };
         if j < r.checkpoints.len() {
-            r.checkpoints.swap(index, j);
-            s.point = Some(RacePoint { part: RacePart::Checkpoint, index: j });
-            commit(s, &format!("Move checkpoint {} {}", index + 1, if later { "down" } else { "up" }));
+            let race = r.id.clone();
+            if undo::run(s, Op::MoveCheckpoint { race, index, later }).is_ok_and(|c| c.changed) {
+                s.point = Some(RacePoint { part: RacePart::Checkpoint, index: j });
+            }
         }
     }
 
-    /// The race keys: C / G / S / X / Q tools, Del, [ / ] previous / next
-    /// checkpoint. Only in Races mode and while no text field has focus.
+    /// The race keys: Del, [ / ] previous / next checkpoint (the tools'
+    /// keys and Esc are the shell's). Only while the race's side has the
+    /// selection and no text field has focus.
     pub fn keys(&mut self, s: &mut EditorState, ctx: &egui::Context) {
         if s.mode != Mode::Races || ctx.egui_wants_keyboard_input() {
             return;
         }
         use egui::Key;
         let pressed = |k: Key| ctx.input(|i| i.key_pressed(k) && i.modifiers.is_none());
-        for (key, tool) in [
-            (Key::Q, Tool::Select),
-            (Key::C, Tool::Checkpoint),
-            (Key::G, Tool::Grid),
-            (Key::S, Tool::Start),
-            (Key::X, Tool::Finish),
-        ] {
-            if pressed(key) {
-                self.tool = tool;
-            }
-        }
         if pressed(Key::Delete) {
             self.delete_selected(s);
         }
-        let n = s.race.and_then(|k| s.map.races.get(k)).map_or(0, |r| r.checkpoints.len());
+        let n = s.race.and_then(|k| s.session.map.races.get(k)).map_or(0, |r| r.checkpoints.len());
         if n > 0 && (pressed(Key::OpenBracket) || pressed(Key::CloseBracket)) {
             let cur = match s.point {
                 Some(RacePoint { part: RacePart::Checkpoint, index }) => index,
@@ -541,16 +535,6 @@ impl Races {
             let next = if pressed(Key::OpenBracket) { (cur + n - 1) % n } else { (cur + 1) % n };
             s.point = Some(RacePoint { part: RacePart::Checkpoint, index: next });
         }
-    }
-
-    /// The Races tools on the toolbar.
-    pub fn toolbar(&mut self, ui: &mut egui::Ui) {
-        for (tool, name, key) in Tool::ALL {
-            ui.selectable_value(&mut self.tool, tool, format!("{name}  {key}"))
-                .on_hover_text(format!("{name} tool ({key})"));
-        }
-        ui.separator();
-        ui.checkbox(&mut self.snap, "Snap to road").on_hover_text("Hold Alt while placing to place freely");
     }
 
     /// The hint under the viewport for the current tool.
@@ -612,11 +596,8 @@ impl Races {
             }
             flush(&mut run);
         };
-        for (k, r) in s.map.races.iter().enumerate() {
+        for (k, r) in s.session.map.races.iter().enumerate() {
             let current = s.race == Some(k);
-            if !current && s.mode == Mode::Races && labels {
-                continue;
-            }
             let alpha = if current { 255 } else { 90 };
             let route = egui::Color32::from_rgba_unmultiplied(lime.r(), lime.g(), lime.b(), alpha);
             let pv = self.previews.get(k);
@@ -706,7 +687,7 @@ impl Races {
                     painter.text(
                         q + egui::vec2(14.0, -14.0),
                         egui::Align2::LEFT_BOTTOM,
-                        format!("→ {} ({:.0} m)", i + 2, c.distance(next)),
+                        format!("to {}: {:.0} m", i + 2, c.distance(next)),
                         font.clone(),
                         lime,
                     );
@@ -715,11 +696,12 @@ impl Races {
         }
     }
 
-    /// The race properties (the right panel in Races mode): the race,
-    /// then the selected point.
+    /// The race properties (the right panel while the race's side has
+    /// the selection): the race, then the selected point. Every row wraps
+    /// in a narrow panel; every change is an op.
     pub fn properties(&mut self, s: &mut EditorState, ui: &mut egui::Ui) {
         self.update(s);
-        let Some(k) = s.race.filter(|&k| k < s.map.races.len()) else {
+        let Some(k) = s.race.filter(|&k| k < s.session.map.races.len()) else {
             ui.label("No race selected.");
             if ui.button("New race").clicked() {
                 self.new_race(s);
@@ -730,121 +712,110 @@ impl Races {
         let t = theme();
         let dim = rgb(t.dim);
         ui.heading(egui::RichText::new("Race").italics().color(rgb(t.lime)));
-        let mut label = None::<String>;
-        let mut typed = false;
-        egui::Grid::new("race-props").num_columns(2).spacing([12.0, 6.0]).show(ui, |ui| {
-            let r = &mut s.map.races[k];
-            ui.label("Name");
-            let a = ui.text_edit_singleline(&mut r.name);
-            ui.end_row();
-            ui.label("Id");
-            let b = ui.text_edit_singleline(&mut r.id);
-            ui.end_row();
-            typed = a.has_focus() || b.has_focus();
-            if a.lost_focus() {
-                label = Some("Rename race".into());
-            }
-            if b.lost_focus() {
-                label = Some("Change race id".into());
-            }
-            ui.label("Base track");
+        let r = s.session.map.races[k].clone();
+        let id = r.id.clone();
+        if !self.typing || self.text_of.as_deref() != Some(&id) {
+            (self.name_text, self.id_text, self.text_of) = (r.name.clone(), r.id.clone(), Some(id.clone()));
+        }
+        let mut ops: Vec<Op> = Vec::new();
+        let field = |ui: &mut egui::Ui, text: &mut String| {
+            ui.add(egui::TextEdit::singleline(text).desired_width(ui.available_width().clamp(60.0, 240.0)))
+        };
+        let a = row(ui, "Name", |ui| field(ui, &mut self.name_text));
+        let b = row(ui, "Id", |ui| field(ui, &mut self.id_text));
+        self.typing = a.has_focus() || b.has_focus();
+        if a.lost_focus() && self.name_text != r.name {
+            ops.push(Op::RenameRace { race: id.clone(), name: self.name_text.clone() });
+        }
+        if b.lost_focus() && self.id_text != r.id {
+            ops.push(Op::SetRaceId { race: id.clone(), id: self.id_text.clone() });
+        }
+        row(ui, "Base track", |ui| {
             let current =
                 tracks.iter().find(|t| t.number == r.track).map_or_else(|| format!("{}", r.track), |t| t.name.clone());
             egui::ComboBox::from_id_salt("race-track").selected_text(current).show_ui(ui, |ui| {
                 for t in &tracks {
                     if ui.selectable_label(t.number == r.track, &t.name).clicked() && t.number != r.track {
-                        r.track = t.number;
-                        label = Some(format!("Base track {}", t.number));
+                        ops.push(Op::SetTrack { race: id.clone(), track: t.number });
                     }
                 }
             });
-            ui.end_row();
-            ui.label("");
-            ui.label(
-                egui::RichText::new("Gives the road network, barriers, AI lanes, traffic and opponents.")
-                    .small()
-                    .color(dim),
-            );
-            ui.end_row();
-            ui.label("Mode");
-            ui.horizontal(|ui| {
-                for kind in RaceKind::ALL {
-                    let name = match kind {
-                        RaceKind::Circuit => "Circuit",
-                        RaceKind::Sprint => "Sprint",
-                        RaceKind::StreetX => "StreetX",
-                        RaceKind::Drift => "Drift",
-                    };
-                    if ui.selectable_label(r.kind == kind, name).clicked() && r.kind != kind {
-                        r.kind = kind;
-                        r.laps = if kind.loops() { r.laps.clamp(2, MAX_LAPS) } else { 1 };
-                        label = Some(format!("Mode {name}"));
-                    }
-                }
-            });
-            ui.end_row();
-            ui.label("Laps");
-            let before = r.laps;
-            let resp = ui.add_enabled(r.kind.loops(), egui::DragValue::new(&mut r.laps).range(1..=MAX_LAPS).speed(0.1));
-            if r.laps != before && !resp.dragged() || resp.drag_stopped() {
-                label = Some(format!("Laps {}", r.laps));
-            }
-            ui.end_row();
-            ui.label("Direction");
-            ui.horizontal(|ui| {
-                for (back, name) in [(false, "Forward"), (true, "Backward")] {
-                    if ui.selectable_label(r.backward == back, name).clicked() && r.backward != back {
-                        r.backward = back;
-                        label = Some(format!("Direction {name}"));
-                    }
-                }
-            });
-            ui.end_row();
         });
-        self.typing = typed;
-        if let Some(l) = label {
-            commit(s, &l);
+        row(ui, "", |ui| {
+            ui.add(
+                egui::Label::new(
+                    egui::RichText::new("Gives the road network, barriers, AI lanes, traffic and opponents.")
+                        .small()
+                        .color(dim),
+                )
+                .wrap(),
+            );
+        });
+        row(ui, "Mode", |ui| {
+            for kind in RaceKind::ALL {
+                if ui.selectable_label(r.kind == kind, kind_title(kind)).clicked() && r.kind != kind {
+                    ops.push(Op::SetKind { race: id.clone(), kind });
+                }
+            }
+        });
+        row(ui, "Laps", |ui| {
+            let mut laps = s.session.map.races[k].laps;
+            let resp = ui.add_enabled(r.kind.loops(), egui::DragValue::new(&mut laps).range(1..=MAX_LAPS).speed(0.1));
+            if laps != s.session.map.races[k].laps {
+                self.begin_live(s, k);
+                s.session.map.races[k].laps = laps;
+            }
+            if (resp.changed() && !resp.dragged()) || resp.drag_stopped() {
+                self.end_live(s, |now| Some(Op::SetLaps { race: now.id.clone(), laps: now.laps }));
+            }
+        });
+        row(ui, "Direction", |ui| {
+            for (back, name) in [(false, "Forward"), (true, "Backward")] {
+                if ui.selectable_label(r.backward == back, name).clicked() && r.backward != back {
+                    ops.push(Op::SetDirection { race: id.clone(), backward: back });
+                }
+            }
+        });
+        for op in ops {
+            let _ = undo::run(s, op);
         }
+        let Some(k) = s.race.filter(|&k| k < s.session.map.races.len()) else { return };
         ui.separator();
-        let r = &s.map.races[k];
+        let r = &s.session.map.races[k];
         let pv = self.previews.get(k).cloned().unwrap_or_default();
-        egui::Grid::new("race-status").num_columns(2).spacing([12.0, 6.0]).show(ui, |ui| {
-            ui.label("Length");
+        row(ui, "Length", |ui| {
             let km = if pv.road.is_some() { format!("{:.1} km", pv.length / 1000.0) } else { "—".into() };
             ui.label(format!("{km} · {} checkpoints", r.checkpoints.len()));
-            ui.end_row();
-            ui.label("Status");
-            ui.horizontal(|ui| {
-                let broken = validate::blocks(&self.checks, k);
-                let tested = self.tested.as_ref().is_some_and(|t| t.is_tested(r));
-                let badge = |ui: &mut egui::Ui, text: &str, c: egui::Color32| {
-                    egui::Frame::new()
-                        .stroke(egui::Stroke::new(1.0, c))
-                        .corner_radius(8.0)
-                        .inner_margin(egui::Margin::symmetric(6, 1))
-                        .show(ui, |ui| {
-                            ui.label(egui::RichText::new(text).small().color(c));
-                        });
-                };
-                if broken {
-                    badge(ui, "cannot race", rgb(t.err));
-                } else {
-                    badge(ui, "route ok", rgb(t.ok));
-                }
-                if tested {
-                    badge(ui, "tested", rgb(t.ok));
-                } else {
-                    badge(ui, "not tested", dim);
-                }
-            });
-            ui.end_row();
+        });
+        row(ui, "Status", |ui| {
+            let broken = validate::blocks(&self.checks, k);
+            let tested = self.tested.as_ref().is_some_and(|t| t.is_tested(r));
+            let badge = |ui: &mut egui::Ui, text: &str, c: egui::Color32| {
+                egui::Frame::new()
+                    .stroke(egui::Stroke::new(1.0, c))
+                    .corner_radius(8.0)
+                    .inner_margin(egui::Margin::symmetric(6, 1))
+                    .show(ui, |ui| {
+                        ui.label(egui::RichText::new(text).small().color(c));
+                    });
+            };
+            if broken {
+                badge(ui, "cannot race", rgb(t.err));
+            } else {
+                badge(ui, "route ok", rgb(t.ok));
+            }
+            if tested {
+                badge(ui, "tested", rgb(t.ok));
+            } else {
+                badge(ui, "not tested", dim);
+            }
         });
         if ui.button("Delete race").clicked() {
-            let name = s.map.races[k].name.clone();
-            s.map.races.remove(k);
-            s.race = s.map.races.len().checked_sub(1).map(|n| k.min(n));
-            s.point = None;
-            commit(s, &format!("Delete race {name}"));
+            let race = s.session.map.races[k].id.clone();
+            if undo::run(s, Op::DeleteRace { race }).is_ok() {
+                s.race = s.session.map.races.len().checked_sub(1).map(|n| k.min(n));
+                s.point = None;
+            }
             return;
         }
         self.point_properties(s, ui, k);
@@ -852,7 +823,7 @@ impl Races {
 
     fn point_properties(&mut self, s: &mut EditorState, ui: &mut egui::Ui, k: usize) {
         let Some(p) = s.point else { return };
-        let Some(xy) = point_xy(&s.map.races[k], p) else { return };
+        let Some(xy) = point_xy(&s.session.map.races[k], p) else { return };
         let t = theme();
         ui.separator();
         let title = match p.part {
@@ -863,41 +834,36 @@ impl Races {
         };
         ui.heading(egui::RichText::new(&title).italics().color(rgb(t.lime)));
         let (mut x, mut y) = (xy.x, xy.y);
-        let mut moved = false;
-        let mut done = false;
-        ui.horizontal(|ui| {
+        let (moved, done) = row(ui, "Position", |ui| {
             ui.label("X");
             let a = ui.add(egui::DragValue::new(&mut x).speed(0.25).fixed_decimals(1));
             ui.label("Y");
             let b = ui.add(egui::DragValue::new(&mut y).speed(0.25).fixed_decimals(1));
-            moved = a.changed() || b.changed();
-            done = a.drag_stopped() || b.drag_stopped() || a.lost_focus() || b.lost_focus();
+            (a.changed() || b.changed(), a.drag_stopped() || b.drag_stopped() || a.lost_focus() || b.lost_focus())
         });
         if moved {
             let at = Vec2::new(x, y);
             let at3 = at.extend(validate::ground(s, at));
-            move_point(&mut s.map.races[k], p, at3, None);
+            self.begin_live(s, k);
+            move_point(&mut s.session.map.races[k], p, at3, None);
         }
         if done || (moved && !ui.ctx().input(|i| i.pointer.any_down())) {
-            commit(s, &format!("Move {}", title.to_lowercase()));
+            self.end_live(s, |r| point_op(r, p));
         }
-        let track = s.map.races[k].track;
+        let Some(r) = s.session.map.races.get(k) else { return };
+        let track = r.track;
         let road = self.net(s, track).and_then(|n| race::snap(n, Vec2::new(x, y)));
-        ui.horizontal(|ui| {
-            ui.label("Road");
-            match road {
+        row(ui, "Road", |ui| {
+            let text = match road {
                 Some(rp) if rp.distance <= validate::OFF_ROAD_M => {
-                    ui.label(egui::RichText::new(format!("on road · segment {}", rp.segment)).color(rgb(t.ok)));
+                    egui::RichText::new(format!("on road · segment {}", rp.segment)).color(rgb(t.ok))
                 }
-                Some(rp) => {
-                    ui.label(egui::RichText::new(format!("{:.1} m from the road", rp.distance)).color(rgb(t.warn)));
-                }
-                None => {
-                    ui.label(egui::RichText::new("no road network").color(rgb(t.err)));
-                }
-            }
+                Some(rp) => egui::RichText::new(format!("{:.1} m from the road", rp.distance)).color(rgb(t.warn)),
+                None => egui::RichText::new("no road network").color(rgb(t.err)),
+            };
+            ui.add(egui::Label::new(text).wrap());
         });
-        ui.horizontal(|ui| {
+        ui.horizontal_wrapped(|ui| {
             if ui.button("Fly to").clicked() {
                 let c = Check {
                     level: super::state::Level::Info,
@@ -918,11 +884,16 @@ impl Races {
                     self.reorder(s, true);
                 }
             }
-            if road.is_some_and(|rp| rp.distance > 0.5) && ui.button("Snap to road").clicked() {
-                let rp = road.unwrap();
+            if let Some(rp) = road.filter(|rp| rp.distance > 0.5)
+                && ui.button("Snap to road").clicked()
+            {
                 let at = rp.at.extend(validate::ground(s, rp.at));
-                move_point(&mut s.map.races[k], p, at, Some(rp));
-                commit(s, &format!("Snap {} to road", title.to_lowercase()));
+                let mut snapped = s.session.map.races[k].clone();
+                move_point(&mut snapped, p, at, Some(rp));
+                if let Some(mv) = point_op(&snapped, p) {
+                    let label = format!("Snap {} to road", title.to_lowercase());
+                    let _ = undo::run(s, Op::Group { label, ops: vec![mv] });
+                }
             }
             if ui.button("Delete").clicked() {
                 self.delete_selected(s);

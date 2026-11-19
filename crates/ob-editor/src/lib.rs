@@ -5,7 +5,11 @@
 
 pub mod editor;
 
-use nfsu2::{draw, fog, formats, frontend, game_fs, launch, platform, qol, render, sky, tools, world};
+use nfsu2::{draw, fog, formats, launch, platform, qol, render, sky, tools, world};
+// The game's career data: read only through `tools::map::assets` (the tests
+// read it directly to check against the real tracks).
+#[cfg(test)]
+use nfsu2::frontend;
 
 // The test kit (crates/ob-testkit, docs/testing.md), bound to the game
 // library.

@@ -1,5 +1,6 @@
 //! The desktop map editor's simulation (docs/map-editor.md, "Simulate"):
-//! `--map-mod <folder> --map-race <id> --simulate` races the custom race
+//! `--map-mod <folder> --map-race <id> --simulate` (or `--map-file <path>`
+//! for the editor's run copy) races the custom race
 //! with the AI driving every car, the player's slot included (the AI racer
 //! controller that drives the player's car past the line, `Autopilot`,
 //! here from the grid); `--map-at x,y,z,heading --simulate-world` runs

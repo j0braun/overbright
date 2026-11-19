@@ -33,12 +33,15 @@ unset CK_LOCAL_ENV SHOTS GATES FLOWS ENH_PRESETS RATE RATES RATE_FLOWS CONFIGS S
 # The caller's switches for its own run (a full check started with FRESH=1 WINE_SMOKE=1 RELEASE=1 PREV=...)
 # must not reach the cases: each case names the switches it needs.
 unset FRESH WINE_SMOKE WINE_SMOKE_SH RELEASE PREV NPREV LAVAPIPE SOAK FUZZ DEVPROBES SELFCHECK DET TESTS \
-  SKIP_BUILD SKIP_TESTS FAST_SHOTS_FILE GATE_EXCLUDE GATE_ENH_PRESETS KNOWN NEWNONDET RES_SET CHECKS 2> /dev/null
+  SKIP_BUILD SKIP_TESTS FAST_SHOTS_FILE GATE_EXCLUDE GATE_ENH_PRESETS KNOWN NEWNONDET RES_SET CHECKS \
+  EDITOR_SHOTS EDITOR_SET EDITOR_SIZES EDITOR_SCREENS EDITOR_SCALES EDITOR_MIN_STD 2> /dev/null
 
 # stub DIR [FAULT…]: a fake game binary in DIR (game, faults, pixdiff next to it).
 stub() {
   local d=$1; shift
   mkdir -p "$d"; cp "$HERE/selfcheck_stub.py" "$d/game"; chmod +x "$d/game"; ln -sf "$PIXDIFF" "$d/pixdiff"
+  # The map editor's stand-in: the same script under the editor's name (it answers as the editor).
+  cp "$d/game" "$d/overbright-editor"
   printf '%s\n' "$@" > "$d/faults"
 }
 
@@ -172,6 +175,43 @@ expect fail checks-fast-prepare-load-adds checks checks-fast-prepare-load-adds "
 expect fail checks-fast-prepare-level-stale checks checks-fast-prepare-level-stale "levelstale" fast -- FAST_SHOTS_FILE="$O/two-shots.txt"
 : > "$O/empty.env"
 expect fail checks-no-root env NFSU2_LOCAL_ENV="$O/empty.env" NFSU2_ROOT= "$HERE/checks.sh" shots "$O/no-root" explore
+
+# The editor shot matrix in the fast set (EDITOR_SHOTS=1; full runs it always): a broken editor shot fails the set.
+expect pass checks-fast-editor-good checks checks-fast-editor-good "" fast -- FAST_SHOTS_FILE="$O/two-shots.txt" \
+  EDITOR_SHOTS=1 EDITOR_SIZES=1280x720
+expect fail checks-fast-editor-broken checks checks-fast-editor-broken "edrc:props_3d" fast -- FAST_SHOTS_FILE="$O/two-shots.txt" \
+  EDITOR_SHOTS=1 EDITOR_SIZES=1280x720
+
+# ---- editor_shots.sh: the map editor's shot matrix on the stand-in ---------------------------------------------
+# edshots CASE FAULTS [ENV…]: two sizes (one at display scale 1.5) x the three screens.
+edshots() {
+  local c=$1 f=$2; shift 2
+  stub "$O/$c/b" $f
+  env EDITOR_SIZES=1280x720,1920x1080@1.5 JOBS=2 "$@" "$HERE/editor_shots.sh" "$O/$c/out" "$O/$c/b/overbright-editor"
+}
+expect pass editor-shots-good edshots editor-shots-good ""
+expect fail editor-shots-rc edshots editor-shots-rc "edrc:races_map"
+expect fail editor-shots-panic edshots editor-shots-panic "edpanic:start"
+expect fail editor-shots-no-png edshots editor-shots-no-png "ednoshot:props_3d"
+expect fail editor-shots-wrong-size edshots editor-shots-wrong-size "edsize:start"
+expect fail editor-shots-flat edshots editor-shots-flat "edflat:start"
+expect fail editor-shots-empty-view edshots editor-shots-empty-view "edworld:props_3d"
+expect fail editor-shots-toolbar-clipped edshots editor-shots-toolbar-clipped "edclip:races_map"
+expect fail editor-shots-not-repeatable edshots editor-shots-not-repeatable "ednondet:props_3d"
+expect fail editor-shots-unknown-screen edshots editor-shots-unknown-screen "" EDITOR_SCREENS=start,nonesuch
+expect fail editor-shots-no-binary env "$HERE/editor_shots.sh" "$O/editor-shots-no-binary/out" "$O/nonexistent/overbright-editor"
+# Headless: the runs start with no display variable (the stand-in refuses one). A copy of the script that keeps
+# DISPLAY must fail with the desktop's display set (each copy must differ from the script).
+edshots_display() {
+  local c=$1 d="$O/$1/s"
+  mkdir -p "$d/checks"; ln -sfn "$REPO/scripts/lib" "$d/lib"; cp "$HERE/resolutions.py" "$d/checks/"
+  sed 's/env -u DISPLAY -u WAYLAND_DISPLAY/env -u WAYLAND_DISPLAY/' "$HERE/editor_shots.sh" > "$d/checks/editor_shots.sh"
+  cmp -s "$HERE/editor_shots.sh" "$d/checks/editor_shots.sh" && { echo "the edit changed nothing"; return 0; }
+  stub "$O/$c/b"
+  DISPLAY=:0 EDITOR_SIZES=1280x720 bash "$d/checks/editor_shots.sh" "$O/$c/out" "$O/$c/b/overbright-editor"
+}
+expect fail editor-shots-display-kept edshots_display editor-shots-display-kept
+expect pass editor-shots-display-unset edshots editor-shots-display-unset "" DISPLAY=:0 WAYLAND_DISPLAY=wayland-0
 
 # ---- the data-test rule (ck_data_tests): a skip fails only when the run could have avoided it ----------------------
 # datatests CASE GAME PRIV BOTH [ENV…]: a cargo test log with that many tests ignored for the game files, the private

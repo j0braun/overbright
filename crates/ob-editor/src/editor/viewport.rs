@@ -37,6 +37,11 @@
 //! With Auto on (the default) the 3D view is Street near the ground and
 //! Whole map above [`AUTO_UP`] metres over it. None of this changes the
 //! renderer: it already draws any section list it is given.
+//!
+//! Beside the looks, **Work light** (the default) and **Game look**: the
+//! work light ([`super::worklight`]) brightens the finished image for
+//! editing on its way into the window; Game look shows the renderer's
+//! frame as it is.
 
 use std::time::{Duration, Instant};
 
@@ -75,6 +80,9 @@ pub const AUTO_DOWN: f32 = 110.0;
 /// this many output pixels (the game's own size cull is 17 pixels of a
 /// 512-wide view, tuned for the street).
 pub const WHOLE_MIN_PX: f32 = 2.0;
+/// The look bar's width (points); it is left out when the image is
+/// narrower.
+pub const LOOK_BAR_WIDTH: f32 = 520.0;
 
 /// How the 3D viewport draws the world.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -253,6 +261,9 @@ pub struct Viewport {
     redraw: bool,
     fog: crate::fog::FogState,
     started: Instant,
+    /// A fixed animation time (`--shot`), instead of the time since
+    /// `started`.
+    clock: Option<f32>,
     /// Auto: Street near the ground, Whole map above it.
     pub auto: bool,
     /// The look chosen with Auto off (Street or Whole).
@@ -277,6 +288,13 @@ pub struct Viewport {
     height: Option<(Vec3, f32)>,
     /// The look and haze last drawn.
     drawn_look: Option<(Look, bool)>,
+    /// Work light on (the default); off is Game look, the renderer's frame
+    /// unchanged.
+    pub light: bool,
+    /// The work light's pass, made with the target.
+    work: Option<super::worklight::WorkLight>,
+    /// The work light's image holds the target's current frame.
+    lit: bool,
 }
 
 impl Default for Viewport {
@@ -303,6 +321,7 @@ impl Viewport {
             redraw: true,
             fog: Default::default(),
             started: Instant::now(),
+            clock: None,
             auto: true,
             chosen: Look::Street,
             look: Look::Street,
@@ -314,6 +333,9 @@ impl Viewport {
             index: None,
             height: None,
             drawn_look: None,
+            light: true,
+            work: None,
+            lit: false,
         }
     }
 
@@ -341,7 +363,7 @@ impl Viewport {
         self.look = if self.persp.is_some() {
             Look::Top
         } else if self.auto {
-            let h = self.height_over_ground(&s.world, s.camera.position);
+            let h = self.height_over_ground(&s.session.world, s.camera.position);
             auto_look(self.look, h)
         } else {
             self.chosen
@@ -378,7 +400,7 @@ impl Viewport {
         } else {
             Rect::from_min_size(Pos2::ZERO, EVec2::new(1600.0, 900.0))
         };
-        let ground = self.index(&s.world).ground;
+        let ground = self.index(&s.session.world).ground;
         match ground {
             Some((lo, hi)) => self.top.fit(rect, lo, hi),
             None => self.top.centre = s.camera.position.truncate(),
@@ -393,7 +415,7 @@ impl Viewport {
     /// Put the 3D camera high over the region looking across all of it
     /// (the whole-map look's start view, View ▸ Whole map from the shot).
     pub fn aerial(&mut self, s: &mut EditorState) {
-        let index = self.index(&s.world);
+        let index = self.index(&s.session.world);
         let (lo, hi) = index.ground.unwrap_or((Vec2::splat(-1000.0), Vec2::splat(1000.0)));
         let centre = ((lo + hi) * 0.5).extend(0.0);
         let r = (hi - lo).length() * 0.5;
@@ -401,8 +423,9 @@ impl Viewport {
         s.camera = crate::draw::camera::Camera::looking_at(eye, centre - Vec3::new(0.0, 0.04 * r, 0.0));
     }
 
-    /// Set the look from a name (`--view` of the shot): `street`, `whole`
-    /// (Auto off, the aerial camera) or `top` (the overview, fitted).
+    /// Set the look from a name (`--view` / `--light` of the shot):
+    /// `street`, `whole` (Auto off, the aerial camera) or `top` (the
+    /// overview, fitted); `work` (Work light) or `game` (Game look).
     pub fn set_look(&mut self, s: &mut EditorState, name: &str) {
         match name {
             "street" => {
@@ -420,6 +443,8 @@ impl Viewport {
                 self.enter_top(s);
                 self.fit_top(s);
             }
+            "work" => self.light = true,
+            "game" => self.light = false,
             _ => log::warn!("editor: no look `{name}`"),
         }
         self.redraw = true;
@@ -435,12 +460,13 @@ impl Viewport {
     pub fn needs_frame(&self, s: &EditorState) -> bool {
         self.renderer.is_none()
             || self.redraw
-            || s.world_changed
-            || s.adds_changed
+            || s.session.world_changed
+            || s.session.adds_changed
             || self.rebuild_at.is_some()
             || self.target.as_ref().is_none_or(|t| t.size != self.want)
             || self.drawn != Some(camera_key(&s.camera))
             || self.drawn_look != Some((self.look, self.haze))
+            || (self.light && !self.lit)
     }
 
     /// An overlay painter on the viewport for this frame (clipped to it).
@@ -456,7 +482,7 @@ impl Viewport {
     /// Point the camera at the selection (F): the union of the selected
     /// placements' bounding spheres; nothing when nothing is selected.
     pub fn frame_selection(&mut self, s: &mut EditorState) {
-        let spheres: Vec<(Vec3, f32)> = s.selection.iter().filter_map(|&i| placement_sphere(&s.world, i)).collect();
+        let spheres: Vec<(Vec3, f32)> = s.selection.iter().filter_map(|&i| placement_sphere(&s.session.world, i)).collect();
         if let Some((centre, radius)) = union_sphere(&spheres) {
             if self.persp.is_some() {
                 self.top.centre = centre.truncate();
@@ -502,7 +528,11 @@ impl Viewport {
         let painter = ui.painter_at(rect);
         match &self.target {
             Some(t) => {
-                painter.image(t.id, rect, Rect::from_min_max(Pos2::ZERO, Pos2::new(1.0, 1.0)), Color32::WHITE);
+                let id = match (&self.work, self.light) {
+                    (Some(w), true) => w.id().unwrap_or(t.id),
+                    _ => t.id,
+                };
+                painter.image(id, rect, Rect::from_min_max(Pos2::ZERO, Pos2::new(1.0, 1.0)), Color32::WHITE);
             }
             None => {
                 painter.rect_filled(rect, 0.0, colour::PAGE);
@@ -523,12 +553,12 @@ impl Viewport {
             self.top_marks(s, &overlay);
         }
         if let Some(h) = self.hover.filter(|h| !s.selection.contains(&h.placement))
-            && let Some((t, lo, hi)) = super::overlay::placement_box(&s.world, h.placement)
+            && let Some((t, lo, hi)) = super::overlay::placement_box(&s.session.world, h.placement)
         {
             overlay.box_outline(t, lo, hi, colour::DIM, 1.0);
         }
         for &i in &s.selection {
-            overlay.selection(&s.world, i);
+            overlay.selection(&s.session.world, i);
         }
         draw(s, &overlay);
 
@@ -538,7 +568,7 @@ impl Viewport {
         }
         if menu::take(&ctx, Command::ResetCamera) {
             self.leave_top(s, None);
-            s.camera = crate::render::overview_camera(&s.world);
+            s.camera = crate::render::overview_camera(&s.session.world);
         }
         self.look_bar(s, ui, rect);
         // A press an overlay (a handle, a drop) took is not a pick and
@@ -644,7 +674,7 @@ impl Viewport {
             if let Some(at) = pointer {
                 if moved || self.hover.is_none() {
                     let (eye, dir) = self.pick_ray(s, at);
-                    self.hover = pick(&s.world, eye, dir);
+                    self.hover = pick(&s.session.world, eye, dir);
                 }
             } else {
                 self.hover = None;
@@ -656,14 +686,14 @@ impl Viewport {
         if response.clicked_by(egui::PointerButton::Primary) {
             let Some(at) = response.interact_pointer_pos() else { return };
             let (eye, dir) = self.pick_ray(s, at);
-            let hit = (s.mode == Mode::Props).then(|| pick(&s.world, eye, dir)).flatten();
+            let hit = (s.mode == Mode::Props).then(|| pick(&s.session.world, eye, dir)).flatten();
             let modifiers = ctx.input(|i| i.modifiers);
             self.click = Some(Click {
                 at,
                 eye,
                 dir,
                 hit,
-                ground: ground_hit(&s.world, eye, dir, PICK_RANGE),
+                ground: ground_hit(&s.session.world, eye, dir, PICK_RANGE),
                 ctrl: modifiers.ctrl || modifiers.command,
                 shift: modifiers.shift,
             });
@@ -681,7 +711,7 @@ impl Viewport {
         if self.persp.is_none() || dir.z > -1e-3 {
             return (eye, dir);
         }
-        let top = self.index(&s.world).top.max(0.0) + 5.0;
+        let top = self.index(&s.session.world).top.max(0.0) + 5.0;
         (eye + dir * ((eye.z - top) / -dir.z).max(0.0), dir)
     }
 
@@ -714,7 +744,7 @@ impl Viewport {
         {
             let (eye, dir) = self.pick_ray(s, at);
             let ground =
-                ground_hit(&s.world, eye, dir, PICK_RANGE).unwrap_or_else(|| self.top.to_world(rect, at).extend(0.0));
+                ground_hit(&s.session.world, eye, dir, PICK_RANGE).unwrap_or_else(|| self.top.to_world(rect, at).extend(0.0));
             let from = self.persp.unwrap_or(s.camera);
             self.leave_top(s, Some(cam::fly_to(&from, ground)));
             return;
@@ -722,12 +752,11 @@ impl Viewport {
         self.pick_input(s, &ctx, response);
     }
 
-    /// The overview's marks: the mod's moved and added props (lime) and,
-    /// outside Races mode (whose panel draws its own), the current race's
-    /// checkpoints, start and finish.
+    /// The overview's marks: the mod's moved and added props (lime). The
+    /// races are drawn by Races mode's own overlay, only in that mode.
     fn top_marks(&self, s: &EditorState, o: &Overlay) {
-        let base = &s.base.placements;
-        for (i, p) in s.world.placements.iter().enumerate() {
+        let base = &s.session.base.placements;
+        for (i, p) in s.session.world.placements.iter().enumerate() {
             let changed = match base.get(i) {
                 Some(b) => b.transform != p.transform || b.flags != p.flags,
                 None => true,
@@ -742,27 +771,12 @@ impl Viewport {
                 o.painter.circle(q, 4.0, colour::SHADOW, egui::Stroke::new(2.0, ring));
             }
         }
-        if s.mode == Mode::Races {
-            return;
-        }
-        let Some(race) = s.race.and_then(|k| s.map.races.get(k)) else { return };
-        let z = race.start.or(race.finish).map_or(0.0, |sp| sp.position.z);
-        let pts: Vec<Vec3> = race.checkpoints.iter().map(|c| c.extend(z)).collect();
-        o.polyline(&pts, false, colour::INK, 2.0);
-        for (k, &p) in pts.iter().enumerate() {
-            o.marker(p, 8.0, colour::PAGE, colour::INK, Some(&(k + 1).to_string()));
-        }
-        for (spot, name) in [(race.start, "S"), (race.finish, "F")] {
-            if let Some(spot) = spot {
-                o.marker(spot.position, 9.0, colour::PAGE, colour::SELECT, Some(name));
-            }
-        }
     }
 
     /// The look buttons at the image's top right: Auto, Street, Whole map,
-    /// Top (T), and Haze for the whole map.
+    /// Top (T), Haze for the whole map, then Work light / Game look.
     fn look_bar(&mut self, s: &mut EditorState, ui: &mut egui::Ui, rect: Rect) {
-        let size = EVec2::new(330.0, 30.0);
+        let size = EVec2::new(LOOK_BAR_WIDTH, 30.0);
         let bar = Rect::from_min_size(rect.right_top() + EVec2::new(-size.x - 10.0, 10.0), size);
         if !rect.contains_rect(bar) {
             return;
@@ -794,6 +808,13 @@ impl Viewport {
             if seg(ui, self.haze, "Haze", "A light haze over the whole map and the overview") {
                 pressed = Some("haze");
             }
+            ui.separator();
+            if seg(ui, self.light, "Work light", "Brightens the dark parts for editing; the game is not changed") {
+                pressed = Some("work");
+            }
+            if seg(ui, !self.light, "Game look", "The picture exactly as the game draws it") {
+                pressed = Some("game");
+            }
         });
         match pressed {
             Some("auto") => {
@@ -813,6 +834,12 @@ impl Viewport {
                 }
             }
             Some("haze") => self.haze = !self.haze,
+            Some("work") | Some("game") => {
+                self.light = pressed == Some("work");
+                // The image was already placed this frame: show the other
+                // one in the next.
+                ui.ctx().request_repaint();
+            }
             _ => {}
         }
         if pressed.is_some() {
@@ -832,26 +859,26 @@ impl Viewport {
         encoder: &mut wgpu::CommandEncoder,
     ) -> bool {
         let now = Instant::now();
-        if s.adds_changed {
-            s.adds_changed = false;
+        if s.session.adds_changed {
+            s.session.adds_changed = false;
             if self.renderer.is_some() {
                 self.rebuild_at = Some(now + REBUILD_DELAY);
             }
         }
         if self.renderer.is_none() || self.rebuild_at.is_some_and(|t| now >= t) {
-            self.renderer = Some(WorldRenderer::new(gpu, &s.world, FORMAT, &crate::render::RenderOptions::in_force()));
+            self.renderer = Some(WorldRenderer::new(gpu, &s.session.world, FORMAT, &crate::render::RenderOptions::in_force()));
             self.rebuild_at = None;
-            self.index = Some(SectionIndex::new(&s.world));
+            self.index = Some(SectionIndex::new(&s.session.world));
             // A new renderer starts from the world as it is now.
-            s.world.take_changed();
-            s.world_changed = false;
+            s.session.world.take_changed();
+            s.session.world_changed = false;
             self.redraw = true;
         }
         let Some(renderer) = self.renderer.as_mut() else { return false };
-        if s.world_changed {
-            s.world_changed = false;
-            for i in s.world.take_changed() {
-                if let Some(p) = s.world.placements.get(i) {
+        if s.session.world_changed {
+            s.session.world_changed = false;
+            for i in s.session.world.take_changed() {
+                if let Some(p) = s.session.world.placements.get(i) {
                     renderer.update_placement(gpu, i, p.transform, p.flags);
                 }
             }
@@ -871,7 +898,9 @@ impl Viewport {
                 format: FORMAT,
                 usage: wgpu::TextureUsages::RENDER_ATTACHMENT
                     | wgpu::TextureUsages::TEXTURE_BINDING
-                    | wgpu::TextureUsages::COPY_SRC,
+                    | wgpu::TextureUsages::COPY_SRC
+                    // The work light's test writes a picture into it.
+                    | wgpu::TextureUsages::COPY_DST,
                 view_formats: &[],
             });
             let color = texture.create_view(&Default::default());
@@ -883,12 +912,17 @@ impl Viewport {
                 }
                 None => egui.register_native_texture(&gpu.device, &color, wgpu::FilterMode::Linear),
             };
+            let work = self.work.get_or_insert_with(|| super::worklight::WorkLight::new(&gpu.device, FORMAT));
+            work.set_source(&gpu.device, egui, &color, size, FORMAT);
+            self.lit = false;
             self.target = Some(Target { size, color, depth, id });
             self.redraw = true;
         }
         let key = camera_key(&s.camera);
         if !self.redraw && self.drawn == Some(key) && self.drawn_look == Some((self.look, self.haze)) {
-            return false;
+            // The world is current; only the work light may be due (it was
+            // switched on after a frame drawn under Game look).
+            return self.light_pass(encoder);
         }
         self.redraw = false;
         self.drawn = Some(key);
@@ -897,10 +931,10 @@ impl Viewport {
         let size = target.size;
         let aspect = size.0 as f32 / size.1 as f32;
         let time_of_day = crate::sky::TimeOfDay::default();
-        let game_fog = self.fog.update_weighted(&s.world, s.camera.position.truncate(), time_of_day.fog_weight());
+        let game_fog = self.fog.update_weighted(&s.session.world, s.camera.position.truncate(), time_of_day.fog_weight());
         let look = self.look;
-        let height = if look == Look::Whole { self.height_over_ground(&s.world, s.camera.position) } else { 0.0 };
-        let index = self.index.get_or_insert_with(|| SectionIndex::new(&s.world));
+        let height = if look == Look::Whole { self.height_over_ground(&s.session.world, s.camera.position) } else { 0.0 };
+        let index = self.index.get_or_insert_with(|| SectionIndex::new(&s.session.world));
         let lists = whole_frame(index, &s.camera, look, aspect, height, &self.top, self.haze, game_fog);
         let Some(target) = self.target.as_ref() else { return false };
         let Some(renderer) = self.renderer.as_mut() else { return false };
@@ -913,11 +947,11 @@ impl Viewport {
             aspect,
             visible_sections: match &lists.near {
                 Some(near) => Some(near.as_slice()),
-                None => s.world.visible_sections_at(s.camera.position).map(|(_, list)| list),
+                None => s.session.world.visible_sections_at(s.camera.position).map(|(_, list)| list),
             },
             far_sections: None,
             fog: lists.fog,
-            time: self.started.elapsed().as_secs_f32(),
+            time: self.clock.unwrap_or_else(|| self.started.elapsed().as_secs_f32()),
             road_reflections: look == Look::Street,
             road_reflection_plane: None,
             sky: time_of_day.sky(),
@@ -930,6 +964,21 @@ impl Viewport {
             occluders: &[],
         };
         renderer.render(gpu, encoder, &target.color, &target.depth, size, &params);
+        self.lit = false;
+        self.light_pass(encoder);
+        true
+    }
+
+    /// Record the work light over the current frame when it is on and its
+    /// image is out of date. Under Game look nothing runs and egui shows
+    /// the world target itself.
+    fn light_pass(&mut self, encoder: &mut wgpu::CommandEncoder) -> bool {
+        if !self.light || self.lit {
+            return false;
+        }
+        let Some(work) = &self.work else { return false };
+        work.record(encoder);
+        self.lit = true;
         true
     }
 
@@ -939,6 +988,10 @@ impl Viewport {
         if let Some(t) = self.target.take() {
             egui.free_texture(&t.id);
         }
+        if let Some(mut w) = self.work.take() {
+            w.release(egui);
+        }
+        self.lit = false;
         self.renderer = None;
         self.drawn = None;
     }
@@ -961,6 +1014,10 @@ impl app::Viewport for Viewport {
 
     fn kept_camera(&self, s: &EditorState) -> crate::draw::camera::Camera {
         self.persp.unwrap_or(s.camera)
+    }
+
+    fn fix_clock(&mut self, seconds: f32) {
+        self.clock = Some(seconds);
     }
 }
 
@@ -1390,7 +1447,7 @@ mod tests {
         assert_eq!(vp.look, Look::Top);
         assert_eq!(camera_key(&s.camera), camera_key(&vp.top.camera()));
         // Fitted to the region's ground.
-        let (lo, hi) = vp.index(&s.world).ground.unwrap();
+        let (lo, hi) = vp.index(&s.session.world).ground.unwrap();
         assert!(vp.top.half_height >= (hi.y - lo.y) * 0.5);
         vp.leave_top(&mut s, None);
         assert_eq!(camera_key(&s.camera), camera_key(&camera));
@@ -1416,20 +1473,13 @@ mod tests {
         let (eye, dir) = vp.pick_ray(&s, vp.rect.center());
         // Just above the highest box (the 100 m block's top, 50 m).
         assert!((eye.z - 55.0).abs() < 0.01, "{eye:?}");
-        assert_eq!(pick(&s.world, eye, dir).map(|h| h.placement), Some(1));
+        assert_eq!(pick(&s.session.world, eye, dir).map(|h| h.placement), Some(1));
     }
 
     /// Redraw on demand: the world is drawn on the first frame, after a
     /// camera move, a placement change or a resize, and not otherwise.
-    #[test]
-    #[ignore = "requires a GPU adapter; run serially with --ignored"]
-    fn the_world_is_drawn_only_when_something_changed() {
-        use crate::draw::camera::Camera;
-        let gpu = pollster::block_on(Gpu::new(
-            None,
-            wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle()),
-        ))
-        .unwrap();
+    /// One two-sided triangle 10 m in front of the origin.
+    fn triangle_world() -> World {
         let mut world = World::default();
         let mut tri = solid([-1.0; 3], [1.0; 3]);
         tri.vertices = [[0.0, -1.0, -1.0], [0.0, 1.0, -1.0], [0.0, 0.0, 1.0]]
@@ -1454,6 +1504,148 @@ mod tests {
             flags: 0x60,
             cull_radius: 1.0,
         });
+        world
+    }
+
+    fn test_gpu() -> Gpu {
+        pollster::block_on(Gpu::new(None, wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle())))
+            .unwrap()
+    }
+
+    /// Read a texture or buffer back (RGBA8 rows without padding).
+    fn read_texture(gpu: &Gpu, view: &wgpu::TextureView, size: (u32, u32)) -> Vec<u8> {
+        let row = (size.0 * 4).div_ceil(256) * 256;
+        let buf = gpu.device.create_buffer(&wgpu::BufferDescriptor {
+            label: None,
+            size: u64::from(row * size.1),
+            usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
+            mapped_at_creation: false,
+        });
+        let mut encoder = gpu.device.create_command_encoder(&Default::default());
+        encoder.copy_texture_to_buffer(
+            view.texture().as_image_copy(),
+            wgpu::TexelCopyBufferInfo {
+                buffer: &buf,
+                layout: wgpu::TexelCopyBufferLayout { offset: 0, bytes_per_row: Some(row), rows_per_image: None },
+            },
+            wgpu::Extent3d { width: size.0, height: size.1, depth_or_array_layers: 1 },
+        );
+        gpu.queue.submit([encoder.finish()]);
+        let bytes = read_buffer(gpu, &buf);
+        bytes.chunks(row as usize).flat_map(|r| r[..(size.0 * 4) as usize].to_vec()).collect()
+    }
+
+    fn read_buffer(gpu: &Gpu, buf: &wgpu::Buffer) -> Vec<u8> {
+        let slice = buf.slice(..);
+        slice.map_async(wgpu::MapMode::Read, |_| {});
+        gpu.device.poll(wgpu::PollType::Wait { submission_index: None, timeout: None }).unwrap();
+        let v = slice.get_mapped_range().unwrap().to_vec();
+        buf.unmap();
+        v
+    }
+
+    #[test]
+    #[ignore = "requires a GPU adapter; run serially with --ignored"]
+    fn game_look_shows_the_renderers_frame_and_the_work_light_follows_its_curve() {
+        use crate::draw::camera::Camera;
+        use crate::editor::worklight;
+        let gpu = test_gpu();
+        let dir = std::env::temp_dir();
+        let camera = Camera::new(Vec3::ZERO, 0.0, 0.0);
+        let mut s = EditorState::new(dir.clone(), "L4RA", dir, "fixture", Default::default(), triangle_world(), camera);
+        let mut egui = egui_wgpu::Renderer::new(&gpu.device, wgpu::TextureFormat::Rgba8Unorm, Default::default());
+        let mut vp = Viewport::new();
+        vp.want = (96, 64);
+        let frame = |vp: &mut Viewport, s: &mut EditorState, egui: &mut egui_wgpu::Renderer| {
+            let mut encoder = gpu.device.create_command_encoder(&Default::default());
+            let drawn = vp.prepare(&gpu, egui, s, &mut encoder);
+            gpu.queue.submit([encoder.finish()]);
+            drawn
+        };
+        // Game look: no pass runs, the image shown is the renderer's target.
+        vp.light = false;
+        assert!(frame(&mut vp, &mut s, &mut egui));
+        assert!(!vp.lit);
+        let size = vp.target.as_ref().unwrap().size;
+        // A test picture in the renderer's target instead of the (untextured,
+        // night-dark) triangle: every grey and colour ramp, dark-heavy.
+        let game: Vec<u8> = (0..size.0 * size.1)
+            .flat_map(|i| {
+                let (x, y) = (i % size.0, i / size.0);
+                let v = (x * 255 / (size.0 - 1)) as u8;
+                let d = (u32::from(v) * u32::from(v) / 255) as u8;
+                [d, (y * 255 / (size.1 - 1)) as u8 / 3, d / 2, 255]
+            })
+            .collect();
+        gpu.queue.write_texture(
+            vp.target.as_ref().unwrap().color.texture().as_image_copy(),
+            &game,
+            wgpu::TexelCopyBufferLayout { offset: 0, bytes_per_row: Some(size.0 * 4), rows_per_image: None },
+            wgpu::Extent3d { width: size.0, height: size.1, depth_or_array_layers: 1 },
+        );
+        // Work light on: the next frame lights the same picture without
+        // drawing the world again, and leaves the renderer's frame as it was.
+        vp.light = true;
+        assert!(vp.needs_frame(&s));
+        assert!(frame(&mut vp, &mut s, &mut egui), "the pass runs");
+        assert!(vp.lit);
+        assert!(!frame(&mut vp, &mut s, &mut egui), "idle");
+        assert_eq!(read_texture(&gpu, &vp.target.as_ref().unwrap().color, size), game, "the game's frame is untouched");
+        let work = vp.work.as_ref().unwrap();
+        assert_ne!(work.id(), Some(vp.target.as_ref().unwrap().id));
+        let lit = read_texture(&gpu, work.view().unwrap(), size);
+        // The meter: same exposure as the Rust search over the same grid.
+        let meter = gpu.device.create_buffer(&wgpu::BufferDescriptor {
+            label: None,
+            size: 16,
+            usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
+            mapped_at_creation: false,
+        });
+        let mut encoder = gpu.device.create_command_encoder(&Default::default());
+        encoder.copy_buffer_to_buffer(work.meter(), 0, &meter, 0, 16);
+        gpu.queue.submit([encoder.finish()]);
+        let m: Vec<f32> =
+            read_buffer(&gpu, &meter).chunks(4).map(|b| f32::from_le_bytes(b.try_into().unwrap())).collect();
+        let (gx, gy) = worklight::GRID;
+        let (mut sum, mut n) = (0.0f64, 0u32);
+        for i in 0..gx * gy {
+            let x = (((i % gx) as f32 + 0.5) * size.0 as f32 / gx as f32) as u32;
+            let y = (((i / gx) as f32 + 0.5) * size.1 as f32 / gy as f32) as u32;
+            let p = &game[((y * size.0 + x) * 4) as usize..][..3];
+            let l = worklight::luminance([p[0], p[1], p[2]].map(|c| c as f32 / 255.0));
+            if l > worklight::BLACK {
+                sum += f64::from(l.ln());
+                n += 1;
+            }
+        }
+        assert_eq!(m[2] as u32, n, "samples metered");
+        let e = worklight::exposure((n > 0).then(|| (sum / f64::from(n)).exp() as f32));
+        assert!((m[0] - e).abs() < 1e-2 * e, "exposure {} vs {e}", m[0]);
+        // Every pixel within a step of the Rust curve.
+        for (g, l) in game.chunks(4).zip(lit.chunks(4)) {
+            let want = worklight::light_pixel([g[0], g[1], g[2]].map(|c| c as f32 / 255.0), m[0]);
+            for k in 0..3 {
+                let w = (want[k] * 255.0).round() as i32;
+                assert!((w - i32::from(l[k])).abs() <= 1, "{g:?} -> {l:?}, want {want:?}");
+            }
+            assert_eq!(g[3], l[3], "alpha kept");
+        }
+        // Back to Game look: nothing to draw, the target shown again.
+        vp.light = false;
+        assert!(!vp.needs_frame(&s));
+        assert!(!frame(&mut vp, &mut s, &mut egui));
+    }
+
+    #[test]
+    #[ignore = "requires a GPU adapter; run serially with --ignored"]
+    fn the_world_is_drawn_only_when_something_changed() {
+        use crate::draw::camera::Camera;
+        let gpu = pollster::block_on(Gpu::new(
+            None,
+            wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle()),
+        ))
+        .unwrap();
+        let world = triangle_world();
         let dir = std::env::temp_dir();
         let camera = Camera::new(Vec3::ZERO, 0.0, 0.0);
         let mut s = EditorState::new(dir.clone(), "L4RA", dir, "fixture", Default::default(), world, camera);
@@ -1473,8 +1665,8 @@ mod tests {
         assert!(vp.needs_frame(&s));
         assert!(frame(&mut vp, &mut s), "camera moved");
         assert!(!frame(&mut vp, &mut s), "idle again");
-        s.world.set_placement_transform(0, Mat4::from_translation(Vec3::new(1.0, 10.0, 0.0)));
-        s.world_changed = true;
+        s.session.world.set_placement_transform(0, Mat4::from_translation(Vec3::new(1.0, 10.0, 0.0)));
+        s.session.world_changed = true;
         assert!(frame(&mut vp, &mut s), "placement moved");
         vp.want = (80, 48);
         assert!(frame(&mut vp, &mut s), "resized");
@@ -1490,7 +1682,7 @@ mod tests {
         vp.haze = false;
         assert!(frame(&mut vp, &mut s), "street again");
         // Added placements rebuild the renderer after the delay.
-        s.adds_changed = true;
+        s.session.adds_changed = true;
         assert!(!frame(&mut vp, &mut s), "rebuild waits");
         vp.rebuild_at = Some(Instant::now());
         assert!(frame(&mut vp, &mut s), "rebuilt");

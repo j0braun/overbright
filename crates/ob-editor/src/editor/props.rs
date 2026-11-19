@@ -2,16 +2,21 @@
 //! the selected placements (delete, duplicate, drop to ground, reset to
 //! original, upright) and the properties panel of the selection.
 //!
-//! Every gesture changes the mod and the world live (`tools::map::edit`)
-//! and ends in one [`commit`]: a handle drag on release, a typed value on
-//! Enter or when the field loses focus, a button at once.
+//! Every gesture is one [`Op`] run through [`run`] (one undo step): a
+//! handle drag moves the world live and runs its op on release, a typed
+//! value on Enter or when the field loses focus, a button at once. The mod
+//! itself is only ever changed by ops; props another map mod added are
+//! left out of a selection's op.
 
 use egui::{Color32, Pos2, Rect, RichText, Stroke, Ui};
-use glam::{Mat3, Vec3, Vec4};
+use glam::{Mat3, Mat4, Vec3, Vec4};
 
-use super::state::{EditorState, Panel, commit, project};
+use super::state::{EditorState, Panel, project};
+use super::undo::run;
+use crate::draw::camera::Camera;
 use crate::launch::theme::{Rgb, THEME_A};
-use crate::tools::map::edit::{self, PropState};
+use crate::tools::map::edit::{self, PropState, Refused};
+use crate::tools::map::ops::{Change, Op, PropKey};
 use crate::world::World;
 
 /// Default snap steps.
@@ -72,17 +77,22 @@ pub enum Handle {
     Ring,
 }
 
-/// A handle drag in progress.
+/// A handle drag in progress: the world moves live, one op on release.
 #[derive(Clone, Debug)]
 struct Drag {
     handle: Handle,
     from: Pos2,
     /// The placements as they were when the drag began.
-    starts: Vec<(usize, Vec3, Mat3)>,
+    live: Live,
     pivot: Vec3,
     /// The ring's start angle (degrees) under the pointer.
     angle: f32,
-    label: String,
+    verb: &'static str,
+    /// A Shift + move drag: the props copied (their keys), the copies
+    /// being the dragged placements in the same order. The copy made at
+    /// the start is taken back on release and made again where the drag
+    /// ended, so the gesture is one undo step.
+    copied: Option<Vec<PropKey>>,
 }
 
 /// Props mode: the tool, the snap settings and the properties panel.
@@ -93,6 +103,8 @@ pub struct Props {
     pub snap_metres: f32,
     pub snap_degrees: f32,
     drag: Option<Drag>,
+    /// A typed or dragged value of the properties panel in progress.
+    live: Option<Live>,
     /// The handle under the pointer this frame.
     pub hover: Option<Handle>,
 }
@@ -105,6 +117,7 @@ impl Default for Props {
             snap_metres: SNAP_METRES,
             snap_degrees: SNAP_DEGREES,
             drag: None,
+            live: None,
             hover: None,
         }
     }
@@ -123,16 +136,14 @@ pub fn knock_over(world: &World, i: usize) -> bool {
 
 /// What an action on the selection is called in the undo list: the one
 /// prop's name, else the count.
-fn label(s: &EditorState, verb: &str) -> String {
-    match s.selection.as_slice() {
-        [i] => format!("{verb} {}", name(&s.world, *i)),
-        sel => format!("{verb} {} props", sel.len()),
-    }
+#[cfg(test)]
+pub(crate) fn label(s: &EditorState, verb: &str) -> String {
+    label_of(&s.session.world, verb, &s.selection)
 }
 
 /// The pivot of the selection: the mean of the placements' origins.
 pub fn pivot(s: &EditorState) -> Option<Vec3> {
-    let pts: Vec<Vec3> = s.selection.iter().filter_map(|&i| edit::placement_parts(&s.world, i).map(|p| p.0)).collect();
+    let pts: Vec<Vec3> = s.selection.iter().filter_map(|&i| edit::placement_parts(&s.session.world, i).map(|p| p.0)).collect();
     (!pts.is_empty()).then(|| pts.iter().sum::<Vec3>() / pts.len() as f32)
 }
 
@@ -151,13 +162,24 @@ pub fn screen_ray(s: &EditorState, rect: Rect, at: Pos2) -> (Vec3, Vec3) {
 /// Where the ray through `at` meets the ground (1.5 km at most).
 pub fn ground_under(s: &EditorState, rect: Rect, at: Pos2) -> Option<Vec3> {
     let (eye, dir) = screen_ray(s, rect, at);
-    edit::ray_ground(&s.world, eye, dir, 1500.0)
+    edit::ray_ground(&s.session.world, eye, dir, 1500.0)
 }
 
 /// The camera's heading (degrees, the game's convention).
 pub fn camera_heading(s: &EditorState) -> f32 {
     let f = s.camera.forward();
     f.y.atan2(f.x).to_degrees()
+}
+
+/// The world length at `pivot` that is [`HANDLE_POINTS`] long on screen
+/// in the viewport `rect` seen by `cam`.
+fn handle_length(cam: &Camera, rect: Rect, pivot: Vec3) -> f32 {
+    let d = cam.position.distance(pivot).max(0.5);
+    // World metres per screen point at distance d; fov_y clamped only
+    // against a degenerate camera, not to a size (the Top overview's is
+    // about 2 degrees).
+    let fov = cam.fov_y.clamp(1e-4, 3.0);
+    d * 2.0 * (fov * 0.5).tan() / rect.height().max(1.0) * HANDLE_POINTS
 }
 
 /// Distance from `p` to the segment `a`–`b` (screen points).
@@ -179,22 +201,38 @@ fn wrap(d: f32) -> f32 {
 
 // ---- actions on the selection -------------------------------------------
 
-/// Set each selected placement live; the first refusal goes to the status
-/// bar. True when anything changed.
-fn apply_each(s: &mut EditorState, mut f: impl FnMut(&World, usize) -> Option<(Vec3, Mat3)>) -> bool {
-    let sel = s.selection.clone();
-    let mut any = false;
-    for i in sel {
-        let Some((p, r)) = f(&s.world, i) else { continue };
-        match edit::set_transform(&mut s.map, &s.folder, &mut s.world, &s.region, i, p, r) {
-            Ok(()) => any = true,
-            Err(e) => s.status = e.to_string(),
+/// The selected placements this mod can edit, with their keys. Another
+/// mod's props are left out: an op group is made whole or not at all, so
+/// one of them would refuse the rest.
+fn editable(s: &EditorState) -> Vec<(usize, PropKey)> {
+    s.selection.iter().filter_map(|&i| s.session.key_of(i).map(|k| (i, k))).collect()
+}
+
+/// What an action on placements `of` is called in the undo list: the one
+/// prop's name, else the count.
+fn label_of(world: &World, verb: &str, of: &[usize]) -> String {
+    match of {
+        [i] => format!("{verb} {}", name(world, *i)),
+        sel => format!("{verb} {} props", sel.len()),
+    }
+}
+
+/// Run `ops` on placements `of` as one undo step named for `verb`. None
+/// (and the reason in the status bar) when refused or with nothing to do.
+fn run_on(s: &mut EditorState, verb: &str, of: &[usize], ops: Vec<Op>) -> Option<Change> {
+    if ops.is_empty() {
+        if !s.selection.is_empty() {
+            s.status = Refused::OtherMod.to_string();
         }
+        return None;
     }
-    if any {
-        s.world_changed = true;
-    }
-    any
+    let label = label_of(&s.session.world, verb, of);
+    run(s, Op::Group { label, ops }).ok()
+}
+
+/// The placements the props an op added are in the world.
+fn placements_of(s: &EditorState, added: &[PropKey]) -> Vec<usize> {
+    added.iter().filter_map(|k| s.session.placement_of(k)).collect()
 }
 
 /// Delete the selection (Del).
@@ -202,20 +240,10 @@ pub fn delete_selection(s: &mut EditorState) {
     if s.selection.is_empty() {
         return;
     }
-    let label = label(s, "Delete");
-    for i in s.selection.clone() {
-        if let Err(e) = edit::delete(&mut s.map, &s.folder, &mut s.world, &s.region, i) {
-            s.status = e.to_string();
-        }
+    let (of, ops): (Vec<usize>, Vec<Op>) = editable(s).into_iter().map(|(i, key)| (i, Op::Delete { key })).unzip();
+    if run_on(s, "Delete", &of, ops).is_some() {
+        s.selection.clear();
     }
-    s.world_changed = true;
-    s.selection.clear();
-    commit(s, &label);
-}
-
-/// The placement this mod's add edit `k` became (after a commit).
-pub fn added_placement(s: &EditorState, k: usize) -> Option<usize> {
-    s.world.map_overlay.added.iter().find(|(_, (f, kk))| *f == s.folder && *kk == k).map(|(i, _)| *i)
 }
 
 /// Copy the selection (Ctrl+D): around `at` when given (the ground under
@@ -229,81 +257,132 @@ pub fn duplicate_selection(s: &mut EditorState, at: Option<Vec3>) {
             let r = s
                 .selection
                 .iter()
-                .filter_map(|&i| edit::placement_sphere(&s.world, i))
+                .filter_map(|&i| edit::placement_sphere(&s.session.world, i))
                 .map(|c| c.1)
                 .fold(1.0, f32::max);
             (s.camera.right() * r * 1.2).truncate().extend(0.0)
         }
     };
-    let label = label(s, "Duplicate");
-    let mut edits = Vec::new();
-    for i in s.selection.clone() {
-        let Some((p, _)) = edit::placement_parts(&s.world, i) else { continue };
-        match edit::duplicate(&mut s.map, &s.folder, &mut s.world, &s.region, i, p + shift) {
-            Ok(a) => edits.push(a.edit),
-            Err(e) => s.status = e.to_string(),
-        }
+    let (of, ops): (Vec<usize>, Vec<Op>) = editable(s)
+        .into_iter()
+        .filter_map(|(i, key)| {
+            let (p, _) = edit::placement_parts(&s.session.world, i)?;
+            Some((i, Op::Duplicate { key, position: p + shift }))
+        })
+        .unzip();
+    if let Some(c) = run_on(s, "Duplicate", &of, ops) {
+        s.selection = placements_of(s, &c.added);
     }
-    s.adds_changed = true;
-    commit(s, &label);
-    s.selection = edits.into_iter().filter_map(|k| added_placement(s, k)).collect();
 }
 
 /// Stand each selected placement on the ground under it (End).
 pub fn drop_selection(s: &mut EditorState) {
-    let label = label(s, "Drop to ground");
-    let changed = apply_each(s, |w, i| {
-        let (p, r) = edit::placement_parts(w, i)?;
-        edit::on_ground(w, i, p, r).map(|g| (g, r))
-    });
-    if changed {
-        commit(s, &label);
-    } else if !s.selection.is_empty() {
+    let (of, ops): (Vec<usize>, Vec<Op>) =
+        editable(s).into_iter().map(|(i, key)| (i, Op::DropToGround { key })).unzip();
+    if run_on(s, "Drop to ground", &of, ops).is_some_and(|c| !c.changed) {
         s.status = "No ground under the selection".into();
     }
 }
 
-/// Put the selection back as the original has it.
+/// Put the selection back as the original has it (the props this mod
+/// moved or deleted; the others have nothing to go back to).
 pub fn reset_selection(s: &mut EditorState) {
-    let label = label(s, "Reset");
-    for i in s.selection.clone() {
-        if let Err(e) = edit::reset(&mut s.map, &s.folder, &mut s.world, Some(&s.base), i) {
-            s.status = e.to_string();
+    let resettable = |s: &EditorState, i: usize| {
+        let m = &s.session;
+        matches!(edit::prop_state(&m.map, &m.folder, &m.world, &m.region, i), PropState::Moved | PropState::Deleted)
+    };
+    let (of, ops): (Vec<usize>, Vec<Op>) =
+        editable(s).into_iter().filter(|(i, _)| resettable(s, *i)).map(|(i, key)| (i, Op::Reset { key })).unzip();
+    if ops.is_empty() {
+        if !s.selection.is_empty() {
+            s.status = Refused::NotEdited.to_string();
         }
+        return;
     }
-    s.world_changed = true;
-    commit(s, &label);
+    run_on(s, "Reset", &of, ops);
 }
 
 /// Stand the selection upright (heading kept).
 pub fn upright_selection(s: &mut EditorState) {
-    let label = label(s, "Upright");
-    if apply_each(s, |w, i| edit::placement_parts(w, i).map(|(p, r)| (p, edit::upright(edit::heading_of(r))))) {
-        commit(s, &label);
-    }
+    let (of, ops): (Vec<usize>, Vec<Op>) = editable(s)
+        .into_iter()
+        .filter_map(|(i, key)| {
+            let (position, r) = edit::placement_parts(&s.session.world, i)?;
+            Some((i, Op::Place { key, position, rotation: edit::upright(edit::heading_of(r)) }))
+        })
+        .unzip();
+    run_on(s, "Upright", &of, ops);
 }
 
 /// Place a new prop of `solid` standing on the ground at `at`, facing
 /// `heading`; it becomes the selection.
 pub fn place_new(s: &mut EditorState, solid: &str, at: Vec3, heading: f32) -> Option<usize> {
-    let rot = edit::upright(heading);
-    let added = match edit::add(&mut s.map, &s.folder, Some(&mut s.world), &s.region, solid, at, rot) {
-        Ok(a) => a,
-        Err(e) => {
-            s.status = e.to_string();
-            return None;
-        }
-    };
-    if let Some(i) = added.placement
-        && let Some(g) = edit::on_ground(&s.world, i, at, rot)
-    {
-        let _ = edit::set_transform(&mut s.map, &s.folder, &mut s.world, &s.region, i, g, rot);
-    }
-    s.adds_changed = true;
-    commit(s, &format!("Add {solid}"));
-    let i = added_placement(s, added.edit);
+    let op = Op::Add { solid: solid.into(), position: at, rotation: edit::upright(heading), id: None, ground: true };
+    let c = run(s, op).ok()?;
+    let i = placements_of(s, &c.added).first().copied();
     s.selection = i.into_iter().collect();
     i
+}
+
+/// A live edit of the selection: the placements are moved in the world
+/// only (the viewer shows them at once, the mod is untouched) until
+/// [`Live::finish`] puts them back and runs the result as one op.
+#[derive(Clone, Debug, Default)]
+struct Live {
+    /// (placement, key, its transform before the edit), for the props
+    /// this mod can edit, keyed before anything moved.
+    starts: Vec<(usize, PropKey, Mat4)>,
+}
+
+impl Live {
+    fn begin(s: &EditorState) -> Live {
+        let w = &s.session.world;
+        Live { starts: editable(s).into_iter().map(|(i, k)| (i, k, w.placements[i].transform)).collect() }
+    }
+
+    /// Each placement to `f(position, rotation)` of its start.
+    fn set(&self, s: &mut EditorState, f: impl Fn(Vec3, Mat3) -> (Vec3, Mat3)) {
+        for (i, _, t) in &self.starts {
+            let (p, r) = crate::world::parts_of(*t);
+            let (p, r) = f(p, r);
+            s.session.world.set_placement_transform(*i, crate::world::transform_of(p, r));
+        }
+        s.session.world_changed = true;
+    }
+
+    /// Each placement by `f(position, rotation)` from where it is now.
+    fn nudge(&self, s: &mut EditorState, f: impl Fn(Vec3, Mat3) -> (Vec3, Mat3)) {
+        for (i, ..) in &self.starts {
+            let Some((p, r)) = edit::placement_parts(&s.session.world, *i) else { continue };
+            let (p, r) = f(p, r);
+            s.session.world.set_placement_transform(*i, crate::world::transform_of(p, r));
+        }
+        s.session.world_changed = true;
+    }
+
+    /// Where each placement is now (its key, position, rotation); the
+    /// placements back where they started.
+    fn take_back(self, s: &mut EditorState) -> Vec<(usize, PropKey, Vec3, Mat3)> {
+        let mut out = Vec::new();
+        for (i, key, t) in self.starts {
+            let Some(now) = s.session.world.placements.get(i).map(|p| p.transform) else { continue };
+            if now != t {
+                let (p, r) = crate::world::parts_of(now);
+                out.push((i, key, p, r));
+                s.session.world.set_placement_transform(i, t);
+                s.session.world_changed = true;
+            }
+        }
+        out
+    }
+
+    /// End the edit: the moved placements as one op named for `verb`.
+    fn finish(self, s: &mut EditorState, verb: &str) -> Option<Change> {
+        let moved = self.take_back(s);
+        let of: Vec<usize> = moved.iter().map(|m| m.0).collect();
+        let ops = moved.into_iter().map(|(_, key, position, rotation)| Op::Place { key, position, rotation }).collect();
+        if of.is_empty() { None } else { run_on(s, verb, &of, ops) }
+    }
 }
 
 impl Props {
@@ -317,12 +396,11 @@ impl Props {
         self.snap && !ctx.input(|i| i.modifiers.alt)
     }
 
-    /// The handles' world length at `pivot`: about [`HANDLE_POINTS`] on
-    /// screen.
+    /// The handles' world length at `pivot`: [`HANDLE_POINTS`] on screen,
+    /// in any view (the Top overview's field of view is a couple of
+    /// degrees, its camera kilometres away).
     fn handle_length(s: &EditorState, rect: Rect, pivot: Vec3) -> f32 {
-        let d = s.camera.position.distance(pivot).max(0.5);
-        let px_per_rad = rect.height().max(1.0) / s.camera.fov_y.max(0.1);
-        d * HANDLE_POINTS / px_per_rad
+        handle_length(&s.camera, rect, pivot)
     }
 
     /// The rotate ring's points (screen) around `pivot`.
@@ -386,7 +464,9 @@ impl Props {
             }),
             _ => pivot(s),
         }) else {
-            self.drag = None;
+            if let Some(d) = self.drag.take() {
+                d.live.take_back(s);
+            }
             return false;
         };
         let (pointer, pressed, down, released) = ctx.input(|i| {
@@ -399,7 +479,7 @@ impl Props {
             }
             if released || !down {
                 let d = self.drag.take().unwrap();
-                commit(s, &d.label);
+                d.release(s);
             }
             self.draw(s, painter, rect, pivot);
             return true;
@@ -415,26 +495,21 @@ impl Props {
 
     fn begin(&mut self, s: &mut EditorState, ctx: &egui::Context, rect: Rect, handle: Handle, from: Pos2, pivot: Vec3) {
         let copy = handle != Handle::Ring && ctx.input(|i| i.modifiers.shift);
-        let label = if copy {
-            duplicate_in_place(s);
-            label(s, "Copy")
-        } else {
-            label(s, if handle == Handle::Ring { "Rotate" } else { "Move" })
+        let copied = if copy { copy_in_place(s) } else { None };
+        let verb = match (copied.is_some(), handle) {
+            (true, _) => "Copy",
+            (_, Handle::Ring) => "Rotate",
+            _ => "Move",
         };
-        let starts = s
-            .selection
-            .iter()
-            .filter_map(|&i| edit::placement_parts(&s.world, i).map(|(p, r)| (i, p, r)))
-            .collect::<Vec<_>>();
         let angle = Self::ring_angle(s, rect, pivot, from).unwrap_or(0.0);
-        self.drag = Some(Drag { handle, from, starts, pivot, angle, label });
+        self.drag = Some(Drag { handle, from, live: Live::begin(s), pivot, angle, verb, copied });
     }
 
     fn drag_to(&mut self, s: &mut EditorState, ctx: &egui::Context, rect: Rect, p: Pos2) {
         let snapping = self.snapping(ctx);
         let (step_m, step_deg) = (self.snap_metres, self.snap_degrees);
         let Some(d) = self.drag.as_ref() else { return };
-        let (starts, pivot) = (d.starts.clone(), d.pivot);
+        let pivot = d.pivot;
         match d.handle {
             Handle::Axis(k) => {
                 let len = Self::handle_length(s, rect, pivot);
@@ -453,9 +528,7 @@ impl Props {
                     by = edit::snap(pivot[k] + by, step_m) - pivot[k];
                 }
                 let delta = Vec3::AXES[k] * by;
-                let map: std::collections::HashMap<usize, (Vec3, Mat3)> =
-                    starts.iter().map(|&(i, p, r)| (i, (p + delta, r))).collect();
-                apply_each(s, |_, i| map.get(&i).copied());
+                d.live.set(s, |p, r| (p + delta, r));
             }
             Handle::Ring => {
                 let Some(a) = Self::ring_angle(s, rect, pivot, p) else { return };
@@ -463,9 +536,7 @@ impl Props {
                 if snapping {
                     turn = edit::snap(turn, step_deg);
                 }
-                let map: std::collections::HashMap<usize, (Vec3, Mat3)> =
-                    starts.iter().map(|&(i, p, r)| (i, (turn_about(p, pivot, turn), edit::turned(r, turn)))).collect();
-                apply_each(s, |_, i| map.get(&i).copied());
+                d.live.set(s, |p, r| (turn_about(p, pivot, turn), edit::turned(r, turn)));
             }
         }
     }
@@ -502,8 +573,8 @@ impl Props {
                     }
                 }
                 if let Some(d) = &self.drag
-                    && let Some(&(i, ..)) = d.starts.first()
-                    && let Some((_, r)) = edit::placement_parts(&s.world, i)
+                    && let Some(&(i, ..)) = d.live.starts.first()
+                    && let Some((_, r)) = edit::placement_parts(&s.session.world, i)
                 {
                     painter.text(
                         c + egui::vec2(12.0, -12.0),
@@ -556,45 +627,54 @@ impl Props {
             s.selection.clear();
         }
     }
+}
 
-    /// The Props part of the toolbar: tools, snap, drop to ground.
-    pub fn toolbar(&mut self, s: &mut EditorState, ui: &mut Ui) {
-        for t in Tool::ALL {
-            let text = RichText::new(format!("{}  {}", t.name(), t.key()));
-            if ui.selectable_label(self.tool == t, text).on_hover_text(format!("{} ({})", t.name(), t.key())).clicked()
-            {
-                self.tool = t;
-            }
-        }
-        ui.separator();
-        ui.toggle_value(&mut self.snap, "Snap").on_hover_text("Snap moves and turns (hold Alt to bypass)");
-        ui.add_enabled(
-            self.snap,
-            egui::DragValue::new(&mut self.snap_metres).range(0.01..=10.0).speed(0.01).suffix(" m"),
-        );
-        ui.add_enabled(
-            self.snap,
-            egui::DragValue::new(&mut self.snap_degrees).range(1.0..=90.0).speed(0.5).suffix("°"),
-        );
-        ui.separator();
-        if ui.add_enabled(!s.selection.is_empty(), egui::Button::new("Drop to ground  End")).clicked() {
-            drop_selection(s);
+impl Drag {
+    /// The end of the drag: its result as one op.
+    fn release(self, s: &mut EditorState) {
+        let Some(originals) = self.copied else {
+            self.live.finish(s, self.verb);
+            return;
+        };
+        // Where each copy ended, then the copy taken back and made there.
+        let copies: Vec<usize> = self.live.starts.iter().map(|st| st.0).collect();
+        let ends: Vec<Option<Vec3>> =
+            copies.iter().map(|&i| edit::placement_parts(&s.session.world, i).map(|p| p.0)).collect();
+        self.live.take_back(s);
+        s.session.undo();
+        let ops: Vec<Op> = originals
+            .into_iter()
+            .zip(ends)
+            .filter_map(|(key, at)| Some(Op::Duplicate { key, position: at? }))
+            .collect();
+        let of: Vec<usize> = ops
+            .iter()
+            .filter_map(|op| match op {
+                Op::Duplicate { key, .. } => s.session.placement_of(key),
+                _ => None,
+            })
+            .collect();
+        if let Some(c) = run_on(s, self.verb, &of, ops) {
+            s.selection = placements_of(s, &c.added);
         }
     }
 }
 
-/// Copies of the selection at the same places; the copies become the
-/// selection (the start of a Shift + move drag).
-fn duplicate_in_place(s: &mut EditorState) {
-    let mut edits = Vec::new();
-    for i in s.selection.clone() {
-        let Some((p, _)) = edit::placement_parts(&s.world, i) else { continue };
-        if let Ok(a) = edit::duplicate(&mut s.map, &s.folder, &mut s.world, &s.region, i, p) {
-            edits.push((a.edit, a.placement));
-        }
-    }
-    s.adds_changed = true;
-    s.selection = edits.into_iter().filter_map(|(_, i)| i).collect();
+/// Copies of the selection at the same places, one undo step; the copies
+/// become the selection (the start of a Shift + move drag). The keys of
+/// the props copied, in the copies' order (None: nothing copied).
+fn copy_in_place(s: &mut EditorState) -> Option<Vec<PropKey>> {
+    let (keys, ops): (Vec<PropKey>, Vec<Op>) = editable(s)
+        .into_iter()
+        .filter_map(|(i, key)| {
+            let (p, _) = edit::placement_parts(&s.session.world, i)?;
+            Some((key.clone(), Op::Duplicate { key, position: p }))
+        })
+        .unzip();
+    let of = s.selection.clone();
+    let c = run_on(s, "Copy", &of, ops)?;
+    s.selection = placements_of(s, &c.added);
+    (s.selection.len() == keys.len()).then_some(keys)
 }
 
 /// A section heading in the panel.
@@ -621,6 +701,11 @@ fn finished(r: &egui::Response) -> bool {
 impl Panel for Props {
     /// The properties of the selection.
     fn ui(&mut self, s: &mut EditorState, ui: &mut Ui) {
+        if s.selection.is_empty()
+            && let Some(live) = self.live.take()
+        {
+            live.take_back(s);
+        }
         let Some(&first) = s.selection.first() else {
             ui.label(RichText::new("Nothing selected").color(colour(THEME_A.dim)));
             ui.label(
@@ -630,14 +715,14 @@ impl Panel for Props {
             );
             return;
         };
-        if first >= s.world.placements.len() {
+        if first >= s.session.world.placements.len() {
             s.selection.clear();
             return;
         }
-        let state = edit::prop_state(&s.map, &s.folder, &s.world, &s.region, first);
-        let knock = knock_over(&s.world, first);
+        let state = edit::prop_state(&s.session.map, &s.session.folder, &s.session.world, &s.session.region, first);
+        let knock = knock_over(&s.session.world, first);
         ui.horizontal(|ui| {
-            ui.label(RichText::new(name(&s.world, first)).strong().color(colour(THEME_A.ink)));
+            ui.label(RichText::new(name(&s.session.world, first)).strong().color(colour(THEME_A.ink)));
             tag(ui, if knock { "knock-over" } else { "static" }, colour(THEME_A.dim));
             if state != PropState::Original {
                 let col = match state {
@@ -651,7 +736,7 @@ impl Panel for Props {
         let origin = match state {
             PropState::Added(_) => "Added by this map mod".to_string(),
             PropState::OtherMod => "Added by another map mod".to_string(),
-            _ => match s.world.placement_ref(&s.region, first) {
+            _ => match s.session.world.placement_ref(&s.session.region, first) {
                 Some(r) => format!(
                     "Original placement · section {} · at {:.2}, {:.2}, {:.2}",
                     r.section, r.at.x, r.at.y, r.at.z
@@ -679,15 +764,15 @@ impl Panel for Props {
         });
         if p != pivot {
             let by = p - pivot;
-            apply_each(s, |w, i| edit::placement_parts(w, i).map(|(q, r)| (q + by, r)));
+            self.live.get_or_insert_with(|| Live::begin(s)).nudge(s, |q, r| (q + by, r));
         }
-        if done {
-            commit(s, &label(s, "Move"));
+        if done && let Some(live) = self.live.take() {
+            live.finish(s, "Move");
         }
 
         // Rotation.
         heading(ui, "Rotation");
-        let (_, rot) = edit::placement_parts(&s.world, first).unwrap_or((Vec3::ZERO, Mat3::IDENTITY));
+        let (_, rot) = edit::placement_parts(&s.session.world, first).unwrap_or((Vec3::ZERO, Mat3::IDENTITY));
         let h0 = edit::heading_of(rot);
         let mut h = h0;
         let mut done = false;
@@ -708,7 +793,7 @@ impl Panel for Props {
                 });
                 ui.end_row();
                 ui.label("Ground");
-                match edit::ground_gap(&s.world, first) {
+                match edit::ground_gap(&s.session.world, first) {
                     Some(g) if g.abs() < 0.05 => tag(ui, "on the ground", colour(THEME_A.ok)),
                     Some(g) if g > 0.0 => tag(ui, &format!("{g:.2} m above the ground"), colour(THEME_A.warn)),
                     Some(g) => tag(ui, &format!("{:.2} m in the ground", -g), colour(THEME_A.warn)),
@@ -719,10 +804,10 @@ impl Panel for Props {
         });
         if h != h0 {
             let turn = h - h0;
-            apply_each(s, |w, i| edit::placement_parts(w, i).map(|(q, r)| (q, edit::turned(r, turn))));
+            self.live.get_or_insert_with(|| Live::begin(s)).nudge(s, |q, r| (q, edit::turned(r, turn)));
         }
-        if done {
-            commit(s, &label(s, "Rotate"));
+        if done && let Some(live) = self.live.take() {
+            live.finish(s, "Rotate");
         }
 
         ui.add_space(6.0);
@@ -759,7 +844,7 @@ impl Panel for Props {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
     use crate::draw::camera::Camera;
     use crate::tools::map::{MapMod, PropEdit};
@@ -802,7 +887,7 @@ mod tests {
         w
     }
 
-    fn state() -> EditorState {
+    pub(crate) fn state() -> EditorState {
         let world = world();
         let camera = Camera::looking_at(Vec3::new(0.0, -20.0, 10.0), Vec3::new(10.0, 0.0, 0.0));
         EditorState::new("root".into(), "L4RA", "maps".into(), "my-map", MapMod::default(), world, camera)
@@ -811,36 +896,36 @@ mod tests {
     #[test]
     fn selection_actions_are_one_undo_step_each() {
         let mut s = state();
-        let n = s.world.placements.len();
+        let n = s.session.world.placements.len();
         // The floating barrier dropped to the ground.
         s.selection = vec![2];
         drop_selection(&mut s);
-        assert!(s.world.placements[2].transform.w_axis.z.abs() < 1e-4);
-        assert_eq!(s.undo.undo_label(), Some("Drop to ground XC_BARRIER_03"));
+        assert!(s.session.world.placements[2].transform.w_axis.z.abs() < 1e-4);
+        assert_eq!(s.session.undo.undo_label(), Some("Drop to ground XC_BARRIER_03"));
         // Two cones copied 5 m along y: the copies are selected.
         s.selection = vec![0, 1];
         duplicate_selection(&mut s, Some(Vec3::new(15.0, 5.0, 0.0)));
-        assert_eq!(s.world.placements.len(), n + 2);
+        assert_eq!(s.session.world.placements.len(), n + 2);
         assert_eq!(s.selection.len(), 2);
         assert!(s.selection.iter().all(|&i| i >= n));
-        let at: Vec<Vec3> = s.selection.iter().map(|&i| s.world.placements[i].transform.w_axis.truncate()).collect();
+        let at: Vec<Vec3> = s.selection.iter().map(|&i| s.session.world.placements[i].transform.w_axis.truncate()).collect();
         assert!(at.contains(&Vec3::new(10.0, 5.0, 0.0)) && at.contains(&Vec3::new(20.0, 5.0, 0.0)), "{at:?}");
-        assert!(s.adds_changed);
+        assert!(s.session.adds_changed);
         // Deleting a copy removes its add; deleting an original hides it.
         s.selection = vec![s.selection[0], 0];
         delete_selection(&mut s);
-        assert_eq!(s.world.placements.len(), n + 1);
-        assert!(s.map.props.iter().any(|e| matches!(e, PropEdit::Delete { .. })));
+        assert_eq!(s.session.world.placements.len(), n + 1);
+        assert!(s.session.map.props.iter().any(|e| matches!(e, PropEdit::Delete { .. })));
         assert!(s.selection.is_empty());
         // Undo takes back the delete only.
         assert!(crate::editor::undo::undo(&mut s));
-        assert_eq!(s.world.placements.len(), n + 2);
-        assert!(s.world.placements[0].flags & crate::world::HIDDEN_FLAG == 0);
+        assert_eq!(s.session.world.placements.len(), n + 2);
+        assert!(s.session.world.placements[0].flags & crate::world::HIDDEN_FLAG == 0);
         // Reset the dropped barrier: back 2 m up, its edit gone.
         s.selection = vec![2];
         reset_selection(&mut s);
-        assert_eq!(s.world.placements[2].transform.w_axis.z, 2.0);
-        assert!(!s.map.props.iter().any(|e| matches!(e, PropEdit::Move { .. })));
+        assert_eq!(s.session.world.placements[2].transform.w_axis.z, 2.0);
+        assert!(!s.session.map.props.iter().any(|e| matches!(e, PropEdit::Move { .. })));
     }
 
     #[test]
@@ -848,10 +933,169 @@ mod tests {
         let mut s = state();
         let i = place_new(&mut s, "XC_CONE_01", Vec3::new(5.0, 5.0, 0.3), 90.0).unwrap();
         assert_eq!(s.selection, vec![i]);
-        let (p, r) = edit::placement_parts(&s.world, i).unwrap();
+        let (p, r) = edit::placement_parts(&s.session.world, i).unwrap();
         assert!(p.z.abs() < 1e-4 && (edit::heading_of(r) - 90.0).abs() < 1e-3, "{p}");
-        assert_eq!(s.undo.undo_label(), Some("Add XC_CONE_01"));
+        assert_eq!(s.session.undo.undo_label(), Some("Add XC_CONE_01"));
         assert!(place_new(&mut s, "NO_SUCH", Vec3::ZERO, 0.0).is_none());
+    }
+
+    /// One frame of the handles in a 1600 x 960 viewport with `events`.
+    fn frame(p: &mut Props, s: &mut EditorState, ctx: &egui::Context, shift: bool, events: Vec<egui::Event>) -> bool {
+        let rect = viewport();
+        let mods = egui::Event::ModifiersChanged(egui::Modifiers { shift, ..Default::default() });
+        let events = std::iter::once(mods).chain(events).collect();
+        let input = egui::RawInput { screen_rect: Some(rect), events, ..Default::default() };
+        let mut taken = false;
+        let _ = ctx.run_ui(input, |ui| taken = p.handles(s, ui.ctx(), ui.painter(), rect));
+        taken
+    }
+
+    fn viewport() -> Rect {
+        Rect::from_min_size(Pos2::ZERO, egui::vec2(1600.0, 960.0))
+    }
+
+    fn button(at: Pos2, pressed: bool) -> egui::Event {
+        egui::Event::PointerButton {
+            pos: at,
+            button: egui::PointerButton::Primary,
+            pressed,
+            modifiers: Default::default(),
+        }
+    }
+
+    /// Press at `from`, move to `to`, release: a handle drag.
+    fn drag(p: &mut Props, s: &mut EditorState, shift: bool, from: Pos2, to: Pos2) {
+        let ctx = egui::Context::default();
+        frame(p, s, &ctx, shift, vec![egui::Event::PointerMoved(from)]);
+        assert!(frame(p, s, &ctx, shift, vec![button(from, true)]), "no handle at {from:?}");
+        assert!(p.dragging());
+        frame(p, s, &ctx, shift, vec![egui::Event::PointerMoved(to)]);
+        frame(p, s, &ctx, shift, vec![button(to, false)]);
+        assert!(!p.dragging());
+    }
+
+    /// The Top overview over the test props.
+    fn top(s: &mut EditorState) {
+        let t = crate::editor::camera::TopView { centre: glam::Vec2::new(10.0, 0.0), half_height: 50.0 };
+        s.camera = t.camera();
+    }
+
+    #[test]
+    fn handles_are_their_screen_size_in_every_view() {
+        let mut s = state();
+        let rect = viewport();
+        let pivot = Vec3::new(10.0, 0.0, 0.0);
+        for look in ["perspective", "top"] {
+            if look == "top" {
+                top(&mut s);
+            }
+            let len = Props::handle_length(&s, rect, pivot);
+            let (c, e) = (project(&s, rect, pivot).unwrap(), project(&s, rect, pivot + Vec3::X * len).unwrap());
+            // The x axis seen square on in Top, at a slant in the 3D view.
+            let on_screen = c.distance(e);
+            assert!(on_screen <= HANDLE_POINTS + 1.0 && on_screen > HANDLE_POINTS * 0.5, "{look}: {on_screen}");
+            if look == "top" {
+                assert!((on_screen - HANDLE_POINTS).abs() < 1.0, "{on_screen}");
+            }
+        }
+    }
+
+    #[test]
+    fn a_top_view_drag_moves_a_prop_as_one_op() {
+        let mut s = state();
+        top(&mut s);
+        s.selection = vec![0];
+        let mut p = Props::default();
+        let rect = viewport();
+        let pivot = Vec3::new(10.0, 0.0, 0.0);
+        let len = Props::handle_length(&s, rect, pivot);
+        let c = project(&s, rect, pivot).unwrap();
+        let mid = project(&s, rect, pivot + Vec3::X * len * 0.6).unwrap();
+        // 96 points to the right: 10 m at 50 m from the middle to the top.
+        drag(&mut p, &mut s, false, mid, mid + egui::vec2(96.0, 0.0));
+        let (at, _) = edit::placement_parts(&s.session.world, 0).unwrap();
+        assert!((at.x - 20.0).abs() < 0.01 && at.y == 0.0 && at.z == 0.0, "{at} from {c:?}");
+        assert_eq!(edit::snap(at.x, SNAP_METRES), at.x, "snapped");
+        assert_eq!(s.session.undo.undo_label(), Some("Move XC_CONE_01"));
+        assert!(matches!(s.session.map.props.as_slice(), [PropEdit::Move { position, .. }] if *position == at));
+        // One step: undo puts it back where it stood.
+        assert!(crate::editor::undo::undo(&mut s));
+        assert_eq!(edit::placement_parts(&s.session.world, 0).unwrap().0, pivot);
+        assert!(s.session.map.props.is_empty() && s.session.undo.undo_label().is_none());
+    }
+
+    #[test]
+    fn a_ring_drag_turns_and_a_shift_drag_copies_in_one_step() {
+        let mut s = state();
+        top(&mut s);
+        s.selection = vec![0];
+        let rect = viewport();
+        let pivot = Vec3::new(10.0, 0.0, 0.0);
+        let len = Props::handle_length(&s, rect, pivot);
+        let mut p = Props { tool: Tool::Rotate, ..Props::default() };
+        let east = project(&s, rect, pivot + Vec3::X * len).unwrap();
+        let north = project(&s, rect, pivot + Vec3::Y * len).unwrap();
+        drag(&mut p, &mut s, false, east, north);
+        let (at, r) = edit::placement_parts(&s.session.world, 0).unwrap();
+        assert!(
+            (edit::heading_of(r) - 90.0).abs() < 1e-3 && at.abs_diff_eq(pivot, 1e-4),
+            "{at} {}",
+            edit::heading_of(r)
+        );
+        assert_eq!(s.session.undo.undo_label(), Some("Rotate XC_CONE_01"));
+
+        // Shift + move: a copy where the drag ends, the original kept.
+        let n = s.session.world.placements.len();
+        let steps = |s: &EditorState| {
+            let mut u = s.session.undo.clone();
+            std::iter::from_fn(|| u.undo()).count()
+        };
+        let before = steps(&s);
+        p.tool = Tool::Move;
+        let mid = project(&s, rect, pivot + Vec3::X * len * 0.6).unwrap();
+        drag(&mut p, &mut s, true, mid, mid + egui::vec2(96.0, 0.0));
+        assert_eq!(s.session.world.placements.len(), n + 1);
+        assert_eq!(steps(&s), before + 1, "one step");
+        assert_eq!(s.session.undo.undo_label(), Some("Copy XC_CONE_01"));
+        assert_eq!(s.selection, vec![n]);
+        let (copy, cr) = edit::placement_parts(&s.session.world, n).unwrap();
+        assert!((copy.x - 20.0).abs() < 0.01 && (edit::heading_of(cr) - 90.0).abs() < 1e-3, "{copy}");
+        assert!(edit::placement_parts(&s.session.world, 0).unwrap().0.abs_diff_eq(pivot, 1e-4));
+        assert!(matches!(s.session.map.props.last(), Some(PropEdit::Add { position, .. }) if *position == copy));
+    }
+
+    #[test]
+    fn the_panel_moves_by_ops_and_another_mods_props_are_left_out() {
+        let mut s = state();
+        // Placement 3: added by another mod (not this one's to edit).
+        let i = s.session.world.add_placement("XC_CONE_01", glam::Mat4::from_translation(Vec3::Y * 5.0)).unwrap();
+        s.session.world.map_overlay.added.insert(i, ("other".into(), "a1".into()));
+        s.selection = vec![i, 1];
+        assert_eq!(s.session.key_of(i), None);
+        delete_selection(&mut s);
+        assert_eq!(s.session.undo.undo_label(), Some("Delete XC_CONE_01"), "{}", s.status);
+        assert!(matches!(s.session.map.props.as_slice(), [PropEdit::Delete { .. }]));
+        assert!(s.selection.is_empty());
+        assert!(crate::editor::undo::undo(&mut s));
+
+        // Live: the world moves, the mod waits for the end of the edit.
+        s.selection = vec![0, 1];
+        let live = Live::begin(&s);
+        live.nudge(&mut s, |p, r| (p + Vec3::Z, r));
+        assert_eq!(s.session.world.placements[0].transform.w_axis.z, 1.0);
+        assert!(s.session.map.props.is_empty());
+        live.finish(&mut s, "Move");
+        assert_eq!(s.session.undo.undo_label(), Some("Move 2 props"));
+        assert_eq!(s.session.map.props.len(), 2);
+        assert_eq!(s.session.world.placements[1].transform.w_axis.z, 1.0);
+        // Upright and reset are ops too; reset leaves the unedited alone.
+        s.selection = vec![0, 2];
+        reset_selection(&mut s);
+        assert_eq!(s.session.undo.undo_label(), Some("Reset XC_CONE_01"));
+        assert_eq!(s.session.world.placements[0].transform.w_axis.z, 0.0);
+        s.selection = vec![2];
+        reset_selection(&mut s);
+        assert_eq!(s.status, Refused::NotEdited.to_string());
     }
 
     #[test]

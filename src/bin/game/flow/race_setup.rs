@@ -1158,7 +1158,10 @@ mod map_test_tests {
     use nfsu2::tools::map::{CustomRace, MapMod, RaceKind, store};
 
     /// A mod in this test's data folder holding a short sprint over the
-    /// first three checkpoints of a career sprint's track.
+    /// first three checkpoints of a career sprint's track. The data folder
+    /// is the test thread's sandbox (`test_isolation`, only with
+    /// `dev-harness`): without it these tests would write into the
+    /// player's maps folder, so they are ignored then.
     fn sprint_mod(game: &Game, folder: &str) -> (CustomRace, career::Route) {
         let event = game
             .game_data
@@ -1175,6 +1178,7 @@ mod map_test_tests {
         race.checkpoints = native.checkpoints[..3].to_vec();
         let m = MapMod { name: "Test".into(), races: vec![race.clone()], ..Default::default() };
         let dir = store::maps_dir();
+        assert!(dir.starts_with(std::env::temp_dir()), "not the test's own maps folder: {}", dir.display());
         store::save(&dir, folder, &m).unwrap();
         store::set_enabled(&dir, folder, true).unwrap();
         nfsu2::tools::map::reload_active();
@@ -1182,7 +1186,10 @@ mod map_test_tests {
     }
 
     #[test]
-    #[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
+    #[cfg_attr(
+        any(not(ob_game), not(feature = "dev-harness")),
+        ignore = "needs NFSU2_ROOT (the player's own game files) and the dev-harness test sandbox (it writes a map mod)"
+    )]
     fn a_test_run_races_the_custom_race_without_the_save() {
         let mut game = Game::new().unwrap();
         let (race, native) = sprint_mod(&game, "test-run");
@@ -1209,7 +1216,10 @@ mod map_test_tests {
     }
 
     #[test]
-    #[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
+    #[cfg_attr(
+        any(not(ob_game), not(feature = "dev-harness")),
+        ignore = "needs NFSU2_ROOT (the player's own game files) and the dev-harness test sandbox (it writes a map mod)"
+    )]
     fn a_test_run_drives_from_the_spot() {
         let mut game = Game::new().unwrap();
         let (_, route) = sprint_mod(&game, "test-roam");

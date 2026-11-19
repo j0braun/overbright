@@ -69,6 +69,35 @@ fn a_race_on_the_road_has_no_errors_and_says_its_length() {
     assert!(c.iter().any(|c| !c.ok && c.text.ends_with("not tested since the last change")));
 }
 
+/// A custom race has only its base track's roads: a checkpoint beyond
+/// them, or a leg they do not join, says so.
+#[test]
+fn leaving_the_base_tracks_area_is_named_plainly() {
+    let net = straight(false);
+    let c = run(&map_of(vec![sprint(&[(20.0, 0.0), (380.0, 0.0)])]), &net);
+    assert!(c.iter().any(|c| c.ok && c.text.contains("stays on that track's roads (an area of 400 m × 0 m)")), "{c:#?}");
+    let c = run(&map_of(vec![sprint(&[(20.0, 0.0), (380.0, 0.0), (390.0, 600.0)])]), &net);
+    let w = warnings(&c);
+    assert!(
+        w.iter().any(|w| w.text.contains("checkpoint 3 is 600 m from base track 4001's roads")
+            && w.text.ends_with(AREA_NOTE)),
+        "{c:#?}"
+    );
+    // Two roads that do not meet: no barrier to blame, the area is.
+    let mut apart = straight(false);
+    for s in &mut apart.segments {
+        s.exits = [vec![], vec![]];
+    }
+    let c = run(&map_of(vec![sprint(&[(20.0, 0.0), (380.0, 0.0)])]), &apart);
+    let e = errors(&c);
+    assert_eq!(e.len(), 1, "{c:#?}");
+    assert!(
+        e[0].text.contains("no road from checkpoint 1 to 2 on base track 4001's roads") && e[0].text.ends_with(AREA_NOTE),
+        "{}",
+        e[0].text
+    );
+}
+
 #[test]
 fn too_few_checkpoints_and_a_missing_network_are_errors() {
     let map = map_of(vec![sprint(&[(20.0, 0.0)])]);
@@ -102,6 +131,12 @@ fn a_leg_behind_a_closed_barrier_is_named_and_another_track_offered() {
     assert!(errors(&race_checks(&fixed, 0, Some(&open), &[], &Tested::default())).is_empty());
     // No track that helps: no fix offered.
     let c = race_checks(&map, 0, Some(&closed), &[(4001, &closed)], &Tested::default());
+    assert_eq!(errors(&c)[0].fix, None);
+    // Nor a track whose roads are far from the checkpoints (its area is
+    // elsewhere), even though a route builds from its nearest nodes.
+    let mut far = open.clone();
+    far.nodes.iter_mut().for_each(|n| n.0.y += 500.0);
+    let c = race_checks(&map, 0, Some(&closed), &[(4001, &closed), (4003, &far)], &Tested::default());
     assert_eq!(errors(&c)[0].fix, None);
 }
 

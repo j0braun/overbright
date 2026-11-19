@@ -463,7 +463,7 @@ fourth number). Every coordinate and heading MUST be finite and within ±100,000
 and markers are put on the ground at load, as the game does with its own markers.
 
 **Race digest.** The *race digest* is the `xxh3-128` of this UTF-8 text, built from the fields that change how the
-race drives (the same set the map editor's fingerprint takes, `src/editor/validate.rs:152`; the name is not part of
+race drives (the same set the map editor's fingerprint takes, `validate::fingerprint` in `crates/ob-editor/src/editor/validate.rs`; the name is not part of
 it): a first line `ob.race-digest/1`, then `track=<n>`, `backward=<true|false>`, `mode=<mode>`, `laps=<n>`, one
 `checkpoint=<x> <y>` per checkpoint, one `grid=<x> <y> <z> <h>` per grid slot, `start=<x> <y> <z> <h>` and
 `finish=<x> <y> <z> <h>` when present; each line ends in LF; floats in the shortest form that round-trips as binary32

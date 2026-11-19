@@ -79,17 +79,18 @@ into the binaries: `--no-build` keeps the one of the earlier build, so a changed
 | check | what it proves |
 |---|---|
 | `third-party licences <target>` | every crate's licence is GPL-3-compatible and has its text in the archive |
+| `third-party licences <target>: the map editor's crates` | the list covers the editor's package too: egui, egui-winit and egui-wgpu are listed as linked |
 | `listing <archive>` | the archive holds exactly the expected files (a tool binary, a stray file → FAIL) |
 | `zip text files: CRLF` | Notepad-friendly text in the Windows archive |
-| `version stamp <binary>` | all four binaries carry the version and commit of the archive's name |
+| `version stamp <binary>` | all six binaries carry the version and commit of the archive's name |
 | `check_linux.sh` (both Linux programs) | no x86 ISA note, glibc ≤ 2.28, NEEDED allow-list, no RPATH, no `/home/` |
 | `check_pe.py --gui` (both exes) | system DLLs only, GUI subsystem, icon + version + manifest resources, no home paths |
 | `game --selftest` / `--dev-harness` | the developer harness is not in the shipping game (usage error, rc 2) |
 | `no harness strings` | the harness's flags and variables are absent (both games) |
-| `game --version`, `game --check-game $NFSU2_ROOT` | the unpacked Linux game runs with an empty HOME |
+| `game --version`, `game --check-game $NFSU2_ROOT`, `overbright-editor --version` | the unpacked Linux game and editor run with an empty HOME |
 | `overbright --render about` | the launcher draws with an empty HOME, no GPU (`VK_ICD_FILENAMES=/nonexistent`) and no display |
 | `nothing written to HOME` | those runs leave the player's home alone |
-| Wine: `game.exe --version`, `overbright.exe --render about` | the Windows programs start (private prefix in `<out>/wine/`, private Xvfb: `PKG_DISPLAY` or a free one; `WAYLAND_DISPLAY` unset) |
+| Wine: `game.exe --version`, `overbright-editor.exe --version`, `overbright.exe --render about` | the Windows programs start (private prefix in `<out>/wine/`, private Xvfb: `PKG_DISPLAY` or a free one; `WAYLAND_DISPLAY` unset) |
 
 `--plant home-binary|file` proves the checks bite: it plants a home path at the end of `game.exe` or a tool
 binary into the Linux folder after assembling, and the run must end in `PACKAGE: FAIL`.

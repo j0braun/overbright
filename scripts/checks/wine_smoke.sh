@@ -46,6 +46,15 @@
 #               screen ("boot: the title screen"; Enter skips the boot movies), no panic line
 #   l_play      the launcher with "Start the game directly" set starts game.exe beside it: the game's own log
 #               (in the launcher's data folder) reaches the title screen, no panic line in either log
+# The map editor (overbright-editor.exe beside the build's game: $WINE_EDITOR, else dist/windows/overbright-editor.exe;
+# when the build is made here it must be there, with WINE_EXE given and none found it is skipped; LINUX_EDITOR,
+# default $CARGO_TARGET_DIR/<profile>/overbright-editor, draws the references with the same arguments):
+#   e_start     `overbright-editor.exe --shot` (no map mod open, 1280x720) on Vulkan: exits 0, a PNG of that size,
+#               the image matches the Linux editor's within the tolerance
+#   e_props     the same with a map mod made here open on the city (Props mode, the 3D view: the world loaded and drawn
+#               by the game's renderer under Wine), 1280x720; the view is not the same run to run even on Linux, so
+#               the comparison is reported and the view must not be one flat colour
+#   e_races     the same mod in Races mode on the 2D road-network map at 1600x960 and display scale 1.5
 # Every log is grepped for panic / validation-error lines (any one fails its step).
 # Tolerance (pixdiff): at most $WINE_TOL_PIXELS pixels differ (default 64) and no channel by more than
 # $WINE_TOL_DIFF (default 4). Measured 2026-11-12: Wine+winevulkan on RADV gives byte-identical images
@@ -275,6 +284,72 @@ check_dx12() { # EXE REF
   fi
 }
 
+# The map editor. Each side (Linux, Wine) runs in a folder of its own holding `maps/` with a map mod for the shots,
+# and names it relatively (`--maps maps`): the opening screen prints the maps folder as given, so both draw the same
+# text (the editor also keeps its recent list there).
+editor_side() { # DIR: the side's folder, made once
+  [ -d "$1/maps/smoke" ] && return 0
+  mkdir -p "$1/maps/smoke"; printf 'overbright-map 1\nname = Wine smoke\n' > "$1/maps/smoke/map.obmap"
+}
+# editor_args NAME: the shot's arguments after --shot/--maps.
+editor_args() {
+  case $1 in
+    e_start) echo "--size 1280x720" ;;
+    e_props) echo "--size 1280x720 --mod smoke --mode props --view 3d --tab browser" ;;
+    e_races) echo "--size 1600x960 --scale 1.5 --mod smoke --mode races --view map --tab validation" ;;
+  esac
+}
+# editor_reference NAME: the Linux editor's shot (headless: no display variable at all), its path on stdout.
+editor_reference() {
+  local name=$1; mkdir -p "$O/linux" "$O/tmp/linux-$name/data" "$O/tmp/linux-$name/cache"
+  editor_side "$O/editor-linux"
+  # shellcheck disable=SC2046
+  ( cd "$O/editor-linux" && env -u DISPLAY -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE XDG_DATA_HOME="$O/tmp/linux-$name/data" \
+    XDG_CACHE_HOME="$O/tmp/linux-$name/cache" NFSU2_HEADLESS_ONLY=1 RADV_DEBUG=${RADV_DEBUG-nodcc} \
+    timeout 900 "$LED" --shot "$O/linux/$name.png" --maps maps $(editor_args "$name") > "$O/linux/$name.log" 2>&1 )
+  echo "$O/linux/$name.png"
+}
+# check_editor NAME EXE REF: the Windows editor's shot on Vulkan. Exit 0, no panic / validation line, a PNG of the
+# asked size; e_start and e_races must match the Linux shot within the tolerance. The 3D view (e_props) is not the
+# same run to run even on Linux (the world's streaming; hundreds to a few thousand pixels): there the comparison is
+# reported, and the view in the middle of the window must not be one flat colour (ImageMagick, when installed).
+check_editor() {
+  local name=$1 exe=$2 ref=$3
+  editor_side "$O/editor-win"
+  local want; want=$(editor_args "$name" | grep -oE '[0-9]+x[0-9]+')
+  cd "$O/editor-win" || return
+  # shellcheck disable=SC2046
+  WENV=(WGPU_BACKEND=vulkan); wrun "$name" 1200 "$exe" --shot "$(wp "$O/$name.png")" --maps maps $(editor_args "$name")
+  cd - > /dev/null || return
+  local ok=ok why="" got cstd
+  [ $RC = 0 ] || { ok=no; why="rc=$RC "; }
+  [ "$BAD" = 0 ] || { ok=no; why="${why}panic/validation=$BAD "; }
+  got=$(python3 -I -c 'import struct,sys; d=open(sys.argv[1],"rb").read(24); print("%dx%d" % struct.unpack(">II", d[16:24]) if d[:8] == b"\x89PNG\r\n\x1a\n" else "none")' "$O/$name.png" 2> /dev/null)
+  [ "$got" = "$want" ] || { ok=no; why="${why}image ${got:-none}, not $want "; }
+  # The status bar's right end shows the time the last frame's UI took (wall clock, differs run to run): it is
+  # blanked in both images before the comparison (220x28 points; ImageMagick, when installed).
+  local a="$O/$name.png" b=$ref
+  if [ "$got" = "$want" ] && [ -s "$ref" ] && command -v magick > /dev/null; then
+    local sc w h; sc=$(editor_args "$name" | grep -oE -- '--scale [0-9.]+' | cut -d' ' -f2); sc=${sc:-1}
+    w=${want%x*} h=${want#*x}
+    local box; box=$(awk -v w="$w" -v h="$h" -v s="$sc" 'BEGIN { printf "rectangle %d,%d %d,%d", w - 220 * s, h - 28 * s, w, h }')
+    mkdir -p "$O/masked"
+    magick "$O/$name.png" -fill black -draw "$box" "$O/masked/$name-wine.png" && magick "$ref" -fill black -draw "$box" "$O/masked/$name-linux.png" \
+      && a="$O/masked/$name-wine.png" b="$O/masked/$name-linux.png"
+  fi
+  if [ "$name" = e_props ]; then
+    compare "$name" "$a" "$b"; CMP="$CMP (reported only: the 3D view differs run to run)"
+    if [ "$got" = "$want" ] && command -v magick > /dev/null; then
+      cstd=$(magick "$O/$name.png" -alpha off -colorspace gray -gravity center -crop 30%x30%+0+0 +repage \
+        -format '%[fx:standard_deviation]' info: 2> /dev/null)
+      awk -v s="${cstd:-0}" 'BEGIN { exit !(s >= 0.02) }' || { ok=no; why="${why}nothing in the view (centre std ${cstd:-?}) "; }
+    fi
+  else
+    compare "$name" "$a" "$b" || { ok=no; why="${why}image over the tolerance "; }
+  fi
+  result "$name" $ok "${why}$SECS s vs Linux: $CMP"
+}
+
 # ---- --env-check: the environment of the runs, on a stand-in for wine (no Wine, no Xvfb, no game) ------------
 # As checks.sh and the desktop session leave it (the guard exported, the desktop's X and Wayland displays), the
 # windowed steps (w_window, l_play) run through their own code here with a stand-in `wine` that writes the
@@ -367,6 +442,8 @@ if [ -z "$EXE" ]; then
   EXE=$B/dist/windows-dev/game.exe
 fi
 [ -f "$EXE" ] || ck_die "no exe $EXE"
+EEXE=${WINE_EDITOR:-$(dirname "$EXE")/../windows/overbright-editor.exe}
+LED=${LINUX_EDITOR:-$TGT/$CK_PDIR/overbright-editor}
 # The exe in a folder of its own (the DXC goes next to it); the asset cache, profiles and temp under OUTDIR.
 mkdir -p "$O/exe" "$O/tmp"
 cp -f "$EXE" "$O/exe/game.exe"
@@ -442,6 +519,15 @@ else
   cp "$O/vk_wrong_ref.log" "$O/panic_probe.log"; echo "thread 'main' panicked at src/x.rs:1:1:" >> "$O/panic_probe.log"
   [ "$(ck_bad "$O/panic_probe.log")" != 0 ] && result panic_grep no "a planted panic line is found" || result panic_grep ok "planted panic line missed"
   check_dx12 "$O/exe/broken.exe" "$(reference main main)"
+  # The editor: a cut exe, and a good one compared with another screen's Linux image.
+  if [ -f "$EEXE" ] && [ -x "$LED" ]; then
+    cp -f "$EEXE" "$O/exe/overbright-editor.exe"
+    head -c 65536 "$EEXE" > "$O/exe/broken-editor.exe"
+    check_editor e_start "$O/exe/broken-editor.exe" "$(editor_reference e_start)"
+    check_editor e_start "$O/exe/overbright-editor.exe" "$(editor_reference e_races)"
+  else
+    result e_missing no "(no editor exe $EEXE or no Linux editor $LED: its checks cannot be tested)"
+  fi
   # Expected: every step failed.
   N=$(grep -cE '^[a-z_0-9]+: ' "$REP"); NF=${#FAIL[@]}
   say "selfcheck: $NF of $(( NF + $(grep -cE '^[a-z_0-9]+: (ok|XFAIL) ' "$REP") )) checks failed on broken input (all must)"
@@ -450,6 +536,19 @@ else
   fi
   say "WINE_SMOKE_SELFCHECK: FAIL (a check passed on broken input: $(grep -E '^[a-z_0-9]+: (ok|XFAIL) ' "$REP" | cut -d: -f1 | tr '\n' ' ')) ($(( $(date +%s) - T0 )) s)"
   exit 1
+fi
+
+# ---- the map editor ---------------------------------------------------------------------------------------------
+if [ "$SELFCHECK" = 0 ]; then
+  if [ -f "$EEXE" ] && [ -x "$LED" ]; then
+    cp -f "$EEXE" "$O/exe/overbright-editor.exe"
+    say "editor $EEXE md5 $(md5sum < "$EEXE" | cut -c1-12)"
+    for e in e_start e_props e_races; do check_editor "$e" "$O/exe/overbright-editor.exe" "$(editor_reference "$e")"; done
+  elif [ -z "${WINE_EXE:-}" ]; then
+    result editor no "(the build made here has no $EEXE, or no Linux editor $LED)"
+  else
+    say "editor: SKIP (no $EEXE or no Linux editor $LED)"
+  fi
 fi
 
 # ---- the launcher ---------------------------------------------------------------------------------------------

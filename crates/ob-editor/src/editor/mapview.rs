@@ -1,7 +1,8 @@
 //! The 2D Map view (M): the whole region from above — the drivable
 //! sections' outlines and the free roam's roads — with the current race's
-//! base track network, its closed barriers and points, the selection and
-//! the 3D camera on top. It opens fitted to the region; drag pans, the
+//! base track network and its closed barriers, the selection and the 3D
+//! camera on top (the races are drawn over it by the races' overlay in
+//! `app::Panels`). It opens fitted to the region; drag pans, the
 //! wheel zooms around the mouse, Home fits the region again, a
 //! double-click moves the 3D camera there.
 //!
@@ -11,7 +12,7 @@
 use egui::{Align2, Color32, FontId, Pos2, Rect, Sense, Stroke};
 use glam::{Vec2, Vec3};
 
-use super::overlay::{colour, label2d, line2d, marker2d};
+use super::overlay::{colour, label2d, line2d};
 use super::state::EditorState;
 use crate::formats::roads::RoadNet;
 
@@ -84,17 +85,14 @@ impl MapView {
     /// the current race's base track's (into `s.nets`, its race barriers
     /// closed as `tools::map::race::road_net` does) and the overview.
     pub fn load_networks(&mut self, s: &mut EditorState) {
-        if let Some(t) = s.race.and_then(|k| s.map.races.get(k)).map(|r| r.track)
+        if let Some(t) = s.race.and_then(|k| s.session.map.races.get(k)).map(|r| r.track)
             && !s.nets.contains_key(&t)
         {
-            let net = std::fs::read(paths_file(&s.root, &s.region, t))
-                .map(|data| crate::tools::map::race::net_from(&data, t))
-                .map_err(|e| log::warn!("map view: track {t}: {e}"))
-                .ok();
+            let net = s.assets.road_net(t);
             s.nets.insert(t, net);
         }
         if self.overview.is_none() {
-            self.overview = Some(overview_net(&s.root, &s.region));
+            self.overview = Some(overview_net(s.assets.as_ref(), &s.session.region));
         }
     }
 
@@ -105,7 +103,7 @@ impl MapView {
     }
 
     fn race_network(s: &EditorState) -> Option<(u16, &RoadNet)> {
-        let race_track = s.race.and_then(|k| s.map.races.get(k)).map(|r| r.track);
+        let race_track = s.race.and_then(|k| s.session.map.races.get(k)).map(|r| r.track);
         if let Some(t) = race_track
             && let Some(Some(net)) = s.nets.get(&t)
         {
@@ -127,7 +125,7 @@ impl MapView {
         self.load_networks(s);
         // Held outside `self` while drawing (the view changes as it draws).
         let overview = self.overview.take();
-        let outlines = self.outlines.take().unwrap_or_else(|| region_outlines(&s.world));
+        let outlines = self.outlines.take().unwrap_or_else(|| region_outlines(&s.session.world));
         let net = network(s, &overview);
         let region =
             region_bounds(&outlines, overview.as_ref().and_then(|o| o.as_ref()).map(|(_, n)| n), net.map(|(_, n)| n));
@@ -196,38 +194,11 @@ impl MapView {
             );
         }
 
-        // The current race's points.
-        if let Some(race) = s.race.and_then(|k| s.map.races.get(k)) {
-            let pts: Vec<Pos2> = race.checkpoints.iter().map(|&c| self.to_screen(c)).collect();
-            for w in pts.windows(2) {
-                line2d(&painter, w[0], w[1], colour::DIM, 1.0);
-            }
-            for spot in &race.grid {
-                painter.circle_filled(self.to_screen(spot.position.truncate()), 3.0, colour::DIM);
-            }
-            for (spot, name) in [(race.start, "S"), (race.finish, "F")] {
-                if let Some(spot) = spot {
-                    marker2d(
-                        &painter,
-                        self.to_screen(spot.position.truncate()),
-                        8.0,
-                        colour::PAGE,
-                        colour::INK,
-                        Some(name),
-                    );
-                }
-            }
-            for (k, &p) in pts.iter().enumerate() {
-                let current =
-                    s.point.is_some_and(|q| q.part == crate::tools::map::edit::RacePart::Checkpoint && q.index == k);
-                let (fill, ring) = if current { (colour::SELECT, colour::SELECT) } else { (colour::PAGE, colour::INK) };
-                marker2d(&painter, p, 8.0, fill, ring, Some(&(k + 1).to_string()));
-            }
-        }
+        // The races are drawn by the races' overlay (`app::Panels`).
 
         // The selection and the 3D camera.
         for &i in &s.selection {
-            if let Some(p) = s.world.placements.get(i) {
+            if let Some(p) = s.session.world.placements.get(i) {
                 painter.circle_stroke(
                     self.to_screen(p.transform.w_axis.truncate().truncate()),
                     5.0,
@@ -314,19 +285,12 @@ fn net_of_lines<'a>(lines: impl Iterator<Item = &'a [Vec3]>) -> RoadNet {
     net
 }
 
-/// A region's paths file for `track` (`TRACKS/ROUTES<region>/Paths<n>.bin`).
-pub fn paths_file(root: &std::path::Path, region: &str, track: u16) -> std::path::PathBuf {
-    crate::game_fs::path(root, &format!("TRACKS/ROUTES{region}/Paths{track}.bin"))
-}
-
 /// The region's roads as a whole, for the map without a race: the
-/// free roam's AI routes (`RoutesFreeRoam.bin`, every lane the free roam's
-/// traffic drives), each record a segment of a network with no barriers.
-/// Its number is 0 here.
-fn overview_net(root: &std::path::Path, region: &str) -> Option<(u16, RoadNet)> {
-    let data = std::fs::read(crate::game_fs::path(root, &format!("TRACKS/ROUTES{region}/RoutesFreeRoam.bin"))).ok()?;
-    let routes = crate::formats::ai_routes::RouteFile::parse(&data);
-    let lines: Vec<Vec<Vec3>> = routes.records.iter().map(|r| r.points.iter().map(|p| p.position).collect()).collect();
+/// free roam's AI routes (every lane the free roam's traffic drives, read
+/// through the assets), each a segment of a network with no barriers. Its
+/// number is 0 here.
+fn overview_net(assets: &dyn crate::tools::map::assets::MapAssets, region: &str) -> Option<(u16, RoadNet)> {
+    let lines = assets.free_roam_lines(region);
     Some((0, net_of_lines(lines.iter().map(Vec::as_slice)))).filter(|(_, n)| !n.nodes.is_empty())
 }
 

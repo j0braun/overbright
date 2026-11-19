@@ -423,9 +423,9 @@ mod tests {
         assert!(r.skip(13).is_err());
         assert_eq!(r.skip(12), Ok(()));
         assert!(r.skip(1).is_err());
-        assert_eq!(r.rest(), &[][..]);
+        assert!(r.rest().is_empty());
         assert!(r.bytes_at(usize::MAX, 2).is_err());
-        assert_eq!(r.bytes_at(12, 0), Ok(&[][..]));
+        assert_eq!(r.bytes_at(12, 0), Ok(&[0u8; 0][..]));
         assert!(r.bytes_at(13, 0).is_err());
     }
 

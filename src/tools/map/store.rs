@@ -3,6 +3,11 @@
 //! name a line, applied in that order). Import and export as a folder or a
 //! `.zip` holding `map.obmap`. Nothing here reads or writes the game's own
 //! files.
+//!
+//! The editor's own files for a mod (its view, autosave, tested marks, the
+//! last test's result, and the run copy a test or simulation plays) are in
+//! the mod's `.editor/` folder ([`editor_dir`]); export and import take only
+//! `map.obmap`.
 
 use std::path::{Path, PathBuf};
 
@@ -14,6 +19,79 @@ use super::format::{MAX_FILE_BYTES, MapMod, valid_id};
 pub const FILE: &str = "map.obmap";
 /// The list of mods in use.
 pub const ENABLED: &str = "enabled.txt";
+
+/// The editor's folder inside a mod's folder (never exported).
+pub const EDITOR_DIR: &str = ".editor";
+/// The run copy's folder inside [`EDITOR_DIR`].
+pub const RUN_DIR: &str = "run";
+/// The editor's files that older editors kept beside `map.obmap`; moved
+/// into [`EDITOR_DIR`] once ([`move_old_sidecars`]).
+pub const SIDECARS: [&str; 4] = [AUTOSAVE, EDITOR_TOML, TESTED, TEST_RESULT];
+/// The unsaved changes, written every minute.
+pub const AUTOSAVE: &str = "map.obmap.autosave";
+/// The editor's view of the mod (camera, panel sizes).
+pub const EDITOR_TOML: &str = "editor.toml";
+/// The races' tested marks.
+pub const TESTED: &str = "tested.txt";
+/// The last test run's result line (`game --map-result`).
+pub const TEST_RESULT: &str = "test-result.txt";
+
+/// `<dir>/<folder>/.editor`: the editor's files for that mod.
+pub fn editor_dir(dir: &Path, folder: &str) -> PathBuf {
+    dir.join(folder).join(EDITOR_DIR)
+}
+
+/// `<dir>/<folder>/.editor/run/map.obmap`: the copy of the mod as it is in
+/// the editor (saved or not) that a test run or simulation plays
+/// (`game --map-file`).
+pub fn run_file(dir: &Path, folder: &str) -> PathBuf {
+    editor_dir(dir, folder).join(RUN_DIR).join(FILE)
+}
+
+/// Write `m` as the run copy of `folder` (through a temporary file, so the
+/// game never reads half a file); `map.obmap` is not touched.
+pub fn write_run_copy(dir: &Path, folder: &str, m: &MapMod) -> Result<PathBuf> {
+    ensure!(valid_id(folder), "`{folder}` is not a map mod folder name (a-z, 0-9, - and _)");
+    let path = run_file(dir, folder);
+    crate::qol::saves::write_atomic(&path, m.write().as_bytes(), false)
+        .with_context(|| format!("writing {}", path.display()))?;
+    Ok(path)
+}
+
+/// The mod name a run gives a mod file it was handed (`--map-file`): for a
+/// run copy (`<folder>/.editor/run/map.obmap`) that mod's folder, else the
+/// folder holding the file, else `map-file` when that is no folder name.
+pub fn folder_of_file(path: &Path) -> String {
+    let name = |p: Option<&Path>| p.and_then(Path::file_name).and_then(|n| n.to_str()).map(str::to_string);
+    let parent = path.parent();
+    let run = name(parent).as_deref() == Some(RUN_DIR)
+        && name(parent.and_then(Path::parent)).as_deref() == Some(EDITOR_DIR);
+    let folder = if run { name(parent.and_then(Path::parent).and_then(Path::parent)) } else { name(parent) };
+    folder.filter(|f| valid_id(f)).unwrap_or_else(|| "map-file".into())
+}
+
+/// Move the editor files an older editor left beside `map.obmap` into
+/// `.editor/` (once: a file already there is newer and stays; the old one
+/// is then left alone). Returns how many moved.
+pub fn move_old_sidecars(dir: &Path, folder: &str) -> Result<usize> {
+    let (from, to) = (dir.join(folder), editor_dir(dir, folder));
+    let mut moved = 0;
+    for name in SIDECARS {
+        let old = from.join(name);
+        if !old.is_file() {
+            continue;
+        }
+        let new = to.join(name);
+        if new.exists() {
+            log::warn!("map mod {folder}: {} kept, {} is in use", old.display(), new.display());
+            continue;
+        }
+        std::fs::create_dir_all(&to).with_context(|| format!("making {}", to.display()))?;
+        std::fs::rename(&old, &new).with_context(|| format!("moving {} to {}", old.display(), new.display()))?;
+        moved += 1;
+    }
+    Ok(moved)
+}
 
 /// The map mods' folder in Overbright's data folder (portable-aware).
 pub fn maps_dir() -> PathBuf {

@@ -28,7 +28,7 @@ mod scenery;
 
 pub use self::anims::*;
 pub use self::data::*;
-pub use self::map_overlay::{MATCH_DISTANCE, parts_of, transform_of};
+pub use self::map_overlay::{MATCH_DISTANCE, MapIndex, parts_of, transform_of};
 use self::parse::*;
 pub use self::scenery::*;
 

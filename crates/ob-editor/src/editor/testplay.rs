@@ -1,9 +1,12 @@
-//! Test race and Drive here: the editor saves the mod, starts the game
-//! beside itself with only that mod (`game --map-mod <folder> --map-race
-//! <id>` or `--map-at x,y,z,heading`, and `--map-result <file>`), keeps
-//! editing while it runs, and reads the run's result line when the game
-//! has ended. A race that finished is marked tested until it changes
-//! (`tested.txt` in the mod's folder, never exported). One test at a time.
+//! Test race and Drive here: the editor writes the mod as it is (saved or
+//! not) to its run copy (`.editor/run/map.obmap`; `map.obmap` is only
+//! written by Save), starts the game beside itself with only that copy
+//! (`game --map-file <run copy> --map-race <id>` or `--map-at
+//! x,y,z,heading`, and `--map-result <file>`), keeps editing while it runs,
+//! and reads the run's result line when the game has ended. A race that
+//! finished is marked tested by its content (`validate::Tested`,
+//! `.editor/tested.txt`, never exported), so the mark holds after the same
+//! race is saved and goes when it changes. One test at a time.
 
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
@@ -11,12 +14,10 @@ use std::process::{Child, Command, Stdio};
 use glam::Vec3;
 
 use super::state::{EditorState, Level};
-use crate::tools::map::{CustomRace, MapMod, store};
+use crate::tools::map::{CustomRace, store};
 
-/// The result file's name in the mod's folder.
-pub const RESULT_FILE: &str = "test-result.txt";
-/// The tested races' file in the mod's folder.
-pub const TESTED_FILE: &str = "tested.txt";
+/// The result file's name in the mod's `.editor/` folder.
+pub const RESULT_FILE: &str = crate::tools::map::store::TEST_RESULT;
 
 /// What the game is asked to do.
 #[derive(Clone, Debug, PartialEq)]
@@ -33,9 +34,9 @@ pub fn game_exe() -> PathBuf {
     crate::platform::dirs::game_exe()
 }
 
-/// The game's command line for a test run.
-pub fn args(folder: &str, target: &Target, result: &Path) -> Vec<String> {
-    let mut a = vec!["--map-mod".to_string(), folder.to_string()];
+/// The game's command line for a test run of the mod file `file`.
+pub fn args(file: &Path, target: &Target, result: &Path) -> Vec<String> {
+    let mut a = vec!["--map-file".to_string(), file.display().to_string()];
     match target {
         Target::Race(id) => a.extend(["--map-race".to_string(), id.clone()]),
         Target::At(p, h) => a.extend(["--map-at".to_string(), format!("{},{},{},{}", p.x, p.y, p.z, h)]),
@@ -98,8 +99,10 @@ pub struct TestPlay {
     /// What the status bar calls it ("Casino sprint").
     pub label: String,
     result: PathBuf,
-    /// The race as it was saved for this test (to mark it tested).
+    /// The race as it was for this test (to mark it tested).
     race: Option<CustomRace>,
+    /// The mod's `.editor/` folder (the tested marks).
+    dir: PathBuf,
 }
 
 /// How a test run ended.
@@ -115,13 +118,13 @@ pub enum Ended {
 /// Why a test cannot start (the status bar shows it).
 pub fn blocked(s: &EditorState, target: &Target) -> Option<String> {
     if let Target::Race(id) = target {
-        let Some(k) = s.map.races.iter().position(|r| &r.id == id) else {
+        let Some(k) = s.session.map.races.iter().position(|r| &r.id == id) else {
             return Some(format!("No race {id} in this mod"));
         };
-        if s.map.races[k].checkpoints.len() < 2 {
+        if s.session.map.races[k].checkpoints.len() < 2 {
             return Some("A race needs 2 checkpoints or more".into());
         }
-        if let Some(e) = s.issues.iter().find(|i| i.level == Level::Error && i.race.is_none_or(|r| r == k)) {
+        if let Some(e) = s.session.issues.iter().find(|i| i.level == Level::Error && i.race.is_none_or(|r| r == k)) {
             return Some(format!("Cannot test: {}", e.text));
         }
     }
@@ -129,39 +132,36 @@ pub fn blocked(s: &EditorState, target: &Target) -> Option<String> {
 }
 
 impl TestPlay {
-    /// Save the mod (the game reads it at its first world load) and start
-    /// the game with `exe`. The editor keeps its state; only `dirty` and
-    /// the status change.
+    /// Write the run copy (the game reads it at its first world load) and
+    /// start the game with `exe`. The editor keeps its state, unsaved
+    /// changes included; only the status changes.
     pub fn start(s: &mut EditorState, exe: &Path, target: Target) -> Result<TestPlay, String> {
         if let Some(why) = blocked(s, &target) {
             return Err(why);
         }
-        let mut m = s.map.clone();
-        if m.name.trim().is_empty() {
-            m.name = s.folder.clone();
-        }
-        store::save(&s.maps, &s.folder, &m).map_err(|e| format!("Not saved: {e:#}"))?;
-        s.dirty = false;
-        let result = s.maps.join(&s.folder).join(RESULT_FILE);
+        let file = write_run_copy(s)?;
+        let dir = store::editor_dir(&s.maps, &s.session.folder);
+        let result = dir.join(RESULT_FILE);
         let _ = std::fs::remove_file(&result);
         let race = match &target {
-            Target::Race(id) => s.map.races.iter().find(|r| &r.id == id).cloned(),
+            Target::Race(id) => s.session.map.races.iter().find(|r| &r.id == id).cloned(),
             Target::At(..) => None,
         };
         let label = race.as_ref().map_or_else(|| "free roam".to_string(), |r| r.name.clone());
         let child = Command::new(exe)
-            .args(args(&s.folder, &target, &result))
+            .args(args(&file, &target, &result))
             .env("NFSU2_ROOT", &s.root)
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .spawn()
             .map_err(|e| format!("The game could not start ({}): {e}", exe.display()))?;
+        let unsaved = if s.session.dirty { " (testing unsaved changes)" } else { "" };
         s.status = match &target {
-            Target::Race(_) => format!("Testing {label}…"),
-            Target::At(..) => "Driving from the camera's spot…".into(),
+            Target::Race(_) => format!("Testing {label}…{unsaved}"),
+            Target::At(..) => format!("Driving from the camera's spot…{unsaved}"),
         };
-        Ok(TestPlay { child, target, label, result, race })
+        Ok(TestPlay { child, target, label, result, race, dir })
     }
 
     /// The run's end once the game has ended (None while it runs).
@@ -182,25 +182,39 @@ impl TestPlay {
     }
 }
 
+/// The mod as it is in the editor written to its run copy
+/// (`store::run_file`) for the game; `map.obmap` and `dirty` stay as they
+/// are. A mod without a name is given its folder's.
+pub fn write_run_copy(s: &EditorState) -> Result<PathBuf, String> {
+    let mut m = s.session.map.clone();
+    if m.name.trim().is_empty() {
+        m.name = s.session.folder.clone();
+    }
+    store::write_run_copy(&s.maps, &s.session.folder, &m).map_err(|e| format!("The run copy was not written: {e:#}"))
+}
+
 /// Look at a running test: when it ended, the status and (a finished
-/// race) the tested mark. True when it ended.
-pub fn poll(s: &mut EditorState, test: &mut Option<TestPlay>) -> bool {
-    let Some(t) = test.as_mut() else { return false };
-    let Some(end) = t.poll() else { return false };
+/// race) the tested mark. Some(marked) when it ended.
+pub fn poll(s: &mut EditorState, test: &mut Option<TestPlay>) -> Option<bool> {
+    let t = test.as_mut()?;
+    let end = t.poll()?;
+    let mut marked = false;
     s.status = match &end {
         Ended::Done(o) => {
             if o.finished
                 && let Some(r) = &t.race
-                && let Err(e) = mark_tested(&s.maps.join(&s.folder), r)
             {
-                log::warn!("tested mark not kept: {e}");
+                match super::validate::mark_tested(&t.dir, r) {
+                    Ok(()) => marked = true,
+                    Err(e) => log::warn!("tested mark not kept: {e:#}"),
+                }
             }
             o.words(&t.label)
         }
         Ended::Failed(how) => format!("The game ended without a result ({how}); see its log"),
     };
     *test = None;
-    true
+    Some(marked)
 }
 
 /// The window's part: Test race (F5) and Drive here (Shift+F5) from the
@@ -209,6 +223,9 @@ pub fn poll(s: &mut EditorState, test: &mut Option<TestPlay>) -> bool {
 #[derive(Default)]
 pub struct TestPanel {
     pub test: Option<TestPlay>,
+    /// The race tools, told to read the tested marks again after a test
+    /// marked one.
+    pub races: Option<std::rc::Rc<std::cell::RefCell<super::races::Races>>>,
 }
 
 /// How often a running test is looked at while the window is idle.
@@ -219,7 +236,10 @@ impl super::state::Panel for TestPanel {
         let ctx = ui.ctx().clone();
         let race = super::menu::take(&ctx, super::menu::Command::TestRace);
         let drive = super::menu::take(&ctx, super::menu::Command::DriveHere);
-        if poll(s, &mut self.test) {
+        if let Some(marked) = poll(s, &mut self.test) {
+            if marked && let Some(r) = &self.races {
+                r.borrow_mut().reload_tested();
+            }
             ctx.request_repaint();
         }
         if self.test.is_some() {
@@ -230,7 +250,7 @@ impl super::state::Panel for TestPanel {
             return;
         }
         let target = if race {
-            match s.race.and_then(|k| s.map.races.get(k)) {
+            match s.race.and_then(|k| s.session.map.races.get(k)) {
                 Some(r) => Some(Target::Race(r.id.clone())),
                 None => {
                     s.status = "Choose a race to test (Races)".into();
@@ -257,61 +277,37 @@ impl super::state::Panel for TestPanel {
 /// camera's way.
 pub fn drive_spot(s: &EditorState) -> Target {
     let (eye, f) = (s.camera.position, s.camera.forward());
-    let at = crate::tools::map::edit::ray_ground(&s.world, eye, f, 300.0)
-        .or_else(|| crate::tools::map::edit::ray_ground(&s.world, eye, -Vec3::Z, 1500.0))
+    let at = crate::tools::map::edit::ray_ground(&s.session.world, eye, f, 300.0)
+        .or_else(|| crate::tools::map::edit::ray_ground(&s.session.world, eye, -Vec3::Z, 1500.0))
         .unwrap_or(eye);
     let heading = if f.truncate().length() > 1e-3 { f.y.atan2(f.x).to_degrees() } else { 0.0 };
     Target::At(at, heading)
-}
-
-/// A race's fingerprint: its text in the mod file (FNV-1a), so any change
-/// to it clears the tested mark.
-pub fn fingerprint(race: &CustomRace) -> u64 {
-    let text = MapMod { races: vec![race.clone()], ..Default::default() }.write();
-    text.bytes().fold(0xcbf2_9ce4_8422_2325u64, |h, b| (h ^ u64::from(b)).wrapping_mul(0x0100_0000_01b3))
-}
-
-fn tested_lines(dir: &Path) -> Vec<(String, u64)> {
-    let Ok(text) = std::fs::read_to_string(dir.join(TESTED_FILE)) else { return Vec::new() };
-    text.lines()
-        .filter_map(|l| l.split_once(' '))
-        .filter_map(|(id, h)| Some((id.to_string(), u64::from_str_radix(h.trim(), 16).ok()?)))
-        .collect()
-}
-
-/// Whether `race` finished a test as it is now (`dir`: the mod's folder).
-pub fn is_tested(dir: &Path, race: &CustomRace) -> bool {
-    let f = fingerprint(race);
-    tested_lines(dir).iter().any(|(id, h)| id == &race.id && *h == f)
-}
-
-/// Keep `race` as tested in its current form.
-pub fn mark_tested(dir: &Path, race: &CustomRace) -> std::io::Result<()> {
-    let mut lines = tested_lines(dir);
-    lines.retain(|(id, _)| id != &race.id);
-    lines.push((race.id.clone(), fingerprint(race)));
-    let text: String = lines.iter().map(|(id, h)| format!("{id} {h:016x}\n")).collect();
-    std::fs::create_dir_all(dir)?;
-    let tmp = dir.join(format!("{TESTED_FILE}.tmp"));
-    std::fs::write(&tmp, text)?;
-    std::fs::rename(&tmp, dir.join(TESTED_FILE))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use super::super::state::Panel;
-    use crate::tools::map::RaceKind;
+    use crate::tools::map::{MapMod, RaceKind};
+    use super::super::validate::Tested;
     use glam::Vec2;
 
     #[test]
     fn the_game_is_asked_for_the_race_or_the_spot() {
-        let r = Path::new("/m/my-map/test-result.txt");
+        let r = Path::new("/m/my-map/.editor/test-result.txt");
+        let f = Path::new("/m/my-map/.editor/run/map.obmap");
         assert_eq!(
-            args("my-map", &Target::Race("dock".into()), r),
-            ["--map-mod", "my-map", "--map-race", "dock", "--map-result", "/m/my-map/test-result.txt"]
+            args(f, &Target::Race("dock".into()), r),
+            [
+                "--map-file",
+                "/m/my-map/.editor/run/map.obmap",
+                "--map-race",
+                "dock",
+                "--map-result",
+                "/m/my-map/.editor/test-result.txt"
+            ]
         );
-        let a = args("my-map", &Target::At(Vec3::new(-1.5, 2.0, 3.25), 90.0), r);
+        let a = args(f, &Target::At(Vec3::new(-1.5, 2.0, 3.25), 90.0), r);
         assert_eq!(a[2..4], ["--map-at".to_string(), "-1.5,2,3.25,90".to_string()]);
     }
 
@@ -326,24 +322,6 @@ mod tests {
         assert!(!Outcome::parse("finished=no laps=1").finished);
         assert!(Outcome::parse("drove=yes future=1").drove);
         assert_eq!(Outcome::parse(""), Outcome::default());
-    }
-
-    #[test]
-    fn a_tested_race_stays_tested_until_it_changes() {
-        let dir = std::env::temp_dir().join(format!("ob-tested-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        let mut race = CustomRace::new("dock", 4001, RaceKind::Sprint);
-        race.checkpoints = vec![Vec2::new(1.0, 2.0), Vec2::new(30.0, 2.0)];
-        let other = CustomRace::new("park", 4001, RaceKind::Circuit);
-        assert!(!is_tested(&dir, &race));
-        mark_tested(&dir, &race).unwrap();
-        mark_tested(&dir, &other).unwrap();
-        mark_tested(&dir, &race).unwrap();
-        assert!(is_tested(&dir, &race) && is_tested(&dir, &other));
-        assert_eq!(tested_lines(&dir).len(), 2, "one line a race");
-        race.checkpoints[1].x += 0.5;
-        assert!(!is_tested(&dir, &race), "a moved checkpoint clears it");
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     fn state(dir: &Path, map: MapMod) -> EditorState {
@@ -375,60 +353,126 @@ mod tests {
         assert!((h - f.y.atan2(f.x).to_degrees()).abs() < 1e-3);
     }
 
-    /// The whole hand-off with a stand-in game (a shell script writing
-    /// the result line).
+    /// A stand-in game (a shell script) that writes its arguments beside
+    /// itself and the result line, after `pause` seconds.
     #[cfg(unix)]
-    #[test]
-    fn a_test_saves_starts_the_game_and_reads_its_result() {
+    fn stand_in(dir: &Path, pause: &str) -> PathBuf {
         use std::os::unix::fs::PermissionsExt;
-        let dir = std::env::temp_dir().join(format!("ob-testplay-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).unwrap();
         let exe = dir.join("game");
-        // Writes its arguments beside the result, then the result line.
         std::fs::write(
             &exe,
-            "#!/bin/sh\nwhile [ $# -gt 0 ]; do [ \"$1\" = --map-result ] && r=$2; echo \"$1\" >> \"$(dirname \"$0\")/args\"; shift; done\necho 'finished=yes place=1 of=4 time=61.5 laps=1' > \"$r\"\n",
+            format!("#!/bin/sh\nsleep {pause}\nwhile [ $# -gt 0 ]; do [ \"$1\" = --map-result ] && r=$2; echo \"$1\" >> \"$(dirname \"$0\")/args\"; shift; done\necho 'finished=yes place=1 of=4 time=61.5 laps=1' > \"$r\"\n"),
         )
         .unwrap();
         std::fs::set_permissions(&exe, std::fs::Permissions::from_mode(0o755)).unwrap();
+        exe
+    }
+
+    /// [`TestPlay::start`], tried again while the stand-in is "busy": a
+    /// test on another thread may fork while this one still has the
+    /// script open for writing (ETXTBSY until that child execs).
+    #[cfg(unix)]
+    fn start_test(s: &mut EditorState, exe: &Path, t: Target) -> Result<TestPlay, String> {
+        let mut tries = 0;
+        loop {
+            match TestPlay::start(s, exe, t.clone()) {
+                Err(e) if e.contains("os error 26") && tries < 100 => {
+                    tries += 1;
+                    std::thread::sleep(std::time::Duration::from_millis(20));
+                }
+                r => return r,
+            }
+        }
+    }
+
+    #[cfg(unix)]
+    fn wait(s: &mut EditorState, test: &mut Option<TestPlay>) -> bool {
+        let t0 = std::time::Instant::now();
+        loop {
+            if let Some(marked) = poll(s, test) {
+                return marked;
+            }
+            assert!(t0.elapsed().as_secs() < 20, "the stand-in game ended");
+            std::thread::sleep(std::time::Duration::from_millis(20));
+        }
+    }
+
+    /// The whole hand-off with a stand-in game: unsaved changes are tested
+    /// from the run copy, `map.obmap` is never written.
+    #[cfg(unix)]
+    #[test]
+    fn a_test_plays_the_run_copy_and_reads_its_result() {
+        let scratch = crate::testkit::Scratch::new("testplay");
+        let dir = scratch.path().to_path_buf();
+        let exe = stand_in(&dir, "0");
         let mut race = CustomRace::new("dock", 4001, RaceKind::Sprint);
         race.name = "Dock sprint".into();
         race.checkpoints = vec![Vec2::new(1.0, 2.0), Vec2::new(30.0, 2.0)];
-        let map = MapMod { races: vec![race.clone()], ..Default::default() };
         let maps = dir.join("maps");
+        let saved = MapMod { name: "Saved".into(), ..Default::default() };
+        store::save(&maps, "my-map", &saved).unwrap();
+        let on_disk = std::fs::read(maps.join("my-map").join(store::FILE)).unwrap();
+        let map = MapMod { name: "Saved".into(), races: vec![race.clone()], ..Default::default() };
         let mut s = EditorState::new(
             dir.clone(),
             "L4RA",
             maps.clone(),
             "my-map",
-            map,
+            map.clone(),
             crate::world::World::default(),
             crate::draw::camera::Camera::new(Vec3::ZERO, 0.0, 0.0),
         );
-        s.dirty = true;
+        s.session.dirty = true;
         // A blocking issue stops the test before anything is written.
-        s.issues.push(super::super::state::Issue {
+        s.session.issues.push(super::super::state::Issue {
             level: Level::Error,
             text: "no road from 1 to 2".into(),
             race: Some(0),
             at: None,
         });
-        assert!(TestPlay::start(&mut s, &exe, Target::Race("dock".into())).unwrap_err().contains("no road"));
-        assert!(!maps.join("my-map").exists());
-        s.issues.clear();
-        let mut test = Some(TestPlay::start(&mut s, &exe, Target::Race("dock".into())).unwrap());
-        assert!(!s.dirty && maps.join("my-map").join(store::FILE).is_file(), "saved first");
-        assert_eq!(s.status, "Testing Dock sprint…");
-        let t0 = std::time::Instant::now();
-        while !poll(&mut s, &mut test) {
-            assert!(t0.elapsed().as_secs() < 20, "the stand-in game ended");
-            std::thread::sleep(std::time::Duration::from_millis(20));
-        }
+        assert!(start_test(&mut s, &exe, Target::Race("dock".into())).unwrap_err().contains("no road"));
+        assert!(!store::run_file(&maps, "my-map").exists());
+        s.session.issues.clear();
+        let mut test = Some(start_test(&mut s, &exe, Target::Race("dock".into())).unwrap());
+        assert!(s.session.dirty, "still unsaved");
+        assert_eq!(store::read_file(&store::run_file(&maps, "my-map")).unwrap(), map, "the run copy is the editor's mod");
+        assert_eq!(s.status, "Testing Dock sprint… (testing unsaved changes)");
+        assert!(wait(&mut s, &mut test), "marked");
         assert_eq!(s.status, "Tested Dock sprint: finished 1 of 4 in 1:01.500");
-        assert!(is_tested(&maps.join("my-map"), &race));
+        assert_eq!(std::fs::read(maps.join("my-map").join(store::FILE)).unwrap(), on_disk, "map.obmap untouched");
+        let editor = store::editor_dir(&maps, "my-map");
+        assert!(Tested::load(&editor).is_tested(&race));
+        assert!(editor.join(RESULT_FILE).is_file() && !maps.join("my-map").join(RESULT_FILE).exists());
         let argv = std::fs::read_to_string(dir.join("args")).unwrap();
-        assert!(argv.starts_with("--map-mod\nmy-map\n--map-race\ndock\n--map-result\n"), "{argv}");
-        let _ = std::fs::remove_dir_all(&dir);
+        let run = store::run_file(&maps, "my-map").display().to_string();
+        assert!(argv.starts_with(&format!("--map-file\n{run}\n--map-race\ndock\n--map-result\n")), "{argv}");
+        // The mark is the race's content: saving the same race keeps it, a change clears it.
+        store::save(&maps, "my-map", &map).unwrap();
+        assert!(Tested::load(&editor).is_tested(&store::read_file(&maps.join("my-map").join(store::FILE)).unwrap().races[0]));
+        race.checkpoints[1].x += 0.5;
+        assert!(!Tested::load(&editor).is_tested(&race));
+    }
+
+    /// Edits made while the game runs reach neither the running game's copy
+    /// nor the mod file; the next test takes them.
+    #[cfg(unix)]
+    #[test]
+    fn editing_during_a_test_leaves_its_copy_and_the_mod_alone() {
+        let scratch = crate::testkit::Scratch::new("testplay-busy");
+        let dir = scratch.path().to_path_buf();
+        let exe = stand_in(&dir, "0.3");
+        let mut s = state(&dir, MapMod { name: "Before".into(), ..Default::default() });
+        let mut test = Some(start_test(&mut s, &exe, Target::At(Vec3::ZERO, 0.0)).unwrap());
+        assert_eq!(s.status, "Driving from the camera's spot…");
+        s.session.map.name = "During".into();
+        s.session.dirty = true;
+        assert!(!wait(&mut s, &mut test), "free roam marks nothing");
+        let run = store::run_file(&s.maps, "my-map");
+        assert_eq!(store::read_file(&run).unwrap().name, "Before");
+        assert!(!s.maps.join("my-map").join(store::FILE).exists(), "Test never saves");
+        let mut test = Some(start_test(&mut s, &exe, Target::At(Vec3::ZERO, 0.0)).unwrap());
+        assert_eq!(store::read_file(&run).unwrap().name, "During");
+        assert_eq!(s.status, "Driving from the camera's spot… (testing unsaved changes)");
+        wait(&mut s, &mut test);
     }
 }
