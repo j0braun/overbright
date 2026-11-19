@@ -215,11 +215,24 @@ impl Assets {
         self.textures.contains_key(&h).then_some(h)
     }
 
+    /// A package resource's font, as 0x50C300 and 0x51BD70 resolve it: the
+    /// resource name cut to its base name (0x50C250: after the last `\` or
+    /// `/`, before the last `.`), upper-cased and hashed; the loaded font of
+    /// that hash, else the one alias at 0x7F9184 (0x9583AA1A to
+    /// 0x5B9D88B9, ConduitMdITC_TT21i), else none. The string draw
+    /// (0x536F70) and the measures skip a string whose font is missing
+    /// (e.g. the four `FONT_IMPACTHUD` labels of HUD_Drift and
+    /// HUD_Short_Track: no shipped font has that name).
     pub fn font_for(&self, name: &str) -> Option<&Font> {
-        let base = name.rsplit_once('.').map_or(name, |(b, _)| b);
-        self.fonts.get(&crate::formats::hash::upper_hash(base)).or_else(|| self.fonts.values().next())
+        let file = name.rsplit(['\\', '/']).next().unwrap_or(name);
+        let base = file.rsplit_once('.').map_or(file, |(b, _)| b);
+        let hash = crate::formats::hash::upper_hash(base);
+        self.fonts.get(&hash).or_else(|| (hash == FONT_ALIAS.0).then(|| self.fonts.get(&FONT_ALIAS.1)).flatten())
     }
 }
+
+/// 0x7F9184: the font lookup's one alias pair (missing hash, used hash).
+const FONT_ALIAS: (u32, u32) = (0x9583_AA1A, 0x5B9D_88B9);
 
 #[cfg(test)]
 mod failed_track_map_tests {
@@ -247,5 +260,57 @@ mod failed_track_map_tests {
             assert_eq!(assets.track_map(root, 4001), None);
         }
         assert_eq!(assets.track_map_failed.attempts(), 2, "the new number read once");
+    }
+}
+
+#[cfg(test)]
+mod font_lookup_tests {
+    use super::*;
+    use crate::frontend::feng::Kind;
+
+    /// Only the four `FONT_IMPACTHUD` labels name a font no bundle ships;
+    /// they get no font (0x51BD70 returns NULL, 0x536F70 draws nothing),
+    /// every other string keeps its own font.
+    #[test]
+    #[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
+    fn only_the_impact_hud_labels_lack_a_font() {
+        let assets = Assets::load(&crate::testkit::game_root()).unwrap();
+        let mut missing: Vec<(String, String)> = Vec::new();
+        let mut packages: Vec<_> = assets.packages.iter().collect();
+        packages.sort_by(|a, b| a.0.cmp(b.0));
+        for (name, p) in packages {
+            for o in p.objects.iter().filter(|o| matches!(o.kind, Kind::String)) {
+                let Some(r) = p.resources.get(o.resource as usize) else { continue };
+                if assets.font_for(&r.name).is_none() {
+                    missing.push((name.clone(), r.name.clone()));
+                }
+            }
+        }
+        assert_eq!(missing.len(), 4, "{missing:?}");
+        assert!(missing.iter().all(|(p, f)| (p == "HUD_Drift" || p == "HUD_Short_Track") && f.to_uppercase().starts_with("FONT_IMPACTHUD")), "{missing:?}");
+    }
+
+    #[test]
+    fn a_missing_font_is_none_and_paths_are_cut_to_the_base_name() {
+        let mut assets = Assets {
+            packages: Default::default(),
+            textures: Default::default(),
+            in_game: Default::default(),
+            fonts: HashMap::new(),
+            strings: Strings { map: HashMap::new() },
+            track_map_failed: crate::failed_load::FailedLoads::new(TRACK_MAPS_FAILED),
+        };
+        let font = |name: &str| Font {
+            name: name.into(),
+            texture: String::new(),
+            line_height: 0.0,
+            texture_size: [0.0; 2],
+            glyphs: Default::default(),
+        };
+        assets.fonts.insert(bin_hash("CONDUITMDITC_TT21I"), font("ConduitMdITC_TT21i"));
+        assets.fonts.insert(bin_hash("ARIAL"), font("Arial"));
+        assert!(assets.font_for("FONT_IMPACTHUD.ffn").is_none(), "no fallback to some loaded font");
+        assert_eq!(assets.font_for("c:\\fonts\\conduitmditc_tt21i.ffn").map(|f| &f.name[..]), Some("ConduitMdITC_TT21i"));
+        assert_eq!(assets.font_for("data/Arial.ffn").map(|f| &f.name[..]), Some("Arial"));
     }
 }

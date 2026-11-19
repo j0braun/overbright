@@ -548,14 +548,15 @@ The menus are FEng packages: FRONTEND/FrontB.lzc (137), GLOBAL/GlobalB.lzc
     Conduit fonts take a y offset of 18–23 and leading scale 2 or 1; the
     rest 0 and 1. Font 0x9583AA1A is drawn × 1.6 when 0x7F70D0 is 8 or 9
     (not modelled: English only).
-  * A missing font draws nothing (**verified**, static): resource requests get their
-    handle from 0x50C300 (base name without extension, upper case, `bin_hash`, for kinds
-    1 and 2); the string draw 0x536F70 returns at once when 0x51BD70(object +0x24) is
-    NULL, and 0x51BD70 tries the loaded fonts (list 0x863768, hash at +0x14), then the one
-    alias 0x9583AA1A → 0x5B9D88B9 (`ConduitMdITC_TT21i`, pair at 0x7F9184), then gives
-    NULL. So the four `FONT_IMPACTHUD` strings (HUD_Drift, HUD_Short_Track; no font chunk
-    holds that font) are never drawn. That object +0x24 is the request's handle is
-    **inferred**. The clone falls back to an arbitrary loaded font (`Assets::font_for`).
+    The font a string draws in (verified): 0x50C300 cuts the package
+    resource's name to its base name (0x50C250: after the last `\` or
+    `/`, before the last `.`), upper-cases it and stores its bin hash;
+    0x51BD70 finds the loaded font of that hash, else follows the one
+    alias pair at 0x7F9184 (0x9583AA1A → 0x5B9D88B9, ConduitMdITC_TT21i),
+    else returns NULL, and the string draw (0x536F70 → 0x53709A) and the
+    measures (0x51D0DB … 0x51D8F2) then skip the string. The four
+    `Font_ImpactHud` labels of HUD_Drift and HUD_Short_Track name a font
+    no bundle ships, so they are never drawn (`Assets::font_for`).
   * Text is the label's string unless flag 2 (then `St`, 0x536F70).
   * **Open** (seen in `game --shot` main, quickrace, options_display,
     carlot, parts, crib, pause, results; `NFSU2_SHOT_MS` sets the front

@@ -117,6 +117,14 @@ and the sum of the material ranges equals the index count.
 
 * `L4RA.BUN` 0x00034110: 0x50-byte records giving the section name, number,
   stream offset (+0x14) and size (+0x18). There are 393 sections.
+* The first record of every region is `--`: number 0, +0x10 = 0 (1 in all
+  the others), offset 0, a range over whole chunks of other sections (in
+  L4RH and L4RR Z0's scenery section, elsewhere solid lists or nothing
+  whole). The game loads sections only by number (0x5DACC0, from 0x5E5120's
+  fixed list 2500 / 2400 / 2600, the visible list and up to five extra
+  numbers, each taken only when not zero, and from 0x5E5230…0x5E52C8, positive
+  numbers only); no visible list holds 0, so `--` is never loaded and the
+  SKYDOME is placed once (`world::parse::loads`).
 * Letters A–R are city regions, `X` holds shared props (solids only), `Y`
   holds shared texture packs, and `Z0` (2600) holds the global scenery: the
   `SKYDOME`.
