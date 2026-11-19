@@ -807,7 +807,13 @@ Library half `src/render/enh/tick_views.rs`, game half
   bench's `step`) the live values. It also publishes the frame's place on
   the tick axis (n − 1 + α) and its lag on the world clock ((1 − α)·dt).
   Without a drive nothing is published and every effect steps per draw as
-  before (shots, the front end's scenes).
+  before (shots, the front end's scenes). The garage's scene drawn while a
+  drive stays loaded (a shop or the crib opened from free roam) sets the
+  drive's frame aside for its own draw (`tick_views::SetAside` in
+  `render_garage`): the drive's cameras and sections are not the
+  platform's, and LOD Fade stepped with them faded the whole platform out,
+  leaving the car on the clear colour
+  (`tests::garage_drive_ticks::garage_ignores_a_loaded_drives_ticks`).
 * **Simulations and schedules, one step per tick** (`TickGate`: each
   effect steps every published tick it has not stepped, oldest first, with
   that tick's camera, sections and time; 30 Hz steps two a frame, 200 Hz

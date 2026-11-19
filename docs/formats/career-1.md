@@ -1048,6 +1048,13 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
   ("all finished") and 0x5EEF30 (the latest finish tick) walk the player
   list 0x8900B4 (count 0x8900BC), not the racers, so an AI racer's finish
   never delays the race over (offline: the player's own finish + hold).
+  **Verified** (0x5EA63E): 0x5EA540 ends with a jump to 0x592510 on the
+  player car's block +0x40, so the finish also ends a running nitrous shot
+  (what is left stays in the tank). The key handlers go right after
+  (0x605C80 at 0x607108), so a Nitrous key still held at the line would
+  otherwise never send the release that ends the shot. Ported: the race
+  frame stops the tank in the frame the player finishes (a drag drop-out
+  too, which takes the same path).
   Online / split-screen (0x89CF69, 0x8669F4, 0x866A14) 0x5F85C0 asks
   0x5F0890 instead (not traced). Out of a race (race type 0x89E7B0 = 0)
   0x60B5A3 also needs 0x457BA0 on G (0x850078 = 4 and 0x83AAB4 = 8). The

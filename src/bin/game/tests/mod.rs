@@ -70,6 +70,7 @@ mod draw_clocks;
 mod garage_between;
 mod garage_lot_turn;
 // The garage scenes draw no weather.
+mod garage_drive_ticks;
 mod garage_weather;
 // The track-map widgets on the tick.
 mod map_widget;

@@ -27,7 +27,9 @@
 //!
 //! Without a published frame (shots, the front end's scenes, a renderer
 //! used outside the game's window path) every effect behaves as before:
-//! one step per draw with the draw's own inputs ([`frame`] is None).
+//! one step per draw with the draw's own inputs ([`frame`] is None). The
+//! garage's scene, drawn while a drive stays loaded under a shop or the
+//! crib, sets the drive's frame aside for its draw ([`SetAside`]).
 use crate::render::camera::Camera;
 use std::sync::Mutex;
 
@@ -109,6 +111,35 @@ pub fn publish(frame: Option<TickFrame>) {
         THROUGH.fetch_max(v.tick, std::sync::atomic::Ordering::Relaxed);
     }
     *FRAME.lock().unwrap() = frame.map(std::sync::Arc::new);
+}
+
+/// The published frame set aside while a scene of its own is drawn (the
+/// front end's garage over a loaded drive): its renderers' tick-stepped
+/// effects step per draw with the draw's inputs, as without a published
+/// frame, instead of with the drive's ticks (whose camera and sections
+/// are not the scene's: LOD Fade faded the whole platform out). Put back
+/// when dropped.
+pub struct SetAside(Option<std::sync::Arc<TickFrame>>);
+
+impl SetAside {
+    pub fn new() -> SetAside {
+        SetAside(FRAME.lock().unwrap().take())
+    }
+}
+
+impl Default for SetAside {
+    fn default() -> Self {
+        SetAside::new()
+    }
+}
+
+impl Drop for SetAside {
+    fn drop(&mut self) {
+        let mut frame = FRAME.lock().unwrap_or_else(|e| e.into_inner());
+        if frame.is_none() {
+            *frame = self.0.take();
+        }
+    }
 }
 
 /// The world clock (s, 0x7FB718) at the frame's place
