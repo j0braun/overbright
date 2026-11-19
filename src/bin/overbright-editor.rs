@@ -110,6 +110,7 @@ impl Runner {
     fn open_window(&mut self, el: &ActiveEventLoop) -> Result<Win> {
         let attrs = Window::default_attributes()
             .with_title(self.app.title())
+            .with_window_icon(nfsu2::platform::icon::window_icon())
             .with_inner_size(winit::dpi::LogicalSize::new(1600.0, 900.0))
             .with_min_inner_size(winit::dpi::LogicalSize::new(960.0, 600.0));
         let window = Arc::new(el.create_window(attrs)?);

@@ -5,8 +5,8 @@
 //! The tool binaries get none.
 //!
 //! The icon is drawn in code (build_support/icon_art.rs, shared with the
-//! window icon, `platform::icon`): an original placeholder (a glowing amber
-//! ring with a light streak on a dark tile), nothing taken from the game.
+//! window icon, `platform::icon`): Overbright's mark, the launcher's lime
+//! ring on a dark tile in the launcher's page colour; our own art.
 
 use std::path::Path;
 
@@ -14,7 +14,7 @@ use crate::icon_art::draw;
 
 /// An .ico file with 32-bit BMP entries at the usual sizes.
 pub fn ico() -> Vec<u8> {
-    let sizes = [16u32, 24, 32, 48, 64, 256];
+    let sizes = [16u32, 24, 32, 48, 64, 128, 256];
     let images: Vec<Vec<u8>> = sizes.iter().map(|&n| bmp_entry(n, &draw(n))).collect();
     let mut out = Vec::new();
     out.extend_from_slice(&[0, 0, 1, 0]);
