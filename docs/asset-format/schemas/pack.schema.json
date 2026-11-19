@@ -1,0 +1,312 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "pack.schema.json",
+  "title": "pack.toml, format 2",
+  "description": "manifest.md. Shape only; cross-file rules (MAN.*, ORD.*) are on the pages. Format-1 manifests are read by the legacy rules of manifest.md section 6 and are not validated by this schema.",
+  "type": "object",
+  "properties": {
+    "format": {
+      "const": 2
+    },
+    "kind": {
+      "enum": [
+        "base",
+        "mod"
+      ]
+    },
+    "id": {
+      "$ref": "common.schema.json#/$defs/packId"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80
+    },
+    "version": {
+      "$ref": "common.schema.json#/$defs/semver"
+    },
+    "authors": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "maxLength": 80
+      },
+      "maxItems": 32
+    },
+    "licence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "license": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "overbright": {
+      "$ref": "common.schema.json#/$defs/versionReq"
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 2000
+    },
+    "homepage": {
+      "type": "string",
+      "pattern": "^https://[^\\s]{1,292}$"
+    },
+    "origin": {
+      "type": "string",
+      "pattern": "^(own-work|from-game-files|imported|port:[a-z0-9-]{1,32})$"
+    },
+    "share": {
+      "enum": [
+        "public",
+        "local-only"
+      ]
+    },
+    "contents": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "textures",
+          "meshes",
+          "anim",
+          "world",
+          "collision",
+          "routes",
+          "races",
+          "cars",
+          "career",
+          "ui",
+          "text",
+          "audio",
+          "movies",
+          "tables"
+        ]
+      }
+    },
+    "affects_play": {
+      "type": "boolean"
+    },
+    "priority": {
+      "$ref": "common.schema.json#/$defs/i32"
+    },
+    "extensions_used": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Z0-9]+_[a-z0-9_]+$"
+      }
+    },
+    "extensions_required": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Z0-9]+_[a-z0-9_]+$"
+      }
+    },
+    "game": {
+      "type": "object",
+      "properties": {
+        "bases": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9*][a-z0-9_*-]{0,63}$"
+          }
+        },
+        "fingerprint": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "dependencies": {
+      "$ref": "#/$defs/packRefs"
+    },
+    "optional": {
+      "$ref": "#/$defs/packRefs"
+    },
+    "conflicts": {
+      "$ref": "#/$defs/packRefs"
+    },
+    "tested": {
+      "type": "array",
+      "maxItems": 256,
+      "items": {
+        "type": "object",
+        "properties": {
+          "race": {
+            "type": "string",
+            "pattern": "^[a-z0-9_-]{1,40}$"
+          },
+          "race_digest": {
+            "$ref": "common.schema.json#/$defs/digest"
+          },
+          "car": {
+            "$ref": "common.schema.json#/$defs/name"
+          },
+          "time_s": {
+            "$ref": "common.schema.json#/$defs/f32"
+          },
+          "overbright": {
+            "$ref": "common.schema.json#/$defs/semver"
+          }
+        },
+        "required": [
+          "race",
+          "race_digest",
+          "overbright"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "base": {
+      "type": "object",
+      "properties": {
+        "edition": {
+          "type": "string",
+          "pattern": "^[a-z0-9-]{1,32}$"
+        },
+        "region": {
+          "enum": [
+            "na",
+            "eu"
+          ]
+        },
+        "languages": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_-]{0,31}$"
+          }
+        },
+        "profile": {
+          "type": "string",
+          "pattern": "^[a-z0-9-]+/[0-9]+$"
+        },
+        "import": {
+          "$ref": "common.schema.json#/$defs/logicalPath"
+        },
+        "marker": {
+          "type": "string",
+          "maxLength": 80
+        },
+        "storage": {
+          "enum": [
+            "owned",
+            "linked"
+          ]
+        }
+      },
+      "required": [
+        "edition",
+        "region",
+        "languages",
+        "profile"
+      ],
+      "additionalProperties": false
+    },
+    "bundles": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^[A-Za-z0-9_-][A-Za-z0-9._-]{0,99}\\.obz$"
+      },
+      "additionalProperties": {
+        "$ref": "common.schema.json#/$defs/digest"
+      }
+    },
+    "extras": {
+      "$ref": "common.schema.json#/$defs/extras"
+    },
+    "extensions_safe_to_copy": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Z0-9]+_[a-z0-9_]+$"
+      }
+    }
+  },
+  "required": [
+    "format",
+    "kind",
+    "id",
+    "name",
+    "version",
+    "overbright",
+    "origin",
+    "share"
+  ],
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "base"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "base"
+        ]
+      },
+      "else": {
+        "not": {
+          "required": [
+            "base"
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "share": {
+            "const": "public"
+          }
+        }
+      },
+      "then": {
+        "anyOf": [
+          {
+            "required": [
+              "licence"
+            ]
+          },
+          {
+            "required": [
+              "license"
+            ]
+          }
+        ],
+        "properties": {
+          "origin": {
+            "const": "own-work"
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "packRefs": {
+      "type": "object",
+      "propertyNames": {
+        "$ref": "common.schema.json#/$defs/packId"
+      },
+      "additionalProperties": {
+        "$ref": "common.schema.json#/$defs/versionReq"
+      }
+    }
+  }
+}

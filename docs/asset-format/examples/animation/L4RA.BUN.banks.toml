@@ -1,0 +1,31 @@
+# The first two EAGL objects of a track bundle, kept whole (made-up digests and counts).
+schema = "ob.anim-banks/1.0"
+source = "L4RA.BUN"
+
+[[object]]
+kind = "bank"
+encoding = "eagl"
+file = "L4RA.BUN.0.eagl"
+digest = "xxh3-128:0f4c2a91b7e3d5c86a1b2c3d4e5f6071"
+
+[[object.channel]]
+name = "ANM_DoorAnim_RB_00_XO_DoorPieceA_1a_RB_00_q"
+kinds = [0x0B]
+slots = [16, 17, 18, 19]
+frames = 61
+
+[[object.channel]]
+name = "ANM_DoorAnim_RB_00_XO_DoorPieceA_1a_RB_00_t"
+kinds = [0x15]
+slots = [21, 22, 20]
+frames = 61
+
+[[object]]
+kind = "bank"
+encoding = "eagl"
+file = "L4RA.BUN.1.eagl"
+digest = "xxh3-128:9a8b7c6d5e4f30211203f4e5d6c7b8a9"
+decodes = false
+
+[[object.channel]]
+name = "ANM_ExampleCrane_RB_00_q"

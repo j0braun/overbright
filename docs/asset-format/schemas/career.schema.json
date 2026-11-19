@@ -1,0 +1,789 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "career.schema.json",
+  "title": "ob.career: the career tables and the style-points tricks (career.md 3.1)",
+  "type": "object",
+  "required": [
+    "schema"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema": {
+      "type": "string",
+      "pattern": "^ob\\.career/1\\.[0-9]+$"
+    },
+    "event": {
+      "type": "array",
+      "maxItems": 4096,
+      "items": {
+        "$ref": "#/$defs/event"
+      }
+    },
+    "stage": {
+      "type": "array",
+      "maxItems": 8,
+      "items": {
+        "$ref": "#/$defs/stage"
+      }
+    },
+    "sponsor": {
+      "type": "array",
+      "maxItems": 4096,
+      "items": {
+        "$ref": "#/$defs/sponsor"
+      }
+    },
+    "brand": {
+      "type": "array",
+      "maxItems": 4096,
+      "items": {
+        "$ref": "#/$defs/brand"
+      }
+    },
+    "milestone": {
+      "type": "array",
+      "maxItems": 4096,
+      "items": {
+        "$ref": "#/$defs/milestone"
+      }
+    },
+    "shop": {
+      "type": "array",
+      "maxItems": 4096,
+      "items": {
+        "$ref": "#/$defs/shop"
+      }
+    },
+    "cash_pickup": {
+      "type": "array",
+      "maxItems": 256,
+      "items": {
+        "$ref": "#/$defs/cashPickup"
+      }
+    },
+    "car_unlock": {
+      "type": "array",
+      "maxItems": 4096,
+      "items": {
+        "$ref": "#/$defs/carUnlock"
+      }
+    },
+    "message": {
+      "type": "array",
+      "maxItems": 4096,
+      "items": {
+        "$ref": "#/$defs/message"
+      }
+    },
+    "challenge": {
+      "type": "array",
+      "maxItems": 4096,
+      "items": {
+        "$ref": "#/$defs/challenge"
+      }
+    },
+    "trick": {
+      "type": "array",
+      "maxItems": 256,
+      "items": {
+        "$ref": "#/$defs/trick"
+      }
+    },
+    "extras": {
+      "$ref": "common.schema.json#/$defs/extras"
+    },
+    "ext": {
+      "$ref": "common.schema.json#/$defs/ext"
+    }
+  },
+  "$defs": {
+    "nameref": {
+      "$ref": "route-paths.schema.json#/$defs/nameref"
+    },
+    "poolString": {
+      "type": "string",
+      "maxLength": 63,
+      "pattern": "^[\\u0020-\\u007E]*$"
+    },
+    "item": {
+      "description": "layering.md 3.1: an override entry may carry op; only merge is allowed in 1.0 (MRG.3 otherwise, checked by readers)",
+      "properties": {
+        "op": {
+          "$ref": "common.schema.json#/$defs/op"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "extras": {
+          "$ref": "common.schema.json#/$defs/extras"
+        }
+      }
+    },
+    "event": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/item"
+        }
+      ],
+      "required": [
+        "name"
+      ],
+      "unevaluatedProperties": false,
+      "properties": {
+        "name": {
+          "$ref": "common.schema.json#/$defs/name"
+        },
+        "hash": {
+          "$ref": "common.schema.json#/$defs/hash32"
+        },
+        "movie": {
+          "$ref": "#/$defs/poolString"
+        },
+        "won_movie": {
+          "$ref": "#/$defs/poolString"
+        },
+        "tier": {
+          "$ref": "common.schema.json#/$defs/u8"
+        },
+        "suv": {
+          "$ref": "common.schema.json#/$defs/u8"
+        },
+        "kind": {
+          "oneOf": [
+            {
+              "enum": [
+                "circuit",
+                "sprint",
+                "street_x",
+                "special",
+                "drag",
+                "drift"
+              ]
+            },
+            {
+              "type": "integer",
+              "minimum": 6,
+              "maximum": 255
+            }
+          ]
+        },
+        "requirement": {
+          "$ref": "common.schema.json#/$defs/u32"
+        },
+        "races": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 4,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "track",
+              "variant",
+              "laps"
+            ],
+            "properties": {
+              "track": {
+                "$ref": "common.schema.json#/$defs/u16"
+              },
+              "variant": {
+                "$ref": "common.schema.json#/$defs/u8"
+              },
+              "laps": {
+                "$ref": "common.schema.json#/$defs/u8"
+              }
+            }
+          }
+        },
+        "marker": {
+          "$ref": "#/$defs/nameref"
+        },
+        "purse": {
+          "$ref": "common.schema.json#/$defs/u32"
+        },
+        "category": {
+          "oneOf": [
+            {
+              "enum": [
+                "scripted",
+                "sponsor",
+                "url",
+                "normal"
+              ]
+            },
+            {
+              "type": "integer",
+              "minimum": 4,
+              "maximum": 255
+            }
+          ]
+        },
+        "traffic": {
+          "$ref": "common.schema.json#/$defs/i8"
+        },
+        "stage": {
+          "$ref": "common.schema.json#/$defs/u8"
+        },
+        "goals": {
+          "type": "array",
+          "maxItems": 8,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind",
+              "target"
+            ],
+            "properties": {
+              "kind": {
+                "$ref": "common.schema.json#/$defs/u8"
+              },
+              "target": {
+                "$ref": "#/$defs/nameref"
+              }
+            }
+          }
+        },
+        "opponents": {
+          "type": "array",
+          "maxItems": 5,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "car"
+            ],
+            "properties": {
+              "name": {
+                "$ref": "#/$defs/poolString"
+              },
+              "mode": {
+                "$ref": "common.schema.json#/$defs/u8"
+              },
+              "skill": {
+                "$ref": "common.schema.json#/$defs/u8"
+              },
+              "car": {
+                "$ref": "#/$defs/nameref"
+              },
+              "difficulty": {
+                "type": "array",
+                "items": {
+                  "$ref": "common.schema.json#/$defs/u8"
+                },
+                "minItems": 3,
+                "maxItems": 3
+              },
+              "block": {
+                "$ref": "common.schema.json#/$defs/i8"
+              }
+            }
+          }
+        },
+        "throttle": {
+          "$ref": "common.schema.json#/$defs/i8"
+        },
+        "always": {
+          "$ref": "common.schema.json#/$defs/u8"
+        },
+        "sender": {
+          "$ref": "#/$defs/nameref"
+        }
+      },
+      "not": {
+        "required": [
+          "goals",
+          "opponents"
+        ],
+        "properties": {
+          "goals": {
+            "minItems": 1
+          },
+          "opponents": {
+            "minItems": 1
+          }
+        }
+      }
+    },
+    "stage": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/item"
+        }
+      ],
+      "required": [
+        "stage"
+      ],
+      "unevaluatedProperties": false,
+      "properties": {
+        "stage": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 7
+        },
+        "outrun_bank": {
+          "$ref": "common.schema.json#/$defs/i16"
+        },
+        "cover_cash": {
+          "$ref": "common.schema.json#/$defs/i16"
+        },
+        "u_0x06": {
+          "$ref": "common.schema.json#/$defs/u16",
+          "description": "+0x06: open (0x88 in every stage); default 0x88"
+        },
+        "sponsors": {
+          "type": "array",
+          "maxItems": 5,
+          "items": {
+            "$ref": "#/$defs/nameref"
+          }
+        },
+        "sponsor_wins": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/i16"
+          },
+          "minItems": 5,
+          "maxItems": 5
+        },
+        "u_0x26": {
+          "$ref": "common.schema.json#/$defs/u16",
+          "description": "+0x26: open"
+        },
+        "final_event": {
+          "$ref": "#/$defs/nameref"
+        },
+        "u_0x2c": {
+          "description": "+0x2C..+0x2F: inferred race counts by type",
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/u8"
+          },
+          "minItems": 4,
+          "maxItems": 4
+        },
+        "caps": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/i8"
+          },
+          "minItems": 6,
+          "maxItems": 6
+        },
+        "u_0x35": {
+          "$ref": "common.schema.json#/$defs/u8",
+          "description": "+0x35: open"
+        },
+        "u_0x36": {
+          "$ref": "common.schema.json#/$defs/u8",
+          "description": "+0x36: open"
+        },
+        "u_0x38": {
+          "description": "+0x38..+0x3F: open",
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/u8"
+          },
+          "minItems": 8,
+          "maxItems": 8
+        },
+        "required_wins": {
+          "$ref": "common.schema.json#/$defs/i8"
+        },
+        "always_cap": {
+          "$ref": "common.schema.json#/$defs/i8"
+        },
+        "skill_wins": {
+          "$ref": "common.schema.json#/$defs/i16"
+        },
+        "skill": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/f32"
+          },
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "u_0x4c": {
+          "$ref": "common.schema.json#/$defs/f32",
+          "description": "+0x4C: open (10.0 in every stage); default 10.0"
+        }
+      }
+    },
+    "sponsor": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/item"
+        }
+      ],
+      "required": [
+        "name"
+      ],
+      "unevaluatedProperties": false,
+      "properties": {
+        "name": {
+          "$ref": "common.schema.json#/$defs/name"
+        },
+        "hash": {
+          "$ref": "common.schema.json#/$defs/hash32"
+        },
+        "purse": {
+          "$ref": "common.schema.json#/$defs/u16"
+        },
+        "races": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/u8"
+          },
+          "minItems": 4,
+          "maxItems": 4
+        },
+        "bonus": {
+          "$ref": "common.schema.json#/$defs/i16"
+        },
+        "reputation": {
+          "$ref": "common.schema.json#/$defs/i16"
+        }
+      }
+    },
+    "brand": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/item"
+        }
+      ],
+      "required": [
+        "name"
+      ],
+      "unevaluatedProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_]{1,31}$"
+        },
+        "hash": {
+          "$ref": "common.schema.json#/$defs/hash32"
+        },
+        "display": {
+          "type": "string",
+          "maxLength": 31,
+          "pattern": "^[\\u0020-\\u007E]*$"
+        }
+      }
+    },
+    "milestone": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/item"
+        }
+      ],
+      "required": [
+        "name"
+      ],
+      "unevaluatedProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_]{1,31}$"
+        },
+        "hash": {
+          "$ref": "common.schema.json#/$defs/hash32"
+        },
+        "kind": {
+          "$ref": "common.schema.json#/$defs/u8"
+        },
+        "stage": {
+          "$ref": "common.schema.json#/$defs/u8"
+        },
+        "cash": {
+          "$ref": "common.schema.json#/$defs/i16"
+        },
+        "cover": {
+          "$ref": "#/$defs/nameref"
+        },
+        "spot": {
+          "$ref": "#/$defs/nameref"
+        },
+        "offer": {
+          "$ref": "common.schema.json#/$defs/u8"
+        },
+        "required": {
+          "$ref": "common.schema.json#/$defs/u8"
+        },
+        "offer_at": {
+          "$ref": "#/$defs/nameref"
+        },
+        "rating": {
+          "$ref": "common.schema.json#/$defs/f32"
+        }
+      }
+    },
+    "shop": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/item"
+        }
+      ],
+      "required": [
+        "name"
+      ],
+      "unevaluatedProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_]{1,31}$"
+        },
+        "hash": {
+          "$ref": "common.schema.json#/$defs/hash32"
+        },
+        "movie": {
+          "type": "string",
+          "maxLength": 23,
+          "pattern": "^[\\u0020-\\u007E]*$"
+        },
+        "trigger": {
+          "$ref": "#/$defs/nameref"
+        },
+        "scene_file": {
+          "type": "string",
+          "maxLength": 15,
+          "pattern": "^[\\u0020-\\u007E]*$"
+        },
+        "kind": {
+          "$ref": "common.schema.json#/$defs/u8"
+        },
+        "announced": {
+          "$ref": "common.schema.json#/$defs/u8"
+        },
+        "requirement": {
+          "$ref": "common.schema.json#/$defs/u8"
+        },
+        "requirement_value": {
+          "$ref": "common.schema.json#/$defs/u32"
+        },
+        "u_0x78": {
+          "description": "+0x78..+0x9B: open, not read (old text in some records); 36 bytes",
+          "type": "string",
+          "pattern": "^hex:[0-9a-f]{72}$"
+        },
+        "stage": {
+          "$ref": "common.schema.json#/$defs/u8"
+        }
+      }
+    },
+    "cashPickup": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/item"
+        }
+      ],
+      "required": [
+        "flag"
+      ],
+      "unevaluatedProperties": false,
+      "properties": {
+        "cash": {
+          "$ref": "common.schema.json#/$defs/u16"
+        },
+        "condition": {
+          "$ref": "common.schema.json#/$defs/u8"
+        },
+        "flag": {
+          "$ref": "common.schema.json#/$defs/u8"
+        },
+        "value": {
+          "$ref": "common.schema.json#/$defs/u32"
+        },
+        "trigger": {
+          "$ref": "#/$defs/nameref"
+        }
+      }
+    },
+    "carUnlock": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/item"
+        }
+      ],
+      "required": [
+        "car"
+      ],
+      "unevaluatedProperties": false,
+      "properties": {
+        "car": {
+          "$ref": "#/$defs/nameref"
+        },
+        "u_0x04": {
+          "$ref": "#/$defs/nameref",
+          "description": "+0x04: inferred the unlock event for the other region setting"
+        },
+        "event": {
+          "$ref": "#/$defs/nameref"
+        }
+      }
+    },
+    "message": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/item"
+        }
+      ],
+      "required": [
+        "name"
+      ],
+      "unevaluatedProperties": false,
+      "properties": {
+        "name": {
+          "$ref": "common.schema.json#/$defs/name"
+        },
+        "condition": {
+          "$ref": "common.schema.json#/$defs/u8"
+        },
+        "category": {
+          "$ref": "common.schema.json#/$defs/u8"
+        },
+        "urgent": {
+          "$ref": "common.schema.json#/$defs/u8"
+        },
+        "icon": {
+          "$ref": "common.schema.json#/$defs/u8"
+        },
+        "values": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/u32"
+          },
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "sender": {
+          "$ref": "#/$defs/nameref"
+        }
+      }
+    },
+    "challenge": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/item"
+        }
+      ],
+      "required": [
+        "name"
+      ],
+      "unevaluatedProperties": false,
+      "properties": {
+        "name": {
+          "$ref": "common.schema.json#/$defs/name"
+        },
+        "marker": {
+          "$ref": "#/$defs/poolString"
+        },
+        "stage": {
+          "$ref": "common.schema.json#/$defs/i16"
+        },
+        "condition": {
+          "$ref": "common.schema.json#/$defs/u8"
+        },
+        "count": {
+          "$ref": "common.schema.json#/$defs/u8"
+        },
+        "message": {
+          "$ref": "#/$defs/nameref"
+        },
+        "milestone": {
+          "$ref": "#/$defs/nameref"
+        },
+        "time_s": {
+          "$ref": "common.schema.json#/$defs/i32"
+        },
+        "kind": {
+          "$ref": "common.schema.json#/$defs/u8"
+        },
+        "slots": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/u8"
+          },
+          "minItems": 3,
+          "maxItems": 3
+        }
+      }
+    },
+    "trick": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/item"
+        }
+      ],
+      "required": [
+        "index"
+      ],
+      "unevaluatedProperties": false,
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/nameref"
+        },
+        "index": {
+          "$ref": "common.schema.json#/$defs/u8"
+        },
+        "u_0x05": {
+          "$ref": "common.schema.json#/$defs/u8"
+        },
+        "continuous": {
+          "$ref": "common.schema.json#/$defs/u8"
+        },
+        "mask": {
+          "$ref": "common.schema.json#/$defs/u8"
+        },
+        "min_time": {
+          "$ref": "common.schema.json#/$defs/f32"
+        },
+        "timeout_s": {
+          "$ref": "common.schema.json#/$defs/f32"
+        },
+        "threshold": {
+          "$ref": "common.schema.json#/$defs/f32"
+        },
+        "cap": {
+          "$ref": "common.schema.json#/$defs/f32"
+        },
+        "max_multiplier": {
+          "$ref": "common.schema.json#/$defs/f32"
+        },
+        "multiplier_step": {
+          "$ref": "common.schema.json#/$defs/f32"
+        },
+        "u_0x20": {
+          "$ref": "common.schema.json#/$defs/f32"
+        },
+        "u_0x24": {
+          "$ref": "common.schema.json#/$defs/f32"
+        },
+        "points": {
+          "$ref": "common.schema.json#/$defs/f32"
+        },
+        "max_count": {
+          "$ref": "common.schema.json#/$defs/i8"
+        },
+        "u_0x2d": {
+          "$ref": "common.schema.json#/$defs/u8"
+        },
+        "u_0x2e": {
+          "$ref": "common.schema.json#/$defs/u16"
+        }
+      }
+    }
+  }
+}

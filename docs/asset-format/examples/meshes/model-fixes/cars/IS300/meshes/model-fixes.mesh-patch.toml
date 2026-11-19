@@ -1,0 +1,12 @@
+schema = "ob.mesh-patch/1.0"
+
+# The model-fixes pack's patches of cars/IS300. The marker index is made up.
+
+# IS300 body kit 11 rear bumper: the second LEFT_EXHAUST marker duplicates the first.
+[[solid]]
+target = "solid:cars/IS300/GEOMETRY.BIN.0/IS300_KIT11_REAR_BUMPER_A"
+guard = { hash = "0xFA8AA3AA" }
+
+[[solid.marker]]
+index = 3
+disabled = true

@@ -1,0 +1,311 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "OB_solid.schema.json",
+  "title": "OB_solid glTF node extension",
+  "description": "meshes.md 3.3: one original solid (header, mesh header, tables, draw ranges, unread chunks) on a glTF node. Pack-only fields op/target: meshes.md 4.2. The extension's version is in the glTF root object: #/$defs/root.",
+  "type": "object",
+  "properties": {
+    "hash": {
+      "$ref": "common.schema.json#/$defs/hash32"
+    },
+    "name_truncated": {
+      "type": "boolean",
+      "default": false
+    },
+    "layout": {
+      "enum": [
+        "world24",
+        "lit36",
+        "skinned60",
+        "none"
+      ]
+    },
+    "bbox_min": {
+      "$ref": "common.schema.json#/$defs/vec3"
+    },
+    "bbox_max": {
+      "$ref": "common.schema.json#/$defs/vec3"
+    },
+    "axes": {
+      "$ref": "common.schema.json#/$defs/mat3"
+    },
+    "translation": {
+      "$ref": "common.schema.json#/$defs/vec3"
+    },
+    "triangle_count": {
+      "$ref": "common.schema.json#/$defs/u32"
+    },
+    "u_0x00": {
+      "$ref": "common.schema.json#/$defs/u32"
+    },
+    "u_0x04": {
+      "$ref": "common.schema.json#/$defs/u32"
+    },
+    "u_0x08": {
+      "$ref": "common.schema.json#/$defs/u32"
+    },
+    "u_0x0c": {
+      "$ref": "common.schema.json#/$defs/u32"
+    },
+    "u_0x18": {
+      "$ref": "common.schema.json#/$defs/u32"
+    },
+    "u_0x1c": {
+      "$ref": "common.schema.json#/$defs/u32"
+    },
+    "u_0x2c": {
+      "$ref": "common.schema.json#/$defs/u32"
+    },
+    "u_0x3c": {
+      "$ref": "common.schema.json#/$defs/u32"
+    },
+    "u_0x4c": {
+      "$ref": "common.schema.json#/$defs/u32"
+    },
+    "u_0x5c": {
+      "$ref": "common.schema.json#/$defs/u32"
+    },
+    "u_0x6c": {
+      "$ref": "common.schema.json#/$defs/u32"
+    },
+    "u_0x7c": {
+      "$ref": "common.schema.json#/$defs/f32"
+    },
+    "u_0x80": {
+      "$ref": "common.schema.json#/$defs/u32"
+    },
+    "u_0x84": {
+      "$ref": "common.schema.json#/$defs/u32"
+    },
+    "u_0x88": {
+      "$ref": "common.schema.json#/$defs/u32"
+    },
+    "u_0x8c": {
+      "$ref": "common.schema.json#/$defs/u32"
+    },
+    "u_0x90": {
+      "$ref": "common.schema.json#/$defs/u32"
+    },
+    "u_0x94": {
+      "description": "May be -inf, written as bits:0xFF800000 (meshes.md 3.3).",
+      "$ref": "common.schema.json#/$defs/f32"
+    },
+    "u_0x98": {
+      "description": "May be -inf, written as bits:0xFF800000 (meshes.md 3.3).",
+      "$ref": "common.schema.json#/$defs/f32"
+    },
+    "u_0x9c": {
+      "$ref": "common.schema.json#/$defs/u32"
+    },
+    "u_0xa0": {
+      "$ref": "common.schema.json#/$defs/u32"
+    },
+    "mesh": {
+      "type": "object",
+      "properties": {
+        "flags": {
+          "$ref": "common.schema.json#/$defs/u32"
+        },
+        "triangle_count": {
+          "$ref": "common.schema.json#/$defs/u32"
+        },
+        "u_0x00": {
+          "$ref": "common.schema.json#/$defs/u32"
+        },
+        "u_0x04": {
+          "$ref": "common.schema.json#/$defs/u32"
+        },
+        "u_0x08": {
+          "$ref": "common.schema.json#/$defs/u32"
+        },
+        "u_0x14": {
+          "$ref": "common.schema.json#/$defs/u32"
+        },
+        "u_0x18": {
+          "$ref": "common.schema.json#/$defs/u32"
+        },
+        "u_0x1c": {
+          "$ref": "common.schema.json#/$defs/u32"
+        },
+        "u_0x20": {
+          "$ref": "common.schema.json#/$defs/u32"
+        },
+        "u_0x28": {
+          "$ref": "common.schema.json#/$defs/u32"
+        },
+        "u_0x2c": {
+          "$ref": "common.schema.json#/$defs/u32"
+        },
+        "u_0x30": {
+          "$ref": "common.schema.json#/$defs/u32"
+        },
+        "u_0x38": {
+          "$ref": "common.schema.json#/$defs/u32"
+        },
+        "u_0x3c": {
+          "$ref": "common.schema.json#/$defs/u32"
+        },
+        "u_0x40": {
+          "$ref": "common.schema.json#/$defs/u32"
+        },
+        "extras": {
+          "$ref": "common.schema.json#/$defs/extras"
+        }
+      },
+      "required": [
+        "flags"
+      ],
+      "additionalProperties": false
+    },
+    "textures": {
+      "type": "array",
+      "maxItems": 255,
+      "items": {
+        "type": "string",
+        "pattern": "^texture:\\S{1,200}$"
+      }
+    },
+    "light_materials": {
+      "description": "Bare hashes of light materials (conventions.md 6.6): not owned by a kind yet, resolved by the engine against GLOBALB chunk 0x135200, kept in the residual.",
+      "type": "array",
+      "maxItems": 255,
+      "items": {
+        "$ref": "common.schema.json#/$defs/hash32"
+      }
+    },
+    "draw_ranges": {
+      "type": "array",
+      "maxItems": 255,
+      "items": {
+        "type": "object",
+        "properties": {
+          "bbox_min": {
+            "$ref": "common.schema.json#/$defs/vec3"
+          },
+          "bbox_max": {
+            "$ref": "common.schema.json#/$defs/vec3"
+          },
+          "index_count": {
+            "$ref": "common.schema.json#/$defs/u32"
+          },
+          "first_index": {
+            "$ref": "common.schema.json#/$defs/u32"
+          },
+          "texture_slot": {
+            "$ref": "common.schema.json#/$defs/u8"
+          },
+          "u_0x1d": {
+            "type": "string",
+            "pattern": "^hex:([0-9a-f]{2}){3}$"
+          },
+          "light_material": {
+            "$ref": "common.schema.json#/$defs/u8"
+          },
+          "palette": {
+            "type": "string",
+            "pattern": "^hex:([0-9a-f]{2}){19}$"
+          },
+          "flags": {
+            "$ref": "common.schema.json#/$defs/u32"
+          },
+          "extras": {
+            "$ref": "common.schema.json#/$defs/extras"
+          }
+        },
+        "required": [
+          "bbox_min",
+          "bbox_max",
+          "index_count",
+          "first_index",
+          "texture_slot"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "extra_chunks": {
+      "type": "array",
+      "maxItems": 16,
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "$ref": "common.schema.json#/$defs/hash32"
+          },
+          "bufferView": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "bytes": {
+            "type": "string",
+            "pattern": "^hex:([0-9a-f]{2}){0,64}$"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "oneOf": [
+          {
+            "required": [
+              "bufferView"
+            ]
+          },
+          {
+            "required": [
+              "bytes"
+            ]
+          }
+        ],
+        "additionalProperties": false
+      }
+    },
+    "mesh_error": {
+      "type": "boolean",
+      "default": false
+    },
+    "op": {
+      "enum": [
+        "add",
+        "replace"
+      ]
+    },
+    "target": {
+      "type": "string",
+      "pattern": "^solid:\\S{1,200}$"
+    },
+    "extras": {
+      "$ref": "common.schema.json#/$defs/extras"
+    }
+  },
+  "required": [
+    "hash",
+    "layout",
+    "bbox_min",
+    "bbox_max",
+    "triangle_count",
+    "mesh",
+    "textures",
+    "draw_ranges"
+  ],
+  "dependentRequired": {
+    "target": [
+      "op"
+    ]
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "root": {
+      "description": "meshes.md 3.1: the extension's entry in the glTF root object's extensions, once per file: the lowest version of the extension that reads the file (versioning.md 1, 2.1).",
+      "type": "object",
+      "properties": {
+        "version": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+$"
+        }
+      },
+      "required": [
+        "version"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

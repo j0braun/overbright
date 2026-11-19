@@ -159,9 +159,11 @@ aim point, and Esc or F8 returns to driving. It does not edit anything. Without 
 ## What a custom race is
 
 A custom race runs on a **base track**: one of the game's race tracks in the region. The base track provides the
-road network (`TRACKS/ROUTES<region>/Paths<track>.bin` covers the whole region), its race barriers (the roads
-closed for it), the AI racing lanes, traffic, the opponents, and the race set-up of a career event on that track
-with the same race mode. The mod provides the checkpoints, the start grid (8 slots behind the start line when
+road network (`TRACKS/ROUTES<region>/Paths<track>.bin`: the roads around that track's own race, not the whole
+region, so a custom race stays within its base track's area), its race barriers (the roads closed for it), the
+AI racing lanes (the base track's `Routes<track><F|B>.bin`: the racing line and race links of the base track's
+own race, not of the custom route; see docs/tracing/ai-lanes.md), traffic, the opponents, and the race set-up
+of a career event on that track with the same race mode. The mod provides the checkpoints, the start grid (8 slots behind the start line when
 none are placed), the start and finish lines, the mode and the laps. The route is built through the checkpoints
 on the road network exactly as the game builds a track's own route (`RoadNet::route`, 0x5E5BC0). If a checkpoint
 leg has no road through the open network (a closed barrier in the way), the editor shows it and the race cannot

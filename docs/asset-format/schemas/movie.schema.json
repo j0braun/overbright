@@ -1,0 +1,287 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "movie.schema.json",
+  "title": "ob.movie: one full-motion video (VP6 in IVF, the EA sound stream and its interleave)",
+  "description": "movies.md 3.3",
+  "type": "object",
+  "properties": {
+    "schema": {
+      "type": "string",
+      "pattern": "^ob\\.movie/1\\.[0-9]+$"
+    },
+    "name": {
+      "$ref": "common.schema.json#/$defs/name"
+    },
+    "op": {
+      "description": "movies.md 3.3 and 4: add or replace (VP6 in IVF), or merge (only disabled)",
+      "enum": [
+        "merge",
+        "add",
+        "replace"
+      ]
+    },
+    "disabled": {
+      "description": "movies.md 4: the movie counts as missing",
+      "type": "boolean"
+    },
+    "width": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 65535
+    },
+    "height": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 65535
+    },
+    "frames": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 4294967295
+    },
+    "largest_frame": {
+      "$ref": "common.schema.json#/$defs/u32"
+    },
+    "rate": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 4294967295
+    },
+    "scale": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 4294967295
+    },
+    "u_0x00": {
+      "$ref": "common.schema.json#/$defs/u32"
+    },
+    "video": {
+      "type": "object",
+      "properties": {
+        "file": {
+          "description": "a file path relative to this TOML file's folder, no '..' (conventions 6.2)",
+          "type": "string",
+          "pattern": "^(?!.*(^|/)\\.\\.?(/|$))[A-Za-z0-9_-][A-Za-z0-9._-]{0,99}(/[A-Za-z0-9_-][A-Za-z0-9._-]{0,99})*$",
+          "maxLength": 240
+        },
+        "codec": {
+          "enum": [
+            "vp6"
+          ]
+        },
+        "digest": {
+          "$ref": "common.schema.json#/$defs/digest"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "file",
+        "codec"
+      ]
+    },
+    "audio": {
+      "type": "object",
+      "properties": {
+        "stream": {
+          "allOf": [
+            {
+              "$ref": "common.schema.json#/$defs/arrayDescriptor"
+            },
+            {
+              "properties": {
+                "layout": {
+                  "const": "ea_stream"
+                }
+              }
+            }
+          ]
+        },
+        "order": {
+          "allOf": [
+            {
+              "$ref": "common.schema.json#/$defs/arrayDescriptor"
+            },
+            {
+              "properties": {
+                "layout": {
+                  "const": "chunk_order"
+                }
+              }
+            }
+          ]
+        },
+        "codec": {
+          "enum": [
+            "ea_xa"
+          ]
+        },
+        "channels": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2
+        },
+        "rate_hz": {
+          "$ref": "common.schema.json#/$defs/u32"
+        },
+        "frames": {
+          "$ref": "common.schema.json#/$defs/u32"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "stream",
+        "order",
+        "codec",
+        "channels",
+        "rate_hz",
+        "frames"
+      ],
+      "description": "movies.md 3.3"
+    },
+    "extras": {
+      "$ref": "common.schema.json#/$defs/extras"
+    },
+    "ext": {
+      "$ref": "common.schema.json#/$defs/ext"
+    }
+  },
+  "required": [
+    "schema",
+    "name"
+  ],
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "op": {
+            "enum": [
+              "add",
+              "replace"
+            ]
+          }
+        },
+        "required": [
+          "op"
+        ]
+      },
+      "then": {
+        "required": [
+          "width",
+          "height",
+          "frames",
+          "largest_frame",
+          "rate",
+          "scale",
+          "video"
+        ]
+      }
+    },
+    {
+      "if": {
+        "not": {
+          "anyOf": [
+            {
+              "required": [
+                "op"
+              ]
+            },
+            {
+              "required": [
+                "disabled"
+              ]
+            }
+          ]
+        }
+      },
+      "then": {
+        "required": [
+          "width",
+          "height",
+          "frames",
+          "largest_frame",
+          "rate",
+          "scale",
+          "video"
+        ]
+      }
+    },
+    {
+      "if": {
+        "anyOf": [
+          {
+            "properties": {
+              "op": {
+                "const": "merge"
+              }
+            },
+            "required": [
+              "op"
+            ]
+          },
+          {
+            "not": {
+              "required": [
+                "op"
+              ]
+            },
+            "required": [
+              "disabled"
+            ]
+          }
+        ]
+      },
+      "then": {
+        "not": {
+          "anyOf": [
+            {
+              "required": [
+                "width"
+              ]
+            },
+            {
+              "required": [
+                "height"
+              ]
+            },
+            {
+              "required": [
+                "frames"
+              ]
+            },
+            {
+              "required": [
+                "largest_frame"
+              ]
+            },
+            {
+              "required": [
+                "rate"
+              ]
+            },
+            {
+              "required": [
+                "scale"
+              ]
+            },
+            {
+              "required": [
+                "video"
+              ]
+            },
+            {
+              "required": [
+                "audio"
+              ]
+            },
+            {
+              "required": [
+                "u_0x00"
+              ]
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "additionalProperties": false
+}

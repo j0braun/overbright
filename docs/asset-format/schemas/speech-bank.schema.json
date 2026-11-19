@@ -1,0 +1,417 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "speech-bank.schema.json",
+  "title": "ob.speech-bank: a speech bank (switches, events, index entries, line streams)",
+  "description": "audio.md 3.4",
+  "type": "object",
+  "properties": {
+    "schema": {
+      "type": "string",
+      "pattern": "^ob\\.speech\\-bank/1\\.[0-9]+$"
+    },
+    "bank": {
+      "$ref": "common.schema.json#/$defs/name"
+    },
+    "language": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]{0,31}$"
+    },
+    "lines": {
+      "allOf": [
+        {
+          "$ref": "common.schema.json#/$defs/arrayDescriptor"
+        },
+        {
+          "properties": {
+            "layout": {
+              "const": "ea_stream_set"
+            },
+            "offset": {
+              "const": 0
+            }
+          }
+        }
+      ]
+    },
+    "bank_keys": {
+      "type": "array",
+      "items": {
+        "$ref": "common.schema.json#/$defs/u8"
+      },
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "switch": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 63
+          },
+          "id": {
+            "$ref": "common.schema.json#/$defs/u32"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "id"
+        ]
+      }
+    },
+    "event": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "$ref": "common.schema.json#/$defs/u16"
+          },
+          "switch": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 63
+          },
+          "lifetime": {
+            "$ref": "common.schema.json#/$defs/u16"
+          },
+          "priority": {
+            "$ref": "common.schema.json#/$defs/u16"
+          },
+          "keys": {
+            "$ref": "common.schema.json#/$defs/u8"
+          },
+          "limits": {
+            "$ref": "common.schema.json#/$defs/u8"
+          },
+          "chance": {
+            "$ref": "common.schema.json#/$defs/i8"
+          },
+          "flags": {
+            "$ref": "common.schema.json#/$defs/u8"
+          },
+          "values": {
+            "$ref": "common.schema.json#/$defs/u8"
+          },
+          "alternative": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "weight": {
+                  "$ref": "common.schema.json#/$defs/u8"
+                },
+                "chance": {
+                  "$ref": "common.schema.json#/$defs/u8"
+                },
+                "mode": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 3
+                },
+                "state": {
+                  "$ref": "common.schema.json#/$defs/u8"
+                },
+                "step": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "entry": {
+                        "$ref": "common.schema.json#/$defs/u16"
+                      },
+                      "entry_component": {
+                        "$ref": "common.schema.json#/$defs/u8"
+                      },
+                      "entry_mode": {
+                        "$ref": "common.schema.json#/$defs/u8"
+                      },
+                      "constraint": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "mask": {
+                              "$ref": "common.schema.json#/$defs/u32"
+                            },
+                            "component": {
+                              "$ref": "common.schema.json#/$defs/u8"
+                            },
+                            "slot": {
+                              "$ref": "common.schema.json#/$defs/u8"
+                            }
+                          },
+                          "additionalProperties": false,
+                          "required": [
+                            "mask",
+                            "component",
+                            "slot"
+                          ]
+                        }
+                      }
+                    },
+                    "additionalProperties": false,
+                    "required": [
+                      "entry",
+                      "entry_component",
+                      "entry_mode",
+                      "constraint"
+                    ]
+                  }
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "weight",
+                "chance",
+                "mode",
+                "state",
+                "step"
+              ]
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "lifetime",
+          "priority",
+          "keys",
+          "limits",
+          "chance",
+          "flags",
+          "values",
+          "alternative"
+        ],
+        "description": "audio.md 3.4.1"
+      },
+      "maxItems": 1024
+    },
+    "entry": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "$ref": "common.schema.json#/$defs/u16"
+          },
+          "selector": {
+            "$ref": "common.schema.json#/$defs/u16"
+          },
+          "base": {
+            "$ref": "common.schema.json#/$defs/u32"
+          },
+          "unit_bytes": {
+            "type": "integer",
+            "minimum": 256,
+            "maximum": 65536,
+            "multipleOf": 256
+          },
+          "end_units": {
+            "$ref": "common.schema.json#/$defs/u16"
+          },
+          "history": {
+            "$ref": "common.schema.json#/$defs/u8"
+          },
+          "record": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "offset_units": {
+                  "$ref": "common.schema.json#/$defs/u16"
+                },
+                "keys": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "common.schema.json#/$defs/u8"
+                  },
+                  "maxItems": 127
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "offset_units",
+                "keys"
+              ]
+            },
+            "maxItems": 255
+          },
+          "unions": {
+            "type": "array",
+            "items": {
+              "$ref": "common.schema.json#/$defs/u32"
+            },
+            "maxItems": 127
+          },
+          "enabled": {
+            "$ref": "common.schema.json#/$defs/bytes"
+          },
+          "ring": {
+            "type": "object",
+            "properties": {
+              "position": {
+                "$ref": "common.schema.json#/$defs/u8"
+              },
+              "slots": {
+                "type": "array",
+                "items": {
+                  "$ref": "common.schema.json#/$defs/u8"
+                },
+                "maxItems": 255
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "position",
+              "slots"
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "selector",
+          "base",
+          "unit_bytes",
+          "end_units",
+          "history",
+          "record",
+          "unions",
+          "ring"
+        ],
+        "description": "audio.md 3.4.2"
+      },
+      "maxItems": 1024
+    },
+    "line": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "entry": {
+            "$ref": "common.schema.json#/$defs/u32"
+          },
+          "record": {
+            "$ref": "common.schema.json#/$defs/u32"
+          },
+          "op": {
+            "description": "audio.md 3.4.3: required; replace (new audio) or merge (disabled only)",
+            "enum": [
+              "merge",
+              "replace"
+            ]
+          },
+          "disabled": {
+            "type": "boolean"
+          },
+          "source": {
+            "type": "object",
+            "properties": {
+              "file": {
+                "description": "a file path relative to this TOML file's folder, no '..' (conventions 6.2)",
+                "type": "string",
+                "pattern": "^(?!.*(^|/)\\.\\.?(/|$))[A-Za-z0-9_-][A-Za-z0-9._-]{0,99}(/[A-Za-z0-9_-][A-Za-z0-9._-]{0,99})*$",
+                "maxLength": 240
+              },
+              "format": {
+                "enum": [
+                  "flac"
+                ]
+              },
+              "digest": {
+                "$ref": "common.schema.json#/$defs/digest"
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "file",
+              "format"
+            ],
+            "description": "a payload of the pack's own (audio.md 3.8)"
+          },
+          "extras": {
+            "$ref": "common.schema.json#/$defs/extras"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "entry",
+          "record",
+          "op"
+        ],
+        "description": "audio.md 3.4.3",
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "op": {
+                  "const": "replace"
+                }
+              },
+              "required": [
+                "op"
+              ],
+              "not": {
+                "properties": {
+                  "disabled": {
+                    "const": true
+                  }
+                },
+                "required": [
+                  "disabled"
+                ]
+              }
+            },
+            "then": {
+              "required": [
+                "source"
+              ]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "op": {
+                  "const": "merge"
+                }
+              },
+              "required": [
+                "op"
+              ]
+            },
+            "then": {
+              "not": {
+                "required": [
+                  "source"
+                ]
+              }
+            }
+          }
+        ]
+      }
+    },
+    "extras": {
+      "$ref": "common.schema.json#/$defs/extras"
+    },
+    "ext": {
+      "$ref": "common.schema.json#/$defs/ext"
+    }
+  },
+  "required": [
+    "schema",
+    "bank"
+  ],
+  "dependentRequired": {
+    "lines": [
+      "bank_keys",
+      "switch",
+      "event",
+      "entry"
+    ]
+  },
+  "additionalProperties": false
+}

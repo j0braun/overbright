@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "OB_solid_list.schema.json",
+  "title": "OB_solid_list glTF scene extension",
+  "description": "meshes.md 3.6: on the glTF scene: the file's format marker (schema, the version of the mesh profile and of this extension) and the solid list header's info chunk 0x134002; counts, hash table, offset table and the empty container are derived.",
+  "type": "object",
+  "properties": {
+    "schema": {
+      "description": "The format marker: ob.mesh/<major>.<minor> (meshes.md 3.1).",
+      "type": "string",
+      "pattern": "^ob\\.mesh/[0-9]+\\.[0-9]+$"
+    },
+    "list_version": {
+      "description": "+0x08 of the original list info (29 everywhere); not the format's version.",
+      "$ref": "common.schema.json#/$defs/u32"
+    },
+    "path": {
+      "type": "string",
+      "maxLength": 63,
+      "pattern": "^[\\x20-\\x7E]*$"
+    },
+    "path_tail": {
+      "type": "string",
+      "pattern": "^hex:([0-9a-f]{2}){0,63}$"
+    },
+    "u_0x00": {
+      "$ref": "common.schema.json#/$defs/u32"
+    },
+    "u_0x04": {
+      "$ref": "common.schema.json#/$defs/u32"
+    },
+    "u_0x50": {
+      "$ref": "common.schema.json#/$defs/u32"
+    },
+    "u_0x54": {
+      "$ref": "common.schema.json#/$defs/u32"
+    },
+    "u_0x58": {
+      "$ref": "common.schema.json#/$defs/u32"
+    },
+    "u_0x5c": {
+      "$ref": "common.schema.json#/$defs/u32"
+    },
+    "u_0x60": {
+      "$ref": "common.schema.json#/$defs/u32"
+    },
+    "u_0x64": {
+      "$ref": "common.schema.json#/$defs/u32"
+    },
+    "u_0x68": {
+      "$ref": "common.schema.json#/$defs/u32"
+    },
+    "u_0x6c": {
+      "$ref": "common.schema.json#/$defs/u32"
+    },
+    "u_0x70": {
+      "$ref": "common.schema.json#/$defs/u32"
+    },
+    "u_0x74": {
+      "$ref": "common.schema.json#/$defs/u32"
+    },
+    "u_0x78": {
+      "$ref": "common.schema.json#/$defs/u32"
+    },
+    "u_0x7c": {
+      "$ref": "common.schema.json#/$defs/u32"
+    },
+    "u_0x80": {
+      "$ref": "common.schema.json#/$defs/u32"
+    },
+    "u_0x84": {
+      "$ref": "common.schema.json#/$defs/u32"
+    },
+    "u_0x88": {
+      "$ref": "common.schema.json#/$defs/u32"
+    },
+    "u_0x8c": {
+      "$ref": "common.schema.json#/$defs/u32"
+    },
+    "offset_table": {
+      "type": "boolean",
+      "default": false
+    },
+    "extras": {
+      "$ref": "common.schema.json#/$defs/extras"
+    }
+  },
+  "required": [
+    "schema",
+    "path"
+  ],
+  "additionalProperties": false
+}

@@ -1,0 +1,22 @@
+# world/L4RA/anims.toml: one shop door's tree with one slat, and its instance (made-up values).
+schema = "ob.world-anims/1.0"
+
+[[entity]]
+hash = "0x11111111"
+parent = "0x00000000"
+solid = "0x22222222"
+tree = "0xB8A18038"
+animation = "0x33333333"
+rest = [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.5, 1.0]
+
+[[instance]]
+id = 7
+tree = "0xB8A18038"
+flags = 0x28
+speed = 1.0
+delay_s = [0.0, 0.0]
+range = [0, 0]
+keys = ["0x44444444", "0x00000000"]
+window = [0, 0, 0, 0]
+hold = 0
+transform = [0.0, 1.0, 0.0, 0.0, -1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, -712.0, -873.0, 20.0, 1.0]

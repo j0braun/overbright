@@ -1,0 +1,51 @@
+{
+  "asset": { "version": "2.0", "generator": "overbright-import 0.4.0" },
+  "extensionsUsed": ["OB_solid", "OB_solid_list", "OB_material"],
+  "extensions": { "OB_solid": { "version": "1.0" }, "OB_material": { "version": "1.0" } },
+  "scene": 0,
+  "scenes": [
+    {
+      "name": "1427.0",
+      "nodes": [0],
+      "extensions": { "OB_solid_list": { "schema": "ob.mesh/1.0", "path": "Location4\\RegionA\\Pipeline\\PC\\eLabScenery_EXAMPLE" } }
+    }
+  ],
+  "nodes": [
+    { "name": "OB_Z_UP", "rotation": [-0.70710677, 0.0, 0.0, 0.70710677], "children": [1] },
+    {
+      "name": "XO_CONE_01",
+      "mesh": 0,
+      "extensions": {
+        "OB_solid": {
+          "hash": "0x608A650A",
+          "layout": "world24",
+          "bbox_min": [-0.51, -0.51, -0.01],
+          "bbox_max": [0.51, 0.51, 1.01],
+          "triangle_count": 1,
+          "mesh": { "flags": 0 },
+          "textures": ["texture:0x1A2B3C4D"],
+          "draw_ranges": [
+            { "bbox_min": [-0.5, -0.5, 0.0], "bbox_max": [0.5, 0.5, 1.0], "index_count": 3, "first_index": 0, "texture_slot": 0 }
+          ]
+        }
+      }
+    }
+  ],
+  "meshes": [
+    { "primitives": [ { "attributes": { "POSITION": 0, "_COLOR_BGRA": 1, "TEXCOORD_0": 2 }, "indices": 3, "material": 0, "mode": 4 } ] }
+  ],
+  "materials": [
+    { "name": "0x1A2B3C4D", "extensions": { "OB_material": { "texture": "texture:0x1A2B3C4D" } } }
+  ],
+  "accessors": [
+    { "bufferView": 0, "componentType": 5126, "count": 3, "type": "VEC3", "min": [-0.5, -0.5, 0.0], "max": [0.5, 0.5, 1.0] },
+    { "bufferView": 0, "byteOffset": 12, "componentType": 5121, "normalized": true, "count": 3, "type": "VEC4" },
+    { "bufferView": 0, "byteOffset": 16, "componentType": 5126, "count": 3, "type": "VEC2" },
+    { "bufferView": 1, "componentType": 5123, "count": 3, "type": "SCALAR" }
+  ],
+  "bufferViews": [
+    { "buffer": 0, "byteOffset": 0, "byteLength": 72, "byteStride": 24, "target": 34962 },
+    { "buffer": 0, "byteOffset": 80, "byteLength": 6, "target": 34963 }
+  ],
+  "buffers": [ { "uri": "1427.0.bin", "byteLength": 96 } ]
+}

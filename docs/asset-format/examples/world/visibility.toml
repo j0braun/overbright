@@ -1,0 +1,12 @@
+# world/L4RA/visibility.toml (made-up values).
+schema = "ob.visibility/1.0"
+
+[[outline]]
+section = 1407
+bbox = [-240.0, -1080.0, -170.0, -1000.0]
+inside = [-205.0, -1040.0]
+points = [[-240.0, -1080.0], [-170.0, -1080.0], [-170.0, -1000.0], [-240.0, -1000.0]]
+
+[[list]]
+section = 1407
+sections = [1407, 1408, 1427, 1428, 1499, 2401, 2501]

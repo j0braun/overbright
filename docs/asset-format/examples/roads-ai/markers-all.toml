@@ -1,0 +1,26 @@
+# Made-up values in the shape of world/L4RA/routes/markers/All.toml (roads-ai.md 3.5).
+schema = "ob.track-markers/1.0"
+region = "L4RA"
+name = "All"
+
+[[marker]]
+name = "ForwardStartingPosition"
+track = 4001
+slot = 0
+position = [-1190.25, 461.5, 13.5625]
+heading_bam16 = 16384
+
+[[marker]]
+name = "ForwardStartingPosition"
+track = 4001
+slot = 1
+position = [-1194.5, 457.0, 13.5625]
+heading_bam16 = 16384
+
+[[marker]]
+name = "ForwardStartLine"
+track = 4001
+position = [-1186.0, 466.0, 13.5]
+heading_bam16 = 16384
+u_0x22 = 13105
+u_0x28 = "hex:31345f0000000000"

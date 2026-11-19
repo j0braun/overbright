@@ -1,0 +1,16 @@
+# A made-up custom race: races/docks-sprint.toml of a mod pack (roads-ai.md 3.7).
+schema = "ob.race/1.0"
+id = "docks-sprint"
+name = "Docks sprint"
+track = 4001
+mode = "sprint"
+checkpoints = [[-1203.5, 455.25], [-980.0, 610.75], [-702.125, 640.5]]
+start = { position = [-1210.0, 450.0, 13.5], heading_deg = 33.5 }
+finish = { position = [-700.0, 641.0, 12.0], heading_deg = 2.0 }
+grid = [
+  { position = [-1214.0, 447.5, 13.5], heading_deg = 33.5 },
+  { position = [-1211.75, 443.0, 13.5], heading_deg = 33.5 },
+]
+
+[extras]
+note = "made in the map editor"

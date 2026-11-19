@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "font.schema.json",
+  "title": "Overbright asset format: a bitmap font (ob.font)",
+  "description": "ui.md section 3.2. One font (original chunk 0x30201): header values, glyph table with kerning pairs per glyph, and the opaque tail. Derived values (glyph count, table offsets, sizes, the kerning byte 3) are not stored.",
+  "type": "object",
+  "properties": {
+    "schema": { "type": "string", "pattern": "^ob\\.font/1\\.[0-9]+$" },
+    "op": { "$ref": "common.schema.json#/$defs/op" },
+    "name": { "description": "First string of the name block (+0x000)", "$ref": "common.schema.json#/$defs/name" },
+    "source": {
+      "description": "Further strings of the name block (open: authoring leftovers)",
+      "type": "array",
+      "items": { "type": "string", "minLength": 1, "maxLength": 200, "pattern": "^[\\u0020-\\u007E]+$" },
+      "maxItems": 8
+    },
+    "texture": { "description": "First string of the texture block (+0x100): the glyph page's texture name", "$ref": "common.schema.json#/$defs/name" },
+    "texture_source": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1, "maxLength": 200, "pattern": "^[\\u0020-\\u007E]+$" },
+      "maxItems": 8
+    },
+    "line_height_px": { "$ref": "common.schema.json#/$defs/i32" },
+    "flags": { "$ref": "common.schema.json#/$defs/u32" },
+    "inv_texture_width": { "$ref": "common.schema.json#/$defs/f32" },
+    "inv_texture_height": { "$ref": "common.schema.json#/$defs/f32" },
+    "u_0x04": { "$ref": "common.schema.json#/$defs/u32" },
+    "u_0x08": { "$ref": "common.schema.json#/$defs/u16" },
+    "u_0x10": { "$ref": "common.schema.json#/$defs/u16" },
+    "u_0x12": { "$ref": "common.schema.json#/$defs/u16" },
+    "u_0x20": { "$ref": "common.schema.json#/$defs/u32" },
+    "u_0x28": { "$ref": "common.schema.json#/$defs/u32" },
+    "u_0x2c": { "$ref": "common.schema.json#/$defs/f32" },
+    "u_0x30": { "$ref": "common.schema.json#/$defs/u32" },
+    "u_0x34": { "$ref": "common.schema.json#/$defs/u32" },
+    "u_0x38": { "$ref": "common.schema.json#/$defs/f32" },
+    "u_0x3c": { "$ref": "common.schema.json#/$defs/f32" },
+    "u_0x48": { "$ref": "common.schema.json#/$defs/u32" },
+    "u_0x4c": {
+      "type": "array",
+      "items": { "$ref": "common.schema.json#/$defs/u32" },
+      "minItems": 13,
+      "maxItems": 13
+    },
+    "tail": { "description": "Bytes after the kerning table (open)", "$ref": "common.schema.json#/$defs/bytes" },
+    "glyph": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/glyph" },
+      "maxItems": 65535
+    },
+    "extras": { "$ref": "common.schema.json#/$defs/extras" },
+    "ext": { "$ref": "common.schema.json#/$defs/ext" }
+  },
+  "required": ["schema", "name"],
+  "additionalProperties": false,
+  "$defs": {
+    "glyph": {
+      "type": "object",
+      "properties": {
+        "op": { "$ref": "common.schema.json#/$defs/op" },
+        "disabled": { "type": "boolean" },
+        "code": { "description": "The character (UTF-16 code unit); the glyph's key", "$ref": "common.schema.json#/$defs/u16" },
+        "width_px": { "$ref": "common.schema.json#/$defs/u8" },
+        "height_px": { "$ref": "common.schema.json#/$defs/u8" },
+        "x_px": { "$ref": "common.schema.json#/$defs/u16" },
+        "y_px": { "$ref": "common.schema.json#/$defs/u16" },
+        "x_offset_px": { "$ref": "common.schema.json#/$defs/i8" },
+        "y_offset_px": { "$ref": "common.schema.json#/$defs/i8" },
+        "advance_px": { "$ref": "common.schema.json#/$defs/i16" },
+        "kerning": {
+          "description": "(previous character, adjust in pixels) pairs, in table order",
+          "type": "array",
+          "items": {
+            "type": "array",
+            "prefixItems": [
+              { "$ref": "common.schema.json#/$defs/u16" },
+              { "$ref": "common.schema.json#/$defs/i8" }
+            ],
+            "items": false,
+            "minItems": 2
+          },
+          "maxItems": 255
+        }
+      },
+      "required": ["code"],
+      "additionalProperties": false
+    }
+  }
+}

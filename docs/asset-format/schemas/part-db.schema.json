@@ -1,0 +1,287 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "part-db.schema.json",
+  "title": "Overbright asset format: the part database (ob.part-db)",
+  "description": "cars.md 3.4. global/parts/db.toml: GLOBALB container 0x80034602 (header 0x34603, strings 0x34606, attribute lists 0x3460C, attributes 0x34605, models 0x3460A, groups 0x3460B, parts 0x34604) and the slot groups 0x34607, every table in its original order. Base sets use the pool fields; mod packs may only merge part attributes (attributes) and nothing else in 1.0 (CRS.7).",
+  "type": "object",
+  "properties": {
+    "schema": {
+      "type": "string",
+      "pattern": "^ob\\.part-db/1\\.[0-9]+$"
+    },
+    "header": {
+      "description": "0x34603: 15 u32. Entries 8, 10, 12 and 14 are the attribute, group, model and part counts (checked); the rest open.",
+      "type": "array",
+      "items": {
+        "$ref": "common.schema.json#/$defs/u32"
+      },
+      "minItems": 15,
+      "maxItems": 15
+    },
+    "lists": {
+      "description": "0x3460C: the attribute lists as one u16 array (layout u16), each list a count then attribute indices.",
+      "$ref": "common.schema.json#/$defs/arrayDescriptor"
+    },
+    "part_tail": {
+      "description": "Bytes of 0x34604 after the last whole 14-byte record.",
+      "type": "string",
+      "pattern": "^hex:([0-9a-f]{2}){0,13}$"
+    },
+    "group": {
+      "description": "0x3460B: group hashes; position = group index.",
+      "type": "array",
+      "maxItems": 256,
+      "items": {
+        "type": "object",
+        "properties": {
+          "hash": {
+            "$ref": "common.schema.json#/$defs/hash32"
+          },
+          "name": {
+            "$ref": "common.schema.json#/$defs/name"
+          }
+        },
+        "required": [
+          "hash"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "string": {
+      "description": "0x34606: the string pool; each string NUL-terminated and zero-padded to a dword.",
+      "type": "array",
+      "maxItems": 100000,
+      "items": {
+        "type": "object",
+        "properties": {
+          "at": {
+            "description": "Dword index of the string's first byte.",
+            "$ref": "common.schema.json#/$defs/u32"
+          },
+          "text": {
+            "description": "The bytes read as Windows-1252.",
+            "type": "string",
+            "maxLength": 1000
+          }
+        },
+        "required": [
+          "at",
+          "text"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "string_pool": {
+      "description": "0x34606 as raw bytes (layout raw_u8), used instead of string when the pool is not strings + zero fill (cars.md 3.4). Base sets only.",
+      "$ref": "common.schema.json#/$defs/arrayDescriptor"
+    },
+    "attribute": {
+      "description": "0x34605: (key hash, value) records; position = attribute index.",
+      "type": "array",
+      "maxItems": 65535,
+      "items": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "$ref": "common.schema.json#/$defs/hash32"
+          },
+          "key_name": {
+            "description": "The key's name when known (tools only).",
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_]{1,63}$"
+          },
+          "value": {
+            "$ref": "common.schema.json#/$defs/u32"
+          }
+        },
+        "required": [
+          "key",
+          "value"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "model": {
+      "description": "0x3460A: 0x24-byte model records; position = model index.",
+      "type": "array",
+      "maxItems": 65535,
+      "items": {
+        "type": "object",
+        "properties": {
+          "named": {
+            "description": "+0x00 u8: non-zero: names are string indices, else solid hashes (0 or 1 in the reference install).",
+            "$ref": "common.schema.json#/$defs/u8"
+          },
+          "u_0x01": {
+            "$ref": "common.schema.json#/$defs/u8"
+          },
+          "middle": {
+            "description": "+0x02 u16: string index of the middle part; 65535 none.",
+            "$ref": "common.schema.json#/$defs/u16"
+          },
+          "names": {
+            "description": "+0x04: two groups of four u32 (LOD A-D); 0xFFFFFFFF none.",
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 2,
+            "items": {
+              "type": "array",
+              "items": {
+                "$ref": "common.schema.json#/$defs/u32"
+              },
+              "minItems": 4,
+              "maxItems": 4
+            }
+          }
+        },
+        "required": [
+          "named",
+          "middle",
+          "names"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "part": {
+      "description": "0x34604: 14-byte part records, in order. Key: (group, hash).",
+      "type": "array",
+      "maxItems": 65535,
+      "items": {
+        "type": "object",
+        "properties": {
+          "group": {
+            "description": "+0x07: the group, by hash (the encoder writes its index).",
+            "$ref": "common.schema.json#/$defs/hash32"
+          },
+          "hash": {
+            "description": "+0x00: the part's hash.",
+            "$ref": "common.schema.json#/$defs/hash32"
+          },
+          "op": {
+            "$ref": "common.schema.json#/$defs/op"
+          },
+          "disabled": {
+            "type": "boolean"
+          },
+          "slot": {
+            "description": "+0x04: the part type (a car slot takes the type SLOT_TYPES gives).",
+            "$ref": "common.schema.json#/$defs/u8"
+          },
+          "kind": {
+            "description": "+0x05 low 5 bits.",
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 31
+          },
+          "level": {
+            "description": "+0x05 top 3 bits: upgrade level (0 stock).",
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 7
+          },
+          "seed": {
+            "description": "+0x06: what model names continue from (0 none, 1 the group, else the brand attribute).",
+            "$ref": "common.schema.json#/$defs/u8"
+          },
+          "name": {
+            "description": "+0x08 u16: string index of its name.",
+            "$ref": "common.schema.json#/$defs/u16"
+          },
+          "attribute_list": {
+            "description": "+0x0A u16: index into lists; 65535 none. Base sets only.",
+            "$ref": "common.schema.json#/$defs/u16"
+          },
+          "model": {
+            "description": "+0x0C u16: model index; 65535 none.",
+            "$ref": "common.schema.json#/$defs/u16"
+          },
+          "attributes": {
+            "description": "Mod packs only: attribute values to set on this part, by key hash (0xXXXXXXXX) or known key name. The cooker gives the part a private list (cars.md 4.3).",
+            "type": "object",
+            "propertyNames": {
+              "pattern": "^(0x[0-9A-F]{8}|[A-Z][A-Z0-9_]{0,62})$"
+            },
+            "additionalProperties": {
+              "$ref": "common.schema.json#/$defs/u32"
+            }
+          },
+          "extras": {
+            "$ref": "common.schema.json#/$defs/extras"
+          }
+        },
+        "required": [
+          "group",
+          "hash"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "slot_groups": {
+      "description": "GLOBALB 0x34607: per car slot (0xAA) the two groups its parts come from (0xFFFFFFFF = the car's own name hash), then overrides.",
+      "type": "object",
+      "properties": {
+        "defaults": {
+          "type": "array",
+          "minItems": 170,
+          "maxItems": 170,
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "common.schema.json#/$defs/hash32"
+            },
+            "minItems": 2,
+            "maxItems": 2
+          }
+        },
+        "override": {
+          "type": "array",
+          "maxItems": 4096,
+          "items": {
+            "type": "object",
+            "properties": {
+              "car": {
+                "$ref": "common.schema.json#/$defs/hash32"
+              },
+              "slot": {
+                "$ref": "common.schema.json#/$defs/u32"
+              },
+              "groups": {
+                "type": "array",
+                "items": {
+                  "$ref": "common.schema.json#/$defs/hash32"
+                },
+                "minItems": 2,
+                "maxItems": 2
+              }
+            },
+            "required": [
+              "car",
+              "slot",
+              "groups"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "tail": {
+          "description": "Bytes of 0x34607 after the last whole 16-byte override.",
+          "type": "string",
+          "pattern": "^hex:([0-9a-f]{2}){0,15}$"
+        }
+      },
+      "required": [
+        "defaults"
+      ],
+      "additionalProperties": false
+    },
+    "extras": {
+      "$ref": "common.schema.json#/$defs/extras"
+    },
+    "ext": {
+      "$ref": "common.schema.json#/$defs/ext"
+    }
+  },
+  "required": [
+    "schema"
+  ],
+  "additionalProperties": false
+}

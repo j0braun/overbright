@@ -1,0 +1,29 @@
+# cars/FOCUS/unit.toml in a base set made by the importer.
+schema = "ob.car-unit/1.0"
+name = "FOCUS"
+role = "car"
+car = "car:FOCUS"
+
+[[file]]
+original = "GEOMETRY.BIN"
+state = "data"
+kind = "meshes"
+paths = ["meshes/GEOMETRY.BIN.0.gltf"]
+
+[[file]]
+original = "PARTS_ANIMATIONS.bin"
+state = "data"
+kind = "part-animations"
+paths = ["anim/PARTS_ANIMATIONS.bin.banks.toml", "anim/PARTS_ANIMATIONS.bin.pivots.toml"]
+
+[[file]]
+original = "TEXTURES.BIN"
+state = "data"
+kind = "textures"
+paths = ["textures/TEXTURES.toml"]
+
+[[file]]
+original = "VINYLS.BIN"
+state = "data"
+kind = "vinyls"
+paths = ["textures/VINYLS.toml"]

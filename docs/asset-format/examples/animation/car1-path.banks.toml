@@ -1,0 +1,23 @@
+# A mod pack's bank file scenes/ShopEnter1/anim/car1-path.banks.toml: in a pack "shop-remix" its bank is
+# anim-bank:scenes/ShopEnter1/shop-remix:car1-path.0. It replaces the car's path (keys in car1-path.keys.bin).
+schema = "ob.anim-banks/1.0"
+
+[[object]]
+kind = "bank"
+encoding = "keys"
+
+[[object.channel]]
+name = "ZPM_Car1_t"
+op = "replace"
+slots = [20, 21, 22]
+frames = 71
+width = 3
+values = { file = "car1-path.keys.bin", offset = 0, count = 213, layout = "anim_f32" }
+
+[[object.channel]]
+name = "ZPM_Car1_q"
+op = "replace"
+slots = [16, 17, 18, 19]
+frames = 71
+width = 4
+values = { file = "car1-path.keys.bin", offset = 864, count = 284, layout = "anim_f32" }

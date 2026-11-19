@@ -1,0 +1,53 @@
+# Made-up values in the shape of world/L4RA/routes/paths.toml (roads-ai.md 3.2).
+schema = "ob.route-paths/1.0"
+region = "L4RA"
+
+[[trigger]]
+kind = 4
+position = [-1288.5, 806.25]
+direction = [0.0, 1.0]
+box_min = [-1300.0, 790.0]
+box_max = [-1277.0, 822.5]
+name = "0x00000000"
+polygon = [[-1300.0, 790.0], [-1277.0, 790.0], [-1277.0, 822.5], [-1300.0, 822.5]]
+
+[[trigger]]
+kind = 13
+position = [374.0, 1167.0]
+direction = [1.0, 0.0]
+z_m = 35.0
+u_0x18 = 1
+box_min = [370.0, 1163.0]
+box_max = [378.0, 1171.0]
+name = "EV_01"
+gps = [374, 1160, 35]
+
+[[trigger]]
+kind = 16
+position = [0.0, 0.0]
+box_min = [-2600.0, -2200.0]
+box_max = [400.0, 1900.0]
+traffic = { rows = [0, 1, 2], caps_zone = 0 }
+polygon = [[-2600.0, -2200.0], [400.0, -2200.0], [400.0, 1900.0], [-2600.0, 1900.0]]
+
+[[barrier]]
+ends = [[-1021.75, 455.5], [-1009.25, 470.0]]
+groups = ["BARRIERS_4001", "PLAYER_BARRIERS_4002"]
+
+[[barrier]]
+ends = [[-640.0, 702.5], [-631.5, 690.0]]
+held = 0
+groups = ["BARRIERS_CAREER3", "0x5A21C3D0"]
+
+[[checkpoints]]
+track = 4001
+loops = 1
+u_0x04 = 1
+width_m = 50
+points = [[-1203.5, 455.25], [-980.0, 610.75], [-702.125, 640.5], [-1180.0, 300.0]]
+
+[[checkpoints]]
+track = 4002
+loops = 0
+width_m = 30
+points = [[-1203.5, 455.25], [-702.125, 640.5]]

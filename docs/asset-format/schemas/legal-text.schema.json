@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "legal-text.schema.json",
+  "title": "Overbright asset format: a legal text (ob.legal-text)",
+  "description": "text.md section 3.5. text/<language>/legal/<FILE>.toml: a licence agreement text and its original encoding.",
+  "type": "object",
+  "properties": {
+    "schema": { "type": "string", "pattern": "^ob\\.legal-text/1\\.[0-9]+$" },
+    "op": { "$ref": "common.schema.json#/$defs/op" },
+    "encoding": { "enum": ["windows-1252", "utf-8", "utf-16le"] },
+    "bom": { "type": "boolean" },
+    "line_ending": { "enum": ["crlf", "lf"] },
+    "lines": {
+      "type": "array",
+      "items": { "type": "string", "maxLength": 4096 },
+      "maxItems": 100000
+    },
+    "extras": { "$ref": "common.schema.json#/$defs/extras" },
+    "ext": { "$ref": "common.schema.json#/$defs/ext" }
+  },
+  "required": ["schema", "encoding", "lines"],
+  "additionalProperties": false
+}

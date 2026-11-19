@@ -1,0 +1,20 @@
+# A mod pack's global/cars/presets.toml: one original preset changed, one added.
+schema = "ob.car-presets/1.0"
+
+[[preset]]
+name = "DDAY_PLAYER_CAR"
+perf_level = 3
+
+[preset.parts]
+"0x3F" = "0x5E6F7A8B"
+
+[[preset]]
+op = "add"
+name = "DOCKS_RIVAL_350Z"
+car = "car:350Z"
+perf_level = 2
+
+[preset.parts]
+"0x0C" = "0x0BADF00D"
+"0x1D" = "0x13572468"
+"0x49" = "none"

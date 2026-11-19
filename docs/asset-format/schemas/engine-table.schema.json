@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "engine-table.schema.json",
+  "title": "Overbright asset format: an engine table override (ob.engine-table)",
+  "description": "engine-tables.md 3. tables/<table>.toml in a mod pack or a community base set (never an imported one, TBL.7): new values for one of the engine's built-in tables. The value shapes are not in this schema: they are the built-in table's (generated from the code) and checked by the reader (TBL.3).",
+  "type": "object",
+  "properties": {
+    "schema": { "type": "string", "pattern": "^ob\\.engine-table/1\\.[0-9]+$" },
+    "table": { "description": "The table's name (= the file name without .toml).", "type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$" },
+    "op": { "description": "merge (default): the set entries; replace: value is the whole table.", "enum": ["merge", "replace"] },
+    "made_for": { "description": "The built-in table's pin (sha256 of its Debug text, FIELD_PINS) the pack was made against. A different pin is a warning.", "$ref": "common.schema.json#/$defs/sha256" },
+    "value": { "description": "op = replace: the whole table, in the table's shape." },
+    "set": {
+      "type": "array", "maxItems": 100000,
+      "items": {
+        "type": "object",
+        "properties": {
+          "at": {
+            "description": "The path into the table: array indices (from 0) and struct field names.",
+            "type": "array", "maxItems": 8,
+            "items": { "oneOf": [ { "type": "integer", "minimum": 0 }, { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$" } ] }
+          },
+          "value": { "description": "The new value of that part, in its shape." },
+          "guard": { "description": "The built-in value at that path the author changed; refused when it differs (TBL.5)." }
+        },
+        "required": ["at", "value"],
+        "additionalProperties": false
+      }
+    },
+    "extras": { "$ref": "common.schema.json#/$defs/extras" },
+    "ext": { "$ref": "common.schema.json#/$defs/ext" }
+  },
+  "required": ["schema", "table"],
+  "oneOf": [
+    { "properties": { "op": { "const": "replace" } }, "required": ["op", "value"], "not": { "required": ["set"] } },
+    { "properties": { "op": { "const": "merge" } }, "required": ["set"], "not": { "required": ["value"] } }
+  ],
+  "additionalProperties": false
+}

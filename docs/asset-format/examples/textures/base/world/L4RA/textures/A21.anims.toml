@@ -1,0 +1,17 @@
+schema = "ob.texture-anims/1.0"
+
+# One original flip-book chunk (made-up values). A record applies to every
+# reference to its base hash in the views that see this file.
+
+[chunk]
+u_0x00 = 1
+
+[[anim]]
+hash = "0x636C197D"
+name = "ANM_WATERA_"
+fps = 12
+frames = [
+  "texture:0x636C197D",
+  "texture:0xC9E6D6EE",
+  "texture:0xC9E6D6EF",
+]

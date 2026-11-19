@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "fog.schema.json",
+  "title": "world/<REGION>/fog.toml (ob.fog)",
+  "description": "world.md 3.7: parameter maps (0x8003B600, values level) and horizon fog sources (0x34250), in file order. Base sets only (WLD.10).",
+  "type": "object",
+  "properties": {
+    "schema": { "type": "string", "pattern": "^ob\\.fog/1\\.[0-9]+$" },
+    "map": { "type": "array", "items": { "$ref": "#/$defs/map" } },
+    "horizon": { "type": "array", "items": { "$ref": "#/$defs/horizon" } },
+    "extras": { "$ref": "common.schema.json#/$defs/extras" },
+    "ext": { "$ref": "common.schema.json#/$defs/ext" }
+  },
+  "required": ["schema", "map", "horizon"],
+  "additionalProperties": false,
+  "$defs": {
+    "map": {
+      "type": "object",
+      "properties": {
+        "name": { "$ref": "common.schema.json#/$defs/hash32" },
+        "min": { "$ref": "common.schema.json#/$defs/vec2" },
+        "max": { "$ref": "common.schema.json#/$defs/vec2" },
+        "types": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/u32" } },
+        "rows": {
+          "type": "array", "minItems": 1,
+          "items": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/f32" } }
+        },
+        "tree": {
+          "description": "array<array<u16>>: quadtree nodes, each exactly 4 entries",
+          "type": "array",
+          "items": { "type": "array", "minItems": 4, "maxItems": 4, "items": { "$ref": "common.schema.json#/$defs/u16" } }
+        },
+        "extras": { "$ref": "common.schema.json#/$defs/extras" }
+      },
+      "required": ["name", "min", "max", "types", "rows"],
+      "additionalProperties": false
+    },
+    "horizon": {
+      "description": "Layout horizon_source (0x64 bytes); const rows (+0x00, +0x38, +0x40, +0x54) are not written",
+      "type": "object",
+      "properties": {
+        "type": { "$ref": "common.schema.json#/$defs/u32" },
+        "colour": { "$ref": "common.schema.json#/$defs/vec3" },
+        "position": { "$ref": "common.schema.json#/$defs/vec3" },
+        "full_m": { "$ref": "common.schema.json#/$defs/f32" },
+        "u_0x30": { "$ref": "common.schema.json#/$defs/f32" },
+        "start_m": { "$ref": "common.schema.json#/$defs/f32" },
+        "u_0x44": { "$ref": "common.schema.json#/$defs/vec4" },
+        "u_0x58": { "$ref": "common.schema.json#/$defs/vec3" },
+        "extras": { "$ref": "common.schema.json#/$defs/extras" }
+      },
+      "required": ["colour", "position", "full_m", "start_m"],
+      "additionalProperties": false
+    }
+  }
+}

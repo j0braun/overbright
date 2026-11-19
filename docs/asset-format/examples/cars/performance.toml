@@ -1,0 +1,20 @@
+# A mod pack's global/cars/performance.toml: one package part repriced and stronger, a wider
+# tuning range, a faster class-0 top speed for the AI's class curves.
+schema = "ob.performance/1.0"
+
+[[package]]
+category = 3
+level = 2
+
+[[package.part]]
+id = 0x10
+price = 2500
+gains = [0.5, -1.0, -1.0, -1.0]
+
+[[tuning_unlock]]
+part = 0x10
+param = 23
+range = [-0.25, 0.25]
+
+[class_curve.0]
+top_speed_mps = 80.0

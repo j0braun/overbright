@@ -1,0 +1,11 @@
+# A mod pack's global/parts/costs.toml: cheaper level-1 and level-2 items of one cost category.
+schema = "ob.part-costs/1.0"
+
+[[category]]
+number = 37
+
+[category.level.1]
+price = 400
+
+[category.level.2]
+price = 900

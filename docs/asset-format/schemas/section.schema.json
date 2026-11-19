@@ -1,0 +1,206 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "section.schema.json",
+  "title": "world/<REGION>/sections/<n>.toml (ob.section)",
+  "description": "world.md 3.4: one stream section's scenery sections, light pack, flare pack, knock-over prop instances and placed emitters. Each record list is an external array (descriptor) or inline tables, never both (WLD.4). Base sets only (WLD.10).",
+  "type": "object",
+  "properties": {
+    "schema": { "type": "string", "pattern": "^ob\\.section/1\\.[0-9]+$" },
+    "number": { "$ref": "common.schema.json#/$defs/u32" },
+    "scenery": { "type": "array", "maxItems": 2, "items": { "$ref": "#/$defs/scenerySection" } },
+    "also": { "type": "array", "maxItems": 2, "items": { "$ref": "common.schema.json#/$defs/u32" } },
+    "lights": { "$ref": "#/$defs/lightPack" },
+    "flares": { "$ref": "#/$defs/flarePack" },
+    "props": { "$ref": "#/$defs/propPack" },
+    "emitters": { "$ref": "#/$defs/emitterPack" },
+    "extras": { "$ref": "common.schema.json#/$defs/extras" },
+    "ext": { "$ref": "common.schema.json#/$defs/ext" }
+  },
+  "required": ["schema", "number"],
+  "additionalProperties": false,
+  "$defs": {
+    "u32x8": { "type": "array", "minItems": 8, "maxItems": 8, "items": { "$ref": "common.schema.json#/$defs/u32" } },
+    "mat4": { "type": "array", "minItems": 16, "maxItems": 16, "items": { "$ref": "common.schema.json#/$defs/f32" } },
+    "descriptor": {
+      "description": "conventions.md 4.4; the layout name is fixed per field by the page",
+      "$ref": "common.schema.json#/$defs/arrayDescriptor"
+    },
+    "scenerySection": {
+      "type": "object",
+      "properties": {
+        "number": { "$ref": "common.schema.json#/$defs/u32" },
+        "info": { "type": "array", "maxItems": 65535, "items": { "$ref": "#/$defs/sceneryInfo" } },
+        "instances": {
+          "allOf": [
+            { "$ref": "#/$defs/descriptor" },
+            { "properties": { "layout": { "const": "scenery_instance" } } }
+          ]
+        },
+        "placement": { "type": "array", "maxItems": 65535, "items": { "$ref": "#/$defs/sceneryInstance" } },
+        "extras": { "$ref": "common.schema.json#/$defs/extras" }
+      },
+      "required": ["number", "info"],
+      "oneOf": [ { "required": ["instances"] }, { "required": ["placement"] } ],
+      "additionalProperties": false
+    },
+    "sceneryInfo": {
+      "description": "Layout scenery_info (0x44 bytes)",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "pattern": "^[\\x20-\\x7E]{0,31}$" },
+        "lod": { "type": "array", "minItems": 3, "maxItems": 3, "items": { "$ref": "common.schema.json#/$defs/hash32" } },
+        "u_0x2c": { "$ref": "common.schema.json#/$defs/u32" },
+        "radius_m": { "$ref": "common.schema.json#/$defs/f32" },
+        "u_0x40": { "$ref": "common.schema.json#/$defs/u32" },
+        "extras": { "$ref": "common.schema.json#/$defs/extras" }
+      },
+      "required": ["name", "lod", "radius_m"],
+      "additionalProperties": false
+    },
+    "sceneryInstance": {
+      "description": "Layout scenery_instance (0x40 bytes), inline form",
+      "type": "object",
+      "properties": {
+        "bbox_min": { "$ref": "common.schema.json#/$defs/vec3" },
+        "bbox_max": { "$ref": "common.schema.json#/$defs/vec3" },
+        "info": { "$ref": "common.schema.json#/$defs/u16" },
+        "flags": { "$ref": "common.schema.json#/$defs/u16" },
+        "u_0x1c": { "$ref": "common.schema.json#/$defs/u32" },
+        "position": { "$ref": "common.schema.json#/$defs/vec3" },
+        "rotation": { "$ref": "common.schema.json#/$defs/mat3" },
+        "extras": { "$ref": "common.schema.json#/$defs/extras" }
+      },
+      "required": ["info", "flags", "position", "rotation"],
+      "additionalProperties": false
+    },
+    "lightPack": {
+      "type": "object",
+      "properties": {
+        "u_tree_0x06": { "$ref": "common.schema.json#/$defs/u16" },
+        "u_tree_0x0a": { "$ref": "common.schema.json#/$defs/u16" },
+        "nodes": { "allOf": [ { "$ref": "#/$defs/descriptor" }, { "properties": { "layout": { "const": "light_node" } } } ] },
+        "node": { "type": "array", "items": { "$ref": "#/$defs/lightNode" } },
+        "records": { "allOf": [ { "$ref": "#/$defs/descriptor" }, { "properties": { "layout": { "const": "light" } } } ] },
+        "light": { "type": "array", "items": { "$ref": "#/$defs/light" } },
+        "extras": { "$ref": "common.schema.json#/$defs/extras" }
+      },
+      "allOf": [
+        { "oneOf": [ { "required": ["nodes"] }, { "required": ["node"] } ] },
+        { "oneOf": [ { "required": ["records"] }, { "required": ["light"] } ] }
+      ],
+      "additionalProperties": false
+    },
+    "lightNode": {
+      "description": "Layout light_node (0x30 bytes)",
+      "type": "object",
+      "properties": {
+        "centre": { "$ref": "common.schema.json#/$defs/vec3" },
+        "u_0x0c": { "$ref": "common.schema.json#/$defs/u16" },
+        "count": { "$ref": "common.schema.json#/$defs/i16" },
+        "half": { "$ref": "common.schema.json#/$defs/vec3" },
+        "indices": { "type": "array", "maxItems": 10, "items": { "$ref": "common.schema.json#/$defs/u16" } }
+      },
+      "required": ["centre", "count", "half", "indices"],
+      "additionalProperties": false
+    },
+    "light": {
+      "description": "Layout light (0x60 bytes); const rows (+0x06, +0x0F, +0x38) are not written",
+      "type": "object",
+      "properties": {
+        "u_0x00": { "$ref": "common.schema.json#/$defs/u32" },
+        "kind": { "$ref": "common.schema.json#/$defs/u8" },
+        "sub": { "$ref": "common.schema.json#/$defs/u8" },
+        "on": { "$ref": "common.schema.json#/$defs/u8" },
+        "colour": { "type": "array", "minItems": 3, "maxItems": 3, "items": { "$ref": "common.schema.json#/$defs/u8" } },
+        "position": { "$ref": "common.schema.json#/$defs/vec3" },
+        "outer_m": { "$ref": "common.schema.json#/$defs/f32" },
+        "direction": { "$ref": "common.schema.json#/$defs/vec3" },
+        "intensity": { "$ref": "common.schema.json#/$defs/f32" },
+        "inner_m": { "$ref": "common.schema.json#/$defs/f32" },
+        "cone": { "$ref": "common.schema.json#/$defs/f32" },
+        "u_0x3c": { "$ref": "#/$defs/u32x8" }
+      },
+      "required": ["kind", "on", "colour", "position", "outer_m", "direction", "intensity", "inner_m", "cone"],
+      "additionalProperties": false
+    },
+    "flarePack": {
+      "type": "object",
+      "properties": {
+        "box_min": { "$ref": "common.schema.json#/$defs/vec3" },
+        "box_max": { "$ref": "common.schema.json#/$defs/vec3" },
+        "records": { "allOf": [ { "$ref": "#/$defs/descriptor" }, { "properties": { "layout": { "const": "flare" } } } ] },
+        "flare": { "type": "array", "maxItems": 65535, "items": { "$ref": "#/$defs/flare" } },
+        "extras": { "$ref": "common.schema.json#/$defs/extras" }
+      },
+      "required": ["box_min", "box_max"],
+      "oneOf": [ { "required": ["records"] }, { "required": ["flare"] } ],
+      "additionalProperties": false
+    },
+    "flare": {
+      "description": "Layout flare (0x30 bytes); const rows (list links +0x00, +0x0C) are not written",
+      "type": "object",
+      "properties": {
+        "name": { "$ref": "common.schema.json#/$defs/hash32" },
+        "position": { "$ref": "common.schema.json#/$defs/vec3" },
+        "ground_m": { "$ref": "common.schema.json#/$defs/f32" },
+        "direction": { "$ref": "common.schema.json#/$defs/vec3" },
+        "kind": { "$ref": "common.schema.json#/$defs/u8" },
+        "flags": { "$ref": "common.schema.json#/$defs/u8" },
+        "u_0x2e": { "$ref": "common.schema.json#/$defs/u16" }
+      },
+      "required": ["name", "position", "direction", "kind", "flags"],
+      "additionalProperties": false
+    },
+    "propPack": {
+      "type": "object",
+      "properties": {
+        "first_bit": { "$ref": "common.schema.json#/$defs/i16" },
+        "records": { "allOf": [ { "$ref": "#/$defs/descriptor" }, { "properties": { "layout": { "const": "prop_instance" } } } ] },
+        "prop": { "type": "array", "maxItems": 65535, "items": { "$ref": "#/$defs/propInstance" } },
+        "extras": { "$ref": "common.schema.json#/$defs/extras" }
+      },
+      "required": ["first_bit"],
+      "oneOf": [ { "required": ["records"] }, { "required": ["prop"] } ],
+      "additionalProperties": false
+    },
+    "propInstance": {
+      "description": "Layout prop_instance (0x70 bytes)",
+      "type": "object",
+      "properties": {
+        "kind": { "$ref": "common.schema.json#/$defs/hash32" },
+        "link": { "$ref": "common.schema.json#/$defs/u16" },
+        "u_0x08": { "$ref": "common.schema.json#/$defs/u32" },
+        "bbox_min": { "$ref": "common.schema.json#/$defs/vec3" },
+        "bbox_max": { "$ref": "common.schema.json#/$defs/vec3" },
+        "transform": { "$ref": "#/$defs/mat4" }
+      },
+      "required": ["kind", "link", "bbox_min", "bbox_max", "transform"],
+      "additionalProperties": false
+    },
+    "emitterPack": {
+      "type": "object",
+      "properties": {
+        "records": { "allOf": [ { "$ref": "#/$defs/descriptor" }, { "properties": { "layout": { "const": "emitter" } } } ] },
+        "emitter": { "type": "array", "items": { "$ref": "#/$defs/emitter" } },
+        "extras": { "$ref": "common.schema.json#/$defs/extras" }
+      },
+      "oneOf": [ { "required": ["records"] }, { "required": ["emitter"] } ],
+      "additionalProperties": false
+    },
+    "emitter": {
+      "description": "Layout emitter (0xD0 bytes); the const list links +0x00 are not written",
+      "type": "object",
+      "properties": {
+        "u_0x08": { "$ref": "common.schema.json#/$defs/u32" },
+        "description": { "$ref": "common.schema.json#/$defs/hash32" },
+        "state": { "$ref": "common.schema.json#/$defs/u32" },
+        "u_0x28": { "$ref": "common.schema.json#/$defs/u32" },
+        "switch": { "$ref": "common.schema.json#/$defs/hash32" },
+        "transform": { "$ref": "#/$defs/mat4" },
+        "u_0x90": { "$ref": "#/$defs/u32x8" }
+      },
+      "required": ["description", "switch", "transform"],
+      "additionalProperties": false
+    }
+  }
+}

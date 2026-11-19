@@ -1,0 +1,117 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "texture-overrides.schema.json",
+  "title": "Texture overrides of a view scope (ob.texture-overrides/1.0)",
+  "description": "textures.md section 3.5: what a mod pack changes in the textures a view resolves. Scope, op and image rules (TEX.11..TEX.18, MRG.1) are checked by readers; the schema checks the shape, including that an entry names its key by exactly one of `hash` and `name`.",
+  "type": "object",
+  "properties": {
+    "schema": {
+      "type": "string",
+      "pattern": "^ob\\.texture-overrides/1\\.[0-9]+$"
+    },
+    "texture": {
+      "type": "array",
+      "maxItems": 65536,
+      "items": {
+        "$ref": "#/$defs/override"
+      }
+    },
+    "extras": {
+      "$ref": "common.schema.json#/$defs/extras"
+    },
+    "ext": {
+      "$ref": "common.schema.json#/$defs/ext"
+    }
+  },
+  "required": [
+    "schema",
+    "texture"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "override": {
+      "type": "object",
+      "properties": {
+        "hash": {
+          "$ref": "common.schema.json#/$defs/hash32"
+        },
+        "name": {
+          "description": "The key as a game name, hashed with bin_hash as written (the full name, at most 63 characters).",
+          "$ref": "common.schema.json#/$defs/name"
+        },
+        "image": {
+          "$ref": "texture-set.schema.json#/$defs/imagePath"
+        },
+        "draw": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "world",
+              "car",
+              "ui"
+            ]
+          },
+          "minItems": 1,
+          "maxItems": 3,
+          "uniqueItems": true
+        },
+        "compress": {
+          "enum": [
+            "bc7",
+            "none"
+          ]
+        },
+        "width_px": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 8192
+        },
+        "height_px": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 8192
+        },
+        "alpha_usage": {
+          "$ref": "common.schema.json#/$defs/u8"
+        },
+        "blend": {
+          "$ref": "common.schema.json#/$defs/u8"
+        },
+        "rendering_order": {
+          "$ref": "common.schema.json#/$defs/u8"
+        },
+        "late_buckets": {
+          "$ref": "common.schema.json#/$defs/u8"
+        },
+        "scroll": {
+          "$ref": "texture-set.schema.json#/$defs/scroll"
+        },
+        "op": {
+          "$ref": "common.schema.json#/$defs/op"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "extras": {
+          "$ref": "common.schema.json#/$defs/extras"
+        },
+        "ext": {
+          "$ref": "common.schema.json#/$defs/ext"
+        }
+      },
+      "additionalProperties": false,
+      "oneOf": [
+        {
+          "required": [
+            "hash"
+          ]
+        },
+        {
+          "required": [
+            "name"
+          ]
+        }
+      ]
+    }
+  }
+}

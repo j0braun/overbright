@@ -1,0 +1,230 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "scene-table.schema.json",
+  "title": "ob.scene-table: race start and ending scene lists (chunk 0x37070)",
+  "description": "animation.md 3.8: the fields the engine reads. A pack's file merges entries by `index`.",
+  "type": "object",
+  "$defs": {
+    "sceneRef": {
+      "type": "string",
+      "pattern": "^scene:([A-Za-z0-9_]{1,15}|0x[0-9A-F]{8})$"
+    }
+  },
+  "properties": {
+    "schema": {
+      "type": "string",
+      "pattern": "^ob\\.scene-table/1\\.[0-9]+$"
+    },
+    "race_start": {
+      "type": "array",
+      "maxItems": 48,
+      "items": {
+        "type": "object",
+        "properties": {
+          "index": {
+            "$ref": "common.schema.json#/$defs/u32"
+          },
+          "op": {
+            "const": "merge"
+          },
+          "scene": {
+            "$ref": "#/$defs/sceneRef"
+          },
+          "variant": {
+            "$ref": "common.schema.json#/$defs/u8"
+          },
+          "flags": {
+            "$ref": "common.schema.json#/$defs/u8"
+          },
+          "min_racers": {
+            "$ref": "common.schema.json#/$defs/u8"
+          },
+          "max_racers": {
+            "$ref": "common.schema.json#/$defs/u8"
+          },
+          "start_kind": {
+            "$ref": "common.schema.json#/$defs/u8"
+          }
+        },
+        "anyOf": [
+          {
+            "required": [
+              "index"
+            ]
+          },
+          {
+            "required": [
+              "scene",
+              "variant",
+              "flags",
+              "min_racers",
+              "max_racers",
+              "start_kind"
+            ]
+          }
+        ],
+        "additionalProperties": false
+      }
+    },
+    "ending": {
+      "type": "array",
+      "maxItems": 12,
+      "items": {
+        "type": "object",
+        "properties": {
+          "index": {
+            "$ref": "common.schema.json#/$defs/u32"
+          },
+          "op": {
+            "const": "merge"
+          },
+          "scene": {
+            "$ref": "#/$defs/sceneRef"
+          },
+          "variant": {
+            "$ref": "common.schema.json#/$defs/u8"
+          },
+          "flags": {
+            "$ref": "common.schema.json#/$defs/u8"
+          },
+          "rest": {
+            "type": "string",
+            "pattern": "^hex:([0-9a-f]{2}){2}$"
+          }
+        },
+        "anyOf": [
+          {
+            "required": [
+              "index"
+            ]
+          },
+          {
+            "required": [
+              "scene",
+              "variant",
+              "flags"
+            ]
+          }
+        ],
+        "additionalProperties": false
+      }
+    },
+    "multiplayer_start": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "index": {
+            "$ref": "common.schema.json#/$defs/u32"
+          },
+          "op": {
+            "const": "merge"
+          },
+          "scene": {
+            "$ref": "#/$defs/sceneRef"
+          },
+          "flags": {
+            "$ref": "common.schema.json#/$defs/u8"
+          },
+          "min_racers": {
+            "$ref": "common.schema.json#/$defs/u8"
+          },
+          "max_racers": {
+            "$ref": "common.schema.json#/$defs/u8"
+          },
+          "start_kind": {
+            "$ref": "common.schema.json#/$defs/u8"
+          },
+          "slot_cars": {
+            "type": "array",
+            "minItems": 4,
+            "maxItems": 4,
+            "items": {
+              "$ref": "common.schema.json#/$defs/u8"
+            }
+          }
+        },
+        "anyOf": [
+          {
+            "required": [
+              "index"
+            ]
+          },
+          {
+            "required": [
+              "scene",
+              "flags",
+              "min_racers",
+              "max_racers",
+              "start_kind",
+              "slot_cars"
+            ]
+          }
+        ],
+        "additionalProperties": false
+      }
+    },
+    "track_list": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": {
+        "type": "array",
+        "maxItems": 120,
+        "items": {
+          "type": "object",
+          "properties": {
+            "index": {
+              "$ref": "common.schema.json#/$defs/u32"
+            },
+            "op": {
+              "const": "merge"
+            },
+            "track": {
+              "$ref": "common.schema.json#/$defs/u16"
+            },
+            "scene_mask": {
+              "$ref": "common.schema.json#/$defs/u16"
+            },
+            "entries_low": {
+              "$ref": "common.schema.json#/$defs/u32"
+            },
+            "entries_high": {
+              "$ref": "common.schema.json#/$defs/u16"
+            },
+            "endings": {
+              "$ref": "common.schema.json#/$defs/u16"
+            }
+          },
+          "anyOf": [
+            {
+              "required": [
+                "index"
+              ]
+            },
+            {
+              "required": [
+                "track",
+                "scene_mask",
+                "entries_low",
+                "entries_high",
+                "endings"
+              ]
+            }
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    "extras": {
+      "$ref": "common.schema.json#/$defs/extras"
+    },
+    "ext": {
+      "$ref": "common.schema.json#/$defs/ext"
+    }
+  },
+  "required": [
+    "schema"
+  ],
+  "additionalProperties": false
+}

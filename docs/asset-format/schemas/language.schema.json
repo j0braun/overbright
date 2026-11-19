@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "language.schema.json",
+  "title": "Overbright asset format: a language unit's manifest (ob.language)",
+  "description": "text.md section 3.1. text/<language>/language.toml: what the language unit holds and how its stored bytes decode.",
+  "type": "object",
+  "properties": {
+    "schema": {
+      "type": "string",
+      "pattern": "^ob\\.language/1\\.[0-9]+$"
+    },
+    "op": {
+      "$ref": "common.schema.json#/$defs/op"
+    },
+    "name": {
+      "description": "The language's name as players read it",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 63
+    },
+    "role": {
+      "description": "text.md 3.1: player (holds a string table), labels, layout_test, save_text (save-library texts only)",
+      "enum": [
+        "player",
+        "labels",
+        "layout_test",
+        "save_text"
+      ]
+    },
+    "original": {
+      "description": "The original file the string table and fonts came from (import provenance)",
+      "type": "string",
+      "maxLength": 200,
+      "pattern": "^[A-Za-z0-9_./-]+$"
+    },
+    "charmap": {
+      "description": "The original's character-map region (layout charmap_region)",
+      "$ref": "common.schema.json#/$defs/arrayDescriptor"
+    },
+    "fonts": {
+      "description": "The fonts the language holds, in the original file's order",
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^font:[A-Za-z0-9_]{1,63}$"
+      },
+      "maxItems": 64
+    },
+    "extras": {
+      "$ref": "common.schema.json#/$defs/extras"
+    },
+    "ext": {
+      "$ref": "common.schema.json#/$defs/ext"
+    }
+  },
+  "required": [
+    "schema",
+    "name"
+  ],
+  "if": {
+    "properties": {
+      "role": {
+        "const": "save_text"
+      }
+    },
+    "required": [
+      "role"
+    ]
+  },
+  "then": {
+    "not": {
+      "anyOf": [
+        {
+          "required": [
+            "charmap"
+          ]
+        },
+        {
+          "required": [
+            "fonts"
+          ]
+        }
+      ]
+    }
+  },
+  "additionalProperties": false
+}

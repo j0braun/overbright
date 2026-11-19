@@ -1,0 +1,44 @@
+# A base set's sound-bank index (made-up values). The image holds the bank;
+# this file names its events and slots so tools and keys work without parsing it.
+schema = "ob.sound-bank/1.0"
+bank = "IG_GLOBAL/FX_Misc_MB"
+image = { file = "FX_Misc_MB.bin", offset = 0, count = 50384, layout = "abk_image", digest = "xxh3-128:5d2e9c0a7b14f3e86c1d0a4b92f7e631" }
+module_count = 1
+
+[[event]]
+name = "FX_MISC_01"
+module = 0
+kind = 0
+
+[[sound]]
+slot = 0
+codec = "ea_xa"
+channels = 1
+rate_hz = 22050
+frames = 11025
+data_offset = 0x0C40
+data_size = 5910
+
+[[sound]]
+slot = 1
+codec = "ea_xa"
+channels = 1
+rate_hz = 22050
+frames = 44100
+loop_start = 0
+loop_length = 44100
+data_offset = 0x2356
+data_size = 23625
+
+[[sound]]
+slot = 2
+present = false
+
+[[sound]]
+slot = 3
+codec = "ea_xa"
+channels = 1
+rate_hz = 32000
+frames = 16000
+data_offset = 0x8197
+data_size = 8580

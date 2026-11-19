@@ -1,0 +1,143 @@
+# A small made-up menu package: a group with a backing image and a title.
+# ob.fe-package (ui.md 3.1). Values are invented; hashes are bin_hash of the names shown.
+schema = "ob.fe-package/1.0"
+name = "UI_DemoDialog.fng"
+path = "fe\\ui_demodialog.fng"
+targ = [0x00046354, 0]
+
+# PkgR: the package answers 0xBDFD2DF9 by sending itself 0x35F8620B (type 1: queue arg 1 with value arg 2).
+package_responses = [
+  { message = "0xBDFD2DF9", entries = [[0x00000001, 0x35F8620B, 0x00000000]] },
+]
+
+[[resource]]
+name = "(UNTEXTURED SIMPLE IMAGE)"
+kind = "untextured"
+hash = "0xE261D0F5"
+
+[[resource]]
+name = "DEMO_BACKING.tga"
+kind = "texture"
+hash = "0x7A0C51E2"
+
+[[resource]]
+name = "ConduitMdITC_TT21i.ffn"
+kind = "font"
+hash = "0x0E35A9C4"
+
+# Object 1: the group everything hangs from.
+[[object]]
+id = 1
+name_hash = "0x7F80C1B1"
+name = "DemoGroup"
+kind = "group"
+resource = 0
+
+[object.state]
+color_bgra = [255, 255, 255, 255]
+pivot = [0.0, 0.0, 0.0]
+position = [320.0, 240.0, 0.0]
+rotation = [0.0, 0.0, 0.0, 1.0]
+size = [1.0, 1.0, 1.0]
+
+[[object.script]]
+name_hash = "0x001744B3"
+name = "INIT"
+length_ms = 0
+
+# Object 2: the backing picture, fading in over 200 ms when FADEIN runs.
+[[object]]
+id = 2
+name_hash = "0xB94E5A33"
+name = "DemoBacking"
+kind = "image"
+resource = 1
+parent = 1
+image_flags = 0x00000000
+responses = [
+  { message = "0xBDFD2DF9", entries = [[0x00000000, 0x5B0D9106, 0x00000000]] },
+]
+
+[object.state]
+color_bgra = [255, 255, 255, 0]
+pivot = [0.0, 0.0, 0.0]
+position = [0.0, -12.5, 10.0]
+rotation = [0.0, 0.0, 0.0, 1.0]
+size = [400.0, 160.0, 1.0]
+uv = [0.0, 0.0, 1.0, 0.625]
+
+[[object.script]]
+name_hash = "0x001744B3"
+name = "INIT"
+length_ms = 0
+chain = "0x0016A259"
+
+[[object.script]]
+name_hash = "0x0016A259"
+name = "HIDE"
+length_ms = 0
+
+[[object.script.track]]
+param = 6
+mode = 0x80
+length_ms = 0
+target_word = 0
+base = [255, 255, 255, 0]
+
+[[object.script]]
+name_hash = "0x5B0D9106"
+name = "FADEIN"
+length_ms = 200
+events = [{ message = "0x35F8620B", target = -1, time_ms = 200 }]
+
+[[object.script.track]]
+param = 6
+interpolation = 1
+length_ms = 200
+target_word = 0
+base = [255, 255, 255, 0]
+keys = [
+  { time_ms = 0, delta = [0, 0, 0, 0] },
+  { time_ms = 200, delta = [0, 0, 0, 255] },
+]
+
+[[object.script.track]]
+param = 4
+interpolation = 1
+length_ms = 200
+target_word = 7
+base = [0.0, -12.5, 10.0]
+keys = [
+  { time_ms = 0, delta = [0.0, 8.0, 0.0] },
+  { time_ms = 200, delta = [0.0, -0.0, 0.0] },
+]
+
+# Object 3: the title text, looked up by its label in the active language.
+[[object]]
+id = 3
+name_hash = "0x806724E6"
+name = "DemoTitle"
+kind = "string"
+resource = 2
+parent = 1
+
+[object.state]
+color_bgra = [32, 200, 255, 255]
+pivot = [0.0, 0.0, 0.0]
+position = [0.0, -60.0, 5.0]
+rotation = [0.0, 0.0, 0.0, 1.0]
+size = [1.0, 1.0, 1.0]
+
+[object.text]
+text = "Demo dialog"
+label_hash = "0x00CF7174"
+label = "DEMO_DIALOG_TITLE"
+justify = 0x5
+leading = 0
+wrap_width = 360
+sb = 0x40
+
+[[object.script]]
+name_hash = "0x001744B3"
+name = "INIT"
+length_ms = 0

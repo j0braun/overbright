@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "ai-tuning.schema.json",
+  "title": "ob.ai-tuning: the AI tuning record (roads-ai.md 3.6)",
+  "type": "object",
+  "required": ["schema", "tuning"],
+  "additionalProperties": false,
+  "properties": {
+    "schema": { "type": "string", "pattern": "^ob\\.ai-tuning/1\\.[0-9]+$" },
+    "tuning": { "allOf": [ { "$ref": "common.schema.json#/$defs/arrayDescriptor" }, { "properties": { "layout": { "const": "ai_tuning" }, "count": { "const": 1 } } } ] },
+    "extras": { "$ref": "common.schema.json#/$defs/extras" },
+    "ext": { "$ref": "common.schema.json#/$defs/ext" }
+  }
+}

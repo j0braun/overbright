@@ -1,0 +1,15 @@
+# A mod pack's career override (global/career/economy.toml): value merges only (career.md 4).
+schema = "ob.career/1.0"
+
+[[event]]
+name = "S2_CIRCUIT_3"
+purse = 2000
+races = [{ track = 4013, variant = 0, laps = 3 }]
+
+[[stage]]
+stage = 2
+outrun_bank = 150
+
+[[trick]]
+index = 0
+points = 150.0

@@ -1,0 +1,107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "texture-anims.schema.json",
+  "title": "Texture animations (ob.texture-anims/1.0)",
+  "description": "textures.md section 3.4: flip-book animations, keyed by their base texture hash. Frame resolution (CONV.9), duplicate base hashes (TEX.4) and the op rules (MRG.1, MRG.2, TEX.19) are checked by readers; the schema checks that an `add` has `fps` and `frames`.",
+  "type": "object",
+  "properties": {
+    "schema": {
+      "type": "string",
+      "pattern": "^ob\\.texture-anims/1\\.[0-9]+$"
+    },
+    "chunk": {
+      "description": "The original chunk's header (Eq2 data; absent in authored files).",
+      "type": "object",
+      "properties": {
+        "u_0x00": {
+          "$ref": "common.schema.json#/$defs/u32"
+        }
+      },
+      "additionalProperties": false
+    },
+    "anim": {
+      "type": "array",
+      "maxItems": 4096,
+      "items": {
+        "$ref": "#/$defs/anim"
+      }
+    },
+    "extras": {
+      "$ref": "common.schema.json#/$defs/extras"
+    },
+    "ext": {
+      "$ref": "common.schema.json#/$defs/ext"
+    }
+  },
+  "required": [
+    "schema",
+    "anim"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "textureRef": {
+      "description": "texture:0xHASH, or texture:NAME (a game name, hashed with bin_hash as written; up to 63 characters, the full name).",
+      "type": "string",
+      "pattern": "^texture:(0x[0-9A-F]{8}|[!-~]([ -~]{0,61}[!-~])?)$"
+    },
+    "anim": {
+      "type": "object",
+      "properties": {
+        "hash": {
+          "$ref": "common.schema.json#/$defs/hash32"
+        },
+        "name": {
+          "allOf": [
+            {
+              "$ref": "common.schema.json#/$defs/name"
+            },
+            {
+              "maxLength": 23
+            }
+          ]
+        },
+        "fps": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4294967295
+        },
+        "frames": {
+          "type": "array",
+          "maxItems": 4096,
+          "items": {
+            "$ref": "#/$defs/textureRef"
+          }
+        },
+        "op": {
+          "$ref": "common.schema.json#/$defs/op"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "extras": {
+          "$ref": "common.schema.json#/$defs/extras"
+        }
+      },
+      "required": [
+        "hash"
+      ],
+      "additionalProperties": false,
+      "if": {
+        "properties": {
+          "op": {
+            "const": "add"
+          }
+        },
+        "required": [
+          "op"
+        ]
+      },
+      "then": {
+        "required": [
+          "fps",
+          "frames"
+        ]
+      }
+    }
+  }
+}

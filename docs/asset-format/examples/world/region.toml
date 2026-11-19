@@ -1,0 +1,35 @@
+# world/L4RA/region.toml in a base set made by the importer (made-up values).
+schema = "ob.region/1.0"
+region = "L4RA"
+detail_limit = 20
+effects = { file = "effects.bin", offset = 0, count = 2, layout = "emitter_description" }
+
+[[section]]
+name = "--"
+number = 0
+stream_offset = 0
+stream_size = 4096
+u_0x1c = 4096
+u_0x20 = 12345
+u_0x30 = 0x00C0FFEE
+
+[[section]]
+name = "Z0"
+number = 2600
+u_0x10 = 1
+stream_offset = 0x00010000
+stream_size = 2048
+u_0x1c = 2048
+u_0x20 = 20
+u_0x30 = 0x0BADF00D
+
+[[section]]
+name = "N27"
+number = 1427
+u_0x10 = 1
+stream_offset = 0x00123000
+stream_size = 65536
+u_0x1c = 40960
+u_0x20 = 54321
+u_0x24 = [-200.0, -1000.0, 150.0]
+u_0x30 = 0x12345678

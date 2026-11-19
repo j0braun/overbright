@@ -1,0 +1,235 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "fe-package.schema.json",
+  "title": "Overbright asset format: a front-end (FEng) menu package (ob.fe-package)",
+  "description": "ui.md section 3.1. One FEng package as an ordered object tree. Values the encoder derives (sizes, counts, TypS, Butn, OP word 1, RsNm) are not stored. Shape only: cross-field rules are on ui.md (UI-n).",
+  "type": "object",
+  "properties": {
+    "schema": { "type": "string", "pattern": "^ob\\.fe-package/1\\.[0-9]+$" },
+    "name": {
+      "description": "PkHd name, the package's file name as the original stores it",
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_]{1,59}\\.fng$"
+    },
+    "path": {
+      "description": "PkHd path: the authoring path the original stores after the name (printable Latin-1)",
+      "type": "string",
+      "maxLength": 200,
+      "pattern": "^[\\u0020-\\u007E\\u00A0-\\u00FF]*$"
+    },
+    "u_0x0c": { "description": "PkHd word 3 (open)", "$ref": "common.schema.json#/$defs/u32" },
+    "targ": {
+      "description": "The Targ tag's u32 words (open)",
+      "type": "array",
+      "items": { "$ref": "common.schema.json#/$defs/u32" },
+      "minItems": 1,
+      "maxItems": 16384
+    },
+    "package_responses": {
+      "description": "PkgR: the package's message nodes; absent = no PkgR tag",
+      "$ref": "#/$defs/responses"
+    },
+    "resource": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/resource" },
+      "maxItems": 4096
+    },
+    "object": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/object" },
+      "maxItems": 65535
+    },
+    "extras": { "$ref": "common.schema.json#/$defs/extras" },
+    "ext": { "$ref": "common.schema.json#/$defs/ext" }
+  },
+  "required": ["schema", "name", "targ"],
+  "additionalProperties": false,
+  "$defs": {
+    "i32x4": {
+      "type": "array",
+      "items": { "$ref": "common.schema.json#/$defs/i32" },
+      "minItems": 4,
+      "maxItems": 4
+    },
+    "resource": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "RsNm entry: the file name as authored",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255,
+          "pattern": "^[\\u0020-\\u007E]+$"
+        },
+        "kind": { "enum": ["untextured", "texture", "font", "movie"] },
+        "hash": { "description": "RsRq word 0 (derivation open for textured kinds)", "$ref": "common.schema.json#/$defs/hash32" }
+      },
+      "required": ["name", "kind", "hash"],
+      "additionalProperties": false
+    },
+    "object": {
+      "type": "object",
+      "properties": {
+        "id": { "description": "OP word 0; the object's key in its package", "$ref": "common.schema.json#/$defs/u32" },
+        "name_hash": { "description": "Oh (= OP word 1)", "$ref": "common.schema.json#/$defs/hash32" },
+        "name": { "description": "The object's name when known; fe_hash(name) = name_hash", "type": "string", "pattern": "^[\\u0020-\\u007E]{1,63}$" },
+        "kind": {
+          "enum": ["image", "string", "model", "list", "group", "code_list", "movie", "effect",
+                   "colored_image", "anim_image", "simple_image", "multi_image"]
+        },
+        "flags": { "$ref": "common.schema.json#/$defs/u32" },
+        "resource": { "description": "OP word 3: index into the package's resource list", "$ref": "common.schema.json#/$defs/u32" },
+        "parent": { "description": "PA: the parent group's id; absent = no PA tag", "$ref": "common.schema.json#/$defs/u32" },
+        "image_flags": { "description": "If; absent = no If tag", "$ref": "common.schema.json#/$defs/u32" },
+        "state": { "$ref": "#/$defs/state" },
+        "text": { "$ref": "#/$defs/text" },
+        "responses": { "description": "MsgR; absent = no MsgR tag", "$ref": "#/$defs/responses" },
+        "script": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/script" },
+          "maxItems": 1024
+        },
+        "extras": { "$ref": "common.schema.json#/$defs/extras" }
+      },
+      "required": ["id", "name_hash", "kind", "resource", "state"],
+      "additionalProperties": false,
+      "if": { "properties": { "kind": { "const": "string" } }, "required": ["kind"] },
+      "then": { "required": ["text"] },
+      "else": { "not": { "required": ["text"] } }
+    },
+    "state": {
+      "description": "SA: 17, 21 or 37 words",
+      "type": "object",
+      "properties": {
+        "color_bgra": { "$ref": "#/$defs/i32x4" },
+        "pivot": { "$ref": "common.schema.json#/$defs/vec3" },
+        "position": { "$ref": "common.schema.json#/$defs/vec3" },
+        "rotation": { "$ref": "common.schema.json#/$defs/vec4" },
+        "size": { "$ref": "common.schema.json#/$defs/vec3" },
+        "uv": { "$ref": "common.schema.json#/$defs/vec4" },
+        "corner_colors_bgra": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/i32x4" },
+          "minItems": 4,
+          "maxItems": 4
+        }
+      },
+      "required": ["color_bgra", "pivot", "position", "rotation", "size"],
+      "dependentRequired": { "corner_colors_bgra": ["uv"] },
+      "additionalProperties": false
+    },
+    "text": {
+      "type": "object",
+      "properties": {
+        "text": { "description": "St, UTF-16 in the original", "type": "string", "maxLength": 4096 },
+        "label_hash": { "description": "SH", "$ref": "common.schema.json#/$defs/hash32" },
+        "label": { "description": "The label's name when known", "type": "string", "pattern": "^[A-Za-z0-9_]{1,63}$" },
+        "justify": { "description": "Sj", "$ref": "common.schema.json#/$defs/u32" },
+        "leading": { "description": "Sl", "$ref": "common.schema.json#/$defs/i32" },
+        "wrap_width": { "description": "Sw", "$ref": "common.schema.json#/$defs/u32" },
+        "sb": { "description": "Sb (open)", "$ref": "common.schema.json#/$defs/u32" }
+      },
+      "required": ["text", "label_hash", "sb"],
+      "additionalProperties": false
+    },
+    "script": {
+      "type": "object",
+      "properties": {
+        "name_hash": { "description": "Sh word 0; the script's key on its object", "$ref": "common.schema.json#/$defs/hash32" },
+        "name": { "description": "The script's name when known; fe_hash(name) = name_hash", "type": "string", "pattern": "^[\\u0020-\\u007E]{1,63}$" },
+        "length_ms": { "$ref": "common.schema.json#/$defs/u32" },
+        "flags": { "$ref": "common.schema.json#/$defs/u32" },
+        "chain": { "description": "Sc; absent = no Sc tag", "$ref": "common.schema.json#/$defs/hash32" },
+        "events": {
+          "description": "EV; absent = no EV tag",
+          "type": "array",
+          "items": { "$ref": "#/$defs/event" },
+          "minItems": 1,
+          "maxItems": 5461
+        },
+        "track": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/track" },
+          "maxItems": 1024
+        }
+      },
+      "required": ["name_hash", "length_ms"],
+      "additionalProperties": false
+    },
+    "track": {
+      "type": "object",
+      "properties": {
+        "param": { "$ref": "common.schema.json#/$defs/u8" },
+        "interpolation": { "$ref": "common.schema.json#/$defs/u8" },
+        "mode": { "$ref": "common.schema.json#/$defs/u8" },
+        "length_ms": { "type": "integer", "minimum": 0, "maximum": 16777215 },
+        "target_word": { "type": "integer", "minimum": 0, "maximum": 36 },
+        "base": {
+          "type": "array",
+          "items": { "$ref": "common.schema.json#/$defs/f32" },
+          "minItems": 1,
+          "maxItems": 4
+        },
+        "keys": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/key" },
+          "maxItems": 3276
+        }
+      },
+      "required": ["param", "length_ms", "target_word", "base"],
+      "additionalProperties": false
+    },
+    "key": {
+      "type": "object",
+      "properties": {
+        "time_ms": { "$ref": "common.schema.json#/$defs/u32" },
+        "delta": {
+          "type": "array",
+          "items": { "$ref": "common.schema.json#/$defs/f32" },
+          "minItems": 1,
+          "maxItems": 4
+        }
+      },
+      "required": ["time_ms", "delta"],
+      "additionalProperties": false
+    },
+    "event": {
+      "type": "object",
+      "properties": {
+        "message": { "$ref": "common.schema.json#/$defs/hash32" },
+        "target": { "$ref": "common.schema.json#/$defs/i32" },
+        "time_ms": { "$ref": "common.schema.json#/$defs/u32" }
+      },
+      "required": ["message", "target", "time_ms"],
+      "additionalProperties": false
+    },
+    "responses": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/node" },
+      "maxItems": 4096
+    },
+    "node": {
+      "type": "object",
+      "properties": {
+        "message": { "description": "Mi", "$ref": "common.schema.json#/$defs/hash32" },
+        "entries": {
+          "description": "Ri, Ru, Rt per entry: type, arg 1, arg 2",
+          "type": "array",
+          "items": {
+            "type": "array",
+            "prefixItems": [
+              { "$ref": "common.schema.json#/$defs/u32" },
+              { "$ref": "common.schema.json#/$defs/u32" },
+              { "$ref": "common.schema.json#/$defs/u32" }
+            ],
+            "items": false,
+            "minItems": 3
+          },
+          "maxItems": 4096
+        }
+      },
+      "required": ["message", "entries"],
+      "additionalProperties": false
+    }
+  }
+}

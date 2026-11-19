@@ -1,0 +1,10 @@
+# A movie's subtitle cues (ob.subtitles, text.md 3.7); made-up times and labels.
+# 0x001A20BA is the label of the empty string (docs/formats/movies-replays.md "Subtitles").
+schema = "ob.subtitles/1.0"
+cue = [
+  { time = 9, label_hash = "0x078CFCEF", u_0x02 = 0x0086 },
+  { time = 17, label_hash = "0x001A20BA", u_0x02 = 0x4143 },
+  { time = 20, label_hash = "0x078CFCF0" },
+  { time = 31, label_hash = "0x001A20BA" },
+]
+end = { label_hash = "0x001A20BA", u_0x02 = 0xFFFF }

@@ -1,0 +1,248 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "camera-tracks.schema.json",
+  "title": "ob.camera-tracks: the camera groups of one camera chunk (0x8003B200/1/2)",
+  "description": "animation.md 3.5. Base files hold whole groups; a pack's elements name the base element by `index` (keyed lists, animation.md 4).",
+  "type": "object",
+  "$defs": {
+    "entry": {
+      "type": "object",
+      "properties": {
+        "index": {
+          "$ref": "common.schema.json#/$defs/listKey"
+        },
+        "op": {
+          "$ref": "common.schema.json#/$defs/op"
+        },
+        "mover": {
+          "$ref": "common.schema.json#/$defs/u8"
+        },
+        "blend": {
+          "$ref": "common.schema.json#/$defs/u8"
+        },
+        "spline": {
+          "$ref": "common.schema.json#/$defs/u8"
+        },
+        "u_0x03": {
+          "$ref": "common.schema.json#/$defs/u8"
+        },
+        "eye_space": {
+          "$ref": "common.schema.json#/$defs/u8"
+        },
+        "look_space": {
+          "$ref": "common.schema.json#/$defs/u8"
+        },
+        "avoid": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {
+            "$ref": "common.schema.json#/$defs/u8"
+          }
+        },
+        "frozen_frame": {
+          "$ref": "common.schema.json#/$defs/u8"
+        },
+        "shake": {
+          "$ref": "common.schema.json#/$defs/u8"
+        },
+        "u_0x0a": {
+          "$ref": "common.schema.json#/$defs/u16"
+        },
+        "start": {
+          "$ref": "common.schema.json#/$defs/f32"
+        },
+        "tangent": {
+          "$ref": "common.schema.json#/$defs/vec2"
+        },
+        "eye": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {
+            "$ref": "common.schema.json#/$defs/vec3"
+          }
+        },
+        "look": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {
+            "$ref": "common.schema.json#/$defs/vec3"
+          }
+        },
+        "fov": {
+          "$ref": "common.schema.json#/$defs/vec2"
+        },
+        "params": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": {
+            "$ref": "common.schema.json#/$defs/vec2"
+          }
+        },
+        "tail": {
+          "type": "string",
+          "pattern": "^hex:([0-9a-f]{2}){24}$"
+        },
+        "extras": {
+          "$ref": "common.schema.json#/$defs/extras"
+        }
+      },
+      "additionalProperties": false,
+      "anyOf": [
+        {
+          "required": [
+            "index"
+          ]
+        },
+        {
+          "required": [
+            "mover",
+            "eye_space",
+            "look_space",
+            "start",
+            "tangent",
+            "eye",
+            "look",
+            "fov",
+            "params"
+          ]
+        }
+      ]
+    },
+    "track": {
+      "type": "object",
+      "properties": {
+        "index": {
+          "$ref": "common.schema.json#/$defs/listKey"
+        },
+        "op": {
+          "$ref": "common.schema.json#/$defs/op"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 13,
+          "pattern": "^[ -~]*$"
+        },
+        "name_tail": {
+          "type": "string",
+          "pattern": "^hex:([0-9a-f]{2}){0,13}$"
+        },
+        "duration_s": {
+          "$ref": "common.schema.json#/$defs/f32"
+        },
+        "u_0x00": {
+          "$ref": "common.schema.json#/$defs/u32"
+        },
+        "u_0x04": {
+          "$ref": "common.schema.json#/$defs/u32"
+        },
+        "u_0x08": {
+          "$ref": "common.schema.json#/$defs/u32"
+        },
+        "u_0x11": {
+          "$ref": "common.schema.json#/$defs/u8"
+        },
+        "entry": {
+          "type": "array",
+          "maxItems": 255,
+          "items": {
+            "$ref": "#/$defs/entry"
+          }
+        },
+        "extras": {
+          "$ref": "common.schema.json#/$defs/extras"
+        }
+      },
+      "additionalProperties": false,
+      "anyOf": [
+        {
+          "required": [
+            "index"
+          ]
+        },
+        {
+          "required": [
+            "name",
+            "duration_s",
+            "entry"
+          ]
+        }
+      ]
+    }
+  },
+  "properties": {
+    "schema": {
+      "type": "string",
+      "pattern": "^ob\\.camera-tracks/1\\.[0-9]+$"
+    },
+    "kind": {
+      "enum": [
+        "route",
+        "generic",
+        "typed"
+      ]
+    },
+    "group": {
+      "type": "array",
+      "maxItems": 3000,
+      "items": {
+        "type": "object",
+        "properties": {
+          "index": {
+            "$ref": "common.schema.json#/$defs/listKey"
+          },
+          "op": {
+            "$ref": "common.schema.json#/$defs/op"
+          },
+          "disabled": {
+            "type": "boolean"
+          },
+          "key": {
+            "$ref": "common.schema.json#/$defs/u32"
+          },
+          "track": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/track"
+            }
+          },
+          "extras": {
+            "$ref": "common.schema.json#/$defs/extras"
+          }
+        },
+        "additionalProperties": false,
+        "anyOf": [
+          {
+            "required": [
+              "index"
+            ]
+          },
+          {
+            "required": [
+              "key",
+              "track"
+            ]
+          }
+        ]
+      }
+    },
+    "extras": {
+      "$ref": "common.schema.json#/$defs/extras"
+    },
+    "ext": {
+      "$ref": "common.schema.json#/$defs/ext"
+    }
+  },
+  "required": [
+    "schema",
+    "kind",
+    "group"
+  ],
+  "additionalProperties": false
+}

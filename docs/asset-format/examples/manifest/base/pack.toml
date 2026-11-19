@@ -1,0 +1,16 @@
+format = 2
+kind = "base"
+id = "nfsu2-pc12-eu"
+name = "Need for Speed Underground 2 (PC 1.2, European), imported"
+version = "1.0.0"
+licence = "LicenseRef-player-copy"
+overbright = ">=0.5"
+origin = "imported"
+share = "local-only"
+
+[base]
+edition = "pc12-eu"
+region = "eu"
+languages = ["english", "french", "german"]
+profile = "nfsu2/1"
+import = "import.toml"

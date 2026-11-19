@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "car-unit.schema.json",
+  "title": "Overbright asset format: a car unit (ob.car-unit)",
+  "description": "cars.md 3.7. cars/<NAME>/unit.toml: what one CARS/<NAME>/ folder (or cars/common/) holds and what it is for.",
+  "type": "object",
+  "properties": {
+    "schema": { "type": "string", "pattern": "^ob\\.car-unit/1\\.[0-9]+$" },
+    "name": { "description": "The unit name = the original folder name (or common).", "type": "string", "pattern": "^[A-Za-z0-9_]{1,63}$" },
+    "role": {
+      "description": "car: a car type's own folder; part-group: a shared part group; wheels: the rims by brand; common: the files all cars share; unreferenced: a folder nothing loads.",
+      "enum": ["car", "part-group", "wheels", "common", "unreferenced"]
+    },
+    "car": { "description": "role car: the car type (car:<NAME>).", "type": "string", "pattern": "^car:[A-Za-z0-9_]{1,31}$" },
+    "loaded_with": {
+      "description": "role part-group / wheels: who loads it in the original (informational; the engine's own list decides, engine-tables.md).",
+      "enum": ["cars", "front-end", "none"]
+    },
+    "file": {
+      "description": "The original folder's files, in name order.",
+      "type": "array", "maxItems": 64,
+      "items": {
+        "type": "object",
+        "properties": {
+          "original": { "description": "The file's name in the original folder, original spelling.", "type": "string", "pattern": "^[A-Za-z0-9_.-]{1,64}$" },
+          "state": { "description": "data: has content; empty: a zero-length file (the engine opens it and finds nothing).", "enum": ["data", "empty"] },
+          "kind": { "enum": ["meshes", "textures", "vinyls", "part-animations", "other"] },
+          "paths": {
+            "description": "The logical paths (relative to the unit) of the top-level files the owning page writes for it (e.g. meshes/GEOMETRY.BIN.0.gltf, textures/TEXTURES.toml, anim/PARTS_ANIMATIONS.bin.banks.toml); absent for an empty file and for a file whose kind is still at stage 0 in the unit (import.md 4.1).",
+            "type": "array", "minItems": 1, "maxItems": 64, "uniqueItems": true,
+            "items": { "$ref": "common.schema.json#/$defs/logicalPath" }
+          }
+        },
+        "required": ["original", "state", "kind"],
+        "additionalProperties": false
+      }
+    },
+    "extras": { "$ref": "common.schema.json#/$defs/extras" },
+    "ext": { "$ref": "common.schema.json#/$defs/ext" }
+  },
+  "required": ["schema", "name", "role", "file"],
+  "additionalProperties": false
+}

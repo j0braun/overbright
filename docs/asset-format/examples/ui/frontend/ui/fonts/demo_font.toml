@@ -1,0 +1,23 @@
+# A made-up three-glyph font (ob.font, ui.md 3.2). The glyph page is the texture "demo_font"
+# (texture:0x812C785A, the upper-case name's bin_hash), 256 x 128 pixels.
+schema = "ob.font/1.0"
+name = "demo_font"
+source = ["bin", "demo_font.bin"]
+texture = "demo_font"
+texture_source = ["bmp", "demo_font.bmp"]
+line_height_px = 20
+flags = 0x00040009
+inv_texture_width = 0.00390625
+inv_texture_height = 0.0078125
+u_0x04 = 0x00002000
+u_0x08 = 0x019E
+u_0x12 = 0x0010
+u_0x30 = 0x00000150
+u_0x34 = 0x0000007F
+tail = "hex:7b01000040000000300000000000000000000000000000000000000000000000"
+
+glyph = [
+  { code = 0x0020, width_px = 1, height_px = 1, x_px = 0, y_px = 0, advance_px = 5 },
+  { code = 0x0041, width_px = 12, height_px = 16, x_px = 2, y_px = 0, x_offset_px = 0, y_offset_px = 2, advance_px = 11 },
+  { code = 0x0056, width_px = 12, height_px = 16, x_px = 16, y_px = 0, y_offset_px = 2, advance_px = 11, kerning = [[0x0041, -2]] },
+]

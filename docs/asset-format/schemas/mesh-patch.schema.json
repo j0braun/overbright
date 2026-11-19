@@ -1,0 +1,306 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "mesh-patch.schema.json",
+  "title": "ob.mesh-patch: field and vertex patches of existing solids (mod packs)",
+  "description": "meshes.md 3.9 and 4. Cross-file rules (targets in the file's own unit MSH.16, guards and index ranges MSH.13) are the page's MSH rules.",
+  "type": "object",
+  "$defs": {
+    "uv": {
+      "type": "array",
+      "items": {
+        "$ref": "common.schema.json#/$defs/f32"
+      },
+      "minItems": 2,
+      "maxItems": 2,
+      "description": "TEXCOORD_0: 2 x f32"
+    },
+    "vec3": {
+      "type": "array",
+      "items": {
+        "$ref": "common.schema.json#/$defs/f32"
+      },
+      "minItems": 3,
+      "maxItems": 3,
+      "description": "POSITION, NORMAL: 3 x f32"
+    },
+    "bgra": {
+      "type": "array",
+      "items": {
+        "$ref": "common.schema.json#/$defs/u8"
+      },
+      "minItems": 4,
+      "maxItems": 4,
+      "description": "_COLOR_BGRA: 4 x u8, B, G, R, A"
+    }
+  },
+  "properties": {
+    "schema": {
+      "type": "string",
+      "pattern": "^ob\\.mesh-patch/1\\.[0-9]+$"
+    },
+    "solid": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "target": {
+            "description": "A solid item key in this file's unit (meshes.md 2.3, 4.2); the list may be a pack's own list <pack id>:<stem>.",
+            "type": "string",
+            "pattern": "^solid:[A-Za-z0-9_.-]+(/[A-Za-z0-9_.-]+)*/([a-z0-9][a-z0-9_-]{0,63}:)?[A-Za-z0-9_.-]+/[A-Za-z0-9_]{1,63}$"
+          },
+          "guard": {
+            "type": "object",
+            "properties": {
+              "hash": {
+                "$ref": "common.schema.json#/$defs/hash32"
+              },
+              "vertex_count": {
+                "$ref": "common.schema.json#/$defs/u32"
+              },
+              "vertices": {
+                "$ref": "common.schema.json#/$defs/digest"
+              }
+            },
+            "additionalProperties": false
+          },
+          "op": {
+            "const": "merge"
+          },
+          "disabled": {
+            "type": "boolean",
+            "default": false
+          },
+          "texture": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "slot": {
+                  "$ref": "common.schema.json#/$defs/u8"
+                },
+                "texture": {
+                  "type": "string",
+                  "pattern": "^texture:\\S{1,200}$"
+                }
+              },
+              "required": [
+                "slot",
+                "texture"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "draw_range": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "index": {
+                  "$ref": "common.schema.json#/$defs/listKey"
+                },
+                "texture_slot": {
+                  "$ref": "common.schema.json#/$defs/u8"
+                },
+                "light_material": {
+                  "$ref": "common.schema.json#/$defs/u8"
+                },
+                "flags": {
+                  "$ref": "common.schema.json#/$defs/u32"
+                },
+                "disabled": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "index"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "marker": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "index": {
+                  "$ref": "common.schema.json#/$defs/listKey"
+                },
+                "disabled": {
+                  "type": "boolean"
+                },
+                "matrix": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "common.schema.json#/$defs/f32"
+                  },
+                  "minItems": 16,
+                  "maxItems": 16
+                }
+              },
+              "required": [
+                "index"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "vertex_patch": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "attribute": {
+                  "enum": [
+                    "TEXCOORD_0",
+                    "_COLOR_BGRA",
+                    "POSITION",
+                    "NORMAL"
+                  ]
+                },
+                "vertices": {
+                  "description": "Vertex numbers (below the solid's vertex count, MSH.13).",
+                  "type": "array",
+                  "minItems": 1,
+                  "maxItems": 65535,
+                  "items": {
+                    "$ref": "common.schema.json#/$defs/u16"
+                  }
+                },
+                "from": {
+                  "description": "The exact current value (a guard); its shape depends on attribute."
+                },
+                "to": {
+                  "description": "The new value; its shape depends on attribute."
+                }
+              },
+              "required": [
+                "attribute",
+                "vertices",
+                "from",
+                "to"
+              ],
+              "additionalProperties": false,
+              "allOf": [
+                {
+                  "if": {
+                    "properties": {
+                      "attribute": {
+                        "enum": [
+                          "TEXCOORD_0"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "attribute"
+                    ]
+                  },
+                  "then": {
+                    "properties": {
+                      "from": {
+                        "$ref": "#/$defs/uv"
+                      },
+                      "to": {
+                        "$ref": "#/$defs/uv"
+                      }
+                    }
+                  }
+                },
+                {
+                  "if": {
+                    "properties": {
+                      "attribute": {
+                        "enum": [
+                          "POSITION",
+                          "NORMAL"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "attribute"
+                    ]
+                  },
+                  "then": {
+                    "properties": {
+                      "from": {
+                        "$ref": "#/$defs/vec3"
+                      },
+                      "to": {
+                        "$ref": "#/$defs/vec3"
+                      }
+                    }
+                  }
+                },
+                {
+                  "if": {
+                    "properties": {
+                      "attribute": {
+                        "enum": [
+                          "_COLOR_BGRA"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "attribute"
+                    ]
+                  },
+                  "then": {
+                    "properties": {
+                      "from": {
+                        "$ref": "#/$defs/bgra"
+                      },
+                      "to": {
+                        "$ref": "#/$defs/bgra"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "hide_triangles": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "triangles": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "$ref": "common.schema.json#/$defs/u32"
+                  }
+                },
+                "when_part_fitted": {
+                  "$ref": "common.schema.json#/$defs/u8"
+                }
+              },
+              "required": [
+                "triangles"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "extras": {
+            "$ref": "common.schema.json#/$defs/extras"
+          },
+          "ext": {
+            "$ref": "common.schema.json#/$defs/ext"
+          }
+        },
+        "required": [
+          "target"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "extras": {
+      "$ref": "common.schema.json#/$defs/extras"
+    },
+    "ext": {
+      "$ref": "common.schema.json#/$defs/ext"
+    }
+  },
+  "required": [
+    "schema",
+    "solid"
+  ],
+  "additionalProperties": false
+}

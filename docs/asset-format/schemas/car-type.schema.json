@@ -1,0 +1,1171 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "car-type.schema.json",
+  "title": "Overbright asset format: one car type (ob.car-type)",
+  "description": "cars.md 3.2. One record of GLOBALB chunk 0x34600 (0x890 bytes) and its AI upgrade presets. Only schema and name are required by shape: a base set's file holds every non-default field, a mod pack's only the fields it changes (layering.md). Cross-file rules (CRS.*) are on the page.",
+  "type": "object",
+  "properties": {
+    "schema": {
+      "type": "string",
+      "pattern": "^ob\\.car-type/1\\.[0-9]+$"
+    },
+    "op": {
+      "$ref": "common.schema.json#/$defs/op"
+    },
+    "disabled": {
+      "type": "boolean",
+      "description": "layering.md 3.1; refused for car types in 1.0 (MRG.3)"
+    },
+    "name": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_]{1,31}$",
+      "description": "record +0x000: Key. verified (looked up by name, src/car/record.rs:144)"
+    },
+    "skin_name": {
+      "type": "string",
+      "pattern": "^[\\x20-\\x7E]{0,31}$",
+      "description": "record +0x020: Base of `<skin_name>_SKIN1` (render-info remap 0x631E30). verified. Default: `name`"
+    },
+    "geometry_path": {
+      "type": "string",
+      "pattern": "^[\\x20-\\x7E]{0,31}$",
+      "description": "record +0x040: Non-empty = stock-car candidate (0x516500). verified as a test; the text is not used for loading. Default: `CARS\\<name>\\GEOMETRY.BIN`"
+    },
+    "geometry_lzc_path": {
+      "type": "string",
+      "pattern": "^[\\x20-\\x7E]{0,31}$",
+      "description": "record +0x060: open (no reader known). Default: `CARS\\<name>\\GEOMETRY.LZC`"
+    },
+    "u_0x080": {
+      "type": "string",
+      "pattern": "^hex:([0-9a-f]{2}){64}$",
+      "description": "record +0x080: open; zero in every record of the reference install"
+    },
+    "manufacturer": {
+      "type": "string",
+      "pattern": "^[\\x20-\\x7E]{0,15}$",
+      "description": "record +0x0C0: Lot logo `CARSELECT_MANUFACTURER_<it>` (0x511E60). verified"
+    },
+    "name_hash": {
+      "$ref": "common.schema.json#/$defs/hash32",
+      "description": "record +0x0D0: = `bin_hash(name)` in every record. Derived; written only when it differs"
+    },
+    "u_0x0d4": {
+      "$ref": "common.schema.json#/$defs/f32",
+      "description": "record +0x0D4: open; one value in every record"
+    },
+    "u_0x0d8": {
+      "$ref": "common.schema.json#/$defs/u8",
+      "description": "record +0x0D8: open"
+    },
+    "skin_count": {
+      "$ref": "common.schema.json#/$defs/u8",
+      "description": "record +0x0D9: Traffic skin draw count (0x61BC30). verified"
+    },
+    "lot_flags": {
+      "$ref": "common.schema.json#/$defs/u8",
+      "description": "record +0x0DA: Bit 1: may be a stock car (0x516500). verified; other bits open"
+    },
+    "u_0x0db": {
+      "$ref": "common.schema.json#/$defs/u8",
+      "description": "record +0x0DB: open"
+    },
+    "rim_size": {
+      "$ref": "common.schema.json#/$defs/u8",
+      "description": "record +0x0DC: Rims fit when their attribute 0xCE7D8DB5 matches (0x539B80). verified"
+    },
+    "rim_min": {
+      "$ref": "common.schema.json#/$defs/u8",
+      "description": "record +0x0DD: Smallest rim the AI rim draw takes (0x632DF0). verified"
+    },
+    "rim_max": {
+      "$ref": "common.schema.json#/$defs/u8",
+      "description": "record +0x0DE: Largest rim of the unique-part list (0x533D30). verified"
+    },
+    "u_0x0df": {
+      "$ref": "common.schema.json#/$defs/u8",
+      "description": "record +0x0DF: open"
+    },
+    "u_0x0e0": {
+      "type": "array",
+      "items": {
+        "$ref": "common.schema.json#/$defs/f32"
+      },
+      "minItems": 12,
+      "maxItems": 12,
+      "description": "record +0x0E0: open; the same twelve values in every record"
+    },
+    "chassis": {
+      "type": "object",
+      "properties": {
+        "centre_of_mass": {
+          "$ref": "common.schema.json#/$defs/vec3",
+          "description": "record +0x110: Tuning block +0x00 (the physics copies the record from here, 0x5AC500). verified"
+        },
+        "u_0x11c": {
+          "$ref": "common.schema.json#/$defs/f32",
+          "description": "record +0x11C: open"
+        },
+        "mass_tonne": {
+          "$ref": "common.schema.json#/$defs/f32",
+          "description": "record +0x220: verified (scaled by weight reduction, 0x5997F0)"
+        },
+        "dimensions": {
+          "$ref": "common.schema.json#/$defs/vec3",
+          "description": "record +0x224: Length, width, height; inferred from values"
+        },
+        "inertia_matrix": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/f32"
+          },
+          "minItems": 16,
+          "maxItems": 16,
+          "description": "record +0x230: 4×4, row-major; the diagonal +0x230/+0x244/+0x258 (roll, pitch, yaw) verified and recomputed from mass and dimensions by 0x5AC500; the other entries open"
+        },
+        "ground_yaw_inertia": {
+          "$ref": "common.schema.json#/$defs/f32",
+          "description": "record +0x270: Ground yaw-inertia factor (0x59B950; the code's `unknown_270`). verified"
+        },
+        "u_0x274": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/f32"
+          },
+          "minItems": 3,
+          "maxItems": 3,
+          "description": "record +0x274: open"
+        }
+      },
+      "additionalProperties": false
+    },
+    "wheel": {
+      "type": "object",
+      "description": "record +0x120: Front left, front right, rear right, rear left; struct `wheel` below",
+      "properties": {
+        "fl": {
+          "$ref": "#/$defs/wheel"
+        },
+        "fr": {
+          "$ref": "#/$defs/wheel"
+        },
+        "rr": {
+          "$ref": "#/$defs/wheel"
+        },
+        "rl": {
+          "$ref": "#/$defs/wheel"
+        }
+      },
+      "additionalProperties": false
+    },
+    "tyres": {
+      "type": "object",
+      "properties": {
+        "front": {
+          "$ref": "#/$defs/tyre",
+          "description": "record +0x1E0: Struct `tyre` below"
+        },
+        "rear": {
+          "$ref": "#/$defs/tyre",
+          "description": "record +0x200: Struct `tyre`"
+        }
+      },
+      "additionalProperties": false
+    },
+    "suspension": {
+      "type": "object",
+      "properties": {
+        "front": {
+          "$ref": "#/$defs/suspension",
+          "description": "record +0x280: Struct `suspension` below"
+        },
+        "rear": {
+          "$ref": "#/$defs/suspension",
+          "description": "record +0x2A0: Struct `suspension`"
+        }
+      },
+      "additionalProperties": false
+    },
+    "gearbox": {
+      "$ref": "#/$defs/gearbox",
+      "description": "record +0x2C0: Struct `gearbox` below"
+    },
+    "engine": {
+      "type": "object",
+      "properties": {
+        "idle_rpm": {
+          "$ref": "common.schema.json#/$defs/f32",
+          "description": "record +0x300: verified"
+        },
+        "redline_rpm": {
+          "$ref": "common.schema.json#/$defs/f32",
+          "description": "record +0x304: verified"
+        },
+        "max_rpm": {
+          "$ref": "common.schema.json#/$defs/f32",
+          "description": "record +0x308: verified"
+        },
+        "inertia": {
+          "$ref": "common.schema.json#/$defs/f32",
+          "description": "record +0x30C: Crank inertia (0x5A12A0). verified"
+        },
+        "torque_knm": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/f32"
+          },
+          "minItems": 9,
+          "maxItems": 9,
+          "description": "record +0x310: Full-throttle torque over idle..max rpm (`Curve<9>`, 0x5764E0). verified"
+        },
+        "turbo_torque_knm": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/f32"
+          },
+          "minItems": 9,
+          "maxItems": 9,
+          "description": "record +0x334: Added into the torque by the setup (0x5A6E40) also when stock; the code's `curve_334`. verified use, name inferred"
+        },
+        "braking_knm": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/f32"
+          },
+          "minItems": 3,
+          "maxItems": 3,
+          "description": "record +0x358: Closed-throttle drag over idle..max rpm. verified"
+        },
+        "u_0x364": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/f32"
+          },
+          "minItems": 3,
+          "maxItems": 3,
+          "description": "record +0x364: open"
+        }
+      },
+      "additionalProperties": false
+    },
+    "aero": {
+      "type": "object",
+      "properties": {
+        "drag": {
+          "$ref": "common.schema.json#/$defs/f32",
+          "description": "record +0x370: (0x59E630) verified"
+        },
+        "downforce": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/f32"
+          },
+          "minItems": 2,
+          "maxItems": 2,
+          "description": "record +0x374: Front, rear. verified"
+        },
+        "preload_downforce": {
+          "$ref": "common.schema.json#/$defs/f32",
+          "description": "record +0x37C: Downforce share in the suspension preload (0x5AB9A0). verified"
+        }
+      },
+      "additionalProperties": false
+    },
+    "handling": {
+      "type": "object",
+      "properties": {
+        "steering_ratio": {
+          "$ref": "common.schema.json#/$defs/f32",
+          "description": "record +0x380: (0x416BB0) verified"
+        },
+        "drift_grip": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/f32"
+          },
+          "minItems": 2,
+          "maxItems": 2,
+          "description": "record +0x390: Rear-grip bonus bases while sliding (0x5990D0). verified"
+        },
+        "yaw_limit_airborne_knm": {
+          "$ref": "common.schema.json#/$defs/f32",
+          "description": "record +0x398: (0x5A49B0) verified"
+        },
+        "yaw_limit_ground_knm": {
+          "$ref": "common.schema.json#/$defs/f32",
+          "description": "record +0x39C: 0 = only while counter-steering. verified"
+        },
+        "top_speed_mph": {
+          "$ref": "common.schema.json#/$defs/f32",
+          "description": "record +0x3A0: The rigid body's limiter (0x59C1F0). verified"
+        },
+        "u_0x3a4": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/f32"
+          },
+          "minItems": 3,
+          "maxItems": 3,
+          "description": "record +0x3A4: open"
+        }
+      },
+      "additionalProperties": false
+    },
+    "brakes": {
+      "type": "object",
+      "properties": {
+        "brake_knm": {
+          "$ref": "common.schema.json#/$defs/f32",
+          "description": "record +0x384: Foot brake per unit pedal (×4 at 0x5A8290). verified"
+        },
+        "handbrake_knm": {
+          "$ref": "common.schema.json#/$defs/f32",
+          "description": "record +0x388: (×10) verified"
+        },
+        "balance": {
+          "$ref": "common.schema.json#/$defs/f32",
+          "description": "record +0x38C: Front ×2(1−b), rear ×2b (0x5A4D90). verified"
+        }
+      },
+      "additionalProperties": false
+    },
+    "nitrous": {
+      "type": "object",
+      "properties": {
+        "capacity_s": {
+          "$ref": "common.schema.json#/$defs/f32",
+          "description": "record +0x3B0: Tank (tuning slider 16). verified"
+        },
+        "shots": {
+          "$ref": "common.schema.json#/$defs/i32",
+          "description": "record +0x3B4: verified"
+        },
+        "u_0x3b8": {
+          "$ref": "common.schema.json#/$defs/f32",
+          "description": "record +0x3B8: open"
+        },
+        "power": {
+          "$ref": "common.schema.json#/$defs/f32",
+          "description": "record +0x3BC: Shot push (tuning slider 17). verified"
+        }
+      },
+      "additionalProperties": false
+    },
+    "upgrades": {
+      "type": "object",
+      "properties": {
+        "unique": {
+          "type": "object",
+          "properties": {
+            "weight": {
+              "$ref": "common.schema.json#/$defs/f32",
+              "description": "record +0x3C0: Performance uniques, 0x5997F0 (all verified): mass × (1 − this)"
+            },
+            "rear_split": {
+              "$ref": "common.schema.json#/$defs/f32",
+              "description": "record +0x3C4: Replaces `gearbox.rear_split`"
+            },
+            "nitrous_power": {
+              "$ref": "common.schema.json#/$defs/f32",
+              "description": "record +0x3C8: Added to `nitrous.power`"
+            },
+            "brake_knm": {
+              "$ref": "common.schema.json#/$defs/f32",
+              "description": "record +0x3CC: Added to `brakes.brake_knm`"
+            },
+            "grip_front": {
+              "$ref": "common.schema.json#/$defs/f32",
+              "description": "record +0x3D0: Added to `tyres.front.grip`"
+            },
+            "grip_rear": {
+              "$ref": "common.schema.json#/$defs/f32",
+              "description": "record +0x3D4: Added to `tyres.rear.grip`"
+            },
+            "sliding_front": {
+              "$ref": "common.schema.json#/$defs/f32",
+              "description": "record +0x3D8: Added to `tyres.front.sliding`"
+            },
+            "sliding_rear": {
+              "$ref": "common.schema.json#/$defs/f32",
+              "description": "record +0x3DC: Added to `tyres.rear.sliding`"
+            },
+            "engine_torque_knm": {
+              "type": "array",
+              "items": {
+                "$ref": "common.schema.json#/$defs/f32"
+              },
+              "minItems": 9,
+              "maxItems": 9,
+              "description": "record +0x3E0: Added to the torque"
+            },
+            "ecu_torque_knm": {
+              "type": "array",
+              "items": {
+                "$ref": "common.schema.json#/$defs/f32"
+              },
+              "minItems": 9,
+              "maxItems": 9,
+              "description": "record +0x404: Added to the torque"
+            },
+            "turbo_torque_knm": {
+              "type": "array",
+              "items": {
+                "$ref": "common.schema.json#/$defs/f32"
+              },
+              "minItems": 9,
+              "maxItems": 9,
+              "description": "record +0x428: Added to the torque and the turbo curve"
+            }
+          },
+          "additionalProperties": false
+        },
+        "u_0x44c": {
+          "$ref": "common.schema.json#/$defs/f32",
+          "description": "record +0x44C: open"
+        },
+        "weight": {
+          "type": "object",
+          "properties": {
+            "mass_factor": {
+              "$ref": "common.schema.json#/$defs/f32",
+              "description": "record +0x450: Weight reduction (0x5A6B60). verified"
+            },
+            "com_x_shift": {
+              "$ref": "common.schema.json#/$defs/f32",
+              "description": "record +0x454: Added to the centre of mass x. verified"
+            },
+            "ground_yaw_inertia": {
+              "$ref": "common.schema.json#/$defs/f32",
+              "description": "record +0x458: Target of `chassis.ground_yaw_inertia`. verified"
+            },
+            "u_0x45c": {
+              "$ref": "common.schema.json#/$defs/f32",
+              "description": "record +0x45C: open"
+            }
+          },
+          "additionalProperties": false
+        },
+        "gearbox": {
+          "type": "object",
+          "description": "record +0x460: Transmission levels 1–3 (0x5A6BE0). verified",
+          "properties": {
+            "1": {
+              "$ref": "#/$defs/gearbox"
+            },
+            "2": {
+              "$ref": "#/$defs/gearbox"
+            },
+            "3": {
+              "$ref": "#/$defs/gearbox"
+            }
+          },
+          "additionalProperties": false
+        },
+        "engine": {
+          "type": "object",
+          "description": "record +0x520: Struct `engine_step` below (0x5A6D10, 0x5A71D0). verified",
+          "properties": {
+            "0": {
+              "$ref": "#/$defs/engine_step"
+            },
+            "1": {
+              "$ref": "#/$defs/engine_step"
+            },
+            "2": {
+              "$ref": "#/$defs/engine_step"
+            },
+            "3": {
+              "$ref": "#/$defs/engine_step"
+            }
+          },
+          "additionalProperties": false
+        },
+        "turbo_torque_knm": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/f32"
+          },
+          "minItems": 9,
+          "maxItems": 9,
+          "description": "record +0x620: Turbo target curve (0x5A6E40). verified"
+        },
+        "u_0x644": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/f32"
+          },
+          "minItems": 3,
+          "maxItems": 3,
+          "description": "record +0x644: open"
+        },
+        "tyres": {
+          "type": "object",
+          "properties": {
+            "front": {
+              "$ref": "#/$defs/tyre",
+              "description": "record +0x650: Tyre targets (0x5A7370). verified"
+            },
+            "rear": {
+              "$ref": "#/$defs/tyre",
+              "description": "record +0x670: verified"
+            }
+          },
+          "additionalProperties": false
+        },
+        "nitrous": {
+          "type": "object",
+          "properties": {
+            "capacity_s": {
+              "$ref": "common.schema.json#/$defs/f32",
+              "description": "record +0x690: Target of `nitrous.capacity_s`. verified"
+            },
+            "shots": {
+              "$ref": "common.schema.json#/$defs/i32",
+              "description": "record +0x694: inferred (mirrors `nitrous.shots`; not read by 0x5AC500)"
+            },
+            "u_0x698": {
+              "$ref": "common.schema.json#/$defs/f32",
+              "description": "record +0x698: open"
+            },
+            "power": {
+              "$ref": "common.schema.json#/$defs/f32",
+              "description": "record +0x69C: Set into `nitrous.power`. verified"
+            }
+          },
+          "additionalProperties": false
+        },
+        "aero_a": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/f32"
+          },
+          "minItems": 3,
+          "maxItems": 3,
+          "description": "record +0x6A0: With `aero_b`: added to downforce front/rear and preload by the body parts' gains (0x5A74B0). verified"
+        },
+        "u_0x6ac": {
+          "$ref": "common.schema.json#/$defs/f32",
+          "description": "record +0x6AC: open"
+        },
+        "aero_b": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/f32"
+          },
+          "minItems": 3,
+          "maxItems": 3,
+          "description": "record +0x6B0: verified (see `aero_a`)"
+        },
+        "u_0x6bc": {
+          "$ref": "common.schema.json#/$defs/f32",
+          "description": "record +0x6BC: open"
+        },
+        "brakes": {
+          "type": "object",
+          "properties": {
+            "brake_knm": {
+              "$ref": "common.schema.json#/$defs/f32",
+              "description": "record +0x6C0: Brake targets (0x5A7150). verified"
+            },
+            "handbrake_knm": {
+              "$ref": "common.schema.json#/$defs/f32",
+              "description": "record +0x6C4: verified"
+            },
+            "balance": {
+              "$ref": "common.schema.json#/$defs/f32",
+              "description": "record +0x6C8: verified"
+            }
+          },
+          "additionalProperties": false
+        },
+        "ground_yaw_inertia": {
+          "$ref": "common.schema.json#/$defs/f32",
+          "description": "record +0x6CC: Suspension target (0x5A6FB0). verified"
+        },
+        "suspension": {
+          "type": "object",
+          "properties": {
+            "front": {
+              "$ref": "#/$defs/suspension",
+              "description": "record +0x6D0: Suspension targets (0x5A6FB0). verified"
+            },
+            "rear": {
+              "$ref": "#/$defs/suspension",
+              "description": "record +0x6F0: verified"
+            }
+          },
+          "additionalProperties": false
+        },
+        "ride_height": {
+          "type": "object",
+          "properties": {
+            "com_drop": {
+              "$ref": "common.schema.json#/$defs/f32",
+              "description": "record +0x710: Subtracted from the centre of mass z. verified"
+            },
+            "front": {
+              "$ref": "common.schema.json#/$defs/f32",
+              "description": "record +0x714: Added to the front wheels' z (also hydraulics, tuning limits). verified"
+            },
+            "rear": {
+              "$ref": "common.schema.json#/$defs/f32",
+              "description": "record +0x718: Added to the rear wheels' z. verified"
+            },
+            "u_0x71c": {
+              "$ref": "common.schema.json#/$defs/f32",
+              "description": "record +0x71C: open"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "camera_count": {
+      "$ref": "common.schema.json#/$defs/u32",
+      "description": "record +0x720: At most 6 read (src/car/record.rs:94). verified"
+    },
+    "split_camera_count": {
+      "$ref": "common.schema.json#/$defs/u32",
+      "description": "record +0x724: inferred (split screen only)"
+    },
+    "u_0x728": {
+      "type": "array",
+      "items": {
+        "$ref": "common.schema.json#/$defs/u32"
+      },
+      "minItems": 2,
+      "maxItems": 2,
+      "description": "record +0x728: open"
+    },
+    "camera": {
+      "type": "object",
+      "description": "record +0x730: Struct `camera` below (0x5ECCB0 → 0x441140). verified",
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/camera"
+        },
+        "1": {
+          "$ref": "#/$defs/camera"
+        },
+        "2": {
+          "$ref": "#/$defs/camera"
+        },
+        "3": {
+          "$ref": "#/$defs/camera"
+        },
+        "4": {
+          "$ref": "#/$defs/camera"
+        },
+        "5": {
+          "$ref": "#/$defs/camera"
+        }
+      },
+      "additionalProperties": false
+    },
+    "split_camera": {
+      "type": "object",
+      "description": "record +0x790: Split screen (0x8707DC == 3). inferred",
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/camera"
+        },
+        "1": {
+          "$ref": "#/$defs/camera"
+        },
+        "2": {
+          "$ref": "#/$defs/camera"
+        },
+        "3": {
+          "$ref": "#/$defs/camera"
+        },
+        "4": {
+          "$ref": "#/$defs/camera"
+        },
+        "5": {
+          "$ref": "#/$defs/camera"
+        }
+      },
+      "additionalProperties": false
+    },
+    "gauges": {
+      "type": "object",
+      "properties": {
+        "u_0x7f0": {
+          "$ref": "common.schema.json#/$defs/u32",
+          "description": "record +0x7F0: open"
+        },
+        "needle_deg": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/f32"
+          },
+          "minItems": 2,
+          "maxItems": 2,
+          "description": "record +0x7F4: Drag tachometer needle at 0 and max rpm with more than one local human. inferred"
+        },
+        "drag_needle_deg": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/f32"
+          },
+          "minItems": 2,
+          "maxItems": 2,
+          "description": "record +0x7FC: The same with one local human (0x4AB210). verified"
+        },
+        "u_0x804": {
+          "$ref": "common.schema.json#/$defs/u32",
+          "description": "record +0x804: open"
+        },
+        "u_0x808": {
+          "$ref": "common.schema.json#/$defs/f32",
+          "description": "record +0x808: open"
+        },
+        "u_0x80c": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/u16"
+          },
+          "minItems": 2,
+          "maxItems": 2,
+          "description": "record +0x80C: open; type [guess]"
+        },
+        "u_0x810": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/f32"
+          },
+          "minItems": 4,
+          "maxItems": 4,
+          "description": "record +0x810: open"
+        },
+        "u_0x820": {
+          "$ref": "common.schema.json#/$defs/u32",
+          "description": "record +0x820: open"
+        },
+        "u_0x824": {
+          "$ref": "common.schema.json#/$defs/f32",
+          "description": "record +0x824: open"
+        },
+        "u_0x828": {
+          "$ref": "common.schema.json#/$defs/u32",
+          "description": "record +0x828: open"
+        },
+        "u_0x82c": {
+          "$ref": "common.schema.json#/$defs/f32",
+          "description": "record +0x82C: open"
+        },
+        "u_0x830": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/u16"
+          },
+          "minItems": 6,
+          "maxItems": 6,
+          "description": "record +0x830: open; type [guess]"
+        },
+        "u_0x83c": {
+          "$ref": "common.schema.json#/$defs/u32",
+          "description": "record +0x83C: open"
+        }
+      },
+      "additionalProperties": false
+    },
+    "type_index": {
+      "$ref": "common.schema.json#/$defs/i32",
+      "description": "record +0x840: = the record's position in the table in every record; −1 = not listed (the lists' test). Derived; written only when it differs"
+    },
+    "kind_code": {
+      "$ref": "common.schema.json#/$defs/u32",
+      "description": "record +0x844: 0 racer, 2 traffic; non-zero fixes the performance class at 3 (0x5B4DD0). verified; 1 open"
+    },
+    "u_0x848": {
+      "$ref": "common.schema.json#/$defs/u32",
+      "description": "record +0x848: open"
+    },
+    "stock_paint": {
+      "$ref": "common.schema.json#/$defs/hash32",
+      "description": "record +0x84C: hash32: the stock paint part (slot 0x3F, 0x637050). verified"
+    },
+    "u_0x850": {
+      "$ref": "common.schema.json#/$defs/hash32",
+      "description": "record +0x850: hash32; open (a paint part hash [guess])"
+    },
+    "traffic_caps": {
+      "type": "array",
+      "items": {
+        "$ref": "common.schema.json#/$defs/i8"
+      },
+      "minItems": 5,
+      "maxItems": 5,
+      "description": "record +0x854: Per traffic zone, how many cars may take this model (0x412BE0). verified"
+    },
+    "u_0x859": {
+      "type": "array",
+      "items": {
+        "$ref": "common.schema.json#/$defs/u8"
+      },
+      "minItems": 3,
+      "maxItems": 3,
+      "description": "record +0x859: open"
+    },
+    "u_0x85c": {
+      "$ref": "common.schema.json#/$defs/u32",
+      "description": "record +0x85C: open"
+    },
+    "u_0x860": {
+      "type": "array",
+      "items": {
+        "$ref": "common.schema.json#/$defs/f32"
+      },
+      "minItems": 5,
+      "maxItems": 5,
+      "description": "record +0x860: open (five values like the zone caps [guess])"
+    },
+    "u_0x874": {
+      "$ref": "common.schema.json#/$defs/u32",
+      "description": "record +0x874: open"
+    },
+    "u_0x878": {
+      "$ref": "common.schema.json#/$defs/u32",
+      "description": "record +0x878: open"
+    },
+    "u_0x87c": {
+      "$ref": "common.schema.json#/$defs/u32",
+      "description": "record +0x87C: open"
+    },
+    "skin_table": {
+      "type": "array",
+      "items": {
+        "$ref": "common.schema.json#/$defs/u8"
+      },
+      "minItems": 8,
+      "maxItems": 8,
+      "description": "record +0x880: Skin byte table drawn by 0x61BC30. verified"
+    },
+    "u_0x888": {
+      "$ref": "common.schema.json#/$defs/u8",
+      "description": "record +0x888: open"
+    },
+    "u_0x889": {
+      "$ref": "common.schema.json#/$defs/u8",
+      "description": "record +0x889: open"
+    },
+    "suv": {
+      "$ref": "common.schema.json#/$defs/u8",
+      "description": "record +0x88A: Non-zero: an SUV (SUV events, 0x527D40). verified"
+    },
+    "u_0x88b": {
+      "$ref": "common.schema.json#/$defs/u8",
+      "description": "record +0x88B: open"
+    },
+    "composited_skin": {
+      "$ref": "common.schema.json#/$defs/u32",
+      "description": "record +0x88C: Non-zero: the car gets a `DUMMY_SKIN<n>` composite slot (0x61C290). verified"
+    },
+    "raw_text": {
+      "type": "object",
+      "description": "Base sets only: the full bytes of a text field whose record bytes are not text + NUL + zero fill (cars.md 3.2). The text field still holds the text up to the first NUL.",
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^hex:([0-9a-f]{2}){32}$"
+        },
+        "skin_name": {
+          "type": "string",
+          "pattern": "^hex:([0-9a-f]{2}){32}$"
+        },
+        "geometry_path": {
+          "type": "string",
+          "pattern": "^hex:([0-9a-f]{2}){32}$"
+        },
+        "geometry_lzc_path": {
+          "type": "string",
+          "pattern": "^hex:([0-9a-f]{2}){32}$"
+        },
+        "manufacturer": {
+          "type": "string",
+          "pattern": "^hex:([0-9a-f]{2}){16}$"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ai_preset": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/ai_preset"
+      },
+      "maxItems": 1000,
+      "description": "The car type's AI upgrade presets (GLOBALB 0x34A31 chunk at its position in the 0x80034A30 container), in order. Replaced whole by a pack."
+    },
+    "extras": {
+      "$ref": "common.schema.json#/$defs/extras"
+    },
+    "ext": {
+      "$ref": "common.schema.json#/$defs/ext"
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "name"
+  ],
+  "$defs": {
+    "wheel": {
+      "type": "object",
+      "properties": {
+        "position": {
+          "$ref": "common.schema.json#/$defs/vec3",
+          "description": "+0x00: Wheel centre. verified"
+        },
+        "u_0x0c": {
+          "$ref": "common.schema.json#/$defs/f32",
+          "description": "+0x0C: open"
+        },
+        "radius": {
+          "$ref": "common.schema.json#/$defs/f32",
+          "description": "+0x10: verified"
+        },
+        "width": {
+          "$ref": "common.schema.json#/$defs/f32",
+          "description": "+0x14: Tyre width an aftermarket rim is drawn at. verified"
+        },
+        "index": {
+          "$ref": "common.schema.json#/$defs/u32",
+          "description": "+0x18: = the wheel's number 0–3 in every record. Derived; written only when it differs"
+        },
+        "face": {
+          "$ref": "common.schema.json#/$defs/f32",
+          "description": "+0x1C: y of the outer face (0x61FE20, 0x6162F0). verified"
+        },
+        "face_wide": {
+          "$ref": "common.schema.json#/$defs/f32",
+          "description": "+0x20: The same with a wide body (0x620AF0). verified"
+        },
+        "u_0x24": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/f32"
+          },
+          "minItems": 3,
+          "maxItems": 3,
+          "description": "+0x24: open"
+        }
+      },
+      "additionalProperties": false
+    },
+    "tyre": {
+      "type": "object",
+      "properties": {
+        "slip_angle_scale_deg": {
+          "$ref": "common.schema.json#/$defs/f32",
+          "description": "+0x00: Lateral curve index = angle / scale · 6 (0x59D520). verified"
+        },
+        "load_scale": {
+          "$ref": "common.schema.json#/$defs/f32",
+          "description": "+0x04: verified"
+        },
+        "lateral_scale": {
+          "$ref": "common.schema.json#/$defs/f32",
+          "description": "+0x08: verified"
+        },
+        "grip": {
+          "$ref": "common.schema.json#/$defs/f32",
+          "description": "+0x0C: Friction circle (0x59D610). verified"
+        },
+        "sliding": {
+          "$ref": "common.schema.json#/$defs/f32",
+          "description": "+0x10: (0x5A8290) verified"
+        },
+        "u_0x14": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/f32"
+          },
+          "minItems": 3,
+          "maxItems": 3,
+          "description": "+0x14: open"
+        }
+      },
+      "additionalProperties": false
+    },
+    "suspension": {
+      "type": "object",
+      "properties": {
+        "progression": {
+          "$ref": "common.schema.json#/$defs/f32",
+          "description": "+0x00: k·(1 + progression·x). verified"
+        },
+        "spring": {
+          "$ref": "common.schema.json#/$defs/f32",
+          "description": "+0x04: verified"
+        },
+        "bump": {
+          "$ref": "common.schema.json#/$defs/f32",
+          "description": "+0x08: verified"
+        },
+        "rebound": {
+          "$ref": "common.schema.json#/$defs/f32",
+          "description": "+0x0C: verified"
+        },
+        "anti_roll": {
+          "$ref": "common.schema.json#/$defs/f32",
+          "description": "+0x10: verified"
+        },
+        "max_compression": {
+          "$ref": "common.schema.json#/$defs/f32",
+          "description": "+0x14: verified"
+        },
+        "max_extension": {
+          "$ref": "common.schema.json#/$defs/f32",
+          "description": "+0x18: Negative. verified"
+        },
+        "u_0x1c": {
+          "$ref": "common.schema.json#/$defs/f32",
+          "description": "+0x1C: open: not read by the suspension update 0x5A87A0, moved by the suspension upgrade (the code's `unknown_1c`)"
+        }
+      },
+      "additionalProperties": false
+    },
+    "gearbox": {
+      "type": "object",
+      "properties": {
+        "neutral_shift": {
+          "$ref": "common.schema.json#/$defs/f32",
+          "description": "+0x00: Where between idle and redline the shift out of neutral sits (0x5AC7E0). verified"
+        },
+        "u_0x04": {
+          "$ref": "common.schema.json#/$defs/f32",
+          "description": "+0x04: open (the code's `unknown_2c4`)"
+        },
+        "final_drive_front": {
+          "$ref": "common.schema.json#/$defs/f32",
+          "description": "+0x08: verified"
+        },
+        "final_drive_rear": {
+          "$ref": "common.schema.json#/$defs/f32",
+          "description": "+0x0C: verified"
+        },
+        "rear_split": {
+          "$ref": "common.schema.json#/$defs/f32",
+          "description": "+0x10: Drive torque share to the rear (0x594A40). verified"
+        },
+        "clutch_stiffness": {
+          "$ref": "common.schema.json#/$defs/f32",
+          "description": "+0x14: (0x594CC0) verified"
+        },
+        "forward_gears": {
+          "$ref": "common.schema.json#/$defs/u32",
+          "description": "+0x18: At most 7 read. verified"
+        },
+        "clutch_rate": {
+          "$ref": "common.schema.json#/$defs/f32",
+          "description": "+0x1C: (0x5949C0) verified"
+        },
+        "ratios": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/f32"
+          },
+          "minItems": 8,
+          "maxItems": 8,
+          "description": "+0x20: Reverse, neutral, 1st … 6th. verified"
+        }
+      },
+      "additionalProperties": false
+    },
+    "engine_step": {
+      "type": "object",
+      "properties": {
+        "delta_rpm": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/f32"
+          },
+          "minItems": 3,
+          "maxItems": 3,
+          "description": "+0x00: Idle, redline, max: added by the ECU at rounded level 1–3 (steps 1–3). verified"
+        },
+        "inertia_delta": {
+          "$ref": "common.schema.json#/$defs/f32",
+          "description": "+0x0C: Step 0: added to the crank inertia by the transmission. verified"
+        },
+        "torque_delta_knm": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/f32"
+          },
+          "minItems": 9,
+          "maxItems": 9,
+          "description": "+0x10: Step 0: engine category; step 3: ECU. verified"
+        },
+        "braking_delta_knm": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/f32"
+          },
+          "minItems": 3,
+          "maxItems": 3,
+          "description": "+0x34: Steps 0 and 3, as `torque_delta_knm`. verified"
+        }
+      },
+      "additionalProperties": false
+    },
+    "camera": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "$ref": "common.schema.json#/$defs/i16",
+          "description": "+0x00: 0 far, 1 near, 2 bumper, 3 driver, 4 hood, 5 high. verified"
+        },
+        "tilt_bam16": {
+          "$ref": "common.schema.json#/$defs/u16",
+          "description": "+0x02: Downward tilt. verified"
+        },
+        "eye": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/f32"
+          },
+          "minItems": 3,
+          "maxItems": 3,
+          "description": "+0x04: Stored x, z, y; the TOML field is [x, y, z]. verified"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ai_preset": {
+      "type": "object",
+      "description": "GLOBALB 0x34A31 record (16 bytes) of this car type: +0x00 rating, +0x04 u_0x04, +0x05 u8[9], a 72-bit set of part ids (most significant bit first, bit k = performance part id k), +0x0E u_0x0e.",
+      "properties": {
+        "rating": {
+          "$ref": "common.schema.json#/$defs/f32",
+          "description": "+0x00: performance rating the AI fit searches by (0x5B6AE0). verified"
+        },
+        "parts": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 71
+          },
+          "uniqueItems": true,
+          "maxItems": 72,
+          "description": "+0x05: fitted performance part ids, ascending; ids 0-67 are read, 68-71 kept as data"
+        },
+        "u_0x04": {
+          "$ref": "common.schema.json#/$defs/u8",
+          "description": "+0x04: open"
+        },
+        "u_0x0e": {
+          "$ref": "common.schema.json#/$defs/u16",
+          "description": "+0x0E: open"
+        }
+      },
+      "required": [
+        "rating"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

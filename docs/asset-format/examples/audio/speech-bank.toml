@@ -1,0 +1,48 @@
+# A small speech bank (made-up values): one switch fires one event, whose only
+# alternative plays a record of entry 0x4024 whose key fits request value 1.
+schema = "ob.speech-bank/1.0"
+bank = "nisaudio"
+language = "english"
+lines = { file = "lines.bin", offset = 0, count = 2304000, layout = "ea_stream_set" }
+bank_keys = [0, 0]
+
+[[switch]]
+name = "NIS_Select_End"
+id = 0x48881A4B
+
+[[event]]
+id = 0x4011
+switch = "NIS_Select_End"
+lifetime = 0
+priority = 0
+keys = 0
+limits = 0
+chance = 100
+flags = 0
+values = 3
+
+[[event.alternative]]
+weight = 1
+chance = 100
+mode = 0
+state = 0
+
+[[event.alternative.step]]
+entry = 0x4024
+entry_component = 0
+entry_mode = 0
+constraint = [ { mask = 0x0000000F, component = 1, slot = 0 } ]
+
+[[entry]]
+id = 0x4024
+selector = 0
+base = 0
+unit_bytes = 256
+end_units = 9000
+history = 2
+unions = [0x00000003]
+ring = { position = 0, slots = [0xFF, 0xFF] }
+record = [
+  { offset_units = 0, keys = [0] },
+  { offset_units = 4200, keys = [1] },
+]

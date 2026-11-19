@@ -1,0 +1,23 @@
+# world/L4RA/smackables.toml (made-up values).
+schema = "ob.smackables/1.0"
+links = { file = "smackables.bin", offset = 0, count = 2, layout = "scenery_link" }
+
+[[kind]]
+name = "ZCS_PylonA"
+mass_tonne = 0.004
+inertia = [0.0004, 0.0, 0.0, 0.0, 0.0, 0.0004, 0.0, 0.0, 0.0, 0.0, 0.0003, 0.0, 0.0, 0.0, 0.0, 1.0]
+centre_of_mass = [0.0, 0.0, 0.2]
+break_impulse = 0.0
+restitution = 0.005
+material = "0x8965C322"   # bin_hash("TRAFFIC_CONE")
+friction = 0.4
+u_0xf0 = "hex:00112233445566778899aabbccddeeff"
+
+[[group]]
+name = "SMOKEABLE"
+members = [0, 1]
+
+[[group]]
+name = "BARRIERS_4001"
+members = [1]
+u_tail = "hex:0000"

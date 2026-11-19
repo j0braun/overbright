@@ -485,6 +485,17 @@ The menus are FEng packages: FRONTEND/FrontB.lzc (137), GLOBAL/GlobalB.lzc
     default keeps each element at its 4:3 size, centred or moved to its screen edge, see Display modes and aspect). A
     pivot is the point a rotation turns about (Minimap_North_indicator
     sits 72 above the map's centre with pivot (0, 72): it circles it).
+  * Per resolution (**verified**, FE_DrawQuad 0x5C5030): each canvas
+    vertex goes to clip space as x · 0.003125 − 1 and −(y · 0.0041666 −
+    1) (constants 0x79AC18 = 1/320, 0x79AC1C = 1/240, 0x784250 = 1.0;
+    0x5C5083..0x5C51E6), the line drawer 0x50DCD0 the same. Neither reads
+    the window or back-buffer size, so the menus and the HUD have one
+    layout in 640 × 480 units for every resolution and aspect, stretched
+    over the whole target; the only size-dependent steps are the
+    cursor's mapping (0x5BF760) and a projected world point's
+    (0x4EC34C), both into the same canvas. No package or font is chosen
+    by resolution (the strings 1024x768, 1280x960, 1280x1024 are the
+    options' mode names).
   * Colour: per channel (own × parent + 0x80) >> 8 on the 0..255
     integers.
   * Order: an object goes to bucket ftol(its z + the parent's world z)
@@ -537,6 +548,14 @@ The menus are FEng packages: FRONTEND/FrontB.lzc (137), GLOBAL/GlobalB.lzc
     Conduit fonts take a y offset of 18–23 and leading scale 2 or 1; the
     rest 0 and 1. Font 0x9583AA1A is drawn × 1.6 when 0x7F70D0 is 8 or 9
     (not modelled: English only).
+  * A missing font draws nothing (**verified**, static): resource requests get their
+    handle from 0x50C300 (base name without extension, upper case, `bin_hash`, for kinds
+    1 and 2); the string draw 0x536F70 returns at once when 0x51BD70(object +0x24) is
+    NULL, and 0x51BD70 tries the loaded fonts (list 0x863768, hash at +0x14), then the one
+    alias 0x9583AA1A → 0x5B9D88B9 (`ConduitMdITC_TT21i`, pair at 0x7F9184), then gives
+    NULL. So the four `FONT_IMPACTHUD` strings (HUD_Drift, HUD_Short_Track; no font chunk
+    holds that font) are never drawn. That object +0x24 is the request's handle is
+    **inferred**. The clone falls back to an arbitrary loaded font (`Assets::font_for`).
   * Text is the label's string unless flag 2 (then `St`, 0x536F70).
   * **Open** (seen in `game --shot` main, quickrace, options_display,
     carlot, parts, crib, pause, results; `NFSU2_SHOT_MS` sets the front
@@ -3224,3 +3243,65 @@ follows from the selection alone). What each list's fill passes to it:
   `lists_open_installed_round_trip_and_native_default` (qol.rs); selftest: the specialties
   lists with the option on (Custom Gauges on the fitted gauge), and `selftest_custom_hud`'s
   steps on swatch 1 off / on the fitted backing and dial colours on. Evidence: internal evidence, `u3b-enhancements-row-off.jpg` (the row, Off).
+
+## Language selection (traced in SPEED2.EXE; verified unless marked)
+
+* **System language** (0x5B7700, the start-up's registry read, called
+  from 0x5B7A80): it opens HKLM `Software\EA Games\Need for Speed
+  Underground 2` (0x7A30F0; RegOpenKeyEx with write access first, then
+  read-only) and queries the string value `Language` (0x7A30A4,
+  0x5B7959). Found: the string is compared (0x75DD6F, the compare also
+  used for StreamingInstall's "off") with the names of table 0x7FCA08
+  (12-byte records {name, language, second code}): English US 0, English
+  UK 0, French 1, German 2, Italian 3, Spanish 4, Swedish 6, Danish 7,
+  Dutch 5, Korean 8, Chinese (Traditional) 9, English China 9, Japanese
+  10, Thai 11; the match's language goes to g_SystemLanguage 0x7FCA00
+  (0x5B79A6). Not found (the query fails): 0x7FCA00 = 0, English
+  (0x5B79B4, EDI is 0 there). Present but matching no name: 0x7FCA00
+  keeps its initial −1. The record's third dword (0 US, 5 UK, 6 French,
+  7 German, 8 Italian, 9 Spanish, 5 the Nordic and Dutch, 2 Korean, 4
+  and 11 Chinese, 3 Japanese, 12 Thai) has no reader in the code
+  (**open**; its values look like the region codes of 0x7FA73C,
+  **inferred**). **Inferred**: under Wine a prefix whose `Language` holds
+  a name not in the table gives the −1 seen for the controls' key names.
+* **Game language** (0x7F70D0, initial −1): 0x512520, run once at start
+  (0x57FBFC, after the global bundles load), calls SetLanguage 0x512360
+  with 0x5B7B00 = 0x7FCA00, or 0 when it is −1. So the language comes from
+  the registry value alone: no file is probed, the executable's region
+  byte is not read, and a missing or unknown value is English.
+* **Language table** (0x7F7020, 0x10-byte records up to 0x7F70D0): {id,
+  name, file, font sets}: 0 ENGLISH `LANGUAGES\ENGLISH.BIN`, 1 FRENCH, 2
+  GERMAN, 3 ITALIAN, 4 SPANISH, 5 DUTCH, 6 SWEDISH, 7 DANISH (font sets
+  0x7F6E60), 8 KOREAN (0x7F6ED0), 9 CHINESE (0x7F6FB0), 10 JAPANESE
+  (0x7F6F40); every lookup walks the table for the id and takes record 0
+  when none matches (0x4FF780, 0x512360), so Thai (11) loads English.
+* **SetLanguage** 0x512360(id) (nothing when unchanged): unloads the old
+  language's text (0x580EA0 on 0x8383CC) and its loaded font sets
+  (0x490150 on record +0xC +0x00 / +0x40 / +0x20, flags +0x60 / +0x68 /
+  +0x64), stores the id, then 0x4FF780(1, 0x8654A4 = 3, 0x8654A4 = 6, 1):
+  the record's file read whole (0x57CF00 with mode 7, the request flags
+  from 0x57D910 against 0x7F6DE4, kept at 0x8383CC, waited for with the
+  last argument) and the font sets loaded (0x494D60(set, 8, …), each a list
+  of eight texture hashes, **inferred** to be the font pages); then
+  0x468F30(id) on 0x82B884 (**inferred**: the speech bank by language,
+  docs/formats/audio.md), the metric default 0x83AA1A = (id ≠ 0), the FE
+  refresh 0x50C7E0 when the FE exists, the number separators 0x43CB20(a,
+  b, 3) — English and 8+: '.' and ','; French: ',' and ' '; German to
+  Danish: ',' and '.' (**inferred** which is the decimal mark) — and, when
+  0x83AA00 is clear, the default name buffer 0x83A9E0 from label
+  0xCF4F80C2 (0xC01A6F63 when missing); last it tail-calls 0x4A95F0(id).
+  LANGUAGES\LANGUAGETEXTURES.BIN (0x79AA64) is loaded with the front end
+  (0x4FF75B), not per language.
+* **Readers of the game language**: 0x4FF970 returns it; new settings'
+  metric flag +0x16 = (language ≠ 0) (0x50261D, 0x511711); label
+  choices by language (0x511EB9, 0x511F9B), by region and language
+  (0x50D35A, 0x553A49); Korean / Chinese text scale for one font hash
+  0x9583AA1A (0x536FCA); the profile name's starting text (0x5564EE, with
+  the system language). The system language 0x7FCA00 itself is read by
+  the controls' key names (0x5B8C4E..0x5B901A) and the name editor.
+* **Debug cycler** (0x527530, registered as a key handler at 0x52CE2D,
+  gated by 0x8383C8, set only at 0x57612D): steps to the next id below 14
+  whose file exists (0x57CAD0) and calls SetLanguage (**inferred**: a
+  developer key, unreachable in normal play).
+* **Not read by the executable**: LANGUAGES\Labels.bin, Largest.bin and
+  the agree.* files (no string names them).

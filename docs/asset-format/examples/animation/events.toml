@@ -1,0 +1,18 @@
+# The event track of a shop entry scene: the door shut at 0 and opening from frame 21 over 140 frames,
+# then an engine sound pattern for car 1.
+schema = "ob.scene-events/1.0"
+
+[[event]]
+frame = 0.0
+kind = "WORLD_MESSAGE"
+args = ["DOOR_POSITION", 0.0, 0.0]
+
+[[event]]
+frame = 21.0
+kind = "WORLD_MESSAGE"
+args = ["DOOR_POSITION", 1.0, 140.0]
+
+[[event]]
+frame = 35.0
+kind = "CAR_AUDIO_PATTERN"
+args = [1, 3, 1.0]

@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "collision.schema.json",
+  "title": "world/<REGION>/collision/<n>.toml (ob.collision)",
+  "description": "collision.md 3.1: one stream section's collision pack; faces, references and cells are external arrays in <n>.bin. Base sets only (COL.7). Invariants COL.1..6 are on the page.",
+  "type": "object",
+  "properties": {
+    "schema": { "type": "string", "pattern": "^ob\\.collision/1\\.[0-9]+$" },
+    "section": { "$ref": "common.schema.json#/$defs/u16" },
+    "width": { "$ref": "common.schema.json#/$defs/u16" },
+    "height": { "$ref": "common.schema.json#/$defs/u16" },
+    "origin": { "$ref": "common.schema.json#/$defs/vec2" },
+    "bounds_min": { "$ref": "common.schema.json#/$defs/vec3" },
+    "bounds_max": { "$ref": "common.schema.json#/$defs/vec3" },
+    "faces": {
+      "allOf": [
+        { "$ref": "common.schema.json#/$defs/arrayDescriptor" },
+        { "properties": { "layout": { "const": "collision_face" }, "count": { "maximum": 65535 } } }
+      ]
+    },
+    "refs": {
+      "allOf": [
+        { "$ref": "common.schema.json#/$defs/arrayDescriptor" },
+        { "properties": { "layout": { "const": "collision_ref" }, "count": { "maximum": 65535 } } }
+      ]
+    },
+    "cells": {
+      "allOf": [
+        { "$ref": "common.schema.json#/$defs/arrayDescriptor" },
+        { "properties": { "layout": { "const": "collision_cell" } } }
+      ]
+    },
+    "extras": { "$ref": "common.schema.json#/$defs/extras" },
+    "ext": { "$ref": "common.schema.json#/$defs/ext" }
+  },
+  "required": ["schema", "section", "width", "height", "origin", "bounds_min", "bounds_max", "faces", "refs", "cells"],
+  "additionalProperties": false
+}

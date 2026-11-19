@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "part-pivots.schema.json",
+  "title": "ob.part-pivots: a car's 21 part-animation rest matrices (chunk 0x37100)",
+  "description": "animation.md 3.4. Base files hold exactly 21 pivots (ANI.10); a pack's file merges pivots by `index`.",
+  "type": "object",
+  "properties": {
+    "schema": {
+      "type": "string",
+      "pattern": "^ob\\.part-pivots/1\\.[0-9]+$"
+    },
+    "car_hash": {
+      "$ref": "common.schema.json#/$defs/hash32"
+    },
+    "u_0x00": {
+      "$ref": "common.schema.json#/$defs/u32"
+    },
+    "u_0x08": {
+      "$ref": "common.schema.json#/$defs/u32"
+    },
+    "u_0x0c": {
+      "$ref": "common.schema.json#/$defs/u32"
+    },
+    "pivot": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 21,
+      "items": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "maxLength": 63
+          },
+          "op": {
+            "const": "merge"
+          },
+          "axes": {
+            "$ref": "common.schema.json#/$defs/mat3"
+          },
+          "translation": {
+            "$ref": "common.schema.json#/$defs/vec3"
+          },
+          "u_w": {
+            "$ref": "common.schema.json#/$defs/vec4"
+          },
+          "index": {
+            "oneOf": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 20
+              },
+              {
+                "type": "string",
+                "pattern": "^[a-z0-9][a-z0-9_-]{0,63}:[0-9]{1,9}$"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "anyOf": [
+          {
+            "required": [
+              "index"
+            ]
+          },
+          {
+            "required": [
+              "axes",
+              "translation"
+            ]
+          }
+        ]
+      }
+    },
+    "extras": {
+      "$ref": "common.schema.json#/$defs/extras"
+    },
+    "ext": {
+      "$ref": "common.schema.json#/$defs/ext"
+    }
+  },
+  "required": [
+    "schema",
+    "car_hash",
+    "pivot"
+  ],
+  "additionalProperties": false
+}

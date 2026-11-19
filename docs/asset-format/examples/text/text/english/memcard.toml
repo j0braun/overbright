@@ -1,0 +1,10 @@
+# The save library's texts (ob.memcard-text, text.md 3.6), by index; made-up header bytes.
+schema = "ob.memcard-text/1.0"
+locale = "ENGLISH"
+header = "hex:4c4f43481400000001000000010000005c000000"
+text = [
+  { text = "1.0" },
+  { text = "Yes" },
+  { text = "No", extra_nul = 2 },
+  { text = "Unable to save %1." },
+]

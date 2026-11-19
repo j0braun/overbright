@@ -1,0 +1,56 @@
+schema = "ob.residual-map/1.0"
+original = "GLOBAL/GlobalB.lzc"
+original_size = 5145778
+original_digest = "sha256:ad015fdb24e3bfce3aff8bcdfbbef3cb981b524115884a8eed4bf3ce4a2d6e90"
+container = "jdlz_chunks"
+content_size = 0x10000
+content_digest = "xxh3-128:00000000000000000000000000000000"
+
+# Illustrative offsets (career.md §5): the first career container and two of its children, a tricks chunk with a
+# byte proof, a chunk nothing reads yet, and an alignment fill.
+[[node]]
+path = "0x80034A10"
+offset = 0x0
+size = 0x9000
+fate = "container"
+
+[[node]]
+path = "0x80034A10/0x00034A11"
+offset = 0x8
+size = 0x4000
+fate = "decoded"
+items = ["event:*"]
+proof = "values"
+kept = { file = "GlobalB.lzc.kept.bin", offset = 0, count = 16384, layout = "raw_u8" }
+
+[[node]]
+path = "0x80034A10/0x00034A1D"
+offset = 0x4008
+size = 0x4FF8
+fate = "decoded"
+items = ["event:*", "sponsor:*", "shop:*"]
+proof = "values"
+kept = { file = "GlobalB.lzc.kept.bin", offset = 16384, count = 20472, layout = "raw_u8" }
+
+[[node]]
+path = "0x00034A07"
+offset = 0x9000
+size = 0x790
+fate = "decoded"
+items = ["trick:*"]
+proof = "bytes"
+
+[[node]]
+path = "0x00034202"
+offset = 0x9790
+size = 0x470
+fate = "kept"
+kept = { file = "GlobalB.lzc.kept.bin", offset = 36864, count = 1136, layout = "raw_u8" }
+reason = "no reader found"
+
+[[node]]
+path = "pad"
+offset = 0x9C00
+size = 0x6400
+fate = "fill"
+fill = 0x00

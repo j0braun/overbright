@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "visibility.schema.json",
+  "title": "world/<REGION>/visibility.toml (ob.visibility)",
+  "description": "world.md 3.3: drivable outlines (0x34152) and visible lists (0x34153), in original order. The const list links (+0x00) are not written.",
+  "type": "object",
+  "properties": {
+    "schema": { "type": "string", "pattern": "^ob\\.visibility/1\\.[0-9]+$" },
+    "outline": { "type": "array", "items": { "$ref": "#/$defs/outline" } },
+    "list": { "type": "array", "items": { "$ref": "#/$defs/visibleList" } },
+    "extras": { "$ref": "common.schema.json#/$defs/extras" },
+    "ext": { "$ref": "common.schema.json#/$defs/ext" }
+  },
+  "required": ["schema", "outline", "list"],
+  "additionalProperties": false,
+  "$defs": {
+    "outline": {
+      "type": "object",
+      "properties": {
+        "section": { "$ref": "common.schema.json#/$defs/u16" },
+        "bbox": { "$ref": "common.schema.json#/$defs/vec4" },
+        "inside": { "$ref": "common.schema.json#/$defs/vec2" },
+        "points": {
+          "type": "array", "minItems": 3, "maxItems": 65535,
+          "items": { "$ref": "common.schema.json#/$defs/vec2" }
+        },
+        "extras": { "$ref": "common.schema.json#/$defs/extras" }
+      },
+      "required": ["section", "bbox", "inside", "points"],
+      "additionalProperties": false
+    },
+    "visibleList": {
+      "type": "object",
+      "properties": {
+        "section": { "$ref": "common.schema.json#/$defs/u32" },
+        "sections": {
+          "type": "array", "maxItems": 72,
+          "items": { "$ref": "common.schema.json#/$defs/u16" }
+        },
+        "extras": { "$ref": "common.schema.json#/$defs/extras" }
+      },
+      "required": ["section", "sections"],
+      "additionalProperties": false
+    }
+  }
+}

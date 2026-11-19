@@ -1,0 +1,11 @@
+# The manifest of a language unit (ob.language, text.md 3.1), as the importer writes it for
+# LANGUAGES/English.bin (font list shortened). It names the fonts the file holds, in its order.
+schema = "ob.language/1.0"
+name = "English"
+role = "player"
+original = "LANGUAGES/English.bin"
+charmap = { file = "charmap.bin", offset = 0, count = 1, layout = "charmap_region" }
+fonts = [
+  "font:conduitmditc_tt14i",
+  "font:demo_font",
+]

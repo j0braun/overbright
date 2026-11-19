@@ -1,0 +1,23 @@
+# The movie table (the first rows of the reference install's 40; names and
+# volumes as docs/formats/movies-replays.md and src/movie.rs list them).
+schema = "ob.movie-table/1.0"
+
+[[movie]]
+name = "ealogo"
+volume = 40
+
+[[movie]]
+name = "THX_logo_fr"
+volume = 69
+
+[[movie]]
+name = "FMVOpening"
+volume = 105
+
+[[movie]]
+name = "Scene01"
+volume = 127
+
+[[movie]]
+name = "UpperClass"
+volume = 104

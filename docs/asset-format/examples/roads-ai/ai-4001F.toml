@@ -1,0 +1,8 @@
+# Made-up values in the shape of world/L4RA/routes/ai/4001F.toml (roads-ai.md 3.4); the .bin is not shipped.
+schema = "ob.ai-routes/1.0"
+region = "L4RA"
+name = "4001F"
+records = { file = "4001F.bin", offset = 0, count = 412, layout = "route_record" }
+points = { file = "4001F.bin", offset = 57856, count = 6120, layout = "route_point" }
+junctions = { file = "4001F.bin", offset = 400640, count = 1210, layout = "route_junction" }
+intersections = { file = "4001F.bin", offset = 439552, count = 38, layout = "route_intersection" }

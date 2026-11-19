@@ -1,0 +1,3 @@
+# The shape of global/ai/tuning.toml (roads-ai.md 3.6); the .bin is not shipped.
+schema = "ob.ai-tuning/1.0"
+tuning = { file = "tuning.bin", offset = 0, count = 1, layout = "ai_tuning" }

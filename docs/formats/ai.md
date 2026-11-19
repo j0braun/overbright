@@ -467,6 +467,32 @@ Everything above the low-level driver; verified except where noted.
   plus the racing speeds and that adjustment; the race branch is dead
   code and is not ported. The race's traffic reads the same route
   manager, so the clone hands it the race's processed file.
+* **Race files against free roam** (**verified** on the 120 race files and `RoutesFreeRoam.bin` of
+  ROUTESL4RA, byte comparison; what the authoring tool did is **inferred** from it). A race's
+  `Routes<track><F|B>.bin` is cut from the region's free-roam network, not authored on its own:
+  - 13,546 of its 14,008 records carry a free-roam record's id, name and point count, and every one of those
+    has the free-roam record's control points byte for byte except the race coordinate (+0x08), the flags
+    (+0x0C), the junction slots (+0x1C/+0x1E), the racing-line laterals (lanes 0 and 1, +0x22/+0x23) and the
+    lane speeds (+0x2C…); the traffic lanes 2–9 and all geometry are the free-roam ones. Their headers differ
+    only in the first/last coordinates (+0x38…+0x3F) and the flags (+0x70/+0x71).
+  - The other 462 records (103 ids, in 72 of the files; names `TrackRoutesA33`, `TrackRoutesA34` and `TrackRoutesA40` to `TrackRoutesA44`) are
+    absent from `RoutesFreeRoam.bin`: roads only races use.
+  - 48,588 of the 50,436 race junctions are free-roam junctions (same own and target point and record) with
+    the same type nibbles at bits 8–15; they differ only in the low byte (bits 0, 1, 2, 4, 6), the run-time
+    types (low nibble k = 0, bits 4–7 k = 1) that the free-roam post-load computes for free roam: in a race
+    file they come already decided (7 dead, 2 a race link, 3 the end of the walk, 4 as the file) — **inferred**:
+    the authoring tool ran the race branch of 0x5E9E90 offline, which is why the game never needs it. The 1,848 others (types 2, 4, 5) sit on the race-only
+    records.
+  - Record +0x44 holds four u16 track numbers (0xFFFF unused) the record is left out of: the free-roam half of
+    0x5E41B0 clears bit 6 on a record listing 4000 (0x5E421A..0x5E4245); the dead race half passes over each
+    junction whose target record (type 3: its own) has +0x0C 1, lists the race's track 0x88F2C0 or has +0x70
+    bit 10 (0x5E4282..0x5E42EB). Free roam lists 4087, 4121
+    and 4122; seven records of `Routes4014F.bin` list 4000.
+* **Paths files per race** (**verified**, ROUTESL4RA and ROUTESL4RD): a `Paths<track>.bin` holds its own road
+  graph (nodes `0x34148`, segments `0x34149`, checkpoint lists `0x3414C`) around that race only — L4RA: 64–540
+  nodes and 3–113 segments per file, in a box 0.6–4.2 km wide, against about 5 × 5 km for the region —
+  while `PathsFreeRoam.bin` has no nodes or segments at all, only the triggers `0x3414A` and the barriers
+  `0x3414D`, both byte-equal in every L4RA race's Paths file. No file holds the whole region's road graph.
 * **Race road lap** (Race_BuildRoute 0x5E5BC0, **verified**): it clears
   the block like 0x5D9A70 (+0x18 = 1.0, +0x1C = 1.0, +0x20 = 128.0), then
   +0x24 (0x88F2BC) = road record byte +3 ≠ 0 (the road loops), +0x25 =

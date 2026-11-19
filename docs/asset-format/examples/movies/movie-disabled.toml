@@ -1,0 +1,5 @@
+# A mod pack switching a movie off: its screen ends at once, as the original
+# does when the file is missing.
+schema = "ob.movie/1.0"
+name = "PSA_en"
+disabled = true

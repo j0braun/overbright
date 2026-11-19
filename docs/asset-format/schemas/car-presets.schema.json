@@ -1,0 +1,112 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "car-presets.schema.json",
+  "title": "Overbright asset format: preset rides (ob.car-presets)",
+  "description": "cars.md 3.3. global/cars/presets.toml: the named rides of GLOBALB chunk 0x30220 (0x338-byte records), in order.",
+  "type": "object",
+  "properties": {
+    "schema": {
+      "type": "string",
+      "pattern": "^ob\\.car-presets/1\\.[0-9]+$"
+    },
+    "preset": {
+      "type": "array",
+      "maxItems": 4096,
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "description": "+0x28 u8[32], text: the key (looked up by its fe hash).",
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_]{1,31}$"
+          },
+          "op": {
+            "$ref": "common.schema.json#/$defs/op"
+          },
+          "disabled": {
+            "type": "boolean"
+          },
+          "car": {
+            "description": "+0x08 u8[32], text: the car type, as car:<NAME>.",
+            "type": "string",
+            "pattern": "^car:[A-Za-z0-9_]{1,31}$"
+          },
+          "perf_level": {
+            "description": "+0x48: performance level fitted (packages of levels 1..it), or -1 for perf_parts.",
+            "$ref": "common.schema.json#/$defs/i32"
+          },
+          "parts": {
+            "description": "+0x4C u32[0xAA]: the part per slot. Key = slot as 0x + 2 upper-case hex digits; value stock (1), none (0) or a part hash. An absent slot is stock.",
+            "type": "object",
+            "propertyNames": {
+              "pattern": "^0x([0-9][0-9A-F]|A[0-9])$"
+            },
+            "additionalProperties": {
+              "oneOf": [
+                {
+                  "enum": [
+                    "stock",
+                    "none"
+                  ]
+                },
+                {
+                  "$ref": "common.schema.json#/$defs/hash32"
+                }
+              ]
+            }
+          },
+          "perf_parts": {
+            "description": "+0x2F4 u8[0x44]: per performance part id, 255 unset, else fitted when non-zero.",
+            "type": "array",
+            "items": {
+              "$ref": "common.schema.json#/$defs/u8"
+            },
+            "minItems": 68,
+            "maxItems": 68
+          },
+          "u_0x00": {
+            "description": "+0x00 u32[2]: open (non-zero, different per record).",
+            "type": "array",
+            "items": {
+              "$ref": "common.schema.json#/$defs/u32"
+            },
+            "minItems": 2,
+            "maxItems": 2
+          },
+          "raw_text": {
+            "type": "object",
+            "description": "Base sets only: the full 32 bytes of car or name when they are not text + NUL + zero fill.",
+            "properties": {
+              "car": {
+                "type": "string",
+                "pattern": "^hex:([0-9a-f]{2}){32}$"
+              },
+              "name": {
+                "type": "string",
+                "pattern": "^hex:([0-9a-f]{2}){32}$"
+              }
+            },
+            "additionalProperties": false
+          },
+          "extras": {
+            "$ref": "common.schema.json#/$defs/extras"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "extras": {
+      "$ref": "common.schema.json#/$defs/extras"
+    },
+    "ext": {
+      "$ref": "common.schema.json#/$defs/ext"
+    }
+  },
+  "required": [
+    "schema"
+  ],
+  "additionalProperties": false
+}

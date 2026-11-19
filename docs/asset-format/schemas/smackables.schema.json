@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "smackables.schema.json",
+  "title": "world/<REGION>/smackables.toml (ob.smackables)",
+  "description": "world.md 3.5: knock-over prop kinds (0x34026), the scenery-link table (0x34107) and scenery groups (0x34108), in original order. Base sets only (WLD.10).",
+  "type": "object",
+  "properties": {
+    "schema": { "type": "string", "pattern": "^ob\\.smackables/1\\.[0-9]+$" },
+    "kind": { "type": "array", "items": { "$ref": "#/$defs/propKind" } },
+    "links": {
+      "allOf": [
+        { "$ref": "common.schema.json#/$defs/arrayDescriptor" },
+        { "properties": { "layout": { "const": "scenery_link" } } }
+      ]
+    },
+    "link": { "type": "array", "maxItems": 65535, "items": { "$ref": "#/$defs/sceneryLink" } },
+    "group": { "type": "array", "items": { "$ref": "#/$defs/sceneryGroup" } },
+    "extras": { "$ref": "common.schema.json#/$defs/extras" },
+    "ext": { "$ref": "common.schema.json#/$defs/ext" }
+  },
+  "required": ["schema", "kind", "group"],
+  "oneOf": [ { "required": ["links"] }, { "required": ["link"] } ],
+  "additionalProperties": false,
+  "$defs": {
+    "propKind": {
+      "description": "Layout prop_kind (0x100 bytes); the const row +0x24 is not written",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "pattern": "^[\\x21-\\x7E]{1,23}$" },
+        "mass_tonne": { "$ref": "common.schema.json#/$defs/f32" },
+        "inertia": { "type": "array", "minItems": 16, "maxItems": 16, "items": { "$ref": "common.schema.json#/$defs/f32" } },
+        "yaw_factor": { "$ref": "common.schema.json#/$defs/f32" },
+        "key": { "$ref": "common.schema.json#/$defs/hash32" },
+        "u_0x84": { "$ref": "common.schema.json#/$defs/u32" },
+        "u_0x88": { "$ref": "common.schema.json#/$defs/u32" },
+        "u_0x8c": { "$ref": "common.schema.json#/$defs/u32" },
+        "linked": { "type": "array", "minItems": 4, "maxItems": 4, "items": { "$ref": "common.schema.json#/$defs/hash32" } },
+        "centre_of_mass": { "$ref": "common.schema.json#/$defs/vec3" },
+        "u_0xc0": { "$ref": "common.schema.json#/$defs/u32" },
+        "break_impulse": { "$ref": "common.schema.json#/$defs/f32" },
+        "restitution": { "$ref": "common.schema.json#/$defs/f32" },
+        "u_0xd4": { "$ref": "common.schema.json#/$defs/hash32" },
+        "material": { "$ref": "common.schema.json#/$defs/hash32" },
+        "friction": { "$ref": "common.schema.json#/$defs/f32" },
+        "u_0xf0": { "$ref": "common.schema.json#/$defs/bytes" },
+        "extras": { "$ref": "common.schema.json#/$defs/extras" }
+      },
+      "required": ["name", "mass_tonne", "inertia", "centre_of_mass", "break_impulse", "restitution", "material", "friction"],
+      "additionalProperties": false
+    },
+    "sceneryLink": {
+      "description": "Layout scenery_link (8 bytes), inline form; the const byte +0x07 is not written",
+      "type": "object",
+      "properties": {
+        "scenery": { "$ref": "common.schema.json#/$defs/i16" },
+        "index": { "$ref": "common.schema.json#/$defs/i16" },
+        "instance_flags": { "$ref": "common.schema.json#/$defs/u16" },
+        "kind": { "$ref": "common.schema.json#/$defs/u8" }
+      },
+      "required": ["scenery", "index", "instance_flags", "kind"],
+      "additionalProperties": false
+    },
+    "sceneryGroup": {
+      "description": "Layout scenery_group (variable size); the const list links +0x00 are not written",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "pattern": "^[\\x21-\\x7E]{1,31}$" },
+        "hash": { "$ref": "common.schema.json#/$defs/hash32" },
+        "on": { "$ref": "common.schema.json#/$defs/u32" },
+        "members": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/u16" } },
+        "u_tail": { "$ref": "common.schema.json#/$defs/bytes" },
+        "extras": { "$ref": "common.schema.json#/$defs/extras" }
+      },
+      "required": ["name", "members"],
+      "additionalProperties": false
+    }
+  }
+}

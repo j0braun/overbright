@@ -1,0 +1,46 @@
+schema = "ob.import/1.0"
+
+[importer]
+overbright = "0.5.0"
+epoch = 1
+finished = "2026-11-18T12:00:00Z"
+
+[source]
+edition = "pc12-eu"
+verdict = "known"
+identity = "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+file_count = 1250
+exe = { size = 4788224, sha256 = "sha256:8f6a9ae2c4cfa01181d2fd755d99c6f4b7103f60273908ea1de1e719dfe2a297" }
+
+[[source.file]]
+path = "GLOBAL/GlobalB.lzc"
+size = 5145778
+sha256 = "sha256:ad015fdb24e3bfce3aff8bcdfbbef3cb981b524115884a8eed4bf3ce4a2d6e90"
+unit = "global"
+
+[[source.skipped]]
+path = "dinput8.dll"
+reason = "not game content"
+
+[[bundle]]
+name = "global.obz"
+size = 41234432
+digest = "xxh3-128:00000000000000000000000000000000"
+
+[[unit]]
+name = "world-L4RA"
+version = 1
+state = "decoded"
+files = ["TRACKS/L4RA.BUN", "TRACKS/STREAML4RA.BUN"]
+items = 41870
+model = "xxh3-128:00000000000000000000000000000000"
+proof = { bytes = 1203, patched = 2, values = 88, kept = 12, copy = 0, fill = 640, external = 0 }
+
+[checks]
+read_back = "pass"
+rebuild = "pass"
+profile = "pass"
+
+[residual]
+kept_bytes = 1048576
+shadow_bytes = 41943040

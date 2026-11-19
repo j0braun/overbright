@@ -1,0 +1,14 @@
+# A mod pack's overrides for one bank: slot 2 gets the pack's own rain loop,
+# slot 5 is silenced (it still starts and ends as before).
+schema = "ob.sound-bank/1.0"
+bank = "IG_GLOBAL/FX_Rain_MB"
+
+[[sound]]
+slot = 2
+op = "replace"
+source = { file = "sounds/rain_loop.flac", format = "flac", digest = "xxh3-128:0b6f3a91c2d84e57a1f09c3d6e2b7a48" }
+loop = true
+
+[[sound]]
+slot = 5
+disabled = true

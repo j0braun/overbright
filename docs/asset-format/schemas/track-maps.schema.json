@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "track-maps.schema.json",
+  "title": "ob.track-maps: minimap and World Map calibration per track number (career.md 3.3)",
+  "type": "object",
+  "required": [
+    "schema"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema": {
+      "type": "string",
+      "pattern": "^ob\\.track-maps/1\\.[0-9]+$"
+    },
+    "track": {
+      "type": "array",
+      "maxItems": 4096,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "number"
+        ],
+        "properties": {
+          "op": {
+            "$ref": "common.schema.json#/$defs/op"
+          },
+          "number": {
+            "$ref": "common.schema.json#/$defs/u16"
+          },
+          "left": {
+            "$ref": "common.schema.json#/$defs/f32"
+          },
+          "top": {
+            "$ref": "common.schema.json#/$defs/f32"
+          },
+          "size": {
+            "$ref": "common.schema.json#/$defs/f32"
+          },
+          "zoom": {
+            "allOf": [
+              {
+                "$ref": "common.schema.json#/$defs/f32"
+              },
+              {
+                "exclusiveMinimum": 0
+              }
+            ]
+          },
+          "window_left": {
+            "$ref": "common.schema.json#/$defs/f32"
+          },
+          "window_top": {
+            "$ref": "common.schema.json#/$defs/f32"
+          },
+          "window_size": {
+            "allOf": [
+              {
+                "$ref": "common.schema.json#/$defs/f32"
+              },
+              {
+                "minimum": 0
+              }
+            ]
+          },
+          "window_fixed": {
+            "$ref": "common.schema.json#/$defs/u8"
+          },
+          "extras": {
+            "$ref": "common.schema.json#/$defs/extras"
+          }
+        }
+      }
+    },
+    "extras": {
+      "$ref": "common.schema.json#/$defs/extras"
+    },
+    "ext": {
+      "$ref": "common.schema.json#/$defs/ext"
+    }
+  }
+}

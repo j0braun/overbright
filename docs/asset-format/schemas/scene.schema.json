@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "scene.schema.json",
+  "title": "ob.scene: an in-engine scene's header (0x37030) and characters (0x37040)",
+  "description": "animation.md 3.6. A pack's file merges fields; characters are keyed by `index`. Header +0x14 is a run-time word (written 0), not a field.",
+  "type": "object",
+  "$defs": {
+    "character": {
+      "type": "object",
+      "properties": {
+        "index": { "$ref": "common.schema.json#/$defs/u32" },
+        "op": { "const": "merge" },
+        "disabled": { "type": "boolean" },
+        "name": { "$ref": "common.schema.json#/$defs/hash32" },
+        "flags": { "$ref": "common.schema.json#/$defs/u32" },
+        "axes": { "$ref": "common.schema.json#/$defs/mat3" },
+        "translation": { "$ref": "common.schema.json#/$defs/vec3" },
+        "u_w": { "$ref": "common.schema.json#/$defs/vec4" },
+        "solids": { "description": "Scoped solid references, or the bare hash 0x00000000 for an empty slot (conventions.md 6.6).", "type": "array", "minItems": 3, "maxItems": 3, "items": { "anyOf": [ { "type": "string", "pattern": "^solid:\\S{1,200}$" }, { "const": "0x00000000" } ] } },
+        "channels": { "type": "array", "minItems": 3, "maxItems": 3, "items": { "$ref": "common.schema.json#/$defs/hash32" } },
+        "anim": { "type": "string", "pattern": "^anim:\\S{1,200}$" },
+        "skeleton": { "type": "string", "pattern": "^skeleton:\\S{1,200}$" },
+        "rate": { "$ref": "common.schema.json#/$defs/f32" },
+        "delay_s": { "$ref": "common.schema.json#/$defs/f32" },
+        "loop_range_frames": { "type": "array", "minItems": 2, "maxItems": 2, "items": { "$ref": "common.schema.json#/$defs/u32" } },
+        "u_0x00": { "$ref": "common.schema.json#/$defs/u32" },
+        "u_0x08": { "$ref": "common.schema.json#/$defs/u32" },
+        "u_0x5c": { "$ref": "common.schema.json#/$defs/u32" },
+        "u_0x7c": { "$ref": "common.schema.json#/$defs/u32" },
+        "u_0x88": { "$ref": "common.schema.json#/$defs/u32" },
+        "u_0x8c": { "$ref": "common.schema.json#/$defs/u32" },
+        "extras": { "$ref": "common.schema.json#/$defs/extras" },
+        "ext": { "$ref": "common.schema.json#/$defs/ext" }
+      },
+      "anyOf": [ { "required": ["index"] }, { "required": ["name", "flags", "axes", "translation", "solids", "anim", "skeleton"] } ],
+      "additionalProperties": false
+    }
+  },
+  "properties": {
+    "schema": { "type": "string", "pattern": "^ob\\.scene/1\\.[0-9]+$" },
+    "op": { "const": "merge" },
+    "disabled": { "type": "boolean" },
+    "name": { "description": "Header +0x04, char[16]: 1-15 characters (ANI.6).", "type": "string", "pattern": "^[A-Za-z0-9_]{1,15}$" },
+    "hash": { "$ref": "common.schema.json#/$defs/hash32" },
+    "type": { "$ref": "common.schema.json#/$defs/u32" },
+    "u_0x1c": { "$ref": "common.schema.json#/$defs/u32" },
+    "u_0x20": { "$ref": "common.schema.json#/$defs/u32" },
+    "cars": { "$ref": "common.schema.json#/$defs/u32" },
+    "length_frames": { "$ref": "common.schema.json#/$defs/u32" },
+    "marks_frames": { "type": "array", "minItems": 2, "maxItems": 2, "items": { "$ref": "common.schema.json#/$defs/u32" } },
+    "description": { "type": "string", "maxLength": 200, "pattern": "^[ -~]*$" },
+    "character": { "type": "array", "maxItems": 256, "items": { "$ref": "#/$defs/character" } },
+    "extras": { "$ref": "common.schema.json#/$defs/extras" },
+    "ext": { "$ref": "common.schema.json#/$defs/ext" }
+  },
+  "required": ["schema", "name"],
+  "anyOf": [ { "required": ["op"] }, { "required": ["disabled"] }, { "required": ["type", "cars", "length_frames", "marks_frames"] } ],
+  "additionalProperties": false
+}

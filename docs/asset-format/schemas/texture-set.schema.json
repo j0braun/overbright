@@ -1,0 +1,240 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "texture-set.schema.json",
+  "title": "Texture set (ob.texture-set/1.0)",
+  "description": "textures.md section 3.2: one texture set (one original texture pack, or an authored set): a record per texture, in order, each naming its image. Image checks (TEX.5..TEX.12), unique hashes (TEX.4) and the scale rules are checked by readers.",
+  "type": "object",
+  "properties": {
+    "schema": {
+      "type": "string",
+      "pattern": "^ob\\.texture-set/1\\.[0-9]+$"
+    },
+    "tpk": {
+      "$ref": "#/$defs/tpkSet"
+    },
+    "texture": {
+      "type": "array",
+      "maxItems": 16384,
+      "items": {
+        "$ref": "#/$defs/texture"
+      }
+    },
+    "extras": {
+      "$ref": "common.schema.json#/$defs/extras"
+    },
+    "ext": {
+      "$ref": "common.schema.json#/$defs/ext"
+    }
+  },
+  "required": [
+    "schema",
+    "texture"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "imagePath": {
+      "description": "A logical path relative to this file's folder: a KTX 2.0, PNG or DDS image.",
+      "type": "string",
+      "maxLength": 240,
+      "pattern": "^[A-Za-z0-9_-][A-Za-z0-9._-]{0,99}(/[A-Za-z0-9_-][A-Za-z0-9._-]{0,99})*\\.(ktx2|png|dds)$"
+    },
+    "i16pair": {
+      "type": "array",
+      "items": {
+        "$ref": "common.schema.json#/$defs/i16"
+      },
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "scroll": {
+      "description": "Texture-coordinate scrolling (entry +0x52, +0x58..+0x61), integers with their scales.",
+      "type": "object",
+      "properties": {
+        "kind": {
+          "$ref": "common.schema.json#/$defs/u8"
+        },
+        "step_256th_s": {
+          "$ref": "common.schema.json#/$defs/i16"
+        },
+        "speed_1024th": {
+          "$ref": "#/$defs/i16pair"
+        },
+        "fixed_1024th": {
+          "$ref": "#/$defs/i16pair"
+        }
+      },
+      "additionalProperties": false
+    },
+    "renderState": {
+      "description": "The fields of a texture record that the engine reads when it binds the texture.",
+      "type": "object",
+      "properties": {
+        "alpha_usage": {
+          "$ref": "common.schema.json#/$defs/u8"
+        },
+        "blend": {
+          "$ref": "common.schema.json#/$defs/u8"
+        },
+        "rendering_order": {
+          "$ref": "common.schema.json#/$defs/u8"
+        },
+        "late_buckets": {
+          "$ref": "common.schema.json#/$defs/u8"
+        },
+        "scroll": {
+          "$ref": "#/$defs/scroll"
+        }
+      }
+    },
+    "tpkSet": {
+      "description": "The original pack's header (Eq2 data; absent in authored sets).",
+      "type": "object",
+      "properties": {
+        "version": {
+          "$ref": "common.schema.json#/$defs/u32"
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 27,
+          "pattern": "^[ -~]*$"
+        },
+        "path": {
+          "type": "string",
+          "maxLength": 63,
+          "pattern": "^[\\x20-\\x7E]*$"
+        },
+        "layout": {
+          "enum": [
+            "plain",
+            "blocks",
+            "blocks_and_table"
+          ]
+        }
+      },
+      "required": [
+        "name",
+        "path"
+      ],
+      "additionalProperties": false
+    },
+    "tpkTexture": {
+      "description": "Per-texture Eq2 data that differs from what the rules derive.",
+      "type": "object",
+      "properties": {
+        "compression": {
+          "enum": [
+            8,
+            32,
+            34,
+            36,
+            38,
+            128,
+            129
+          ]
+        },
+        "data_offset": {
+          "$ref": "common.schema.json#/$defs/u32"
+        },
+        "palette_offset": {
+          "$ref": "common.schema.json#/$defs/u32"
+        }
+      },
+      "additionalProperties": false
+    },
+    "texture": {
+      "type": "object",
+      "properties": {
+        "hash": {
+          "$ref": "common.schema.json#/$defs/hash32"
+        },
+        "name": {
+          "description": "+0x0C as the original stores it: a name (printable ASCII 0x20-0x7E, no leading or trailing space), at most 23 characters.",
+          "allOf": [
+            {
+              "$ref": "common.schema.json#/$defs/name"
+            },
+            {
+              "maxLength": 23
+            }
+          ]
+        },
+        "full_name": {
+          "description": "The complete name when its hash proves it (TEX.9): a name of 24-63 characters.",
+          "allOf": [
+            {
+              "$ref": "common.schema.json#/$defs/name"
+            },
+            {
+              "minLength": 24
+            }
+          ]
+        },
+        "image": {
+          "$ref": "#/$defs/imagePath"
+        },
+        "width_px": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 8192
+        },
+        "height_px": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 8192
+        },
+        "alpha_usage": {
+          "$ref": "common.schema.json#/$defs/u8"
+        },
+        "blend": {
+          "$ref": "common.schema.json#/$defs/u8"
+        },
+        "rendering_order": {
+          "$ref": "common.schema.json#/$defs/u8"
+        },
+        "late_buckets": {
+          "$ref": "common.schema.json#/$defs/u8"
+        },
+        "scroll": {
+          "$ref": "#/$defs/scroll"
+        },
+        "u_0x28": {
+          "$ref": "common.schema.json#/$defs/u32"
+        },
+        "u_0x2c": {
+          "$ref": "common.schema.json#/$defs/u32"
+        },
+        "u_0x4f": {
+          "$ref": "common.schema.json#/$defs/u8"
+        },
+        "u_0x50": {
+          "$ref": "common.schema.json#/$defs/u8"
+        },
+        "u_0x57": {
+          "$ref": "common.schema.json#/$defs/u8"
+        },
+        "u_0x62": {
+          "$ref": "common.schema.json#/$defs/i16"
+        },
+        "u_0x64": {
+          "$ref": "common.schema.json#/$defs/i16"
+        },
+        "tpk": {
+          "$ref": "#/$defs/tpkTexture"
+        },
+        "extras": {
+          "$ref": "common.schema.json#/$defs/extras"
+        },
+        "ext": {
+          "$ref": "common.schema.json#/$defs/ext"
+        }
+      },
+      "required": [
+        "hash",
+        "image",
+        "width_px",
+        "height_px"
+      ],
+      "additionalProperties": false
+    }
+  }
+}
