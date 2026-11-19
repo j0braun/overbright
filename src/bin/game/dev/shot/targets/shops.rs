@@ -544,17 +544,32 @@ pub(super) fn carlot_stock(game: &mut Game, _cx: &ShotCtx) -> Result<Mode> {
 
 /// Right in the car lot: the platform turning to the next car
 /// (0x4D82D0 state 2; NFSU2_SHOT_MS under 500 shows it turning).
+/// The scene is stepped with the game (`garage_tick`), so the old car is
+/// on show when the step comes: the new car is loaded first (state 1),
+/// then the turn carries the old car out on its disc and the new one in.
 pub(super) fn carlot_next(game: &mut Game, _cx: &ShotCtx) -> Result<Mode> {
     game.mode = game.career_lot();
-    game.garage_request();
+    game.garage_tick();
     if let Mode::Menu(Menu::CarLot(lot)) = &mut game.mode {
         lot.selected = (lot.selected + 1) % lot.cars.len().max(1);
     }
-    // The step, then the lot's 0.3 s wait before it asks for the
-    // car (the swing starts then; the shot's clock stays there).
-    game.garage_request();
-    game.pacing.clock = Some(f64::from(game.now()) / 1000.0 + f64::from(nfsu2::audio::fe_rules::CRIB_SWING_DELAY));
-    game.garage_request();
+    // The step, then the lot's 0.3 s wait before it asks for the car, its
+    // load (the tick builds it), and the swing from then (the shot's
+    // clock stays there).
+    game.garage_tick();
+    let mut t = f64::from(game.now()) / 1000.0 + f64::from(nfsu2::audio::fe_rules::CRIB_SWING_DELAY);
+    // Ticks at 60 a second until the turn starts (at once, or once the car
+    // is built: NFSU2_DEV_CAR_BUILD_DELAY_MS), at most 10 s; the shot's
+    // NFSU2_SHOT_MS counts from that tick.
+    for _ in 0..600 {
+        game.pacing.clock = Some(t);
+        game.garage_tick();
+        let now = game.now() / 1000.0;
+        if game.garage_fe.view.as_ref().is_some_and(|v| v.2.changing(now)) {
+            break;
+        }
+        t += 1.0 / 60.0;
+    }
     Ok(std::mem::replace(&mut game.mode, Mode::Explore))
 }
 

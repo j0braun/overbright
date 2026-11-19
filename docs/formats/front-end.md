@@ -818,9 +818,25 @@ The menus are FEng packages: FRONTEND/FrontB.lzc (137), GLOBAL/GlobalB.lzc
     2: +0x124 = 0.5 s, +0x150 = the platform angle 0x8363F0, the next
     disc +0x140 from {1, 2, 0} (+0x148 = 0) or {2, 0, 1} by the current
     +0x144, and each frame 0x8363F0 = +0x150 ± f · 120 (0x78AF80; + for
-    0), f = +0x128 ÷ +0x124 linear; at the end +0x144 = +0x140. The clone
-    turns the platform and puts the selected car on the new disc at once;
-    which of Left / Right the clone's lot maps to the next car is
+    0), f = +0x128 ÷ +0x124 linear; at the end +0x144 = +0x140. GarageMain
+    keeps two FE cars (+0x4C / +0x50, the shown one by +0x54): state 1
+    waits for the loader ([+0x234]+0x2CD4) and only then starts the turn
+    (0x4D861F…0x4D8679) and, in the same update (0x4D873A…0x4D87DF),
+    flips +0x54, builds the loaded car into the other slot (0x63A660),
+    puts it on the next disc (+0xB78 = +0x140) and shows it (+0xB64 = 1);
+    the old car stays shown on its own disc (+0x144) and rides out with
+    the platform until the turn ends (0x4D84CF: +0xB64 = 0). The disc
+    0x4A7330 turns with the car's angle is +0x144 (0x4A74EF), the old
+    car's during the turn; both cars use GarageMain's angle +0x274
+    (0x4A68D2). Ported: `Game::lot_load` / `fe_car_swing` hold the turn
+    (`GarageRequest::hold`) until the scene has the new car
+    (`GarageScene::incoming`), which then goes on the next disc while the
+    old one rides out (`GarageScene::outgoing`, `View::outgoing`); before,
+    the turn started at the ask and the old car was moved to the new disc
+    (gone from the front at once) until the new car's build landed
+    mid-turn. Test `tests::garage_lot_turn` (build delays 0–3 s, 30–200
+    Hz; the developer harness's NFSU2_DEV_CAR_BUILD_DELAY_MS gives every
+    FE car build that latency). Which of Left / Right the clone's lot maps to the next car is
     **inferred** (Right = the next one). `NFSU2_SHOT_MS=250 game --shot
     carlot_next`.
   * **Fast switching** (verified; Wine at full speed, UI_QRCarSelect,

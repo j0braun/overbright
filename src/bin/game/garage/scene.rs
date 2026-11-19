@@ -41,6 +41,31 @@ pub(crate) struct GarageScene {
     /// The FE car keys whose load failed this visit (shown, part change or
     /// built ahead): not built again until the next visit.
     pub(crate) car_failed: nfsu2::failed_load::FailedLoads<GarageCarKey>,
+    /// GarageMain state 1 (0x4D85F8): the car a held request asks for
+    /// (`GarageRequest::hold`), built but not shown yet, and the front-end
+    /// time it was in; the game starts the platform's turn from then on.
+    pub(crate) incoming: Option<(GarageCarKey, Car, Option<CarRenderer>, f32)>,
+    /// GarageMain's other FE car (+0x4C / +0x50 by +0x54): the car a car
+    /// change's turn carries out on its own disc, shown until the turn
+    /// ends (+0xB64 = 0 at 0x4D84CF).
+    pub(crate) outgoing: Option<OutgoingCar>,
+    /// The developer harness's build delay (`dev_build_delay`): a car
+    /// built in the tick, held back until this front-end time.
+    #[cfg(any(test, feature = "dev-harness"))]
+    pub(crate) delayed: Option<(GarageCarKey, Option<Car>, f32)>,
+}
+
+/// The car a car change's turn carries out (`GarageScene::outgoing`), with
+/// its hydraulics' corners and wheel drops, its hood / trunk / doors and
+/// its camber as they stood when the turn began.
+pub(crate) struct OutgoingCar {
+    pub(crate) key: GarageCarKey,
+    pub(crate) car: Car,
+    pub(crate) renderer: Option<CarRenderer>,
+    pub(crate) corner: [f32; 4],
+    pub(crate) drops: [f32; 4],
+    pub(crate) poses: [[Option<nfsu2::part_anim::ChannelPose>; 2]; 4],
+    pub(crate) camber: f32,
 }
 
 impl GarageScene {
@@ -66,6 +91,10 @@ impl GarageScene {
             asked: None,
             asked_last: None,
             car_failed: nfsu2::failed_load::FailedLoads::new(GARAGE_CARS_FAILED),
+            incoming: None,
+            outgoing: None,
+            #[cfg(any(test, feature = "dev-harness"))]
+            delayed: None,
         }
     }
 }
@@ -109,6 +138,10 @@ pub(crate) fn garage_car_job(
         .name(thread.into())
         .spawn(move || {
             let _t = nfsu2::prof::span("garage: car (thread)");
+            #[cfg(any(test, feature = "dev-harness"))]
+            if let Some(ms) = dev_build_delay_ms() {
+                std::thread::sleep(std::time::Duration::from_millis(ms));
+            }
             let car = Car::load_upgraded(&root, &k.0, &k.1, &packages, &|id| k.2.contains(&id)).ok()?;
             let r = garage_car_renderer(&worker, &car, format, env_rate, envmap.as_deref());
             Some((car, r))
@@ -191,6 +224,50 @@ pub(crate) fn garage_platform_failed<T>(f: impl FnOnce(&mut nfsu2::failed_load::
 /// once.
 pub(crate) fn garage_platform(root: &std::path::Path, name: &str) -> Option<nfsu2::garage::Platform> {
     garage_platform_failed(|f| f.load(name.to_string(), "garage", || nfsu2::garage::Platform::load(root, name)))
+}
+
+/// NFSU2_DEV_CAR_BUILD_DELAY_MS=n (developer harness only): every FE car
+/// build takes n ms longer, as on a slow disk or a cold cache. A build on
+/// a thread sleeps; a build in the tick (the deterministic headless modes)
+/// is held back n ms of front-end time (`dev_build_delay`), so a test or
+/// a frame dump sees the same latency at every frame rate.
+#[cfg(any(test, feature = "dev-harness"))]
+pub(crate) fn dev_build_delay_ms() -> Option<u64> {
+    #[cfg(test)]
+    if let Some(ms) = TEST_BUILD_DELAY_MS.get() {
+        return Some(ms).filter(|&ms| ms > 0);
+    }
+    std::env::var("NFSU2_DEV_CAR_BUILD_DELAY_MS").ok()?.parse().ok().filter(|&ms| ms > 0)
+}
+
+#[cfg(test)]
+thread_local! {
+    /// A test's own build delay (`dev_build_delay_ms`), for the builds in
+    /// its thread's ticks.
+    pub(crate) static TEST_BUILD_DELAY_MS: std::cell::Cell<Option<u64>> = const { std::cell::Cell::new(None) };
+}
+
+/// A car built in the tick for `key` at front-end time `now`, through the
+/// developer harness's build delay: `load` runs once, its result handed
+/// out only once the delay has passed (None until then, Some(result)
+/// after). Without the delay (and outside the developer harness) at once.
+pub(crate) fn dev_build_delay(
+    g: &mut GarageScene,
+    key: &GarageCarKey,
+    now: f32,
+    load: impl FnOnce(&mut GarageScene) -> Option<Car>,
+) -> Option<Option<Car>> {
+    #[cfg(any(test, feature = "dev-harness"))]
+    if let Some(ms) = dev_build_delay_ms() {
+        if g.delayed.as_ref().is_none_or(|(k, ..)| k != key) {
+            let car = load(g);
+            g.delayed = Some((key.clone(), car, now + ms as f32 / 1000.0));
+        }
+        let ready = g.delayed.as_ref().is_some_and(|(_, _, at)| now >= *at);
+        return ready.then(|| g.delayed.take().and_then(|d| d.1));
+    }
+    let _ = (key, now);
+    Some(load(g))
 }
 
 /// The FE car built in the frame (no thread), unless its key failed this

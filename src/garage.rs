@@ -134,9 +134,14 @@ pub struct View {
     pub steer: f32,
     blend: Option<Blend>,
     turn: Option<Turn>,
-    /// The platform's angle (0x8363F0) and the shown car's disc (+0x144).
+    /// The platform's angle (0x8363F0) and the shown car's disc (+0x144;
+    /// during a car change's turn the incoming car's, +0x140).
     pub platform_angle: f32,
     pub disc: usize,
+    /// While a car change's platform turn runs ([`View::at`]): the disc the
+    /// outgoing car rides out on (+0x144 until the turn ends, 0x4D84A2),
+    /// where GarageMain's other FE car stays visible (+0xB64) until then.
+    pub outgoing_disc: Option<usize>,
     change: Option<CarChange>,
     /// The idle tour's clock (0x837AA0, in seconds): when the view last
     /// changed (a part view 0x4C1D40, a reset 0x4C1FA0, a tour step
@@ -278,7 +283,7 @@ impl View {
         let shot = SHOTS[record];
         // The mover's +0x150 before any view: 2.5 as read under Wine in
         // the garage (**inferred**: the constructor's value not traced).
-        View { camera: shot, car_angle: shot.car_angle, steer: shot.steer, blend: None, turn: None, platform_angle: 0.0, disc: 0, change: None, idle_since: None, touring: false, hold_from: f32::NEG_INFINITY, blend_min: BASE_BLEND_MIN }
+        View { camera: shot, car_angle: shot.car_angle, steer: shot.steer, blend: None, turn: None, platform_angle: 0.0, disc: 0, outgoing_disc: None, change: None, idle_since: None, touring: false, hold_from: f32::NEG_INFINITY, blend_min: BASE_BLEND_MIN }
     }
 
     /// The view at `now` (seconds): the camera eased along its blend
@@ -302,6 +307,7 @@ impl View {
         if let Some(c) = self.change {
             let f = fraction(c.start, PLATFORM_TURN_SECONDS);
             v.platform_angle = if c.up { c.from + f * 120.0 } else { c.from - f * 120.0 };
+            v.outgoing_disc = (f < 1.0).then_some(self.disc);
             v.disc = c.disc;
         }
         v
@@ -310,10 +316,12 @@ impl View {
     /// A car change at `now` (GarageMain's +0x148 from the lot's
     /// Left / Right, 0x4A7900: 0 for Right 0xB5971BF1, 1 else; `up` is
     /// 0): the platform turns 120° that way and the new car stands on the
-    /// next disc. **Not ported**: the old car staying on its disc while
-    /// the platform turns (GarageMain keeps two FE cars, +0x4C / +0x50 by
-    /// +0x54), the turn's sounds (0x51DE40(5 or 4, 0x17)), and state 1 /
-    /// 3 (waiting on the car's loader, +0x2CD0 / +0x2CE0).
+    /// next disc, while the old car rides out on its own disc
+    /// ([`View::outgoing`]; GarageMain's two FE cars +0x4C / +0x50, the
+    /// shown one by +0x54, 0x4D873A…0x4D87DF). The caller starts it only
+    /// once the new car is loaded (state 1, 0x4D85F8: the loader's
+    /// [+0x234]+0x2CD4) and plays the turn's sound (0x51DE40(5 or 4,
+    /// 0x17)).
     pub fn change_car(&mut self, up: bool, now: f32) {
         let here = self.at(now);
         self.platform_angle = here.platform_angle;
@@ -412,6 +420,19 @@ impl View {
     /// leaves them, the car at this view's angle.
     pub fn turntable(&self) -> Turntable {
         Turntable { car_angle: self.car_angle, platform_angle: self.platform_angle, disc: self.disc }
+    }
+
+    /// The outgoing car's turntable while a car change's turn runs (a view
+    /// from [`View::at`]): its own disc (+0x144), the same platform angle
+    /// and car angle (0x4A6670 reads GarageMain's +0x274 for either car).
+    pub fn outgoing(&self) -> Option<Turntable> {
+        self.outgoing_disc.map(|disc| Turntable { disc, ..self.turntable() })
+    }
+
+    /// The platform's own pose: the disc 0x4A7330 turns with the car's
+    /// angle is +0x144 (0x4A74EF), the outgoing car's while the turn runs.
+    pub fn platform_turntable(&self) -> Turntable {
+        self.outgoing().unwrap_or(self.turntable())
     }
 }
 
@@ -796,6 +817,16 @@ mod tests {
         let mut c = View::new(0);
         c.change_car(true, 0.0);
         assert_eq!((c.at(0.25).platform_angle, c.at(0.25).disc), (60.0, 1));
+        // Both cars stand on their discs during the turn: the old one
+        // rides out on disc 0 (which the platform turns with the car),
+        // the new one in on disc 1; at the end only the new one.
+        let mid = c.at(0.25);
+        assert_eq!(mid.outgoing().map(|t| (t.disc, t.platform_angle)), Some((0, 60.0)));
+        assert_eq!(mid.platform_turntable().disc, 0);
+        assert_eq!(mid.turntable().disc, 1);
+        assert_eq!(c.at(0.0).outgoing().map(|t| t.disc), Some(0));
+        assert_eq!(c.at(0.5).outgoing(), None);
+        assert_eq!(c.at(0.5).platform_turntable().disc, 1);
         assert_eq!(c.at(1.0).platform_angle, 120.0);
         let front = turn(120.0).transform_point3(DISCS[1]);
         assert!(front.x.abs() < 0.05 && front.y > 5.0);

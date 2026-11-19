@@ -83,9 +83,10 @@ pub(crate) fn garage_scene_tick(
         (g, job.and_then(|j| j.join().ok()))
     });
     let Some(g) = g else { return };
-    let asynchronous = garage_take_built(g, display) && gpu.is_some();
+    let asynchronous = garage_take_built(g, request, display) && gpu.is_some();
     let env_rate = display.env_rate;
     garage_car_change(g, request, root, packages, gpu, asynchronous, env_rate, &mut first_car);
+    garage_outgoing_release(g, request, asynchronous, env_rate);
     // The FE car's renderer, made here rather than in the visit's first
     // draw (`garage_car_animate`; the same object).
     if let (Some((gpu, format)), Some((_, _, car, renderer @ None))) = (gpu, g.car.as_mut()) {
@@ -138,7 +139,7 @@ pub(crate) fn render_garage(
     renderer.set_samples(gpu, samples, opts);
     let garage_view = drawn.map_or_else(|| request.view.at(request.now), |d| d.view);
     let shot = garage_view.camera;
-    let table = garage_view.turntable();
+    let table = garage_view.platform_turntable();
     for (slot, transform) in g.platform.poses(&table) {
         renderer.move_placement(gpu, slot, transform);
     }
@@ -176,8 +177,9 @@ pub(crate) fn render_garage(
     let frame = GarageFrame { gpu, format, view, depth, size, samples, display, t, camera, aspect };
     let mut encoder = gpu.device.create_command_encoder(&Default::default());
     let (car_draw, open_fraction) = garage_car_animate(g, &request, root, caches, &frame, &garage_view, drawn);
+    let outgoing = garage_outgoing_animate(g, &request, root, caches, &frame, &garage_view);
     let headlights = drawn.map_or(request.headlights, |d| d.headlights);
-    garage_draw_car(g, headlights, &frame, &mut encoder, &params, car_draw, open_fraction, post);
+    garage_draw_car(g, headlights, &frame, &mut encoder, &params, car_draw, open_fraction, outgoing, post);
     garage_particles(g, &frame, &mut encoder, drawn, opts);
     gpu.queue.submit([encoder.finish()]);
     true
@@ -210,9 +212,9 @@ fn garage_release(garage: &mut Option<GarageScene>) {
     // No garage up: the cars built ahead are freed (off the
     // frame); the builds under way end on their own.
     if let Some(g) = garage.as_mut()
-        && !(g.ready.is_empty() && g.prefetch.is_empty())
+        && !(g.ready.is_empty() && g.prefetch.is_empty() && g.incoming.is_none() && g.outgoing.is_none())
     {
-        let old = (std::mem::take(&mut g.ready), std::mem::take(&mut g.prefetch));
+        let old = (std::mem::take(&mut g.ready), std::mem::take(&mut g.prefetch), g.incoming.take(), g.outgoing.take());
         std::thread::spawn(move || drop(old));
     }
 }
@@ -231,9 +233,42 @@ fn garage_load<'a>(
     garage.as_mut()
 }
 
+/// The FE car `request` asks for.
+fn request_key(request: &GarageRequest) -> Option<GarageCarKey> {
+    request.car.as_ref().map(|n| (n.clone(), request.installed.clone(), request.perf.clone()))
+}
+
+/// The car shown now is `key`'s.
+fn shows(g: &GarageScene, key: &GarageCarKey) -> bool {
+    g.car.as_ref().is_some_and(|(n, i, ..)| *n == key.0 && *i == key.1) && g.car_perf == key.2
+}
+
+/// A built car not shown: kept with the cars built ahead when it has its
+/// renderer (built on a thread), else freed off the frame.
+fn keep_built(g: &mut GarageScene, key: GarageCarKey, car: Car, renderer: Option<CarRenderer>, env_rate: u8) {
+    match renderer {
+        Some(r) if GARAGE_ASYNC.load(std::sync::atomic::Ordering::Relaxed) => g.ready.insert(0, (key, car, r, env_rate)),
+        r => drop(std::thread::spawn(move || drop((car, r)))),
+    }
+}
+
 /// `draw_garage`'s builds done on threads put in place; whether the FE
-/// car is built asynchronously.
-fn garage_take_built(g: &mut GarageScene, display: Display) -> bool {
+/// car is built asynchronously. While the request holds its car back
+/// (state 1) a build of that car becomes the incoming one, not the shown.
+fn garage_take_built(g: &mut GarageScene, request: &GarageRequest, display: Display) -> bool {
+    if g.car_job.as_ref().is_some_and(|j| j.handle.is_finished()) && request.hold {
+        let job = g.car_job.take().unwrap();
+        match job.handle.join().ok().flatten() {
+            Some((car, r)) if request_key(request).as_ref() == Some(&job.key) => {
+                if let Some((k, c, r, _)) = g.incoming.take() {
+                    keep_built(g, k, c, r, display.env_rate);
+                }
+                g.incoming = Some((job.key, car, Some(r), request.now));
+            }
+            Some((car, r)) => keep_built(g, job.key, car, Some(r), display.env_rate),
+            None => g.car_failed.remember(job.key, "garage car", "the build failed"),
+        }
+    }
     // A part change built on a thread: put in place once done (a stale
     // one too, as a step on the way), then the latest change started.
     if g.car_job.as_ref().is_some_and(|j| j.handle.is_finished()) {
@@ -297,6 +332,24 @@ fn garage_car_change(
     env_rate: u8,
     first_car: &mut Option<(GarageCarKey, anyhow::Result<Car>)>,
 ) {
+    let key = request_key(request);
+    // An incoming car no longer asked for is kept as built ahead.
+    if g.incoming.as_ref().is_some_and(|i| Some(&i.0) != key.as_ref()) {
+        let (k, c, r, _) = g.incoming.take().unwrap();
+        keep_built(g, k, c, r, env_rate);
+    }
+    if request.hold {
+        if let Some(key) = key {
+            garage_car_hold(g, request, key, root, packages, gpu, asynchronous, env_rate, first_car);
+        }
+        return;
+    }
+    // The turn has begun (state 2): the incoming car takes the next disc,
+    // the shown one rides out on its own (0x4D873A…0x4D87DF).
+    if let Some((k, car, r, _)) = g.incoming.take() {
+        garage_car_swap_in(g, request, k, car, r, env_rate);
+        return;
+    }
     match &request.car {
         // A change to a car built ahead or shown before: in place at
         // once (the same car a build would give: the build is
@@ -379,9 +432,11 @@ fn garage_car_change(
                 log::info!("preview: {name} {:x?}", request.installed);
             }
             let key: GarageCarKey = (name.clone(), request.installed.clone(), perf.clone());
-            let built = match first_car.take() {
-                Some((k, car)) if k == key => g.car_failed.load(key, "garage car", || car),
-                _ => load_garage_car(&mut g.car_failed, root, packages, key),
+            let Some(built) = dev_build_delay(g, &key, request.now, |g| match first_car.take() {
+                Some((k, car)) if k == key => g.car_failed.load(key.clone(), "garage car", || car),
+                _ => load_garage_car(&mut g.car_failed, root, packages, key.clone()),
+            }) else {
+                return;
             };
             g.car = built.map(|c| (name.clone(), request.installed.clone(), c, None));
             g.car_perf = request.perf.clone();
@@ -391,6 +446,139 @@ fn garage_car_change(
         Some(_) => {}
         None => (g.car, g.car_job) = (None, None),
     }
+}
+
+/// GarageMain state 1 (0x4D85F8) on the scene's side: the asked car
+/// (`key`, of another type than the shown one) built while the shown car
+/// stays on the front disc — from the cars built ahead, as a build on a
+/// thread, or in the tick — and kept as `GarageScene::incoming` until the
+/// game starts the turn.
+#[allow(clippy::too_many_arguments)]
+fn garage_car_hold(
+    g: &mut GarageScene,
+    request: &GarageRequest,
+    key: GarageCarKey,
+    root: &std::path::Path,
+    packages: &[nfsu2::performance::Package],
+    gpu: Option<(&Gpu, wgpu::TextureFormat)>,
+    asynchronous: bool,
+    env_rate: u8,
+    first_car: &mut Option<(GarageCarKey, anyhow::Result<Car>)>,
+) {
+    if shows(g, &key) || g.incoming.is_some() || g.car_failed.remembers(&key) {
+        return;
+    }
+    if debug_env().preview_log && g.car_job.as_ref().is_none_or(|j| j.key != key) {
+        log::info!("preview: {} {:x?} (held)", key.0, key.1);
+    }
+    if asynchronous {
+        if let Some(at) = g.ready.iter().position(|(k, .., rate)| *k == key && *rate == env_rate) {
+            let (k, car, r, _) = g.ready.remove(at);
+            g.incoming = Some((k, car, Some(r), request.now));
+        } else if g.car_job.is_none() {
+            g.car_job = match g.prefetch.iter().position(|j| j.key == key) {
+                Some(at) => Some(g.prefetch.swap_remove(at)),
+                None => {
+                    let (gpu, format) = gpu.expect("an asynchronous build has the window's GPU");
+                    Some(garage_car_job(key, root, packages, gpu, format, env_rate, g.platform.envmap.clone(), "garage car"))
+                }
+            };
+        }
+        // Another build under way: this one starts once it lands.
+        return;
+    }
+    let Some(built) = dev_build_delay(g, &key, request.now, |g| match first_car.take() {
+        Some((k, car)) if k == key => g.car_failed.load(key.clone(), "garage car", || car),
+        _ => load_garage_car(&mut g.car_failed, root, packages, key.clone()),
+    }) else {
+        return;
+    };
+    if let Some(car) = built {
+        g.incoming = Some((key, car, None, request.now));
+    }
+}
+
+/// The incoming car put on show as the turn begins; the car shown so far
+/// becomes the outgoing one (`GarageScene::outgoing`) with its corners,
+/// drops, part poses and camber as they stand.
+fn garage_car_swap_in(
+    g: &mut GarageScene,
+    request: &GarageRequest,
+    key: GarageCarKey,
+    car: Car,
+    renderer: Option<CarRenderer>,
+    env_rate: u8,
+) {
+    let _t = nfsu2::prof::span("garage: car swap (turn)");
+    if let Some(o) = g.outgoing.take() {
+        keep_built(g, o.key, o.car, o.renderer, env_rate);
+    }
+    let old_perf = std::mem::replace(&mut g.car_perf, key.2.clone());
+    let corner = g.hydro.as_ref().map_or([0.0; 4], |(h, _)| h.corner);
+    let drops = g.hydro.as_ref().map_or([0.0; 4], |(h, _)| std::array::from_fn(|i| h.wheel_drop(i)));
+    let poses = g.car_poses;
+    (g.channels, g.applied) = (Default::default(), [false; 4]);
+    let Some((n, installed, old, old_r)) = g.car.replace((key.0, key.1, car, renderer)) else { return };
+    let old_key = (n, installed, old_perf);
+    if request.view.at(request.now).outgoing().is_some() {
+        let poses = poses.unwrap_or_else(|| nfsu2::part_anim::Channels::default().poses(old.animations.as_ref(), request.now));
+        let camber = nfsu2::car::camber_angle(&|id| old_key.2.contains(&id));
+        g.outgoing = Some(OutgoingCar { key: old_key, car: old, renderer: old_r, corner, drops, poses, camber });
+    } else {
+        keep_built(g, old_key, old, old_r, env_rate);
+    }
+}
+
+/// The outgoing car hidden once the turn has ended (0x4D84CF: its +0xB64
+/// = 0), kept as built ahead.
+fn garage_outgoing_release(g: &mut GarageScene, request: &GarageRequest, asynchronous: bool, env_rate: u8) {
+    if g.outgoing.is_some() && request.view.at(request.now).outgoing().is_none() {
+        let o = g.outgoing.take().unwrap();
+        let r = o.renderer.filter(|_| asynchronous);
+        keep_built(g, o.key, o.car, r, env_rate);
+    }
+}
+
+/// `render_garage`'s outgoing car posed on its disc for the drawn view (its
+/// hydraulics, part poses and camber as the turn found them, the view's
+/// steer); None when no turn carries one out.
+fn garage_outgoing_animate(
+    g: &mut GarageScene,
+    request: &GarageRequest,
+    root: &std::path::Path,
+    caches: &Caches,
+    f: &GarageFrame,
+    garage_view: &nfsu2::garage::View,
+) -> Option<CarDraw> {
+    let GarageFrame { gpu, format, display, t, .. } = *f;
+    let table = garage_view.outgoing()?;
+    let envmap = g.platform.envmap.as_deref();
+    let o = g.outgoing.as_mut()?;
+    let world = table.car_transform_on(&o.car.car_type.wheels, o.corner);
+    let car = &o.car;
+    let renderer = o.renderer.get_or_insert_with(|| garage_car_renderer(gpu, car, format, display.env_rate, envmap));
+    renderer.prepare_reflection(gpu);
+    let steer = garage_view.steer.to_radians();
+    let wheels: [nfsu2::car::WheelPose; 4] = std::array::from_fn(|i| nfsu2::car::WheelPose {
+        steer: if i < 2 { steer } else { 0.0 },
+        lift: -o.drops[i],
+        tilt: o.camber,
+        ..Default::default()
+    });
+    renderer.set_part_poses(o.poses);
+    renderer.set_part_glow(part_glow(car, t));
+    let rig = frontend_rig(caches, root, &request.lights);
+    let open_fraction = [0, 1].map(|c| o.poses[c][0].map(|p| p.value));
+    Some(CarDraw { world, wheels, rig, open_fraction })
+}
+
+/// One FE car's draw: its world, wheels, light rig and the hood's and
+/// trunk's open fractions.
+struct CarDraw {
+    world: glam::Mat4,
+    wheels: [nfsu2::car::WheelPose; 4],
+    rig: [nfsu2::render::lighting::RigLight; 3],
+    open_fraction: [Option<f32>; 2],
 }
 
 /// `draw_garage`'s NFSU2_PREVIEW_LOG latency line.
@@ -595,9 +783,14 @@ fn garage_draw_car(
     params: &FrameParams,
     car_draw: Option<(glam::Mat4, [nfsu2::car::WheelPose; 4], [nfsu2::render::lighting::RigLight; 3])>,
     open_fraction: [Option<f32>; 2],
+    outgoing: Option<CarDraw>,
     post: Option<&mut PostFx>,
 ) {
     let GarageFrame { gpu, view, depth, size, samples, display, t, camera, aspect, .. } = *f;
+    // The car a turn carries out (`GarageScene::outgoing`), drawn as the
+    // shown one: floor reflection, car, shadow and neon.
+    let out_car = outgoing.as_ref().and_then(|d| g.outgoing.as_ref().and_then(|o| o.renderer.as_ref().map(|r| (&o.car, r, d))));
+    let out_draws = std::cell::Cell::new(0u32);
     let opts = params.opts;
     let renderer = g.renderer.as_mut().expect("the platform's renderer");
     // Frontend view 4 reflects the base about TYRE_HEIGHT (native
@@ -636,7 +829,57 @@ fn garage_draw_car(
             let done = std::mem::replace(encoder, gpu.device.create_command_encoder(&Default::default()));
             gpu.queue.submit([done.finish()]);
         }
+        if let Some((_, cr, d)) = out_car {
+            let mirrored = nfsu2::garage::reflected_car_world(d.world);
+            out_draws.set(out_draws.get() + 1);
+            let wheels = &brakes_turned(&d.wheels, out_draws.get());
+            cr.render_reflection(
+                gpu,
+                encoder,
+                color,
+                depth,
+                camera.view_projection(aspect),
+                camera.view(),
+                &CarLighting::frontend(&d.rig, &camera, mirrored),
+                mirrored,
+                wheels,
+                opts,
+            );
+            let done = std::mem::replace(encoder, gpu.device.create_command_encoder(&Default::default()));
+            gpu.queue.submit([done.finish()]);
+        }
     });
+    let mut shadows = Vec::new();
+    let mut quads = Vec::new();
+    if let (Some(d), Some(OutgoingCar { car, renderer: Some(cr), .. })) = (outgoing.as_ref(), g.outgoing.as_mut()) {
+        let wheels = brakes_turned(&d.wheels, out_draws.get() + 1);
+        cr.render_sampled(
+            gpu,
+            samples,
+            encoder,
+            view,
+            depth,
+            camera.view_projection_depth(aspect, opts.reversed_z),
+            camera.view(),
+            &CarLighting::frontend(&d.rig, &camera, d.world),
+            d.world,
+            &wheels,
+            opts,
+        );
+        let positions = car.car_type.wheels.map(|w| w.position);
+        if let (true, Some(s)) = (display.shadows, nfsu2::shadow::car_shadow(d.world, car.shadow_box, positions, None)) {
+            shadows.extend(car_shadow_passes(
+                gpu,
+                renderer,
+                car,
+                s.toward_eye(camera.position, d.world.w_axis.truncate(), nfsu2::shadow::shadow_pull(None)),
+                "SHADOWFE",
+                t,
+                opts,
+            ));
+        }
+        neon_tubes(&tube_view(&camera, aspect), car, d.world, t, d.open_fraction, &mut quads);
+    }
     if let (Some((_, _, car, Some(car_renderer))), Some((world, wheels, rig))) = (g.car.as_mut(), car_draw) {
         let wheels = brakes_turned(&wheels, draws.get() + 1);
         car_renderer.render_sampled(
@@ -660,7 +903,7 @@ fn garage_draw_car(
         if let (true, Some(s)) = (display.shadows, nfsu2::shadow::car_shadow(world, car.shadow_box, wheels, None)) {
             // The neon's clock in the front end: 0x8651A8 × 0.00025, here
             // the garage's time.
-            let passes = car_shadow_passes(
+            shadows.extend(car_shadow_passes(
                 gpu,
                 renderer,
                 car,
@@ -668,8 +911,12 @@ fn garage_draw_car(
                 "SHADOWFE",
                 t,
                 opts,
-            );
-            renderer.render_shadows(gpu, encoder, view, depth, &passes);
+            ));
+        }
+        // Both cars' shadows in one pass (one vertex upload).
+        if !shadows.is_empty() {
+            renderer.render_shadows(gpu, encoder, view, depth, &shadows);
+            shadows.clear();
         }
         // Depth of field (docs/motionblur-dof.md): Cinematic depth of field on the
         // garage's turntable, the car in focus, before its glows.
@@ -692,7 +939,6 @@ fn garage_draw_car(
         // prov: inferred game.draw_garage
         // **Inferred**: into the scene itself (with the glow and streaks on
         // the game draws them in the glow pass, 0x5CB5BC / 0x5CBC93).
-        let mut quads = Vec::new();
         neon_tubes(&tube_view(&camera, aspect), car, world, t, open_fraction, &mut quads);
         // The Lights list's flares (0x61ACF0 → 0x615640 for the FE car,
         // whose render info has no car object: the headlights at 1.0 in
@@ -713,10 +959,15 @@ fn garage_draw_car(
             };
             nfsu2::glow::car_sprites(&view, &car.light_flares, world, car.headlight_pool_color, false, &mut quads);
         }
-        if !quads.is_empty() {
-            renderer.upload_glows(gpu, &quads);
-            renderer.draw_glows(encoder, view, depth, false);
-        }
+    }
+    // No shown car (an empty slot coming in): the outgoing car's shadow
+    // and neon alone.
+    if !shadows.is_empty() {
+        renderer.render_shadows(gpu, encoder, view, depth, &shadows);
+    }
+    if !quads.is_empty() {
+        renderer.upload_glows(gpu, &quads);
+        renderer.draw_glows(encoder, view, depth, false);
     }
 }
 
