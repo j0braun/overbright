@@ -69,11 +69,11 @@ all eight regions). Per stream section:
 
 **Stream-section ranges overlap.** Every region's first record (`--`, number 0, the only one with `u_0x10` = 0)
 starts at offset 0 like `X0`. In L4RA and L4RD its range holds no whole chunk; in the other six it holds whole solid
-lists of `X0` (a second parse of a solid changes nothing: the first solid of a hash wins); in **L4RH and L4RR it
-also holds the whole scenery section 2600** (`Z0`, the SKYDOME) of stream section 2600. Overbright's loader parses
-every record's range (`src/world/parse.rs:111`), so that scenery section is placed twice today, once under stream
-section 0. The format reproduces this with the stream-section file's `also` field (§3.4); whether the original ever
-loads the `--` entry is **open** (§10).
+lists of `X0`; in **L4RH and L4RR it also holds the whole scenery section 2600** (`Z0`, the SKYDOME) of stream
+section 2600. The original never loads this record: sections are loaded only by number (0x5DACC0, fed by 0x5E5120's
+fixed list, the visible list and the extra numbers, each taken only when not zero, and by 0x5E5230…0x5E52C8, positive
+numbers only), and no visible list holds 0 (verified, docs/formats/world.md "Tracks, streaming and visibility").
+Overbright's loader skips it too (`world::parse::loads`), so each scenery section is placed once.
 
 **Other files of `TRACKS/`.** `ROUTES<REGION>/*`: [roads-ai.md](roads-ai.md). `LOC4DYNTEX.BIN` (the sky's and other
 dynamic textures) and `TRACKMAP<n>.BIN` (129 files, each one texture pack holding the texture `TRACKMAP<n>`, the
@@ -222,7 +222,7 @@ the byte range, `src/formats/track.rs:28`):
 | 0x00 | 8 | `char[8]` | `name` | – | NUL-terminated, zero-filled (verified on all 946 records). `--` for the empty first entry. |
 | 0x08 | 4 | `u32` | `number` | – | Unique in the region (`WLD.2`). |
 | 0x0C | 4 | `u32` | `pad` | – | |
-| 0x10 | 4 | `u32` | `u_0x10` | – | **open**; 0 for `--`, 1 for all others. |
+| 0x10 | 4 | `u32` | `u_0x10` | – | **open** (not read by the loaders traced); 0 for `--`, the record never loaded (§1), 1 for all others. |
 | 0x14 | 4 | `u32` | `stream_offset` | byte | The stream section's range in the original stream file. Import-only: written by the importer for the rebuild, ignored by readers; absent in community sets (default 0). |
 | 0x18 | 4 | `u32` | `stream_size` | byte | As `stream_offset` (default 0). |
 | 0x1C | 4 | `u32` | `u_0x1c` | byte | **open**; a size, equal to `stream_size` in 200 of L4RA's 393 records. |
@@ -313,7 +313,7 @@ instances, placed emitters. Its arrays live in `sections/<n>.bin` when the exter
 | `schema` | string | yes | – | `ob.section/1.0` |
 | `number` | u32 | yes | – | The stream section; MUST be in `region.toml` and match the file name (`WLD.1`). |
 | `scenery` | array of tables (§3.4.1) | no | `[]` | The scenery sections, in chunk order (≤ 2). |
-| `also` | array<u32> | no | `[]` | Scenery sections of **other** stream sections whose chunks lie whole inside this stream section's original range (§1, "Stream-section ranges overlap"): the engine places them again, under this stream section's number, in file order with this stream section's own scenery sections (the only case has none of its own). Written only by the importer; they add no keys (an edit of `placement:<REGION>/2600/0` reaches both copies). Reference install: only `sections/0.toml` of L4RH and L4RR, `also = [2600]`. |
+| `also` | array<u32> | no | `[]` | Scenery sections of **other** stream sections whose chunks lie whole inside this stream section's original range (§1, "Stream-section ranges overlap"). The engine places nothing for them: the only ranges that hold such chunks belong to the `--` record (stream section 0), which is never loaded. Kept so that files written by earlier importers still read; the importer writes none. |
 | `lights` | table (§3.4.3) | no | – | The light pack. |
 | `flares` | table (§3.4.4) | no | – | The flare pack. |
 | `props` | table (§3.4.5) | no | – | The knock-over prop instances. |
@@ -396,7 +396,7 @@ radius_m = 0.75
 #### 3.4.2 The engine's placements from this data
 
 What the engine consumes (`src/world/parse.rs:338-377`), and so what the equality proof covers: for each stream
-section in table order, each scenery section in chunk order (`also` ones included, §3.4), each instance in index order: the drawn solid is the
+section in table order, each scenery section in chunk order (stream section 0, `--`, is not loaded: §1), each instance in index order: the drawn solid is the
 first `lod` hash naming a solid of the region (A in every instance of the reference install); an instance whose
 `lod` names none is counted as missing and not placed; one whose solid has no triangles is not placed (47 in L4RA);
 otherwise one placement with that solid, LOD B (`mid`), the low LOD (C, or B with flag 0x0400), the transform from
@@ -956,11 +956,9 @@ loaded world gave 1,375 and 296 [to verify which placements it included].)
 | `0x34250` | `horizon_fog::parse_sources` + record copy | `fog.toml` `horizon` |
 | `0x35021` | record copy (the engine's parser, `particles::parse_descriptions`, for Eq1) | `effects.bin`, `region.toml` `effects` |
 
-- The importer walks the stream-section table in order and, inside each range, the chunks in file order, exactly as
-  `World::parse` does. A chunk already assigned to an earlier record's range (only possible for the `--` entry,
-  §1) is not stored twice: solid lists are skipped (meshes.md stores them once), and a scenery section is written
-  as an `also` entry of the earlier record's stream-section file and stored in full in its own stream section's
-  file.
+- The importer walks the stream-section table in order and, inside each range, the chunks in file order, skipping the
+  `--` record (number 0) as `World::parse` does (§1): every chunk is then in exactly one loaded record's range, and
+  the importer writes no `also` entry.
 - Every field is copied as found; `pad`, `const` and *derived* rows and the fill are checked (§3.1; `CONV.11`,
   `WLD.6`, `WLD.4`). In every chunk with an Eq2 encoder (§6.1) each byte is a row of a layout table of §3 or fill,
   so the encoder rebuilds the chunk whole: id and size, fill, header (fields, `const` values, *derived* counts and
@@ -1102,9 +1100,8 @@ placement keys is reserved in [collision.md](collision.md) §9.
   `0x8003B000`.
 - **Particle effect descriptions** (`0x35021`) have no kind (§1 "Effects", §3.8): a future effects kind should own
   them, `GLOBALB.BUN`'s and `Showroom.BIN`'s included; the region's `effects.bin` is then replaced by it.
-- **The `--` entry** (`u_0x10` = 0): Overbright parses its range like any other, which places L4RH's and L4RR's
-  scenery section 2600 twice (§1). If tracing shows the original never loads it [to verify, e.g. the
-  loop in 0x5DF8B0], the engine should skip it; the importer then stops writing `also`, with no format change.
+- **The `--` entry** (`u_0x10` = 0): resolved. The original never loads it (§1) and Overbright's loader skips it, so
+  L4RH's and L4RR's scenery section 2600 is placed once; `also` is no longer written (no format change).
 - **Parameter maps** at values level: an encoder needs the values chunk's stride and field offsets kept; until
   then the shadow stays.
 - The legacy pair counts (1,372 / 295 on the instance arrays, 1,375 / 296 in an earlier count on the loaded
