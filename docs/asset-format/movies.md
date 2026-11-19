@@ -286,6 +286,7 @@ ranges of those movies.
 
 ## 8. Errors
 
+<!-- generated:rules -->
 | Rule | Text |
 |---|---|
 | MOV.1 | A `video.ivf` header that is not `DKIF`, version 0, header length 32, a FourCC outside `VP60`/`VP61`/`VP62` for codec `vp6`, or whose width, height, time base or frame count differs from `movie.toml`. |
@@ -296,6 +297,7 @@ ranges of those movies.
 | MOV.6 | A movie-table name that is empty, longer than 30 characters, not ASCII, or a volume above 127. |
 | MOV.7 | A `video.codec` or audio codec this reader does not support (values reserved for §9). |
 | MOV.8 | Two `movie-entry` names that differ only in case in one layer stack (two such `movie` stems: `CONV.13`); a movie folder name that differs from `name`. |
+<!-- /generated -->
 
 ## 9. Versioning and extension
 

@@ -225,6 +225,7 @@ The full tree of an imported base set is listed by `overbright-studio-cli base l
 
 ## 8. Errors
 
+<!-- generated:rules -->
 | Rule | Text |
 |---|---|
 | LAY.1 | A bundle breaks the ZIP profile (§4): 64-bit ZIP extensions, encryption, data descriptor, unknown method, misaligned stored entry, bad name, duplicate, overlap. |
@@ -232,3 +233,4 @@ The full tree of an imported base set is listed by `overbright-studio-cli base l
 | LAY.3 | A base-set bundle's digest does not match `import.toml` / `[bundles]`, or a listed bundle is missing. |
 | LAY.4 | A symbolic link or a name outside conventions §6.2 in a pack folder. |
 | LAY.5 | `active.txt` names a base set that does not exist or is damaged (the launcher asks; the game refuses to start). |
+<!-- /generated -->

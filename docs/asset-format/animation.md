@@ -566,6 +566,7 @@ Decoded channels are model data (what Eq1 compares). Scenes are small (the large
 
 ## 8. Errors
 
+<!-- generated:rules -->
 | Rule | Text |
 |---|---|
 | ANI.1 | An `.eagl` file that is not an ELF32 little-endian relocatable object, lacks the `__AnimationBank` (banks) or `__Skeleton:::` (skeletons) symbol, or whose digest differs from `digest`. |
@@ -578,6 +579,7 @@ Decoded channels are model data (what Eq1 compares). Scenes are small (the large
 | ANI.8 | An override of a channel in an object with `decodes = false`. |
 | ANI.9 | An authored skeleton with a parent not below its own index, more than 255 bones, or no root. |
 | ANI.10 | Pivots that are not exactly 21, or a `car_hash` that is not `bin_hash` of the unit's car name. |
+<!-- /generated -->
 
 ## 9. Versioning and extension
 

@@ -296,6 +296,7 @@ can be moved to another drive (`locations.txt`, docs/platform-dirs.md).
 
 ## 12. Errors
 
+<!-- generated:rules -->
 | Rule | Text |
 |---|---|
 | IMP.1 | The folder has no content folders (not a game folder), or a required file is missing (named). |
@@ -305,3 +306,4 @@ can be moved to another drive (`locations.txt`, docs/platform-dirs.md).
 | IMP.5 | The required-items profile is incomplete (a `custom` install missing files). |
 | IMP.6 | The staging folder belongs to another edition or importer version than this run; it is discarded and the import starts over. |
 | IMP.7 | A release build found a `linked` base set (it offers to make it independent), or a linked set's referenced file is missing or changed. |
+<!-- /generated -->

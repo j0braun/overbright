@@ -484,6 +484,7 @@ Checks run in this order, so a file from a newer Overbright reports what it need
 
 Common rules:
 
+<!-- generated:rules -->
 | Rule | Text |
 |---|---|
 | CONV.1 | Not UTF-8, has a BOM or a NUL. |
@@ -502,6 +503,7 @@ Common rules:
 | CONV.14 | A required extension this reader does not know. |
 | CONV.15 | A new name whose hash collides with another name of the same kind in the stack. |
 | CONV.16 | An `[ext.X]` table not declared in `extensions_used`, or an always-required `OB_` extension declared only as used. |
+<!-- /generated -->
 
 ## 12. Page template for kinds
 

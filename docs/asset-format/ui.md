@@ -488,6 +488,7 @@ the Credits screen; a test that hashes each package's `Package` model (`src/fron
 
 ## 8. Errors
 
+<!-- generated:rules -->
 | Rule | Text |
 |---|---|
 | UI.1 | A package `name` that breaks its pattern, or a package file not named after it. |
@@ -506,6 +507,7 @@ the Credits screen; a test that hashes each package's `Package` model (`src/fron
 | UI.14 | (import) A package or font chunk the model cannot represent exactly: kept whole in the residual and reported. |
 | UI.15 | (import) Two package chunks of one name whose unpacked bytes differ: the first in the original load order is decoded, the other kept and reported. |
 | UI.16 | A `state` colour or rotation, or a track's `base` or `delta`, in another form than the original's words (§3.1, "Exception to conventions §5.3 and §5.4"): a `color` string, a matrix, Euler angles. |
+<!-- /generated -->
 
 Warning (never stops a pack): a package resource of kind `font` or `texture` that resolves to nothing. The shipped
 `HUD_Drift` and `HUD_Short_Track` each have one such font resource (`FONT_IMPACTHUD`, used by two string objects

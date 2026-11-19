@@ -8,6 +8,9 @@ Status: **draft 1 — design, not implemented yet.**
 > Programs and tools named here (`overbright-import`, `overbright-studio-cli`, Studio, the web build) are planned,
 > and so are the source paths, checks and tests the pages name as the place a rule will live. Rules, ids and
 > numbers may still change before the first implementation; numbers marked [guess] or [est] are estimates.
+> The format's core library exists (`crates/ob-asset-format`: exact floats, names and digests, bundles, the
+> manifest, `order.txt`, the layer stack and the merge engine, the rule registry); no program reads game data
+> through it yet.
 
 Overbright's own documented, versioned format for everything the engine loads. A one-time **import** turns the
 player's own copy of the game into a **base set** in this format; from then on the game, the launcher, Studio, the
@@ -154,6 +157,12 @@ pages is listed in [parity.md](parity.md) §4 and §5.
 example validates against its schema, the glTF example's `OB_` extensions validate against their schemas and its
 buffers and accessors fit, and every link between the pages resolves (it needs the Python package `jsonschema`;
 not yet checked with the Khronos glTF validator). Every example is made up: none holds data from the original game.
+
+Parts of the pages are generated from `crates/ob-asset-format` and must not be edited by hand: every rule table
+(between `<!-- generated:rules -->` and `<!-- /generated -->`), the manifest's field tables, and
+`schemas/pack.schema.json` and `schemas/pack-migrations.schema.json`. `cargo run -p ob-asset-format --example
+asset_format_docs -- --write` regenerates them; the crate's test `docs_in_step` (part of `cargo test`) and
+`scripts/checks/asset_format.sh` fail when the pages and the code differ ([versioning.md](versioning.md) §6).
 
 ### 4.1 Decisions this draft is built on
 

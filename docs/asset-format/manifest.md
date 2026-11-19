@@ -75,6 +75,7 @@ import = "import.toml"
 
 ## 3. Fields
 
+<!-- generated:fields pack -->
 | Field | Type | Req. | Default | Meaning |
 |---|---|---|---|---|
 | `format` | u32 | yes in format 2 | – | 2. A reader refuses a higher format (`MAN.1`). A file without `format` is read as a format-1 manifest by the legacy rules of §6, not as a format-2 file missing a field. |
@@ -105,9 +106,11 @@ import = "import.toml"
 | `[base]` | table | iff `kind = "base"` | – | Base-set fields (below). Forbidden in mod packs (`MAN.5`). |
 | `[bundles]` | table file name → digest | no | – | Bundles of a pack stored as several `.obz` files ([layout.md](layout.md) §4–5) and their `xxh3-128` digests. Imported base sets list them in `import.toml` instead. |
 | `[extras]` | table | no | – | Tools' data (conventions §9). |
+<!-- /generated -->
 
 `[base]` fields:
 
+<!-- generated:fields pack.base -->
 | Field | Type | Req. | Default | Meaning |
 |---|---|---|---|---|
 | `edition` | string `[a-z0-9-]{1,32}` | yes | – | The importer's edition key ([import.md](import.md) §3), `custom` for an unknown or modified install, or the community set's own name. |
@@ -117,6 +120,7 @@ import = "import.toml"
 | `import` | logicalPath | for imported sets | – | The import record, normally `import.toml`. |
 | `marker` | string ≤ 80 | no | – | A short line the launcher shows for community sets ("Community city set 0.3"). |
 | `storage` | enum `owned`, `linked` | no | `owned` | Whether stage-0 files are copies (`owned`) or references to the game folder (`linked`, developer builds only; [import.md](import.md) §4.2). |
+<!-- /generated -->
 
 ## 4. Content digest
 
@@ -171,6 +175,7 @@ A `pack.toml` without `format` or with `format = 1` is read as a legacy texture 
 
 ## 7. Errors
 
+<!-- generated:rules -->
 | Rule | Text |
 |---|---|
 | MAN.1 | `format` higher than this reader knows, or not an integer. |
@@ -182,3 +187,4 @@ A `pack.toml` without `format` or with `format = 1` is read as a legacy texture 
 | MAN.7 | A dependency, optional or conflict entry names the pack itself, or a version requirement does not parse. |
 | MAN.8 | `pack.toml` larger than 64 KiB (as today, `src/obpack/manifest.rs` `MAX_BYTES`). |
 | MAN.9 | `extensions_required` not a subset of `extensions_used`. |
+<!-- /generated -->

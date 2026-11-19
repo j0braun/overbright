@@ -730,6 +730,7 @@ Size 0x10, alignment 4.
 
 ## 8. Errors
 
+<!-- generated:rules -->
 | Rule | Text |
 |---|---|
 | TEX.1 | `index.toml`: an entry naming a missing file, a duplicate `id`, `section` missing where §3.1 requires it or present where it refuses it, a `set` entry in a wildcard scope's index. |
@@ -752,6 +753,7 @@ Size 0x10, alignment 4.
 | TEX.18 | `width_px` / `height_px` on a `merge` or `replace` entry. |
 | TEX.19 | A scroll value outside `i16`, or an animation `add` without `fps` and `frames`. |
 | TEX.20 | A view whose search path holds two different textures under one hash (import check; an error for known editions, a warning for `custom`). |
+<!-- /generated -->
 
 ## 9. Versioning and extension
 

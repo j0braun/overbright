@@ -351,6 +351,7 @@ Nothing here is build-specific.
 
 ## 8. Errors
 
+<!-- generated:rules -->
 | Rule | Text |
 |---|---|
 | TXT.1 | A language key that breaks `[a-z][a-z0-9_]{0,31}`, or a `text/<language>/` unit without `language.toml`. |
@@ -365,6 +366,7 @@ Nothing here is build-specific.
 | TXT.10 | A pack changing a base language's `role` or `charmap`, or adding a language with `role` other than `player`. |
 | TXT.11 | (import) A file whose rebuild differs from the original: kept whole in the residual and reported. |
 | TXT.12 | A language of role `player` without `strings.toml` (after merging the stack), or one of role `save_text` with a `strings.toml`, `charmap` or `fonts`. |
+<!-- /generated -->
 
 Warning (Studio, never an error): a `player` language lacking keys the English table has (shown as untranslated;
 the fallback covers them).

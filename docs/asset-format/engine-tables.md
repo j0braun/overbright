@@ -284,6 +284,7 @@ impl Tables {
 
 ## 8. Errors
 
+<!-- generated:rules -->
 | Rule | Text |
 |---|---|
 | TBL.1 | Unknown table name, or `table` unlike the file name. |
@@ -296,6 +297,7 @@ impl Tables {
 | TBL.8 | A value that indexes another table or names an item is out of range or resolves to nothing. |
 | TBL.9 | Two entries of one file address the same value, or one inside another. |
 | TBL.10 | `op = "replace"` without `value`, a `merge` without `set`, or both `value` and `set`. |
+<!-- /generated -->
 
 ## 9. Versioning and extension
 

@@ -1862,6 +1862,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "ob-asset-format"
+version = "0.3.1"
+dependencies = [
+ "memmap2",
+ "miniz_oxide 0.8.9",
+ "ob-formats",
+ "semver",
+ "sha2",
+ "toml",
+ "xxhash-rust",
+]
+
+[[package]]
 name = "ob-core"
 version = "0.3.1"
 dependencies = [

@@ -2,27 +2,53 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "pack-migrations.schema.json",
   "title": "A pack's own key renames (ob.pack-migrations/1.0)",
-  "description": "versioning.md 4.3: renames of keys the pack itself added, so saves made with an older version of the pack still resolve. File: migrations.toml at the pack's root.",
+  "description": "versioning.md 4.3: renames of keys the pack itself added, so saves made with an older version of the pack still resolve. File: migrations.toml at the pack's root. Generated from the code (crates/ob-asset-format/src/manifest.rs); do not edit.",
   "type": "object",
   "properties": {
-    "schema": { "type": "string", "pattern": "^ob\\.pack-migrations/1\\.[0-9]+$" },
+    "schema": {
+      "type": "string",
+      "pattern": "^ob\\.pack-migrations/1\\.[0-9]+$"
+    },
     "rename": {
       "type": "array",
       "minItems": 1,
       "items": {
         "type": "object",
         "properties": {
-          "kind": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
-          "from": { "type": "string", "minLength": 1, "maxLength": 200 },
-          "to": { "type": "string", "minLength": 1, "maxLength": 200 },
-          "since": { "$ref": "common.schema.json#/$defs/semver" }
+          "kind": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]*$"
+          },
+          "from": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "to": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "since": {
+            "$ref": "common.schema.json#/$defs/semver"
+          }
         },
-        "required": ["kind", "from", "to", "since"],
+        "required": [
+          "kind",
+          "from",
+          "to",
+          "since"
+        ],
         "additionalProperties": false
       }
     },
-    "extras": { "$ref": "common.schema.json#/$defs/extras" }
+    "extras": {
+      "$ref": "common.schema.json#/$defs/extras"
+    }
   },
-  "required": ["schema", "rename"],
+  "required": [
+    "schema",
+    "rename"
+  ],
   "additionalProperties": false
 }

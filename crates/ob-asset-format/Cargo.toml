@@ -1,0 +1,23 @@
+[package]
+name = "ob-asset-format"
+version.workspace = true
+edition.workspace = true
+description = "Overbright's asset format core: exact values, names, digests, bundles, the pack manifest and layering."
+license.workspace = true
+publish = false
+
+# Above ob-formats (its name hash and ZIP checksum); no window, GPU or audio crate, and it builds for the web
+# (scripts/checks/crate_layers.sh). Nothing in the game reads through it yet.
+[dependencies]
+ob-formats = { path = "../ob-formats" }
+memmap2.workspace = true
+miniz_oxide.workspace = true
+semver.workspace = true
+sha2.workspace = true
+toml.workspace = true
+xxhash-rust.workspace = true
+
+[features]
+# No hooks of its own; declared so a workspace build or test with `--features dev-harness` (the checks' `cargo
+# test`) selects this package too.
+dev-harness = []

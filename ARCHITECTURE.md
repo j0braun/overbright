@@ -46,11 +46,15 @@ original's frames byte for byte, which the gate checks.
 The library is being cut into crates that only depend downward: `ob-core` (`crates/ob-core`: the env macros,
 `game_root`, the clocks, the game folder access, the asset cache, the platform folders, the fingerprint, the
 logs, the game's random numbers, the camera's values), `ob-formats` (`crates/ob-formats`: the file-format
-parsers and the engine's tables, on `ob-core` only), then the rest of the library. Each layer's
+parsers and the engine's tables, on `ob-core` only), `ob-asset-format` (`crates/ob-asset-format`: the core of
+Overbright's own asset format, docs/asset-format/: exact floats, names, digests, bundles, the pack manifest,
+layering, and the generator that keeps the specification's rule tables and schemas in step with the code; on
+`ob-formats`; nothing in the game reads through it yet), then the rest of the library. Each layer's
 modules are listed in `scripts/checks/crate-layers.txt`; `scripts/checks/crate_layers.sh` (in every checks set)
 fails on a reference from a module to a higher layer that is not on `crate-layers-allow.txt` (the references
 still to be moved; the list only shrinks), on a package dependency that points up (`cargo metadata`), on a
-forbidden crate in a low package's tree (no wgpu, winit or cpal under `ob-core` and `ob-formats`) and on
+forbidden crate in a low package's tree (no wgpu, winit or cpal under `ob-core`, `ob-formats` and
+`ob-asset-format`) and on
 `dev-harness` switched on anywhere in the shipped packages' tree. The library keeps every `nfsu2::…` path: a
 module that moves into a crate below is re-exported at its old place. Where a module is split (the cache check, the support
 file, the winit and wgpu parts of `platform` and `prof`), the library's `src/lib.rs` keeps the upper part

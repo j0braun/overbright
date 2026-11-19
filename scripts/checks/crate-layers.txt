@@ -43,6 +43,7 @@ formats ob-formats
 package ob-testkit
 package ob-core
 package ob-formats
+package ob-asset-format
 package nfsu2
 package ob-editor
 package devprobes
@@ -50,8 +51,9 @@ package devprobes
 # forbid PACKAGE CRATE…: crates that must not be in the package's dependency tree (normal and build edges).
 forbid ob-core wgpu winit cpal egui
 forbid ob-formats wgpu winit cpal egui
+forbid ob-asset-format wgpu winit cpal egui
 forbid nfsu2 egui
 
 # wasm PACKAGE…: packages that must build for the web (`cargo check --target wasm32-unknown-unknown`; skipped,
 # with a line, where that target is not installed).
-wasm ob-core ob-formats
+wasm ob-core ob-formats ob-asset-format

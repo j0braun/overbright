@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "pack.schema.json",
   "title": "pack.toml, format 2",
-  "description": "manifest.md. Shape only; cross-file rules (MAN.*, ORD.*) are on the pages. Format-1 manifests are read by the legacy rules of manifest.md section 6 and are not validated by this schema.",
+  "description": "manifest.md. Shape only; cross-file rules (MAN.*, ORD.*) are on the pages. Format-1 manifests are read by the legacy rules of manifest.md section 6 and are not validated by this schema. Generated from the code (crates/ob-asset-format/src/manifest.rs); do not edit.",
   "type": "object",
   "properties": {
     "format": {
@@ -27,11 +27,11 @@
     },
     "authors": {
       "type": "array",
+      "maxItems": 32,
       "items": {
         "type": "string",
         "maxLength": 80
-      },
-      "maxItems": 32
+      }
     },
     "licence": {
       "type": "string",
@@ -97,6 +97,7 @@
       "uniqueItems": true,
       "items": {
         "type": "string",
+        "minLength": 1,
         "pattern": "^[A-Z0-9]+_[a-z0-9_]+$"
       }
     },
@@ -105,6 +106,16 @@
       "uniqueItems": true,
       "items": {
         "type": "string",
+        "minLength": 1,
+        "pattern": "^[A-Z0-9]+_[a-z0-9_]+$"
+      }
+    },
+    "extensions_safe_to_copy": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1,
         "pattern": "^[A-Z0-9]+_[a-z0-9_]+$"
       }
     },
@@ -115,6 +126,8 @@
           "type": "array",
           "items": {
             "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
             "pattern": "^[a-z0-9*][a-z0-9_*-]{0,63}$"
           }
         },
@@ -128,13 +141,31 @@
       "additionalProperties": false
     },
     "dependencies": {
-      "$ref": "#/$defs/packRefs"
+      "type": "object",
+      "propertyNames": {
+        "$ref": "common.schema.json#/$defs/packId"
+      },
+      "additionalProperties": {
+        "$ref": "common.schema.json#/$defs/versionReq"
+      }
     },
     "optional": {
-      "$ref": "#/$defs/packRefs"
+      "type": "object",
+      "propertyNames": {
+        "$ref": "common.schema.json#/$defs/packId"
+      },
+      "additionalProperties": {
+        "$ref": "common.schema.json#/$defs/versionReq"
+      }
     },
     "conflicts": {
-      "$ref": "#/$defs/packRefs"
+      "type": "object",
+      "propertyNames": {
+        "$ref": "common.schema.json#/$defs/packId"
+      },
+      "additionalProperties": {
+        "$ref": "common.schema.json#/$defs/versionReq"
+      }
     },
     "tested": {
       "type": "array",
@@ -144,6 +175,8 @@
         "properties": {
           "race": {
             "type": "string",
+            "minLength": 1,
+            "maxLength": 40,
             "pattern": "^[a-z0-9_-]{1,40}$"
           },
           "race_digest": {
@@ -172,6 +205,8 @@
       "properties": {
         "edition": {
           "type": "string",
+          "minLength": 1,
+          "maxLength": 32,
           "pattern": "^[a-z0-9-]{1,32}$"
         },
         "region": {
@@ -186,11 +221,14 @@
           "uniqueItems": true,
           "items": {
             "type": "string",
+            "minLength": 1,
+            "maxLength": 32,
             "pattern": "^[a-z][a-z0-9_-]{0,31}$"
           }
         },
         "profile": {
           "type": "string",
+          "minLength": 1,
           "pattern": "^[a-z0-9-]+/[0-9]+$"
         },
         "import": {
@@ -218,6 +256,9 @@
     "bundles": {
       "type": "object",
       "propertyNames": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 100,
         "pattern": "^[A-Za-z0-9_-][A-Za-z0-9._-]{0,99}\\.obz$"
       },
       "additionalProperties": {
@@ -226,14 +267,6 @@
     },
     "extras": {
       "$ref": "common.schema.json#/$defs/extras"
-    },
-    "extensions_safe_to_copy": {
-      "type": "array",
-      "uniqueItems": true,
-      "items": {
-        "type": "string",
-        "pattern": "^[A-Z0-9]+_[a-z0-9_]+$"
-      }
     }
   },
   "required": [
@@ -297,16 +330,5 @@
         }
       }
     }
-  ],
-  "$defs": {
-    "packRefs": {
-      "type": "object",
-      "propertyNames": {
-        "$ref": "common.schema.json#/$defs/packId"
-      },
-      "additionalProperties": {
-        "$ref": "common.schema.json#/$defs/versionReq"
-      }
-    }
-  }
+  ]
 }
