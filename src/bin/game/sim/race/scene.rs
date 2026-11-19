@@ -326,6 +326,13 @@ impl ShopRun {
             _ => true,
         }
     }
+
+    /// Whether the scene's own camera is the view (a race's start scene up
+    /// to its cut, an ending, the career's start, the dyno): the scene's
+    /// shots, not the player's chase mover, are drawn.
+    pub(crate) fn camera_holds_view(&self) -> bool {
+        self.holds_cars() && self.camera.is_some()
+    }
 }
 
 /// A race start scene's characters playing (`Game::scene_crowd`).

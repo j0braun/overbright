@@ -95,7 +95,14 @@ fn view_between(a: &nfsu2::garage::View, b: &nfsu2::garage::View, alpha: f32) ->
     v.camera.eye = lerp3(a.camera.eye, b.camera.eye, alpha);
     v.camera.car_angle = lerp(a.camera.car_angle, b.camera.car_angle, alpha);
     v.camera.steer = lerp(a.camera.steer, b.camera.steer, alpha);
-    v.car_angle = lerp(a.car_angle, b.car_angle, alpha);
+    // The mouse's turn keeps the angle within 0..360 (0x4D8B76): across
+    // the wrap the car turns the short way, not back round.
+    let from = match b.car_angle - a.car_angle {
+        d if d > 180.0 => a.car_angle + 360.0,
+        d if d < -180.0 => a.car_angle - 360.0,
+        _ => a.car_angle,
+    };
+    v.car_angle = lerp(from, b.car_angle, alpha);
     v.steer = lerp(a.steer, b.steer, alpha);
     v.platform_angle = lerp(a.platform_angle, b.platform_angle, alpha);
     v

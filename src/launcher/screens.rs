@@ -26,7 +26,8 @@ pub enum Screen {
     Notices,
     Failure,
     Browse,
-    Import,
+    /// The saved games: profiles, backups, import and export.
+    Saves,
     Mods,
     /// The prepare step (`game --prepare`): its bar, Skip.
     Prepare,
@@ -54,7 +55,7 @@ impl Screen {
         Screen::Notices,
         Screen::Failure,
         Screen::Browse,
-        Screen::Import,
+        Screen::Saves,
         Screen::Mods,
         Screen::Prepare,
         Screen::Widgets,
@@ -75,7 +76,7 @@ impl Screen {
             Screen::Notices => "notices",
             Screen::Failure => "crash",
             Screen::Browse => "browse",
-            Screen::Import => "import",
+            Screen::Saves => "saves",
             Screen::Mods => "mods",
             Screen::Prepare => "prepare",
             Screen::Widgets => "widgets",
@@ -95,7 +96,7 @@ impl Screen {
     }
 
     /// The page in the top bar this screen belongs to (Game, Settings,
-    /// Mods), if any.
+    /// Mods, Saves, Dev), if any.
     pub fn page(self) -> Option<usize> {
         match self {
             Screen::Main | Screen::Prepare => Some(0),
@@ -104,10 +105,10 @@ impl Screen {
             | Screen::Storage
             | Screen::About
             | Screen::Licence
-            | Screen::Notices
-            | Screen::Import => Some(1),
+            | Screen::Notices => Some(1),
             Screen::Mods => Some(2),
-            Screen::Dev => Some(3),
+            Screen::Saves => Some(3),
+            Screen::Dev => Some(4),
             _ => None,
         }
     }
@@ -182,6 +183,10 @@ pub struct App<'e> {
     pub support_job: Option<std::sync::mpsc::Receiver<Result<PathBuf, String>>>,
     /// The map editor started from the Mods page, while it is open.
     pub editor_job: Option<Box<dyn super::model::EditorJob>>,
+    /// The Saves page's worker: its result on the way, and what its jobs
+    /// keep between runs.
+    pub saves_rx: Option<std::sync::mpsc::Receiver<super::saves::jobs::Done>>,
+    pub saves_ctx: Option<super::saves::jobs::Ctx>,
 }
 
 fn res_text(m: &Model, r: (u32, u32)) -> String {
@@ -311,6 +316,7 @@ pub fn build(b: &mut Builder, m: &Model, screen: Screen) {
         Screen::Dev => build_dev(b, m),
         Screen::Recover => build_recover(b, m),
         Screen::Failure => build_crash(b, m),
+        Screen::Saves => super::saves_page::build(b, m),
         _ => build_page(b, m, screen),
     }
     let version =
@@ -327,6 +333,9 @@ pub fn build(b: &mut Builder, m: &Model, screen: Screen) {
             &[("keep_settings", "Keep my settings"), ("reset_yes", "Back to defaults")],
         ),
         _ => {}
+    }
+    if screen == Screen::Saves {
+        super::saves_page::dialog(b, m);
     }
     if screen == Screen::Storage {
         match &m.ask {
@@ -422,8 +431,13 @@ pub fn portable_note(m: &Model) -> &'static str {
 }
 
 /// The pages in the top bar.
-pub const PAGES: [(&str, &str); 4] =
-    [("page:game", "Game"), ("page:settings", "Settings"), ("page:mods", "Mods"), ("page:dev", "Dev")];
+pub const PAGES: [(&str, &str); 5] = [
+    ("page:game", "Game"),
+    ("page:settings", "Settings"),
+    ("page:mods", "Mods"),
+    ("page:saves", "Saves"),
+    ("page:dev", "Dev"),
+];
 
 /// The legends under a screen: what the buttons do there.
 pub fn legends_for(m: &Model, screen: Screen) -> Vec<super::legends::Action> {
@@ -456,6 +470,7 @@ pub fn legends_for(m: &Model, screen: Screen) -> Vec<super::legends::Action> {
             v.push(action(Btn::X, "Remove"));
             v.push(action(Btn::Back, "Back"));
         }
+        Screen::Saves => super::saves_page::legends(&mut v),
         Screen::FirstRun => v.push(action(Btn::Back, "Quit")),
         // Details as a legend only while the screen offers it.
         Screen::Check if m.check.as_ref().is_some_and(|c| c.summary.is_some()) => {
@@ -537,6 +552,7 @@ fn build_page(b: &mut Builder, m: &Model, screen: Screen) {
                 BrowseFor::HudMod => "Add the HUD mod",
                 BrowseFor::MapMod => "Import a map mod",
                 BrowseFor::MapExport => "Export the map mod to…",
+                BrowseFor::SavesExport => "Export the profile to…",
                 BrowseFor::Location => "Choose the new folder",
             });
             // The places, then the folder shown as clickable parts.
@@ -636,67 +652,6 @@ fn build_page(b: &mut Builder, m: &Model, screen: Screen) {
             });
             b.footer(foot);
         }
-        Screen::Import => {
-            b.page_title("Import saves", Some("Settings"));
-            b.body(
-                "Copies your profiles from the original game's save folder into Overbright's own. \
-                 The original's files are only read: nothing there is changed, moved or deleted.",
-            );
-            b.gap(12.0);
-            b.dim("From:");
-            match m.import.scan.as_ref() {
-                Some(s) => line(b, &s.from.display().to_string()),
-                None => line(b, "no folder chosen yet"),
-            }
-            b.gap(6.0);
-            b.buttons(Align::Left, vec![Ctrl::button("pick", "Choose folder…")]);
-            b.gap(8.0);
-            b.dim("To (Overbright's save folder):");
-            line(b, &m.saves_dir.display().to_string());
-            b.gap(12.0);
-            let mut copy_n = 0;
-            if let Some(s) = &m.import.scan {
-                let lines = s.lines();
-                if lines.is_empty() {
-                    b.status(
-                        Mark::Info,
-                        "No saves in this folder. A save is a folder holding a file of the same name (NIGHTOWL/NIGHTOWL).",
-                    );
-                }
-                for (new, l) in lines {
-                    b.status(if new { Mark::Ok } else { Mark::Info }, &l);
-                }
-                copy_n = s.to_copy().count();
-            }
-            if let Some(done) = &m.import.done {
-                b.gap(4.0);
-                if done.is_empty() {
-                    b.status(Mark::Info, "Nothing was copied.");
-                } else {
-                    b.status(
-                        Mark::Ok,
-                        &format!(
-                            "Copied {} {}: {}",
-                            done.len(),
-                            if done.len() == 1 { "file" } else { "files" },
-                            done.join(", ")
-                        ),
-                    );
-                }
-                copy_n = 0;
-            }
-            message(b, m);
-            b.footer(vec![
-                Ctrl::button("back", "Back"),
-                Ctrl::Button {
-                    id: "copy",
-                    text: if copy_n == 1 { "Copy 1 save".into() } else { format!("Copy {copy_n} saves") },
-                    primary: true,
-                    enabled: copy_n > 0,
-                },
-            ]);
-            b.default_focus = Some(if copy_n > 0 { "copy" } else { "pick" });
-        }
         Screen::Mods => build_mods(b, m),
         Screen::Prepare => build_prepare(b, m),
         Screen::FirstRun
@@ -706,6 +661,7 @@ fn build_page(b: &mut Builder, m: &Model, screen: Screen) {
         | Screen::Advanced
         | Screen::Recover
         | Screen::Storage
+        | Screen::Saves
         | Screen::Dev => {}
         Screen::Widgets => {
             b.label_column(&["Cycle", "Text field", "Buttons"]);
@@ -880,6 +836,7 @@ pub fn dialog_title(p: BrowseFor) -> &'static str {
         BrowseFor::HudMod => "Choose the HUD mod's folder",
         BrowseFor::MapMod => "Choose the map mod (a folder with map.obmap, or its .zip)",
         BrowseFor::MapExport => "Choose the folder to export the map mod to",
+        BrowseFor::SavesExport => "Choose the folder to export the profile to",
         BrowseFor::Location => "Choose the new folder",
     }
 }
@@ -2116,6 +2073,8 @@ impl<'e> App<'e> {
             editor_job: None,
             keys_after: None,
             copy_job: None,
+            saves_rx: None,
+            saves_ctx: None,
         };
         a.rebuild(fonts);
         a
@@ -2288,6 +2247,13 @@ impl<'e> App<'e> {
             },
             _ => input.clone(),
         };
+        if self.screen == Screen::Saves
+            && let Input::Key(k) = input
+            && let Some(o) = self.saves_key(*k)
+        {
+            self.rebuild(fonts);
+            return o;
+        }
         if let Input::Key(k @ (Key::PagePrev | Key::PageNext | Key::ActionX | Key::ActionY)) = input {
             let o = self.page_key(*k);
             self.rebuild(fonts);
@@ -2467,7 +2433,7 @@ impl<'e> App<'e> {
                     entries.retain(|e| !packages.iter().any(|p| p.path == e.path));
                     entries.extend(packages);
                 }
-                if matches!(b.purpose, BrowseFor::HudMod | BrowseFor::MapMod) {
+                if matches!(b.purpose, BrowseFor::HudMod | BrowseFor::MapMod | BrowseFor::Saves) {
                     entries.extend(self.env.list_archives(&dir));
                 }
                 b.entries = entries;
@@ -2554,26 +2520,11 @@ impl<'e> App<'e> {
                     self.queue_import(paths);
                 }
             }
-            BrowseFor::Saves => {
-                self.model.import.scan = Some(self.env.scan_saves(&dir));
-                self.model.import.done = None;
-                self.go(Screen::Import);
+            BrowseFor::Saves | BrowseFor::SavesExport => {
+                let purpose = self.model.browse.purpose;
+                self.saves_folder(purpose, dir);
             }
         }
-    }
-
-    /// Where the save browser starts: inside the Wine prefix of the game
-    /// folder in use (`drive_c/users`), else the home folder.
-    fn saves_start(&self) -> Option<PathBuf> {
-        let root = self.model.root.as_ref()?;
-        let mut p = root.as_path();
-        while let Some(parent) = p.parent() {
-            if p.file_name().is_some_and(|n| n == "drive_c") {
-                return Some(p.join("users"));
-            }
-            p = parent;
-        }
-        None
     }
 
     /// A browser row is a package file (listed by [`Env::list_packages`]).
@@ -2825,7 +2776,12 @@ impl<'e> App<'e> {
                 self.back = Screen::FirstRun;
                 self.go(Screen::Check);
             }
-            (Screen::Browse, Some(BrowseFor::TexturePack | BrowseFor::Saves)) => self.use_folder(folder(&first)),
+            (Screen::Browse, Some(BrowseFor::TexturePack)) => self.use_folder(folder(&first)),
+            // A folder of saves, a profile's folder or a zip of saves.
+            (Screen::Saves, _) | (Screen::Browse, Some(BrowseFor::Saves)) => {
+                let p = if archive(&first) || first.is_dir() { first.clone() } else { folder(&first) };
+                self.saves_folder(BrowseFor::Saves, p);
+            }
             (Screen::Main | Screen::Mods, _) | (Screen::Browse, Some(BrowseFor::Packages | BrowseFor::HudMod)) => {
                 // A ZIP holding a TexWizard pack is a package, not the HUD mod.
                 let (hud, packs): (Vec<PathBuf>, Vec<PathBuf>) = paths.iter().cloned().partition(|p| {
@@ -2864,6 +2820,16 @@ impl<'e> App<'e> {
 
     /// The new screens' and dialogs' events (None: not handled here).
     fn event_a(&mut self, e: &Event) -> Option<Outcome> {
+        if self.screen == Screen::Saves {
+            if let Some(o) = self.saves_dialog_event(e) {
+                return Some(o);
+            }
+            if self.model.ask.is_none()
+                && let Some(o) = self.saves_event(e)
+            {
+                return Some(o);
+            }
+        }
         let m = &mut self.model;
         if m.ask.is_some() {
             match e {
@@ -2908,7 +2874,8 @@ impl<'e> App<'e> {
             (_, Event::Activate("page:game")) => self.go_page(0),
             (_, Event::Activate("page:settings")) => self.go_page(1),
             (_, Event::Activate("page:mods")) => self.go_page(2),
-            (_, Event::Activate("page:dev")) => self.go_page(3),
+            (_, Event::Activate("page:saves")) => self.go_page(3),
+            (_, Event::Activate("page:dev")) => self.go_page(4),
             (Screen::Dev, Event::Activate("editor_play")) => {
                 self.model.play_args = vec!["--editor".into()];
                 self.motion.play_pressed();
@@ -3304,7 +3271,8 @@ impl<'e> App<'e> {
         match i {
             0 => self.go(Screen::Main),
             1 => self.go(Screen::Settings),
-            3 => self.go(Screen::Dev),
+            3 => self.open_saves(),
+            4 => self.go(Screen::Dev),
             _ => {
                 self.model.mods.list = self.env.mods();
                 self.model.mods.confirm = None;
@@ -3455,7 +3423,7 @@ impl<'e> App<'e> {
     /// The window's poll: a finished support file shown, the map editor's
     /// end. True when the screen changed.
     pub fn poll_jobs(&mut self, fonts: &Fonts) -> bool {
-        if self.poll_editor() {
+        if self.poll_editor() || self.poll_saves() {
             self.rebuild(fonts);
             return true;
         }
@@ -3657,13 +3625,8 @@ impl<'e> App<'e> {
                 self.go(Screen::About);
             }
             (Screen::Advanced, Event::Activate("import")) => {
-                self.model.import.done = None;
-                if self.model.import.scan.is_none()
-                    && let Some(d) = self.env.original_saves().filter(|d| d.is_dir())
-                {
-                    self.model.import.scan = Some(self.env.scan_saves(&d));
-                }
-                self.go(Screen::Import);
+                self.open_saves();
+                self.st.focus = Some("find");
             }
             (Screen::Main, Event::Activate("play")) => {
                 self.motion.play_pressed();
@@ -3802,6 +3765,10 @@ impl<'e> App<'e> {
                         && self.model.browse.entries.iter().any(|e| e.path == d && e.note.contains("archive"))
                     {
                         self.hud_pick(d);
+                    } else if self.model.browse.purpose == BrowseFor::Saves
+                        && self.model.browse.entries.iter().any(|e| e.path == d && e.note.contains("archive"))
+                    {
+                        self.use_folder(d);
                     } else if self.model.browse.purpose == BrowseFor::MapMod
                         && (self.model.browse.entries.iter().any(|e| e.path == d && e.note.contains("archive"))
                             || self.env.mod_kind(&d) == Some(super::model::ModKind::Map))
@@ -3864,31 +3831,6 @@ impl<'e> App<'e> {
             (Screen::Main | Screen::Failure, Event::Activate("probe_again")) => {
                 self.model.probe = ProbeState::Pending;
                 self.model.probe_again = true;
-            }
-            (Screen::Import, Event::Activate("back") | Event::Back) => self.go(Screen::Advanced),
-            (Screen::Import, Event::Activate("pick")) => {
-                let start = self
-                    .model
-                    .import
-                    .scan
-                    .as_ref()
-                    .map(|s| s.from.clone())
-                    .or_else(|| self.env.original_saves())
-                    .or_else(|| self.saves_start());
-                self.choose_folder(BrowseFor::Saves, start);
-            }
-            (Screen::Import, Event::Activate("copy")) => {
-                if let Some(s) = self.model.import.scan.clone() {
-                    match self.env.import_saves(&s) {
-                        Ok(done) => {
-                            self.model.import.done = Some(done);
-                            self.model.import.scan = Some(self.env.scan_saves(&s.from));
-                        }
-                        Err(e) => {
-                            self.model.message = Some((Mark::Error, format!("The saves could not be copied: {e}")))
-                        }
-                    }
-                }
             }
             (Screen::Widgets, Event::Step("cycle", d)) => {
                 self.model.demo.cycle = (self.model.demo.cycle as i32 + d).rem_euclid(DEMO_VALUES.len() as i32) as usize

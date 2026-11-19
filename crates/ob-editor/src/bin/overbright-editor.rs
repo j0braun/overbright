@@ -5,7 +5,8 @@
 //!                                   the window, with that map mod open
 //! overbright-editor --shot out.png [--size WxH] [--scale F] [--mod <folder>] [--region <code>]
 //!                   [--mode props|races] [--tool <name>] [--view 3d|map|street|whole|top] [--tab browser|validation|simulate|log] [--select N,M]
-//!                   [--light work|game] [--sim stream.txt[@seconds[:car]]]
+//!                   [--light work|game] [--sim stream.txt[@seconds[:car]]] [--hover simulate|drive-here|test-race]
+//!                   [--dialog how-to-test|controls] [--run test-race|drive-here] (--run: OB_GAME_EXE a stand-in)
 //!                                   the whole window drawn off-screen into a PNG (no window)
 //! ```
 //! The game folder is `NFSU2_ROOT`, else the one the launcher kept.

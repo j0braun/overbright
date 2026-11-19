@@ -97,6 +97,9 @@ Other things the original does with a pad, which Original keeps:
   every pad without a preset, so world-map zoom and list paging are out of reach. The profile name can only
   be typed, so a pad can only accept "NAME".
 - With two pads, buttons from both count; analog input comes from the first pad attached (**inferred**).
+- The car on the front end's platform does not turn on any pad input or key. Only the mouse turns it: hold the
+  middle button and drag sideways to turn the car, up or down to lower or raise the camera
+  ([formats/front-end.md](../formats/front-end.md), "Turning the car").
 - No rumble: the original's effects are DirectInput force feedback, which pads do not expose.
 - Help lines show keyboard keys ("Enter: Select") whatever the device.
 - Every menu screen is reachable: the pad's menu map gives the keyboard's arrows, Enter, Esc, C, `,` and `.`.

@@ -8,6 +8,7 @@ pub mod browser;
 pub mod camera;
 pub mod mapview;
 pub mod menu;
+pub mod modes;
 pub mod overlay;
 pub mod props;
 pub mod races;

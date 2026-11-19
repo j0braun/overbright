@@ -643,6 +643,7 @@ impl Run<'_> {
                 Kind::Dialog => "dialog",
                 Kind::Legends { .. } => "legends",
                 Kind::Glyph { .. } => "glyph",
+                Kind::Picture { .. } => "picture",
             };
             // A control: its id, "(off)" when it cannot be used, and its
             // box in window pixels (where a test clicks it).
@@ -994,6 +995,7 @@ impl ApplicationHandler for Run<'_> {
                         NamedKey::Escape => Some(Key::Escape),
                         NamedKey::Backspace => Some(Key::Backspace),
                         NamedKey::Delete => Some(Key::Delete),
+                        NamedKey::F2 => Some(Key::Rename),
                         NamedKey::Home => Some(Key::Home),
                         NamedKey::End => Some(Key::End),
                         NamedKey::PageUp => Some(Key::PageUp),
@@ -1001,6 +1003,16 @@ impl ApplicationHandler for Run<'_> {
                         NamedKey::Space if !self.focused_is_field() => Some(Key::Space),
                         _ => None,
                     },
+                    // Ctrl+B / Ctrl+E / Ctrl+Z: the Saves page's back up,
+                    // export and undo.
+                    WKey::Character(c) if self.mods.control_key() && !shift => {
+                        match c.to_ascii_lowercase().as_str() {
+                            "b" => Some(Key::BackUp),
+                            "e" => Some(Key::Export),
+                            "z" => Some(Key::Undo),
+                            _ => None,
+                        }
+                    }
                     // Q / E: the pages; R: a page's second action (not
                     // while a text field takes letters).
                     WKey::Character(c) if !self.focused_is_field() && !self.mods.control_key() => {
@@ -1122,6 +1134,7 @@ impl ApplicationHandler for Run<'_> {
         } else if self.running.is_some()
             || self.probe.is_some()
             || self.import.is_some()
+            || self.app.saves_rx.is_some()
             || self.hud_job.is_some()
             || self.dialog.is_some()
             || self.app.model.dialog.is_some()
@@ -1130,6 +1143,9 @@ impl ApplicationHandler for Run<'_> {
             el.set_control_flow(ControlFlow::WaitUntil(Instant::now() + Duration::from_millis(50)));
         } else if self.pad.is_some() {
             el.set_control_flow(ControlFlow::WaitUntil(Instant::now() + Duration::from_millis(16)));
+        } else if let Some(t) = self.app.saves_wake() {
+            // The Saves page's Undo goes away by itself.
+            el.set_control_flow(ControlFlow::WaitUntil(t));
         } else {
             el.set_control_flow(ControlFlow::Wait);
         }

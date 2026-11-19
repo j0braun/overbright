@@ -439,6 +439,14 @@ pub enum Dialog {
     PortableOn,
     /// Turn portable mode off?
     PortableOff,
+    /// Delete this profile (Saves)?
+    SaveDelete(String),
+    /// Make a copy of this profile?
+    SaveDuplicate(String),
+    /// Restore this backup over a profile of its name, or as a copy?
+    SaveRestore(super::saves::store::Backup),
+    /// Delete this backup?
+    SaveDeleteBackup(super::saves::store::Backup),
 }
 
 /// Everything the screens show.
@@ -511,8 +519,8 @@ pub struct Model {
     pub failure: Option<Failure>,
     /// The folder browser's state.
     pub browse: Browse,
-    /// The save import's state.
-    pub import: Import,
+    /// The Saves page.
+    pub saves: super::saves_page::SavesPage,
     /// The log folder (shown on the failure screen).
     pub logs_dir: PathBuf,
     /// Overbright's profiles folder (the import's target).
@@ -996,6 +1004,8 @@ pub enum BrowseFor {
     MapMod,
     /// The folder a map mod is exported to.
     MapExport,
+    /// The folder a profile is exported to (Saves).
+    SavesExport,
     /// A new place for one of Overbright's folders (Storage).
     Location,
 }
@@ -1097,14 +1107,6 @@ pub fn path_parts(path: &str, windows: bool) -> Vec<(String, String)> {
     out
 }
 
-/// The save import.
-#[derive(Clone, Debug, Default, PartialEq)]
-pub struct Import {
-    pub scan: Option<saves::Scan>,
-    /// The files copied by the last import.
-    pub done: Option<Vec<String>>,
-}
-
 #[derive(Clone, Debug, PartialEq)]
 pub struct Demo {
     pub cycle: usize,
@@ -1157,10 +1159,13 @@ pub trait Env {
     /// then on this launcher and the game keep everything in the data
     /// folder beside them.
     fn make_portable(&self) -> Result<(), String>;
-    /// What a save folder holds, against Overbright's profiles.
-    fn scan_saves(&self, from: &Path) -> saves::Scan;
-    /// Copies the new saves; the files copied.
-    fn import_saves(&self, s: &saves::Scan) -> Result<Vec<String>, String>;
+    /// The Saves page's worker context (None: no worker; the jobs run at
+    /// once through [`Env::saves_run`]).
+    fn saves_ctx(&self, _game: Option<PathBuf>) -> Option<saves::jobs::Ctx> {
+        None
+    }
+    /// A Saves page job run at once.
+    fn saves_run(&self, job: saves::jobs::Job) -> saves::jobs::Done;
     /// The system's own folder dialog ([`system_folder_dialog`]); the
     /// fake data has none (Overbright's own browser opens).
     fn folder_dialog(&self, _title: &str, _start: Option<&Path>) -> Picked {
@@ -1721,6 +1726,13 @@ pub fn other_languages(all: &[String]) -> Vec<String> {
 /// The real machine.
 pub struct RealEnv;
 
+/// The Saves page's jobs on the player's folders.
+fn real_saves_ctx(game: Option<PathBuf>) -> saves::jobs::Ctx {
+    let p = saves::store::Paths::player();
+    let src = saves::sources::Ctx::here(game, p.profiles.clone());
+    saves::jobs::Ctx::new(p, src)
+}
+
 impl Env for RealEnv {
     fn load(&self) -> Model {
         let (choices, file) = load_choices();
@@ -1781,7 +1793,7 @@ impl Env for RealEnv {
             controller: None,
             failure: None,
             browse: Browse::default(),
-            import: Import::default(),
+            saves: Default::default(),
             logs_dir: super::dirs::logs(),
             saves_dir: super::dirs::profiles(),
             build: crate::build_info::version_line(),
@@ -1912,12 +1924,12 @@ impl Env for RealEnv {
         super::dirs::original_saves()
     }
 
-    fn scan_saves(&self, from: &Path) -> saves::Scan {
-        saves::scan(from, &super::dirs::profiles())
+    fn saves_ctx(&self, game: Option<PathBuf>) -> Option<saves::jobs::Ctx> {
+        Some(real_saves_ctx(game))
     }
 
-    fn import_saves(&self, s: &saves::Scan) -> Result<Vec<String>, String> {
-        saves::import(s, &super::dirs::profiles())
+    fn saves_run(&self, job: saves::jobs::Job) -> saves::jobs::Done {
+        saves::jobs::run(&real_saves_ctx(None), job)
     }
 
     fn folder_dialog(&self, title: &str, start: Option<&Path>) -> Picked {
@@ -2306,6 +2318,9 @@ impl FakeEnv {
 
 impl Env for FakeEnv {
     fn load(&self) -> Model {
+        // Times in a fixed form: the renders and tests do not depend on the
+        // machine's time zone or language.
+        super::localtime::fixed();
         let choices = Choices {
             fullscreen: true,
             resolution: (1920, 1080),
@@ -2389,7 +2404,7 @@ impl Env for FakeEnv {
                 input: String::new(),
                 places: self.places(),
             },
-            import: Import { scan: Some(self.scan_saves(Path::new(FAKE_SAVES))), done: None },
+            saves: super::saves_page::fake_page(),
             logs_dir: PathBuf::from("/data/player/.local/share/overbright/logs"),
             saves_dir: PathBuf::from("/data/player/.local/share/NFS Underground 2"),
             build: format!("Overbright {} (commit unknown, linux-x86_64)", env!("CARGO_PKG_VERSION")),
@@ -2508,28 +2523,8 @@ impl Env for FakeEnv {
         None
     }
 
-    fn scan_saves(&self, from: &Path) -> saves::Scan {
-        let item = |name: &str, profile, bytes, exists| saves::Item {
-            name: name.into(),
-            profile,
-            files: vec![name.into()],
-            bytes,
-            exists,
-            dir: from.join(name),
-        };
-        saves::Scan {
-            from: from.to_path_buf(),
-            items: vec![
-                item("NIGHTOWL", true, 151_016, false),
-                item("NIGHTOWL DVD 1", false, 98_336, false),
-                item("NIGHTOWL Magazine 3", false, 98_336, false),
-                item("RACER", true, 151_016, true),
-            ],
-        }
-    }
-
-    fn import_saves(&self, s: &saves::Scan) -> Result<Vec<String>, String> {
-        Ok(s.to_copy().map(|i| format!("{0}/{0}", i.name)).collect())
+    fn saves_run(&self, job: saves::jobs::Job) -> saves::jobs::Done {
+        super::saves_page::fake_run(job)
     }
 
     fn locations(&self) -> Vec<LocRow> {

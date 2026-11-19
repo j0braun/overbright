@@ -1599,8 +1599,15 @@ Explore mode's and races' traffic. Verified except where noted.
   6) on 99.8% of point-lanes. Used lanes read 15–20 m/s. A dead end parks
   the car.
 * **Junctions** (verified): the walk (0x41EC20) runs with the traffic
-  goal "Be ambient traffic car" (vtable 0x784900, type 8, controller
-  +0x6FC; ctor 0x40CB30, inline at 0x42AB73 / 0x42C884). At a point's junctions of the
+  goal "Be traffic car" (vtable 0x7848A0, +0x14 = 7, controller +0x6FC;
+  ctor 0x40CAF0; **observed** under Wine: all 16 traffic cars of a
+  free-roam run). The placements 0x42C670 / 0x42C950 build it unless they
+  are handed a race teleporter entry (controller +0x7A0, none in the
+  retail data), which gets "Be ambient traffic car" (vtable 0x784900,
+  +0x14 = 8, ctor 0x40CB30, inline at 0x42AB73 / 0x42C884). The two
+  vtables share every slot but the name (+0x08), the kind (+0x0C:
+  0x40CB20 → 1, 0x408CD0 → 2) and the chooser (+0x38: 0x426C20 /
+  0x426D70, the same code). At a point's junctions of the
   direction (bit 18 = travelled backward; bit 23 flips), in order: low
   nibble 3 ends the walk; the traffic type is the **high nibble** (bits
   4–7; racers read the low one): 2 is always taken (goal slot +0x2C,
@@ -1635,8 +1642,8 @@ Explore mode's and races' traffic. Verified except where noted.
   for traffic. Clone: the same `AiDriver` with cap 1
   (`TRAFFIC_THROTTLE_CAP`), its `mover` (2, or 3 after a hit) and
   `traffic` set each frame in `traffic_think`.
-* **Actions** (verified): the traffic goal (vtable 0x784900) proposes
-  (slot +0x38, 0x426D70) "Obey traffic intersections" (type 0x11, vtable
+* **Actions** (verified): the traffic goal (vtable 0x7848A0) proposes
+  (slot +0x38, 0x426C20; 0x426D70 for the ambient goal) "Obey traffic intersections" (type 0x11, vtable
   0x785990, update 0x425150) at priority 600 while the walk has an
   intersection ahead (0x4149E0), else "Avoid Cars as a traffic car" (type
   2, 0x785950, update 0x424CB0; ctor 0x424B40) at 300 when 0x4145B0 finds
@@ -1661,7 +1668,12 @@ Explore mode's and races' traffic. Verified except where noted.
   any object in its side window is taken at time 0) finds one whose time
   is at most 5 s and that 0x4140E0 keeps (a car crossing at the
   intersection is dropped); its exemption for an object over 20 m/s
-  needs the controller's slot +0x68 and 0x60BEB0, never true for traffic.
+  (0x7850D8) needs the controller's slot +0x68 (0x41E790 → the goal's
+  0x40C9C0: the goal's kind, slot +0x0C, is 2) and 0x60BEB0 (the object's
+  car +0x1C → +0x1C, a racer; the free-roam player's car +0x1C is set,
+  observed). The "Be traffic car" goal's kind is 1, so it never applies
+  to the traffic in the retail data (only a teleporter-placed car's
+  ambient goal has kind 2; **verified** statically, the goal **observed**).
   **0x424CB0** (verified, round 4, 2026-10-31): only while the tracked
   object (+0x218, a road-entry node: its car is node +0x1C) is among the
   entries (0x60C130), is a **human's car** (0x614890: the node's car's
@@ -1822,6 +1834,19 @@ Explore mode's and races' traffic. Verified except where noted.
   last push through 0x592BE0 → 0x5B2280, and a pair with a record is never
   deleted, 0x592E70), so a re-placed car's first stuck test can read its
   old pushes, natively as in the clone.
+  Checked again value by value (2026-11-19): the think runs it only while
+  0x430340 (NIS manager 0x827E88 +0x61) holds and +0x77D is clear; the
+  records are found through the pair list 0x86B490 (pair +0x238 / +0x23C
+  the two bodies, +0x244 the record; the end is 0x86B490 − 0x230,
+  0x56D500); each record also goes through 0x402A40, whose result is
+  unused; the loop stops at the first record over 30, and the slow test
+  runs after it either way. **Observed** under Wine (bot scenario, a memory
+  watch of +0x710 and the pair list, 10 runs): the record read at a stop
+  is the player's, an encounter car's or a wall's at 30.2–35.3, once the
+  player's at 29.0 with the car standing (the slow test); the clone's
+  stops read 30.0–35.8. The clone's surplus of stopped cars in that
+  scenario comes from encounter cars hitting traffic (8.5 such records a
+  run, 3 over 30, against 1.5 and 0.3 in the original), not from the test.
   Only the placement clears +0x710: 0x5FBEE0 calls the controller's slot
   +0x34, **0x42A050** (+0x710 = +0x77C = +0x798 = 0, a new Drive Traffic
   Lane action, the path). A stopped car is not parked, so it stays placed
@@ -2158,7 +2183,8 @@ Explore mode's and races' traffic. Verified except where noted.
   starts a pass: from the slot after the last one looked at (+0x04),
   round-robin, each car that 0x417BB0 says needs placing (verified: its
   controller's slot +0x68, 0x41E790 → the goal's slot +0x10, 0x40C9C0, is
-  goal type == 2, false for traffic's type 8, so the branch is 0x410DE0:
+  goal kind (slot +0x0C) == 2, false for the "Be traffic car" goal's 1,
+  so the branch is 0x410DE0:
   0x409890 in a coordinate race, else 0x409840 on car +0x60; 0x5F0FC0
   takes the least 2D distance to the points at manager +0x80 + 0x10·i,
   which 0x609CF0 fills each frame from the first +0x14 cars of the list

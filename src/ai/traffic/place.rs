@@ -171,7 +171,8 @@ pub(super) fn drag_lane(
 }
 
 /// The next control point walking a direction (0x41EC20 with the traffic
-/// goal "Be ambient traffic car", vtable 0x784900). At a point's junctions
+/// goal "Be traffic car", vtable 0x7848A0; "Be ambient traffic car",
+/// 0x784900, has the same slots here). At a point's junctions
 /// of the direction (bit 18 = travelled backward), in order: a type 3 (low
 /// nibble) ends the walk; the traffic type is the high nibble (bits 4–7):
 /// 2 is always taken (slot +0x2C, 0x40CB70); 4 is taken with odds ½ (slot

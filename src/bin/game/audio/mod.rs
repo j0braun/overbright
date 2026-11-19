@@ -106,6 +106,8 @@ pub(crate) struct Audio {
     /// FEGarage_UpdateCarTurn's turn sound (0x4D8BE6..0x4D8C5A): the last
     /// car angle (+0x170) and the playing / stopped flags (+0x16C / +0x16D).
     pub(crate) car_turn: (f32, bool, bool),
+    /// The garage's |turn rate| for the turn loop's pitch (0x7EC858).
+    pub(crate) car_turn_rate: f32,
     /// The open engage dialog's "ready" sound (`Game::dialog_ready_sound`):
     /// the screen's opening time, when its package sends 0x35F8620B (ms
     /// from the opening), and whether it played.
@@ -278,6 +280,7 @@ impl Game {
             driveby: nfsu2::audio::driveby::DriveBy::new(&self.game_data.root),
             gps_found: false,
             car_turn: (0.0, false, false),
+            car_turn_rate: 0.0,
             dialog_ready: None,
             streams,
             reverb: Default::default(),

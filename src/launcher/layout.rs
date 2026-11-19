@@ -317,10 +317,16 @@ impl<'a> Builder<'a> {
                         f = fit(k);
                     }
                 }
+                // Room for the bumper glyphs on both sides (drawn by the
+                // legends); on the narrowest windows at the largest text the
+                // names take it (five pages).
+                let mut margin = self.a(52.0);
+                if x1 - f.4 - margin < x0 + ring + self.a(12.0) {
+                    margin = (x1 - f.4 - x0 - ring - self.a(12.0)).max(0.0);
+                }
                 let (ts, padx, gap, widths, total) = f;
                 let th = self.lh_of(Face::LabelItalic, ts);
-                // Room for the bumper glyphs on both sides (drawn by the legends).
-                let mut x = x1 - total - self.a(52.0);
+                let mut x = x1 - total - margin;
                 let h = (th + self.a(12.0)).min(2.0 * (self.ac(84.0) - self.a(6.0) - mid)).max(th);
                 for (i, ((id, name), w)) in pages.iter().zip(&widths).enumerate() {
                     let r = Rect::new(x, mid - h / 2.0, *w, h);
@@ -345,7 +351,7 @@ impl<'a> Builder<'a> {
                     let (fonts, u) = (self.fonts, self.m.u);
                     let gw = |g| super::legends::glyph_width(fonts, g, u);
                     let gh = self.a(28.0);
-                    let first_x = x1 - total - self.a(52.0);
+                    let first_x = x1 - total - margin;
                     let l = g[0];
                     let lr = Rect::new(first_x - self.a(10.0) - gw(l), mid - gh / 2.0, gw(l), gh);
                     self.push(None, lr, Kind::Glyph { glyph: l }, Vec::new());

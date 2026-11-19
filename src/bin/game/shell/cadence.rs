@@ -136,7 +136,7 @@ impl Game {
     pub(crate) fn view_history_key(&self) -> u32 {
         // Each shot of the scene's camera track its own: a cut between
         // two shots under 30 m apart was blended over the 1/30 s update.
-        if let Some(run) = self.scenes.shop.as_ref().filter(|r| r.holds_cars())
+        if let Some(run) = self.scenes.shop.as_ref().filter(|r| r.camera_holds_view())
             && let Some(track) = run.camera.as_ref()
         {
             return 0x100 + run.scene.camera_shot(track, run.frame.min(run.scene.length)).map_or(0, |s| s as u32 + 1);

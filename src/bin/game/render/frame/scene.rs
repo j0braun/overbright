@@ -648,7 +648,7 @@ impl WorldScene<'_, '_> {
         let (gpu, color, depth) = (c.gpu, c.color, c.depth);
         let settings = c.game.settings;
         // The view's own car is left out (camera +0x280, 0x60D584).
-        let hidden = native_mover_type(c.game.mode, Some(c.d)) == 1 && c.d.chase.hides_car() && !inp.photo_open;
+        let hidden = player_car_hidden(c.game.mode, c.d, c.game.shop_scene) && !inp.photo_open;
         let d: &mut Drive = c.d;
         let cam: &Camera = c.camera;
         let ps = c.game.poses.player();

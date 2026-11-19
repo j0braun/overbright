@@ -43,11 +43,14 @@ pub(crate) struct MouseState {
     /// UI_InGame_WorldMap's last zone (the zone list's [0], 0x4CBEE0):
     /// its kind, index and the map's opening time.
     pub(crate) map_zone: Option<(u8, usize, f32)>,
+    /// The tick's mouse as GarageMain reads it (0x4A5D90), taken by the
+    /// garage's update (`Game::garage_view_tick`).
+    pub(crate) garage: Option<nfsu2::garage::DragInput>,
 }
 
 impl Default for MouseState {
     fn default() -> MouseState {
-        MouseState { held_fired: false, mute: false, arrow_at: None, press_at: None, map_zone: None }
+        MouseState { held_fired: false, mute: false, arrow_at: None, press_at: None, map_zone: None, garage: None }
     }
 }
 
@@ -313,6 +316,9 @@ pub(crate) fn mouse_input(event: &WindowEvent) -> Option<crate::InputEvent> {
         WindowEvent::MouseInput { state, button, .. } if *button == clicking_button() => {
             InputEvent::Button(*state == ElementState::Pressed)
         }
+        WindowEvent::MouseInput { state, button: MouseButton::Middle, .. } => {
+            InputEvent::Middle(*state == ElementState::Pressed)
+        }
         WindowEvent::MouseWheel { delta, .. } => InputEvent::Wheel(match delta {
             MouseScrollDelta::LineDelta(_, y) => *y,
             MouseScrollDelta::PixelDelta(p) => (p.y as f32).signum(),
@@ -346,6 +352,10 @@ pub(crate) fn apply_mouse(mouse: &mut Mouse, state: &mut MouseState, event: &cra
             mouse.released = true;
         }
         InputEvent::Wheel(lines) => mouse.wheel += lines,
+        InputEvent::Middle(down) => {
+            mouse.middle_released |= mouse.middle && !down;
+            mouse.middle = down;
+        }
         _ => {}
     }
 }
@@ -666,6 +676,7 @@ impl Game {
     /// screen's own handler (one per screen, in this module's files).
     pub(crate) fn fe_mouse(&mut self) -> anyhow::Result<()> {
         let mut m: Mouse = sample_mouse(&mut self.platform.mouse, &mut self.platform.mouse_state);
+        self.platform.mouse_state.garage = self.garage_drag_input(&m);
         // A press and its release inside one frame (a quick tap, a
         // touchpad's tap-to-click): the frame sees the button held, as a
         // press lasting a frame would be (0x5BF870 samples the state once
@@ -713,6 +724,21 @@ impl Game {
         self.platform.mouse_state.held_fired = c.held_fired.get();
         self.platform.mouse_state.arrow_at = c.arrow_at.get();
         r
+    }
+
+    /// The tick's mouse for GarageMain (0x4A5D90): the cursor's move on
+    /// the original's 640 × 480 grid of the whole window (0x5BF760), the
+    /// middle button and the wheel.
+    fn garage_drag_input(&self, m: &Mouse) -> Option<nfsu2::garage::DragInput> {
+        let size = self.ui_frame()?.size;
+        let moved = match (m.at, m.last) {
+            (Some(a), Some(b)) => {
+                let (a, b) = (nfsu2::garage::mouse_grid(a, size), nfsu2::garage::mouse_grid(b, size));
+                (a.0 - b.0, a.1 - b.1)
+            }
+            _ => (0, 0),
+        };
+        Some(nfsu2::garage::DragInput { moved, held: m.middle, released: m.middle_released, wheel: m.wheel != 0.0 })
     }
 
     /// `fe_mouse`'s help bar and the screen's own handler.

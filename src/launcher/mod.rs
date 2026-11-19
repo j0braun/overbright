@@ -13,7 +13,8 @@
 //! * [`window::run_with_root`]: the window (keyboard, mouse, gamepad).
 //! * [`probe`]: `game --probe`'s format and its background run;
 //!   [`run`]: starting and watching the game, the lock, the skip rule's
-//!   Shift check; [`saves`]: importing the original's saves;
+//!   Shift check; [`saves`] / [`saves_page`]: the Saves page (profiles,
+//!   backups, importing the original's saves, export);
 //!   [`start_log`]: the launcher's own log (`launcher.log`) and panic hook.
 
 pub mod anim;
@@ -25,12 +26,14 @@ pub mod font;
 pub mod headless;
 pub mod layout;
 pub mod legends;
+pub mod localtime;
 pub mod model;
 pub mod platform_deck;
 pub mod prepare;
 pub mod probe;
 pub mod run;
 pub mod saves;
+pub mod saves_page;
 pub mod screens;
 pub mod sounds;
 pub mod start_log;
