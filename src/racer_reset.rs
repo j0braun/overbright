@@ -71,6 +71,58 @@ pub fn reset_key(down: bool, engaging: bool, held: bool, c: &ResetCheck) -> bool
     down && !engaging && !held && may_reset(c)
 }
 
+/// The native draw rate the blink of a placed car is tied to, Hz
+/// (the frame cap 120: 0x870818 counts drawn frames, so at the cap the
+/// car is shown on every other one, 60 Hz on and off).
+pub const BLINK_RATE: f64 = 120.0;
+
+/// The draw of a car within the hold of its last stamped placement
+/// (**verified**: 0x60D500(car, view), called by the car lists 0x61B234,
+/// 0x60D5A4, 0x6317B2 and 0x6154E3, hides the car when 0x5EC000(view)
+/// holds, i.e. the car is ghosted by the hold, (0x865188 − +0x974) ×
+/// 0.00025 < +0x978, the same test as the collision ghost 0x5EBFB0, and
+/// the frame time 0x865150 is over 0.001 s (not paused): then hidden =
+/// the drawn-frame counter 0x870818 & 1, incremented once a frame at
+/// 0x5D2C59). **Observed** under Wine: the reset car shows on alternate
+/// frames for 2.0 s at the 120 fps cap (a 60 Hz flicker that reads as a
+/// see-through ghost), its lights and shadow steady.
+///
+/// The clone ties the phase to the drawn world time instead of the
+/// frame count (any frame rate): the car's visibility flips on every
+/// drawn frame that enters a new 1/120 s slot of that time. Up to 120 fps
+/// that is every frame, as the original; above it the car still flips at
+/// most 120 times a second (60 Hz), as at the original's cap. A frame
+/// whose world time moved 0.001 s or less (paused) draws the car.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct PlaceBlink {
+    /// The last blinking frame's world time and 1/120 s slot.
+    last: Option<(f64, i64)>,
+    hidden: bool,
+}
+
+impl PlaceBlink {
+    /// Whether the car is drawn this frame: `ghosted` the car within its
+    /// placement hold (`CarState::ghost_timer` > 0), `now` the frame's
+    /// drawn world time (s). Draw-only; nothing of the simulation reads it.
+    pub fn drawn(&mut self, ghosted: bool, now: f64) -> bool {
+        if !ghosted {
+            *self = PlaceBlink::default();
+            return true;
+        }
+        let slot = (now * BLINK_RATE).floor() as i64;
+        match self.last {
+            // The first frame (a still, too) takes the slot's parity.
+            None => self.hidden = slot & 1 == 1,
+            // The world stood still: 0x5EC000's frame-time test.
+            Some((t, _)) if (now - t).abs() <= 0.001 => return true,
+            Some((_, s)) if s != slot => self.hidden = !self.hidden,
+            Some(_) => {}
+        }
+        self.last = Some((now, slot));
+        !self.hidden
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -96,5 +148,52 @@ mod tests {
         assert!(!may_reset(&ResetCheck { event_camera: Some(3), ..free }));
         assert!(may_reset(&ResetCheck { event_camera: Some(6), ..free }));
         assert!(may_reset(&ResetCheck { event_camera: Some(7), ..free }));
+    }
+
+    /// The drawn pattern of a car ghosted for `PLACE_HOLD` at `fps`.
+    fn pattern(fps: f64) -> Vec<bool> {
+        let mut b = PlaceBlink::default();
+        let frames = (PLACE_HOLD as f64 * fps) as usize;
+        (0..frames + 10).map(|i| b.drawn(i < frames, 100.0 + i as f64 / fps)).collect()
+    }
+
+    #[test]
+    fn a_placed_car_blinks_for_the_hold_at_any_frame_rate() {
+        for fps in [30.0, 60.0, 120.0, 144.0, 200.0, 240.0] {
+            let p = pattern(fps);
+            let frames = (PLACE_HOLD as f64 * fps) as usize;
+            let hold = &p[..frames];
+            // About half the frames of the hold show the car.
+            let shown = hold.iter().filter(|d| **d).count() as f64 / frames as f64;
+            assert!((0.4..=0.6).contains(&shown), "{fps} fps: {shown}");
+            // It flips at most 120 times a second, and at least once a
+            // frame up to 120 fps.
+            let flips = hold.windows(2).filter(|w| w[0] != w[1]).count() as f64 / PLACE_HOLD as f64;
+            assert!(flips <= BLINK_RATE + 1.0, "{fps} fps: {flips} flips/s");
+            if fps <= BLINK_RATE {
+                assert!(flips >= fps - 1.0, "{fps} fps: {flips} flips/s");
+            } else {
+                assert!(flips >= BLINK_RATE * 0.9, "{fps} fps: {flips} flips/s");
+            }
+            // Steady after the hold.
+            assert!(p[frames..].iter().all(|d| *d), "{fps} fps");
+        }
+    }
+
+    #[test]
+    fn a_paused_world_draws_the_placed_car() {
+        let mut b = PlaceBlink::default();
+        let mut t = 50.0;
+        // Run until a hidden frame.
+        while b.drawn(true, t) {
+            t += 1.0 / 60.0;
+        }
+        // Paused: the same world time every frame.
+        for _ in 0..10 {
+            assert!(b.drawn(true, t));
+        }
+        // Unpaused, it blinks on.
+        let next: Vec<bool> = (1..=4).map(|i| b.drawn(true, t + i as f64 / 60.0)).collect();
+        assert!(next.contains(&false) && next.contains(&true));
     }
 }

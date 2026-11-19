@@ -59,7 +59,22 @@ impl Session<'_> {
             // from their countdown pedals). Whether the update also
             // runs under the scene's own camera (before mark 2) is
             // **inferred**.
-            let held = Controls { steer: if race.drag { 0.0 } else { controls.steer }, ..controls };
+            //
+            // The nitrous key does nothing under the scene's camera
+            // (race status 2; **observed** under Wine, the stage-0 circuit
+            // in Rachel's car: taps in the scene start no shot, the tank
+            // stays full; a tap in the countdown, status 3, starts one, at
+            // a standstill the purge and its Spray Show). The key's state
+            // is still taken (the input polls it), so a key held from the
+            // scene into the countdown starts nothing until it is pressed
+            // again (observed: held from the scene's second 0.5 on, no
+            // shot through the countdown).
+            let in_scene = run.frame < cut;
+            let held = Controls {
+                steer: if race.drag { 0.0 } else { controls.steer },
+                nitrous: controls.nitrous && !in_scene,
+                ..controls
+            };
             let scene_samples = if race.racers.ai_routes.is_some() && input.ai.is_some() && !race.racers.rivals.is_empty() {
                 for r in &mut race.racers.rivals {
                     r.state.held = true;
@@ -78,6 +93,9 @@ impl Session<'_> {
                 d.hold(dt, &mut self.rng);
                 RaceWorldSamples { player: sample, rivals }
             };
+            if in_scene {
+                d.state.nitrous_held = controls.nitrous;
+            }
             // The scene's cars (0x439240 → 0x4309D0, until the
             // cut): each racer on its grid slot's ZPM_Car<n>.
             if run.frame < cut {

@@ -145,3 +145,55 @@ fn the_free_roam_reset_is_gated_and_puts_the_car_on_the_road() {
     game.dispatch(None, None, acts, &mut || {}).unwrap();
     assert_eq!(game.sim.drive.as_ref().unwrap().state.position, before);
 }
+
+/// The reset's look (0x6009B0 → 0x5F52D0): the chase camera is kept and
+/// re-aimed (vt+0x38 = 0x445B20), so its view swings from the old heading
+/// to the new one over a fraction of a second, no cut; the placed car is
+/// ghosted against the other cars for the 2 s hold (0x5EBFB0) and then
+/// solid again.
+#[test]
+#[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
+fn the_reset_swings_the_camera_and_ghosts_the_car_for_the_hold() {
+    testkit::game();
+    let mut game = Game::new().unwrap();
+    let mut profile = Profile::new("GS1_RESET_LOOK");
+    profile.skip_intro(&game.game_data.career, &game.game_data.root, "PEUGOT", &mut game.rng);
+    game.profile = Some(profile);
+    game.explore(None).unwrap();
+    let dt = 1.0 / 60.0;
+    // One free-roam update: the saved places fill.
+    let d = game.sim.drive.as_mut().unwrap();
+    step_explore(d, None, None, Controls::default(), dt, &mut nfsu2::opponents::GameRng::default(), &mut Default::default());
+    // Stopped across the road (the reset faces the road's way), the camera
+    // settled behind.
+    let d = game.sim.drive.as_mut().unwrap();
+    d.state.velocity = Vec3::ZERO;
+    d.state.orientation = glam::Quat::from_rotation_z(1.3) * d.state.orientation;
+    for _ in 0..180 {
+        d.chase_view(dt);
+    }
+    let old = d.camera.forward().truncate().normalize();
+    let mut acts = [false; 18];
+    acts[nfsu2::frontend::options::action::RESET] = true;
+    game.dispatch(None, None, acts, &mut || {}).unwrap();
+    let d = game.sim.drive.as_mut().unwrap();
+    assert_eq!(d.state.ghost_timer, nfsu2::racer_reset::PLACE_HOLD, "the placement's hold ghosts the car");
+    let heading = d.state.forward().truncate().normalize();
+    let turn = old.angle_to(heading).abs();
+    assert!(turn > 0.2, "the test needs a heading change ({turn} rad)");
+    // The first frame still looks the old way (no cut).
+    let first = d.camera.forward().truncate().normalize();
+    assert!(first.angle_to(old).abs() < 0.05, "kept view: {} rad off the old one", first.angle_to(old));
+    let mut angles = Vec::new();
+    for _ in 0..150 {
+        let d = game.sim.drive.as_mut().unwrap();
+        step_explore(d, None, None, Controls::default(), dt, &mut nfsu2::opponents::GameRng::default(), &mut Default::default());
+        d.chase_view(dt);
+        angles.push(d.camera.forward().truncate().normalize().angle_to(d.state.forward().truncate().normalize()).abs());
+    }
+    // Swung round within about half a second, a step at a time.
+    assert!(angles[30] < turn * 0.2, "after 0.5 s: {} of {turn} rad", angles[30]);
+    assert!(angles.windows(2).take(30).all(|w| (w[0] - w[1]).abs() < turn * 0.25), "{angles:?}");
+    let d = game.sim.drive.as_ref().unwrap();
+    assert_eq!(d.state.ghost_timer, 0.0, "solid again after 2 s");
+}

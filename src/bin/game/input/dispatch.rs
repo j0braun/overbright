@@ -337,7 +337,6 @@ impl Game {
             && reset_key_allowed(d, Some(r), false, r.camera.events.kind)
         {
             reset_to_road(d, r);
-            d.stamp_placement();
             if let Some(rec) = r.replay.recording.as_mut() {
                 rec.reset = true;
             }
@@ -455,7 +454,7 @@ pub(crate) fn reset_in_free_roam(
             (p, h, 0.0)
         }
     });
-    d.place(p + Vec3::Z * 5.0, heading);
+    d.place_reset(p + Vec3::Z * 5.0, heading);
     d.state.set_placement_speed(speed);
     d.stamp_placement();
 }
