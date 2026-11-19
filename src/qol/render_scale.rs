@@ -14,14 +14,13 @@ const MAX_SSAA_PIXELS: f64 = 16.0 * 3840.0 * 2160.0;
 /// `samples` (the caps: the adapter's largest texture, [`MAX_SCENE_PIXELS`],
 /// [`MAX_SCENE_SAMPLES`]), as a factor.
 pub fn effective_scale(percent: u8, out: (u32, u32), samples: u32) -> f64 {
-    scale_for(
-        percent,
-        out,
-        samples,
-        MAX_DIM.load(Ordering::Relaxed),
-        SMALL_GPU.load(Ordering::Relaxed),
-        SOFTWARE_GPU.load(Ordering::Relaxed),
-    )
+    let (max_dim, small, software) = gpu_caps();
+    scale_for(percent, out, samples, max_dim, small, software)
+}
+
+/// The adapter's caps in force: its largest texture edge, small, software.
+fn gpu_caps() -> (u32, bool, bool) {
+    read(|s| (s.max_dim, s.small_gpu, s.software_gpu))
 }
 
 /// [`effective_scale`] for an adapter with these caps.
@@ -87,15 +86,8 @@ pub fn ssaa_scale(aa: u8) -> Option<f64> {
 /// the saved Render Scale; switching AA back restores that scale.
 pub fn scene_scale(percent: u8, aa: u8, out: (u32, u32), samples: u32) -> f64 {
     let want = ssaa_scale(aa).unwrap_or(f64::from(percent) / 100.0);
-    bounded_scale(
-        want,
-        out,
-        samples,
-        MAX_DIM.load(Ordering::Relaxed),
-        SMALL_GPU.load(Ordering::Relaxed),
-        SOFTWARE_GPU.load(Ordering::Relaxed),
-        ssaa_scale(aa).is_some(),
-    )
+    let (max_dim, small, software) = gpu_caps();
+    bounded_scale(want, out, samples, max_dim, small, software, ssaa_scale(aa).is_some())
 }
 
 /// Skip SSAA presets which cannot fit the current output/adapter. A saved
@@ -107,7 +99,8 @@ pub fn aa_offered(aa: u8, out: (u32, u32)) -> bool {
 
 /// The 3D scene's size; UI and HUD retain the output dimensions.
 pub fn scene_size(out: (u32, u32), samples: u32) -> (u32, u32) {
-    scene_size_for(UPSCALE.load(Ordering::Relaxed), RENDER_SCALE.load(Ordering::Relaxed), post_aa(), out, samples)
+    let (v, percent, aa) = read(|s| (s.values.upscale, s.values.render_scale, s.values.post_aa));
+    scene_size_for(v, percent, aa, out, samples)
 }
 
 /// [`scene_size`] for Upscaling `v`, Render Scale `percent` and the
@@ -131,7 +124,7 @@ pub(super) fn scene_size_for(v: u8, percent: u8, aa: u8, out: (u32, u32), sample
 
 /// The Anti-Aliasing row in force (0 off, 1 FXAA, 2 SMAA, 3–5 MSAA, 6–7 SSAA).
 pub fn post_aa() -> u8 {
-    POST_AA.load(Ordering::Relaxed)
+    read(|s| s.values.post_aa)
 }
 
 /// The Anti-Aliasing row's name when not off.
@@ -188,7 +181,7 @@ pub fn upscale_size(out: (u32, u32), share: f64) -> (u32, u32) {
 
 /// Upscaling in force (0 off, 1–3).
 pub fn upscale() -> u8 {
-    UPSCALE.load(Ordering::Relaxed)
+    read(|s| s.values.upscale)
 }
 
 /// The temporal pass in force: TAA on the Anti-Aliasing row or
@@ -229,7 +222,7 @@ pub fn fsr() -> bool {
 /// The scene's sample count the Anti-Aliasing row asks for instead of
 /// Full Screen Anti-Aliasing's (MSAA 2× / 4× / 8×), if any.
 pub fn msaa_override() -> Option<u32> {
-    msaa_in_frame(temporal(), temporal_frame(), post_aa(), AA_MSAA.load(Ordering::Relaxed))
+    msaa_in_frame(temporal(), temporal_frame(), post_aa(), read(|s| s.values.aa_msaa))
 }
 
 /// [`msaa_override`] for these values: the temporal pass is the one AA
@@ -287,5 +280,5 @@ pub fn filters(preset: u8, override_: u8) -> (bool, bool) {
     }
 }
 pub fn fxaa() -> bool {
-    !temporal() && filters(post_aa(), AA_FILTER.load(Ordering::Relaxed)).0
+    !temporal() && filters(post_aa(), read(|s| s.values.aa_filter)).0
 }

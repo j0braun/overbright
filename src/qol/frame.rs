@@ -25,8 +25,8 @@ impl RenderOptions {
     pub fn in_force() -> RenderOptions {
         RenderOptions {
             post_aa: post_aa(),
-            aa_msaa: AA_MSAA.load(Ordering::Relaxed),
-            render_scale: RENDER_SCALE.load(Ordering::Relaxed),
+            aa_msaa: read(|s| s.values.aa_msaa),
+            render_scale: read(|s| s.values.render_scale),
             upscale: upscale(),
             temporal: temporal(),
             temporal_frame: temporal_frame(),
@@ -48,10 +48,10 @@ impl RenderOptions {
             detail_distance: detail_distance(),
             car_detail: car_detail(),
             output_size: {
-                let size = OUTPUT_SIZE.load(Ordering::Relaxed);
+                let size = read(|s| s.output_size);
                 (size != 0).then(|| ((size >> 32) as u32, size as u32))
             },
-            road_reflection: ROAD_REFLECTION.load(Ordering::Relaxed),
+            road_reflection: read(|s| s.values.road_reflection),
             car_reflection_size: car_reflection_size(),
             enhanced_reflections: enhanced_reflections(),
             reflection_every_frame: reflection_every_frame(),

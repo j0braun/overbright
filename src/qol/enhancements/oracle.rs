@@ -15,7 +15,6 @@ macro_rules! old_store {
     ($a:ident, $v:expr) => {{
         let v = $v;
         record(stringify!($a), &v);
-        $a.store(v, Ordering::Relaxed);
     }};
 }
 
