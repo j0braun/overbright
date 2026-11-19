@@ -1,5 +1,5 @@
 //! Controller+14's sixteen ordered words (41CFA0), shared by route goals.
-//! Eligibility remains at the caller. See docs/outrun-cache-capacity.md.
+//! Eligibility remains at the caller. See docs/notes/outrun/follow-ups.md "Outrun cache capacity: original-byte findings".
 use std::sync::atomic::{AtomicI32, Ordering};
 
 // 827AB8 is image-initialized, not a per-controller counter. The original

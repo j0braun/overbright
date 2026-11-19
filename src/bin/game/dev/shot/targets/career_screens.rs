@@ -253,7 +253,7 @@ pub(super) fn worldmap(game: &mut Game, _cx: &ShotCtx) -> Result<Mode> {
 /// n keys (0 the results; default 5, Post Race). Each screen
 /// reached is checked and logged ("winchain: …"). `sponsor_world`:
 /// the chain to Sponsorships (step 3), over the race's world as in
-/// the original (docs/fe-backdrops.md).
+/// the original (docs/notes/front-end/fe-backdrops.md).
 pub(super) fn winchain(game: &mut Game, cx: &ShotCtx) -> Result<Mode> {
     let &ShotCtx { gpu, format, screen, .. } = cx;
     let p = game.profile.as_mut().context("profile")?;

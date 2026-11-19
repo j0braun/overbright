@@ -1,5 +1,5 @@
 use crate::*;
-// The test kit (tests/common/mod.rs, docs/testing.md).
+// The test kit (tests/common/mod.rs, docs/developing/testing.md).
 #[path = "../../../../tests/common/mod.rs"]
 mod testkit;
 
@@ -480,7 +480,7 @@ fn rivals_run(game: &mut Game, kind: career::EventKind, track: u16, variant: u8,
     race.racers.rivals.iter().zip(&worst).map(|(r, w)| (r.name.clone(), w.1, r.progress.finished.is_some())).collect()
 }
 
-/// Test isolation (docs/test-determinism.md): a game test starts from
+/// Test isolation (docs/developing/test-determinism.md): a game test starts from
 /// nothing another test left. Another test's thread commits and saves a
 /// profile in another car and writes options.txt; a game built here
 /// after it still has no profile, the default car and options, and the
@@ -517,7 +517,7 @@ fn game_tests_start_from_their_own_sandbox() {
     assert!(!home.exists(), "the other test's folder is gone with its thread");
 }
 
-/// Probe (docs/test-determinism.md): the race-route checks started in
+/// Probe (docs/developing/test-determinism.md): the race-route checks started in
 /// a profile another test leaves current (the community saves the
 /// shop tests load), as the shared state let them start before the
 /// test sandbox. Prints, asserts nothing.

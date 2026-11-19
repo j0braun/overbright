@@ -1,4 +1,4 @@
-//! docs/resolutions.md: a developer-harness-only dump of where the
+//! docs/notes/graphics/resolutions.md: a developer-harness-only dump of where the
 //! UI pass put things, for `scripts/checks/resolutions.sh`. Not native, no
 //! effect on any image: with `NFSU2_UI_GEOM=<file>` set, every
 //! [`super::UiRenderer::record_encoder`] call writes (overwriting) one JSON

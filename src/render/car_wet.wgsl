@@ -1,10 +1,10 @@
 
-// Wet Car (clone deviation, off by default; docs/weather.md). Appended to
+// Wet Car (clone deviation, off by default; docs/notes/graphics/weather.md). Appended to
 // car.wgsl (and after car_paint.wgsl when Enhanced Car Paint is on) for the
 // wet pipelines only: `CarShared::module` builds them, and a car is drawn
 // with them only while its water film is above zero (`wet_car::WET_MIN`).
 // A dry car keeps the native / paint pipelines, so a dry car is the same
-// image bit for bit (the R2 lesson, docs/car-raindrops.md).
+// image bit for bit (the R2 lesson, docs/notes/graphics/car-look.md "Spots like raindrops on a dry car").
 //
 // draw.wet[0] = (film, rain now, class, world clock s)
 // draw.wet[1] = (the car's velocity in its own axes m/s, spray film)
@@ -218,7 +218,7 @@ fn wet_surface(in: VertexOut, colour: vec3<f32>, r1: vec4<f32>, native_direction
     return base + add;
 }
 
-// Next-Gen (Rain Detail "Next-Gen", docs/rain-nextgen.md): the rain
+// Next-Gen (Rain Detail "Next-Gen", docs/notes/graphics/rain-nextgen.md): the rain
 // falling on the car. Returns the water surface's normal offset (xyz) and
 // the fresh impacts' brightness (w).
 // * Impacts: on the surfaces facing up (roof, bonnet, boot, windshield),

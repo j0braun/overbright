@@ -1,4 +1,4 @@
-//! Animated Water (clone deviation, opt-in; docs/water.md).
+//! Animated Water (clone deviation, opt-in; docs/notes/graphics/water.md).
 //!
 //! Nothing here is native. SPEED2.EXE draws its water as ordinary world
 //! textures: the fountain basins, the canals of the industrial park and
@@ -7,7 +7,7 @@
 //! waterfalls with `TRN_WATERFALL_A` / `_LL` (scrolling down), the hill
 //! streams with `TRN_WATER_SURFACE_A_LL` (scrolling) and the swimming
 //! pools with the still `ARC_POOL_A_DM` (docs/formats.md "Texture
-//! animation and scrolling"; the list of surfaces in docs/water.md, from
+//! animation and scrolling"; the list of surfaces in docs/notes/graphics/water.md, from
 //! the private developer probe `water_census`). Off (the default) is that, byte-identical.
 //!
 //! On: the main view leaves those draws out (`WorldRenderer::set_hide_water`)
@@ -52,7 +52,7 @@ impl Kind {
     }
 }
 
-/// The water textures by name (docs/water.md "Surfaces"). The panorama's
+/// The water textures by name (docs/notes/graphics/water.md "Surfaces"). The panorama's
 /// far ocean (`TRN_OCEANA_DM`) and the LOD stand-ins are left native.
 pub fn kind_of(name: &str) -> Option<Kind> {
     match name {
@@ -1199,7 +1199,7 @@ impl Water {
             u.apexes[i * 3 + 2] = a.color.extend(0.0).to_array();
         }
         u.counts2[0] = apexes.len() as u32;
-        // Realistic, docs/water.md: its bodies and more spray; On's
+        // Realistic, docs/notes/graphics/water.md: its bodies and more spray; On's
         // uniform is otherwise the same.
         let hq = (view.tier >= 2 && !plain).then(|| {
             let h = self.hq.get_or_insert_with(|| crate::render::water_hq::Hq::new(gpu, &self.mesh));
@@ -1214,12 +1214,12 @@ impl Water {
                 rain: view.rain,
             }
         });
-        // Next-Gen, docs/water.md: the jets as particles, the basins
+        // Next-Gen, docs/notes/graphics/water.md: the jets as particles, the basins
         // simulated, the mist volumetric; On's spray billboards are off.
         let ng = hq.is_some() && view.tier >= 3;
         if ng {
             let h = self.hq.as_ref().unwrap();
-            // docs/uncapped-fps.md, "Enhancement effects on
+            // docs/original/uncapped-fps.md, "Enhancement effects on
             // ticks"): which jets get particles and which basins are
             // simulated (the steps' impulses) is decided at the newest
             // world tick's eye and from its view, and kept by the frames
@@ -1301,7 +1301,7 @@ impl Water {
     }
 
     /// What the first [`Water::prepare`] at `tier` (1 On, 2 Realistic, 3
-    /// Next-Gen) makes, made now (docs/first-use-builds.md: a drive's load
+    /// Next-Gen) makes, made now (docs/developing/first-use-builds.md: a drive's load
     /// and a tier switched on): the world's water mesh (once per world),
     /// the GPU half and the tiers' halves up to `tier`, with their shader
     /// modules and the pipelines they make in their constructors. Nothing
@@ -1630,7 +1630,7 @@ mod tests {
     }
 
     /// Bayview's water (asset test, ignored without NFSU2_ROOT): the
-    /// fountains, waterfalls, pools, canals and streams of docs/water.md,
+    /// fountains, waterfalls, pools, canals and streams of docs/notes/graphics/water.md,
     /// every triangle of a water texture, with landings for the sheets.
     #[test]
     #[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]

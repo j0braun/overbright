@@ -54,7 +54,7 @@ pub struct Material {
     /// 0x80 clear → no diffuse / specular. They differ from the mesh
     /// header's (`Solid::mesh_flags`) per material, e.g. the 240SX's
     /// BASE_A / TRUNK_A DULLPLASTIC ranges carry 0x4080 in a 0xC180 mesh
-    /// (docs/car-shading-compare.md).
+    /// (docs/notes/graphics/car-look.md "Car paint, reflections and rims against the original").
     pub flags: u32,
 }
 

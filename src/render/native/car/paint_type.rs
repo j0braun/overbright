@@ -1,7 +1,7 @@
 //! Enhanced Car Paint's paint type by light material (moved from car.rs).
 
 /// The NFSU2 paint type of a car light material, for Enhanced Car Paint
-/// (docs/car-paint-enhanced.md). The paint parts name their light material
+/// (docs/notes/graphics/car-paint-enhanced.md). The paint parts name their light material
 /// (attribute 0x6BA02C05): finish GLOSS → REGPAINT*, METAL → METPAINT*,
 /// PEARL → PEARL* and CUSTOMPAINT_*; the rim paints RIMPEARL* and
 /// USER_RIMS_*; stock rims MAGSILVER / MAGCHROME, trim CHROME.

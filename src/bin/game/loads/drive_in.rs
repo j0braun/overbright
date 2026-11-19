@@ -27,11 +27,11 @@ impl Game {
         // and the flow's LOADING state closes it on leaving (0x6038F0
         // message 2 → 0x4A9310). The clone's load is synchronous, and
         // the screen goes up only once the load has taken
-        // [`LOADING_DELAY_MS`] (agreed deviation, docs/native-deviations.md "Loading screens": the original always
+        // [`LOADING_DELAY_MS`] (agreed deviation, docs/playing/native-deviations.md "Loading screens": the original always
         // shows it, but a load kept in memory or cached is near instant).
         self.begin_loading();
         self.loads.waits.load_begin(region);
-        // The reader ahead gives way to the load (docs/read-ahead.md).
+        // The reader ahead gives way to the load (docs/developing/read-ahead.md).
         let _hold = nfsu2::cache::read_ahead::hold();
         let _t = nfsu2::prof::span("drive_in");
         let result = self.drive_in_loaded(region, at, heading, race, tuning, barriers);
@@ -336,18 +336,18 @@ impl Game {
             drive.state.gear_request = Some(nfsu2::handling::NEUTRAL + 1);
         }
         // The log's waits: the old drive gone, the HUD's textures, the
-        // barriers and placements (docs/waits-log.md).
+        // barriers and placements (docs/developing/waits-log.md).
         self.loads.waits.load_part("set-up");
         // What the drive's first frame makes on first use (its
         // pipelines at the frame's samples, Light Probes' baker, Ambient
         // Detail's props), made here, behind the loading screen. On a
         // worker while this thread ticks the load's gate, so PC_Loading
         // goes up once the whole load (warm-up included) passes
-        // [`LOADING_DELAY_MS`] (docs/perf-loading-pacing.md §5).
+        // [`LOADING_DELAY_MS`] (docs/notes/performance/loading-pacing.md §5).
         if let Some((gpu, target)) = warm_for {
             let _t = nfsu2::prof::span("drive_in: warm");
             // The post chain and the Enhanced passes the drive's frames run
-            // (docs/first-use-builds.md): the chain (made now if the menus
+            // (docs/developing/first-use-builds.md): the chain (made now if the menus
             // have not: as the first frame would make it) is taken out of
             // the window while the loading frames draw (they do not use it).
             let format = {

@@ -23,7 +23,7 @@ miniz_oxide.workspace = true
 rayon.workspace = true
 
 [dev-dependencies]
-# The test kit (crates/ob-testkit, docs/testing.md).
+# The test kit (crates/ob-testkit, docs/developing/testing.md).
 ob-testkit = { path = "../ob-testkit" }
 
 [features]

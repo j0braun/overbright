@@ -1227,9 +1227,9 @@ mod tests {
     use super::*;
 
     const MOD: &str =
-        include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../docs/asset-format/examples/manifest/mod/pack.toml"));
+        include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../docs/modding/asset-format/examples/manifest/mod/pack.toml"));
     const BASE: &str =
-        include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../docs/asset-format/examples/manifest/base/pack.toml"));
+        include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../docs/modding/asset-format/examples/manifest/base/pack.toml"));
 
     fn parse(text: &str) -> Result<Manifest, Refusal> {
         Manifest::parse(text.as_bytes(), Container::Unknown).map(|(m, _)| m)
@@ -1313,7 +1313,7 @@ mod tests {
 
     #[test]
     fn legacy_manifests() {
-        // Today's texture-pack manifests (docs/texture-packs.md), read by manifest.md §6.
+        // Today's texture-pack manifests (docs/modding/texture-packs.md), read by manifest.md §6.
         let (m, _) = Manifest::parse(
             b"# Overbright texture pack\nformat = 1\nname = \"HD HUD\"\nauthor = \"someone\"\nlicence = \"CC0-1.0\"\npriority = 5\nversion = \"v2 beta\"\nsource = \"texmod\"\nunknown = 1\n",
             Container::Folder("hd-hud"),
@@ -1364,7 +1364,7 @@ mod tests {
     fn migrations() {
         let ex = include_bytes!(concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/../../docs/asset-format/examples/versioning/migrations.toml"
+            "/../../docs/modding/asset-format/examples/versioning/migrations.toml"
         ));
         let r = parse_migrations(ex).unwrap();
         assert_eq!(r.len(), 2);

@@ -40,12 +40,31 @@ pub use walk::*;
 
 #[cfg(test)]
 mod tests {
+    /// The race coordinate holds until the car has moved COORD_STEP, then
+    /// takes the place again (observed steps of 11.6 m).
+    #[test]
+    fn race_coord_moves_on_in_steps() {
+        let locate = |p: Vec2| p.x;
+        let mut held = Some((100.0, Vec2::new(100.0, 0.0)));
+        let mut seen = vec![];
+        for k in 1..=60 {
+            let p = Vec2::new(100.0 + k as f32 * 0.5, 0.0);
+            held = Some(race_coord_step(held, p, locate));
+            seen.push(held.unwrap().0);
+        }
+        assert_eq!(seen[0], 100.0);
+        assert_eq!(seen[22], 100.0, "11.5 m on: still the old one");
+        assert_eq!(seen[23], 112.0, "12 m on: taken again");
+        assert_eq!(seen[59], 124.0);
+        assert_eq!(race_coord_step(None, Vec2::new(5.0, 1.0), locate), (5.0, Vec2::new(5.0, 1.0)));
+    }
+
     use super::*;
 
     /// 0x420D40 keeps a traffic car's path front between thinks (the
     /// driver's +0x1D9, observed 1 for every traffic car under Wine): a
     /// car heading south on record 538's backward lane (L4RA free roam,
-    /// the street by the stage-1 garage exit, docs/world-systems-parity.md)
+    /// the street by the stage-1 garage exit, docs/notes/parity/world-systems-parity.md)
     /// keeps steering for control point 21 until it is past it. The fresh
     /// plan from the point after the nearest, which the clone made every
     /// think before, aimed at point 20 from 20 m short of point 21 and cut
@@ -71,6 +90,7 @@ mod tests {
             last_turn: -99_999.0,
             turned: None,
             lead: (0, 0.0),
+            xs: VecDeque::new(),
             drag: false,
         };
         t.extend(&f, ENTRY_REACH);
@@ -149,6 +169,7 @@ mod tests {
                 last_turn: -99_999.0,
                 turned: None,
                 lead: (0, 0.0),
+                xs: VecDeque::new(),
                 drag: false,
             };
             t.extend(&f, ENTRY_REACH);
@@ -220,6 +241,7 @@ mod tests {
                 last_turn: -99_999.0,
                 turned: None,
                 lead: (0, 0.0),
+                xs: VecDeque::new(),
                 drag: false,
             };
             t.extend(&f, ENTRY_REACH);
@@ -348,6 +370,7 @@ mod tests {
                         last_turn: -99_999.0,
                         turned: None,
                         lead: (0, 0.0),
+                        xs: VecDeque::new(),
                         drag: false,
                     };
                     let from = r.points[prev].position.truncate();
@@ -830,7 +853,7 @@ mod tests {
         let f = RouteFile::parse(&data);
         let Some(r) = f.record(734) else { panic!("record 734") };
         let steps: VecDeque<Step> = (17..=22).map(|cp| Step { record: r, cp, backward: false, lane: 4 }).collect();
-        let t = TrafficLane {
+        let mut t = TrafficLane {
             steps,
             rng: GameRng(1),
             obey: None,
@@ -844,8 +867,12 @@ mod tests {
             last_turn: -99_999.0,
             turned: None,
             lead: (0, 0.0),
+            xs: VecDeque::new(),
             drag: false,
         };
+        // As the placement's walk: built, then smoothed from its first point.
+        t.sync_xs(&f);
+        t.smooth(&f, 0);
         let walk = t.walk_points(&f);
         // 0x418DA0: trunc(segment / 8) − 1 points every 8 m: the original's
         // walk had 4 on control points 20 and 21, 3 on 19, 1 on 18.
@@ -897,6 +924,7 @@ mod tests {
                 last_turn: -99_999.0,
                 turned: None,
                 lead: (0, 0.0),
+                xs: VecDeque::new(),
                 drag: false,
             };
             assert_eq!(t.steps[9].lane, 3, "672 has lane 3 only");
@@ -917,6 +945,54 @@ mod tests {
             let after = t.rng.0;
             t.lane_check(&f);
             assert_eq!(t.rng.0, after);
+        }
+    }
+
+    /// 0x428030 smooths only the run from the walk's second-last control
+    /// point before an extension on (0x41A180): the points the car drives
+    /// up to keep the offsets they had. With control point 19 at the walk's
+    /// front the original still holds its 8 m points at 0.71 / 0.42 /
+    /// −0.14 (`NATIVE_WALK_734`); a smoothing from the front (its tangent
+    /// the control point's direction against the travel) bends lane 4
+    /// there by −1.4 to −1.6 m instead.
+    #[test]
+    #[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
+    fn the_walk_keeps_its_offsets_as_the_car_moves_on() {
+        let path = crate::testkit::game_root().join("TRACKS/ROUTESL4RA/RoutesFreeRoam.bin");
+        let data = std::fs::read(path).expect("reading the game's data file");
+        let f = RouteFile::parse(&data);
+        let Some(r) = f.record(734) else { panic!("record 734") };
+        let steps: VecDeque<Step> = (17..=22).map(|cp| Step { record: r, cp, backward: false, lane: 4 }).collect();
+        let mut t = TrafficLane {
+            steps,
+            rng: GameRng(1),
+            obey: None,
+            avoid: None,
+            roomed: 0,
+            took_avoid: false,
+            behind: None,
+            kept: Vec::new(),
+            heading: None,
+            walked: 0.0,
+            last_turn: -99_999.0,
+            turned: None,
+            lead: (0, 0.0),
+            xs: VecDeque::new(),
+            drag: false,
+        };
+        t.extend(&f, ENTRY_REACH);
+        // The car passes control points 17 and 18 (0x419670 drops them).
+        for _ in 0..2 {
+            t.walked += t.seg(&f, 0);
+            t.steps.pop_front();
+            t.xs.pop_front();
+        }
+        t.extend(&f, ENTRY_REACH);
+        let walk = t.walk_points(&f);
+        assert_eq!(t.steps[0].cp, 19);
+        for &(cp, d, x) in NATIVE_WALK_734.iter().filter(|w| w.0 == 19 || w.0 == 20) {
+            let w = walk.iter().find(|w| t.steps[w.step].cp == cp && (w.d - d).abs() < 1e-3).expect("the point");
+            assert!((w.x[3] - x).abs() < 0.02, "cp {cp} +{d}: {} against the original's {x}", w.x[3]);
         }
     }
 
@@ -1006,6 +1082,7 @@ mod tests {
             last_turn: -99_999.0,
             turned: None,
             lead: (0, 0.0),
+            xs: VecDeque::new(),
             drag: false,
         };
         let walk = t.walk_points(&f);

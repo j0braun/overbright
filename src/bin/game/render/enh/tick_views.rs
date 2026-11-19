@@ -1,4 +1,4 @@
-//! Enhancement effects on ticks (docs/uncapped-fps.md, "Enhancement effects on ticks"): the
+//! Enhancement effects on ticks (docs/original/uncapped-fps.md, "Enhancement effects on ticks"): the
 //! world ticks the tick-stepped enhancement effects step on
 //! (`nfsu2::render::enh::tick_views`): recorded at the end of each tick
 //! (`Game::capture_tick`), published once per drawn frame before the world

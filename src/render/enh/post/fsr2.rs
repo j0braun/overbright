@@ -1,4 +1,4 @@
-//! FSR 2 temporal upscaling (docs/fsr2.md; a **clone deviation**,
+//! FSR 2 temporal upscaling (docs/notes/graphics/fsr2.md; a **clone deviation**,
 //! opt-in on the Upscaling row, nothing like it in SPEED2.EXE): a WGSL
 //! port of AMD FidelityFX Super Resolution 2.2 (MIT; THIRD-PARTY-NOTICES.md)
 //! run by the temporal pass ([`crate::render::temporal::Temporal`]) in place of
@@ -53,7 +53,7 @@ pub fn mip_bias_q(ratio: f64) -> i8 {
 
 /// RCAS's sharpening in stops (0 sharpest; FSR 2's `sharpness` s maps to
 /// 2 − 2s stops). 0.25 stops = sharpness 0.875: measured against SSAA 2x
-/// (docs/fsr2.md "Sharpness").
+/// (docs/notes/graphics/fsr2.md "Sharpness").
 pub const SHARPNESS_STOPS: f32 = 0.25;
 /// The wheels' reactive value (their spin moves texture the rigid motion
 /// does not), as the TAA pass's ≥ 0.35 blend.
@@ -61,15 +61,15 @@ pub const WHEEL_REACTIVE: f32 = 0.5;
 /// FSR 2's thin-feature locks: on. They were off at first: NFSU2's
 /// flip-book and scrolling textures (the chevron barriers, blinking signs)
 /// were not masked and locks held their old frames as dotted trails; the
-/// world's animation mask (`WorldRenderer::anim_mask`, docs/fsr2.md
+/// world's animation mask (`WorldRenderer::anim_mask`, docs/notes/graphics/fsr2.md
 /// "Animation mask") now keeps locks off those textures, as FSR 2's
 /// transparency-and-composition mask does (`NFSU2_FSR2_LOCKS=0` off).
 pub const LOCKS: bool = true;
 /// The history rectification box's largest scale (FSR 2: up to 20 by the
 /// upscale ratio, 11.4 at Quality): 2, as the same flip-books smeared
-/// inside a looser box (docs/fsr2.md "Locks").
+/// inside a looser box (docs/notes/graphics/fsr2.md "Locks").
 pub const BOX_SCALE_MAX: f32 = 2.0;
-/// The history-disagreement reactive's gain (docs/fsr2.md "Animated
+/// The history-disagreement reactive's gain (docs/notes/graphics/fsr2.md "Animated
 /// textures"; 0 off).
 pub const AUTO_REACTIVE: f32 = 4.0;
 /// The composition mask's gain on the YCoCg change the screen-space
@@ -109,7 +109,7 @@ pub fn depth_factors(p: glam::Mat4) -> [f32; 4] {
 }
 
 /// The shading-change luma's block in render pixels (FSR 2: 32, its SPD
-/// mip 4; smaller here, docs/fsr2.md "Locks"). A multiple of 8.
+/// mip 4; smaller here, docs/notes/graphics/fsr2.md "Locks"). A multiple of 8.
 pub const LUMA_BLOCK: u32 = 32;
 
 fn luma_block() -> u32 {
@@ -753,7 +753,7 @@ impl Fsr2 {
 
     /// The output pipelines a frame into a scene of `format` makes on its
     /// first run (the colour with RCAS or the copy, and the display-size
-    /// depth), made now (docs/first-use-builds.md); the passes' own are
+    /// depth), made now (docs/developing/first-use-builds.md); the passes' own are
     /// made by [`Fsr2::new`].
     pub fn warm(&mut self, gpu: &Gpu, format: wgpu::TextureFormat) {
         let rcas = crate::render::debug_env::nfsu2_fsr2_sharpen().unwrap_or(SHARPNESS_STOPS) < 9.0;

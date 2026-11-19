@@ -80,7 +80,7 @@ pub(crate) fn main() -> Result<()> {
     log::info!("allocator: {}", nfsu2::allocator::describe());
     let args: Vec<String> = std::env::args().skip(1).collect();
     let command = Command::parse(&args);
-    // The modding tools are reachable only with `--editor` (docs/map-editor.md).
+    // The modding tools are reachable only with `--editor` (docs/modding/map-editor.md).
     nfsu2::tools::map::set_editor_enabled(args.iter().any(|a| a == "--editor"));
     if command == Command::Version {
         println!("{}", nfsu2::build_info::version_line());
@@ -189,11 +189,11 @@ pub(crate) fn main() -> Result<()> {
     }
     let result = run(&command, &args);
     // A first run's cache files are finished before the process ends; the
-    // window's exit waits at most `EXIT_FLUSH` for them (docs/exit.md: the
+    // window's exit waits at most `EXIT_FLUSH` for them (docs/original/exit.md: the
     // shipping game took 20-30 s to end on a busy disk; what is left is
     // made again on the next start). The original's quit saves nothing
     // (WM_CLOSE 0x5CCE6C sets 0x864F48, the loop 0x5811D0 ends,
-    // 0x5CF970 tears down, exit(0)): docs/exit.md.
+    // 0x5CF970 tears down, exit(0)): docs/original/exit.md.
     if matches!(command, Command::Window { .. }) {
         let left = nfsu2::cache::flush_within(Some(EXIT_FLUSH));
         if left > 0 {

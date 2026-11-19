@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Frame budget tables (docs/perf-budget.md) from a budget.sh run.
+"""Frame budget tables (docs/notes/performance/budget.md) from a budget.sh run.
 
   budget.py --presets          shell lines exporting PRESET_<name> (the leave-one-out presets; @MAX@ = perf.sh's MAX)
   budget.py --configs WxH      the leave-one-out configs at that size

@@ -121,7 +121,7 @@ pub(in crate::render) struct SurfaceJobs {
 }
 
 pub(in crate::render) fn classify_surfaces(sources: &[Option<&Texture>], draws: &[Draw]) -> SurfaceJobs {
-    // Surface Detail (clone deviation, docs/surface-maps.md): each slot's
+    // Surface Detail (clone deviation, docs/notes/graphics/surface-maps.md): each slot's
     // material from its name and draws (cheap), and the slots that may
     // get a normal map (judged and made later, in the background).
     let (surface_classes, surface_reflect) = {
@@ -189,7 +189,7 @@ pub(in crate::render) fn upload_textures(
         .then(|| {
             let slot_hashes: Vec<Option<u32>> = sources.iter().map(|t| t.map(|t| t.hash)).collect();
             let max_dimension = device.limits().max_texture_dimension_2d;
-            // docs/texture-pack-cache.md: with a world pack, the
+            // docs/modding/texture-pack-cache.md: with a world pack, the
             // arrays with it applied come from a file of their own,
             // valid while the pack's files are as they were (`key`);
             // the track's own file keeps the native ones.

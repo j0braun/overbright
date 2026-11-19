@@ -2,7 +2,7 @@
 //! docs/native-fixes/GS1.tsv). Each test states the native rule and its
 //! address.
 use super::*;
-// The test kit (tests/common/mod.rs, docs/testing.md).
+// The test kit (tests/common/mod.rs, docs/developing/testing.md).
 #[path = "../../../../tests/common/mod.rs"]
 mod testkit;
 

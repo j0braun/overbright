@@ -51,11 +51,15 @@ pub fn named_app<'e>(env: &'e FakeEnv, fonts: &Fonts, name: &str, w: u32, h: u32
 
 /// The named states: (name, the screen it is shown on). The fake data of
 /// each comes from [`state_model`].
-pub const STATES: [(&str, Screen); 60] = [
+pub const STATES: [(&str, Screen); 64] = [
     ("no-game", Screen::FirstRun),
     ("check-ok", Screen::Check),
     ("check-movies", Screen::Check),
     ("check-movies-missing", Screen::Check),
+    ("check-details", Screen::Check),
+    ("check-changed", Screen::Check),
+    ("check-unknown-edition", Screen::Check),
+    ("check-no-english", Screen::Check),
     ("not-a-game-folder", Screen::Check),
     ("files-missing", Screen::Check),
     ("own-folder", Screen::Check),
@@ -114,6 +118,33 @@ pub const STATES: [(&str, Screen); 60] = [
     ("mods-order", Screen::Mods),
 ];
 
+/// A checked fake install: the key files `missing` and `different`, the
+/// movies `movies_missing`; `unknown`: no data file is the known
+/// release's (another release).
+pub fn fake_check(missing: &[&str], different: &[&str], movies_missing: &[&str], unknown: bool) -> super::model::CheckResult {
+    use crate::fingerprint::{FILES, FilePrint, Fingerprint, State};
+    let root = FakeEnv::root();
+    let c = crate::qol::setup::Check {
+        missing: missing.iter().map(|f| f.to_string()).collect(),
+        different: different.iter().map(|f| f.to_string()).collect(),
+        assets: Some(super::model::fake_assets(&root, movies_missing)),
+    };
+    let fp = Fingerprint {
+        root: root.clone(),
+        files: FILES
+            .iter()
+            .map(|&file| FilePrint {
+                file,
+                state: State::Read { size: 1, sha256: "0".repeat(64) },
+                edition: (!unknown && !different.contains(&file)).then_some("known"),
+            })
+            .collect(),
+        mods: Vec::new(),
+        exe_protected: false,
+    };
+    super::model::check_result(&root, &c, Some(&fp))
+}
+
 /// The fake data for the state `name` (None: not a state).
 pub fn state_model(name: &str) -> Option<(Screen, Model)> {
     let screen = STATES.iter().find(|s| s.0 == name)?.1;
@@ -146,26 +177,32 @@ pub fn state_model(name: &str) -> Option<(Screen, Model)> {
             m.found.clear();
             m.root = None;
         }
-        "check-ok" => check(
-            &mut m,
-            None,
-            vec![
-                (Mark::Ok, "Version: the known release (sizes and checksums match)"),
-                (Mark::Ok, "All 9 files Overbright needs are present"),
-            ],
-            true,
-        ),
-        // The movies list open: a US install (no language suffix), all
-        // found; then one with three story and tutorial movies missing.
-        "check-movies" | "check-movies-missing" => {
-            let root = FakeEnv::root();
-            let missing: &[&str] = if name == "check-movies" { &[] } else { &["Scene05", "Scene06", "DriftTut"] };
-            let c = crate::qol::setup::Check {
-                assets: Some(super::model::fake_assets(&root, missing)),
-                ..Default::default()
-            };
-            m.check = Some(super::model::check_result(&root, &c, None));
-            m.show_assets = true;
+        // The game check's states (docs/launcher.md, "The game check").
+        "check-ok" => m.check = Some(fake_check(&[], &[], &[], false)),
+        // The details open: a US install (no language suffix), all found.
+        "check-movies" => {
+            m.check = Some(fake_check(&[], &[], &[], false));
+            m.show_details = true;
+        }
+        "check-movies-missing" => m.check = Some(fake_check(&[], &[], &["Scene05", "Scene06", "DriftTut"], false)),
+        "check-details" => {
+            m.check = Some(fake_check(&[], &[], &["Scene05", "Scene06", "DriftTut"], false));
+            m.show_details = true;
+        }
+        "check-changed" => {
+            m.check = Some(fake_check(&[], &["GLOBAL/GlobalB.lzc", "FRONTEND/FrontB.lzc"], &[], false))
+        }
+        "check-unknown-edition" => m.check = Some(fake_check(&[], &[], &[], true)),
+        "check-no-english" => {
+            let mut c = fake_check(&[crate::game_assets::TEXT_FILE], &[], &[], false);
+            // A copy with French text only (`check_result` names the
+            // problem by the folder's look; the fake folder is not there).
+            c.usable = false;
+            c.problem = Some(Problem::NoText);
+            if let Some(s) = c.summary.as_mut() {
+                s.languages = vec!["French".into()];
+            }
+            m.check = Some(c);
         }
         "not-a-game-folder" => check(
             &mut m,
@@ -177,16 +214,12 @@ pub fn state_model(name: &str) -> Option<(Screen, Model)> {
             )],
             false,
         ),
-        "files-missing" => check(
-            &mut m,
-            None,
-            vec![
-                (Mark::Ok, "Version: the known release (sizes and checksums match)"),
-                (Mark::Error, "Missing: TRACKS/STREAML4RA.BUN — reinstall or copy the full game folder"),
-                (Mark::Error, "Missing: FRONTEND/FrontB.lzc — reinstall or copy the full game folder"),
-            ],
-            false,
-        ),
+        "files-missing" => {
+            let mut c = fake_check(&["TRACKS/STREAML4RA.BUN", "FRONTEND/FrontB.lzc"], &[], &[], false);
+            c.usable = false;
+            c.problem = Some(Problem::Missing(2));
+            m.check = Some(c);
+        }
         "own-folder" => {
             check(&mut m, Some("/data/player/Games/overbright-0.3.0-linux-x86_64"), Vec::new(), false);
             m.check.as_mut().expect("the fake data has a check").problem = Some(Problem::OwnFolder);

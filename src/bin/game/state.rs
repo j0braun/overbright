@@ -3,7 +3,7 @@
 //! (`shell::cadence::Pacing`, `loads::Loads`, `sim::SimSession` …).
 use crate::*;
 
-/// Ray Traced reflections (docs/rt-reflections.md): the frame's
+/// Ray Traced reflections (docs/notes/graphics/reflections.md "Ray-traced reflections (experimental)"): the frame's
 /// ray-query scene (the world, the cars where they are) for `ssr`.
 /// `player`: the player's car and pose, `others`: [`rt_cars`].
 
@@ -58,9 +58,9 @@ pub(crate) struct Game {
     pub(crate) scenes: flow::scenes::Scenes,
     /// The front end's garage ([`garage::GarageFe`]).
     pub(crate) garage_fe: garage::GarageFe,
-    /// Photo mode (docs/photo-mode.md), up over the pause menu.
+    /// Photo mode (docs/playing/photo-mode.md), up over the pause menu.
     pub(crate) photo: Option<photo::Photo>,
-    /// The free camera (docs/map-editor.md; `--editor` only), up over the
+    /// The free camera (docs/modding/map-editor.md; `--editor` only), up over the
     /// explore pause menu.
     pub(crate) free_camera: Option<crate::enh::free_camera::FreeCamera>,
     /// Controller extras (Rumble): the model and the gear it last saw.
@@ -113,7 +113,7 @@ impl Game {
         // options in a directory of their own, never the player's — the
         // process's (for any thread a test spawns), and each test thread
         // its own data folder and current profile, and a hold on the
-        // process-wide settings (`test_isolation`, docs/test-determinism.md).
+        // process-wide settings (`test_isolation`, docs/developing/test-determinism.md).
         #[cfg(all(test, feature = "dev-harness"))]
         {
             static ISOLATE: std::sync::Once = std::sync::Once::new();
@@ -217,7 +217,7 @@ impl Game {
     /// in `Game::update`, never with the wall clock or a drawn frame, so it
     /// is the same at every display rate. The harness may pin it
     /// (`Pacing::clock`). Wall time is read for presentation only
-    /// (`now_ms(started)` / `Instant`: docs/uncapped-fps.md, "Game time").
+    /// (`now_ms(started)` / `Instant`: docs/original/uncapped-fps.md, "Game time").
     pub(crate) fn now(&self) -> f32 {
         match self.pacing.clock {
             Some(c) => (c * 1000.0) as f32,

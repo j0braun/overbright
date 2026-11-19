@@ -834,7 +834,7 @@ mod tests {
     /// too, is 0x4122C0 at its own offset with the lateral, so a car off
     /// its racing line gets a path parallel to the line. The clone took an
     /// inserted point's smoothed place without the lateral, and the path
-    /// zigzagged every 8 m (docs/outrun-ai-strength.md: the encounter
+    /// zigzagged every 8 m (docs/notes/outrun/ai-strength.md: the encounter
     /// rival steered into walls at junctions).
     #[test]
     #[cfg_attr(not(ob_private), ignore = "needs OB_PRIVATE (private captures and saves)")]

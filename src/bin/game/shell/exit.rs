@@ -1,4 +1,4 @@
-//! The window's exit (docs/exit.md): what the game does after its
+//! The window's exit (docs/original/exit.md): what the game does after its
 //! event loop ended (the window closed, Quit Game, a controller's Back on
 //! the main menu).
 //!
@@ -14,7 +14,7 @@
 //! options are written when they change (the save points), never at quit;
 //! the clone does the same, so nothing is to be written here.
 //!
-//! What the clone's exit waited for (measured, docs/exit.md): the cache
+//! What the clone's exit waited for (measured, docs/original/exit.md): the cache
 //! writes' fsyncs (`cache::flush`, 20–30 s on a busy disk; no longer
 //! synced, bounded by `EXIT_FLUSH` in `startup`) and the audio device's
 //! close (up to 3 s). Now: the window is hidden first, the audio is muted
@@ -36,7 +36,7 @@ impl Game {
             w.set_visible(false);
         }
         lap("window hidden");
-        // The log's last drive and the run's length (docs/waits-log.md).
+        // The log's last drive and the run's length (docs/developing/waits-log.md).
         self.waits_end();
         // The device's close can wait seconds (a sound server draining);
         // the process's end closes it. Muted first, so nothing plays on.

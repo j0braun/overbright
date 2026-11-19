@@ -1,4 +1,4 @@
-// docs/glow-darkening.md: the cars' shadow texture (alpha-blended,
+// docs/notes/graphics/car-look.md "Darkening settings against emissive light and the car's shadow": the cars' shadow texture (alpha-blended,
 // its colour near black: it leaves dst · (1 − a)) over a ground Contact
 // Shadows already left at vc of its light: the decal's alpha is cut so the
 // two give the darker of (1 − a) and vc, not their product (the native
@@ -49,7 +49,7 @@ fn fs_shadow_alpha_test(in: VertexOut, @builtin(view_index) view_index: u32) {
     }
 }
 
-// Depth pre-pass (clone, enhanced lighting only; docs/perf-gpu.md, depth pre-pass):
+// Depth pre-pass (clone, enhanced lighting only; docs/notes/performance/gpu.md, depth pre-pass):
 // the main view's opaque draws' depth before the colour pass, with the
 // same vertex entry points (so the same depth) and the same coverage as
 // their colour pipelines: the alpha test's discard on the same texel and

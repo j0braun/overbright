@@ -29,13 +29,13 @@ const FLAKE_CELL: f32 = 0.004;
 const COAT_POWER: f32 = 96.0;
 // The flake glint, filtered: the mean over a cell's tilted normals
 // (uniform +-0.35 per axis) of a power-20 lobe is ~0.18 (r.l)^3 (Monte Carlo,
-// docs/car-raindrops.md), and 40 % of the cells carry a flake.
+// docs/notes/graphics/car-look.md "Spots like raindrops on a dry car"), and 40 % of the cells carry a flake.
 const FLAKE_MEAN: f32 = 0.4 * 0.18;
 const FLAKE_POWER: f32 = 3.0;
 // Per-cell spread of the filtered glint around its mean (+-40 %).
 const FLAKE_SPREAD: f32 = 0.8;
 // Zero-mean per-cell brightness grain (+-1 %; +-3 % turned into white dots
-// under the Sharpen row at 100, docs/car-raindrops.md).
+// under the Sharpen row at 100, docs/notes/graphics/car-look.md "Spots like raindrops on a dry car").
 const FLAKE_GRAIN: f32 = 0.02;
 
 // car.wgsl's final combine (`r0 = 2 * r0 * r1.a + r1`) in the paint module:
@@ -102,7 +102,7 @@ fn enhanced_paint(in: VertexOut, env_native: vec3<f32>, texel: vec3<f32>, specul
     // tilts, varied per cell by a bounded +-40 % (fine, low-contrast
     // sparkle), plus a faint (+-1 %) zero-mean grain. A per-cell glint of a single
     // tilted normal gave isolated bright cells on a dark panel that read as
-    // water drops (docs/car-raindrops.md).
+    // water drops (docs/notes/graphics/car-look.md "Spots like raindrops on a dry car").
     // Mip-like: the cell grows with the pixel's footprint in power-of-two
     // octaves (two blended, so nothing pops), never below ~1.5 px, so it
     // cannot shimmer; it weakens with each octave and is gone by the sixth.

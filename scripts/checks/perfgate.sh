@@ -1,5 +1,5 @@
 #!/bin/bash
-# Performance regression gate (docs/perf-budget.md "The regression gate").
+# Performance regression gate (docs/notes/performance/budget.md "The regression gate").
 #
 #   perfgate.sh run    OUT NEW_BIN [BASELINE_DIR]   A/B of NEW_BIN against the accepted baseline binary,
 #                                                   interleaved; exit 1 on a significant > 3 % regression

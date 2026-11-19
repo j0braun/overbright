@@ -125,7 +125,7 @@ fn fs_haze_up(in: Out) -> @location(0) vec4<f32> {
     // view; cheaper than the ray per pixel).
     let lin = linear_depth(scene_depth_px(p));
     let len = select(lin, 400.0, lin > 0.9 * f.depth.y);
-    // Look rule "no double fog" (docs/look-direction.md): only `veil` of the mist's extinction is
+    // Look rule "no double fog" (docs/notes/graphics/look-direction.md): only `veil` of the mist's extinction is
     // applied again (the native fog owns it), and the mist's own light is a
     // small share of the fog colour.
     let alpha = select(f.ng_haze.x, f.ng_haze.x * f.ng_haze.z, len >= 400.0) * (1.0 - exp(-f.ng_air.z * min(len, 400.0)));

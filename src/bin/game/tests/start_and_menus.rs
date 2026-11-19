@@ -1,8 +1,8 @@
-//! The start and the menus' waits (docs/start-and-menus.md): Skip Intro
+//! The start and the menus' waits (docs/original/start-and-menus.md): Skip Intro
 //! Movies and Skip Title Screen, each on its own; the main menu's garage scene made while the
 //! title is up draws the frames the menu made it for itself draws.
 use super::*;
-// The test kit (tests/common/mod.rs, docs/testing.md).
+// The test kit (tests/common/mod.rs, docs/developing/testing.md).
 #[path = "../../../../tests/common/mod.rs"]
 mod testkit;
 

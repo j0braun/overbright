@@ -1,4 +1,4 @@
-//! Software-GPU check aid (docs/software-gpu.md): the light-streak
+//! Software-GPU check aid (docs/developing/software-gpu.md): the light-streak
 //! decay's blend (ZERO / CONSTANT on an Rgba8Unorm target, 0x5CBB6A) on
 //! whatever adapter Vulkan gives (e.g. VK_DRIVER_FILES=lavapipe's ICD);
 //! prints the texel a white target keeps after one, two and four decays.

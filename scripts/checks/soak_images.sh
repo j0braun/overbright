@@ -1,5 +1,5 @@
 #!/bin/bash
-# Image soak (docs/checks.md "Image soak"): the parity gate's Original image dumps (perf.sh parity, gate
+# Image soak (docs/developing/checks.md "Image soak"): the parity gate's Original image dumps (perf.sh parity, gate
 # "images") run RUNS times with ONE binary, every run compared with run 1 frame by frame. Two runs of the
 # same binary must give byte-identical frames; a difference is nondeterminism in the binary (or the driver),
 # not a change between base and new.

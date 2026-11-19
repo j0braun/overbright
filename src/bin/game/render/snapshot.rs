@@ -1,4 +1,4 @@
-//! Tick snapshots (docs/uncapped-fps.md, "Tick snapshots"): the draw as a function
+//! Tick snapshots (docs/original/uncapped-fps.md, "Tick snapshots"): the draw as a function
 //! of two captured tick states and a blend factor.
 //!
 //! - [`TickSnapshot`]: what the draw takes from a tick, captured at the end
@@ -88,7 +88,7 @@ pub(crate) struct TickSnapshot {
     pub(crate) garage: crate::garage::snapshot::GarageSnapshot,
     /// The settings the tick stepped with (`sim::TickSettings`): the
     /// draw shows the tick-stepped state with these, not with a value
-    /// changed since (docs/frame-settings.md).
+    /// changed since (docs/developing/frame-settings.md).
     pub(crate) settings: crate::sim::TickSettings,
 }
 
@@ -109,7 +109,7 @@ pub(crate) struct Snapshots {
     pub(crate) blur: std::collections::VecDeque<crate::render::enh::blur_ticks::BlurTick>,
 }
 
-/// docs/uncapped-fps.md, "Environment cube on ticks": where tick
+/// docs/original/uncapped-fps.md, "Environment cube on ticks": where tick
 /// m's cube faces are rendered from (0x61AB60: the view's car + 0.95 m up,
 /// oriented by the main camera, view 1), taken from S_m, and the scene
 /// clock of that tick (the faces' animated textures).

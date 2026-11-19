@@ -181,7 +181,7 @@ pub const TRUNK_CARBON: usize = 0x60;
 pub const CARBONFIBRE: u32 = 0x721A_FF7C;
 /// `CARBONFIBER` (0x7A8D2C): the light material the car's render info
 /// holds at +0x388 (0x638DA9…0x638DBF, through 0x43DB50 / 0x48F6A0) for
-/// the carbon parts (docs/car-materials.md).
+/// the carbon parts (docs/notes/graphics/car-materials.md).
 pub const CARBONFIBER_MATERIAL: u32 = 0x721A_FDDC;
 
 /// 0x634B0B…0x634E69: the table a slot's model takes. `above` is "the

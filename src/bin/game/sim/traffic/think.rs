@@ -42,6 +42,12 @@ pub(crate) fn traffic_think(
     // The intersections let go of the right of way (0x4111C0, each frame).
     t.crossings.tick();
     let mut think = vec![false; t.cars.len()];
+    // The traffic's race coordinates (car +0x8FC) move on in steps.
+    if let Some(road) = road {
+        for c in t.cars.iter_mut().filter(|c| c.lane.is_some()) {
+            c.refresh_coord(road);
+        }
+    }
     t.timer -= dt;
     if t.timer <= 0.0 {
         traffic_place_pass(world, t, player, racers, road, drag, node, wrong_way);
@@ -110,7 +116,7 @@ fn traffic_place_pass(
             c.lane.is_some()
                 && c.state.velocity.length() < JAM_CAR
                 && match (road, me_coord) {
-                    (Some(r), Some(mc)) => r.difference(r.locate_once(c.state.position.truncate()), mc).abs() < JAM_REACH,
+                    (Some(r), Some(mc)) => r.difference(c.race_coord(r), mc).abs() < JAM_REACH,
                     _ => true,
                 }
         });
@@ -127,7 +133,8 @@ fn traffic_place_pass(
         // 0x417BB0: a placed car stays while near a player — in a
         // coordinate race 0x410DE0 → 0x409890, |0x5F12B0| < 250 on race
         // coordinate alone (verified; the drag race takes that, with
-        // the player's coordinate and the car's located on the road,
+        // the player's coordinate and the car's +0x8FC, which moves on
+        // in steps, `TrafficCar::race_coord`,
         // prov: inferred game.traffic_think
         // **inferred**; the other races keep `dist`).
         // Every race is a coordinate race (0x88F2BE), so 0x410DE0
@@ -137,7 +144,7 @@ fn traffic_place_pass(
         // (world +0x14 = 1, slot 1 unset: **observed** under Wine).
         let near = match (road, me_coord) {
             (Some(road), Some(mc)) => {
-                road.difference(road.locate_once(t.cars[i].state.position.truncate()), mc).abs() < DESPAWN
+                road.difference(t.cars[i].race_coord(road), mc).abs() < DESPAWN
             }
             _ => dist(t.cars[i].state.position.truncate(), me.truncate()) <= DESPAWN,
         };
@@ -161,7 +168,7 @@ fn traffic_place_pass(
         // 0x42E9F0's keep-side rule reads the car's race coordinate while it
         // is not parked (+0x77C; the clone's parked car has no lane).
         let own = (!t.cars[i].held && t.cars[i].lane.is_some())
-            .then(|| road.map(|r| r.locate_once(t.cars[i].state.position.truncate())))
+            .then(|| road.map(|r| t.cars[i].race_coord(r)))
             .flatten();
         let others: Vec<Vec2> = t
             .cars
@@ -194,8 +201,9 @@ fn traffic_place_pass(
                 // one a car is near (0x411060: an AI racer, controller
                 // type 3, within the spacing either way; the others —
                 // the player, traffic — with the point less than the
-                // spacing ahead of them). The cars' race coordinates
-                // are their places located on the race road
+                // spacing ahead of them). The traffic's race
+                // coordinates are their +0x8FC (`TrafficCar::race_coord`),
+                // the racers' their places located on the race road
                 // prov: inferred game.traffic_think-2
                 // (**inferred**, as `dist` does).
                 let coords: Vec<(f32, bool)> = t
@@ -203,7 +211,7 @@ fn traffic_place_pass(
                     .iter()
                     .enumerate()
                     .filter(|&(j, c)| j != i && c.lane.is_some())
-                    .map(|(_, c)| (road.locate_once(c.state.position.truncate()), false))
+                    .map(|(_, c)| (c.race_coord(road), false))
                     .chain(racers.iter().map(|r| (road.locate_once(r.position), true)))
                     .chain(std::iter::once((p.coord, false)))
                     .collect();
@@ -224,7 +232,7 @@ fn traffic_place_pass(
                     .iter()
                     .enumerate()
                     .filter(|&(j, c)| j != i && c.lane.is_some())
-                    .map(|(_, c)| (road.locate_once(c.state.position.truncate()), false))
+                    .map(|(_, c)| (c.race_coord(road), false))
                     .chain(racers.iter().map(|r| (road.locate_once(r.position), true)))
                     .chain(std::iter::once((mc, false)))
                     .collect();
@@ -270,6 +278,8 @@ fn traffic_place_pass(
         if let Some((lane, at, heading)) = placed {
             t.tries.1 += 1;
             place_traffic(world, &mut t.cars[i], &t.routes, lane, at, heading);
+            // A placed car's race coordinate is its point's (observed).
+            t.cars[i].coord = road.map(|r| (r.locate_once(at.truncate()), at.truncate()));
             // Car +0x550: 0x42A050 → 0x402110 on a paused car, then
             // 0x5FBEE0's 0x5F6CE0 (see `TrafficCar::active`).
             let c = &mut t.cars[i];

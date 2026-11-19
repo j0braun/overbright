@@ -1,4 +1,4 @@
-// Animated Water, Next-Gen (clone deviation, opt-in; docs/water.md
+// Animated Water, Next-Gen (clone deviation, opt-in; docs/notes/graphics/water.md
 // "Next-Gen"): the drawing half. Appended to water.wgsl and water_hq.wgsl
 // (their Frame, lamps, cube, fog, scene copy, wet fields and the Realistic
 // surface and sheet shading are shared); the On and Realistic modules are

@@ -1,6 +1,6 @@
 // Modern Lighting (phase 1 and the stronger phase 2, clone deviation, opt-in:
 // the Graphics → Lighting page's Lighting row, or the hidden switch
-// NFSU2_MODERN_LIGHTING; docs/modern-lighting.md, render/modern_light.rs,
+// NFSU2_MODERN_LIGHTING; docs/notes/graphics/modern-lighting.md, render/modern_light.rs,
 // render/modern_light_bold.rs): frame.lamps.x ≥ 2. The street lamps' share
 // of the bake is modelled per pixel as physical point lights fitted to the
 // bake (`ml_pool`: inverse square × cosine with a softening, windowed to
@@ -492,7 +492,7 @@ fn ml_relight(p: vec3<f32>, bake: vec3<f32>, ng_in: vec3<f32>, n_in: vec3<f32>, 
     // the artists' (a lamp beside a facade would wash it out).
     let kl = mix(k, vec3<f32>(1.0), P.uncap * smoothstep(0.3, 0.7, ng.z));
     let headroom = clamp(1.0 - dot(bake, vec3<f32>(0.2126, 0.7152, 0.0722)) / ML_EXTRA_PEAK, 0.25, 1.0);
-    // Look rule (docs/look-direction.md, darken only where the original is dark): the strength's darkening
+    // Look rule (docs/notes/graphics/look-direction.md, darken only where the original is dark): the strength's darkening
     // deepens the dark between the lights only. Where the bake itself is
     // bright (a lit facade, a sign, the garage's turntable, a pool the lamp
     // model does not hold) the artists' light is kept: the darkening fades

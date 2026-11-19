@@ -1,4 +1,4 @@
-# Modern + RT's gather: measurements behind docs/perf-budget.md "the colour shader's registers"
+# Modern + RT's gather: measurements behind docs/notes/performance/budget.md "the colour shader's registers"
 
 Reference desktop GPU, 3840x2160, the play setup (SSAA 2x: scene 5431x3055, 4.15 M blocks),
 `--bench racing 300`, one GPU-timed run per arm unless "paired" (interleaved A/B pairs).

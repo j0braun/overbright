@@ -36,7 +36,7 @@ pub fn pool_size(track_traffic: &[i8; 8], level: usize, reversed: bool) -> usize
     (track_traffic.get(2 * level + usize::from(reversed)).copied().unwrap_or(0).max(0) as usize).min(MAX_CARS)
 }
 
-/// Traffic Density (opt-in, docs/assets-distance.md; free roam only):
+/// Traffic Density (opt-in, docs/notes/graphics/assets-distance.md; free roam only):
 /// the native pool ([`pool_size`]) for 0, ×1.5 for 1 (More), ×2 for 2
 /// (Dense), at most [`MAX_DENSE_CARS`]. The placer, its 1 s cadence, the
 /// despawn ring and the jam rule stay native; only the pool grows.

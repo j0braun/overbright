@@ -218,7 +218,7 @@ impl RacerRoute {
             // The clone took an inserted point's smoothed place itself,
             // without the lateral, so a car off its line got a path that
             // zigzagged between the line and its lateral every 8 m
-            // (docs/outrun-ai-strength.md).
+            // (docs/notes/outrun/ai-strength.md).
             let pos = self.line_point(f, p, p.offset, lateral);
             self.line.push(LinePoint { s: p.s, lateral, pos });
         }

@@ -417,7 +417,7 @@ fn world_text_is_the_old_file() {
     // composed world module without them unchanged, byte for byte); then 111_658, 0xc50f_7c60_523f_c252 before
     // the light-cluster loop's subgroup form (`#if !SUBGROUPS`, and the per-cluster sum moved from
     // `lamp_light` into `cluster_light` for both forms: the same operations; the native modules unchanged); then
-    // 112_837, 0xe5fb_dd21_26a5_33a1 before the cars and lamps culled per light cluster (docs/lamps-shadows.md) and the SSR mask from the main view's entries (`world_masks.wgsl`: new
+    // 112_837, 0xe5fb_dd21_26a5_33a1 before the cars and lamps culled per light cluster (docs/notes/graphics/lamps-shadows.md) and the SSR mask from the main view's entries (`world_masks.wgsl`: new
     // entry points and their one binding only); then 122_409, 0xaebe_c9e7_6e96_b63a before the traced shadows'
     // steps, made in parallel from 111_658 (there: 114_001, 0x15b1_5077_1229_66a9; 116_653, 0x719f_eb19_7d8b_d114;
     // 117_249, 0xfbcb_61e4_6fd5_6c42; 117_718, 0xe375_ee4a_fa27_9b69): Modern + RT's gather moved to the top of the
@@ -432,18 +432,20 @@ fn world_text_is_the_old_file() {
     // scene had no instance outside masks 1 and 2 before, so the same hits; made in parallel from 128_469:
     // 128_469, 0xf89a_25b6_4c4f_91bc there); then 135_159, 0x4b8a_8e57_54bc_3fc1 before Modern + RT's blocks
     // took the emitters' resampled rest, their history and a 2 x 2 gather (`mlrt.wgsl`, the light loop's rest
-    // lookup; Modern + RT's module only, docs/shadow-softness.md "Every light: the rest resampled").
-    assert_old_text(ShaderId::World, 137_115, 0x4d83_640d_2de8_4e80);
+    // lookup; Modern + RT's module only, docs/notes/graphics/shadow-softness.md "Every light: the rest resampled").
+    // Re-pinned for a comment-only change (the docs pages' new paths): was 137_115, 0x4d83_640d_2de8_4e80.
+    assert_old_text(ShaderId::World, 137_568, 0xaa2c_efe2_d293_1f1b);
 }
 
 #[test]
 fn postfx_text_is_the_old_file() {
     // Re-pinned for SSAA's resolve to the screen's size (`post_scale.wgsl`'s compute resolve and its last pass,
-    // docs/ssaa-screen-passes.md: new entry points only; every older entry point unchanged, the shots without SSAA
+    // docs/notes/graphics/ssaa.md "Effect and post passes at the screen's size under SSAA": new entry points only; every older entry point unchanged, the shots without SSAA
     // byte-identical): was 19_324, 0x7dcc_3c3e_3dc0_2856. Then for the glow skip (High Precision Post's two
     // prefilters each split into a function and its entry, which the flagging entries in `glow_skip.wgsl` call;
     // `native/post/post.wgsl` unchanged, the native gate byte-identical): was 25_013, 0x741f_c83a_0cec_45cc.
-    assert_old_text(ShaderId::PostFx, 25_189, 0x931f_0f74_33c6_4cb7);
+    // Re-pinned for a comment-only change (the docs pages' new paths): was 25_189, 0x931f_0f74_33c6_4cb7.
+    assert_old_text(ShaderId::PostFx, 25_330, 0xf029_6d15_702b_06cc);
 }
 
 #[test]
@@ -451,7 +453,8 @@ fn weather_fx_text_is_the_old_file() {
     // Re-pinned for one wetness (Rain Next-Gen's puddles from `wetness.wgsl`): was 41_646, 0xa9d9_bf4b_5b76_2251;
     // then 43_159, 0xc4ce_c134_9d32_7eca before a comment-only rewrite of `wetness.wgsl` and `rain_ng.wgsl`;
     // then 43_130, 0x9704_be26_8974_e403 before the haze left the lamps and cones to the one volume.
-    assert_old_text(ShaderId::WeatherFx, 43_263, 0x76e2_1d93_4279_1d8f);
+    // Re-pinned for a comment-only change (the docs pages' new paths): was 43_263, 0x76e2_1d93_4279_1d8f.
+    assert_old_text(ShaderId::WeatherFx, 43_321, 0xd94b_30aa_9dce_cd3c);
 }
 
 #[test]
@@ -459,25 +462,30 @@ fn volume_fx_text_is_the_old_file() {
     // Re-pinned for the resolve per workgroup (`resolve.wgsl`; `volume_common.wgsl`'s note on `look6`): was
     // 47_830, 0x8619_fbfa_114f_aaaa; then 50_744, 0xa3cc_c427_5cb7_e236 before the march's override constants
     // (`march.wgsl`: the branches a renderer's look never takes left out of its program).
-    assert_old_text(ShaderId::VolumeFx, 51_215, 0x6d83_3066_17fc_6c06);
+    // Re-pinned for a comment-only change (the docs pages' new paths): was 51_215, 0x6d83_3066_17fc_6c06.
+    assert_old_text(ShaderId::VolumeFx, 51_275, 0x9372_63ab_9802_85d5);
 }
 
 #[test]
 fn gpu_particles_text_is_the_old_file() {
-    assert_old_text(ShaderId::GpuParticles, 14_333, 0x1550_8ad6_6c56_18d9);
+    // Re-pinned for a comment-only change (the docs pages' new paths): was 14_333, 0x1550_8ad6_6c56_18d9.
+    assert_old_text(ShaderId::GpuParticles, 14_399, 0x7e69_1777_4a47_480e);
 }
 
 #[test]
 fn smoke_cinematic_text_is_the_old_file() {
-    assert_old_text(ShaderId::SmokeCinematic, 21_392, 0x4815_1d6c_317c_e77e);
+    // Re-pinned for a comment-only change (the docs pages' new paths): was 21_392, 0x4815_1d6c_317c_e77e.
+    assert_old_text(ShaderId::SmokeCinematic, 21_461, 0xfe7b_e841_df69_eaf1);
 }
 
 #[test]
 fn fsr2_text_is_the_old_file() {
-    assert_old_text(ShaderId::Fsr2, 41_038, 0x1a09_e7ac_5930_924c);
+    // Re-pinned for a comment-only change (the docs pages' new paths): was 41_038, 0x1a09_e7ac_5930_924c.
+    assert_old_text(ShaderId::Fsr2, 41_128, 0x64bf_b83c_4ac2_dcf6);
 }
 
 #[test]
 fn ui_text_is_the_old_file() {
-    assert_old_text(ShaderId::Ui, 6_891, 0xe2b5_2d35_6812_b3b9);
+    // Re-pinned for a comment-only change (the docs pages' new paths): was 6_891, 0xe2b5_2d35_6812_b3b9.
+    assert_old_text(ShaderId::Ui, 6_899, 0x5efb_dee6_3b20_0c8a);
 }

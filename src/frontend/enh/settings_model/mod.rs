@@ -1,6 +1,6 @@
-//! The settings model (docs/settings-model.md) — the data the settings
+//! The settings model (docs/developing/settings-model.md) — the data the settings
 //! page is built from, and the conflict & redundancy rules of the
-//! audit (docs/settings-model.md "Audit").
+//! audit (docs/developing/settings-model.md "Audit").
 //!
 //! * [`MODEL`]: every clone row's settings group, whether it is the original's
 //!   (native), a native row with the clone's tiers above it (shared) or an

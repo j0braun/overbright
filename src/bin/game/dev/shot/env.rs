@@ -17,7 +17,7 @@ pub(crate) struct ShotEnv {
     pub(crate) fx: FxEnv,
 }
 
-/// The drive shots' `NFSU2_FX*` aids (docs/sparks-fire.md).
+/// The drive shots' `NFSU2_FX*` aids (docs/notes/graphics/sparks-fire.md).
 pub(crate) struct FxEnv {
     /// NFSU2_FX: an effects shot.
     pub(crate) on: bool,

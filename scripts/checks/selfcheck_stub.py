@@ -225,7 +225,7 @@ def main(a):
         return 0
     cache = os.environ.get('NFSU2_CACHE_DIR')
     if a[:1] == ['--prepare']:
-        # docs/prepare.md: the lines the launcher reads, the pipeline cache, the stamp last.
+        # docs/developing/prepare.md: the lines the launcher reads, the pipeline cache, the stamp last.
         print('prepare=1\nstep=1/5 graphics device\nadapter=Generic GPU (stub)\npipeline_cache=1', flush=True)
         if 'prepfail' in F:
             print('error=stub failure\nok=0')

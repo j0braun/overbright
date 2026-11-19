@@ -19,7 +19,7 @@
 // its surface a little.
 const ANIM_DEPTH_TOLERANCE: f32 = 0.015;
 
-// docs/fsr2.md "Animation mask": (reactive, composition) of the
+// docs/notes/graphics/fsr2.md "Animation mask": (reactive, composition) of the
 // world's moving textures at p (the mask holds the draws' values), where
 // the final scene shows them.
 fn animation(p: vec2<i32>, d: f32) -> vec2<f32> {

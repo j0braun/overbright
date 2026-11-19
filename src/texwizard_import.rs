@@ -1,4 +1,4 @@
-//! docs/texture-packs.md, "TexWizard packs": a TexWizard pack
+//! docs/modding/texture-packs.md, "TexWizard packs": a TexWizard pack
 //! (`formats::texwizard`) converted into the texture-pack folders the same
 //! way as a TexMod package (`tpf_import::import_images`). TexWizard names
 //! each original by its bin hash, which is what our packs are keyed by, so

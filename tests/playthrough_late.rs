@@ -268,7 +268,7 @@ fn career_statistics_rows_match_the_original_block() {
     assert!(rows.iter().any(|r| matches!(r, Row::Value(_, v) if v == "15,300.0")));
 }
 
-/// docs/outrun.md, "Stages 4 and 5": an outrun won at stage 4 with 3
+/// docs/original/outrun.md, "Stages 4 and 5": an outrun won at stage 4 with 3
 /// wins before, and at stage 5 with 5, as the original gave it under Wine
 /// (the maintainer's private captures; the sandbox saves: a community save at stage
 /// 4 and `stage5_start`, the stage record's +0xDC set to 3 / 5): the

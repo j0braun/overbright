@@ -1,6 +1,6 @@
 
 // ---------------------------------------------------------------------
-// Enhanced Glass (clone deviation, opt-in; docs/lighting2.md),
+// Enhanced Glass (clone deviation, opt-in; docs/notes/graphics/lighting2.md),
 // appended to car.wgsl in its own module (car_glass.rs): the native
 // pipelines never see it. The car's glass draws (the window tints,
 // WINDSHIELD, WINDOWMASK, CLEARPLASTIC, HEADLIGHTGLASS) are left out of the

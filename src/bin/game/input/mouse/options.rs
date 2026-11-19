@@ -55,7 +55,7 @@ impl Game {
             if in_box(canvas, r.4.0, r.4.1) {
                 return self.mouse_key(Key::Right);
             }
-            // Settings page (docs/settings-page.md, clone page): a click on the
+            // Settings page (docs/developing/settings-page.md, clone page): a click on the
             // settings page's selected row opens a group / presses a
             // reset (Enter); the original's lists keep theirs.
             if matches!(&self.mode, Mode::Menu(Menu::Options(o)) if o.category.visible() == nfsu2::frontend::options::PAGE_VISIBLE)

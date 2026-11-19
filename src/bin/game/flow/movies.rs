@@ -315,7 +315,7 @@ impl Game {
     /// screen has been up more than 0.5 s (0x784260).
     pub(crate) fn movie_key(&mut self, key: Key) {
         let Mode::Menu(Menu::Movie(m)) = &mut self.mode else { return };
-        // Agreed deviation (docs/native-deviations.md "Skipping scenes"): Enter skips every movie, the
+        // Agreed deviation (docs/playing/native-deviations.md "Skipping scenes"): Enter skips every movie, the
         // boot logos and the PSA included (natively only the intro FMV and
         // IG_PlayMovie, after 0.5 s, take the skip; see `skippable`).
         let skip = match m.boot {

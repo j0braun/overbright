@@ -1,4 +1,4 @@
-//! Rate independence (docs/uncapped-fps.md "Drawn objects between ticks"): the
+//! Rate independence (docs/original/uncapped-fps.md "Drawn objects between ticks"): the
 //! particles a drawn frame shows between two ticks, a pure function of the
 //! two ticks' particle lists and α. The simulation steps the particles on
 //! the tick only (0x492E10's update, once per 60 fps frame in the

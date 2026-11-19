@@ -1,5 +1,5 @@
 //! The optional upscaled world texture pack (clone deviation, opt-in;
-//! docs/texture-pack-generator.md). Nothing is shipped: `overbright-upscale`
+//! docs/modding/texture-pack-generator.md). Nothing is shipped: `overbright-upscale`
 //! reads the player's own world textures and writes `<HASH>.dds` files for
 //! the existing world pack path (`NFSU2_WORLD_TEXTURE_PACK`, `render::
 //! texture_pack`).
@@ -53,7 +53,7 @@ pub enum Category {
     CarDecal,
     /// Window glass (GLOBALB WINDOW*, REAR_DEFROSTER).
     CarGlass,
-    /// docs/loading-image.md, the UI domain: the loading screens'
+    /// docs/original/loading-image.md, the UI domain: the loading screens'
     /// pictures and bars the HD UI pack leaves out, at its 4× (up to 4096,
     /// the UI loader's limit); lettering kept like signs (no sharpening,
     /// no halos).
@@ -121,7 +121,7 @@ pub fn category(t: &Texture, reflect: bool) -> Category {
     }
 }
 
-/// The category of a car texture (docs/texture-pack-generator.md
+/// The category of a car texture (docs/modding/texture-pack-generator.md
 /// "Cars"). `traffic_skin`: a traffic type's shipped `<CAR>_SKIN<n>`
 /// (drawn as is). Left out (`Skip`): glows and lamp glass (additive, as
 /// the world's glows), shadows, the neon, the compositor's dummies and the
@@ -874,7 +874,7 @@ pub fn encode_bc2(rgba: &[u8], w: u32, h: u32) -> Vec<u8> {
     out
 }
 
-/// docs/texture-pack-cache.md: a DXT3 / DXT5 image (`data`: every
+/// docs/modding/texture-pack-cache.md: a DXT3 / DXT5 image (`data`: every
 /// level's blocks back to back) whose every texel decodes to alpha 255, as
 /// BC1 without loss: its colour blocks are BC1 blocks the 4-colour way
 /// (D3D decodes a DXT3/5 colour block in 4-colour mode whatever its end

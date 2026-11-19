@@ -1,5 +1,5 @@
 //! The game's files, found the way the original finds them: by name,
-//! without regard to case (docs/platform-dirs.md).
+//! without regard to case (docs/playing/platform-dirs.md).
 //!
 //! SPEED2.EXE opens its files through Win32, which matches names without
 //! case on NTFS, and asks for upper-case names (`LANGUAGES\ENGLISH.BIN`).

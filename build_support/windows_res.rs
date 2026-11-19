@@ -65,7 +65,7 @@ fn rc_str(s: &str) -> String {
 }
 
 /// The application manifest of one program, `name` being its assembly
-/// identity (docs/platform-windows.md): Windows 10/11
+/// identity (docs/playing/platform-windows.md): Windows 10/11
 /// compatibility, per-monitor DPI awareness v2 (winit asks for it at
 /// run time too; the manifest makes it hold before the first window and
 /// for every dialog), long paths (with the system's LongPathsEnabled

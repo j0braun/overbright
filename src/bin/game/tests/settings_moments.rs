@@ -1,4 +1,4 @@
-//! docs/frame-settings.md, "A tick's settings and a frame's": a setting
+//! docs/developing/frame-settings.md, "A tick's settings and a frame's": a setting
 //! changed between a tick and a drawn frame is drawn with the value the
 //! tick-stepped state was stepped with (the newest tick's), and from the
 //! next tick on with the new one; the chase camera's Field Of View offset

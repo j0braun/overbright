@@ -1,5 +1,5 @@
 // =====================================================================
-// Next-Gen rain (Rain Detail "Next-Gen", docs/rain-nextgen.md; a
+// Next-Gen rain (Rain Detail "Next-Gen", docs/notes/graphics/rain-nextgen.md; a
 // clone deviation, nothing here is native). Only the Next-Gen entry
 // points below read the ng_* fields; tiers On / High run the code above
 // unchanged.

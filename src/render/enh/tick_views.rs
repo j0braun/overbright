@@ -1,4 +1,4 @@
-//! Enhancement effects on ticks (docs/uncapped-fps.md, "Enhancement effects on ticks"): what
+//! Enhancement effects on ticks (docs/original/uncapped-fps.md, "Enhancement effects on ticks"): what
 //! the enhanced effects that simulate, schedule or accumulate read of the
 //! world's ticks, so their picture is the same at every display rate.
 //! Clone-only (nothing here is in SPEED2.EXE); the Original preset never

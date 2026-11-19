@@ -1,5 +1,5 @@
 #!/bin/bash
-# docs/resolutions.md: the resolution matrix. Renders a fixed set of screens headless at every
+# docs/notes/graphics/resolutions.md: the resolution matrix. Renders a fixed set of screens headless at every
 # matrix size and every display option (Aspect Ratio Stretched = the original's behaviour, Wide = the
 # clone's default, Wide + HUD Layout Full Width on the HUD screens) and checks each image with
 # resolutions.py: the run (rc, panic / validation), the UI canvas rectangle and reaches against the

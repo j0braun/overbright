@@ -1,4 +1,4 @@
-//! `--flow firstdrag` (docs/first-drag.md): a fresh career's first drag
+//! `--flow firstdrag` (docs/notes/parity/first-drag.md): a fresh career's first drag
 //! race (the profile `skip_intro` leaves at the stage 1 city start, whose
 //! open list holds DRAG_1), its start scene played through and then raced
 //! on the player's keys (gas held, Shift Up near the red line, the arrow

@@ -1,4 +1,4 @@
-//! Volumetric effects (docs/smoke-volumetric.md; a **clone
+//! Volumetric effects (docs/notes/graphics/smoke.md "Volumetric effects and the volumetric Cinematic smoke"; a **clone
 //! deviation**, opt-in; nothing here exists in SPEED2.EXE): a reusable
 //! renderer for smoke, steam, spray, mist and fire, and a GPU particle
 //! pool to drive it. Review 2026-11-05: enhanced effects must be simulated,

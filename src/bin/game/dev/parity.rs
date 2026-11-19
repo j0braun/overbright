@@ -1,4 +1,4 @@
-//! `--flow parity <plan>` (docs/parity-harness.md): the clone's side of a
+//! `--flow parity <plan>` (docs/developing/parity-harness.md): the clone's side of a
 //! parity scenario. the maintainer's tool `parity.py` writes the plan from the
 //! scenario (tools/parity/scenarios/*.toml) and the original's run: the
 //! start state, the native tick counts per frame, the input events by
@@ -349,7 +349,7 @@ fn car_value(c: &CarView, accessor: &str) -> Vec<f64> {
         }
         // Drivetrain and wheels (mover +0x48 engine, +0x4C drivetrain,
         // +0x38.. wheels FL FR RR RL, the table's order, as the clone's
-        // `wheels`; docs/tuning-physics-parity.md).
+        // `wheels`; docs/notes/parity/tuning-physics-parity.md).
         "eng_w" | "eng_pedal" | "eng_power" | "eng_cut" | "clutch" | "shift" | "in_w" => {
             vec![s.drivetrain.as_ref().map_or(f64::NAN, |d| match accessor {
                 "eng_w" => d.engine_w as f64,
@@ -1510,7 +1510,7 @@ pub(crate) fn flow_parity(game: &mut Game, plan_path: &str) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    // The test kit (tests/common/mod.rs, docs/testing.md).
+    // The test kit (tests/common/mod.rs, docs/developing/testing.md).
     use crate::tests::testkit;
 
     /// Every clone accessor the maintainer's `fields.toml` names is implemented

@@ -1,4 +1,4 @@
-//! Fuzz smoke test (docs/fuzzing.md): every target of `fuzz/targets.rs`
+//! Fuzz smoke test (docs/developing/fuzzing.md): every target of `fuzz/targets.rs`
 //! (the same functions cargo-fuzz drives) gets mutated inputs from a
 //! deterministic engine of its own (seeded xorshift), over seeds taken from
 //! the player's game files at test time (nothing is committed). A target
@@ -807,7 +807,7 @@ fn payload_filler_ends_at_128() {
 const BUN_STREAM_FILE: &str = "TRACKS/STREAML4RA.BUN";
 
 /// `FUZZ_INPUT=file FUZZ_ONLY=target`: one saved input (a `FUZZ_DUMP` file)
-/// through one target, with its time (docs/fuzzing.md).
+/// through one target, with its time (docs/developing/fuzzing.md).
 #[test]
 fn replay_one_input() {
     let (Ok(f), Ok(name)) = (std::env::var("FUZZ_INPUT"), std::env::var("FUZZ_ONLY")) else { return };

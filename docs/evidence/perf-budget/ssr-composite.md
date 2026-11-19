@@ -1,4 +1,4 @@
-# Screen-space reflections: the composite by the blend, and the march (docs/wet-roads-ssr.md)
+# Screen-space reflections: the composite by the blend, and the march (docs/notes/graphics/reflections.md "Wet Roads and Screen-Space Reflections")
 
 GPU timestamps per pass, `--bench racing 200`; the desktop GPU at 3840x2160 with the play setup at 4K
 (SSAA 2x, ray-traced reflections, High Precision Post), the integrated GPU at 1920x1080, World Detail 3,

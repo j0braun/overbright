@@ -1,6 +1,6 @@
 #!/bin/bash
-# The map editor's shot matrix (docs/checks.md "Editor shots", docs/map-editor.md): `overbright-editor --shot` at
-# every size of the resolution matrix (scripts/checks/resolutions.py, docs/resolutions.md) and a few display
+# The map editor's shot matrix (docs/developing/checks.md "Editor shots", docs/modding/map-editor.md): `overbright-editor --shot` at
+# every size of the resolution matrix (scripts/checks/resolutions.py, docs/notes/graphics/resolutions.md) and a few display
 # scales, on three screens, headless: the editor draws its whole window off-screen, and every run starts without
 # any display variable (DISPLAY, WAYLAND_DISPLAY unset), so a run that tried to open a window would fail.
 #

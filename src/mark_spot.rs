@@ -4,7 +4,7 @@
 //! the nearest scenery solid, the world clock, the settings and their hash
 //! — to a report file under the data folder, with the `--shot` / `--bench`
 //! command lines that rebuild the frame, so the report a player sends can
-//! be reproduced exactly. docs/mark-spot.md.
+//! be reproduced exactly. docs/playing/mark-spot.md.
 
 use std::path::{Path, PathBuf};
 

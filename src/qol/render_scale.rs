@@ -196,7 +196,7 @@ pub fn is_temporal_upscale(v: u8) -> bool {
     matches!(v, 1..=3) || is_fsr2(v)
 }
 
-/// Whether Upscaling value `v` is an FSR 2 mode (docs/fsr2.md): the
+/// Whether Upscaling value `v` is an FSR 2 mode (docs/notes/graphics/fsr2.md): the
 /// temporal pass with FSR 2's passes in place of the TAA resolve.
 pub fn is_fsr2(v: u8) -> bool {
     matches!(v, 7..=UPSCALE_MAX)

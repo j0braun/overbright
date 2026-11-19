@@ -227,7 +227,7 @@ impl AmbientDetail {
     }
 
     /// The props' pipelines for a main view of `format` × `samples`
-    /// (`reversed`), made now: a drive's warm-up (docs/first-use-builds.md).
+    /// (`reversed`), made now: a drive's warm-up (docs/developing/first-use-builds.md).
     pub fn warm(&mut self, gpu: &Gpu, format: wgpu::TextureFormat, samples: u32, reversed: bool) {
         self.pipelines(gpu, (format, samples, reversed));
     }

@@ -1,4 +1,4 @@
-//! One medium (docs/atmosphere.md "One medium"): the night air's density
+//! One medium (docs/notes/graphics/atmosphere.md "One medium"): the night air's density
 //! every volume effect reads. Nothing here is native (SPEED2.EXE's air is world.efx's per-vertex fog and
 //! the horizon fog grid, applied unchanged); every value is **inferred** (the atmosphere's look).
 //!

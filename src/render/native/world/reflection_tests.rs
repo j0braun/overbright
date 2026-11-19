@@ -361,7 +361,7 @@ fn road_planar_capture_geometry_effects_and_native_fallback() {
 }
 
 /// The GPS arrow must not be visible in the
-/// reflections (docs/gps-reflection.md): MARKER_GPS_AID goes in with flags 0 to the views
+/// reflections (docs/notes/graphics/reflections.md "The GPS arrow kept out of reflections"): MARKER_GPS_AID goes in with flags 0 to the views
 /// (`World::add_gps_aid`: HIDDEN_FLAG only, which the views test per
 /// instance), so the road reflection (planar or native), the cube and the
 /// rear-view mirror cull it (their 0x40) and only the main view draws it,

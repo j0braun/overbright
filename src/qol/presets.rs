@@ -1,6 +1,6 @@
 use super::*;
 
-/// The Graphics page's presets (docs/graphics-settings-audit.md):
+/// The Graphics page's presets (docs/notes/graphics/graphics-settings-audit.md):
 /// each sets every graphics value of [`Enhancements`] (the QoL values —
 /// FOV, HUD scale, frame cap, saves, crash reports, HD UI — are left
 /// alone). The preset is not stored: [`Enhancements::preset`] finds the
@@ -18,7 +18,7 @@ pub enum Preset {
     /// Medium (50 %), Car Shadow Ultra, LOD fade, World Detail Very High
     /// (150 %), Wet Roads, Dynamic Lamps, Lamp Shadows Low, Contact
     /// Shadows, Headlight Beams, Light Probes. (TAA stays manual,
-    /// docs/temporal.md.)
+    /// docs/notes/graphics/temporal.md.)
     Modern,
     /// Modern + SSAA 2x, Post-Processing Ultra (full-size glow), Road
     /// Reflection Ultra (full screen), Car Reflection Ultra (1024 cube),
@@ -29,7 +29,7 @@ pub enum Preset {
     /// Glass left it in the tier review). On an integrated GPU some rows step down
     /// ([`Preset::apply_for`]).
     Ultra,
-    /// docs/settings-page.md: Ultra + Screen-Space Reflections Ultra
+    /// docs/developing/settings-page.md: Ultra + Screen-Space Reflections Ultra
     /// (full resolution), Particles Cinematic (volumetric smoke), Animated
     /// Water Realistic, Wet Road Interaction High, Surface Detail Materials +
     /// Normals, Smooth Car Shapes, World Detail Extreme: the costlier rows
@@ -59,7 +59,7 @@ impl Preset {
         self.apply_for(gpu_class(), e);
     }
 
-    /// [`Preset::apply`] for a GPU class (docs/perf-budget.md, GPU classes): High (and Mid, for
+    /// [`Preset::apply`] for a GPU class (docs/notes/performance/budget.md, GPU classes): High (and Mid, for
     /// now) is the preset as measured on the reference desktop GPU; Integrated steps the
     /// costliest rows down (measured on the reference integrated GPU).
     pub fn apply_for(self, class: GpuClass, e: &mut Enhancements) {
@@ -72,15 +72,15 @@ impl Preset {
             GpuClass::High => {}
             // No step without a measured mid-class card: on the reference desktop GPU
             // Ultra with MSAA 8x instead of SSAA 2x was 0.5–0.9 ms *slower* at
-            // 4K (docs/perf-budget.md, GPU classes), so the obvious candidate is no
+            // 4K (docs/notes/performance/budget.md, GPU classes), so the obvious candidate is no
             // saving. The class is kept for when one is measured.
             GpuClass::Mid => {}
             GpuClass::Integrated => {
-                // Measured on the reference integrated GPU at 1080p (docs/perf-budget.md, GPU classes;
+                // Measured on the reference integrated GPU at 1080p (docs/notes/performance/budget.md, GPU classes;
                 // World Detail 5, the bench default with 8x MSAA): Modern there is 28–50 ms. Headlight Beams stay On (Off is 2.3 ms
                 // slower: the cars' lamps go to the world pass) and Rain Detail On
                 // (+0.7 ms while it rains); Rain Detail High +1.3 more,
-                // Volumetric Fog Low +2.0 / High +2.7 ms (docs/atmosphere.md "The tiers")
+                // Volumetric Fog Low +2.0 / High +2.7 ms (docs/notes/graphics/atmosphere.md "The tiers")
                 // for a subtle look, so off.
                 e.rain_detail = 1;
                 e.volumetric_fog = 0;
@@ -132,15 +132,15 @@ impl Preset {
         e.lod_fade = true;
         e.detail_distance = 150;
         e.wet_roads = true;
-        // See docs/lamps-shadows.md.
+        // See docs/notes/graphics/lamps-shadows.md.
         e.dynamic_lamps = true;
         e.lamp_shadows = 1;
         e.contact_shadows = true;
-        // docs/weather.md: only while it rains; cheap.
+        // docs/notes/graphics/weather.md: only while it rains; cheap.
         e.wet_car = true;
         e.rain_detail = 1;
         e.spray = true;
-        // docs/lighting2.md: beams and probes by their cost (Low / CPU).
+        // docs/notes/graphics/lighting2.md: beams and probes by their cost (Low / CPU).
         e.headlight_beams = 1;
         e.light_probes = true;
         if self == Preset::Modern {
@@ -156,18 +156,18 @@ impl Preset {
         e.keep_loaded = true;
         e.ssr = 1;
         e.lamp_shadows = 2;
-        // docs/temporal.md: TAA and Upscaling stay manual.
+        // docs/notes/graphics/temporal.md: TAA and Upscaling stay manual.
         e.volumetric_fog = 2;
-        // docs/particles-smoke.md: Ultra by its measured cost.
+        // docs/notes/graphics/smoke.md "Particles High and Ultra: GPU particles and detailed smoke": Ultra by its measured cost.
         e.particles = 2;
-        // docs/water.md: Animated Water by its measured cost.
+        // docs/notes/graphics/water.md: Animated Water by its measured cost.
         e.water = 1;
         // Twice the drops and splashes; Lens Drops stays manual (a
         // camera effect, taste).
         e.rain_detail = 2;
-        // docs/wet-road-car.md: only while the road is wet.
+        // docs/notes/graphics/wet-road-car.md: only while the road is wet.
         e.wet_interaction = 1;
-        // Enhanced Glass, back in Ultra (docs/perf-budget.md, the final effects pass):
+        // Enhanced Glass, back in Ultra (docs/notes/performance/budget.md, the final effects pass):
         // the draws car.efx blends over a pane (the NFSPEED rear-window
         // decal) are drawn after the glass composite again, and the scene copy
         // covers only the glass's screen rect: +0.11 / +0.35 ms at 4K (racing /
@@ -176,7 +176,7 @@ impl Preset {
         if self == Preset::Ultra {
             return;
         }
-        // Extreme (docs/settings-page.md): the costlier tiers the look
+        // Extreme (docs/developing/settings-page.md): the costlier tiers the look
         // review keeps.
         e.ssr = 2;
         e.particles = 3;
@@ -188,7 +188,7 @@ impl Preset {
     }
 }
 
-/// docs/perf-budget.md, GPU classes: the GPU class the presets' effect tiers
+/// docs/notes/performance/budget.md, GPU classes: the GPU class the presets' effect tiers
 /// follow. Only [`Preset::apply`] reads it: a value the player picked is never
 /// changed, and nothing switches by itself while playing (no automatic
 /// dynamic resolution).

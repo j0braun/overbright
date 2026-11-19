@@ -3526,9 +3526,9 @@ RenderInfo_t+0x2D44	struct-field	RenderInfo_t.part_anims	part animations	verifie
 0x565760	function	UI_MagazineReward_ctor	UI_MagazineReward constructor: career car to the FE car, UI_MagazineBack, pose 0x523D10(0)	verified	formats.md (UI_MagazineReward)
 0x5BA8C0	function	Matrix_RotateAxis	rotation matrix about an axis by a u16 binary angle (Rodrigues, column convention)	verified	formats.md (cover pose: roll)
 0x4455A0	function	CameraMover_SetRoll	camera mover roll (+0xB8, +0xF8, +0x138)	verified	formats.md (cover pose: roll)
-0x735BD0	function	Speech_FindEntryId	Index entry lookup by id for mode0 descriptor	verified	outrun-speech-selection.md
-0x735C30	function	Speech_FindEntryIdSelector	Binary lookup by paired index id and selector	verified	outrun-speech-selection.md
-0x737030	function	Speech_ResolveEntryDescriptor	Resolve packed play descriptor including integer tuple selector mode1	verified	outrun-speech-selection.md
+0x735BD0	function	Speech_FindEntryId	Index entry lookup by id for mode0 descriptor	verified	docs/notes/outrun/follow-ups.md#outrun-speech-entry-selection
+0x735C30	function	Speech_FindEntryIdSelector	Binary lookup by paired index id and selector	verified	docs/notes/outrun/follow-ups.md#outrun-speech-entry-selection
+0x737030	function	Speech_ResolveEntryDescriptor	Resolve packed play descriptor including integer tuple selector mode1	verified	docs/notes/outrun/follow-ups.md#outrun-speech-entry-selection
 0x432D00	function	NISEvent_Parse	event track parser, including type 8 burnout sequence expansion	verified	race-start-wheelspin.md
 0x430EA0	function	NISEvent_ExpandBurnout	16 records from 0x7EA2B0: seven additive wheel-speed events, nine torque events	verified	race-start-wheelspin.md
 0x4392E0	function	NISEvent_Dispatch	scene slot to racer; wheel controls require mover 5, audio uses car +0x968	verified	race-start-wheelspin.md
@@ -3545,15 +3545,15 @@ RenderInfo_t+0x2D44	struct-field	RenderInfo_t.part_anims	part animations	verifie
 0x81E378	global	g_PursuitSpeedGraph	graph {points 0x7E9BC8, 5} read by 0x40DC00 via Graph_Eval	verified	outrun.md:Life of an encounter car
 0x7E9BC8	const	kPursuitSpeedPoints	(0,1.1) (20,1.0) (50,0.8) (100,0.5) (150,0.1)	verified	outrun.md:Life of an encounter car
 0x5811D0	function	MainLoop_Run	main loop: per frame one world step, frame time from 0x5EA370/0x601A70 into g_FrameTime 0x865150, then World_UpdateControllers 0x609CF0 once	verified	internal notes world update per frame
-0x5CEB40	function	Render_QueueMeshMaterial	queue one mesh material draw; entry +0x14 = the material record's +0x38 flags	verified	car-shading-compare.md
-0x5CEA40	function	Render_QueueDraw	queue a draw entry (+0x14 flags, +0x20 light material)	verified	car-shading-compare.md
+0x5CEB40	function	Render_QueueMeshMaterial	queue one mesh material draw; entry +0x14 = the material record's +0x38 flags	verified	docs/notes/graphics/car-look.md#car-paint-reflections-and-rims-against-the-original
+0x5CEA40	function	Render_QueueDraw	queue a draw entry (+0x14 flags, +0x20 light material)	verified	docs/notes/graphics/car-look.md#car-paint-reflections-and-rims-against-the-original
 0x4F3780	function	MC_Main_OnDialogResult	MC_Main dialog answers by flag 0x836514&0xF000000: 0x4000000 (save?) Yes -> state 6, No -> 0x8867412D; 0x2000000 sets Autosave; 0x5000000 create	verified	save-points.md
 0x4C63C0	function	MC_OnLibrarySaveResult	memory-card library result (card +0x18 case 4: save): Autosave 0 unless card +0xB; result 1/5/6 -> 0x8867412D else 0xDC12AF2E (back to 'Are you sure')	verified	save-points.md
 0x4C6500	function	MC_OnLibraryCheckResult	library result: 1 -> 0x8867412D, else Autosave = card +6 = (third result == 1) and 0x9854ED75 (state 7)	verified	save-points.md
 0x5347D0	function	Profile_RestoreSnapshot	on MC cancel (0x8867412D): the kept save-point snapshot loaded back (0x5344E0 / 0x516850) and freed	verified	save-points.md
 0x4A3C10	function	MC_Main_AskSave	state 5: 'Are you sure you want to save the profile named %s?' (0x2A9BA6F9, flag 0x4000000)	verified	save-points.md
 0x5AB3D0	function	NISMover_Frame	mode-5 mover world step: body +0x150/+0x154 = 1, ground inertia off, 0x5A29B0, target application 0x5A44B0 (count > 3: impulses), substeps of 1/70 s (0x5AA490 + 0x5BB0E0), 0x5A2B70	verified	nis-mover.md
-0x5A44B0	function	NISMover_ApplyTarget	(target - body)/dt and wrapped heading error/dt: direct velocity/yaw (count <= 3) or capped impulses (count > 3)	verified	nis-target-rust-port.md
+0x5A44B0	function	NISMover_ApplyTarget	(target - body)/dt and wrapped heading error/dt: direct velocity/yaw (count <= 3) or capped impulses (count > 3)	verified	docs/notes/physics/fixes.md#native-scene-target-arithmetic-port
 0x5A29B0	function	NISMover_FrameSetup	hydraulic mount heights from car +0x3B8.. into chassis +0x1E8..; preloads 0x598A00 from the retained forward speed	verified	nis-mover.md
 0x598A00	function	Chassis_SetPreloads	front (0.5 - rear share) and rear share of weight plus downforce x speed preload into +0x148..+0x154	verified	nis-mover.md
 0x598D60	function	Chassis_GroundUnderMounts	each wheel mount (minus hydraulic height) to world; ground z via 0x5E72F0 with its normal at +0xE0+16i	verified	nis-mover.md
@@ -3564,7 +3564,7 @@ RenderInfo_t+0x2D44	struct-field	RenderInfo_t.part_anims	part animations	verifie
 0x5A2B70	function	NISMover_Publish	writes body pose, velocity, spin, heading and per-wheel states to the car after the substeps	verified	nis-mover.md
 0x4010E0	function	Acos16	0x4000 minus the arcsine table 0x43C490: unsigned 16-bit arccosine	verified	nis-mover.md
 0x60C900	function	CarType_RearWindowOnTrunk	types 0-3, 6-11, 13, 15-20, 22, 24, 29: car type ids whose rear window decal (slot 0x36) follows the trunk animation (0x623489)	verified	shop-part-animations.md
-0x60C860	function	CarType_In_3_5_12_17	true for car types 3, 5, 0x12, 0x17 (240SX, CIVIC, RSX, G35); called at 0x623165 in the generic part draw: the cars whose TOP part draws FULLROOF (group 1) instead of ROOF with a roof scoop fitted (docs/model-fixes.md)	verified	shop-part-animations.md
+0x60C860	function	CarType_In_3_5_12_17	true for car types 3, 5, 0x12, 0x17 (240SX, CIVIC, RSX, G35); called at 0x623165 in the generic part draw: the cars whose TOP part draws FULLROOF (group 1) instead of ROOF with a roof scoop fitted (docs/notes/graphics/model-fixes.md)	verified	shop-part-animations.md
 0x547480	function	Preview_EmptyAudioComps	0x55C180 for slot 0x22: slots 0x23..0x2E take 0x53AEB0's part	verified	shop-part-animations.md
 0x53AEB0	function	Parts_FirstUnlockedLevel0	first part of a slot that 0x52A020 passes with level 0 (part +5 & 0xE0 = 0)	verified	shop-part-animations.md
 0x53A4C0	function	PartsBrowser_FillColumn	UI_GenericParts_Browser's column for a category: the slot's parts, then the fitted part selected (0x538710) when the category's +0x34 is set (body shop) and, for carbon (+0x1D5), it has CARBONFIBRE (0x721AFF7C), for vinyls (+0x1D7) the car's layer vinyl (else the setup's 0x521860) of the category's kind; else the head	verified	formats.md (List openings)
@@ -3587,25 +3587,25 @@ RenderInfo_t+0x2D44	struct-field	RenderInfo_t.part_anims	part animations	verifie
 0x430B20	label	NISEvent_TypeByName	event track type names: CAR_TRIGGER_EFFECT 1, ...	verified	internal notes
 0x5F5740	function	Car_UpdateEffects	per-car update in 0x609CF0 (after the particle update): nitrous flame / purge car effects via 0x61FB10	verified	internal notes
 0x5D50A0	function	RoadSegment_BuildRaceSpline	a route segment's type-2 spline: phantom points (args or the end pieces carried on), nodes, arc lengths	verified	internal notes
-0x4395F0	function	NISEvents_Advance	adds dt to the event clock (+0x0C) and dispatches the sorted records whose frame x f32(1/30) is strictly below it (index +0x10)	verified	docs/nis-audio-patterns.md
-0x43AF20	function	NIS_UpdateScenes	walks the scene list (0x827B88, head +4 = scene +0x10) and updates each scene (0x43ABC0)	verified	docs/nis-audio-patterns.md
-0x459550	function	SoundCtx_Command	base sound context vtable +0x48: command 7 latches pattern +0xC4 / pending +0xC0 / parameter +0xC8; command 8 the rev fields +0xB4..+0xBC	verified	docs/nis-audio-patterns.md
-0x469980	function	AISoundCtx_Command	vtable 0x78BF30 +0x48: command 1 sets +0xD4, else 0x459550	verified	docs/nis-audio-patterns.md
-0x469BC0	function	PlayerSoundCtx_Command	vtable 0x78BF88 +0x48: commands 1..11 first go through a jump table (not traced), then all reach 0x459550	verified	docs/nis-audio-patterns.md
-0x46FA30	function	SFXCTL_Physics_ScriptedPattern	takes a pending CAR_AUDIO_PATTERN (bank by ID, default bank 1) and steps a quarter segment per update, idle -500 rpm / -15 after the last; clamps; writes the context's rpm / throttle	verified	docs/nis-audio-patterns.md
-0x46FF64	const	CarAudioPattern_JumpTable	0x46FA30's switch on pattern ID - 2 (IDs 2..15)	verified	docs/nis-audio-patterns.md
-0x479590	function	AISoundCtx_Update	vtable 0x78BF30 +0x14: controllers (0x464C10), clears the pending pattern byte +0xC0	verified	docs/nis-audio-patterns.md
-0x479610	function	PlayerSoundCtx_Update	vtable 0x78BF88 +0x14: controllers (0x464C10), clears the pending pattern byte +0xC0	verified	docs/nis-audio-patterns.md
-0x47C490	function	SFXCTL_Physics_UpdateAI	Physics vtable +0x3C (the racers' path): scripted (+0xD8) when NIS +0x40 / +0x28, or +0x10 with race status not 4, or 0x82A3A4 > 0; then 0x46FA30	verified	docs/nis-audio-patterns.md
-0x483B40	function	AudioManager_Update	runs the sound contexts only when more than 15 ms (0x787AF4) of real time passed since its last run (+0xA4)	verified	docs/nis-audio-patterns.md
-0x787AF4	const	AudioUpdate_MinMs	15.0: AudioManager_Update's real-time gate	verified	docs/nis-audio-patterns.md
-0x7F0070	const	CarAudioPattern_Banks	15 banks of {u16 rpm, u8 throttle, pad} records, 0x7F0070..0x7F095B (bank 1 default, 2 0x7F0198, ... 15 0x7F08F8)	verified	docs/nis-audio-patterns.md
-0x827B88	global	NIS_SceneList	scene list owner (head +4 = scene + 0x10); scene +0x130 event clock, +0x134 event index	verified	docs/nis-audio-patterns.md
-0x5DDFD0	function	RouteManager_PickSpeedClass	least Perf_Class (0x5B5340) of the AI racer infos (kind 2) into +0x4674 (0x88E994) for the racing-line speeds	verified	outrun-ai-strength.md
-0x415D50	function	AIRoute_AddPathPoint	driver path point (max 20) = 0x4122C0(point, +0x54, lateral, lane) for every FuturePoint incl. +0x74 gap points	verified	outrun-ai-strength.md
-0x41A180	function	AIRoute_SmoothGapPoints	sets the +0x74 gap points' adjust (+0x04, lanes +0x08..) onto the Hermite curve	verified	outrun-ai-strength.md
-0x40D550	function	AIRacer_PlacementReset	racer controller vtable 0x785370 slot +0x34: clears +0x710 (suspended), resets placement time	verified	outrun-controller-integration.md
-0x88E994	global	g_RouteSpeedClass	route manager +0x4674: the class the racing-line bytes are computed for (0 on the player the finished-career save)	verified	outrun-ai-strength.md
+0x4395F0	function	NISEvents_Advance	adds dt to the event clock (+0x0C) and dispatches the sorted records whose frame x f32(1/30) is strictly below it (index +0x10)	verified	docs/original/nis-audio-patterns.md
+0x43AF20	function	NIS_UpdateScenes	walks the scene list (0x827B88, head +4 = scene +0x10) and updates each scene (0x43ABC0)	verified	docs/original/nis-audio-patterns.md
+0x459550	function	SoundCtx_Command	base sound context vtable +0x48: command 7 latches pattern +0xC4 / pending +0xC0 / parameter +0xC8; command 8 the rev fields +0xB4..+0xBC	verified	docs/original/nis-audio-patterns.md
+0x469980	function	AISoundCtx_Command	vtable 0x78BF30 +0x48: command 1 sets +0xD4, else 0x459550	verified	docs/original/nis-audio-patterns.md
+0x469BC0	function	PlayerSoundCtx_Command	vtable 0x78BF88 +0x48: commands 1..11 first go through a jump table (not traced), then all reach 0x459550	verified	docs/original/nis-audio-patterns.md
+0x46FA30	function	SFXCTL_Physics_ScriptedPattern	takes a pending CAR_AUDIO_PATTERN (bank by ID, default bank 1) and steps a quarter segment per update, idle -500 rpm / -15 after the last; clamps; writes the context's rpm / throttle	verified	docs/original/nis-audio-patterns.md
+0x46FF64	const	CarAudioPattern_JumpTable	0x46FA30's switch on pattern ID - 2 (IDs 2..15)	verified	docs/original/nis-audio-patterns.md
+0x479590	function	AISoundCtx_Update	vtable 0x78BF30 +0x14: controllers (0x464C10), clears the pending pattern byte +0xC0	verified	docs/original/nis-audio-patterns.md
+0x479610	function	PlayerSoundCtx_Update	vtable 0x78BF88 +0x14: controllers (0x464C10), clears the pending pattern byte +0xC0	verified	docs/original/nis-audio-patterns.md
+0x47C490	function	SFXCTL_Physics_UpdateAI	Physics vtable +0x3C (the racers' path): scripted (+0xD8) when NIS +0x40 / +0x28, or +0x10 with race status not 4, or 0x82A3A4 > 0; then 0x46FA30	verified	docs/original/nis-audio-patterns.md
+0x483B40	function	AudioManager_Update	runs the sound contexts only when more than 15 ms (0x787AF4) of real time passed since its last run (+0xA4)	verified	docs/original/nis-audio-patterns.md
+0x787AF4	const	AudioUpdate_MinMs	15.0: AudioManager_Update's real-time gate	verified	docs/original/nis-audio-patterns.md
+0x7F0070	const	CarAudioPattern_Banks	15 banks of {u16 rpm, u8 throttle, pad} records, 0x7F0070..0x7F095B (bank 1 default, 2 0x7F0198, ... 15 0x7F08F8)	verified	docs/original/nis-audio-patterns.md
+0x827B88	global	NIS_SceneList	scene list owner (head +4 = scene + 0x10); scene +0x130 event clock, +0x134 event index	verified	docs/original/nis-audio-patterns.md
+0x5DDFD0	function	RouteManager_PickSpeedClass	least Perf_Class (0x5B5340) of the AI racer infos (kind 2) into +0x4674 (0x88E994) for the racing-line speeds	verified	docs/notes/outrun/ai-strength.md
+0x415D50	function	AIRoute_AddPathPoint	driver path point (max 20) = 0x4122C0(point, +0x54, lateral, lane) for every FuturePoint incl. +0x74 gap points	verified	docs/notes/outrun/ai-strength.md
+0x41A180	function	AIRoute_SmoothGapPoints	sets the +0x74 gap points' adjust (+0x04, lanes +0x08..) onto the Hermite curve	verified	docs/notes/outrun/ai-strength.md
+0x40D550	function	AIRacer_PlacementReset	racer controller vtable 0x785370 slot +0x34: clears +0x710 (suspended), resets placement time	verified	docs/notes/outrun/follow-ups.md#persistent-goal-56-integration-review
+0x88E994	global	g_RouteSpeedClass	route manager +0x4674: the class the racing-line bytes are computed for (0 on the player the finished-career save)	verified	docs/notes/outrun/ai-strength.md
 0x42BF00	function	AI_AvoidPickTrafficLane	AvoidAvoidable lane search, traffic lanes (lanes +-1..3, 0x428E70 each)	verified	first-drag.md
 0x428E70	function	AI_TryTrafficLaneClear	lane reachable via 0x412500 and its 0.151 path clear 3 s (0x428DF0): written to the lane record	verified	first-drag.md
 0x42DEC0	function	AI_AvoidPickByLaneClass	lane class 1 -> 0x428FD0, 2 -> 0x42BF00	verified	first-drag.md
@@ -3616,13 +3616,13 @@ RenderInfo_t+0x2D44	struct-field	RenderInfo_t.part_anims	part animations	verifie
 0x43E6B0	function	Rand_Seed	*state = one step of the seed (the 0x43C1C0 step)	verified	internal notes
 0x4ECC80	function	Minimap_Create	new minimap object (0x4EC950) into 0x8364D4; from HUD constructors 0x4F7AA1 and HUD_Rebuild 0x4F92CC	verified	internal notes
 0x8364D4	global	g_Minimap	the minimap object: circular item list (+0 next, +8 id, +0x1C type record, its +4 the type)	verified	internal notes
-0x41E540	function	AIGoal5_ChaseSearch	goal 5 search import: road node +0x0C/+0x10 from 0x41B820's origin, decision flags cleared, list emptied (0x411BE0), search decisions into +0x14	verified	outrun-ai-strength.md §3
-0x41B820	function	AIRoute_ChaseSearchOrigins	goal 5 search over race records: first containing point per record, at most six successes, least spent	verified	outrun-ai-strength.md §3
-0x41B230	function	AIRoute_ChaseSearchWalk	goal 5 bounded walk from one origin; on success writes the origin point and direction into the result	verified	outrun-ai-strength.md §3
-0x411BE0	function	AIRouteList_Clear	FuturePoint list cleared: count 0, 40 entries freed, own index -1	verified	outrun-ai-strength.md §3
-0x426810	function	AIRouteList_BuildFromNode	list built from the road node when empty (called by 0x428030); body not traced	inferred	outrun-ai-strength.md §3
-0x40CCC0	function	ControlPoint_BackLength	the previous control point's length, the point's own at a record's first point (0x5D8A00)	verified	outrun-ai-strength.md §3
-0x401B70	function	ControlPoint_LateralPastEdge	lateral beyond the half width on its side (+0x16 right, +0x14 left)	verified	outrun-ai-strength.md §3
+0x41E540	function	AIGoal5_ChaseSearch	goal 5 search import: road node +0x0C/+0x10 from 0x41B820's origin, decision flags cleared, list emptied (0x411BE0), search decisions into +0x14	verified	docs/notes/outrun/ai-strength.md §3
+0x41B820	function	AIRoute_ChaseSearchOrigins	goal 5 search over race records: first containing point per record, at most six successes, least spent	verified	docs/notes/outrun/ai-strength.md §3
+0x41B230	function	AIRoute_ChaseSearchWalk	goal 5 bounded walk from one origin; on success writes the origin point and direction into the result	verified	docs/notes/outrun/ai-strength.md §3
+0x411BE0	function	AIRouteList_Clear	FuturePoint list cleared: count 0, 40 entries freed, own index -1	verified	docs/notes/outrun/ai-strength.md §3
+0x426810	function	AIRouteList_BuildFromNode	list built from the road node when empty (called by 0x428030); body not traced	inferred	docs/notes/outrun/ai-strength.md §3
+0x40CCC0	function	ControlPoint_BackLength	the previous control point's length, the point's own at a record's first point (0x5D8A00)	verified	docs/notes/outrun/ai-strength.md §3
+0x401B70	function	ControlPoint_LateralPastEdge	lateral beyond the half width on its side (+0x16 right, +0x14 left)	verified	docs/notes/outrun/ai-strength.md §3
 0x55E530	function	UI_ChooseCustomizeCategory_Handler	main-menu Customize categories; Dyno Yes 0x34DC1BEC: save point mode 0x1141 when changed or no profile, else 0x461A18EE	verified	save-points.md
 0x5812EC	label	MainLoop_FrameTimeCall	main loop's call 0x43BE20 (measured frame ms on the FPU) before FrameLimit_Wait 0x57EAE0; the parity cave replaces it	verified	parity-harness.md
 0x43BE20	function	Timer_ElapsedMs	(now − prev) clamped ≥ 0, × 2^[0x8284E4] × [0x828028]: elapsed ms as a float	verified	parity-harness.md
@@ -3762,11 +3762,11 @@ CarDriver_t+0x1D9	struct-field	CarDriver_t.keep_path	0x420D40 keeps the path's f
 0x59D040	function	Wheel_TidyUp	wheel vt+0x1C (the mover post-step 0x5B04E0 and zero-time refreshes): clears +0x108, +0x124, +0x128, +0x118, wraps the angle +0x24, stops a spin that changes sign against the direction +0x110 (0 forward, 1 still, 2 backward) and sets +0x110 from the spin vs ±1e-5	verified	formats/cars-1.md:Wheel direction
 0x57FF20	function	FrontEndLoader_Load	game-start load handler: closes loading_boot.fng (0x5379B0), opens PC_Loading.fng (0x57FF95) unless up, then 0x57D910 with Global\FrontEndMemoryFile.bin	verified	loading-image.md
 0x865484	global	g_LoadHandler	the main loop's pending load step (WinMain 0x580E6C and 0x581813 set it to 0x57FF20)	inferred	loading-image.md
-0x5EBE10	function	Car_ShiftFlamePop	from Car_Frame with the gear (+0x434): a gear change (physics mover, or 0.5 s after the last) or, on the physics mover above first gear, the clutch locking (+0x448 0→1) fires car effect 10 at L·2/7, L = 0x5995F0(4) (+0.5 with ride +0x328), L ≥ 2; sound ctx events 1 / 9	verified	docs/sparks-fire.md
-0x633F00	function	CarDamage_ApplyParts	re-reads the part damage states (0x610EB0 → +0xE0) and fires each changed row's car effect (table 0x803714 +0) at 0x803914[state]	verified	docs/sparks-fire.md
-0x803714	global	g_CarDamagePartTable	15 rows of 0x24: +0 the car effect kind (0x0F..0x1D CARFX_BREAK_*, 6 radiator), +4 the name ("Side Mirror Left" …)	verified	docs/sparks-fire.md
-0x803914	global	g_CarDamageEffectIntensity	floats by damage state: 0, 0.1, 0.4, 1.0	verified	docs/sparks-fire.md
-0x8027C0	global	g_CarFxKindNames	8-byte entries, kind → name: 0 CARFX_NONE … 10 CARFX_NITRO, 11 CARFX_EXHAUST_SMOKE, 12 CARFX_EXHAUST_BLOWOFF, 13 CARFX_NOS_BLOWOFF, 14 CARFX_NOS_BLOWOFF_TIRES, 15.. CARFX_BREAK_*	verified	docs/sparks-fire.md
+0x5EBE10	function	Car_ShiftFlamePop	from Car_Frame with the gear (+0x434): a gear change (physics mover, or 0.5 s after the last) or, on the physics mover above first gear, the clutch locking (+0x448 0→1) fires car effect 10 at L·2/7, L = 0x5995F0(4) (+0.5 with ride +0x328), L ≥ 2; sound ctx events 1 / 9	verified	docs/notes/graphics/sparks-fire.md
+0x633F00	function	CarDamage_ApplyParts	re-reads the part damage states (0x610EB0 → +0xE0) and fires each changed row's car effect (table 0x803714 +0) at 0x803914[state]	verified	docs/notes/graphics/sparks-fire.md
+0x803714	global	g_CarDamagePartTable	15 rows of 0x24: +0 the car effect kind (0x0F..0x1D CARFX_BREAK_*, 6 radiator), +4 the name ("Side Mirror Left" …)	verified	docs/notes/graphics/sparks-fire.md
+0x803914	global	g_CarDamageEffectIntensity	floats by damage state: 0, 0.1, 0.4, 1.0	verified	docs/notes/graphics/sparks-fire.md
+0x8027C0	global	g_CarFxKindNames	8-byte entries, kind → name: 0 CARFX_NONE … 10 CARFX_NITRO, 11 CARFX_EXHAUST_SMOKE, 12 CARFX_EXHAUST_BLOWOFF, 13 CARFX_NOS_BLOWOFF, 14 CARFX_NOS_BLOWOFF_TIRES, 15.. CARFX_BREAK_*	verified	docs/notes/graphics/sparks-fire.md
 0x5B1C20	function	Prop_InverseMass	prop body vtable +0x5C: 0 while the break impulse +0x150 is left, else rigid body +0x168	verified	formats.md:Knock-over props
 0x5B1C50	function	Prop_InverseInertia	prop body vtable +0x60: the static 0x86B450 while +0x150 is left, else rigid body +0x1B0 (+0x170 without +0x158), body-space	verified	formats.md:Knock-over props
 0x5941D0	function	Contact_PairFriction	friction of a pair: a car (type 0) against the track (type 3) takes the car side, otherwise the larger vt+0x74	verified	drag-stage4-parity.md:7.1
@@ -3780,18 +3780,18 @@ CarDriver_t+0x1D9	struct-field	CarDriver_t.keep_path	0x420D40 keeps the path's f
 0x425A40	function	AI_PredictObjectPath	an object's predicted path for the sweep (0x420B80)	verified	formats.md:Racer actions
 0x404CD0	function	AI_PathAppend	append a path point (refuses under 1 m, turn-backs)	verified	formats.md:Racer actions
 0x60BF80	function	RoadObject_Ghosted	object's car ghosted (0x5EBFB0)	verified	formats.md:Racer actions
-0x402590	function	AIRacer_NitrousRpmOutsideBand	1 when the car's rpm (+0x440) is outside [A, A + 0.95 (B − A)] of its gear (physics mover 0x5946F0 / 0x594680, MeloMvr chassis +0x1C0 / +0x19C); 0x40D850 wants 0	verified	outrun-pace.md
-0x598AD0	label	Melov8r_SpinRates	the MeloMvr chassis' derivative (slot +0x18): wheel spin rates from the torque at rpm / +0x13C, the drive × (1 + 3 (k − 1)), brake, the tyre reaction's lever	verified	outrun-pace.md
+0x402590	function	AIRacer_NitrousRpmOutsideBand	1 when the car's rpm (+0x440) is outside [A, A + 0.95 (B − A)] of its gear (physics mover 0x5946F0 / 0x594680, MeloMvr chassis +0x1C0 / +0x19C); 0x40D850 wants 0	verified	docs/notes/outrun/pace.md
+0x598AD0	label	Melov8r_SpinRates	the MeloMvr chassis' derivative (slot +0x18): wheel spin rates from the torque at rpm / +0x13C, the drive × (1 + 3 (k − 1)), brake, the tyre reaction's lever	verified	docs/notes/outrun/pace.md
 0x4440A0	function	CameraMover_Detach	vtable +0x40 of the chase (0x787F28) and crash (0x787DE8) movers: detach from the view when parked (+0x14 = 0, view +0x280/+0x284 saved)	verified	formats.md (Chase camera parked under the event)
 0x444040	function	CameraMover_Attach	re-attach a mover to its view (+0x14 = 1, view +0x280/+0x284 restored, +0xBC = 0.5)	verified	formats.md (Chase camera parked under the event)
 0x445A50	function	ChaseCamera_Resume	chase mover vtable +0x3C: 0x444040, +0x54 = 1	verified	formats.md (Chase camera parked under the event)
 0x445B10	function	ChaseCamera_SetKind	chase mover vtable +0x20: +0x48 = kind, +0x52 = 1 (snap every ease on the next update)	verified	formats.md (Chase camera parked under the event)
 0x446F10	function	RunningMean_Add	n-slot running mean of a vector (the chase camera's acceleration filter, fed car +0x80)	verified	formats.md (Chase camera parked under the event)
 0x578EA0	function	ReplayMgr_AddScore	adds an amount to the score +0x1D8 of every held INSTANT_REPLAY (reason string unused)	verified	formats.md (Crash / jump camera)
-0x5344B0	function	Profile_Ctor	profile constructor: settings defaults 0x5116E0 at +0x24 (0x83AA04 for the live profile), 0x52A230 at +0xD4	inferred	p17-scene-follow-ups.md (2)
-0x83AA24	global	g_EventCameraGate	settings +0x20 (f32, 127.5 from 0x5116E0 / the save): event camera kinds 1..5 need it non-zero	verified	p17-scene-follow-ups.md (2)
-0x788070	vtable	DynoCamera_vtable	camera mover 0x15 (0x452600); read live through the whole Dyno Run	verified	p17-scene-follow-ups.md (3)
-0x788018	vtable	TrackCamera_vtable	camera mover 0x12 (0x453C00 at 0x453C38); the shop / dyno scenes camera under Wine	verified	p17-scene-follow-ups.md (1)
+0x5344B0	function	Profile_Ctor	profile constructor: settings defaults 0x5116E0 at +0x24 (0x83AA04 for the live profile), 0x52A230 at +0xD4	inferred	docs/notes/parity/scene-follow-ups.md (2)
+0x83AA24	global	g_EventCameraGate	settings +0x20 (f32, 127.5 from 0x5116E0 / the save): event camera kinds 1..5 need it non-zero	verified	docs/notes/parity/scene-follow-ups.md (2)
+0x788070	vtable	DynoCamera_vtable	camera mover 0x15 (0x452600); read live through the whole Dyno Run	verified	docs/notes/parity/scene-follow-ups.md (3)
+0x788018	vtable	TrackCamera_vtable	camera mover 0x12 (0x453C00 at 0x453C38); the shop / dyno scenes camera under Wine	verified	docs/notes/parity/scene-follow-ups.md (1)
 0x5B83C0	function	PadRecord_PovDirection	POV value -> binding direction (0 down, 1 up, 2 left, 3 right) by the larger of |cos|, |sin|	verified	controller-support.md
 0x5C1730	function	PadRecord_CapturePov	a held POV's direction takes the captured action (0x5B8470's rule)	verified	controller-support.md
 0x571A30	function	Player_SetInputDevice	event-1 handler: player's device byte 0x864788[p]	inferred	controller-support.md
@@ -3822,23 +3822,23 @@ CarDriver_t+0x1D9	struct-field	CarDriver_t.keep_path	0x420D40 keeps the path's f
 0x55D920	function	UI_PerformanceTuning_Master_Handler	tuning categories; 0x0C407210 on an open item: 0x83A648 = +0x48, Rachel 0x525110	verified	formats.md
 0x55E830	function	UI_GenericParts_Browser_Ctor	body shop browser constructor; builds the strip (0x54FAF0)	verified	formats.md
 0x636BF0	function	CarTypes_Load	chunk 0x34600: 0x8A1CCC = the payload in place (aligned 16)	verified	formats.md
-0x864F48	global	g_QuitRequested	set by WM_CLOSE (0x5CCE6C) and the front end quits; 0x5811D0 returns when set	verified	docs/exit.md
-0x5CF970	function	App_Shutdown	after the main loop: audio stop, render/D3D release, 0x57D960 file queue wait (WinMain 0x580E85, then exit(0))	verified	docs/exit.md
-0x83A9CC	global	g_CursorMovedAt	0x8651A8 at the FE cursor's last move (0x50B492); drawn for 2 s after	verified	docs/uncapped-fps.md
+0x864F48	global	g_QuitRequested	set by WM_CLOSE (0x5CCE6C) and the front end quits; 0x5811D0 returns when set	verified	docs/original/exit.md
+0x5CF970	function	App_Shutdown	after the main loop: audio stop, render/D3D release, 0x57D960 file queue wait (WinMain 0x580E85, then exit(0))	verified	docs/original/exit.md
+0x83A9CC	global	g_CursorMovedAt	0x8651A8 at the FE cursor's last move (0x50B492); drawn for 2 s after	verified	docs/original/uncapped-fps.md
 0x50F150	function	Car_SlotStockOrEmpty	(slot): 1 when 0x610300(slot) is null or its +5 & 0xE0 is 0	verified	formats.md
-0x5AAD30	function	Shape_Vertex	(index, out): a shape's vertex by its type (1 hull 0x5A1980: vertex less the support offset +0x40 when +0x3E; 2 polygon 0x5A2020; 3 0x5987E0; 4 the point; 5 0x5A2790)	verified	docs/prop-hits.md section 7
-0x45A550	function	Stream_IsPlaying	(stream +4): the library status of handle +0x14 (0x722ECE / 0x722DB5) == 2	verified	docs/prop-hits.md section 6
-0x598250	function	Pair_RestoreSets	copies a saved vertex-set block back into the pair (+0x40..+0x118), 0x5B33A0 when the distance did not shrink	verified	docs/prop-hits.md section 7
-0x5A1760	function	CollisionHull_LoadList	builds the hull shapes of a volume chunk into list 0x86B598 (type 1, +0x54 vertex records, +0x50 links, +0x14 count; offset +0x40 and flag +0x3E cleared)	verified	docs/prop-hits.md section 7a
-0x5A18D0	function	CollisionHull_Find	(key, vec): the hull of list 0x86B598 with +0x18 = key; with vec its offset +0x40 = *vec and +0x3E = 1	verified	docs/prop-hits.md section 7a
-0x5AEC30	function	CarCollisionBody_Construct	car collision body (vtable 0x7A2478, Car%d): hull <CAR>_CV via 0x5A18D0 with the centre of mass, offset = car +0x20 record, else a box (type 3); then 0x5AE530 / 0x5A9DF0	verified	docs/prop-hits.md section 7a
-0x5A9DF0	function	Body_UpdateBox	body box: position (vtable +0x08) ± +0x1C in x/y (0x5A0690)	verified	docs/prop-hits.md section 7a
-0x593B70	function	CarCollisionBody_ShapeOffset	vtable 0x7A2478 +0x1C: 0x5ED410 of the car (+0x130)	verified	docs/prop-hits.md section 7a
-0x5B1C00	function	PropBody_ShapeOffset	prop body vtable 0x7A26A0 +0x1C: rigid body +0x1F0	verified	docs/prop-hits.md section 7a
-0x598140	function	Pair_SaveSets	copies the pair's vertex-set block (+0x40..+0x118) into a save area (0x5B33A0 before its loop)	verified	docs/prop-hits.md section 7a
-0x59FB60	function	SupportBuffer_Clear	clears a support output buffer (+8..+0x18; index +0xC = 0)	verified	docs/prop-hits.md section 7a
-0x598680	label	Pair_SetTransforms	pair +0x120 / +0x1A0 transforms and +0x160 / +0x1E0 inverse rotations (0x43C9D0), positions +0x150 / +0x1D0	verified	docs/prop-hits.md section 7a
-0x43C9D0	function	Mat4_Transpose	4x4 transpose	verified	docs/prop-hits.md section 7a
+0x5AAD30	function	Shape_Vertex	(index, out): a shape's vertex by its type (1 hull 0x5A1980: vertex less the support offset +0x40 when +0x3E; 2 polygon 0x5A2020; 3 0x5987E0; 4 the point; 5 0x5A2790)	verified	docs/notes/parity/prop-hits.md section 7
+0x45A550	function	Stream_IsPlaying	(stream +4): the library status of handle +0x14 (0x722ECE / 0x722DB5) == 2	verified	docs/notes/parity/prop-hits.md section 6
+0x598250	function	Pair_RestoreSets	copies a saved vertex-set block back into the pair (+0x40..+0x118), 0x5B33A0 when the distance did not shrink	verified	docs/notes/parity/prop-hits.md section 7
+0x5A1760	function	CollisionHull_LoadList	builds the hull shapes of a volume chunk into list 0x86B598 (type 1, +0x54 vertex records, +0x50 links, +0x14 count; offset +0x40 and flag +0x3E cleared)	verified	docs/notes/parity/prop-hits.md section 7a
+0x5A18D0	function	CollisionHull_Find	(key, vec): the hull of list 0x86B598 with +0x18 = key; with vec its offset +0x40 = *vec and +0x3E = 1	verified	docs/notes/parity/prop-hits.md section 7a
+0x5AEC30	function	CarCollisionBody_Construct	car collision body (vtable 0x7A2478, Car%d): hull <CAR>_CV via 0x5A18D0 with the centre of mass, offset = car +0x20 record, else a box (type 3); then 0x5AE530 / 0x5A9DF0	verified	docs/notes/parity/prop-hits.md section 7a
+0x5A9DF0	function	Body_UpdateBox	body box: position (vtable +0x08) ± +0x1C in x/y (0x5A0690)	verified	docs/notes/parity/prop-hits.md section 7a
+0x593B70	function	CarCollisionBody_ShapeOffset	vtable 0x7A2478 +0x1C: 0x5ED410 of the car (+0x130)	verified	docs/notes/parity/prop-hits.md section 7a
+0x5B1C00	function	PropBody_ShapeOffset	prop body vtable 0x7A26A0 +0x1C: rigid body +0x1F0	verified	docs/notes/parity/prop-hits.md section 7a
+0x598140	function	Pair_SaveSets	copies the pair's vertex-set block (+0x40..+0x118) into a save area (0x5B33A0 before its loop)	verified	docs/notes/parity/prop-hits.md section 7a
+0x59FB60	function	SupportBuffer_Clear	clears a support output buffer (+8..+0x18; index +0xC = 0)	verified	docs/notes/parity/prop-hits.md section 7a
+0x598680	label	Pair_SetTransforms	pair +0x120 / +0x1A0 transforms and +0x160 / +0x1E0 inverse rotations (0x43C9D0), positions +0x150 / +0x1D0	verified	docs/notes/parity/prop-hits.md section 7a
+0x43C9D0	function	Mat4_Transpose	4x4 transpose	verified	docs/notes/parity/prop-hits.md section 7a
 0x49A720	label	OptionsMasterSlider_OnChange	the master slider's change: value (vtable +0x48) to 0x83AA28, then 0x469050([0x82B884], 0x83AA28)	verified	audio-levels.md 1b
 0x49A790	label	OptionsMasterSlider_Init	master slider: value 0x83AA28, max +0x78 1.0, min +0x7C 0, step +0x8C 0.05 (0x4FF550)	verified	audio-levels.md 1b
 0x4A90F0	function	UGLSSplash_Ctor	the title screen (UG_LS_Splash, "Press Enter Key"): Music_StartFrontEnd(-2), so the first song is song 0	verified	menu-music.md
@@ -3857,8 +3857,8 @@ CarDriver_t+0x1D9	struct-field	CarDriver_t.keep_path	0x420D40 keeps the path's f
 0x8650C0	global	g_ImpactShakeTest	when set 0x5728D0 starts slot 0 with (0, 0, 0.3) for 0.6 s; no writer in the code	verified	formats.md:Impact shake
 0x828028	global	g_TimerMsPerCount	ms per QueryPerformanceCounter count (1000 / frequency, 0x43BD90)	verified	formats.md (GPS, Frame budget)
 0x8284E4	global	g_TimerShift	right shift of the QueryPerformanceCounter reading (0x43BDF0, 0x43BD90)	verified	formats.md (GPS, Frame budget)
-0x43C9C0	function	Mat4_TransformPoint_Thunk	jump to 0x441000 (out, matrix, point)	verified	docs/prop-hits.md section 7c
-0x441000	function	Mat4_TransformPoint	out = ((row2*z + row1*y) + row0*x) + row3 per axis, x87, stored as floats	verified	docs/prop-hits.md section 7c
+0x43C9C0	function	Mat4_TransformPoint_Thunk	jump to 0x441000 (out, matrix, point)	verified	docs/notes/parity/prop-hits.md section 7c
+0x441000	function	Mat4_TransformPoint	out = ((row2*z + row1*y) + row0*x) + row3 per axis, x87, stored as floats	verified	docs/notes/parity/prop-hits.md section 7c
 0x51C740	function	Movie_FilePath	"%sMOVIES\%s%s": <name>.vp6 for FMVOpening, the four flybys, THX_logo(_fr), blank; else <name>_fr.vp6 (a constant, no region or language read)	verified	formats.md (Boot sequence, Movies)
 0x50C4A0	function	File_CdDriveRetry	fopen the path; when that fails and the CD drive letter 0x80057F is set, the same name on that drive (kept when it opens)	verified	formats.md (Movies, File name)
 0x566250	label	Movie_PlayRequest	movie message 7: 0x51C740 name, 0x6F909D exists, 0x566030 plays it, else the movie end 0xC3960EB9 at once	verified	formats.md (Boot sequence)

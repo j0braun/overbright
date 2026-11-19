@@ -1,4 +1,4 @@
-//! Ambient Detail (docs/ambient-detail.md; a **clone deviation**,
+//! Ambient Detail (docs/notes/graphics/ambient-detail.md; a **clone deviation**,
 //! opt-in; nothing here exists in SPEED2.EXE and nothing was traced: it is
 //! visual only, the simulation and every native system are untouched).
 //!

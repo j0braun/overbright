@@ -42,7 +42,7 @@ pub struct FrameParams<'a> {
     pub aspect: f32,
     /// Sections to draw (the game's visibility list); `None` draws all.
     pub visible_sections: Option<&'a [u32]>,
-    /// World Detail Extreme (clone deviation, docs/assets-distance.md):
+    /// World Detail Extreme (clone deviation, docs/notes/graphics/assets-distance.md):
     /// sections past `visible_sections` the main view draws with their
     /// lowest LOD (the reflection LOD, `low_solid`). None natively.
     pub far_sections: Option<&'a [u32]>,
@@ -75,7 +75,7 @@ pub struct FrameParams<'a> {
     /// the frame draws it (screen layout 0x8707DC = 2, view 3 +8 set).
     pub rear_view: Option<&'a Camera>,
     /// The cars as boxes for Contact Shadows and Lamp Shadows (clone
-    /// deviations, docs/lamps-shadows.md), the player's first; empty
+    /// deviations, docs/notes/graphics/lamps-shadows.md), the player's first; empty
     /// leaves them out.
     pub occluders: &'a [lamps::Occluder],
 }
@@ -84,7 +84,7 @@ pub struct WorldRenderer {
     pub(in crate::render) core: std::sync::Arc<WorldCore>,
     /// Animated Water ([`WorldRenderer::set_hide_water`]).
     pub(in crate::render) hide_water: bool,
-    /// Ambient Detail (docs/ambient-detail.md): made when the row is
+    /// Ambient Detail (docs/notes/graphics/ambient-detail.md): made when the row is
     /// first on in game ([`WorldRenderer::ensure_ambient`]).
     pub(in crate::render) ambient: Option<Box<ambient_detail::AmbientDetail>>,
     /// `ambient` has not been drawn since it was made by
@@ -101,7 +101,7 @@ pub struct WorldRenderer {
     /// one) keeps Wet Roads and the SSR mask off.
     /// Wet Roads' weather ([`WorldRenderer::set_weather`]).
     pub(in crate::render) weather: Option<(f32, f32, f32)>,
-    /// Weather effects (docs/weather.md): made when a weather row is
+    /// Weather effects (docs/notes/graphics/weather.md): made when a weather row is
     /// first on; the main view's camera they draw with this frame.
     pub(in crate::render) weather_fx: Option<weather_fx::WeatherFx>,
     pub(in crate::render) fx_view: Option<weather_fx::View>,
@@ -110,7 +110,7 @@ pub struct WorldRenderer {
     pub(in crate::render) fx_sim: crate::render::enh::weather::host::WeatherSim,
     /// The ticks whose sky panorama rows the next frame commits.
     pub(in crate::render) sky_ticks: Vec<sky_ng::SkyTick>,
-    /// Wet Road Interaction (docs/wet-road-car.md): made when the row
+    /// Wet Road Interaction (docs/notes/graphics/wet-road-car.md): made when the row
     /// is first on in a wet scene; bindings 12–14's placeholders.
     pub(in crate::render) wet_road: Option<wet_road::WetRoad>,
     /// Wet Road Interaction's volumetric spray (`wet_spray`).
@@ -218,7 +218,7 @@ pub struct WorldRenderer {
     /// (the cars' shadows).
     pub(in crate::render) texture_layout: wgpu::BindGroupLayout,
     pub(in crate::render) texture_sampler: wgpu::Sampler,
-    /// docs/pack-hot-reload.md: the pack changes seen, and each slot's
+    /// docs/modding/pack-hot-reload.md: the pack changes seen, and each slot's
     /// texture hash ([`WorldRenderer::sync_texture_pack`]).
     pub(in crate::render) pack_seen: u64,
     pub(in crate::render) pack_slots: Vec<Option<u32>>,
@@ -244,7 +244,7 @@ pub struct WorldRenderer {
     /// ([`surface::SurfaceMaps`]).
     pub(in crate::render) surface_jobs: Vec<(usize, Texture, crate::surface_maps::Class, bool)>,
     pub(in crate::render) surface_maps: Option<surface::SurfaceMaps>,
-    /// Light Probes (docs/lighting2.md): the bake target and field, made on first use.
+    /// Light Probes (docs/notes/graphics/lighting2.md): the bake target and field, made on first use.
     pub(in crate::render) probes: Option<probes::ProbeBaker>,
     /// The game folder and region the world came from (the probes' routes).
     pub(in crate::render) probe_source: Option<(std::path::PathBuf, String)>,

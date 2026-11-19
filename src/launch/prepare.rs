@@ -1,4 +1,4 @@
-//! `game --prepare`'s progress lines (docs/prepare.md), as the launcher
+//! `game --prepare`'s progress lines (docs/developing/prepare.md), as the launcher
 //! reads them: `step=<n>/<of> <what>`, then `ok=1`, or `error=<why>` /
 //! `ok=0`. The launcher's side of the run is `launcher::prepare`.
 

@@ -10,7 +10,7 @@
 //! encoded values as light). The game therefore picks its format itself:
 //! 8-bit first, then 10-bit, 16-bit float only when nothing narrower is
 //! offered. HDR Output configures its own format and colour space on top
-//! (`hdr_output::Signal`, docs/hdr.md); this is the SDR frame's.
+//! (`hdr_output::Signal`, docs/playing/hdr.md); this is the SDR frame's.
 
 /// The preference order: 8-bit BGRA / RGBA, 10-bit, 16-bit float (16-bit
 /// unorm is no render target without a device feature the game does not

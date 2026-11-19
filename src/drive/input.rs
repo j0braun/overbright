@@ -37,7 +37,7 @@ pub struct AiControls {
     /// mover ran before the release was written, so this update's
     /// physics still sees the countdown's block (gas, brake 1, gear
     /// request 1 = neutral). **Observed** under Wine (see
-    /// docs/tuning-physics-parity.md): at the first status-4 frame the
+    /// docs/notes/parity/tuning-physics-parity.md): at the first status-4 frame the
     /// rivals' drivetrains are still in neutral with the clutch locked
     /// (+0x44 = 3) and the shift to 1st starts one update later. The
     /// release is the hold's vt+0x30 (0x410030 writes +0x1E4 = −1).

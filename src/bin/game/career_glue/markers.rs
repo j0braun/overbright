@@ -285,7 +285,7 @@ impl Game {
             MarkerTarget::Event(event) => {
                 // 0x4B551B → 0x512620: the message number drawn once
                 // from the game's generator (0x43C1C0(n) + 1; the clone's
-                // (docs/rng.md: on the shared generator, the clone's career
+                // (docs/original/rng.md: on the shared generator, the clone's career
                 // generator is gone), none for stage 0.
                 let message = match (screens::message_set(&self.game_data.career.events[event]), self.profile.as_ref()) {
                     (Some((_, n)), Some(_)) => self.rng.below(n) + 1,

@@ -77,8 +77,9 @@ pub(crate) struct TrafficSnapshot {
         Option<(Vec<Vec3>, f32)>,
         bool,
         BeltState,
-        // The paused car's walk, +0x550 and +0x77D.
-        (Option<nfsu2::ai::traffic::TrafficLane>, bool, bool),
+        // The paused car's walk, +0x550, +0x77D and the race coordinate
+        // (+0x8FC) with where it was taken.
+        (Option<nfsu2::ai::traffic::TrafficLane>, bool, bool, Option<(f32, Vec2)>),
     )>,
     pub(crate) rng: nfsu2::opponents::GameRng,
     pub(crate) clock: f32,
@@ -106,7 +107,7 @@ impl TrafficSnapshot {
                         c.plan.clone(),
                         c.stopped,
                         c.belt.clone(),
-                        (c.coast.clone(), c.active, c.held),
+                        (c.coast.clone(), c.active, c.held, c.coord),
                     )
                 })
                 .collect(),
@@ -124,7 +125,7 @@ impl TrafficSnapshot {
         for (c, s) in t.cars.iter_mut().zip(&self.cars) {
             (c.state, c.lane, c.driver, c.controls, c.mover, c.plan, c.stopped, c.belt) =
                 (s.0.clone(), s.1.clone(), s.2.clone(), s.3, s.4, s.5.clone(), s.6, s.7.clone());
-            (c.coast, c.active, c.held) = s.8.clone();
+            (c.coast, c.active, c.held, c.coord) = s.8.clone();
         }
         t.field.rng = self.rng.clone();
         t.clock = self.clock;

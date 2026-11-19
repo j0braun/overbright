@@ -3,7 +3,7 @@
 /// than this to the player is refused (0x418110 through 0x409840).
 pub const DESPAWN: f32 = 250.0;
 
-/// clone deviation, docs/pop-in.md: at World Detail Ultra / Extreme
+/// clone deviation, docs/notes/graphics/pop-in.md: at World Detail Ultra / Extreme
 /// with LOD Fade a traffic car is drawn fully up to this far from the
 /// player and fades out (screen-door) to nothing at [`DESPAWN`], where the
 /// native placer moves it; it is placed at [`DESPAWN`] or farther, so it

@@ -1,4 +1,4 @@
-//! Particles Cinematic, **volumetric** smoke (docs/smoke-volumetric.md;
+//! Particles Cinematic, **volumetric** smoke (docs/notes/graphics/smoke.md "Volumetric effects and the volumetric Cinematic smoke";
 //! a **clone deviation**, opt-in; nothing here exists in SPEED2.EXE). The
 //! billboards read as cheap and dated, hence the volume. The
 //! smoke-specific half over [`crate::render::volume_fx`]: the Cinematic puffs
@@ -47,7 +47,7 @@ pub struct Look {
 /// Haze 0.6 → 0.3, size 1.15 → 0.95, spread 2.5 → 3.5 (a long
 /// burnout built a flat wall over the whole view: +20 mean, blacks +10,
 /// contrast −5 against Original; now dense young billows and old smoke
-/// that thins out, docs/smoke-nextgen.md).
+/// that thins out, docs/notes/graphics/smoke.md "Tyre smoke toward current games").
 pub const LOOK: Look = Look {
     opacity: 3.0,
     haze: 0.3,
@@ -64,7 +64,7 @@ pub const LOOK: Look = Look {
 
 /// The renderer's shading for the smoke: the fine billow octave and
 /// the billow shading turned toward the lamps, the temporal resolve with
-/// 1.4× longer march steps (docs/smoke-nextgen.md).
+/// 1.4× longer march steps (docs/notes/graphics/smoke.md "Tyre smoke toward current games").
 pub const FX: volume_fx::Look = volume_fx::Look {
     fine: 1.0,
     directional: 0.7,

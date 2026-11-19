@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Rate gate v2 images (docs/checks.md "Rate gate"): the α = 0 frames a rate bench dumps (NFSU2_RATE_DUMP:
+"""Rate gate v2 images (docs/developing/checks.md "Rate gate"): the α = 0 frames a rate bench dumps (NFSU2_RATE_DUMP:
 tick-<n>.png at ticks ≡ 0 mod 6 from the schedule's start) compared against the reference rate's, by tick.
 
 usage: rateimg.py PIXDIFF CLASS REF_DIR HZ=DIR ...

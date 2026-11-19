@@ -51,7 +51,7 @@ impl Game {
                         return Some(Ok(()));
                     }
                     Some(HelpMsg::Logoff) => {
-                        // 0x55DE10: sound 0x4B (docs/sound-audit.md),
+                        // 0x55DE10: sound 0x4B (docs/notes/audio/sound-audit.md),
                         // then the log-off question (online: not ported).
                         self.fe_id(0x4B);
                         return Some(Ok(()));

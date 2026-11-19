@@ -1,5 +1,5 @@
 use crate::*;
-// The test kit (tests/common/mod.rs, docs/testing.md).
+// The test kit (tests/common/mod.rs, docs/developing/testing.md).
 #[path = "../../../../tests/common/mod.rs"]
 mod testkit;
 
@@ -94,7 +94,7 @@ fn shop_pattern_native_envelope_and_skip_reentry_lifetime() {
             }
         }
     }
-    // Actual Enter path: the agreed immediate skip (docs/native-deviations.md "Skipping scenes").
+    // Actual Enter path: the agreed immediate skip (docs/playing/native-deviations.md "Skipping scenes").
     for skip_tick in [0, 30, 90] {
         game.mode = Mode::Explore;
         assert!(game.start_shop_scene(nfsu2::shop_scene::SceneKind::Enter, shop));

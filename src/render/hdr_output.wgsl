@@ -1,4 +1,4 @@
-// HDR Output's display transform (clone deviation, docs/hdr.md; see
+// HDR Output's display transform (clone deviation, docs/playing/hdr.md; see
 // hdr_output.rs). Reads the finished SDR frame (the native image with the
 // UI over it) and the post passes' unclipped image, writes the HDR
 // swap chain: BT.2100 PQ (HDR10) or scRGB (extended linear BT.709).

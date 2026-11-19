@@ -319,7 +319,7 @@ pub fn slot_class(t: &Texture, reflect: bool, emissive: bool) -> Class {
     classify(&info)
 }
 
-/// Maps rejected by eye in the review sheets (docs/surface-maps.md
+/// Maps rejected by eye in the review sheets (docs/notes/graphics/surface-maps.md
 /// "Review"): façades whose painted windows the map embossed.
 pub const REJECTED: &[&str] = &["ARC_WHOUSE_METAL_04", "ARC_STUCCOWHITE_A_RB"];
 
@@ -339,9 +339,9 @@ pub fn car_class(name: &str, material: &str) -> Class {
     let m = material.to_ascii_uppercase();
     let (n, m) = (n.as_str(), m.as_str());
     // The carbon weave (CARBONFIBER, the CF spoilers' DEFAULT too): native.
-    // Its map was tried and rejected (docs/surface-maps.md "Cars"): on the
+    // Its map was tried and rejected (docs/notes/graphics/surface-maps.md "Cars"): on the
     // glossy CARBONFIBER panels the weave's tilt turned into blotches at
-    // driving distance (the chrome-flicker shimmer risk, docs/chrome-flicker.md).
+    // driving distance (the chrome-flicker shimmer risk, docs/notes/graphics/car-look.md "Chrome trunk flicker and dry-road reflection strength").
     if n.starts_with("CARBONFIBRE") {
         return Class::Skip;
     }

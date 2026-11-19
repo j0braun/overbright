@@ -16,7 +16,7 @@ pub struct Plan {
     pub smaa: bool,
     /// CAS sharpness, 0 (off) to 1.
     pub sharpen: f32,
-    /// docs/modern-extras.md: the scene's upscale to the screen is
+    /// docs/playing/modern-extras.md: the scene's upscale to the screen is
     /// AMD FSR 1 (EASU + RCAS, [`crate::render::fsr`]) instead of the resample.
     pub fsr: bool,
 }

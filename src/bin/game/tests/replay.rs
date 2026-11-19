@@ -185,7 +185,7 @@ fn replay_camera_cycles_and_picks() {
     assert_eq!(cam.since, Some(21.0));
 }
 
-/// 0x5FB060's gate on the track draw (docs/replay-cameras.md): a drawn
+/// 0x5FB060's gate on the track draw (docs/notes/parity/replay-cameras.md): a drawn
 /// chase view keeps the track cameras off for 1.5 s (unless the cameras
 /// were just reset, +0x224) and holds outright from 1.5 to 4 s; a held
 /// track shot is not gated.

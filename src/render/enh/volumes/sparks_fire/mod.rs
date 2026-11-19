@@ -1,5 +1,5 @@
 //! Sparks & Fire, Next-Gen tier (clone deviation, opt-in;
-//! docs/sparks-fire.md).
+//! docs/notes/graphics/sparks-fire.md).
 //!
 //! The native emitters still decide **when, where and how many**: the
 //! contact bursts (0x5A9630 → 0x5DC4D0, `particles::post_contact`), the

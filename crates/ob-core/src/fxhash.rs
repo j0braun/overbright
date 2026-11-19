@@ -1,6 +1,6 @@
 //! A fast non-cryptographic hasher for maps keyed by the game's own ids
 //! (FEng object / name hashes, texture hashes, indices), in place of std's
-//! SipHash (docs/perf-main-thread.md). It is the Fx hash (Firefox,
+//! SipHash (docs/notes/performance/main-thread.md). It is the Fx hash (Firefox,
 //! rustc: `rustc-hash` 1.x), kept here so the crate needs no new
 //! dependency.
 //!

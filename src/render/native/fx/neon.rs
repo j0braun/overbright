@@ -68,7 +68,7 @@ pub fn neon_rgb(neon: &Neon, seconds: f32) -> Option<glam::Vec3> {
 /// The light an underglow drawn with `color` ([`neon_color`]'s B, G, R, A
 /// bytes) throws on the ground, 0..1: its brightest channel × its alpha
 /// (world.efx adds `2·tex·colour·alpha` with SRCALPHA / ONE). A clone
-/// measure for the contact shadows' underglow share (docs/glow-darkening.md), not native.
+/// measure for the contact shadows' underglow share (docs/notes/graphics/car-look.md "Darkening settings against emissive light and the car's shadow"), not native.
 pub fn neon_light(color: [u8; 4]) -> f32 {
     let peak = color[..3].iter().copied().max().unwrap_or(0);
     f32::from(peak) / 255.0 * f32::from(color[3]) / 255.0

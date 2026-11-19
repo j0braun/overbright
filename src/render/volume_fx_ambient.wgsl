@@ -1,4 +1,4 @@
-// docs/smoke-volumetric.md "Integration": the scene around a
+// docs/notes/graphics/smoke.md "Integration": the scene around a
 // volume, for its ambient. The target as drawn so far (the lit world, the
 // cars, the shadows; before the medium) in 32 × 18 blocks, each the mean
 // of 16 × 16 point taps over it, eased with the last frame's (half and

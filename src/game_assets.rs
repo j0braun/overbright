@@ -1,5 +1,5 @@
 //! Which game file is opened for a wanted name (clone tooling; the movie
-//! fallback is a documented deviation, docs/native-deviations.md "Movie
+//! fallback is a documented deviation, docs/playing/native-deviations.md "Movie
 //! files").
 //!
 //! One resolver for the game and for the game-folder check: the movie
@@ -130,7 +130,7 @@ pub fn suffix_of<'a>(file: &'a str, stem: &str) -> Option<&'a str> {
 ///    edition's single language;
 ///
 /// none: [`How::Missing`], the screen ends at once as in the original.
-/// Steps 2–5 are the deviation (docs/native-deviations.md, "Movie files").
+/// Steps 2–5 are the deviation (docs/playing/native-deviations.md, "Movie files").
 pub fn resolve_movie(root: &Path, name: &str) -> Resolved {
     let stem = movie_stem(name);
     let mut steps: Vec<(String, How)> =
@@ -375,6 +375,21 @@ pub fn exe_movie_suffix(exe: &[u8]) -> Option<String> {
     (suffix.len() == 2 && suffix.bytes().all(|b| b.is_ascii_alphabetic())).then(|| suffix.to_ascii_lowercase())
 }
 
+/// One group's counts ([`Report::group_counts`]).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct GroupCount {
+    pub group: Group,
+    /// The files the game asks for in this group.
+    pub total: usize,
+    /// Of them, found.
+    pub found: usize,
+    /// The names not found, in report order.
+    pub missing: Vec<String>,
+    /// Found under this install's own names, not the name the executable
+    /// builds.
+    pub own_names: usize,
+}
+
 /// What [`scan`] found: the edition and every wanted file.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Report {
@@ -548,31 +563,46 @@ impl Report {
         v
     }
 
-    /// One line per group: how many found, which will not play (the
-    /// launcher's list).
-    pub fn groups(&self) -> Vec<(Mark, String)> {
-        let mut v = Vec::new();
+    /// Each group's counts, in report order: how many files it has, how
+    /// many were found, which are missing and how many were found under
+    /// this install's own names (the launcher's check summary).
+    pub fn group_counts(&self) -> Vec<GroupCount> {
         let mut groups: Vec<Group> = self.items.iter().map(|i| i.group).collect();
         groups.dedup();
-        for g in groups {
-            let items: Vec<&Item> = self.items.iter().filter(|i| i.group == g).collect();
-            let n = items.len();
-            let missing: Vec<&str> =
-                items.iter().filter(|i| i.resolved.file.is_none()).map(|i| i.label.as_str()).collect();
-            let fallback = items.iter().filter(|i| i.resolved.how.fallback()).count();
-            let line = if !missing.is_empty() {
-                (
-                    Mark::Warn,
-                    format!("{}: {} of {n} found; missing: {}", g.words(), n - missing.len(), names(&missing, 5)),
-                )
-            } else if fallback > 0 {
-                (Mark::Ok, format!("{}: all {n} found ({fallback} under this edition's names)", g.words()))
-            } else {
-                (Mark::Ok, format!("{}: all {n} found", g.words()))
-            };
-            v.push(line);
-        }
-        v
+        groups
+            .into_iter()
+            .map(|g| {
+                let items: Vec<&Item> = self.items.iter().filter(|i| i.group == g).collect();
+                let missing: Vec<String> =
+                    items.iter().filter(|i| i.resolved.file.is_none()).map(|i| i.label.clone()).collect();
+                GroupCount {
+                    group: g,
+                    total: items.len(),
+                    found: items.len() - missing.len(),
+                    own_names: items.iter().filter(|i| i.resolved.how.fallback()).count(),
+                    missing,
+                }
+            })
+            .collect()
+    }
+
+    /// One line per group: how many found, which will not play (the
+    /// `--check-game` and start-log lines).
+    pub fn groups(&self) -> Vec<(Mark, String)> {
+        self.group_counts()
+            .into_iter()
+            .map(|c| {
+                let (g, n) = (c.group, c.total);
+                if !c.missing.is_empty() {
+                    let missing: Vec<&str> = c.missing.iter().map(String::as_str).collect();
+                    (Mark::Warn, format!("{}: {} of {n} found; missing: {}", g.words(), c.found, names(&missing, 5)))
+                } else if c.own_names > 0 {
+                    (Mark::Ok, format!("{}: all {n} found ({} under this edition's names)", g.words(), c.own_names))
+                } else {
+                    (Mark::Ok, format!("{}: all {n} found", g.words()))
+                }
+            })
+            .collect()
     }
 
     /// Every wanted file, grouped, with the file the game opens or the

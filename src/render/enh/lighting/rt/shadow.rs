@@ -1,4 +1,4 @@
-//! Clone deviation, Modern + RT only (docs/perf-budget.md, the new
+//! Clone deviation, Modern + RT only (docs/notes/performance/budget.md, the new
 //! effects' costs): Modern Lighting's ray-traced shadows at half the scene's
 //! resolution. Before, 2 + 1 + 1 + 1 rays per pixel were traced inside the world's
 //! colour shader (`ml_ray`), which also held every world pixel's shader to
@@ -11,7 +11,7 @@
 //! layer (neon, signs, emitters) share a resampled visibility, one ray a
 //! block to a light picked by its share of their light, averaged over the
 //! block's history (the last frame's blocks, reprojected); the two traced
-//! lights keep a history by light (docs/shadow-softness.md "Every light: the
+//! lights keep a history by light (docs/notes/graphics/shadow-softness.md "Every light: the
 //! rest resampled"). Nothing native is involved (SPEED2.EXE has no ray
 //! tracing); the Original path and every other tier are untouched.
 
@@ -349,7 +349,7 @@ impl RtShadow {
     }
 
     /// The traced visibility's pipeline for a depth multisampled when
-    /// `ms`, made now: a drive's warm-up (docs/first-use-builds.md).
+    /// `ms`, made now: a drive's warm-up (docs/developing/first-use-builds.md).
     pub fn warm(&mut self, gpu: &Gpu, ms: bool) {
         self.pipeline(gpu, ms);
     }
@@ -537,7 +537,7 @@ mod tests {
     /// (`ml_vis_early`, before Surface Detail and the lighting) and the light
     /// loop reads only its results: the gather's sums are not held across
     /// the loop, where they took registers (waves) from every world pixel
-    /// (docs/shadow-softness.md, "The gather first").
+    /// (docs/notes/graphics/shadow-softness.md, "The gather first").
     #[test]
     fn colour_pass_gathers_first() {
         use crate::render::core::shader::registry::{self, TextureBinding, WorldKey};

@@ -40,7 +40,7 @@ pub(crate) const HD_UI: u32 = 0xC1_04E0_22;
 pub(crate) const HD_UI_PAGE: u32 = 0xC1_04E0_2E;
 pub(crate) const HD_UI_PACK_STATUS: u32 = 0xC1_04E0_2F;
 pub(crate) const HD_UI_ACTIVATION_STATUS: u32 = 0xC1_04E0_30;
-/// See docs/pack-hot-reload.md.
+/// See docs/modding/pack-hot-reload.md.
 pub(crate) const RELOAD_PACKS: u32 = 0xC1_04E0_D4;
 pub(crate) const LOD_FADE: u32 = 0xC1_04E0_23;
 pub(crate) const KEEP_LOADED: u32 = 0xC1_04E0_24;
@@ -65,15 +65,15 @@ pub(crate) const LISTS_OPEN_INSTALLED: u32 = 0xC1_04E0_60;
 pub(crate) const HUD_LAYOUT: u32 = 0xC1_04E0_61;
 pub(crate) const HUD_CENTERED: u32 = 0xC1_04E0_62;
 pub(crate) const HUD_FULL_WIDTH: u32 = 0xC1_04E0_63;
-/// Outrun Variety (docs/drag-drift-outrun-parity.md §0).
+/// Outrun Variety (docs/notes/parity/drag-drift-outrun-parity.md §0).
 pub(crate) const OUTRUN_VARIETY: u32 = 0xC1_04E0_64;
-/// Unit MF (docs/model-fixes.md).
+/// Unit MF (docs/notes/graphics/model-fixes.md).
 pub(crate) const FIX_MODELS: u32 = 0xC1_04E0_7A;
-/// Photo mode (docs/photo-mode.md): the Enhancements row and the pause
+/// Photo mode (docs/playing/photo-mode.md): the Enhancements row and the pause
 /// menu's item.
 pub(crate) const PHOTO_MODE_ROW: u32 = 0xC1_04E0_90;
 pub const PHOTO_MODE: u32 = 0xC1_04E0_91;
-// Modern extras (docs/modern-extras.md); 0xC0.., clear of the ids above.
+// Modern extras (docs/playing/modern-extras.md); 0xC0.., clear of the ids above.
 pub(crate) const LOW_LATENCY: u32 = 0xC1_04E0_C0;
 pub(crate) const REPLAY_CAMERAS: u32 = 0xC1_04E0_C1;
 pub(crate) const HUD_PALETTE: u32 = 0xC1_04E0_C2;
@@ -81,7 +81,7 @@ pub(crate) const HUD_MINIMAP: u32 = 0xC1_04E0_C3;
 pub(crate) const HUD_SPEEDO: u32 = 0xC1_04E0_C4;
 pub(crate) const HUD_INFO: u32 = 0xC1_04E0_C5;
 pub(crate) const REDUCED_FLASHING: u32 = 0xC1_04E0_C6;
-/// Performance overlay (docs/perf-overlay.md); 0xEC..0xEF, clear of
+/// Performance overlay (docs/notes/performance/overlay.md); 0xEC..0xEF, clear of
 /// every copy's ids (2026-11-05).
 pub(crate) const PERF_OVERLAY: u32 = 0xC1_04E0_EC;
 pub(crate) const OVERLAY_POSITION: u32 = 0xC1_04E0_ED;
@@ -90,68 +90,68 @@ pub(crate) const OVERLAY_LOG: u32 = 0xC1_04E0_EF;
 /// Power Saving (the maintainer's private capture); 0xE8, clear of
 /// every copy's ids (2026-11-05).
 pub(crate) const POWER_SAVING: u32 = 0xC1_04E0_E8;
-/// Mark Spot Key (docs/mark-spot.md).
+/// Mark Spot Key (docs/playing/mark-spot.md).
 pub(crate) const MARK_SPOT: u32 = 0xC1_04E0_6D;
-// Wet roads and SSR (docs/wet-roads-ssr.md); ids clear of the Graphics page's (0x40..0x47 taken).
+// Wet roads and SSR (docs/notes/graphics/reflections.md "Wet Roads and Screen-Space Reflections"); ids clear of the Graphics page's (0x40..0x47 taken).
 pub(crate) const WET_ROADS: u32 = 0xC1_04E0_48;
 pub(crate) const SSR: u32 = 0xC1_04E0_49;
-// Lamps and shadows (docs/lamps-shadows.md).
+// Lamps and shadows (docs/notes/graphics/lamps-shadows.md).
 pub(crate) const DYNAMIC_LAMPS: u32 = 0xC1_04E0_4A;
 pub(crate) const LAMP_SHADOWS: u32 = 0xC1_04E0_4B;
 pub(crate) const CONTACT_SHADOWS: u32 = 0xC1_04E0_4C;
-// Temporal tier (docs/temporal.md); 0x55.. to stay clear of the ids the other
+// Temporal tier (docs/notes/graphics/temporal.md); 0x55.. to stay clear of the ids the other
 // G/S units of this wave may take next (0x4D..).
 pub(crate) const UPSCALE: u32 = 0xC1_04E0_55;
 pub(crate) const VOLUMETRIC_FOG: u32 = 0xC1_04E0_56;
-/// Sky (docs/atmosphere.md); 0xB6, unused in main and every wf3xx copy
+/// Sky (docs/notes/graphics/atmosphere.md); 0xB6, unused in main and every wf3xx copy
 /// (checked 2026-11-05).
 pub(crate) const SKY: u32 = 0xC1_04E0_B6;
-// GPU particles (docs/particles-smoke.md); 0x70 to stay clear of the ids the
+// GPU particles (docs/notes/graphics/smoke.md "Particles High and Ultra: GPU particles and detailed smoke"); 0x70 to stay clear of the ids the
 // other effects may take next (0x5C..).
 pub(crate) const PARTICLES: u32 = 0xC1_04E0_70;
-/// Sparks & Fire (docs/sparks-fire.md); chosen clear of every other id
+/// Sparks & Fire (docs/notes/graphics/sparks-fire.md); chosen clear of every other id
 /// (2026-11-05).
 pub(crate) const SPARKS_FIRE: u32 = 0xC1_04E0_D8;
-// Animated water (docs/water.md); 0x7C, clear of the ids above.
+// Animated water (docs/notes/graphics/water.md); 0x7C, clear of the ids above.
 pub(crate) const ANIMATED_WATER: u32 = 0xC1_04E0_7C;
-// Ambient detail (docs/ambient-detail.md); 0xB8, unused by the rows above and the other effects'
+// Ambient detail (docs/notes/graphics/ambient-detail.md); 0xB8, unused by the rows above and the other effects'
 // copies (took 0xD8).
 pub(crate) const AMBIENT_DETAIL: u32 = 0xC1_04E0_B8;
-// Lighting II (docs/lighting2.md); 0xB0.., clear of the ids above and the weather's 0xA0..
+// Lighting II (docs/notes/graphics/lighting2.md); 0xB0.., clear of the ids above and the weather's 0xA0..
 pub(crate) const HEADLIGHT_BEAMS: u32 = 0xC1_04E0_B0;
 pub(crate) const LIGHT_PROBES: u32 = 0xC1_04E0_B1;
 pub(crate) const ENHANCED_GLASS: u32 = 0xC1_04E0_B2;
-/// See docs/surface-maps.md.
+/// See docs/notes/graphics/surface-maps.md.
 pub(crate) const SURFACE_DETAIL: u32 = 0xC1_04E0_D0;
-/// Modern Lighting (docs/modern-lighting.md); 0x9A.., clear of the other ids
+/// Modern Lighting (docs/notes/graphics/modern-lighting.md); 0x9A.., clear of the other ids
 /// (checked 2026-11-05).
 pub(crate) const MODERN_LIGHTING: u32 = 0xC1_04E0_9A;
 pub(crate) const MODERN_STRENGTH: u32 = 0xC1_04E0_9B;
-// HDR output (docs/hdr.md).
+// HDR output (docs/playing/hdr.md).
 pub(crate) const GROUP_DISPLAY: u32 = 0xC1_04E0_57;
 pub(crate) const HDR_OUTPUT: u32 = 0xC1_04E0_58;
 pub(crate) const HDR_PEAK: u32 = 0xC1_04E0_59;
 pub(crate) const HDR_PAPER: u32 = 0xC1_04E0_5A;
 pub(crate) const HDR_GAMMA: u32 = 0xC1_04E0_5B;
-// Weather (docs/weather.md); 0xA0.. clear of the other rows' ids.
+// Weather (docs/notes/graphics/weather.md); 0xA0.. clear of the other rows' ids.
 pub(crate) const GROUP_WEATHER: u32 = 0xC1_04E0_A0;
 pub(crate) const WET_CAR: u32 = 0xC1_04E0_A1;
 pub(crate) const RAIN_DETAIL: u32 = 0xC1_04E0_A2;
 pub(crate) const SPRAY: u32 = 0xC1_04E0_A3;
 pub(crate) const LENS_DROPS: u32 = 0xC1_04E0_A4;
-/// Wet Road Interaction (docs/wet-road-car.md).
+/// Wet Road Interaction (docs/notes/graphics/wet-road-car.md).
 pub(crate) const WET_INTERACTION: u32 = 0xC1_04E0_AC;
-// Assets and distance (docs/assets-distance.md); 0xB0.. clear of the other rows' ids.
+// Assets and distance (docs/notes/graphics/assets-distance.md); 0xB0.. clear of the other rows' ids.
 pub(crate) const SMOOTH_CARS: u32 = 0xC1_04E0_E0;
 pub(crate) const TRAFFIC_DENSITY: u32 = 0xC1_04E0_E1;
-/// Skip Title Screen (docs/start-and-menus.md).
+/// Skip Title Screen (docs/original/start-and-menus.md).
 pub(crate) const SKIP_TITLE: u32 = 0xC1_04E0_FB;
-/// Skip Intro Movies (docs/start-and-menus.md).
+/// Skip Intro Movies (docs/original/start-and-menus.md).
 pub(crate) const SKIP_MOVIES: u32 = 0xC1_04E0_FD;
 /// G7b2.
 pub(crate) const TEXTURE_PACK: u32 = 0xC1_04E0_F4;
 pub(crate) const GENERATE_TEXTURE_PACK: u32 = 0xC1_04E0_F5;
-/// The settings page (docs/settings-page.md); 0x80..0x86, unused elsewhere
+/// The settings page (docs/developing/settings-page.md); 0x80..0x86, unused elsewhere
 /// (checked 2026-11-06).
 pub(crate) const UX_COMPARE: u32 = 0xC1_04E0_80;
 pub(crate) const UX_FILTER: u32 = 0xC1_04E0_81;
@@ -160,7 +160,7 @@ pub(crate) const UX_GROUP_LIGHTING: u32 = 0xC1_04E0_83;
 pub(crate) const UX_GROUP_WEATHER: u32 = 0xC1_04E0_84;
 pub(crate) const UX_GROUP_GAMEPLAY: u32 = 0xC1_04E0_85;
 pub(crate) const UX_GROUP_PACKS: u32 = 0xC1_04E0_86;
-/// docs/controller-support.md: the Controller group and its rows.
+/// docs/playing/controller-support.md: the Controller group and its rows.
 pub(crate) const UX_GROUP_CONTROLLER: u32 = 0xC1_04E0_32;
 pub(crate) const PAD_LAYOUT: u32 = 0xC1_04E0_33;
 pub(crate) const PAD_DEADZONE: u32 = 0xC1_04E0_34;
@@ -172,7 +172,7 @@ pub(crate) const PAD_PAUSE_ON_DISCONNECT: u32 = 0xC1_04E0_3A;
 pub(crate) const PAD_SAFE_BIND: u32 = 0xC1_04E0_3B;
 pub(crate) const UX_RESET_GROUP: u32 = 0xC1_04E0_87;
 pub(crate) const UX_NO_MATCH: u32 = 0xC1_04E0_88;
-/// The streamlined graphics page (docs/settings-page.md "Graphics mode and
+/// The streamlined graphics page (docs/developing/settings-page.md "Graphics mode and
 /// quality levels"); 0x65..0x6A.
 pub(crate) const GRAPHICS_MODE: u32 = 0xC1_04E0_65;
 pub(crate) const ENHANCED_QUALITY: u32 = 0xC1_04E0_66;

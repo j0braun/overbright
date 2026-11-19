@@ -34,7 +34,7 @@ pub struct Rule {
     /// The renderer resolves it too ([`crate::qol::Enhancements::effective`]
     /// or the pass's own code), not only the page.
     pub engine: bool,
-    /// The audit's measurement (docs/settings-model.md "Audit").
+    /// The audit's measurement (docs/developing/settings-model.md "Audit").
     pub evidence: &'static str,
 }
 

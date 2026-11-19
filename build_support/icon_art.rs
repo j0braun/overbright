@@ -1,4 +1,4 @@
-// The app icon, drawn in code (docs/platform-windows.md): Overbright's mark as
+// The app icon, drawn in code (docs/playing/platform-windows.md): Overbright's mark as
 // the launcher draws it in its header (`Kind::Logo`, src/launcher/ui.rs): a
 // lime ring (`Theme::lime`), its width 0.32 of its outer radius, here on a
 // rounded tile in the launcher's page colours (`page_top` to `page_bottom`)

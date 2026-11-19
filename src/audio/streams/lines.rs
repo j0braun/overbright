@@ -112,7 +112,7 @@ impl Streams {
     /// the harness's captures). On a thread a line is "queued, not yet
     /// playing" (`speech_free` no, `speech_playing` no) until its decoder
     /// finishes, at a moment no tick determines; inline it plays at once
-    /// (docs/uncapped-fps.md "Audio on ticks"). The songs and the score keep their threads (nothing in
+    /// (docs/original/uncapped-fps.md "Audio on ticks"). The songs and the score keep their threads (nothing in
     /// the game reads their progress; the offline pump waits for it).
     pub fn set_inline_decode(&mut self, on: bool) {
         self.inline_decode = on;

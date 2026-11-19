@@ -1,5 +1,5 @@
 //! The encounter cars' pursuit of the player before a challenge (
-//! docs/outrun.md "Encounter pursuit"): the manager's side machine 0x42A860
+//! docs/original/outrun.md "Encounter pursuit"): the manager's side machine 0x42A860
 //! (run per slot every update in state 3, TRYING_TO_ENGAGE), the goal
 //! AIGoalOffsetPursuit (type 9, vtable 0x784BF8, set by 0x428630, chooser
 //! slot +0x38 = 0x42DA70) and its default action "Drive at offset" (type

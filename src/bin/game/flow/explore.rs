@@ -89,7 +89,7 @@ impl Game {
         }
         // The encounter racers' set-up (0x540790 → 0x53F010(3)), then the
         // world build with the career's open events (0x5412E0) and the
-        // traffic's models (docs/rng.md order).
+        // traffic's models (docs/original/rng.md order).
         self.load_free_roam_population(at, career);
         self.mode = Mode::Explore;
         // Out of the running challenge's goal shop (state 4): its
@@ -115,7 +115,7 @@ impl Game {
     }
 
     /// Free roam's set-up and world build, in the original's order of
-    /// draws (**measured**, the sequence log, docs/rng.md): the career's
+    /// draws (**measured**, the sequence log, docs/original/rng.md): the career's
     /// encounter racers around `at` (0x540790 → 0x53F010(3)), with the
     /// sound the in-game audio load (speech re-seed, accel transitions),
     /// the world build (`Game::world_build`: the world generator's seed,
@@ -165,7 +165,7 @@ impl Game {
             // set-up (a garage jump, a shop, a race and back) draws
             // other cars (observed under Wine, a community save: three free-roam
             // loads in a row, three different line-ups,
-            // docs/drag-drift-outrun-parity.md §0).
+            // docs/notes/parity/drag-drift-outrun-parity.md §0).
             let _t = nfsu2::prof::span("Encounters::new");
             let human = self.human_perf(ai);
             encounters = Encounters::new(

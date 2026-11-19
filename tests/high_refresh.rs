@@ -1,4 +1,4 @@
-//! The simulation at any display rate (docs/uncapped-fps.md).
+//! The simulation at any display rate (docs/original/uncapped-fps.md).
 //!
 //! The original does not run at high frame rates, so the game must behave
 //! as at 30 or 60 fps whatever the display rate. The world therefore

@@ -147,7 +147,7 @@ pub(crate) fn run(command: &Command, args: &[String]) -> Result<()> {
     // The start-up's draws come after the seed (0x57ED5C before 0x57ED7C):
     // made again on the clock's state.
     game.boot_draws();
-    // `--editor`: the modding tools can be opened (docs/texture-editor.md).
+    // `--editor`: the modding tools can be opened (docs/modding/texture-editor.md).
     if args.iter().any(|a| a == "--editor") {
         nfsu2::tools::texed::enable();
         log::info!("modding tools on: F7 opens the texture editor");
@@ -196,7 +196,7 @@ pub(crate) fn run(command: &Command, args: &[String]) -> Result<()> {
     Ok(())
 }
 
-/// A test run the desktop map editor starts (docs/map-editor.md, "Test
+/// A test run the desktop map editor starts (docs/modding/map-editor.md, "Test
 /// race"): `--map-mod <folder>` or `--map-file <path>` with `--map-race
 /// <id>` or `--map-at x,y,z,heading`, and `--map-result <file>`. All opt-in: without them the
 /// start is the game's own. Such a run applies only that mod (never

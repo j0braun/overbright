@@ -1,6 +1,6 @@
 //! Modern Lighting, phase 2 "bold" (clone deviation, opt-in: the
 //! Graphics → Lighting page's "Lighting" row and its "Lighting Strength";
-//! docs/modern-lighting.md). Nothing here is native: SPEED2.EXE lights the
+//! docs/notes/graphics/modern-lighting.md). Nothing here is native: SPEED2.EXE lights the
 //! world with its baked vertex colours only (world.efx `tex × v0 × 2`) and
 //! the cars with the light packs' harmonic (0x48E3D0 → 0x4893A0).
 //!
@@ -52,7 +52,7 @@ mod tests {
     /// tier's module (with the arrays, multiview and mip-bias forms of the
     /// lamps' module) parses and validates, the ray-query lines only in
     /// Modern + RT, and Modern off is the lamps' module as before Modern Lighting.
-    /// docs/look-direction.md rule "darken only where the original is dark": the strength's darkening, boost
+    /// docs/notes/graphics/look-direction.md rule "darken only where the original is dark": the strength's darkening, boost
     /// and emitter light fade out where the bake itself is bright, so the
     /// artists' lit surfaces and the highlights (and the glow they feed) are
     /// the original's; halving the bake everywhere took p95 −34 at Bold.

@@ -1,5 +1,5 @@
 #!/bin/bash
-# The shipping binary leaves the developer harness out (docs/checks.md "Release check").
+# The shipping binary leaves the developer harness out (docs/developing/checks.md "Release check").
 #
 #   release_check.sh [OUTDIR]
 #

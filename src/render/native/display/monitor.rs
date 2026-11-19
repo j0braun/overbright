@@ -1,4 +1,4 @@
-//! docs/resolutions.md "Display-mode handling": the window's
+//! docs/notes/graphics/resolutions.md "Display-mode handling": the window's
 //! smallest size and the Resolution row's list per display path, rebuilt
 //! when the window's monitor changes.
 //!

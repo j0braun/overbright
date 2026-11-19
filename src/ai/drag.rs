@@ -355,7 +355,7 @@ mod tests {
     /// rebuilt from where the car is (0x42F330 → 0x42BF00 → 0x42BFA9 →
     /// 0x420D40, every update); the clone had kept the path driven before,
     /// so a rival that had just moved its record to a new lane went on along
-    /// the old one into its end (stage-4 drag replays, docs/drag-stage4-parity.md 8.6).
+    /// the old one into its end (stage-4 drag replays, docs/notes/parity/drag-stage4-parity.md 8.6).
     #[test]
     #[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
     fn avoid_without_a_lane_drives_the_records_path_from_here() {

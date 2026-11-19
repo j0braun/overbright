@@ -1,6 +1,6 @@
 
 // ---------------------------------------------------------------------
-// Wet Road Interaction (clone deviation, docs/wet-road-car.md),
+// Wet Road Interaction (clone deviation, docs/notes/graphics/wet-road-car.md),
 // appended to world.wgsl (both modules). Read only inside the Wet Roads
 // branch (frame.wet.x > 0.5, the main view on a wet road) and only with
 // wet_fx.window.w = 1: every other view binds zeros.

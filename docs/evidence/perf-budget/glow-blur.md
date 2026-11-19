@@ -1,4 +1,4 @@
-# High Precision Post's blur: what was measured (docs/hdr-post.md "Blur where it can be lit")
+# High Precision Post's blur: what was measured (docs/notes/graphics/hdr-post.md "Blur where it can be lit")
 
 GPU timestamps per pass, `--bench racing 200` unless named, headless; the desktop GPU at 3840x2160 with
 the play setup at 4K (SSAA 2x: scene 5431x3055, Full-Size Glow at 3840x2160, scaled prefilter);
@@ -27,7 +27,7 @@ loads and multiply-adds (192 VGPRs unrolled). Not kept.
 4 x 4 tiles lit less (the pass across 1.25 instead of 1.49 ms at High) but their widening and quads cost
 more than that (1.8 ms on the integrated GPU): not kept.
 
-## After SSAA's resolve to the screen's size (docs/ssaa-screen-passes.md; the later tree)
+## After SSAA's resolve to the screen's size (docs/notes/graphics/ssaa.md "Effect and post passes at the screen's size under SSAA"; the later tree)
 Under SSAA with High Precision Post the glow's source is the image resolved to the screen's size and its
 prefilter the 1× one (`fs_overbright_mrt_hdr_flag`). One build with the passes marked apart and the full
 passes switched in by a measuring aid (not in the tree), interleaved, 150 frames, the play setup at 4K,

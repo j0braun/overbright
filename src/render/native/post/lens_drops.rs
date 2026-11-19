@@ -225,7 +225,7 @@ impl LensPass {
             min_filter: wgpu::FilterMode::Linear,
             ..Default::default()
         });
-        // Room for Lens Drops' extra drops (docs/weather.md): chunks of
+        // Room for Lens Drops' extra drops (docs/notes/graphics/weather.md): chunks of
         // 20 at 512-byte offsets; the native 20 are the first chunk.
         let uniform = crate::render::zeroed_buffer(
             device,

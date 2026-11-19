@@ -14,7 +14,7 @@
 //! before the fog) and the row's strength. The sky (depth at the far
 //! plane) is left alone; alpha (the bleach bypass mask) is untouched.
 //!
-//! How it is kept cheap (docs/perf-integrated-gpu.md, "Ambient Occlusion:
+//! How it is kept cheap (docs/notes/performance/integrated-gpu.md, "Ambient Occlusion:
 //! the same occlusion for less"): the twelve taps' loads go out together
 //! (a sky tap is chosen away, not branched over); the spiral is one table
 //! turned once per pixel (one sine and cosine, not twelve of each), and a
@@ -24,7 +24,7 @@
 //! and not a pixel whose four texels are unoccluded (the blur leaves those
 //! at 1 or the largest 16-bit float below it).
 //!
-//! When it multiplies (docs/glow-darkening.md): in game, on the lit
+//! When it multiplies (docs/notes/graphics/car-look.md "Darkening settings against emissive light and the car's shadow"): in game, on the lit
 //! scene as soon as the world and the cars are drawn (and the race start's
 //! characters, drawn before the shadows then), before the additive layers:
 //! the cars' shadow texture and underglow, the particles (nitrous flames),
@@ -209,7 +209,7 @@ pub fn set_glow_rects_off(off: bool) {
 /// screen `texel_scale` times smaller (the scene's height over the
 /// screen's): half the scene (2 × 2 scene texels per occlusion texel), or
 /// under SSAA (scene larger than the screen) half the **screen**, the grid
-/// the occlusion has without SSAA (docs/ssaa-screen-passes.md). The apply
+/// the occlusion has without SSAA (docs/notes/graphics/ssaa.md "Effect and post passes at the screen's size under SSAA"). The apply
 /// stays at the scene's size.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Grid {
@@ -764,7 +764,7 @@ mod tests {
 
     /// The occlusion's grid: half the scene, with the shader's values
     /// exactly native's 2:1 ones, at 1× (odd sizes too) and below 100 %;
-    /// under SSAA half the screen (docs/ssaa-screen-passes.md).
+    /// under SSAA half the screen (docs/notes/graphics/ssaa.md "Effect and post passes at the screen's size under SSAA").
     #[test]
     fn occlusion_grid_is_half_the_scene_without_ssaa_and_half_the_screen_with_it() {
         for (size, scale) in [((3840, 2160), 1.0), ((1281, 961), 1.0), ((1920, 1080), 0.5), ((640, 480), 1.0)] {

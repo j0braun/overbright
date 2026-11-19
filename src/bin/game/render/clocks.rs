@@ -1,4 +1,4 @@
-//! Draw clocks (docs/uncapped-fps.md, "Draw clocks"): every time value a shader
+//! Draw clocks (docs/original/uncapped-fps.md, "Draw clocks"): every time value a shader
 //! or a draw-side animation reads comes from the ticks, blended by α: the
 //! shaders' clock (`seconds`: the neon's pulse, the car lights, the world's
 //! and the cars' animated textures, the garage), the clone's motion blur's

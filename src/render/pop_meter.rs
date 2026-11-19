@@ -1,4 +1,4 @@
-//! Pop meter (docs/pop-in.md; a measuring aid, `NFSU2_POP_STATS=1`):
+//! Pop meter (docs/notes/graphics/pop-in.md; a measuring aid, `NFSU2_POP_STATS=1`):
 //! every element that comes into or leaves the main view's picture while
 //! it is in the view, by source, with its size on the screen and how fast
 //! it changes. Nothing here changes a frame; with the variable unset no

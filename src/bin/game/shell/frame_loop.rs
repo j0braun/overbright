@@ -33,8 +33,8 @@ impl Game {
         // original's 1/30 s world updates through the cadence (`advance`,
         // `frame_clock::SCENE`) and is drawn at the display's rate between
         // them: a render held to 30 fps judders on a 75 / 144 Hz display
-        // (docs/postrace-jitter.md).
-        // Low Latency (docs/modern-extras.md): with a VRR panel driven
+        // (docs/notes/front-end/postrace-jitter.md).
+        // Low Latency (docs/playing/modern-extras.md): with a VRR panel driven
         // variably, frames held 3 % under its top rate; then the pacer's
         // sleep, the wait the last frames spent after their input moved
         // before this one's.
@@ -63,7 +63,7 @@ impl Game {
         }
         let now_t = Instant::now();
         // The frame's work starts: the reader ahead gives way to a frame
-        // that runs long (docs/read-ahead.md).
+        // that runs long (docs/developing/read-ahead.md).
         nfsu2::cache::read_ahead::frame_started();
         let capped = (now_t - limiter).as_secs_f32();
         let elapsed = now_t - self.pacing.last;
@@ -307,7 +307,7 @@ impl Game {
         // GarageMain's update (0x4D82D0 from the front end's tick
         // 0x5663C0, step 15 of 0x5811D0) and the camera movers (0x44EFE0,
         // step 17: the dyno camera) before the AudioManager (step 18): the
-        // garage's sounds go out with this tick's (docs/uncapped-fps.md,
+        // garage's sounds go out with this tick's (docs/original/uncapped-fps.md,
         // "Front end out of the draw").
         self.fe_tick_before_sounds();
         let span = nfsu2::prof::acc::span("tick: audio");
@@ -348,7 +348,7 @@ impl Game {
     pub(crate) fn draw_at(&mut self, alpha: f32) -> Result<()> {
         // A Graphics row changed since the drive's programs were made (the
         // options behind the pause menu): made now, before this frame draws
-        // with them (docs/first-use-builds.md).
+        // with them (docs/developing/first-use-builds.md).
         self.warm_for_settings();
         // A frame between ticks shows the scratch over the
         // committed buffer: the tick it stands after is committed first,

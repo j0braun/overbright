@@ -1,4 +1,4 @@
-//! `overbright-editor`: the desktop map editor (src/editor/, docs/map-editor.md).
+//! `overbright-editor`: the desktop map editor (src/editor/, docs/modding/map-editor.md).
 //!
 //! ```text
 //! overbright-editor [--mod <folder>] [--region <code>] [--maps <dir>]

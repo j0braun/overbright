@@ -110,7 +110,7 @@ fn dyno_enter_music_dips_in_the_dyno_zone() {
     assert!((18..=20).contains(&(after.3 >> 8)), "dyno screen {} (native 19)", after.3 >> 8);
 }
 
-/// The engine's level against the original's (`docs/engine-level.md`,
+/// The engine's level against the original's (`docs/notes/parity/engine-level.md`,
 /// read under Wine with the finished-career save's volumes: master 0.5, engine
 /// 0.65, effects 1, music 0). Free roam idle: the mix map's level[0]
 /// 4181 (from the CAR event's p4 −31491 at HM +0x7C 10000) and the
@@ -187,7 +187,7 @@ fn engine_level_matches_native_free_roam_and_dyno() {
 }
 
 /// The clone's free-roam mix for a level comparison with the original
-/// (`docs/engine-level.md`): with NFSU2_WAVE_SAVE=<a native save> and
+/// (`docs/notes/parity/engine-level.md`): with NFSU2_WAVE_SAVE=<a native save> and
 /// NFSU2_PATTERN_PCM=<out.f32>, the save's car in free roam idles 8 s,
 /// holds the throttle 4 s and idles 8 s (1/60 s steps, offline mixer,
 /// 48 kHz stereo f32). Run on request (`--ignored`).

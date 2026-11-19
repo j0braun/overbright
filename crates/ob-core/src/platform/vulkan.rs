@@ -8,7 +8,7 @@
 //! install for the player's distribution (read from `/etc/os-release`).
 //! The game prints it when its window gets no surface or adapter, and the
 //! launcher shows it on its Graphics card line (the probe's `error=`).
-//! docs/building-releases.md, "Linux: what a player needs".
+//! docs/developing/building-releases.md, "Linux: what a player needs".
 
 /// A distribution family, from `/etc/os-release` (`ID`, then `ID_LIKE`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

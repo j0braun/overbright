@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------
-// One wetness (docs/wet-roads-ssr.md "One wetness"):
+// One wetness (docs/notes/graphics/reflections.md "One wetness"):
 // the scene's wetness and the puddle field every wet effect reads. CPU
 // twin: render::enh::materials::world::wetness (`Wetness::of`) and
 // ::puddle (`puddle_at`). Included by the world module (Wet Roads, the

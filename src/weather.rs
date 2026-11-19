@@ -164,11 +164,11 @@ pub struct Weather {
     /// +0x509C.
     pub wet: f32,
     /// The road's wetness from the rain alone (clone, Wet Roads only;
-    /// docs/wet-roads-ssr.md): +0x509C's rule (0.05 a step up while it
+    /// docs/notes/graphics/reflections.md "Wet Roads and Screen-Space Reflections"): +0x509C's rule (0.05 a step up while it
     /// rains, 0.0015 down) but 0 at track load, where the game sets
     /// +0x509C to 1 for the reflection flares' size whatever the weather.
     pub road_wet: f32,
-    /// The cars' water film (clone, Wet Car; docs/weather.md): +0x509C's
+    /// The cars' water film (clone, Wet Car; docs/notes/graphics/weather.md): +0x509C's
     /// rates from 0 at load, aimed at the rain's amount (not 1), none while
     /// the player's car is under a cover zone (+0x1E4).
     pub car_wet: f32,
@@ -706,7 +706,7 @@ struct DropView {
     ahead: bool,
 }
 
-/// Rate independence (docs/uncapped-fps.md "Drawn objects between ticks"): the
+/// Rate independence (docs/original/uncapped-fps.md "Drawn objects between ticks"): the
 /// rain as one tick leaves it for the draw ([`Weather::capture`]), and
 /// what a frame between two ticks draws ([`RainSnapshot::between`]): the
 /// rain steps on the tick only; the drops and the lens drops are drawn at

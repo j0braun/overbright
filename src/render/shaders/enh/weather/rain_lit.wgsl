@@ -1,5 +1,5 @@
 // The falling rain's drops under the lamps' module, lit at their corners
-// (docs/lamps-shadows.md "The falling rain under the lamps").
+// (docs/notes/graphics/lamps-shadows.md "The falling rain under the lamps").
 //
 // A drop is a parallelogram c ± A ± B, 6 cm across, its texture's alpha
 // times the template's at most 0.03. world.efx's colour with the lamps

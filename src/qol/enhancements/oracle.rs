@@ -657,7 +657,7 @@ impl Old for Enhancements {
 
     /// [`Enhancements::apply`] at once.
     fn old_apply_now(&self) {
-        // docs/settings-model.md: the values in force are the
+        // docs/developing/settings-model.md: the values in force are the
         // stored ones with the settings model's engine rules applied (a
         // redundant or conflicting row resolved); options.txt keeps the
         // stored values, so turning the overriding row off restores them.

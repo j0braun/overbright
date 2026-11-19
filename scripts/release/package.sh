@@ -1,5 +1,5 @@
 #!/bin/bash
-# The player archives of one commit (docs/building-releases.md): builds Linux and Windows in the release container
+# The player archives of one commit (docs/developing/building-releases.md): builds Linux and Windows in the release container
 # (container/build.sh, `git archive <commit>`, no developer harness), assembles
 #   overbright-<version>-linux-x86_64.tar.gz    overbright-<version>-windows-x86_64.zip
 # and checks them. Nothing is uploaded or published: the archives stay in <out dir>.
@@ -351,7 +351,7 @@ fi
 
 # 8. what a human must still do
 [ "$SOURCE_URL" = SOURCE_URL ] && say "NOTE  SOURCE_URL is the placeholder: set SOURCE_URL=<public repository> for a release"
-[ -z "${DXC_DIR:-}" ] && say "NOTE  no dxcompiler.dll in the Windows archive (DXC_DIR unset; docs/building-releases.md)"
+[ -z "${DXC_DIR:-}" ] && say "NOTE  no dxcompiler.dll in the Windows archive (DXC_DIR unset; docs/developing/building-releases.md)"
 say "sha256: $(tr '\n' ' ' < "$OUT/SHA256SUMS")"
 if [ $FAILS = 0 ] && [ $HAVE_SCAN = 0 ]; then say "PACKAGE: ok, privacy scan not run ($LIN.tar.gz, $WIN.zip)"; exit 3; fi
 if [ $FAILS = 0 ] && [ $PRIV_MISSING = 1 ]; then say "PACKAGE: ok, private terms NOT LOADED ($LIN.tar.gz, $WIN.zip)"; exit 3; fi

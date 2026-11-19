@@ -1,5 +1,5 @@
 //! The programs a drive's frames need, made before the first frame that
-//! needs them (docs/first-use-builds.md): at the drive's load (behind
+//! needs them (docs/developing/first-use-builds.md): at the drive's load (behind
 //! its loading screen) and when a Graphics row changes while a drive is
 //! in memory (behind the menu the row was changed in).
 
@@ -169,7 +169,7 @@ pub(crate) fn warm_passes(
     }
 }
 
-/// A drive's programs made ahead (docs/first-use-builds.md "Ahead of the
+/// A drive's programs made ahead (docs/developing/first-use-builds.md "Ahead of the
 /// load"): from the first frame the window draws (the boot screens, the
 /// title screen, the menus), on a thread of its own, every program the
 /// settings in force need for a drive that depends on those settings and

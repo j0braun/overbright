@@ -1,5 +1,5 @@
 // Screen-Space Reflections on the cars (clone deviation, the Graphics page's
-// SSR row; docs/wet-roads-ssr.md). Appended to car.wgsl for the mask
+// SSR row; docs/notes/graphics/reflections.md "Wet Roads and Screen-Space Reflections"). Appended to car.wgsl for the mask
 // pipelines only (`CarShared::ssr_pipelines`); the cars' own pipelines never
 // use it. After the car pass the cars draw once more into the road's mask
 // (ssr.rs reads it), against the mask's own depth (the road's): per pixel

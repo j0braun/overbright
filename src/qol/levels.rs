@@ -1,7 +1,7 @@
 use super::*;
 
 /// The streamlined graphics page's Enhanced quality levels
-/// (docs/settings-page.md "Graphics mode and quality levels"): fixed sets
+/// (docs/developing/settings-page.md "Graphics mode and quality levels"): fixed sets
 /// of the existing rows' values, the same on every GPU (no class ladder).
 /// Like the presets, a level is not stored: [`Level::of`] finds the one
 /// the values match, so options.txt keeps only its `enh.*` lines and a file
@@ -41,7 +41,7 @@ impl Level {
     /// The level Graphics mode Enhanced starts on for a GPU class: Low on
     /// an integrated GPU (Medium costs 18–28 ms there at 1080p at the World
     /// Detail a fresh install picks, 3, and 44–51 ms with everything raised;
-    /// docs/perf-integrated-gpu.md), Medium elsewhere.
+    /// docs/notes/performance/integrated-gpu.md), Medium elsewhere.
     pub fn for_class(class: GpuClass) -> Level {
         match class {
             GpuClass::Integrated => Level::Low,
@@ -55,7 +55,7 @@ impl Level {
         let keep = *e;
         *e = e.preset_base();
         // Low (measured on the reference integrated GPU at 1080p,
-        // docs/settings-page.md "Level costs"): High Precision Post
+        // docs/developing/settings-page.md "Level costs"): High Precision Post
         // (+2.7..3.9 ms there), Wet Roads (+2.7 ms in rain) and the 256 car
         // reflection (~+0.7 ms) start at Medium.
         e.enhanced_paint = true;
@@ -70,7 +70,7 @@ impl Level {
             e.hdr_post = 1;
             e.car_reflection = 256;
             e.wet_roads = true;
-            // Preset::Modern's rows (docs/lamps-shadows.md, docs/lighting2.md).
+            // Preset::Modern's rows (docs/notes/graphics/lamps-shadows.md, docs/notes/graphics/lighting2.md).
             e.ssao = 50;
             e.dynamic_lamps = true;
             e.lamp_shadows = 1;
@@ -78,7 +78,7 @@ impl Level {
             e.spray = true;
             e.headlight_beams = 1;
             e.light_probes = true;
-            // docs/atmosphere.md "The tiers": Low at Medium, High at High.
+            // docs/notes/graphics/atmosphere.md "The tiers": Low at Medium, High at High.
             e.volumetric_fog = 1;
         }
         if self == Level::High {
@@ -253,7 +253,7 @@ mod tests {
         }
     }
 
-    /// The car highlight rule (docs/car-scene-specular.md): Low keeps the
+    /// The car highlight rule (docs/notes/graphics/car-look.md "Car highlight from the scene, not the camera rig"): Low keeps the
     /// original's highlight, Medium, High and ray tracing light the car by
     /// the scene.
     #[test]

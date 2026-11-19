@@ -1,4 +1,4 @@
-// Weather effects (clone deviation, docs/weather.md): fine rain
+// Weather effects (clone deviation, docs/notes/graphics/weather.md): fine rain
 // streaks, ground splashes, the wet-air glow around lamps (Rain Detail),
 // wheel spray and mist (Spray & Splashes). Drawn after the native
 // particles into the scene (or after the temporal pass), premultiplied

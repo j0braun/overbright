@@ -48,7 +48,7 @@ pub mod setup;
 /// What a player waits for and the drives' frame times, in the game's log.
 pub mod waits;
 
-/// Test isolation for the library's unit tests (docs/test-determinism.md;
+/// Test isolation for the library's unit tests (docs/developing/test-determinism.md;
 /// test-only): the settings store above is process-wide and libtest
 /// runs the tests side by side, so a test that puts values in force
 /// (`Enhancements::apply`, photo mode) or asserts the defaults holds this

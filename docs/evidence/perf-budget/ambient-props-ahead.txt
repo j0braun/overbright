@@ -1,4 +1,4 @@
-Ambient Detail's props made in the menus, kept for the drive (docs/perf-budget.md, docs/ambient-detail.md "When the props are placed").
+Ambient Detail's props made in the menus, kept for the drive (docs/notes/performance/budget.md, docs/notes/graphics/ambient-detail.md "When the props are placed").
 
 Method: `--bench transitions` (developer harness, headless, offscreen; NFSU2_BENCH_MENU_FIRST=1), one binary per arm
 (base = the tree before, new = this change), interleaved (odd rounds base first, even rounds new first), 7 rounds per arm,

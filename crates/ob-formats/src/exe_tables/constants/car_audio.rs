@@ -1,5 +1,5 @@
 //! Car and world sound numbers of the original game, with the addresses
-//! they have in the reference executable (docs/exe-tables.md, "Tuning
+//! they have in the reference executable (docs/original/exe-tables.md, "Tuning
 //! constants").
 
 use crate::exe_tables::records::{Rec80, Rec84, ShiftRec, SkidRecord};

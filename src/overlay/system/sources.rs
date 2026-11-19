@@ -1,5 +1,5 @@
 //! Performance overlay: where the system metrics come from
-//! (docs/perf-overlay.md). Linux reads procfs and sysfs: `/proc/stat`
+//! (docs/notes/performance/overlay.md). Linux reads procfs and sysfs: `/proc/stat`
 //! (CPU load per core), cpufreq (clocks), hwmon (`k10temp` / `zenpower` /
 //! `coretemp` temperatures; the GPU's `amdgpu` hwmon for its clocks,
 //! temperatures and power), powercap RAPL (CPU package power, when the

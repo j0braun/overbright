@@ -1,4 +1,4 @@
-//! Custom races of map mods (docs/map-editor.md): while one is being
+//! Custom races of map mods (docs/modding/map-editor.md): while one is being
 //! raced, its own route replaces its base track's in `drive_to_grid`.
 use crate::*;
 use nfsu2::tools::map::{self as map, CustomRace, RaceKind};

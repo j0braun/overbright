@@ -7,7 +7,7 @@ license.workspace = true
 
 # The workspace (ARCHITECTURE.md): this package (the library, the game, the launcher, the tools),
 # the library's lower layers (crates/ob-core, crates/ob-formats; ARCHITECTURE.md "Layers"), the asset
-# format's core (crates/ob-asset-format: docs/asset-format/), the map editor (crates/ob-editor, a leaf on the
+# format's core (crates/ob-asset-format: docs/modding/asset-format/), the map editor (crates/ob-editor, a leaf on the
 # library) and the test kit (crates/ob-testkit, dev only).
 # Dependencies point down only: nothing here depends on the editor. The default members are this
 # package, the library's layers and the editor, so `cargo build --release --bins` makes all three
@@ -92,7 +92,7 @@ miniz_oxide.workspace = true
 # LZMA for ZIP archives that use it (`formats::zip`: the HUD mod's map
 # download). Pure Rust, MIT.
 lzma-rs.workspace = true
-# Overbright texture packs (`obpack`, docs/texture-packs.md): BC7 encode and
+# Overbright texture packs (`obpack`, docs/modding/texture-packs.md): BC7 encode and
 # decode on the CPU (a port of Intel's ISPC texture compressor kernels; the
 # wgpu compute path is not built). MIT.
 block_compression.workspace = true
@@ -111,7 +111,7 @@ libc.workspace = true
 # Property-based fuzzing of the file readers (tests/fuzz_readers.rs).
 # MIT OR Apache-2.0.
 proptest.workspace = true
-# The test kit (crates/ob-testkit, docs/testing.md).
+# The test kit (crates/ob-testkit, docs/developing/testing.md).
 ob-testkit = { path = "crates/ob-testkit" }
 
 [features]
@@ -184,7 +184,7 @@ workspace = true
 [target.'cfg(all(unix, not(target_os = "macos")))'.dependencies.x11-dl]
 version = "2.21"
 
-# Development and pre-merge builds (docs/build-times.md): the release
+# Development and pre-merge builds (docs/developing/build-times.md): the release
 # settings without LTO, 16 codegen units, incremental. Same results (no
 # fast-math), ~2.7x faster cold, ~20 s after a one-file change instead of
 # minutes. Never for releases, perf numbers or PGO: those use `--release`.

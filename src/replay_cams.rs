@@ -1,4 +1,4 @@
-//! Extra replay cameras (docs/modern-extras.md §3; clone deviation,
+//! Extra replay cameras (docs/playing/modern-extras.md §3; clone deviation,
 //! opt-in: Enhancements → Replay Cameras "Extended"). The native replay
 //! viewer's six camera indices (0 automatic: the track cameras and the
 //! drawn chase views, 1–5 the chase views 0x802130 = bumper, hood, near,

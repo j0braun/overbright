@@ -2,8 +2,8 @@
 
 Reimplementation of **Need for Speed: Underground 2** (2004) in Rust and wgpu.
 
-Written from scratch, it plays the game from your own installed copy, behaves like the original by default,
-and adds modern resolutions, any frame rate and optional graphics upgrades on top.
+Written from scratch, it plays the game from your own installed copy and behaves like the original until you
+change a setting. It adds modern resolutions, any frame rate and optional graphics upgrades.
 
 **[Download for Linux and Windows](https://github.com/j0braun/overbright/releases/latest)**
 
@@ -15,7 +15,7 @@ No game files are included: you need your own PC copy of the game.
 
 - **The original, exactly.** Menus, career, races, physics, AI, traffic, sound and movies are ported from the
   original's code and checked against `SPEED2.EXE`. Every difference from the original is written down in
-  [docs/native-deviations.md](docs/native-deviations.md).
+  [docs/playing/native-deviations.md](docs/playing/native-deviations.md).
 - **Modern displays.** Resolutions up to 4K and ultrawide, high refresh rates and any frame rate. The world
   still updates like the original's 60 Hz, so the game plays the same at 30, 60, 144 or 240 fps.
 - **Optional graphics upgrades.** Street lamps that light the world and cast shadows, ambient occlusion,
@@ -47,14 +47,16 @@ packs; the HUD is hidden.
    unpack it anywhere.
 3. Start `overbright` (`overbright.exe` on Windows). It finds the game or asks for its folder. Press Play.
 
-The launcher is optional: `game --check-game <folder>` checks a game folder, and `game` starts the game
-directly ([docs/launcher.md](docs/launcher.md)). Building from source: [BUILDING.md](BUILDING.md).
+More about starting:
 
-With Settings › "When Overbright starts: Start the game directly" the game opens without the launcher. To see
-the launcher again, hold Shift or Ctrl (or View on a controller) while Overbright starts, or start it with
-`--launcher` (on a Steam Deck: add `--launcher` to the launch options). After a start that did not finish the
-launcher opens by itself and offers safe settings. `overbright --support-file` saves a support file for a bug
-report.
+- The launcher is optional: `game` starts the game directly, and `game --check-game <folder>` checks a game
+  folder ([docs/launcher.md](docs/launcher.md)).
+- To skip the launcher every time, choose Settings › "When Overbright starts: Start the game directly". To see
+  the launcher again, hold Shift or Ctrl (or View on a controller) while Overbright starts, or start it with
+  `--launcher` (on a Steam Deck: add `--launcher` to the launch options).
+- If a start did not finish, the launcher opens by itself next time and offers safe settings.
+- `overbright --support-file` saves a support file for a bug report.
+- Building from source: [BUILDING.md](BUILDING.md).
 
 ## Requirements
 
@@ -65,18 +67,21 @@ report.
 | Sound | PipeWire, PulseAudio or ALSA | Built in |
 
 The game: your own install of Need for Speed Underground 2 for PC from any disc release, patched to version 1.2,
-of any region. Overbright reads the game's data files (models, textures, sounds, text, tracks); it does not
-run or read `SPEED2.EXE`, so the copy-protected disc executable is fine, and the folder works without an
-executable too. The engine's own numbers are part of Overbright ([docs/exe-tables.md](docs/exe-tables.md)). The region is taken from the installed car folders
-([docs/region.md](docs/region.md)).
+of any region.
+
+- Overbright reads the game's data files (models, textures, sounds, text, tracks). It does not run or read
+  `SPEED2.EXE`, so the copy-protected disc executable is fine, and the folder works without an executable too.
+  The engine's own numbers are built into Overbright ([docs/original/exe-tables.md](docs/original/exe-tables.md)).
+- The region (North American or European edition) is taken from the installed car folders
+  ([docs/playing/region.md](docs/playing/region.md)).
 
 On Linux without a Vulkan driver, the launcher and the game say which package to install (Ubuntu, Debian, Mint:
 `sudo apt install libvulkan1 mesa-vulkan-drivers`; Fedora: `sudo dnf install vulkan-loader mesa-vulkan-drivers`;
 Arch, SteamOS: `vulkan-icd-loader` with `vulkan-radeon` or `vulkan-intel`).
 
-The Linux archive was run in a container of each of these distributions, on Mesa's software Vulkan driver
-(lavapipe; no real GPUs): `--version`, the game check, the menu and free roam drawn, the launcher
-([docs/building-releases.md](docs/building-releases.md), "Linux: what a player needs").
+The Linux archive was tested in a container of each of these distributions, on Mesa's software Vulkan driver
+(lavapipe, no real graphics card): `--version`, the game check, the menu and free roam drawn, and the launcher
+([docs/developing/building-releases.md](docs/developing/building-releases.md), "Linux: what a player needs").
 
 | distribution | glibc | Mesa | result |
 |---|---|---|---|
@@ -100,7 +105,7 @@ mouse and controllers. A portable mode that keeps everything beside the program 
 ## Known issues
 
 Each item says what you notice, when, and whether there is a way around it. Every deliberate difference from the
-original, with its switch, is in [docs/native-deviations.md](docs/native-deviations.md).
+original, with its switch, is in [docs/playing/native-deviations.md](docs/playing/native-deviations.md).
 
 **Platforms and setup**
 
@@ -115,7 +120,7 @@ original, with its switch, is in [docs/native-deviations.md](docs/native-deviati
   entries for the launcher ([docs/troubleshooting.md](docs/troubleshooting.md)).
 - **One edition of the game's data was tested:** the European PC 1.2 release with English game files.
   A North American install is recognised by its CARS folder and gets that region's car lists, shared
-  textures, credits and Best Buy code ([docs/region.md](docs/region.md)). Its movies, which are named without a
+  textures, credits and Best Buy code ([docs/playing/region.md](docs/playing/region.md)). Its movies, which are named without a
   language suffix, play since 0.3.1 ([#107](https://github.com/j0braun/overbright/issues/107)); beyond that, no
   North American install was tested. Other languages start; their data is reported as "unknown" by
   `game --check-game`. Overbright carries the European PC 1.2 release's engine numbers; whether another release's executable used different
@@ -167,35 +172,45 @@ original, with its switch, is in [docs/native-deviations.md](docs/native-deviati
 - Copy and paste in the editor's text fields work only inside the editor; screen readers are not supported yet.
 - Tested on Linux; on Windows only under Wine.
 
-A difference from the original that is not listed here or in docs/native-deviations.md is a bug: please
+A difference from the original that is not listed here or in docs/playing/native-deviations.md is a bug: please
 report it.
 
 ## Texture mods
 
-Overbright ships no texture art. In the launcher, the Mods page turns mods on and off (Use mods: all at once) and adds texture mods you already have: TexMod packages
-(`.tpf`), TexWizard packs (a folder with `meta.json` and `textures.bin`, a `.zip` of one, or the packs a
-TexWizard install in your game folder loads) and the HD HUD mod (its HUD part, extracted, and its map part). Mods belong to their authors and
-stay on your computer; Overbright neither ships nor downloads any
-([docs/texture-packs.md](docs/texture-packs.md)).
+Overbright ships no texture art. Add the texture mods you already have on the launcher's **Mods** page, which
+also turns mods on and off (Use mods: all at once). It takes:
 
-Overbright's own pack format is a folder with a `pack.toml` (name, author, licence, priority) and the images
-in `world/`, `car/` and `any/`, named by the game's texture names; installed packs live in Overbright's data
-folder under `packs/`. Started with `--editor`, the game has a texture editor (F7) that lists the textures on
-screen, exports them and shows your edited versions live in such a pack
-([docs/texture-editor.md](docs/texture-editor.md)).
+- TexMod packages (`.tpf`);
+- TexWizard packs: a folder with `meta.json` and `textures.bin`, a `.zip` of one, or the packs a TexWizard
+  install in your game folder loads;
+- the HD HUD mod: its HUD part, extracted, and its map part.
+
+Mods belong to their authors and stay on your computer; Overbright neither ships nor downloads any
+([docs/modding/texture-packs.md](docs/modding/texture-packs.md)).
+
+To make your own pack: Overbright's pack format is a folder with a `pack.toml` (name, author, licence,
+priority) and the images in `world/`, `car/` and `any/`, named by the game's texture names. Installed packs
+live in Overbright's data folder under `packs/`. Started with `--editor`, the game has a texture editor (F7)
+that lists the textures on screen, exports them and shows your edited versions live in such a pack
+([docs/modding/texture-editor.md](docs/modding/texture-editor.md)).
 
 ## Map mods
 
-The map editor (`overbright-editor`, a **preview**; opened from the launcher's Dev page, or on a map mod from the
-Mods page) is a desktop program: fly over the city, move, delete and add props, build races of your own (start
-line, grid, checkpoints and finish on the roads of one of the game's race tracks, checked as you go), simulate a
-race without a window and watch the replay. A work light keeps the night city readable while you edit; Game look
-shows it as the game draws it. **Test race** starts the game beside the editor straight on the race's grid with
-only that mod as it is in the editor (unsaved changes too: the game plays a copy, only Save writes the mod); the
-game ends when the race does and the editor marks the race tested. Map mods are saved in Overbright's data folder
-and applied on top of the original data; the game's files and your career save are never changed
-([docs/map-editor.md](docs/map-editor.md)). The launcher's Mods page turns map mods on and off, imports and
-exports them as `.zip` files, and opens one in the editor.
+The map editor (`overbright-editor`, a **preview**) is a desktop program. Open it from the launcher's Dev page,
+or on a map mod from the Mods page. With it you can:
+
+- fly over the city and move, delete and add props;
+- build races of your own (start line, grid, checkpoints and finish on the roads of one of the game's race
+  tracks), checked as you go;
+- simulate a race without a window and watch the replay;
+- press **Test race** to start the game beside the editor, straight on the race's grid, with only that mod as
+  it is in the editor. Unsaved changes are included: the game plays a copy, and only Save writes the mod. The
+  game ends when the race does, and the editor marks the race tested.
+
+A work light keeps the night city readable while you edit; Game look shows it as the game draws it. Map mods
+are saved in Overbright's data folder and applied on top of the original data; the game's files and your career
+save are never changed ([docs/modding/map-editor.md](docs/modding/map-editor.md)). The launcher's Mods page turns map mods on
+and off, imports and exports them as `.zip` files, and opens one in the editor.
 
 ## Where your files go
 
@@ -206,7 +221,7 @@ exports them as `.zip` files, and opens one in the editor.
 | Cache (rebuilt when missing) | `~/.cache/overbright/` | `%LOCALAPPDATA%\Overbright\cache\` |
 
 Overbright never writes into the game's folder or the original's own save folder
-([docs/platform-dirs.md](docs/platform-dirs.md)).
+([docs/playing/platform-dirs.md](docs/playing/platform-dirs.md)).
 
 ### Portable mode
 
@@ -233,7 +248,7 @@ graphics adapters and drivers and the system, home folders and user names remove
 **Ctrl+F8**; when the launcher or the game closes at once, run `game --support-file` (Windows: `game.exe
 --support-file`) from Overbright's folder. Where it goes, what it holds and where the logs are:
 [docs/troubleshooting.md](docs/troubleshooting.md). A difference from the original game is a bug unless it is listed in
-[docs/native-deviations.md](docs/native-deviations.md).
+[docs/playing/native-deviations.md](docs/playing/native-deviations.md).
 
 ## Contributing
 
@@ -242,9 +257,10 @@ original; every change is checked against the original's code; nothing from the 
 into the repository; and every commit is signed off with `git commit -s`.
 
 Building from source: [BUILDING.md](BUILDING.md). How the code is laid out: [ARCHITECTURE.md](ARCHITECTURE.md).
+All the documentation, by reader: [docs/README.md](docs/README.md). How to write it: [docs/STYLE.md](docs/STYLE.md).
 What is known about the original's files and code, with addresses: [docs/formats.md](docs/formats.md).
-The planned asset format for base sets and mod packs (draft 1, a design, not implemented yet):
-[docs/asset-format/](docs/asset-format/README.md).
+The asset format for base sets and mod packs (draft 1; its core library exists, no program reads game data
+through it yet): [docs/modding/asset-format/](docs/modding/asset-format/README.md).
 
 ## How it was made
 

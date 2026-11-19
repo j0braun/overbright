@@ -1,8 +1,8 @@
-//! Light Probes (clone deviation, opt-in; docs/lighting2.md). Nothing
+//! Light Probes (clone deviation, opt-in; docs/notes/graphics/lighting2.md). Nothing
 //! here exists in SPEED2.EXE: the original lights a car with a harmonic of
 //! its in-game rig and the light-pack lamps near it (0x48E3D0 → 0x4893A0,
 //! `lighting.rs`), and the packs hold street lamps only — no neon, no shop
-//! signs (docs/lamps-shadows.md). Here:
+//! signs (docs/notes/graphics/lamps-shadows.md). Here:
 //!
 //! * **Placement**: probes along Bayview's road and race splines (the AI
 //!   route files of the world's region, `TRACKS/ROUTES<region>/`
@@ -22,7 +22,7 @@
 //!   harmonic as a second-order term (rgb only: the highlight's strength,
 //!   the specular channel, is left as it is). The probe replaces the
 //!   ambient light it models instead of adding to it ([`ambient_terms`],
-//!   docs/car-scene-specular.md): a lit probe face gives that side of the car its hue at the
+//!   docs/notes/graphics/car-look.md "Car highlight from the scene, not the camera rig"): a lit probe face gives that side of the car its hue at the
 //!   car's own brightness (bounded), lifted by at most [`LIFT_CAP`]; a dark
 //!   face changes nothing, so the dark gaps and the native contrast stay;
 //!   neon and lit signs tint the side of the car facing them.

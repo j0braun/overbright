@@ -247,10 +247,10 @@ impl Gpu {
         // The half-size smoke's composite (`gpu_particles::HalfSize`).
         wanted |= wgpu::Features::DUAL_SOURCE_BLENDING;
         // The lamps' light-cluster loop one cluster per subgroup at a time
-        // (`registry::subgroup_clusters`; the same sums, docs/lamps-shadows.md).
+        // (`registry::subgroup_clusters`; the same sums, docs/notes/graphics/lamps-shadows.md).
         wanted |= wgpu::Features::SUBGROUP;
         let asked = wanted;
-        // a check aid, docs/software-gpu.md: NFSU2_GPU_DROP=bc,
+        // a check aid, docs/developing/software-gpu.md: NFSU2_GPU_DROP=bc,
         // multiview, … asks for the device without those features, as a GPU
         // without them gets it (each has a fallback).
         if let Ok(drop) = crate::render::debug_env::nfsu2_gpu_drop() {
@@ -281,7 +281,7 @@ impl Gpu {
         {
             log::warn!("{line}");
         }
-        // docs/rt-reflections.md: ray queries when the Ray Traced tier
+        // docs/notes/graphics/reflections.md "Ray-traced reflections (experimental)": ray queries when the Ray Traced tier
         // is chosen, on a discrete Vulkan GPU that offers them (experimental
         // in wgpu); without them if refused.
         let rt = rt::wanted(&adapter);
@@ -509,7 +509,7 @@ pub(crate) fn hdr_supported(adapter: &wgpu::Adapter, specific: bool, msaa_mask: 
 
 /// A scene's depth: also readable (the Graphics page's ambient occlusion
 /// reads it; nothing native does).
-/// The device memory allocator's block sizes (docs/perf-gpu.md
+/// The device memory allocator's block sizes (docs/notes/performance/gpu.md
 /// "Render-target memory"): device blocks of 4 MiB growing to 32 MiB,
 /// so a target over 32 MiB (every screen-sized one at 1440p and up) gets
 /// a block of exactly its size. wgpu's default (128–256 MiB blocks) left a

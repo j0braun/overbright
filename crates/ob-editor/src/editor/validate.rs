@@ -163,7 +163,7 @@ fn km(m: f32) -> String {
 }
 
 /// What a custom race is limited to: the base track's road network covers
-/// only the area around that track's own race (docs/tracing/ai-lanes.md),
+/// only the area around that track's own race (docs/original/tracing/ai-lanes.md),
 /// never the whole region.
 pub const AREA_NOTE: &str = "a race uses only its base track's roads";
 

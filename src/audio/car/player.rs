@@ -152,7 +152,7 @@ pub struct CarInput {
     /// handling's `curve_334`) over 0.25 (0x788814) and, at 0, clears the
     /// object's +0xA0, so its update (0x47CAD0) never starts FX_TURBO_01
     /// (**verified**; under Wine the stock 206 in free roam has no
-    /// FX_TURBO_01 instance, 2026-11-05, docs/world-systems-parity.md).
+    /// FX_TURBO_01 instance, 2026-11-05, docs/notes/parity/world-systems-parity.md).
     pub turbo: bool,
     /// The car type's sound index (0x459240), the drift flag (0x89E7D9 /
     /// 0x890104) and the skid controllers' inputs.

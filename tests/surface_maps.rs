@@ -1,4 +1,4 @@
-//! Surface Detail (docs/surface-maps.md) on Bayview's own textures:
+//! Surface Detail (docs/notes/graphics/surface-maps.md) on Bayview's own textures:
 //! the classes of the most visible road, wall and plant textures, which of
 //! them get a normal map, and that a map is small, flat on average and
 //! round-trips the cache's bytes. Ignored without NFSU2_ROOT.

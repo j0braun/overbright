@@ -1,6 +1,6 @@
 //! Screen-space reflections on the wet road (the Graphics page's
 //! "Screen-Space Reflections", a **clone deviation**, off by default;
-//! docs/wet-roads-ssr.md). The game has none: its road reflection is the
+//! docs/notes/graphics/reflections.md "Wet Roads and Screen-Space Reflections"). The game has none: its road reflection is the
 //! planar capture (view 4, docs/formats.md "Road reflections"), which
 //! holds no cars and only the low LODs. That capture stays the base.
 //!
@@ -186,14 +186,14 @@ pub(crate) struct Targets {
 }
 
 /// The ray-traced tier's rays decide the reflection of wet roads and cars
-/// (docs/rt-reflections.md "Primary on wet roads and cars");
+/// (docs/notes/graphics/reflections.md "Primary on wet roads and cars");
 /// `NFSU2_RT_PRIMARY=0`: they only fill where the march is unsure (a check aid).
 pub fn rt_primary() -> bool {
     crate::render::debug_env::nfsu2_rt_primary()
 }
 
 /// The ray-traced tier traces at a quarter of the trace's pixels a frame,
-/// rebuilt with the history (docs/rt-reflections.md "Quarter rate");
+/// rebuilt with the history (docs/notes/graphics/reflections.md "Quarter rate");
 /// `NFSU2_RT_QUARTER=0`: every pixel every frame (a check aid).
 pub fn quarter_rate() -> bool {
     crate::render::debug_env::nfsu2_rt_quarter()
@@ -455,7 +455,7 @@ impl Ssr {
 
     /// The ray-traced trace's programs for a depth multisampled when `ms`
     /// (the path the device takes), made now: a drive's warm-up
-    /// (docs/first-use-builds.md).
+    /// (docs/developing/first-use-builds.md).
     pub fn warm_rt(&mut self, gpu: &Gpu, ms: bool) {
         crate::render::rt::warm_trace(gpu, &self.layouts, &mut self.rt, &mut self.rt_list, ms, self.quarter);
         if self.quarter && crate::render::rt::list_path(gpu) {
@@ -991,7 +991,7 @@ fn mask_test() -> wgpu::DepthStencilState {
 mod tests {
     use super::*;
 
-    /// docs/chrome-flicker.md: the trace adds the glow sprites only
+    /// docs/notes/graphics/car-look.md "Chrome trunk flicker and dry-road reflection strength": the trace adds the glow sprites only
     /// away from cars and from 2–4 m of path on (a road ray under a car took
     /// its neon glow and the filter drew magenta streaks behind it).
     #[test]
@@ -1387,7 +1387,7 @@ mod tests {
         }
     }
 
-    /// The ray list (docs/rt-reflections.md "The ray list") against the
+    /// The ray list (docs/notes/graphics/reflections.md "The ray list") against the
     /// fragment form it replaces, on a device that takes it: a road with
     /// rough and mirror parts and a patch of car facing the eye, the screen
     /// march's wall on screen and a small traced world around it, wet and

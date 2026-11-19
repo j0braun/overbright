@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check the asset format draft in docs/asset-format/: schemas, examples and links.
+"""Check the asset format draft in docs/modding/asset-format/: schemas, examples and links.
 
 * every schema in schemas/ (and schemas/gltf/) is a valid JSON Schema 2020-12 document;
 * every TOML example in examples/ validates against the schema its `schema = "ob.<kind>/<v>"` line names
@@ -9,7 +9,7 @@
   buffer view and accessor lies inside its buffer;
 * every relative Markdown link between the pages (and to schemas/ and examples/) points at an existing file.
 
-Usage: scripts/docs/asset_format_check.py [DIR]   (default docs/asset-format next to this script's repository)
+Usage: scripts/docs/asset_format_check.py [DIR]   (default docs/modding/asset-format next to this script's repository)
 Exit 0 when everything passes, 1 on any failure, 3 when the Python package `jsonschema` is missing (the schema
 checks cannot run; install it with `python3 -m pip install jsonschema`).
 """
@@ -152,7 +152,7 @@ def check_links(base):
 
 
 def main():
-    base = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "docs" / "asset-format"
+    base = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "docs" / "modding" / "asset-format"
     schemas, registry, failures = load_registry(base / "schemas")
     counts = {"schemas": len(schemas), "toml": 0, "gltf": 0}
     for path in sorted((base / "examples").rglob("*")):

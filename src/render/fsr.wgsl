@@ -2,7 +2,7 @@
 // Advanced Micro Devices, Inc.): EASU (edge-adaptive spatial upsampling)
 // and RCAS (robust contrast-adaptive sharpening), ported to WGSL from
 // ffx_fsr1.h (FsrEasuF / FsrRcasF, the 32-bit paths). A clone deviation
-// (docs/modern-extras.md), opt-in on the Upscaling row; nothing of
+// (docs/playing/modern-extras.md), opt-in on the Upscaling row; nothing of
 // it is in SPEED2.EXE. The approximate reciprocals of the original
 // (APrxLoRcpF1 …) are exact here.
 

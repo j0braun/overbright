@@ -1,9 +1,9 @@
-//! FSR 1 upscaling (docs/modern-extras.md; clone deviation, opt-in on
+//! FSR 1 upscaling (docs/playing/modern-extras.md; clone deviation, opt-in on
 //! the Upscaling row as "FSR Quality / Balanced / Performance").
 //!
 //! AMD FidelityFX Super Resolution 1.0 (MIT): EASU takes the scene from its
 //! render size to the screen's, RCAS sharpens the result (`fsr.wgsl`).
-//! FSR 2 was ported later as its own tiers (`fsr2.rs`, docs/fsr2.md);
+//! FSR 2 was ported later as its own tiers (`fsr2.rs`, docs/notes/graphics/fsr2.md);
 //! FSR 1 stays: two small passes, adds no ghosting, needs
 //! no history, keeps the native MSAA as its anti-aliasing, and works on
 //! every frame the world is drawn (no history to reset on cuts). Same flow
@@ -70,7 +70,7 @@ impl Fsr {
     }
 
     /// The EASU and RCAS pipelines into `format` that [`Fsr::run`] makes
-    /// on its first use, made now (docs/first-use-builds.md): the same
+    /// on its first use, made now (docs/developing/first-use-builds.md): the same
     /// descriptors, from the device's cache.
     pub fn warm(&mut self, gpu: &Gpu, format: wgpu::TextureFormat) {
         if !self.easu.iter().any(|(f, _)| *f == format) {

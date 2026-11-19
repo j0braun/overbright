@@ -30,14 +30,14 @@ struct Draw {
     powers: vec4<f32>,      // x = SpecularPower, y = EnvmapPower
     harmonic_scale: vec4<f32>, // x = the part's context's factor on HarmonicCoeff (0x620AF0)
     harmonic: array<vec4<f32>, 10>, // the part's light context (wheels and brakes have their own)
-    // Enhanced Car Paint (clone deviation, docs/car-paint-enhanced.md):
+    // Enhanced Car Paint (clone deviation, docs/notes/graphics/car-paint-enhanced.md):
     // x clearcoat, y metallic flake, z pearl shift, w crisp reflection;
     // all zero = native (the layer below is skipped).
     paint: vec4<f32>,
-    // Dynamic Lamps (clone deviation, docs/lamps-shadows.md): four lamps,
+    // Dynamic Lamps (clone deviation, docs/notes/graphics/lamps-shadows.md): four lamps,
     // (position, outer radius) and (colour, inner radius); zeros natively.
     lamps: array<vec4<f32>, 8>,
-    // Wet Car (clone deviation, docs/weather.md): read by car_wet.wgsl
+    // Wet Car (clone deviation, docs/notes/graphics/weather.md): read by car_wet.wgsl
     // only; zeros natively.
     wet: array<vec4<f32>, 3>,
 };
@@ -202,7 +202,7 @@ fn car_colour(in: VertexOut) -> vec4<f32> {
     return vec4<f32>(r0, r1.w);
 }
 
-// Dynamic Lamps (clone deviation, docs/lamps-shadows.md): the draw's four
+// Dynamic Lamps (clone deviation, docs/notes/graphics/lamps-shadows.md): the draw's four
 // lamps per pixel with the native weight (squared, as world.wgsl's), as
 // diffuse light through the material's diffuse scale (as the harmonic's,
 // halved).

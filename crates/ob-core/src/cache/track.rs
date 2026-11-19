@@ -127,7 +127,7 @@ impl TrackCache {
         self.file.as_ref()
     }
 
-    /// docs/texture-pack-cache.md: the kind of the file beside this
+    /// docs/modding/texture-pack-cache.md: the kind of the file beside this
     /// track's that keeps its world arrays with a texture pack applied
     /// (one per track, the last pack's; `prepared::pack_arrays` checks it).
     fn pack_kind(&self) -> String {

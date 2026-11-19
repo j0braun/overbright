@@ -1,4 +1,4 @@
-//! docs/texmod-import.md: convert a TexMod package into a texture
+//! docs/modding/texmod-import.md: convert a TexMod package into a texture
 //! pack the clone loads.
 //!
 //!   NFSU2_ROOT=<game> import_tpf <pack.tpf> <out-dir> [--tone match|keep] [--alpha match|keep] [--max 4096] [--dry-run]

@@ -1,9 +1,9 @@
 #!/bin/bash
-# The gates' own self-test (docs/checks.md "Self-test of the gates"): every gate is fed a deliberately
+# The gates' own self-test (docs/developing/checks.md "Self-test of the gates"): every gate is fed a deliberately
 # broken input and must FAIL, and a known-good input and must PASS. The game is replaced by
 # selfcheck_stub.py (PNGs, dump sets, bench JSON, WAVs, state hashes, the adapter line; faults from a
 # `faults` file next to it), so the whole run takes about a minute and needs no GPU or game data. The
-# real pixdiff is used (PIXDIFF, default $CARGO_TARGET_DIR/<checks profile>/examples/pixdiff, docs/build-times.md).
+# real pixdiff is used (PIXDIFF, default $CARGO_TARGET_DIR/<checks profile>/examples/pixdiff, docs/developing/build-times.md).
 #
 #   selfcheck.sh OUTDIR [CASE_SUBSTRING]
 #

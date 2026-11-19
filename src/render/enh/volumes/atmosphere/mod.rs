@@ -1,5 +1,5 @@
 //! The atmosphere (clone deviation, opt-in: every Volumetric Fog tier, `enh.volumetric_fog 1..3`, Low and High
-//! a coarser grid with fewer lights than Next-Gen, [`tier`]; docs/atmosphere.md). SPEED2.EXE has no such pass: its fog is world.efx's per-vertex fog (FogValue /
+//! a coarser grid with fewer lights than Next-Gen, [`tier`]; docs/notes/graphics/atmosphere.md). SPEED2.EXE has no such pass: its fog is world.efx's per-vertex fog (FogValue /
 //! FogColor, applied unchanged by the clone) and the horizon fog grid (0x5C7480). Everything here is an
 //! **inferred** look (tuned by eye against the native palette), nothing was traced.
 //!
@@ -103,7 +103,7 @@ mod tests {
         assert!(MAX_LIGHTS >= LAMPS + EMITTERS + CAR_LAMPS);
     }
 
-    /// docs/atmosphere.md "The tiers": one medium at every fog tier, each cheaper tier a coarser grid,
+    /// docs/notes/graphics/atmosphere.md "The tiers": one medium at every fog tier, each cheaper tier a coarser grid,
     /// a shorter range and fewer lights; the tiers a preset sets (Low, High) keep no history, so their
     /// picture at a tick is the same at every display rate (the rate gate's Extreme frames).
     #[test]
@@ -158,7 +158,7 @@ mod tests {
         assert_eq!(look_from("veil=0.5").veil, 0.5);
     }
 
-    /// docs/look-direction.md rules "no double fog" / "count the glow twice": the medium never puts the
+    /// docs/notes/graphics/look-direction.md rules "no double fog" / "count the glow twice": the medium never puts the
     /// native fog colour back on top of world.efx's fog, does not veil the
     /// scene a second time, and its halos stay inside the air-light budget
     /// measured at the look spots (the first look: +14 mean luma, p5 +7.7).

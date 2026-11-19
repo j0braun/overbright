@@ -217,7 +217,7 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
     let lifetime_contribution = clamp(lock.x - 1.0, 0.0, 1.0);
     let shading_contribution = clamp(min_divided_by_max(lock.y, shading), 0.0, 1.0);
     var lock_contribution = clamp(clamp(lifetime_contribution * 4.0, 0.0, 1.0) * shading_contribution, 0.0, 1.0);
-    // the clone's lock switch (docs/fsr2.md "Locks")
+    // the clone's lock switch (docs/notes/graphics/fsr2.md "Locks")
     if u.extra.y < 0.5 {
         lock_contribution = 0.0;
     }
@@ -226,7 +226,7 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
     let up = upsample(params, this_reactive);
     let b = up.box_;
 
-    // The clone's history-disagreement reactive (docs/fsr2.md "Animated
+    // The clone's history-disagreement reactive (docs/notes/graphics/fsr2.md "Animated
     // textures"): the game's flip-book textures (scrolling chevron
     // barriers, blinking signs) carry no reactive mask; history whose luma
     // lies well outside the current 3 x 3's range (not jitter: converged

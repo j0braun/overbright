@@ -1,5 +1,5 @@
 //! Free roam's encounter racers loaded ahead in the menus
-//! (`EncountersAhead`, docs/first-use-builds.md "Encounter racers
+//! (`EncountersAhead`, docs/developing/first-use-builds.md "Encounter racers
 //! ahead"): the set-up's draws predicted behind the menus are the set-up's
 //! own on every way into career free roam, so it takes every car loaded
 //! ahead, and free roam is the same with the loads ahead and without them.

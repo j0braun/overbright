@@ -1,4 +1,4 @@
-//! Smooth Car Shapes (opt-in, Graphics → Cars; docs/assets-distance.md).
+//! Smooth Car Shapes (opt-in, Graphics → Cars; docs/notes/graphics/assets-distance.md).
 //!
 //! A load-time pre-pass on the car's solids (own parts, shared parts and
 //! rims alike) that rounds low-poly silhouettes — wheel arches, roof
@@ -25,7 +25,7 @@
 //!   original triangle: textures and shading normals stay where they were.
 //!
 //! Off (the default) = the files as shipped: [`apply`] returns at once.
-//! The CPU pass runs once per car load (measured in docs/assets-distance.md).
+//! The CPU pass runs once per car load (measured in docs/notes/graphics/assets-distance.md).
 use crate::formats::solid::Solid;
 use glam::Vec3;
 use std::collections::HashMap;
@@ -52,7 +52,7 @@ pub fn enabled() -> bool {
     crate::qol::smooth_cars()
 }
 
-/// Parts left alone after the per-car review (docs/assets-distance.md):
+/// Parts left alone after the per-car review (docs/notes/graphics/assets-distance.md):
 /// name fragments (`contains`). Lamps and decals sit a few millimetres
 /// over or under the body panels; moving either side lets the other one
 /// through (CELICA's trunk lamps showed as black boxes beside the plate).

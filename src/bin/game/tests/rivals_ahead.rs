@@ -1,5 +1,5 @@
 //! The Engage dialog's rivals loaded ahead (`RivalsAhead`,
-//! docs/first-use-builds.md "Car renderers ahead"): the line-up predicted
+//! docs/developing/first-use-builds.md "Car renderers ahead"): the line-up predicted
 //! behind the dialog is the race's own, so the race's set-up takes every
 //! car loaded ahead, and the race is the same with the loads ahead and
 //! without them.

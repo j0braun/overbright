@@ -1,4 +1,4 @@
-//! Image parity gate (docs/perf-gates.md): compares two PNGs, or two
+//! Image parity gate (docs/developing/perf-gates.md): compares two PNGs, or two
 //! directories of PNGs by file name, pixel by pixel (decoded RGBA8).
 //!
 //! `cargo run --release --example pixdiff -- A B [--max-pixels N] [--max-diff D]`

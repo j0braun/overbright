@@ -482,6 +482,7 @@ impl Ui {
                 | Kind::List { .. }
                 | Kind::Play
                 | Kind::SumRow { .. }
+                | Kind::Status { .. }
                 | Kind::PageTab { .. }
                 | Kind::ValueRow { .. }
                 | Kind::Toggle { .. },
@@ -696,9 +697,12 @@ pub fn handle(ui: &Ui, st: &mut UiState, input: &Input) -> Vec<Event> {
                 (Key::Enter | Key::Space, Some(kind)) => {
                     let id = focus.unwrap();
                     match kind {
-                        Kind::Button { .. } | Kind::Link | Kind::Play | Kind::SumRow { .. } | Kind::PageTab { .. } => {
-                            ev.push(Event::Activate(id))
-                        }
+                        Kind::Button { .. }
+                        | Kind::Link
+                        | Kind::Play
+                        | Kind::SumRow { .. }
+                        | Kind::Status { .. }
+                        | Kind::PageTab { .. } => ev.push(Event::Activate(id)),
                         Kind::Checkbox { .. } | Kind::Toggle { .. } => ev.push(Event::Toggle(id)),
                         Kind::Cycle { .. } | Kind::ValueRow { .. } => ev.push(Event::Step(id, 1)),
                         Kind::List { .. } if *k == Key::Enter => ev.push(Event::Activate(id)),
@@ -793,6 +797,7 @@ pub fn handle(ui: &Ui, st: &mut UiState, input: &Input) -> Vec<Event> {
                 | Kind::Checkbox { .. }
                 | Kind::Play
                 | Kind::SumRow { .. }
+                | Kind::Status { .. }
                 | Kind::PageTab { .. }
                 | Kind::Toggle { .. } => st.pressed = Some(id),
                 Kind::Cycle { left, .. } | Kind::ValueRow { left, .. } => ev.push(Event::Step(
@@ -961,6 +966,7 @@ fn shows_bar(k: &Kind) -> bool {
             | Kind::Toggle { .. }
             | Kind::Checkbox { .. }
             | Kind::Link
+            | Kind::Status { .. }
     )
 }
 

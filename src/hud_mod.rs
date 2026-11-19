@@ -1,4 +1,4 @@
-//! The HUD mod set up from what a player downloads (docs/texture-packs.md,
+//! The HUD mod set up from what a player downloads (docs/modding/texture-packs.md,
 //! "The HUD mod"): the game's HD UI + Maps pack (`hd_ui_pack`) is two
 //! third-party mods made for the original's "Binary" mod tool, converted
 //! into one folder of PNGs keyed by the texture's bin hash:

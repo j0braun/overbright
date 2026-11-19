@@ -1,6 +1,6 @@
 //! The game's random-number routines on the shared generator (0x7EA624,
 //! `Game::rng`) and the world generator (world +0xF8) in the original's
-//! sites and order (docs/rng.md). The draws whose values the
+//! sites and order (docs/original/rng.md). The draws whose values the
 //! clone does not read are in `nfsu2::rng_sites`.
 
 use crate::*;
@@ -56,7 +56,7 @@ impl Game {
     /// (0x5FF6A5 → 0x61E100: 3260 shared draws). Returns the world
     /// generator. **Measured**: ≈ 3341 shared draws a build (c1/d1 `entry`,
     /// `setup`). The callers then make, in the sequence log's order
-    /// (docs/rng.md "World build"): the late in-game audio load's draws
+    /// (docs/original/rng.md "World build"): the late in-game audio load's draws
     /// ([`Game::audio_load_late`]), the render infos of the player and the
     /// other racers, the traffic fill (world generator; a render info per
     /// car placed), the career's slot-event picks (free roam, 0x527D40),

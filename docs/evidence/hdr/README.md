@@ -1,4 +1,4 @@
-# HDR Output evidence (2026-11-04; docs/hdr.md)
+# HDR Output evidence (2026-11-04; docs/playing/hdr.md)
 
 reference desktop GPU, RADV Mesa 26.2.5, Vulkan, headless (`NFSU2_HDR_FAKE=pq`, the
 in-game post passes and display transform into an HDR texture; no HDR

@@ -151,6 +151,7 @@ pub(crate) fn place_traffic(
     }
     c.lane = Some(lane);
     c.coast = None;
+    c.coord = None;
     c.mover = Some(TrafficMover { position: at.truncate(), heading, speed });
     c.state.melo = None;
     c.belt.belt = None;

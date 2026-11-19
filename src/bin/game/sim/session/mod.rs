@@ -1,4 +1,4 @@
-//! The simulation's boundary (docs/sim-session.md). A tick of the
+//! The simulation's boundary (docs/developing/sim-session.md). A tick of the
 //! world's simulation is one call, [`Session::step`]: what it reads from
 //! outside itself comes in as a [`TickInput`], what the rest of the game
 //! takes from it goes out as [`TickEvents`]. The session is a view of the
@@ -130,7 +130,7 @@ pub(crate) struct Session<'a> {
     pub(crate) roam_style: &'a mut Option<(nfsu2::drift::StyleManager, f32, f32, nfsu2::style::Misc)>,
     /// Free roam's event cameras (`SimSession::roam_camera`).
     pub(crate) roam_camera: &'a mut Option<crate::RaceCamera>,
-    /// The game's shared generator (0x7EA624; generator 1 in docs/rng.md).
+    /// The game's shared generator (0x7EA624; generator 1 in docs/original/rng.md).
     pub(crate) rng: &'a mut GameRng,
 }
 

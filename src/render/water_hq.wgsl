@@ -1,4 +1,4 @@
-// Animated Water, Realistic (clone deviation, opt-in; docs/water.md
+// Animated Water, Realistic (clone deviation, opt-in; docs/notes/graphics/water.md
 // "Realistic"). Appended to water.wgsl (its Frame, noise, waves, splash
 // rings, rain rings, lamps, cube, fog and spray depth are shared); the On
 // tier's module is water.wgsl alone, unchanged.

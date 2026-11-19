@@ -1,5 +1,5 @@
 //! Wet Road Interaction's volumetric spray (clone deviation, opt-in;
-//! docs/wet-road-car.md "Volumetric spray"). Nothing here exists in
+//! docs/notes/graphics/wet-road-car.md "Volumetric spray"). Nothing here exists in
 //! SPEED2.EXE. The spray pool (`weather_fx::Spray`, fed by
 //! `wet_road::emit`) decides where the water goes; its volume puffs —
 //! rooster tails off the tyres, the mist cloud behind a fast car, splash
@@ -387,7 +387,7 @@ mod tests {
         assert!(l.modern && l.lamps.len() == 1);
     }
 
-    /// docs/look-direction.md, "the bake is the anchor": the spray's light is anchored to
+    /// docs/notes/graphics/look-direction.md, "the bake is the anchor": the spray's light is anchored to
     /// the scene: its ambient is the scene's around it, not a flat
     /// grey (the earlier 0.32 lifted every dark street to a milky veil), the
     /// fallback for an unreadable target is dim, the headlight cones are

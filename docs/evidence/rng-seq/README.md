@@ -1,6 +1,6 @@
 # Random draws: the original's sequence log against the clone
 
-The files here are excerpts of the original's sequence log (docs/rng.md, "The sequence log"):
+The files here are excerpts of the original's sequence log (docs/original/rng.md, "The sequence log"):
 free roam's entry with the sound off and on, and a circuit and a drag race's set-up with the
 sound on, each from the stage-1 save `tests/fixtures/native_saves/stage1_win_streetx.sav`.
 

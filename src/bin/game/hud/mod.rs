@@ -78,7 +78,7 @@ impl Game {
     /// The harness's HUD frame at `now` ms: its update ([`Game::hud_update`]),
     /// its sounds posted at once ([`Game::hud_sounds_update`]) and its quads
     /// ([`Game::hud_layout`]). The game runs the update on the tick and the
-    /// sounds with the tick's audio (docs/uncapped-fps.md "HUD on ticks").
+    /// sounds with the tick's audio (docs/original/uncapped-fps.md "HUD on ticks").
     #[cfg(any(test, feature = "dev-harness"))]
     pub(crate) fn hud(&mut self, now: f32) -> Vec<Quad> {
         self.hud_update(now);

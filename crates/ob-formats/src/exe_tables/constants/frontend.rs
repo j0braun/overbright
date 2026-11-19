@@ -1,5 +1,5 @@
 //! Front end, career and settings facts of the original game, with the
-//! addresses they have in the reference executable (docs/exe-tables.md,
+//! addresses they have in the reference executable (docs/original/exe-tables.md,
 //! "Tuning constants"). Labels are named by their text id (hashed with
 //! [`h`]); the few ids no game file names are kept as numbers.
 

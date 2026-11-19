@@ -10,7 +10,7 @@ struct Cache {
 
 static CACHE: OnceLock<Mutex<Cache>> = OnceLock::new();
 
-/// docs/pack-hot-reload.md: forget the cached replacements a changed
+/// docs/modding/pack-hot-reload.md: forget the cached replacements a changed
 /// file may stand for (an eight-digit hash name or a texture name, in any
 /// domain and folder); `None` forgets them all.
 pub(in crate::render) fn invalidate(hash: Option<u32>, name: Option<&str>) {
@@ -32,7 +32,7 @@ pub(in crate::render) fn invalidate(hash: Option<u32>, name: Option<&str>) {
     cache.bytes = cache.bytes.saturating_sub(freed);
 }
 
-/// The texture editor's stand-ins (docs/texture-editor.md: the highlight),
+/// The texture editor's stand-ins (docs/modding/texture-editor.md: the highlight),
 /// ahead of every pack; none while the editor is off.
 static OVERRIDES: Mutex<Option<HashMap<(Domain, u32), Arc<Replacement>>>> = Mutex::new(None);
 static ANY_OVERRIDE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
@@ -101,7 +101,7 @@ pub(in crate::render) fn replacement(
 }
 
 /// The first folder (in order) that has a replacement, and it.
-/// docs/texture-pack-cache.md: what the replacements for the
+/// docs/modding/texture-pack-cache.md: what the replacements for the
 /// textures `slots` (hash, name) depend on, as text, for the pack-applied
 /// arrays' cache: the loader's version, the size limit, the cap, every
 /// folder in order, and per folder every file the loader would try for a

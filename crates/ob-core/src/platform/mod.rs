@@ -4,7 +4,7 @@
 //! library, `nfsu2::platform`, as they use winit), the timer
 //! resolution ([`timer`]), the player's line when no Vulkan driver is found
 //! ([`vulkan`]) and the Windows-only calls behind them (`win`, `cfg(windows)`).
-//! docs/platform-dirs.md.
+//! docs/playing/platform-dirs.md.
 
 pub mod dirs;
 pub mod fs;

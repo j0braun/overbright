@@ -1,4 +1,4 @@
-//! The maintainer's private set for the developer harness (docs/testing.md
+//! The maintainer's private set for the developer harness (docs/developing/testing.md
 //! "Private data"): the original's own saves that some shots, flows and
 //! selftest steps start from. They are read when the harness runs, never
 //! compiled in, so the public tree builds without them. Where the set is
@@ -57,7 +57,7 @@ fn read_at(path: &std::path::Path, built_with_set: bool) -> anyhow::Result<Optio
         Err(e) if e.kind() == std::io::ErrorKind::NotFound && !built_with_set => Ok(None),
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Err(anyhow::anyhow!(
             "private file {} is missing, but this harness was built with the private set: \
-             the set is gone or moved; set OB_PRIVATE to its folder (docs/testing.md \"Private data\")",
+             the set is gone or moved; set OB_PRIVATE to its folder (docs/developing/testing.md \"Private data\")",
             path.display()
         )),
         Err(e) => Err(anyhow::anyhow!("private file {}: {e}", path.display())),
@@ -76,7 +76,7 @@ pub(crate) fn require(rel: &str, what: &str) -> anyhow::Result<Vec<u8>> {
     match read(rel)? {
         Some(b) => Ok(b),
         // In a test (reported_issues' finished-career starts) a missing file fails that
-        // test: such tests carry the OB_PRIVATE ignore (docs/testing.md).
+        // test: such tests carry the OB_PRIVATE ignore (docs/developing/testing.md).
         None if cfg!(test) => panic!("{}", skip_line(what)),
         None => {
             println!("{}", skip_line(what));

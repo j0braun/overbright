@@ -1,5 +1,5 @@
 # The prepare check's step 2 (a second run changes no cache file) with subgroup operations on the device
-# (docs/prepare.md "Per backend"). Desktop GPU, Vulkan, the native defaults, scripts/checks/prepare.sh.
+# (docs/developing/prepare.md "Per backend"). Desktop GPU, Vulkan, the native defaults, scripts/checks/prepare.sh.
 
 ## The driver pipeline cache file's size after a first --prepare on empty caches (bytes; 6-10 fresh runs each)
 before (the base):            108944 x 8, then 108944 x 7, 108948 x 2, 108944 (ten more)

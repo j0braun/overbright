@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------
-// High Precision Post (clone deviation, off by default; docs/hdr-post.md):
+// High Precision Post (clone deviation, off by default; docs/notes/graphics/hdr-post.md):
 // the same passes on half-float targets. Where the native chain's 8-bit
 // writes saturate, these saturate too (`sat`); where they round, these
 // keep the precision. The last pass dithers back to the 8-bit output.

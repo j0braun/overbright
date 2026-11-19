@@ -1,5 +1,5 @@
 #!/bin/bash
-# Check harness (docs/checks.md). Repo-relative; everything goes to OUTDIR (never /tmp).
+# Check harness (docs/developing/checks.md). Repo-relative; everything goes to OUTDIR (never /tmp).
 #
 #   checks.sh fast    OUTDIR   merge set: build, cargo test, selftest, the prepare check, the fast-shots.txt shots, the four flows (< ~8 min)
 #   checks.sh full    OUTDIR   nightly set: + every --shot target (shot_targets.py), each twice (determinism),
@@ -15,7 +15,7 @@
 #
 # Environment: REPO (default this script's repo), CARGO_TARGET_DIR (default REPO/target), NFSU2_ROOT (required),
 # CHECKS_PROFILE (the Cargo profile of the build and the tests: gate, the default, or release; binaries in
-# CARGO_TARGET_DIR/<profile>/, release's in release/; docs/build-times.md),
+# CARGO_TARGET_DIR/<profile>/, release's in release/; docs/developing/build-times.md),
 # scripts/local.env (machine settings, e.g. the build env; scripts/local.env.example), FAST_SHOTS_FILE (default fast-shots.txt),
 # JOBS (shots run side by side; default 4), SHOT_CLOCK (default 0 s; empty: wall clock), DET (fast: 0, full: 1; run each shot twice and pixdiff),
 # PREV (an earlier OUTDIR: every deterministic shot pixdiffed against it), SKIP_BUILD=1, SKIP_TESTS=1,
@@ -50,13 +50,13 @@ export CARGO_BUILD_JOBS=${CARGO_BUILD_JOBS:-6} NFSU2_HEADLESS_ONLY=1
 export CARGO_TARGET_DIR=${CARGO_TARGET_DIR:-$REPO/target}
 # The shots', flows' and selftest's own data folders (std::env::temp_dir) under OUTDIR, removed at the end.
 export TMPDIR="$O/tmp"; mkdir -p "$TMPDIR"
-# RADV's delta colour compression changes a pixel of ~2 % of frames run to run (docs/perf-gates.md).
+# RADV's delta colour compression changes a pixel of ~2 % of frames run to run (docs/developing/perf-gates.md).
 export RADV_DEBUG=${RADV_DEBUG-nodcc}
 JOBS=${JOBS:-4}
 # The shots' game clock pinned at 0 (NFSU2_SHOT_CLOCK): the screens that animate on the wall clock
 # (Game::now from `started`) come out the same every run. 0, not the 10 the main-thread work used: the shots open their screens at
 # front-end time 0 and draw them at NFSU2_SHOT_MS (5 s), so a later clock catches openings and
-# cross-fades half way (docs/checks.md). SHOT_CLOCK= (empty) keeps the wall clock.
+# cross-fades half way (docs/developing/checks.md). SHOT_CLOCK= (empty) keeps the wall clock.
 SHOT_CLOCK=${SHOT_CLOCK-0}
 DET=${DET:-$([ "$SET" = fast ] && echo 0 || echo 1)}
 BIN=$CARGO_TARGET_DIR/$CK_PDIR/game
@@ -138,7 +138,7 @@ if [ -z "${SKIP_TESTS:-}" ] && [ "$SET" != shots ]; then
   "$HERE/home_mask.sh" verify "$O/home-mask" > "$O/home-mask.txt" 2>&1; HM=$?
   tee -a "$OUT" < "$O/home-mask.txt"
   [ $HM = 0 ] || fail "tests (wrote to the player's folders: $O/home-mask.txt)"
-  # Data tests (docs/testing.md): counted by reason (game files, private set, both); a skip fails only
+  # Data tests (docs/developing/testing.md): counted by reason (game files, private set, both); a skip fails only
   # when this run could have avoided it (ck_data_tests: NFSU2_ROOT is set, or the private set is here).
   DT=$(ck_data_tests "$O/tests.log" "$REPO"); DRC=$?
   echo "$DT" | grep -v '^FAIL: ' | tee -a "$OUT"
@@ -156,7 +156,7 @@ if [ "$SET" != shots ]; then
   while IFS= read -r l; do say "  $l"; skip_private "selftest: ${l#SKIP: }"; done < <(grep -E '^SKIP: ' "$O/selftest.log")
 fi
 
-# ---- prepare (docs/prepare.md): game --prepare on empty folders, twice, a first load, a killed run ----
+# ---- prepare (docs/developing/prepare.md): game --prepare on empty folders, twice, a first load, a killed run ----
 if [ "$SET" != shots ]; then
   run prepare 900 "$HERE/prepare.sh" "$O/prepare" "$BIN"
   say "prepare rc=$RC ${STEP_S[prepare]} s: $(grep -E '^PREPARE' "$O/prepare.log" | tail -1 | cut -c1-220)"
@@ -275,10 +275,10 @@ if [ "$SET" = full ]; then
   say "explore 1080p rc=$RC panic/validation $(ck_bad "$O/explore_1080.log")"; [ $RC = 0 ] || fail explore_1080; bad_log explore_1080
   NFSU2_BENCH_CAR=COROLLA run bench_drive 600 "$BIN" --bench drive
   say "bench drive rc=$RC: $(grep -E '^bench drive|stopped' "$O/bench_drive.log" | head -2 | tr '\n' ' ' | cut -c1-160)"; [ $RC = 0 ] || fail bench_drive; bad_log bench_drive
-  # The combination matrix (every tier x every other enhancement x four scenes, docs/settings-model.md).
+  # The combination matrix (every tier x every other enhancement x four scenes, docs/developing/settings-model.md).
   run matrix 3600 "$HERE/matrix.sh" "$BIN" "$O/matrix"
   say "matrix rc=$RC: $(grep -E '^matrix |^MATRIX' "$O/matrix.log" | tr '\n' ';' | cut -c1-400)"; [ $RC = 0 ] || fail matrix
-  # The resolution matrix (docs/resolutions.md) on the family set; a failing cell, or a check of it
+  # The resolution matrix (docs/notes/graphics/resolutions.md) on the family set; a failing cell, or a check of it
   # that does not fail on broken input (its self-test), fails the set.
   if [ "${RES_SET:-family}" = off ]; then
     say "resolutions: SKIP (RES_SET=off)"
@@ -289,7 +289,7 @@ if [ "$SET" = full ]; then
   fi
 fi
 
-# The map editor's shot matrix (editor_shots.sh, docs/checks.md "Editor shots"): `overbright-editor --shot` headless on
+# The map editor's shot matrix (editor_shots.sh, docs/developing/checks.md "Editor shots"): `overbright-editor --shot` headless on
 # three screens at one size per aspect family and two display scales (EDITOR_SET=all: every size of the resolution
 # matrix); full, or EDITOR_SHOTS=1 in fast; EDITOR_SHOTS=off skips it. A failing cell fails the set.
 if [ "$SET" = full ] || [ -n "${EDITOR_SHOTS:-}" ]; then
@@ -324,7 +324,7 @@ if [ "$SET" != shots ]; then
     say "scripts/tests: SKIP (no Python Pillow)"; SKIPPED+=(pytests)
   fi
 fi
-# lavapipe (llvmpipe Vulkan): the full set, or LAVAPIPE=1; skipped without the driver (docs/software-gpu.md).
+# lavapipe (llvmpipe Vulkan): the full set, or LAVAPIPE=1; skipped without the driver (docs/developing/software-gpu.md).
 if [ "$SET" = full ] || [ -n "${LAVAPIPE:-}" ]; then
   run lavapipe 3600 "$HERE/lavapipe.sh" "$O/lavapipe" "$BIN"
   say "lavapipe rc=$RC: $(tail -1 "$O/lavapipe/lavapipe.txt" 2>/dev/null)"
@@ -334,7 +334,7 @@ if [ "$SET" = full ] || [ -n "${LAVAPIPE:-}" ]; then
     if [ "${LAVAPIPE:-}" = require ]; then fail "lavapipe (no driver, LAVAPIPE=require)"; else SKIPPED+=(lavapipe); fi
   elif [ $RC != 0 ]; then fail lavapipe; fi
 fi
-# The Windows build under Wine (wine_smoke.sh, docs/checks.md "Wine smoke"), report-only for now:
+# The Windows build under Wine (wine_smoke.sh, docs/developing/checks.md "Wine smoke"), report-only for now:
 # its line and time in the summary, never a failure — except when the Windows build itself does not
 # compile ("WINE_SMOKE: FAIL (build)"): that fails the set (wine_build), since no Windows game exists then.
 # WINE_SMOKE=off skips it; without wine / Xvfb (or podman and no WINE_EXE) it is recorded as skipped. The
@@ -360,7 +360,7 @@ if [ "$SET" = full ] || [ -n "${DEVPROBES:-}" ]; then
   if [ $RC = 3 ]; then SKIPPED+=("devprobes (needs the maintainer's private set laid over the checkout)"); RC=0; fi
   [ $RC = 0 ] || { grep -E '^error' -A6 "$O/devprobes.log" | head -30 | tee -a "$OUT"; fail devprobes; }
 fi
-# The fuzz smoke (docs/fuzzing.md): every parser target on mutated inputs over seeds from the player's game files.
+# The fuzz smoke (docs/developing/fuzzing.md): every parser target on mutated inputs over seeds from the player's game files.
 if [ "$SET" = full ] || [ -n "${FUZZ:-}" ]; then
   run fuzz 3600 "$HERE/fuzz.sh"
   say "fuzz rc=$RC ${STEP_S[fuzz]} s: $(tail -1 "$O/fuzz.log" | cut -c1-160)"
@@ -407,7 +407,7 @@ if [ "$SET" = full ] || [ -n "${SELFCHECK:-}" ]; then
   say "selfcheck rc=$RC: $(tail -1 "$O/selfcheck.log" | cut -c1-200)"
   [ $RC = 0 ] || { grep -E '^(BAD|FAIL)' "$O/selfcheck.log" | head -20 | tee -a "$OUT"; fail selfcheck; }
 fi
-# Rate gate v2 (full set; docs/checks.md "Rate gate"): this binary against itself at 30/60/120/200 Hz and a jitter
+# Rate gate v2 (full set; docs/developing/checks.md "Rate gate"): this binary against itself at 30/60/120/200 Hz and a jitter
 # schedule (perf.sh rate). RATE=strict (the default) fails on every difference; RATE=1 on a run that failed, the
 # gate's self-test, or a column / image class scripts/checks/rate-columns.txt marks "fail" (since the final policy
 # every one); RATE=0 leaves the step out.
@@ -422,7 +422,7 @@ if [ "$SET" = full ] && [ "$RATE" != 0 ]; then
     < <(sed -n 's/^rate \([a-z_0-9]*\): SKIP .*/\1/p' "$O/rate/rate.txt" 2>/dev/null)
 fi
 # Image soak (off by default; SOAK=N, N >= 2): the parity gate's Original image dumps N times with this
-# binary, every run compared with the first (soak_images.sh, docs/checks.md "Image soak"). SOAK_SCENES
+# binary, every run compared with the first (soak_images.sh, docs/developing/checks.md "Image soak"). SOAK_SCENES
 # (default "drive race"), SOAK_SIZES (default "1280x960 3840x2160"), SOAK_PAR, SOAK_LOAD, SOAK_IOLOAD.
 if [ -n "${SOAK:-}" ] && [ "${SOAK:-0}" != 0 ] && [ "$SET" != shots ]; then
   run soak 14400 env PAR="${SOAK_PAR:-1}" LOAD="${SOAK_LOAD:-0}" IOLOAD="${SOAK_IOLOAD:-0}" PIXDIFF="$PIXDIFF" \

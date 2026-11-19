@@ -1,5 +1,5 @@
 //! overbright-upscale: make the optional upscaled texture pack from the
-//! player's own game files (docs/texture-pack-generator.md). Nothing is
+//! player's own game files (docs/modding/texture-pack-generator.md). Nothing is
 //! downloaded and no model is used (`nfsu2::upscale`: Lanczos-3, anti-ring
 //! clamp, back-projection, BC1/BC3 with mips; `nfsu2::upscale_pack`: the
 //! sources, the run and the manifest — the same code the Graphics page's
@@ -7,7 +7,7 @@
 //!
 //!   overbright-upscale                       # world + cars into the game's data dir
 //!   overbright-upscale --out DIR [--car-out DIR] [--tracks L4RA,..] [--force] [--cars-only]
-//!   overbright-upscale --ui | --ui-out DIR [--hd HDPACK]  # the loading and title screens' textures the HD UI pack lacks (docs/loading-image.md)
+//!   overbright-upscale --ui | --ui-out DIR [--hd HDPACK]  # the loading and title screens' textures the HD UI pack lacks (docs/original/loading-image.md)
 //!   overbright-upscale --sheet PREFIX [--out DIR | --car-out DIR --cars] [--top 60] [--per 12] [--category Sign,..]
 //!
 //! With no folder the pack goes where the World Texture Pack row reads it
@@ -62,7 +62,7 @@ fn args() -> Result<Args> {
             "--ui-out" => a.ui = Some(it.next().context("--ui-out DIR")?.into()),
             "--hd" => a.hd = Some(it.next().context("--hd DIR")?.into()),
             "-h" | "--help" => {
-                println!("overbright-upscale [--out DIR] [--car-out DIR] [--tracks L4RA,..] [--force] [--cars-only] [--ui | --ui-out DIR] [--hd HDPACK] | --sheet PREFIX [--cars] [--top 60] [--per 12] [--category Sign,Road]\nNo folder: world + cars into the game's data dir. See docs/texture-pack-generator.md.");
+                println!("overbright-upscale [--out DIR] [--car-out DIR] [--tracks L4RA,..] [--force] [--cars-only] [--ui | --ui-out DIR] [--hd HDPACK] | --sheet PREFIX [--cars] [--top 60] [--per 12] [--category Sign,Road]\nNo folder: world + cars into the game's data dir. See docs/modding/texture-pack-generator.md.");
                 std::process::exit(0);
             }
             _ => bail!("unknown argument {k} (--help)"),
@@ -94,7 +94,7 @@ fn generate(a: &Args) -> Result<()> {
         pack::generate(&sources, out, "cars", a.force, threads(), false, &progress)?.print(out);
     }
     if let Some(out) = &a.ui {
-        // docs/loading-image.md: the loading screens' textures and the title screen's.
+        // docs/original/loading-image.md: the loading screens' textures and the title screen's.
         let assets = nfsu2::frontend::Assets::load(&root)?;
         let textures = pack::collect_loading(&assets);
         eprintln!("loading and title screens: {} textures; HD UI pack {}", textures.len(), a.hd.as_ref().map_or("none".into(), |d| d.display().to_string()));
@@ -223,7 +223,7 @@ fn sheet(a: &Args, prefix: &Path) -> Result<()> {
 }
 
 fn main() -> Result<()> {
-    // A developer tool: the developer cache, never the player's (docs/asset-cache.md).
+    // A developer tool: the developer cache, never the player's (docs/developing/asset-cache.md).
     nfsu2::platform::dirs::developer_program();
     let a = args()?;
     match a.sheet.clone() {

@@ -195,7 +195,7 @@ impl Run<'_> {
     /// Hides the window and starts the game with the folder shown. A
     /// prepare run still going is stopped first: what it made so far stays
     /// (each cache file whole, the driver's programs as made), and the game
-    /// makes the rest as it does without the step (docs/prepare.md).
+    /// makes the rest as it does without the step (docs/developing/prepare.md).
     fn play(&mut self) {
         let m = &mut self.app.model.prepare;
         m.wanted = false;

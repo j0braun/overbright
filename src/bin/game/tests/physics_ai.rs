@@ -1,5 +1,5 @@
 use crate::*;
-// The test kit (tests/common/mod.rs, docs/testing.md).
+// The test kit (tests/common/mod.rs, docs/developing/testing.md).
 #[path = "../../../../tests/common/mod.rs"]
 mod testkit;
 

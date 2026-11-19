@@ -33,7 +33,7 @@ pub struct CarShared {
     ssr_module: [std::sync::OnceLock<wgpu::ShaderModule>; 2],
     ssr_pipelines: std::sync::Mutex<Vec<((bool, bool), std::sync::Arc<SsrPipelines>)>>,
     ssr_mask: std::sync::Mutex<Option<SsrMaskTargets>>,
-    /// Surface Detail (docs/surface-maps.md "Cars"): the flat 1 × 1
+    /// Surface Detail (docs/notes/graphics/surface-maps.md "Cars"): the flat 1 × 1
     /// map every texture without one binds, the maps' sampler, and the maps
     /// made so far by key (shared by every car with the texture: traffic).
     surface: std::sync::OnceLock<(wgpu::TextureView, wgpu::Sampler)>,
@@ -41,7 +41,7 @@ pub struct CarShared {
     /// Enhanced Glass: its modules (dry, wet × Enhanced Paint),
     /// layouts, pipelines and the scene's copy, made on first use.
     pub(crate) glass: std::sync::OnceLock<glass::GlassShared>,
-    /// The draw index (docs/perf-car-draw-index.md): the device has immediates, so
+    /// The draw index (docs/notes/performance/car-draw-index.md): the device has immediates, so
     /// every car module is its [`immediate_form`] and each draw sets its
     /// entry ([`draw_entry`]); without them the modules read the entry from
     /// the instance index as before.
@@ -49,7 +49,7 @@ pub struct CarShared {
 }
 
 /// The SSR mask's targets the cars draw into after the car pass
-/// ([`CarShared::arm_ssr_mask`]; docs/wet-roads-ssr.md).
+/// ([`CarShared::arm_ssr_mask`]; docs/notes/graphics/reflections.md "Wet Roads and Screen-Space Reflections").
 #[derive(Clone)]
 pub struct SsrMaskTargets {
     pub term: wgpu::TextureView,

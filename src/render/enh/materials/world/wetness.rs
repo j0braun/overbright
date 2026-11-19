@@ -1,6 +1,6 @@
-//! One wetness (docs/wet-roads-ssr.md "One wetness"): what the rain has done to
+//! One wetness (docs/notes/graphics/reflections.md "One wetness"): what the rain has done to
 //! the world this frame, the single source every wet effect reads. Nothing here is native: SPEED2.EXE
-//! draws the road the same rain or not (docs/wet-roads-ssr.md); the inputs are native (the rain's amount,
+//! draws the road the same rain or not (docs/notes/graphics/reflections.md "Wet Roads and Screen-Space Reflections"); the inputs are native (the rain's amount,
 //! weather +0x1F0) or follow a native rule (`Weather::road_wet`, +0x509C's rule from 0 at load).
 //!
 //! Before, Wet Roads, Wet Road Interaction, the spray, the wet car's spray film, Rain Next-Gen's rings

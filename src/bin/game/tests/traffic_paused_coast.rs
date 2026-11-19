@@ -1,4 +1,4 @@
-//! The paused traffic car's coast, driver event 4 (docs/race-ai-parity.md "The paused car coasts").
+//! The paused traffic car's coast, driver event 4 (docs/notes/parity/race-ai-parity.md "The paused car coasts").
 
 use crate::*;
 

@@ -1,5 +1,5 @@
 #!/bin/bash
-# The developer probes still compile (docs/checks.md, the maintainer's private notes).
+# The developer probes still compile (docs/developing/checks.md, the maintainer's private notes).
 #
 #   devprobes.sh
 #

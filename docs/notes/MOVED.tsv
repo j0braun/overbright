@@ -1,0 +1,185 @@
+# old path	new path. Pages moved when docs/ was sorted into folders; a row ending in / moves the whole folder.
+# scripts/docs/relink.py rewrites references from this map.
+docs/ambient-detail.md	docs/playing/settings/ambient-detail.md
+docs/asset-cache.md	docs/developing/asset-cache.md
+docs/assets-distance.md	docs/notes/graphics/assets-distance.md
+docs/atmosphere.md	docs/playing/settings/atmosphere.md
+docs/audio-levels.md	docs/original/audio-levels.md
+docs/build-times.md	docs/developing/build-times.md
+docs/building-releases.md	docs/developing/building-releases.md
+docs/bump-stop-cached-velocity.md	docs/notes/physics/fixes.md	Bump-stop velocity cache correction
+docs/cached-forward-speed-tyres.md	docs/notes/physics/fixes.md	Retained tyre forward speed during landing
+docs/cached-wheel-count-drivetrain.md	docs/notes/physics/fixes.md	Drivetrain reaction uses the exported contact count
+docs/car-lights.md	docs/playing/settings/car-lights.md
+docs/car-materials.md	docs/playing/settings/car-materials.md
+docs/car-paint-enhanced.md	docs/playing/settings/car-paint-enhanced.md
+docs/car-raindrops.md	docs/notes/graphics/car-look.md	Spots like raindrops on a dry car
+docs/car-scene-specular.md	docs/notes/graphics/car-look.md	Car highlight from the scene, not the camera rig
+docs/car-shading-compare.md	docs/notes/graphics/car-look.md	Car paint, reflections and rims against the original
+docs/career-audit.md	docs/notes/parity/career-audit.md
+docs/cheats.md	docs/playing/cheats.md
+docs/checks.md	docs/developing/checks.md
+docs/chrome-flicker.md	docs/notes/graphics/car-look.md	Chrome trunk flicker and dry-road reflection strength
+docs/controller-support.md	docs/playing/controller-support.md
+docs/cornering-parity.md	docs/notes/parity/cornering-parity.md
+docs/detailed-map.md	docs/modding/detailed-map.md
+docs/developer-guide.md	docs/developing/developer-guide.md
+docs/drag-check-2026-11.md	docs/notes/parity/drag-check.md
+docs/drag-drift-outrun-parity.md	docs/notes/parity/drag-drift-outrun-parity.md
+docs/drag-stage4-parity.md	docs/notes/parity/drag-stage4-parity.md
+docs/drift-selftest-relocation.md	docs/notes/physics/fixes.md	Drift self-test relocation premise
+docs/drive-parity.md	docs/notes/parity/drive-parity.md
+docs/engine-level.md	docs/notes/parity/engine-level.md
+docs/engine-volume-chain.md	docs/original/engine-volume-chain.md
+docs/enhanced-reflections.md	docs/notes/graphics/reflections.md	Enhanced reflections and the HD HUD pack
+docs/exe-tables.md	docs/original/exe-tables.md
+docs/exit.md	docs/original/exit.md
+docs/exported-speed-lifecycle.md	docs/notes/physics/fixes.md	Explicit exported forward-speed lifecycle
+docs/fe-backdrops.md	docs/notes/front-end/fe-backdrops.md
+docs/first-drag.md	docs/notes/parity/first-drag.md
+docs/first-race-regression.md	docs/notes/parity/first-race-regression.md
+docs/first-use-builds.md	docs/developing/first-use-builds.md
+docs/frame-settings.md	docs/developing/frame-settings.md
+docs/fsr2.md	docs/playing/settings/fsr2.md
+docs/fuzzing.md	docs/developing/fuzzing.md
+docs/game-fingerprint.md	docs/developing/game-fingerprint.md
+docs/gaps.md	docs/notes/parity/gaps.md
+docs/garage-part-swap.md	docs/notes/front-end/garage-part-swap.md
+docs/gfx-issues-2026-11.md	docs/notes/graphics/gfx-issues.md
+docs/glow-darkening.md	docs/notes/graphics/car-look.md	Darkening settings against emissive light and the car's shadow
+docs/gps-reflection.md	docs/notes/graphics/reflections.md	The GPS arrow kept out of reflections
+docs/graphics-settings-audit.md	docs/notes/graphics/graphics-settings-audit.md
+docs/hdr-post.md	docs/playing/settings/hdr-post.md
+docs/hdr.md	docs/playing/hdr.md
+docs/intro-skip-grid-handoff.md	docs/notes/physics/fixes.md	Race intro skip places every car at the authored cut
+docs/io-robustness.md	docs/developing/io-robustness.md
+docs/known-gaps-p16.md	docs/notes/parity/known-gaps.md
+docs/l1-leftovers.md	docs/notes/parity/native-leftovers.md
+docs/lamps-shadows.md	docs/playing/settings/lamps-shadows.md
+docs/lighting2.md	docs/playing/settings/lighting2.md
+docs/loading-image.md	docs/original/loading-image.md
+docs/look-direction.md	docs/notes/graphics/look-direction.md
+docs/map-editor.md	docs/modding/map-editor.md
+docs/mark-spot.md	docs/playing/mark-spot.md
+docs/menu-music.md	docs/original/menu-music.md
+docs/menus-audit.md	docs/notes/front-end/menus-audit.md
+docs/model-fixes.md	docs/playing/settings/model-fixes.md
+docs/modern-extras.md	docs/playing/modern-extras.md
+docs/modern-lighting.md	docs/playing/settings/modern-lighting.md
+docs/motionblur-dof.md	docs/playing/settings/motionblur-dof.md
+docs/native-deviations.md	docs/playing/native-deviations.md
+docs/neon-quality.md	docs/playing/settings/neon-quality.md
+docs/nis-audio-patterns.md	docs/original/nis-audio-patterns.md
+docs/nis-mover-step-investigation.md	docs/notes/physics/nis-mover-step-investigation.md
+docs/nis-mover.md	docs/original/nis-mover.md
+docs/nis-target-rust-port.md	docs/notes/physics/fixes.md	Native scene target arithmetic port
+docs/nitrous-audio.md	docs/notes/audio/nitrous-audio.md
+docs/outrun-acceleration-provenance.md	docs/notes/outrun/follow-ups.md	Native acceleration input: writer, phase, and bounded replacement
+docs/outrun-action-lifecycle.md	docs/notes/outrun/follow-ups.md	Goal-5 action lifetime and route import follow-up
+docs/outrun-ai-strength.md	docs/notes/outrun/ai-strength.md
+docs/outrun-cache-capacity.md	docs/notes/outrun/follow-ups.md	Outrun cache capacity: original-byte findings
+docs/outrun-controller-integration.md	docs/notes/outrun/follow-ups.md	Persistent goal 5/6 integration review
+docs/outrun-loaded-belt.md	docs/notes/outrun/follow-ups.md	Loaded-road active-outrun BeltMover mapping
+docs/outrun-other-acceleration.md	docs/notes/outrun/follow-ups.md	Native other-car acceleration projection
+docs/outrun-pace.md	docs/notes/outrun/pace.md
+docs/outrun-placement-acceleration.md	docs/notes/outrun/follow-ups.md	Placement acceleration clear versus world snapshot lifetime
+docs/outrun-recovery-investigation.md	docs/notes/outrun/recovery-investigation.md
+docs/outrun-recovery-timing.md	docs/notes/outrun/follow-ups.md	Recovery request consumption after motion
+docs/outrun-speech-selection.md	docs/notes/outrun/follow-ups.md	Outrun speech entry selection
+docs/outrun-think-scheduling.md	docs/notes/outrun/follow-ups.md	AIRacer Think scheduling and fallback evidence
+docs/outrun.md	docs/original/outrun.md
+docs/p17-scene-follow-ups.md	docs/notes/parity/scene-follow-ups.md
+docs/pack-hot-reload.md	docs/modding/pack-hot-reload.md
+docs/parity-harness.md	docs/developing/parity-harness.md
+docs/parity-workflow.md	docs/developing/parity-workflow.md
+docs/particles-smoke.md	docs/notes/graphics/smoke.md	Particles High and Ultra: GPU particles and detailed smoke
+docs/perf-budget.md	docs/notes/performance/budget.md
+docs/perf-car-draw-index.md	docs/notes/performance/car-draw-index.md
+docs/perf-gates.md	docs/developing/perf-gates.md
+docs/perf-gpu.md	docs/notes/performance/gpu.md
+docs/perf-integrated-gpu.md	docs/notes/performance/integrated-gpu.md
+docs/perf-loading-pacing.md	docs/notes/performance/loading-pacing.md
+docs/perf-main-thread.md	docs/notes/performance/main-thread.md
+docs/perf-overlay.md	docs/playing/perf-overlay.md
+docs/perf-shop.md	docs/notes/front-end/perf-shop.md
+docs/photo-challenge-hud.md	docs/notes/front-end/photo-challenge-hud.md
+docs/photo-mode.md	docs/playing/photo-mode.md
+docs/platform-dirs.md	docs/playing/platform-dirs.md
+docs/platform-windows.md	docs/playing/platform-windows.md
+docs/playthrough-ending.md	docs/notes/parity/playthrough-ending.md
+docs/playthrough-extras.md	docs/notes/parity/playthrough-extras.md
+docs/playthrough-stage1.md	docs/notes/parity/playthrough-stage1.md
+docs/playthrough-stage2.md	docs/notes/parity/playthrough-stage2.md
+docs/playthrough-stage3.md	docs/notes/parity/playthrough-stage3.md
+docs/playthrough-stage4.md	docs/notes/parity/playthrough-stage4.md
+docs/playthrough-stage5.md	docs/notes/parity/playthrough-stage5.md
+docs/pop-in.md	docs/notes/graphics/pop-in.md
+docs/positive-dt-boundary-replay.md	docs/notes/physics/fixes.md	Expanded native boundary capture and suspension-load diagnostic
+docs/positive-dt-clone-boundaries.md	docs/notes/physics/fixes.md	Positive-dt boundary mapping and isolated bump replay
+docs/positive-dt-native-capture.md	docs/notes/physics/fixes.md	Fresh native positive-dt component boundaries
+docs/post-scale.md	docs/notes/graphics/ssaa.md	Post effects under SSAA and Render Scale
+docs/postrace-jitter.md	docs/notes/front-end/postrace-jitter.md
+docs/prepare.md	docs/developing/prepare.md
+docs/prop-hits.md	docs/notes/parity/prop-hits.md
+docs/provenance.md	docs/developing/provenance.md
+docs/race-ai-parity.md	docs/notes/parity/race-ai-parity.md
+docs/race-ending-selection.md	docs/original/race-ending-selection.md
+docs/race-start-wheelspin.md	docs/notes/parity/race-start-wheelspin.md
+docs/rain-nextgen.md	docs/playing/settings/rain-nextgen.md
+docs/read-ahead.md	docs/developing/read-ahead.md
+docs/recovered-magazine-covers.md	docs/notes/front-end/recovered-magazine-covers.md
+docs/recovered-ui-sampling.md	docs/notes/front-end/recovered-ui-sampling.md
+docs/recovered-world-clock.md	docs/notes/front-end/recovered-world-clock.md
+docs/region.md	docs/playing/region.md
+docs/release-scan.md	docs/developing/release-scan.md
+docs/releasing.md	docs/developing/releasing.md
+docs/replay-cameras.md	docs/playing/replay-cameras.md
+docs/resolutions.md	docs/playing/resolutions.md
+docs/rest-component-refresh.md	docs/notes/physics/fixes.md	Rest and bump-stop component refresh
+docs/reverse-refresh-rea.md	docs/notes/physics/reverse-refresh-rea.md
+docs/rng.md	docs/original/rng.md
+docs/rt-reflections.md	docs/notes/graphics/reflections.md	Ray-traced reflections (experimental)
+docs/save-points.md	docs/original/save-points.md
+docs/scene-momentum-handoff.md	docs/notes/physics/fixes.md	Scene momentum handoff correction
+docs/settings-model.md	docs/developing/settings-model.md
+docs/settings-page.md	docs/developing/settings-page.md
+docs/shadow-softness.md	docs/playing/settings/shadow-softness.md
+docs/shop-part-animations.md	docs/notes/front-end/shop-part-animations.md
+docs/shop-record-store.md	docs/notes/front-end/shop-record-store.md
+docs/sim-session.md	docs/developing/sim-session.md
+docs/small-fixes-2026-11.md	docs/notes/parity/small-fixes.md
+docs/smoke-cinematic.md	docs/notes/graphics/smoke.md	Particles Cinematic: the simulation and the billboard drawing
+docs/smoke-nextgen.md	docs/notes/graphics/smoke.md	Tyre smoke toward current games
+docs/smoke-volumetric.md	docs/notes/graphics/smoke.md	Volumetric effects and the volumetric Cinematic smoke
+docs/software-gpu.md	docs/developing/software-gpu.md
+docs/sound-audit.md	docs/notes/audio/sound-audit.md
+docs/sparks-fire.md	docs/playing/settings/sparks-fire.md
+docs/ssaa-screen-passes.md	docs/notes/graphics/ssaa.md	Effect and post passes at the screen's size under SSAA
+docs/ssaa.md	docs/playing/settings/ssaa.md
+docs/start-and-menus.md	docs/original/start-and-menus.md
+docs/streetx-keyboard-bot-recovery.md	docs/notes/physics/fixes.md	Street X keyboard test recovery
+docs/streetx-nitrous.md	docs/notes/parity/streetx-nitrous.md
+docs/surface-maps.md	docs/playing/settings/surface-maps.md
+docs/suspension-load-phase.md	docs/notes/physics/fixes.md	Suspension loads after the existing zero-time component post
+docs/temporal.md	docs/playing/settings/temporal.md
+docs/test-determinism.md	docs/developing/test-determinism.md
+docs/testing.md	docs/developing/testing.md
+docs/texmod-import.md	docs/modding/texmod-import.md
+docs/texture-editor.md	docs/modding/texture-editor.md
+docs/texture-pack-cache.md	docs/modding/texture-pack-cache.md
+docs/texture-pack-generator.md	docs/modding/texture-pack-generator.md
+docs/texture-packs.md	docs/modding/texture-packs.md
+docs/tuning-physics-parity.md	docs/notes/parity/tuning-physics-parity.md
+docs/tyre-export-lifetime-inventory.md	docs/notes/physics/tyre-export-lifetime-inventory.md
+docs/ultrawide.md	docs/playing/ultrawide.md
+docs/uncapped-fps.md	docs/original/uncapped-fps.md
+docs/user-reports-2026-11.md	docs/notes/parity/user-reports.md
+docs/visual-rating.md	docs/notes/graphics/visual-rating.md
+docs/waits-log.md	docs/developing/waits-log.md
+docs/water.md	docs/playing/settings/water.md
+docs/weather.md	docs/playing/settings/weather.md
+docs/wet-road-car.md	docs/playing/settings/wet-road-car.md
+docs/wet-roads-ssr.md	docs/notes/graphics/reflections.md	Wet Roads and Screen-Space Reflections
+docs/world-systems-parity.md	docs/notes/parity/world-systems-parity.md
+docs/asset-format/	docs/modding/asset-format/
+docs/tracing/	docs/original/tracing/

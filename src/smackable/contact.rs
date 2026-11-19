@@ -170,7 +170,7 @@ pub(super) fn car_contact(prop: &Prop, b: &mut Body, k: usize, i: usize, car: &C
     // The pair's last answer as it stands (0x594010 reads pair +0xC0 /
     // +0xD0; nothing is measured since the time of impact's search or the
     // push-out, 0x5B2620): at speed the points can lie centimetres apart,
-    // from another moment of the search (read under Wine, docs/prop-hits.md).
+    // from another moment of the search (read under Wine, docs/notes/parity/prop-hits.md).
     let (on_car, on_prop) = match b.pairs.get(&key).and_then(|p| p.as_ref()).and_then(|p| p.last()) {
         Some((_, x, y)) => (x, y),
         None => {

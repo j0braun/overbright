@@ -46,7 +46,7 @@ pub fn update_current(f: impl FnOnce(&mut NativeSave)) {
     });
 }
 
-/// Test isolation (docs/test-determinism.md; not native, never entered by
+/// Test isolation (docs/developing/test-determinism.md; not native, never entered by
 /// the game): a thread's own data folder and current profile. The unit
 /// tests run each test on a thread of its own in one process, where the
 /// process-wide `XDG_DATA_HOME` and [`CURRENT`] made one test's saves and

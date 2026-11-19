@@ -17,7 +17,7 @@ impl WorldRenderer {
     /// fog (so [`Effect::NoFog`] here), with the texture's own blend.
     ///
     /// The Graphics page's Car Shadow / Neon **Ultra** (clone deviation,
-    /// docs/neon-quality.md): a `%s_NEON` underglow is uploaded rebuilt
+    /// docs/notes/graphics/neon-quality.md): a `%s_NEON` underglow is uploaded rebuilt
     /// ([`crate::neon_quality::enhance`]: 4× size, deblocked, border faded
     /// to 0, half float) unless a texture pack replaces it; a tier change
     /// re-uploads it.

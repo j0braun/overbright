@@ -1,4 +1,4 @@
-//! The game's log file (docs/platform-dirs.md; `qol::log_file`): a plain game run
+//! The game's log file (docs/playing/platform-dirs.md; `qol::log_file`): a plain game run
 //! also writes its log to `platform::dirs::logs()/game-<UTC time>.log`,
 //! keeping the newest [`KEEP`]. The lines are the ones the crash report's
 //! ring keeps (`qol::crash`'s logger: warnings and errors always, plus what

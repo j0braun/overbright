@@ -9,7 +9,7 @@ pub enum UxGroup {
     WeatherWater,
     Performance,
     GameplayAccessibility,
-    /// See docs/controller-support.md.
+    /// See docs/playing/controller-support.md.
     Controller,
     Packs,
 }

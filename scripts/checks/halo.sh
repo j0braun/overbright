@@ -1,5 +1,5 @@
 #!/bin/bash
-# Regression check for the glow-shell fix (docs/wet-road-car.md, max rain halo): the glow shell around the player's car
+# Regression check for the glow-shell fix (docs/notes/graphics/wet-road-car.md, max rain halo): the glow shell around the player's car
 # and its blue tint in the rain at speed must not return.
 #
 #   halo.sh OUTDIR [GAME]

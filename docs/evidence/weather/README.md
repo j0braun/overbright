@@ -1,4 +1,4 @@
-# This page weather evidence (docs/weather.md)
+# This page weather evidence (docs/notes/graphics/weather.md)
 
 All crops show **Off | On**. "Off" is the play setup
 (`<the play setup's options file>`, via the maintainer's private capture; SSAA 2x, Enhanced

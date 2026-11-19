@@ -1,6 +1,6 @@
 use crate::*;
 
-/// `--bench latency [frames]` (docs/modern-extras.md): the window
+/// `--bench latency [frames]` (docs/playing/modern-extras.md): the window
 /// loop's own frames (`Game::advance` on the real clock, `draw_between`,
 /// the autopilot driving the racing bench's race) through a model of the
 /// swap chain and panel (`latency::Display`: FIFO 60 Hz, FIFO 144 Hz, VRR

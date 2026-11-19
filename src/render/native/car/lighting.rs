@@ -192,7 +192,7 @@ fn add_lobe(h: &mut [Vec4; 10], colour: Vec4, d: Vec3) {
     h[9] += band1 * z;
 }
 
-/// (Clone deviation, docs/car-scene-specular.md "Higher settings"): with
+/// (Clone deviation, docs/notes/graphics/car-look.md "Higher settings"): with
 /// the scene specular the car's environment reflection (car.efx's
 /// `2 · env · (EnvmapMin + fresnel · EnvmapRange)`, the world cube) is
 /// scaled by this, so the scene the paint reflects carries the body where
@@ -244,7 +244,7 @@ pub struct CarLighting {
     pub(super) world_harmonic: [Vec4; 10],
     pub(super) eye: Vec3,
     pub(super) frontend: bool,
-    /// Dynamic Lamps (clone deviation, docs/lamps-shadows.md): the four
+    /// Dynamic Lamps (clone deviation, docs/notes/graphics/lamps-shadows.md): the four
     /// light-pack lamps that light the car most, per pixel in car.wgsl
     /// (`Draw.lamps`); zeros natively.
     pub lamps: [[f32; 4]; 8],
@@ -269,7 +269,7 @@ impl CarLighting {
     }
 
     /// [`CarLighting::compute`]; with `scene_specular` (clone
-    /// deviation, docs/car-scene-specular.md) the specular channel (w) holds
+    /// deviation, docs/notes/graphics/car-look.md "Car highlight from the scene, not the camera rig") the specular channel (w) holds
     /// the scene's lights only: the same lobes and the same 0x489ED0 scale
     /// as natively (0.8 over the length of every light's w, rig included),
     /// less the rig's lobes. The colour channels (diffuse, the highlight's
@@ -469,7 +469,7 @@ mod tests {
         }
         // w: the lamp's lobe (and its −0.05 twin) alone: the lamp (+x of
         // the car) is the only sideways pull, and nothing stands in for the
-        // rig (docs/car-scene-specular.md "Higher settings").
+        // rig (docs/notes/graphics/car-look.md "Higher settings").
         let lin = Vec3::new(scene.world_harmonic[7].w, scene.world_harmonic[8].w, scene.world_harmonic[9].w);
         assert!(lin.x > 0.05 && lin.y.abs() < 1e-4, "{lin}");
         // The rig alone: no highlight at all (w zero in every direction),

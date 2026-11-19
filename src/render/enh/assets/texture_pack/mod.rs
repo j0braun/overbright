@@ -234,7 +234,7 @@ mod tests {
         assert_eq!(key, (wgpu::TextureFormat::Rgba8Unorm, 2, 1, 1));
     }
 
-    /// An Overbright pack (docs/texture-packs.md) in the data folder reaches
+    /// An Overbright pack (docs/modding/texture-packs.md) in the data folder reaches
     /// the world layer: its PNG compiled to BC7, used as is with BC and
     /// decoded with its mips without; the car domain has nothing.
     #[test]

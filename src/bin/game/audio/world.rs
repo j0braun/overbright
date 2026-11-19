@@ -62,7 +62,7 @@ impl Game {
         // showcase's) has no drivetrain yet; its sound objects still run
         // (under Wine in DynoEnter the CAR, FX_ROADNOISE, FX_WIND, FX_SKID,
         // FX_TURBO_01 and CAR_Sputter instances are alive and SFXCTL_Tunnel
-        // keeps the reverb's dry level at 0x7FFF; docs/engine-level.md):
+        // keeps the reverb's dry level at 0x7FFF; docs/notes/parity/engine-level.md):
         // no shot, neutral, no throttle, as `engine_sound` takes it.
         let t = d.state.drivetrain.as_ref();
         let car_type = self.game_data.car_types.iter().position(|t| t.name == d.car.car_type.name).unwrap_or(0);
@@ -177,7 +177,7 @@ impl Game {
         // 1/127 into the voice's +0x38; SndMix_Render adds no option
         // volume): with the map loaded the effects and engine buses stay
         // at 1 (under Wine with the effects volume 0 the engine's abk
-        // layers still sound; docs/engine-level.md).
+        // layers still sound; docs/notes/parity/engine-level.md).
         let levels =
             if a.mix.is_some() { nfsu2::audio::mixer::Levels { effects: 1.0, engine: 1.0, ..levels } } else { levels };
         let levels = if music_levels.is_some() {

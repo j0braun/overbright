@@ -76,7 +76,7 @@ impl Game {
         // each taking its map for that layout from the profile).
         let relayout = self.platform.pads.set_options(self.settings.enh.pad);
         let changes = self.platform.pads.poll(self.seconds());
-        // A button pressed: the log's waits count from it (docs/waits-log.md).
+        // A button pressed: the log's waits count from it (docs/developing/waits-log.md).
         if self.platform.pads.pressed() != 0 {
             self.loads.waits.key();
         }

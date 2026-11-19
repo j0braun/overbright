@@ -153,7 +153,7 @@ impl Game {
     /// A key pressed: the typed text to the screens that take it, the key
     /// itself (not its auto-repeats) to the game, then held.
     fn key_down(&mut self, code: KeyCode, text: Option<&str>, repeat: bool) {
-        // The texture editor (`--editor` only; docs/texture-editor.md).
+        // The texture editor (`--editor` only; docs/modding/texture-editor.md).
         if crate::enh::texed::key(code, text, repeat) {
             return;
         }

@@ -1,4 +1,4 @@
-//! Map mods' scenery edits on a loaded world (`tools::map`, docs/map-editor.md).
+//! Map mods' scenery edits on a loaded world (`tools::map`, docs/modding/map-editor.md).
 //! Applied after [`World::load`] (so the asset cache keeps the original
 //! world) and before the world's renderer is built (so added placements
 //! are drawn); the world's loaded state is then taken again, so a kept

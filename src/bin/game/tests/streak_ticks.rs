@@ -1,11 +1,11 @@
-//! The streak buffer on ticks (docs/uncapped-fps.md, "Streak buffer on ticks"): the light-streak
+//! The streak buffer on ticks (docs/original/uncapped-fps.md, "Streak buffer on ticks"): the light-streak
 //! buffer commits once per tick, so a frame drawn at α = 0 is the same
 //! picture at any display rate. A real free roam (the game files under $NFSU2_ROOT,
 //! Original preset: light trails and the overbright pass on), the car
 //! carried along its heading, drawn offscreen at 30 / 60 / 120 / 200 Hz;
 //! every α = 0 frame's image against the 60 Hz frame of the same tick.
 use super::*;
-// The test kit (tests/common/mod.rs, docs/testing.md).
+// The test kit (tests/common/mod.rs, docs/developing/testing.md).
 #[path = "../../../../tests/common/mod.rs"]
 mod testkit;
 

@@ -303,7 +303,7 @@ impl RacerRoute {
         ((here > 0.0).then_some(here), flat)
     }
 
-    /// Check aid (docs/outrun-ai-strength.md): the next `n` points from
+    /// Check aid (docs/notes/outrun/ai-strength.md): the next `n` points from
     /// the car's as (record, control point, s, lane-0 speed).
     pub fn upcoming(&self, n: usize) -> Vec<(usize, usize, f32, f32)> {
         self.points.iter().skip(self.current).take(n).map(|p| (p.record, p.cp, p.s, p.speed[0])).collect()

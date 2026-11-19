@@ -2,7 +2,7 @@ use super::*;
 
 pub(super) const ROWS: &[GraphicsRow] = &[
     // Lighting.
-    // docs/modern-lighting.md: the city relit from dynamic lights.
+    // docs/notes/graphics/modern-lighting.md: the city relit from dynamic lights.
     GraphicsRow {
         id: RowId::ModernLighting,
         label: MODERN_LIGHTING,
@@ -93,7 +93,7 @@ pub(super) const ROWS: &[GraphicsRow] = &[
         offered: None,
         legacy: false,
     },
-    // Lamps and shadows (docs/lamps-shadows.md; costs: --bench explore 600 at night,
+    // Lamps and shadows (docs/notes/graphics/lamps-shadows.md; costs: --bench explore 600 at night,
     // 1080p / 4K / 2-CU RDNA2 iGPU at 1080p, docs/evidence/lamps-shadows).
     GraphicsRow {
         id: RowId::DynamicLamps,
@@ -153,7 +153,7 @@ pub(super) const ROWS: &[GraphicsRow] = &[
         offered: None,
         legacy: false,
     },
-    // docs/lighting2.md: every car's headlights as projected beams;
+    // docs/notes/graphics/lighting2.md: every car's headlights as projected beams;
     // probes along the roads for the cars' light.
     GraphicsRow {
         id: RowId::HeadlightBeams,
@@ -168,7 +168,7 @@ pub(super) const ROWS: &[GraphicsRow] = &[
                 BEAMS_COST_4K,
                 0.0,
             ),
-            // Next-Gen car lights (docs/car-lights.md "Cost").
+            // Next-Gen car lights (docs/notes/graphics/car-lights.md "Cost").
             tc(
                 "Next-Gen",
                 "The beams plus volumetric headlight cones and tail / brake halos in rain, fog and smoke, tail, brake and underglow light on the road and the cars' bodies, other cars' lights on your paint, lens streaks (integrated GPU: ~+8 ms).",
@@ -202,7 +202,7 @@ pub(super) const ROWS: &[GraphicsRow] = &[
         offered: None,
         legacy: false,
     },
-    // docs/surface-maps.md: material-ID roughness / specular, and
+    // docs/notes/graphics/surface-maps.md: material-ID roughness / specular, and
     // normal maps made on this machine from the game's own textures.
     GraphicsRow {
         id: RowId::SurfaceDetail,
@@ -230,7 +230,7 @@ pub(super) const ROWS: &[GraphicsRow] = &[
         offered: None,
         legacy: false,
     },
-    // See docs/temporal.md; costs: --bench explore at night, reference desktop GPU.
+    // See docs/notes/graphics/temporal.md; costs: --bench explore at night, reference desktop GPU.
     GraphicsRow {
         id: RowId::VolumetricFog,
         label: VOLUMETRIC_FOG,
@@ -263,7 +263,7 @@ pub(super) const ROWS: &[GraphicsRow] = &[
         offered: None,
         legacy: false,
     },
-    // See docs/atmosphere.md.
+    // See docs/notes/graphics/atmosphere.md.
     GraphicsRow {
         id: RowId::Sky,
         label: SKY,

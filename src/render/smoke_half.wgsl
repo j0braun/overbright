@@ -1,4 +1,4 @@
-// For speed (docs/perf-gpu.md; Particles High / Ultra, a clone deviation): the
+// For speed (docs/notes/performance/gpu.md; Particles High / Ultra, a clone deviation): the
 // detailed smoke drawn at half size (gpu_particles.wgsl `fs_half`) put
 // over the scene. Per pixel the four half-size texels around it, weighted
 // bilinearly and by how close the depth each texel's puffs were softened

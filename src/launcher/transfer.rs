@@ -1,6 +1,6 @@
 //! Copying Overbright's files from one place to another (Settings ›
 //! Advanced › Storage: portable mode on or off, a folder put elsewhere;
-//! docs/platform-dirs.md, "Copying between places").
+//! docs/playing/platform-dirs.md, "Copying between places").
 //!
 //! The rules:
 //! * a file already in the target always wins: nothing there is

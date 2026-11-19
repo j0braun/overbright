@@ -120,7 +120,7 @@ pub(crate) fn selftest_profiles(game: &mut Game) -> Result<()> {
         "No, No: UI_Main unsaved"
     );
     // The "No" holds: the progress stays in memory (0x5347D0 restores no
-    // snapshot here, docs/save-points.md) and the clone's own points that
+    // snapshot here, docs/original/save-points.md) and the clone's own points that
     // used to save silently (a shop, Car Select, tuning, the quit to the
     // main menu) only commit, so nothing reaches the file before the next
     // save point.

@@ -64,7 +64,7 @@ pub fn boot() -> Boot {
 mod tests {
     use super::*;
 
-    /// Test isolation (docs/test-determinism.md): two test threads in
+    /// Test isolation (docs/developing/test-determinism.md): two test threads in
     /// sandboxes have their own data folders and current profiles; a
     /// thread's folder goes with it.
     #[test]

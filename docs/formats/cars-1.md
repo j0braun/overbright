@@ -36,7 +36,7 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
   record's +0x38 (0x5C5BB1 → 0x5CEB40 entry +0x14 → 0x5CF559), not the mesh
   header's +0x0C; e.g. the 240SX's BASE_A / TRUNK_A DULLPLASTIC ranges carry
   0x4080 in 0xC180 meshes and draw without the env term. `solid::Material::flags`;
-  see docs/car-shading-compare.md (2026-11-04 re-comparison).
+  see docs/notes/graphics/car-look.md "Car paint, reflections and rims against the original" (2026-11-04 re-comparison).
 * **Light-material loader** (verified; 0x48E070, chunk 0x135200, record =
   chunk body): +0x80 and +0x90 are multiplied by 0x78D780 (1.0), and for
   records whose +0x10 is 3 (all of GLOBALB's) 0x5BB5C0 overwrites the
@@ -608,7 +608,7 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
   faces draw (0x8A1F10, scaled 0.004525²) — the clone's sky is a world
   placement, so the faces show black past 64 m.
 * **Car types: count, ids and references** (2026-11-18, static trace; **verified**
-  unless marked; summary and add-on limits in [docs/tracing/cars.md](../tracing/cars.md)):
+  unless marked; summary and add-on limits in [docs/original/tracing/cars.md](../original/tracing/cars.md)):
   the 0x34600 loader (0x636BF0) fixes up exactly 0x189E0 bytes = 46 records and never
   reads the chunk size; the name-hash lookup 0x610140 compares record +0xD0 over 0x2E
   records and returns the record or NULL; the car-lot unlock filter 0x513C50 keeps a
@@ -852,7 +852,7 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
     doors 0x11 / 0x12 on a wide body → +0xAC8 with 0x5D; body 5, skirt
     0xB and the doors otherwise → +0xF58 with 0x5D; the rest the main
     table. Flags +0x3B0…+0x3C8 record the choice. They are read by the
-    generic part draw (verified, docs/car-materials.md). Slots 1 / 2 / 9 /
+    generic part draw (verified, docs/notes/graphics/car-materials.md). Slots 1 / 2 / 9 /
     0xA / 6, 0x11, 0x12 with +0x3B0 / +0x3B4 / +0x3BC / +0x3C4 / +0x3C8 set
     remap CARSKIN to render info +0x388, the `CARBONFIBER` light material
     (0x638DA9, string 0x7A8D2C), at 0x6231B3. Every generic-draw model
@@ -955,7 +955,7 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
       traced) → 0x61F830. `game --shot paint_engine` (the hood up, the
       engine lit) and `--shot audio` (the hatch up); NFSU2_SHOT_MS under
       a second shows them moving.
-    * Ported 2026-11-04 ([shop-part-animations.md](../shop-part-animations.md)):
+    * Ported 2026-11-04 ([shop-part-animations.md](../notes/front-end/shop-part-animations.md)):
       the split hood and door variants (0x61F830; ANIMSTYLE, WIDE<kind>),
       their FE sounds (0x4C / 0x4F for ANIMSTYLE 1, else 0x50 / 0x4E), the
       spoiler's group 0 on the trunk's posed matrix and the mirrors on the
@@ -977,7 +977,7 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
     patch stays with diffuse and specular kept and the env map removed,
     and goes with only the diffuse); which light of the context makes it,
     and whether the real game's dimmer highlight is the same term, is
-    not traced; (docs/car-scene-specular.md: the rig 0x7F3F00's
+    not traced; (docs/notes/graphics/car-look.md "Car highlight from the scene, not the camera rig": the rig 0x7F3F00's
     camera-fixed key light, computed from the geometry; the enhanced
     car shading in the higher Enhanced settings and with ray tracing takes
     the specular channel from the scene's lights; Original and the lower
@@ -1225,7 +1225,7 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
     original's spawn, not neon (the clone shows it at the same pose).
   * Clone deviation: Car Shadow / Neon Ultra uploads `%s_NEON` rebuilt (4×, deblocked, border faded
     to 0 against the native masks' lit border, the "cutoff line"; half float),
-    docs/neon-quality.md; Original is unchanged.
+    docs/notes/graphics/neon-quality.md; Original is unchanged.
   * **open**: where the +0x2C18 marker pairs' node fields +0x910 / +0x920
     are set; the cabin neon (0x9C/0x9E) draw; the clock the clone uses
     (its run time in game, the garage's time in the front end); the
@@ -1389,7 +1389,7 @@ drivetrain at +0x4C and the tuning block at +0x54.
   after the impulse; the clone's refresh does not run the zero-time
   tidy-ups, open). Test
   `drive::native_phys::a_frames_first_substep_integrates_the_forces_taken_before_its_input`;
-  measured against the original in docs/cornering-parity.md.
+  measured against the original in docs/notes/parity/cornering-parity.md.
   * **Left/right split** (0x594A40, traced): per axle s = right wheel's spin
     (front: +0x28 of drivetrain +0x28; rear: +0x2C) / the pair's sum (0.5
     when the sum is within 0x7845A0 of 0); s under the band (0.35 with both
@@ -1399,7 +1399,7 @@ drivetrain at +0x4C and the tuning block at +0x54.
     same rule. No limited-slip term, and no inertia in it (the wheels'
     inertia +0x2C enters only the input shaft's acceleration 0x594850 and
     the locked coupling 0x594DB0). The unequal front forces at a
-    downshift against the wall (docs/prop-hits.md §7c, −6.45 / −6.63 kN)
+    downshift against the wall (docs/notes/parity/prop-hits.md §7c, −6.45 / −6.63 kN)
     are the wheels' own state: the wheel hop's grip (+0x474, 0.914 there,
     count 3: FL keeps 1 − 0.086·0.65 of its grip, FR 1 − 0.086·0.35) puts
     the two friction circles apart; the transplant carries it since the
@@ -1616,7 +1616,7 @@ drivetrain at +0x4C and the tuning block at +0x54.
     0x44 bytes: +0x00 name, +0x20 shown name, +0x40 hash, 0x4FFF00 /
     0x4FFF40; 0x74CE8C0B without a texture), starting on the first brand.
     Left / Right (0x9120409E / 0xB5971BF1, 0x521EA0) step the brand
-    forward / backward, wrapping (corrected 2026-11-04, docs/perf-shop.md); Up / Down (0x72619778 / 0x911C0A4B) hide the brand hint
+    forward / backward, wrapping (corrected 2026-11-04, docs/notes/front-end/perf-shop.md); Up / Down (0x72619778 / 0x911C0A4B) hide the brand hint
     0xB34A6C2B on a row with fewer than two. Select (0x0C407210) plays
     0xDE6EFF34 on 0x47FF4E7C, whose end (0xE1FDE1D1) copies the rows'
     brands in order to 0x8389B4… (0x521F00) and buys and fits: the part
@@ -1665,7 +1665,7 @@ drivetrain at +0x4C and the tuning block at +0x54.
     objects at +0x10 to +0x1C. Those records, the helpers above, and the
     virtual calls 0x52DA00 makes after a hit were not traced, and the
     LEFT_ARROW_n / RIGHT_ARROW_n visibility is not
-    traced. **Superseded** (perf-shop round, docs/perf-shop.md): the
+    traced. **Superseded** (perf-shop round, docs/notes/front-end/perf-shop.md): the
     rows' layout (logo on top, measured under Wine), Back does nothing,
     the brand slots 0x8389B4 (0 at boot, 0xFFFFFFFF once read; a purchase
     without the screen appends what is left), the spend +0x7F0, and the
@@ -2503,7 +2503,7 @@ derived face fields match. The game builds none of this; it reads the lists as s
 * Each face is stored in every pack whose drivable section it overlaps, and in some packs whose outline it
   only comes near (up to about 18 m on L4RA; **inferred**, rule open); about a third of L4RA's faces sit in two
   to five packs. No field ties a face to a scenery placement. What a moved, added or deleted prop needs:
-  [docs/tracing/collision.md](../tracing/collision.md).
+  [docs/original/tracing/collision.md](../original/tracing/collision.md).
 
 ## Contacts (verified except where noted)
 
@@ -2624,7 +2624,7 @@ The game's world collision step (0x5FFA60) runs after the cars have moved.
   (with the wheel direction below and 0x593290's transform) makes the wall
   hold's pushes agree far longer but turned 7 of 20 test holds off the wall
   the other way, which no original run does; it is not in the default
-  (docs/cornering-parity.md §6, **open**).
+  (docs/notes/parity/cornering-parity.md §6, **open**).
 * **Wheel direction** (0x59D040, the wheel's vt+0x1C, **verified**): the
   tidy-up keeps which way the wheel turned (+0x110: 0 forward, 1 still, 2
   backward; a new wheel 1, 0x5A81E0). A wheel at 0 whose spin is now ≤ 0,
@@ -2813,7 +2813,7 @@ The game's world collision step (0x5FFA60) runs after the cars have moved.
     B on, the vertical part ±0.15). A → B runs between the bodies' positions at
     the moment (vt+0x34 = 0x593290 from vt+0x08 = 0x593B50: car +0x60, the
     centre of mass), not the car origins (verified, the drag-rub pass 2026-11-04;
-    docs/tuning-physics-parity.md B).
+    docs/notes/parity/tuning-physics-parity.md B).
   * Resolution (0x5B2620): both cars back to the moment, the impulse,
     then each car simulates the rest of the frame from there.
   * Point and normal (0x594010): midway between the closest points; the
@@ -2822,7 +2822,7 @@ The game's world collision step (0x5FFA60) runs after the cars have moved.
     nothing between the time of impact's search (or the push-out) and
     0x5AF0F0, so they are that search's last query's, usually at another
     moment of the search than the one the bodies are moved back to (read
-    under Wine for a car–wall contact at 120 km/h, docs/prop-hits.md
+    under Wine for a car–wall contact at 120 km/h, docs/notes/parity/prop-hits.md
     section 7d). The clone does so for track and prop pairs; its car–car
     contact point is still measured again (**open**).
   * Impulse (0x5AF0F0, both bodies through their vtables): v = B's point
@@ -2957,7 +2957,7 @@ The game's world collision step (0x5FFA60) runs after the cars have moved.
     (0x5AF0F0) that I⁻¹ is the **body-space** tensor applied to the world
     r × n unturned (0x5B1C50 → +0x1B0, product 0x43C9C0), as for a car
     (0x593A50); only the rigid body's own updates turn it. **Verified**
-    and observed (docs/drag-stage4-parity.md §7.1: a Skyline through
+    and observed (docs/notes/parity/drag-stage4-parity.md §7.1: a Skyline through
     a yawed ZCS_FenceH took |J| 5.13 natively; the turned tensor gave 3.36,
     the unturned one 5.12).
   * Its frame (0x5B1DE0): the start pose and span saved (0x593220:
@@ -3404,7 +3404,7 @@ The game's world collision step (0x5FFA60) runs after the cars have moved.
       car's velocity, then 0x491E50(emitter, −1.0, owner key): a one-particle
       burst at the rate (XES_NOS_FlameA: rate 8, so 8 a frame). Kind 13 also
       fires kind 14. A turbo car also fires kind 10 scaled by the turbo
-      level in neutral (0x5F5F5F..0x5F608D, armed by +0x924) and at a shift (0x5EBE10 from Car_Frame): **ported** 2026-11-05, see docs/sparks-fire.md (`carfx_pops`). **Verified**
+      level in neutral (0x5F5F5F..0x5F608D, armed by +0x924) and at a shift (0x5EBE10 from Car_Frame): **ported** 2026-11-05, see docs/notes/graphics/sparks-fire.md (`carfx_pops`). **Verified**
       2026-11-04 (REA decompile of 0x615CD0, disassembly 0x639843..0x6398AF;
       internal notes): XES_NOS_FlameA's marker group (+0x5C)
       is 10, so its markers are render +0x548 + 0x50 = +0x598, the exhaust
@@ -3520,7 +3520,7 @@ The game's world collision step (0x5FFA60) runs after the cars have moved.
     from the next mix pass (`Audio::impacts`, one frame after the push —
     **inferred** equivalent to the original's zero start corrected at the
     next update; which 0x47BB30 caller serves the collision objects is
-    not traced) and, since the prop-hit fixes (docs/prop-hits.md), sets every playing layer to its
+    not traced) and, since the prop-hit fixes (docs/notes/parity/prop-hits.md), sets every playing layer to its
     volume × V >> 15 again each frame with V its copy's level that frame
     (0x47BB30 → 0x46CF70; observed under Wine: the AEMS_StichCollision
     layers' volumes fall with the object's +0xC0 as the car leaves, and
@@ -3533,7 +3533,7 @@ The game's world collision step (0x5FFA60) runs after the cars have moved.
     SFXObj_Speech f1, 0x4751A0) — so a line playing outside game state 3
     ducks every collision object 900 mB: 12999 → 4617 (kinds 7–8), 16365
     → 5812 (1–5), as read under Wine; test
-    `mixmap::tests::impacts_duck_while_rachel_speaks` (docs/prop-hits.md §6).
+    `mixmap::tests::impacts_duck_while_rachel_speaks` (docs/notes/parity/prop-hits.md §6).
     **Inferred**: +6 in milliseconds, every clone car having a sound object
     (flag 1), the sound object (and its copy) living while its record or
     its layers do. **Open**: the

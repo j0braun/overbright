@@ -1,4 +1,4 @@
-// Sparks & Fire, Next-Gen (docs/sparks-fire.md): the lights' splat,
+// Sparks & Fire, Next-Gen (docs/notes/graphics/sparks-fire.md): the lights' splat,
 // the flames' heat haze, the sparks' streaks and the flames.
 
 struct Frame {

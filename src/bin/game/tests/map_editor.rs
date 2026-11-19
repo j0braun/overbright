@@ -1,4 +1,4 @@
-//! The free camera in the game (docs/map-editor.md): unreachable without
+//! The free camera in the game (docs/modding/map-editor.md): unreachable without
 //! `--editor`; with it, F8 in free roam opens it over the paused world, the
 //! held keys fly it, the wheel and Z / X set its speed and field of view, G
 //! puts the car at its aim point; a custom race runs its own route.

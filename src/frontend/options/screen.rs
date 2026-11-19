@@ -333,7 +333,7 @@ impl OptionsScreen {
 impl OptionsScreen {
     /// HDR Output's calibration page (the Display group: the settings
     /// page's and the graphics group page's): the display transform draws
-    /// its test pattern while it is open (docs/hdr.md "Calibration").
+    /// its test pattern while it is open (docs/playing/hdr.md "Calibration").
     pub fn calibrating(&self) -> bool {
         matches!(
             self.category,

@@ -1,4 +1,4 @@
-//! Volumetric Fog (docs/atmosphere.md; a **clone deviation**, opt-in;
+//! Volumetric Fog (docs/notes/graphics/atmosphere.md; a **clone deviation**, opt-in;
 //! SPEED2.EXE has no such pass: its fog is world.efx's per-vertex fog and
 //! the horizon fog grid). Every tier (Low, High, Next-Gen) is the one froxel
 //! medium, [`crate::render::atmosphere::Atmosphere`], at the tier's grid, range

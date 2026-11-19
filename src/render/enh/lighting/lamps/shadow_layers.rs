@@ -210,7 +210,7 @@ impl WorldCore {
     }
 }
 
-/// docs/atmosphere.md: this frame's lamp shadow layers for the
+/// docs/notes/graphics/atmosphere.md: this frame's lamp shadow layers for the
 /// Next-Gen atmosphere's light shafts: the maps (a 2D array view), each
 /// layer's view, and the lamp each lamp layer holds (an index into
 /// [`WorldRenderer::lamp_list`]); the last layer is the headlight's.

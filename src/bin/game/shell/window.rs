@@ -95,7 +95,7 @@ pub(crate) struct WindowState {
     /// The last frame's acquire and settle, their starts and ends.
     pub(crate) acquired: Option<(Instant, Instant)>,
     pub(crate) settled: Option<(Instant, Instant)>,
-    /// HDR Output (docs/hdr.md; clone deviation): the signal the surface
+    /// HDR Output (docs/playing/hdr.md; clone deviation): the signal the surface
     /// offers (None: SDR only; headless: `NFSU2_HDR_FAKE`), and while it is
     /// on, the display transform and its frame texture.
     pub(crate) hdr_offered: Option<nfsu2::render::hdr_output::Signal>,
@@ -311,7 +311,7 @@ impl Game {
         // The system cursor is hidden over the window: the game draws its
         // own (0x50B460) where it shows one. The original hides it in full
         // screen only (0x5D269F: SetCursor(0), ShowCursor(0) when 0x87098C
-        // is 0); windowed too here (agreed deviation, docs/native-deviations.md "Mouse cursor": no system arrow over
+        // is 0); windowed too here (agreed deviation, docs/playing/native-deviations.md "Mouse cursor": no system arrow over
         // the game, none at all before the menus and while driving).
         window.set_cursor_visible(false);
         drop(made);
@@ -410,7 +410,7 @@ impl Game {
             // Kept for `game --prepare`, which has no window to ask.
             nfsu2::render::display::record_window_format(format);
         }
-        // HDR Output (docs/hdr.md): the HDR signal this surface can carry
+        // HDR Output (docs/playing/hdr.md): the HDR signal this surface can carry
         // (the Display page's row is greyed without one) and what the
         // display reports for its calibration's Auto values.
         let offered = nfsu2::render::hdr_output::choose(&caps);
@@ -705,7 +705,7 @@ pub(crate) struct Platform {
     /// The quit question was answered Quit Game: the event loop ends.
     pub(crate) quit_app: bool,
     /// F3: the performance overlay (not a game feature; the clone's own,
-    /// `nfsu2::overlay`, docs/perf-overlay.md).
+    /// `nfsu2::overlay`, docs/notes/performance/overlay.md).
     pub(crate) perf_overlay: nfsu2::overlay::Overlay,
     /// The front end's mouse, sampled once a frame (`mouse::fe_mouse`).
     pub(crate) mouse: nfsu2::frontend::mouse::Mouse,

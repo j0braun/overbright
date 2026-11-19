@@ -825,7 +825,7 @@ subject chapter, not here.
   a car's slot maps to `Car<n>`, is not traced; the clone holds the grid.
   The event track's SEQ_CAR_NITRO / CAR_AUDIO_PATTERN / CAR_TRIGGER_EFFECT /
   CAR_HYDRAULIC_* / SEQ_CAR_BURNOUT events are not ported (SCREEN_FLASH is
-  since the visual-rating parity: docs/nis-mover.md "SCREEN_FLASH", `screen_flash`).
+  since the visual-rating parity: docs/original/nis-mover.md "SCREEN_FLASH", `screen_flash`).
 
 ## Front-end menu audit against the original (2026-10-29)
 
@@ -1652,7 +1652,7 @@ S2_SPRINT_3 by moving the car through memory onto its finish line
   car changed since 0x552CD0's snapshot (0x52A4D0 on 0x83A9D0), else
   0x461A18EE leaves at once; without one it always comes. Round 3's
   "would always come" is corrected. **Ported** 2026-11-04 (menus pass,
-  observed under Wine: docs/save-points.md "Customize's dyno save point"). 0x4F059D
+  observed under Wine: docs/original/save-points.md "Customize's dyno save point"). 0x4F059D
   (mode 0x12141) lies outside any analysed function; it is not ported
   (**open** whether it is reachable offline).
 
@@ -3161,7 +3161,7 @@ Quick Race HUDs.
   and prompts on) the post-race save point asked "Do you want to overwrite…" then, on No,
   "Are you sure you want to save the profile named the finished-career save?", and the autosave flag 0x844AD9 read
   0 afterwards (the MC result handler 0x4C6589 writes it); the clone goes on after the No.
-  **Fixed 2026-11-04**: traced and ported, see docs/save-points.md. (2) The in-game World Map / minimap in the D-Day intro: the original
+  **Fixed 2026-11-04**: traced and ported, see docs/original/save-points.md. (2) The in-game World Map / minimap in the D-Day intro: the original
   (script run) lists Car Lot, Circuit, Sprint with the GPS on; the clone's career_start.sav
   shot has not run the script (state not matched). (3) The free-roam engage widget with the
   shop marker, the loading screen (too short at full speed to catch), sponsors, tournaments,
@@ -3476,11 +3476,11 @@ docs/native-fixes/N-FE-2.tsv; tests in `src/bin/game/tests/native_fe_part2.rs`,
   update instead of the drawn frame's wall time.
 * **Front-end clock** (0x5662F9, 0x558DAB): unchanged; the original's
   per-frame truncation and 20 ms cap are rate dependences left out on
-  purpose (equal at a steady 60 fps; docs/native-deviations.md).
+  purpose (equal at a steady 60 fps; docs/playing/native-deviations.md).
 * **Engage message** (0x512620 from 0x4B551B): none for stage 0, then SUV
   (9), sponsor sets, URL (12), kind sets; one 0x43C1C0(n) + 1 draw at the
-  dialog's set-up, on the shared generator `Game::rng` (docs/rng.md: the clone's
-  career generator is gone; docs/rng.md).
+  dialog's set-up, on the shared generator `Game::rng` (docs/original/rng.md: the clone's
+  career generator is gone; docs/original/rng.md).
 * **Default Settings**: above detail 3 a score-5 card gets 800 × 600
   (0x5BE9B6); the ATI FSAA clear needs Win9x; the CPU tier reads cpufreq
   `base_frequency` first and gives tier 1 to non-Intel/AMD vendors
@@ -3507,7 +3507,7 @@ One row per item in docs/native-fixes/FE-3.tsv; tests in
 * **Menu timers on the real-time clock 0x8651A8**: LAN's search, the
   splash's 30 s and "Press Enter", the cursor's 2 s, the EA Trax caption's
   GO / end, the lots' 0.3 s car request; the help bar's cycle on its own
-  countdown. Table and addresses: docs/uncapped-fps.md "Menu timers on the
+  countdown. Table and addresses: docs/original/uncapped-fps.md "Menu timers on the
   real-time clock".
 * **Specialties and neon purchase questions** (`Game::ice_part_question`).
   UI_ICEMAIN in a list (+0x169) forwards Select to its overlay
@@ -3547,7 +3547,7 @@ One row per item in docs/native-fixes/FE-3.tsv; tests in
 * **Garage before the tick's sounds**: GarageMain's update 0x4D82D0 (step
   15 of 0x5811D0, from 0x5663C0) and the camera movers (0x44EFE0, 17)
   before the AudioManager (0x483B40, 18); the hydraulics' sounds from
-  0x4D8BB6 → 0x4A6030 in that update. docs/uncapped-fps.md "Front end out
+  0x4D8BB6 → 0x4A6030 in that update. docs/original/uncapped-fps.md "Front end out
   of the draw".
 * **Exit**: WM_CLOSE 0x5CCE6C → 0x864F48, 0x5811D0 returns, 0x5CF970,
-  exit(0); nothing saved at quit. docs/exit.md.
+  exit(0); nothing saved at quit. docs/original/exit.md.

@@ -53,7 +53,7 @@ impl EncounterDraw {
         // Check aid (not native): NFSU2_ENCOUNTER_CAR=NAME:ROW makes
         // every encounter racer that car type and skill row, after the
         // draws, for like-for-like comparisons with a native capture
-        // (docs/outrun.md, Live comparison).
+        // (docs/original/outrun.md, Live comparison).
         if let Some((name, r)) = debug_env().encounter_car.clone().as_deref().and_then(|v| v.split_once(':'))
             && let Some(k) = car_types.iter().position(|t| t.name.eq_ignore_ascii_case(name))
         {
@@ -63,7 +63,7 @@ impl EncounterDraw {
         }
         // No seed of the racer's own is drawn: per racer the original
         // makes the 26-car shuffle, the paint, the neon part and the skill
-        // row (**measured**, the sequence log, docs/rng.md).
+        // row (**measured**, the sequence log, docs/original/rng.md).
         Some((c, ride.installed, row, 0))
     }
 

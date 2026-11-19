@@ -414,10 +414,10 @@ impl<'a> CarBuild<'a> {
                 add_shared_part_solids(&file, &wanted, &mut solids)?;
             }
         }
-        // Fix Original Model Errors (opt-in; docs/model-fixes.md): no-op
+        // Fix Original Model Errors (opt-in; docs/notes/graphics/model-fixes.md): no-op
         // when off.
         crate::model_fixes::apply(&mut solids, &|h| light_materials.get(&h).map(|l| l.name.clone()));
-        // Smooth Car Shapes (opt-in; docs/assets-distance.md): no-op when
+        // Smooth Car Shapes (opt-in; docs/notes/graphics/assets-distance.md): no-op when
         // off; after the fixes, which work on the files' vertices.
         if crate::car_smooth::enabled() {
             // Only the fitted parts' models (every LOD's hash; the pass

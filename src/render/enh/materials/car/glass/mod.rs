@@ -1,4 +1,4 @@
-//! Enhanced Glass (clone deviation, opt-in; docs/lighting2.md): the
+//! Enhanced Glass (clone deviation, opt-in; docs/notes/graphics/lighting2.md): the
 //! car's glass draws — the window glass (WINDSHIELD, WINDOWMASK and the
 //! WINDSHIELD_TINT_* materials the Window Tint part picks, 0x638DC5) and
 //! the lamp covers (CLEARPLASTIC, HEADLIGHTGLASS), all alpha-blended in
@@ -171,7 +171,7 @@ impl GlassShared {
                 })
             });
         let make = |kind: f64| {
-            // matrix, docs/settings-model.md: the glass module is not
+            // matrix, docs/developing/settings-model.md: the glass module is not
             // the mip-biased one (temporal::biased_source), so the scene's
             // `MIP_BIAS` (TAA Upscaling / FSR 2 below the screen's size) is
             // not its constant; passing it failed pipeline creation (a
@@ -437,7 +437,7 @@ impl CarRenderer {
 
 /// The pipelines [`record_glass`] uses for a scene of `format` × `samples`
 /// with `opts` (both wet states with Wet Car on), made now: a drive's
-/// warm-up (docs/first-use-builds.md). Nothing is drawn.
+/// warm-up (docs/developing/first-use-builds.md). Nothing is drawn.
 pub(crate) fn warm(gpu: &Gpu, format: wgpu::TextureFormat, samples: u32, opts: &crate::render::RenderOptions) {
     let shared = gpu.car_shared();
     let device = &gpu.device;

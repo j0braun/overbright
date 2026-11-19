@@ -5,7 +5,7 @@ use crate::formats::camera_tracks::{CameraEntry, CameraGroup, CameraKind};
 use crate::opponents::GameRng;
 use crate::render::camera::Camera;
 
-// --- The typed track cameras (docs/replay-cameras.md) -----------------
+// --- The typed track cameras (docs/notes/parity/replay-cameras.md) -----------------
 
 /// The typed camera kinds by their group key (the runtime table 0x7EC1F8,
 /// 0x14 bytes {—, key, name, weight fn, flag fn}; **observed** filled under

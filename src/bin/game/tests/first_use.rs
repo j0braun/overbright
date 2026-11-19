@@ -1,4 +1,4 @@
-//! First use (docs/first-use-builds.md): after a drive's load, no drawn
+//! First use (docs/developing/first-use-builds.md): after a drive's load, no drawn
 //! frame makes a pipeline or a shader module; their programs are made by
 //! the load's warm-up, and when a Graphics row changes, by the settings
 //! warm-up before the frame that draws with them. A real free roam and a
@@ -92,7 +92,7 @@ fn a_loaded_drive_draws_without_making_programs() {
     }
 }
 
-/// The lamps' light-cluster loop in its two forms (docs/lamps-shadows.md
+/// The lamps' light-cluster loop in its two forms (docs/notes/graphics/lamps-shadows.md
 /// "The cluster loop"): a device with subgroup operations takes the
 /// subgroup form, one made without them (`NFSU2_GPU_DROP=subgroup`, as DX12
 /// through FXC is) the plain loop. At the High and Ultra presets
@@ -870,7 +870,7 @@ fn the_shops_garage_scenes_after_a_load_make_no_program() {
 /// over the line half a second behind it. The ending's pictures are not
 /// compared: two identical runs in one process already differ in some of
 /// the ending's frames (the whole frame's brightness), whatever this
-/// change does (docs/first-use-builds.md "Car renderers ahead").
+/// change does (docs/developing/first-use-builds.md "Car renderers ahead").
 #[test]
 #[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
 fn a_lost_race_ending_takes_the_companion_built_ahead() {
@@ -1011,7 +1011,7 @@ fn ambient_props_made_ahead_reach_the_first_frame() {
     }
 }
 
-/// The SSR mask from the main view (docs/wet-roads-ssr.md "The mask from the main view"): the Enhanced level
+/// The SSR mask from the main view (docs/notes/graphics/reflections.md "The mask from the main view"): the Enhanced level
 /// High (Screen-Space Reflections, the lamps' depth pre-pass) at one sample (the native Full Screen
 /// Anti-Aliasing off), in the rain from the first frame: the main view's road pipelines with the mask's
 /// targets and the mask pass's road are made by the load, nothing in the frames; and the frames took them.

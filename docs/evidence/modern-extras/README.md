@@ -1,4 +1,4 @@
-# This page evidence: modern extras (docs/modern-extras.md)
+# This page evidence: modern extras (docs/playing/modern-extras.md)
 
 Clone frames and numbers only (none of this is in SPEED2.EXE; nothing to
 compare under Wine). reference desktop GPU, World Detail 5 (native 8x MSAA); the
@@ -18,4 +18,4 @@ average 15–370 during these runs).
 
 Smooth slow motion (`NFSU2_REPLAY_SMOOTH_PROBE=144 NFSU2_REPLAY_SLOW=1|0.5|0.25`,
 `--bench replay 10`, NFSU2_BENCH_ENH="enh.replay_cameras 1"): numbers in
-docs/modern-extras.md §3.
+docs/playing/modern-extras.md §3.

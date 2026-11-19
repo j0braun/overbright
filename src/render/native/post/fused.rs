@@ -33,7 +33,7 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
 
 /// The self-check's verdict file for this adapter, driver and build, in
 /// the asset cache's folder (`cache::dir`: `NFSU2_CACHE_DIR` first, none
-/// with `NFSU2_NO_CACHE`; docs/asset-cache.md). None: no cache.
+/// with `NFSU2_NO_CACHE`; docs/developing/asset-cache.md). None: no cache.
 pub(super) fn check_cache_file(gpu: &Gpu) -> Option<std::path::PathBuf> {
     let base = crate::cache::dir()?;
     let info = gpu.adapter.get_info();
@@ -48,7 +48,7 @@ pub(super) fn check_cache_file(gpu: &Gpu) -> Option<std::path::PathBuf> {
 /// the adapter and driver (`adapter`), the shader texts the check runs and
 /// what the check compares (`NFSU2_CHECK_STAGES`' passes, the `q`
 /// variants tried); the build id (every library source, as the cache's
-/// entries: docs/asset-cache.md) to the code that judges it, so a change
+/// entries: docs/developing/asset-cache.md) to the code that judges it, so a change
 /// of the check's logic with the same shader text reads no old verdict.
 pub(super) fn check_cache_path(
     base: &std::path::Path,

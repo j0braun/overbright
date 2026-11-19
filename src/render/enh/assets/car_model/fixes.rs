@@ -1,4 +1,4 @@
-//! Fix Original Model Errors (opt-in, Enhancements; docs/model-fixes.md).
+//! Fix Original Model Errors (opt-in, Enhancements; docs/notes/graphics/model-fixes.md).
 //!
 //! Small corrections of errors in the shipped car models, applied when a
 //! car is loaded, to the player's own files' data: nothing from any mod is
@@ -9,7 +9,7 @@
 //!
 //! The errors were found by the private developer probe `model_scan` and confirmed in
 //! close-ups of the clone and of SPEED2.EXE under Wine (main-menu
-//! Customize); see docs/model-fixes.md for the evidence.
+//! Customize); see docs/notes/graphics/model-fixes.md for the evidence.
 use crate::formats::hash::bin_hash;
 use crate::formats::solid::Solid;
 

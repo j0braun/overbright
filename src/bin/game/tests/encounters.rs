@@ -1,5 +1,5 @@
 use crate::*;
-// The test kit (tests/common/mod.rs, docs/testing.md).
+// The test kit (tests/common/mod.rs, docs/developing/testing.md).
 #[path = "../../../../tests/common/mod.rs"]
 mod testkit;
 
@@ -7,7 +7,7 @@ mod testkit;
 /// of the loaded, performance-matched cars (0x5DDFD0 reads the racers'
 /// matched performance), not the stock car types' (under Wine the
 /// finished-career save gave class 0 with stock-class-3 cars;
-/// docs/outrun-ai-strength.md).
+/// docs/notes/outrun/ai-strength.md).
 #[test]
 #[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
 fn encounter_class_comes_from_the_upgraded_cars() {
@@ -455,7 +455,7 @@ fn encounter_controller_full_fallback_and_reset_lifecycle() {
     assert!(!r.controller.suspended);
     assert_eq!(r.controller.schedule.last_tick, last_tick);
     assert!(r.controller.actions.is_some(), "placement retains the action");
-    // docs/outrun-ai-strength.md §3: the chase search's origin is
+    // docs/notes/outrun/ai-strength.md §3: the chase search's origin is
     // a record's first point travelled backward (the traced spot); the
     // list ends at it and the car is past its end. 0x428720 returns
     // false: the full think keeps its output (race 7, goal +1C), no
@@ -558,7 +558,7 @@ fn outrun_variety_redraws_a_parked_racer() {
     let mut game = finished_career_game();
     game.explore(None).unwrap();
     let before = line_up(&mut game);
-    // It sets the Outrun Variety global (docs/test-determinism.md).
+    // It sets the Outrun Variety global (docs/developing/test-determinism.md).
     super::test_isolation::exclusive();
     nfsu2::qol::set_outrun_variety(false);
     game.sim.encounters.as_mut().unwrap().cars[1].active = true;

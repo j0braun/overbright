@@ -1,7 +1,7 @@
 //! A world kept for the next drive draws what a fresh load of the same spot
 //! draws: Lamp Shadows' layers and Light Probes' field follow the new
-//! drive's barriers (docs/ambient-detail.md "Kept-world caches",
-//! docs/lamps-shadows.md, docs/lighting2.md).
+//! drive's barriers (docs/notes/graphics/ambient-detail.md "Kept-world caches",
+//! docs/notes/graphics/lamps-shadows.md, docs/notes/graphics/lighting2.md).
 use super::*;
 
 const SIZE: (u32, u32) = (320, 240);
@@ -373,7 +373,7 @@ fn light_probes_follow_a_kept_drives_barriers() {
 /// The GPU time Light Probes take (GPU timestamps, `prof::gpu`) in a kept
 /// drive's first frame and its next nine, after the set-ups of
 /// [`light_probes_follow_a_kept_drives_barriers`] and after the same
-/// set-up again (nothing switched). A measuring aid (docs/lighting2.md).
+/// set-up again (nothing switched). A measuring aid (docs/notes/graphics/lighting2.md).
 #[test]
 #[ignore = "a measuring aid (GPU timestamps); run with --ignored and NFSU2_ROOT"]
 fn light_probes_rebake_cost() {

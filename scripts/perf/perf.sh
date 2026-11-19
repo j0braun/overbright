@@ -1,5 +1,5 @@
 #!/bin/bash
-# Performance harness and parity gates (docs/perf-gates.md).
+# Performance harness and parity gates (docs/developing/perf-gates.md).
 #
 #   perf.sh build  SRC OUT_BIN                 full release profile (thin LTO, cgu 1; never the fast-build env)
 #   perf.sh bench  OUT LABEL=BIN[:nojson] …    the benchmark set, interleaved, NFSU2_BENCH_JSON per run
@@ -39,7 +39,7 @@ ULTRA="$MODERN;enh.post_aa 6;enh.hdr_post 2;enh.road_reflection 2;enh.car_reflec
 # EXTREME_FSR the same with FSR 1 instead of TAA. Gate them with ENH_PRESETS="extreme extreme_fsr" GATES=enhanced.
 EXTREME="$ULTRA;enh.particles 2;enh.water 1;enh.wet_car 1;enh.rain_detail 2;enh.spray 1;enh.lens_drops 1;enh.wet_interaction 2;enh.motion_blur 2;enh.depth_of_field 1;enh.headlight_beams 1;enh.light_probes 1;enh.enhanced_glass 1;enh.surface_detail 2;enh.smooth_cars 1;enh.far_draw 1"
 EXTREME_FSR="$EXTREME;enh.post_aa 5;enh.upscale 5"
-# docs/perf-budget.md: ULTRA26 = Preset::Ultra (qol.rs) as of the first budget table (the older ULTRA above is kept
+# docs/notes/performance/budget.md: ULTRA26 = Preset::Ultra (qol.rs) as of the first budget table (the older ULTRA above is kept
 # for the stored numbers); USER = a play setup (enh.* graphics lines and World Detail custom values), machine-local:
 # $PRESET_user (scripts/local.env; the presets user and max need it); MAX = USER plus every newer row at its top
 # tier (MAX_ROWS: Modern Lighting + RT, Cinematic smoke, Realistic water, Wet Road High, Rain Detail High, the
@@ -126,7 +126,7 @@ run_one() {
     local enh; enh=$(preset_enh "$preset") || exit 2
     [ "$preset" = orig ] || env+=(NFSU2_BENCH_ENH="$enh")
     [ "$scene" = rain ] && { scene=drive; env+=(NFSU2_RAIN_CLOCK=162); }
-    # Scene water = explore with the camera orbiting the Beacon Hill fountain steps (docs/water.md's
+    # Scene water = explore with the camera orbiting the Beacon Hill fountain steps (docs/notes/graphics/water.md's
     # worst case N, the maintainer's private capture).
     if [ "$scene" = water ]; then
       scene=explore
@@ -205,7 +205,7 @@ cmd_bench() {
   local n=${#labels[@]}
   for rep in $(seq 1 "$REPS"); do
     # ORDER=alternate runs the configs backwards on even repetitions (a slow drift of the machine
-    # then hits a config's neighbours alike; for sets compared config against config, docs/perf-budget.md).
+    # then hits a config's neighbours alike; for sets compared config against config, docs/notes/performance/budget.md).
     local order=$cfgs; [ "${ORDER:-}" = alternate ] && [ $((rep % 2)) = 0 ] && order=$(echo $cfgs | tr ' ' '\n' | tac)
     for cfg in $order; do
       # Arms adjacent per config, their order rotated each repetition.
@@ -323,7 +323,7 @@ cmd_parity() {
   ck_need_root
   # RADV's delta colour compression on the multisampled scene changes one pixel of a frame by up to 3
   # in ~2 % of frames, base vs base (never with DCC off, which gives the majority image every time;
-  # docs/perf-gates.md). The gates compare with it off; the benches keep the driver's default.
+  # docs/developing/perf-gates.md). The gates compare with it off; the benches keep the driver's default.
   # PARITY_RADV_DEBUG= (empty) keeps DCC. Only Mesa's RADV reads the variable.
   export RADV_DEBUG=${PARITY_RADV_DEBUG-nodcc}
   PIXDIFF=${PIXDIFF:-$(dirname "$NEW")/pixdiff}
@@ -475,7 +475,7 @@ sim_gates() {
 }
 
 # ---- rate gate ---------------------------------------------------------------
-# rate_gates OUT BIN (rate gate v2; docs/checks.md "Rate gate"): the project rule "gameplay and look identical
+# rate_gates OUT BIN (rate gate v2; docs/developing/checks.md "Rate gate"): the project rule "gameplay and look identical
 # at 30, 60, 120, 200 fps". NEW against itself across display schedules, never base vs new. Each flow of
 # RATE_FLOWS runs once per schedule of RATES (default "30 60 120 200") plus RATE_JITTER (default "jitter:7"; empty:
 # none) plus a second run at RATE_REF (the control "ctl": columns that differ run to run are marked "nd"; RATE_CONTROL=0
@@ -643,7 +643,7 @@ cmd_rate() {
 cmd_profile() {
   local out=${1:?OUT} src=${2:?SRC} scene=${3:?SCENE} preset=${4:-orig} frames=${5:-3000}
   local samply=${SAMPLY:-$(command -v samply)}
-  [ -n "$samply" ] && [ -x "$samply" ] || die "no samply (put samply 0.13.1 on PATH or set SAMPLY; docs/perf-gates.md: the perf_group patch)"
+  [ -n "$samply" ] && [ -x "$samply" ] || die "no samply (put samply 0.13.1 on PATH or set SAMPLY; docs/developing/perf-gates.md: the perf_group patch)"
   ck_need_root
   local enh; enh=$(preset_enh "$preset") || exit 2
   mkdir -p "$out"

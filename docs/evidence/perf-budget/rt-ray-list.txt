@@ -1,4 +1,4 @@
-Ray-traced reflections: the rays from a list in a compute pass (docs/rt-reflections.md "The ray list")
+Ray-traced reflections: the rays from a list in a compute pass (docs/notes/graphics/reflections.md "The ray list")
 Reference desktop GPU (RADV, Vulkan), 3840x2160, the play setup: SSAA 2x, Ray Traced
 reflections, Modern + RT lighting, every other row as the player has it (World Detail values incl.).
 Base = the tree before this change; new = with it. Shots `--shot <target>` at 3840x2160, bench `--bench`.

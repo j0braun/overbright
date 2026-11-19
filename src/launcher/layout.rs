@@ -92,6 +92,9 @@ pub struct Builder<'a> {
     /// The room left between the content and a footer at the window's
     /// bottom (px), for a growing list.
     pub slack: f32,
+    /// A footer of buttons set [`Builder::slack`] (else the slab's end
+    /// does, [`Builder::footer_legends`]).
+    pub footer_set: bool,
     /// The page has look A's frame ([`Builder::top_bar`]): the slab, the
     /// footer legends.
     pub framed: bool,
@@ -144,6 +147,7 @@ impl<'a> Builder<'a> {
             content: None,
             grow: 0,
             slack: 0.0,
+            footer_set: false,
             framed: false,
             slab: None,
             scene: super::backdrop::Scene::Plain,
@@ -823,6 +827,9 @@ impl<'a> Builder<'a> {
     /// legends at the right.
     pub fn footer_legends(&mut self, version: &str, actions: Vec<super::legends::Action>) {
         self.content_end();
+        if !self.footer_set && self.slab.is_some() {
+            self.slack = (self.m.h - self.ac(SLAB_BOTTOM) - self.y - self.a(20.0)).max(0.0);
+        }
         self.slab_end();
         let t = super::draw::theme();
         let slab_bottom = self.slab.map_or(self.y, |i| self.widgets[i].rect.bottom());
@@ -959,6 +966,39 @@ impl<'a> Builder<'a> {
         self.y += h + self.m.s(8.0);
     }
 
+    /// A summary row: its lamp, the area's name in a column `label_w`
+    /// wide (px) and its value, on one line (the value shortened at its
+    /// end). With an id it takes focus and is pressed like a link.
+    pub fn lamp_row(&mut self, id: Option<Id>, mark: Mark, label: &str, label_w: f32, value: &str) {
+        let size = self.m.body();
+        let lh = self.lh(size);
+        let pad = self.m.s(6.0);
+        let is = (lh * 0.85).round();
+        let x = self.x0 + self.m.s(8.0);
+        let icon = Rect::new(x, self.y + pad + (lh - is) / 2.0, is, is);
+        let lx = x + is + self.m.s(12.0);
+        let w = (self.x0 + self.measure()).min(self.x1);
+        let l = self.fonts.fit(Face::Bold, size, label, label_w, Cut::End);
+        let lw = self.fonts.width(Face::Bold, size, &l);
+        let vx = lx + label_w + self.m.s(16.0);
+        let v = self.fonts.fit(Face::Regular, size, value, (w - self.m.s(8.0) - vx).max(0.0), Cut::End);
+        let vw = self.fonts.width(Face::Regular, size, &v);
+        let ty = self.y + pad;
+        let texts = vec![
+            text(Rect::new(lx, ty, lw, lh), l, Face::Bold, size, theme::TEXT),
+            super::ui::text_of(Rect::new(vx, ty, vw, lh), v, value, Face::Regular, size, theme::TEXT),
+        ];
+        let h = lh + 2.0 * pad;
+        self.push(id, Rect::new(self.x0, self.y, w - self.x0, h), Kind::Status { mark, icon }, texts);
+        self.y += h + self.m.s(2.0);
+    }
+
+    /// The widest of `labels` in [`Builder::lamp_row`]'s face (px).
+    pub fn lamp_label_w(&self, labels: &[&str]) -> f32 {
+        let size = self.m.body();
+        labels.iter().map(|l| self.fonts.width(Face::Bold, size, l)).fold(0.0, f32::max).ceil()
+    }
+
     /// A progress bar across the content, `fraction` (0..1) of it filled.
     pub fn bar(&mut self, fraction: f32) {
         let h = self.m.s(10.0).round().max(4.0);
@@ -1013,6 +1053,7 @@ impl<'a> Builder<'a> {
         let probe_h = self.flow_height(ctrls.clone());
         let at_bottom = self.bottom_limit() - probe_h;
         self.slack = (at_bottom - self.y - self.m.s(16.0)).max(0.0);
+        self.footer_set = true;
         let y = at_bottom.max(self.y + self.m.s(16.0));
         self.y = self.flow(self.x0, y, ctrls, Align::Right);
     }
@@ -1033,6 +1074,7 @@ impl<'a> Builder<'a> {
         let ch = self.ctrl_h();
         let limit = self.bottom_limit();
         self.slack = (limit - ch - self.y - self.m.s(16.0)).max(0.0);
+        self.footer_set = true;
         let y = (limit - ch).max(self.y + self.m.s(16.0));
         let bl = self.flow(self.x0, y, left, Align::Left);
         let br = self.flow(self.x1 - rw, y, right, Align::Right);

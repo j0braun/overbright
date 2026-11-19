@@ -1,4 +1,4 @@
-# Lamps and shadows evidence (docs/lamps-shadows.md)
+# Lamps and shadows evidence (docs/notes/graphics/lamps-shadows.md)
 
 ## Before / after shots
 1920 × 1080 `--shot`, detail 5, WebP q88, per scene three images:

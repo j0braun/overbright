@@ -1,5 +1,5 @@
 #!/bin/bash
-# The Windows build under Wine, headless (docs/checks.md "Wine smoke", docs/platform-windows.md).
+# The Windows build under Wine, headless (docs/developing/checks.md "Wine smoke", docs/playing/platform-windows.md).
 #
 #   wine_smoke.sh OUTDIR [LINUX_BIN]            the smoke run (report-only in checks.sh full)
 #   wine_smoke.sh --selfcheck OUTDIR [LINUX_BIN] every check against a broken input: each must FAIL
@@ -24,7 +24,7 @@
 #   dx12_main   `--shot main` on DX12 (Wine's vkd3d): PASS within the tolerance; XFAIL when Wine's own FXC
 #               (d3dcompiler_47, vkd3d-shader) rejects wgpu's shader model 5.1 sampler heap and no DXC is
 #               given ($WINE_DXC_DIR: a folder with dxcompiler.dll [dxil.dll], copied next to the exe); else FAIL
-#   prepare     `--prepare` on Vulkan exits 0 with ok=1; `--probe` then says prepared=1 (docs/prepare.md)
+#   prepare     `--prepare` on Vulkan exits 0 with ok=1; `--probe` then says prepared=1 (docs/developing/prepare.md)
 #   dx12_prepare the same on DX12 (no pipeline cache on disk there); XFAIL as dx12_main without a DXC
 # The launcher (overbright.exe beside the build's game: $WINE_LAUNCHER, else dist/windows/overbright.exe; skipped
 # when there is none; LINUX_LAUNCHER, default $CARGO_TARGET_DIR/release/overbright, draws the references):
@@ -42,7 +42,7 @@
 #               chosen and a package added by clicks
 #   w_window    the game in its window (no flags, as a player starts it, without NFSU2_HEADLESS_ONLY; Vulkan through Mesa's software
 #               present, MESA_VK_WSI_DEBUG=sw: Xvfb has no DRI3): reads the monitor and its modes (a display
-#               mode without its fields must not stop it, docs/resolutions.md), starts and reaches the title
+#               mode without its fields must not stop it, docs/notes/graphics/resolutions.md), starts and reaches the title
 #               screen ("boot: the title screen"; Enter skips the boot movies), no panic line
 #   l_play      the launcher with "Start the game directly" set starts game.exe beside it: the game's own log
 #               (in the launcher's data folder) reaches the title screen, no panic line in either log
@@ -67,7 +67,7 @@
 # PID) are stopped. Nothing is killed by name; no window can reach the player's desktop: every Wine process gets
 # DISPLAY = our Xvfb, no WAYLAND_DISPLAY and XDG_RUNTIME_DIR = OUTDIR/xdg, the prefix is pinned to x11. The
 # windowed runs (w_window, l_play) drop NFSU2_HEADLESS_ONLY (checks.sh exports it); every other run sets it.
-# Not proved here: docs/checks.md "Wine smoke" (real drivers, DX12 on real hardware, NTFS, audio, pads,
+# Not proved here: docs/developing/checks.md "Wine smoke" (real drivers, DX12 on real hardware, NTFS, audio, pads,
 # pacing, fullscreen, DPI).
 set -u -o pipefail
 HERE=$(cd "$(dirname "$0")" && pwd)
@@ -167,7 +167,7 @@ check_selftest() { # EXE
   result selftest $ok "rc=$RC panic/validation=$BAD $SECS s: $(grep -v MESA "$O/selftest.log" | tail -1 | cut -c1-100)"
 }
 check_prepare() { # EXE
-  # `--prepare` on Vulkan: ends with ok=1 and its stamp, which `--probe` then reports (docs/prepare.md).
+  # `--prepare` on Vulkan: ends with ok=1 and its stamp, which `--probe` then reports (docs/developing/prepare.md).
   WENV=(WGPU_BACKEND=vulkan); wrun prepare 900 "$1" --prepare
   local ok=ok; [ $RC = 0 ] && grep -q '^ok=1' "$O/prepare.log" && [ "$BAD" = 0 ] || ok=no
   local what="rc=$RC panic/validation=$BAD $SECS s: $(grep -c '^step=' "$O/prepare.log") steps, $(grep -m1 -o '^pipeline_cache=[01]' "$O/prepare.log"), $(grep -m1 -o '^pipelines=[0-9]*' "$O/prepare.log")"
@@ -482,7 +482,7 @@ wait $!; ra=$?
 [ $ra = 0 ] || skip "the prefix's sound driver could not be switched off (rc=$ra, $O/wineboot.log): no Wine run without it"
 say "prefix $WINEPREFIX on Xvfb :$DNUM: wineboot rc=$rc, pinned to x11 rc=$rx, sound driver off rc=$ra $(( $(date +%s) - t )) s"
 ROOT_W=$(wp "$NFSU2_ROOT")
-# The private set (docs/testing.md "Private data") as Wine sees it: a harness built with it (in the container,
+# The private set (docs/developing/testing.md "Private data") as Wine sees it: a harness built with it (in the container,
 # from /src) looks for it there unless OB_PRIVATE names it; the repository holds it until it moves out.
 PRIV=${OB_PRIVATE:-$REPO}
 PRIV_W=$(wp "$PRIV")

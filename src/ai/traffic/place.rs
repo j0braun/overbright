@@ -30,6 +30,35 @@ pub const AHEAD_SPEED: f32 = 24.5865;
 /// controller, class 2; 1.0, 0x784250, for the rest).
 pub const TRAFFIC_THROTTLE_CAP: f32 = 1.0;
 
+/// How far a traffic car moves (2D, m) before its race coordinate (car
+/// +0x8FC) is taken again (**observed**, see [`race_coord_step`]).
+pub const COORD_STEP: f32 = 11.6;
+
+/// A traffic car's race coordinate (car +0x8FC) in a race, which the
+/// placer's keep test (0x417BB0 → 0x410DE0 → 0x409890), its spacing
+/// (0x411060) and the jam test (0x4112A0) read: `held` is the coordinate
+/// and where it was taken, `p` the car's place now; returns what it holds
+/// after this frame. **Observed** under Wine (Quick Race, traffic
+/// Maximum; +0x8FC of every traffic car polled with the harness: Bayview
+/// Bridge drag, 2 runs, 301 refreshes, and circuit 4014, 1 run, 378): a
+/// placed car's +0x8FC is its placement point's coordinate (+0x08) and
+/// then moves on in steps, each the car's place on the race road at that
+/// moment, taken after it has moved 11.1–12.1 m (2D) from where the last
+/// was taken: the same at 5 and at 20 m/s, so by distance, not by time;
+/// in between it stays. The player's +0x8FC moves on smoothly. So a car
+/// placed ~255 m ahead keeps its point's coordinate while the player
+/// closes in, and the next pass keeps it where the exact coordinate would
+/// park it. Which routine writes it is **not traced** (no store to
+/// displacement +0x8FC on a car base was found); the step as a distance
+/// from the last place it was taken is **inferred** from the observation.
+// prov: inferred ai.traffic.race_coord_step
+pub fn race_coord_step(held: Option<(f32, Vec2)>, p: Vec2, locate: impl FnOnce(Vec2) -> f32) -> (f32, Vec2) {
+    match held {
+        Some((c, at)) if p.distance(at) < COORD_STEP => (c, at),
+        _ => (locate(p), p),
+    }
+}
+
 /// The drag placement's search reach (0x7E9720, 250 m; 0x42E620 hands it
 /// to 0x417C60).
 pub const DRAG_REACH: f32 = 250.0;
@@ -113,7 +142,7 @@ pub fn drag_point(f: &RouteFile, pos: Option<Vec2>, coord: f32, reach: f32, flag
 /// The walk generator a new traffic lane takes (the clone's own: the
 /// original's route extension draws its junction odds on the world
 /// generator, 0x413C8E, which the clone's lanes do not share yet — open,
-/// docs/rng.md). Derived from the world generator's state without a draw:
+/// docs/original/rng.md). Derived from the world generator's state without a draw:
 /// a placement makes no `Rand_Int(0x7FFFFFFF)` (**measured**, the sequence
 /// log: the fill's and the placer's world draws end with the lane picks).
 pub(super) fn lane_stream(rng: &GameRng) -> GameRng {
@@ -741,6 +770,7 @@ impl TrafficLane {
                     last_turn: -99_999.0,
                     turned: None,
                     lead: (0, 0.0),
+                    xs: VecDeque::new(),
                     drag: false,
                 };
                 t.extend(f, ENTRY_REACH);
@@ -808,6 +838,7 @@ impl TrafficLane {
             last_turn: -99_999.0,
             turned: None,
             lead: (0, 0.0),
+            xs: VecDeque::new(),
             drag: true,
         };
         t.extend(f, ENTRY_REACH);
@@ -872,6 +903,7 @@ impl TrafficLane {
                 last_turn: -99_999.0,
                 turned: None,
                 lead: (0, 0.0),
+                xs: VecDeque::new(),
                 drag: true,
             };
             t.extend(f, ENTRY_REACH);
@@ -969,6 +1001,7 @@ impl TrafficLane {
                 last_turn: -99_999.0,
                 turned: None,
                 lead: (0, 0.0),
+                xs: VecDeque::new(),
                 drag: false,
             };
             t.extend(f, ENTRY_REACH);

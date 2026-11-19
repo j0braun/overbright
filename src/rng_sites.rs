@@ -1,7 +1,7 @@
 //! Native random draws whose values the clone does not use but whose stream
 //! advance it must make, so the shared generator (0x7EA624) and the world
 //! generator (world +0xF8) step as the original's do (
-//! `docs/rng.md`, docs/native-fixes/N-RNG.tsv). Each routine names the
+//! `docs/original/rng.md`, docs/native-fixes/N-RNG.tsv). Each routine names the
 //! original's call sites; the values a routine returns are the original's
 //! where the clone has a reader for them.
 
@@ -81,7 +81,7 @@ pub fn director(rng: &mut GameRng) {
 /// this value, so it does not reach the contact (`narrow`); only the
 /// stream advance is native. For the collision code to call once per
 /// support taken (docs/native-fixes/N-RNG.tsv; not wired: the clone's
-/// shared generator already misses other draws, docs/rng.md).
+/// shared generator already misses other draws, docs/original/rng.md).
 pub fn hull_support_start(rng: &mut GameRng, vertices: usize) -> usize {
     let r = rng.below(0xFFFF) as usize;
     if vertices == 0 { 0 } else { r % vertices }
@@ -125,7 +125,7 @@ pub fn honk(rng: &mut GameRng, closing: f32, traffic: bool) {
 /// only the draw is kept. One per render info built: every world car's
 /// (0x63A5B0, from the car's attach 0x601120 and the model refresh
 /// 0x5F4660) and every front-end car's (0x63A660). **Measured** (the
-/// sequence log, docs/rng.md): the main menu's car, the world cars after
+/// sequence log, docs/original/rng.md): the main menu's car, the world cars after
 /// a world build's rain set-up (the player and the other racers), one per
 /// car the traffic fill places, and one per placed traffic car again after
 /// Traffic_AssignModels (its model given).
@@ -135,7 +135,7 @@ pub fn render_info(rng: &mut GameRng) {
 
 /// The in-game audio objects' set-up draws on the shared generator, made
 /// only with the sound on (**measured**, the sequence log of the original
-/// with sound, docs/rng.md). The clone has no counterpart for these
+/// with sound, docs/original/rng.md). The clone has no counterpart for these
 /// objects' state, so only the draws are kept.
 pub mod audio_setup {
     use crate::opponents::GameRng;

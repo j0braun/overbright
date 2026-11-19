@@ -1,7 +1,7 @@
 use super::*;
 
 /// A scoped variable's folders: one path, or several separated like PATH
-/// (`:` on Unix; docs/texmod-import.md), the first that has a file
+/// (`:` on Unix; docs/modding/texmod-import.md), the first that has a file
 /// wins. Missing folders are skipped with a warning.
 pub(super) fn explicit_roots(variable: &str, value: Option<std::ffi::OsString>) -> Vec<PathBuf> {
     let Some(value) = value else { return Vec::new() };
@@ -44,7 +44,7 @@ pub(super) fn roots(domain: Domain) -> Vec<PathBuf> {
             .clone(),
     };
     if domain != Domain::Ui {
-        // Overbright packs (`obpack`, docs/texture-packs.md), compiled, in
+        // Overbright packs (`obpack`, docs/modding/texture-packs.md), compiled, in
         // the player's order (none installed: nothing added, the native path).
         let d = if domain == Domain::Car { crate::obpack::Domain::Car } else { crate::obpack::Domain::World };
         for r in crate::obpack::enabled_roots(d) {
@@ -80,7 +80,7 @@ pub(in crate::render) fn roots_of(domain: Domain) -> Vec<PathBuf> {
     roots(domain)
 }
 
-/// docs/loading-image.md: the UI's second folder, the generated
+/// docs/original/loading-image.md: the UI's second folder, the generated
 /// loading-screen textures (`upscale_pack::ui_dir`), searched after the HD
 /// UI pack and only while HD UI Art is in force (off: native).
 pub(super) fn generated_ui(domain: Domain) -> Option<PathBuf> {

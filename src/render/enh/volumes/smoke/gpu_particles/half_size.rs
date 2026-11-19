@@ -3,7 +3,7 @@ use super::*;
 /// The half-size targets' format (colour + transmittance; alpha sum).
 pub(super) const HALF_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba16Float;
 
-/// For speed (docs/perf-gpu.md, the project's performance rule for the
+/// For speed (docs/notes/performance/gpu.md, the project's performance rule for the
 /// enhancements): the detailed smoke drawn at half size per axis and put
 /// over the scene in one pass (smoke_half.wgsl). On unless
 /// `NFSU2_SMOKE_FULL=1` (the full-size draw, as before).

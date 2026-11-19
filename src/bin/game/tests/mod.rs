@@ -59,7 +59,7 @@ mod rng;
 mod saves_shops;
 mod scene_audio;
 mod scenes;
-// A tick's settings and a frame's (docs/frame-settings.md).
+// A tick's settings and a frame's (docs/developing/frame-settings.md).
 #[cfg(test)]
 mod settings_moments;
 // The tick snapshots.
@@ -94,10 +94,10 @@ mod kept_world;
 mod probe_burst;
 #[cfg(test)]
 mod race_dialog_movies;
-// The waits log's hooks (docs/waits-log.md).
+// The waits log's hooks (docs/developing/waits-log.md).
 #[cfg(test)]
 mod waits_log;
-// The start's and the menus' waits (docs/start-and-menus.md).
+// The start's and the menus' waits (docs/original/start-and-menus.md).
 #[cfg(test)]
 mod start_and_menus;
 #[cfg(test)]
@@ -113,6 +113,6 @@ mod reported_issues;
 // The manual gearbox through the player's keys and controller.
 #[cfg(test)]
 mod manual_gears;
-// The map editor and custom races (docs/map-editor.md).
+// The map editor and custom races (docs/modding/map-editor.md).
 #[cfg(test)]
 mod map_editor;

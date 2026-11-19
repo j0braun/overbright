@@ -1,4 +1,4 @@
-//! Enhanced effects on ticks (docs/uncapped-fps.md, "Enhanced effects on ticks"): the
+//! Enhanced effects on ticks (docs/original/uncapped-fps.md, "Enhanced effects on ticks"): the
 //! Enhanced effects that simulate or accumulate step once per tick, here,
 //! from the tick's own state (the cars' poses, the camera, the weather and
 //! the clocks as the tick left them), never from a drawn frame:

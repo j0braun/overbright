@@ -387,7 +387,7 @@ fn one(
 
 // ------------------------------------------------ the loading screens
 
-/// docs/loading-image.md: the generated UI folder,
+/// docs/original/loading-image.md: the generated UI folder,
 /// `<data>/overbright/texture-pack/ui` (`NFSU2_UI_TEXTURE_PACK` names
 /// another): the loading screens' textures the HD UI pack leaves out, as
 /// `<HASH>.png`. Read by the UI loader only while HD UI Art is in force
@@ -407,7 +407,7 @@ pub fn ui_dir() -> PathBuf {
 /// not opened on PC).
 pub const LOADING_PACKAGES: &[&str] = &["PC_Loading", "loading_boot", "MC_Background", "HUD_World_Loading", "Loading", "Loading_Tips", "Loading_Controller"];
 
-/// docs/loading-image.md §3: the title screen after the intro movie
+/// docs/original/loading-image.md §3: the title screen after the intro movie
 /// (UG_LS_Splash, "Press Enter Key"; 0x4C5500 → 0x4A90F0). Not a loading
 /// screen, but its picture is made the same way.
 pub const TITLE_PACKAGES: &[&str] = &["UG_LS_Splash"];

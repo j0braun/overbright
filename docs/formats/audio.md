@@ -649,7 +649,7 @@ probes the maintainer's probe `sfx_banks`, the maintainer's probe `sfx_players`)
   at +0xC0 and its +0x80 (a 0..0x7FFF volume) are not identified, nor the
   mix map's level. So the clone's engine gain 0.5 + 0.5 · throttle is **not
   native** (no traced replacement yet).
-  Verified (full notes in docs/engine-volume-chain.md; **not
+  Verified (full notes in docs/original/engine-volume-chain.md; **not
   ported**): +0xC0 is SFXCTL_HybridMotor (type 6, vtable 0x789FE4, update
   0x47C3D0; 0x473BCC belongs to CARSFX_Skids). Its +0x80 is the volume:
   with the context's hybrid flag (+0x78: engine entry 0x7F0DE0 +0x10 ≠ 0;
@@ -694,7 +694,7 @@ probes the maintainer's probe `sfx_banks`, the maintainer's probe `sfx_players`)
     0x430560 / 0x430420 / 0x430350 with 0x890118 = 2..4, or 0x82A3A4 > 0)
     takes the car out of the player's hands; then 0x46FA30 runs a scripted
     rev instead. All CAR_AUDIO_PATTERN banks, gates and binding are ported
-    (2026-11-04, `docs/nis-audio-patterns.md`; DynoExit has no clone route).
+    (2026-11-04, `docs/original/nis-audio-patterns.md`; DynoExit has no clone route).
     Ordinary driving keeps +0xD8 clear.
   - **AccelTrans** (0x4831A0): +0xD0 = ctx +0x4C, +0xD1 the last; on the
     rising edge 0x45CD30 (speed ≤ 15 mph, ctx +0x54 − Engine's
@@ -724,7 +724,7 @@ probes the maintainer's probe `sfx_banks`, the maintainer's probe `sfx_players`)
     0x77C380 sets x1 = 5.0); below 9800 (or a shift mode other than 0) it
     ramps +0x118 back to 1.0 over trunc((1 − v) · 50) ms and +0xFC to 0 over
     trunc(50 · v) ms. Ported.
-  - **HybridMotor** as in docs/engine-volume-chain.md, ported with the
+  - **HybridMotor** as in docs/original/engine-volume-chain.md, ported with the
     states above: D0 the 4-tap mean (0x579F30, mean of the taps filled) of
     the per-update ctx rpm change; on throttle the rec80 lerp by t1, off it
     the rec84 lerp by t2 (hybrid), ±0.2 per update; the trapezoid; +0x80 /
@@ -903,7 +903,7 @@ probes the maintainer's probe `sfx_banks`, the maintainer's probe `sfx_players`)
     0x7FFF − trunc(bump · −32767 (0x789FB0)), then + trunc(+0x140)); the
     rev limiter only starts outside shifts. HybridMotor's D0 filter
     (0x45D0A0) and gain targets (0x470540 / 0x4701A0) by these states are
-    as in docs/engine-volume-chain.md (re-checked: in a shift 2 rec80
+    as in docs/original/engine-volume-chain.md (re-checked: in a shift 2 rec80
     snapped, 3 / 5 rec80, 7 rec80 snapped on throttle, 1 / 4 / 6 rec84;
     AccelTrans 1 rec80 snapped, 2–4 rec80). **Inferred**: the controllers
     run Physics, Shifting, AccelTrans, Engine, HybridMotor in that order.
@@ -1343,7 +1343,7 @@ AI engine (section 2), 0 TrafficEngine, 1 TrafficWoosh (section 3).
 
 ## Sound effects audit (2026-10-30)
 
-The checklist is docs/sound-audit.md. **Verified** (traced) unless marked.
+The checklist is docs/notes/audio/sound-audit.md. **Verified** (traced) unless marked.
 
 * **Inventory sources.** The sound-object registry 0x7ED138..0x7ED5D8
   (records {name, list head, factory, id}; the controllers' list head is
@@ -1650,7 +1650,7 @@ targets Ghidra has no function at) unless marked.
   states). Only 0x515AA0 (table order) and the profile load write the
   playlist's index fields; the jukebox lists and edits by position.
   The title forces song 0 first whatever the seed (0x4A90F0 → 0x47AC50
-  with −2: front pool 1; docs/menu-music.md). Clone (`music::Playlist`,
+  with −2: front pool 1; docs/original/menu-music.md). Clone (`music::Playlist`,
   `Streams::music_frame`): ported; the clone draws from its own
   `GameRng` stream (same seed), so after the first pick the order is
   not the original's (**inferred**: other code draws from the shared
@@ -2725,7 +2725,7 @@ from `SDATA/sdat.viv`) unless marked. Clone: `audio::mixer` (`mix_gain`,
 ### Sound round 11 (sfx): the full inventory and the car stereos
 
 **Verified** from the disassembly unless marked. Checklist and the bank
-table: docs/sound-audit.md (round 11).
+table: docs/notes/audio/sound-audit.md (round 11).
 
 * **Inventory.** The banks the exe can load: the csi list 0x7ED148..
   0x7ED15C (UG2_MAIN, UG2_FE, UG2_ENGINES_AEMS2, UG2_TURBO, UG2_ENVIRO,
@@ -2901,7 +2901,7 @@ there.
     (0x461CE0 at 0x461D85: section 5's level of the kind's slot at the
     object's point; **verified**, and read under Wine: 0 on the
     start frame, then 12999 next to a barrel hit, falling as the car
-    leaves — docs/prop-hits.md). **Open**: the writer of +0x128 bit 0x10.
+    leaves — docs/notes/parity/prop-hits.md). **Open**: the writer of +0x128 bit 0x10.
     The splash starts with the object (0x46AE00 is vtable 0x78BB08 slot
     8, the start the queue's flush calls at 0x4818A6), so the five-object
     cap drops it with the object.
@@ -3381,7 +3381,7 @@ selftest's "streams" step, probe the maintainer's probe `speech_probe`.
   on the flow's LOADING / CAMERA_FLYBY (0x481210 with 1 / 2): it ends a
   score piece and stops an EA Trax song only when game music × master²
   is 0 (0x47AD0F; a race's song plays on through its post-race load,
-  observed, docs/menu-music.md); a new flow's set-up (0x60A898 →
+  observed, docs/original/menu-music.md); a new flow's set-up (0x60A898 →
   0x481440) is state 2, which stops it; 0xB stop
   for a movie in the front end, back to 1 after it (a new song). The
   playing song's caption: Chyron_ShowSong. **Clone**

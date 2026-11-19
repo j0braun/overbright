@@ -1,6 +1,6 @@
 //! The turbo's flame pops: car effect kind 10 (`CARFX_NITRO`, the nitrous
 //! flame's emitters at the exhaust markers) fired without a nitrous shot
-//! (docs/sparks-fire.md "Native triggers").
+//! (docs/notes/graphics/sparks-fire.md "Native triggers").
 //!
 //! **Verified** in the disassembly (REA decompile and `speed2.dis`):
 //! * **At a shift** — 0x5EBE10, called by each car's frame Car_Frame

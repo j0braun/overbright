@@ -1,4 +1,4 @@
-# SSAA's effect and post passes at the screen's size (docs/ssaa-screen-passes.md)
+# SSAA's effect and post passes at the screen's size (docs/notes/graphics/ssaa.md "Effect and post passes at the screen's size under SSAA")
 # A 4K play setup's options.txt (3840x2160, SSAA 2x, High Precision Post, ray tracing, SSAO 100 %); --bench <scene> 150, GPU timestamps, ms per frame.
 # Arms by NFSU2_SSAA_SCENE_SIZE: off = every pass at the scene's size (the frame as before); ssao; texel = the resolve
 # first (graded per scene texel); final = both; tried: avg = the resolved average graded, streak = the streak buffer on

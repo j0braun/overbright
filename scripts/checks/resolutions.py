@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The resolution matrix (docs/resolutions.md). Test tooling only.
+"""The resolution matrix (docs/notes/graphics/resolutions.md). Test tooling only.
 
   resolutions.py plan [--set all|family] [--sizes WxH,...] [--screens a,b] [--mouse]
       one job per line: cell<TAB>size<TAB>option<TAB>screen<TAB>target<TAB>env (space-separated K=V)
@@ -184,7 +184,7 @@ def diff_stats(a, b):
 # ---------------------------------------------------------------- expected rules
 
 def expected_frame(w, h, mode, hud_full):
-    """The UI frame the option's rule gives (docs/resolutions.md "Rules"), computed here independently."""
+    """The UI frame the option's rule gives (docs/notes/graphics/resolutions.md "Rules"), computed here independently."""
     if mode == "stretched":
         return dict(canvas=(0, 0, w, h), scale=(w / 640, h / 480), reach=(0, 0), hud_reach=0)
     if w * 3 > h * 4:

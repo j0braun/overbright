@@ -1,4 +1,4 @@
-// Particles High / Ultra (docs/particles-smoke.md; clone deviation,
+// Particles High / Ultra (docs/notes/graphics/smoke.md "Particles High and Ultra: GPU particles and detailed smoke"; clone deviation,
 // opt-in). The native smoke particles' births expanded into smaller puffs
 // (cs_spawn), moved on the GPU (cs_update) and drawn as soft, lit,
 // noise-detailed billboards (vs_main / fs_main). gpu_particles.rs mirrors

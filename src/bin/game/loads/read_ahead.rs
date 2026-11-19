@@ -1,5 +1,5 @@
 //! What the game reads ahead into the system's file cache
-//! (`nfsu2::cache::read_ahead`, docs/read-ahead.md): the files of the
+//! (`nfsu2::cache::read_ahead`, docs/developing/read-ahead.md): the files of the
 //! minutes after the window's first frame, in the order the game reads
 //! them. Each list holds only files a load on that way opens and reads;
 //! nothing here changes what is loaded.

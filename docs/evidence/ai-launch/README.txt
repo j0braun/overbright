@@ -1,4 +1,4 @@
-The rivals' launch wheelspin and their skid sound (docs/audio-levels.md §5, docs/native-fixes/ai-skids.tsv).
+The rivals' launch wheelspin and their skid sound (docs/original/audio-levels.md §5, docs/native-fixes/ai-skids.tsv).
 
 Original: SPEED2.EXE under Wine, private Xvfb, memory reads only.
   drag-n1      first drag (STAGE_1_DRAG_1), parity harness lockstep, 1/60 s frames, audio events polled

@@ -1,4 +1,4 @@
-//! `--shot <screen> <out.png>` (docs/checks.md): the screenshot harness.
+//! `--shot <screen> <out.png>` (docs/developing/checks.md): the screenshot harness.
 //! Transitional: `shot` is one long fn, moved whole (the maintainer's private notes); its
 //! target table is cut into files later.
 use crate::*;
@@ -67,7 +67,7 @@ fn setup<'s>(game: &mut Game, screen: &'s str, env: &ShotEnv) -> Result<Setup<'s
     nfsu2::qol::set_output_size((width, height));
     headless_aspect(game);
     fake_hdr();
-    // NFSU2_SHOT_CLOCK=s (a measuring aid; docs/perf-gates.md): the
+    // NFSU2_SHOT_CLOCK=s (a measuring aid; docs/developing/perf-gates.md): the
     // game's clock pinned at s seconds for the whole shot, as the bench
     // pins it, so the front-end shots that otherwise animate on the wall
     // clock (main, career, options, worldmap, ending) come out the same
@@ -795,7 +795,7 @@ fn write_outputs(game: &mut Game, s: Setup, keys: Keys, drawn: Offscreen, out: &
     quads.extend(game.loading_quads(at));
     // NFSU2_SHOT_FPS=1 (minimal) / standard / full: the performance
     // overlay with made-up frame figures and this machine's metrics now,
-    // to check it (docs/perf-overlay.md); the overlay's options from
+    // to check it (docs/notes/performance/overlay.md); the overlay's options from
     // NFSU2_SHOT_ENH (`overlay.position 1;overlay.scale 150`).
     if let Ok(layout) = std::env::var("NFSU2_SHOT_FPS")
         && let Some(font) = game.game_data.assets.fonts.values().find(|f| f.name.contains("tt21i"))

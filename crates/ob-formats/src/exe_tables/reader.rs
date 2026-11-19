@@ -1,5 +1,5 @@
 //! A reader for the reference executable's data, for the data tests only
-//! (docs/exe-tables.md, "Tests"): it maps a virtual address through the PE
+//! (docs/original/exe-tables.md, "Tests"): it maps a virtual address through the PE
 //! section table and reads each table where the original keeps it, so the
 //! tests can compare the clone's built-in tables with it. Nothing outside
 //! the tests reads SPEED2.EXE.

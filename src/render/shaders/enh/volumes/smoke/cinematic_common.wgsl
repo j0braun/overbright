@@ -1,4 +1,4 @@
-// Particles Cinematic (docs/smoke-cinematic.md; clone deviation,
+// Particles Cinematic (docs/notes/graphics/smoke.md "Particles Cinematic: the simulation and the billboard drawing"; clone deviation,
 // opt-in). The native smoke births (the same feeder as High / Ultra)
 // become fewer, larger billows plus a long-lived haze puff, moved by a
 // divergence-free noise flow, buoyancy, the wind and the cars' wakes

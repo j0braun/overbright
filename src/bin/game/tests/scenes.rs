@@ -1,5 +1,5 @@
 use crate::*;
-// The test kit (tests/common/mod.rs, docs/testing.md).
+// The test kit (tests/common/mod.rs, docs/developing/testing.md).
 #[path = "../../../../tests/common/mod.rs"]
 mod testkit;
 
@@ -58,7 +58,7 @@ fn final_race_ending_keeps_the_car_on_the_road() {
 /// The post-race burnout (it once had no smoke): EndingNis01's winner spins its
 /// rears (brake 0.2, additive 2.5 from frame 0) under the post-race
 /// menus, and the original smokes there (Wine, `native-finish-rwd`,
-/// docs/particles-smoke.md "Scene smoke"). The particle step runs in
+/// docs/notes/graphics/smoke.md "Scene smoke"). The particle step runs in
 /// the ending scene and the sliding wheels emit the tyre smoke group.
 #[test]
 #[ignore = "requires original assets; sets NFSU2_ENDING_NIS for the whole process, so run it on its own with --ignored"]
@@ -458,7 +458,7 @@ fn shop_and_dyno_scenes_drive_the_car_like_the_original() {
 }
 
 /// The shops' drive-in / drive-out scenes run at the display's rate
-/// (docs/native-deviations.md "High refresh rates"); their car keeps the
+/// (docs/playing/native-deviations.md "High refresh rates"); their car keeps the
 /// steps of the original's 30 fps run (`nis::ScenePace`): one mover step
 /// per 1/30 s frame of 60, 60, 60, 60, 61 ticks of 1/1800 s, the same steps
 /// bit for bit at 30, 60, 120 and 200 fps, and the car drawn between its

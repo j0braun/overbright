@@ -9,7 +9,7 @@ fn dir() -> PathBuf {
 }
 
 fn tree() -> docs::Tree {
-    docs::load(&dir()).expect("docs/asset-format")
+    docs::load(&dir()).expect("docs/modding/asset-format")
 }
 
 #[test]

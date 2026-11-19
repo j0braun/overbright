@@ -1,6 +1,6 @@
-//! Animated Water, Next-Gen (clone deviation, opt-in; docs/water.md
+//! Animated Water, Next-Gen (clone deviation, opt-in; docs/notes/graphics/water.md
 //! "Next-Gen"). Nothing here is native (SPEED2.EXE has no water system;
-//! docs/water.md "What the original does").
+//! docs/notes/graphics/water.md "What the original does").
 //!
 //! The row's fourth tier, on top of Realistic (`render::water_hq`, whose
 //! wet stone, scene copy and surface shading it reuses):

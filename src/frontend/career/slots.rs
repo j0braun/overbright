@@ -155,7 +155,7 @@ impl Profile {
     /// ([`crate::car::ride_slot_parts`]); then 0x5B4FD0 → 0x5AC500 writes
     /// the ten level floats (3 × 0x5A6590 per category). **Verified**
     /// against the original's saves after the same purchases
-    /// (`docs/perf-shop.md`). Slots the lookups leave empty keep their part
+    /// (`docs/notes/front-end/perf-shop.md`). Slots the lookups leave empty keep their part
     // prov: inferred frontend.career.store_ride
     /// (**inferred** rare: every wide body's lookups resolve).
     pub fn store_ride(
@@ -192,7 +192,7 @@ impl Profile {
     /// 1)), so its aerodynamics (category 9) are the body parts' as they
     /// are now (**observed** under Wine: the ESCALADE's ride on entry had
     /// 0x3A off after its front bumper went to stock on the previous
-    /// visit; `docs/shop-record-store.md`). Kept until the shop is left.
+    /// visit; `docs/notes/front-end/shop-record-store.md`). Kept until the shop is left.
     pub fn build_shop_ride(&mut self) {
         self.shop_ride = Some(self.installed.clone());
     }
@@ -282,7 +282,7 @@ impl Profile {
     /// built on entering the shop: category 9 from the body parts then
     /// (`shop_ride`, else as before this action) and the ten floats
     /// 0x5B4FD0 wrote for it. **Verified** byte for byte against the
-    /// original's saves (`docs/shop-record-store.md`). Outside a career
+    /// original's saves (`docs/notes/front-end/shop-record-store.md`). Outside a career
     // prov: open frontend.career.store_visual
     /// (Customize) only the part slots (the record there is **open**).
     pub fn store_visual(

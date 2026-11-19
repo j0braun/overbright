@@ -1,4 +1,4 @@
-//! The original's new profile, written from its rules (R8; docs/exe-tables.md,
+//! The original's new profile, written from its rules (R8; docs/original/exe-tables.md,
 //! "The fresh profile").
 //!
 //! SPEED2.EXE builds a new profile at boot (default name "NAME", before any

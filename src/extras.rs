@@ -1,4 +1,4 @@
-//! Modern extras (docs/modern-extras.md): the Enhancements page's
+//! Modern extras (docs/playing/modern-extras.md): the Enhancements page's
 //! Low Latency, Replay Cameras and Accessibility rows. Clone deviations,
 //! every one opt-in, every default native; kept in options.txt as `enh.*`
 //! lines (written only when not native) through [`crate::qol::Enhancements`].
@@ -14,7 +14,7 @@ pub const PALETTE_NAMES: [&str; 4] = ["Native", "Deuteranopia", "Protanopia", "T
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Extras {
-    /// Low Latency (docs/modern-extras.md §1): one frame in flight, the
+    /// Low Latency (docs/playing/modern-extras.md §1): one frame in flight, the
     /// wait for the display moved before the input, the VRR cap.
     pub low_latency: bool,
     /// Replay Cameras "Extended" (§3): the extra replay angles on the C key
@@ -34,7 +34,7 @@ pub struct Extras {
     /// that save power where they change nothing the player watches
     /// ([`POWER_NAMES`], [`power_cap`]); 0 Off (native: uncapped).
     pub power_saving: u8,
-    /// Mark Spot Key (docs/mark-spot.md): 0 Off (native), else the key
+    /// Mark Spot Key (docs/playing/mark-spot.md): 0 Off (native), else the key
     /// `crate::mark_spot::KEYS[n]` writes a mark-this-spot report.
     pub mark_spot: u8,
 }

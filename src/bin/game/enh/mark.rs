@@ -1,4 +1,4 @@
-//! "Mark This Spot" (docs/mark-spot.md): the Enhancements page's Mark
+//! "Mark This Spot" (docs/playing/mark-spot.md): the Enhancements page's Mark
 //! Spot Key collects what the player sees into a `nfsu2::mark_spot::Spot`
 //! and writes the report. Clone tooling; nothing native changes.
 use crate::*;

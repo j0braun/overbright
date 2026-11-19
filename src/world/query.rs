@@ -210,7 +210,7 @@ impl World {
         set
     }
 
-    /// World Detail Extreme (clone deviation, docs/assets-distance.md):
+    /// World Detail Extreme (clone deviation, docs/notes/graphics/assets-distance.md):
     /// the sections the look-ahead adds within [`crate::qol::FAR_RING`] of
     /// the eye beyond `drawn` (the main list), which the main view draws
     /// with their lowest LOD. None when the option is off (`far_draw`: as

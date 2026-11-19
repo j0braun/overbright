@@ -115,7 +115,7 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
   blended with the car's forward, from 0 at 8 m/s to 1 at 13 m/s (graph
   0x7EC420). Its vertical part fades out over 2 s. Of the mover's stamp +0x58, which 0x44DE90
   renews each update with car +0x5CC set and car +0x424 > 1 (verified, world-systems parity;
-  docs/world-systems-parity.md, Cameras), not of the camera's life.
+  docs/notes/parity/world-systems-parity.md, Cameras), not of the camera's life.
 * Lag (0x44DE90): the car-space acceleration, averaged over 4 frames, ×
   scale and clamped. It is added to:
   * the eye;
@@ -282,7 +282,7 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
     (`ChaseCamera::set_impact`), the world frame's end stepping it
     (`Drive::tick_clock`), the mirror's camera shaken by the tick's
     offset; the drawn camera blends the tick's shaken cameras between
-    ticks (docs/uncapped-fps.md). The time scale and kind 7 are the
+    ticks (docs/original/uncapped-fps.md). The time scale and kind 7 are the
     event cameras' (`Impact::follow`): read after the slow motion's
     advance and again after the event rules, so the trigger sees the
     kind as of the frame before on the frame kind 7 starts (the clone
@@ -322,7 +322,7 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
     with tilt 0x787080 = 0x1450 (split screen 0x8707DC = 3: (−15.8, 0,
     4.4), 0x0DD4), not mirrored, eased; walls at 3 m (0x787094, 0x445A60).
   The player's +0x2B read 1 under Wine in free roam and a race, and every
-  view looked back mirrored in the first frame (docs/world-systems-parity.md,
+  view looked back mirrored in the first frame (docs/notes/parity/world-systems-parity.md,
   Cameras); its writer (**verified**, gap sweep 2026-11-05) is the player's
   constructor 0x5F1680: it zeroes +0x20..+0x4F and sets +0x2B = 1 through
   the block's base (0x5F17A5, `mov byte [edx+0xb], 1`, edx = player +
@@ -490,7 +490,7 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
   +0x20) is 127.5 (0x5116E0 at 0x51170E through the settings block's
   base; the save; read live under Wine), so the gate passes, but no
   PC trigger exists (kind 1's timer +0x9C only zeroed, the keys
-  0x7F..0x81 in no descriptor row; `p17-scene-follow-ups.md` §2).
+  0x7F..0x81 in no descriptor row; `docs/notes/parity/scene-follow-ups.md` §2).
   0x604A97..0x604AC7 (**verified**): fast (above graph 0x89CF18),
   fewer than four wheels down and |0x59FA20| (car +0x40's +0x3EC test, else
   0x591DA0) above 0.098 (0x7A650C) → 0x578EA0(2.0 (0x7A55D0), "CarInAir"
@@ -639,7 +639,7 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
   times 7.2 (0x40E66666) and look-at 5.0. Ported (`dyno_camera`, the
   chart drawn over the 3D car on the rollers); **observed** through a
   whole Dyno Run under Wine: mover vtable 0x788070 throughout, the
-  eye still, looking at the car's origin +0x50 (`p17-scene-follow-ups.md`).
+  eye still, looking at the car's origin +0x50 (`docs/notes/parity/scene-follow-ups.md`).
 
 ## Main-menu car and car textures (2026-10-28)
 

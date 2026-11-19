@@ -104,7 +104,7 @@ pub(super) fn march_constants(look: &Look) -> [(&'static str, f64); 3] {
 /// The volume effects' programs (the same for every budget and look) and
 /// their composite into `format` × `samples` against a depth of
 /// `depth_samples`, made now through a smallest copy (a warm-up,
-/// docs/first-use-builds.md). Nothing is drawn.
+/// docs/developing/first-use-builds.md). Nothing is drawn.
 pub fn warm_programs(gpu: &Gpu, format: wgpu::TextureFormat, samples: u32, depth_samples: u32) {
     let smallest = Budget { dims: [8, 8, 8], voxel: 1.0, particles: 64, steps: 8 };
     // (The march per override set: one look of each the users' looks take, [`WARM_LOOKS`].)
@@ -506,7 +506,7 @@ impl VolumeFx {
         self.jitter = share.clamp(0.0, 1.0);
     }
 
-    /// docs/atmosphere.md: the last build's density volume (r: the
+    /// docs/notes/graphics/atmosphere.md: the last build's density volume (r: the
     /// extinction, 1/m), its min corner and voxel edge (m) and its voxels,
     /// for the Next-Gen atmosphere (the haze behind the medium is hidden by
     /// it). None before the first build.

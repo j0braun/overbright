@@ -50,7 +50,7 @@ pub(in crate::render) fn meter_lights(
     *prev = Some(now);
 }
 
-/// World Detail Ultra / Extreme with LOD Fade; docs/pop-in.md: the
+/// World Detail Ultra / Extreme with LOD Fade; docs/notes/graphics/pop-in.md: the
 /// lamps' light follows their section's cross-fade (a share per section
 /// moving over `qol::SECTION_FADE_SECONDS`), and a lamp's shadow fades in
 /// over [`SHADOW_FADE_SECONDS`] from the frame its layer is handed out.

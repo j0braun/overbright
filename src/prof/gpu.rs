@@ -266,7 +266,7 @@ pub fn set_active(on: bool) {
     }
 }
 
-/// docs/perf-gpu.md "Render-target memory": the device's allocator
+/// docs/notes/performance/gpu.md "Render-target memory": the device's allocator
 /// report (every live texture and buffer by its label, as wgpu-hal's
 /// gpu-allocator holds them) grouped by label, largest first: count, MiB,
 /// then the totals. `NFSU2_VRAM_REPORT=file` writes it at a bench's end; a

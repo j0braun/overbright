@@ -1,4 +1,4 @@
-//! A car change's next drive made ready in the menus (docs/first-use-builds.md
+//! A car change's next drive made ready in the menus (docs/developing/first-use-builds.md
 //! "Kept across a car change"). A drive dropped for a car change on the
 //! same world (a part fitted in a shop, a car bought) leaves its world, the
 //! world's renderer and its Animated Water for the next drive on that

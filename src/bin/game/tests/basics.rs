@@ -1,6 +1,6 @@
 use crate::*;
 
-/// docs/outrun-pace.md: a drag rival's running shot ends the frame
+/// docs/notes/outrun/pace.md: a drag rival's running shot ends the frame
 /// 0x40D850 fails and the next starts when it passes, so the tank goes
 /// out in several shots (native f2 rival: 24000 → 20137 → 14401 → 1465).
 #[test]
@@ -63,7 +63,7 @@ fn boot_loading_follows_the_200_ms_rule() {
     assert!(min.frame(1600.0, 1500).is_none());
 }
 
-/// The world under the in-game screens (docs/fe-backdrops.md): the
+/// The world under the in-game screens (docs/notes/front-end/fe-backdrops.md): the
 /// post-race Sponsorships page (UI_Sponsorship_new) shows the race's
 /// world as the popup before it and the sign question after it do
 /// (the clone drew it on black); the front end's screens, with no

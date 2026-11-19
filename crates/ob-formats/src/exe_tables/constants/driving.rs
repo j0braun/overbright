@@ -1,6 +1,6 @@
 //! Car handling, camera, drift scoring and AI driving numbers of the
 //! original game, with the addresses they have in the reference executable
-//! (docs/exe-tables.md, "Tuning constants").
+//! (docs/original/exe-tables.md, "Tuning constants").
 
 /// Stick response over input −1..1 in 21 steps (graph 0x7E9E60, values 0x7E9228).
 pub const STEER_RESPONSE: [f32; 21] = [

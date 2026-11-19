@@ -1,4 +1,4 @@
-# Temporal evidence (docs/temporal.md)
+# Temporal evidence (docs/notes/graphics/temporal.md)
 All at 1280 × 960 from `--bench` dumps (window path; `NFSU2_BENCH_DUMP`),
 labels on each crop. Native = the bench's default (World Detail 5, 8x MSAA).
 | file | what | how |

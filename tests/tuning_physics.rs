@@ -109,7 +109,7 @@ fn tuned_chassis_fields_reach_the_handling() {
 }
 
 /// The replay manager's DUMMY_SNAPSHOT (every 100 world updates, 0x57D010
-/// → 0x57C190; docs/tuning-physics-parity.md) empties the rigid body's
+/// → 0x57C190; docs/notes/parity/tuning-physics-parity.md) empties the rigid body's
 /// force sums before the next integration: the car drops for one sub-step.
 /// Under Wine every car at a launch lost 0.031–0.036 m/s of vertical speed
 /// in that update (circuit_s1g frames 17 / 117 / 217, the clone's CORSA

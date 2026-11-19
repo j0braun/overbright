@@ -1,4 +1,4 @@
-//! The cars a pixel tests, per light cluster (docs/lamps-shadows.md,
+//! The cars a pixel tests, per light cluster (docs/notes/graphics/lamps-shadows.md,
 //! "Per-pixel work"). world.wgsl's `car_visibility` multiplies, per lamp, a
 //! factor for every car whose soft ellipsoid lies between the pixel and the
 //! lamp, and `contact_visibility` one for every car within 4 m; a car that

@@ -1,4 +1,4 @@
-//! The test kit (crates/ob-testkit, docs/testing.md), bound to the game
+//! The test kit (crates/ob-testkit, docs/developing/testing.md), bound to the game
 //! library for this package's integration tests (`mod common;`).
 #![allow(dead_code)]
 

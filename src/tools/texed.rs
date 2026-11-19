@@ -1,4 +1,4 @@
-//! The live texture browser and editor (docs/texture-editor.md): an opt-in
+//! The live texture browser and editor (docs/modding/texture-editor.md): an opt-in
 //! modding tool. Off by default and unreachable until the game is started
 //! with `--editor`; then F7 opens and closes its panel.
 //!

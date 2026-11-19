@@ -19,7 +19,7 @@ pub(super) const ROWS: &[GraphicsRow] = &[
             tc("SSAA 8x", "Renders eight times the pixels.", SSAA_COSTS_4K[2], 0.0),
             tc("SSAA 9x", "Renders nine times the pixels.", SSAA_COSTS_4K[3], 0.0),
             tc("SSAA 16x", "Renders sixteen times the pixels.", SSAA_COSTS_4K[4], 0.0),
-            // docs/temporal.md: exclusive with MSAA / SSAA / filters.
+            // docs/notes/graphics/temporal.md: exclusive with MSAA / SSAA / filters.
             tc(
                 "TAA",
                 "Temporal AA: smooth, stable edges in motion, but softer (add Sharpening); MSAA is the original's look. Integrated GPU: ~+1.5 ms.",
@@ -109,7 +109,7 @@ pub(super) const ROWS: &[GraphicsRow] = &[
         offered: None,
         legacy: false,
     },
-    // docs/texture-pack-generator.md: the pack "Generate Texture
+    // docs/modding/texture-pack-generator.md: the pack "Generate Texture
     // Pack" makes from the player's own files. Greyed until one exists.
     GraphicsRow {
         id: RowId::TexturePack,

@@ -125,7 +125,7 @@ fn push_apart(cars: &mut [Racer], pair: &mut CarPair, a: usize, b: usize) {
 /// impact's search or the push-out and the impulse, as for a track pair.
 /// **Observed** under Wine (every one of 77 car–car contacts in a rear and
 /// a side approach: the point is the midpoint of the pair's closest points
-/// of its last logged query; docs/prop-hits.md §7f). A pair with no query
+/// of its last logged query; docs/notes/parity/prop-hits.md §7f). A pair with no query
 /// yet measures where the cars stand.
 fn contact_point(cars: &[Racer], pair: &mut CarPair, a: usize, b: usize) -> (Vec3, Vec3) {
     let (on_a, on_b) = match pair.cache.as_ref().and_then(|c| c.last()) {

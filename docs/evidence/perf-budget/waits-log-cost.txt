@@ -1,4 +1,4 @@
-The waits log's cost (docs/waits-log.md): the shipping game (no developer harness) without the lines (the tree
+The waits log's cost (docs/developing/waits-log.md): the shipping game (no developer harness) without the lines (the tree
 before them) and with them, each from its own target folder (md5 differ). Windowed on a private Xvfb in a bwrap
 sandbox (no sound device, NFSU2_AUDIO_HOST=none, own data / cache / Mesa shader cache folders per arm, both warm),
 integrated GPU, 1920x1080, Original (default options), a copy of a test profile. Each run: --no-boot, the menus
@@ -47,6 +47,6 @@ What the lines said in those runs (the free roam entry; warm, with the lines):
   from the key 68-428 ms, the load itself 23-64 ms (world and car 5-25, renderers and uploads 0-12, set-up 2-8,
   programs 12-31), world and car loaded ahead, 0-4 cache files missing (new traffic and encounter cars), first
   frame 27-382 ms; drive medians 15.7-19.8 ms on Xvfb (its present is a CPU copy: frame times there are not the
-  game's, docs/perf-budget.md).
+  game's, docs/notes/performance/budget.md).
 
 Not trusted: the absolute CPU times (machine shared, load 10-30); Xvfb frame times and hitches.

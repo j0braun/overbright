@@ -1,6 +1,6 @@
 #!/bin/bash
-# asset_format.sh [repo]: the asset format specification (docs/asset-format/) against the code
-# (docs/asset-format/versioning.md §6):
+# asset_format.sh [repo]: the asset format specification (docs/modding/asset-format/) against the code
+# (docs/modding/asset-format/versioning.md §6):
 #   1. the generated parts (rule tables, the manifest's field tables, the schemas made from
 #      crates/ob-asset-format) are in step with the code (the example asset_format_docs --check);
 #   2. every schema is valid and every example validates (scripts/docs/asset_format_check.py; skipped, with a line,

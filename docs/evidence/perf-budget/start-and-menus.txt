@@ -1,6 +1,6 @@
-The start's and the menus' waits (docs/start-and-menus.md): the shipping game (built without the developer harness) in a
+The start's and the menus' waits (docs/original/start-and-menus.md): the shipping game (built without the developer harness) in a
 window on a private Xvfb, sandboxed (bwrap: no sound device, its own data, cache and driver shader cache folders), keys
-pressed with xdotool as a player presses them, the times from the game's own wait lines (docs/waits-log.md, "from the
+pressed with xdotool as a player presses them, the times from the game's own wait lines (docs/developing/waits-log.md, "from the
 key", ms). Tour C: the boot (Enter per movie), the title (Enter once it is taken), the profile message, Career, Resume,
 the garage (Crib), Car Select and back, Change Parts (a category, a parts list) and back, Return to Explore Mode (yes),
 free roam, pause / resume, Photo Mode (play rows), Jump to Garage (yes), free roam again. Tour F: the boot, Options (a

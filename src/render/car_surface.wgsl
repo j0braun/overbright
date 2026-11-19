@@ -1,5 +1,5 @@
 // Surface Detail on cars (G7c2, clone deviation, opt-in: the Graphics
-// page's Surface Detail at Materials + Normals; docs/surface-maps.md
+// page's Surface Detail at Materials + Normals; docs/notes/graphics/surface-maps.md
 // "Cars"). Appended to car.wgsl (or Enhanced Paint's / Wet Car's form of
 // it) for the surface modules only (`car_source(.., surface: true)`); the
 // native module never has it. The texture's normal map, generated on the

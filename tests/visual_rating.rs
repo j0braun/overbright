@@ -1,4 +1,4 @@
-//! The visual rating against the original (docs/visual-rating.md).
+//! The visual rating against the original (docs/notes/graphics/visual-rating.md).
 //! Ignored without NFSU2_ROOT.
 mod common;
 

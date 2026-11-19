@@ -1,4 +1,4 @@
-//! docs/uncapped-fps.md, "Front end out of the draw": the front end's state steps on the
+//! docs/original/uncapped-fps.md, "Front end out of the draw": the front end's state steps on the
 //! tick, never in the draw. The garage scripted at 30 / 60 / 120 / 200 Hz
 //! and on a jittered schedule has the same front-end state at equal ticks;
 //! drawing a frame twice, or not at all, changes nothing; a click acts on
@@ -6,7 +6,7 @@
 //! at every rate.
 use super::*;
 use crate::InputEvent;
-// The test kit (tests/common/mod.rs, docs/testing.md).
+// The test kit (tests/common/mod.rs, docs/developing/testing.md).
 #[path = "../../../../tests/common/mod.rs"]
 mod testkit;
 

@@ -210,7 +210,7 @@ fn bench_window(game: &mut Game, env: &BenchEnv, width: u32, height: u32) -> Res
         // What the adapter offers, beside what the device was made with.
         // Multi-draw count and indirect first instance are offered but not
         // requested (`Gpu::open`): no draw is indirect (the world's and the
-        // cars' draws are direct, culled on the CPU; docs/perf-integrated-gpu.md).
+        // cars' draws are direct, culled on the CPU; docs/notes/performance/integrated-gpu.md).
         println!(
             "  device: multiview cube {}, light-cluster loop per subgroup {}",
             has(wgpu::Features::MULTIVIEW),
@@ -286,7 +286,7 @@ fn bench_profile(game: &mut Game, env: &BenchEnv, width: u32, height: u32) -> Re
     }
     // NFSU2_NEON=<part name>: that underglow (slot 0x9A) fitted for the run
     // (as `--shot neon_car`; frame strips of the glow while driving,
-    // docs/neon-quality.md).
+    // docs/notes/graphics/neon-quality.md).
     if env.neon {
         install_shot_neon(game);
     }
@@ -501,7 +501,7 @@ fn warm_up(game: &mut Game, what: &str, frames: usize, env: &BenchEnv) -> Result
         // Free roam: 20 s of driving first, so the traffic placer (a car a
         // second) has filled the road.
         "explore" => {
-            // NFSU2_BENCH_AT=x,y,z,deg (measuring aid, docs/shadow-softness.md):
+            // NFSU2_BENCH_AT=x,y,z,deg (measuring aid, docs/notes/graphics/shadow-softness.md):
             // the car placed there (as NFSU2_SHOT_AT), standing; with
             // NFSU2_BENCH_FREEZE=1 a still view for temporal variance.
             // NFSU2_BENCH_AT_DRIVE=n: n frames of driving there first.
@@ -561,7 +561,7 @@ fn warm_up(game: &mut Game, what: &str, frames: usize, env: &BenchEnv) -> Result
                 // The 20 s run itself goes head-on into the wall east of the
                 // start, where the car stays pressed for seconds and then
                 // pivots off one way or the other, as the original's does
-                // (docs/prop-hits.md §7c): where it ends turns on that, so it
+                // (docs/notes/parity/prop-hits.md §7c): where it ends turns on that, so it
                 // cannot be what the frames measure.
                 if let Some(d) = game.sim.drive.as_mut() {
                     d.place(EXPLORE_LINE.0, EXPLORE_LINE.1.to_radians());
@@ -877,7 +877,7 @@ fn run_frames(
     let mut framelog = framelog::FrameLog::open();
     // The whole process's CPU time (every thread: the pool's encoding too).
     let process_start = process_cpu();
-    // NFSU2_BENCH_JSON=file (the performance harness, docs/perf-gates.md): the run's
+    // NFSU2_BENCH_JSON=file (the performance harness, docs/developing/perf-gates.md): the run's
     // numbers as JSON — every frame's times, the parts, per-thread CPU,
     // the process's own VRAM/GTT peak (sampled every 30 frames), memory.
     // NFSU2_TRACE=file.json: each frame's update / draw / throttle as
@@ -915,7 +915,7 @@ fn run_frames(
     let through = env.through;
     let mut overlay_last: Option<Instant> = None;
     // The settings combination matrix (scripts/checks/matrix.sh,
-    // docs/settings-model.md): NFSU2_BENCH_MATRIX="orig,max,pairs,rules"
+    // docs/developing/settings-model.md): NFSU2_BENCH_MATRIX="orig,max,pairs,rules"
     // draws NFSU2_BENCH_MATRIX_FRAMES (default 3) frames with each setting
     // of `settings_model::matrix_configs`, switched live as the Graphics
     // page does; a panic or a wgpu validation error ends the run.
@@ -1085,7 +1085,7 @@ fn run_frames(
             game.streak_bench_frame((i > 1).then(|| (t - frame_start).as_secs_f32()), hz);
         }
         frame_start = t;
-        // NFSU2_BENCH_HZ=144 (measuring aid, docs/chrome-flicker.md): the
+        // NFSU2_BENCH_HZ=144 (measuring aid, docs/notes/graphics/car-look.md "Chrome trunk flicker and dry-road reflection strength"): the
         // frames drawn at that display rate as the windowed loop does (the
         // world at its 60 fps cadence, the frames between interpolated),
         // on the fixed clock; default one 1/60 s update per frame.
@@ -1216,7 +1216,7 @@ fn run_frames(
         {
             pose.apply(d);
         }
-        // NFSU2_BENCH_FREEZE=n (measuring aid, docs/chrome-flicker.md): from
+        // NFSU2_BENCH_FREEZE=n (measuring aid, docs/notes/graphics/car-look.md "Chrome trunk flicker and dry-road reflection strength"): from
         // frame n the player's car and the camera held where they were then
         // (the world, traffic and reflections go on), for a still view.
         if let Some(d) = game.sim.drive.as_mut()
@@ -1287,7 +1287,7 @@ fn run_frames(
         draw.push(d);
         gpu.push(g);
         // The performance overlay's frame figures (NFSU2_OVERLAY=full
-        // times the overlay's own cost; docs/perf-overlay.md).
+        // times the overlay's own cost; docs/notes/performance/overlay.md).
         if game.platform.perf_overlay.active(&game.settings.overlay) {
             let now = Instant::now();
             let interval = overlay_last.map_or(1.0 / 60.0, |l: Instant| now.duration_since(l).as_secs_f32());

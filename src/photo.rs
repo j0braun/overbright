@@ -1,4 +1,4 @@
-//! Photo mode (docs/photo-mode.md). **Clone deviation**, opt-in: the
+//! Photo mode (docs/playing/photo-mode.md). **Clone deviation**, opt-in: the
 //! Enhancements row "Photo Mode in Pause Menu" (default Off) lists "Photo
 //! Mode" in the pause menu; nothing of it is in SPEED2.EXE and nothing was
 //! traced for it. The world stays paused under it (the pause menu's own
@@ -49,7 +49,7 @@ pub const BLEACH_STEPS: [u8; 6] = [0, 20, 40, 60, 80, 100];
 /// The Capture row's scales (× the display in each direction).
 pub const CAPTURE_SCALES: [u32; 4] = [1, 2, 3, 4];
 /// The capture's budgets: scene pixels × samples at most 64 × 3840 × 2160
-/// (the SSAA rows' coverage budget, docs/ssaa.md).
+/// (the SSAA rows' coverage budget, docs/notes/graphics/ssaa.md).
 pub const CAPTURE_SAMPLE_BUDGET: u64 = 64 * 3840 * 2160;
 
 /// The colour filter over the game's own grade.

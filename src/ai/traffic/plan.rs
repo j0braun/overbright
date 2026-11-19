@@ -21,9 +21,12 @@ pub(super) const SPEED_LOOK_MIN: f32 = 8.0;
 /// 30 < the last point's s − walk +0x354).
 pub(super) const TURN_GAP: f32 = 30.0;
 
-/// 0x41BFE0's fresh-plan distance (0x7E8D94, 1.5 m) and 0x420D40's kept
-/// length: |v| × 0.5 (0x7837E0), at least 30 m (0x7837E8).
-pub(super) const REPLAN: f32 = 1.5;
+/// 0x41BFE0's fresh-plan distance for a traffic controller (kind 3: 10 m;
+/// the racers' is 0x7E8D94, 1.5 m; verified) and 0x420D40's kept length:
+/// |v| × 0.5 (0x7837E0), at least 30 m (0x7837E8). 0x41BFE0 also plans
+/// afresh after 0x405410 set the lane (its rate +0x08 = 0.151, 0x7E8E68),
+/// which `set_lane` does by dropping the kept path.
+pub(super) const REPLAN: f32 = 10.0;
 
 pub(super) const KEEP_RATE: f32 = 0.5;
 
@@ -159,7 +162,7 @@ impl TrafficLane {
     /// moves over before the walk enters a record without its lane (record
     /// 492's lane 4 into 672, which has only lane 3). The draw is on the
     /// lane's walk stream (the original's world generator, as the junction
-    /// odds; docs/rng.md).
+    /// odds; docs/original/rng.md).
     pub(super) fn lane_check(&mut self, f: &RouteFile) {
         let Some(&s0) = self.steps.front() else { return };
         let l = s0.lane;
@@ -232,6 +235,7 @@ impl TrafficLane {
         for _ in 0..popped {
             self.walked += self.seg(f, 0);
             self.behind = self.steps.pop_front();
+            self.xs.pop_front();
             self.roomed = self.roomed.saturating_sub(1);
         }
         // The car's point among its control point's points (those before it
@@ -298,7 +302,7 @@ impl TrafficLane {
         // point already steered for the next one and cut every bend (the
         // freeroam_stand parity run: 2.5–4 m inside the original's lanes on
         // record 538, oncoming cars meeting within 2–2.6 m and standing in
-        // "Avoid Cars" for seconds; docs/world-systems-parity.md).
+        // "Avoid Cars" for seconds; docs/notes/parity/world-systems-parity.md).
         // A fresh path starts at the walk point after the car's (0x41D530:
         // the road entry's +0x28 + 1, at most the last).
         let mut from = (lead + 1).min(walk.len().saturating_sub(1));

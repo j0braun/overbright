@@ -1,5 +1,5 @@
 //! Runs against the installed game: the tests are ignored (with the reason)
-//! unless `NFSU2_ROOT` is set (docs/testing.md).
+//! unless `NFSU2_ROOT` is set (docs/developing/testing.md).
 
 mod common;
 
@@ -820,10 +820,10 @@ fn races_switch_their_barriers_on_and_free_roam_off() {
     assert_eq!(shown(&world, scenery(&world, "BARRIERS_4014")), 0);
 }
 
-/// docs/prop-hits.md: a PEUGOT rolling north at `kmh` through the
+/// docs/notes/parity/prop-hits.md: a PEUGOT rolling north at `kmh` through the
 /// highway's yellow barrels (ZCS_Barrel_A, L4RA 379.4 −1477), throttle held,
 /// 5 s at 1/60 s, from the original's state a frame before its first query
-/// with the first barrel (the 60 km/h run of docs/prop-hits.md §7a, the contact
+/// with the first barrel (the 60 km/h run of docs/notes/parity/prop-hits.md §7a, the contact
 /// log's transform: centre of mass 378.834 −1480.284 36.210, x and y rows;
 /// the scenario's start, 379.4 −1500 north, comes there through the
 /// original's hold and roll, which the clone's start does not replay).
@@ -890,7 +890,7 @@ fn barrel_run(kmh: f32) -> Vec<(f32, f32, f32, f32)> {
     out
 }
 
-/// The original under Wine (docs/prop-hits.md §3; native runs n60a–c,
+/// The original under Wine (docs/notes/parity/prop-hits.md §3; native runs n60a–c,
 /// two more runs): at 60 km/h the first barrel leaves 20–40° right
 /// of the car's heading, no barrel rises over 0.25 m, travels over 15 m,
 /// or rests with its centre of mass under 0.55 m or over 1.0 m above its
@@ -1000,7 +1000,7 @@ const WALL_FACE: [[f32; 3]; 4] = [[385.25, -1494.625, 36.171875], [385.25, -1494
 /// throttle square against it, its front edge (`_CV` vertices 21 and 31, one
 /// above the other) kept by the pair from the frame before, the pose of a
 /// push-out (0x5B4300) taken from the clone's run of the transplanted
-/// scenario (docs/prop-hits.md §7c). The original's query rebuilds the kept
+/// scenario (docs/notes/parity/prop-hits.md §7c). The original's query rebuilds the kept
 /// vertices about the centre of mass (0x5A1980, 0x43C9C0 → 0x441000): here
 /// vertex 21 comes out one float step nearer the wall than 31, the query
 /// keeps it and its next support (the climb from 21, 21 again) ends it, so
@@ -1185,7 +1185,7 @@ fn wall_and_barrel_queries_match_the_original_to_the_bit() {
 /// 0x5B2620 → 0x5AF0F0 → 0x594010 for two cars: the contact point is the
 /// midpoint of the pair's closest points (+0xC0 / +0xD0) as its last query
 /// left them, the same rule as a car–track pair (observed under Wine in
-/// every one of 77 car–car contacts, docs/prop-hits.md §7f). One rear
+/// every one of 77 car–car contacts, docs/notes/parity/prop-hits.md §7f). One rear
 /// contact (the PEUGOT into a PICKUP) and one side contact (into an SUV,
 /// the PEUGOT's centre of mass moved after an earlier hit: its offset as
 /// logged), the maintainer's private capture: the pair's

@@ -107,7 +107,7 @@ pub fn layout(h: &Handling) -> usize {
 /// 0x5A77BB / 0x5A782B); the drag tune (0x5A7840) keeps it. The tank
 /// (0x591CE0) is then filled with 0 s, so no shot can start (0x59FAB0 →
 /// 0x5EB570 refuses in the key handler 0x6034C6) and the style refill
-/// (0x592650) adds nothing (**verified** under Wine, docs/streetx-nitrous.md).
+/// (0x592650) adds nothing (**verified** under Wine, docs/notes/parity/streetx-nitrous.md).
 pub fn apply_tune(h: &mut Handling, mode: RaceMode) -> bool {
     let Some(table) = mode.tune_table() else { return false };
     let t = &table[layout(h)];

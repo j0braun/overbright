@@ -167,10 +167,10 @@ impl Game {
     /// `ShopRun::holds_cars`). Not the loading screen: the game starts a
     /// scene only once its load is done (0x43BAA0), and the clone's loads
     /// draw PC_Loading from inside the load (`LoadingGate`), not here.
-    /// An Enter-skipped scene (docs/native-deviations.md "Skipping scenes") has ended, so the cap
+    /// An Enter-skipped scene (docs/playing/native-deviations.md "Skipping scenes") has ended, so the cap
     /// ends with it.
     pub(crate) fn scene_frame_cap(&self) -> bool {
-        // Agreed deviation (docs/native-deviations.md "High refresh rates"): the shops' and the garage's
+        // Agreed deviation (docs/playing/native-deviations.md "High refresh rates"): the shops' and the garage's
         // drive-in / drive-out scenes run at the display's rate; only the
         // cut-scenes (the career's start, race starts, the dyno, the
         // endings: no shop) keep the native 1/30 s.
@@ -201,9 +201,9 @@ pub(crate) struct Pacing {
     /// The world's tick clock: fixed 1/60 s (RACE) or 1/30 s (SCENE)
     /// ticks with the original's tick patterns (0x57EAE0), drawn frames in
     /// between interpolated (`nfsu2::frame_clock::TickClock`; agreed
-    /// deviation, docs/native-deviations.md "World update rate").
+    /// deviation, docs/playing/native-deviations.md "World update rate").
     pub(crate) cadence: nfsu2::frame_clock::TickClock,
-    /// Low Latency (docs/modern-extras.md): the pacer, the VRR probe
+    /// Low Latency (docs/playing/modern-extras.md): the pacer, the VRR probe
     /// (redone every few seconds) and the window's monitor's refresh rate.
     pub(crate) pacer: nfsu2::latency::Pacer,
     pub(crate) vrr: Option<(nfsu2::latency::vrr::Vrr, Instant)>,
@@ -215,7 +215,7 @@ pub(crate) struct Pacing {
     pub(crate) occluded: bool,
     pub(crate) battery: Option<(bool, Instant)>,
     pub(crate) last_update_dt: f32,
-    /// Motion blur and depth of field (docs/motionblur-dof.md): the world time stepped (s); the drawn
+    /// Motion blur and depth of field (docs/notes/graphics/motionblur-dof.md): the world time stepped (s); the drawn
     /// poses' time is this less (1 − α) of the last tick (α is
     /// the frame's, `render::snapshot::FramePoses`).
     pub(crate) world_time: f64,

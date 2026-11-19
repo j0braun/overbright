@@ -40,7 +40,7 @@ pub enum Value {
 /// Each row's option (the item classes 0x7918F8…).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum RowId {
-    /// The settings page (docs/settings-page.md): Compare, Show, a
+    /// The settings page (docs/developing/settings-page.md): Compare, Show, a
     /// group's row on the hub, a group's reset, the no-match line.
     UxCompare,
     UxFilter,
@@ -72,17 +72,17 @@ pub enum RowId {
     CrashReports,
     ListsOpenInstalled,
     OutrunVariety,
-    /// Fix Original Model Errors (docs/model-fixes.md).
+    /// Fix Original Model Errors (docs/notes/graphics/model-fixes.md).
     FixModels,
     TrafficDensity,
-    /// Skip Title Screen (docs/start-and-menus.md).
+    /// Skip Title Screen (docs/original/start-and-menus.md).
     SkipTitle,
-    /// Skip Intro Movies (docs/start-and-menus.md).
+    /// Skip Intro Movies (docs/original/start-and-menus.md).
     SkipMovies,
     SmoothCars,
-    /// Photo Mode in Pause Menu (docs/photo-mode.md).
+    /// Photo Mode in Pause Menu (docs/playing/photo-mode.md).
     PhotoMode,
-    /// docs/modern-extras.md: Low Latency, Replay Cameras and the
+    /// docs/playing/modern-extras.md: Low Latency, Replay Cameras and the
     /// Accessibility rows.
     LowLatency,
     /// Power Saving.
@@ -94,7 +94,7 @@ pub enum RowId {
     HudSpeedo,
     HudInfo,
     ReducedFlashing,
-    /// docs/controller-support.md: the Controller group.
+    /// docs/playing/controller-support.md: the Controller group.
     PadLayout,
     PadDeadzone,
     PadTriggerDeadzone,
@@ -103,7 +103,7 @@ pub enum RowId {
     PadRumble,
     PadPauseOnDisconnect,
     PadSafeBind,
-    /// docs/perf-overlay.md: the performance overlay's rows.
+    /// docs/notes/performance/overlay.md: the performance overlay's rows.
     PerfOverlay,
     OverlayPosition,
     OverlayScale,
@@ -112,7 +112,7 @@ pub enum RowId {
     HdUi,
     HdUiPackStatus,
     HdUiActivationStatus,
-    /// docs/pack-hot-reload.md: Reload Packs When Changed.
+    /// docs/modding/pack-hot-reload.md: Reload Packs When Changed.
     ReloadPacks,
     /// The Enhancements page's Graphics row and the Graphics page's rows.
     Graphics,
@@ -153,42 +153,42 @@ pub enum RowId {
     LampShadows,
     ContactShadows,
     Ssr,
-    /// See docs/temporal.md.
+    /// See docs/notes/graphics/temporal.md.
     Upscale,
     VolumetricFog,
-    /// See docs/atmosphere.md.
+    /// See docs/notes/graphics/atmosphere.md.
     Sky,
-    /// See docs/particles-smoke.md.
+    /// See docs/notes/graphics/smoke.md "Particles High and Ultra: GPU particles and detailed smoke".
     Particles,
     SparksFire,
-    /// docs/weather.md: the Weather group.
+    /// docs/notes/graphics/weather.md: the Weather group.
     WetCar,
     RainDetail,
     Spray,
     LensDrops,
-    /// See docs/wet-road-car.md.
+    /// See docs/notes/graphics/wet-road-car.md.
     WetInteraction,
-    /// docs/motionblur-dof.md: Customize Display's Motion Blur and
+    /// docs/notes/graphics/motionblur-dof.md: Customize Display's Motion Blur and
     /// Depth Of Field with the clone's tiers above them.
     MotionBlur,
     DepthOfField,
-    /// See docs/water.md.
+    /// See docs/notes/graphics/water.md.
     AnimatedWater,
-    /// See docs/ambient-detail.md.
+    /// See docs/notes/graphics/ambient-detail.md.
     AmbientDetail,
-    /// See docs/lighting2.md.
+    /// See docs/notes/graphics/lighting2.md.
     HeadlightBeams,
     LightProbes,
     EnhancedGlass,
-    /// See docs/surface-maps.md.
+    /// See docs/notes/graphics/surface-maps.md.
     SurfaceDetail,
-    /// docs/texture-pack-generator.md: World Texture Pack and the
+    /// docs/modding/texture-pack-generator.md: World Texture Pack and the
     /// action row that makes it (Image group).
     TexturePack,
     GenerateTexturePack,
     ModernLighting,
     ModernStrength,
-    /// docs/hdr.md: HDR Output and its calibration.
+    /// docs/playing/hdr.md: HDR Output and its calibration.
     HdrOutput,
     HdrPeak,
     HdrPaper,
@@ -354,7 +354,7 @@ pub fn rows_in(
         ],
         // The clone's Enhancements page: each row's native value reads
         // "Native" or "Off".
-        // docs/settings-page.md: the settings page's hub and its
+        // docs/developing/settings-page.md: the settings page's hub and its
         // group pages.
         Category::Enhancements => super::settings_page::hub_rows(s),
         Category::Settings(g) => super::settings_page::group_rows(g, s),

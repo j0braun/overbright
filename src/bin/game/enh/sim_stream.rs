@@ -1,4 +1,4 @@
-//! The desktop map editor's simulation (docs/map-editor.md, "Simulate"):
+//! The desktop map editor's simulation (docs/modding/map-editor.md, "Simulate"):
 //! `--map-mod <folder> --map-race <id> --simulate` (or `--map-file <path>`
 //! for the editor's run copy) races the custom race
 //! with the AI driving every car, the player's slot included (the AI racer

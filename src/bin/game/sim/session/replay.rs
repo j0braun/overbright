@@ -329,7 +329,7 @@ fn replay_road_record<'a>(
 
 /// `NFSU2_REPLAY_CAMLOG`'s line for this playback frame.
 fn replay_camlog(play: &Playback, d: &Drive, race: &Race) {
-    // Check aid (docs/replay-cameras.md): NFSU2_REPLAY_CAMLOG=file
+    // Check aid (docs/notes/parity/replay-cameras.md): NFSU2_REPLAY_CAMLOG=file
     // appends one line per playback frame — clock, index,
     // chase view, +0x214 age, +0x224, the track shot.
     if let Some(path) = debug_env().replay_camlog.clone() {

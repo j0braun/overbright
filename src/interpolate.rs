@@ -1,7 +1,7 @@
 //! What is drawn between two fixed world updates (`frame_clock::Cadence`,
-//! docs/uncapped-fps.md): a car's pose and the camera, blended from the
+//! docs/original/uncapped-fps.md): a car's pose and the camera, blended from the
 //! tick snapshot before the last update to the one after it. Drawing
-//! only: the game computes the blend into the frame's own copies (docs/uncapped-fps.md "Tick snapshots",
+//! only: the game computes the blend into the frame's own copies (docs/original/uncapped-fps.md "Tick snapshots",
 //! `FramePoses`); the world's state is never written for a draw.
 use glam::{Quat, Vec3};
 use crate::drive::CarState;

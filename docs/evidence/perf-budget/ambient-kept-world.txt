@@ -1,5 +1,5 @@
-Ambient Detail's props on a world kept for the next drive (docs/ambient-detail.md "When the props are placed",
-docs/perf-budget.md "Ambient Detail's props on a world kept for the next drive").
+Ambient Detail's props on a world kept for the next drive (docs/notes/graphics/ambient-detail.md "When the props are placed",
+docs/notes/performance/budget.md "Ambient Detail's props on a world kept for the next drive").
 
 The fault: a world kept for the next drive (the drive itself for the same car, its world and renderer for another
 car, the world kept beside the menus after a car change) carried the last drive's props unchecked. The test
@@ -72,7 +72,7 @@ A drift track's props placed again: L4RC 42-43 k props, 314 placements of use, 1
 rayon workers; the menus' preload of the city placed beside it in some runs). A city drive's check (the record's
 comparison, no placement): 0.2-0.9 ms on the job, and once more in the first frame (as for props made ahead).
 
-== Lamp Shadows' layers over a kept drive's barrier switch (docs/lamps-shadows.md).
+== Lamp Shadows' layers over a kept drive's barrier switch (docs/notes/graphics/lamps-shadows.md).
 
 A first probe (bounds only) counted, in five stage-1 city races left for free roam on the spot, 3-8 held layers with
 switched placements in reach. By what the layers draw (opaque and alpha-tested draws; blended and sky draws left out)

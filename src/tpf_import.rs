@@ -1,7 +1,7 @@
-//! docs/texmod-import.md: import a TexMod package (`.tpf`) into the
+//! docs/modding/texmod-import.md: import a TexMod package (`.tpf`) into the
 //! clone's texture-pack folders. TexMod keys a replacement by its CRC of
 //! the texture as SPEED2.EXE uploads it (`formats::tpf`); the clone's packs
-//! by the texture's bin hash (`<HASH>.dds` / `.png`, docs/texture-packs.md).
+//! by the texture's bin hash (`<HASH>.dds` / `.png`, docs/modding/texture-packs.md).
 //! [`collect`] reads every texture pack in the game's files, [`texmod_hash`]
 //! computes TexMod's key for each, and [`convert`] turns a package image
 //! into a pack file. Nothing here runs unless a tool asks (no game path).
@@ -357,7 +357,7 @@ fn sample_low(low: &[[f32; 3]], gw: usize, gh: usize, x: usize, y: usize, w: usi
     std::array::from_fn(|i| (a[i] * (1.0 - tx) + b[i] * tx) * (1.0 - ty) + (c[i] * (1.0 - tx) + d[i] * tx) * ty)
 }
 
-/// The import's look rule (docs/texmod-import.md): give a replacement (RGBA8
+/// The import's look rule (docs/modding/texmod-import.md): give a replacement (RGBA8
 /// `w`×`h`, changed in place) the original's tone. On the original's grid
 /// the replacement gets the original's mean colour and luma contrast: the
 /// low frequencies (the replacement box-filtered to the original's size,

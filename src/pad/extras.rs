@@ -1,4 +1,4 @@
-//! Controller extras (docs/controller-support.md): the Enhancements
+//! Controller extras (docs/playing/controller-support.md): the Enhancements
 //! hub's Controller group. Clone deviations, every one opt-in, every
 //! default the original's behaviour; kept in options.txt as `enh.pad_*`
 //! lines (written only when not native) through

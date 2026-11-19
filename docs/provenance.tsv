@@ -1,59 +1,59 @@
-# Provenance registry (docs/provenance.md): id	kind	doc	summary. Checked by scripts/checks/provenance.py.
-ai.actions.predicted	open	docs/formats.md,docs/world-systems-parity.md	125 m): the traffic path's length (0x60BF20 → 0x404910: the reach's vt+0x60 term open).
-ai.actions.swept	inferred	docs/formats.md,docs/world-systems-parity.md	keep, is taken as a traffic car's prediction, inferred): the human's path in 0x4275E0.
+# Provenance registry (docs/developing/provenance.md): id	kind	doc	summary. Checked by scripts/checks/provenance.py.
+ai.actions.predicted	open	docs/formats.md,docs/notes/parity/world-systems-parity.md	125 m): the traffic path's length (0x60BF20 → 0x404910: the reach's vt+0x60 term open).
+ai.actions.swept	inferred	docs/formats.md,docs/notes/parity/world-systems-parity.md	keep, is taken as a traffic car's prediction, inferred): the human's path in 0x4275E0.
 ai.actions.done	open	docs/formats.md	when 0x4140E0 passes it (open; the clone takes none) and
 ai.actions.done-2	open	docs/formats.md	(0x409320 / 0x409360 / 0x5D5CE0, open; the clone takes
 ai.actions.drag_avoid	open	docs/formats.md	0x4140E0 is open, see `done`), so the chooser sweeps again each
-ai.actions.drag_avoid-2	open	docs/formats.md,docs/world-systems-parity.md	0x42F330's near / far for a racer object (0x60BF80 open,
+ai.actions.drag_avoid-2	open	docs/formats.md,docs/notes/parity/world-systems-parity.md	0x42F330's near / far for a racer object (0x60BF80 open,
 ai.actions.entries	open	docs/formats.md	speed × planner vt+0x60), the second term open) or 0x403A40 finds
 ai.actions.got_hit	open	docs/formats.md	it is 20 once the race has run 10 s. Open: 0x40DF50(car, 0) =
 ai.actions.module	inferred	docs/formats.md	the right, the side `Located::lateral` grows to (inferred).
 ai.gps.FRAME_WORK	choice	docs/formats.md	the route search's frame budget is a fixed count of work units (700000, the median of what the original's 0.6 ms of real time bought on the reference desktop), not real time: the original's budget makes the frame a search ends on depend on the machine and its load, a work budget makes it the same on every machine and run.
 ai.route.bend	inferred	docs/formats.md	value made of them (0x419F39 on) is inferred: the cross product
-ai.route.facing_point	inferred	docs/formats.md,docs/world-systems-parity.md	during which the game runs that action instead; inferred: that
-ai.route.locate	inferred	docs/formats.md,docs/world-systems-parity.md	to the one at or before it; inferred for other objects: 0x419C10
-ai.route.node_edges	inferred	docs/formats.md,docs/world-systems-parity.md	edges themselves (+0x18 / +0x2C, inferred as the half widths).
-ai.route.node_edges-2	inferred	docs/formats.md,docs/world-systems-parity.md	(inferred; same half widths, as `..last.clone()` keeps them).
+ai.route.facing_point	inferred	docs/formats.md,docs/notes/parity/world-systems-parity.md	during which the game runs that action instead; inferred: that
+ai.route.locate	inferred	docs/formats.md,docs/notes/parity/world-systems-parity.md	to the one at or before it; inferred for other objects: 0x419C10
+ai.route.node_edges	inferred	docs/formats.md,docs/notes/parity/world-systems-parity.md	edges themselves (+0x18 / +0x2C, inferred as the half widths).
+ai.route.node_edges-2	inferred	docs/formats.md,docs/notes/parity/world-systems-parity.md	(inferred; same half widths, as `..last.clone()` keeps them).
 ai.traffic.ENTRY_REACH	inferred	docs/formats.md	the cap of 15 entries are not ported (inferred: the clone's pools
-ai.traffic.LANE_MARGIN	open	docs/formats.md,docs/world-systems-parity.md	float (open, taken as 0).
+ai.traffic.LANE_MARGIN	open	docs/formats.md,docs/notes/parity/world-systems-parity.md	float (open, taken as 0).
 ai.traffic.box_ahead	inferred	docs/formats.md	the car backs up (inferred for its +0x3EC test), else the heading):
 ai.traffic.box_ahead-2	inferred	docs/formats.md	box (its body +0xE0 / +0xF0) is taken as its hull's (inferred).
 ai.traffic.entries	inferred	docs/formats.md	free roam, inferred for races).
-ai.traffic.half_box	inferred	docs/formats.md,docs/world-systems-parity.md	its +0x58 taken as 0, inferred — plus the object's distance along
+ai.traffic.half_box	inferred	docs/formats.md,docs/notes/parity/world-systems-parity.md	its +0x58 taken as 0, inferred — plus the object's distance along
 ai.traffic.parks_at_end	inferred	docs/formats.md	inferred) — the car is parked (+0x77C). No shipped route record
 ai.traffic.road_node	inferred	docs/formats.md	(point k to k + 1) of any record, in 2D (inferred).
 ai.traffic.room	open	docs/formats.md	room by the next one's, is open (its decompile is garbled) and not
 ai.traffic.set_lane	inferred	docs/formats.md	inferred as a fresh plan in every case).
 ai.traffic.spawn_from	inferred	docs/formats.md	8, the nearest point). The clone takes that rule (inferred
 ai.traffic.standing_lane	inferred	docs/formats.md	the side is taken as the point's travel direction (inferred).
-ai.traffic.update	inferred	docs/formats.md,docs/world-systems-parity.md	not kept, so the nearest never goes back: inferred); 0x4198C0's
-ai.traffic.update-2	inferred	docs/formats.md,docs/world-systems-parity.md	(it only speeds up the search, inferred).
-ai.traffic.update-3	inferred	docs/formats.md,docs/world-systems-parity.md	racers' rule, `RacerRoute::line_path`; 2D here, inferred).
+ai.traffic.update	inferred	docs/formats.md,docs/notes/parity/world-systems-parity.md	not kept, so the nearest never goes back: inferred); 0x4198C0's
+ai.traffic.update-2	inferred	docs/formats.md,docs/notes/parity/world-systems-parity.md	(it only speeds up the search, inferred).
+ai.traffic.update-3	inferred	docs/formats.md,docs/notes/parity/world-systems-parity.md	racers' rule, `RacerRoute::line_path`; 2D here, inferred).
 audio.carfx.shift_update	open	docs/formats.md	the sound context's +0xA8 = 2 flag (0 here: open)), releasing
-audio.collision.module	inferred	docs/formats.md,docs/prop-hits.md	Inferred: +6 in milliseconds, the record's sound object (and its copy) living while its record or its layers do
+audio.collision.module	inferred	docs/formats.md,docs/notes/parity/prop-hits.md	Inferred: +6 in milliseconds, the record's sound object (and its copy) living while its record or its layers do
 audio.collision.module-2	open	docs/formats.md	living as long as the record. Open: what fills the argument's +0xC
-audio.driveby.module	inferred	docs/formats.md,docs/sound-audit.md	Inferred: the tunnel update runs before the DriveBy update in a
+audio.driveby.module	inferred	docs/formats.md,docs/notes/audio/sound-audit.md	Inferred: the tunnel update runs before the DriveBy update in a
 audio.enviro.module	inferred	docs/formats.md	Inferred: the objects' frame once per game frame after the
-audio.fe.purge_start	inferred	docs/formats.md,docs/sound-audit.md	it. `bank` the nitrous bank it is found in (inferred: 0x458B30
+audio.fe.purge_start	inferred	docs/formats.md,docs/notes/audio/sound-audit.md	it. `bank` the nitrous bank it is found in (inferred: 0x458B30
 audio.fe.update	inferred	docs/formats.md	0x43E5C0's elapsed time against 100 (inferred ms).
 audio.fe_rules.dyno_chart	inferred	docs/formats.md	only by the "Event Handler" object (inferred: never focused, so not
 audio.fe_rules.mailbox	inferred	docs/formats.md	0x51F7F0() is 1 (inferred: no event to pick); Back BACK.
 audio.fe_rules.strip_shop	inferred	docs/formats.md	0x56B7EF; inferred: the overlay's Back sends it), neon silent
-audio.hybrid.abk_block	inferred	docs/formats.md,docs/engine-volume-chain.md	inferred); p15 (+0x40) the azimuth (0); p16 (+0x44) = 0 (+0xBC
-audio.hybrid.abk_block-2	open	docs/formats.md,docs/engine-volume-chain.md	= 1.0); p17 (+0x48) = Engine +0x134 (0 here, open; the graph
-audio.hybrid.abk_block-3	open	docs/formats.md,docs/engine-volume-chain.md	here, open: the graph sends it as kind 6, not mixed); p25
+audio.hybrid.abk_block	inferred	docs/formats.md,docs/original/engine-volume-chain.md	inferred); p15 (+0x40) the azimuth (0); p16 (+0x44) = 0 (+0xBC
+audio.hybrid.abk_block-2	open	docs/formats.md,docs/original/engine-volume-chain.md	= 1.0); p17 (+0x48) = Engine +0x134 (0 here, open; the graph
+audio.hybrid.abk_block-3	open	docs/formats.md,docs/original/engine-volume-chain.md	here, open: the graph sends it as kind 6, not mixed); p25
 audio.hybrid.engine	inferred	docs/formats.md	inferred clear) with AccelTrans idle at ≤ 2500 rpm (0x7885D0).
 audio.hydraulics.module	inferred	docs/formats.md	Inferred: the object exists whenever the player drives (the
-audio.mixmap.player_vol_fields	open	docs/formats.md,docs/sound-audit.md	state in 30..34. f15 is 0 here (open: not modelled); the caller
+audio.mixmap.player_vol_fields	open	docs/formats.md,docs/notes/audio/sound-audit.md	state in 30..34. f15 is 0 here (open: not modelled); the caller
 audio.roadwind.module	inferred	docs/formats.md	Inferred: the wheel compression over the suspension's maximum
 audio.roadwind.rain_update	inferred	docs/formats.md	0x8A329C / 0x88EC68 taken as 0 (inferred: their writers
-audio.roadwind.splash	inferred	docs/sound-audit.md,docs/prop-hits.md	value (inferred: natively +0xC0 follows the copy's level each frame while the object lives); the start level itself is verified
-audio.roadwind.splash-2	open	docs/sound-audit.md	+0x128 has bit 0x10 (0x4599E0 on 0x82BCD0) is not applied (open:
+audio.roadwind.splash	inferred	docs/notes/audio/sound-audit.md,docs/notes/parity/prop-hits.md	value (inferred: natively +0xC0 follows the copy's level each frame while the object lives); the start level itself is verified
+audio.roadwind.splash-2	open	docs/notes/audio/sound-audit.md	+0x128 has bit 0x10 (0x4599E0 on 0x82BCD0) is not applied (open:
 audio.roadwind.stop	open	docs/formats.md	context +0x9C has +0xAC set and +0xA8 = 2 or 4; open, not
-audio.scrape.module	inferred	docs/formats.md,docs/sound-audit.md	Inferred: the mix pass reaching a new object from its second frame
+audio.scrape.module	inferred	docs/formats.md,docs/notes/audio/sound-audit.md	Inferred: the mix pass reaching a new object from its second frame
 audio.stitch.module	inferred	docs/formats.md	Inferred (as in `collision`): the sound byte as the bank's sound
-audio.others.bank_order	inferred	docs/uncapped-fps.md	the AI engines' banks run in a fixed (path) order; the original runs each racer's own engine object in its list order (not traced).
-audio.scrape.list_order	inferred	docs/uncapped-fps.md	the scrape objects run in creation order; the manager walks its object list (+0x24, next +0x10, 0x469DE0), that a new object is appended is not traced.
+audio.others.bank_order	inferred	docs/original/uncapped-fps.md	the AI engines' banks run in a fixed (path) order; the original runs each racer's own engine object in its list order (not traced).
+audio.scrape.list_order	inferred	docs/original/uncapped-fps.md	the scrape objects run in creation order; the manager walks its object list (+0x24, next +0x10, 0x469DE0), that a new object is appended is not traced.
 audio.streams.cleanup_backup	inferred	docs/formats.md	the backup cleanup 0x46CA10 stops the channel of +0x48; that it is the backup line's own channel (so only a playing backup stops) is inferred.
 audio.streams.nis_busy	inferred	docs/formats.md	stream object busy: inferred).
 audio.traffic.module	inferred	docs/formats.md	Inferred: the AI Engine controller's rpm / throttle as the sound
@@ -61,32 +61,32 @@ audio.traffic.module-2	inferred	docs/formats.md	Inferred: +0xC4 clear (not trace
 audio.traffic.module-3	inferred	docs/formats.md	Inferred: the clone's traffic car slot as the context's car, slot
 audio.traffic.module-4	inferred	docs/formats.md	15 slot 0 (section 2). Inferred: the roll as the clone's racer
 audio.traffic.module-5	inferred	docs/formats.md	section 3 has one copy per context (0x485FA0). Inferred: a
-audio.traffic.racer_roll	inferred	docs/formats.md,docs/sound-audit.md	racer are inferred, see formats.md): +0xB8 = 8 +
+audio.traffic.racer_roll	inferred	docs/formats.md,docs/notes/audio/sound-audit.md	racer are inferred, see formats.md): +0xB8 = 8 +
 audio.transients.module	inferred	docs/formats.md	inferred from their dependencies.
 car.installed	inferred	docs/formats.md	part, the first of level 0 (inferred to be the same part).
-car.load_tuned	inferred	docs/shop-part-animations.md	only while the left door is posed: inferred to be
+car.load_tuned	inferred	docs/notes/front-end/shop-part-animations.md	only while the left door is posed: inferred to be
 car.load_tuned-2	inferred	docs/formats.md	the right); inferred: that block runs as the car type's
 car.lod_gate	open	docs/formats.md	wheel model's LOD, esp+0xF4, clamped to 2 at 0x627650). Open: slots
-car.trunk_component	inferred	docs/shop-part-animations.md	first part of level 0 that 0x52A020 passes (inferred: every
-character.module	inferred	docs/formats.md,docs/particles-smoke.md	Inferred: the 0x43C990 product order (the standard skin matrix, the
-chase.set_look_back	open	docs/formats.md,docs/world-systems-parity.md	the origin. Its writer is not traced (open), so the clone takes
-drive.leave_melo	inferred	docs/formats.md,docs/world-systems-parity.md	on the car (inferred for the physics mover's set-up 0x5B5CD0).
-drive.nis.place	inferred	docs/formats.md,docs/nis-mover.md	stay (inferred: the controller resets 0x42CDC0/0x40D550 that the
+car.trunk_component	inferred	docs/notes/front-end/shop-part-animations.md	first part of level 0 that 0x52A020 passes (inferred: every
+character.module	inferred	docs/formats.md,docs/notes/graphics/smoke.md#particles-high-and-ultra-gpu-particles-and-detailed-smoke	Inferred: the 0x43C990 product order (the standard skin matrix, the
+chase.set_look_back	open	docs/formats.md,docs/notes/parity/world-systems-parity.md	the origin. Its writer is not traced (open), so the clone takes
+drive.leave_melo	inferred	docs/formats.md,docs/notes/parity/world-systems-parity.md	on the car (inferred for the physics mover's set-up 0x5B5CD0).
+drive.nis.place	inferred	docs/formats.md,docs/original/nis-mover.md	stay (inferred: the controller resets 0x42CDC0/0x40D550 that the
 drive.placed	inferred	docs/formats.md	Inferred: the axes are made orthonormal here (the game keeps B
 drive.step_world_with_post_motion	inferred	docs/formats.md	the list 0x890080; inferred: the cars stepped together are that
-drive.step_world_with_post_motion-2	inferred	docs/formats.md,docs/world-systems-parity.md	no track there to touch (inferred: the clone keeps all of
+drive.step_world_with_post_motion-2	inferred	docs/formats.md,docs/notes/parity/world-systems-parity.md	no track there to touch (inferred: the clone keeps all of
 drive.suspension_load	inferred	docs/formats.md	(inferred: no other writer reaches traffic). Gates
 drive.wheel_poses	inferred	docs/formats.md	before each car's 0x620AF0 (inferred from the order of
 dyno.module	inferred	docs/formats.md	Inferred: the frame is 1/60 s (the game's world frame varies; only
 dyno.new	inferred	docs/formats.md	(inferred equivalent; it changes nothing the chart reads).
-event_camera.module	inferred	docs/formats.md,docs/replay-cameras.md	Inferred: one world update per clone frame for the eighth-update
+event_camera.module	inferred	docs/formats.md,docs/notes/parity/replay-cameras.md	Inferred: one world update per clone frame for the eighth-update
 event_camera.plan_shot	inferred	docs/formats.md	it; inferred: +0x18 / +0x2C as the edges), the sides swap. Both
 event_camera.update_with	inferred	docs/formats.md	all four wheels up, the director's +0x248 clear (inferred:
-fingerprint.OTHER_EXE_BUILDS	inferred	docs/game-fingerprint.md	the hash's ends were recorded, so this match is inferred).
+fingerprint.OTHER_EXE_BUILDS	inferred	docs/developing/game-fingerprint.md	the hash's ends were recorded, so this match is inferred).
 formats.eagl.decode_compound	inferred	docs/formats.md	+0x04 u32 ptr (not used by init/eval; inferred: back-pointer/id)
-formats.eagl.module	inferred	docs/formats.md,docs/particles-smoke.md	directly off the code are marked inferred.
-formats.eagl.module-2	inferred	docs/formats.md,docs/particles-smoke.md	quaternion = 16..19, translation = 20..22 - the layout is inferred from
-formats.eagl.module-3	inferred	docs/formats.md,docs/particles-smoke.md	(NIS scenes are assumed to use the same rate - inferred). The compound
+formats.eagl.module	inferred	docs/formats.md,docs/notes/graphics/smoke.md#particles-high-and-ultra-gpu-particles-and-detailed-smoke	directly off the code are marked inferred.
+formats.eagl.module-2	inferred	docs/formats.md,docs/notes/graphics/smoke.md#particles-high-and-ultra-gpu-particles-and-detailed-smoke	quaternion = 16..19, translation = 20..22 - the layout is inferred from
+formats.eagl.module-3	inferred	docs/formats.md,docs/notes/graphics/smoke.md#particles-high-and-ultra-gpu-particles-and-detailed-smoke	(NIS scenes are assumed to use the same rate - inferred). The compound
 formats.eagl.sample_each	inferred	docs/formats.md	channel evaluator (normalisation, if any, happens later - inferred).
 formats.native_save.GARAGE_LIST	open	docs/formats.md	match +8; a free entry has 0), `+0xC` an f32 (open: written when the
 formats.viv.module	inferred	docs/formats.md	(inferred: the default device's walk of the path list was not
@@ -94,12 +94,12 @@ formats.vp6.module	open	docs/formats.md	(open, not ported): interlaced frames (+
 frontend.career.check_stage	open	docs/formats.md	which stage 0x513490 tests for another record is open.
 frontend.career.owned_bits	inferred	docs/formats.md	inferred); then by slot (table 0x503CAC → 0x503C90): 7 →
 frontend.career.stock_id	inferred	docs/formats.md	the maker of the list, 0x5162D0, is not traced further — inferred
-frontend.career.store_ride	inferred	docs/formats.md,docs/perf-shop.md	(inferred rare: every wide body's lookups resolve).
+frontend.career.store_ride	inferred	docs/formats.md,docs/notes/front-end/perf-shop.md	(inferred rare: every wide body's lookups resolve).
 frontend.career.store_visual	open	docs/formats.md	(Customize) only the part slots (the record there is open).
 frontend.career.style_score	inferred	docs/formats.md	0 without a style manager. Inferred: owner +0x14 → +0x904 is at
 frontend.career.to_native	inferred	docs/formats.md	order is kept; new ones follow in hash order (inferred:
 frontend.career.world_triggers	inferred	docs/formats.md	the corners of the box it covers (inferred from the shops').
-region.detect	inferred	docs/region.md	that a North American install's CARS folder has CIVIC and RSX and neither CORSA nor PEUGOT106 (inferred).
+region.detect	inferred	docs/playing/region.md	that a North American install's CARS folder has CIVIC and RSX and neither CORSA nor PEUGOT106 (inferred).
 frontend.dday.holds_input	inferred	docs/formats.md	of 0x551080 (+0x118 the last reading; inferred across a load:
 frontend.options.CUSTOM_CAPS	inferred	docs/formats.md	filtering 2 (trilinear + anisotropic), the toggles 1. Inferred: the
 frontend.options.DEFAULT_KEYS	inferred	docs/formats.md	names (inferred: the OS supplies them), "Shift" / "Alt" / "Ctrl"
@@ -108,7 +108,7 @@ frontend.rebased-2	inferred	docs/formats.md	the operand order is inferred from t
 frontend.screens.CoverView	inferred	docs/formats.md	masthead and extra — and binds the rectangle under `SHOT` (inferred:
 frontend.screens.CoverView-2	open	docs/formats.md	width, black behind everything; open: the environment map).
 frontend.screens.DynoResults	inferred	docs/formats.md	the fitted parts (inferred: the values match the stock 206 under
-frontend.screens.Jukebox	inferred	docs/formats.md,docs/sound-audit.md	every track All (inferred: the profile's default playlist is not
+frontend.screens.Jukebox	inferred	docs/formats.md,docs/notes/audio/sound-audit.md	every track All (inferred: the profile's default playlist is not
 frontend.screens.TuneGraph	inferred	docs/formats.md	centre (0x550590). The bars' colours are inferred.
 frontend.screens.TuneSliders	inferred	docs/formats.md	panel. Inferred: where (the clone stacks them 40 apart from the
 frontend.screens.distance_takes_three_decimals	inferred	docs/formats.md	Create New and Use Existing both connect first). Inferred: the list's
@@ -118,7 +118,7 @@ frontend.screens.paint_finish	inferred	docs/formats.md	inferred from the class a
 frontend.screens.quads	inferred	docs/formats.md	+0x84; inferred that the column's are the
 frontend.screens.quads-10	open	docs/formats.md	Open: UI_Showcase_DPAD (not referenced by name in the code).
 frontend.screens.quads-11	open	docs/formats.md	input +0x214 = 0.8 (0x5EB900, meaning open), 0x836353 = 1;
-frontend.screens.quads-2	inferred	docs/formats.md,docs/perf-shop.md	inferred for UI_Paint from the class): under Wine the handle
+frontend.screens.quads-2	inferred	docs/formats.md,docs/notes/front-end/perf-shop.md	inferred for UI_Paint from the class): under Wine the handle
 frontend.screens.quads-3	inferred	docs/formats.md	(the item's −276, −10 − bc). Inferred: a string's 0x51D390 "top
 frontend.screens.quads-4	inferred	docs/formats.md	sizes (319.3 / 202.1), which the clone uses (inferred: which
 frontend.screens.quads-5	inferred	docs/formats.md	SLIDER_BASE_1 where the package has it (inferred: that
@@ -128,15 +128,15 @@ frontend.screens.quads-8	inferred	docs/formats.md	precision under Direct3D 9, in
 frontend.screens.quads-9	inferred	docs/formats.md	orange, the name stays white (inferred: +0x2C /
 frontend.screens.scroll_bar_at	inferred	docs/formats.md	nothing blinks (inferred from the packages; 0x5426D0's fallback
 frontend.screens.sound_event	open	docs/formats.md	generic Up / Down (open: its own handler's sound).
-frontend.sms.quads	inferred	docs/formats.md,docs/perf-shop.md	count and the position from 1, are inferred from the other
-frontend.status.quads	inferred	docs/formats.md,docs/perf-shop.md	(0x538090 → 0x52E330; inferred the arguments 1, the
-game.TrafficFrame	inferred	docs/formats.md,docs/world-systems-parity.md	difference of the two places located on the road (inferred).
+frontend.sms.quads	inferred	docs/formats.md,docs/notes/front-end/perf-shop.md	count and the position from 1, are inferred from the other
+frontend.status.quads	inferred	docs/formats.md,docs/notes/front-end/perf-shop.md	(0x538090 → 0x52E330; inferred the arguments 1, the
+game.TrafficFrame	inferred	docs/formats.md,docs/notes/parity/world-systems-parity.md	difference of the two places located on the road (inferred).
 game.brand_select	inferred	docs/formats.md	[`options::BrandSelect`]. Inferred: a package without any
 game.car_shadow_in_game	inferred	docs/formats.md	ground-query state (inferred: the context 0x6162F0 queries, render
 game.cover_view	inferred	docs/formats.md	game's, inferred) and the career car posed for the
-game.crash_route	inferred	docs/formats.md,docs/world-systems-parity.md	(inferred: the human car's route +0x2C as a fresh racer route).
-game.crash_route-2	inferred	docs/formats.md,docs/world-systems-parity.md	The chase camera keeps easing meanwhile (inferred deviation: the
-game.crash_route-3	inferred	docs/formats.md,docs/world-systems-parity.md	the player's route from where the car is (inferred: the human car's
+game.crash_route	inferred	docs/formats.md,docs/notes/parity/world-systems-parity.md	(inferred: the human car's route +0x2C as a fresh racer route).
+game.crash_route-2	inferred	docs/formats.md,docs/notes/parity/world-systems-parity.md	The chase camera keeps easing meanwhile (inferred deviation: the
+game.crash_route-3	inferred	docs/formats.md,docs/notes/parity/world-systems-parity.md	the player's route from where the car is (inferred: the human car's
 game.draw_frame	open	docs/formats.md	(open: the game reloads its effects on a change, 0x8709D1).
 game.draw_garage	inferred	docs/formats.md	Inferred: into the scene itself (with the glow and streaks on
 game.draw_garage-2	inferred	docs/formats.md	Inferred: drawn with the neon into the scene.
@@ -150,12 +150,12 @@ game.frontend_rig_hash-2	open	docs/formats.md	still side-on, steer −24). Open:
 game.garage_open_parts	inferred	docs/formats.md	open): 0x553580 and 0x5571A2 open, 0x562B8C closes; inferred:
 game.garage_view_request	inferred	docs/formats.md	the view. Inferred: the neon list's entry moves it too
 game.help_screen	inferred	docs/formats.md	Continue only). Inferred: a paused test run is the state
-game.human_perf	inferred	docs/formats.md,docs/drag-stage4-parity.md	inferred to persist) — with the uniques: its rating (+8, the
-game.human_perf-2	open	docs/formats.md,docs/drag-stage4-parity.md	against 0.6585 with it). The dyno tuning is left out (open).
+game.human_perf	inferred	docs/formats.md,docs/notes/parity/drag-stage4-parity.md	inferred to persist) — with the uniques: its rating (+8, the
+game.human_perf-2	open	docs/formats.md,docs/notes/parity/drag-stage4-parity.md	against 0.6585 with it). The dyno tuning is left out (open).
 game.hydraulics_controls	open	docs/formats.md	the SELX / SELY events are open: their digital actions stand
 game.icon_menu	open	docs/formats.md	(the setter is open), but the original's own saves hold 1
 game.icon_menu-2	inferred	docs/formats.md	when the clone's writer sets the byte (inferred setter).
-game.jump_flight	inferred	docs/formats.md,docs/replay-cameras.md	contact points (each wheel's centre less its radius; inferred: the
+game.jump_flight	inferred	docs/formats.md,docs/notes/parity/replay-cameras.md	contact points (each wheel's centre less its radius; inferred: the
 game.lines_purged_by	open	docs/formats.md	it (whether they close it is open). The pause (flow state 6,
 game.main_menu_car	open	docs/formats.md	open, and the clone shows the career's car.
 game.map_view	inferred	docs/formats.md	(inferred: nothing loaded a career's stage).
@@ -171,13 +171,13 @@ game.mouse.fe_mouse-2	inferred	docs/formats.md	list (the option lists' 0x5444A0,
 game.mouse.fe_mouse-3	inferred	docs/formats.md	the bar steps the rows (inferred from the class, as
 game.mouse.fe_mouse-4	open	docs/formats.md	the code that does it is open).
 game.mouse.fe_mouse-5	open	docs/formats.md	case of its own; where the original takes it is open.
-game.mouse.tuning_tip	inferred	docs/formats.md,docs/sound-audit.md	the screen (inferred: the button's label, OK).
+game.mouse.tuning_tip	inferred	docs/formats.md,docs/notes/audio/sound-audit.md	the screen (inferred: the button's label, OK).
 game.movie_tick	inferred	docs/formats.md	Inferred: the tick adds 0x865194 (the frame's step); the
 game.music_context_of	inferred	docs/formats.md	follows it under the same pause (inferred).
 game.native_menu_sound	inferred	docs/formats.md	(state 3 only hides the button slots, 0x4A3460: inferred
-game.particle_effects	inferred	docs/formats.md,docs/particles-smoke.md	Inferred: her flares fire before the world's particle update
-game.particle_effects-2	inferred	docs/nis-audio-patterns.md	clone's Car<n> = grid slot n; inferred, 0x827BA8's slot → car
-game.perf_package_menu	inferred	docs/formats.md,docs/engine-volume-chain.md	Customize; inferred the rows' data comes from
+game.particle_effects	inferred	docs/formats.md,docs/notes/graphics/smoke.md#particles-high-and-ultra-gpu-particles-and-detailed-smoke	Inferred: her flares fire before the world's particle update
+game.particle_effects-2	inferred	docs/original/nis-audio-patterns.md	clone's Car<n> = grid slot n; inferred, 0x827BA8's slot → car
+game.perf_package_menu	inferred	docs/formats.md,docs/original/engine-volume-chain.md	Customize; inferred the rows' data comes from
 game.preview_ride	open	docs/formats.md	component slots (0x547480). Open: the vinyl colours' swatches.
 game.preview_ride_parts	inferred	docs/formats.md	(0x40–0x43, 0x4D–0x5C) again. Inferred: the third test's
 game.preview_ride_parts-2	inferred	docs/formats.md	level 0 that 0x52A020 passes (inferred: every level-0
@@ -185,23 +185,23 @@ game.qr_cars	inferred	docs/formats.md	the My Cars records (bit 2) — garage ord
 game.quads	inferred	docs/formats.md	totals add (0x515990 → +0xA00). Inferred: the clone stops it at
 game.race_start_scene	open	docs/formats.md	Open: the complete NISMover pose/force solver and remaining
 game.racer_think	inferred	docs/formats.md	NIS movers is inferred: no gas, the hold's brake, neutral).
-game.replay_typed_input	inferred	docs/drag-drift-outrun-parity.md,docs/replay-cameras.md	path's curvature (0x5EB320; inferred here from the velocity's turn
-game.reset_to_road	inferred	docs/formats.md,docs/nis-mover.md	Inferred: the human's road node is the AI racer controller's route
+game.replay_typed_input	inferred	docs/notes/parity/drag-drift-outrun-parity.md,docs/notes/parity/replay-cameras.md	path's curvature (0x5EB320; inferred here from the velocity's turn
+game.reset_to_road	inferred	docs/formats.md,docs/original/nis-mover.md	Inferred: the human's road node is the AI racer controller's route
 game.road_car	inferred	docs/formats.md	half its length and width (handling +0x224 / +0x228, inferred for
 game.shop_preview_item	inferred	docs/formats.md	(under Wine RED's underglow; inferred that it is
 game.shop_preview_item-2	inferred	docs/formats.md	0x4C2100(0x1D)). Inferred: the rims' strip picks the
 game.shop_rating_quads_of	inferred	docs/formats.md	inferred: the overlay's opening refresh pushes it).
 game.sight_blocked	inferred	docs/formats.md	length over 30, inferred: the rounding) from `from` (the car)
-game.soundfx_request	inferred	docs/sound-audit.md	argument, passed on to 0x46CA60). Inferred: the queued
+game.soundfx_request	inferred	docs/notes/audio/sound-audit.md	argument, passed on to 0x46CA60). Inferred: the queued
 game.start_round	inferred	docs/formats.md	round loads its track; inferred for Restart (the clone
-game.step	inferred	docs/formats.md,docs/replay-cameras.md	Inferred: the kind-10 emitter list holds the `CARFX_NITRO`
-game.step_race	open	docs/formats.md,docs/world-systems-parity.md	to the end of the frame; open, not ported). Nothing else reads
-game.stream_sounds	inferred	docs/sound-audit.md	inferred as its position); with no map it stays as it was.
+game.step	inferred	docs/formats.md,docs/notes/parity/replay-cameras.md	Inferred: the kind-10 emitter list holds the `CARFX_NITRO`
+game.step_race	open	docs/formats.md,docs/notes/parity/world-systems-parity.md	to the end of the frame; open, not ported). Nothing else reads
+game.stream_sounds	inferred	docs/notes/audio/sound-audit.md	inferred as its position); with no map it stays as it was.
 game.style_detect	inferred	docs/formats.md	the physics' own is not stirred). Inferred: car +0x60 is the
 game.styles_browser	open	docs/formats.md	(0x79C1CC) of the part's name (0x610010; open: the
-game.think	inferred	docs/outrun.md,docs/world-systems-parity.md	with the free-roam load is inferred.
+game.think	inferred	docs/original/outrun.md,docs/notes/parity/world-systems-parity.md	with the free-roam load is inferred.
 game.time_out	inferred	docs/formats.md	Inferred: two finishes in one frame are taken by their times,
-game.traffic_coast	inferred	docs/formats.md,docs/world-systems-parity.md	keeps braking (inferred: the resumed think's steering is not
+game.traffic_coast	inferred	docs/formats.md,docs/notes/parity/world-systems-parity.md	keeps braking (inferred: the resumed think's steering is not
 game.traffic_fill	inferred	docs/formats.md	teleporters (0x883DC8 of them, none in the retail data — inferred
 game.traffic_fill-2	inferred	docs/formats.md	their places located on the race road (inferred; a car placed by
 game.traffic_fill-3	inferred	docs/formats.md	0x5F0FC0 are taken as the player alone (inferred: which cars are
@@ -210,15 +210,15 @@ game.traffic_think-2	inferred	docs/formats.md	(inferred, as `dist` does).
 game.tuning_start	inferred	docs/formats.md	has nothing to resume (inferred: nothing happens there). The
 game.tuning_start-2	inferred	docs/formats.md	does (the dyno settings, the run's race set-up; inferred
 game.unique_part_label	open	docs/formats.md	are open (the memory-card / profile states are not traced).
-game.update_world-2	inferred	docs/formats.md,docs/sound-audit.md	started (inferred: the game's line starts in 0x53E0C0
+game.update_world-2	inferred	docs/formats.md,docs/notes/audio/sound-audit.md	started (inferred: the game's line starts in 0x53E0C0
 game.update_world-3	inferred	docs/formats.md	the track's +0x94 bits). Inferred: the laps flag
 game.upload_movie	inferred	docs/formats.md	inferred: about +z) seen from the camera's eye towards its point
 game.upload_movie-2	inferred	docs/formats.md	/ 360; inferred: across the screen's width, h / w of 0x5C7ED0), then
-handling.launch_times	inferred	docs/replay-cameras.md,docs/tuning-physics-parity.md	quarter's t and v; it stops once all four are non-zero. Inferred: a
-movie.path	choice	docs/native-deviations.md,docs/formats.md	the movie's file: the name 0x51C740 builds first (verified: a constant "_fr" suffix, 0x79B1EC), then this install's own name (no suffix as in the US edition, the text language's, _en, any one <name>_<xx>.vp6; src/game_assets.rs), which the original never opens: with English data it skips those movies (seen under Wine).
+handling.launch_times	inferred	docs/notes/parity/replay-cameras.md,docs/notes/parity/tuning-physics-parity.md	quarter's t and v; it stops once all four are non-zero. Inferred: a
+movie.path	choice	docs/playing/native-deviations.md,docs/formats.md	the movie's file: the name 0x51C740 builds first (verified: a constant "_fr" suffix, 0x79B1EC), then this install's own name (no suffix as in the US edition, the text language's, _en, any one <name>_<xx>.vp6; src/game_assets.rs), which the original never opens: with English data it skips those movies (seen under Wine).
 pad.host.analog	inferred	docs/formats.md	(inferred: the original's per-player device assignment,
 particles.direction	inferred	docs/formats.md	Inferred: the order the three turns compose in, and the draws;
-particles.module	inferred	docs/formats.md,docs/particles-smoke.md	Inferred (not bit-exact): the random draws (the game steps one
+particles.module	inferred	docs/formats.md,docs/notes/graphics/smoke.md#particles-high-and-ultra-gpu-particles-and-detailed-smoke	Inferred (not bit-exact): the random draws (the game steps one
 performance.refit	inferred	docs/formats.md	draws. A part that will not go on ends its pass (inferred guard:
 render.new	inferred	docs/formats.md	there (inferred), and the reflection and cube views, whose
 render.plan_wet_mask	open	docs/formats.md	(0x5CAD86), without which a face is only cleared (open: the
@@ -236,12 +236,13 @@ tuning.curve_graph	inferred	docs/formats.md	the tuning, `metric` the unit flag (
 tuning.nudge	inferred	docs/formats.md	write moved. Returns the slider bytes. Inferred: the unit
 tuning.shift_gear	open	docs/formats.md	uninitialised stack slot (0x5B2EE0's local, open). The clone
 weather.module	inferred	docs/formats.md	(inferred: the original's frame rate), see [`Weather::update`].
-carfx_pops.first_gear	inferred	docs/sparks-fire.md	a car's last gear (+0x4D0) before its first frame is taken as its gear (no pop on load)
-carfx_pops.ride_328	open	docs/sparks-fire.md	ride +0x328 adds 0.5 to the pop's level; what sets it is not traced (0 on every car read; the clone takes it clear)
+carfx_pops.first_gear	inferred	docs/notes/graphics/sparks-fire.md	a car's last gear (+0x4D0) before its first frame is taken as its gear (no pop on load)
+carfx_pops.ride_328	open	docs/notes/graphics/sparks-fire.md	ride +0x328 adds 0.5 to the pop's level; what sets it is not traced (0 on every car read; the clone takes it clear)
 frontend.popup_heap	inferred	docs/formats.md	The LIFO model of the allocator is inferred from that reuse pattern.
 frontend.settings.cpu_mhz	inferred	docs/formats.md	the top tier (inferred; how close either file is to the TSC rate depends on the CPU and its driver).
 game.race_status_clock_end	inferred	docs/formats.md	the race status clock +0x14 stops with the clone race clock (every racer finished) as the end of native state 4; when the original leaves state 4 is not traced.
 game.race_idle_brake	open	docs/formats.md	the race input object analog brake byte +0x2D9 = 1 (idle brake 1/255 from the green) is measured; which device state sends event 0x95 = 1 at registration (0x579370) is open, and whether free roam has it is not measured.
-props.sound.splash_flag	inferred	docs/prop-hits.md	the drum's splashed flag (+0x50C) set when its sound is posted, not at the object's start after the five-object cap
-audio.collision.copy_life	inferred	docs/prop-hits.md	a started collision object's mix copy kept while its layers or splash play (its end with its record is not traced)
+props.sound.splash_flag	inferred	docs/notes/parity/prop-hits.md	the drum's splashed flag (+0x50C) set when its sound is posted, not at the object's start after the five-object cap
+audio.collision.copy_life	inferred	docs/notes/parity/prop-hits.md	a started collision object's mix copy kept while its layers or splash play (its end with its record is not traced)
 ai.traffic.lane_reach	inferred	docs/formats/ai.md	A lane's reach on a record entered by a junction is taken from its first point (observed timing; +0x68 of a junction target not traced).
+ai.traffic.race_coord_step	inferred	docs/formats/ai.md	A traffic car's race coordinate (+0x8FC) moves on in 11.6 m steps of its place (observed under Wine); the writer and the exact trigger are not traced.

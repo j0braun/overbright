@@ -1,6 +1,6 @@
-//! Wet Car (clone deviation, opt-in; docs/weather.md): the cars get wet
+//! Wet Car (clone deviation, opt-in; docs/notes/graphics/weather.md): the cars get wet
 //! with the rain. Nothing here is native: car.efx has no wetness or rain
-//! input (docs/car-raindrops.md), so the original draws a dry and a wet car
+//! input (docs/notes/graphics/car-look.md "Spots like raindrops on a dry car"), so the original draws a dry and a wet car
 //! the same. The weather it follows is native: the rain's amount (weather
 //! +0x1F0), and the water film follows +0x509C's rule (0x61F2BD: up by
 //! 0.05 of the gap a step, down by 0.0015) from 0 at load, aimed at the

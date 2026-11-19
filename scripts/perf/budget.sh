@@ -1,5 +1,5 @@
 #!/bin/bash
-# Frame budget (docs/perf-budget.md): every effect's cost as "everything max" (perf.sh's MAX: a maintainer's
+# Frame budget (docs/notes/performance/budget.md): every effect's cost as "everything max" (perf.sh's MAX: a maintainer's
 # play setup + the newest rows) with that one row turned down (leave-one-out), in the effect's heavy scene,
 # at 1920x1080 and 3840x2160, plus the preset totals over every scene.
 #

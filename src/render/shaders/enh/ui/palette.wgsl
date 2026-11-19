@@ -1,4 +1,4 @@
-// Colour-vision palette for the HUD (docs/modern-extras.md §4; clone
+// Colour-vision palette for the HUD (docs/playing/modern-extras.md §4; clone
 // deviation, opt-in): saturated hues the kind confuses moved to ones it
 // tells apart (Okabe–Ito): 1 deuteranopia / 2 protanopia: reds to amber
 // (protanopia brighter: reds look dark to it), greens to sky blue; 3

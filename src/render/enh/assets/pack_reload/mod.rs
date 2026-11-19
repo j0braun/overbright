@@ -1,4 +1,4 @@
-//! docs/pack-hot-reload.md: Reload Packs When Changed. A clone
+//! docs/modding/pack-hot-reload.md: Reload Packs When Changed. A clone
 //! deviation, opt-in on the Enhancements page (Off = native: packs are read
 //! at startup or when a world / car loads, as before). Not a feature of
 //! SPEED2.EXE; nothing here was traced.

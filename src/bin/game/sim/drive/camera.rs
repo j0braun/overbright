@@ -61,7 +61,7 @@ impl Drive {
     /// car's nitrous flame is on (0x59FA40 on car +0x40 set, 0x5ECDC0 zero:
     /// `carfx::purging` false; `ChaseCamera::set_nitrous_flame`). Both are
     /// read per world update, as the camera itself is stepped (drawn frames
-    /// between updates blend the camera, docs/uncapped-fps.md).
+    /// between updates blend the camera, docs/original/uncapped-fps.md).
     pub(crate) fn chase_view(&mut self, dt: f32) {
         self.chase_view_lifted(dt, &[]);
     }

@@ -304,7 +304,7 @@ pub(super) fn qrcars(game: &mut Game, _cx: &ShotCtx) -> Result<Mode> {
             lot.opened = 0.0;
             // NFSU2_SHOT_QRCAR=240SX: that car type on the platform
             // as the list opens (no swing), for still comparisons
-            // with the original's car select (docs/car-shading-compare.md).
+            // with the original's car select (docs/notes/graphics/car-look.md "Car paint, reflections and rims against the original").
             // A stock car type the no-profile list does not hold
             // (the original's profile had it unlocked, e.g. the finished-career save's
             // TIBURON) is put at the list's end.

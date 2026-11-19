@@ -20,5 +20,5 @@ fountain__0orig    889d564c3437 889d564c3437
 
 Sheets (Original | before | after): `wet-rain-2high`, `wet-rainharb-2high` (Modern, SSR off),
 `crop100-rainharb-2high` (100 %: no speckle), `fog3-neon`, `fog3-rain`, `fountain-water2-ng-before-after`
-(Realistic | Next-Gen before | after). Numbers: docs/wet-roads-ssr.md "One wetness", docs/atmosphere.md
-"One medium and its energy bound", docs/water.md.
+(Realistic | Next-Gen before | after). Numbers: docs/notes/graphics/reflections.md "One wetness", docs/notes/graphics/atmosphere.md
+"One medium and its energy bound", docs/notes/graphics/water.md.

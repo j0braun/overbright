@@ -1,4 +1,4 @@
-//! `--flow firstrace` (docs/first-race-regression.md): a fresh career's
+//! `--flow firstrace` (docs/notes/parity/first-race-regression.md): a fresh career's
 //! first race after the intro, its start scene played through (not
 //! skipped) and then raced, driven frame by frame as the window drives it
 //! (`Game::advance` at the display's interval; a scene that holds the cars
@@ -229,7 +229,7 @@ pub(super) fn drive_race(
                 // log of STAGE_1_CIRCUIT_1: 0x40D5C0's draws, made right
                 // before those actions' constructors, 8 and 71 frames past
                 // the green with the traffic hundreds of metres off;
-                // docs/rng.md).
+                // docs/original/rng.md).
                 avoided[i] |= r.actions.kind != nfsu2::ai::actions::Kind::JustDrive;
                 if !avoided[i] {
                     run.yaw[i] = run.yaw[i].max(dir.perp_dot(fwd).atan2(dir.dot(fwd)).abs().to_degrees());
@@ -373,7 +373,7 @@ mod tests {
     use super::*;
 
     /// The rivals on the line and at the green, as the original's
-    /// (docs/race-ai-parity.md, parity runs circuit_cd / circuit_s1 under
+    /// (docs/notes/parity/race-ai-parity.md, parity runs circuit_cd / circuit_s1 under
     /// Wine): through the countdown no goal, no path, the wheels straight
     /// (steer 0), gas 1 and brake 1 in neutral; the update that turns the
     /// race green clears the brake and the gear request and keeps the gas;
@@ -420,7 +420,7 @@ mod tests {
             } else {
                 green.push(r.racers.rivals.iter().map(|x| x.controls).collect::<Vec<_>>());
                 // The mover ran before the green's release (
-                // docs/tuning-physics-parity.md): after the green's update
+                // docs/notes/parity/tuning-physics-parity.md): after the green's update
                 // the rivals are still in neutral with the clutch locked;
                 // the shift to 1st starts one update later (observed under
                 // Wine: +0x44 = 3 at the first status-4 frame, 0 after).

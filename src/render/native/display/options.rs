@@ -100,7 +100,7 @@ pub fn env_faces_span(rate: u8, ticks: std::ops::Range<u64>) -> Vec<(u64, [bool;
     ticks.map(|m| (m, env_faces_tick(rate, m))).collect()
 }
 
-/// docs/uncapped-fps.md, "Environment cube on ticks": the faces a
+/// docs/original/uncapped-fps.md, "Environment cube on ticks": the faces a
 /// drawn frame renders so that its cube is the one the original's frame
 /// `drawn` samples, whatever the display rate. At its 60 fps the original
 /// renders the faces [`env_faces_tick`] of each frame (counter 0x870818,

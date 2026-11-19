@@ -1,4 +1,4 @@
-//! Photo mode in the game (docs/photo-mode.md; clone deviation, opt-in
+//! Photo mode in the game (docs/playing/photo-mode.md; clone deviation, opt-in
 //! through the Enhancements row "Photo Mode in Pause Menu"). The pause menu
 //! stays the mode underneath (the world paused exactly as under it: its
 //! updates run as before, only the menu's mouse is not fed); photo mode

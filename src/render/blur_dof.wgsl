@@ -1,5 +1,5 @@
 // Motion blur (Camera / Per-Object) and depth of field (Cinematic): see
-// docs/motionblur-dof.md; clone deviations, opt-in. The native speed blur
+// docs/notes/graphics/motionblur-dof.md; clone deviations, opt-in. The native speed blur
 // (0x5CC470, postfx.wgsl) is not this file.
 //
 // Motion blur: a velocity pass (camera motion from the depth, rigid car

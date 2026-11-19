@@ -103,7 +103,7 @@ pub(crate) fn publish(domains: u8, key: Option<Key>) {
     GENERATION.store(g, Ordering::Release);
 }
 
-/// The texture editor (docs/texture-editor.md): texture `hash` of the world
+/// The texture editor (docs/modding/texture-editor.md): texture `hash` of the world
 /// (`car` false) or the cars changed in a pack; the renderers load it again
 /// from the next frame.
 pub fn texture_changed(car: bool, hash: u32) {

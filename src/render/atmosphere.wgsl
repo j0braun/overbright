@@ -1,4 +1,4 @@
-// Next-Gen atmosphere (clone deviation, opt-in: Volumetric Fog "Next-Gen", docs/atmosphere.md).
+// Next-Gen atmosphere (clone deviation, opt-in: Volumetric Fog "Next-Gen", docs/notes/graphics/atmosphere.md).
 // Nothing here is in SPEED2.EXE: its fog is world.efx's per-vertex fog (FogValue / FogColor) and the
 // horizon fog grid; the clone draws those unchanged and this pass adds a participating medium on top.
 //

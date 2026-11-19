@@ -1,4 +1,4 @@
-//! Low Latency mode and VRR-aware pacing (docs/modern-extras.md;
+//! Low Latency mode and VRR-aware pacing (docs/playing/modern-extras.md;
 //! clone deviation, opt-in, nothing of it is in SPEED2.EXE).
 //!
 //! The original samples its input at the top of its loop (0x5811D0) and

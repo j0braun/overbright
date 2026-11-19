@@ -1,5 +1,5 @@
 //! The Graphics page's Car Shadow / Neon **Ultra** tier for the underglow
-//! (a clone deviation, docs/neon-quality.md): a cleaned, upsampled,
+//! (a clone deviation, docs/notes/graphics/neon-quality.md): a cleaned, upsampled,
 //! high-precision copy of the car's `%s_NEON` texture.
 //!
 //! The native texture (render info +0x344, drawn by the shadow grid's second
@@ -17,7 +17,7 @@
 //! half-float texels. The glow's shape, size, overall brightness and the
 //! draw (grid, UVs, colour, blend) stay the native ones.
 //!
-//! The rebuild also fades the mask to 0 over its outer [`EDGE_TEXELS`] (the reported "cutoff line", docs/neon-quality.md): the
+//! The rebuild also fades the mask to 0 over its outer [`EDGE_TEXELS`] (the reported "cutoff line", docs/notes/graphics/neon-quality.md): the
 //! native `%s_NEON` masks still hold 8–18 / 255 on their border texels
 //! (doubled by world.efx), so the glow stops in a straight line at the
 //! shadow grid's edge (box × 1.05) instead of reaching 0. The original shows

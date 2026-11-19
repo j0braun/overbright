@@ -42,10 +42,10 @@ pub fn aspect_mode() -> AspectMode {
 /// at every aspect, i.e. the vertical angle is always the 4:3 one. Wider
 /// than 4:3 that is Hor+ (the centre 4:3 of the picture is the native
 /// one); narrower (5:4, portrait) the sides of the 4:3 view are cropped
-/// (docs/resolutions.md). The native Vert− there grew the vertical angle by (4/3) /
+/// (docs/notes/graphics/resolutions.md). The native Vert− there grew the vertical angle by (4/3) /
 /// aspect (≈ 161° at 9:16), and the road under the chase camera then
 /// came nearer than the 0.5 m near plane: a band of clear colour at the
-/// bottom (docs/resolutions.md, F1).
+/// bottom (docs/notes/graphics/resolutions.md, F1).
 pub fn view_aspect(aspect: f32) -> (f32, f32) {
     if aspect_mode() == AspectMode::Wide { (0.75, 4.0 / 3.0 / aspect) } else { (1.0 / aspect, 1.0) }
 }

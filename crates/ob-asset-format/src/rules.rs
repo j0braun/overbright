@@ -1,4 +1,4 @@
-//! The rule registry (docs/asset-format/conventions.md §11): one entry per rule id of the specification, with
+//! The rule registry (docs/modding/asset-format/conventions.md §11): one entry per rule id of the specification, with
 //! the page that defines it and its text. Every refusal of this crate names one ([`crate::Refusal`]), and the
 //! pages' rule tables are generated from this list ([`crate::docs`]), so a rule id exists in the code exactly when
 //! it exists in the docs.

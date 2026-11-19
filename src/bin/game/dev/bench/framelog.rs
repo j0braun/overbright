@@ -1,4 +1,4 @@
-//! `NFSU2_BENCH_FRAMELOG=file` (measuring aid, docs/perf-budget.md "CPU frame time and hitches"):
+//! `NFSU2_BENCH_FRAMELOG=file` (measuring aid, docs/notes/performance/budget.md "CPU frame time and hitches"):
 //! one tab-separated line per timed frame of a bench, for the tail of a long drive — what each
 //! frame cost on which thread and what happened in it, so a slow frame can be given its cause.
 //!

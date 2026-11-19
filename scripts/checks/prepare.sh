@@ -1,5 +1,5 @@
 #!/bin/bash
-# The prepare mode's check (docs/prepare.md):  prepare.sh OUTDIR GAME_BIN
+# The prepare mode's check (docs/developing/prepare.md):  prepare.sh OUTDIR GAME_BIN
 #
 # GAME_BIN: a game built with the developer harness (the check drives a first load with --bench).
 # On cache folders of its own under OUTDIR (the game's and the driver's), with the display variables cleared:

@@ -31,7 +31,7 @@ pub const STRENGTH: f32 = 0.45;
 /// baked light level (vertex-colour units, 0.5 = the texture at 1×) from
 /// which Dynamic Lamps add nothing to the world, and the most the summed
 /// lamp term may be (world.wgsl `LAMP_PEAK`, `LAMP_MAX`).
-/// docs/look-direction.md, energy rule "the bake is the anchor": the bake already holds every
+/// docs/notes/graphics/look-direction.md, energy rule "the bake is the anchor": the bake already holds every
 /// lamp's light, so the per-pixel term only shapes it. 0.35 let a dark gap
 /// gain up to x1.7 of its bake (+2.6 mean luma over the look spots, the
 /// darkness between the lamps lifted); 0.12 caps the gain at x1.24.
@@ -111,7 +111,7 @@ pub struct Occluder {
     pub transform: Mat4,
     pub min: Vec3,
     pub max: Vec3,
-    /// docs/glow-darkening.md: the light the car's underglow throws
+    /// docs/notes/graphics/car-look.md "Darkening settings against emissive light and the car's shadow": the light the car's underglow throws
     /// on its footprint, 0..1 ([`crate::shadow::neon_light`]); the contact
     /// shadow keeps 1 − glow of its depth, so it never dims the glow.
     pub glow: f32,

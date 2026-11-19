@@ -1,4 +1,4 @@
-//! The race endings' files read ahead (docs/perf-budget.md "The race end"):
+//! The race endings' files read ahead (docs/notes/performance/budget.md "The race end"):
 //! the ending scene `play_race_ending` picks at the finish is one of
 //! EndingNis01..04, and its load (the NIS table, the scene, the cameras, the
 //! scene's characters' bundle parsed) took about 4 ms of the finish's frame.

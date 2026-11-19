@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """The list of Rust crates built into the player's programs, with their licences and licence texts
-(scripts/release/package.sh, docs/building-releases.md).
+(scripts/release/package.sh, docs/developing/building-releases.md).
 
   crate_licenses.py --metadata M.json [--map /cargo-home=DIR] --target TRIPLE --out FILE [--root nfsu2 --root ob-editor]
 

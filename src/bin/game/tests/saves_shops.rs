@@ -1,5 +1,5 @@
 use crate::*;
-// The test kit (tests/common/mod.rs, docs/testing.md).
+// The test kit (tests/common/mod.rs, docs/developing/testing.md).
 #[path = "../../../../tests/common/mod.rs"]
 mod testkit;
 
@@ -57,7 +57,7 @@ fn cover_uses_selected_environment_light_hash() {
 
 /// The performance shop's purchases and the save fields they write,
 /// against what the original wrote after the same purchases under Wine
-/// (`docs/perf-shop.md`, evidence in the maintainer's private captures): an
+/// (`docs/notes/front-end/perf-shop.md`, evidence in the maintainer's private captures): an
 /// unbranded part bought first appends no brand (slot 0x8389B4 still
 /// 0), a part's brand screen picks slot 0, a package's each branded
 /// part's slot in row order; a later unbranded part appends
@@ -143,7 +143,7 @@ fn perf_shop_individual_parts_packages_and_brands() {
 }
 
 /// A performance purchase stores the ride into the car record as the
-/// original does (`docs/perf-shop.md`): replayed on a
+/// original does (`docs/notes/front-end/perf-shop.md`): replayed on a
 /// community save as the original resaved it without a purchase (LANCEREVO8,
 /// slot 1, every part fitted, the level floats zero), the two Wine runs
 /// give the career slot byte for byte as the original wrote it — the
@@ -261,7 +261,7 @@ fn perf_purchases_store_the_ride_as_the_original() {
 }
 
 /// Body-shop installs store the career ride as the original does
-/// (`docs/shop-record-store.md`): 0x55C240's fit by 0x631D30 (which
+/// (`docs/notes/front-end/shop-record-store.md`): 0x55C240's fit by 0x631D30 (which
 /// runs 0x61BCE0) and 0x503950's copy of the ride into the record —
 /// the derived wide-body / door / HOODUNDER slots, the performance
 /// parts' 0x0D / 0x1B, and the upgrade state as the ride was built on
@@ -380,13 +380,13 @@ fn body_shop_installs_store_the_ride_as_the_original() {
     }
 }
 
-/// docs/cheats.md: a bonus code typed on the title, the boot's "Would
+/// docs/playing/cheats.md: a bonus code typed on the title, the boot's "Would
 /// you like to create a new profile?" declined, then a profile made
 /// later (the Profile Manager's Create with no profile current, state
 /// 2): it keeps the career in memory, the bank the code paid (Wine,
 /// regmybank, No, then Customize's Back save point's create:
 /// saved with 200, `tests/fixtures/native_saves/cheats_later_create.sav`).
-/// docs/save-points.md: main-menu Customize's Dyno Yes (0x55E530 on
+/// docs/original/save-points.md: main-menu Customize's Dyno Yes (0x55E530 on
 /// 0x34DC1BEC). A stock car customized gets a new My Cars record after
 /// the snapshot, so the first Yes asks "Are you sure you want to save
 /// the profile named …?" (mode 0x1141) and either answer goes on to the

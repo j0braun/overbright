@@ -20,7 +20,7 @@ pub(super) const ROWS: &[GraphicsRow] = &[
         offered: Some(|s, i| qol::scale_offered(qol::SCALE_STEPS[i], qol::output_size_or(s.resolution))),
         legacy: false,
     },
-    // docs/temporal.md: the temporal upscaler; costs are the savings
+    // docs/notes/graphics/temporal.md: the temporal upscaler; costs are the savings
     // against the screen's resolution with TAA (measured, 4K).
     GraphicsRow {
         id: RowId::Upscale,
@@ -37,7 +37,7 @@ pub(super) const ROWS: &[GraphicsRow] = &[
                 UPSCALE_COSTS_4K[2],
                 0.0,
             ),
-            // docs/modern-extras.md: AMD FSR 1, spatial, the native
+            // docs/playing/modern-extras.md: AMD FSR 1, spatial, the native
             // anti-aliasing kept at the lower size.
             tc(
                 "FSR Quality",
@@ -47,7 +47,7 @@ pub(super) const ROWS: &[GraphicsRow] = &[
             ),
             tc("FSR Balanced", "AMD FSR 1: 58% of each side.", FSR_COSTS_4K[1], 0.0),
             tc("FSR Performance", "AMD FSR 1: 50% of each side; softest.", FSR_COSTS_4K[2], 0.0),
-            // docs/fsr2.md: AMD FSR 2, temporal; the Anti-Aliasing
+            // docs/notes/graphics/fsr2.md: AMD FSR 2, temporal; the Anti-Aliasing
             // row (SSAA, MSAA, filters) is off under it.
             tc(
                 "FSR 2 Native AA",
@@ -142,7 +142,7 @@ pub(super) const ROWS: &[GraphicsRow] = &[
         offered: None,
         legacy: true,
     },
-    // Display (docs/hdr.md): HDR Output and its calibration.
+    // Display (docs/playing/hdr.md): HDR Output and its calibration.
     GraphicsRow {
         id: RowId::HdrOutput,
         label: HDR_OUTPUT,

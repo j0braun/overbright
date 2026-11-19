@@ -44,7 +44,7 @@ pub(crate) fn parity_grid(game: &Game) -> Option<Vec2> {
 }
 
 /// `NFSU2_RNG_PIN=<place>:<hex>` (the RNG comparisons against the
-/// original's sequence log, docs/rng.md): the shared generator set to that
+/// original's sequence log, docs/original/rng.md): the shared generator set to that
 /// state when the game reaches `place` (`entry`: free roam's set-up, before
 /// the encounter racers; `world`: free roam's world build; `race`: a race's
 /// set-up, before the line-up; `race_world`: a race's world build).

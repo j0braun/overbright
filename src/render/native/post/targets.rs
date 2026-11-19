@@ -377,7 +377,7 @@ impl PostFx {
     /// ones made with the chain (High Precision Post's set, the
     /// multisampled scene's lerp and streak copy, the fused passes once the
     /// self-check chose them, the horizon fog in the scene's mode), made now:
-    /// a drive's warm-up (docs/first-use-builds.md). They go to the
+    /// a drive's warm-up (docs/developing/first-use-builds.md). They go to the
     /// chain's own list as the frame's first use would put them; nothing
     /// drawn changes.
     pub fn warm_frame(&mut self, gpu: &Gpu, opts: &crate::render::RenderOptions, samples: u32) {
@@ -454,7 +454,7 @@ impl PostFx {
         }
         self.pipeline_v(gpu, "fs_overbright_mrt_hdr", f, 2, Blend::Replace, 0);
         // SSAA's resolve before the bleach bypass and its output
-        // (docs/ssaa-screen-passes.md).
+        // (docs/notes/graphics/ssaa.md "Effect and post passes at the screen's size under SSAA").
         for bleach in [true, false] {
             let variant = super::resolve_variant(bleach);
             self.pipeline_v(gpu, "fs_resolve", f, 1, Blend::Replace, variant);

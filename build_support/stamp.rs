@@ -16,14 +16,14 @@ pub fn version_stamp() -> (String, String) {
     println!("cargo:rustc-env=OB_VERSION={version}");
     println!("cargo:rustc-env=OB_COMMIT={commit}");
     // Where the source code is published (scripts/release/package.sh's
-    // SOURCE_URL, set by the release maker; docs/building-releases.md); empty in an
+    // SOURCE_URL, set by the release maker; docs/developing/building-releases.md); empty in an
     // ordinary build. For the about screen (`env!("OB_SOURCE_URL")`).
     println!("cargo:rerun-if-env-changed=OB_SOURCE_URL");
     println!("cargo:rustc-env=OB_SOURCE_URL={}", get("OB_SOURCE_URL").unwrap_or_default());
     (version, commit)
 }
 
-/// The test kit's switches (crates/ob-testkit, docs/testing.md): tests
+/// The test kit's switches (crates/ob-testkit, docs/developing/testing.md): tests
 /// that need the player's game are marked
 /// `#[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT ...")]` and those
 /// that need the private set `cfg_attr(not(ob_private), ...)`, so a run

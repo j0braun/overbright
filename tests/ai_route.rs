@@ -177,7 +177,7 @@ fn reference_laps_walk_the_racing_lines() {
 /// (0x88E994) was 0 and record 1095's lane-0/1 bytes (control point
 /// +0x2C / +0x2D) were these; the clone's free-roam network with class 0
 /// gives them exactly, class 3 (the stock cars' class, which the clone
-/// used before) 20–30 % less (docs/outrun-ai-strength.md).
+/// used before) 20–30 % less (docs/notes/outrun/ai-strength.md).
 #[test]
 #[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
 fn encounter_racing_speeds_match_the_original_for_class_0() {
@@ -202,7 +202,7 @@ fn encounter_racing_speeds_match_the_original_for_class_0() {
     }
 }
 
-/// docs/outrun-ai-strength.md §3: the chaser at (−220.8, −1577.1)
+/// docs/notes/outrun/ai-strength.md §3: the chaser at (−220.8, −1577.1)
 /// heading +x, 24 m behind the player (clone lead run L3, traffic draw 45,
 /// the finished-career save). The goal-5 search's origin is record 720's first point
 /// travelled backward, whose segment holds both cars; 0x428720 keeps that

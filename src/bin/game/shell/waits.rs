@@ -1,5 +1,5 @@
 //! The game's waits and the drives' frame times in its own log
-//! (docs/waits-log.md; the lines and their logic are
+//! (docs/developing/waits-log.md; the lines and their logic are
 //! `nfsu2::qol::waits`'s). The frame loop hands each window frame here
 //! (`redraw`); a key, a click or a controller's button is noted as it
 //! comes; `drive_in` notes its load's parts. Nothing here changes what is

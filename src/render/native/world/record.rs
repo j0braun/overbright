@@ -118,10 +118,10 @@ impl WorldCore {
             None => Vec::new(),
         };
         if plan.hide_water {
-            // Animated Water (docs/water.md): `render::water` draws them.
+            // Animated Water (docs/notes/graphics/water.md): `render::water` draws them.
             order.retain(|&i| !self.draws[i as usize].water);
         }
-        // The texture editor's list (docs/texture-editor.md; off: not run).
+        // The texture editor's list (docs/modding/texture-editor.md; off: not run).
         if crate::tools::texed::recording() {
             crate::tools::texed::note_world_slots(order.iter().filter_map(|&i| self.drawn_slot(i, plan.time)));
         }
@@ -742,7 +742,7 @@ impl WorldCore {
         // The main view's opaque depth first (enhanced lighting only);
         // the colour pass then loads it and keeps its own pipelines, so the
         // same draw wins every pixel and the hidden layers skip their
-        // shading (docs/perf-gpu.md, depth pre-pass).
+        // shading (docs/notes/performance/gpu.md, depth pre-pass).
         let prepass = match &scene.depth {
             Some(d) if view == WorldView::Main && !is_reflection && multiview.is_none() => {
                 let mid = match (fade, &scene.fade) {
@@ -774,7 +774,7 @@ impl WorldCore {
         // NFSU2_DEPTH_PREPASS=2 (measurements): the colour pass's own pipelines.
         let equal = prepass.filter(|_| depth_prepass_env() != Some(2));
         let depth_load = if prepass.is_some() { wgpu::LoadOp::Load } else { wgpu::LoadOp::Clear(clear_depth) };
-        // The mask from the main view (docs/wet-roads-ssr.md): the order's
+        // The mask from the main view (docs/notes/graphics/reflections.md "Wet Roads and Screen-Space Reflections"): the order's
         // opaque worldreflect draws, one run of it with no blended one
         // anywhere (the order sorts them so: the opaque road last before
         // the first blended draw), drawn in a pass of their own whose
@@ -834,7 +834,7 @@ impl WorldCore {
         };
         let native = multiview.unwrap_or(if is_reflection { &self.reflection_pipelines } else { &scene.pipelines });
         let (mut current_key, mut current_texture, mut bound) = (None, usize::MAX, usize::MAX);
-        // Sky Next-Gen (docs/atmosphere.md): in the main view after the opaque draws (before the first
+        // Sky Next-Gen (docs/notes/graphics/atmosphere.md): in the main view after the opaque draws (before the first
         // blended one, or at the end), depth-tested so it shades only the dome's visible pixels.
         let mut night = self.sky().filter(|_| view == WorldView::Main && !is_reflection && multiview.is_none());
         let sky_key = scene.mode;

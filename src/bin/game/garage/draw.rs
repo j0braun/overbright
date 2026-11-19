@@ -921,7 +921,7 @@ fn garage_draw_car(
             renderer.render_shadows(gpu, encoder, view, depth, &shadows);
             shadows.clear();
         }
-        // Depth of field (docs/motionblur-dof.md): Cinematic depth of field on the
+        // Depth of field (docs/notes/graphics/motionblur-dof.md): Cinematic depth of field on the
         // garage's turntable, the car in focus, before its glows.
         if let Some(post) = post.filter(|_| nfsu2::render::blur_dof::dof_on(opts)) {
             let wheels = std::array::from_fn(|i| {

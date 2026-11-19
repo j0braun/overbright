@@ -3,7 +3,7 @@ use crate::*;
 impl Game {
     /// The particle effects while driving (frozen under a pause, as the
     /// game's 0x492E10 runs in the world update).
-    /// `settings`: the tick's (`Pacing::tick_settings`, docs/frame-settings.md).
+    /// `settings`: the tick's (`Pacing::tick_settings`, docs/developing/frame-settings.md).
     pub(crate) fn particle_effects(&mut self, dt: f32, settings: &crate::sim::TickSettings) {
         let Some(d) = self.sim.drive.as_mut() else { return };
         let mut cars = vec![Some((&d.car, &d.state))];
@@ -19,7 +19,7 @@ impl Game {
             // it (0x492E10 runs in the world update 0x609CF0), so the scene
             // cars' burnout smokes (the original's EndingNis01 win under
             // Wine: tyre smoke behind the 240SX under Event Results,
-            // docs/particles-smoke.md "Scene smoke"). Its cars: the player
+            // docs/notes/graphics/smoke.md "Scene smoke"). Its cars: the player
             // and the AI winner it may bind (`ShopRun::companion`).
             _ if self
                 .scenes.shop

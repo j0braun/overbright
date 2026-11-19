@@ -56,6 +56,25 @@ pub(crate) struct TrafficCar {
     /// inactive, until the world unloads (mode 4, the belt built from
     /// that path) or the placer places it again (see `traffic_stream`).
     pub(crate) coast: Option<nfsu2::ai::traffic::TrafficLane>,
+    /// Its race coordinate (car +0x8FC) in a race and where it was
+    /// taken ([`nfsu2::ai::traffic::race_coord_step`]).
+    pub(crate) coord: Option<(f32, Vec2)>,
+}
+
+impl TrafficCar {
+    /// The car's race coordinate (car +0x8FC) in a race
+    /// ([`nfsu2::ai::traffic::race_coord_step`]); its place located on the
+    /// road until the first frame has taken it.
+    pub(crate) fn race_coord(&self, road: &nfsu2::formats::roads::RoadRoute) -> f32 {
+        self.coord.map_or_else(|| road.locate_once(self.state.position.truncate()), |c| c.0)
+    }
+
+    /// The frame's step of the race coordinate
+    /// ([`nfsu2::ai::traffic::race_coord_step`]).
+    pub(crate) fn refresh_coord(&mut self, road: &nfsu2::formats::roads::RoadRoute) {
+        let p = self.state.position.truncate();
+        self.coord = Some(nfsu2::ai::traffic::race_coord_step(self.coord, p, |p| road.locate_once(p)));
+    }
 }
 
 /// The traffic of explore mode (the region's RoutesFreeRoam.bin) or of a
@@ -191,7 +210,7 @@ impl Traffic {
     /// caps for the zone, drawing on the shared generator (0x412C9A), then
     /// the models loaded side by side. The world build makes it after the
     /// traffic fill and, in free roam, the career's slot events
-    /// (**measured**, the sequence log, docs/rng.md). No-op once made.
+    /// (**measured**, the sequence log, docs/original/rng.md). No-op once made.
     pub(crate) fn populate(
         &mut self,
         root: &std::path::Path,
@@ -250,6 +269,7 @@ impl Traffic {
                 active: true,
                 held: false,
                 coast: None,
+                coord: None,
             });
         }
         Ok(())

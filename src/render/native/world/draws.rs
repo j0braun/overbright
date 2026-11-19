@@ -19,11 +19,11 @@ pub(crate) struct FrameUniform {
     pub(crate) cull: [f32; 4],
     /// View 9 ([`headlight_uniform`]); eye.w = 0 turns the term off.
     pub(crate) headlight: [[f32; 4]; 5],
-    /// Wet Roads (clone deviation, docs/wet-roads-ssr.md), main view
+    /// Wet Roads (clone deviation, docs/notes/graphics/reflections.md "Wet Roads and Screen-Space Reflections"), main view
     /// only: on (1 / 0 native), the rain's amount, the wetness, unused.
     pub(crate) wet: [f32; 4],
     /// Dynamic Lamps / Lamp Shadows / Contact Shadows (clone deviations,
-    /// docs/lamps-shadows.md, [`lamps`]), main view only; zeros natively.
+    /// docs/notes/graphics/lamps-shadows.md, [`lamps`]), main view only; zeros natively.
     pub(crate) lamps: [f32; 4],
     pub(crate) cluster: [f32; 4],
     pub(crate) cluster_near: [f32; 4],
@@ -124,7 +124,7 @@ pub(crate) struct Draw {
     pub(crate) instances: std::ops::Range<u32>,
     /// Its instance group's bounds ([`WorldRenderer::group_bounds`]).
     pub(crate) group: u32,
-    /// Animated Water (docs/water.md): its texture is a water
+    /// Animated Water (docs/notes/graphics/water.md): its texture is a water
     /// texture ([`water::kind_of`]); the main view leaves it to
     /// `render::water` while that is on.
     pub(crate) water: bool,

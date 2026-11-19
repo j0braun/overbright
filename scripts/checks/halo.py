@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Halo check (docs/wet-road-car.md): halo.py WITH.png WITHOUT.png
+"""Halo check (docs/notes/graphics/wet-road-car.md): halo.py WITH.png WITHOUT.png
 WITH = the reported max rain chase (the finished-career save's Skyline, yellow underglow, 217 km/h) frame; WITHOUT = the same
 frame with Wet Road Interaction and Next-Gen car lights off. In the box over the car's upper body (the
 rear window, the spoiler, the flanks above the bumper: x 33-66 %, y 58-80 % of a 16:9 chase frame) the

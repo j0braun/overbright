@@ -1,5 +1,5 @@
 //! The files the next minutes need, read ahead into the system's file
-//! cache (docs/read-ahead.md). After a reboot the game's files are on the
+//! cache (docs/developing/read-ahead.md). After a reboot the game's files are on the
 //! disk only, and the loads that read them on demand then wait for the
 //! disk, a piece at a time. One thread at the lowest priority reads the
 //! queued files from start to end in large pieces, in the order the game

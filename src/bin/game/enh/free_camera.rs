@@ -1,4 +1,4 @@
-//! The free camera in the game (docs/map-editor.md): an opt-in modding
+//! The free camera in the game (docs/modding/map-editor.md): an opt-in modding
 //! aid, reachable only after a start with `--editor`, then F8 in free
 //! roam. Like photo mode it stands over the explore pause menu: the world
 //! stays paused under it and is drawn from the free camera with the HUD,
