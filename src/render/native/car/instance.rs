@@ -7,6 +7,9 @@ pub struct CarRenderer {
     pub meter_at: Option<glam::Vec3>,
     /// Pop meter: the share drawn last frame (the traffic ring fade).
     pub meter_share: f32,
+    /// The blink of the car within its placement hold
+    /// ([`crate::racer_reset::PlaceBlink`]).
+    pub place_blink: crate::racer_reset::PlaceBlink,
     /// The car's underside was visible on its last draw (render info
     /// +0x2EB8, written by 0x60C330 after the LOD pick; 0 from 0x638380):
     /// what the next pick's airborne rule reads (`car::airborne_lod`).
@@ -128,6 +131,12 @@ impl CarRenderer {
     pub fn set_lod(&mut self, lod: Option<u8>) {
         self.lod = lod;
         self.drawing_fade = None;
+    }
+
+    /// The LOD the following draws use and the LOD Fade cross-fade in
+    /// progress (from, share), for probes.
+    pub fn drawn_lod(&self) -> (Option<u8>, Option<(Option<u8>, f32)>) {
+        (self.lod, self.drawing_fade)
     }
 
     /// The main view's LOD as last picked by [`CarRenderer::set_lod_faded`]

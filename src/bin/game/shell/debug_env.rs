@@ -59,6 +59,8 @@ pub(crate) struct DebugEnv {
     pub(crate) nis_probe: bool,
     /// NFSU2_FLASH_PROBE.
     pub(crate) flash_probe: bool,
+    /// NFSU2_CAR_DRAW_PROBE: the player car's draw decision each frame.
+    pub(crate) car_draw_probe: bool,
     /// NFSU2_DEBUG_ACTIONS.
     pub(crate) debug_actions: bool,
     /// NFSU2_DEBUG_MARKERS.
@@ -163,6 +165,7 @@ impl DebugEnv {
             sight_debug: set("NFSU2_SIGHT_DEBUG"),
             nis_probe: set("NFSU2_NIS_PROBE"),
             flash_probe: set("NFSU2_FLASH_PROBE"),
+            car_draw_probe: set("NFSU2_CAR_DRAW_PROBE"),
             debug_actions: set("NFSU2_DEBUG_ACTIONS"),
             debug_markers: set("NFSU2_DEBUG_MARKERS"),
             fx_contacts: set("NFSU2_FX_CONTACTS"),

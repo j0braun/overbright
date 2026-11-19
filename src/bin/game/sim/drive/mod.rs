@@ -87,6 +87,34 @@ pub(crate) struct Drive {
 
 impl Drive {
     pub(crate) fn place(&mut self, at: Vec3, heading: f32) {
+        self.place_body(at, heading);
+        // A new chase mover (0x5FA830 with its reset flag) clears the
+        // shake slots (0x5729F0).
+        self.impact.shake = Default::default();
+        self.chase = ChaseCamera::new(&self.car, self.chase.kind());
+        self.chase_view(0.0);
+    }
+
+    /// A stamped placement of the human's car (the reset key 0x6009B0, a
+    /// race's blocked road 0x5FBE10): `Car_PlaceAt` / `Car_PlaceOnRoad` →
+    /// 0x5F52D0 keep the player's camera mover and re-aim it
+    /// (**verified**, 0x5F5414…0x5F546E: player +0x238 vt+0x38 = 0x445B20
+    /// sets every ease of the mover — eye, look-at, field of view, lean,
+    /// chase direction — to its current target with its slope, and idles
+    /// it; then vt+0x14 the look-back again). The targets are the last
+    /// frame's, so the next update eases from the old chase direction to
+    /// the new heading: the swing of about 0.3 s **observed** under Wine,
+    /// no cut. The clone restarts the acceleration history (the jump of
+    /// the velocity is no acceleration; **inferred**, as `resume`). Then
+    /// the stamp ([`Drive::stamp_placement`]).
+    pub(crate) fn place_reset(&mut self, at: Vec3, heading: f32) {
+        self.place_body(at, heading);
+        self.impact.shake = Default::default();
+        self.chase.settle();
+        self.chase_view(0.0);
+    }
+
+    fn place_body(&mut self, at: Vec3, heading: f32) {
         let road = self.world.road_height_below(at + Vec3::Z * 3.0).unwrap_or(at.z);
         // The car keeps its own barrier groups (its collision context's
         // list, set by the car set-up 0x604270).
@@ -104,17 +132,16 @@ impl Drive {
         self.state.stability_off = stability_off;
         // A placement without the stamp flag clears +0x974 (0x5FBDF2).
         self.placed_stamp = None;
-        // A new chase mover (0x5FA830 with its reset flag) clears the
-        // shake slots (0x5729F0).
-        self.impact.shake = Default::default();
-        self.chase = ChaseCamera::new(&self.car, self.chase.kind());
-        self.chase_view(0.0);
     }
 
     /// A placement with the stamp flag (0x5FBD70 at 0x5FBDD9 / 0x5FBEE0
-    /// → 0x5EBF80): car +0x974 = the sim clock, the reset key's 2 s hold.
+    /// → 0x5EBF80): car +0x974 = the sim clock, +0x978 the 2 s hold: the
+    /// reset key's gate, and for the hold the car is ghosted against the
+    /// other cars (0x5EBFB0, `CarState::ghost_timer`) and drawn blinking
+    /// (0x60D500, `racer_reset::PlaceBlink`).
     pub(crate) fn stamp_placement(&mut self) {
         self.placed_stamp = Some(self.world_clock.tick);
+        self.state.ghost_timer = nfsu2::racer_reset::PLACE_HOLD;
     }
 
     pub(crate) fn step(

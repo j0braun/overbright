@@ -51,7 +51,7 @@ pub(crate) fn race_frame(
         });
         if let Some((at, heading)) = block {
             let z = d.world.road_below(at.extend(d.state.position.z + 3.0)).map_or(d.state.position.z, |(z, _)| z);
-            d.place(at.extend(z) + Vec3::Z * 5.0, heading);
+            d.place_reset(at.extend(z) + Vec3::Z * 5.0, heading);
             d.state.set_placement_speed(RESET_SPEED);
             // 0x5FBE10 places with the stamp flag (0x5FBE98 pushes 1).
             d.stamp_placement();
@@ -168,8 +168,11 @@ pub(crate) fn reset_to_road(d: &mut Drive, race: &Race) {
             (p, h, 0.0)
         }
     });
-    d.place(p + Vec3::Z * 5.0, heading);
+    d.place_reset(p + Vec3::Z * 5.0, heading);
     d.state.set_placement_speed(speed);
+    // Each placement of 0x6009B0 is stamped (flag 1: 0x600DAC / 0x600DF1);
+    // a replayed reset as the live one.
+    d.stamp_placement();
 }
 
 /// An AI racer's reset (AccidentRecovery's request, car +0x96C; the car
@@ -200,6 +203,10 @@ pub(crate) fn reset_rival(world: &World, r: &mut Rival, routes: &nfsu2::ai::rout
     r.state.held = held;
     r.state.stability_off = stability_off;
     r.state.set_placement_speed(kept);
+    // Car_PlaceOnRoad with the stamp flag (0x601512 pushes 1 → 0x5FC027
+    // → 0x5EBF80): the 2 s hold, ghosted against the other cars
+    // (0x5EBFB0) and drawn blinking (0x60D500).
+    r.state.ghost_timer = nfsu2::racer_reset::PLACE_HOLD;
     // The placement 0x5F52D0 keeps the car's mode (+0x28), switches to mode
     // 0 (0x5F46B0(0) at 0x5F52E7: the old mover is destroyed) and, once the
     // car is reset and laid on the road, back to the kept mode (0x5F53F4): a

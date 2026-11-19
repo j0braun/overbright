@@ -175,6 +175,7 @@ impl CarRenderer {
         CarRenderer {
             meter_at: None,
             meter_share: 1.0,
+            place_blink: Default::default(),
             underside_seen: false,
             shared,
             pipelines,

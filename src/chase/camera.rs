@@ -152,6 +152,23 @@ impl ChaseCamera {
         self.since_ground += parked_for.max(0.0);
     }
 
+    /// The mover re-aimed after a stamped placement of its car (vtable
+    /// +0x38 = 0x445B20, **verified**): every ease (eye +0x38, look-at
+    /// +0x3C, field of view +0x34, lean +0x44, chase direction +0x40) takes
+    /// its current target (value +0 = +8, slope +4 = +0xC, mode +0x2C = 0).
+    /// The targets are the last update's, so the next one eases on from
+    /// there towards the moved car's (the swing). The acceleration history
+    /// restarts (the clone differentiates the velocity, whose jump at the
+    /// placement is no acceleration; **inferred**).
+    pub fn settle(&mut self) {
+        self.eye.snap();
+        self.look.snap();
+        self.lean.snap();
+        self.heading.snap();
+        self.fov.snap();
+        self.last_velocity = None;
+    }
+
     /// Hold or release the look-back (0x445A30 stores mover +0x51; on a
     /// change it also sets 0x883E34 = 1 through 0x5D7AF0, whose reader is
     /// not traced). With +0x51 set, everything turns on the player's +0x2B

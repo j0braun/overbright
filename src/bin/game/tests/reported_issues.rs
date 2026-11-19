@@ -1227,3 +1227,71 @@ fn race_on_the_free_roam_drive_hides_the_markers() {
     near(&mut game);
     assert!(game.sim.drive.as_ref().unwrap().effects.markers[tip].is_some(), "free roam again: the tip's marker back");
 }
+
+/// The first intro race (stage 0's first circuit in Rachel's 350Z,
+/// DDAY_PLAYER_CAR), driven as the window does, with the nitrous key held
+/// from the start scene's second 0.5 on: as in the original (observed
+/// under Wine), nothing fires under the scene's camera and the key held
+/// on into the countdown starts nothing either; let go and pressed again
+/// in the countdown, a shot starts (at a standstill the purge). The run
+/// without the key keeps its tank too. Needs a GPU.
+#[test]
+#[ignore = "requires original assets, a GPU and isolated XDG homes"]
+fn race_start_nitro_waits_for_the_countdown() {
+    for nitro in [false, true] {
+        let mut game = Game::new().unwrap();
+        super::test_isolation::exclusive();
+        offscreen_window(&mut game, 1280, 960);
+        game.pacing.clock = Some(0.0);
+        new_career_dday(&mut game, true);
+        let e = game
+            .game_data
+            .career
+            .events
+            .iter()
+            .position(|e| e.unlock == dday::STAGE0_RACES[0])
+            .expect("stage 0's first race");
+        game.start_race(e, false, false).unwrap();
+        let dt = 1.0 / 60.0;
+        let (mut full, mut after_cut, mut pressed_again, mut fired) = (None, 0, None, false);
+        for f in 0..60 * 40 {
+            let tank = |game: &Game| game.sim.drive.as_ref().unwrap().state.nitrous;
+            let cut = game.scenes.shop.as_ref().is_none_or(|run| run.frame >= run.scene.marks[1] as f32);
+            if cut {
+                after_cut += 1;
+            }
+            // Held from frame 30; let go 30 frames into the countdown and
+            // pressed again 10 frames later.
+            let down = nitro && f >= 30 && !(30..40).contains(&after_cut);
+            if down {
+                game.platform.keys.insert(KeyCode::AltLeft);
+            } else {
+                game.platform.keys.remove(&KeyCode::AltLeft);
+            }
+            if after_cut == 40 && nitro {
+                pressed_again = Some(f);
+            }
+            game.pacing.clock = game.pacing.clock.map(|c| c + f64::from(dt));
+            let alpha = game.advance(dt).unwrap();
+            game.draw_between(alpha).unwrap();
+            let Mode::Race(r) = &game.mode else { panic!("left the race") };
+            let t = tank(&game);
+            if full.is_none() {
+                full = t.map(|t| t.remaining());
+            }
+            let running = t.is_some_and(|t| t.running.is_some());
+            if pressed_again.is_none() {
+                assert!(!running, "nitro {nitro}: a shot at frame {f} (scene cut {cut}, {after_cut} frames past it)");
+            } else {
+                fired |= running;
+            }
+            if r.timing.clock >= 0.0 {
+                break;
+            }
+        }
+        game.platform.keys.clear();
+        assert!(full.is_some_and(|t| t > 0.0), "Rachel's car has a tank");
+        assert!(after_cut > 40, "the countdown ran ({after_cut} frames)");
+        assert_eq!(fired, nitro, "a press in the countdown starts a shot");
+    }
+}

@@ -659,19 +659,41 @@ impl WorldScene<'_, '_> {
                 self.span = nfsu2::prof::acc::span("cars");
                 // The world's lights for the cars (the same camera for all).
                 let lights = CarLighting::world_lights(&d.world, &cam, opts);
+                if debug_env().car_draw_probe {
+                    let cr = render.cars.get(&d.car_id);
+                    eprintln!(
+                        "car draw: hidden {hidden} kind {} back {} renderer {} lod {:?} car {:.2?} finite {} cam {:.2?} fwd {:.2?} fov {:.3?} nitrous {:?} ghost {:.2}",
+                        d.chase.kind(),
+                        d.chase.looking_back(),
+                        cr.is_some(),
+                        cr.map(|c| c.drawn_lod()),
+                        ps.position,
+                        ps.transform().is_finite(),
+                        cam.position,
+                        cam.forward(),
+                        cam.game_fov,
+                        ps.drivetrain.as_ref().map(|t| t.nitrous),
+                        ps.ghost_timer,
+                    );
+                }
                 if let Some(cr) = render.cars.get_mut(&d.car_id).filter(|_| !hidden) {
                     let vp = cam.view_projection_depth(aspect, opts.reversed_z);
                     car_lod_main(cr, &cam, settings, ps, &d.car, LodDraw::InGame, time, opts);
-                    cr.queue(
-                        gpu,
-                        batch,
-                        vp,
-                        cam.view(),
-                        &lights.car(ps.transform()),
-                        ps.transform(),
-                        &ps.wheel_poses(&d.car),
-                        opts,
-                    );
+                    if debug_env().car_draw_probe {
+                        eprintln!("car draw: picked {:?}", cr.drawn_lod());
+                    }
+                    if place_blink_drawn(cr, ps, &inp.clocks) {
+                        cr.queue(
+                            gpu,
+                            batch,
+                            vp,
+                            cam.view(),
+                            &lights.car(ps.transform()),
+                            ps.transform(),
+                            &ps.wheel_poses(&d.car),
+                            opts,
+                        );
+                    }
                 }
                 // The companion, the opponents' cars (each with its own
                 // renderer), career free roam's encounter racers on the
@@ -692,6 +714,9 @@ impl WorldScene<'_, '_> {
                     // placed again (or newly placed past it) never pops.
                     if kind == DrawnKind::Traffic && opts.pop_free && opts.lod_fade {
                         cr.set_presence(nfsu2::ai::traffic::ring_presence(state.position.distance(ps.position)));
+                    }
+                    if !place_blink_drawn(cr, state, &inp.clocks) {
+                        return;
                     }
                     let vp = cam.view_projection_depth(aspect, opts.reversed_z);
                     cr.queue(
@@ -729,7 +754,7 @@ impl WorldScene<'_, '_> {
                 let lod = airborne_pick(car_lod(&cam, settings, ps.position, LodDraw::InGame, opts), cr, ps);
                 cr.set_lod(lod);
                 note_underside(cr, &cam, ps, &d.car, lod.filter(|_| !hidden));
-                if !hidden {
+                if !hidden && place_blink_drawn(cr, ps, &inp.clocks) {
                     render.cars.get_mut(&d.car_id).unwrap().render_sampled(
                         gpu,
                         samples,
@@ -754,6 +779,9 @@ impl WorldScene<'_, '_> {
                     let lod = airborne_pick(car_lod(&cam, settings, state.position, kind.lod(), opts), cr, state);
                     cr.set_lod(lod);
                     note_underside(cr, &cam, state, car, lod);
+                    if !place_blink_drawn(cr, state, &inp.clocks) {
+                        return;
+                    }
                     cr.render_sampled(
                         gpu,
                         samples,
@@ -1183,4 +1211,13 @@ mod tests {
         assert!(!blur_dof_idle(MotionMode::Camera, false));
         assert!(!blur_dof_idle(MotionMode::PerObject, false));
     }
+}
+
+/// The blink of a car within the hold of its last stamped placement
+/// (`nfsu2::racer_reset::PlaceBlink`, 0x60D500): whether its body and
+/// wheels are drawn this frame. Its lights, shadow and headlight pool are
+/// drawn by their own passes and stay steady, as in the original.
+fn place_blink_drawn(cr: &mut CarRenderer, state: &CarState, clocks: &crate::render::clocks::DrawClocks) -> bool {
+    let now = clocks.world.map_or(clocks.blur, f64::from);
+    cr.place_blink.drawn(state.ghost_timer > 0.0, now)
 }
