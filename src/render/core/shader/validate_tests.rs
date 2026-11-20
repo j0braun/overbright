@@ -434,7 +434,12 @@ fn world_text_is_the_old_file() {
     // took the emitters' resampled rest, their history and a 2 x 2 gather (`mlrt.wgsl`, the light loop's rest
     // lookup; Modern + RT's module only, docs/notes/graphics/shadow-softness.md "Every light: the rest resampled").
     // Re-pinned for a comment-only change (the docs pages' new paths): was 137_115, 0x4d83_640d_2de8_4e80.
-    assert_old_text(ShaderId::World, 137_568, 0xaa2c_efe2_d293_1f1b);
+    // Re-pinned for LOD Fade's discard (`world_fade.wgsl`, `world_masks.wgsl`, `shadow_depth.wgsl`,
+    // `world_coverage.wgsl`: the fade entry points drop the pixel instead of writing the sample mask, which naga
+    // writes as invalid Vulkan SPIR-V; the native entry points unchanged): was 137_568, 0xaa2c_efe2_d293_1f1b.
+    // Re-pinned for LOD Fade's MSAA forms (`*_fade_ms`: the per-sample mask kept with MSAA, the discard only at
+    // 1 sample): was 138_301, 0xd7d6_7130_ecaa_583e.
+    assert_old_text(ShaderId::World, 142_987, 0xabe3_d30d_c789_ea72);
 }
 
 #[test]
@@ -488,4 +493,149 @@ fn fsr2_text_is_the_old_file() {
 fn ui_text_is_the_old_file() {
     // Re-pinned for a comment-only change (the docs pages' new paths): was 6_891, 0xe2b5_2d35_6812_b3b9.
     assert_old_text(ShaderId::Ui, 6_899, 0x5efb_dee6_3b20_0c8a);
+}
+
+/// Vulkan SPIR-V: every module the renderer builds, written to SPIR-V by the
+/// same naga the Vulkan backend uses (its writer options as wgpu-hal sets them
+/// for a Vulkan 1.1 device), passes `spirv-val --target-env vulkan1.1`. naga
+/// can write SPIR-V that is invalid for Vulkan (gfx-rs/wgpu#7311: a written
+/// `@builtin(sample_mask)` as a scalar, VUID-SampleMask-SampleMask-04359), and
+/// some drivers crash compiling such a module. The only entry points still
+/// writing the sample mask are built only with MSAA: the alpha-to-coverage
+/// forms (`*coverage*`) and LOD Fade's per-sample dither (`*_fade_ms`,
+/// `*_fade_mrt_ms`; at 1 sample the fade discards instead). They stay invalid
+/// until naga writes `SampleMask` as an array (the follow-up naga fix), are
+/// left out of the check, and nothing else may write it. Skipped (with a
+/// note) where `spirv-val` is not installed.
+#[test]
+fn every_module_is_valid_vulkan_spirv() {
+    use naga::back::spv;
+    let have = std::process::Command::new("spirv-val").arg("--version").output().map(|o| o.status.success());
+    if !matches!(have, Ok(true)) {
+        eprintln!("every_module_is_valid_vulkan_spirv: spirv-val not found, skipped");
+        return;
+    }
+    let mut sources: Vec<(String, String)> = Vec::new();
+    for key in WorldKey::all() {
+        sources.push((format!("{key:?}"), registry::world(key)));
+    }
+    for id in ShaderId::ALL.into_iter().filter(|&id| id != ShaderId::World) {
+        sources.push((format!("{id:?}"), registry::compose(id, VariantFlags::NONE).unwrap()));
+    }
+    use crate::render::native::car;
+    for paint in [false, true] {
+        for wet in [false, true] {
+            for surface in [false, true] {
+                sources.push((
+                    format!("car paint={paint} wet={wet} surface={surface}"),
+                    car::source_for_tests(paint, wet, surface),
+                ));
+            }
+        }
+    }
+    for surface in [false, true] {
+        sources.push((format!("car ssr mask surface={surface}"), car::ssr_mask_source(surface).unwrap()));
+    }
+    for depth_ms in [false, true] {
+        sources.push((format!("rt_shadow depth_ms={depth_ms}"), crate::render::rt_shadow::source(depth_ms)));
+    }
+    // Every other standalone .wgsl file (the include-only pieces have `#` directives, no entry point or do not parse alone).
+    fn walk(dir: &std::path::Path, out: &mut Vec<std::path::PathBuf>) {
+        for e in std::fs::read_dir(dir).unwrap() {
+            let p = e.unwrap().path();
+            if p.is_dir() {
+                walk(&p, out);
+            } else if p.extension().is_some_and(|x| x == "wgsl") {
+                out.push(p);
+            }
+        }
+    }
+    let mut files = Vec::new();
+    walk(std::path::Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/src")), &mut files);
+    files.sort();
+    for f in files {
+        let text = std::fs::read_to_string(&f).unwrap();
+        if text.lines().any(|l| l.trim_start().starts_with('#')) {
+            continue;
+        }
+        sources.push((f.strip_prefix(env!("CARGO_MANIFEST_DIR")).unwrap().display().to_string(), text));
+    }
+
+    let dir = std::env::temp_dir().join(format!("overbright-spirv-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let options = spv::Options {
+        lang_version: (1, 3),
+        flags: spv::WriterFlags::LABEL_VARYINGS | spv::WriterFlags::FORCE_POINT_SIZE,
+        force_loop_bounding: true,
+        ..Default::default()
+    };
+    let (mut checked, mut failures) = (0, Vec::new());
+    for (what, src) in &sources {
+        let Ok(mut module) = naga::front::wgsl::parse_str(src) else { continue };
+        if module.entry_points.is_empty() {
+            continue; // a library piece another module includes
+        }
+        let caps = naga::valid::Capabilities::all();
+        let Ok(info) = naga::valid::Validator::new(naga::valid::ValidationFlags::all(), caps).validate(&module) else {
+            continue;
+        };
+        // Which entry points write the sample mask.
+        let writes_mask = |m: &naga::Module, ep: &naga::EntryPoint| {
+            let Some(r) = &ep.function.result else { return false };
+            let is_mask =
+                |b: &Option<naga::Binding>| matches!(b, Some(naga::Binding::BuiltIn(naga::BuiltIn::SampleMask)));
+            if is_mask(&r.binding) {
+                return true;
+            }
+            match &m.types[r.ty].inner {
+                naga::TypeInner::Struct { members, .. } => members.iter().any(|mb| is_mask(&mb.binding)),
+                _ => false,
+            }
+        };
+        let writers: Vec<String> =
+            module.entry_points.iter().filter(|ep| writes_mask(&module, ep)).map(|ep| ep.name.clone()).collect();
+        for name in &writers {
+            // Known invalid until the naga fix: MSAA-only entry points (see above).
+            let msaa_only = name.contains("coverage") || name.ends_with("_fade_ms") || name.ends_with("_fade_mrt_ms");
+            assert!(
+                msaa_only,
+                "{what}: {name} writes @builtin(sample_mask) (invalid Vulkan SPIR-V, wgpu#7311)"
+            );
+        }
+        if !writers.is_empty() {
+            module.entry_points.retain(|ep| !writers.contains(&ep.name));
+        }
+        let info = if writers.is_empty() {
+            info
+        } else {
+            naga::valid::Validator::new(naga::valid::ValidationFlags::all(), caps).validate(&module).unwrap()
+        };
+        let (module, info) =
+            naga::back::pipeline_constants::process_overrides(&module, &info, None, &Default::default())
+                .unwrap_or_else(|e| panic!("{what}: overrides: {e:?}"));
+        let words = spv::write_vec(&module, &info, &options, None).unwrap_or_else(|e| panic!("{what}: spv: {e:?}"));
+        let path = dir.join(format!("m{checked}.spv"));
+        std::fs::write(&path, words.iter().flat_map(|w| w.to_le_bytes()).collect::<Vec<u8>>()).unwrap();
+        let out =
+            std::process::Command::new("spirv-val").args(["--target-env", "vulkan1.1"]).arg(&path).output().unwrap();
+        let text = String::from_utf8_lossy(&out.stdout).to_string() + &String::from_utf8_lossy(&out.stderr);
+        // Known and not a sample mask: naga gives workgroup arrays an ArrayStride
+        // (VUID-StandaloneSpirv-None-10684, a newer spirv-val rule) in two compute
+        // modules (Ray Traced shadows' and the atmosphere's); left for a naga fix.
+        let known = text.contains("VUID-StandaloneSpirv-None-10684")
+            && text.matches("error:").count() == 1
+            && (what.starts_with("rt_shadow") || what.ends_with("atmosphere.wgsl"));
+        if !out.status.success() && !known {
+            failures.push(format!("{what}: {text}"));
+        } else {
+            std::fs::remove_file(&path).ok();
+        }
+        checked += 1;
+    }
+    if failures.is_empty() {
+        std::fs::remove_dir_all(&dir).ok();
+    }
+    eprintln!("every_module_is_valid_vulkan_spirv: {checked} modules checked");
+    assert!(checked >= 84 + 7 + 12, "only {checked} modules reached SPIR-V");
+    assert!(failures.is_empty(), "{} invalid:\n{}", failures.len(), failures.join("\n"));
 }

@@ -438,14 +438,19 @@ fn car_pipelines(
                 module: shader,
                 // Alpha-to-coverage with the Graphics page's MSAA; LOD Fade
                 // (clone deviation): the `_fade` forms add the screen-door
-                // sample mask (ANDed with the coverage's).
-                entry_point: Some(match (alpha_test, mode.coverage, fade) {
-                    (true, true, false) => "fs_alpha_coverage",
-                    (true, true, true) => "fs_alpha_coverage_fade",
-                    (true, false, false) => "fs_alpha_test",
-                    (true, false, true) => "fs_alpha_test_fade",
-                    (false, _, false) => "fs_main",
-                    (false, _, true) => "fs_main_fade",
+                // dither, discarded per pixel at 1 sample, with MSAA a
+                // per-sample mask (`_ms`; ANDed with the coverage's). The
+                // mask forms are invalid Vulkan SPIR-V as naga writes them,
+                // so the 1-sample forms do not write it.
+                entry_point: Some(match (alpha_test, mode.coverage, fade, mode.samples > 1) {
+                    (true, true, false, _) => "fs_alpha_coverage",
+                    (true, true, true, _) => "fs_alpha_coverage_fade",
+                    (true, false, false, _) => "fs_alpha_test",
+                    (true, false, true, false) => "fs_alpha_test_fade",
+                    (true, false, true, true) => "fs_alpha_test_fade_ms",
+                    (false, _, false, _) => "fs_main",
+                    (false, _, true, false) => "fs_main_fade",
+                    (false, _, true, true) => "fs_main_fade_ms",
                 }),
                 compilation_options: wgpu::PipelineCompilationOptions { constants: &constants, ..Default::default() },
                 // car.efx technique "car", pass p0: ColorWriteEnable = 7 (RGB), so

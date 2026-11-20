@@ -203,7 +203,8 @@ fn fs_reflect_alpha_test_mrt(in: VertexOut, @builtin(view_index) view_index: u32
     return reflect_mrt(in, true);
 }
 
-// LOD Fade's dithered forms (world_fade.wgsl): the sample mask covers the mask's targets too.
+// LOD Fade's dithered forms (world_fade.wgsl): the discard (1 sample) or the sample mask (MSAA, `_ms`)
+// drops the mask's targets too.
 struct ReflectMrtFade {
     @location(0) colour: vec4<f32>,
     @location(1) term: vec4<f32>,
@@ -213,9 +214,39 @@ struct ReflectMrtFade {
 
 @fragment
 #if !MULTIVIEW
-fn fs_reflect_fade_mrt(in: VertexOutFade) -> ReflectMrtFade {
+fn fs_reflect_fade_mrt(in: VertexOutFade) -> ReflectMrt {
 #else
-fn fs_reflect_fade_mrt(in: VertexOutFade, @builtin(view_index) view_index: u32) -> ReflectMrtFade {
+fn fs_reflect_fade_mrt(in: VertexOutFade, @builtin(view_index) view_index: u32) -> ReflectMrt {
+    frame = frames[view_index];
+#endif
+    // The colour first: a discard ends the invocation, and the texture samples' derivatives need its quad.
+    let c = reflect_mrt(without_fade(in), false);
+    if !fade_keep(in.clip, in.fade) {
+        discard;
+    }
+    return c;
+}
+
+@fragment
+#if !MULTIVIEW
+fn fs_reflect_alpha_test_fade_mrt(in: VertexOutFade) -> ReflectMrt {
+#else
+fn fs_reflect_alpha_test_fade_mrt(in: VertexOutFade, @builtin(view_index) view_index: u32) -> ReflectMrt {
+    frame = frames[view_index];
+#endif
+    // The colour first: a discard ends the invocation, and the texture samples' derivatives need its quad.
+    let c = reflect_mrt(without_fade(in), true);
+    if !fade_keep(in.clip, in.fade) {
+        discard;
+    }
+    return c;
+}
+
+@fragment
+#if !MULTIVIEW
+fn fs_reflect_fade_mrt_ms(in: VertexOutFade) -> ReflectMrtFade {
+#else
+fn fs_reflect_fade_mrt_ms(in: VertexOutFade, @builtin(view_index) view_index: u32) -> ReflectMrtFade {
     frame = frames[view_index];
 #endif
     let o = reflect_mrt(without_fade(in), false);
@@ -224,9 +255,9 @@ fn fs_reflect_fade_mrt(in: VertexOutFade, @builtin(view_index) view_index: u32) 
 
 @fragment
 #if !MULTIVIEW
-fn fs_reflect_alpha_test_fade_mrt(in: VertexOutFade) -> ReflectMrtFade {
+fn fs_reflect_alpha_test_fade_mrt_ms(in: VertexOutFade) -> ReflectMrtFade {
 #else
-fn fs_reflect_alpha_test_fade_mrt(in: VertexOutFade, @builtin(view_index) view_index: u32) -> ReflectMrtFade {
+fn fs_reflect_alpha_test_fade_mrt_ms(in: VertexOutFade, @builtin(view_index) view_index: u32) -> ReflectMrtFade {
     frame = frames[view_index];
 #endif
     let o = reflect_mrt(without_fade(in), true);

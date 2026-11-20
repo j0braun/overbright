@@ -54,7 +54,7 @@ fn fs_shadow_alpha_test(in: VertexOut, @builtin(view_index) view_index: u32) {
 // same vertex entry points (so the same depth) and the same coverage as
 // their colour pipelines: the alpha test's discard on the same texel and
 // vertex alpha (`world_colour`/`reflect_colour` test texel.a * color.a),
-// LOD Fade's screen-door mask. Non-alpha-tested draws without a dither
+// LOD Fade's screen-door discard (1 sample) or sample mask (MSAA, `_ms`). Non-alpha-tested draws without a dither
 // have no fragment stage.
 @fragment
 #if !MULTIVIEW
@@ -71,9 +71,37 @@ fn fs_depth_alpha_test(in: VertexOut, @builtin(view_index) view_index: u32) {
 
 @fragment
 #if !MULTIVIEW
-fn fs_depth_fade(in: VertexOutFade) -> @builtin(sample_mask) u32 {
+fn fs_depth_fade(in: VertexOutFade) {
 #else
-fn fs_depth_fade(in: VertexOutFade, @builtin(view_index) view_index: u32) -> @builtin(sample_mask) u32 {
+fn fs_depth_fade(in: VertexOutFade, @builtin(view_index) view_index: u32) {
+    frame = frames[view_index];
+#endif
+    if !fade_keep(in.clip, in.fade) {
+        discard;
+    }
+}
+
+@fragment
+#if !MULTIVIEW
+fn fs_depth_alpha_test_fade(in: VertexOutFade) {
+#else
+fn fs_depth_alpha_test_fade(in: VertexOutFade, @builtin(view_index) view_index: u32) {
+    frame = frames[view_index];
+#endif
+    let t = sample_tex(in.uv);
+    if t.a * in.color.a <= ALPHA_REF {
+        discard;
+    }
+    if !fade_keep(in.clip, in.fade) {
+        discard;
+    }
+}
+
+@fragment
+#if !MULTIVIEW
+fn fs_depth_fade_ms(in: VertexOutFade) -> @builtin(sample_mask) u32 {
+#else
+fn fs_depth_fade_ms(in: VertexOutFade, @builtin(view_index) view_index: u32) -> @builtin(sample_mask) u32 {
     frame = frames[view_index];
 #endif
     return fade_mask(in.clip, in.fade);
@@ -81,9 +109,9 @@ fn fs_depth_fade(in: VertexOutFade, @builtin(view_index) view_index: u32) -> @bu
 
 @fragment
 #if !MULTIVIEW
-fn fs_depth_alpha_test_fade(in: VertexOutFade) -> @builtin(sample_mask) u32 {
+fn fs_depth_alpha_test_fade_ms(in: VertexOutFade) -> @builtin(sample_mask) u32 {
 #else
-fn fs_depth_alpha_test_fade(in: VertexOutFade, @builtin(view_index) view_index: u32) -> @builtin(sample_mask) u32 {
+fn fs_depth_alpha_test_fade_ms(in: VertexOutFade, @builtin(view_index) view_index: u32) -> @builtin(sample_mask) u32 {
     frame = frames[view_index];
 #endif
     let t = sample_tex(in.uv);

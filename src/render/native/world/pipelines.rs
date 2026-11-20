@@ -861,11 +861,14 @@ fn make_depth_pipeline(
         (false, true) => "vs_main_fade",
         (true, true) => "vs_reflect_fade",
     };
-    let fragment_entry = match (key.alpha_test, key.fade) {
-        (false, 2) => Some("fs_depth_fade"),
-        (true, 2) => Some("fs_depth_alpha_test_fade"),
-        (true, _) => Some("fs_depth_alpha_test"),
-        (false, _) => None,
+    // LOD Fade's dither: discarded per pixel at 1 sample, a sample mask with MSAA (`_ms`, as the colour pass).
+    let fragment_entry = match (key.alpha_test, key.fade, mode.samples > 1) {
+        (false, 2, false) => Some("fs_depth_fade"),
+        (true, 2, false) => Some("fs_depth_alpha_test_fade"),
+        (false, 2, true) => Some("fs_depth_fade_ms"),
+        (true, 2, true) => Some("fs_depth_alpha_test_fade_ms"),
+        (true, _, _) => Some("fs_depth_alpha_test"),
+        (false, _, _) => None,
     };
     let mut constants = mode.fragment_constants();
     constants.extend(mode.lamp_constants());
@@ -1070,13 +1073,22 @@ fn make_pipeline_with(
     let vertex_attributes = wgpu::vertex_attr_array![0 => Float32x3, 1 => Unorm8x4, 2 => Float32x2];
     let instance_attributes = wgpu::vertex_attr_array![3 => Float32x4, 4 => Float32x4, 5 => Float32x4, 6 => Float32x4];
     // LOD Fade's pipelines (clone deviation): the same with each instance's
-    // fade (location 7) and the `_fade` entry points (with MSAA's
+    // fade (location 7) and the `_fade` entry points: at 1 sample the dither
+    // discards per pixel; with MSAA it is a per-sample mask (`_ms`; with
     // alpha-to-coverage, `fs_*_coverage_fade`: both sample masks ANDed).
+    // The sample-mask forms are invalid Vulkan SPIR-V as naga writes them
+    // (a scalar `SampleMask`), so the 1-sample forms do not write it.
     let fade_attributes = wgpu::vertex_attr_array![7 => Float32];
     let vertex_entry = if key.effect == Effect::Reflect { "vs_reflect" } else { "vs_main" };
     let vertex_entry = if fade > 0 { format!("{vertex_entry}_fade") } else { vertex_entry.to_string() };
     let entry_point = if fade > 1 { format!("{entry_point}_fade") } else { entry_point.to_string() };
     let entry_point = if mrt { format!("{entry_point}_mrt") } else { entry_point };
+    // (SkyMorph's fade form keeps every sample: no mask, one form.)
+    let ms = fade > 1
+        && mode.samples > 1
+        && !entry_point.contains("coverage")
+        && !entry_point.starts_with("fs_skymorph");
+    let entry_point = if ms { format!("{entry_point}_ms") } else { entry_point };
     let mask_target = Some(wgpu::ColorTargetState { format: WET_MASK_FORMAT, blend: None, write_mask: wgpu::ColorWrites::ALL });
     let main_target = Some(wgpu::ColorTargetState { format, blend: color_blend, write_mask });
     let targets = if mrt { vec![main_target, mask_target.clone(), mask_target] } else { vec![main_target] };
