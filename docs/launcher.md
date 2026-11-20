@@ -42,12 +42,19 @@ sits on one smoked slab; the footer has the version and the button legends of th
   scrolls), Motion (Full / Reduced), Launcher sounds (off by default: a soft tick on a focus move and a press,
   synthesised, through cpal; never in tests or with `NFSU2_AUDIO_HOST=none`), Get shaders ready again,
   Storage › (below), Import saves (opens the Saves page), About Overbright (licence, notices, Make portable); This computer at the right.
-- `dev` (the fifth page; LB / RB, Q / E go round all five): Map editor (the
-  "Open map editor (preview)" button, `screens::map_editor_button`: starts the desktop map editor on its own
-  Open / New; greyed with a line saying why when `overbright-editor` is not beside the launcher, `dirs::editor_exe`),
-  "Start the game with the editor tools" (this one start with `--editor`: F7 the texture editor, F8 the free
-  camera; `Model::play_args`), Support file (Save…) and the Logs folder (Open), the F3 overlay's
-  key; a description of the focused row at the right. Advanced keeps the rest.
+- `dev` (the fifth page; LB / RB, Q / E go round all five): Studio (the "Open Studio (preview)" button,
+  `screens::studio_button`: starts `overbright-studio` on its Home with the shown game folder as `NFSU2_ROOT`; the
+  map editor is its World workspace; greyed with a line saying why when it is not beside the launcher,
+  `dirs::studio_exe`, `OB_STUDIO_EXE` names another; while it is open the button is greyed and a line says so, a
+  failed start or a bad exit is an error line, and when it closes the map mods are read again), Studio's
+  command-line tool (`overbright-studio-cli`, `dirs::studio_cli_exe`: the row says what it is and where, and Open
+  folder shows the program folder; the launcher never opens a terminal), the Standalone map editor (the "Open map
+  editor (preview)" button, `screens::map_editor_button`: starts the desktop map editor on its own Open / New;
+  greyed with a line saying why when `overbright-editor` is not beside the launcher, `dirs::editor_exe`), "Start
+  the game with the editor tools" (this one start with `--editor`: F7 the texture editor, F8 the free camera;
+  `Model::play_args`), Support file (Save…) and the Logs folder (Open), the F3 overlay's key; a description of
+  the focused row at the right, for every row. The mod rows do not yet show a mod open in Studio or made in it.
+  Advanced keeps the rest.
 - `storage` (`storage-portable`, `storage-custom`, `storage-missing`, `storage-copy-back`; Settings › Advanced ›
   Storage): Portable mode as a switch (on: asks, offers to copy what is kept now into `<program>/data`, writes
   `portable.txt`; off: asks, offers to copy back, removes `portable.txt`, the data folder stays; every copy

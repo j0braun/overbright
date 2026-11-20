@@ -2543,6 +2543,26 @@ fn dev_page() {
     assert!(!gone.ui.get("map_editor").unwrap().enabled, "greyed without the editor's program");
     assert!(all_text(&gone).contains("is not beside the launcher"), "the reason is shown");
     assert!(!all_text(&a).contains("is not beside the launcher"));
+    // Studio: its button, its greyed state without its program, its open
+    // state, and the command-line tool's row with its help.
+    assert!(a.ui.get("studio").unwrap().enabled, "Studio is beside the launcher");
+    assert!(all_text(&a).to_lowercase().contains("standalone map editor"), "{}", all_text(&a));
+    let mut st = app(&env, &fonts, Screen::Dev, 1280, 720, 1.0);
+    st.model.studio_here = false;
+    st.rebuild(&fonts);
+    assert!(!st.ui.get("studio").unwrap().enabled, "greyed without Studio's program");
+    assert!(all_text(&st).contains("(overbright-studio) is not beside the launcher"));
+    st.model.studio_here = true;
+    st.rebuild(&fonts);
+    st.st.focus = Some("studio");
+    key(&mut st, &fonts, Key::Enter);
+    assert!(st.studio_job.is_some() && !st.ui.get("studio").unwrap().enabled, "open: greyed until it closes");
+    assert!(all_text(&st).contains("Studio is open"), "{}", all_text(&st));
+    for (id, want) in [("studio", "World"), ("studio_cli", "overbright-studio-cli"), ("map_editor", "without Studio")] {
+        st.st.focus = Some(id);
+        st.rebuild(&fonts);
+        assert!(all_text(&st).contains(want), "{id}: {}", all_text(&st));
+    }
     let t = all_text(&a);
     assert!(t.contains("F7: the texture editor") && t.contains("F8: the free camera") && t.contains("F3"), "{t}");
     assert_eq!(focus(&a), "editor_play");

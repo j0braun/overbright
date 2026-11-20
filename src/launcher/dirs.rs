@@ -62,9 +62,27 @@ pub use crate::platform::dirs::{game_exe, home};
 /// The map editor's executable beside the launcher's (`overbright-editor`,
 /// `overbright-editor.exe`); `OB_EDITOR_EXE` names another (tests).
 pub fn editor_exe() -> PathBuf {
-    if let Some(p) = std::env::var_os("OB_EDITOR_EXE").filter(|p| !p.is_empty()) {
+    beside("overbright-editor", "OB_EDITOR_EXE")
+}
+
+/// Studio's executable beside the launcher's (`overbright-studio`,
+/// `overbright-studio.exe`); `OB_STUDIO_EXE` names another (tests).
+pub fn studio_exe() -> PathBuf {
+    beside("overbright-studio", "OB_STUDIO_EXE")
+}
+
+/// Studio's command-line tool beside the launcher's (`overbright-studio-cli`,
+/// `overbright-studio-cli.exe`); the launcher only names it, never runs it.
+pub fn studio_cli_exe() -> PathBuf {
+    beside("overbright-studio-cli", "OB_STUDIO_CLI_EXE")
+}
+
+/// A program `name` (`.exe` on Windows) in the launcher's own folder, or
+/// the path the variable `var` names.
+fn beside(name: &str, var: &str) -> PathBuf {
+    if let Some(p) = std::env::var_os(var).filter(|p| !p.is_empty()) {
         return PathBuf::from(p);
     }
-    let name = if cfg!(windows) { "overbright-editor.exe" } else { "overbright-editor" };
-    std::env::current_exe().ok().and_then(|p| p.parent().map(|d| d.join(name))).unwrap_or_else(|| PathBuf::from(name))
+    let name = if cfg!(windows) { format!("{name}.exe") } else { name.to_string() };
+    std::env::current_exe().ok().and_then(|p| p.parent().map(|d| d.join(&name))).unwrap_or_else(|| PathBuf::from(name))
 }
