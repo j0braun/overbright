@@ -129,6 +129,10 @@ original, with its switch, is in [docs/playing/native-deviations.md](docs/playin
   North American install was tested. Other languages start; their data is reported as "unknown" by
   `game --check-game`. Overbright carries the European PC 1.2 release's engine numbers; whether another release's executable used different
   ones is not known.
+- **LOD Fade with multisampling may close the game on AMD's Windows driver**
+  ([#155](https://github.com/j0braun/overbright/issues/155)): with Enhanced graphics, LOD Fade on and more than
+  1 sample per pixel, the game can close while it prepares the graphics. At 1 sample per pixel this is fixed.
+  If it happens, turn LOD Fade or multisampling off.
 - **Controllers** were tested with a virtual Xbox 360 pad only. Rumble, PlayStation and Switch pads and the
   Steam Deck's controls were not tried on real hardware.
 
@@ -166,6 +170,16 @@ original, with its switch, is in [docs/playing/native-deviations.md](docs/playin
   leaves out, come from the screen where they are visible there.
 - Integrated GPUs run the original look well; the heavier upgrades want a dedicated GPU (each option shows
   its cost on the settings page).
+
+**Studio (preview)**
+
+- **Not there yet:** the Mod page with export and sharing, and the tutorial for a first mod. Until then, export
+  a map mod as a `.zip` on the launcher's **Mods** page.
+- **Looks works only on the command line** (`overbright-studio-cli`,
+  [docs/modding/studio-looks.md](docs/modding/studio-looks.md)). Picking a texture in the 3D view, the
+  before/after slider, where a texture is used and the warning before sharing textures made from the game's own
+  come to Studio's window later.
+- Tested on Linux; on Windows only under Wine.
 
 **Map editor (preview)**
 
