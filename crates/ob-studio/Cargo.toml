@@ -14,16 +14,20 @@ build = "build.rs"
 [dependencies]
 nfsu2 = { path = "../..", default-features = false }
 ob-asset-format = { path = "../ob-asset-format" }
+# The atomic file write (temporary file, flush, rename) the history's files go through.
+ob-core = { path = "../ob-core" }
 ob-formats = { path = "../ob-formats" }
 ob-map = { path = "../ob-map" }
 glam.workspace = true
 toml.workspace = true
+# The history's journal records and the inbox's requests (JSON), checked by a hash per record.
+serde.workspace = true
+serde_json.workspace = true
+xxhash-rust.workspace = true
 
 [dev-dependencies]
 # The test kit (crates/ob-testkit, docs/developing/testing.md).
 ob-testkit = { path = "../ob-testkit" }
-# The drift test reads the asset format's JSON schemas.
-serde_json.workspace = true
 
 [features]
 # The game library's developer harness, as the root package names it.
