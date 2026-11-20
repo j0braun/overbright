@@ -1941,7 +1941,9 @@ dependencies = [
  "glam",
  "nfsu2",
  "ob-asset-format",
+ "ob-formats",
  "ob-map",
+ "ob-testkit",
  "serde_json",
  "toml",
 ]
@@ -1964,6 +1966,7 @@ dependencies = [
  "ob-formats",
  "ob-look",
  "ob-map",
+ "ob-studio",
  "ob-testkit",
  "pollster 0.4.0",
  "toml",

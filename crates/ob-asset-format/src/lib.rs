@@ -8,6 +8,8 @@
 //! - [`text`]: the text and TOML rules (§3.1–3.3): encoding, syntax, the `schema` key and its versions.
 //! - [`json`]: JSON values: the schemas' text, the TOML-to-JSON mapping, RFC 8785's canonical form.
 //! - [`fields`]: field tables; they check a TOML table and also give the pages' tables and the JSON Schemas.
+//! - [`kinds`]: the field tables of the layered kinds Studio edits first (placements, races): their file checks
+//!   and schemas.
 //! - [`bundle`]: bundles (`.obz`) and pack files (`.obpk`): a zero-copy reader and a deterministic writer
 //!   (layout.md §4).
 //! - [`manifest`]: `pack.toml` format 2, today's format-1 texture-pack manifests, the content digest,
@@ -29,6 +31,7 @@ pub mod docs;
 pub mod fields;
 pub mod float;
 pub mod json;
+pub mod kinds;
 pub mod layering;
 pub mod manifest;
 pub mod names;

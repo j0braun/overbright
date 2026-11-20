@@ -2,46 +2,238 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "race.schema.json",
   "title": "ob.race: a custom race of a mod pack (roads-ai.md 3.7)",
+  "description": "A pack adds its own race (id; no op: an addition); a pack that lists the race's pack in [dependencies] merges into it or disables it (key = \"<pack>:<id>\"; layering.md 3.1). Generated from the code (crates/ob-asset-format/src/kinds.rs); do not edit.",
   "type": "object",
-  "required": ["schema", "id", "track", "mode"],
-  "additionalProperties": false,
   "properties": {
-    "schema": { "type": "string", "pattern": "^ob\\.race/1\\.[0-9]+$" },
-    "op": { "const": "add" },
-    "disabled": { "type": "boolean" },
-    "id": { "type": "string", "pattern": "^[a-z0-9_-]{1,40}$" },
-    "name": { "type": "string", "maxLength": 200, "pattern": "^[^\\u0000-\\u001F\\u007F]*$" },
-    "track": { "$ref": "common.schema.json#/$defs/u16" },
-    "backward": { "type": "boolean" },
-    "mode": { "enum": ["circuit", "sprint", "streetx", "drift"] },
-    "laps": { "type": "integer", "minimum": 1, "maximum": 20 },
-    "checkpoints": { "type": "array", "maxItems": 64, "items": { "$ref": "#/$defs/xy" } },
-    "grid": { "type": "array", "maxItems": 8, "items": { "$ref": "#/$defs/spot" } },
-    "start": { "$ref": "#/$defs/spot" },
-    "finish": { "$ref": "#/$defs/spot" },
-    "extras": { "$ref": "common.schema.json#/$defs/extras" },
-    "ext": { "$ref": "common.schema.json#/$defs/ext" }
+    "schema": {
+      "type": "string",
+      "pattern": "^ob\\.race/1\\.[0-9]+$"
+    },
+    "op": {
+      "enum": [
+        "merge",
+        "add"
+      ]
+    },
+    "key": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9_-]{0,63}:[a-z0-9_-]{1,40}$"
+    },
+    "disabled": {
+      "type": "boolean"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9_-]{1,40}$"
+    },
+    "name": {
+      "type": "string",
+      "maxLength": 200,
+      "pattern": "^[^\\u0000-\\u001F\\u007F]*$"
+    },
+    "track": {
+      "$ref": "common.schema.json#/$defs/u16"
+    },
+    "backward": {
+      "type": "boolean"
+    },
+    "mode": {
+      "enum": [
+        "circuit",
+        "sprint",
+        "streetx",
+        "drift"
+      ]
+    },
+    "laps": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 20
+    },
+    "checkpoints": {
+      "type": "array",
+      "maxItems": 64,
+      "items": {
+        "$ref": "#/$defs/xy"
+      }
+    },
+    "grid": {
+      "type": "array",
+      "maxItems": 8,
+      "items": {
+        "$ref": "#/$defs/gridSlot"
+      }
+    },
+    "start": {
+      "$ref": "#/$defs/spot"
+    },
+    "finish": {
+      "$ref": "#/$defs/spot"
+    },
+    "extras": {
+      "$ref": "common.schema.json#/$defs/extras"
+    },
+    "ext": {
+      "$ref": "common.schema.json#/$defs/ext"
+    }
+  },
+  "required": [
+    "schema"
+  ],
+  "additionalProperties": false,
+  "if": {
+    "description": "An addition: op = add, or no op and this pack's own local id (layering.md 3.1, pack-scoped keys default to add)",
+    "anyOf": [
+      {
+        "properties": {
+          "op": {
+            "const": "add"
+          }
+        },
+        "required": [
+          "op"
+        ]
+      },
+      {
+        "not": {
+          "required": [
+            "op"
+          ]
+        },
+        "required": [
+          "id"
+        ]
+      }
+    ]
+  },
+  "then": {
+    "required": [
+      "id",
+      "track",
+      "mode"
+    ],
+    "not": {
+      "anyOf": [
+        {
+          "required": [
+            "key"
+          ]
+        }
+      ]
+    }
+  },
+  "else": {
+    "required": [
+      "key"
+    ],
+    "not": {
+      "anyOf": [
+        {
+          "required": [
+            "id"
+          ]
+        }
+      ]
+    }
   },
   "allOf": [
     {
-      "if": { "properties": { "mode": { "enum": ["sprint", "drift"] } }, "required": ["mode"] },
-      "then": { "properties": { "laps": { "const": 1 } } }
+      "if": {
+        "properties": {
+          "mode": {
+            "enum": [
+              "sprint",
+              "drift"
+            ]
+          }
+        },
+        "required": [
+          "mode"
+        ]
+      },
+      "then": {
+        "properties": {
+          "laps": {
+            "const": 1
+          }
+        }
+      }
     }
   ],
   "$defs": {
     "coord": {
       "description": "finite and within +-100000 (MAX_COORD); exact-bits escapes are not used here",
-      "type": "number", "minimum": -100000, "maximum": 100000
+      "type": "number",
+      "minimum": -100000,
+      "maximum": 100000
     },
-    "xy": { "type": "array", "items": { "$ref": "#/$defs/coord" }, "minItems": 2, "maxItems": 2 },
+    "xy": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": {
+        "$ref": "#/$defs/coord"
+      }
+    },
+    "gridSlot": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "enum": [
+            "merge",
+            "add"
+          ]
+        },
+        "index": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 7
+            },
+            {
+              "type": "string",
+              "pattern": "^[a-z0-9][a-z0-9_-]{0,63}:[0-9]{1,2}$"
+            }
+          ]
+        },
+        "position": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": {
+            "$ref": "#/$defs/coord"
+          }
+        },
+        "heading_deg": {
+          "$ref": "#/$defs/coord"
+        },
+        "disabled": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
     "spot": {
       "type": "object",
-      "additionalProperties": false,
-      "required": ["position", "heading_deg"],
       "properties": {
-        "position": { "type": "array", "items": { "$ref": "#/$defs/coord" }, "minItems": 3, "maxItems": 3 },
-        "heading_deg": { "$ref": "#/$defs/coord" }
-      }
+        "position": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": {
+            "$ref": "#/$defs/coord"
+          }
+        },
+        "heading_deg": {
+          "$ref": "#/$defs/coord"
+        }
+      },
+      "required": [
+        "position",
+        "heading_deg"
+      ],
+      "additionalProperties": false
     }
   }
 }

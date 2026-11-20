@@ -34,7 +34,7 @@
         {
           "key": "guard",
           "type": "table",
-          "required": "merge",
+          "required": "when",
           "merge": false,
           "fields": [
             {
@@ -161,8 +161,15 @@
           "required": "no",
           "merge": false,
           "enum": [
+            "merge",
             "add"
           ]
+        },
+        {
+          "key": "key",
+          "type": "text",
+          "required": "merge",
+          "merge": false
         },
         {
           "key": "disabled",
@@ -174,7 +181,7 @@
         {
           "key": "id",
           "type": "text",
-          "required": "yes",
+          "required": "add",
           "merge": false,
           "label": "Id"
         },
@@ -188,7 +195,7 @@
         {
           "key": "track",
           "type": "u16",
-          "required": "yes",
+          "required": "add",
           "merge": true,
           "label": "Base track"
         },
@@ -202,7 +209,7 @@
         {
           "key": "mode",
           "type": "enum",
-          "required": "yes",
+          "required": "add",
           "merge": true,
           "label": "Mode",
           "enum": [
@@ -234,18 +241,41 @@
           "label": "Grid",
           "fields": [
             {
+              "key": "op",
+              "type": "enum",
+              "required": "no",
+              "merge": false,
+              "enum": [
+                "merge",
+                "add"
+              ]
+            },
+            {
+              "key": "index",
+              "type": "key",
+              "required": "no",
+              "merge": false
+            },
+            {
               "key": "position",
               "type": "vec3",
-              "required": "yes",
+              "required": "when",
               "merge": true,
               "label": "Position"
             },
             {
               "key": "heading_deg",
               "type": "f32",
-              "required": "yes",
+              "required": "when",
               "merge": true,
               "label": "Heading"
+            },
+            {
+              "key": "disabled",
+              "type": "bool",
+              "required": "no",
+              "merge": true,
+              "label": "Off"
             }
           ]
         },

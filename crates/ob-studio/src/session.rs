@@ -6,12 +6,11 @@
 
 use glam::Vec3;
 
-use super::edit::RacePart;
-use super::edit::{self, Refused};
-use super::format::{CustomRace, MAX_LAPS, MAX_TEXT, MapMod, PropEdit, Spot, valid_id, valid_solid};
-use super::ops::{Change, Op, PropKey, RacePoint, ensure, max_points, valid_position};
-use super::race;
-use crate::world::World;
+use nfsu2::studio_api::map::edit;
+use nfsu2::studio_api::world::World;
+use ob_map::tools::map::format::{CustomRace, MAX_LAPS, MAX_TEXT, MapMod, PropEdit, Spot, valid_id, valid_solid};
+use ob_map::tools::map::ops::{Change, Op, PropKey, RacePart, RacePoint, Refused, ensure, max_points, valid_position};
+use ob_map::tools::map::race;
 
 /// How many undo steps are kept.
 pub const MAX_STEPS: usize = 256;
@@ -346,7 +345,7 @@ impl MapSession {
                         format!("race-{n}")
                     }
                 };
-                ensure(self.map.races.len() < super::format::MAX_RACES, Refused::Full)?;
+                ensure(self.map.races.len() < ob_map::tools::map::format::MAX_RACES, Refused::Full)?;
                 let mut r = CustomRace::new(&id, track, kind);
                 if let Some(n) = id.strip_prefix("race-").filter(|n| n.parse::<usize>().is_ok()) {
                     r.name = format!("Race {n}");

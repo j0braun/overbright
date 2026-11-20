@@ -98,7 +98,7 @@ they apply in byte order of their file names, so the result never depends on the
   original's elements have no key of their own, a **base** element's key is its **`index`** in the base set's list
   (never shifting: base elements are never removed, only disabled), and an element a pack adds is keyed
   `<pack id>:<n>` (its position among that pack's own additions), addressable only by that pack and by packs that
-  depend on it. `op = "add"` without a key appends. An index into the *merged* list is never a key: it would shift
+  depend on it. Every element of an item a pack adds (or replaces whole) is that pack's addition. `op = "add"` without a key appends. An index into the *merged* list is never a key: it would shift
   when a lower pack is switched off or reordered.
 - **Opaque fields** (`u_*`, `bytes`, external arrays) are replaced whole.
 - **`revert`** (reserved): an entry field `revert = ["field", …]` that sets the listed fields back to the **base
@@ -138,6 +138,11 @@ disabling what another changes). The stronger layer wins; the clash is never an 
 
 - per item and field, with both packs' values, in the launcher's Mods page and Studio's Pack panel;
 - `overbright-studio-cli pack clashes --json` lists them for scripts.
+
+The merged view also says, per item, which pack each field's value comes from (an element field of a keyed list
+included, `grid[docks-remix:1].heading_deg`; a field no pack gave has the base set's value), so Studio's inspector
+can show where a value comes from; an element's packs are those of its fields
+(`crates/ob-asset-format/src/layering.rs`, `Item::from`).
 
 Base set versus pack is not a clash. A pack's own wildcard entry versus its own specific entry is not a clash.
 

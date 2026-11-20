@@ -123,7 +123,7 @@ all 1,036 shipped records).
 
 | Field | Type | Unit | Req. | Default | Meaning |
 |---|---|---|---|---|---|
-| `track` | u16 | – | yes | – | `+0x00`: the track number. |
+| `track` | u16 | – | add | – | `+0x00`: the track number. |
 | `loops` | u8 | – | no | `0` | `+0x03`: the route closes on its first point (read as `!= 0`). |
 | `u_0x04` | u8 | – | no | `0` | **open** (0 or 1). |
 | `width_m` | u8 | m | no | `0` | `+0x05`: **inferred** a road width (20–60). |
@@ -169,7 +169,7 @@ points = [[-1203.5, 455.25], [-980.0, 610.75], [-702.125, 640.5], [-1180.0, 300.
 |---|---|---|---|---|---|
 | `schema` | string | – | yes | – | `ob.road-net/1.0` |
 | `region` | string | – | yes | – | The region. |
-| `track` | u16 | – | yes | – | The track number (`Paths<trk>.bin`); MUST equal the file name. |
+| `track` | u16 | – | add | – | The track number (`Paths<trk>.bin`); MUST equal the file name. |
 | `nodes` | array descriptor | – | yes | – | Layout `road_node`. |
 | `segments` | array descriptor | – | yes | – | Layout `road_segment`. |
 | `paths` | enum | – | no | `"region"` | Where the triggers, barriers and checkpoint lists this track's Paths file carries are: `region` (`../paths.toml`, the shared file) or `own` (`roads/<trk>.paths.toml`, same kind). Only an import of an edition whose Paths files differ within a region writes `own`. |
@@ -345,7 +345,7 @@ intersections = { file = "4001F.bin", offset = 439552, count = 38, layout = "rou
 | Field | Type | Unit | Req. | Default | Meaning |
 |---|---|---|---|---|---|
 | `name` | nameref | – | yes | – | `+0x08`: `ForwardStartingPosition`, `ForwardStartLine`, `ForwardFinishLine`, the `Backward…` set, `SplitTimeBoundary1–3`, shop names in free roam. |
-| `track` | u16 | – | yes | – | `+0x24`. |
+| `track` | u16 | – | add | – | `+0x24`. |
 | `slot` | u32 | – | no | `0` | `+0x0C`: a starting position's grid slot 0–7 (0x5EB5E0). |
 | `position` | vec3 | m | yes | – | `+0x10`. The grid is put on the ground below it at load. |
 | `heading_bam16` | u16 | bam16 | no | `0` | `+0x20`: around +z from +x. |
@@ -446,17 +446,27 @@ on that track. The race file gives the rest. The fields map 1:1 to today's map-m
 | Field | Type | Unit | Req. | Default | Meaning (`map.obmap` key) |
 |---|---|---|---|---|---|
 | `schema` | string | – | yes | – | `ob.race/1.0` |
-| `id` | string | – | yes | – | `id`: `[a-z0-9_-]{1,40}`; MUST equal the file name. Key `race:<pack>:<id>`. |
+| `op` | enum | – | no | `add` with `id`, else `merge` | `merge` or `add` (layering.md §3.1). |
+| `key` | string | – | merge | – | In a merge only: the race it changes, `<pack>:<id>` of a pack this one lists in `[dependencies]` (`ORD.2`). |
+| `disabled` | bool | – | no | `false` | The race is not offered (layering.md §3.1). |
+| `id` | string | – | add | – | `id`: `[a-z0-9_-]{1,40}`; MUST equal the file name. Key `race:<pack>:<id>`. In an addition only. |
 | `name` | string | – | no | the id | `name`: shown in lists; at most 200 characters, no control characters. |
-| `track` | u16 | – | yes | – | `track`: the base track's number (`track:<n>`, [career.md](career.md)). |
+| `track` | u16 | – | add | – | `track`: the base track's number (`track:<n>`, [career.md](career.md)). |
 | `backward` | bool | – | no | `false` | `backward`: use the base track's backward barriers and lanes (`Routes<trk>B`). |
-| `mode` | enum | – | yes | – | `mode`: `circuit`, `sprint`, `streetx`, `drift`. Circuit and street X loop. |
+| `mode` | enum | – | add | – | `mode`: `circuit`, `sprint`, `streetx`, `drift`. Circuit and street X loop. |
 | `laps` | u32 | – | no | 2 looping, 1 otherwise | `laps`: 1–20; exactly 1 for `sprint` and `drift`. |
 | `checkpoints` | array<vec2> | m | no | `[]` | `checkpoint` (repeated): world x, y in driving order; at most 64. Fewer than 2: kept, not raceable. A loop closes from the last back to the first. |
 | `grid` | array<table> | – | no | `[]` | `grid` (repeated): spots, pole first, at most 8. Empty: 8 slots behind the start, rows of two, 7 m between rows, 4 m across (`crates/ob-map/src/tools/map/race.rs:59`). |
 | `start` | table | – | no | from the first two checkpoints | `start`: the start line spot. |
 | `finish` | table | – | no | loop: the start; else the last checkpoint | `finish`: the finish line spot. |
 | `extras` | table | – | no | – | conventions §9 (e.g. the editor's notes). |
+
+A pack adds its own races (an entry with `id` and no `op` is an addition, layering.md §3.1). A pack that lists the
+race's pack in `[dependencies]` may merge into it (`key`, and only the fields it changes; the rest keep the lower
+layer's values) or disable it (`disabled = true`); its `grid` merges slot by slot (layering.md §3.2: every slot of
+a pack's own race is that pack's addition, keyed `index = "<pack>:<n>"`; `op = "add"` appends one, `disabled`
+hides one). "add" in the Req. column: required in an addition; "merge": required in a merge. The field table is
+`crates/ob-asset-format/src/kinds.rs`, which also gives `schemas/race.schema.json` and Studio's inspector rows.
 
 A **spot** is `{ position = vec3 (m), heading_deg = f32 }`: heading in degrees around +z from +x (the map format's
 fourth number). Every coordinate and heading MUST be finite and within ±100,000 (`MAX_COORD`). Heights of grid slots

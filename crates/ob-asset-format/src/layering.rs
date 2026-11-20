@@ -185,6 +185,44 @@ pub struct Item {
     pub source: Source,
     /// The keys of the elements of index-keyed lists, by field.
     pub list_keys: BTreeMap<String, Vec<String>>,
+    /// Which mod pack gave each field (§4, Studio's Pack panel): field path (`a.b`, `list[key].c`, `disabled`) →
+    /// pack. A path not listed, nor any path above it, has the base set's value. A value given whole (a sub-table, a
+    /// list) is listed at its own path until a stronger pack changes a field inside it.
+    pub from: BTreeMap<String, String>,
+}
+
+impl Item {
+    /// The pack whose value `path` has (`None`: the base set's): the path's own entry, else the nearest path above
+    /// it (`grid[1].position` within `grid[1]` within `grid`).
+    pub fn from_of(&self, path: &str) -> Option<&str> {
+        let mut p = path;
+        loop {
+            if let Some(pack) = self.from.get(p) {
+                return Some(pack);
+            }
+            p = &p[..p.rfind(['.', '['])?];
+        }
+    }
+
+    /// Every pack that gave `path` or a field within it, by name: a keyed list element's attribution, derived from
+    /// its fields'.
+    pub fn packs_within(&self, path: &str) -> Vec<&str> {
+        let mut packs: Vec<&str> = self
+            .from
+            .iter()
+            .filter(|(p, _)| within(p, path))
+            .map(|(_, pack)| pack.as_str())
+            .chain(self.from_of(path))
+            .collect();
+        packs.sort_unstable();
+        packs.dedup();
+        packs
+    }
+}
+
+/// Whether `p` is `path` or lies inside it (`path.x`, `path[k]`).
+fn within(p: &str, path: &str) -> bool {
+    p.strip_prefix(path).is_some_and(|r| r.is_empty() || r.starts_with(['.', '[']))
 }
 
 /// What two mod packs both touched (§4). The stronger layer's value wins; a clash is never an error.
@@ -249,7 +287,16 @@ struct State {
     changers: HashMap<String, Vec<String>>,
     /// item key → the mod pack that last set `disabled`.
     disablers: HashMap<String, String>,
+    /// item key → [`Item::from`] while layers apply.
+    from: HashMap<String, BTreeMap<String, String>>,
     clashes: Vec<Clash>,
+}
+
+/// Records that `pack` gave `path` of `key`: what lay inside the path before is its value no longer.
+fn attribute(st: &mut State, key: &str, path: &str, pack: &str) {
+    let from = st.from.entry(key.to_string()).or_default();
+    from.retain(|p, _| !within(p, path));
+    from.insert(path.to_string(), pack.to_string());
 }
 
 /// Whether `key` lies in `pack`'s own namespace (`<pack>:…`, possibly after a unit prefix: `L4RA/docks-remix:a12`).
@@ -266,6 +313,7 @@ pub fn merge(base: Vec<(String, toml::Table)>, layers: &[Layer], rules: &KindRul
         writers: HashMap::new(),
         changers: HashMap::new(),
         disablers: HashMap::new(),
+        from: HashMap::new(),
         clashes: Vec::new(),
     };
     for (key, fields) in base {
@@ -281,7 +329,7 @@ pub fn merge(base: Vec<(String, toml::Table)>, layers: &[Layer], rules: &KindRul
             })
             .collect();
         st.index.insert(key.clone(), st.items.len());
-        st.items.push(Item { key, fields, disabled: false, source: Source::Base, list_keys });
+        st.items.push(Item { key, fields, disabled: false, source: Source::Base, list_keys, from: BTreeMap::new() });
     }
     let mut refused = Vec::new();
     for layer in layers {
@@ -292,6 +340,7 @@ pub fn merge(base: Vec<(String, toml::Table)>, layers: &[Layer], rules: &KindRul
             writers: st.writers.clone(),
             changers: st.changers.clone(),
             disablers: st.disablers.clone(),
+            from: st.from.clone(),
             clashes: st.clashes.clone(),
         };
         match apply_layer(&mut trial, layer, rules) {
@@ -299,7 +348,11 @@ pub fn merge(base: Vec<(String, toml::Table)>, layers: &[Layer], rules: &KindRul
             Err(r) => refused.push((layer.pack.clone(), r.in_pack(&layer.pack))),
         }
     }
-    Merged { items: st.items, clashes: st.clashes, refused }
+    let mut items = st.items;
+    for item in &mut items {
+        item.from = st.from.remove(&item.key).unwrap_or_default();
+    }
+    Merged { items, clashes: st.clashes, refused }
 }
 
 fn apply_layer(st: &mut State, layer: &Layer, rules: &KindRules) -> Result<(), Refusal> {
@@ -358,9 +411,15 @@ fn apply_layer(st: &mut State, layer: &Layer, rules: &KindRules) -> Result<(), R
                             disabled: false,
                             source: Source::Added(layer.pack.clone()),
                             list_keys: BTreeMap::new(),
+                            from: BTreeMap::new(),
                         };
+                        // The stronger definition is the whole item: none of the weaker one's fields stay.
+                        st.from.remove(&e.key);
                         set_fields(st, &mut fresh, layer, &e.fields, rules, false)?;
                         fresh.disabled = e.disabled.unwrap_or(false);
+                        if e.disabled.is_some() {
+                            attribute(st, &e.key, "disabled", &layer.pack);
+                        }
                         st.items[i] = fresh;
                         added_here.insert(e.key.clone());
                     }
@@ -374,9 +433,13 @@ fn apply_layer(st: &mut State, layer: &Layer, rules: &KindRules) -> Result<(), R
                     disabled: false,
                     source: Source::Added(layer.pack.clone()),
                     list_keys: BTreeMap::new(),
+                    from: BTreeMap::new(),
                 };
                 set_fields(st, &mut item, layer, &e.fields, rules, false)?;
                 item.disabled = e.disabled.unwrap_or(false);
+                if e.disabled.is_some() {
+                    attribute(st, &e.key, "disabled", &layer.pack);
+                }
                 st.index.insert(e.key.clone(), st.items.len());
                 st.items.push(item);
                 added_here.insert(e.key.clone());
@@ -398,6 +461,11 @@ fn apply_layer(st: &mut State, layer: &Layer, rules: &KindRules) -> Result<(), R
                         }
                     }
                     st.writers.retain(|(k, _), _| k != &e.key);
+                    // Absent fields take the schema's defaults: no lower pack's value is left in the item
+                    // (whether it is disabled stays as the lower layers set it).
+                    if let Some(from) = st.from.get_mut(&e.key) {
+                        from.retain(|p, _| p == "disabled");
+                    }
                     item.fields = toml::Table::new();
                     item.list_keys.clear();
                 }
@@ -428,6 +496,7 @@ fn apply_layer(st: &mut State, layer: &Layer, rules: &KindRules) -> Result<(), R
                     }
                     item.disabled = d;
                     st.disablers.insert(e.key.clone(), layer.pack.clone());
+                    attribute(st, &e.key, "disabled", &layer.pack);
                 }
                 st.items[i] = item;
             }
@@ -452,6 +521,7 @@ fn record(st: &mut State, key: &str, path: &str, layer: &Layer, value: &toml::Va
         });
     }
     st.writers.insert(slot, (layer.pack.clone(), value.clone()));
+    attribute(st, key, path, &layer.pack);
 }
 
 /// Applies an entry's fields to an item: sub-tables merged field by field (when `merge`), keyed lists by key,
@@ -466,7 +536,7 @@ fn set_fields(
 ) -> Result<(), Refusal> {
     for (k, v) in fields {
         if let Some((_, lk)) = rules.keyed_lists.iter().find(|(f, _)| f == k) {
-            merge_list(st, item, layer, k, *lk, v).map_err(|r| r.in_field(k))?;
+            merge_list(st, item, layer, k, *lk, v, !merge).map_err(|r| r.in_field(k))?;
             continue;
         }
         let key = item.key.clone();
@@ -498,7 +568,8 @@ fn merge_table(st: &mut State, key: &str, path: &str, have: &mut toml::Table, ne
 }
 
 /// Merges a keyed list (§3.2): an element with a known key is merged (or replaced), `disabled` hides it, `op = "add"`
-/// appends; an unknown key without `add` is `MRG.4`.
+/// appends; an unknown key without `add` is `MRG.4`. In a `fresh` item (added, or replaced whole) every element is
+/// an addition, keyed as the pack's own (`<pack>:<n>` by position).
 fn merge_list(
     st: &mut State,
     item: &mut Item,
@@ -506,6 +577,7 @@ fn merge_list(
     field: &str,
     lk: ListKey,
     v: &toml::Value,
+    fresh: bool,
 ) -> Result<(), Refusal> {
     let new = v.as_array().ok_or_else(|| Refusal::new(Rule::Conv6, "a list was expected"))?;
     let mut list: Vec<toml::Value> = item.fields.get(field).and_then(|l| l.as_array()).cloned().unwrap_or_default();
@@ -519,7 +591,8 @@ fn merge_list(
     let item_key = item.key.clone();
     for el in new {
         let mut t = el.as_table().cloned().ok_or_else(|| Refusal::new(Rule::Conv6, "list elements are tables"))?;
-        let op = read_op(&mut t)?;
+        // In an item the entry adds (or replaces whole), every element is the pack's own addition.
+        let op = read_op(&mut t)?.or(fresh.then_some(Op::Add));
         let disabled = read_disabled(&mut t)?;
         let given = match lk {
             ListKey::Index => t.remove("index").map(|k| element_key(&k)),
@@ -567,9 +640,16 @@ fn merge_list(
                         ListKey::Index => None,
                     };
                     target.clear();
+                    if let Some(from) = st.from.get_mut(&item_key) {
+                        from.retain(|p, _| !within(p, &path));
+                    }
                     if let Some((f, v)) = keep {
                         target.insert(f.to_string(), v);
                     }
+                }
+                // The element's key names it; giving it is not a change (nor a clash).
+                if let ListKey::Field(f) = lk {
+                    t.remove(f);
                 }
                 merge_table(st, &item_key, &path, target, &t, layer);
                 if let Some(d) = disabled {
@@ -804,6 +884,127 @@ mod tests {
         assert_eq!(m2.clashes.len(), 1);
         let bad = merge(b, &[layer("p", &[], vec![entry("C", "events = [{ name = \"e9\", v = 1 }]")])], &RULES);
         assert_eq!(bad.refused[0].1.rule, Rule::Mrg4);
+    }
+
+    /// The rows of layering.md §3.1 and the rules of §3.2, each with the pack every field's value comes from
+    /// afterwards (`-`: the base set's).
+    #[test]
+    fn attribution_follows_the_layering_tables() {
+        const RULES: KindRules = KindRules {
+            add: true,
+            replace: true,
+            disable: true,
+            keyed_lists: &[("events", ListKey::Field("name")), ("slots", ListKey::Index)],
+        };
+        let b = || {
+            let mut v = base();
+            v.push((
+                "C".into(),
+                t("events = [{ name = \"e1\", v = 1 }, { name = \"e2\", v = 2 }]\nslots = [{ v = 10 }]"),
+            ));
+            v
+        };
+        type Row = (&'static str, Vec<Layer>, &'static [(&'static str, &'static str, &'static str)]);
+        let rows: Vec<Row> = vec![
+            (
+                "merge: the fields given, the rest the lower layer's",
+                vec![layer("a", &[], vec![entry("PEUGOT", "mass_kg = 1250.0")])],
+                &[("PEUGOT", "mass_kg", "a"), ("PEUGOT", "top", "-"), ("PEUGOT", "engine.idle", "-")],
+            ),
+            (
+                "sub-tables merge field by field",
+                vec![
+                    layer("a", &[], vec![entry("PEUGOT", "[engine]\nidle = 950\nrpm_max = 7100")]),
+                    layer("b", &[], vec![entry("PEUGOT", "[engine]\nrpm_max = 7200")]),
+                ],
+                &[("PEUGOT", "engine.idle", "a"), ("PEUGOT", "engine.rpm_max", "b"), ("PEUGOT", "engine", "-")],
+            ),
+            (
+                "add: every field the adding pack's",
+                vec![layer("a", &[], vec![entry("NEWCAR", "op = \"add\"\nmass_kg = 900.0\n[engine]\nidle = 1")])],
+                &[("NEWCAR", "mass_kg", "a"), ("NEWCAR", "engine.idle", "a")],
+            ),
+            (
+                "replace: the lower values are gone, the replacing pack's only",
+                vec![
+                    layer("a", &[], vec![entry("COROLLA", "top = 1.0\nmass_kg = 1.0")]),
+                    layer("b", &[], vec![entry("COROLLA", "op = \"replace\"\nmass_kg = 1000.0")]),
+                ],
+                &[("COROLLA", "mass_kg", "b"), ("COROLLA", "top", "-")],
+            ),
+            (
+                "disabled, and enabled again higher up",
+                vec![
+                    layer("a", &[], vec![entry("PEUGOT", "disabled = true\nmass_kg = 1.0")]),
+                    layer("c", &[], vec![entry("PEUGOT", "disabled = false")]),
+                ],
+                &[("PEUGOT", "disabled", "c"), ("PEUGOT", "mass_kg", "a")],
+            ),
+            (
+                "two packs adding one key: the stronger one's whole definition",
+                vec![
+                    layer("a", &[], vec![entry("NEW", "op = \"add\"\nx = 1\ny = 1")]),
+                    layer("b", &[], vec![entry("NEW", "op = \"add\"\nx = 2")]),
+                ],
+                &[("NEW", "x", "b"), ("NEW", "y", "-")],
+            ),
+            (
+                "keyed lists: per element field; a list replaced whole at its own path",
+                vec![
+                    layer(
+                        "p",
+                        &[],
+                        vec![entry(
+                            "C",
+                            "events = [{ name = \"e2\", v = 20 }, { op = \"add\", name = \"e3\", v = 3 }, { name = \"e1\", disabled = true }]\n\
+                             slots = [{ op = \"add\", v = 12, w = 1 }]\nplain = [1]",
+                        )],
+                    ),
+                    layer(
+                        "q",
+                        &["p"],
+                        vec![entry("C", "slots = [{ index = \"p:0\", v = 13 }, { index = 0, v = 11 }]")],
+                    ),
+                ],
+                &[
+                    ("C", "events[e2].v", "p"),
+                    ("C", "events[e2].name", "-"),
+                    ("C", "events[e3].v", "p"),
+                    ("C", "events[e1].disabled", "p"),
+                    ("C", "events[e1].v", "-"),
+                    ("C", "slots[p:0].v", "q"),
+                    ("C", "slots[p:0].w", "p"),
+                    ("C", "slots[0].v", "q"),
+                    ("C", "plain[0]", "p"),
+                ],
+            ),
+            (
+                "a refused pack gives nothing",
+                vec![layer("a", &[], vec![entry("PEUGOT", "mass_kg = 1.0"), entry("NOPE", "x = 1")])],
+                &[("PEUGOT", "mass_kg", "-")],
+            ),
+        ];
+        for (what, layers, expect) in rows {
+            let m = merge(b(), &layers, &RULES);
+            for (key, path, pack) in expect {
+                let got = m.get(key).unwrap_or_else(|| panic!("{what}: {key}")).from_of(path).unwrap_or("-");
+                assert_eq!(got, *pack, "{what}: {key}.{path}");
+            }
+        }
+        // A keyed list element's own attribution: every pack that gave one of its fields.
+        let m = merge(
+            b(),
+            &[
+                layer("p", &[], vec![entry("C", "slots = [{ op = \"add\", v = 12, w = 1 }]")]),
+                layer("q", &["p"], vec![entry("C", "slots = [{ index = \"p:0\", v = 13 }]")]),
+            ],
+            &RULES,
+        );
+        let c = m.get("C").unwrap();
+        assert_eq!(c.packs_within("slots[p:0]"), ["p", "q"]);
+        assert_eq!(c.packs_within("slots[0]"), Vec::<&str>::new(), "the base element");
+        assert_eq!(c.packs_within("slots"), ["p", "q"]);
+        assert!(m.get("PEUGOT").unwrap().from.is_empty(), "a base item no pack touched");
     }
 
     #[test]

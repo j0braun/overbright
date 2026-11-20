@@ -11,7 +11,7 @@ use crate::json::Json;
 use crate::{Refusal, Rule};
 
 /// A string check with its JSON Schema form.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct Pattern {
     /// The JSON Schema `pattern` (ECMA-262 regular expression).
     pub json: &'static str,
@@ -22,7 +22,7 @@ pub struct Pattern {
 }
 
 /// A field's type.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum Ty {
     Bool,
     /// An integer within `min..=max`.
@@ -40,8 +40,21 @@ pub enum Ty {
         max: usize,
         pattern: Option<Pattern>,
     },
+    /// A float read as binary32 within `min..=max` (a number outside it is refused; an exact-bits escape, when
+    /// `bits`, is not range-checked, as the schema has it).
+    F32In {
+        min: i64,
+        max: i64,
+        bits: bool,
+    },
     /// A shared definition of `schemas/common.schema.json` (`$defs/<name>`), checked as `ty`.
     Def(&'static str, &'static Ty),
+    /// A definition of the kind's own schema (`#/$defs/<name>`, written into its `$defs`), checked as `ty`.
+    Local(&'static str, &'static Ty),
+    /// A reference to an item of the kind with this short name (`solid:XO_CONE_01`), checked and written as `ty`.
+    Ref(&'static str, &'static Ty),
+    /// One of two types (`oneOf`): a keyed list element's `index`, a base position or a pack's `<pack>:<n>`.
+    Either(&'static Ty, &'static Ty),
     Enum(&'static [&'static str]),
     Array {
         item: &'static Ty,
@@ -61,7 +74,7 @@ pub enum Ty {
 }
 
 /// Whether a field must be present.
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Req {
     Yes,
     /// Required, with the page's own "Req." text.
@@ -69,6 +82,21 @@ pub enum Req {
     No,
     /// Required under a condition the kind's own code checks; the text is the page's "Req." cell.
     When(&'static str),
+    /// Required in an entry that adds the item (layering.md §3.1).
+    OnAdd,
+    /// Required in an entry that merges into an item a lower layer has.
+    OnMerge,
+}
+
+/// Which entries of a layered kind may give a field (layering.md §3.1).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Only {
+    /// Any entry (and a file kind that is not layered).
+    Any,
+    /// Only an entry that adds the item (what the item is: a placement's solid, a race's id).
+    Add,
+    /// Only an entry that merges into an item a lower layer has (the key naming it, its guard).
+    Merge,
 }
 
 impl Req {
@@ -78,7 +106,7 @@ impl Req {
 }
 
 /// One field of a TOML file kind.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct Field {
     /// The TOML key.
     pub key: &'static str,
@@ -97,6 +125,13 @@ pub struct Field {
     pub doc_meaning: &'static str,
     /// For a sub-table: whether its fields' rows follow in the same page table.
     pub rows_inline: bool,
+    /// Which entries may give it.
+    pub only: Only,
+    /// A merge may change it on an item the entry does not add (Studio edits it there); keys, guards and the
+    /// entry's own `op` are not changes.
+    pub merge: bool,
+    /// Studio's inspector row; "" for a field the inspector does not show (keys, guards).
+    pub label: &'static str,
 }
 
 impl Field {
@@ -111,6 +146,9 @@ impl Field {
         doc_default: "",
         doc_meaning: "",
         rows_inline: false,
+        only: Only::Any,
+        merge: false,
+        label: "",
     };
 }
 
@@ -138,6 +176,16 @@ pub fn check_value(v: &toml::Value, ty: &Ty) -> Result<(), Refusal> {
             _ => Err(Refusal::new(Rule::Conv6, format!("must be {c}"))),
         },
         Ty::F32 => crate::float::read_f32(v, crate::float::Allow::default()).map(|_| ()),
+        Ty::F32In { min, max, bits } => {
+            if v.is_str() && !bits {
+                return Err(wrong("a number", v));
+            }
+            let x = crate::float::read_f32(v, crate::float::Allow::default())?;
+            if !v.is_str() && !(*min as f32..=*max as f32).contains(&x) {
+                return Err(Refusal::new(Rule::Conv6, format!("{x} is outside {min}..={max}")));
+            }
+            Ok(())
+        }
         Ty::Str { min, max, pattern } => {
             let s = v.as_str().ok_or_else(|| wrong("a string", v))?;
             let n = s.chars().count();
@@ -154,7 +202,8 @@ pub fn check_value(v: &toml::Value, ty: &Ty) -> Result<(), Refusal> {
             }
             Ok(())
         }
-        Ty::Def(_, inner) => check_value(v, inner),
+        Ty::Def(_, inner) | Ty::Local(_, inner) | Ty::Ref(_, inner) => check_value(v, inner),
+        Ty::Either(a, b) => check_value(v, a).or_else(|e| check_value(v, b).map_err(|_| e)),
         Ty::Enum(values) => match v.as_str() {
             Some(s) if values.contains(&s) => Ok(()),
             Some(s) => Err(Refusal::new(Rule::Conv6, format!("{s:?} is not one of {}", values.join(", ")))),
@@ -227,6 +276,8 @@ fn req_cell(r: Req) -> &'static str {
         Req::YesAs(s) => s,
         Req::No => "no",
         Req::When(s) => s,
+        Req::OnAdd => "add",
+        Req::OnMerge => "merge",
     }
 }
 
@@ -264,6 +315,11 @@ pub fn schema(ty: &Ty) -> Json {
         }
         Ty::Const(c) => Json::obj([("const", Json::Int(*c))]),
         Ty::F32 => common("f32"),
+        Ty::F32In { min, max, bits } => {
+            let n =
+                Json::obj([("type", Json::str("number")), ("minimum", Json::Int(*min)), ("maximum", Json::Int(*max))]);
+            if *bits { Json::obj([("oneOf", Json::Array(vec![n, common("floatBits")]))]) } else { n }
+        }
         Ty::Str { min, max, pattern } => {
             let mut j = Json::obj([("type", Json::str("string"))]);
             if *min > 0 {
@@ -278,6 +334,10 @@ pub fn schema(ty: &Ty) -> Json {
             j
         }
         Ty::Def(name, _) => common(name),
+        Ty::Local(name, _) => Json::obj([("$ref", Json::str(format!("#/$defs/{name}")))]),
+        Ty::Ref(_, inner) => schema(inner),
+        Ty::Either(a, b) => Json::obj([("oneOf", Json::Array(vec![schema(a), schema(b)]))]),
+        Ty::Enum([one]) => Json::obj([("const", Json::str(*one))]),
         Ty::Enum(values) => Json::obj([("enum", Json::strs(values.iter()))]),
         Ty::Array { item, min, max, unique } => {
             let mut j = Json::obj([("type", Json::str("array"))]);
@@ -327,6 +387,108 @@ pub fn table_schema(fields: &[Field]) -> Json {
     }
     j.push("additionalProperties", Json::Bool(false));
     j
+}
+
+// ---- layered kinds: the entry's own definitions and its add / merge rule (layering.md §3.1) ---------------------
+
+/// The kind's own definitions ([`Ty::Local`]) the fields use, each once, a definition after those it uses: the
+/// schema's `$defs`.
+pub fn local_defs(fields: &[Field]) -> Vec<(&'static str, Json)> {
+    fn walk(ty: &Ty, out: &mut Vec<(&'static str, Json)>) {
+        match ty {
+            Ty::Local(name, inner) => {
+                walk(inner, out);
+                if !out.iter().any(|(n, _)| n == name) {
+                    out.push((name, schema(inner)));
+                }
+            }
+            Ty::Def(_, inner) | Ty::Ref(_, inner) => walk(inner, out),
+            Ty::Either(a, b) => {
+                walk(a, out);
+                walk(b, out);
+            }
+            Ty::Array { item, .. } => walk(item, out),
+            Ty::Map { key, value } => {
+                walk(key, out);
+                walk(value, out);
+            }
+            Ty::Table(fields) => fields.iter().for_each(|f| walk(&f.ty, out)),
+            _ => {}
+        }
+    }
+    let mut out = Vec::new();
+    fields.iter().for_each(|f| walk(&f.ty, &mut out));
+    out
+}
+
+fn required_all<'a>(keys: impl IntoIterator<Item = &'a str>) -> Json {
+    Json::obj([("required", Json::strs(keys))])
+}
+
+fn none_of(fields: &[Field], only: Only) -> Json {
+    let keys = fields.iter().filter(|f| f.only == only).map(|f| Json::obj([("required", Json::strs([f.key]))]));
+    Json::obj([("not", Json::obj([("anyOf", Json::Array(keys.collect()))]))])
+}
+
+/// Whether an entry adds its item: `op = "add"`, or no `op` and the pack's own local id in `id_key` (layering.md
+/// §3.1, pack-scoped keys default to `add`).
+pub fn is_addition(t: &toml::Table, id_key: &str) -> bool {
+    match t.get("op").and_then(|o| o.as_str()) {
+        Some(op) => op == "add",
+        None => t.contains_key(id_key),
+    }
+}
+
+/// The schema's add / merge rule of a layered entry as `if` / `then` / `else`: an addition ([`is_addition`]) needs
+/// its [`Req::OnAdd`] fields and has none of the [`Only::Merge`] ones; a merge needs its [`Req::OnMerge`] fields
+/// and has none of the [`Only::Add`] ones.
+pub fn entry_rule(fields: &[Field], id_key: &str) -> Vec<(&'static str, Json)> {
+    let op_add = Json::obj([
+        ("properties", Json::obj([("op", Json::obj([("const", Json::str("add"))]))])),
+        ("required", Json::strs(["op"])),
+    ]);
+    let own_id = Json::obj([("not", required_all(["op"])), ("required", Json::strs([id_key]))]);
+    let test = Json::obj([
+        (
+            "description",
+            Json::str(
+                "An addition: op = add, or no op and this pack's own local id (layering.md 3.1, pack-scoped keys \
+                 default to add)",
+            ),
+        ),
+        ("anyOf", Json::Array(vec![op_add, own_id])),
+    ]);
+    let need = |r: Req| fields.iter().filter(move |f| f.req == r).map(|f| f.key);
+    let mut then = required_all(need(Req::OnAdd));
+    if let (Json::Object(t), Json::Object(n)) = (&mut then, none_of(fields, Only::Merge)) {
+        t.extend(n);
+    }
+    let mut other = required_all(need(Req::OnMerge));
+    if let (Json::Object(t), Json::Object(n)) = (&mut other, none_of(fields, Only::Add)) {
+        t.extend(n);
+    }
+    vec![("if", test), ("then", then), ("else", other)]
+}
+
+/// Checks a layered entry: its table ([`check_table`]), then the add / merge rule of [`entry_rule`] (a field the
+/// entry may not give is `CONV.4`, a missing one `CONV.5`).
+pub fn check_entry(
+    t: &toml::Table,
+    fields: &[Field],
+    id_key: &str,
+    declared_minor: Option<u32>,
+) -> Result<(), Refusal> {
+    check_table(t, fields, declared_minor)?;
+    let add = is_addition(t, id_key);
+    let (not_here, need, what) =
+        if add { (Only::Merge, Req::OnAdd, "an addition") } else { (Only::Add, Req::OnMerge, "a merge") };
+    if let Some(f) = fields.iter().find(|f| f.only == not_here && t.contains_key(f.key)) {
+        return Err(Refusal::new(Rule::Conv4, format!("not allowed in {what}")).in_field(f.key));
+    }
+    if let Some(f) = fields.iter().find(|f| f.req == need && !t.contains_key(f.key)) {
+        return Err(Refusal::new(Rule::Conv5, format!("missing in {what}")).in_field(f.key));
+    }
+    Ok(())
 }
 
 #[cfg(test)]

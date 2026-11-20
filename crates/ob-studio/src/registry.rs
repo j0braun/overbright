@@ -1,85 +1,74 @@
 //! The registries: every kind of content, its fields and every command, declared once. The declarations give the
 //! schema export (`ob://schema/commands` and the kinds, [`export`]), and later the tables, inspector rows,
 //! command-line verbs and docs; a test keeps each kind's fields in step with its file's schema in the asset format
-//! (docs/modding/asset-format/schemas/), and the export in step with `crates/ob-studio/schema/studio.json`.
+//! (docs/modding/asset-format/schemas/, generated from the same tables), and the export in step with
+//! `crates/ob-studio/schema/studio.json`.
 
+pub use ob_asset_format::fields::{Field, Req, Ty};
 use ob_asset_format::json::Json;
+use ob_asset_format::kinds;
 use ob_asset_format::layering::{KindRules, ListKey};
 use ob_map::tools::map::ops::Op;
 
-/// A field's type, as Studio edits and shows it.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Ty {
-    Bool,
-    /// An unsigned integer of this many bits.
-    Uint(u8),
-    /// A binary32 float.
-    F32,
-    /// Two binary32 floats (metres; a checkpoint's x and y).
-    Vec2,
-    /// Three binary32 floats (metres).
-    Vec3,
-    /// Nine binary32 floats, row by row (local axes).
-    Mat3,
-    Text,
-    /// One of these words.
-    Enum(&'static [&'static str]),
-    /// A reference to an item of the kind with this short name (`solid:XO_CONE_01`).
-    Ref(&'static str),
-    /// A sub-table with its own fields.
-    Table(&'static [Field]),
-    /// A list of elements of the type.
-    List(&'static Ty),
-    /// `[extras]`: free content for tools.
-    Extras,
-}
-
-impl Ty {
-    fn name(&self) -> String {
-        match self {
-            Ty::Bool => "bool".into(),
-            Ty::Uint(b) => format!("u{b}"),
-            Ty::F32 => "f32".into(),
-            Ty::Vec2 => "vec2".into(),
-            Ty::Vec3 => "vec3".into(),
-            Ty::Mat3 => "mat3".into(),
-            Ty::Text => "text".into(),
-            Ty::Enum(_) => "enum".into(),
-            Ty::Ref(k) => format!("ref {k}"),
-            Ty::Table(_) => "table".into(),
-            Ty::List(t) => format!("list of {}", t.name()),
-            Ty::Extras => "extras".into(),
+/// Studio's name of a field's type (the export's `type`, the inspector's editor): `bool`, `u8`/`u16`/`u32`, `f32`,
+/// `vec2`/`vec3`/`mat3`, `text`, `enum`, `ref <kind>`, `key` (a keyed list element's), `table`, `list of <type>`,
+/// `extras`.
+pub fn type_name(ty: &Ty) -> String {
+    match ty {
+        Ty::Bool => "bool".into(),
+        Ty::Int { min, max } | Ty::Def(_, Ty::Int { min, max }) if *min >= 0 => if *max <= 255 {
+            "u8"
+        } else if *max <= 65535 {
+            "u16"
+        } else {
+            "u32"
         }
+        .into(),
+        Ty::Int { .. } | Ty::Const(_) => "int".into(),
+        Ty::F32 | Ty::F32In { .. } => "f32".into(),
+        Ty::Str { .. } => "text".into(),
+        Ty::Enum(_) => "enum".into(),
+        Ty::Ref(kind, _) => format!("ref {kind}"),
+        Ty::Def(_, inner) | Ty::Local(_, inner) => type_name(inner),
+        Ty::Array { item, min, max: Some(max), .. }
+            if min == max && matches!(*min, 2 | 3 | 9) && type_name(item) == "f32" =>
+        {
+            match min {
+                2 => "vec2",
+                3 => "vec3",
+                _ => "mat3",
+            }
+            .into()
+        }
+        Ty::Array { item, .. } => format!("list of {}", type_name(item)),
+        Ty::Map { .. } => "map".into(),
+        Ty::Either(..) => "key".into(),
+        Ty::Table(_) => "table".into(),
+        Ty::Extras => "extras".into(),
     }
 }
 
-/// When a field must be present.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Req {
-    /// Always.
-    Yes,
-    /// In an entry that adds the item.
-    OnAdd,
-    /// In an entry that merges into an original item.
-    OnMerge,
-    No,
+/// The sub-fields of a table field or of a list of tables.
+fn sub_fields(ty: &Ty) -> Option<&'static [Field]> {
+    match ty {
+        Ty::Table(sub) => Some(sub),
+        Ty::Def(_, inner) | Ty::Local(_, inner) | Ty::Ref(_, inner) => sub_fields(inner),
+        Ty::Array { item, .. } => sub_fields(item),
+        _ => None,
+    }
 }
 
-/// One field of a kind's entry (or of a command's arguments).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Field {
-    /// The file's key.
-    pub key: &'static str,
-    pub ty: Ty,
-    pub req: Req,
-    /// A pack may change it on an original item (a `merge`); otherwise only an entry that adds the item sets it.
-    pub merge: bool,
-    /// The inspector row's label; "" for a field the inspector does not show (keys, guards).
-    pub label: &'static str,
+/// The words of an enum field.
+fn enum_words(ty: &Ty) -> Option<&'static [&'static str]> {
+    match ty {
+        Ty::Enum(words) => Some(words),
+        Ty::Def(_, inner) | Ty::Local(_, inner) => enum_words(inner),
+        _ => None,
+    }
 }
 
-const fn f(key: &'static str, ty: Ty, req: Req, merge: bool, label: &'static str) -> Field {
-    Field { key, ty, req, merge, label }
+const fn f(key: &'static str, ty: Ty, req: Req, label: &'static str) -> Field {
+    Field { key, ty, req, label, ..Field::BLANK }
 }
 
 /// How an item of a kind is named (the asset format's kind registry, docs/modding/asset-format/README.md §3).
@@ -145,9 +134,8 @@ pub struct Command {
 }
 
 // ---- the kinds ----------------------------------------------------------------------------------------------------
-
-const GUARD: &[Field] =
-    &[f("solid", Ty::Ref("solid"), Req::Yes, false, ""), f("position", Ty::Vec3, Req::Yes, false, "")];
+// Their fields are the asset format's tables (ob_asset_format::kinds): the same table checks the file, writes its
+// schema and gives the inspector's rows.
 
 /// A scenery placement (docs/modding/asset-format/world.md §3.9).
 pub const PLACEMENT: Kind = Kind {
@@ -159,28 +147,9 @@ pub const PLACEMENT: Kind = Kind {
         KeyRule { form: "placement:<REGION>/<scenery>/<index>", example: "placement:L4RA/1407/12" },
         KeyRule { form: "placement:<REGION>/<pack>:<id>", example: "placement:L4RA/docks-remix:a12" },
     ],
-    fields: &[
-        f("op", Ty::Enum(&["merge", "add"]), Req::No, false, ""),
-        f("key", Ty::Text, Req::OnMerge, false, ""),
-        f("guard", Ty::Table(GUARD), Req::OnMerge, false, ""),
-        f("id", Ty::Text, Req::OnAdd, false, ""),
-        f("scenery", Ty::Uint(32), Req::OnAdd, false, "Scenery section"),
-        f("solid", Ty::Ref("solid"), Req::OnAdd, false, "Object"),
-        f("lod_b", Ty::Ref("solid"), Req::No, false, "Middle detail"),
-        f("lod_c", Ty::Ref("solid"), Req::No, false, "Low detail"),
-        f("radius_m", Ty::F32, Req::No, false, "Draw radius"),
-        f("flags", Ty::Uint(16), Req::No, false, "Flags"),
-        f("prop", Ty::Ref("prop-kind"), Req::No, false, "Knock-over prop"),
-        f("position", Ty::Vec3, Req::OnAdd, true, "Position"),
-        f("rotation", Ty::Mat3, Req::No, true, "Rotation"),
-        f("disabled", Ty::Bool, Req::No, true, "Hidden"),
-        f("extras", Ty::Extras, Req::No, false, ""),
-    ],
+    fields: kinds::PLACEMENT,
     rules: KindRules { add: true, replace: false, disable: true, keyed_lists: &[] },
 };
-
-const SPOT: &[Field] =
-    &[f("position", Ty::Vec3, Req::Yes, true, "Position"), f("heading_deg", Ty::F32, Req::Yes, true, "Heading")];
 
 /// A custom race of a mod pack (docs/modding/asset-format/roads-ai.md §3.7).
 pub const RACE: Kind = Kind {
@@ -192,25 +161,9 @@ pub const RACE: Kind = Kind {
         KeyRule { form: "(races are never original)", example: "" },
         KeyRule { form: "race:<pack>:<id>", example: "race:docks-remix:sprint" },
     ],
-    fields: &[
-        f("schema", Ty::Text, Req::Yes, false, ""),
-        f("op", Ty::Enum(&["add"]), Req::No, false, ""),
-        f("disabled", Ty::Bool, Req::No, true, "Off"),
-        f("id", Ty::Text, Req::Yes, false, "Id"),
-        f("name", Ty::Text, Req::No, true, "Name"),
-        f("track", Ty::Uint(16), Req::Yes, true, "Base track"),
-        f("backward", Ty::Bool, Req::No, true, "Backward"),
-        f("mode", Ty::Enum(&["circuit", "sprint", "streetx", "drift"]), Req::Yes, true, "Mode"),
-        f("laps", Ty::Uint(8), Req::No, true, "Laps"),
-        f("checkpoints", Ty::List(&Ty::Vec2), Req::No, true, "Checkpoints"),
-        f("grid", Ty::List(&Ty::Table(SPOT)), Req::No, true, "Grid"),
-        f("start", Ty::Table(SPOT), Req::No, true, "Start line"),
-        f("finish", Ty::Table(SPOT), Req::No, true, "Finish line"),
-        f("extras", Ty::Extras, Req::No, false, ""),
-        f("ext", Ty::Extras, Req::No, false, ""),
-    ],
+    fields: kinds::RACE,
     // A race is its pack's own (`race:<pack>:<id>`): the pack adds it; a pack that depends on it may merge into it
-    // or disable it, its grid merged slot by slot.
+    // or disable it (layering.md §3.1), its grid merged slot by slot.
     rules: KindRules { add: true, replace: false, disable: true, keyed_lists: &[("grid", ListKey::Index)] },
 };
 
@@ -224,9 +177,14 @@ pub fn kind(short: &str) -> Option<&'static Kind> {
 
 // ---- the commands -------------------------------------------------------------------------------------------------
 
-const KEY: Field = f("key", Ty::Text, Req::Yes, false, "Object");
-const RACE_ID: Field = f("race", Ty::Text, Req::Yes, false, "Race");
-const AT: Field = f("position", Ty::Vec3, Req::Yes, false, "Position");
+const TEXT: Ty = Ty::Str { min: 0, max: usize::MAX, pattern: None };
+const VEC3: Ty = Ty::Def("vec3", &Ty::Array { item: &Ty::Def("f32", &Ty::F32), min: 3, max: Some(3), unique: false });
+const MAT3: Ty = Ty::Def("mat3", &Ty::Array { item: &Ty::Def("f32", &Ty::F32), min: 9, max: Some(9), unique: false });
+const U16: Ty = Ty::Def("u16", &Ty::Int { min: 0, max: 65535 });
+const SOLID: Ty = Ty::Ref("solid", &TEXT);
+const KEY: Field = f("key", TEXT, Req::Yes, "Object");
+const RACE_ID: Field = f("race", TEXT, Req::Yes, "Race");
+const AT: Field = f("position", VEC3, Req::Yes, "Position");
 
 /// Every command, by stable name. Each map edit ([`Op`]) has one ([`command_of`]).
 pub const COMMANDS: &[Command] = &[
@@ -234,7 +192,7 @@ pub const COMMANDS: &[Command] = &[
         name: "props.move",
         kind: CommandKind::Edit,
         summary: "Move a prop",
-        args: &[KEY, AT, f("rotation", Ty::Mat3, Req::Yes, false, "Rotation")],
+        args: &[KEY, AT, f("rotation", MAT3, Req::Yes, "Rotation")],
     },
     Command {
         name: "props.delete",
@@ -253,10 +211,10 @@ pub const COMMANDS: &[Command] = &[
         kind: CommandKind::Edit,
         summary: "Add a prop of one of the region's objects",
         args: &[
-            f("solid", Ty::Ref("solid"), Req::Yes, false, "Object"),
+            f("solid", SOLID, Req::Yes, "Object"),
             AT,
-            f("id", Ty::Text, Req::No, false, "Id"),
-            f("ground", Ty::Bool, Req::No, false, "On the ground"),
+            f("id", TEXT, Req::No, "Id"),
+            f("ground", Ty::Bool, Req::No, "On the ground"),
         ],
     },
     Command {
@@ -275,7 +233,7 @@ pub const COMMANDS: &[Command] = &[
         name: "race.create",
         kind: CommandKind::Edit,
         summary: "Make a race on a base track",
-        args: &[f("track", Ty::Uint(16), Req::Yes, false, "Base track"), f("id", Ty::Text, Req::No, false, "Id")],
+        args: &[f("track", U16, Req::Yes, "Base track"), f("id", TEXT, Req::No, "Id")],
     },
     Command { name: "race.delete", kind: CommandKind::Edit, summary: "Delete a race", args: &[RACE_ID] },
     Command {
@@ -341,9 +299,10 @@ pub fn command(name: &str) -> Option<&'static Command> {
 
 fn req_word(r: Req) -> &'static str {
     match r {
-        Req::Yes => "yes",
+        Req::Yes | Req::YesAs(_) => "yes",
         Req::OnAdd => "add",
         Req::OnMerge => "merge",
+        Req::When(_) => "when",
         Req::No => "no",
     }
 }
@@ -355,17 +314,18 @@ fn fields_json(fields: &[Field]) -> Json {
             .map(|x| {
                 let mut o = Json::obj([
                     ("key", Json::str(x.key)),
-                    ("type", Json::str(x.ty.name())),
+                    ("type", Json::str(type_name(&x.ty))),
                     ("required", Json::str(req_word(x.req))),
                     ("merge", Json::Bool(x.merge)),
                 ]);
                 if !x.label.is_empty() {
                     o.push("label", Json::str(x.label));
                 }
-                match x.ty {
-                    Ty::Enum(words) => o.push("enum", Json::strs(words)),
-                    Ty::Table(sub) | Ty::List(&Ty::Table(sub)) => o.push("fields", fields_json(sub)),
-                    _ => {}
+                if let Some(words) = enum_words(&x.ty) {
+                    o.push("enum", Json::strs(words));
+                }
+                if let Some(sub) = sub_fields(&x.ty) {
+                    o.push("fields", fields_json(sub));
                 }
                 o
             })

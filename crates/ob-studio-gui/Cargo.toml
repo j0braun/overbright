@@ -16,6 +16,8 @@ nfsu2 = { path = "../..", default-features = false }
 ob-core = { path = "../ob-core" }
 ob-formats = { path = "../ob-formats" }
 ob-map = { path = "../ob-map" }
+# Studio without a window: the map session (one mod open on one region, its undo history).
+ob-studio = { path = "../ob-studio" }
 # The look shared with the launcher (colour tokens, type, lamps, legends).
 ob-look = { path = "../ob-look" }
 anyhow.workspace = true
@@ -49,7 +51,7 @@ ab_glyph.workspace = true
 # turns it on here too).
 default = ["mimalloc"]
 mimalloc = ["nfsu2/mimalloc"]
-dev-harness = ["nfsu2/dev-harness"]
+dev-harness = ["nfsu2/dev-harness", "ob-studio/dev-harness"]
 
 [[bin]]
 name = "overbright-editor"
