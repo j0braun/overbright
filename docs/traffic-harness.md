@@ -52,7 +52,13 @@ tables, adds boots of the original; `bot` needs this game's `route.tsv` first), 
 (re-run boots already there), `--bin` (the test binary). The original seeds its generators from the
 clock at boot, so each boot is an independent sample; this game's seeds are fixed streams.
 This game's side runs under `scripts/checks/home_mask.sh` (the player's folders hidden); the
-original's under fastgpu.sh (private Xvfb display, no sound, stopped by PID at the end).
+original's under fastgpu.sh (private Xvfb display, no sound, stopped by PID at the end), on DXVK
+(`--wined3d` only on request: about half the original's rate). The original's side runs in real
+time, so each boot is checked by the frame-rate guard (docs/developing/parity-harness.md "Renderer
+and frame rate"): a boot below 100 fps or 95 % of real time ends with the table line
+`# fps … valid 0`, is kept aside as `native-<scen>-r<k>.slow`, not counted, and `run` exits
+non-zero; `--min-fps` / `--min-rate` change the limits. Read that page's "valid native
+measurement" rule before quoting a native number.
 
 Output in OUT: `ours-<scen>-s<seed>.tsv`, `native-<scen>-r<k>.tsv` (+ `.log`, `.nav/` screenshots),
 `*.ann.tsv` (the lane columns), `route.tsv`, `report.txt`.
