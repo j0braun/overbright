@@ -13,9 +13,9 @@
 # by default (in checks.sh full, else in the parity) and counts: RATE=strict (the default) fails on any difference
 # across rates, RATE=1 on what scripts/checks/rate-columns.txt marks "fail" (since the final policy the same set),
 # RATE=0 leaves it out; docs/developing/checks.md "Rate gate".
-# Identical binaries: fine when the game's sources (src/, examples/, build.rs, Cargo.*) are identical too
-# (a docs/scripts-only change; reported as such); a FAILURE when they differ (a stale or wrong build: the
-# parity would compare a binary with itself).
+# Identical binaries: fine when the game's sources (src/, crates/, build_support/, build.rs, Cargo.*) are identical
+# too (a docs, scripts or tools-only change such as examples/; reported as such); a FAILURE when they differ (a stale
+# or wrong build: the parity would compare a binary with itself).
 # GATE_EXCLUDE: extra rsync --exclude patterns (space separated) when copying the trees (scripts/local.env).
 # Everything goes to OUTDIR (big disk, never /tmp); the source copies and perf-work are removed at the end.
 set -u -o pipefail
@@ -70,12 +70,12 @@ md5sum "$G/a/game" "$G/b/game" | tee "$G/md5.txt"
 SAME=0; SRC_SAME=1; SRC_DIFF=""
 if [ "$(md5sum < "$G/a/game")" = "$(md5sum < "$G/b/game")" ]; then
   SAME=1
-  for p in src examples build.rs Cargo.toml Cargo.lock; do
+  for p in src crates build_support build.rs Cargo.toml Cargo.lock; do
     if [ -e "$G/src-a/$p" ] || [ -e "$G/src-b/$p" ]; then
       diff -rq "$G/src-a/$p" "$G/src-b/$p" > /dev/null 2>&1 || { SRC_SAME=0; SRC_DIFF="$SRC_DIFF $p"; }
     fi
   done
-  if [ $SRC_SAME = 1 ]; then echo "gate: note: base and new binaries are identical and so are the game's sources (a change outside the game)"
+  if [ $SRC_SAME = 1 ]; then echo "gate: note: base and new binaries are identical and so are the game's sources (a change outside the game: docs, scripts, tools)"
   else echo "gate: FAIL: base and new binaries are identical although the game's sources differ ($SRC_DIFF ): a stale or wrong build; the parity would compare a binary with itself"; fi
 fi
 [ -n "${3:-}" ] && export ENH_PRESETS="${GATE_ENH_PRESETS:-extreme extreme_fsr}"

@@ -184,7 +184,8 @@ the process VRAM/GTT at its end), `NFSU2_GPU_BLOCK_MIB=min,max|perf`
 
 `pixdiff` (`examples/pixdiff.rs`): files or directories by name, decoded
 RGBA8, per file differing pixels / max channel diff / mean abs diff, exit 1
-over the limits. Not covered: a real swap chain's acquire/present (the
+over the limits. `pixdiff --hash PATH…` prints each picture's XXH3-128 over its size and decoded RGBA8 pixels
+(the stored output baselines, docs/developing/checks.md "Output baselines"). Not covered: a real swap chain's acquire/present (the
 bench renders offscreen; a windowed run on this desktop is forbidden) —
 open, see below.
 
