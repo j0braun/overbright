@@ -2104,8 +2104,12 @@ The drawing (0x531050 per point, **verified**; the walker 0x531280 passes the no
     UpdateFrame 0x5B72E0 zeroes them at the frame's start (0x5B731B);
     0x5920C0 zeroes one wheel's when its state byte changes. Their only
     reader is the force feedback 0x406460 (0x4066B4): the four summed,
-    over 0.05 a jolt (0x5C9770) of min(1, sum / 4), at most one per
-    0.15 s per pad (0x827AA4). The clone has no force feedback.
+    over 0.05 a jolt (0x5C9770) of min(1, sum / 4) × 6666.67, at most one
+    per 0.15 s per pad (0x827AA4) and 150 ms of wall clock. 0x5ABB10 adds
+    0x59E1B0's return (0.225 · mass · closing speed, 0 when the hub
+    opens, before the impulse cap) per sub-step. The clone keeps them as
+    `CarState::bump_totals` for the force-feedback model (front-end.md,
+    **Force feedback**).
   * **Wall-reverse contact** (narrowed, **open**): 0x5B3D30 measures a
     pair only when dirty (+0x220); 0x598630 marks it dirty only when
     either body's position (vt+8) moved more than 0.001 in a component —
@@ -2142,7 +2146,7 @@ The drawing (0x531050 per point, **verified**; the walker 0x531280 passes the no
     the hub through RigidBody_ApplyImpulse 0x59BC70 (momentum capped at
     1000, its moment at 10), unless 0x86B36C (0 live). The totals go to
     [mover +0x58] +0x330 + 4·i (car +0x370 …; read only by the force
-    feedback 0x406460, see round 12; nothing to port). After a bump or a hold: 0x7FC800 = 0 (the following force
+    feedback 0x406460, see round 12; kept as `CarState::bump_totals`). After a bump or a hold: 0x7FC800 = 0 (the following force
     pass only; the next sub-step sets it again before its derivatives, so
     the wheels' slip term 0x59D360 is unaffected) and 0x5A0D90. The
     MeloMvr's twin is 0x5AB0D0 / 0x5A3E90 (0.2 × mass). Round 10 had

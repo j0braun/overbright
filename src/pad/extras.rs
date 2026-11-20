@@ -270,13 +270,13 @@ pub struct RumbleFeed {
     pub speed: f32,
     /// The wheels' suspension travel this tick, m: the sum of each
     /// wheel's compression change since the last tick (the original's
-    /// bump test reads a sum over the wheels' +0x370..+0x37C; that field's
-    /// meaning is **open**, the travel is **inferred** to match it).
+    /// bump test sums the bump stops' totals at car +0x370..+0x37C,
+    /// formats/front-end.md; the travel stands in for them, **inferred**).
     pub bump: f32,
     /// The surfaces under the wheels (collision face byte 2): the road
     /// texture's weak-motor buzz ([`surface_buzz`]).
     pub surfaces: [u8; 4],
-    /// Off the road (a rough surface).
+    /// A front or rear wheel on surface 13 (PUDDLE).
     pub rough: bool,
     /// A nitrous shot is running.
     pub nitrous: bool,
@@ -287,7 +287,7 @@ pub struct RumbleFeed {
 }
 
 /// The road texture by surface, after the original's periodic terrain
-/// effect 0x5C9FE0 (formats.md, Force feedback, effect 4): the surface
+/// effect 0x5C9FE0 (formats/front-end.md, **Force feedback**): the surface
 /// table's amplitude (8: 130, 9: 110, 10: 70, 11: 100, 15: 100, 16: 80,
 /// 17: 80, others none), magnitude amp / 2 × min(1, v / 13) × 39.2157 of
 /// DirectInput's 10000, here 0..1 on the weak motor; the strongest of the
@@ -305,13 +305,12 @@ pub fn surface_buzz(surfaces: &[u8; 4], speed: f32) -> f32 {
     (a / 2.0 * (speed / 13.0).clamp(0.0, 1.0) * 39.2157 / 10000.0).clamp(0.0, 1.0)
 }
 
-/// The rumble model, after the original's force-feedback effects on a
-/// wheel (formats.md **Gamepads and joysticks** › Force feedback: the bump
-/// jolt 0x5C9770 when the speed changes by more than 4 within 0.15 s or the
-/// wheels' travel sum passes 0.05; the terrain effects by surface 0x5C9FE0):
-/// a strong motor pulse on a jolt, scaled by the speed change; the weak
-/// motor for the road texture ([`surface_buzz`]), rough ground (by
-/// speed), a nitrous shot and a gear change.
+/// The rumble model, Overbright's own, loosely after the original's
+/// force-feedback effects (formats/front-end.md, **Force feedback**; the
+/// faithful model is [`super::ff::Original`]): a strong motor pulse when the
+/// speed changes by more than 4 m/s within 0.15 s or the bump value passes
+/// 0.05, scaled by the speed change; the weak motor for the road texture
+/// ([`surface_buzz`]), a puddle (by speed), a nitrous shot and a gear change.
 /// One step per 1/60 s world tick, so the same at every frame rate.
 #[derive(Clone, Debug, Default)]
 pub struct Rumble {

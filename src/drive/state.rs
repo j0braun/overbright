@@ -264,6 +264,11 @@ pub struct CarState {
     /// +0x48) and last frame's shaped input (+0x84).
     pub steer_rate_average: RateAverage,
     pub last_steer_input: f32,
+    /// The bump stops' impulses this frame per wheel, 0.225 · mass ·
+    /// closing speed summed over the sub-steps (car +0x370 + 4i: 0x5ABB10
+    /// adds 0x59E1B0's return, the mover's frame start 0x5B731B zeroes
+    /// them). Read only by the force feedback (0x406460).
+    pub bump_totals: [f32; 4],
     /// The yaw rate (world z of [`Self::spin`]) when the last frame's
     /// steering ran, and that frame's step: the car's angular acceleration
     /// (car +0x120, (ω +0x110 − last frame's +0x530) / dt, 0x604750) is
@@ -530,6 +535,7 @@ impl CarState {
             steer_average: SteerAverage::default(),
             steer_rate_average: RateAverage::default(),
             last_steer_input: 0.0,
+            bump_totals: [0.0; 4],
             last_yaw_rate: 0.0,
             last_steer_dt: 0.0,
             drifting: false,
@@ -766,6 +772,27 @@ impl CarState {
         self.drivetrain.as_ref().map_or(0.0, |d| d.rpm())
     }
 
+    /// What the force feedback (0x406460) reads from the player's car
+    /// after a world update. `drag`: 0x4018F0 (a drag race).
+    pub fn force_feedback_feed(&self, car: &Car, drag: bool) -> crate::pad::ff::Feed {
+        let table = &car.car_type.wheels;
+        // 0x59DB00's field +4 on each front wheel: its force across the
+        // car, sin δ · Fx + cos δ · Fy (wheel +0xB4, +0xC4 × +0x124, +0x128).
+        let sideways = |i: usize| {
+            let (sa, ca) = self.front_wheel_angle(table, i).sin_cos();
+            sa * self.wheels[i].fx + ca * self.wheels[i].fy
+        };
+        crate::pad::ff::Feed {
+            steer: self.last_steer_input,
+            speed: self.velocity.length(),
+            front_sideways: sideways(1) + sideways(0),
+            bump: self.bump_totals,
+            front_down: [self.wheels[0].on_ground, self.wheels[1].on_ground],
+            front_surface: [u32::from(self.wheels[0].surface), u32::from(self.wheels[1].surface)],
+            drag,
+        }
+    }
+
     /// Wheel poses for drawing: suspension lift, steer and roll.
     pub fn wheel_poses(&self, car: &Car) -> [WheelPose; 4] {
         let table = &car.car_type.wheels;
@@ -835,5 +862,33 @@ impl CarState {
     /// Wheels touching the ground (car +0x424).
     pub fn wheels_down(&self) -> usize {
         self.wheels.iter().filter(|w| w.on_ground).count()
+    }
+}
+
+#[cfg(test)]
+mod force_feedback_feed_tests {
+    use super::*;
+
+    /// A hard landing fills the bump stops' totals (car +0x370..) for the
+    /// force feedback's bump jolt; they start every frame at 0.
+    #[test]
+    #[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
+    fn landing_fills_the_bump_totals() {
+        let car = Car::load(&crate::testkit::game_root(), "240SX").unwrap();
+        let world = crate::world::World::flat(2000.0);
+        let mut state = CarState::placed(&car.car_type, &world, Vec3::ZERO, 0.0);
+        state.position.z += 1.0;
+        state.velocity = Vec3::new(0.0, 0.0, -9.0);
+        let mut peak = 0.0f32;
+        for _ in 0..120 {
+            state.step(&car, &world, Controls::default(), 1.0 / 60.0);
+            let feed = state.force_feedback_feed(&car, false);
+            peak = peak.max(feed.bump.iter().sum());
+        }
+        assert!(peak > 0.05, "a 9 m/s landing reaches the bump stops: {peak}");
+        let feed = state.force_feedback_feed(&car, false);
+        assert_eq!(feed.bump, [0.0; 4], "at rest nothing is added");
+        assert_eq!(feed.front_down, [true, true]);
+        assert!(feed.speed < 0.5 && feed.steer == 0.0 && !feed.drag);
     }
 }

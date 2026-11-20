@@ -63,9 +63,11 @@ All under **Enhancements → Controller**. Each is off, or at the original's val
 | Pause on Disconnect | Off / On | Off |
 | Safe Axis Binding | Off / On | Off |
 
-- **Rumble** shakes the pad on bumps and hard speed changes, on textured ground (kerbs, pavement), on rough
-  ground, on a nitrous shot and on a gear change. The original has no rumble for pads. On Windows it uses the
-  pad's motors through Windows.Gaming.Input (XInput pads); this was not yet tried on a real Windows PC.
+- **Rumble** shakes the pad on bumps and hard speed changes, on textured ground (kerbs, pavement, gravel), in
+  puddles, on a nitrous shot and on a gear change. The original has no rumble for XInput pads (Xbox and most
+  modern pads); it gives force feedback only to DirectInput devices that report force-feedback actuators. On
+  Windows it uses the pad's motors through Windows.Gaming.Input (XInput pads); this was not yet tried on a real
+  Windows PC.
 - **Pause on Disconnect** opens the pause menu when the pad you drive with is unplugged in a race or free
   roam. Without it, the car keeps rolling.
 - **Safe Axis Binding**: when you bind an axis on the Controls page, only the axis you moved most is bound;
@@ -101,7 +103,9 @@ Other things the original does with a pad, which Original keeps:
 - The car on the front end's platform does not turn on any pad input or key. Only the mouse turns it: hold the
   middle button and drag sideways to turn the car, up or down to lower or raise the camera
   ([formats/front-end.md](../formats/front-end.md), "Turning the car").
-- No rumble: the original's effects are DirectInput force feedback, which pads do not expose.
+- No rumble: the original's effects are DirectInput force feedback. An XInput pad shows no actuators under
+  DirectInput, so it gets nothing. An older DirectInput pad that reports actuators gets the damper, the road
+  surface and the jolts, but not the steering force or the Feedback-off spring (see below).
 - Help lines show keyboard keys ("Enter: Select") whatever the device.
 - Every menu screen is reachable: the pad's menu map gives the keyboard's arrows, Enter, Esc, C, `,` and `.`.
 
@@ -135,14 +139,19 @@ filters off.
   tick > deadline (+6). 0x865134 has **no writer**; under Wine it reads **0** in the main menu, the pause menu
   and free roam, so the original never repeats. Overbright's press-only Original layout is right; the repeat
   is a Modern-layout feature, counted in 60 Hz ticks of the game clock (25, then every 6).
-- **Force feedback** ([formats.md](../formats.md)): centring spring 0x5C9160, surface damping / terrain
-  0x5C9FE0, bump jolt 0x5C9770 (speed change > 4 within 0.15 s, or the wheels' +0x370.. sum > 0.05),
-  0x5C9DA0 on surface 0xD. These are DirectInput force-feedback effects for wheels; a pad under DirectInput
-  has no actuators, so the original gives a pad no rumble. The Rumble setting models the jolt (strong motor,
-  by the speed change, and by the wheels' suspension travel over 0.05 m in a tick: the travel is **inferred**
-  to be what the +0x370.. sum measures) and the terrain effect's road texture (weak motor, 0x5C9FE0's surface
-  table: surfaces 8–11 and 15–17, amplitude / 2 × min(1, speed / 13 m/s); plain asphalt gives none), and adds
-  weak-motor rumble for surface 0xD (**inferred** to be "rough"), a nitrous shot and a gear change.
+- **Force feedback** ([formats/front-end.md](../formats/front-end.md), "Force feedback"): DirectInput 8
+  effects on any device that reports force-feedback actuators — a centring spring at full lock (0x5C9160), a
+  speed damper (0x5C95A0), the tyres' force across the car as a constant force (0x5C9390), the road surface
+  as a periodic effect (0x5C9FE0), a negative damper in a puddle above 23 m/s (0x5C9DA0), and a short square
+  jolt (0x5C9770) when the speed changes by more than 4 m/s from one update to the next or the bump stops
+  hit; jolts are at least 0.15 s apart. Feedback off and drag races keep only the spring. The console builds'
+  pad vibration (0x5727C0 → 0x572620 → 0x4022C0) ends in a bare `ret` on the PC. The effect model is
+  `nfsu2::pad::ff::Original`; it sends nothing to a device yet. The Rumble setting is Overbright's own model:
+  the jolt on the strong motor (by the speed change, and by the wheels' suspension travel over 0.05 m in a
+  tick, which stands in for the bump stops: **inferred**), and the weak motor on the road texture (0x5C9FE0's
+  surface table: surfaces 8–11 and 15–17, amplitude / 2 × min(1, speed / 13 m/s); plain asphalt gives none),
+  puddles (surface 13, the one the negative damper plays on), a nitrous shot and a gear change. The original
+  has no nitrous or gear-change effect.
 - **Which device drives** (partly traced): player p's device byte 0x864788[p] (0xFF = default 0x7F9414[p])
   is set by the event-1 handler 0x571A30, registered by 0x579560. What raises event 1 is **open**, so "the
   first attached pad drives" stays **inferred**.

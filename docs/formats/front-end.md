@@ -2635,16 +2635,134 @@ the maintainer's probe `pad_probe` lists what the game sees.
   other pads as a four-axis, twelve-button pad of the time (the Logitech
   Dual Action's layout; a real Dual Action, C216, gets its preset). No dead
   zone (as the original sets none; gilrs's filters are off).
-* **Force feedback** (0x41DFC0 → 0x406460, per frame in game state 4 when
-  the player's channel has a device: centring spring 0x5C9160 (10000 at
-  full lock, else 0x1B92), damping and terrain effects by surface 0x5C9FE0,
-  the bump jolt 0x5C9770 when the speed changes by more than 4 within 0.15 s
-  or the wheels' +0x370.. sum passes 0.05, 0x5C9DA0 on surface 0xD above
-  23; 0x5C9130 sets the gain from Overall Force Strength (0x83AA88 × 255)
-  when 0x86FF80 counts actuators). The effects need DIDC_FORCEFEEDBACK
-  actuators, which neither pad above has under DirectInput (**inferred**),
-  so the clone plays none (not ported; gilrs's rumble would be a
-  deviation).
+* **Force feedback** (**verified** in the disassembly, **observed** under
+  Wine with a virtual FF wheel where marked; the model is
+  `nfsu2::pad::ff::Original`, no device output yet). DirectInput 8 effects
+  on any device that reports FF actuators; no XInput (no import, string or
+  GUID). The console builds' pad vibration (0x5727C0 → 0x572620 →
+  0x4022C0) ends in a bare `ret` on the PC.
+  * **Set-up.** The opener (0x5CD200) sets the cooperative level 5
+    (exclusive | foreground, observed); the axis callback 0x5C8670 counts
+    the DIDOI_FFACTUATOR objects into 0x86FF80[ch] (at most 2). A driving
+    device (0x86E5BC) gets DIPROP_AUTOCENTER off (0x5CD3E7). The gain:
+    when the player's input object starts (0x41E264..0x41E2AD, if the
+    channel has a device) 0x5C9130 → 0x5C00C0 sets DIPROP_FFGAIN to
+    `min(100, _ftol(Overall Force Strength × 255)) × 100`, the minimum
+    unsigned: every strength from 0.4 up, and a negative one, gives 10000
+    (observed 10000 at the default 1.0). The FF object *0x870760 keeps
+    8 slots per channel: conditions +0x2498, constant +0x24E8, periodic
+    +0x2538; 0x5BFD30 fills its angle table +0x25F0 with
+    `_ftol(sin(d · π_f32 / 180) × 1000)` for d = 0..359 (270° → −999).
+  * **When.** 0x406460 runs from the human driver's update (0x41E2C0 →
+    0x41DFC0, after the steering) once per world update 0x609CF0, so once
+    per drawn frame, when car +0x28 = 1, the car has a player, 0x870760
+    exists, the channel has a device and the game state *0x8900D8 is 4.
+    Its arguments: the steering value 0x41DFC0 returns (the shaped input,
+    which also feeds the running mean 0x576AB0) and the channel. Another
+    caller, 0x4220CE, passes steering 0 for the driver object at +0x690 of
+    a type not traced (**open**). Outside state 4 the input poll
+    (0x5CFE40..0x5CFFBA) stops the constant, periodic slot 3 and the
+    damper, resumes, ends the puddle damper, and plays the spring at
+    7000 (0x1B58; observed) — stopped instead when channel **0** is a
+    gamepad-class device (the test reads 0x86FFB4 / 0x86F8A8 without the
+    channel index).
+  * **Feedback off** (player block +4, 0x83AA68 = 0, read by 0x5EB430) or
+    **a drag race** (0x4018F0 on 0x89E7A0: +0x38 = 0x89E7D8 the drag
+    flag, or its online twin 0x890108): stop the constant (0x5CD860),
+    periodic slot 3 (0x5CD9E0) and the damper (0x5BFE80), resume
+    (0x5CDBC0), end the puddle damper (0x5CD920), then the spring: 10000
+    at full lock (|steer| = 1.0 exactly), else 7058 (0x1B92), both
+    stopped instead on a gamepad-class device (0x5BFDA0(ch, 2)). The speed
+    of the call is not stored. Observed by writing 0x83AA68 = 0 / 1.
+  * **Driving**, in order (0x4064DE..0x406927):
+    1. Spring (condition slot 0, GUID_Spring, offset 0, coefficients =
+       saturations): 10000 at full lock, else stopped (0x5BFE10); no class
+       test here, so a gamepad-class device gets it too. Observed 10000.
+    2. Constant force (constant slot 0), only when the front tyres' sum
+       ≠ 0 (exactly 0 leaves the last level playing) and not on a
+       gamepad-class device: L = clamp(_ftol(sum / [this +0xC] × 10000),
+       ±10000), 0 when |v| ≤ 1 m/s; sent through 0x5C9560(ch, L, 270) =
+       0x5C9390(ch, table[270] × L / 1000) = −999·L / 1000 (int).
+       The sum is 0x59DB00's field +4 of the two front wheels (car +0x34 →
+       +0x38, +0x3C): +0xB4 · +0x124 + +0xC4 · +0x128 = sin δ · Fx +
+       cos δ · Fy, the tyre's force across the car (kN). [this +0xC] is
+       the steering object's copy of **Road Feedback** (player block
+       +0x20, copied at 0x41E25E; default 12.4), so Road Feedback is the
+       force's divisor. Observed: 0 standing, small straight, ±7000…full
+       in turns with the sign following the steering (Wine's numbers
+       saturate, so −999 vs −1000 is not visible there).
+    3. Damper (condition slot 1, GUID_Damper, saturation 10000):
+       _ftol((1 − min(1, v / 13)) × 7058.8237), v = |car +0x70| (observed
+       within ±25).
+    4. Both front wheels off the ground (car +0x390 and +0x391 = 0: wheel
+       +0x11C, the contact flag the export 0x5A57FC copies into the
+       mover's +0x350 + i = car +0x390 + i): suspend (0x5CDA20: flag
+       +0x2220, stops and remembers spring, constant, damper, puddle
+       damper, periodic slot 3; the jolt is not touched). A front wheel
+       down again: resume (0x5CDBC0) with the last parameters — the
+       constant force through 0x5C9560 with the angle +0x2BBC, which has
+       no writer (**inferred** 0, so level 0 until the next call).
+    5. Jolts (periodic slot 0, GUID_Square, 150 ms, period 75 ms, fade to
+       0 over 20 ms; 0x5C9770). Δ = 0x827AAC[ch] (the last call's speed)
+       − v: when |Δ| > 4, M = _ftol(min(1, (Δ − 4) / 15) × 10000) (a rise
+       gives Δ < −4 and a negative M below −10000, not clamped). Then the
+       bump stops: car +0x370..+0x37C summed (each 0x5ABB10's total of
+       0x59E1B0's 0.225 · mass · closing speed over the frame's
+       sub-steps, zeroed at the mover's frame start 0x5B731B) over 0.05:
+       M = _ftol(min(1, sum / 4) × 6666.67). Both are spaced on the sim
+       clock: t = 0x865188 × 0.00025, fire when t − 0x827AA4[ch] ≥ 0.15
+       (then 0x827AA4 = t); a negative gap sets 0x827AA4 = 0, and the bump
+       jolt then fires all the same (0x406718..0x406727), the speed jolt
+       does not. 0x5C9770 also needs 150 ms of wall clock (ftime,
+       +0x2B90 / +0x2B98) since its last pass, and plays even while
+       suspended. The trigger was observed (0x827AA4 stamped after a poke
+       of 0x827AAC), but Wine refuses GUID_Square on the virtual device, so
+       the jolt was not seen on the wire.
+    6. Road surface (periodic slot 3, 0x5C9FE0, infinite): from the two
+       front surfaces car +0x394 / +0x398 (wheel +0x114; 1 in drag and
+       Street X races, 0x59CF75), jump tables 0x4069E4 / 0x406A0C (names
+       from the surface table 0x800EC0 + 0x98·s, +0x20): the first sets
+       (amplitude, period) — 8 DIRT (130, 80), 9 GRAVEL (110, 80), 10
+       ROUGH_ROAD (70, 90), 11 COBBLESTONE (100, 100), 15 GRASS (100, 40),
+       16 SIDEWALK (80, 100), 17 WOOD (80, 140), others (0, 0); the second
+       adds its pair and picks the wave: 8 / 9 sine, 10 / 11 square, 15
+       triangle; 16 / 17 replace the sums with their own pair and square;
+       others sine and nothing added. Magnitude = _ftol(amp / 2 ×
+       min(1, v / 13) × 39.2157), period = per / 2 ms, at most 150. Waves
+       0x7BFCD0.. (0 sine, 1 square, 2 triangle, 3 / 4 sawtooth up / down,
+       unused); a new wave releases and re-creates the effect. Observed:
+       sine, 50 ms, 1568 at speed with one wheel on 16.
+    7. Puddle damper (condition slot 2, 0x5C9DA0): a front wheel on
+       surface 13 (PUDDLE) and v > 23: stop the damper and the spring
+       (remembered), play GUID_Damper with coefficients −10000, saturation
+       10000: the wheel goes light. While it plays, 0x5C9160 and 0x5C95A0
+       do nothing. Otherwise 0x5CD920 stops it and restarts the remembered
+       two. Not reached under Wine.
+    8. 0x827AAC[ch] = v.
+  * **Upload rule** (0x5C9160, 0x5C95A0, 0x5C9390, 0x5C9FE0, 0x5C9DA0):
+    nothing while suspended or without actuators; parameters are uploaded
+    only when they differ from the last upload (or the effect is created);
+    an effect that does not play is started (Start(1, 0)). The jolt is
+    started on every pass. 0x86F86C (tested by the constant and periodic
+    functions) is only ever written 0.
+  * **Device class.** A gamepad-class device (0x15, 0x86F8A8) gets the
+    damper, road surface, jolts and the full-lock spring, but no constant
+    force and no Feedback-off or front-end spring. Under DirectInput an
+    XInput pad reports no actuators and gets nothing (**inferred** from
+    Windows' XInput HID driver).
+  * **Frame rate.** Δ is per call, so per drawn frame in the original. The
+    clone's world updates on fixed 1/60 s ticks with the 60 fps tick
+    pattern, and the model steps once per tick, the sim clock and the
+    real-time clock (as ftime) read on ticks: it behaves as the original
+    at 60 fps at every display rate. At 60 fps the jolts come at most
+    every 10 updates: 9 updates are 600 sim ticks, but 600 × 0.00025 less
+    the stamp kept as a float is just under the float 0.15.
+  * **Unused**: 0x5C99E0 (sine, 65 ms, periodic slot 1) and 0x5C9BC0
+    (square, 100 ms, slot 2) are only replayed by the resume paths;
+    nothing starts them.
+  * **Open**: what the front-end path does in the pause (whether the
+    driver update runs there); the order within the world update between
+    the tyre forces 0x406460 reads and the mover; the +0x690 driver.
 * **Synthetic input** (clone): `NFSU2_PAD_SCRIPT=<file>`, lines `<s>
   connect <id> [vid pid]`, `disconnect <id>`, `axis <id> lx|ly|rx|ry|lt|rt
   <v>`, `button <id> <name> 0|1` on the game clock; the shots poll it at
