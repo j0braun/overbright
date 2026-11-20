@@ -1,0 +1,9 @@
+{
+  "error": {
+    "kind": "usage",
+    "message": "--laps: expected a whole number, got `many` (see `overbright-studio-cli help`)"
+  },
+  "exit": 2,
+  "format": 1,
+  "ok": false
+}

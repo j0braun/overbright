@@ -1,0 +1,125 @@
+{
+  "change": {
+    "changed": true,
+    "label": "Change race sprint",
+    "race": "sprint"
+  },
+  "command": "race.set",
+  "diff": {
+    "items": [
+      {
+        "after": {
+          "backward": false,
+          "checkpoints": [
+            [
+              20.0,
+              0.0
+            ],
+            [
+              180.0,
+              0.0
+            ],
+            [
+              380.0,
+              1.0
+            ]
+          ],
+          "finish": {
+            "heading": 0.0,
+            "position": [
+              390.0,
+              0.0,
+              0.0
+            ]
+          },
+          "grid": [],
+          "id": "sprint",
+          "kind": "sprint",
+          "laps": 1,
+          "name": "Docks run",
+          "start": {
+            "heading": 0.0,
+            "position": [
+              30.0,
+              0.0,
+              0.0
+            ]
+          },
+          "track": 4001
+        },
+        "before": {
+          "backward": false,
+          "checkpoints": [
+            [
+              20.0,
+              0.0
+            ],
+            [
+              180.0,
+              0.0
+            ],
+            [
+              380.0,
+              1.0
+            ]
+          ],
+          "finish": {
+            "heading": 0.0,
+            "position": [
+              390.0,
+              0.0,
+              0.0
+            ]
+          },
+          "grid": [],
+          "id": "sprint",
+          "kind": "sprint",
+          "laps": 1,
+          "name": "Sprint",
+          "start": {
+            "heading": 0.0,
+            "position": [
+              30.0,
+              0.0,
+              0.0
+            ]
+          },
+          "track": 4001
+        },
+        "change": "changed",
+        "item": "race:sprint"
+      }
+    ],
+    "lines": [
+      "@@",
+      " [race]",
+      " id = sprint",
+      "-name = Sprint",
+      "+name = Docks run",
+      " track = 4001",
+      " backward = no",
+      "@@"
+    ]
+  },
+  "exit": 0,
+  "format": 1,
+  "label": "Change race sprint",
+  "ok": true,
+  "outcome": "dry_run",
+  "request": {
+    "label": "Change race sprint",
+    "op": "group",
+    "ops": [
+      {
+        "name": "Docks run",
+        "op": "rename_race",
+        "race": "sprint"
+      },
+      {
+        "laps": 1,
+        "op": "set_laps",
+        "race": "sprint"
+      }
+    ]
+  }
+}

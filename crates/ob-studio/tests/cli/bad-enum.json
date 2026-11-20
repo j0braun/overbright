@@ -1,0 +1,9 @@
+{
+  "error": {
+    "kind": "usage",
+    "message": "--kind: expected one of circuit, sprint, streetx, drift, got `rally` (see `overbright-studio-cli help`)"
+  },
+  "exit": 2,
+  "format": 1,
+  "ok": false
+}

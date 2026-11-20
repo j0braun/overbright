@@ -1,0 +1,11 @@
+{
+  "command": "race.set",
+  "error": {
+    "kind": "busy",
+    "message": "Overbright Studio (process <pid>) has the mod open; nothing was changed"
+  },
+  "exit": 7,
+  "format": 1,
+  "held_by": "Overbright Studio (process <pid>)",
+  "ok": false
+}

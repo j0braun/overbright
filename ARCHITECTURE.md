@@ -86,7 +86,7 @@ changes through `.editor/inbox/` (request files; the reply is written only after
 back becomes a step under "outside Studio". All file access goes through one trait, so
 `crates/ob-studio/tests/history_crash.rs` stops a session at every one of its file operations (fault injection)
 and `history_kill.rs` kills a writing child process; the mod always reads back whole, as before or after the
-interrupted write. The library keeps every `nfsu2::…` path: a
+interrupted write. `ob_studio::validate` holds the map checks the editor's Validation tab shows, and `ob_studio::cli` is Studio's command-line tool (`overbright-studio-cli`, docs/modding/studio-cli.md): one verb per registered command, one flag per argument, JSON output and fixed exit codes; its edits are the editor's edits as JSON, made as steps of the mod's history, or sent to the inbox while Studio has the mod open. The library keeps every `nfsu2::…` path: a
 module that moves into a crate below is re-exported at its old place. Where a module is split (the cache check, the support
 file, the winit and wgpu parts of `platform` and `prof`), the library's `src/lib.rs` keeps the upper part
 beside the re-exported lower one. Each library crate has its own build id for the asset cache

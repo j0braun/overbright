@@ -1,0 +1,9 @@
+{
+  "error": {
+    "kind": "usage",
+    "message": "`race delete` needs --race (see `overbright-studio-cli help`)"
+  },
+  "exit": 2,
+  "format": 1,
+  "ok": false
+}

@@ -153,6 +153,9 @@ impl MapSession {
     /// changes nothing (a [`Op::Group`] is made whole or not at all); an
     /// op that makes no difference records no step (`changed` false).
     pub fn run(&mut self, op: Op) -> Result<Change, Refused> {
+        // Every request is the same JSON the command-line tool, an operations file and an agent send: each one
+        // goes through it (a few microseconds), so a request the UI makes and JSON cannot carry fails its tests.
+        let op = through_json(op);
         let label = op.label(&self.map);
         let before = self.map.clone();
         let mut change = Change { label, ..Change::default() };
@@ -507,6 +510,22 @@ impl MapSession {
             }
         }
         Ok(())
+    }
+}
+
+/// `op` written as its JSON and read back; panics when that does not give `op` again. A value JSON has no
+/// number for (not finite: the session refuses it) is left as it is.
+pub fn through_json(op: Op) -> Op {
+    let text = op.to_json();
+    match Op::from_json(&text) {
+        Ok(back) => {
+            assert_eq!(back, op, "the edit does not round-trip through its JSON: {text}");
+            back
+        }
+        Err(e) => {
+            assert!(text.contains("null"), "the edit's JSON does not read back ({e}): {text}");
+            op
+        }
     }
 }
 

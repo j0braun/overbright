@@ -1,0 +1,395 @@
+//! The command-line tool's golden tests: each case runs the tool (in this process) on a mod written here and
+//! compares its `--json` document with the kept one in `tests/cli/<case>.json` (paths shown as `<tmp>/…`, times
+//! as 0), its exit code included. `OB_STUDIO_BLESS=1` rewrites the kept documents; review the diff.
+//!
+//! Also: every command of the registry is on the command line, every exit code is reached, an edit's flags and
+//! the same edit as an operations-file line give the same request, and an edit while Studio holds the mod goes
+//! through Studio's inbox.
+
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
+use std::time::{Duration, Instant};
+
+use glam::{Vec2, Vec3};
+use serde_json::Value;
+
+use nfsu2::studio_api::map::assets::{GivenAssets, TrackInfo};
+use nfsu2::studio_api::world::World;
+use ob_formats::formats::roads::{RoadNet, Segment};
+use ob_map::tools::map::format::{CustomRace, MapMod, RaceKind, Spot};
+use ob_map::tools::map::store;
+use ob_studio::cli::{self, Env};
+use ob_studio::history::{self, History, disk};
+use ob_studio::registry;
+use ob_testkit::Scratch;
+
+/// A straight road along +x, 0..400 m, in two segments.
+fn straight() -> RoadNet {
+    let xs = [0.0, 100.0, 200.0, 200.0, 300.0, 400.0];
+    let mut net = RoadNet {
+        nodes: xs.iter().enumerate().map(|(i, &x)| (Vec2::new(x, 0.0), i / 3)).collect(),
+        links: vec![(0xFF, 0, [-1; 3]); 6],
+        along: vec![0.0; 6],
+        ..RoadNet::default()
+    };
+    let seg = |first, exits: [Vec<(usize, u8)>; 2]| Segment {
+        first,
+        end: first + 3,
+        length: 200.0,
+        spline_length: 200.0,
+        exits,
+        barriers: vec![],
+    };
+    net.segments = vec![seg(0, [vec![], vec![(1, 0)]]), seg(3, [vec![(0, 1)], vec![]])];
+    net
+}
+
+fn sprint(id: &str, points: &[(f32, f32)]) -> CustomRace {
+    let mut r = CustomRace::new(id, 4001, RaceKind::Sprint);
+    r.name = "Sprint".into();
+    r.checkpoints = points.iter().map(|&(x, y)| Vec2::new(x, y)).collect();
+    r.start = Some(Spot { position: Vec3::new(30.0, 0.0, 0.0), heading: 0.0 });
+    r.finish = Some(Spot { position: Vec3::new(390.0, 0.0, 0.0), heading: 0.0 });
+    r
+}
+
+/// A mod folder `docks` with one race on the road (`broken`: a race with one checkpoint beside it).
+fn fixture(tag: &str, broken: bool) -> (Scratch, PathBuf) {
+    let s = Scratch::new(tag);
+    let dir = s.path().join("docks");
+    std::fs::create_dir_all(&dir).unwrap();
+    let mut races = vec![sprint("sprint", &[(20.0, 0.0), (180.0, 0.0), (380.0, 1.0)])];
+    if broken {
+        races.push(sprint("short", &[(20.0, 0.0)]));
+    }
+    let map = MapMod { name: "Docks".into(), author: "Tester".into(), races, ..MapMod::default() };
+    std::fs::write(dir.join(store::FILE), map.write()).unwrap();
+    (s, dir)
+}
+
+fn env() -> Env {
+    Env {
+        game: Some(PathBuf::from("game")),
+        world: Box::new(|_, _| Ok(World::default())),
+        assets: Box::new(|_| {
+            Box::new(GivenAssets {
+                tracks: vec![TrackInfo { number: 4001, name: "Docks".into() }],
+                nets: HashMap::from([(4001, straight())]),
+                free_roam: Vec::new(),
+            })
+        }),
+        poll: Duration::from_millis(5),
+    }
+}
+
+fn no_game() -> Env {
+    Env { game: None, world: Box::new(|_, _| Err("no game".into())), ..env() }
+}
+
+fn argv(words: &[&str], dir: &Path) -> Vec<String> {
+    words.iter().map(|w| w.replace("<mod>", &dir.to_string_lossy())).collect()
+}
+
+/// The tool's run: (exit code, stdout, stderr).
+fn run(words: &[&str], dir: &Path, env: &Env) -> (i32, String, String) {
+    let (mut out, mut err) = (Vec::new(), Vec::new());
+    let code = cli::run(&argv(words, dir), env, &mut out, &mut err);
+    (code, String::from_utf8(out).unwrap(), String::from_utf8(err).unwrap())
+}
+
+/// Paths under the scratch folder as `<tmp>/…` (with `/` on every system), times as 0.
+fn normal(v: &mut Value, tmp: &str) {
+    match v {
+        Value::String(s) => {
+            let t = s.replace(tmp, "<tmp>");
+            if t != *s {
+                *s = t.replace('\\', "/");
+            }
+            // The holder's process id.
+            if let Some(i) = s.find("(process ") {
+                let end = s[i..].find(')').map_or(s.len(), |e| i + e);
+                s.replace_range(i..end, "(process <pid>");
+            }
+        }
+        Value::Array(a) => a.iter_mut().for_each(|x| normal(x, tmp)),
+        Value::Object(o) => {
+            for (k, x) in o.iter_mut() {
+                if k == "time_ms" {
+                    *x = Value::from(0);
+                } else {
+                    normal(x, tmp);
+                }
+            }
+        }
+        _ => {}
+    }
+}
+
+/// Run `words --json` and compare its document with the kept `tests/cli/<case>.json`; the exit code.
+fn golden(case: &str, words: &[&str], s: &Scratch, dir: &Path, env: &Env) -> i32 {
+    let mut w = words.to_vec();
+    w.push("--json");
+    let (code, out, err) = run(&w, dir, env);
+    assert!(err.is_empty(), "{case}: --json writes nothing to stderr: {err}");
+    let mut doc: Value =
+        serde_json::from_str(&out).unwrap_or_else(|e| panic!("{case}: not one JSON document ({e}): {out}"));
+    assert_eq!(doc["exit"], code, "{case}: the document's exit code");
+    assert_eq!(doc["format"], 1, "{case}");
+    normal(&mut doc, &s.path().to_string_lossy());
+    let now = serde_json::to_string_pretty(&doc).unwrap() + "\n";
+    let path = format!("{}/tests/cli/{case}.json", env!("CARGO_MANIFEST_DIR"));
+    if std::env::var_os("OB_STUDIO_BLESS").is_some() {
+        std::fs::create_dir_all(Path::new(&path).parent().unwrap()).unwrap();
+        std::fs::write(&path, &now).unwrap();
+    }
+    let kept = std::fs::read_to_string(&path).unwrap_or_default().replace("\r\n", "\n");
+    assert!(kept == now, "{case}: differs from tests/cli/{case}.json (OB_STUDIO_BLESS=1 rewrites it):\n{now}");
+    code
+}
+
+fn text(dir: &Path) -> String {
+    std::fs::read_to_string(dir.join(store::FILE)).unwrap()
+}
+
+#[test]
+fn help_and_usage_errors() {
+    let (s, dir) = fixture("cli-usage", false);
+    let e = env();
+    let cases: &[(&str, &[&str], i32)] = &[
+        ("help", &["help"], cli::OK),
+        ("help-race-point-add", &["help", "race", "point", "add"], cli::OK),
+        ("unknown-command", &["frobnicate", "--mod", "<mod>"], cli::USAGE),
+        ("unknown-flag", &["race", "delete", "--mod", "<mod>", "--race", "sprint", "--colour", "red"], cli::USAGE),
+        ("missing-argument", &["race", "delete", "--mod", "<mod>"], cli::USAGE),
+        ("bad-value", &["race", "set", "--mod", "<mod>", "--race", "sprint", "--laps", "many"], cli::USAGE),
+        ("bad-enum", &["race", "set", "--mod", "<mod>", "--race", "sprint", "--kind", "rally"], cli::USAGE),
+        ("no-mod-flag", &["race", "delete", "--race", "sprint"], cli::USAGE),
+        ("no-command", &[], cli::USAGE),
+        ("dry-run-of-a-read", &["checks", "run", "--mod", "<mod>", "--dry-run"], cli::USAGE),
+        ("not-a-mod", &["race", "delete", "--mod", "<mod>/nothing", "--race", "sprint"], cli::FAILED),
+    ];
+    for (case, words, code) in cases {
+        assert_eq!(golden(case, words, &s, &dir, &e), *code, "{case}");
+    }
+    // Nothing above changed the mod or made its editor folder.
+    assert!(!dir.join(store::EDITOR_DIR).exists());
+}
+
+#[test]
+fn every_registered_command_is_on_the_command_line() {
+    let (s, dir) = fixture("cli-commands", false);
+    for c in registry::COMMANDS {
+        let mut words: Vec<&str> = vec!["help"];
+        words.extend(c.name.split('.'));
+        let (code, out, _) = run(&[&words[..], &["--json"]].concat(), &dir, &env());
+        assert_eq!(code, cli::OK, "{}", c.name);
+        let doc: Value = serde_json::from_str(&out).unwrap();
+        let flags: Vec<&str> =
+            doc["commands"][0]["flags"].as_array().unwrap().iter().map(|f| f["flag"].as_str().unwrap()).collect();
+        let want: Vec<String> = c.args.iter().map(|a| format!("--{}", a.key)).collect();
+        assert_eq!(flags, want, "{}", c.name);
+    }
+    drop(s);
+}
+
+#[test]
+fn every_exit_code_is_documented() {
+    let doc =
+        std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../../docs/modding/studio-cli.md")).unwrap();
+    for (code, kind, _) in cli::EXIT_CODES {
+        assert!(doc.contains(&format!("| {code} | `{kind}` |")), "docs/modding/studio-cli.md lacks exit code {code}");
+    }
+    for c in registry::COMMANDS {
+        assert!(
+            doc.contains(&format!("`{}`", c.name.replace('.', " "))),
+            "docs/modding/studio-cli.md lacks `{}`",
+            c.name
+        );
+    }
+}
+
+#[test]
+fn edits_dry_run_make_steps_and_refuse() {
+    let (s, dir) = fixture("cli-edits", false);
+    let e = env();
+    let before = text(&dir);
+    let set = ["race", "set", "--mod", "<mod>", "--race", "sprint", "--name", "Docks run", "--laps", "1"];
+    assert_eq!(golden("race-set-dry-run", &[&set[..], &["--dry-run"]].concat(), &s, &dir, &e), cli::OK);
+    assert_eq!(text(&dir), before, "a dry run writes nothing");
+    assert!(!dir.join(store::EDITOR_DIR).exists(), "a dry run makes no editor folder");
+
+    assert_eq!(golden("race-set", &set, &s, &dir, &e), cli::OK);
+    assert!(text(&dir).contains("name = Docks run"));
+    assert_eq!(golden("race-set-unchanged", &set, &s, &dir, &e), cli::OK);
+    assert_eq!(
+        golden(
+            "race-create",
+            &["race", "create", "--mod", "<mod>", "--track", "4001", "--id", "second", "--kind", "circuit"],
+            &s,
+            &dir,
+            &e
+        ),
+        cli::OK
+    );
+    assert_eq!(
+        golden(
+            "race-point-add",
+            &[
+                "race",
+                "point",
+                "add",
+                "--mod",
+                "<mod>",
+                "--race",
+                "second",
+                "--part",
+                "checkpoint",
+                "--position",
+                "50,0,0"
+            ],
+            &s,
+            &dir,
+            &e
+        ),
+        cli::OK
+    );
+    assert_eq!(
+        golden(
+            "race-point-move-later",
+            &[
+                "race",
+                "point",
+                "move",
+                "--mod",
+                "<mod>",
+                "--race",
+                "sprint",
+                "--part",
+                "checkpoint",
+                "--index",
+                "0",
+                "--later"
+            ],
+            &s,
+            &dir,
+            &e
+        ),
+        cli::OK
+    );
+    assert_eq!(
+        golden("race-delete-refused", &["race", "delete", "--mod", "<mod>", "--race", "nope"], &s, &dir, &e),
+        cli::FAILED
+    );
+    assert_eq!(
+        golden(
+            "pack-details",
+            &["pack", "details", "--mod", "<mod>", "--description", "Night at the docks"],
+            &s,
+            &dir,
+            &e
+        ),
+        cli::OK
+    );
+    // A prop edit reads the world: refused on an empty one, exit 4 without the game.
+    assert_eq!(
+        golden("props-delete-refused", &["props", "delete", "--mod", "<mod>", "--key", "added:a9"], &s, &dir, &e),
+        cli::FAILED
+    );
+    assert_eq!(
+        golden(
+            "props-delete-no-game",
+            &["props", "delete", "--mod", "<mod>", "--key", "added:a9"],
+            &s,
+            &dir,
+            &no_game()
+        ),
+        cli::NO_GAME
+    );
+    assert_eq!(golden("history-show", &["history", "show", "--mod", "<mod>"], &s, &dir, &e), cli::OK);
+    // The steps are the tool's, in the mod's history, and undo takes them back in Studio.
+    let mut h =
+        History::open(&dir, &dir.join(store::EDITOR_DIR), &[store::FILE], "test", std::sync::Arc::new(disk::Real))
+            .unwrap();
+    assert_eq!(h.steps().len(), 5);
+    assert!(h.steps().iter().all(|s| s.author == cli::AUTHOR));
+    assert_eq!(h.undo("test").unwrap().as_deref(), Some("Mod details"));
+}
+
+#[test]
+fn an_operations_file_is_one_step_and_its_lines_are_the_flags_requests() {
+    let (s, dir) = fixture("cli-ops", false);
+    let e = env();
+    // The request a command's flags make, as the tool prints it …
+    let (_, out, _) =
+        run(&["race", "set", "--mod", "<mod>", "--race", "sprint", "--laps", "1", "--dry-run", "--json"], &dir, &e);
+    let line = serde_json::to_string(&serde_json::from_str::<Value>(&out).unwrap()["request"]).unwrap();
+    // … is an operations file's line.
+    let ops = s.path().join("ops.jsonl");
+    std::fs::write(
+        &ops,
+        format!("# two edits\n{line}\n{{\"op\":\"rename_race\",\"race\":\"sprint\",\"name\":\"Docks run\"}}\n"),
+    )
+    .unwrap();
+    let file = ops.to_string_lossy().to_string();
+    let apply = ["ops", "apply", "--mod", "<mod>", "--file", &file, "--label", "Shorter sprint"];
+    assert_eq!(golden("ops-apply-dry-run", &[&apply[..], &["--dry-run"]].concat(), &s, &dir, &e), cli::OK);
+    assert_eq!(golden("ops-apply", &apply, &s, &dir, &e), cli::OK);
+    let h = History::open_read(&dir, &dir.join(store::EDITOR_DIR), &[store::FILE], std::sync::Arc::new(disk::Real))
+        .unwrap();
+    assert_eq!(h.steps().len(), 1, "one step for the whole file");
+    assert_eq!(h.steps()[0].label, "Shorter sprint");
+
+    std::fs::write(&ops, "{\"op\":\"rename_race\",\"race\":\"sprint\",\"name\":\"x\"}\n{\"op\":\"frob\"}\n").unwrap();
+    assert_eq!(
+        golden("ops-apply-bad-line", &["ops", "apply", "--mod", "<mod>", "--file", &file], &s, &dir, &e),
+        cli::USAGE
+    );
+}
+
+#[test]
+fn the_checks_run_and_exit_3_on_an_error() {
+    let (s, dir) = fixture("cli-checks", false);
+    assert_eq!(golden("checks-ok", &["checks", "run", "--mod", "<mod>"], &s, &dir, &env()), cli::OK);
+    assert_eq!(golden("checks-no-game", &["checks", "run", "--mod", "<mod>"], &s, &dir, &no_game()), cli::NO_GAME);
+    let (s, dir) = fixture("cli-checks-broken", true);
+    assert_eq!(golden("checks-errors", &["checks", "run", "--mod", "<mod>"], &s, &dir, &env()), cli::CHECKS);
+    let (code, out, _) = run(&["checks", "run", "--mod", "<mod>"], &dir, &env());
+    assert_eq!(code, cli::CHECKS);
+    assert!(out.lines().last().unwrap().starts_with("1 error(s)"), "{out}");
+}
+
+#[test]
+fn while_studio_has_the_mod_the_edit_goes_through_its_inbox() {
+    let (s, dir) = fixture("cli-inbox", false);
+    let edir = dir.join(store::EDITOR_DIR);
+    let mut studio =
+        History::open(&dir, &edir, &[store::FILE], history::STUDIO, std::sync::Arc::new(disk::Real)).unwrap();
+    assert!(studio.writable());
+    let e = env();
+    let set = ["race", "set", "--mod", "<mod>", "--race", "sprint", "--name", "Other"];
+    assert_eq!(golden("inbox-busy", &[&set[..], &["--no-inbox"]].concat(), &s, &dir, &e), cli::BUSY);
+    assert_eq!(golden("inbox-timed-out", &[&set[..], &["--wait", "0.05"]].concat(), &s, &dir, &e), cli::TIMED_OUT);
+    // The request stays: Studio makes it at its next look.
+    let t = studio.tick(Instant::now()).unwrap();
+    assert_eq!(t.answered.len(), 1);
+    assert_eq!(studio.steps().len(), 1);
+
+    // Studio looking at its inbox while the tool waits.
+    let words = argv(&["race", "set", "--mod", "<mod>", "--race", "sprint", "--name", "Docks run", "--json"], &dir);
+    let tool = std::thread::spawn(move || {
+        let (mut out, mut err) = (Vec::new(), Vec::new());
+        let code = cli::run(&words, &env(), &mut out, &mut err);
+        (code, String::from_utf8(out).unwrap())
+    });
+    while !tool.is_finished() {
+        studio.tick(Instant::now()).unwrap();
+        std::thread::sleep(Duration::from_millis(5));
+    }
+    let (code, out) = tool.join().unwrap();
+    assert_eq!(code, cli::OK, "{out}");
+    let doc: Value = serde_json::from_str(&out).unwrap();
+    assert_eq!((doc["via"].as_str(), doc["step"].as_u64()), (Some("inbox"), Some(2)));
+    assert_eq!(studio.steps().len(), 2);
+    assert!(studio.steps()[1].label.ends_with("Rename race"), "{}", studio.steps()[1].label);
+    assert!(studio.doc(store::FILE).unwrap().contains("name = Docks run"));
+}

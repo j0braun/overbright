@@ -1,0 +1,10 @@
+{
+  "command": "checks.run",
+  "error": {
+    "kind": "no_game",
+    "message": "the game folder is not known: give --game"
+  },
+  "exit": 4,
+  "format": 1,
+  "ok": false
+}

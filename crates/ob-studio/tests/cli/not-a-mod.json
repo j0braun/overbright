@@ -1,0 +1,10 @@
+{
+  "command": "race.delete",
+  "error": {
+    "kind": "failed",
+    "message": "no map.obmap in <tmp>/docks/nothing"
+  },
+  "exit": 1,
+  "format": 1,
+  "ok": false
+}

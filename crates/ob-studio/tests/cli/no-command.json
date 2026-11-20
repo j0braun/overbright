@@ -1,0 +1,9 @@
+{
+  "error": {
+    "kind": "usage",
+    "message": "no command given (see `overbright-studio-cli help`)"
+  },
+  "exit": 2,
+  "format": 1,
+  "ok": false
+}

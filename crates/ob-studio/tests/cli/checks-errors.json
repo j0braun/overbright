@@ -1,0 +1,48 @@
+{
+  "checks": [
+    {
+      "at": [
+        20.0,
+        0.0
+      ],
+      "level": "error",
+      "passed": false,
+      "point": {
+        "index": 0,
+        "part": "checkpoint"
+      },
+      "race": "short",
+      "text": "Sprint: 1 checkpoint(s); a race needs at least 2"
+    },
+    {
+      "level": "info",
+      "passed": false,
+      "race": "sprint",
+      "text": "Sprint: not tested since the last change"
+    },
+    {
+      "level": "info",
+      "passed": false,
+      "race": "short",
+      "text": "Sprint: not tested since the last change"
+    },
+    {
+      "level": "info",
+      "passed": true,
+      "race": "sprint",
+      "text": "Sprint: sprint on track 4001, 400 m, 3 checkpoints; it stays on that track's roads (an area of 400 m × 0 m)"
+    },
+    {
+      "level": "info",
+      "passed": true,
+      "race": "sprint",
+      "text": "Sprint: start line on the route, finish line after the last checkpoint, 8 grid slots"
+    }
+  ],
+  "command": "checks.run",
+  "errors": 1,
+  "exit": 3,
+  "format": 1,
+  "ok": false,
+  "warnings": 0
+}

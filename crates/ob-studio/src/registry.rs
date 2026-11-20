@@ -29,6 +29,7 @@ pub fn type_name(ty: &Ty) -> String {
         Ty::Str { .. } => "text".into(),
         Ty::Enum(_) => "enum".into(),
         Ty::Ref(kind, _) => format!("ref {kind}"),
+        Ty::Def("json", _) => "json".into(),
         Ty::Def(_, inner) | Ty::Local(_, inner) => type_name(inner),
         Ty::Array { item, min, max: Some(max), .. }
             if min == max && matches!(*min, 2 | 3 | 9) && type_name(item) == "f32" =>
@@ -59,7 +60,7 @@ fn sub_fields(ty: &Ty) -> Option<&'static [Field]> {
 }
 
 /// The words of an enum field.
-fn enum_words(ty: &Ty) -> Option<&'static [&'static str]> {
+pub fn enum_words(ty: &Ty) -> Option<&'static [&'static str]> {
     match ty {
         Ty::Enum(words) => Some(words),
         Ty::Def(_, inner) | Ty::Local(_, inner) => enum_words(inner),
@@ -113,7 +114,8 @@ pub enum CommandKind {
 }
 
 impl CommandKind {
-    fn word(self) -> &'static str {
+    /// Its word in the schema export and the help.
+    pub fn word(self) -> &'static str {
         match self {
             CommandKind::Read => "read",
             CommandKind::Edit => "edit",
@@ -178,15 +180,26 @@ pub fn kind(short: &str) -> Option<&'static Kind> {
 // ---- the commands -------------------------------------------------------------------------------------------------
 
 const TEXT: Ty = Ty::Str { min: 0, max: usize::MAX, pattern: None };
-const VEC3: Ty = Ty::Def("vec3", &Ty::Array { item: &Ty::Def("f32", &Ty::F32), min: 3, max: Some(3), unique: false });
-const MAT3: Ty = Ty::Def("mat3", &Ty::Array { item: &Ty::Def("f32", &Ty::F32), min: 9, max: Some(9), unique: false });
+const F32: Ty = Ty::Def("f32", &Ty::F32);
+const VEC3: Ty = Ty::Def("vec3", &Ty::Array { item: &F32, min: 3, max: Some(3), unique: false });
+const MAT3: Ty = Ty::Def("mat3", &Ty::Array { item: &F32, min: 9, max: Some(9), unique: false });
 const U16: Ty = Ty::Def("u16", &Ty::Int { min: 0, max: 65535 });
+const U32: Ty = Ty::Def("u32", &Ty::Int { min: 0, max: u32::MAX as i64 });
 const SOLID: Ty = Ty::Ref("solid", &TEXT);
+const RACE_KIND: Ty = Ty::Enum(&["circuit", "sprint", "streetx", "drift"]);
+const PART: Ty = Ty::Enum(&["checkpoint", "grid", "start", "finish"]);
+/// A JSON value of the shape the command's summary names (a whole race, a list of edits).
+const JSON: Ty = Ty::Def("json", &Ty::Extras);
 const KEY: Field = f("key", TEXT, Req::Yes, "Object");
 const RACE_ID: Field = f("race", TEXT, Req::Yes, "Race");
 const AT: Field = f("position", VEC3, Req::Yes, "Position");
+const HEADING: Field = f("heading", F32, Req::No, "Heading");
+const POINT_PART: Field = f("part", PART, Req::Yes, "Part");
+const POINT_INDEX: Field = f("index", U32, Req::No, "Number");
+const FILE: Field = f("file", TEXT, Req::Yes, "File");
 
-/// Every command, by stable name. Each map edit ([`Op`]) has one ([`command_of`]).
+/// Every command, by stable name. Each map edit ([`Op`]) has one ([`command_of`]); the command-line tool has one
+/// verb per command (`props move` runs `props.move`) and one flag per argument.
 pub const COMMANDS: &[Command] = &[
     Command {
         name: "props.move",
@@ -213,6 +226,7 @@ pub const COMMANDS: &[Command] = &[
         args: &[
             f("solid", SOLID, Req::Yes, "Object"),
             AT,
+            f("rotation", MAT3, Req::No, "Rotation"),
             f("id", TEXT, Req::No, "Id"),
             f("ground", Ty::Bool, Req::No, "On the ground"),
         ],
@@ -233,32 +247,93 @@ pub const COMMANDS: &[Command] = &[
         name: "race.create",
         kind: CommandKind::Edit,
         summary: "Make a race on a base track",
-        args: &[f("track", U16, Req::Yes, "Base track"), f("id", TEXT, Req::No, "Id")],
+        args: &[
+            f("track", U16, Req::Yes, "Base track"),
+            f("kind", RACE_KIND, Req::No, "Mode"),
+            f("id", TEXT, Req::No, "Id"),
+        ],
     },
     Command { name: "race.delete", kind: CommandKind::Edit, summary: "Delete a race", args: &[RACE_ID] },
     Command {
         name: "race.set",
         kind: CommandKind::Edit,
         summary: "Change a race's name, id, track, mode, laps or direction",
-        args: &[RACE_ID],
+        args: &[
+            RACE_ID,
+            f("name", TEXT, Req::No, "Name"),
+            f("id", TEXT, Req::No, "Id"),
+            f("track", U16, Req::No, "Base track"),
+            f("kind", RACE_KIND, Req::No, "Mode"),
+            f("laps", U32, Req::No, "Laps"),
+            f("backward", Ty::Bool, Req::No, "Backward"),
+        ],
     },
     Command {
         name: "race.point.add",
         kind: CommandKind::Edit,
         summary: "Add a checkpoint or grid slot, or place the start or finish line",
-        args: &[RACE_ID, AT],
+        args: &[RACE_ID, POINT_PART, POINT_INDEX, AT, HEADING],
     },
-    Command { name: "race.point.move", kind: CommandKind::Edit, summary: "Move a race point", args: &[RACE_ID, AT] },
-    Command { name: "race.point.delete", kind: CommandKind::Edit, summary: "Delete a race point", args: &[RACE_ID] },
-    Command { name: "race.put", kind: CommandKind::Edit, summary: "Put a whole race in place", args: &[RACE_ID] },
+    Command {
+        name: "race.point.move",
+        kind: CommandKind::Edit,
+        summary: "Move a race point, or a checkpoint one place later or earlier in the route",
+        args: &[
+            RACE_ID,
+            POINT_PART,
+            POINT_INDEX,
+            f("position", VEC3, Req::No, "Position"),
+            HEADING,
+            f("later", Ty::Bool, Req::No, "Later in the route"),
+        ],
+    },
+    Command {
+        name: "race.point.delete",
+        kind: CommandKind::Edit,
+        summary: "Delete a race point",
+        args: &[RACE_ID, POINT_PART, POINT_INDEX],
+    },
+    Command {
+        name: "race.put",
+        kind: CommandKind::Edit,
+        summary: "Put a whole race in place (the race as JSON)",
+        args: &[RACE_ID, f("to", JSON, Req::Yes, "Race")],
+    },
     Command {
         name: "pack.details",
         kind: CommandKind::Edit,
         summary: "Change the pack's name, author and description",
+        args: &[
+            f("name", TEXT, Req::No, "Name"),
+            f("author", TEXT, Req::No, "Author"),
+            f("description", TEXT, Req::No, "Description"),
+        ],
+    },
+    Command {
+        name: "pack.put",
+        kind: CommandKind::Edit,
+        summary: "Put the whole map in place (from a map file)",
+        args: &[FILE],
+    },
+    Command {
+        name: "edit.group",
+        kind: CommandKind::Edit,
+        summary: "Several edits as one undo step (the edits as a JSON list)",
+        args: &[f("label", TEXT, Req::Yes, "Name"), f("ops", JSON, Req::Yes, "Edits")],
+    },
+    Command {
+        name: "ops.apply",
+        kind: CommandKind::Edit,
+        summary: "Apply an operations file (one edit per line) as one undo step",
+        args: &[FILE, f("label", TEXT, Req::No, "Name")],
+    },
+    Command { name: "checks.run", kind: CommandKind::Read, summary: "Run the map checks on the pack", args: &[] },
+    Command {
+        name: "history.show",
+        kind: CommandKind::Read,
+        summary: "The pack's kept steps, with their authors",
         args: &[],
     },
-    Command { name: "pack.put", kind: CommandKind::Edit, summary: "Put the whole map in place", args: &[] },
-    Command { name: "edit.group", kind: CommandKind::Edit, summary: "Several edits as one undo step", args: &[] },
     Command { name: "schema.export", kind: CommandKind::Read, summary: "The kinds' and commands' schemas", args: &[] },
 ];
 

@@ -325,6 +325,27 @@ impl History {
         Ok(h)
     }
 
+    /// Open the history of the mod in `dir` read-only, without taking its lock or writing anything (what a
+    /// look or a dry run reads: the mod as its writer has it now, unsaved steps included).
+    pub fn open_read(dir: &Path, edir: &Path, docs: &[&str], disk: Arc<dyn Disk>) -> Result<History> {
+        let mut h = History {
+            disk,
+            dir: dir.to_path_buf(),
+            edir: edir.to_path_buf(),
+            docs: docs.iter().map(|d| d.to_string()).collect(),
+            access: Access::ReadOnly(lock::owner(edir)),
+            r: Replay::default(),
+            files: State::new(),
+            stamps: BTreeMap::new(),
+            pending: None,
+            unsaved_since: None,
+            last_change: None,
+            journal_len: 0,
+        };
+        h.load()?;
+        Ok(h)
+    }
+
     /// Read the journal and the files; as the writer, mend a cut journal and take in outside changes.
     fn load(&mut self) -> Result<()> {
         let jpath = self.edir.join(JOURNAL);

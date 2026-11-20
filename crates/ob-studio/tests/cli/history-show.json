@@ -1,0 +1,42 @@
+{
+  "command": "history.show",
+  "exit": 0,
+  "format": 1,
+  "ok": true,
+  "step": 5,
+  "steps": [
+    {
+      "author": "overbright-studio (command line)",
+      "label": "Change race sprint",
+      "step": 1,
+      "time_ms": 0
+    },
+    {
+      "author": "overbright-studio (command line)",
+      "label": "New race on track 4001",
+      "step": 2,
+      "time_ms": 0
+    },
+    {
+      "author": "overbright-studio (command line)",
+      "label": "Add checkpoint 1",
+      "step": 3,
+      "time_ms": 0
+    },
+    {
+      "author": "overbright-studio (command line)",
+      "label": "Move checkpoint 1 down",
+      "step": 4,
+      "time_ms": 0
+    },
+    {
+      "author": "overbright-studio (command line)",
+      "label": "Mod details",
+      "step": 5,
+      "time_ms": 0
+    }
+  ],
+  "undone": [],
+  "unsaved": false,
+  "versions": []
+}

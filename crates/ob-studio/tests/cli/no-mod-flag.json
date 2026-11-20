@@ -1,0 +1,10 @@
+{
+  "command": "race.delete",
+  "error": {
+    "kind": "usage",
+    "message": "--mod is needed: the mod's folder (the one holding map.obmap)"
+  },
+  "exit": 2,
+  "format": 1,
+  "ok": false
+}
