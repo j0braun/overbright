@@ -6,7 +6,7 @@ use std::collections::HashMap;
 
 use glam::Vec3;
 
-use super::format::{CarInfo, CarKind, CarSample, Event, EventKind, Frame, Header, Line, ResultRow};
+use super::format::{CarInfo, CarKind, CarLook, CarSample, Event, EventKind, Frame, Header, Line, ResultRow};
 
 /// What the player's slot is called in the results, events and follow list:
 /// in a simulation the AI drives it.
@@ -20,6 +20,9 @@ pub const SPEEDS: [f32; 6] = [0.25, 0.5, 1.0, 2.0, 4.0, 8.0];
 pub struct Recording {
     pub header: Option<Header>,
     pub cars: HashMap<u32, CarInfo>,
+    /// Each car's looks in order: the time of the last frame before the
+    /// look came (it holds for the frames after), the look.
+    pub looks: HashMap<u32, Vec<(f32, CarLook)>>,
     pub frames: Vec<Frame>,
     pub events: Vec<Event>,
     pub results: Vec<ResultRow>,
@@ -49,12 +52,21 @@ impl Recording {
             Line::Car(c) => {
                 self.cars.insert(c.id, c);
             }
+            Line::Look(l) => {
+                let after = self.frames.last().map_or(f32::NEG_INFINITY, |f| f.time);
+                self.looks.entry(l.id).or_default().push((after, l));
+            }
             Line::Frame(f) => {
                 // The race clock set back (the start scene sets it once the
                 // grid is loaded): the frames before it are dropped, so the
-                // times stay in order.
+                // times stay in order; the looks so far hold from the start.
                 if self.frames.last().is_some_and(|l| f.time < l.time) {
                     self.frames.clear();
+                    for list in self.looks.values_mut() {
+                        for l in list.iter_mut() {
+                            l.0 = f32::NEG_INFINITY;
+                        }
+                    }
                 }
                 self.frames.push(f);
             }
@@ -82,6 +94,29 @@ impl Recording {
     pub fn frame_at(&self, time: f32) -> Option<&Frame> {
         let k = self.frames.partition_point(|f| f.time <= time);
         self.frames.get(k.saturating_sub(1))
+    }
+
+    /// The car's look at `time` (none in a stream without looks).
+    pub fn look_at(&self, id: u32, time: f32) -> Option<&CarLook> {
+        let list = self.looks.get(&id)?;
+        list.iter().rev().find(|(after, _)| *after < time).or(list.first()).map(|(_, l)| l)
+    }
+
+    /// The cars at `time`, each between the frame at or before it and the
+    /// next one (the game's 60 Hz ticks drawn smoothly at any rate); a car
+    /// not in the next frame as it was.
+    pub fn cars_at(&self, time: f32) -> Vec<CarSample> {
+        let k = self.frames.partition_point(|f| f.time <= time);
+        let Some(a) = self.frames.get(k.saturating_sub(1)) else { return Vec::new() };
+        let Some(b) = self.frames.get(k).filter(|b| b.time > a.time && time > a.time) else { return a.cars.clone() };
+        let t = ((time - a.time) / (b.time - a.time)).clamp(0.0, 1.0);
+        a.cars
+            .iter()
+            .map(|c| match b.cars.iter().find(|n| n.id == c.id) {
+                Some(n) => CarSample::lerp(c, n, t),
+                None => *c,
+            })
+            .collect()
     }
 
     /// The car's name ("Racer 3" when the stream gave none; the player's
@@ -370,9 +405,9 @@ impl Playback {
         self.speed = self.speed.saturating_sub(1);
     }
 
-    /// The cars at the time shown.
-    pub fn cars<'r>(&self, rec: &'r Recording) -> &'r [CarSample] {
-        rec.frame_at(self.time).map_or(&[], |f| f.cars.as_slice())
+    /// The cars at the time shown, between the ticks ([`Recording::cars_at`]).
+    pub fn cars(&self, rec: &Recording) -> Vec<CarSample> {
+        rec.cars_at(self.time)
     }
 }
 
@@ -393,6 +428,7 @@ mod tests {
             lap: 0,
             checkpoint: 0,
             place,
+            wheels: None,
         }
     }
 
@@ -437,6 +473,36 @@ mod tests {
         p.start();
         p.observe(&race(10, None), false);
         assert_eq!(p.phase, Phase::Done, "the game ended mid-stream: what came is kept");
+    }
+
+    #[test]
+    fn cars_are_drawn_between_ticks_with_their_looks() {
+        let mut rec = race(0, None);
+        let look = |id: u32, model: &str| CarLook { id, model: model.into(), camber_bits: 0, parts: vec![(0x3f, 7)] };
+        rec.push(Line::Look(look(0, "RX8")));
+        rec.push(Line::Look(look(1, "COROLLA")));
+        for k in 0..4 {
+            let t = k as f32 / 60.0;
+            rec.push(Line::Frame(Frame { tick: k, time: t, cars: vec![car(0, CarKind::Player, k as f32, 1), car(1, CarKind::Racer, 0.0, 2)] }));
+            if k == 1 {
+                // The slot takes another car after tick 1.
+                rec.push(Line::Look(look(1, "SUPRA")));
+            }
+        }
+        // A quarter of the way from tick 1 to tick 2.
+        let cars = rec.cars_at(1.25 / 60.0);
+        assert!((cars[0].position.x - 1.25).abs() < 1e-4, "{}", cars[0].position.x);
+        // At a tick exactly, and past the last one, that tick.
+        assert_eq!(rec.cars_at(2.0 / 60.0)[0].position.x, 2.0);
+        assert_eq!(rec.cars_at(9.0)[0].position.x, 3.0);
+        assert_eq!(rec.look_at(0, 0.0).unwrap().model, "RX8");
+        assert_eq!(rec.look_at(1, 1.0 / 60.0).unwrap().model, "COROLLA");
+        assert_eq!(rec.look_at(1, 1.5 / 60.0).unwrap().model, "SUPRA");
+        assert_eq!(rec.look_at(1, -5.0).unwrap().model, "COROLLA", "before the first frame: the first look");
+        assert!(rec.look_at(7, 0.0).is_none());
+        // The clock set back: the looks hold from the new start.
+        rec.push(Line::Frame(Frame { tick: 9, time: -3.0, cars: Vec::new() }));
+        assert_eq!(rec.look_at(1, -2.0).unwrap().model, "SUPRA");
     }
 
     #[test]

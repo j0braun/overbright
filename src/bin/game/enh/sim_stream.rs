@@ -16,7 +16,8 @@ use crate::*;
 
 use nfsu2::tools::map::sim::detect::{Tick, Watch, checkpoints_passed};
 use nfsu2::tools::map::sim::format::{
-    CarInfo, CarKind, CarSample, Event, EventKind, Frame, Header, Line, ResultRow, SimMode, VERSION,
+    CarInfo, CarKind, CarLook, CarSample, Event, EventKind, Frame, Header, LIGHT_BRAKE, LIGHT_HEAD, Line, ResultRow,
+    SimMode, VERSION, Wheels,
 };
 
 /// The stream's ids: the player's slot 0, opponents from 1, traffic from
@@ -50,6 +51,8 @@ pub(crate) struct Streamer<W: std::io::Write> {
     out: W,
     tick: u64,
     named: std::collections::HashSet<u32>,
+    /// Each car's look as last written.
+    looks: HashMap<u32, CarLook>,
     seen: HashMap<u32, Seen>,
     /// The race's checkpoints on its road (m), its start, length, loops.
     road: Option<(Vec<f32>, f32, f32, bool)>,
@@ -60,7 +63,7 @@ pub(crate) struct Streamer<W: std::io::Write> {
 
 impl<W: std::io::Write> Streamer<W> {
     pub(crate) fn new(out: W) -> Streamer<W> {
-        Streamer { out, tick: 0, named: Default::default(), seen: HashMap::new(), road: None, green: false, lines: 0 }
+        Streamer { out, tick: 0, named: Default::default(), looks: HashMap::new(), seen: HashMap::new(), road: None, green: false, lines: 0 }
     }
 
     fn put(&mut self, l: &Line) -> Result<()> {
@@ -81,17 +84,23 @@ impl<W: std::io::Write> Streamer<W> {
 
     /// This tick's cars and events.
     pub(crate) fn frame(&mut self, game: &Game, dt: f32) -> Result<()> {
-        let mut cars: Vec<(CarSample, String)> = Vec::new();
+        let mut cars: Vec<(CarSample, String, CarLook)> = Vec::new();
         let mut events = Vec::new();
-        let sample = |id: u32, kind: CarKind, st: &CarState| CarSample {
-            id,
-            kind,
-            position: st.position,
-            rotation: st.orientation,
-            speed: st.velocity.length(),
-            lap: 0,
-            checkpoint: 0,
-            place: 0,
+        let sample = |id: u32, kind: CarKind, car: &Car, st: &CarState| {
+            (
+                CarSample {
+                    id,
+                    kind,
+                    position: st.position,
+                    rotation: st.orientation,
+                    speed: st.velocity.length(),
+                    lap: 0,
+                    checkpoint: 0,
+                    place: 0,
+                    wheels: Some(wheels(kind, car, st)),
+                },
+                look(id, car),
+            )
         };
         let time;
         match &game.mode {
@@ -115,15 +124,15 @@ impl<W: std::io::Write> Streamer<W> {
                     });
                 }
                 let place = |racer: usize| r.order.iter().position(|&k| k == racer).map_or(0, |p| p as u32 + 1);
-                let mut racers: Vec<(u32, CarKind, &CarState, &Progress, String)> = Vec::new();
+                let mut racers: Vec<(u32, CarKind, &Car, &CarState, &Progress, String)> = Vec::new();
                 if let Some(d) = game.sim.drive.as_ref() {
-                    racers.push((0, CarKind::Player, &d.state, &r.racers.me, d.car.car_type.name.clone()));
+                    racers.push((0, CarKind::Player, &d.car, &d.state, &r.racers.me, d.car.car_type.name.clone()));
                 }
                 for (i, rv) in r.racers.rivals.iter().enumerate() {
-                    racers.push((i as u32 + 1, CarKind::Racer, &rv.state, &rv.progress, rv.name.clone()));
+                    racers.push((i as u32 + 1, CarKind::Racer, &rv.car, &rv.state, &rv.progress, rv.name.clone()));
                 }
-                for (id, kind, st, prog, name) in racers {
-                    let mut s = sample(id, kind, st);
+                for (id, kind, car, st, prog, name) in racers {
+                    let (mut s, look) = sample(id, kind, car, st);
                     let (lap, _) = prog.lap();
                     s.lap = lap.max(0);
                     s.checkpoint = checkpoints_passed(&road.0, road.1, road.2, prog.along, road.3);
@@ -181,7 +190,7 @@ impl<W: std::io::Write> Streamer<W> {
                         racing,
                         next_checkpoint: next,
                     }));
-                    cars.push((s, name));
+                    cars.push((s, name, look));
                 }
                 if let Some(t) = r.racers.traffic.as_ref() {
                     traffic_cars(t, &mut cars, sample);
@@ -190,24 +199,29 @@ impl<W: std::io::Write> Streamer<W> {
             _ => {
                 time = self.tick as f32 / 60.0;
                 if let Some(d) = game.sim.drive.as_ref() {
-                    cars.push((sample(0, CarKind::Player, &d.state), d.car.car_type.name.clone()));
+                    let (s, look) = sample(0, CarKind::Player, &d.car, &d.state);
+                    cars.push((s, d.car.car_type.name.clone(), look));
                 }
                 if let Some(t) = game.sim.traffic.as_ref() {
                     traffic_cars(t, &mut cars, sample);
                 }
                 if let Some(e) = game.sim.encounters.as_ref() {
                     for (i, c) in e.cars.iter().enumerate() {
-                        cars.push((
-                            sample(ENCOUNTER_ID + i as u32, CarKind::Encounter, &c.state),
-                            c.car.car_type.name.clone(),
-                        ));
+                        let (s, look) = sample(ENCOUNTER_ID + i as u32, CarKind::Encounter, &c.car, &c.state);
+                        cars.push((s, c.car.car_type.name.clone(), look));
                     }
                 }
             }
         }
-        for (s, name) in &cars {
+        for (s, name, look) in &cars {
             if self.named.insert(s.id) {
                 self.put(&Line::Car(CarInfo { id: s.id, kind: s.kind, name: name.clone() }))?;
+            }
+            // The look before the car's first tick and whenever it changes
+            // (a traffic slot taking another model).
+            if self.looks.get(&s.id).is_none_or(|l| !l.same_car(look)) {
+                self.put(&Line::Look(look.clone()))?;
+                self.looks.insert(s.id, look.clone());
             }
         }
         let frame = Frame { tick: self.tick, time, cars: cars.into_iter().map(|c| c.0).collect() };
@@ -247,13 +261,39 @@ impl<W: std::io::Write> Streamer<W> {
 /// The traffic cars on the road (placed ones only).
 fn traffic_cars(
     t: &Traffic,
-    cars: &mut Vec<(CarSample, String)>,
-    sample: impl Fn(u32, CarKind, &CarState) -> CarSample,
+    cars: &mut Vec<(CarSample, String, CarLook)>,
+    sample: impl Fn(u32, CarKind, &Car, &CarState) -> (CarSample, CarLook),
 ) {
     for (i, c) in t.cars.iter().enumerate() {
         if c.lane.is_some() {
-            cars.push((sample(TRAFFIC_ID + i as u32, CarKind::Traffic, &c.state), c.car.car_type.name.clone()));
+            let (s, look) = sample(TRAFFIC_ID + i as u32, CarKind::Traffic, &c.car, &c.state);
+            cars.push((s, c.car.car_type.name.clone(), look));
         }
+    }
+}
+
+/// What builds the car again: its model and fitted visual parts.
+fn look(id: u32, car: &Car) -> CarLook {
+    CarLook {
+        id,
+        model: car.name.clone(),
+        camber_bits: car.camber.to_bits(),
+        parts: car.look_parts.iter().map(|(&slot, &hash)| (slot, hash)).collect(),
+    }
+}
+
+/// The car's wheels as drawn and its lights: every car's headlights are on
+/// (+0x93D, `render::native::cars::headlight_pools`); the brake lights'
+/// flag holds 0.5 s for the racers (owner kinds 2 and 4), not for the
+/// player's slot or the traffic (`CarState::brake_lights`).
+fn wheels(kind: CarKind, car: &Car, st: &CarState) -> Wheels {
+    let p = st.wheel_poses(car);
+    let holds = matches!(kind, CarKind::Racer | CarKind::Encounter);
+    Wheels {
+        steer: [p[0].steer, p[1].steer],
+        roll: std::array::from_fn(|i| p[i].roll.rem_euclid(std::f32::consts::TAU)),
+        lift: std::array::from_fn(|i| p[i].lift),
+        lights: LIGHT_HEAD | if st.brake_lights(holds) { LIGHT_BRAKE } else { 0 },
     }
 }
 
@@ -440,6 +480,17 @@ mod tests {
             lines.iter().any(|l| matches!(l, Line::Event(e) if e.kind == EventKind::Checkpoint)),
             "a checkpoint passed ({why})"
         );
+        // Every car's look before its first tick, with its model and its
+        // wheels each tick.
+        let looks: Vec<&CarLook> =
+            lines.iter().filter_map(|l| if let Line::Look(k) = l { Some(k) } else { None }).collect();
+        for c in &last.cars {
+            let k = looks.iter().rev().find(|k| k.id == c.id).expect("a look for every car");
+            assert!(!k.model.is_empty());
+            assert!(c.wheels.is_some_and(|w| w.lights & LIGHT_HEAD != 0), "car {} has its wheels and lights", c.id);
+        }
+        let player = looks.iter().find(|k| k.id == 0).unwrap();
+        assert!(!player.parts.is_empty(), "the player's car's parts: {player:?}");
         // The same seed: the same stream, byte for byte.
         let (b, _) = simulate(7, 40.0);
         assert!(a == b, "the stream repeats for its seed");

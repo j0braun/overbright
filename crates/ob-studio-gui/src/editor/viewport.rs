@@ -295,6 +295,11 @@ pub struct Viewport {
     work: Option<super::worklight::WorkLight>,
     /// The work light's image holds the target's current frame.
     lit: bool,
+    /// The simulation's cars as models (made on first use, from the game
+    /// folder).
+    cars: Option<super::sim::cars::CarDraw>,
+    /// The replay's version last drawn.
+    drawn_replay: u64,
 }
 
 impl Default for Viewport {
@@ -336,6 +341,8 @@ impl Viewport {
             light: true,
             work: None,
             lit: false,
+            cars: None,
+            drawn_replay: 0,
         }
     }
 
@@ -467,6 +474,7 @@ impl Viewport {
             || self.drawn != Some(camera_key(&s.camera))
             || self.drawn_look != Some((self.look, self.haze))
             || (self.light && !self.lit)
+            || self.drawn_replay != s.replay.version
     }
 
     /// An overlay painter on the viewport for this frame (clipped to it).
@@ -918,6 +926,18 @@ impl Viewport {
             self.target = Some(Target { size, color, depth, id });
             self.redraw = true;
         }
+        // The simulation's cars: their models load (on threads; a shot
+        // waits for them), and the view redraws when they move or come in.
+        let cars = self.cars.get_or_insert_with(|| super::sim::cars::CarDraw::new(s.root.clone()));
+        cars.blocking = self.clock.is_some();
+        let shown: &[super::sim::cars::ReplayCar] = if s.replay.models { &s.replay.cars } else { &[] };
+        let arrived = cars.update(shown);
+        let loading = !cars.settled(shown);
+        s.replay.loading = loading;
+        if arrived || self.drawn_replay != s.replay.version {
+            self.drawn_replay = s.replay.version;
+            self.redraw = true;
+        }
         let key = camera_key(&s.camera);
         if !self.redraw && self.drawn == Some(key) && self.drawn_look == Some((self.look, self.haze)) {
             // The world is current; only the work light may be due (it was
@@ -942,6 +962,8 @@ impl Viewport {
             Look::Street => crate::render::RenderOptions::in_force(),
             Look::Whole | Look::Top => whole_options(&crate::render::RenderOptions::in_force(), size.0),
         };
+        let shown: &[super::sim::cars::ReplayCar] = if s.replay.models { &s.replay.cars } else { &[] };
+        let pools = self.cars.as_ref().map(|c| c.pools(shown)).unwrap_or_default();
         let params = FrameParams {
             camera: &lists.camera,
             aspect,
@@ -956,7 +978,7 @@ impl Viewport {
             road_reflection_plane: None,
             sky: time_of_day.sky(),
             reversed: false,
-            headlight_pools: &[],
+            headlight_pools: &pools,
             reflection_glows: &[],
             display: Default::default(),
             opts: &opts,
@@ -964,6 +986,20 @@ impl Viewport {
             occluders: &[],
         };
         renderer.render(gpu, encoder, &target.color, &target.depth, size, &params);
+        if let Some(cars) = self.cars.as_mut() {
+            s.replay.drawn = cars.draw(
+                gpu,
+                encoder,
+                &target.color,
+                &target.depth,
+                FORMAT,
+                &s.session.world,
+                &lists.camera,
+                aspect,
+                shown,
+                &opts,
+            );
+        }
         self.lit = false;
         self.light_pass(encoder);
         true
@@ -994,6 +1030,9 @@ impl Viewport {
         self.lit = false;
         self.renderer = None;
         self.drawn = None;
+        if let Some(c) = self.cars.as_mut() {
+            c.release();
+        }
     }
 }
 

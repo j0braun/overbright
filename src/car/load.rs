@@ -79,6 +79,7 @@ impl Car {
             exhausts: Vec::new(),
             wheel_shift: [0.0; 4],
             purge: None,
+            look_parts: Default::default(),
         })
     }
 
@@ -139,6 +140,7 @@ impl Car {
         );
         b.wheel_paint(&mut car);
         b.skin(&mut car, &car_dir, installed);
+        car.look_parts = installed.clone();
         Ok(car)
     }
 }
@@ -1343,6 +1345,7 @@ impl<'a> CarBuild<'a> {
             exhausts,
             wheel_shift,
             purge,
+            look_parts: Default::default(),
         };
         if let Some(tint) = window_tint {
             car.light_material_remap.insert(bin_hash("WINDSHIELD"), tint);

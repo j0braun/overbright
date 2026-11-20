@@ -141,6 +141,12 @@ pub struct Car {
     /// The Nitrous Purge's smoke (car effect kinds 13 / 14), from the
     /// fitted slot 0xA2 part (render set-up 0x634810).
     pub purge: Option<PurgeFx>,
+    /// The visual parts the car was built with (slot → part hash, the
+    /// performance packages' visual parts included): with
+    /// [`Car::load_with`] they build the same look again (a recorded run's
+    /// cars, docs/modding/map-editor.md "Simulate"). Empty for a car
+    /// loaded for its physics alone.
+    pub look_parts: std::collections::BTreeMap<u8, u32>,
 }
 
 #[cfg(test)]

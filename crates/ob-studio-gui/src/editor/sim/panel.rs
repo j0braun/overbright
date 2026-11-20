@@ -234,9 +234,16 @@ impl Panel for SimHook {
                 _ => format!("Simulation: {}. {}", end_words(sim.rec.end.as_deref()), problems_words(&sim)),
             };
         }
-        if sim.play.playing || sim.running() {
+        if sim.play.playing || sim.running() || s.replay.loading {
             ctx.request_repaint();
         }
+        // The cars of the time shown, for the viewport to draw as models.
+        let shown = if s.view == View::ThreeD && s.replay.models {
+            super::cars::replay_cars(&sim.rec, sim.play.time, &sim.play.cars(&sim.rec))
+        } else {
+            Vec::new()
+        };
+        s.replay.set(shown);
         // Follow a car in the 3D view: behind and above it.
         if s.view == View::ThreeD
             && let Some(id) = sim.play.follow
@@ -312,8 +319,15 @@ fn problems_words(sim: &Sim) -> String {
 }
 
 /// The colour key for the cars drawn over the view.
-fn legend(ui: &mut egui::Ui) {
+fn legend(ui: &mut egui::Ui, s: &mut EditorState) {
     ui.horizontal_wrapped(|ui| {
+        // The 3D view's cars: the game's car models (the default) or boxes
+        // in the colours below.
+        let mut models = s.replay.models;
+        if ui.checkbox(&mut models, "Car models").on_hover_text("The cars as the game draws them; off: boxes").changed() {
+            s.replay.set_models(models);
+        }
+        ui.add_space(6.0);
         ui.weak("Cars:");
         let keys = [
             (colour::SELECT, "Your slot (AI) and the car you follow"),
@@ -445,7 +459,7 @@ impl Panel for SimTab {
             });
             ui.checkbox(&mut sim.traces, "Lines").on_hover_text("Each racer's driven line");
         });
-        legend(ui);
+        legend(ui, s);
         ui.separator();
         let mut seek: Option<(f32, u32)> = None;
         let world = sim.rec.header.as_ref().is_some_and(|h| h.mode == SimMode::World);
@@ -611,12 +625,15 @@ impl ViewOverlay for SimOverlay {
                         o.polyline(&lifted, false, trace_colour(*id), 1.5);
                     }
                 }
-                for c in cars {
+                for c in &cars {
                     let followed = sim.play.follow == Some(c.id);
                     let t = Mat4::from_rotation_translation(c.rotation, c.position);
                     let col = car_colour(c, followed);
                     let w = if c.kind.races() { 2.0 } else { 1.6 };
-                    o.box_outline(t, -CAR_HALF + Vec3::Z * CAR_BOTTOM, CAR_HALF + Vec3::Z * CAR_TOP, col, w);
+                    // A car drawn as its model needs no box.
+                    if !s.replay.shows(c.id) {
+                        o.box_outline(t, -CAR_HALF + Vec3::Z * CAR_BOTTOM, CAR_HALF + Vec3::Z * CAR_TOP, col, w);
+                    }
                     if let Some(p) = place(c.id) {
                         o.label(
                             c.position + Vec3::Z * 2.2,
@@ -639,7 +656,7 @@ impl ViewOverlay for SimOverlay {
                         }
                     }
                 }
-                for c in cars {
+                for c in &cars {
                     let followed = sim.play.follow == Some(c.id);
                     let col = car_colour(c, followed);
                     let at = to(c.position);
