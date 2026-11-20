@@ -1,0 +1,584 @@
+{
+  "format": 1,
+  "kinds": [
+    {
+      "short": "placement",
+      "schema": "ob.placements/1.0",
+      "schema_file": "placements.schema.json",
+      "keys": {
+        "original": "placement:<REGION>/<scenery>/<index>",
+        "added": "placement:<REGION>/<pack>:<id>"
+      },
+      "ops": [
+        "merge",
+        "add",
+        "disabled"
+      ],
+      "fields": [
+        {
+          "key": "op",
+          "type": "enum",
+          "required": "no",
+          "merge": false,
+          "enum": [
+            "merge",
+            "add"
+          ]
+        },
+        {
+          "key": "key",
+          "type": "text",
+          "required": "merge",
+          "merge": false
+        },
+        {
+          "key": "guard",
+          "type": "table",
+          "required": "merge",
+          "merge": false,
+          "fields": [
+            {
+              "key": "solid",
+              "type": "ref solid",
+              "required": "yes",
+              "merge": false
+            },
+            {
+              "key": "position",
+              "type": "vec3",
+              "required": "yes",
+              "merge": false
+            }
+          ]
+        },
+        {
+          "key": "id",
+          "type": "text",
+          "required": "add",
+          "merge": false
+        },
+        {
+          "key": "scenery",
+          "type": "u32",
+          "required": "add",
+          "merge": false,
+          "label": "Scenery section"
+        },
+        {
+          "key": "solid",
+          "type": "ref solid",
+          "required": "add",
+          "merge": false,
+          "label": "Object"
+        },
+        {
+          "key": "lod_b",
+          "type": "ref solid",
+          "required": "no",
+          "merge": false,
+          "label": "Middle detail"
+        },
+        {
+          "key": "lod_c",
+          "type": "ref solid",
+          "required": "no",
+          "merge": false,
+          "label": "Low detail"
+        },
+        {
+          "key": "radius_m",
+          "type": "f32",
+          "required": "no",
+          "merge": false,
+          "label": "Draw radius"
+        },
+        {
+          "key": "flags",
+          "type": "u16",
+          "required": "no",
+          "merge": false,
+          "label": "Flags"
+        },
+        {
+          "key": "prop",
+          "type": "ref prop-kind",
+          "required": "no",
+          "merge": false,
+          "label": "Knock-over prop"
+        },
+        {
+          "key": "position",
+          "type": "vec3",
+          "required": "add",
+          "merge": true,
+          "label": "Position"
+        },
+        {
+          "key": "rotation",
+          "type": "mat3",
+          "required": "no",
+          "merge": true,
+          "label": "Rotation"
+        },
+        {
+          "key": "disabled",
+          "type": "bool",
+          "required": "no",
+          "merge": true,
+          "label": "Hidden"
+        },
+        {
+          "key": "extras",
+          "type": "extras",
+          "required": "no",
+          "merge": false
+        }
+      ]
+    },
+    {
+      "short": "race",
+      "schema": "ob.race/1.0",
+      "schema_file": "race.schema.json",
+      "keys": {
+        "original": "(races are never original)",
+        "added": "race:<pack>:<id>"
+      },
+      "ops": [
+        "merge",
+        "add",
+        "disabled"
+      ],
+      "fields": [
+        {
+          "key": "schema",
+          "type": "text",
+          "required": "yes",
+          "merge": false
+        },
+        {
+          "key": "op",
+          "type": "enum",
+          "required": "no",
+          "merge": false,
+          "enum": [
+            "add"
+          ]
+        },
+        {
+          "key": "disabled",
+          "type": "bool",
+          "required": "no",
+          "merge": true,
+          "label": "Off"
+        },
+        {
+          "key": "id",
+          "type": "text",
+          "required": "yes",
+          "merge": false,
+          "label": "Id"
+        },
+        {
+          "key": "name",
+          "type": "text",
+          "required": "no",
+          "merge": true,
+          "label": "Name"
+        },
+        {
+          "key": "track",
+          "type": "u16",
+          "required": "yes",
+          "merge": true,
+          "label": "Base track"
+        },
+        {
+          "key": "backward",
+          "type": "bool",
+          "required": "no",
+          "merge": true,
+          "label": "Backward"
+        },
+        {
+          "key": "mode",
+          "type": "enum",
+          "required": "yes",
+          "merge": true,
+          "label": "Mode",
+          "enum": [
+            "circuit",
+            "sprint",
+            "streetx",
+            "drift"
+          ]
+        },
+        {
+          "key": "laps",
+          "type": "u8",
+          "required": "no",
+          "merge": true,
+          "label": "Laps"
+        },
+        {
+          "key": "checkpoints",
+          "type": "list of vec2",
+          "required": "no",
+          "merge": true,
+          "label": "Checkpoints"
+        },
+        {
+          "key": "grid",
+          "type": "list of table",
+          "required": "no",
+          "merge": true,
+          "label": "Grid",
+          "fields": [
+            {
+              "key": "position",
+              "type": "vec3",
+              "required": "yes",
+              "merge": true,
+              "label": "Position"
+            },
+            {
+              "key": "heading_deg",
+              "type": "f32",
+              "required": "yes",
+              "merge": true,
+              "label": "Heading"
+            }
+          ]
+        },
+        {
+          "key": "start",
+          "type": "table",
+          "required": "no",
+          "merge": true,
+          "label": "Start line",
+          "fields": [
+            {
+              "key": "position",
+              "type": "vec3",
+              "required": "yes",
+              "merge": true,
+              "label": "Position"
+            },
+            {
+              "key": "heading_deg",
+              "type": "f32",
+              "required": "yes",
+              "merge": true,
+              "label": "Heading"
+            }
+          ]
+        },
+        {
+          "key": "finish",
+          "type": "table",
+          "required": "no",
+          "merge": true,
+          "label": "Finish line",
+          "fields": [
+            {
+              "key": "position",
+              "type": "vec3",
+              "required": "yes",
+              "merge": true,
+              "label": "Position"
+            },
+            {
+              "key": "heading_deg",
+              "type": "f32",
+              "required": "yes",
+              "merge": true,
+              "label": "Heading"
+            }
+          ]
+        },
+        {
+          "key": "extras",
+          "type": "extras",
+          "required": "no",
+          "merge": false
+        },
+        {
+          "key": "ext",
+          "type": "extras",
+          "required": "no",
+          "merge": false
+        }
+      ]
+    }
+  ],
+  "commands": [
+    {
+      "name": "props.move",
+      "kind": "edit",
+      "summary": "Move a prop",
+      "args": [
+        {
+          "key": "key",
+          "type": "text",
+          "required": "yes",
+          "merge": false,
+          "label": "Object"
+        },
+        {
+          "key": "position",
+          "type": "vec3",
+          "required": "yes",
+          "merge": false,
+          "label": "Position"
+        },
+        {
+          "key": "rotation",
+          "type": "mat3",
+          "required": "yes",
+          "merge": false,
+          "label": "Rotation"
+        }
+      ]
+    },
+    {
+      "name": "props.delete",
+      "kind": "edit",
+      "summary": "Hide an original prop or remove an added one",
+      "args": [
+        {
+          "key": "key",
+          "type": "text",
+          "required": "yes",
+          "merge": false,
+          "label": "Object"
+        }
+      ]
+    },
+    {
+      "name": "props.reset",
+      "kind": "edit",
+      "summary": "Put an original prop back as the original has it",
+      "args": [
+        {
+          "key": "key",
+          "type": "text",
+          "required": "yes",
+          "merge": false,
+          "label": "Object"
+        }
+      ]
+    },
+    {
+      "name": "props.add",
+      "kind": "edit",
+      "summary": "Add a prop of one of the region's objects",
+      "args": [
+        {
+          "key": "solid",
+          "type": "ref solid",
+          "required": "yes",
+          "merge": false,
+          "label": "Object"
+        },
+        {
+          "key": "position",
+          "type": "vec3",
+          "required": "yes",
+          "merge": false,
+          "label": "Position"
+        },
+        {
+          "key": "id",
+          "type": "text",
+          "required": "no",
+          "merge": false,
+          "label": "Id"
+        },
+        {
+          "key": "ground",
+          "type": "bool",
+          "required": "no",
+          "merge": false,
+          "label": "On the ground"
+        }
+      ]
+    },
+    {
+      "name": "props.duplicate",
+      "kind": "edit",
+      "summary": "Copy a prop to a new place",
+      "args": [
+        {
+          "key": "key",
+          "type": "text",
+          "required": "yes",
+          "merge": false,
+          "label": "Object"
+        },
+        {
+          "key": "position",
+          "type": "vec3",
+          "required": "yes",
+          "merge": false,
+          "label": "Position"
+        }
+      ]
+    },
+    {
+      "name": "props.drop",
+      "kind": "edit",
+      "summary": "Stand a prop on the floor under it",
+      "args": [
+        {
+          "key": "key",
+          "type": "text",
+          "required": "yes",
+          "merge": false,
+          "label": "Object"
+        }
+      ]
+    },
+    {
+      "name": "race.create",
+      "kind": "edit",
+      "summary": "Make a race on a base track",
+      "args": [
+        {
+          "key": "track",
+          "type": "u16",
+          "required": "yes",
+          "merge": false,
+          "label": "Base track"
+        },
+        {
+          "key": "id",
+          "type": "text",
+          "required": "no",
+          "merge": false,
+          "label": "Id"
+        }
+      ]
+    },
+    {
+      "name": "race.delete",
+      "kind": "edit",
+      "summary": "Delete a race",
+      "args": [
+        {
+          "key": "race",
+          "type": "text",
+          "required": "yes",
+          "merge": false,
+          "label": "Race"
+        }
+      ]
+    },
+    {
+      "name": "race.set",
+      "kind": "edit",
+      "summary": "Change a race's name, id, track, mode, laps or direction",
+      "args": [
+        {
+          "key": "race",
+          "type": "text",
+          "required": "yes",
+          "merge": false,
+          "label": "Race"
+        }
+      ]
+    },
+    {
+      "name": "race.point.add",
+      "kind": "edit",
+      "summary": "Add a checkpoint or grid slot, or place the start or finish line",
+      "args": [
+        {
+          "key": "race",
+          "type": "text",
+          "required": "yes",
+          "merge": false,
+          "label": "Race"
+        },
+        {
+          "key": "position",
+          "type": "vec3",
+          "required": "yes",
+          "merge": false,
+          "label": "Position"
+        }
+      ]
+    },
+    {
+      "name": "race.point.move",
+      "kind": "edit",
+      "summary": "Move a race point",
+      "args": [
+        {
+          "key": "race",
+          "type": "text",
+          "required": "yes",
+          "merge": false,
+          "label": "Race"
+        },
+        {
+          "key": "position",
+          "type": "vec3",
+          "required": "yes",
+          "merge": false,
+          "label": "Position"
+        }
+      ]
+    },
+    {
+      "name": "race.point.delete",
+      "kind": "edit",
+      "summary": "Delete a race point",
+      "args": [
+        {
+          "key": "race",
+          "type": "text",
+          "required": "yes",
+          "merge": false,
+          "label": "Race"
+        }
+      ]
+    },
+    {
+      "name": "race.put",
+      "kind": "edit",
+      "summary": "Put a whole race in place",
+      "args": [
+        {
+          "key": "race",
+          "type": "text",
+          "required": "yes",
+          "merge": false,
+          "label": "Race"
+        }
+      ]
+    },
+    {
+      "name": "pack.details",
+      "kind": "edit",
+      "summary": "Change the pack's name, author and description",
+      "args": []
+    },
+    {
+      "name": "pack.put",
+      "kind": "edit",
+      "summary": "Put the whole map in place",
+      "args": []
+    },
+    {
+      "name": "edit.group",
+      "kind": "edit",
+      "summary": "Several edits as one undo step",
+      "args": []
+    },
+    {
+      "name": "schema.export",
+      "kind": "read",
+      "summary": "The kinds' and commands' schemas",
+      "args": []
+    }
+  ]
+}

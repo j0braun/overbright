@@ -53,14 +53,26 @@ layering, and the generator that keeps the specification's rule tables and schem
 files and their store, the edit operations, custom races and the original's race tracks and routes they run on,
 the simulation stream — on `ob-core` and `ob-formats`; the map editor's session, which owns a world, stays in the
 library), then the rest of the library. Beside them, `ob-look` (`crates/ob-look`: the look the launcher, the map
-editor and Studio share — colour tokens, lamps, the type, the button legends' data; no dependencies) sits below the
+editor and Studio share — colour tokens, lamps, the type, the button legends' data and the words on shared buttons and menu items; no dependencies) sits below the
 library, which re-exports its tokens at `launch::theme`. Each layer's
 modules are listed in `scripts/checks/crate-layers.txt`; `scripts/checks/crate_layers.sh` (in every checks set)
 fails on a reference from a module to a higher layer that is not on `crate-layers-allow.txt` (the references
 still to be moved; the list only shrinks), on a package dependency that points up (`cargo metadata`), on a
 forbidden crate in a low package's tree (no wgpu, winit or cpal under `ob-core`, `ob-formats`,
 `ob-asset-format`, `ob-map` and `ob-look`) and on
-`dev-harness` switched on anywhere in the shipped packages' tree. The library keeps every `nfsu2::…` path: a
+`dev-harness` switched on anywhere in the shipped packages' tree. Studio's crates sit on top of the library: `ob-studio`
+(`crates/ob-studio`: Studio without a window, no egui) and `ob-studio-gui` (the window). They name the library only
+through its one interface for Studio, `nfsu2::studio_api` (`src/studio_api.rs`: the library's items Studio may use,
+one by one, under the library's module names), and reach the lower layers through their own crates; the layer check
+refuses any other `nfsu2::` path in them (crate-layers.txt `studio` line) and any glob re-export of the library's
+own modules in the interface. When the library moves a module, that file changes, not Studio. `ob-studio` declares every kind of content Studio edits (placements and races so
+far), its fields and every command once (`ob_studio::registry`); the declarations give the schema export
+(`crates/ob-studio/schema/studio.json`, kept in step by a test, `OB_STUDIO_BLESS=1` rewrites it), and a test keeps
+each kind's fields, required fields and word lists equal to its file's schema in the asset format
+(docs/modding/asset-format/schemas/). Every map edit has a command (an exhaustive match: a new edit does not build
+without one). `ob_studio::keys` reads and writes the two kinds' keys (an original placement's `(region, scenery
+section, index)`, a pack's own `<pack>:<id>`, `race:<pack>:<id>`) and checks a placement merge's guard against the
+base set (`WLD.11`). The library keeps every `nfsu2::…` path: a
 module that moves into a crate below is re-exported at its old place. Where a module is split (the cache check, the support
 file, the winit and wgpu parts of `platform` and `prof`), the library's `src/lib.rs` keeps the upper part
 beside the re-exported lower one. Each library crate has its own build id for the asset cache

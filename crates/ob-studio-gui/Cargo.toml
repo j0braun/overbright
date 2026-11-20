@@ -11,7 +11,11 @@ build = "build.rs"
 # docs/modding/map-editor.md): a leaf on the game library. The game's own packages
 # never depend on it, so egui is not in the game's dependency tree.
 [dependencies]
+# The game library, named only through its interface for Studio (`nfsu2::studio_api`), and its lower layers.
 nfsu2 = { path = "../..", default-features = false }
+ob-core = { path = "../ob-core" }
+ob-formats = { path = "../ob-formats" }
+ob-map = { path = "../ob-map" }
 # The look shared with the launcher (colour tokens, type, lamps, legends).
 ob-look = { path = "../ob-look" }
 anyhow.workspace = true

@@ -14,6 +14,7 @@
 //! picks; a race tool adds on a click until Esc or another tool; New race
 //! arms Start, and the start placed arms Checkpoint.
 
+use ob_look::words;
 use glam::{Vec2, Vec3};
 
 use super::state::{EditorState, Mode, Panel, RacePoint, project};
@@ -895,7 +896,7 @@ impl Races {
                     let _ = undo::run(s, Op::Group { label, ops: vec![mv] });
                 }
             }
-            if ui.button("Delete").clicked() {
+            if ui.button(words::DELETE).clicked() {
                 self.delete_selected(s);
             }
         });

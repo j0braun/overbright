@@ -4,6 +4,7 @@
 //! restore prompt, the command line, and painting one frame with egui-wgpu
 //! into any texture (the window's, or an off-screen one for `--shot`).
 
+use ob_look::words;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant, SystemTime};
 
@@ -1447,7 +1448,7 @@ impl App {
                             }));
                             keep = false;
                         }
-                        if ui.button("Cancel").clicked() {
+                        if ui.button(words::CANCEL).clicked() {
                             keep = false;
                         }
                     });
@@ -1470,10 +1471,10 @@ impl App {
                         }
                     });
                     ui.horizontal(|ui| {
-                        if ui.add_enabled(pick.is_some(), theme::main_action("Open")).clicked() {
+                        if ui.add_enabled(pick.is_some(), theme::main_action(words::OPEN)).clicked() {
                             keep = false;
                         }
-                        if ui.button("Cancel").clicked() {
+                        if ui.button(words::CANCEL).clicked() {
                             *pick = None;
                             keep = false;
                         }
@@ -1500,7 +1501,7 @@ impl App {
                         ui.end_row();
                     });
                     ui.horizontal(|ui| {
-                        if ui.add(theme::main_action("OK")).clicked() {
+                        if ui.add(theme::main_action(words::OK)).clicked() {
                             let (n, a, de) = (name.clone(), author.clone(), description.clone());
                             then = Some(Box::new(move |app: &mut App| {
                                 if let Some(s) = app.state.as_mut() {
@@ -1512,7 +1513,7 @@ impl App {
                             }));
                             keep = false;
                         }
-                        if ui.button("Cancel").clicked() {
+                        if ui.button(words::CANCEL).clicked() {
                             keep = false;
                         }
                     });
@@ -1527,7 +1528,7 @@ impl App {
                             then = Some(Box::new(move |app: &mut App| app.export(&p)));
                             keep = false;
                         }
-                        if ui.button("Cancel").clicked() {
+                        if ui.button(words::CANCEL).clicked() {
                             keep = false;
                         }
                     });
@@ -1542,7 +1543,7 @@ impl App {
                             then = Some(Box::new(move |app: &mut App| app.import(&p)));
                             keep = false;
                         }
-                        if ui.button("Cancel").clicked() {
+                        if ui.button(words::CANCEL).clicked() {
                             keep = false;
                         }
                     });
@@ -1571,7 +1572,7 @@ impl App {
                     ui.label(theme::title("Save changes?"));
                     ui.label("The mod has changes that are not saved.");
                     ui.horizontal(|ui| {
-                        if ui.add(theme::main_action("Save")).clicked() {
+                        if ui.add(theme::main_action(words::SAVE)).clicked() {
                             let n = next.clone();
                             then = Some(Box::new(move |app: &mut App| match app.save() {
                                 Ok(()) => app.after_unsaved(n),
@@ -1590,7 +1591,7 @@ impl App {
                             }));
                             keep = false;
                         }
-                        if ui.button("Cancel").clicked() {
+                        if ui.button(words::CANCEL).clicked() {
                             keep = false;
                         }
                     });
@@ -1600,7 +1601,7 @@ impl App {
                         egui::RichText::new(title.as_str()).font(theme::font(theme::TITLE, 17.0)).color(theme::error()),
                     );
                     ui.label(text.as_str());
-                    if ui.button("OK").clicked() {
+                    if ui.button(words::OK).clicked() {
                         keep = false;
                     }
                 }

@@ -2,7 +2,8 @@
 # crate_layers.sh [repo]: the workspace's layer check (ARCHITECTURE.md "Layers"). Fails (exit 1) when
 #   1. a library module names a module of a higher layer that is not on the allow-list
 #      (crate_layers.py: scripts/checks/crate-layers.txt, crate-layers-allow.txt; the programs in src/bin/ too),
-#      or an allow-list line is no longer needed;
+#      or an allow-list line is no longer needed, or one of Studio's crates (crate-layers.txt `studio` line) names
+#      the library other than as `nfsu2::studio_api::…` (src/studio_api.rs, which re-exports no library module by glob);
 #   2. a workspace package depends (normal or build edge) on a package listed above it in crate-layers.txt
 #      (`cargo metadata`), so the package graph only points down;
 #   3. a package's dependency tree holds a crate its `forbid` line names (`cargo tree`);

@@ -3,6 +3,7 @@
 //! selects the placement, a double-click also asks the viewport to frame
 //! it; the context menu resets or deletes.
 
+use ob_look::words;
 use egui::{RichText, Ui};
 
 use super::props::{colour, delete_selection, reset_selection};
@@ -118,7 +119,7 @@ fn row(s: &mut EditorState, ui: &mut Ui, r: &Row, added: bool) -> Option<Event> 
             reset_selection(s);
             ui.close();
         }
-        if ui.button("Delete").clicked() {
+        if ui.button(words::DELETE).clicked() {
             s.selection = vec![i];
             delete_selection(s);
             ui.close();

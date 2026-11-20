@@ -2,7 +2,7 @@
 name = "ob-look"
 version.workspace = true
 edition.workspace = true
-description = "Overbright's shared look: colour tokens, lamps, the type and the button legends' data."
+description = "Overbright's shared look: colour tokens, lamps, the type, the button legends' data and the shared words."
 license.workspace = true
 publish = false
 

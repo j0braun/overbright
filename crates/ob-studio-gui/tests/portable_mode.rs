@@ -21,7 +21,7 @@ struct Install(PathBuf);
 
 impl Install {
     fn new(tag: &str, portable: bool) -> Install {
-        let base = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join(format!("portable-{tag}-{}", nfsu2::unique_tag()));
+        let base = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join(format!("portable-{tag}-{}", ob_core::unique_tag()));
         for d in ["prog", "home", "appdata", "tmp", "cwd"] {
             std::fs::create_dir_all(base.join(d)).unwrap();
         }
@@ -111,10 +111,10 @@ impl Drop for Install {
 #[test]
 #[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
 fn the_map_editor_writes_only_beside_the_program_when_portable() {
-    let root = nfsu2::platform::paths::absolute(&common::game_root());
+    let root = ob_core::platform::paths::absolute(&common::game_root());
     // The asset cache: the tests' own (not the install's), so the run
     // does not rebuild it.
-    let cache = nfsu2::platform::dirs::test_cache_folder();
+    let cache = ob_core::platform::dirs::test_cache_folder();
     let map = "overbright-map 1\nname = Portable test\n";
     for portable in [true, false] {
         let i = Install::new(if portable { "editor" } else { "editor-home" }, portable);

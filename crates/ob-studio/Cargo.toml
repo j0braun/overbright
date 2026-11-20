@@ -1,0 +1,25 @@
+[package]
+name = "ob-studio"
+version.workspace = true
+edition.workspace = true
+description = "Overbright Studio without a window: the kinds, fields and commands, sessions and merges."
+license.workspace = true
+publish = false
+
+# Studio's operation layer (no window, no egui): what the window crate (crates/ob-studio-gui), the command-line tool
+# and the MCP adapter share. It names the game library only through `nfsu2::studio_api` and reaches the lower
+# layers through their own crates (scripts/checks/crate_layers.sh).
+[dependencies]
+nfsu2 = { path = "../..", default-features = false }
+ob-asset-format = { path = "../ob-asset-format" }
+ob-map = { path = "../ob-map" }
+glam.workspace = true
+toml.workspace = true
+
+[dev-dependencies]
+# The drift test reads the asset format's JSON schemas.
+serde_json.workspace = true
+
+[features]
+# The game library's developer harness, as the root package names it.
+dev-harness = ["nfsu2/dev-harness"]

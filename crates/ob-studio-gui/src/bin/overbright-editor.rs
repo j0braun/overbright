@@ -20,7 +20,7 @@ use std::time::Instant;
 
 use anyhow::{Context as _, Result};
 use ob_studio_gui::editor::app::{self, App, Cli};
-use nfsu2::render::Gpu;
+use nfsu2::studio_api::render::Gpu;
 use winit::application::ApplicationHandler;
 use winit::event::WindowEvent;
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
@@ -30,38 +30,38 @@ fn game_root() -> PathBuf {
     if let Some(r) = std::env::var_os("NFSU2_ROOT").filter(|r| !r.is_empty()) {
         return PathBuf::from(r);
     }
-    nfsu2::qol::setup::saved_root().unwrap_or_else(|| PathBuf::from("."))
+    nfsu2::studio_api::qol::setup::saved_root().unwrap_or_else(|| PathBuf::from("."))
 }
 
 fn new_app(cli: &Cli) -> App {
-    let maps = cli.maps.clone().unwrap_or_else(nfsu2::tools::map::store::maps_dir);
-    App::new(game_root(), maps, Box::new(|root, region| nfsu2::world::World::load(root, region)))
+    let maps = cli.maps.clone().unwrap_or_else(ob_map::tools::map::store::maps_dir);
+    App::new(game_root(), maps, Box::new(|root, region| nfsu2::studio_api::world::World::load(root, region)))
 }
 
 fn main() -> ExitCode {
     // A portable install keeps the driver's shader caches in its data
     // folder too, as the game does (`platform::dirs::driver_cache_vars`;
     // nothing otherwise).
-    let portable = nfsu2::platform::dirs::portable_base();
-    for (name, dir) in nfsu2::platform::dirs::driver_cache_vars(
-        nfsu2::platform::dirs::Os::CURRENT,
+    let portable = ob_core::platform::dirs::portable_base();
+    for (name, dir) in ob_core::platform::dirs::driver_cache_vars(
+        ob_core::platform::dirs::Os::CURRENT,
         &|n: &str| std::env::var_os(n),
         portable.as_deref(),
     ) {
         // SAFETY: set before any thread is started.
         unsafe { std::env::set_var(name, dir) };
     }
-    nfsu2::console::attach();
+    ob_core::console::attach();
     let _ = env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).try_init();
     if std::env::args().nth(1).as_deref() == Some("--version") {
-        println!("{} map editor (preview)", nfsu2::build_info::version_line());
+        println!("{} map editor (preview)", ob_core::build_info::version_line());
         return ExitCode::SUCCESS;
     }
-    log::info!("{} map editor (preview)", nfsu2::build_info::version_line());
+    log::info!("{} map editor (preview)", ob_core::build_info::version_line());
     let cli = match Cli::parse(std::env::args().skip(1)) {
         Ok(c) => c,
         Err(e) => {
-            nfsu2::console::fatal(&format!("{e:#}"));
+            ob_core::console::fatal(&format!("{e:#}"));
             return ExitCode::from(2);
         }
     };
@@ -69,7 +69,7 @@ fn main() -> ExitCode {
     match r {
         Ok(()) => ExitCode::SUCCESS,
         Err(e) => {
-            nfsu2::console::fatal(&format!("overbright-editor: {e:#}"));
+            ob_core::console::fatal(&format!("overbright-editor: {e:#}"));
             ExitCode::FAILURE
         }
     }
@@ -111,7 +111,7 @@ impl Runner {
     fn open_window(&mut self, el: &ActiveEventLoop) -> Result<Win> {
         let attrs = Window::default_attributes()
             .with_title(self.app.title())
-            .with_window_icon(nfsu2::platform::icon::window_icon())
+            .with_window_icon(nfsu2::studio_api::platform::icon::window_icon())
             .with_inner_size(winit::dpi::LogicalSize::new(1600.0, 900.0))
             .with_min_inner_size(winit::dpi::LogicalSize::new(960.0, 600.0));
         let window = Arc::new(el.create_window(attrs)?);
@@ -124,7 +124,7 @@ impl Runner {
             .context("the window cannot be drawn on this GPU")?;
         let caps = surface.get_capabilities(&gpu.adapter);
         // egui blends in gamma space: a non-sRGB format, as the game's.
-        if let Some((format, space)) = nfsu2::render::display::sdr_surface_format(&caps) {
+        if let Some((format, space)) = nfsu2::studio_api::render::display::sdr_surface_format(&caps) {
             config.format = format;
             config.color_space = space;
         }

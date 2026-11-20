@@ -267,6 +267,68 @@ for rel in sorted(BINFILES):
         if RANK.get(other, len(ORDER)) > RANK.get(me, len(ORDER)):
             ups.append((rel, full or shown, me, other))
 
+# ---- Studio's interface into the library --------------------------------------------------------------------
+# crate-layers.txt `studio DIR…`: Studio's crates name the library only as `nfsu2::studio_api::…` (a deep path such
+# as `nfsu2::world::World` would tie Studio to the library's module layout), and the interface (src/studio_api.rs)
+# re-exports the library's items one by one: no glob re-export of a `crate::`/`self::`/`super::` path.
+STUDIO = []
+for line in open(os.path.join(HERE, "crate-layers.txt"), encoding="utf-8"):
+    w = line.split("#")[0].split()
+    if w and w[0] == "studio":
+        STUDIO += w[1:]
+
+
+def deep_paths(text):
+    """Every `nfsu2` path in `text` (comments and strings blanked) that does not go through `studio_api`."""
+    t = strip(text)
+    bad = []
+    for m in USE.finditer(t):
+        for p in expand_use(m.group(1)):
+            if p and p[0] == "nfsu2" and (len(p) < 2 or p[1] != "studio_api"):
+                bad.append("::".join(p))
+    for m in re.finditer(r'(?<![A-Za-z0-9_$:])nfsu2\b(?!\s*::\s*studio_api\b)((?:\s*::\s*[A-Za-z_][A-Za-z0-9_]*)*)', t):
+        if not t[:m.start()].rstrip().endswith("use"):
+            bad.append(re.sub(r"\s", "", m.group(0)))
+    return sorted(set(bad))
+
+
+def globbed(text):
+    """The glob re-exports of the library's own paths in `text`."""
+    t = strip(text)
+    return sorted({"::".join(p) for m in USE.finditer(t) for p in expand_use(m.group(1))
+                   if p and p[0] in ("crate", "self", "super") and p[-1] == "*"})
+
+
+def studio_self_test():
+    """The check fails on planted deep paths and globs, and passes the interface's own form."""
+    assert deep_paths("use nfsu2::studio_api::{world, render::Gpu};\nlet w = nfsu2::studio_api::world::World::flat(1.0);") == []
+    assert deep_paths("use nfsu2::world::World;") == ["nfsu2::world::World"]
+    assert deep_paths("use nfsu2::{studio_api::fog, render};") == ["nfsu2::render"]
+    assert deep_paths("fn f() { nfsu2::qol::setup::saved_root(); }") == ["nfsu2::qol::setup::saved_root"]
+    assert deep_paths("// nfsu2::world in a comment\nlet s = \"nfsu2::world\";") == []
+    assert globbed("pub use crate::world::*;") == ["crate::world::*"]
+    assert globbed("pub use crate::world::{World, parts_of};\npub use ob_map::tools::map::format::*;") == []
+
+
+studio_bad = []
+if STUDIO:
+    studio_self_test()
+    for d in STUDIO:
+        for dd, ds, fs in os.walk(os.path.join(REPO, d)):
+            ds.sort()
+            for f in sorted(fs):
+                if f.endswith(".rs"):
+                    full = os.path.join(dd, f)
+                    for p in deep_paths(open(full, encoding="utf-8", errors="replace").read()):
+                        studio_bad.append(f"{os.path.relpath(full, REPO)}: {p}")
+    api = os.path.join(REPO, "src/studio_api.rs")
+    for p in globbed(open(api, encoding="utf-8").read()) if os.path.exists(api) else ["src/studio_api.rs missing"]:
+        studio_bad.append(f"src/studio_api.rs: glob re-export {p}")
+    if studio_bad:
+        print("CRATE LAYERS: Studio names the library outside its interface (nfsu2::studio_api, ARCHITECTURE.md):")
+        for b in studio_bad:
+            print("  " + b)
+
 if LIST:
     for rel, path, a, b in sorted(set(ups)):
         print(f"{rel} {path}")
@@ -291,6 +353,7 @@ if stale:
     print("CRATE LAYERS: allow-list lines no longer needed (take them off crate-layers-allow.txt):")
     for f, p in stale:
         print(f"  {f} {p}")
-if new or stale:
+if new or stale or studio_bad:
     sys.exit(1)
-print(f"CRATE LAYERS: ok ({len(FILES)} library files, {len(BINFILES)} program files, {len(allow)} allowed upward references)")
+print(f"CRATE LAYERS: ok ({len(FILES)} library files, {len(BINFILES)} program files, {len(allow)} allowed upward references, "
+      f"Studio through nfsu2::studio_api only: {' '.join(STUDIO) or 'none'})")

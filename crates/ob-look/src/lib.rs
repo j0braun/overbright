@@ -5,6 +5,7 @@
 //! * [`lamp`]: the status lamps.
 //! * [`fonts`]: the type, Sofia Sans Semi Condensed (SIL OFL 1.1).
 //! * [`legends`]: the button legends' roles, glyph sets and glyphs.
+//! * [`words`]: the words on buttons, menu items and legends.
 //!
 //! Pure data: each program draws it its own way (the launcher on the CPU,
 //! the map editor and Studio through egui).
@@ -13,3 +14,4 @@ pub mod fonts;
 pub mod lamp;
 pub mod legends;
 pub mod theme;
+pub mod words;
