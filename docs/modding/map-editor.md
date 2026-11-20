@@ -405,14 +405,14 @@ picture. scripts/checks/editor_shots.sh runs it at every size of the resolution 
   and routes, `frontend/career/`), the edits as data (`ops.rs`) and the simulation stream (`sim/`). No world,
   window or GPU.
 - `src/tools/map/` (the game library): the game data the editor reads (`assets.rs`: `MapAssets`, the race tracks
-  and their road networks), the edits on a loaded world (`edit.rs`) and the session (`session.rs`). `tools::map::set_only` makes one mod the only one
+  and their road networks), and the edits on a loaded world (`edit.rs`). `tools::map::set_only` makes one mod the only one
   for a run: `Only::Folder` (`--map-mod`) or `Only::File` (`--map-file`). `sim/` holds the stream format and the
   problem detection, which the game writes the stream with and the editor reads it with.
 - Edits as data: `ops.rs` (in `crates/ob-map/`) has `Op`, one edit of a mod (move, delete, reset, add, duplicate or drop a prop; make,
   change or delete a race and its points; the mod's details; a `Group` of ops under one name), with props named
   by `PropKey` (`Original` with the mod file's region, section, solid, place and `nth`, or `Added` with the add's
   id), races by id, never by an index in a loaded world. Ops read and write JSON (one per line in an
-  `ops.jsonl`; vectors as arrays, rotations as their three rows) and round-trip exactly. `session.rs` has
+  `ops.jsonl`; vectors as arrays, rotations as their three rows) and round-trip exactly. `crates/ob-studio/src/session.rs` (Studio without a window) has
   `MapSession` (the mod, the original and edited world, the undo history, no window): `run(op)` makes an op as
   one undo step named by `Op::label` (the names Edit ▸ Undo shows), and a refused op or group changes nothing.
   An edit re-applies only the placements it changes. The shapes of `Op`, `PropKey`, `RacePoint` and `Change`,
@@ -434,8 +434,8 @@ picture. scripts/checks/editor_shots.sh runs it at every size of the resolution 
 - The launcher: the Mods page's Map mods section (`launcher/screens.rs`), `Env::start_editor` and
   `dirs::editor_exe` (docs/launcher.md).
 - Tests: `src/tools/map/tests.rs` (round trip, refusals, store, the run copy and `.editor/`, world and route with
-  the game's files), `src/tools/map/session_tests.rs` (every op through JSON, step names, all-or-nothing groups,
-  replay), `crates/ob-studio-gui/src/editor/` (every menu command taken, every key in the key table, the toolbar at
+  the game's files), `crates/ob-studio/src/session_tests.rs` (every op through JSON, step names, all-or-nothing groups,
+  replay), `crates/ob-studio/tests/map_overlay.rs` (the live re-apply after every op is a full apply), `crates/ob-studio-gui/src/editor/` (every menu command taken, every key in the key table, the toolbar at
   every width, the hand-off with a stand-in game: unsaved changes tested from the run copy, `map.obmap` untouched,
   the tested mark), `shell/cli.rs` (the flags and the run's end), `flow/race_setup.rs` (a test run on a custom
   race and from a spot, with the game's files), and `launcher/tests.rs`.

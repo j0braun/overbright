@@ -98,7 +98,7 @@ pub struct World {
     /// and go to its instance (0x5DB0F0).
     links: Vec<crate::formats::smackable::SceneryLink>,
     /// The placement each entry stands for.
-    link_placements: Vec<Option<usize>>,
+    pub link_placements: Vec<Option<usize>>,
     /// The entries' flags and the scenery groups' `on` as loaded.
     disk_link_flags: Vec<u16>,
     disk_groups_on: Vec<bool>,

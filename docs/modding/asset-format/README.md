@@ -161,7 +161,8 @@ not yet checked with the Khronos glTF validator). Every example is made up: none
 
 Parts of the pages are generated from `crates/ob-asset-format` and must not be edited by hand: every rule table
 (between `<!-- generated:rules -->` and `<!-- /generated -->`), the manifest's field tables, and
-`schemas/pack.schema.json` and `schemas/pack-migrations.schema.json`. `cargo run -p ob-asset-format --example
+`schemas/pack.schema.json`, `schemas/pack-migrations.schema.json`, `schemas/placements.schema.json` and
+`schemas/race.schema.json`. `cargo run -p ob-asset-format --example
 asset_format_docs -- --write` regenerates them; the crate's test `docs_in_step` (part of `cargo test`) and
 `scripts/checks/asset_format.sh` fail when the pages and the code differ ([versioning.md](versioning.md) §6).
 

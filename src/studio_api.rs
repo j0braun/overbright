@@ -18,6 +18,11 @@ pub mod world {
     pub use crate::world::{HIDDEN_FLAG, Placement, World, is_panorama, parts_of, transform_of};
 }
 
+/// The knock-over props a world keeps.
+pub mod smackable {
+    pub use crate::smackable::Prop;
+}
+
 /// Drawing a world without the game: the renderer, its options and the
 /// overview camera.
 pub mod render {
@@ -56,7 +61,7 @@ pub mod qol {
 /// The map editor's logic on a world: the edits and the game data it reads
 /// (the map data itself is crates/ob-map).
 pub mod map {
-    pub use crate::tools::map::{Applied, assets, edit, session};
+    pub use crate::tools::map::{Applied, assets, edit};
 }
 
 /// The game's career data (the base tracks' events), for checks against the

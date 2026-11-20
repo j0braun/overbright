@@ -1,4 +1,4 @@
-//! Map edits as data: [`Op`], run by a `MapSession` (the library's `tools::map::session`).
+//! Map edits as data: [`Op`], run by a `MapSession` (Studio's `ob_studio::session`).
 //!
 //! Every change the editor makes to a map mod is one `Op` (or a
 //! [`Op::Group`] of them under one name): a value that can be stored,
@@ -52,7 +52,7 @@ impl RacePart {
 }
 
 /// Why an edit was not made (a prop edit here, any [`Op`]
-/// run by a `MapSession` (the library's `tools::map::session`)). New reasons may be added.
+/// run by a `MapSession` (Studio's `ob_studio::session`)). New reasons may be added.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum Refused {

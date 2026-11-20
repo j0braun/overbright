@@ -14,7 +14,6 @@
 
 pub mod assets;
 pub mod edit;
-pub mod session;
 // The map data without a world (crates/ob-map), at its old paths.
 pub use ob_map::tools::map::{format, ops, race, sim, store};
 

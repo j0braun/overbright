@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "placements.schema.json",
   "title": "world/<REGION>/placements.toml (ob.placements)",
-  "description": "world.md 3.9 and 4: a mod pack's moved, disabled and added placements in one region. Mod packs only (WLD.10). An entry with id and no op is an addition, one with key and no op a merge. Guards, keys, dependencies and clashes are checked against the layer stack (WLD.11..15, MRG.*, ORD.2); one stale entry refuses the whole pack.",
+  "description": "world.md 3.9 and 4: a mod pack's moved, disabled and added placements in one region. Mod packs only (WLD.10). An entry with id and no op is an addition, one with key and no op a merge. Guards, keys, dependencies and clashes are checked against the layer stack (WLD.11..15, MRG.*, ORD.2); one stale entry refuses the whole pack. Generated from the code (crates/ob-asset-format/src/kinds.rs); do not edit.",
   "type": "object",
   "properties": {
     "schema": {

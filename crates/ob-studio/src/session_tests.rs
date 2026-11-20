@@ -4,11 +4,51 @@
 use glam::{Mat3, Vec2, Vec3};
 
 use super::*;
-use crate::tools::map::edit::tests::world;
-use crate::tools::map::ops::Change;
-use crate::tools::map::{PropRef, RaceKind};
+use nfsu2::studio_api::world::Placement;
+use ob_map::tools::map::format::{PropRef, RaceKind};
+use ob_map::tools::map::ops::Change;
 
 const REGION: &str = "L4RA";
+
+fn solid(name: &str) -> ob_formats::formats::solid::Solid {
+    ob_formats::formats::solid::Solid {
+        name: name.into(),
+        hash: ob_formats::formats::hash::bin_hash(name),
+        bbox_min: [-0.5, -0.5, 0.0],
+        bbox_max: [0.5, 0.5, 1.0],
+        textures: Vec::new(),
+        vertices: Vec::new(),
+        normals: Vec::new(),
+        light_materials: Vec::new(),
+        indices: Vec::new(),
+        materials: Vec::new(),
+        mesh_flags: 0,
+        markers: Vec::new(),
+        light_markers: Vec::new(),
+    }
+}
+
+/// A flat floor at z = 0 with two cones standing on it and a barrier
+/// 2 m above it (the same world as the edit tests' in the library).
+fn world() -> World {
+    let mut w = World::flat(200.0);
+    w.solids = vec![solid("XC_CONE_01"), solid("XC_BARRIER_03")];
+    let place = |solid, at: Vec3| Placement {
+        solid,
+        low_solid: None,
+        mid_solid: None,
+        transform: glam::Mat4::from_translation(at),
+        section: 618,
+        flags: 0,
+        cull_radius: 5.0,
+    };
+    w.placements = vec![
+        place(0, Vec3::new(10.0, 0.0, 0.0)),
+        place(0, Vec3::new(20.0, 0.0, 0.0)),
+        place(1, Vec3::new(30.0, 0.0, 2.0)),
+    ];
+    w
+}
 
 fn session() -> MapSession {
     MapSession::new(REGION, "my-map", MapMod::default(), world())
