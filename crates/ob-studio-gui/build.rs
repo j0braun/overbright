@@ -1,7 +1,7 @@
-//! The map editor's build script: the test kit's switches (`ob_game`,
+//! The map editor's and Studio's build script: the test kit's switches (`ob_game`,
 //! `ob_private`, as the root package's build.rs sets them) and, for Windows
-//! targets, `overbright-editor.exe`'s icon, version resource and manifest
-//! (build_support/windows_res.rs, shared with the root package).
+//! targets, `overbright-editor.exe`'s and `overbright-studio.exe`'s icon, version
+//! resource and manifest (build_support/windows_res.rs, shared with the root package).
 
 #[path = "../../build_support/icon_art.rs"]
 mod icon_art;
@@ -17,6 +17,6 @@ fn main() {
     let (version, commit) = stamp::version_stamp();
     if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("windows") {
         let out = std::path::PathBuf::from(std::env::var_os("OUT_DIR").expect("OUT_DIR"));
-        windows_res::build(&out, &version, &commit, &["overbright-editor"]);
+        windows_res::build(&out, &version, &commit, &["overbright-editor", "overbright-studio"]);
     }
 }
