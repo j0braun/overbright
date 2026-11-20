@@ -2295,7 +2295,10 @@ impl<'e> App<'e> {
             Btn::X => Key::ActionX,
             Btn::Y => Key::ActionY,
             Btn::Pages => Key::PageNext,
-            Btn::Move | Btn::Change => return None,
+            // The roles only Studio's legends show.
+            Btn::Move | Btn::Change | Btn::Area | Btn::Start | Btn::LastPlace | Btn::Sticks | Btn::DeckGrips => {
+                return None;
+            }
         })
     }
 

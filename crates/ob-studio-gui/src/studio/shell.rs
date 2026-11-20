@@ -1,0 +1,1311 @@
+//! Studio's window (docs/modding/studio.md): the menu bar with the address bar and Find, the rail, the docks, the
+//! legend row and the status bar around the current workspace, laid out by [`super::layout`] and driven by
+//! [`super::nav`]. Draws through egui into any target, so `--shot` renders it off-screen.
+
+use std::path::PathBuf;
+
+use egui::{Align2, Color32, CornerRadius, Pos2, Rect, RichText, Stroke, StrokeKind, UiBuilder, pos2, vec2};
+use ob_look::lamp::Mark;
+use ob_look::legends::{GlyphSet, InputKind, KeySet, glyphs_in};
+
+use crate::editor::theme::{self, LABEL, SEMI, TITLE, font, rgb, tokens};
+
+use super::address::{Address, CRUMB, Places, STUDIO, Target};
+use super::draw::{self, Source};
+use super::home::{self, ModSummary, Saved};
+use super::layout::{self, Dock, Layout, Memory, Want};
+use super::memory::Memories;
+use super::nav::{self, Area, Command, KEYS, Level, Nav, Pad};
+use super::words;
+use super::workspace::{Kind, Section, Workspace};
+
+/// The menus, left to right (Test and Mod fold into Go and File on narrow windows).
+const MENUS: [&str; 7] = ["File", "Edit", "View", "Go", "Test", "Mod", "Help"];
+/// Between two menus.
+const MENU_GAP: f32 = 16.0;
+
+/// The right dock's tabs.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RightTab {
+    Inspector,
+    History,
+    Help,
+}
+
+/// The bottom dock's shared tabs.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum BottomTab {
+    Problems,
+    Log,
+    Jobs,
+}
+
+/// One Studio window.
+pub struct Studio {
+    pub ctx: egui::Context,
+    /// The mods' folder.
+    pub maps: PathBuf,
+    pub mods: Vec<ModSummary>,
+    /// The open mod (an index into `mods`).
+    pub open: Option<usize>,
+    pub nav: Nav,
+    pub places: Places,
+    pub memories: Memories,
+    pub right_tab: RightTab,
+    pub bottom_tab: BottomTab,
+    /// The address bar's text while it shows the address (Ctrl+L).
+    pub address_edit: String,
+    pub find_text: String,
+    /// A verdict on an address that could not be followed.
+    pub verdict: Option<String>,
+    /// Help ▸ Controls is open.
+    pub controls: bool,
+    /// The size of the last frame's layout (logical points) and the layout.
+    pub last: Option<Layout>,
+    /// A fixed clock (`--shot`): busy lamps stand still.
+    pub fixed_clock: bool,
+    /// Set by File ▸ Quit.
+    pub quit: bool,
+}
+
+impl Studio {
+    /// A window on the mods in `maps`, with `folder` open when given.
+    pub fn new(maps: PathBuf, folder: Option<&str>) -> Studio {
+        let ctx = egui::Context::default();
+        theme::apply(&ctx);
+        let mods = home::all(&maps);
+        let open = folder.and_then(|f| mods.iter().position(|m| m.folder == f));
+        let memories = open.map(|i| Memories::load(&mods[i].dir)).unwrap_or_default();
+        let mut s = Studio {
+            ctx,
+            maps,
+            mods,
+            open,
+            nav: Nav::new(Workspace::Home),
+            places: Places::default(),
+            memories,
+            right_tab: RightTab::Inspector,
+            bottom_tab: BottomTab::Problems,
+            address_edit: String::new(),
+            find_text: String::new(),
+            verdict: None,
+            controls: false,
+            last: None,
+            fixed_clock: false,
+            quit: false,
+        };
+        let here = s.address();
+        s.places.go(here);
+        s
+    }
+
+    pub fn open_mod(&self) -> Option<&ModSummary> {
+        self.open.map(|i| &self.mods[i])
+    }
+
+    /// The pack id addresses of this window start with.
+    fn pack(&self) -> String {
+        self.open_mod().map_or_else(|| STUDIO.to_string(), |m| m.folder.clone())
+    }
+
+    /// Where the window is, as an address.
+    pub fn address(&self) -> Address {
+        let pack =
+            if self.nav.workspace == Workspace::Home || self.open.is_none() { STUDIO.to_string() } else { self.pack() };
+        Address::view(&pack, self.nav.workspace.view())
+    }
+
+    /// Where the window is, as names ("Harbour edits › World").
+    pub fn crumbs(&self) -> Vec<String> {
+        let mut v = vec![];
+        if let Some(m) = self.open_mod() {
+            v.push(m.name.clone());
+        } else {
+            v.push(words::STUDIO.to_string());
+        }
+        v.push(self.nav.workspace.name().to_string());
+        v
+    }
+
+    /// Go to an address (typed, pasted, from Find or from back/forward). A screen of the open mod or of Studio
+    /// is followed; anything else gets a verdict instead of a silent jump.
+    pub fn go(&mut self, a: &Address) -> Result<(), String> {
+        let ok_pack = a.pack == STUDIO || Some(a.pack.as_str()) == self.open_mod().map(|m| m.folder.as_str());
+        if !ok_pack {
+            if let Some(i) = self.mods.iter().position(|m| m.folder == a.pack) {
+                self.switch_mod(i);
+            } else {
+                return Err(format!("No mod {} in your mods folder", a.pack));
+            }
+        }
+        match &a.target {
+            Target::View { view, .. } => {
+                let w = Workspace::from_view(&format!("@{view}"))
+                    .ok_or_else(|| format!("Studio has no screen @{view} yet"))?;
+                self.workspace(w);
+                Ok(())
+            }
+            Target::Item { kind, .. } => {
+                // The items' own places come with their workspaces (World, Races); until then show the workspace.
+                let w = match kind.as_str() {
+                    "placement" | "prop" => Workspace::World,
+                    "race" => Workspace::Races,
+                    _ => return Err(format!("Studio cannot show a {kind} yet")),
+                };
+                self.workspace(w);
+                Ok(())
+            }
+        }
+    }
+
+    fn switch_mod(&mut self, i: usize) {
+        self.open = Some(i);
+        self.memories = Memories::load(&self.mods[i].dir);
+    }
+
+    fn workspace(&mut self, w: Workspace) {
+        if self.nav.workspace != w {
+            self.nav.workspace = w;
+            self.nav.area = Area::View;
+            self.nav.level = Level::Area;
+            self.nav.drawer_open = false;
+        }
+        let here = self.address();
+        self.places.go(here);
+    }
+
+    fn layout_now(&self) -> Layout {
+        let size = self.last.as_ref().map_or(vec2(1536.0, 864.0), |l| l.size);
+        layout::layout(size.x, size.y, &self.want())
+    }
+
+    pub fn want(&self) -> Want {
+        Want {
+            legend: self.nav.legend(),
+            memory: self.memories.get(self.nav.workspace),
+            drawer_open: self.nav.drawer_open,
+            ..Want::new(self.nav.workspace.kind())
+        }
+    }
+
+    /// Run a command from a key (`pad` None) or a pad.
+    pub fn command(&mut self, c: Command, pad: Option<InputKind>) {
+        let l = self.layout_now();
+        let before = self.nav.workspace;
+        match c {
+            Command::LastPlace => {
+                self.nav.run(c, pad, &l);
+                if let Some(a) = self.places.back().cloned() {
+                    let _ = self.go_quiet(&a);
+                }
+                return;
+            }
+            Command::NextPlace => {
+                self.nav.run(c, pad, &l);
+                if let Some(a) = self.places.forward().cloned() {
+                    let _ = self.go_quiet(&a);
+                }
+                return;
+            }
+            Command::EditAddress => self.address_edit = self.address().to_string(),
+            Command::Back if self.verdict.is_some() => {
+                self.verdict = None;
+                return;
+            }
+            Command::CopyAddress => self.ctx.copy_text(self.address().to_string()),
+            _ => {}
+        }
+        if let Some(w) = self.nav.run(c, pad, &l)
+            && w != before
+        {
+            self.nav.workspace = before;
+            self.workspace(w);
+        }
+        if self.nav.crumb_back && self.nav.workspace != Workspace::Home && self.nav.workspace.kind() == Kind::Page {
+            // A page's back link: the place before.
+            self.nav.crumb_back = false;
+            self.command(Command::LastPlace, pad);
+        }
+    }
+
+    /// Follow `a` without making a new place (back and forward).
+    fn go_quiet(&mut self, a: &Address) -> Result<(), String> {
+        if let Target::View { view, .. } = &a.target
+            && let Some(w) = Workspace::from_view(&format!("@{view}"))
+        {
+            self.nav.workspace = w;
+            self.nav.area = Area::View;
+            self.nav.level = Level::Area;
+            return Ok(());
+        }
+        Err("not a screen".into())
+    }
+
+    /// A pad button.
+    pub fn pad(&mut self, b: Pad, kind: InputKind) {
+        self.command(nav::pad_command(b), Some(kind));
+    }
+
+    /// The keys of this frame's input that are the shell's: taken out of the input, run.
+    fn take_keys(&mut self, raw: &mut egui::RawInput) {
+        let mut cmds = vec![];
+        let typing = self.nav.address_text || self.nav.find_open;
+        raw.events.retain(|e| match e {
+            egui::Event::Key { key, pressed: true, modifiers, .. } => {
+                let k = nav::Key { key: *key, ctrl: modifiers.command, shift: modifiers.shift, alt: modifiers.alt };
+                match nav::key_command(k) {
+                    // While typing, only the keys that leave the field are the shell's.
+                    Some(c)
+                        if typing
+                            && !matches!(
+                                c,
+                                Command::Back | Command::Select | Command::NextArea | Command::PrevArea
+                            ) =>
+                    {
+                        true
+                    }
+                    Some(c) => {
+                        cmds.push(c);
+                        false
+                    }
+                    None => true,
+                }
+            }
+            egui::Event::PointerButton { pressed: true, .. } | egui::Event::MouseWheel { .. } => {
+                self.nav.mouse();
+                true
+            }
+            _ => true,
+        });
+        for c in cmds {
+            if c == Command::Select && self.nav.address_text {
+                self.nav.input = InputKind::Keyboard;
+                self.nav.address_text = false;
+                self.nav.level = Level::Area;
+                match Address::parse(&self.address_edit) {
+                    Ok(a) => self.verdict = self.go(&a).err(),
+                    Err(e) => self.verdict = Some(e.to_string()),
+                }
+                continue;
+            }
+            if c == Command::Select && self.nav.find_open {
+                self.find_enter();
+                continue;
+            }
+            self.command(c, None);
+        }
+    }
+
+    fn find_enter(&mut self) {
+        let text = self.find_text.trim().to_string();
+        self.nav.find_open = false;
+        if let Ok(a) = Address::parse(&text) {
+            self.verdict = self.go(&a).err();
+        } else if let Some(w) = Workspace::ALL.into_iter().find(|w| w.name().eq_ignore_ascii_case(&text)) {
+            self.workspace(w);
+        }
+        self.find_text.clear();
+    }
+
+    /// One frame.
+    pub fn frame(&mut self, mut raw: egui::RawInput) -> egui::FullOutput {
+        self.take_keys(&mut raw);
+        let ctx = self.ctx.clone();
+        ctx.run_ui(raw, |ui| self.ui(ui))
+    }
+
+    fn time(&self) -> f32 {
+        if self.fixed_clock { 0.15 } else { self.ctx.input(|i| i.time as f32) }
+    }
+
+    fn ui(&mut self, ui: &mut egui::Ui) {
+        let screen = ui.max_rect();
+        // Rows and hit targets: 24 points, 32 while a pad is used.
+        let row = if self.nav.input.is_pad() { 32.0 } else { 24.0 };
+        ui.style_mut().spacing.interact_size.y = row;
+        let mut want = self.want();
+        // The menus' and the mod name's widths as drawn.
+        let mw = |s: &str, f: egui::FontId| ui.painter().layout_no_wrap(s.to_string(), f, Color32::WHITE).size().x;
+        // Each menu: its word in the button face with the buttons' padding, and the gap between menus.
+        let pad = MENU_GAP + 4.0;
+        want.menus_w = MENUS.iter().map(|m| mw(m, egui::TextStyle::Button.resolve(ui.style())) + pad).sum::<f32>();
+        want.mod_name_w = mw(&self.open_mod().map_or(String::new(), |m| m.name.clone()), font(SEMI, 15.0)) + 26.0;
+        let l = layout::layout(screen.width(), screen.height(), &want);
+        ui.painter().rect_filled(screen, 0.0, draw::page_fill());
+        if l.too_small {
+            ui.painter().text(
+                screen.center(),
+                Align2::CENTER_CENTER,
+                words::TOO_SMALL,
+                font("body", 15.0),
+                rgb(tokens().ink),
+            );
+            self.last = Some(l);
+            return;
+        }
+        self.menu_bar(ui, &l);
+        self.rail(ui, &l);
+        match self.nav.workspace.kind() {
+            Kind::Page => self.page(ui, &l),
+            Kind::Tool => self.tool(ui, &l),
+        }
+        if let Some(r) = l.legend {
+            self.legend(ui, r);
+        }
+        self.status(ui, &l);
+        self.focus_line(ui, &l);
+        if let Some(v) = self.verdict.clone() {
+            self.verdict_box(ui, &l, &v);
+        }
+        if self.nav.find_open {
+            self.find_list(ui, &l);
+        }
+        if self.nav.level == Level::Menu {
+            self.focus_menu(ui, &l);
+        }
+        if self.controls {
+            self.controls_window(ui);
+        }
+        self.last = Some(l);
+    }
+
+    // --- menu bar -------------------------------------------------------------------------------------------
+
+    fn menu_bar(&mut self, ui: &mut egui::Ui, l: &Layout) {
+        let t = tokens();
+        let p = ui.painter().clone();
+        p.rect_filled(l.menu.bar, 0.0, draw::page_fill());
+        p.line_segment([l.menu.bar.left_bottom(), l.menu.bar.right_bottom()], Stroke::new(1.0, draw::rule()));
+        ui.scope_builder(UiBuilder::new().max_rect(l.menu.menus), |ui| {
+            ui.horizontal_centered(|ui| {
+                ui.spacing_mut().item_spacing.x = MENU_GAP;
+                ui.style_mut().visuals.button_frame = false;
+                let short = l.menu.short_menus;
+                ui.menu_button("File", |ui| {
+                    if short {
+                        ui.label(RichText::new("Mod").color(rgb(t.dim)));
+                        self.mod_menu(ui);
+                        ui.separator();
+                    }
+                    if ui.button(words::QUIT).clicked() {
+                        self.quit = true;
+                    }
+                });
+                ui.menu_button("Edit", |ui| {
+                    let _ = ui.add_enabled(false, egui::Button::new(ob_look::words::UNDO).shortcut_text("Ctrl+Z"));
+                    let _ = ui.add_enabled(false, egui::Button::new(ob_look::words::REDO).shortcut_text("Ctrl+Y"));
+                    if ui.add(egui::Button::new(words::COPY_ADDRESS).shortcut_text("Ctrl+Shift+C")).clicked() {
+                        self.command(Command::CopyAddress, None);
+                    }
+                });
+                ui.menu_button("View", |ui| {
+                    if ui.button(words::RESET_LAYOUT).clicked() {
+                        self.reset_layout();
+                    }
+                });
+                ui.menu_button("Go", |ui| {
+                    for w in Workspace::ALL {
+                        if ui.add(egui::Button::new(w.name()).shortcut_text(format!("Ctrl+{}", w.ctrl_key()))).clicked()
+                        {
+                            self.workspace(w);
+                        }
+                    }
+                    ui.separator();
+                    if ui.add(egui::Button::new("Find…").shortcut_text("Ctrl+K")).clicked() {
+                        self.command(Command::Find, None);
+                    }
+                    if ui.add(egui::Button::new("Address").shortcut_text("Ctrl+L")).clicked() {
+                        self.command(Command::EditAddress, None);
+                    }
+                    if short {
+                        ui.separator();
+                        let _ = ui.add_enabled(false, egui::Button::new("Test").shortcut_text("F5"));
+                    }
+                });
+                if !short {
+                    ui.menu_button("Test", |ui| {
+                        let _ = ui.add_enabled(false, egui::Button::new("Test").shortcut_text("F5"));
+                    });
+                    ui.menu_button("Mod", |ui| self.mod_menu(ui));
+                }
+                ui.menu_button("Help", |ui| {
+                    if ui.button("Controls").clicked() {
+                        self.controls = true;
+                    }
+                });
+            });
+        });
+        // ← →
+        let bf = l.menu.back_fwd;
+        let half = Rect::from_min_size(bf.min + vec2(0.0, 4.0), vec2(bf.width() / 2.0 - 2.0, bf.height() - 8.0));
+        for (i, (txt, can, c)) in
+            [("←", self.places.can_back(), Command::LastPlace), ("→", self.places.can_forward(), Command::NextPlace)]
+                .into_iter()
+                .enumerate()
+        {
+            let r = half.translate(vec2(i as f32 * (half.width() + 4.0), 0.0));
+            let resp = ui.interact(r, egui::Id::unique(("backfwd", i)), egui::Sense::click());
+            p.rect_filled(r, 4.0, theme::over(t.button_fill, t.page));
+            let col = if can { rgb(t.ink) } else { rgb(t.disabled) };
+            p.text(r.center(), Align2::CENTER_CENTER, txt, font(SEMI, 15.0), col);
+            if resp.clicked() && can {
+                self.command(c, None);
+            }
+        }
+        // The address: names, or the address itself after Ctrl+L.
+        let a = l.menu.address.shrink2(vec2(0.0, 4.0));
+        p.rect_filled(a, 4.0, theme::over(t.field, t.page));
+        p.rect_stroke(a, 4.0, Stroke::new(1.0, theme::over(t.field_edge, t.page)), StrokeKind::Inside);
+        if self.nav.address_text {
+            let te =
+                egui::TextEdit::singleline(&mut self.address_edit).frame(egui::Frame::NONE).font(font("body", 14.0));
+            let resp = ui.put(a.shrink2(vec2(8.0, 2.0)), te);
+            resp.request_focus();
+        } else {
+            let mut x = a.left() + 10.0;
+            let crumbs = self.crumbs();
+            let n = crumbs.len();
+            let mut clip = p.clone();
+            clip.set_clip_rect(a.shrink(2.0));
+            for (i, c) in crumbs.iter().enumerate() {
+                let (f, col) =
+                    if i + 1 == n { (font(SEMI, 15.0), rgb(t.ink)) } else { (font("body", 15.0), rgb(t.dim)) };
+                let r = clip.text(pos2(x, a.center().y), Align2::LEFT_CENTER, c, f, col);
+                x = r.right();
+                if i + 1 < n {
+                    let r = clip.text(
+                        pos2(x + 6.0, a.center().y),
+                        Align2::LEFT_CENTER,
+                        CRUMB.trim(),
+                        font("body", 15.0),
+                        rgb(t.dim),
+                    );
+                    x = r.right() + 6.0;
+                }
+            }
+            if a.width() > 240.0 {
+                p.text(
+                    pos2(a.right() - 10.0, a.center().y),
+                    Align2::RIGHT_CENTER,
+                    "Ctrl+L",
+                    font(SEMI, 11.0),
+                    rgb(t.dim),
+                );
+            }
+            if ui.interact(a, egui::Id::unique("address"), egui::Sense::click()).clicked() {
+                self.command(Command::EditAddress, None);
+            }
+        }
+        // Find.
+        let f = l.menu.find.shrink2(vec2(0.0, 4.0));
+        p.rect_filled(f, 4.0, theme::over(t.field, t.page));
+        p.rect_stroke(f, 4.0, Stroke::new(1.0, theme::over(t.field_edge, t.page)), StrokeKind::Inside);
+        let cap_w = draw::glyph_width(&p, ob_look::legends::Glyph::Key("Ctrl+K"));
+        let show_cap = f.width() > cap_w + 70.0;
+        if show_cap {
+            draw::key_cap_right(&p, "Ctrl+K", f.right() - 4.0, f.center().y);
+        }
+        let text_r = Rect::from_min_max(
+            f.min + vec2(8.0, 2.0),
+            pos2(f.right() - if show_cap { cap_w + 8.0 } else { 6.0 }, f.bottom() - 2.0),
+        );
+        if self.nav.find_open {
+            let te =
+                egui::TextEdit::singleline(&mut self.find_text).frame(egui::Frame::NONE).hint_text(words::FIND_HINT);
+            ui.put(text_r, te).request_focus();
+        } else {
+            let mut clip = p.clone();
+            clip.set_clip_rect(text_r);
+            clip.text(
+                pos2(text_r.left(), f.center().y),
+                Align2::LEFT_CENTER,
+                words::FIND_HINT,
+                font("body", 15.0),
+                rgb(t.placeholder),
+            );
+            if ui.interact(f, egui::Id::unique("find"), egui::Sense::click()).clicked() {
+                self.command(Command::Find, None);
+            }
+        }
+        // The open mod's name with its lamp.
+        let m = l.menu.mod_name;
+        if let Some(md) = self.open_mod() {
+            let mark = match md.saved {
+                Saved::Error(_) => Mark::Error,
+                Saved::Behind => Mark::Warn,
+                Saved::Saved => Mark::Ok,
+            };
+            draw::lamp(&p, pos2(m.left() + 8.0, m.center().y), 9.0, mark, 0.0);
+            p.text(pos2(m.left() + 20.0, m.center().y), Align2::LEFT_CENTER, &md.name, font(SEMI, 15.0), rgb(t.ink));
+        }
+    }
+
+    /// Why an address was not followed: a message under the address bar (the launcher's message box: its left
+    /// edge in the mark's colour). Esc, B or a click closes it.
+    fn verdict_box(&mut self, ui: &mut egui::Ui, l: &Layout, text: &str) {
+        let t = tokens();
+        let p = ui.painter().clone();
+        let a = l.menu.address;
+        let galley = p.layout(text.to_string(), font("body", 15.0), rgb(t.ink), a.width().max(320.0) - 40.0);
+        let r =
+            Rect::from_min_size(pos2(a.left(), a.bottom() + 4.0), vec2(a.width().max(320.0), galley.size().y + 20.0));
+        p.rect_filled(r, 6.0, rgb(t.dialog));
+        p.rect_filled(
+            Rect::from_min_size(r.min, vec2(4.0, r.height())),
+            CornerRadius { nw: 6, sw: 6, ne: 0, se: 0 },
+            rgb(t.warn),
+        );
+        draw::lamp(&p, pos2(r.left() + 18.0, r.top() + 10.0 + 9.0), 10.0, Mark::Warn, 0.0);
+        p.galley(pos2(r.left() + 32.0, r.top() + 10.0), galley, rgb(t.ink));
+        if ui.interact(r, egui::Id::unique("verdict"), egui::Sense::click()).clicked() {
+            self.verdict = None;
+        }
+    }
+
+    fn mod_menu(&mut self, ui: &mut egui::Ui) {
+        let mut pick = None;
+        for (i, m) in self.mods.iter().enumerate() {
+            if ui.add(egui::Button::selectable(Some(i) == self.open, &m.name)).clicked() {
+                pick = Some(i);
+            }
+        }
+        if self.mods.is_empty() {
+            ui.label(RichText::new(words::NO_MODS_YET).color(rgb(tokens().dim)));
+        }
+        if let Some(i) = pick {
+            self.switch_mod(i);
+        }
+    }
+
+    fn reset_layout(&mut self) {
+        self.memories.set(self.nav.workspace, Memory::default());
+        if let Some(m) = self.open_mod()
+            && let Err(e) = self.memories.save(&m.dir)
+        {
+            log::warn!("studio: {e:#}");
+        }
+    }
+
+    // --- rail -----------------------------------------------------------------------------------------------
+
+    fn rail(&mut self, ui: &mut egui::Ui, l: &Layout) {
+        let t = tokens();
+        let p = ui.painter().clone();
+        let r = l.rail;
+        p.rect_filled(r, 0.0, draw::page_fill());
+        p.line_segment(
+            [r.right_top() + vec2(-1.0, 6.0), r.right_bottom() + vec2(-1.0, 0.0)],
+            Stroke::new(2.0, rgb(t.rail)),
+        );
+        let names = l.rail_names;
+        let item_h = if names { 82.0 } else { 42.0 };
+        let mut top = r.top() + 8.0;
+        let mut bottom = r.bottom() - 8.0;
+        let mut slots = vec![];
+        let mut last_section = Section::Top;
+        for w in Workspace::ALL.into_iter().filter(|w| matches!(w.section(), Section::Top | Section::Make)) {
+            if names && w.section() != last_section {
+                p.text(pos2(r.center().x, top + 8.0), Align2::CENTER_CENTER, "MAKE", font("body", 11.0), rgb(t.dim));
+                top += 20.0;
+                last_section = w.section();
+            }
+            slots.push((w, Rect::from_min_size(pos2(r.left() + 6.0, top), vec2(r.width() - 14.0, item_h))));
+            top += item_h + 4.0;
+        }
+        for w in Workspace::ALL.into_iter().rev().filter(|w| matches!(w.section(), Section::Share | Section::Bottom)) {
+            bottom -= item_h;
+            slots.push((w, Rect::from_min_size(pos2(r.left() + 6.0, bottom), vec2(r.width() - 14.0, item_h))));
+            if names && w.section() == Section::Share {
+                p.text(
+                    pos2(r.center().x, bottom - 12.0),
+                    Align2::CENTER_CENTER,
+                    "SHARE",
+                    font("body", 11.0),
+                    rgb(t.dim),
+                );
+                bottom -= 20.0;
+            }
+            bottom -= 4.0;
+        }
+        let focused = self.nav.area == Area::Rail && self.nav.legend();
+        for (w, slot) in slots {
+            let current = w == self.nav.workspace;
+            let resp = ui.interact(slot, egui::Id::unique(("rail", w.name())), egui::Sense::click());
+            if current {
+                p.rect_filled(slot, 6.0, theme::over(t.slab, t.page));
+                // The launcher's page mark: a ringed dot on the rail line.
+                let c = pos2(r.right() - 1.0, slot.center().y - if names { 18.0 } else { 0.0 });
+                p.circle_filled(c, 7.0, draw::page_fill());
+                p.circle_stroke(c, 6.0, Stroke::new(1.5, rgb(t.dot)));
+                p.circle_filled(c, 3.0, rgb(t.dot));
+            } else if resp.hovered() {
+                p.rect_filled(slot, 6.0, theme::over(t.hover, t.page));
+            }
+            if current && focused {
+                p.rect_stroke(slot, 6.0, Stroke::new(2.0, rgb(t.lime)), StrokeKind::Inside);
+            }
+            let col = if current { rgb(t.lime) } else { rgb(t.ink) };
+            let icon_c = if names { pos2(slot.center().x, slot.top() + 22.0) } else { slot.center() };
+            draw::rail_icon(&p, w, icon_c, col);
+            if names {
+                p.text(
+                    pos2(slot.center().x, slot.top() + 48.0),
+                    Align2::CENTER_CENTER,
+                    w.name(),
+                    draw::label_font(14.0),
+                    col,
+                );
+                p.text(
+                    pos2(slot.center().x, slot.top() + 67.0),
+                    Align2::CENTER_CENTER,
+                    format!("Ctrl+{}", w.ctrl_key()),
+                    font("body", 11.0),
+                    rgb(t.dim),
+                );
+            } else {
+                resp.clone().on_hover_text(format!("{} · Ctrl+{}", w.name(), w.ctrl_key()));
+            }
+            if resp.clicked() {
+                self.nav.mouse();
+                self.workspace(w);
+            }
+        }
+    }
+
+    // --- pages ----------------------------------------------------------------------------------------------
+
+    fn page(&mut self, ui: &mut egui::Ui, l: &Layout) {
+        let t = tokens();
+        let p = ui.painter().clone();
+        let slab = l.view;
+        p.rect_filled(slab, 10.0, theme::over(t.slab, t.page));
+        p.rect_stroke(slab, 10.0, Stroke::new(1.0, theme::over(t.slab_edge, t.slab.over(t.page))), StrokeKind::Inside);
+        let inner = slab.shrink2(vec2(36.0, 28.0));
+        match self.nav.workspace {
+            Workspace::Home => self.home(ui, inner),
+            w => {
+                p.text(inner.left_top(), Align2::LEFT_TOP, w.name(), font(TITLE, 34.0), rgb(t.lime));
+                let line = match w {
+                    Workspace::Mod => words::MOD_PAGE,
+                    _ => words::SETTINGS_PAGE,
+                };
+                p.text(inner.left_top() + vec2(0.0, 58.0), Align2::LEFT_TOP, line, font("body", 16.0), rgb(t.dim));
+            }
+        }
+    }
+
+    fn home(&mut self, ui: &mut egui::Ui, inner: Rect) {
+        let t = tokens();
+        let p = ui.painter().clone();
+        let title = self.open_mod().map_or(words::STUDIO.to_string(), |m| m.name.clone());
+        p.text(inner.left_top(), Align2::LEFT_TOP, &title, font(TITLE, 36.0), rgb(t.lime));
+        let top = inner.top() + 64.0;
+        let wide = inner.width() >= 760.0;
+        let left_w = if wide { inner.width() * 0.58 } else { inner.width() };
+        let left = Rect::from_min_size(pos2(inner.left(), top), vec2(left_w, inner.bottom() - top));
+        let right = Rect::from_min_max(pos2(inner.left() + left_w + 28.0, top), inner.max);
+
+        // The verdict card (the launcher's Game check): lamp, title, its words, the actions; as high as its words.
+        let (head, line, go) = match self.open_mod() {
+            None => (words::NO_MOD_TITLE.to_string(), words::NO_MOD_LINE.to_string(), None),
+            Some(m) if m.read_only_by.is_some() => (
+                words::READ_ONLY_TITLE.to_string(),
+                format!(
+                    "{} has it open. You can look; changes wait until it closes the mod.",
+                    m.read_only_by.clone().unwrap_or_default()
+                ),
+                Some(Workspace::World),
+            ),
+            Some(m) if m.changes() == 0 => {
+                (words::READY_TITLE.to_string(), words::READY_LINE.to_string(), Some(Workspace::World))
+            }
+            Some(m) => (
+                home::plural(m.changes(), "change", "changes"),
+                words::CHANGED_LINE.to_string(),
+                Some(Workspace::World),
+            ),
+        };
+        let galley = p.layout(line, font("body", 15.0), rgb(t.ink), left.width() - 48.0);
+        let card_h = 52.0 + galley.size().y + 14.0 + 40.0 + 16.0;
+        let card = Rect::from_min_size(left.min, vec2(left.width(), card_h));
+        p.rect_filled(card, 8.0, theme::over(t.panel, t.slab.over(t.page)));
+        p.rect_filled(
+            Rect::from_min_size(card.min, vec2(4.0, card.height())),
+            CornerRadius { nw: 8, sw: 8, ne: 0, se: 0 },
+            rgb(t.lime),
+        );
+        draw::check_lamp(&p, card.left_top() + vec2(30.0, 30.0), 20.0);
+        p.text(card.left_top() + vec2(48.0, 30.0), Align2::LEFT_CENTER, &head, font(TITLE, 22.0), rgb(t.ink));
+        p.galley(card.left_top() + vec2(20.0, 52.0), galley, rgb(t.ink));
+        let buttons = Rect::from_min_size(card.left_top() + vec2(20.0, card_h - 56.0), vec2(card.width() - 40.0, 40.0));
+        ui.scope_builder(UiBuilder::new().max_rect(buttons), |ui| {
+            ui.horizontal(|ui| {
+                ui.spacing_mut().button_padding = vec2(18.0, 8.0);
+                if let Some(w) = go {
+                    let b = theme::main_action(words::GO_TO_WORLD).min_size(vec2(0.0, 36.0));
+                    if ui.add(b).clicked() {
+                        self.workspace(w);
+                    }
+                    if ui.add(pill(words::MAKE_A_RACE)).clicked() {
+                        self.workspace(Workspace::Races);
+                    }
+                } else if ui.add(theme::main_action(words::OPEN_A_MOD).min_size(vec2(0.0, 36.0))).clicked() {
+                    self.nav.find_open = true;
+                }
+            });
+        });
+
+        // The summary rows.
+        let mut y = card.bottom() + 10.0;
+        let rows: Vec<(Mark, &str, String)> = match self.open_mod() {
+            Some(m) => vec![
+                (Mark::Ok, "Changes", m.changes_text()),
+                (
+                    if m.in_game { Mark::Ok } else { Mark::Info },
+                    "In your game",
+                    if m.in_game { "On".into() } else { words::OFF_IN_GAME.into() },
+                ),
+                match &m.saved {
+                    Saved::Saved => (Mark::Ok, "Saved", "Automatically".into()),
+                    Saved::Behind => (Mark::Warn, "Saved", words::SAVING_BEHIND.into()),
+                    Saved::Error(e) => (Mark::Error, "Saved", e.clone()),
+                },
+                (
+                    if m.read_only_by.is_some() { Mark::Warn } else { Mark::Ok },
+                    "Open for",
+                    match &m.read_only_by {
+                        Some(o) => format!("Looking only · {o} has it"),
+                        None => words::ONLY_THIS_WINDOW.into(),
+                    },
+                ),
+            ],
+            None => vec![(Mark::Info, "Your mods", home::plural(self.mods.len(), "mod", "mods"))],
+        };
+        let label_w = (left.width() * 0.35).min(200.0);
+        for (mark, name, value) in rows {
+            let row = Rect::from_min_size(pos2(left.left(), y), vec2(left.width(), 38.0));
+            draw::lamp(&p, pos2(row.left() + 14.0, row.center().y), 11.0, mark, self.time());
+            p.text(pos2(row.left() + 32.0, row.center().y), Align2::LEFT_CENTER, name, font("body", 16.0), rgb(t.dim));
+            let mut clip = p.clone();
+            clip.set_clip_rect(Rect::from_min_max(pos2(row.left() + label_w, row.top()), row.max));
+            clip.text(
+                pos2(row.left() + label_w, row.center().y),
+                Align2::LEFT_CENTER,
+                value,
+                font("body", 16.0),
+                rgb(t.ink),
+            );
+            p.line_segment([row.left_bottom(), row.right_bottom()], Stroke::new(1.0, draw::rule()));
+            y += 38.0;
+        }
+
+        // Your mods and something new.
+        let (col, mut y) = if wide { (right, right.top() + 6.0) } else { (left, y + 24.0) };
+        p.text(pos2(col.left(), y), Align2::LEFT_TOP, "YOUR MODS", font("body", 12.0), rgb(t.dim));
+        y += 22.0;
+        let mut pick = None;
+        let mut order: Vec<usize> = (0..self.mods.len()).collect();
+        order.sort_by_key(|i| Some(*i) != self.open);
+        for (i, m) in order.into_iter().map(|i| (i, &self.mods[i])).take(6) {
+            // As many as the slab has room for (the rest are in the Mod menu and Find).
+            if y + 56.0 > inner.bottom() - 70.0 {
+                break;
+            }
+            let row = Rect::from_min_size(pos2(col.left(), y), vec2(col.width(), 56.0));
+            let open = Some(i) == self.open;
+            if open {
+                p.rect_filled(row, 6.0, theme::over(t.panel, t.slab.over(t.page)));
+                p.rect_stroke(
+                    row,
+                    6.0,
+                    Stroke::new(1.0, theme::over(t.tag_edge, t.slab.over(t.page))),
+                    StrokeKind::Inside,
+                );
+            }
+            let src = if open { Source::Yours } else { Source::AnotherMod };
+            draw::source_mark(&p, pos2(row.left() + 20.0, row.center().y), 10.0, src);
+            p.text(
+                pos2(row.left() + 40.0, row.top() + 19.0),
+                Align2::LEFT_CENTER,
+                &m.name,
+                draw::label_font(18.0),
+                rgb(t.ink),
+            );
+            let sub = if open { format!("open · {}", m.line()) } else { m.line() };
+            p.text(pos2(row.left() + 40.0, row.top() + 40.0), Align2::LEFT_CENTER, sub, font("body", 13.0), rgb(t.dim));
+            if ui.interact(row, egui::Id::unique(("mod", i)), egui::Sense::click()).clicked() {
+                pick = Some(i);
+            }
+            y += 60.0;
+        }
+        if self.mods.is_empty() {
+            p.text(pos2(col.left(), y), Align2::LEFT_TOP, "None yet", font("body", 15.0), rgb(t.dim));
+            y += 30.0;
+        }
+        if let Some(i) = pick {
+            self.switch_mod(i);
+        }
+        y += 14.0;
+        p.text(pos2(col.left(), y), Align2::LEFT_TOP, "START SOMETHING NEW", font("body", 12.0), rgb(t.dim));
+        y += 26.0;
+        p.text(pos2(col.left() + 14.0, y), Align2::LEFT_TOP, "Empty map mod", draw::label_font(18.0), rgb(t.ink));
+        p.text(
+            pos2(col.left() + 14.0, y + 24.0),
+            Align2::LEFT_TOP,
+            "props and races, nothing else",
+            font("body", 13.0),
+            rgb(t.dim),
+        );
+    }
+
+    // --- tool workspaces ------------------------------------------------------------------------------------
+
+    fn tool(&mut self, ui: &mut egui::Ui, l: &Layout) {
+        let t = tokens();
+        let p = ui.painter().clone();
+        let base = t.slab.over(t.page);
+        if let Some(tb) = l.toolbar {
+            p.rect_filled(tb, 0.0, draw::panel_fill());
+            p.line_segment([tb.left_bottom(), tb.right_bottom()], Stroke::new(1.0, draw::rule()));
+            let pill_r = Rect::from_min_size(pos2(tb.right() - 160.0, tb.top() + 6.0), vec2(150.0, 28.0));
+            ui.put(pill_r, theme::main_action("Test  F5"));
+            p.text(
+                pos2(tb.left() + 12.0, tb.center().y),
+                Align2::LEFT_CENTER,
+                words::TOOLS_COME,
+                draw::label_font(15.0),
+                rgb(t.dim),
+            );
+        }
+        // The view.
+        p.rect_filled(l.view, 0.0, draw::page_fill());
+        p.text(l.view.center() - vec2(0.0, 14.0), Align2::CENTER_CENTER, "3D view", font(TITLE, 22.0), rgb(t.ink));
+        p.text(
+            l.view.center() + vec2(0.0, 14.0),
+            Align2::CENTER_CENTER,
+            words::VIEW_PLACEHOLDER,
+            font("body", 15.0),
+            rgb(t.dim),
+        );
+        // Left panel.
+        if let Some(r) = l.left {
+            p.rect_filled(r, 0.0, draw::panel_fill());
+            p.line_segment([r.right_top(), r.right_bottom()], Stroke::new(1.0, draw::rule()));
+            match l.left_dock {
+                Dock::Open(_) => {
+                    tabs(&p, r, &["Mod"], 0, self.nav.area == Area::Left);
+                    self.mod_tree(&p, r.shrink2(vec2(12.0, 0.0)).with_min_y(r.top() + 44.0));
+                }
+                _ => strip(&p, r, "Mod"),
+            }
+            if l.left_dock == Dock::Folded
+                && ui.interact(r, egui::Id::unique("left-strip"), egui::Sense::click()).clicked()
+            {
+                self.set_memory(|m| m.left_folded = Some(false));
+            }
+        }
+        // Bottom dock.
+        if let Some(r) = l.bottom {
+            p.rect_filled(r, 0.0, draw::panel_fill());
+            p.line_segment([r.left_top(), r.right_top()], Stroke::new(1.0, draw::rule()));
+            let sel = match self.bottom_tab {
+                BottomTab::Problems => 0,
+                BottomTab::Log => 1,
+                BottomTab::Jobs => 2,
+            };
+            tabs(&p, r, &["Problems", "Log", "Jobs"], sel, self.nav.area == Area::Bottom);
+            if matches!(l.bottom_dock, Dock::Open(_)) {
+                let body = r.with_min_y(r.top() + 42.0).shrink2(vec2(12.0, 0.0));
+                let line = match self.bottom_tab {
+                    BottomTab::Problems => words::NO_PROBLEMS,
+                    BottomTab::Log => words::NOTHING_LOGGED,
+                    BottomTab::Jobs => words::NO_JOBS,
+                };
+                draw::lamp(&p, pos2(body.left() + 8.0, body.top() + 14.0), 10.0, Mark::Ok, 0.0);
+                p.text(
+                    pos2(body.left() + 24.0, body.top() + 14.0),
+                    Align2::LEFT_CENTER,
+                    line,
+                    font("body", 15.0),
+                    rgb(t.ink),
+                );
+            }
+            for (i, tab) in [BottomTab::Problems, BottomTab::Log, BottomTab::Jobs].into_iter().enumerate() {
+                let tr = Rect::from_min_size(pos2(r.left() + 6.0 + i as f32 * 92.0, r.top() + 4.0), vec2(88.0, 28.0));
+                if ui.interact(tr, egui::Id::unique(("btab", i)), egui::Sense::click()).clicked() {
+                    self.bottom_tab = tab;
+                }
+            }
+        }
+        // Right dock, or its strip and drawer.
+        if let Some(r) = l.right {
+            p.rect_filled(r, 0.0, draw::panel_fill());
+            p.line_segment([r.left_top(), r.left_bottom()], Stroke::new(1.0, draw::rule()));
+            match l.right_dock {
+                Dock::Open(_) => self.right_dock(ui, &p, r),
+                _ => strip(&p, r, "Inspector"),
+            }
+            if !matches!(l.right_dock, Dock::Open(_))
+                && ui.interact(r, egui::Id::unique("right-strip"), egui::Sense::click()).clicked()
+            {
+                if matches!(l.right_dock, Dock::Drawer { .. }) {
+                    self.nav.drawer_open = !self.nav.drawer_open;
+                } else {
+                    self.set_memory(|m| m.right_folded = Some(false));
+                }
+            }
+        }
+        if let Some(d) = l.drawer {
+            p.rect_filled(d.translate(vec2(-6.0, 0.0)), 0.0, Color32::from_black_alpha(90));
+            p.rect_filled(d, 0.0, rgb(t.dialog));
+            p.line_segment([d.left_top(), d.left_bottom()], Stroke::new(1.0, theme::over(t.dialog_edge, t.dialog)));
+            self.right_dock(ui, &p, d);
+        }
+        let _ = base;
+    }
+
+    fn set_memory(&mut self, f: impl FnOnce(&mut Memory)) {
+        let mut m = self.memories.get(self.nav.workspace);
+        f(&mut m);
+        self.memories.set(self.nav.workspace, m);
+        if let Some(md) = self.open_mod()
+            && let Err(e) = self.memories.save(&md.dir)
+        {
+            log::warn!("studio: {e:#}");
+        }
+    }
+
+    fn mod_tree(&self, p: &egui::Painter, r: Rect) {
+        let t = tokens();
+        let Some(m) = self.open_mod() else {
+            p.text(r.left_top() + vec2(0.0, 8.0), Align2::LEFT_TOP, "No mod open", font("body", 15.0), rgb(t.dim));
+            return;
+        };
+        let rows = [
+            (format!("Props · {}", m.moved + m.added + m.hidden), 0.0),
+            (format!("Moved · {}", m.moved), 18.0),
+            (format!("Added · {}", m.added), 18.0),
+            (format!("Hidden · {}", m.hidden), 18.0),
+            (format!("Races · {}", m.races), 0.0),
+        ];
+        let mut y = r.top() + 8.0;
+        for (text, indent) in rows {
+            p.text(pos2(r.left() + indent, y), Align2::LEFT_TOP, text, draw::label_font(15.0), rgb(t.ink));
+            y += 28.0;
+        }
+    }
+
+    fn right_dock(&mut self, ui: &mut egui::Ui, p: &egui::Painter, r: Rect) {
+        let t = tokens();
+        let sel = match self.right_tab {
+            RightTab::Inspector => 0,
+            RightTab::History => 1,
+            RightTab::Help => 2,
+        };
+        tabs(p, r, &["Inspector", "History", "Help"], sel, self.nav.area == Area::Right);
+        for (i, tab) in [RightTab::Inspector, RightTab::History, RightTab::Help].into_iter().enumerate() {
+            let tr = Rect::from_min_size(pos2(r.left() + 6.0 + i as f32 * 92.0, r.top() + 4.0), vec2(88.0, 28.0));
+            if ui.interact(tr, egui::Id::unique(("rtab", i)), egui::Sense::click()).clicked() {
+                self.right_tab = tab;
+            }
+        }
+        let body = r.with_min_y(r.top() + 48.0).shrink2(vec2(14.0, 0.0));
+        let mut clip = p.clone();
+        clip.set_clip_rect(body);
+        match self.right_tab {
+            RightTab::Inspector => {
+                clip.text(body.left_top(), Align2::LEFT_TOP, words::NOTHING_SELECTED, font(TITLE, 20.0), rgb(t.lime));
+                clip.text(
+                    body.left_top() + vec2(0.0, 32.0),
+                    Align2::LEFT_TOP,
+                    words::INSPECTOR_EMPTY,
+                    font("body", 14.0),
+                    rgb(t.dim),
+                );
+                let mut y = body.top() + 74.0;
+                for (src, word) in
+                    [(Source::Original, "original"), (Source::Yours, "yours"), (Source::AnotherMod, "another mod wins")]
+                {
+                    draw::source_mark(&clip, pos2(body.left() + 6.0, y + 8.0), 10.0, src);
+                    clip.text(
+                        pos2(body.left() + 20.0, y + 8.0),
+                        Align2::LEFT_CENTER,
+                        word,
+                        font("body", 14.0),
+                        rgb(t.ink),
+                    );
+                    y += 24.0;
+                }
+            }
+            RightTab::History => {
+                let line = self
+                    .open_mod()
+                    .and_then(|m| m.last_step.clone())
+                    .map_or(words::NO_STEPS.to_string(), |s| format!("Last step: {s}"));
+                clip.text(body.left_top(), Align2::LEFT_TOP, line, font("body", 15.0), rgb(t.ink));
+            }
+            RightTab::Help => {
+                let mut y = body.top();
+                for k in KEYS.iter().take(10) {
+                    clip.text(pos2(body.left(), y), Align2::LEFT_TOP, k.keys, font(SEMI, 13.0), rgb(t.ink));
+                    clip.text(
+                        pos2(body.left() + 150.0, y),
+                        Align2::LEFT_TOP,
+                        k.word,
+                        draw::label_font(13.0),
+                        rgb(t.dim),
+                    );
+                    y += 22.0;
+                }
+            }
+        }
+    }
+
+    // --- legend row, status bar, focus ----------------------------------------------------------------------
+
+    fn legend(&self, ui: &mut egui::Ui, r: Rect) {
+        let t = tokens();
+        let p = ui.painter().clone();
+        p.rect_filled(r, 0.0, draw::page_fill());
+        p.line_segment([r.left_top(), r.right_top()], Stroke::new(1.0, draw::rule()));
+        let set = GlyphSet::for_input(self.nav.input);
+        let mut x = r.right() - 12.0;
+        let cy = r.center().y;
+        let mut left_edge = r.right();
+        for (btn, word) in self.nav.legend_roles().into_iter().rev() {
+            let gs = glyphs_in(set, KeySet::Studio, btn);
+            if gs.is_empty() {
+                continue;
+            }
+            let lw = p.layout_no_wrap(word.to_string(), draw::label_font(17.0), Color32::WHITE).size().x;
+            let gw: f32 = gs.iter().map(|g| draw::glyph_width(&p, *g)).sum::<f32>() + 4.0 * (gs.len() as f32 - 1.0);
+            let item = gw + 8.0 + lw;
+            if x - item < r.left() + 12.0 {
+                break;
+            }
+            x -= lw;
+            p.text(pos2(x, cy), Align2::LEFT_CENTER, word, draw::label_font(17.0), rgb(t.ink));
+            x -= 8.0 + gw;
+            let mut gx = x;
+            for g in gs {
+                gx += draw::glyph(&p, *g, gx, cy) + 4.0;
+            }
+            x -= 22.0;
+            left_edge = x;
+        }
+        if r.right() >= layout::DRAWER_FROM_W {
+            let note = if self.nav.input.is_pad() { words::LEGEND_NOTE_PAD } else { words::LEGEND_NOTE_KEYS };
+            let mut clip = p.clone();
+            clip.set_clip_rect(Rect::from_min_max(r.min, pos2(left_edge, r.bottom())));
+            clip.text(pos2(r.left() + 16.0, cy), Align2::LEFT_CENTER, note, font("body", 14.0), rgb(t.dim));
+        }
+    }
+
+    fn status(&self, ui: &mut egui::Ui, l: &Layout) {
+        let t = tokens();
+        let p = ui.painter().clone();
+        let r = l.status;
+        p.rect_filled(r, 0.0, draw::page_fill());
+        p.line_segment([r.left_top(), r.right_top()], Stroke::new(1.0, draw::rule()));
+        let cy = r.center().y;
+        let f = font("body", 13.0);
+        let (mark, text) = match self.open_mod().map(|m| &m.saved) {
+            None => (Mark::Info, words::NO_MOD_STATUS.to_string()),
+            Some(Saved::Saved) => (Mark::Ok, words::SAVED.to_string()),
+            Some(Saved::Behind) => (Mark::Warn, words::SAVING_BEHIND.to_string()),
+            Some(Saved::Error(e)) => (Mark::Error, e.clone()),
+        };
+        draw::lamp(&p, pos2(r.left() + 14.0, cy), 10.0, mark, 0.0);
+        let col = if mark == Mark::Error { rgb(t.err) } else { rgb(t.ink) };
+        let mut x = p.text(pos2(r.left() + 26.0, cy), Align2::LEFT_CENTER, text, f.clone(), col).right();
+        if let Some(m) = self.open_mod() {
+            if let Some(o) = &m.read_only_by {
+                x = p
+                    .text(
+                        pos2(x + 18.0, cy),
+                        Align2::LEFT_CENTER,
+                        format!("Looking only: {o} has it"),
+                        f.clone(),
+                        rgb(t.warn),
+                    )
+                    .right();
+            } else if let Some(s) = &m.last_step {
+                x = p
+                    .text(pos2(x + 18.0, cy), Align2::LEFT_CENTER, format!("Undo: {s}"), f.clone(), rgb(t.ink))
+                    .right();
+            }
+        }
+        // Right: problems, then whether the mod is in the game; the optional ones drop on narrow windows.
+        let mut right = r.right() - 12.0;
+        if let Some(m) = self.open_mod() {
+            let (a, b) =
+                if m.in_game { (words::IN_GAME_ON, "") } else { (words::IN_GAME_OFF, words::TURN_ON_IN_LAUNCHER) };
+            if !b.is_empty() {
+                right = p.text(pos2(right, cy), Align2::RIGHT_CENTER, b, f.clone(), rgb(t.lime)).left();
+            }
+            right = p.text(pos2(right, cy), Align2::RIGHT_CENTER, a, f.clone(), rgb(t.ink)).left();
+        }
+        if l.size.x >= layout::DRAWER_FROM_W && right - 120.0 > x {
+            p.text(pos2(right - 24.0, cy), Align2::RIGHT_CENTER, "Problems 0", f, rgb(t.ink));
+        }
+    }
+
+    /// The focused area: a 2 px lime line along its top (only while keys or a pad are used).
+    fn focus_line(&self, ui: &mut egui::Ui, l: &Layout) {
+        if !self.nav.legend() {
+            return;
+        }
+        let r = match self.nav.area {
+            Area::Rail => Some(l.rail),
+            Area::Address => Some(l.menu.address.shrink2(vec2(0.0, 4.0))),
+            Area::Toolbar => l.toolbar,
+            Area::Left => l.left,
+            Area::View => Some(l.view),
+            Area::Right => l.drawer.or(l.right),
+            Area::Bottom => l.bottom,
+        };
+        if let Some(r) = r {
+            ui.painter().line_segment(
+                [r.left_top() + vec2(0.0, 1.0), r.right_top() + vec2(0.0, 1.0)],
+                Stroke::new(2.0, rgb(tokens().lime)),
+            );
+        }
+    }
+
+    fn find_list(&mut self, ui: &mut egui::Ui, l: &Layout) {
+        let t = tokens();
+        let f = l.menu.find;
+        let w = 420.0f32.min(l.size.x - 24.0);
+        let r = Rect::from_min_size(pos2((f.right() - w).max(12.0), f.bottom() + 2.0), vec2(w, 320.0));
+        let q = self.find_text.trim().to_ascii_lowercase();
+        let mut go = None;
+        egui::Area::new(egui::Id::unique("find-list")).fixed_pos(r.min).order(egui::Order::Foreground).show(
+            ui.ctx(),
+            |ui| {
+                egui::Frame::popup(ui.style()).show(ui, |ui| {
+                    ui.set_width(w - 16.0);
+                    ui.label(RichText::new("GO TO").font(font("body", 11.0)).color(rgb(t.dim)));
+                    for ws in Workspace::ALL
+                        .into_iter()
+                        .filter(|ws| q.is_empty() || ws.name().to_ascii_lowercase().contains(&q))
+                    {
+                        if ui
+                            .add(
+                                egui::Button::new(ws.name())
+                                    .shortcut_text(format!("Ctrl+{}", ws.ctrl_key()))
+                                    .frame(false),
+                            )
+                            .clicked()
+                        {
+                            go = Some(ws);
+                        }
+                    }
+                    ui.label(RichText::new("COMMANDS").font(font("body", 11.0)).color(rgb(t.dim)));
+                    for k in KEYS.iter().filter(|k| q.is_empty() || k.word.to_ascii_lowercase().contains(&q)).take(6) {
+                        let _ = ui.add(egui::Button::new(k.word).shortcut_text(k.keys).frame(false));
+                    }
+                    if self.places.can_back() {
+                        ui.label(RichText::new("PLACES YOU WERE").font(font("body", 11.0)).color(rgb(t.dim)));
+                        for a in self.places.back_list().take(4) {
+                            ui.label(RichText::new(a.to_string()).color(rgb(t.dim)));
+                        }
+                    }
+                });
+            },
+        );
+        if let Some(ws) = go {
+            self.nav.find_open = false;
+            self.workspace(ws);
+        }
+    }
+
+    /// The focused thing's menu (Shift+F10, the Menu key, the pad's X), beside the focused area.
+    fn focus_menu(&mut self, ui: &mut egui::Ui, l: &Layout) {
+        let t = tokens();
+        let at = match self.nav.area {
+            Area::Rail => l.rail.right_top() + vec2(8.0, 40.0),
+            Area::Address => l.menu.address.left_bottom() + vec2(0.0, 4.0),
+            Area::Right => l.drawer.or(l.right).map_or(l.view.center(), |r| r.left_top() + vec2(20.0, 120.0)),
+            Area::Left => l.left.map_or(l.view.center(), |r| r.left_top() + vec2(20.0, 120.0)),
+            Area::Bottom => l.bottom.map_or(l.view.center(), |r| r.left_top() + vec2(40.0, 10.0)),
+            Area::Toolbar | Area::View => l.view.left_top() + vec2(40.0, 40.0),
+        };
+        let mut pick = None;
+        egui::Area::new(egui::Id::unique("focus-menu")).fixed_pos(at).order(egui::Order::Foreground).show(
+            ui.ctx(),
+            |ui| {
+                egui::Frame::popup(ui.style()).show(ui, |ui| {
+                    ui.set_min_width(240.0);
+                    let _ = ui.add_enabled(false, egui::Button::new(ob_look::words::UNDO).shortcut_text("Ctrl+Z"));
+                    let _ = ui.add_enabled(false, egui::Button::new(ob_look::words::REDO).shortcut_text("Ctrl+Y"));
+                    ui.separator();
+                    let _ = ui.add_enabled(false, egui::Button::new(words::TEST_HERE).shortcut_text("Shift+F5"));
+                    if ui.add(egui::Button::new(words::COPY_ADDRESS).shortcut_text("Ctrl+Shift+C")).clicked() {
+                        pick = Some(Command::CopyAddress);
+                    }
+                    ui.label(RichText::new(self.address().to_string()).font(font("body", 12.0)).color(rgb(t.dim)));
+                });
+            },
+        );
+        if let Some(c) = pick {
+            self.command(c, None);
+            self.nav.level = Level::Row;
+        }
+    }
+
+    fn controls_window(&mut self, ui: &mut egui::Ui) {
+        let mut open = true;
+        egui::Window::new("Controls").open(&mut open).collapsible(false).resizable(false).show(ui.ctx(), |ui| {
+            egui::Grid::new("controls").striped(true).show(ui, |ui| {
+                for k in KEYS {
+                    ui.label(RichText::new(k.keys).font(font(SEMI, 13.0)));
+                    ui.label(RichText::new(k.word).font(draw::label_font(14.0)));
+                    ui.label(k.help);
+                    ui.end_row();
+                }
+            });
+        });
+        self.controls = open;
+    }
+}
+
+/// A secondary button: an outlined pill, the label in the italic label face.
+fn pill(text: &str) -> egui::Button<'static> {
+    let t = tokens();
+    egui::Button::new(RichText::new(text.to_string()).font(font(LABEL, 17.0)).color(rgb(t.ink)))
+        .fill(Color32::TRANSPARENT)
+        .stroke(Stroke::new(1.5, rgb(t.outline)))
+        .corner_radius(CornerRadius::same(18))
+        .min_size(vec2(0.0, 36.0))
+}
+
+/// A dock's tab strip at the top of `r`: the current tab filled (lime while the dock has focus).
+fn tabs(p: &egui::Painter, r: Rect, names: &[&str], sel: usize, focused: bool) {
+    let t = tokens();
+    for (i, n) in names.iter().enumerate() {
+        let tr = Rect::from_min_size(pos2(r.left() + 6.0 + i as f32 * 92.0, r.top() + 4.0), vec2(88.0, 28.0));
+        if tr.right() > r.right() {
+            break;
+        }
+        if i == sel {
+            let fill = if focused { rgb(t.lime) } else { theme::over(t.pressed, t.slab.over(t.page)) };
+            p.rect_filled(tr, 4.0, fill);
+        }
+        let col = if i == sel && focused {
+            rgb(t.on_play)
+        } else if i == sel {
+            rgb(t.lime)
+        } else {
+            rgb(t.ink)
+        };
+        p.text(tr.center(), Align2::CENTER_CENTER, *n, draw::label_font(16.0), col);
+    }
+}
+
+/// A folded panel's strip with its name written upwards.
+fn strip(p: &egui::Painter, r: Rect, name: &str) {
+    let t = tokens();
+    let g = p.layout_no_wrap(name.to_string(), draw::label_font(14.0), rgb(t.ink));
+    let pos = Pos2::new(r.center().x - g.size().y / 2.0, r.top() + 16.0 + g.size().x);
+    p.add(egui::epaint::TextShape::new(pos, g, rgb(t.ink)).with_angle(-std::f32::consts::FRAC_PI_2));
+}

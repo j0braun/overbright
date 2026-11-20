@@ -1,0 +1,26 @@
+//! Overbright Studio's window (`overbright-studio`, docs/modding/studio.md): the shell every workspace lives in.
+//!
+//! * [`workspace`]: the workspaces and the rail's order.
+//! * [`layout`]: where every part goes at a window size (pure geometry; the clip and overlap check).
+//! * [`nav`]: the areas, the key table, the pad's buttons, Esc / B and the legend row's rule.
+//! * [`address`]: `ob://` addresses of items and screens, back and forward.
+//! * [`home`]: the mods as Home and the status bar show them (read through the mod's history).
+//! * [`memory`]: the panels' sizes and folds kept per workspace.
+//! * [`shell`]: the window drawn with egui; [`draw`]: its painted pieces; [`words`]: its words.
+//! * [`shot`]: the window drawn off-screen into a PNG.
+
+pub mod address;
+pub mod draw;
+pub mod home;
+pub mod layout;
+pub mod memory;
+pub mod nav;
+pub mod shell;
+pub mod shot;
+pub mod words;
+pub mod workspace;
+
+pub use shell::Studio;
+
+#[cfg(test)]
+mod tests;

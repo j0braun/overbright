@@ -54,10 +54,14 @@ mod size {
 /// A glyph's width at unit `u`.
 pub fn glyph_width(fonts: &Fonts, g: Glyph, u: f32) -> f32 {
     match g {
-        Glyph::Face(_) | Glyph::Symbol(_) | Glyph::PadArrow(_) | Glyph::Dpad | Glyph::View | Glyph::Create => {
-            size::DISC * u
-        }
-        Glyph::Bumper(t) => fonts.width(GLYPH_FACE, size::GLYPH_TEXT * u, t) + 2.0 * size::BUMPER_PAD * u,
+        Glyph::Face(_)
+        | Glyph::Symbol(_)
+        | Glyph::PadArrow(_)
+        | Glyph::Dpad
+        | Glyph::View
+        | Glyph::Create
+        | Glyph::Start => size::DISC * u,
+        Glyph::Bumper(t) | Glyph::Trigger(t) | Glyph::Stick(t) => fonts.width(GLYPH_FACE, size::GLYPH_TEXT * u, t) + 2.0 * size::BUMPER_PAD * u,
         Glyph::Key(t) => {
             (fonts.width(GLYPH_FACE, size::GLYPH_TEXT * u, t) + 2.0 * size::KEY_PAD * u).max(size::KEY_H * u)
         }
@@ -318,8 +322,18 @@ pub fn draw_glyph(c: &mut Canvas, fonts: &Fonts, g: Glyph, x: f32, cy: f32, u: f
             }
             stroke(c, pb, line, on_fill.a(255));
         }
-        Glyph::Bumper(s) | Glyph::Key(s) => {
-            let (h, r) = if matches!(g, Glyph::Bumper(_)) {
+        Glyph::Start => {
+            disc(c);
+            let a = 6.0 * u;
+            let mut pb = PathBuilder::new();
+            for dy in [-4.0, 0.0, 4.0] {
+                pb.move_to(cx - a, cy + dy * u);
+                pb.line_to(cx + a, cy + dy * u);
+            }
+            stroke(c, pb, line, on_fill.a(255));
+        }
+        Glyph::Bumper(s) | Glyph::Trigger(s) | Glyph::Stick(s) | Glyph::Key(s) => {
+            let (h, r) = if !matches!(g, Glyph::Key(_)) {
                 (size::BUMPER_H * u, size::BUMPER_RADIUS * u)
             } else {
                 (size::KEY_H * u, size::KEY_RADIUS * u)
