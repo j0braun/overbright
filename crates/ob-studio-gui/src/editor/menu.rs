@@ -49,6 +49,8 @@ pub enum Action {
     HowToTest,
     /// Show or hide the hint line under the view.
     Hint(bool),
+    /// The collision layer (View ▸ Collision).
+    Collision(super::collision::Show),
 }
 
 /// A request for one of the editor's parts.
@@ -499,6 +501,17 @@ pub fn bar(app: &App, ui: &mut egui::Ui, out: &mut Vec<Action>) {
             let s = app.state.as_ref();
             command(ui, s, "Frame selection", "F", Command::FrameSelection);
             command(ui, s, "Reset camera", "", Command::ResetCamera);
+            ui.separator();
+            let shown = s.map(|s| s.collision);
+            ui.add_enabled_ui(open, |ui| {
+                ui.menu_button("Collision", |ui| {
+                    for c in super::collision::Show::ALL {
+                        if ui.add(egui::Button::selectable(shown == Some(c), c.label())).clicked() {
+                            out.push(Action::Collision(c));
+                        }
+                    }
+                });
+            });
             ui.separator();
             if ui.add_enabled(open, egui::Button::selectable(app.layout.hint, "Hint line")).clicked() {
                 out.push(Action::Hint(!app.layout.hint));

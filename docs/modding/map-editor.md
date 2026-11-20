@@ -81,7 +81,7 @@ Reset camera in the map view). Every item does something; a test checks that eac
 |---|---|
 | File | **File ▸ New map mod…** (Ctrl+N: a name, its folder and the region), **File ▸ Open map mod…** (Ctrl+O), the five most recent mods, **File ▸ Save** (Ctrl+S), **File ▸ Mod details…** (name, author, description), **File ▸ Import…** (a mod folder, a `map.obmap` or a `.zip`), **File ▸ Export…** (a `.zip` or a folder; `map.obmap` only), **File ▸ Quit** (Ctrl+Q; asks first when there are unsaved changes) |
 | Edit | **Edit ▸ Undo** and **Edit ▸ Redo**, named by the step they undo or redo (256 steps), **Edit ▸ Duplicate**, **Edit ▸ Delete**, **Edit ▸ Select all of this solid**, **Edit ▸ Drop to ground** |
-| View | **View ▸ 3D view**, **View ▸ Map** (M switches), **View ▸ Frame selection** (F), **View ▸ Reset camera** (the region's overview), **View ▸ Hint line** |
+| View | **View ▸ 3D view**, **View ▸ Map** (M switches), **View ▸ Frame selection** (F), **View ▸ Reset camera** (the region's overview), **View ▸ Collision ▸ Off**, **View ▸ Collision ▸ Invisible barriers** and **View ▸ Collision ▸ All collision** (see Collision), **View ▸ Hint line** |
 | Race | **Race ▸ New race**, **Race ▸ Test race** (F5), **Race ▸ Drive here** (Shift+F5) |
 | Help | **Help ▸ Controls**: every key, made from the editor's key table |
 
@@ -325,13 +325,45 @@ last checkpoint. Checkpoints taken from a track's own route build that track's r
 Custom races are raced through Test race. They do not appear in the career or the Quick Race lists, and their
 results do not count toward the career.
 
+## Collision
+
+The Collision submenu of the View menu draws the game's own collision over the 3D view, the top overview and
+the Map. It is read-only: nothing about collision is changed, saved or sent to the game.
+
+- **View ▸ Collision ▸ Off** (the default) draws nothing.
+- **View ▸ Collision ▸ Invisible barriers** draws the walls a player cannot see: in red the invisible walls,
+  in amber the race and career barriers.
+- **View ▸ Collision ▸ All collision** adds, in grey, the walls that stand behind scenery and, in the 3D view,
+  the floors near the camera.
+
+A key at the view's bottom right names the colours and counts each kind in the region. In the 3D view a wall is
+a see-through panel with its outline; in the top overview and on the Map it is a line along its foot.
+
+What is drawn:
+
+- The faces come from the region's collision packs as the game loads them (docs/modding/asset-format/collision.md);
+  a face stored in several packs is drawn once. Edits in the mod do not change them (see Limits).
+- **Race and career barriers** are the walls of a barrier group other than 0 (`BARRIERS_<n>`,
+  `PLAYER_BARRIERS_<n>`, `BARRIERS_CAREER<n>`). The game switches them on per race or per career stage; the
+  editor draws them all, whichever are on.
+- **Invisible walls** are the walls of group 0 (always there) with no drawn scenery standing at them. The editor
+  decides this itself: a wall is cut into 2 m pieces, and a piece counts as hidden by scenery when a steep
+  triangle of the original's placements (free roam, no panorama, no race-only pieces) comes within 1 m of it,
+  2 m above its foot. A piece with none is drawn as invisible. The game has no such flag; this is the editor's
+  reading, so a wall behind a thin or far-off model can show as invisible.
+- A wall the game makes reach from −2048 m to 2048 m (flag 0x04) is drawn from the floors beside it to 4 m
+  above them.
+- In the 3D view walls are drawn up to a few hundred metres from the camera (farther from higher up) and floors
+  up to 120 m.
+
 ## Limits
 
 - Collision of the city's static scenery is baked per section and is not tied to the placements. A moved or
   deleted building keeps its collision where the original has it, and an added copy of one has none.
   Knock-over props (cones, signs, barrels, …) carry their own collision: moved ones are hit where they now stand,
   added copies of one are knock-over props too, and deleted ones are gone.
-- Overlays (route, checkpoints, handles) are drawn over the world without depth.
+- Overlays (route, checkpoints, handles, collision) are drawn over the world without depth.
+- The collision layer only shows collision; walls and barriers cannot be moved, added or removed yet.
 - Shops, event markers, traffic lanes and AI lanes cannot be edited yet. Drag races are not offered (their lanes
   are fixed to the drag tracks).
 - Copy and paste in text fields work only inside the editor (no system clipboard); screen readers are not
@@ -394,7 +426,8 @@ takes `--size WxH` (default 1600x900), `--scale F` (the display scale), `--mod`,
 props|races` (which side of the selection is in front), `--tool <name>` (a toolbar tool), `--view
 3d|map|street|whole|top`, `--light work|game`, `--tab browser|validation|simulate|log`, `--select N,M`
 (placements by number; the 3D view is framed on them) and `--sim <stream file>[@seconds[:car]]` (a saved
-simulation at that time, following that car). A shot runs on a fixed clock, so the same arguments draw the same
+simulation at that time, following that car), `--collision off|invisible|all` (the collision layer) and `--camera x,y,z[,yaw,pitch]`
+(the 3D camera, metres and degrees). A shot runs on a fixed clock, so the same arguments draw the same
 picture. scripts/checks/editor_shots.sh runs it at every size of the resolution matrix (docs/developing/checks.md).
 
 ## How it works (for developers)
@@ -404,6 +437,10 @@ picture. scripts/checks/editor_shots.sh runs it at every size of the resolution 
   run copy's atomic write, `move_old_sidecars`), the custom race's route (`race.rs`, on the original's race tracks
   and routes, `frontend/career/`), the edits as data (`ops.rs`) and the simulation stream (`sim/`). No world,
   window or GPU.
+- The collision layer: `crates/ob-map/src/tools/map/collision.rs` sorts the faces into walls and floors, tests
+  each wall piece against the scenery and keeps a 64 m index for drawing; `crates/ob-studio-gui/src/editor/collision.rs`
+  builds it the first time it is shown for a region and draws it, with a reference image test
+  (`crates/ob-studio-gui/tests/reference/collision-layer.png`, `OB_BLESS=1` writes it again).
 - `src/tools/map/` (the game library): the game data the editor reads (`assets.rs`: `MapAssets`, the race tracks
   and their road networks), and the edits on a loaded world (`edit.rs`). `tools::map::set_only` makes one mod the only one
   for a run: `Only::Folder` (`--map-mod`) or `Only::File` (`--map-file`). `sim/` holds the stream format and the

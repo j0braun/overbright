@@ -25,7 +25,7 @@ mod tools {
     pub mod map {
         pub use nfsu2::studio_api::map::*;
         pub use ob_map::tools::map::format::*;
-        pub use ob_map::tools::map::{ops, race, store};
+        pub use ob_map::tools::map::{collision, ops, race, store};
         pub use ob_studio::session;
     }
 }

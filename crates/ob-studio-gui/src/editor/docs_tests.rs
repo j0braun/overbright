@@ -58,11 +58,25 @@ fn menu_items() -> Vec<(String, Option<String>)> {
     let src = read("src/editor/menu.rs");
     let start = src.find("pub fn bar(").expect("menu::bar");
     let end = start + src[start..].find("\n}\n").expect("the end of menu::bar");
-    let mut menu = "";
+    // The open menus with their lines' indents (a submenu nests: "View ▸
+    // Collision ▸ Off").
+    let mut menus: Vec<(usize, &str)> = Vec::new();
     let mut out = Vec::new();
     for line in src[start..end].lines() {
+        let indent = line.len() - line.trim_start().len();
+        if !line.trim().is_empty() {
+            while menus.last().is_some_and(|&(i, _)| indent <= i) {
+                menus.pop();
+            }
+        }
         if line.contains("menu_button(") {
-            menu = literal(line).expect("a menu's name");
+            menus.push((indent, literal(line).expect("a menu's name")));
+            continue;
+        }
+        let menu = menus.iter().map(|m| m.1).collect::<Vec<_>>().join(" ▸ ");
+        // The collision layer's choices are drawn from their own table.
+        if line.contains("collision::Show::ALL") {
+            out.extend(super::collision::Show::ALL.map(|c| (format!("{menu} ▸ {}", c.label()), None)));
             continue;
         }
         let drawn = ["item(ui, \"", "item(ui, words::", "command(ui, s, \"", "command(ui, s, words::", "Button::selectable(", "ui.button(\""];

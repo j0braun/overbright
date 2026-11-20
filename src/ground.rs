@@ -245,6 +245,13 @@ impl TrackGround {
         self.packs.is_empty()
     }
 
+    /// Every pack's faces as loaded, pack by pack (a face stored in several
+    /// packs comes once per pack). Read-only; for the map editor's collision
+    /// layer (`tools::map::collision`).
+    pub fn faces(&self) -> impl Iterator<Item = &CollisionFace> {
+        self.packs.iter().flat_map(|p| p.polygons.iter().map(|q| &q.face))
+    }
+
     /// Switch the context's own barrier groups on or off (0x5E7403 /
     /// 0x5E76B2 around the height query's walk, 0x5E58E2 / 0x5E5915 around
     /// the gather): the global switches, so off means off for everyone.
