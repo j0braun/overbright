@@ -118,6 +118,8 @@ libc.workspace = true
 proptest.workspace = true
 # The test kit (crates/ob-testkit, docs/developing/testing.md).
 ob-testkit = { path = "crates/ob-testkit" }
+# The asset format's run file check (`ob.run`) on the simulation's stream (src/bin/game/enh/sim_stream.rs).
+ob-asset-format = { path = "crates/ob-asset-format" }
 
 [features]
 # Tracy: `cargo build --release --features profile-tracy`, then connect the

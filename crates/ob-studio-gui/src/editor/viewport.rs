@@ -999,6 +999,11 @@ impl Viewport {
                 shown,
                 &opts,
             );
+            // Their head and brake light flares, after the cars as the
+            // game's glow pass comes after its cars (depth-tested).
+            let flares = cars.flares(shown, &lists.camera, aspect);
+            renderer.upload_glows(gpu, &flares);
+            renderer.draw_glows(encoder, &target.color, &target.depth, false);
         }
         self.lit = false;
         self.light_pass(encoder);

@@ -37,14 +37,25 @@ pub mod render {
     /// The game's car drawing (a recorded run's cars over the world).
     pub mod car {
         pub use crate::render::car::CarRenderer;
-        pub use crate::render::car::lighting::CarLighting;
+        pub use crate::render::car::lighting::{CameraAxes, CarLighting};
     }
+    /// The view's sprite scale (`256 / tan(fov / 2)`), as the game's flares
+    /// take it.
+    pub use crate::render::cull_scale;
 }
 
 /// A car as the game builds it from its model and fitted parts, and its
 /// wheels as drawn.
 pub mod car {
     pub use crate::car::{Car, WheelPose};
+}
+
+/// The game's light flares: a car's head and brake light sprites as the
+/// game's glow pass builds them (`WorldRenderer::upload_glows` /
+/// `draw_glows` draw them).
+pub mod glow {
+    pub use crate::glow::{View, car_sprites};
+    pub use crate::particles::Quad;
 }
 
 /// The fog a world is drawn with.

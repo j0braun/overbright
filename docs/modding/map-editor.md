@@ -287,7 +287,8 @@ The editor reads the stream while it arrives and never waits for the game. The t
 racer) and **Lines** (each racer's driven line). In the 3D view the cars are the game's own cars: each car's
 model with its paint, body parts, vinyls, rims and lights as the run built it (the stream's look records, below),
 drawn by the game's car renderer with the world's lighting, its wheels steering, rolling and riding the
-suspension, and every car's headlight pool on the road; they move smoothly between the game's 60 Hz updates at
+suspension, every car's headlight pool on the road, and its head and brake light flares as the game's glow pass
+builds them (the brake lights lit while the run had them on); they move smoothly between the game's 60 Hz updates at
 any playback speed. Traffic is drawn the same way. A car shows as a coloured box while its model loads (on its
 own thread; the view keeps drawing) or when it cannot be built (no game data, a stream written before the looks);
 **Car models** (on by default, before the colour key) switches every car to boxes. On the map the cars are
@@ -312,15 +313,17 @@ shot never opens the real one).
 
 ### Simulation stream
 
-Plain text, one record per line; readers skip records they do not know.
+The asset format's run file, `ob.run` (docs/modding/asset-format/runs.md, which has every field): plain text, one
+record per line; readers skip records they do not know.
 
 | Record | Fields |
 |---|---|
-| `OBSIM 1 mode=race seed=7 race=<id> track=<n> laps=<n> checkpoints=<n>` | the header (version 1) |
+| `OBSIM 1 schema=ob.run/1.0 mode=race seed=7 race=<id> track=<n> laps=<n> checkpoints=<n>` | the header (version 1; `schema=` names the run file's minor version) |
 | `C <id> <P\|R\|T\|X> <name>` | a car's first appearance: player slot, opponent, traffic, street racer |
 | `L <id> <model> <camber> <slot:hash,…\|->` | a car's look: its model (`CARS/<model>`), the front wheels' x-turn (radians) and its fitted visual parts (slot and part hash in hex, the performance packages' visual parts included); before the car's first update and again when it changes (a traffic slot taking another car) |
 | `F <tick> <time> <car>\|<car>…` | one update; each car `id kind x y z qx qy qz qw speed lap checkpoint place`, then `steer0 steer1 roll0..3 lift0..3 lights` |
 | `E <tick> <time> <kind> <car> <checkpoint> <value>` | `start`, `checkpoint`, `lap` / `finish` (value: time), `crash` (m/s lost), `stuck`, `wrong-way` |
+| `H <tick> <hash>` | the state hash over every tick so far (16 hex digits), every 60 ticks and after the last tick |
 | `R <car> <place> <time> <best> <lap,lap…>` | a racer's result (`-`: none; place 0: did not finish) |
 | `END <finish\|quit\|limit\|error …>` | the end |
 
@@ -329,10 +332,12 @@ start in free roam; positions in world metres, the rotation a unit quaternion, s
 slot 0, opponents 1.., traffic 100.., street racers 200... A car's wheels and lights: the front wheels' steer
 (radians), each wheel's roll about its axle (radians, 0..2π, table order) and lift (the hub's offset, m), and the
 lights (1 headlights, which every car has on in game; 2 brake lights, the racers' flag held 0.5 s as the game
-holds it). The same seed still gives the same stream byte for byte. A reader skips records and trailing fields
+holds it). The state hash covers each car's exact position, rotation, velocity and spin, not the rounded values
+written: a second run of the seed, or a replay, that parts from this one shows it at the first `H` that differs.
+The same seed still gives the same stream byte for byte, hashes included. A reader skips records and trailing fields
 it does not know, so a stream from before the looks and wheels still plays (as boxes), and the version stays 1.
-The editor rebuilds each look with the game's own car loader (`Car::load_with` on the model and parts). Not yet
-drawn from the stream: the light flares (head, brake and tail light sprites) and the spinners' own turn.
+The editor rebuilds each look with the game's own car loader (`Car::load_with` on the model and parts) and draws
+its flares with the game's own flare sprites and glow pass. Not yet drawn from the stream: the spinners' own turn.
 
 ## The game's free camera
 

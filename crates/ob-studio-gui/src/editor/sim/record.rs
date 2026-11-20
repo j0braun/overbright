@@ -26,6 +26,9 @@ pub struct Recording {
     pub frames: Vec<Frame>,
     pub events: Vec<Event>,
     pub results: Vec<ResultRow>,
+    /// The state hashes: the last tick each covers, the hash (a second run
+    /// of the seed parts from this one at the first that differs).
+    pub hashes: Vec<(u64, u64)>,
     /// The end line (`finish`, `quit`, `limit`, `error …`).
     pub end: Option<String>,
     /// Lines that did not read (kept for the log, at most a few).
@@ -72,6 +75,7 @@ impl Recording {
             }
             Line::Event(e) => self.events.push(e),
             Line::Result(r) => self.results.push(r),
+            Line::Hash { tick, hash } => self.hashes.push((tick, hash.0)),
             Line::End(why) => self.end = Some(why),
         }
     }

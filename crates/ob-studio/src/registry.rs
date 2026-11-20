@@ -172,6 +172,24 @@ pub const RACE: Kind = Kind {
 /// Every kind Studio edits.
 pub const KINDS: &[Kind] = &[PLACEMENT, RACE];
 
+/// A kind of line records Studio reads (not pack content, not layered): its records are the asset format's table,
+/// the same one that checks the file and writes its schema.
+#[derive(Clone, Copy, Debug)]
+pub struct RecordKind {
+    pub short: &'static str,
+    /// The schema id a writer of this version puts in the file.
+    pub schema: &'static str,
+    pub schema_file: &'static str,
+    pub records: &'static [kinds::run::Record],
+}
+
+/// The run file (docs/modding/asset-format/runs.md): simulations, recordings and replays.
+pub const RUN: RecordKind =
+    RecordKind { short: "run", schema: kinds::run::SCHEMA, schema_file: "run.schema.json", records: kinds::run::RUN };
+
+/// Every record kind Studio reads.
+pub const RECORD_KINDS: &[RecordKind] = &[RUN];
+
 /// The kind with this short name.
 pub fn kind(short: &str) -> Option<&'static Kind> {
     KINDS.iter().find(|k| k.short == short)
@@ -408,8 +426,8 @@ fn fields_json(fields: &[Field]) -> Json {
     )
 }
 
-/// The registries as one JSON document (`"format": 1`): the kinds with their keys, fields and rules, and the
-/// commands with their kinds and arguments.
+/// The registries as one JSON document (`"format": 1`): the kinds with their keys, fields and rules, the record
+/// kinds with their records' fields, and the commands with their kinds and arguments.
 pub fn export() -> Json {
     let kinds = KINDS
         .iter()
@@ -448,7 +466,28 @@ pub fn export() -> Json {
             ])
         })
         .collect();
-    Json::obj([("format", Json::Int(1)), ("kinds", Json::Array(kinds)), ("commands", Json::Array(commands))])
+    let records = RECORD_KINDS
+        .iter()
+        .map(|k| {
+            let records = k
+                .records
+                .iter()
+                .map(|r| Json::obj([("tag", Json::str(r.tag)), ("fields", fields_json(r.fields))]))
+                .collect();
+            Json::obj([
+                ("short", Json::str(k.short)),
+                ("schema", Json::str(k.schema)),
+                ("schema_file", Json::str(k.schema_file)),
+                ("records", Json::Array(records)),
+            ])
+        })
+        .collect();
+    Json::obj([
+        ("format", Json::Int(1)),
+        ("kinds", Json::Array(kinds)),
+        ("records", Json::Array(records)),
+        ("commands", Json::Array(commands)),
+    ])
 }
 
 /// Where the export is kept, beside this crate's manifest.

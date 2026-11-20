@@ -2,7 +2,8 @@
 //! from the stream (its model and fitted visual parts, `L` records) is
 //! built with the game library's own car loader and drawn with the game's
 //! car renderer over the world, between the 60 Hz ticks, with its wheels
-//! (steer, roll, lift) and every car's headlight pool on the road. While a
+//! (steer, roll, lift), every car's headlight pool on the road and its head
+//! and brake light flares as the game's glow pass builds them. While a
 //! car loads, or when its model cannot be built (no game data), the view
 //! keeps the outline box.
 //!
@@ -18,10 +19,11 @@ use std::sync::mpsc;
 
 use glam::{Mat4, Vec3};
 
-use super::format::{CarLook, CarSample, LIGHT_HEAD, Wheels};
+use super::format::{CarLook, CarSample, LIGHT_BRAKE, LIGHT_HEAD, Wheels};
 use crate::render::car::{CarLighting, CarRenderer};
 use crate::render::{Gpu, HeadlightPool, RenderOptions};
 use nfsu2::studio_api::car::{Car, WheelPose};
+use nfsu2::studio_api::glow::{self, Quad};
 
 /// Cars built at once on their own threads.
 const LOADING_AT_ONCE: usize = 4;
@@ -232,6 +234,31 @@ impl CarDraw {
             .collect()
     }
 
+    /// The head and brake light flares of the cars with a model, seen from
+    /// `camera`: the game's own sprites (`glow::car_sprites`, the glow
+    /// pass's call for a car at full presence), the brake lights as the
+    /// stream has them (a stream without lights: headlights only).
+    pub fn flares(&self, cars: &[ReplayCar], camera: &crate::draw::camera::Camera, aspect: f32) -> Vec<Quad> {
+        let axes = crate::render::car::CameraAxes::look(camera.forward(), camera.up);
+        let view = glow::View {
+            eye: camera.position,
+            right: axes.right,
+            down: axes.down,
+            forward: axes.forward,
+            view_projection: camera.view_projection(aspect),
+            scale: crate::render::cull_scale(camera.game_fov.unwrap_or(camera.fov_y)),
+            front_end: false,
+        };
+        let mut quads = Vec::new();
+        for c in cars.iter().filter(|c| c.wheels.is_none_or(|w| w.lights & LIGHT_HEAD != 0)) {
+            if let Some(Built::Ready(car)) = self.built.get(&Key::of(&c.look)) {
+                let braking = c.wheels.is_some_and(|w| w.lights & LIGHT_BRAKE != 0);
+                glow::car_sprites(&view, &car.light_flares, c.transform, car.headlight_pool_color, braking, &mut quads);
+            }
+        }
+        quads
+    }
+
     /// Draw the cars with a model over the world just drawn into
     /// `color` / `depth` (its depth kept), seen from `camera`. Returns the
     /// ids drawn.
@@ -365,6 +392,21 @@ mod tests {
         assert!(d.update(&cars));
         assert!(d.settled(&cars));
         assert_eq!(d.pools(&cars).len(), 2, "both built");
+        // Their light flares as the game builds them: the headlights seen
+        // from the front, the brake lights from behind brighter when the
+        // stream says braking, none with the lights off.
+        let cam = |x: f32| crate::draw::camera::Camera::look_at(Vec3::new(x, 0.0, 1.0), Vec3::ZERO, Vec3::Z, 0.8);
+        let lit = |lights: u8| -> Vec<ReplayCar> {
+            let w = Wheels { lights, ..Default::default() };
+            cars.iter().map(|c| ReplayCar { wheels: Some(w), ..c.clone() }).collect()
+        };
+        let alpha = |q: &[Quad]| q.iter().map(|q| u32::from(q.rgba[3])).sum::<u32>();
+        assert!(!d.flares(&lit(LIGHT_HEAD), &cam(12.0), 1.5).is_empty(), "headlights from the front");
+        let behind = cam(-12.0);
+        let (cruising, braking) =
+            (d.flares(&lit(LIGHT_HEAD), &behind, 1.5), d.flares(&lit(LIGHT_HEAD | LIGHT_BRAKE), &behind, 1.5));
+        assert!(alpha(&braking) > alpha(&cruising), "brake lights: {} > {}", alpha(&braking), alpha(&cruising));
+        assert!(d.flares(&lit(0), &behind, 1.5).is_empty(), "lights off");
     }
 
     #[test]

@@ -5,7 +5,9 @@
 //! - the manifest's field tables (`<!-- generated:fields pack -->`, `<!-- generated:fields pack.base -->`), from
 //!   [`crate::manifest::FIELDS`] and [`crate::manifest::BASE_FIELDS`];
 //! - `schemas/pack.schema.json` and `schemas/pack-migrations.schema.json`, from the same field tables;
-//!   `schemas/placements.schema.json` and `schemas/race.schema.json`, from [`crate::kinds`].
+//!   `schemas/placements.schema.json`, `schemas/race.schema.json` and `schemas/run.schema.json`, from
+//!   [`crate::kinds`];
+//! - the run file's record table (`<!-- generated:records run -->`), from [`crate::kinds::run::RUN`].
 //!
 //! [`check`] regenerates all of it in memory and lists every difference, every rule table outside its markers,
 //! every rule id a page names that the registry lacks (and every registry rule no page shows), and every kind of
@@ -67,6 +69,7 @@ fn block(page: &str, what: &str) -> Option<String> {
         "rules" => Some(rule_table(page)),
         "fields pack" => Some(fields::doc_table(manifest::FIELDS)),
         "fields pack.base" => Some(fields::doc_table(manifest::BASE_FIELDS)),
+        "records run" => Some(crate::kinds::run::record_table()),
         _ => None,
     }
 }
@@ -105,6 +108,7 @@ pub fn schemas() -> Vec<(&'static str, String)> {
         ("schemas/pack-migrations.schema.json", manifest::migrations_schema().pretty()),
         ("schemas/placements.schema.json", crate::kinds::placements_schema().pretty()),
         ("schemas/race.schema.json", crate::kinds::race_schema().pretty()),
+        ("schemas/run.schema.json", crate::kinds::run::run_schema().pretty()),
     ]
 }
 

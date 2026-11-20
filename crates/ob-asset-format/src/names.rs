@@ -154,6 +154,7 @@ pub const KINDS: &[&str] = &[
     "route-trigger",
     "ai-tuning",
     "race",
+    "run",
     "car",
     "preset",
     "part",

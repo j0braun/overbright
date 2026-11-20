@@ -1,7 +1,10 @@
 //! The field tables of the layered kinds Studio edits first: `ob.placements` (world.md §3.9, §4) and `ob.race`
 //! (roads-ai.md §3.7). One table per kind gives the file check ([`check_placements`], [`check_race`]), the JSON
 //! Schema (`schemas/placements.schema.json`, `schemas/race.schema.json`, written by [`crate::docs`]) and Studio's
-//! inspector rows (each field's `label` and `merge`).
+//! inspector rows (each field's `label` and `merge`). [`run`]: the run file (`ob.run`), a kind of line records
+//! whose one table of records does the same.
+
+pub mod run;
 
 use crate::fields::{self, Field, Only, Pattern, Req, Ty};
 use crate::json::Json;

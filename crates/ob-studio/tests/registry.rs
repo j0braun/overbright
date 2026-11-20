@@ -44,6 +44,24 @@ fn each_kind_has_the_fields_of_its_file_schema() {
 }
 
 #[test]
+fn each_record_kind_has_the_records_of_its_file_schema() {
+    for k in registry::RECORD_KINDS {
+        let s = spec(k.schema_file);
+        assert!(s["title"].as_str().unwrap().contains(k.schema.split('/').next().unwrap()));
+        for r in k.records {
+            let def = &s["$defs"][format!("record{}", r.tag)];
+            assert_eq!(def["properties"]["record"]["const"].as_str(), Some(r.tag));
+            let mut ours: Vec<&str> = r.fields.iter().map(|f| f.key).collect();
+            ours.push("record");
+            let mut theirs: Vec<&str> = def["properties"].as_object().unwrap().keys().map(|x| x.as_str()).collect();
+            ours.sort();
+            theirs.sort();
+            assert_eq!(ours, theirs, "{}: {} record", k.short, r.tag);
+        }
+    }
+}
+
+#[test]
 fn command_names_are_unique_and_stable_in_form() {
     for (i, c) in COMMANDS.iter().enumerate() {
         assert!(c.name.split('.').all(|w| !w.is_empty() && w.chars().all(|ch| ch.is_ascii_lowercase())), "{}", c.name);
