@@ -226,7 +226,7 @@ mod tests {
     fn shapes(draw: impl FnOnce(&Overlay)) -> Vec<egui::epaint::ClippedShape> {
         let ctx = egui::Context::default();
         let mut draw = Some(draw);
-        let out = ctx.run_ui(egui::RawInput::default(), |ui| {
+        let out = crate::editor::run_headless(&ctx, egui::RawInput::default(), |ui| {
             let rect = Rect::from_min_size(Pos2::ZERO, egui::vec2(800.0, 600.0));
             let painter = ui.painter_at(rect);
             let camera = Camera::new(Vec3::ZERO, 0.0, 0.0);

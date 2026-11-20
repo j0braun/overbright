@@ -175,7 +175,7 @@ fn the_panels_draw_headless() {
     let mut races = Races::new();
     let ctx = egui::Context::default();
     for _ in 0..2 {
-        let _ = ctx.run_ui(egui::RawInput::default(), |ui| {
+        let _ = crate::editor::run_headless(&ctx, egui::RawInput::default(), |ui| {
             crate::editor::tree_races::tree(&mut races, &mut s, ui);
             races.ui(&mut s, ui);
             races.validation(&mut s, ui);
@@ -222,7 +222,7 @@ fn a_race_is_made_validated_and_selected() {
     s.mode = Mode::Props;
     let shapes = |s: &mut EditorState, races: &mut Races| {
         let ctx = egui::Context::default();
-        let out = ctx.run_ui(egui::RawInput::default(), |ui| {
+        let out = crate::editor::run_headless(&ctx, egui::RawInput::default(), |ui| {
             let rect = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(1600.0, 960.0));
             races.paint_overlay(s, ui.painter(), rect);
         });

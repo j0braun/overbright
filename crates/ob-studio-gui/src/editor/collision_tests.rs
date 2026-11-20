@@ -127,7 +127,10 @@ fn draw() -> image::RgbaImage {
         deltas.push(frame.textures_delta);
         shapes = frame.shapes;
     }
-    rasterize(&ctx, &deltas, shapes)
+    let image = rasterize(&ctx, &deltas, shapes);
+    // Applied by the rasterizer above.
+    deltas.iter_mut().for_each(egui::TexturesDelta::clear);
+    image
 }
 
 /// egui's output filled on the CPU: each mesh's triangles, vertex colours
