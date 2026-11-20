@@ -667,8 +667,10 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
   previous world update's gas and +0x430: **observed**;
   `CarState::nitrous_key`): pressed, a shot
   starts when 0x5EB570 (0x59FAB0) allows (0x59FB00: start = clock,
-  +0x418 = left), then SPRAY SHOW (trick 0xF, 0x56ED20) and a rumble
-  (0x5727C0(8, pad, 1) with the pad option 0x83AA68); let go, a running
+  +0x418 = left), then SPRAY SHOW (trick 0xF, 0x56ED20) and a pad
+  vibration (0x5727C0(8, pad, 1) with the pad option 0x83AA68: the
+  console builds' path, which ends in the bare `ret` 0x4022C0 on the PC,
+  so nothing); let go, a running
   shot (0x5EB540) stops (0x7FBEDC = 1). Controls row 7 (action 6, Left
   Alt / Right Alt). The gauge (element 0x4F6A90, hi 0x40000: NOS_Line
   +0x20, NOS_GameBreaker +0x24, NOS_Mask +0x28, NOS_Fill; colours +0x2C
@@ -753,7 +755,7 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
   slot +0xA0 only when the car's +0x14 → +4 is 2 (decompiled, with no shot running (0x59FA40 = 0) and
   slot +0xA0 true), and the
   player's car is not that kind (its drag branches test kind 1 at 0x5F6DE1
-  and 0x4C70E3; the human's own record not traced). **Not ported**: the rumble, the AI's
+  and 0x4C70E3; the human's own record not traced). Nothing to port for the vibration (a console stub on the PC). **Not ported**: the AI's
   timed refill (0x601795). The style-point refill and SPRAY SHOW are
   ported (`nitrous::Tank::refill`, `style`). **Verified**: the shot
   clock 0x865188 (also the start tick the action ctor 0x4243B0 reads) is

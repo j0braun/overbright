@@ -2852,7 +2852,7 @@ The game's world collision step (0x5FFA60) runs after the cars have moved.
     +0x124 − +0x154), or head on its front/back mirrored ×1.1 when the
     world's random number (0x5EA4F0, the generator 0x43C1C0 on
     0x890080 +0xF8, seeded per race) out of 100 is 50 or more and its
-    sideways part ×0.2 past 0.13 m. Not ported: the crash camera, rumble,
+    sideways part ×0.2 past 0.13 m. Not ported: the crash camera, the pad vibration (a console stub on the PC: nothing to port),
     sparks and damage (0x593C00), and the AI's "got hit" notice
     (0x593C60). In drag races any push of 30 or more (or the body matrix
     +0x38 under −0.5) totals the car (+0x964; racer status 9, see "Drag

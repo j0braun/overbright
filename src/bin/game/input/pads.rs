@@ -272,8 +272,8 @@ impl Game {
                     speed: d.state.velocity.length(),
                     bump,
                     surfaces: d.state.wheels.each_ref().map(|w| w.surface),
-                    // **Inferred**: surface 0xD, the one 0x5C9DA0's effect
-                    // plays on.
+                    // Surface 13 (PUDDLE), the one 0x5C9DA0's negative
+                    // damper plays on.
                     rough: d.state.wheels.iter().any(|w| w.surface == 0xD),
                     nitrous: d.state.nitrous.is_some_and(|t| t.running.is_some()),
                     shifted,

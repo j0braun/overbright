@@ -1884,9 +1884,13 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
     tint pass 0x5C7870, which no dry-weather path enables, see Tint
     pass); Rain Splatter (0x870D10 with particles → 0x8707D2, 0x5C7AC0:
     the lens drops, see **Rain**). The Wheel Options sliders act on a wheel's DirectInput
-  device (range, force feedback); the clone reads controllers (see
-  **Gamepads and joysticks**) but no wheel's range or force feedback:
-  **open**.
+  device: Wheel Range (player block +0x1C) is copied to the steering
+  object's +8, the wheel steering's clamp (0x4061C0); Road Feedback
+  (+0x20) to its +0xC, read by the steering (0x41DBE3 / 0x41DF19) and the
+  constant force's divisor; Overall Force Strength (+0x24) sets the gain
+  (0x41E264..0x41E2AD; front-end.md, **Force feedback**). The clone reads
+  controllers (see **Gamepads and joysticks**) but not a wheel's range;
+  its force-feedback model sends nothing to a device yet.
 * **Controls** (UI_Options_PC_Controller, screen 0x4ECD10; **verified**
   except where noted): title "Controls" (0x04DC6DB5), "Keyboard
   Configuration" (0x5CF08EB7), "Primary" / "Secondary" (0x1B15F53C /

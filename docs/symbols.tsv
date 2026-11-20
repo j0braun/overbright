@@ -2288,7 +2288,7 @@ RenderInfo_t+0x2D44	struct-field	RenderInfo_t.part_anims	part animations	verifie
 0x405C60	function	PlayerSteering_Ctor	steering object constructor: input means at +0x14 (0.55 s) and +0x48 (0.15 s)	verified	formats.md:2766
 0x41DFC0	function	PlayerSteering_Dispatch	steering per frame: wheel / keyboard path, then feeds the input mean	verified	formats.md:2766
 0x4061C0	function	WheelSteering_Update	steering for a wheel device (0x5C1010 true)	inferred	formats.md:2766
-0x406460	function	Steering_ForceFeedback	force-feedback effects after the steering	inferred	formats.md:2766
+0x406460	function	Steering_ForceFeedback	the driving force-feedback effects, once per world update after the steering (spring, constant, damper, suspend, jolts, road surface, puddle damper)	verified	formats/front-end.md (Force feedback)
 0x407750	function	HumanInput_OnSteerAxis	axis 0x8F/0x90 callback: byte b → (b − 128) × −1/128 into input +0x2C8	verified	formats.md:2766
 0x783AD8	const	k_SteerMeanWindow	0.55 s, the steering input mean's window	verified	formats.md:2766
 0x594850	function	Drivetrain_InputShaftAccel	input shaft acceleration from the driven wheels' (T − r·Fx)/I	verified	formats.md:2573
@@ -2885,7 +2885,7 @@ RenderInfo_t+0x2D44	struct-field	RenderInfo_t.part_anims	part animations	verifie
 0x4ACD90	function	UIControls_RestoreDefaults	keyboard 0x5D0000 or controller 0x5C11B0	verified	formats.md (Gamepads and joysticks)
 0x4DC9F0	function	UIControls_JoypadRows	joypad page rows (title 0xF91FBA4D)	verified	formats.md (Gamepads and joysticks)
 0x4DDC10	function	UIControls_WheelRows	wheel page rows (title 0x14D4BD3B)	verified	formats.md (Gamepads and joysticks)
-0x5C9130	function	Pad_SetForceGain	force gain when the channel has FF actuators	inferred	formats.md (Gamepads and joysticks)
+0x5C9130	function	Pad_SetForceGain	with FF actuators, DIPROP_FFGAIN through 0x5C00C0	verified	formats/front-end.md (Force feedback)
 0x5BFD80	function	Input_ChannelHasDevice	0x86FFB4[ch] != 0	verified	formats.md (Gamepads and joysticks)
 0x5C1010	function	Input_ChannelIsWheel	channel has a driving device	verified	formats.md (Gamepads and joysticks)
 0x7FE7F8	global	g_PadPresets	nine per-product button presets (0xB0 each)	verified	formats.md (Gamepads and joysticks)
@@ -3610,7 +3610,7 @@ RenderInfo_t+0x2D44	struct-field	RenderInfo_t.part_anims	part animations	verifie
 0x428E70	function	AI_TryTrafficLaneClear	lane reachable via 0x412500 and its 0.151 path clear 3 s (0x428DF0): written to the lane record	verified	first-drag.md
 0x42DEC0	function	AI_AvoidPickByLaneClass	lane class 1 -> 0x428FD0, 2 -> 0x42BF00	verified	first-drag.md
 0x40D5C0	function	AI_AvoidHonkAtHuman	horn / light flash at a human object on AvoidAvoidable proposal (inferred role)	inferred	first-drag.md
-0x4018F0	function	RaceFlow_IsDragOrFlag38	true when the flow +0x38 is set or 0x890108; 0x603EC0 case 1 clears +0x44 on a dyno session with it	verified	nis-audio-patterns.md
+0x4018F0	function	RaceParams_IsDrag	on 0x89E7A0: +0x38 (0x89E7D8, drag) or 0x890108 (online drag); 0x603EC0 case 1 clears +0x44 on a dyno session with it	verified	nis-audio-patterns.md; formats/front-end.md (Force feedback)
 0x435950	function	NIS_SceneDone	true with no scene (+0x28) or once its clock +0x2C passes its length +0x34; 0x603EC0 case 3 (dyno, race type 8) then goes to mode 10	verified	nis-audio-patterns.md
 0x57ECC0	function	Rand_SeedAtBoot	g_RandSeed = 0x43E6B0(0x43BDF0 + 0x12345678), or the replay / online seed (0x8650CC / 0x8650D0); called once at 0x57ED5C	verified	internal notes
 0x43E6B0	function	Rand_Seed	*state = one step of the seed (the 0x43C1C0 step)	verified	internal notes
@@ -3880,3 +3880,35 @@ CarDriver_t+0x1D9	struct-field	CarDriver_t.keep_path	0x420D40 keeps the path's f
 0x419000	function	AIWalk_BendTurnLanes	bends the walk points' lane offsets (+0x04) of one turn record (+0xD0, 0x80 bytes) on Hermite curves; from 0x422780	verified	original/coverage/racer-ai.md (Route)
 0x40D980	function	AICtl_HumanSpeedJitter	controller +0x790 = 1 + rand(0.2) − 0.1 every 1 s for a human-class car with car +0x9A8 set, else 1	verified	original/coverage/racer-ai.md (Controller)
 0x4259C0	function	AI_PredictOwnPath	the car's own predicted path (0x420B80) over max(125 m, reach × speed)	inferred	original/coverage/racer-ai.md (No earlier trace)
+0x5C9160	function	FF_PlaySpring	condition slot 0 GUID_Spring (offset, coefficient, saturation): upload when changed, start when not playing; nothing while the puddle damper plays or suspended	verified	formats/front-end.md (Force feedback)
+0x5C95A0	function	FF_PlayDamper	condition slot 1 GUID_Damper, saturation 10000; same rule as 0x5C9160	verified	formats/front-end.md (Force feedback)
+0x5C9560	function	FF_PlayConstantAngle	0x5C9390 with level × angle table +0x25F0[a % 360] / 1000	verified	formats/front-end.md (Force feedback)
+0x5C9390	function	FF_PlayConstant	constant slot 0 GUID_ConstantForce; upload when changed, start when not playing	verified	formats/front-end.md (Force feedback)
+0x5C9FE0	function	FF_PlayPeriodic	periodic slot 3 (wave 0..4: sine, square, triangle, saw up, saw down), period ms capped at 150, infinite	verified	formats/front-end.md (Force feedback)
+0x5C9DA0	function	FF_PlayPuddleDamper	stops damper and spring (remembered), condition slot 2 GUID_Damper with coefficients −arg	verified	formats/front-end.md (Force feedback)
+0x5C9770	function	FF_PlayJolt	periodic slot 0 GUID_Square 150 ms, period 75 ms, fade 20 ms; at most once per 150 ms of ftime	verified	formats/front-end.md (Force feedback)
+0x5C99E0	function	FF_PlaySineUnused	periodic slot 1 sine 65 ms; only replayed by the resume paths	verified	formats/front-end.md (Force feedback)
+0x5C9BC0	function	FF_PlaySquareUnused	periodic slot 2 square 100 ms; only replayed by the resume paths	verified	formats/front-end.md (Force feedback)
+0x5CD920	function	FF_EndPuddleDamper	stops condition slot 2, restarts the damper and spring 0x5C9DA0 stopped	verified	formats/front-end.md (Force feedback)
+0x5CDA20	function	FF_Suspend	flag +0x2220; stops and remembers spring, constant, damper, puddle damper, periodic slot 3	verified	formats/front-end.md (Force feedback)
+0x5CDBC0	function	FF_Resume	clears +0x2220, restarts what 0x5CDA20 stopped with the last parameters	verified	formats/front-end.md (Force feedback)
+0x5CD860	function	FF_StopConstant	stops constant slot 0	verified	formats/front-end.md (Force feedback)
+0x5CD9E0	function	FF_StopPeriodic3	stops periodic slot 3	verified	formats/front-end.md (Force feedback)
+0x5BFE80	function	FF_StopDamper	0x5CD4C0(ch, 2): stops condition slot 1	verified	formats/front-end.md (Force feedback)
+0x5BFE10	function	FF_StopSpring	0x5CD4C0(ch, 0) when the channel has actuators	verified	formats/front-end.md (Force feedback)
+0x5CD4C0	function	FF_StopByKind	stops an effect by kind (0..8); 9 = resume	verified	formats/front-end.md (Force feedback)
+0x5C00C0	function	FF_SetGain	DIPROP_FFGAIN = min(100, arg unsigned) × 100	verified	formats/front-end.md (Force feedback)
+0x5C0080	function	FF_SlotPlaying	GetEffectStatus of a slot of a table	inferred	formats/front-end.md (Force feedback)
+0x5C9050	function	FF_KindPlaying	playing test by kind; 9 = suspended (+0x2220)	verified	formats/front-end.md (Force feedback)
+0x5BFDA0	function	Input_ChannelIsClass	0 driving (0x86E5BC), 1 joystick (0x86FF88), 2 gamepad (0x86F8A8)	verified	formats/front-end.md (Force feedback)
+0x5BFD30	function	FF_InitAngleTable	+0x25F0[d] = _ftol(sin(d·π/180) × 1000), d = 0..359	verified	formats/front-end.md (Force feedback)
+0x59DB00	function	Wheel_ForceInCarFrame	the wheel force (+0x124, +0x128) through its steer matrix (+0xB0..) into the car frame	verified	formats/front-end.md (Force feedback)
+0x5CFE40	label	Input_FrontEndForces	outside game state 4: constant, periodic 3, damper off, resume, spring 7000	verified	formats/front-end.md (Force feedback)
+0x86FF80	global	g_FFActuators	FF actuator count per channel (0x5C8670, up to 2)	verified	formats/front-end.md (Force feedback)
+0x86F8A8	global	g_ChannelIsGamepad	channel is a gamepad-class device (0x15)	verified	formats/front-end.md (Force feedback)
+0x86E5BC	global	g_ChannelIsWheel	channel is a driving-class device (0x16)	verified	formats/front-end.md (Force feedback)
+0x86FF88	global	g_ChannelIsJoystick	channel is a joystick-class device (0x14)	verified	formats/front-end.md (Force feedback)
+0x86F86C	global	g_FFUnusedFlag	per-channel flag tested by the constant and periodic functions; only ever written 0	verified	formats/front-end.md (Force feedback)
+0x827AAC	global	g_FFPrevSpeed	force feedback: the last call's speed per channel (m/s)	verified	formats/front-end.md (Force feedback)
+0x827AA4	global	g_FFLastJolt	force feedback: the last jolt on the sim clock per channel (s)	verified	formats/front-end.md (Force feedback)
+0x800EC0	global	g_SurfaceTable	29 surface rows of 0x98 bytes; name at +0x20, grip +0x44, slide +0x48, roll +0x4C, drag +0x50	verified	formats/front-end.md (Force feedback)

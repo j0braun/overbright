@@ -492,6 +492,12 @@ impl CarState {
                 }
                 let arm = self.position + rot * self.mount(table[i].position, i) + up * compressions[i] - com;
                 bump_contacts[i] = Some((arm, n));
+                // 0x5ABB10 adds 0x59E1B0's return to car +0x370 + 4i: the
+                // impulse's size before its cap, 0 when the hub opens.
+                let closing = -n.dot(self.velocity + self.spin.cross(arm));
+                if closing >= 0.0 {
+                    self.bump_totals[i] += 0.225 * closing * h.mass;
+                }
             }
             let (linear, angular, hit) = bump_stop_impulses(self.velocity, self.spin, h.mass, bump_contacts);
             bump_visited = hit;

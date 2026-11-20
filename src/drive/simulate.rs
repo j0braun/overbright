@@ -226,6 +226,8 @@ impl CarState {
     /// drivers have no hydraulics input. Returns the drivetrain taken out
     /// of the car for the frame.
     fn mover_frame_start(&mut self, h: &Handling, input: Input, contacts: bool, dt: f32) -> Drivetrain {
+        // 0x5B731B: the bump stops' totals start the frame at 0.
+        self.bump_totals = [0.0; 4];
         self.hydraulics.frame(match input {
             Input::Player(c) | Input::Drag(c, _) => c.hydraulics,
             Input::Ai(_) | Input::Melo(_) | Input::Belt(_) => Default::default(),
