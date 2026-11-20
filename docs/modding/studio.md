@@ -1,14 +1,14 @@
 # Overbright Studio
 
 > **Preview.** Studio's window, `overbright-studio`, is the shell the map editor and the later workspaces move
-> into. This version has the shell, Home, and the map editor as the World and Races workspaces. `overbright-editor`
-> ([Map editor](map-editor.md)) still opens the same editor in a window of its own. Studio is not in the release
-> package yet.
+> into. This version has the shell, Home, the map editor as the World and Races workspaces, and the Changes page.
+> `overbright-editor` ([Map editor](map-editor.md)) still opens the same editor in a window of its own. For starting
+> Studio and what this preview leaves out, see [Getting started with Studio](studio-start.md).
 
 ```
 overbright-studio [--mod <folder>] [--maps <dir>]
 overbright-studio --shot out.png [--size WxH] [--scale F] [--mod <folder>] [--maps <dir>]
-                  [--workspace home|world|races|mod|settings] [--input mouse|keyboard|xbox|playstation|deck]
+                  [--workspace home|world|races|mod|settings|changes] [--input mouse|keyboard|xbox|playstation|deck]
                   [--focus rail|address|toolbar|left|view|right|bottom] [--drawer] [--find] [--address]
                   [--select N]
 ```

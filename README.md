@@ -216,6 +216,10 @@ are saved in Overbright's data folder and applied on top of the original data; t
 save are never changed ([docs/modding/map-editor.md](docs/modding/map-editor.md)). The launcher's Mods page turns map mods on
 and off, imports and exports them as `.zip` files, and opens one in the editor.
 
+Overbright Studio (`overbright-studio`, a **preview**) is the map editor's new home, with a command-line tool
+(`overbright-studio-cli`) for scripts. Open it from the launcher's Dev page
+([docs/modding/studio-start.md](docs/modding/studio-start.md)).
+
 ## Where your files go
 
 | | Linux | Windows |

@@ -19,7 +19,8 @@ art; every pack is one you add yourself.
 |---|---|
 | [Texture editor](texture-editor.md) | A texture browser in the game for making your own packs. |
 | [Map editor and map mods](map-editor.md) | Moving, adding and removing scenery and races; map mods and how they load. |
-| [Overbright Studio](studio.md) | Studio's window (preview): the rail, the docks, Home, addresses, and how it works by keyboard and by pad. |
+| [Getting started with Studio](studio-start.md) | What Studio is in this preview, how to start it from the launcher, and what comes later. |
+| [Overbright Studio](studio.md) | Studio's window (preview): the rail, the docks, Home, World and Races, Changes, addresses, and how it works by keyboard and by pad. |
 | [Studio command-line tool](studio-cli.md) | The map editor's edits, a file of edits with a dry run and the map checks from a shell or a script, with JSON output and fixed exit codes. |
 | [Studio Looks](studio-looks.md) | Paint a game texture in your own paint program: work files, each save one step of the mod's history, live in the test game. |
 

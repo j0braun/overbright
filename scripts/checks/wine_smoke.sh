@@ -55,6 +55,9 @@
 #               by the game's renderer under Wine), 1280x720; the view is not the same run to run even on Linux, so
 #               the comparison is reported and the view must not be one flat colour
 #   e_races     the same mod in Races mode on the 2D road-network map at 1600x960 and display scale 1.5
+# Studio (overbright-studio.exe beside the editor: $WINE_STUDIO, else dist/windows/overbright-studio.exe; skipped when
+# there is none; LINUX_STUDIO, default $CARGO_TARGET_DIR/<profile>/overbright-studio, draws the reference):
+#   s_start     `overbright-studio.exe --shot` (Home, the same maps folder, 1280x720) on Vulkan: as e_start
 # Every log is grepped for panic / validation-error lines (any one fails its step).
 # Tolerance (pixdiff): at most $WINE_TOL_PIXELS pixels differ (default 64) and no channel by more than
 # $WINE_TOL_DIFF (default 4). Measured 2026-11-12: Wine+winevulkan on RADV gives byte-identical images
@@ -297,16 +300,18 @@ editor_args() {
     e_start) echo "--size 1280x720" ;;
     e_props) echo "--size 1280x720 --mod smoke --mode props --view 3d --tab browser" ;;
     e_races) echo "--size 1600x960 --scale 1.5 --mod smoke --mode races --view map --tab validation" ;;
+    s_start) echo "--size 1280x720" ;;
   esac
 }
-# editor_reference NAME: the Linux editor's shot (headless: no display variable at all), its path on stdout.
+# editor_reference NAME: the Linux editor's shot (headless: no display variable at all), its path on stdout; with
+# REF_BIN set, that program's (Studio's s_start).
 editor_reference() {
   local name=$1; mkdir -p "$O/linux" "$O/tmp/linux-$name/data" "$O/tmp/linux-$name/cache"
   editor_side "$O/editor-linux"
   # shellcheck disable=SC2046
   ( cd "$O/editor-linux" && env -u DISPLAY -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE XDG_DATA_HOME="$O/tmp/linux-$name/data" \
     XDG_CACHE_HOME="$O/tmp/linux-$name/cache" NFSU2_HEADLESS_ONLY=1 RADV_DEBUG=${RADV_DEBUG-nodcc} \
-    timeout 900 "$LED" --shot "$O/linux/$name.png" --maps maps $(editor_args "$name") > "$O/linux/$name.log" 2>&1 )
+    timeout 900 "${REF_BIN:-$LED}" --shot "$O/linux/$name.png" --maps maps $(editor_args "$name") > "$O/linux/$name.log" 2>&1 )
   echo "$O/linux/$name.png"
 }
 # check_editor NAME EXE REF: the Windows editor's shot on Vulkan. Exit 0, no panic / validation line, a PNG of the
@@ -444,6 +449,8 @@ fi
 [ -f "$EXE" ] || ck_die "no exe $EXE"
 EEXE=${WINE_EDITOR:-$(dirname "$EXE")/../windows/overbright-editor.exe}
 LED=${LINUX_EDITOR:-$TGT/$CK_PDIR/overbright-editor}
+SEXE=${WINE_STUDIO:-$(dirname "$EXE")/../windows/overbright-studio.exe}
+LST=${LINUX_STUDIO:-$TGT/$CK_PDIR/overbright-studio}
 # The exe in a folder of its own (the DXC goes next to it); the asset cache, profiles and temp under OUTDIR.
 mkdir -p "$O/exe" "$O/tmp"
 cp -f "$EXE" "$O/exe/game.exe"
@@ -525,6 +532,10 @@ else
     head -c 65536 "$EEXE" > "$O/exe/broken-editor.exe"
     check_editor e_start "$O/exe/broken-editor.exe" "$(editor_reference e_start)"
     check_editor e_start "$O/exe/overbright-editor.exe" "$(editor_reference e_races)"
+    if [ -f "$SEXE" ] && [ -x "$LST" ]; then
+      head -c 65536 "$SEXE" > "$O/exe/broken-studio.exe"
+      check_editor s_start "$O/exe/broken-studio.exe" "$(REF_BIN=$LST editor_reference s_start)"
+    fi
   else
     result e_missing no "(no editor exe $EEXE or no Linux editor $LED: its checks cannot be tested)"
   fi
@@ -548,6 +559,13 @@ if [ "$SELFCHECK" = 0 ]; then
     result editor no "(the build made here has no $EEXE, or no Linux editor $LED)"
   else
     say "editor: SKIP (no $EEXE or no Linux editor $LED)"
+  fi
+  if [ -f "$SEXE" ] && [ -x "$LST" ]; then
+    cp -f "$SEXE" "$O/exe/overbright-studio.exe"
+    say "studio $SEXE md5 $(md5sum < "$SEXE" | cut -c1-12)"
+    check_editor s_start "$O/exe/overbright-studio.exe" "$(REF_BIN=$LST editor_reference s_start)"
+  else
+    say "studio: SKIP (no $SEXE or no Linux Studio $LST)"
   fi
 fi
 

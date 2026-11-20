@@ -106,12 +106,13 @@ struct Program {
     description: &'static str,
 }
 
-/// The player's programs (the archives of scripts/release/package.sh) and
-/// Studio's command-line tool.
-const PROGRAMS: [Program; 4] = [
+/// The player's programs (the archives of scripts/release/package.sh,
+/// Studio and its command-line tool among them).
+const PROGRAMS: [Program; 5] = [
     Program { bin: "game", identity: "Overbright.Game", description: "Overbright" },
     Program { bin: "overbright", identity: "Overbright.Launcher", description: "Overbright Launcher" },
     Program { bin: "overbright-editor", identity: "Overbright.MapEditor", description: "Overbright Map Editor" },
+    Program { bin: "overbright-studio", identity: "Overbright.Studio", description: "Overbright Studio" },
     Program {
         bin: "overbright-studio-cli",
         identity: "Overbright.StudioCli",

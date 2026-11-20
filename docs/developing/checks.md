@@ -699,6 +699,10 @@ and our Xvfb (by PID) are stopped.
   (the world's streaming: a few hundred to a few thousand pixels between two Linux runs), so `e_props` only reports
   its comparison and instead needs the view in the middle of the window not to be one flat colour. `--selfcheck` adds the editor cut to 64 KiB (`e_start`) and
   a good editor's `e_start` compared with `e_races`'s image.
+- Studio (`overbright-studio.exe` beside the editor, `WINE_STUDIO=` to name one; skipped when there is none;
+  `LINUX_STUDIO` draws the reference): `s_start` (`--shot` on Home with the same maps folder, 1280×720) exits 0,
+  writes a PNG of that size and matches the Linux Studio's shot within the tolerance. `--selfcheck` adds Studio cut
+  to 64 KiB.
 - `w_window`: the game in its window on the Xvfb (no flags, Vulkan through Mesa's software present), reading the
   monitor and its modes and reaching the title screen (Enter skips the boot movies).
 - Drive-letter paths: `winepath -w` cuts its answer at MAX_PATH (Wine 11: a 282-character folder came back as its

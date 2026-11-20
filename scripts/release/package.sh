@@ -74,7 +74,8 @@ if [ $BUILD = 1 ]; then
     say "build: rc=$rc $(( $(date +%s) - t )) s (build.log)"
     [ $rc = 0 ] || die "build (build.log)"
 fi
-for f in linux/game linux/overbright linux/overbright-editor windows/game.exe windows/overbright.exe windows/overbright-editor.exe; do
+for f in linux/game linux/overbright linux/overbright-editor linux/overbright-studio linux/overbright-studio-cli \
+    windows/game.exe windows/overbright.exe windows/overbright-editor.exe windows/overbright-studio.exe windows/overbright-studio-cli.exe; do
     [ -f "$B/dist/$f" ] || die "no $B/dist/$f"
 done
 IMAGE=${IMAGE:-overbright-build:$(sha256sum "$HERE/container/Containerfile" | cut -c1-12)}
@@ -146,19 +147,21 @@ open(dest, "w", encoding="utf-8", newline="\n").write(text)
 EOF
 }
 crlf() { python3 -I -c 'import sys; d=open(sys.argv[1],"rb").read().replace(b"\r\n",b"\n"); open(sys.argv[2],"wb").write(d.replace(b"\n",b"\r\n"))' "$1" "$2"; }
-install -m 755 "$B/dist/linux/overbright" "$B/dist/linux/game" "$B/dist/linux/overbright-editor" "$S/$LIN/"
+install -m 755 "$B/dist/linux/overbright" "$B/dist/linux/game" "$B/dist/linux/overbright-editor" \
+    "$B/dist/linux/overbright-studio" "$B/dist/linux/overbright-studio-cli" "$S/$LIN/"
 install -m 644 "$B/src/LICENSE" "$B/src/THIRD-PARTY-NOTICES.md" "$W/overbright.png" \
     "$B/src/scripts/release/player/overbright.desktop" "$S/$LIN/"
 install -m 644 "$W/LICENSES-x86_64-unknown-linux-gnu.txt" "$S/$LIN/THIRD-PARTY-LICENSES.txt"
 readme linux LICENSE THIRD-PARTY-LICENSES.txt "$S/$LIN/README.txt"
-install -m 755 "$B/dist/windows/overbright.exe" "$B/dist/windows/game.exe" "$B/dist/windows/overbright-editor.exe" "$S/$WIN/"
+install -m 755 "$B/dist/windows/overbright.exe" "$B/dist/windows/game.exe" "$B/dist/windows/overbright-editor.exe" \
+    "$B/dist/windows/overbright-studio.exe" "$B/dist/windows/overbright-studio-cli.exe" "$S/$WIN/"
 readme windows LICENSE.txt THIRD-PARTY-LICENSES.txt "$W/README-win.txt"
 crlf "$W/README-win.txt" "$S/$WIN/README.txt"
 crlf "$B/src/LICENSE" "$S/$WIN/LICENSE.txt"
 crlf "$B/src/THIRD-PARTY-NOTICES.md" "$S/$WIN/THIRD-PARTY-NOTICES.md"
 crlf "$W/LICENSES-x86_64-pc-windows-gnu.txt" "$S/$WIN/THIRD-PARTY-LICENSES.txt"
-LIN_FILES="LICENSE README.txt THIRD-PARTY-LICENSES.txt THIRD-PARTY-NOTICES.md game overbright overbright-editor overbright.desktop overbright.png"
-WIN_FILES="LICENSE.txt README.txt THIRD-PARTY-LICENSES.txt THIRD-PARTY-NOTICES.md game.exe overbright-editor.exe overbright.exe"
+LIN_FILES="LICENSE README.txt THIRD-PARTY-LICENSES.txt THIRD-PARTY-NOTICES.md game overbright overbright-editor overbright-studio overbright-studio-cli overbright.desktop overbright.png"
+WIN_FILES="LICENSE.txt README.txt THIRD-PARTY-LICENSES.txt THIRD-PARTY-NOTICES.md game.exe overbright-editor.exe overbright-studio-cli.exe overbright-studio.exe overbright.exe"
 if [ -n "${DXC_DIR:-}" ]; then
     case $(cd "$DXC_DIR" && pwd)/ in "$REPO"/*) die "DXC_DIR must be outside the repository" ;; esac
     for f in dxcompiler.dll dxil.dll LICENSE-DXC.txt; do
@@ -204,8 +207,9 @@ lf=$(python3 -I -c 'import sys, pathlib; print(" ".join(p.name for p in sorted(p
     if p.suffix in (".txt", ".md") and b"\n" in p.read_bytes().replace(b"\r\n", b"")))' "$WD")
 [ -z "$lf" ] && ok "zip text files: CRLF line ends" || bad "zip text files with LF-only lines: $lf"
 
-# 2. the version stamp: in all six binaries, equal to the archive name's
-for b in "$L/game" "$L/overbright" "$L/overbright-editor" "$WD/game.exe" "$WD/overbright.exe" "$WD/overbright-editor.exe"; do
+# 2. the version stamp: in all ten binaries, equal to the archive name's
+for b in "$L/game" "$L/overbright" "$L/overbright-editor" "$L/overbright-studio" "$L/overbright-studio-cli" \
+    "$WD/game.exe" "$WD/overbright.exe" "$WD/overbright-editor.exe" "$WD/overbright-studio.exe" "$WD/overbright-studio-cli.exe"; do
     n=$(basename "$(dirname "$b")")/$(basename "$b")
     if grep -aqF "$VERSION" "$b" && grep -aqF "$COMMIT" "$b"; then ok "version stamp $n: $VERSION ($COMMIT)"
     else bad "version stamp $n: '$VERSION' / '$COMMIT' not in the binary"; fi
@@ -216,10 +220,12 @@ case "$(basename "$TAR")/$(basename "$ZIP")" in
 esac
 
 # 3. portability and Windows resources
-for b in game overbright overbright-editor; do
+for b in game overbright overbright-editor overbright-studio overbright-studio-cli; do
+    # Studio's command-line tool is a console program; the others are windowed (GUI subsystem).
+    gui=--gui; [ $b = overbright-studio-cli ] && gui=""
     if "$HERE/check_linux.sh" "$L/$b" > "$W/cl-$b.txt" 2>&1; then ok "check_linux.sh $b: $(grep -c '^ok' "$W/cl-$b.txt") ok"
     else bad "check_linux.sh $b: $(grep FAIL "$W/cl-$b.txt" | tr '\n' ' ')"; fi
-    if python3 -I "$HERE/check_pe.py" --gui "$WD/$b.exe" > "$W/pe-$b.txt" 2>&1; then ok "check_pe.py --gui $b.exe: $(grep -c '^ok' "$W/pe-$b.txt") ok"
+    if python3 -I "$HERE/check_pe.py" $gui "$WD/$b.exe" > "$W/pe-$b.txt" 2>&1; then ok "check_pe.py${gui:+ $gui} $b.exe: $(grep -c '^ok' "$W/pe-$b.txt") ok"
     else bad "check_pe.py $b.exe: $(grep FAIL "$W/pe-$b.txt" | tr '\n' ' ')"; fi
 done
 
@@ -289,6 +295,11 @@ fi
 out=$(run_lin "$L/overbright-editor" --version 2>&1); rc=$?
 want="Overbright $VERSION (commit $COMMIT, linux-x86_64) map editor (preview)"
 [ $rc = 0 ] && [ "$(echo "$out" | head -1)" = "$want" ] && ok "overbright-editor --version: $out" || bad "overbright-editor --version: rc $rc '$out' (want '$want')"
+for b in "overbright-studio:studio (preview)" "overbright-studio-cli:studio command line (preview)"; do
+    out=$(run_lin "$L/${b%%:*}" --version 2>&1); rc=$?
+    want="Overbright $VERSION (commit $COMMIT, linux-x86_64) ${b#*:}"
+    [ $rc = 0 ] && [ "$(echo "$out" | head -1)" = "$want" ] && ok "${b%%:*} --version: $out" || bad "${b%%:*} --version: rc $rc '$out' (want '$want')"
+done
 rm -f "$C/about-linux.png"
 run_lin "$L/overbright" --render about --size 1280x720 "$C/about-linux.png" > "$W/render.txt" 2>&1; rc=$?
 if [ $rc = 0 ] && [ "$(head -c 8 "$C/about-linux.png" 2> /dev/null | od -An -tx1 | tr -d ' \n')" = 89504e470d0a1a0a ]; then
@@ -336,6 +347,12 @@ else
         want="Overbright $VERSION (commit $COMMIT, windows-x86_64) map editor (preview)"
         [ $rc = 0 ] && [ "$(echo "$out" | head -1)" = "$want" ] && ok "wine overbright-editor.exe --version: $out" \
             || bad "wine overbright-editor.exe --version: rc $rc '$out' (want '$want')"
+        for b in "overbright-studio:studio (preview)" "overbright-studio-cli:studio command line (preview)"; do
+            out=$(Wn timeout 120 wine "$WD/${b%%:*}.exe" --version 2> "$OUT/wine/${b%%:*}-version.err" | tr -d '\r'); rc=$?
+            want="Overbright $VERSION (commit $COMMIT, windows-x86_64) ${b#*:}"
+            [ $rc = 0 ] && [ "$(echo "$out" | head -1)" = "$want" ] && ok "wine ${b%%:*}.exe --version: $out" \
+                || bad "wine ${b%%:*}.exe --version: rc $rc '$out' (want '$want')"
+        done
         rm -f "$C/about-windows.png"
         Wn timeout 180 wine "$WD/overbright.exe" --render about --size 1280x720 "$(winepath -w "$C/about-windows.png" 2> /dev/null)" \
             > "$OUT/wine/render.log" 2>&1; rc=$?
