@@ -1,0 +1,11 @@
+{
+  "command": "looks.open",
+  "derived": true,
+  "exit": 0,
+  "format": 1,
+  "name": "ROAD",
+  "ok": true,
+  "origin": "game",
+  "texture": "world:0x00000ABC",
+  "work_file": "<tmp>/docks/work/looks/world/ROAD.png"
+}

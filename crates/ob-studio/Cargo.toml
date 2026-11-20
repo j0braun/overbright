@@ -24,6 +24,8 @@ toml.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 xxhash-rust.workspace = true
+# Looks: the work files and the pack data (PNG).
+image.workspace = true
 
 [dev-dependencies]
 # The test kit (crates/ob-testkit, docs/developing/testing.md).

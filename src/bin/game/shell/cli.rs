@@ -220,11 +220,25 @@ pub(crate) struct MapTest {
     /// `--simulate` (with `--map-race`) or `--simulate-world` (with
     /// `--map-at`): the run headless, streamed (`enh::sim_stream`).
     pub(crate) simulate: Option<crate::enh::sim_stream::SimRun>,
+    /// `--looks-live <folder>`: Studio Looks' live textures, the mod's
+    /// `<folder>/world` and `<folder>/car`, before every other pack and
+    /// watched whatever Reload Packs When Changed says
+    /// (docs/modding/studio-looks.md). A test run's only.
+    pub(crate) looks: Option<std::path::PathBuf>,
 }
 
 /// The test-run flags; each takes one value.
-pub(crate) const MAP_FLAGS: [&str; 8] =
-    ["--map-mod", "--map-file", "--map-race", "--map-at", "--map-result", "--stream", "--sim-seed", "--sim-seconds"];
+pub(crate) const MAP_FLAGS: [&str; 9] = [
+    "--map-mod",
+    "--map-file",
+    "--map-race",
+    "--map-at",
+    "--map-result",
+    "--stream",
+    "--sim-seed",
+    "--sim-seconds",
+    "--looks-live",
+];
 
 /// The simulation's switches (no value).
 pub(crate) const SIM_SWITCHES: [&str; 2] = ["--simulate", "--simulate-world"];
@@ -293,6 +307,13 @@ impl MapTest {
                         twice(seed.is_some())?;
                         seed = Some(v.parse::<u64>().map_err(|_| format!("--sim-seed: `{v}` is not a number"))?);
                     }
+                    "--looks-live" => {
+                        twice(t.looks.is_some())?;
+                        if v.is_empty() {
+                            return Err("--looks-live needs a folder".into());
+                        }
+                        t.looks = Some(v.into());
+                    }
                     "--sim-seconds" => {
                         twice(seconds.is_some())?;
                         let n = v.parse::<f32>().ok().filter(|n| n.is_finite() && *n > 0.0 && *n <= 86_400.0);
@@ -320,7 +341,8 @@ impl MapTest {
             }
             (None, None) => {
                 return Err(
-                    "--map-race, --map-at, --map-result and --simulate need --map-mod <folder> or --map-file <path>"
+                    "--map-race, --map-at, --map-result, --simulate and --looks-live need --map-mod <folder> or \
+                     --map-file <path>"
                         .into(),
                 );
             }
@@ -566,6 +588,18 @@ mod map_test_tests {
             &["--map-file", "a/map.obmap"],
             &["--map-file", "a/map.obmap", "--map-mod", "m", "--map-race", "r"],
             &["--map-file", "a/map.obmap", "--map-file", "b/map.obmap", "--map-race", "r"],
+        ] {
+            assert!(MapTest::parse(&args(bad)).is_err(), "{bad:?}");
+        }
+        // Studio Looks' live textures: a test run's only.
+        let t = MapTest::parse(&args(&["--map-mod", "m", "--map-race", "r", "--looks-live", "/d/m/textures"]))
+            .unwrap()
+            .unwrap();
+        assert_eq!(t.looks.as_deref(), Some(std::path::Path::new("/d/m/textures")));
+        for bad in [
+            &["--looks-live", "/d/m/textures"][..],
+            &["--map-mod", "m", "--map-race", "r", "--looks-live", ""],
+            &["--map-mod", "m", "--map-race", "r", "--looks-live", "a", "--looks-live", "b"],
         ] {
             assert!(MapTest::parse(&args(bad)).is_err(), "{bad:?}");
         }

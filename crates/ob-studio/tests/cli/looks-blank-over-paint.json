@@ -1,0 +1,10 @@
+{
+  "command": "looks.open",
+  "error": {
+    "kind": "failed",
+    "message": "<tmp>/docks/work/looks/world/ROAD.png exists and holds your paint; remove it first to repaint from blank"
+  },
+  "exit": 1,
+  "format": 1,
+  "ok": false
+}

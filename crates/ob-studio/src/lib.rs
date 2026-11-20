@@ -9,7 +9,11 @@ pub use nfsu2::studio_api;
 pub mod cli;
 pub mod history;
 pub mod keys;
+pub mod looks;
 pub mod merge;
 pub mod registry;
 pub mod session;
 pub mod validate;
+
+/// The documents of a mod's history: the map (`map.obmap`) and the texture list (`looks.toml`, [`looks`]).
+pub const MOD_DOCS: &[&str] = &[ob_map::tools::map::store::FILE, looks::FILE];

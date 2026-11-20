@@ -12,7 +12,7 @@ pub(crate) use crate::dev::hooks::{
 pub(crate) use stubs::*;
 
 /// The game's own command line (`unknown_flag`'s message).
-pub(crate) const USAGE: &str = "usage: game [--no-boot] [--editor] | (--map-mod <folder> | --map-file <path>) (--map-race <id> | --map-at x,y,z,heading) [--map-result <file>] [--simulate | --simulate-world] [--stream <file>|-] [--sim-seed N] [--sim-seconds S] | --check-game [game folder] | --set-root <game folder> | --verify-cache [track ...] | --prepare | --crash-test | --support-file [folder] | --version | --help";
+pub(crate) const USAGE: &str = "usage: game [--no-boot] [--editor] | (--map-mod <folder> | --map-file <path>) (--map-race <id> | --map-at x,y,z,heading) [--map-result <file>] [--looks-live <folder>] [--simulate | --simulate-world] [--stream <file>|-] [--sim-seed N] [--sim-seconds S] | --check-game [game folder] | --set-root <game folder> | --verify-cache [track ...] | --prepare | --crash-test | --support-file [folder] | --version | --help";
 
 #[cfg(not(feature = "dev-harness"))]
 mod stubs {

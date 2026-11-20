@@ -1,0 +1,10 @@
+{
+  "command": "looks.open",
+  "error": {
+    "kind": "usage",
+    "message": "--texture: `ui:1` is not a texture id (world:0x1A2B3C4D or car:0x1A2B3C4D)"
+  },
+  "exit": 2,
+  "format": 1,
+  "ok": false
+}

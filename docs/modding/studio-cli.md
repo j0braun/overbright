@@ -38,6 +38,10 @@ and its schema export (`crates/ob-studio/schema/studio.json`) use, so `help` is 
 | `pack put` | edit | Put the whole map in place, from a map file (`--file`) |
 | `edit group` | edit | Several edits as one step (`--label`, `--ops`: the edits as a JSON list) |
 | `ops apply` | edit | Apply an operations file as one step (`--file`, optional `--label`) |
+| `looks open` | run | Open a texture in your own paint program: writes its work file (`--texture world:0x1A2B3C4D`; the game's pixels, or `--blank` for an empty canvas) ([Studio Looks](studio-looks.md)) |
+| `looks import` | edit | Take a texture's work file in now, as one step (`--texture`) |
+| `looks watch` | run | Watch the work files and take each save in as one step (optional `--seconds`; default until Ctrl+C) |
+| `looks list` | read | The mod's changed textures and work files, with where their pixels started |
 | `checks run` | read | Run the map checks on the mod |
 | `history show` | read | The mod's kept steps, with their authors |
 | `schema export` | read | The kinds' and commands' schemas |
@@ -88,6 +92,12 @@ An edit's document holds:
 `text`, the `race` it is about, the `point` and the place (`at`, x and y) the editor's Show goes to, and the `fix`
 the editor offers. `history show` gives `step` (the current one), `steps` and `undone` (each with `step`,
 `author`, `label`, `time_ms`), `versions` and `unsaved`.
+
+`looks open` gives `texture`, `name`, `work_file`, `origin` (`game` or `blank`) and `derived`. `looks import`
+gives `outcome` (`made` with its `step`, `unchanged`, or `sent` with the inbox `request` when Studio has the mod
+open). `looks watch` gives `saves`, one per save taken in, with its `outcome` (or `refused` and the `reason`).
+`looks list` gives `textures` (each with `texture`, `name`, `origin`, `derived`, `size`, `image`, `pack_file`)
+and `work`.
 
 ## Exit codes
 

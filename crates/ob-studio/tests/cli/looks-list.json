@@ -1,0 +1,28 @@
+{
+  "command": "looks.list",
+  "exit": 0,
+  "format": 1,
+  "ok": true,
+  "textures": [
+    {
+      "derived": true,
+      "image": "130bb5ad4ee96f88",
+      "name": "ROAD",
+      "origin": "game",
+      "pack_file": "textures/world/00000ABC.png",
+      "size": [
+        4,
+        4
+      ],
+      "texture": "world:0x00000ABC"
+    }
+  ],
+  "work": [
+    {
+      "name": "ROAD",
+      "origin": "game",
+      "texture": "world:0x00000ABC",
+      "work_file": "work/looks/world/ROAD.png"
+    }
+  ]
+}

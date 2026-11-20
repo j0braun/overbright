@@ -68,6 +68,11 @@ pub(super) fn roots(domain: Domain) -> Vec<PathBuf> {
     if v.is_empty() {
         v.extend(crate::hd_ui_pack::active_root().map(Path::to_path_buf));
     }
+    // A Studio test run's live textures (`--looks-live`) before every
+    // other pack (none: the folders above, unchanged).
+    if let Some(l) = crate::render::pack_reload::live_root(domain) {
+        v.insert(0, l);
+    }
     v
 }
 

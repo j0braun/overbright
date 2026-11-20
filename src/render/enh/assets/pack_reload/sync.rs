@@ -6,7 +6,8 @@ use super::*;
 /// (`frontend::map_pack::reapply`).
 pub fn frame(hd_ui: bool) -> bool {
     static LAST_HD: OnceLock<Mutex<Option<bool>>> = OnceLock::new();
-    if !crate::qol::reload_packs() {
+    // A Studio test run's live textures watch whatever the setting says.
+    if !crate::qol::reload_packs() && live().is_none() {
         if RUNNING.load(Ordering::Relaxed) {
             STOP.store(true, Ordering::Relaxed);
         }

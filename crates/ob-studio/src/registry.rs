@@ -215,6 +215,8 @@ const HEADING: Field = f("heading", F32, Req::No, "Heading");
 const POINT_PART: Field = f("part", PART, Req::Yes, "Part");
 const POINT_INDEX: Field = f("index", U32, Req::No, "Number");
 const FILE: Field = f("file", TEXT, Req::Yes, "File");
+/// A game texture (`world:0x1A2B3C4D`, Studio Looks).
+const TEXTURE: Field = f("texture", TEXT, Req::Yes, "Texture");
 
 /// Every command, by stable name. Each map edit ([`Op`]) has one ([`command_of`]); the command-line tool has one
 /// verb per command (`props move` runs `props.move`) and one flag per argument.
@@ -344,6 +346,30 @@ pub const COMMANDS: &[Command] = &[
         kind: CommandKind::Edit,
         summary: "Apply an operations file (one edit per line) as one undo step",
         args: &[FILE, f("label", TEXT, Req::No, "Name")],
+    },
+    Command {
+        name: "looks.open",
+        kind: CommandKind::Run,
+        summary: "Open a texture in your own paint program: its work file, from the game's pixels or blank",
+        args: &[TEXTURE, f("blank", Ty::Bool, Req::No, "Repaint from blank")],
+    },
+    Command {
+        name: "looks.import",
+        kind: CommandKind::Edit,
+        summary: "Take a texture's work file in now, as one step",
+        args: &[TEXTURE],
+    },
+    Command {
+        name: "looks.watch",
+        kind: CommandKind::Run,
+        summary: "Watch the work files and take each save in as one step",
+        args: &[f("seconds", F32, Req::No, "For how long (default: until Ctrl+C)")],
+    },
+    Command {
+        name: "looks.list",
+        kind: CommandKind::Read,
+        summary: "The mod's textures and work files, with where their pixels started",
+        args: &[],
     },
     Command { name: "checks.run", kind: CommandKind::Read, summary: "Run the map checks on the pack", args: &[] },
     Command {

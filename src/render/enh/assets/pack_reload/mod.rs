@@ -32,9 +32,11 @@ pub const TICK: Duration = Duration::from_millis(250);
 /// still being copied) before it is kept out with a warning.
 pub const RETRIES: u32 = 8;
 mod journal;
+mod live;
 mod sync;
 mod watch;
 pub use journal::*;
+pub use live::*;
 pub use sync::*;
 pub use watch::*;
 

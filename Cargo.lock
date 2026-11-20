@@ -1941,6 +1941,7 @@ name = "ob-studio"
 version = "0.4.2"
 dependencies = [
  "glam",
+ "image",
  "nfsu2",
  "ob-asset-format",
  "ob-core",

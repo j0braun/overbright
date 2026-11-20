@@ -455,6 +455,61 @@
       "words": "ops apply"
     },
     {
+      "command": "looks.open",
+      "flags": [
+        {
+          "flag": "--texture",
+          "label": "Texture",
+          "needed": true,
+          "type": "text"
+        },
+        {
+          "flag": "--blank",
+          "label": "Repaint from blank",
+          "needed": false,
+          "type": "bool"
+        }
+      ],
+      "kind": "run",
+      "summary": "Open a texture in your own paint program: its work file, from the game's pixels or blank",
+      "words": "looks open"
+    },
+    {
+      "command": "looks.import",
+      "flags": [
+        {
+          "flag": "--texture",
+          "label": "Texture",
+          "needed": true,
+          "type": "text"
+        }
+      ],
+      "kind": "edit",
+      "summary": "Take a texture's work file in now, as one step",
+      "words": "looks import"
+    },
+    {
+      "command": "looks.watch",
+      "flags": [
+        {
+          "flag": "--seconds",
+          "label": "For how long (default: until Ctrl+C)",
+          "needed": false,
+          "type": "f32"
+        }
+      ],
+      "kind": "run",
+      "summary": "Watch the work files and take each save in as one step",
+      "words": "looks watch"
+    },
+    {
+      "command": "looks.list",
+      "flags": [],
+      "kind": "read",
+      "summary": "The mod's textures and work files, with where their pixels started",
+      "words": "looks list"
+    },
+    {
       "command": "checks.run",
       "flags": [],
       "kind": "read",

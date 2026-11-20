@@ -21,6 +21,9 @@ With it off, packs are read as before: at the start (HD UI + Maps) or when a wor
 Texture Pack, `NFSU2_WORLD_TEXTURE_PACK` / `NFSU2_CAR_TEXTURE_PACK`), with the same result as a build
 without the setting.
 
+A test run Studio starts with `--looks-live <folder>` ([Studio Looks](studio-looks.md)) watches the mod's
+textures this way whatever the setting says, for that run only.
+
 ## Limits (open)
 
 - Textures made once from a pack image and kept elsewhere keep the old image until their next load: the
