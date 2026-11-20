@@ -56,6 +56,7 @@ package ob-formats
 package ob-asset-format
 package ob-map
 package nfsu2
+package ob-studio
 package ob-studio-gui
 package devprobes
 
@@ -66,7 +67,12 @@ forbid ob-asset-format wgpu winit cpal egui
 forbid ob-map wgpu winit cpal egui
 forbid ob-look wgpu winit cpal egui
 forbid nfsu2 egui
+forbid ob-studio egui
 
 # wasm PACKAGE…: packages that must build for the web (`cargo check --target wasm32-unknown-unknown`; skipped,
 # with a line, where that target is not installed).
 wasm ob-core ob-formats ob-asset-format ob-map ob-look
+
+# studio DIR…: Studio's crates. They name the game library only as `nfsu2::studio_api::…` (src/studio_api.rs, its
+# one interface for Studio), never a deeper `nfsu2::` path; the interface re-exports no library module by glob.
+studio crates/ob-studio crates/ob-studio-gui

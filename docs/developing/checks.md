@@ -19,7 +19,7 @@ scripts/checks/baselines.sh record|check|rebless <outdir> <game> …   # the sto
 scripts/checks/loadgate.sh run <outdir> base=<game>[@original|@base] new=<game>[@original|@base]   # the load-speed gate: warm, cold, 4 cores ("Load-speed gate")
 scripts/checks/selfcheck.sh <outdir>             # the gates' self-test: broken inputs must fail, good ones pass (~20 s)
 scripts/checks/devprobes.sh                      # the developer probes (devprobes/) still compile: cargo check -p devprobes
-scripts/checks/crate_layers.sh [repo]            # the crate layers: no new upward reference, package edges only down, no dev-harness in the shipped tree (ARCHITECTURE.md "Layers"; in fast and full)
+scripts/checks/crate_layers.sh [repo]            # the crate layers: no new upward reference, package edges only down, no dev-harness in the shipped tree, Studio's crates through `nfsu2::studio_api` only (ARCHITECTURE.md "Layers"; in fast and full)
 scripts/checks/soak_images.sh <game> <outdir> [runs]   # the gate's image dumps N times with one binary (run-to-run flakes; "Image soak")
 scripts/checks/fuzz.sh                           # the fuzz smoke: every parser target on mutated inputs (docs/developing/fuzzing.md; FUZZ_SECS, FUZZ_ITERS, FUZZ_ONLY)
 scripts/checks/release_check.sh [outdir]          # the shipping binary (no dev-harness): no harness strings, harness flags give the usage error

@@ -3,6 +3,7 @@
 //! game's own settings code) or fixed fake data ([`FakeEnv`], for the
 //! headless renders and tests; no game files needed).
 
+use ob_look::words;
 use std::path::{Path, PathBuf};
 
 use super::probe::{FirstRun, Probe};
@@ -200,7 +201,7 @@ impl Issue {
                 vec![("probe_again", "Check again"), ("driver_help", "How to install a driver")],
             ),
             Issue::AlreadyRunning => {
-                w("The game is already running", "Switch to its window, or close it first.".into(), vec![("ok", "OK")])
+                w("The game is already running", "Switch to its window, or close it first.".into(), vec![("ok", words::OK)])
             }
             Issue::WindowFailed => w(
                 "The game window didn't open",

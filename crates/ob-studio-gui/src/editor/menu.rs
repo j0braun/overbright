@@ -18,6 +18,7 @@
 //! test runs every command for both kinds of selection and in both views
 //! to keep that list empty.
 
+use ob_look::words;
 use egui::{Key, KeyboardShortcut, Modifiers};
 
 use super::app::App;
@@ -304,13 +305,13 @@ pub const KEYS: &[Binding] = &[
     b("Edit", "Alt while dragging or placing", "No snapping", &[]),
     b("Edit", "Shift + click on the route", "Insert a checkpoint there", &[]),
     b("Edit", "[ / ]", "Previous / next checkpoint", &[Key::OpenBracket, Key::CloseBracket]),
-    b("Edit", "Ctrl+D", "Duplicate", &[Key::D]),
-    b("Edit", "Del", "Delete", &[Key::Delete]),
+    b("Edit", "Ctrl+D", words::DUPLICATE, &[Key::D]),
+    b("Edit", "Del", words::DELETE, &[Key::Delete]),
     b("Edit", "End", "Drop to the ground", &[Key::End]),
     b("Edit", "Ctrl+Z, Ctrl+Y (Ctrl+Shift+Z)", "Undo, redo", &[Key::Z, Key::Y]),
     b("File", "Ctrl+N, Ctrl+O", "New map mod, open a map mod", &[Key::N, Key::O]),
-    b("File", "Ctrl+S", "Save", &[Key::S]),
-    b("File", "Ctrl+Q", "Quit", &[Key::Q]),
+    b("File", "Ctrl+S", words::SAVE, &[Key::S]),
+    b("File", "Ctrl+Q", words::QUIT, &[Key::Q]),
     b("File", "Enter", "Confirm a dialog", &[Key::Enter]),
     b("Run", "F5 / Shift+F5", "Test race / Drive here", &[Key::F5]),
     b("Run", "Space", "Play / pause the simulation (Simulate tab)", &[Key::Space]),
@@ -445,7 +446,7 @@ pub fn bar(app: &App, ui: &mut egui::Ui, out: &mut Vec<Action>) {
                 }
             }
             ui.separator();
-            if item(ui, "Save", Some(&SAVE), open) {
+            if item(ui, words::SAVE, Some(&SAVE), open) {
                 out.push(Action::Save);
             }
             if item(ui, "Mod details…", None, open) {
@@ -459,7 +460,7 @@ pub fn bar(app: &App, ui: &mut egui::Ui, out: &mut Vec<Action>) {
                 out.push(Action::Export);
             }
             ui.separator();
-            if item(ui, "Quit", Some(&QUIT), true) {
+            if item(ui, words::QUIT, Some(&QUIT), true) {
                 out.push(Action::Quit);
             }
         });
@@ -467,18 +468,18 @@ pub fn bar(app: &App, ui: &mut egui::Ui, out: &mut Vec<Action>) {
             let (u, r) = app.state.as_ref().map_or((None, None), |s| {
                 (s.session.undo.undo_label().map(str::to_string), s.session.undo.redo_label().map(str::to_string))
             });
-            let ut = u.as_ref().map_or("Undo".to_string(), |l| format!("Undo: {l}"));
+            let ut = u.as_ref().map_or(words::UNDO.to_string(), |l| format!("Undo: {l}"));
             if item(ui, &ut, Some(&UNDO), u.is_some()) {
                 out.push(Action::Undo);
             }
-            let rt = r.as_ref().map_or("Redo".to_string(), |l| format!("Redo: {l}"));
+            let rt = r.as_ref().map_or(words::REDO.to_string(), |l| format!("Redo: {l}"));
             if item(ui, &rt, Some(&REDO), r.is_some()) {
                 out.push(Action::Redo);
             }
             ui.separator();
             let s = app.state.as_ref();
-            command(ui, s, "Duplicate", "Ctrl+D", Command::Duplicate);
-            command(ui, s, "Delete", "Del", Command::Delete);
+            command(ui, s, words::DUPLICATE, "Ctrl+D", Command::Duplicate);
+            command(ui, s, words::DELETE, "Del", Command::Delete);
             command(ui, s, "Select all of this solid", "", Command::SelectAllOfSolid);
             command(ui, s, "Drop to ground", "End", Command::DropToGround);
         });
@@ -677,9 +678,9 @@ fn part_job(part: Part, tier: usize, s: &EditorState, p: &Props, r: &Races, tool
     Some(match part {
         Part::Tool(t) => label_job(t.name(), key(t), tool == t, t.unavailable(s).is_none()),
         Part::Snap => snap_job(p, r, tool, tier),
-        Part::Undo => label_job("Undo", None, false, true),
-        Part::Redo => label_job("Redo", None, false, true),
-        Part::Save => label_job("Save", None, false, true),
+        Part::Undo => label_job(words::UNDO, None, false, true),
+        Part::Redo => label_job(words::REDO, None, false, true),
+        Part::Save => label_job(words::SAVE, None, false, true),
         Part::SlotStart if tier < 2 => {
             let mut j = egui::text::LayoutJob::default();
             j.append("Race", 0.0, egui::TextFormat::simple(egui::FontId::proportional(12.0), theme::dim()));
@@ -819,9 +820,9 @@ pub fn toolbar(app: &mut App, ui: &mut egui::Ui, out: &mut Vec<Action>) {
                 }
                 Part::Undo | Part::Redo | Part::Save => {
                     let (on, tip, a, name) = match part {
-                        Part::Undo => (s.session.undo.undo_label().is_some(), "Ctrl+Z", Action::Undo, "Undo"),
-                        Part::Redo => (s.session.undo.redo_label().is_some(), "Ctrl+Y", Action::Redo, "Redo"),
-                        _ => (s.session.dirty, "Ctrl+S", Action::Save, "Save"),
+                        Part::Undo => (s.session.undo.undo_label().is_some(), "Ctrl+Z", Action::Undo, words::UNDO),
+                        Part::Redo => (s.session.undo.redo_label().is_some(), "Ctrl+Y", Action::Redo, words::REDO),
+                        _ => (s.session.dirty, "Ctrl+S", Action::Save, words::SAVE),
                     };
                     let Some(j) = r else { continue };
                     let resp = ui.add_enabled(on, egui::Button::new(j)).on_hover_text(tip);

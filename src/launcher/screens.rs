@@ -4,6 +4,7 @@
 //! third-party notices), the start failure, the folder browser, the save
 //! import, and a widget test screen (docs/launcher.md).
 
+use ob_look::words;
 use std::path::{Path, PathBuf};
 
 use super::draw::theme;
@@ -324,7 +325,7 @@ pub fn build(b: &mut Builder, m: &Model, screen: Screen) {
     b.footer_legends(&version, legends_for(m, screen));
     match &m.ask {
         Some(Dialog::Quit) if matches!(screen, Screen::Main | Screen::FirstRun) => {
-            b.dialog("Quit Overbright?", "The game will not start.", &[("stay", "Stay"), ("quit", "Quit")])
+            b.dialog("Quit Overbright?", "The game will not start.", &[("stay", "Stay"), ("quit", words::QUIT)])
         }
         Some(Dialog::Reset) if screen == Screen::Settings => b.dialog(
             "Back to defaults?",
@@ -346,7 +347,7 @@ pub fn build(b: &mut Builder, m: &Model, screen: Screen) {
                 if m.copy_plan.as_ref().is_some_and(super::transfer::Plan::replaceable) {
                     buttons.push(("loc_copy_replace", "Copy, replace (backups kept)"));
                 }
-                buttons.push(("loc_cancel", "Cancel"));
+                buttons.push(("loc_cancel", words::CANCEL));
                 b.dialog(
                     &format!("Put {} here?", what.to_lowercase()),
                     &format!(
@@ -365,7 +366,7 @@ pub fn build(b: &mut Builder, m: &Model, screen: Screen) {
                 if m.copy_plan.as_ref().is_some_and(super::transfer::Plan::replaceable) {
                     buttons.push(("port_copy_replace", "Copy, replace (backups kept)"));
                 }
-                buttons.push(("port_cancel", "Cancel"));
+                buttons.push(("port_cancel", words::CANCEL));
                 b.dialog(
                     "Keep everything beside Overbright?",
                     &format!(
@@ -385,7 +386,7 @@ pub fn build(b: &mut Builder, m: &Model, screen: Screen) {
                 if m.copy_plan.as_ref().is_some_and(super::transfer::Plan::replaceable) {
                     buttons.push(("port_copy_back_replace", "Copy, replace (backups kept)"));
                 }
-                buttons.push(("port_cancel", "Cancel"));
+                buttons.push(("port_cancel", words::CANCEL));
                 b.dialog(
                     "Keep the files in your home folders again?",
                     &format!(
@@ -443,45 +444,45 @@ pub const PAGES: [(&str, &str); 5] = [
 pub fn legends_for(m: &Model, screen: Screen) -> Vec<super::legends::Action> {
     use super::legends::{Btn, action};
     if m.ask.is_some() {
-        return vec![action(Btn::Confirm, "Select"), action(Btn::Back, "Cancel")];
+        return vec![action(Btn::Confirm, words::SELECT), action(Btn::Back, words::CANCEL)];
     }
-    let mut v = vec![action(Btn::Confirm, "Select")];
+    let mut v = vec![action(Btn::Confirm, words::SELECT)];
     match screen {
         Screen::Main => {
-            v.push(action(Btn::Back, "Quit"));
+            v.push(action(Btn::Back, words::QUIT));
             v.push(action(Btn::Pages, "Pages"));
         }
         Screen::Settings => {
             v.push(action(Btn::Change, "Change"));
             v.push(action(Btn::Y, "Back to defaults"));
-            v.push(action(Btn::Back, "Back"));
+            v.push(action(Btn::Back, words::BACK));
         }
         Screen::Advanced => {
             v.push(action(Btn::Change, "Change"));
-            v.push(action(Btn::Back, "Back"));
+            v.push(action(Btn::Back, words::BACK));
         }
         Screen::Dev => {
             v.push(action(Btn::Pages, "Pages"));
-            v.push(action(Btn::Back, "Back"));
+            v.push(action(Btn::Back, words::BACK));
         }
         Screen::Mods => {
             v[0] = action(Btn::Confirm, "Turn on or off");
             v.push(action(Btn::Y, "Add a mod"));
             v.push(action(Btn::X, "Remove"));
-            v.push(action(Btn::Back, "Back"));
+            v.push(action(Btn::Back, words::BACK));
         }
         Screen::Saves => super::saves_page::legends(&mut v),
-        Screen::FirstRun => v.push(action(Btn::Back, "Quit")),
+        Screen::FirstRun => v.push(action(Btn::Back, words::QUIT)),
         // Details as a legend only while the screen offers it.
         Screen::Check if m.check.as_ref().is_some_and(|c| c.summary.is_some()) => {
             v.push(action(Btn::Y, if m.show_details { "Hide details" } else { "Details" }));
-            v.push(action(Btn::Back, "Back"));
+            v.push(action(Btn::Back, words::BACK));
         }
         Screen::Browse => {
             v.push(action(Btn::X, "Use this folder"));
-            v.push(action(Btn::Back, "Back"));
+            v.push(action(Btn::Back, words::BACK));
         }
-        _ => v.push(action(Btn::Back, "Back")),
+        _ => v.push(action(Btn::Back, words::BACK)),
     }
     v
 }
@@ -521,11 +522,11 @@ fn build_page(b: &mut Builder, m: &Model, screen: Screen) {
                 b.dim(PORTABLE);
             }
             message(b, m);
-            b.footer(vec![Ctrl::primary("back", "Back")]);
+            b.footer(vec![Ctrl::primary("back", words::BACK)]);
             b.default_focus = Some("back");
         }
         Screen::Licence | Screen::Notices => {
-            b.buttons(Align::Left, vec![Ctrl::primary("back", "Back")]);
+            b.buttons(Align::Left, vec![Ctrl::primary("back", words::BACK)]);
             b.gap(8.0);
             b.dim("Arrow keys, Page Up / Page Down or the mouse wheel scroll the text.");
             b.gap(14.0);
@@ -639,11 +640,11 @@ fn build_page(b: &mut Builder, m: &Model, screen: Screen) {
                 }
             });
             message(b, m);
-            let mut foot = vec![Ctrl::button("cancel", "Cancel")];
+            let mut foot = vec![Ctrl::button("cancel", words::CANCEL)];
             if m.native_dialog {
                 foot.push(Ctrl::button("system", "Windows dialog…"));
             }
-            foot.push(Ctrl::Button { id: "open", text: "Open".into(), primary: false, enabled: !items.is_empty() });
+            foot.push(Ctrl::Button { id: "open", text: words::OPEN.into(), primary: false, enabled: !items.is_empty() });
             foot.push(Ctrl::Button {
                 id: "use",
                 text: if br.purpose == BrowseFor::Packages { "Import all here" } else { "Use this folder" }.into(),
@@ -701,7 +702,7 @@ fn build_page(b: &mut Builder, m: &Model, screen: Screen) {
             b.status(Mark::Ok, "A fine status line");
             b.status(Mark::Warn, "A warning status line");
             b.status(Mark::Error, "An error status line");
-            b.footer(vec![Ctrl::button("quit", "Quit")]);
+            b.footer(vec![Ctrl::button("quit", words::QUIT)]);
         }
     }
 }
@@ -1572,7 +1573,7 @@ fn build_storage(b: &mut Builder, m: &Model) {
     let game = m.root.as_ref().map_or("None chosen".to_string(), |r| r.display().to_string());
     row(b, "Game folder", &game, vec![Ctrl::button("change", "Change…"), Ctrl::Button {
         id: "game_open",
-        text: "Open".into(),
+        text: words::OPEN.into(),
         primary: false,
         enabled: m.root.is_some(),
     }], None);
@@ -1583,7 +1584,7 @@ fn build_storage(b: &mut Builder, m: &Model) {
         if hud.is_empty() { "None chosen" } else { hud },
         vec![
             Ctrl::button("pack_browse", "Change…"),
-            Ctrl::Button { id: "hud_open", text: "Open".into(), primary: false, enabled: !hud.is_empty() },
+            Ctrl::Button { id: "hud_open", text: words::OPEN.into(), primary: false, enabled: !hud.is_empty() },
             Ctrl::Button { id: "pack_forget", text: "Reset to default".into(), primary: false, enabled: !hud.is_empty() },
         ],
         None,
@@ -1605,7 +1606,7 @@ fn build_storage(b: &mut Builder, m: &Model) {
             &path,
             vec![
                 Ctrl::button(c, "Change…"),
-                Ctrl::Button { id: o, text: "Open".into(), primary: false, enabled: !l.missing && l.path.is_some() },
+                Ctrl::Button { id: o, text: words::OPEN.into(), primary: false, enabled: !l.missing && l.path.is_some() },
                 Ctrl::Button { id: r, text: "Reset to default".into(), primary: false, enabled: l.custom },
             ],
             l.missing.then_some("This folder is not there: its drive may be unplugged. Plug it in, or reset it."),

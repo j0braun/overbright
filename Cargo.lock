@@ -1935,6 +1935,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "ob-studio"
+version = "0.4.2"
+dependencies = [
+ "glam",
+ "nfsu2",
+ "ob-asset-format",
+ "ob-map",
+ "serde_json",
+ "toml",
+]
+
+[[package]]
 name = "ob-studio-gui"
 version = "0.4.2"
 dependencies = [
@@ -1948,7 +1960,10 @@ dependencies = [
  "image",
  "log",
  "nfsu2",
+ "ob-core",
+ "ob-formats",
  "ob-look",
+ "ob-map",
  "ob-testkit",
  "pollster 0.4.0",
  "toml",

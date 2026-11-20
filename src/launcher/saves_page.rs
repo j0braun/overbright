@@ -5,6 +5,7 @@
 //! and Undo. The file work runs on a worker thread (`saves::jobs`); the
 //! page shows a busy line and greys the actions meanwhile.
 
+use ob_look::words;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime};
@@ -187,7 +188,7 @@ pub fn build(b: &mut Builder, m: &super::model::Model) {
     if let Some(u) = &sp.undo {
         b.gap(6.0);
         let note = if u.restore.is_some() { "A backup was made first." } else { "" };
-        b.message_with(Mark::Ok, &u.said, note, vec![btn("undo", "Undo", !busy)]);
+        b.message_with(Mark::Ok, &u.said, note, vec![btn("undo", words::UNDO, !busy)]);
     }
     import_section(b, m);
     let left_bottom = b.y;
@@ -242,7 +243,7 @@ fn import_section(b: &mut Builder, m: &super::model::Model) {
                     primary: true,
                     enabled: n > 0 && !busy,
                 },
-                btn("import_cancel", "Cancel", true),
+                btn("import_cancel", words::CANCEL, true),
             ],
         );
         b.gap(6.0);
@@ -383,7 +384,7 @@ fn actions(b: &mut Builder, m: &super::model::Model, r: &Row) {
             vec![Ctrl::Field { id: "rename_field", text: t.clone(), placeholder: "New name".into() }],
         );
         b.gap(12.0);
-        b.buttons(Align::Left, vec![btn("rename_ok", "Rename", on), btn("rename_cancel", "Cancel", true)]);
+        b.buttons(Align::Left, vec![btn("rename_ok", words::RENAME, on), btn("rename_cancel", words::CANCEL, true)]);
         b.gap(6.0);
         b.dim("1 to 7 letters or digits. The game shows the new name.");
         return;
@@ -398,7 +399,7 @@ fn actions(b: &mut Builder, m: &super::model::Model, r: &Row) {
     );
     if sp.more {
         b.gap(12.0);
-        b.buttons(Align::Left, vec![btn("rename", "Rename…", on && ok), btn("duplicate", "Duplicate", on && ok)]);
+        b.buttons(Align::Left, vec![btn("rename", "Rename…", on && ok), btn("duplicate", words::DUPLICATE, on && ok)]);
         b.gap(12.0);
         b.buttons(Align::Left, vec![btn("export", "Export…", on), btn("backup_all", "Back up all", on)]);
         b.gap(12.0);
@@ -430,13 +431,13 @@ pub fn dialog(b: &mut Builder, m: &super::model::Model) {
             b.dialog(
                 &format!("Delete {name}?"),
                 &format!("{with}A backup is made first, and Undo brings it back."),
-                &[("save_cancel", "Cancel"), ("delete_yes", "Delete")],
+                &[("save_cancel", words::CANCEL), ("delete_yes", words::DELETE)],
             );
         }
         Some(Dialog::SaveDuplicate(name)) => b.dialog(
             &format!("Make a copy of {name}?"),
             "The copy gets the next free name (with a number) and its own saved covers.",
-            &[("save_cancel", "Cancel"), ("duplicate_yes", "Duplicate")],
+            &[("save_cancel", words::CANCEL), ("duplicate_yes", words::DUPLICATE)],
         ),
         Some(Dialog::SaveRestore(bk)) => b.dialog(
             &format!("Restore {} from {}?", bk.name, bk.when()),
@@ -447,7 +448,7 @@ pub fn dialog(b: &mut Builder, m: &super::model::Model) {
             &[
                 ("restore_copy", "Restore as a copy"),
                 ("restore_replace", &format!("Replace {}", bk.name)),
-                ("save_cancel", "Cancel"),
+                ("save_cancel", words::CANCEL),
             ],
         ),
         Some(Dialog::SaveDeleteBackup(bk)) => b.dialog(
@@ -465,7 +466,7 @@ pub fn legends(v: &mut Vec<super::legends::Action>) {
     v.push(action(Btn::X, "Actions"));
     v.push(action(Btn::Y, "Back up"));
     v.push(action(Btn::Pages, "Pages"));
-    v.push(action(Btn::Back, "Back"));
+    v.push(action(Btn::Back, words::BACK));
 }
 
 impl<'e> App<'e> {

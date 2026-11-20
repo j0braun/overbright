@@ -105,6 +105,8 @@ pub mod weather;
 pub mod world;
 // The opt-in modding tools (texture and map editors; docs/modding/texture-editor.md).
 pub mod tools;
+// The one interface Studio's crates use into this library (crates/ob-studio, crates/ob-studio-gui).
+pub mod studio_api;
 // Overbright's own texture-pack format (docs/modding/texture-packs.md).
 pub mod obpack;
 // Quality tooling (docs/playing/mark-spot.md).

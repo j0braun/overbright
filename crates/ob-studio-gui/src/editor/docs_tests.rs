@@ -39,6 +39,19 @@ fn literal(line: &str) -> Option<&str> {
     Some(&line[a..b])
 }
 
+/// A drawn item's name: its first string literal, or the shared word it
+/// names (`words::SAVE`, crates/ob-look) when that comes first.
+fn item_name(line: &str) -> Option<String> {
+    let lit = line.find('"');
+    if let Some(i) = line.find("words::")
+        && lit.is_none_or(|l| i < l)
+    {
+        let id: String = line[i + 7..].chars().take_while(|c| c.is_ascii_alphanumeric() || *c == '_').collect();
+        return ob_look::words::ALL.iter().find(|w| w.to_uppercase() == id).map(|w| w.to_string());
+    }
+    literal(line).map(str::to_string)
+}
+
 /// The menu bar's items as the source of `menu::bar` draws them:
 /// ("Menu ▸ Item", the command it posts if any).
 fn menu_items() -> Vec<(String, Option<String>)> {
@@ -52,11 +65,11 @@ fn menu_items() -> Vec<(String, Option<String>)> {
             menu = literal(line).expect("a menu's name");
             continue;
         }
-        let drawn = ["item(ui, \"", "command(ui, s, \"", "Button::selectable(", "ui.button(\""];
+        let drawn = ["item(ui, \"", "item(ui, words::", "command(ui, s, \"", "command(ui, s, words::", "Button::selectable(", "ui.button(\""];
         if !drawn.iter().any(|d| line.contains(d)) {
             continue;
         }
-        let Some(name) = literal(line) else { continue };
+        let Some(name) = item_name(line) else { continue };
         let cmd = line
             .find("Command::")
             .map(|i| line[i + 9..].chars().take_while(char::is_ascii_alphanumeric).collect::<String>());
