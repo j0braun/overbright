@@ -1,12 +1,22 @@
 //! One writer per mod: the writer holds the operating system's exclusive lock on the mod's `.editor/studio.lock`
-//! (`flock` on Linux, `LockFileEx` on Windows) for as long as it has the mod open. The system lets the lock go
-//! when the process ends in any way, a crash or `kill -9` included, so a lock left by a dead process is never
-//! seen as held and needs no clean-up; a live writer's lock is never taken away. Who holds it is written beside
-//! it (`studio-owner.toml`), for the read-only state to name.
-
-use std::fs::{File, OpenOptions, TryLockError};
+//! (a process lock through `fcntl` on Linux, `LockFileEx` on Windows) for as long as it has the mod open. The
+//! system lets the lock go when the process ends in any way, a crash or `kill -9` included, so a lock left by a
+//! dead process is never seen as held and needs no clean-up; a live writer's lock is never taken away. Who holds
+//! it is written beside it (`studio-owner.toml`), for the read-only state to name.
+//!
+//! The lock never travels to a program the writer starts (the test game, a test run). On Linux a starting
+//! program is a copy of the writer, open files included, until it runs the new program; a `flock` lock belongs
+//! to the open file and would stay held by that copy for a moment after the writer let it go, so the next
+//! opener was refused now and then. A `fcntl` process lock belongs to the process and is never copied. Such a
+//! lock does not keep two openers in the same process apart, and closing any handle of the file lets it go, so
+//! this process's held locks are also kept in a list, checked before the file is opened. On Windows a file
+//! handle is not passed to a started program (Rust opens files not inheritable) and a `LockFileEx` lock stays
+//! with the handle that took it.
+use std::collections::HashSet;
+use std::fs::{File, OpenOptions};
 use std::io;
 use std::path::{Path, PathBuf};
+use std::sync::{Mutex, MutexGuard};
 
 /// The lock file, in the mod's editor folder.
 pub const LOCK: &str = "studio.lock";
@@ -44,8 +54,72 @@ impl Owner {
 /// The held lock; dropping it lets the lock go.
 #[derive(Debug)]
 pub struct WriteLock {
-    _file: File,
+    file: Option<File>,
+    /// The lock file, as kept in [`HELD`].
+    key: PathBuf,
     dir: PathBuf,
+}
+
+impl Drop for WriteLock {
+    fn drop(&mut self) {
+        // Closed while the list is locked: another opener of this process cannot open the file in between.
+        let mut held = held();
+        drop(self.file.take());
+        held.remove(&self.key);
+    }
+}
+
+/// The lock files this process holds.
+static HELD: Mutex<Option<HashSet<PathBuf>>> = Mutex::new(None);
+
+struct Held<'a>(MutexGuard<'a, Option<HashSet<PathBuf>>>);
+
+impl Held<'_> {
+    fn contains(&self, k: &Path) -> bool {
+        self.0.as_ref().is_some_and(|h| h.contains(k))
+    }
+    fn insert(&mut self, k: PathBuf) {
+        self.0.get_or_insert_with(HashSet::new).insert(k);
+    }
+    fn remove(&mut self, k: &Path) {
+        if let Some(h) = self.0.as_mut() {
+            h.remove(k);
+        }
+    }
+}
+
+fn held() -> Held<'static> {
+    Held(HELD.lock().unwrap_or_else(|e| e.into_inner()))
+}
+
+/// Try the exclusive lock on `file`: Ok(true) taken, Ok(false) another process holds it.
+#[cfg(unix)]
+fn try_lock(file: &File) -> io::Result<bool> {
+    use std::os::fd::AsRawFd;
+    // SAFETY: an all-zero `flock` is a valid value; the fields used are set below.
+    let mut l: libc::flock = unsafe { std::mem::zeroed() };
+    l.l_type = libc::F_WRLCK as _;
+    l.l_whence = libc::SEEK_SET as _;
+    // l_start = 0, l_len = 0: the whole file.
+    // SAFETY: `file` is open for the call and `l` is a valid `flock`.
+    if unsafe { libc::fcntl(file.as_raw_fd(), libc::F_SETLK, &l) } == 0 {
+        return Ok(true);
+    }
+    let e = io::Error::last_os_error();
+    match e.raw_os_error() {
+        Some(libc::EACCES | libc::EAGAIN) => Ok(false),
+        _ => Err(e),
+    }
+}
+
+/// Try the exclusive lock on `file`: Ok(true) taken, Ok(false) another handle holds it.
+#[cfg(not(unix))]
+fn try_lock(file: &File) -> io::Result<bool> {
+    match file.try_lock() {
+        Ok(()) => Ok(true),
+        Err(std::fs::TryLockError::WouldBlock) => Ok(false),
+        Err(std::fs::TryLockError::Error(e)) => Err(e),
+    }
 }
 
 impl WriteLock {
@@ -59,16 +133,22 @@ impl WriteLock {
 /// holds it (who, when it says so).
 pub fn try_take(dir: &Path, program: &str) -> io::Result<Result<WriteLock, Option<Owner>>> {
     std::fs::create_dir_all(dir)?;
-    let file = OpenOptions::new().read(true).write(true).create(true).truncate(false).open(dir.join(LOCK))?;
-    match file.try_lock() {
-        Ok(()) => {}
-        Err(TryLockError::WouldBlock) => return Ok(Err(owner(dir))),
-        Err(TryLockError::Error(e)) => return Err(e),
+    let key = std::fs::canonicalize(dir)?.join(LOCK);
+    let mut held = held();
+    // Held here: opening (and closing) the file again would let this process's lock go.
+    if held.contains(&key) {
+        return Ok(Err(owner(dir)));
     }
+    let file = OpenOptions::new().read(true).write(true).create(true).truncate(false).open(&key)?;
+    if !try_lock(&file)? {
+        return Ok(Err(owner(dir)));
+    }
+    held.insert(key.clone());
+    drop(held);
     let me = Owner { program: program.to_string(), pid: std::process::id(), since: super::now_ms() };
     // Only a note for others: a failed write keeps the lock.
     let _ = ob_core::platform::fs::write_atomic(&dir.join(OWNER), me.write().as_bytes(), false);
-    Ok(Ok(WriteLock { _file: file, dir: dir.to_path_buf() }))
+    Ok(Ok(WriteLock { file: Some(file), key, dir: dir.to_path_buf() }))
 }
 
 /// Who says they hold the lock of `dir` (only meaningful while it is held).
@@ -91,5 +171,41 @@ mod tests {
         drop(a);
         let b = try_take(s.path(), "other").unwrap().expect("free again");
         assert_eq!(owner(b.dir()).unwrap().program, "other");
+    }
+
+    /// A program started by another thread of the writer (the test game, a test run) gets a copy of every open
+    /// file of the writer for a moment before it starts the new program. The lock must not travel with it: once
+    /// the writer lets the lock go, the next opener gets it at once, whatever is being started meanwhile.
+    #[cfg(unix)]
+    #[test]
+    fn a_program_started_meanwhile_does_not_keep_the_lock() {
+        use std::sync::Arc;
+        use std::sync::atomic::{AtomicBool, Ordering};
+        let s = ob_testkit::Scratch::new("studio-lock-child");
+        let stop = Arc::new(AtomicBool::new(false));
+        let starters: Vec<_> = (0..4)
+            .map(|_| {
+                let stop = stop.clone();
+                std::thread::spawn(move || {
+                    while !stop.load(Ordering::Relaxed) {
+                        let _ = std::process::Command::new("true").status();
+                    }
+                })
+            })
+            .collect();
+        let mut refused = 0;
+        for _ in 0..3000 {
+            let a = try_take(s.path(), "Overbright Studio").unwrap().expect("free");
+            drop(a);
+            match try_take(s.path(), "Overbright Studio").unwrap() {
+                Ok(b) => drop(b),
+                Err(_) => refused += 1,
+            }
+        }
+        stop.store(true, Ordering::Relaxed);
+        for t in starters {
+            t.join().unwrap();
+        }
+        assert_eq!(refused, 0, "a lock let go was still held by a program being started");
     }
 }
