@@ -457,6 +457,46 @@ mod tests {
         (String::from_utf8(s.out).unwrap(), why)
     }
 
+    /// A free-roam simulation from `at` (heading in degrees) for `seconds`:
+    /// the player's parked car's position each tick, or why it could not
+    /// start.
+    fn parked(at: Vec3, heading: f32, seconds: f32) -> std::result::Result<Vec<Vec3>, String> {
+        let mut game = Game::new().unwrap();
+        sprint_mod(&game, "sim-roam");
+        game.profile = None;
+        let t = crate::shell::cli::MapTest { folder: "sim-roam".into(), at: Some((at, heading)), ..Default::default() };
+        let run = SimRun { mode: SimMode::World, stream: None, seed: 1, seconds: Some(seconds) };
+        let mut s = Streamer::new(Vec::new());
+        game.simulate(&t, &run, &mut s, &|| false).map_err(|e| format!("{e:#}"))?;
+        let text = String::from_utf8(s.out).unwrap();
+        Ok(text
+            .lines()
+            .filter_map(|l| Line::parse(l).unwrap())
+            .filter_map(|l| {
+                if let Line::Frame(f) = l { f.cars.iter().find(|c| c.id == 0).map(|c| c.position) } else { None }
+            })
+            .collect())
+    }
+
+    #[test]
+    #[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
+    fn a_world_simulation_parks_the_car_on_the_ground_or_refuses_the_spot() {
+        // Bayview just past a road's edge, where the region's collision has
+        // no floor at any height: the parked car fell through the world
+        // (z -189 after 30 s). Refused now.
+        let off = parked(Vec3::new(-664.0, 769.0, 32.5), 200.0, 30.0).unwrap_err();
+        assert!(off.contains("no ground"), "{off}");
+        // 10 m south, on the road: parked, and it stays there.
+        let at = Vec3::new(-664.0, 759.0, 32.5);
+        let track = parked(at, 200.0, 10.0).unwrap();
+        let last = *track.last().unwrap();
+        let first = track[0];
+        assert!(
+            track.len() > 500 && (last.z - first.z).abs() < 1.0 && last.truncate().distance(at.truncate()) < 3.0,
+            "{first} → {last}"
+        );
+    }
+
     #[test]
     #[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
     fn a_simulated_race_streams_every_car_and_repeats_for_its_seed() {

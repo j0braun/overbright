@@ -249,7 +249,9 @@ reason in its log and no result line, which the editor reports.
 
 **Drive here** (Shift+F5) does the same with `--map-at x,y,z,heading` (heading in degrees around +z from +x) in
 place of `--map-race`: free roam with only this mod, from the camera's spot on the ground. Esc ends the run
-(`drove=yes`).
+(`drove=yes`). A spot with no floor of the game's collision under it at any height (past a road's edge) ends the
+start with "no ground at x, y" in the log, as a race that cannot be raced does; `--simulate-world` ends its stream
+with that reason, which the Simulate tab shows.
 
 None of these flags change anything when they are not given. A flag without its value, a malformed spot,
 `--map-race` together with `--map-at`, `--map-mod` together with `--map-file`, or either without `--map-race` or

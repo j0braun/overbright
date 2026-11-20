@@ -1125,7 +1125,14 @@ impl Game {
             return r;
         }
         let (at, heading) = t.at.context("a race or a spot")?;
-        self.explore(Some((at, heading.to_radians())))
+        self.explore(Some((at, heading.to_radians())))?;
+        // A spot with no floor at its x/y at any height (past the edge of
+        // the region's collision, where no start of the game's own puts a
+        // car) would leave the car falling through the world: refused.
+        if self.sim.drive.as_ref().is_some_and(|d| d.world.grid_ground(at).is_none()) {
+            anyhow::bail!("no ground at {:.1}, {:.1}: choose a spot on the road", at.x, at.y);
+        }
+        Ok(())
     }
 }
 
