@@ -52,28 +52,53 @@ fn item_name(line: &str) -> Option<String> {
     literal(line).map(str::to_string)
 }
 
+/// The body of `pub fn <name>(` in `src`.
+fn fn_body<'a>(src: &'a str, name: &str) -> &'a str {
+    let start = src.find(&format!("pub fn {name}(")).unwrap_or_else(|| panic!("menu::{name}"));
+    let end = start + src[start..].find("\n}\n").unwrap_or_else(|| panic!("the end of menu::{name}"));
+    &src[start..end]
+}
+
 /// The menu bar's items as the source of `menu::bar` draws them:
-/// ("Menu ▸ Item", the command it posts if any).
+/// ("Menu ▸ Item", the command it posts if any). A menu's items may sit in
+/// their own function (`edit_items`, which Studio's menus call too): its
+/// lines are read under that menu.
 fn menu_items() -> Vec<(String, Option<String>)> {
     let src = read("src/editor/menu.rs");
-    let start = src.find("pub fn bar(").expect("menu::bar");
-    let end = start + src[start..].find("\n}\n").expect("the end of menu::bar");
+    let mut out = Vec::new();
+    scan_menu(&src, fn_body(&src, "bar"), &[], &mut out);
+    out
+}
+
+fn scan_menu(src: &str, body: &str, outer: &[&str], out: &mut Vec<(String, Option<String>)>) {
     // The open menus with their lines' indents (a submenu nests: "View ▸
     // Collision ▸ Off").
     let mut menus: Vec<(usize, &str)> = Vec::new();
-    let mut out = Vec::new();
-    for line in src[start..end].lines() {
+    // The first line is the function's own signature.
+    for line in body.lines().skip(1) {
         let indent = line.len() - line.trim_start().len();
         if !line.trim().is_empty() {
             while menus.last().is_some_and(|&(i, _)| indent <= i) {
                 menus.pop();
             }
         }
+        let mut names: Vec<&str> = outer.to_vec();
         if line.contains("menu_button(") {
             menus.push((indent, literal(line).expect("a menu's name")));
+        }
+        names.extend(menus.iter().map(|m| m.1));
+        // A menu's items in their own function.
+        if let Some(i) = line.find("_items(") {
+            let head = &line[..i];
+            let start = head.rfind(|c: char| !(c.is_ascii_alphanumeric() || c == '_')).map_or(0, |j| j + 1);
+            let name = format!("{}_items", &head[start..]);
+            scan_menu(src, fn_body(src, &name), &names, out);
             continue;
         }
-        let menu = menus.iter().map(|m| m.1).collect::<Vec<_>>().join(" ▸ ");
+        if line.contains("menu_button(") {
+            continue;
+        }
+        let menu = names.join(" ▸ ");
         // The collision layer's choices are drawn from their own table.
         if line.contains("collision::Show::ALL") {
             out.extend(super::collision::Show::ALL.map(|c| (format!("{menu} ▸ {}", c.label()), None)));
@@ -89,7 +114,6 @@ fn menu_items() -> Vec<(String, Option<String>)> {
             .map(|i| line[i + 9..].chars().take_while(char::is_ascii_alphanumeric).collect::<String>());
         out.push((format!("{menu} ▸ {name}"), cmd));
     }
-    out
 }
 
 #[test]

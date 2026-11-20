@@ -874,6 +874,10 @@ pub struct App {
     /// every frame's are kept until `paint` applies them, so a frame that is
     /// not painted (a lost surface, a test without a GPU) loses none.
     textures: PendingTextures,
+    /// The frame's actions, run at its end ([`App::end_frame`]).
+    pending: Vec<menu::Action>,
+    /// When this frame started (the status bar's UI time).
+    started: Instant,
 }
 
 /// Texture changes egui has handed out and the renderer has not applied yet.
@@ -881,7 +885,7 @@ pub struct App {
 /// dropped; when the editor itself goes away there is no renderer left to
 /// apply them to, so they are dropped on purpose then.
 #[derive(Default)]
-struct PendingTextures(egui::TexturesDelta);
+pub(crate) struct PendingTextures(pub(crate) egui::TexturesDelta);
 
 impl Drop for PendingTextures {
     fn drop(&mut self) {
@@ -938,6 +942,12 @@ impl App {
     pub fn new(root: PathBuf, maps: PathBuf, loader: Loader) -> App {
         let ctx = egui::Context::default();
         theme::apply(&ctx);
+        App::new_in(ctx, root, maps, loader)
+    }
+
+    /// An editor drawing with a host's egui context (Studio's window: one
+    /// context, one GPU device).
+    pub fn new_in(ctx: egui::Context, root: PathBuf, maps: PathBuf, loader: Loader) -> App {
         App {
             ctx,
             state: None,
@@ -960,6 +970,8 @@ impl App {
             fixed_clock: false,
             shot_hover: None,
             textures: PendingTextures::default(),
+            pending: Vec::new(),
+            started: Instant::now(),
         }
     }
 
@@ -1346,14 +1358,17 @@ impl App {
     /// Lay out one frame: menu bar, toolbar, status bar; the tree (or its
     /// rail) at the left, the properties at the right, the bottom tabs and
     /// the hint line under the view, the view in the middle.
+    /// The whole window as the map editor draws it on its own: the menu bar,
+    /// the toolbar, the status bar, the tree, the properties, the bottom
+    /// tabs, the hint line and the view, each as an egui panel. Studio lays
+    /// out the same parts itself (its World and Races workspaces): both call
+    /// [`App::begin_frame`], the parts, then [`App::end_frame`].
     pub fn ui(&mut self, ui: &mut egui::Ui) {
-        let started = Instant::now();
         let width = ui.max_rect().width();
-        let mut actions = Vec::new();
-        menu::shortcuts(self, ui.ctx(), &mut actions);
-        egui::Panel::top("menu").show(ui, |ui| menu::bar(self, ui, &mut actions));
+        self.begin_frame(ui.ctx());
+        egui::Panel::top("menu").show(ui, |ui| self.menu_bar_ui(ui));
         if self.state.is_some() {
-            egui::Panel::top("toolbar").exact_size(TOOLBAR_H).show(ui, |ui| menu::toolbar(self, ui, &mut actions));
+            egui::Panel::top("toolbar").exact_size(TOOLBAR_H).show(ui, |ui| self.toolbar_ui(ui));
         }
         egui::Panel::bottom("status").exact_size(26.0).show(ui, |ui| menu::status(self, ui));
         // While Test race or Drive here has the game window open.
@@ -1365,10 +1380,8 @@ impl App {
                 .exact_size(26.0)
                 .resizable(false)
                 .show_separator_line(false)
-                .frame(egui::Frame::NONE.fill(theme::over_page(theme::tokens().slab)).inner_margin(egui::Margin::symmetric(10, 0)))
-                .show(ui, |ui| {
-                    ui.horizontal_centered(|ui| ui.add(egui::Label::new(menu::game_job(&words)).truncate()));
-                });
+                .frame(strip_frame())
+                .show(ui, |ui| game_strip(ui, &words));
         }
         // Another program has the mod open: the hint line's look over the
         // view, with who and a way to try again.
@@ -1378,186 +1391,293 @@ impl App {
                 .exact_size(26.0)
                 .resizable(false)
                 .show_separator_line(false)
-                .frame(egui::Frame::NONE.fill(theme::over_page(theme::tokens().slab)).inner_margin(egui::Margin::symmetric(10, 0)))
-                .show(ui, |ui| {
-                    ui.horizontal_centered(|ui| {
-                        ui.colored_label(theme::warn(), egui::RichText::new(text).font(theme::font(theme::SEMI, 13.0)));
-                        retry = ui.button("Try again").clicked();
-                    });
-                });
+                .frame(strip_frame())
+                .show(ui, |ui| retry = read_only_strip(ui, &text));
             if retry {
                 self.retry_write();
             }
         }
-        if super::modes::take_help_request(ui.ctx()) {
-            actions.push(menu::Action::HowToTest);
-        }
-        if let Some(s) = self.state.as_mut() {
-            let p = &mut self.panels;
-            let layout = &mut self.layout;
+        if self.state.is_some() {
             let wide = width >= WIDE;
-            self.tree_rail = !layout.tree.unwrap_or(wide);
+            self.tree_rail = !self.layout.tree.unwrap_or(wide);
             if !self.tree_rail {
                 let range = 180.0..=(width * 0.4).max(200.0);
                 let panel = egui::Panel::left("tree")
                     .resizable(true)
                     .default_size(if wide { 270.0 } else { 230.0 })
                     .size_range(range.clone());
-                let r = sized(panel, layout.restore.tree.take(), range).show(ui, |ui| {
-                    if super::tree::show(s, ui, &mut p.tree, &mut actions) {
-                        layout.tree = Some(false);
-                    }
-                });
-                layout.sizes.tree = Some(r.response.rect.width());
+                let restore = self.layout.restore.tree.take();
+                let mut fold = false;
+                let r = sized(panel, restore, range).show(ui, |ui| fold = self.tree_ui(ui, true));
+                if fold {
+                    self.layout.tree = Some(false);
+                }
+                self.layout.sizes.tree = Some(r.response.rect.width());
             } else {
+                let labels = super::tree::rail_labels(self.state.as_ref());
+                let mut open = false;
                 egui::Panel::left("tree-rail").exact_size(super::tree::RAIL).resizable(false).show(ui, |ui| {
-                    ui.vertical_centered(|ui| {
-                        if super::tree::rail(ui, &super::tree::rail_labels(Some(s)), super::tree::Fold::Right) {
-                            layout.tree = Some(true);
-                        }
-                    });
+                    ui.vertical_centered(|ui| open = super::tree::rail(ui, &labels, super::tree::Fold::Right));
                 });
+                if open {
+                    self.layout.tree = Some(true);
+                }
             }
             let title = "Properties";
-            if layout.properties {
+            if self.layout.properties {
                 let range = 200.0..=(width * 0.4).max(220.0);
                 let panel = egui::Panel::right("properties")
                     .resizable(true)
                     .default_size(if wide { 320.0 } else { 300.0 })
                     .size_range(range.clone());
-                let r = sized(panel, layout.restore.properties.take(), range).show(ui, |ui| {
-                    ui.set_min_width(ui.available_width());
-                    if super::tree::header(ui, title, super::tree::Fold::Right) {
-                        layout.properties = false;
-                    }
-                    // Both ways: a part wider than the panel scrolls
-                    // instead of drawing past its edge.
-                    egui::ScrollArea::both().id_salt("properties").auto_shrink([false, false]).show(ui, |ui| {
-                        for t in p.properties.iter_mut() {
-                            t.ui(s, ui);
-                        }
-                        if p.properties.is_empty() {
-                            ui.weak("Nothing selected.");
-                        }
-                    });
-                });
-                layout.sizes.properties = Some(r.response.rect.width());
-            } else {
-                egui::Panel::right("properties-rail").exact_size(super::tree::RAIL).resizable(false).show(ui, |ui| {
-                    ui.vertical_centered(|ui| {
-                        if super::tree::rail(ui, &[title.to_string()], super::tree::Fold::Left) {
-                            layout.properties = true;
-                        }
-                    });
-                });
-            }
-            if let Some(k) = super::sim::panel::take_tab_request(ui.ctx()) {
-                self.tab = k;
-                layout.bottom = true;
-            }
-            let tab = &mut self.tab;
-            let log = &self.log;
-            let titles: Vec<(&'static str, &'static str)> =
-                p.tabs.iter().map(|t| (t.0, t.1)).chain([("log", "Log")]).collect();
-            let current = *tab;
-            // The tab strip, with the fold button at its right.
-            let strip = |ui: &mut egui::Ui, open: bool, actions: &mut Vec<menu::Action>| -> bool {
+                let restore = self.layout.restore.properties.take();
                 let mut fold = false;
-                ui.horizontal(|ui| {
-                    for &(key, title) in &titles {
-                        let label = egui::RichText::new(title).font(theme::font(theme::LABEL, 15.0));
-                        let on = open && current == key;
-                        let label = if on { label.color(theme::lime()) } else { label };
-                        if ui.selectable_label(on, label).clicked() {
-                            actions.push(menu::Action::Tab(key));
-                        }
-                    }
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        let dir = if open { super::tree::Fold::Down } else { super::tree::Fold::Up };
-                        fold = super::tree::chevron(ui, dir).clicked();
-                    });
+                let r = sized(panel, restore, range).show(ui, |ui| {
+                    ui.set_min_width(ui.available_width());
+                    fold = super::tree::header(ui, title, super::tree::Fold::Right);
+                    self.properties_ui(ui);
                 });
-                fold
-            };
-            if layout.bottom {
+                if fold {
+                    self.layout.properties = false;
+                }
+                self.layout.sizes.properties = Some(r.response.rect.width());
+            } else {
+                let mut open = false;
+                egui::Panel::right("properties-rail").exact_size(super::tree::RAIL).resizable(false).show(ui, |ui| {
+                    ui.vertical_centered(|ui| open = super::tree::rail(ui, &[title.to_string()], super::tree::Fold::Left));
+                });
+                if open {
+                    self.layout.properties = true;
+                }
+            }
+            self.take_tab_request(ui.ctx());
+            if self.layout.bottom {
                 // Simulate shows its results table with the events under
                 // it: the panel is at least tall enough for a grid of
                 // racers.
-                let min = if *tab == super::sim::TAB { super::sim::panel::MIN_HEIGHT } else { 80.0 };
+                let min = self.tab_min_height();
                 let panel = egui::Panel::bottom("tabs").resizable(true).default_size(190.0).min_size(min);
                 let max = (ui.available_height() - 120.0).max(min);
-                let r = sized(panel, layout.restore.bottom.take(), min..=max).show(ui, |ui| {
-                    if strip(ui, true, &mut actions) {
-                        layout.bottom = false;
-                    }
+                let restore = self.layout.restore.bottom.take();
+                let mut fold = false;
+                let r = sized(panel, restore, min..=max).show(ui, |ui| {
+                    fold = self.tab_strip(ui, true);
                     ui.separator();
-                    egui::ScrollArea::both()
-                        .id_salt("tab")
-                        .auto_shrink([false, false])
-                        .stick_to_bottom(*tab == "log")
-                        .show(ui, |ui| {
-                            if *tab == "log" {
-                                for l in log {
-                                    ui.label(l);
-                                }
-                            } else if let Some((_, _, panel)) = p.tabs.iter_mut().find(|t| t.0 == *tab) {
-                                panel.ui(s, ui);
-                            }
-                        });
+                    self.tab_ui(ui);
                 });
-                layout.sizes.bottom = Some(r.response.rect.height());
+                if fold {
+                    self.layout.bottom = false;
+                }
+                self.layout.sizes.bottom = Some(r.response.rect.height());
             } else {
-                egui::Panel::bottom("tabs-folded").exact_size(34.0).resizable(false).show(ui, |ui| {
-                    if strip(ui, false, &mut actions) {
-                        layout.bottom = true;
-                    }
-                });
+                let mut open = false;
+                egui::Panel::bottom("tabs-folded")
+                    .exact_size(34.0)
+                    .resizable(false)
+                    .show(ui, |ui| open = self.tab_strip(ui, false));
+                if open {
+                    self.layout.bottom = true;
+                }
             }
-            if layout.hint {
+            if self.layout.hint {
                 egui::Panel::bottom("hint")
                     .exact_size(26.0)
                     .resizable(false)
                     .show_separator_line(false)
-                    .frame(egui::Frame::NONE.fill(theme::over_page(theme::tokens().slab)).inner_margin(egui::Margin::symmetric(10, 0)))
-                    .show(ui, |ui| menu::hint_line(s, &p.props.borrow(), &p.races.borrow(), ui, &mut actions));
+                    .frame(strip_frame())
+                    .show(ui, |ui| self.hint_ui(ui));
             }
-            egui::CentralPanel::default().frame(egui::Frame::NONE.fill(theme::rgb(theme::tokens().page))).show(
-                ui,
-                |ui| {
-                    // The overlays first (their own layer above the
-                    // viewport's image), so the viewport knows whether they
-                    // took the pointer; each sees whether one before it did.
-                    let rect = ui.max_rect();
-                    self.view_rect = rect;
-                    let layer = egui::LayerId::new(egui::Order::Middle, egui::Id::unique("editor.viewport.overlay"));
-                    let painter = ui.ctx().layer_painter(layer).with_clip_rect(rect);
-                    let mut taken = false;
-                    ui.ctx().data_mut(|d| d.insert_temp(pointer_taken_id(), false));
-                    for o in p.overlays.iter_mut() {
-                        taken |= o.overlay(s, ui.ctx(), &painter, rect);
-                        ui.ctx().data_mut(|d| d.insert_temp(pointer_taken_id(), taken));
-                    }
-                    p.viewport.ui(s, ui);
-                    for h in p.hooks.iter_mut() {
-                        h.ui(s, ui);
-                    }
-                },
-            );
-            if s.status != self.last_status {
-                let t = s.status.clone();
-                self.say(t);
-            }
+            egui::CentralPanel::default()
+                .frame(egui::Frame::NONE.fill(theme::rgb(theme::tokens().page)))
+                .show(ui, |ui| self.view_ui(ui));
         } else {
+            let mut actions = Vec::new();
             egui::CentralPanel::default()
                 .frame(egui::Frame::NONE.fill(theme::rgb(theme::tokens().page)).inner_margin(40.0))
                 .show(ui, |ui| self.welcome(ui, &mut actions));
+            self.pending.extend(actions);
         }
-        self.dialogs(ui.ctx());
-        for a in actions {
+        self.end_frame(ui.ctx());
+    }
+
+    // --- the parts, for whichever window hosts them ---
+
+    /// Start a frame: the editor's own keys read (its tools, undo, test).
+    pub fn begin_frame(&mut self, ctx: &egui::Context) {
+        self.started = Instant::now();
+        let mut actions = std::mem::take(&mut self.pending);
+        menu::shortcuts(self, ctx, &mut actions);
+        if super::modes::take_help_request(ctx) {
+            actions.push(menu::Action::HowToTest);
+        }
+        self.pending = actions;
+    }
+
+    /// End a frame: the status message logged, the dialogs drawn, the
+    /// frame's actions run.
+    pub fn end_frame(&mut self, ctx: &egui::Context) {
+        if let Some(s) = self.state.as_ref()
+            && s.status != self.last_status
+        {
+            let t = s.status.clone();
+            self.say(t);
+        }
+        self.dialogs(ctx);
+        for a in std::mem::take(&mut self.pending) {
             self.act(a);
         }
-        self.untaken = menu::clear_commands(ui.ctx());
-        self.frame_ms = started.elapsed().as_secs_f32() * 1000.0;
+        self.untaken = menu::clear_commands(ctx);
+        self.frame_ms = self.started.elapsed().as_secs_f32() * 1000.0;
+    }
+
+    /// Run `a` at the end of this frame (a host's menu or key).
+    pub fn post_action(&mut self, a: menu::Action) {
+        self.pending.push(a);
+    }
+
+    /// The editor's own menu bar (File, Edit, View, Race, Help).
+    pub fn menu_bar_ui(&mut self, ui: &mut egui::Ui) {
+        let mut actions = std::mem::take(&mut self.pending);
+        menu::bar(self, ui, &mut actions);
+        self.pending = actions;
+    }
+
+    /// One of the editor's menus' items (`f`: [`menu::edit_items`] …) into
+    /// a host's menu.
+    pub fn menu_items(&mut self, ui: &mut egui::Ui, f: impl FnOnce(&App, &mut egui::Ui, &mut Vec<menu::Action>)) {
+        let mut actions = std::mem::take(&mut self.pending);
+        f(self, ui, &mut actions);
+        self.pending = actions;
+    }
+
+    /// The toolbar, in `ui`'s whole rectangle.
+    pub fn toolbar_ui(&mut self, ui: &mut egui::Ui) {
+        let mut actions = std::mem::take(&mut self.pending);
+        menu::toolbar(self, ui, &mut actions);
+        self.pending = actions;
+    }
+
+    /// The mod's tree (with its title and fold button when `header`). True
+    /// when the fold button was clicked.
+    pub fn tree_ui(&mut self, ui: &mut egui::Ui, header: bool) -> bool {
+        let Some(s) = self.state.as_mut() else { return false };
+        super::tree::show(s, ui, &mut self.panels.tree, &mut self.pending, header)
+    }
+
+    /// The selection's properties, scrolling both ways.
+    pub fn properties_ui(&mut self, ui: &mut egui::Ui) {
+        let Some(s) = self.state.as_mut() else { return };
+        let p = &mut self.panels;
+        // Both ways: a part wider than the panel scrolls instead of
+        // drawing past its edge.
+        egui::ScrollArea::both().id_salt("properties").auto_shrink([false, false]).show(ui, |ui| {
+            for t in p.properties.iter_mut() {
+                t.ui(s, ui);
+            }
+            if p.properties.is_empty() {
+                ui.weak("Nothing selected.");
+            }
+        });
+    }
+
+    /// The bottom tabs: (key, title), the Log last.
+    pub fn tab_titles(&self) -> Vec<(&'static str, &'static str)> {
+        self.panels.tabs.iter().map(|t| (t.0, t.1)).chain([("log", "Log")]).collect()
+    }
+
+    /// A part asked for its tab this frame (Simulate): it shows, unfolded.
+    pub fn take_tab_request(&mut self, ctx: &egui::Context) {
+        if let Some(k) = super::sim::panel::take_tab_request(ctx) {
+            self.tab = k;
+            self.layout.bottom = true;
+        }
+    }
+
+    /// The bottom panel's least height for the tab shown.
+    pub fn tab_min_height(&self) -> f32 {
+        if self.tab == super::sim::TAB { super::sim::panel::MIN_HEIGHT } else { 80.0 }
+    }
+
+    /// The tab strip, with the fold button at its right. True when the
+    /// fold button was clicked.
+    fn tab_strip(&mut self, ui: &mut egui::Ui, open: bool) -> bool {
+        let titles = self.tab_titles();
+        let current = self.tab;
+        let actions = &mut self.pending;
+        let mut fold = false;
+        ui.horizontal(|ui| {
+            for &(key, title) in &titles {
+                let label = egui::RichText::new(title).font(theme::font(theme::LABEL, 15.0));
+                let on = open && current == key;
+                let label = if on { label.color(theme::lime()) } else { label };
+                if ui.selectable_label(on, label).clicked() {
+                    actions.push(menu::Action::Tab(key));
+                }
+            }
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                let dir = if open { super::tree::Fold::Down } else { super::tree::Fold::Up };
+                fold = super::tree::chevron(ui, dir).clicked();
+            });
+        });
+        fold
+    }
+
+    /// The bottom tab shown (`self.tab`), scrolling.
+    pub fn tab_ui(&mut self, ui: &mut egui::Ui) {
+        let Some(s) = self.state.as_mut() else { return };
+        let p = &mut self.panels;
+        let tab = self.tab;
+        let log = &self.log;
+        egui::ScrollArea::both().id_salt("tab").auto_shrink([false, false]).stick_to_bottom(tab == "log").show(
+            ui,
+            |ui| {
+                if tab == "log" {
+                    for l in log {
+                        ui.label(l);
+                    }
+                } else if let Some((_, _, panel)) = p.tabs.iter_mut().find(|t| t.0 == tab) {
+                    panel.ui(s, ui);
+                }
+            },
+        );
+    }
+
+    /// The hint line's contents.
+    pub fn hint_ui(&mut self, ui: &mut egui::Ui) {
+        let Some(s) = self.state.as_ref() else { return };
+        let p = &self.panels;
+        menu::hint_line(s, &p.props.borrow(), &p.races.borrow(), ui, &mut self.pending);
+    }
+
+    /// The view (3D or map) in `ui`'s whole rectangle, with the overlays.
+    pub fn view_ui(&mut self, ui: &mut egui::Ui) {
+        let Some(s) = self.state.as_mut() else { return };
+        let p = &mut self.panels;
+        // The overlays first (their own layer above the viewport's image),
+        // so the viewport knows whether they took the pointer; each sees
+        // whether one before it did.
+        let rect = ui.max_rect();
+        self.view_rect = rect;
+        let layer = egui::LayerId::new(egui::Order::Middle, egui::Id::unique("editor.viewport.overlay"));
+        let painter = ui.ctx().layer_painter(layer).with_clip_rect(rect);
+        let mut taken = false;
+        ui.ctx().data_mut(|d| d.insert_temp(pointer_taken_id(), false));
+        for o in p.overlays.iter_mut() {
+            taken |= o.overlay(s, ui.ctx(), &painter, rect);
+            ui.ctx().data_mut(|d| d.insert_temp(pointer_taken_id(), taken));
+        }
+        p.viewport.ui(s, ui);
+        for h in p.hooks.iter_mut() {
+            h.ui(s, ui);
+        }
+    }
+
+    /// Render the view the last frame laid out (before egui draws).
+    pub fn render_view(&mut self, gpu: &Gpu, egui_r: &mut egui_wgpu::Renderer, encoder: &mut wgpu::CommandEncoder) {
+        if let Some(s) = self.state.as_mut() {
+            let mut gfx = Gfx { gpu, egui: egui_r, encoder };
+            self.panels.viewport.render(s, &mut gfx);
+        }
     }
 
     fn welcome(&mut self, ui: &mut egui::Ui, actions: &mut Vec<menu::Action>) {
@@ -1890,10 +2010,7 @@ impl App {
             }
         }
         let mut encoder = gpu.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("editor") });
-        if let Some(s) = self.state.as_mut() {
-            let mut gfx = Gfx { gpu, egui: egui_r, encoder: &mut encoder };
-            self.panels.viewport.render(s, &mut gfx);
-        }
+        self.render_view(gpu, egui_r, &mut encoder);
         let jobs = self.ctx.tessellate(full.shapes, full.pixels_per_point);
         let screen =
             egui_wgpu::ScreenDescriptor { size_in_pixels: [size.0, size.1], pixels_per_point: full.pixels_per_point };
@@ -1933,6 +2050,27 @@ impl App {
         textures.clear();
         out
     }
+}
+
+/// The hint line's frame (the strips over and under the view).
+pub fn strip_frame() -> egui::Frame {
+    egui::Frame::NONE.fill(theme::over_page(theme::tokens().slab)).inner_margin(egui::Margin::symmetric(10, 0))
+}
+
+/// While Test race or Drive here has the game window open: what it shows.
+pub fn game_strip(ui: &mut egui::Ui, words: &str) {
+    ui.horizontal_centered(|ui| ui.add(egui::Label::new(menu::game_job(words)).truncate()));
+}
+
+/// Another program has the mod open: who, and "Try again" (true when
+/// clicked).
+pub fn read_only_strip(ui: &mut egui::Ui, text: &str) -> bool {
+    let mut retry = false;
+    ui.horizontal_centered(|ui| {
+        ui.colored_label(theme::warn(), egui::RichText::new(text).font(theme::font(theme::SEMI, 13.0)));
+        retry = ui.button("Try again").clicked();
+    });
+    retry
 }
 
 /// A folder name from a mod's name ("Casino sprints" → casino-sprints).

@@ -27,6 +27,9 @@ pub fn raw_input(size: (u32, u32), scale: f32, i: usize, events: Vec<egui::Event
 /// Run `n` frames headless; the last frame's output and layout.
 pub fn frames(s: &mut Studio, size: (u32, u32), scale: f32, n: usize) -> (egui::FullOutput, Layout) {
     s.fixed_clock = true;
+    if let Some(h) = s.editor.as_mut() {
+        h.app.fixed_clock = true;
+    }
     let mut out = None;
     for i in 0..n.max(1) {
         out = Some(s.frame(raw_input(size, scale, i, vec![])));
@@ -60,6 +63,10 @@ pub fn shot(s: &mut Studio, gpu: &Gpu, size: (u32, u32), scale: f32, out: &Path)
     });
     let view = target.create_view(&Default::default());
     s.fixed_clock = true;
+    if let Some(h) = s.editor.as_mut() {
+        h.app.fixed_clock = true;
+        h.app.panels.viewport.fix_clock(crate::editor::app::SHOT_CLOCK);
+    }
     for i in 0..4 {
         let full = s.frame(raw_input(size, scale, i, vec![]));
         let bufs = paint(s, gpu, &mut egui_r, &view, size, full);
@@ -99,19 +106,25 @@ pub fn shot(s: &mut Studio, gpu: &Gpu, size: (u32, u32), scale: f32, out: &Path)
 
 /// Paint one frame's output into `target`: textures uploaded, the page cleared, egui drawn.
 pub fn paint(
-    s: &Studio,
+    s: &mut Studio,
     gpu: &Gpu,
     egui_r: &mut egui_wgpu::Renderer,
     target: &wgpu::TextureView,
     size: (u32, u32),
     full: egui::FullOutput,
 ) -> Vec<wgpu::CommandBuffer> {
-    for (id, deltas) in &full.textures_delta.set {
+    let mut full = full;
+    // Every frame's texture changes since the last paint, in order.
+    let mut textures = std::mem::take(&mut s.textures.0);
+    textures.append(std::mem::take(&mut full.textures_delta));
+    for (id, deltas) in &textures.set {
         for delta in deltas {
             egui_r.update_texture(&gpu.device, &gpu.queue, *id, delta);
         }
     }
     let mut encoder = gpu.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("studio") });
+    // World and Races: the map editor's view, rendered into its texture before egui draws it.
+    s.render_view(gpu, egui_r, &mut encoder);
     let jobs = s.ctx.tessellate(full.shapes, full.pixels_per_point);
     let screen =
         egui_wgpu::ScreenDescriptor { size_in_pixels: [size.0, size.1], pixels_per_point: full.pixels_per_point };
@@ -144,8 +157,9 @@ pub fn paint(
         egui_r.render(&mut pass, &jobs, &screen);
     }
     out.push(encoder.finish());
-    for id in &full.textures_delta.free {
+    for id in &textures.free {
         egui_r.free_texture(id);
     }
+    textures.clear();
     out
 }

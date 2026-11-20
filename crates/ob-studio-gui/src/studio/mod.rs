@@ -8,6 +8,7 @@
 //! * [`memory`]: the panels' sizes and folds kept per workspace.
 //! * [`shell`]: the window drawn with egui; [`draw`]: its painted pieces; [`words`]: its words.
 //! * [`shot`]: the window drawn off-screen into a PNG.
+//! * [`world`]: the World and Races workspaces: the map editor hosted in the window.
 
 pub mod address;
 pub mod draw;
@@ -19,8 +20,11 @@ pub mod shell;
 pub mod shot;
 pub mod words;
 pub mod workspace;
+pub mod world;
 
 pub use shell::Studio;
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod world_tests;

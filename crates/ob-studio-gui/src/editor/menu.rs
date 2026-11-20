@@ -428,7 +428,6 @@ fn command(ui: &mut egui::Ui, s: Option<&EditorState>, text: &str, key: &str, c:
 
 /// The menu bar.
 pub fn bar(app: &App, ui: &mut egui::Ui, out: &mut Vec<Action>) {
-    let open = app.state.is_some();
     egui::MenuBar::new().ui(ui, |ui| {
         ui.menu_button("File", |ui| {
             if item(ui, "New map mod…", Some(&NEW), true) {
@@ -448,89 +447,16 @@ pub fn bar(app: &App, ui: &mut egui::Ui, out: &mut Vec<Action>) {
                 }
             }
             ui.separator();
-            if item(ui, words::SAVE, Some(&SAVE), open) {
-                out.push(Action::Save);
-            }
-            if item(ui, "Mod details…", None, open) {
-                out.push(Action::Details);
-            }
-            ui.separator();
-            if item(ui, "Import…", None, true) {
-                out.push(Action::Import);
-            }
-            if item(ui, "Export…", None, open) {
-                out.push(Action::Export);
-            }
+            mod_file_items(app, ui, out);
             ui.separator();
             if item(ui, words::QUIT, Some(&QUIT), true) {
                 out.push(Action::Quit);
             }
         });
-        ui.menu_button("Edit", |ui| {
-            let (u, r) = app.state.as_ref().map_or((None, None), |s| {
-                (s.session.undo_label().map(str::to_string), s.session.redo_label().map(str::to_string))
-            });
-            let ut = u.as_ref().map_or(words::UNDO.to_string(), |l| format!("Undo: {l}"));
-            if item(ui, &ut, Some(&UNDO), u.is_some()) {
-                out.push(Action::Undo);
-            }
-            let rt = r.as_ref().map_or(words::REDO.to_string(), |l| format!("Redo: {l}"));
-            if item(ui, &rt, Some(&REDO), r.is_some()) {
-                out.push(Action::Redo);
-            }
-            ui.separator();
-            let s = app.state.as_ref();
-            command(ui, s, words::DUPLICATE, "Ctrl+D", Command::Duplicate);
-            command(ui, s, words::DELETE, "Del", Command::Delete);
-            command(ui, s, "Select all of this solid", "", Command::SelectAllOfSolid);
-            command(ui, s, "Drop to ground", "End", Command::DropToGround);
-        });
-        ui.menu_button("View", |ui| {
-            let v = app.state.as_ref().map(|s| s.view);
-            if ui
-                .add_enabled(open, egui::Button::selectable(v == Some(View::ThreeD), "3D view").shortcut_text("M"))
-                .clicked()
-            {
-                out.push(Action::View(View::ThreeD));
-            }
-            if ui.add_enabled(open, egui::Button::selectable(v == Some(View::Map), "Map").shortcut_text("M")).clicked()
-            {
-                out.push(Action::View(View::Map));
-            }
-            ui.separator();
-            let s = app.state.as_ref();
-            command(ui, s, "Frame selection", "F", Command::FrameSelection);
-            command(ui, s, "Reset camera", "", Command::ResetCamera);
-            ui.separator();
-            let shown = s.map(|s| s.collision);
-            ui.add_enabled_ui(open, |ui| {
-                ui.menu_button("Collision", |ui| {
-                    for c in super::collision::Show::ALL {
-                        if ui.add(egui::Button::selectable(shown == Some(c), c.label())).clicked() {
-                            out.push(Action::Collision(c));
-                        }
-                    }
-                });
-            });
-            ui.separator();
-            if ui.add_enabled(open, egui::Button::selectable(app.layout.hint, "Hint line")).clicked() {
-                out.push(Action::Hint(!app.layout.hint));
-            }
-        });
-        ui.menu_button("Race", |ui| {
-            let s = app.state.as_ref();
-            command(ui, s, "New race", "", Command::NewRace);
-            command(ui, s, "Test race", "F5", Command::TestRace);
-            command(ui, s, "Drive here", "Shift+F5", Command::DriveHere);
-        });
-        ui.menu_button("Help", |ui| {
-            if ui.button("Controls").clicked() {
-                out.push(Action::Controls);
-            }
-            if ui.button("How to test your race").clicked() {
-                out.push(Action::HowToTest);
-            }
-        });
+        ui.menu_button("Edit", |ui| edit_items(app, ui, out));
+        ui.menu_button("View", |ui| view_items(app, ui, out));
+        ui.menu_button("Race", |ui| race_items(app, ui, out));
+        ui.menu_button("Help", |ui| help_items(app, ui, out));
         // The mod and region at the right; a dot while unsaved.
         if let Some(s) = app.state.as_ref() {
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
@@ -545,6 +471,95 @@ pub fn bar(app: &App, ui: &mut egui::Ui, out: &mut Vec<Action>) {
             });
         }
     });
+}
+
+/// File's items for the open mod: Save, Mod details, Import, Export (Studio's
+/// File menu has them too).
+pub fn mod_file_items(app: &App, ui: &mut egui::Ui, out: &mut Vec<Action>) {
+    let open = app.state.is_some();
+    if item(ui, words::SAVE, Some(&SAVE), open) {
+        out.push(Action::Save);
+    }
+    if item(ui, "Mod details…", None, open) {
+        out.push(Action::Details);
+    }
+    ui.separator();
+    if item(ui, "Import…", None, true) {
+        out.push(Action::Import);
+    }
+    if item(ui, "Export…", None, open) {
+        out.push(Action::Export);
+    }
+}
+
+/// The Edit menu's items.
+pub fn edit_items(app: &App, ui: &mut egui::Ui, out: &mut Vec<Action>) {
+    let (u, r) = app.state.as_ref().map_or((None, None), |s| {
+        (s.session.undo_label().map(str::to_string), s.session.redo_label().map(str::to_string))
+    });
+    let ut = u.as_ref().map_or(words::UNDO.to_string(), |l| format!("Undo: {l}"));
+    if item(ui, &ut, Some(&UNDO), u.is_some()) {
+        out.push(Action::Undo);
+    }
+    let rt = r.as_ref().map_or(words::REDO.to_string(), |l| format!("Redo: {l}"));
+    if item(ui, &rt, Some(&REDO), r.is_some()) {
+        out.push(Action::Redo);
+    }
+    ui.separator();
+    let s = app.state.as_ref();
+    command(ui, s, words::DUPLICATE, "Ctrl+D", Command::Duplicate);
+    command(ui, s, words::DELETE, "Del", Command::Delete);
+    command(ui, s, "Select all of this solid", "", Command::SelectAllOfSolid);
+    command(ui, s, "Drop to ground", "End", Command::DropToGround);
+}
+
+/// The View menu's items.
+pub fn view_items(app: &App, ui: &mut egui::Ui, out: &mut Vec<Action>) {
+    let open = app.state.is_some();
+    let v = app.state.as_ref().map(|s| s.view);
+    if ui.add_enabled(open, egui::Button::selectable(v == Some(View::ThreeD), "3D view").shortcut_text("M")).clicked() {
+        out.push(Action::View(View::ThreeD));
+    }
+    if ui.add_enabled(open, egui::Button::selectable(v == Some(View::Map), "Map").shortcut_text("M")).clicked() {
+        out.push(Action::View(View::Map));
+    }
+    ui.separator();
+    let s = app.state.as_ref();
+    command(ui, s, "Frame selection", "F", Command::FrameSelection);
+    command(ui, s, "Reset camera", "", Command::ResetCamera);
+    ui.separator();
+    let shown = s.map(|s| s.collision);
+    ui.add_enabled_ui(open, |ui| {
+        ui.menu_button("Collision", |ui| {
+            for c in super::collision::Show::ALL {
+                if ui.add(egui::Button::selectable(shown == Some(c), c.label())).clicked() {
+                    out.push(Action::Collision(c));
+                }
+            }
+        });
+    });
+    ui.separator();
+    if ui.add_enabled(open, egui::Button::selectable(app.layout.hint, "Hint line")).clicked() {
+        out.push(Action::Hint(!app.layout.hint));
+    }
+}
+
+/// The Race menu's items (Studio's Test menu).
+pub fn race_items(app: &App, ui: &mut egui::Ui, _out: &mut Vec<Action>) {
+    let s = app.state.as_ref();
+    command(ui, s, "New race", "", Command::NewRace);
+    command(ui, s, "Test race", "F5", Command::TestRace);
+    command(ui, s, "Drive here", "Shift+F5", Command::DriveHere);
+}
+
+/// The Help menu's items.
+pub fn help_items(_app: &App, ui: &mut egui::Ui, out: &mut Vec<Action>) {
+    if ui.button("Controls").clicked() {
+        out.push(Action::Controls);
+    }
+    if ui.button("How to test your race").clicked() {
+        out.push(Action::HowToTest);
+    }
 }
 
 /// How much the toolbar spells out. The first tier that fits the window's

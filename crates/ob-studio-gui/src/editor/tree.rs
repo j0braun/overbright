@@ -105,12 +105,18 @@ fn chip(ui: &mut egui::Ui, text: &str) {
         .show(ui, |ui| ui.label(egui::RichText::new(text).size(12.0).color(theme::ink())));
 }
 
-/// The whole tree: header with the fold button, the Mod card, then each
-/// branch (Races, Props) in a scroll area. True when the fold button was
-/// clicked.
-pub fn show(s: &mut EditorState, ui: &mut egui::Ui, branches: &mut [Box<dyn Panel>], out: &mut Vec<Action>) -> bool {
+/// The whole tree: header with the fold button (when `with_header`; Studio
+/// names the panel in its own tab strip), the Mod card, then each branch
+/// (Races, Props) in a scroll area. True when the fold button was clicked.
+pub fn show(
+    s: &mut EditorState,
+    ui: &mut egui::Ui,
+    branches: &mut [Box<dyn Panel>],
+    out: &mut Vec<Action>,
+    with_header: bool,
+) -> bool {
     ui.set_min_width(ui.available_width());
-    let fold = header(ui, "Mod", Fold::Left);
+    let fold = with_header && header(ui, "Mod", Fold::Left);
     if mod_card(s, ui) {
         out.push(Action::Details);
     }
