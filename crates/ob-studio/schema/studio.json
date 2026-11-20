@@ -417,6 +417,13 @@
           "label": "Position"
         },
         {
+          "key": "rotation",
+          "type": "mat3",
+          "required": "no",
+          "merge": false,
+          "label": "Rotation"
+        },
+        {
           "key": "id",
           "type": "text",
           "required": "no",
@@ -480,6 +487,19 @@
           "label": "Base track"
         },
         {
+          "key": "kind",
+          "type": "enum",
+          "required": "no",
+          "merge": false,
+          "label": "Mode",
+          "enum": [
+            "circuit",
+            "sprint",
+            "streetx",
+            "drift"
+          ]
+        },
+        {
           "key": "id",
           "type": "text",
           "required": "no",
@@ -513,6 +533,54 @@
           "required": "yes",
           "merge": false,
           "label": "Race"
+        },
+        {
+          "key": "name",
+          "type": "text",
+          "required": "no",
+          "merge": false,
+          "label": "Name"
+        },
+        {
+          "key": "id",
+          "type": "text",
+          "required": "no",
+          "merge": false,
+          "label": "Id"
+        },
+        {
+          "key": "track",
+          "type": "u16",
+          "required": "no",
+          "merge": false,
+          "label": "Base track"
+        },
+        {
+          "key": "kind",
+          "type": "enum",
+          "required": "no",
+          "merge": false,
+          "label": "Mode",
+          "enum": [
+            "circuit",
+            "sprint",
+            "streetx",
+            "drift"
+          ]
+        },
+        {
+          "key": "laps",
+          "type": "u32",
+          "required": "no",
+          "merge": false,
+          "label": "Laps"
+        },
+        {
+          "key": "backward",
+          "type": "bool",
+          "required": "no",
+          "merge": false,
+          "label": "Backward"
         }
       ]
     },
@@ -529,18 +597,45 @@
           "label": "Race"
         },
         {
+          "key": "part",
+          "type": "enum",
+          "required": "yes",
+          "merge": false,
+          "label": "Part",
+          "enum": [
+            "checkpoint",
+            "grid",
+            "start",
+            "finish"
+          ]
+        },
+        {
+          "key": "index",
+          "type": "u32",
+          "required": "no",
+          "merge": false,
+          "label": "Number"
+        },
+        {
           "key": "position",
           "type": "vec3",
           "required": "yes",
           "merge": false,
           "label": "Position"
+        },
+        {
+          "key": "heading",
+          "type": "f32",
+          "required": "no",
+          "merge": false,
+          "label": "Heading"
         }
       ]
     },
     {
       "name": "race.point.move",
       "kind": "edit",
-      "summary": "Move a race point",
+      "summary": "Move a race point, or a checkpoint one place later or earlier in the route",
       "args": [
         {
           "key": "race",
@@ -550,11 +645,45 @@
           "label": "Race"
         },
         {
-          "key": "position",
-          "type": "vec3",
+          "key": "part",
+          "type": "enum",
           "required": "yes",
           "merge": false,
+          "label": "Part",
+          "enum": [
+            "checkpoint",
+            "grid",
+            "start",
+            "finish"
+          ]
+        },
+        {
+          "key": "index",
+          "type": "u32",
+          "required": "no",
+          "merge": false,
+          "label": "Number"
+        },
+        {
+          "key": "position",
+          "type": "vec3",
+          "required": "no",
+          "merge": false,
           "label": "Position"
+        },
+        {
+          "key": "heading",
+          "type": "f32",
+          "required": "no",
+          "merge": false,
+          "label": "Heading"
+        },
+        {
+          "key": "later",
+          "type": "bool",
+          "required": "no",
+          "merge": false,
+          "label": "Later in the route"
         }
       ]
     },
@@ -569,17 +698,44 @@
           "required": "yes",
           "merge": false,
           "label": "Race"
+        },
+        {
+          "key": "part",
+          "type": "enum",
+          "required": "yes",
+          "merge": false,
+          "label": "Part",
+          "enum": [
+            "checkpoint",
+            "grid",
+            "start",
+            "finish"
+          ]
+        },
+        {
+          "key": "index",
+          "type": "u32",
+          "required": "no",
+          "merge": false,
+          "label": "Number"
         }
       ]
     },
     {
       "name": "race.put",
       "kind": "edit",
-      "summary": "Put a whole race in place",
+      "summary": "Put a whole race in place (the race as JSON)",
       "args": [
         {
           "key": "race",
           "type": "text",
+          "required": "yes",
+          "merge": false,
+          "label": "Race"
+        },
+        {
+          "key": "to",
+          "type": "json",
           "required": "yes",
           "merge": false,
           "label": "Race"
@@ -590,18 +746,96 @@
       "name": "pack.details",
       "kind": "edit",
       "summary": "Change the pack's name, author and description",
-      "args": []
+      "args": [
+        {
+          "key": "name",
+          "type": "text",
+          "required": "no",
+          "merge": false,
+          "label": "Name"
+        },
+        {
+          "key": "author",
+          "type": "text",
+          "required": "no",
+          "merge": false,
+          "label": "Author"
+        },
+        {
+          "key": "description",
+          "type": "text",
+          "required": "no",
+          "merge": false,
+          "label": "Description"
+        }
+      ]
     },
     {
       "name": "pack.put",
       "kind": "edit",
-      "summary": "Put the whole map in place",
-      "args": []
+      "summary": "Put the whole map in place (from a map file)",
+      "args": [
+        {
+          "key": "file",
+          "type": "text",
+          "required": "yes",
+          "merge": false,
+          "label": "File"
+        }
+      ]
     },
     {
       "name": "edit.group",
       "kind": "edit",
-      "summary": "Several edits as one undo step",
+      "summary": "Several edits as one undo step (the edits as a JSON list)",
+      "args": [
+        {
+          "key": "label",
+          "type": "text",
+          "required": "yes",
+          "merge": false,
+          "label": "Name"
+        },
+        {
+          "key": "ops",
+          "type": "json",
+          "required": "yes",
+          "merge": false,
+          "label": "Edits"
+        }
+      ]
+    },
+    {
+      "name": "ops.apply",
+      "kind": "edit",
+      "summary": "Apply an operations file (one edit per line) as one undo step",
+      "args": [
+        {
+          "key": "file",
+          "type": "text",
+          "required": "yes",
+          "merge": false,
+          "label": "File"
+        },
+        {
+          "key": "label",
+          "type": "text",
+          "required": "no",
+          "merge": false,
+          "label": "Name"
+        }
+      ]
+    },
+    {
+      "name": "checks.run",
+      "kind": "read",
+      "summary": "Run the map checks on the pack",
+      "args": []
+    },
+    {
+      "name": "history.show",
+      "kind": "read",
+      "summary": "The pack's kept steps, with their authors",
       "args": []
     },
     {

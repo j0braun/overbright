@@ -1,0 +1,563 @@
+{
+  "commands": [
+    {
+      "command": "props.move",
+      "flags": [
+        {
+          "flag": "--key",
+          "label": "Object",
+          "needed": true,
+          "type": "text"
+        },
+        {
+          "flag": "--position",
+          "label": "Position",
+          "needed": true,
+          "type": "vec3"
+        },
+        {
+          "flag": "--rotation",
+          "label": "Rotation",
+          "needed": true,
+          "type": "mat3"
+        }
+      ],
+      "kind": "edit",
+      "summary": "Move a prop",
+      "words": "props move"
+    },
+    {
+      "command": "props.delete",
+      "flags": [
+        {
+          "flag": "--key",
+          "label": "Object",
+          "needed": true,
+          "type": "text"
+        }
+      ],
+      "kind": "edit",
+      "summary": "Hide an original prop or remove an added one",
+      "words": "props delete"
+    },
+    {
+      "command": "props.reset",
+      "flags": [
+        {
+          "flag": "--key",
+          "label": "Object",
+          "needed": true,
+          "type": "text"
+        }
+      ],
+      "kind": "edit",
+      "summary": "Put an original prop back as the original has it",
+      "words": "props reset"
+    },
+    {
+      "command": "props.add",
+      "flags": [
+        {
+          "flag": "--solid",
+          "label": "Object",
+          "needed": true,
+          "type": "ref solid"
+        },
+        {
+          "flag": "--position",
+          "label": "Position",
+          "needed": true,
+          "type": "vec3"
+        },
+        {
+          "flag": "--rotation",
+          "label": "Rotation",
+          "needed": false,
+          "type": "mat3"
+        },
+        {
+          "flag": "--id",
+          "label": "Id",
+          "needed": false,
+          "type": "text"
+        },
+        {
+          "flag": "--ground",
+          "label": "On the ground",
+          "needed": false,
+          "type": "bool"
+        }
+      ],
+      "kind": "edit",
+      "summary": "Add a prop of one of the region's objects",
+      "words": "props add"
+    },
+    {
+      "command": "props.duplicate",
+      "flags": [
+        {
+          "flag": "--key",
+          "label": "Object",
+          "needed": true,
+          "type": "text"
+        },
+        {
+          "flag": "--position",
+          "label": "Position",
+          "needed": true,
+          "type": "vec3"
+        }
+      ],
+      "kind": "edit",
+      "summary": "Copy a prop to a new place",
+      "words": "props duplicate"
+    },
+    {
+      "command": "props.drop",
+      "flags": [
+        {
+          "flag": "--key",
+          "label": "Object",
+          "needed": true,
+          "type": "text"
+        }
+      ],
+      "kind": "edit",
+      "summary": "Stand a prop on the floor under it",
+      "words": "props drop"
+    },
+    {
+      "command": "race.create",
+      "flags": [
+        {
+          "flag": "--track",
+          "label": "Base track",
+          "needed": true,
+          "type": "u16"
+        },
+        {
+          "enum": [
+            "circuit",
+            "sprint",
+            "streetx",
+            "drift"
+          ],
+          "flag": "--kind",
+          "label": "Mode",
+          "needed": false,
+          "type": "enum"
+        },
+        {
+          "flag": "--id",
+          "label": "Id",
+          "needed": false,
+          "type": "text"
+        }
+      ],
+      "kind": "edit",
+      "summary": "Make a race on a base track",
+      "words": "race create"
+    },
+    {
+      "command": "race.delete",
+      "flags": [
+        {
+          "flag": "--race",
+          "label": "Race",
+          "needed": true,
+          "type": "text"
+        }
+      ],
+      "kind": "edit",
+      "summary": "Delete a race",
+      "words": "race delete"
+    },
+    {
+      "command": "race.set",
+      "flags": [
+        {
+          "flag": "--race",
+          "label": "Race",
+          "needed": true,
+          "type": "text"
+        },
+        {
+          "flag": "--name",
+          "label": "Name",
+          "needed": false,
+          "type": "text"
+        },
+        {
+          "flag": "--id",
+          "label": "Id",
+          "needed": false,
+          "type": "text"
+        },
+        {
+          "flag": "--track",
+          "label": "Base track",
+          "needed": false,
+          "type": "u16"
+        },
+        {
+          "enum": [
+            "circuit",
+            "sprint",
+            "streetx",
+            "drift"
+          ],
+          "flag": "--kind",
+          "label": "Mode",
+          "needed": false,
+          "type": "enum"
+        },
+        {
+          "flag": "--laps",
+          "label": "Laps",
+          "needed": false,
+          "type": "u32"
+        },
+        {
+          "flag": "--backward",
+          "label": "Backward",
+          "needed": false,
+          "type": "bool"
+        }
+      ],
+      "kind": "edit",
+      "summary": "Change a race's name, id, track, mode, laps or direction",
+      "words": "race set"
+    },
+    {
+      "command": "race.point.add",
+      "flags": [
+        {
+          "flag": "--race",
+          "label": "Race",
+          "needed": true,
+          "type": "text"
+        },
+        {
+          "enum": [
+            "checkpoint",
+            "grid",
+            "start",
+            "finish"
+          ],
+          "flag": "--part",
+          "label": "Part",
+          "needed": true,
+          "type": "enum"
+        },
+        {
+          "flag": "--index",
+          "label": "Number",
+          "needed": false,
+          "type": "u32"
+        },
+        {
+          "flag": "--position",
+          "label": "Position",
+          "needed": true,
+          "type": "vec3"
+        },
+        {
+          "flag": "--heading",
+          "label": "Heading",
+          "needed": false,
+          "type": "f32"
+        }
+      ],
+      "kind": "edit",
+      "summary": "Add a checkpoint or grid slot, or place the start or finish line",
+      "words": "race point add"
+    },
+    {
+      "command": "race.point.move",
+      "flags": [
+        {
+          "flag": "--race",
+          "label": "Race",
+          "needed": true,
+          "type": "text"
+        },
+        {
+          "enum": [
+            "checkpoint",
+            "grid",
+            "start",
+            "finish"
+          ],
+          "flag": "--part",
+          "label": "Part",
+          "needed": true,
+          "type": "enum"
+        },
+        {
+          "flag": "--index",
+          "label": "Number",
+          "needed": false,
+          "type": "u32"
+        },
+        {
+          "flag": "--position",
+          "label": "Position",
+          "needed": false,
+          "type": "vec3"
+        },
+        {
+          "flag": "--heading",
+          "label": "Heading",
+          "needed": false,
+          "type": "f32"
+        },
+        {
+          "flag": "--later",
+          "label": "Later in the route",
+          "needed": false,
+          "type": "bool"
+        }
+      ],
+      "kind": "edit",
+      "summary": "Move a race point, or a checkpoint one place later or earlier in the route",
+      "words": "race point move"
+    },
+    {
+      "command": "race.point.delete",
+      "flags": [
+        {
+          "flag": "--race",
+          "label": "Race",
+          "needed": true,
+          "type": "text"
+        },
+        {
+          "enum": [
+            "checkpoint",
+            "grid",
+            "start",
+            "finish"
+          ],
+          "flag": "--part",
+          "label": "Part",
+          "needed": true,
+          "type": "enum"
+        },
+        {
+          "flag": "--index",
+          "label": "Number",
+          "needed": false,
+          "type": "u32"
+        }
+      ],
+      "kind": "edit",
+      "summary": "Delete a race point",
+      "words": "race point delete"
+    },
+    {
+      "command": "race.put",
+      "flags": [
+        {
+          "flag": "--race",
+          "label": "Race",
+          "needed": true,
+          "type": "text"
+        },
+        {
+          "flag": "--to",
+          "label": "Race",
+          "needed": true,
+          "type": "json"
+        }
+      ],
+      "kind": "edit",
+      "summary": "Put a whole race in place (the race as JSON)",
+      "words": "race put"
+    },
+    {
+      "command": "pack.details",
+      "flags": [
+        {
+          "flag": "--name",
+          "label": "Name",
+          "needed": false,
+          "type": "text"
+        },
+        {
+          "flag": "--author",
+          "label": "Author",
+          "needed": false,
+          "type": "text"
+        },
+        {
+          "flag": "--description",
+          "label": "Description",
+          "needed": false,
+          "type": "text"
+        }
+      ],
+      "kind": "edit",
+      "summary": "Change the pack's name, author and description",
+      "words": "pack details"
+    },
+    {
+      "command": "pack.put",
+      "flags": [
+        {
+          "flag": "--file",
+          "label": "File",
+          "needed": true,
+          "type": "text"
+        }
+      ],
+      "kind": "edit",
+      "summary": "Put the whole map in place (from a map file)",
+      "words": "pack put"
+    },
+    {
+      "command": "edit.group",
+      "flags": [
+        {
+          "flag": "--label",
+          "label": "Name",
+          "needed": true,
+          "type": "text"
+        },
+        {
+          "flag": "--ops",
+          "label": "Edits",
+          "needed": true,
+          "type": "json"
+        }
+      ],
+      "kind": "edit",
+      "summary": "Several edits as one undo step (the edits as a JSON list)",
+      "words": "edit group"
+    },
+    {
+      "command": "ops.apply",
+      "flags": [
+        {
+          "flag": "--file",
+          "label": "File",
+          "needed": true,
+          "type": "text"
+        },
+        {
+          "flag": "--label",
+          "label": "Name",
+          "needed": false,
+          "type": "text"
+        }
+      ],
+      "kind": "edit",
+      "summary": "Apply an operations file (one edit per line) as one undo step",
+      "words": "ops apply"
+    },
+    {
+      "command": "checks.run",
+      "flags": [],
+      "kind": "read",
+      "summary": "Run the map checks on the pack",
+      "words": "checks run"
+    },
+    {
+      "command": "history.show",
+      "flags": [],
+      "kind": "read",
+      "summary": "The pack's kept steps, with their authors",
+      "words": "history show"
+    },
+    {
+      "command": "schema.export",
+      "flags": [],
+      "kind": "read",
+      "summary": "The kinds' and commands' schemas",
+      "words": "schema export"
+    }
+  ],
+  "exit": 0,
+  "exit_codes": [
+    {
+      "code": 0,
+      "kind": "ok",
+      "meaning": "done"
+    },
+    {
+      "code": 1,
+      "kind": "failed",
+      "meaning": "the command failed: an edit refused, a conflict, a file that does not read"
+    },
+    {
+      "code": 2,
+      "kind": "usage",
+      "meaning": "the command line is wrong: an unknown command or flag, a missing or bad value"
+    },
+    {
+      "code": 3,
+      "kind": "checks",
+      "meaning": "the checks found an error"
+    },
+    {
+      "code": 4,
+      "kind": "no_game",
+      "meaning": "the game's data is missing or unsupported (give --game)"
+    },
+    {
+      "code": 5,
+      "kind": "crashed",
+      "meaning": "the game, run as a child, crashed"
+    },
+    {
+      "code": 6,
+      "kind": "timed_out",
+      "meaning": "the program that has the mod open did not answer in time"
+    },
+    {
+      "code": 7,
+      "kind": "busy",
+      "meaning": "another program has the mod open and --no-inbox was given"
+    },
+    {
+      "code": 130,
+      "kind": "cancelled",
+      "meaning": "cancelled (Ctrl+C)"
+    }
+  ],
+  "flags": [
+    {
+      "flag": "mod",
+      "meaning": "the mod's folder (the one holding map.obmap)"
+    },
+    {
+      "flag": "game",
+      "meaning": "the game folder (default: the one the launcher set)"
+    },
+    {
+      "flag": "region",
+      "meaning": "the region the mod is edited on (default L4RA)"
+    },
+    {
+      "flag": "dry-run",
+      "meaning": "show what an edit would change; change nothing"
+    },
+    {
+      "flag": "json",
+      "meaning": "print one JSON document on stdout"
+    },
+    {
+      "flag": "wait",
+      "meaning": "seconds to wait for Studio's answer when Studio has the mod open (default 10)"
+    },
+    {
+      "flag": "no-inbox",
+      "meaning": "when another program has the mod open, fail instead of asking it"
+    },
+    {
+      "flag": "help",
+      "meaning": "this help"
+    }
+  ],
+  "format": 1,
+  "ok": true
+}

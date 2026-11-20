@@ -1,0 +1,72 @@
+{
+  "change": {
+    "changed": true,
+    "label": "Add checkpoint 1",
+    "point": {
+      "index": 0,
+      "part": "checkpoint"
+    },
+    "race": "second"
+  },
+  "command": "race.point.add",
+  "diff": {
+    "items": [
+      {
+        "after": {
+          "backward": false,
+          "checkpoints": [
+            [
+              50.0,
+              0.0
+            ]
+          ],
+          "finish": null,
+          "grid": [],
+          "id": "second",
+          "kind": "circuit",
+          "laps": 2,
+          "name": "second",
+          "start": null,
+          "track": 4001
+        },
+        "before": {
+          "backward": false,
+          "checkpoints": [],
+          "finish": null,
+          "grid": [],
+          "id": "second",
+          "kind": "circuit",
+          "laps": 2,
+          "name": "second",
+          "start": null,
+          "track": 4001
+        },
+        "change": "changed",
+        "item": "race:second"
+      }
+    ],
+    "lines": [
+      "@@",
+      " mode = circuit",
+      " laps = 2",
+      "+checkpoint = 50 0"
+    ]
+  },
+  "exit": 0,
+  "format": 1,
+  "label": "Add checkpoint 1",
+  "ok": true,
+  "outcome": "made",
+  "request": {
+    "op": "add_point",
+    "part": "checkpoint",
+    "position": [
+      50.0,
+      0.0,
+      0.0
+    ],
+    "race": "second"
+  },
+  "step": 3,
+  "via": "file"
+}

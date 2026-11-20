@@ -1,0 +1,10 @@
+{
+  "command": "checks.run",
+  "error": {
+    "kind": "usage",
+    "message": "--dry-run is for edits; `checks run` changes nothing"
+  },
+  "exit": 2,
+  "format": 1,
+  "ok": false
+}

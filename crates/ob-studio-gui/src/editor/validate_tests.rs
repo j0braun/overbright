@@ -4,8 +4,13 @@
 use glam::{Vec2, Vec3};
 
 use super::*;
-use crate::formats::roads::Segment;
-use crate::tools::map::{CustomRace, MapMod, RaceKind, Spot};
+use std::collections::HashMap;
+
+use crate::formats::roads::{RoadNet, Segment};
+use crate::tools::map::race;
+use crate::tools::map::edit::RacePart;
+use crate::tools::map::ops::RacePoint;
+use crate::tools::map::{CustomRace, MAX_CHECKPOINTS, MAX_LAPS, MapMod, RaceKind, Spot};
 
 /// Two segments end to end along +x: 0..200 m and 200..400 m. With
 /// `barrier`, a closed race barrier shuts the second.

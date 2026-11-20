@@ -19,6 +19,7 @@ art; every pack is one you add yourself.
 |---|---|
 | [Texture editor](texture-editor.md) | A texture browser in the game for making your own packs. |
 | [Map editor and map mods](map-editor.md) | Moving, adding and removing scenery and races; map mods and how they load. |
+| [Studio command-line tool](studio-cli.md) | The map editor's edits, a file of edits with a dry run and the map checks from a shell or a script, with JSON output and fixed exit codes. |
 
 ## Asset format (draft)
 

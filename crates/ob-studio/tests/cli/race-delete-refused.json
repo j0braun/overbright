@@ -1,0 +1,15 @@
+{
+  "command": "race.delete",
+  "error": {
+    "kind": "failed",
+    "message": "refused: The map mod has no such race",
+    "reason": "no_race"
+  },
+  "exit": 1,
+  "format": 1,
+  "ok": false,
+  "request": {
+    "op": "delete_race",
+    "race": "nope"
+  }
+}

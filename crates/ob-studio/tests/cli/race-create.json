@@ -1,0 +1,54 @@
+{
+  "change": {
+    "changed": true,
+    "label": "New race on track 4001",
+    "race": "second"
+  },
+  "command": "race.create",
+  "diff": {
+    "items": [
+      {
+        "after": {
+          "backward": false,
+          "checkpoints": [],
+          "finish": null,
+          "grid": [],
+          "id": "second",
+          "kind": "circuit",
+          "laps": 2,
+          "name": "second",
+          "start": null,
+          "track": 4001
+        },
+        "change": "added",
+        "item": "race:second"
+      }
+    ],
+    "lines": [
+      "@@",
+      " start = 30 0 0 0",
+      " finish = 390 0 0 0",
+      "+",
+      "+[race]",
+      "+id = second",
+      "+name = second",
+      "+track = 4001",
+      "+backward = no",
+      "+mode = circuit",
+      "+laps = 2"
+    ]
+  },
+  "exit": 0,
+  "format": 1,
+  "label": "New race on track 4001",
+  "ok": true,
+  "outcome": "made",
+  "request": {
+    "id": "second",
+    "kind": "circuit",
+    "op": "new_race",
+    "track": 4001
+  },
+  "step": 2,
+  "via": "file"
+}

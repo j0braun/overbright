@@ -1,0 +1,132 @@
+{
+  "commands": [
+    {
+      "command": "race.point.add",
+      "flags": [
+        {
+          "flag": "--race",
+          "label": "Race",
+          "needed": true,
+          "type": "text"
+        },
+        {
+          "enum": [
+            "checkpoint",
+            "grid",
+            "start",
+            "finish"
+          ],
+          "flag": "--part",
+          "label": "Part",
+          "needed": true,
+          "type": "enum"
+        },
+        {
+          "flag": "--index",
+          "label": "Number",
+          "needed": false,
+          "type": "u32"
+        },
+        {
+          "flag": "--position",
+          "label": "Position",
+          "needed": true,
+          "type": "vec3"
+        },
+        {
+          "flag": "--heading",
+          "label": "Heading",
+          "needed": false,
+          "type": "f32"
+        }
+      ],
+      "kind": "edit",
+      "summary": "Add a checkpoint or grid slot, or place the start or finish line",
+      "words": "race point add"
+    }
+  ],
+  "exit": 0,
+  "exit_codes": [
+    {
+      "code": 0,
+      "kind": "ok",
+      "meaning": "done"
+    },
+    {
+      "code": 1,
+      "kind": "failed",
+      "meaning": "the command failed: an edit refused, a conflict, a file that does not read"
+    },
+    {
+      "code": 2,
+      "kind": "usage",
+      "meaning": "the command line is wrong: an unknown command or flag, a missing or bad value"
+    },
+    {
+      "code": 3,
+      "kind": "checks",
+      "meaning": "the checks found an error"
+    },
+    {
+      "code": 4,
+      "kind": "no_game",
+      "meaning": "the game's data is missing or unsupported (give --game)"
+    },
+    {
+      "code": 5,
+      "kind": "crashed",
+      "meaning": "the game, run as a child, crashed"
+    },
+    {
+      "code": 6,
+      "kind": "timed_out",
+      "meaning": "the program that has the mod open did not answer in time"
+    },
+    {
+      "code": 7,
+      "kind": "busy",
+      "meaning": "another program has the mod open and --no-inbox was given"
+    },
+    {
+      "code": 130,
+      "kind": "cancelled",
+      "meaning": "cancelled (Ctrl+C)"
+    }
+  ],
+  "flags": [
+    {
+      "flag": "mod",
+      "meaning": "the mod's folder (the one holding map.obmap)"
+    },
+    {
+      "flag": "game",
+      "meaning": "the game folder (default: the one the launcher set)"
+    },
+    {
+      "flag": "region",
+      "meaning": "the region the mod is edited on (default L4RA)"
+    },
+    {
+      "flag": "dry-run",
+      "meaning": "show what an edit would change; change nothing"
+    },
+    {
+      "flag": "json",
+      "meaning": "print one JSON document on stdout"
+    },
+    {
+      "flag": "wait",
+      "meaning": "seconds to wait for Studio's answer when Studio has the mod open (default 10)"
+    },
+    {
+      "flag": "no-inbox",
+      "meaning": "when another program has the mod open, fail instead of asking it"
+    },
+    {
+      "flag": "help",
+      "meaning": "this help"
+    }
+  ],
+  "format": 1,
+  "ok": true
+}

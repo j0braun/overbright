@@ -1,0 +1,29 @@
+{
+  "change": {
+    "changed": false,
+    "label": "Change race sprint",
+    "race": "sprint"
+  },
+  "command": "race.set",
+  "exit": 0,
+  "format": 1,
+  "label": "Change race sprint",
+  "ok": true,
+  "outcome": "unchanged",
+  "request": {
+    "label": "Change race sprint",
+    "op": "group",
+    "ops": [
+      {
+        "name": "Docks run",
+        "op": "rename_race",
+        "race": "sprint"
+      },
+      {
+        "laps": 1,
+        "op": "set_laps",
+        "race": "sprint"
+      }
+    ]
+  }
+}

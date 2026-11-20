@@ -1,0 +1,17 @@
+{
+  "command": "props.delete",
+  "error": {
+    "kind": "failed",
+    "message": "refused: No such placement",
+    "reason": "no_placement"
+  },
+  "exit": 1,
+  "format": 1,
+  "ok": false,
+  "request": {
+    "key": {
+      "added": "a9"
+    },
+    "op": "delete"
+  }
+}

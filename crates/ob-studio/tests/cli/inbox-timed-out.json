@@ -1,0 +1,11 @@
+{
+  "command": "race.set",
+  "error": {
+    "kind": "timed_out",
+    "message": "Overbright Studio (process <pid>) has the mod open and did not answer within 0.1 s; the request stays in its inbox and is made when it next looks"
+  },
+  "exit": 6,
+  "format": 1,
+  "held_by": "Overbright Studio (process <pid>)",
+  "ok": false
+}

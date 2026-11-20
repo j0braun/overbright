@@ -1,0 +1,47 @@
+{
+  "change": {
+    "changed": true,
+    "label": "Mod details"
+  },
+  "command": "pack.details",
+  "diff": {
+    "items": [
+      {
+        "after": [
+          "Docks",
+          "Tester",
+          "Night at the docks"
+        ],
+        "before": [
+          "Docks",
+          "Tester",
+          ""
+        ],
+        "change": "changed",
+        "item": "details"
+      }
+    ],
+    "lines": [
+      "@@",
+      " name = Docks",
+      " author = Tester",
+      "+description = Night at the docks",
+      " ",
+      " [race]",
+      "@@"
+    ]
+  },
+  "exit": 0,
+  "format": 1,
+  "label": "Mod details",
+  "ok": true,
+  "outcome": "made",
+  "request": {
+    "author": "Tester",
+    "description": "Night at the docks",
+    "name": "Docks",
+    "op": "details"
+  },
+  "step": 5,
+  "via": "file"
+}

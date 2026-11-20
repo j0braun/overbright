@@ -1,0 +1,122 @@
+{
+  "change": {
+    "changed": true,
+    "label": "Move checkpoint 1 down",
+    "point": {
+      "index": 1,
+      "part": "checkpoint"
+    },
+    "race": "sprint"
+  },
+  "command": "race.point.move",
+  "diff": {
+    "items": [
+      {
+        "after": {
+          "backward": false,
+          "checkpoints": [
+            [
+              180.0,
+              0.0
+            ],
+            [
+              20.0,
+              0.0
+            ],
+            [
+              380.0,
+              1.0
+            ]
+          ],
+          "finish": {
+            "heading": 0.0,
+            "position": [
+              390.0,
+              0.0,
+              0.0
+            ]
+          },
+          "grid": [],
+          "id": "sprint",
+          "kind": "sprint",
+          "laps": 1,
+          "name": "Docks run",
+          "start": {
+            "heading": 0.0,
+            "position": [
+              30.0,
+              0.0,
+              0.0
+            ]
+          },
+          "track": 4001
+        },
+        "before": {
+          "backward": false,
+          "checkpoints": [
+            [
+              20.0,
+              0.0
+            ],
+            [
+              180.0,
+              0.0
+            ],
+            [
+              380.0,
+              1.0
+            ]
+          ],
+          "finish": {
+            "heading": 0.0,
+            "position": [
+              390.0,
+              0.0,
+              0.0
+            ]
+          },
+          "grid": [],
+          "id": "sprint",
+          "kind": "sprint",
+          "laps": 1,
+          "name": "Docks run",
+          "start": {
+            "heading": 0.0,
+            "position": [
+              30.0,
+              0.0,
+              0.0
+            ]
+          },
+          "track": 4001
+        },
+        "change": "changed",
+        "item": "race:sprint"
+      }
+    ],
+    "lines": [
+      "@@",
+      " mode = sprint",
+      " laps = 1",
+      "-checkpoint = 20 0",
+      " checkpoint = 180 0",
+      "+checkpoint = 20 0",
+      " checkpoint = 380 1",
+      " start = 30 0 0 0",
+      "@@"
+    ]
+  },
+  "exit": 0,
+  "format": 1,
+  "label": "Move checkpoint 1 down",
+  "ok": true,
+  "outcome": "made",
+  "request": {
+    "index": 0,
+    "later": true,
+    "op": "move_checkpoint",
+    "race": "sprint"
+  },
+  "step": 4,
+  "via": "file"
+}
