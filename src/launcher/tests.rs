@@ -420,6 +420,7 @@ fn saving_respects_the_first_run() {
         skip_title: false,
         texture_pack: String::new(),
         hud_mod: false,
+        language: String::new(),
     };
     assert_eq!(save_choices(&c, None), Err(SaveError::FirstRunPending));
     assert!(!path.exists(), "nothing written before the game's first run");
@@ -448,6 +449,45 @@ fn saving_respects_the_first_run() {
     assert_eq!(Graphics::of(&back.enh), Graphics::Enhanced);
     assert_eq!(super::model::load_choices().0.graphics, Graphics::Enhanced);
     let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// The Game language row (Settings › Advanced) cycles the installed languages the engine can
+/// show; English is "nothing kept"; the ones it cannot show are named under
+/// the row with the reason beside it; the game gets `--language` only for a
+/// chosen one.
+#[test]
+fn game_language_row_lists_only_supported_languages() {
+    let fonts = Fonts::new();
+    let env = FakeEnv;
+    let mut a = app(&env, &fonts, Screen::Advanced, 1280, 720, 1.0);
+    assert_eq!(a.model.language_name(), "English");
+    assert!(a.model.choices.language.is_empty(), "nothing chosen");
+    assert!(a.model.unsupported_languages().is_empty());
+    a.st.focus = Some("language");
+    key(&mut a, &fonts, Key::Right);
+    assert_eq!((a.model.choices.language.as_str(), a.model.language_name().as_str()), ("French", "French"));
+    key(&mut a, &fonts, Key::Left);
+    assert!(a.model.choices.language.is_empty(), "English again keeps nothing");
+    key(&mut a, &fonts, Key::Left);
+    assert_eq!(a.model.choices.language, "Swedish", "the list wraps");
+    // Korean and Thailand are installed but not supported: named, with why.
+    a.model.languages.extend(["Korean".to_string(), "Thailand".to_string()]);
+    assert_eq!(a.model.supported_languages(), ["English", "French", "German", "Italian", "Spanish", "Swedish"]);
+    let no = a.model.unsupported_languages();
+    assert_eq!(no.iter().map(|(l, _)| l.as_str()).collect::<Vec<_>>(), ["Korean", "Thailand"]);
+    assert!(no.iter().all(|(_, why)| !why.is_empty()));
+    a.rebuild(&fonts);
+    let t = all_text(&a);
+    assert!(t.contains("Game language") && t.contains("Not supported yet: Korean ("), "{t}");
+    assert!(t.contains("Thailand ("), "{t}");
+    // A copy without English plays its own language; no copy yet, English.
+    a.model.choices.language.clear();
+    a.model.languages = vec!["German".into(), "Korean".into()];
+    assert_eq!(a.model.language_name(), "German");
+    a.model.languages.clear();
+    assert_eq!((a.model.language_name().as_str(), a.model.supported_languages().len()), ("English", 1));
+    assert!(super::window::language_args("").is_empty());
+    assert_eq!(super::window::language_args("German"), ["--language", "German"]);
 }
 
 /// The start boxes Skip Intro Movies and Skip Title Screen are the game's
@@ -547,6 +587,7 @@ fn first_write_uses_the_probes_card() {
         skip_title: false,
         texture_pack: String::new(),
         hud_mod: false,
+        language: String::new(),
     };
     // The probe on this machine for the sample's card.
     let fr = super::probe::first_run(card);
@@ -2941,9 +2982,10 @@ fn check_summary_release_and_text() {
         std::fs::write(dir.join(f), b"").unwrap();
     }
     let c = crate::qol::setup::Check {
-        missing: vec![super::check::TEXT_FILE.into()],
+        missing: vec!["LANGUAGES/English.bin".into()],
         different: Vec::new(),
         assets: Some(crate::game_assets::scan(&dir)),
+        ..Default::default()
     };
     let r = super::model::check_result(&dir, &c, None);
     assert_eq!(r.problem, Some(super::model::Problem::NoText), "{r:?}");

@@ -129,8 +129,11 @@ original, with its switch, is in [docs/playing/native-deviations.md](docs/playin
   A North American install is recognised by its CARS folder and gets that region's car lists, shared
   textures, credits and Best Buy code ([docs/playing/region.md](docs/playing/region.md)). Its movies, which are named without a
   language suffix, play since 0.3.1 ([#107](https://github.com/j0braun/overbright/issues/107)); beyond that, no
-  North American install was tested. Other languages start; their data is reported as "unknown" by
-  `game --check-game`. Overbright carries the European PC 1.2 release's engine numbers; whether another release's executable used different
+  North American install was tested. Other text languages can be chosen (Settings › Advanced › Game language in the
+  launcher, or `game --language German`): English, French, German, Italian, Spanish, Dutch, Swedish and Danish.
+  **No language other than English was tested**: the files were not available. `game --check-game` reports another
+  language's text file as "not verified", since Overbright knows no size or checksum for it. Korean, Japanese, Chinese
+  and Thailand are listed as not supported. Overbright carries the European PC 1.2 release's engine numbers; whether another release's executable used different
   ones is not known.
 - **LOD Fade with multisampling may close the game on AMD's Windows driver**
   ([#155](https://github.com/j0braun/overbright/issues/155)): with Enhanced graphics, LOD Fade on and more than

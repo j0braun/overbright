@@ -394,7 +394,8 @@ fn game_folder(given: Option<&Path>) -> String {
         setup::saved_root().map_or_else(|| "(none)".into(), |p| p.display().to_string())
     ));
     let c = setup::check(&root, true);
-    for (file, _, _) in setup::KEY_FILES {
+    for file in c.key_files() {
+        let file = file.as_str();
         let path = setup::key_file_path(&root, file);
         let state = if c.missing.iter().any(|m| m == file) {
             "MISSING".to_string()
@@ -402,7 +403,13 @@ fn game_folder(given: Option<&Path>) -> String {
             let len = std::fs::metadata(&path).map_or(0, |m| m.len());
             format!(
                 "{len} bytes{}",
-                if c.different.iter().any(|d| d == file) { " (differs from the known release)" } else { "" }
+                if c.different.iter().any(|d| d == file) {
+                    " (differs from the known release)"
+                } else if c.unverified.iter().any(|d| d == file) {
+                    " (not verified)"
+                } else {
+                    ""
+                }
             )
         };
         v.push(format!("  {file}: {state}"));

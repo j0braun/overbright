@@ -136,6 +136,7 @@ pub fn fake_check(missing: &[&str], different: &[&str], movies_missing: &[&str],
         missing: missing.iter().map(|f| f.to_string()).collect(),
         different: different.iter().map(|f| f.to_string()).collect(),
         assets: Some(super::model::fake_assets(&root, movies_missing)),
+        ..Default::default()
     };
     let fp = Fingerprint {
         root: root.clone(),
@@ -202,7 +203,7 @@ pub fn state_model(name: &str) -> Option<(Screen, Model)> {
         }
         "check-unknown-edition" => m.check = Some(fake_check(&[], &[], &[], true)),
         "check-no-english" => {
-            let mut c = fake_check(&[crate::game_assets::TEXT_FILE], &[], &[], false);
+            let mut c = fake_check(&["LANGUAGES/English.bin"], &[], &[], false);
             // A copy with French text only (`check_result` names the
             // problem by the folder's look; the fake folder is not there).
             c.usable = false;

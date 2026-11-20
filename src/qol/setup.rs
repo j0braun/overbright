@@ -24,6 +24,12 @@ pub struct Check {
     pub missing: Vec<String>,
     /// Files whose size or hash differs from the known release.
     pub different: Vec<String>,
+    /// The text language the check was made for (the game's file for it is
+    /// required in place of `English.bin`).
+    pub language: String,
+    /// Required files that are there but have no known size or checksum
+    /// (a language other than English): "not verified", not an error.
+    pub unverified: Vec<String>,
     /// The full check's asset report: the edition, the movies and menu
     /// files the game will look for ([`crate::game_assets::scan`]).
     pub assets: Option<crate::game_assets::Report>,
@@ -37,10 +43,25 @@ impl Check {
 
 /// Check `root` for [`KEY_FILES`] (only reads): each file there and
 /// of the known size, and with `hash` of the known XXH3 (about 22 MB
-/// read) and the asset report ([`crate::game_assets::scan`]).
+/// read) and the asset report ([`crate::game_assets::scan`]). The text
+/// file required is the chosen language's ([`language_in_use`]).
 pub fn check(root: &Path, hash: bool) -> Check {
-    let mut c = Check::default();
+    check_for(root, hash, &language_in_use(root))
+}
+
+/// [`check`] for the text language `language`. Its file takes the place
+/// of `LANGUAGES/English.bin` in [`KEY_FILES`]: it must be there, and a
+/// language other than English has no known size or checksum, so it is
+/// listed in [`Check::unverified`] instead of being compared.
+pub fn check_for(root: &Path, hash: bool, language: &str) -> Check {
+    let mut c = Check { language: language.to_string(), ..Default::default() };
+    let english = crate::game_assets::text_file_of(crate::game_assets::DEFAULT_LANGUAGE);
     for (file, size, known) in KEY_FILES {
+        if file == english && !language.eq_ignore_ascii_case(crate::game_assets::DEFAULT_LANGUAGE) {
+            let own = crate::game_assets::text_file_of(language);
+            if key_file_path(root, &own).is_file() { c.unverified.push(own) } else { c.missing.push(own) }
+            continue;
+        }
         let path = key_file_path(root, file);
         match std::fs::metadata(&path) {
             Ok(m) if m.is_file() => {
@@ -54,9 +75,69 @@ pub fn check(root: &Path, hash: bool) -> Check {
         }
     }
     if hash {
-        c.assets = Some(crate::game_assets::scan(root));
+        c.assets = Some(crate::game_assets::scan_for(root, language));
     }
     c
+}
+
+impl Check {
+    /// The text file this check required (English's when it was not made
+    /// for a language).
+    pub fn text_file(&self) -> String {
+        let l = if self.language.is_empty() { crate::game_assets::DEFAULT_LANGUAGE } else { &self.language };
+        crate::game_assets::text_file_of(l)
+    }
+
+    /// The files this check required: [`KEY_FILES`]' names, with the
+    /// chosen language's text file in place of English's.
+    pub fn key_files(&self) -> Vec<String> {
+        let english = crate::game_assets::text_file_of(crate::game_assets::DEFAULT_LANGUAGE);
+        KEY_FILES.iter().map(|k| if k.0 == english { self.text_file() } else { k.0.to_string() }).collect()
+    }
+
+    /// The file the fingerprint's verdict may leave out when it is missing
+    /// ([`crate::fingerprint::Fingerprint::verdict_skipping`]): the English
+    /// text file, when the check was made for another language.
+    pub fn verdict_skip(&self) -> Option<&'static str> {
+        (!self.language.is_empty() && !self.language.eq_ignore_ascii_case(crate::game_assets::DEFAULT_LANGUAGE))
+            .then_some("LANGUAGES/English.bin")
+    }
+}
+
+/// The language this process plays or checks with: the one the game was
+/// started with ([`crate::game_assets::set_text_language`]), else the one
+/// [`choose_language`] gives for `root` from the kept choice.
+pub fn language_in_use(root: &Path) -> String {
+    crate::game_assets::active_language().map_or_else(|| choose_language(root, None), str::to_string)
+}
+
+/// The text language to use in `root`, by name as [`installed_languages`]
+/// gives it: `requested` (the command line's `--language`), else the kept
+/// choice ([`saved_language`]), when that language's file is in `root` and
+/// [`crate::game_assets::language_support`] says the engine can show it.
+/// Otherwise English; and a copy without `English.bin` falls back to its
+/// first supported language (a single-language edition) rather than to a
+/// file that is not there. A choice that cannot be used is logged.
+pub fn choose_language(root: &Path, requested: Option<&str>) -> String {
+    use crate::game_assets::{DEFAULT_LANGUAGE, Support, language_support, valid_language_name};
+    let installed = installed_languages(root);
+    let wanted = requested.map(str::to_string).or_else(saved_language);
+    if let Some(w) = wanted.filter(|w| !w.eq_ignore_ascii_case(DEFAULT_LANGUAGE)) {
+        match installed.iter().find(|i| i.eq_ignore_ascii_case(&w)) {
+            Some(n) if valid_language_name(n) && language_support(n) == Support::Yes => return n.clone(),
+            Some(n) => log::warn!("language {n} is not supported by this build; using {DEFAULT_LANGUAGE}"),
+            None => log::warn!("language {w} is not in the game folder's LANGUAGES; using {DEFAULT_LANGUAGE}"),
+        }
+    }
+    let has_default = installed.iter().any(|i| i.eq_ignore_ascii_case(DEFAULT_LANGUAGE));
+    if has_default || installed.is_empty() {
+        return DEFAULT_LANGUAGE.to_string();
+    }
+    installed
+        .iter()
+        .find(|i| valid_language_name(i) && language_support(i) == Support::Yes)
+        .cloned()
+        .unwrap_or_else(|| DEFAULT_LANGUAGE.to_string())
 }
 
 /// Where a [`KEY_FILES`] entry is under `root`: every game file is found
@@ -142,10 +223,39 @@ pub fn save_texture_pack(dir: Option<&Path>) -> std::io::Result<()> {
     }
 }
 
+/// The file the text language chosen in the launcher is kept in
+/// (`language.txt` beside game-root.txt). The game reads it when it is
+/// started without `--language`, so it also starts in that language
+/// without the launcher.
+pub fn saved_language_file() -> PathBuf {
+    saved_root_file().with_file_name("language.txt")
+}
+
+/// The kept language name, if one was chosen and is a name that can be
+/// part of a path ([`crate::game_assets::valid_language_name`]).
+pub fn saved_language() -> Option<String> {
+    let text = std::fs::read_to_string(saved_language_file()).ok()?;
+    let t = text.trim();
+    crate::game_assets::valid_language_name(t).then(|| t.to_string())
+}
+
+/// Keeps `name` as the text language (the same atomic write as
+/// [`save_root`]); `None` forgets it (the file removed: English).
+pub fn save_language(name: Option<&str>) -> std::io::Result<()> {
+    let file = saved_language_file();
+    match name {
+        Some(n) => super::saves::write_atomic(&file, format!("{n}\n").as_bytes(), false),
+        None => match std::fs::remove_file(&file) {
+            Err(e) if e.kind() != std::io::ErrorKind::NotFound => Err(e),
+            _ => Ok(()),
+        },
+    }
+}
+
 /// The language files of `root`'s `LANGUAGES` folder, by name (`English`,
 /// `French`, …; any case, sorted), without the shared tables that are not
-/// a language (`Labels`, `Largest`, `LanguageTextures`). The clone loads
-/// `English.bin` only for now (`frontend::assets`).
+/// a language (`Labels`, `Largest`, `LanguageTextures`). Which of them the
+/// engine can show is [`crate::game_assets::language_support`].
 pub fn installed_languages(root: &Path) -> Vec<String> {
     let Some(dir) = crate::formats::viv::find_ci(root, "LANGUAGES") else { return Vec::new() };
     let Ok(rd) = std::fs::read_dir(dir) else { return Vec::new() };
@@ -191,7 +301,7 @@ pub enum Mark {
 pub fn check_lines(c: &Check, fp: Option<&crate::fingerprint::Fingerprint>) -> Vec<(Mark, String)> {
     use crate::fingerprint::Verdict;
     let mut v = Vec::new();
-    match fp.map(|f| (f, f.verdict())) {
+    match fp.map(|f| (f, f.verdict_skipping(c.verdict_skip()))) {
         Some((_, Verdict::Known(e))) => v.push((Mark::Ok, format!("Version: {e} — recognised"))),
         // Missing files: the missing lines say it.
         Some((_, Verdict::Unknown(_))) if !c.missing.is_empty() => {}
@@ -209,6 +319,15 @@ pub fn check_lines(c: &Check, fp: Option<&crate::fingerprint::Fingerprint>) -> V
     let n = KEY_FILES.len();
     if c.missing.is_empty() {
         v.push((Mark::Ok, format!("All {n} files Overbright needs are present")));
+    }
+    if !c.unverified.is_empty() {
+        v.push((
+            Mark::Info,
+            format!(
+                "{}: not verified (Overbright knows no size or checksum for it); it is used as it is",
+                c.unverified.join(", ")
+            ),
+        ));
     }
     if !c.different.is_empty() {
         let k = c.different.len();
