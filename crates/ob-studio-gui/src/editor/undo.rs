@@ -19,6 +19,7 @@ pub fn run(s: &mut EditorState, op: Op) -> Result<Change, Refused> {
         Ok(_) => {}
         Err(e) => s.status = e.to_string(),
     }
+    noted(s);
     tidy(s);
     r
 }
@@ -29,24 +30,45 @@ pub fn commit(s: &mut EditorState, label: &str) {
         s.status = label.to_string();
         tidy(s);
     }
+    noted(s);
+}
+
+/// Why the session did not make a step (its history could not keep it),
+/// in the status bar.
+fn noted(s: &mut EditorState) {
+    if let Some(n) = s.session.note.take() {
+        s.status = n;
+    }
 }
 
 /// Take back the last step (Ctrl+Z).
 pub fn undo(s: &mut EditorState) -> bool {
-    let Some(label) = s.session.undo() else { return false };
+    let Some(label) = s.session.undo() else {
+        noted(s);
+        return false;
+    };
     stepped(s, format!("Undone: {label}"));
     true
 }
 
 /// Do the last undone step again (Ctrl+Y, Ctrl+Shift+Z).
 pub fn redo(s: &mut EditorState) -> bool {
-    let Some(label) = s.session.redo() else { return false };
+    let Some(label) = s.session.redo() else {
+        noted(s);
+        return false;
+    };
     stepped(s, format!("Redone: {label}"));
     true
 }
 
 fn stepped(s: &mut EditorState, status: String) {
     s.status = status;
+    follow(s);
+}
+
+/// The window's state after the mod went to another state (undo, redo,
+/// another program's step): the selection and the current race within it.
+pub fn follow(s: &mut EditorState) {
     s.selection.retain(|&i| i < s.session.base.placements.len());
     if s.race.is_some_and(|r| r >= s.session.map.races.len()) {
         s.race = s.session.map.races.len().checked_sub(1);

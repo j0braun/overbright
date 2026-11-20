@@ -1,11 +1,13 @@
 //! The editor's window contents without the window: the layout (menu,
 //! toolbar, mod tree, viewport, properties, bottom tabs, status bar), the
-//! dialogs, opening / making / saving a mod (atomic), autosave with its
-//! restore prompt, the command line, and painting one frame with egui-wgpu
+//! dialogs, opening / making / saving a mod (the mod's history: every step
+//! in its journal, saved at quiet points, the restore prompt, one writer
+//! per mod), the command line, and painting one frame with egui-wgpu
 //! into any texture (the window's, or an off-screen one for `--shot`).
 
 use ob_look::words;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime};
 
 use anyhow::{Context as _, Result, bail, ensure};
@@ -17,15 +19,20 @@ use super::theme;
 use super::undo;
 use crate::draw::camera::Camera;
 use crate::render::Gpu;
+use crate::tools::map::history::{self, History};
 use crate::tools::map::{MapMod, store, valid_id, valid_region};
 use crate::world::World;
 
 /// The region a new mod starts on.
 pub const DEFAULT_REGION: &str = "L4RA";
-/// Autosave interval.
-pub const AUTOSAVE_EVERY: Duration = Duration::from_secs(60);
-/// The autosave in the mod's `.editor/` folder.
+/// How often the open mod's history looks for work (saving at a quiet
+/// point, another program's changes and requests).
+pub const TICK_EVERY: Duration = Duration::from_secs(1);
+/// An older editor's autosave in the mod's `.editor/` folder: offered once
+/// on opening, never written.
 pub const AUTOSAVE: &str = store::AUTOSAVE;
+/// Who holds a mod open in this editor (the history's lock and steps).
+pub const PROGRAM: &str = history::STUDIO;
 /// Editor-only state in the mod's `.editor/` folder (camera, region, panel
 /// sizes); not exported.
 pub const EDITOR_TOML: &str = store::EDITOR_TOML;
@@ -49,14 +56,8 @@ pub fn autosave_path(maps: &Path, folder: &str) -> PathBuf {
     store::editor_dir(maps, folder).join(AUTOSAVE)
 }
 
-/// Write the autosave (atomic, as a save).
-pub fn write_autosave(maps: &Path, folder: &str, m: &MapMod) -> Result<()> {
-    let path = autosave_path(maps, folder);
-    crate::qol::saves::write_atomic(&path, m.write().as_bytes(), true)
-        .with_context(|| format!("writing {}", path.display()))
-}
-
-/// Remove the autosave (after a save, or when its changes are discarded).
+/// Remove an older editor's autosave (once its changes are restored or
+/// discarded).
 pub fn remove_autosave(maps: &Path, folder: &str) {
     let p = autosave_path(maps, folder);
     if p.exists()
@@ -66,8 +67,9 @@ pub fn remove_autosave(maps: &Path, folder: &str) {
     }
 }
 
-/// The autosave to offer on opening: newer than the saved mod (or the mod
-/// is missing), readable, and different from `saved`. With its time.
+/// An older editor's autosave to offer on opening: newer than the saved mod
+/// (or the mod is missing), readable, and different from `saved`. With its
+/// time.
 pub fn pending_autosave(maps: &Path, folder: &str, saved: Option<&MapMod>) -> Option<(MapMod, SystemTime)> {
     let auto = autosave_path(maps, folder);
     let at = std::fs::metadata(&auto).and_then(|m| m.modified()).ok()?;
@@ -801,10 +803,11 @@ pub enum Dialog {
     Import {
         path: String,
     },
-    /// An autosave newer than the saved mod.
+    /// Unsaved steps found on opening: the history's (`old` None), or an
+    /// older editor's autosave newer than the saved mod.
     Restore {
-        map: MapMod,
         age: Duration,
+        old: Option<MapMod>,
     },
     /// Unsaved changes before `then`.
     Unsaved {
@@ -844,11 +847,10 @@ pub struct App {
     /// Every status message, oldest first (the Log tab).
     pub log: Vec<String>,
     last_status: String,
-    /// When the last autosave was written (or the mod opened / saved).
-    last_autosave: Instant,
-    /// The mod as last autosaved or saved.
-    autosaved: Option<MapMod>,
-    pub autosave_note: String,
+    /// When the open mod's history last looked for work.
+    last_tick: Instant,
+    /// Why the last save at a quiet point failed (status bar).
+    pub save_note: String,
     /// The window should close.
     pub quit: bool,
     /// Last frame's time on the CPU (status bar).
@@ -930,9 +932,8 @@ impl App {
             tab: "browser",
             log: Vec::new(),
             last_status: String::new(),
-            last_autosave: Instant::now(),
-            autosaved: None,
-            autosave_note: String::new(),
+            last_tick: Instant::now(),
+            save_note: String::new(),
             quit: false,
             frame_ms: 0.0,
             untaken: Vec::new(),
@@ -972,20 +973,41 @@ impl App {
     }
 
     /// Open the mod in `folder` (on `region`, else its own): the world
-    /// loaded, the mod applied, and the restore prompt when an autosave
-    /// is newer.
+    /// loaded, the mod applied, its history opened (read-only when another
+    /// program has the mod open), and the restore prompt when the history
+    /// holds unsaved steps (or an older editor's autosave is newer).
     pub fn open(&mut self, folder: &str, region: Option<&str>) -> Result<()> {
+        ensure!(valid_id(folder), "`{folder}` is not a map mod folder name (a-z, 0-9, - and _)");
         // The mod open until now keeps its view.
         self.keep_view();
+        if self.state.as_ref().is_some_and(|s| s.session.folder == folder) {
+            // Its lock goes before the mod is opened again.
+            self.state = None;
+        }
         match store::move_old_sidecars(&self.maps, folder) {
             Ok(0) => {}
             Ok(n) => log::info!("editor: {n} editor file(s) of {folder} moved into {}", store::EDITOR_DIR),
             Err(e) => log::warn!("editor: {folder}'s editor files not moved: {e:#}"),
         }
-        let file = self.maps.join(folder).join(store::FILE);
+        let dir = self.maps.join(folder);
+        let edir = store::editor_dir(&self.maps, folder);
+        let file = dir.join(store::FILE);
         let saved = if file.exists() { Some(store::read_file(&file)?) } else { None };
-        let pending = pending_autosave(&self.maps, folder, saved.as_ref());
-        ensure!(saved.is_some() || pending.is_some(), "no map mod `{folder}` in {}", self.maps.display());
+        let old = pending_autosave(&self.maps, folder, saved.as_ref());
+        ensure!(
+            saved.is_some() || old.is_some() || edir.join(history::JOURNAL).is_file(),
+            "no map mod `{folder}` in {}",
+            self.maps.display()
+        );
+        let mut h = History::open(&dir, &edir, &[store::FILE], PROGRAM, Arc::new(history::disk::Real))
+            .with_context(|| format!("opening the history of {folder}"))?;
+        let pending = h.pending().map(|p| p.at);
+        let read_only = !h.writable();
+        if read_only || (pending.is_some() && saved.is_none()) {
+            // A read-only view shows the writer's steps; with the file
+            // gone only the unsaved steps are left: take them as they are.
+            h.restore();
+        }
         let map = saved.clone().unwrap_or_default();
         let view = ModView::read(&self.maps, folder);
         let region = mod_region(region, &view, &map);
@@ -995,22 +1017,30 @@ impl App {
             None => start_camera(&world, &map),
         };
         self.layout.restore = view.panels;
-        let mut s = EditorState::new(self.root.clone(), &region, self.maps.clone(), folder, map.clone(), world, camera);
+        let mut s = EditorState::new(self.root.clone(), &region, self.maps.clone(), folder, map, world, camera);
+        s.session.keep_in(h);
         s.status = format!("Opened {folder}");
         self.state = Some(s);
-        self.autosaved = Some(map);
-        self.last_autosave = Instant::now();
-        self.autosave_note.clear();
+        self.last_tick = Instant::now();
+        self.save_note.clear();
         note_recent(&self.maps, folder);
         self.say(format!("Opened {folder} on {region}"));
-        if saved.is_none() {
-            // Only the autosave is left: take it as it is.
-            if let Some((m, _)) = pending {
-                self.restore(m);
+        if read_only {
+            return Ok(());
+        }
+        if let Some(at) = pending.filter(|_| saved.is_some()) {
+            let age = Duration::from_millis(history::now_ms().saturating_sub(at));
+            self.dialog = Some(Dialog::Restore { age, old: None });
+        } else if let Some((m, at)) = old {
+            if saved.is_none() && pending.is_none() {
+                // Only the autosave is left: take it as it is.
+                self.restore_old(m);
+            } else if pending.is_none() {
+                self.dialog = Some(Dialog::Restore {
+                    age: SystemTime::now().duration_since(at).unwrap_or_default(),
+                    old: Some(m),
+                });
             }
-        } else if let Some((m, at)) = pending {
-            self.dialog =
-                Some(Dialog::Restore { map: m, age: SystemTime::now().duration_since(at).unwrap_or_default() });
         }
         Ok(())
     }
@@ -1027,17 +1057,20 @@ impl App {
         self.open(folder, Some(&region))
     }
 
-    /// Save the open mod (atomic); the autosave goes.
+    /// Save the open mod now (Ctrl+S): its file through a temporary file
+    /// and a rename, and the history notes it.
     pub fn save(&mut self) -> Result<()> {
         let Some(s) = self.state.as_mut() else { return Ok(()) };
-        save_mod(&s.maps, &s.session.folder, &s.session.map)?;
-        self.keep_view();
-        let Some(s) = self.state.as_mut() else { return Ok(()) };
-        remove_autosave(&s.maps, &s.session.folder);
+        match s.session.history.as_mut() {
+            Some(h) => h.save()?,
+            None => {
+                save_mod(&s.maps, &s.session.folder, &s.session.map)?;
+            }
+        }
         s.session.dirty = false;
-        self.autosaved = Some(s.session.map.clone());
-        self.last_autosave = Instant::now();
-        self.autosave_note.clear();
+        self.keep_view();
+        self.save_note.clear();
+        let Some(s) = self.state.as_ref() else { return Ok(()) };
         let f = s.session.folder.clone();
         self.say(format!("Saved {f}"));
         Ok(())
@@ -1060,48 +1093,133 @@ impl App {
         }
     }
 
-    /// Take the autosave's mod as one undoable step.
-    pub fn restore(&mut self, m: MapMod) {
+    /// Take an older editor's autosave as one undoable step; the file is
+    /// not offered again.
+    pub fn restore_old(&mut self, m: MapMod) {
         if let Some(s) = self.state.as_mut() {
             s.session.map = m;
             undo::apply_map(s);
             super::commit(s, "Restore unsaved changes");
-            s.session.dirty = true;
+            if s.session.note.is_none() {
+                remove_autosave(&s.maps, &s.session.folder);
+            }
         }
         self.say("Restored unsaved changes");
     }
 
-    /// Autosave when due: every [`AUTOSAVE_EVERY`] while the mod differs
-    /// from the last save or autosave.
-    pub fn tick(&mut self, now: Instant) {
-        let Some(s) = self.state.as_ref() else { return };
-        if now.duration_since(self.last_autosave) < AUTOSAVE_EVERY {
-            return;
+    /// Keep the unsaved steps the history found on opening.
+    pub fn restore_pending(&mut self) {
+        if let Some(s) = self.state.as_mut()
+            && let Some(h) = s.session.history.as_mut()
+        {
+            h.restore();
+            s.session.sync();
+            undo::follow(s);
         }
-        self.last_autosave = now;
-        if !s.session.dirty || self.autosaved.as_ref() == Some(&s.session.map) {
+        self.say("Restored unsaved changes");
+    }
+
+    /// Go back to the mod's file: the unsaved steps found on opening are
+    /// taken back as one step (Undo brings them back); an older editor's
+    /// autosave is removed.
+    pub fn discard_pending(&mut self, old: bool) {
+        let Some(s) = self.state.as_mut() else { return };
+        if old {
+            remove_autosave(&s.maps, &s.session.folder);
+        } else if let Some(h) = s.session.history.as_mut()
+            && let Err(e) = h.discard()
+        {
+            let e = anyhow::Error::from(e);
+            self.fail("Could not discard the unsaved changes", e);
             return;
+        } else {
+            s.session.sync();
+            undo::follow(s);
         }
-        match write_autosave(&s.maps, &s.session.folder, &s.session.map) {
-            Ok(()) => {
-                self.autosaved = Some(s.session.map.clone());
-                self.autosave_note = "Autosaved".into();
-            }
+        self.say("Discarded the unsaved changes");
+    }
+
+    /// Do what the open mod's history has due: save at a quiet point, take
+    /// in another program's changes and requests (they become steps the
+    /// view follows). True when the view changed.
+    pub fn tick(&mut self, now: Instant) -> bool {
+        self.last_tick = now;
+        let Some(s) = self.state.as_mut() else { return false };
+        let Some(h) = s.session.history.as_mut() else { return false };
+        let t = match h.tick(now) {
+            Ok(t) => t,
             Err(e) => {
-                self.autosave_note = "Autosave failed".into();
-                log::warn!("editor: autosave: {e:#}");
+                let note = format!("Not saved: {e}");
+                if note != self.save_note {
+                    log::warn!("editor: {note}");
+                    self.save_note = note;
+                    return true;
+                }
+                return false;
             }
+        };
+        let mut changed = std::mem::take(&mut self.save_note).len() > 0 || t.saved;
+        s.session.dirty = h.writable() && h.unsaved();
+        if !t.outside.is_empty() || !t.answered.is_empty() || t.reloaded {
+            if s.session.sync() {
+                undo::follow(s);
+                s.status = "Changed by another program".into();
+            }
+            changed = true;
         }
+        changed
     }
 
     /// When [`App::tick`] next has work (for the window's wait).
     pub fn next_tick(&self) -> Instant {
-        self.last_autosave + AUTOSAVE_EVERY
+        self.last_tick + TICK_EVERY
+    }
+
+    /// The open mod is read-only (another program has it open): who.
+    pub fn read_only(&self) -> Option<String> {
+        let h = self.state.as_ref()?.session.history.as_ref()?;
+        let by = h.read_only_by()?;
+        Some(match by {
+            Some(o) => format!("Read-only: {} (process {}) has this mod open.", o.program, o.pid),
+            None => "Read-only: another program has this mod open.".to_string(),
+        })
+    }
+
+    /// Try again to open the mod for writing (the read-only banner's
+    /// button).
+    pub fn retry_write(&mut self) {
+        let Some(s) = self.state.as_mut() else { return };
+        let Some(h) = s.session.history.as_mut() else { return };
+        match h.retry_write(PROGRAM) {
+            Ok(true) => {
+                s.session.sync();
+                undo::follow(s);
+                self.say("The mod is open for writing");
+            }
+            Ok(false) => self.say("Still open in another program"),
+            Err(e) => self.fail("Could not open the mod for writing", e.into()),
+        }
+    }
+
+    /// Unsaved steps written before the mod is left: false when the save
+    /// failed (the steps stay in the history; the next opening offers
+    /// them).
+    fn flush(&mut self) -> bool {
+        if !self.state.as_ref().is_some_and(|s| s.session.dirty) {
+            return true;
+        }
+        match self.save() {
+            Ok(()) => true,
+            Err(e) => {
+                log::warn!("editor: saving before leaving the mod: {e:#}");
+                false
+            }
+        }
     }
 
     /// The window was asked to close: true when it may.
     pub fn close_requested(&mut self) -> bool {
-        if self.state.as_ref().is_some_and(|s| s.session.dirty) {
+        if !self.flush() {
             self.dialog = Some(Dialog::Unsaved { then: Then::Quit });
             false
         } else {
@@ -1127,9 +1245,9 @@ impl App {
         }
     }
 
-    /// Ask about unsaved changes first, then do `then`.
+    /// Save the unsaved steps first (ask when that fails), then do `then`.
     fn guarded(&mut self, then: Then) {
-        if self.state.as_ref().is_some_and(|s| s.session.dirty) {
+        if !self.flush() {
             self.dialog = Some(Dialog::Unsaved { then });
         } else {
             self.after_unsaved(then);
@@ -1233,6 +1351,25 @@ impl App {
                 .show(ui, |ui| {
                     ui.horizontal_centered(|ui| ui.add(egui::Label::new(menu::game_job(&words)).truncate()));
                 });
+        }
+        // Another program has the mod open: the hint line's look over the
+        // view, with who and a way to try again.
+        if let Some(text) = self.read_only() {
+            let mut retry = false;
+            egui::Panel::top("read-only")
+                .exact_size(26.0)
+                .resizable(false)
+                .show_separator_line(false)
+                .frame(egui::Frame::NONE.fill(theme::over_page(theme::tokens().slab)).inner_margin(egui::Margin::symmetric(10, 0)))
+                .show(ui, |ui| {
+                    ui.horizontal_centered(|ui| {
+                        ui.colored_label(theme::warn(), egui::RichText::new(text).font(theme::font(theme::SEMI, 13.0)));
+                        retry = ui.button("Try again").clicked();
+                    });
+                });
+            if retry {
+                self.retry_write();
+            }
         }
         if super::modes::take_help_request(ui.ctx()) {
             actions.push(menu::Action::HowToTest);
@@ -1578,29 +1715,30 @@ impl App {
                         }
                     });
                 }
-                Dialog::Restore { map, age } => {
+                Dialog::Restore { age, old } => {
                     ui.label(theme::title("Restore unsaved changes?"));
                     ui.label(format!("This mod has changes from {} that were not saved.", ago(*age)));
                     ui.horizontal(|ui| {
-                        if ui.add(theme::main_action("Restore")).clicked() {
-                            let m = map.clone();
-                            then = Some(Box::new(move |app: &mut App| app.restore(m)));
+                        if ui.add(theme::main_action(words::RESTORE)).clicked() {
+                            let m = old.clone();
+                            then = Some(Box::new(move |app: &mut App| match m {
+                                Some(m) => app.restore_old(m),
+                                None => app.restore_pending(),
+                            }));
                             keep = false;
                         }
                         if ui.button("Discard them").clicked() {
-                            then = Some(Box::new(|app: &mut App| {
-                                if let Some(s) = &app.state {
-                                    remove_autosave(&s.maps, &s.session.folder);
-                                }
-                                app.say("Discarded the unsaved changes");
-                            }));
+                            let old = old.is_some();
+                            then = Some(Box::new(move |app: &mut App| app.discard_pending(old)));
                             keep = false;
                         }
                     });
                 }
                 Dialog::Unsaved { then: next } => {
                     ui.label(theme::title("Save changes?"));
-                    ui.label("The mod has changes that are not saved.");
+                    ui.label(
+                        "The mod's changes could not be saved. They stay in its history: opening it offers them again.",
+                    );
                     ui.horizontal(|ui| {
                         if ui.add(theme::main_action(words::SAVE)).clicked() {
                             let n = next.clone();
@@ -1612,13 +1750,7 @@ impl App {
                         }
                         if ui.button("Don't save").clicked() {
                             let n = next.clone();
-                            then = Some(Box::new(move |app: &mut App| {
-                                if let Some(s) = app.state.as_mut() {
-                                    s.session.dirty = false;
-                                    remove_autosave(&s.maps, &s.session.folder);
-                                }
-                                app.after_unsaved(n);
-                            }));
+                            then = Some(Box::new(move |app: &mut App| app.after_unsaved(n)));
                             keep = false;
                         }
                         if ui.button(words::CANCEL).clicked() {
@@ -2088,7 +2220,7 @@ mod tests {
     }
 
     #[test]
-    fn save_is_atomic_and_removes_the_autosave() {
+    fn save_is_atomic_and_keeps_the_history() {
         let s = Scratch::new("editor-save");
         let maps = s.path().join("maps");
         let m = MapMod { name: "Docks".into(), props: vec![add("XC_CONE_01", 1.0)], ..Default::default() };
@@ -2100,54 +2232,136 @@ mod tests {
 
         let mut a = app(&s);
         a.open("docks", None).unwrap();
-        assert!(a.dialog.is_none());
+        assert!(a.dialog.is_none() && a.read_only().is_none());
+        assert!(store::editor_dir(&maps, "docks").join(history::JOURNAL).is_file());
         a.state.as_mut().unwrap().session.map.name = "Docks 2".into();
         crate::editor::commit(a.state.as_mut().unwrap(), "Rename");
-        write_autosave(&maps, "docks", &a.state.as_ref().unwrap().session.map).unwrap();
+        assert!(a.state.as_ref().unwrap().session.dirty);
+        assert_eq!(store::read_file(&path).unwrap().name, "Docks", "not written before a quiet point");
         a.save().unwrap();
-        assert!(!autosave_path(&maps, "docks").exists());
+        assert!(!autosave_path(&maps, "docks").exists(), "no autosave file any more");
         assert!(!a.state.as_ref().unwrap().session.dirty);
         assert_eq!(store::read_file(&path).unwrap().name, "Docks 2");
         assert_eq!(ModView::read(&maps, "docks").region.as_deref(), Some("L4RA"));
         assert_eq!(recent(&maps), vec!["docks".to_string()]);
+        assert!(a.open("../up", None).is_err() && a.open("nothing", None).is_err());
+        assert!(!maps.join("nothing").exists(), "a mod that is not there is not made");
     }
 
+    fn props(a: &App) -> usize {
+        a.state.as_ref().unwrap().session.map.props.len()
+    }
+
+    fn add_prop(a: &mut App, x: f32) {
+        let st = a.state.as_mut().unwrap();
+        let mut p = add("XC_CONE_01", x);
+        if let PropEdit::Add { id, .. } = &mut p {
+            *id = format!("a{}", st.session.map.props.len() + 1);
+        }
+        st.session.map.props.push(p);
+        crate::editor::commit(st, "Add XC_CONE_01");
+    }
+
+    /// Steps are written at a quiet point; steps a crash kept from the file
+    /// come back through the restore prompt, or are taken back as one
+    /// undoable step.
     #[test]
-    fn autosave_after_a_minute_and_restore_prompt() {
-        let s = Scratch::new("editor-autosave");
+    fn quiet_point_saves_and_restore_prompt() {
+        let s = Scratch::new("editor-history");
         let maps = s.path().join("maps");
+        let file = maps.join("yard").join(store::FILE);
         let mut a = app(&s);
         a.new_mod("yard", "Yard", "l4ra").unwrap();
         assert!(a.new_mod("yard", "Yard", "L4RA").is_err(), "an existing mod is never overwritten");
-        let st = a.state.as_mut().unwrap();
-        assert_eq!(st.session.region, "L4RA");
-        st.session.map.props.push(add("XC_CONE_01", 2.0));
-        crate::editor::commit(st, "Add XC_CONE_01");
+        assert_eq!(a.state.as_ref().unwrap().session.region, "L4RA");
+        add_prop(&mut a, 2.0);
         let t0 = Instant::now();
         a.tick(t0);
-        assert!(!autosave_path(&maps, "yard").exists(), "not before a minute");
-        a.tick(t0 + AUTOSAVE_EVERY + Duration::from_secs(1));
-        assert!(autosave_path(&maps, "yard").exists());
+        assert!(store::read_file(&file).unwrap().props.is_empty(), "not before a quiet point");
+        assert!(a.state.as_ref().unwrap().session.dirty);
+        assert!(a.tick(t0 + history::QUIET + Duration::from_secs(1)), "the save shows");
+        assert_eq!(store::read_file(&file).unwrap().props.len(), 1);
+        assert!(!a.state.as_ref().unwrap().session.dirty);
+        // One more step, then the editor stops before a quiet point.
+        add_prop(&mut a, 3.0);
         let unsaved = a.state.as_ref().unwrap().session.map.clone();
+        drop(a);
 
-        // A crash: the next start offers the autosave.
         let mut b = app(&s);
         b.open("yard", None).unwrap();
-        let Some(Dialog::Restore { map, .. }) = b.dialog.clone() else { panic!("no restore prompt: {:?}", b.dialog) };
-        assert_eq!(map, unsaved);
-        assert!(b.state.as_ref().unwrap().session.map.props.is_empty());
-        b.restore(map);
+        assert!(matches!(b.dialog, Some(Dialog::Restore { old: None, .. })), "no restore prompt: {:?}", b.dialog);
+        assert_eq!(props(&b), 1, "the file until answered");
+        b.tick(Instant::now() + Duration::from_secs(3600));
+        assert_eq!(store::read_file(&file).unwrap().props.len(), 1, "nothing written while the prompt waits");
+        b.restore_pending();
         let st = b.state.as_mut().unwrap();
         assert_eq!(st.session.map, unsaved);
         assert!(st.session.dirty);
-        assert!(crate::editor::undo::undo(st), "the restore is one undo step");
-        assert!(st.session.map.props.is_empty());
+        assert!(crate::editor::undo::undo(st), "the steps of the last run are undoable");
+        assert_eq!(props(&b), 1);
+        b.act(menu::Action::Redo);
+        b.save().unwrap();
+        assert_eq!(store::read_file(&file).unwrap(), unsaved);
+        drop(b);
 
-        // A saved mod newer than its autosave: no prompt.
-        save_mod(&maps, "yard", &unsaved).unwrap();
+        // Discarded: back to the file, as one step Undo takes back.
         let mut c = app(&s);
         c.open("yard", None).unwrap();
-        assert!(c.dialog.is_none());
+        assert!(c.dialog.is_none(), "saved: no prompt");
+        add_prop(&mut c, 4.0);
+        drop(c);
+        let mut d = app(&s);
+        d.open("yard", None).unwrap();
+        assert!(matches!(d.dialog, Some(Dialog::Restore { old: None, .. })));
+        d.dialog = None;
+        d.discard_pending(false);
+        assert_eq!(d.state.as_ref().unwrap().session.map, unsaved);
+        assert_eq!(d.state.as_ref().unwrap().session.undo_label(), Some("Discard unsaved changes"));
+        d.act(menu::Action::Undo);
+        assert_eq!(props(&d), 3, "undo brings the discarded steps back");
+    }
+
+    /// An older editor's autosave is offered once through the same prompt,
+    /// and never written again.
+    #[test]
+    fn an_older_autosave_is_offered_once() {
+        let s = Scratch::new("editor-old-autosave");
+        let maps = s.path().join("maps");
+        let saved = MapMod { name: "Old".into(), ..Default::default() };
+        let unsaved = MapMod { name: "Old".into(), props: vec![add("XC_CONE_01", 1.0)], ..Default::default() };
+        let older = |restore: bool| {
+            save_mod(&maps, "old", &saved).unwrap();
+            let auto = autosave_path(&maps, "old");
+            std::fs::create_dir_all(auto.parent().unwrap()).unwrap();
+            std::fs::write(&auto, unsaved.write()).unwrap();
+            let later = SystemTime::now() + Duration::from_secs(5);
+            std::fs::File::options().write(true).open(&auto).unwrap().set_modified(later).unwrap();
+            let mut a = app(&s);
+            a.open("old", None).unwrap();
+            let Some(Dialog::Restore { old: Some(m), .. }) = a.dialog.take() else { panic!("{:?}", a.dialog) };
+            assert_eq!(m, unsaved);
+            if restore {
+                a.restore_old(m);
+            } else {
+                a.discard_pending(true);
+            }
+            assert!(!auto.exists(), "offered once");
+            a
+        };
+        let mut a = older(true);
+        let st = a.state.as_mut().unwrap();
+        assert_eq!(st.session.map, unsaved);
+        assert_eq!(st.session.undo_label(), Some("Restore unsaved changes"));
+        a.tick(Instant::now() + Duration::from_secs(60));
+        assert_eq!(store::read_file(&maps.join("old").join(store::FILE)).unwrap(), unsaved, "saved at a quiet point");
+        assert!(!autosave_path(&maps, "old").exists(), "never written");
+        drop(a);
+        let mut b = app(&s);
+        b.open("old", None).unwrap();
+        assert!(b.dialog.is_none());
+        drop(b);
+        let a = older(false);
+        assert_eq!(a.state.as_ref().unwrap().session.map, saved);
     }
 
     #[test]
@@ -2161,18 +2375,28 @@ mod tests {
         st.session.map.races.push(r);
         crate::editor::commit(st, "New race");
         st.race = Some(0);
-        assert_eq!(st.session.undo.undo_label(), Some("New race"));
+        assert_eq!(st.session.undo_label(), Some("New race"));
         a.act(menu::Action::Undo);
         let st = a.state.as_ref().unwrap();
         assert!(st.session.map.races.is_empty() && st.race.is_none());
-        assert_eq!(st.session.undo.redo_label(), Some("New race"));
+        assert_eq!(st.session.redo_label(), Some("New race"));
         a.act(menu::Action::Redo);
         assert_eq!(a.state.as_ref().unwrap().session.map.races.len(), 1);
         assert!(a.log.iter().any(|l| l.contains("Undone: New race")));
+        // The steps outlive the window.
+        assert!(a.close_requested());
+        drop(a);
+        let mut b = app(&s);
+        b.open("u", None).unwrap();
+        assert_eq!(b.state.as_ref().unwrap().session.undo_label(), Some("New race"));
+        b.act(menu::Action::Undo);
+        assert!(b.state.as_ref().unwrap().session.map.races.is_empty());
     }
 
+    /// Leaving a mod with unsaved steps saves them; only a save that fails
+    /// asks (the steps stay in the history either way).
     #[test]
-    fn quitting_with_changes_asks_first() {
+    fn quitting_with_changes_saves_them() {
         let s = Scratch::new("editor-quit");
         let mut a = app(&s);
         assert!(a.close_requested());
@@ -2181,9 +2405,103 @@ mod tests {
         let st = a.state.as_mut().unwrap();
         st.session.map.description = "x".into();
         crate::editor::commit(st, "Mod details");
+        assert!(a.close_requested() && a.quit);
+        let file = s.path().join("maps/q").join(store::FILE);
+        assert_eq!(store::read_file(&file).unwrap().description, "x");
+        drop(a);
+        // The file cannot be written (a folder took its name).
+        let mut a = app(&s);
+        a.open("q", None).unwrap();
+        let st = a.state.as_mut().unwrap();
+        st.session.map.description = "y".into();
+        crate::editor::commit(st, "Mod details");
+        std::fs::remove_file(&file).unwrap();
+        std::fs::create_dir(&file).unwrap();
         assert!(!a.close_requested());
-        assert!(matches!(a.dialog, Some(Dialog::Unsaved { then: Then::Quit })));
-        assert!(!a.quit);
+        assert!(matches!(a.dialog, Some(Dialog::Unsaved { then: Then::Quit })) && !a.quit);
+        // Don't save: the step stays in the history, the next opening offers it.
+        a.dialog = None;
+        a.after_unsaved(Then::Quit);
+        assert!(a.quit);
+        drop(a);
+        std::fs::remove_dir(&file).unwrap();
+        std::fs::write(&file, MapMod { description: "x".into(), ..Default::default() }.write()).unwrap();
+        let mut b = app(&s);
+        b.open("q", None).unwrap();
+        assert!(matches!(b.dialog, Some(Dialog::Restore { old: None, .. })), "{:?}", b.dialog);
+        b.restore_pending();
+        assert_eq!(b.state.as_ref().unwrap().session.map.description, "y");
+    }
+
+    /// A second program on an open mod gets it read-only, with who has it,
+    /// and follows the writer's steps; it can write once the writer let go.
+    #[test]
+    fn a_second_opener_is_read_only() {
+        let s = Scratch::new("editor-read-only");
+        let mut a = app(&s);
+        a.new_mod("ro", "", "L4RA").unwrap();
+        let mut b = app(&s);
+        b.open("ro", None).unwrap();
+        let banner = b.read_only().expect("read-only");
+        assert!(banner.contains(&format!("{PROGRAM} (process {})", std::process::id())), "{banner}");
+        add_prop(&mut b, 1.0);
+        let st = b.state.as_ref().unwrap();
+        assert!(st.session.map.props.is_empty() && st.status.starts_with("Not kept: read-only"), "{}", st.status);
+        assert!(!st.session.dirty);
+        add_prop(&mut a, 1.0);
+        assert!(b.tick(Instant::now()), "the writer's step shows");
+        assert_eq!(props(&b), 1);
+        b.retry_write();
+        assert!(b.read_only().is_some(), "still held");
+        drop(a);
+        b.retry_write();
+        assert!(b.read_only().is_none());
+        add_prop(&mut b, 2.0);
+        assert_eq!(props(&b), 2);
+    }
+
+    /// A change another program sends while the mod is open (the command
+    /// line's way): made as a step at the next tick, answered, and followed
+    /// by the view.
+    #[test]
+    fn a_sent_change_is_made_and_followed() {
+        use crate::tools::map::history::inbox;
+        let s = Scratch::new("editor-inbox");
+        let mut a = app(&s);
+        a.new_mod("in", "", "L4RA").unwrap();
+        let edir = store::editor_dir(&s.path().join("maps"), "in");
+        let sent = MapMod { name: "Sent".into(), ..Default::default() };
+        let r = inbox::Request {
+            id: inbox::new_id(),
+            author: "command line".into(),
+            label: "Rename".into(),
+            base: None,
+            docs: [(store::FILE.to_string(), Some(sent.write()))].into(),
+        };
+        inbox::submit(&edir, &r).unwrap();
+        assert!(a.tick(Instant::now()));
+        assert!(matches!(inbox::reply(&edir, &r.id), Some(inbox::Reply::Ok { .. })));
+        let st = a.state.as_ref().unwrap();
+        assert_eq!(st.session.map.name, "Sent");
+        assert_eq!(st.session.undo_label(), Some("command line: Rename"));
+    }
+
+    /// Another program writing the file while the mod is open: one step the
+    /// view follows and Undo takes back.
+    #[test]
+    fn an_outside_write_is_an_undoable_step() {
+        let s = Scratch::new("editor-outside");
+        let maps = s.path().join("maps");
+        let mut a = app(&s);
+        a.new_mod("out", "", "L4RA").unwrap();
+        let by_hand = MapMod { name: "By hand".into(), ..Default::default() };
+        std::fs::write(maps.join("out").join(store::FILE), by_hand.write()).unwrap();
+        assert!(a.tick(Instant::now() + Duration::from_secs(10)));
+        let st = a.state.as_ref().unwrap();
+        assert_eq!(st.session.map.name, "By hand");
+        assert_eq!(st.status, "Changed by another program");
+        a.act(menu::Action::Undo);
+        assert!(a.state.as_ref().unwrap().session.map.name.is_empty());
     }
 
     #[test]
@@ -2240,6 +2558,8 @@ mod tests {
         let mut v = ModView::read(&maps, "p");
         v.panels = wanted;
         v.write(&maps, "p").unwrap();
+        // One program writes a mod at a time.
+        drop(a);
         let mut b = app(&s);
         b.open("p", None).unwrap();
         for _ in 0..3 {
@@ -2253,6 +2573,7 @@ mod tests {
         b.layout.sizes.tree = Some(290.0);
         assert!(b.close_requested());
         assert_eq!(ModView::read(&maps, "p").panels.tree, Some(290.0));
+        drop(b);
         // A panel never drawn open keeps its kept size.
         let mut c = app(&s);
         c.open("p", None).unwrap();
@@ -2286,7 +2607,7 @@ mod tests {
             assert!(!dir.join(name).exists() && store::editor_dir(&maps, "old").join(name).is_file(), "{name}");
         }
         assert_eq!(a.state.as_ref().unwrap().session.region, "L4RB", "the moved view is read");
-        assert!(matches!(&a.dialog, Some(Dialog::Restore { map, .. }) if *map == unsaved), "{:?}", a.dialog);
+        assert!(matches!(&a.dialog, Some(Dialog::Restore { old: Some(map), .. }) if *map == unsaved), "{:?}", a.dialog);
         assert_eq!(std::fs::read_dir(&dir).unwrap().count(), 2, "map.obmap and .editor/");
     }
 

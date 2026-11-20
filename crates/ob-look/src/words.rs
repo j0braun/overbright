@@ -29,9 +29,12 @@ pub const DELETE: &str = "Delete";
 pub const DUPLICATE: &str = "Duplicate";
 /// Give the item a new name.
 pub const RENAME: &str = "Rename";
+/// Bring back what was kept (a backup, unsaved changes).
+pub const RESTORE: &str = "Restore";
 
 /// Every shared word, in the order above.
-pub const ALL: [&str; 12] = [BACK, CANCEL, OK, SELECT, OPEN, SAVE, QUIT, UNDO, REDO, DELETE, DUPLICATE, RENAME];
+pub const ALL: [&str; 13] =
+    [BACK, CANCEL, OK, SELECT, OPEN, SAVE, QUIT, UNDO, REDO, DELETE, DUPLICATE, RENAME, RESTORE];
 
 #[cfg(test)]
 mod tests {

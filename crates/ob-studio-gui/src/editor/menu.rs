@@ -468,7 +468,7 @@ pub fn bar(app: &App, ui: &mut egui::Ui, out: &mut Vec<Action>) {
         });
         ui.menu_button("Edit", |ui| {
             let (u, r) = app.state.as_ref().map_or((None, None), |s| {
-                (s.session.undo.undo_label().map(str::to_string), s.session.undo.redo_label().map(str::to_string))
+                (s.session.undo_label().map(str::to_string), s.session.redo_label().map(str::to_string))
             });
             let ut = u.as_ref().map_or(words::UNDO.to_string(), |l| format!("Undo: {l}"));
             if item(ui, &ut, Some(&UNDO), u.is_some()) {
@@ -833,8 +833,8 @@ pub fn toolbar(app: &mut App, ui: &mut egui::Ui, out: &mut Vec<Action>) {
                 }
                 Part::Undo | Part::Redo | Part::Save => {
                     let (on, tip, a, name) = match part {
-                        Part::Undo => (s.session.undo.undo_label().is_some(), "Ctrl+Z", Action::Undo, words::UNDO),
-                        Part::Redo => (s.session.undo.redo_label().is_some(), "Ctrl+Y", Action::Redo, words::REDO),
+                        Part::Undo => (s.session.undo_label().is_some(), "Ctrl+Z", Action::Undo, words::UNDO),
+                        Part::Redo => (s.session.redo_label().is_some(), "Ctrl+Y", Action::Redo, words::REDO),
                         _ => (s.session.dirty, "Ctrl+S", Action::Save, words::SAVE),
                     };
                     let Some(j) = r else { continue };
@@ -976,8 +976,8 @@ pub fn status(app: &App, ui: &mut egui::Ui) {
         };
         let (text, color) = if s.session.dirty { ("Unsaved changes", theme::warn()) } else { ("Saved", theme::lime()) };
         ui.colored_label(color, egui::RichText::new(text).font(theme::font(theme::SEMI, 13.0)));
-        if !app.autosave_note.is_empty() {
-            ui.weak(format!("· {}", app.autosave_note));
+        if !app.save_note.is_empty() {
+            ui.colored_label(theme::error(), format!("· {}", app.save_note));
         }
         ui.separator();
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {

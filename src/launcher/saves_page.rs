@@ -414,7 +414,7 @@ fn actions(b: &mut Builder, m: &super::model::Model, r: &Row) {
             let items: Vec<(String, String)> = bk.iter().map(|x| backup_text(x)).collect();
             b.list("backups_list", &items, sp.backup_sel, items.len().min(4));
             b.gap(12.0);
-            b.buttons(Align::Left, vec![btn("restore", "Restore", on), btn("del_backup", "Delete backup…", on)]);
+            b.buttons(Align::Left, vec![btn("restore", words::RESTORE, on), btn("del_backup", "Delete backup…", on)]);
         }
     }
 }

@@ -69,7 +69,7 @@ There are no modes: one tree, one toolbar, and the tools follow what is selected
   are kept with the mod.
 - **Menu bar**: the menus below, and the mod's name and region at the right with a dot while there are
   unsaved changes.
-- **Status bar**: saved or unsaved (and the last autosave), the last message, the camera, the warning and
+- **Status bar**: saved or unsaved (and why the last save failed, if it did), the last message, the camera, the warning and
   error counts, and a test run's state and result.
 
 ## Menus
@@ -79,7 +79,7 @@ Reset camera in the map view). Every item does something; a test checks that eac
 
 | Menu | Items |
 |---|---|
-| File | **File ▸ New map mod…** (Ctrl+N: a name, its folder and the region), **File ▸ Open map mod…** (Ctrl+O), the five most recent mods, **File ▸ Save** (Ctrl+S), **File ▸ Mod details…** (name, author, description), **File ▸ Import…** (a mod folder, a `map.obmap` or a `.zip`), **File ▸ Export…** (a `.zip` or a folder; `map.obmap` only), **File ▸ Quit** (Ctrl+Q; asks first when there are unsaved changes) |
+| File | **File ▸ New map mod…** (Ctrl+N: a name, its folder and the region), **File ▸ Open map mod…** (Ctrl+O), the five most recent mods, **File ▸ Save** (Ctrl+S), **File ▸ Mod details…** (name, author, description), **File ▸ Import…** (a mod folder, a `map.obmap` or a `.zip`), **File ▸ Export…** (a `.zip` or a folder; `map.obmap` only), **File ▸ Quit** (Ctrl+Q; saves first, and asks only when that fails) |
 | Edit | **Edit ▸ Undo** and **Edit ▸ Redo**, named by the step they undo or redo (256 steps), **Edit ▸ Duplicate**, **Edit ▸ Delete**, **Edit ▸ Select all of this solid**, **Edit ▸ Drop to ground** |
 | View | **View ▸ 3D view**, **View ▸ Map** (M switches), **View ▸ Frame selection** (F), **View ▸ Reset camera** (the region's overview), **View ▸ Collision ▸ Off**, **View ▸ Collision ▸ Invisible barriers** and **View ▸ Collision ▸ All collision** (see Collision), **View ▸ Hint line** |
 | Race | **Race ▸ New race**, **Race ▸ Test race** (F5), **Race ▸ Drive here** (Shift+F5) |
@@ -164,17 +164,36 @@ While the right mouse button is held the tool keys fly the camera instead (W A S
 
 ## Saving
 
-**Save** (Ctrl+S) writes `map.obmap` through a temporary file, so a failed write leaves the old file in place.
-Only Save writes `map.obmap`: Test race, Drive here and Simulate play a copy (below). Unsaved changes are also
-written to `.editor/map.obmap.autosave` every minute; when you open a mod whose autosave is newer than the mod,
-the editor offers to restore it. Quitting or opening another mod with unsaved changes asks first.
+Every step (each edit, undo and redo) is written to the mod's history, `.editor/history.journal`, before it
+counts, so a crash or a killed editor loses at most the step being made. `map.obmap` itself is saved at quiet
+points: 2 seconds after the last step, and at the latest 30 seconds after the first unsaved one while editing goes
+on. **Save** (Ctrl+S) saves at once. Each save writes `map.obmap` through a temporary file and a rename, so a
+failed write leaves the old file in place. Test race, Drive here and Simulate play a copy (below).
+
+When you open a mod whose history holds steps `map.obmap` does not have yet (the editor stopped before it saved
+them), the editor asks **Restore unsaved changes?**: **Restore** keeps them, **Discard them** goes back to the file
+as one step that Undo takes back. Undo and redo reach back over earlier sessions: the history keeps the last 256
+steps. Quitting or opening another mod saves first; only when that save fails does the editor ask, and the steps
+then stay in the history for the next opening.
+
+One program writes a mod at a time. A mod already open in another editor (or another program of Overbright
+Studio) opens read-only, with a strip over the view saying which program has it; edits are not kept, the view
+follows the other program's steps, and **Try again** opens the mod for writing once the other program has let go.
+When another program writes `map.obmap` while the mod is open, its change becomes one step that Undo takes back.
+
+An older editor wrote unsaved changes to `.editor/map.obmap.autosave`. When that file is newer than the mod,
+opening the mod offers it once through the same prompt; the editor removes it after the answer and never writes
+it again.
 
 The editor's own files live in the mod's `.editor/` folder. They are never exported:
 
 | File | Holds |
 |---|---|
 | `editor.toml` | the view: region, camera, the widths of the tree and the properties and the height of the bottom tabs (written on save, when another mod is opened and when the window closes) |
-| `map.obmap.autosave` | the unsaved changes |
+| `history.journal` | every step, with its author and the last saves (the history) |
+| `studio.lock`, `studio-owner.toml` | the write lock while a program has the mod open, and which program it is |
+| `inbox/` | changes other programs send to the program that has the mod open |
+| `map.obmap.autosave` | an older editor's unsaved changes (offered once, then removed) |
 | `tested.txt` | the tested marks |
 | `test-result.txt` | the last test's result line |
 | `run/map.obmap` | the run copy the game plays for Test race, Drive here and Simulate |
@@ -205,8 +224,8 @@ the game next to the editor on that copy:
 game --map-file <mod folder>/.editor/run/map.obmap --map-race <id> --map-result <mod folder>/.editor/test-result.txt
 ```
 
-`map.obmap` is not written and the mod stays unsaved; the status bar adds "(testing unsaved changes)" while it
-has changes Save has not written. `--map-file <path>` reads the mod from that file; in the run the mod is known by
+Test race does not save `map.obmap` itself; the status bar adds "(testing unsaved changes)" while the mod
+has steps not yet saved. `--map-file <path>` reads the mod from that file; in the run the mod is known by
 its folder's name (for a run copy, the mod's folder; for any other file, the folder holding it, or `map-file`
 when that name is not a folder name). `--map-mod <folder>` takes the saved mod from the maps folder instead. With
 these flags the game:
