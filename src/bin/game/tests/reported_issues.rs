@@ -1559,3 +1559,132 @@ fn alt_tab_leaves_no_alt_held_for_enter() {
     step(&mut game, &[InputEvent::press(KeyCode::Enter), InputEvent::KeyUp(KeyCode::Enter)]);
     assert_eq!(game.settings.fullscreen, !start, "Alt+Enter toggles the Screen Mode");
 }
+
+/// UI_Paint in a slot on a finish with no paints to list (a stage-1
+/// career's Metallic: every metallic paint still locked, the lock shown):
+/// Accept does nothing, as in the original (0x563420 on 0x406415E3 in a
+/// slot: the swatch list +0x158 empty → return before the sound and the
+/// question, 0x563707..0x563715). It used to index the empty list and end
+/// the game.
+#[test]
+#[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
+fn paint_accept_on_a_locked_finish_does_nothing() {
+    testkit::game();
+    let mut game = Game::new().unwrap();
+    let mut p = Profile::new("Tess");
+    p.skip_intro(&game.game_data.career, &game.game_data.root, "PEUGOT", &mut game.rng);
+    game.profile = Some(p);
+    game.settings.autosave = false;
+    game.shop.visit = game.game_data.career.shops.iter().find(|s| s.name == "CC_GRAPHICS").map(|s| s.hash);
+    assert!(game.shop.visit.is_some(), "CC_GRAPHICS in the career data");
+    game.mode = game.icon_menu(MenuKind::Graphics);
+    game.update(1.0 / 60.0).unwrap();
+    game.act(Action::Paint, MenuKind::Graphics).unwrap();
+    game.update(1.0 / 60.0).unwrap();
+    // Base Paint: into its swatches.
+    game.menu_key(Key::Accept).unwrap();
+    game.update(1.0 / 60.0).unwrap();
+    let paint = |g: &Game| match &g.mode {
+        Mode::Menu(Menu::Paint(p)) => Some((p.finish, p.swatches.len(), p.selected)),
+        _ => None,
+    };
+    let (_, n, selected) = paint(&game).expect("UI_Paint");
+    assert!(n > 0 && selected.is_some(), "Base Paint's swatches: {n}, {selected:?}");
+    // The triggers to a finish without a paint the career lists.
+    let mut empty = false;
+    for _ in 0..3 {
+        game.menu_key(Key::RTrigger).unwrap();
+        game.update(1.0 / 60.0).unwrap();
+        if paint(&game).is_some_and(|(_, n, s)| n == 0 && s.is_some()) {
+            empty = true;
+            break;
+        }
+    }
+    assert!(empty, "a stage-1 career has a finish with every paint locked");
+    let before = paint(&game);
+    game.menu_key(Key::Accept).unwrap();
+    game.update(1.0 / 60.0).unwrap();
+    assert_eq!(paint(&game), before, "Accept on no paints: the same screen, no question");
+    // The highlight hides with no paints (0x55D28F: 0x9BA6D658 off).
+    let Mode::Menu(Menu::Paint(p)) = &game.mode else { unreachable!() };
+    assert_eq!(p.highlighted(), None, "no swatch highlighted");
+    // Back to a finish with paints: Accept asks again.
+    for _ in 0..3 {
+        game.menu_key(Key::RTrigger).unwrap();
+        game.update(1.0 / 60.0).unwrap();
+        if paint(&game).is_some_and(|(_, n, _)| n > 0) {
+            break;
+        }
+    }
+    game.menu_key(Key::Accept).unwrap();
+    assert!(matches!(&game.mode, Mode::Menu(Menu::Dialog(..))), "a listed paint asks to add it");
+}
+
+/// A bad stored value never stops the start: a profile whose Base Paint
+/// (slot 0x3F) is a paint the career has not unlocked yet, or no paint the
+/// car has at all, and an options file of garbage lines. The game starts
+/// on it, draws the main menu, resumes the career into the garage and
+/// opens the paint shop, every key on the way.
+#[test]
+#[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
+fn bad_stored_paint_or_options_never_stop_the_start() {
+    testkit::game();
+    let locked = {
+        let mut game = Game::new().unwrap();
+        let mut p = Profile::new("Tess");
+        p.skip_intro(&game.game_data.career, &game.game_data.root, "PEUGOT", &mut game.rng);
+        game.profile = Some(p);
+        let listed: Vec<u32> = game.slot_parts(0x3F, false).iter().map(|p| p.hash).collect();
+        let car = game.profile.as_ref().unwrap().car.clone();
+        game.game_data
+            .parts
+            .parts_for(&car, 0x3F)
+            .into_iter()
+            .find(|p| game.game_data.parts.attribute(p, 0xEBB0_3E66) == Some(screens::METAL) && !listed.contains(&p.hash))
+            .map(|p| p.hash)
+            .expect("a metallic paint a stage-1 career has not unlocked")
+    };
+    for (what, paint) in [("a locked paint", locked), ("no paint of the car", 0xDEAD_BEEF)] {
+        nfsu2::frontend::profiles::clear_current();
+        {
+            let mut game = Game::new().unwrap();
+            let mut p = Profile::new("Tess");
+            p.skip_intro(&game.game_data.career, &game.game_data.root, "PEUGOT", &mut game.rng);
+            p.installed.insert(0x3F, paint);
+            p.owned.insert((0x3F, paint));
+            game.settings.autosave = false;
+            p.save().unwrap();
+        }
+        let options = nfsu2::frontend::options::Settings::path();
+        std::fs::create_dir_all(options.parent().unwrap()).unwrap();
+        std::fs::write(
+            &options,
+            "resolution 0 0\naspect 99\nenh.car_reflection 4294967295\nenh.ssao -7\ncustom.3 banana\n\u{0}\u{1}\nkeys.accept nothing\n",
+        )
+        .unwrap();
+        nfsu2::frontend::profiles::clear_current();
+        let mut game = Game::new().unwrap();
+        assert!(game.profile.is_some(), "{what}: the profile loads at the start");
+        assert_eq!(game.profile.as_ref().unwrap().installed.get(&0x3F), Some(&paint), "{what}: the save as it is");
+        let frame = |game: &mut Game| {
+            game.pacing.clock = game.pacing.clock.map(|c| c + 1.0 / 60.0);
+            game.step_for(1.0 / 60.0).unwrap();
+            game.draw().unwrap();
+        };
+        for _ in 0..30 {
+            frame(&mut game);
+        }
+        game.act(Action::ResumeCareer, MenuKind::Main).unwrap();
+        for _ in 0..30 {
+            frame(&mut game);
+        }
+        game.shop.visit = game.game_data.career.shops.iter().find(|s| s.name == "CC_GRAPHICS").map(|s| s.hash);
+        game.mode = game.icon_menu(MenuKind::Graphics);
+        frame(&mut game);
+        game.act(Action::Paint, MenuKind::Graphics).unwrap();
+        for k in [Key::Accept, Key::RTrigger, Key::Accept, Key::RTrigger, Key::Accept, Key::Back, Key::Back] {
+            game.menu_key(k).unwrap();
+            frame(&mut game);
+        }
+    }
+}

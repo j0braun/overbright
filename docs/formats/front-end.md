@@ -2827,6 +2827,16 @@ finished career, `tests/fixtures/native_saves/career_complete.sav`, maintainer o
     spoiler paint not Gloss, refill on Gloss (0x50F5B0 is the default
     finish a strip step sets). Under Wine the finished-career save's red opened on Metallic with
     the car still red; the clone opened on Gloss's first swatch (silver).
+* UI_Paint on a finish with no paints to list (every paint of the finish
+  still locked; the triggers step to it like any other, 0x55D0E0): the fill
+  leaves the swatch list +0x158 empty, and the empty branch 0x55D28F hides
+  U2_Paint_HighLight 0x9BA6D658 and the price 0x13C45E and shows the lock
+  0x23A43844. Accept (0x406415E3) in the slot then compares the list head
+  with itself (0x563707..0x563715) and returns: no sound (0x50D150 comes
+  after), no question, no bank check. The mouse path 0x55D420 asks only on a
+  press over a drawn swatch, and none is drawn. **Verified (code)**, both
+  paths; not observed under Wine. The clone did the same until Accept, which
+  indexed the empty list and ended the game.
 * Checks: `--shot finished_shop_checks` (every open list of the body shop,
   carbon fibre, the specialties and neon, the rim and spinner strips, base
   paint, vinyls, a decal slot; then every shop's message), `finished_shop` with
