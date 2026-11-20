@@ -8,6 +8,7 @@ use egui::{Align2, Color32, CornerRadius, Pos2, Rect, RichText, Stroke, StrokeKi
 use ob_look::lamp::Mark;
 use ob_look::legends::{GlyphSet, InputKind, KeySet, glyphs_in};
 
+use crate::editor::menu;
 use crate::editor::theme::{self, LABEL, SEMI, TITLE, font, rgb, tokens};
 
 use super::address::{Address, CRUMB, Places, STUDIO, Target};
@@ -38,6 +39,8 @@ pub enum BottomTab {
     Problems,
     Log,
     Jobs,
+    /// The map editor's tab shown (World and Races: Prop browser, Validation, Simulate).
+    Editor,
 }
 
 /// One Studio window.
@@ -66,6 +69,11 @@ pub struct Studio {
     pub fixed_clock: bool,
     /// Set by File ▸ Quit.
     pub quit: bool,
+    /// The map editor, hosted as the World and Races workspaces ([`super::world`]).
+    pub editor: Option<super::world::Hosted>,
+    /// egui's texture changes not yet painted (as the editor keeps them): a frame that is not painted (a test
+    /// without a GPU) loses none, and none is dropped unapplied.
+    pub(crate) textures: crate::editor::app::PendingTextures,
 }
 
 impl Studio {
@@ -93,6 +101,8 @@ impl Studio {
             last: None,
             fixed_clock: false,
             quit: false,
+            editor: None,
+            textures: Default::default(),
         };
         let here = s.address();
         s.places.go(here);
@@ -110,6 +120,9 @@ impl Studio {
 
     /// Where the window is, as an address.
     pub fn address(&self) -> Address {
+        if let Some(a) = self.editor_address() {
+            return a;
+        }
         let pack =
             if self.nav.workspace == Workspace::Home || self.open.is_none() { STUDIO.to_string() } else { self.pack() };
         Address::view(&pack, self.nav.workspace.view())
@@ -124,6 +137,7 @@ impl Studio {
             v.push(words::STUDIO.to_string());
         }
         v.push(self.nav.workspace.name().to_string());
+        v.extend(self.editor_crumbs());
         v
     }
 
@@ -153,7 +167,7 @@ impl Studio {
                     _ => return Err(format!("Studio cannot show a {kind} yet")),
                 };
                 self.workspace(w);
-                Ok(())
+                self.editor_go(a)
             }
         }
     }
@@ -213,6 +227,18 @@ impl Studio {
                 return;
             }
             Command::CopyAddress => self.ctx.copy_text(self.address().to_string()),
+            // In World and Races: the map editor's undo, redo and Test race.
+            Command::Undo | Command::Redo | Command::Test if self.editing() => {
+                self.nav.run(c, pad, &l);
+                if let Some(app) = self.editor_app() {
+                    match c {
+                        Command::Undo => app.post_action(crate::editor::menu::Action::Undo),
+                        Command::Redo => app.post_action(crate::editor::menu::Action::Redo),
+                        _ => crate::editor::menu::post(&self.ctx, crate::editor::menu::Command::TestRace),
+                    }
+                }
+                return;
+            }
             _ => {}
         }
         if let Some(w) = self.nav.run(c, pad, &l)
@@ -250,10 +276,16 @@ impl Studio {
     fn take_keys(&mut self, raw: &mut egui::RawInput) {
         let mut cmds = vec![];
         let typing = self.nav.address_text || self.nav.find_open;
+        // In World and Races the map editor has its own keys: its undo, redo and F5 (its shortcuts read them),
+        // and while its view, tree or docks have focus the keys that act inside an area.
+        let editing = self.editing() && !typing;
+        let inside = editing && matches!(self.nav.area, Area::View | Area::Left | Area::Bottom);
         raw.events.retain(|e| match e {
             egui::Event::Key { key, pressed: true, modifiers, .. } => {
                 let k = nav::Key { key: *key, ctrl: modifiers.command, shift: modifiers.shift, alt: modifiers.alt };
                 match nav::key_command(k) {
+                    Some(Command::Undo | Command::Redo | Command::Test) if editing => true,
+                    Some(Command::Back | Command::Select | Command::Move | Command::Change) if inside => true,
                     // While typing, only the keys that leave the field are the shell's.
                     Some(c)
                         if typing
@@ -307,11 +339,14 @@ impl Studio {
         self.find_text.clear();
     }
 
-    /// One frame.
+    /// One frame. Its texture changes are kept for the next paint (the output's `textures_delta` is left empty).
     pub fn frame(&mut self, mut raw: egui::RawInput) -> egui::FullOutput {
+        self.sync_editor();
         self.take_keys(&mut raw);
         let ctx = self.ctx.clone();
-        ctx.run_ui(raw, |ui| self.ui(ui))
+        let mut full = ctx.run_ui(raw, |ui| self.ui(ui));
+        self.textures.0.append(std::mem::take(&mut full.textures_delta));
+        full
     }
 
     fn time(&self) -> f32 {
@@ -343,6 +378,10 @@ impl Studio {
             self.last = Some(l);
             return;
         }
+        let editing = self.editing();
+        if editing && let Some(app) = self.editor_app() {
+            app.begin_frame(ui.ctx());
+        }
         self.menu_bar(ui, &l);
         self.rail(ui, &l);
         match self.nav.workspace.kind() {
@@ -366,6 +405,13 @@ impl Studio {
         if self.controls {
             self.controls_window(ui);
         }
+        if editing && let Some(app) = self.editor_app() {
+            app.end_frame(ui.ctx());
+            // The editor's own Quit (Ctrl+Q) closes the window.
+            if app.quit {
+                self.quit = true;
+            }
+        }
         self.last = Some(l);
     }
 
@@ -387,18 +433,31 @@ impl Studio {
                         self.mod_menu(ui);
                         ui.separator();
                     }
-                    if ui.button(words::QUIT).clicked() {
+                    if let Some(app) = self.editor_app() {
+                        app.menu_items(ui, menu::mod_file_items);
+                        ui.separator();
+                    }
+                    if ui.button(words::QUIT).clicked() && self.close_requested() {
                         self.quit = true;
                     }
                 });
                 ui.menu_button("Edit", |ui| {
-                    let _ = ui.add_enabled(false, egui::Button::new(ob_look::words::UNDO).shortcut_text("Ctrl+Z"));
-                    let _ = ui.add_enabled(false, egui::Button::new(ob_look::words::REDO).shortcut_text("Ctrl+Y"));
+                    if let Some(app) = self.editor_app() {
+                        app.menu_items(ui, menu::edit_items);
+                        ui.separator();
+                    } else {
+                        let _ = ui.add_enabled(false, egui::Button::new(ob_look::words::UNDO).shortcut_text("Ctrl+Z"));
+                        let _ = ui.add_enabled(false, egui::Button::new(ob_look::words::REDO).shortcut_text("Ctrl+Y"));
+                    }
                     if ui.add(egui::Button::new(words::COPY_ADDRESS).shortcut_text("Ctrl+Shift+C")).clicked() {
                         self.command(Command::CopyAddress, None);
                     }
                 });
                 ui.menu_button("View", |ui| {
+                    if let Some(app) = self.editor_app() {
+                        app.menu_items(ui, menu::view_items);
+                        ui.separator();
+                    }
                     if ui.button(words::RESET_LAYOUT).clicked() {
                         self.reset_layout();
                     }
@@ -419,18 +478,31 @@ impl Studio {
                     }
                     if short {
                         ui.separator();
-                        let _ = ui.add_enabled(false, egui::Button::new("Test").shortcut_text("F5"));
+                        if let Some(app) = self.editor_app() {
+                            app.menu_items(ui, menu::race_items);
+                        } else {
+                            let _ = ui.add_enabled(false, egui::Button::new("Test").shortcut_text("F5"));
+                        }
                     }
                 });
                 if !short {
                     ui.menu_button("Test", |ui| {
-                        let _ = ui.add_enabled(false, egui::Button::new("Test").shortcut_text("F5"));
+                        if let Some(app) = self.editor_app() {
+                            app.menu_items(ui, menu::race_items);
+                        } else {
+                            let _ = ui.add_enabled(false, egui::Button::new("Test").shortcut_text("F5"));
+                        }
                     });
                     ui.menu_button("Mod", |ui| self.mod_menu(ui));
                 }
                 ui.menu_button("Help", |ui| {
                     if ui.button("Controls").clicked() {
                         self.controls = true;
+                    }
+                    if let Some(app) = self.editor_app() {
+                        ui.separator();
+                        ui.label(RichText::new("Map editor").color(rgb(t.dim)));
+                        app.menu_items(ui, menu::help_items);
                     }
                 });
             });
@@ -864,9 +936,14 @@ impl Studio {
         let t = tokens();
         let p = ui.painter().clone();
         let base = t.slab.over(t.page);
+        let editing = self.editing();
         if let Some(tb) = l.toolbar {
             p.rect_filled(tb, 0.0, draw::panel_fill());
             p.line_segment([tb.left_bottom(), tb.right_bottom()], Stroke::new(1.0, draw::rule()));
+        }
+        if let Some(tb) = l.toolbar.filter(|_| editing) {
+            self.editor_toolbar(ui, tb);
+        } else if let Some(tb) = l.toolbar {
             let pill_r = Rect::from_min_size(pos2(tb.right() - 160.0, tb.top() + 6.0), vec2(150.0, 28.0));
             ui.put(pill_r, theme::main_action("Test  F5"));
             p.text(
@@ -878,15 +955,19 @@ impl Studio {
             );
         }
         // The view.
-        p.rect_filled(l.view, 0.0, draw::page_fill());
-        p.text(l.view.center() - vec2(0.0, 14.0), Align2::CENTER_CENTER, "3D view", font(TITLE, 22.0), rgb(t.ink));
-        p.text(
-            l.view.center() + vec2(0.0, 14.0),
-            Align2::CENTER_CENTER,
-            words::VIEW_PLACEHOLDER,
-            font("body", 15.0),
-            rgb(t.dim),
-        );
+        if editing {
+            self.editor_view(ui, l);
+        } else {
+            p.rect_filled(l.view, 0.0, draw::page_fill());
+            p.text(l.view.center() - vec2(0.0, 14.0), Align2::CENTER_CENTER, "3D view", font(TITLE, 22.0), rgb(t.ink));
+            p.text(
+                l.view.center() + vec2(0.0, 14.0),
+                Align2::CENTER_CENTER,
+                words::VIEW_PLACEHOLDER,
+                font("body", 15.0),
+                rgb(t.dim),
+            );
+        }
         // Left panel.
         if let Some(r) = l.left {
             p.rect_filled(r, 0.0, draw::panel_fill());
@@ -894,7 +975,12 @@ impl Studio {
             match l.left_dock {
                 Dock::Open(_) => {
                     tabs(&p, r, &["Mod"], 0, self.nav.area == Area::Left);
-                    self.mod_tree(&p, r.shrink2(vec2(12.0, 0.0)).with_min_y(r.top() + 44.0));
+                    let body = r.shrink2(vec2(12.0, 0.0)).with_min_y(r.top() + 44.0);
+                    if editing {
+                        self.editor_tree(ui, body);
+                    } else {
+                        self.mod_tree(&p, body);
+                    }
                 }
                 _ => strip(&p, r, "Mod"),
             }
@@ -908,32 +994,53 @@ impl Studio {
         if let Some(r) = l.bottom {
             p.rect_filled(r, 0.0, draw::panel_fill());
             p.line_segment([r.left_top(), r.right_top()], Stroke::new(1.0, draw::rule()));
+            // Problems · Log · Jobs, then the map editor's own tabs (World, Races).
+            let extra = self.editor_tabs();
+            let mut names = vec!["Problems", "Log", "Jobs"];
+            names.extend(extra.iter().map(|t| t.1));
+            let shown_tab = if self.bottom_tab == BottomTab::Editor { self.editor_tab() } else { None };
             let sel = match self.bottom_tab {
                 BottomTab::Problems => 0,
                 BottomTab::Log => 1,
                 BottomTab::Jobs => 2,
+                BottomTab::Editor => 3 + extra.iter().position(|t| Some(t.0) == shown_tab).unwrap_or(0),
             };
-            tabs(&p, r, &["Problems", "Log", "Jobs"], sel, self.nav.area == Area::Bottom);
+            let rects = tabs(&p, r, &names, sel, self.nav.area == Area::Bottom);
             if matches!(l.bottom_dock, Dock::Open(_)) {
                 let body = r.with_min_y(r.top() + 42.0).shrink2(vec2(12.0, 0.0));
-                let line = match self.bottom_tab {
-                    BottomTab::Problems => words::NO_PROBLEMS,
-                    BottomTab::Log => words::NOTHING_LOGGED,
-                    BottomTab::Jobs => words::NO_JOBS,
-                };
-                draw::lamp(&p, pos2(body.left() + 8.0, body.top() + 14.0), 10.0, Mark::Ok, 0.0);
-                p.text(
-                    pos2(body.left() + 24.0, body.top() + 14.0),
-                    Align2::LEFT_CENTER,
-                    line,
-                    font("body", 15.0),
-                    rgb(t.ink),
-                );
+                use super::world::EditorBody;
+                match self.bottom_tab {
+                    BottomTab::Editor if editing => self.editor_bottom(ui, body, EditorBody::Tab),
+                    BottomTab::Log if editing => self.editor_bottom(ui, body, EditorBody::Log),
+                    BottomTab::Problems if editing => self.editor_bottom(ui, body, EditorBody::Problems),
+                    tab => {
+                        let line = match tab {
+                            BottomTab::Problems => words::NO_PROBLEMS,
+                            BottomTab::Jobs => words::NO_JOBS,
+                            _ => words::NOTHING_LOGGED,
+                        };
+                        draw::lamp(&p, pos2(body.left() + 8.0, body.top() + 14.0), 10.0, Mark::Ok, 0.0);
+                        p.text(
+                            pos2(body.left() + 24.0, body.top() + 14.0),
+                            Align2::LEFT_CENTER,
+                            line,
+                            font("body", 15.0),
+                            rgb(t.ink),
+                        );
+                    }
+                }
             }
-            for (i, tab) in [BottomTab::Problems, BottomTab::Log, BottomTab::Jobs].into_iter().enumerate() {
-                let tr = Rect::from_min_size(pos2(r.left() + 6.0 + i as f32 * 92.0, r.top() + 4.0), vec2(88.0, 28.0));
+            for (i, tr) in rects.into_iter().enumerate() {
                 if ui.interact(tr, egui::Id::unique(("btab", i)), egui::Sense::click()).clicked() {
-                    self.bottom_tab = tab;
+                    match i {
+                        0 => self.bottom_tab = BottomTab::Problems,
+                        1 => self.bottom_tab = BottomTab::Log,
+                        2 => self.bottom_tab = BottomTab::Jobs,
+                        n => {
+                            self.bottom_tab = BottomTab::Editor;
+                            self.editor_pick_tab(extra[n - 3].0);
+                        }
+                    }
                 }
             }
         }
@@ -1002,9 +1109,9 @@ impl Studio {
             RightTab::History => 1,
             RightTab::Help => 2,
         };
-        tabs(p, r, &["Inspector", "History", "Help"], sel, self.nav.area == Area::Right);
-        for (i, tab) in [RightTab::Inspector, RightTab::History, RightTab::Help].into_iter().enumerate() {
-            let tr = Rect::from_min_size(pos2(r.left() + 6.0 + i as f32 * 92.0, r.top() + 4.0), vec2(88.0, 28.0));
+        let rects = tabs(p, r, &["Inspector", "History", "Help"], sel, self.nav.area == Area::Right);
+        for (tab, tr) in [RightTab::Inspector, RightTab::History, RightTab::Help].into_iter().zip(rects) {
+            let i = tab as usize;
             if ui.interact(tr, egui::Id::unique(("rtab", i)), egui::Sense::click()).clicked() {
                 self.right_tab = tab;
             }
@@ -1013,6 +1120,7 @@ impl Studio {
         let mut clip = p.clone();
         clip.set_clip_rect(body);
         match self.right_tab {
+            RightTab::Inspector if self.editing() => self.editor_inspector(ui, body),
             RightTab::Inspector => {
                 clip.text(body.left_top(), Align2::LEFT_TOP, words::NOTHING_SELECTED, font(TITLE, 20.0), rgb(t.lime));
                 clip.text(
@@ -1109,7 +1217,14 @@ impl Studio {
         p.line_segment([r.left_top(), r.right_top()], Stroke::new(1.0, draw::rule()));
         let cy = r.center().y;
         let f = font("body", 13.0);
-        let (mark, text) = match self.open_mod().map(|m| &m.saved) {
+        let editor = self.editor.as_ref().filter(|_| self.editing()).and_then(|h| h.app.state.as_ref().map(|s| (&h.app, s)));
+        // In World and Races: the open editor's own save state.
+        let saved = match editor {
+            Some((app, _)) if !app.save_note.is_empty() => Some(Saved::Error(app.save_note.clone())),
+            Some(_) => Some(Saved::Saved),
+            None => self.open_mod().map(|m| m.saved.clone()),
+        };
+        let (mark, text) = match saved.as_ref() {
             None => (Mark::Info, words::NO_MOD_STATUS.to_string()),
             Some(Saved::Saved) => (Mark::Ok, words::SAVED.to_string()),
             Some(Saved::Behind) => (Mark::Warn, words::SAVING_BEHIND.to_string()),
@@ -1119,7 +1234,12 @@ impl Studio {
         let col = if mark == Mark::Error { rgb(t.err) } else { rgb(t.ink) };
         let mut x = p.text(pos2(r.left() + 26.0, cy), Align2::LEFT_CENTER, text, f.clone(), col).right();
         if let Some(m) = self.open_mod() {
-            if let Some(o) = &m.read_only_by {
+            // While editing, the editor's own word on who else has the mod open.
+            let others = match editor {
+                Some((app, _)) => app.read_only().map(|_| "another program".to_string()),
+                None => m.read_only_by.clone(),
+            };
+            if let Some(o) = &others {
                 x = p
                     .text(
                         pos2(x + 18.0, cy),
@@ -1128,6 +1248,10 @@ impl Studio {
                         f.clone(),
                         rgb(t.warn),
                     )
+                    .right();
+            } else if let Some(label) = editor.and_then(|(_, s)| s.session.undo_label()) {
+                x = p
+                    .text(pos2(x + 18.0, cy), Align2::LEFT_CENTER, format!("Undo: {label}"), f.clone(), rgb(t.ink))
                     .right();
             } else if let Some(s) = &m.last_step {
                 x = p
@@ -1146,7 +1270,8 @@ impl Studio {
             right = p.text(pos2(right, cy), Align2::RIGHT_CENTER, a, f.clone(), rgb(t.ink)).left();
         }
         if l.size.x >= layout::DRAWER_FROM_W && right - 120.0 > x {
-            p.text(pos2(right - 24.0, cy), Align2::RIGHT_CENTER, "Problems 0", f, rgb(t.ink));
+            let n = editor.map_or(0, |(_, s)| s.session.issues.len());
+            p.text(pos2(right - 24.0, cy), Align2::RIGHT_CENTER, format!("Problems {n}"), f, rgb(t.ink));
         }
     }
 
@@ -1280,13 +1405,19 @@ fn pill(text: &str) -> egui::Button<'static> {
 }
 
 /// A dock's tab strip at the top of `r`: the current tab filled (lime while the dock has focus).
-fn tabs(p: &egui::Painter, r: Rect, names: &[&str], sel: usize, focused: bool) {
+/// Returns the tabs' rectangles (the ones that fit), to click. A tab is 88 wide, wider for a longer name.
+fn tabs(p: &egui::Painter, r: Rect, names: &[&str], sel: usize, focused: bool) -> Vec<Rect> {
     let t = tokens();
+    let mut out = vec![];
+    let mut x = r.left() + 6.0;
     for (i, n) in names.iter().enumerate() {
-        let tr = Rect::from_min_size(pos2(r.left() + 6.0 + i as f32 * 92.0, r.top() + 4.0), vec2(88.0, 28.0));
+        let w = (p.layout_no_wrap(n.to_string(), draw::label_font(16.0), Color32::WHITE).size().x + 24.0).max(88.0);
+        let tr = Rect::from_min_size(pos2(x, r.top() + 4.0), vec2(w, 28.0));
+        x += w + 4.0;
         if tr.right() > r.right() {
             break;
         }
+        out.push(tr);
         if i == sel {
             let fill = if focused { rgb(t.lime) } else { theme::over(t.pressed, t.slab.over(t.page)) };
             p.rect_filled(tr, 4.0, fill);
@@ -1300,6 +1431,7 @@ fn tabs(p: &egui::Painter, r: Rect, names: &[&str], sel: usize, focused: bool) {
         };
         p.text(tr.center(), Align2::CENTER_CENTER, *n, draw::label_font(16.0), col);
     }
+    out
 }
 
 /// A folded panel's strip with its name written upwards.

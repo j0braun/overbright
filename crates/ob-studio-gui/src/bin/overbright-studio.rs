@@ -1,11 +1,13 @@
 //! `overbright-studio`: Overbright Studio's window (src/studio/, docs/modding/studio.md), a preview: the shell
-//! with Home; the map editor (`overbright-editor`) moves in as its World workspace later.
+//! with Home, and the map editor as its World and Races workspaces (the same editor `overbright-editor` shows in
+//! its own window). The game folder is `NFSU2_ROOT`, else the one the launcher kept.
 //!
 //! ```text
 //! overbright-studio [--mod <folder>] [--maps <dir>]      the window, with that mod open
 //! overbright-studio --shot out.png [--size WxH] [--scale F] [--mod <folder>] [--maps <dir>]
 //!                   [--workspace home|world|races|mod|settings] [--input mouse|keyboard|xbox|playstation|deck]
 //!                   [--focus rail|address|toolbar|left|view|right|bottom] [--drawer] [--find] [--address]
+//!                   [--select N]
 //!                                   the whole window drawn off-screen into a PNG (no window)
 //! ```
 //! A `--shot` prints one line "studio layout: fits …" or "studio layout: clipped: …" (the clip and overlap check).
@@ -20,6 +22,7 @@ use std::time::Instant;
 use anyhow::{Context as _, Result, bail};
 use nfsu2::studio_api::render::Gpu;
 use ob_look::legends::InputKind;
+use ob_studio_gui::editor::app::App;
 use ob_studio_gui::studio::nav::{Area, Pad};
 use ob_studio_gui::studio::workspace::Workspace;
 use ob_studio_gui::studio::{Studio, layout, shot};
@@ -28,7 +31,7 @@ use winit::event::WindowEvent;
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
 use winit::window::{Window, WindowId};
 
-const USAGE: &str = "usage: overbright-studio [--mod <folder>] [--maps <dir>]\n       overbright-studio --shot out.png [--size WxH] [--scale F] [--mod <folder>] [--maps <dir>] [--workspace home|world|races|mod|settings] [--input mouse|keyboard|xbox|playstation|deck] [--focus rail|address|toolbar|left|view|right|bottom] [--drawer] [--find] [--address]";
+const USAGE: &str = "usage: overbright-studio [--mod <folder>] [--maps <dir>]\n       overbright-studio --shot out.png [--size WxH] [--scale F] [--mod <folder>] [--maps <dir>] [--workspace home|world|races|mod|settings] [--input mouse|keyboard|xbox|playstation|deck] [--focus rail|address|toolbar|left|view|right|bottom] [--drawer] [--find] [--address] [--select N]";
 
 #[derive(Default)]
 struct Cli {
@@ -43,6 +46,8 @@ struct Cli {
     drawer: bool,
     find: bool,
     address: bool,
+    /// The placement selected in World (a `--shot`).
+    select: Option<usize>,
 }
 
 fn parse(args: impl Iterator<Item = String>) -> Result<Cli> {
@@ -91,6 +96,7 @@ fn parse(args: impl Iterator<Item = String>) -> Result<Cli> {
             "--drawer" => c.drawer = true,
             "--find" => c.find = true,
             "--address" => c.address = true,
+            "--select" => c.select = Some(val("--select")?.parse()?),
             "--version" => {}
             other => bail!("unknown argument {other}\n{USAGE}"),
         }
@@ -98,9 +104,25 @@ fn parse(args: impl Iterator<Item = String>) -> Result<Cli> {
     Ok(c)
 }
 
+fn game_root() -> PathBuf {
+    if let Some(r) = std::env::var_os("NFSU2_ROOT").filter(|r| !r.is_empty()) {
+        return PathBuf::from(r);
+    }
+    nfsu2::studio_api::qol::setup::saved_root().unwrap_or_else(|| PathBuf::from("."))
+}
+
+/// Studio on the mods folder, with the map editor hosted on the same egui context.
 fn new_studio(cli: &Cli) -> Studio {
     let maps = cli.maps.clone().unwrap_or_else(ob_map::tools::map::store::maps_dir);
-    Studio::new(maps, cli.folder.as_deref())
+    let mut s = Studio::new(maps.clone(), cli.folder.as_deref());
+    let editor = App::new_in(
+        s.ctx.clone(),
+        game_root(),
+        maps,
+        Box::new(|root, region| nfsu2::studio_api::world::World::load(root, region)),
+    );
+    s.attach_editor(editor);
+    s
 }
 
 fn main() -> ExitCode {
@@ -149,8 +171,17 @@ fn run_shot(cli: &Cli) -> Result<()> {
         s.command(ob_studio_gui::studio::nav::Command::EditAddress, None);
         s.nav.input = cli.input.unwrap_or(InputKind::Keyboard);
     }
+    if let Some(i) = cli.select {
+        // One frame so World opens the mod, then the selection.
+        shot::frames(&mut s, size, scale, 1);
+        if let Some(st) = s.editor.as_mut().and_then(|h| h.app.state.as_mut()) {
+            st.selection = vec![i];
+        }
+    }
     let gpu = pollster::block_on(Gpu::new(None, Gpu::new_instance()))?;
     let l = shot::shot(&mut s, &gpu, size, scale, &out)?;
+    // The editor's history closed as a window closes (its lock released).
+    s.close_requested();
     let p = l.problems();
     if l.too_small {
         println!("studio layout: under the smallest window: one line");
@@ -276,7 +307,7 @@ impl Runner {
             _ => return,
         };
         let view = frame.texture.create_view(&Default::default());
-        let bufs = shot::paint(&self.studio, &w.gpu, &mut w.renderer, &view, (w.config.width, w.config.height), full);
+        let bufs = shot::paint(&mut self.studio, &w.gpu, &mut w.renderer, &view, (w.config.width, w.config.height), full);
         w.gpu.queue.submit(bufs);
         w.window.pre_present_notify();
         w.gpu.queue.present(frame);
@@ -319,7 +350,12 @@ impl ApplicationHandler for Runner {
         let Some(w) = self.win.as_mut() else { return };
         match event {
             WindowEvent::CloseRequested => {
-                el.exit();
+                // The map editor saves first (and asks only when that fails).
+                if self.studio.close_requested() {
+                    el.exit();
+                } else {
+                    w.window.request_redraw();
+                }
                 return;
             }
             WindowEvent::Resized(size) => {
@@ -347,7 +383,8 @@ impl ApplicationHandler for Runner {
         let pads = self.poll_pads();
         let Some(w) = self.win.as_ref() else { return };
         let now = Instant::now();
-        if pads {
+        // The map editor's history: saving at quiet points, steps from other programs.
+        if pads || self.studio.tick(now) {
             w.window.request_redraw();
         }
         // Pads are polled: wake at least ten times a second.

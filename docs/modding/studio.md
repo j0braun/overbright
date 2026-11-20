@@ -1,18 +1,21 @@
 # Overbright Studio
 
 > **Preview.** Studio's window, `overbright-studio`, is the shell the map editor and the later workspaces move
-> into. This version has the shell and Home; World and Races show where the map editor's tools will be. Until they
-> move in, edit maps with `overbright-editor` ([Map editor](map-editor.md)). It is not in the release package yet.
+> into. This version has the shell, Home, and the map editor as the World and Races workspaces. `overbright-editor`
+> ([Map editor](map-editor.md)) still opens the same editor in a window of its own. Studio is not in the release
+> package yet.
 
 ```
 overbright-studio [--mod <folder>] [--maps <dir>]
 overbright-studio --shot out.png [--size WxH] [--scale F] [--mod <folder>] [--maps <dir>]
                   [--workspace home|world|races|mod|settings] [--input mouse|keyboard|xbox|playstation|deck]
                   [--focus rail|address|toolbar|left|view|right|bottom] [--drawer] [--find] [--address]
+                  [--select N]
 ```
 
 `--shot` draws the whole window off-screen into a PNG (no window opens) and prints `studio layout: fits …` or
-`studio layout: clipped: …`. The mods are the map editor's (`--maps`, default the map mods folder).
+`studio layout: clipped: …`. The mods are the map editor's (`--maps`, default the map mods folder). `--select N`
+selects placement N in World. The game folder is `NFSU2_ROOT`, else the one the launcher kept.
 
 ## The window
 
@@ -36,6 +39,20 @@ walkthrough is checked at. Panel sizes and folds are kept per workspace in the m
 Colours, faces, lamps and the shared words are the launcher's (`crates/ob-look`, [STYLE](../STYLE.md)). Where a
 value comes from is marked by a shape as well as a colour: a grey ring is the original's, a lime disc is yours, a
 pink diamond is another mod's that wins in your game.
+
+## World and Races
+
+Both are the map editor ([Map editor](map-editor.md)) on the open mod, the same editor `overbright-editor` shows:
+its toolbar in the toolbar row, the Mod tree in the left panel, the selection's properties in the Inspector, its
+tabs (Prop browser, Validation, Simulate) after Problems, Log and Jobs, the hint line under the view, and the 3D
+view or the map drawn in the window by the game's own renderer. World brings the prop tools forward, Races the race
+tools; the editor's menu items join Studio's menus (Edit, View, Test: New race, Test race, Drive here). Problems
+lists the mod's warnings and errors; Log is the editor's log.
+
+The editor's keys work as in its own window (Q W E tools, Ctrl+Z / Ctrl+Y, F5 Test race, Shift+F5 Drive here,
+RMB + WASD to fly). While the view, the tree or the bottom dock has focus, Enter, Esc, Tab and the arrows are the
+editor's; F6 and the pad's triggers still move between areas. The pad's L4 / R4 (Deck) undo and redo, the Menu
+button tests the race.
 
 ## Home
 
@@ -77,7 +94,9 @@ The address bar shows names ("Harbour edits › World"). Ctrl+L shows the addres
 paste another: Enter goes there, Esc returns to the names. Ctrl+Shift+C copies it.
 
 - An item: `ob://<mod id>/<kind>/<key>[#<field>][?guard=<value>]`, as the asset format names items, e.g.
-  `ob://harbour-edits/placement/L4RA/1407/12#position`.
+  `ob://harbour-edits/placement/L4RA/1407/12#position`. In World the selected prop is the address
+  (`placement/<region>/<section>/<index>`; the names read "Harbour edits › World › L4RA › <solid>"), in Races the
+  selected race (`race/<mod id>:<race id>`); following one selects it.
 - A screen: `ob://<mod id>/@<screen>[?name=value…]`, e.g. `ob://harbour-edits/@world`; Studio's own screens use
   `studio` (`ob://studio/@home`). A screen's name starts with `@`, which no kind name can.
 
@@ -90,4 +109,6 @@ not followed silently: the window says why.
 `cargo test -p ob-studio-gui studio` draws the window headless at every size of the resolution matrix (and at
 display scales 1.5 and 2), in every workspace, for the mouse, the keyboard and a pad, and fails on any part
 outside the window, two parts overlapping, a view or an address under its smallest size; it walks the window by
-keyboard and by pad, and reads addresses back.
+keyboard and by pad, and reads addresses back. `studio::world_tests` draws World and Races with the map editor at
+the four review sizes (1920 × 1080, 1280 × 800, 1024 × 768, 2560 × 1080) with the same check and the editor's
+toolbar check, and walks into and out of World by keyboard and pad.

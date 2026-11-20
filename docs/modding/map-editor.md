@@ -3,6 +3,9 @@
 > **Preview.** The map editor ships as a preview: it works, but not every part is finished and its
 > files may still change between versions. Keep a copy of map mods you care about.
 
+The same editor runs in its own window (`overbright-editor`) and as the World and Races workspaces of Overbright
+Studio ([Studio](studio.md)); its tools, keys and files are the same in both.
+
 With the map editor you can:
 
 - move, delete and add props in the city (signs, barriers, trees, street furniture);
