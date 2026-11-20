@@ -3,6 +3,12 @@
 //! [`Op`] as one undo step; the desktop editor keeps its UI state (camera,
 //! selection, tools) next to a session, and the console tools drive one
 //! directly.
+//!
+//! A session opened on a mod's folder keeps its steps in the mod's
+//! [`History`] ([`MapSession::keep_in`]): each step is in the journal on
+//! the disk before it counts, undo and redo go through it, and
+//! [`MapSession::sync`] takes in the steps other programs made. Without one
+//! (tests, a mod not on the disk) the steps live in memory ([`Undo`]).
 
 use glam::Vec3;
 
@@ -11,6 +17,9 @@ use nfsu2::studio_api::world::World;
 use ob_map::tools::map::format::{CustomRace, MAX_LAPS, MAX_TEXT, MapMod, PropEdit, Spot, valid_id, valid_solid};
 use ob_map::tools::map::ops::{Change, Op, PropKey, RacePart, RacePoint, Refused, ensure, max_points, valid_position};
 use ob_map::tools::map::race;
+use ob_map::tools::map::store;
+
+use crate::history::{History, STUDIO};
 
 /// How many undo steps are kept.
 pub const MAX_STEPS: usize = 256;
@@ -57,6 +66,13 @@ impl Undo {
         }
         self.future.clear();
         true
+    }
+
+    /// Forget the step just recorded (it could not be kept).
+    pub fn drop_last(&mut self) {
+        if let Some((_, before)) = self.past.pop() {
+            self.current = before;
+        }
     }
 
     /// The mod one step back, if any.
@@ -113,6 +129,11 @@ pub struct MapSession {
     pub issues: Vec<Issue>,
     /// Changed since the last save.
     pub dirty: bool,
+    /// The mod's history on the disk (None: the steps live in `undo`).
+    pub history: Option<History>,
+    /// Why the last step, undo or redo was not made, or the journal's
+    /// file does not read (taken by the window's status bar).
+    pub note: Option<String>,
     /// Placements moved or hidden since a viewer last looked
     /// (`world.take_changed()` holds which).
     pub world_changed: bool,
@@ -137,6 +158,8 @@ impl MapSession {
             region: region.to_string(),
             folder: folder.to_string(),
             undo: Undo::new(&map),
+            history: None,
+            note: None,
             map,
             base,
             world,
@@ -176,25 +199,69 @@ impl MapSession {
         Ok(change)
     }
 
+    /// Keep the steps in `history` from now on (the mod's own, opened on
+    /// its folder): the session goes to the mod as the history has it,
+    /// unless the history holds unsaved steps found on opening
+    /// ([`History::pending`]: the session stays at the files until they are
+    /// restored or discarded, then [`sync`](Self::sync)).
+    pub fn keep_in(&mut self, history: History) {
+        self.history = Some(history);
+        self.sync();
+    }
+
     /// Record the edit just made to `map` as one undo step named `label`
     /// and apply the mod to the world again; false (and nothing done)
     /// when the mod did not change. [`run`](Self::run) ends in this; the
-    /// editor's panels that edit `map` in place call it too.
+    /// editor's panels that edit `map` in place call it too. With a
+    /// history the step is in its journal before it counts: one the journal
+    /// cannot take (read-only, a disk error) is taken back, and `note`
+    /// says why.
     pub fn commit(&mut self, label: &str) -> bool {
-        let before_adds: Vec<PropEdit> = adds(self.undo.current()).into_iter().cloned().collect();
+        let before = self.undo.current().clone();
+        let before_adds: Vec<PropEdit> = adds(&before).into_iter().cloned().collect();
         if !self.undo.record(label, &self.map) {
             // The mod is as before, the world maybe not (see `run`).
             self.settle();
             return false;
         }
-        self.dirty = true;
         let changed_adds = adds(&self.map).into_iter().ne(before_adds.iter());
+        if let Some(h) = self.history.as_mut() {
+            let docs = [(store::FILE.to_string(), Some(self.map.write()))].into();
+            if let Err(e) = h.commit(STUDIO, label, docs) {
+                self.note = Some(format!("Not kept: {e}"));
+                self.undo.drop_last();
+                self.map = before;
+                self.apply(changed_adds);
+                return false;
+            }
+        }
+        self.mark_dirty();
         self.apply(changed_adds);
         true
     }
 
-    /// Take back the last step; its name.
+    /// The name of the step Undo takes back.
+    pub fn undo_label(&self) -> Option<&str> {
+        match &self.history {
+            Some(h) => h.steps().last().map(|s| s.label.as_str()),
+            None => self.undo.undo_label(),
+        }
+    }
+
+    /// The name of the step Redo makes again.
+    pub fn redo_label(&self) -> Option<&str> {
+        match &self.history {
+            Some(h) => h.undone().last().map(|s| s.label.as_str()),
+            None => self.undo.redo_label(),
+        }
+    }
+
+    /// Take back the last step (with a history: whoever made it); its name.
     pub fn undo(&mut self) -> Option<String> {
+        if let Some(h) = self.history.as_mut() {
+            let r = h.undo(STUDIO);
+            return self.stepped(r);
+        }
         let label = self.undo.undo_label()?.to_string();
         let m = self.undo.undo()?;
         self.step_to(m);
@@ -203,16 +270,68 @@ impl MapSession {
 
     /// Make the last undone step again; its name.
     pub fn redo(&mut self) -> Option<String> {
+        if let Some(h) = self.history.as_mut() {
+            let r = h.redo(STUDIO);
+            return self.stepped(r);
+        }
         let label = self.undo.redo_label()?.to_string();
         let m = self.undo.redo()?;
         self.step_to(m);
         Some(label)
     }
 
+    fn stepped(&mut self, r: crate::history::Result<Option<String>>) -> Option<String> {
+        match r {
+            Ok(label) => {
+                self.sync();
+                label
+            }
+            Err(e) => {
+                self.note = Some(format!("Not kept: {e}"));
+                None
+            }
+        }
+    }
+
+    /// Go to the mod as the history has it now (after its `tick` took in
+    /// another program's steps, an undo or redo, a restore or discard of the
+    /// unsaved steps): true when the mod changed. A file the history holds
+    /// that does not read as a mod leaves the session as it is, with a
+    /// `note`. As the writer, nothing while unsaved steps found on opening
+    /// wait for an answer.
+    pub fn sync(&mut self) -> bool {
+        let Some(h) = self.history.as_ref() else { return false };
+        if h.pending().is_some() && h.writable() {
+            return false;
+        }
+        let unsaved = writes(h);
+        let m = match h.doc(store::FILE).map(MapMod::parse) {
+            None => MapMod::default(),
+            Some(Ok(m)) => m,
+            Some(Err(e)) => {
+                self.note = Some(format!("{} does not read: {e:?}", store::FILE));
+                self.dirty = unsaved;
+                return false;
+            }
+        };
+        self.undo = Undo::new(&m);
+        let changed = m != self.map;
+        if changed {
+            self.step_to(m);
+        }
+        self.dirty = unsaved;
+        changed
+    }
+
+    /// The mod has steps not yet in its file (that this session writes).
+    fn mark_dirty(&mut self) {
+        self.dirty = self.history.as_ref().is_none_or(writes);
+    }
+
     fn step_to(&mut self, m: MapMod) {
         let changed_adds = adds(&self.map) != adds(&m);
         self.map = m;
-        self.dirty = true;
+        self.mark_dirty();
         self.apply(changed_adds);
     }
 
@@ -527,6 +646,12 @@ pub fn through_json(op: Op) -> Op {
             op
         }
     }
+}
+
+/// `h` has steps to write, and this session writes them (a read-only view
+/// leaves them to the writer).
+fn writes(h: &History) -> bool {
+    h.writable() && h.unsaved()
 }
 
 /// A race the mod file can hold.

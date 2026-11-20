@@ -150,7 +150,10 @@ impl Runner {
 
     fn redraw(&mut self) {
         let Some(w) = self.win.as_mut() else { return };
-        self.app.tick(Instant::now());
+        let now = Instant::now();
+        if self.app.next_tick() <= now {
+            self.app.tick(now);
+        }
         let raw = w.egui.take_egui_input(&w.window);
         let mut full = self.app.frame(raw);
         let platform = std::mem::take(&mut full.platform_output);
@@ -237,7 +240,11 @@ impl ApplicationHandler for Runner {
     fn about_to_wait(&mut self, el: &ActiveEventLoop) {
         let Some(w) = self.win.as_ref() else { return };
         let now = Instant::now();
-        // Redraw on input, when egui asks, and for the autosave.
+        // Redraw on input, when egui asks, and when the mod's history did
+        // something (saved, took in another program's step).
+        if self.app.next_tick() <= now && self.app.tick(now) {
+            w.window.request_redraw();
+        }
         let mut wake = self.app.next_tick();
         if let Some(t) = self.repaint_at {
             if t <= now {
