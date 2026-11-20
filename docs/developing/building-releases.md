@@ -57,7 +57,7 @@ readable version (`0.2.1`).
 - **THIRD-PARTY-LICENSES.txt** (`scripts/release/crate_licenses.py`): `cargo metadata --filter-platform <target>`
   of the commit (run in the build image, offline, default features = the shipping build) → the
   normal-dependency closure of the packages that hold the player's programs (`nfsu2`: the game and the
-  launcher; `ob-editor`: the map editor); each crate's name, version, licence expression and
+  launcher; `ob-studio-gui`: the map editor); each crate's name, version, licence expression and
   whether it is linked or only used at build time (proc-macros), then every distinct licence text from the
   crates' own sources (LICENSE*, COPYING*, NOTICE*, ...; identical texts once, with their users). A crate
   without a file gets its licence's standard text (MIT: with the manifest's authors). The script fails when

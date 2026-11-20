@@ -29,7 +29,7 @@ SOFTWARE.
 
 ## Sofia Sans Semi Condensed (fonts)
 
-Used by the launcher and the map editor (`src/launcher/fonts/SofiaSansSemiCondensed-*.ttf`,
+Used by the launcher and the map editor through the shared look crate (`crates/ob-look/fonts/SofiaSansSemiCondensed-*.ttf`,
 embedded in `overbright` and `overbright-editor`). Upstream: https://github.com/lettersoup/Sofia-Sans (the
 variable fonts `SofiaSansSemiCondensed[wght].ttf` and
 `SofiaSansSemiCondensed-Italic[wght].ttf`, as distributed by Google Fonts).
@@ -37,7 +37,7 @@ The embedded files are modified versions: static instances at weights 450,
 600 (upright and italic), 700 and 800 (italic), subset to Latin, with the
 pair kerning moved into a `kern` table and renamed "Sofia Sans Semi Condensed
 Overbright"; `tools/cut_fonts.py` makes them. Licence: SIL Open Font License
-1.1 (full text in `src/launcher/fonts/OFL.txt`; the launcher embeds it as
+1.1 (full text in `crates/ob-look/fonts/OFL.txt`; the launcher embeds it as
 `font::LICENCE`):
 
 ```
@@ -48,7 +48,7 @@ This Font Software is licensed under the SIL Open Font License, Version 1.1.
 
 ## egui, egui-winit, egui-wgpu (map editor UI)
 
-The map editor (`overbright-editor`, `crates/ob-editor/`) draws its window with egui 0.37
+The map editor (`overbright-editor`, `crates/ob-studio-gui/`) draws its window with egui 0.37
 (https://github.com/emilk/egui), used as Rust crates, unmodified: MIT OR Apache-2.0,
 by Emil Ernerfeldt and the egui contributors. Their licence texts,
 with those of every other crate, are in THIRD-PARTY-LICENSES.txt of a release. egui's

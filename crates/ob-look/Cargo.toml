@@ -1,0 +1,16 @@
+[package]
+name = "ob-look"
+version.workspace = true
+edition.workspace = true
+description = "Overbright's shared look: colour tokens, lamps, the type and the button legends' data."
+license.workspace = true
+publish = false
+
+# The look the launcher, the map editor and Studio share (docs/STYLE.md): pure data, no dependencies, no drawing
+# (each program draws it its own way: the launcher on the CPU, the editor and Studio with egui). Builds for the web
+# (scripts/checks/crate_layers.sh).
+[dependencies]
+
+[features]
+# No hooks of its own; declared so a workspace build or test with `--features dev-harness` selects this package too.
+dev-harness = []

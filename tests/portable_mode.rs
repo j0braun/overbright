@@ -5,7 +5,7 @@
 //! `<program>/data`, nothing in the fake home or anywhere else in the
 //! test's folder. Without the marker the same run keeps using the home
 //! folders, unchanged. No display, no window, no sound. The map editor's
-//! side is crates/ob-editor/tests/portable_mode.rs.
+//! side is crates/ob-studio-gui/tests/portable_mode.rs.
 
 #![cfg(unix)]
 

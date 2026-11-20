@@ -1,35 +1,7 @@
-use std::io::Write;
 use std::path::{Path, PathBuf};
 
-/// Write `bytes` to `path` through a temporary file next to it and a
-/// rename, so a crash leaves the old file or the new one, never half of
-/// either (the original does the same: CreateFileA on a temporary file,
-/// then MoveFileA, 0x6F9BFC). With `durable`, the temporary file is
-/// flushed to the disk before the rename and the folder after it.
-pub fn write_atomic(path: &Path, bytes: &[u8], durable: bool) -> std::io::Result<()> {
-    if let Some(dir) = path.parent() {
-        std::fs::create_dir_all(dir)?;
-    }
-    let tmp = path.with_extension("tmp");
-    {
-        let mut f = std::fs::File::create(&tmp)?;
-        f.write_all(bytes)?;
-        if durable {
-            f.sync_all()?;
-        }
-    }
-    if let Err(e) = crate::platform::fs::rename_replace(&tmp, path) {
-        let _ = std::fs::remove_file(&tmp);
-        return Err(e);
-    }
-    // The rename itself reaches the disk with the folder's entry (Windows
-    // has no folder fsync: the file's FlushFileBuffers above is all).
-    #[cfg(unix)]
-    if durable && let Some(dir) = path.parent() {
-        std::fs::File::open(dir)?.sync_all()?;
-    }
-    Ok(())
-}
+// Moved to the bottom layer (ob-core's `platform::fs`) so the map data crate writes its files the same way.
+pub use crate::platform::fs::write_atomic;
 
 /// Where a profile's backups go: `<data home>/NFS Underground 2
 /// Backups/<NAME>/`, beside the profiles' folder and not in it — the

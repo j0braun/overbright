@@ -5,6 +5,7 @@
 #                          the same folder while its modules move out)
 crate ob-core crates/ob-core/src
 crate ob-formats crates/ob-formats/src
+crate ob-map crates/ob-map/src
 crate nfsu2 src
 
 # MODULE-PATH CRATE        the module and everything under it (longest prefix wins; <root> = the crate root's
@@ -35,6 +36,14 @@ region ob-core
 exe_tables ob-formats
 formats ob-formats
 
+frontend::career::routes ob-map
+frontend::career::tracks ob-map
+tools::map::format ob-map
+tools::map::ops ob-map
+tools::map::race ob-map
+tools::map::sim ob-map
+tools::map::store ob-map
+
 # Every other module: nfsu2 (the top layer).
 
 # The workspace's packages, bottom to top (scripts/checks/crate_layers.sh, from `cargo metadata`): a package's
@@ -42,18 +51,22 @@ formats ob-formats
 # A package not in the workspace yet is skipped.
 package ob-testkit
 package ob-core
+package ob-look
 package ob-formats
 package ob-asset-format
+package ob-map
 package nfsu2
-package ob-editor
+package ob-studio-gui
 package devprobes
 
 # forbid PACKAGE CRATE…: crates that must not be in the package's dependency tree (normal and build edges).
 forbid ob-core wgpu winit cpal egui
 forbid ob-formats wgpu winit cpal egui
 forbid ob-asset-format wgpu winit cpal egui
+forbid ob-map wgpu winit cpal egui
+forbid ob-look wgpu winit cpal egui
 forbid nfsu2 egui
 
 # wasm PACKAGE…: packages that must build for the web (`cargo check --target wasm32-unknown-unknown`; skipped,
 # with a line, where that target is not installed).
-wasm ob-core ob-formats ob-asset-format
+wasm ob-core ob-formats ob-asset-format ob-map ob-look

@@ -19,7 +19,7 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use anyhow::{Context as _, Result};
-use ob_editor::editor::app::{self, App, Cli};
+use ob_studio_gui::editor::app::{self, App, Cli};
 use nfsu2::render::Gpu;
 use winit::application::ApplicationHandler;
 use winit::event::WindowEvent;

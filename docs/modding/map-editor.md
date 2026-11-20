@@ -399,13 +399,16 @@ picture. scripts/checks/editor_shots.sh runs it at every size of the resolution 
 
 ## How it works (for developers)
 
-- `src/tools/map/` (the game library): the format (`format.rs`), the folders, archives and the editor's files'
-  places (`store.rs`: `editor_dir`, `run_file`, the run copy's atomic write, `move_old_sidecars`), the custom
-  race's route (`race.rs`), the game data the editor reads (`assets.rs`: `MapAssets`, the race tracks and their
-  road networks), and the edits without a window (`edit.rs`). `tools::map::set_only` makes one mod the only one
+- `crates/ob-map/` (the map data, below the game library, which re-exports it at `tools::map::…`): the format
+  (`format.rs`), the folders, archives and the editor's files' places (`store.rs`: `editor_dir`, `run_file`, the
+  run copy's atomic write, `move_old_sidecars`), the custom race's route (`race.rs`, on the original's race tracks
+  and routes, `frontend/career/`), the edits as data (`ops.rs`) and the simulation stream (`sim/`). No world,
+  window or GPU.
+- `src/tools/map/` (the game library): the game data the editor reads (`assets.rs`: `MapAssets`, the race tracks
+  and their road networks), the edits on a loaded world (`edit.rs`) and the session (`session.rs`). `tools::map::set_only` makes one mod the only one
   for a run: `Only::Folder` (`--map-mod`) or `Only::File` (`--map-file`). `sim/` holds the stream format and the
   problem detection, which the game writes the stream with and the editor reads it with.
-- Edits as data: `ops.rs` has `Op`, one edit of a mod (move, delete, reset, add, duplicate or drop a prop; make,
+- Edits as data: `ops.rs` (in `crates/ob-map/`) has `Op`, one edit of a mod (move, delete, reset, add, duplicate or drop a prop; make,
   change or delete a race and its points; the mod's details; a `Group` of ops under one name), with props named
   by `PropKey` (`Original` with the mod file's region, section, solid, place and `nth`, or `Added` with the add's
   id), races by id, never by an index in a loaded world. Ops read and write JSON (one per line in an
@@ -413,16 +416,17 @@ picture. scripts/checks/editor_shots.sh runs it at every size of the resolution 
   `MapSession` (the mod, the original and edited world, the undo history, no window): `run(op)` makes an op as
   one undo step named by `Op::label` (the names Edit ▸ Undo shows), and a refused op or group changes nothing.
   An edit re-applies only the placements it changes. The shapes of `Op`, `PropKey`, `RacePoint` and `Change`,
-  their JSON and the step names are fixed; new ops and refusal reasons may be added.
+  their JSON and the step names are fixed; new ops and refusal reasons may be added. `Op` is matched in full by the
+  session and its tests, so a new op is handled there at once.
 - `src/world/map_overlay.rs`: applies the edits to a loaded world. The game loads worlds through
   `tools::map::load_world` (`World::load`, then the mods for the region).
-- `crates/ob-editor/`: the desktop editor, a crate of its own on the game library, so the game's dependency tree
+- `crates/ob-studio-gui/`: the desktop editor, a crate of its own on the game library, so the game's dependency tree
   has no egui. `src/editor/` there is its library: `app.rs` (the window's panels, dialogs, `--shot`), `menu.rs`
   (menus, toolbar, the key table `KEYS`, `Command::ALL`), `tree*.rs`, `props.rs`, `browser.rs`, `races.rs`,
   `validate.rs`, `viewport.rs` and `worklight.rs`, `mapview.rs`, `sim/`, and `testplay.rs` (the test hand-off:
   it writes the run copy, starts the game — `game` beside the editor, `OB_GAME_EXE` names another — polls it,
   reads the result line and keeps the tested marks). `src/bin/overbright-editor.rs` is the window. Its tests run
-  with the workspace's (`cargo test -p ob-editor` alone); `docs_tests.rs` checks this page against the key
+  with the workspace's (`cargo test -p ob-studio-gui` alone); `docs_tests.rs` checks this page against the key
   table and the menus.
 - The game: `src/bin/game/shell/cli.rs` (`MapTest`: the flags, the end watch, the result line),
   `flow/race_setup.rs` (`start_map_test`, `map_race_event`), `Game::map_race_route`, which `drive_to_grid` asks
@@ -431,7 +435,7 @@ picture. scripts/checks/editor_shots.sh runs it at every size of the resolution 
   `dirs::editor_exe` (docs/launcher.md).
 - Tests: `src/tools/map/tests.rs` (round trip, refusals, store, the run copy and `.editor/`, world and route with
   the game's files), `src/tools/map/session_tests.rs` (every op through JSON, step names, all-or-nothing groups,
-  replay), `crates/ob-editor/src/editor/` (every menu command taken, every key in the key table, the toolbar at
+  replay), `crates/ob-studio-gui/src/editor/` (every menu command taken, every key in the key table, the toolbar at
   every width, the hand-off with a stand-in game: unsaved changes tested from the run copy, `map.obmap` untouched,
   the tested mark), `shell/cli.rs` (the flags and the run's end), `flow/race_setup.rs` (a test run on a custom
   race and from a spot, with the game's files), and `launcher/tests.rs`.

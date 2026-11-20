@@ -14,4 +14,5 @@
 pub mod error;
 pub mod prepare;
 pub mod probe;
-pub mod theme;
+// The look's colour tokens are the shared look's (crates/ob-look), at their old path.
+pub use ob_look::theme;

@@ -22,43 +22,8 @@ use std::time::{Duration, Instant};
 
 use super::ui::Key;
 
-/// The device the player used last (the legends' glyph set).
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Default)]
-pub enum InputKind {
-    Mouse,
-    #[default]
-    Keyboard,
-    Xbox,
-    PlayStation,
-    Deck,
-}
-
-impl InputKind {
-    /// A pad of any kind.
-    pub fn is_pad(self) -> bool {
-        matches!(self, InputKind::Xbox | InputKind::PlayStation | InputKind::Deck)
-    }
-
-    fn to_u8(self) -> u8 {
-        match self {
-            InputKind::Mouse => 0,
-            InputKind::Keyboard => 1,
-            InputKind::Xbox => 2,
-            InputKind::PlayStation => 3,
-            InputKind::Deck => 4,
-        }
-    }
-
-    fn from_u8(v: u8) -> InputKind {
-        match v {
-            1 => InputKind::Keyboard,
-            2 => InputKind::Xbox,
-            3 => InputKind::PlayStation,
-            4 => InputKind::Deck,
-            _ => InputKind::Mouse,
-        }
-    }
-}
+// The input kinds are the shared look's (ob-look: the legends follow them).
+pub use ob_look::legends::InputKind;
 
 /// Not set yet: [`default_input`] answers.
 const UNSET: u8 = u8::MAX;

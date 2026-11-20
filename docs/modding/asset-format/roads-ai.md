@@ -75,7 +75,7 @@ name itself when the importer knows it (`"EV_01"`, `"BARRIERS_4001"`, `"ForwardS
 `hash32` (`"0x8E55C895"`); a string starting with `0x` is a hash, any other string a name to hash (conventions §6.4).
 The importer's dictionary of names is fixed per importer version: the barrier group names (`BARRIERS_<trk>`,
 `PLAYER_BARRIERS_<trk>`, `BARRIERS_CAREER<n>`) for every track number, the marker names of
-`src/frontend/career/routes.rs`, `PCDEMO`, the neighbourhood names (`src/frontend/career/triggers.rs:75`), `EV_nn`,
+`crates/ob-map/src/frontend/career/routes.rs`, `PCDEMO`, the neighbourhood names (`src/frontend/career/triggers.rs:75`), `EV_nn`,
 and the career's own names ([career.md](career.md)).
 
 ### 3.2 `ob.route-paths` (`world/<REGION>/routes/paths.toml`)
@@ -340,7 +340,7 @@ intersections = { file = "4001F.bin", offset = 439552, count = 38, layout = "rou
 | `name` | string | – | yes | – | `All` or `FreeRoam`; MUST equal the file name. |
 | `marker` | array<table> | – | no | `[]` | The records in original order. |
 
-`marker` (0x30 bytes, `src/frontend/career/routes.rs:5`):
+`marker` (0x30 bytes, `crates/ob-map/src/frontend/career/routes.rs:5`):
 
 | Field | Type | Unit | Req. | Default | Meaning |
 |---|---|---|---|---|---|
@@ -441,7 +441,7 @@ tuning = { file = "tuning.bin", offset = 0, count = 1, layout = "ai_tuning" }
 A custom race runs on a **base track**: the track's road network (`road:<REGION>/<trk>`), its race barriers
 (`BARRIERS_<trk>`, `PLAYER_BARRIERS_<trk>`), AI lanes and traffic, and the set-up of a career event of the same mode
 on that track. The race file gives the rest. The fields map 1:1 to today's map-mod `[race]` section
-(`src/tools/map/format.rs:141`, `:439`), so converting a `map.obmap` is mechanical (§5.5).
+(`crates/ob-map/src/tools/map/format.rs:141`, `:439`), so converting a `map.obmap` is mechanical (§5.5).
 
 | Field | Type | Unit | Req. | Default | Meaning (`map.obmap` key) |
 |---|---|---|---|---|---|
@@ -453,7 +453,7 @@ on that track. The race file gives the rest. The fields map 1:1 to today's map-m
 | `mode` | enum | – | yes | – | `mode`: `circuit`, `sprint`, `streetx`, `drift`. Circuit and street X loop. |
 | `laps` | u32 | – | no | 2 looping, 1 otherwise | `laps`: 1–20; exactly 1 for `sprint` and `drift`. |
 | `checkpoints` | array<vec2> | m | no | `[]` | `checkpoint` (repeated): world x, y in driving order; at most 64. Fewer than 2: kept, not raceable. A loop closes from the last back to the first. |
-| `grid` | array<table> | – | no | `[]` | `grid` (repeated): spots, pole first, at most 8. Empty: 8 slots behind the start, rows of two, 7 m between rows, 4 m across (`src/tools/map/race.rs:59`). |
+| `grid` | array<table> | – | no | `[]` | `grid` (repeated): spots, pole first, at most 8. Empty: 8 slots behind the start, rows of two, 7 m between rows, 4 m across (`crates/ob-map/src/tools/map/race.rs:59`). |
 | `start` | table | – | no | from the first two checkpoints | `start`: the start line spot. |
 | `finish` | table | – | no | loop: the start; else the last checkpoint | `finish`: the finish line spot. |
 | `extras` | table | – | no | – | conventions §9 (e.g. the editor's notes). |
@@ -463,7 +463,7 @@ fourth number). Every coordinate and heading MUST be finite and within ±100,000
 and markers are put on the ground at load, as the game does with its own markers.
 
 **Race digest.** The *race digest* is the `xxh3-128` of this UTF-8 text, built from the fields that change how the
-race drives (the same set the map editor's fingerprint takes, `validate::fingerprint` in `crates/ob-editor/src/editor/validate.rs`; the name is not part of
+race drives (the same set the map editor's fingerprint takes, `validate::fingerprint` in `crates/ob-studio-gui/src/editor/validate.rs`; the name is not part of
 it): a first line `ob.race-digest/1`, then `track=<n>`, `backward=<true|false>`, `mode=<mode>`, `laps=<n>`, one
 `checkpoint=<x> <y>` per checkpoint, one `grid=<x> <y> <z> <h>` per grid slot, `start=<x> <y> <z> <h>` and
 `finish=<x> <y> <z> <h>` when present; each line ends in LF; floats in the shortest form that round-trips as binary32
@@ -601,9 +601,9 @@ routes' load (`src/ai/route/mod.rs:202`, a `std::fs::read` after `game_fs::path`
 takes the first `Paths*` file of `ROUTESL4RA` in directory order (`src/frontend/career/triggers.rs:102`, harmless only
 because every Paths file of a region carries the same triggers); the light-probe field, which lists the route folder
 (`src/render/enh/lighting/probes/field.rs:255`); the free-roam reset zones, which join the root without `game_fs`
-(`src/bin/game/input/dispatch.rs:403`); `load_route` and `load_markers` (`src/frontend/career/routes.rs:23`, `:85`);
+(`src/bin/game/input/dispatch.rs:403`); `load_route` and `load_markers` (`crates/ob-map/src/frontend/career/routes.rs:23`, `:85`);
 the traffic load (`src/bin/game/sim/traffic/mod.rs:144`, `:147`); the free-roam route memo
-(`src/bin/game/loads/cache.rs:64`, `:68`); the custom races' network (`src/tools/map/race.rs:16`); the read-ahead
+(`src/bin/game/loads/cache.rs:64`, `:68`); the custom races' network (`crates/ob-map/src/tools/map/race.rs:16`); the read-ahead
 list (`src/bin/game/loads/read_ahead.rs:36`), which becomes a bundle read-ahead.
 
 Tests: Eq1 and Eq2 over all 355 route files and the AI chunks of the reference install; the region-dedupe check

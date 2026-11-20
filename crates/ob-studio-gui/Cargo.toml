@@ -1,8 +1,8 @@
 [package]
-name = "ob-editor"
+name = "ob-studio-gui"
 version.workspace = true
 edition.workspace = true
-description = "Overbright's desktop map editor (overbright-editor)."
+description = "Overbright Studio's window crate: the desktop map editor (overbright-editor) today."
 license.workspace = true
 publish = false
 build = "build.rs"
@@ -12,6 +12,8 @@ build = "build.rs"
 # never depend on it, so egui is not in the game's dependency tree.
 [dependencies]
 nfsu2 = { path = "../..", default-features = false }
+# The look shared with the launcher (colour tokens, type, lamps, legends).
+ob-look = { path = "../ob-look" }
 anyhow.workspace = true
 glam.workspace = true
 wgpu.workspace = true

@@ -1,9 +1,9 @@
 # Architecture
 
 A Cargo workspace. The main package, `nfsu2` (a library and several binaries), sits on the library's lower
-layers, `crates/ob-core` and `crates/ob-formats` (see Layers), and on `crates/ob-testkit` (the test kit, a dev-dependency; docs/developing/testing.md). The map editor is a leaf crate on the library, `crates/ob-editor`
+layers, `crates/ob-core` and `crates/ob-formats` (see Layers), and on `crates/ob-testkit` (the test kit, a dev-dependency; docs/developing/testing.md). The map editor lives in Studio's window crate, a leaf on the library, `crates/ob-studio-gui`
 (its `src/editor/` and the `overbright-editor` binary; docs/modding/map-editor.md), so the game's dependency tree has
-no egui; what the game and the editor share (the simulation stream, `tools::map::sim`) is in the library. In the maintainer's full tree only there is also the `devprobes`
+no egui; what the game and the editor share (the map data and the simulation stream, `tools::map::…`) is in `crates/ob-map`, below the library. In the maintainer's full tree only there is also the `devprobes`
 workspace member (developer probes, not built by default; not in the public repository), and `fuzz/` is a separate crate.
 Package dependencies point one way only, from the programs down to the library and from there to the kit
 (`cargo metadata` shows no edge back up). The library holds everything that can be tested
@@ -25,7 +25,7 @@ the frame loop and the glue that turns the library's parts into the running game
 | rendering | `render/` | The wgpu renderer, in three layers (below). |
 | input and platform | `pad/`, `platform/`, `allocator.rs`, `latency.rs` | Gamepads (gilrs), folders and paths per OS (docs/playing/platform-dirs.md), the allocator choice, frame pacing. |
 | extras and tools | `qol/`, `diag/`, `overlay/`, `mark_spot.rs`, `photo.rs`, `upscale*.rs`, `texture_mods.rs`, `tpf_import.rs`, `texwizard_import.rs`, `hud_mod.rs`, `hd_ui_pack.rs`, `model_fixes.rs` | The opt-in quality-of-life features, the F3 overlay, the support file and event log (docs/troubleshooting.md), report and photo tools, texture-pack generation, the texture mods' and the HUD mod's import. |
-| launcher | `launcher/` (binary `src/bin/overbright.rs`), `launch/` | The launcher: game-folder search and check, settings, the start choices, the Mods page (texture mods, the HUD mod), start. CPU-drawn (no wgpu), so it opens without a Vulkan driver (docs/launcher.md). `launch/` is the contract the game and the map editor share with it (`game --probe`'s report, `game --prepare`'s lines, the `error.kind=` line, the look's colour tokens); the game binary, the map editor and the rest of the library name no `launcher::` path (a few library tests still use the launcher's model). |
+| launcher | `launcher/` (binary `src/bin/overbright.rs`), `launch/` | The launcher: game-folder search and check, settings, the start choices, the Mods page (texture mods, the HUD mod), start. CPU-drawn (no wgpu), so it opens without a Vulkan driver (docs/launcher.md). `launch/` is the contract the game and the map editor share with it (`game --probe`'s report, `game --prepare`'s lines, the `error.kind=` line, the look's colour tokens from `crates/ob-look`); the game binary, the map editor and the rest of the library name no `launcher::` path (a few library tests still use the launcher's model). |
 
 ### Rendering layers
 
@@ -49,12 +49,17 @@ logs, the game's random numbers, the camera's values), `ob-formats` (`crates/ob-
 parsers and the engine's tables, on `ob-core` only), `ob-asset-format` (`crates/ob-asset-format`: the core of
 Overbright's own asset format, docs/modding/asset-format/: exact floats, names, digests, bundles, the pack manifest,
 layering, and the generator that keeps the specification's rule tables and schemas in step with the code; on
-`ob-formats`; nothing in the game reads through it yet), then the rest of the library. Each layer's
+`ob-formats`; nothing in the game reads through it yet), `ob-map` (`crates/ob-map`: the map data — map mod
+files and their store, the edit operations, custom races and the original's race tracks and routes they run on,
+the simulation stream — on `ob-core` and `ob-formats`; the map editor's session, which owns a world, stays in the
+library), then the rest of the library. Beside them, `ob-look` (`crates/ob-look`: the look the launcher, the map
+editor and Studio share — colour tokens, lamps, the type, the button legends' data; no dependencies) sits below the
+library, which re-exports its tokens at `launch::theme`. Each layer's
 modules are listed in `scripts/checks/crate-layers.txt`; `scripts/checks/crate_layers.sh` (in every checks set)
 fails on a reference from a module to a higher layer that is not on `crate-layers-allow.txt` (the references
 still to be moved; the list only shrinks), on a package dependency that points up (`cargo metadata`), on a
-forbidden crate in a low package's tree (no wgpu, winit or cpal under `ob-core`, `ob-formats` and
-`ob-asset-format`) and on
+forbidden crate in a low package's tree (no wgpu, winit or cpal under `ob-core`, `ob-formats`,
+`ob-asset-format`, `ob-map` and `ob-look`) and on
 `dev-harness` switched on anywhere in the shipped packages' tree. The library keeps every `nfsu2::…` path: a
 module that moves into a crate below is re-exported at its old place. Where a module is split (the cache check, the support
 file, the winit and wgpu parts of `platform` and `prof`), the library's `src/lib.rs` keeps the upper part
@@ -73,7 +78,7 @@ beside the re-exported lower one. Each library crate has its own build id for th
 | `dev/`, `dev_hooks.rs` | The developer harness (`--shot`, `--selftest`, `--flow`, `--bench`, `--playthrough`, parity, audio capture). Compiled only with the Cargo feature `dev-harness`; the game's paths call it only through `dev_hooks.rs`, which is a set of no-op stubs without the feature (layering rule 3). |
 | `tests/` | The game binary's tests (built with `dev-harness`). |
 
-The map editor's binary is `crates/ob-editor/src/bin/overbright-editor.rs`. Other binaries in `src/bin/`:
+The map editor's binary is `crates/ob-studio-gui/src/bin/overbright-editor.rs`. Other binaries in `src/bin/`:
 `overbright` (the launcher), `overbright-upscale` (texture-pack generator) and
 developer tools (`inspect`, `world`, `car_check`, `car_inspect`, `car_textures`, `dump_textures`,
 `bundle_dump`, `frontend`). `examples/` holds public check programs; `devprobes/` (private set) the developer probes.

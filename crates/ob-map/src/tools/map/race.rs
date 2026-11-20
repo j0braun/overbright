@@ -8,7 +8,8 @@ use glam::{Vec2, Vec3};
 
 use super::format::{CustomRace, Spot};
 use crate::formats::roads::{RoadNet, RoadRoute};
-use crate::frontend::career::{Route, Track, route_path};
+use crate::frontend::career::routes::{Route, route_path};
+use crate::frontend::career::tracks::Track;
 
 /// The base track's road network with its race barriers closed.
 pub fn road_net(root: &std::path::Path, track: &Track) -> Result<RoadNet> {

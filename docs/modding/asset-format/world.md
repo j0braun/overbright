@@ -201,7 +201,7 @@ world/L4RA/effects.bin
   row-major, rows the local axes, row vectors (conventions §5.3).
 - **Limits** (beyond conventions §10): a stream-section file ≤ 8 MiB; a scenery section ≤ 65,535 infos and ≤ 65,535
   instances (u16 indices); a stream section ≤ 2 scenery sections; `placements.toml` ≤ 50,000 entries (today's
-  map-mod limit, `src/tools/map/format.rs` `MAX_PROPS`).
+  map-mod limit, `crates/ob-map/src/tools/map/format.rs` `MAX_PROPS`).
 
 ### 3.2 `region.toml` (`ob.region/1.0`)
 
@@ -899,7 +899,7 @@ nothing is skipped and counted (`WLD.15`).
 
 Today's map mods (`maps/<folder>/map.obmap`, format 1, docs/modding/map-editor.md "File format") are mounted as legacy packs
 (layering.md §7) and can be converted to `placements.toml`. A format-1 edit names an original placement by
-`PropRef` (`src/tools/map/format.rs:63`): `region`, `section` (a **stream** section's number), `solid` (the name of
+`PropRef` (`crates/ob-map/src/tools/map/format.rs:63`): `region`, `section` (a **stream** section's number), `solid` (the name of
 the drawn solid) and `at` (its original position), matched within 5 cm. The map editor's **next format-1
 revision** (not released; no file has it yet) adds the additive key `nth` (an integer ≥ 1, written only when
 > 0), which tells exact duplicates apart by their rank in the original order; every file without it reads as

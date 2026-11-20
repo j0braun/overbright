@@ -22,7 +22,7 @@ baseline for splitting the code into several crates: later measurements are comp
   | sim / AI | `src/ai/drag.rs` |
   | frontend | `src/frontend/cheats.rs` |
   | launcher | `src/launcher/font.rs` |
-  | editor | `crates/ob-editor/src/editor/camera.rs` |
+  | editor | `crates/ob-studio-gui/src/editor/camera.rs` |
   | game binary | `src/bin/game/state.rs` |
 
 - Target sets:

@@ -37,7 +37,7 @@ cargo build --release --features dev-harness --bins --examples
 
 - `game` is the game, `overbright` the launcher; `inspect`, `world`, `car_check` and the other binaries in
   `src/bin/` are developer tools (docs/developing/developer-guide.md). `overbright-editor`, the map editor, is the crate
-  `crates/ob-editor`, a default workspace member: the commands above build it too, and `cargo build
+  `crates/ob-studio-gui`, a default workspace member: the commands above build it too, and `cargo build
   --release -p nfsu2` leaves it out (the game itself never links its UI library, egui).
 - The **developer harness** (`--shot`, `--selftest`, `--flow`, `--bench`, `--playthrough`, the parity and
   audio-capture modes; `src/bin/game/dev/`) is the Cargo feature `dev-harness`, off by default. A build
