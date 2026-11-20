@@ -86,7 +86,13 @@ impl Game {
             // the price and the setup must be within the bank
             // ("You do not have enough bank…", 0xD1AC60BE).
             screens::PaintKey::Install(i) => {
-                let hash = p.swatches[i].0;
+                // `PaintShop::key` asks only for a listed swatch; anything
+                // else leaves the screen as it is (0x563707: no paints, no
+                // question).
+                let Some(&(hash, ..)) = p.swatches.get(i) else {
+                    log::warn!("paint shop: swatch {i} of {} asked for, nothing to install", p.swatches.len());
+                    return Ok(());
+                };
                 // The bank check is a career's only (0x850078 = 1 at
                 // 0x563799).
                 let cash = self.profile.as_ref().filter(|p| !p.scratch).map(|p| p.cash as i32);

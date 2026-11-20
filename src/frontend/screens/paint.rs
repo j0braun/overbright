@@ -102,6 +102,13 @@ impl PaintShop {
         help_mask("UI_Paint")
     }
 
+    /// The swatch the highlight is on: the selected one while the finish
+    /// lists paints; none with no paints (0x55D28F hides U2_Paint_HighLight
+    /// 0x9BA6D658 and shows the lock).
+    pub fn highlighted(&self) -> Option<usize> {
+        self.selected.filter(|&i| i < self.swatches.len())
+    }
+
     /// The strip's slots: slot, icon, label.
     pub fn slots(&self) -> Vec<(u8, u32, u32)> {
         match self.vinyl {
@@ -138,7 +145,10 @@ impl PaintShop {
             (Some(i), Key::Right) if i + 1 < n => self.selected = Some(i + 1),
             (Some(i), Key::Up) if i >= 20 => self.selected = Some(i - 20),
             (Some(i), Key::Down) if i + 20 < n => self.selected = Some(i + 20),
-            (Some(i), Key::Accept) => return PaintKey::Install(i),
+            // Accept with no paints to list (a finish whose paints are all
+            // locked: the lock shows) does nothing (0x563707: the swatch
+            // list +0x158 empty → return, no sound, no question).
+            (Some(i), Key::Accept) if i < n => return PaintKey::Install(i),
             // Back from the swatches: the strip, except for a vinyl of
             // one colour, which leaves (0x5638C7).
             (Some(_), Key::Back) if matches!(self.vinyl, Some((_, n)) if n < 2) => return PaintKey::Leave,
@@ -184,7 +194,7 @@ impl PaintShop {
             }
         }
         const HIGHLIGHT: u32 = fe_ids::HIGHLIGHT;
-        match self.selected.and_then(|i| package.object(fe_hash(&format!("PAINT_SWATCH_{}", i + 1)))) {
+        match self.highlighted().and_then(|i| package.object(fe_hash(&format!("PAINT_SWATCH_{}", i + 1)))) {
             Some(o) => {
                 let p = o.attributes.position();
                 state.position.insert(HIGHLIGHT, Vec2::new(p.x + 152.0, p.y + 165.0));
@@ -284,5 +294,36 @@ impl PaintShop {
         let icons: Vec<u32> = slots.iter().map(|s| s.1).collect();
         quads.extend(scroller_quads(package, ui_main::SLOT, fe_ids::OPTION_TEMPLATE, &icons, self.slot, true, 40.0, 480.0));
         quads
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn shop(swatches: Vec<Swatch>) -> PaintShop {
+        PaintShop {
+            slot: 0,
+            finish: METAL,
+            swatches,
+            selected: Some(0),
+            opened: 0.0,
+            vinyl: None,
+            total: Some(0),
+            swatch_fade: None,
+            arrows: Default::default(),
+        }
+    }
+
+    /// A finish with no paints to list (all locked): Accept asks nothing
+    /// and no swatch is highlighted (0x563707, 0x55D28F).
+    #[test]
+    fn accept_with_no_paints_does_nothing() {
+        let mut p = shop(Vec::new());
+        assert!(matches!(p.key(Key::Accept), PaintKey::None));
+        assert_eq!(p.highlighted(), None);
+        let mut p = shop(vec![(1, [0; 3], 0, false, false)]);
+        assert!(matches!(p.key(Key::Accept), PaintKey::Install(0)));
+        assert_eq!(p.highlighted(), Some(0));
     }
 }

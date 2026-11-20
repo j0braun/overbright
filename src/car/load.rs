@@ -1408,6 +1408,11 @@ impl<'a> CarBuild<'a> {
         // The stock paint: the slot 0x3F part named by car type +0x84C.
         let paint_hash = installed.get(&0x3F).copied().filter(|&h| h != 0).unwrap_or(car.car_type.stock_paint);
         let paint = db.find(name, 0x3F, Some(paint_hash), None).map(|p| Paint::from_part(&db, p));
+        // A stored paint this car has no part for (a damaged or edited
+        // save): the car keeps its shipped skin, and the log says why.
+        if paint.is_none() && installed.get(&0x3F).is_some_and(|&h| h != 0) {
+            log::warn!("{name}: paint {paint_hash:#010x} is no paint of this car; the shipped skin stays");
+        }
         let vinyls = vinyl_layers(&car_dir, name, &db, installed);
         // Only a type with a DUMMY_SKIN slot (+0x88C) is composited; a
         // traffic car draws the shipped `<CAR>_SKIN1` whatever its skin
