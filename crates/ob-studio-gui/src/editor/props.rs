@@ -946,7 +946,7 @@ pub(crate) mod tests {
         let events = std::iter::once(mods).chain(events).collect();
         let input = egui::RawInput { screen_rect: Some(rect), events, ..Default::default() };
         let mut taken = false;
-        let _ = ctx.run_ui(input, |ui| taken = p.handles(s, ui.ctx(), ui.painter(), rect));
+        let _ = crate::editor::run_headless(ctx, input, |ui| taken = p.handles(s, ui.ctx(), ui.painter(), rect));
         taken
     }
 

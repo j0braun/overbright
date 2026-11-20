@@ -368,7 +368,7 @@ mod tests {
         let mut panel = TestPanel::default();
         let ctx = egui::Context::default();
         super::super::menu::post(&ctx, super::super::menu::Command::TestRace);
-        let _ = ctx.run_ui(egui::RawInput::default(), |ui| panel.ui(&mut s, ui));
+        let _ = crate::editor::run_headless(&ctx, egui::RawInput::default(), |ui| panel.ui(&mut s, ui));
         assert_eq!(s.status, "Choose a race to test (Races)");
         assert!(panel.test.is_none() && !dir.join("maps").exists(), "nothing saved or started");
         // Drive here with no ground: the camera's own place, facing its way.

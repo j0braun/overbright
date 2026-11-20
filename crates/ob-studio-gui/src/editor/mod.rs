@@ -29,3 +29,17 @@ pub mod worklight;
 mod docs_tests;
 
 pub use state::{EditorState, Issue, Level, Mode, Panel, RacePoint, View, commit, project};
+
+/// One frame of `ui` on `ctx` without a window or a GPU (the tests). The frame's texture changes (the font
+/// atlas) have no renderer to go to, so they are dropped on purpose (egui asserts in debug builds that a
+/// `TexturesDelta` is handled before it is dropped); the window's frames keep theirs (`App::frame`).
+#[cfg(test)]
+pub(crate) fn run_headless(
+    ctx: &egui::Context,
+    raw: egui::RawInput,
+    ui: impl FnMut(&mut egui::Ui),
+) -> egui::FullOutput {
+    let mut out = ctx.run_ui(raw, ui);
+    out.textures_delta.clear();
+    out
+}

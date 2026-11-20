@@ -870,6 +870,23 @@ pub struct App {
     pub fixed_clock: bool,
     /// The toolbar item a `--shot` rests the pointer on (its name).
     pub shot_hover: Option<&'static str>,
+    /// egui's texture changes (the font atlas, images) not yet uploaded:
+    /// every frame's are kept until `paint` applies them, so a frame that is
+    /// not painted (a lost surface, a test without a GPU) loses none.
+    textures: PendingTextures,
+}
+
+/// Texture changes egui has handed out and the renderer has not applied yet.
+/// egui asserts (debug builds) that a `TexturesDelta` is handled before it is
+/// dropped; when the editor itself goes away there is no renderer left to
+/// apply them to, so they are dropped on purpose then.
+#[derive(Default)]
+struct PendingTextures(egui::TexturesDelta);
+
+impl Drop for PendingTextures {
+    fn drop(&mut self) {
+        self.0.clear();
+    }
 }
 
 /// From this window width (points) up the tree opens by itself; below it
@@ -942,6 +959,7 @@ impl App {
             tree_rail: false,
             fixed_clock: false,
             shot_hover: None,
+            textures: PendingTextures::default(),
         }
     }
 
@@ -1842,10 +1860,13 @@ impl App {
 
     // --- painting ---
 
-    /// Run one frame of the UI.
+    /// Run one frame of the UI. Its texture changes are kept for the next
+    /// `paint` (the output's `textures_delta` is left empty).
     pub fn frame(&mut self, raw: egui::RawInput) -> egui::FullOutput {
         let ctx = self.ctx.clone();
-        ctx.run_ui(raw, |ui| self.ui(ui))
+        let mut full = ctx.run_ui(raw, |ui| self.ui(ui));
+        self.textures.0.append(std::mem::take(&mut full.textures_delta));
+        full
     }
 
     /// Paint `full` into `target` (`size` pixels): textures uploaded, the
@@ -1859,7 +1880,11 @@ impl App {
         size: (u32, u32),
         full: egui::FullOutput,
     ) -> Vec<wgpu::CommandBuffer> {
-        for (id, deltas) in &full.textures_delta.set {
+        let mut full = full;
+        // Every frame's texture changes since the last paint, in order.
+        let mut textures = std::mem::take(&mut self.textures.0);
+        textures.append(std::mem::take(&mut full.textures_delta));
+        for (id, deltas) in &textures.set {
             for delta in deltas {
                 egui_r.update_texture(&gpu.device, &gpu.queue, *id, delta);
             }
@@ -1901,9 +1926,11 @@ impl App {
             egui_r.render(&mut pass, &jobs, &screen);
         }
         out.push(encoder.finish());
-        for id in &full.textures_delta.free {
+        for id in &textures.free {
             egui_r.free_texture(id);
         }
+        // Applied: uploaded above, freed after the frame's draw.
+        textures.clear();
         out
     }
 }
