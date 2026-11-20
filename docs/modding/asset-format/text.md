@@ -19,14 +19,14 @@ Schemas: [`language`](schemas/language.schema.json), [`strings`](schemas/strings
 
 | Original | Reference install | Kind here | Engine reader today |
 |---|---|---|---|
-| `LANGUAGES/<Lang>.bin` chunk 0x39000, the string table | 14 files: the 11 languages the executable names (English, French, German, Italian, Spanish, Dutch, Swedish, Danish, Korean, Chinese, Japanese), `Thailand.bin`, `Labels.bin`, `Largest.bin`; 3,925 strings each | `ob.strings`, `ob.language`, `charmap.bin` | `src/frontend/feng/strings.rs:33`; only `English.bin` is read (`src/frontend/assets.rs:89`) |
+| `LANGUAGES/<Lang>.bin` chunk 0x39000, the string table | 14 files: the 11 languages the executable names (English, French, German, Italian, Spanish, Dutch, Swedish, Danish, Korean, Chinese, Japanese), `Thailand.bin`, `Labels.bin`, `Largest.bin`; 3,925 strings each | `ob.strings`, `ob.language`, `charmap.bin` | `src/frontend/feng/strings.rs:33`; the active language's file is read (`Assets::load_for`, `src/frontend/assets.rs`) |
 | `LANGUAGES/<Lang>.bin` chunks 0x30201 | 6 or 7 fonts per file | `ob.font` on [ui.md](ui.md) | `src/frontend/feng/font.rs:55` |
 | `LANGUAGES/Labels.bin` | the label names (§2) | `label` fields and the `labels` unit | not read |
 | `LANGUAGES/Largest.bin` | per label the longest text of all languages (§2) | the `largest` unit | not read |
 | `LANGUAGES/LanguageTextures.bin` | one texture pack: the glyph pages of every language's fonts (14 textures) | [textures.md](textures.md); §3.9 | `src/frontend/assets.rs:74` |
-| `CREDITS/*.TXT` | 12 files, 465,556 bytes | `ob.credits` | `src/frontend/screens/credits.rs:31` |
+| `CREDITS/*.TXT` | 12 files, 465,556 bytes | `ob.credits` | `src/frontend/screens/credits.rs` (`credits_file_for`) |
 | `LANGUAGES/agree.*`, `agree-ucs2.chi` | 11 files, 522,076 bytes | `ob.legal-text` | not read by the engine; no file name in the executable refers to them (string scan) |
-| `memcard/LOCALE_*.loc` | 17 files, 12,308 bytes | `ob.memcard-text` | `src/frontend/profiles/memcard_text.rs:22`; only `LOCALE_ENGLISH` is read |
+| `memcard/LOCALE_*.loc` | 17 files, 12,308 bytes | `ob.memcard-text` | `src/frontend/profiles/memcard_text.rs` (`locale_file`); the active language's `LOCALE_<LANG>.loc` is read, the English texts built in are the fallback |
 | `SUBTITLES/*` | 22 files, 1,456 bytes | `ob.subtitles` | not read: the original starts subtitles only in regions this edition is not (docs/formats/movies-replays.md "Subtitles") |
 
 Not on this page: the fonts themselves ([ui.md](ui.md) §3.2) and their glyph pages ([textures.md](textures.md));
@@ -269,7 +269,12 @@ Example: [`examples/text/movies/subtitles/DemoScene.toml`](examples/text/movies/
 ### 3.8 Lookup and fallback (normative)
 
 Let *L* be the active language, always one of role `player`. Which language the engine makes active is outside the
-format: today it is always `english` (`src/frontend/assets.rs:89`), and the original's rule is open (§10). A lookup
+format: today it is `english` unless the player chooses another (`game --language <name>`, or `language.txt` kept by
+the launcher; `qol::setup::choose_language`), and the original's rule is open (§10). The engine can show these
+`player` languages: `english`, `french`, `german`, `italian`, `spanish`, `dutch`, `swedish` and `danish`
+(`game_assets::language_support`; **inferred**: they share the one-byte character map of `english`, and no table other
+than English's was available to the implementation). `korean` (§3.3 rule 2), `japanese`, `chinese` and `thailand`
+(empty tables, §1) are listed as not supported; a chosen language whose file is missing is `english`. A lookup
 of hash *h*:
 
 1. If the merged table of *L* (the base set's *L* plus every pack's entries for *L*) has *h*, its entry: `text`,
@@ -383,7 +388,8 @@ the fallback covers them).
 
 - **The language entry point**: how the original chooses its language (installer setting, region, the language
   name table in the executable) and which language a fresh install shows; whether `Thailand.bin`, `Labels.bin`
-  and `Largest.bin` are ever loaded (no path names them). Until traced, the engine keeps English (§3.8).
+  and `Largest.bin` are ever loaded (no path names them). Until traced, the engine keeps English unless the
+  player chooses another language (§3.8).
 - The Korean character map (`word0` = 0x3D9): its layout and decoding. Its strings stay in byte form.
 - The Japanese, Chinese and Thai tables are empty in this edition: what the original shows with them.
 - Subtitles: the time unit and the stepping (0x576470) are not traced; this edition never starts them.

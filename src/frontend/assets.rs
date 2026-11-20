@@ -56,10 +56,10 @@ pub(crate) fn package_bytes(c: &Chunk) -> Option<Vec<u8>> {
     }
 }
 
-/// The files [`Assets::load`] reads, in its order: the front end, then the
-/// in-game screens (HUD, pause, post race), then the fonts and their
-/// textures. (Also the sources of the `ui2d` cache.)
-pub const ASSET_FILES: [&str; 12] = [
+/// The files every language shares, in [`asset_files`]' order: the front
+/// end, then the in-game screens (HUD, pause, post race), then the glyph
+/// textures of the fonts.
+const SHARED_ASSET_FILES: [&str; 11] = [
     "FRONTEND/FrontB.lzc",
     "GLOBAL/GlobalB.lzc",
     "GLOBAL/GLOBALA.BUN",
@@ -72,24 +72,39 @@ pub const ASSET_FILES: [&str; 12] = [
     "GLOBAL/InGamePerformanceTuning.bun",
     "GLOBAL/HUD_CustomTextures_ALL.bin",
     "LANGUAGES/LanguageTextures.bin",
-    crate::game_assets::TEXT_FILE,
 ];
+
+/// The files [`Assets::load_for`] reads for a text language, in its order:
+/// the shared ones, then the language's text file (strings and fonts).
+/// (Also the sources of the `ui2d` cache.)
+pub fn asset_files(language: &str) -> Vec<String> {
+    let mut v: Vec<String> = SHARED_ASSET_FILES.iter().map(|f| f.to_string()).collect();
+    v.push(crate::game_assets::text_file_of(language));
+    v
+}
 
 /// The TRACKMAP numbers kept as failed: the HUD's map and the world
 /// map's markers ask for several in one frame.
 const TRACK_MAPS_FAILED: usize = 16;
 
 impl Assets {
+    /// Loads the front end for the game's text language
+    /// ([`crate::game_assets::text_language`]).
     pub fn load(root: &Path) -> Result<Assets> {
+        Self::load_for(root, crate::game_assets::text_language())
+    }
+
+    /// Loads the front end with the text and fonts of `language`.
+    pub fn load_for(root: &Path, language: &str) -> Result<Assets> {
         let mut assets = Assets {
             in_game: Default::default(),
             packages: Default::default(),
             textures: Default::default(),
             fonts: HashMap::new(),
-            strings: Strings::parse(&crate::game_fs::read(root, crate::game_assets::TEXT_FILE)?)?,
+            strings: Strings::parse(&crate::game_fs::read(root, &crate::game_assets::text_file_of(language))?)?,
             track_map_failed: crate::failed_load::FailedLoads::new(TRACK_MAPS_FAILED),
         };
-        let files = ASSET_FILES;
+        let files = asset_files(language);
         // Each file read, unpacked and parsed on its own thread; merged in
         // the list's order (the first of a name wins).
         enum Item {

@@ -212,7 +212,19 @@ pub fn compute(root: &Path) -> Fingerprint {
 impl Fingerprint {
     /// The verdict over the data files (SPEED2.EXE left out).
     pub fn verdict(&self) -> Verdict {
-        let data = || self.files.iter().filter(|f| f.file != EXE);
+        self.verdict_skipping(None)
+    }
+
+    /// [`Fingerprint::verdict`] when the game does not need the file
+    /// `skip` (the English text file under another text language): that
+    /// file is left out of the verdict when it is missing. A present one
+    /// still counts.
+    pub fn verdict_skipping(&self, skip: Option<&str>) -> Verdict {
+        let data = || {
+            self.files.iter().filter(move |f| {
+                f.file != EXE && !(f.state == State::Missing && skip.is_some_and(|s| s.eq_ignore_ascii_case(f.file)))
+            })
+        };
         let first = data().find_map(|f| f.edition);
         if let Some(e) = first
             && data().all(|f| f.edition == Some(e))
@@ -432,6 +444,18 @@ mod tests {
         let protected = Fingerprint { exe_protected: true, ..known(other) };
         assert!(protected.exe_note().unwrap().contains("copy-protected retail executable"));
         assert!(!protected.report().contains("ERROR"), "{}", protected.report());
+        // Another text language: a missing English.bin is left out of the
+        // verdict when asked; a present one, or any other file, still counts.
+        let english = "LANGUAGES/English.bin";
+        let mut no_english = known(State::Missing);
+        no_english.files.iter_mut().find(|f| f.file == english).unwrap().state = State::Missing;
+        no_english.files.iter_mut().find(|f| f.file == english).unwrap().edition = None;
+        assert_eq!(no_english.verdict(), Verdict::Unknown(vec![english.to_string()]));
+        assert_eq!(no_english.verdict_skipping(Some(english)), Verdict::Known(EDITIONS[0].name));
+        no_english.files.iter_mut().find(|f| f.file == "GLOBAL/GlobalB.lzc").unwrap().edition = None;
+        let only_lzc = Verdict::Unknown(vec!["GLOBAL/GlobalB.lzc".to_string()]);
+        assert_eq!(no_english.verdict_skipping(Some(english)), only_lzc);
+        assert_eq!(known(State::Missing).verdict_skipping(Some(english)), Verdict::Known(EDITIONS[0].name));
     }
 
 

@@ -12,7 +12,7 @@ use super::font::{Cut, Face, Fonts};
 use super::layout::{Align, Builder, Ctrl, Link, build_fit};
 use super::model::{
     BrowseFor, Dialog, DialogAsk, DirEntry, Env, Graphics, Issue, Model, Picked, ProbeState, Problem, Verdict,
-    other_languages, path_parts, windows_form,
+    path_parts, windows_form,
 };
 use super::run::ErrorKind;
 use super::ui::{Event, Input, Key, Mark, Rect, Ui, UiState, apply_edit, handle};
@@ -1382,6 +1382,13 @@ fn build_advanced(b: &mut Builder, m: &Model) {
     b.page_title("Advanced", Some("Settings"));
     let cols = b.columns(700.0);
     b.in_column(cols.left);
+    let langs = m.supported_languages();
+    b.value_row("language", "Game language", &m.language_name(), &langs, false, m.root.is_some() && langs.len() > 1);
+    let no = m.unsupported_languages();
+    if !no.is_empty() {
+        let list: Vec<String> = no.iter().map(|(l, why)| format!("{l} ({why})")).collect();
+        b.dim(&format!("Not supported yet: {}.", list.join("; ")));
+    }
     b.value_row(
         "text_size",
         "Text size",
@@ -1422,8 +1429,7 @@ fn build_advanced(b: &mut Builder, m: &Model) {
     if let Some(r) = cols.right {
         let (gpu, _) = gpu_text(m);
         let pad = m.controller.clone().unwrap_or_else(|| "None (keyboard and mouse work)".into());
-        let others = other_languages(&m.languages);
-        let lang = if others.is_empty() { "English".to_string() } else { "English (other languages: not yet)".into() };
+        let lang = m.language_name();
         b.describe(r, "This computer", &format!("Graphics card: {gpu}\nController: {pad}\nGame language: {lang}"));
     }
     b.y = left_bottom.max(b.widgets.last().map_or(0.0, |w| w.rect.bottom()));
@@ -3540,6 +3546,15 @@ impl<'e> App<'e> {
                     m.choices.resolution = Self::step(&modes, &m.choices.resolution, *d);
                 }
             }
+            (Screen::Advanced, Event::Step("language", d)) => {
+                let m = &mut self.model;
+                let list = m.supported_languages();
+                let now = m.language_name();
+                let next = Self::step(&list, &now, *d);
+                // English is the default: nothing is kept for it.
+                m.choices.language =
+                    if next.eq_ignore_ascii_case(crate::game_assets::DEFAULT_LANGUAGE) { String::new() } else { next };
+            }
             (Screen::Settings, Event::Step("graphics", d)) => {
                 self.model.choices.graphics = Self::step(&GRAPHICS, &self.model.choices.graphics, *d)
             }
@@ -3862,6 +3877,15 @@ impl<'e> App<'e> {
         }
         if m.choices.texture_pack != m.saved.texture_pack {
             m.pack_status = self.env.set_pack(&m.choices.texture_pack);
+        }
+        if m.choices.language != m.saved.language {
+            match self.env.set_language(&m.choices.language) {
+                Ok(()) => m.saved.language = m.choices.language.clone(),
+                Err(e) => {
+                    m.message = Some((Mark::Error, format!("The game language could not be kept: {e}")));
+                    m.choices.language = m.saved.language.clone();
+                }
+            }
         }
         let mut rest = m.choices.clone();
         rest.texture_pack = m.saved.texture_pack.clone();

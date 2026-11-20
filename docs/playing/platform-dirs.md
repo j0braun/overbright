@@ -134,7 +134,7 @@ touches settings, kept paths rewritten both ways), `launcher::tests::portable_of
 
 | What | Where (default) | Portable | Code |
 |---|---|---|---|
-| options.txt, game-root.txt, texture-pack-root.txt, texture-mods.txt | `<app>` | `data/` | `dirs::config`, `qol::setup`, `texture_mods::list_file` |
+| options.txt, game-root.txt, texture-pack-root.txt, language.txt, texture-mods.txt | `<app>` | `data/` | `dirs::config`, `qol::setup`, `texture_mods::list_file` |
 | profiles, backups (the game's Save Backups files and the launcher's `launcher-<stamp>` snapshot folders) | `<data home>/NFS Underground 2[ Backups]` | `data/NFS Underground 2[ Backups]` | `frontend::profiles::root`, `dirs::data_home`, `launcher::saves::store::Paths::player` |
 | asset cache, pipeline cache (`wgpu_pipeline_cache_*`), surface maps, the post self-check's verdict | `dirs::cache` | `data/cache/` (`data/cache-dev/` for developer builds) | `cache::dir`, `render::core::pipeline_cache` |
 | logs (game and launcher), crash reports, marks, perf CSVs, screenshots | `<app>/logs`, `crashes`, `marks`, `perf`, `Screenshots` | under `data/` | `dirs::logs` … `dirs::screenshots` |

@@ -154,7 +154,7 @@ impl Issue {
                 format!(
                     "The game reads its menus and text from {}, and this copy doesn't have it{}. The game can't \
                      start without it. Choose a copy that has this file.",
-                    super::check::TEXT_FILE,
+                    crate::game_assets::text_file_of(crate::game_assets::DEFAULT_LANGUAGE),
                     match others.len() {
                         0 => String::new(),
                         1 => format!(" (its text is in {})", others[0]),
@@ -402,6 +402,9 @@ pub struct Choices {
     pub texture_pack: String,
     /// Use the HUD mod: the game's HD UI + Maps setting (`enh.hd_ui`).
     pub hud_mod: bool,
+    /// The game's text language (`language.txt`; "" = none kept: English,
+    /// or the copy's own language when it has no English).
+    pub language: String,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -1131,6 +1134,8 @@ pub trait Env {
     /// Keeps the texture-pack folder and says what is in it.
     fn set_pack(&self, dir: &str) -> PackStatus;
     fn languages(&self, root: &Path) -> Vec<String>;
+    /// Keeps the text language the game starts in ("" forgets it).
+    fn set_language(&self, name: &str) -> Result<(), String>;
     /// The folders in `dir` (empty: the drives), named, sorted, with a
     /// note for game and save folders.
     fn list_dirs(&self, dir: &Path) -> Result<Vec<DirEntry>, String>;
@@ -1719,9 +1724,41 @@ fn on_path(program: &str) -> bool {
     std::env::var_os("PATH").is_some_and(|p| std::env::split_paths(&p).any(|d| d.join(program).is_file()))
 }
 
-/// The languages other than English, for the "not supported yet" note.
-pub fn other_languages(all: &[String]) -> Vec<String> {
-    all.iter().filter(|l| !l.eq_ignore_ascii_case("english")).cloned().collect()
+impl Model {
+    /// The installed languages the engine can show
+    /// ([`crate::game_assets::language_support`]); English alone when no
+    /// language file is known (no game folder yet).
+    pub fn supported_languages(&self) -> Vec<String> {
+        use crate::game_assets::{Support, language_support};
+        let v: Vec<String> = self.languages.iter().filter(|l| language_support(l) == Support::Yes).cloned().collect();
+        if v.is_empty() { vec![crate::game_assets::DEFAULT_LANGUAGE.to_string()] } else { v }
+    }
+
+    /// The installed languages the engine cannot show, with the reason.
+    pub fn unsupported_languages(&self) -> Vec<(String, &'static str)> {
+        use crate::game_assets::{Support, language_support};
+        self.languages
+            .iter()
+            .filter_map(|l| match language_support(l) {
+                Support::No(why) => Some((l.clone(), why)),
+                Support::Yes => None,
+            })
+            .collect()
+    }
+
+    /// The language the game will start in: the chosen one, else English,
+    /// else (a copy without English) its first supported language.
+    pub fn language_name(&self) -> String {
+        if !self.choices.language.is_empty() {
+            return self.choices.language.clone();
+        }
+        let sup = self.supported_languages();
+        if sup.iter().any(|l| l.eq_ignore_ascii_case(crate::game_assets::DEFAULT_LANGUAGE)) {
+            crate::game_assets::DEFAULT_LANGUAGE.to_string()
+        } else {
+            sup[0].clone()
+        }
+    }
 }
 
 /// The real machine.
@@ -1862,6 +1899,10 @@ impl Env for RealEnv {
 
     fn languages(&self, root: &Path) -> Vec<String> {
         setup::installed_languages(root)
+    }
+
+    fn set_language(&self, name: &str) -> Result<(), String> {
+        setup::save_language((!name.is_empty()).then_some(name)).map_err(|e| e.to_string())
     }
 
     fn list_dirs(&self, dir: &Path) -> Result<Vec<DirEntry>, String> {
@@ -2159,7 +2200,7 @@ pub fn check_result(root: &Path, c: &setup::Check, fp: Option<&crate::fingerprin
     // not.
     let usable = c.ok() && !lines.iter().any(|(m, _)| *m == Mark::Error);
     let only_text =
-        c.missing.len() == 1 && c.missing[0].eq_ignore_ascii_case(super::check::TEXT_FILE) && setup::looks_like_game(root);
+        c.missing.len() == 1 && c.missing[0].eq_ignore_ascii_case(&c.text_file()) && setup::looks_like_game(root);
     let problem = match c.missing.len() {
         _ if usable => None,
         _ if only_text => Some(Problem::NoText),
@@ -2202,6 +2243,7 @@ pub fn choices_of(s: &Settings) -> Choices {
         skip_title: s.enh.skips_title(),
         texture_pack: crate::qol::setup::saved_texture_pack().map(|p| p.display().to_string()).unwrap_or_default(),
         hud_mod: s.enh.hd_ui,
+        language: crate::qol::setup::saved_language().unwrap_or_default(),
     }
 }
 
@@ -2297,15 +2339,16 @@ pub fn fake_assets(root: &Path, missing: &[&str]) -> crate::game_assets::Report 
             Item { group: Group::of_movie(n), label: stem.to_string(), resolved: Resolved { want: n.to_string(), file, how, tried } }
         })
         .collect();
-    items.extend(crate::frontend::assets::ASSET_FILES.iter().map(|f| Item {
+    items.extend(crate::frontend::assets::asset_files(crate::game_assets::DEFAULT_LANGUAGE).into_iter().map(|f| Item {
         group: Group::Text,
-        label: f.to_string(),
-        resolved: Resolved { want: f.to_string(), file: Some(root.join(f)), how: How::Built, tried: vec![f.to_string()] },
+        resolved: Resolved { want: f.clone(), file: Some(root.join(&f)), how: How::Built, tried: vec![f.clone()] },
+        label: f,
     }));
     items.sort_by_key(|i| i.group);
     let edition = Edition {
         layout: Layout::Plain { tag: true },
         languages: vec!["English".into()],
+        text_language: "English".into(),
         exe_suffix: None,
     };
     Report { edition, items }
@@ -2331,6 +2374,7 @@ impl Env for FakeEnv {
             skip_title: false,
             texture_pack: String::new(),
             hud_mod: false,
+            language: String::new(),
         };
         Model {
             ask: None,
@@ -2434,6 +2478,7 @@ impl Env for FakeEnv {
             missing: Vec::new(),
             different: vec!["GLOBAL/GlobalB.lzc".into(), "FRONTEND/FrontB.lzc".into()],
             assets: Some(fake_assets(root, &[])),
+            ..Default::default()
         };
         let mut r = check_result(root, &c, None);
         r.lines.insert(
@@ -2467,6 +2512,10 @@ impl Env for FakeEnv {
 
     fn languages(&self, _root: &Path) -> Vec<String> {
         ["English", "French", "German"].map(String::from).to_vec()
+    }
+
+    fn set_language(&self, _name: &str) -> Result<(), String> {
+        Ok(())
     }
 
     fn list_dirs(&self, dir: &Path) -> Result<Vec<DirEntry>, String> {

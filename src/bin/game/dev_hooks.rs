@@ -12,7 +12,7 @@ pub(crate) use crate::dev::hooks::{
 pub(crate) use stubs::*;
 
 /// The game's own command line (`unknown_flag`'s message).
-pub(crate) const USAGE: &str = "usage: game [--no-boot] [--editor] | (--map-mod <folder> | --map-file <path>) (--map-race <id> | --map-at x,y,z,heading) [--map-result <file>] [--simulate | --simulate-world] [--stream <file>|-] [--sim-seed N] [--sim-seconds S] | --check-game [game folder] | --set-root <game folder> | --verify-cache [track ...] | --prepare | --crash-test | --support-file [folder] | --version | --help";
+pub(crate) const USAGE: &str = "usage: game [--no-boot] [--editor] [--language <name>] | (--map-mod <folder> | --map-file <path>) (--map-race <id> | --map-at x,y,z,heading) [--map-result <file>] [--simulate | --simulate-world] [--stream <file>|-] [--sim-seed N] [--sim-seconds S] | --check-game [game folder] | --set-root <game folder> | --verify-cache [track ...] | --prepare | --crash-test | --support-file [folder] | --version | --help";
 
 #[cfg(not(feature = "dev-harness"))]
 mod stubs {
@@ -61,7 +61,8 @@ mod stubs {
     pub(crate) fn frame_trace(_game: &Game, _poses: &crate::render::snapshot::FramePoses) {}
 
     /// The game's own flags: --no-boot, --editor, --check-game, --set-root,
-    /// --verify-cache, --crash-test; any other flag is unknown.
+    /// --verify-cache, --crash-test; any other flag is unknown (`--language`
+    /// and its value are taken out first, `cli::MapTest::strip`).
     pub(crate) fn unknown_flag(args: &[String]) -> Option<&str> {
         const KNOWN: [&str; 7] =
             ["--no-boot", "--editor", "--check-game", "--set-root", "--verify-cache", "--crash-test", "--prepare"];
