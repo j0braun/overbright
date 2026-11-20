@@ -21,6 +21,13 @@ the address map, [formats.md](../formats.md), split into [chapters](../formats/)
 | [Audio levels](audio-levels.md) | The option volumes, the master volume law and the level balance. |
 | [Menu music](menu-music.md) | Which EA Trax song plays when. |
 
+## Coverage maps
+
+[coverage/](coverage/README.md): for a subsystem, every function of the original that decides what the
+player sees, and whether Overbright has it ported, simplified, guessed or missing:
+[traffic AI](coverage/traffic-ai.md) and [racer AI](coverage/racer-ai.md), each with a ranked list of
+the gaps.
+
 ## Tracing rounds
 
 [tracing/](tracing/README.md): what an editor or a mod needs from the original, topic by topic.
