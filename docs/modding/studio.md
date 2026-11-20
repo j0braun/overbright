@@ -61,6 +61,29 @@ its changes, whether it is in your game, how it is saved and whether this window
 that has the mod open keeps it; Studio then only looks). Beside them: your mods and something new to start. All of
 it is read from the mod's history, as the program that writes it has it.
 
+## Changes
+
+Ctrl+D (or `ob://<mod id>/@changes`) opens the Changes page over World; Esc goes back to where it was opened. It
+lists every value the open mod gives, grouped by item, each with where the value in your game comes from, drawn
+as a mark: a ring for the original game's, a lime dot for yours, a pink diamond for another enabled mod's that is
+above yours in your game (the mods apply in their enabled order; a mod that is off is shown as if turned on, on
+top). Beside each value is the original. A value another mod beats also shows yours and why it is not used.
+
+- **This mod** (`@changes`): your game without the mod → with it. *Show* keeps everything you change, only what
+  loses, or every value of the items you change.
+- **History step** (`@changes?step=<n>`): what one step of the mod's history changed, before → after.
+- **Compare versions** (`@changes?version=<name>`): a kept version → now.
+- **Clashes** (`@changes?mode=clashes`): the values another mod gives too, as the stack in your game's order with
+  the winner last.
+
+A mode is only shown when it has something to show. *Reset* gives one value back: a moved prop's position goes
+back to its original place; a heading (whose original is in the game's files), a hidden prop, an added prop or a
+race takes the edit out. ↑ ↓ (the D-pad) move between rows; Shift+↓ or Enter (A) picks several, and Reset in the
+row's menu (Shift+F10, X) takes them back in one step. Every Reset is a step of the mod's history: Ctrl+Z takes it
+back. *Show in World* and *Show in Races* go to the item's address. The rows are the asset format's layering
+answer (`ob_studio::changes`): each prop edit is a placement item, each race a race item, merged through the
+enabled mods with the pack of every field.
+
 ## Keyboard and pad
 
 Studio has seven areas, always in this order: rail, address bar, toolbar, left panel, view, right dock, bottom
@@ -84,6 +107,7 @@ letters are the tools' keys and typing here (the launcher keeps Q E, Space and R
 | View · Create · View | Alt+← (Alt+→ forward) | Last place |
 | Sticks | Right mouse button + WASD | Move and look in the 3D view |
 | Deck L4 R4 | Ctrl+Z, Ctrl+Y | Undo, redo |
+| – | Ctrl+D | Changes |
 
 Every button is one press; a chord is never the only way. Help ▸ Controls lists the same table, made from the key
 table in `crates/ob-studio-gui/src/studio/nav.rs`.

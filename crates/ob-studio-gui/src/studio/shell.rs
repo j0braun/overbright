@@ -12,6 +12,7 @@ use crate::editor::menu;
 use crate::editor::theme::{self, LABEL, SEMI, TITLE, font, rgb, tokens};
 
 use super::address::{Address, CRUMB, Places, STUDIO, Target};
+use super::changes::{self, Ask};
 use super::draw::{self, Source};
 use super::home::{self, ModSummary, Saved};
 use super::layout::{self, Dock, Layout, Memory, Want};
@@ -74,6 +75,8 @@ pub struct Studio {
     /// egui's texture changes not yet painted (as the editor keeps them): a frame that is not painted (a test
     /// without a GPU) loses none, and none is dropped unapplied.
     pub(crate) textures: crate::editor::app::PendingTextures,
+    /// The Changes page.
+    pub changes: changes::Page,
 }
 
 impl Studio {
@@ -86,7 +89,7 @@ impl Studio {
         let memories = open.map(|i| Memories::load(&mods[i].dir)).unwrap_or_default();
         let mut s = Studio {
             ctx,
-            maps,
+            maps: maps.clone(),
             mods,
             open,
             nav: Nav::new(Workspace::Home),
@@ -103,6 +106,7 @@ impl Studio {
             quit: false,
             editor: None,
             textures: Default::default(),
+            changes: changes::Page::new(maps.clone()),
         };
         let here = s.address();
         s.places.go(here);
@@ -125,7 +129,11 @@ impl Studio {
         }
         let pack =
             if self.nav.workspace == Workspace::Home || self.open.is_none() { STUDIO.to_string() } else { self.pack() };
-        Address::view(&pack, self.nav.workspace.view())
+        let mut a = Address::view(&pack, self.nav.workspace.view());
+        if self.nav.workspace == Workspace::Changes {
+            a.target = Target::View { view: "changes".into(), query: self.changes.mode.query() };
+        }
+        a
     }
 
     /// Where the window is, as names ("Harbour edits › World").
@@ -138,6 +146,9 @@ impl Studio {
         }
         v.push(self.nav.workspace.name().to_string());
         v.extend(self.editor_crumbs());
+        if self.nav.workspace == Workspace::Changes {
+            v.push(self.changes.mode.name().to_string());
+        }
         v
     }
 
@@ -153,9 +164,16 @@ impl Studio {
             }
         }
         match &a.target {
-            Target::View { view, .. } => {
+            Target::View { view, query } => {
                 let w = Workspace::from_view(&format!("@{view}"))
                     .ok_or_else(|| format!("Studio has no screen @{view} yet"))?;
+                if w == Workspace::Changes {
+                    if self.open.is_none() || a.pack == STUDIO {
+                        return Err("Changes shows a mod: open one first".into());
+                    }
+                    let m = changes::Mode::from_query(query).ok_or_else(|| format!("Changes has no view {a}"))?;
+                    self.changes.mode = m;
+                }
                 self.workspace(w);
                 Ok(())
             }
@@ -175,9 +193,19 @@ impl Studio {
     fn switch_mod(&mut self, i: usize) {
         self.open = Some(i);
         self.memories = Memories::load(&self.mods[i].dir);
+        if self.nav.workspace == Workspace::Changes {
+            self.changes.ensure(Some(&self.mods[i].folder.clone()));
+        }
     }
 
     fn workspace(&mut self, w: Workspace) {
+        if w == Workspace::Changes {
+            // Read again on every visit: World may have changed the mod since.
+            match self.open_mod().map(|m| m.folder.clone()) {
+                Some(f) => self.changes.load(&f),
+                None => self.changes.ensure(None),
+            }
+        }
         if self.nav.workspace != w {
             self.nav.workspace = w;
             self.nav.area = Area::View;
@@ -256,9 +284,14 @@ impl Studio {
 
     /// Follow `a` without making a new place (back and forward).
     fn go_quiet(&mut self, a: &Address) -> Result<(), String> {
-        if let Target::View { view, .. } = &a.target
+        if let Target::View { view, query } = &a.target
             && let Some(w) = Workspace::from_view(&format!("@{view}"))
         {
+            if w == Workspace::Changes
+                && let Some(m) = changes::Mode::from_query(query)
+            {
+                self.changes.set_mode(m);
+            }
             self.nav.workspace = w;
             self.nav.area = Area::View;
             self.nav.level = Level::Area;
@@ -269,7 +302,30 @@ impl Studio {
 
     /// A pad button.
     pub fn pad(&mut self, b: Pad, kind: InputKind) {
+        if self.on_changes_rows() {
+            let done = match b {
+                Pad::Up => Some(self.changes.step_focus(-1, false)),
+                Pad::Down => Some(self.changes.step_focus(1, false)),
+                Pad::A => Some(self.changes.toggle_pick()),
+                _ => None,
+            };
+            if done.is_some() {
+                self.nav.input = kind;
+                self.nav.level = Level::Row;
+                return;
+            }
+        }
         self.command(nav::pad_command(b), Some(kind));
+    }
+
+    /// The Changes page's rows have the keys (↑ ↓, Enter / A): its view has focus and nothing is typed or open.
+    fn on_changes_rows(&self) -> bool {
+        self.nav.workspace == Workspace::Changes
+            && self.nav.area == Area::View
+            && self.nav.level != Level::Menu
+            && !self.nav.find_open
+            && !self.nav.address_text
+            && self.verdict.is_none()
     }
 
     /// The keys of this frame's input that are the shell's: taken out of the input, run.
@@ -280,7 +336,18 @@ impl Studio {
         // and while its view, tree or docks have focus the keys that act inside an area.
         let editing = self.editing() && !typing;
         let inside = editing && matches!(self.nav.area, Area::View | Area::Left | Area::Bottom);
+        let rows = self.on_changes_rows();
+        let mut row_keys = vec![];
         raw.events.retain(|e| match e {
+            egui::Event::Key { key, pressed: true, modifiers, .. }
+                if rows
+                    && !modifiers.command
+                    && !modifiers.alt
+                    && matches!(key, egui::Key::ArrowUp | egui::Key::ArrowDown | egui::Key::Enter) =>
+            {
+                row_keys.push((*key, modifiers.shift));
+                false
+            }
             egui::Event::Key { key, pressed: true, modifiers, .. } => {
                 let k = nav::Key { key: *key, ctrl: modifiers.command, shift: modifiers.shift, alt: modifiers.alt };
                 match nav::key_command(k) {
@@ -309,7 +376,20 @@ impl Studio {
             }
             _ => true,
         });
+        for (key, shift) in row_keys {
+            self.nav.input = InputKind::Keyboard;
+            self.nav.level = Level::Row;
+            match key {
+                egui::Key::ArrowUp => self.changes.step_focus(-1, shift),
+                egui::Key::ArrowDown => self.changes.step_focus(1, shift),
+                _ => self.changes.toggle_pick(),
+            }
+        }
         for c in cmds {
+            if matches!(c, Command::Undo | Command::Redo) && self.nav.workspace == Workspace::Changes {
+                self.changes.undo(c == Command::Redo);
+                continue;
+            }
             if c == Command::Select && self.nav.address_text {
                 self.nav.input = InputKind::Keyboard;
                 self.nav.address_text = false;
@@ -701,7 +781,7 @@ impl Studio {
         }
         let focused = self.nav.area == Area::Rail && self.nav.legend();
         for (w, slot) in slots {
-            let current = w == self.nav.workspace;
+            let current = w == self.nav.workspace.on_rail();
             let resp = ui.interact(slot, egui::Id::unique(("rail", w.name())), egui::Sense::click());
             if current {
                 p.rect_filled(slot, 6.0, theme::over(t.slab, t.page));
@@ -755,6 +835,23 @@ impl Studio {
         let inner = slab.shrink2(vec2(36.0, 28.0));
         match self.nav.workspace {
             Workspace::Home => self.home(ui, inner),
+            Workspace::Changes => {
+                let inner = slab.shrink2(vec2(20.0, 14.0));
+                let focused = self.nav.area == Area::View && self.nav.legend();
+                let (ask, _) = self.changes.draw(ui, inner, focused, self.time());
+                match ask {
+                    Some(Ask::Go(a)) if a == "back" => self.command(Command::LastPlace, None),
+                    Some(Ask::Go(a)) => match Address::parse(&a) {
+                        Ok(a) => self.verdict = self.go(&a).err(),
+                        Err(e) => self.verdict = Some(e.to_string()),
+                    },
+                    Some(Ask::Moved) => {
+                        let here = self.address();
+                        self.places.go(here);
+                    }
+                    None => {}
+                }
+            }
             w => {
                 p.text(inner.left_top(), Align2::LEFT_TOP, w.name(), font(TITLE, 34.0), rgb(t.lime));
                 let line = match w {
@@ -1356,6 +1453,7 @@ impl Studio {
             Area::Toolbar | Area::View => l.view.left_top() + vec2(40.0, 40.0),
         };
         let mut pick = None;
+        let mut pick_changes = None;
         egui::Area::new(egui::Id::unique("focus-menu")).fixed_pos(at).order(egui::Order::Foreground).show(
             ui.ctx(),
             |ui| {
@@ -1365,6 +1463,16 @@ impl Studio {
                     let _ = ui.add_enabled(false, egui::Button::new(ob_look::words::REDO).shortcut_text("Ctrl+Y"));
                     ui.separator();
                     let _ = ui.add_enabled(false, egui::Button::new(words::TEST_HERE).shortcut_text("Shift+F5"));
+                    if self.nav.workspace == Workspace::Changes && self.nav.area == Area::View {
+                        ui.separator();
+                        let can = !self.changes.reset_picks().is_empty();
+                        if ui.add_enabled(can, egui::Button::new(words::RESET_TO_ORIGINAL)).clicked() {
+                            pick_changes = Some(true);
+                        }
+                        if ui.add(egui::Button::new(words::SHOW_IN_WORLD)).clicked() {
+                            pick_changes = Some(false);
+                        }
+                    }
                     if ui.add(egui::Button::new(words::COPY_ADDRESS).shortcut_text("Ctrl+Shift+C")).clicked() {
                         pick = Some(Command::CopyAddress);
                     }
@@ -1375,6 +1483,19 @@ impl Studio {
         if let Some(c) = pick {
             self.command(c, None);
             self.nav.level = Level::Row;
+        }
+        match pick_changes {
+            Some(true) => {
+                self.changes.reset();
+                self.nav.level = Level::Row;
+            }
+            Some(false) => {
+                self.nav.level = Level::Row;
+                if let Some(a) = self.changes.focused_address().and_then(|a| Address::parse(&a).ok()) {
+                    self.verdict = self.go(&a).err();
+                }
+            }
+            None => {}
         }
     }
 

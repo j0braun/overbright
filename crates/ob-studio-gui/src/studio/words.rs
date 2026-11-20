@@ -12,6 +12,9 @@ pub const OPEN_A_MOD: &str = "Open a mod";
 pub const READY_TITLE: &str = "Your new mod is ready";
 pub const READY_LINE: &str =
     "Nothing changed yet. Move or add things in World, or make a race. Studio saves your work automatically.";
+/// The Changes page's focus menu.
+pub const RESET_TO_ORIGINAL: &str = "Reset to original";
+pub const SHOW_IN_WORLD: &str = "Show in World";
 pub const CHANGED_LINE: &str = "Studio saves your work automatically. Changes lists what differs from the original.";
 pub const READ_ONLY_TITLE: &str = "Open to look at";
 pub const GO_TO_WORLD: &str = "Go to World";

@@ -5,7 +5,7 @@
 //! ```text
 //! overbright-studio [--mod <folder>] [--maps <dir>]      the window, with that mod open
 //! overbright-studio --shot out.png [--size WxH] [--scale F] [--mod <folder>] [--maps <dir>]
-//!                   [--workspace home|world|races|mod|settings] [--input mouse|keyboard|xbox|playstation|deck]
+//!                   [--workspace home|world|races|mod|settings|changes] [--input mouse|keyboard|xbox|playstation|deck]
 //!                   [--focus rail|address|toolbar|left|view|right|bottom] [--drawer] [--find] [--address]
 //!                   [--select N]
 //!                                   the whole window drawn off-screen into a PNG (no window)
@@ -31,7 +31,7 @@ use winit::event::WindowEvent;
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
 use winit::window::{Window, WindowId};
 
-const USAGE: &str = "usage: overbright-studio [--mod <folder>] [--maps <dir>]\n       overbright-studio --shot out.png [--size WxH] [--scale F] [--mod <folder>] [--maps <dir>] [--workspace home|world|races|mod|settings] [--input mouse|keyboard|xbox|playstation|deck] [--focus rail|address|toolbar|left|view|right|bottom] [--drawer] [--find] [--address] [--select N]";
+const USAGE: &str = "usage: overbright-studio [--mod <folder>] [--maps <dir>]\n       overbright-studio --shot out.png [--size WxH] [--scale F] [--mod <folder>] [--maps <dir>] [--workspace home|world|races|mod|settings|changes] [--input mouse|keyboard|xbox|playstation|deck] [--focus rail|address|toolbar|left|view|right|bottom] [--drawer] [--find] [--address] [--select N]";
 
 #[derive(Default)]
 struct Cli {
@@ -70,6 +70,7 @@ fn parse(args: impl Iterator<Item = String>) -> Result<Cli> {
                 c.workspace = Some(
                     Workspace::ALL
                         .into_iter()
+                        .chain(Workspace::PAGES)
                         .find(|w| w.name().eq_ignore_ascii_case(&v))
                         .with_context(|| format!("--workspace {v}?"))?,
                 );
@@ -156,6 +157,10 @@ fn run_shot(cli: &Cli) -> Result<()> {
     let mut s = new_studio(cli);
     if let Some(w) = cli.workspace {
         s.nav.workspace = w;
+        if w == Workspace::Changes {
+            let folder = s.open_mod().map(|m| m.folder.clone());
+            s.changes.ensure(folder.as_deref());
+        }
     }
     if let Some(i) = cli.input {
         s.nav.input = i;
