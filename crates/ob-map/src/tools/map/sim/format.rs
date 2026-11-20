@@ -3,7 +3,7 @@
 //! text (UTF-8, `\n`), so a stream can be read in a terminal and diffed:
 //!
 //! ```text
-//! OBSIM 1 mode=race seed=7 race=dock_sprint track=4014 laps=1 checkpoints=5
+//! OBSIM 1 schema=ob.run/1.0 mode=race seed=7 race=dock_sprint track=4014 laps=1 checkpoints=5
 //! C 0 P Player car name             a car's first appearance: id, kind, name
 //! L 0 PEUGOT206 0.0000 3f:1a2b3c4d,… a car's look: id, model, front camber,
 //!                                   the fitted visual parts (slot:hash, hex)
@@ -12,6 +12,8 @@
 //!                                   id kind x y z qx qy qz qw speed lap checkpoint place
 //!                                   [steer0 steer1 roll0..3 lift0..3 lights]
 //! E 640 8.217 checkpoint 2 3 0.000  an event: tick time kind car checkpoint value
+//! H 659 5c1c3ad4e8f20b17            the state hash: last tick, hash (every 60 ticks
+//!                                   and after the last tick)
 //! R 0 1 83.410 41.200 42.210,41.200 a result: car place time best laps
 //! END finish                        the end and why
 //! ```
@@ -28,6 +30,11 @@
 //! they do not know and the fields after the ones they know, so a newer
 //! game's stream still reads; the version in the first line changes only
 //! when a known record or field changes meaning.
+//!
+//! This is the asset format's run file, `ob.run` (docs/modding/asset-format/
+//! runs.md): its table of records (`ob_asset_format::kinds::run::RUN`) gives
+//! the file check and the schema, and this module's tests keep the writer
+//! and the reader on it.
 
 use std::fmt::Write as _;
 
@@ -35,6 +42,10 @@ use glam::{Quat, Vec3};
 
 /// The stream's version (the header's second word).
 pub const VERSION: u32 = 1;
+/// The asset format's schema id of what this writer writes (the header's
+/// `schema=`; `ob.run/1.<minor>`, the minor growing with each record or
+/// field added).
+pub const SCHEMA: &str = "ob.run/1.0";
 
 /// What runs.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
@@ -51,6 +62,8 @@ pub enum SimMode {
 #[derive(Clone, Debug, PartialEq, Default)]
 pub struct Header {
     pub version: u32,
+    /// `ob.run/1.<minor>`; empty in a stream from before the kind (1.0).
+    pub schema: String,
     pub mode: SimMode,
     pub seed: u64,
     /// The custom race's id (empty in world mode).
@@ -290,6 +303,45 @@ pub struct ResultRow {
     pub laps: Vec<f32>,
 }
 
+/// The state hash ([`Line::Hash`]): FNV-1a 64 over every tick so far, per
+/// car its id and the exact bits of its position, rotation, velocity and
+/// spin, in the tick's car order. The same seed gives the same hashes; a
+/// replay or a second run that parts shows it at the first hash that
+/// differs.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct StateHash(pub u64);
+
+impl Default for StateHash {
+    fn default() -> StateHash {
+        StateHash(0xcbf2_9ce4_8422_2325)
+    }
+}
+
+impl StateHash {
+    /// How often the run file carries the hash (and after the last tick).
+    pub const EVERY: u64 = 60;
+
+    fn bytes(&mut self, b: &[u8]) {
+        for &x in b {
+            self.0 = (self.0 ^ u64::from(x)).wrapping_mul(0x0000_0100_0000_01b3);
+        }
+    }
+
+    /// One car's state at the tick.
+    pub fn car(&mut self, id: u32, position: Vec3, rotation: Quat, velocity: Vec3, spin: Vec3) {
+        self.bytes(&id.to_le_bytes());
+        let v = position.to_array().into_iter().chain(rotation.to_array()).chain(velocity.to_array()).chain(spin.to_array());
+        for f in v {
+            self.bytes(&f.to_bits().to_le_bytes());
+        }
+    }
+
+    /// The end of a tick (so cars cannot move between ticks unseen).
+    pub fn tick(&mut self, tick: u64) {
+        self.bytes(&tick.to_le_bytes());
+    }
+}
+
 /// One record.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Line {
@@ -299,6 +351,8 @@ pub enum Line {
     Frame(Frame),
     Event(Event),
     Result(ResultRow),
+    /// The state hash after a tick.
+    Hash { tick: u64, hash: StateHash },
     /// The end: `finish`, `quit`, `limit` or `error <why>`.
     End(String),
 }
@@ -327,10 +381,14 @@ impl Line {
                     SimMode::World => "world",
                 };
                 let race = if h.race.is_empty() { "-" } else { h.race.as_str() };
+                let _ = write!(o, "OBSIM {}", h.version);
+                if !h.schema.is_empty() {
+                    let _ = write!(o, " schema={}", h.schema);
+                }
                 let _ = write!(
                     o,
-                    "OBSIM {} mode={mode} seed={} race={race} track={} laps={} checkpoints={}",
-                    h.version, h.seed, h.track, h.laps, h.checkpoints
+                    " mode={mode} seed={} race={race} track={} laps={} checkpoints={}",
+                    h.seed, h.track, h.laps, h.checkpoints
                 );
             }
             Line::Car(c) => {
@@ -388,6 +446,9 @@ impl Line {
                 let laps = if laps.is_empty() { "-".to_string() } else { laps.join(",") };
                 let _ = write!(o, "R {} {} {} {} {laps}", r.car, r.place, opt(r.time), opt(r.best));
             }
+            Line::Hash { tick, hash } => {
+                let _ = write!(o, "H {tick} {:016x}", hash.0);
+            }
             Line::End(why) => {
                 let _ = write!(o, "END {}", clean(why));
             }
@@ -415,6 +476,7 @@ impl Line {
                 let mut h = Header { version, ..Default::default() };
                 for (k, v) in w.filter_map(|kv| kv.split_once('=')) {
                     match k {
+                        "schema" => h.schema = v.to_string(),
                         "mode" => h.mode = if v == "world" { SimMode::World } else { SimMode::Race },
                         "seed" => h.seed = v.parse().map_err(|_| format!("OBSIM: bad seed `{v}`"))?,
                         "race" => h.race = if v == "-" { String::new() } else { v.to_string() },
@@ -515,6 +577,13 @@ impl Line {
                 };
                 Line::Result(ResultRow { car, place, time, best, laps })
             }
+            "H" => {
+                let mut w = rest.split_whitespace();
+                let tick = int(w.next(), "tick")? as u64;
+                let h = w.next().ok_or("H: no hash")?;
+                let hash = u64::from_str_radix(h, 16).map_err(|_| format!("H: bad hash `{h}`"))?;
+                Line::Hash { tick, hash: StateHash(hash) }
+            }
             "END" => Line::End(rest.trim().to_string()),
             _ => return Ok(None),
         }))
@@ -564,6 +633,7 @@ mod tests {
         vec![
             Line::Header(Header {
                 version: VERSION,
+                schema: SCHEMA.into(),
                 mode: SimMode::Race,
                 seed: 7,
                 race: "dock_sprint".into(),
@@ -591,8 +661,51 @@ mod tests {
             Line::Event(Event { tick: 640, time: 8.25, kind: EventKind::Stuck, car: 2, checkpoint: 3, value: 4.0 }),
             Line::Result(ResultRow { car: 0, place: 1, time: Some(83.41), best: Some(41.2), laps: vec![42.21, 41.2] }),
             Line::Result(ResultRow { car: 3, place: 0, time: None, best: None, laps: Vec::new() }),
+            Line::Hash { tick: 659, hash: StateHash(0x5c1c_3ad4_e8f2_0b17) },
+            Line::Hash { tick: 0, hash: StateHash(7) },
             Line::End("finish".into()),
         ]
+    }
+
+    #[test]
+    fn every_record_is_the_asset_formats_run_record() {
+        use ob_asset_format::kinds::run;
+        for l in all() {
+            let text = l.write();
+            let (rec, t) = run::read_line(&text).unwrap_or_else(|| panic!("not a record of ob.run: {text}"));
+            run::check_line(rec, &t, Some(run::MINOR)).unwrap_or_else(|e| panic!("{text}: {e}"));
+        }
+        assert_eq!(SCHEMA, run::SCHEMA);
+        assert_eq!(VERSION, run::MAJOR);
+        // The format's example reads and writes back byte for byte, and
+        // shows every record this reader knows.
+        let path = concat!(env!("CARGO_MANIFEST_DIR"), "/../../docs/modding/asset-format/examples/runs/race.obrun");
+        let example = std::fs::read_to_string(path).unwrap();
+        run::check_run(&example).unwrap();
+        let mut tags = std::collections::BTreeSet::new();
+        for line in example.lines() {
+            let l = Line::parse(line).unwrap().unwrap_or_else(|| panic!("unknown here: {line}"));
+            assert_eq!(l.write(), line);
+            tags.insert(line.split(' ').next().unwrap());
+        }
+        let known: std::collections::BTreeSet<&str> = run::RUN.iter().map(|r| r.tag).collect();
+        assert_eq!(tags, known);
+    }
+
+    #[test]
+    fn the_state_hash_sees_every_bit() {
+        let at = |x: f32| {
+            let mut h = StateHash::default();
+            h.car(1, Vec3::new(x, 2.0, 3.0), Quat::IDENTITY, Vec3::ZERO, Vec3::ZERO);
+            h.tick(0);
+            h
+        };
+        assert_eq!(at(1.0), at(1.0));
+        assert_ne!(at(1.0), at(f32::from_bits(1.0f32.to_bits() + 1)));
+        // FNV-1a 64 of nothing is its offset basis; of "a" the published value.
+        let mut a = StateHash::default();
+        a.bytes(b"a");
+        assert_eq!(a.0, 0xaf63_dc4c_8601_ec8c);
     }
 
     #[test]

@@ -340,6 +340,409 @@
       ]
     }
   ],
+  "records": [
+    {
+      "short": "run",
+      "schema": "ob.run/1.0",
+      "schema_file": "run.schema.json",
+      "records": [
+        {
+          "tag": "OBSIM",
+          "fields": [
+            {
+              "key": "version",
+              "type": "u8",
+              "required": "yes",
+              "merge": false
+            },
+            {
+              "key": "schema",
+              "type": "text",
+              "required": "no",
+              "merge": false
+            },
+            {
+              "key": "mode",
+              "type": "enum",
+              "required": "no",
+              "merge": false,
+              "enum": [
+                "race",
+                "world"
+              ]
+            },
+            {
+              "key": "seed",
+              "type": "text",
+              "required": "no",
+              "merge": false
+            },
+            {
+              "key": "race",
+              "type": "text",
+              "required": "no",
+              "merge": false
+            },
+            {
+              "key": "track",
+              "type": "u16",
+              "required": "no",
+              "merge": false
+            },
+            {
+              "key": "laps",
+              "type": "u32",
+              "required": "no",
+              "merge": false
+            },
+            {
+              "key": "checkpoints",
+              "type": "u32",
+              "required": "no",
+              "merge": false
+            }
+          ]
+        },
+        {
+          "tag": "C",
+          "fields": [
+            {
+              "key": "id",
+              "type": "u32",
+              "required": "yes",
+              "merge": false
+            },
+            {
+              "key": "kind",
+              "type": "enum",
+              "required": "yes",
+              "merge": false,
+              "enum": [
+                "P",
+                "R",
+                "T",
+                "X"
+              ]
+            },
+            {
+              "key": "name",
+              "type": "text",
+              "required": "no",
+              "merge": false
+            }
+          ]
+        },
+        {
+          "tag": "L",
+          "fields": [
+            {
+              "key": "id",
+              "type": "u32",
+              "required": "yes",
+              "merge": false
+            },
+            {
+              "key": "model",
+              "type": "text",
+              "required": "yes",
+              "merge": false
+            },
+            {
+              "key": "camber",
+              "type": "f32",
+              "required": "yes",
+              "merge": false
+            },
+            {
+              "key": "parts",
+              "type": "list of text",
+              "required": "yes",
+              "merge": false
+            }
+          ]
+        },
+        {
+          "tag": "F",
+          "fields": [
+            {
+              "key": "tick",
+              "type": "u32",
+              "required": "yes",
+              "merge": false
+            },
+            {
+              "key": "time",
+              "type": "f32",
+              "required": "yes",
+              "merge": false
+            },
+            {
+              "key": "cars",
+              "type": "list of table",
+              "required": "no",
+              "merge": false,
+              "fields": [
+                {
+                  "key": "id",
+                  "type": "u32",
+                  "required": "yes",
+                  "merge": false
+                },
+                {
+                  "key": "kind",
+                  "type": "enum",
+                  "required": "yes",
+                  "merge": false,
+                  "enum": [
+                    "P",
+                    "R",
+                    "T",
+                    "X"
+                  ]
+                },
+                {
+                  "key": "x",
+                  "type": "f32",
+                  "required": "yes",
+                  "merge": false
+                },
+                {
+                  "key": "y",
+                  "type": "f32",
+                  "required": "yes",
+                  "merge": false
+                },
+                {
+                  "key": "z",
+                  "type": "f32",
+                  "required": "yes",
+                  "merge": false
+                },
+                {
+                  "key": "qx",
+                  "type": "f32",
+                  "required": "yes",
+                  "merge": false
+                },
+                {
+                  "key": "qy",
+                  "type": "f32",
+                  "required": "yes",
+                  "merge": false
+                },
+                {
+                  "key": "qz",
+                  "type": "f32",
+                  "required": "yes",
+                  "merge": false
+                },
+                {
+                  "key": "qw",
+                  "type": "f32",
+                  "required": "yes",
+                  "merge": false
+                },
+                {
+                  "key": "speed",
+                  "type": "f32",
+                  "required": "yes",
+                  "merge": false
+                },
+                {
+                  "key": "lap",
+                  "type": "int",
+                  "required": "yes",
+                  "merge": false
+                },
+                {
+                  "key": "checkpoint",
+                  "type": "u32",
+                  "required": "yes",
+                  "merge": false
+                },
+                {
+                  "key": "place",
+                  "type": "u32",
+                  "required": "yes",
+                  "merge": false
+                },
+                {
+                  "key": "steer0",
+                  "type": "f32",
+                  "required": "no",
+                  "merge": false
+                },
+                {
+                  "key": "steer1",
+                  "type": "f32",
+                  "required": "no",
+                  "merge": false
+                },
+                {
+                  "key": "roll0",
+                  "type": "f32",
+                  "required": "no",
+                  "merge": false
+                },
+                {
+                  "key": "roll1",
+                  "type": "f32",
+                  "required": "no",
+                  "merge": false
+                },
+                {
+                  "key": "roll2",
+                  "type": "f32",
+                  "required": "no",
+                  "merge": false
+                },
+                {
+                  "key": "roll3",
+                  "type": "f32",
+                  "required": "no",
+                  "merge": false
+                },
+                {
+                  "key": "lift0",
+                  "type": "f32",
+                  "required": "no",
+                  "merge": false
+                },
+                {
+                  "key": "lift1",
+                  "type": "f32",
+                  "required": "no",
+                  "merge": false
+                },
+                {
+                  "key": "lift2",
+                  "type": "f32",
+                  "required": "no",
+                  "merge": false
+                },
+                {
+                  "key": "lift3",
+                  "type": "f32",
+                  "required": "no",
+                  "merge": false
+                },
+                {
+                  "key": "lights",
+                  "type": "u8",
+                  "required": "no",
+                  "merge": false
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "tag": "E",
+          "fields": [
+            {
+              "key": "tick",
+              "type": "u32",
+              "required": "yes",
+              "merge": false
+            },
+            {
+              "key": "time",
+              "type": "f32",
+              "required": "yes",
+              "merge": false
+            },
+            {
+              "key": "kind",
+              "type": "text",
+              "required": "yes",
+              "merge": false
+            },
+            {
+              "key": "car",
+              "type": "u32",
+              "required": "yes",
+              "merge": false
+            },
+            {
+              "key": "checkpoint",
+              "type": "u32",
+              "required": "yes",
+              "merge": false
+            },
+            {
+              "key": "value",
+              "type": "f32",
+              "required": "yes",
+              "merge": false
+            }
+          ]
+        },
+        {
+          "tag": "H",
+          "fields": [
+            {
+              "key": "tick",
+              "type": "u32",
+              "required": "yes",
+              "merge": false
+            },
+            {
+              "key": "hash",
+              "type": "text",
+              "required": "yes",
+              "merge": false
+            }
+          ]
+        },
+        {
+          "tag": "R",
+          "fields": [
+            {
+              "key": "car",
+              "type": "u32",
+              "required": "yes",
+              "merge": false
+            },
+            {
+              "key": "place",
+              "type": "u32",
+              "required": "yes",
+              "merge": false
+            },
+            {
+              "key": "time",
+              "type": "key",
+              "required": "yes",
+              "merge": false
+            },
+            {
+              "key": "best",
+              "type": "key",
+              "required": "yes",
+              "merge": false
+            },
+            {
+              "key": "laps",
+              "type": "list of f32",
+              "required": "no",
+              "merge": false
+            }
+          ]
+        },
+        {
+          "tag": "END",
+          "fields": [
+            {
+              "key": "why",
+              "type": "text",
+              "required": "yes",
+              "merge": false
+            }
+          ]
+        }
+      ]
+    }
+  ],
   "commands": [
     {
       "name": "props.move",

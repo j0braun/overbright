@@ -54,6 +54,7 @@ Kinds (one page per family; each follows conventions §12):
 | [audio.md](audio.md) | sound banks, engine sounds, streams, speech, music, mix maps, effects |
 | [movies.md](movies.md) | full-motion video |
 | [engine-tables.md](engine-tables.md) | the engine's built-in tables and their overrides |
+| [runs.md](runs.md) | run files: simulations, recordings and replays |
 
 Schemas: [`schemas/`](schemas/) (JSON Schema 2020-12; shared definitions in `schemas/common.schema.json`).
 Examples: [`examples/`](examples/) (every file validates against its schema).
@@ -103,6 +104,7 @@ references (by name or hash) resolve in the referencing unit by the engine's ori
 | `road`, `route`, `marker` | `ob.road-net/1.0`, `ob.route-paths/1.0`, `ob.ai-routes/1.0`, `ob.track-markers/1.0` | `road:<R>/<trk>`, `route:<R>/<4001F\|FreeRoam\|…>`, `marker:<R>/<All\|FreeRoam>/<i>`, `route-trigger:<R>/<i>` | [roads-ai.md](roads-ai.md) |
 | `ai-tuning` | `ob.ai-tuning/1.0` | `ai-tuning:global` | [roads-ai.md](roads-ai.md) |
 | `race` | `ob.race/1.0` (packs) | `race:<pack>:<id>` | [roads-ai.md](roads-ai.md) |
+| `run` | `ob.run/1.0` (line records, not TOML; never in a pack) | `run:<file stem>` | [runs.md](runs.md) |
 | `car`, `preset` | `ob.car-type/1.0`, `ob.car-index/1.0`, `ob.car-presets/1.0` | `car:<NAME>` (record name, e.g. `car:PEUGOT`); type index = position in the index | [cars.md](cars.md) |
 | `part`, `part-cost` | `ob.part-db/1.0`, `ob.part-costs/1.0` | `part:0x<GROUP>/0x<HASH>`; `part-cost:<n>` | [cars.md](cars.md) |
 | `perf-package`, `perf-part`, `tuning-unlock` | `ob.performance/1.0` | `perf-package:<category>/<level>`, `perf-part:<id>`, `tuning-unlock:<part>/<param>` | [cars.md](cars.md) |

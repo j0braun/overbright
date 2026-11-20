@@ -17,7 +17,7 @@ use crate::*;
 use nfsu2::tools::map::sim::detect::{Tick, Watch, checkpoints_passed};
 use nfsu2::tools::map::sim::format::{
     CarInfo, CarKind, CarLook, CarSample, Event, EventKind, Frame, Header, LIGHT_BRAKE, LIGHT_HEAD, Line, ResultRow,
-    SimMode, VERSION, Wheels,
+    SCHEMA, SimMode, StateHash, VERSION, Wheels,
 };
 
 /// The stream's ids: the player's slot 0, opponents from 1, traffic from
@@ -57,13 +57,17 @@ pub(crate) struct Streamer<W: std::io::Write> {
     /// The race's checkpoints on its road (m), its start, length, loops.
     road: Option<(Vec<f32>, f32, f32, bool)>,
     green: bool,
+    /// The state hash over every tick so far, and the last tick it covers
+    /// when that is not written yet.
+    hash: StateHash,
+    unwritten: Option<u64>,
     /// Events and frames written (the tests read them back).
     pub(crate) lines: u64,
 }
 
 impl<W: std::io::Write> Streamer<W> {
     pub(crate) fn new(out: W) -> Streamer<W> {
-        Streamer { out, tick: 0, named: Default::default(), looks: HashMap::new(), seen: HashMap::new(), road: None, green: false, lines: 0 }
+        Streamer { out, tick: 0, named: Default::default(), looks: HashMap::new(), seen: HashMap::new(), road: None, green: false, hash: StateHash::default(), unwritten: None, lines: 0 }
     }
 
     fn put(&mut self, l: &Line) -> Result<()> {
@@ -76,7 +80,17 @@ impl<W: std::io::Write> Streamer<W> {
         self.put(&Line::Header(h))
     }
 
+    /// The state hash after the last tick, when not written yet.
+    fn last_hash(&mut self) -> Result<()> {
+        if let Some(tick) = self.unwritten.take() {
+            let hash = self.hash;
+            self.put(&Line::Hash { tick, hash })?;
+        }
+        Ok(())
+    }
+
     pub(crate) fn end(&mut self, why: &str) -> Result<()> {
+        self.last_hash()?;
         self.put(&Line::End(why.to_string()))?;
         self.out.flush()?;
         Ok(())
@@ -84,7 +98,7 @@ impl<W: std::io::Write> Streamer<W> {
 
     /// This tick's cars and events.
     pub(crate) fn frame(&mut self, game: &Game, dt: f32) -> Result<()> {
-        let mut cars: Vec<(CarSample, String, CarLook)> = Vec::new();
+        let mut cars: Vec<(CarSample, String, CarLook, Exact)> = Vec::new();
         let mut events = Vec::new();
         let sample = |id: u32, kind: CarKind, car: &Car, st: &CarState| {
             (
@@ -100,6 +114,7 @@ impl<W: std::io::Write> Streamer<W> {
                     wheels: Some(wheels(kind, car, st)),
                 },
                 look(id, car),
+                (st.velocity, st.spin),
             )
         };
         let time;
@@ -132,7 +147,7 @@ impl<W: std::io::Write> Streamer<W> {
                     racers.push((i as u32 + 1, CarKind::Racer, &rv.car, &rv.state, &rv.progress, rv.name.clone()));
                 }
                 for (id, kind, car, st, prog, name) in racers {
-                    let (mut s, look) = sample(id, kind, car, st);
+                    let (mut s, look, exact) = sample(id, kind, car, st);
                     let (lap, _) = prog.lap();
                     s.lap = lap.max(0);
                     s.checkpoint = checkpoints_passed(&road.0, road.1, road.2, prog.along, road.3);
@@ -190,7 +205,7 @@ impl<W: std::io::Write> Streamer<W> {
                         racing,
                         next_checkpoint: next,
                     }));
-                    cars.push((s, name, look));
+                    cars.push((s, name, look, exact));
                 }
                 if let Some(t) = r.racers.traffic.as_ref() {
                     traffic_cars(t, &mut cars, sample);
@@ -199,21 +214,22 @@ impl<W: std::io::Write> Streamer<W> {
             _ => {
                 time = self.tick as f32 / 60.0;
                 if let Some(d) = game.sim.drive.as_ref() {
-                    let (s, look) = sample(0, CarKind::Player, &d.car, &d.state);
-                    cars.push((s, d.car.car_type.name.clone(), look));
+                    let (s, look, exact) = sample(0, CarKind::Player, &d.car, &d.state);
+                    cars.push((s, d.car.car_type.name.clone(), look, exact));
                 }
                 if let Some(t) = game.sim.traffic.as_ref() {
                     traffic_cars(t, &mut cars, sample);
                 }
                 if let Some(e) = game.sim.encounters.as_ref() {
                     for (i, c) in e.cars.iter().enumerate() {
-                        let (s, look) = sample(ENCOUNTER_ID + i as u32, CarKind::Encounter, &c.car, &c.state);
-                        cars.push((s, c.car.car_type.name.clone(), look));
+                        let (s, look, exact) = sample(ENCOUNTER_ID + i as u32, CarKind::Encounter, &c.car, &c.state);
+                        cars.push((s, c.car.car_type.name.clone(), look, exact));
                     }
                 }
             }
         }
-        for (s, name, look) in &cars {
+        for (s, name, look, (velocity, spin)) in &cars {
+            self.hash.car(s.id, s.position, s.rotation, *velocity, *spin);
             if self.named.insert(s.id) {
                 self.put(&Line::Car(CarInfo { id: s.id, kind: s.kind, name: name.clone() }))?;
             }
@@ -224,10 +240,15 @@ impl<W: std::io::Write> Streamer<W> {
                 self.looks.insert(s.id, look.clone());
             }
         }
+        self.hash.tick(self.tick);
+        self.unwritten = Some(self.tick);
         let frame = Frame { tick: self.tick, time, cars: cars.into_iter().map(|c| c.0).collect() };
         self.put(&Line::Frame(frame))?;
         for e in events {
             self.put(&Line::Event(e))?;
+        }
+        if (self.tick + 1).is_multiple_of(StateHash::EVERY) {
+            self.last_hash()?;
         }
         self.tick += 1;
         Ok(())
@@ -235,6 +256,7 @@ impl<W: std::io::Write> Streamer<W> {
 
     /// The racers' results from the race as it ended.
     pub(crate) fn results(&mut self, r: &Race) -> Result<()> {
+        self.last_hash()?;
         let runs: Vec<(u32, &Progress)> = std::iter::once((0, &r.racers.me))
             .chain(r.racers.rivals.iter().enumerate().map(|(i, rv)| (i as u32 + 1, &rv.progress)))
             .collect();
@@ -258,16 +280,20 @@ impl<W: std::io::Write> Streamer<W> {
     }
 }
 
+/// A car's velocity and spin, exact (the state hash's; the stream rounds
+/// the pose).
+type Exact = (Vec3, Vec3);
+
 /// The traffic cars on the road (placed ones only).
 fn traffic_cars(
     t: &Traffic,
-    cars: &mut Vec<(CarSample, String, CarLook)>,
-    sample: impl Fn(u32, CarKind, &Car, &CarState) -> (CarSample, CarLook),
+    cars: &mut Vec<(CarSample, String, CarLook, Exact)>,
+    sample: impl Fn(u32, CarKind, &Car, &CarState) -> (CarSample, CarLook, Exact),
 ) {
     for (i, c) in t.cars.iter().enumerate() {
         if c.lane.is_some() {
-            let (s, look) = sample(TRAFFIC_ID + i as u32, CarKind::Traffic, &c.car, &c.state);
-            cars.push((s, c.car.car_type.name.clone(), look));
+            let (s, look, exact) = sample(TRAFFIC_ID + i as u32, CarKind::Traffic, &c.car, &c.state);
+            cars.push((s, c.car.car_type.name.clone(), look, exact));
         }
     }
 }
@@ -343,7 +369,8 @@ impl Game {
         self.rng = nfsu2::opponents::GameRng::boot(run.seed);
         self.boot_draws();
         self.start_map_test(t)?;
-        let mut header = Header { version: VERSION, mode: run.mode, seed: run.seed, ..Default::default() };
+        let mut header =
+            Header { version: VERSION, schema: SCHEMA.into(), mode: run.mode, seed: run.seed, ..Default::default() };
         if let Some(id) = &t.race
             && let Mode::Race(r) = &self.mode
         {
@@ -531,6 +558,13 @@ mod tests {
         }
         let player = looks.iter().find(|k| k.id == 0).unwrap();
         assert!(!player.parts.is_empty(), "the player's car's parts: {player:?}");
+        // The asset format's run file, with its state hashes.
+        let sum = ob_asset_format::kinds::run::check_run(&a).unwrap();
+        assert_eq!((sum.schema.as_str(), sum.ended), (SCHEMA, true));
+        let hashes: Vec<u64> =
+            lines.iter().filter_map(|l| if let Line::Hash { tick, .. } = l { Some(*tick) } else { None }).collect();
+        assert!(hashes.len() as u64 >= frames.len() as u64 / StateHash::EVERY, "{} hashes", hashes.len());
+        assert_eq!(hashes.last(), Some(&last.tick), "the hash after the last tick");
         // The same seed: the same stream, byte for byte.
         let (b, _) = simulate(7, 40.0);
         assert!(a == b, "the stream repeats for its seed");

@@ -23,6 +23,10 @@ miniz_oxide.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 
+[dev-dependencies]
+# The asset format's run file kind (`ob.run`), which the simulation stream's tests keep the writer and reader on.
+ob-asset-format = { path = "../ob-asset-format" }
+
 [features]
 # The developer harness's hooks (the root package's `dev-harness` turns it on).
 dev-harness = ["ob-core/dev-harness", "ob-formats/dev-harness"]
