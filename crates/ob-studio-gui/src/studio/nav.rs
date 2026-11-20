@@ -104,7 +104,7 @@ pub struct KeyRow {
 }
 
 /// The key table: Help ▸ Controls and the legend row are made from it.
-pub const KEYS: [KeyRow; 17] = [
+pub const KEYS: [KeyRow; 18] = [
     KeyRow {
         command: Command::Select,
         keys: "Enter",
@@ -198,6 +198,13 @@ pub const KEYS: [KeyRow; 17] = [
         help: "Copy the focused item's address",
     },
     KeyRow {
+        command: Command::Workspace(Workspace::Changes),
+        keys: "Ctrl+D",
+        pad: None,
+        word: "Changes",
+        help: "What the open mod changes, value by value, and which mod wins",
+    },
+    KeyRow {
         command: Command::Undo,
         keys: "Ctrl+Z",
         pad: Some(Btn::DeckGrips),
@@ -286,6 +293,7 @@ pub fn key_command(k: Key) -> Option<Command> {
         (K::ArrowLeft, false, false, true) => Command::LastPlace,
         (K::ArrowRight, false, false, true) => Command::NextPlace,
         (K::Z, true, false, false) => Command::Undo,
+        (K::D, true, false, false) => Command::Workspace(Workspace::Changes),
         (K::Y, true, false, false) => Command::Redo,
         (K::Escape, false, false, false) => Command::Back,
         (K::Enter, false, false, false) => Command::Select,

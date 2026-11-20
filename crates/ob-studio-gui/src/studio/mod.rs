@@ -4,6 +4,7 @@
 //! * [`layout`]: where every part goes at a window size (pure geometry; the clip and overlap check).
 //! * [`nav`]: the areas, the key table, the pad's buttons, Esc / B and the legend row's rule.
 //! * [`address`]: `ob://` addresses of items and screens, back and forward.
+//! * [`changes`]: the Changes page (what the open mod changes, value by value, and who wins).
 //! * [`home`]: the mods as Home and the status bar show them (read through the mod's history).
 //! * [`memory`]: the panels' sizes and folds kept per workspace.
 //! * [`shell`]: the window drawn with egui; [`draw`]: its painted pieces; [`words`]: its words.
@@ -11,6 +12,7 @@
 //! * [`world`]: the World and Races workspaces: the map editor hosted in the window.
 
 pub mod address;
+pub mod changes;
 pub mod draw;
 pub mod home;
 pub mod layout;

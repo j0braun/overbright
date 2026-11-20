@@ -229,7 +229,7 @@ pub fn rail_icon(p: &Painter, w: Workspace, c: Pos2, col: Color32) {
                 s,
             ));
         }
-        Workspace::World => {
+        Workspace::World | Workspace::Changes => {
             p.circle_stroke(c, 9.0, s);
             p.line_segment([c + vec2(-9.0, 0.0), c + vec2(9.0, 0.0)], s);
             let pts = |k: f32| -> Vec<Pos2> {

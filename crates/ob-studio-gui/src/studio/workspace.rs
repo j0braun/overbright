@@ -12,6 +12,8 @@ pub enum Workspace {
     Races,
     Mod,
     Settings,
+    /// The Changes page (Ctrl+D): not on the rail; it opens over World and goes back to where it was opened.
+    Changes,
 }
 
 /// Where a workspace sits on the rail.
@@ -49,6 +51,7 @@ impl Workspace {
             Workspace::Races => "Races",
             Workspace::Mod => "Mod",
             Workspace::Settings => "Settings",
+            Workspace::Changes => "Changes",
         }
     }
 
@@ -60,13 +63,14 @@ impl Workspace {
             Workspace::Races => "3",
             Workspace::Mod => "0",
             Workspace::Settings => ",",
+            Workspace::Changes => "D",
         }
     }
 
     pub fn section(self) -> Section {
         match self {
             Workspace::Home => Section::Top,
-            Workspace::World | Workspace::Races => Section::Make,
+            Workspace::World | Workspace::Races | Workspace::Changes => Section::Make,
             Workspace::Mod => Section::Share,
             Workspace::Settings => Section::Bottom,
         }
@@ -87,23 +91,35 @@ impl Workspace {
             Workspace::Races => "@races",
             Workspace::Mod => "@mod",
             Workspace::Settings => "@settings",
+            Workspace::Changes => "@changes",
         }
     }
 
     pub fn from_view(v: &str) -> Option<Workspace> {
-        Workspace::ALL.into_iter().find(|w| w.view() == v)
+        Workspace::ALL.into_iter().chain(Workspace::PAGES).find(|w| w.view() == v)
+    }
+
+    /// The pages that are not on the rail (opened by key, address or a button).
+    pub const PAGES: [Workspace; 1] = [Workspace::Changes];
+
+    /// The rail's entry that shows as current while this is open (Changes: World).
+    pub fn on_rail(self) -> Workspace {
+        match self {
+            Workspace::Changes => Workspace::World,
+            w => w,
+        }
     }
 
     /// The workspace `step` places further down the rail (wrapping round), as Ctrl+PgDn / RB go.
     pub fn step(self, step: i32) -> Workspace {
         let n = Workspace::ALL.len() as i32;
-        let i = Workspace::ALL.iter().position(|w| *w == self).unwrap_or(0) as i32;
+        let i = Workspace::ALL.iter().position(|w| *w == self.on_rail()).unwrap_or(0) as i32;
         Workspace::ALL[(i + step).rem_euclid(n) as usize]
     }
 
     /// The workspace Ctrl+`key` opens.
     pub fn for_ctrl_key(key: &str) -> Option<Workspace> {
-        Workspace::ALL.into_iter().find(|w| w.ctrl_key() == key)
+        Workspace::ALL.into_iter().chain(Workspace::PAGES).find(|w| w.ctrl_key() == key)
     }
 }
 
