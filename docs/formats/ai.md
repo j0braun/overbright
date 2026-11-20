@@ -1726,6 +1726,31 @@ Explore mode's and races' traffic. Verified except where noted.
   traffic under Wine). 0x42F330 (the
   "stopping behind" logic below) is "Avoid Avoidable" (type 1, 0x785858),
   not a traffic action.
+* **Two traffic cars meeting at a road junction** (verified in the
+  decompile and the asm: 0x4145B0, 0x424B40, 0x424CB0, 0x41CD10, 0x402ED0,
+  the entry sort in 0x6148F0 at 0x615020–0x615146, 0x4140E0, 0x410A50,
+  0x4149E0; observed under Wine). Nothing decides who yields: there is no
+  priority, no right of way and no timeout outside the intersections of
+  chunk 0x34123. Each car runs the same Avoid Cars on whatever 0x402ED0
+  finds in its side window ahead (the entries sorted by squared distance
+  in the walk frame, negated behind the car, descending; the search goes
+  from the car's own index down, so the nearest ahead first). When each
+  finds the other, each holds the slow rule (0 within 15 m), and neither
+  0x41CD10 nor 0x424CB0 lets go while the other stands ahead (closing 0 ≤
+  5 m/s). 0x4140E0 (drop a traffic car crossing on the other road of the
+  same intersection, 0x410A50: both kind 3, both slots used, both before
+  their line, different roads) needs planner +0x3E0, the intersection of
+  the walk, and with that set 0x4149E0 proposes Obey (600) over Avoid
+  (300), so it never decides between two avoiding cars. The new action
+  starts with look 30 (0x783748) and the proposal's time; the proposal's
+  distance is not used (0x424B40). Such a pair stands until one car leaves
+  the other's entries: it is re-placed by the placer, its
+  world unloads (mode 4: the BeltMover took one such car on past the other,
+  observed in free roam at 563, −471), or another object (often the player)
+  takes the window. The clone runs the same rules (`avoid_update`,
+  `avoid_done`, `car_ahead`); its stand counts are measured against the
+  original's with the traffic comparison tool (the harness's
+  `headon_stops`).
 * **Lane check** (verified in the decompile and the asm 0x428A6B–0x428C45
   unless noted; ported, `TrafficLane::lane_check`, `lane_reach`,
   `lane_allowed`): the planner update 0x428720 (once a think, 0x429E6B)
