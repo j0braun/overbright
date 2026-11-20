@@ -128,12 +128,17 @@ impl Game {
                 }
             }
             Mode::Menu(m) => {
+                // The pause's own option pages (UI_PauseOptions on each
+                // category, UI_PC_Customize_Options from it) are pages of
+                // the same PAUSE, in free roam as in a race (`speech_held`
+                // counts them the same way).
                 let paused = self.sim.paused_race.is_some()
                     || matches!(
                         m,
                         Menu::Icons(_, MenuKind::ExplorePause | MenuKind::RacePause | MenuKind::PauseOptions(_))
                             | Menu::InGameMap(_)
-                    );
+                    )
+                    || matches!(m, Menu::Options(o) if o.pause.is_some());
                 if self.dyno_music_session() {
                     // The tuning session's Quit question (0x55A8A9 /
                     // 0x564DE0 → 0x5F4240: the flow's message 7, the
