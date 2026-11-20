@@ -6,6 +6,7 @@
 //! warnings. The game runs as a child process (`run`); nothing here waits
 //! on it.
 
+pub mod cars;
 pub mod panel;
 pub mod record;
 pub mod run;

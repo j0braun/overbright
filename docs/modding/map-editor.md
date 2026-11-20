@@ -263,9 +263,15 @@ game --map-file <run copy> --map-at x,y,z,heading --simulate-world --stream - --
 
 The editor reads the stream while it arrives and never waits for the game. The tab has **Play** / **Pause**
 (Space), speed 0.25x to 8x, a scrub bar over everything recorded so far, the camera (**Free camera** or behind a
-racer) and **Lines** (each racer's driven line). The cars are drawn as boxes in the 3D view and as arrows on the
-map (the player's slot and the followed car lime, opponents light, traffic grey, street racers amber), with each
-racer's place; a key under the scrub bar names the colours. Below are the results (place, car, time, best lap,
+racer) and **Lines** (each racer's driven line). In the 3D view the cars are the game's own cars: each car's
+model with its paint, body parts, vinyls, rims and lights as the run built it (the stream's look records, below),
+drawn by the game's car renderer with the world's lighting, its wheels steering, rolling and riding the
+suspension, and every car's headlight pool on the road; they move smoothly between the game's 60 Hz updates at
+any playback speed. Traffic is drawn the same way. A car shows as a coloured box while its model loads (on its
+own thread; the view keeps drawing) or when it cannot be built (no game data, a stream written before the looks);
+**Car models** (on by default, before the colour key) switches every car to boxes. On the map the cars are
+arrows (the player's slot and the followed car lime, opponents light, traffic grey, street racers amber), with
+each racer's place; a key under the scrub bar names the colours. Below are the results (place, car, time, best lap,
 laps done) in finishing order: finished racers by
 time, then the rest by their place on the road (no places before the green light); a racer without a finish when
 the run ended is last, as "did not finish"; a racer still on the road shows "racing". The player's slot, which
@@ -291,14 +297,21 @@ Plain text, one record per line; readers skip records they do not know.
 |---|---|
 | `OBSIM 1 mode=race seed=7 race=<id> track=<n> laps=<n> checkpoints=<n>` | the header (version 1) |
 | `C <id> <P\|R\|T\|X> <name>` | a car's first appearance: player slot, opponent, traffic, street racer |
-| `F <tick> <time> <car>\|<car>…` | one update; each car `id kind x y z qx qy qz qw speed lap checkpoint place` |
+| `L <id> <model> <camber> <slot:hash,…\|->` | a car's look: its model (`CARS/<model>`), the front wheels' x-turn (radians) and its fitted visual parts (slot and part hash in hex, the performance packages' visual parts included); before the car's first update and again when it changes (a traffic slot taking another car) |
+| `F <tick> <time> <car>\|<car>…` | one update; each car `id kind x y z qx qy qz qw speed lap checkpoint place`, then `steer0 steer1 roll0..3 lift0..3 lights` |
 | `E <tick> <time> <kind> <car> <checkpoint> <value>` | `start`, `checkpoint`, `lap` / `finish` (value: time), `crash` (m/s lost), `stuck`, `wrong-way` |
 | `R <car> <place> <time> <best> <lap,lap…>` | a racer's result (`-`: none; place 0: did not finish) |
 | `END <finish\|quit\|limit\|error …>` | the end |
 
 Times are seconds on the race clock (negative before the green; the start scene sets it back once) or since the
 start in free roam; positions in world metres, the rotation a unit quaternion, speed in m/s. Ids: the player's
-slot 0, opponents 1.., traffic 100.., street racers 200...
+slot 0, opponents 1.., traffic 100.., street racers 200... A car's wheels and lights: the front wheels' steer
+(radians), each wheel's roll about its axle (radians, 0..2π, table order) and lift (the hub's offset, m), and the
+lights (1 headlights, which every car has on in game; 2 brake lights, the racers' flag held 0.5 s as the game
+holds it). The same seed still gives the same stream byte for byte. A reader skips records and trailing fields
+it does not know, so a stream from before the looks and wheels still plays (as boxes), and the version stays 1.
+The editor rebuilds each look with the game's own car loader (`Car::load_with` on the model and parts). Not yet
+drawn from the stream: the light flares (head, brake and tail light sprites) and the spinners' own turn.
 
 ## The game's free camera
 
@@ -441,6 +454,12 @@ picture. scripts/checks/editor_shots.sh runs it at every size of the resolution 
   each wall piece against the scenery and keeps a 64 m index for drawing; `crates/ob-studio-gui/src/editor/collision.rs`
   builds it the first time it is shown for a region and draws it, with a reference image test
   (`crates/ob-studio-gui/tests/reference/collision-layer.png`, `OB_BLESS=1` writes it again).
+- The simulation's cars: the game writes each car's look and wheels into the stream
+  (`src/bin/game/enh/sim_stream.rs`; a car keeps the visual parts it was built with, `Car::look_parts`);
+  `crates/ob-studio-gui/src/editor/sim/record.rs` keeps the looks by time and blends each car between the two
+  updates around the time shown (`Recording::cars_at`), and `editor/sim/cars.rs` builds each look once with the
+  game's car loader (on up to four threads; a shot waits for them), gives each car its own car renderer and
+  draws them right after the world, through `nfsu2::studio_api::{car, render::car}`.
 - `src/tools/map/` (the game library): the game data the editor reads (`assets.rs`: `MapAssets`, the race tracks
   and their road networks), and the edits on a loaded world (`edit.rs`). `tools::map::set_only` makes one mod the only one
   for a run: `Only::Folder` (`--map-mod`) or `Only::File` (`--map-file`). `sim/` holds the stream format and the

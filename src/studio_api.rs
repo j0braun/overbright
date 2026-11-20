@@ -28,11 +28,23 @@ pub mod smackable {
 /// overview camera.
 pub mod render {
     pub use crate::render::{
-        FrameParams, GLOBAL_SECTION, Gpu, MAIN_MIN_SIZE, RenderOptions, WorldRenderer, create_depth, overview_camera,
+        FrameParams, GLOBAL_SECTION, Gpu, HeadlightPool, MAIN_MIN_SIZE, RenderOptions, WorldRenderer, create_depth,
+        overview_camera,
     };
     pub mod display {
         pub use crate::render::display::sdr_surface_format;
     }
+    /// The game's car drawing (a recorded run's cars over the world).
+    pub mod car {
+        pub use crate::render::car::CarRenderer;
+        pub use crate::render::car::lighting::CarLighting;
+    }
+}
+
+/// A car as the game builds it from its model and fitted parts, and its
+/// wheels as drawn.
+pub mod car {
+    pub use crate::car::{Car, WheelPose};
 }
 
 /// The fog a world is drawn with.

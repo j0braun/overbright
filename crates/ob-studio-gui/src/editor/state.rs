@@ -57,6 +57,9 @@ pub struct EditorState {
     pub view: View,
     /// The collision layer over the view (View ▸ Collision).
     pub collision: super::collision::Show,
+    /// The simulation's cars drawn as models over the 3D view (Simulate
+    /// tab, "Car models").
+    pub replay: super::sim::cars::Replay,
     /// The status bar's last message.
     pub status: String,
     /// Road networks by base track, read on first use through `assets`
@@ -98,6 +101,7 @@ impl EditorState {
             mode: Mode::Props,
             view: View::ThreeD,
             collision: super::collision::Show::Off,
+            replay: Default::default(),
             status: String::new(),
             nets: HashMap::new(),
         }
