@@ -17,6 +17,7 @@
 
 pub mod args;
 pub mod diff;
+pub mod looks;
 pub mod ops;
 
 use std::collections::BTreeMap;
@@ -168,6 +169,9 @@ fn dispatch(line: &args::Line, env: &Env) -> Done {
         }
         "checks.run" => with_mod(line, |m| checks(line, env, m)),
         "history.show" => with_mod(line, history_show),
+        "looks.open" | "looks.import" | "looks.watch" | "looks.list" => {
+            with_mod(line, |m| crate::cli::looks::run(cmd.name, line, env, m))
+        }
         _ if cmd.kind == CommandKind::Edit => with_mod(line, |m| edit(line, cmd, env, m)),
         other => fail(USAGE, format!("`{other}` is not on the command line yet")),
     }
@@ -197,7 +201,7 @@ fn with_mod(line: &args::Line, f: impl FnOnce(&Mod) -> Done) -> Done {
 }
 
 fn open_read(m: &Mod) -> Result<(History, MapMod), Done> {
-    let h = History::open_read(&m.dir, &m.edir, &[store::FILE], Arc::new(disk::Real))
+    let h = History::open_read(&m.dir, &m.edir, crate::MOD_DOCS, Arc::new(disk::Real))
         .map_err(|e| fail(FAILED, format!("{}: {e}", m.dir.display())))?;
     let map = read_map(&h)?;
     Ok((h, map))
@@ -267,9 +271,9 @@ fn try_edit(line: &args::Line, cmd: &Command, env: &Env, m: &Mod) -> Result<Done
     let region = line.flag("region").unwrap_or(REGION).to_string();
     // A dry run only reads; an edit takes the mod for writing, unless another program has it.
     let mut h = if dry {
-        History::open_read(&m.dir, &m.edir, &[store::FILE], Arc::new(disk::Real))
+        History::open_read(&m.dir, &m.edir, crate::MOD_DOCS, Arc::new(disk::Real))
     } else {
-        History::open(&m.dir, &m.edir, &[store::FILE], AUTHOR, Arc::new(disk::Real))
+        History::open(&m.dir, &m.edir, crate::MOD_DOCS, AUTHOR, Arc::new(disk::Real))
     }
     .map_err(|e| fail(FAILED, format!("{}: {e}", m.dir.display())))?;
     let map = read_map(&h)?;

@@ -393,3 +393,61 @@ fn while_studio_has_the_mod_the_edit_goes_through_its_inbox() {
     assert!(studio.steps()[1].label.ends_with("Rename race"), "{}", studio.steps()[1].label);
     assert!(studio.doc(store::FILE).unwrap().contains("name = Docks run"));
 }
+
+/// The game for Looks: a world with one texture, `ROAD` (4×4 grey).
+fn looks_env() -> Env {
+    use ob_formats::formats::texture::{Blend, PixelFormat, Scroll, Texture};
+    Env {
+        world: Box::new(|_, _| {
+            let mut w = World::default();
+            let t = Texture {
+                name: "ROAD".into(),
+                hash: 0x0000_0ABC,
+                width: 4,
+                height: 4,
+                format: PixelFormat::Rgba8,
+                mip_count: 1,
+                data: [90u8, 90, 90, 255].repeat(16).into(),
+                palette: vec![],
+                alpha_test: false,
+                blend: Blend::None,
+                rendering_order: 0,
+                late_buckets: false,
+                scroll: Scroll::default(),
+            };
+            w.textures.insert(t.hash, t);
+            Ok(w)
+        }),
+        ..env()
+    }
+}
+
+#[test]
+fn looks_open_import_and_list() {
+    let (s, dir) = fixture("cli-looks", false);
+    let e = looks_env();
+    let open = ["looks", "open", "--mod", "<mod>", "--texture", "world:0xABC"];
+    assert_eq!(golden("looks-open", &open, &s, &dir, &e), cli::OK);
+    let work = dir.join("work/looks/world/ROAD.png");
+    assert!(work.is_file());
+    assert_eq!(golden("looks-blank-over-paint", &[&open[..], &["--blank"]].concat(), &s, &dir, &e), cli::FAILED);
+    assert_eq!(
+        golden("looks-bad-texture", &["looks", "open", "--mod", "<mod>", "--texture", "ui:1"], &s, &dir, &e),
+        cli::USAGE
+    );
+    // The paint program saves; `looks import` takes it in as one step.
+    let img = image::RgbaImage::from_pixel(4, 4, image::Rgba([250, 10, 10, 255]));
+    img.save(&work).unwrap();
+    let import = ["looks", "import", "--mod", "<mod>", "--texture", "world:0x00000ABC"];
+    assert_eq!(golden("looks-import", &import, &s, &dir, &e), cli::OK);
+    assert!(dir.join("textures/world/00000ABC.png").is_file(), "the pack data");
+    assert_eq!(golden("looks-list", &["looks", "list", "--mod", "<mod>"], &s, &dir, &e), cli::OK);
+    let h =
+        History::open_read(&dir, &dir.join(store::EDITOR_DIR), ob_studio::MOD_DOCS, std::sync::Arc::new(disk::Real))
+            .unwrap();
+    assert_eq!(h.steps().last().map(|s| s.label.as_str()), Some("Paint ROAD"));
+    // `looks watch` for a moment: nothing new saved, nothing made.
+    let (code, out, _) = run(&["looks", "watch", "--mod", "<mod>", "--seconds", "0.2", "--json"], &dir, &e);
+    assert_eq!(code, cli::OK);
+    assert_eq!(serde_json::from_str::<Value>(&out).unwrap()["saves"], serde_json::json!([]));
+}

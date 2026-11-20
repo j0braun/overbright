@@ -88,6 +88,14 @@ pub mod map {
     pub use crate::tools::map::{Applied, assets, edit};
 }
 
+/// Studio Looks live in the test game (docs/modding/studio-looks.md): the
+/// game's side of `--looks-live`, the pack watcher's tick, and what the
+/// texture loader and the renderers see of a change. Studio starts the test
+/// game with the flag; its tests make the same calls in their own process.
+pub mod looks {
+    pub use crate::render::pack_reload::{TICK, changed_since, frame, generation, live, loaded_top, set_live};
+}
+
 /// The game's career data (the base tracks' events), for checks against the
 /// real tracks.
 pub mod career {

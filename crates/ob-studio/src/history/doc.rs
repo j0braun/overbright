@@ -1,7 +1,8 @@
 //! Documents and their items: a mod's state is the text of each of its files ([`State`]), and a file is a list
 //! of keyed items, so two writers who changed different items of one file both keep their change and only the
 //! same item changed two ways is a conflict ([`merge`]). A map mod's items are its details, each prop edit and
-//! each race; a file of any other kind, or one that does not parse, is one item.
+//! each race; a texture list's (`looks.toml`) are its textures; a file of any other kind, or one that does not
+//! parse, is one item.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -16,6 +17,10 @@ pub const WHOLE: &str = "file";
 
 /// A document's items in file order: (key, value). None: the file does not parse as its kind.
 pub fn items(doc: &str, text: &str) -> Option<Vec<(String, String)>> {
+    if doc == crate::looks::FILE {
+        // One item per texture.
+        return crate::looks::Looks::parse(text).ok().map(|l| l.items());
+    }
     if doc != store::FILE {
         return Some(vec![(WHOLE.into(), text.into())]);
     }
@@ -54,6 +59,9 @@ fn prop_key(p: &PropEdit) -> String {
 
 /// The document made of `items` (as [`items`] gives them). None: an item does not read back.
 pub fn join(doc: &str, items: &[(String, String)]) -> Option<String> {
+    if doc == crate::looks::FILE {
+        return crate::looks::Looks::join(items).map(|l| l.write());
+    }
     if doc != store::FILE || items.iter().any(|(k, _)| k == WHOLE) {
         return match items {
             [(k, t)] if k == WHOLE => Some(t.clone()),

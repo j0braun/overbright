@@ -1,0 +1,9 @@
+{
+  "command": "looks.import",
+  "exit": 0,
+  "format": 1,
+  "ok": true,
+  "outcome": "made",
+  "step": 1,
+  "texture": "world:0x00000ABC"
+}

@@ -129,6 +129,11 @@ pub(crate) fn main() -> Result<()> {
                 None => Only::Folder(t.folder.clone()),
             };
             nfsu2::tools::map::set_only(Some(only));
+            // Studio Looks: the mod's textures live in this run (opt-in).
+            if let Some(dir) = &t.looks {
+                nfsu2::render::pack_reload::set_live(Some(dir.clone()));
+                log::info!("map test: live textures from {}", dir.display());
+            }
             log::info!("map test: mod {} ({})", t.folder, t.race.as_deref().map_or("free roam", |r| r));
             let _ = super::cli::MAP_TEST.set(t);
         }

@@ -1230,6 +1230,61 @@
       ]
     },
     {
+      "name": "looks.open",
+      "kind": "run",
+      "summary": "Open a texture in your own paint program: its work file, from the game's pixels or blank",
+      "args": [
+        {
+          "key": "texture",
+          "type": "text",
+          "required": "yes",
+          "merge": false,
+          "label": "Texture"
+        },
+        {
+          "key": "blank",
+          "type": "bool",
+          "required": "no",
+          "merge": false,
+          "label": "Repaint from blank"
+        }
+      ]
+    },
+    {
+      "name": "looks.import",
+      "kind": "edit",
+      "summary": "Take a texture's work file in now, as one step",
+      "args": [
+        {
+          "key": "texture",
+          "type": "text",
+          "required": "yes",
+          "merge": false,
+          "label": "Texture"
+        }
+      ]
+    },
+    {
+      "name": "looks.watch",
+      "kind": "run",
+      "summary": "Watch the work files and take each save in as one step",
+      "args": [
+        {
+          "key": "seconds",
+          "type": "f32",
+          "required": "no",
+          "merge": false,
+          "label": "For how long (default: until Ctrl+C)"
+        }
+      ]
+    },
+    {
+      "name": "looks.list",
+      "kind": "read",
+      "summary": "The mod's textures and work files, with where their pixels started",
+      "args": []
+    },
+    {
       "name": "checks.run",
       "kind": "read",
       "summary": "Run the map checks on the pack",
