@@ -3,7 +3,7 @@
 //! compiled with the target's resource compiler and linked into the player's
 //! programs: the game (`game.exe`) and the launcher (`overbright.exe`) from
 //! build.rs, the map editor (`overbright-editor.exe`) from
-//! crates/ob-editor/build.rs. The tool binaries get none.
+//! crates/ob-studio-gui/build.rs. The tool binaries get none.
 //!
 //! The icon is drawn in code (build_support/icon_art.rs, shared with the
 //! window icon, `platform::icon`): Overbright's mark, the launcher's lime

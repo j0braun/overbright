@@ -2,12 +2,12 @@
 """The list of Rust crates built into the player's programs, with their licences and licence texts
 (scripts/release/package.sh, docs/developing/building-releases.md).
 
-  crate_licenses.py --metadata M.json [--map /cargo-home=DIR] --target TRIPLE --out FILE [--root nfsu2 --root ob-editor]
+  crate_licenses.py --metadata M.json [--map /cargo-home=DIR] --target TRIPLE --out FILE [--root nfsu2 --root ob-studio-gui]
 
 M.json is `cargo metadata --format-version 1 --locked --offline --filter-platform TRIPLE` of the released
 tree with the default features (the shipping build: no dev-harness). The crates are the normal-dependency
 closure of the root packages (the workspace's packages that hold the player's programs: `nfsu2` with the game
-and the launcher, `ob-editor` with the map editor; dev- and build-dependencies left out, the roots themselves
+and the launcher, `ob-studio-gui` with the map editor; dev- and build-dependencies left out, the roots themselves
 not listed, nor the workspace's library crates under them); proc-macro crates and what only they
 use are listed as "build time" (they generate code at compile time and are not linked). The licence texts
 are the crates' own files (LICENSE*, LICENCE*, COPYING*, NOTICE*, COPYRIGHT*, UNLICENSE*, the manifest's
@@ -169,7 +169,7 @@ def main():
     ap.add_argument("--map", action="append", default=[], help="PREFIX=DIR: read a path under PREFIX from DIR")
     ap.add_argument("--target", required=True)
     ap.add_argument("--out", required=True)
-    ap.add_argument("--root", action="append", help="a root package (repeatable; default: nfsu2 and ob-editor)")
+    ap.add_argument("--root", action="append", help="a root package (repeatable; default: nfsu2 and ob-studio-gui)")
     ap.add_argument("--section", nargs=2, action="append", default=[], metavar=("TITLE", "FILE"),
                     help="append FILE (text; .html is turned into text) as a section: the Rust standard library's "
                          "notices, the toolchain's runtime libraries")
@@ -183,7 +183,7 @@ def main():
                 return Path(d + path[len(pre):])
         return Path(path)
 
-    pkgs, roots, every, linked = closure(meta, a.root or ["nfsu2", "ob-editor"])
+    pkgs, roots, every, linked = closure(meta, a.root or ["nfsu2", "ob-studio-gui"])
     crates = sorted(every, key=lambda i: (pkgs[i]["name"], pkgs[i]["version"]))
     problems = []
     texts = {}  # hash -> {"text", "users": [..], "file"}

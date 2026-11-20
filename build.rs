@@ -3,7 +3,7 @@
 //! so any change to a parser makes the caches stale. Also the version
 //! stamp (`OB_VERSION`, `OB_COMMIT`) and, for Windows targets, the icon, version resource and manifest of the two player
 //! programs in this package (`game.exe`, `overbright.exe`; the map editor's
-//! are made by crates/ob-editor/build.rs).
+//! are made by crates/ob-studio-gui/build.rs).
 
 #[path = "build_support/build_id.rs"]
 mod build_id;

@@ -145,7 +145,7 @@ The importer writes one bundle per load unit, so one load opens one file:
 ## 6. Writing safely
 
 Every writer (importer, Studio, CLI) writes a file to a temporary name in the same folder and renames it into
-place, as the asset cache and the map editor already do (`crates/ob-core/src/cache/temp.rs`, `src/tools/map/store.rs`). The
+place, as the asset cache and the map editor already do (`crates/ob-core/src/cache/temp.rs`, `crates/ob-map/src/tools/map/store.rs`). The
 importer builds a whole base set in `base/.staging-<id>/` and renames the folder into place last, so a base set is
 either complete or absent ([import.md](import.md) §5). A reader never mounts a `.staging-*` folder.
 

@@ -1,6 +1,14 @@
 //! Race routes and placed markers (TrackPosMarkers*.bin, Paths<track>.bin).
 
-use super::*;
+use std::path::{Path, PathBuf};
+
+use anyhow::{Context, Result};
+use glam::{Vec2, Vec3};
+
+use super::tracks::Track;
+use crate::formats::bundle::{chunks, read_f32, read_u16, read_u32};
+use crate::formats::hash::bin_hash;
+use crate::formats::roads::{RoadNet, RoadRoute};
 
 /// A placed marker (TrackPosMarkers*.bin, chunk 0x34146 after 16 bytes:
 /// 0x30-byte records `u32 11, u32 11, u32 name hash, u32 0, f32 x, y, z,

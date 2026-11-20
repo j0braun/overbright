@@ -1,4 +1,4 @@
-//! The build scripts' shared stamps (build.rs, crates/ob-editor/build.rs):
+//! The build scripts' shared stamps (build.rs, crates/ob-studio-gui/build.rs):
 //! the version stamp and the test kit's switches.
 
 /// The version stamp (`nfsu2::build_info`): `OB_VERSION` and `OB_COMMIT`

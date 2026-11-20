@@ -1,4 +1,4 @@
-//! Map edits as data: [`Op`], run by a [`super::session::MapSession`].
+//! Map edits as data: [`Op`], run by a `MapSession` (the library's `tools::map::session`).
 //!
 //! Every change the editor makes to a map mod is one `Op` (or a
 //! [`Op::Group`] of them under one name): a value that can be stored,
@@ -11,9 +11,10 @@
 //! The shapes of [`Op`], [`PropKey`], [`RacePoint`] and [`Change`], their
 //! JSON forms and the undo step names [`Op::label`] gives are fixed: the
 //! editor's panels, the console tool and the scripted tests build on
-//! them. New ops and new [`Refused`] reasons may be added (both enums are
-//! `#[non_exhaustive]`); existing ones keep their fields, meaning and
-//! names.
+//! them. New ops and new [`Refused`] reasons may be added ([`Refused`] is
+//! `#[non_exhaustive]`; [`Op`] is not, so the library's session and its
+//! tests, in another crate, must name every op); existing ones keep their
+//! fields, meaning and names.
 //!
 //! JSON: an op is an object tagged by `"op"` (`{"op":"delete","key":
 //! {"added":"a3"}}`); vectors are arrays (`[x, y, z]`), rotations their
@@ -23,8 +24,80 @@
 use glam::{Mat3, Vec3};
 use serde::{Deserialize, Serialize};
 
-use super::edit::{RacePart, Refused};
 use super::format::{CustomRace, MAX_CHECKPOINTS, MAX_GRID, MapMod, PropEdit, PropRef, RaceKind};
+
+/// What a race edit works on (in JSON `checkpoint`, `grid`, `start`,
+/// `finish`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RacePart {
+    #[default]
+    Checkpoint,
+    Grid,
+    Start,
+    Finish,
+}
+
+impl RacePart {
+    pub const ALL: [RacePart; 4] = [RacePart::Checkpoint, RacePart::Grid, RacePart::Start, RacePart::Finish];
+
+    pub fn name(self) -> &'static str {
+        match self {
+            RacePart::Checkpoint => "Checkpoints",
+            RacePart::Grid => "Start grid",
+            RacePart::Start => "Start line",
+            RacePart::Finish => "Finish line",
+        }
+    }
+}
+
+/// Why an edit was not made (a prop edit here, any [`Op`]
+/// run by a `MapSession` (the library's `tools::map::session`)). New reasons may be added.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum Refused {
+    /// No such placement in the world.
+    NoPlacement,
+    /// The placement was added by another map mod.
+    OtherMod,
+    /// The placement is not changed by this mod (nothing to reset).
+    NotEdited,
+    /// The placement was added by this mod (it has no original to go
+    /// back to: delete it instead).
+    Added,
+    /// The region has no solid of that name.
+    NoSolid,
+    /// The mod has no race of that id.
+    NoRace,
+    /// The race has no such point.
+    NoPoint,
+    /// The race holds no more points of that kind.
+    Full,
+    /// Another race or add of the mod has that id.
+    IdTaken,
+    /// A value out of range: a position off the map or not a number, an
+    /// id or a text the file format does not allow, a lap count.
+    BadValue,
+}
+
+impl std::fmt::Display for Refused {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Refused::NoPlacement => "No such placement",
+            Refused::OtherMod => "This prop belongs to another map mod",
+            Refused::NotEdited => "Not changed by this map mod",
+            Refused::Added => "Added by this map mod: delete it instead",
+            Refused::NoSolid => "The region has no such solid",
+            Refused::NoRace => "The map mod has no such race",
+            Refused::NoPoint => "The race has no such point",
+            Refused::Full => "The race holds no more points of that kind",
+            Refused::IdTaken => "That id is already in use",
+            Refused::BadValue => "Value out of range",
+        })
+    }
+}
+
+impl std::error::Error for Refused {}
 
 /// A prop as a map mod names it: an original placement by where the
 /// original data has it, or one the mod added by its add's id. JSON:
@@ -51,7 +124,6 @@ pub struct RacePoint {
 /// stability note). Props are named by [`PropKey`], races by id.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "op", rename_all = "snake_case", deny_unknown_fields)]
-#[non_exhaustive]
 pub enum Op {
     // ---- props ----
     /// Put a prop at `position` with `rotation` (rows: local axes): a
@@ -310,7 +382,7 @@ pub fn valid_position(v: Vec3) -> bool {
 }
 
 /// Refused unless `ok`.
-pub(super) fn ensure(ok: bool, why: Refused) -> Result<(), Refused> {
+pub fn ensure(ok: bool, why: Refused) -> Result<(), Refused> {
     if ok { Ok(()) } else { Err(why) }
 }
 

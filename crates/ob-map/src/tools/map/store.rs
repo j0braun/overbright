@@ -53,7 +53,7 @@ pub fn run_file(dir: &Path, folder: &str) -> PathBuf {
 pub fn write_run_copy(dir: &Path, folder: &str, m: &MapMod) -> Result<PathBuf> {
     ensure!(valid_id(folder), "`{folder}` is not a map mod folder name (a-z, 0-9, - and _)");
     let path = run_file(dir, folder);
-    crate::qol::saves::write_atomic(&path, m.write().as_bytes(), false)
+    crate::platform::fs::write_atomic(&path, m.write().as_bytes(), false)
         .with_context(|| format!("writing {}", path.display()))?;
     Ok(path)
 }

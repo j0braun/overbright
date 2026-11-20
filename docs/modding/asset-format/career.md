@@ -275,7 +275,7 @@ points = 120.0
 
 ### 3.2 `ob.tracks` (`global/career/tracks.toml`)
 
-`track` — one 0x128-byte record of `0x34201` (`src/frontend/career/tracks.rs:5`), in table order (the Quick Race
+`track` — one 0x128-byte record of `0x34201` (`crates/ob-map/src/frontend/career/tracks.rs:5`), in table order (the Quick Race
 order). Every byte is a field here or in `ob.track-maps` (Eq2):
 
 | Field | Type | Unit | M | Req. | Default | Meaning (offset) |

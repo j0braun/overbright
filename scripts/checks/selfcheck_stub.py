@@ -194,7 +194,7 @@ def editor(a):
             x = noise[0]
             line = line[:4 * x] + bytes([random.randrange(256), 7, 7, 255]) + line[4 * x + 4:]
         return line
-    print(f'[stub INFO  ob_editor] screen {screen}')
+    print(f'[stub INFO  ob_studio_gui] screen {screen}')
     if screen != 'start':
         if ed('edclip'):
             print('editor layout: toolbar clipped: Test race cut off (1270..1290 of 0..1280)')

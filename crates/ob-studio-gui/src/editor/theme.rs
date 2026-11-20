@@ -1,6 +1,6 @@
-//! The editor's look: the launcher's look-A tokens
-//! ([`crate::launch::theme::THEME_A`]) mapped onto egui, and its type,
-//! Sofia Sans Semi Condensed (SIL OFL 1.1, src/launcher/fonts/OFL.txt):
+//! The editor's look: the shared look-A tokens
+//! ([`ob_look::theme::THEME_A`], crates/ob-look) mapped onto egui, and its type,
+//! Sofia Sans Semi Condensed (SIL OFL 1.1, crates/ob-look/fonts/OFL.txt):
 //! upright faces for reading text, italic ones for titles and buttons. Lime
 //! marks titles, focus, selection and the main action; errors and warnings
 //! keep their red and amber.
@@ -10,18 +10,8 @@ use std::sync::Arc;
 use egui::epaint::text::{FontData, FontDefinitions, FontFamily};
 use egui::{Color32, CornerRadius, FontId, Shadow, Stroke, TextStyle, Visuals};
 
-use crate::launch::theme::{Rgb, Rgba, THEME_A, Theme};
-
-macro_rules! face {
-    ($name:literal) => {
-        include_bytes!(concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/../../src/launcher/fonts/SofiaSansSemiCondensed-",
-            $name,
-            ".ttf"
-        ))
-    };
-}
+use ob_look::fonts::{BODY, BODY_SEMI, LABEL_ITALIC, PLAY_ITALIC, TITLE_ITALIC};
+use ob_look::theme::{Rgb, Rgba, THEME_A, Theme};
 
 /// The upright 600 face (values, status).
 pub const SEMI: &str = "semi";
@@ -80,11 +70,11 @@ pub fn panel() -> Color32 {
 pub fn fonts() -> FontDefinitions {
     let mut f = FontDefinitions::empty();
     for (name, bytes) in [
-        ("body", &face!("Body")[..]),
-        (SEMI, &face!("BodySemi")[..]),
-        (LABEL, &face!("LabelItalic")[..]),
-        (TITLE, &face!("TitleItalic")[..]),
-        (PLAY, &face!("PlayItalic")[..]),
+        ("body", BODY),
+        (SEMI, BODY_SEMI),
+        (LABEL, LABEL_ITALIC),
+        (TITLE, TITLE_ITALIC),
+        (PLAY, PLAY_ITALIC),
     ] {
         f.font_data.insert(name.to_string(), Arc::new(FontData::from_static(bytes)));
         // The upright face behind each, for any glyph an italic cut lacks.

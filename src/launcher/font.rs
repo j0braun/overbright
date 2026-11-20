@@ -1,5 +1,5 @@
 //! The launcher's type: Sofia Sans Semi Condensed (SIL OFL 1.1, the Sofia
-//! Sans Project Authors; src/launcher/fonts/OFL.txt), five static instances
+//! Sans Project Authors; crates/ob-look/fonts/OFL.txt), five static instances
 //! cut from the variable fonts by tools/cut_fonts.py (subset to the Latin the
 //! launcher needs, GPOS pair kerning flattened into a `kern` table, which is
 //! the only kerning ab_glyph reads). Embedded, measured and rasterised with
@@ -15,25 +15,9 @@
 
 use ab_glyph::{Font, FontRef, PxScale, ScaleFont, point};
 
-macro_rules! face_file {
-    ($name:literal) => {
-        include_bytes!(concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/src/launcher/fonts/SofiaSansSemiCondensed-",
-            $name,
-            ".ttf"
-        ))
-    };
-}
-
-static BODY: &[u8] = face_file!("Body");
-static BODY_SEMI: &[u8] = face_file!("BodySemi");
-static LABEL_ITALIC: &[u8] = face_file!("LabelItalic");
-static TITLE_ITALIC: &[u8] = face_file!("TitleItalic");
-static PLAY_ITALIC: &[u8] = face_file!("PlayItalic");
-
-/// The licence text that goes with the embedded fonts (their own notice).
-pub const LICENCE: &str = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/launcher/fonts/OFL.txt"));
+// The faces and their licence are the shared look's (ob-look).
+use ob_look::fonts::{BODY, BODY_SEMI, LABEL_ITALIC, PLAY_ITALIC, TITLE_ITALIC};
+pub use ob_look::fonts::LICENCE;
 
 /// The launcher's faces (all Sofia Sans Semi Condensed).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]

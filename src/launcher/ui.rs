@@ -67,16 +67,8 @@ pub struct TextBox {
     pub full: Option<String>,
 }
 
-/// A status line's mark (`qol::setup::Mark` and the like).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Mark {
-    Ok,
-    Warn,
-    Info,
-    Error,
-    /// Something is being checked (a spinner).
-    Busy,
-}
+// The lamps are the shared look's (ob-look).
+pub use ob_look::lamp::Mark;
 
 impl From<crate::qol::setup::Mark> for Mark {
     fn from(m: crate::qol::setup::Mark) -> Mark {

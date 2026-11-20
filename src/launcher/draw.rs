@@ -313,14 +313,7 @@ fn stops(s: Stops) -> Vec<tiny_skia::GradientStop> {
     s.iter().map(|(p, c)| tiny_skia::GradientStop::new(*p, color(*c))).collect()
 }
 
-/// Which way a circled arrow or chevron points.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Dir {
-    Left,
-    Right,
-    Up,
-    Down,
-}
+pub use ob_look::legends::Dir;
 
 /// A glow mask: the alpha of a rounded box blurred, `pad` px around it.
 struct GlowMask {

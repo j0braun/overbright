@@ -5,7 +5,7 @@ core, screens, start and watch, tests, packaging). Not native: SPEED2.EXE has no
 launcher; the game starts and works without it (NFSU2_ROOT, game-root.txt,
 `--set-root`, auto-detection all stay). Nothing from EA is shown or shipped:
 its own dark look (a smoked slab, a rail under the page names, lime titles), set in
-Sofia Sans Semi Condensed (SIL OFL 1.1, `src/launcher/fonts/`, OFL.txt beside it).
+Sofia Sans Semi Condensed (SIL OFL 1.1, `crates/ob-look/fonts/`, OFL.txt beside it).
 
 ## The flow and the look (current)
 
@@ -92,8 +92,9 @@ launcher.log (`diag::native_crash`). With a pad as the last input the page names
 the Settings note shows the held button's glyph; at the first start that found the game the main screen
 says so, and Play keeps the folder. `--input pad|deck|ps|kbd|mouse` picks the legends of a render.
 
-**Look**: `draw::THEME_A` (the tokens are the library's `launch::theme`, which the map editor and the
-game's free-camera panel wear too; page #050605, ink #EEF0E8, secondary #C8CCC0, lime #C6F087 for titles and focus,
+**Look**: `draw::THEME_A` (the tokens are the shared look's, `crates/ob-look`, re-exported as the library's
+`launch::theme`; the map editor and the game's free-camera panel wear them too, and the type, the lamps and the
+legends' glyph sets come from there as well; page #050605, ink #EEF0E8, secondary #C8CCC0, lime #C6F087 for titles and focus,
 Play #F2F4EC), Sofia Sans Semi Condensed (italic for titles, Play, labels and buttons; upright for reading),
 focus rings at least 3 px and never in the primary style. Sizes follow the mockups' unit (1 at 1366 × 768,
 `Builder::ua`); the frame's vertical margins press together on short windows (`Builder::ac`).

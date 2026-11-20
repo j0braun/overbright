@@ -16,14 +16,13 @@
 //! | 0x34A1D | —      | the string pool the records point into |
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use anyhow::{Context, Result};
 use glam::{Vec2, Vec3};
 
 use crate::formats::bundle::{chunks, read_cstr, read_f32, read_u16, read_u32};
 use crate::formats::hash::bin_hash;
-use crate::formats::roads::{RoadNet, RoadRoute};
 use crate::race::RaceMode;
 
 mod data;
@@ -35,13 +34,11 @@ mod persist;
 mod profile;
 mod records;
 mod rewards;
-mod routes;
 mod rules;
 mod shops;
 mod slots;
 mod sms_rules;
 pub mod stats;
-mod tracks;
 mod triggers;
 
 pub use data::*;
@@ -53,11 +50,11 @@ use persist::*;
 pub use profile::*;
 pub use records::*;
 pub use rewards::*;
-pub use routes::*;
+// The tracks and their routes are the map data's (crates/ob-map), at their old paths.
+pub use ob_map::frontend::career::*;
 pub use shops::*;
 pub use slots::*;
 pub use stats::{CareerStats, PAGES, Row, STAGE_GOALS, career_rows};
-pub use tracks::*;
 pub use triggers::*;
 
 #[cfg(test)]

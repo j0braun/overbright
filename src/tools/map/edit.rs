@@ -12,6 +12,8 @@
 use glam::{Mat3, Vec2, Vec3};
 
 use super::format::{CustomRace, MapMod, PropEdit, PropRef, RaceKind, Spot};
+// The race parts and the refusal reasons are the map data's (ob-map), kept at their old paths here.
+pub use super::ops::{RacePart, Refused};
 use crate::draw::camera::Camera;
 use crate::world::{World, parts_of, transform_of};
 
@@ -27,31 +29,6 @@ pub enum Page {
     #[default]
     Props,
     Races,
-}
-
-/// What a race edit works on (in JSON `checkpoint`, `grid`, `start`,
-/// `finish`).
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum RacePart {
-    #[default]
-    Checkpoint,
-    Grid,
-    Start,
-    Finish,
-}
-
-impl RacePart {
-    pub const ALL: [RacePart; 4] = [RacePart::Checkpoint, RacePart::Grid, RacePart::Start, RacePart::Finish];
-
-    pub fn name(self) -> &'static str {
-        match self {
-            RacePart::Checkpoint => "Checkpoints",
-            RacePart::Grid => "Start grid",
-            RacePart::Start => "Start line",
-            RacePart::Finish => "Finish line",
-        }
-    }
 }
 
 /// The free camera: yaw / pitch as [`Camera`]'s.
@@ -108,54 +85,6 @@ pub fn pick(world: &World, eye: Vec3, dir: Vec3) -> Option<usize> {
 }
 
 // ---- prop operations ----------------------------------------------------
-
-/// Why an edit was not made (a prop edit here, any [`super::ops::Op`]
-/// run by a [`super::session::MapSession`]). New reasons may be added.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[non_exhaustive]
-pub enum Refused {
-    /// No such placement in the world.
-    NoPlacement,
-    /// The placement was added by another map mod.
-    OtherMod,
-    /// The placement is not changed by this mod (nothing to reset).
-    NotEdited,
-    /// The placement was added by this mod (it has no original to go
-    /// back to: delete it instead).
-    Added,
-    /// The region has no solid of that name.
-    NoSolid,
-    /// The mod has no race of that id.
-    NoRace,
-    /// The race has no such point.
-    NoPoint,
-    /// The race holds no more points of that kind.
-    Full,
-    /// Another race or add of the mod has that id.
-    IdTaken,
-    /// A value out of range: a position off the map or not a number, an
-    /// id or a text the file format does not allow, a lap count.
-    BadValue,
-}
-
-impl std::fmt::Display for Refused {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(match self {
-            Refused::NoPlacement => "No such placement",
-            Refused::OtherMod => "This prop belongs to another map mod",
-            Refused::NotEdited => "Not changed by this map mod",
-            Refused::Added => "Added by this map mod: delete it instead",
-            Refused::NoSolid => "The region has no such solid",
-            Refused::NoRace => "The map mod has no such race",
-            Refused::NoPoint => "The race has no such point",
-            Refused::Full => "The race holds no more points of that kind",
-            Refused::IdTaken => "That id is already in use",
-            Refused::BadValue => "Value out of range",
-        })
-    }
-}
-
-impl std::error::Error for Refused {}
 
 /// What this mod does to a placement.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

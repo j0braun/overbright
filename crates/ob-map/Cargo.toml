@@ -1,0 +1,28 @@
+[package]
+name = "ob-map"
+version.workspace = true
+edition.workspace = true
+description = "Overbright's map data: map mod files, edit operations, custom races, the simulation record."
+license.workspace = true
+publish = false
+build = "build.rs"
+# Hands its build id to the crates above it (build_support/build_id.rs).
+links = "ob_map"
+
+# The map data (docs/modding/map-editor.md): the map mod file and its store, the edit operations, custom races
+# on the original's road network and the simulation record. Used by the game library, Studio and the
+# command-line tool. On ob-core and ob-formats only; no window, GPU or audio crate, and it builds for the web
+# (scripts/checks/crate_layers.sh).
+[dependencies]
+ob-core = { path = "../ob-core" }
+ob-formats = { path = "../ob-formats" }
+anyhow.workspace = true
+glam.workspace = true
+log.workspace = true
+miniz_oxide.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+
+[features]
+# The developer harness's hooks (the root package's `dev-harness` turns it on).
+dev-harness = ["ob-core/dev-harness", "ob-formats/dev-harness"]
