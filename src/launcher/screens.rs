@@ -184,6 +184,8 @@ pub struct App<'e> {
     pub support_job: Option<std::sync::mpsc::Receiver<Result<PathBuf, String>>>,
     /// The map editor started from the Mods page, while it is open.
     pub editor_job: Option<Box<dyn super::model::EditorJob>>,
+    /// Studio, when the launcher started it (its end polled by the window).
+    pub studio_job: Option<Box<dyn super::model::EditorJob>>,
     /// The Saves page's worker: its result on the way, and what its jobs
     /// keep between runs.
     pub saves_rx: Option<std::sync::mpsc::Receiver<super::saves::jobs::Done>>,
@@ -1430,25 +1432,31 @@ fn build_advanced(b: &mut Builder, m: &Model) {
     b.default_focus = Some("text_size");
 }
 
-/// The Dev page: the map editor (its button, for the desktop editor), the
-/// game with the editor tools, the support file and the logs, the
-/// overlay's key; what the focused row does at the right.
+/// The Dev page: Studio (its button and its command-line tool), the
+/// standalone map editor, the game with the editor tools, the support file
+/// and the logs, the overlay's key; what the focused row does at the right.
 fn build_dev(b: &mut Builder, m: &Model) {
     b.page_title("Dev", None);
     let cols = b.columns(700.0);
     b.in_column(cols.left);
-    b.section_a("Map editor");
+    b.section_a("Studio");
+    b.buttons(Align::Left, vec![studio_button(m)]);
+    if !m.studio_here {
+        b.status(Mark::Error, "Studio's program (overbright-studio) is not beside the launcher.");
+    }
+    studio_status(b, m);
+    b.sum_row("studio_cli", "Command-line tool", if m.studio_cli_here { "Open folder" } else { "Not here" });
+    b.section_a("Standalone map editor");
     b.buttons(Align::Left, vec![map_editor_button(m)]);
     if !m.editor_here {
         b.status(Mark::Error, "The map editor's program (overbright-editor) is not beside the launcher.");
     }
-    b.dim("A preview: it works, but it is not finished. Keep a copy of map mods you care about.");
-    editor_status(b, m);
+    if m.mods.editor != super::model::EditorRun::Closed {
+        editor_status(b, m);
+    }
     b.section_a("Editor tools in the game");
     b.sum_row("editor_play", "Play with editor tools", "F7 · F8");
-    b.dim("F7: the texture editor");
-    b.dim("F8: the free camera");
-    b.dim("F3: the performance overlay (in every start)");
+    b.dim("F7: the texture editor · F8: the free camera · F3: the performance overlay");
     b.section_a("Reports");
     b.sum_row("support", "Support file", "Save…");
     b.sum_row("dev_logs", "Logs folder", "Open");
@@ -1460,6 +1468,14 @@ fn build_dev(b: &mut Builder, m: &Model) {
     message(b, m);
     let left_bottom = b.y;
     if let Some(r) = cols.right {
+        let cli = if m.studio_cli_here {
+            "overbright-studio-cli, beside the launcher: Studio's edits and checks from a shell or a script, one \
+             command per edit, with JSON output. Run it in a terminal; \"overbright-studio-cli help\" lists every \
+             command. Open folder shows where it is."
+        } else {
+            "overbright-studio-cli: Studio's edits and checks from a shell or a script. It is not beside the \
+             launcher in this copy of Overbright."
+        };
         let (h, t) = match b.st.focus.unwrap_or("editor_play") {
             "support" => (
                 "Support file",
@@ -1467,21 +1483,43 @@ fn build_dev(b: &mut Builder, m: &Model) {
                  with your home folder left out. It is saved in the logs folder.",
             ),
             "dev_logs" => ("Logs folder", "The game's and the launcher's logs, crash reports and support files."),
+            "studio" => (
+                "Studio (preview)",
+                "Overbright Studio in its own window: the place where mods are made. The map editor is its World \
+                 workspace. It is a preview: not every part is finished; keep a copy of mods you care about.",
+            ),
+            "studio_cli" => ("Command-line tool", cli),
             "map_editor" => (
-                "Map editor (preview)",
-                "The desktop map editor in its own window: props, custom races, test runs in the game and AI \
-                 simulations. It is a preview: not every part is finished.",
+                "Standalone map editor (preview)",
+                "The desktop map editor on its own, without Studio: props, custom races, test runs in the game and \
+                 AI simulations. It is a preview: not every part is finished.",
             ),
             _ => (
                 "Editor tools",
                 "Starts the game once with --editor: F7 opens the texture editor, F8 the free camera. Your next \
-                 start from Play is a normal one.",
+                 start from Play is a normal one. F3 shows the performance overlay in every start.",
             ),
         };
         b.describe(r, h, t);
     }
     b.y = left_bottom.max(b.widgets.last().map_or(0.0, |w| w.rect.bottom()));
     b.default_focus = Some("editor_play");
+}
+
+/// Studio's button: starts Studio on its Home; greyed when it is not
+/// beside the launcher (`dirs::studio_exe`) or while it is open.
+pub fn studio_button(m: &Model) -> Ctrl {
+    let open = matches!(m.studio, super::model::EditorRun::Open(_));
+    Ctrl::Button { id: "studio", text: "Open Studio (preview)".into(), primary: false, enabled: m.studio_here && !open }
+}
+
+/// Studio's state under its button: open, or why it failed.
+fn studio_status(b: &mut Builder, m: &Model) {
+    match &m.studio {
+        super::model::EditorRun::Open(_) => b.status(Mark::Busy, "Studio is open in its own window."),
+        super::model::EditorRun::Failed(e) => b.status(Mark::Error, &format!("Studio: {e}")),
+        super::model::EditorRun::Closed => {}
+    }
 }
 
 /// The map editor's button: starts the desktop editor on its own Open /
@@ -2072,6 +2110,7 @@ impl<'e> App<'e> {
             motion: Default::default(),
             support_job: None,
             editor_job: None,
+            studio_job: None,
             keys_after: None,
             copy_job: None,
             saves_rx: None,
@@ -2955,6 +2994,11 @@ impl<'e> App<'e> {
                 }
             }
             (Screen::Dev, Event::Activate("map_editor")) => self.open_editor(None),
+            (Screen::Dev, Event::Activate("studio")) => self.open_studio(),
+            (Screen::Dev, Event::Activate("studio_cli")) => {
+                let d = super::dirs::studio_cli_exe().parent().map(Path::to_path_buf).unwrap_or_default();
+                self.open_folder(&d);
+            }
             (Screen::Mods, Event::Activate("map_export")) => {
                 let start = super::dirs::home();
                 self.choose_folder(BrowseFor::MapExport, start);
@@ -3411,6 +3455,34 @@ impl<'e> App<'e> {
         }
     }
 
+    /// Starts Studio on its Home (one at a time); a failed start is shown
+    /// under its button.
+    pub fn open_studio(&mut self) {
+        if self.studio_job.is_some() {
+            return;
+        }
+        match self.env.start_studio(self.model.root.as_deref()) {
+            Ok(job) => {
+                self.studio_job = Some(job);
+                self.model.studio = super::model::EditorRun::Open(None);
+            }
+            Err(e) => self.model.studio = super::model::EditorRun::Failed(e),
+        }
+    }
+
+    /// Studio's end: its button usable again, the map mods read again (it
+    /// may have made or changed one). True when it ended.
+    fn poll_studio(&mut self) -> bool {
+        let Some(end) = self.studio_job.as_mut().and_then(|j| j.poll()) else { return false };
+        self.studio_job = None;
+        self.model.studio = match end {
+            Ok(()) => super::model::EditorRun::Closed,
+            Err(e) => super::model::EditorRun::Failed(e),
+        };
+        self.refresh_mods();
+        true
+    }
+
     /// The map editor's end: the page usable again, its map mods read
     /// again (the editor may have made or changed one). True when it ended.
     fn poll_editor(&mut self) -> bool {
@@ -3427,7 +3499,7 @@ impl<'e> App<'e> {
     /// The window's poll: a finished support file shown, the map editor's
     /// end. True when the screen changed.
     pub fn poll_jobs(&mut self, fonts: &Fonts) -> bool {
-        if self.poll_editor() || self.poll_saves() {
+        if self.poll_editor() | self.poll_studio() || self.poll_saves() {
             self.rebuild(fonts);
             return true;
         }

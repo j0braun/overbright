@@ -481,6 +481,12 @@ pub struct Model {
     pub portable: PortableInfo,
     /// The desktop map editor is beside the launcher (`dirs::editor_exe`).
     pub editor_here: bool,
+    /// Studio is beside the launcher (`dirs::studio_exe`).
+    pub studio_here: bool,
+    /// Studio's command-line tool is beside the launcher (`dirs::studio_cli_exe`).
+    pub studio_cli_here: bool,
+    /// Studio as the Dev page shows it (started from the launcher).
+    pub studio: EditorRun,
     /// The folder the folder choice is for.
     pub pick_loc: Option<crate::platform::dirs::Location>,
     /// Files are being copied (on a worker).
@@ -690,14 +696,16 @@ pub trait EditorJob {
 }
 
 /// The real editor process.
-struct EditorProcess(std::process::Child);
+/// A started program (the map editor or Studio) and its name for the
+/// words of a bad end.
+struct EditorProcess(std::process::Child, &'static str);
 
 impl EditorJob for EditorProcess {
     fn poll(&mut self) -> Option<Result<(), String>> {
         match self.0.try_wait() {
             Ok(None) => None,
             Ok(Some(st)) if st.success() => Some(Ok(())),
-            Ok(Some(st)) => Some(Err(format!("the map editor ended with {st}"))),
+            Ok(Some(st)) => Some(Err(format!("{} ended with {st}", self.1))),
             Err(e) => Some(Err(e.to_string())),
         }
     }
@@ -1240,6 +1248,20 @@ pub trait Env {
     fn start_editor(&self, _folder: Option<&str>, _root: Option<&Path>) -> Result<Box<dyn EditorJob>, String> {
         Err("no map editor here".into())
     }
+    /// Studio's program is there (`overbright-studio` beside the launcher,
+    /// [`super::dirs::studio_exe`]).
+    fn studio_present(&self) -> bool {
+        super::dirs::studio_exe().is_file()
+    }
+    /// Studio's command-line tool is there ([`super::dirs::studio_cli_exe`]).
+    fn studio_cli_present(&self) -> bool {
+        super::dirs::studio_cli_exe().is_file()
+    }
+    /// Starts Studio (`overbright-studio`, [`super::dirs::studio_exe`]) on
+    /// its Home; `root`: the game folder shown, given as `NFSU2_ROOT`.
+    fn start_studio(&self, _root: Option<&Path>) -> Result<Box<dyn EditorJob>, String> {
+        Err("no Studio here".into())
+    }
     /// The launcher's own preferences.
     fn prefs(&self) -> Prefs {
         Prefs::default()
@@ -1772,6 +1794,9 @@ impl Env for RealEnv {
             locations: self.locations(),
             portable: self.portable(),
             editor_here: self.editor_present(),
+            studio_here: self.studio_present(),
+            studio_cli_here: self.studio_cli_present(),
+            studio: EditorRun::Closed,
             pick_loc: None,
             copy_busy: false,
             copy_plan: None,
@@ -2087,7 +2112,19 @@ impl Env for RealEnv {
         cmd.stdin(std::process::Stdio::null()).stdout(std::process::Stdio::null()).stderr(std::process::Stdio::null());
         let child = cmd.spawn().map_err(|e| format!("the map editor could not be started ({}): {e}", exe.display()))?;
         log::info!("map editor started (pid {}) on {}", child.id(), folder.unwrap_or("its own choice"));
-        Ok(Box::new(EditorProcess(child)))
+        Ok(Box::new(EditorProcess(child, "the map editor")))
+    }
+
+    fn start_studio(&self, root: Option<&Path>) -> Result<Box<dyn EditorJob>, String> {
+        let exe = super::dirs::studio_exe();
+        let mut cmd = std::process::Command::new(&exe);
+        if let Some(r) = root {
+            cmd.env("NFSU2_ROOT", r);
+        }
+        cmd.stdin(std::process::Stdio::null()).stdout(std::process::Stdio::null()).stderr(std::process::Stdio::null());
+        let child = cmd.spawn().map_err(|e| format!("Studio could not be started ({}): {e}", exe.display()))?;
+        log::info!("Studio started (pid {})", child.id());
+        Ok(Box::new(EditorProcess(child, "Studio")))
     }
 
     fn export_map(&self, folder: &str, to: &Path) -> Result<PathBuf, String> {
@@ -2346,6 +2383,9 @@ impl Env for FakeEnv {
             locations: self.locations(),
             portable: self.portable(),
             editor_here: self.editor_present(),
+            studio_here: self.studio_present(),
+            studio_cli_here: self.studio_cli_present(),
+            studio: EditorRun::Closed,
             pick_loc: None,
             copy_busy: false,
             copy_plan: None,
@@ -2623,6 +2663,18 @@ impl Env for FakeEnv {
     }
 
     fn start_editor(&self, _folder: Option<&str>, _root: Option<&Path>) -> Result<Box<dyn EditorJob>, String> {
+        Ok(Box::new(FakeEditor::default()))
+    }
+
+    fn studio_present(&self) -> bool {
+        true
+    }
+
+    fn studio_cli_present(&self) -> bool {
+        true
+    }
+
+    fn start_studio(&self, _root: Option<&Path>) -> Result<Box<dyn EditorJob>, String> {
         Ok(Box::new(FakeEditor::default()))
     }
 
