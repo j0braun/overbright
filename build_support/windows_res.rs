@@ -3,7 +3,9 @@
 //! compiled with the target's resource compiler and linked into the player's
 //! programs: the game (`game.exe`) and the launcher (`overbright.exe`) from
 //! build.rs, the map editor (`overbright-editor.exe`) from
-//! crates/ob-studio-gui/build.rs. The tool binaries get none.
+//! crates/ob-studio-gui/build.rs, Studio's command-line tool
+//! (`overbright-studio-cli.exe`) from crates/ob-studio/build.rs. The tool
+//! binaries get none.
 //!
 //! The icon is drawn in code (build_support/icon_art.rs, shared with the
 //! window icon, `platform::icon`): Overbright's mark, the launcher's lime
@@ -104,11 +106,17 @@ struct Program {
     description: &'static str,
 }
 
-/// The player's programs (the archives of scripts/release/package.sh).
-const PROGRAMS: [Program; 3] = [
+/// The player's programs (the archives of scripts/release/package.sh) and
+/// Studio's command-line tool.
+const PROGRAMS: [Program; 4] = [
     Program { bin: "game", identity: "Overbright.Game", description: "Overbright" },
     Program { bin: "overbright", identity: "Overbright.Launcher", description: "Overbright Launcher" },
     Program { bin: "overbright-editor", identity: "Overbright.MapEditor", description: "Overbright Map Editor" },
+    Program {
+        bin: "overbright-studio-cli",
+        identity: "Overbright.StudioCli",
+        description: "Overbright Studio command line",
+    },
 ];
 
 /// Writes the icon, the manifests and the resource scripts into `out_dir`,

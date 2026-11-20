@@ -135,8 +135,8 @@ game's normal-priority threads always win a core.
 
 ### Program manifest
 
-`build_support/windows_res.rs` adds a manifest (RT_MANIFEST id 1) to `game.exe`, `overbright.exe` and
-`overbright-editor.exe`:
+`build_support/windows_res.rs` adds a manifest (RT_MANIFEST id 1) to `game.exe`, `overbright.exe`,
+`overbright-editor.exe` and `overbright-studio-cli.exe` (with the icon and the version resource):
 
 - `supportedOS` Windows 10/11 (`{8e0f7a12-bfb3-4fe8-b9a5-48fd50a15a9a}`): no version lies, current behaviour.
 - `dpiAware true/pm` + `dpiAwareness PerMonitorV2, PerMonitor`: physical pixels from the first window and for
