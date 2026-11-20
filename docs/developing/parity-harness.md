@@ -25,8 +25,8 @@ parity.py diff OUT
 parity.py summary OUT1 OUT2 …                                # the summary table
 ```
 
-`run` takes 3–5 minutes (boot ~2 min, the race at about 50 game frames per
-wall second); `clone` takes seconds. OUT (default
+`run` takes 3–5 minutes (boot ~2 min, the fixed-step race at about 110 game frames
+per wall second on DXVK); `clone` takes seconds. OUT (default
 `$PARITY_WORK/<name>`, a scratch folder of your choice) holds:
 
 | file | what |
@@ -40,8 +40,48 @@ wall second); `clone` takes seconds. OUT (default
 
 Options of `native.py` (passed after OUT): `--copy` (the Wine copy, default
 a private one, or `$PARITY_COPY`), `--display` (default 206, or `$PARITY_DISPLAY`), `--keep`
-(leave the session running). The session is started and stopped through
-`fastgpu.sh` (by PID, never by name).
+(leave the session running), `--wined3d` (the original on wined3d instead of DXVK; see
+"Renderer and frame rate"), `--min-fps` / `--min-rate` (the frame-rate guard). The session is
+started and stopped through `fastgpu.sh` (by PID, never by name).
+
+## Renderer and frame rate
+
+Every native tool (`native.py`, `trafh_native.py` and `trafh.py --wine`, `dragshift.py`,
+`recdump.py`, `rngdraws.py`, `snapdiff.py`, `tools/rating/rating.py`, all through
+`native.Session`; `tools/look/wine_ref.py`) starts the original on **DXVK** by default. On the
+reference desktop GPU the original then runs at its own rate: about 114 fps in a Quick Race, the
+race at 100.9 % of real time on a quiet machine. wined3d's Vulkan renderer reaches only about
+55 fps there (77 % of real time in a Quick Race), half the original's rate, so it is used only
+when asked for: `--wined3d` on a tool, or `NATIVE_RENDERER=wined3d` for every tool of the
+process. An older note said DXVK froze at the profile load ("Command submission failed: -13");
+that did not reproduce on a quiet machine — the DXVK device loss shows up under heavy load
+(docs/notes/parity/drive-parity.md), one more reason to measure only on a quiet machine. The
+navigator's screen references were taken under wined3d; under DXVK its main-menu crop scores
+an RMSE of about 0.093 (every other screen 0.29 or more), so its match threshold is 0.12 under
+DXVK and 0.08 under wined3d (`nav.THRESHOLD`; `NAV_THRESHOLD` overrides, `NAV_DEBUG=1` logs
+each match).
+
+**The frame-rate guard.** Each native run measures the original's frame rate in the running
+game (`native.FpsMeter`): world updates (0x7FB724, +1 per frame the world ran) per game second
+(the clock 0x865188), and game seconds per wall second. A real-time run counts only when it
+reached **at least 100 fps and 95 % of real time** (`--min-fps` / `--min-rate`, or
+`NATIVE_MIN_FPS` / `NATIVE_MIN_RATE`). `trafh_native.py` writes the line
+`# fps F rate R wall_fps W renderer … load L min_fps 100 min_rate 0.95 valid 1|0 (why)` at the
+end of its table and exits with code 3 when the run is invalid; `trafh.py run` then keeps that
+table aside as `native-<scen>-r<k>.slow` (the next `run` boots that run again) and exits
+non-zero, and `trafh.py stats` never counts a table marked `valid 0` and names the native tables
+that have no `# fps` line (from before the guard: their rate is unknown). `native.py` writes the
+same numbers as `fps` into `native.json`; a fixed-step run (the default `fixed_fps = 60`: every
+frame is 1/60 s of game time whatever the wall clock) only logs them, a `fixed_fps = 0` run is
+guarded and exits with code 3 when too slow (`parity.py run` reports it).
+
+**A valid native measurement** (for a "native" verdict or a native number in a note):
+- the original ran on DXVK, on a quiet machine: no gate or other heavy check running, no other
+  session of the original, load well under the core count, the GPU idle before the run;
+- its run carries the guard's line with `valid 1` (or `native.json` `fps.valid`), i.e. it
+  reached at least 100 fps and 95 % of real time — a run without the line, or on wined3d, is
+  indicative only and is said to be so where it is quoted;
+- the note quoting it gives the renderer and the measured fps with the number.
 
 ## Adding a scenario
 
@@ -113,7 +153,7 @@ A negative `tol` records the field without ever counting it as a divergence.
 * **Fixed frame time.** With FIXED the cave returns 1000/60 ms and the
   limiter period 0x865558 is 0: every frame is a 60 fps frame in game time
   (ticks 30, 29, 31 of 1/1800 s, 0x57EAE0), whatever the wall clock (the
-  game runs at ~50 frames per wall second under wined3d). This is the uncapped-FPS study's
+  game runs at ~50 frames per wall second under wined3d, ~110 under DXVK). This is the uncapped-FPS study's
   method (docs/original/uncapped-fps.md), which repeated runs to 3 decimals. Wine
   timing variance therefore does not reach the simulation; the clone steps
   the same per-frame ticks (from `native.json`).
@@ -219,9 +259,11 @@ A negative `tol` records the field without ever counting it as a divergence.
   frame time on both sides, but the scene limiter (1/30 s) and the NIS
   hand-off are each game's own; the frame-0 rows show where the cars stand
   at the green.
-* **Renderer.** The original runs on wined3d's Vulkan renderer: DXVK froze
-  at the profile load in this copy ("Command submission failed: -13", the
-  known flake, twice in a row). The renderer does not touch the simulation.
+* **Renderer.** The original runs on DXVK (see "Renderer and frame rate"); the
+  results below were taken on wined3d's Vulkan renderer, when DXVK was thought
+  to freeze at the profile load. In a fixed-step record the renderer does not
+  touch the simulation; in a real-time run it sets the frame rate, and with it
+  every per-frame decision (see the frame-rate guard).
 * **Fields not traced end to end** are marked observed/inferred above (the
   race status state and clock, the racer's place byte).
 * The clone's global `race_type` is only known for outruns.
