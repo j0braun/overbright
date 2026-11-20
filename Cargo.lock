@@ -1961,6 +1961,7 @@ dependencies = [
  "egui-wgpu",
  "egui-winit",
  "env_logger",
+ "gilrs",
  "glam",
  "image",
  "log",

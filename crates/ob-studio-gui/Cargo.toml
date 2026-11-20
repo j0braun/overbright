@@ -2,7 +2,7 @@
 name = "ob-studio-gui"
 version.workspace = true
 edition.workspace = true
-description = "Overbright Studio's window crate: the desktop map editor (overbright-editor) today."
+description = "Overbright Studio's window crate: the desktop map editor (overbright-editor) and Studio's window (overbright-studio, a preview)."
 license.workspace = true
 publish = false
 build = "build.rs"
@@ -29,6 +29,8 @@ image.workspace = true
 log.workspace = true
 env_logger.workspace = true
 toml.workspace = true
+# Pads in Studio's window (the version the game uses).
+gilrs = "0.11"
 # The editor's UI: egui with its winit input and wgpu renderer, on the
 # wgpu / winit versions above. Pinned exactly: egui changes its API between
 # minor versions. MIT OR Apache-2.0. Without egui's default fonts (not all
@@ -56,3 +58,7 @@ dev-harness = ["nfsu2/dev-harness", "ob-studio/dev-harness"]
 [[bin]]
 name = "overbright-editor"
 path = "src/bin/overbright-editor.rs"
+
+[[bin]]
+name = "overbright-studio"
+path = "src/bin/overbright-studio.rs"

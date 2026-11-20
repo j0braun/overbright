@@ -4,6 +4,7 @@
 //! here under their own names, so its `crate::…` paths read as before.
 
 pub mod editor;
+pub mod studio;
 
 // The game library through its one interface for Studio (`nfsu2::studio_api`;
 // scripts/checks/crate_layers.sh refuses any other `nfsu2::` path here), and
