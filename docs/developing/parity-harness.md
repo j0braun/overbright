@@ -75,12 +75,45 @@ same numbers as `fps` into `native.json`; a fixed-step run (the default `fixed_f
 frame is 1/60 s of game time whatever the wall clock) only logs them, a `fixed_fps = 0` run is
 guarded and exits with code 3 when too slow (`parity.py run` reports it).
 
+**Fixed 60 for AI measurements.** The original's AI is frame-rate dependent, so a real-time run
+measures it at whatever rate the machine gave. Its world step follows the measured frame time
+(quantised to 1/1800 s, so physics hardly moves with the rate), but the AI is counted in frames:
+each traffic car thinks once every 2N frames (0x429D90, its slot on the frame counter 0x7FB724:
+0.2 s at 120 fps, 0.4 s at 60), a racer or encounter car thinks on its frame slot (mod 8, mod 4 in
+a drag) once at least 0.2 s have passed (0x42ABD0: about 0.2 s at 120 fps, 0.27 s at 60), and
+steering and avoidance run every frame (docs/formats/ai.md "Traffic", docs/original/coverage/racer-ai.md).
+A real-time run at 72-86 fps matches neither the original's own 120 fps cap nor this game's
+world, which always ticks at 1/60 s. `trafh_native.py` (and `trafh.py run --wine`) therefore
+runs the original with the cave's fixed frame time by default: `--fixed-fps 60` installs the
+cave (no recording, no lockstep) and sets every frame to 1/60 s of game time, free running, as
+`native.py`'s default `fixed_fps = 60` and docs/evidence/engine-bed/scripts/drive_rt_f.py do.
+With the limiter off the original then runs free (about 480 fps on the reference GPU: 8 game
+seconds per wall second, only 2-3 polls per game second, too few for the bot), so the run also
+sets DXVK's own frame cap to N (`DXVK_CONFIG` `d3d9.maxFrameRate`, a wall-clock pacer in the
+presenter; nothing in the game changes): a quiet run then holds about 60 fps and 0.99 game
+seconds per wall second, with 20-25 polls per game second (`--no-pace` leaves it free). The bot's
+keys, the shove and the polls are on the game clock; the pace only sets how much game time one
+poll covers. A run whose game clock stops for 60 s ends with an error. The
+guard of a fixed run wants **the cave still in place at the end** (the main loop's call, FIXED,
+1000/N ms, the limiter period 0: `cave.Cave.fixed_held`) **and at least N − 1 world updates per
+game second** (`# fps … fixed 60 valid 1|0`) instead of the 100 fps / 95 % test. More than N is
+allowed: frames in which the game clock stands (a race's finish and results) add updates
+without game time, so a 40 s drag reads about 65. The rate is logged only, and the machine load
+does not change the result. The table header carries `fixed=60`; `trafh.py
+stats` puts each fixed step in its own column (`native-fixed60`) and real-time runs in
+`native`, never mixed. Use fixed 60 for every AI comparison with this game (traffic, encounters,
+racers, a drag); `--fixed-fps 120` measures how far the original itself moves between 60 and its
+own cap. Keep real time (`--fixed-fps 0`, the guard above) for wall-bound things such as a load
+or streaming delay, which a fixed frame would stretch or shrink; an outrun defaults to real time
+until its fixed run has been checked.
+
 **A valid native measurement** (for a "native" verdict or a native number in a note):
 - the original ran on DXVK, on a quiet machine: no gate or other heavy check running, no other
   session of the original, load well under the core count, the GPU idle before the run;
-- its run carries the guard's line with `valid 1` (or `native.json` `fps.valid`), i.e. it
-  reached at least 100 fps and 95 % of real time — a run without the line, or on wined3d, is
-  indicative only and is said to be so where it is quoted;
+- its run carries the guard's line with `valid 1` (or `native.json` `fps.valid`), i.e. a
+  real-time run reached at least 100 fps and 95 % of real time, a fixed run kept the cave in place
+  and at least N − 1 world updates per game second — a run without the line, or a real-time run on wined3d, is indicative
+  only and is said to be so where it is quoted;
 - the note quoting it gives the renderer and the measured fps with the number.
 
 ## Adding a scenario

@@ -53,11 +53,16 @@ tables, adds boots of the original; `bot` needs this game's `route.tsv` first), 
 clock at boot, so each boot is an independent sample; this game's seeds are fixed streams.
 This game's side runs under `scripts/checks/home_mask.sh` (the player's folders hidden); the
 original's under fastgpu.sh (private Xvfb display, no sound, stopped by PID at the end), on DXVK
-(`--wined3d` only on request: about half the original's rate). The original's side runs in real
-time, so each boot is checked by the frame-rate guard (docs/developing/parity-harness.md "Renderer
-and frame rate"): a boot below 100 fps or 95 % of real time ends with the table line
+(`--wined3d` only on request: about half the original's rate). The original's side runs with
+every frame 1/60 s of game time (`--fixed-fps 60`, the default: the parity cave, free running;
+its AI counts frames, and this game's world ticks at 1/60 s, with DXVK's frame cap at 60 holding
+it near real time), so the machine's frame rate does not change it; `--fixed-fps 0` runs it in real time (an outrun's default). Each boot is checked
+by the frame-rate guard (docs/developing/parity-harness.md "Renderer and frame rate"): a fixed
+boot must keep the cave in place and run at least N − 1 world updates per game second, a real-time boot at least 100 fps and 95 % of
+real time (`--min-fps` / `--min-rate`); a boot that fails ends with the table line
 `# fps … valid 0`, is kept aside as `native-<scen>-r<k>.slow`, not counted, and `run` exits
-non-zero; `--min-fps` / `--min-rate` change the limits. Read that page's "valid native
+non-zero. Fixed and real-time tables are reported in separate columns (`native-fixed60`,
+`native`). Read that page's "valid native
 measurement" rule before quoting a native number.
 
 Output in OUT: `ours-<scen>-s<seed>.tsv`, `native-<scen>-r<k>.tsv` (+ `.log`, `.nav/` screenshots),
@@ -65,7 +70,8 @@ Output in OUT: `ours-<scen>-s<seed>.tsv`, `native-<scen>-r<k>.tsv` (+ `.log`, `.
 
 ## The table
 
-One header line `# trafh 1  side=ours|native  scenario=…  seed=…  level=…  driver=…  routes=…`,
+One header line `# trafh 1  side=ours|native  scenario=…  seed=…  level=…  driver=…  routes=…`
+(a native table also `fixed=N`, 0 in real time),
 then tab-separated rows, one per traffic car per sample, plus a row `P` for the player:
 
 | Column | Meaning |
