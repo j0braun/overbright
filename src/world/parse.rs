@@ -370,6 +370,7 @@ impl World {
                     .copied()
                     .filter(|&s| !world.solids[s].indices.is_empty());
                 by_instance.insert((group.section_number as u32, index), world.placements.len());
+                world.original_keys.push((group.section_number, index as u32, world.placements.len() as u32));
                 let mid_solid = world
                     .solid_by_hash
                     .get(&info.lod_solids[1])
@@ -415,6 +416,7 @@ impl World {
         world.disk_link_flags = links.iter().map(|l| l.instance_flags).collect();
         world.disk_groups_on = world.scenery_groups.iter().map(|g| g.on).collect();
         world.links = links;
+        world.original_keys.sort_unstable();
         world.add_doors(&track_bun);
         world.add_loops();
         world.add_gps_aid(game_root);
@@ -545,6 +547,48 @@ mod unloaded_record_tests {
             assert!(v.lists.iter().all(|l| !l.visible.contains(&0)), "{region}");
             let first = parse_streaming_sections(&bun).unwrap().into_iter().next().unwrap();
             assert_eq!((first.name.as_str(), first.number), ("--", 0), "{region}");
+        }
+    }
+}
+
+#[cfg(test)]
+mod key_tests {
+    use super::*;
+
+    /// docs/modding/asset-format/world.md §6.3 test 2: for every scenery-link
+    /// entry of every region, the key `<scenery>/<index>` the link names finds
+    /// the placement the load paired the link with (none for a skipped
+    /// instance, which keeps its index); every key is one placement's, and
+    /// the placements the load adds itself (the GPS aid, the dyno rollers,
+    /// the world animations) have none.
+    #[test]
+    #[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
+    fn placement_keys_are_original_indices() {
+        let root = crate::testkit::game_root();
+        for region in crate::upscale_pack::ALL_TRACKS {
+            let w = World::load(Path::new(&root), region).unwrap();
+            let keys: Vec<(u32, u32)> = w.original_keys.iter().map(|&(s, i, _)| (s, i)).collect();
+            assert!(keys.windows(2).all(|p| p[0] < p[1]), "{region}: keys not unique and sorted");
+            let mut unpaired = 0;
+            for (e, l) in w.links.iter().enumerate() {
+                let found = w.original_placement(l.section as u32, l.instance as u32);
+                assert_eq!(found, w.link_placements[e], "{region}: link {e}");
+                unpaired += found.is_none() as usize;
+            }
+            for (k, &(s, i, p)) in w.original_keys.iter().enumerate() {
+                assert_eq!(w.original_key(p as usize), Some((s, i)), "{region}: key {k}");
+            }
+            let extras = w.gps_aid.into_iter().chain(w.dyno_rollers);
+            assert!(extras.into_iter().all(|p| w.original_key(p).is_none()), "{region}");
+            assert!(w.original_keys.iter().all(|&(_, _, p)| (p as usize) < w.placements.len()));
+            // A skipped instance leaves a hole in its section's indices, the
+            // ones after it keep theirs (L4RB has 2 whose solid is missing).
+            let holes = keys.windows(2).filter(|p| p[0].0 == p[1].0 && p[1].1 > p[0].1 + 1).count();
+            if *region == "L4RB" {
+                assert_eq!(w.missing_solids, 2);
+                assert!(holes >= 1, "L4RB: no index kept by a skipped instance");
+            }
+            eprintln!("{region}: {} keys, {holes} holes, {} links, {unpaired} unpaired", keys.len(), w.links.len());
         }
     }
 }

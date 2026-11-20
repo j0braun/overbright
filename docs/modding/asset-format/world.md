@@ -887,6 +887,12 @@ stale (`WLD.11`): the pack was made against another base set, and editing whatev
 wrong. The tolerance is the legacy match distance (`MATCH_DISTANCE`, `src/world/map_overlay.rs:14`), so a converted
 legacy pack is accepted exactly when its legacy form resolves.
 
+In the code: the load records every original placement's key (`World::original_placement`,
+`World::original_key`: 12 bytes a placement, once in the world and once in its loaded state, so 1.2 MB and about
+0.2 ms of a 110 ms parse on L4RA), and `ob_studio::keys::guard_holds` checks a guard on a loaded world against the
+key's drawn solid and its position before any map mod moved it (`World::original_position`). A key the base set
+places nothing at (no such instance, or one whose solid is missing or empty) is `MRG.1`.
+
 **One stale reference refuses the whole pack** (conventions §11). A stale guard (`WLD.11`), a merge of a key no
 lower layer has (`MRG.1`), an addition whose `scenery` names no scenery section (`WLD.14`) and a `solid`, `lod_b`,
 `lod_c` or `prop` that resolves to nothing (`CONV.9`) are all errors against the stack: the pack is not mounted,
