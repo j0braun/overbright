@@ -99,6 +99,12 @@ pub struct World {
     links: Vec<crate::formats::smackable::SceneryLink>,
     /// The placement each entry stands for.
     pub link_placements: Vec<Option<usize>>,
+    /// The original placements' keys (docs/modding/asset-format/world.md
+    /// §2): `(scenery section, index there, placement)` for every placed
+    /// instance, sorted by key. A skipped instance (solid missing or
+    /// empty) keeps its index but has no entry. See
+    /// [`World::original_placement`].
+    original_keys: Vec<(u32, u32, u32)>,
     /// The entries' flags and the scenery groups' `on` as loaded.
     disk_link_flags: Vec<u16>,
     disk_groups_on: Vec<bool>,

@@ -10,6 +10,8 @@ use glam::Vec3;
 use ob_asset_format::names::is_pack_id;
 use ob_asset_format::{Refusal, Rule};
 
+use crate::studio_api::world::World;
+
 /// How far a guard's position may lie from the base set's placement, in metres.
 pub const GUARD_TOLERANCE_M: f32 = 0.05;
 
@@ -145,6 +147,26 @@ pub fn check_guard(key: &PlacementKey, guard: &Guard, base_solid: &str, base_pos
         return Ok(());
     };
     Err(Refusal::new(Rule::Wld11, why).in_field("guard"))
+}
+
+/// The base set's placement a key names on `world`, the region `key.region` as loaded (map mods may have been
+/// applied since: the position is the one before any of them moved it). None for a key of a pack's addition, or one
+/// the base set places nothing at (no such instance, or one whose solid is missing or empty).
+pub fn base_placement(world: &World, key: &PlacementKey) -> Option<(usize, String, Vec3)> {
+    let PlacementId::Original { scenery, index } = key.id else { return None };
+    let i = world.original_placement(scenery, index)?;
+    let solid = &world.solids[world.placements[i].solid].name;
+    Some((i, solid.clone(), world.original_position(i)?))
+}
+
+/// Checks a merge's guard against `world`, the region `key.region` as loaded: [`check_guard`] with the base set's
+/// placement of the key ([`base_placement`]). A key the base set places nothing at is `MRG.1` (the merge names an
+/// item no lower layer has); a mismatch is `WLD.11`.
+pub fn guard_holds(world: &World, key: &PlacementKey, guard: &Guard) -> Result<(), Refusal> {
+    let Some((_, solid, position)) = base_placement(world, key) else {
+        return Err(Refusal::new(Rule::Mrg1, format!("{key}: the base set places nothing there")).in_field("key"));
+    };
+    check_guard(key, guard, &solid, position)
 }
 
 #[cfg(test)]

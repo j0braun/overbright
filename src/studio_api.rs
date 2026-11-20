@@ -13,7 +13,8 @@
 //! library's own modules here, so nothing becomes part of the interface
 //! without a line of its own.
 
-/// The world: placements, the map overlay, loading a region.
+/// The world: placements and their original keys (`World::original_placement`),
+/// the map overlay, loading a region.
 pub mod world {
     pub use crate::world::{HIDDEN_FLAG, Placement, World, is_panorama, parts_of, transform_of};
 }

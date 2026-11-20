@@ -227,6 +227,7 @@ impl World {
         self.barrier_groups = std::mem::take(&mut fresh.barrier_groups);
         self.links = std::mem::take(&mut fresh.links);
         self.link_placements = std::mem::take(&mut fresh.link_placements);
+        self.original_keys = std::mem::take(&mut fresh.original_keys);
         self.disk_link_flags = std::mem::take(&mut fresh.disk_link_flags);
         self.disk_groups_on = std::mem::take(&mut fresh.disk_groups_on);
         self.race_only_mirrored = fresh.race_only_mirrored;
@@ -273,6 +274,7 @@ impl World {
             barriers,
             links,
             link_placements,
+            original_keys,
             disk_link_flags,
             disk_groups_on,
             race_only_mirrored,
@@ -309,6 +311,7 @@ impl World {
         barrier_groups.put(w);
         links.put(w);
         link_placements.put(w);
+        original_keys.put(w);
         disk_link_flags.put(w);
         disk_groups_on.put(w);
         race_only_mirrored.put(w);
@@ -369,6 +372,7 @@ impl World {
             barriers,
             links: P::get(r)?,
             link_placements: P::get(r)?,
+            original_keys: P::get(r)?,
             disk_link_flags: P::get(r)?,
             disk_groups_on: P::get(r)?,
             race_only_mirrored: P::get(r)?,

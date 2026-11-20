@@ -58,6 +58,21 @@ impl World {
             .or_else(|| self.placements.get(i).map(|p| p.transform.w_axis.truncate()))
     }
 
+    /// The original placement keyed `(scenery, index)` (world.md §2: the
+    /// scenery section's number and the instance's index there, counting
+    /// skipped instances). None when the base set places nothing there.
+    pub fn original_placement(&self, scenery: u32, index: u32) -> Option<usize> {
+        let k = &self.original_keys;
+        let at = k.partition_point(|&(s, i, _)| (s, i) < (scenery, index));
+        k.get(at).filter(|&&(s, i, _)| (s, i) == (scenery, index)).map(|&(_, _, p)| p as usize)
+    }
+
+    /// The key `(scenery, index)` of original placement `i`; None for a
+    /// placement the load made otherwise or a mod added.
+    pub fn original_key(&self, i: usize) -> Option<(u32, u32)> {
+        self.original_keys.iter().find(|&&(_, _, p)| p as usize == i).map(|&(s, n, _)| (s, n))
+    }
+
     /// The original placement `r` names: the nearest of its section and
     /// solid within [`MATCH_DISTANCE`] of `r.at`, then the `r.nth`-th of
     /// those standing exactly where that one stands (in the original's
