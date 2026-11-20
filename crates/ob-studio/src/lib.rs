@@ -6,6 +6,7 @@
 
 pub use nfsu2::studio_api;
 
+pub mod history;
 pub mod keys;
 pub mod merge;
 pub mod registry;

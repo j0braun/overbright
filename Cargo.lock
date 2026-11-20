@@ -1941,11 +1941,14 @@ dependencies = [
  "glam",
  "nfsu2",
  "ob-asset-format",
+ "ob-core",
  "ob-formats",
  "ob-map",
  "ob-testkit",
+ "serde",
  "serde_json",
  "toml",
+ "xxhash-rust",
 ]
 
 [[package]]

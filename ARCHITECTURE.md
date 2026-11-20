@@ -72,7 +72,21 @@ each kind's fields, required fields and word lists equal to its file's schema in
 (docs/modding/asset-format/schemas/). Every map edit has a command (an exhaustive match: a new edit does not build
 without one). `ob_studio::keys` reads and writes the two kinds' keys (an original placement's `(region, scenery
 section, index)`, a pack's own `<pack>:<id>`, `race:<pack>:<id>`) and checks a placement merge's guard against the
-base set (`WLD.11`). The library keeps every `nfsu2::…` path: a
+base set (`WLD.11`). `ob_studio::history` keeps a mod's history on disk: every step, with its author, is appended
+to the mod's `.editor/history.journal` (records with a length and a hash, flushed before the step counts; a record
+cut by a crash ends the journal and is cut off by the next writer), the mod's files are written at quiet points and
+on save through a temporary file and a rename, and opening a mod whose journal is ahead of its files offers the
+unsaved steps back. A change made against an older step is merged item by item (a map mod's details, each prop
+edit, each race) and only an item changed both ways is a conflict; undo and redo take back the last step of any
+author, `revert` any kept step, and named versions keep a state. One program writes a mod at a time: it holds the
+operating system's lock on `.editor/studio.lock`, which goes with the process however it ends, so a crashed
+writer's lock needs no clean-up; a second opener gets the mod read-only, told who holds it. Other programs send
+changes through `.editor/inbox/` (request files; the reply is written only after the journal has the step, so an
+`ok` is final, and a request answered before a crash is not made twice), and a write to the files behind Studio's
+back becomes a step under "outside Studio". All file access goes through one trait, so
+`crates/ob-studio/tests/history_crash.rs` stops a session at every one of its file operations (fault injection)
+and `history_kill.rs` kills a writing child process; the mod always reads back whole, as before or after the
+interrupted write. The library keeps every `nfsu2::…` path: a
 module that moves into a crate below is re-exported at its old place. Where a module is split (the cache check, the support
 file, the winit and wgpu parts of `platform` and `prof`), the library's `src/lib.rs` keeps the upper part
 beside the re-exported lower one. Each library crate has its own build id for the asset cache
