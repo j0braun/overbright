@@ -103,6 +103,7 @@ pub enum RowId {
     PadRumble,
     PadPauseOnDisconnect,
     PadSafeBind,
+    PadSticksQuit,
     /// docs/notes/performance/overlay.md: the performance overlay's rows.
     PerfOverlay,
     OverlayPosition,

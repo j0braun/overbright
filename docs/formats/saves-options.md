@@ -829,7 +829,11 @@ is native; nothing was traced for it beyond the native facts cited.
     Vsync Off Mode Immediate (window mode and resolution stay).
   options.txt holds the page as `enh.fov`, `enh.hud_scale`,
   `enh.frame_cap`, `enh.durable_saves`, `enh.save_backups`,
-  `enh.crash_reports` lines, written only when not native (a file with
+  `enh.crash_reports` lines (the Controller group as `enh.pad_*` lines,
+  docs/playing/controller-support.md "The settings": `enh.pad_layout`,
+  `enh.pad_deadzone`, `enh.pad_trigger_deadzone`, `enh.pad_saturation`,
+  `enh.pad_steer_curve`, `enh.pad_rumble`, `enh.pad_pause_on_disconnect 1`,
+  `enh.pad_safe_bind 1`, `enh.pad_sticks_quit 1`), written only when not native (a file with
   none reads as native; out-of-range values are held to the rows' ranges).
   The F3 overlay's "Deviations" rows list them (`Settings::deviations`:
   wide aspect, vsync-off mailbox, then the page's; "none" when native).

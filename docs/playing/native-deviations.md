@@ -54,12 +54,12 @@ filter (all / changed / costly), **Reset Group to Native** for each group and
 **Restore Native** for everything. Values are stored in the options file as
 `enh.*` lines, written only when they differ from the original's.
 
-Count, for developers: the page has **87 rows** in 8 groups: 86 stored options and 1 action
-button (Generate Texture Pack). Of those options, 78 appear as an entry in the
+Count, for developers: the page has **88 rows** in 8 groups: 87 stored options and 1 action
+button (Generate Texture Pack). Of those options, 79 appear as an entry in the
 F3 overlay's Deviations rows and the crash reports' "deviations on" line; the other 8 are the four
 overlay diagnostics, Lighting Strength and the three HDR calibration values,
 which have no entry of their own. The code's tests set every option away from
-the original's value and assert **80** entries: the rows' own plus two extra entries from the
+the original's value and assert **81** entries: the rows' own plus two extra entries from the
 Detail Distance row (it covers three stored values). The Display page's Aspect
 Ratio and Vsync Off Mode add two more entries outside the hub. The
 legacy Reversed-Z row is hidden unless something switched it on.
@@ -165,7 +165,7 @@ Where and when it rains stays the original's.
 | Save Backups | 0 | Keeps the last N copies of a profile before each save |
 | Crash Reports | Off | A crash writes a local report; nothing leaves the machine |
 
-### 3.7 Controller (8)
+### 3.7 Controller (9)
 | Option | Default | What it changes |
 |---|---|---|
 | Controller Layout | Auto (see section 2) | Original, Modern or Auto |
@@ -176,6 +176,7 @@ Where and when it rains stays the original's.
 | Rumble | 0% | Controller vibration strength |
 | Pause on Disconnect | Off | Pauses a race or free roam when the driving pad is unplugged |
 | Safe Axis Binding | Off | Capturing an axis on the Controls page keeps the roles of the other axes (the original clears them) |
+| Quit with Both Sticks | Off | Pressing both sticks (L3 + R3) together on the main menu asks the quit question, as the Q key does (the original has no pad shortcut) |
 
 ### 3.8 Packs (4)
 | Option | Default | What it changes |

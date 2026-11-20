@@ -175,6 +175,7 @@ pub(crate) fn qol_rows(s: &Settings) -> Vec<Row> {
         ),
         row(RowId::PadPauseOnDisconnect, PAD_PAUSE_ON_DISCONNECT, Kind::Cycle, on_off(e.pad.pause_on_disconnect)),
         row(RowId::PadSafeBind, PAD_SAFE_BIND, Kind::Cycle, on_off(e.pad.safe_bind)),
+        row(RowId::PadSticksQuit, PAD_STICKS_QUIT, Kind::Cycle, on_off(e.pad.sticks_quit)),
     ]
 }
 
@@ -346,6 +347,9 @@ pub fn detail(category: Category, id: RowId, s: &Settings) -> Option<String> {
         }
         RowId::PadSafeBind => {
             "Binding an axis on the Controls page takes only the axis you moved most; the original also switches off any other axis that moved at the same time."
+        }
+        RowId::PadSticksQuit => {
+            "On the main menu, pressing both sticks together (L3 + R3) asks Are you sure you want to quit?, as the Q key does. Off: as the original (no pad shortcut)."
         }
         RowId::PerfOverlay => {
             "The performance overlay shown at start: Minimal (FPS and frame times), Standard (lows, frame-time graph, CPU, GPU, memory) or Full (cores, threads, I/O, pacing, GPU passes). F3 cycles the layouts at any time, Shift+F3 hides it. Off: hidden until F3."

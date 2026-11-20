@@ -698,7 +698,8 @@ mod tests {
                 RowId::PadSteerCurve,
                 RowId::PadRumble,
                 RowId::PadPauseOnDisconnect,
-                RowId::PadSafeBind
+                RowId::PadSafeBind,
+                RowId::PadSticksQuit
             ]
         );
         let value = |s: &Settings| qol_rows(s).into_iter().find(|r| r.id == RowId::ListsOpenInstalled).unwrap().value;

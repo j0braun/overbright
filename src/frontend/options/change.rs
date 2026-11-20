@@ -232,6 +232,7 @@ pub fn change(id: RowId, s: &mut Settings, player: usize, right: bool, has_profi
         }
         RowId::PadPauseOnDisconnect => s.enh.pad.pause_on_disconnect = !s.enh.pad.pause_on_disconnect,
         RowId::PadSafeBind => s.enh.pad.safe_bind = !s.enh.pad.safe_bind,
+        RowId::PadSticksQuit => s.enh.pad.sticks_quit = !s.enh.pad.sticks_quit,
         RowId::PerfOverlay => {
             s.overlay.layout = if right { (s.overlay.layout + 1) % 4 } else { (s.overlay.layout + 3) % 4 }
         }

@@ -126,6 +126,7 @@ fn reset_row_to(id: RowId, s: &mut Settings, native_of_s: Option<&Settings>) {
         RowId::PadRumble => e.pad.rumble = d.pad.rumble,
         RowId::PadPauseOnDisconnect => e.pad.pause_on_disconnect = d.pad.pause_on_disconnect,
         RowId::PadSafeBind => e.pad.safe_bind = d.pad.safe_bind,
+        RowId::PadSticksQuit => e.pad.sticks_quit = d.pad.sticks_quit,
         RowId::HdUi => e.hd_ui = d.hd_ui,
         RowId::ReloadPacks => e.reload_packs = d.reload_packs,
         RowId::PerfOverlay => s.overlay.layout = o.layout,
