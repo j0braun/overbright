@@ -46,8 +46,37 @@ fn pngs(dir: &Path) -> Vec<String> {
     v
 }
 
+/// `--hash PATH…`: the decoded pictures' hashes; exit 1 when one cannot be read.
+fn hash(paths: &[String]) -> ! {
+    let mut bad = 0;
+    for p in paths {
+        let p = Path::new(p);
+        let files: Vec<PathBuf> = if p.is_dir() { pngs(p).into_iter().map(|n| p.join(n)).collect() } else { vec![p.to_path_buf()] };
+        for f in files {
+            match image::open(&f) {
+                Ok(img) => {
+                    let img = img.to_rgba8();
+                    let mut h = xxhash_rust::xxh3::Xxh3::new();
+                    h.update(&img.width().to_le_bytes());
+                    h.update(&img.height().to_le_bytes());
+                    h.update(img.as_raw());
+                    println!("{:032x}  {}x{}  {}", h.digest128(), img.width(), img.height(), f.display());
+                }
+                Err(e) => {
+                    println!("ERROR  {}: {e}", f.display());
+                    bad += 1;
+                }
+            }
+        }
+    }
+    std::process::exit(i32::from(bad > 0));
+}
+
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
+    if args.first().is_some_and(|a| a == "--hash") {
+        hash(&args[1..]);
+    }
     let mut paths: Vec<PathBuf> = Vec::new();
     let (mut max_pixels, mut max_diff) = (0u64, 0u8);
     let mut i = 0;

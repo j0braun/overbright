@@ -854,6 +854,32 @@ drawn again, +0.59 ms [0.53..0.84] over the switch's first two frames (the worst
 pair, 1 layer drawn again, +0.1–0.2 ms; free roam after a city circuit, none (the barriers switched there are
 blended, in no layer). The frames where nothing switched draw nothing more; the check itself runs in the set-up only.
 
+### The load gate's set: warm, cold, four cores, integrated GPU
+
+Today's numbers in the load-speed gate's own set (docs/developing/checks.md "Load-speed gate"; stored with the output
+baselines): `--bench boot` and the first free-roam load of a process (`--bench explore`, Original 1080p, nothing
+preloaded), 10 runs each, median [min..max] ms of wall time. Cold = a private copy of the game data, the asset cache,
+the driver's shader cache and the binary dropped from the OS's file cache before every run (`posix_fadvise`, no root;
+0.0 MB of 2.1 GB left resident in every run); the system's and the driver's libraries stay warm. Four cores =
+`taskset -c 0-3` (four physical cores, no SMT siblings). Load average 5–7 (discrete) and 7–11 (integrated) on 16
+threads; the runs under `nice -n 10 ionice -c3`. NVMe SSD.
+
+| wait | discrete warm | cold | 4 cores | integrated warm | cold | 4 cores |
+|---|---|---|---|---|---|---|
+| process start → the bench's entry (loader, `Game::new`) | 34 [31..36] | 66 [57..83] | 37 [30..46] | 31 [26..44] | 115 [57..315] | 39 [31..74] |
+| process start → first frame | 67 [63..70] | 131 [108..260] | 68 [62..80] | 66 [58..84] | 255 [108..514] | 70 [60..125] |
+| process start → title | 87 [83..92] | 347 [235..436] | 111 [97..130] | 81 [73..133] | 456 [214..775] | 121 [94..278] |
+| first free-roam load (`load_ms`) | 173 [163..182] | 410 [343..508] | 185 [174..199] | 161 [155..310] | 480 [409..1110] | 174 [167..319] |
+| its first frame | 10 [7..17] | 11 [8..16] | 9 [5..19] | 13 [13..134] | 15 [14..22] | 14 [13..19] |
+
+Where the cold load's extra time goes (discrete, medians, warm → cold): the cars (`Car::load_tuned`, summed over
+the player's and the encounter racers' loads on their workers) 64 → 421 ms, the track (`World::load`) 22 → 211 ms
+(its cache read alone 16 → 16 ms: the mapped file's pages are touched later, by the sections and the renderer),
+`WorldRenderer::new` 80 → 87 ms, `Game::new` 23 → 38 ms. So on a cold disk the cars' files, not the track, are the
+critical path: the reads an asset layer must order first. Four cores cost the first load 12 ms (discrete) and 13 ms
+(integrated) and the title 24–40 ms; the integrated GPU's cold runs spread most (the disk shared with other jobs).
+Raw tables: the gate's `summary.md` per run.
+
 ## The budget table's findings fixed (2026-11-05)
 
 Main + the frame-budget fixes. Measured with this work's harness (`perf.sh bench`, the

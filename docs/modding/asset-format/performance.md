@@ -180,20 +180,30 @@ read-back verification (≈ 1 min on the reference desktop, a few minutes on a h
 
 Each kind's move to the format ([parity.md](parity.md) §3) passes this gate in addition to the equality gates.
 
-- **Both sources in one binary.** The developer harness reads each kind either way (`--assets original|base`), and the
-  two arms run interleaved, so machine noise affects both alike.
+- **Built:** `scripts/checks/loadgate.sh` (docs/developing/checks.md "Load-speed gate"): boot and the first
+  free-roam load, warm, cold (a private copy of the data dropped from the OS's file cache without root before
+  every run) and on four cores, the stages from the trace's spans, the verdict naming the slower stage. Today's
+  numbers are stored with the output baselines (`scripts/checks/baselines.sh`) and listed in
+  docs/notes/performance/budget.md "The load gate's set: warm, cold, four cores, integrated GPU".
+- **Both sources in one binary.** The developer harness reads each kind either way (`NFSU2_ASSETS=original|base`),
+  and the two arms run interleaved, so machine noise affects both alike
+  (`loadgate.sh run OUT orig=GAME@original base=GAME@base`).
 - **Benchmarks.** Existing: `--bench transitions` (menu first), `--bench boot`, `--bench explore` / `race`, the load
   set of the perf gates (`SET=loads`, at least 10 repetitions; load wall time varies by about 13 % between runs,
   docs/developing/perf-gates.md), per-stage spans from `NFSU2_TRACE` compared on thread CPU time. New: `--bench units` (open each
   kind's unit from a cooked hit to a ready model, warm, cold and on 4 cores), `--bench cook <unit>` (the miss path),
   a mount-and-verify bench, and the format micro-benchmarks (decode, parse, central directory).
-- **Pass rule.** A one-sided non-inferiority test: the upper bound of the 95 % Hodges–Lehmann confidence interval of
-  (new − old) over at least 10 runs per arm stays within the margin:
+- **Pass rule.** Over at least 8 runs per arm (10 by default) the Hodges–Lehmann shift of (new − old) must not exceed
+  its limit with a one-sided Mann–Whitney p under 0.01 / M (M measures per mode); the limit is the larger of the
+  margin below and twice the measured noise (1.4826 × pooled MAD), so a stage the machine itself moves by more than
+  the margin is judged against its own spread. A shift beyond the limit that is not proven is reported for a rerun.
+  The 95 % interval is reported beside each measure. Margins:
 
   | Measure | Margin |
   |---|---|
-  | Warm stage, thread CPU | max(1 ms, 3 %) |
-  | Warm transition, wall time | max(5 ms, 5 %) |
+  | Warm or 4-core stage, wall time | max(2 ms, 5 %) |
+  | Warm or 4-core load or transition, wall time | max(5 ms, 5 %) |
+  | Cold stage | max(10 ms, 5 %) |
   | Cold load | max(20 ms, 5 %) |
   | Peak resident memory | max(20 MB, 2 %) |
   | Disk | the §4 budget |

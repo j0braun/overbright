@@ -15,6 +15,8 @@ CHECKS=full scripts/checks/gate.sh <outdir> <base commit|base dir> [extreme]   #
 scripts/checks/shot_targets.py [repo [game]]     # every --shot target: `game --shot-list` (the shot table, src/bin/game/dev/shot/targets/); trees without it: parsed from fn shot
 scripts/checks/halo.sh <outdir> [game]   # the glow shell / blue tint around the car at max in the rain must not return (docs/notes/graphics/wet-road-car.md "The glow shell, the washed road and the distance veil at max settings")
 scripts/checks/perfgate.sh run <outdir> <outdir of gate.sh>/b/game   # perf regression gate vs the accepted baseline (docs/notes/performance/budget.md)
+scripts/checks/baselines.sh record|check|rebless <outdir> <game> …   # the stored output baselines: frames, sounds, simulation hashes ("Output baselines")
+scripts/checks/loadgate.sh run <outdir> base=<game>[@original|@base] new=<game>[@original|@base]   # the load-speed gate: warm, cold, 4 cores ("Load-speed gate")
 scripts/checks/selfcheck.sh <outdir>             # the gates' self-test: broken inputs must fail, good ones pass (~20 s)
 scripts/checks/devprobes.sh                      # the developer probes (devprobes/) still compile: cargo check -p devprobes
 scripts/checks/crate_layers.sh [repo]            # the crate layers: no new upward reference, package edges only down, no dev-harness in the shipped tree (ARCHITECTURE.md "Layers"; in fast and full)
@@ -252,6 +254,7 @@ the gate's first line):
 | build env (e.g. a fast-build file) | every `cargo` call (a fast-build file's `CARGO_PROFILE_RELEASE_*` values are the ones the gate profile sets itself) | the plain profiles |
 | `PERF_WORK` | perf.sh build / profile | `<repo>/target/perf-work` |
 | `PERF_BASELINES` | perfgate.sh | perfgate stops with a message |
+| `ASSET_BASELINES` | baselines.sh (the stored output baselines) | `$PERF_BASELINES/asset-layer`; neither set: baselines.sh stops with a message |
 | `PRESET_user` | perf.sh / budget.sh / perfgate presets `user` and `max` (`max` = it + `MAX_ROWS`) | those presets stop with a message; perfgate's set leaves its two `max` configs out (skipped, named) |
 | `IGPU_DEVICE` | `IGPU=1` (MESA_VK_DEVICE_SELECT) | `IGPU=1` stops with a message |
 | `SAMPLY` | perf.sh profile | `samply` on PATH |
@@ -320,12 +323,125 @@ A step that did not run never counts as passed:
   config in `bench.log`, and the verdict names them
   (`PERFGATE: pass (…) (skipped 2: …)`).
 - **gate.sh**: identical base and new binaries pass only when the game's
-  sources (`src`, `examples`, `build.rs`, `Cargo.*`) are identical too (a
-  docs/scripts-only change, reported); with different sources it is a FAIL
+  sources (`src`, `crates`, `build_support`, `build.rs`, `Cargo.*`) are identical too (a
+  docs, scripts or tools-only change such as `examples/`, reported); with different sources it is a FAIL
   (stale or wrong build). An empty parity shot list or a parity log without
   its verdict fails. Last line `GATE: PASS|FAIL: …`; with steps that did not
   run it ends `; skipped: checks N, parity M (named above)` (the CHECKS
   line's `skipped:` list and the parity's `SKIP` lines).
+
+## Output baselines (`baselines.sh`)
+
+What the engine draws, plays and simulates today, stored as hashes, so that a change of plumbing (the asset layer
+reading an imported base set instead of the game folder, docs/modding/asset-format/parity.md) can be proven to
+reproduce it bit for bit. The parity gate compares two binaries side by side; a baseline is the same comparison
+against a stored record, and it can be run with either data source.
+
+```
+scripts/checks/baselines.sh record  <outdir> <game> [note]          # run the set, store it; `current` -> it
+scripts/checks/baselines.sh check   <outdir> <game> [baseline dir]  # run it again, compare with the store
+scripts/checks/baselines.sh rebless <outdir> <game> <reasons> [note]  # an intended change (below)
+ASSETS=base NFSU2_BASE_SET=<dir> scripts/checks/baselines.sh check …   # the same set read from the base set
+```
+
+- **The set** (`OUTPUTS`, default all four): `images` (Original `--bench` explore, race, racing, drive and rain,
+  every 100th of 600 frames at 1280×960 and 3840×2160), `shots` (the gate's shots: `fast-shots.txt` minus
+  `nondeterministic.txt`, clock pinned at 0), `audio` (the explore and race shots' WAVs from the offline mixer),
+  `sim` (`NFSU2_STATE_HASH` over `--flow firstrace`, `firstdrag`, `postrace`, `--playthrough` and the parity
+  scenario; the last needs the private set and is stored as `SKIP` without it). Pictures are hashed decoded
+  (`pixdiff --hash`: XXH3-128 of the size and the RGBA8 pixels), so a PNG encoder change does not count; the state
+  hash files are kept whole, so a changed run names its first differing step and part (`hashdiff.py`).
+  `RADV_DEBUG=nodcc` as the parity gate.
+- **The store**: `$ASSET_BASELINES` (else `$PERF_BASELINES/asset-layer`), one folder per baseline with
+  `outputs.tsv` (kind, item, hash, detail), `sim/*.tsv`, the binary that made it (`game`), `pixdiff`, `meta.txt`
+  (note, source commit, GPU, the set) and the binary's load numbers (`summary.md`, `summary.json`: the load-speed
+  gate's warm, cold and 4-core runs). Machine-local, never in the repository: the pictures' hashes depend on the GPU
+  and its driver.
+- **The source switch**: `ASSETS=original` (the default) or `ASSETS=base`. Every run gets `NFSU2_ASSETS` set to
+  it (and `NFSU2_BASE_SET` for `base`); a `base` run counts only when the game's log has a line starting
+  `assets: base`, so a binary without the asset layer can never pass as one that read the base set. A baseline is
+  always recorded from the original files.
+- **Verdicts**: `BASELINES: PASS: identical to the stored baseline` or `BASELINES: FAIL: N items differ` with
+  every changed item (`diff.tsv`: item, stored hash, new hash, detail). A run that fails, a missing picture or a
+  panic line is a changed item (`RUN-FAILED`), never a pass.
+
+### Re-bless rule
+
+A change that is **meant** to move an output (an AI fix that changes the simulation's hashes, a native fix that
+changes a frame) re-records the baselines **in the same change**, and every changed item is accounted for:
+
+1. `baselines.sh check` against `current` lists what moved.
+2. A reasons file names the cause for every changed item, one `<glob><TAB><why>` per line (the first matching glob
+   counts), for example `sim/*<TAB>rivals brake for the corner as the original does` or
+   `image/img-race-*<TAB>…`.
+3. `baselines.sh rebless <outdir> <game> <reasons> "<change>"` runs the set again and refuses (`BASELINES: FAIL: N
+   of M changed items have no reason`) while a single item is unmapped; with all mapped it records the new
+   baseline, links it to the old one and writes `changes.tsv` (item, old hash, new hash, reason) into it.
+4. The change's description carries the `changes.tsv` summary: which items moved and why. An item that changed
+   without a reason is a bug of the change, not a re-bless.
+
+A change of plumbing (the asset layer, a reader moved, a cache format) never re-blesses: it must pass `check`
+unchanged.
+
+## Load-speed gate (`loadgate.sh`)
+
+Fails a change that makes loading measurably slower and names the stage that got slower. The asset layer's moves
+(docs/modding/asset-format/performance.md §6) must pass it besides the equality gates.
+
+```
+scripts/checks/loadgate.sh run <outdir> base=<base game> new=<new game>        # two binaries
+scripts/checks/loadgate.sh run <outdir> orig=<game>@original base=<game>@base  # one binary, both data sources
+scripts/checks/loadgate.sh bench <outdir> today=<game>   # runs only;  … summary <outdir>   numbers per stage
+scripts/checks/loadgate.sh selftest                      # the statistics on generated data
+```
+
+- **Runs.** Per arm, mode and scene `REPS` runs (default 10, at least 8), the arms adjacent and their order turned
+  each repetition, after one warm-up run per arm (its asset cache and driver shader cache filled; each arm has its
+  own). Scenes (`SCENES`): `--bench boot` (process start to the entry, the first frame and the title) and
+  `--bench explore 20` (the first free-roam load of a process and its first frame); `transitions` can be added.
+  Every run writes `NFSU2_TRACE`; each span's wall time summed over the run is a stage (`frame: …` spans left out).
+- **Modes** (`MODES`): `warm` (every file in the OS's file cache), `cold` (below), `cores` (warm, pinned with
+  `taskset -c` to `LOW_CPUS`, default `0-3`: four cores of a low-end machine; the game's thread pools follow the
+  affinity). `IGPU=1` runs every mode on the integrated GPU.
+- **Cold without root.** `drop_caches` needs root. Before every cold run, `scripts/perf/coldcache.py drop`
+  flushes and drops the arm's files from the OS's file cache with `fdatasync` + `posix_fadvise(DONTNEED)`, which
+  any user may do on files they can open: the game data, the arm's asset cache and shader cache and the arm's copy
+  of the binary. DONTNEED leaves pages that another process maps or keeps reading, so by default the gate first
+  makes a **private copy** of the game data in its folder (`COLD_ROOT=copy`; fresh inodes no other program on the
+  machine touches, ~1.7 GB, removed at the end) and every mode reads that copy. After each drop the tool measures
+  with `mincore` what is still resident and writes it into the run's log (`cold: dropped N MB, resident after M
+  MB`); `COLD_ROOT=inplace` drops the game folder itself (other programs reading it then keep pages warm, the log
+  shows how many). Reading through `O_DIRECT` was not used: it bypasses the cache instead of emptying it, and the
+  game's own reads (mapped cache files, buffered reads) would still hit it. What stays warm: the system's and the
+  driver's libraries and the kernel, as after a reboot of a running desktop.
+- **Noise model.** Per mode and measure (each total and each stage): the shift = the Hodges–Lehmann estimate of
+  new − base (median of all pairwise differences, with its 95 % interval); the noise = 1.4826 × the pooled median
+  absolute deviation of both arms around their own medians; the **limit = max(floor, 5 % of the base median,
+  2 × noise)** (`NOISE_K`), floors 5 ms for totals and 2 ms for stages (warm, 4 cores), 20 ms and 10 ms cold; and
+  the one-sided Mann–Whitney p of "new is slower" (exact without ties). **SLOWER** (fails): shift > limit and
+  p < 0.01 / M, M the measures of that mode (Bonferroni: about one false alarm in a hundred gates on noise alone,
+  checked by the self-test on 500 generated A/A gates). Shift > limit without that p: "slower, not proven"
+  (reported, passes: repeat with more runs). A stage only one arm has counts 0 in the other, so new work (an
+  asset layer's mount) is judged too.
+- **Verdict.** One line per mode (`loadgate: cold: SLOWER: totals: …; slower stage: explore World::load: from the
+  cache +20.1 ms (+…%)`), then `LOADGATE: PASS|FAIL: …`; `loadgate.md` holds every measure's medians, shift,
+  interval, noise, limit and p. A run that failed (rc ≠ 0, a panic line, no JSON or trace, a `base` arm without
+  `assets: base`) or fewer than 8 runs in an arm fails the gate.
+- **Machine.** `LOADGATE_LOCK=<file>`: each repetition holds `flock` on that file (a shared machine's measuring
+  lock); `LOADGATE_MAXLOAD=N`: each repetition first waits for a 1-minute load average under N
+  (`LOADGATE_MAXWAIT` s at most, default 1800). About 25 s per repetition of two arms, three modes and two scenes on
+  the reference desktop, so about 5 minutes for a gate of 10 (plus the copy of the game data, ~10 s on a quiet disk).
+
+**Proof** (reference desktop, other jobs keeping the load average at about 8–40; docs/evidence/load-gate/): the
+same binary in both arms passes (`LOADGATE: PASS: no load slower beyond its noise limit`, no measure flagged); a
+binary that sleeps 20 ms inside the track's cache read fails in every mode and names the stage
+(`LOADGATE: FAIL: slower: warm: explore World::load: from the cache; cold: …; cores: …`, +18.5 / +20.5 / +20.6 ms,
+p 5.4e-06). On such a shared machine the load totals' noise (30–170 ms) hides a 20 ms change; the stages, measured
+on their own, do not. On a quieter machine (load 5–12) the A/A passes again and the planted run fails warm and on 4
+cores with the warm load total flagged too (`explore load +20.3 ms`). Stages nest (`drive_in` holds `World::load`
+holds its cache read), so the verdict names the innermost stage that carries the shift: among the slower stages with
+at least 80 % of the largest shift, the one with the smallest base time. `loadgate.sh selftest`: the exact U distribution, 500 generated A/A gates of 60 measures
+(about 1 % flag anything), a planted 25 ms on a quiet stage found, a new 30 ms stage found.
 
 ## Self-test of the gates (`selfcheck.sh`)
 
