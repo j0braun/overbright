@@ -232,10 +232,14 @@ fn car_lamps(in: VertexOut) -> vec3<f32> {
 }
 
 // LOD Fade (clone deviation, docs/formats.md "Graphics enhancements"): a
-// car LOD switch cross-faded with a screen-door dither as a sample mask
-// (per sample with MSAA). powers.z: the draw's fade — f in (0, 1) keeps
-// the samples whose threshold is below f, −g keeps those at or above
-// 1 − g (the complement of the new LOD's); powers.w: the sample count.
+// car LOD switch cross-faded with a screen-door dither: at 1 sample per
+// pixel, the dropped pixels discarded (`fs_*_fade`); with MSAA per sample,
+// as a sample mask (`fs_*_fade_ms`, chosen by the pipeline's sample count).
+// naga writes `sample_mask` as a scalar, which Vulkan rejects and some
+// drivers crash compiling, so the 1-sample forms do not write it.
+// powers.z: the draw's fade — f in (0, 1) keeps the pixels (samples) whose
+// threshold is below f, −g keeps those at or above 1 − g (the complement of
+// the new LOD's); powers.w: the sample count.
 struct FragmentFade {
     @location(0) color: vec4<f32>,
     @builtin(sample_mask) mask: u32,
@@ -246,6 +250,11 @@ fn bayer4(p: vec2<f32>) -> f32 {
     let y = u32(p.y) & 3u;
     let m = array<u32, 16>(0u, 8u, 2u, 10u, 12u, 4u, 14u, 6u, 3u, 11u, 1u, 9u, 15u, 7u, 13u, 5u);
     return (f32(m[y * 4u + x]) + 0.5) / 16.0;
+}
+
+fn fade_keep(p: vec4<f32>, fade: f32) -> bool {
+    let b = bayer4(p.xy);
+    return select((b >= 1.0 + fade), (b < fade), (fade >= 0.0));
 }
 
 fn fade_mask(p: vec4<f32>, fade: f32, samples: f32) -> u32 {
@@ -262,13 +271,31 @@ fn fade_mask(p: vec4<f32>, fade: f32, samples: f32) -> u32 {
 }
 
 @fragment
-fn fs_main_fade(in: VertexOut) -> FragmentFade {
+fn fs_main_fade(in: VertexOut) -> @location(0) vec4<f32> {
+    let c = car_colour(in);
+    if !fade_keep(in.clip, draw.powers.z) {
+        discard;
+    }
+    return c;
+}
+
+@fragment
+fn fs_alpha_test_fade(in: VertexOut) -> @location(0) vec4<f32> {
+    let c = car_colour(in);
+    if !fade_keep(in.clip, draw.powers.z) || c.a <= ALPHA_REF {
+        discard;
+    }
+    return c;
+}
+
+@fragment
+fn fs_main_fade_ms(in: VertexOut) -> FragmentFade {
     let c = car_colour(in);
     return FragmentFade(c, fade_mask(in.clip, draw.powers.z, draw.powers.w));
 }
 
 @fragment
-fn fs_alpha_test_fade(in: VertexOut) -> FragmentFade {
+fn fs_alpha_test_fade_ms(in: VertexOut) -> FragmentFade {
     let c = car_colour(in);
     var mask = fade_mask(in.clip, draw.powers.z, draw.powers.w);
     if c.a <= ALPHA_REF {
