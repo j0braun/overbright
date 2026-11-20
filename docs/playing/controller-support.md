@@ -64,8 +64,9 @@ All under **Enhancements → Controller**. Each is off, or at the original's val
 | Safe Axis Binding | Off / On | Off |
 | Quit with Both Sticks | Off / On | Off |
 
-- **Rumble** shakes the pad on bumps and hard speed changes, on textured ground (kerbs, pavement, gravel), in
-  puddles, on a nitrous shot and on a gear change. The original has no rumble for XInput pads (Xbox and most
+- **Rumble** shakes the pad on crashes, bumps and hard speed changes, on textured ground (kerbs, pavement,
+  gravel), in puddles, on a nitrous shot and on a gear change. Every hit — a wall, another car, a sign or other
+  knock-over prop — gives a clear pulse, light touches included, and harder hits a harder one. The original has no rumble for XInput pads (Xbox and most
   modern pads); it gives force feedback only to DirectInput devices that report force-feedback actuators. On
   Windows it uses the pad's motors through Windows.Gaming.Input (XInput pads); this was not yet tried on a real
   Windows PC.
@@ -159,7 +160,14 @@ filters off.
   tick, which stands in for the bump stops: **inferred**), and the weak motor on the road texture (0x5C9FE0's
   surface table: surfaces 8–11 and 15–17, amplitude / 2 × min(1, speed / 13 m/s); plain asphalt gives none),
   puddles (surface 13, the one the negative damper plays on), a nitrous shot and a gear change. The original
-  has no nitrous or gear-change effect.
+  has no nitrous or gear-change effect. Collisions: each contact's first push — the push that posts its impact
+  sound (0x5A9630 → 0x4797B0) against a track polygon, another car or a knock-over prop — is a hit
+  (`CarState::new_hit`, read only by the Rumble model). Its push |J| sets a strong-motor pulse of
+  0.35 + 0.65 · √(min(|J|, 30) / 30) (30: the push that totals a car in a drag race, 0x59FB80), held 0.1 s and
+  then faded like the jolt, so a glancing car or a sign, which barely change the speed, still rumble. The
+  underbody on a floor-like polygon while the car stands on its wheels is left to the bump pulse. This is
+  Overbright's own; the force-feedback model is not changed: the original's jolt 0x5C9770 is called only from
+  the speed and bump tests of 0x406460 (0x406775, 0x4067A6), so wheels get no collision effect of their own.
 - **Which device drives** (partly traced): player p's device byte 0x864788[p] (0xFF = default 0x7F9414[p])
   is set by the event-1 handler 0x571A30, registered by 0x579560. What raises event 1 is **open**, so "the
   first attached pad drives" stays **inferred**.
@@ -211,7 +219,10 @@ Auto is a default for how a device is presented, like the display mode: document
 `pad::tests` (the neutral graph and × 1.07, POV capture and direction, original and safe capture, Modern
 exact pedals and buttons, menu repeat at 30/60/120/200 Hz), `pad::host::tests` (stick repeat through the host
 at 60–1000 polls/s, original press-only, layout switch, GUIDs, driver lost), `pad::extras::tests` (defaults
-change nothing, options round trip, shaping and the steering curve, rumble pulse and fade), the `qol` round
+change nothing, options round trip, shaping and the steering curve, rumble pulse and fade, hit pulses by
+strength), game.rs `rumble_pulses_on_every_crash_by_its_strength` (real assets, a scripted pad, Rumble High in
+a race: a street sign knocked over, a light nudge of an opponent, a wall at 6 and at 22 m/s each pulse, harder
+hits harder, the light ones under the speed jolt's 4 m/s; a smooth street records no hit), the `qol` round
 trip, `pad::host::tests::both_sticks_together_once_released_first` (one pad's L3 + R3 fire once, only after
 every pad's sticks were let go; one stick or another pad's single stick never; both layouts), game.rs
 `both_sticks_quit_from_the_main_menu` (real assets: off does nothing, one stick does nothing, both open the

@@ -349,6 +349,12 @@ pub struct CarState {
     /// The largest impulse a contact gave this car in the last frame,
     /// capped at 40 (0x59FB80; in drag races 30 totals the car).
     pub hardest_impulse: f32,
+    /// The hardest new hit since the reader last took it: the push |J|
+    /// (at 1.85 t, as record +0x60 sums it) of a contact's first push, the
+    /// push that posts its impact sound (0x5A9630 → 0x4797B0: a track
+    /// polygon, another car, a knock-over prop). Only the Rumble extra
+    /// reads it ([`CarState::take_hit`]); no native code does.
+    pub new_hit: f32,
     /// Contacts of this car the world collision step resolved (0x5FFA60's
     /// loop calls 0x5B2620 on each, which first tells both bodies, vtable
     /// 0x7A2478 slot +0x48 = 0x593950 → 0x5F4970, the car's controller
@@ -562,6 +568,7 @@ impl CarState {
             ghost: false,
             ghost_timer: 0.0,
             hardest_impulse: 0.0,
+            new_hit: 0.0,
             resolved: 0,
             human: false,
             human_hit: false,
@@ -862,6 +869,18 @@ impl CarState {
     /// Wheels touching the ground (car +0x424).
     pub fn wheels_down(&self) -> usize {
         self.wheels.iter().filter(|w| w.on_ground).count()
+    }
+
+    /// A contact's first push of `push` |J| (see [`CarState::new_hit`]).
+    pub(crate) fn note_hit(&mut self, push: f32) {
+        if push.is_finite() {
+            self.new_hit = self.new_hit.max(push);
+        }
+    }
+
+    /// The hardest new hit since the last call, cleared (0: none).
+    pub fn take_hit(&mut self) -> f32 {
+        std::mem::take(&mut self.new_hit)
     }
 }
 

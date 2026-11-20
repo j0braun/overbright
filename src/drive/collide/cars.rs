@@ -48,6 +48,13 @@ pub(in crate::drive) fn resolve_cars(
     // record +0x60 (0x5A9689) and posts the effects with it; only its
     // crash check 0x59FB80 holds |J| to 40 (0x7A1860, at 0x59FBB8).
     let magnitude = j.length().min(40.0);
+    if !pair.sounded {
+        // The record's first push, a new hit for the Rumble extra on both
+        // cars (no native code reads it).
+        for k in [a, b] {
+            cars[k].state.note_hit(j.length());
+        }
+    }
     post_effects(cars, pair, a, b, point, normal, slide, j, sounds);
     crash_pushes(cars, &mut field.rng, a, b, j, magnitude, point, &mut record);
     pair.record = Some(record);
