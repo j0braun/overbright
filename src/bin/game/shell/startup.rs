@@ -113,6 +113,18 @@ pub(crate) fn main() -> Result<()> {
         eprintln!("game: unknown option {flag}\n{}", dev_hooks::USAGE);
         std::process::exit(2);
     }
+    // `--language <name>`: this run's text language (a usage error when
+    // malformed); `first_run::game_folder` checks it against the game folder.
+    match super::cli::language_arg(&args) {
+        Ok(Some(l)) => {
+            let _ = super::cli::LANGUAGE_ARG.set(l);
+        }
+        Ok(None) => {}
+        Err(e) => {
+            eprintln!("game: {e}\n{}", dev_hooks::USAGE);
+            std::process::exit(2);
+        }
+    }
     // The desktop map editor's test run (`cli::MapTest`): only its mod for
     // this run; a malformed one is a usage error.
     match super::cli::MapTest::parse(&args) {

@@ -10,9 +10,6 @@ use crate::qol::setup;
 
 use super::ui::Mark;
 
-/// The text file the game reads its menus and text from.
-pub const TEXT_FILE: &str = crate::game_assets::TEXT_FILE;
-
 /// Whether the game files are a release Overbright knows.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Release {
@@ -39,6 +36,11 @@ pub struct CheckSummary {
     pub movies_folder: bool,
     /// The text languages installed (LANGUAGES), by name.
     pub languages: Vec<String>,
+    /// The text language the check was made for: its file is the text file
+    /// the game needs.
+    pub language: String,
+    /// That language's file is there but has no known size or checksum.
+    pub text_unverified: bool,
     /// The language most movies play in, when it is one.
     pub movie_language: Option<String>,
 }
@@ -62,7 +64,7 @@ pub enum CheckState {
 /// a quick check without hashes, judged by sizes and XXH3 alone).
 pub fn summarize(c: &setup::Check, fp: Option<&crate::fingerprint::Fingerprint>) -> CheckSummary {
     use crate::fingerprint::{EXE, Verdict};
-    let release = match fp.map(|f| (f, f.verdict())) {
+    let release = match fp.map(|f| (f, f.verdict_skipping(c.verdict_skip()))) {
         Some((_, Verdict::Known(_))) => Release::Known,
         Some((f, Verdict::Unknown(files))) => {
             let some_known = f.files.iter().any(|p| p.file != EXE && p.edition.is_some());
@@ -85,6 +87,8 @@ pub fn summarize(c: &setup::Check, fp: Option<&crate::fingerprint::Fingerprint>)
         groups: a.map(Report::group_counts).unwrap_or_default(),
         movies_folder: a.is_none_or(|a| a.edition.layout != crate::game_assets::Layout::NoMovies),
         languages: a.map(|a| a.edition.languages.clone()).unwrap_or_default(),
+        language: if c.language.is_empty() { crate::game_assets::DEFAULT_LANGUAGE.into() } else { c.language.clone() },
+        text_unverified: !c.unverified.is_empty(),
         movie_language: a.and_then(Report::movie_language).filter(|l| crate::game_assets::language_suffix(l).is_some()),
     }
 }
@@ -157,10 +161,11 @@ impl CheckSummary {
     /// The text file the game reads is not there; the languages the copy
     /// has instead.
     pub fn no_text(&self) -> Option<Vec<String>> {
-        self.files_missing.iter().any(|f| f.eq_ignore_ascii_case(TEXT_FILE)).then(|| {
+        let file = crate::game_assets::text_file_of(&self.language);
+        self.files_missing.iter().any(|f| f.eq_ignore_ascii_case(&file)).then(|| {
             self.languages
                 .iter()
-                .filter(|l| !l.eq_ignore_ascii_case(crate::game_assets::TEXT_LANGUAGE))
+                .filter(|l| !l.eq_ignore_ascii_case(&self.language))
                 .cloned()
                 .collect()
         })
@@ -174,7 +179,7 @@ impl CheckSummary {
             Release::Unknown => "Not recognised".to_string(),
         }];
         if self.no_text().is_none() {
-            v.push(format!("{} text", crate::game_assets::TEXT_LANGUAGE));
+            v.push(format!("{} text{}", self.language, if self.text_unverified { " (not verified)" } else { "" }));
         }
         if let Some(l) = &self.movie_language {
             v.push(format!("{l} movies"));

@@ -205,7 +205,11 @@ shows a busy line and greys the actions meanwhile; the page takes no input while
   options.txt from its model, keeps the line. Restore Native leaves it.
 - `qol::setup`: `KEY_FILES` are the game's data files (SPEED2.EXE is not
   needed, docs/original/exe-tables.md), found in any case (`key_file_path`);
-  `installed_languages(root)`; `saved_texture_pack[_file]` /
+  `installed_languages(root)`; `choose_language(root, requested)` (the text
+  language of a run: `--language`, else `language.txt`, else English) and
+  `saved_language[_file]` / `save_language` (`language.txt` beside
+  game-root.txt); `check_for(root, hash, language)` (the file required is
+  the chosen language's); `saved_texture_pack[_file]` /
   `save_texture_pack` (`texture-pack-root.txt` beside game-root.txt, the same
   atomic write as game-root.txt); `check_lines(check, fingerprint)` + `Mark`:
   the check in plain words, shared by `--check-game` (game-side patch) and
@@ -322,8 +326,8 @@ ok=1
   size with `fit_mode`). The monitor is the launcher window's until the
   probe reports the game's view (`monitor.modes`, `monitor.exclusive`);
   a probe from an older game without those keys reads as exclusive with
-  the fixed list. Mods row with "Mods…" (the Mods page, below); Language,
-  Graphics card and Controller as compact information rows (the first
+  the fixed list. Mods row with "Mods…" (the Mods page, below); Graphics card, Controller and Game language
+  as compact information rows (the first
   connected pad's name from gilrs, live); footer About / Import saves… /
   Quit / Play. Play and the whole footer stay in the window without
   scrolling at every size down to 640×480, also with the probe's note shown
@@ -425,8 +429,9 @@ ok=1
   the release (known; changed: the known release with some data files
   replaced, a mod; unknown: no data file is the known release's), the
   movies and menu files per group (`game_assets::Report::group_counts`,
-  the same counts as `Report::groups`), the installed text languages and
-  the movies' language. `check_lines` stays the wording of
+  the same counts as `Report::groups`), the installed text languages, the
+  language the check was made for (and whether its file is "not verified")
+  and the movies' language. `check_lines` stays the wording of
   `--check-game` and the support file.
 - The verdict card (lamp, title, sentence, buttons) for every state:
 
@@ -436,17 +441,23 @@ ok=1
   | movies or menu files missing | Ready, some movies won't play / Ready, some menu files are missing | Use this folder | Details, Save support file… |
   | some game files changed | Ready, with changed game files | Use this folder | Details, Save support file… |
   | not a release Overbright knows | This copy isn't recognised (a question: Use it anyway?) | Choose another folder… | Use it anyway, Save support file…, Details |
-  | `LANGUAGES/English.bin` alone missing | The game's text file is missing | Choose another folder… | Details, Check again |
+  | the chosen language's text file alone missing | The game's text file is missing | Choose another folder… | Details, Check again |
   | other key files missing | Some game files are missing | Check again | Show the missing files, Choose another folder… |
   | no game, Overbright's folder, unreadable, folder gone | `Issue::words` | the fix | |
 
   Notes never block; the missing-movies sentence says only what happens
   ("3 movies are missing (2 story, 1 tutorial). The game skips them, as the
   original does."). A copy without the text file is refused: the game reads
-  its menus and text only from `LANGUAGES/English.bin`
-  (`frontend::assets::ASSET_FILES`) and its start refuses a folder without
-  it (`error.kind=files-missing`); a copy that holds only another
-  language's text file was checked that way.
+  its menus and text from the file of the chosen language
+  (`LANGUAGES/English.bin` unless another is chosen;
+  `frontend::assets::asset_files`) and its start refuses a folder without
+  it (`error.kind=files-missing`). A copy that has no `English.bin` but a
+  language the engine can show starts in that language; a copy whose only
+  files are languages the engine cannot show is refused as before.
+  Only the chosen language's file is required. `English.bin` has a known
+  size and checksum; another language's file has none, so the check says it
+  is "not verified" (a note, never an error) and the edition row reads
+  "German text (not verified)".
 - Summary rows under the card of a usable folder: a lamp, the area, its
   value; at most three: Game files ("9 of 9 · original", "· 2 changed",
   "· 1 menu file missing"), Movies ("All 29", "26 of 29 · 3 won't play"),
@@ -726,8 +737,24 @@ launchers such as Prism and Heroic), not native:
   header shows the launcher's number alone beside its name (0.3.0, never
   "version 0.3.0" beside the game's 1.2); the GPU line says "Checking this
   computer…"; the Graphics row's Enhanced reads "More detail and light; the
-  same art and colours"; the other installed languages "not yet"; the
+  same art and colours"; Settings › Advanced's Game language row lists the
+  installed languages the engine can show and names the others under it
+  with the reason ("Not supported yet: Korean (its character map is not decoded yet)"); the
   failure screen asks to send the log file named when asking for help.
+- **Game language** (Settings › Advanced, first row): a row with the installed languages that
+  `game_assets::language_support` accepts (English, French, German, Italian,
+  Spanish, Dutch, Swedish, Danish). The choice is kept in `language.txt`
+  (beside `game-root.txt`; English keeps nothing, the file is removed) when
+  the launcher saves its settings, and Play gives it to the game as
+  `--language <name>`. The game also reads `language.txt` when it is started
+  without the launcher or without the flag. A language whose file is no longer
+  in the game folder, or that the engine cannot show, becomes English (a log
+  line says so). Korean (its character map is not decoded), Japanese, Chinese
+  and Thailand (empty text tables in this edition) are listed as not
+  supported, and so is any file the engine does not know. The row is off when
+  the copy has one supported language. A change shows at the next start of
+  the game. "Back to defaults" leaves the language alone. Tests
+  `game_language_row_lists_only_supported_languages`, `text_language_choice_and_check`.
 - **First window size**: 960 × 720 logical, at most 92 % of the monitor's
   width and 85 % of its height (`window::initial_size`: a 1366 × 768
   laptop gets 960 × 652 under its task bar), the minimum size no larger.

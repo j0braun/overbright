@@ -226,6 +226,36 @@ pub(crate) struct MapTest {
 pub(crate) const MAP_FLAGS: [&str; 8] =
     ["--map-mod", "--map-file", "--map-race", "--map-at", "--map-result", "--stream", "--sim-seed", "--sim-seconds"];
 
+/// `--language <name>`: the text language for this run (the file
+/// `LANGUAGES/<name>.bin`; `qol::setup::choose_language`).
+pub(crate) const LANGUAGE_FLAG: &str = "--language";
+
+/// The language `--language` names, if given: a usage error for a missing
+/// or malformed name or a flag given twice.
+pub(crate) fn language_arg(args: &[String]) -> std::result::Result<Option<String>, String> {
+    let mut found = None;
+    let mut i = 0;
+    while i < args.len() {
+        if args[i] == LANGUAGE_FLAG {
+            let v = args.get(i + 1).ok_or_else(|| format!("{LANGUAGE_FLAG} needs a language name"))?;
+            if !nfsu2::game_assets::valid_language_name(v) {
+                return Err(format!("{LANGUAGE_FLAG}: `{v}` is not a language name (letters and digits, like German)"));
+            }
+            if found.replace(v.clone()).is_some() {
+                return Err(format!("{LANGUAGE_FLAG} given twice"));
+            }
+            i += 2;
+        } else {
+            i += 1;
+        }
+    }
+    Ok(found)
+}
+
+/// The language this run was asked for (`startup` sets it from
+/// `--language`).
+pub(crate) static LANGUAGE_ARG: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+
 /// The simulation's switches (no value).
 pub(crate) const SIM_SWITCHES: [&str; 2] = ["--simulate", "--simulate-world"];
 
@@ -353,7 +383,7 @@ impl MapTest {
         let mut out = Vec::with_capacity(args.len());
         let mut i = 0;
         while i < args.len() {
-            if MAP_FLAGS.contains(&args[i].as_str()) {
+            if MAP_FLAGS.contains(&args[i].as_str()) || args[i] == LANGUAGE_FLAG {
                 i += 2;
             } else if SIM_SWITCHES.contains(&args[i].as_str()) {
                 i += 1;
@@ -520,6 +550,16 @@ mod map_test_tests {
 
     fn args(a: &[&str]) -> Vec<String> {
         a.iter().map(|s| s.to_string()).collect()
+    }
+
+    #[test]
+    fn the_language_flag_takes_one_name() {
+        assert_eq!(language_arg(&args(&["--no-boot"])), Ok(None));
+        assert_eq!(language_arg(&args(&["--language", "German", "--no-boot"])), Ok(Some("German".into())));
+        assert!(language_arg(&args(&["--language"])).is_err(), "no name");
+        assert!(language_arg(&args(&["--language", "../x"])).is_err(), "not a name that can sit in a path");
+        assert!(language_arg(&args(&["--language", "A", "--language", "B"])).is_err(), "twice");
+        assert_eq!(MapTest::strip(&args(&["--language", "German", "--no-boot"])), args(&["--no-boot"]));
     }
 
     #[test]

@@ -246,3 +246,4 @@ props.sound.splash_flag	inferred	docs/notes/parity/prop-hits.md	the drum's splas
 audio.collision.copy_life	inferred	docs/notes/parity/prop-hits.md	a started collision object's mix copy kept while its layers or splash play (its end with its record is not traced)
 ai.traffic.lane_reach	inferred	docs/formats/ai.md	A lane's reach on a record entered by a junction is taken from its first point (observed timing; +0x68 of a junction target not traced).
 ai.traffic.race_coord_step	inferred	docs/formats/ai.md	A traffic car's race coordinate (+0x8FC) moves on in 11.6 m steps of its place (observed under Wine); the writer and the exact trigger are not traced.
+game_assets.language_support	inferred	docs/modding/asset-format/text.md	the one-byte languages (English, French, German, Italian, Spanish, Dutch, Swedish, Danish) show through the English character map; no table other than English's was available.
