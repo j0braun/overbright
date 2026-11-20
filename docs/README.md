@@ -43,6 +43,8 @@ What is known about `SPEED2.EXE` and its files, with addresses. See [original/](
 - [Names for addresses](symbols.tsv) and the [provenance tags](provenance.tsv) of measured values.
 - [Uncapped frame rates](original/uncapped-fps.md), [random numbers](original/rng.md),
   [save points](original/save-points.md), [outruns](original/outrun.md) and more.
+- [Coverage maps](original/coverage/README.md): how much of the original's traffic and racer AI
+  Overbright reproduces, function by function.
 
 ## Notes
 
