@@ -231,6 +231,9 @@ pub(super) fn car_contact(prop: &Prop, b: &mut Body, k: usize, i: usize, car: &C
     if fixed {
         let size = impulse.length().max((arm + b.rot * prop.info.centre_of_mass).cross(impulse).length());
         if size < b.break_left {
+            if !b.sounds.contains_key(&key) {
+                state.note_hit(impulse.length());
+            }
             prop_sound(prop, b, key, point, impulse, 7, sounds);
             state.take_push(car, against_wall(b, -impulse), car_arm);
             return false;
@@ -240,6 +243,12 @@ pub(super) fn car_contact(prop: &Prop, b: &mut Body, k: usize, i: usize, car: &C
     }
     if !b.moving {
         start_moving(b);
+    }
+    // The car's first push on this prop (its sound's record), a new hit
+    // for the Rumble extra: the push the car takes, at least the break
+    // impulse a fixed prop gave way at.
+    if !b.sounds.contains_key(&key) {
+        state.note_hit((impulse * scale).length());
     }
     prop_sound(prop, b, key, point, impulse * scale, 7, sounds);
     take(prop, b, impulse * scale, arm);

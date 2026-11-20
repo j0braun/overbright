@@ -367,6 +367,13 @@ impl CarState {
                 if !r.sounded {
                     use crate::audio::collision as sound;
                     r.sounded = true;
+                    // A new hit for the Rumble extra; not the underbody on
+                    // a floor-like polygon while the car stands on its
+                    // wheels (a kerb or a landing: the bumps' share).
+                    let floor = r.floor && down > 0 && (rot * Vec3::Z).z > 0.9;
+                    if !floor {
+                        self.note_hit(push);
+                    }
                     let kind = sound::track_kind(rot * Vec3::X, rot * Vec3::Z, normal);
                     let dir = linear.normalize_or_zero();
                     let volume = sound::tipped(sound::volume(linear.length(), kind), (rot * Vec3::Z).z, down);

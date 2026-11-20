@@ -293,6 +293,10 @@ pub struct RumbleFeed {
     pub nitrous: bool,
     /// The gear changed this tick.
     pub shifted: bool,
+    /// The hardest new hit since the last tick (`drive::CarState::take_hit`):
+    /// a contact's first push |J| against a wall, another car or a
+    /// knock-over prop; 0 none.
+    pub hit: f32,
     /// The player drives (not a scene, replay, menu or pause).
     pub driving: bool,
 }
@@ -322,13 +326,35 @@ pub fn surface_buzz(surfaces: &[u8; 4], speed: f32) -> f32 {
 /// speed changes by more than 4 m/s within 0.15 s or the bump value passes
 /// 0.05, scaled by the speed change; the weak motor for the road texture
 /// ([`surface_buzz`]), a puddle (by speed), a nitrous shot and a gear change.
+/// A collision (the game's own contact events: a wall, another car, a
+/// knock-over prop, [`RumbleFeed::hit`]) always pulses the strong motor,
+/// from [`HIT_FLOOR`] for the lightest touch to full at [`HIT_FULL`],
+/// held [`HIT_HOLD`] ticks (0.1 s) before it fades.
 /// One step per 1/60 s world tick, so the same at every frame rate.
 #[derive(Clone, Debug, Default)]
 pub struct Rumble {
     /// Speeds of the last 0.15 s (9 ticks), oldest first.
     history: std::collections::VecDeque<f32>,
     strong: f32,
+    /// World ticks a hit's pulse still holds before it fades.
+    hold: u8,
     shift: f32,
+}
+
+/// A hit's pulse for the lightest touch (a glancing car, a small prop).
+pub const HIT_FLOOR: f32 = 0.35;
+/// The push |J| that gives a full pulse (30: the push that totals a car
+/// in a drag race, 0x59FB80).
+pub const HIT_FULL: f32 = 30.0;
+/// World ticks (1/60 s) a hit's pulse holds before its fade: 0.1 s.
+pub const HIT_HOLD: u8 = 6;
+
+/// A hit's pulse strength 0..1 for its push |J|.
+pub fn hit_strength(push: f32) -> f32 {
+    if !(push > 0.0) {
+        return 0.0;
+    }
+    HIT_FLOOR + (1.0 - HIT_FLOOR) * (push / HIT_FULL).min(1.0).sqrt()
 }
 
 impl Rumble {
@@ -365,8 +391,20 @@ impl Rumble {
                 self.history.push_back(f.speed);
             }
         }
+        // A collision: a pulse by the hit's strength, at least the floor.
+        let hit = hit_strength(f.hit);
+        if hit > 0.0 && hit >= self.strong {
+            self.strong = hit;
+            self.hold = HIT_HOLD;
+            self.history.clear();
+            self.history.push_back(f.speed);
+        }
         let strong = self.strong;
-        self.strong = (self.strong - DT / 0.25).max(0.0);
+        if self.hold > 0 {
+            self.hold -= 1;
+        } else {
+            self.strong = (self.strong - DT / 0.25).max(0.0);
+        }
         if f.shifted {
             self.shift = 0.35;
         }
@@ -489,5 +527,48 @@ mod tests {
         assert!((r.step(&f).1 - 0.1275).abs() < 1e-3);
         f.surfaces = [0; 4];
         assert_eq!(r.step(&f), (0.0, 0.0));
+    }
+
+    /// A collision (the game's own contact events) always pulses the strong
+    /// motor, from the floor for the lightest touch, harder for harder hits,
+    /// held 0.1 s and then faded as the jolt; no hit, no change.
+    #[test]
+    fn rumble_on_hits_by_strength() {
+        let peak = |hit: f32| {
+            let mut r = Rumble::default();
+            let mut f = RumbleFeed { speed: 20.0, driving: true, ..Default::default() };
+            r.step(&f);
+            f.hit = hit;
+            let (first, _) = r.step(&f);
+            f.hit = 0.0;
+            let mut held = 0;
+            let mut last = first;
+            for _ in 0..40 {
+                let (s, _) = r.step(&f);
+                held += usize::from(s == first && s > 0.0);
+                assert!(s <= last);
+                last = s;
+            }
+            assert_eq!(last, 0.0);
+            (first, held)
+        };
+        assert_eq!(peak(0.0), (0.0, 0));
+        let (light, held) = peak(0.05);
+        assert!(light >= HIT_FLOOR && light < 0.45, "{light}");
+        assert_eq!(held, usize::from(HIT_HOLD));
+        let mut last = light;
+        for j in [1.0, 5.0, 15.0, 30.0] {
+            let (k, _) = peak(j);
+            assert!(k > last, "{j}: {k} after {last}");
+            last = k;
+        }
+        assert_eq!(last, 1.0);
+        assert_eq!(peak(80.0).0, 1.0);
+        // A weaker hit during a stronger pulse does not cut it short.
+        let mut r = Rumble::default();
+        let mut f = RumbleFeed { speed: 20.0, driving: true, hit: 30.0, ..Default::default() };
+        r.step(&f);
+        f.hit = 0.1;
+        assert_eq!(r.step(&f).0, 1.0);
     }
 }

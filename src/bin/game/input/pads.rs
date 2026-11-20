@@ -265,7 +265,7 @@ impl Game {
                 Mode::Race(r) => r.replay.playback.is_none(),
                 _ => false,
             };
-        let feed = match self.sim.drive.as_ref().filter(|_| driving) {
+        let feed = match self.sim.drive.as_mut().filter(|_| driving) {
             Some(d) => {
                 let gear = d.state.drivetrain.as_ref().map(|t| t.gear);
                 let shifted = gear.is_some() && self.rumble_gear.is_some_and(|g| Some(g) != gear);
@@ -276,6 +276,10 @@ impl Game {
                 let bump = self.rumble_travel.map_or(0.0, |was| {
                     now.iter().zip(was).map(|(n, w)| (n - w).abs()).sum::<f32>()
                 });
+                // The hardest new hit since the last tick (none on the
+                // first: a hit from before the rumble ran is dropped).
+                let hit = d.state.take_hit();
+                let hit = if self.rumble_travel.is_some() { hit } else { 0.0 };
                 self.rumble_travel = Some(now);
                 nfsu2::pad::extras::RumbleFeed {
                     speed: d.state.velocity.length(),
@@ -286,6 +290,7 @@ impl Game {
                     rough: d.state.wheels.iter().any(|w| w.surface == 0xD),
                     nitrous: d.state.nitrous.is_some_and(|t| t.running.is_some()),
                     shifted,
+                    hit,
                     driving: true,
                 }
             }
