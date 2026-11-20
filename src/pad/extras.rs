@@ -117,11 +117,15 @@ pub struct PadOptions {
     /// original, 0x5CA730, switches off the roles of every other axis that
     /// moved past the limit in the same frame).
     pub safe_bind: bool,
+    /// Quit with Both Sticks: pressing both sticks (L3 + R3) together on
+    /// the main menu asks the game's quit question (the original has no
+    /// pad shortcut for it; its 'Q' key asks the same, 0x558B80).
+    pub sticks_quit: bool,
 }
 
 impl Default for PadOptions {
     fn default() -> PadOptions {
-        PadOptions { layout: LAYOUT_AUTO, deadzone: 0, trigger_deadzone: 0, saturation: 100, steer_curve: 100, rumble: 0, pause_on_disconnect: false, safe_bind: false }
+        PadOptions { layout: LAYOUT_AUTO, deadzone: 0, trigger_deadzone: 0, saturation: 100, steer_curve: 100, rumble: 0, pause_on_disconnect: false, safe_bind: false, sticks_quit: false }
     }
 }
 
@@ -187,6 +191,9 @@ impl PadOptions {
         if self.safe_bind {
             v.push("safe axis binding".into());
         }
+        if self.sticks_quit {
+            v.push("quit with both sticks".into());
+        }
     }
 
     pub fn write(&self, out: &mut String) {
@@ -215,6 +222,9 @@ impl PadOptions {
         if self.safe_bind != d.safe_bind {
             out.push_str("enh.pad_safe_bind 1\n");
         }
+        if self.sticks_quit != d.sticks_quit {
+            out.push_str("enh.pad_sticks_quit 1\n");
+        }
     }
 
     pub fn parse(&mut self, key: &str, value: &str) -> bool {
@@ -227,6 +237,7 @@ impl PadOptions {
             "enh.pad_rumble" => self.rumble = value.parse::<u8>().map_or(self.rumble, |v| step_of(&RUMBLE_STEPS, v)),
             "enh.pad_pause_on_disconnect" => self.pause_on_disconnect = value != "0",
             "enh.pad_safe_bind" => self.safe_bind = value != "0",
+            "enh.pad_sticks_quit" => self.sticks_quit = value != "0",
             _ => return false,
         }
         true
@@ -398,7 +409,7 @@ mod tests {
         set_resolved(false, false);
         assert!(PadOptions::default().modern_for(true, false) && !PadOptions::default().modern_for(false, false) && !PadOptions::default().modern_for(true, true));
         assert!(PadOptions { layout: LAYOUT_MODERN, ..d }.modern_for(false, true) && !PadOptions { layout: LAYOUT_ORIGINAL, ..d }.modern_for(true, false));
-        let e = PadOptions { layout: 1, deadzone: 10, trigger_deadzone: 5, saturation: 90, steer_curve: 150, rumble: 70, pause_on_disconnect: true, safe_bind: true };
+        let e = PadOptions { layout: 1, deadzone: 10, trigger_deadzone: 5, saturation: 90, steer_curve: 150, rumble: 70, pause_on_disconnect: true, safe_bind: true, sticks_quit: true };
         e.write(&mut out);
         let mut back = PadOptions::default();
         for l in out.lines() {
@@ -408,7 +419,7 @@ mod tests {
         assert_eq!(back, e);
         let mut v = Vec::new();
         e.deviations(&mut v);
-        assert_eq!(v.len(), 8);
+        assert_eq!(v.len(), 9);
         // Odd values snap to the steps.
         assert!(back.parse("enh.pad_deadzone", "12") && back.deadzone == 10);
         assert!(back.parse("enh.pad_saturation", "93") && back.saturation == 90);

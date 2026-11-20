@@ -154,6 +154,7 @@ pub static MODEL: &[RowModel] = &[
     m(RowId::PadRumble, Controller, Enhanced, Live),
     m(RowId::PadPauseOnDisconnect, Controller, Enhanced, Live),
     m(RowId::PadSafeBind, Controller, Utility, Live),
+    m(RowId::PadSticksQuit, Controller, Utility, Live),
     m(RowId::ListsOpenInstalled, GameplayAccessibility, Enhanced, Live),
     m(RowId::OutrunVariety, GameplayAccessibility, Enhanced, Live),
     m(RowId::TrafficDensity, GameplayAccessibility, Enhanced, NextLoad("free roam")),

@@ -62,6 +62,7 @@ All under **Enhancements → Controller**. Each is off, or at the original's val
 | Rumble | Off / Low / Medium / High | Off |
 | Pause on Disconnect | Off / On | Off |
 | Safe Axis Binding | Off / On | Off |
+| Quit with Both Sticks | Off / On | Off |
 
 - **Rumble** shakes the pad on bumps and hard speed changes, on textured ground (kerbs, pavement, gravel), in
   puddles, on a nitrous shot and on a gear change. The original has no rumble for XInput pads (Xbox and most
@@ -72,6 +73,13 @@ All under **Enhancements → Controller**. Each is off, or at the original's val
   roam. Without it, the car keeps rolling.
 - **Safe Axis Binding**: when you bind an axis on the Controls page, only the axis you moved most is bound;
   the original also clears the roles of the other axes it sees moving.
+- **Quit with Both Sticks**: on the main menu, press both sticks down together (L3 + R3; LS + RS on Xbox
+  pads) to get the game's own "Are you sure you want to quit?" question, the one the Q key opens, with
+  Cancel focused. Nothing quits at once. It works with both layouts and any bindings, on the main menu
+  only (not over a question, in another menu or in a race), and only after both sticks were let go on
+  that screen: sticks already held when the main menu appears do nothing, and one stick alone does
+  nothing. The original has no pad shortcut for quitting: its default pad maps bind no button to the
+  quit question, which the Q key, the help bar's Quit Game button and closing the window reach.
 - **Restore Native** and the graphics presets leave Controller Layout alone, as they leave the resolution
   alone. Restore Native does put the other settings in this group back to the original's values.
 - Your custom bindings are kept per layout. Switching the layout and then saving drops the other layout's
@@ -160,10 +168,16 @@ filters off.
 
 Options.txt keys `enh.pad_*`, written only when not at the original's value. Label ids: Controller Layout
 0xC104E033, Stick Dead Zone …34, Trigger Dead Zone …35, Stick Saturation …36, Steering Linearity …37 (1.00 is
-the original's 0x57C250 identity graph), Rumble …39, Pause on Disconnect …3A, Safe Axis Binding …3B; the group
+the original's 0x57C250 identity graph), Rumble …39, Pause on Disconnect …3A, Safe Axis Binding …3B, Quit with Both Sticks …3C (`enh.pad_sticks_quit 1`); the group
 label 0xC104E032 "Controller". The ids were checked unused in the tree.
 
 - The presets leave the group alone (quality-of-life settings).
+- Quit with Both Sticks (`Host::both_sticks`, called from `pad_frame`) reads the pads' raw stick buttons, not
+  the mapped actions, so it is the same under Original and Modern and after rebinding (the default menu
+  maps, 0x5C11B0's and Modern's, leave L3 and R3 unbound, so on those maps they do nothing else in menus;
+  a preset pad of 0x7FE7F8 or a custom menu binding on a stick button keeps its action as well). It fires on the main menu under the
+  same condition as the Q key (0x558B80: a screen with a help bar) and opens the same question
+  (`Game::quit_question`). Off, it tracks nothing.
 - The shaping (`PadOptions::shape`) is a pure function of each sample. The rumble model and the capture run on
   60 Hz world / clock ticks, and the menu repeat counts 60 Hz ticks of the game clock, so all of it is the same
   at 30, 60, 120 and 200 Hz (tests).
@@ -198,7 +212,11 @@ Auto is a default for how a device is presented, like the display mode: document
 exact pedals and buttons, menu repeat at 30/60/120/200 Hz), `pad::host::tests` (stick repeat through the host
 at 60–1000 polls/s, original press-only, layout switch, GUIDs, driver lost), `pad::extras::tests` (defaults
 change nothing, options round trip, shaping and the steering curve, rumble pulse and fade), the `qol` round
-trip, game.rs `pad_only_modern_layout_end_to_end` (real assets: the original's triggers do nothing, Modern
+trip, `pad::host::tests::both_sticks_together_once_released_first` (one pad's L3 + R3 fire once, only after
+every pad's sticks were let go; one stick or another pad's single stick never; both layouts), game.rs
+`both_sticks_quit_from_the_main_menu` (real assets: off does nothing, one stick does nothing, both open the
+quit question with Cancel focused, sticks held when the menu appears and other menus do nothing; Original and
+Modern), `pad_only_modern_layout_end_to_end` (real assets: the original's triggers do nothing, Modern
 drives, Start pauses, B resumes, d-pad name entry, unplugging pauses). End to end with a **uinput** virtual
 Xbox 360 pad read by gilrs (a developer probe, not in the public repository): detection, the Original and
 Modern reports, the hat d-pad, unplugging, and the three-pad rescan.

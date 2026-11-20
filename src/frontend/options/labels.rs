@@ -170,6 +170,7 @@ pub(crate) const PAD_STEER_CURVE: u32 = 0xC1_04E0_37;
 pub(crate) const PAD_RUMBLE: u32 = 0xC1_04E0_39;
 pub(crate) const PAD_PAUSE_ON_DISCONNECT: u32 = 0xC1_04E0_3A;
 pub(crate) const PAD_SAFE_BIND: u32 = 0xC1_04E0_3B;
+pub(crate) const PAD_STICKS_QUIT: u32 = 0xC1_04E0_3C;
 pub(crate) const UX_RESET_GROUP: u32 = 0xC1_04E0_87;
 pub(crate) const UX_NO_MATCH: u32 = 0xC1_04E0_88;
 /// The streamlined graphics page (docs/developing/settings-page.md "Graphics mode and
@@ -307,6 +308,7 @@ pub fn clone_label(hash: u32) -> Option<&'static str> {
         PAD_RUMBLE => "Rumble",
         PAD_PAUSE_ON_DISCONNECT => "Pause on Disconnect",
         PAD_SAFE_BIND => "Safe Axis Binding",
+        PAD_STICKS_QUIT => "Quit with Both Sticks",
         UX_RESET_GROUP => "Reset Group to Native",
         UX_NO_MATCH => "Nothing Matches the Filter",
         GRAPHICS_MODE => "Graphics Mode",

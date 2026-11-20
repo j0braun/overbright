@@ -8,7 +8,7 @@ use super::super::*;
 use super::oracle::{Old, old_preset_base};
 
 /// The keys of the nested groups (`extras`, `pad`; their own code).
-const NESTED_KEYS: [&str; 17] = [
+const NESTED_KEYS: [&str; 18] = [
     "enh.low_latency",
     "enh.replay_cameras",
     "enh.hud_palette",
@@ -26,6 +26,7 @@ const NESTED_KEYS: [&str; 17] = [
     "enh.pad_rumble",
     "enh.pad_pause_on_disconnect",
     "enh.pad_safe_bind",
+    "enh.pad_sticks_quit",
 ];
 
 fn table_keys() -> Vec<&'static str> {
@@ -383,6 +384,7 @@ fn every_ui_value_is_kept_by_the_table() {
         RowId::PadRumble,
         RowId::PadPauseOnDisconnect,
         RowId::PadSafeBind,
+        RowId::PadSticksQuit,
         RowId::HdUi,
         RowId::ReloadPacks,
     ];

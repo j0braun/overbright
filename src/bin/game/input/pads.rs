@@ -96,6 +96,15 @@ impl Game {
                 eprintln!("{e:#}");
             }
         }
+        // Controller extra (Quit with Both Sticks): L3 + R3 on the main menu
+        // asks the 'Q' key's quit question (0x558B80); off, nothing is
+        // tracked. Only the main menu itself, not a question over it.
+        let main = self.settings.enh.pad.sticks_quit
+            && matches!(self.mode, Mode::Menu(Menu::Icons(_, MenuKind::Main)))
+            && self.help_screen().is_some_and(|(mask, _)| mask != 0);
+        if self.platform.pads.both_sticks(main) {
+            self.quit_question();
+        }
         // Restore Defaults' OK (0x4ACD90): the keyboard's map (0x5D0000,
         // the DIACTION defaults 0x7FCAC0) or the controller's (0x5C11B0).
         if let Mode::Menu(Menu::Controls(c)) = &mut self.mode

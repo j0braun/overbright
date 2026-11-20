@@ -374,6 +374,9 @@ pub struct Host {
     rumble_last: (f32, f32),
     /// The profile's controller blocks ([`Host::set_saved_blocks`]).
     saved: Vec<[u8; super::BLOCK_LEN]>,
+    /// [`Host::both_sticks`]: both sticks were seen released on the
+    /// current screen.
+    sticks_armed: bool,
 }
 
 impl Host {
@@ -388,14 +391,14 @@ impl Host {
             None
         };
         let script = std::env::var_os("NFSU2_PAD_SCRIPT").and_then(|p| std::fs::read_to_string(&p).map_err(|e| eprintln!("{}: {e}", p.to_string_lossy())).ok()).map(|t| Script::parse(&t));
-        let mut h = Host { gilrs, script, devices: Vec::new(), options: PadOptions::default(), tick: i64::MIN, ticked: false, rumble_out: Vec::new(), effects: Vec::new(), rumble_last: (0.0, 0.0), saved: Vec::new() };
+        let mut h = Host { gilrs, script, devices: Vec::new(), options: PadOptions::default(), tick: i64::MIN, ticked: false, rumble_out: Vec::new(), effects: Vec::new(), rumble_last: (0.0, 0.0), saved: Vec::new(), sticks_armed: false };
         h.rescan();
         h
     }
 
     /// A host with the given script and no real pads (tests).
     pub fn scripted(text: &str) -> Host {
-        Host { gilrs: None, script: Some(Script::parse(text)), devices: Vec::new(), options: PadOptions::default(), tick: i64::MIN, ticked: false, rumble_out: Vec::new(), effects: Vec::new(), rumble_last: (0.0, 0.0), saved: Vec::new() }
+        Host { gilrs: None, script: Some(Script::parse(text)), devices: Vec::new(), options: PadOptions::default(), tick: i64::MIN, ticked: false, rumble_out: Vec::new(), effects: Vec::new(), rumble_last: (0.0, 0.0), saved: Vec::new(), sticks_armed: false }
     }
 
     /// The Controller extras in force. A layout change re-presents every
@@ -641,6 +644,29 @@ impl Host {
         self.devices.first().map(|d| &d.report)
     }
 
+    /// Controller extra (Quit with Both Sticks): true once when both stick
+    /// buttons (L3 and R3) of one pad are held together while `here` (the
+    /// screen it works on) holds. It works only after every pad's stick
+    /// buttons were seen released on that screen, so a stick already held
+    /// when the screen appeared does nothing, and it fires again only after
+    /// both are let go. Raw buttons, so the same with any layout and map.
+    pub fn both_sticks(&mut self, here: bool) -> bool {
+        if !here {
+            self.sticks_armed = false;
+            return false;
+        }
+        let b = |d: &Device| (d.inputs.buttons[Btn::L3 as usize], d.inputs.buttons[Btn::R3 as usize]);
+        if !self.devices.iter().any(|d| matches!(b(d), (true, _) | (_, true))) {
+            self.sticks_armed = true;
+            return false;
+        }
+        if self.sticks_armed && self.devices.iter().any(|d| b(d) == (true, true)) {
+            self.sticks_armed = false;
+            return true;
+        }
+        false
+    }
+
     /// The actions held on any controller (bit a set).
     pub fn held(&self) -> u64 {
         self.devices.iter().fold(0, |m, d| m | !d.report.mask)
@@ -776,6 +802,39 @@ mod tests {
         let r = m.poll(&c, &s);
         assert!(r.held(act::THROTTLE));
         assert!((driving(0, Some(&r), false).brake - 248.0 / 255.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn both_sticks_together_once_released_first() {
+        // Pad 1: L3 then R3 (both held at 1.5 s), released at 2 s, both
+        // again at 3 s. Pad 2: only R3, held from the start to 2.5 s.
+        let script = "0 connect 1\n0 connect 2\n0 button 2 r3 1\n1.0 button 1 l3 1\n1.5 button 1 r3 1\n2.0 button 1 l3 0\n2.0 button 1 r3 0\n2.5 button 2 r3 0\n3.0 button 1 ls 1\n3.0 button 1 rs 1\n";
+        for layout in [0, 1] {
+            let mut h = Host::scripted(script);
+            h.set_options(PadOptions { layout, ..Default::default() });
+            let mut fired = Vec::new();
+            for k in 0..240 {
+                let t = k as f32 / 60.0;
+                h.poll(t);
+                if h.both_sticks(true) {
+                    fired.push(k);
+                }
+            }
+            // Pad 2's R3 held since the screen appeared: nothing until every
+            // stick button was released (2.5 s), so 1.5 s does nothing; one
+            // stick alone never fires; then once at 3 s.
+            assert_eq!(fired, [180], "layout {layout}");
+        }
+        // Off the screen: never, and coming back with both held: not until released.
+        let mut h = Host::scripted("0 connect 1\n0 button 1 l3 1\n0 button 1 r3 1\n1 button 1 l3 0\n1 button 1 r3 0\n1.5 button 1 l3 1\n1.5 button 1 r3 1\n");
+        let mut fired = Vec::new();
+        for k in 0..120 {
+            h.poll(k as f32 / 60.0);
+            if h.both_sticks(k >= 30) {
+                fired.push(k);
+            }
+        }
+        assert_eq!(fired, [90]);
     }
 
     #[test]

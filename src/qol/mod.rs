@@ -468,6 +468,7 @@ mod tests {
                 rumble: 70,
                 pause_on_disconnect: true,
                 safe_bind: true,
+                sticks_quit: true,
             },
             smooth_cars: true,
             far_draw: true,
@@ -489,7 +490,7 @@ mod tests {
             assert!(back.parse(k, v));
         }
         assert_eq!(back, e);
-        assert_eq!(e.deviations().len(), 80);
+        assert_eq!(e.deviations().len(), 81);
         assert!(!back.parse("detail", "3"));
         // Volumetric Fog's Next-Gen tier (3) and the Sky row round-trip, clamped.
         let mut n = Enhancements::default();

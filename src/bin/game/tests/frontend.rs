@@ -89,6 +89,89 @@ fn pad_only_modern_layout_end_to_end() {
     assert!(matches!(game.mode, Mode::Menu(Menu::Icons(_, MenuKind::ExplorePause))), "unplugged: paused");
 }
 
+/// Controller extra (Quit with Both Sticks) through the production update:
+/// off (the default) L3 + R3 on the main menu do nothing; on, one stick
+/// does nothing, both together open the quit question, sticks already held
+/// when the main menu appeared do nothing until let go, and nowhere else.
+#[test]
+#[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
+fn both_sticks_quit_from_the_main_menu() {
+    crate::tests::testkit::game();
+    use nfsu2::pad::host::Btn;
+    let mut game = Game::new().unwrap();
+    game.pacing.clock = Some(100.0);
+    let tick = |game: &mut Game| {
+        game.pacing.clock = game.pacing.clock.map(|t| t + 1.0 / 60.0);
+        game.advance_for(1.0 / 60.0).unwrap();
+    };
+    let set = |game: &mut Game, l3: bool, r3: bool| {
+        let b = &mut game.platform.pads.devices[0].inputs.buttons;
+        b[Btn::L3 as usize] = l3;
+        b[Btn::R3 as usize] = r3;
+    };
+    let main = |g: &Game| matches!(g.mode, Mode::Menu(Menu::Icons(_, MenuKind::Main)));
+    let asked = |g: &Game| matches!(&g.mode, Mode::Menu(Menu::Dialog(d, _)) if d.selected == 1);
+    for layout in [nfsu2::pad::extras::LAYOUT_ORIGINAL, nfsu2::pad::extras::LAYOUT_MODERN] {
+        game.settings.enh.pad = Default::default();
+        game.settings.enh.pad.layout = layout;
+        game.mode = game.icon_menu(MenuKind::Main);
+        game.platform.pads = nfsu2::pad::host::Host::scripted("0 connect 1 045e 0b12\n");
+        tick(&mut game);
+        assert_eq!(game.platform.pads.devices.len(), 1);
+        // Off (native): both sticks do nothing.
+        assert!(!game.settings.enh.pad.sticks_quit);
+        set(&mut game, true, true);
+        for _ in 0..10 {
+            tick(&mut game);
+        }
+        assert!(main(&game), "off: nothing");
+        // On while both are held: nothing until they are let go.
+        game.settings.enh.pad.sticks_quit = true;
+        for _ in 0..10 {
+            tick(&mut game);
+        }
+        assert!(main(&game), "held before: nothing");
+        set(&mut game, false, false);
+        tick(&mut game);
+        // One stick: nothing, either one.
+        for (l3, r3) in [(true, false), (false, true)] {
+            set(&mut game, l3, r3);
+            for _ in 0..10 {
+                tick(&mut game);
+            }
+            set(&mut game, false, false);
+            tick(&mut game);
+            assert!(main(&game), "one stick: nothing ({l3}, {r3})");
+        }
+        // Both: the quit question, Cancel focused; B cancels it.
+        set(&mut game, true, true);
+        tick(&mut game);
+        assert!(asked(&game), "both sticks: the quit question (layout {layout})");
+        set(&mut game, false, false);
+        game.menu_key(Key::Back).unwrap();
+        for _ in 0..5 {
+            tick(&mut game);
+        }
+        assert!(main(&game), "Cancel: back on the main menu");
+        // Not on another menu.
+        game.mode = game.icon_menu(MenuKind::Options);
+        tick(&mut game);
+        set(&mut game, true, true);
+        for _ in 0..10 {
+            tick(&mut game);
+        }
+        assert!(matches!(game.mode, Mode::Menu(Menu::Icons(_, MenuKind::Options))), "only the main menu");
+        // Back to the main menu with both still held: nothing.
+        game.mode = game.icon_menu(MenuKind::Main);
+        for _ in 0..10 {
+            tick(&mut game);
+        }
+        assert!(main(&game), "held when the menu appeared: nothing");
+        set(&mut game, false, false);
+    }
+    assert!(!game.platform.exit_requested, "the question asks; it never quits by itself");
+}
+
 /// The front end's screens that were stubs: Online and LAN offline,
 /// Controls / EA Trax / Credits, Customize, and Replay offered only
 /// with a recording.

@@ -204,7 +204,7 @@ impl UxGroup {
                 "Field of view, HUD size and colours, reduced flashing, lists, outrun variety, traffic, replay cameras, photo mode and saves."
             }
             UxGroup::Controller => {
-                "Controller layout (triggers as pedals, Start pauses), dead zones, saturation, steering linearity, rumble, pause on disconnect and safe axis binding. Bindings are on the Controls page."
+                "Controller layout (triggers as pedals, Start pauses), dead zones, saturation, steering linearity, rumble, pause on disconnect, safe axis binding and quitting with both sticks on the main menu. Bindings are on the Controls page."
             }
             UxGroup::Packs => "The HD UI pack and the world texture pack (made from your own game files).",
         }
