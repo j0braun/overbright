@@ -7,6 +7,7 @@
 //!                   [--mode props|races] [--tool <name>] [--view 3d|map|street|whole|top] [--tab browser|validation|simulate|log] [--select N,M]
 //!                   [--light work|game] [--sim stream.txt[@seconds[:car]]] [--hover simulate|drive-here|test-race]
 //!                   [--dialog how-to-test|controls] [--run test-race|drive-here] (--run: OB_GAME_EXE a stand-in)
+//!                   [--collision off|invisible|all] [--camera x,y,z[,yaw,pitch]]
 //!                                   the whole window drawn off-screen into a PNG (no window)
 //! ```
 //! The game folder is `NFSU2_ROOT`, else the one the launcher kept.

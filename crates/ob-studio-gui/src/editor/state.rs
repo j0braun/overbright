@@ -55,6 +55,8 @@ pub struct EditorState {
     pub camera: Camera,
     pub mode: Mode,
     pub view: View,
+    /// The collision layer over the view (View ▸ Collision).
+    pub collision: super::collision::Show,
     /// The status bar's last message.
     pub status: String,
     /// Road networks by base track, read on first use through `assets`
@@ -95,6 +97,7 @@ impl EditorState {
             camera,
             mode: Mode::Props,
             view: View::ThreeD,
+            collision: super::collision::Show::Off,
             status: String::new(),
             nets: HashMap::new(),
         }

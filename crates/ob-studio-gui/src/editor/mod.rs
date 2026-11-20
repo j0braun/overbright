@@ -6,6 +6,7 @@
 pub mod app;
 pub mod browser;
 pub mod camera;
+pub mod collision;
 pub mod mapview;
 pub mod menu;
 pub mod modes;

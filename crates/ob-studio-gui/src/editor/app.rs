@@ -237,6 +237,11 @@ pub struct Cli {
     /// Test race or Drive here started in the first frame (`--run
     /// test-race|drive-here`; only with `OB_GAME_EXE` naming a stand-in).
     pub run: Option<menu::Command>,
+    /// The collision layer shown (`--collision off|invisible|all`).
+    pub collision: Option<super::collision::Show>,
+    /// The 3D camera placed (`--camera x,y,z[,yaw,pitch]`, metres and
+    /// degrees; yaw 0 looks along +Y).
+    pub camera: Option<[f32; 5]>,
 }
 
 impl Default for Cli {
@@ -259,11 +264,13 @@ impl Default for Cli {
             hover: None,
             dialog: None,
             run: None,
+            collision: None,
+            camera: None,
         }
     }
 }
 
-pub const USAGE: &str = "usage: overbright-editor [--mod <folder>] [--region <code>] [--maps <dir>]\n       overbright-editor --shot out.png [--size WxH] [--scale F] [--mod <folder>] [--region <code>] [--mode props|races] [--tool <name>] [--view 3d|map|street|whole|top] [--light work|game] [--tab browser|validation|simulate|log] [--select N,M] [--sim stream.txt[@seconds[:car]]] [--hover simulate|drive-here|test-race] [--dialog how-to-test|controls] [--run test-race|drive-here]";
+pub const USAGE: &str = "usage: overbright-editor [--mod <folder>] [--region <code>] [--maps <dir>]\n       overbright-editor --shot out.png [--size WxH] [--scale F] [--mod <folder>] [--region <code>] [--mode props|races] [--tool <name>] [--view 3d|map|street|whole|top] [--light work|game] [--tab browser|validation|simulate|log] [--select N,M] [--sim stream.txt[@seconds[:car]]] [--hover simulate|drive-here|test-race] [--dialog how-to-test|controls] [--run test-race|drive-here] [--collision off|invisible|all] [--camera x,y,z[,yaw,pitch]]";
 
 impl Cli {
     pub fn parse<I: IntoIterator<Item = String>>(args: I) -> Result<Cli> {
@@ -352,6 +359,22 @@ impl Cli {
                         std::env::var_os("OB_GAME_EXE").is_some_and(|p| !p.is_empty()),
                         "--run needs OB_GAME_EXE naming a stand-in game"
                     );
+                }
+                "--collision" => {
+                    let v = val("--collision")?.to_ascii_lowercase();
+                    c.collision = Some(
+                        super::collision::Show::parse(&v).with_context(|| format!("--collision: `{v}` (off, invisible or all)"))?,
+                    );
+                }
+                "--camera" => {
+                    let v = val("--camera")?;
+                    let n: Vec<f32> = v
+                        .split(',')
+                        .map(|x| x.trim().parse::<f32>())
+                        .collect::<Result<_, _>>()
+                        .with_context(|| format!("--camera: `{v}` is not x,y,z[,yaw,pitch]"))?;
+                    ensure!(n.len() == 3 || n.len() == 5, "--camera: `{v}` is not x,y,z[,yaw,pitch]");
+                    c.camera = Some([n[0], n[1], n[2], n.get(3).copied().unwrap_or(0.0), n.get(4).copied().unwrap_or(0.0)]);
                 }
                 "--select" => {
                     let v = val("--select")?;
@@ -475,6 +498,8 @@ impl Panels {
             ],
             overlays: vec![
                 Box::new(parts::Follow(races.clone())),
+                // Under the props' and races' marks.
+                Box::new(super::collision::CollisionOverlay::default()),
                 Box::new(parts::PropsOverlay { props: props.clone(), browser }),
                 Box::new(parts::RacesOverlay { races: races.clone(), dragging: false }),
                 Box::new(super::sim::SimOverlay(sim)),
@@ -1166,6 +1191,11 @@ impl App {
                 }
             }
             A::Hint(on) => self.layout.hint = on,
+            A::Collision(c) => {
+                if let Some(s) = self.state.as_mut() {
+                    s.collision = c;
+                }
+            }
             A::View(v) => {
                 if let Some(s) = self.state.as_mut() {
                     s.view = v;
@@ -1920,6 +1950,13 @@ pub fn apply_cli_view(app: &mut App, cli: &Cli) {
         }
         if let Some(light) = &cli.light {
             app.panels.viewport.set_look(s, light);
+        }
+        if let Some(c) = cli.collision {
+            s.collision = c;
+        }
+        if let Some([x, y, z, yaw, pitch]) = cli.camera {
+            s.camera.position = glam::Vec3::new(x, y, z);
+            (s.camera.yaw, s.camera.pitch) = (yaw.to_radians(), pitch.to_radians());
         }
         if !cli.select.is_empty() {
             s.selection = cli.select.iter().copied().filter(|&i| i < s.session.world.placements.len()).collect();

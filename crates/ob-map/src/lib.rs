@@ -18,6 +18,7 @@ pub mod tools {
     /// Map mods (docs/modding/map-editor.md); the library's `tools::map`
     /// adds the world side (applying, sessions, the in-game editor).
     pub mod map {
+        pub mod collision;
         pub mod format;
         pub mod ops;
         pub mod race;
