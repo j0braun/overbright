@@ -260,6 +260,15 @@ fn trace_frag(f: vec4<f32>) -> vec4<f32> {
     return vec4<f32>(floor(f.xy) * 2.0 + 0.5 + p.jitter.xy, f.zw);
 }
 
+// A car's ray and its own body (docs/notes/graphics/reflections.md "A car's
+// own body in its reflection"): texels of a car within SELF_WINDOW of the
+// start's depth are its own; a ray that has not yet left its surface may
+// pass under it by up to SELF_GRAZE (an interpolated normal grazing the
+// body); otherwise, and to SELF_BEHIND behind it, the body blocks the ray.
+const SELF_WINDOW: f32 = 2.0;
+const SELF_GRAZE: f32 = 0.1;
+const SELF_BEHIND: f32 = 2.0;
+
 // The ray march (the trace's size): from the road's (or a car's) point
 // along the reflected view, a stackless walk of the depth pyramid — a
 // whole cell the ray stays in front of is skipped and the next one taken
@@ -335,6 +344,9 @@ fn fs_trace(@builtin(position) frag_in: vec4<f32>) -> @location(0) vec4<f32> {
     // The hit's mask texel is a car's, whatever its depth (a car's lower
     // edge against the pyramid's nearest depth, its neon glow over it).
     var near_car = false;
+    // The ray has been in front of everything on screen once (it left
+    // the surface it starts on).
+    var escaped = false;
     for (var i = 0; i < steps; i = i + 1) {
         if t >= t_max {
             break;
@@ -356,6 +368,7 @@ fn fs_trace(@builtin(position) frag_in: vec4<f32>) -> @location(0) vec4<f32> {
         let cell_z = textureLoad(hiz_tex, clamp(vec2<i32>(cell), vec2<i32>(0), cells), level).r;
         if ray_far < cell_z {
             // The whole segment in front of the cell's nearest surface.
+            escaped = true;
             t = t_next;
             za = zb;
             level = min(level + 1, top);
@@ -364,8 +377,12 @@ fn fs_trace(@builtin(position) frag_in: vec4<f32>) -> @location(0) vec4<f32> {
         } else {
             // Crossing the surface, or behind it by less than its
             // thickness: a hit; further behind, the ray passes behind
-            // something thin and goes on.
-            if ray_near - cell_z < max(0.35, 0.04 * cell_z) {
+            // something thin and goes on. A car's own body is not thin:
+            // a ray from it that passes behind it is looked at too.
+            let behind = ray_near - cell_z;
+            let thin = behind >= max(0.35, 0.04 * cell_z);
+            let own_depth = car && abs(cell_z - z) < SELF_WINDOW;
+            if !thin || (own_depth && behind < SELF_BEHIND) {
                 let mid = (t + t_next) * 0.5;
                 let hm = mask_texel(s0 + dir * mid);
                 let hsurf = textureLoad(surface_tex, hm, 0);
@@ -376,14 +393,21 @@ fn fs_trace(@builtin(position) frag_in: vec4<f32>) -> @location(0) vec4<f32> {
                 // From the road: the road itself (grazing rays against the
                 // pyramid's nearest depth) is no hit; a car on it is.
                 let road_self = !car && on_mask && !is_car(hk) && textureLoad(term_tex, hm, 0).a > 0.002;
-                // From a car: its own body next to the start is no hit (an
-                // interpolated normal's ray grazing it); the road and
-                // other cars are.
-                let car_self = car && on_mask && is_car(hk) && abs(cell_z - z) < 2.0;
+                // From a car: its own body is no hit while the ray grazes
+                // it (an interpolated normal's ray just under the surface
+                // it starts on); the road and other cars are. Once the
+                // ray has left that surface, or meets the body further
+                // behind (a lid ray under the wing, rear window or roof),
+                // the body occludes: a miss, the cube stays, not the lamps
+                // and sky behind the car.
+                let car_self = own_depth && on_mask && is_car(hk);
+                if car_self && (escaped || behind > SELF_GRAZE) {
+                    break;
+                }
                 // An overlay (the GPS arrow) is no hit: the ray goes on
                 // past it, as past something thin (docs/notes/graphics/reflections.md "The GPS arrow kept out of reflections").
                 // (Looked up only when it decides: no side effects.)
-                if !road_self && !car_self && !overlay_hit(hm, cell_z) {
+                if !thin && !road_self && !car_self && !overlay_hit(hm, cell_z) {
                     t = mid;
                     hit = true;
                     hit_car = on_mask && is_car(hk);

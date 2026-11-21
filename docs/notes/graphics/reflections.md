@@ -176,8 +176,10 @@ cov = % of the box lifted > 4 levels, hf = the box's high-frequency energy again
    hi-Z march (48 / 64 steps), hit within max(0.35 m, 4 % z) behind a
    surface; confidence = screen-edge fade × reach fade × fade for rays
    turning to the camera. From the road the road itself at its own depth
-   is no hit (grazing rays); from a car its own body within 2 m of the
-   start is none, the road and other cars are. The hit's colour: the
+   is no hit (grazing rays); from a car its own body (within 2 m of the
+   start's depth) is none only while the ray grazes the surface it starts
+   on, and blocks it otherwise (see "A car's own body in its reflection");
+   the road and other cars are hits. The hit's colour: the
    scene's with **its fog taken off** ((c − fog·(1 − f)) / max(f,
    0.35), f = world.efx's factor at the hit's view depth; the planar
    capture it replaces is worldnofog and the composite's weight already
@@ -348,6 +350,26 @@ red, the wall and the alpha are unchanged, no validation error).
 * Enhanced Reflections off: the native per-prop flip still disagrees with
   the trace; the crossfade is only shortened (a true fix would need the
   true-mirror capture, i.e. Enhanced Reflections).
+
+### A car's own body in its reflection
+A ray from a car pixel used to skip **every** texel of its own car within 2 m of the start's depth. Meant for
+the grazing self-hits of interpolated normals, it also let a trunk-lid ray pass through the wing, the rear
+window and the roof and take the lamps and sky behind the car on screen: a bright blob between the wing's
+legs that changed shape and place with every subpixel of camera motion (Ultra and up; High has no SSR).
+
+Now the own body is skipped only while the ray grazes the surface it starts on: the ray has not yet been in
+front of the depth pyramid (`escaped`) and is less than 0.1 m behind the body (`SELF_GRAZE`). Once the ray has
+left the surface, or meets the body further behind (up to 2 m, `SELF_BEHIND`, where a ray behind something
+thin would otherwise go on), the body occludes it: a miss, confidence 0, the car cube stays there, as at High.
+Other cars and the road are hits as before.
+
+Measured with `--bench explore 160` (near chase camera, every frame dumped), the RX-7 with the big wing from
+the community body-shop save, `scripts/flicker.py` acc>16 over the wing and lid (280×80+500+620): Ultra 2.10 → 1.70 % (SSR off 1.45),
+Extreme 2.02 → 1.68 % (1.47); held still 0.49 → 0.30 % (SSR off 0.29). The blob is gone; what is left above the
+SSR-off level is the car's wanted SSR (quarter panels, bumper, taillight glow on the body), which stays. Stock 240SX
+unchanged; the stock Sentra's wing had a smaller patch of the same (Ultra 3.30 → 2.73 %). Evidence:
+`docs/evidence/ssr-own-body/`. Original, Balanced and High
+frames are byte-identical (no SSR); SSR trace time unchanged (0.12 ms Ultra, 0.32–0.33 ms Extreme at 1280×960).
 
 ### Changes (2026-11-04, docs/notes/graphics/car-look.md "Chrome trunk flicker and dry-road reflection strength")
 - **Dry road at native strength.** On a dry road (Wet Roads' uniform not on), a road ray's traced
