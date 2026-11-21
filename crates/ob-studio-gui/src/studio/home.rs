@@ -97,7 +97,7 @@ pub fn plural(n: usize, one: &str, many: &str) -> String {
 pub fn summary(maps: &Path, folder: &str) -> Result<ModSummary> {
     let dir = maps.join(folder);
     let edir = store::editor_dir(maps, folder);
-    let h = History::open_read(&dir, &edir, &[store::FILE], Arc::new(history::disk::Real))
+    let h = History::open_read(&dir, &edir, ob_studio::MOD_DOCS, Arc::new(history::disk::Real))
         .with_context(|| format!("reading the history of {folder}"))?;
     let in_game = store::enabled(maps).iter().any(|f| f == folder);
     let read_only_by = h.read_only_by().flatten().map(|o| o.program.clone());
@@ -143,6 +143,35 @@ pub fn summary(maps: &Path, folder: &str) -> Result<ModSummary> {
 }
 
 /// Every mod in `maps`, sorted by folder; one that does not read at all is left out (and logged).
+/// The mod `--mod` names: a mod's folder name in the mods folder `maps`, or the path of a mod's folder (the one
+/// holding `map.obmap`) anywhere. The mods folder to show (a path's own parent folder when it is not `maps`) and the
+/// mod's folder name in it; neither is an error that says what was looked for.
+pub fn find_mod(maps: &Path, arg: &str) -> Result<(PathBuf, String), String> {
+    if crate::tools::map::valid_id(arg) && maps.join(arg).join(store::FILE).is_file() {
+        return Ok((maps.to_path_buf(), arg.to_string()));
+    }
+    let given = Path::new(arg);
+    if given.join(store::FILE).is_file() {
+        let dir = std::fs::canonicalize(given).unwrap_or_else(|_| given.to_path_buf());
+        let name = dir.file_name().and_then(|n| n.to_str()).unwrap_or_default().to_string();
+        let Some(parent) = dir.parent().filter(|_| crate::tools::map::valid_id(&name)) else {
+            return Err(format!(
+                "{}: a mod's folder name may use only a-z, 0-9, - and _ (rename the folder)",
+                given.display()
+            ));
+        };
+        let same = std::fs::canonicalize(maps).is_ok_and(|m| m == parent);
+        return Ok((if same { maps.to_path_buf() } else { parent.to_path_buf() }, name));
+    }
+    if given.is_dir() {
+        return Err(format!("{} is a folder but not a mod: it has no {}", given.display(), store::FILE));
+    }
+    Err(format!(
+        "no mod {arg}: it is not a mod's folder, and your mods folder {} has no mod of that name",
+        maps.display()
+    ))
+}
+
 pub fn all(maps: &Path) -> Vec<ModSummary> {
     store::list(maps)
         .into_iter()
@@ -165,6 +194,33 @@ mod tests {
         let _ = std::fs::remove_dir_all(&d);
         std::fs::create_dir_all(&d).unwrap();
         d
+    }
+
+    /// `--mod` takes a mod's folder name or its folder's path; anything else is said, not opened as nothing.
+    #[test]
+    fn a_mod_is_found_by_name_or_by_path() {
+        let maps = temp("find");
+        let other = maps.parent().unwrap().join(format!("ob-studio-home-find-other-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&other);
+        for d in [maps.join("docks"), other.join("bayview")] {
+            std::fs::create_dir_all(&d).unwrap();
+            std::fs::write(d.join(store::FILE), "overbright-map 1\nname = X\n").unwrap();
+        }
+        std::fs::create_dir_all(other.join("Not A Mod")).unwrap();
+        std::fs::write(other.join("Not A Mod").join(store::FILE), "overbright-map 1\n").unwrap();
+        std::fs::create_dir_all(other.join("empty")).unwrap();
+        let s = |p: &Path| p.to_string_lossy().into_owned();
+        assert_eq!(find_mod(&maps, "docks"), Ok((maps.clone(), "docks".into())));
+        assert_eq!(find_mod(&maps, &s(&maps.join("docks"))), Ok((maps.clone(), "docks".into())));
+        let elsewhere = std::fs::canonicalize(&other).unwrap();
+        assert_eq!(find_mod(&maps, &s(&other.join("bayview"))), Ok((elsewhere, "bayview".into())));
+        let e = find_mod(&maps, "harbour").unwrap_err();
+        assert!(e.contains("no mod harbour") && e.contains(&s(&maps)), "{e}");
+        let e = find_mod(&maps, &s(&other.join("empty"))).unwrap_err();
+        assert!(e.contains("not a mod: it has no map.obmap"), "{e}");
+        let e = find_mod(&maps, &s(&other.join("Not A Mod"))).unwrap_err();
+        assert!(e.contains("a-z, 0-9"), "{e}");
+        let _ = std::fs::remove_dir_all(&other);
     }
 
     #[test]

@@ -1003,6 +1003,22 @@ mod tests {
         assert!(src.contains("near_car = hs > 0.0 && is_car(hk);"));
     }
 
+    /// A car's ray skips its own body only while it grazes the surface it
+    /// starts on (not yet in front of the depth, less than SELF_GRAZE
+    /// behind); after that its own body blocks it, also when the ray passes
+    /// behind it (a trunk-lid ray under the wing took the lamps and sky
+    /// behind the car, docs/notes/graphics/reflections.md "A car's own body
+    /// in its reflection").
+    #[test]
+    fn own_body_blocks_a_car_ray_past_its_start() {
+        let src = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/render/ssr.wgsl"));
+        assert!(src.contains("const SELF_GRAZE: f32 = 0.1;"));
+        assert!(src.contains("escaped = true;"));
+        assert!(src.contains("if !thin || (own_depth && behind < SELF_BEHIND) {"));
+        assert!(src.contains("if car_self && (escaped || behind > SELF_GRAZE) {\n                    break;"));
+        assert!(src.contains("if !thin && !road_self && !car_self && !overlay_hit(hm, cell_z) {"));
+    }
+
     const N: u32 = 64;
     const NEAR: f32 = 0.5;
     const FAR: f32 = 1000.0;

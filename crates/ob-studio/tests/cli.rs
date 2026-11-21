@@ -351,6 +351,10 @@ fn the_checks_run_and_exit_3_on_an_error() {
     let (s, dir) = fixture("cli-checks", false);
     assert_eq!(golden("checks-ok", &["checks", "run", "--mod", "<mod>"], &s, &dir, &env()), cli::OK);
     assert_eq!(golden("checks-no-game", &["checks", "run", "--mod", "<mod>"], &s, &dir, &no_game()), cli::NO_GAME);
+    // An empty --game is not a game folder: the lookup goes on (NFSU2_ROOT, the launcher's folder) and says how.
+    let (code, _, err) = run(&["checks", "run", "--mod", "<mod>", "--game", ""], &dir, &no_game());
+    assert_eq!(code, cli::NO_GAME, "{err}");
+    assert!(err.contains("set NFSU2_ROOT"), "{err}");
     let (s, dir) = fixture("cli-checks-broken", true);
     assert_eq!(golden("checks-errors", &["checks", "run", "--mod", "<mod>"], &s, &dir, &env()), cli::CHECKS);
     let (code, out, _) = run(&["checks", "run", "--mod", "<mod>"], &dir, &env());
@@ -540,4 +544,31 @@ fn a_mod_left_unreadable_says_so_and_pack_repair_mends_it() {
     let (code, _, err) = run(&["pack", "repair", "--mod", "<mod>"], &dir, &e);
     assert!(code == cli::FAILED && err.contains("no safe repair"), "{err}");
     assert_eq!(text(&dir), zero);
+}
+
+/// A start written at a height with no road (z = 0 under the road, or none given) takes the road's height when
+/// the game's world is at hand; a point with no floor under it at all is an error of the checks.
+#[test]
+fn race_points_take_the_road_height_and_the_checks_look_under_them() {
+    let (_s, dir) = fixture("cli-floor", false);
+    // A flat floor at z = 0 for 200 m around the origin; the sprint's finish (x = 390) is off it.
+    let flat = Env { world: Box::new(|_, _| Ok(World::flat(200.0))), ..env() };
+    let point = |verb: &str, part: &str, at: &str| {
+        let w = ["race", "point", verb, "--mod", "<mod>", "--race", "sprint", "--part", part, "--position", at];
+        run(&w, &dir, &flat)
+    };
+    let (code, _, err) = point("add", "start", "30,0,-30");
+    assert_eq!(code, cli::OK, "{err}");
+    let map = store::read_file(&dir.join(store::FILE)).unwrap();
+    assert_eq!(map.races[0].start.unwrap().position, Vec3::new(30.0, 0.0, 0.0), "on the road, not 30 m under it");
+    // The default grid's first slot moved past the floor's edge.
+    let (code, _, err) = point("move", "grid", "300,0,-4");
+    assert_eq!(code, cli::OK, "{err}");
+    let map = store::read_file(&dir.join(store::FILE)).unwrap();
+    assert_eq!(map.races[0].grid[0].position, Vec3::new(300.0, 0.0, -4.0), "no road there: kept as given");
+    let (code, out, _) = run(&["checks", "run", "--mod", "<mod>"], &dir, &flat);
+    assert_eq!(code, cli::CHECKS, "{out}");
+    assert!(out.contains("grid slot 1 has no floor under it") && out.contains("fall through the world"), "{out}");
+    assert!(out.contains("the finish line has no floor under it"), "{out}");
+    assert!(!out.contains("start line has no floor"), "{out}");
 }

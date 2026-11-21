@@ -76,6 +76,8 @@ pub(in crate::render) fn replacement(
         return r.clone();
     }
     // Serialize decoding to bound temporary memory even for parallel world arrays.
+    #[cfg(test)]
+    crate::render::pack_reload::slow_step();
     let result = load_first(&roots, t.hash, &t.name, max_dimension)
         .map(|(root, r)| match cap {
             Some(_) => {

@@ -107,8 +107,14 @@ impl Game {
             let centre = d.state.position + d.state.orientation * Vec3::from(d.car.car_type.handling.centre_of_mass);
             g.update(&t.routes, centre, Vec2::new(f.x, f.y));
             // 0x5F3CC0 (the player's update): the GPS aid's
-            // look-ahead, car +0x430 the speed.
-            g.update_aid(&t.routes, d.state.position, d.state.velocity.length());
+            // look-ahead, car +0x430 the speed, with the chase camera's
+            // mover only; any other (the crash / jump camera) clears the
+            // kept point (+0x114 = 0).
+            if native_mover_type(&self.mode, Some(d)) == 1 {
+                g.update_aid(&t.routes, d.state.position, d.state.velocity.length());
+            } else {
+                g.aid = None;
+            }
         }
         // 0x5EB050's zone (player +0x9B0 / +0x9B4 / +0x9B8):
         // the kind-0x11 trigger holding the car, looked up while

@@ -109,3 +109,38 @@ fn no_free_roam_crash_camera_with_the_jump_camera_off() {
     assert_eq!(c.events.kind, 0);
     assert_eq!(c.events.slow.rate, 1.0);
 }
+
+/// MARKER_GPS_AID under the crash camera: 0x5F3CC0 draws it only while
+/// the player's camera mover is the chase camera (player +0x238 → +0xC =
+/// 1); the crash / jump mover (0x44BEA0, type 7) clears its kept point
+/// (+0x114 = 0), so the arrow is gone until the chase view is back
+/// (observed under Wine: a head-on traffic hit with the GPS set, no arrow
+/// in the crash camera, back after it).
+#[test]
+#[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
+fn the_gps_arrow_is_hidden_under_the_free_roam_crash_camera() {
+    let mut game = roam_at_the_hit(true);
+    let lot = game.game_data.career.shops.iter().find(|s| s.name == "CC_CAR_LOT_1").unwrap().trigger;
+    let t = game.sim.route_triggers.find(lot).unwrap();
+    game.career_world.gps = Some(dday::Gps::engage(0, &t, game.car_pose()));
+    for _ in 0..600 {
+        if game.gps_aid_target().is_some() {
+            break;
+        }
+        game.advance_for(1.0 / 60.0).unwrap();
+    }
+    assert!(game.gps_aid_target().is_some(), "the GPS arrow shows in the chase view");
+    crash(&mut game);
+    game.advance_for(1.0 / 60.0).unwrap();
+    assert_eq!(game.sim.roam_camera.as_ref().unwrap().events.kind, 6);
+    assert!(game.sim.roam_camera.as_ref().unwrap().shot.as_ref().is_some_and(|s| s.visible), "the crash camera is placed");
+    let mut frames = 0;
+    while game.sim.roam_camera.as_ref().unwrap().events.kind != 0 && frames < 240 {
+        assert_eq!(game.gps_aid_target(), None, "no GPS arrow under the crash camera (frame {frames})");
+        game.advance_for(1.0 / 60.0).unwrap();
+        frames += 1;
+    }
+    assert_eq!(game.sim.roam_camera.as_ref().unwrap().events.kind, 0, "the crash camera ends");
+    game.advance_for(1.0 / 60.0).unwrap();
+    assert!(game.gps_aid_target().is_some(), "the GPS arrow is back in the chase view");
+}

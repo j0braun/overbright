@@ -12,7 +12,7 @@ use crate::registry::{self, Command, Field, Req};
 /// The flags every command takes (beside its own arguments).
 pub const COMMON: &[(&str, &str)] = &[
     ("mod", "the mod's folder (the one holding map.obmap)"),
-    ("game", "the game folder (default: the one the launcher set)"),
+    ("game", "the game folder (default: NFSU2_ROOT, else the one the launcher set)"),
     ("region", "the region the mod is edited on (default L4RA)"),
     ("dry-run", "show what an edit would change; change nothing"),
     ("json", "print one JSON document on stdout"),

@@ -48,12 +48,23 @@ The rest of this page is for developers. Code: `src/render/pack_reload.rs`. The 
   inotify: no new dependency, and it follows folders that appear, disappear or are symlinks. One poll
   (readdir + stat) on the reference desktop took 0.8 ms for 714 files, 1.9 ms for 1598 files and 1.1 ms for
   947 files (`NFSU2_PACK_WATCH_TIME=<dir> cargo test --release --lib listing_cost -- --nocapture`).
-- **Waiting for a file to settle.** A file's size and modification time must stay the same for one whole
-  tick before the change counts, so a file still being written waits.
-- **Broken files.** A settled file must decode (`texture_pack::validate`, the loader's PNG / DDS limits,
-  ≤ 4096 px). One that does not is tried again for 8 ticks (`RETRIES`, about 2 s), then left out with one
-  warning; the texture in use stays (its cached replacement is not dropped). It is looked at again when it
-  changes.
+- **Taking a change in.** A file's signature is its size, modification time and, on Unix, its inode and
+  change time, so a save through a rename or a second write within the clock's granularity still differs.
+  A changed file is decoded at the poll that first sees it (a save through a rename is whole when it
+  appears) and shows if it decodes; one that does not yet (being written in place) shows once it has stayed
+  the same for one more poll and decodes. A removal shows once the file stays gone, so a save that deletes
+  before writing shows no original between. A file written again with the same bytes reloads nothing.
+- **Changes the signature misses.** A file whose modification time is within 3 s (`RACY`) of a poll has
+  its content hash (xxh3) compared at each poll until it is older: a file system with coarse times, or a
+  quick second save of the same size, still shows. This also shows a file written after the loader read it
+  but before the watcher took its first look.
+- **Looking again soon.** For 2 s after a change, a folder coming or a file waiting to settle, the watcher
+  polls every 50 ms (`FAST_TICK`); between polls it checks each watched folder that does not exist yet, so
+  a save into a new folder is seen within one fast poll of the folder appearing.
+- **Broken files.** A changed file must decode (`texture_pack::validate`, the loader's PNG / DDS limits,
+  ≤ 4096 px). One that does not is tried again for 8 polls and at least 8 ticks (`RETRIES`, about 2 s), then
+  left out with one warning; the texture in use stays (its cached replacement is not dropped). It is looked
+  at again when it changes. The HD UI pack's index files are not decoded, only compared.
 - **Publishing a change** (`publish`). The loader's cached replacement for that hash or name is dropped and
   an entry goes into a log with its domains (UI, world or car, by folder). Each renderer keeps the generation
   it has seen (`since`):

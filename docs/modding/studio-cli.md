@@ -52,7 +52,7 @@ Flags every command takes:
 | Flag | Meaning |
 |---|---|
 | `--mod DIR` | The mod's folder (the one holding `map.obmap`). |
-| `--game DIR` | The game folder; by default the one the launcher set. Prop edits and the checks read it. |
+| `--game DIR` | The game folder. Without it the tool looks where the editor and the game look: `NFSU2_ROOT` when it is set, else the folder chosen in the launcher. Prop edits and the checks read it. |
 | `--region NAME` | The region the mod is edited on (default `L4RA`). |
 | `--dry-run` | Show what an edit would change and change nothing. |
 | `--json` | Print one JSON document on stdout. |
@@ -98,8 +98,9 @@ the editor offers. `history show` gives `step` (the current one), `steps` and `u
 `author`, `label`, `time_ms`), `versions` and `unsaved`.
 
 `looks open` gives `texture`, `name`, `work_file`, `origin` (`game` or `blank`) and `derived`. `looks import`
-gives `outcome` (`made` with its `step`, `unchanged`, or `sent` with the inbox `request` when Studio has the mod
-open). `looks watch` gives `saves`, one per save taken in, with its `outcome` (or `refused` and the `reason`).
+gives `outcome` (`made` with its `step`, `unchanged`, or `sent` with the inbox `request` when Studio or the map
+editor has the mod open: that program makes the step and, when it next saves the mod, writes `looks.toml` and the
+texture under `textures/`, as `looks import` does itself when nothing else has the mod open). `looks watch` gives `saves`, one per save taken in, with its `outcome` (or `refused` and the `reason`).
 `looks list` gives `textures` (each with `texture`, `name`, `origin`, `derived`, `size`, `image`, `pack_file`)
 and `work`.
 
@@ -111,7 +112,7 @@ and `work`.
 | 1 | `failed` | The command failed: an edit refused, a conflict, a file that does not read. |
 | 2 | `usage` | The command line is wrong: an unknown command or flag, a missing or bad value, an operations file line that is not an edit. |
 | 3 | `checks` | The checks found an error. |
-| 4 | `no_game` | The game's data is missing or does not load (give `--game`). |
+| 4 | `no_game` | The game's data is missing or does not load (give `--game`, set `NFSU2_ROOT`, or choose the game folder in the launcher). |
 | 5 | `crashed` | The game, run as a child, crashed (for the commands that run it; none yet). |
 | 6 | `timed_out` | The program that has the mod open did not answer within `--wait`. |
 | 7 | `busy` | Another program has the mod open and `--no-inbox` was given. |
@@ -144,8 +145,14 @@ Studio's history shows the step, and Edit ▸ Undo takes it back like any other.
 
 `checks run` runs the map checks the editor's Validation tab shows: per race, what keeps it from being raced
 (errors), what is likely a mistake (warnings) and what is fine. They read the base tracks' road networks from the
-game folder (exit 4 when it is not known or does not read; a mod without races needs no game). The exit code is 3
-when a check finds an error, so a script or a build can stop on it.
+game folder (exit 4 when it is not known or does not read; a mod without races needs no game), and the region's
+world for the floor under each start line, finish line and grid slot ("has no floor under it", "is N m above the
+floor"; [Map editor](map-editor.md)). The exit code is 3 when a check finds an error, so a script or a build can
+stop on it.
+
+`race point add`, `race point move` and `race put` give a start or finish line or a grid slot the road's height
+when the game is known (a point at z = 0 under the road comes up onto it); without the game the height stays as
+given and `checks run` with the game reports it.
 
 ## For developers
 

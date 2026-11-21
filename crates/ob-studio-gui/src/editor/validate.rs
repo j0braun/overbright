@@ -22,7 +22,13 @@ pub fn ground(s: &EditorState, p: Vec2) -> f32 {
 
 /// Run the checks on `s` and fill `s.session.issues` with them.
 pub fn refresh(s: &mut EditorState, region_tracks: &[u16], tested: &Tested) -> Vec<Check> {
-    let out = checks(&s.session.map, &s.nets, region_tracks, tested);
+    let mut out = checks(&s.session.map, &s.nets, region_tracks, tested);
+    // The floor under the start, finish and grid (a world that was not read has none to check against).
+    let w = &s.session.world;
+    if w.has_floors() {
+        out.extend(ob_studio::validate::floor_checks(&s.session.map, &|p| w.road_height_below(p)));
+        out.sort_by_key(|c| (std::cmp::Reverse(c.level), c.ok));
+    }
     s.session.issues = out
         .iter()
         .map(|c| Issue { level: c.level, text: c.text.clone(), race: c.race, at: c.at.map(|p| p.extend(ground(s, p))) })
