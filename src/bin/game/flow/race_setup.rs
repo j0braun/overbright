@@ -1241,4 +1241,71 @@ mod map_test_tests {
         assert!(d.state.position.truncate().distance(at.truncate()) < 5.0, "{} vs {at}", d.state.position);
         assert!((d.state.heading().to_degrees() - 90.0).abs() < 5.0, "{}", d.state.heading().to_degrees());
     }
+
+    /// Every car's heading at the green light relative to `heading`
+    /// (degrees, −180..180) by grid slot, after the race's start scene
+    /// (whose cars it places from the start line) at `fps`.
+    fn at_green(game: &mut Game, heading: f32, fps: f32) -> Vec<(usize, f32)> {
+        let mut frames = 0;
+        while game.sim.drive.as_ref().is_some_and(|d| d.state.held) && frames < 30 * fps as usize {
+            game.advance(1.0 / fps).unwrap();
+            frames += 1;
+        }
+        assert!(frames > 0 && frames < 30 * fps as usize, "{fps} fps: no green light after {frames} frames");
+        let Mode::Race(r) = &game.mode else { panic!("on the grid") };
+        let off = |h: f32| (h.to_degrees() - heading + 540.0).rem_euclid(360.0) - 180.0;
+        let mut cars = vec![(r.grid_slot, off(game.sim.drive.as_ref().unwrap().state.heading()))];
+        cars.extend(r.racers.rivals.iter().map(|x| (x.slot, off(x.state.heading()))));
+        cars.sort_by_key(|x| x.0);
+        cars
+    }
+
+    /// The heading a start line is given in the editor (degrees around +z
+    /// from +x, the way the cars face) is the way the cars on its grid face
+    /// in the game, at any frame rate: a custom race started where a track's
+    /// own race starts, facing its grid's way, ends its start scene with
+    /// every car turned as that track's own race does (the scene's authored
+    /// poses leave them up to about 2° off the grid's heading), not a
+    /// quarter turn off (the start line's heading taken for the original's
+    /// line marker, which is a quarter turn less).
+    #[test]
+    #[cfg_attr(
+        any(not(ob_game), not(feature = "dev-harness")),
+        ignore = "needs NFSU2_ROOT (the player's own game files) and the dev-harness test sandbox (it writes a map mod)"
+    )]
+    fn the_grid_faces_the_start_lines_heading() {
+        use nfsu2::tools::map::Spot;
+        for fps in [30.0f32, 60.0, 120.0, 200.0] {
+            let mut game = Game::new().unwrap();
+            let folder = format!("test-heading-{fps}");
+            let (mut race, native) = sprint_mod(&game, &folder);
+            // The start where the track's own pole is, facing the way its
+            // grid faces (down the road), as the editor stores it.
+            let (pole, facing) = native.grid[0];
+            let heading = facing.to_degrees();
+            race.start = Some(Spot { position: pole, heading });
+            let m = MapMod { name: "Test".into(), races: vec![race.clone()], ..Default::default() };
+            store::save(&store::maps_dir(), &folder, &m).unwrap();
+            nfsu2::tools::map::reload_active();
+            game.profile = None;
+            let t = crate::shell::cli::MapTest { folder, race: Some("short".into()), ..Default::default() };
+            game.start_map_test(&t).unwrap();
+            let custom = at_green(&mut game, heading, fps);
+            // The same track's own race, on the same set-up.
+            let mut own = Game::new().unwrap();
+            own.profile = None;
+            let event = super::map_race_event(&own.game_data.career, &race).unwrap();
+            own.start_race(event, true, false).unwrap();
+            let original = at_green(&mut own, heading, fps);
+            assert!(custom.len() > 1, "opponents on the grid");
+            assert_eq!(custom.len(), original.len());
+            for (&(slot, h), &(other, o)) in custom.iter().zip(&original) {
+                assert_eq!(slot, other, "the same grid slots");
+                assert!(
+                    (h - o).abs() < 1.0 && h.abs() < 3.0,
+                    "{fps} fps: grid slot {slot} faces {h:.1}° off the start line's heading (the track's own race: {o:.1}°)"
+                );
+            }
+        }
+    }
 }

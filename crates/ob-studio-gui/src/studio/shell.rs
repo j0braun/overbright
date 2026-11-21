@@ -387,7 +387,8 @@ impl Studio {
         }
         for c in cmds {
             if matches!(c, Command::Undo | Command::Redo) && self.nav.workspace == Workspace::Changes {
-                self.changes.undo(c == Command::Redo);
+                let session = self.editor.as_mut().and_then(|h| h.app.state.as_mut()).map(|s| &mut s.session);
+                self.changes.undo_with(c == Command::Redo, session);
                 continue;
             }
             if c == Command::Select && self.nav.address_text {
@@ -685,6 +686,7 @@ impl Studio {
             let mark = match md.saved {
                 Saved::Error(_) => Mark::Error,
                 Saved::Behind => Mark::Warn,
+                Saved::Saving => Mark::Info,
                 Saved::Saved => Mark::Ok,
             };
             draw::lamp(&p, pos2(m.left() + 8.0, m.center().y), 9.0, mark, 0.0);
@@ -937,6 +939,7 @@ impl Studio {
                 match &m.saved {
                     Saved::Saved => (Mark::Ok, "Saved", "Automatically".into()),
                     Saved::Behind => (Mark::Warn, "Saved", words::SAVING_BEHIND.into()),
+                    Saved::Saving => (Mark::Info, "Saved", words::SAVING.into()),
                     Saved::Error(e) => (Mark::Error, "Saved", e.clone()),
                 },
                 (
@@ -1318,12 +1321,19 @@ impl Studio {
         // In World and Races: the open editor's own save state.
         let saved = match editor {
             Some((app, _)) if !app.save_note.is_empty() => Some(Saved::Error(app.save_note.clone())),
-            Some(_) => Some(Saved::Saved),
+            // Saved only once the files have the steps: until the next quiet point they are in the journal (kept
+            // through a crash, offered back on the next start) and the bar says so.
+            Some((_, s)) => Some(match s.session.history.as_ref() {
+                Some(h) if h.pending().is_some() => Saved::Behind,
+                Some(h) if h.unsaved() => Saved::Saving,
+                _ => Saved::Saved,
+            }),
             None => self.open_mod().map(|m| m.saved.clone()),
         };
         let (mark, text) = match saved.as_ref() {
             None => (Mark::Info, words::NO_MOD_STATUS.to_string()),
             Some(Saved::Saved) => (Mark::Ok, words::SAVED.to_string()),
+            Some(Saved::Saving) => (Mark::Info, words::SAVING.to_string()),
             Some(Saved::Behind) => (Mark::Warn, words::SAVING_BEHIND.to_string()),
             Some(Saved::Error(e)) => (Mark::Error, e.clone()),
         };
@@ -1486,7 +1496,8 @@ impl Studio {
         }
         match pick_changes {
             Some(true) => {
-                self.changes.reset();
+                let session = self.editor.as_mut().and_then(|h| h.app.state.as_mut()).map(|s| &mut s.session);
+                self.changes.reset_with(session);
                 self.nav.level = Level::Row;
             }
             Some(false) => {

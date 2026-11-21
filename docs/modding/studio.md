@@ -28,7 +28,7 @@ selects placement N in World. The game folder is `NFSU2_ROOT`, else the one the 
 | Bottom dock | Problems, Log, Jobs, then the workspace's tabs. 20 % of the height (120 to 240); folded to its tab strip under 700 points high. It spans the view's width only. |
 | View | A tool workspace's 3D view, at least 480 × 270: when the docks would squeeze it, the right dock becomes a drawer first, then the left panel folds. On Home, Mod and Settings: the page, on a slab at most 1320 points wide. |
 | Legend row | The keys or buttons that matter in the focused area, right-aligned, as the launcher shows them. Hidden while the mouse is used; it comes back with the first key that moves focus or any pad button. |
-| Status bar | Left: whether the work is saved ("Saved automatically", "Saving is behind", a disk problem in red) and the last step to undo. Right: problems, and whether the mod is on in your game. |
+| Status bar | Left: whether the work is saved ("Saved automatically" once the files have every step, "Saving…" for the moment before, "Saving is behind", a disk problem in red) and the last step to undo. Right: problems, and whether the mod is on in your game. |
 
 The window is at least 960 × 600 points; below that it shows one line, "Studio needs at least 960 × 600". The UI
 scale grows with the window: 1.25 from 1000 lines, 1.5 from 1400, 2 from 2000 (times the system's own scale),

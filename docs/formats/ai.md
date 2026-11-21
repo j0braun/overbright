@@ -3053,7 +3053,15 @@ draws nothing there).
   lot car stock and now takes the slot's parts and performance parts
   (`Profile::slot_ride`; `--shot cribcars` with `NFSU2_VINYL=1` shows a
   slot car's vinyl). The main menu, the crib and the shops already showed
-  the profile's car with its parts.
+  the profile's car with its parts. Quick Race's and Customize's car
+  select (UI_QRCarSelect's tick, 0x4FCD50: the entry at +0x58 into
+  0x511E00, then the loader 0x4D8EC0) take a My Cars record's ride the
+  same way, from the entry's own record: two tuned cars of one model each
+  show their own parts. The clone showed them stock (the record's parts
+  were only read for a career slot) and now takes the record's parts and
+  performance parts (`lot_record_ride`; test
+  `customize_shows_each_tuned_car_of_one_model_as_its_record_has_it`).
+  Not observed under Wine (read from the code path).
 
 ## Outrun (career free roam; src/outrun.rs, game.rs `Encounters`)
 

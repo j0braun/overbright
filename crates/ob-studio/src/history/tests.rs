@@ -254,3 +254,26 @@ fn the_journal_is_compacted_and_keeps_the_history() {
     assert_eq!(h.versions().len(), 1);
     assert!(h.redo(STUDIO).unwrap().is_some());
 }
+
+/// The history never writes a map file its reader refuses: a change to one is refused (a commit as an error, a
+/// transaction, as the inbox makes them, as `Refused`), nothing reaches the journal or the file, and the mod
+/// still opens.
+#[test]
+fn a_change_that_would_not_read_is_refused_and_nothing_is_written() {
+    let s = Scratch::new("history-unreadable");
+    std::fs::write(s.path().join(store::FILE), map("a", &[])).unwrap();
+    let mut h = open(s.path());
+    let bad = "overbright-map 1\n\n[race]\nid = s1\ntrack = 4001\nmode = sprint\nlaps = 3\n";
+    let e = h.commit(STUDIO, "Laps 3", put(bad)).expect_err("refused");
+    assert!(matches!(&e, Error::Unreadable(w) if w.contains("a sprint race runs one lap")), "{e}");
+    match h.transact(STUDIO, "Laps 3", None, &put(bad), None).unwrap() {
+        Outcome::Refused(why) => assert!(why.contains("one lap"), "{why}"),
+        o => panic!("{o:?}"),
+    }
+    assert!(h.steps().is_empty());
+    h.save().unwrap();
+    drop(h);
+    assert_eq!(file(s.path()), map("a", &[]));
+    let h = open(s.path());
+    assert!(h.steps().is_empty() && h.pending().is_none());
+}

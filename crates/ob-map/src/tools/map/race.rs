@@ -104,11 +104,8 @@ pub fn route(net: &RoadNet, race: &CustomRace, ground: &dyn Fn(Vec2) -> Option<f
         loops,
         grid,
         start_line: Some(start.position),
-        start_heading: Some(start.heading.to_radians()),
-        finish_heading: race
-            .finish
-            .map(|f| f.heading.to_radians())
-            .or(Some(start.heading.to_radians()).filter(|_| loops)),
+        start_heading: Some(line_heading(start)),
+        finish_heading: race.finish.map(line_heading).or(Some(line_heading(start)).filter(|_| loops)),
         finish_line: race.finish.map(|f| f.position).or(Some(start.position).filter(|_| loops)),
         road,
         start_at,
@@ -116,6 +113,17 @@ pub fn route(net: &RoadNet, race: &CustomRace, ground: &dyn Fn(Vec2) -> Option<f
         splits: [None; 3],
         backward: race.backward,
     })
+}
+
+/// A start or finish line's heading as the game's own line markers hold
+/// it (radians): a turn less than the way the cars face. The format's
+/// heading is the way the cars face (degrees around +z from +x, as a grid
+/// slot's); the original's `StartLine` marker is a quarter turn clockwise
+/// of its grid's `StartingPosition`s on every track (0x4000 of 0x10000),
+/// and the race start and ending scenes (0x431990 takes the 0x4000 off
+/// again) are placed by it.
+pub fn line_heading(spot: Spot) -> f32 {
+    (spot.heading - 90.0).to_radians()
 }
 
 /// A point on the road network: the nearest point of an open segment's

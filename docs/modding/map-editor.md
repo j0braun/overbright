@@ -162,8 +162,9 @@ While the right mouse button is held the tool keys fly the camera instead (W A S
   length, status, **Delete race**; of a race point its position.
 - **Validation** (bottom tab): every problem of every race, each with **Show** and, where one exists, a
   one-click fix (**Try base track N**, **Snap grid to road**, **Snap start to road**, **Snap finish to route**,
-  **Set laps to N**, **Rename to …**). A race with an error (a leg with no road, fewer than 2 checkpoints) cannot
-  be tested or simulated. Warnings from the last simulation are listed here too.
+  **Turn start along route**, **Set laps to N**, **Rename to …**). A start line facing more than 45° off the
+  route's direction there is a warning (the cars would start across the road or against the race). A race with
+  an error (a leg with no road, fewer than 2 checkpoints) cannot be tested or simulated. Warnings from the last simulation are listed here too.
 
 ## Saving
 
@@ -194,7 +195,7 @@ The editor's own files live in the mod's `.editor/` folder. They are never expor
 |---|---|
 | `editor.toml` | the view: region, camera, the widths of the tree and the properties and the height of the bottom tabs (written on save, when another mod is opened and when the window closes) |
 | `history.journal` | every step, with its author and the last saves (the history) |
-| `studio.lock`, `studio-owner.toml` | the write lock while a program has the mod open, and which program it is |
+| `studio.lock`, `studio-owner.toml` | the write lock while a program has the mod open, and which program it is (removed when it closes the mod; one left by a program that died is ignored) |
 | `inbox/` | changes other programs send to the program that has the mod open |
 | `map.obmap.autosave` | an older editor's unsaved changes (offered once, then removed) |
 | `tested.txt` | the tested marks |
@@ -444,6 +445,15 @@ Header: `name`, `author`, `description` (optional, at most 200 characters each).
 | `[prop.delete]` | `region`, `section`, `solid`, `at`, `nth` |
 | `[prop.add]` | `id`, `region`, `solid`, `position`, `rotation` |
 | `[race]` | `id` (a-z 0-9 - _, unique), `name`, `track` (base track number), `backward` (yes/no: the base track's backward barriers and lanes), `mode` (circuit, sprint, streetx, drift), `laps` (1–20; 1 for sprint and drift), `checkpoint` (x y, repeated, in order, at most 64), `grid` (x y z heading, repeated, at most 8, pole first), `start` / `finish` (x y z heading) |
+
+Every heading is in degrees around +z from +x and is the way the cars face: a grid slot's car, the cars behind
+a start line, the cars crossing a finish line. The game turns a line's heading into its own line markers'
+convention (a quarter turn less) when it races the mod.
+
+Overbright 0.5.0 placed a custom race's start scene a quarter turn off the start line's heading, so the cars
+stood across the road. A race whose start was turned by hand to make up for it now starts across the road
+again; its Validation (and `overbright-studio-cli checks run`) says the start line faces about 90° right of the
+route's direction, and **Turn start along route** puts it back (in the file: the start's heading plus 90).
 
 An original placement is named by where the original data has it: its region (`L4RA`), streaming section, solid
 name and position; the placement matched is the nearest of that section and solid within 5 cm. Where the original

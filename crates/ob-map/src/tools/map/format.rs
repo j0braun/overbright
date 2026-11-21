@@ -315,17 +315,38 @@ fn vec3(v: &str, line: usize) -> Result<Vec3, FormatError> {
 fn rotation(v: &str, line: usize) -> Result<Mat3, FormatError> {
     let r = floats::<9>(v, line)?;
     let m = Mat3::from_cols_array(&r).transpose();
-    // Each row a unit axis (a scaled or degenerate rotation is refused;
-    // mirrored ones, as the game's race-only barriers have, are kept).
+    check_rotation(&m).or_else(|e| err(line, e))?;
+    Ok(m)
+}
+
+/// Whether the file holds rotation `m` (rows: local axes): each row a unit axis (a scaled or degenerate
+/// rotation is refused; mirrored ones, as the game's race-only barriers have, are kept). The reader and every
+/// edit check this one rule, so an edit never writes a rotation the reader refuses.
+pub fn check_rotation(m: &Mat3) -> Result<(), &'static str> {
+    if !m.is_finite() {
+        return Err("rotation is not a number");
+    }
     for row in [m.row(0), m.row(1), m.row(2)] {
         if (row.length() - 1.0).abs() > 1e-2 {
-            return err(line, "rotation rows must be unit axes");
+            return Err("rotation rows must be unit axes");
         }
     }
     if m.determinant().abs() < 0.9 {
-        return err(line, "rotation is degenerate");
+        return Err("rotation is degenerate");
     }
-    Ok(m)
+    Ok(())
+}
+
+/// Whether a race of type `kind` runs `laps` laps: a loop 1 to [`MAX_LAPS`], any other type exactly one. The
+/// reader and every edit check this one rule.
+pub fn check_laps(kind: RaceKind, laps: u32) -> Result<(), String> {
+    if !(1..=MAX_LAPS).contains(&laps) {
+        return Err(format!("laps must be 1 to {MAX_LAPS}"));
+    }
+    if !kind.loops() && laps != 1 {
+        return Err(format!("a {} race runs one lap", kind.name()));
+    }
+    Ok(())
 }
 
 fn spot(v: &str, line: usize) -> Result<Spot, FormatError> {
@@ -420,6 +441,19 @@ impl MapMod {
 
     /// Read a map mod file's text; anything wrong refuses the whole file.
     pub fn parse(src: &str) -> Result<MapMod, FormatError> {
+        Self::parse_with(src, None)
+    }
+
+    /// Read a file [`parse`](Self::parse) refuses for a reason that has one safe repair, the repairs made:
+    /// a sprint or drift race with more than one lap (older tools wrote it) runs its one lap. Anything else
+    /// wrong refuses the file as `parse` does. An empty list: the file reads as it is.
+    pub fn parse_repairing(src: &str) -> Result<(MapMod, Vec<String>), FormatError> {
+        let mut fixes = Vec::new();
+        let m = Self::parse_with(src, Some(&mut fixes))?;
+        Ok((m, fixes))
+    }
+
+    fn parse_with(src: &str, mut fixes: Option<&mut Vec<String>>) -> Result<MapMod, FormatError> {
         let mut lines = src.lines().enumerate().map(|(i, l)| (i + 1, l.trim()));
         let head = lines.by_ref().find(|(_, l)| !l.is_empty() && !l.starts_with('#'));
         let Some((hl, head)) = head else { return err(0, "the file is empty") };
@@ -503,7 +537,7 @@ impl MapMod {
                         rotation: rotation(ro, rol)?,
                     });
                 }
-                _ => m.races.push(Self::parse_race(b)?),
+                _ => m.races.push(Self::parse_race(b, fixes.as_deref_mut())?),
             }
             if m.props.len() > MAX_PROPS {
                 return err(b.line, format!("more than {MAX_PROPS} prop edits"));
@@ -548,7 +582,7 @@ impl MapMod {
         Ok(m)
     }
 
-    fn parse_race(b: &Block) -> Result<CustomRace, FormatError> {
+    fn parse_race(b: &Block, fixes: Option<&mut Vec<String>>) -> Result<CustomRace, FormatError> {
         b.check_keys(&["id", "name", "track", "backward", "mode", "laps", "checkpoint", "grid", "start", "finish"])?;
         let (id, il) = b.need("id")?;
         if !valid_id(id) {
@@ -570,13 +604,17 @@ impl MapMod {
             r.backward = yes_no(v, l)?;
         }
         if let Some((v, l)) = b.one("laps")? {
-            r.laps = v
-                .parse()
-                .ok()
-                .filter(|n| (1..=MAX_LAPS).contains(n))
-                .ok_or_else(|| FormatError { line: l, message: format!("laps must be 1 to {MAX_LAPS}") })?;
-            if !kind.loops() && r.laps != 1 {
-                return err(l, format!("a {} race runs one lap", kind.name()));
+            let laps = v.parse().unwrap_or(0);
+            match (check_laps(kind, laps), fixes) {
+                (Ok(()), _) => r.laps = laps,
+                // Only the lap count of a one-lap type: the race runs as the game always ran it.
+                (Err(_), Some(fixes)) if !kind.loops() && (1..=MAX_LAPS).contains(&laps) => {
+                    fixes.push(format!(
+                        "line {l}: race `{id}` is a {} race, which runs one lap: laps {laps} becomes 1",
+                        kind.name()
+                    ));
+                }
+                (Err(e), _) => return err(l, e),
             }
         }
         for (v, l) in b.all("checkpoint") {

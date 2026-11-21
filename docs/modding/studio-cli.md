@@ -8,7 +8,7 @@ waits for it and reads its output.
 ```
 overbright-studio-cli help                                   # every command, flag and exit code
 overbright-studio-cli help race point add                    # one command's flags
-overbright-studio-cli race set --mod maps/docks --race sprint --laps 3 --dry-run
+overbright-studio-cli race set --mod maps/docks --race loop --laps 3 --dry-run
 overbright-studio-cli ops apply --mod maps/docks --file edits.jsonl --label "Night version"
 overbright-studio-cli checks run --mod maps/docks --json
 ```
@@ -36,6 +36,7 @@ and its schema export (`crates/ob-studio/schema/studio.json`) use, so `help` is 
 | `race put` | edit | Put a whole race in place (`--to`, the race as JSON) |
 | `pack details` | edit | Change the mod's `--name`, `--author` and `--description` (those left out stay) |
 | `pack put` | edit | Put the whole map in place, from a map file (`--file`) |
+| `pack repair` | edit | Repair a `map.obmap` that no longer reads, where a safe repair exists (a sprint or drift race with more than one lap runs its one lap), as one step |
 | `edit group` | edit | Several edits as one step (`--label`, `--ops`: the edits as a JSON list) |
 | `ops apply` | edit | Apply an operations file as one step (`--file`, optional `--label`) |
 | `looks open` | run | Open a texture in your own paint program: writes its work file (`--texture world:0x1A2B3C4D`; the game's pixels, or `--blank` for an empty canvas) ([Studio Looks](studio-looks.md)) |
@@ -74,7 +75,10 @@ Without `--json` the tool prints a line or a short list for people; errors go to
 one JSON document on stdout and nothing on stderr. Every document has `"format": 1` (the document's version; new
 fields may be added, existing ones keep their meaning), `command`, `ok` and `exit` (the exit code). A failure adds
 `error` with `kind` (the word in the table below), `message` and, for a refused edit, `reason`
-(`no_race`, `no_placement`, `id_taken`, `bad_value`, …).
+(`no_race`, `no_placement`, `id_taken`, `bad_value`, …) and, when the tool can say more about a bad value,
+`detail` (`a sprint race runs one lap`, `rotation rows must be unit axes`). A mod whose `map.obmap` does not read
+fails every command with the line and the reason; when a safe repair exists the error also holds `repair` (the
+command and the `fixes` it makes).
 
 An edit's document holds:
 
@@ -125,6 +129,10 @@ Studio's history shows the step, and Edit ▸ Undo takes it back like any other.
   prints, or a line of the editor's `ops.jsonl`); empty lines and lines starting with `#` are skipped. All of its
   edits are one step, named by `--label` (else after the file); if one is refused, none is made. A line that is
   not an edit is a usage error naming the line.
+- **Only files that read**: every edit is checked against the map file's rules before it becomes a step (a sprint
+  or drift race runs one lap, a rotation's rows are unit axes, …), and a file is written only when it reads back,
+  so no command leaves a mod that no longer opens. A dry run makes the same checks. A mod an older tool left
+  unreadable this way is repaired with `pack repair` (one undoable step; `--dry-run` shows it first).
 - **Studio has the mod open**: only one program writes a mod at a time. The tool then puts its change into the
   mod's inbox (`.editor/inbox/`); Studio makes it as one step at its next look and answers, and the tool prints
   that answer. A change made against the mod as the tool read it is merged item by item: if Studio changed the same

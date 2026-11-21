@@ -262,3 +262,48 @@ fn pad_walks_the_rows_and_picks_with_a() {
     assert_eq!(s.nav.workspace, Workspace::World);
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// The mod's write lock belongs to the editor this window hosts: Home and Changes do not call that "another
+/// program", Reset and undo go through the editor's session (a second writer would be refused), and once the
+/// editor lets the mod go no note is left that would claim it later (a note a killed writer left is ignored).
+#[test]
+fn the_editor_of_this_window_is_not_another_program() {
+    use crate::tools::map::session::MapSession;
+    use nfsu2::studio_api::world::World;
+    let dir = maps("own-lock");
+    let folder = "harbour-edits";
+    let (mdir, edir) = (dir.join(folder), store::editor_dir(&dir, folder));
+    let open = || {
+        let h = History::open(&mdir, &edir, &[store::FILE], history::STUDIO, Arc::new(history::disk::Real)).unwrap();
+        assert!(h.writable());
+        let m = MapMod::parse(h.doc(store::FILE).unwrap()).unwrap();
+        let mut session = MapSession::new("L4RA", folder, m, World::default());
+        session.keep_in(h);
+        session
+    };
+    let mut session = open();
+    assert_eq!(super::super::home::summary(&dir, folder).unwrap().read_only_by, None, "held by this window");
+    let mut s = Studio::new(dir.clone(), Some(folder));
+    s.go(&Address::parse("ob://harbour-edits/@changes").unwrap()).unwrap();
+    let p = &mut s.changes;
+    p.focus = 0;
+    p.reset_with(Some(&mut session));
+    assert!(p.note.as_deref().unwrap().starts_with("Reset Position of XO_DOME_ROOF"), "{:?}", p.note);
+    assert_eq!(session.undo_label(), Some(p.note.as_deref().unwrap().split(" · ").next().unwrap()));
+    p.undo_with(false, Some(&mut session));
+    assert!(p.note.as_deref().unwrap().starts_with("Undone: Reset Position"), "{:?}", p.note);
+    // The editor closes the mod: nothing claims it afterwards.
+    drop(session);
+    assert!(!edir.join(history::lock::OWNER).exists(), "a clean close removes the lock holder's note");
+    assert_eq!(super::super::home::summary(&dir, folder).unwrap().read_only_by, None);
+    // A note left by a killed Studio.
+    std::fs::write(edir.join(history::lock::OWNER), "program = \"Overbright Studio\"\npid = 999999\nsince = 1\n")
+        .unwrap();
+    assert_eq!(super::super::home::summary(&dir, folder).unwrap().read_only_by, None, "a dead writer's note");
+    let p = &mut s.changes;
+    p.load(folder);
+    p.focus = 0;
+    p.reset();
+    assert!(p.note.as_deref().unwrap().starts_with("Reset Position"), "{:?}", p.note);
+    let _ = std::fs::remove_dir_all(&dir);
+}
