@@ -75,10 +75,10 @@ pub mod platform {
     }
 }
 
-/// The game folder the launcher's setup saved.
+/// The game folder the launcher's setup saved, and the lookup Studio's programs share (`NFSU2_ROOT` first).
 pub mod qol {
     pub mod setup {
-        pub use crate::qol::setup::saved_root;
+        pub use crate::qol::setup::{game_root, saved_root};
     }
 }
 

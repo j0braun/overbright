@@ -78,7 +78,8 @@ fn kind_of(code: i32) -> &'static str {
 
 /// What the tool reads of the game: the region's world (for prop edits) and the road networks (for the checks).
 pub struct Env {
-    /// The game folder unless `--game` gives one (the one the launcher set).
+    /// The game folder unless `--game` gives one: `NFSU2_ROOT`, else the one the launcher set (as the editor and
+    /// the game find it).
     pub game: Option<PathBuf>,
     /// The region `.1` of the game folder `.0` as loaded without map mods.
     pub world: Box<dyn Fn(&Path, &str) -> Result<World, String>>,
@@ -92,7 +93,7 @@ impl Env {
     /// The game as the player set it up.
     pub fn system() -> Env {
         Env {
-            game: nfsu2::studio_api::qol::setup::saved_root(),
+            game: nfsu2::studio_api::qol::setup::game_root(),
             world: Box::new(|root, region| World::load(root, region).map_err(|e| format!("{e:#}"))),
             assets: Box::new(|root| Box::new(GameAssets::new(root.to_path_buf()))),
             poll: Duration::from_millis(50),
@@ -239,9 +240,12 @@ pub fn repair_hint(dir: &Path) -> String {
 }
 
 fn game_root(line: &args::Line, env: &Env) -> Result<PathBuf, Done> {
-    match line.flag("game").map(PathBuf::from).or_else(|| env.game.clone()) {
+    match line.flag("game").filter(|g| !g.is_empty()).map(PathBuf::from).or_else(|| env.game.clone()) {
         Some(p) => Ok(p),
-        None => Err(fail(NO_GAME, "the game folder is not known: give --game")),
+        None => Err(fail(
+            NO_GAME,
+            "the game folder is not known: give --game <folder>, set NFSU2_ROOT, or choose it once in the launcher",
+        )),
     }
 }
 

@@ -593,7 +593,7 @@
     },
     {
       "flag": "game",
-      "meaning": "the game folder (default: the one the launcher set)"
+      "meaning": "the game folder (default: NFSU2_ROOT, else the one the launcher set)"
     },
     {
       "flag": "region",

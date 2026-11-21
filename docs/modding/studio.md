@@ -6,7 +6,7 @@
 > Studio and what this preview leaves out, see [Getting started with Studio](studio-start.md).
 
 ```
-overbright-studio [--mod <folder>] [--maps <dir>]
+overbright-studio [--mod <name|folder>] [--maps <dir>]
 overbright-studio --shot out.png [--size WxH] [--scale F] [--mod <folder>] [--maps <dir>]
                   [--workspace home|world|races|mod|settings|changes] [--input mouse|keyboard|xbox|playstation|deck]
                   [--focus rail|address|toolbar|left|view|right|bottom] [--drawer] [--find] [--address]
@@ -14,7 +14,8 @@ overbright-studio --shot out.png [--size WxH] [--scale F] [--mod <folder>] [--ma
 ```
 
 `--shot` draws the whole window off-screen into a PNG (no window opens) and prints `studio layout: fits …` or
-`studio layout: clipped: …`. The mods are the map editor's (`--maps`, default the map mods folder). `--select N`
+`studio layout: clipped: …`. The mods are the map editor's (`--maps`, default the map mods folder); `--mod` takes a
+mod's folder name there or the path of any mod's folder ([Getting started](studio-start.md#starting-it)). `--select N`
 selects placement N in World. The game folder is `NFSU2_ROOT`, else the one the launcher kept.
 
 ## The window

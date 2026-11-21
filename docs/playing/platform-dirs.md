@@ -12,7 +12,7 @@ function, so the Windows rules are unit-tested on Linux.
 | data home (the profiles' parent) | `$XDG_DATA_HOME`, else `$HOME/.local/share`, else `.` | `<Local AppData>\Overbright` |
 | profiles | `<data home>/NFS Underground 2/<NAME>/<NAME>` | `<Local AppData>\Overbright\NFS Underground 2\<NAME>\<NAME>` |
 | Overbright's folder (`app`, `config`: options.txt, game-root.txt) | `<data home>/overbright` | `<Local AppData>\Overbright` |
-| crash reports / logs / marks / perf CSVs / screenshots / texture pack | `<app>/crashes`, `logs`, `marks`, `perf`, `Screenshots`, `texture-pack` | the same under `<app>` |
+| crash reports / logs / marks / perf CSVs / screenshots / texture pack / mod exports | `<app>/crashes`, `logs`, `marks`, `perf`, `Screenshots`, `texture-pack`, `exports` | the same under `<app>` |
 | asset cache (`cache`), the player's game | `$XDG_CACHE_HOME/overbright` (set, not empty), else `$HOME/.cache/overbright` | `<Local AppData>\Overbright\cache` |
 | asset cache, every other program (developer cache) | `$XDG_CACHE_HOME/overbright-dev`, else `$HOME/.cache/overbright-dev` | `<Local AppData>\Overbright\cache-dev` |
 
@@ -141,6 +141,7 @@ touches settings, kept paths rewritten both ways), `launcher::tests::portable_of
 | texture packs, imported mods, the converted HUD mod | `<app>/texture-pack` | `data/texture-pack/` | `dirs::packs`, `texture_mods`, `hud_mod` |
 | launcher.lock | `<app>` | `data/` | `launcher::dirs::lock_file` |
 | map mods, the map editor's recent list (`editor-recent.txt`) | `<app>/maps`, `<app>` | `data/maps/`, `data/` | `dirs::maps`, `dirs::config`, `editor::app` |
+| mod exports proposed by the map editor (`<folder>.zip`; made on the first export) | `<app>/exports` | `data/exports/` | `dirs::exports` |
 | driver shader cache | the driver's (`~/.cache/mesa_shader_cache*`, `%LOCALAPPDATA%\<vendor>\…`) | Linux: `data/cache/driver`; Windows: unchanged | `dirs::driver_cache_vars` |
 | read only: the registry's `Install Dir`, `%ProgramFiles%`, the Wine/Steam/Lutris places | — | unchanged (only read) | `qol::setup::candidates`, `platform::win` |
 | read only: the original's saves (`%LOCALAPPDATA%\NFS Underground 2`; on Linux the same folder inside Wine prefixes, the Saves page's import), the home folder (the browser) | — | unchanged (only read) | `launcher::dirs::original_saves`, `launcher::saves::sources`, `home` |

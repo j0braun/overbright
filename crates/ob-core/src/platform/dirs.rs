@@ -454,6 +454,11 @@ pub fn perf() -> PathBuf {
     app().join("perf")
 }
 
+/// Where the map editor proposes to export a mod (`<folder>.zip`); made on the first export.
+pub fn exports() -> PathBuf {
+    app().join("exports")
+}
+
 /// Photo Mode's pictures.
 pub fn screenshots() -> PathBuf {
     override_of(Location::Screenshots).unwrap_or_else(|| app().join("Screenshots"))
