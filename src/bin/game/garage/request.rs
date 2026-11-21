@@ -599,13 +599,30 @@ impl Game {
         self.fe_car_ride_in(&Mode::Menu(Menu::Icons(menu, MenuKind::Main)))
     }
 
+    /// A car lot entry's own car record as its ride: a career slot's car
+    /// or a My Cars record, with its parts and performance parts (0x511E00
+    /// builds the entry's ride from the record); None for a stock car.
+    fn lot_record_ride(
+        &self,
+        c: &CarChoice,
+    ) -> Option<(String, std::collections::BTreeMap<u8, u32>, std::collections::BTreeSet<u8>)> {
+        let p = self.profile.as_ref()?;
+        match (c.slot, c.my_car) {
+            (Some(i), _) => p.slot_ride(i),
+            (None, Some(k)) => p.my_cars.get(k)?.as_ref().map(|m| (m.car.clone(), m.installed.clone(), m.perf.clone())),
+            (None, None) => None,
+        }
+    }
+
     /// [`Game::fe_car_ride`] for the screen `mode`.
     fn fe_car_ride_in(&self, mode: &Mode) -> (Option<String>, std::collections::BTreeMap<u8, u32>, std::collections::BTreeSet<u8>) {
         let (car, mut installed) = match mode {
             // A career slot's car (the crib's Car Select, a trade's list)
-            // shows as its record has it (0x511E00 builds the entry's ride
-            // from the slot's car record, 0x413440 copies it into the FE
-            // car); a stock lot car is stock.
+            // and a My Cars record (Customize's and Quick Race's lists)
+            // show as their record has them (0x511E00 builds the entry's
+            // ride from its own car record, 0x413440 copies it into the FE
+            // car), so two cars of one model each show their own parts; a
+            // stock lot car is stock.
             Mode::Menu(Menu::CarLot(_)) => match self.garage_fe.crib_loading.as_ref().or(self.garage_fe.crib_shown.as_ref()) {
                 // A sponsor car shows its preset (under Wine: the Chingy
                 // Navigator with its vinyl and neon).
@@ -613,7 +630,7 @@ impl Game {
                     Some(c.name.clone()),
                     c.preset.as_deref().and_then(|n| self.preset_ride(n)).map(|r| r.0).unwrap_or_default(),
                 ),
-                Some(c) if c.placeholder.is_none() => match c.slot.and_then(|i| self.profile.as_ref()?.slot_ride(i)) {
+                Some(c) if c.placeholder.is_none() => match self.lot_record_ride(c) {
                     Some((car, installed, _)) if car == c.name => (Some(car), installed),
                     _ => (Some(c.name.clone()), Default::default()),
                 },
@@ -664,8 +681,7 @@ impl Game {
                         .garage_fe.crib_loading
                         .as_ref()
                         .or(self.garage_fe.crib_shown.as_ref())
-                        .and_then(|c| c.slot)
-                        .and_then(|i| self.profile.as_ref()?.slot_ride(i))
+                        .and_then(|c| self.lot_record_ride(c))
                         .filter(|r| Some(&r.0) == car.as_ref())
                         .map(|r| r.2)
                         .unwrap_or_default(),
