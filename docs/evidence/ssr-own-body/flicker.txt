@@ -1,0 +1,19 @@
+# scripts/flicker.py acc>16 (share of pixels whose |second temporal difference| of luma exceeds 16 levels)
+# --bench explore 160, 1280x960, NFSU2_VIEW=2 (near chase), every frame dumped; car region 280x80+500+620
+# (wing and lid), lid alone 230x30+550+650. "still" = NFSU2_BENCH_FREEZE=60. before = master, after = this change.
+case                      before   after    SSR off
+RX-7 wing, Ultra          2.098    1.702    1.449
+RX-7 wing, Ultra (lid)    1.142    0.863    0.734
+RX-7 wing, Extreme        2.017    1.678    1.471
+RX-7 wing, Extreme (lid)  1.093    0.832    0.735
+RX-7 wing, play setup     1.888    1.571    -
+RX-7 wing, Ultra still    0.490    0.303    0.285
+RX-7 wing, Extreme still  0.474    0.302    -
+240SX stock, Ultra        1.083    1.084    -
+240SX stock, Extreme      1.082    1.082    -
+Sentra stock, Ultra       3.295    2.730    -
+Sentra stock, Extreme     2.622    2.462    -
+# Original, Balanced, High presets and the Enhanced levels Low/Medium: every frame byte-identical before/after.
+# Enhanced High (SSR half), Skyline/350Z/finished-career Lancer at Extreme: mean |luma diff| 0.004-0.036 over the
+# frame, mirrors and body reflections unchanged by eye.
+# GPU "ssr trace" ms/frame before/after: Ultra 0.12/0.12, Extreme 0.33/0.32, play setup 0.31/0.30.
