@@ -15,6 +15,7 @@ use ob_studio::changes::{self as model, Clash, From, Row, Show};
 
 use crate::editor::theme::{self, LABEL, SEMI, TITLE, font, rgb, tokens};
 use crate::tools::map::history::{self, History, Outcome};
+use crate::tools::map::session::MapSession;
 use crate::tools::map::{MapMod, store};
 
 use super::draw::{self, Source};
@@ -172,6 +173,25 @@ pub fn reset(maps: &Path, folder: &str, picks: &[(String, String, String)], labe
         other => bail!("not reset: {other:?}"),
     }
     h.save()?;
+    Ok(label.to_string())
+}
+
+/// The editor session of this window that writes the mod `folder` (World or Races has it open): Changes makes
+/// its steps there, since that session holds the mod's one write lock (a second writer in this process would be
+/// refused as "has this mod open").
+fn writer<'a>(session: Option<&'a mut MapSession>, folder: &str) -> Option<&'a mut MapSession> {
+    session.filter(|s| s.folder == folder && s.history.as_ref().is_some_and(History::writable))
+}
+
+/// [`reset`] made in the session that writes the mod.
+fn reset_in(s: &mut MapSession, folder: &str, picks: &[(String, String, String)], label: &str) -> Result<String> {
+    let Some(new) = map::reset_all(&s.map, folder, picks) else {
+        bail!("nothing to reset: the mod no longer gives it")
+    };
+    s.map = new;
+    if !s.commit(label) {
+        bail!("not reset: {}", s.note.take().unwrap_or_else(|| "nothing changed".into()));
+    }
     Ok(label.to_string())
 }
 
@@ -501,6 +521,12 @@ impl Page {
 
     /// Reset the picked (or focused) rows as one step.
     pub fn reset(&mut self) {
+        self.reset_with(None);
+    }
+
+    /// [`reset`](Self::reset), made in `session` when it is the one that writes the mod (the editor hosted in
+    /// this window).
+    pub fn reset_with(&mut self, session: Option<&mut MapSession>) {
         let picks = self.reset_picks();
         let Some(d) = self.data() else { return };
         let folder = d.folder.clone();
@@ -516,7 +542,11 @@ impl Page {
         } else {
             format!("Reset {} values", picks.len())
         };
-        self.note = Some(match reset(&self.maps, &folder, &picks, &label) {
+        let done = match writer(session, &folder) {
+            Some(s) => reset_in(s, &folder, &picks, &label),
+            None => reset(&self.maps, &folder, &picks, &label),
+        };
+        self.note = Some(match done {
             Ok(l) => format!("{l} · Ctrl+Z takes it back"),
             Err(e) => format!("{e:#}"),
         });
@@ -526,8 +556,23 @@ impl Page {
 
     /// Ctrl+Z / Ctrl+Y on the page.
     pub fn undo(&mut self, redo: bool) {
+        self.undo_with(redo, None);
+    }
+
+    /// [`undo`](Self::undo), made in `session` when it is the one that writes the mod.
+    pub fn undo_with(&mut self, redo: bool, session: Option<&mut MapSession>) {
         let Some(folder) = self.data().map(|d| d.folder.clone()) else { return };
-        self.note = Some(match undo(&self.maps, &folder, redo) {
+        let done = match writer(session, &folder) {
+            Some(s) => {
+                let r = if redo { s.redo() } else { s.undo() };
+                match s.note.take() {
+                    Some(n) if r.is_none() => Err(anyhow::anyhow!(n)),
+                    _ => Ok(r),
+                }
+            }
+            None => undo(&self.maps, &folder, redo),
+        };
+        self.note = Some(match done {
             Ok(Some(l)) => format!("{}: {l}", if redo { "Redone" } else { "Undone" }),
             Ok(None) => "Nothing to take back".into(),
             Err(e) => format!("{e:#}"),

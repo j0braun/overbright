@@ -283,6 +283,9 @@ fn stamp(path: &Path) -> Stamp {
 enum Access {
     Write(#[allow(dead_code)] lock::WriteLock),
     ReadOnly(Option<lock::Owner>),
+    /// Opened only to look ([`History::open_read`]) while no other program holds the mod (it may be free, or
+    /// held by this process's own writer).
+    Look,
 }
 
 /// One mod's history, open for writing or read-only.
@@ -341,7 +344,10 @@ impl History {
             dir: dir.to_path_buf(),
             edir: edir.to_path_buf(),
             docs: docs.iter().map(|d| d.to_string()).collect(),
-            access: Access::ReadOnly(lock::owner(edir)),
+            access: match lock::holder(edir) {
+                lock::Holder::Other(o) => Access::ReadOnly(o),
+                lock::Holder::Free | lock::Holder::ThisProcess => Access::Look,
+            },
             r: Replay::default(),
             files: State::new(),
             stamps: BTreeMap::new(),
@@ -450,7 +456,7 @@ impl History {
     pub fn read_only_by(&self) -> Option<Option<&lock::Owner>> {
         match &self.access {
             Access::ReadOnly(o) => Some(o.as_ref()),
-            Access::Write(_) => None,
+            Access::Write(_) | Access::Look => None,
         }
     }
 
@@ -477,6 +483,7 @@ impl History {
         match &self.access {
             Access::Write(_) => Ok(()),
             Access::ReadOnly(o) => Err(Error::ReadOnly(o.clone())),
+            Access::Look => Err(io::Error::other("opened only to look at the mod").into()),
         }
     }
 
