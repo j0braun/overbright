@@ -172,7 +172,7 @@ fn grid_slots_off_the_road_are_snapped_onto_it() {
 fn a_default_grid_off_the_road_is_fixed_by_moving_the_start() {
     let net = straight(false);
     let mut r = sprint(&[(100.0, 0.0), (380.0, 0.0)]);
-    r.start = Some(Spot { position: Vec3::new(60.0, 30.0, 0.0), heading: 170.0 });
+    r.start = Some(Spot { position: Vec3::new(60.0, 30.0, 0.0), heading: 10.0 });
     let map = map_of(vec![r]);
     let c = run(&map, &net);
     assert!(warnings(&c).iter().any(|w| w.fix == Some(Fix::SnapStart)), "{c:#?}");
@@ -180,11 +180,36 @@ fn a_default_grid_off_the_road_is_fixed_by_moving_the_start() {
     let mut fixed = map.clone();
     assert!(fix_race(&mut fixed, 0, &Fix::SnapGrid, Some(&net), &|_| 0.0));
     let s = fixed.races[0].start.unwrap();
-    // On the road, turned along it the way it nearly faced (-x).
+    // On the road, turned along it the way it nearly faced (+x).
     assert!(s.position.distance(Vec3::new(60.0, 0.0, 0.0)) < 1e-3, "{}", s.position);
-    assert!((s.heading.abs() - 180.0).abs() < 1e-3, "{}", s.heading);
+    assert!(s.heading.abs() < 1e-3, "{}", s.heading);
     assert!(fixed.races[0].grid.is_empty(), "the grid stays the default one");
     assert!(warnings(&run(&fixed, &net)).is_empty(), "{:#?}", run(&fixed, &net));
+}
+
+#[test]
+fn a_start_facing_across_the_road_is_turned_along_the_route() {
+    let net = straight(false);
+    let mut r = sprint(&[(20.0, 0.0), (380.0, 0.0)]);
+    for (heading, words) in
+        [(-90.0, "90° right of the route's direction, so the cars start across the road"), (180.0, "against the race")]
+    {
+        r.start = Some(Spot { position: Vec3::new(30.0, 0.0, 0.0), heading });
+        let map = map_of(vec![r.clone()]);
+        let c = run(&map, &net);
+        // (A default grid behind a start across the road is off it too.)
+        let w = warnings(&c).into_iter().find(|w| w.fix == Some(Fix::TurnStart)).expect("the start's warning");
+        assert!(w.text.contains(words), "{}", w.text);
+        let mut fixed = map.clone();
+        assert!(fix_race(&mut fixed, 0, &Fix::TurnStart, Some(&net), &|_| 0.0));
+        let s = fixed.races[0].start.unwrap();
+        assert_eq!(s.position, Vec3::new(30.0, 0.0, 0.0), "the start stays where it is");
+        assert!(s.heading.abs() < 1e-3, "{}", s.heading);
+        assert!(warnings(&run(&fixed, &net)).is_empty(), "{:#?}", run(&fixed, &net));
+    }
+    // A little off the road's direction is no warning.
+    r.start = Some(Spot { position: Vec3::new(30.0, 0.0, 0.0), heading: 30.0 });
+    assert!(warnings(&run(&map_of(vec![r]), &net)).is_empty());
 }
 
 #[test]
