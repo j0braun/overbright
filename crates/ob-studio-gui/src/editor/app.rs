@@ -851,6 +851,8 @@ pub struct App {
     last_tick: Instant,
     /// Why the last save at a quiet point failed (status bar).
     pub save_note: String,
+    /// The open mod's texture list (`looks.toml`) as its pack data (`textures/`) was last written from.
+    looks_written: Option<String>,
     /// The window should close.
     pub quit: bool,
     /// Last frame's time on the CPU (status bar).
@@ -961,6 +963,7 @@ impl App {
             last_status: String::new(),
             last_tick: Instant::now(),
             save_note: String::new(),
+            looks_written: None,
             quit: false,
             frame_ms: 0.0,
             untaken: Vec::new(),
@@ -1029,8 +1032,11 @@ impl App {
             "no map mod `{folder}` in {}",
             self.maps.display()
         );
-        let mut h = History::open(&dir, &edir, &[store::FILE], PROGRAM, Arc::new(history::disk::Real))
+        // Every file the mod's history keeps (the map and the texture list), so a step another program sends
+        // for either is written when this one saves.
+        let mut h = History::open(&dir, &edir, ob_studio::MOD_DOCS, PROGRAM, Arc::new(history::disk::Real))
             .with_context(|| format!("opening the history of {folder}"))?;
+        self.looks_written = std::fs::read_to_string(dir.join(ob_studio::looks::FILE)).ok();
         let pending = h.pending().map(|p| p.at);
         let read_only = !h.writable();
         if read_only || (pending.is_some() && saved.is_none()) {
@@ -1100,6 +1106,7 @@ impl App {
         s.session.dirty = false;
         self.keep_view();
         self.save_note.clear();
+        self.follow_looks();
         let Some(s) = self.state.as_ref() else { return Ok(()) };
         let f = s.session.folder.clone();
         self.say(format!("Saved {f}"));
@@ -1190,6 +1197,10 @@ impl App {
         };
         let mut changed = std::mem::take(&mut self.save_note).len() > 0 || t.saved;
         s.session.dirty = h.writable() && h.unsaved();
+        if t.saved {
+            self.follow_looks();
+        }
+        let Some(s) = self.state.as_mut() else { return changed };
         if !t.outside.is_empty() || !t.answered.is_empty() || t.reloaded {
             if s.session.sync() {
                 undo::follow(s);
@@ -1198,6 +1209,24 @@ impl App {
             changed = true;
         }
         changed
+    }
+
+    /// After the mod's files were written: its pack data (`textures/`) follows the texture list when a step
+    /// changed it (a `looks import` sent through the inbox, undo of a paint), as `looks import` does when it
+    /// writes the mod itself.
+    fn follow_looks(&mut self) {
+        let Some(s) = self.state.as_ref() else { return };
+        let Some(h) = s.session.history.as_ref() else { return };
+        let dir = s.maps.join(&s.session.folder);
+        let now = h.doc(ob_studio::looks::FILE).map(str::to_string);
+        match ob_studio::looks::work::follow(&dir, h.editor_dir(), self.looks_written.as_deref(), now.as_deref()) {
+            Ok(_) => self.looks_written = now,
+            Err(e) => {
+                let note = format!("Textures not written: {e}");
+                log::warn!("editor: {note}");
+                self.save_note = note;
+            }
+        }
     }
 
     /// When [`App::tick`] next has work (for the window's wait).
@@ -2649,6 +2678,47 @@ mod tests {
         let st = a.state.as_ref().unwrap();
         assert_eq!(st.session.map.name, "Sent");
         assert_eq!(st.session.undo_label(), Some("command line: Rename"));
+    }
+
+    /// `looks import` while the editor has the mod open: the paint goes
+    /// through the inbox, and the editor, which makes the step, also writes
+    /// `looks.toml` and the texture where the game reads it when it saves;
+    /// Undo there takes the texture away again.
+    #[test]
+    fn a_sent_paint_is_written_by_the_editor() {
+        use ob_studio::looks::work::{Imported, Workbench};
+        use ob_studio::looks::{self, Domain, Original, TextureId, Textures};
+        struct One;
+        impl Textures for One {
+            fn original(&self, _: TextureId) -> Option<Original> {
+                Some(Original { name: "ROAD".into(), width: 4, height: 2, rgba: vec![9; 32], used_by: vec![] })
+            }
+        }
+        let road = TextureId::new(Domain::World, 0x1A2B_3C4D);
+        let s = Scratch::new("editor-looks-inbox");
+        let maps = s.path().join("maps");
+        let mut a = app(&s);
+        a.new_mod("paint", "", "L4RA").unwrap();
+        let (dir, edir) = (maps.join("paint"), store::editor_dir(&maps, "paint"));
+        // The command line's `looks open --blank`, a paint, `looks import`.
+        let mut w = Workbench::open(&dir, &edir);
+        let f = w.start(&looks::Looks::default(), road, &One, true).unwrap();
+        std::fs::write(w.path(&f), looks::encode_png(4, 2, &[200, 0, 0, 255].repeat(8)).unwrap()).unwrap();
+        let saved = w.read_now(road).unwrap();
+        let mut h = History::open(&dir, &edir, ob_studio::MOD_DOCS, "cli", Arc::new(history::disk::Real)).unwrap();
+        assert!(!h.writable(), "the editor holds the mod");
+        assert!(matches!(w.import(&mut h, "cli", &saved).unwrap(), Imported::Sent(_)));
+        drop(h);
+        let t0 = Instant::now();
+        assert!(a.tick(t0), "the step is made");
+        assert_eq!(a.state.as_ref().unwrap().session.undo_label(), Some("cli: Paint ROAD"));
+        a.tick(t0 + history::QUIET + Duration::from_secs(1));
+        let pack = dir.join(looks::PACK_DIR).join(road.pack_file());
+        assert!(dir.join(looks::FILE).is_file(), "looks.toml written by the editor's save");
+        assert_eq!(std::fs::read(&pack).ok(), Some(saved.png.clone()), "the texture where the game reads it");
+        a.act(menu::Action::Undo);
+        a.save().unwrap();
+        assert!(!pack.exists() && !dir.join(looks::FILE).exists(), "undo takes the paint away again");
     }
 
     /// Another program writing the file while the mod is open: one step the

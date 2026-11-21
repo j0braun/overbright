@@ -339,6 +339,16 @@ pub fn store_path(edir: &Path, image: &str) -> PathBuf {
     edir.join(STORE_DIR).join(format!("{image}.png"))
 }
 
+/// After a program that has the mod open wrote its files: the pack data follows the texture list when the list's
+/// text changed from `before` (as last written) to `after` (now), whoever made the step (an inbox request, undo,
+/// the Changes page), so `textures/` always holds what `looks.toml` says. The number of files changed.
+pub fn follow(dir: &Path, edir: &Path, before: Option<&str>, after: Option<&str>) -> Result<usize, String> {
+    if before == after {
+        return Ok(0);
+    }
+    materialize(dir, edir, &Looks::parse(after.unwrap_or_default())?)
+}
+
 /// Write the mod's pack data ([`PACK_DIR`]) from its list: each texture's image where the game reads it (only
 /// the files that differ), and no file of a texture the list does not have. The number of files changed.
 pub fn materialize(dir: &Path, edir: &Path, looks: &Looks) -> Result<usize, String> {
