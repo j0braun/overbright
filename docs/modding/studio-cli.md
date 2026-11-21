@@ -145,8 +145,14 @@ Studio's history shows the step, and Edit ▸ Undo takes it back like any other.
 
 `checks run` runs the map checks the editor's Validation tab shows: per race, what keeps it from being raced
 (errors), what is likely a mistake (warnings) and what is fine. They read the base tracks' road networks from the
-game folder (exit 4 when it is not known or does not read; a mod without races needs no game). The exit code is 3
-when a check finds an error, so a script or a build can stop on it.
+game folder (exit 4 when it is not known or does not read; a mod without races needs no game), and the region's
+world for the floor under each start line, finish line and grid slot ("has no floor under it", "is N m above the
+floor"; [Map editor](map-editor.md)). The exit code is 3 when a check finds an error, so a script or a build can
+stop on it.
+
+`race point add`, `race point move` and `race put` give a start or finish line or a grid slot the road's height
+when the game is known (a point at z = 0 under the road comes up onto it); without the game the height stays as
+given and `checks run` with the game reports it.
 
 ## For developers
 

@@ -425,6 +425,17 @@ impl MapSession {
         })
     }
 
+    /// A race point's place with its height from the road: the highest floor at or below it + 1 m, else the highest
+    /// floor at its x/y (one under the road comes up onto it), as the game puts its own start-grid markers
+    /// (`World::grid_ground`). Kept as given where the world has no floor (not read, or off the map); the checks
+    /// then say so ([`crate::validate::floor_checks`]).
+    fn on_floor(&self, p: Vec3) -> Vec3 {
+        match self.world.grid_ground(p) {
+            Some(z) => p.truncate().extend(z),
+            None => p,
+        }
+    }
+
     fn exec(&mut self, op: Op, c: &mut Change) -> Result<(), Refused> {
         let (folder, region) = (self.folder.clone(), self.region.clone());
         match op {
@@ -543,6 +554,7 @@ impl MapSession {
             }
             Op::AddPoint { race, part, index, position, heading } => {
                 ensure(valid_position(position) && heading.is_finite(), Refused::BadValue)?;
+                let position = self.on_floor(position);
                 let r = self.race_mut(&race)?;
                 let spot = Spot { position, heading };
                 let index = match part {
@@ -575,6 +587,7 @@ impl MapSession {
             }
             Op::MovePoint { race, point, position, heading } => {
                 ensure(valid_position(position) && heading.is_none_or(f32::is_finite), Refused::BadValue)?;
+                let position = self.on_floor(position);
                 let r = self.race_mut(&race)?;
                 let turn = |s: Spot| Spot { position, heading: heading.unwrap_or(s.heading) };
                 match point.part {
@@ -628,6 +641,10 @@ impl MapSession {
             Op::PutRace { race, to } => {
                 ensure(valid_race(&to), Refused::BadValue)?;
                 self.check(check_laps(to.kind, to.laps))?;
+                let mut to = to;
+                for s in to.start.iter_mut().chain(to.finish.iter_mut()).chain(to.grid.iter_mut()) {
+                    s.position = self.on_floor(s.position);
+                }
                 let k = self.race_index(&race).ok_or(Refused::NoRace)?;
                 ensure(self.race_index(&to.id).is_none_or(|j| j == k), Refused::IdTaken)?;
                 c.race = Some(to.id.clone());

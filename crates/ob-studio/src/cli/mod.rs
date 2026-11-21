@@ -35,7 +35,7 @@ use crate::validate;
 use nfsu2::studio_api::map::assets::{GameAssets, MapAssets};
 use nfsu2::studio_api::world::World;
 use ob_map::tools::map::format::MapMod;
-use ob_map::tools::map::ops::Op;
+use ob_map::tools::map::ops::{Op, RacePart};
 use ob_map::tools::map::store;
 
 /// The program's name.
@@ -261,6 +261,18 @@ fn needs_world(op: &Op) -> bool {
     }
 }
 
+/// Whether `op` writes a start or finish line or a grid slot, whose height comes from the road under it when the
+/// game's world is at hand (it is read when the game is known; without it the height stays as given).
+fn wants_floor(op: &Op) -> bool {
+    match op {
+        Op::AddPoint { part, .. } => *part != RacePart::Checkpoint,
+        Op::MovePoint { point, .. } => point.part != RacePart::Checkpoint,
+        Op::PutRace { .. } => true,
+        Op::Group { ops, .. } => ops.iter().any(wants_floor),
+        _ => false,
+    }
+}
+
 /// `NoPlacement` → `no_placement`.
 fn snake(debug: &str) -> String {
     let mut s = String::new();
@@ -329,6 +341,8 @@ fn try_edit(line: &args::Line, cmd: &Command, env: &Env, m: &Mod) -> Result<Done
     let world = if needs_world(&op) {
         let root = game_root(line, env)?;
         (env.world)(&root, &region).map_err(|e| fail(NO_GAME, format!("the game's world does not load: {e}")))?
+    } else if wants_floor(&op) {
+        game_root(line, env).ok().and_then(|root| (env.world)(&root, &region).ok()).unwrap_or_default()
     } else {
         World::default()
     };
@@ -490,7 +504,17 @@ fn checks(line: &args::Line, env: &Env, m: &Mod) -> Done {
         }
     }
     let tested = validate::Tested::load(&m.edir);
-    let found = validate::checks(&map, &nets, &tracks, &tested);
+    let mut found = validate::checks(&map, &nets, &tracks, &tested);
+    // The floor under the start, finish and grid, from the region's world (read when the game is at hand).
+    let spots = map.races.iter().any(|r| r.start.is_some() || r.finish.is_some() || !r.grid.is_empty());
+    if spots
+        && let Ok(root) = game_root(line, env)
+        && let Ok(world) = (env.world)(&root, region)
+        && world.has_floors()
+    {
+        found.extend(validate::floor_checks(&map, &|p| world.road_height_below(p)));
+        found.sort_by_key(|c| (std::cmp::Reverse(c.level), c.ok));
+    }
     let count = |l: Level| found.iter().filter(|c| c.level == l && !c.ok).count();
     let (errors, warnings) = (count(Level::Error), count(Level::Warning));
     let list: Vec<Value> = found

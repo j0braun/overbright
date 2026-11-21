@@ -9,7 +9,7 @@
 use std::collections::HashMap;
 use std::path::Path;
 
-use glam::Vec2;
+use glam::{Vec2, Vec3};
 
 use crate::session::Level;
 use ob_formats::formats::roads::RoadNet;
@@ -33,6 +33,8 @@ pub const FAR_M: f32 = 1500.0;
 /// A grid slot moved onto the road keeps at most this much of its offset
 /// across the road (two cars side by side).
 const GRID_SIDE_M: f32 = 2.0;
+/// A start or finish line or a grid slot higher than this above the floor under it: the cars drop at the start.
+pub const ABOVE_FLOOR_M: f32 = 2.0;
 /// The file in the mod's `.editor/` folder that records the tested races.
 pub const TESTED_FILE: &str = ob_map::tools::map::store::TESTED;
 
@@ -445,6 +447,50 @@ pub fn checks(
     out
 }
 
+/// The checks that need the region's world: a start or finish line or grid slot with no floor under it (the cars
+/// fall through the world), or high above it. `under(q)`: the highest floor at or below `q`, None with none
+/// (`World::road_height_below`); each point is looked under from 1 m above it, as the game puts its own start-grid
+/// markers. A world with no floor at all (not read) gets none of these checks: the caller leaves them out.
+pub fn floor_checks(map: &MapMod, under: &dyn Fn(Vec3) -> Option<f32>) -> Vec<Check> {
+    let mut out = Vec::new();
+    for (k, r) in map.races.iter().enumerate() {
+        let name = if r.name.is_empty() { r.id.as_str() } else { r.name.as_str() };
+        let mut spots: Vec<(RacePart, usize, Spot)> = Vec::new();
+        spots.extend(r.start.map(|s| (RacePart::Start, 0, s)));
+        spots.extend(r.finish.map(|s| (RacePart::Finish, 0, s)));
+        spots.extend(r.grid.iter().enumerate().map(|(i, s)| (RacePart::Grid, i, *s)));
+        for (part, i, s) in spots {
+            let what = match part {
+                RacePart::Start => "the start line".to_string(),
+                RacePart::Finish => "the finish line".to_string(),
+                _ => format!("grid slot {}", i + 1),
+            };
+            let p = s.position;
+            let c = match under(p + Vec3::Z) {
+                None => {
+                    let top = under(Vec3::new(p.x, p.y, 1.0e6));
+                    let where_ = top.map_or_else(
+                        || "there is no road at this place".to_string(),
+                        |z| format!("the road is {:.0} m above it", z - p.z),
+                    );
+                    // The cars stand on the start line and the grid; the finish line is only crossed.
+                    let (level, tail) = match part {
+                        RacePart::Finish => (Level::Warning, ""),
+                        _ => (Level::Error, "; the cars fall through the world"),
+                    };
+                    Check::new(level, k, format!("{name}: {what} has no floor under it ({where_}){tail}"))
+                }
+                Some(z) if p.z - z > ABOVE_FLOOR_M => {
+                    Check::new(Level::Warning, k, format!("{name}: {what} is {:.0} m above the floor", p.z - z))
+                }
+                Some(_) => continue,
+            };
+            out.push(c.at(p.truncate(), point(part, i)));
+        }
+    }
+    out
+}
+
 /// Whether any of `checks` blocks Test race for race `k`.
 pub fn blocks(checks: &[Check], k: usize) -> bool {
     checks.iter().any(|c| c.race == Some(k) && c.level == Level::Error)
@@ -553,4 +599,45 @@ pub fn fix_race(map: &mut MapMod, k: usize, fix: &Fix, net: Option<&RoadNet>, gr
         }
     }
     true
+}
+
+#[cfg(test)]
+mod floor_tests {
+    use super::*;
+    use ob_map::tools::map::format::RaceKind;
+
+    /// A road at z = 12 for 100 m around the origin, nothing anywhere else.
+    fn road(q: Vec3) -> Option<f32> {
+        (q.x.abs() < 100.0 && q.z >= 12.0).then_some(12.0)
+    }
+
+    #[test]
+    fn a_point_with_no_floor_under_it_is_flagged() {
+        let spot = |x: f32, z: f32| Spot { position: Vec3::new(x, 0.0, z), heading: 0.0 };
+        let mut r = CustomRace::new("r", 4001, RaceKind::Sprint);
+        r.start = Some(spot(0.0, 0.0));
+        r.finish = Some(spot(50.0, 12.4));
+        r.grid = vec![spot(-10.0, 20.0), spot(500.0, 0.0), spot(-20.0, 12.0)];
+        let map = MapMod { races: vec![r], ..MapMod::default() };
+        let c = floor_checks(&map, &road);
+        let texts: Vec<(Level, &str)> = c.iter().map(|c| (c.level, c.text.as_str())).collect();
+        assert_eq!(
+            texts,
+            vec![
+                (
+                    Level::Error,
+                    "r: the start line has no floor under it (the road is 12 m above it); the cars fall through the \
+                     world"
+                ),
+                (Level::Warning, "r: grid slot 1 is 8 m above the floor"),
+                (
+                    Level::Error,
+                    "r: grid slot 2 has no floor under it (there is no road at this place); the cars fall through the \
+                     world"
+                ),
+            ]
+        );
+        assert_eq!(c[0].point, Some(RacePoint { part: RacePart::Start, index: 0 }));
+        assert_eq!(c[2].at, Some(Vec2::new(500.0, 0.0)), "Show goes there");
+    }
 }

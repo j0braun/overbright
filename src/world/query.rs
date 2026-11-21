@@ -336,6 +336,12 @@ impl World {
     }
 
     /// Floors and walls (built from the render triangles on first use).
+    /// Whether the world has any floor (a world that was not read has none: the map tools then leave heights
+    /// as given and skip the checks that need a floor).
+    pub fn has_floors(&self) -> bool {
+        self.collision().triangle_count() > 0
+    }
+
     pub fn collision(&self) -> &Collision {
         self.collision.get_or_init(|| {
             if self.collision_faces.is_empty() {
