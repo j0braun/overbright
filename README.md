@@ -7,6 +7,9 @@ change a setting. It adds modern resolutions, any frame rate and optional graphi
 
 **[Download for Linux and Windows](https://github.com/j0braun/overbright/releases/latest)**
 
+**[Community Discord](https://discord.gg/DYupyQ7rS)**: talk about Overbright, share screenshots and mods. Bugs and
+wishes still go into [GitHub issues](https://github.com/j0braun/overbright/issues), one per problem.
+
 Overbright is not affiliated with Electronic Arts. EA has not endorsed and does not support this product.
 "Need for Speed" and "Need for Speed Underground 2" are trademarks of their owner.
 No game files are included: you need your own PC copy of the game.
