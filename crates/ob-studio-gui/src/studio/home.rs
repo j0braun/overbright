@@ -15,8 +15,11 @@ use crate::tools::map::{MapMod, PropEdit, store};
 pub enum Saved {
     /// Everything is in the mod's files.
     Saved,
-    /// Steps are kept in the journal but not yet in the files (the writer saves at the next quiet point).
+    /// Unsaved steps found on opening: in the journal, not in the files, until restored or discarded.
     Behind,
+    /// The last steps are in the journal (kept through a crash) and go to the files at the next quiet point,
+    /// in a moment.
+    Saving,
     /// The mod's files do not read.
     Error(String),
 }

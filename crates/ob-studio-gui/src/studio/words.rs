@@ -22,6 +22,7 @@ pub const MAKE_A_RACE: &str = "Make a race";
 pub const OFF_IN_GAME: &str = "Off · Turn on in the launcher";
 pub const SAVED: &str = "Saved automatically";
 pub const SAVING_BEHIND: &str = "Saving is behind";
+pub const SAVING: &str = "Saving…";
 pub const NO_MOD_STATUS: &str = "No mod open";
 pub const MOD_PAGE: &str = "Sharing your mod comes here: check it, pack it and make it ready for others.";
 pub const SETTINGS_PAGE: &str = "Studio's settings come here: UI size, keys and pads.";
@@ -46,7 +47,7 @@ pub const TEST_HERE: &str = "Test here";
 pub const NOTHING_SELECTED: &str = "Nothing selected";
 
 /// Every word above.
-pub const ALL: [&str; 37] = [
+pub const ALL: [&str; 38] = [
     NO_PROBLEMS,
     NOTHING_LOGGED,
     NO_JOBS,
@@ -76,6 +77,7 @@ pub const ALL: [&str; 37] = [
     OFF_IN_GAME,
     SAVED,
     SAVING_BEHIND,
+    SAVING,
     NO_MOD_STATUS,
     MOD_PAGE,
     SETTINGS_PAGE,

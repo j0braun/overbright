@@ -2,7 +2,9 @@
 //! (a process lock through `fcntl` on Linux, `LockFileEx` on Windows) for as long as it has the mod open. The
 //! system lets the lock go when the process ends in any way, a crash or `kill -9` included, so a lock left by a
 //! dead process is never seen as held and needs no clean-up; a live writer's lock is never taken away. Who holds
-//! it is written beside it (`studio-owner.toml`), for the read-only state to name.
+//! it is written beside it (`studio-owner.toml`), for the read-only state to name. The note is only a name: it
+//! is removed when the writer lets the lock go, and a note left by a writer that died ([`holder`]: the lock is
+//! free) or by this process is never taken as another program having the mod.
 //!
 //! The lock never travels to a program the writer starts (the test game, a test run). On Linux a starting
 //! program is a copy of the writer, open files included, until it runs the new program; a `flock` lock belongs
@@ -64,6 +66,8 @@ impl Drop for WriteLock {
     fn drop(&mut self) {
         // Closed while the list is locked: another opener of this process cannot open the file in between.
         let mut held = held();
+        // The note goes while the lock is still held: the next writer's note is never removed.
+        let _ = std::fs::remove_file(self.dir.join(OWNER));
         drop(self.file.take());
         held.remove(&self.key);
     }
@@ -151,7 +155,63 @@ pub fn try_take(dir: &Path, program: &str) -> io::Result<Result<WriteLock, Optio
     Ok(Ok(WriteLock { file: Some(file), key, dir: dir.to_path_buf() }))
 }
 
-/// Who says they hold the lock of `dir` (only meaningful while it is held).
+/// Who has a mod's lock, as [`holder`] finds it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Holder {
+    /// Nobody: the mod is free to open for writing (a note left by a writer that died is ignored).
+    Free,
+    /// This process (its own writer, such as the editor Studio hosts).
+    ThisProcess,
+    /// Another live program (who, when its note says so).
+    Other(Option<Owner>),
+}
+
+/// Who holds the lock of the mod whose editor folder is `dir`, without taking it (what a look at the mod asks).
+pub fn holder(dir: &Path) -> Holder {
+    let Ok(key) = std::fs::canonicalize(dir).map(|d| d.join(LOCK)) else { return Holder::Free };
+    // Kept for the whole look: a file of this process's lock must not be opened (closing it lets the lock go),
+    // and no opener of this process takes the lock meanwhile.
+    let held = held();
+    if held.contains(&key) {
+        return Holder::ThisProcess;
+    }
+    let Ok(file) = OpenOptions::new().read(true).write(true).open(&key) else { return Holder::Free };
+    match probe(&file) {
+        Ok(false) => Holder::Free,
+        // An error: say held, as the writer itself would find it.
+        Ok(true) | Err(_) => match owner(dir) {
+            Some(o) if o.pid == std::process::id() => Holder::Other(None),
+            o => Holder::Other(o),
+        },
+    }
+}
+
+/// Whether another process holds the lock on `file` (the lock is not taken).
+#[cfg(unix)]
+fn probe(file: &File) -> io::Result<bool> {
+    use std::os::fd::AsRawFd;
+    // SAFETY: an all-zero `flock` is a valid value; the fields used are set below.
+    let mut l: libc::flock = unsafe { std::mem::zeroed() };
+    l.l_type = libc::F_WRLCK as _;
+    l.l_whence = libc::SEEK_SET as _;
+    // SAFETY: `file` is open for the call and `l` is a valid `flock`.
+    if unsafe { libc::fcntl(file.as_raw_fd(), libc::F_GETLK, &mut l) } != 0 {
+        return Err(io::Error::last_os_error());
+    }
+    Ok(i32::from(l.l_type) != libc::F_UNLCK)
+}
+
+/// Whether another handle holds the lock on `file`: taken and let go again at once when free.
+#[cfg(not(unix))]
+fn probe(file: &File) -> io::Result<bool> {
+    if try_lock(file)? {
+        file.unlock()?;
+        return Ok(false);
+    }
+    Ok(true)
+}
+
+/// Who says they hold the lock of `dir` (only meaningful while it is held: see [`holder`]).
 pub fn owner(dir: &Path) -> Option<Owner> {
     Owner::read(&std::fs::read_to_string(dir.join(OWNER)).ok()?)
 }
@@ -170,6 +230,27 @@ mod tests {
         assert_eq!((o.program.as_str(), o.pid), ("Overbright Studio", std::process::id()));
         drop(a);
         let b = try_take(s.path(), "other").unwrap().expect("free again");
+        assert_eq!(owner(b.dir()).unwrap().program, "other");
+    }
+
+    /// A look at the mod (Home, Changes) believes the lock, not the note: the note goes on a clean close, a note
+    /// left by a writer that died is ignored, and this process's own writer is not "another program".
+    #[test]
+    fn the_owner_note_never_outlives_the_lock() {
+        let s = ob_testkit::Scratch::new("studio-lock-note");
+        assert_eq!(holder(s.path()), Holder::Free);
+        let a = try_take(s.path(), "Overbright Studio").unwrap().expect("free");
+        assert_eq!(holder(s.path()), Holder::ThisProcess);
+        // Looking did not let the lock go.
+        assert!(try_take(s.path(), "other").unwrap().is_err());
+        drop(a);
+        assert!(!s.path().join(OWNER).exists(), "a clean close removes the note");
+        assert_eq!(holder(s.path()), Holder::Free);
+        // A note left by a killed writer (another pid, no lock held).
+        let dead = Owner { program: "Overbright Studio".into(), pid: 999_999, since: 1 };
+        std::fs::write(s.path().join(OWNER), dead.write()).unwrap();
+        assert_eq!(holder(s.path()), Holder::Free);
+        let b = try_take(s.path(), "other").unwrap().expect("a dead writer's note does not hold the mod");
         assert_eq!(owner(b.dir()).unwrap().program, "other");
     }
 

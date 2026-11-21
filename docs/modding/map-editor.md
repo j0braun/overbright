@@ -195,7 +195,7 @@ The editor's own files live in the mod's `.editor/` folder. They are never expor
 |---|---|
 | `editor.toml` | the view: region, camera, the widths of the tree and the properties and the height of the bottom tabs (written on save, when another mod is opened and when the window closes) |
 | `history.journal` | every step, with its author and the last saves (the history) |
-| `studio.lock`, `studio-owner.toml` | the write lock while a program has the mod open, and which program it is |
+| `studio.lock`, `studio-owner.toml` | the write lock while a program has the mod open, and which program it is (removed when it closes the mod; one left by a program that died is ignored) |
 | `inbox/` | changes other programs send to the program that has the mod open |
 | `map.obmap.autosave` | an older editor's unsaved changes (offered once, then removed) |
 | `tested.txt` | the tested marks |
