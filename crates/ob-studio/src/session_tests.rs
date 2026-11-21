@@ -523,3 +523,30 @@ fn ops_replayed_from_json_give_the_same_mod_and_world() {
     assert_eq!(fresh.undo().as_deref(), Some("Replace mod"));
     assert_eq!(places(&fresh), places(&s));
 }
+
+/// A start, finish or grid slot is written at the road's height (one under the road comes up onto it); a point
+/// with no floor under it keeps its height (the checks flag it).
+#[test]
+fn race_points_get_their_height_from_the_road() {
+    let mut s = session();
+    s.run(Op::NewRace { track: 4001, kind: RaceKind::Sprint, id: Some("r".into()) }).unwrap();
+    let r = || "r".to_string();
+    let add = |part, position| Op::AddPoint { race: r(), part, index: None, position, heading: 0.0 };
+    s.run(add(RacePart::Start, Vec3::new(5.0, 6.0, -30.0))).unwrap();
+    assert_eq!(s.map.races[0].start.unwrap().position, Vec3::new(5.0, 6.0, 0.0));
+    let to = Vec3::new(7.0, 6.0, 0.6);
+    s.run(Op::MovePoint {
+        race: r(),
+        point: RacePoint { part: RacePart::Start, index: 0 },
+        position: to,
+        heading: None,
+    })
+    .unwrap();
+    assert_eq!(s.map.races[0].start.unwrap().position, Vec3::new(7.0, 6.0, 0.0));
+    s.run(add(RacePart::Finish, Vec3::new(1000.0, 0.0, -3.0))).unwrap();
+    assert_eq!(s.map.races[0].finish.unwrap().position.z, -3.0, "off the map: as given");
+    let mut to = s.map.races[0].clone();
+    to.grid = vec![Spot { position: Vec3::new(1.0, 1.0, -9.0), heading: 0.0 }];
+    s.run(Op::PutRace { race: r(), to }).unwrap();
+    assert_eq!(s.map.races[0].grid[0].position.z, 0.0);
+}

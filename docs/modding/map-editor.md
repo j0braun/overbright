@@ -164,7 +164,14 @@ While the right mouse button is held the tool keys fly the camera instead (W A S
   one-click fix (**Try base track N**, **Snap grid to road**, **Snap start to road**, **Snap finish to route**,
   **Turn start along route**, **Set laps to N**, **Rename to …**). A start line facing more than 45° off the
   route's direction there is a warning (the cars would start across the road or against the race). A race with
-  an error (a leg with no road, fewer than 2 checkpoints) cannot be tested or simulated. Warnings from the last simulation are listed here too.
+  an error (a leg with no road, fewer than 2 checkpoints, a start line or grid slot with no floor under it) cannot
+  be tested or simulated. Warnings from the last simulation are listed here too.
+- **Heights of race points**: a start or finish line or a grid slot takes its height from the road when it is
+  placed, moved or written by any program: the highest floor at or below it + 1 m, else the highest floor at its
+  x/y (one placed under the road comes up onto it), as the game puts its own start-grid markers. Where there is
+  no floor at all (off the map) the height stays as given, and Validation reports "has no floor under it" (an
+  error for the start and the grid, where the cars would fall through the world; a warning for the finish) or
+  "is N m above the floor" (a warning).
 
 ## Saving
 
