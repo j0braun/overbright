@@ -192,3 +192,61 @@ fn lot_turn_frame_dump() {
     }
     TEST_BUILD_DELAY_MS.set(None);
 }
+
+/// Two tuned cars of one model in Customize's car select (All Cars) show
+/// each its own parts: a list entry's ride is built from its own car
+/// record (0x511E00), a My Cars record's as much as a career slot's. Here
+/// the two Peugeots differ in paint; stepping from one to the other and
+/// back, the garage asks for and shows each record's paint, at 30 / 60 /
+/// 120 / 200 Hz.
+#[test]
+#[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
+fn customize_shows_each_tuned_car_of_one_model_as_its_record_has_it() {
+    testkit::game();
+    TEST_BUILD_DELAY_MS.set(None);
+    for hz in [30u32, 60, 120, 200] {
+        let mut game = Game::new().unwrap();
+        let mut p = Profile::new("SAME_MODEL");
+        p.skip_intro(&game.game_data.career, &game.game_data.root, "PEUGOT", &mut game.rng);
+        let paints: Vec<u32> =
+            game.game_data.parts.parts_for("PEUGOT", 0x3F).into_iter().map(|p| p.hash).take(2).collect();
+        assert_eq!(paints.len(), 2, "two paints of the car");
+        for (k, &paint) in paints.iter().enumerate() {
+            let mut m = career::MyCar { id: career::tuned_car_id(k), car: "PEUGOT".into(), ..Default::default() };
+            m.installed.insert(0x3F, paint);
+            p.my_cars[k] = Some(m);
+        }
+        p.menu_car_id = Some(career::tuned_car_id(0));
+        game.profile = Some(p);
+        game.settings.save_prompts = false;
+        game.settings.autosave = false;
+        game.race_flow.game_mode = 0x20;
+        game.mode = game.customize_select();
+        let selected = |game: &Game| match &game.mode {
+            Mode::Menu(Menu::CarLot(l)) => l.cars[l.selected].my_car,
+            _ => panic!("left the car select"),
+        };
+        let settle = |game: &mut Game| {
+            for _ in 0..(3 * hz / 2) {
+                game.advance(1.0 / hz as f32).unwrap();
+            }
+        };
+        let check = |game: &Game, k: usize| {
+            let r = game.garage_fe.request.as_ref().expect("the garage request");
+            assert_eq!(r.car.as_deref(), Some("PEUGOT"), "{hz} Hz: record {k}'s car");
+            assert_eq!(r.installed.get(&0x3F), Some(&paints[k]), "{hz} Hz: record {k}'s paint asked");
+            let shown = game.render.garage.as_ref().and_then(|g| g.car.as_ref()).expect("a car on show");
+            assert_eq!(shown.1.get(&0x3F), Some(&paints[k]), "{hz} Hz: record {k}'s paint shown");
+        };
+        settle(&mut game);
+        assert_eq!(selected(&game), Some(0), "{hz} Hz: the list opens on the menu car");
+        check(&game, 0);
+        // The records stand together in the list (garage order).
+        for (key, k) in [(Key::Right, 1), (Key::Left, 0), (Key::Right, 1)] {
+            game.menu_key(key).unwrap();
+            assert_eq!(selected(&game), Some(k), "{hz} Hz: {key:?} to record {k}");
+            settle(&mut game);
+            check(&game, k);
+        }
+    }
+}
