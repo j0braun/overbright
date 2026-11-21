@@ -47,6 +47,9 @@ pub enum Fix {
     SnapStart,
     /// Move the finish line onto the route, along it.
     SnapFinish,
+    /// Turn the start line (and the grid slots facing its old way) to the
+    /// route's driving direction there.
+    TurnStart,
     /// Laps into the range the mode allows.
     Laps(u32),
     /// A free id.
@@ -61,6 +64,7 @@ impl Fix {
             Fix::SnapGrid => "Snap grid to road".into(),
             Fix::SnapStart => "Snap start to road".into(),
             Fix::SnapFinish => "Snap finish to route".into(),
+            Fix::TurnStart => "Turn start along route".into(),
             Fix::Laps(n) => format!("Set laps to {n}"),
             Fix::Rename(id) => format!("Rename to {id}"),
         }
@@ -344,6 +348,17 @@ pub fn race_checks(
                     .at(p, point(RacePart::Start, 0))
                     .fix(Fix::SnapStart),
             );
+        } else if let Some(off) = road.as_deref().and_then(|l| start_off_route(l, s)).filter(|o| o.abs() > TURNED_DEG) {
+            out.push(
+                warn(format!(
+                    "the start line faces {:.0}° {} of the route's direction, so the cars start {}",
+                    off.abs(),
+                    if off > 0.0 { "left" } else { "right" },
+                    if off.abs() > 135.0 { "against the race" } else { "across the road" }
+                ))
+                .at(p, point(RacePart::Start, 0))
+                .fix(Fix::TurnStart),
+            );
         }
     }
     let grid = race::effective_grid(r);
@@ -444,6 +459,25 @@ pub fn along_road(spot: Spot, rp: RoadPoint, z: f32) -> Spot {
     Spot { position: rp.at.extend(z), heading }
 }
 
+/// A start line facing further than this off the route's direction (degrees)
+/// starts its cars across the road or against the race.
+const TURNED_DEG: f32 = 45.0;
+
+/// The route's driving direction at the piece of `line` nearest `p`.
+fn route_dir(line: &[Vec2], p: Vec2) -> Option<Vec2> {
+    let (_, i) = race::polyline_distance(line, p);
+    let d = (*line.get(i + 1)? - line[i]).normalize_or_zero();
+    (d != Vec2::ZERO).then_some(d)
+}
+
+/// How far `start` faces off the route's driving direction where it is
+/// (degrees, −180..180, positive to the left).
+fn start_off_route(line: &[Vec2], start: Spot) -> Option<f32> {
+    let dir = route_dir(line, start.position.truncate())?;
+    let along = dir.y.atan2(dir.x).to_degrees();
+    Some((start.heading - along + 540.0).rem_euclid(360.0) - 180.0)
+}
+
 /// Apply `fix` to race `k` of `map` (the pure part of [`apply`]).
 /// `net`: the race's road network; `ground`: heights for moved spots.
 pub fn fix_race(map: &mut MapMod, k: usize, fix: &Fix, net: Option<&RoadNet>, ground: &dyn Fn(Vec2) -> f32) -> bool {
@@ -456,6 +490,20 @@ pub fn fix_race(map: &mut MapMod, k: usize, fix: &Fix, net: Option<&RoadNet>, gr
             let (Some(net), Some(s)) = (net, r.start) else { return false };
             let Some(rp) = race::snap(net, s.position.truncate()) else { return false };
             r.start = Some(along_road(s, rp, ground(rp.at)));
+        }
+        Fix::TurnStart => {
+            let (Some(net), Some(s)) = (net, r.start) else { return false };
+            let Some(line) = race::route(net, r, &|_| None).ok().map(|route| route.road.points) else { return false };
+            let Some(dir) = route_dir(&line, s.position.truncate()) else { return false };
+            let heading = dir.y.atan2(dir.x).to_degrees();
+            // The race's own grid slots that faced the start's old way turn
+            // with it, each about its own place.
+            for g in &mut r.grid {
+                if ((g.heading - s.heading + 540.0).rem_euclid(360.0) - 180.0).abs() < 1.0 {
+                    g.heading = heading;
+                }
+            }
+            r.start = Some(Spot { heading, ..s });
         }
         Fix::SnapFinish => {
             let (Some(net), Some(f)) = (net, r.finish) else { return false };
