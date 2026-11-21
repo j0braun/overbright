@@ -143,13 +143,16 @@ impl Game {
         }))
     }
 
-    /// UI_ShowCase_Preview on milestone `i` (0x4CE770): the camera set
+    /// UI_ShowCase_Preview on milestone `i` (0x4CE770): the marker
+    /// effects off (`markers_off`), the camera set
     /// (0x499EC0 loads MAGAZINES_SHOWCASE.BIN) and 0x4B57B0(0, 0): the
     /// cover's set (the cover 0x837FD8 is the milestone's +0x28, set by
     /// 0x541940 just before) and 0x510680's picks with the game's
     /// generator (`rng`; as for the covers, the clone draws from it in
     /// fewer places, so the picks are not the game's, **inferred**).
     pub(crate) fn showcase_preview(&mut self, i: usize, dvd: bool, now: f32) -> screens::ShowcasePreview {
+        // 0x4CE9C0: 0x501290(1), the map markers off for the showcase.
+        self.markers_off();
         if self.showcase.cameras.is_none() {
             self.showcase.cameras = nfsu2::formats::magazines::Showcase::load(&self.game_data.root);
         }
