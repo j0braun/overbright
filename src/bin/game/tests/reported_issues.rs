@@ -1228,6 +1228,68 @@ fn race_on_the_free_roam_drive_hides_the_markers() {
     assert!(game.sim.drive.as_ref().unwrap().effects.markers[tip].is_some(), "free roam again: the tip's marker back");
 }
 
+/// A magazine / DVD photo shoot's showcase hides the map markers: the
+/// original's showcase constructor (0x4CE770 → 0x501290(1) at 0x4CE9C0 →
+/// 0x6022B0) frees all 12 marker slots and stops their update until the
+/// leave (0x499FA0 → 0x501290(0)); the camera icon (XEE_SHOWCASE) must not
+/// float in front of the car in the photo. Back in free roam the markers
+/// come back.
+#[test]
+#[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
+fn showcase_hides_the_markers() {
+    testkit::game();
+    let mut game = Game::new().unwrap();
+    let mut profile = Profile::new("SHOWCASE_MARKERS_TEST");
+    profile.skip_intro(&game.game_data.career, &game.game_data.root, "PEUGOT", &mut game.rng);
+    game.profile = Some(profile);
+    game.explore(None).unwrap();
+    let camera = MARKER_EFFECTS.iter().position(|e| e.2 == "XEE_SHOWCASE").unwrap();
+    // A showcase milestone (kind 1 or 2) whose spot is on this map, offered.
+    let (h, spot) = game
+        .game_data
+        .career
+        .milestones
+        .iter()
+        .filter(|m| matches!(m.kind, 1 | 2))
+        .find_map(|m| game.sim.route_triggers.iter().find(|t| t.name == m.spot).map(|t| (m.hash, *t)))
+        .expect("a showcase shoot's spot");
+    game.profile.as_mut().unwrap().offered.insert(h);
+    let near = |g: &mut Game, at: Vec3| {
+        let d = g.sim.drive.as_mut().unwrap();
+        d.state.position = (at.truncate() + glam::Vec2::new(30.0, 0.0)).extend(d.state.position.z);
+        // The camera by the car: the particles are emitted near a view.
+        d.camera.position = d.state.position + Vec3::Z * 3.0;
+        g.marker_effects();
+    };
+    let lit = |g: &Game| g.sim.drive.as_ref().unwrap().effects.markers.iter().filter(|m| m.is_some()).count();
+    let keyed = |g: &Game| {
+        let s = &g.sim.drive.as_ref().unwrap().effects.system;
+        s.particles.iter().filter(|p| (MARKER_KEY..MARKER_KEY + 12).contains(&p.key)).count()
+    };
+    near(&mut game, spot.position);
+    assert!(game.sim.drive.as_ref().unwrap().effects.markers[camera].is_some(), "free roam: the camera icon");
+    let settings = crate::sim::TickSettings::take(&game.settings.custom);
+    for _ in 0..30 {
+        game.particle_effects(1.0 / 60.0, &settings);
+    }
+    assert!(keyed(&game) > 0, "the icon emits in free roam");
+    game.shoot_accept(h);
+    assert!(matches!(game.mode, Mode::Menu(Menu::Showcase(_))), "the shoot opens the showcase");
+    assert_eq!(lit(&game), 0, "no marker effect in the showcase");
+    assert_eq!(keyed(&game), 0, "nor any of their particles");
+    game.particle_effects(1.0 / 60.0, &settings);
+    assert_eq!((lit(&game), keyed(&game)), (0, 0), "nor later in the showcase");
+    // The leave: free roam again, the markers placed again (a pending tip).
+    game.mode = Mode::Explore;
+    let tip = MARKER_EFFECTS.iter().position(|e| e.2 == "XEE_GAME_TIP").unwrap();
+    let t = {
+        let p = game.profile.as_ref().unwrap();
+        *game.sim.route_triggers.tips().find(|t| p.tip_pending(&game.game_data.career, t.name)).expect("an unsent engage tip")
+    };
+    near(&mut game, t.position);
+    assert!(game.sim.drive.as_ref().unwrap().effects.markers[tip].is_some(), "free roam again: the markers back");
+}
+
 /// The first intro race (stage 0's first circuit in Rachel's 350Z,
 /// DDAY_PLAYER_CAR), driven as the window does, with the nitrous key held
 /// from the start scene's second 0.5 on: as in the original (observed

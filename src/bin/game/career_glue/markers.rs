@@ -200,8 +200,9 @@ impl Game {
     /// challenges (15) and the DVD id 8 are never in the clone's.
     /// In a race the gate (race type 0x89E7B0 non-zero) turns all 12 off
     /// every world update: `particle_effects`.
-    /// **Not traced**: 0x501290, which switches them all off (0x6022B0)
-    /// and on (0x5F0C90), and its callers 0x499FA0 and 0x4CE770.
+    /// The showcase switches them off and on (0x501290, `markers_off`):
+    /// its leave turns the update back on, and back in free roam this
+    /// places them again.
     pub(crate) fn marker_effects(&mut self) {
         let mut wanted: [Option<(Vec3, f32)>; 12] = [None; 12];
         if let (Some(p), Some(d), false) = (self.profile.as_ref(), self.sim.drive.as_ref(), self.race_flow.quick_free_run) {
@@ -267,6 +268,20 @@ impl Game {
             // with no car).
             world.ground_for(&mut Default::default(), Vec3::new(at.x, at.y, 0.0)).map(|(z, _, _)| z)
         });
+    }
+
+    /// The showcase's marker switch, off (0x501290(1), from its
+    /// constructor 0x4CE770 at 0x4CE9C0): 0x6022B0 frees all 12 marker
+    /// slots (0x602230 each, their particles with them) and clears the
+    /// update's flag 0x8022F8, so 0x605790 places none (0x6057A9) until
+    /// the leave (0x499FA0 → 0x501290(0) at 0x49A000 → 0x5F0C90) sets it
+    /// again. The clone places them only from the free-roam update, which
+    /// does not run under the showcase: back in free roam
+    /// `marker_effects` puts them back.
+    pub(crate) fn markers_off(&mut self) {
+        if let Some(d) = self.sim.drive.as_mut() {
+            d.effects.set_markers(&d.world.emitters, [None; 12], |_| None);
+        }
     }
 
     /// The Engage key ("Enter Race / Shop", DIACTION 15, code 0xBF in

@@ -1782,7 +1782,9 @@ The menus are FEng packages: FRONTEND/FrontB.lzc (137), GLOBAL/GlobalB.lzc
     FRONTEND\MAGAZINES_SHOWCASE.BIN (0x499EC0; chunk 0x30231 → 0x5108E0 →
     0x838574), sets 0x85EF50 +0x1D (0x5012E0(1)) and the player's camera
     to type 0x14 (0x501290(1) → 0x5F1FE0(0x14); while +0x1D is set
-    0x5FA830 asks for 0x14 too): the mover 0x452520 (vtable 0x7880D8,
+    0x5FA830 asks for 0x14 too; the same call frees the 12 map marker
+    effects, 0x6022B0, and stops their update until the leave's
+    0x501290(0) → 0x5F0C90, `Game::markers_off`): the mover 0x452520 (vtable 0x7880D8,
     update 0x44EF60 → 0x446400). Then 0x4B57B0(0, 0): the set (+0x78) is
     the setup whose hash is the cover 0x837FD8 (0x510840; 0x541940 has
     just set it to the milestone's +0x28), else the first (0x510880(0));
