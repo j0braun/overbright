@@ -316,6 +316,9 @@ impl Game {
         if !matches!(self.mode, Mode::Explore)
             || self.scenes.shop.is_some()
             || self.sim.encounters.as_ref().is_some_and(|e| e.outrun.is_some())
+            // Only with the chase camera's mover (player +0x238 → +0xC = 1):
+            // none under the crash / jump camera (0x44BEA0, type 7).
+            || native_mover_type(&self.mode, self.sim.drive.as_ref()) != 1
         {
             return None;
         }
