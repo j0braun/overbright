@@ -97,7 +97,7 @@ pub fn plural(n: usize, one: &str, many: &str) -> String {
 pub fn summary(maps: &Path, folder: &str) -> Result<ModSummary> {
     let dir = maps.join(folder);
     let edir = store::editor_dir(maps, folder);
-    let h = History::open_read(&dir, &edir, &[store::FILE], Arc::new(history::disk::Real))
+    let h = History::open_read(&dir, &edir, ob_studio::MOD_DOCS, Arc::new(history::disk::Real))
         .with_context(|| format!("reading the history of {folder}"))?;
     let in_game = store::enabled(maps).iter().any(|f| f == folder);
     let read_only_by = h.read_only_by().flatten().map(|o| o.program.clone());

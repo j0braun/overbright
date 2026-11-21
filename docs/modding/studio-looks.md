@@ -24,6 +24,9 @@ overbright-studio-cli looks watch --mod maps/docks
   still writing it keeps changing it) and reads as a PNG the game takes (each side 1 to 4096): it becomes **one
   step** of the mod's history, named "Paint <NAME>", which undo takes back like any other step. A file that does
   not read yet is left until it changes again. `looks import --texture …` takes one work file in at once.
+  When Studio or the map editor has the mod open, the step goes to it through the mod's inbox; it makes the step
+  and writes `looks.toml` and the texture under `textures/` when it next saves the mod (about 2 s later, or on
+  Ctrl+S). Undo there takes the texture away again.
 - **`looks list`** shows the mod's changed textures and its work files.
 
 A texture is named by its domain (`world` or `car`) and the game's hash of its name: `world:0x1A2B3C4D`. The

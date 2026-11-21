@@ -94,7 +94,7 @@ pub struct Data {
 fn read_doc(maps: &Path, folder: &str) -> Result<(MapMod, History)> {
     let dir = maps.join(folder);
     let edir = store::editor_dir(maps, folder);
-    let h = History::open_read(&dir, &edir, &[store::FILE], Arc::new(history::disk::Real))
+    let h = History::open_read(&dir, &edir, ob_studio::MOD_DOCS, Arc::new(history::disk::Real))
         .with_context(|| format!("reading the history of {folder}"))?;
     let m = MapMod::parse(h.doc(store::FILE).unwrap_or_default()).map_err(|e| anyhow::anyhow!("{e}"))?;
     Ok((m, h))
@@ -198,15 +198,20 @@ fn reset_in(s: &mut MapSession, folder: &str, picks: &[(String, String, String)]
 /// Undo (or redo) the mod's last step; its name.
 pub fn undo(maps: &Path, folder: &str, redo: bool) -> Result<Option<String>> {
     let mut h = open_write(maps, folder)?;
+    let looks = h.doc(ob_studio::looks::FILE).map(str::to_string);
     let r = if redo { h.redo(history::STUDIO)? } else { h.undo(history::STUDIO)? };
     h.save()?;
+    // A paint taken back or made again: the pack data follows the texture list.
+    let (dir, edir) = (maps.join(folder), store::editor_dir(maps, folder));
+    ob_studio::looks::work::follow(&dir, &edir, looks.as_deref(), h.doc(ob_studio::looks::FILE))
+        .map_err(anyhow::Error::msg)?;
     Ok(r)
 }
 
 fn open_write(maps: &Path, folder: &str) -> Result<History> {
     let dir = maps.join(folder);
     let edir = store::editor_dir(maps, folder);
-    let h = History::open(&dir, &edir, &[store::FILE], history::STUDIO, Arc::new(history::disk::Real))?;
+    let h = History::open(&dir, &edir, ob_studio::MOD_DOCS, history::STUDIO, Arc::new(history::disk::Real))?;
     if let Some(owner) = h.read_only_by() {
         let who = owner.map_or("another program".to_string(), |o| o.program.clone());
         bail!("{who} has this mod open; changes wait until it closes the mod");

@@ -98,8 +98,9 @@ the editor offers. `history show` gives `step` (the current one), `steps` and `u
 `author`, `label`, `time_ms`), `versions` and `unsaved`.
 
 `looks open` gives `texture`, `name`, `work_file`, `origin` (`game` or `blank`) and `derived`. `looks import`
-gives `outcome` (`made` with its `step`, `unchanged`, or `sent` with the inbox `request` when Studio has the mod
-open). `looks watch` gives `saves`, one per save taken in, with its `outcome` (or `refused` and the `reason`).
+gives `outcome` (`made` with its `step`, `unchanged`, or `sent` with the inbox `request` when Studio or the map
+editor has the mod open: that program makes the step and, when it next saves the mod, writes `looks.toml` and the
+texture under `textures/`, as `looks import` does itself when nothing else has the mod open). `looks watch` gives `saves`, one per save taken in, with its `outcome` (or `refused` and the `reason`).
 `looks list` gives `textures` (each with `texture`, `name`, `origin`, `derived`, `size`, `image`, `pack_file`)
 and `work`.
 
