@@ -103,6 +103,8 @@ pub enum Outcome {
 pub enum Error {
     /// Another program has the mod open for writing.
     ReadOnly(Option<lock::Owner>),
+    /// The change would leave a document that does not read (`doc: reason`); nothing was made or written.
+    Unreadable(String),
     Io(io::Error),
 }
 
@@ -111,6 +113,7 @@ impl std::fmt::Display for Error {
         match self {
             Error::ReadOnly(Some(o)) => write!(f, "read-only: {} (process {}) has this mod open", o.program, o.pid),
             Error::ReadOnly(None) => write!(f, "read-only: another program has this mod open"),
+            Error::Unreadable(why) => write!(f, "not made: {why}"),
             Error::Io(e) => write!(f, "{e}"),
         }
     }
@@ -232,6 +235,11 @@ impl Replay {
 }
 
 /// `s` with `docs` put in (None removes).
+/// The first of `docs` that would not read as its kind: `doc: reason`.
+fn unreadable(docs: &BTreeMap<String, Option<String>>) -> Option<String> {
+    docs.iter().find_map(|(d, t)| doc::check(d, t.as_deref()?).err().map(|e| format!("{d} would not read: {e}")))
+}
+
 fn with(s: &State, docs: &BTreeMap<String, Option<String>>) -> State {
     let mut out = s.clone();
     for (k, v) in docs {
@@ -573,6 +581,9 @@ impl History {
 
     /// Change documents as one step: `docs` as they are to be (None removes one).
     pub fn commit(&mut self, author: &str, label: &str, docs: BTreeMap<String, Option<String>>) -> Result<Outcome> {
+        if let Some(why) = unreadable(&docs) {
+            return Err(Error::Unreadable(why));
+        }
         let to = with(&self.r.current, &docs);
         Ok(self.step(author, label, &to, None)?.map_or(Outcome::Unchanged, Outcome::Made))
     }
@@ -589,6 +600,9 @@ impl History {
         request: Option<String>,
     ) -> Result<Outcome> {
         self.need_write()?;
+        if let Some(why) = unreadable(docs) {
+            return Ok(Outcome::Refused(why));
+        }
         let base_seq = base.unwrap_or(self.seq());
         let Some(base_state) = self.r.state_at(base_seq).cloned() else {
             return Ok(Outcome::Refused(format!("step {base_seq} is no longer kept; read the mod again")));
@@ -671,12 +685,29 @@ impl History {
     /// the journal notes it. Keeps the unsaved steps found on opening ([`restore`](Self::restore)).
     pub fn save(&mut self) -> Result<()> {
         self.need_write()?;
-        self.pending = None;
         let to = self.r.current.clone();
+        // Nothing is written unless every changed document reads back (a file the reader refuses would lock
+        // the player out of the mod).
+        let changed: BTreeMap<String, Option<String>> = self
+            .docs
+            .iter()
+            .filter(|d| self.files.get(*d) != to.get(*d))
+            .map(|d| (d.clone(), to.get(d).cloned()))
+            .collect();
+        if let Some(why) = unreadable(&changed) {
+            return Err(Error::Unreadable(why));
+        }
+        self.pending = None;
         for d in &self.docs.clone() {
             let path = self.dir.join(d);
             match to.get(d) {
-                Some(t) if self.files.get(d) != Some(t) => self.disk.write_atomic(&path, t.as_bytes())?,
+                Some(t) if self.files.get(d) != Some(t) => {
+                    self.disk.write_atomic(&path, t.as_bytes())?;
+                    // Read back: the file on the disk is the text written.
+                    if self.disk.read(&path)? != t.as_bytes() {
+                        return Err(io::Error::other(format!("{d} did not read back as written")).into());
+                    }
+                }
                 None if self.files.contains_key(d) => self.disk.remove(&path)?,
                 _ => {}
             }
@@ -815,6 +846,11 @@ impl History {
             out.push((id, reply));
         }
         Ok(out)
+    }
+
+    /// The mod's folder.
+    pub fn dir(&self) -> &Path {
+        &self.dir
     }
 
     /// The editor folder (lock, journal, inbox).

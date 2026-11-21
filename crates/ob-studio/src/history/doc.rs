@@ -46,6 +46,19 @@ pub fn items(doc: &str, text: &str) -> Option<Vec<(String, String)>> {
     Some(out)
 }
 
+/// Whether `text` reads as document `doc`'s kind (a map mod, a texture list; a file of any other kind always
+/// does): the reason when not. Every change and every save checks it, so the history never writes a file its
+/// reader refuses.
+pub fn check(doc: &str, text: &str) -> Result<(), String> {
+    if doc == crate::looks::FILE {
+        return crate::looks::Looks::parse(text).map(|_| ()).map_err(|e| e.to_string());
+    }
+    if doc == store::FILE {
+        return MapMod::parse(text).map(|_| ()).map_err(|e| e.to_string());
+    }
+    Ok(())
+}
+
 /// A prop edit's item key: the added prop's id, or the original placement it changes.
 fn prop_key(p: &PropEdit) -> String {
     match (p.add_id(), p.target()) {
