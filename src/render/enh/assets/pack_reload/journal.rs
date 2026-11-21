@@ -94,6 +94,8 @@ pub(crate) fn publish(domains: u8, key: Option<Key>) {
         Some(Key::Hash(h)) => texture_pack::invalidate(Some(*h), None),
         Some(Key::Name(n)) => texture_pack::invalidate(None, Some(n)),
     }
+    #[cfg(test)]
+    slow_step();
     let mut log = LOG.lock().unwrap_or_else(|e| e.into_inner());
     let g = GENERATION.load(Ordering::Relaxed) + 1;
     log.entries.push_back((g, domains, key));
