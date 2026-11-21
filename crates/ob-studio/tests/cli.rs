@@ -451,3 +451,93 @@ fn looks_open_import_and_list() {
     assert_eq!(code, cli::OK);
     assert_eq!(serde_json::from_str::<Value>(&out).unwrap()["saves"], serde_json::json!([]));
 }
+
+/// Every edit the tool reports made leaves a mod that reads: a value the file format refuses (more than one lap
+/// for a sprint, a rotation that is not one) is refused before anything is written, the dry run says the same,
+/// and the mod still opens afterwards. Each case once wrote a `map.obmap` that no command could read again.
+#[test]
+fn an_edit_never_leaves_a_mod_that_does_not_read() {
+    let s = Scratch::new("cli-unreadable");
+    let dir = s.path().join("m");
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(dir.join(store::FILE), "overbright-map 1\nname = L\n").unwrap();
+    let e = env();
+    let ok = |words: &[&str]| {
+        let (code, out, err) = run(words, &dir, &e);
+        assert_eq!(code, cli::OK, "{words:?}: {out}{err}");
+    };
+    ok(&["race", "create", "--mod", "<mod>", "--track", "4001", "--id", "s1"]);
+    let ops = s.path().join("ops.jsonl");
+    std::fs::write(
+        &ops,
+        "{\"op\":\"set_kind\",\"race\":\"s1\",\"kind\":\"sprint\"}\n{\"op\":\"set_laps\",\"race\":\"s1\",\"laps\":5}\n",
+    )
+    .unwrap();
+    let file = ops.to_string_lossy().to_string();
+    let to = r#"{"id":"s1","name":"s1","track":4001,"backward":false,"kind":"sprint","laps":7,"checkpoints":[],"grid":[],"start":null,"finish":null}"#;
+    let zero = "0,0,0,0,0,0,0,0,0";
+    let bad: [&[&str]; 6] = [
+        &["race", "set", "--mod", "<mod>", "--race", "s1", "--laps", "3"],
+        &["race", "set", "--mod", "<mod>", "--race", "s1", "--laps", "3", "--kind", "sprint"],
+        &["race", "put", "--mod", "<mod>", "--race", "s1", "--to", to],
+        &["ops", "apply", "--mod", "<mod>", "--file", &file],
+        &["props", "move", "--mod", "<mod>", "--key", "added:a1", "--position", "1,1,1", "--rotation", zero],
+        &["props", "add", "--mod", "<mod>", "--solid", "BOX", "--position", "1,2,3", "--rotation", zero],
+    ];
+    let before = text(&dir);
+    for words in bad {
+        for dry in [true, false] {
+            let mut w = words.to_vec();
+            if dry {
+                w.push("--dry-run");
+            }
+            w.push("--json");
+            let (code, out, _) = run(&w, &dir, &e);
+            let doc: Value = serde_json::from_str(&out).unwrap();
+            assert_eq!(code, cli::FAILED, "{w:?} is refused: {out}");
+            assert_eq!(doc["error"]["reason"], "bad_value", "{w:?}: {out}");
+            let detail = doc["error"]["detail"].as_str().unwrap_or_default();
+            assert!(detail.contains("one lap") || detail.contains("unit axes"), "{w:?} says why: {out}");
+            assert_eq!(text(&dir), before, "{w:?} wrote nothing");
+            let (code, out, err) = run(&["history", "show", "--mod", "<mod>"], &dir, &e);
+            assert_eq!(code, cli::OK, "the mod still reads after {w:?}: {out}{err}");
+        }
+    }
+    // The same race as a circuit takes its laps.
+    ok(&["race", "set", "--mod", "<mod>", "--race", "s1", "--kind", "circuit", "--laps", "3"]);
+    assert!(MapMod::parse(&text(&dir)).unwrap().races[0].laps == 3);
+}
+
+/// A mod an older tool left unreadable (a sprint with 3 laps) says why on every command and how to repair it;
+/// `pack repair` makes the one safe repair as one step and the mod reads again. A file with no safe repair is
+/// refused as it is.
+#[test]
+fn a_mod_left_unreadable_says_so_and_pack_repair_mends_it() {
+    let s = Scratch::new("cli-repair");
+    let dir = s.path().join("b");
+    std::fs::create_dir_all(&dir).unwrap();
+    let broken = "overbright-map 1\nname = B\n\n[race]\nid = s1\ntrack = 4001\nmode = sprint\nlaps = 3\n";
+    std::fs::write(dir.join(store::FILE), broken).unwrap();
+    let e = env();
+    let (code, out, _) = run(&["history", "show", "--mod", "<mod>", "--json"], &dir, &e);
+    assert_eq!(code, cli::FAILED);
+    let doc: Value = serde_json::from_str(&out).unwrap();
+    let msg = doc["error"]["message"].as_str().unwrap();
+    assert!(msg.contains("line 8: a sprint race runs one lap") && msg.contains("pack repair"), "{msg}");
+    assert_eq!(doc["error"]["repair"]["fixes"].as_array().unwrap().len(), 1, "{out}");
+    let (code, _, _) = run(&["pack", "repair", "--mod", "<mod>", "--dry-run"], &dir, &e);
+    assert_eq!((code, text(&dir).as_str()), (cli::OK, broken), "a dry run writes nothing");
+    let (code, out, err) = run(&["pack", "repair", "--mod", "<mod>"], &dir, &e);
+    assert_eq!(code, cli::OK, "{out}{err}");
+    let m = MapMod::parse(&text(&dir)).expect("reads again");
+    assert_eq!((m.races[0].kind, m.races[0].laps), (RaceKind::Sprint, 1));
+    let (code, out, _) = run(&["pack", "repair", "--mod", "<mod>"], &dir, &e);
+    assert!(code == cli::OK && out.contains("Nothing to repair"), "{out}");
+    // No safe repair: refused, the file kept.
+    let zero =
+        "overbright-map 1\n\n[prop.add]\nregion = L4RA\nsolid = X\nposition = 0 0 0\nrotation = 0 0 0 0 0 0 0 0 0\n";
+    std::fs::write(dir.join(store::FILE), zero).unwrap();
+    let (code, _, err) = run(&["pack", "repair", "--mod", "<mod>"], &dir, &e);
+    assert!(code == cli::FAILED && err.contains("no safe repair"), "{err}");
+    assert_eq!(text(&dir), zero);
+}

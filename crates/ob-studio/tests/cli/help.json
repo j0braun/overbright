@@ -415,6 +415,13 @@
       "words": "pack put"
     },
     {
+      "command": "pack.repair",
+      "flags": [],
+      "kind": "edit",
+      "summary": "Repair a map file that no longer reads, where a safe repair exists (as one undo step)",
+      "words": "pack repair"
+    },
+    {
       "command": "edit.group",
       "flags": [
         {

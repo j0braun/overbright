@@ -14,7 +14,9 @@ use glam::Vec3;
 
 use nfsu2::studio_api::map::edit;
 use nfsu2::studio_api::world::World;
-use ob_map::tools::map::format::{CustomRace, MAX_LAPS, MAX_TEXT, MapMod, PropEdit, Spot, valid_id, valid_solid};
+use ob_map::tools::map::format::{
+    CustomRace, MAX_LAPS, MAX_TEXT, MapMod, PropEdit, Spot, check_laps, check_rotation, valid_id, valid_solid,
+};
 use ob_map::tools::map::ops::{Change, Op, PropKey, RacePart, RacePoint, Refused, ensure, max_points, valid_position};
 use ob_map::tools::map::race;
 use ob_map::tools::map::store;
@@ -134,6 +136,9 @@ pub struct MapSession {
     /// Why the last step, undo or redo was not made, or the journal's
     /// file does not read (taken by the window's status bar).
     pub note: Option<String>,
+    /// What was wrong with the value of the last op [`run`](Self::run) refused as [`Refused::BadValue`], when
+    /// it can say more ("a sprint race runs one lap").
+    pub refused_why: Option<String>,
     /// Placements moved or hidden since a viewer last looked
     /// (`world.take_changed()` holds which).
     pub world_changed: bool,
@@ -160,6 +165,7 @@ impl MapSession {
             undo: Undo::new(&map),
             history: None,
             note: None,
+            refused_why: None,
             map,
             base,
             world,
@@ -182,7 +188,19 @@ impl MapSession {
         let label = op.label(&self.map);
         let before = self.map.clone();
         let mut change = Change { label, ..Change::default() };
-        if let Err(e) = self.exec(op, &mut change) {
+        self.refused_why = None;
+        let mut done = self.exec(op, &mut change);
+        if done.is_ok()
+            && self.map != before
+            && let Err(e) = MapMod::parse(&self.map.write())
+        {
+            // The last guard: the mod file must read back as it is written (the ops check their values
+            // against the same rules; this catches any they miss), else the edit would leave a mod that no
+            // longer opens.
+            self.refused_why = Some(format!("the map file would not read back: {}", e.message));
+            done = Err(Refused::BadValue);
+        }
+        if let Err(e) = done {
             // Live world edits are taken back by applying the mod again
             // (also when the mod came back to what it was: a delete put
             // back by a move leaves it as before, but not the world).
@@ -399,11 +417,20 @@ impl MapSession {
         self.map.races.iter_mut().find(|r| r.id == id).ok_or(Refused::NoRace)
     }
 
+    /// Refused as [`Refused::BadValue`] with the reason, unless `r` is Ok.
+    fn check<E: std::fmt::Display>(&mut self, r: Result<(), E>) -> Result<(), Refused> {
+        r.map_err(|e| {
+            self.refused_why = Some(e.to_string());
+            Refused::BadValue
+        })
+    }
+
     fn exec(&mut self, op: Op, c: &mut Change) -> Result<(), Refused> {
         let (folder, region) = (self.folder.clone(), self.region.clone());
         match op {
             Op::Place { key, position, rotation } => {
-                ensure(valid_position(position) && rotation.is_finite(), Refused::BadValue)?;
+                ensure(valid_position(position), Refused::BadValue)?;
+                self.check(check_rotation(&rotation))?;
                 let i = self.placement(&key)?;
                 edit::set_transform(&mut self.map, &folder, &mut self.world, &region, i, position, rotation)?;
                 self.world_changed = true;
@@ -419,7 +446,8 @@ impl MapSession {
                 self.world_changed = true;
             }
             Op::Add { solid, position, rotation, id, ground } => {
-                ensure(valid_position(position) && rotation.is_finite() && valid_solid(&solid), Refused::BadValue)?;
+                ensure(valid_position(position) && valid_solid(&solid), Refused::BadValue)?;
+                self.check(check_rotation(&rotation))?;
                 if let Some(id) = &id {
                     ensure(valid_id(id), Refused::BadValue)?;
                     ensure(self.map.add_index(id).is_none(), Refused::IdTaken)?;
@@ -504,7 +532,8 @@ impl MapSession {
                 c.race = Some(race);
             }
             Op::SetLaps { race, laps } => {
-                ensure((1..=MAX_LAPS).contains(&laps), Refused::BadValue)?;
+                let kind = self.race_mut(&race)?.kind;
+                self.check(check_laps(kind, laps))?;
                 self.race_mut(&race)?.laps = laps;
                 c.race = Some(race);
             }
@@ -598,6 +627,7 @@ impl MapSession {
             }
             Op::PutRace { race, to } => {
                 ensure(valid_race(&to), Refused::BadValue)?;
+                self.check(check_laps(to.kind, to.laps))?;
                 let k = self.race_index(&race).ok_or(Refused::NoRace)?;
                 ensure(self.race_index(&to.id).is_none_or(|j| j == k), Refused::IdTaken)?;
                 c.race = Some(to.id.clone());

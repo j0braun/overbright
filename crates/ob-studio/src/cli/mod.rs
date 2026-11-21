@@ -209,7 +209,33 @@ fn open_read(m: &Mod) -> Result<(History, MapMod), Done> {
 
 fn read_map(h: &History) -> Result<MapMod, Done> {
     let text = h.doc(store::FILE).unwrap_or_default();
-    MapMod::parse(text).map_err(|e| fail(FAILED, format!("{} does not read: {e}", store::FILE)))
+    MapMod::parse(text).map_err(|e| {
+        let mut message = format!("{} does not read: {e}", store::FILE);
+        let fixes = repairs(text);
+        if !fixes.is_empty() {
+            message.push_str(&format!(". {}", repair_hint(h.dir())));
+        }
+        let mut d = fail(FAILED, message);
+        if !fixes.is_empty() {
+            d.doc["error"]["repair"] = json!({ "command": "pack repair", "fixes": fixes });
+            d.text.extend(fixes.iter().map(|f| format!("  repair: {f}")));
+        }
+        d
+    })
+}
+
+/// The safe repairs a map file that does not read has ([`MapMod::parse_repairing`]); empty when it reads as it
+/// is or has none (then it is refused as it is).
+pub fn repairs(text: &str) -> Vec<String> {
+    match (MapMod::parse(text), MapMod::parse_repairing(text)) {
+        (Err(_), Ok((_, fixes))) => fixes,
+        _ => Vec::new(),
+    }
+}
+
+/// What to run to repair the mod in `dir`.
+pub fn repair_hint(dir: &Path) -> String {
+    format!("It can be repaired safely: {PROGRAM} pack repair --mod {}", dir.display())
 }
 
 fn game_root(line: &args::Line, env: &Env) -> Result<PathBuf, Done> {
@@ -276,9 +302,29 @@ fn try_edit(line: &args::Line, cmd: &Command, env: &Env, m: &Mod) -> Result<Done
         History::open(&m.dir, &m.edir, crate::MOD_DOCS, AUTHOR, Arc::new(disk::Real))
     }
     .map_err(|e| fail(FAILED, format!("{}: {e}", m.dir.display())))?;
-    let map = read_map(&h)?;
     let before = h.doc(store::FILE).unwrap_or_default().to_string();
-    let request = ops::request(cmd.name, &line.args, &map, Path::new("")).map_err(|e| fail(USAGE, e))?;
+    let repair = cmd.name == "pack.repair";
+    let (map, request) = if repair {
+        // The mod as it reads with its safe repairs, put in place as one step from an empty session (the file
+        // as it is does not read, so nothing starts from it).
+        let (fixed, fixes) = MapMod::parse_repairing(&before)
+            .map_err(|e| fail(FAILED, format!("{} does not read and has no safe repair: {e}", store::FILE)))?;
+        if fixes.is_empty() {
+            let doc = json!({ "outcome": "unchanged", "fixes": [] });
+            return Ok(Done {
+                code: OK,
+                doc,
+                text: vec![format!("Nothing to repair: {} reads as it is", store::FILE)],
+            });
+        }
+        let request =
+            json!({ "op": "put_mod", "map": serde_json::to_value(&fixed).map_err(|e| fail(FAILED, e.to_string()))? });
+        (MapMod::default(), request)
+    } else {
+        let map = read_map(&h)?;
+        let request = ops::request(cmd.name, &line.args, &map, Path::new("")).map_err(|e| fail(USAGE, e))?;
+        (map, request)
+    };
     let op = ops::read(&request).map_err(|e| fail(USAGE, e))?;
     let world = if needs_world(&op) {
         let root = game_root(line, env)?;
@@ -287,16 +333,31 @@ fn try_edit(line: &args::Line, cmd: &Command, env: &Env, m: &Mod) -> Result<Done
         World::default()
     };
     let mut session = MapSession::new(&region, &m.folder, map, world);
-    let change = match session.run(op) {
+    let mut change = match session.run(op) {
         Ok(c) => c,
         Err(r) => {
-            let mut d = fail(FAILED, format!("refused: {r}"));
+            let why = session.refused_why.clone();
+            let mut d =
+                fail(FAILED, format!("refused: {r}{}", why.as_ref().map(|w| format!(": {w}")).unwrap_or_default()));
             d.doc["error"]["reason"] = json!(snake(&format!("{r:?}")));
+            if let Some(w) = why {
+                d.doc["error"]["detail"] = json!(w);
+            }
             d.doc["request"] = request;
             return Err(d);
         }
     };
+    if repair {
+        change.label = "Repair mod".into();
+    }
     let after = session.map.write();
+    // The writer never leaves a file its reader refuses (the session checks every edit; this is the last word).
+    if let Err(e) = MapMod::parse(&after) {
+        let mut d = fail(FAILED, format!("refused: the edit would leave {} unreadable: {e}", store::FILE));
+        d.doc["error"]["reason"] = json!("bad_value");
+        d.doc["request"] = request;
+        return Err(d);
+    }
     let mut doc = json!({
         "request": request,
         "label": change.label,
@@ -326,6 +387,7 @@ fn try_edit(line: &args::Line, cmd: &Command, env: &Env, m: &Mod) -> Result<Done
         let seq = match h.transact(AUTHOR, &change.label, None, &docs, None) {
             Ok(Outcome::Made(seq)) => seq,
             Ok(Outcome::Unchanged) => h.seq(),
+            Ok(Outcome::Refused(why)) => return Err(fail(FAILED, format!("refused: {why}"))),
             Ok(o) => return Err(fail(FAILED, format!("not made: {o:?}"))),
             Err(e) => return Err(fail(FAILED, e.to_string())),
         };

@@ -128,7 +128,13 @@ pub fn summary(maps: &Path, folder: &str) -> Result<ModSummary> {
             }
             s.races = m.races.len();
         }
-        Err(e) => s.saved = Saved::Error(format!("{} does not read: {e}", store::FILE)),
+        Err(e) => {
+            let mut why = format!("{} does not read: {e}", store::FILE);
+            if !ob_studio::cli::repairs(text).is_empty() {
+                why.push_str(&format!(". {}", ob_studio::cli::repair_hint(&s.dir)));
+            }
+            s.saved = Saved::Error(why)
+        }
     }
     Ok(s)
 }
