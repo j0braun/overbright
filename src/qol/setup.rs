@@ -87,6 +87,21 @@ pub fn saved_root() -> Option<PathBuf> {
     (!text.trim().is_empty()).then(|| crate::platform::dirs::load_path(&p))
 }
 
+/// The game folder Studio's programs (editor, window, command line) use when
+/// no `--game` is given: `NFSU2_ROOT` when set and not empty, as the game
+/// reads it, else the one the launcher kept ([`saved_root`]).
+pub fn game_root() -> Option<PathBuf> {
+    game_root_from(std::env::var_os("NFSU2_ROOT"), saved_root)
+}
+
+/// [`game_root`] from the variable's value and the kept folder.
+pub fn game_root_from(var: Option<std::ffi::OsString>, saved: impl FnOnce() -> Option<PathBuf>) -> Option<PathBuf> {
+    match var.filter(|v| !v.is_empty()) {
+        Some(v) => Some(PathBuf::from(v)),
+        None => saved(),
+    }
+}
+
 /// Keeps `root` as the game folder, in a portable install relative to the
 /// program folder when on the same drive (`platform::dirs::store_path`;
 /// docs/playing/platform-dirs.md, "Portable mode").
@@ -384,6 +399,17 @@ pub fn help_for(root: Option<&Path>, check: Option<&Check>, windows: bool) -> St
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Studio's programs look for the game as the game does: `NFSU2_ROOT`
+    /// first (an empty one is not set), then the launcher's folder.
+    #[test]
+    fn studio_game_root_reads_the_variable_first() {
+        let kept = || Some(PathBuf::from("/kept"));
+        assert_eq!(game_root_from(Some("/env".into()), kept), Some(PathBuf::from("/env")));
+        assert_eq!(game_root_from(Some("".into()), kept), Some(PathBuf::from("/kept")));
+        assert_eq!(game_root_from(None, kept), Some(PathBuf::from("/kept")));
+        assert_eq!(game_root_from(None, || None), None);
+    }
 
     #[test]
     fn windows_candidates_in_order_without_duplicates() {

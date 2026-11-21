@@ -2,7 +2,7 @@
   "command": "checks.run",
   "error": {
     "kind": "no_game",
-    "message": "the game folder is not known: give --game"
+    "message": "the game folder is not known: give --game <folder>, set NFSU2_ROOT, or choose it once in the launcher"
   },
   "exit": 4,
   "format": 1,

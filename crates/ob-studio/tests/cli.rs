@@ -351,6 +351,10 @@ fn the_checks_run_and_exit_3_on_an_error() {
     let (s, dir) = fixture("cli-checks", false);
     assert_eq!(golden("checks-ok", &["checks", "run", "--mod", "<mod>"], &s, &dir, &env()), cli::OK);
     assert_eq!(golden("checks-no-game", &["checks", "run", "--mod", "<mod>"], &s, &dir, &no_game()), cli::NO_GAME);
+    // An empty --game is not a game folder: the lookup goes on (NFSU2_ROOT, the launcher's folder) and says how.
+    let (code, _, err) = run(&["checks", "run", "--mod", "<mod>", "--game", ""], &dir, &no_game());
+    assert_eq!(code, cli::NO_GAME, "{err}");
+    assert!(err.contains("set NFSU2_ROOT"), "{err}");
     let (s, dir) = fixture("cli-checks-broken", true);
     assert_eq!(golden("checks-errors", &["checks", "run", "--mod", "<mod>"], &s, &dir, &env()), cli::CHECKS);
     let (code, out, _) = run(&["checks", "run", "--mod", "<mod>"], &dir, &env());

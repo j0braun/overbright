@@ -3,7 +3,8 @@
 //! its own window). The game folder is `NFSU2_ROOT`, else the one the launcher kept.
 //!
 //! ```text
-//! overbright-studio [--mod <folder>] [--maps <dir>]      the window, with that mod open
+//! overbright-studio [--mod <name|folder>] [--maps <dir>]  the window, with that mod open (its folder name in the
+//!                                                        mods folder, or its folder's path)
 //! overbright-studio --shot out.png [--size WxH] [--scale F] [--mod <folder>] [--maps <dir>]
 //!                   [--workspace home|world|races|mod|settings|changes] [--input mouse|keyboard|xbox|playstation|deck]
 //!                   [--focus rail|address|toolbar|left|view|right|bottom] [--drawer] [--find] [--address]
@@ -106,16 +107,26 @@ fn parse(args: impl Iterator<Item = String>) -> Result<Cli> {
 }
 
 fn game_root() -> PathBuf {
-    if let Some(r) = std::env::var_os("NFSU2_ROOT").filter(|r| !r.is_empty()) {
-        return PathBuf::from(r);
-    }
-    nfsu2::studio_api::qol::setup::saved_root().unwrap_or_else(|| PathBuf::from("."))
+    nfsu2::studio_api::qol::setup::game_root().unwrap_or_else(|| PathBuf::from("."))
 }
 
-/// Studio on the mods folder, with the map editor hosted on the same egui context.
-fn new_studio(cli: &Cli) -> Studio {
-    let maps = cli.maps.clone().unwrap_or_else(ob_map::tools::map::store::maps_dir);
-    let mut s = Studio::new(maps.clone(), cli.folder.as_deref());
+/// Studio on the mods folder, with the map editor hosted on the same egui context. `--mod` takes a mod's folder
+/// name or the path of its folder; one that is neither, or does not read, is an error, not a window with no mod.
+fn new_studio(cli: &Cli) -> Result<Studio> {
+    let mut maps = cli.maps.clone().unwrap_or_else(ob_map::tools::map::store::maps_dir);
+    let mut folder = None;
+    if let Some(arg) = cli.folder.as_deref() {
+        let (m, f) = ob_studio_gui::studio::home::find_mod(&maps, arg).map_err(anyhow::Error::msg)?;
+        maps = m;
+        folder = Some(f);
+    }
+    let mut s = Studio::new(maps.clone(), folder.as_deref());
+    if let Some(f) = &folder
+        && s.open.is_none()
+    {
+        let why = ob_studio_gui::studio::home::summary(&maps, f).err().map_or_else(String::new, |e| format!(": {e:#}"));
+        bail!("the mod {f} in {} does not read{why}", maps.display());
+    }
     let editor = App::new_in(
         s.ctx.clone(),
         game_root(),
@@ -123,7 +134,7 @@ fn new_studio(cli: &Cli) -> Studio {
         Box::new(|root, region| nfsu2::studio_api::world::World::load(root, region)),
     );
     s.attach_editor(editor);
-    s
+    Ok(s)
 }
 
 fn main() -> ExitCode {
@@ -154,7 +165,7 @@ fn run_shot(cli: &Cli) -> Result<()> {
     let out = cli.shot.clone().context("--shot needs a path")?;
     let size = cli.size.unwrap_or((1920, 1080));
     let scale = cli.scale.unwrap_or_else(|| layout::ui_scale(size.0, size.1));
-    let mut s = new_studio(cli);
+    let mut s = new_studio(cli)?;
     if let Some(w) = cli.workspace {
         s.nav.workspace = w;
         if w == Workspace::Changes {
@@ -408,7 +419,7 @@ impl ApplicationHandler for Runner {
 
 fn window(cli: Cli) -> Result<()> {
     let el = EventLoop::new()?;
-    let studio = new_studio(&cli);
+    let studio = new_studio(&cli)?;
     let pads = gilrs::Gilrs::new().ok();
     let mut r = Runner { studio, win: None, pads, repaint_at: None, error: None };
     el.run_app(&mut r)?;

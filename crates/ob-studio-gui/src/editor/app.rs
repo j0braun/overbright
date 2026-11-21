@@ -1336,9 +1336,9 @@ impl App {
             }
             A::Export => {
                 if let Some(s) = &self.state {
-                    let home = crate::platform::dirs::home().unwrap_or_default();
-                    self.dialog =
-                        Some(Dialog::Export { path: home.join(format!("{}.zip", s.session.folder)).display().to_string() });
+                    // Overbright's exports folder (made by the export), never the home folder itself.
+                    let to = crate::platform::dirs::exports().join(format!("{}.zip", s.session.folder));
+                    self.dialog = Some(Dialog::Export { path: to.display().to_string() });
                 }
             }
             A::Import => self.dialog = Some(Dialog::Import { path: String::new() }),
@@ -1988,6 +1988,9 @@ impl App {
         let r = (|| -> Result<()> {
             if self.state.as_ref().is_some_and(|s| s.session.dirty) {
                 self.save()?;
+            }
+            if let Some(p) = to.parent().filter(|p| !p.as_os_str().is_empty()) {
+                std::fs::create_dir_all(p).with_context(|| format!("making {}", p.display()))?;
             }
             store::export(&self.maps, &folder, to)
         })();
@@ -2942,5 +2945,23 @@ mod tests {
                 assert!(layout_line(&a.ctx).starts_with("editor layout: toolbar fits"));
             }
         }
+    }
+
+    /// File ▸ Export proposes `<folder>.zip` in Overbright's exports folder, never in the home folder itself,
+    /// and an export there makes the folder.
+    #[test]
+    fn export_proposes_the_exports_folder() {
+        let s = Scratch::new("editor-export");
+        let mut a = app(&s);
+        a.new_mod("docks", "", "L4RA").unwrap();
+        a.act(menu::Action::Export);
+        let Some(Dialog::Export { path }) = &a.dialog else { panic!("{:?}", a.dialog) };
+        let proposed = PathBuf::from(path);
+        assert_eq!(proposed, crate::platform::dirs::exports().join("docks.zip"));
+        assert_ne!(proposed.parent(), crate::platform::dirs::home().as_deref(), "not the home folder");
+        a.dialog = None;
+        let to = s.path().join("exports").join("docks.zip");
+        a.export(&to);
+        assert!(to.is_file(), "the folder is made and the file written");
     }
 }

@@ -10,7 +10,9 @@ career save.
 - From the launcher: open the **Dev** page and press **Open Studio (preview)** under **Studio**. Studio opens on
   Home. While it is open the button is greyed out; when Studio closes, the launcher reads your map mods again.
 - From a terminal: `overbright-studio` on Linux, `overbright-studio.exe` on Windows, from the folder you unpacked
-  Overbright into. `--mod <folder>` opens that map mod.
+  Overbright into. `--mod <name>` opens that map mod: its folder name in your map mods folder, or the path of the
+  mod's folder (the one holding `map.obmap`). A mod outside the map mods folder opens with the mods beside it on
+  Home. A name or path that is neither, or a mod that does not read, stops Studio with a message saying so.
 
 If the launcher says Studio's program is not beside it, unpack the whole download again into one folder:
 `overbright-studio` must sit next to `overbright`.

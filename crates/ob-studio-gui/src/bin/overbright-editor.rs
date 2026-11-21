@@ -28,10 +28,7 @@ use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
 use winit::window::{Window, WindowId};
 
 fn game_root() -> PathBuf {
-    if let Some(r) = std::env::var_os("NFSU2_ROOT").filter(|r| !r.is_empty()) {
-        return PathBuf::from(r);
-    }
-    nfsu2::studio_api::qol::setup::saved_root().unwrap_or_else(|| PathBuf::from("."))
+    nfsu2::studio_api::qol::setup::game_root().unwrap_or_else(|| PathBuf::from("."))
 }
 
 fn new_app(cli: &Cli) -> App {

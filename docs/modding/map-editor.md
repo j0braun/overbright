@@ -82,7 +82,7 @@ Reset camera in the map view). Every item does something; a test checks that eac
 
 | Menu | Items |
 |---|---|
-| File | **File ▸ New map mod…** (Ctrl+N: a name, its folder and the region), **File ▸ Open map mod…** (Ctrl+O), the five most recent mods, **File ▸ Save** (Ctrl+S), **File ▸ Mod details…** (name, author, description), **File ▸ Import…** (a mod folder, a `map.obmap` or a `.zip`), **File ▸ Export…** (a `.zip` or a folder; `map.obmap` only), **File ▸ Quit** (Ctrl+Q; saves first, and asks only when that fails) |
+| File | **File ▸ New map mod…** (Ctrl+N: a name, its folder and the region), **File ▸ Open map mod…** (Ctrl+O), the five most recent mods, **File ▸ Save** (Ctrl+S), **File ▸ Mod details…** (name, author, description), **File ▸ Import…** (a mod folder, a `map.obmap` or a `.zip`), **File ▸ Export…** (a `.zip` or a folder; `map.obmap` only; it proposes `<folder>.zip` in the `exports` folder of Overbright's data folder, made on the first export, and the status line says where the file went), **File ▸ Quit** (Ctrl+Q; saves first, and asks only when that fails) |
 | Edit | **Edit ▸ Undo** and **Edit ▸ Redo**, named by the step they undo or redo (256 steps), **Edit ▸ Duplicate**, **Edit ▸ Delete**, **Edit ▸ Select all of this solid**, **Edit ▸ Drop to ground** |
 | View | **View ▸ 3D view**, **View ▸ Map** (M switches), **View ▸ Frame selection** (F), **View ▸ Reset camera** (the region's overview), **View ▸ Collision ▸ Off**, **View ▸ Collision ▸ Invisible barriers** and **View ▸ Collision ▸ All collision** (see Collision), **View ▸ Hint line** |
 | Race | **Race ▸ New race**, **Race ▸ Test race** (F5), **Race ▸ Drive here** (Shift+F5) |

@@ -52,7 +52,7 @@ Flags every command takes:
 | Flag | Meaning |
 |---|---|
 | `--mod DIR` | The mod's folder (the one holding `map.obmap`). |
-| `--game DIR` | The game folder; by default the one the launcher set. Prop edits and the checks read it. |
+| `--game DIR` | The game folder. Without it the tool looks where the editor and the game look: `NFSU2_ROOT` when it is set, else the folder chosen in the launcher. Prop edits and the checks read it. |
 | `--region NAME` | The region the mod is edited on (default `L4RA`). |
 | `--dry-run` | Show what an edit would change and change nothing. |
 | `--json` | Print one JSON document on stdout. |
@@ -112,7 +112,7 @@ and `work`.
 | 1 | `failed` | The command failed: an edit refused, a conflict, a file that does not read. |
 | 2 | `usage` | The command line is wrong: an unknown command or flag, a missing or bad value, an operations file line that is not an edit. |
 | 3 | `checks` | The checks found an error. |
-| 4 | `no_game` | The game's data is missing or does not load (give `--game`). |
+| 4 | `no_game` | The game's data is missing or does not load (give `--game`, set `NFSU2_ROOT`, or choose the game folder in the launcher). |
 | 5 | `crashed` | The game, run as a child, crashed (for the commands that run it; none yet). |
 | 6 | `timed_out` | The program that has the mod open did not answer within `--wait`. |
 | 7 | `busy` | Another program has the mod open and `--no-inbox` was given. |
