@@ -109,6 +109,7 @@ pub(crate) fn game_folder(command: &super::command::Command) -> Result<bool> {
     // English. Fixed before any thread reads it.
     let language = setup::choose_language(&root, super::cli::LANGUAGE_ARG.get().map(String::as_str));
     nfsu2::game_assets::set_text_language(&language);
+    nfsu2::frontend::format::set_separators(&language);
     log::info!("text language {language}");
     // Sizes on every start; the hashes too when the folder was found
     // rather than given (a first run).

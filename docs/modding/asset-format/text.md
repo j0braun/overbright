@@ -270,10 +270,11 @@ Example: [`examples/text/movies/subtitles/DemoScene.toml`](examples/text/movies/
 
 Let *L* be the active language, always one of role `player`. Which language the engine makes active is outside the
 format: today it is `english` unless the player chooses another (`game --language <name>`, or `language.txt` kept by
-the launcher; `qol::setup::choose_language`), and the original's rule is open (§10). The engine can show these
+the launcher; `qol::setup::choose_language`), and the original's rule is the registry string `Language`, a missing value being English (docs/original/tracing/language.md). The engine can show these
 `player` languages: `english`, `french`, `german`, `italian`, `spanish`, `dutch`, `swedish` and `danish`
-(`game_assets::language_support`; **inferred**: they share the one-byte character map of `english`, and no table other
-than English's was available to the implementation). `korean` (§3.3 rule 2), `japanese`, `chinese` and `thailand`
+(`game_assets::language_support`; `spanish` and `italian` **observed**: the menus and text start in that language on
+a ROG Ally Z1E; the others **inferred**: they share the one-byte character map of `english`, and no file of them was
+tried). `korean` (§3.3 rule 2), `japanese`, `chinese` and `thailand`
 (empty tables, §1) are listed as not supported; a chosen language whose file is missing is `english`. A lookup
 of hash *h*:
 
@@ -386,10 +387,10 @@ the fallback covers them).
 
 ## 10. Open points
 
-- **The language entry point**: how the original chooses its language (installer setting, region, the language
-  name table in the executable) and which language a fresh install shows; whether `Thailand.bin`, `Labels.bin`
-  and `Largest.bin` are ever loaded (no path names them). Until traced, the engine keeps English unless the
-  player chooses another language (§3.8).
+- **The language entry point**: traced, see docs/original/tracing/language.md (the registry string `Language`; a
+  missing value is English). Open: what the installer writes there for each retail edition; whether `Thailand.bin`,
+  `Labels.bin` and `Largest.bin` are ever loaded (no path names them). Overbright keeps English unless the player
+  chooses another language (§3.8).
 - The Korean character map (`word0` = 0x3D9): its layout and decoding. Its strings stay in byte form.
 - The Japanese, Chinese and Thai tables are empty in this edition: what the original shows with them.
 - Subtitles: the time unit and the stepping (0x576470) are not traced; this edition never starts them.

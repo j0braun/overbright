@@ -77,6 +77,33 @@ mod line_count_tests {
         assert_eq!(super::grouped_fixed(-1234567.25, 1), "-1,234,567.3");
     }
 
+    /// SetLanguage's number separators (0x43CB20): English '.' and ',',
+    /// French ',' and ' ', German to Danish ',' and '.'; without a
+    /// language chosen (every test) English's.
+    #[test]
+    fn number_separators_follow_the_language() {
+        use super::format::{Separators, fixed2_in, fixed3_in, grouped_fixed_in, grouped_in};
+        let en = Separators::of("English");
+        assert_eq!(en, Separators::ENGLISH);
+        assert_eq!(super::format::separators(), en, "no test sets a language");
+        assert_eq!((grouped_in(-1234567, en), grouped_fixed_in(4325.0, 1, en)), ("-1,234,567".into(), "4,325.0".into()));
+        assert_eq!((fixed2_in(1234.5, en), fixed3_in(1234.5, en)), ("1,234.50".into(), "1,234.500".into()));
+        let fr = Separators::of("French");
+        assert_eq!((fr.decimal, fr.thousands), (',', ' '));
+        assert_eq!((grouped_in(-1234567, fr), grouped_fixed_in(4325.0, 1, fr)), ("-1 234 567".into(), "4 325,0".into()));
+        assert_eq!((fixed2_in(1234.5, fr), fixed3_in(1234.5, fr)), ("1 234,50".into(), "1 234,500".into()));
+        for l in ["German", "Italian", "Spanish", "Dutch", "Swedish", "Danish"] {
+            let s = Separators::of(l);
+            assert_eq!((s.decimal, s.thousands), (',', '.'), "{l}");
+            assert_eq!(grouped_fixed_in(-1234567.25, 1, s), "-1.234.567,3", "{l}");
+            assert_eq!(fixed2_in(0.5, s), "0,50", "{l}");
+        }
+        // Under 1,000 nothing is grouped; the names match without case.
+        assert_eq!(grouped_in(999, fr), "999");
+        assert_eq!(Separators::of("french"), fr);
+        assert_eq!(Separators::of("Korean"), en);
+    }
+
     use super::line_count;
 
     #[test]

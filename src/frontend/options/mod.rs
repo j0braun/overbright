@@ -35,6 +35,17 @@ pub use screen::*;
 mod tests {
     use super::*;
 
+    /// SetLanguage (0x512360) makes Metric the default for every language
+    /// but English; with no language chosen the tests run in English.
+    #[test]
+    fn metric_defaults_follow_the_language() {
+        assert!(!Settings::metric_default("English"));
+        for l in ["French", "German", "Italian", "Spanish", "Dutch", "Swedish", "Danish"] {
+            assert!(Settings::metric_default(l), "{l}");
+        }
+        assert!(!Settings::default().metric);
+    }
+
     /// The Display group holds HDR Output and its calibration; without
     /// an HDR signal (headless, SDR displays) every row is greyed, HDR
     /// Output reads "Not Supported" and nothing steps.

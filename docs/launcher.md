@@ -84,7 +84,7 @@ arguments (`Outcome::Restart`; the new one waits for the old one's lock)), then 
   list is long.
 - Setup: `first-run` / `first-none` / `first-several` (the copies found, or none with Choose the game folder…),
   `check` / `err-own` / `err-missing` and the game check's states `check-ok`, `check-movies-missing`,
-  `check-details`, `check-changed`, `check-unknown-edition`, `check-no-english` (the folder and its verdict; see
+  `check-details`, `check-changed`, `check-unknown-edition`, `check-no-english` (a copy whose only text is in a language the engine cannot show; the folder and its verdict; see
   "The game check" below).
 - `saves` (the fourth page; `saves-empty`, `saves-found`, `saves-conflict`, `saves-detail-covers`, `saves-backups`,
   `saves-ask-delete`, `saves-undo`, `saves-busy`, `saves-bad-file`, `saves-long-names`): the profiles and the
@@ -255,7 +255,7 @@ shows a busy line and greys the actions meanwhile; the page takes no input while
   `not-a-game-folder`, `files-missing`, `checking`,
   `first-start`, `probe-failed`, `no-vulkan` (the probe found no Vulkan
   driver: the line names the package to install), `long-values` (a long German path, many
-  languages, a long pad name), `unofficial`, `portable` (About of a portable install), `start-failed`,
+  languages, a long pad name), `language-unsupported` (Settings › Advanced with every language the engine cannot show installed), `unofficial`, `portable` (About of a portable install), `start-failed`,
   `unreadable-folder`, the Saves page's `saves-*` and the Mods page's
   `mods-empty`, `mods-busy`, `mods-results`, `mods-remove`, `mods-hud-complete`,
   `mods-hud-incomplete`.
@@ -333,7 +333,7 @@ ok=1
   size with `fit_mode`). The monitor is the launcher window's until the
   probe reports the game's view (`monitor.modes`, `monitor.exclusive`);
   a probe from an older game without those keys reads as exclusive with
-  the fixed list. Mods row with "Mods…" (the Mods page, below); Graphics card, Controller and Game language
+  the fixed list. Mods row with "Mods…" (the Mods page, below); Graphics card and Controller
   as compact information rows (the first
   connected pad's name from gilrs, live); footer About / Import saves… /
   Quit / Play. Play and the whole footer stay in the window without
@@ -448,7 +448,7 @@ ok=1
   | movies or menu files missing | Ready, some movies won't play / Ready, some menu files are missing | Use this folder | Details, Save support file… |
   | some game files changed | Ready, with changed game files | Use this folder | Details, Save support file… |
   | not a release Overbright knows | This copy isn't recognised (a question: Use it anyway?) | Choose another folder… | Use it anyway, Save support file…, Details |
-  | the chosen language's text file alone missing | The game's text file is missing | Choose another folder… | Details, Check again |
+  | no text file the engine can show (the chosen one alone missing, and no other supported language installed) | The game's text file is missing | Choose another folder… | Details, Check again |
   | other key files missing | Some game files are missing | Check again | Show the missing files, Choose another folder… |
   | no game, Overbright's folder, unreadable, folder gone | `Issue::words` | the fix | |
 

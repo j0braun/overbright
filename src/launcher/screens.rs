@@ -745,7 +745,7 @@ pub fn problem_words(p: Problem) -> Words {
         },
         Problem::NoText => Words {
             title: "The game's text file is missing",
-            sentence: "Choose a copy of the game that has its text file, LANGUAGES/English.bin.",
+            sentence: "Choose a copy of the game that has a text file Overbright can show, such as LANGUAGES/English.bin.",
             fix: another,
         },
     }
@@ -1380,7 +1380,6 @@ const USUAL_PLACE: &str = "With Wine or Proton it is inside the prefix, under dr
 
 /// Settings › Advanced.
 fn build_advanced(b: &mut Builder, m: &Model) {
-    let c = &m.choices;
     b.page_title("Advanced", Some("Settings"));
     let cols = b.columns(700.0);
     b.in_column(cols.left);
@@ -1431,11 +1430,11 @@ fn build_advanced(b: &mut Builder, m: &Model) {
     if let Some(r) = cols.right {
         let (gpu, _) = gpu_text(m);
         let pad = m.controller.clone().unwrap_or_else(|| "None (keyboard and mouse work)".into());
-        let lang = m.language_name();
-        b.describe(r, "This computer", &format!("Graphics card: {gpu}\nController: {pad}\nGame language: {lang}"));
+        b.describe(r, "This computer", &format!("Graphics card: {gpu}\nController: {pad}"));
     }
     b.y = left_bottom.max(b.widgets.last().map_or(0.0, |w| w.rect.bottom()));
-    b.default_focus = Some("text_size");
+    // The first row, the Game language.
+    b.default_focus = Some("language");
 }
 
 /// The Dev page: Studio (its button and its command-line tool), the

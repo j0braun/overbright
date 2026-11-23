@@ -152,13 +152,13 @@ impl Issue {
             Issue::NoText { others } => w(
                 "The game's text file is missing",
                 format!(
-                    "The game reads its menus and text from {}, and this copy doesn't have it{}. The game can't \
-                     start without it. Choose a copy that has this file.",
+                    "The game reads its menus and text from a file in LANGUAGES, such as {}, and this copy has no \
+                     file Overbright can show{}. The game can't start without one. Choose a copy that has one.",
                     crate::game_assets::text_file_of(crate::game_assets::DEFAULT_LANGUAGE),
                     match others.len() {
                         0 => String::new(),
-                        1 => format!(" (its text is in {})", others[0]),
-                        _ => format!(" (its text is in {} and other languages)", others[0]),
+                        1 => format!(" (its text is in {}, which isn't supported yet)", others[0]),
+                        _ => format!(" (its text is in {} and other languages not supported yet)", others[0]),
                     }
                 ),
                 vec![another, ("details", "Details"), CHECK_AGAIN],
@@ -2345,6 +2345,9 @@ pub fn save_choices(c: &Choices, first: Option<&FirstRun>) -> Result<(), SaveErr
         Settings::load_text()
     } else if let Some(f) = first {
         let mut d = Settings::default();
+        // The launcher does not run in the game's language: the choice sets
+        // the Metric default as the game's own start would.
+        d.metric = Settings::metric_default(if c.language.is_empty() { crate::game_assets::DEFAULT_LANGUAGE } else { &c.language });
         d.estimated_detail(f.detail);
         d
     } else {

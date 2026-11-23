@@ -113,6 +113,20 @@ fn every_screen_fits_every_size() {
     }
 }
 
+/// Settings › Advanced with every language the engine cannot show
+/// installed: the "Not supported yet" line and the rows fit every size.
+#[test]
+fn unsupported_languages_line_fits_every_size() {
+    let fonts = Fonts::new();
+    let env = FakeEnv;
+    for (w, h) in SIZES {
+        let a = super::headless::state_app(&env, &fonts, "language-unsupported", w, h, 1.0).unwrap();
+        let t = all_text(&a);
+        assert!(t.contains("Not supported yet") && t.contains("Korean") && t.contains("Thailand"), "{w}x{h}: {t}");
+        check_layout(&a.ui, &fonts, &format!("language-unsupported {w}x{h}"));
+    }
+}
+
 /// The browser with Windows' dialog button (the Windows layout).
 #[test]
 fn browser_with_the_windows_dialog_button_fits() {
@@ -2922,10 +2936,11 @@ fn check_states_words_and_focus() {
     // The unrecognised copy is asked about: Use it anyway, not by default.
     let a = super::headless::state_app(&env, &fonts, "check-unknown-edition", 1280, 720, 1.0).unwrap();
     assert!(a.ui.get("use").is_some() && a.ui.get("support").is_some());
-    // The text file is named; the copy's language is said.
+    // The text file is named; the copy's language is said, and it is one
+    // the game cannot show.
     let a = super::headless::state_app(&env, &fonts, "check-no-english", 1280, 720, 1.0).unwrap();
     let t = all_text(&a);
-    assert!(t.contains("LANGUAGES/English.bin") && t.contains("French"), "{t}");
+    assert!(t.contains("LANGUAGES/English.bin") && t.contains("Korean") && t.contains("isn't supported"), "{t}");
     assert!(a.ui.get("use").is_none(), "the game does not start without it");
     // The details list scrolls to its last row by pad at the smallest size.
     let mut a = super::headless::state_app(&env, &fonts, "check-details", 640, 480, 1.0).unwrap();
@@ -2972,13 +2987,13 @@ fn check_summary_release_and_text() {
     let unknown = super::headless::fake_check(&[], &[], &[], true);
     assert_eq!(unknown.state(), CheckState::UnknownEdition);
     assert!(unknown.usable, "asked about, not refused");
-    // A copy with another language's text only: the game folder's look,
-    // its text file missing.
+    // A copy with a language's text that is not supported only: the game
+    // folder's look, no text file the game can use.
     let dir = std::env::temp_dir().join(format!("ob-check-text-{}", std::process::id()));
     for d in ["GLOBAL", "FRONTEND", "TRACKS", "LANGUAGES"] {
         std::fs::create_dir_all(dir.join(d)).unwrap();
     }
-    for f in ["GLOBAL/GlobalB.lzc", "FRONTEND/FrontB.lzc", "LANGUAGES/French.bin"] {
+    for f in ["GLOBAL/GlobalB.lzc", "FRONTEND/FrontB.lzc", "LANGUAGES/Korean.bin"] {
         std::fs::write(dir.join(f), b"").unwrap();
     }
     let c = crate::qol::setup::Check {
@@ -2989,7 +3004,7 @@ fn check_summary_release_and_text() {
     };
     let r = super::model::check_result(&dir, &c, None);
     assert_eq!(r.problem, Some(super::model::Problem::NoText), "{r:?}");
-    assert_eq!(r.issue(), Some(super::model::Issue::NoText { others: vec!["French".into()] }));
+    assert_eq!(r.issue(), Some(super::model::Issue::NoText { others: vec!["Korean".into()] }));
     let _ = std::fs::remove_dir_all(&dir);
 }
 

@@ -66,8 +66,8 @@ pub enum Support {
 ///
 /// The one-byte languages read through the string table's character map
 /// (`frontend::feng::strings`): **inferred** to work for every file that
-/// has one, since the engine reads them as `English.bin`; no file other
-/// than the English one was available when this was written. The rest
+/// has one, since the engine reads them as `English.bin`. Spanish and
+/// Italian were tried and start in their language; the others were not. The rest
 /// cannot be shown well today (docs/modding/asset-format/text.md §3.3,
 /// §10).
 pub fn language_support(name: &str) -> Support {

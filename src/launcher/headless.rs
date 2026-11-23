@@ -51,7 +51,7 @@ pub fn named_app<'e>(env: &'e FakeEnv, fonts: &Fonts, name: &str, w: u32, h: u32
 
 /// The named states: (name, the screen it is shown on). The fake data of
 /// each comes from [`state_model`].
-pub const STATES: [(&str, Screen); 72] = [
+pub const STATES: [(&str, Screen); 73] = [
     ("no-game", Screen::FirstRun),
     ("check-ok", Screen::Check),
     ("check-movies", Screen::Check),
@@ -68,6 +68,7 @@ pub const STATES: [(&str, Screen); 72] = [
     ("probe-failed", Screen::Main),
     ("no-vulkan", Screen::Main),
     ("long-values", Screen::Main),
+    ("language-unsupported", Screen::Advanced),
     ("skip-movies", Screen::Main),
     ("unofficial", Screen::About),
     ("portable", Screen::About),
@@ -204,12 +205,13 @@ pub fn state_model(name: &str) -> Option<(Screen, Model)> {
         "check-unknown-edition" => m.check = Some(fake_check(&[], &[], &[], true)),
         "check-no-english" => {
             let mut c = fake_check(&["LANGUAGES/English.bin"], &[], &[], false);
-            // A copy with French text only (`check_result` names the
-            // problem by the folder's look; the fake folder is not there).
+            // A copy with Korean text only, which the game cannot show (a
+            // French-only copy starts in French; `check_result` names the
+            // problem by the folder's look, the fake folder is not there).
             c.usable = false;
             c.problem = Some(Problem::NoText);
             if let Some(s) = c.summary.as_mut() {
-                s.languages = vec!["French".into()];
+                s.languages = vec!["Korean".into()];
             }
             m.check = Some(c);
         }
@@ -259,6 +261,11 @@ pub fn state_model(name: &str) -> Option<(Screen, Model)> {
             m.probe = ProbeState::Failed("the game program was not found next to the launcher".into());
             m.settings_file = false;
             m.controller = None;
+        }
+        "language-unsupported" => {
+            // The languages the engine cannot show, all installed: the
+            // longest "Not supported yet" line.
+            m.languages = ["English", "French", "Korean", "Japanese", "Chinese", "Thailand"].map(String::from).to_vec();
         }
         "long-values" => {
             m.root = Some(PathBuf::from(
