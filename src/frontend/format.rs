@@ -1,14 +1,63 @@
 //! Number, time and money text formatters (the game's printf and FormatRaceTime). Moved side by side from their old homes, unchanged;
 //! the old paths re-export them.
 
-/// `%$d`: the game's printf groups thousands with ',' when the format has
-/// the '$' flag (0x43E950 with the locale bytes at 0x7EB3F0: '.', ',', 3).
+/// The decimal mark and the thousands separator of the number text
+/// (the locale bytes at 0x7EB3F0, which SetLanguage 0x512360 sets through
+/// 0x43CB20(a, b, 3): '.' and ',' for English and the ids from 8; ',' and
+/// ' ' for French; ',' and '.' from German to Danish; which of the two is
+/// the decimal mark is **inferred**, docs/formats/front-end.md "Language
+/// selection").
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct Separators {
+    pub decimal: char,
+    pub thousands: char,
+}
+
+impl Separators {
+    /// English's: '.' and ','.
+    pub const ENGLISH: Separators = Separators { decimal: '.', thousands: ',' };
+
+    /// The separators SetLanguage sets for a text language's name.
+    // prov: inferred format.separators
+    pub fn of(language: &str) -> Separators {
+        match language.to_ascii_lowercase().as_str() {
+            "french" => Separators { decimal: ',', thousands: ' ' },
+            "german" | "italian" | "spanish" | "dutch" | "swedish" | "danish" => {
+                Separators { decimal: ',', thousands: '.' }
+            }
+            _ => Separators::ENGLISH,
+        }
+    }
+}
+
+static ACTIVE: std::sync::OnceLock<Separators> = std::sync::OnceLock::new();
+
+/// Fixes the number text's separators for the rest of the run from the
+/// text language ([`crate::game_assets::set_text_language`]'s name). Called
+/// once at start; English's apply until then (and in every test).
+pub fn set_separators(language: &str) -> bool {
+    ACTIVE.set(Separators::of(language)).is_ok()
+}
+
+/// The separators in force.
+pub fn separators() -> Separators {
+    ACTIVE.get().copied().unwrap_or(Separators::ENGLISH)
+}
+
+/// `%$d`: the game's printf groups thousands when the format has the '$'
+/// flag (0x43E950 with the locale bytes at 0x7EB3F0: '.', ',', 3; the
+/// separators of [`separators`]).
 pub fn grouped(n: i64) -> String {
+    grouped_in(n, separators())
+}
+
+/// [`grouped`] with explicit separators.
+pub fn grouped_in(n: i64, sep: Separators) -> String {
     let digits = n.unsigned_abs().to_string();
     let mut out = String::new();
     for (i, c) in digits.chars().enumerate() {
         if i > 0 && (digits.len() - i) % 3 == 0 {
-            out.push(',');
+            out.push(sep.thousands);
         }
         out.push(c);
     }
@@ -54,11 +103,16 @@ pub fn bprintf_fixed_parts(v: f64, decimals: usize) -> (bool, String) {
 /// `%$.Nf`: [`bprintf_fixed`] with the integer part's thousands grouped
 /// (the `$` flag, as `%$d`; Career Statistics "4,325.0").
 pub fn grouped_fixed(v: f64, decimals: usize) -> String {
+    grouped_fixed_in(v, decimals, separators())
+}
+
+/// [`grouped_fixed`] with explicit separators.
+pub fn grouped_fixed_in(v: f64, decimals: usize, sep: Separators) -> String {
     let (neg, body) = bprintf_fixed_parts(v, decimals);
     let (int, frac) = body.split_once('.').map_or((body.as_str(), None), |(i, f)| (i, Some(f)));
-    let int = grouped(int.parse::<i64>().unwrap_or(0));
+    let int = grouped_in(int.parse::<i64>().unwrap_or(0), sep);
     let s = match frac {
-        Some(f) => format!("{int}.{f}"),
+        Some(f) => format!("{int}{}{f}", sep.decimal),
         None => int,
     };
     if neg { format!("-{s}") } else { s }
@@ -119,6 +173,11 @@ pub fn signed_time(ticks: i32) -> String {
 /// truncation, then the last one rounded up when the rest × 10 ≥ 5
 /// (0x43EF92–0x43EFD8, 5.0 at 0x786E48): half up, not half to even.
 pub fn fixed3(v: f64) -> String {
+    fixed3_in(v, separators())
+}
+
+/// [`fixed3`] with explicit separators.
+pub fn fixed3_in(v: f64, sep: Separators) -> String {
     let scaled = v.abs() * 1000.0;
     let mut k = scaled.trunc();
     if (scaled - k) * 10.0 >= 5.0 {
@@ -128,15 +187,20 @@ pub fn fixed3(v: f64) -> String {
     let (whole, fraction) = s.split_once('.').unwrap_or((&s, "000"));
     let digits = whole.trim_start_matches('-');
     let sign = if whole.starts_with('-') { "-" } else { "" };
-    format!("{sign}{}.{fraction}", super::grouped(digits.parse().unwrap_or(0)))
+    format!("{sign}{}{}{fraction}", grouped_in(digits.parse().unwrap_or(0), sep), sep.decimal)
 }
 
 pub fn fixed2(v: f32) -> String {
+    fixed2_in(v, separators())
+}
+
+/// [`fixed2`] with explicit separators.
+pub fn fixed2_in(v: f32, sep: Separators) -> String {
     let s = super::bprintf_fixed(f64::from(v), 2);
     let (whole, fraction) = s.split_once('.').unwrap_or((&s, "00"));
     let digits = whole.trim_start_matches('-');
     let sign = if whole.starts_with('-') { "-" } else { "" };
-    format!("{sign}{}.{fraction}", super::grouped(digits.parse().unwrap_or(0)))
+    format!("{sign}{}{}{fraction}", grouped_in(digits.parse().unwrap_or(0), sep), sep.decimal)
 }
 
 /// The game's clock ticks 4000 times a second (0x865188).
@@ -200,15 +264,7 @@ pub fn signed_time_text(ticks: i32) -> String {
     if first > 9 || whole == 0 { format!("{sign}{t}") } else { format!("{sign}{}", &t[1..]) }
 }
 
-/// "%$d": thousands grouped with ','.
+/// "%$d": thousands grouped (the separators of [`separators`]).
 pub fn grouped_int(v: i32) -> String {
-    let digits = v.unsigned_abs().to_string();
-    let mut out = String::new();
-    for (i, c) in digits.chars().enumerate() {
-        if i > 0 && (digits.len() - i) % 3 == 0 {
-            out.push(',');
-        }
-        out.push(c);
-    }
-    if v < 0 { format!("-{out}") } else { out }
+    grouped(i64::from(v))
 }

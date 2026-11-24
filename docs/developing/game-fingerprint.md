@@ -56,7 +56,7 @@ says exactly which file plays.
   builds (the string after `%sMOVIES\%s%s`; read for the report only).
 * Inventory: the boot movies, the story movies, the tutorials and the
   neighbourhood flybys the game asks for (`game_assets::wanted_movies`),
-  and the menu and text files (`frontend::assets::ASSET_FILES`), each with
+  and the menu and text files (`frontend::assets::asset_files`, for the active text language), each with
   the file found and how (the built name, no suffix, a language's file) or
   missing with the names tried.
 * Where it shows: summary lines in `setup::check_lines` (the launcher's
@@ -96,3 +96,7 @@ executables work".
 Other retail editions (other languages, 1.0 / 1.1, re-releases) have no
 recorded hashes: they show as unknown until a user sends a `--check-game`
 output. Overbright starts with all of them.
+
+A text language other than English has no recorded size or checksum either. The check requires the chosen
+language's file in place of `English.bin`, lists it as "not verified" and leaves a missing `English.bin` out of
+the edition verdict (`Fingerprint::verdict_skipping`, `qol::setup::check_for`).

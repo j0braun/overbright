@@ -3486,7 +3486,7 @@ follows from the selection alone). What each list's fill passes to it:
   docs/formats/audio.md), the metric default 0x83AA1A = (id ≠ 0), the FE
   refresh 0x50C7E0 when the FE exists, the number separators 0x43CB20(a,
   b, 3) — English and 8+: '.' and ','; French: ',' and ' '; German to
-  Danish: ',' and '.' (**inferred** which is the decimal mark) — and, when
+  Danish: ',' and '.' (**inferred** which is the decimal mark; Overbright's `frontend::format::Separators`) — and, when
   0x83AA00 is clear, the default name buffer 0x83A9E0 from label
   0xCF4F80C2 (0xC01A6F63 when missing); last it tail-calls 0x4A95F0(id).
   LANGUAGES\LANGUAGETEXTURES.BIN (0x79AA64) is loaded with the front end

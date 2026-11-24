@@ -93,7 +93,7 @@ is one of these:
 | Ready, some menu files are missing | A menu file is missing; some menus may not load. | Use this folder; if a menu fails, save a support file. |
 | Ready, with changed game files | Some game files are not the original ones (a mod or another release). The game may look or play differently. | Use this folder; attach a support file to any report. |
 | This copy isn't recognised | None of the game files match the release Overbright knows. Overbright asks before it uses the folder. | Choose another folder, or Use it anyway; a support file helps add the release. |
-| The game's text file is missing | The copy has no `LANGUAGES/English.bin` (for example a copy with another language's text only). The game reads its menus and text from that file and does not start without it. | Choose a copy that has the file. |
+| The game's text file is missing | The copy has no text file Overbright can show: no `LANGUAGES/English.bin` and no file of another supported language (for example a copy with Korean text only). The game reads its menus and text from such a file and does not start without one. | Choose a copy that has one. |
 | Some game files are missing | Files the game needs are not in the folder (an install or a copy stopped early). | Reinstall or copy the whole folder again, then Check again. |
 | No game here | The folder is not the game's. | Choose the folder with GLOBAL, FRONTEND and TRACKS in it. |
 | This is Overbright's folder | Overbright's own folder was chosen. | Choose the folder the game was installed to. |
