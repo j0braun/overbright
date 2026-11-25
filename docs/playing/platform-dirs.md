@@ -143,7 +143,7 @@ touches settings, kept paths rewritten both ways), `launcher::tests::portable_of
 | texture packs, imported mods, the converted HUD mod | `<app>/texture-pack` | `data/texture-pack/` | `dirs::packs`, `texture_mods`, `hud_mod` |
 | launcher.lock | `<app>` | `data/` | `launcher::dirs::lock_file` |
 | map mods, the map editor's recent list (`editor-recent.txt`) | `<app>/maps`, `<app>` | `data/maps/`, `data/` | `dirs::maps`, `dirs::config`, `editor::app` |
-| mod exports proposed by the map editor (`<folder>.zip`; made on the first export) | `<app>/exports` | `data/exports/` | `dirs::exports` |
+| mod exports proposed by Studio and the map editor (`<folder>.zip`; made on the first export) | `<app>/exports` | `data/exports/` | `dirs::exports` |
 | driver shader cache | the driver's (`~/.cache/mesa_shader_cache*`, `%LOCALAPPDATA%\<vendor>\…`) | Linux: `data/cache/driver`; Windows: unchanged | `dirs::driver_cache_vars` |
 | read only: the registry's `Install Dir`, `%ProgramFiles%`, the Wine/Steam/Lutris places | — | unchanged (only read) | `qol::setup::candidates`, `platform::win` |
 | read only: the original's saves (`%LOCALAPPDATA%\NFS Underground 2`; on Linux the same folder inside Wine prefixes, the Saves page's import), the home folder (the browser) | — | unchanged (only read) | `launcher::dirs::original_saves`, `launcher::saves::sources`, `home` |

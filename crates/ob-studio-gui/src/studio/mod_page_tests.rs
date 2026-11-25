@@ -160,6 +160,11 @@ fn export_warns_for_derived_textures_and_imports_again_as_the_same_mod() {
     let size = (1920, 1080);
     let mut s = studio(&dir);
     s.go(&Address::view("harbour-edits", "@mod")).unwrap();
+    // Proposed: Overbright's exports folder, never the home folder itself.
+    let proposed = PathBuf::from(&s.mod_page.export_to);
+    assert_eq!(proposed, ob_studio::share::default_zip(&crate::platform::dirs::exports(), "harbour-edits"));
+    assert_ne!(proposed.parent(), crate::platform::dirs::home().as_deref(), "not the home folder");
+    // A folder that does not exist yet is made.
     let zip = dir.join("shared/harbour-edits.zip");
     s.mod_page.export_to = zip.display().to_string();
     frames(&mut s, size, 1.0, 1);

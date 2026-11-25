@@ -1244,6 +1244,12 @@
       ]
     },
     {
+      "name": "pack.repair",
+      "kind": "edit",
+      "summary": "Repair a map file that no longer reads, where a safe repair exists (as one undo step)",
+      "args": []
+    },
+    {
       "name": "edit.group",
       "kind": "edit",
       "summary": "Several edits as one undo step (the edits as a JSON list)",
