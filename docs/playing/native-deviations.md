@@ -127,7 +127,7 @@ legacy Reversed-Z row is hidden unless something switched it on.
 
 Where and when it rains stays the original's.
 
-### 3.5 Performance (11)
+### 3.5 Performance (12)
 | Option | Default | What it changes |
 |---|---|---|
 | Render Scale | 100% | Draws the 3D scene at 50 to 100% of the screen; the HUD stays sharp |
@@ -136,6 +136,7 @@ Where and when it rains stays the original's.
 | Reversed-Z Depth | Off (row hidden unless on) | Legacy: no visible effect in any tested scene |
 | Frame Rate Cap | Off | Caps drawing; the world rate is unaffected |
 | Low Latency | Off | One frame in flight, input read after the display wait |
+| In the Background | Native (pause) | Keep running, or keep running drawn at 30 FPS, while the window is not focused (the original pauses) |
 | Power Saving | Off | Frame caps where nothing the player watches changes |
 | Performance Overlay | Hidden | The F3 overlay's layout (Minimal, Standard, Full) |
 | Overlay Position | Default | Overlay corner |

@@ -131,6 +131,7 @@ pub static MODEL: &[RowModel] = &[
     m(RowId::ReversedZ, Performance, Enhanced, Live),
     m(RowId::FrameCap, Performance, Utility, Live),
     m(RowId::LowLatency, Performance, Utility, Live),
+    m(RowId::Background, Performance, Utility, Live),
     m(RowId::PowerSaving, Performance, Utility, Live),
     m(RowId::PerfOverlay, Performance, Utility, Live),
     m(RowId::OverlayPosition, Performance, Utility, Live),

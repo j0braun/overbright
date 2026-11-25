@@ -664,6 +664,9 @@ and our Xvfb (by PID) are stopped.
 - Never heard: the prefix has no sound driver (`HKCU\Software\Wine\Drivers` `Audio` empty, set right after the
   first boot; Wine's ALSA driver opens the machine's sound cards directly, which a private `XDG_RUNTIME_DIR` does
   not stop), and the windowed steps start the game with `NFSU2_AUDIO_HOST=none` (no sound device is opened).
+  They also set `NFSU2_KEEP_RUNNING=1`: nobody focuses their window, and In the background's native Pause
+  would stop the game (docs/original/focus-loss.md). The other windowed scripts (`*_xtest.sh`,
+  `dyno_xvfb.sh`) set it too.
   `w_window` and `l_play` fail when their logs say a device was opened (`audio: … output at`, an ALSA message);
   `--env-check` proves the wrapper carries the switch. The launcher's fresh-machine test starts its game the
   same way and fails on the same line.

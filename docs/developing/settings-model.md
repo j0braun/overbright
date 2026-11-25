@@ -133,7 +133,7 @@ Results: internal evidence. `NFSU2_BENCH_ENH_SWITCH` also takes several switches
   post precision, LOD fade, reflections, car paint / glass / detail, smooth cars, fix models), Lighting & Effects
   (Modern Lighting + strength, SSAO, shadows, lamps, beams, probes, surface detail, fog, sky, particles, sparks,
   motion blur, DOF, ambient), Weather & Water, Performance (render scale, upscaling, world detail, frame cap, low
-  latency, power saving, overlay), Gameplay & Accessibility (FOV, HUD, palette, flashing, lists, outrun variety,
+  latency, in the background, power saving, overlay), Gameplay & Accessibility (FOV, HUD, palette, flashing, lists, outrun variety,
   traffic, replay cameras, photo mode, mark spot, saves, crash reports), Packs (HD UI, reload, texture pack,
   generate);
 * **origin**: `Shared(n)` (the original's Customize Display row n as its first tiers: texture filtering, road /

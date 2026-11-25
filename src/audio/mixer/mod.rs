@@ -188,6 +188,28 @@ mod tests {
         assert!(mix.voices.is_empty());
     }
 
+    /// Held (In the background's Pause): silence out, and the voice goes
+    /// on from where it stood once let go.
+    #[test]
+    fn a_held_mix_is_silent_and_stands_still() {
+        let mut mix = Mix::new(44100);
+        let s: Sample = Arc::new((22050, vec![16384.0; 100]));
+        mix.play(&s, 0x7F, 0x1000);
+        let mut out = vec![0.0; 2 * 150];
+        mix.hold(true);
+        for _ in 0..10 {
+            out.fill(1.0);
+            mix.render(&mut out, 2);
+            assert!(out.iter().all(|&x| x == 0.0));
+        }
+        assert_eq!(mix.voices.len(), 1, "the voice waits");
+        mix.hold(false);
+        mix.render(&mut out, 2);
+        assert!((out[0] - 0.5 * MASTER * 180.0 / 255.0).abs() < 1e-6, "from its start");
+        mix.render(&mut out, 2);
+        assert!(mix.voices.is_empty());
+    }
+
     #[test]
     fn pan_rows_match_the_tables() {
         let row = |b: u16| {

@@ -312,8 +312,9 @@ arrived.
   as a key let go in another window (Alt-Tab) sends no release. Only the
   keyboard's Enter reaches Alt+Enter; a controller's Select never does.
 * **Immediate (presentation only):** resize, move, scale factor and the
-  monitor; focus and occlusion (Power Saving's cap and a swap-chain log
-  line; the focus's key release goes through the queue, above); the close request (ends the event
+  monitor; focus and occlusion (In the background's pause or Draw less
+  cap and a swap-chain log line, [focus-loss.md](focus-loss.md); the
+  focus's key release goes through the queue, above); the close request (ends the event
   loop; nothing of the game runs for it); the redraw. The quit question's
   Quit Game (`quit_app`) is set on a tick and ends the event loop right
   after (`about_to_wait`; before, only a key's own handler checked it, so

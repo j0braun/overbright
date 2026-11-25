@@ -110,9 +110,10 @@ W() { env -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE XDG_RUNTIME_DIR="$O/xdg" DISPLA
 # NFSU2_HEADLESS_ONLY (checks.sh exports it for everything it starts; the game refuses to open a window with it,
 # and Wine hands the Unix environment to the Windows program). Only ever on our own display, and never heard:
 # NFSU2_AUDIO_HOST=none (the game opens no sound device) on top of the prefix without a sound driver.
+# NFSU2_KEEP_RUNNING: the window nobody focuses keeps running (In the background is Pause by default).
 WWIN() {
   [ -n "$DNUM" ] || ck_die "a windowed run without our own display"
-  env -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE -u NFSU2_HEADLESS_ONLY XDG_RUNTIME_DIR="$O/xdg" DISPLAY=":$DNUM" NFSU2_AUDIO_HOST=none "$@"
+  env -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE -u NFSU2_HEADLESS_ONLY XDG_RUNTIME_DIR="$O/xdg" DISPLAY=":$DNUM" NFSU2_AUDIO_HOST=none NFSU2_KEEP_RUNNING=1 "$@"
 }
 # wp PATH: PATH as Wine's programs see it. winepath -w cuts its answer at MAX_PATH (Wine 11: a 282-character
 # folder came back as its first 257 characters, a folder that does not exist); a path outside the prefix's

@@ -11,6 +11,8 @@ Each is off, or at the original's value, until you change it. With all of them o
 | **HUD Colours** (Gameplay & Accessibility) | Native / Deuteranopia / Protanopia / Tritanopia | HUD colours for colour-vision deficiency | `enh.hud_palette 1..3` |
 | **Minimap Size**, **Speedometer Size**, **Race Info Size** (Gameplay & Accessibility) | 70–150 % (100 is the original) | Size each part of the HUD separately | `enh.hud_minimap`, `enh.hud_speedo`, `enh.hud_info` |
 | **Reduced Flashing** (Gameplay & Accessibility) | Off / On | Weaker full-screen flashes | `enh.reduced_flashing 1` |
+| **In the Background** (Advanced → Performance) | Native (pause) / Keep running / Draw less | What the game does while its window is not focused or is minimised | `enh.background 1..2` |
+| **Power Saving** (Advanced → Performance) | Off / Menus / Menus + Battery | Menus, and on battery the whole game, held to the display's refresh rate | `enh.power_caps 1..2` |
 
 ## What each setting does
 
@@ -56,6 +58,12 @@ laps, times, leader board).
 **Reduced Flashing** holds bright full-screen flashes to a quarter of their strength. The original's
 full-screen flash is the scenes' SCREEN_FLASH; the weather has no visual flash (thunder is sound only). It
 does not yet cover Take Picture's flash.
+
+**In the Background.** Native: like the original, the game pauses while its window is not the focused one or
+is minimised. The race, the drawing and the sound stop, and keys you held are let go. When you come back it goes
+on from where it stood; the time away is not caught up. **Keep running** lets the race and the sound go on.
+**Draw less** does too, but draws only 30 frames a second, which saves power. The game's world still runs at its
+own pace. Details: [focus-loss.md](../original/focus-loss.md).
 
 **Subtitles size** was not added. The original has subtitle files, but this edition never shows them, so
 showing them would be a new feature (see "Accessibility" below).
