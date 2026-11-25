@@ -122,6 +122,11 @@ pipeline (src/…:…)`); it ends with what to try. In order:
 2. **Set Graphics to Original** in the launcher (or start once with the launcher's safe start). The game then
    builds far fewer shader programs, so a crash in one of the Enhanced effects' programs does not happen.
 
+One such crash is known: on AMD's Windows driver, **LOD Fade with multisampling** (Enhanced graphics, LOD
+Fade on, more than 1 sample per pixel) can close the game while it prepares the graphics
+([#155](https://github.com/j0braun/overbright/issues/155)). Turn LOD Fade or multisampling off. At 1 sample
+per pixel LOD Fade uses a program the driver builds, with the same picture.
+
 A maintainer may ask you for one more start to narrow it down, for example with wgpu's `WGPU_DEBUG=1`
 switch (it hands the driver the shaders with their source lines; a known crash of AMD's Windows Vulkan driver
 while it builds a program depends on that, [wgpu #6329](https://github.com/gfx-rs/wgpu/issues/6329)). The

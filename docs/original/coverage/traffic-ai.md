@@ -13,24 +13,33 @@ the [traffic parity harness](../../traffic-harness.md) and are written as ours /
 with the scripted player driving, `qr:circuit` and `qr:drag` Quick Races at traffic level Maximum.
 
 Last checked against the default branch with the lane check, the kept walk offsets, the race
-coordinate steps and the own-lane re-plan in place.
+coordinate steps and the own-lane re-plan in place; the encounter, junction and Quick Race circuit
+rows measured again with the original at a fixed 1/60 s frame.
 
 ## Summary
 
 | Status | Rows |
 |---|---|
-| PORTED | 79 |
+| PORTED | 80 |
 | SIMPLIFIED | 10 |
 | GUESSED | 8 |
-| MISSING | 5 |
+| MISSING | 4 |
 | NOT NEEDED | 11 |
 | **Total** | **113** |
 
-The behaviour the harness measures is within the original's spread for density, placements, speeds,
-lane keeping, lane changes, Avoid Cars, jams, freezes while standing, brake lights, horns and models.
-Two numbers stay outside: head-on stands at crossings while the player drives (0.41 pairs per 5-minute
-run against 0.21) and stops for good after hits by encounter cars (about six times the original's hit
-rate). Both have their row and their place in the gap list at the end.
+The behaviour the harness measures in free roam is within the original's spread for density,
+placements, speeds, lane keeping, lane changes, Avoid Cars, jams, freezes while standing, brake
+lights, horns and models. Three things stay outside. Encounter cars hit traffic far more often (8.4
+contacts per 5-minute run against 1.4, with the original at a fixed 1/60 s frame). In a Quick Race
+circuit, traffic spends more time in Avoid Cars (0.58 against 0.42) and jams more (0.11 against
+0.016). Head-on stands at crossings while the player drives are inside the original's range, but
+ours stays above its mean. Each has its row and its place in the gap list at the end.
+
+The original's AI counts frames, so its numbers change with its frame rate (a traffic car thinks
+every 2N frames). Native numbers marked "fixed 1/60" come from runs of the original at a fixed 1/60 s
+frame, this game's own world step ([parity-harness.md](../../developing/parity-harness.md),
+"Renderer and frame rate"). The other native numbers come from older real-time runs on wined3d at an
+unknown frame rate: they are indicative only until they are measured again.
 
 ## Pool, models and skins
 
@@ -61,7 +70,7 @@ rate). Both have their row and their place in the gap list at the end.
 | 0x410FC0, 0x411060 | Traffic_SpacingTest, Traffic_CoordNearCar | spacing to the other placed cars, 2D or race coordinate | `ai/traffic/place.rs:coordinate_point`, `race_coord_step` | **PORTED** | verified | low |
 | 0x409840, 0x409890, 0x4098D0, 0x410DE0 | Traffic_DistToPlayers, Traffic_CoordNearPlayer, —, Traffic_NearPlayer | distance to the humans, 2D or along the race road | `ai/traffic/place.rs:race_coord_step`, `sim/traffic/think.rs:traffic_place_pass` | **PORTED** | verified; the keep limit 250 m re-observed (parks at 244–270 m) | low |
 | 0x417BB0 | Traffic_NeedsPlacing | the keep test every 0.3 s: parked, or too far from the player | `sim/traffic/think.rs:traffic_place_pass`, `ai/traffic/stream.rs:ring_presence` | **PORTED** | verified | low |
-| — (writer of car +0x8FC for traffic) | — | a traffic car's race coordinate, moved on in about 11.6 m steps | `ai/traffic/place.rs:race_coord_step` | **GUESSED** | observed: steps of 11.1–12.1 m (median 11.6) at 5 and 20 m/s in drag and circuit; no store found by a static search (`ai.traffic.race_coord_step`); drag placed 4.54 vs 4.65 cars after the port (was 3.64) | med: race traffic density |
+| — (writer of car +0x8FC for traffic) | — | a traffic car's race coordinate, moved on in about 11.6 m steps | `ai/traffic/place.rs:race_coord_step` | **GUESSED** | observed: steps of 11.1–12.1 m (median 11.6) at 5 and 20 m/s in drag and circuit; no store found by a static search (`ai.traffic.race_coord_step`); drag placed 4.54 vs 4.65 cars after the port (was 3.64); real-time wined3d runs, not yet measured again at fixed 1/60 | med: race traffic density |
 | 0x4112A0 | Traffic_JamTest | no placement while the player is slow and traffic queues | `sim/traffic/think.rs:traffic_think`, `ai/traffic/place.rs:placer_try_draws` | **PORTED** | verified; stand jam share 0.021 [0.001–0.05] vs 0.081 [0–0.45] | low |
 | 0x410CA0 | Traffic_PickLane | a lane of a record: ten random picks, then the first; in drag the human's lane with odds ½ | `ai/traffic/walk.rs:pick_lane`, `ai/traffic/place.rs:drag_lane` | **PORTED** | verified | low |
 | 0x42C950, 0x42C670 | Traffic_PlaceCar, Traffic_CreateOnPoint | put a car on its lane: ground, heading, mover, fresh driver, lane speed | `sim/traffic/place.rs:place_traffic`, `place_on_road` | **SIMPLIFIED** | verified; the ground placement's velocity projection on a slope is the clone's (`place_on_mover` notes) | low |
@@ -76,7 +85,7 @@ rate). Both have their row and their place in the gap list at the end.
 |---|---|---|---|---|---|---|
 | 0x426580, 0x425AB0 | TrafficController_Ctor, CarDriver_Ctor | the traffic controller and the racers' driver, throttle cap 1 | `sim/traffic/place.rs:place_traffic` | **PORTED** | verified (cap 0x425B44: 1.0 for any class but 2) | low |
 | 0x42A050 | TrafficCtl_Reset | reset on placement, resume of a paused car | `sim/traffic/think.rs:placed_active` | **PORTED** | verified | low |
-| 0x429D90 | TrafficController_Update | stuck test, then on its frame: leave crossings, lane update, intersection, proposals, action, mover switch | `ai/traffic/think.rs:think`, `sim/traffic/think.rs:traffic_car_frame`, `traffic_lane_think` | **PORTED** | verified; schedule by the frame counter 0x7FB724 (`think_slot`); rate check identical at 30/60/120/200 fps | low |
+| 0x429D90 | TrafficController_Update | stuck test, then on its frame: leave crossings, lane update, intersection, proposals, action, mover switch | `ai/traffic/think.rs:think`, `sim/traffic/think.rs:traffic_car_frame`, `traffic_lane_think` | **PORTED** | verified; schedule by the frame counter 0x7FB724 (`think_slot`); ours: rate check identical at 30/60/120/200 fps; the original's think follows its frame rate (every 2N frames: 0.4 s at 60 fps, 0.2 s at 120), so it is compared at fixed 1/60 | low |
 | 0x408C40, 0x4022D0 | TrafficCtl_OnWorldLoaded, RacerCtl_OnWorldLoaded | the world under a car loaded or unloaded: mover and active flag | `sim/traffic/think.rs:traffic_stream`, `placed_active` | **PORTED** | verified; the stream rule observed | low |
 | 0x4020D0, 0x402110 | — | pause / resume one car (body pause count, mode 0) | `sim/traffic/think.rs:pause_traffic`, `placed_active` | **PORTED** | verified | low |
 | 0x4099B0, 0x409A30, 0x430340, 0x430310 | Traffic_PauseAll, Traffic_ResumeAll, NIS_TrafficThinkOn, NIS_ResumeTraffic | traffic before the green and during scenes | `sim/traffic/think.rs:traffic_coast`, `sim/traffic/mod.rs:load` | **GUESSED** | observed in a Quick Race drag, verified in the disassembly except the resumed car's steering: it keeps braking (`game.traffic_coast`) | low |
@@ -158,7 +167,7 @@ rate). Both have their row and their place in the gap list at the end.
 | 0x4111C0, 0x409110 | — | each placer frame a road keeps the right of way while a car is within 12 m | `ai/traffic/crossings.rs:tick` | **PORTED** | verified | low |
 | 0x4109A0, 0x410A10, 0x410A50, 0x408F80 | Intersection_MayGo, — | which road may go; claim; two cars crossing; nearest car's time | `ai/traffic/crossings.rs:may_go`, `claim`, `crossing`, `nearest` | **PORTED** | verified | low |
 | 0x425150 | AIAction_Intersection_Update | Obey: car ahead within 30 m → 0 within 15 m, else ≤ 6 m/s; wait for the right of way | `ai/traffic/think.rs:think`, `ai/traffic/crossings.rs` | **PORTED** | verified; test `crossings_take_turns` | low |
-| — (two traffic cars meeting head-on at a crossing) | — | who yields when both are in Avoid Cars at a crossing | — | **MISSING** | observed: stand pairs per 5 min 0.41 [0–4] vs 0.21 [0–1] (32 vs 14 bot runs), all at crossings with headings 150–180° apart; no trace of a yield rule yet | med |
+| — (two traffic cars meeting head-on at a junction) | — | who yields when both are in Avoid Cars at a junction outside the 38 intersections | `ai/traffic/avoid.rs:avoid_update`, `avoid_done`, `car_ahead` | **PORTED** | verified: the original has no yield, priority or timeout rule there; 0x4145B0, 0x424B40, 0x424CB0, 0x41CD10, 0x4140E0 / 0x410A50 traced value by value and equal ([formats/ai.md](../../formats/ai.md) "Two traffic cars meeting at a junction"). Observed: bot stand pairs 0.41 [0–2] vs 0.20 [0–2] per 5 min (64 vs 40 real-time runs); head-on stands 0.75 [0–4] vs 0.5 [0–3] (16 vs 12 runs, fixed 1/60). Ours' cars track the oncoming car more often per meeting (0.27 vs 0.20); that cause is **open** | med |
 
 ## Stuck test and jams
 
@@ -197,14 +206,14 @@ rate). Both have their row and their place in the gap list at the end.
 |---|---|---|---|---|---|---|
 | — (traffic in drift, URL, Street X) | — | none | `sim/traffic/mod.rs:load` | **PORTED** | observed: none on either side | none |
 | — (outrun) | — | the free-roam rules, no outrun branch | `ai/traffic/` | **PORTED** | observed: outrun traffic matches free roam (placed 12.8 vs 10.4, Drive 0.78 vs 0.72); ours not run in an outrun | low |
-| — (Quick Race circuit 4014) | — | the race placer and keep test | as above | **PORTED** | placed 8.8 vs 8.9, placements 25.7 vs 25.4/min, Avoid 0.59 vs 0.51, head-on stands 0.17 vs 0.11 | low |
+| — (Quick Race circuit 4014) | — | the race placer and keep test | as above | **PORTED** | placed 8.8 vs 8.9, placements 25.7 vs 25.4/min (real-time wined3d). Fixed 1/60 (8 vs 4 runs): Avoid share 0.58 vs 0.42 [0.23–0.48], jam share 0.11 vs 0.016, stopped 0.14–0.19 vs 0.08, speed p50 8.1 vs 9.7 m/s, head-on stands 0.125 [0–1] vs 0; the placer is not the cause found, the rule that differs is **open** (gap 3) | med: race traffic dodges and queues more |
 | — (Dense traffic option) | — | optional pool × 1.5 / × 2 in free roam | `ai/traffic/pool.rs:dense_pool` | **NOT NEEDED** | an opt-in extra; off by default | none |
 
 ## Encounter cars meeting traffic
 
 | Address | Name | What it does | Ours | Status | Evidence | Risk |
 |---|---|---|---|---|---|---|
-| — (encounter racers' driving near traffic) | — | how free-roam encounter cars pass traffic | racer map: AvoidAvoidable, Pass | **MISSING** | observed: encounter car–traffic contact records 8.5 per 5 min vs 1.5, over 30: 3.0 vs 0.33; 18 of ours' 31 stops for good come from them (2 of 13 native). The cause is in the racers' AI, not in traffic | med: queues behind stopped cars |
+| — (encounter racers' driving near traffic) | — | how free-roam encounter cars pass traffic | racer map: AvoidAvoidable, Pass | **MISSING**, in change | observed at fixed 1/60 (16 vs 12 bot runs): encounter car–traffic contacts 8.38 [3–14] per 5 min vs 1.42 [0–4], over 30: 3.06 vs 0.58, traffic stops for good 4.38 vs 3.17. The cause is in the racers' AI (racer map, gap 1), not in traffic; a fix in change reaches 1.38 / 0.38 | med: queues behind stopped cars |
 
 ## Not needed
 
@@ -223,12 +232,13 @@ Each gap with what a player would notice and how to check a fix. "Harness" means
 
 | # | Gap | Rows | What a player sees | How to verify | Issue |
 |---|---|---|---|---|---|
-| 1 | Two traffic cars blocking each other head-on at a crossing: no traced yield rule, and the wait line's lane-object term is taken as 0 | Intersections: head-on at a crossing (MISSING), 0x412170 (SIMPLIFIED) | two cars stand nose to nose at a crossing while the player drives by; about twice the original's rate | harness `bot`, ≥ 16 seeds × 300 s against the 14 native runs: `headon_stops`, distinct pairs per run, `jam_share`; trace 0x412170's +0x0C shape types and the Avoid Cars pair at a crossing under Wine | #146 |
-| 2 | Encounter cars hit traffic about six times as often | Encounter cars meeting traffic (MISSING) | traffic cars stopped for good after a racer hits them, with queues behind | harness `bot` with the contact log (`NFSU2_TRAFFIC_CONTACTLOG`) against the original's contact census: encounter–traffic records per run 8.5 → about 1.5 | #141 (racer side) |
-| 3 | A traffic car's race coordinate steps from an observation; the writer is not traced | 0x8FC writer (GUESSED) | more or fewer cars in races when the rule differs off the measured cases | trace the store; harness `qr:drag` and `qr:circuit` `placed`, `within100`, `despawn/min` | #146 follow-up / point release |
-| 4 | Drag-only lane tests not ported | 0x40AF30(−0.1), 0x40B110 (MISSING) | drag traffic changes lanes slightly differently | harness `qr:drag`, 8 seeds: `lane_changes_per_car_min`, `lane_not_own` | point release |
-| 5 | Lane-check fallback (lane request) not ported | 0x40F4A0 fallback (MISSING) | a car keeps a lane that ends instead of asking the lane at its place | trace the request flag; harness `stand` and `bot`: `lane_changes_per_car_min`, `off_over2` | point release |
-| 6 | Road entries without the 15-entry cap and the second chance for far objects | 0x6148F0 (SIMPLIFIED) | dense scenes: a far fast car seen or missed differently | harness `qr:circuit` at Maximum: `act_avoid`, `mutual_share` | point release |
-| 7 | Junction choice drawn from the clone's own stream, not the world generator | 0x413BB0 (SIMPLIFIED) | none by statistics; other cars turn at a given junction | the random-number order check in [rng.md](../rng.md); harness turn counts | later |
-| 8 | Brief extra actions on native traffic | Controller: one-sample actions (MISSING) | none seen | trace whether they draw random numbers; Wine action log | later |
-| 9 | Resumed traffic after a scene keeps braking (inferred) | 0x4099B0 group (GUESSED) | traffic standing a moment longer after a race start | Wine memory log of the first second after the green in a Quick Race drag | later |
+| 1 | Encounter cars hit traffic about six times as often | Encounter cars meeting traffic (MISSING, in change) | traffic cars stopped for good after a racer hits them, with queues behind | harness `bot` at fixed 1/60 with the contact census against the original: encounter–traffic contacts per 5 min 8.4 → about 1.4, over 30: 3.1 → about 0.6 | #141 (racer side) |
+| 2 | Two traffic cars standing head-on at a junction more often than in the original: the original has no yield rule there and ours runs the same code; ours' cars track an oncoming car more often per meeting (cause open), and the wait line's lane-object term is taken as 0 | Intersections: head-on at a junction (PORTED), 0x412170 (SIMPLIFIED) | two cars stand nose to nose at a junction while the player drives by; inside the original's range, above its mean | harness `bot` at fixed 1/60, ≥ 16 seeds × 300 s: `headon_stops`, distinct pairs per run, tracked share per meeting, `jam_share`; trace 0x412170's +0x0C shape types | #146 |
+| 3 | Quick Race circuit traffic spends more time in Avoid Cars and jams more | Quick Race circuit 4014 (PORTED); candidate: 0x6148F0 (SIMPLIFIED, gap 7) | race traffic dodging, standing and queuing more than in the original | harness `qr:circuit` 120 s at fixed 1/60: `act_avoid` 0.58 → about 0.42, `jam_share` 0.11 → about 0.02, traffic speed p50 | not tracked yet |
+| 4 | A traffic car's race coordinate steps from an observation; the writer is not traced | 0x8FC writer (GUESSED) | more or fewer cars in races when the rule differs off the measured cases | trace the store; harness `qr:drag` and `qr:circuit` `placed`, `within100`, `despawn/min` | #146 follow-up / point release |
+| 5 | Drag-only lane tests not ported | 0x40AF30(−0.1), 0x40B110 (MISSING) | drag traffic changes lanes slightly differently | harness `qr:drag`, 8 seeds: `lane_changes_per_car_min`, `lane_not_own` | point release |
+| 6 | Lane-check fallback (lane request) not ported | 0x40F4A0 fallback (MISSING) | a car keeps a lane that ends instead of asking the lane at its place | trace the request flag; harness `stand` and `bot`: `lane_changes_per_car_min`, `off_over2` | point release |
+| 7 | Road entries without the 15-entry cap and the second chance for far objects | 0x6148F0 (SIMPLIFIED) | dense scenes: a far fast car seen or missed differently | harness `qr:circuit` at Maximum: `act_avoid`, `mutual_share` | point release |
+| 8 | Junction choice drawn from the clone's own stream, not the world generator | 0x413BB0 (SIMPLIFIED) | none by statistics; other cars turn at a given junction | the random-number order check in [rng.md](../rng.md); harness turn counts | later |
+| 9 | Brief extra actions on native traffic | Controller: one-sample actions (MISSING) | none seen | trace whether they draw random numbers; Wine action log | later |
+| 10 | Resumed traffic after a scene keeps braking (inferred) | 0x4099B0 group (GUESSED) | traffic standing a moment longer after a race start | Wine memory log of the first second after the green in a Quick Race drag | later |

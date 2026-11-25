@@ -173,7 +173,7 @@ Where and when it rains stays the original's.
 | Trigger Dead Zone | 0% | Dead zone for triggers |
 | Stick Saturation | 100% | Where the stick reaches full deflection |
 | Steering Linearity | 1.00 | Steering response curve |
-| Rumble | 0% | Controller vibration strength |
+| Rumble | Off | Low, Medium or High: the pad shakes on crashes, bumps and hard speed changes (the original has no rumble for XInput pads) |
 | Pause on Disconnect | Off | Pauses a race or free roam when the driving pad is unplugged |
 | Safe Axis Binding | Off | Capturing an axis on the Controls page keeps the roles of the other axes (the original clears them) |
 | Quit with Both Sticks | Off | Pressing both sticks (L3 + R3) together on the main menu asks the quit question, as the Q key does (the original has no pad shortcut) |
@@ -232,3 +232,6 @@ These still differ from the original. They are bugs, not choices (what you notic
 - **Physics:** a car held against a wall turns off it the same way as in the original, but leaves it
   sooner or later: from the second push of a hold the contacts' timing differs (docs/notes/parity/cornering-parity.md
   section 6).
+- **AI:** free-roam encounter racers hit traffic cars about six times as often as in the original, a drag
+  rival goes back to its lane more slowly after a shove and can be totaled by it, and Quick Race circuit
+  traffic dodges and queues more (docs/original/coverage/, the gap lists).
