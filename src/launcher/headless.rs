@@ -51,7 +51,7 @@ pub fn named_app<'e>(env: &'e FakeEnv, fonts: &Fonts, name: &str, w: u32, h: u32
 
 /// The named states: (name, the screen it is shown on). The fake data of
 /// each comes from [`state_model`].
-pub const STATES: [(&str, Screen); 76] = [
+pub const STATES: [(&str, Screen); 89] = [
     ("no-game", Screen::FirstRun),
     ("check-ok", Screen::Check),
     ("check-movies", Screen::Check),
@@ -75,6 +75,9 @@ pub const STATES: [(&str, Screen); 76] = [
     ("start-failed", Screen::Failure),
     ("no-game-window", Screen::Failure),
     ("failure-details", Screen::Failure),
+    ("crash-panic", Screen::Failure),
+    ("crash-signal", Screen::Failure),
+    ("crash-windows", Screen::Failure),
     ("unreadable-folder", Screen::Browse),
     ("saves-empty", Screen::Saves),
     ("saves-found", Screen::Saves),
@@ -335,6 +338,58 @@ pub fn state_model(name: &str) -> Option<(Screen, Model)> {
             f.tail = vec!["could not open a window: the display refused the size".into()];
         }
         "failure-details" => m.failure_details = true,
+        // The crash report window: the reason in words, the system's
+        // record, the logs of the run, Copy for a bug report.
+        "crash-panic" | "crash-signal" | "crash-windows" => {
+            let logs = "/data/player/.local/share/overbright/logs";
+            let f = m.failure.as_mut().expect("the fake data has a failure");
+            f.during_start = false;
+            let (code, signal, errors): (Option<i32>, Option<i32>, Vec<&str>) = match name {
+                "crash-panic" => (Some(101), None, Vec::new()),
+                "crash-signal" => (
+                    None,
+                    Some(11),
+                    vec![
+                        "TIME PID UID GID SIG COREFILE EXE SIZE",
+                        "Wed 2026-11-25 14:02:11 UTC 41872 1000 1000 SIGSEGV missing /opt/overbright/game -",
+                    ],
+                ),
+                _ => (
+                    Some(0xC000_0005u32 as i32),
+                    None,
+                    vec![
+                        "Faulting application name: game.exe, version: 0.6.0.0",
+                        "Faulting module name: nvoglv64.dll, exception code: 0xc0000005",
+                    ],
+                ),
+            };
+            f.kind = crate::launcher::run::ErrorKind::Crash;
+            f.how = crate::launcher::run::Ended {
+                code,
+                signal,
+                pid: 41872,
+                started_at: std::time::SystemTime::UNIX_EPOCH,
+                secs: 95.0,
+                panicked: name == "crash-panic",
+                no_window: false,
+                named: None,
+                tail: Vec::new(),
+                log: None,
+            }
+            .how();
+            f.report = Some(crate::launcher::model::CrashReport {
+                reason: crate::launcher::crash_report::reason(code, signal, name == "crash-panic"),
+                pid: 41872,
+                secs: 95.0,
+                errors: errors.into_iter().map(String::from).collect(),
+                asking: false,
+                logs: vec![
+                    PathBuf::from(format!("{logs}/launcher-20261125-140010.log")),
+                    PathBuf::from(format!("{logs}/game-20261125-140012.log")),
+                    PathBuf::from("/data/player/.local/share/overbright/crashes/crash-20261125-140211.txt"),
+                ],
+            });
+        }
         "first-several" => {}
         "main-gone" => {
             let gone = PathBuf::from("/media/player/USB/Need for Speed Underground 2");

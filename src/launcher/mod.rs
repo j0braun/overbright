@@ -20,6 +20,7 @@
 pub mod anim;
 pub mod backdrop;
 pub mod check;
+pub mod crash_report;
 pub mod dirs;
 pub mod draw;
 pub mod font;

@@ -714,8 +714,12 @@ pub trait EditorJob {
     fn poll(&mut self) -> Option<Result<(), String>>;
 }
 
-/// The real editor process.
-/// A started program (the map editor or Studio) and its name for the
+thread_local! {
+    /// What the fake data's clipboard holds (tests).
+    pub static COPIED: std::cell::RefCell<Option<String>> = const { std::cell::RefCell::new(None) };
+}
+
+/// The real editor process: a started program (the map editor or Studio) and its name for the
 /// words of a bad end.
 struct EditorProcess(std::process::Child, &'static str);
 
@@ -724,7 +728,13 @@ impl EditorJob for EditorProcess {
         match self.0.try_wait() {
             Ok(None) => None,
             Ok(Some(st)) if st.success() => Some(Ok(())),
-            Ok(Some(st)) => Some(Err(format!("{} ended with {st}", self.1))),
+            Ok(Some(st)) => {
+                #[cfg(unix)]
+                let signal = std::os::unix::process::ExitStatusExt::signal(&st);
+                #[cfg(not(unix))]
+                let signal = None;
+                Some(Err(format!("{} stopped: {}.", self.1, crate::launcher::crash_report::reason(st.code(), signal, false))))
+            }
             Err(e) => Some(Err(e.to_string())),
         }
     }
@@ -984,12 +994,32 @@ pub struct Failure {
     pub how: String,
     pub tail: Vec<String>,
     pub log: Option<PathBuf>,
+    /// The crash report window's part: set when the game ran and ended
+    /// badly (None: it could not be started).
+    pub report: Option<CrashReport>,
+}
+
+/// What the failure screen adds for a game that ran and ended badly
+/// (docs/troubleshooting.md): the end in words, the system's errors for
+/// that process, the logs written during the run.
+#[derive(Clone, Debug, PartialEq)]
+pub struct CrashReport {
+    /// "it tried to use memory it must not (a segmentation fault, signal 11)".
+    pub reason: String,
+    pub pid: u32,
+    pub secs: f32,
+    /// The system's recent errors for the process, when readable.
+    pub errors: Vec<String>,
+    /// The system is still being asked (a worker).
+    pub asking: bool,
+    /// Overbright's log files written during the run.
+    pub logs: Vec<PathBuf>,
 }
 
 impl Failure {
     /// The game program could not be started at all (`how`: why).
     pub fn not_started(how: String) -> Failure {
-        Failure { kind: super::run::ErrorKind::NoProgram, during_start: true, how, tail: Vec::new(), log: None }
+        Failure { kind: super::run::ErrorKind::NoProgram, during_start: true, how, tail: Vec::new(), log: None, report: None }
     }
 }
 
@@ -1210,6 +1240,15 @@ pub trait Env {
     /// Writes the support file (`diag::support`); its path.
     fn support_file(&self, req: &crate::diag::support::SupportRequest) -> std::io::Result<PathBuf> {
         crate::diag::support::write_support_file(req)
+    }
+    /// The system's recent errors for a program that ended badly
+    /// (`launcher::crash_report::system_errors`).
+    fn crash_errors(&self, pid: u32, exe_name: &str) -> Vec<String> {
+        crate::launcher::crash_report::system_errors(pid, exe_name)
+    }
+    /// Puts text on the clipboard.
+    fn copy_text(&self, text: &str) -> Result<(), String> {
+        crate::launcher::crash_report::copy_text(text)
     }
     /// Shows a written file in the system's file manager.
     fn reveal(&self, path: &Path) {
@@ -2534,6 +2573,7 @@ impl Env for FakeEnv {
                 .map(String::from)
                 .to_vec(),
                 log: Some(PathBuf::from("/data/player/.local/share/overbright/logs/launcher-20261112-210501.log")),
+                report: None,
             }),
             browse: Browse {
                 purpose: BrowseFor::Game,
@@ -2597,6 +2637,15 @@ impl Env for FakeEnv {
 
     fn support_file(&self, _req: &crate::diag::support::SupportRequest) -> std::io::Result<PathBuf> {
         Ok(PathBuf::from("/data/player/.local/share/overbright/logs/overbright-support-20261118-120000.txt"))
+    }
+
+    fn crash_errors(&self, _pid: u32, _exe_name: &str) -> Vec<String> {
+        Vec::new()
+    }
+
+    fn copy_text(&self, text: &str) -> Result<(), String> {
+        COPIED.with(|c| *c.borrow_mut() = Some(text.to_string()));
+        Ok(())
     }
 
     fn reveal(&self, _path: &Path) {}

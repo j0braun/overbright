@@ -153,7 +153,21 @@ pub fn language_args(language: &str) -> Vec<String> {
 
 /// The failure screen's data for an ended run.
 pub fn failure_of(e: &Ended) -> Failure {
-    Failure { kind: e.kind(), during_start: e.during_start(), how: e.how(), tail: e.tail.clone(), log: e.log.clone() }
+    Failure {
+        kind: e.kind(),
+        during_start: e.during_start(),
+        how: e.how(),
+        tail: e.tail.clone(),
+        log: e.log.clone(),
+        report: Some(super::model::CrashReport {
+            reason: e.reason(),
+            pid: e.pid,
+            secs: e.secs,
+            errors: Vec::new(),
+            asking: true,
+            logs: crate::launcher::crash_report::run_logs(e.started_at),
+        }),
+    }
 }
 
 impl Run<'_> {
@@ -253,7 +267,9 @@ impl Run<'_> {
         if e.failed() {
             log::warn!("the game ended with {} after {:.1} s", e.how(), e.secs);
             eprintln!("overbright: showing the failure screen ({})", e.how());
-            self.show_failure(failure_of(&e));
+            let f = failure_of(&e);
+            self.show_failure(f);
+            self.app.ask_system_errors(e.pid);
         } else {
             self.outcome = Outcome::Quit;
         }

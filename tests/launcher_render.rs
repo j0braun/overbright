@@ -22,6 +22,9 @@ const CHECK_STATES: [&str; 7] = [
     "check-no-english",
     "err-missing",
 ];
+/// The crash report window's states, at every size of [`SIZES`] at 150 %
+/// (`state-<name>-<w>x<h>@150.png`).
+const CRASH_STATES: [&str; 3] = ["crash-panic", "crash-signal", "crash-windows"];
 /// The states' size and scale: a common laptop screen at 150 %.
 const STATE_SIZE: (u32, u32, f32) = (1366, 768, 1.5);
 
@@ -70,7 +73,10 @@ fn screens_match_their_renders() {
     let saves = headless::STATES.iter().filter(|(n, _)| n.starts_with("saves-") || n.starts_with("dev-")).flat_map(|(n, _)| {
         SIZES.map(|(w, h)| (format!("state-{n}-{w}x{h}"), headless::render_state(n, w, h, 1.0).expect("a state")))
     });
-    for (name, img) in screens.chain(states).chain(checks).chain(saves) {
+    let crashes = CRASH_STATES.iter().flat_map(|n| {
+        SIZES.map(|(w, h)| (format!("state-{n}-{w}x{h}@150"), headless::render_state(n, w, h, 1.5).expect("a state")))
+    });
+    for (name, img) in screens.chain(states).chain(checks).chain(saves).chain(crashes) {
         let path = dir().join(format!("{name}.png"));
         if bless {
             std::fs::create_dir_all(dir()).unwrap();
