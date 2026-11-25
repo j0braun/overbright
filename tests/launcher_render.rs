@@ -65,9 +65,9 @@ fn screens_match_their_renders() {
     let checks = CHECK_STATES.iter().flat_map(|n| {
         SIZES.map(|(w, h)| (format!("state-{n}-{w}x{h}"), headless::render_state(n, w, h, 1.0).expect("a state")))
     });
-    // The Saves, Dev and Game data pages' states also at every size (lists,
+    // The Saves page's and the Dev page's states also at every size (lists,
     // rows and actions that stack on narrow windows).
-    let saves = headless::STATES.iter().filter(|(n, _)| ["saves-", "dev-", "game-data-"].iter().any(|p| n.starts_with(p))).flat_map(|(n, _)| {
+    let saves = headless::STATES.iter().filter(|(n, _)| n.starts_with("saves-") || n.starts_with("dev-")).flat_map(|(n, _)| {
         SIZES.map(|(w, h)| (format!("state-{n}-{w}x{h}"), headless::render_state(n, w, h, 1.0).expect("a state")))
     });
     for (name, img) in screens.chain(states).chain(checks).chain(saves) {

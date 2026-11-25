@@ -123,7 +123,16 @@ impl Screen {
     pub fn document(self) -> bool {
         matches!(self, Screen::Licence | Screen::Notices)
     }
+
+    /// A page that shows Studio's state (the Dev page, the Mods page's map
+    /// mods): Studio's locks and recent list are read while it is shown.
+    pub fn sees_studio(self) -> bool {
+        matches!(self, Screen::Dev | Screen::Mods)
+    }
 }
+
+/// How often the Dev and Mods pages read Studio's state again.
+pub const STUDIO_LOOK: std::time::Duration = std::time::Duration::from_secs(2);
 
 /// What the window must do after an input.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -193,6 +202,9 @@ pub struct App<'e> {
     pub editor_job: Option<Box<dyn super::model::EditorJob>>,
     /// Studio, when the launcher started it (its end polled by the window).
     pub studio_job: Option<Box<dyn super::model::EditorJob>>,
+    /// When Studio's locks and recent list were last read (the Dev and
+    /// Mods pages read them again every [`STUDIO_LOOK`]).
+    pub studio_looked: Option<std::time::Instant>,
     /// The Saves page's worker: its result on the way, and what its jobs
     /// keep between runs.
     pub saves_rx: Option<std::sync::mpsc::Receiver<super::saves::jobs::Done>>,
@@ -1475,10 +1487,14 @@ fn build_dev(b: &mut Builder, m: &Model) {
     b.in_column(cols.left);
     b.section_a("Studio");
     b.buttons(Align::Left, vec![studio_button(m)]);
-    if !m.studio_here {
-        b.status(Mark::Error, "Studio's program (overbright-studio) is not beside the launcher.");
-    }
     studio_status(b, m);
+    let rows = studio_rows(m);
+    // Clear of the button's focus ring.
+    b.gap(6.0);
+    let lw = b.lamp_label_w(&rows.iter().map(|r| r.2.as_str()).collect::<Vec<_>>());
+    for (id, mark, label, value) in &rows {
+        b.lamp_row(Some(id), *mark, label, lw, value);
+    }
     b.sum_row("studio_cli", "Command-line tool", if m.studio_cli_here { "Open folder" } else { "Not here" });
     b.section_a("Standalone map editor");
     b.buttons(Align::Left, vec![map_editor_button(m)]);
@@ -1510,7 +1526,8 @@ fn build_dev(b: &mut Builder, m: &Model) {
             "overbright-studio-cli: Studio's edits and checks from a shell or a script. It is not beside the \
              launcher in this copy of Overbright."
         };
-        let (h, t) = match b.st.focus.unwrap_or("editor_play") {
+        let state_help = studio_state_help(m);
+        let (h, t) = match b.st.focus.unwrap_or(dev_focus(m)) {
             "support" => (
                 "Support file",
                 "One text file for a bug report: this computer, the game's check, the settings and the last logs, \
@@ -1523,6 +1540,12 @@ fn build_dev(b: &mut Builder, m: &Model) {
                  workspace. It is a preview: not every part is finished; keep a copy of mods you care about.",
             ),
             "studio_cli" => ("Command-line tool", cli),
+            "studio_state" => ("Studio", state_help.as_str()),
+            "studio_last" => (
+                "Last mod",
+                "The mod opened last in Studio's World workspace or in the map editor (they keep one list). Studio \
+                 lists it on its Home.",
+            ),
             "map_editor" => (
                 "Standalone map editor (preview)",
                 "The desktop map editor on its own, without Studio: props, custom races, test runs in the game and \
@@ -1537,7 +1560,14 @@ fn build_dev(b: &mut Builder, m: &Model) {
         b.describe(r, h, t);
     }
     b.y = left_bottom.max(b.widgets.last().map_or(0.0, |w| w.rect.bottom()));
-    b.default_focus = Some("editor_play");
+    b.default_focus = Some(dev_focus(m));
+}
+
+/// The Dev page's first focus: Studio's button (the page leads there), its
+/// state row while the button is greyed.
+fn dev_focus(m: &Model) -> &'static str {
+    let open = matches!(m.studio, super::model::EditorRun::Open(_));
+    if m.studio_here && !open { "studio" } else { "studio_state" }
 }
 
 /// Studio's button: starts Studio on its Home; greyed when it is not
@@ -1547,13 +1577,77 @@ pub fn studio_button(m: &Model) -> Ctrl {
     Ctrl::Button { id: "studio", text: "Open Studio (preview)".into(), primary: false, enabled: m.studio_here && !open }
 }
 
-/// Studio's state under its button: open, or why it failed.
+/// Why Studio failed, under its button (its other states are its rows).
 fn studio_status(b: &mut Builder, m: &Model) {
-    match &m.studio {
-        super::model::EditorRun::Open(_) => b.status(Mark::Busy, "Studio is open in its own window."),
-        super::model::EditorRun::Failed(e) => b.status(Mark::Error, &format!("Studio: {e}")),
-        super::model::EditorRun::Closed => {}
+    if let super::model::EditorRun::Failed(e) = &m.studio {
+        b.status(Mark::Error, &format!("Studio: {e}"));
     }
+}
+
+/// A map mod's name on the Dev page (its folder when it is not listed).
+fn mod_name<'a>(m: &'a Model, folder: &'a str) -> &'a str {
+    m.mods.maps.iter().find(|r| r.folder == folder).map_or(folder, |r| r.name.as_str())
+}
+
+/// Studio's rows on the Dev page: Studio with its version (found beside
+/// the launcher or not) and its state (open or not, the mod it has open,
+/// from the mods' write locks); the last mod opened.
+pub fn studio_rows(m: &Model) -> [(&'static str, Mark, String, String); 2] {
+    use super::model::EditorRun;
+    let seen = &m.studio_seen;
+    let by_studio: Vec<&str> = seen.held.iter().filter(|h| h.by_studio()).map(|h| mod_name(m, &h.folder)).collect();
+    let on = match by_studio.as_slice() {
+        [] => None,
+        [one] => Some(format!("on {one}")),
+        [one, rest @ ..] => Some(format!("on {one} and {}", super::model::count(rest.len(), "more", "more"))),
+    };
+    let ours = matches!(m.studio, EditorRun::Open(_));
+    let (mark, state) = match (m.studio_here, ours, on) {
+        (_, true, Some(on)) => (Mark::Busy, format!("Open {on}")),
+        (_, true, None) => (Mark::Busy, "Open, no mod open yet".to_string()),
+        (_, false, Some(on)) => (Mark::Busy, format!("Open elsewhere {on}")),
+        (true, false, None) => (Mark::Ok, "Ready, not open".to_string()),
+        (false, false, None) => (Mark::Error, "Not beside the launcher".to_string()),
+    };
+    let label = if m.studio_here { format!("Studio {}", m.version) } else { "Studio".to_string() };
+    let last = seen.last.as_deref().map_or_else(|| "None yet".to_string(), |f| mod_name(m, f).to_string());
+    [("studio_state", mark, label, state), ("studio_last", Mark::Info, "Last mod".to_string(), last)]
+}
+
+/// The State row's help: what is open, and every mod's write lock with who
+/// holds it (as Studio's note beside the lock says).
+fn studio_state_help(m: &Model) -> String {
+    let mut t = if m.studio_here {
+        format!("overbright-studio {}, beside the launcher (it comes with this copy of Overbright). ", m.version)
+    } else {
+        "Studio's program (overbright-studio) is not beside the launcher in this copy of Overbright, so Open Studio \
+         is greyed. "
+            .to_string()
+    };
+    t.push_str(
+        "Studio is open when the launcher started it or when it has a mod open (Studio holds a mod's lock while it \
+         edits it, so no other program writes to it). ",
+    );
+    if m.studio_seen.held.is_empty() {
+        t.push_str("No mod is open for writing now.");
+    }
+    for h in &m.studio_seen.held {
+        let who = match (&h.program, h.pid) {
+            // The command-line tool's own name ("overbright-studio (command line)").
+            (Some(p), Some(pid)) if p.contains("command line") => format!("Studio's command-line tool (process {pid})"),
+            (Some(p), Some(pid)) => format!("{p} (process {pid})"),
+            _ => "another program".into(),
+        };
+        let since = h
+            .since
+            .map(|ms| {
+                let t = std::time::UNIX_EPOCH + std::time::Duration::from_millis(ms);
+                format!(" since {}", super::localtime::date_time(t))
+            })
+            .unwrap_or_default();
+        t.push_str(&format!("{} is open for writing in {who}{since}. ", mod_name(m, &h.folder)));
+    }
+    t.trim_end().to_string()
 }
 
 /// The map editor's button: starts the desktop editor on its own Open /
@@ -2047,7 +2141,12 @@ fn build_mods(b: &mut Builder, m: &Model) {
     }
     let editing = matches!(mods.editor, super::model::EditorRun::Open(_));
     for (i, r) in mods.maps.iter().enumerate().take(MAP_IDS.len()) {
-        b.toggle_sub(MAP_IDS[i], &r.name, &map_detail(r), r.on && live, live && !editing);
+        let detail = match m.studio_seen.held_on(&r.folder) {
+            Some(h) if h.by_studio() => format!("{} · being edited in Studio", map_detail(r)),
+            Some(_) => format!("{} · being edited", map_detail(r)),
+            None => map_detail(r),
+        };
+        b.toggle_sub(MAP_IDS[i], &r.name, &detail, r.on && live, live && !editing);
     }
     b.gap(6.0);
     let any = !mods.maps.is_empty();
@@ -2147,6 +2246,7 @@ impl<'e> App<'e> {
             support_job: None,
             editor_job: None,
             studio_job: None,
+            studio_looked: None,
             keys_after: None,
             copy_job: None,
             game_data_job: None,
@@ -2389,6 +2489,9 @@ impl<'e> App<'e> {
             self.motion.page_changed(if b > a { 1 } else { -1 });
         }
         self.screen = s;
+        if s.sees_studio() {
+            self.look_at_studio();
+        }
         let pointer = self.st.pointer;
         self.st = UiState { pointer, ..UiState::default() };
         self.model.message = None;
@@ -2821,6 +2924,24 @@ impl<'e> App<'e> {
         m.own = self.env.own_packs();
         m.maps = self.env.maps();
         self.check_conflict();
+        self.look_at_studio();
+    }
+
+    /// Reads what is seen of Studio again (its locks on the map mods, the
+    /// last mod opened; read only, nothing is started). True when it changed.
+    pub fn look_at_studio(&mut self) -> bool {
+        let folders: Vec<String> = self.model.mods.maps.iter().map(|r| r.folder.clone()).collect();
+        let seen = self.env.studio_seen(&folders);
+        self.studio_looked = Some(std::time::Instant::now());
+        let changed = seen != self.model.studio_seen;
+        self.model.studio_seen = seen;
+        changed
+    }
+
+    /// When the Dev or Mods page reads Studio's state again (None: another
+    /// page; nothing is read there).
+    pub fn studio_wake(&self) -> Option<std::time::Instant> {
+        self.screen.sees_studio().then(|| self.studio_looked.map_or_else(std::time::Instant::now, |t| t + STUDIO_LOOK))
     }
 
     fn check_conflict(&mut self) {
@@ -3675,6 +3796,10 @@ impl<'e> App<'e> {
     /// end. True when the screen changed.
     pub fn poll_jobs(&mut self, fonts: &Fonts) -> bool {
         if self.poll_editor() | self.poll_studio() | self.poll_game_data() || self.poll_saves() {
+            self.rebuild(fonts);
+            return true;
+        }
+        if self.studio_wake().is_some_and(|t| std::time::Instant::now() >= t) && self.look_at_studio() {
             self.rebuild(fonts);
             return true;
         }

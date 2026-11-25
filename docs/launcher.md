@@ -44,16 +44,30 @@ sits on one smoked slab; the footer has the version and the button legends of th
   Game data › (your own copy: ready, not made yet, needs repair; "Game data" below), Storage › (below), Import saves (opens the Saves page), About Overbright (licence, notices, Make portable); This computer at the right.
 - `dev` (the fifth page; LB / RB, Q / E go round all five): Studio (the "Open Studio (preview)" button,
   `screens::studio_button`: starts `overbright-studio` on its Home with the shown game folder as `NFSU2_ROOT`; the
-  map editor is its World workspace; greyed with a line saying why when it is not beside the launcher,
-  `dirs::studio_exe`, `OB_STUDIO_EXE` names another; while it is open the button is greyed and a line says so, a
-  failed start or a bad exit is an error line, and when it closes the map mods are read again), Studio's
+  map editor is its World workspace; greyed when it is not beside the launcher, `dirs::studio_exe`,
+  `OB_STUDIO_EXE` names another; while it is open the button is greyed, a failed start or a bad exit is an error
+  line, and when it closes the map mods are read again; the page's first focus), Studio's state
+  (`screens::studio_rows`, `dev-studio-missing`, `dev-studio-idle`, `dev-studio-running`, `dev-studio-elsewhere`):
+  a "Studio <version>" row (it comes with the launcher, so it has the launcher's version) saying "Not beside the
+  launcher", "Ready, not open", "Open on <mod>" (started here) or "Open elsewhere on <mod>" (a Studio not started
+  by the launcher), and a "Last mod" row (the first of `editor-recent.txt` in Overbright's folder, the list Studio's
+  World workspace and the map editor keep); the Studio row's help names every mod open for writing and who holds it.
+  The state is read only, from the files Studio itself uses (`launcher::studio_seen`): a mod is open for writing
+  while a live program holds the lock on its `.editor/studio.lock` (asked with `F_GETLK` on Linux, tried and let go
+  at once on Windows, as Studio's own look at a mod; a lock left by a program that ended is free), and
+  `.editor/studio-owner.toml` beside it names the program, its process and since when. Nothing is started and no
+  file is written; the Dev and Mods pages read it when shown and again every two seconds (`screens::STUDIO_LOOK`),
+  other pages never. A test in `ob-studio` (`history::lock`) holds a lock from another process and checks the
+  launcher sees it. Studio's
   command-line tool (`overbright-studio-cli`, `dirs::studio_cli_exe`: the row says what it is and where, and Open
   folder shows the program folder; the launcher never opens a terminal), the Standalone map editor (the "Open map
   editor (preview)" button, `screens::map_editor_button`: starts the desktop map editor on its own Open / New;
   greyed with a line saying why when `overbright-editor` is not beside the launcher, `dirs::editor_exe`), "Start
   the game with the editor tools" (this one start with `--editor`: F7 the texture editor, F8 the free camera;
   `Model::play_args`), Support file (Save…) and the Logs folder (Open), the F3 overlay's key; a description of
-  the focused row at the right, for every row. The mod rows do not yet show a mod open in Studio or made in it.
+  the focused row at the right, for every row. On the smallest windows (640 × 480, 150 % at 1280 × 720) the page
+  scrolls, the focused row kept in view. The Mods page's map mod rows add "being edited in Studio" to a mod Studio
+  has open; a "new from Studio" mark for mods made in Studio is still open (Studio keeps no such mark yet).
   Advanced keeps the rest.
 - `storage` (`storage-portable`, `storage-custom`, `storage-missing`, `storage-copy-back`; Settings › Advanced ›
   Storage): Portable mode as a switch (on: asks, offers to copy what is kept now into `<program>/data`, writes
@@ -257,7 +271,7 @@ shows a busy line and greys the actions meanwhile; the page takes no input while
   `not-a-game-folder`, `files-missing`, `checking`,
   `first-start`, `probe-failed`, `no-vulkan` (the probe found no Vulkan
   driver: the line names the package to install), `long-values` (a long German path, many
-  languages, a long pad name), `language-unsupported` (Settings › Advanced with every language the engine cannot show installed), `unofficial`, `portable` (About of a portable install), `start-failed`,
+  languages, a long pad name), `unofficial`, `portable` (About of a portable install), `start-failed`,
   `unreadable-folder`, the Saves page's `saves-*`, the Dev page's `dev-studio-*` and the Mods page's
   `mods-empty`, `mods-busy`, `mods-results`, `mods-remove`, `mods-hud-complete`,
   `mods-hud-incomplete`.
@@ -620,7 +634,8 @@ for players, the shipped program names per system (`overbright` /
   `qol::setup::tests::help_is_worded_for_each_system`.
 - `tests/launcher_render.rs`: the 66 renders (11 screens × 6 sizes) and the
   31 states at 1366 × 768 with 150 % scaling (`state-<name>-1366x768@150.png`)
-  against `tests/launcher/*.png` (our own images; at most 0.05 % of pixels off by
+  against `tests/launcher/*.png` (the Saves page's `saves-*` and the Dev page's `dev-*` states also at every
+  size; our own images; at most 0.05 % of pixels off by
   more than 2), and a self-check that a changed screen fails. Re-bless:
   `OB_LAUNCHER_BLESS=1 cargo test --release --test launcher_render`, look
   at the PNGs, `optipng -o2`.

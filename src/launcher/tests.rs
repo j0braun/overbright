@@ -99,8 +99,9 @@ fn every_screen_fits_every_size() {
         for (w, h) in SIZES {
             let a = app(&env, &fonts, s, w, h, 1.0);
             let mut ui = a.ui.clone();
-            if matches!(s, Screen::Mods | Screen::Storage) {
-                // A long list of mods scrolls.
+            if matches!(s, Screen::Mods | Screen::Storage | Screen::Dev) {
+                // A long list of mods scrolls (the Dev page's tools too, on
+                // the smallest windows).
                 ui.view.h = ui.content_h.max(ui.view.h);
             }
             if s.document() {
@@ -995,7 +996,7 @@ fn every_state_fits_every_size_and_scale() {
                 let mut ui = a.ui.clone();
                 // The main screen with the shaders' block may scroll (Play stays in view).
                 let shaders = a.screen == Screen::Main && super::screens::shaders(&a.model) != super::screens::Shaders::Quiet;
-                let may_scroll = a.screen.document() || matches!(a.screen, Screen::Mods | Screen::Storage) || shaders || (h as f32 / dpi) < 480.0;
+                let may_scroll = a.screen.document() || matches!(a.screen, Screen::Mods | Screen::Storage | Screen::Dev) || shaders || (h as f32 / dpi) < 480.0;
                 if may_scroll {
                     ui.view.h = ui.content_h.max(ui.view.h);
                 }
@@ -2603,6 +2604,68 @@ fn locations_file_round_trip_and_copy() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
+/// Studio's state on the Dev page, headless: not beside the launcher (the
+/// button greyed, the Studio row says so), found and not open (the last
+/// mod named), started here with a mod open (its lock and holder in the
+/// State row's help), open elsewhere (another program's lock); the Mods
+/// page's map mod rows say which mod is being edited in Studio. Every row
+/// is reached by the keys (Down) and has its help.
+#[test]
+fn dev_page_studio_state() {
+    let fonts = Fonts::new();
+    let env = FakeEnv;
+    let state = |n: &str| super::headless::state_app(&env, &fonts, n, 1280, 720, 1.0).unwrap();
+    let missing = state("dev-studio-missing");
+    let t = all_text(&missing);
+    assert!(!missing.ui.get("studio").unwrap().enabled, "greyed without Studio's program");
+    assert!(t.contains("Not beside the launcher") && t.contains("None yet"), "{t}");
+    assert!(t.contains("(overbright-studio) is not beside the launcher"), "the State row's help says why: {t}");
+    let idle = state("dev-studio-idle");
+    let t = all_text(&idle);
+    assert!(idle.ui.get("studio").unwrap().enabled);
+    assert!(t.contains(&format!("Studio {}", idle.model.version)) && t.contains("Ready, not open"), "{t}");
+    assert!(t.contains("Drift park") && t.contains("No mod is open for writing now"), "{t}");
+    let run = state("dev-studio-running");
+    let t = all_text(&run);
+    assert!(!run.ui.get("studio").unwrap().enabled, "open: greyed until it closes");
+    assert!(t.contains("Open on Drift park"), "{t}");
+    assert!(t.contains("Drift park is open for writing in Overbright Studio (process 4242) since"), "{t}");
+    let away = state("dev-studio-elsewhere");
+    let t = all_text(&away);
+    assert!(away.ui.get("studio").unwrap().enabled, "a Studio not started here leaves the button usable");
+    assert!(t.contains("Open elsewhere on Open docks"), "{t}");
+    assert!(t.contains("Drift park is open for writing in Studio's command-line tool (process 4242)"), "{t}");
+    // The keys reach every Studio row, in order, each with its help.
+    let mut a = state("dev-studio-idle");
+    a.st.focus = Some("studio");
+    a.rebuild(&fonts);
+    for (id, want) in [("studio_state", "holds a mod's lock"), ("studio_last", "one list")] {
+        key(&mut a, &fonts, Key::Down);
+        assert_eq!(focus(&a), id);
+        assert!(all_text(&a).contains(want), "{id}: {}", all_text(&a));
+    }
+    key(&mut a, &fonts, Key::Down);
+    assert_eq!(focus(&a), "studio_cli");
+    // The Mods page: the mod Studio has open is marked; others are not.
+    let (_, mut m) = super::headless::state_model("dev-studio-running").unwrap();
+    m.studio = super::model::EditorRun::Closed;
+    let mut mods = App::new(&env, m, Screen::Mods, (1280, 720), 1.0, &fonts);
+    mods.rebuild(&fonts);
+    let t = all_text(&mods);
+    assert!(t.contains("2 races · 9 prop edits · being edited in Studio"), "{t}");
+    assert_eq!(t.matches("being edited").count(), 1, "{t}");
+    for (w, h) in SIZES {
+        for dpi in [1.0, 1.5] {
+            for n in ["dev-studio-missing", "dev-studio-running", "dev-studio-elsewhere"] {
+                let a = super::headless::state_app(&env, &fonts, n, w, h, dpi).unwrap();
+                let mut ui = a.ui.clone();
+                ui.view.h = ui.content_h.max(ui.view.h);
+                check_layout(&ui, &fonts, &format!("{n} {w}x{h} at {dpi}"));
+            }
+        }
+    }
+}
+
 /// The Dev page: fourth in the page bar (LB / RB go round all four); the
 /// map editor's button (preview); the game with the editor tools once; the
 /// support file and the logs.
@@ -2635,13 +2698,13 @@ fn dev_page() {
     st.model.studio_here = false;
     st.rebuild(&fonts);
     assert!(!st.ui.get("studio").unwrap().enabled, "greyed without Studio's program");
-    assert!(all_text(&st).contains("(overbright-studio) is not beside the launcher"));
+    assert!(all_text(&st).contains("Not beside the launcher"), "{}", all_text(&st));
     st.model.studio_here = true;
     st.rebuild(&fonts);
     st.st.focus = Some("studio");
     key(&mut st, &fonts, Key::Enter);
     assert!(st.studio_job.is_some() && !st.ui.get("studio").unwrap().enabled, "open: greyed until it closes");
-    assert!(all_text(&st).contains("Studio is open"), "{}", all_text(&st));
+    assert!(all_text(&st).contains("Open, no mod open yet"), "{}", all_text(&st));
     for (id, want) in [("studio", "World"), ("studio_cli", "overbright-studio-cli"), ("map_editor", "without Studio")] {
         st.st.focus = Some(id);
         st.rebuild(&fonts);
@@ -2649,7 +2712,8 @@ fn dev_page() {
     }
     let t = all_text(&a);
     assert!(t.contains("F7: the texture editor") && t.contains("F8: the free camera") && t.contains("F3"), "{t}");
-    assert_eq!(focus(&a), "editor_play");
+    assert_eq!(focus(&a), "studio", "the page leads to Studio");
+    a.st.focus = Some("editor_play");
     assert_eq!(key(&mut a, &fonts, Key::Enter), Outcome::Play);
     assert_eq!(a.model.play_args, ["--editor"]);
     a.st.focus = Some("support");

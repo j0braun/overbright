@@ -87,6 +87,14 @@ pub mod qol {
     }
 }
 
+/// The launcher's read-only look at Studio's write locks (its Dev and Mods
+/// pages); Studio's lock test checks the launcher sees what Studio holds.
+pub mod launcher {
+    pub mod studio_seen {
+        pub use crate::launcher::studio_seen::{LOCK, OWNER, STUDIO, read};
+    }
+}
+
 /// The map editor's logic on a world: the edits and the game data it reads
 /// (the map data itself is crates/ob-map).
 pub mod map {

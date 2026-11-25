@@ -493,6 +493,9 @@ pub struct Model {
     pub studio_cli_here: bool,
     /// Studio as the Dev page shows it (started from the launcher).
     pub studio: EditorRun,
+    /// What is seen of Studio without starting it: the mods a live program
+    /// has open for writing, the last mod opened ([`Env::studio_seen`]).
+    pub studio_seen: super::studio_seen::StudioSeen,
     /// The folder the folder choice is for.
     pub pick_loc: Option<crate::platform::dirs::Location>,
     /// Files are being copied (on a worker).
@@ -1285,35 +1288,6 @@ pub trait Env {
     fn start_studio(&self, _root: Option<&Path>) -> Result<Box<dyn EditorJob>, String> {
         Err("no Studio here".into())
     }
-    /// Overbright's own copy of the game ([`super::game_data`]): where it is kept (`<app>/base`).
-    fn game_data_base(&self) -> PathBuf {
-        PathBuf::from("/data/player/.local/share/overbright/base")
-    }
-    /// What that folder holds; the fake data has no copy.
-    fn game_data_status(&self) -> super::game_data::Status {
-        super::game_data::Status::None
-    }
-    /// The game folder's content in bytes (what the copy takes).
-    fn game_data_size(&self, _root: &Path) -> u64 {
-        1_801_794_145
-    }
-    /// Starts a run of the importer in the background; the fake data's run ends at once, made.
-    fn game_data_start(&self, _kind: super::game_data::Kind, _root: &Path) -> super::game_data::Job {
-        use super::game_data::{End, Job, Msg, Status};
-        Job::scripted(vec![
-            Msg::Progress { fraction: 0.5, words: "Copying · 0.9 GB of 1.8 GB".into() },
-            Msg::End(End::Ready {
-                status: Status::Ready { edition: "PC 1.2, European release".into(), known: true },
-                differing: None,
-            }),
-        ])
-    }
-    /// "Not now" on the offer: kept, so the launcher does not offer the copy at every start (Settings ›
-    /// Advanced › Game data still does).
-    fn game_data_later(&self) -> bool {
-        false
-    }
-    fn set_game_data_later(&self) {}
     /// What is seen of Studio for the map mods `folders`: their write locks
     /// held by a live program and the last mod opened, read only
     /// ([`super::studio_seen`]); the fake data sees nothing.
@@ -1890,6 +1864,7 @@ impl Env for RealEnv {
             studio_here: self.studio_present(),
             studio_cli_here: self.studio_cli_present(),
             studio: EditorRun::Closed,
+            studio_seen: Default::default(),
             pick_loc: None,
             copy_busy: false,
             copy_plan: None,
@@ -2222,33 +2197,6 @@ impl Env for RealEnv {
         Ok(Box::new(EditorProcess(child, "the map editor")))
     }
 
-    fn game_data_base(&self) -> PathBuf {
-        crate::platform::dirs::app().join("base")
-    }
-
-    fn game_data_status(&self) -> super::game_data::Status {
-        super::game_data::status(&self.game_data_base())
-    }
-
-    fn game_data_size(&self, root: &Path) -> u64 {
-        super::game_data::size(root)
-    }
-
-    fn game_data_start(&self, kind: super::game_data::Kind, root: &Path) -> super::game_data::Job {
-        super::game_data::start(kind, root, &self.game_data_base())
-    }
-
-    fn game_data_later(&self) -> bool {
-        crate::platform::dirs::config().join(GAME_DATA_LATER).is_file()
-    }
-
-    fn set_game_data_later(&self) {
-        let p = crate::platform::dirs::config().join(GAME_DATA_LATER);
-        if let Err(e) = crate::platform::fs::write_atomic(&p, b"The own copy of the game was offered; Not now was chosen.\n", false) {
-            log::warn!("{}: {e}", p.display());
-        }
-    }
-
     fn studio_seen(&self, folders: &[String]) -> super::studio_seen::StudioSeen {
         let recent = crate::platform::dirs::config().join(super::studio_seen::RECENT_FILE);
         super::studio_seen::read(&crate::tools::map::store::maps_dir(), folders, &recent)
@@ -2536,6 +2484,7 @@ impl Env for FakeEnv {
             studio_here: self.studio_present(),
             studio_cli_here: self.studio_cli_present(),
             studio: EditorRun::Closed,
+            studio_seen: self.studio_seen(&[]),
             pick_loc: None,
             copy_busy: false,
             copy_plan: None,
@@ -2842,6 +2791,10 @@ impl Env for FakeEnv {
 
     fn start_studio(&self, _root: Option<&Path>) -> Result<Box<dyn EditorJob>, String> {
         Ok(Box::new(FakeEditor::default()))
+    }
+
+    fn studio_seen(&self, _folders: &[String]) -> super::studio_seen::StudioSeen {
+        super::studio_seen::StudioSeen { held: Vec::new(), last: Some("drift-park".into()) }
     }
 
     fn paused(&self) -> Option<Paused> {
