@@ -128,6 +128,7 @@ impl Game {
             self.race_flow.next_round = Some((race.event, race.quick, race.from_map, race.round + 1, field));
             let results =
                 PostRaceResults { kind, rows, opened: self.now(), scores: scores.is_some(), player: player_row };
+            self.race_flow.chain.clear();
             self.keep_replay(Mode::Menu(Menu::Results(results, None)));
             self.play_ending(ending);
             return Flow::Stop;
@@ -175,6 +176,7 @@ impl Game {
             opened: self.now(),
         });
         let results = PostRaceResults { kind, rows, opened: self.now(), scores: scores.is_some(), player: player_row };
+        self.race_flow.chain.clear();
         self.keep_replay(Mode::Menu(Menu::Results(results, reward)));
         self.play_ending(ending);
         Flow::Go

@@ -157,7 +157,7 @@ mod shops;
 mod loads;
 pub(crate) use menus::{dialogs::*, keys::online::*, model::*};
 pub(crate) use career_glue::{challenges::*, uniques::*};
-pub(crate) use flow::{movies::*, race_end::*};
+pub(crate) use flow::{ChainStep, movies::*, race_end::*};
 pub(crate) use shops::{graphics::*, performance::*};
 pub(crate) use loads::{loading_screen::*, preload::*};
 #[path = "game/sim/mod.rs"]

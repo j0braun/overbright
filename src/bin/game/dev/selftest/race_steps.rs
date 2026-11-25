@@ -306,7 +306,18 @@ pub(super) fn quit_and_resume(game: &mut Game) -> Result<()> {
     // Out of the garage (0x4AF607: career +0x8744 = 1, 0x5404B0): at the
     // saved place, here the race's engage point.
     if let Some((engaged, _)) = engaged {
+        // Back there asks to quit to the main menu (0x4AF59F, 0x836324
+        // set by the career start); No (focused) stays.
         game.menu_key(Key::Back)?;
+        anyhow::ensure!(
+            matches!(&game.mode, Mode::Menu(Menu::Dialog(d, _)) if d.text.contains("quit to the main menu")),
+            "Back in the resumed garage asks to quit"
+        );
+        game.menu_key(Key::Accept)?;
+        anyhow::ensure!(matches!(game.mode, Mode::Menu(Menu::Icons(_, MenuKind::Crib))), "No: the garage");
+        game.act(Action::Explore, MenuKind::Crib)?;
+        game.menu_key(Key::Left)?;
+        game.menu_key(Key::Accept)?;
         let at = game.here().context("free roam out of the garage")?.0;
         println!("out of the garage after Resume at ({:.0}, {:.0})", at.x, at.y);
         anyhow::ensure!(

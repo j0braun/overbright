@@ -20,6 +20,7 @@ pub(crate) struct RaceResult {
 
 /// UI_PostRaceReward's values (0x4A4240): reputation (the event's purse,
 /// 0x532E60) and bank (the winning-margin bonus, 0x5330E0).
+#[derive(Clone)]
 pub(crate) struct Reward {
     pub(crate) reputation: u32,
     pub(crate) bank: u32,

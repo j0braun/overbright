@@ -301,3 +301,127 @@ fn front_end_screens() {
     assert!(!replay(screens::post_race_menu(true, false, false, false)));
     assert!(replay(screens::post_race_menu(true, false, false, true)));
 }
+
+/// A pad on the menus as the production update reads it: one press of `b`.
+fn pad_press(game: &mut Game, b: nfsu2::pad::host::Btn) {
+    let tick = |game: &mut Game| {
+        game.pacing.clock = game.pacing.clock.map(|t| t + 1.0 / 60.0);
+        game.advance_for(1.0 / 60.0).unwrap();
+    };
+    game.platform.pads.devices[0].inputs.buttons[b as usize] = true;
+    tick(game);
+    game.platform.pads.devices[0].inputs.buttons[b as usize] = false;
+    for _ in 0..30 {
+        tick(game);
+    }
+}
+
+fn pad_game() -> Game {
+    crate::tests::testkit::game();
+    let mut game = Game::new().unwrap();
+    let mut profile = Profile::new("PADTEST");
+    profile.skip_intro(&game.game_data.career, &game.game_data.root, "PEUGOT", &mut game.rng);
+    game.profile = Some(profile);
+    game.pacing.clock = Some(100.0);
+    game.platform.pads = nfsu2::pad::host::Host::scripted("0 connect 1 045e 0b12\n");
+    game.advance_for(1.0 / 60.0).unwrap();
+    assert_eq!(game.platform.pads.devices.len(), 1);
+    game
+}
+
+fn dialog_text(game: &Game) -> Option<(String, usize)> {
+    match &game.mode {
+        Mode::Menu(Menu::Dialog(d, _)) => Some((d.text.clone(), d.selected)),
+        _ => None,
+    }
+}
+
+/// #221: B in the garage (UI_CareerCrib) is its Back, not a second A.
+/// The original's Back there (0x911AB364 in 0x4AF3A0, 0x4AF59F) asks
+/// "Are you sure you want to quit to the main menu?" when the career start
+/// opened the garage (0x836324), else "Return to Explore Mode?"; No
+/// focused either way. Both observed under Wine (Escape after a Load, and
+/// with 0x836324 cleared). A still takes the selected option.
+#[test]
+#[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
+fn pad_b_in_the_garage_asks_as_the_original_back() {
+    use nfsu2::pad::host::Btn;
+    let mut game = pad_game();
+    // Opened by Resume / Load.
+    game.fe.crib_from_start = true;
+    game.mode = game.icon_menu(MenuKind::Crib);
+    pad_press(&mut game, Btn::East);
+    let (text, focus) = dialog_text(&game).expect("B asks");
+    assert!(text.contains("quit to the main menu"), "{text}");
+    assert_eq!(focus, 1, "No focused");
+    // No (focused): the garage again; the question again on B.
+    pad_press(&mut game, Btn::South);
+    assert!(matches!(game.mode, Mode::Menu(Menu::Icons(_, MenuKind::Crib))), "No: the garage");
+    pad_press(&mut game, Btn::East);
+    assert!(dialog_text(&game).is_some_and(|(t, _)| t.contains("quit to the main menu")));
+    // Driven into from the city: "Return to Explore Mode?".
+    game.explore(None).unwrap();
+    assert!(!game.fe.crib_from_start, "the city start clears it");
+    game.mode = game.icon_menu(MenuKind::Crib);
+    pad_press(&mut game, Btn::East);
+    let (text, focus) = dialog_text(&game).expect("B asks");
+    assert!(text.contains("Return to Explore Mode"), "{text}");
+    assert_eq!(focus, 1, "No focused");
+    // A on Return to Explore Mode (selected): the same question, through
+    // the option (its FORWARD first).
+    game.mode = game.icon_menu(MenuKind::Crib);
+    pad_press(&mut game, Btn::South);
+    assert!(dialog_text(&game).is_some_and(|(t, _)| t.contains("Return to Explore Mode")), "A: the option's question");
+}
+
+/// #222: B on the post-race chain goes back a screen, as Back does in the
+/// original (0x4C0020 from the standings, the reward, UI_SponsorPopup and
+/// UI_Sponsorship_new), so the sponsor choice cannot be skipped; the
+/// results have no Back (0x4E9A20). A goes on.
+#[test]
+#[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
+fn pad_b_on_the_post_race_chain_goes_back() {
+    use nfsu2::pad::host::Btn;
+    let mut game = pad_game();
+    let p = game.profile.as_mut().unwrap();
+    p.stage = 2;
+    p.stage_rep.insert(1, (3000.0, 10));
+    // A stage-2 win (the first offers come after it, under Wine).
+    let normal = |e: &&career::Event| e.stage == 2 && e.category == career::Category::Normal && !e.suv;
+    let won = game.game_data.career.events.iter().filter(normal);
+    p.completed.extend(won.take(2).map(|e| e.index));
+    assert!(p.needs_sponsor(&game.game_data.career), "a stage-2 career has offers");
+    let now = game.now();
+    let results = screens::PostRaceResults {
+        kind: ResultsKind::Race,
+        rows: vec![("PADTEST".into(), "PEUGOT".into(), 60.0, 0)],
+        opened: now,
+        scores: false,
+        player: Some(0),
+    };
+    let reward = Reward { reputation: 300, bank: 300, name: "PADTEST".into(), opened: now };
+    game.race_flow.chain.clear();
+    game.mode = Mode::Menu(Menu::Results(results, Some(reward)));
+    let results = |g: &Game| matches!(g.mode, Mode::Menu(Menu::Results(_, Some(_))));
+    let reward = |g: &Game| matches!(g.mode, Mode::Menu(Menu::Reward(_)));
+    let popup = |g: &Game| matches!(g.mode, Mode::Menu(Menu::SponsorPopup(_)));
+    let sponsor = |g: &Game| matches!(g.mode, Mode::Menu(Menu::Icons(_, MenuKind::Sponsor)));
+    pad_press(&mut game, Btn::East);
+    assert!(results(&game), "the results have no Back");
+    pad_press(&mut game, Btn::South);
+    assert!(reward(&game), "A: the reward");
+    pad_press(&mut game, Btn::East);
+    assert!(results(&game), "B on the reward: the results");
+    pad_press(&mut game, Btn::South);
+    pad_press(&mut game, Btn::South);
+    assert!(popup(&game), "A: SELECT A SPONSOR!");
+    pad_press(&mut game, Btn::East);
+    assert!(reward(&game), "B on the popup: the reward, not the post-race menu");
+    pad_press(&mut game, Btn::South);
+    pad_press(&mut game, Btn::South);
+    assert!(sponsor(&game), "A: the sponsors");
+    pad_press(&mut game, Btn::East);
+    assert!(popup(&game), "B on the sponsors: the popup");
+    pad_press(&mut game, Btn::South);
+    assert!(sponsor(&game));
+}

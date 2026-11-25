@@ -142,7 +142,15 @@ impl Game {
     }
 
     pub(super) fn reward_key(&mut self, key: Key, now: f32) -> Result<()> {
-        if matches!(key, Key::Accept | Key::Back) {
+        // Back (0x4D735B → 0x4C0020): the results before it.
+        if key == Key::Back {
+            self.chain_back(now);
+            return Ok(());
+        }
+        if key == Key::Accept {
+            if let Mode::Menu(Menu::Reward(r)) = &self.mode {
+                self.race_flow.chain.push(ChainStep::Reward(r.clone()));
+            }
             // A sponsor on offer: UI_SponsorPopup, then the
             // sponsorship screen (0x4F3EA0, 0x4A4610).
             self.mode = if self.profile.as_ref().is_some_and(|p| p.needs_sponsor(&self.game_data.career)) {
