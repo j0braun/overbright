@@ -11,13 +11,16 @@ overbright-studio [--mod <name|folder>] [--maps <dir>]
 overbright-studio --shot out.png [--size WxH] [--scale F] [--mod <folder>] [--maps <dir>]
                   [--workspace home|world|races|mod|settings|changes] [--input mouse|keyboard|xbox|playstation|deck]
                   [--focus rail|address|toolbar|left|view|right|bottom] [--drawer] [--find] [--address]
-                  [--select N] [--new-mod NAME]
+                  [--select N] [--row N] [--places] [--job WORDS] [--right-tab inspector|history|help]
+                  [--new-mod NAME]
 ```
 
 `--shot` draws the whole window off-screen into a PNG (no window opens) and prints `studio layout: fits …` or
 `studio layout: clipped: …`. The mods are the map editor's (`--maps`, default the map mods folder); `--mod` takes a
 mod's folder name there or the path of any mod's folder ([Getting started](studio-start.md#starting-it)). `--select N`
-selects placement N in World; `--new-mod NAME` shows the New mod dialog with NAME typed. The game folder is
+selects placement N in World; `--new-mod NAME` shows the New mod dialog with NAME typed. `--row N` focuses the focused
+area's N-th control, `--places` opens the places under ← (after World and Mod), `--job WORDS` shows a running
+job, `--right-tab` picks the right dock's tab. The game folder is
 `NFSU2_ROOT`, else the one the launcher kept.
 
 ## The window
@@ -31,12 +34,13 @@ selects placement N in World; `--new-mod NAME` shows the New mod dialog with NAM
 | Bottom dock | Problems, Log, Jobs, then the workspace's tabs. 20 % of the height (120 to 240); folded to its tab strip under 700 points high. It spans the view's width only. |
 | View | A tool workspace's 3D view, at least 480 × 270: when the docks would squeeze it, the right dock becomes a drawer first, then the left panel folds. On Home, Mod and Settings: the page, on a slab at most 1320 points wide. |
 | Legend row | The keys or buttons that matter in the focused area, right-aligned, as the launcher shows them. Hidden while the mouse is used; it comes back with the first key that moves focus or any pad button. |
-| Status bar | Left: whether the work is saved ("Saved automatically" once the files have every step, "Saving…" for the moment before, "Saving is behind", a disk problem in red) and the last step to undo. Right: problems, and whether the mod is on in your game. |
+| Status bar | Left: whether the work is saved ("Saved automatically" once the files have every step, "Saving…" for the moment before, "Saving is behind", a disk problem in red) and the last step to undo. Right: what the checks found ("Problems 0 · 1 warning": the map editor's checks in World and Races, else the Mod page's ready list with the map checks; a click shows them), the busy line of a running job (a test in the game, a simulation with its run "2 of 5"; the Jobs tab and Home list them), and whether the mod is on in your game. The counts and the busy line drop first on narrow windows. |
 
 The window is at least 960 × 600 points; below that it shows one line, "Studio needs at least 960 × 600". The UI
 scale grows with the window: 1.25 from 1000 lines, 1.5 from 1400, 2 from 2000 (times the system's own scale),
 never so far that the window falls under its smallest size. The Steam Deck's 1280 × 800 is the smallest size every
-walkthrough is checked at. Panel sizes and folds are kept per workspace in the mod's editor folder
+walkthrough is checked at. The docks' inner edges are dragged to size them (in the ranges above). Panel sizes and
+folds are kept per workspace in the mod's editor folder
 (`.editor/studio-layout.toml`, never exported); View ▸ Reset layout forgets them.
 
 Colours, faces, lamps and the shared words are the launcher's (`crates/ob-look`, [STYLE](../STYLE.md)). Where a
@@ -165,6 +169,13 @@ dock. F6 and Shift+F6 (the pad's RT and LT) step through the areas that are show
 drawer counts as its dock and opens when it gets focus. The focused area has a lime line along its top. Esc (B)
 goes one level out: menu, field, row, area, and on a page the back link; it never leaves the workspace.
 
+Inside an area the arrows (the D-pad) move between its controls in reading order: the rail's workspaces, ← → the
+address and Find, the toolbar's main action, a dock's tabs and rows, a page's rows. The focused one wears the
+launcher's focus, the selection fill and a lime ring; ← → (◀ ▶) change a dock's tab, Enter (A) takes the control as
+a click does. Tab and Shift+Tab move the same way and go on past an area's last control into the next area (an
+area with nothing to focus is passed by), so Tab alone reaches every control of the window. In World and Races the
+map editor's view, tree and bottom tabs keep their own keys.
+
 The pad's buttons do the same as in the launcher and the game. The keyboard uses Studio's own keys, because
 letters are the tools' keys and typing here (the launcher keeps Q E, Space and R).
 
@@ -200,8 +211,13 @@ paste another: Enter goes there, Esc returns to the names. Ctrl+Shift+C copies i
 - A screen: `ob://<mod id>/@<screen>[?name=value…]`, e.g. `ob://harbour-edits/@world`; Studio's own screens use
   `studio` (`ob://studio/@home`). A screen's name starts with `@`, which no kind name can.
 
-Back and forward (Alt+← / Alt+→, the mouse's side buttons, the ← → buttons, the pad's View button) walk the last
-50 places of the window. An address Studio cannot follow (a mod you do not have, a screen this version lacks) is
+Back and forward (Alt+← / Alt+→, the mouse's side buttons 4 and 5, the ← → buttons, the pad's View button) walk the
+last 50 places of the window; a right-click on ← lists them by name, newest first, and goes back to the one taken.
+
+Find (Ctrl+K, the pad's Y) lists Go to (the workspaces), Commands with their keys (Test, Last place, Address, Copy
+address, Changes, New mod, Tutorial, Undo, Redo) and the places you were, narrowed by what is typed. ↑ ↓ (the D-pad)
+move in the list; Enter (A) or a click runs the command or goes to the workspace or place; a pasted `ob://` address
+goes straight there. An address Studio cannot follow (a mod you do not have, a screen this version lacks) is
 not followed silently: the window says why.
 
 ## Checks
@@ -209,6 +225,9 @@ not followed silently: the window says why.
 `cargo test -p ob-studio-gui studio` draws the window headless at every size of the resolution matrix (and at
 display scales 1.5 and 2), in every workspace, for the mouse, the keyboard and a pad, and fails on any part
 outside the window, two parts overlapping, a view or an address under its smallest size; it walks the window by
-keyboard and by pad, and reads addresses back. `studio::world_tests` draws World and Races with the map editor at
+keyboard and by pad, and reads addresses back. `studio::inside_tests` tabs round every control of World and Home at
+1920 × 1080, 1280 × 800 and 1024 × 768, reaches every row of each dock by the arrows and the D-pad, runs a command
+and a place from Find, goes back and forward by the mouse's buttons 4 and 5, drags the docks' edges (the sizes are
+kept with the mod) and reads the busy line and the counts in the status bar. `studio::world_tests` draws World and Races with the map editor at
 the four review sizes (1920 × 1080, 1280 × 800, 1024 × 768, 2560 × 1080) with the same check and the editor's
 toolbar check, and walks into and out of World by keyboard and pad.

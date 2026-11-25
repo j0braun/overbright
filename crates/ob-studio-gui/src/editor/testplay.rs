@@ -259,15 +259,20 @@ impl super::state::Panel for TestPanel {
     fn ui(&mut self, s: &mut EditorState, ui: &mut egui::Ui) {
         self.run(s, ui);
         let words = self.test.as_ref().map(|t| super::modes::strip(t.race.as_ref().map(|r| r.name.as_str())));
-        ui.ctx().data_mut(|d| match words {
-            Some(w) => {
-                d.insert_temp(strip_id(), w);
-            }
-            None => {
-                d.remove::<String>(strip_id());
-            }
-        });
+        set_strip(ui.ctx(), words);
     }
+}
+
+/// Set (Some) or clear the game-window strip's words: a test runs (Studio's status bar and Jobs tab show it too).
+pub fn set_strip(ctx: &egui::Context, words: Option<String>) {
+    ctx.data_mut(|d| match words {
+        Some(w) => {
+            d.insert_temp(strip_id(), w);
+        }
+        None => {
+            d.remove::<String>(strip_id());
+        }
+    });
 }
 
 impl TestPanel {
