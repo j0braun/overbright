@@ -30,9 +30,13 @@ pub struct Extras {
     pub hud_info: u8,
     /// Reduced Flashing (§4): caps the full-screen flashes.
     pub reduced_flashing: bool,
-    /// Power Saving (the maintainer's private capture): frame caps
-    /// that save power where they change nothing the player watches
-    /// ([`POWER_NAMES`], [`power_cap`]); 0 Off (native: uncapped).
+    /// In the background (docs/playing/modern-extras.md §5): what the game
+    /// does while its window is not the focused one or is hidden
+    /// ([`BACKGROUND_NAMES`]); 0 Pause (native: SPEED2.EXE stops).
+    pub background: u8,
+    /// Power Saving: frame caps that save power where they change nothing
+    /// the player watches ([`POWER_NAMES`], [`power_cap`]); 0 Off (native:
+    /// uncapped).
     pub power_saving: u8,
     /// Mark Spot Key (docs/playing/mark-spot.md): 0 Off (native), else the key
     /// `crate::mark_spot::KEYS[n]` writes a mark-this-spot report.
@@ -41,7 +45,7 @@ pub struct Extras {
 
 impl Default for Extras {
     fn default() -> Extras {
-        Extras { low_latency: false, replay_cameras: false, palette: 0, hud_minimap: 100, hud_speedo: 100, hud_info: 100, reduced_flashing: false, power_saving: 0, mark_spot: 0 }
+        Extras { low_latency: false, replay_cameras: false, palette: 0, hud_minimap: 100, hud_speedo: 100, hud_info: 100, reduced_flashing: false, background: 0, power_saving: 0, mark_spot: 0 }
     }
 }
 
@@ -64,8 +68,11 @@ impl Extras {
         if self.reduced_flashing {
             v.push("reduced flashing".into());
         }
+        if self.background != 0 {
+            v.push(format!("in the background {}", BACKGROUND_NAMES[usize::from(self.background.min(2))]));
+        }
         if self.power_saving != 0 {
-            v.push(format!("power saving {}", POWER_NAMES[usize::from(self.power_saving.min(3))]));
+            v.push(format!("power saving {}", POWER_NAMES[usize::from(self.power_saving.min(2))]));
         }
         if self.mark_spot != 0 {
             v.push(format!("mark spot {}", crate::mark_spot::KEYS[usize::from(self.mark_spot).min(crate::mark_spot::KEYS.len() - 1)]));
@@ -95,8 +102,11 @@ impl Extras {
         if self.reduced_flashing != d.reduced_flashing {
             out.push_str("enh.reduced_flashing 1\n");
         }
+        if self.background != d.background {
+            out.push_str(&format!("enh.background {}\n", self.background));
+        }
         if self.power_saving != d.power_saving {
-            out.push_str(&format!("enh.power_saving {}\n", self.power_saving));
+            out.push_str(&format!("enh.power_caps {}\n", self.power_saving));
         }
         if self.mark_spot != d.mark_spot {
             out.push_str(&format!("enh.mark_spot {}\n", self.mark_spot));
@@ -113,7 +123,20 @@ impl Extras {
             "enh.hud_speedo" => self.hud_speedo = scale(value, self.hud_speedo),
             "enh.hud_info" => self.hud_info = scale(value, self.hud_info),
             "enh.reduced_flashing" => self.reduced_flashing = value != "0",
-            "enh.power_saving" => self.power_saving = value.parse::<u8>().map_or(self.power_saving, |v| v.min(3)),
+            "enh.background" => self.background = value.parse::<u8>().map_or(self.background, |v| v.min(2)),
+            "enh.power_caps" => self.power_saving = value.parse::<u8>().map_or(self.power_saving, |v| v.min(2)),
+            // The older Power Saving line (0 Off, 1 Background, 2 + Menus,
+            // 3 + Battery): its background step is now In the background's
+            // Draw less, the rest one step down.
+            "enh.power_saving" => {
+                if let Ok(v) = value.parse::<u8>() {
+                    let v = v.min(3);
+                    if v >= 1 {
+                        self.background = BACKGROUND_DRAW_LESS;
+                    }
+                    self.power_saving = v.saturating_sub(1);
+                }
+            }
             "enh.mark_spot" => self.mark_spot = value.parse::<u8>().map_or(self.mark_spot, |v| v.min(crate::mark_spot::KEYS.len() as u8 - 1)),
             _ => return false,
         }
@@ -128,6 +151,7 @@ impl Extras {
         HUD_SPEEDO.store(self.hud_speedo, Ordering::Relaxed);
         HUD_INFO.store(self.hud_info, Ordering::Relaxed);
         REDUCED_FLASHING.store(self.reduced_flashing, Ordering::Relaxed);
+        BACKGROUND.store(self.background, Ordering::Relaxed);
         POWER_SAVING.store(self.power_saving, Ordering::Relaxed);
     }
 }
@@ -140,17 +164,50 @@ static HUD_SPEEDO: AtomicU8 = AtomicU8::new(100);
 static HUD_INFO: AtomicU8 = AtomicU8::new(100);
 static REDUCED_FLASHING: AtomicBool = AtomicBool::new(false);
 static POWER_SAVING: AtomicU8 = AtomicU8::new(0);
+static BACKGROUND: AtomicU8 = AtomicU8::new(0);
+static KEEP_RUNNING_FORCED: AtomicBool = AtomicBool::new(false);
 
-/// Power Saving's settings: 0 Off; 1 the window in the background
-/// (unfocused or hidden) held to [`BACKGROUND_FPS`]; 2 also the menus held
-/// to the display's refresh rate; 3 also the whole game on battery held to
-/// the display's refresh rate.
-pub const POWER_NAMES: [&str; 4] = ["Off", "Background", "Background + Menus", "+ Menus, Battery"];
+/// In the background's settings, for a window that is not the focused one
+/// or is hidden (minimised, covered): 0 Pause (native: SPEED2.EXE's message
+/// pump 0x5BF1D0 waits in GetMessage while g_AppActive 0x870988 is 0, so the
+/// simulation, the drawing and the input stop and the sound is held;
+/// docs/original/focus-loss.md); 1 Keep running (the simulation, the sound
+/// and the drawing go on); 2 Draw less (as Keep running, the drawing held
+/// to [`BACKGROUND_FPS`]).
+pub const BACKGROUND_NAMES: [&str; 3] = ["Pause", "Keep running", "Draw less"];
+pub const BACKGROUND_PAUSE: u8 = 0;
+pub const BACKGROUND_KEEP_RUNNING: u8 = 1;
+pub const BACKGROUND_DRAW_LESS: u8 = 2;
 
-/// A background window's frame rate under Power Saving (frames nobody
-/// watches; the world keeps its 60 fps cadence through the interpolating
-/// frame clock, so the simulation is the same at any drawn rate).
+/// Power Saving's settings: 0 Off; 1 the menus held to the display's
+/// refresh rate; 2 also the whole game on battery held to the display's
+/// refresh rate.
+pub const POWER_NAMES: [&str; 3] = ["Off", "Menus", "Menus + Battery"];
+
+/// A background window's frame rate under Draw less (frames nobody
+/// watches; the world keeps its cadence through the interpolating frame
+/// clock, so the simulation is the same at any drawn rate). Never below
+/// 30: a drawn frame steps at most 3 race / 2 scene ticks
+/// (`frame_clock`'s cap), so under 20 / 30 fps time would be dropped and
+/// the world would slow down.
 pub const BACKGROUND_FPS: f64 = 30.0;
+
+/// In the background's setting ([`BACKGROUND_NAMES`]), Keep running when
+/// it is forced ([`force_keep_running`]).
+pub fn background() -> u8 {
+    if KEEP_RUNNING_FORCED.load(Ordering::Relaxed) {
+        BACKGROUND_KEEP_RUNNING
+    } else {
+        BACKGROUND.load(Ordering::Relaxed)
+    }
+}
+
+/// Keep running whatever the setting: the scripted and test runs (the map
+/// editor's and Studio's test game, `NFSU2_KEEP_RUNNING`), which run in a
+/// window nobody focuses.
+pub fn force_keep_running(on: bool) {
+    KEEP_RUNNING_FORCED.store(on, Ordering::Relaxed);
+}
 
 /// Power Saving's setting (0 Off).
 pub fn power_saving() -> u8 {
@@ -175,17 +232,17 @@ pub struct PowerState {
 /// battery cap is the display's refresh period (30–240 Hz; 60 when not
 /// known): no frame the display would show is dropped (with vsync off a
 /// faster frame is replaced before it is shown, or tears).
-pub fn power_cap(level: u8, s: PowerState) -> Option<std::time::Duration> {
+pub fn power_cap(level: u8, background: u8, s: PowerState) -> Option<std::time::Duration> {
     let refresh = std::time::Duration::from_secs_f64(1.0 / s.refresh_hz.filter(|hz| hz.is_finite() && *hz > 1.0).unwrap_or(60.0).clamp(30.0, 240.0));
     let mut cap: Option<std::time::Duration> = None;
     let mut hold = |d: std::time::Duration| cap = Some(cap.map_or(d, |c| c.max(d)));
-    if level >= 1 && !s.foreground {
+    if background == BACKGROUND_DRAW_LESS && !s.foreground {
         hold(std::time::Duration::from_secs_f64(1.0 / BACKGROUND_FPS));
     }
-    if level >= 2 && s.menu {
+    if level >= 1 && s.menu {
         hold(refresh);
     }
-    if level >= 3 && s.battery {
+    if level >= 2 && s.battery {
         hold(refresh);
     }
     cap
@@ -363,29 +420,72 @@ pub fn step(steps: &[u8], v: u8, right: bool) -> u8 {
 mod tests {
     use super::*;
 
-    /// Power Saving: Off never caps; Background caps only a background
-    /// window, at 30 fps; Menus adds the menus at the refresh rate; Battery
-    /// adds the game on battery; the longest cap wins.
+    /// Power Saving and Draw less: Off / Pause / Keep running never cap;
+    /// Draw less caps only a background window, at 30 fps; Menus caps the
+    /// menus at the refresh rate; Battery adds the game on battery; the
+    /// longest cap wins.
     #[test]
     fn power_saving_caps() {
         use std::time::Duration;
         let hz = |f: f64| Some(Duration::from_secs_f64(1.0 / f));
         let fg = PowerState { foreground: true, menu: false, battery: false, refresh_hz: Some(144.0) };
-        for level in 0..=3 {
-            assert_eq!(power_cap(level, fg), None, "level {level}");
+        for level in 0..=2 {
+            for bgs in 0..=2 {
+                assert_eq!(power_cap(level, bgs, fg), None, "level {level} background {bgs}");
+            }
         }
         let bg = PowerState { foreground: false, ..fg };
-        assert_eq!(power_cap(0, bg), None);
-        assert_eq!(power_cap(1, bg), hz(30.0));
+        assert_eq!(power_cap(0, BACKGROUND_PAUSE, bg), None);
+        assert_eq!(power_cap(0, BACKGROUND_KEEP_RUNNING, bg), None);
+        assert_eq!(power_cap(0, BACKGROUND_DRAW_LESS, bg), hz(30.0));
         let menu = PowerState { menu: true, ..fg };
-        assert_eq!(power_cap(1, menu), None);
-        assert_eq!(power_cap(2, menu), hz(144.0));
-        assert_eq!(power_cap(2, PowerState { foreground: false, ..menu }), hz(30.0));
+        assert_eq!(power_cap(0, 0, menu), None);
+        assert_eq!(power_cap(1, 0, menu), hz(144.0));
+        assert_eq!(power_cap(1, BACKGROUND_DRAW_LESS, PowerState { foreground: false, ..menu }), hz(30.0));
         let battery = PowerState { battery: true, ..fg };
-        assert_eq!(power_cap(2, battery), None);
-        assert_eq!(power_cap(3, battery), hz(144.0));
-        assert_eq!(power_cap(3, PowerState { refresh_hz: None, ..battery }), hz(60.0));
-        assert_eq!(power_cap(3, PowerState { refresh_hz: Some(1000.0), ..battery }), hz(240.0));
+        assert_eq!(power_cap(1, 0, battery), None);
+        assert_eq!(power_cap(2, 0, battery), hz(144.0));
+        assert_eq!(power_cap(2, 0, PowerState { refresh_hz: None, ..battery }), hz(60.0));
+        assert_eq!(power_cap(2, 0, PowerState { refresh_hz: Some(1000.0), ..battery }), hz(240.0));
+    }
+
+    /// Draw less never draws under 30 fps: a drawn frame steps at most 3
+    /// race / 2 scene ticks (60 Hz), so a slower rate would drop time.
+    #[test]
+    fn draw_less_keeps_the_world_rate() {
+        assert!(BACKGROUND_FPS >= 30.0);
+        for rate in [crate::frame_clock::RACE, crate::frame_clock::SCENE] {
+            assert!(f64::from(rate.cap) * rate.update * BACKGROUND_FPS >= 1.0, "{rate:?}");
+        }
+    }
+
+    /// The older Power Saving line: its Background step becomes Draw less,
+    /// the rest one step down; native writes neither line.
+    #[test]
+    fn old_power_saving_lines_migrate() {
+        for (old, background, level) in [(0, 0, 0), (1, 2, 0), (2, 2, 1), (3, 2, 2), (9, 2, 2)] {
+            let mut e = Extras::default();
+            assert!(e.parse("enh.power_saving", &old.to_string()));
+            assert_eq!((e.background, e.power_saving), (background, level), "old {old}");
+            let mut s = String::new();
+            e.write(&mut s);
+            assert!(!s.contains("enh.power_saving "), "{s}");
+        }
+        let mut e = Extras::default();
+        assert!(e.parse("enh.power_saving", "2") && e.parse("enh.background", "1"));
+        assert_eq!((e.background, e.power_saving), (1, 1), "a later line wins");
+    }
+
+    /// Forced Keep running (scripted runs) overrides the setting.
+    #[test]
+    fn forced_keep_running() {
+        let e = Extras::default();
+        e.apply();
+        assert_eq!(background(), BACKGROUND_PAUSE);
+        force_keep_running(true);
+        assert_eq!(background(), BACKGROUND_KEEP_RUNNING);
+        force_keep_running(false);
+        assert_eq!(background(), BACKGROUND_PAUSE);
     }
 
     /// Battery: only with a mains adapter listed and none online.
@@ -416,7 +516,7 @@ mod tests {
         let mut s = String::new();
         d.write(&mut s);
         assert!(s.is_empty(), "native writes nothing");
-        let e = Extras { low_latency: true, replay_cameras: true, palette: 2, hud_minimap: 130, hud_speedo: 80, hud_info: 150, reduced_flashing: true, power_saving: 2, mark_spot: 1 };
+        let e = Extras { low_latency: true, replay_cameras: true, palette: 2, hud_minimap: 130, hud_speedo: 80, hud_info: 150, reduced_flashing: true, background: 2, power_saving: 2, mark_spot: 1 };
         e.write(&mut s);
         let mut back = Extras::default();
         for line in s.lines() {
@@ -426,7 +526,7 @@ mod tests {
         assert_eq!(back, e);
         let mut v = Vec::new();
         e.deviations(&mut v);
-        assert_eq!(v.len(), 9);
+        assert_eq!(v.len(), 10);
         assert!(back.parse("enh.hud_minimap", "200") && back.hud_minimap == 150);
         assert_eq!(step(&ELEMENT_STEPS, 100, true), 115);
     }

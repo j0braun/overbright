@@ -176,6 +176,16 @@ impl Mixer {
         self.mix.lock().unwrap_or_else(std::sync::PoisonError::into_inner).stop_track(id);
     }
 
+    /// See [`Mix::hold`].
+    pub fn hold_all(&self, held: bool) {
+        self.mix.lock().unwrap_or_else(std::sync::PoisonError::into_inner).hold(held);
+    }
+
+    /// Held by [`Mixer::hold_all`].
+    pub fn is_held(&self) -> bool {
+        self.mix.lock().unwrap_or_else(std::sync::PoisonError::into_inner).held()
+    }
+
     pub fn pause_track(&self, id: u32, paused: bool) {
         self.mix.lock().unwrap_or_else(std::sync::PoisonError::into_inner).pause_track(id, paused);
     }

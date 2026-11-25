@@ -96,11 +96,9 @@ Not changed (measured, reasons):
   wgpu 31).
 * **Power Saving** (new Enhancements row, opt-in, **Off by default** =
   today's behaviour; `src/extras.rs` `power_cap`, `Game::power_cap`):
-  * Background: the window unfocused or occluded (winit `Focused` /
-    `Occluded`) is held to 30 FPS;
-  * Background + Menus: also any menu (front end, pause, dialogs) held to
+  * Menus: any menu (front end, pause, dialogs) held to
     the monitor's refresh rate (30–240 Hz, 60 when unknown);
-  * + Menus, Battery: also the whole game on battery (Linux
+  * Menus + Battery: also the whole game on battery (Linux
     `/sys/class/power_supply`: a Mains supply listed and none online),
     held to the refresh rate.
   The longest applicable cap wins and joins the Frame Rate Cap and the

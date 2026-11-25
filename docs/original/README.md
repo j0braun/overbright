@@ -12,6 +12,7 @@ the address map, [formats.md](../formats.md), split into [chapters](../formats/)
 | [The start's and the menus' waits](start-and-menus.md) | What a player waits for between the start and driving. |
 | [Loading screen](loading-image.md) | The start's PC_Loading screen and the HD loading and title pictures. |
 | [The game's exit](exit.md) | What happens when the window closes or the game quits. |
+| [Focus loss](focus-loss.md) | What the game does in the background: it pauses (traced and observed), and the In the Background row. |
 | [Save points](save-points.md) | Save points, save prompts and Autosave. |
 | [Race ending selection](race-ending-selection.md) | Which ending scene plays after a race. |
 | [Outrun](outrun.md) | The career's random outrun racers, end to end. |

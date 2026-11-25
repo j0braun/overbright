@@ -85,6 +85,8 @@ pub enum RowId {
     /// docs/playing/modern-extras.md: Low Latency, Replay Cameras and the
     /// Accessibility rows.
     LowLatency,
+    /// In the background: Pause (native), Keep running, Draw less.
+    Background,
     /// Power Saving.
     PowerSaving,
     MarkSpot,

@@ -457,7 +457,8 @@ mod tests {
                 hud_speedo: 90,
                 hud_info: 115,
                 reduced_flashing: true,
-                power_saving: 3,
+                background: 2,
+                power_saving: 2,
                 mark_spot: 2,
             },
             pad: crate::pad::extras::PadOptions {
@@ -491,7 +492,7 @@ mod tests {
             assert!(back.parse(k, v));
         }
         assert_eq!(back, e);
-        assert_eq!(e.deviations().len(), 81);
+        assert_eq!(e.deviations().len(), 82);
         assert!(!back.parse("detail", "3"));
         // Volumetric Fog's Next-Gen tier (3) and the Sky row round-trip, clamped.
         let mut n = Enhancements::default();

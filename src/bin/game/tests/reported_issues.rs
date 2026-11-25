@@ -1574,6 +1574,87 @@ fn race_start_scene_draws_the_player_car_in_every_view() {
     }
 }
 
+/// In the background (Pause, the native default): with the window not
+/// focused or hidden the window loop draws no frame, so no tick runs; the
+/// sound is held and the held keys are let go at once. Back in focus the
+/// time away is dropped and the ticks go on. Keep running and Draw less
+/// never pause.
+#[test]
+#[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
+fn focus_loss_pauses_and_resumes() {
+    testkit::game();
+    let mut game = Game::new().unwrap();
+    let mut p = Profile::new("FOCUS");
+    p.skip_intro(&game.game_data.career, &game.game_data.root, "PEUGOT", &mut game.rng);
+    game.profile = Some(p);
+    game.mode = game.world_map();
+    game.audio = Some(game.new_audio(nfsu2::audio::mixer::Mixer::offline(44100)));
+    let extras = |background: u8| nfsu2::extras::Extras { background, ..Default::default() }.apply();
+    extras(nfsu2::extras::BACKGROUND_PAUSE);
+    // The window loop's turn (`about_to_wait`): a frame only when not paused.
+    let turn = |game: &mut Game| {
+        if !game.background_pause() {
+            game.advance(1.0 / 60.0).unwrap();
+        }
+    };
+    for _ in 0..30 {
+        turn(&mut game);
+    }
+    let t = game.pacing.clocks.tick;
+    let held = |game: &Game| game.audio.as_ref().unwrap().mixer.is_held();
+    assert!(!held(&game));
+    // W held, then the focus goes.
+    game.input_at(t, InputEvent::press(KeyCode::KeyW));
+    turn(&mut game);
+    assert!(game.platform.keys.contains(&KeyCode::KeyW));
+    let t = game.pacing.clocks.tick;
+    game.pacing.focused = false;
+    for _ in 0..120 {
+        turn(&mut game);
+    }
+    assert_eq!(game.pacing.clocks.tick, t, "no tick while paused");
+    assert!(held(&game), "the sound is held");
+    assert!(game.platform.keys.is_empty(), "the held keys are let go at once");
+    let mut out = Vec::new();
+    game.audio.as_ref().unwrap().mixer.pump(512, &mut out);
+    assert!(out.iter().all(|&x| x == 0.0), "silence while held");
+    // Hidden but focused (minimised): paused too.
+    game.pacing.focused = true;
+    game.pacing.occluded = true;
+    turn(&mut game);
+    assert_eq!(game.pacing.clocks.tick, t);
+    // Back: the time away is dropped (the next frame starts now).
+    game.pacing.last -= std::time::Duration::from_secs(5);
+    game.pacing.occluded = false;
+    assert!(!game.background_pause());
+    assert!(!held(&game), "the sound goes on");
+    assert!(game.pacing.last.elapsed() < std::time::Duration::from_secs(1), "the time away dropped");
+    for _ in 0..6 {
+        turn(&mut game);
+    }
+    assert_eq!(game.pacing.clocks.tick, t + 6, "the ticks go on at their rate");
+    // Keep running and Draw less: the focus loss changes nothing.
+    for mode in [nfsu2::extras::BACKGROUND_KEEP_RUNNING, nfsu2::extras::BACKGROUND_DRAW_LESS] {
+        extras(mode);
+        game.pacing.focused = false;
+        let t = game.pacing.clocks.tick;
+        for _ in 0..6 {
+            turn(&mut game);
+        }
+        assert_eq!(game.pacing.clocks.tick, t + 6, "{mode}");
+        assert!(!held(&game));
+        game.pacing.focused = true;
+    }
+    // Forced Keep running (test and scripted runs) whatever the setting.
+    extras(nfsu2::extras::BACKGROUND_PAUSE);
+    nfsu2::extras::force_keep_running(true);
+    game.pacing.focused = false;
+    assert!(!game.background_pause());
+    nfsu2::extras::force_keep_running(false);
+    game.pacing.focused = true;
+    assert!(!game.background_pause());
+}
+
 /// Alt-Tab away and back: the Alt release went to another window, so the
 /// game must not keep Alt as held. Enter after the focus came back, and a
 /// controller's Start / Select / A in a menu (which press Enter there),

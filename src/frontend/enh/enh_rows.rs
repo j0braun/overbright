@@ -75,12 +75,21 @@ pub(crate) fn qol_rows(s: &Settings) -> Vec<Row> {
         // See docs/playing/modern-extras.md.
         row(RowId::LowLatency, LOW_LATENCY, Kind::Cycle, on_off(e.extras.low_latency)),
         row(
+            RowId::Background,
+            BACKGROUND,
+            Kind::Cycle,
+            or_native(
+                e.extras.background == 0,
+                crate::extras::BACKGROUND_NAMES[usize::from(e.extras.background.min(2))].to_string(),
+            ),
+        ),
+        row(
             RowId::PowerSaving,
             POWER_SAVING,
             Kind::Cycle,
             or_off(
                 e.extras.power_saving == 0,
-                crate::extras::POWER_NAMES[usize::from(e.extras.power_saving.min(3))].to_string(),
+                crate::extras::POWER_NAMES[usize::from(e.extras.power_saving.min(2))].to_string(),
             ),
         ),
         row(
@@ -313,8 +322,11 @@ pub fn detail(category: Category, id: RowId, s: &Settings) -> Option<String> {
         RowId::MarkSpot => {
             "Bug reports: the key writes where you are (camera, car, section, nearest object, time, settings) and a command that rebuilds the view to a file in the data folder's overbright/marks. Off: no key."
         }
+        RowId::Background => {
+            "While the game is not the focused window or is minimised. Native: pauses (the race, the drawing and the sound stop, held keys are let go). Keep running: the race and the sound go on. Draw less: they go on, drawn at 30 FPS."
+        }
         RowId::PowerSaving => {
-            "Saves power where nothing you watch changes. Background: 30 FPS while the game is not the focused window. + Menus: menus held to the display's refresh rate. + Battery: on battery, the whole game held to the display's refresh rate. Off: uncapped."
+            "Saves power where nothing you watch changes. Menus: menus held to the display's refresh rate. + Battery: on battery, the whole game held to the display's refresh rate. Off: uncapped."
         }
         RowId::ReplayCameras => {
             "Extended: trackside, helicopter, wheel and orbit cameras after the original six (C), smooth half / quarter speed slow motion (,). Native: the original's replay."

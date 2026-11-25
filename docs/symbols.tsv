@@ -3912,5 +3912,7 @@ CarDriver_t+0x1D9	struct-field	CarDriver_t.keep_path	0x420D40 keeps the path's f
 0x827AAC	global	g_FFPrevSpeed	force feedback: the last call's speed per channel (m/s)	verified	formats/front-end.md (Force feedback)
 0x827AA4	global	g_FFLastJolt	force feedback: the last jolt on the sim clock per channel (s)	verified	formats/front-end.md (Force feedback)
 0x800EC0	global	g_SurfaceTable	29 surface rows of 0x98 bytes; name at +0x20, grip +0x44, slide +0x48, roll +0x4C, drag +0x50	verified	formats/front-end.md (Force feedback)
-0x4C0020	function	UI_PostRaceChain_Back	post-race chain Back: cursor +0x38 to the previous node (+0x4) and its package up (0x537990); nothing on the first node (+0x30); from the standings 0x4EA6CA, UI_Sponsorship_new 0x4C1457; the reward 0x4D7362 and UI_SponsorPopup 0x4C12F9 inline it	verified	formats/career-1.md (Post-race chain)
-0x836324	global	g_CribFromCareerStart	set by Career_Start opening UI_CareerCrib (0x495A5C), cleared on leaving it (0x4AF475, 0x4AF60F); the crib Back (0x4AF59F) asks quit-to-main (0xCB5E3178) when set, else Return to Explore Mode (0x60B42AFB)	verified	formats/saves-options.md (Save points)
+0x5BF1D0	function	Win_PumpMessages	one message per main-loop pass: PeekMessage(PM_REMOVE) while g_AppActive or other human racers (0x5F0100), else GetMessage (blocks: the game stands still in the background)	verified	docs/original/focus-loss.md
+0x5B7EF0	function	Input_ResetDeviceStates	WM_ACTIVATEAPP's reset of the input devices' state blocks (0x874C48, 0x874FB8, 0x875328): held keys let go	inferred	docs/original/focus-loss.md
+0x870988	global	g_AppActive	WM_ACTIVATEAPP's wParam; WM_SIZE sets !IsIconic; 0 while the window is in the background (observed under Wine)	verified	docs/original/focus-loss.md
+0x8709E0	global	g_AppInactiveAudio	WM_ACTIVATE's last inactive state; on a change the music and speech are held (0x4810F0) or resumed (0x481210)	verified	docs/original/focus-loss.md
