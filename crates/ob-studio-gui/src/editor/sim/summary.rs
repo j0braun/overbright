@@ -426,4 +426,4 @@ pub fn item_text(f: &Finding, runs: usize) -> String {
 
 #[cfg(test)]
 #[path = "summary_tests.rs"]
-mod tests;
+pub(crate) mod tests;

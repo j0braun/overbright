@@ -348,7 +348,8 @@ pub const KEYS: &[Binding] = &[
     b("File", "Ctrl+Q", words::QUIT, &[Key::Q]),
     b("File", "Enter", "Confirm a dialog", &[Key::Enter]),
     b("Run", "F5 / Shift+F5", "Test race / Drive here", &[Key::F5]),
-    b("Run", "Space", "Play / pause the simulation (Simulate tab)", &[Key::Space]),
+    b("Run", "Space", "Play / pause the simulation (its timeline under the view)", &[Key::Space]),
+    b("Run", "Left / Right, Shift+Left / Right", "The simulation a recorded frame back / on, a second with Shift", &[Key::ArrowLeft, Key::ArrowRight]),
     b("Run", "Up / Down", "Show the line above / below in What went wrong (Simulate tab)", &[Key::ArrowUp, Key::ArrowDown]),
 ];
 

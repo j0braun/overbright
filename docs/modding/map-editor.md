@@ -130,7 +130,8 @@ do nothing while a text field has the keyboard.
 | `Ctrl+Q` | Quit |
 | `Enter` | Confirm a dialog |
 | `F5 / Shift+F5` | Test race / Drive here |
-| `Space` | Play / pause the simulation (Simulate tab) |
+| `Space` | Play / pause the simulation (its timeline under the view) |
+| `Left / Right, Shift+Left / Right` | The simulation a recorded frame back / on, a second with Shift |
 | `Up / Down` | Show the line above / below in What went wrong (Simulate tab) |
 
 While the right mouse button is held the tool keys fly the camera instead (W A S D, Q / E).
@@ -329,9 +330,20 @@ game --map-file <run copy> --map-at x,y,z,heading --simulate-world --stream - --
 - `--stream`, `--sim-seed` and `--sim-seconds` without `--simulate` / `--simulate-world`, `--simulate` without
   `--map-race`, or `--simulate-world` without `--map-at` are usage errors.
 
-The editor reads the stream while it arrives and never waits for the game. The tab has **Play** / **Pause**
-(Space), speed 0.25x to 8x, a scrub bar over everything recorded so far, the camera (**Free camera** or behind a
-racer) and **Lines** (each racer's driven line). In the 3D view the cars are the game's own cars: each car's
+The editor reads the stream while it arrives and never waits for the game. A run shown has a **timeline** under
+the 3D view / Map (it reads only the recorded run, so it serves a saved one too): a track over everything recorded
+so far that a click or drag moves along (always to a recorded frame), **<** / **>** a recorded frame back / on
+(Left / Right; Shift: a second), **Play** / **Pause** (Space), the speed (0.25x to 4x), the time, and the camera:
+**Free camera** (fly it yourself), **Follow** (behind and above the car chosen beside it) or **Chase** (the game's
+own chase camera, its Far view, riding with that car: the car's camera settings from the game files, the car's
+moves from the recording; it does not push off walls as in the game, and without game data it follows). The time
+shown after the same real time is the same at any display rate, and a camera's view at a time does not depend on
+how the playback got there. On the track a marker stands at each thing **What went wrong** found in the run
+shown (a colour per kind, named at the right of the row: stuck and start trouble amber, crashes red, wrong way
+blue, missed checkpoints light, off the roads grey); hovering one names it, a click shows it as its What went
+wrong line does. Over the view's top right the **Positions** board lists each racer's place at the time shown,
+its car and its lap or finish time; a click follows that car. The Simulate tab keeps **Lines** (each racer's
+driven line). In the 3D view the cars are the game's own cars: each car's
 model with its paint, body parts, vinyls, rims and lights as the run built it (the stream's look records, below),
 drawn by the game's car renderer with the world's lighting, its wheels steering, rolling and riding the
 suspension, every car's headlight pool on the road, and its head and brake light flares as the game's glow pass
@@ -340,7 +352,7 @@ any playback speed. Traffic is drawn the same way. A car shows as a coloured box
 own thread; the view keeps drawing) or when it cannot be built (no game data, a stream written before the looks);
 **Car models** (on by default, before the colour key) switches every car to boxes. On the map the cars are
 arrows (the player's slot and the followed car lime, opponents light, traffic grey, street racers amber), with
-each racer's place; a key under the scrub bar names the colours. Below are the results (place, car, time, best lap,
+each racer's place; a key in the Simulate tab names the colours. Below are the results (place, car, time, best lap,
 laps done) in finishing order: finished racers by
 time, then the rest by their place on the road (no places before the green light); a racer without a finish when
 the run ended is last, as "did not finish"; a racer still on the road shows "racing". The player's slot, which
@@ -348,7 +360,7 @@ the AI drives here, is "Your slot (AI)", marked "AI-driven, not your time", with
 and time are the AI's, and Test race gives your own. The tab says how the run ended (every racer through, the
 time limit, or stopped) and how many problems it added to Validation, with **Show Validation**. The same seed
 runs the same race again; another seed changes the AI's and the traffic's choices.
-The space under the scrub bar shows one of three lists (the row above it switches): **Results** (above), **What
+The Simulate tab shows one of three lists (the row above it switches): **Results** (above), **What
 went wrong** and **Events** (green light, laps, finishes, crashes, stuck, wrong way, each with **Show**). A racer
 that stood still for 4 s after the green, drove against the race's direction for 2 s, or lost 6 m/s or more in
 one tick becomes a warning in the Validation tab, named by the checkpoint it was heading for: "Simulation: AI got
@@ -610,8 +622,8 @@ the region does not have is skipped and counted in the log (the tree marks it: "
 takes `--size WxH` (default 1600x900), `--scale F` (the display scale), `--mod`, `--region`, `--maps`, `--mode
 props|races` (which side of the selection is in front), `--tool <name>` (a toolbar tool), `--view
 3d|map|street|whole|top`, `--light work|game`, `--tab browser|validation|simulate|log`, `--select N,M`
-(placements by number; the 3D view is framed on them) and `--sim <stream file>[,<stream file>…][@seconds[:car]]` (a saved
-simulation at that time, following that car; several files are several runs, What went wrong over all of them, the
+(placements by number; the 3D view is framed on them) and `--sim <stream file>[,<stream file>…][@seconds[:car[:chase]]]` (a saved
+simulation at that time, following that car, with `:chase` on the game's chase camera; several files are several runs, What went wrong over all of them, the
 last one shown), `--collision off|invisible|all` (the collision layer) and `--camera x,y,z[,yaw,pitch]`
 (the 3D camera, metres and degrees). A shot runs on a fixed clock, so the same arguments draw the same
 picture. scripts/checks/editor_shots.sh runs it at every size of the resolution matrix (docs/developing/checks.md).
