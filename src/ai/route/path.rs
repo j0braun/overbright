@@ -49,7 +49,9 @@ impl RacerRoute {
     /// says so — the path is empty, or the car's offset off the line
     /// (0x60BFB0) differs from the path's at the car (0x419C60) by more
     /// than 1.5 m (0x7E8D94; 4.5 in drift races) and by more than the
-    /// path point's distance (0x419CC0 → 0x40AE30) less the car's;
+    /// path point's distance (0x419CC0 → 0x40AE30) less the car's, or the
+    /// lane record's rate is the jump rate 999 ([`JUMP_RATE`]; the
+    /// controller's request byte +0x774 is not ported, **open**);
     /// otherwise the points behind the car go (0x404EF0 / 0x40F7A0: the
     /// first point ahead of it along its heading, car +0x60 / +0x70) and
     /// the path is cut after the first point max(30, |v| / 2) m on
@@ -145,8 +147,14 @@ impl RacerRoute {
         // (else the last).
         let at = self.line.iter().position(|p| ahead(p.pos)).unwrap_or(self.line.len().saturating_sub(1));
         let threshold = if drift { REPLAN_DRIFT } else { REPLAN };
+        // 0x41BFE0 also plans afresh on a lane record whose rate is the
+        // jump rate 999 (|rate − 999| < 0.001, 0x41C04E..0x41C06A): the
+        // AvoidAvoidable fallback's offset then starts at the car instead
+        // of past the kept part of the driven path.
+        let jump = (rate - JUMP_RATE).abs() < 0.001;
         let replan = !keep
             && (fresh
+                || jump
                 || self.line.get(at).is_none_or(|p| {
                     let off = (self.lateral - p.lateral).abs();
                     off > threshold && off > p.s - self.distance
@@ -176,7 +184,16 @@ impl RacerRoute {
             Some(l) => (l.lateral, l.s + 0.5),
             None => (self.lateral, self.distance),
         };
-        let margin = if drift { ROOM_MARGIN_DRIFT } else { ROOM_MARGIN };
+        // 0x420D40: 1 m inside the room, none on the jump rate, 5 m in
+        // drift races (0x420D5D..0x420DA9); 0x41D530 adds the car's own
+        // entry's half extent across (+0x08, 0x41D5F9..0x41D60F).
+        let margin = if drift {
+            ROOM_MARGIN_DRIFT
+        } else if jump {
+            0.0
+        } else {
+            ROOM_MARGIN
+        } + self.own_across;
         let mut rate = rate;
         for i in 1..self.points.len() {
             if self.line.len() >= PATH_POINTS {

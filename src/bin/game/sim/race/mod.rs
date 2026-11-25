@@ -60,6 +60,10 @@ pub(crate) struct Race {
     /// green the drag placement refuses traffic nearer the start line
     /// (0x418110).
     pub(crate) start_gap: Option<f32>,
+    /// The track's start kind (record +0xF6): 1 lets the rivals take
+    /// IJustGotHit, Pass and AvoidAvoidable's plan in their start hold
+    /// (`RacerRoute::hold_spares_contacts`).
+    pub(crate) start_kind: i8,
     /// The player's DragCarController in a drag race (made on its first
     /// frame).
     pub(crate) dragger: Option<DragSteer>,
@@ -295,6 +299,7 @@ impl Race {
             reference: nfsu2::standings::LapReference::new(1.0, []),
             drag: mode == RaceMode::Drag,
             start_gap: None,
+            start_kind: 0,
             dragger: None,
             autopilot: None,
             replay: RaceReplay {

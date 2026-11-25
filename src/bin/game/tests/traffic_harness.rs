@@ -120,7 +120,9 @@ impl Table {
                     };
                     let tgt = l.avoid_target().map_or("-".into(), |t| match t {
                         usize::MAX => "P".to_string(),
-                        t if t >= usize::MAX - 64 => format!("R{}", usize::MAX - t - 1),
+                        // Rival k is `usize::MAX - 1 - k` in the traffic's
+                        // entries and row `R<k + 1>`.
+                        t if t >= usize::MAX - 64 => format!("R{}", usize::MAX - t),
                         t => t.to_string(),
                     });
                     (lane, act, tgt)
@@ -145,6 +147,130 @@ impl Table {
                     note: String::new(),
                 },
             );
+        }
+    }
+
+    /// The encounter cars out (mode −2 rows, `R<k>` as the original's world
+    /// list slot): the mover in `lane`, the action type in `action`, its
+    /// tracked car in `target` (`P`, `R<k>`, or a traffic car's slot), the
+    /// goal in `note` (9 the pursuit, 5 / 6 an outrun's, 1 after it).
+    fn racers(&mut self, t: f32, e: &crate::sim::encounters::Encounters) {
+        for (i, c) in e.cars.iter().enumerate().filter(|(_, c)| c.active) {
+            let a = c.controller.actions.as_ref();
+            let goal = match (a.map(|a| a.goal), c.controller.goal) {
+                (Some(nfsu2::ai::actions::Goal::OffsetPursuit { .. }), _) => 9,
+                (_, Some(g)) => g.type_id(),
+                _ => -1,
+            };
+            let target = a.and_then(|a| a.target.filter(|_| a.kind != nfsu2::ai::actions::Kind::OffsetPursuit)).map_or(
+                "-".into(),
+                |id| match id {
+                    0 => "P".to_string(),
+                    id if id >= 1000 => (id - 1000).to_string(),
+                    id => format!("R{id}"),
+                },
+            );
+            self.row(
+                t,
+                Row {
+                    car: format!("R{}", i + 1),
+                    model: &c.car.car_type.name,
+                    mode: -2,
+                    pos: c.state.position,
+                    hd: c.state.heading().to_degrees(),
+                    speed: c.state.speed(),
+                    lane: crate::sim::encounters::ai::encounter_mover_kind(c).to_string(),
+                    action: if c.unstuck.since.is_some() { 9 } else { a.map_or(-1, |a| a.kind.type_id()) },
+                    target,
+                    stopped: false,
+                    active: true,
+                    brake: c.state.brake_lights(false),
+                    note: format!("goal{goal}"),
+                },
+            );
+        }
+    }
+
+    /// The race's rivals: `R<k>` (k from 1), mode −2, the drag lane record,
+    /// the action type, its tracked car, `stopped` = totaled, `active` = a
+    /// live contact record (a wall or a car), the note `frac=<road fraction>`
+    /// (car +0x8F8), `imp=<the largest summed pushes (record +0x60) of its
+    /// live contact records with a racer>`, the lane record's `po=<offset>,pr=<rate>`, the
+    /// driven path's `pl=<reach from the car>,pn=<points>`, AvoidAvoidable's `rc=<reach time>` and,
+    /// once over, `fin=<race clock>`.
+    fn rivals(&mut self, t: f32, rivals: &[Rival], cars: &nfsu2::drive::CarField) {
+        let records = cars.records();
+        for (k, r) in rivals.iter().enumerate() {
+            let me = k as u64 + 1;
+            let imp = records
+                .iter()
+                .filter(|&&(a, b, _, _)| (a == me && b < 1000) || (b == me && a < 1000))
+                .map(|&(_, _, _, j)| j)
+                .fold(0.0f32, f32::max);
+            let f = (r.state.orientation * Vec3::X).truncate();
+            let fin = r.progress.finished.map_or(String::new(), |c| format!(",fin={c:.3}"));
+            self.row(
+                t,
+                Row {
+                    car: format!("R{}", k + 1),
+                    model: &r.car.car_type.name,
+                    mode: -2,
+                    pos: r.state.position,
+                    hd: f.y.atan2(f.x).to_degrees(),
+                    speed: r.state.speed(),
+                    lane: r.lane.lane.map_or("-".into(), |l| l.to_string()),
+                    action: r.actions.kind.type_id(),
+                    // As the rows name them: the player, a traffic car's
+                    // slot (road car 1000 + slot), rival k + 1 (`R<k + 1>`).
+                    target: r.actions.target.map_or("-".into(), |id| match id {
+                        0 => "P".to_string(),
+                        id if id >= 1000 => (id - 1000).to_string(),
+                        id => format!("R{id}"),
+                    }),
+                    stopped: r.state.totaled,
+                    active: !r.state.contacts.is_empty(),
+                    brake: r.state.brake_lights(false),
+                    note: format!(
+                        "frac={:.4},imp={imp:.2},po={:.2},pr={:.3},pl={:.1},pn={},rc={:.2}{fin}",
+                        r.progress.locator.fraction,
+                        r.actions.plan.offset,
+                        r.actions.plan.rate,
+                        r.actions.last_path.last().map_or(f32::NAN, |q| (*q - r.state.position).truncate().length()),
+                        r.actions.last_path.len(),
+                        r.actions.reach
+                    ),
+                },
+            );
+        }
+    }
+
+    /// The contact records that involve a traffic car (`# rec` lines, as
+    /// the original's side writes them): each record when it ends, the
+    /// time it was first seen, the kinds of the two cars (P the player, R
+    /// an encounter car, T traffic) and its largest summed pushes (+0x60).
+    fn contacts(&mut self, t: f32, field: &nfsu2::drive::CarField, live: &mut HashMap<u64, (String, f32, f32)>) {
+        let kind = |id: u64| match id {
+            0 => 'P',
+            id if id < 1000 => 'R',
+            _ => 'T',
+        };
+        let mut seen = std::collections::HashSet::new();
+        for (a, b, rec, imp) in field.records() {
+            let mut k = [kind(a), kind(b)];
+            if !k.contains(&'T') {
+                continue;
+            }
+            seen.insert(rec);
+            k.sort_unstable();
+            let e = live.entry(rec).or_insert((format!("{}-{}", k[0], k[1]), 0.0, t));
+            e.1 = e.1.max(imp);
+        }
+        let mut gone: Vec<u64> = live.keys().copied().filter(|r| !seen.contains(r)).collect();
+        gone.sort_unstable();
+        for r in gone {
+            if let Some((k, imp, t0)) = live.remove(&r) {
+                let _ = writeln!(self.w, "# rec\t{t0:.2}\t{k}\t{imp:.1}");
+            }
         }
     }
 
@@ -427,6 +553,34 @@ impl Bot {
 /// right) when a car stands within 50 m ahead in the player's lane.
 pub(crate) const DRAG_SHIFTS: [f32; 5] = [1.5, 3.2, 5.3, 8.0, 11.5];
 
+/// `TRAFH_RAM`: the drag bot's lane change into a rival (as trafbot.py's `drag_ram_tap`).
+const RAM_EVERY: f32 = 4.0;
+const RAM_FROM: f32 = 2.0;
+
+/// `TRAFH_SHOVE`: the race clock of each shove (as trafbot.py's SHOVE_AT).
+const SHOVE_AT: [f32; 4] = [8.0, 14.0, 20.0, 26.0];
+
+/// The player's place and velocity for shove `k` beside a rival at `at`
+/// moving at `v`, heading `hd` (its velocity's direction): 1.7 m to its right (k even) or left (k
+/// odd), the rival's velocity plus 3 m/s towards it (trafbot.shove_place).
+fn shove_place(at: Vec3, v: Vec3, hd: f32, k: usize) -> (Vec3, Vec3) {
+    let right = Vec3::new(hd.sin(), -hd.cos(), 0.0);
+    let side = if k % 2 == 0 { right } else { -right };
+    (at + side * 1.7, v - side * 3.0)
+}
+
+/// Some(true): tap left, Some(false): right, None: no rival beside (within
+/// 6 m along and 1.8–6 m across; the nearest across).
+fn drag_ram_tap(p: Vec2, fwd: Vec2, rivals: &[Vec2]) -> Option<bool> {
+    let right = Vec2::new(fwd.y, -fwd.x);
+    rivals
+        .iter()
+        .map(|&c| ((c - p).dot(fwd), (c - p).dot(right)))
+        .filter(|&(ds, dl)| ds.abs() < 6.0 && (1.8..6.0).contains(&dl.abs()))
+        .min_by(|a, b| a.1.abs().total_cmp(&b.1.abs()))
+        .map(|(_, dl)| dl < 0.0)
+}
+
 pub(crate) fn drag_lane_tap(p: Vec2, fwd: Vec2, cars: &[(String, Vec2, Vec2)]) -> Option<bool> {
     let right = Vec2::new(fwd.y, -fwd.x);
     let mut blocked = false;
@@ -544,6 +698,11 @@ fn traffic_harness() {
             game.settings.qr[ty].traffic = env_or("TRAFH_LEVEL", 3);
             let driver = std::env::var("TRAFH_DRIVER")
                 .unwrap_or_else(|_| if mode == "drag" { "drag" } else { "throttle" }.into());
+            let driver_meta = match (std::env::var("TRAFH_RAM").is_ok_and(|v| v == "1"), std::env::var("TRAFH_SHOVE").is_ok_and(|v| v == "1")) {
+                (_, true) => format!("{driver}-shove"),
+                (true, _) if driver == "drag" => "drag-ram".to_string(),
+                _ => driver.clone(),
+            };
             game.explore(None).unwrap();
             game.drop_drive();
             game.mode = game.icon_menu(MenuKind::Main);
@@ -559,12 +718,18 @@ fn traffic_harness() {
             let track = game.game_data.career.events.get(rc.event).map_or(0, |e| e.track);
             let region = rc.racers.traffic.as_ref().map_or(String::new(), |t| t.region.clone());
             let meta = format!(
-                "scenario={scen}\tseed={seed}\tlevel={}\tdriver={driver}\ttrack={track}\troutes=TRACKS/ROUTES{region}/Routes{track}{}.bin",
+                "scenario={scen}\tseed={seed}\tlevel={}\tdriver={driver_meta}\ttrack={track}\troutes=TRACKS/ROUTES{region}/Routes{track}{}.bin",
                 game.settings.qr[ty].traffic,
                 if rc.reversed { "B" } else { "F" }
             );
             let mut tab = Table::create(&path, &meta);
+            let mut live = HashMap::new();
+            writeln!(tab.w, "# contacts").unwrap();
             let (mut on, mut shifts, mut last_tap, mut t0) = (false, 0usize, -10.0f32, None::<u64>);
+            let ram = std::env::var("TRAFH_RAM").is_ok_and(|v| v == "1");
+            let shove = std::env::var("TRAFH_SHOVE").is_ok_and(|v| v == "1");
+            let mut shoves = 0usize;
+            let mut last_ram = -10.0f32;
             let mut n = 0u64;
             while t0.is_none_or(|t0| n < t0 + frames) && n < frames + 60 * 120 {
                 n += 1;
@@ -580,6 +745,22 @@ fn traffic_harness() {
                         shifts += 1;
                         tap(&mut game, KeyCode::ShiftLeft);
                     }
+                    // `TRAFH_RAM=1`: a lane change into a rival beside every 4 s from 2 s.
+                    if ram
+                        && clock >= RAM_FROM
+                        && clock - last_ram >= RAM_EVERY
+                        && let (Some(d), Mode::Race(rc)) = (game.sim.drive.as_ref(), &game.mode)
+                        && let Some(left) = drag_ram_tap(
+                            d.state.position.truncate(),
+                            d.state.forward().truncate().normalize_or_zero(),
+                            &rc.racers.rivals.iter().map(|r| r.state.position.truncate()).collect::<Vec<_>>(),
+                        )
+                    {
+                        last_ram = clock;
+                        last_tap = clock;
+                        k[if left { 2 } else { 3 }] = true;
+                        tap(&mut game, if left { KeyCode::ArrowLeft } else { KeyCode::ArrowRight });
+                    }
                     if let (Some(d), Mode::Race(rc)) = (game.sim.drive.as_ref(), &game.mode)
                         && clock - last_tap > 1.5
                         && let Some(left) = rc.racers.traffic.as_ref().and_then(|t| {
@@ -593,6 +774,30 @@ fn traffic_harness() {
                         last_tap = clock;
                         k[if left { 2 } else { 3 }] = true;
                         tap(&mut game, if left { KeyCode::ArrowLeft } else { KeyCode::ArrowRight });
+                    }
+                }
+                // `TRAFH_SHOVE=1`: the player's car put beside a rival, pushing into it (as
+                // trafh_native.py's --shove).
+                if shove && green && shoves < SHOVE_AT.len() && clock >= SHOVE_AT[shoves] {
+                    let k = shoves;
+                    shoves += 1;
+                    let picked = if let Mode::Race(rc) = &game.mode {
+                        let live: Vec<&Rival> = rc.racers.rivals.iter().filter(|r| !r.state.totaled && r.progress.finished.is_none()).collect();
+                        (!live.is_empty()).then(|| {
+                            let r = live[k % live.len()];
+                            (r.state.position, r.state.velocity, r.state.velocity.y.atan2(r.state.velocity.x))
+                        })
+                    } else {
+                        None
+                    };
+                    if let (Some((at, v, hd)), Some(d)) = (picked, game.sim.drive.as_mut()) {
+                        // The body alone, as place.py writes the original's (position,
+                        // orientation, momentum; the drivetrain and the race state kept).
+                        let (pos, vel) = shove_place(at, v, hd, k);
+                        d.state.position = pos;
+                        d.state.orientation = glam::Quat::from_rotation_z(hd);
+                        d.state.velocity = vel;
+                        d.state.angular_momentum = Vec3::ZERO;
                     }
                 }
                 set_keys(&mut game, k);
@@ -612,6 +817,9 @@ fn traffic_harness() {
                 if let Some(tr) = rc.racers.traffic.as_ref() {
                     tab.traffic(t, tr);
                 }
+                // A race's cars meet in its own collision field.
+                tab.contacts(t, &rc.racers.cars, &mut live);
+                tab.rivals(t, &rc.racers.rivals, &rc.racers.cars);
                 if let Some(d) = game.sim.drive.as_ref() {
                     tab.player(t, d, driver.clone());
                 }
@@ -641,6 +849,9 @@ fn traffic_harness() {
                 if bot.is_some() { "bot" } else { "stand" }
             );
             let mut tab = Table::create(&path, &meta);
+            let mut live = HashMap::new();
+            // The contact census is on (an empty census still counts as zero records).
+            writeln!(tab.w, "# contacts").unwrap();
             for n in 1..=frames {
                 let t = n as f32 / 60.0;
                 if let (Some(b), Some(d), Some(tr)) = (bot.as_mut(), game.sim.drive.as_ref(), game.sim.traffic.as_ref())
@@ -657,6 +868,10 @@ fn traffic_harness() {
                 }
                 if let Some(tr) = game.sim.traffic.as_ref() {
                     tab.traffic(t, tr);
+                    tab.contacts(t, &tr.field, &mut live);
+                }
+                if let Some(e) = game.sim.encounters.as_ref() {
+                    tab.racers(t, e);
                 }
                 if let Some(d) = game.sim.drive.as_ref() {
                     tab.player(t, d, bot.as_ref().map_or("stand".into(), |b| b.note()));

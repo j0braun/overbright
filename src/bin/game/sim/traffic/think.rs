@@ -198,9 +198,9 @@ fn traffic_place_pass(
                 // status +0xBF8 by +0xBF6 × 0.01 × the road length);
                 // then in a race (status 4) one within 250 m of race
                 // coordinate of the player (0x409890 → 0x5F12B0), and
-                // one a car is near (0x411060: an AI racer, controller
-                // type 3, within the spacing either way; the others —
-                // the player, traffic — with the point less than the
+                // one a car is near (0x411060: a traffic car, car +0x14
+                // → +4 = 3, within the spacing either way; the others —
+                // the player, the racers — with the point less than the
                 // spacing ahead of them). The traffic's race
                 // coordinates are their +0x8FC (`TrafficCar::race_coord`),
                 // the racers' their places located on the race road
@@ -211,8 +211,8 @@ fn traffic_place_pass(
                     .iter()
                     .enumerate()
                     .filter(|&(j, c)| j != i && c.lane.is_some())
-                    .map(|(_, c)| (c.race_coord(road), false))
-                    .chain(racers.iter().map(|r| (road.locate_once(r.position), true)))
+                    .map(|(_, c)| (c.race_coord(road), true))
+                    .chain(racers.iter().map(|r| (road.locate_once(r.position), false)))
                     .chain(std::iter::once((p.coord, false)))
                     .collect();
                 let flat: Vec<Vec2> = others.iter().copied().chain(std::iter::once(me.truncate())).collect();
@@ -232,8 +232,8 @@ fn traffic_place_pass(
                     .iter()
                     .enumerate()
                     .filter(|&(j, c)| j != i && c.lane.is_some())
-                    .map(|(_, c)| (c.race_coord(road), false))
-                    .chain(racers.iter().map(|r| (road.locate_once(r.position), true)))
+                    .map(|(_, c)| (c.race_coord(road), true))
+                    .chain(racers.iter().map(|r| (road.locate_once(r.position), false)))
                     .chain(std::iter::once((mc, false)))
                     .collect();
                 let flat: Vec<Vec2> = others.iter().copied().chain(std::iter::once(me.truncate())).collect();

@@ -122,6 +122,15 @@ pub enum Kind {
     /// 0x4234A0(0x13, 0, −1), vtable 0x785A18; slots 6–8 0x403170 false),
     /// AIGoalOffsetPursuit's default action (`pursuit`).
     OffsetPursuit,
+    /// AIActionDriveTrafficLane: type 7, priority 0, no end (0x426EC0,
+    /// vtable 0x785820), the "Win drag race" goal's default action.
+    DragLane,
+    /// "I just hit a wall (in a drag race)!": type 0xF, priority 300 from
+    /// 0x403450, no time limit (0x424980, vtable 0x7858D4).
+    DragWall,
+    /// "I just got hit (in a drag race)!": type 0xC, priority 400 from
+    /// 0x403410, no time limit (0x424560, vtable 0x78588C).
+    DragHit,
 }
 
 impl Kind {
@@ -134,6 +143,9 @@ impl Kind {
             Kind::Avoid => 1,
             Kind::Recover => 0xD,
             Kind::OffsetPursuit => 0x13,
+            Kind::DragLane => 7,
+            Kind::DragWall => 0xF,
+            Kind::DragHit => 0xC,
         }
     }
 }
@@ -165,6 +177,11 @@ pub struct Scene<'a> {
     pub drag: bool,
     /// 0x5EF000: the start hold (racer numbers 100…105).
     pub held: bool,
+    /// The start hold as IJustGotHit's proposal (0x403320), Pass's
+    /// (0x42B5B0) and AvoidAvoidable's update (0x42F330) test it: none on
+    /// a track of start kind 1 (record +0xF6), else `held`
+    /// (`RacerRoute::hold_spares_contacts`).
+    pub contact_held: bool,
     /// The tuning table row for Block (0x81CB60 +0x934 + 8·(racer
     /// +0x902)).
     pub block_row: usize,
