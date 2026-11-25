@@ -11,8 +11,10 @@ mod replay_keys;
 pub(crate) use keys::*;
 pub(crate) use queue::{InputEvent, InputQueue};
 
-/// Whether a force-feedback wheel is attached (0x5B8250 asks the input
-/// layer): the clone reads none, so the Feedback option is disabled.
+/// Whether a force-feedback device is attached (0x5B8250 asks the input
+/// layer) for the developer shots and the selftest, which run without
+/// one: the Feedback option is disabled. The game asks its pads
+/// (`Host::force_feedback`).
 pub(crate) const FORCE_FEEDBACK: bool = false;
 
 /// The Controls row of Look Back (DIACTION 9; keys B / K, 0x7FCAC0).
@@ -37,6 +39,8 @@ impl Game {
             handbrake: d.ebrake,
             steer: -d.steer,
             nitrous: held & (1 << nfsu2::pad::act::NITROUS) != 0,
+            // A wheel drives: 0x4061C0 with the player's Wheel Range.
+            wheel: self.platform.pads.wheel_drives().then_some(self.settings.players[0].wheel_range),
             ..Default::default()
         }
     }

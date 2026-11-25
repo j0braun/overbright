@@ -300,8 +300,9 @@ mod tests {
         // the section distances of the tick views, the chase camera's
         // Field Of View offset; 15 B with the draw's reads alone, which put
         // the input at 104 B) and free roam's career input (`RoamInput`, a
-        // shared handle).
-        assert!(std::mem::size_of::<TickInput>() <= 112);
+        // shared handle), and the player's controls' wheel (`Controls::
+        // wheel`, the Wheel Range when a wheel drives, 8 B).
+        assert!(std::mem::size_of::<TickInput>() <= 120);
         // + a scene's tick (its end boxed), free roam's encounter
         // tick, the tick's contact sounds (two queues, 48 B) and free
         // roam's world step under the slow motion (8 B).

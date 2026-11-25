@@ -2287,7 +2287,7 @@ RenderInfo_t+0x2D44	struct-field	RenderInfo_t.part_anims	part animations	verifie
 0x579F90	function	RunningMean_InitWindow	time-window mean set-up (window seconds, samples per second)	inferred	formats.md:2766
 0x405C60	function	PlayerSteering_Ctor	steering object constructor: input means at +0x14 (0.55 s) and +0x48 (0.15 s)	verified	formats.md:2766
 0x41DFC0	function	PlayerSteering_Dispatch	steering per frame: wheel / keyboard path, then feeds the input mean	verified	formats.md:2766
-0x4061C0	function	WheelSteering_Update	steering for a wheel device (0x5C1010 true)	inferred	formats.md:2766
+0x4061C0	function	WheelSteering_Update	steering for a wheel device (0x5C1010 true): input clamped to ±Wheel Range, response 0x7E9E88, lock with 0x7E9EEC, angle set without a rate limit	verified	formats/front-end.md (Wheels)
 0x406460	function	Steering_ForceFeedback	the driving force-feedback effects, once per world update after the steering (spring, constant, damper, suspend, jolts, road surface, puddle damper)	verified	formats/front-end.md (Force feedback)
 0x407750	function	HumanInput_OnSteerAxis	axis 0x8F/0x90 callback: byte b → (b − 128) × −1/128 into input +0x2C8	verified	formats.md:2766
 0x783AD8	const	k_SteerMeanWindow	0.55 s, the steering input mean's window	verified	formats.md:2766
@@ -2705,7 +2705,8 @@ RenderInfo_t+0x2D44	struct-field	RenderInfo_t.part_anims	part animations	verifie
 0x499160	function	EngageEventDialog_SetSender	"From: %s" (0x9F29D70D) of one name drawn by 0x4FE970 on 0xFECED617	verified	formats.md (Career audit round 6)
 0x512820	function	Event_SenderName	an event's sender: label +0x84 when set, else the career string at +0x40 (the first opponent's name)	verified	formats.md (Career audit round 6)
 0x4991B0	function	UI_EngageEventDialog_Setup	UI_EngageEventDialog's texts and buttons for a challenge or (one Continue button) a milestone	verified	formats.md (Career audit round 6)
-0x7E9E4C	const	PlayerSteering_ResponseGraphs	20-byte input response graphs; index 1 (0x7E9E60) normal, index 4 (0x7E9E9C) drift/URL	verified	formats.md:2770
+0x7E9E4C	const	PlayerSteering_ResponseGraphs	20-byte input response graphs; index 1 (0x7E9E60) normal, index 3 (0x7E9E88 → 0x7E92D8) a wheel (0x4061C0), index 4 (0x7E9E9C) drift/URL	verified	formats.md:2770
+0x7E9EEC	const	WheelSteering_MaxAngleGraph	graph over speed 0..160 m/s (→ 0x7E91A4: 45, 15, 11, 8, 7…): a wheel's maximum angle in 0x4061C0, in place of 0x7E9ED8	verified	formats/front-end.md (Wheels)
 0x7E9F50	const	PlayerSteering_DriftRatioBoost	graph (0x40C840) over |yaw accel|: ratio x1..1.35 in drift races	verified	formats.md:2777
 0x5EEB10	function	RaceStatus_CountdownFraction	fraction of the countdown step (+4 set: (now-+4)/4000/+0xC, 1 past it)	verified	formats.md:Outrun "GO!"
 0x4AB5B0	function	HUD_CountdownUpdate	3,2,1 / GO! (0x535) from 0x5EEA50, scale 2f+1, alpha sin(90f)	verified	formats.md:Outrun "GO!"

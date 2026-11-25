@@ -57,6 +57,7 @@ impl Game {
             d.chase.set_look_back(look_back);
         }
         self.rumble_tick();
+        self.ff_tick();
         Ok(TickControls { controls })
     }
 }

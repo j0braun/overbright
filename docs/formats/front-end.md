@@ -2639,7 +2639,7 @@ the maintainer's probe `pad_probe` lists what the game sees.
   zone (as the original sets none; gilrs's filters are off).
 * **Force feedback** (**verified** in the disassembly, **observed** under
   Wine with a virtual FF wheel where marked; the model is
-  `nfsu2::pad::ff::Original`, no device output yet). DirectInput 8 effects
+  `nfsu2::pad::ff::Original`, played by `nfsu2::pad::ff_out`). DirectInput 8 effects
   on any device that reports FF actuators; no XInput (no import, string or
   GUID). The console builds' pad vibration (0x5727C0 → 0x572620 →
   0x4022C0) ends in a bare `ret` on the PC.
@@ -2747,6 +2747,32 @@ the maintainer's probe `pad_probe` lists what the game sees.
     an effect that does not play is started (Start(1, 0)). The jolt is
     started on every pass. 0x86F86C (tested by the constant and periodic
     functions) is only ever written 0.
+  * **The DirectInput calls** (**verified** in the disassembly; the clone's
+    Windows output `pad::ff_out::dinput` makes the same calls). Every
+    DIEFFECT (dwSize 0x38): flags DIEFF_OBJECTOFFSETS | DIEFF_CARTESIAN
+    (0x12), sample period 0, gain 10000, DIEB_NOTRIGGER, repeat 0, start
+    delay 0, cAxes = the actuator count, axes DIJOFS_X, DIJOFS_Y (data
+    format c_dfDIJoystick2, 0x7BFDE0: 0x110 bytes, 0xA4 objects).
+    Conditions (0x5C04F0): direction {1, 1}, no envelope, one DICONDITION
+    per axis {offset, coefficients ±c, saturations s, deadband 0}, the
+    second {0, 8000, 8000, 8000, 8000, 500}, infinite. Constant (0x5C0210):
+    direction {1, 0}, an all-zero DIENVELOPE, lMagnitude, infinite.
+    Periodic (0x5C8D30): direction {1, 0}, magnitude as a DWORD (a negative
+    jolt stays its bit pattern), offset 0, phase 0, period in µs; the road
+    surface infinite with a zero envelope, the jolt 150000 µs, period 75000,
+    fade time 20000. GUIDs 0x7BFC90 Spring, 0x7BFCA0..0x7BFCD0 SawtoothDown,
+    SawtoothUp, Triangle, Sine, 0x7BFCE0 Square, 0x7BFCF0 ConstantForce.
+    Updates are SetParameters(DIEP_TYPESPECIFICPARAMS | DIEP_ENVELOPE =
+    0x140) (0x5C06B0, 0x5C03A0, 0x5C8EE0). Start (0x5BFEF0): Acquire, and
+    only if it succeeds Start(1, 0). Stop (0x5BFF70): Acquire (result
+    unused), Stop. Release of a slot (0x5C0000): Acquire, Unload (the COM
+    object is not released). The opener: SetDataFormat, then
+    SetCooperativeLevel(window 0x870990, 5), EnumObjects, and
+    SetProperty(DIPROP_AUTOCENTER, DIPH_DEVICE, 0) on a driving device.
+    The clone sets a two-axis data format with X and Y at the same offsets
+    (only the actuator offsets matter to the effects), finds the game's
+    window for the cooperative level, and matches the device by guidProduct
+    = MAKELONG(vid, pid) among attached FF game controllers.
   * **Device class.** A gamepad-class device (0x15, 0x86F8A8) gets the
     damper, road surface, jolts and the full-lock spring, but no constant
     force and no Feedback-off or front-end spring. Under DirectInput an
@@ -2765,6 +2791,35 @@ the maintainer's probe `pad_probe` lists what the game sees.
   * **Open**: what the front-end path does in the pause (whether the
     driver update runs there); the order within the world update between
     the tyre forces 0x406460 reads and the mover; the +0x690 driver.
+* **Wheels** (**verified** in the disassembly; not observed under Wine:
+  no wheel in the prefix). 0x41DFC0 steers through 0x4061C0 instead of
+  0x416BB0 when the channel is a wheel (0x5C1010: DI8DEVTYPE_DRIVING, the
+  driver's type or 0x800588's override). The steering object (input +0x220)
+  holds player block +0x19 at +4 and Wheel Range (+0x1C) at +8 (0x41E23E..
+  0x41E255). 0x4061C0(x, dt): x = clamp(x, −R, R), u = 2 · (x + R) / 2R − 1,
+  s = graph 0x7E9E88 (values 0x7E92D8: −1, −0.8, −0.615, −0.483, −0.388,
+  −0.288, −0.22, −0.161, −0.111, −0.057, 0, …) at u. Unless +4 is set, the
+  lock is 0x405DC0's with the wheel's angle graph 0x7E9EEC (0..160 m/s →
+  0x7E91A4: 45, 15, 11, 8, 7, 7…) in place of 0x7E9ED8: lock = graph
+  0x7E9F00(|mean +0x20|) · angle(v) · (graph 0x7E9F14(v) · (1 − (gas + 1 −
+  (brake + handbrake) / 2) / 2) + 1); with +4 set it stays 45. No
+  slow-down after a wall. The drift flag +0x10 as 0x405DC0 (on above 15°
+  slip at 13.41 m/s, off under 5°). A counter-steer (s · slip < 0) while
+  drifting or with |slip| > lock takes lock = min(|slip|, 45) — the whole
+  slip, not 0x7E9F5C's share; else at |mean| ≥ 0.5 lock = max(lock, +0x80
+  − 0 · dt), and +0x80 is not written here. The angle clamp(lock ·
+  ratio(handling +0x270) · s, ±45) goes straight to the word +0x7C
+  (_ftol(a · 65536) / 360): no rate limit (0x4060E0 is not called) and no
+  drift ratio boost. It returns s (the FF's steering and the mean 0x576AB0
+  take it). Player block +0x19 has no writer found besides the profile
+  load (**inferred** 0). The clone: `CarState::steer_wheel`, chosen by
+  `Controls::wheel` (the Wheel Range) when the driving device is a wheel.
+  Which products count as wheels: 0x800588's 044F:04B2 and, standing in
+  for the type each vendor's driver reports (**inferred**), SDL 2's wheel
+  list (`pad::host::WHEELS`). A wheel is presented in DirectInput's axis
+  order (`Layout::Wheel`: lX the wheel, lY, lZ, lRx, lRy, lRz raw), so
+  0x5C11B0's wheel defaults apply: the combined pedal axis only on a wheel
+  without lZ / lRz, else the pedals are bound on the Controls page.
 * **Synthetic input** (clone): `NFSU2_PAD_SCRIPT=<file>`, lines `<s>
   connect <id> [vid pid]`, `disconnect <id>`, `axis <id> lx|ly|rx|ry|lt|rt
   <v>`, `button <id> <name> 0|1` on the game clock; the shots poll it at

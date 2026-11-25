@@ -116,6 +116,18 @@ serde_json.workspace = true
 # The allocator's memory probe (/proc/meminfo, sysctl) before main.
 libc.workspace = true
 
+# Force feedback on Windows (`pad::ff_out::dinput`): the DirectInput 8 calls
+# of the original through Microsoft's `windows` bindings, MIT OR Apache-2.0,
+# already in the tree through cpal and gilrs (no new crate).
+[target.'cfg(windows)'.dependencies.windows]
+version = "0.62"
+features = [
+    "Win32_Devices_HumanInterfaceDevice",
+    "Win32_Foundation",
+    "Win32_System_LibraryLoader",
+    "Win32_UI_WindowsAndMessaging",
+]
+
 [dev-dependencies]
 # Property-based fuzzing of the file readers (tests/fuzz_readers.rs).
 # MIT OR Apache-2.0.

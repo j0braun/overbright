@@ -534,6 +534,7 @@ pub fn read_tables(exe: &'static Exe) -> Result<Tables> {
         Ok(Tables {
             steer_response: exe.array(0x7E_9228)?,
             steer_response_drift: exe.array(0x7E_9330)?,
+            steer_response_wheel: exe.array(0x7E_92D8)?,
             lateral,
             drift_tune: rows(exe, 0x7F_C2E4, 0x144)?,
             street_x_tune: rows(exe, 0x7F_C33C, 0x144)?,

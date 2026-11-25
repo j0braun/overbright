@@ -152,7 +152,7 @@ impl Game {
         let Mode::Menu(menu) = &self.mode else { return None };
         let now = self.now();
         Some(match menu {
-            Menu::Options(o) => o.sound(key, &self.settings, FORCE_FEEDBACK),
+            Menu::Options(o) => o.sound(key, &self.settings, self.platform.pads.force_feedback()),
             Menu::QrOptions(o) => self.qr_options_sound(key, o),
             // UI_PerformanceBrandSelect's rows: option vtable 0x79B6B0
             // (+0x38 0x50D500, +0x3C 0x408CD0), always enabled.

@@ -182,3 +182,58 @@ fn rumble_pulses_on_every_crash_by_its_strength() {
     all.sort_by(|a, b| a.hit.total_cmp(&b.hit));
     assert!(all.windows(2).all(|w| w[0].peak <= w[1].peak), "{all:?}");
 }
+
+/// A force-feedback wheel (a scripted G29 with the effect recorder) in a
+/// race, full throttle and a little steering for 12 s: the original's
+/// effects play (the damper, the steering force) and the recorded calls are the same at 30, 60, 120 and 200 frames
+/// per second (0x406460 steps on the 1/60 s world tick).
+#[test]
+#[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
+fn wheel_force_feedback_at_any_frame_rate() {
+    use nfsu2::pad::ff::{Command, Effect};
+    use nfsu2::pad::ff_out::Call;
+    testkit::game();
+    let mut seen: Vec<Vec<(i64, Call)>> = Vec::new();
+    for fps in [30.0f32, 60.0, 120.0, 200.0] {
+        let mut game = Game::new().unwrap();
+        game.quick.tracks = game.quick_track_select(screens::QrMode::Circuit, 0.0);
+        let event = game.quick_event(screens::QrMode::Circuit);
+        game.quick.car = Some("240SX".into());
+        game.start_race(event, true, false).unwrap();
+        game.platform.pads = nfsu2::pad::host::Host::scripted("0 connect 1 046d c24f ff\n0 axis 1 lx 0.1\n");
+        game.platform.pads.poll(0.0);
+        assert!(game.platform.pads.force_feedback() && game.platform.pads.wheel_drives());
+        // Past the start scene and the countdown, tick by tick, so the
+        // throttle goes down on the same world tick at every rate.
+        for _ in 0..40 * 60 {
+            if matches!(&game.mode, Mode::Race(r) if r.timing.clock > 0.5) {
+                break;
+            }
+            game.step_for(1.0 / 60.0).unwrap();
+        }
+        assert!(matches!(&game.mode, Mode::Race(r) if r.timing.clock > 0.0), "{fps}: racing");
+        assert!(game.controls().wheel.is_some(), "the wheel steers through 0x4061C0");
+        game.platform.keys.insert(KeyCode::ArrowUp);
+        for _ in 0..(12.0 * fps) as usize {
+            game.step_for(1.0 / fps).unwrap();
+        }
+        let calls: Vec<Call> = game.platform.pads.ff().unwrap().out.calls().iter().map(|c| c.1).collect();
+        let has = |f: &dyn Fn(&Call) -> bool| calls.iter().any(f);
+        assert!(has(&|c| matches!(c, Call::Command(Command::Set(Effect::Damper { .. })))), "{fps}: the damper");
+        assert!(has(&|c| matches!(c, Call::Command(Command::Set(Effect::Constant { level })) if *level != 0)), "{fps}: the steering force");
+        assert!(has(&|c| *c == Call::Gain(10_000)), "{fps}: the gain");
+        eprintln!("{fps} fps: {} calls", calls.len());
+        seen.push(game.platform.pads.ff().unwrap().out.calls().to_vec());
+    }
+    // Compare up to the earliest last tick (12 s of frames end on the
+    // same tick, but a run's last tick may make no call).
+    let end = seen.iter().map(|s| s.last().unwrap().0).min().unwrap();
+    let upto = |s: &Vec<(i64, Call)>| s.iter().copied().filter(|c| c.0 < end).collect::<Vec<_>>();
+    for (i, s) in seen.iter().enumerate().skip(1) {
+        let (a, b) = (upto(s), upto(&seen[0]));
+        if let Some(k) = (0..a.len().min(b.len())).find(|&k| a[k] != b[k]) {
+            panic!("rate {i} differs from 30 fps at call {k}: {:?} vs {:?}", &a[k.saturating_sub(2)..(k + 3).min(a.len())], &b[k.saturating_sub(2)..(k + 3).min(b.len())]);
+        }
+        assert_eq!(a.len(), b.len(), "rate {i}");
+    }
+}

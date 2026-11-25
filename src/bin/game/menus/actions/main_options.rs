@@ -57,7 +57,7 @@ impl Game {
                     Mode::Menu(Menu::Options(options::OptionsScreen::new_in(
                         c,
                         &self.settings,
-                        FORCE_FEEDBACK,
+                        self.platform.pads.force_feedback(),
                         Some(pause),
                         now,
                     )))
@@ -68,7 +68,7 @@ impl Game {
             // UI_Options on their category (0x4B6080).
             Action::Setting(n) => match options::Category::from_setting(n) {
                 Some(c) => {
-                    Mode::Menu(Menu::Options(options::OptionsScreen::new(c, &self.settings, FORCE_FEEDBACK, now)))
+                    Mode::Menu(Menu::Options(options::OptionsScreen::new(c, &self.settings, self.platform.pads.force_feedback(), now)))
                 }
                 // Controls (4), EA GAMES TRAX (5), Credits (0x4B6080).
                 None => match n {

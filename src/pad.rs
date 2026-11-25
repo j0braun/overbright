@@ -851,6 +851,7 @@ pub fn fe_actions(r: &Report) -> u64 {
 
 pub mod extras;
 pub mod ff;
+pub mod ff_out;
 pub mod host;
 
 #[cfg(test)]
