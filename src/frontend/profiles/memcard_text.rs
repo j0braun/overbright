@@ -38,7 +38,15 @@ pub fn parse_loc(data: &[u8]) -> Vec<String> {
         .collect()
 }
 
-/// Text `i` of the library's English table, with `%1` replaced by `arg`.
+/// The save library's text file of a text language (`LOCALE_<LANGUAGE>.loc`,
+/// docs/modding/asset-format/text.md §2).
+pub fn locale_file(language: &str) -> String {
+    format!("memcard/LOCALE_{}.loc", language.to_ascii_uppercase())
+}
+
+/// Text `i` of the library's table in the game's text language, with `%1`
+/// replaced by `arg`. A language without a file there (or a missing entry)
+/// reads the English texts built in below.
 pub fn text(root: &Path, i: usize, arg: &str) -> String {
     let fallback = [
         "",
@@ -56,7 +64,18 @@ pub fn text(root: &Path, i: usize, arg: &str) -> String {
         "Save game deleted.",
         "Unable to delete %1.",
     ];
-    let loaded = crate::game_fs::read(root, "memcard/LOCALE_ENGLISH.loc").map(|d| parse_loc(&d)).unwrap_or_default();
+    let loaded = crate::game_fs::read(root, &locale_file(crate::game_assets::text_language()))
+        .map(|d| parse_loc(&d))
+        .unwrap_or_default();
     let t = loaded.get(i).cloned().unwrap_or_else(|| fallback.get(i).unwrap_or(&"").to_string());
     t.replace("%1", arg)
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn the_locale_file_follows_the_language() {
+        assert_eq!(super::locale_file("English"), "memcard/LOCALE_ENGLISH.loc");
+        assert_eq!(super::locale_file("German"), "memcard/LOCALE_GERMAN.loc");
+    }
 }

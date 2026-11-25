@@ -16,13 +16,74 @@
 
 use std::path::{Path, PathBuf};
 
-/// The language whose text file the game loads (`LANGUAGES/English.bin`;
-/// the clone loads English only, `frontend::assets`).
-pub const TEXT_LANGUAGE: &str = "English";
+/// The language whose text file the game loads when nothing else is
+/// chosen (`LANGUAGES/English.bin`).
+pub const DEFAULT_LANGUAGE: &str = "English";
 
-/// The text file the game loads ([`TEXT_LANGUAGE`]): strings (chunk
-/// 0x39000) and fonts (chunk 0x30201).
-pub const TEXT_FILE: &str = "LANGUAGES/English.bin";
+/// The language the running game was started with ([`set_text_language`]).
+static ACTIVE_LANGUAGE: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+
+/// The language the game loads its text, fonts and movies' suffix for:
+/// the one it was started with, English until
+/// [`set_text_language`] is called (the launcher and the tools never call
+/// it; they pass the language they mean).
+pub fn text_language() -> &'static str {
+    ACTIVE_LANGUAGE.get().map_or(DEFAULT_LANGUAGE, String::as_str)
+}
+
+/// Whether [`set_text_language`] was called in this process, and with what.
+pub fn active_language() -> Option<&'static str> {
+    ACTIVE_LANGUAGE.get().map(String::as_str)
+}
+
+/// Fixes the game's text language for the rest of the run (`name` as
+/// [`crate::qol::setup::choose_language`] gives it). Called once, before
+/// any thread reads it; later calls change nothing and return false.
+pub fn set_text_language(name: &str) -> bool {
+    ACTIVE_LANGUAGE.set(name.to_string()).is_ok()
+}
+
+/// The text file of a language: strings (chunk 0x39000) and fonts (chunk
+/// 0x30201).
+pub fn text_file_of(language: &str) -> String {
+    format!("LANGUAGES/{language}.bin")
+}
+
+/// The text file the game loads ([`text_language`]).
+pub fn text_file() -> String {
+    text_file_of(text_language())
+}
+
+/// Whether the engine can show a language's file well.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Support {
+    Yes,
+    /// No, and why (a player's words).
+    No(&'static str),
+}
+
+/// What the engine can do with the language file `name` (any case).
+///
+/// The one-byte languages read through the string table's character map
+/// (`frontend::feng::strings`): **inferred** to work for every file that
+/// has one, since the engine reads them as `English.bin`. Spanish and
+/// Italian were tried and start in their language; the others were not. The rest
+/// cannot be shown well today (docs/modding/asset-format/text.md §3.3,
+/// §10).
+pub fn language_support(name: &str) -> Support {
+    // prov: inferred game_assets.language_support
+    match name.to_ascii_lowercase().as_str() {
+        "english" | "french" | "german" | "italian" | "spanish" | "dutch" | "swedish" | "danish" => Support::Yes,
+        "korean" => Support::No("its character map is not decoded yet"),
+        "japanese" | "chinese" | "thailand" => Support::No("its text table is empty in this edition"),
+        _ => Support::No("Overbright does not know this language file"),
+    }
+}
+
+/// Whether `name` can be a language name in a path (letters and digits).
+pub fn valid_language_name(name: &str) -> bool {
+    !name.is_empty() && name.len() <= 32 && name.bytes().all(|b| b.is_ascii_alphanumeric())
+}
 
 /// Language names and their movie suffixes. Seen in the data: `_en`, the
 /// logos' `_dn _du _sw` (reference MOVIES) and `_fr _gr _it _sp` (the
@@ -124,7 +185,7 @@ pub fn suffix_of<'a>(file: &'a str, stem: &str) -> Option<&'a str> {
 ///    native: 0x566250 asks whether it exists and plays it);
 /// 2. `<stem>.vp6`, no suffix (the US edition; THX_logo.vp6 for
 ///    THX_logo_fr);
-/// 3. `<stem>_<xx>.vp6` of the text language ([`TEXT_LANGUAGE`]);
+/// 3. `<stem>_<xx>.vp6` of the text language ([`text_language`]);
 /// 4. `<stem>_en.vp6`;
 /// 5. any `<stem>_<xx>.vp6` (sorted without case, the first): another
 ///    edition's single language;
@@ -132,10 +193,15 @@ pub fn suffix_of<'a>(file: &'a str, stem: &str) -> Option<&'a str> {
 /// none: [`How::Missing`], the screen ends at once as in the original.
 /// Steps 2–5 are the deviation (docs/playing/native-deviations.md, "Movie files").
 pub fn resolve_movie(root: &Path, name: &str) -> Resolved {
+    resolve_movie_for(root, name, text_language())
+}
+
+/// [`resolve_movie`] for the text language `language`.
+pub fn resolve_movie_for(root: &Path, name: &str, language: &str) -> Resolved {
     let stem = movie_stem(name);
     let mut steps: Vec<(String, How)> =
         vec![(crate::movie::file_name(name), How::Built), (format!("{stem}.vp6"), How::Plain)];
-    for s in language_suffix(TEXT_LANGUAGE).into_iter().chain(["en"]) {
+    for s in language_suffix(language).into_iter().chain(["en"]) {
         steps.push((format!("{stem}_{s}.vp6"), How::Language(s.to_string())));
     }
     let mut tried: Vec<String> = Vec::new();
@@ -290,6 +356,8 @@ pub struct Edition {
     pub layout: Layout,
     /// The language files in LANGUAGES (`qol::setup::installed_languages`).
     pub languages: Vec<String>,
+    /// The text language the check was made for.
+    pub text_language: String,
     /// The suffix the player's SPEED2.EXE builds (`fr`), read only for the
     /// report; `None` when there is no executable or the name is not found
     /// (a protected or other build).
@@ -428,21 +496,35 @@ pub fn log_report(root: &Path) {
 /// asks for and every menu and text file what the game opens
 /// ([`resolve_movie`], [`resolve_file`]: the game's own resolvers).
 pub fn scan(root: &Path) -> Report {
+    scan_for(root, text_language())
+}
+
+/// [`scan`] for the text language `language`.
+pub fn scan_for(root: &Path, language: &str) -> Report {
     let mut items: Vec<Item> = wanted_movies()
         .into_iter()
-        .map(|n| Item { group: Group::of_movie(n), label: movie_stem(n).to_string(), resolved: resolve_movie(root, n) })
+        .map(|n| Item {
+            group: Group::of_movie(n),
+            label: movie_stem(n).to_string(),
+            resolved: resolve_movie_for(root, n, language),
+        })
         .collect();
-    items.extend(crate::frontend::assets::ASSET_FILES.iter().map(|f| Item {
+    items.extend(crate::frontend::assets::asset_files(language).into_iter().map(|f| Item {
+        resolved: resolve_file(root, &f),
         group: Group::Text,
-        label: f.to_string(),
-        resolved: resolve_file(root, f),
+        label: f,
     }));
     // Stable: the boot movies keep their order.
     items.sort_by_key(|i| i.group);
     let exe_suffix = crate::game_fs::find(root, crate::fingerprint::EXE)
         .and_then(|p| std::fs::read(p).ok())
         .and_then(|b| exe_movie_suffix(&b));
-    let edition = Edition { layout: layout(root), languages: crate::qol::setup::installed_languages(root), exe_suffix };
+    let edition = Edition {
+        layout: layout(root),
+        languages: crate::qol::setup::installed_languages(root),
+        text_language: language.to_string(),
+        exe_suffix,
+    };
     Report { edition, items }
 }
 
@@ -507,7 +589,7 @@ impl Report {
     pub fn summary(&self) -> Vec<(Mark, String)> {
         let mut v = Vec::new();
         let e = &self.edition;
-        let mut edition = format!("Edition (from the files): {}; text: {TEXT_LANGUAGE}", e.layout.words());
+        let mut edition = format!("Edition (from the files): {}; text: {}", e.layout.words(), e.text_language);
         if let Some(l) = self.movie_language() {
             edition += &format!("; movies: {l}");
         }

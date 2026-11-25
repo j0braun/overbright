@@ -26,9 +26,8 @@ impl Default for Settings {
             custom: custom_presets(5),
             jump_camera: true,
             rearview: true,
-            // +0x16 is "the language is not English" (0x512360); the clone
-            // runs in English.
-            metric: false,
+            // +0x16 is "the language is not English" (0x512360).
+            metric: Settings::metric_default(crate::game_assets::text_language()),
             // The profile reset 0x515AA0 (0x534700, on every new profile)
             // sets the career difficulty +0x250 = 1 (Medium, 0x515B15) and
             // the save options +0xA0F8 = 1 (prompts), +0xA0F9 = 0 (no
@@ -58,6 +57,12 @@ impl Default for Settings {
 }
 
 impl Settings {
+    /// The Metric option's default for a text language: on for every
+    /// language but English (SetLanguage 0x512360, docs/original/tracing/language.md).
+    pub fn metric_default(language: &str) -> bool {
+        language != crate::game_assets::DEFAULT_LANGUAGE
+    }
+
     /// The deviations from native switched on (the F3 overlay's
     /// Deviations rows, crash reports): the Enhancements page's, and
     /// the Display page's Aspect Ratio and Vsync Off Mode when not native.

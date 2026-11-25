@@ -870,7 +870,8 @@ is native; nothing was traced for it beyond the native facts cited.
   on.
 * **First run** (`game_folder`, before any thread): `NFSU2_ROOT` when set
   (as before); else the folder kept by `game --set-root <dir>`
-  (`<data home>/overbright/game-root.txt`, not options.txt), the current
+  (`<data home>/overbright/game-root.txt`, not options.txt; the text language is kept beside it in
+  `language.txt`, or given with `--language`), the current
   folder, then the usual places (Steam libraries, `~/.wine`, Proton,
   Lutris, Bottles, Heroic and CrossOver prefixes'
   `drive_c/Program Files*/EA GAMES/Need for Speed Underground 2`,

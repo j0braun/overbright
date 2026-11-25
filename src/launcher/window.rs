@@ -145,6 +145,12 @@ impl GameStart {
     }
 }
 
+/// The game's arguments for the chosen text language ("" = none chosen:
+/// the game picks English, or its copy's own language).
+pub fn language_args(language: &str) -> Vec<String> {
+    if language.is_empty() { Vec::new() } else { vec!["--language".into(), language.into()] }
+}
+
 /// The failure screen's data for an ended run.
 pub fn failure_of(e: &Ended) -> Failure {
     Failure { kind: e.kind(), during_start: e.during_start(), how: e.how(), tail: e.tail.clone(), log: e.log.clone() }
@@ -210,6 +216,9 @@ impl Run<'_> {
         let extra = std::mem::take(&mut self.app.model.play_args);
         let mut game = self.game.clone();
         game.args.extend(extra);
+        // The language chosen on the Settings page, also kept in
+        // language.txt for a start without the launcher.
+        game.args.extend(language_args(&self.app.model.choices.language));
         match game.start() {
             Ok(r) => {
                 log::info!("game started (pid {})", r.id());
