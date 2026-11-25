@@ -298,6 +298,11 @@ impl Game {
         }
         drive.barriers = barriers;
         drive.world.set_up_barriers(&barriers);
+        // The rain's cover zones (0x61E710: route triggers of kinds 5 and
+        // 6 in the loaded route data 0x88F298): the race track's own
+        // Paths<track>.bin, else the region's PathsFreeRoam.bin.
+        let race_track = (!barriers.free_roam).then_some(barriers.track as u32);
+        drive.weather.set_covers([5, 6].map(|k| career::RouteTriggers::load_kind_for(&self.game_data.root, region, race_track, k)));
         // The track's world animations as 0x43A4A0 creates them for the
         // track number (the windowed ones only where the
         // track admits them); their placements go to the renderer below
@@ -635,10 +640,6 @@ impl Game {
             roam: Default::default(),
             impact: Default::default(),
         };
-        // The rain's cover zones (0x61E710: route triggers of kinds 5
-        // and 6; the clone reads them from L4RA's PathsFreeRoam.bin, as
-        // the drive-by zones do).
-        drive.weather.set_covers([5, 6].map(|k| career::RouteTriggers::load_kind(&self.game_data.root, k)));
         let _t = nfsu2::prof::span("drive_in: props");
         drive.props = Props::new(&drive.world);
         drop(_t);

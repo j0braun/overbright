@@ -168,6 +168,20 @@ impl RouteTriggers {
         Self::parse(&data, kind..=kind)
     }
 
+    /// The route data a track load reads (0x57F46A..0x57F4FD, into the
+    /// loader's +0x10): in a race (0x89E7B0 ≠ 0) the track's own
+    /// `TRACKS/ROUTES<region>/Paths<track>.bin` when the file is there
+    /// (0x57CAD0), else the region's `PathsFreeRoam.bin`; its records of
+    /// one `kind` (the cover zones 0x61E710 tests: kinds 5 and 6, so a
+    /// race's covered drift lot or speedway garage keeps out the rain).
+    pub fn load_kind_for(root: &Path, region: &str, race_track: Option<u32>, kind: u32) -> Vec<Trigger> {
+        let own = race_track.and_then(|t| crate::game_fs::read(root, &format!("TRACKS/ROUTES{region}/Paths{t}.bin")).ok());
+        match own {
+            Some(data) => Self::parse(&data, kind..=kind),
+            None => Self::load_kind_in(root, region, kind),
+        }
+    }
+
     /// The `kinds` records of the first 0x3414A chunk.
     fn parse(d: &[u8], kinds: std::ops::RangeInclusive<u32>) -> Vec<Trigger> {
         let key = 0x3414Au32.to_le_bytes();
@@ -272,4 +286,34 @@ pub fn world_triggers(root: &Path, region: &str) -> HashMap<u32, Trigger> {
 pub fn free_roam_start(root: &Path) -> Option<(Vec3, f32)> {
     let markers = load_markers(&crate::game_fs::path(root, "TRACKS/ROUTESL4RA/TrackPosMarkersFreeRoam.bin")).ok()?;
     markers.iter().find(|m| m.name == bin_hash("ForwardStartingPosition")).map(|m| (m.position, m.heading))
+}
+
+#[cfg(test)]
+mod cover_zone_tests {
+    use super::RouteTriggers;
+
+    /// #239: a race reads the cover zones (kinds 5, 6) of its own track's
+    /// route data, as the track loader 0x57F46A loads it: the Stadium's
+    /// drift lots (L4RC, Paths4312.bin) and the speedways' garages (L4RG)
+    /// have zones of their own, none of them free roam's (L4RA); free roam
+    /// and the dyno read the region's PathsFreeRoam.bin.
+    #[test]
+    #[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
+    fn a_race_reads_its_own_tracks_cover_zones() {
+        let root = crate::testkit::game_root();
+        let names = |v: &[super::Trigger]| v.iter().map(|t| (t.name, t.position.to_array())).collect::<Vec<_>>();
+        let city = RouteTriggers::load_kind(&root, 5);
+        assert!(!city.is_empty(), "free roam's covers");
+        assert_eq!(names(&RouteTriggers::load_kind_for(&root, "L4RA", None, 5)), names(&city), "free roam");
+        for (region, track, kind) in [("L4RC", 4312, 5), ("L4RC", 4311, 5), ("L4RG", 4714, 6), ("L4RB", 4201, 6), ("L4RF", 4601, 6)] {
+            let own = RouteTriggers::load_kind_for(&root, region, Some(track), kind);
+            assert!(!own.is_empty(), "{region} {track}: zones of kind {kind}");
+            let free = RouteTriggers::load_kind(&root, kind);
+            assert!(own.iter().all(|t| !free.iter().any(|f| f.position == t.position)), "{region} {track}: not free roam's");
+            assert_eq!(names(&own), names(&RouteTriggers::load_kind_in(&root, region, kind)), "{region} {track}: the region's zones");
+        }
+        // A track without its own file (none in the game; a missing one):
+        // the region's PathsFreeRoam.bin.
+        assert_eq!(names(&RouteTriggers::load_kind_for(&root, "L4RC", Some(4399), 5)), names(&RouteTriggers::load_kind_in(&root, "L4RC", 5)));
+    }
 }

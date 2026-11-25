@@ -433,6 +433,13 @@ impl Weather {
         self.covers = covers;
     }
 
+    /// Whether a place lies under one of the loaded cover zones (a kind 5
+    /// or 6 route trigger holding it, higher than it): `update_cover`'s
+    /// test for the car's place, without the chained search.
+    pub fn covered_at(&self, at: Vec3) -> bool {
+        self.covers.iter().flatten().any(|t| t.contains(at.truncate()) && at.z < t.position.z)
+    }
+
     /// 0x5D9C80(at, mask, prev) over the cover kinds (5: mask 0x20, 6:
     /// 0x40; verified, the disassembly): the kinds from `prev`'s on whose
     /// mask bit is set, the first record holding `at` (0x5D9C00: after
