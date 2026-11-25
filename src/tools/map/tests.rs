@@ -281,7 +281,7 @@ fn the_default_grid_stands_behind_the_start() {
 
 // ---- with the game's files ----------------------------------------------
 
-fn track(root: &std::path::Path, number: u16) -> crate::frontend::career::Track {
+fn track(root: &std::path::Path, number: u16) -> crate::frontend::career::tracks::Track {
     let career = crate::frontend::career::CareerData::load(root).unwrap();
     career.tracks.get(&number).unwrap_or_else(|| panic!("track {number}")).clone()
 }
@@ -383,7 +383,7 @@ fn a_custom_race_on_native_checkpoints_is_the_native_road() {
     let root = testkit::game_root();
     for number in [4001u16, 4126] {
         let t = track(&root, number);
-        let native = crate::frontend::career::load_route(&root, &t, false).unwrap();
+        let native = crate::frontend::career::routes::load_route(&root, &t, false).unwrap();
         let mut r = CustomRace::new("t", number, if native.loops { RaceKind::Circuit } else { RaceKind::Sprint });
         r.checkpoints = native.checkpoints.clone();
         let net = race::road_net(&root, &t).unwrap();

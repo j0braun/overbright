@@ -14,7 +14,7 @@
 //! focus band for a focus distance and an f-number, the capture's size
 //! guard and the picture's file name.
 
-use crate::render::camera::Camera;
+use crate::draw::camera::Camera;
 use glam::{Quat, Vec3};
 
 /// The eye stays within this distance (m) of the car's centre.

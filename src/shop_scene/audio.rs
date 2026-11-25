@@ -88,7 +88,7 @@ impl Cursor {
 /// ideal pacing.
 #[derive(Default, Debug)]
 pub struct Run {
-    clock: crate::audio::scripted::StepClock,
+    clock: crate::audio::car::scripted::StepClock,
     seconds: f32,
     cursor: Cursor,
     /// The frame limiter's carry (0x865144) as the scene's frames leave it.
@@ -104,7 +104,7 @@ pub struct Run {
 /// while the scene holds the cars, else two 1/120 s frames (0x483B40 runs
 /// the contexts once 15 ms passed). Returns the event clock after them.
 pub fn native_update(frames: &mut crate::frame_clock::FrameClock, seconds: f32, period: f32) -> f32 {
-    use crate::audio::scripted::SCENE_PERIOD;
+    use crate::audio::car::scripted::SCENE_PERIOD;
     if period >= SCENE_PERIOD {
         seconds + frames.frame_limited(SCENE_PERIOD, SCENE_PERIOD).0
     } else {
@@ -147,7 +147,7 @@ impl Run {
 
 /// Apply one update's events to the context bound to `slot`, if that
 /// context is scripted now.
-pub fn dispatch(events: &[Event], slot: usize, scripted: bool, pattern: &mut crate::audio::scripted::Pattern) {
+pub fn dispatch(events: &[Event], slot: usize, scripted: bool, pattern: &mut crate::audio::car::scripted::Pattern) {
     if scripted {
         for e in events.iter().filter(|e| e.slot == slot) {
             pattern.start_id(e.pattern);
@@ -158,7 +158,7 @@ pub fn dispatch(events: &[Event], slot: usize, scripted: bool, pattern: &mut cra
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::audio::scripted::{FREE_PERIOD, Pattern, SCENE_PERIOD};
+    use crate::audio::car::scripted::{FREE_PERIOD, Pattern, SCENE_PERIOD};
 
     #[test]
     fn authored_records_are_parsed_and_invalid_slots_dropped() {

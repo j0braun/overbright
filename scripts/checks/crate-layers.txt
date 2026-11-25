@@ -6,6 +6,15 @@
 crate ob-core crates/ob-core/src
 crate ob-formats crates/ob-formats/src
 crate ob-map crates/ob-map/src
+# The middle layers (settings, assets, simulation, audio, render, menus) are still modules of the library; the
+# check keeps their references pointing down until they move into crates of their own. Audio, render and the
+# menus are listed in a line (audio, then render, then the menus), so a reference up that line is refused too.
+crate ob-settings src
+crate ob-assets src
+crate ob-sim src
+crate ob-audio src
+crate ob-render src
+crate ob-frontend src
 crate nfsu2 src
 
 # MODULE-PATH CRATE        the module and everything under it (longest prefix wins; <root> = the crate root's
@@ -25,12 +34,12 @@ fxhash ob-core
 game_clock ob-core
 game_fs ob-core
 game_rng ob-core
+input ob-core
+race_mode ob-core
 log_file ob-core
 platform ob-core
 platform::icon nfsu2
-platform::monitor nfsu2
 prof ob-core
-prof::gpu nfsu2
 region ob-core
 
 exe_tables ob-formats
@@ -45,6 +54,105 @@ tools::map::race ob-map
 tools::map::share ob-map
 tools::map::sim ob-map
 tools::map::store ob-map
+
+# The middle layers' modules (everything not listed here and not below is the top layer).
+qol ob-settings
+world ob-assets
+car ob-assets
+character ob-assets
+collision ob-assets
+ground ob-assets
+movie ob-assets
+particles ob-assets
+game_assets ob-assets
+model_fixes ob-assets
+car_smooth ob-assets
+neon_quality ob-assets
+glow ob-assets
+fog ob-assets
+shadow ob-assets
+horizon_fog ob-assets
+motion_blur ob-assets
+hd_ui_pack ob-assets
+texture_mods ob-assets
+tpf_import ob-assets
+texwizard_import ob-assets
+hud_mod ob-assets
+upscale ob-assets
+upscale_pack ob-assets
+obpack ob-assets
+tools::map ob-assets
+render::enh::assets::car_model ob-assets
+render::enh::assets::neon_quality ob-assets
+render::enh::assets::hd_ui ob-assets
+render::enh::assets::surface ob-assets
+surface_maps ob-assets
+render::native::fx ob-assets
+frontend::assets ob-assets
+frontend::feng::anim ob-assets
+frontend::feng::font ob-assets
+frontend::feng::model ob-assets
+frontend::feng::parse ob-assets
+frontend::feng::state ob-assets
+frontend::feng::strings ob-assets
+frontend::career::events ob-assets
+frontend::career::triggers ob-assets
+
+ai ob-sim
+ai_looks ob-sim
+carfx_pops ob-sim
+track_camera ob-sim
+chase ob-sim
+contact ob-sim
+drift ob-sim
+style ob-sim
+drive ob-sim
+event_camera ob-sim
+difficulty ob-sim
+dyno ob-sim
+latency ob-sim
+extras ob-sim
+replay_cams ob-sim
+racer_reset ob-sim
+interpolate ob-sim
+garage ob-sim
+part_anim ob-sim
+narrow ob-sim
+nitrous ob-sim
+opponents ob-sim
+outrun ob-sim
+pad ob-sim
+performance ob-sim
+photo ob-sim
+race ob-sim
+smackable ob-sim
+standings ob-sim
+tuning ob-sim
+handling ob-sim
+hydraulics ob-sim
+weather ob-sim
+mark_spot ob-sim
+rng_sites ob-sim
+shop_scene ob-sim
+melo ob-sim
+screen_flash ob-sim
+screen_tint ob-sim
+render::native::fx::effect_controller ob-sim
+audio::car::scripted ob-sim
+audio::car::pushes ob-sim
+audio::world::impacts ob-sim
+
+audio ob-audio
+
+render ob-render
+sky ob-render
+rear_view ob-render
+prof::gpu ob-render
+render::enh::assets::surface::gpu ob-render
+platform::monitor ob-render
+
+frontend ob-frontend
+overlay ob-frontend
 
 # Every other module: nfsu2 (the top layer).
 

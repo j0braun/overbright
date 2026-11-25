@@ -3,7 +3,7 @@ use glam::{Mat4, Vec3};
 use super::*;
 use crate::formats::camera_tracks::{CameraEntry, CameraGroup, CameraKind};
 use crate::opponents::GameRng;
-use crate::render::camera::Camera;
+use crate::draw::camera::Camera;
 
 // --- The typed track cameras (docs/notes/parity/replay-cameras.md) -----------------
 

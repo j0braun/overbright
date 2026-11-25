@@ -27,7 +27,6 @@ src/car/record.rs tuning::Settings
 src/car/record.rs tuning::Unlock
 src/car/record.rs tuning::apply
 src/car/wheels.rs render::car_pack_rgba
-src/game_assets/tests.rs frontend::asset_files
 src/game_assets/tests.rs frontend::career::CareerData
 src/handling/drivetrain/turbo.rs audio::transients
 src/mark_spot.rs frontend::profiles::sandbox
@@ -51,8 +50,7 @@ src/qol/mod.rs render::blur_dof
 src/qol/render_scale.rs render::fsr2
 src/qol/saves.rs frontend::profiles::FOLDER
 src/qol/setup.rs game_assets::Report
-src/qol/setup.rs game_assets::active_language
-src/qol/setup.rs game_assets::scan_for
+src/qol/setup.rs game_assets::scan
 src/render/enh/assets/hd_ui.rs frontend::map_pack::parse
 src/render/enh/post/blur_dof.rs frontend::graphics_table::row
 src/render/enh/post/blur_dof.rs frontend::options

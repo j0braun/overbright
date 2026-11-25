@@ -108,8 +108,7 @@ impl UiRenderer {
         scene_bar_bands(size, tw, &mut vertices, &mut runs, whole_target);
         // NFSU2_QUAD_DUMP: every quad with its texture's blend, format and
         // alpha test on stderr (a debugging aid for the pixel comparisons).
-        static DUMP: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
-        let dump = *DUMP.get_or_init(|| crate::render::debug_env::nfsu2_quad_dump());
+        let dump = *crate::render::debug_env::once::quad_dump();
         for (qi, q) in quads.iter().enumerate() {
             let qt = tex_of(q);
             if dump {
@@ -424,7 +423,7 @@ fn fill_continuation(
         let mut pieces = [[(glam::Vec2::ZERO, glam::Vec2::ZERO); 4]; 9];
         let mut n = 0;
         let mut spans = place.stretch;
-        if boxed && flat && q.angle == 0.0 && q.uv != crate::frontend::HAIRLINE_UV {
+        if boxed && flat && q.angle == 0.0 && q.uv != crate::draw::quad::HAIRLINE_UV {
             let edges = frame.edges(place);
             let (c0, c2) = (corners[0], corners[2]);
             let (lo, hi) = (c0.0.min(c2.0), c0.0.max(c2.0));
@@ -472,7 +471,7 @@ fn fill_continuation(
 /// A hairline's corners: a line one target pixel wide (`hairline` pixels
 /// on tall screens) along the rectangle's middle.
 fn hairline_corners(q: &Quad, frame: &crate::render::display::UiFrame, hairline: f32, corners: &mut Corners) {
-        // A hairline (no texture, [`crate::frontend::HAIRLINE_UV`]) is a
+        // A hairline (no texture, [`crate::draw::quad::HAIRLINE_UV`]) is a
         // line one target pixel wide along the rectangle's middle:
         // the dyno graph's lines (0x50DCD0 → 0x5C5760) are a
         // DrawPrimitiveUP line strip (type 3, one line), one pixel at
@@ -480,7 +479,7 @@ fn hairline_corners(q: &Quad, frame: &crate::render::display::UiFrame, hairline:
         // menus114 ch14). A quad one pixel across stands in for the
         // line's rasterisation (diamond rule; tiny differences at
         // the ends).
-        if q.texture.is_none() && q.uv == crate::frontend::HAIRLINE_UV {
+        if q.texture.is_none() && q.uv == crate::draw::quad::HAIRLINE_UV {
             let scale = glam::Vec2::new(frame.scale.0, frame.scale.1);
             let (p0, p1) = ((corners[0].0 + corners[3].0) * 0.5, (corners[1].0 + corners[2].0) * 0.5);
             let d = (p1 - p0) * scale;

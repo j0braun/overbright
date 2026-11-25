@@ -137,7 +137,7 @@ fn child(scratch: &Path) {
 
     // Not a Studio test run (no live folder, the setting off): the watcher does not run.
     let g = live::generation();
-    assert!(!live::frame(false));
+    assert!(!live::frame(false, false)); // Reload Packs off (its default)
     assert_eq!(live::live(), None);
 
     // Studio opens the texture in the paint program.
@@ -164,7 +164,7 @@ fn child(scratch: &Path) {
             let mut frames = 0u64;
             while !stop.load(Ordering::Relaxed) {
                 frames += 1;
-                live::frame(false);
+                live::frame(false, false);
                 let (now, hit) = live::changed_since(seen_gen, false, HASH);
                 seen_gen = now;
                 // `want` held for the whole check: a new save's reset of `heard` and `seen` is never seen halfway.

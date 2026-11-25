@@ -149,8 +149,7 @@ fn timed_at<T>(counter: &AtomicU64, at: &'static std::panic::Location<'static>, 
     let _ = MAKING.try_with(|m| m.set(before));
     let ns = t.elapsed().as_nanos() as u64;
     counter.fetch_add(ns, Ordering::Relaxed);
-    static LOG: OnceLock<bool> = OnceLock::new();
-    if *LOG.get_or_init(crate::render::debug_env::nfsu2_pipeline_log) {
+    if *crate::render::debug_env::once::pipeline_log() {
         let what = if std::ptr::eq(counter, &MODULE_NS) { "module" } else { "pipeline" };
         eprintln!("{what} made in {:.2} ms: {}:{}", ns as f64 / 1e6, at.file(), at.line());
     }

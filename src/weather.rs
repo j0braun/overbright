@@ -38,7 +38,7 @@
 use glam::{Vec2, Vec3};
 
 use crate::formats::hash::bin_hash;
-use crate::frontend::career::Trigger;
+use crate::frontend::career::triggers::Trigger;
 use crate::opponents::GameRng;
 use crate::world::World;
 
@@ -487,7 +487,7 @@ impl Weather {
         let raining = self.amount != 0.0;
         self.wet = wet_step(self.wet, raining);
         self.road_wet = wet_step(self.road_wet, raining);
-        self.car_wet = crate::render::wet_car::film_step(self.car_wet, if self.under_cover { 0.0 } else { self.amount });
+        self.car_wet = film_step(self.car_wet, if self.under_cover { 0.0 } else { self.amount });
         self.target = target_at(world, f.camera.truncate(), f.clock);
         self.amount += (self.target - self.amount) / (1.0 / dt * 1.0);
         if self.target == 0.0 && self.amount < 0.01 {
@@ -811,6 +811,13 @@ pub fn tint_multiplier(color: [f32; 3], amount: f32) -> Option<[f32; 3]> {
         let v = (((c * (1.0 / 128.0)) - 1.0) * amount + 1.0) * 127.5;
         2.0 * (v as i32 & 0xFF) as f32 / 255.0
     }))
+}
+
+/// The film's step (one 1/60 s step): +0x509C's rates toward `target`.
+pub fn film_step(film: f32, target: f32) -> f32 {
+    let rate = if target > film { 0.05 } else { 0.0015 };
+    let f = film + (target - film) * rate;
+    if target == 0.0 && f < 1e-4 { 0.0 } else { f }
 }
 
 #[cfg(test)]

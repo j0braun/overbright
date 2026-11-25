@@ -3,11 +3,12 @@ use super::*;
 /// Once a frame, from the game: with Reload Packs When Changed on, keeps
 /// the watcher running and puts the HD UI Art row (`hd_ui`) in force at
 /// once. True when the map calibration must be applied again
-/// (`frontend::map_pack::reapply`).
-pub fn frame(hd_ui: bool) -> bool {
+/// (`frontend::map_pack::reapply`). `reload_packs`: the row in force
+/// (`qol::reload_packs`, read by the caller).
+pub fn frame(hd_ui: bool, reload_packs: bool) -> bool {
     static LAST_HD: OnceLock<Mutex<Option<bool>>> = OnceLock::new();
     // A Studio test run's live textures watch whatever the setting says.
-    if !crate::qol::reload_packs() && live().is_none() {
+    if !reload_packs && live().is_none() {
         if RUNNING.load(Ordering::Relaxed) {
             STOP.store(true, Ordering::Relaxed);
         }

@@ -1,6 +1,6 @@
 //! Track sampling (0x535500 → 0x52BDD0) and the slerp (0x519B00).
 
-use super::Track;
+use super::model::Track;
 
 /// A track's value at `t` ms (0x535500 → 0x52BDD0, linear tracks; the
 /// game's only interpolation in the shipped packages but one).

@@ -361,6 +361,32 @@ halo_private() {
 expect pass halo-skipped-without-private-set halo_public halo-skipped-without-private-set
 expect fail halo-runs-with-private-set halo_private halo-runs-with-private-set
 
+# ---- layering.sh (the render and harness layering lint) -------------------------------------------------------
+# A small tree with the lint and its two lists: one listed hit per rule passes, test code passes; a new hit of
+# each rule (the harness outside its feature, an ungated test module, a settings read, the enhancement layer, a
+# QoL read, global state) fails.
+layering() {
+  local c=$1 what=${2:-} t="$O/$1"
+  mkdir -p "$t/scripts/checks" "$t/src/render/native" "$t/src/bin/game/hud"
+  cp "$HERE/layering.sh" "$t/scripts/checks/"
+  printf '# list\nsrc/render/native/a.rs\tlet x = crate::qol::hdr_active();\nsrc/render/native/a.rs\tfn t() { crate::qol::Enhancements::default().apply(); }\n' > "$t/scripts/checks/layering-settings-allow.txt"
+  printf '# list\nqol\tsrc/render/native/a.rs\tlet x = crate::qol::hdr_active();\twhy\nstate\tsrc/render/native/a.rs\tstatic N: AtomicU8 = AtomicU8::new(0);\twhy\n' > "$t/scripts/checks/layering-allow.txt"
+  printf 'fn f() {\n    let x = crate::qol::hdr_active();\n}\nstatic N: AtomicU8 = AtomicU8::new(0);\n#[cfg(test)]\nmod tests {\n    fn t() { crate::qol::Enhancements::default().apply(); }\n}\n' > "$t/src/render/native/a.rs"
+  printf '#[cfg(all(test, feature = "dev-harness"))]\nmod tests;\n#[cfg(feature = "dev-harness")]\nuse crate::dev::x;\n' > "$t/src/bin/game/hud/mod.rs"
+  printf 'fn t() { crate::dev::state_hash::v(); }\n' > "$t/src/bin/game/hud/tests.rs"
+  case $what in
+    harness) printf 'fn g() { dev::shot::list(); }\n' >> "$t/src/bin/game/hud/mod.rs" ;;
+    test-mod) printf 'mod tests;\n' > "$t/src/bin/game/hud/mod.rs" ;;
+    settings) printf 'fn h() { crate::render::RenderOptions::in_force(); }\n' >> "$t/src/render/native/a.rs" ;;
+    enh) printf 'use crate::render::enh::x;\n' >> "$t/src/render/native/a.rs" ;;
+    qol) printf 'fn h() { let y = crate::qol::hdr_active(); }\n' >> "$t/src/render/native/a.rs" ;;
+    state) printf 'static M: Mutex<u8> = Mutex::new(0);\n' >> "$t/src/render/native/a.rs" ;;
+  esac
+  bash "$t/scripts/checks/layering.sh" "$t"
+}
+expect pass layering-good layering layering-good
+for w in harness test-mod settings enh qol state; do expect fail "layering-new-$w" layering "layering-new-$w" "$w"; done
+
 # ---- cases of the maintainer's own release tools (selfcheck.d/*.sh, sourced here; not in public checkouts) -------
 rel_cases=0
 for f in "$HERE"/selfcheck.d/*.sh; do [ -f "$f" ] || continue; . "$f"; rel_cases=1; done

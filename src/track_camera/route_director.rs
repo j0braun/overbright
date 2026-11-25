@@ -4,7 +4,7 @@ use super::*;
 use crate::formats::ai_routes::RouteRecord;
 use crate::formats::camera_tracks::{CameraEntry, CameraGroup, CameraKind, CameraTrack};
 use crate::opponents::GameRng;
-use crate::render::camera::Camera;
+use crate::draw::camera::Camera;
 
 /// A track must run at least this long, s, from the car's fraction
 /// (0x44F7B0 against 0x802148).

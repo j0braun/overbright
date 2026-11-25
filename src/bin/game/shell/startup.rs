@@ -167,7 +167,7 @@ pub(crate) fn main() -> Result<()> {
     // (the shot table; scripts/checks/shot_targets.py).
     #[cfg(feature = "dev-harness")]
     if command == Command::ShotList {
-        dev::shot::targets::print_list();
+        dev_hooks::print_shot_list();
         return Ok(());
     }
     // First run: the game folder (QoL; nothing changes when NFSU2_ROOT

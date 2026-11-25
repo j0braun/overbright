@@ -168,8 +168,7 @@ impl SceneMode {
     /// without the lamps, or with `NFSU2_LAMP_SPECIALISE=0`: every branch
     /// kept, the uniforms deciding).
     pub fn lamp_constants(self) -> Vec<(&'static str, f64)> {
-        static OFF: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
-        if !self.lamps || *OFF.get_or_init(|| crate::render::debug_env::nfsu2_lamp_specialise_off()) {
+        if !self.lamps || *debug_env::once::lamp_specialise_off() {
             return Vec::new();
         }
         let f = self.lamp_features;
@@ -334,8 +333,7 @@ pub(crate) fn depth_prepass(mode: SceneMode) -> bool {
 /// `NFSU2_DEPTH_PREPASS` (measurements): 0 off, 2 the pre-pass with the
 /// colour pass's own (LESSEQUAL, depth-writing) pipelines.
 pub(crate) fn depth_prepass_env() -> Option<u8> {
-    static ENV: std::sync::OnceLock<Option<u8>> = std::sync::OnceLock::new();
-    *ENV.get_or_init(|| debug_env::nfsu2_depth_prepass())
+    *debug_env::once::depth_prepass()
 }
 
 /// Whether `key` is drawn into the pre-pass: the opaque (depth

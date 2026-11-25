@@ -28,7 +28,7 @@
 
 use glam::{Mat3, Vec3};
 
-use crate::render::Camera;
+use crate::draw::camera::Camera;
 
 /// The curve 0x7FB7A0 (5 keys at 0x7FB36C): (time, scale).
 const CURVE: [(f32, f32); 5] = [(0.0, 1.0), (0.1, 0.7), (0.3, 0.5), (0.5, 0.4), (1.0, 0.0)];

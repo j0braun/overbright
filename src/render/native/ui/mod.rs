@@ -10,7 +10,8 @@
 //! deviation) keeps every element at its 4:3 size, centred or moved to
 //! its screen edge by its `display::Place`, see [`UiRenderer::record`].
 
-use crate::frontend::{Assets, CANVAS, Quad};
+use crate::draw::quad::{CANVAS, Quad};
+use crate::frontend::assets::Assets;
 use crate::render::{Gpu, bind_texture, make_texture_layout_plain, upload_rgba, upload_texture};
 
 mod batch;

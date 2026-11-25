@@ -1,6 +1,6 @@
 use glam::{Vec2, Vec3};
 
-use crate::render::Camera;
+use crate::draw::camera::Camera;
 
 /// One node of the car's route for the crash camera's placement: its
 /// distance (+0x54), points 2 m inside its left / right road edges and

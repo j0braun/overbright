@@ -82,13 +82,10 @@ pub fn front_msaa_samples(custom: &[u8; 22], gpu: &crate::render::Gpu, opts: &cr
 /// one: it sleeps to within a millisecond of that and spins the rest,
 /// before input and the simulation, so the cap adds no latency.
 pub fn frame_cap() -> Option<std::time::Duration> {
-    static CAP: std::sync::OnceLock<Option<std::time::Duration>> = std::sync::OnceLock::new();
-    CAP.get_or_init(|| {
-        crate::render::debug_env::nfsu2_frame_cap()
-            .filter(|&f| f > 0.0)
-            .map(|f| std::time::Duration::from_secs_f64(1.0 / f))
-    })
-    .or_else(crate::qol::frame_cap)
+    crate::render::debug_env::once::frame_cap()
+        .filter(|&f| f > 0.0)
+        .map(|f| std::time::Duration::from_secs_f64(1.0 / f))
+        .or_else(crate::qol::frame_cap)
 }
 
 /// The six sizes the game's Resolution row offers (0x5BF620, tables
@@ -159,28 +156,7 @@ pub fn set_vsync_off_mailbox(on: bool) {
 /// not capped outside scenes.
 pub const SCENE_FRAME: std::time::Duration = std::time::Duration::from_nanos(1_000_000_000 / 30);
 
-/// How long before a wait's end [`wait_until`] stops sleeping and spins:
-/// 1 ms on Linux / macOS (as before), 2 ms on Windows, whose
-/// sleeps wake up to about a millisecond late even with the 1 ms timer
-/// resolution the game holds (`platform::timer`) or std's high-resolution
-/// waitable timer (Windows 10 1803+) **[unverified on real Windows]**.
-pub const fn sleep_margin(windows: bool) -> std::time::Duration {
-    std::time::Duration::from_millis(if windows { 2 } else { 1 })
-}
-
-/// Waits until `due`: sleeps to within [`sleep_margin`] of it and spins the
-/// rest (the game spins all of it, 0x57EB74), so the wait ends on time
-/// without holding a core for the whole period.
-pub fn wait_until(due: std::time::Instant) {
-    let margin = sleep_margin(cfg!(windows));
-    let now = std::time::Instant::now();
-    if due > now + margin {
-        std::thread::sleep(due - now - margin);
-    }
-    while std::time::Instant::now() < due {
-        std::hint::spin_loop();
-    }
-}
+pub use crate::frame_clock::{sleep_margin, wait_until};
 
 /// The period a frame waits out after the last one's start: the longer of
 /// `NFSU2_FRAME_CAP`'s and, during a scene that holds the cars, the

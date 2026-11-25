@@ -1,6 +1,13 @@
 //! World and route triggers, neighbourhoods, the free-roam start.
 
-use super::*;
+use std::collections::HashMap;
+use std::path::Path;
+
+use glam::{Vec2, Vec3};
+
+use crate::formats::bundle::{chunks, read_f32, read_u16, read_u32};
+use crate::formats::hash::bin_hash;
+use crate::frontend::career::routes::load_markers;
 
 /// A trigger the player drives into: its name, position, the box it
 /// covers on the ground and, for a route trigger, the polygon inside it.

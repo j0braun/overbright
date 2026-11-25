@@ -2,35 +2,7 @@
 
 use glam::Vec2;
 
-use crate::render::display::Place;
-
-/// The canvas FEng lays out on; (0, 0) is its centre.
-pub const CANVAS: Vec2 = Vec2::new(640.0, 480.0);
-
-/// The texture corners that mark a flat [`Quad`] as a hairline: a line one
-/// target pixel wide along the rectangle's middle, whatever the target's
-/// size (the dyno graph's Direct3D lines, 0x5C5760).
-pub const HAIRLINE_UV: [Vec2; 2] = [Vec2::new(-1.0, -1.0), Vec2::new(-1.0, -1.0)];
-
-/// One textured, tinted rectangle on the canvas.
-#[derive(Clone, Copy, Debug)]
-pub struct Quad {
-    /// Texture hash, or None for a flat colour.
-    pub texture: Option<u32>,
-    /// Corners on the canvas (pixels, origin top left): upper left,
-    /// lower right.
-    pub rect: [Vec2; 2],
-    pub uv: [Vec2; 2],
-    pub color: [f32; 4],
-    /// Draw order: larger z is farther back (FEng's buckets 0..255).
-    pub z: f32,
-    /// Rotation about the rectangle's centre, radians (clockwise on
-    /// screen; the object's quaternion about z).
-    pub angle: f32,
-    /// Where it goes on a screen that is not 4:3 (clone deviation; see
-    /// [`crate::render::display::Place`] and [`layout`]).
-    pub place: Place,
-}
+pub use crate::draw::quad::{CANVAS, HAIRLINE_UV, Quad};
 
 /// The state of a screen's objects: which script each runs and since when.
 #[derive(Clone, Debug, Default)]

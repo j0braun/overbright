@@ -89,8 +89,7 @@ fn variant_name(v: u8) -> &'static str {
 /// bleach-bypass passes (a diagnosis of where the fused pass differs; the
 /// fused pass then stays off).
 pub(super) fn check_stages() -> u32 {
-    static N: std::sync::OnceLock<u32> = std::sync::OnceLock::new();
-    *N.get_or_init(|| crate::render::debug_env::nfsu2_check_stages().filter(|n| (1..=4).contains(n)).unwrap_or(3))
+    crate::render::debug_env::once::check_stages().filter(|n| (1..=4).contains(n)).unwrap_or(3)
 }
 
 /// `unorm_bounds`'s size: 2 × 256 u32.

@@ -2,7 +2,7 @@
 
 use anyhow::{Context, Result, bail};
 
-use super::*;
+use super::model::*;
 
 // A field past the end of its record reads as 0 (fuzz: these records come
 // from the file; the checked readers of `formats` answer with an error,

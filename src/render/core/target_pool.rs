@@ -57,8 +57,7 @@ pub struct TargetPool {
 
 /// Whether requests share (`NFSU2_RT_POOL=0`: no; read once).
 pub fn enabled() -> bool {
-    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
-    *ON.get_or_init(|| crate::render::debug_env::nfsu2_rt_pool())
+    *crate::render::debug_env::once::rt_pool()
 }
 
 impl TargetPool {

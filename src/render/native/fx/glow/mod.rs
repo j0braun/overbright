@@ -29,7 +29,7 @@ mod tests {
 
     fn view() -> View {
         let eye = Vec3::ZERO;
-        let camera = crate::render::camera::Camera::looking_at(eye, Vec3::new(0.0, 10.0, 0.0));
+        let camera = crate::draw::camera::Camera::looking_at(eye, Vec3::new(0.0, 10.0, 0.0));
         View {
             eye,
             right: Vec3::X,

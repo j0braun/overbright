@@ -289,8 +289,7 @@ impl CarRenderer {
         // A check aid: NFSU2_AUDIO_ONLY draws only the trunk audio and its
         // components (`comp`: the components alone), so they show without
         // the trunk lid over them.
-        static AUDIO_ONLY: std::sync::OnceLock<Option<String>> = std::sync::OnceLock::new();
-        let audio_only = AUDIO_ONLY.get_or_init(|| crate::render::debug_env::nfsu2_audio_only());
+        let audio_only = crate::render::debug_env::once::audio_only();
         let hidden = |a: crate::car::AudioPaint| match audio_only.as_deref() {
             None => false,
             Some("comp") => a != crate::car::AudioPaint::Component,
