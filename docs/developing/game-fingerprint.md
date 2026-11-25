@@ -16,7 +16,9 @@ without it, or with the copy-protected retail executable, is fine.
   `fingerprint (SHA-256):` block — size and SHA-256 of SPEED2.EXE,
   GLOBAL/GlobalB.lzc, GLOBAL/GLOBALB.BUN, GLOBAL/InGameCommon.bun,
   FRONTEND/FrontB.lzc, LANGUAGES/English.bin, CARS/TEXTURES.BIN,
-  CARS/WHEELS/TEXTURES.BIN, TRACKS/L4RA.BUN (`fingerprint::FILES`), each
+  CARS/WHEELS/TEXTURES.BIN, TRACKS/L4RA.BUN and TRACKS/LOC4DYNTEX.BIN (the
+  sky textures HD mods replace; optional: missing is no change,
+  `fingerprint::OPTIONAL`) (`fingerprint::FILES`), each
   "known" or "MODIFIED or unknown version" (SPEED2.EXE: also "copy-protected
   retail executable", recognised by SafeDisc's sections `stxt774` /
   `stxt371`, `fingerprint::safedisc`); then `edition: …` over the data files

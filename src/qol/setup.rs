@@ -18,6 +18,15 @@ pub const KEY_FILES: [(&str, u64, Option<u64>); 9] = [
     ("TRACKS/STREAML4RA.BUN", 118_489_088, None),
 ];
 
+/// Files the game runs without but mods often replace, with the European
+/// 1.2 release's size and XXH3-64: a different one is reported like a
+/// different [`KEY_FILES`] entry; a missing one is not a problem
+/// (`fingerprint::OPTIONAL` holds the same files).
+pub const WATCHED_FILES: [(&str, u64, u64); 1] = [
+    // The city's sky and shared dynamic textures (HD sky mods).
+    ("TRACKS/LOC4DYNTEX.BIN", 3_515_072, 0x70d7_a2e8_84e9_4e75),
+];
+
 /// What [`check`] found.
 #[derive(Debug, Default)]
 pub struct Check {
@@ -72,6 +81,15 @@ pub fn check_for(root: &Path, hash: bool, language: &str) -> Check {
                 }
             }
             _ => c.missing.push(file.to_string()),
+        }
+    }
+    for (file, size, known) in WATCHED_FILES {
+        let path = key_file_path(root, file);
+        if let Ok(m) = std::fs::metadata(&path)
+            && m.is_file()
+            && (m.len() != size || hash && !std::fs::read(&path).is_ok_and(|b| xxhash_rust::xxh3::xxh3_64(&b) == known))
+        {
+            c.different.push(file.to_string());
         }
     }
     if hash {

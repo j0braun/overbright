@@ -15,8 +15,9 @@ use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
 /// The files fingerprinted, in report order: the executable first (for
-/// the reports only, [`EXE`]), then the data the clone reads at start.
-pub const FILES: [&str; 9] = [
+/// the reports only, [`EXE`]), then the data the clone reads at start,
+/// then the [`OPTIONAL`] ones.
+pub const FILES: [&str; 10] = [
     "SPEED2.EXE",
     "GLOBAL/GlobalB.lzc",
     "GLOBAL/GLOBALB.BUN",
@@ -26,7 +27,13 @@ pub const FILES: [&str; 9] = [
     "CARS/TEXTURES.BIN",
     "CARS/WHEELS/TEXTURES.BIN",
     "TRACKS/L4RA.BUN",
+    "TRACKS/LOC4DYNTEX.BIN",
 ];
+
+/// Fingerprinted files the game runs without, so a missing one is no
+/// change: the city's sky and shared dynamic textures, the file HD sky
+/// mods replace (a replaced one is named as changed).
+pub const OPTIONAL: [&str; 1] = ["TRACKS/LOC4DYNTEX.BIN"];
 
 /// The executable's name: reported, never part of the verdict.
 pub const EXE: &str = "SPEED2.EXE";
@@ -51,6 +58,7 @@ pub const EDITIONS: &[Edition] = &[Edition {
         ("CARS/TEXTURES.BIN", 1_895_360, "8f23df9a4c096862e39dbc67b37481535643e5942144d79eed437f8d9eec2a54"),
         ("CARS/WHEELS/TEXTURES.BIN", 3_791_808, "54360b64e137621e3da27837e6e38e875af1b2fee0cf9a8d671d33d23c383f63"),
         ("TRACKS/L4RA.BUN", 422_528, "92962314e0c0e59a5335e04d51caf4e820d6381bb19ec1169b9df13d3bc89257"),
+        ("TRACKS/LOC4DYNTEX.BIN", 3_515_072, "e5c87b10a85854eaa26f2ed9377e0f63f8c338cf005d5d31329522125bfd6f9c"),
     ],
 }];
 
@@ -171,7 +179,7 @@ pub fn safedisc(head: &[u8]) -> bool {
     })
 }
 
-/// Fingerprint the game folder `root` (reads about 27 MB).
+/// Fingerprint the game folder `root` (reads about 31 MB).
 pub fn compute(root: &Path) -> Fingerprint {
     let files = FILES
         .iter()
@@ -210,7 +218,8 @@ pub fn compute(root: &Path) -> Fingerprint {
 }
 
 impl Fingerprint {
-    /// The verdict over the data files (SPEED2.EXE left out).
+    /// The verdict over the data files (SPEED2.EXE and missing
+    /// [`OPTIONAL`] files left out).
     pub fn verdict(&self) -> Verdict {
         self.verdict_skipping(None)
     }
@@ -222,7 +231,9 @@ impl Fingerprint {
     pub fn verdict_skipping(&self, skip: Option<&str>) -> Verdict {
         let data = || {
             self.files.iter().filter(move |f| {
-                f.file != EXE && !(f.state == State::Missing && skip.is_some_and(|s| s.eq_ignore_ascii_case(f.file)))
+                f.file != EXE
+                    && !(f.state == State::Missing
+                        && (OPTIONAL.contains(&f.file) || skip.is_some_and(|s| s.eq_ignore_ascii_case(f.file))))
             })
         };
         let first = data().find_map(|f| f.edition);
@@ -373,7 +384,9 @@ mod tests {
         let d = fake_root("empty");
         let f = compute(&d);
         assert!(f.files.iter().all(|f| f.state == State::Missing));
-        assert_eq!(f.verdict(), Verdict::Unknown(FILES[1..].iter().map(|s| s.to_string()).collect()));
+        // A missing optional file is not a change.
+        let want = FILES[1..].iter().filter(|f| !OPTIONAL.contains(f)).map(|s| s.to_string()).collect();
+        assert_eq!(f.verdict(), Verdict::Unknown(want));
         assert!(f.report().contains("SPEED2.EXE is not needed"));
         assert!(f.report().contains("UNKNOWN OR MODIFIED"));
         assert!(f.summary().starts_with("UNKNOWN OR MODIFIED"));
@@ -395,6 +408,30 @@ mod tests {
         assert!(r.contains("MODIFIED or unknown version"), "{r}");
         assert!(r.contains("mod files present (ignored by Overbright): dinput8.dll"), "{r}");
         std::fs::remove_dir_all(&d).unwrap();
+    }
+
+    /// A replaced `TRACKS/LOC4DYNTEX.BIN` (an HD sky mod) beside known
+    /// data files is the one changed file; a missing one is no change.
+    #[test]
+    fn a_replaced_sky_pack_is_the_changed_file() {
+        let e = &EDITIONS[0];
+        let known = |skip: Option<State>| Fingerprint {
+            root: PathBuf::new(),
+            files: e
+                .files
+                .iter()
+                .map(|&(file, size, sha256)| match (&skip, file == "TRACKS/LOC4DYNTEX.BIN") {
+                    (Some(state), true) => FilePrint { file, state: state.clone(), edition: None },
+                    _ => FilePrint { file, state: State::Read { size, sha256: sha256.into() }, edition: Some(e.name) },
+                })
+                .collect(),
+            mods: Vec::new(),
+            exe_protected: false,
+        };
+        assert_eq!(known(None).verdict(), Verdict::Known(e.name));
+        let modded = State::Read { size: 41_225_419, sha256: "0".repeat(64) };
+        assert_eq!(known(Some(modded)).verdict(), Verdict::Unknown(vec!["TRACKS/LOC4DYNTEX.BIN".into()]));
+        assert_eq!(known(Some(State::Missing)).verdict(), Verdict::Known(e.name));
     }
 
     #[test]
