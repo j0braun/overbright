@@ -38,12 +38,17 @@ harness runs. The gaps that remain sit in four places: the corner apex of a turn
 race's own hit and wall actions, the nitrous asks outside drag, and how free-roam encounter cars get
 past traffic.
 
+The original's AI counts frames, so its think rate and per-frame tests change with its frame rate.
+Native numbers marked "fixed 1/60" come from runs of the original at a fixed 1/60 s frame, this
+game's own world step ([parity-harness.md](../../developing/parity-harness.md), "Renderer and frame
+rate"); older real-time runs on wined3d at an unknown frame rate are indicative only.
+
 ## Controller, think schedule and goals
 
 | Address | Name | What it does | Ours | Status | Evidence | Risk |
 |---|---|---|---|---|---|---|
 | 0x4260B0 | — (racer controller ctor, type 3) | controller plus driver: CarDriver 0x425AB0, DriftDriver 0x425E40 in drift | `sim/ai/racer.rs`, `ai/driver/mod.rs` | **PORTED** | verified | low |
-| 0x42ABD0 | AIRacer_Think | full think on the frame counter's slot (mod 8, mod 4 in drag) and 0.2 s after the last; fallback in between | `sim/ai/racer.rs:racer_think`, `ai/encounter_controller.rs:ThinkSchedule` | **PORTED** | verified; observed: action changes fall on one residue mod 8 per rival in both games | low |
+| 0x42ABD0 | AIRacer_Think | full think on the frame counter's slot (mod 8, mod 4 in drag) and 0.2 s after the last; fallback in between | `sim/ai/racer.rs:racer_think`, `ai/encounter_controller.rs:ThinkSchedule` | **PORTED** | verified; observed: action changes fall on one residue mod 8 per rival in both games. The original's slot counts frames, so its think comes about every 0.27 s at 60 fps and 0.2 s at 120; compare at fixed 1/60 | low |
 | 0x420810 | — (controller think) | catch-up refresh, path hand-over, driver step | `ai/route/path.rs:take_replanned`, `sim/ai/racer.rs:racer_driver_step` | **PORTED** | verified | low |
 | 0x42C060, 0x42AA20 | —, AIController_SetGoal | the race goal at the green (1, or 2 / 3 in drag) | `sim/ai/racer.rs:racer_think` | **PORTED** | verified; observed goal 1 and action 6 on the frame after the green | low |
 | 0x42D0F0 | GoalWinRoadRace_Choose | GetUnstuck, IJustGotHit, AvoidAvoidable, AccidentRecovery, Block, Pass, JustDrive by priority | `ai/actions/manager.rs:think`, `choose` | **PORTED** | verified | low |
@@ -128,7 +133,7 @@ past traffic.
 |---|---|---|---|---|---|---|
 | 0x42D470 | AI_ChooseAction | GetUnstuck, type 0x12, wall hit 0xF, hit 0xC, AvoidAvoidable, else Drive Traffic Lane | `ai/drag.rs`, `ai/actions/drag.rs:drag_avoid` | **SIMPLIFIED** | verified list; GetUnstuck, AvoidAvoidable and the lane action ported; the chooser's tests for 0xF / 0xC / 0x12 not traced | med |
 | 0x403450, 0x4249C0 | — (wall hit in drag, 0xF) | after a wall contact: nearest lane, offset 0, rate 0.151 | — | **MISSING** | verified apply test and update; not ported | med: drag rival after a wall touch |
-| 0x403410, 0x424560 (0xC), 0x42DCB0 (0x12) | — (drag got-hit, type 0x12) | drag hit and type 0x12 actions | — | **MISSING** | ctors traced only; update and end **open** | med |
+| 0x403410, 0x424560 (0xC), 0x42DCB0 (0x12) | — (drag got-hit, type 0x12) | drag hit and type 0x12 actions | — | **MISSING**, in change | ctors traced only; update and end **open**. Observed at fixed 1/60 after a shove (9 runs): the original's rival is back within 0.5 m of a lane centre in 0.09 s (p50), is more than 1 m off a lane in 0.06 of moving samples, takes the got-hit action (0xC) in 8 % of the samples in the second after a contact (mostly it keeps the lane action 7 or AvoidAvoidable) and is never totaled. A port in change does not match yet (0.67 s, 0.15, 30 %, 0.9 totals per run): see gap 3 | med |
 | 0x4242D0, 0x420ED0, 0x410CA0 | — (Drive Traffic Lane in drag) | the drag lane; target 1000 | `ai/drag.rs`, `ai/actions/drag.rs` | **PORTED** | observed target 1000; lane path steer within 0.03° | low |
 | — (drag shifts) | — | shift offset from the skill row, shown rpm, grade | `ai/drag.rs` | **PORTED** | verified and observed (drag shift sweep) | low |
 | — (Street X) | — | line rate 0.2, no Block, facing point 1 ahead, catch-up bytes 0 | `ai/route/path.rs:line_path`, `ai/actions/manager.rs` | **PORTED** | verified; observed steer within 0.05° for 4 frames | low |
@@ -142,7 +147,7 @@ past traffic.
 |---|---|---|---|---|---|---|
 | 0x4172D0 (race type 0) | — | free-roam encounter racers aim at 0.75 × their route speed | `sim/encounters/ai.rs:goal_speed`, `ai/encounter_controller.rs` | **GUESSED** | verified rule; the free-roam value is not read under Wine | low |
 | 0x42A5E0, 0x42A360, 0x42D6F0, 0x42DA70 | Outrun_PlaceOpponents, AI_FollowerUpdate, — | encounter placement, follower, chase and offset-pursuit choosers | `ai/outrun_search.rs`, `ai/actions/pursuit.rs`, `ai/encounter_controller.rs` | **PORTED** | see [outrun.md](../outrun.md) | low |
-| — (encounter cars passing traffic) | — | AvoidAvoidable and Pass against traffic cars | `ai/actions/` | **MISSING** | observed: encounter–traffic contact records 8.5 per 5 min vs 1.5, over 30 force: 3.0 vs 0.33; traffic tracks an encounter car in Avoid Cars 0.035 vs 0.019 of placed samples. The rule that differs is not found | med: traffic stopped for good, queues |
+| — (encounter cars passing traffic) | — | AvoidAvoidable and Pass against traffic cars | `ai/actions/` | **MISSING**, in change | observed at fixed 1/60 (16 vs 12 bot runs): encounter–traffic contacts 8.38 per 5 min vs 1.42, over 30 force: 3.06 vs 0.58; traffic tracks an encounter car in Avoid Cars 0.036 vs 0.019 of placed samples. A change in progress starts AvoidAvoidable's fallback path at the car (0x41BFE0 / 0x420D40, rate 999) and reaches 1.38 / 0.38, with belt share, Avoid share and metres per minute equal to the original's | med: traffic stopped for good, queues |
 
 ## Functions with no earlier trace
 
@@ -171,9 +176,9 @@ of the original under Wine (controllers found by vtable 0x785370; action +0x6F8 
 
 | # | Gap | Rows | What a player sees | How to verify |
 |---|---|---|---|---|
-| 1 | Encounter cars hit traffic about six times as often | Encounter cars passing traffic (MISSING) | free-roam racers plough through traffic; traffic cars stand for good with queues behind | traffic harness `bot` with the contact log against the original's census: encounter–traffic records per 5 min 8.5 → about 1.5, stops for good 3.9 → about 2.1 |
+| 1 | Encounter cars hit traffic about six times as often | Encounter cars passing traffic (MISSING, in change) | free-roam racers plough through traffic; traffic cars stand for good with queues behind | traffic harness `bot` at fixed 1/60 with the contact census: encounter–traffic contacts per 5 min 8.4 → about 1.4, over 30 force 3.1 → about 0.6, stops for good 4.4 → about 3.2 |
 | 2 | Corner apex at turn junctions not ported (apex insert, turn lane bend) | 0x41EE20 (SIMPLIFIED), 0x422780 / 0x419000 (MISSING) | rivals take turn junctions on the lane line instead of the apex | trace which walks meet bit-26 junctions; per-frame line comparison on a race that crosses one (rival lateral off the line, lap time) |
-| 3 | Drag race's own hit and wall actions | 0x42D470 (SIMPLIFIED), 0x403450 / 0x4249C0, 0x424560 / 0x42DCB0 (MISSING) | after touching a wall or a rival, a drag rival keeps its offset instead of going back to its lane | Wine: drag rival action type +0x204 (0xF, 0xC, 0x12) after a contact; harness drag runs with the bot: totals and finish times |
+| 3 | Drag race's own hit and wall actions | 0x42D470 (SIMPLIFIED), 0x403450 / 0x4249C0, 0x424560 / 0x42DCB0 (MISSING) | after touching a wall or a rival, a drag rival keeps its offset instead of going back to its lane; ours' rivals can be totaled by shoves the original's survive | traffic harness `qr:drag --shove` at fixed 1/60: return within 0.5 m (p50 about 0.1 s), off-lane share (about 0.06), got-hit share after a contact (about 8 %), totals (0). Before porting the action, compare the per-contact push sum (+0x60, got-hit fires at ≥ 8.333) with the original's: its got-hit fires about four times less often |
 | 4 | Nitrous asks in Pass and AvoidAvoidable | 0x40E390 (MISSING) | rivals use less nitrous when passing on straights | Wine: the rival's nitrous flag and amount during Pass; harness: speed on straights after a pass |
 | 5 | BeltMover hand-back to physics | 0x5A9040 / 0x59EC90 (SIMPLIFIED) | a rival far away can lose time on a barrier | first-lap times by row against the original (six seeds × 3 cars); belt contact records |
 | 6 | Reversing out past an edge (IJustGotHit and GetUnstuck tails) | 0x423E20 tail (MISSING), IJustGotHit (SIMPLIFIED) | a hit rival recovers differently off the road | Wine: target +0x1F0 after a hit near an edge |

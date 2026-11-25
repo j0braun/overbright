@@ -1870,8 +1870,9 @@ Explore mode's and races' traffic. Verified except where noted.
   is the player's, an encounter car's or a wall's at 30.2–35.3, once the
   player's at 29.0 with the car standing (the slow test); the clone's
   stops read 30.0–35.8. The clone's surplus of stopped cars in that
-  scenario comes from encounter cars hitting traffic (8.5 such records a
-  run, 3 over 30, against 1.5 and 0.3 in the original), not from the test.
+  scenario comes from encounter cars hitting traffic (8.4 such contacts a
+  run, 3.1 over 30, against 1.4 and 0.6 in the original at a fixed 1/60 s
+  frame), not from the test.
   Only the placement clears +0x710: 0x5FBEE0 calls the controller's slot
   +0x34, **0x42A050** (+0x710 = +0x77C = +0x798 = 0, a new Drive Traffic
   Lane action, the path). A stopped car is not parked, so it stays placed

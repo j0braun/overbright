@@ -165,6 +165,11 @@ original, with its switch, is in [docs/playing/native-deviations.md](docs/playin
 - **Physics after a wall hit:** from the same start, your car stays within a few centimetres of the original's
   path through braking, cornering, handbrake turns and launches. Held against a wall it turns off the wall the
   same way as in the original, but can leave it a few seconds sooner or later.
+- **AI near traffic and after a shove:** free-roam encounter racers hit traffic cars about six times as
+  often as in the original, so more traffic cars stop for good with queues behind them. A drag rival that is
+  shoved goes back to its lane more slowly than in the original and can be totaled by it. Quick Race circuit
+  traffic dodges and queues more. What is matched and what is open:
+  [docs/original/coverage/](docs/original/coverage/README.md).
 
 **Performance**
 
@@ -227,7 +232,9 @@ or on a map mod from the Mods page. With it you can:
 - fly over the city and move, delete and add props;
 - build races of your own (start line, grid, checkpoints and finish on the roads of one of the game's race
   tracks), checked as you go;
-- simulate a race without a window and watch the replay;
+- simulate a race without a window and watch the replay, with the game's real cars and their lights (or as
+  boxes); the recording is a documented run file that two runs can be compared with;
+- see the game's collision walls and invisible barriers (View ▸ Collision);
 - press **Test race** to start the game beside the editor, straight on the race's grid, with only that mod as
   it is in the editor. Unsaved changes are included: the game plays a copy, and only Save writes the mod. The
   game ends when the race does, and the editor marks the race tested.

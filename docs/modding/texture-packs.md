@@ -97,6 +97,18 @@ The game and the launcher agree:
 - **HD UI + Maps** is the launcher's "Use the HUD mod": one setting, shown in both places. Its help text says
   the mod is set up on the launcher's Mods page.
 
+### A replaced game file (for example `LOC4DYNTEX.BIN`)
+
+Some mods for the original replace a file in the game folder, such as `TRACKS/LOC4DYNTEX.BIN` (the city's sky
+and a few other shared textures). Overbright reads the game files from your game folder, so such a file works
+as it does in the original: keep a copy of the original file, put the mod's file in its place and start as
+usual. The launcher's game check then says that a game file is not the original one, which is only a note:
+choose **Use this folder**; **Details** lists the file under "Changed". The first track load after the swap
+takes a little longer while the cache is made again. To go back, put the original file back.
+
+The Mods page does not take a replaced game file. If the same mod also comes as a TexMod package or a
+TexWizard pack, add that one instead: the game folder stays original and the mod can be switched on and off.
+
 ## Overbright packs
 
 Overbright's own replacement-texture format: what the texture editor writes and what an author can publish
