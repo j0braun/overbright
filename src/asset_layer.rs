@@ -62,6 +62,19 @@ pub fn mount(spec: &str, base: &Path, root: &Path) -> Result<String, ob_asset_fo
         s.len(),
         s.hashed >> 20
     );
+    let changed = s.changed_in(root);
+    if !changed.is_empty() {
+        // A mod that swaps a game file after the import (an HD sky's TRACKS/LOC4DYNTEX.BIN) does not reach the
+        // game while the set is mounted: say so instead of ignoring it quietly.
+        log::warn!(
+            "asset layer: {} game {} changed in the game folder since your own copy was made; the copy's {} used \
+             ({VAR}=off reads the folder): {}",
+            changed.len(),
+            if changed.len() == 1 { "file" } else { "files" },
+            if changed.len() == 1 { "is" } else { "are" },
+            changed.join(", ")
+        );
+    }
     crate::game_fs::mount(root, std::sync::Arc::new(s));
     Ok(id)
 }

@@ -179,6 +179,24 @@ impl BaseSet {
         &self.id
     }
 
+    /// The set's files whose copy in the game folder `root` now has another size (replaced after the import, as a
+    /// mod that swaps a file does), sorted. The set keeps serving its own bytes; the caller says so. Same-size
+    /// changes are not seen (only sizes are compared: one `stat` per file).
+    pub fn changed_in(&self, root: &Path) -> Vec<String> {
+        let mut v: Vec<String> = self
+            .files
+            .iter()
+            .filter(|(key, m)| {
+                ob_core::game_fs::find(root, key)
+                    .and_then(|p| std::fs::metadata(p).ok())
+                    .is_some_and(|md| md.is_file() && md.len() != m.len() as u64)
+            })
+            .map(|(key, _)| key.clone())
+            .collect();
+        v.sort();
+        v
+    }
+
     /// How many game files the set holds.
     pub fn len(&self) -> usize {
         self.files.len()

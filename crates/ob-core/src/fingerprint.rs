@@ -221,20 +221,10 @@ impl Fingerprint {
     /// The verdict over the data files (SPEED2.EXE and missing
     /// [`OPTIONAL`] files left out).
     pub fn verdict(&self) -> Verdict {
-        self.verdict_skipping(None)
-    }
-
-    /// [`Fingerprint::verdict`] when the game does not need the file
-    /// `skip` (the English text file under another text language): that
-    /// file is left out of the verdict when it is missing. A present one
-    /// still counts. Missing [`OPTIONAL`] files are always left out.
-    pub fn verdict_skipping(&self, skip: Option<&str>) -> Verdict {
         let data = || {
-            self.files.iter().filter(move |f| {
-                f.file != EXE
-                    && !(f.state == State::Missing
-                        && (OPTIONAL.contains(&f.file) || skip.is_some_and(|s| s.eq_ignore_ascii_case(f.file))))
-            })
+            self.files
+                .iter()
+                .filter(|f| f.file != EXE && !(OPTIONAL.contains(&f.file) && matches!(f.state, State::Missing)))
         };
         let first = data().find_map(|f| f.edition);
         if let Some(e) = first

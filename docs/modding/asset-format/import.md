@@ -359,6 +359,9 @@ It prints the progress lines of §9 and ends with `ok=1`, or `error=<one line>` 
   (`base-verified-<id>.txt` in the cache folder); every kept file a stored, aligned entry of its recorded size
   (`LAY.3` otherwise). About 0.1 s for the reference install with the bundles in the page cache; a stamped
   mount ~20 ms. A refused set is logged (`asset layer: …; reading the game folder`) and the game folder used.
+- **Files changed in the folder after the import** (a mod that replaces a file, such as an HD sky's
+  `TRACKS/LOC4DYNTEX.BIN`): the set keeps serving its own copy; the mount compares every file's size with the
+  folder's and logs the changed ones (`asset layer: … changed in the game folder since your own copy was made`).
 - **`NFSU2_BASE`**: unset or `active` = the default above; `off` (or `0`) = the game folder always; a set id under
   `<app>/base` or a set's folder = that set. At exit a log line counts the reads from the set, the names the
   install does not have, and the game files read from the folder (each such name listed after it,
