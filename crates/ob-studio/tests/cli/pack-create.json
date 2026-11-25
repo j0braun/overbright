@@ -1,0 +1,11 @@
+{
+  "command": "pack.create",
+  "dir": "<tmp>/harbour-edits",
+  "exit": 0,
+  "folder": "harbour-edits",
+  "format": 1,
+  "name": "Harbour edits",
+  "ok": true,
+  "region": "L4RA",
+  "template": "empty"
+}

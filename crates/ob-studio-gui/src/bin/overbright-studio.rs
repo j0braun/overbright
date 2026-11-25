@@ -7,8 +7,8 @@
 //!                                                        mods folder, or its folder's path)
 //! overbright-studio --shot out.png [--size WxH] [--scale F] [--mod <folder>] [--maps <dir>]
 //!                   [--workspace home|world|races|mod|settings|changes] [--input mouse|keyboard|xbox|playstation|deck]
-//!                   [--focus rail|address|toolbar|left|view|right|bottom] [--drawer] [--find] [--address]
-//!                   [--select N]
+//!                   [--focus rail|address|toolbar|left|view|right|bottom] [--drawer] [--files] [--warning] [--find] [--address]
+//!                   [--select N] [--new-mod NAME]
 //!                                   the whole window drawn off-screen into a PNG (no window)
 //! ```
 //! A `--shot` prints one line "studio layout: fits …" or "studio layout: clipped: …" (the clip and overlap check).
@@ -32,7 +32,7 @@ use winit::event::WindowEvent;
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
 use winit::window::{Window, WindowId};
 
-const USAGE: &str = "usage: overbright-studio [--mod <folder>] [--maps <dir>]\n       overbright-studio --shot out.png [--size WxH] [--scale F] [--mod <folder>] [--maps <dir>] [--workspace home|world|races|mod|settings|changes] [--input mouse|keyboard|xbox|playstation|deck] [--focus rail|address|toolbar|left|view|right|bottom] [--drawer] [--find] [--address] [--select N]";
+const USAGE: &str = "usage: overbright-studio [--mod <folder>] [--maps <dir>]\n       overbright-studio --shot out.png [--size WxH] [--scale F] [--mod <folder>] [--maps <dir>] [--workspace home|world|races|mod|settings|changes] [--input mouse|keyboard|xbox|playstation|deck] [--focus rail|address|toolbar|left|view|right|bottom] [--drawer] [--files] [--warning] [--find] [--address] [--select N] [--new-mod NAME] [--tutorial 1-6] [--race-tutorial 1-7]";
 
 #[derive(Default)]
 struct Cli {
@@ -45,10 +45,20 @@ struct Cli {
     input: Option<InputKind>,
     focus: Option<Area>,
     drawer: bool,
+    /// The Mod page: its Files fold open (`--files`), the warning before exporting textures from the original
+    /// game's pixels up (`--warning`).
+    files: bool,
+    warning: bool,
     find: bool,
     address: bool,
     /// The placement selected in World (a `--shot`).
     select: Option<usize>,
+    /// The New mod dialog open with this name typed (a `--shot`).
+    new_mod: Option<String>,
+    /// The first tutorial ("Your first mod") at this step (1 … 5, 6: the last card) on the open mod (a `--shot`).
+    tutorial: Option<usize>,
+    /// The race tutorial at this step (1 … 6, 7: the last card) on the open mod (a `--shot`).
+    race_tutorial: Option<usize>,
 }
 
 fn parse(args: impl Iterator<Item = String>) -> Result<Cli> {
@@ -96,9 +106,26 @@ fn parse(args: impl Iterator<Item = String>) -> Result<Cli> {
                 );
             }
             "--drawer" => c.drawer = true,
+            "--files" => c.files = true,
+            "--warning" => c.warning = true,
             "--find" => c.find = true,
             "--address" => c.address = true,
             "--select" => c.select = Some(val("--select")?.parse()?),
+            "--new-mod" => c.new_mod = Some(val("--new-mod")?),
+            "--race-tutorial" => {
+                let n: usize = val("--race-tutorial")?.parse()?;
+                if !(1..=7).contains(&n) {
+                    bail!("--race-tutorial: 1 … 7");
+                }
+                c.race_tutorial = Some(n);
+            }
+            "--tutorial" => {
+                let n: usize = val("--tutorial")?.parse()?;
+                if !(1..=6).contains(&n) {
+                    bail!("--tutorial: 1 … 6");
+                }
+                c.tutorial = Some(n);
+            }
             "--version" => {}
             other => bail!("unknown argument {other}\n{USAGE}"),
         }
@@ -172,6 +199,57 @@ fn run_shot(cli: &Cli) -> Result<()> {
             let folder = s.open_mod().map(|m| m.folder.clone());
             s.changes.ensure(folder.as_deref());
         }
+        if w == Workspace::Mod {
+            let folder = s.open_mod().map(|m| m.folder.clone());
+            s.mod_page.load(folder.as_deref());
+            s.mod_page.files_open = cli.files;
+            s.mod_page.confirm = cli.warning;
+        }
+    }
+    if let Some(n) = cli.race_tutorial {
+        use ob_studio_gui::studio::guide::{Guide, Tutorial};
+        let ws = s.nav.workspace;
+        s.start_tutorial(Tutorial::FirstRace);
+        let folder = s.open_mod().map(|m| m.folder.clone());
+        // The steps' own buttons up to step n (in Races: the race made, its start and points placed as they do).
+        if let Some(g) = s.guide.as_mut() {
+            g.made = folder;
+        }
+        s.nav.workspace = ws;
+        if ws == Workspace::Races {
+            for k in 2..n.min(5) {
+                if let Some(g) = s.guide.as_mut() {
+                    g.step = Guide::step_at(Tutorial::FirstRace, k);
+                }
+                s.guide_main();
+                shot::frames(&mut s, size, scale, 3);
+            }
+        }
+        if let Some(g) = s.guide.as_mut() {
+            g.step = Guide::step_at(Tutorial::FirstRace, n);
+        }
+    }
+    if let Some(n) = cli.tutorial {
+        use ob_studio_gui::studio::guide::{Guide, Step, Tutorial};
+        let ws = s.nav.workspace;
+        s.start_tutorial(Tutorial::FirstMod);
+        let folder = s.open_mod().map(|m| m.folder.clone());
+        if let Some(g) = s.guide.as_mut() {
+            g.made = folder;
+            g.step = Guide::step_at(Tutorial::FirstMod, n);
+        }
+        s.nav.workspace = ws;
+        // Past Go to a street in World: Take me there, as the step's button does.
+        if n >= 3 && ws == Workspace::World {
+            if let Some(g) = s.guide.as_mut() {
+                g.step = Step::GoToStreet;
+            }
+            s.guide_main();
+            shot::frames(&mut s, size, scale, 2);
+            if let Some(g) = s.guide.as_mut() {
+                g.step = Guide::step_at(Tutorial::FirstMod, n);
+            }
+        }
     }
     if let Some(i) = cli.input {
         s.nav.input = i;
@@ -192,6 +270,12 @@ fn run_shot(cli: &Cli) -> Result<()> {
         shot::frames(&mut s, size, scale, 1);
         if let Some(st) = s.editor.as_mut().and_then(|h| h.app.state.as_mut()) {
             st.selection = vec![i];
+        }
+    }
+    if let Some(name) = &cli.new_mod {
+        s.open_new_mod();
+        if let Some(d) = s.new_mod.as_mut() {
+            d.name = name.clone();
         }
     }
     let gpu = pollster::block_on(Gpu::new(None, Gpu::new_instance()))?;

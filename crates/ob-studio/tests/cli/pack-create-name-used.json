@@ -1,0 +1,11 @@
+{
+  "command": "pack.create",
+  "error": {
+    "kind": "failed",
+    "message": "You have a mod with this name already (in the folder docks): pick another name",
+    "reason": "name_used"
+  },
+  "exit": 1,
+  "format": 1,
+  "ok": false
+}

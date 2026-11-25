@@ -1,0 +1,11 @@
+{
+  "command": "pack.create",
+  "error": {
+    "kind": "usage",
+    "message": "\"../up\" is not a folder name: use a-z, 0-9, - and _ (at most 40)",
+    "reason": "bad_folder"
+  },
+  "exit": 2,
+  "format": 1,
+  "ok": false
+}

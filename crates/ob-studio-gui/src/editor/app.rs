@@ -1081,14 +1081,11 @@ impl App {
         Ok(())
     }
 
-    /// Make a new mod `folder` (named `name`) on `region` and open it.
+    /// Make a new mod `folder` (named `name`) on `region` and open it (Studio's New mod and the command line's
+    /// `pack create` make it the same way, `ob_studio::create`).
     pub fn new_mod(&mut self, folder: &str, name: &str, region: &str) -> Result<()> {
-        ensure!(valid_id(folder), "`{folder}` is not a folder name: use a-z, 0-9, - and _");
-        let region = region.to_ascii_uppercase();
-        ensure!(valid_region(&region), "`{region}` is not a region code (as L4RA)");
-        ensure!(!self.maps.join(folder).join(store::FILE).exists(), "a map mod `{folder}` exists already");
-        let m = MapMod { name: name.trim().to_string(), ..MapMod::default() };
-        save_mod(&self.maps, folder, &m)?;
+        ob_studio::create::create(&self.maps, folder, name, region)?;
+        let region = region.trim().to_ascii_uppercase();
         ModView { region: Some(region.clone()), camera: None, panels: self.layout.sizes }.write(&self.maps, folder)?;
         self.open(folder, Some(&region))
     }
@@ -1770,7 +1767,7 @@ impl App {
                         ui.weak(format!("Folder: {}", folder_from(name)));
                     }
                     ui.horizontal(|ui| {
-                        if ui.add(theme::main_action("Create")).clicked()
+                        if ui.add(theme::main_action(words::CREATE)).clicked()
                             || ui.input(|i| i.key_pressed(egui::Key::Enter))
                         {
                             let f = if folder.is_empty() { folder_from(name) } else { folder.clone() };
@@ -2107,16 +2104,7 @@ pub fn read_only_strip(ui: &mut egui::Ui, text: &str) -> bool {
 
 /// A folder name from a mod's name ("Casino sprints" → casino-sprints).
 pub fn folder_from(name: &str) -> String {
-    let mut f = String::new();
-    for c in name.trim().chars() {
-        if c.is_ascii_alphanumeric() {
-            f.push(c.to_ascii_lowercase());
-        } else if (c == ' ' || c == '-' || c == '_') && !f.ends_with('-') && !f.is_empty() {
-            f.push('-');
-        }
-    }
-    let f = f.trim_end_matches('-').chars().take(40).collect::<String>();
-    if f.is_empty() { "my-map".into() } else { f }
+    ob_studio::create::folder_from(name)
 }
 
 fn new_dialog() -> Dialog {

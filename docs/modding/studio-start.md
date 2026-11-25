@@ -19,7 +19,10 @@ If the launcher says Studio's program is not beside it, unpack the whole downloa
 
 ## What is in the preview
 
-- **Home**: the open mod, how it stands and the next steps, your other mods and something new to start.
+- **Home**: the open mod, how it stands and the next steps, your other mods and something new to start:
+  **Empty map mod** (or File ▸ New mod…, Ctrl+N) asks for a name and makes a new mod, ready to edit.
+  New to modding? **Start here** on Home (or F1) runs a five-step tutorial: make a mod, place a prop, drive
+  it in the game and export it to share.
 - **World and Races**: the map editor inside Studio, on the open mod. World brings the prop tools forward, Races
   the race tools. It is the same editor `overbright-editor` opens.
 - **Changes** (Ctrl+D): every value your mod changes, beside the original, and which mod wins where two give the
@@ -43,7 +46,6 @@ preview: `overbright-studio-cli looks open`, `looks import` and `looks watch`. S
 
 These come in a later update:
 
-- **The Mod page** (export and sharing). Until then, export a map mod as a `.zip` on the launcher's **Mods** page.
 - **Looks in the window**: a workspace for textures. Until then, use the command-line tool (above).
 - **A tutorial** that walks you through a first mod.
 

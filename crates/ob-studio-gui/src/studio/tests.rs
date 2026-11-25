@@ -245,3 +245,185 @@ fn panel_folds_are_kept_per_workspace_in_the_mod() {
     assert_eq!(s2.memories.get(Workspace::Races).bottom_folded, None);
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+fn text(t: &str) -> egui::Event {
+    egui::Event::Text(t.into())
+}
+
+#[test]
+fn a_new_mod_from_home_by_keyboard_opens_ready() {
+    let dir = maps("new-keys");
+    let size = (1280, 800);
+    let mut s = Studio::new(dir.clone(), None);
+    frames(&mut s, size, 1.0, 2);
+    // Home with no mod open: Open a mod, New mod…, the places, the tutorials, the two mods, Empty map mod, the
+    // templates.
+    let targets = s.home_targets();
+    let empty = targets.iter().rposition(|a| *a == super::shell::HomeAct::NewMod).unwrap();
+    assert!(targets[empty + 1..].iter().all(|a| matches!(a, super::shell::HomeAct::Template(_))), "{targets:?}");
+    for _ in 0..empty {
+        press(&mut s, size, vec![key(egui::Key::ArrowDown, false, false)]);
+    }
+    assert_eq!(s.home_focus, empty, "Empty map mod");
+    press(&mut s, size, vec![key(egui::Key::Enter, false, false)]);
+    assert!(s.new_mod.is_some(), "Enter on Empty map mod opens the dialog");
+    // The name field has the keys: typing reaches it.
+    frames(&mut s, size, 1.0, 1);
+    press(&mut s, size, vec![text("Casino sprints")]);
+    assert_eq!(s.new_mod.as_ref().unwrap().name, "Casino sprints");
+    press(&mut s, size, vec![key(egui::Key::Enter, false, false)]);
+    assert!(s.new_mod.is_none(), "made and closed");
+    assert_eq!(s.open_mod().map(|m| m.folder.as_str()), Some("casino-sprints"));
+    assert_eq!(s.open_mod().map(|m| m.name.as_str()), Some("Casino sprints"));
+    assert_eq!(s.nav.workspace, Workspace::Home);
+    assert!(dir.join("casino-sprints").join(store::FILE).is_file());
+    // Home says it is ready.
+    let (out, _) = frames(&mut s, size, 1.0, 1);
+    assert!(shapes_text(&out).iter().any(|t| t == super::words::READY_TITLE));
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn a_new_mod_by_ctrl_n_and_by_pad_refuses_clashes_and_cancels() {
+    let dir = maps("new-pad");
+    let size = (1024, 768);
+    let mut s = Studio::new(dir.clone(), Some("harbour-edits"));
+    s.nav.workspace = Workspace::World;
+    frames(&mut s, size, 1.0, 1);
+    // Ctrl+N from any workspace (World: the map editor never sees it).
+    press(&mut s, size, vec![key(egui::Key::N, true, false)]);
+    assert!(s.new_mod.is_some());
+    // A name another mod has: refused, the dialog stays with the reason.
+    s.new_mod.as_mut().unwrap().name = "Harbour edits".into();
+    s.pad(Pad::A, InputKind::Xbox);
+    let d = s.new_mod.as_ref().expect("refused: the dialog stays");
+    assert!(d.tried);
+    let (out, _) = frames(&mut s, size, 1.0, 1);
+    assert!(shapes_text(&out).iter().any(|t| t.contains("folder harbour-edits is in use")), "{:?}", shapes_text(&out));
+    // The same name in another folder: refused as a name in use.
+    s.new_mod.as_mut().unwrap().folder = "harbour-2".into();
+    let (out, _) = frames(&mut s, size, 1.0, 1);
+    assert!(shapes_text(&out).iter().any(|t| t.contains("mod with this name already")));
+    // A bad folder name.
+    s.new_mod.as_mut().unwrap().folder = "Bad Folder".into();
+    let (out, _) = frames(&mut s, size, 1.0, 1);
+    assert!(shapes_text(&out).iter().any(|t| t.contains("is not a folder name")));
+    // D-pad down to Cancel, A: closed, nothing made.
+    s.pad(Pad::Down, InputKind::Xbox);
+    s.pad(Pad::Down, InputKind::Xbox);
+    s.pad(Pad::Down, InputKind::Xbox);
+    assert_eq!(s.new_mod.as_ref().unwrap().part(), super::new_mod::Part::Cancel);
+    s.pad(Pad::A, InputKind::Xbox);
+    assert!(s.new_mod.is_none());
+    assert_eq!(store::list(&dir), ["drift-park", "harbour-edits"]);
+    // Again with a new name, B cancels; then made with A.
+    s.open_new_mod();
+    s.pad(Pad::B, InputKind::Xbox);
+    assert!(s.new_mod.is_none());
+    s.open_new_mod();
+    s.new_mod.as_mut().unwrap().name = "Night run".into();
+    s.pad(Pad::A, InputKind::Xbox);
+    assert!(s.new_mod.is_none());
+    assert_eq!(s.open_mod().map(|m| m.folder.as_str()), Some("night-run"));
+    assert_eq!(s.nav.workspace, Workspace::Home);
+    // An empty name: said only after Create.
+    s.open_new_mod();
+    let (out, _) = frames(&mut s, size, 1.0, 1);
+    assert!(shapes_text(&out).iter().any(|t| t == super::words::NEW_MOD_NAME_FIRST));
+    s.pad(Pad::A, InputKind::Xbox);
+    let (out, _) = frames(&mut s, size, 1.0, 1);
+    assert!(shapes_text(&out).iter().any(|t| t == "Give the mod a name"));
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn the_new_mod_dialog_draws_at_every_size() {
+    let dir = maps("new-sizes");
+    for (w, h, sys) in SIZES {
+        let scale = sys * layout::ui_scale((w as f32 / sys) as u32, (h as f32 / sys) as u32);
+        for input in [InputKind::Mouse, InputKind::Keyboard, InputKind::Deck] {
+            let mut s = Studio::new(dir.clone(), None);
+            s.nav.input = input;
+            s.open_new_mod();
+            s.new_mod.as_mut().unwrap().name = "A rather long mod name to see it fit".into();
+            let (_, l) = frames(&mut s, (w, h), scale, 2);
+            assert!(l.problems().is_empty(), "{w}x{h}@{sys}: {:?}", l.problems());
+            // The card (at most 560 × 328 points) fits in the smallest window Studio draws.
+            assert!(l.too_small || (l.size.x >= 560.0 + 48.0 && l.size.y >= 328.0), "{w}x{h}@{sys}");
+        }
+    }
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// Every text drawn in a frame.
+fn shapes_text(out: &egui::FullOutput) -> Vec<String> {
+    fn walk(s: &egui::Shape, v: &mut Vec<String>) {
+        match s {
+            egui::Shape::Text(t) => v.push(t.galley.text().to_string()),
+            egui::Shape::Vec(list) => list.iter().for_each(|s| walk(s, v)),
+            _ => {}
+        }
+    }
+    let mut v = vec![];
+    for c in &out.shapes {
+        walk(&c.shape, &mut v);
+    }
+    v
+}
+
+/// Where a text is drawn (its top-left corner), when it is.
+fn text_at(out: &egui::FullOutput, want: &str) -> Option<egui::Pos2> {
+    fn walk(s: &egui::Shape, want: &str) -> Option<egui::Pos2> {
+        match s {
+            egui::Shape::Text(t) if t.galley.text() == want => Some(t.pos + t.galley.rect.center().to_vec2()),
+            egui::Shape::Vec(list) => list.iter().find_map(|s| walk(s, want)),
+            _ => None,
+        }
+    }
+    out.shapes.iter().find_map(|c| walk(&c.shape, want))
+}
+
+fn click(s: &mut Studio, size: (u32, u32), at: egui::Pos2) -> egui::FullOutput {
+    let ev = |pressed| egui::Event::PointerButton {
+        pos: at,
+        button: egui::PointerButton::Primary,
+        pressed,
+        modifiers: Default::default(),
+    };
+    s.frame(raw_input(size, 1.0, 0, vec![egui::Event::PointerMoved(at)]));
+    s.frame(raw_input(size, 1.0, 0, vec![ev(true)]));
+    s.frame(raw_input(size, 1.0, 0, vec![ev(false)]));
+    s.frame(raw_input(size, 1.0, 0, vec![]))
+}
+
+#[test]
+fn a_new_mod_from_the_file_menu_and_by_mouse() {
+    let dir = maps("new-menu");
+    let size = (1536, 864);
+    let mut s = Studio::new(dir.clone(), Some("drift-park"));
+    let (out, _) = frames(&mut s, size, 1.0, 2);
+    let file = text_at(&out, "File").expect("the File menu");
+    let out = click(&mut s, size, file);
+    let item = text_at(&out, super::words::NEW_MOD).expect("File ▸ New mod…");
+    click(&mut s, size, item);
+    assert!(s.new_mod.is_some(), "File ▸ New mod… opens the dialog");
+    // Cancel by mouse.
+    let (out, _) = frames(&mut s, size, 1.0, 1);
+    let cancel = text_at(&out, ob_look::words::CANCEL).expect("Cancel");
+    click(&mut s, size, cancel);
+    assert!(s.new_mod.is_none());
+    // Home's Empty map mod by mouse, a name typed, Create clicked.
+    s.nav.workspace = Workspace::Home;
+    let (out, _) = frames(&mut s, size, 1.0, 1);
+    let row = text_at(&out, super::words::EMPTY_MAP_MOD).expect("Empty map mod");
+    click(&mut s, size, row);
+    assert!(s.new_mod.is_some(), "Empty map mod opens the dialog");
+    s.frame(raw_input(size, 1.0, 0, vec![text("Bridge jumps")]));
+    let out = s.frame(raw_input(size, 1.0, 0, vec![]));
+    assert!(text_at(&out, &format!("{} bridge-jumps", super::words::NEW_MOD_GOES)).is_some());
+    let create = text_at(&out, ob_look::words::CREATE).expect("Create");
+    click(&mut s, size, create);
+    assert!(s.new_mod.is_none());
+    assert_eq!(s.open_mod().map(|m| m.folder.as_str()), Some("bridge-jumps"));
+    let _ = std::fs::remove_dir_all(&dir);
+}

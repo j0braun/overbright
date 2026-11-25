@@ -168,8 +168,10 @@ fn dispatch(line: &args::Line, env: &Env) -> Done {
             let doc: Value = serde_json::from_str(&registry::export().pretty()).unwrap_or_default();
             Done { code: OK, text: vec![registry::export().pretty()], doc: json!({ "schema": doc }) }
         }
+        "pack.create" => create(line),
         "checks.run" => with_mod(line, |m| checks(line, env, m)),
         "history.show" => with_mod(line, history_show),
+        "pack.export" => with_mod(line, |m| export(line, m)),
         "looks.open" | "looks.import" | "looks.watch" | "looks.list" => {
             with_mod(line, |m| crate::cli::looks::run(cmd.name, line, env, m))
         }
@@ -472,6 +474,75 @@ fn try_edit(line: &args::Line, cmd: &Command, env: &Env, m: &Mod) -> Result<Done
             Err(d)
         }
         inbox::Reply::Refused { reason } => Err(fail(FAILED, format!("refused by {owner}: {reason}"))),
+    }
+}
+
+// ---- a new mod ----------------------------------------------------------------------------------------------------
+
+fn create(line: &args::Line) -> Done {
+    let text = |k: &str| line.args.get(k).and_then(Value::as_str).map(str::to_string);
+    let name = text("name").unwrap_or_default();
+    let maps = text("maps").filter(|m| !m.is_empty()).map(PathBuf::from).unwrap_or_else(store::maps_dir);
+    let region = line.flag("region").unwrap_or(crate::create::REGION).to_string();
+    let word = text("template").unwrap_or_else(|| "empty".into());
+    let Some(template) = crate::create::Template::from_word(&word) else {
+        let words: Vec<&str> = crate::create::Template::ALL.iter().map(|t| t.word()).collect();
+        let mut d = fail(USAGE, format!("no template {word}: use {}", words.join(", ")));
+        d.doc["error"]["reason"] = json!("bad_template");
+        return d;
+    };
+    let made = crate::create::plan(&maps, &name, text("folder").as_deref()).and_then(|folder| {
+        crate::create::create_from(&maps, &folder, &name, &region, template).map(|dir| (folder, dir))
+    });
+    match made {
+        Ok((folder, dir)) => Done {
+            code: OK,
+            text: vec![
+                format!("Made {} in {}", name.trim(), dir.display()),
+                format!("Edit it with --mod {}", dir.display()),
+            ],
+            doc: json!({
+                "name": name.trim(),
+                "folder": folder,
+                "dir": dir.to_string_lossy(),
+                "region": region.trim().to_ascii_uppercase(),
+                "template": template.word(),
+            }),
+        },
+        Err(r) => {
+            let mut d = fail(if r.is_input() { USAGE } else { FAILED }, r.to_string());
+            d.doc["error"]["reason"] = json!(r.reason());
+            d
+        }
+    }
+}
+
+// ---- sharing ------------------------------------------------------------------------------------------------------
+
+fn export(line: &args::Line, m: &Mod) -> Done {
+    let to = PathBuf::from(line.args.get("to").and_then(Value::as_str).unwrap_or_default());
+    let ok = line.args.get("derived-ok").and_then(Value::as_bool).unwrap_or(false);
+    match crate::share::export_dir(&m.dir, &m.folder, &to, ok) {
+        Ok(e) => Done {
+            code: OK,
+            text: vec![format!("Exported {} to {} ({} files)", m.folder, e.to.display(), e.files)],
+            doc: json!({
+                "to": e.to.to_string_lossy(),
+                "files": e.files,
+                "bytes": e.bytes,
+                "derived": e.derived,
+                "build": crate::share::build(),
+            }),
+        },
+        Err(crate::share::Refused::Derived(d)) => {
+            let message = format!("{} Give --derived-ok to export them.", crate::share::derived_warning(d.len()));
+            let list: Vec<Value> = d.iter().map(|d| json!({ "texture": d.id.to_string(), "name": d.name })).collect();
+            let mut done = fail(FAILED, message);
+            done.doc["error"]["reason"] = json!("derived");
+            done.doc["derived"] = json!(list);
+            done
+        }
+        Err(e) => fail(FAILED, e.to_string()),
     }
 }
 

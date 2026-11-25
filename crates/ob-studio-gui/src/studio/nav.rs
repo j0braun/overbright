@@ -88,6 +88,10 @@ pub enum Command {
     CopyAddress,
     Undo,
     Redo,
+    /// Ctrl+N: the New mod dialog.
+    NewMod,
+    /// F1: the tutorial's step (starts the tutorial when it is not running).
+    Tutorial,
 }
 
 /// One line of the key table.
@@ -104,7 +108,7 @@ pub struct KeyRow {
 }
 
 /// The key table: Help ▸ Controls and the legend row are made from it.
-pub const KEYS: [KeyRow; 18] = [
+pub const KEYS: [KeyRow; 20] = [
     KeyRow {
         command: Command::Select,
         keys: "Enter",
@@ -205,6 +209,20 @@ pub const KEYS: [KeyRow; 18] = [
         help: "What the open mod changes, value by value, and which mod wins",
     },
     KeyRow {
+        command: Command::NewMod,
+        keys: "Ctrl+N",
+        pad: None,
+        word: "New mod",
+        help: "Make a new map mod (Home: Empty map mod)",
+    },
+    KeyRow {
+        command: Command::Tutorial,
+        keys: "F1",
+        pad: None,
+        word: "Tutorial",
+        help: "Do the tutorial's step (Home's card holds it for the pad); starts the tutorial",
+    },
+    KeyRow {
         command: Command::Undo,
         keys: "Ctrl+Z",
         pad: Some(Btn::DeckGrips),
@@ -285,6 +303,7 @@ pub fn key_command(k: Key) -> Option<Command> {
         (K::F6, false, true, false) => Command::PrevArea,
         (K::F10, false, true, false) => Command::Menu,
         (K::F5, false, false, false) => Command::Test,
+        (K::F1, false, false, false) => Command::Tutorial,
         (K::K, true, false, false) => Command::Find,
         (K::L, true, false, false) => Command::EditAddress,
         (K::C, true, true, false) => Command::CopyAddress,
@@ -293,6 +312,7 @@ pub fn key_command(k: Key) -> Option<Command> {
         (K::ArrowLeft, false, false, true) => Command::LastPlace,
         (K::ArrowRight, false, false, true) => Command::NextPlace,
         (K::Z, true, false, false) => Command::Undo,
+        (K::N, true, false, false) => Command::NewMod,
         (K::D, true, false, false) => Command::Workspace(Workspace::Changes),
         (K::Y, true, false, false) => Command::Redo,
         (K::Escape, false, false, false) => Command::Back,
