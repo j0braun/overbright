@@ -51,7 +51,7 @@ pub fn named_app<'e>(env: &'e FakeEnv, fonts: &Fonts, name: &str, w: u32, h: u32
 
 /// The named states: (name, the screen it is shown on). The fake data of
 /// each comes from [`state_model`].
-pub const STATES: [(&str, Screen); 73] = [
+pub const STATES: [(&str, Screen); 86] = [
     ("no-game", Screen::FirstRun),
     ("check-ok", Screen::Check),
     ("check-movies", Screen::Check),

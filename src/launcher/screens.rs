@@ -1387,7 +1387,15 @@ fn build_advanced(b: &mut Builder, m: &Model) {
     b.value_row("language", "Game language", &m.language_name(), &langs, false, m.root.is_some() && langs.len() > 1);
     let no = m.unsupported_languages();
     if !no.is_empty() {
-        let list: Vec<String> = no.iter().map(|(l, why)| format!("{l} ({why})")).collect();
+        // Languages with the same reason share it: a shorter line, so the page keeps fitting.
+        let mut groups: Vec<(&str, Vec<&str>)> = Vec::new();
+        for (l, why) in &no {
+            match groups.iter_mut().find(|(w, _)| w == why) {
+                Some((_, ls)) => ls.push(l),
+                None => groups.push((why, vec![l])),
+            }
+        }
+        let list: Vec<String> = groups.iter().map(|(why, ls)| format!("{} ({why})", ls.join(", "))).collect();
         b.dim(&format!("Not supported yet: {}.", list.join("; ")));
     }
     b.value_row(
