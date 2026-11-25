@@ -1,6 +1,6 @@
 //! Career events (chunk 0x34A11 records): kinds, categories, opponents.
 
-use super::*;
+use crate::race_mode::RaceMode;
 
 /// Race type, event byte +0x0F.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

@@ -245,6 +245,29 @@ impl TickClock {
     }
 }
 
+/// How long before a wait's end [`wait_until`] stops sleeping and spins:
+/// 1 ms on Linux / macOS (as before), 2 ms on Windows, whose
+/// sleeps wake up to about a millisecond late even with the 1 ms timer
+/// resolution the game holds (`platform::timer`) or std's high-resolution
+/// waitable timer (Windows 10 1803+) **[unverified on real Windows]**.
+pub const fn sleep_margin(windows: bool) -> std::time::Duration {
+    std::time::Duration::from_millis(if windows { 2 } else { 1 })
+}
+
+/// Waits until `due`: sleeps to within [`sleep_margin`] of it and spins the
+/// rest (the game spins all of it, 0x57EB74), so the wait ends on time
+/// without holding a core for the whole period.
+pub fn wait_until(due: std::time::Instant) {
+    let margin = sleep_margin(cfg!(windows));
+    let now = std::time::Instant::now();
+    if due > now + margin {
+        std::thread::sleep(due - now - margin);
+    }
+    while std::time::Instant::now() < due {
+        std::hint::spin_loop();
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

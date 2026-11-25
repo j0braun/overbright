@@ -29,7 +29,7 @@ pub use self::tuning::*;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::render::Camera;
+    use crate::draw::camera::Camera;
     use glam::{Mat3, Vec3};
 
     /// Looking back with the player's +0x2B set (read 1 under Wine) keeps
@@ -199,7 +199,7 @@ mod tests {
 #[cfg(test)]
 mod showcase_tests {
     use super::*;
-    use crate::render::Camera;
+    use crate::draw::camera::Camera;
     use glam::Vec3;
 
     #[test]
@@ -262,7 +262,7 @@ mod showcase_tests {
 #[cfg(test)]
 mod native_fix_tests {
     use super::*;
-    use crate::render::Camera;
+    use crate::draw::camera::Camera;
     use glam::{Mat3, Vec3};
 
     fn peak(f: impl Fn(f32) -> [f32; 4]) -> [f32; 4] {

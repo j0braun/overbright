@@ -9,7 +9,8 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 
 use crate::formats::roads::RoadNet;
-use crate::frontend::career::{CareerData, Track};
+use crate::frontend::career::CareerData;
+use crate::frontend::career::tracks::Track;
 
 /// A base track a race can be on.
 #[derive(Clone, Debug, PartialEq)]

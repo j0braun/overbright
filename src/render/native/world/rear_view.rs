@@ -55,7 +55,7 @@
 //! left out — a sub-texel difference in a 256 × 256 image.
 use glam::{Mat3, Quat, Vec2, Vec3};
 
-use crate::frontend::Quad;
+use crate::draw::quad::Quad;
 use crate::render::Camera;
 
 use crate::formats::texture::Texture;

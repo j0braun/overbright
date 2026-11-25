@@ -2,7 +2,7 @@ use glam::{Mat4, Vec3};
 
 use super::route_director::chains;
 use crate::formats::camera_tracks::{CameraEntry, CameraTrack};
-use crate::render::camera::Camera;
+use crate::draw::camera::Camera;
 
 /// One coordinate of a path (0x446180 / 0x446210): a Hermite curve from the
 /// entry's two points with the end tangents `m` ([`end_tangents`], 0x450040),

@@ -20,12 +20,11 @@ pub mod status;
 pub mod qr_options;
 
 mod action;
-mod input;
 
 pub use action::Action;
 pub use super::format::{fixed2, fixed3, signed_time};
 pub(crate) use super::format::{fixed_grouped, grouped_1};
-pub use input::Key;
+pub use crate::input::Key;
 pub use super::widgets::arrow_blink::{ARROW_BLINK_MS, ArrowBlink, SCROLLBAR_ARROWS};
 pub(crate) use super::widgets::footer::footer;
 pub use super::widgets::footer::total_cost;

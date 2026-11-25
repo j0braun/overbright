@@ -5,7 +5,7 @@
 //! `FramePoses`); the world's state is never written for a draw.
 use glam::{Quat, Vec3};
 use crate::drive::CarState;
-use crate::render::camera::Camera;
+use crate::draw::camera::Camera;
 use std::f32::consts::{PI, TAU};
 
 /// The drawn part of a car's state.

@@ -45,7 +45,8 @@ original's frames byte for byte, which the gate checks.
 
 The library is being cut into crates that only depend downward: `ob-core` (`crates/ob-core`: the env macros,
 `game_root`, the clocks, the game folder access, the asset cache, the platform folders, the fingerprint, the
-logs, the game's random numbers, the camera's values), `ob-formats` (`crates/ob-formats`: the file-format
+logs, the game's random numbers, the camera's values, the canvas's layout values and quad, the menus' keys, the race
+mode), `ob-formats` (`crates/ob-formats`: the file-format
 parsers and the engine's tables, on `ob-core` only), `ob-asset-format` (`crates/ob-asset-format`: the core of
 Overbright's own asset format, docs/modding/asset-format/: exact floats, names, digests, bundles, the pack manifest,
 layering, and the generator that keeps the specification's rule tables and schemas in step with the code; on
@@ -54,7 +55,10 @@ files and their store, the edit operations, custom races and the original's race
 the simulation stream — on `ob-core` and `ob-formats`; the map editor's session, which owns a world, stays in the
 library), then the rest of the library. Beside them, `ob-look` (`crates/ob-look`: the look the launcher, the map
 editor and Studio share — colour tokens, lamps, the type, the button legends' data and the words on shared buttons and menu items; no dependencies) sits below the
-library, which re-exports its tokens at `launch::theme`. Each layer's
+library, which re-exports its tokens at `launch::theme`. The library's middle parts are layers of the same list
+while they are still its modules: settings (`qol`), assets, the simulation, audio, render and the menus, bottom to
+top; a module is placed by its path, so a GPU-free module may sit below its folder's layer (the effects' data under
+`render::native::fx` is in assets), and the next step moves each layer into a crate of its own. Each layer's
 modules are listed in `scripts/checks/crate-layers.txt`; `scripts/checks/crate_layers.sh` (in every checks set)
 fails on a reference from a module to a higher layer that is not on `crate-layers-allow.txt` (the references
 still to be moved; the list only shrinks), on a package dependency that points up (`cargo metadata`), on a

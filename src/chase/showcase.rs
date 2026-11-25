@@ -1,7 +1,7 @@
 use glam::Vec3;
 
 use super::*;
-use crate::render::Camera;
+use crate::draw::camera::Camera;
 
 /// The showcase camera (the mover type 0x14 the factory 0x5F1FE0 builds
 /// with 0x452520, vtable 0x7880D8; UI_ShowCase_Preview's constructor

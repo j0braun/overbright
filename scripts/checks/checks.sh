@@ -6,7 +6,7 @@
 #                              intro GPS, rain flow, showcase, 1080p shot, drive bench, playthrough, combination matrix, resolution matrix,
 #                              the map editor's shot matrix (EDITOR_SHOTS=1 runs it in fast too)
 #   checks.sh shots   OUTDIR T…  just those shot targets (twice with DET=1)
-#   (fast and full also run the provenance-tag check and the importer unit tests; full, or LAVAPIPE=1, the lavapipe
+#   (fast and full also run the provenance-tag check, layering.sh and the importer unit tests; full, or LAVAPIPE=1, the lavapipe
 #   check (SKIP without the driver is recorded as skipped, LAVAPIPE=require fails instead); full also selfcheck.sh,
 #   the gates' own self-test, and release_check.sh, the shipping binary without the dev harness; RELEASE=1 runs it
 #   in fast too; full, or FRESH=1, tests/launcher_fresh.sh (the launcher's first run on a fresh machine), tests/launcher_mouse.sh (the launcher by the mouse alone, scale 1 and 2) and tests/launcher_wayland.sh (the same browser on a private headless Wayland session at scale 1 to 2); full, or WINE_SMOKE=1, the Windows build under Wine, report-only: wine_smoke.sh, WINE_SMOKE=off skips;
@@ -312,6 +312,11 @@ if [ "$SET" != shots ]; then
   run crate_layers 300 "$HERE/crate_layers.sh" "$REPO"
   say "crate_layers rc=$RC: $(grep -E '^CRATE LAYERS: ok' "$O/crate_layers.log" | cut -c15-160)"
   [ $RC = 0 ] || { grep -vE '^CRATE LAYERS: (ok|packages ok|dev-harness off|wasm32 check (ok|skipped)|[a-z-]+ has none)' "$O/crate_layers.log" | head -20 | tee -a "$OUT"; fail crate_layers; }
+  # The render layers and the harness boundary (layering.sh: core/native take no enhancement, QoL or global state
+  # beyond its lists, render code no new settings read, the game names the harness only behind its feature).
+  run layering 120 "$HERE/layering.sh" "$REPO"
+  say "layering rc=$RC: $(grep -E '^LAYERING: ok' "$O/layering.log" | cut -c11-160)"
+  [ $RC = 0 ] || { grep -vE '^LAYERING: ok' "$O/layering.log" | head -20 | tee -a "$OUT"; fail layering; }
   # The importers' unit tests (scripts/tests) need Pillow: without it they are recorded as skipped. They are part
   # of the private set (with the importers they test): a public checkout has no scripts/tests/.
   if [ ! -d "$REPO/scripts/tests" ]; then

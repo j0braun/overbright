@@ -3,7 +3,7 @@ use glam::{Mat3, Vec3};
 use super::*;
 use crate::car::{CameraView, Car};
 use crate::drive::CarState;
-use crate::render::Camera;
+use crate::draw::camera::Camera;
 
 /// The game's in-race camera for one car.
 #[derive(Clone, Debug)]

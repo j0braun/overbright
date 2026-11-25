@@ -8,6 +8,9 @@ pub(crate) use crate::dev::hooks::{
     audio_capture_frame, audio_tick_end, check_tick_dt, frame_trace, headless_size, instant_forward, parity_grid, rain_clock_override, record_state, replay_controls,
     rng_pin, teleport, unknown_flag,
 };
+/// `--shot-list`'s table (called only under the feature: no stub).
+#[cfg(feature = "dev-harness")]
+pub(crate) use crate::dev::shot::targets::print_list as print_shot_list;
 #[cfg(not(feature = "dev-harness"))]
 pub(crate) use stubs::*;
 

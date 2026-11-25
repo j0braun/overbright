@@ -13,7 +13,7 @@
 use glam::{Mat4, Vec2, Vec3};
 
 use crate::formats::roads::RoadRoute;
-use crate::render::camera::Camera;
+use crate::draw::camera::Camera;
 
 /// The extra cameras, in the order C reaches them after the native six.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

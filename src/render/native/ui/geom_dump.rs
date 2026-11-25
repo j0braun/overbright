@@ -14,7 +14,7 @@
 use std::fmt::Write as _;
 use std::sync::Mutex;
 
-use crate::frontend::Quad;
+use crate::draw::quad::Quad;
 use crate::render::display::{AspectMode, Place, UiFrame};
 
 struct DrawnQuad {
@@ -42,8 +42,7 @@ static STATE: Mutex<Option<State>> = Mutex::new(None);
 
 /// The dump's file (`NFSU2_UI_GEOM`), read once.
 fn target() -> Option<&'static std::path::Path> {
-    static PATH: std::sync::OnceLock<Option<std::path::PathBuf>> = std::sync::OnceLock::new();
-    PATH.get_or_init(|| std::env::var_os("NFSU2_UI_GEOM").map(std::path::PathBuf::from)).as_deref()
+    crate::render::debug_env::once::ui_geom().as_deref()
 }
 
 fn with(f: impl FnOnce(&mut State)) {

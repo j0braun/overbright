@@ -11,7 +11,7 @@
 //! 3, 20–25) play nothing.
 
 use super::fe::{control, event, sound};
-use crate::frontend::screens::Key;
+use crate::input::Key;
 
 /// The pad messages the clone's keys stand for (`menu_key`).
 fn cell(ev: u8, ctl: u8) -> Option<u8> {

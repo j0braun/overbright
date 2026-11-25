@@ -17,7 +17,8 @@ use glam::{Vec2, Vec3};
 use super::junction_cache::JunctionCache;
 use crate::formats::ai_routes::{RouteFile, lane, lane_offset};
 use crate::formats::bundle::{chunks, read_f32, read_u16, read_u32, walk};
-use crate::frontend::career::{Track, Trigger};
+use crate::frontend::career::tracks::Track;
+use crate::frontend::career::triggers::Trigger;
 use crate::opponents::{Bounds, GameRng};
 
 mod human;

@@ -10,64 +10,16 @@
 
 use crate::handling::Handling;
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub enum RaceMode {
-    /// No race: every flag clear.
-    #[default]
-    FreeRoam,
-    /// Race type 4 (0x89E7D8).
-    Drag,
-    /// Race type 5 (0x89E7D9), the drift events.
-    Drift,
-    /// Race type 2 (0x89E7E3), the street X events.
-    StreetX,
-    /// The flag 0x89E7E2 the handling reads (0x5A4FF7, 0x5ABC1D,
-    /// 0x5B634D): set offline only by Quick Race type 11 (0x53FC58's
-    /// switch → 0x526730), which the mode menu does not offer; the career
-    /// never sets it, and its URL events use the plain flags. The name is
-    /// the clone's.
-    Url,
-}
+pub use crate::race_mode::RaceMode;
 
-impl RaceMode {
-    /// From a name, as in `NFS_RACE=drag`.
-    pub fn parse(name: &str) -> Option<RaceMode> {
-        Some(match name.to_ascii_lowercase().as_str() {
-            "" | "freeroam" | "free" => RaceMode::FreeRoam,
-            "drag" => RaceMode::Drag,
-            "drift" => RaceMode::Drift,
-            "streetx" | "street" => RaceMode::StreetX,
-            "url" => RaceMode::Url,
-            _ => return None,
-        })
-    }
-
-    pub fn drag(self) -> bool {
-        self == RaceMode::Drag
-    }
-
-    /// The game's drift test: a drift flag and not a drag race.
-    pub fn drift(self) -> bool {
-        self == RaceMode::Drift
-    }
-
-    pub fn street_x(self) -> bool {
-        self == RaceMode::StreetX
-    }
-
-    pub fn url(self) -> bool {
-        self == RaceMode::Url
-    }
-
-    /// The performance mode handed to 0x5B4DD0: 3 drift, 10 type 2,
-    /// 2 drag, else 0.
-    fn tune_table(self) -> Option<&'static [[f32; 22]; 3]> {
-        match self {
-            RaceMode::Drift => Some(&DRIFT_TUNE),
-            RaceMode::StreetX => Some(&STREET_X_TUNE),
-            RaceMode::Drag => Some(&DRAG_TUNE),
-            _ => None,
-        }
+/// The performance mode handed to 0x5B4DD0: 3 drift, 10 type 2,
+/// 2 drag, else 0.
+fn tune_table(mode: RaceMode) -> Option<&'static [[f32; 22]; 3]> {
+    match mode {
+        RaceMode::Drift => Some(&DRIFT_TUNE),
+        RaceMode::StreetX => Some(&STREET_X_TUNE),
+        RaceMode::Drag => Some(&DRAG_TUNE),
+        _ => None,
     }
 }
 
@@ -109,7 +61,7 @@ pub fn layout(h: &Handling) -> usize {
 /// 0x5EB570 refuses in the key handler 0x6034C6) and the style refill
 /// (0x592650) adds nothing (**verified** under Wine, docs/notes/parity/streetx-nitrous.md).
 pub fn apply_tune(h: &mut Handling, mode: RaceMode) -> bool {
-    let Some(table) = mode.tune_table() else { return false };
+    let Some(table) = tune_table(mode) else { return false };
     let t = &table[layout(h)];
     let s = |c: usize| h.upgrade_state[c] * 0.333_333_34;
     // Column i (0..11) blended with column 11 + i by category c.

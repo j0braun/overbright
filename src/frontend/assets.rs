@@ -8,8 +8,9 @@ use anyhow::{Context, Result};
 use crate::formats::bundle::{Chunk, chunks, walk};
 use crate::formats::hash::bin_hash;
 use crate::formats::texture::{Texture, parse_texture_pack};
-use crate::frontend::feng;
-use crate::frontend::feng::Package;
+use crate::frontend::feng::model;
+use crate::frontend::feng::parse;
+use crate::frontend::feng::model::Package;
 use crate::frontend::feng::font::Font;
 use crate::frontend::feng::strings::Strings;
 
@@ -108,7 +109,7 @@ impl Assets {
         // Each file read, unpacked and parsed on its own thread; merged in
         // the list's order (the first of a name wins).
         enum Item {
-            Package(feng::Package),
+            Package(model::Package),
             Textures(Vec<crate::formats::texture::Texture>),
             Font(Font),
         }
@@ -120,7 +121,7 @@ impl Assets {
                 let mut items = Vec::new();
                 walk(chunks(&data, 0), &mut |c| {
                     if let Some(bytes) = package_bytes(&c) {
-                        match feng::parse(&bytes) {
+                        match parse::parse(&bytes) {
                             Ok(p) => items.push(Item::Package(p)),
                             Err(e) => log::warn!("{file}: package: {e}"),
                         }
@@ -281,7 +282,7 @@ mod failed_track_map_tests {
 #[cfg(test)]
 mod font_lookup_tests {
     use super::*;
-    use crate::frontend::feng::Kind;
+    use crate::frontend::feng::model::Kind;
 
     /// Only the four `FONT_IMPACTHUD` labels name a font no bundle ships;
     /// they get no font (0x51BD70 returns NULL, 0x536F70 draws nothing),

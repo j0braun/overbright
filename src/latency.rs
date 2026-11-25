@@ -271,9 +271,9 @@ pub fn mean(samples: &[Sample], skip: usize, f: impl Fn(&Sample) -> f32) -> f32 
     s.iter().map(f).sum::<f32>() / s.len() as f32
 }
 
-/// Sleeps until `due` as the frame limiter does (`display::wait_until`).
+/// Sleeps until `due` as the frame limiter does (`frame_clock::wait_until`).
 pub fn wait_until(due: Instant) {
-    crate::render::display::wait_until(due);
+    crate::frame_clock::wait_until(due);
 }
 
 /// Variable refresh detection. wgpu exposes no VRR state (its surface

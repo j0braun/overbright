@@ -80,11 +80,11 @@ impl Chyron {
 
 /// The caption's quads at `now` (ms, the screens' clock).
 pub fn chyron_quads(
-    assets: &crate::frontend::Assets,
+    assets: &crate::frontend::assets::Assets,
     c: &Chyron,
     now: f32,
     front_end: bool,
-) -> Vec<crate::frontend::Quad> {
+) -> Vec<crate::draw::quad::Quad> {
     use crate::frontend::screens::EA_TRAX;
     let Some(&(title, artist, album)) = EA_TRAX.get(c.song) else {
         return Vec::new();
@@ -95,7 +95,7 @@ pub fn chyron_quads(
     let Some(package) = assets.package(name) else {
         return Vec::new();
     };
-    let mut state = crate::frontend::ScreenState::default();
+    let mut state = crate::frontend::feng::state::ScreenState::default();
     state.text.insert(chyron::TITLE, title.to_string());
     state.text.insert(chyron::ARTIST, artist.to_string());
     state.text.insert(chyron::ALBUM, album.to_string());

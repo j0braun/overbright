@@ -332,7 +332,7 @@ pub fn hud_part_scale(hud: f32, lo: glam::Vec2, hi: glam::Vec2) -> f32 {
 
 /// The in-game HUD's quads with the HUD Scale row and the per-element
 /// rows, and Reduced Flashing; untouched when all are native.
-pub fn apply_hud(quads: &mut [crate::frontend::Quad]) {
+pub fn apply_hud(quads: &mut [crate::draw::quad::Quad]) {
     let hud = crate::qol::hud_scale();
     if hud != 1.0 || hud_minimap() != 100 || hud_speedo() != 100 || hud_info() != 100 {
         crate::qol::scale_hud_by(quads, |lo, hi| hud_part_scale(hud, lo, hi));
@@ -352,7 +352,7 @@ pub const FLASH_ALPHA: f32 = 0.25;
 /// [`crate::screen_flash`]).
 pub const FLASH_AMOUNT: f32 = 0.25;
 
-pub fn reduce_flashes(quads: &mut [crate::frontend::Quad]) {
+pub fn reduce_flashes(quads: &mut [crate::draw::quad::Quad]) {
     for q in quads.iter_mut() {
         let (lo, hi) = (q.rect[0].min(q.rect[1]), q.rect[0].max(q.rect[1]));
         let full = (hi.x - lo.x) >= 640.0 * 0.9 && (hi.y - lo.y) >= 480.0 * 0.9;
@@ -567,7 +567,7 @@ mod tests {
         assert_eq!(hud_element(v(510.0, 360.0), v(630.0, 470.0)), Some(HudElement::Speedo));
         assert_eq!(hud_element(v(470.0, 20.0), v(630.0, 120.0)), Some(HudElement::RaceInfo));
         assert_eq!(hud_element(v(280.0, 300.0), v(360.0, 340.0)), None);
-        let quad = |rect: [glam::Vec2; 2], color: [f32; 4]| crate::frontend::Quad { texture: None, rect, uv: [v(0.0, 0.0), v(1.0, 1.0)], color, z: 0.0, angle: 0.0, place: Default::default() };
+        let quad = |rect: [glam::Vec2; 2], color: [f32; 4]| crate::draw::quad::Quad { texture: None, rect, uv: [v(0.0, 0.0), v(1.0, 1.0)], color, z: 0.0, angle: 0.0, place: Default::default() };
         let mut q = [quad([v(0.0, 0.0), v(640.0, 480.0)], [1.0, 1.0, 1.0, 0.9]), quad([v(0.0, 0.0), v(640.0, 480.0)], [0.0, 0.0, 0.0, 0.9]), quad([v(0.0, 0.0), v(100.0, 100.0)], [1.0, 1.0, 1.0, 1.0])];
         reduce_flashes(&mut q);
         assert_eq!(q.map(|q| q.color[3]), [FLASH_ALPHA, 0.9, 1.0]);

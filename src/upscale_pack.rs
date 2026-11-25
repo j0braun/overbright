@@ -414,12 +414,12 @@ pub const TITLE_PACKAGES: &[&str] = &["UG_LS_Splash"];
 
 /// Every texture the loading packages and the title screen name, once,
 /// by hash.
-pub fn collect_loading(assets: &crate::frontend::Assets) -> Vec<Texture> {
+pub fn collect_loading(assets: &crate::frontend::assets::Assets) -> Vec<Texture> {
     let mut seen = HashSet::new();
     let mut out = Vec::new();
     for name in LOADING_PACKAGES.iter().chain(TITLE_PACKAGES) {
         let Some(p) = assets.package(name) else { continue };
-        for r in p.resources.iter().filter(|r| matches!(r.kind, crate::frontend::feng::ResourceKind::Texture)) {
+        for r in p.resources.iter().filter(|r| matches!(r.kind, crate::frontend::feng::model::ResourceKind::Texture)) {
             if let Some(h) = assets.texture_for(&r.name)
                 && seen.insert(h)
             {
@@ -772,7 +772,7 @@ mod tests {
     #[test]
     fn loading_textures_include_the_picture() {
         let Some(root) = game() else { return };
-        let assets = crate::frontend::Assets::load(&root).unwrap();
+        let assets = crate::frontend::assets::Assets::load(&root).unwrap();
         let v = collect_loading(&assets);
         let pc = v.iter().find(|t| t.hash == 0xC51C_E6F1).expect("PC_LOAD");
         assert_eq!((pc.name.as_str(), pc.width, pc.height), ("PC_LOAD", 1024, 1024));
@@ -784,10 +784,10 @@ mod tests {
     #[test]
     fn title_screen_textures_are_collected() {
         let Some(root) = game() else { return };
-        let assets = crate::frontend::Assets::load(&root).unwrap();
+        let assets = crate::frontend::assets::Assets::load(&root).unwrap();
         let v: HashSet<u32> = collect_loading(&assets).iter().map(|t| t.hash).collect();
         let p = assets.package("UG_LS_Splash").expect("UG_LS_Splash");
-        let named: Vec<u32> = p.resources.iter().filter(|r| matches!(r.kind, crate::frontend::feng::ResourceKind::Texture)).filter_map(|r| assets.texture_for(&r.name)).collect();
+        let named: Vec<u32> = p.resources.iter().filter(|r| matches!(r.kind, crate::frontend::feng::model::ResourceKind::Texture)).filter_map(|r| assets.texture_for(&r.name)).collect();
         assert!(named.contains(&0xC51C_E6F1), "the splash draws PC_LOAD");
         assert!(named.iter().all(|h| v.contains(h)), "{named:08X?}");
     }

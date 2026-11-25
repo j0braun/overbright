@@ -139,15 +139,7 @@ pub struct FrameStats {
     scratch: Vec<f32>,
 }
 
-/// The value at fraction `q` (0..1) of `v` sorted ascending, by selection
-/// (O(n), `v` reordered): index ⌊n·q⌋ clamped, as the F3 overlay's 99 %.
-pub fn percentile(v: &mut [f32], q: f32) -> f32 {
-    if v.is_empty() {
-        return 0.0;
-    }
-    let i = ((v.len() as f32 * q) as usize).min(v.len() - 1);
-    *v.select_nth_unstable_by(i, f32::total_cmp).1
-}
+pub use crate::prof::percentile;
 
 impl FrameStats {
     pub fn push(&mut self, f: FrameRecord) {

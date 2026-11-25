@@ -533,7 +533,7 @@ options! {
     hud_full_width: bool = false,
         key "enh.hud_full_width", presets keep, write 38,
         dev [3 flag "HUD full width"],
-        apply [67 call crate::render::display::set_hud_full_width],
+        apply [67 call crate::draw::ui_frame::set_hud_full_width],
         parse bool;
 
     /// Dynamic Lamps (docs/notes/graphics/lamps-shadows.md): the light packs' lamps as

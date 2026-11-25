@@ -66,12 +66,7 @@ impl Scene {
 /// Below this the film counts as dry (the native pipelines draw).
 pub const WET_MIN: f32 = 0.002;
 
-/// The film's step (one 1/60 s step): +0x509C's rates toward `target`.
-pub fn film_step(film: f32, target: f32) -> f32 {
-    let rate = if target > film { 0.05 } else { 0.0015 };
-    let f = film + (target - film) * rate;
-    if target == 0.0 && f < 1e-4 { 0.0 } else { f }
-}
+pub use crate::weather::film_step;
 
 /// The spray film a car picks up driving on a wet road: aimed at the road's
 /// wetness, scaled by speed (none below 4 m/s, full at 20 m/s), rising more

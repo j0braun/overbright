@@ -234,7 +234,7 @@ pub(super) fn car_type(r: &[u8], index: usize) -> CarType {
             }),
             handling: {
                 let mut h = parse_handling(r);
-                crate::handling::setup_performance(&mut h, crate::race::RaceMode::FreeRoam);
+                crate::handling::setup_performance(&mut h, crate::race_mode::RaceMode::FreeRoam);
                 h
             },
             stock: parse_handling(r),
