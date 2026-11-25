@@ -10,6 +10,7 @@ pub mod cars;
 pub mod panel;
 pub mod record;
 pub mod run;
+pub mod summary;
 
 // The stream's format and its detectors live in the library, which the
 // game writes the stream with (`tools::map::sim`).

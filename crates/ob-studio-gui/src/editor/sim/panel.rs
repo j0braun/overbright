@@ -10,6 +10,7 @@ use glam::{Mat4, Vec2, Vec3};
 use super::format::{CarKind, CarSample, EventKind, SimMode};
 use super::record::{Phase, Playback, Recording, SPEEDS};
 use super::run::{SimChild, What, args};
+use super::summary::{self, Group, RunFindings};
 use crate::editor::app::Overlay as ViewOverlay;
 use crate::editor::overlay::{Overlay, colour, label2d, line2d};
 use crate::editor::modes::{self, SIMULATE, SIMULATE_WORLD};
@@ -45,6 +46,35 @@ pub struct Sim {
     pub traces: bool,
     /// The warnings last put into the Validation list.
     issued: Vec<Issue>,
+    /// How many runs Simulate race makes (seeds `seed`, `seed + 1`, …).
+    pub runs: u32,
+    /// The seeds still to run in this batch.
+    pending: Vec<u64>,
+    /// The runs of this batch so far: what went wrong in each, and their
+    /// recordings other than the one shown (by seed).
+    pub batch: Vec<RunFindings>,
+    stash: Vec<Recording>,
+    /// The summary over `batch`.
+    pub groups: Vec<Group>,
+    /// The list under the results: what went wrong, or the events.
+    pub list: List,
+    /// The summary row last shown (index over groups and their rows).
+    pub pick: Option<usize>,
+    /// Scroll the picked row into view next frame (moved by the keyboard).
+    scroll_pick: bool,
+    /// The summary row with the keyboard focus last frame.
+    focus_row: Option<usize>,
+    /// The summary rows' widget ids as last drawn.
+    pub row_ids: Vec<egui::Id>,
+}
+
+/// The list under the results table.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub enum List {
+    #[default]
+    Results,
+    Summary,
+    Events,
 }
 
 impl Default for Sim {
@@ -58,6 +88,16 @@ impl Default for Sim {
             seed: 1,
             traces: true,
             issued: Vec::new(),
+            runs: 1,
+            pending: Vec::new(),
+            batch: Vec::new(),
+            stash: Vec::new(),
+            groups: Vec::new(),
+            list: List::Summary,
+            pick: None,
+            scroll_pick: false,
+            row_ids: Vec::new(),
+            focus_row: None,
         }
     }
 }
@@ -108,10 +148,28 @@ impl Sim {
         self.child.is_some()
     }
 
-    /// Write the mod's run copy (unsaved changes included; `map.obmap`
-    /// is not written) and start the game simulating `what`.
+    /// Start simulating `what`: a race `runs` times (seeds `seed`,
+    /// `seed + 1`, … one after the other), the world once.
     pub fn start(&mut self, s: &mut EditorState, exe: &std::path::Path, what: What) {
         self.stop();
+        let n = if matches!(what, What::Race(_)) { self.runs.clamp(1, MAX_RUNS) } else { 1 };
+        self.pending = (1..n as u64).rev().map(|k| self.seed.wrapping_add(k)).collect();
+        self.batch.clear();
+        self.stash.clear();
+        self.groups.clear();
+        self.pick = None;
+        self.launch(s, exe, what, self.seed);
+    }
+
+    /// Runs in this batch: done (the one running included) and in all.
+    pub fn batch_progress(&self) -> (usize, usize) {
+        let done = self.batch.len() + usize::from(self.running());
+        (done, done + self.pending.len())
+    }
+
+    /// Write the mod's run copy (unsaved changes included; `map.obmap`
+    /// is not written) and start the game simulating `what` with `seed`.
+    fn launch(&mut self, s: &mut EditorState, exe: &std::path::Path, what: What, seed: u64) {
         let file = match super::super::testplay::write_run_copy(s) {
             Ok(f) => f,
             Err(e) => {
@@ -124,7 +182,7 @@ impl Sim {
             What::World(..) => None,
         };
         let unsaved = if s.session.dirty { " (unsaved changes)" } else { "" };
-        match SimChild::start(exe, &args(&file, &what, self.seed), &s.root) {
+        match SimChild::start(exe, &args(&file, &what, seed), &s.root) {
             Ok(c) => {
                 self.child = Some(c);
                 self.rec = Recording::default();
@@ -139,7 +197,9 @@ impl Sim {
         }
     }
 
+    /// Stop the run (and the batch's runs still to come).
     pub fn stop(&mut self) {
+        self.pending.clear();
         if let Some(c) = self.child.as_mut() {
             c.stop();
         }
@@ -178,6 +238,14 @@ impl Sim {
             }
             None => (spec, None, None),
         };
+        // Several runs: `a.run,b.run,…` (the last one shown).
+        let mut files: Vec<&str> = path.split(',').collect();
+        let path = files.pop().unwrap_or(path);
+        self.stash.clear();
+        for f in files {
+            let text = std::fs::read_to_string(f).map_err(|e| format!("{f}: {e}"))?;
+            self.stash.push(Recording::read(&text));
+        }
         let text = std::fs::read_to_string(path).map_err(|e| format!("{path}: {e}"))?;
         self.rec = Recording::read(&text);
         self.play.start();
@@ -192,6 +260,89 @@ impl Sim {
         });
         Ok(())
     }
+
+    /// Show what went wrong in `f`: its run (the recording swapped in when
+    /// another run is shown), paused there, following its car, the 3D
+    /// camera and the Map on its spot.
+    pub fn show_finding(&mut self, s: &mut EditorState, ctx: &egui::Context, f: &summary::Finding) {
+        let seed = |r: &Recording| r.header.as_ref().map(|h| h.seed);
+        if seed(&self.rec) != Some(f.seed)
+            && let Some(k) = self.stash.iter().position(|r| seed(r) == Some(f.seed))
+        {
+            std::mem::swap(&mut self.rec, &mut self.stash[k]);
+            let follow = self.play.follow;
+            self.play.start();
+            self.play.observe(&self.rec, false);
+            self.play.follow = follow;
+        }
+        self.play.seek(&self.rec, f.time);
+        self.play.follow = Some(f.car);
+        if let Some(at) = f.at {
+            let c = crate::editor::validate::Check {
+                level: f.kind.level(),
+                ok: false,
+                text: String::new(),
+                race: self.race,
+                point: None,
+                at: Some(at.truncate()),
+                fix: None,
+            };
+            crate::editor::validate::show(s, &c);
+            request_map_centre(ctx, at.truncate());
+        }
+        s.status = format!("Showing: {} (seed {})", f.text, f.seed);
+    }
+
+    /// The summary again from `batch`.
+    fn regroup(&mut self) {
+        self.groups = summary::summarize(&self.batch);
+        self.pick = None;
+        // A batch that ended with problems opens on them.
+        if self.pending.is_empty() && !self.running() && self.groups.iter().any(|g| g.level() == Level::Warning) {
+            self.list = List::Summary;
+        }
+    }
+}
+
+/// Runs in one batch at most.
+pub const MAX_RUNS: u32 = 10;
+
+/// What the summary needs of the mod: its added and moved props (named),
+/// and the distance to the base track's roads (read when not loaded yet).
+fn findings_of(rec: &Recording, s: &mut EditorState) -> RunFindings {
+    use ob_map::tools::map::format::PropEdit;
+    let props: Vec<(String, Vec3)> = s
+        .session
+        .map
+        .props
+        .iter()
+        .filter_map(|p| match p {
+            PropEdit::Add { id, solid, position, .. } => Some((format!("{solid} ({id})"), *position)),
+            PropEdit::Move { target, position, .. } => Some((format!("{} (moved)", target.solid), *position)),
+            PropEdit::Delete { .. } => None,
+        })
+        .collect();
+    let track = rec.header.as_ref().map(|h| h.track).filter(|&t| t != 0);
+    if let Some(t) = track
+        && !s.nets.contains_key(&t)
+    {
+        let net = s.assets.road_net(t);
+        s.nets.insert(t, net);
+    }
+    let net = track.and_then(|t| s.nets.get(&t)).and_then(|n| n.as_ref());
+    let road = |p: Vec2| net.and_then(|n| ob_map::tools::map::race::snap(n, p)).map_or(0.0, |r| r.distance);
+    let cx = summary::Context { props: &props, road: net.is_some().then_some(&road as &dyn Fn(Vec2) -> f32) };
+    summary::run_findings(rec, &cx)
+}
+
+/// Ask the Map to centre on `at` (it takes it next frame).
+pub fn request_map_centre(ctx: &egui::Context, at: Vec2) {
+    ctx.data_mut(|d| d.insert_temp(ctx_id("map.centre"), at));
+}
+
+/// The spot the Map was asked to centre on (taken once).
+pub fn take_map_centre(ctx: &egui::Context) -> Option<Vec2> {
+    ctx.data_mut(|d| d.remove_temp::<Vec2>(ctx_id("map.centre")))
 }
 
 /// Put the simulation's warnings into the Validation list (replacing the
@@ -218,10 +369,15 @@ impl Panel for SimHook {
     fn ui(&mut self, s: &mut EditorState, ui: &mut egui::Ui) {
         let ctx = ui.ctx().clone();
         let mut sim = self.0.borrow_mut();
-        if let Some(spec) = ctx.data_mut(|d| d.remove_temp::<String>(ctx_id("load")))
-            && let Err(e) = sim.show_file(&spec)
-        {
-            s.status = format!("Simulation not read: {e}");
+        if let Some(spec) = ctx.data_mut(|d| d.remove_temp::<String>(ctx_id("load"))) {
+            match sim.show_file(&spec) {
+                Err(e) => s.status = format!("Simulation not read: {e}"),
+                Ok(()) => {
+                    let sim = &mut *sim;
+                    sim.batch = sim.stash.iter().chain([&sim.rec]).map(|r| findings_of(r, s)).collect();
+                    sim.regroup();
+                }
+            }
         }
         let dt = ctx.input(|i| i.stable_dt).clamp(0.0, 0.1);
         let was_running = sim.running();
@@ -229,10 +385,27 @@ impl Panel for SimHook {
             ctx.request_repaint();
         }
         if was_running && !sim.running() {
-            s.status = match &sim.play.phase {
-                Phase::Failed(why) => format!("Simulation failed: {why}"),
-                _ => format!("Simulation: {}. {}", end_words(sim.rec.end.as_deref()), problems_words(&sim)),
-            };
+            let race = sim.what.as_ref().is_some_and(|w| w.mode() == SimMode::Race);
+            let ok = !matches!(sim.play.phase, Phase::Failed(_));
+            if race && ok {
+                let f = findings_of(&sim.rec, s);
+                sim.batch.push(f);
+                sim.regroup();
+            }
+            if ok && let Some(seed) = sim.pending.pop() {
+                let sim = &mut *sim;
+                sim.stash.push(std::mem::take(&mut sim.rec));
+                let what = sim.what.clone().expect("a race ran");
+                sim.launch(s, &crate::editor::testplay::game_exe(), what, seed);
+                let (k, n) = sim.batch_progress();
+                s.status = format!("Simulating run {k} of {n} (seed {seed})…");
+            } else {
+                sim.pending.clear();
+                s.status = match &sim.play.phase {
+                    Phase::Failed(why) => format!("Simulation failed: {why}"),
+                    _ => format!("Simulation: {}. {}", end_words(sim.rec.end.as_deref()), problems_words(&sim)),
+                };
+            }
         }
         if sim.play.playing || sim.running() || s.replay.loading {
             ctx.request_repaint();
@@ -377,7 +550,7 @@ impl Panel for SimTab {
             ui.label(egui::RichText::new(SIMULATE.lead()).font(theme::font(theme::LABEL, 15.0)).color(theme::lime()));
             ui.label(if world_run { SIMULATE_WORLD } else { SIMULATE.what });
         });
-        ui.horizontal(|ui| {
+        ui.horizontal_wrapped(|ui| {
             let race = s.race.and_then(|k| s.session.map.races.get(k)).map(|r| (r.id.clone(), r.name.clone()));
             if sim.running() {
                 if ui.button("Stop").clicked() {
@@ -397,11 +570,17 @@ impl Panel for SimTab {
                 }
                 ui.label("Seed").on_hover_text(modes::SEED_TIP);
                 ui.add(egui::DragValue::new(&mut sim.seed).range(0..=u32::MAX as u64)).on_hover_text(modes::SEED_TIP);
+                ui.label("Runs").on_hover_text(RUNS_TIP);
+                ui.add(egui::DragValue::new(&mut sim.runs).range(1..=MAX_RUNS)).on_hover_text(RUNS_TIP);
             }
             ui.separator();
             let phase = match &sim.play.phase {
                 Phase::Idle => "No simulation yet".to_string(),
                 Phase::Starting => "Starting the game without a window…".into(),
+                Phase::Running if sim.batch_progress().1 > 1 => {
+                    let (k, n) = sim.batch_progress();
+                    format!("Run {k} of {n}: running in the game, shown here as it arrives")
+                }
                 Phase::Running => "Running in the game, shown here as it arrives".into(),
                 Phase::Done => {
                     let mut w = end_words(sim.rec.end.as_deref());
@@ -461,52 +640,178 @@ impl Panel for SimTab {
         });
         legend(ui, s);
         ui.separator();
-        let mut seek: Option<(f32, u32)> = None;
-        let world = sim.rec.header.as_ref().is_some_and(|h| h.mode == SimMode::World);
-        let st = if world { Vec::new() } else { sim.rec.standings(sim.play.time) };
-        if st.is_empty() {
-            let cars = sim.play.cars(&sim.rec);
-            let traffic = cars.iter().filter(|c| c.kind == CarKind::Traffic).count();
-            let racers = cars.iter().filter(|c| c.kind == CarKind::Encounter).count();
-            ui.weak(format!("{traffic} traffic cars and {racers} street racers on the road"));
-        } else {
-            let player = |r: &super::record::Standing| sim.rec.cars.get(&r.car).is_some_and(|c| c.kind == CarKind::Player);
-            let st: Vec<_> = st.into_iter().filter(|r| modes::SHOW_AI_SLOT || !player(r)).collect();
-            if st.iter().any(player) {
-                ui.colored_label(theme::dim(), modes::SLOT_NOTE);
-            }
-            results_table(ui, sim, &st);
-        }
-        ui.separator();
         let shown: Vec<_> =
             sim.rec.events.iter().filter(|e| e.kind != EventKind::Checkpoint || e.car == 0).cloned().collect();
-        if shown.is_empty() {
-            ui.weak("No events yet");
-        }
-        // The events scroll on their own in the space left under the table
-        // (the table stays in view).
-        let left = (ui.clip_rect().bottom() - ui.cursor().top() - 4.0).max(80.0);
-        egui::ScrollArea::vertical().id_salt("sim.events").max_height(left).auto_shrink([false, true]).show(ui, |ui| {
-            for e in shown.iter().rev().take(200) {
-                ui.horizontal(|ui| {
-                    let c = if e.kind.is_problem() { theme::warn() } else { theme::dim() };
-                    ui.monospace(clock(e.time));
-                    let who =
-                        if e.kind == EventKind::Start { String::new() } else { format!("{}: ", sim.rec.name(e.car)) };
-                    ui.colored_label(c, format!("{who}{}", event_text(e)));
-                    if e.kind != EventKind::Start && ui.small_button("Show").clicked() {
-                        seek = Some((e.time, e.car));
+        let race_run = sim.rec.header.as_ref().is_some_and(|h| h.mode == SimMode::Race);
+        let mut summary_focus = false;
+        if race_run {
+            // The results, what went wrong and the events share the space
+            // under the scrub bar (the browser's filter row).
+            ui.horizontal_wrapped(|ui| {
+                let problems = sim.groups.iter().filter(|g| g.level() == Level::Warning).count();
+                let what = match sim.batch.len() {
+                    0 | 1 => format!("What went wrong ({problems})"),
+                    n => format!("What went wrong, {n} runs ({problems})"),
+                };
+                for (list, label) in [
+                    (List::Results, "Results".to_string()),
+                    (List::Summary, what),
+                    (List::Events, format!("Events ({})", shown.len())),
+                ] {
+                    if ui.selectable_label(sim.list == list, label).clicked() {
+                        sim.list = list;
                     }
-                });
-            }
-        });
-        if let Some((t, car)) = seek {
-            sim.play.seek(&sim.rec, t);
-            sim.play.follow = Some(car);
+                }
+            });
         }
-        if ui.ctx().input(|i| i.key_pressed(egui::Key::Space)) && !ui.ctx().egui_wants_keyboard_input() {
+        match (race_run, sim.list) {
+            (true, List::Summary) => summary_focus = summary_list(ui, s, sim),
+            (true, List::Events) => events_list(ui, sim, &shown),
+            (true, List::Results) => standings(ui, sim),
+            (false, _) => {
+                standings(ui, sim);
+                ui.separator();
+                events_list(ui, sim, &shown);
+            }
+        }
+        if ui.ctx().input(|i| i.key_pressed(egui::Key::Space))
+            && !ui.ctx().egui_wants_keyboard_input()
+            && !summary_focus
+        {
             sim.play.toggle(&sim.rec);
         }
+    }
+}
+
+/// The results table (in free roam the cars on the road).
+fn standings(ui: &mut egui::Ui, sim: &Sim) {
+    let world = sim.rec.header.as_ref().is_some_and(|h| h.mode == SimMode::World);
+    let st = if world { Vec::new() } else { sim.rec.standings(sim.play.time) };
+    if st.is_empty() {
+        let cars = sim.play.cars(&sim.rec);
+        let traffic = cars.iter().filter(|c| c.kind == CarKind::Traffic).count();
+        let racers = cars.iter().filter(|c| c.kind == CarKind::Encounter).count();
+        ui.weak(format!("{traffic} traffic cars and {racers} street racers on the road"));
+    } else {
+        let player = |r: &super::record::Standing| sim.rec.cars.get(&r.car).is_some_and(|c| c.kind == CarKind::Player);
+        let st: Vec<_> = st.into_iter().filter(|r| modes::SHOW_AI_SLOT || !player(r)).collect();
+        if st.iter().any(player) {
+            ui.colored_label(theme::dim(), modes::SLOT_NOTE);
+        }
+        results_table(ui, sim, &st);
+    }
+}
+
+/// The Runs field's tooltip.
+const RUNS_TIP: &str = "Simulate the race this many times, one seed after the other (Seed, Seed + 1, …); \
+What went wrong then counts how often each problem happened";
+
+/// What went wrong: one line per problem and place, its occurrences under
+/// it; a click (or Enter, or Up / Down between the rows) shows it. True
+/// while a row has the keyboard focus.
+fn summary_list(ui: &mut egui::Ui, s: &mut EditorState, sim: &mut Sim) -> bool {
+    if sim.groups.is_empty() {
+        ui.weak(if sim.running() || !sim.pending.is_empty() {
+            "What went wrong shows when the run has ended"
+        } else {
+            "Nothing went wrong: no car got stuck, crashed, missed a checkpoint or left the roads"
+        });
+        return false;
+    }
+    let runs = sim.batch.len();
+    // The rows: (group, item: None for the group's own line).
+    let mut rows: Vec<(usize, Option<usize>)> = Vec::new();
+    for (g, grp) in sim.groups.iter().enumerate() {
+        rows.push((g, None));
+        rows.extend((0..grp.items.len().min(summary::SHOWN)).map(|i| (g, Some(i))));
+    }
+    let mut go: Option<usize> = None;
+    let mut ids: Vec<egui::Id> = Vec::with_capacity(rows.len());
+    let left = (ui.clip_rect().bottom() - ui.cursor().top() - 4.0).max(80.0);
+    egui::ScrollArea::vertical().id_salt("sim.summary").max_height(left).auto_shrink([false, true]).show(ui, |ui| {
+        for (k, &(g, item)) in rows.iter().enumerate() {
+            let grp = &sim.groups[g];
+            let picked = sim.pick == Some(k);
+            let r = ui
+                .horizontal(|ui| match item {
+                    None => {
+                        let mark = crate::editor::validate::Check {
+                            level: grp.level(),
+                            ok: false,
+                            text: String::new(),
+                            race: None,
+                            point: None,
+                            at: None,
+                            fix: None,
+                        };
+                        crate::editor::validate::mark(ui, &mark);
+                        let r = ui.selectable_label(picked, &grp.text);
+                        if grp.items.len() > summary::SHOWN {
+                            ui.weak(format!("and {} more", grp.items.len() - summary::SHOWN));
+                        }
+                        r
+                    }
+                    Some(i) => {
+                        ui.add_space(22.0);
+                        let text = summary::item_text(&grp.items[i], runs);
+                        ui.selectable_label(picked, egui::RichText::new(text).color(theme::dim()))
+                    }
+                })
+                .inner;
+            if r.clicked() {
+                go = Some(k);
+            }
+            if picked && sim.scroll_pick {
+                r.scroll_to_me(None);
+            }
+            ids.push(r.id);
+        }
+    });
+    sim.scroll_pick = false;
+    sim.row_ids = ids.clone();
+    // The keyboard (Tab, or Up / Down, which egui moves the focus with)
+    // brought the focus to another row: show it.
+    let focused = ui.ctx().memory(|m| m.focused());
+    let has_focus = ids.iter().position(|&id| focused == Some(id));
+    if has_focus.is_some() && has_focus != sim.focus_row && go.is_none() {
+        go = has_focus;
+        sim.scroll_pick = true;
+    }
+    sim.focus_row = has_focus;
+    if let Some(k) = go {
+        let (g, item) = rows[k];
+        let f = sim.groups[g].items[item.unwrap_or(0)].clone();
+        sim.pick = Some(k);
+        sim.show_finding(s, ui.ctx(), &f);
+    }
+    has_focus.is_some() || go.is_some()
+}
+
+/// The events, newest first, each with Show.
+fn events_list(ui: &mut egui::Ui, sim: &mut Sim, shown: &[super::format::Event]) {
+    if shown.is_empty() {
+        ui.weak("No events yet");
+    }
+    let mut seek: Option<(f32, u32)> = None;
+    // The events scroll on their own in the space left under the table
+    // (the table stays in view).
+    let left = (ui.clip_rect().bottom() - ui.cursor().top() - 4.0).max(80.0);
+    egui::ScrollArea::vertical().id_salt("sim.events").max_height(left).auto_shrink([false, true]).show(ui, |ui| {
+        for e in shown.iter().rev().take(200) {
+            ui.horizontal(|ui| {
+                let c = if e.kind.is_problem() { theme::warn() } else { theme::dim() };
+                ui.monospace(clock(e.time));
+                let who = if e.kind == EventKind::Start { String::new() } else { format!("{}: ", sim.rec.name(e.car)) };
+                ui.colored_label(c, format!("{who}{}", event_text(e)));
+                if e.kind != EventKind::Start && ui.small_button("Show").clicked() {
+                    seek = Some((e.time, e.car));
+                }
+            });
+        }
+    });
+    if let Some((t, car)) = seek {
+        sim.play.seek(&sim.rec, t);
+        sim.play.follow = Some(car);
     }
 }
 

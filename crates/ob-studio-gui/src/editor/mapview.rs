@@ -135,6 +135,10 @@ impl MapView {
                 None => self.centre = s.camera.position.truncate(),
             }
         }
+        // A finding shown from the Simulate tab.
+        if let Some(p) = crate::editor::sim::panel::take_map_centre(ui.ctx()) {
+            self.centre = p;
+        }
 
         // Input: drag pans (either button), the wheel zooms, Home fits,
         // a double-click moves the 3D camera there; not while an overlay
