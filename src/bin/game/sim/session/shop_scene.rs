@@ -165,8 +165,8 @@ impl Session<'_> {
             // The characters play on past the scene's length
             // (their loop flags; under Wine the crowd still moves
             // a minute on).
-            if let Some(c) = self.crowd.as_mut() {
-                c.frame += dt * nfsu2::shop_scene::FPS;
+            if let (Some(c), Some(d)) = (self.crowd.as_mut(), self.drive.as_ref()) {
+                c.advance(dt, &d.world);
             }
             return tick;
         }

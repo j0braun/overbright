@@ -63,6 +63,13 @@ pub type FormatResult<T> = Result<T, FormatError>;
 /// | `max_count` (records of one kind: mesh vertices, materials, parameter-map values) | 15,618 vertices | TRACKS/STREAML4RC.BUN | 1,048,576 | 67x |
 /// | `max_alloc` (bytes of one table or archive entry) | 25,595,192 (largest chunk body) | TRACKS/STREAML4RA.BUN texture pack | 256 MiB | 10x |
 /// | `max_anim_values` (decoded floats of one animation bank) | 300,888 (one channel: 88,935) | NIS/Scene_EndingNis03_BundleB.bun | 4,194,304 | 13x |
+/// | `max_texture_block` (bytes of one unpacked texture block) | 1,398,172 | TRACKS/LOC4DYNTEX.BIN | 384 MiB | — |
+///
+/// `max_texture_block` is not sized from the shipped game: replacement packs
+/// (HD texture mods for `LOC4DYNTEX.BIN`) hold far larger textures, and the
+/// original reads any size. It admits the largest texture
+/// `max_texture_dim` allows (8192² A8R8G8B8 with every mip level, 358 MB,
+/// plus its 0x9C-byte entry and format record).
 ///
 /// Other maxima the probe saw, for reference: chunk nesting depth 4
 /// (`bundle::walk` is iterative and needs no limit), 10 entries in
@@ -82,6 +89,8 @@ pub struct Limits {
     pub max_alloc: usize,
     /// Decoded animation values (floats) of one bank, and of one channel.
     pub max_anim_values: usize,
+    /// Bytes of one unpacked block of a block-compressed texture pack.
+    pub max_texture_block: usize,
 }
 
 impl Limits {
@@ -92,6 +101,7 @@ impl Limits {
         max_count: 1 << 20,
         max_alloc: 256 << 20,
         max_anim_values: 4 << 20,
+        max_texture_block: 384 << 20,
     };
 
     /// `got` if it is at most `max`, else [`FormatError::LimitExceeded`].

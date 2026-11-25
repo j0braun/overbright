@@ -17,7 +17,7 @@ use anyhow::{Context, Result, bail};
 
 use super::bundle::{Chunk, id, read_u16, read_u32};
 use super::reader::{Limits, Reader};
-use super::{huff, jdlz};
+use super::{comp, huff, jdlz};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PixelFormat {
@@ -191,8 +191,10 @@ pub fn parse_texture_pack(pack: Chunk<'_>) -> Result<Vec<Texture>> {
 /// the entry's +0x24 in every shipped pack; test
 /// `vinyl_packs_filtered_parse_matches_full`), so an unwanted block is not
 /// decompressed. The same textures, in the same order, as the full parse
-/// filtered — unless the pack is damaged in a block the filter skips (the
-/// full parse then fails as a whole; this one keeps the wanted textures).
+/// filtered — unless a plain pack is damaged in an entry the filter skips
+/// (the full parse then fails as a whole; this one keeps the wanted
+/// textures). A damaged block of a block-compressed pack costs only its own
+/// texture, in either parse.
 pub fn parse_texture_pack_where(pack: Chunk<'_>, keep: &(dyn Fn(u32) -> bool + Sync)) -> Result<Vec<Texture>> {
     let header = pack.child(id::TPK_HEADER).context("TPK header")?;
     if let Some(blocks) = header.child(id::TPK_COMPRESSED_BLOCKS) {
@@ -224,71 +226,95 @@ pub fn parse_texture_pack_where(pack: Chunk<'_>, keep: &(dyn Fn(u32) -> bool + S
 /// A pack whose textures are compressed one by one (`LOC4DYNTEX.BIN`).
 ///
 /// 0x33310003 holds 0x18-byte records: `u32 hash, u32 offset, u32 packed
-/// size, u32 unpacked size, u32 flags, u32 0`. The offset counts from the
-/// start of the pack chunk. Unpacked, a block is the pixel data followed by
-/// the usual 0x7C-byte entry and the 0x20-byte D3D format record.
+/// size, u32 unpacked size, u32 flags, u32 0`. The offset is the block's
+/// file offset (the streamer reads `packed` bytes there, 0x48D201…0x48D22A),
+/// so it counts from the start of the pack chunk, which is the file's
+/// start in every shipped pack. Unpacked, a block is the pixel data
+/// followed by the usual 0x7C-byte entry and the 0x20-byte D3D format
+/// record.
+///
+/// As the original (0x48CFE9…0x48D0A5, 0x494C10):
+/// * flags bit 0x100: the block is decoded by its magic (JDLZ, HUFF, RAWW,
+///   COMP, dispatcher 0x574680); without it the block is used as stored;
+/// * the entry sits at the record's unpacked size minus 0x9C;
+/// * a block is a texture of its own: one that cannot be read is skipped
+///   with a warning, the pack's other textures stay.
+///
+/// No size of the shipped game bounds a block: replacement packs (HD sky
+/// mods) hold textures of 64 MB and more; [`Limits::max_texture_block`]
+/// is the bound.
 fn parse_compressed_pack(pack: Chunk<'_>, blocks: Chunk<'_>, keep: &(dyn Fn(u32) -> bool + Sync)) -> Result<Vec<Texture>> {
     const RECORD_SIZE: usize = 0x18;
-    const FORMAT_RECORD_SIZE: usize = 0x20;
     use rayon::prelude::*;
-    let pack_start = pack.offset - 8;
     // Whole records only (a cut-off tail is ignored, as before).
     let n = blocks.body.len() / RECORD_SIZE;
     Reader::new(blocks.body).count("TPK compressed blocks", n, RECORD_SIZE, Limits::DEFAULT.max_textures)?;
-    let pack_body = Reader::with_base(pack.body, pack.offset);
     // The blocks are independent: decoded in parallel, kept in order.
-    let decoded: Vec<Result<Option<Texture>>> = blocks
+    let decoded: Vec<Option<Texture>> = blocks
         .body
         .par_chunks_exact(RECORD_SIZE)
-        .map(|r| -> Result<Option<Texture>> {
-            let r = Reader::new(r);
-            let hash = r.u32_at(0)?;
+        .map(|r| {
+            let hash = read_u32(r, 0);
             if !keep(hash) {
-                return Ok(None);
+                return None;
             }
-            let offset = (r.u32_at(4)? as usize).checked_sub(pack_start).context("block before pack")?;
-            let packed = r.u32_at(8)? as usize;
-            // The record's unpacked size bounds what the codecs may produce
-            // (and so what they allocate); `offset - 8` and the block end are
-            // checked, a block must hold the 4-byte codec magic.
-            let unpacked_size = (r.u32_at(0x0C)? as usize).min(Limits::DEFAULT.max_unpacked);
-            let block = offset
-                .checked_sub(8)
-                .and_then(|start| pack_body.bytes_at(start, packed).ok())
-                .filter(|block| block.len() >= 4);
-            let Some(block) = block else {
-                bail!("compressed texture {hash:#010x} outside pack");
-            };
-            let unpacked = match Reader::new(block).array_at::<4>(0)? {
-                m if &m == jdlz::MAGIC => jdlz::decompress_max(block, unpacked_size)?,
-                m if &m == huff::MAGIC => huff::decompress_max(block, unpacked_size)?,
-                other => {
-                    log::warn!("compressed texture {hash:#010x}: unknown codec {:?}", String::from_utf8_lossy(&other));
-                    return Ok(None);
+            match compressed_block(pack, r) {
+                Ok(t) => t,
+                Err(e) => {
+                    log::warn!("compressed texture {hash:#010x} skipped: {e:#}");
+                    None
                 }
-            };
-            let entry_at = unpacked.len().checked_sub(ENTRY_SIZE + FORMAT_RECORD_SIZE).context("block too small")?;
-            let (pixels, entry) = unpacked.split_at(entry_at);
-            // The entry keeps the texture's offset in the *uncompressed* pack;
-            // inside its own block the pixels start at 0.
-            let entry = Reader::new(entry);
-            let mut fields = entry.bytes_at(0, ENTRY_SIZE)?.to_vec();
-            // A palette follows in the block as it followed the pixels in
-            // the pack: its offset moves with theirs.
-            let palette_at = entry.u32_at(0x34)?.wrapping_sub(entry.u32_at(0x30)?);
-            fields[0x30..0x34].fill(0);
-            fields[0x34..0x38].copy_from_slice(&palette_at.to_le_bytes());
-            parse_entry(&Reader::new(&fields), pixels)
+            }
         })
         .collect();
-    let mut out = Vec::new();
-    // The first error in block order, as the sequential walk reported it.
-    for t in decoded {
-        if let Some(t) = t? {
-            out.push(t);
-        }
+    Ok(decoded.into_iter().flatten().collect())
+}
+
+/// One record of [`parse_compressed_pack`]: its texture.
+fn compressed_block(pack: Chunk<'_>, record: &[u8]) -> Result<Option<Texture>> {
+    const BLOCK_TAIL: usize = ENTRY_SIZE + 0x20;
+    const COMPRESSED: u32 = 0x100;
+    let r = Reader::new(record);
+    let (offset, packed) = (r.u32_at(4)? as usize, r.u32_at(8)? as usize);
+    let (unpacked, flags) = (r.u32_at(0x0C)? as usize, r.u32_at(0x10)?);
+    let max = Limits::DEFAULT.max_texture_block;
+    if unpacked < BLOCK_TAIL || unpacked > max {
+        bail!("unpacked size {unpacked} (at least {BLOCK_TAIL}, at most {max})");
     }
-    Ok(out)
+    // `offset` counts from the pack chunk's header; the body starts 8 after.
+    let pack_start = pack.offset - 8;
+    let block = offset
+        .checked_sub(pack_start + 8)
+        .and_then(|start| Reader::new(pack.body).bytes_at(start, packed).ok())
+        .with_context(|| format!("block {offset:#x}+{packed:#x} outside the pack"))?;
+    let mut data = if flags & COMPRESSED == 0 {
+        block.to_vec()
+    } else {
+        match block.get(..4) {
+            Some(m) if m == jdlz::MAGIC => jdlz::decompress_max(block, unpacked)?,
+            Some(m) if m == huff::MAGIC => huff::decompress_max(block, unpacked)?,
+            Some(m) if m == comp::RAWW => comp::raww(block, unpacked)?,
+            Some(m) if m == comp::COMP => comp::comp(block, unpacked)?,
+            m => bail!("unknown codec {:?}", String::from_utf8_lossy(m.unwrap_or(block))),
+        }
+    };
+    // The original's buffer is `unpacked` bytes and its entry at their end
+    // (0x494C2D); a block that fills less would leave the entry unwritten.
+    if data.len() < unpacked {
+        bail!("unpacks to {} of its {unpacked} bytes", data.len());
+    }
+    data.truncate(unpacked);
+    let (pixels, entry) = data.split_at(unpacked - BLOCK_TAIL);
+    // The entry keeps the texture's offset in the *uncompressed* pack;
+    // inside its own block the pixels start at 0.
+    let entry = Reader::new(entry);
+    let mut fields = entry.bytes_at(0, ENTRY_SIZE)?.to_vec();
+    // A palette follows in the block as it followed the pixels in
+    // the pack: its offset moves with theirs.
+    let palette_at = entry.u32_at(0x34)?.wrapping_sub(entry.u32_at(0x30)?);
+    fields[0x30..0x34].fill(0);
+    fields[0x34..0x38].copy_from_slice(&palette_at.to_le_bytes());
+    parse_entry(&Reader::new(&fields), pixels)
 }
 
 /// One 0x7C-byte texture entry; offsets in it are relative to `data`.
@@ -516,9 +542,10 @@ mod tests {
 
     /// A record whose packed size is under 4 bytes used to slice `block[..4]`
     /// and panic; one whose offset is inside the chunk header used to
-    /// overflow `offset - 8 + packed`. Both are errors now.
+    /// overflow `offset - 8 + packed`. Both now cost only their texture
+    /// (a warning), as a bad block does in the original.
     #[test]
-    fn compressed_pack_records_with_bad_sizes_are_errors() {
+    fn compressed_pack_records_with_bad_sizes_skip_their_texture() {
         use crate::formats::bundle::chunks;
         fn chunk(id: u32, body: &[u8]) -> Vec<u8> {
             let mut v = id.to_le_bytes().to_vec();
@@ -528,7 +555,7 @@ mod tests {
         }
         let record = |offset: u32, packed: u32| {
             let mut r = Vec::new();
-            for v in [1u32, offset, packed, 16, 0, 0] {
+            for v in [1u32, offset, packed, 16, 0x100, 0] {
                 r.extend_from_slice(&v.to_le_bytes());
             }
             r
@@ -544,7 +571,123 @@ mod tests {
             let pack = chunks(&file, 0).next().unwrap();
             let blocks = pack.child(0x3331_0003).unwrap();
             let r = parse_compressed_pack(pack, blocks, &|_| true);
-            assert!(r.is_err(), "offset {offset} packed {packed}");
+            assert!(r.unwrap().is_empty(), "offset {offset} packed {packed}");
         }
+    }
+
+    /// A one-block pack laid out as `LOC4DYNTEX.BIN` is: the pack chunk at
+    /// the file's start, the record holding the block's file offset.
+    fn one_block_pack(block: &[u8], unpacked: usize, flags: u32) -> Vec<u8> {
+        fn chunk(id: u32, body: &[u8]) -> Vec<u8> {
+            let mut v = id.to_le_bytes().to_vec();
+            v.extend_from_slice(&(body.len() as u32).to_le_bytes());
+            v.extend_from_slice(body);
+            v
+        }
+        // Pack header 8, TPK header 8, records chunk 8 + 0x18, data chunk 8.
+        let at = 8 + 8 + 8 + 0x18 + 8;
+        let mut record = Vec::new();
+        for v in [0x1234_5678u32, at as u32, block.len() as u32, unpacked as u32, flags, 0] {
+            record.extend_from_slice(&v.to_le_bytes());
+        }
+        let header = chunk(id::TPK_HEADER, &chunk(id::TPK_COMPRESSED_BLOCKS, &record));
+        let file = chunk(id::TEXTURE_PACK, &[header, chunk(0x3332_0002, block)].concat());
+        assert_eq!(&file[at..at + block.len()], block);
+        file
+    }
+
+    /// The unpacked block of one `w`×`h` A8R8G8B8 level: pixels, entry, format record.
+    fn bgra_block(w: u16, h: u16) -> Vec<u8> {
+        let size = w as usize * h as usize * 4;
+        let mut b: Vec<u8> = (0..size).map(|i| (i % 251) as u8).collect();
+        let mut e = vec![0u8; ENTRY_SIZE + 0x20];
+        e[0x0C..0x0C + 5].copy_from_slice(b"SKYHD");
+        e[0x24..0x28].copy_from_slice(&0x1234_5678u32.to_le_bytes());
+        // The offset in the uncompressed pack: inside a block it is moot.
+        e[0x30..0x34].copy_from_slice(&0x40_0000u32.to_le_bytes());
+        e[0x34..0x38].copy_from_slice(&u32::MAX.to_le_bytes());
+        e[0x38..0x3C].copy_from_slice(&(size as u32).to_le_bytes());
+        e[0x44..0x46].copy_from_slice(&w.to_le_bytes());
+        e[0x46..0x48].copy_from_slice(&h.to_le_bytes());
+        e[0x4A] = 0x20;
+        e[0x4E] = 1;
+        b.extend_from_slice(&e);
+        b
+    }
+
+    /// JDLZ of literals only (flags1 zero before every 8 bytes, flags2 once).
+    fn jdlz_literals(data: &[u8]) -> Vec<u8> {
+        let mut v = b"JDLZ\x02\x10\0\0".to_vec();
+        v.extend_from_slice(&(data.len() as u32).to_le_bytes());
+        v.extend_from_slice(&0u32.to_le_bytes());
+        for (n, c) in data.chunks(8).enumerate() {
+            v.push(0);
+            if n == 0 {
+                v.push(0);
+            }
+            v.extend_from_slice(c);
+        }
+        let len = v.len() as u32;
+        v[12..16].copy_from_slice(&len.to_le_bytes());
+        v
+    }
+
+    fn parse_one(file: &[u8]) -> Vec<Texture> {
+        parse_texture_pack(crate::formats::bundle::chunks(file, 0).next().unwrap()).unwrap()
+    }
+
+    /// What tools write into a replaced LOC4DYNTEX.BIN and the original
+    /// reads (0x48CFEF, 0x574680): a stored block (flags without 0x100),
+    /// RAWW, COMP stored and compressed, JDLZ; each gives the texture. An
+    /// unknown codec, or a block that fills less than its record, costs
+    /// only its texture.
+    #[test]
+    fn compressed_pack_takes_every_codec_the_original_takes() {
+        let raw = bgra_block(4, 4);
+        let n = raw.len();
+        let mut raww = b"RAWW\x01\0\0\0".to_vec();
+        raww.extend_from_slice(&(n as u32).to_le_bytes());
+        raww.extend_from_slice(&[0; 4]);
+        raww.extend_from_slice(&raw);
+        let mut comp_stored = b"COMP\0\0\x01\0\0\0\0\0".to_vec();
+        comp_stored.extend_from_slice(&((n + 16) as u32).to_le_bytes());
+        comp_stored.extend_from_slice(&raw);
+        // COMP of literals only: a zero flag word before every 16 bytes.
+        let mut comp_lz = vec![0u8; 16];
+        comp_lz[..4].copy_from_slice(b"COMP");
+        for c in raw.chunks(16) {
+            comp_lz.extend_from_slice(&[0, 0]);
+            comp_lz.extend_from_slice(c);
+        }
+        let len = comp_lz.len() as u32;
+        comp_lz[12..16].copy_from_slice(&len.to_le_bytes());
+        for (what, block, flags) in [
+            ("stored", raw.clone(), 0u32),
+            ("RAWW", raww, 0x100),
+            ("COMP stored", comp_stored, 0x100),
+            ("COMP", comp_lz, 0x100),
+            ("JDLZ", jdlz_literals(&raw), 0x100),
+        ] {
+            let t = parse_one(&one_block_pack(&block, n, flags));
+            assert_eq!(t.len(), 1, "{what}");
+            assert_eq!((t[0].name.as_str(), t[0].width, t[0].format), ("SKYHD", 4, PixelFormat::Bgra8), "{what}");
+            assert_eq!(&t[0].data[..], &raw[..64], "{what}");
+        }
+        let mut unknown = jdlz_literals(&raw);
+        unknown[..4].copy_from_slice(b"ABCD");
+        assert!(parse_one(&one_block_pack(&unknown, n, 0x100)).is_empty());
+        assert!(parse_one(&one_block_pack(&jdlz_literals(&raw), n + 4, 0x100)).is_empty());
+    }
+
+    /// #178: an HD sky, one 4096² A8R8G8B8 level, unpacks to 64 MiB + 0x9C
+    /// (the size in the player's log), above the old 64 MiB codec bound
+    /// that skipped the whole pack and left the sky empty.
+    #[test]
+    fn compressed_pack_takes_a_4096_texture() {
+        let raw = bgra_block(4096, 4096);
+        assert_eq!(raw.len(), 67_109_020);
+        let t = parse_one(&one_block_pack(&jdlz_literals(&raw), raw.len(), 0x100));
+        assert_eq!(t.len(), 1);
+        assert_eq!((t[0].width, t[0].height, t[0].data.len()), (4096, 4096, 64 << 20));
     }
 }

@@ -9,6 +9,8 @@ impl Game {
     pub(crate) fn explore(&mut self, at: Option<(Vec3, f32)>) -> Result<()> {
         // A snapshot no save point took is stale in the city.
         self.drop_snapshot();
+        // 0x4AF60F: the garage left for the city (0x836324 = 0).
+        self.fe.crib_from_start = false;
         // No race is raced again from the city: its rivals' cars go.
         self.loads.raced_cars.clear();
         // The free-roam set-up (0x526980 → 0x4FF160): Super Far back to Far.

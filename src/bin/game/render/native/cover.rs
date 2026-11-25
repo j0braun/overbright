@@ -1,11 +1,12 @@
 use crate::*;
 
-/// UI_MagazineView's shot: the car, its renderer, the shot's target, the
+/// UI_MagazineView's shot: the car, its renderer, whether the shot is drawn, the
 /// picked layers' textures and the picked environment map's six faces.
 pub(crate) struct CoverShot {
     pub(crate) car: Car,
     pub(crate) renderer: Option<CarRenderer>,
-    pub(crate) target: Option<wgpu::Texture>,
+    /// The shot is drawn and bound (once per view).
+    pub(crate) drawn: bool,
     pub(crate) streamed: Vec<nfsu2::formats::texture::Texture>,
     pub(crate) envmap: Option<Vec<nfsu2::formats::texture::Texture>>,
     pub(crate) rig: [nfsu2::render::lighting::RigLight; 3],
@@ -45,7 +46,10 @@ pub(crate) fn movie_shown_update(mode: &mut Mode) {
 }
 
 /// Renders UI_MagazineView's shot (once per view) and binds it under
-/// `CoverView::shot()`: the photo shoot's screen at 640 × 480 — the
+/// `CoverView::shot()`: the photo shoot's screen at the window's 4:3 size
+/// (`CoverView::screen_for` of `out`; 0x5C3130 grabs the real back buffer),
+/// supersampled by `CoverView::aa_factor` for the anti-aliasing in force
+/// (native: the multisampled back buffer, resolved by the grab) — the
 /// background layer (UI_MagazineBack), the car at the origin turned by the
 /// camera's +0x08 (degrees: 0x4C2070 sets the FE car object's turntable
 /// angle, current +0x254 and target +0x274, which 0x4C1D40 wraps by 360;
@@ -55,10 +59,11 @@ pub(crate) fn movie_shown_update(mode: &mut Mode) {
 /// degrees (0x44D116 writes it to the camera's +0xC4 as an angle, × 65536
 // prov: inferred game.upload_movie-2
 /// / 360; **inferred**: across the screen's width, h / w of 0x5C7ED0), then
-/// the masthead, model and extra (UI_MagazineReward) — cut to `CoverView::CROP`
-/// (0x5C3130).
+/// the masthead, model and extra (UI_MagazineReward) — cut to
+/// `CoverView::crop_for` (0x5C3130) and box-filtered down to it. `samples`
+/// is the front end's MSAA sample count.
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn draw_cover(mode: &Mode, shot: &mut Option<CoverShot>, picture: &mut Option<Vec<u8>>, gpu: &Gpu, format: wgpu::TextureFormat, ui: &mut UiRenderer, assets: &Assets, settings: &nfsu2::render::FrameSettings) {
+pub(crate) fn draw_cover(mode: &Mode, shot: &mut Option<CoverShot>, picture: &mut Option<Vec<u8>>, gpu: &Gpu, format: wgpu::TextureFormat, ui: &mut UiRenderer, assets: &Assets, settings: &nfsu2::render::FrameSettings, out: (u32, u32), samples: u32) {
     let (display, opts) = (settings.display, &settings.opts);
     let Mode::Menu(Menu::Cover(view)) = mode else { return };
     // UI_MagazineView's loaded picture, as stored (the 512² capture texture).
@@ -70,7 +75,7 @@ pub(crate) fn draw_cover(mode: &Mode, shot: &mut Option<CoverShot>, picture: &mu
         return;
     }
     let (Some(camera), Some(shot)) = (view.camera, shot.as_mut()) else { return };
-    if shot.target.is_some() {
+    if shot.drawn {
         return;
     }
     let make = |label, (width, height): (u32, u32), usage| {
@@ -85,7 +90,9 @@ pub(crate) fn draw_cover(mode: &Mode, shot: &mut Option<CoverShot>, picture: &mu
             view_formats: &[],
         })
     };
-    let (width, height) = screens::CoverView::SCREEN;
+    let base = screens::CoverView::screen_for(out);
+    let k = cover_factor(base, screens::CoverView::aa_factor(samples, opts.post_aa), gpu.device.limits().max_texture_dimension_2d);
+    let (width, height) = (base.0 * k, base.1 * k);
     let screen = make("photo shoot", (width, height), wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC);
     let target = screen.create_view(&Default::default());
     for t in &shot.streamed {
@@ -162,36 +169,74 @@ pub(crate) fn draw_cover(mode: &Mode, shot: &mut Option<CoverShot>, picture: &mu
     }, opts);
     gpu.queue.submit([encoder.finish()]);
     ui.render(gpu, assets, &target, (width, height), &over, false);
-    let ((x, y), size) = screens::CoverView::CROP;
-    let texture = make("cover shot", size, wgpu::TextureUsages::COPY_DST | wgpu::TextureUsages::TEXTURE_BINDING);
-    let mut encoder = gpu.device.create_command_encoder(&Default::default());
-    encoder.copy_texture_to_texture(
-        wgpu::TexelCopyTextureInfo { texture: &screen, mip_level: 0, origin: wgpu::Origin3d { x, y, z: 0 }, aspect: wgpu::TextureAspect::All },
-        wgpu::TexelCopyTextureInfo { texture: &texture, mip_level: 0, origin: wgpu::Origin3d::ZERO, aspect: wgpu::TextureAspect::All },
-        wgpu::Extent3d { width: size.0, height: size.1, depth_or_array_layers: 1 },
-    );
-    gpu.queue.submit([encoder.finish()]);
-    ui.set_texture(gpu, screens::CoverView::shot(), &texture.create_view(&Default::default()));
-    shot.target = Some(texture);
-    // The shot on the CPU for the reward's save (the original keeps its
-    // capture in the 512² "ScreenCap" texture, 0x832DAC).
-    if view.reward {
-        // As RGBA8 whatever the window's format; one it cannot convert
-        // leaves the reward without a saved picture.
-        match nfsu2::render::read_back_rgba8(gpu, &screen) {
-            Ok(all) => {
-                let mut rgba = Vec::with_capacity((size.0 * size.1 * 4) as usize);
-                for row in y..y + size.1 {
-                    let start = ((row * width + x) * 4) as usize;
-                    for p in all[start..start + (size.0 * 4) as usize].chunks_exact(4) {
-                        rgba.extend_from_slice(&cover_texel(p, false));
-                    }
-                }
+    // 0x5C3130's rectangle of the window-sized screen, taken from the
+    // supersampled one and box-filtered down (the resolve of native's
+    // multisampled back buffer, in the stored values as D3D9's).
+    let ((cx, cy), size) = screens::CoverView::crop_for(base);
+    let (x, y, big) = (cx * k, cy * k, (size.0 * k, size.1 * k));
+    match nfsu2::render::read_back_rgba8(gpu, &screen) {
+        Ok(all) => {
+            let rgba = box_down(&all, width, (x, y), size, k);
+            ui.set_rgba(gpu, screens::CoverView::shot(), size.0, size.1, &rgba);
+            // The shot on the CPU for the reward's save (the original keeps
+            // its capture in the 512² "ScreenCap" texture, 0x832DAC).
+            if view.reward {
                 shot.pixels = Some((rgba, size.0, size.1));
             }
-            Err(e) => log::warn!("cover picture not taken: {e:#}"),
+        }
+        // A window format it cannot convert: the rectangle copied as it is
+        // drawn, and no saved picture.
+        Err(e) => {
+            log::warn!("cover picture not taken: {e:#}");
+            let texture = make("cover shot", big, wgpu::TextureUsages::COPY_DST | wgpu::TextureUsages::TEXTURE_BINDING);
+            let mut encoder = gpu.device.create_command_encoder(&Default::default());
+            encoder.copy_texture_to_texture(
+                wgpu::TexelCopyTextureInfo { texture: &screen, mip_level: 0, origin: wgpu::Origin3d { x, y, z: 0 }, aspect: wgpu::TextureAspect::All },
+                wgpu::TexelCopyTextureInfo { texture: &texture, mip_level: 0, origin: wgpu::Origin3d::ZERO, aspect: wgpu::TextureAspect::All },
+                wgpu::Extent3d { width: big.0, height: big.1, depth_or_array_layers: 1 },
+            );
+            gpu.queue.submit([encoder.finish()]);
+            ui.set_texture(gpu, screens::CoverView::shot(), &texture.create_view(&Default::default()));
         }
     }
+    shot.drawn = true;
+}
+
+/// The supersampling factor `want` as the device and memory allow for a
+/// `base` screen: each side within `max_dim`, at most 25 M pixels (a
+/// 100 MB read-back), at least 1.
+fn cover_factor(base: (u32, u32), want: u32, max_dim: u32) -> u32 {
+    let mut k = want.max(1);
+    while k > 1 && (base.0 * k > max_dim || base.1 * k > max_dim || u64::from(base.0 * k) * u64::from(base.1 * k) > 25_000_000) {
+        k -= 1;
+    }
+    k
+}
+
+/// The `size` rectangle (output pixels) at `origin` (the big image's
+/// pixels) of a top-down RGBA image `width` wide drawn `k` times bigger: each output pixel the mean of
+/// its k × k samples (alpha too, as the capture keeps it).
+fn box_down(all: &[u8], width: u32, origin: (u32, u32), size: (u32, u32), k: u32) -> Vec<u8> {
+    let (w, k) = (width as usize, k as usize);
+    let n = (k * k) as u32;
+    let mut out = Vec::with_capacity((size.0 * size.1 * 4) as usize);
+    for oy in 0..size.1 as usize {
+        for ox in 0..size.0 as usize {
+            let mut sum = [0u32; 4];
+            for sy in 0..k {
+                let row = origin.1 as usize + oy * k + sy;
+                for sx in 0..k {
+                    let i = (row * w + origin.0 as usize + ox * k + sx) * 4;
+                    let p = cover_texel(&all[i..i + 4], false);
+                    for c in 0..4 {
+                        sum[c] += u32::from(p[c]);
+                    }
+                }
+            }
+            out.extend(sum.map(|v| ((v + n / 2) / n) as u8));
+        }
+    }
+    out
 }
 
 /// One texel of the reward's read-back as RGBA, the shot's own alpha kept
@@ -208,5 +253,30 @@ mod cover_texel_tests {
     fn the_cover_read_back_keeps_the_shots_alpha() {
         assert_eq!(super::cover_texel(&[1, 2, 3, 77], true), [3, 2, 1, 77]);
         assert_eq!(super::cover_texel(&[1, 2, 3, 0], false), [1, 2, 3, 0]);
+    }
+
+    /// #238: the shot is taken from the supersampled screen and filtered
+    /// down to the window-sized rectangle, each pixel its samples' mean.
+    #[test]
+    fn the_cover_shot_is_box_filtered_from_its_supersampled_screen() {
+        // A 4 × 2 image at k = 2: two output pixels, the left half's
+        // samples 0 and 255 (an edge), the right's all 40.
+        let px = |v: u8| [v, v, v, 255];
+        let rows = [[px(0), px(255), px(40), px(40)], [px(255), px(0), px(40), px(40)]];
+        let all: Vec<u8> = rows.iter().flatten().flatten().copied().collect();
+        assert_eq!(super::box_down(&all, 4, (0, 0), (2, 1), 2), [128, 128, 128, 255, 40, 40, 40, 255]);
+        assert_eq!(super::box_down(&all, 4, (2, 0), (1, 1), 2), [40, 40, 40, 255]);
+        assert_eq!(super::box_down(&all, 4, (0, 0), (4, 2), 1), all);
+    }
+
+    /// The factor stays within the device's texture size and the read-back
+    /// budget, never below 1.
+    #[test]
+    fn the_cover_factor_fits_the_device() {
+        assert_eq!(super::cover_factor((1440, 1080), 2, 8192), 2);
+        assert_eq!(super::cover_factor((2880, 2160), 4, 16384), 2);
+        assert_eq!(super::cover_factor((2880, 2160), 3, 8192), 2);
+        assert_eq!(super::cover_factor((1440, 1080), 4, 4096), 2);
+        assert_eq!(super::cover_factor((640, 480), 0, 8192), 1);
     }
 }

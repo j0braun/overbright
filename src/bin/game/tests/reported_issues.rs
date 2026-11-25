@@ -1750,3 +1750,66 @@ fn bad_stored_paint_or_options_never_stop_the_start() {
         }
     }
 }
+
+/// #240: in the bumper view the player's car is left out with its shadow
+/// and neon (0x6316E0 skips the view's car at 0x63179C before both draws,
+/// the car list's test 0x60D584); the hood view keeps all three. The
+/// draw's one test (`view_leaves_out_player`) decides the body, the
+/// shadow / neon list and the effects; checked after the race's start
+/// scene, whose camera always shows the car.
+#[test]
+#[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
+fn bumper_view_leaves_out_the_players_shadow_and_neon_hood_view_keeps_them() {
+    testkit::game();
+    for (camera, left_out) in [(0u8, true), (1, false)] {
+        let mut game = super::rivals_ahead::career_at(0, 0);
+        game.settings.players[0].camera = camera;
+        let e = game.game_data.career.events.iter().position(|e| e.unlock == dday::STAGE0_RACES[0]).unwrap();
+        game.start_race(e, false, false).unwrap();
+        let mut seen = false;
+        for _ in 0..60 * 30 {
+            game.step_for(1.0 / 60.0).unwrap();
+            if game.scenes.shop.as_ref().is_some_and(|r| r.camera_holds_view()) {
+                continue;
+            }
+            let d = game.sim.drive.as_ref().unwrap();
+            assert_eq!(
+                view_leaves_out_player(&game.mode, d, game.scenes.shop.as_ref(), false),
+                left_out,
+                "camera {camera}: the player's car, shadow and neon"
+            );
+            assert!(!view_leaves_out_player(&game.mode, d, game.scenes.shop.as_ref(), true), "photo mode shows the car");
+            seen = true;
+            break;
+        }
+        assert!(seen, "camera {camera}: the start scene ended");
+    }
+}
+
+/// #239: a race on another region's track keeps the rain out under that
+/// track's own cover zones (the Stadium's covered drift lots, L4RC kind 5;
+/// the speedways' garages, L4RG kind 6), which the track loader reads
+/// from its Paths<track>.bin (0x57F46A); the clone read free roam's (L4RA)
+/// for every track, so nothing there was covered.
+#[test]
+#[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
+fn a_race_keeps_the_rain_out_under_its_own_tracks_roofs() {
+    testkit::game();
+    for (region, kind) in [("L4RC", 5), ("L4RG", 6)] {
+        let mut game = super::rivals_ahead::career_at(5, 0);
+        let career = &game.game_data.career;
+        let e = career
+            .events
+            .iter()
+            .position(|e| career.tracks.get(&e.round_track(0)).is_some_and(|t| t.region == region))
+            .unwrap_or_else(|| panic!("an event in {region}"));
+        game.start_race(e, false, false).unwrap();
+        let zones = nfsu2::frontend::career::RouteTriggers::load_kind_in(&game.game_data.root, region, kind);
+        let roof = zones.first().unwrap_or_else(|| panic!("{region}: a kind-{kind} zone"));
+        let under = ((roof.min + roof.max) * 0.5).extend(roof.position.z - 1.0);
+        let weather = &game.sim.drive.as_ref().unwrap().weather;
+        let inside: Vec<bool> = zones.iter().map(|t| weather.covered_at(((t.min + t.max) * 0.5).extend(t.position.z - 1.0))).collect();
+        assert!(weather.covered_at(under), "{region}: under its first roof ({inside:?})");
+        assert!(!weather.covered_at(under.truncate().extend(roof.position.z + 1.0)), "{region}: above the roof");
+    }
+}

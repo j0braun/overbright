@@ -195,6 +195,14 @@ pub(crate) fn player_car_hidden(mode: &Mode, drive: &Drive, scene: Option<&ShopR
         && drive.chase.hides_car()
 }
 
+/// The draw's test for the view's own car (view +0x280): its body (the
+/// car list, 0x60D584) and its shadow and neon (0x6316E0's per-car block,
+/// 0x63179C) are left out together; the photo mode's free camera always
+/// shows the car.
+pub(crate) fn view_leaves_out_player(mode: &Mode, drive: &Drive, scene: Option<&ShopRun>, photo_open: bool) -> bool {
+    player_car_hidden(mode, drive, scene) && !photo_open
+}
+
 /// The type of the first player's camera mover (player +0x238 → +0x0C, the
 /// type Camera_Factory 0x5F1FE0 built) for the views the clone has: the
 /// showcase's 0x14 (0x501290), a replay's track camera 0x12 (0x5FB5B2),

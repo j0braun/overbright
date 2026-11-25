@@ -231,6 +231,13 @@ fn next_race_takes_the_url_tournament_to_its_second_track_with_its_field() {
     let second = field(&game, what);
     let Mode::Race(race) = &game.mode else { unreachable!() };
     assert_eq!(event.races[race.round].0, 4714, "{what}: the second race's track");
+    // #241: the minimap shows the round's own layout (TRACKMAP4714), not
+    // the first round's.
+    let root = game.game_data.root.clone();
+    let (second_map, first_map) =
+        (game.game_data.assets.track_map(&root, 4714), game.game_data.assets.track_map(&root, 4712));
+    assert!(second_map.is_some() && second_map != first_map, "{what}: two distinct track maps");
+    assert_eq!(game.map_view().map(|v| v.texture), Some(second_map), "{what}: the HUD map in round 2");
     assert_eq!(second.0, first.0, "{what}: the rivals, looks and grid slots");
     assert_eq!(second.1, first.1, "{what}: the player's grid slot");
 }

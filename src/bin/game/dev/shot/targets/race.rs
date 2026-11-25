@@ -7,6 +7,7 @@ pub(super) const TARGETS: &[Target] = &[
     Target::name("drift", drift),
     Target::name("drag", drift),
     Target::name("streetx", drift),
+    Target::name("drift_angle", drift_angle),
     Target::name("dragat", dragat),
     Target::name("draghud", draghud),
     Target::name("dragline", draghud),
@@ -48,6 +49,45 @@ pub(super) fn drift(game: &mut Game, cx: &ShotCtx) -> Result<Mode> {
             let now = game.now();
             game.hud(now);
         }
+    }
+    game.platform.keys.clear();
+    finish_scene(game, gpu, format);
+    Ok(std::mem::replace(&mut game.mode, Mode::Explore))
+}
+
+/// `drift_angle`: the first career drift event's HUD while drifting:
+/// the gas held from the countdown, at 2 s of race clock a hard turn on
+/// the handbrake, the shot 1.5 s later (the drift angle readout by the
+/// tachometer; its plate by the car's turbo, NFSU2_SHOT_CAR picks the car).
+pub(super) fn drift_angle(game: &mut Game, cx: &ShotCtx) -> Result<Mode> {
+    let &ShotCtx { gpu, format, .. } = cx;
+    let e = (1..=5)
+        .find_map(|stage| {
+            game.game_data.career
+                .stage_events(&game.game_data.root, stage)
+                .iter()
+                .find(|e| e.kind == career::EventKind::Drift)
+                .map(|e| e.index)
+        })
+        .context("a drift event")?;
+    game.start_race(e, false, false)?;
+    for _ in 0..1200 {
+        let clock = match &game.mode {
+            Mode::Race(r) => r.timing.clock,
+            _ => f32::MIN,
+        };
+        if clock >= 3.5 {
+            break;
+        }
+        game.platform.keys.clear();
+        game.platform.keys.insert(KeyCode::KeyW);
+        if clock >= 2.0 {
+            game.platform.keys.insert(KeyCode::KeyD);
+            game.platform.keys.insert(KeyCode::Space);
+        }
+        game.advance_for(1.0 / 30.0)?;
+        let now = game.now();
+        game.hud(now);
     }
     game.platform.keys.clear();
     finish_scene(game, gpu, format);
@@ -462,8 +502,11 @@ pub(super) fn replay(game: &mut Game, cx: &ShotCtx) -> Result<Mode> {
 pub(super) fn qrstart(game: &mut Game, cx: &ShotCtx) -> Result<Mode> {
     let &ShotCtx { gpu, format, screen, .. } = cx;
     // NFSU2_QR_MODE=drift|sprint|drag|circuit: that mode's first
-    // track (default Circuit).
+    // track (default Circuit), or NFSU2_QR_TRACK=<track number>.
     let mode = qr_mode_env();
+    if let Some(t) = std::env::var("NFSU2_QR_TRACK").ok().and_then(|v| v.parse::<u16>().ok()) {
+        game.settings.qr[nfsu2::frontend::quick_race::race_type(mode)].track = t;
+    }
     game.quick.tracks = game.quick_track_select(mode, 0.0);
     let e = game.quick_event(mode);
     game.quick.car = Some(std::env::var("NFSU2_QR_CAR").unwrap_or_else(|_| "PEUGOT".into()));

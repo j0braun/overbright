@@ -324,3 +324,60 @@ fn layout_reads_the_last_step() {
         assert_eq!(before, dump(&stepped), "step {k}: the layout wrote state");
     }
 }
+
+/// The drift angle readout as 0x4F6C00 builds it: without a turbo the
+/// round-ended plate at the tachometer (Drift_Angle_Backing3) with the
+/// texts moved onto it ("NoTurbo"); with one the plate left of the turbo
+/// gauge (Drift_Angle_Backing1, "Turbo"). Never both plates.
+#[test]
+#[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
+fn drift_angle_backing_follows_the_turbo() {
+    let assets = Assets::load(&crate::testkit::game_root()).unwrap();
+    let (b1, b3) = (fe_hash("Drift_Angle_Backing1"), fe_hash("Drift_Angle_Backing3"));
+    for turbo in [false, true] {
+        let mut hud = Hud::default();
+        let race = crate::race::RaceMode::Drift;
+        let mut input = Input { race, racing: true, racers: 4, turbo, ..Default::default() };
+        input.options.gauges = true;
+        hud.quads(&assets, &input, 0.0);
+        let (shown, gone) = if turbo { (b1, b3) } else { (b3, b1) };
+        assert!(!hud.state.hidden.contains(&shown), "turbo {turbo}: its backing shows");
+        assert!(hud.state.hidden.contains(&gone), "turbo {turbo}: the other backing stays hidden");
+        let script = if turbo { "Turbo" } else { "NoTurbo" };
+        for t in DRIFT_ANGLE_TEXTS {
+            assert_eq!(hud.state.scripts.get(&fe_hash(t)).map(|s| s.0), Some(fe_hash(script)), "{t}");
+        }
+        // The same frame again keeps them (built once, as the constructor).
+        let quads = hud.quads(&assets, &input, 500.0);
+        assert_eq!(hud.state.scripts.get(&fe_hash("Angle_degrees")).map(|s| s.1), Some(0.0));
+        // On the screen the plate stays joined to the tachometer at every
+        // common size and HUD layout: same anchor, the plate's right end
+        // under the dial (as at 4:3), never pulled apart: its distance from
+        // the needle's hub in screen heights is the canvas's.
+        let tex = |n: &str| assets.texture_for(n).unwrap_or_else(|| panic!("no texture {n}"));
+        let find = |t: u32| quads.iter().filter(|q| q.texture == Some(t)).collect::<Vec<_>>();
+        let plates = find(tex(if turbo { "Drift_Angle_Backing1.tga" } else { "Drift_Angle_Backing3.tga" }));
+        assert!(find(tex(if turbo { "Drift_Angle_Backing3.tga" } else { "Drift_Angle_Backing1.tga" })).is_empty());
+        assert_eq!(plates.len(), 1);
+        let plate = plates[0];
+        // The tachometer's group (the needle's parent) and where it goes.
+        let package = assets.package(package_for(input.race)).unwrap();
+        let needle = package.objects.iter().find(|o| o.hash == fe_hash("3rdPersonNeedle")).unwrap();
+        let tach = package.objects.iter().find(|o| Some(o.guid) == needle.parent).unwrap();
+        let place = crate::frontend::enh::widescreen::element_place(package, tach, &hud.state, glam::Vec2::ZERO);
+        assert_eq!(plate.place, place, "the plate moves with the tachometer");
+        let hub = tach.attributes.position().truncate() + crate::frontend::feng::state::CANVAS * 0.5;
+        let gap = |f: &crate::render::display::UiFrame| {
+            let end = f.to_pixels(plate.rect[0], plate.place).x.max(f.to_pixels(plate.rect[1], plate.place).x);
+            f.to_pixels(hub, place).x - end
+        };
+        let canvas = gap(&crate::render::display::UiFrame::with_hud((640, 480), false)) / 480.0;
+        let sizes = [(1024, 768), (1280, 960), (1920, 1080), (1366, 768), (1920, 1200), (2560, 1080), (3440, 1440)];
+        for size in sizes.into_iter().chain([(3840, 2160)]) {
+            for full in [false, true] {
+                let g = gap(&crate::render::display::UiFrame::with_hud(size, full)) / size.1 as f32;
+                assert!((g - canvas).abs() < 0.01, "turbo {turbo} {size:?} full {full}: gap {g} vs {canvas}");
+            }
+        }
+    }
+}

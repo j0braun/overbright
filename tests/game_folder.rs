@@ -108,13 +108,16 @@ fn a_patched_global_lzc_is_flagged() {
 /// empty: present, of a different size).
 #[test]
 fn the_game_folder_check_takes_any_case() {
-    let lower: Vec<String> = nfsu2::qol::setup::KEY_FILES.iter().map(|(f, ..)| f.to_ascii_lowercase()).collect();
+    // With the watched files (the sky pack): the fingerprint hashes them too.
+    let watched = nfsu2::qol::setup::WATCHED_FILES.iter().map(|(f, ..)| f);
+    let lower: Vec<String> =
+        nfsu2::qol::setup::KEY_FILES.iter().map(|(f, ..)| f).chain(watched).map(|f| f.to_ascii_lowercase()).collect();
     let mut files: Vec<&str> = lower.iter().map(String::as_str).collect();
     files.push("speed2.exe");
     let r = root(&files);
     let c = nfsu2::qol::setup::check(&r.0, true);
     assert!(c.ok(), "missing {:?}", c.missing);
-    assert_eq!(c.different.len(), nfsu2::qol::setup::KEY_FILES.len());
+    assert_eq!(c.different.len(), nfsu2::qol::setup::KEY_FILES.len() + nfsu2::qol::setup::WATCHED_FILES.len());
     assert!(nfsu2::qol::setup::looks_like_game(&r.0));
     let f = nfsu2::fingerprint::compute(&r.0);
     assert!(f.files.iter().all(|p| !matches!(p.state, nfsu2::fingerprint::State::Missing)), "{:?}", f.files);

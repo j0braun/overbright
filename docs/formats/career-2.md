@@ -200,6 +200,16 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
   "----"; Angle_Indicator_DATA the |slip| (≤ 90, 0 in reverse/backwards)
   with 3rdperson_driftometer turned to angle + 90°; SlowMessage runs
   LosingMult / TooSlowToGain while the level falls / may not rise.
+  The angle readout's plate (0x4F6C00, verified; observed under Wine, a
+  stock 206 at 1280 × 960): by the car's turbo (0x457B00 > 0) the element
+  takes Drift_Angle_Backing1 (the plate left of the turbo gauge, which
+  sits on Drift_Angle_Backing2) and runs "Turbo" on Angle_Indicator_DATA
+  and Angle_degrees, else Drift_Angle_Backing3 (the plate whose round end
+  meets the tachometer) and "NoTurbo" (the texts 73 to the right, onto
+  it). The other plate is never shown (the HUD's constructor hid it).
+  Clone: `hud::DRIFT_ANGLE_BACKING`; before, it drew both plates and the
+  texts at the turbo place, so a car without a turbo showed the readout
+  cut off from the tachometer. Shot `drift_angle`.
   Results show the score in TIME_DATA ("%$d", 0x4BF290).
   **Trick popups** (verified, not drawn by the clone): when the style
   manager reports tricks (0x56FE1C), 0x4DA6F0 hands the list to the style

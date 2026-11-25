@@ -113,6 +113,8 @@ mod traffic_harness;
 mod visuals;
 #[cfg(test)]
 mod reported_issues;
+#[cfg(test)]
+mod dyno_entry;
 // The manual gearbox through the player's keys and controller.
 #[cfg(test)]
 mod manual_gears;

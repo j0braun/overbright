@@ -54,7 +54,7 @@ impl Game {
         };
         let ending = ending
             .filter(|_| race.test.is_none() && race.replay.playback.is_none())
-            .map(|(at, h)| (self.game_data.career.events[race.event].track, at, h));
+            .map(|(at, h)| (self.game_data.career.events[race.event].round_track(race.round), at, h));
         // **Inferred**: a finished test run goes back to the
         // dyno menu (what the game does at its end is not
         // traced).
@@ -128,6 +128,7 @@ impl Game {
             self.race_flow.next_round = Some((race.event, race.quick, race.from_map, race.round + 1, field));
             let results =
                 PostRaceResults { kind, rows, opened: self.now(), scores: scores.is_some(), player: player_row };
+            self.race_flow.chain.clear();
             self.keep_replay(Mode::Menu(Menu::Results(results, None)));
             self.play_ending(ending);
             return Flow::Stop;
@@ -175,6 +176,7 @@ impl Game {
             opened: self.now(),
         });
         let results = PostRaceResults { kind, rows, opened: self.now(), scores: scores.is_some(), player: player_row };
+        self.race_flow.chain.clear();
         self.keep_replay(Mode::Menu(Menu::Results(results, reward)));
         self.play_ending(ending);
         Flow::Go
@@ -366,7 +368,7 @@ fn track_record(
     // prov: inferred game.update_world-3
     // the track's +0x94 bits). **Inferred**: the laps flag
     // 0x89E7BC is the route's loop.
-    let track_no = event.races.get(race.round).map_or(event.track, |r| r.0);
+    let track_no = event.round_track(race.round);
     if race.replay.playback.is_none()
         && let (Some(t), Some(p)) = (data.tracks.get(&track_no), profile)
     {

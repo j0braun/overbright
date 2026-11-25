@@ -128,7 +128,7 @@ impl Game {
                     .map_or(*nfsu2::render::lighting::DEFAULT_RIG, |e| frontend_rig_hash(&self.game_data.caches, &self.game_data.root, e.light));
                 let envmap = environment.and_then(|e| nfsu2::formats::magazines::load_envmap(&self.game_data.root, &e.name));
                 self.showcase.cover_car =
-                    Some(CoverShot { car, renderer: None, target: None, streamed, envmap, rig, pixels: None });
+                    Some(CoverShot { car, renderer: None, drawn: false, streamed, envmap, rig, pixels: None });
             }
         }
         let camera = camera.filter(|_| self.showcase.cover_car.is_some());

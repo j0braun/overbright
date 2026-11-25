@@ -346,4 +346,46 @@ pub(crate) struct SceneCrowd {
     pub(crate) length: f32,
     /// Its renderer is `RenderState.crowds[id]`.
     pub(crate) id: DrawId,
+    /// Per character the filtered ground it stands on (0x436050 instance
+    /// +0x20, `SceneCrowd::settle`); `None` before one is found.
+    pub(crate) lifts: Vec<Option<f32>>,
 }
+
+impl SceneCrowd {
+    /// A scene's characters from their first frame, each put on the
+    /// ground at once (0x437BE0 runs the ground step on its set-up).
+    pub(crate) fn new(
+        set: std::sync::Arc<nfsu2::character::SceneCharacters>,
+        origin: glam::Mat4,
+        length: f32,
+        world: &nfsu2::world::World,
+    ) -> SceneCrowd {
+        let mut c = SceneCrowd { set, origin, frame: 0.0, length, id: DrawId::new(), lifts: Vec::new() };
+        c.settle(world, 1.0);
+        c
+    }
+
+    /// Advance `dt` seconds and put each character on the ground again.
+    pub(crate) fn advance(&mut self, dt: f32, world: &nfsu2::world::World) {
+        self.frame += dt * nfsu2::shop_scene::FPS;
+        self.settle(world, dt * nfsu2::shop_scene::FPS);
+    }
+
+    /// The character update's ground step (0x436050, a skinned character
+    /// with +0x18 set, which its constructor 0x431220 sets and nothing
+    /// clears): the ground (0x5E72F0, `World::grid_ground`) under its bone
+    /// 1 (0x431280(1)) through its current world matrix; when found, the
+    /// first is kept as is and later ones are blended in
+    /// (`character::filter_ground`, `frames` scene frames since the last),
+    /// and the world matrix's height becomes that ground + 0.05.
+    pub(crate) fn settle(&mut self, world: &nfsu2::world::World, frames: f32) {
+        let t = self.frame / nfsu2::shop_scene::FPS;
+        self.lifts.resize(self.set.instances.len(), None);
+        for (i, p) in self.set.ground_probe(t, self.origin, &self.lifts).into_iter().enumerate() {
+            if let Some(g) = p.and_then(|p| world.grid_ground(p)) {
+                self.lifts[i] = Some(nfsu2::character::filter_ground(self.lifts[i], g, frames));
+            }
+        }
+    }
+}
+

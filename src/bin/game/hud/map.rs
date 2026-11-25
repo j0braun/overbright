@@ -331,7 +331,9 @@ impl Game {
     pub(crate) fn map_view(&mut self) -> Option<hud::MapView> {
         let (number, icons, range) = match &self.mode {
             Mode::Race(r) => {
-                let track = r.test.map_or_else(|| self.game_data.career.events[r.event].track, |t| t.0);
+                // The round's own track: each round of a URL tournament
+                // loads its layout (TRACKMAP<0x89E7A0>, the loaded track).
+                let track = r.test.map_or_else(|| self.game_data.career.events[r.event].round_track(r.round), |t| t.0);
                 // 0x4EC950: an AIRACERINDICATOR_ item (type 3) per AI
                 // racer (0x890080 +0x14 … +0x18); 0x4CA6D0 shows one whose
                 // car is out (+0x550) and not done (+0x998, set when it

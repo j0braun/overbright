@@ -245,6 +245,12 @@ impl TrackGround {
         self.packs.is_empty()
     }
 
+    /// How many collision packs the ground holds (the pack ids of
+    /// [`TrackGround::pack`] run below it).
+    pub fn pack_count(&self) -> usize {
+        self.packs.len()
+    }
+
     /// Every pack's faces as loaded, pack by pack (a face stored in several
     /// packs comes once per pack). Read-only; for the map editor's collision
     /// layer (`tools::map::collision`).

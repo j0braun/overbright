@@ -58,19 +58,21 @@ struct Skin {
 }
 
 /// What a frame's skinning depends on besides the scene (compared by bits).
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, PartialEq)]
 struct SkinInputs {
     view_proj: [u32; 16],
     t: u32,
     origin: [u32; 16],
+    lifts: Vec<Option<u32>>,
 }
 
 impl SkinInputs {
-    fn new(view_proj: Mat4, t: f32, origin: Mat4) -> SkinInputs {
+    fn new(view_proj: Mat4, t: f32, origin: Mat4, lifts: &[Option<f32>]) -> SkinInputs {
         SkinInputs {
             view_proj: view_proj.to_cols_array().map(f32::to_bits),
             t: t.to_bits(),
             origin: origin.to_cols_array().map(f32::to_bits),
+            lifts: lifts.iter().map(|l| l.map(f32::to_bits)).collect(),
         }
     }
 }
@@ -131,22 +133,25 @@ impl CharacterRenderer {
     }
 
     /// Start skinning the scene's characters `t` seconds in, placed by
-    /// `origin`, seen through `view_proj`, on a render thread (off the
+    /// `origin` with the grounds `lifts` (`SceneCharacters::posed`), seen
+    /// through `view_proj`, on a render thread (off the
     /// main thread, while it records the world and the cars). The same
     /// function on the same inputs as [`CharacterRenderer::render`] runs
     /// in place, so the same corners in the same order.
-    pub fn start(&mut self, set: &Arc<SceneCharacters>, view_proj: Mat4, t: f32, origin: Mat4) {
+    pub fn start(&mut self, set: &Arc<SceneCharacters>, view_proj: Mat4, t: f32, origin: Mat4, lifts: &[Option<f32>]) {
         if let Some((_, p)) = self.pending.take() {
             self.skin = p.wait().unwrap_or_default();
         }
         let mut skin = std::mem::take(&mut self.skin);
         let (set, textures, bounds, can_cull) =
             (set.clone(), self.textures.clone(), self.bounds.clone(), self.can_cull);
+        let inputs = SkinInputs::new(view_proj, t, origin, lifts);
+        let lifts = lifts.to_vec();
         let job = Pending::spawn(move || {
-            skin_frame(&mut skin, &set, &textures, &bounds, can_cull, view_proj, t, origin);
+            skin_frame(&mut skin, &set, &textures, &bounds, can_cull, view_proj, t, origin, &lifts);
             skin
         });
-        self.pending = Some((SkinInputs::new(view_proj, t, origin), job));
+        self.pending = Some((inputs, job));
     }
 
     /// Skin the scene's characters `t` seconds in, placed by `origin`, and
@@ -165,8 +170,9 @@ impl CharacterRenderer {
         set: &SceneCharacters,
         t: f32,
         origin: Mat4,
+        lifts: &[Option<f32>],
     ) {
-        let inputs = SkinInputs::new(view_proj, t, origin);
+        let inputs = SkinInputs::new(view_proj, t, origin, lifts);
         let started = match self.pending.take() {
             Some((at, p)) => {
                 let skin = p.wait();
@@ -177,7 +183,7 @@ impl CharacterRenderer {
             None => false,
         };
         if !started {
-            skin_frame(&mut self.skin, set, &self.textures, &self.bounds, self.can_cull, view_proj, t, origin);
+            skin_frame(&mut self.skin, set, &self.textures, &self.bounds, self.can_cull, view_proj, t, origin, lifts);
         }
         let Skin { cpu: vertices, runs, .. } = &self.skin;
         if vertices.is_empty() {
@@ -320,12 +326,13 @@ fn skin_frame<V>(
     view_proj: Mat4,
     t: f32,
     origin: Mat4,
+    lifts: &[Option<f32>],
 ) {
     let light = Vec3::new(0.3, -0.4, 0.85).normalize();
     let Skin { cpu: vertices, runs, done, posed } = skin;
     vertices.clear();
     runs.clear();
-    for (model, palette, at) in set.posed(t, origin) {
+    for (model, palette, at) in set.posed(t, origin, lifts) {
         // Sample every animation as before. Only skinning/emission for a
         // provably offscreen whole instance is omitted; uncertainty draws.
         if can_cull
@@ -422,11 +429,11 @@ mod tests {
             for f in 0..40 {
                 let t = f as f32 * 0.37;
                 for can_cull in [false, true] {
-                    skin_frame(&mut here, &set, &textures, &bounds, can_cull, view_proj, t, origin);
+                    skin_frame(&mut here, &set, &textures, &bounds, can_cull, view_proj, t, origin, &[]);
                     let (s, tx, bo) = (set.clone(), textures.clone(), bounds.clone());
                     let mut moved = std::mem::take(&mut there);
                     there = Pending::spawn(move || {
-                        skin_frame(&mut moved, &s, &tx, &bo, can_cull, view_proj, t, origin);
+                        skin_frame(&mut moved, &s, &tx, &bo, can_cull, view_proj, t, origin, &[]);
                         moved
                     })
                     .wait()

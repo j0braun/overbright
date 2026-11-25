@@ -59,6 +59,9 @@ pub(crate) struct RaceFlow {
     pub(crate) restart: Option<RestartRace>,
     /// The tournament standings that follow its race results.
     pub(crate) standings: Option<PostRaceResults>,
+    /// The post-race chain's screens passed so far (0x4F3EA0's list at
+    /// 0x8363DC), for Back ([`ChainStep`]).
+    pub(crate) chain: Vec<ChainStep>,
     /// The last race's stats, for the post-race menu's Race Stats.
     pub(crate) stats: Option<screens::PostRaceStats>,
     /// The race endings' files read on a thread since the race started
@@ -81,9 +84,24 @@ impl Default for RaceFlow {
             next_round: None,
             restart: None,
             standings: None,
+            chain: Vec::new(),
             endings_ahead: None,
         }
     }
+}
+
+/// A post-race chain screen left forward (0x4BFF80 moves the chain's cursor
+/// +0x38 to the next node). Back on the standings (0x4EA6CA), the reward
+/// (0x4D735B), UI_SponsorPopup (0x4C12F2) and UI_Sponsorship_new (0x4C1445,
+/// after its 0x47FF4E7C script) runs 0x4C0020: the cursor one node back and
+/// that node's package up (0x537990); on the chain's first node
+/// (+0x30) nothing. The results have no Back (0x4E9A20).
+pub(crate) enum ChainStep {
+    /// UI_PostRaceResults or the tournament's: the screen, the reward after
+    /// it and the standings still to come.
+    Results { results: PostRaceResults, reward: Option<Reward>, standings: Option<PostRaceResults> },
+    Reward(Reward),
+    Popup,
 }
 
 /// A race as Restart (0x5F41F0(9)) sets it up again: the event's current

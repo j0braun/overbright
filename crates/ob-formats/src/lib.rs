@@ -31,6 +31,7 @@ pub mod formats {
     pub mod bundle;
     pub mod camera_tracks;
     pub mod collision;
+    pub mod comp;
     pub mod eagl;
     pub mod hash;
     pub mod huff;
