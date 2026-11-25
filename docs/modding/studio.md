@@ -153,8 +153,9 @@ Ctrl+0 (SHARE ▸ Mod, `ob://<mod id>/@mod`) shows the open mod as you share it:
 - **Export to** and **Export**: one `.zip` (or, for a name without `.zip`, a new folder). It proposes
   `<folder>.zip` in the `exports` folder of Overbright's data folder ([Where Overbright keeps its files](../playing/platform-dirs.md)),
   which the first export makes; the note under it says where the file went. The `.zip` holds
-  `<folder>/map.obmap` as the map editor's export does, so the launcher's and the editor's Import read it, plus
-  the mod's other files (`looks.toml`, `textures/…`) and `provenance.toml`: the build that wrote it and the
+  `<folder>/map.obmap`, as the map editor's and the launcher's exports do (all three write the same shared copy),
+  so their Imports read it and bring every file back, plus the mod's other files (`looks.toml`, `textures/…`) and
+  `provenance.toml`: the build that wrote it and the
   textures whose pixels came from the original game. A mod with such textures asks first ("Made from the original
   game"): Enter exports anyway, Esc does not. You are responsible for what you share; Overbright never hosts or
   shares mods.

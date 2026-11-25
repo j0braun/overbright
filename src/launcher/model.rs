@@ -451,6 +451,9 @@ pub enum Dialog {
     SaveRestore(super::saves::store::Backup),
     /// Delete this backup?
     SaveDeleteBackup(super::saves::store::Backup),
+    /// Export this map mod into that folder although this many of its
+    /// textures are made from the original game's pixels?
+    MapExportDerived(String, PathBuf, usize),
 }
 
 /// Everything the screens show.
@@ -672,6 +675,12 @@ pub struct OwnPack {
     pub refused: Option<String>,
 }
 
+/// The build a map mod's shared copy names in its provenance
+/// (`Overbright 0.5.0 (build …)`, as Studio writes it).
+pub fn share_build() -> String {
+    format!("Overbright {} (build {:016x})", env!("CARGO_PKG_VERSION"), crate::studio_api::build::BUILD_ID.0)
+}
+
 /// A map mod as the Mods page shows it.
 #[derive(Clone, Debug, PartialEq)]
 pub struct MapRow {
@@ -681,6 +690,8 @@ pub struct MapRow {
     /// Its custom races and prop edits.
     pub races: usize,
     pub props: usize,
+    /// The game's textures it changes (its `textures/` folder, Studio Looks).
+    pub textures: usize,
 }
 
 /// The map editor as the Mods page shows it.
@@ -1217,8 +1228,13 @@ pub trait Env {
     fn set_map(&self, folder: &str, on: bool) -> Result<(), String>;
     /// Imports a map mod (folder, `map.obmap` or `.zip`); its folder name.
     fn import_map(&self, from: &Path) -> Result<String, String>;
-    /// Exports a map mod as a `.zip` into `to`; the file written.
-    fn export_map(&self, folder: &str, to: &Path) -> Result<PathBuf, String>;
+    /// Exports a map mod as a `.zip` into `to`, with its textures; the file
+    /// written. `derived_ok`: the player said yes to sharing textures made
+    /// from the original game's pixels (without it such a mod is refused).
+    fn export_map(&self, folder: &str, to: &Path, derived_ok: bool) -> Result<PathBuf, String>;
+    /// How many of the map mod's textures are made from the original
+    /// game's pixels (the question before its export).
+    fn map_derived(&self, folder: &str) -> usize;
     /// The Storage page's folders.
     fn locations(&self) -> Vec<LocRow> {
         use crate::platform::dirs;
@@ -2176,7 +2192,8 @@ impl Env for RealEnv {
                 let m = crate::tools::map::store::read_file(&dir.join(&f).join(crate::tools::map::store::FILE)).ok();
                 let (races, props) = m.as_ref().map_or((0, 0), |m| (m.races.len(), m.props.len()));
                 let name = m.map(|m| m.name).filter(|n| !n.trim().is_empty()).unwrap_or_else(|| f.clone());
-                MapRow { on: on.contains(&f), name, folder: f, races, props }
+                let textures = crate::tools::map::share::textures(&dir.join(&f)).len();
+                MapRow { on: on.contains(&f), name, folder: f, races, props, textures }
             })
             .collect()
     }
@@ -2187,7 +2204,7 @@ impl Env for RealEnv {
     }
 
     fn import_map(&self, from: &Path) -> Result<String, String> {
-        crate::tools::map::store::import(&crate::tools::map::store::maps_dir(), from).map_err(|e| format!("{e:#}"))
+        crate::tools::map::share::import(&crate::tools::map::store::maps_dir(), from)
     }
 
     fn start_editor(&self, folder: Option<&str>, root: Option<&Path>) -> Result<Box<dyn EditorJob>, String> {
@@ -2249,11 +2266,16 @@ impl Env for RealEnv {
         Ok(Box::new(EditorProcess(child, "Studio")))
     }
 
-    fn export_map(&self, folder: &str, to: &Path) -> Result<PathBuf, String> {
-        let out = to.join(format!("{folder}.zip"));
-        crate::tools::map::store::export(&crate::tools::map::store::maps_dir(), folder, &out)
-            .map(|()| out)
-            .map_err(|e| format!("{e:#}"))
+    fn export_map(&self, folder: &str, to: &Path, derived_ok: bool) -> Result<PathBuf, String> {
+        use crate::tools::map::share;
+        let out = share::default_zip(to, folder);
+        share::export(&crate::tools::map::store::maps_dir(), folder, &out, derived_ok, &share_build())
+            .map(|e| e.to)
+            .map_err(|e| e.to_string())
+    }
+
+    fn map_derived(&self, folder: &str) -> usize {
+        crate::tools::map::share::derived(&crate::tools::map::store::maps_dir().join(folder)).len()
     }
 
     fn paused(&self) -> Option<Paused> {
@@ -2778,8 +2800,8 @@ impl Env for FakeEnv {
 
     fn maps(&self) -> Vec<MapRow> {
         vec![
-            MapRow { folder: "drift-park".into(), name: "Drift park".into(), on: true, races: 2, props: 9 },
-            MapRow { folder: "open-docks".into(), name: "Open docks".into(), on: false, races: 0, props: 14 },
+            MapRow { folder: "drift-park".into(), name: "Drift park".into(), on: true, races: 2, props: 9, textures: 0 },
+            MapRow { folder: "open-docks".into(), name: "Open docks".into(), on: false, races: 0, props: 14, textures: 5 },
         ]
     }
 
@@ -2791,8 +2813,15 @@ impl Env for FakeEnv {
         Ok(from.file_stem().map_or("map".into(), |n| n.to_string_lossy().to_lowercase()))
     }
 
-    fn export_map(&self, folder: &str, to: &Path) -> Result<PathBuf, String> {
+    fn export_map(&self, folder: &str, to: &Path, derived_ok: bool) -> Result<PathBuf, String> {
+        if self.map_derived(folder) > 0 && !derived_ok {
+            return Err(crate::tools::map::share::derived_warning(self.map_derived(folder)));
+        }
         Ok(to.join(format!("{folder}.zip")))
+    }
+
+    fn map_derived(&self, folder: &str) -> usize {
+        if folder == "open-docks" { 5 } else { 0 }
     }
 
     fn editor_present(&self) -> bool {

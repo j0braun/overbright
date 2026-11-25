@@ -41,6 +41,7 @@ frontend::career::tracks ob-map
 tools::map::format ob-map
 tools::map::ops ob-map
 tools::map::race ob-map
+tools::map::share ob-map
 tools::map::sim ob-map
 tools::map::store ob-map
 

@@ -410,6 +410,16 @@ pub fn build(b: &mut Builder, m: &Model, screen: Screen) {
         }
     }
     if screen == Screen::Mods
+        && let Some(Dialog::MapExportDerived(f, _, n)) = &m.ask
+    {
+        let name = m.mods.maps.iter().find(|r| &r.folder == f).map_or(f.as_str(), |r| r.name.as_str());
+        b.dialog(
+            words::DERIVED_TITLE,
+            &format!("{name}: {}", crate::tools::map::share::derived_warning(*n)),
+            &[("map_export_cancel", words::CANCEL), ("map_export_yes", words::EXPORT_ANYWAY)],
+        );
+    }
+    if screen == Screen::Mods
         && let Some(key) = &m.mods.confirm
     {
         let lines = pack_lines(m);
@@ -2081,14 +2091,16 @@ fn editor_status(b: &mut Builder, m: &Model) {
     }
 }
 
-/// A map mod's line under its name: its races and prop edits.
+/// A map mod's line under its name: its races, prop edits and the
+/// textures it changes.
 pub fn map_detail(r: &super::model::MapRow) -> String {
-    match (r.races, r.props) {
-        (0, 0) => "Empty".into(),
-        (n, 0) => super::model::count(n, "race", "races"),
-        (0, p) => super::model::count(p, "prop edit", "prop edits"),
-        (n, p) => format!("{} · {}", super::model::count(n, "race", "races"), super::model::count(p, "prop edit", "prop edits")),
-    }
+    use super::model::count;
+    let parts: Vec<String> = [(r.races, "race", "races"), (r.props, "prop edit", "prop edits"), (r.textures, "texture", "textures")]
+        .into_iter()
+        .filter(|(n, ..)| *n > 0)
+        .map(|(n, one, many)| count(n, one, many))
+        .collect();
+    if parts.is_empty() { "Empty".into() } else { parts.join(" · ") }
 }
 
 /// The Mods page's side note.
@@ -2652,7 +2664,7 @@ impl<'e> App<'e> {
     }
 
     /// The browser's folder taken for its purpose.
-    fn use_folder(&mut self, dir: PathBuf) {
+    pub(super) fn use_folder(&mut self, dir: PathBuf) {
         match self.model.browse.purpose {
             BrowseFor::Game => {
                 self.model.check = Some(self.env.check(&dir));
@@ -2682,10 +2694,11 @@ impl<'e> App<'e> {
             BrowseFor::MapExport => {
                 self.go(Screen::Mods);
                 if let Some(f) = self.model.mods.map_sel.clone().or_else(|| self.model.mods.maps.first().map(|r| r.folder.clone())) {
-                    self.model.mods.results = vec![match self.env.export_map(&f, &dir) {
-                        Ok(p) => (Mark::Ok, format!("Exported: {}", p.display())),
-                        Err(e) => (Mark::Error, format!("{f}: not exported: {e}")),
-                    }];
+                    // Textures from the original game's pixels: the question first.
+                    match self.env.map_derived(&f) {
+                        0 => self.export_map(&f, &dir, false),
+                        n => self.model.ask = Some(Dialog::MapExportDerived(f, dir, n)),
+                    }
                 }
             }
             BrowseFor::Packages if self.env.mod_kind(&dir).is_some() => {
@@ -2820,6 +2833,15 @@ impl<'e> App<'e> {
 
     /// "Use mods" turned off (every mod off for the game, what was on set
     /// aside) or on (given back).
+    /// Export the map mod `f` into `dir` (`derived_ok`: the player said yes
+    /// to its textures from the original game's pixels).
+    fn export_map(&mut self, f: &str, dir: &Path, derived_ok: bool) {
+        self.model.mods.results = vec![match self.env.export_map(f, dir, derived_ok) {
+            Ok(p) => (Mark::Ok, format!("Exported: {}", p.display())),
+            Err(e) => (Mark::Error, format!("{f}: not exported: {e}")),
+        }];
+    }
+
     fn toggle_mods_in_use(&mut self) {
         use super::model::Paused;
         let m = &mut self.model;
@@ -3043,6 +3065,11 @@ impl<'e> App<'e> {
                     m.ask = None;
                     let id = *id;
                     self.switch_portable(id);
+                }
+                Event::Activate("map_export_yes") => {
+                    if let Some(Dialog::MapExportDerived(f, dir, _)) = m.ask.take() {
+                        self.export_map(&f, &dir, true);
+                    }
                 }
                 Event::Activate("reset_yes") => {
                     self.reset_defaults();

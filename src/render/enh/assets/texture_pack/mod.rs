@@ -538,4 +538,46 @@ mod tests {
         assert_eq!(shape(Domain::World, &road), road_native, "off: native again");
         let _ = std::fs::remove_dir_all(home);
     }
+
+    /// An enabled map mod's textures (`<maps>/<folder>/textures/world/<HASH>.png`,
+    /// what Studio Looks writes) reach the loader in a normal start, in
+    /// `enabled.txt`'s order (the last mod the strongest); a mod that is
+    /// not enabled changes nothing (native).
+    #[test]
+    fn enabled_map_mod_textures_reach_the_loader() {
+        use crate::texture_mods::tests as tm;
+        use crate::tools::map::{MapMod, store};
+        let home = tm::scratch("map-mod-looks");
+        crate::platform::dirs::set_thread_data_home(home.clone());
+        let road = tm::texture("ROAD_MAPMOD", 4, 4, [90, 90, 90, 255]);
+        let wall = tm::texture("WALL_MAPMOD", 4, 4, [30, 60, 90, 255]);
+        let maps = store::maps_dir();
+        let shape =
+            |d, t: &crate::formats::texture::Texture| crate::render::texture_layer_with_pack(d, Some(t), false, 4096).0;
+        let road_native = shape(Domain::World, &road);
+        assert_eq!((road_native.1, road_native.2), (4, 4), "no mod: native");
+        for (folder, side) in [("weak", 8), ("strong", 16), ("off", 32)] {
+            store::save(&maps, folder, &MapMod { name: folder.into(), ..Default::default() }).unwrap();
+            let f = maps.join(folder).join(store::TEXTURES).join("world").join(format!("{:08X}.png", road.hash));
+            std::fs::create_dir_all(f.parent().unwrap()).unwrap();
+            std::fs::write(f, tm::png(side, side)).unwrap();
+        }
+        store::set_enabled(&maps, "weak", true).unwrap();
+        store::set_enabled(&maps, "strong", true).unwrap();
+        crate::tools::map::reload_active();
+        std::thread::sleep(std::time::Duration::from_millis(550));
+        assert_eq!(crate::tools::map::texture_roots(false).len(), 2, "the two enabled mods");
+        assert!(crate::tools::map::texture_roots(true).is_empty(), "no car textures");
+        let got = shape(Domain::World, &road);
+        assert_eq!((got.1, got.2), (16, 16), "the last enabled mod wins");
+        assert_eq!(shape(Domain::World, &wall), shape(Domain::World, &wall), "stable");
+        assert_eq!((shape(Domain::World, &wall).1, shape(Domain::World, &wall).2), (4, 4), "other textures native");
+        assert_eq!((shape(Domain::Car, &road).1, shape(Domain::Car, &road).2), (4, 4), "a world texture leaves cars alone");
+        store::set_enabled(&maps, "weak", false).unwrap();
+        store::set_enabled(&maps, "strong", false).unwrap();
+        crate::tools::map::reload_active();
+        std::thread::sleep(std::time::Duration::from_millis(550));
+        assert_eq!(shape(Domain::World, &road), road_native, "none enabled: native again");
+        let _ = std::fs::remove_dir_all(home);
+    }
 }

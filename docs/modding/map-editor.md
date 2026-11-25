@@ -82,7 +82,7 @@ Reset camera in the map view). Every item does something; a test checks that eac
 
 | Menu | Items |
 |---|---|
-| File | **File ▸ New map mod…** (Ctrl+N: a name, its folder and the region), **File ▸ Open map mod…** (Ctrl+O), the five most recent mods, **File ▸ Save** (Ctrl+S), **File ▸ Mod details…** (name, author, description), **File ▸ Import…** (a mod folder, a `map.obmap` or a `.zip`), **File ▸ Export…** (a `.zip` or a folder; `map.obmap` only; it proposes `<folder>.zip` in the `exports` folder of Overbright's data folder, made on the first export, and the status line says where the file went), **File ▸ Quit** (Ctrl+Q; saves first, and asks only when that fails) |
+| File | **File ▸ New map mod…** (Ctrl+N: a name, its folder and the region), **File ▸ Open map mod…** (Ctrl+O), the five most recent mods, **File ▸ Save** (Ctrl+S), **File ▸ Mod details…** (name, author, description), **File ▸ Import…** (a mod folder, a `map.obmap` or a `.zip`), **File ▸ Export…** (a `.zip` or a folder: the map and the mod's textures, `looks.toml` and `textures/`, never `work/` or `.editor/`; textures from the original game's pixels are warned about first; it proposes `<folder>.zip` in the `exports` folder of Overbright's data folder, made on the first export, and the status line says where the file went), **File ▸ Quit** (Ctrl+Q; saves first, and asks only when that fails) |
 | Edit | **Edit ▸ Undo** and **Edit ▸ Redo**, named by the step they undo or redo (256 steps), **Edit ▸ Duplicate**, **Edit ▸ Delete**, **Edit ▸ Select all of this solid**, **Edit ▸ Drop to ground** |
 | View | **View ▸ 3D view**, **View ▸ Map** (M switches), **View ▸ Frame selection** (F), **View ▸ Reset camera** (the region's overview), **View ▸ Collision ▸ Off**, **View ▸ Collision ▸ Invisible barriers** and **View ▸ Collision ▸ All collision** (see Collision), **View ▸ Hint line** |
 | Race | **Race ▸ New race**, **Race ▸ Test race** (F5), **Race ▸ Drive here** (Shift+F5) |
@@ -433,8 +433,11 @@ What is drawn:
 
 `<Overbright data>` is the folder from the README's "Where your files go" (`data/` in portable mode). If a mod
 cannot be read, it is skipped with the reason in the log, and the others still apply. The game reads the list and
-the mods at the first world load of a run. To share a mod, use **File ▸ Export…** or the launcher's Export… (a
-`.zip`). To import one, use **File ▸ Import…**, the launcher's Import a map mod… ("Add a mod…" takes a map mod
+the mods at the first world load of a run. An enabled mod's painted textures (`<folder>/textures/world/<HASH>.png`,
+`…/car/…`, written by [Studio Looks](studio-looks.md)) load with it, in the list's order (the last mod the
+strongest), before every texture pack. To share a mod, use **File ▸ Export…** or the launcher's Export… (a
+`.zip` with the map, `looks.toml`, `textures/` and `provenance.toml`; every export shares the same copy,
+`tools::map::share`). To import one, use **File ▸ Import…**, the launcher's Import a map mod… ("Add a mod…" takes a map mod
 too), or copy the folder into `maps/` and add its name to `enabled.txt`. An import is validated before anything is
 written and never goes over an existing folder.
 

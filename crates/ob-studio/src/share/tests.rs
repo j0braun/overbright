@@ -3,7 +3,8 @@
 use std::path::{Path, PathBuf};
 
 use super::*;
-use crate::looks::{Domain, Entry, Origin};
+use crate::looks::{self, Domain, Entry, Looks, Origin, TextureId};
+use ob_map::tools::map::store;
 use ob_map::tools::map::format::{CustomRace, RaceKind};
 
 fn scratch(name: &str) -> PathBuf {
