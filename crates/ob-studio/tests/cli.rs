@@ -604,3 +604,30 @@ fn pack_create_makes_a_new_mod_and_refuses_clashes_and_bad_names() {
     assert_eq!(code, cli::OK);
     assert!(out.contains("Made Third in ") && out.contains("--mod "), "{out}");
 }
+
+/// A start written at a height with no road (z = 0 under the road, or none given) takes the road's height when
+/// the game's world is at hand; a point with no floor under it at all is an error of the checks.
+#[test]
+fn race_points_take_the_road_height_and_the_checks_look_under_them() {
+    let (_s, dir) = fixture("cli-floor", false);
+    // A flat floor at z = 0 for 200 m around the origin; the sprint's finish (x = 390) is off it.
+    let flat = Env { world: Box::new(|_, _| Ok(World::flat(200.0))), ..env() };
+    let point = |verb: &str, part: &str, at: &str| {
+        let w = ["race", "point", verb, "--mod", "<mod>", "--race", "sprint", "--part", part, "--position", at];
+        run(&w, &dir, &flat)
+    };
+    let (code, _, err) = point("add", "start", "30,0,-30");
+    assert_eq!(code, cli::OK, "{err}");
+    let map = store::read_file(&dir.join(store::FILE)).unwrap();
+    assert_eq!(map.races[0].start.unwrap().position, Vec3::new(30.0, 0.0, 0.0), "on the road, not 30 m under it");
+    // The default grid's first slot moved past the floor's edge.
+    let (code, _, err) = point("move", "grid", "300,0,-4");
+    assert_eq!(code, cli::OK, "{err}");
+    let map = store::read_file(&dir.join(store::FILE)).unwrap();
+    assert_eq!(map.races[0].grid[0].position, Vec3::new(300.0, 0.0, -4.0), "no road there: kept as given");
+    let (code, out, _) = run(&["checks", "run", "--mod", "<mod>"], &dir, &flat);
+    assert_eq!(code, cli::CHECKS, "{out}");
+    assert!(out.contains("grid slot 1 has no floor under it") && out.contains("fall through the world"), "{out}");
+    assert!(out.contains("the finish line has no floor under it"), "{out}");
+    assert!(!out.contains("start line has no floor"), "{out}");
+}

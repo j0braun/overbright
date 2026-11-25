@@ -15,8 +15,10 @@ overbright-studio --shot out.png [--size WxH] [--scale F] [--mod <folder>] [--ma
 ```
 
 `--shot` draws the whole window off-screen into a PNG (no window opens) and prints `studio layout: fits …` or
-`studio layout: clipped: …`. The mods are the map editor's (`--maps`, default the map mods folder). `--select N`
-selects placement N in World; `--new-mod NAME` shows the New mod dialog with NAME typed. The game folder is `NFSU2_ROOT`, else the one the launcher kept.
+`studio layout: clipped: …`. The mods are the map editor's (`--maps`, default the map mods folder); `--mod` takes a
+mod's folder name there or the path of any mod's folder ([Getting started](studio-start.md#starting-it)). `--select N`
+selects placement N in World; `--new-mod NAME` shows the New mod dialog with NAME typed. The game folder is
+`NFSU2_ROOT`, else the one the launcher kept.
 
 ## The window
 
@@ -144,7 +146,9 @@ Ctrl+0 (SHARE ▸ Mod, `ob://<mod id>/@mod`) shows the open mod as you share it:
 - **Ready to share**: the map checks pass (a mod with races needs the game's race tracks, from the game folder the
   launcher set), the mod has a name; textures made from the original game's pixels are listed as a warning. The
   tested mark comes later.
-- **Export to** and **Export**: one `.zip` (or, for a name without `.zip`, a new folder). The `.zip` holds
+- **Export to** and **Export**: one `.zip` (or, for a name without `.zip`, a new folder). It proposes
+  `<folder>.zip` in the `exports` folder of Overbright's data folder ([Where Overbright keeps its files](../playing/platform-dirs.md)),
+  which the first export makes; the note under it says where the file went. The `.zip` holds
   `<folder>/map.obmap` as the map editor's export does, so the launcher's and the editor's Import read it, plus
   the mod's other files (`looks.toml`, `textures/…`) and `provenance.toml`: the build that wrote it and the
   textures whose pixels came from the original game. A mod with such textures asks first ("Made from the original

@@ -356,6 +356,12 @@ pub const COMMANDS: &[Command] = &[
         ],
     },
     Command {
+        name: "pack.repair",
+        kind: CommandKind::Edit,
+        summary: "Repair a map file that no longer reads, where a safe repair exists (as one undo step)",
+        args: &[],
+    },
+    Command {
         name: "edit.group",
         kind: CommandKind::Edit,
         summary: "Several edits as one undo step (the edits as a JSON list)",

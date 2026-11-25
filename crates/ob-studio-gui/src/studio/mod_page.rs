@@ -87,8 +87,9 @@ pub struct Data {
 
 fn read_map(maps: &Path, folder: &str) -> Result<MapMod> {
     let dir = maps.join(folder);
-    let h = History::open_read(&dir, &store::editor_dir(maps, folder), &[store::FILE], Arc::new(history::disk::Real))
-        .with_context(|| format!("reading the history of {folder}"))?;
+    let h =
+        History::open_read(&dir, &store::editor_dir(maps, folder), ob_studio::MOD_DOCS, Arc::new(history::disk::Real))
+            .with_context(|| format!("reading the history of {folder}"))?;
     MapMod::parse(h.doc(store::FILE).unwrap_or_default()).map_err(|e| anyhow::anyhow!("{e}"))
 }
 
@@ -160,7 +161,7 @@ pub fn load(maps: &Path, folder: &str, game: Option<&Path>, given: Option<GivenT
 /// Change one of the mod's details as one step of its history (its writer's lock taken for the step and let go).
 pub fn set_detail(maps: &Path, folder: &str, line: Line, value: &str) -> Result<bool> {
     let dir = maps.join(folder);
-    let mut h = History::open(&dir, &store::editor_dir(maps, folder), &[store::FILE], history::STUDIO, {
+    let mut h = History::open(&dir, &store::editor_dir(maps, folder), ob_studio::MOD_DOCS, history::STUDIO, {
         Arc::new(history::disk::Real)
     })?;
     if let Some(owner) = h.read_only_by() {
@@ -261,7 +262,7 @@ impl Page {
             return;
         };
         if self.game.is_none() {
-            self.game = Some(nfsu2::studio_api::qol::setup::saved_root());
+            self.game = Some(nfsu2::studio_api::qol::setup::game_root());
         }
         let game = self.game.clone().flatten();
         let other = self.data.as_ref().is_none_or(|d| d.folder != folder);
@@ -280,8 +281,8 @@ impl Page {
             self.editing = None;
             self.confirm = false;
             self.note = None;
-            let home = crate::platform::dirs::home().unwrap_or_default();
-            self.export_to = home.join(format!("{folder}.zip")).display().to_string();
+            // Overbright's exports folder (made by the export), never the home folder itself.
+            self.export_to = share::default_zip(&crate::platform::dirs::exports(), folder).display().to_string();
         }
     }
 

@@ -1334,7 +1334,7 @@ impl App {
             A::Export => {
                 if let Some(s) = &self.state {
                     // Overbright's exports folder (made by the export), never the home folder itself.
-                    let to = crate::platform::dirs::exports().join(format!("{}.zip", s.session.folder));
+                    let to = ob_studio::share::default_zip(&crate::platform::dirs::exports(), &s.session.folder);
                     self.dialog = Some(Dialog::Export { path: to.display().to_string() });
                 }
             }

@@ -8,7 +8,6 @@ waits for it and reads its output.
 ```
 overbright-studio-cli help                                   # every command, flag and exit code
 overbright-studio-cli help race point add                    # one command's flags
-overbright-studio-cli pack create --name "Docks remix"       # a new mod in the map mods folder
 overbright-studio-cli race set --mod maps/docks --race loop --laps 3 --dry-run
 overbright-studio-cli ops apply --mod maps/docks --file edits.jsonl --label "Night version"
 overbright-studio-cli checks run --mod maps/docks --json
@@ -39,6 +38,7 @@ and its schema export (`crates/ob-studio/schema/studio.json`) use, so `help` is 
 | `pack details` | edit | Change the mod's `--name`, `--author` and `--description` (those left out stay) |
 | `pack put` | edit | Put the whole map in place, from a map file (`--file`) |
 | `pack export` | run | Export the mod as one file to share (`--to` a `.zip`, or a new folder), without its work files; textures made from the original game's pixels need `--derived-ok` ([Studio](studio.md#the-mod-page)) |
+| `pack repair` | edit | Repair a `map.obmap` that no longer reads, where a safe repair exists (a sprint or drift race with more than one lap runs its one lap), as one step |
 | `edit group` | edit | Several edits as one step (`--label`, `--ops`: the edits as a JSON list) |
 | `ops apply` | edit | Apply an operations file as one step (`--file`, optional `--label`) |
 | `looks open` | run | Open a texture in your own paint program: writes its work file (`--texture world:0x1A2B3C4D`; the game's pixels, or `--blank` for an empty canvas) ([Studio Looks](studio-looks.md)) |

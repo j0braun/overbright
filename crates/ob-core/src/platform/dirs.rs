@@ -454,7 +454,7 @@ pub fn perf() -> PathBuf {
     app().join("perf")
 }
 
-/// Where the map editor proposes to export a mod (`<folder>.zip`); made on the first export.
+/// Where Studio and the map editor propose to export a mod (`<folder>.zip`); made on the first export.
 pub fn exports() -> PathBuf {
     app().join("exports")
 }
