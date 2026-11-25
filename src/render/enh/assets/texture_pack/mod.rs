@@ -53,8 +53,11 @@ mod tests {
         const CHILD: &str = "NFSU2_TP1B_FINGERPRINT_CHILD";
         let Some(dir) = crate::render::debug_env::test_child(CHILD) else {
             let p = Pack::new();
+            let (data, cache) = (Pack::new(), Pack::new());
             let status = std::process::Command::new(std::env::current_exe().unwrap())
                 .args(["--exact", "render::enh::assets::texture_pack::tests::fingerprint_follows_the_files_slots_use"])
+                .env("NFSU2_DATA_DIR", &data.0)
+                .env("NFSU2_CACHE_DIR", &cache.0)
                 .env(CHILD, &p.0)
                 .env("NFSU2_WORLD_TEXTURE_PACK", &p.0)
                 .env_remove("NFSU2_CAR_TEXTURE_PACK")
@@ -347,12 +350,14 @@ mod tests {
             let world = Pack::new();
             let car = Pack::new();
             let broken = Pack::new();
+            let (data, cache) = (Pack::new(), Pack::new());
             world.png("ABCDEF12.png", 8, 2, [20, 40, 60, 128]);
             car.png("ABCDEF12.png", 4, 8, [80, 100, 120, 64]);
             std::fs::write(broken.0.join("ABCDEF12.png"), b"invalid PNG").unwrap();
             for mode in ["both", "world", "car", "none", "empty", "missing", "invalid"] {
                 let mut child = std::process::Command::new(std::env::current_exe().unwrap());
                 child.args(["--exact", "render::enh::assets::texture_pack::tests::scoped_packs_isolate_hashes_and_restore_native_without_ui_or_maps"])
+                    .env("NFSU2_DATA_DIR", &data.0).env("NFSU2_CACHE_DIR", &cache.0)
                     .env(CHILD, mode).env_remove("NFSU2_TEXTURE_PACK")
                     .env_remove("NFSU2_WORLD_TEXTURE_PACK").env_remove("NFSU2_CAR_TEXTURE_PACK");
                 if mode == "both" || mode == "world" {
@@ -436,9 +441,11 @@ mod tests {
         if crate::render::debug_env::test_child(CHILD).is_none() {
             let p = Pack::new();
             p.png("ABCDEF12.png", 8, 2, [20, 40, 60, 128]);
+            let (data, cache) = (Pack::new(), Pack::new());
             for empty_scoped in [false, true] {
                 let mut child = std::process::Command::new(std::env::current_exe().unwrap());
                 child.args(["--exact", "render::enh::assets::texture_pack::tests::runtime_arrays_use_pack_without_changing_native_arrays_or_metadata"])
+                    .env("NFSU2_DATA_DIR", &data.0).env("NFSU2_CACHE_DIR", &cache.0)
                     .env(CHILD, "1").env("NFSU2_TEXTURE_PACK", &p.0)
                     .env_remove("NFSU2_WORLD_TEXTURE_PACK").env_remove("NFSU2_CAR_TEXTURE_PACK");
                 if empty_scoped {

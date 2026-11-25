@@ -443,6 +443,14 @@ if [ -z "$EXE" ]; then
   # cargo would call the game crate fresh and hand back that tree's exe. Its fingerprints go, so the game
   # crate (only) is always rebuilt (~1-2 min; the dependencies stay cached).
   rm -rf "$B"/target-windows/x86_64-pc-windows-gnu/release/.fingerprint/nfsu2-*
+  # build.sh fetches the crates inside the container with no network (FETCH_NETWORK defaults to none), so a
+  # gate whose cache is empty fails with "Could not resolve host". The host fetches them here, into the
+  # cargo-home build.sh mounts (host networking works); skipped when the cache already has every crate of Cargo.lock.
+  mkdir -p "$B/cargo-home"
+  if ! CARGO_HOME="$B/cargo-home" cargo fetch --locked --offline --manifest-path "$REPO/Cargo.toml" > /dev/null 2>&1; then
+    CARGO_HOME="$B/cargo-home" nice -n 10 cargo fetch --locked --manifest-path "$REPO/Cargo.toml" > "$O/crate_fetch.log" 2>&1 \
+      || say "host cargo fetch failed ($O/crate_fetch.log); the build below shows why"
+  fi
   JOBS=${JOBS:-4} "$REPO/scripts/release/container/build.sh" --windows --dev-harness --fast --no-check "$REPO" "$B" \
     > "$O/build.log" 2>&1 &
   wait $!; rc=$?
