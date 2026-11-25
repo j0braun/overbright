@@ -50,7 +50,7 @@ impl Game {
             _ => self.sim.paused_race.as_ref(),
         };
         let mut drawn: Vec<(&DrawId, &CarState)> = Vec::new();
-        let hidden = player_car_hidden(&self.mode, d, self.scenes.shop.as_ref()) && self.photo.is_none();
+        let hidden = view_leaves_out_player(&self.mode, d, self.scenes.shop.as_ref(), self.photo.is_some());
         if !hidden {
             drawn.push((&d.car_id, &d.state));
         }

@@ -648,7 +648,7 @@ impl WorldScene<'_, '_> {
         let (gpu, color, depth) = (c.gpu, c.color, c.depth);
         let settings = c.game.settings;
         // The view's own car is left out (camera +0x280, 0x60D584).
-        let hidden = player_car_hidden(c.game.mode, c.d, c.game.shop_scene) && !inp.photo_open;
+        let hidden = view_leaves_out_player(c.game.mode, c.d, c.game.shop_scene, inp.photo_open);
         let d: &mut Drive = c.d;
         let cam: &Camera = c.camera;
         let ps = c.game.poses.player();
@@ -898,8 +898,16 @@ impl WorldScene<'_, '_> {
         if let (true, Some(r)) = (inp.settings.display.shadows, render.world.as_mut()) {
             // The neon's clock (0x865188 × 0.00025): the clone's run time.
             let pull = nfsu2::shadow::shadow_pull(Some(native_mover_type(game.mode, Some(d))));
-            let mut shadows: Vec<(u32, nfsu2::shadow::Shadow)> =
-                car_shadow_in_game(gpu, r, &d.world, &d.car, ps, seconds, cam.position, pull, &inp.settings.opts);
+            // The view's own car gets no shadow or neon either: 0x6316E0's
+            // per-car block skips it (`cmp [view+0x280], car; je`,
+            // 0x631796 / 0x63179C) before both draws, 0x620AF0 / 0x6162F0
+            // — the car list's test (0x60D584) that hides the body.
+            let hidden = view_leaves_out_player(game.mode, d, game.shop_scene, inp.photo_open);
+            let mut shadows: Vec<(u32, nfsu2::shadow::Shadow)> = if hidden {
+                Vec::new()
+            } else {
+                car_shadow_in_game(gpu, r, &d.world, &d.car, ps, seconds, cam.position, pull, &inp.settings.opts)
+            };
             let cars = DrawnCars::of(game, CarSet { paused_race: inp.paused_fallback, traffic: TrafficSet::Live });
             if let Some((car, state)) = cars.companion {
                 shadows.extend(car_shadow_in_game(gpu, r, &d.world, car, state, seconds, cam.position, pull, &inp.settings.opts));

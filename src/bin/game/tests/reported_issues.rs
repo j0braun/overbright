@@ -1750,3 +1750,38 @@ fn bad_stored_paint_or_options_never_stop_the_start() {
         }
     }
 }
+
+/// #240: in the bumper view the player's car is left out with its shadow
+/// and neon (0x6316E0 skips the view's car at 0x63179C before both draws,
+/// the car list's test 0x60D584); the hood view keeps all three. The
+/// draw's one test (`view_leaves_out_player`) decides the body, the
+/// shadow / neon list and the effects; checked after the race's start
+/// scene, whose camera always shows the car.
+#[test]
+#[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
+fn bumper_view_leaves_out_the_players_shadow_and_neon_hood_view_keeps_them() {
+    testkit::game();
+    for (camera, left_out) in [(0u8, true), (1, false)] {
+        let mut game = super::rivals_ahead::career_at(0, 0);
+        game.settings.players[0].camera = camera;
+        let e = game.game_data.career.events.iter().position(|e| e.unlock == dday::STAGE0_RACES[0]).unwrap();
+        game.start_race(e, false, false).unwrap();
+        let mut seen = false;
+        for _ in 0..60 * 30 {
+            game.step_for(1.0 / 60.0).unwrap();
+            if game.scenes.shop.as_ref().is_some_and(|r| r.camera_holds_view()) {
+                continue;
+            }
+            let d = game.sim.drive.as_ref().unwrap();
+            assert_eq!(
+                view_leaves_out_player(&game.mode, d, game.scenes.shop.as_ref(), false),
+                left_out,
+                "camera {camera}: the player's car, shadow and neon"
+            );
+            assert!(!view_leaves_out_player(&game.mode, d, game.scenes.shop.as_ref(), true), "photo mode shows the car");
+            seen = true;
+            break;
+        }
+        assert!(seen, "camera {camera}: the start scene ended");
+    }
+}
