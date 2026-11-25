@@ -1761,7 +1761,7 @@ dependencies = [
 
 [[package]]
 name = "nfsu2"
-version = "0.5.3"
+version = "0.6.0"
 dependencies = [
  "ab_glyph",
  "anyhow",
@@ -1874,7 +1874,7 @@ dependencies = [
 
 [[package]]
 name = "ob-asset-format"
-version = "0.5.3"
+version = "0.6.0"
 dependencies = [
  "memmap2",
  "miniz_oxide 0.8.9",
@@ -1889,7 +1889,7 @@ dependencies = [
 
 [[package]]
 name = "ob-core"
-version = "0.5.3"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "bytemuck",
@@ -1905,7 +1905,7 @@ dependencies = [
 
 [[package]]
 name = "ob-formats"
-version = "0.5.3"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "block_compression",
@@ -1922,11 +1922,11 @@ dependencies = [
 
 [[package]]
 name = "ob-look"
-version = "0.5.3"
+version = "0.6.0"
 
 [[package]]
 name = "ob-map"
-version = "0.5.3"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "glam",
@@ -1942,7 +1942,7 @@ dependencies = [
 
 [[package]]
 name = "ob-studio"
-version = "0.5.3"
+version = "0.6.0"
 dependencies = [
  "glam",
  "image",
@@ -1961,7 +1961,7 @@ dependencies = [
 
 [[package]]
 name = "ob-studio-gui"
-version = "0.5.3"
+version = "0.6.0"
 dependencies = [
  "ab_glyph",
  "anyhow",
@@ -1990,7 +1990,7 @@ dependencies = [
 
 [[package]]
 name = "ob-testkit"
-version = "0.5.3"
+version = "0.6.0"
 
 [[package]]
 name = "objc-sys"
