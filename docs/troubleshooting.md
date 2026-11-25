@@ -45,6 +45,15 @@ folder cannot be written, next to the program, then to the temporary folder. The
 Home folders are written as `~` and user names in paths as `<user>`. The file holds no saves and no game
 files.
 
+## When the game closes unexpectedly
+
+The launcher's window then says how it ended in plain words (a signal or a Windows exception code named), shows
+the system's own record of it where it can be read without admin rights (Linux: the coredump list and journal
+lines of that process; Windows: the Application event log's crash entries of the last minutes), and names the
+log files written during that run. **Copy for a bug report** puts one redacted text (no home folders, user
+names, hardware serials or device ids) on the clipboard; without a clipboard tool it saves the text as a file
+and shows its folder. **Open log folder** opens the logs. Nothing is sent anywhere.
+
 ## Where the logs are
 
 | File | Windows | Linux |

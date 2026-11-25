@@ -198,6 +198,8 @@ pub struct App<'e> {
     pub keys_after: Option<std::time::Instant>,
     /// The support file being written on a worker.
     pub support_job: Option<std::sync::mpsc::Receiver<Result<PathBuf, String>>>,
+    /// The system's errors for the crashed game being asked on a worker.
+    pub crash_job: Option<std::sync::mpsc::Receiver<Vec<String>>>,
     /// The map editor started from the Mods page, while it is open.
     pub editor_job: Option<Box<dyn super::model::EditorJob>>,
     /// Studio, when the launcher started it (its end polled by the window).
@@ -1836,13 +1838,18 @@ fn build_crash(b: &mut Builder, m: &Model) {
     };
     b.dim(&where_);
     b.gap(8.0);
-    b.buttons(
-        Align::Left,
-        vec![
-            Ctrl::button("open_logs", "Open log folder"),
-            Ctrl::button("details", if m.failure_details { "Hide details" } else { "Details" }),
-        ],
-    );
+    let report = f.and_then(|f| f.report.as_ref());
+    let mut row = vec![
+        Ctrl::button("open_logs", "Open log folder"),
+        Ctrl::button("details", if m.failure_details { "Hide details" } else { "Details" }),
+    ];
+    if report.is_some() {
+        row.insert(0, Ctrl::button("copy_report", "Copy for a bug report"));
+    }
+    b.buttons(Align::Left, row);
+    if let Some(r) = report {
+        crash_report_block(b, r);
+    }
     if m.failure_details {
         b.gap(10.0);
         b.dim(&format!("It ended with {}.", f.map_or("an unknown result", |f| f.how.as_str())));
@@ -1857,6 +1864,34 @@ fn build_crash(b: &mut Builder, m: &Model) {
     }
     support_line(b, m);
     message(b, m);
+}
+
+/// The crash report window's part of the failure screen: how the game
+/// ended in words, the system's errors for it, the logs of the run.
+fn crash_report_block(b: &mut Builder, r: &super::model::CrashReport) {
+    b.gap(10.0);
+    b.dim(&format!("What happened: the game ran {:.0} s, then {}.", r.secs, r.reason));
+    b.gap(6.0);
+    if r.asking {
+        b.dim("Asking the system for its record of the crash…");
+    } else if r.errors.is_empty() {
+        b.dim("The system has no record of it that can be read without admin rights.");
+    } else {
+        b.dim("The system's record of it:");
+        b.gap(4.0);
+        b.panel(&r.errors.iter().take(TAIL_SHOWN).cloned().collect::<Vec<_>>());
+    }
+    b.gap(6.0);
+    if r.logs.is_empty() {
+        b.dim("No log file was written during this run.");
+    } else {
+        let name = |p: &Path| p.file_name().map_or_else(String::new, |n| n.to_string_lossy().to_string());
+        let mut names: Vec<String> = r.logs.iter().rev().take(3).map(|p| name(p)).collect();
+        if r.logs.len() > 3 {
+            names.push(format!("and {} more", r.logs.len() - 3));
+        }
+        b.dim(&format!("Logs of this run: {}.", names.join(", ")));
+    }
 }
 
 /// The support file written: where, and Open folder.
@@ -2244,6 +2279,7 @@ impl<'e> App<'e> {
             back: Screen::Main,
             motion: Default::default(),
             support_job: None,
+            crash_job: None,
             editor_job: None,
             studio_job: None,
             studio_looked: None,
@@ -3725,6 +3761,57 @@ impl<'e> App<'e> {
         self.support_done(r);
     }
 
+    /// The crashed game's system errors, asked on a worker (the tools can
+    /// take seconds); shown when they come.
+    pub fn ask_system_errors(&mut self, pid: u32) {
+        if self.env.background_support() {
+            let (tx, rx) = std::sync::mpsc::channel();
+            let spawned = std::thread::Builder::new().name("crash-errors".into()).spawn(move || {
+                let _ = tx.send(crate::launcher::crash_report::system_errors(pid, "game"));
+            });
+            if spawned.is_ok() {
+                self.crash_job = Some(rx);
+                return;
+            }
+        }
+        let errors = self.env.crash_errors(pid, "game");
+        self.crash_errors_done(errors);
+    }
+
+    fn crash_errors_done(&mut self, errors: Vec<String>) {
+        if let Some(r) = self.model.failure.as_mut().and_then(|f| f.report.as_mut()) {
+            r.errors = errors;
+            r.asking = false;
+        }
+    }
+
+    /// "Copy for a bug report": the redacted text onto the clipboard; with
+    /// no clipboard tool, saved as a file whose folder opens.
+    fn copy_report(&mut self) {
+        let Some(f) = self.model.failure.as_ref() else { return };
+        let Some(r) = f.report.as_ref() else { return };
+        let facts = crate::launcher::crash_report::Facts {
+            program: "the game".into(),
+            reason: r.reason.clone(),
+            secs: r.secs,
+            during_start: f.during_start,
+            tail: f.tail.clone(),
+            errors: r.errors.clone(),
+            logs: r.logs.clone(),
+        };
+        let text = crate::launcher::crash_report::report(&facts);
+        self.model.message = Some(match self.env.copy_text(&text) {
+            Ok(()) => (Mark::Ok, "Copied. Paste it into your bug report; nothing was sent.".into()),
+            Err(e) => match crate::launcher::crash_report::save_text(&self.model.logs_dir, &text) {
+                Ok(p) => {
+                    self.model.support = Some(p.clone());
+                    (Mark::Info, format!("The clipboard isn't available ({e}). The report is saved: {}", p.display()))
+                }
+                Err(e2) => (Mark::Error, format!("The report could not be copied ({e}) or saved ({e2}).")),
+            },
+        });
+    }
+
     fn support_done(&mut self, r: Result<PathBuf, String>) {
         self.model.support_busy = false;
         match r {
@@ -3814,6 +3901,23 @@ impl<'e> App<'e> {
                 Err(std::sync::mpsc::TryRecvError::Disconnected) => {
                     self.copy_job = None;
                     self.model.copy_busy = false;
+                    self.rebuild(fonts);
+                    return true;
+                }
+                Err(std::sync::mpsc::TryRecvError::Empty) => {}
+            }
+        }
+        if let Some(rx) = &self.crash_job {
+            match rx.try_recv() {
+                Ok(v) => {
+                    self.crash_job = None;
+                    self.crash_errors_done(v);
+                    self.rebuild(fonts);
+                    return true;
+                }
+                Err(std::sync::mpsc::TryRecvError::Disconnected) => {
+                    self.crash_job = None;
+                    self.crash_errors_done(Vec::new());
                     self.rebuild(fonts);
                     return true;
                 }
@@ -4100,6 +4204,7 @@ impl<'e> App<'e> {
                     return Outcome::Play;
                 }
             }
+            (Screen::Failure, Event::Activate("copy_report")) => self.copy_report(),
             (Screen::Failure, Event::Activate("open_logs")) => {
                 let dir = self
                     .model
