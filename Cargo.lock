@@ -1964,6 +1964,7 @@ version = "0.5.3"
 dependencies = [
  "ab_glyph",
  "anyhow",
+ "bytemuck",
  "egui",
  "egui-wgpu",
  "egui-winit",
@@ -1983,6 +1984,7 @@ dependencies = [
  "toml",
  "wgpu",
  "winit",
+ "xxhash-rust",
 ]
 
 [[package]]

@@ -318,12 +318,11 @@ impl Browser {
             }
             hovered = over || focus;
         });
-        let how = if super::menu::hosted(ui.ctx()) {
-            "Drag into the viewport."
-        } else {
-            "Drag into the viewport, or choose it and press Ctrl+D."
-        };
-        tile.response.on_hover_text(format!("{}\n{}. {how}", e.name, categories(e)));
+        tile.response.on_hover_text(format!(
+            "{}\n{}. Drag into the viewport, or choose it and press Ctrl+D.",
+            e.name,
+            categories(e)
+        ));
         if hovered {
             self.hovered = Some(e.solid);
         }
@@ -435,9 +434,6 @@ impl Panel for Browser {
             .or_else(|| self.chosen.as_deref().and_then(|n| all.iter().find(|e| e.name == n)));
         let mut line = match about {
             Some(e) => details(e),
-            None if super::menu::hosted(ui.ctx()) => {
-                format!("{} solids shown · point at a tile for its full name · drag one into the view", shown.len())
-            }
             None => format!(
                 "{} solids shown · point at a tile for its full name · drag one into the view, or choose it and press \
                  Ctrl+D at the pointer",

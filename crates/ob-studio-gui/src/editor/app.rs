@@ -441,6 +441,9 @@ pub struct Panels {
     pub props: parts::Shared<super::props::Props>,
     /// The race tools and road snapping (the toolbar's race slot).
     pub races: parts::Shared<super::races::Races>,
+    /// The prop browser (its pictures are drawn after the egui pass,
+    /// [`App::render_view`]).
+    pub browser: parts::Shared<super::browser::Browser>,
     /// Called every frame after the layout (no visible place): handlers of
     /// menu commands such as Test race.
     pub hooks: Vec<Box<dyn Panel>>,
@@ -502,12 +505,13 @@ impl Panels {
                 Box::new(parts::Follow(races.clone())),
                 // Under the props' and races' marks.
                 Box::new(super::collision::CollisionOverlay::default()),
-                Box::new(parts::PropsOverlay { props: props.clone(), browser }),
+                Box::new(parts::PropsOverlay { props: props.clone(), browser: browser.clone() }),
                 Box::new(parts::RacesOverlay { races: races.clone(), dragging: false }),
                 Box::new(super::sim::SimOverlay(sim)),
             ],
             props,
             races,
+            browser,
         }
     }
 }
@@ -616,6 +620,13 @@ mod parts {
             if menu::take(ctx, Command::DropToGround) {
                 props::drop_selection(s);
             }
+            if menu::take(ctx, Command::Rotate90) {
+                props::rotate_selection(s, 90.0);
+            }
+            if menu::take(ctx, Command::FaceCamera) {
+                props::face_camera_selection(s);
+            }
+            p.context_menu(s, ctx, rect);
             if menu::take(ctx, Command::SelectAllOfSolid)
                 && let Some(solid) = s.selection.first().and_then(|&i| s.session.world.placements.get(i)).map(|pl| pl.solid)
             {
@@ -670,12 +681,14 @@ mod parts {
         }
     }
 
-    /// The races over the viewport in both views (the current race bright
+    /// The races over the viewport in every view (the current race bright
     /// with its grid, lines and checkpoints, the others' routes dim), and
-    /// in the 3D view the left button for them:
+    /// in each of them (3D, Top, Map) the left button for them:
     /// - a race tool armed: a click picks a point of the selected race or
     ///   uses the tool on the ground under the mouse; a drag moves the
-    ///   picked point (one undo step on release);
+    ///   picked point (one undo step on release). In Top and Map the
+    ///   ground is the x/y under the mouse at the road's height there
+    ///   ([`race_ground`]), never a ray from the camera far above;
     /// - otherwise (Select, Move, Rotate): a click on a race point (of any
     ///   race) selects it and may drag it; a click anywhere else is the
     ///   props' (the viewport picks), so it never adds.
@@ -685,6 +698,25 @@ mod parts {
     pub struct RacesOverlay {
         pub races: Shared<Races>,
         pub dragging: bool,
+    }
+
+    /// The ground under screen point `at` for the race tools: in Map and
+    /// Top the world x/y under it at the road's height there (the highest
+    /// floor, as a snapped point gets it); in 3D where the mouse ray meets
+    /// the ground.
+    pub fn race_ground(s: &EditorState, ctx: &egui::Context, rect: egui::Rect, at: egui::Pos2) -> Option<glam::Vec3> {
+        let xy = match s.view {
+            View::Map => {
+                let (centre, scale, map) = crate::editor::sim::panel::map_transform(ctx)?;
+                let c = map.center();
+                centre + glam::Vec2::new(at.x - c.x, c.y - at.y) / scale
+            }
+            View::ThreeD => match crate::editor::viewport::top_view(ctx) {
+                Some((top, shown)) => top.to_world(shown, at),
+                None => return props::ground_under(s, rect, at),
+            },
+        };
+        Some(xy.extend(crate::editor::validate::ground(s, xy)))
     }
 
     impl Overlay for RacesOverlay {
@@ -698,7 +730,7 @@ mod parts {
             let mut r = self.races.borrow_mut();
             r.update(s);
             match s.view {
-                View::ThreeD => r.paint_overlay(s, painter, rect),
+                View::ThreeD => r.paint_overlay(s, painter, rect, crate::editor::viewport::top_view(ctx).is_some()),
                 View::Map => {
                     if let Some((centre, scale, map)) = crate::editor::sim::panel::map_transform(ctx) {
                         let c = map.center();
@@ -709,11 +741,6 @@ mod parts {
                     }
                 }
             }
-            let edits = s.view == View::ThreeD;
-            if self.dragging && !edits {
-                r.release(s);
-                self.dragging = false;
-            }
             if s.mode == Mode::Races {
                 if !flying(ctx) {
                     r.keys(s, ctx);
@@ -721,9 +748,6 @@ mod parts {
                 if menu::take(ctx, Command::Delete) {
                     r.delete_selected(s);
                 }
-            }
-            if !edits {
-                return false;
             }
             let (pointer, pressed, down, mods) = ctx.input(|i| {
                 (i.pointer.hover_pos(), i.pointer.primary_pressed(), i.pointer.primary_down(), i.modifiers)
@@ -733,7 +757,7 @@ mod parts {
             });
             if self.dragging {
                 if down {
-                    if let Some(at) = pointer.and_then(|p| props::ground_under(s, rect, p)) {
+                    if let Some(at) = pointer.and_then(|p| race_ground(s, ctx, rect, p)) {
                         r.drag(s, at, mods.alt);
                     }
                     return true;
@@ -745,7 +769,7 @@ mod parts {
             if !pressed || flying(ctx) || super::pointer_taken(ctx) {
                 return false;
             }
-            let Some(at) = over.and_then(|p| props::ground_under(s, rect, p)) else { return false };
+            let Some(at) = over.and_then(|p| race_ground(s, ctx, rect, p)) else { return false };
             let armed = s.mode == Mode::Races && r.tool != crate::editor::races::Tool::Select;
             if armed {
                 r.click(s, at, mods.shift, mods.alt);
@@ -1707,6 +1731,9 @@ impl App {
         if let Some(s) = self.state.as_mut() {
             let mut gfx = Gfx { gpu, egui: egui_r, encoder };
             self.panels.viewport.render(s, &mut gfx);
+            // The prop browser's pictures still to draw (a few a frame; the
+            // browser asks for the next frame while any are left).
+            self.panels.browser.borrow_mut().thumbs.build(gpu, &s.session.region, &s.session.world);
         }
     }
 
@@ -2188,7 +2215,16 @@ pub fn shot(app: &mut App, gpu: &Gpu, size: (u32, u32), scale: f32, out: &Path) 
     }
     // A tooltip or a dialog needs a few more frames to fade in.
     let frames = if app.shot_hover.is_some() || app.dialog.is_some() { 12 } else { 4 };
-    for frame in 0..frames {
+    // And until the prop browser's pictures are all drawn (a few a frame),
+    // plus one frame to show them.
+    let mut frame = 0;
+    let mut settle = 0;
+    loop {
+        let pending = app.panels.browser.borrow().thumbs.pending();
+        settle = if pending > 0 { 0 } else { settle + 1 };
+        if frame >= frames && settle >= 2 || frame >= frames + SHOT_PICTURE_FRAMES {
+            break;
+        }
         // The pointer on the item named, once the toolbar has laid out.
         let at = app.shot_hover.and_then(|name| {
             menu::toolbar_fit(&app.ctx)?.items.iter().find(|i| i.0 == name).map(|i| i.1.center())
@@ -2205,6 +2241,7 @@ pub fn shot(app: &mut App, gpu: &Gpu, size: (u32, u32), scale: f32, out: &Path) 
         let full = app.frame(raw);
         let bufs = app.paint(gpu, &mut egui_r, &view, size, full);
         gpu.queue.submit(bufs);
+        frame += 1;
     }
     let bytes_per_row = (size.0 * 4).div_ceil(256) * 256;
     let readback = gpu.device.create_buffer(&wgpu::BufferDescriptor {
@@ -2240,6 +2277,9 @@ pub fn shot(app: &mut App, gpu: &Gpu, size: (u32, u32), scale: f32, out: &Path) 
     }
     Ok(())
 }
+
+/// The most frames a `--shot` adds for the prop browser's pictures.
+const SHOT_PICTURE_FRAMES: usize = 400;
 
 /// The animation time of a `--shot` (seconds).
 pub const SHOT_CLOCK: f32 = 10.0;
@@ -2322,6 +2362,10 @@ pub fn apply_cli_view(app: &mut App, cli: &Cli) {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "races_views_tests.rs"]
+mod races_views_tests;
 
 #[cfg(test)]
 mod tests {

@@ -180,7 +180,7 @@ fn the_panels_draw_headless() {
             races.ui(&mut s, ui);
             races.validation(&mut s, ui);
             let rect = ui.max_rect();
-            races.paint_overlay(&mut s, ui.painter(), rect);
+            races.paint_overlay(&mut s, ui.painter(), rect, false);
             races.paint_map(&mut s, ui.painter(), &|p| egui::pos2(p.x, p.y));
         });
     }
@@ -224,7 +224,7 @@ fn a_race_is_made_validated_and_selected() {
         let ctx = egui::Context::default();
         let out = crate::editor::run_headless(&ctx, egui::RawInput::default(), |ui| {
             let rect = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(1600.0, 960.0));
-            races.paint_overlay(s, ui.painter(), rect);
+            races.paint_overlay(s, ui.painter(), rect, false);
         });
         out.shapes.len()
     };

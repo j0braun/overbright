@@ -85,7 +85,7 @@ Reset camera in the map view). Every item does something; a test checks that eac
 | Menu | Items |
 |---|---|
 | File | **File ▸ New map mod…** (Ctrl+N: a name, its folder and the region), **File ▸ Open map mod…** (Ctrl+O), the five most recent mods, **File ▸ Save** (Ctrl+S), **File ▸ Mod details…** (name, author, description), **File ▸ Import…** (a mod folder, a `map.obmap` or a `.zip`), **File ▸ Export…** (a `.zip` or a folder: the map and the mod's textures, `looks.toml` and `textures/`, never `work/` or `.editor/`; textures from the original game's pixels are warned about first; it proposes `<folder>.zip` in the `exports` folder of Overbright's data folder, made on the first export, and the status line says where the file went), **File ▸ Quit** (Ctrl+Q; saves first, and asks only when that fails) |
-| Edit | **Edit ▸ Undo** and **Edit ▸ Redo**, named by the step they undo or redo (256 steps), **Edit ▸ Duplicate**, **Edit ▸ Delete**, **Edit ▸ Select all of this solid**, **Edit ▸ Drop to ground** |
+| Edit | **Edit ▸ Undo** and **Edit ▸ Redo**, named by the step they undo or redo (256 steps), **Edit ▸ Duplicate**, **Edit ▸ Delete**, **Edit ▸ Select all of this solid**, **Edit ▸ Drop to ground**, **Edit ▸ Rotate 90°**, **Edit ▸ Face camera** |
 | View | **View ▸ 3D view**, **View ▸ Map** (M switches), **View ▸ Frame selection** (F), **View ▸ Reset camera** (the region's overview), **View ▸ Collision ▸ Off**, **View ▸ Collision ▸ Invisible barriers** and **View ▸ Collision ▸ All collision** (see Collision), **View ▸ Hint line** |
 | Race | **Race ▸ New race**, **Race ▸ Test race** (F5), **Race ▸ Drive here** (Shift+F5) |
 | Help | **Help ▸ Controls**: every key, made from the editor's key table |
@@ -100,7 +100,7 @@ do nothing while a text field has the keyboard.
 |---|---|
 | `Q` | Select tool: a click selects a prop or a race point, never adds |
 | `W` | Move tool: drag an arrow to move the selected props |
-| `E` | Rotate tool: drag the ring to turn the selected props |
+| `E` | Rotate tool: drag the ring to turn the selected props (Alt: turn freely) |
 | `C` | Checkpoint tool: a click on the road adds a checkpoint |
 | `S` | Start tool: a click on the road puts the start line |
 | `X` | Finish tool: a click on the road puts the finish line |
@@ -123,6 +123,7 @@ do nothing while a text field has the keyboard.
 | `Ctrl+D` | Duplicate |
 | `Del` | Delete |
 | `End` | Drop to the ground |
+| `RMB on a prop / Shift+F10` | The prop menu: Rotate 90°, Rotate…, Face camera |
 | `Ctrl+Z, Ctrl+Y (Ctrl+Shift+Z)` | Undo, redo |
 | `Ctrl+N, Ctrl+O` | New map mod, open a map mod |
 | `Ctrl+S` | Save |
@@ -137,14 +138,34 @@ While the right mouse button is held the tool keys fly the camera instead (W A S
 
 - **Select** a prop with a click in the view or in the tree; Ctrl+click adds to the selection. **Edit ▸ Select
   all of this solid** selects every placement of the same model.
-- **Move** shows an arrow per axis, **Rotate** a ring around the vertical. The handles keep their size on screen,
-  in the 3D view and in Top. Moves snap to 0.25 m and turns to 15° while **Snap** is on (right-click it for other
-  steps; Alt held: no snapping). Shift while dragging an arrow moves a copy. A drag moves the world as you drag
-  and is one undo step when released.
-- **Prop browser** (bottom tab): the region's placeable models with a search, the filters **Knock-over**,
-  **Barriers**, **Signs**, **Street furniture**, **Trees** and **All in region**, and how many of each are
-  placed. Drag a tile into the view (it lands on the ground under the pointer, facing the camera's heading), or
-  choose one and press Ctrl+D with nothing selected to place it at the pointer.
+- **Move** shows an arrow per axis, **Rotate** (E) a ring around the vertical. The handles keep their size on
+  screen, in the 3D view and in Top. Moves snap to 0.25 m and turns to 15° while **Snap** is on (right-click it
+  for other steps; Alt held: no snapping, the ring turns freely). Shift while dragging an arrow moves a copy. A
+  drag moves the world as you drag and is one undo step when released. With a prop selected the hint line names
+  the Rotate key and the prop menu.
+- **The prop menu**: right-click a prop in the view (a click, not a flight: the camera must not move between
+  press and release), or press Shift+F10 with props selected. It selects the prop when it is not selected yet and
+  offers **Rotate 90°** (a quarter turn to the left, seen from above), **Rotate…** (turn by a typed angle, or by
+  −90°, 180°, −15°, +15°), **Face camera**, **Drop to ground**, **Duplicate** and **Delete**, each one undo step.
+  Several props turn about their centre. **Edit ▸ Rotate 90°** and **Edit ▸ Face camera** do the same.
+- **A prop's front** is its local −y side: the side the game's signs show their face on (their readable side
+  looks along their local −y axis). A small arrow marked "front" at the foot of each selected prop shows it;
+  **Face camera** turns the front towards the camera, and a prop dropped from the browser lands with its front
+  towards the camera. The **Heading** in Properties is where the local x axis points, so the front looks 90°
+  clockwise of it (a heading of 90° faces the front along +x).
+- **Prop browser** (bottom tab): the region's placeable models as tiles with a picture of each, a search, the
+  filters **Knock-over**, **Barriers**, **Signs**, **Street furniture**, **Trees** and **All in region**, and how
+  many of each are placed. A search looks in every filter: it switches to **All in region** (clearing it brings
+  the filter back) and each filter's button counts its matches. A long name is cut on its tile; the tooltip and
+  the line under the tiles name it in full with its filters, kind and count. The tiles are buttons: Tab reaches
+  them and Enter chooses one. Drag a tile into the view (it lands on the ground under the pointer, its front
+  towards the camera), or choose one and press Ctrl+D with nothing selected to place it at the pointer.
+- **The browser's pictures** are drawn by the game's own renderer from your game files, the first time a region's
+  browser shows (a dozen a frame; the tile shows a symbol until its picture is ready and the line under the tiles
+  says how many are still being drawn), each seen from its front, a little to the side and above. They are kept
+  in the asset cache (`prop-thumbs/` in the cache folder, about 10 KB each, named by a hash of the model and its
+  textures) and read from there after that; nothing of the game's art ships with the editor. Deleting the folder
+  only makes them be drawn again.
 - **Properties**: the model's name and where it comes from (an original placement, added by this mod, or added
   by another mod, which this mod cannot change), the position (typed values are one step on Enter), the heading
   and tilt with **Upright** (stand it straight, heading kept) and the ground under it, **Reset to original**,
@@ -155,9 +176,12 @@ While the right mouse button is held the tool keys fly the camera instead (W A S
 
 - **Race ▸ New race** (or **New race…** in the tree) makes a sprint on the selected race's base track, else on the race
   track whose roads come nearest to where the camera looks, and arms Start: click the road for the start line, then for the checkpoints (the Checkpoint tool is armed for you),
-  finish last for a sprint. Points snap to the base track's roads while Snap is on (Alt: no snapping). The
-  selected race's base-track roads are drawn faint green over the 3D view (near the camera) and the map: a race
-  may only use those roads.
+  finish last for a sprint. The race tools work the same in the 3D view, in **Top** and on the **Map**: a click
+  places the point, a drag moves it, each one undo step. Points snap to the base track's nearest road while Snap
+  is on (Alt: no snapping); in Top and on the Map a point takes its height from the road under it, never from
+  the camera. The selected race's base-track roads are drawn faint green over the 3D view (near the camera), in
+  Top and on the map: a race may only use those roads. On the Map, a drag that does not start on a race point
+  pans as before.
 - With **Select**, a click on a race point selects it, a drag moves it, Del removes it, `[` / `]` step through the
   checkpoints. With Checkpoint armed, Shift+click on the route inserts a checkpoint into that leg. Grid adds a
   slot (8 at most; with a slot selected, a click moves it).
@@ -561,8 +585,8 @@ picture. scripts/checks/editor_shots.sh runs it at every size of the resolution 
   `tools::map::load_world` (`World::load`, then the mods for the region).
 - `crates/ob-studio-gui/`: the desktop editor, a crate of its own on the game library, so the game's dependency tree
   has no egui. `src/editor/` there is its library: `app.rs` (the window's panels, dialogs, `--shot`), `menu.rs`
-  (menus, toolbar, the key table `KEYS`, `Command::ALL`), `tree*.rs`, `props.rs`, `browser.rs`, `races.rs`,
-  `validate.rs`, `viewport.rs` and `worklight.rs`, `mapview.rs`, `sim/`, and `testplay.rs` (the test hand-off:
+  (menus, toolbar, the key table `KEYS`, `Command::ALL`), `tree*.rs`, `props.rs`, `browser.rs`, `thumbs.rs` (the
+  browser's pictures), `races.rs`, `validate.rs`, `viewport.rs` and `worklight.rs`, `mapview.rs`, `sim/`, and `testplay.rs` (the test hand-off:
   it writes the run copy, starts the game — `game` beside the editor, `OB_GAME_EXE` names another — polls it,
   reads the result line and keeps the tested marks). `src/bin/overbright-editor.rs` is the window. Its tests run
   with the workspace's (`cargo test -p ob-studio-gui` alone); `docs_tests.rs` checks this page against the key
