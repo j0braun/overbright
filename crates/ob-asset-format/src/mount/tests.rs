@@ -62,6 +62,8 @@ fn reads_go_through_the_mounted_layer() {
     assert!(layer >= 3 && bytes >= 36);
     // Unmounted: the folder again.
     assert_eq!(ob_core::game_fs::read(&game, "TRACKS/L4RA.BUN").unwrap(), b"changed after the import");
+    // The changed file is named (the mount's warning), found in any case.
+    assert_eq!(BaseSet::open(&dir, None).unwrap().changed_in(&game), ["TRACKS/L4RA.BUN"]);
 }
 
 #[test]
