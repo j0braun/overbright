@@ -230,6 +230,11 @@ pub(super) const STEER_SPEED: [f32; 10] = [1.0, 0.92, 0.78, 0.64, 0.54, 0.48, 0.
 pub(super) static STEER_RESPONSE: crate::exe_tables::Table<[f32; 21]> = crate::exe_tables::Table::new(|t| &t.steer_response);
 /// The same in drift and URL races (0x7E9E9C → 0x7E9330).
 pub(super) static STEER_RESPONSE_DRIFT: crate::exe_tables::Table<[f32; 21]> = crate::exe_tables::Table::new(|t| &t.steer_response_drift);
+/// A wheel's response over input −1..1 (0x4061C0: 0x7E9E88 → 0x7E92D8).
+pub(super) static STEER_RESPONSE_WHEEL: crate::exe_tables::Table<[f32; 21]> = crate::exe_tables::Table::new(|t| &t.steer_response_wheel);
+/// A wheel's maximum angle over speed 0..160 m/s, degrees (0x4061C0:
+/// 0x7E9EEC → 0x7E91A4), in place of [`MAX_ANGLE`].
+pub(super) const WHEEL_MAX_ANGLE: [f32; 10] = [45.0, 15.0, 11.0, 8.0, 7.0, 7.0, 7.0, 7.0, 7.0, 7.0];
 /// Extra lock over |input| 0..1 (0x7E9F00).
 pub(super) const LOCK_GAIN: [f32; 6] = [1.0, 1.0, 1.1, 1.2, 1.25, 1.35];
 /// The steering rate's factor over |Δinput| / dt 0..10 per second

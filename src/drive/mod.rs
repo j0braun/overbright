@@ -404,6 +404,32 @@ mod tests {
         assert!((7000.0 - fast) > 5.9 * (7000.0 - slow));
     }
 
+    /// 0x4061C0: a wheel's input is clamped to ±Wheel Range and stretched
+    /// over it, shaped by 0x7E9E88 (half a range is −0.288), and the angle
+    /// is set at once (no 0x4060E0 rate limit): at rest with the pedals up
+    /// the lock is 45° × (1 × 0.5 + 1) = 67.5°, capped at 45°.
+    #[test]
+    fn wheel_steering() {
+        let mut h = crate::handling::parse_handling(&vec![0u8; 0x1000]);
+        h.steering_ratio = 1.0;
+        let wheel = |steer: f32, range: f32| {
+            let mut s = CarState::new(Vec3::ZERO, 0.0);
+            s.steer(&h, Controls { steer, wheel: Some(range), ..Default::default() }, 1.0 / 60.0);
+            (s.steer_degrees, s.last_steer_input)
+        };
+        assert_eq!(wheel(0.5, 0.5), (-45.0, -1.0));
+        assert_eq!(wheel(0.9, 0.5), (-45.0, -1.0));
+        assert_eq!(wheel(-0.5, 0.5), (45.0, 1.0));
+        let half = quantise_steer(-0.288 * 67.5);
+        assert_eq!(wheel(0.25, 0.5).0, half);
+        assert_eq!(wheel(0.5, 1.0).0, half);
+        assert_eq!(wheel(0.0, 0.3), (0.0, 0.0));
+        // The pad path moves at most 180°/s × the speed factor a tick.
+        let mut s = CarState::new(Vec3::ZERO, 0.0);
+        s.steer(&h, Controls { steer: 1.0, ..Default::default() }, 1.0 / 60.0);
+        assert!(s.steer_degrees.abs() < 10.0, "{}", s.steer_degrees);
+    }
+
     #[test]
     fn steer_angle_word() {
         assert_eq!(quantise_steer(0.0), 0.0);

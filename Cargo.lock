@@ -1796,6 +1796,7 @@ dependencies = [
  "tiny-skia",
  "toml",
  "wgpu",
+ "windows",
  "winit",
  "x11-dl",
  "xxhash-rust",

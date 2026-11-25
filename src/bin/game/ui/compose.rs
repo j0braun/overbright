@@ -130,7 +130,7 @@ impl Game {
             Menu::Paint(p) => p.quads(&self.game_data.assets, profile, now),
             Menu::Results(r, _) => r.quads(&self.game_data.assets, now),
             Menu::Stats(s) => s.quads(&self.game_data.assets, self.settings.metric, now),
-            Menu::Options(o) => o.quads(&self.game_data.assets, &self.settings, profile.map(|p| p.cash), FORCE_FEEDBACK, now),
+            Menu::Options(o) => o.quads(&self.game_data.assets, &self.settings, profile.map(|p| p.cash), self.platform.pads.force_feedback(), now),
             Menu::Cover(v) => v.quads_hover(&self.game_data.assets, now, self.fe.fe_hover),
             Menu::Showcase(v) => v.quads_hover(&self.game_data.assets, now, self.fe.fe_hover),
             Menu::SmsMailbox(m) => {

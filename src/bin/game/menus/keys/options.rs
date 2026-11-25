@@ -3,7 +3,7 @@ use crate::*;
 impl Game {
     pub(super) fn options_key(&mut self, key: Key, now: f32) -> Result<()> {
         let Mode::Menu(Menu::Options(o)) = &mut self.mode else { unreachable!() };
-        match o.key(key, &mut self.settings, FORCE_FEEDBACK, self.profile.is_some(), now) {
+        match o.key(key, &mut self.settings, self.platform.pads.force_feedback(), self.profile.is_some(), now) {
             OptionsKey::None => {}
             OptionsKey::Changed => {
                 let _ = self.settings.save();
@@ -29,7 +29,7 @@ impl Game {
                 self.mode = Mode::Menu(Menu::Options(options::OptionsScreen::new_in(
                     options::Category::CustomDisplay,
                     &self.settings,
-                    FORCE_FEEDBACK,
+                    self.platform.pads.force_feedback(),
                     o.pause,
                     now,
                 )));
@@ -39,7 +39,7 @@ impl Game {
                 self.mode = Mode::Menu(Menu::Options(options::OptionsScreen::new_in(
                     options::Category::Enhancements,
                     &self.settings,
-                    FORCE_FEEDBACK,
+                    self.platform.pads.force_feedback(),
                     o.pause,
                     now,
                 )));
@@ -49,7 +49,7 @@ impl Game {
                 self.mode = Mode::Menu(Menu::Options(options::OptionsScreen::new_in(
                     options::Category::HdUi,
                     &self.settings,
-                    FORCE_FEEDBACK,
+                    self.platform.pads.force_feedback(),
                     o.pause,
                     now,
                 )));
@@ -58,7 +58,7 @@ impl Game {
                 self.mode = Mode::Menu(Menu::Options(options::OptionsScreen::new_in(
                     options::Category::Graphics,
                     &self.settings,
-                    FORCE_FEEDBACK,
+                    self.platform.pads.force_feedback(),
                     o.pause,
                     now,
                 )));
@@ -68,7 +68,7 @@ impl Game {
                 self.mode = Mode::Menu(Menu::Options(options::OptionsScreen::new_in(
                     options::Category::Advanced,
                     &self.settings,
-                    FORCE_FEEDBACK,
+                    self.platform.pads.force_feedback(),
                     o.pause,
                     now,
                 )));
@@ -79,7 +79,7 @@ impl Game {
                 self.mode = Mode::Menu(Menu::Options(options::OptionsScreen::new_in(
                     options::Category::Settings(g),
                     &self.settings,
-                    FORCE_FEEDBACK,
+                    self.platform.pads.force_feedback(),
                     o.pause,
                     now,
                 )));
@@ -88,7 +88,7 @@ impl Game {
                 self.mode = Mode::Menu(Menu::Options(options::OptionsScreen::new_in(
                     options::Category::GraphicsGroup(g),
                     &self.settings,
-                    FORCE_FEEDBACK,
+                    self.platform.pads.force_feedback(),
                     o.pause,
                     now,
                 )));
@@ -99,7 +99,7 @@ impl Game {
                 let _ = self.settings.save();
             }
             OptionsKey::Button(_) => {
-                let mut w = options::OptionsScreen::new(options::Category::Wheel, &self.settings, FORCE_FEEDBACK, now);
+                let mut w = options::OptionsScreen::new(options::Category::Wheel, &self.settings, self.platform.pads.force_feedback(), now);
                 w.player = o.player;
                 self.mode = Mode::Menu(Menu::Options(w));
             }
@@ -122,7 +122,7 @@ impl Game {
                 let mut d = options::OptionsScreen::new_in(
                     options::Category::Display,
                     &self.settings,
-                    FORCE_FEEDBACK,
+                    self.platform.pads.force_feedback(),
                     pause,
                     now,
                 );
@@ -137,11 +137,11 @@ impl Game {
                 let mut d = options::OptionsScreen::new_in(
                     options::Category::Display,
                     &self.settings,
-                    FORCE_FEEDBACK,
+                    self.platform.pads.force_feedback(),
                     pause,
                     now,
                 );
-                let rows = options::rows_in(options::Category::Display, &self.settings, 0, FORCE_FEEDBACK, pause);
+                let rows = options::rows_in(options::Category::Display, &self.settings, 0, self.platform.pads.force_feedback(), pause);
                 d.selected = rows.iter().position(|r| r.id == options::RowId::Enhancements).unwrap_or(0);
                 d.top = (d.selected + 1).saturating_sub(options::VISIBLE);
                 Mode::Menu(Menu::Options(d))
@@ -152,11 +152,11 @@ impl Game {
                 let mut d = options::OptionsScreen::new_in(
                     options::Category::Enhancements,
                     &self.settings,
-                    FORCE_FEEDBACK,
+                    self.platform.pads.force_feedback(),
                     pause,
                     now,
                 );
-                let rows = options::rows_in(options::Category::Enhancements, &self.settings, 0, FORCE_FEEDBACK, pause);
+                let rows = options::rows_in(options::Category::Enhancements, &self.settings, 0, self.platform.pads.force_feedback(), pause);
                 d.selected = rows
                     .iter()
                     .position(|r| {
@@ -183,8 +183,8 @@ impl Game {
                     options::Category::Settings(g) => (options::Category::Enhancements, options::RowId::UxGroup(g)),
                     _ => (options::Category::Enhancements, options::RowId::AdvancedPage),
                 };
-                let mut d = options::OptionsScreen::new_in(up, &self.settings, FORCE_FEEDBACK, pause, now);
-                let rows = options::rows_in(up, &self.settings, 0, FORCE_FEEDBACK, pause);
+                let mut d = options::OptionsScreen::new_in(up, &self.settings, self.platform.pads.force_feedback(), pause, now);
+                let rows = options::rows_in(up, &self.settings, 0, self.platform.pads.force_feedback(), pause);
                 d.selected = rows.iter().position(|r| r.id == on).unwrap_or(0);
                 d.top = (d.selected + 1).saturating_sub(options::PAGE_VISIBLE);
                 Mode::Menu(Menu::Options(d))
@@ -195,18 +195,18 @@ impl Game {
                 let mut d = options::OptionsScreen::new_in(
                     options::Category::Graphics,
                     &self.settings,
-                    FORCE_FEEDBACK,
+                    self.platform.pads.force_feedback(),
                     pause,
                     now,
                 );
-                let rows = options::rows_in(options::Category::Graphics, &self.settings, 0, FORCE_FEEDBACK, pause);
+                let rows = options::rows_in(options::Category::Graphics, &self.settings, 0, self.platform.pads.force_feedback(), pause);
                 d.selected = rows.iter().position(|r| r.id == options::RowId::GraphicsGroup(g)).unwrap_or(0);
                 d.top = (d.selected + 1).saturating_sub(options::VISIBLE);
                 Mode::Menu(Menu::Options(d))
             }
             // UI_Wheel_Options' Back (0x49CBB0): UI_Options.
             (options::Category::Wheel, _) => {
-                let mut d = options::OptionsScreen::new(options::Category::Player, &self.settings, FORCE_FEEDBACK, now);
+                let mut d = options::OptionsScreen::new(options::Category::Player, &self.settings, self.platform.pads.force_feedback(), now);
                 d.selected = 9;
                 d.top = 2;
                 Mode::Menu(Menu::Options(d))

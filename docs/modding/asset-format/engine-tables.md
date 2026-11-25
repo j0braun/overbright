@@ -141,7 +141,7 @@ overridable.
 
 | Table | Rust type | Class | Read by |
 |---|---|---|---|
-| `steer_response`, `steer_response_drift` | `[f32; 21]` | tunable | src/drive/tables.rs |
+| `steer_response`, `steer_response_drift`, `steer_response_wheel` | `[f32; 21]` | tunable | src/drive/tables.rs |
 | `lateral` | `[[f32; 6]; 7]` | tunable | src/drive/tables.rs, the AI and standings |
 | `drift_tune`, `street_x_tune`, `drag_tune` | `[[f32; 22]; 3]` | tunable | src/race.rs |
 | `zero_60_factor`, `zero_100_factor` | `[f32; 31]` (by type index) | tunable | src/handling/mod.rs (dyno times) |

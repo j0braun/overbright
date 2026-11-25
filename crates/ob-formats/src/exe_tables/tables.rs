@@ -40,6 +40,8 @@ pub struct Tables {
     pub steer_response: [f32; 21],
     /// The same in drift and URL races (0x7E9E9C → 0x7E9330).
     pub steer_response_drift: [f32; 21],
+    /// A wheel's response (0x4061C0: graph 0x7E9E88 → 0x7E92D8).
+    pub steer_response_wheel: [f32; 21],
     /// Lateral force curves: row 0 in zero-filled data (0x86B34C), rows
     /// 1..6 at 0x7FC744 (graph 0x7FC7D4).
     pub lateral: [[f32; 6]; 7],
@@ -178,6 +180,7 @@ impl Tables {
         Tables {
             steer_response: dr::STEER_RESPONSE,
             steer_response_drift: dr::STEER_RESPONSE_DRIFT,
+            steer_response_wheel: dr::STEER_RESPONSE_WHEEL,
             lateral: dr::LATERAL,
             drift_tune: dr::DRIFT_TUNE,
             street_x_tune: dr::STREET_X_TUNE,
@@ -268,6 +271,7 @@ impl Tables {
         vec![
             ("steer_response", format!("{:?}", self.steer_response)),
             ("steer_response_drift", format!("{:?}", self.steer_response_drift)),
+            ("steer_response_wheel", format!("{:?}", self.steer_response_wheel)),
             ("lateral", format!("{:?}", self.lateral)),
             ("drift_tune", format!("{:?}", self.drift_tune)),
             ("street_x_tune", format!("{:?}", self.street_x_tune)),
@@ -341,6 +345,7 @@ impl Tables {
 pub const FIELD_PINS: &[(&str, &str)] = &[
     ("steer_response", "97c9d4db9902554aea087dddb38927c577d3fcafcf8d75c6adc56c7642d267fd"),
     ("steer_response_drift", "7128c7f08971f38da4ebc05425c1cf5d996ca28208a674cc8e877eba817cf775"),
+    ("steer_response_wheel", "fd52a1e66b72b9fe82c6e8e779db6890d9538c4622f3be9da852a97123c7e8a2"),
     ("lateral", "7991663ac51f4456b95eb62d1773f4cf61f80f13edae1a206ee85f8f5d52ae49"),
     ("drift_tune", "401f0f31a5cdbeecbd76212ef69956fbb6f6689f99c522b69a480ea9c425c6df"),
     ("street_x_tune", "7984df633f3cb5c20c8b45a2c0c55d1b0d88a85b5dc4d62458c223d8a1d45fad"),

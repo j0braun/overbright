@@ -303,4 +303,36 @@ impl Game {
         let (strong, weak) = self.rumble.step(&feed);
         self.platform.pads.set_rumble(strong, weak);
     }
+
+    /// The original's force feedback (0x406460 while driving, the input
+    /// poll's front-end path otherwise), one world update, on the driving
+    /// device when it reports force-feedback actuators. Nothing runs (no
+    /// state, no calls) without one. The feed is the car after the last
+    /// world update, so the steering it reads is that update's (the
+    /// original reads this update's: one 1/60 s later, **inferred**
+    /// harmless).
+    pub(crate) fn ff_tick(&mut self) {
+        if !self.platform.pads.force_feedback() {
+            return;
+        }
+        let driving = !self.career_world.dday.holds_input()
+            && match &self.mode {
+                Mode::Explore => true,
+                Mode::Race(r) => r.replay.playback.is_none(),
+                _ => false,
+            };
+        let p = self.settings.players[0];
+        let feed = self.sim.drive.as_ref().filter(|_| driving).map(|d| {
+            let drag = d.car.car_type.handling.race.drag();
+            let options = nfsu2::pad::ff::Options { feedback: p.feedback, road_feedback: p.road_feedback };
+            ((d.state.force_feedback_feed(&d.car, drag), options), (d.clock * 4000.0) as u32)
+        });
+        let (driving, sim) = match feed {
+            Some((f, sim)) => (Some(f), sim),
+            None => (None, 0),
+        };
+        // The sim clock 0x865188 and the wall clock ftime reads (ms).
+        let clock = nfsu2::pad::ff::Clock { sim, real_ms: self.real_now() / 4 };
+        self.platform.pads.ff_tick(driving, p.force, clock);
+    }
 }
