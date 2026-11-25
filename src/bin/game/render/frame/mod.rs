@@ -483,7 +483,7 @@ impl FrameDraw<'_, '_, '_, '_> {
             if let (Mode::Race(_) | Mode::Menu(_), Some(c)) = (self.v.mode, self.v.scene_crowd)
                 && let Some(cr) = self.r.state.crowds.get_mut(&c.id)
             {
-                cr.start(&c.set, camera.view_projection(aspect), self.v.poses.crowd_frame(c) / nfsu2::shop_scene::FPS, c.origin);
+                cr.start(&c.set, camera.view_projection(aspect), self.v.poses.crowd_frame(c) / nfsu2::shop_scene::FPS, c.origin, &c.lifts);
             }
             let inputs = FrameInputs {
                 aspect,

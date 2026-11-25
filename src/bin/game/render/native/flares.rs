@@ -68,7 +68,7 @@ pub(crate) fn fill_flare_pools(
 /// 0x433090, into pool 1 with mask 3) while the race start scene's
 /// characters play; `frame`: the crowd's frame as drawn.
 pub(crate) fn flag_girl_flares(d: &mut Drive, c: &SceneCrowd, frame: f32) {
-    for p in c.set.flare_glows(frame / nfsu2::shop_scene::FPS, c.origin) {
+    for p in c.set.flare_glows(frame / nfsu2::shop_scene::FPS, c.origin, &c.lifts) {
         d.flare_pools.add_flag_girl_flare(p);
     }
 }
@@ -88,7 +88,7 @@ pub(crate) fn flag_girl_lights(d: &mut Drive, c: Option<(&SceneCrowd, f32)>) {
         d.world.scene_lights.clear();
         return;
     };
-    let flares = c.set.flares(frame / nfsu2::shop_scene::FPS, c.origin);
+    let flares = c.set.flares(frame / nfsu2::shop_scene::FPS, c.origin, &c.lifts);
     if flares.is_empty() {
         return;
     }

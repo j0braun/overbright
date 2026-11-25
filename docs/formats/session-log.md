@@ -808,7 +808,9 @@ subject chapter, not here.
   0x436050). Type 0x14 (vtable 0x7C1DB0, eval 0x6E9780, table 0x6E89C0,
   constants 0x6E88F0) is 0x15 with vec3 items
   (`eagl::decode_keyblock_vec3`). The clone skins on the CPU and draws
-  through world.efx after the cars (**not native**: the character effect
+  through world.efx after the cars, each on the ground under its bone 1
+  + 0.05 (0x436050's ground step, `SceneCrowd::settle`; see the
+  `nfsu2::character` module docs) (**not native**: the character effect
   and its lighting are not traced — a fixed half-Lambert; the
   CHARACTERSHADOW blob 0x433220 is not drawn; the flag girl's flare glows of
   0x4335C0 are, since race9, and their emitters since race10 — their

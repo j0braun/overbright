@@ -46,6 +46,18 @@
 //! * The shadow (0x433220): a CHARACTERSHADOW quad between two bones of the
 //!   character kind's table (0x7EA1E0, 0x10 bytes a kind), 0.25 along and
 //!   0.35 across, each corner on the ground + 0.05; **not ported**.
+//! * The ground step (0x436050 every update, 0x437BE0 once at the set-up;
+//!   **verified**, and **observed** under Wine at STAGE_1_CIRCUIT_1's
+//!   IntroNis13: each character's world z = its ground + 0.05, the ground
+//!   differing per character and following its walk): a skinned character
+//!   with +0x18 set (the constructor 0x431220 sets it; nothing in the NIS
+//!   code clears it) asks 0x5E72F0 for the ground under its bone 1
+//!   (0x431280(1): the bone's model matrix through the world matrix), keeps
+//!   the first one found (+0x20, +0x19 set) and blends later ones half and
+//!   half, and sets its world matrix's z to that ground + 0.05. So a scene
+//!   made on flat ground stands on any start's slope or kerb; the scene's
+//!   one origin height alone left people up to 1.8 m under the road or 2 m
+//!   over it. See [`SceneCharacters::ground_probe`], [`filter_ground`].
 //!
 // prov: inferred character.module
 //! **Inferred**: the 0x43C990 product order (the standard skin matrix, the
@@ -514,27 +526,80 @@ impl SceneCharacters {
         Ok(out)
     }
 
+    /// One instance's model, skeleton and pose `t` seconds into the scene
+    /// (its animation sampled over the bind pose).
+    fn pose_of(&self, inst: &Instance, t: f32) -> Option<(usize, &Skeleton, Vec<f32>)> {
+        let model = self.models.iter().position(|m| inst.solids.contains(&m.hash))?;
+        let skel = self.skeletons.iter().find(|s| s.name_hash == inst.skeleton).or(self.skeletons.first())?;
+        let mut pose = skel.bind_pose();
+        if let Some((_, ch)) = self.anims.iter().find(|(h, _)| *h == inst.anim) {
+            let frame = inst.frame(t, ch.frames() as f32);
+            for (s, v) in ch.slots.iter().zip(ch.sample(frame)) {
+                if let Some(p) = pose.get_mut(*s as usize) {
+                    *p = v;
+                }
+            }
+        }
+        Some((model, skel, pose))
+    }
+
+    /// Instance `i`'s world matrix: origin × the record's matrix, its
+    /// height set to `lifts[i]` + [`GROUND_LIFT`] when the ground under it
+    /// is known (0x436050, see [`SceneCharacters::ground_probe`]).
+    pub fn world_of(&self, i: usize, origin: Mat4, lifts: &[Option<f32>]) -> Option<Mat4> {
+        let mut world = origin * self.instances.get(i)?.matrix;
+        if let Some(g) = lifts.get(i).copied().flatten() {
+            world.w_axis.z = g + GROUND_LIFT;
+        }
+        Some(world)
+    }
+
     /// The posed characters `t` seconds into the scene, under the scene's
     /// origin: per instance its model, its skin palette and its world
-    /// matrix (origin × the record's matrix).
-    pub fn posed(&self, t: f32, origin: Mat4) -> Vec<(usize, Vec<Mat4>, Mat4)> {
-        self.instances
-            .iter()
-            .filter_map(|inst| {
-                let model = self.models.iter().position(|m| inst.solids.contains(&m.hash))?;
-                let skel = self.skeletons.iter().find(|s| s.name_hash == inst.skeleton).or(self.skeletons.first())?;
-                let mut pose = skel.bind_pose();
-                if let Some((_, ch)) = self.anims.iter().find(|(h, _)| *h == inst.anim) {
-                    let frame = inst.frame(t, ch.frames() as f32);
-                    for (s, v) in ch.slots.iter().zip(ch.sample(frame)) {
-                        if let Some(p) = pose.get_mut(*s as usize) {
-                            *p = v;
-                        }
-                    }
-                }
-                Some((model, skel.skin_matrices(&pose), origin * inst.matrix))
+    /// matrix ([`SceneCharacters::world_of`] with the grounds `lifts`, one
+    /// per instance; empty leaves every character at the scene's height).
+    pub fn posed(&self, t: f32, origin: Mat4, lifts: &[Option<f32>]) -> Vec<(usize, Vec<Mat4>, Mat4)> {
+        (0..self.instances.len())
+            .filter_map(|i| {
+                let (model, skel, pose) = self.pose_of(&self.instances[i], t)?;
+                Some((model, skel.skin_matrices(&pose), self.world_of(i, origin, lifts)?))
             })
             .collect()
+    }
+
+    /// Where 0x436050 asks for the ground under each skinned character
+    /// (`None` for one that is not posed): 0x431280(1), bone 1's
+    /// model-space position (its skin matrix after its bind matrix, i.e.
+    /// the model matrix) through the character's world matrix, the one
+    /// `lifts` places.
+    pub fn ground_probe(&self, t: f32, origin: Mat4, lifts: &[Option<f32>]) -> Vec<Option<Vec3>> {
+        (0..self.instances.len())
+            .map(|i| {
+                let (_, skel, pose) = self.pose_of(&self.instances[i], t)?;
+                let bone = *skel.model_matrices(&pose).get(1)?;
+                Some(self.world_of(i, origin, lifts)?.transform_point3(bone.w_axis.truncate()))
+            })
+            .collect()
+    }
+}
+
+/// 0x436050 / 0x437BE0: a skinned character stands this far over the
+/// ground found under its bone 1 (0.05, the world matrix's z set to
+/// ground − its z + its z + 0.05).
+pub const GROUND_LIFT: f32 = 0.05;
+
+/// The ground filter of 0x436050: the first ground found is taken as is,
+/// every later one blended half and half with the last (`0.5·new +
+/// (1 − 0.5)·old`) once a character update. **Inferred**: the clone runs
+/// that blend once a 30 fps scene frame (frame-rate independent: a
+/// weight of 1 − 0.5^(frames)), the original once a drawn frame.
+pub fn filter_ground(old: Option<f32>, new: f32, frames: f32) -> f32 {
+    match old {
+        None => new,
+        Some(o) => {
+            let k = 1.0 - 0.5f32.powf(frames.max(0.0));
+            o + (new - o) * k
+        }
     }
 }
 
@@ -563,15 +628,15 @@ impl SceneCharacters {
     /// glows 0x433090 pools (pool 1, mask 3, type 14, flags 2): each tip
     /// p1 and base p2 through its bone's skin matrix and the character's
     /// world matrix, the glow at p1 + 0.4·(p1 − p2).
-    pub fn flare_glows(&self, t: f32, origin: Mat4) -> Vec<Vec3> {
-        self.flares(t, origin).into_iter().map(|(tip, v)| tip + v * FLARE_REACH).collect()
+    pub fn flare_glows(&self, t: f32, origin: Mat4, lifts: &[Option<f32>]) -> Vec<Vec3> {
+        self.flares(t, origin, lifts).into_iter().map(|(tip, v)| tip + v * FLARE_REACH).collect()
     }
 
     /// The flares 0x4335C0 hands 0x433090: each tip p1 and its vector
     /// p1 − p2 (the glow is pooled at p1 + 0.4·v, the emitters fired at p1).
-    pub fn flares(&self, t: f32, origin: Mat4) -> Vec<(Vec3, Vec3)> {
+    pub fn flares(&self, t: f32, origin: Mat4, lifts: &[Option<f32>]) -> Vec<(Vec3, Vec3)> {
         let mut out = Vec::new();
-        for inst in &self.instances {
+        for (i, inst) in self.instances.iter().enumerate() {
             let Some(points) = FLARE_MODELS.iter().find(|(name, _)| bin_hash(name) == inst.solids[0]).map(|e| e.1) else { continue };
             if inst.skeleton == 0 || inst.anim == 0 {
                 continue;
@@ -590,7 +655,7 @@ impl SceneCharacters {
                 }
             }
             let palette = skel.skin_matrices(&pose);
-            let world = origin * inst.matrix;
+            let Some(world) = self.world_of(i, origin, lifts) else { continue };
             for (side, bone) in FLARE_BONES.iter().enumerate() {
                 let Some(m) = palette.get(*bone) else { continue };
                 let tip = world.transform_point3(m.transform_point3(Vec3::from(points[2 * side])));
@@ -645,10 +710,10 @@ mod tests {
             assert!(m.abs_diff_eq(Mat4::IDENTITY, 1e-3), "{m:?}");
         }
         // IntroNis08's girls (models 7 and 8, no flares) hold none.
-        assert!(set.flare_glows(0.0, Mat4::IDENTITY).is_empty());
+        assert!(set.flare_glows(0.0, Mat4::IDENTITY, &[]).is_empty());
         // Posed at frame 0 the girl stands upright: her vertices span about
         // her height, feet near the ground.
-        for (model, palette, world) in set.posed(0.0, Mat4::IDENTITY) {
+        for (model, palette, world) in set.posed(0.0, Mat4::IDENTITY, &[]) {
             let tris = set.models[model].skin(&palette, world);
             let (lo, hi) = tris.iter().fold((f32::MAX, f32::MIN), |(lo, hi), t| (lo.min(t.0.z), hi.max(t.0.z)));
             assert!(hi - lo > 1.4 && hi - lo < 2.1, "height {}", hi - lo);
@@ -662,7 +727,7 @@ mod tests {
         let bun = std::fs::read(std::path::Path::new(&root).join("NIS/Scene_IntroNis12_BundleB.bun")).unwrap();
         let set = SceneCharacters::parse(&bun).unwrap();
         let world = set.instances.iter().find(|i| i.solids[0] == bin_hash("FLAG_GIRL_MODEL_9_FLARES")).expect("the flare girl").matrix;
-        let g = set.flare_glows(0.0, Mat4::IDENTITY);
+        let g = set.flare_glows(0.0, Mat4::IDENTITY, &[]);
         assert_eq!(g.len(), 2, "{g:?}");
         let at = world.w_axis.truncate();
         for p in &g {
@@ -695,7 +760,7 @@ mod cost {
             let t = f as f32 / 60.0;
             for set in &sets {
                 let t0 = std::time::Instant::now();
-                let posed = set.posed(t, origin);
+                let posed = set.posed(t, origin, &[]);
                 pose_ns += t0.elapsed().as_nanos();
                 let t1 = std::time::Instant::now();
                 out.clear();

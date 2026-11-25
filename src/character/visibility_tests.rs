@@ -61,7 +61,7 @@ fn authored_skin_bounds_contain_vertices_and_only_reject_offscreen_geometry() {
         let bounds:Vec<_>=set.models.iter().map(SkinBounds::build).collect();
         for f in 0..120 {
             let origin=Mat4::from_scale_rotation_translation(Vec3::new(1.2,0.9,1.1),Quat::from_rotation_z(0.3),Vec3::new(1000.0,-2000.0,30.0));
-            for (model,palette,world) in set.posed(f as f32/7.0,origin) {
+            for (model,palette,world) in set.posed(f as f32/7.0,origin,&[]) {
                 let Some(b)=bounds[model].as_ref().and_then(|b| b.posed(&palette,world)) else {continue};
                 instances+=1;
                 let centre=(b.min+b.max)*0.5;
