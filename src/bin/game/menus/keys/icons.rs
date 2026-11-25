@@ -92,7 +92,23 @@ impl Game {
                 Some(mode) => mode,
                 None => return Ok(()),
             },
-            MenuKind::Crib | MenuKind::ExplorePause => return self.garage_back(kind),
+            // UI_CareerCrib's Back (0x911AB364 in 0x4AF3A0, 0x4AF59F):
+            // the pad masks off (0x537960), then GenericDialog_SMALL with
+            // No focused and StartDim: opened by the career start
+            // (0x836324) "Are you sure you want to quit to the main
+            // menu?" (0xCB5E3178, Yes 0x30ED2368, as Back to Main Menu
+            // 0x4AF7D0), else "Return to Explore Mode?" (0x60B42AFB, Yes
+            // 0x451E768E, as Return to Explore Mode 0x4AF630).
+            MenuKind::Crib => {
+                let action = if self.fe.crib_from_start { Action::MainMenu } else { Action::Explore };
+                return self.act(action, kind);
+            }
+            // The pause sits over the running city: Back resumes it (no
+            // track load).
+            MenuKind::ExplorePause => {
+                self.back_to_city()?;
+                return Ok(());
+            }
             // 0x4A7D60 on Back (0x911AB364 → 0xE1FDE1D1):
             // UI_Pause.fng (UI_PerformanceDyno_MAIN in a test
             // run, 0x89E7E6).
@@ -107,8 +123,12 @@ impl Game {
                 None => self.icon_menu(MenuKind::Main),
             },
             MenuKind::PostRace => return Ok(()),
-            // The offer stays for the next race.
-            MenuKind::Sponsor => self.icon_menu(MenuKind::PostRace),
+            // UI_Sponsorship_new's Back (0x4C138C: its 0x47FF4E7C
+            // script, then 0x4C1445 → 0x4C0020): UI_SponsorPopup again.
+            MenuKind::Sponsor => {
+                self.chain_back(self.now());
+                return Ok(());
+            }
             // Back to the body shop on rims (0x839BC0).
             // UI_ChoosePerformanceCategory's Back (0x911AB364
             // in 0x55C530): in a career shop (0x83898C = 0)
@@ -270,26 +290,5 @@ impl Game {
             return Ok(None);
         }
         Ok(Some(self.customize_select()))
-    }
-
-    /// Back from the garage or the free-roam pause: the city (through the save point).
-    fn garage_back(&mut self, kind: MenuKind) -> Result<()> {
-        // Leaving the garage: 0x4AF360's save point
-        // (mode 0x151) when changed, then 0x9A3B571D
-        // (0x4AF607): career +0x8744 = 1 and the city
-        // start (0x5404B0) at the place kept on the way
-        // in (0x54CB00 / 0x513B30, the car's place) or
-        // at the last one kept (`AfterSave::LeaveGarage`).
-        // The pause sits over the running city: Back
-        // resumes it (no track load); the garage is a
-        // city start.
-        if kind == MenuKind::ExplorePause {
-            self.back_to_city()?;
-        } else if self.changed_since_snapshot() {
-            self.save_point(false, AfterSave::LeaveGarage(self.here()))?;
-        } else {
-            self.go_on_garage(self.here())?;
-        }
-        Ok(())
     }
 }

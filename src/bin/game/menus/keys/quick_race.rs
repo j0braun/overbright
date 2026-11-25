@@ -78,8 +78,14 @@ impl Game {
 
     pub(super) fn sponsor_popup_key(&mut self, key: Key) -> Result<()> {
         match key {
-            Key::Accept => self.mode = self.icon_menu(MenuKind::Sponsor),
-            Key::Back => self.mode = self.icon_menu(MenuKind::PostRace),
+            // 0x4C12E0: Accept (0x0C407210 / 0x406415E3) → 0x4BFF80, the
+            // sponsorship screen; Back (0x911AB364, 0x4C12F9 as 0x4C0020)
+            // the reward before it, so the choice cannot be skipped.
+            Key::Accept => {
+                self.race_flow.chain.push(ChainStep::Popup);
+                self.mode = self.icon_menu(MenuKind::Sponsor);
+            }
+            Key::Back => self.chain_back(self.now()),
             _ => {}
         }
         Ok(())

@@ -46,10 +46,25 @@ impl Game {
 
     pub(super) fn results_key(&mut self, key: Key, now: f32) -> Result<()> {
         let Mode::Menu(Menu::Results(results, reward)) = &mut self.mode else { unreachable!() };
-        if matches!(key, Key::Accept | Key::Back) {
+        // The standings' Back (0x4EA6CA → 0x4C0020): the race's
+        // results again. The results themselves have no Back (0x4E9A20).
+        if key == Key::Back {
+            if matches!(results.kind, ResultsKind::Standings { .. })
+                && let Some(ChainStep::Results { .. }) = self.race_flow.chain.last()
+            {
+                self.chain_back(now);
+            }
+            return Ok(());
+        }
+        if key == Key::Accept {
             if results.kind == ResultsKind::Tournament
                 && let Some(mut standings) = self.race_flow.standings.take()
             {
+                self.race_flow.chain.push(ChainStep::Results {
+                    results: results.clone(),
+                    reward: reward.clone(),
+                    standings: Some(standings.clone()),
+                });
                 standings.opened = now;
                 *results = standings;
                 return Ok(());
@@ -60,17 +75,43 @@ impl Game {
             // one race (the mode record's track), so it never
             // gets here.
             if self.race_flow.next_round.is_some() {
+                self.race_flow.chain.clear();
                 self.mode = self.icon_menu(MenuKind::PostRace);
                 return Ok(());
             }
+            let step = ChainStep::Results { results: results.clone(), reward: reward.clone(), standings: None };
             self.mode = match reward.take() {
                 Some(mut r) => {
+                    self.race_flow.chain.push(step);
                     r.opened = now;
                     Mode::Menu(Menu::Reward(r))
                 }
-                None => self.icon_menu(MenuKind::PostRace),
+                None => {
+                    self.race_flow.chain.clear();
+                    self.icon_menu(MenuKind::PostRace)
+                }
             };
         }
         Ok(())
+    }
+
+    /// Back in the post-race chain (0x4C0020): the screen before, as it
+    /// was left; on the chain's first screen nothing.
+    pub(super) fn chain_back(&mut self, now: f32) {
+        let Some(step) = self.race_flow.chain.pop() else { return };
+        self.mode = match step {
+            ChainStep::Results { mut results, reward, standings } => {
+                if standings.is_some() {
+                    self.race_flow.standings = standings;
+                }
+                results.opened = now;
+                Mode::Menu(Menu::Results(results, reward))
+            }
+            ChainStep::Reward(mut r) => {
+                r.opened = now;
+                Mode::Menu(Menu::Reward(r))
+            }
+            ChainStep::Popup => Mode::Menu(Menu::SponsorPopup(now)),
+        };
     }
 }

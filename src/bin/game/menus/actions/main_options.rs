@@ -157,6 +157,8 @@ impl Game {
                     self.career_intro()?;
                     return Ok(None);
                 }
+                // 0x495A5C: the garage opened by the career start.
+                self.fe.crib_from_start = true;
                 self.icon_menu(MenuKind::Crib)
             }
             // UI_ProfileManager's Create (0x4C5880: MC_Main mode 0x861,

@@ -460,6 +460,12 @@ private Wine copy (wined3d, Xvfb :161).
     (0x60B42AFB, GenericDialog_SMALL) Yes → 0x4AF360: changed since the
     crib opened → mode 0x151, then the city start (0x461A18EE /
     0x8867412D → 0x5404B0).
+    Back asks that only when the crib was entered from the city: opened
+    by the career start (Resume / Load, 0x836324 set at 0x495A5C) it asks
+    "Are you sure you want to quit to the main menu?" (0xCB5E3178, Yes
+    0x30ED2368, as Back to Main Menu), No focused in both (0x4AF59F).
+    **Observed** under Wine (garage.sav loaded, Escape; then with 0x836324
+    cleared): the question over the garage scene alone, no strip.
   - The car lot (0x4ED8A0 state 6): after a car is taken, changed →
     mode 0x141, else 0x9A3B571D; then the city (the question under Wine
     right after the stock car).

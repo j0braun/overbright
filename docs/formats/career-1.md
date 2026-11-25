@@ -608,6 +608,13 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
   runs HIGHLIGHT; offline the online timer hides. The clone follows
   results → reward → sponsor popup and sponsorship (when offered) →
   post-race.
+  Back walks the chain backwards (0x4C0020: the cursor +0x38 one node
+  back, that package up; nothing on the first node): the standings
+  (0x4EA6CA), the reward (0x4D735B), UI_SponsorPopup (0x4C12F2) and
+  UI_Sponsorship_new (0x4C138C, after its 0x47FF4E7C script) each go to
+  the screen before; the results have no Back case (0x4E9A20). So the
+  sponsor choice cannot be skipped with Back (**traced**; the clone keeps
+  the screens passed, `ChainStep`).
 * **Race stats** (UI_PostRaceStats, screen 0x4FD6C0 → 0x4FBBC0;
   **verified** except where noted): a page per racer in finishing order,
   the arrows 0x444969FD / 0x444969FE paging (0x4A4480: the left hides on

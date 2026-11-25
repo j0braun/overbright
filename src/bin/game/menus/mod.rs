@@ -62,6 +62,11 @@ pub(crate) struct FeState {
     pub(crate) boot_cash: u32,
     /// A "quit to main menu" question is open.
     pub(crate) quitting: bool,
+    /// 0x836324: the garage was opened by the career start (Career_Start
+    /// 0x495A30 sets it at 0x495A5C); UI_CareerCrib's Back (0x4AF59F)
+    /// then asks "quit to the main menu?" instead of "Return to Explore
+    /// Mode?". Cleared when the garage is left for the city (0x4AF60F).
+    pub(crate) crib_from_start: bool,
     /// The screen a dimmed dialog was over, once the dialog is answered
     /// back to it: its UNDIM runs from then (see [`Undim`]).
     pub(crate) undim: Option<Undim>,
@@ -117,6 +122,7 @@ impl FeState {
             cheat_input: Default::default(),
             boot_cash: 0,
             quitting: false,
+            crib_from_start: false,
             undim: None,
             mc_under: None,
             save_under: None,
