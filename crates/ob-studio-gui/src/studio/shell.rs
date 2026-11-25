@@ -246,6 +246,17 @@ impl Studio {
                 self.workspace(w);
                 Ok(())
             }
+            Target::Item { kind, key, .. } if kind == ob_studio::changes::looks::TEXTURE => {
+                // A texture has no view of its own yet: its row on Changes.
+                if self.open.is_none() || a.pack == STUDIO {
+                    return Err("Changes shows a mod: open one first".into());
+                }
+                self.workspace(Workspace::Changes);
+                if !self.changes.focus_item(kind, &key.join("/")) {
+                    return Err(format!("{} does not paint {}", a.pack, key.join("/")));
+                }
+                Ok(())
+            }
             Target::Item { kind, .. } => {
                 // The items' own places come with their workspaces (World, Races); until then show the workspace.
                 let w = match kind.as_str() {
@@ -1425,6 +1436,10 @@ impl Studio {
             Workspace::Changes => {
                 let inner = slab.shrink2(vec2(20.0, 14.0));
                 let focused = self.nav.area == Area::View && self.nav.legend();
+                // The game's textures for the Looks rows' thumbnails: from the region World has loaded.
+                if let Some(s) = self.editor.as_ref().and_then(|h| h.app.state.as_ref()) {
+                    self.changes.feed_originals(ui.ctx(), &s.session.world);
+                }
                 let (ask, _) = self.changes.draw(ui, inner, focused, self.time());
                 match ask {
                     Some(Ask::Go(a)) if a == "back" => self.command(Command::LastPlace, None),
@@ -2153,7 +2168,8 @@ impl Studio {
         p.line_segment([r.left_top(), r.right_top()], Stroke::new(1.0, draw::rule()));
         let cy = r.center().y;
         let f = font("body", 13.0);
-        let editor = self.editor.as_ref().filter(|_| self.editing()).and_then(|h| h.app.state.as_ref().map(|s| (&h.app, s)));
+        let editor =
+            self.editor.as_ref().filter(|_| self.editing()).and_then(|h| h.app.state.as_ref().map(|s| (&h.app, s)));
         // In World and Races: the open editor's own save state.
         let saved = match editor {
             Some((app, _)) if !app.save_note.is_empty() => Some(Saved::Error(app.save_note.clone())),

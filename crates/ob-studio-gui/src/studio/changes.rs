@@ -4,14 +4,16 @@
 //! the stack in the game's order. Rows come from `ob_studio::changes` (the layering tables and the mod's history);
 //! Reset writes one undoable step through the mod's history.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use anyhow::{Context as _, Result, bail};
 use egui::{Align2, Color32, CornerRadius, Painter, Pos2, Rect, RichText, Stroke, StrokeKind, pos2, vec2};
+use ob_studio::changes::looks::{self as tex, Textures};
 use ob_studio::changes::map::{self, Game};
 use ob_studio::changes::{self as model, Clash, From, Row, Show};
+use ob_studio::looks::{Looks, Origin};
 
 use crate::editor::theme::{self, LABEL, SEMI, TITLE, font, rgb, tokens};
 use crate::tools::map::history::{self, History, Outcome};
@@ -89,6 +91,26 @@ pub struct Data {
     pub clashes: Vec<Clash>,
     pub steps: Vec<StepInfo>,
     pub versions: Vec<(String, Vec<Row>)>,
+    /// The textures the rows name (by texture id): their names and where their pixels started.
+    pub textures: BTreeMap<String, TexInfo>,
+    /// The painted images the rows name (content hash → the PNG in its mod's image store).
+    pub images: BTreeMap<String, PathBuf>,
+}
+
+/// A texture a row names.
+#[derive(Clone, Debug, PartialEq)]
+pub struct TexInfo {
+    /// Its name in the game (the id when the list has none).
+    pub name: String,
+    /// `world`, `car`.
+    pub domain: &'static str,
+    /// Where this mod's pixels started (None: this mod does not paint it).
+    pub origin: Option<Origin>,
+    pub size: (u32, u32),
+}
+
+fn looks_of(h: &History) -> Looks {
+    Looks::parse(h.doc(ob_studio::looks::FILE).unwrap_or_default()).unwrap_or_default()
 }
 
 fn read_doc(maps: &Path, folder: &str) -> Result<(MapMod, History)> {
@@ -111,21 +133,42 @@ pub fn load(maps: &Path, folder: &str) -> Result<Data> {
     let enabled = store::enabled(maps);
     let in_game = enabled.iter().any(|f| f == folder);
     let mut mods: Vec<(String, MapMod)> = Vec::new();
+    let mut paints: Vec<(String, Looks)> = Vec::new();
     let mut names = Vec::new();
+    let mine = looks_of(&h);
     for f in &enabled {
         if f == folder {
             mods.push((f.clone(), m.clone()));
+            paints.push((f.clone(), mine.clone()));
             names.push((f.clone(), mod_name(&m, f)));
-        } else if let Ok((o, _)) = read_doc(maps, f) {
+        } else if let Ok((o, oh)) = read_doc(maps, f) {
             names.push((f.clone(), mod_name(&o, f)));
             mods.push((f.clone(), o));
+            paints.push((f.clone(), looks_of(&oh)));
         }
     }
     if !in_game {
         mods.push((folder.into(), m.clone()));
+        paints.push((folder.into(), mine.clone()));
         names.push((folder.into(), mod_name(&m, folder)));
     }
     let game = Game::new(&mods);
+    let painted = Textures::new(&paints);
+    // The textures and images the rows can name: every enabled mod's, this one's first.
+    let mut textures = BTreeMap::new();
+    let mut images = BTreeMap::new();
+    for (f, l) in paints.iter().filter(|(f, _)| f == folder).chain(paints.iter().filter(|(f, _)| f != folder)) {
+        let edir = store::editor_dir(maps, f);
+        for e in l.entries.values() {
+            images.entry(e.image.clone()).or_insert_with(|| ob_studio::looks::work::store_path(&edir, &e.image));
+            textures.entry(e.id.to_string()).or_insert_with(|| TexInfo {
+                name: if e.name.trim().is_empty() { e.id.to_string() } else { e.name.trim().to_string() },
+                domain: e.id.domain.word(),
+                origin: (f == folder).then_some(e.origin),
+                size: (e.width, e.height),
+            });
+        }
+    }
     let order = |mut rows: Vec<Row>| {
         for r in &mut rows {
             r.values.sort_by_key(|v| field_rank(&v.field));
@@ -133,11 +176,35 @@ pub fn load(maps: &Path, folder: &str) -> Result<Data> {
         rows
     };
     let parse = |s: &history::doc::State| s.get(store::FILE).and_then(|t| MapMod::parse(t).ok()).unwrap_or_default();
+    let paint =
+        |s: &history::doc::State| s.get(ob_studio::looks::FILE).and_then(|t| Looks::parse(t).ok()).unwrap_or_default();
+    // Every image a step or a version names, for the thumbnails.
+    let edir = store::editor_dir(maps, folder);
+    let mut note = |l: &Looks| {
+        for e in l.entries.values() {
+            images.entry(e.image.clone()).or_insert_with(|| ob_studio::looks::work::store_path(&edir, &e.image));
+            textures.entry(e.id.to_string()).or_insert_with(|| TexInfo {
+                name: if e.name.trim().is_empty() { e.id.to_string() } else { e.name.trim().to_string() },
+                domain: e.id.domain.word(),
+                origin: None,
+                size: (e.width, e.height),
+            });
+        }
+    };
+    for s in h.steps() {
+        note(&paint(&s.before));
+        note(&paint(&s.after));
+    }
+    for v in h.versions() {
+        note(&paint(&v.docs));
+    }
     let steps = h
         .steps()
         .iter()
         .map(|s| {
-            let rows = order(map::compare_maps(&parse(&s.before), &parse(&s.after), folder));
+            let mut rows = map::compare_maps(&parse(&s.before), &parse(&s.after), folder);
+            rows.extend(tex::compare_looks(&paint(&s.before), &paint(&s.after)));
+            let rows = order(rows);
             StepInfo {
                 seq: s.seq,
                 label: s.label.clone(),
@@ -147,17 +214,34 @@ pub fn load(maps: &Path, folder: &str) -> Result<Data> {
             }
         })
         .collect();
-    let versions =
-        h.versions().iter().map(|v| (v.name.clone(), order(map::compare_maps(&parse(&v.docs), &m, folder)))).collect();
+    let versions = h
+        .versions()
+        .iter()
+        .map(|v| {
+            let mut rows = map::compare_maps(&parse(&v.docs), &m, folder);
+            rows.extend(tex::compare_looks(&paint(&v.docs), &mine));
+            (v.name.clone(), order(rows))
+        })
+        .collect();
+    let mut rows = game.this_mod(folder);
+    // A texture has one value, its image (a texture is never hidden).
+    rows.extend(painted.this_mod(folder).into_iter().map(|mut r| {
+        r.values.retain(|v| v.field == tex::IMAGE);
+        r
+    }));
+    let mut clashes = game.clashes(folder);
+    clashes.extend(painted.clashes(folder));
     Ok(Data {
         folder: folder.into(),
         name: mod_name(&m, folder),
         in_game,
         stack: names,
-        rows: order(game.this_mod(folder)),
-        clashes: game.clashes(folder),
+        rows: order(rows),
+        clashes,
         steps,
         versions,
+        textures,
+        images,
     })
 }
 
@@ -166,13 +250,51 @@ pub fn load(maps: &Path, folder: &str) -> Result<Data> {
 pub fn reset(maps: &Path, folder: &str, picks: &[(String, String, String)], label: &str) -> Result<String> {
     let mut h = open_write(maps, folder)?;
     let m = MapMod::parse(h.doc(store::FILE).unwrap_or_default()).map_err(|e| anyhow::anyhow!("{e}"))?;
-    let Some(new) = map::reset_all(&m, folder, picks) else { bail!("nothing to reset: the mod no longer gives it") };
-    let docs = BTreeMap::from([(store::FILE.to_string(), Some(new.write()))]);
+    let docs = reset_docs(&m, &h, folder, picks)?;
+    commit_docs(&mut h, maps, folder, label, docs)
+}
+
+/// The documents a Reset of `picks` writes: the map mod's when a prop or race is picked, the texture list's when
+/// a texture is (a texture given back is taken out of the list).
+fn reset_docs(
+    m: &MapMod,
+    h: &History,
+    folder: &str,
+    picks: &[(String, String, String)],
+) -> Result<BTreeMap<String, Option<String>>> {
+    let (paints, edits): (Vec<_>, Vec<_>) = picks.iter().cloned().partition(|(k, _, _)| k == tex::TEXTURE);
+    let mut docs = BTreeMap::new();
+    if !edits.is_empty() {
+        let Some(new) = map::reset_all(m, folder, &edits) else {
+            bail!("nothing to reset: the mod no longer gives it")
+        };
+        docs.insert(store::FILE.to_string(), Some(new.write()));
+    }
+    if !paints.is_empty() {
+        let keys: Vec<&str> = paints.iter().map(|(_, k, _)| k.as_str()).collect();
+        let Some(l) = tex::reset(&looks_of(h), &keys) else { bail!("nothing to reset: the mod no longer paints it") };
+        docs.insert(ob_studio::looks::FILE.to_string(), Some(l.write()));
+    }
+    Ok(docs)
+}
+
+/// One step of `docs` in the mod's history, saved; the pack data follows the texture list.
+fn commit_docs(
+    h: &mut History,
+    maps: &Path,
+    folder: &str,
+    label: &str,
+    docs: BTreeMap<String, Option<String>>,
+) -> Result<String> {
+    let looks = h.doc(ob_studio::looks::FILE).map(str::to_string);
     match h.commit(history::STUDIO, label, docs)? {
         Outcome::Made(_) => {}
         other => bail!("not reset: {other:?}"),
     }
     h.save()?;
+    let (dir, edir) = (maps.join(folder), store::editor_dir(maps, folder));
+    ob_studio::looks::work::follow(&dir, &edir, looks.as_deref(), h.doc(ob_studio::looks::FILE))
+        .map_err(anyhow::Error::msg)?;
     Ok(label.to_string())
 }
 
@@ -184,7 +306,21 @@ fn writer<'a>(session: Option<&'a mut MapSession>, folder: &str) -> Option<&'a m
 }
 
 /// [`reset`] made in the session that writes the mod.
-fn reset_in(s: &mut MapSession, folder: &str, picks: &[(String, String, String)], label: &str) -> Result<String> {
+fn reset_in(
+    s: &mut MapSession,
+    maps: &Path,
+    folder: &str,
+    picks: &[(String, String, String)],
+    label: &str,
+) -> Result<String> {
+    if picks.iter().any(|(k, _, _)| k == tex::TEXTURE) {
+        // A texture is not the session's map: the step goes into the history it keeps, then the session follows.
+        let Some(h) = s.history.as_mut() else { bail!("not reset: the mod has no history") };
+        let docs = reset_docs(&s.map, h, folder, picks)?;
+        let done = commit_docs(h, maps, folder, label, docs)?;
+        s.sync();
+        return Ok(done);
+    }
     let Some(new) = map::reset_all(&s.map, folder, picks) else {
         bail!("nothing to reset: the mod no longer gives it")
     };
@@ -254,6 +390,7 @@ pub fn field_name(field: &str) -> String {
         "checkpoints" => "Checkpoints".into(),
         "grid" => "Start grid".into(),
         "race" => "Race".into(),
+        "image" => "Image".into(),
         other => {
             let mut c = other.chars();
             c.next().map_or(String::new(), |f| f.to_uppercase().chain(c).collect())
@@ -272,6 +409,7 @@ pub fn value_text(field: &str, v: &toml::Value) -> String {
     match v {
         V::Float(f) if field == "heading" => format!("{f:.1}°"),
         V::Boolean(b) if field == "disabled" => (if *b { "hidden" } else { "shown" }).into(),
+        V::String(s) if field == tex::IMAGE => (if s == tex::GAME { "the game's texture" } else { "painted" }).into(),
         V::Boolean(b) => (if *b { "yes" } else { "no" }).into(),
         V::String(s) => s.clone(),
         V::Array(a) if a.iter().all(|x| x.is_float() || x.is_integer()) => {
@@ -287,8 +425,25 @@ fn home_plural(n: usize, one: &str, many: &str) -> String {
 }
 
 /// An item's title and its line under it ("XO_DOME", "Prop · L4RA · moved").
-pub fn item_words(r: &Row, mine: &str) -> (String, String) {
+pub fn item_words(d: &Data, r: &Row) -> (String, String) {
     let field = |f: &str| r.values.iter().find(|v| v.field == f);
+    if r.kind == tex::TEXTURE {
+        let info = d.textures.get(&r.key);
+        let name = info.map_or_else(|| r.key.clone(), |t| t.name.clone());
+        let mut what = vec![format!("Texture · {}", info.map_or("world", |t| t.domain))];
+        match info.and_then(|t| t.origin) {
+            Some(Origin::Blank) => what.push("painted from blank".into()),
+            Some(Origin::Game) => what.push("painted".into()),
+            None => {}
+        }
+        if let Some((w, h)) = info.map(|t| t.size) {
+            what.push(format!("{w}×{h}"));
+        }
+        if r.loses() {
+            what.push("loses".into());
+        }
+        return (name, what.join(" · "));
+    }
     if r.kind == map::RACE {
         let name = field("name")
             .and_then(|v| v.game.clone().or(v.yours.clone()))
@@ -317,7 +472,6 @@ pub fn item_words(r: &Row, mine: &str) -> (String, String) {
     if r.loses() {
         what.push("loses");
     }
-    let _ = mine;
     (solid, format!("Prop · {region} · {}", what.join(", ")))
 }
 
@@ -366,6 +520,59 @@ pub struct Page {
     pub inspector_open: bool,
     /// What the last frame drew where.
     pub last: Drawn,
+    /// The textures' thumbnails, loaded once.
+    thumbs: Thumbs,
+}
+
+/// Thumbnails by name (`<image hash>` for a painted image, `game:<texture id>` for the game's own): None when
+/// the image could not be read.
+#[derive(Default)]
+struct Thumbs(HashMap<String, Option<egui::TextureHandle>>);
+
+impl std::fmt::Debug for Thumbs {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Thumbs({})", self.0.len())
+    }
+}
+
+/// The largest side of a thumbnail, in pixels.
+const THUMB_PX: u32 = 96;
+
+/// `rgba` (w × h) scaled down to at most [`THUMB_PX`] a side (nearest pixel).
+fn thumb_image(w: u32, h: u32, rgba: &[u8]) -> Option<egui::ColorImage> {
+    if w == 0 || h == 0 || rgba.len() < (w * h * 4) as usize {
+        return None;
+    }
+    let k = (w.max(h) as f32 / THUMB_PX as f32).max(1.0);
+    let (tw, th) = (((w as f32 / k) as u32).max(1), ((h as f32 / k) as u32).max(1));
+    let mut px = Vec::with_capacity((tw * th * 4) as usize);
+    for y in 0..th {
+        for x in 0..tw {
+            let (sx, sy) = (((x as f32 + 0.5) * k) as u32, ((y as f32 + 0.5) * k) as u32);
+            let i = ((sy.min(h - 1) * w + sx.min(w - 1)) * 4) as usize;
+            px.extend_from_slice(&rgba[i..i + 4]);
+        }
+    }
+    Some(egui::ColorImage::from_rgba_unmultiplied([tw as usize, th as usize], &px))
+}
+
+impl Thumbs {
+    fn get(&self, name: &str) -> Option<egui::TextureId> {
+        self.0.get(name).and_then(|t| t.as_ref()).map(|t| t.id())
+    }
+
+    /// A painted image's thumbnail, read from its mod's image store the first time.
+    fn image(&mut self, ctx: &egui::Context, hash: &str, path: Option<&PathBuf>) -> Option<egui::TextureId> {
+        if !self.0.contains_key(hash) {
+            let img = path
+                .and_then(|p| std::fs::read(p).ok())
+                .and_then(|b| ob_studio::looks::decode_png(&b).ok())
+                .and_then(|(w, h, px)| thumb_image(w, h, &px));
+            let t = img.map(|i| ctx.load_texture(format!("chg-thumb-{hash}"), i, egui::TextureOptions::LINEAR));
+            self.0.insert(hash.to_string(), t);
+        }
+        self.get(hash)
+    }
 }
 
 impl Page {
@@ -381,6 +588,7 @@ impl Page {
             scroll: 0.0,
             inspector_open: false,
             last: Drawn::default(),
+            thumbs: Thumbs::default(),
         }
     }
 
@@ -408,6 +616,34 @@ impl Page {
 
     pub fn data(&self) -> Option<&Data> {
         self.data.as_ref().and_then(|d| d.as_ref().ok())
+    }
+
+    /// How many thumbnails the page holds (the tests).
+    pub fn thumbs_loaded(&self) -> usize {
+        self.thumbs.0.values().filter(|t| t.is_some()).count()
+    }
+
+    /// The game's own textures the rows name, as thumbnails, from the region World has loaded (each read once).
+    pub fn feed_originals(&mut self, ctx: &egui::Context, game: &dyn ob_studio::looks::Textures) {
+        let Some(d) = self.data() else { return };
+        let keys: Vec<String> =
+            d.textures.keys().filter(|k| !self.thumbs.0.contains_key(&format!("game:{k}"))).cloned().collect();
+        for k in keys {
+            let Ok(id) = k.parse::<ob_studio::looks::TextureId>() else { continue };
+            // Not in this region: asked again when another region is loaded.
+            let Some(o) = game.original(id) else { continue };
+            let t = thumb_image(o.width, o.height, &o.rgba)
+                .map(|i| ctx.load_texture(format!("chg-thumb-game-{k}"), i, egui::TextureOptions::LINEAR));
+            self.thumbs.0.insert(format!("game:{k}"), t);
+        }
+    }
+
+    /// The thumbnail of a texture row's value: the game's texture or a painted image.
+    fn thumb(&mut self, ctx: &egui::Context, d: &Data, key: &str, v: Option<&toml::Value>) -> Option<egui::TextureId> {
+        match v.and_then(|v| v.as_str())? {
+            tex::GAME => self.thumbs.get(&format!("game:{key}")),
+            h => self.thumbs.image(ctx, h, d.images.get(h)),
+        }
     }
 
     /// The modes with content, in the tabs' order.
@@ -542,13 +778,14 @@ impl Page {
         let rows = self.rows();
         let label = if picks.len() == 1 {
             let r = rows.iter().find(|r| r.key == picks[0].1).cloned();
-            let item = r.map_or(picks[0].1.clone(), |r| item_words(self.data().map_or(&r, |d| full(d, &r)), &folder).0);
+            let item =
+                r.map_or(picks[0].1.clone(), |r| self.data().map_or(r.key.clone(), |d| item_words(d, full(d, &r)).0));
             format!("Reset {} of {item}", field_name(&picks[0].2))
         } else {
             format!("Reset {} values", picks.len())
         };
         let done = match writer(session, &folder) {
-            Some(s) => reset_in(s, &folder, &picks, &label),
+            Some(s) => reset_in(s, &self.maps, &folder, &picks, &label),
             None => reset(&self.maps, &folder, &picks, &label),
         };
         self.note = Some(match done {
@@ -569,7 +806,16 @@ impl Page {
         let Some(folder) = self.data().map(|d| d.folder.clone()) else { return };
         let done = match writer(session, &folder) {
             Some(s) => {
+                let looks = s.history.as_ref().and_then(|h| h.doc(ob_studio::looks::FILE).map(str::to_string));
                 let r = if redo { s.redo() } else { s.undo() };
+                if let Some(h) = s.history.as_ref() {
+                    let (dir, edir) = (self.maps.join(&folder), store::editor_dir(&self.maps, &folder));
+                    if let Err(e) =
+                        ob_studio::looks::work::follow(&dir, &edir, looks.as_deref(), h.doc(ob_studio::looks::FILE))
+                    {
+                        log::warn!("changes: textures not written: {e}");
+                    }
+                }
                 match s.note.take() {
                     Some(n) if r.is_none() => Err(anyhow::anyhow!(n)),
                     _ => Ok(r),
@@ -585,11 +831,25 @@ impl Page {
         self.load(&folder);
     }
 
-    /// The focused item's address (Show in World / Races).
+    /// The focused item's address (Show in World / Races; a texture's: the step that last painted it).
     pub fn focused_address(&self) -> Option<String> {
         let rows = self.rows();
         let (g, v) = *self.lines().get(self.focus)?;
-        Some(item_address(&self.data()?.folder, &rows[g], Some(&rows[g].values[v].field)))
+        jump(self.data()?, &rows[g], Some(&rows[g].values[v].field))
+    }
+
+    /// Focus the first value row of item `key` (an item address that leads to Changes); false when it has none.
+    pub fn focus_item(&mut self, kind: &str, key: &str) -> bool {
+        self.set_mode(Mode::ThisMod);
+        self.show = Show::Mine;
+        let rows = self.rows();
+        match self.lines().iter().position(|(g, _)| rows[*g].kind == kind && rows[*g].key == key) {
+            Some(i) => {
+                self.focus = i;
+                true
+            }
+            None => false,
+        }
     }
 }
 
@@ -632,6 +892,29 @@ fn race_as_one(r: Row) -> Row {
     Row { values: vec![v], ..r }
 }
 
+/// The last step of the mod's history that changed an item.
+pub fn last_step<'a>(d: &'a Data, r: &Row) -> Option<&'a StepInfo> {
+    d.steps.iter().rev().find(|s| s.items.contains(&(r.kind.to_string(), r.key.clone())))
+}
+
+/// Where a row's Show button leads: a prop or a race to its place in World or Races; a texture (Studio has no
+/// texture view yet) to the step that last painted it. None: nowhere to go.
+pub fn jump(d: &Data, r: &Row, field: Option<&str>) -> Option<String> {
+    if r.kind == tex::TEXTURE {
+        return last_step(d, r).map(|s| format!("ob://{}/@changes?step={}", d.folder, s.seq));
+    }
+    Some(item_address(&d.folder, r, field))
+}
+
+/// The Show button's word for a row.
+pub fn jump_word(r: &Row) -> &'static str {
+    match r.kind {
+        map::RACE => "Show in Races",
+        tex::TEXTURE => "Show in History",
+        _ => "Show in World",
+    }
+}
+
 /// An item's address (`ob://<mod>/placement/<key>#<field>`); a field that is not a plain name is left out.
 pub fn item_address(folder: &str, r: &Row, field: Option<&str>) -> String {
     let mut a = format!("ob://{folder}/{}/{}", r.kind, r.key);
@@ -663,6 +946,20 @@ fn small_button(text: &str, on: bool) -> egui::Button<'static> {
     .wrap_mode(egui::TextWrapMode::Extend)
     .min_size(vec2(0.0, 22.0));
     if on { b.fill(theme::over(t.pressed, t.slab.over(t.page))) } else { b.fill(Color32::TRANSPARENT) }
+}
+
+/// A texture's thumbnail in `r`, framed; without one (the game's texture while no region is loaded, an image not
+/// found), the value's source mark in the frame.
+fn draw_thumb(p: &Painter, r: Rect, t: Option<egui::TextureId>, src: Source) {
+    let tk = tokens();
+    p.rect_filled(r, 3.0, draw::page_fill());
+    match t {
+        Some(id) => {
+            p.image(id, r.shrink(1.0), Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)), Color32::WHITE);
+        }
+        None => draw::source_mark(p, r.center(), (r.height() * 0.3).min(10.0), src),
+    }
+    p.rect_stroke(r, 3.0, Stroke::new(1.0, rgb(tk.outline)), StrokeKind::Inside);
 }
 
 fn who_text(f: &From, stack: &[(String, String)]) -> String {
@@ -885,7 +1182,7 @@ impl Page {
             match vi {
                 None if h == GROUP_H => {
                     if visible {
-                        let (title, sub) = item_words(full(&d, r), &d.folder);
+                        let (title, sub) = item_words(&d, full(&d, r));
                         draw::source_mark(&clip, pos2(rr.left() + 8.0, rr.center().y), 9.0, source(&r.from()));
                         let g = clip.layout_no_wrap(title, draw::label_font(17.0), rgb(t.ink));
                         let w = g.size().x;
@@ -897,15 +1194,17 @@ impl Page {
                             font("body", 13.0),
                             rgb(t.dim),
                         );
-                        let word = if r.kind == map::RACE { "Show in Races" } else { "Show in World" };
-                        let br = Rect::from_min_size(pos2(rr.right() - 112.0, rr.top() + 4.0), vec2(108.0, 24.0));
-                        if br.top() >= body.top()
+                        let br = Rect::from_min_size(pos2(rr.right() - 120.0, rr.top() + 4.0), vec2(116.0, 24.0));
+                        if let Some(to) = jump(&d, r, None)
+                            && br.top() >= body.top()
                             && br.bottom() <= body.bottom()
-                            && ui.put(br, small_button(word, false)).clicked()
+                            && ui.put(br, small_button(jump_word(r), false)).clicked()
                         {
-                            ask = Some(Ask::Go(item_address(&d.folder, r, None)));
+                            ask = Some(Ask::Go(to));
                         }
-                        drawn.rows.push(rr);
+                        if body.expand(1.0).contains_rect(rr) {
+                            drawn.rows.push(rr);
+                        }
                     }
                 }
                 None => {
@@ -960,11 +1259,22 @@ impl Page {
                             pos2(value_x, line.top()),
                             pos2(line.right() - act_w, line.bottom()),
                         )));
+                        // A texture's value: its thumbnail first.
+                        let is_tex = r.kind == tex::TEXTURE;
+                        let vx = if is_tex {
+                            let th = self.thumb(ui.ctx(), &d, &r.key, shown);
+                            let tr = Rect::from_min_size(pos2(value_x, line.center().y - 12.0), vec2(24.0, 24.0));
+                            draw_thumb(&vclip, tr, th, source(&v.from));
+                            value_x + 30.0
+                        } else {
+                            value_x
+                        };
                         let g = vclip.layout_no_wrap(main, font(SEMI, 15.0), rgb(t.ink));
                         let w = g.size().x;
-                        vclip.galley(pos2(value_x, line.center().y - g.size().y / 2.0), g, rgb(t.ink));
+                        vclip.galley(pos2(vx, line.center().y - g.size().y / 2.0), g, rgb(t.ink));
                         let beside = match (&v.from, &v.original) {
                             (From::Original, _) => None,
+                            (_, Some(_)) if is_tex => Some(" · original".to_string()),
                             (_, Some(o)) => Some(format!(
                                 " · {} {}",
                                 if self.mode == Mode::ThisMod || self.mode == Mode::Clashes {
@@ -980,13 +1290,17 @@ impl Page {
                             _ => None,
                         };
                         if let Some(b) = beside {
-                            vclip.text(
-                                pos2(value_x + w, line.center().y),
-                                Align2::LEFT_CENTER,
-                                b,
-                                font("body", 14.0),
-                                rgb(t.dim),
-                            );
+                            let bg = vclip.layout_no_wrap(b, font("body", 14.0), rgb(t.dim));
+                            let bw = bg.size().x;
+                            vclip.galley(pos2(vx + w, line.center().y - bg.size().y / 2.0), bg, rgb(t.dim));
+                            if is_tex {
+                                let th = self.thumb(ui.ctx(), &d, &r.key, v.original.as_ref());
+                                let tr = Rect::from_min_size(
+                                    pos2(vx + w + bw + 6.0, line.center().y - 12.0),
+                                    vec2(24.0, 24.0),
+                                );
+                                draw_thumb(&vclip, tr, th, Source::Original);
+                            }
                         }
                         let mut bx = line.right() - 4.0;
                         for a in acts.iter().rev() {
@@ -1024,8 +1338,14 @@ impl Page {
                             let other = who_text(&v.from, &d.stack);
                             let ny = line.bottom() + NOTE_H / 2.0 - 4.0;
                             let g = clip.layout_no_wrap(format!("yours: {yours}"), font(SEMI, 13.0), rgb(t.lime));
-                            let w = g.size().x;
+                            let mut w = g.size().x;
                             clip.galley(pos2(value_x, ny - g.size().y / 2.0), g, rgb(t.lime));
+                            if is_tex {
+                                let th = self.thumb(ui.ctx(), &d, &r.key, v.yours.as_ref());
+                                let tr = Rect::from_min_size(pos2(value_x + w + 4.0, ny - 8.0), vec2(16.0, 16.0));
+                                draw_thumb(&clip, tr, th, Source::Yours);
+                                w += 22.0;
+                            }
                             clip.text(
                                 pos2(value_x + w, ny),
                                 Align2::LEFT_CENTER,
@@ -1044,7 +1364,9 @@ impl Page {
                             }
                             self.focus = li;
                         }
-                        drawn.rows.push(line);
+                        if body.expand(1.0).contains_rect(line) {
+                            drawn.rows.push(line);
+                        }
                     }
                     li += 1;
                 }
@@ -1116,7 +1438,7 @@ impl Page {
             for c in &d.clashes {
                 let cy = ry + 14.0;
                 clip.line_segment([pos2(list.left(), ry), pos2(list.right(), ry)], Stroke::new(1.0, draw::rule()));
-                let item = d.rows.iter().find(|r| r.key == c.key).map_or(c.key.clone(), |r| item_words(r, &d.folder).0);
+                let item = d.rows.iter().find(|r| r.key == c.key).map_or(c.key.clone(), |r| item_words(&d, r).0);
                 clip.text(
                     pos2(col_x(0), cy),
                     Align2::LEFT_CENTER,
@@ -1215,7 +1537,7 @@ impl Page {
         };
         let row = &rows[g];
         let v = &row.values[vi];
-        let (item, _) = item_words(full(d, row), &d.folder);
+        let (item, _) = item_words(d, full(d, row));
         let mut y = body.top() + 32.0;
         clip.text(
             pos2(body.left(), y),
@@ -1262,6 +1584,24 @@ impl Page {
             );
             y = bx.bottom() + 8.0;
         }
+        // A texture: the original against yours (and the mod whose paint the game draws), side by side.
+        if row.kind == tex::TEXTURE {
+            let mut cells =
+                vec![(Source::Original, "original", v.original.clone()), (Source::Yours, "yours", v.yours.clone())];
+            if let From::Other(_) = &v.from {
+                cells.push((Source::AnotherMod, "in your game", v.game.clone()));
+            }
+            let n = cells.len() as f32;
+            let side = ((body.width() - 8.0 * (n - 1.0)) / n).min(96.0);
+            for (i, (src, word, val)) in cells.into_iter().enumerate() {
+                let x = body.left() + i as f32 * (side + 8.0);
+                let tr = Rect::from_min_size(pos2(x, y), vec2(side, side));
+                let th = self.thumb(ui.ctx(), d, &row.key, val.as_ref());
+                draw_thumb(&clip, tr, th, src);
+                clip.text(pos2(x, tr.bottom() + 9.0), Align2::LEFT_CENTER, word, font("body", 12.0), rgb(t.dim));
+            }
+            y += side + 24.0;
+        }
         let line = |clip: &Painter, y: &mut f32, mark: Option<Source>, k: &str, val: String| {
             if let Some(s) = mark {
                 draw::source_mark(clip, pos2(body.left() + 6.0, *y + 10.0), 9.0, s);
@@ -1298,7 +1638,7 @@ impl Page {
                 format!("{} · {}", txt(v.game.as_ref()), who_text(&v.from, &d.stack)),
             );
         }
-        let step = d.steps.iter().rev().find(|s| s.items.contains(&(row.kind.to_string(), row.key.clone())));
+        let step = last_step(d, row);
         if let Some(s) = step {
             line(&clip, &mut y, None, "Changed in", format!("step {} · {}", s.seq, s.label));
         }
@@ -1324,8 +1664,7 @@ impl Page {
             self.set_mode(Mode::Step(s.seq));
             ask = Some(Ask::Moved);
         }
-        let world = if row.kind == map::RACE { "Show in Races" } else { "Show in World" };
-        if button(world, &mut bx) {
+        if row.kind != tex::TEXTURE && button(jump_word(row), &mut bx) {
             ask = Some(Ask::Go(item_address(&d.folder, row, Some(&v.field))));
         }
         y += 36.0;

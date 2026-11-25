@@ -7,6 +7,7 @@
 //! * [`compare`]: two states of one mod (a history step, a kept version), value by value.
 //! * [`reset`]: a value given back to the lower layers (the original, or what another mod gives).
 
+pub mod looks;
 pub mod map;
 
 use std::collections::BTreeSet;
