@@ -54,6 +54,10 @@ pub struct PropCollision {
     pub outside: usize,
     /// Removed faces the original's collision does not have.
     pub unmatched: usize,
+    /// Where those are (each one's corners' centre), in the mods' order: the map checks point at them.
+    pub unmatched_at: Vec<Vec3>,
+    /// The drawn faces outside every pack's grid (each one's corners' centre), in the mods' order.
+    pub outside_at: Vec<Vec3>,
 }
 
 /// A map mod's removed and drawn collision on one region
@@ -83,6 +87,11 @@ impl DrawnCollision {
     pub fn is_empty(&self) -> bool {
         self.remove.is_empty() && self.faces.is_empty()
     }
+}
+
+/// The centre of a face's corners.
+fn centre(corners: &[Vec3]) -> Vec3 {
+    corners.iter().copied().sum::<Vec3>() / corners.len().max(1) as f32
 }
 
 /// A face's corners as the packs store them (eighths of a metre across,
@@ -344,7 +353,15 @@ impl World {
                 }
             }
             done.unmatched = wanted.values().filter(|h| !**h).count();
+            let mut told = HashSet::new();
+            for c in &drawn.remove {
+                let k = face_key(c);
+                if !wanted[&k] && told.insert(k) {
+                    done.unmatched_at.push(centre(c));
+                }
+            }
         }
+        let first_drawn = add.len();
         add.extend(drawn.faces.iter().map(|f| world_face(&drawn_local(f), Mat4::IDENTITY)));
         // Each new face into every pack whose grid covers it.
         let mut per_pack: HashMap<usize, Vec<(CollisionFace, Vec<(usize, u16)>)>> = HashMap::new();
