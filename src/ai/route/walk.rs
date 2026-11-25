@@ -61,6 +61,13 @@ pub struct RacerRoute {
     /// race rivals set it from their number; [`RacerRoute::start`] keeps 12 s
     /// for the encounter racers, whose car +0x0A is not read (**open**).
     pub branch_hold: f32,
+    /// The track's start kind (record +0xF6, 0x883DAC) is 1: IJustGotHit's
+    /// proposal (0x403320), Pass's (0x42B5B0) and AvoidAvoidable's update
+    /// (0x42F330 at 0x42F3A6) skip the hold test then (`cmp byte [track
+    /// +0xF6], 1; je` before 0x5EF000); GetUnstuck's (0x40E7E6), the
+    /// junctions' (0x413D78) and Block's (0x4141A7) apply it always. 77 of
+    /// the 131 tracks read 1, among them the circuits, sprints and drags.
+    pub hold_spares_contacts: bool,
     /// A drag race's racer (0x89E7D8 / 0x890108): 0x422220 joins records by
     /// dropping the list's last point instead of walking past the new one.
     pub drag: bool,
@@ -82,6 +89,11 @@ pub struct RacerRoute {
     pub outrun_leader_positions: Option<(Vec2, Vec2)>,
     pub(super) outrun_chaser: bool,
     pub(super) search_rebuild_pending: bool,
+    /// The car's own road entry's half extent across its travel (planner
+    /// +0x10 + 0x30 · own index, +0x08) as its last think listed it:
+    /// 0x41D530 adds it to 0x420D40's room margin (0x41D5F9..0x41D60F),
+    /// so a path keeps the car's half width inside the room as well.
+    pub own_across: f32,
     /// AIActionJustDrive's path (action +0x20), kept between frames.
     pub(super) line: Vec<LinePoint>,
     /// Driver event 4: the path was planned afresh since the
@@ -186,11 +198,13 @@ impl RacerRoute {
             dead_end: false,
             clock: 0.0,
             branch_hold: 12.0,
+            hold_spares_contacts: false,
             human: false,
             rng: GameRng::default(),
             race_coord: None,
             junction_odds: [0.0, 0.0, 1.0],
             outrun_leader_positions: None,
+            own_across: 0.0,
             outrun_chaser: false,
             search_rebuild_pending: false,
             replanned: false,

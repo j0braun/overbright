@@ -35,6 +35,11 @@ pub(super) fn sweep(path: &[Vec3], list: &[Entry], own: usize, me: &RoadCar, loo
 /// into 0x827A20 by 0x77A6F0): 0x404EF0's least distance to a path point
 /// ahead.
 pub(super) const PATH_AHEAD: f32 = 0.02;
+/// 0x4275E0 sweeps a traffic car along its driver's path while its
+/// controller's vt+0x2C (0x40D4F0: how far it is past its road's edge at
+/// its route point; negative on the road) is at most this (0x785B6C),
+/// else along the prediction (0x425A40).
+pub const TRAFFIC_OWN_PATH_EDGE: f32 = -0.25;
 /// 0x420B80: a traffic car's predicted path, one point per 0.1 s
 /// (0x3DCCCCCD) stepped by its velocity and acceleration; 0x420A60's
 /// straight line instead when |a| > 0.75 |v|, five points L / 5 apart.
@@ -227,12 +232,17 @@ pub(super) fn swept(me: &RoadCar, own: &CarPath, other: &RoadCar, look: f32) -> 
     let a_pts = own.points();
     // 0x4275E0 copies the other car's path (0x60BE20: car +0x30 → +0x10)
     // and replaces it with the prediction (0x425A40) only for traffic (kind
-    // 3); a racer's empty path gives no contact (the loop runs `i < count`,
-    // observed under Wine). The human's path is its controller's per-frame build
+    // 3) whose controller's vt+0x2C (0x40D4F0, the distance past its road's
+    // edge) is above −0.25 (0x785B6C; 0x427677..0x4276C2): a traffic car on
+    // its road is swept along its driver's path, which the caller gives it
+    // only then ([`TRAFFIC_OWN_PATH_EDGE`]); one at or past the edge, or
+    // without a route point (0 m), along the prediction. A racer's empty
+    // path gives no contact (the loop runs `i < count`, observed under
+    // Wine). The human's path is its controller's per-frame build
     // (0x42CAA0, [`human_path`]); above 10 m/s that is the road path
     // 0x4221F0 (`route::HumanRoad::road_path`, set by the game's caller;
     // without a human walk the clone falls back to the prediction).
-    let b_pts: Vec<Vec2> = if other.traffic || (other.human && other.path.n == 0) {
+    let b_pts: Vec<Vec2> = if (other.traffic || other.human) && other.path.n == 0 {
         predicted(other)
     } else {
         other.path.points().to_vec()

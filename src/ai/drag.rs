@@ -421,6 +421,87 @@ mod tests {
         assert!((0..4).all(|i| (r268.4[i] - r268.5[i]).abs() < 0.15), "{r268:?}");
     }
 
+    /// The drag race's own hit and wall actions (chooser 0x42D470): a live
+    /// wall contact gives the wall action (type 0xF, 300), whose update
+    /// 0x4249C0 makes the lane nearest the car the record's lane at 0.151;
+    /// once the wall contact is gone it is done and the lane action (7)
+    /// drives that lane. A racer contact over 8.33 of summed pushes gives
+    /// the got-hit action (0xC, 400), which a wall contact (300) does not
+    /// replace, and which ends when no racer is in contact (0x41CC90).
+    #[test]
+    #[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
+    fn drag_wall_and_hit_actions_take_the_lane_at_the_car() {
+        use crate::ai::actions::{Actions, CarPath, DragTouch, Kind, RoadCar, Scene};
+        let data = std::fs::read(crate::testkit::game_root().join("TRACKS/ROUTESL4RB/Routes4213B.bin")).expect("reading the game's data file");
+        let routes = AiRoutes { file: crate::formats::ai_routes::RouteFile::parse(&data), track: 0x1075, backward: true, race_coords: false, resets: Vec::new(), blocks: Vec::new() };
+        let heading = glam::Vec2::new(0.927, 0.374);
+        let here = Vec3::new(-281.3, -2121.1, -1.8);
+        let route = RacerRoute::start(&routes, here, heading).expect("on the drag road");
+        let near = route.nearest_lane(&routes, here, None).expect("a traffic lane at the car");
+        let car = |id: usize, at: Vec3| RoadCar {
+            id,
+            position: at,
+            velocity: (heading * 30.0).extend(0.0),
+            forward: heading,
+            accel: 0.0,
+            forward_accel: 0.0,
+            half: glam::Vec2::new(2.2, 0.9),
+            racer: true,
+            human: false,
+            traffic: false,
+            ghosted: false,
+            acceleration: Vec3::ZERO,
+            path: CarPath::default(),
+        };
+        let me = car(1, here);
+        let side = glam::Vec2::new(heading.y, -heading.x).extend(0.0);
+        let others = [me, car(2, here + side * 1.5)];
+        let scene = |hits: &'static [usize]| Scene {
+            routes: &routes,
+            me,
+            others: &others,
+            clock: 20.0,
+            rate: AI_RATE,
+            street_x: false,
+            drift: false,
+            drag: true,
+            held: false,
+            contact_held: false,
+            block_row: 1,
+            hits,
+            touching: !hits.is_empty(),
+            wheels_down: 4,
+            up_z: 1.0,
+            forward_speed: 30.0,
+            odds: 1.0,
+        };
+        let mut rng = GameRng::default();
+        let mut a = Actions::default();
+        let mut lane = DragLane { lane: Some(if near == 2 { 5 } else { 2 }), rate: AI_RATE, ..DragLane::default() };
+        let driven = route.lane_path(&routes, here, lane.lane.unwrap(), AI_RATE, ROOM_MARGIN + 0.9);
+        let wall = DragTouch { wall: true, hard: &[] };
+        let steer = a.drag_think(&route, &scene(&[]), &mut lane, &driven, &wall, &mut rng).expect("the wall action drives");
+        assert_eq!((a.kind, a.priority), (Kind::DragWall, 300));
+        assert_eq!((lane.lane, lane.rate), (Some(near), AI_RATE));
+        assert_eq!(steer.path, route.lane_path(&routes, here, near, AI_RATE, ROOM_MARGIN + 0.9));
+        // No wall now: done, and the lane action drives the lane taken.
+        assert!(a.drag_think(&route, &scene(&[]), &mut lane, &driven, &DragTouch::default(), &mut rng).is_none());
+        assert_eq!((a.kind, a.priority, lane.lane), (Kind::DragLane, 0, Some(near)));
+        // A hard racer contact: the got-hit action, kept over a wall contact
+        // while the racer stays in contact, done once it is not.
+        let hard = DragTouch { wall: false, hard: &[2] };
+        a.drag_think(&route, &scene(&[2]), &mut lane, &driven, &hard, &mut rng).expect("the got-hit action drives");
+        assert_eq!((a.kind, a.priority, a.target), (Kind::DragHit, 400, Some(2)));
+        a.drag_think(&route, &scene(&[2]), &mut lane, &driven, &wall, &mut rng);
+        assert_eq!(a.kind, Kind::DragHit);
+        a.drag_think(&route, &scene(&[]), &mut lane, &driven, &wall, &mut rng);
+        assert_eq!((a.kind, a.priority), (Kind::DragWall, 300));
+        // A soft racer contact (under 8.33) proposes nothing.
+        let mut b = Actions::default();
+        assert!(b.drag_think(&route, &scene(&[2]), &mut lane, &driven, &DragTouch::default(), &mut rng).is_none());
+        assert_eq!(b.kind, Kind::DragLane);
+    }
+
     #[test]
     fn lane_events_change_on_edges() {
         let mut l = DragLane::default();

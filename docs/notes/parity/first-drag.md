@@ -74,9 +74,9 @@ Also fixed: the crash's vertical push factor is 1.2 in a drag race, not 1.1
 
 ## Open
 
-* The drag chooser's other actions: type 0x12 (600, on controller +0x780),
-  0xF "I just hit a wall" (0x403450), 0xC (0x403410 → 0x424560), and
-  AvoidAvoidable's end test in a drag race (0x42BA80's 0x4140E0 /
+* The drag chooser's wall and got-hit actions (0xF, 0xC) are now ported and
+  type 0x12 is never proposed (docs/formats/career-2.md, "Wall-hit / got-hit
+  actions"); open: AvoidAvoidable's end test in a drag race (0x42BA80's 0x4140E0 /
   0x410A50): the clone ends it at the next think and sweeps again.
 * 0x60BF80 in the near / far test (taken as false, as in the road port).
 * Against the original: the rivals' totals with a *driving* player were not

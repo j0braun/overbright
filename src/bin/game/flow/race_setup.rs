@@ -245,6 +245,7 @@ impl Game {
         race.round = round;
         race.field = field;
         race.start_gap = track.start_gap[usize::from(variant & 1 != 0)];
+        race.start_kind = track.start_kind;
         race.racers.me.place_on_road(&race.route, at.truncate());
         // The opponents (0x5260C0) and the grid order (0x5264B0).
         let t_routes = nfsu2::prof::span("start_round: AiRoutes::load");
@@ -999,7 +1000,10 @@ impl Game {
             // The driver tables' skill row: the entry's byte for the
             // difficulty (+0x08 + 0x89E7F4).
             let row = event.opponents.get(i).map_or(0, |o| o.difficulty[difficulty] as usize);
-            // Racer number 100 + i (car +0x0A): its start hold (0x5EF000).
+            // Racer number 100 + i (car +0x0A): its start hold (0x5EF000),
+            // which returns 0 in a drag race (0x89E7D8 / 0x890108 at
+            // 0x5EF000..0x5EF014), so a drag rival holds no GetUnstuck,
+            // Block or junction for its first 12 s.
             let route =
                 nfsu2::ai::route::RacerRoute::start_in(
                     routes,
@@ -1008,7 +1012,9 @@ impl Game {
                     car.car_type.handling.race.drag(),
                 )
                     .map(|mut r| {
-                        r.branch_hold = nfsu2::ai::route::start_hold(100 + i as i32);
+                        r.branch_hold =
+                            if race.drag { f32::NEG_INFINITY } else { nfsu2::ai::route::start_hold(100 + i as i32) };
+                        r.hold_spares_contacts = race.start_kind == 1;
                         r
                     });
             let driver =

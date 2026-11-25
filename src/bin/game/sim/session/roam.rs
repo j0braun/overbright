@@ -52,7 +52,7 @@ impl Session<'_> {
                         .enumerate()
                         .filter(|(_, c)| c.lane.is_some())
                         .map(|(i, c)| {
-                            road_car(
+                            let mut rc = road_car(
                                 1000 + i,
                                 &c.car,
                                 &c.state,
@@ -60,7 +60,9 @@ impl Session<'_> {
                                 false,
                                 false,
                                 e.road_dt.unwrap_or(dt),
-                            )
+                            );
+                            crate::sim::ai::racer::traffic_road_path(&mut rc, c, &t.routes);
+                            rc
                         })
                         .collect()
                 });

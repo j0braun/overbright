@@ -18,6 +18,7 @@ mod plans;
 mod pursuit;
 mod sweep;
 
+pub use drag::{DRAG_HIT_IMPULSE, DRAG_HIT_PRIORITY, DRAG_WALL_PRIORITY, DragTouch};
 pub use pursuit::{PURSUIT_DISTANCE, PURSUIT_FLOOR, PURSUIT_SIDE, PursuitSide, pursuit_offsets};
 
 pub use entries::*;
@@ -27,7 +28,7 @@ use honk::*;
 use plans::*;
 #[allow(unused_imports)]
 use sweep::*;
-pub use sweep::human_path;
+pub use sweep::{TRAFFIC_OWN_PATH_EDGE, human_path};
 
 /// Pass: priority (0x42B5B0's return), time limit (the 5.0 the chooser
 /// gives 0x423610), the race time before passes start (0x42B5B0: 5 s past
@@ -385,5 +386,21 @@ mod tests {
             )
             .is_none()
         );
+    }
+
+    #[test]
+    fn traffic_on_its_road_is_swept_along_its_drivers_path() {
+        // 0x4275E0: the prediction (20 × 0.1 s) of a traffic car at 20 m/s
+        // ends 40 m on, so a racer closing at 20 m/s from 55 m back meets
+        // nothing within it; along its driver's path (given while it is on
+        // its road, vt+0x2C ≤ −0.25) it is met in (55 − 2.2 − 2.2 · 1.3) / 20
+        // ≈ 2.5 s.
+        let me = car(0, Vec2::ZERO, Vec2::X * 40.0, false);
+        let path = straight(Vec2::ZERO, 20, 8.0);
+        let far = car(1, Vec2::new(55.0, 0.0), Vec2::X * 20.0, true);
+        assert!(swept(&me, &path, &far, 3.0).is_none(), "the prediction's 2 s horizon");
+        let driven = RoadCar { path: straight(Vec2::new(55.0, 0.0), 20, 8.0), ..far };
+        let t = swept(&me, &path, &driven, 3.0).expect("met along its driver's path");
+        assert!((t - (55.0 - 2.2 - 2.2 * 1.3) / 20.0).abs() < 0.1, "{t}");
     }
 }
