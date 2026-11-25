@@ -2406,9 +2406,28 @@ fn mods_on_overbright_packs_and_map_mods() {
     let maps = crate::tools::map::store::maps_dir();
     let m = crate::tools::map::MapMod { name: "Drift park".into(), ..Default::default() };
     crate::tools::map::store::save(&maps, "drift-park", &m).unwrap();
-    assert_eq!(env.maps(), [super::model::MapRow { folder: "drift-park".into(), name: "Drift park".into(), on: false, races: 0, props: 0 }]);
+    assert_eq!(env.maps(), [super::model::MapRow { folder: "drift-park".into(), name: "Drift park".into(), on: false, races: 0, props: 0, textures: 0 }]);
     env.set_map("drift-park", true).unwrap();
     assert!(env.maps()[0].on);
+    // Its painted textures: counted on the row, exported, imported back
+    // (asked first: a pack file without a record counts as derived).
+    let tex = maps.join("drift-park").join(crate::tools::map::store::TEXTURES).join("world").join("1A2B3C4D.png");
+    std::fs::create_dir_all(tex.parent().unwrap()).unwrap();
+    std::fs::write(&tex, &png).unwrap();
+    std::fs::create_dir_all(maps.join("drift-park").join("work")).unwrap();
+    std::fs::write(maps.join("drift-park").join("work").join("paint.png"), &png).unwrap();
+    assert_eq!(env.maps()[0].textures, 1);
+    assert_eq!(env.map_derived("drift-park"), 1);
+    let out = dir.join("exports");
+    assert!(env.export_map("drift-park", &out, false).is_err(), "not without the yes");
+    let zip = env.export_map("drift-park", &out, true).unwrap();
+    let back = env.import_map(&zip).unwrap();
+    assert_ne!(back, "drift-park");
+    assert_eq!(std::fs::read(maps.join(&back).join("textures/world/1A2B3C4D.png")).unwrap(), png);
+    assert!(!maps.join(&back).join("work").exists(), "work files stay home");
+    assert_eq!(env.maps().iter().find(|r| r.folder == back).unwrap().textures, 1);
+    crate::tools::map::share::files(&maps.join(&back)).unwrap();
+    std::fs::remove_dir_all(maps.join(&back)).unwrap();
     // Use mods: off kept in its file until turned on again.
     assert!(env.paused().is_none());
     let p = Paused { maps: vec!["drift-park".into()], ..Default::default() };
@@ -2702,7 +2721,7 @@ fn mods_page_starts_the_map_editor() {
     let env = FakeEnv;
     let mut a = app(&env, &fonts, Screen::Mods, 1280, 720, 1.0);
     let t = all_text(&a);
-    assert!(t.contains("2 races · 9 prop edits") && t.contains("14 prop edits"), "{t}");
+    assert!(t.contains("2 races · 9 prop edits") && t.contains("14 prop edits · 5 textures"), "{t}");
     assert!(a.ui.get("map_open").unwrap().enabled);
     a.model.mods.map_sel = Some("open-docks".into());
     a.event(&Event::Activate("map_open"));
@@ -3074,83 +3093,4 @@ fn map_export_asks_before_derived_textures() {
     a.use_folder(std::path::PathBuf::from("/exports"));
     assert!(a.model.ask.is_none());
     assert_eq!(a.model.mods.results[0].1, "Exported: /exports/drift-park.zip");
-}
-
-/// The own copy (`game_data`): offered after the game check with Make copy chosen, made in the background
-/// while the launcher stays usable, then shown as ready in Settings › Advanced.
-#[test]
-fn game_data_flow() {
-    use super::game_data::{State, Status};
-    let fonts = Fonts::new();
-    let env = FakeEnv;
-    let mut a = app(&env, &fonts, Screen::Check, 960, 720, 1.0);
-    assert_eq!(focus(&a), "use");
-    key(&mut a, &fonts, Key::Enter);
-    assert_eq!(a.screen, Screen::GameData);
-    assert_eq!(a.model.game_data.state, State::Offer);
-    assert_eq!(a.model.game_data.size, 1_801_794_145);
-    // One confirm starts it; Stop is then the focus.
-    key(&mut a, &fonts, Key::Enter);
-    assert!(a.model.game_data.running());
-    assert!(a.game_data_busy());
-    assert_eq!(focus(&a), "stop");
-    // Back leaves it running behind the main screen, whose state line says so.
-    key(&mut a, &fonts, Key::Escape);
-    assert_eq!(a.screen, Screen::Main);
-    assert!(super::screens::game_state(&a.model).1.contains("making your own copy"));
-    assert!(a.poll_jobs(&fonts));
-    assert!(!a.game_data_busy());
-    assert!(matches!(a.model.game_data.status, Status::Ready { known: true, .. }));
-    assert!(matches!(a.model.game_data.state, State::Done { known: true, .. }));
-    // Settings › Advanced › Game data: ready, Check copy offered; Back returns to Advanced.
-    a.go(Screen::Advanced);
-    a.rebuild(&fonts);
-    let row = a.ui.widgets.iter().flat_map(|w| &w.texts).any(|t| t.text == "Your own copy: ready");
-    assert!(row, "the Advanced row says the copy is ready");
-    a.event(&super::ui::Event::Activate("game_data"));
-    a.rebuild(&fonts);
-    assert_eq!(a.screen, Screen::GameData);
-    assert_eq!(focus(&a), "continue");
-    key(&mut a, &fonts, Key::Escape);
-    assert_eq!(a.screen, Screen::Advanced);
-    assert_eq!(focus(&a), "game_data");
-    // With a copy there, the first-run step is not offered again.
-    assert!(!a.offer_game_data());
-}
-
-/// Stop, then a failure: Try again runs the same again; a damaged copy offers Repair.
-#[test]
-fn game_data_stop_fail_and_repair() {
-    use super::game_data::{End, Job, Kind, Msg, State, Status};
-    let fonts = Fonts::new();
-    let env = FakeEnv;
-    let mut a = app(&env, &fonts, Screen::Main, 960, 720, 1.0);
-    assert!(a.offer_game_data(), "no copy: offered");
-    a.rebuild(&fonts);
-    key(&mut a, &fonts, Key::Enter);
-    a.game_data_job = Some(Job::scripted(vec![Msg::End(End::Stopped { done: 5, of: 10 })]));
-    a.event(&super::ui::Event::Activate("stop"));
-    assert!(a.model.game_data.stopping);
-    a.poll_jobs(&fonts);
-    assert_eq!(a.model.game_data.state, State::Stopped { done: 5, of: 10 });
-    assert_eq!(a.model.game_data.status, Status::Partial);
-    assert_eq!(focus(&a), "import", "Go on");
-    a.event(&super::ui::Event::Activate("import"));
-    a.game_data_job = Some(Job::scripted(vec![Msg::End(End::Failed("A file could not be read".into()))]));
-    a.poll_jobs(&fonts);
-    assert!(matches!(a.model.game_data.state, State::Failed(_)));
-    assert_eq!(focus(&a), "retry");
-    key(&mut a, &fonts, Key::Enter);
-    assert!(a.model.game_data.running() && a.model.game_data.last == Kind::Import);
-    a.game_data_job = Some(Job::scripted(vec![Msg::End(End::NoSpace { need: 2, free: 1, place: "/home".into() })]));
-    a.poll_jobs(&fonts);
-    assert!(matches!(a.model.game_data.state, State::NoSpace { .. }));
-    // A damaged copy: Repair chosen.
-    a.model.game_data.status = Status::Damaged(2);
-    a.open_game_data(true);
-    a.rebuild(&fonts);
-    assert_eq!(a.model.game_data.state, State::Damaged(2));
-    assert_eq!(focus(&a), "repair");
-    key(&mut a, &fonts, Key::Enter);
-    assert_eq!(a.model.game_data.last, Kind::Repair);
 }

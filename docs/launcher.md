@@ -73,9 +73,11 @@ arguments (`Outcome::Restart`; the new one waits for the old one's lock)), then 
   (Overbright packs from `obpack`, then the imported TexMod / TexWizard packages, each with a switch; Remove is
   X / Space and asks first); a message when two packs that are on change the same textures, with Change the
   order (Move up / Move down) when both are in the same list; Add a mod…; HUD (HD HUD and maps, Add HUD mod…,
-  Choose folder…, Forget folder); Map mods (`tools::map::store`: a switch each with its races and prop
-  edits under the name; Open in map editor (the chosen mod; the editor's own Open / New is the Dev page's button), Import a
-  map mod…, Export… as a `.zip`). The map editor (`overbright-editor`, `dirs::editor_exe` beside the launcher,
+  Choose folder…, Forget folder); Map mods (`tools::map::store`: a switch each with its races, prop
+  edits and changed textures under the name; Open in map editor (the chosen mod; the editor's own Open / New is the Dev page's button), Import a
+  map mod… (the map and its textures, `tools::map::share::import`), Export… as a `.zip` with the mod's textures
+  (`tools::map::share::export`; a mod with textures from the original game's pixels asks first, "Made from the
+  original game": Export anyway or Cancel)). The map editor (`overbright-editor`, `dirs::editor_exe` beside the launcher,
   `OB_EDITOR_EXE` names another) starts with `--mod <folder>` and the shown game folder as `NFSU2_ROOT`; one at a
   time: while it is open the section's controls are greyed and a line says the page waits; when it closes the
   map mods are read again (`App::poll_jobs`); a failed start or a bad exit is shown as an error line. The

@@ -797,8 +797,11 @@ pub enum Dialog {
         author: String,
         description: String,
     },
+    /// `derived`: the mod's textures made from the original game's pixels
+    /// (the warning shows first, and the yes is "Export anyway").
     Export {
         path: String,
+        derived: usize,
     },
     Import {
         path: String,
@@ -1334,8 +1337,9 @@ impl App {
             A::Export => {
                 if let Some(s) = &self.state {
                     // Overbright's exports folder (made by the export), never the home folder itself.
-                    let to = ob_studio::share::default_zip(&crate::platform::dirs::exports(), &s.session.folder);
-                    self.dialog = Some(Dialog::Export { path: to.display().to_string() });
+                    let path = ob_studio::share::default_zip(&crate::platform::dirs::exports(), &s.session.folder);
+                    let derived = crate::tools::map::share::derived(&self.maps.join(&s.session.folder)).len();
+                    self.dialog = Some(Dialog::Export { path: path.display().to_string(), derived });
                 }
             }
             A::Import => self.dialog = Some(Dialog::Import { path: String::new() }),
@@ -1849,14 +1853,19 @@ impl App {
                         }
                     });
                 }
-                Dialog::Export { path } => {
+                Dialog::Export { path, derived } => {
                     ui.label(theme::title("Export map mod"));
-                    ui.label("A .zip file, or a folder:");
+                    ui.label("A .zip file, or a folder (the map and the mod's textures):");
                     ui.text_edit_singleline(path);
+                    if *derived > 0 {
+                        ui.label(theme::title(words::DERIVED_TITLE));
+                        ui.label(crate::tools::map::share::derived_warning(*derived));
+                    }
+                    let (yes, ok) = if *derived > 0 { (words::EXPORT_ANYWAY, true) } else { ("Export", false) };
                     ui.horizontal(|ui| {
-                        if ui.add(theme::main_action("Export")).clicked() {
+                        if ui.add(theme::main_action(yes)).clicked() {
                             let p = PathBuf::from(path.trim());
-                            then = Some(Box::new(move |app: &mut App| app.export(&p)));
+                            then = Some(Box::new(move |app: &mut App| app.export(&p, ok)));
                             keep = false;
                         }
                         if ui.button(words::CANCEL).clicked() {
@@ -1980,7 +1989,10 @@ impl App {
         }
     }
 
-    fn export(&mut self, to: &Path) {
+    /// Export the mod as a shared copy (`ob_map::tools::map::share`: the map
+    /// and its textures; `derived_ok`: the yes to textures from the original
+    /// game's pixels).
+    fn export(&mut self, to: &Path, derived_ok: bool) {
         let Some(folder) = self.state.as_ref().map(|s| s.session.folder.clone()) else { return };
         let r = (|| -> Result<()> {
             if self.state.as_ref().is_some_and(|s| s.session.dirty) {
@@ -1989,7 +2001,8 @@ impl App {
             if let Some(p) = to.parent().filter(|p| !p.as_os_str().is_empty()) {
                 std::fs::create_dir_all(p).with_context(|| format!("making {}", p.display()))?;
             }
-            store::export(&self.maps, &folder, to)
+            ob_studio::share::export(&self.maps, &folder, to, derived_ok)?;
+            Ok(())
         })();
         match r {
             Ok(()) => self.say(format!("Exported {folder} to {}", to.display())),
@@ -1998,7 +2011,7 @@ impl App {
     }
 
     fn import(&mut self, from: &Path) {
-        match store::import(&self.maps, from) {
+        match crate::tools::map::share::import(&self.maps, from).map_err(anyhow::Error::msg) {
             Ok(f) => {
                 self.say(format!("Imported {f}"));
                 self.guarded(Then::Open(f));
@@ -2943,13 +2956,13 @@ mod tests {
         let mut a = app(&s);
         a.new_mod("docks", "", "L4RA").unwrap();
         a.act(menu::Action::Export);
-        let Some(Dialog::Export { path }) = &a.dialog else { panic!("{:?}", a.dialog) };
+        let Some(Dialog::Export { path, .. }) = &a.dialog else { panic!("{:?}", a.dialog) };
         let proposed = PathBuf::from(path);
         assert_eq!(proposed, crate::platform::dirs::exports().join("docks.zip"));
         assert_ne!(proposed.parent(), crate::platform::dirs::home().as_deref(), "not the home folder");
         a.dialog = None;
         let to = s.path().join("exports").join("docks.zip");
-        a.export(&to);
+        a.export(&to, false);
         assert!(to.is_file(), "the folder is made and the file written");
     }
 }

@@ -44,8 +44,28 @@ never hosts or shares mods.
 A test run started with `--looks-live <mod>/textures` shows each step in the running game within a second: the
 game watches the mod's texture folder as [Reload Packs When Changed](pack-hot-reload.md) does, for that run only,
 whatever the setting says, and takes those textures before every other pack. Only a test run (`--map-mod` or
-`--map-file`) takes the flag; a normal start never reads the mod's textures this way, and nothing is written to
-your options.
+`--map-file`) takes the flag; a normal start loads an enabled mod's textures without watching them (below), and
+nothing is written to your options.
+
+Studio's and the map editor's **Test race** and **Drive here** start the game this way: the mod's `textures/`
+folder is that run's live folder, so what you painted shows in the test, and a save during it shows within a second.
+
+## In the player's game
+
+When the mod is on in the launcher (`maps/enabled.txt`), its `textures/` load in a normal start through the same
+path as texture packs: in the list's order (the last mod the strongest), before the Overbright packs and the
+launcher's texture mods. No mod on, or none with textures: nothing is read, the native path. The launcher's mod
+row says how many textures a mod changes ("1 race · 51 prop edits · 5 textures").
+Rendered check: `scripts/checks/map_mod_looks_shot.sh GAME OUTDIR` takes the free-roam shot with a mod that paints
+every city texture magenta, on, present but off, and with no maps folder; "off" and "none" must be the plain shot
+exactly.
+
+## Sharing
+
+Studio's Mod page, the map editor's **File ▸ Export…** and the launcher's **Export…** write the same shared copy:
+`map.obmap`, `looks.toml`, `textures/` and `provenance.toml`, never `work/` or `.editor/`. Each import (Studio, the
+map editor, the launcher) brings the textures back. Before a mod with derived textures is exported, each asks
+first ("Made from the original game"); a pack file `looks.toml` does not list as `blank` counts as derived.
 
 Measured headless on the reference desktop (`crates/ob-studio/tests/looks_live.rs`, a stand-in paint program, the
 watcher ticked by the game's frames at 60 fps): about 0.2 to 0.4 s from the save to the frame that draws it.

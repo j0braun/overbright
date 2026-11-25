@@ -65,7 +65,7 @@ same results as the shipped profile (Rust does no fast-math); only build time an
 - Cargo keeps each profile in its own folder under the target dir: the checks' binaries are in
   `target/gate/` (`game`, `examples/pixdiff`, …), the shipped profile's in `target/release/`; gate and
   release artifacts never mix. The scripts that default to a binary (`resolutions.sh`, `lavapipe.sh`,
-  `halo.sh`, `wine_smoke.sh`, `texture_mod_shot.sh`, `selfcheck.sh`'s pixdiff, `shot_targets.py`) read
+  `halo.sh`, `wine_smoke.sh`, `texture_mod_shot.sh`, `map_mod_looks_shot.sh`, `selfcheck.sh`'s pixdiff, `shot_targets.py`) read
   it from the profile's folder.
 - checks.txt's first line names the profile (`profile gate`). With `PREV=<earlier outdir>` a run built
   with another profile is named (`note: PREV was built with profile …`; runs without the word were

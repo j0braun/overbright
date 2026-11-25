@@ -1936,6 +1936,7 @@ dependencies = [
  "ob-formats",
  "serde",
  "serde_json",
+ "toml",
 ]
 
 [[package]]

@@ -15,7 +15,7 @@
 pub mod assets;
 pub mod edit;
 // The map data without a world (crates/ob-map), at its old paths.
-pub use ob_map::tools::map::{format, ops, race, sim, store};
+pub use ob_map::tools::map::{format, ops, race, share, sim, store};
 
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
@@ -146,6 +146,42 @@ pub fn reload_active() -> Mods {
     let mods: Mods = Arc::new(read_mods(&dir, only()));
     ACTIVE.write().unwrap().get_or_insert_with(HashMap::new).insert(dir, mods.clone());
     mods
+}
+
+/// The texture folders of the map mods in use (docs/modding/studio-looks.md, "In the player's game"):
+/// `<maps>/<folder>/textures/world` (`car` false) or `…/car` of each mod [`active`] reads that has one, the
+/// strongest first (`enabled.txt` applies its mods in order, the last the strongest; a test run's one mod alone).
+/// Read again at most every half second (the texture loader asks for every texture). No mod enabled, or none
+/// with textures: empty, the native path.
+pub fn texture_roots(car: bool) -> Vec<std::path::PathBuf> {
+    struct Seen {
+        at: std::time::Instant,
+        dir: std::path::PathBuf,
+        world: Vec<std::path::PathBuf>,
+        car: Vec<std::path::PathBuf>,
+    }
+    static CACHE: std::sync::Mutex<Option<Seen>> = std::sync::Mutex::new(None);
+    let dir = store::maps_dir();
+    let mut c = CACHE.lock().unwrap_or_else(|e| e.into_inner());
+    let fresh = c.as_ref().is_some_and(|s| s.dir == dir && s.at.elapsed() < std::time::Duration::from_millis(500));
+    if !fresh {
+        let mods = active();
+        let roots = |sub: &str| -> Vec<std::path::PathBuf> {
+            mods.iter()
+                .rev()
+                .map(|(f, _)| dir.join(f).join(store::TEXTURES).join(sub))
+                .filter(|d| d.is_dir())
+                .collect()
+        };
+        let (world, car) = (roots("world"), roots("car"));
+        let new = c.as_ref().is_none_or(|s| s.dir != dir || s.world != world || s.car != car);
+        if new && !(world.is_empty() && car.is_empty()) {
+            log::info!("map mod textures: {} world, {} car folders", world.len(), car.len());
+        }
+        *c = Some(Seen { at: std::time::Instant::now(), dir, world, car });
+    }
+    let s = c.as_ref().expect("filled above");
+    if car { s.car.clone() } else { s.world.clone() }
 }
 
 /// A world as the game drives it: [`crate::world::World::load`], then the

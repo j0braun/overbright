@@ -22,6 +22,7 @@ pub mod tools {
         pub mod format;
         pub mod ops;
         pub mod race;
+        pub mod share;
         pub mod sim;
         pub mod store;
     }

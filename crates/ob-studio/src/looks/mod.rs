@@ -27,9 +27,9 @@ use std::str::FromStr;
 use serde::{Deserialize, Serialize};
 
 /// The texture list's file, in the mod's folder (a document of the mod's history).
-pub const FILE: &str = "looks.toml";
+pub const FILE: &str = ob_map::tools::map::share::LOOKS;
 /// The pack data's folder in the mod's folder: `<domain>/<HASH>.png`, as the game's texture loader reads it.
-pub const PACK_DIR: &str = "textures";
+pub const PACK_DIR: &str = ob_map::tools::map::store::TEXTURES;
 /// The work files' folder in the mod's folder (`world/<name>.png`): what the modder paints. Never exported.
 pub const WORK_DIR: &str = "work/looks";
 /// The images by content, in the mod's editor folder (`<xxh3>.png`).
