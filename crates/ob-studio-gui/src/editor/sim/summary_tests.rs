@@ -9,7 +9,7 @@ use super::*;
 /// x = 400 at 20 s and passes over checkpoint 2; the player's slot leaves
 /// the road (y = 40) from 30 to 34 s. `start_crash`: racer 2 also hits a
 /// wall 1.5 s after the green at its grid spot.
-fn lines(seed: u64, prop_crash: bool, start_crash: bool) -> Vec<Line> {
+pub(crate) fn lines(seed: u64, prop_crash: bool, start_crash: bool) -> Vec<Line> {
     let mut r = Vec::new();
     r.push(Line::Header(Header { version: 1, seed, race: "r".into(), checkpoints: 4, ..Default::default() }));
     for (id, kind, name) in [(0, CarKind::Player, ""), (1, CarKind::Racer, "Civic"), (2, CarKind::Racer, "Golf")] {
@@ -70,7 +70,7 @@ fn lines(seed: u64, prop_crash: bool, start_crash: bool) -> Vec<Line> {
     r
 }
 
-fn race(seed: u64, prop_crash: bool, start_crash: bool) -> Recording {
+pub(crate) fn race(seed: u64, prop_crash: bool, start_crash: bool) -> Recording {
     let mut r = Recording::default();
     for l in lines(seed, prop_crash, start_crash) {
         r.push(l);
@@ -78,11 +78,11 @@ fn race(seed: u64, prop_crash: bool, start_crash: bool) -> Recording {
     r
 }
 
-fn props() -> Vec<(String, Vec3)> {
+pub(crate) fn props() -> Vec<(String, Vec3)> {
     vec![("LAMP_POST (lamp1)".into(), Vec3::new(382.0, 3.0, 0.0))]
 }
 
-fn findings(rec: &Recording) -> RunFindings {
+pub(crate) fn findings(rec: &Recording) -> RunFindings {
     let props = props();
     let road = |p: Vec2| p.y.abs();
     run_findings(rec, &Context { props: &props, road: Some(&road) })

@@ -230,7 +230,7 @@ pub struct Cli {
     pub tab: Option<String>,
     /// Placements selected for the shot (`--select 12,40`).
     pub select: Vec<usize>,
-    /// A recorded simulation to show (`--sim stream.txt[@seconds[:car]]`, the car followed).
+    /// A recorded simulation to show (`--sim stream.txt[@seconds[:car[:chase]]]`, the car followed).
     pub sim: Option<String>,
     /// A toolbar button the pointer rests on, its tooltip shown
     /// (`--hover simulate|drive-here|test-race`).
@@ -273,7 +273,7 @@ impl Default for Cli {
     }
 }
 
-pub const USAGE: &str = "usage: overbright-editor [--mod <folder>] [--region <code>] [--maps <dir>]\n       overbright-editor --shot out.png [--size WxH] [--scale F] [--mod <folder>] [--region <code>] [--mode props|races] [--tool <name>] [--view 3d|map|street|whole|top] [--light work|game] [--tab browser|validation|simulate|log] [--select N,M] [--sim stream.txt[,more.txt…][@seconds[:car]]] [--hover simulate|drive-here|test-race] [--dialog how-to-test|controls] [--run test-race|drive-here] [--collision off|invisible|all] [--camera x,y,z[,yaw,pitch]]";
+pub const USAGE: &str = "usage: overbright-editor [--mod <folder>] [--region <code>] [--maps <dir>]\n       overbright-editor --shot out.png [--size WxH] [--scale F] [--mod <folder>] [--region <code>] [--mode props|races] [--tool <name>] [--view 3d|map|street|whole|top] [--light work|game] [--tab browser|validation|simulate|log] [--select N,M] [--sim stream.txt[,more.txt…][@seconds[:car[:chase]]]] [--hover simulate|drive-here|test-race] [--dialog how-to-test|controls] [--run test-race|drive-here] [--collision off|invisible|all] [--camera x,y,z[,yaw,pitch]]";
 
 impl Cli {
     pub fn parse<I: IntoIterator<Item = String>>(args: I) -> Result<Cli> {
@@ -453,6 +453,9 @@ pub struct Panels {
     /// Drawn over the viewport, before it handles the pointer: handles,
     /// drop targets, the keys that act in the viewport.
     pub overlays: Vec<Box<dyn Overlay>>,
+    /// Strips under the 3D view / map, inside the centre (the simulation's
+    /// timeline); each shows only while it has something to show.
+    pub under_view: Vec<Box<dyn Panel>>,
 }
 
 /// Something drawn over the viewport `rect` with `painter` (a layer above
@@ -512,6 +515,7 @@ impl Panels {
                 Box::new(parts::RacesOverlay { races: races.clone(), dragging: false }),
                 Box::new(super::sim::SimOverlay(sim.clone())),
             ],
+            under_view: vec![Box::new(super::sim::Timeline(sim.clone()))],
             sim,
             props,
             races,
@@ -1723,11 +1727,21 @@ impl App {
     pub fn view_ui(&mut self, ui: &mut egui::Ui) {
         let Some(s) = self.state.as_mut() else { return };
         let p = &mut self.panels;
+        // The strips under the view first: the view takes what is left.
+        for u in p.under_view.iter_mut() {
+            u.ui(s, ui);
+        }
+        let rest = ui.available_rect_before_wrap();
+        ui.scope_builder(egui::UiBuilder::new().max_rect(rest), |ui| Self::view_rest(s, p, &mut self.view_rect, ui));
+    }
+
+    /// The view in the centre's rectangle left by the strips under it.
+    fn view_rest(s: &mut EditorState, p: &mut Panels, view_rect: &mut egui::Rect, ui: &mut egui::Ui) {
         // The overlays first (their own layer above the viewport's image),
         // so the viewport knows whether they took the pointer; each sees
         // whether one before it did.
         let rect = ui.max_rect();
-        self.view_rect = rect;
+        *view_rect = rect;
         let layer = egui::LayerId::new(egui::Order::Middle, egui::Id::unique("editor.viewport.overlay"));
         let painter = ui.ctx().layer_painter(layer).with_clip_rect(rect);
         let mut taken = false;

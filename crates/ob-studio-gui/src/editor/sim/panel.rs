@@ -7,8 +7,9 @@ use std::rc::Rc;
 use egui::{Color32, Pos2, Rect, Stroke};
 use glam::{Mat4, Vec2, Vec3};
 
+use super::cams::{self, CamMode, ChaseCars};
 use super::format::{CarKind, CarSample, EventKind, SimMode};
-use super::record::{Phase, Playback, Recording, SPEEDS};
+use super::record::{Phase, Playback, Recording};
 use super::run::{SimChild, What, args};
 use super::summary::{self, Group, RunFindings};
 use crate::editor::app::Overlay as ViewOverlay;
@@ -23,8 +24,8 @@ pub const TAB: &str = "simulate";
 pub const ISSUE_PREFIX: &str = "Simulation: ";
 /// The bottom panel's height at least while this tab shows (the toolbar
 /// rows, the legend, the slot note, the results of a full grid and the
-/// first events under them).
-pub const MIN_HEIGHT: f32 = 400.0;
+/// first events under them; the playback is on the timeline under the view).
+pub const MIN_HEIGHT: f32 = 370.0;
 /// Lines read from the game per frame at most (the rest next frame).
 const LINES_PER_FRAME: usize = 4000;
 /// A car's box around its position (the body's centre): half length, half
@@ -66,6 +67,12 @@ pub struct Sim {
     focus_row: Option<usize>,
     /// The summary rows' widget ids as last drawn.
     pub row_ids: Vec<egui::Id>,
+    /// How the 3D camera rides with the car followed.
+    pub cam: CamMode,
+    /// The cars the chase camera has loaded.
+    pub chase_cars: ChaseCars,
+    /// The timeline's track as last drawn.
+    pub track_rect: Rect,
 }
 
 /// The list under the results table.
@@ -98,6 +105,9 @@ impl Default for Sim {
             scroll_pick: false,
             row_ids: Vec::new(),
             focus_row: None,
+            cam: CamMode::default(),
+            chase_cars: ChaseCars::default(),
+            track_rect: Rect::NOTHING,
         }
     }
 }
@@ -137,7 +147,7 @@ pub fn map_transform(ctx: &egui::Context) -> Option<(Vec2, f32, Rect)> {
     ctx.data(|d| d.get_temp(ctx_id("map")))
 }
 
-/// A recording to show without running the game (`--sim <file>[@seconds[:car]]`
+/// A recording to show without running the game (`--sim <file>[@seconds[:car[:chase]]]`
 /// for the headless shot).
 pub fn load_recording(ctx: &egui::Context, spec: &str) {
     ctx.data_mut(|d| d.insert_temp(ctx_id("load"), spec.to_string()));
@@ -225,12 +235,18 @@ impl Sim {
         changed || self.play.time != before
     }
 
-    /// Show a saved recording (`path[@seconds]`), paused there.
+    /// Show a saved recording (`path[@seconds[:car[:chase]]]`), paused there.
     pub fn show_file(&mut self, spec: &str) -> Result<(), String> {
-        // `path[@seconds[:car]]`: the time shown and the car followed.
+        // `path[@seconds[:car[:chase]]]`: the time shown, the car followed
+        // and the game's chase camera on it.
+        let mut chase = false;
         let (path, at, follow) = match spec.rsplit_once('@') {
             Some((p, t)) => {
-                let (t, car) = t.split_once(':').map_or((t, None), |(t, c)| (t, c.parse::<u32>().ok()));
+                let (t, car) = t.split_once(':').map_or((t, None), |(t, c)| {
+                    let (c, cam) = c.split_once(':').unwrap_or((c, ""));
+                    chase = cam == "chase";
+                    (t, c.parse::<u32>().ok())
+                });
                 match t.parse::<f32>() {
                     Ok(t) => (p, Some(t), car),
                     Err(_) => (spec, None, None),
@@ -254,6 +270,9 @@ impl Sim {
             self.play.seek(&self.rec, t);
         }
         self.play.follow = follow;
+        if chase {
+            self.cam = CamMode::Chase;
+        }
         self.what = self.rec.header.as_ref().map(|h| match h.mode {
             SimMode::Race => What::Race(h.race.clone()),
             SimMode::World => What::World(Vec3::ZERO, 0.0),
@@ -417,16 +436,15 @@ impl Panel for SimHook {
             Vec::new()
         };
         s.replay.set(shown);
-        // Follow a car in the 3D view: behind and above it.
+        // Ride with the car followed in the 3D view (Follow or the game's
+        // chase camera).
         if s.view == View::ThreeD
             && let Some(id) = sim.play.follow
-            && let Some(c) = sim.play.cars(&sim.rec).iter().find(|c| c.id == id)
         {
-            let h = c.heading();
-            let back = Vec3::new(h.cos(), h.sin(), 0.0);
-            let eye = c.position - back * 14.0 + Vec3::Z * 6.0;
-            let look = crate::draw::camera::Camera::looking_at(eye, c.position + Vec3::Z * 1.0);
-            (s.camera.position, s.camera.yaw, s.camera.pitch) = (look.position, look.yaw, look.pitch);
+            let sim = &mut *sim;
+            if let Some(look) = cams::view(&sim.rec, sim.cam, &mut sim.chase_cars, &s.root, id, sim.play.time) {
+                (s.camera.position, s.camera.yaw, s.camera.pitch) = (look.position, look.yaw, look.pitch);
+            }
         }
         sync_issues(&mut sim, s);
     }
@@ -492,8 +510,9 @@ fn problems_words(sim: &Sim) -> String {
 }
 
 /// The colour key for the cars drawn over the view.
-fn legend(ui: &mut egui::Ui, s: &mut EditorState) {
+fn legend(ui: &mut egui::Ui, s: &mut EditorState, traces: &mut bool) {
     ui.horizontal_wrapped(|ui| {
+        ui.checkbox(traces, "Lines").on_hover_text("Each racer's driven line");
         // The 3D view's cars: the game's car models (the default) or boxes
         // in the colours below.
         let mut models = s.replay.models;
@@ -532,7 +551,7 @@ fn world_spot(s: &EditorState) -> What {
     }
 }
 
-fn clock(t: f32) -> String {
+pub(super) fn clock(t: f32) -> String {
     let sign = if t < 0.0 { "-" } else { "" };
     let t = t.abs();
     format!("{sign}{}:{:04.1}", (t / 60.0) as u32, t % 60.0)
@@ -603,50 +622,22 @@ impl Panel for SimTab {
                 }
             }
         });
-        let Some((lo, hi)) = sim.rec.span() else {
+        let Some(_) = sim.rec.span() else {
             if !sim.running() {
                 intro(ui);
             }
             return;
         };
-        ui.horizontal(|ui| {
-            if ui.button(if sim.play.playing { "Pause" } else { "Play" }).on_hover_text("Space").clicked() {
-                sim.play.toggle(&sim.rec);
-            }
-            egui::ComboBox::from_id_salt("sim.speed")
-                .width(64.0)
-                .selected_text(format!("{}x", SPEEDS[sim.play.speed]))
-                .show_ui(ui, |ui| {
-                    for (k, v) in SPEEDS.iter().enumerate() {
-                        ui.selectable_value(&mut sim.play.speed, k, format!("{v}x"));
-                    }
-                });
-            let mut t = sim.play.time;
-            let w = (ui.available_width() - 330.0).max(120.0);
-            ui.spacing_mut().slider_width = w;
-            if ui.add(egui::Slider::new(&mut t, lo..=hi).show_value(false)).changed() {
-                sim.play.seek(&sim.rec, t);
-            }
-            ui.monospace(format!("{} / {}", clock(sim.play.time), clock(hi)));
-            let follow = sim.play.follow.map_or("Free camera".to_string(), |id| sim.rec.name(id));
-            egui::ComboBox::from_id_salt("sim.follow").width(130.0).selected_text(follow).show_ui(ui, |ui| {
-                ui.selectable_value(&mut sim.play.follow, None, "Free camera");
-                for id in sim.rec.racers() {
-                    let n = sim.rec.name(id);
-                    ui.selectable_value(&mut sim.play.follow, Some(id), n);
-                }
-            });
-            ui.checkbox(&mut sim.traces, "Lines").on_hover_text("Each racer's driven line");
-        });
-        legend(ui, s);
+        // The playback, the time and the camera are on the timeline under
+        // the view.
+        legend(ui, s, &mut sim.traces);
         ui.separator();
         let shown: Vec<_> =
             sim.rec.events.iter().filter(|e| e.kind != EventKind::Checkpoint || e.car == 0).cloned().collect();
         let race_run = sim.rec.header.as_ref().is_some_and(|h| h.mode == SimMode::Race);
-        let mut summary_focus = false;
         if race_run {
             // The results, what went wrong and the events share the space
-            // under the scrub bar (the browser's filter row).
+            // under the legend (the browser's filter row).
             ui.horizontal_wrapped(|ui| {
                 let problems = sim.groups.iter().filter(|g| g.level() == Level::Warning).count();
                 let what = match sim.batch.len() {
@@ -665,7 +656,9 @@ impl Panel for SimTab {
             });
         }
         match (race_run, sim.list) {
-            (true, List::Summary) => summary_focus = summary_list(ui, s, sim),
+            (true, List::Summary) => {
+                summary_list(ui, s, sim);
+            }
             (true, List::Events) => events_list(ui, sim, &shown),
             (true, List::Results) => standings(ui, sim),
             (false, _) => {
@@ -673,12 +666,6 @@ impl Panel for SimTab {
                 ui.separator();
                 events_list(ui, sim, &shown);
             }
-        }
-        if ui.ctx().input(|i| i.key_pressed(egui::Key::Space))
-            && !ui.ctx().egui_wants_keyboard_input()
-            && !summary_focus
-        {
-            sim.play.toggle(&sim.rec);
         }
     }
 }
@@ -903,10 +890,12 @@ pub struct SimOverlay(pub Shared);
 
 impl ViewOverlay for SimOverlay {
     fn overlay(&mut self, s: &mut EditorState, ctx: &egui::Context, painter: &egui::Painter, rect: Rect) -> bool {
+        // The live positions first: over them the view does not pick.
+        let taken = super::timeline::board(ctx, &mut self.0.borrow_mut(), rect);
         let sim = self.0.borrow();
         let cars = sim.play.cars(&sim.rec);
         if cars.is_empty() {
-            return false;
+            return taken;
         }
         let traces: Vec<(u32, Vec<Vec<Vec3>>)> = if sim.traces {
             sim.rec.racers().into_iter().map(|id| (id, sim.rec.trace(id, sim.play.time, 6))).collect()
@@ -988,17 +977,17 @@ impl ViewOverlay for SimOverlay {
                 }
             }
         }
-        false
+        taken
     }
 }
 
 /// The car's own name for a label (its model, not "Your slot (AI)").
-fn label_name(rec: &Recording, id: u32) -> String {
+pub(super) fn label_name(rec: &Recording, id: u32) -> String {
     rec.cars.get(&id).map(|c| c.name.clone()).filter(|n| !n.is_empty()).unwrap_or_else(|| rec.name(id))
 }
 
 /// A name short enough for a label over a car.
-fn short(name: &str) -> String {
+pub(super) fn short(name: &str) -> String {
     let n: String = name.chars().take(14).collect();
     if n.len() < name.len() { format!("{n}.") } else { n }
 }
