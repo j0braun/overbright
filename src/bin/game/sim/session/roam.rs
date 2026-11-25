@@ -1,5 +1,7 @@
 use super::{Session, SimSound, TickEvents, TickInput};
-use crate::{CareerData, Profile, ShotRoad, crash_route, event_shot, jump_flight, road_car, roam_style_frame, step_explore};
+use crate::{
+    CareerData, Profile, ShotRoad, crash_route, event_shot, jump_flight, road_car, roam_style_frame, step_explore,
+};
 use glam::Vec3;
 
 /// What free roam's simulation reads from the career and the data
@@ -50,7 +52,7 @@ impl Session<'_> {
                     t.cars
                         .iter()
                         .enumerate()
-                        .filter(|(_, c)| c.lane.is_some())
+                        .filter(|(_, c)| c.road_object())
                         .map(|(i, c)| {
                             let mut rc = road_car(
                                 1000 + i,
@@ -173,7 +175,8 @@ impl Session<'_> {
         }
         {
             let dd = &*d;
-            cam.events.update_with(dt, &s, &mut |window| jump_flight(dd, window), &mut || crash_route(dd, routes).is_some());
+            cam.events
+                .update_with(dt, &s, &mut |window| jump_flight(dd, window), &mut || crash_route(dd, routes).is_some());
         }
         let clock = cam.events.clock;
         // The views after the event rules read their kind and rate.

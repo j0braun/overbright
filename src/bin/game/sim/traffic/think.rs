@@ -65,7 +65,8 @@ pub(crate) fn traffic_think(
     let mut before = vec![(Vec3::ZERO, 0.0); t.cars.len()];
     let mut samples = vec![None; t.cars.len()];
     for (i, (c, before)) in t.cars.iter_mut().zip(&mut before).enumerate() {
-        let lanes = TrafficLanes { routes: &t.routes, crossings: &mut t.crossings, clock: t.clock, rng: &mut t.field.rng };
+        let lanes =
+            TrafficLanes { routes: &t.routes, crossings: &mut t.crossings, clock: t.clock, rng: &mut t.field.rng };
         traffic_car_frame(world, i, c, before, &mut samples[i], &think, &others, lanes, dt);
     }
     TrafficFrame { poses: before, samples }
@@ -143,9 +144,7 @@ fn traffic_place_pass(
         // world's slots 0x5F12B0 measures from are the player's alone
         // (world +0x14 = 1, slot 1 unset: **observed** under Wine).
         let near = match (road, me_coord) {
-            (Some(road), Some(mc)) => {
-                road.difference(t.cars[i].race_coord(road), mc).abs() < DESPAWN
-            }
+            (Some(road), Some(mc)) => road.difference(t.cars[i].race_coord(road), mc).abs() < DESPAWN,
             _ => dist(t.cars[i].state.position.truncate(), me.truncate()) <= DESPAWN,
         };
         if t.cars[i].lane.is_some() && near {
@@ -167,9 +166,8 @@ fn traffic_place_pass(
         nfsu2::ai::traffic::placer_try_draws(&mut t.field.rng, 1);
         // 0x42E9F0's keep-side rule reads the car's race coordinate while it
         // is not parked (+0x77C; the clone's parked car has no lane).
-        let own = (!t.cars[i].held && t.cars[i].lane.is_some())
-            .then(|| road.map(|r| t.cars[i].race_coord(r)))
-            .flatten();
+        let own =
+            (!t.cars[i].held && t.cars[i].lane.is_some()).then(|| road.map(|r| t.cars[i].race_coord(r))).flatten();
         let others: Vec<Vec2> = t
             .cars
             .iter()
@@ -318,7 +316,11 @@ fn traffic_place_pass(
 /// moves nothing, its slot +0x10 0x50D510 false), inactive (0x5ED5D0(0)),
 /// +0x77D. The controller's walk and the driver's path are left alone:
 /// the car keeps them in `coast` and the speed in its state (+0x430).
-pub(crate) fn pause_traffic(c: &mut TrafficCar, lane: Option<nfsu2::ai::traffic::TrafficLane>, plan: Option<(Vec<Vec3>, f32)>) {
+pub(crate) fn pause_traffic(
+    c: &mut TrafficCar,
+    lane: Option<nfsu2::ai::traffic::TrafficLane>,
+    plan: Option<(Vec<Vec3>, f32)>,
+) {
     c.held = true;
     c.active = false;
     c.lane = None;
@@ -670,7 +672,7 @@ pub(crate) fn traffic_others(
     others.extend(racers.iter().enumerate().map(|(k, r)| Other { traffic: None, id: usize::MAX - 1 - k, ..*r }));
     // Only active cars (+0x550, 0x6148F0; see `TrafficCar::active`); a
     // car's own entry is taken from its own state when it is not listed.
-    others.extend(t.cars.iter().enumerate().filter(|(_, c)| c.lane.is_some() && c.active).map(|(j, c)| Other {
+    others.extend(t.cars.iter().enumerate().filter(|(_, c)| c.road_object()).map(|(j, c)| Other {
         position: c.state.position.truncate(),
         z: c.state.position.z,
         velocity: c.mover.map_or(c.state.velocity.truncate(), |m| Vec2::from_angle(m.heading) * m.speed),
@@ -817,13 +819,14 @@ pub(crate) fn traffic_coast(
             let Some(lane) = c.lane.as_mut() else { continue };
             if !c.stopped && slot == Some(i) {
                 let rest: Vec<Other> = others.iter().copied().filter(|o| o.traffic != Some(i)).collect();
-                let own =
-                    others.iter().find(|o| o.traffic == Some(i)).copied().unwrap_or(Other {
-                        traffic: Some(i),
-                        id: i,
-                        ..traffic_body(&c.car, &c.state)
-                    });
-                if let Some(plan) = lane.think(&t.routes, i, c.state.position, speed, &own, &mut t.crossings, &rest, &mut t.field.rng) {
+                let own = others.iter().find(|o| o.traffic == Some(i)).copied().unwrap_or(Other {
+                    traffic: Some(i),
+                    id: i,
+                    ..traffic_body(&c.car, &c.state)
+                });
+                if let Some(plan) =
+                    lane.think(&t.routes, i, c.state.position, speed, &own, &mut t.crossings, &rest, &mut t.field.rng)
+                {
                     lane.take_avoid();
                     build_belt_state(&c.car, &c.state, &mut c.belt, &*c.accel, speed, &plan.0, plan.1);
                     c.plan = Some(plan);
