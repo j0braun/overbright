@@ -3559,3 +3559,39 @@ follows from the selection alone). What each list's fill passes to it:
   developer key, unreachable in normal play).
 * **Not read by the executable**: LANGUAGES\Labels.bin, Largest.bin and
   the agree.* files (no string names them).
+
+## Shop menu animations (traced in SPEED2.EXE; checked against the original under Wine at 60 fps)
+
+* **Scroll ease.** Both scroller classes ease their offset with 0x574E40 (cubic Hermite, length 0.3 s): the screens'
+  IconScrollerMenu (0x543AA0 sets +0xB4 = 0.3 at 0x543BDF) and the parts browsers' strip and column (0x5435E0 mallocs
+  the ease and sets its length 0.3; used by UI_GenericParts_Browser 0x55E830, the rim, decal, ICE and neon
+  browsers). The update 0x538770 places the items at the offset (0x52EEB0) and steps the ease; a new selection
+  (0x52EE50) sets the target to minus the item's place and restarts from the current value and speed (mode 2);
+  filling the scroller (0x5386B0) puts it at rest on the item. Clone: `ScrollEase`
+  (src/frontend/widgets/scroll_ease.rs), used by `IconMenu` and `PartsBrowser::step` (stepped on the tick).
+  Observed: a strip step slides with an ease over about 150 ms of visible motion at 60 fps.
+* **Accept on the Car Shop (FORWARD).** 0x543D50 on 0x0C407210, for an option neither locked (+0x22) nor direct
+  (+0x45): 0x51FD20 (the strip's fade by place off), 0x52FC00 (input off), 0x50DA20 sends 0x0C407210 to the
+  package. UI_ChooseCustomizeCategory's Event Handler answers it with FORWARD (0xDE6EFF34, 140 package ms; 0x301:
+  unless already playing it): 0xAADD0187 to every object (their 0xBCBFCC87: alpha to 0 over 100 ms) and
+  0xE1FDE1D1 to the screen at 140, on which 0x543D50 runs the option's action. Observed: the strip, title and frame
+  fade over five frames and the Body Shop comes up about 130 ms after the key (Wine, 60 fps: fade from the key's
+  frame, Body Shop 7 frames later). Most icon menus' handlers answer 0x0C407210 with FORWARD (UI_Main, UI_StartCareer,
+  UI_CareerCrib, UI_pause, UI_postrace, UI_QRModeSelect, the customize, paint, rim and vinyl categories and others;
+  not UI_OptionsMain or UI_ChoosePerformanceCategory). An option built "direct" (+0x45 = 1) gets the screen's
+  handler called with accept at once instead (FORWARD still plays): UI_Main's LAN and Profile Manager (0x4AEF5B,
+  0x4AEFE9), the crib's Explore / Resume Career, Tuning and Main Menu (0x4AF870…0x4AFA67), the pause and post-race
+  exits (0x4BEEC3…0x4C2F50, 0x5229E1, 0x53CC09), the customize categories (0x520E0C…0x520F07; the Car Shop's own
+  handler still switches on 0xE1FDE1D1, observed), the performance package's options (0x556ED1, 0x557089) and the
+  Quick Race modes (0x55747A…0x557602). Observed: UI_Main's Customize fades over six frames and Car Select comes up
+  eight frames after the key. Clone: `IconMenu::forward`, `accept_plays_forward`, `DIRECT_OPTIONS`.
+* **Opening a parts list (ASSLESS).** 0x55EDE0 plays ASSLESS (0x66EC937D) on UI_GenericParts_Browser's Event
+  Handler (0x537C10): 0x9F2182F0 to every object, which the column's objects (group 0x4A1316E9, frame 0xD82B4A08,
+  bar, arrows, handle, the PARTS_ICON items) answer with their own ASSLESS (alpha up from 0 over 100 ms), and
+  0x84FBF415 to the screen at 100 ms. The column's scroller hides its master MINI_MASTER when built (0x5435E0 →
+  0x50CA00), so only the PARTS_ICON clones show. Clone: `ScreenState::played`. Observed under Wine at 60 fps: the
+  column comes in over about four frames (alpha 0.52, 0.72, 0.93, 1 of full on the frames after the key); nothing
+  grows, and the bright spot left of the car is the garage's own light, there before the key.
+* **The selection glow** (CATEGORY_ONLY 0xDF422345) runs its looping Animate (1200 package ms: lit, fades out
+  over 320, dark, back over 200) whatever the strip does; a step does not restart or hide it (Wine: a step at the
+  end of the lit phase fades the glow while the strip slides, the pulse's own timing).

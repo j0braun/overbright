@@ -350,6 +350,7 @@ impl Game {
             opened: self.now(),
             total: self.graphics_total(),
             arrows: Default::default(),
+            motion: Default::default(),
         }))
     }
 
@@ -445,6 +446,7 @@ impl Game {
             opened: self.now(),
             total: self.graphics_total(),
             arrows: Default::default(),
+            motion: Default::default(),
         }))
     }
 

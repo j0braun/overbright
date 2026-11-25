@@ -1,5 +1,6 @@
 use crate::frontend::fe_ids;
 use super::*;
+use crate::frontend::widgets::scroll_ease::ScrollEase;
 
 /// The body shop's categories (0x545B60): slot, icon (VISUAL_PART_*) and
 /// label, in the screen's order; rims (0x1D) and carbon fibre (0x5E) are
@@ -145,6 +146,29 @@ pub struct PartsBrowser {
     /// The category strip's arrows' blink (the IconScrollerMenu's
     /// 0x52FA80, [`ArrowBlink`]).
     pub arrows: ArrowBlink,
+    /// The strip's and the column's scroll and the list's opening, stepped
+    /// by [`PartsBrowser::step`].
+    pub motion: BrowserMotion,
+}
+
+/// The ASSLESS script (fe_hash 0x66EC937D): entering a category (0x55EDE0)
+/// plays it on UI_GenericParts_Browser's Event Handler (0x537C10(package,
+/// 0x47FF4E7C, "ASSLESS", 1)), which sends 0x9F2182F0 to every object; the
+/// parts column's (group 0x4A1316E9, its frame, bar, arrows, handle and
+/// the PARTS_ICON items) answer with their own ASSLESS: alpha from 0 up
+/// over 100 ms (the frame to 150, the items to 180), and the handler sends
+/// 0x84FBF415 to the screen at 100 ms.
+pub const ASSLESS_SCRIPT: u32 = 0x66EC_937D;
+
+/// What a parts browser's scrollers and list are doing (both scrollers are
+/// 0x5435E0's, whose ease is [`ScrollEase`], 0.3 s): the strip's and the
+/// column's scroll in items with the index they move to, and when the
+/// list opened (screen ms).
+#[derive(Clone, Debug, Default)]
+pub struct BrowserMotion {
+    strip: Option<(usize, usize, ScrollEase)>,
+    column: Option<(usize, ScrollEase)>,
+    list_opened: Option<f32>,
 }
 
 pub const TITLE: u32 = fe_ids::UI_MAIN_TITLE;
@@ -182,6 +206,54 @@ pub enum BrowserKey {
 }
 
 impl PartsBrowser {
+    /// The scrollers' step at `now` (the screen's update 0x538770 and its
+    /// selection calls): a new category or part eases there from where the
+    /// scroll is (0x52EE50); a strip filled anew (another category list)
+    /// or a list just opened starts at rest on its item (0x5386B0), and
+    /// the list's opening plays ASSLESS ([`ASSLESS_SCRIPT`]).
+    pub fn step(&mut self, now: f32) {
+        let m = &mut self.motion;
+        let n = self.categories.len();
+        match &mut m.strip {
+            Some((len, at, ease)) if *len == n => {
+                if *at != self.category {
+                    *at = self.category;
+                    ease.retarget(now, self.category as f32);
+                }
+            }
+            _ => m.strip = Some((n, self.category, ScrollEase::at(self.category as f32))),
+        }
+        match (self.part, &mut m.column) {
+            (None, _) => {
+                m.column = None;
+                m.list_opened = None;
+            }
+            (Some(i), None) => {
+                m.column = Some((i, ScrollEase::at(i as f32)));
+                m.list_opened = Some(now);
+            }
+            (Some(i), Some((at, ease))) => {
+                if *at != i {
+                    *at = i;
+                    ease.retarget(now, i as f32);
+                }
+            }
+        }
+    }
+
+    /// The strip's scroll at `now`, in categories.
+    fn strip_at(&self, now: f32) -> f32 {
+        match self.motion.strip {
+            Some((n, _, e)) if n == self.categories.len() => e.value(now).0,
+            _ => self.category as f32,
+        }
+    }
+
+    /// The column's scroll at `now`, in parts.
+    fn column_at(&self, now: f32, part: usize) -> f32 {
+        self.motion.column.map_or(part as f32, |(_, e)| e.value(now).0)
+    }
+
     /// The help bar's mask: the screen's, and in UI_GenericParts_Browser's
     /// categories 0x55EDE0's 0x401 | 8 (Install Part), | 0x10 (Install
     /// Vinyl) instead in the graphics shop's vinyls (0x838990 = 2 with the
@@ -427,6 +499,12 @@ impl PartsBrowser {
                     ]);
                 }
                 Some((i, c)) => {
+                    // The column's scroller hides its master when built
+                    // (0x5435E0: 0x50CA00 on MINI_MASTER, ctor call at
+                    // 0x55E8BC); only the PARTS_ICON clones show. Under
+                    // Wine (60 fps) no dot stands alone at the selected
+                    // place while the column fades in.
+                    state.hidden.insert(fe_ids::MINI_MASTER);
                     let n = c.parts.len();
                     scroll_bar_at(&mut state, package, "SideScrollBar", false, 1, n, if n == 0 { 0 } else { i + 1 });
                     // The arrows by the column's ends, as the strip's
@@ -444,6 +522,14 @@ impl PartsBrowser {
                 }
             }
         }
+        // Entering a category played ASSLESS on the handler (0x55EDE0).
+        let assless = match (self.package, self.part, self.motion.list_opened) {
+            ("UI_GenericParts_Browser", Some(_), Some(t)) => {
+                state.played.push((crate::frontend::EVENT_HANDLER, ASSLESS_SCRIPT, t - self.opened));
+                Some(now - t)
+            }
+            _ => None,
+        };
         let mut quads = layout(assets, package, &state, now - self.opened);
         // A decal, specialties or neon list keeps the strip's icons (under
         // Wine, menus103).
@@ -457,7 +543,8 @@ impl PartsBrowser {
                 || matches!(self.package, "UI_Rims_Browser" | "UI_DecalMain" | "UI_ICEMAIN" | "UI_CustomNeonMain"))
         {
             let icons: Vec<u32> = self.categories.iter().map(|c| c.icon).collect();
-            quads.extend(scroller_quads(package, master, template, &icons, self.category, true, 40.0, 480.0));
+            let at = self.strip_at(now);
+            quads.extend(scroller_quads(package, master, template, &icons, self.category, at, true, 40.0, 480.0));
         }
         match (self.part, category) {
             (None, _) => {}
@@ -506,7 +593,17 @@ impl PartsBrowser {
                     }
                     None => package,
                 };
-                quads.extend(scroller_quads(column, MINI_MASTER, PARTS_ICON, &icons, i, false, 20.0, 200.0));
+                let mut items = scroller_quads(column, MINI_MASTER, PARTS_ICON, &icons, i, self.column_at(now, i), false, 20.0, 200.0);
+                // The items are PARTS_ICON clones with its scripts: they
+                // answer the handler's ASSLESS as it does.
+                if let Some(age) = assless
+                    && let Some(f) = column.object(PARTS_ICON).and_then(|t| crate::frontend::script_alpha(t, ASSLESS_SCRIPT, age))
+                {
+                    for q in &mut items {
+                        q.color[3] *= f;
+                    }
+                }
+                quads.extend(items);
             }
             _ => {}
         }

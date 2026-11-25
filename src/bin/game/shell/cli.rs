@@ -31,6 +31,15 @@ pub(crate) fn run(command: &Command, args: &[String]) -> Result<()> {
     if command.headless(true) || debug_env().garage_sync {
         GARAGE_ASYNC.store(false, std::sync::atomic::Ordering::Relaxed);
     }
+    // The scripted modes' menu keys act at once on an icon menu's accept
+    // (no FORWARD wait, `dev_hooks::instant_forward`): their key scripts
+    // tap faster than a player and their state hashes stay comparable.
+    // The shots keep the wait (frame sequences of the fade).
+    #[cfg(feature = "dev-harness")]
+    crate::dev::hooks::INSTANT_FORWARD.store(
+        command.headless(true) && !matches!(command, Command::Shot(_)) || matches!(command, Command::Bench(..) | Command::Photo(..)),
+        std::sync::atomic::Ordering::Relaxed,
+    );
     // Surface Detail's normal maps: every headless mode has the whole
     // set before its first frame (deterministic images); the window makes
     // them in the background.

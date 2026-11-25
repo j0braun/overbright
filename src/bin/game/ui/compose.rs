@@ -89,7 +89,21 @@ impl Game {
         match menu {
             Menu::Movie(m) => self.movie_quads(m, now),
             Menu::Icons(m, kind) => {
-                let mut quads = m.quads(&self.game_data.assets, if *kind == MenuKind::Main { None } else { profile }, now);
+                let menu_profile = if *kind == MenuKind::Main { None } else { profile };
+                let mut quads = match m.forward {
+                    // Accept's FORWARD on the Event Handler (`IconMenu::forward`):
+                    // its broadcast fades the objects and the option clones.
+                    Some((start, _)) => nfsu2::frontend::with_dim_scripts(
+                        kind.package(),
+                        &[nfsu2::frontend::EVENT_HANDLER],
+                        &[],
+                        (nfsu2::frontend::screens::FORWARD_SCRIPT, 0),
+                        now - start,
+                        None,
+                        || m.quads(&self.game_data.assets, menu_profile, now),
+                    ),
+                    None => m.quads(&self.game_data.assets, menu_profile, now),
+                };
                 if *kind == MenuKind::PerfPackage
                     && m.selected == 0
                     && let Some(list) = &self.shop.perf_parts
