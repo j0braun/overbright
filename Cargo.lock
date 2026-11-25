@@ -1877,7 +1877,9 @@ version = "0.5.3"
 dependencies = [
  "memmap2",
  "miniz_oxide 0.8.9",
+ "ob-core",
  "ob-formats",
+ "ob-testkit",
  "semver",
  "sha2",
  "toml",
