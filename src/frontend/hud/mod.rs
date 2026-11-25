@@ -136,6 +136,9 @@ struct ElementObjects {
     /// whether the drag tachometer stood in for the first element.
     package: (String, usize, usize),
     drag: bool,
+    /// The car's turbo when they were found (it picks the drift angle's
+    /// backing, [`DRIFT_ANGLE_BACKING`]).
+    turbo: bool,
     elements: Vec<(u32, u32, Vec<u32>)>,
     // Immutable package hierarchy, in the original object-list order.
     children: crate::fxhash::FxHashMap<u32, Vec<(u32, u32)>>,

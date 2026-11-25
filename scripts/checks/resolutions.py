@@ -72,6 +72,7 @@ SCREENS = {
     "parts_browser": ("parts", "fe"),
     "world_map": ("worldmap", "game"),
     "race_hud": ("lapko", "game"),
+    "drift_hud": ("drift_angle", "game"),
     "freeroam_hud": ("explore", "game"),
     "pause": ("pause", "game"),
     "loading": ("loading", "pillar"),
@@ -92,7 +93,7 @@ SCREEN_ENV = {
 }
 HDR_SCREENS = set(SCREEN_ENV)
 HDR_RE = re.compile(r"^hdr pattern: (none|px ([-\d.]+) ([-\d.]+) ([-\d.]+) ([-\d.]+))$", re.M)
-HUD_SCREENS = {"race_hud", "freeroam_hud", "photo"}
+HUD_SCREENS = {"race_hud", "drift_hud", "freeroam_hud", "photo"}
 # Options the settings offer for the display: Aspect Ratio (Wide = the clone's default, Stretched = the
 # original's behaviour) and, for the HUD, HUD Layout Full Width (Enhancements).
 OPTIONS = {

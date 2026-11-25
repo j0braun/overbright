@@ -42,6 +42,7 @@ Screens (the existing `--shot` targets; 17 screens):
 | shop / parts browser | `parts` | front end |
 | world map | `worldmap` | menu over the world |
 | HUD in a race | `lapko` (`race` at 5 s is still the start scene) | 3D + HUD |
+| HUD in a drift race | `drift_angle` (the angle readout beside the tachometer) | 3D + HUD |
 | HUD in free roam | `explore` | 3D + HUD |
 | pause menu | `pause` | menu over the world |
 | loading screen | `loading` | 4:3 picture, pillarboxed |
