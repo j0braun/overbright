@@ -131,6 +131,8 @@ fn alignment_field(extra: &[u8]) -> Result<Option<u16>, Refusal> {
 pub enum Backing {
     Mapped(memmap2::Mmap),
     Owned(Vec<u8>),
+    /// A map shared with the asset layer's slices ([`Bundle::open_shared`]).
+    Shared(std::sync::Arc<memmap2::Mmap>),
 }
 
 impl std::ops::Deref for Backing {
@@ -139,6 +141,7 @@ impl std::ops::Deref for Backing {
         match self {
             Backing::Mapped(m) => m,
             Backing::Owned(v) => v,
+            Backing::Shared(m) => m,
         }
     }
 }
@@ -159,6 +162,23 @@ impl Bundle {
         // bundle (its digest, every entry's CRC) catches.
         let map = unsafe { memmap2::Mmap::map(&f) }.map_err(io)?;
         Bundle::new(Backing::Mapped(map), kind)
+    }
+
+    /// [`Bundle::open`] with the map shared ([`Bundle::shared_map`]): the asset layer hands out slices of it.
+    pub fn open_shared(path: &std::path::Path, kind: Kind) -> Result<Bundle, Refusal> {
+        let io = |e: std::io::Error| lay1(format!("cannot read {}: {e}", path.display()));
+        let f = std::fs::File::open(path).map_err(io)?;
+        // SAFETY: as in `open`.
+        let map = unsafe { memmap2::Mmap::map(&f) }.map_err(io)?;
+        Bundle::new(Backing::Shared(std::sync::Arc::new(map)), kind)
+    }
+
+    /// The shared map of a bundle opened with [`Bundle::open_shared`].
+    pub fn shared_map(&self) -> Option<std::sync::Arc<memmap2::Mmap>> {
+        match &self.data {
+            Backing::Shared(m) => Some(m.clone()),
+            _ => None,
+        }
     }
 
     /// Reads a bundle held in memory.

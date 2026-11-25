@@ -132,7 +132,7 @@ impl Game {
             a.scripted_pattern = Default::default();
             a.scripted_engine = false;
             let load = |name: &str| {
-                engine::gin_file(root, name).and_then(|p| std::fs::read(p).ok()).and_then(|b| gin::Gin::parse(&b))
+                engine::gin_file(root, name).and_then(|p| nfsu2::game_fs::read_file(&p).ok()).and_then(|b| gin::Gin::parse(&b))
             };
             let h = hybrid::HybridMotor::new(entry);
             let accel = load(h.rec80().gin);

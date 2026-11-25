@@ -10,13 +10,13 @@ pub fn shared_file(path: &Path) -> std::io::Result<std::sync::Arc<Vec<u8>>> {
     let read = || {
         #[cfg(test)]
         shared_file_reads::count(path);
-        std::fs::read(path).ok().map(std::sync::Arc::new)
+        crate::game_fs::read_file(path).ok().map(std::sync::Arc::new)
     };
     match FILES.get(path, read) {
         Some(d) => Ok(d),
         None => {
             FILES.forget(path);
-            Ok(std::sync::Arc::new(std::fs::read(path)?))
+            Ok(std::sync::Arc::new(crate::game_fs::read_file(path)?))
         }
     }
 }

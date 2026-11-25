@@ -29,6 +29,8 @@ function, so the Windows rules are unit-tested on Linux.
     isolates its runs through `XDG_DATA_HOME` (`--shot`, `--selftest`, `--flow`, `--bench`, `--playthrough`;
     `scripts/checks/*.sh`), so it works the same on Windows.
   - The cache's own switches come first: `NFSU2_NO_CACHE`, `cache::override_dir` (tests), `NFSU2_CACHE_DIR`.
+  - `NFSU2_BASE`: which imported base set (`<app>/base`) the game reads its files from; `off` reads the game
+    folder always (docs/modding/asset-format/import.md §13).
   - **The player's cache folder is the shipping game's alone.** `dirs::cache()` gives the player's folder only to
     a build without `dev-harness`. The game built with `dev-harness` (shots, flows, the selftest, benches, the
     playthrough, the parity and rate runs) and the probes default to the developer cache (`dirs::developer_cache`:

@@ -77,7 +77,7 @@ impl MapAssets for GameAssets {
 
     fn free_roam_lines(&self, region: &str) -> Vec<Vec<glam::Vec3>> {
         let path = crate::game_fs::path(&self.root, &format!("TRACKS/ROUTES{region}/RoutesFreeRoam.bin"));
-        let Ok(data) = std::fs::read(&path) else { return Vec::new() };
+        let Ok(data) = crate::game_fs::read_file(&path) else { return Vec::new() };
         let routes = crate::formats::ai_routes::RouteFile::parse(&data);
         routes.records.iter().map(|r| r.points.iter().map(|p| p.position).collect()).collect()
     }

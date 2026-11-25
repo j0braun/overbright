@@ -61,11 +61,11 @@ pub(crate) fn free_roam_routes(
     caches.free_roam.get((root.to_path_buf(), stage), || {
         let path = nfsu2::game_fs::path(&root, &format!("TRACKS/ROUTES{EXPLORE_REGION}/RoutesFreeRoam.bin"));
         let mut file = nfsu2::formats::ai_routes::RouteFile::parse(
-            &std::fs::read(&path).with_context(|| format!("reading {}", path.display()))?,
+            &nfsu2::game_fs::read_file(&path).with_context(|| format!("reading {}", path.display()))?,
         );
         let paths = nfsu2::game_fs::path(&root, &format!("TRACKS/ROUTES{EXPLORE_REGION}/PathsFreeRoam.bin"));
         file.finalize_free_roam_paths(
-            &std::fs::read(&paths).with_context(|| format!("reading {}", paths.display()))?,
+            &nfsu2::game_fs::read_file(&paths).with_context(|| format!("reading {}", paths.display()))?,
             4000,
             stage,
         );

@@ -40,7 +40,7 @@ pub struct Picture {
 /// is not there or cannot be read: the fallback stays).
 pub fn load(root: &Path) -> Option<Picture> {
     let path = crate::game_fs::path(root, "FRONTEND/FrontB.lzc");
-    let raw = std::fs::read(path).ok()?;
+    let raw = crate::game_fs::read_file(&path).ok()?;
     let data = if raw.starts_with(b"JDLZ") { crate::formats::jdlz::decompress(&raw).ok()? } else { raw };
     let hash = crate::formats::hash::bin_hash(PICTURE);
     let mut found = None;

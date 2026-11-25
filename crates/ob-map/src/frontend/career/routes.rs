@@ -28,7 +28,7 @@ pub struct Marker {
 }
 
 pub fn load_markers(path: &Path) -> Result<Vec<Marker>> {
-    let data = std::fs::read(path).with_context(|| format!("reading {}", path.display()))?;
+    let data = crate::game_fs::read_file(path).with_context(|| format!("reading {}", path.display()))?;
     let body = data.get(16..).unwrap_or(&[]);
     Ok(body
         .chunks_exact(0x30)
@@ -90,7 +90,7 @@ pub fn route_path(root: &Path, track: &Track) -> PathBuf {
 /// `backward` runs the route the other way with the Backward markers.
 pub fn load_route(root: &Path, track: &Track, backward: bool) -> Result<Route> {
     let path = route_path(root, track);
-    let data = std::fs::read(&path).with_context(|| format!("reading {}", path.display()))?;
+    let data = crate::game_fs::read_file(&path).with_context(|| format!("reading {}", path.display()))?;
     let mut checkpoints = Vec::new();
     let mut loops = false;
     crate::formats::bundle::walk(chunks(&data, 0), &mut |c| {

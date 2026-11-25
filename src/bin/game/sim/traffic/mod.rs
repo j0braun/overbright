@@ -160,10 +160,10 @@ impl Traffic {
         use nfsu2::ai::traffic::{Crossings, TrafficZone, dense_pool, pool_size};
         let path = nfsu2::game_fs::path(&root, &format!("TRACKS/ROUTES{region}/{}", files.0));
         let routes = nfsu2::formats::ai_routes::RouteFile::parse(
-            &std::fs::read(&path).with_context(|| format!("reading {}", path.display()))?,
+            &nfsu2::game_fs::read_file(&path).with_context(|| format!("reading {}", path.display()))?,
         );
         let paths = nfsu2::game_fs::path(&root, &format!("TRACKS/ROUTES{region}/{}", files.1));
-        let zones = TrafficZone::parse(&std::fs::read(&paths).with_context(|| format!("reading {}", paths.display()))?);
+        let zones = TrafficZone::parse(&nfsu2::game_fs::read_file(&paths).with_context(|| format!("reading {}", paths.display()))?);
         let tuning = tuning.context("no AI tuning")?;
         let spacing: Vec<(f32, f32)> = (0..9).filter_map(|r| tuning.traffic_spacing(r)).collect();
         let track = track.context("no track record")?;

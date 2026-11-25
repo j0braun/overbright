@@ -1022,6 +1022,17 @@ pub fn read_record(set: &Path) -> Result<Record, Refusal> {
         let d = f.get("sha256").and_then(|v| v.as_str()).and_then(|s| s.strip_prefix("sha256:")).and_then(unhex32);
         files.push(SourceFile { path, size, sha256: Some(d.ok_or_else(|| bad("a file without sha256"))?) });
     }
+    // What the scan left out (a linked folder, a name the format cannot hold): such names are not known absent.
+    let skipped = src
+        .get("skipped")
+        .and_then(|v| v.as_array())
+        .into_iter()
+        .flatten()
+        .filter_map(|s| {
+            let path = s.get("path")?.as_str()?.to_string();
+            Some((path, s.get("reason").and_then(|v| v.as_str()).unwrap_or_default().to_string()))
+        })
+        .collect();
     let mut bundles = BTreeMap::new();
     for b in doc.get("bundle").and_then(|v| v.as_array()).ok_or_else(|| bad("no bundle"))? {
         let name = b
@@ -1034,7 +1045,7 @@ pub fn read_record(set: &Path) -> Result<Record, Refusal> {
         bundles.insert(name.to_string(), (size, d));
     }
     let id = set.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
-    Ok(Record { id, identity, scan: Scan { root: PathBuf::new(), files, skipped: Vec::new(), exe: None }, bundles })
+    Ok(Record { id, identity, scan: Scan { root: PathBuf::new(), files, skipped, exe: None }, bundles })
 }
 
 /// Re-checks every bundle of a finished base set (`base verify`): size, digest, CRCs and every kept file's SHA-256.
@@ -1098,4 +1109,4 @@ pub fn repair(set: &Path, game: &Path, opt: &Options, progress: Progress) -> Res
 }
 
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;

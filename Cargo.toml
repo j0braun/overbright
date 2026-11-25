@@ -63,7 +63,8 @@ ob-formats = { path = "crates/ob-formats" }
 ob-map = { path = "crates/ob-map" }
 # The look shared by the launcher, the map editor and Studio (crates/ob-look), re-exported at `launch::theme`.
 ob-look = { path = "crates/ob-look" }
-# The asset format: the importer the launcher's Game data screen runs (src/launcher/game_data.rs), and the run
+# The asset format: the base set the game reads through by default once a verified import exists
+# (src/asset_layer.rs), the importer the launcher's Game data screen runs (src/launcher/game_data.rs), and the run
 # file check (`ob.run`) on the simulation's stream (src/bin/game/enh/sim_stream.rs).
 ob-asset-format = { path = "crates/ob-asset-format" }
 anyhow.workspace = true

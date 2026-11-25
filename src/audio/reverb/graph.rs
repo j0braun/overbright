@@ -204,7 +204,7 @@ impl Graph {
             .flatten()
             .map(|e| e.path())
             .find(|p| p.file_name().and_then(|n| n.to_str()).is_some_and(|n| n.to_ascii_lowercase() == want))?;
-        Graph::parse(&std::fs::read(path).ok()?, rate)
+        Graph::parse(&crate::game_fs::read_file(&path).ok()?, rate)
     }
 
     /// Whether the hook would run now (the idle count is under 3000).

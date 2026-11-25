@@ -7,7 +7,7 @@ license.workspace = true
 publish = false
 
 # Above ob-formats (its name hash and ZIP checksum); no window, GPU or audio crate, and it builds for the web
-# (scripts/checks/crate_layers.sh). Nothing in the game reads through it yet.
+# (scripts/checks/crate_layers.sh). The game mounts imported base sets through it (src/mount.rs).
 [dependencies]
 ob-formats = { path = "../ob-formats" }
 # The importer: atomic writes, renames and the free-space query (import.rs).
