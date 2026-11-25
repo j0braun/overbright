@@ -48,6 +48,21 @@ pub(super) const TURBO: Element = Element {
     numbered: &[],
 };
 
+/// The drift element's angle backing (0x4F6C00, while the player's slot is
+/// in use, 0x8900AC): the car's turbo (0x457B00, the largest turbo curve
+/// point, above 0) picks Drift_Angle_Backing1 (the plate left of the turbo
+/// gauge, with Drift_Angle_Backing2 under the gauge) and runs "Turbo" on
+/// Angle_Indicator_DATA and Angle_degrees; without a turbo it picks
+/// Drift_Angle_Backing3 (the plate whose round end meets the tachometer)
+/// and runs "NoTurbo", which moves the two texts 73 right onto it
+/// (0x51CF80, flag 1). Only the picked backing joins the element, so the
+/// other stays hidden as the HUD's constructor left it.
+pub(super) const DRIFT_ANGLE_BACKING: [(&str, &str); 2] =
+    [("Drift_Angle_Backing3", "NoTurbo"), ("Drift_Angle_Backing1", "Turbo")];
+
+/// The angle readout's texts the turbo script moves (0x4F6C00).
+pub(super) const DRIFT_ANGLE_TEXTS: [&str; 2] = ["Angle_Indicator_DATA", "Angle_degrees"];
+
 /// The elements a single-player race or free roam builds (0x4F8BF0), with
 /// the masks from their constructors and 0x4CA090.
 pub(super) const ELEMENTS: &[Element] = &[
@@ -98,7 +113,8 @@ pub(super) const ELEMENTS: &[Element] = &[
     Element { lo: 0x2000_0000, hi: 0, objects: &["HEAT_Bar"], numbered: &[] },
     // 0x4F6A90: nitrous.
     Element { lo: 0, hi: 0x4_0000, objects: &["NOS_Line", "NOS_GameBreaker", "NOS_Mask", "NOS_Fill"], numbered: &[] },
-    // 0x4F6C00: drift and speed-trap readouts.
+    // 0x4F6C00: drift and speed-trap readouts. The angle readout's backing
+    // is one of two, by the car's turbo ([`DRIFT_ANGLE_BACKING`]).
     Element {
         lo: 0x8000_0000,
         hi: 0,
@@ -118,8 +134,6 @@ pub(super) const ELEMENTS: &[Element] = &[
             "0Degrees",
             "Angle_Indicator_DATA",
             "Angle_degrees",
-            "Drift_Angle_Backing3",
-            "Drift_Angle_Backing1",
         ],
         numbered: &["CurrentSpeed_Trap_Backing_0"],
     },

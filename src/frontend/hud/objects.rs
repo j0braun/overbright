@@ -5,13 +5,14 @@ use super::*;
 impl Hud {
     /// The elements' objects in this package, found again when the package or drag tach changes.
     pub(super) fn element_objects(&mut self, f: &QuadsFrame<'_>) {
-        let QuadsFrame { package, drag, .. } = *f;
+        let QuadsFrame { package, input, drag, now, .. } = *f;
         let has = |h: u32| package.objects.iter().any(|o| o.hash == h);
         let same = |e: &ElementObjects| {
             e.package.0 == package.name
                 && e.package.1 == package.objects.as_ptr() as usize
                 && e.package.2 == package.objects.len()
                 && e.drag == drag
+                && e.turbo == input.turbo
         };
         if !self.elements.as_ref().is_some_and(same) {
             let key = (package.name.clone(), package.objects.as_ptr() as usize, package.objects.len());
@@ -27,6 +28,23 @@ impl Hud {
                         }
                     }
                 }
+                if e.objects.contains(&"Angle_Indicator_DATA") {
+                    // 0x4F6C00: the angle's backing and the texts' place by
+                    // the car's turbo ([`DRIFT_ANGLE_BACKING`]).
+                    let (backing, script) = DRIFT_ANGLE_BACKING[input.turbo as usize];
+                    let h = fe_hash(backing);
+                    if has(h) {
+                        hashes.push(h);
+                    }
+                    let name = fe_hash(script);
+                    for text in DRIFT_ANGLE_TEXTS {
+                        let o = fe_hash(text);
+                        // 0x51CF80(…, 1): a script the object lacks is not run.
+                        if package.objects.iter().any(|x| x.hash == o && x.scripts.iter().any(|sc| sc.name == name)) {
+                            self.state.run(o, script, now);
+                        }
+                    }
+                }
                 elements.push((e.lo, e.hi, hashes));
             }
             for (elo, ehi, hashes) in HASHED {
@@ -38,7 +56,8 @@ impl Hud {
                     children.entry(parent).or_default().push((object.hash, object.guid));
                 }
             }
-            self.elements = Some(ElementObjects { package: key, drag, elements, children, hidden: None });
+            self.elements =
+                Some(ElementObjects { package: key, drag, turbo: input.turbo, elements, children, hidden: None });
         }
     }
 
