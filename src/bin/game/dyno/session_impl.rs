@@ -177,6 +177,11 @@ impl Game {
             .context("the dyno's grid")?;
         let (at, heading) = (m.position, m.heading);
         self.sim.traffic = None;
+        // Free roam's encounter racers stay in the city: the dyno track is
+        // another region, and its scenes run in Explore mode, which draws
+        // (and steps) them; their ground state is the city's (#236: a
+        // pack index past the dyno's). The city start makes them anew.
+        self.sim.encounters = None;
         let stage = self.profile.as_ref().map_or(0, |p| p.stage);
         let owns_car = self.profile.as_ref().is_some_and(|p| !p.car.is_empty());
         let barriers = BarrierSetup {
