@@ -349,6 +349,7 @@ pub const KEYS: &[Binding] = &[
     b("File", "Enter", "Confirm a dialog", &[Key::Enter]),
     b("Run", "F5 / Shift+F5", "Test race / Drive here", &[Key::F5]),
     b("Run", "Space", "Play / pause the simulation (Simulate tab)", &[Key::Space]),
+    b("Run", "Up / Down", "Show the line above / below in What went wrong (Simulate tab)", &[Key::ArrowUp, Key::ArrowDown]),
 ];
 
 /// The Controls dialog's rows, grouped: the tools first (from

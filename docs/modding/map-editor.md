@@ -131,6 +131,7 @@ do nothing while a text field has the keyboard.
 | `Enter` | Confirm a dialog |
 | `F5 / Shift+F5` | Test race / Drive here |
 | `Space` | Play / pause the simulation (Simulate tab) |
+| `Up / Down` | Show the line above / below in What went wrong (Simulate tab) |
 
 While the right mouse button is held the tool keys fly the camera instead (W A S D, Q / E).
 
@@ -347,10 +348,33 @@ the AI drives here, is "Your slot (AI)", marked "AI-driven, not your time", with
 and time are the AI's, and Test race gives your own. The tab says how the run ended (every racer through, the
 time limit, or stopped) and how many problems it added to Validation, with **Show Validation**. The same seed
 runs the same race again; another seed changes the AI's and the traffic's choices.
-Under the table the events (green light, laps, finishes, crashes, stuck, wrong way), each with **Show**. A racer
+The space under the scrub bar shows one of three lists (the row above it switches): **Results** (above), **What
+went wrong** and **Events** (green light, laps, finishes, crashes, stuck, wrong way, each with **Show**). A racer
 that stood still for 4 s after the green, drove against the race's direction for 2 s, or lost 6 m/s or more in
 one tick becomes a warning in the Validation tab, named by the checkpoint it was heading for: "Simulation: AI got
 stuck before checkpoint 3".
+
+**Runs** (next to **Seed**, 1 to 10) simulates the race that many times, one seed after the other (Seed, Seed + 1,
+…); the tab says which run is going. **What went wrong** opens by itself when the runs end with a problem. It
+reads only what the runs recorded (no second simulation) and lists one line per problem and place, worst first,
+with each time it happened under it:
+
+- **Cars in trouble at the start**: stuck or crashed within 6 s of the green and 40 m of their grid spot, the
+  sign of a start line or grid facing the wrong way;
+- **Stuck** before a checkpoint, with how long the car stood (or that it never moved again);
+- **Crashed into prop** *solid (id)*: a hard hit within 6 m of one of the mod's added or moved props;
+  **into another car** (within 5.5 m, named); otherwise **into a wall or the scenery**;
+- **Drove the wrong way** before a checkpoint;
+- **Missed checkpoint** *n*: a racer passed over it in one jump, or did not finish and never reached it;
+- **Left the base track's roads**: a racer more than 25 m from the base track's roads (as Validation measures a
+  checkpoint) for 2 s or more, at its farthest spot;
+- **Finish spread** (information): first to last finish, and who did not finish.
+
+With one run a line counts the cars ("Stuck before checkpoint 3: 2 cars"); with several it counts the runs
+("Stuck before checkpoint 3: 3 of 5 runs, 4 times") and each occurrence names its seed. A click on a line, or on
+Enter, Tab or Up / Down onto it, shows it: that run's replay (another seed's run is swapped in), paused at the
+time, following the car, the 3D camera and the Map on the spot. Space on a focused line does not start the
+playback. Eight occurrences per line are listed, the rest counted.
 
 For pictures of these screens without a window, `overbright-editor --shot` also takes `--hover
 simulate|drive-here|test-race` (the button's tooltip), `--dialog how-to-test|controls` (a help page) and `--run
@@ -586,8 +610,9 @@ the region does not have is skipped and counted in the log (the tree marks it: "
 takes `--size WxH` (default 1600x900), `--scale F` (the display scale), `--mod`, `--region`, `--maps`, `--mode
 props|races` (which side of the selection is in front), `--tool <name>` (a toolbar tool), `--view
 3d|map|street|whole|top`, `--light work|game`, `--tab browser|validation|simulate|log`, `--select N,M`
-(placements by number; the 3D view is framed on them) and `--sim <stream file>[@seconds[:car]]` (a saved
-simulation at that time, following that car), `--collision off|invisible|all` (the collision layer) and `--camera x,y,z[,yaw,pitch]`
+(placements by number; the 3D view is framed on them) and `--sim <stream file>[,<stream file>…][@seconds[:car]]` (a saved
+simulation at that time, following that car; several files are several runs, What went wrong over all of them, the
+last one shown), `--collision off|invisible|all` (the collision layer) and `--camera x,y,z[,yaw,pitch]`
 (the 3D camera, metres and degrees). A shot runs on a fixed clock, so the same arguments draw the same
 picture. scripts/checks/editor_shots.sh runs it at every size of the resolution matrix (docs/developing/checks.md).
 

@@ -273,7 +273,7 @@ impl Default for Cli {
     }
 }
 
-pub const USAGE: &str = "usage: overbright-editor [--mod <folder>] [--region <code>] [--maps <dir>]\n       overbright-editor --shot out.png [--size WxH] [--scale F] [--mod <folder>] [--region <code>] [--mode props|races] [--tool <name>] [--view 3d|map|street|whole|top] [--light work|game] [--tab browser|validation|simulate|log] [--select N,M] [--sim stream.txt[@seconds[:car]]] [--hover simulate|drive-here|test-race] [--dialog how-to-test|controls] [--run test-race|drive-here] [--collision off|invisible|all] [--camera x,y,z[,yaw,pitch]]";
+pub const USAGE: &str = "usage: overbright-editor [--mod <folder>] [--region <code>] [--maps <dir>]\n       overbright-editor --shot out.png [--size WxH] [--scale F] [--mod <folder>] [--region <code>] [--mode props|races] [--tool <name>] [--view 3d|map|street|whole|top] [--light work|game] [--tab browser|validation|simulate|log] [--select N,M] [--sim stream.txt[,more.txt…][@seconds[:car]]] [--hover simulate|drive-here|test-race] [--dialog how-to-test|controls] [--run test-race|drive-here] [--collision off|invisible|all] [--camera x,y,z[,yaw,pitch]]";
 
 impl Cli {
     pub fn parse<I: IntoIterator<Item = String>>(args: I) -> Result<Cli> {
@@ -445,6 +445,8 @@ pub struct Panels {
     /// The prop browser (its pictures are drawn after the egui pass,
     /// [`App::render_view`]).
     pub browser: parts::Shared<super::browser::Browser>,
+    /// The simulation (the Simulate tab, its button, hook and overlay).
+    pub sim: super::sim::panel::Shared,
     /// Called every frame after the layout (no visible place): handlers of
     /// menu commands such as Test race.
     pub hooks: Vec<Box<dyn Panel>>,
@@ -508,8 +510,9 @@ impl Panels {
                 Box::new(super::collision::CollisionOverlay::default()),
                 Box::new(parts::PropsOverlay { props: props.clone(), browser: browser.clone() }),
                 Box::new(parts::RacesOverlay { races: races.clone(), dragging: false }),
-                Box::new(super::sim::SimOverlay(sim)),
+                Box::new(super::sim::SimOverlay(sim.clone())),
             ],
+            sim,
             props,
             races,
             browser,
