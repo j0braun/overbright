@@ -347,7 +347,7 @@ pub struct Player {
 
 impl Player {
     pub fn open(path: &Path) -> Result<Player> {
-        let movie = Movie::parse(std::fs::read(path).with_context(|| format!("reading {}", path.display()))?)?;
+        let movie = Movie::parse(crate::game_fs::read_file(path).with_context(|| format!("reading {}", path.display()))?)?;
         let ch = movie.audio.map_or(0, |a| a.channels as usize);
         Ok(Player { movie, decoder: vp6::Decoder::new(), next: 0, next_block: 0, audio_done: 0, xa: vec![XaChannel::default(); ch], clock: 0.0, rgba: Vec::new(), fresh: false, failed: false })
     }

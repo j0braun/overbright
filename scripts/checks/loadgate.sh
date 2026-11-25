@@ -10,9 +10,10 @@
 #
 # BIN: a binary with the developer harness, best built with `perf.sh build` (the shipped release profile).
 # @SRC: where that arm reads the game from: `original` (the game folder, NFSU2_ROOT; the default) or `base` (the
-# imported base set, NFSU2_BASE_SET; the asset layer's switch). Both arms may be one binary: `orig=BIN@original
-# base=BIN@base`. Every run gets NFSU2_ASSETS=SRC; a `base` run counts only when its log says `assets: base`, so a
-# binary without the asset layer can never pass as one reading the base set.
+# imported base set, NFSU2_BASE_SET). Both arms may be one binary: `orig=BIN@original base=BIN@base`. Every run
+# gets the asset layer's switch (NFSU2_BASE=off, or NFSU2_BASE=<the set's folder>); a `base` run counts only when its
+# log has the layer's exit line (`asset layer: ... from base set`), an `original` run only without it, so a binary
+# without the asset layer can never pass as one reading the base set.
 # Modes (MODES, default "warm cold cores"):
 #   warm   every file in the OS's file cache (the run before warmed it)
 #   cold   before each run the arm's files are dropped from the OS's file cache without root
@@ -23,7 +24,8 @@
 #          other programs map stay resident: each run's log says how much)
 #   cores  warm, pinned to LOW_CPUS (default 0-3: four cores of a low-end machine; the game's pools follow it)
 # Scenes (SCENES, default "boot explore"): --bench boot (process start to the first frame and the title) and
-# --bench explore FRAMES (the first free-roam load and its first frame; FRAMES default 20); "transitions" adds
+# --bench explore FRAMES (the first free-roam load and its first frame; FRAMES default 20); any other bench scene
+# (race, racing, drive) the same way, its scenario's load and first frame; "transitions" adds
 # --bench transitions. Every run writes NFSU2_TRACE: the load's stages are its spans.
 # REPS (default 10, at least 8): runs per arm, mode and scene; the arms run adjacent, their order rotated each
 # repetition. IGPU=1: the integrated GPU (IGPU_DEVICE). LOADGATE_LOCK=FILE: each repetition holds flock FILE
@@ -47,14 +49,17 @@ run_one() {
   local base="$out/runs/${label}__${mode}__${scene}__r$rep"
   local src=${SRCS[$label]} root=$ROOT
   local -a env=(XDG_DATA_HOME="$out/xdg-$label" NFSU2_CACHE_DIR="$out/cache-$label" MESA_SHADER_CACHE_DIR="$out/mesa-$label"
-    NFSU2_AUDIO_HOST=none NFSU2_ROOT="$root" NFSU2_ASSETS="$src" NFSU2_TRACE="$base.trace.json" NFSU2_BENCH_SIZE=1920x1080)
-  [ "$src" = base ] && env+=(NFSU2_BASE_SET="$BASESET")
+    NFSU2_AUDIO_HOST=none NFSU2_ROOT="$root" NFSU2_TRACE="$base.trace.json" NFSU2_BENCH_SIZE=1920x1080)
+  # The asset layer's switch (src/asset_layer.rs): the base set by its folder, or off (never a set the caller's
+  # environment or the arm's data folder would choose).
+  if [ "$src" = base ]; then env+=(NFSU2_BASE="$BASESET"); else env+=(NFSU2_BASE=off); fi
   if [ -n "${IGPU:-}" ]; then
     [ -n "${IGPU_DEVICE:-}" ] || die "IGPU needs IGPU_DEVICE=vendor:device (scripts/local.env)"
     env+=(MESA_VK_DEVICE_SELECT="$IGPU_DEVICE" MESA_VK_DEVICE_SELECT_FORCE_DEFAULT_DEVICE=1)
   fi
   local -a args=(--bench "$scene") pre=()
-  [ "$scene" = explore ] && { args+=("$FRAMES"); env+=(NFSU2_BENCH_JSON="$base.json"); }
+  # Every scene but boot and transitions loads a scenario and writes its JSON (load_ms, first_frame_ms).
+  case $scene in boot|transitions) ;; *) args+=("$FRAMES"); env+=(NFSU2_BENCH_JSON="$base.json") ;; esac
   [ "$mode" = cores ] && pre=(taskset -c "$LOW_CPUS")
   rm -f "$base.json" "$base.trace.json"
   { echo "bin: ${BINS[$label]} assets $src"; echo "config: $mode $scene rep $rep"; echo "loadavg: $(cat /proc/loadavg)"; } > "$base.txt"
@@ -66,8 +71,12 @@ run_one() {
   env -u DISPLAY -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE "${env[@]}" "${pre[@]}" timeout 600 "${BINS[$label]}" "${args[@]}" >> "$base.txt" 2>&1 &
   local pid=$!; echo "$pid $label $mode $scene r$rep" >> "$out/pids.log"
   wait $pid; local rc=$?
-  if [ $rc = 0 ] && [ "$src" = base ] && ! grep -q '^assets: base' "$base.txt"; then
-    rc=98; echo "loadgate: no 'assets: base' line: this binary does not read the base set" >> "$base.txt"
+  # The exit line of a run that read through the layer: a `base` run must have it, an `original` run must not.
+  local layer=0; grep -q '^asset layer: .* from base set' "$base.txt" && layer=1
+  if [ $rc = 0 ] && [ "$src" = base ] && [ $layer = 0 ]; then
+    rc=98; echo "loadgate: no 'asset layer: ... from base set' line: this run did not read the base set" >> "$base.txt"
+  elif [ $rc = 0 ] && [ "$src" = original ] && [ $layer = 1 ]; then
+    rc=98; echo "loadgate: an 'asset layer: ... from base set' line in a run of the game folder" >> "$base.txt"
   fi
   if [ $rc = 0 ] && [ "$(ck_bad "$base.txt")" != 0 ]; then rc=97; fi
   echo "rc=$rc loadavg-end: $(cat /proc/loadavg)" >> "$base.txt"

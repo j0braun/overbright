@@ -112,10 +112,38 @@ if [ -n "${OB_PRIVATE:-}" ]; then
 fi
 AL=$(python3 "$HERE/fixture_renames.py" alias "$PRIV") || { echo "gate: fixture_renames.py failed"; exit 2; }
 [ "$AL" = "aliased 0" ] || echo "gate: renamed private fixtures: $AL under their old names for the base"
+# ASSET_LAYER=1 (or a finished base set's folder): the parity with the new binary reading the game's files through the
+# asset layer (NFSU2_BASE, src/asset_layer.rs; the base binary ignores the variable): the same bytes from another
+# source, so every hash must still match. With 1, NFSU2_ROOT is imported once into OUTDIR/base (read only).
+if [ -n "${ASSET_LAYER:-}" ] && [ "$ASSET_LAYER" != 0 ]; then
+  if [ "$ASSET_LAYER" = 1 ]; then
+    ( cd "$G/src-b" && CARGO_TARGET_DIR="$PW/import-target" cargo build --release --locked -q -p ob-asset-format --bin overbright-import ) > "$G/import.log" 2>&1 \
+      && "$PW/import-target/release/overbright-import" import --game "$NFSU2_ROOT" --base "$G/base" >> "$G/import.log" 2>&1 \
+      || { echo "gate: FAIL: the asset layer's import failed (see $G/import.log)"; exit 1; }
+    export NFSU2_BASE=$G/base/$(sed -n 's/^base=//p' "$G/import.log" | tail -1)
+  else
+    export NFSU2_BASE=$ASSET_LAYER
+  fi
+  echo "gate: asset layer on: the new binary reads through base set $NFSU2_BASE"
+fi
 TMPDIR="$G/tmp" OB_PRIVATE="$PRIV" PERF_WORK=$PW GATES=$GATES_RUN scripts/perf/perf.sh parity "$G/parity" "$G/a/game" "$G/b/game" > "$G/parity.log" 2>&1; PRC=$?
 grep -E '^(FAIL: |images|window|enhanced|shots|audio|sim|rate|RATE|PARITY)' "$G/parity.log" | cut -c1-240
+if [ -n "${NFSU2_BASE:-}" ]; then
+  # Every new-side run read through the layer (the exit line), none fell back because the set was refused.
+  NL=$(find "$G/parity/new" -maxdepth 1 -name '*.log' | wc -l); LL=$(grep -l '^asset layer: .* from base set' "$G/parity/new"/*.log 2> /dev/null | wc -l)
+  if [ "$NL" -gt 0 ] && [ "$NL" = "$LL" ]; then echo "asset layer: all $NL new runs read through the base set"
+  else echo "FAIL: asset layer: $LL of $NL new runs read through the base set"; PRC=1; fi
+  # And none of them read a game file from the folder: every name is the set's or known absent from the install.
+  FL=$(grep -L '^asset layer: .*, 0 game files from the folder$' "$G/parity/new"/*.log 2> /dev/null | xargs -r grep -l '^asset layer: .* from base set' | wc -l)
+  if [ "$FL" = 0 ]; then echo "asset layer: no new run read a game file from the game folder"
+  else
+    echo "FAIL: asset layer: $FL new runs read game files from the game folder:"
+    grep -h '^asset layer: not in base set: ' "$G/parity/new"/*.log | sort | uniq -c | sort -rn | head -20
+    PRC=1
+  fi
+fi
 grep -q '^PARITY: ' "$G/parity.log" || { echo "gate: perf.sh parity ended without a verdict (rc $PRC): $(tail -3 "$G/parity.log" | tr '\n' ' ')"; [ $PRC != 0 ] || PRC=1; }
-rm -rf "$G/src-a" "$G/src-b" "$G/private-set" "$PW" "$G/tmp"
+rm -rf "$G/src-a" "$G/src-b" "$G/private-set" "$PW" "$G/tmp" "$G/base"
 BRC=0; [ $SAME = 1 ] && [ $SRC_SAME = 0 ] && BRC=1
 if [ -n "$PLAYER_DIRS" ]; then
   ck_player_snapshot > "$G/player-after.txt"

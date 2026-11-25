@@ -34,7 +34,7 @@ pub struct Assets {
 }
 
 pub(crate) fn read_bundle(path: &Path) -> Result<Vec<u8>> {
-    let data = std::fs::read(path).with_context(|| format!("reading {}", path.display()))?;
+    let data = crate::game_fs::read_file(path).with_context(|| format!("reading {}", path.display()))?;
     Ok(if data.starts_with(crate::formats::jdlz::MAGIC) { crate::formats::jdlz::decompress(&data)? } else { data })
 }
 

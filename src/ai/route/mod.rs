@@ -199,7 +199,7 @@ impl AiRoutes {
             track.number,
             if backward { "B" } else { "F" }
         ));
-        let data = std::fs::read(&path).with_context(|| format!("reading {}", path.display()))?;
+        let data = crate::game_fs::read_file(&path).with_context(|| format!("reading {}", path.display()))?;
         let paths = crate::game_fs::read(root, &format!("TRACKS/ROUTES{}/Paths{}.bin", track.region, track.number))
             .unwrap_or_default();
         Ok(AiRoutes {

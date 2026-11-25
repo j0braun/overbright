@@ -29,6 +29,7 @@ scripts/checks/wine_smoke.sh <outdir> [game]     # the Windows dev-harness game.
 scripts/checks/traffic_harness.sh <outdir> [bin]  # the traffic harness, this game only: free roam standing and with the scripted player, statistics (report-only, in no set; docs/traffic-harness.md)
 scripts/checks/wine_smoke.sh --selfcheck <outdir> [game]   # every Wine smoke check on a broken input: each must fail
 scripts/checks/wine_smoke.sh --env-check <outdir>  # the Wine runs' environment on a stand-in for wine (no Wine needed)
+ASSET_LAYER=1 scripts/checks/gate.sh …           # the parity with the new binary reading through an import of NFSU2_ROOT (docs/modding/asset-format/import.md §13)
 CHECKS=full scripts/checks/gate.sh …            # with the rate gate v2 (counted by default: RATE=strict; RATE=0 leaves it out)
 scripts/perf/perf.sh rate <outdir> <game>        # the rate gate v2 alone: hash columns, α=0 images, WAVs across 30/60/120/200 Hz + jitter
 ```
@@ -357,9 +358,10 @@ ASSETS=base NFSU2_BASE_SET=<dir> scripts/checks/baselines.sh check …   # the s
   (note, source commit, GPU, the set) and the binary's load numbers (`summary.md`, `summary.json`: the load-speed
   gate's warm, cold and 4-core runs). Machine-local, never in the repository: the pictures' hashes depend on the GPU
   and its driver.
-- **The source switch**: `ASSETS=original` (the default) or `ASSETS=base`. Every run gets `NFSU2_ASSETS` set to
-  it (and `NFSU2_BASE_SET` for `base`); a `base` run counts only when the game's log has a line starting
-  `assets: base`, so a binary without the asset layer can never pass as one that read the base set. A baseline is
+- **The source switch**: `ASSETS=original` (the default) or `ASSETS=base`. Every run gets the asset layer's switch:
+  `NFSU2_BASE=off`, or for `base` `NFSU2_BASE` set to the folder `NFSU2_BASE_SET` names; a `base` run counts only
+  when the game's log has the layer's exit line (`asset layer: ... from base set`) and an `original` run only
+  without it, so a binary without the asset layer can never pass as one that read the base set. A baseline is
   always recorded from the original files.
 - **Verdicts**: `BASELINES: PASS: identical to the stored baseline` or `BASELINES: FAIL: N items differ` with
   every changed item (`diff.tsv`: item, stored hash, new hash, detail). A run that fails, a missing picture or a
@@ -426,7 +428,7 @@ scripts/checks/loadgate.sh selftest                      # the statistics on gen
 - **Verdict.** One line per mode (`loadgate: cold: SLOWER: totals: …; slower stage: explore World::load: from the
   cache +20.1 ms (+…%)`), then `LOADGATE: PASS|FAIL: …`; `loadgate.md` holds every measure's medians, shift,
   interval, noise, limit and p. A run that failed (rc ≠ 0, a panic line, no JSON or trace, a `base` arm without
-  `assets: base`) or fewer than 8 runs in an arm fails the gate.
+  the asset layer's exit line, an `original` arm with it) or fewer than 8 runs in an arm fails the gate.
 - **Machine.** `LOADGATE_LOCK=<file>`: each repetition holds `flock` on that file (a shared machine's measuring
   lock); `LOADGATE_MAXLOAD=N`: each repetition first waits for a 1-minute load average under N
   (`LOADGATE_MAXWAIT` s at most, default 1800). About 25 s per repetition of two arms, three modes and two scenes on

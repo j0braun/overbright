@@ -11,8 +11,9 @@
 #                                                  of REASONS ("<glob><TAB><why>"), then record; the mapping is
 #                                                  written to the new baseline's changes.tsv and OUT/changes.tsv
 #
-# ASSETS=original (default) | base: where BIN reads the game from (NFSU2_ASSETS; base needs NFSU2_BASE_SET, and every
-# run's log must say `assets: base`, so a binary without the asset layer cannot pass as one reading the base set).
+# ASSETS=original (default) | base: where BIN reads the game from (the asset layer's switch, NFSU2_BASE: off, or the
+# folder NFSU2_BASE_SET names; every base run's log must have the layer's exit line `asset layer: ... from base set`
+# and no original run's may, so a binary without the asset layer cannot pass as one reading the base set).
 # A baseline is recorded from the original files; `check` with ASSETS=base is the asset layer's proof.
 # OUTPUTS (default "images shots audio sim"):
 #   images  Original --bench explore/race/racing/drive/rain, every 100th of 600 frames, at IMG_SIZES (default
@@ -45,12 +46,15 @@ side() {
   while [ $# -gt 0 ] && [ "$1" != -- ]; do env+=("$1"); shift; done
   shift
   mkdir -p "$O/logs"
-  local -a src=(NFSU2_ASSETS="$ASSETS"); [ "$ASSETS" = base ] && src+=(NFSU2_BASE_SET="$NFSU2_BASE_SET")
+  local -a src=(NFSU2_BASE=off); [ "$ASSETS" = base ] && src=(NFSU2_BASE="$NFSU2_BASE_SET")
   env -u DISPLAY -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE XDG_DATA_HOME="$O/xdg-$name" NFSU2_CACHE_DIR="$O/cache" NFSU2_AUDIO_HOST=none \
     TMPDIR="$O/tmp" "${src[@]}" "${env[@]}" timeout 1800 "$BIN" "$@" > "$O/logs/$name.log" 2>&1 &
   local pid=$!; echo "$pid $name" >> "$O/pids.log"; wait $pid; local rc=$?
-  if [ $rc = 0 ] && [ "$ASSETS" = base ] && ! grep -q '^assets: base' "$O/logs/$name.log"; then
-    rc=98; echo "baselines: no 'assets: base' line: this binary does not read the base set" >> "$O/logs/$name.log"
+  local layer=0; grep -q '^asset layer: .* from base set' "$O/logs/$name.log" && layer=1
+  if [ $rc = 0 ] && [ "$ASSETS" = base ] && [ $layer = 0 ]; then
+    rc=98; echo "baselines: no 'asset layer: ... from base set' line: this run did not read the base set" >> "$O/logs/$name.log"
+  elif [ $rc = 0 ] && [ "$ASSETS" = original ] && [ $layer = 1 ]; then
+    rc=98; echo "baselines: an 'asset layer: ... from base set' line in a run of the game folder" >> "$O/logs/$name.log"
   fi
   [ $rc != 0 ] || [ "$(ck_bad "$O/logs/$name.log")" = 0 ] || rc=97
   echo "$name rc=$rc" >> "$O/rc.txt"

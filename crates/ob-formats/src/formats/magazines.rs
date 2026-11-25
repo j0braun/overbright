@@ -91,7 +91,7 @@ pub fn load_envmap(root: &std::path::Path, name: &str) -> Option<Vec<crate::form
     let dir = crate::game_fs::path(root, "FRONTEND/ENVMAPS");
     let want = format!("{name}.bin");
     let file = std::fs::read_dir(&dir).ok()?.flatten().map(|e| e.path()).find(|p| p.file_name().is_some_and(|f| f.to_string_lossy().eq_ignore_ascii_case(&want)))?;
-    let data = std::fs::read(file).ok()?;
+    let data = crate::game_fs::read_file(&file).ok()?;
     let mut faces: [Option<crate::formats::texture::Texture>; 6] = Default::default();
     crate::formats::bundle::walk(crate::formats::bundle::chunks(&data, 0), &mut |c| {
         if c.id == 0xB330_0000

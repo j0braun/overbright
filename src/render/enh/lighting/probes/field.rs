@@ -267,7 +267,7 @@ pub fn region_routes(root: &std::path::Path, region: &str) -> Vec<RouteFile> {
         .unwrap_or_default();
     names.sort();
     names.insert(0, crate::game_fs::path(root, &format!("TRACKS/ROUTES{region}/RoutesFreeRoam.bin")));
-    names.iter().filter_map(|p| std::fs::read(p).ok()).map(|d| RouteFile::parse(&d)).collect()
+    names.iter().filter_map(|p| crate::game_fs::read_file(p).ok()).map(|d| RouteFile::parse(&d)).collect()
 }
 
 /// `NFSU2_PROBE_LOG=1`: the bake and the cars' probe terms in the log (a

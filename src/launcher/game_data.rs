@@ -141,7 +141,8 @@ fn thousands(n: usize) -> String {
 }
 
 const WHY: &str = "Overbright can keep its own copy of your game files, made once from your installed game. Your \
-game folder is only read, never changed. Once the copy is made, Overbright no longer needs the game folder.";
+game folder is only read, never changed. Once the copy is made, the game reads its files from the copy. Keep the \
+game folder where it is: Overbright still checks it when the game starts.";
 
 pub fn build(b: &mut Builder, m: &Model) {
     let g = &m.game_data;
@@ -559,7 +560,16 @@ pub fn start(kind: Kind, game: &Path, base: &Path) -> Job {
                 },
                 Kind::Verify => match set.as_deref().map(|s| import::verify(s, threads, &progress)) {
                     Some(Ok(d)) if d.is_empty() => ready(None),
-                    Some(Ok(d)) => End::Damaged(d.len()),
+                    Some(Ok(d)) => {
+                        // The game's mount trusts a part whose size, time and inode it verified before: forget
+                        // those stamps, so the game hashes again, refuses the damaged copy and plays from the folder.
+                        if let (Some(stamps), Some(Ok(rec))) =
+                            (crate::cache::dir(), set.as_deref().map(import::read_record))
+                        {
+                            ob_asset_format::mount::forget_verified(&stamps, &rec.id);
+                        }
+                        End::Damaged(d.len())
+                    }
                     Some(Err(r)) => End::Failed(sentence(&r.message)),
                     None => End::Failed("There is no copy to check".into()),
                 },

@@ -33,6 +33,12 @@ use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, PoisonError};
 
+mod layer;
+pub use layer::{
+    FileBytes, FileReader, Layer, Lookup, Mapped, absent_count, counts, layered, lookup, misses, mount, mounted,
+    open_file, open_reader, read_file, unmount,
+};
+
 /// Why a name was refused.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Refused {
@@ -101,7 +107,8 @@ const RELIST_AFTER: std::time::Duration = std::time::Duration::from_secs(1);
 /// since or the kept one is older than [`RELIST_AFTER`]) a new one.
 fn listing(dir: &Path, fresh: bool) -> Option<Arc<Listing>> {
     let modified = |d: &Path| std::fs::metadata(d).and_then(|m| m.modified()).ok();
-    let kept = LISTINGS.lock().unwrap_or_else(PoisonError::into_inner).get_or_insert_with(HashMap::new).get(dir).cloned();
+    let kept =
+        LISTINGS.lock().unwrap_or_else(PoisonError::into_inner).get_or_insert_with(HashMap::new).get(dir).cloned();
     if let Some((l, at, time)) = kept
         && !(fresh && (at.elapsed() >= RELIST_AFTER || modified(dir) != time))
     {
@@ -189,6 +196,9 @@ pub fn read(root: &Path, rel: &str) -> std::io::Result<Vec<u8>> {
     });
     let refused = |e: Refused| std::io::Error::new(std::io::ErrorKind::InvalidInput, e.to_string());
     let parts = components(rel).map_err(refused)?;
+    if let Some(b) = layer::layered_rel(root, rel) {
+        return b.map(|b| b.to_vec());
+    }
     let direct = literal(root, rel);
     match std::fs::read(&direct) {
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => match walk(root, &parts) {

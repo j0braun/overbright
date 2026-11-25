@@ -29,7 +29,6 @@
 //!   (**inferred**: the default device's walk of the path list was not
 //!   decompiled).
 
-use std::fs::File;
 use std::io::{Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
 
@@ -100,7 +99,7 @@ impl Viv {
 
     /// Mount an archive: read its first 0x40 bytes, then the whole header.
     pub fn open(path: &Path) -> Option<Viv> {
-        let mut f = File::open(path).ok()?;
+        let mut f = crate::game_fs::open_reader(path).ok()?;
         let mut first = [0u8; 0x40];
         f.read_exact(&mut first).ok()?;
         let size = match header_kind(&first) {
@@ -110,7 +109,7 @@ impl Viv {
         };
         // A header longer than the file cannot be read whole (read_exact
         // fails below); refuse it before reserving its size.
-        if size as u64 > f.metadata().ok()?.len() {
+        if size as u64 > f.seek(SeekFrom::End(0)).ok()? {
             return None;
         }
         let mut h = vec![0u8; size.max(0x40)];
@@ -142,10 +141,10 @@ impl Viv {
     pub fn read_range(&self, e: &Entry, at: u64, len: usize) -> Option<Vec<u8>> {
         let at = at.min(e.size);
         let len = (len as u64).min(e.size - at) as usize;
-        let mut f = File::open(&self.path).ok()?;
+        let mut f = crate::game_fs::open_reader(&self.path).ok()?;
         // An entry past the file's end cannot be read whole (read_exact
         // fails below); refuse it before reserving its size.
-        if e.offset.saturating_add(at).saturating_add(len as u64) > f.metadata().ok()?.len() {
+        if e.offset.saturating_add(at).saturating_add(len as u64) > f.seek(SeekFrom::End(0)).ok()? {
             return None;
         }
         f.seek(SeekFrom::Start(e.offset + at)).ok()?;

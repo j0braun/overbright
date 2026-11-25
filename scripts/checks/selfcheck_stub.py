@@ -31,6 +31,8 @@ Faults: one per line in the file `faults` next to this script (absent: none), ea
   prepgrow          every --prepare run adds bytes to a cache file (not idempotent)
   loadgrow          a --bench after a prepare run adds bytes to the pipeline cache
   levelstale        --probe says prepared=1 whatever the Graphics level in options.txt (no program key)
+  nolayer           NFSU2_BASE is ignored: no asset layer exit line (a binary without the layer)
+  layeralways       the asset layer's exit line also with NFSU2_BASE=off (a run that read the set though told not to)
 Called as `overbright-editor` (a copy of this file under that name) it answers the map editor's `--shot OUT
 --size WxH [--scale F] [--mod M --mode props|races ...]` with a PNG of that size (rows of grey stripes; on a world
 screen a chequered view in the middle), and refuses to run with a display variable set (a window could open).
@@ -306,10 +308,13 @@ def main(a):
         if js:
             json.dump({'frames': frames, 'gpu_busy_ms': [1.0, 1.01, 0.99, 1.0], 'draw_cpu_ms': [0.5, 0.5, 0.51, 0.49],
                        'threads': [{'name': 'main (game)', 'ms_per_frame': 0.8}, {'name': 'render 0', 'ms_per_frame': 0.3}],
-                       'process_cpu_ms_per_frame': 1.5, 'draw_cpu_ms_per_frame': 0.5, 'load_ms': 300}, open(js, 'w'))
+                       'process_cpu_ms_per_frame': 1.5, 'draw_cpu_ms_per_frame': 0.5, 'load_ms': 300, 'first_frame_ms': 1.0}, open(js, 'w'))
         if 'loadgrow' in F and cache and os.path.exists(os.path.join(cache, 'wgpu_pipeline_cache_stub')):
             open(os.path.join(cache, 'wgpu_pipeline_cache_stub'), 'ab').write(b'L' * 8)
         print(f'bench {name}: stub, {frames} frames; load 300 ms, first frame 1.0 ms')
+        tr = os.environ.get('NFSU2_TRACE')
+        if tr:
+            json.dump([{'ph': 'X', 'name': 'World::load', 'ts': 0, 'dur': 250000}], open(tr, 'w'))
     elif a[:1] in (['--flow'], ['--playthrough']):
         name = a[1] if a[0] == '--flow' else 'playthrough'
         if has('privskip', name):
@@ -327,6 +332,10 @@ def main(a):
     else:
         print(f'stub: unknown arguments {a}')
         return 2
+    # The asset layer's exit line (src/asset_layer.rs report): a set's folder named and not refused.
+    base = os.environ.get('NFSU2_BASE', '')
+    if 'layeralways' in F or ('nolayer' not in F and base not in ('', 'off', '0') and os.path.isdir(base)):
+        print(f'asset layer: 12 reads (1 MB) from base set stub, 0 not in the install, 0 game files from the folder', file=sys.stderr)
     if has('panic', name):
         print(f"thread 'main' panicked at src/stub.rs:1:1: stub panic in {name}")
     if has('rc', name):

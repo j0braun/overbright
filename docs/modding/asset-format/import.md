@@ -1,7 +1,7 @@
 # Asset format: the importer
 
 Status: **draft 1 — stage 0 implemented** (`crates/ob-asset-format/src/import.rs`, the console program
-`overbright-import`; §13), decoding units not yet. Nothing in the game reads a base set yet. Part of the [Overbright asset format](README.md); rules from [conventions.md](conventions.md)
+`overbright-import`; §13), decoding units not yet. The game reads through a finished, verified base set by default (§13, "Reading through the asset layer"). Part of the [Overbright asset format](README.md); rules from [conventions.md](conventions.md)
 apply. Schema of the import record: [`schemas/import.schema.json`](schemas/import.schema.json).
 
 The importer turns the player's own installed copy of the game into a base set, once. It is the only part of
@@ -338,3 +338,40 @@ It prints the progress lines of §9 and ends with `ok=1`, or `error=<one line>` 
   reference install imports in about 50 s from and to an NVMe SSD (1.80 GB).
 - Not yet: the launcher screen, the cook step (§5 step 7), decoding units (§4.1), linked sets (§4.2), pausing
   for the game.
+
+### Reading through the asset layer
+
+- **On by default when an import exists.** At start the game mounts the active base set (`<app>/base/active.txt`,
+  else the only set there; `src/asset_layer.rs`, `crates/ob-asset-format/src/mount.rs`) and from then on takes the
+  game's files from it: one read path (`crates/ob-core/src/game_fs/layer.rs`) behind `game_fs::read`,
+  `game_fs::read_file`, `game_fs::open_file` / `open_reader` and the cache's `SourceBytes`, answered with a slice
+  of the mapped bundle (stored, aligned: no copy). A name in a content folder (§2) that the set does not hold,
+  and that the import's scan did not skip (`[[source.skipped]]`), was not in the install: the read is answered
+  "no such file" from the set's index without asking the folder (the original asks for some such names and goes
+  on without them: 0x432C00 builds `NIS\Scene_%s_EvtTrk.txt` for every scene and skips the track when the file
+  is missing, and the reference install has no `Scene_EndingNis04_EvtTrk.txt`). Any other name is read from the
+  game folder and counted.
+  Without a set, or when it does not verify, nothing is mounted and every read is the game folder's, exactly as
+  before. Every kind is still at stage 0, so the parsers are today's and see the original's bytes.
+- **Verification on mount** (layout.md §5): `import.toml` read, its checks passed, its epoch not newer than this
+  Overbright (`VER.4`); every bundle present at its recorded size; each bundle's `xxh3-128` digest compared with
+  the record unless its size, modification time and inode match the stamp of an earlier verification
+  (`base-verified-<id>.txt` in the cache folder); every kept file a stored, aligned entry of its recorded size
+  (`LAY.3` otherwise). About 0.1 s for the reference install with the bundles in the page cache; a stamped
+  mount ~20 ms. A refused set is logged (`asset layer: …; reading the game folder`) and the game folder used.
+- **`NFSU2_BASE`**: unset or `active` = the default above; `off` (or `0`) = the game folder always; a set id under
+  `<app>/base` or a set's folder = that set. At exit a log line counts the reads from the set, the names the
+  install does not have, and the game files read from the folder (each such name listed after it,
+  `asset layer: not in base set: <NAME> (<n>x)`).
+- **Sealed check**: `scripts/checks/sealed_copy.sh GAME SET OUT` runs the full playthrough twice, on the folder
+  (`NFSU2_BASE=off`) and on the set with the game folder replaced, in a user + mount namespace, by a skeleton of
+  unreadable sparse files (names, sizes and times kept), without capabilities: both runs pass, their state hashes
+  are identical and the sealed run reads 0 game files from the folder. On the reference install: 22,639 reads
+  from the set, 151 names not in the install, 0 from the folder, 308,107 steps identical.
+- **Not yet**: the game folder is still the namespace: directory listings, existence checks and the cache's
+  source keys look at it, so it must still be there; a lint on stray opens; read-ahead of bundles; the
+  background re-digest; the launcher's switch.
+- **The gate**: `ASSET_LAYER=1 scripts/checks/gate.sh …` imports `NFSU2_ROOT` into the gate's folder and runs the
+  parity with the new binary on that set (the base binary reads the folder): every hash must match, and every new
+  run must report reads from the set and none may read a game file from the folder (the names are listed). Without it the parity's runs have no base set (their data folders are
+  fresh), so they read the game folder as before.

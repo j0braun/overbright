@@ -3,7 +3,7 @@ use ob_testkit::Scratch;
 
 /// A small fake install: every content folder kind, mixed case as real installs have, an executable and files
 /// that are not game content. No game data.
-const TREE: &[(&str, &[u8])] = &[
+pub(crate) const TREE: &[(&str, &[u8])] = &[
     ("GLOBAL/GlobalB.lzc", b"global b"),
     ("GLOBAL/InGameCommon.bun", b"in game common"),
     ("Frontend/FrontB.lzc", b"front b"),
@@ -30,7 +30,7 @@ const TREE: &[(&str, &[u8])] = &[
     ("SCRIPTS/mod.asi", b"a mod"),
 ];
 
-fn make_tree(root: &Path) {
+pub(crate) fn make_tree(root: &Path) {
     for (p, b) in TREE {
         let f = root.join(p);
         std::fs::create_dir_all(f.parent().unwrap()).unwrap();
@@ -58,13 +58,13 @@ fn snapshot(root: &Path) -> Vec<(PathBuf, u64, std::time::SystemTime, Vec<u8>)> 
     out
 }
 
-fn fake_edition(root: &Path) -> Edition {
+pub(crate) fn fake_edition(root: &Path) -> Edition {
     let mut s = scan(root).unwrap();
     fingerprint(&mut s, 2, &|_| {}).unwrap();
     Edition::parse("test-ed", "A test edition, imported", "eu", &Edition::manifest_of(&s)).unwrap()
 }
 
-fn opts<'a>(ed: Vec<Edition>) -> Options<'a> {
+pub(crate) fn opts<'a>(ed: Vec<Edition>) -> Options<'a> {
     Options { editions: ed, threads: 3, free_space: |_| Some(u64::MAX), ..Options::default() }
 }
 

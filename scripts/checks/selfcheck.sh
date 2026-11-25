@@ -291,6 +291,21 @@ perfgate_nopreset() {
 expect fail perfgate-max-runs-with-preset perfgate perfgate-max-runs-with-preset benchfailenh:enh.stub
 expect pass perfgate-max-skipped-without-preset perfgate_nopreset perfgate-max-skipped-without-preset benchfailenh:enh.stub
 
+# ---- loadgate.sh: the asset layer's arms --------------------------------------------------------
+# One binary, both sources: the base arm must have read the set (the layer's exit line), the original arm must not.
+loadg() {
+  local c=$1; shift
+  stub "$O/$c/b" "$@"; mkdir -p "$O/$c/set" "$O/$c/out/bin"
+  # loadgate runs private copies of the binaries (OUT/bin/LABEL): the stub's faults beside them.
+  cp "$O/$c/b/faults" "$O/$c/out/bin/faults"
+  NFSU2_BASE_SET="$O/$c/set" REPS=8 MODES=warm SCENES="explore race" FRAMES=3 "$HERE/loadgate.sh" bench "$O/$c/out" \
+    orig="$O/$c/b/game@original" base="$O/$c/b/game@base" || return 1
+  python3 -I "$REPO/scripts/perf/loadstat.py" gate "$O/$c/out" --base orig --new base
+}
+expect pass loadgate-layer-good loadg loadgate-layer-good
+expect fail loadgate-layer-not-read loadg loadgate-layer-not-read nolayer
+expect fail loadgate-layer-in-original loadg loadgate-layer-in-original layeralways
+
 # ---- lavapipe.sh ---------------------------------------------------------------------
 : > "$O/fake_icd.json"
 lvp() { local c=$1; shift; stub "$O/$c/b" "$@"; LVP_ICD="$O/fake_icd.json" LVP_SHOTS="main" "$HERE/lavapipe.sh" "$O/$c/out" "$O/$c/b/game"; }

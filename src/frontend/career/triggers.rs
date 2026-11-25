@@ -104,7 +104,7 @@ impl RouteTriggers {
                 .map(|e| e.path())
                 .find(|p| p.file_name().is_some_and(|n| n.to_string_lossy().starts_with("Paths")))
         });
-        let data = file.and_then(|f| std::fs::read(f).ok()).unwrap_or_default();
+        let data = file.and_then(|f| crate::game_fs::read_file(&f).ok()).unwrap_or_default();
         RouteTriggers {
             records: Self::parse(&data, 13..=15),
             tips: Self::parse(&data, 0x12..=0x12),

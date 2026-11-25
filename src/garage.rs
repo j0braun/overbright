@@ -763,7 +763,7 @@ impl Platform {
     /// these is 0x4A7330's m22 = −1).
     pub fn load(root: &Path, name: &str) -> Result<Platform> {
         let path = platform_file(root, name)?;
-        let data = std::fs::read(&path)?;
+        let data = crate::game_fs::read_file(&path)?;
         let mut solids = Vec::new();
         let mut textures = HashMap::new();
         let mut faces: [Option<Texture>; 6] = Default::default();

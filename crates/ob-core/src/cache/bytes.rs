@@ -12,10 +12,22 @@ use super::*;
 pub enum SourceBytes {
     Mapped(memmap2::Mmap),
     Read(Vec<u8>),
+    /// A slice of a mapped base-set bundle (the asset layer, `game_fs::layered`).
+    Layer(crate::game_fs::Mapped),
 }
 
 impl SourceBytes {
     pub fn open(path: &Path) -> std::io::Result<SourceBytes> {
+        match crate::game_fs::lookup(path) {
+            crate::game_fs::Lookup::Held(b) => return Ok(SourceBytes::Layer(b)),
+            crate::game_fs::Lookup::Absent => {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::NotFound,
+                    format!("{}: no such game file (not in the base set)", path.display()),
+                ));
+            }
+            crate::game_fs::Lookup::Folder => {}
+        }
         let file = std::fs::File::open(path)?;
         // SAFETY: a read-only private mapping of a file the game only reads
         // (see above); on any failure the file is read instead.
@@ -32,6 +44,7 @@ impl std::ops::Deref for SourceBytes {
         match self {
             SourceBytes::Mapped(m) => m,
             SourceBytes::Read(v) => v,
+            SourceBytes::Layer(b) => b,
         }
     }
 }
