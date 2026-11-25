@@ -794,6 +794,14 @@ mod tests {
         assert_eq!(c.missing.len(), setup::KEY_FILES.len());
         assert!(!c.ok() && !setup::looks_like_game(&d));
         assert!(setup::help(Some(&d), Some(&c)).contains("GLOBAL/GLOBALB.BUN"));
+        // A missing sky pack is no change; a replaced one (an HD sky mod) is one (#178).
+        assert!(!c.different.iter().any(|f| f == "TRACKS/LOC4DYNTEX.BIN"), "{c:?}");
+        std::fs::create_dir_all(d.join("tracks")).unwrap();
+        std::fs::write(d.join("tracks/loc4dyntex.bin"), b"an HD sky").unwrap();
+        for hash in [false, true] {
+            let c = setup::check(&d, hash);
+            assert!(c.different.iter().any(|f| f == "TRACKS/LOC4DYNTEX.BIN"), "{c:?}");
+        }
         if let Some(root) = std::env::var_os("NFSU2_ROOT").map(std::path::PathBuf::from) {
             let c = setup::check(&root, true);
             assert!(c.ok() && c.different.is_empty(), "{c:?}");

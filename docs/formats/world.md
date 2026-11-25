@@ -164,6 +164,17 @@ other 3 blocks use EA's Huffman codec (`HUFF`). It was ported from the
 decoder at 0x573850 (the dispatcher at 0x574680 also knows RAWW and COMP),
 and all 3 decode to their declared size.
 
+How the original reads a block (the streamer, 0x48CFE9…0x48D22A; the
+texture callback 0x494C10), which replacement packs (HD sky mods) rely on
+and `formats::texture` follows: the record's offset is a file offset and
+`packed` bytes are read there; with flags bit 0x100 the block is decoded
+by its magic (JDLZ version 2, HUFF, RAWW version 1, COMP:
+`formats::comp`), without it the bytes are used as stored; the entry is
+read at the record's unpacked size minus 0x9C. Nothing bounds the size:
+a 4096² A8R8G8B8 sky unpacks to 67,109,020 bytes (the clone's bound is
+`Limits::max_texture_block`). Each block is its own texture: one that
+cannot be read costs that texture only, with a warning.
+
 ## Shaders (verified — transcribed from SPEED2.EXE)
 
 The D3D effects are compiled `fx_2_0` blobs stored as RCDATA resources
