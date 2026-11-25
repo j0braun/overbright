@@ -153,7 +153,7 @@ Per run, then per side as `mean [min-max] (runs)`; `*` marks a metric whose rang
 | `jam_episodes`, `jam_cleared`, `jam_permanent` | jam spans ≥ 5 s; permanent = lasting ≥ 60 s to the end of the run |
 | `jam_first_s`, `jam_permanent_from_s`, `jam_cleared_mean_s` | time to the first jam, to the permanent one, mean length of the cleared ones |
 | `freeze_from_s` | the placer silent (no placement) for ≥ 120 s from then: the run froze |
-| `mutual_share`, `headon_stops`, `headon_to_end`, `headon_max_s` | samples with a mutual Avoid pair (each the other's tracked car); such pairs both standing ≥ 5 s, those to the end, the longest |
+| `mutual_share`, `headon_stops`, `headon_pairs`, `headon_to_end`, `headon_max_s` | samples with a mutual Avoid pair (each the other's tracked car); such pairs both standing ≥ 5 s, the distinct pairs among them (a stand split by a passing car counts once), those to the end, the longest |
 | `player_speed_mean`, `player_km`, `bot_overtakes`, `bot_follow_share` | the player's driving |
 | `follow_episodes`, `lead_lane_moved`, `lead_and_back`, `lead_avoids_player` | the bot's follow / overtake episodes per lead car, and the share in which that car's nearest lane changed, changed and came back, or it tracked the player in Avoid Cars, from the episode's start to 5 s after its end |
 | `models`, `pool` | model shares over the placements, and over the pool's cars |
