@@ -1,6 +1,7 @@
 # Asset format: the importer
 
-Status: **draft 1 — design, not implemented yet.** Part of the [Overbright asset format](README.md); rules from [conventions.md](conventions.md)
+Status: **draft 1 — stage 0 implemented** (`crates/ob-asset-format/src/import.rs`, the console program
+`overbright-import`; §13), decoding units not yet. Nothing in the game reads a base set yet. Part of the [Overbright asset format](README.md); rules from [conventions.md](conventions.md)
 apply. Schema of the import record: [`schemas/import.schema.json`](schemas/import.schema.json).
 
 The importer turns the player's own installed copy of the game into a base set, once. It is the only part of
@@ -307,3 +308,33 @@ can be moved to another drive (`locations.txt`, docs/playing/platform-dirs.md).
 | IMP.6 | The staging folder belongs to another edition or importer version than this run; it is discarded and the import starts over. |
 | IMP.7 | A release build found a `linked` base set (it offers to make it independent), or a linked set's referenced file is missing or changed. |
 <!-- /generated -->
+
+## 13. What is implemented (stage 0)
+
+`overbright-import import|verify|repair|fingerprint [--game <dir>] [--base <dir>] [--id <id>] [--force] [--manifest]`
+(`crates/ob-asset-format/src/bin/overbright-import.rs`; `--game` defaults to `NFSU2_ROOT`, `--base` to `<app>/base`).
+It prints the progress lines of §9 and ends with `ok=1`, or `error=<one line>` and `ok=0` (exit code 1).
+
+- **Editions.** `pc12-eu` with all 1,250 content files (`crates/ob-asset-format/editions/pc12-eu.tsv`: path, size,
+  SHA-256; made by `overbright-import fingerprint --manifest`, names and hashes only). Anything else is `custom`
+  with its differing files (`MODIFIED`, `unknown`, `missing`) against the closest edition.
+- **Units.** Every unit is at stage 0 (`kept`): each content file is one stored, aligned entry
+  `residual/<ORIGINAL/PATH>.kept.bin` plus its file map `residual/<ORIGINAL/PATH>.map.toml` (`container = "plain"`,
+  one `kept` node), in the bundle of its load unit (layout.md §5). `SDATA/sdat.viv` is read by two audio units and
+  so goes in `global.obz`. Stored entries are aligned to 64 bytes, the bundle writer's alignment (the 256 of
+  residual.md §2 is open).
+- **Journal and resume.** `base/.staging-<id>/journal.txt` starts with the source identity, the epoch and the unit
+  version; each finished bundle (written to a temporary name, flushed, renamed) appends `unit <name> <size>
+  <digest>`. A rerun keeps the units whose bundles are still there at their size and writes the rest; a staging
+  folder of another identity or version is discarded (`IMP.6`).
+- **Checks.** Before writing: free space for the units still to do (`IMP.2`). After: every bundle re-read, its size
+  and digest against the journal, every CRC, every kept file's SHA-256 against the original's (the stage-0
+  rebuild check, `IMP.4`). `pack.toml` is checked by the manifest reader; `import.toml` is written last, then the
+  staging folder is renamed into place and `active.txt` written if there is none.
+- **Verify and repair.** `verify` re-checks a finished set (`LAY.3` per damaged unit); `repair` rebuilds the damaged
+  bundles from the game folder when its identity still matches the record (the writer is deterministic, so the
+  rebuilt bundle equals the recorded one).
+- **Read only.** The game folder is opened for reading only; `SPEED2.EXE` is hashed for the record only. The
+  reference install imports in about 50 s from and to an NVMe SSD (1.80 GB).
+- Not yet: the launcher screen, the cook step (§5 step 7), decoding units (§4.1), linked sets (§4.2), pausing
+  for the game.
