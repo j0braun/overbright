@@ -198,7 +198,7 @@ fn race_ai_pass(
             // Only road objects (`TrafficCar::road_object`): a pooled car's
             // last place and velocity are no obstacle for the racers' sweeps.
             for (k, c) in t.cars.iter().enumerate().filter(|(_, c)| c.road_object()) {
-                road_cars.push(road_car(
+                let mut rc = road_car(
                     1000 + k,
                     &c.car,
                     &c.state,
