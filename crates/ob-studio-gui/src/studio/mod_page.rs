@@ -137,7 +137,7 @@ pub fn load(maps: &Path, folder: &str, game: Option<&Path>, given: Option<GivenT
         .iter()
         .map(|k| {
             let row = c.rows.iter().find(|r| r.kind == k.kind && r.key == k.key);
-            let item = row.map_or_else(|| k.key.clone(), |r| changes::item_words(r, folder).0);
+            let item = row.map_or_else(|| k.key.clone(), |r| changes::item_words(&c, r).0);
             let (winner, source) = match &k.winner {
                 From::Yours => ("Yours wins".to_string(), Source::Yours),
                 From::Original => ("The original stays".to_string(), Source::Original),

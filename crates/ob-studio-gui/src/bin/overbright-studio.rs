@@ -52,7 +52,7 @@ struct Cli {
     warning: bool,
     find: bool,
     address: bool,
-    /// The placement selected in World (a `--shot`).
+    /// The placement selected in World; on Changes, the focused value row (a `--shot`).
     select: Option<usize>,
     /// The New mod dialog open with this name typed (a `--shot`).
     new_mod: Option<String>,
@@ -305,7 +305,11 @@ fn run_shot(cli: &Cli) -> Result<()> {
         s.command(ob_studio_gui::studio::nav::Command::EditAddress, None);
         s.nav.input = cli.input.unwrap_or(InputKind::Keyboard);
     }
-    if let Some(i) = cli.select {
+    if let Some(i) = cli.select
+        && s.nav.workspace == Workspace::Changes
+    {
+        s.changes.focus = i.min(s.changes.lines().len().saturating_sub(1));
+    } else if let Some(i) = cli.select {
         // One frame so World opens the mod, then the selection.
         shot::frames(&mut s, size, scale, 1);
         if let Some(st) = s.editor.as_mut().and_then(|h| h.app.state.as_mut()) {
@@ -447,7 +451,8 @@ impl Runner {
             _ => return,
         };
         let view = frame.texture.create_view(&Default::default());
-        let bufs = shot::paint(&mut self.studio, &w.gpu, &mut w.renderer, &view, (w.config.width, w.config.height), full);
+        let bufs =
+            shot::paint(&mut self.studio, &w.gpu, &mut w.renderer, &view, (w.config.width, w.config.height), full);
         w.gpu.queue.submit(bufs);
         w.window.pre_present_notify();
         w.gpu.queue.present(frame);

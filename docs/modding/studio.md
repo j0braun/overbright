@@ -135,6 +135,14 @@ back. *Show in World* and *Show in Races* go to the item's address. The rows are
 answer (`ob_studio::changes`): each prop edit is a placement item, each race a race item, merged through the
 enabled mods with the pack of every field.
 
+**Looks rows.** Each texture the mod paints ([Studio Looks](studio-looks.md)) has a row of its own: the texture's
+name, its thumbnail beside the original's (the game's own texture shows once World has loaded a region that uses
+it; until then its ring), and, when another enabled mod paints the same texture and is above yours, that mod's
+paint with yours under it as not used; the texture is then on Clashes too. *Reset* takes the texture out of the
+mod's texture list, so the game draws its own again (one step; Ctrl+Z brings the paint back, and the pack files
+follow). *Show in History* opens the step that last painted it. `ob://<mod id>/texture/world:0x1A2B3C4D` opens
+Changes on that texture's row. A history step or a version compare lists the textures it painted.
+
 ## The Mod page
 
 Ctrl+0 (SHARE ▸ Mod, `ob://<mod id>/@mod`) shows the open mod as you share it:
