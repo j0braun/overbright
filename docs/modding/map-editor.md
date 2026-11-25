@@ -408,14 +408,37 @@ What is drawn:
 - In the 3D view walls are drawn up to a few hundred metres from the camera (farther from higher up) and floors
   up to 120 m.
 
+## Collision of edited scenery
+
+The game bakes the collision of its static scenery into each stream section's collision pack; nothing in a pack
+names the placement a face came from. A map mod's scenery gets the collision the original gives the same solid:
+
+- **Knock-over props** (cones, road barriers, fences, barrels, …) are knock-over props wherever they stand: an
+  added copy knocks over like the original, a moved one is hit where it now stands, a deleted one is gone.
+- **Static solids** (street lights, walls, …): a solid's collision is the walls standing inside the box of one
+  of its original placements, taken into the solid's own space. Walls of a barrier group (race barriers), walls
+  reaching ±2048 m (invisible walls) and floors are never taken. Where the solid's placements differ, the shape
+  most of them share is used. An added placement gets that shape at its place; a moved original takes its own
+  walls to its new place and leaves none behind; a deleted one leaves none.
+- New walls are written into every pack whose grid covers them (as the original lists a wall on a section edge
+  in each section's pack), after each cell's own faces, with cells and sub-cell masks by the rule the shipped
+  packs follow (L4RA: the same faces in 14,547 of 14,550 cells; the rest touch only a cell's edge).
+- Without a map mod, or with one that edits only knock-over props and solids without collision, the packs are
+  the original's, unchanged.
+- The game's log says how many faces the mods took out and wrote ("static collision: … out, … in").
+
+Code: `src/world/prop_collision.rs` (the shape, the cells), `TrackGround::edit_pack` in `src/ground.rs`; tests in
+`src/world/prop_collision/tests.rs` (a car at 70 m/s into an added and a moved street light at 30, 60, 120 and 200
+steps a second). Open: the original's own pack build is not traced (the cell rule is read from the shipped packs);
+the editor's live view applies the collision only when the game loads the mod.
+
 ## Limits
 
-- Collision of the city's static scenery is baked per section and is not tied to the placements. A moved or
-  deleted building keeps its collision where the original has it, and an added copy of one has none.
-  Knock-over props (cones, signs, barrels, …) carry their own collision: moved ones are hit where they now stand,
-  added copies of one are knock-over props too, and deleted ones are gone.
+- Static scenery takes its collision with it (see "Collision of edited scenery"), but only its walls: a solid's
+  floors (a ramp, a raised platform) stay where the original has them, and a solid the original gives no
+  collision (benches, most signs) has none when added.
 - Overlays (route, checkpoints, handles, collision) are drawn over the world without depth.
-- The collision layer only shows collision; walls and barriers cannot be moved, added or removed yet.
+- The collision layer only shows collision; walls and barriers cannot be drawn or removed on their own yet.
 - Shops, event markers, traffic lanes and AI lanes cannot be edited yet. Drag races are not offered (their lanes
   are fixed to the drag tracks).
 - Copy and paste in text fields work only inside the editor (no system clipboard); screen readers are not

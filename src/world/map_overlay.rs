@@ -12,6 +12,7 @@ use glam::{Mat3, Mat4, Vec3};
 
 use super::*;
 use crate::tools::map::{MapMod, PropEdit, PropRef};
+use super::prop_collision::SceneryEdit;
 
 /// How close (metres) an edit's `at` must be to the placement it names.
 pub const MATCH_DISTANCE: f32 = 0.05;
@@ -149,6 +150,7 @@ impl World {
     pub fn note_original(&mut self, i: usize, target: &PropRef) {
         let Some(p) = self.placements.get(i) else { return };
         self.map_overlay.original_at.entry(i).or_insert(p.transform.w_axis.truncate());
+        self.map_overlay.original_transform.entry(i).or_insert(p.transform);
         self.map_overlay.originals.entry(i).or_insert_with(|| target.clone());
     }
 
@@ -172,24 +174,45 @@ impl World {
         // order).
         let found: Vec<Option<usize>> =
             edits.iter().map(|(.., e)| e.target().and_then(|t| self.find_placement(t))).collect();
+        let has_prop = |w: &World, i: usize| w.smackables.iter().any(|s| s.placement == i);
+        // Static scenery whose collision changes: (placement, where it stood
+        // in the original, where it stands now).
+        let mut scenery: Vec<SceneryEdit> = Vec::new();
+        let mut scenery_at: HashMap<usize, usize> = HashMap::new();
         for ((m, _, e), found) in edits.into_iter().zip(found) {
             let folder = &mods[m].0;
+            if let (PropEdit::Move { .. } | PropEdit::Delete { .. }, Some(i)) = (e, found)
+                && !has_prop(self, i)
+                && !scenery_at.contains_key(&i)
+            {
+                scenery_at.insert(i, scenery.len());
+                scenery.push(SceneryEdit { placement: i, from: Some(self.placements[i].transform), to: None });
+            }
             match (e, found) {
                 (PropEdit::Move { target, position, rotation }, Some(i)) => {
                     self.note_original(i, target);
                     self.set_placement_transform(i, transform_of(*position, *rotation));
                     self.map_overlay.moved += 1;
+                    if let Some(&k) = scenery_at.get(&i) {
+                        scenery[k].to = Some(transform_of(*position, *rotation));
+                    }
                 }
                 (PropEdit::Delete { target }, Some(i)) => {
                     self.note_original(i, target);
                     self.hide_placement(i);
                     self.map_overlay.deleted += 1;
+                    if let Some(&k) = scenery_at.get(&i) {
+                        scenery[k].to = None;
+                    }
                 }
                 (PropEdit::Add { id, solid, position, rotation, .. }, _) => {
                     match self.add_placement(solid, transform_of(*position, *rotation)) {
                         Some(i) => {
                             self.map_overlay.first_added.get_or_insert(i);
                             self.map_overlay.added.insert(i, (folder.clone(), id.clone()));
+                            if !has_prop(self, i) {
+                                scenery.push(SceneryEdit { placement: i, from: None, to: Some(transform_of(*position, *rotation)) });
+                            }
                         }
                         None => self.map_overlay.missing += 1,
                     }
@@ -197,6 +220,7 @@ impl World {
                 _ => self.map_overlay.missing += 1,
             }
         }
+        self.map_overlay.collision = self.apply_scenery_collision(&scenery);
         let applied = &self.map_overlay;
         if applied.missing > 0 {
             log::warn!(
@@ -205,10 +229,12 @@ impl World {
             );
         }
         log::info!(
-            "map mods on {region}: {} moved, {} deleted, {} added",
+            "map mods on {region}: {} moved, {} deleted, {} added; static collision: {} face(s) out, {} in",
             applied.moved,
             applied.deleted,
-            applied.added.len()
+            applied.added.len(),
+            applied.collision.cut,
+            applied.collision.added
         );
         self.light_placements = Default::default();
         self.light_by_section = Default::default();

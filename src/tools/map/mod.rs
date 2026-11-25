@@ -31,6 +31,11 @@ pub struct Applied {
     /// Where the original placements a mod moved stood before (exactly),
     /// so they keep their names and their twins' `nth`.
     pub original_at: HashMap<usize, glam::Vec3>,
+    /// The same placements' whole transforms as the original data has them
+    /// (where their static collision stands in the packs).
+    pub original_transform: HashMap<usize, glam::Mat4>,
+    /// What the edits did to the static collision (`World::apply_scenery_collision`).
+    pub collision: crate::world::PropCollision,
     /// The added placements: the mod folder and the add's id.
     pub added: HashMap<usize, (String, String)>,
     /// The first added placement (all after it are added).

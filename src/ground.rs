@@ -258,6 +258,54 @@ impl TrackGround {
         self.packs.iter().flat_map(|p| p.polygons.iter().map(|q| &q.face))
     }
 
+    /// The packs' grids, pack by pack (index = the pack ids of
+    /// [`TrackGround::face_at`]).
+    pub fn grids(&self) -> impl Iterator<Item = &CollisionGrid> {
+        self.packs.iter().map(|p| &p.grid)
+    }
+
+    /// Face `face` of pack `pack` as stored.
+    pub fn face_at(&self, pack: usize, face: usize) -> Option<&CollisionFace> {
+        self.packs.get(pack)?.polygons.get(face).map(|p| &p.face)
+    }
+
+    /// Change pack `pack` for a map mod's scenery (`world::prop_collision`):
+    /// the faces in `cut` leave every cell (they stay in the list, so no
+    /// other face's index moves), and each face of `add` joins the end of
+    /// the face list and of the cells it names (cell index, sub-cell mask),
+    /// after the cell's own references. False (nothing changed) when the
+    /// pack's face or reference count would pass the format's u16 limit.
+    pub fn edit_pack(&mut self, pack: usize, cut: &std::collections::HashSet<u16>, add: &[(CollisionFace, Vec<(usize, u16)>)]) -> bool {
+        let Some(pk) = self.packs.get_mut(pack) else { return false };
+        let g = &pk.grid;
+        let added_refs: usize = add.iter().map(|(_, c)| c.len()).sum();
+        if pk.polygons.len() + add.len() > u16::MAX as usize + 1 || g.refs.len() + added_refs > u16::MAX as usize {
+            return false;
+        }
+        let mut per_cell: Vec<Vec<(u16, u16)>> = vec![Vec::new(); g.cells.len()];
+        for (k, (_, cells)) in add.iter().enumerate() {
+            let face = (pk.polygons.len() + k) as u16;
+            for &(c, mask) in cells {
+                if let Some(l) = per_cell.get_mut(c) {
+                    l.push((face, mask));
+                }
+            }
+        }
+        let mut refs = Vec::with_capacity(g.refs.len() + added_refs);
+        let mut cells = Vec::with_capacity(g.cells.len());
+        for (c, &(first, count)) in g.cells.iter().enumerate() {
+            let start = refs.len();
+            let own = g.refs.get(first as usize..first as usize + count as usize).unwrap_or(&[]);
+            refs.extend(own.iter().filter(|(f, _)| !cut.contains(f)));
+            refs.extend(per_cell[c].iter().copied());
+            cells.push((start as u16, (refs.len() - start) as u16));
+        }
+        pk.grid.refs = refs;
+        pk.grid.cells = cells;
+        pk.polygons.extend(add.iter().map(|(f, _)| Polygon::new(*f)));
+        true
+    }
+
     /// Switch the context's own barrier groups on or off (0x5E7403 /
     /// 0x5E76B2 around the height query's walk, 0x5E58E2 / 0x5E5915 around
     /// the gather): the global switches, so off means off for everyone.
