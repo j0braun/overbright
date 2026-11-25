@@ -272,3 +272,55 @@ fn reference_install_report() {
         assert!(wanted.iter().any(|w| w.eq_ignore_ascii_case(n)), "{n} is not on the wanted list");
     }
 }
+
+/// The movies follow the chosen text language, with the same fallback: its
+/// suffix first, then `_en`, then any other.
+#[test]
+fn movies_follow_the_text_language() {
+    let s = install("assets-lang", &["ealogo_gr.vp6", "ealogo_en.vp6", "PSA_en.vp6", "Scene01_sw.vp6"]);
+    let r = s.path();
+    let got = |name: &str, lang: &str| {
+        let x = resolve_movie_for(r, name, lang);
+        (x.file_name(), x.how)
+    };
+    assert_eq!(got("ealogo", "German"), (Some("ealogo_gr.vp6".into()), How::Language("gr".into())));
+    assert_eq!(got("ealogo", "English"), (Some("ealogo_en.vp6".into()), How::Language("en".into())));
+    // No German file: English's, as for the English text.
+    assert_eq!(got("PSA", "German"), (Some("PSA_en.vp6".into()), How::Language("en".into())));
+    // A language without a movie suffix (Korean): English's, then any other.
+    assert_eq!(got("ealogo", "Korean"), (Some("ealogo_en.vp6".into()), How::Language("en".into())));
+    assert_eq!(got("Scene01", "German"), (Some("Scene01_sw.vp6".into()), How::Other("sw".into())));
+    let tried = resolve_movie_for(r, "DriftTut", "German").tried;
+    assert_eq!(tried, ["DriftTut_fr.vp6", "DriftTut.vp6", "DriftTut_gr.vp6", "DriftTut_en.vp6", "DriftTut_*.vp6"]);
+    // The game's own resolver uses the language it was started with
+    // (English until `set_text_language`, which the tests never call).
+    assert_eq!(resolve_movie(r, "ealogo").how, How::Language("en".into()));
+}
+
+/// Which languages the engine claims to show, and the text file of each.
+#[test]
+fn language_support_and_files() {
+    for l in ["English", "french", "GERMAN", "Italian", "Spanish", "Dutch", "Swedish", "Danish"] {
+        assert_eq!(language_support(l), Support::Yes, "{l}");
+    }
+    for l in ["Korean", "Japanese", "Chinese", "Thailand", "Klingon"] {
+        assert!(matches!(language_support(l), Support::No(_)), "{l}");
+    }
+    assert_eq!(text_file_of("German"), "LANGUAGES/German.bin");
+    assert_eq!(text_file(), "LANGUAGES/English.bin");
+    assert_eq!(text_language(), "English");
+    assert!(valid_language_name("German") && !valid_language_name("") && !valid_language_name("a/b"));
+    assert!(!valid_language_name("..") && !valid_language_name("Deutsch Sprache"));
+    assert!(!valid_language_name(&"x".repeat(33)));
+}
+
+/// The files the front end reads end with the language's text file.
+#[test]
+fn asset_files_depend_on_the_language() {
+    let en = crate::frontend::asset_files("English");
+    let de = crate::frontend::asset_files("German");
+    assert_eq!(en.len(), 12);
+    assert_eq!(en.last().map(String::as_str), Some("LANGUAGES/English.bin"));
+    assert_eq!(de.last().map(String::as_str), Some("LANGUAGES/German.bin"));
+    assert_eq!(en[..11], de[..11], "everything else is shared");
+}

@@ -802,6 +802,63 @@ mod tests {
         std::fs::remove_dir_all(&d).unwrap();
     }
 
+    /// The text language: the kept choice (`language.txt`, in a sandboxed
+    /// data folder), what the engine can show, a copy without English, and
+    /// the file a check requires for it.
+    #[test]
+    fn text_language_choice_and_check() {
+        let d = scratch("language");
+        crate::frontend::profiles::sandbox::enter(&d);
+        std::fs::create_dir_all(d.join("LANGUAGES")).unwrap();
+        for f in ["English.bin", "German.bin", "Korean.bin", "Labels.bin"] {
+            std::fs::write(d.join("LANGUAGES").join(f), b"x").unwrap();
+        }
+        // Nothing kept: English. `--language` (the request) names a file in
+        // any case.
+        assert_eq!(setup::saved_language(), None);
+        assert_eq!(setup::choose_language(&d, None), "English");
+        assert_eq!(setup::choose_language(&d, Some("german")), "German");
+        // The kept choice is read, and a name that cannot sit in a path is not.
+        setup::save_language(Some("German")).unwrap();
+        assert!(setup::saved_language_file().starts_with(&d));
+        assert_eq!(setup::saved_language().as_deref(), Some("German"));
+        assert_eq!(setup::choose_language(&d, None), "German");
+        assert_eq!(setup::choose_language(&d, Some("English")), "English", "the request beats the kept choice");
+        std::fs::write(setup::saved_language_file(), "../x\n").unwrap();
+        assert_eq!(setup::saved_language(), None);
+        // A language the engine cannot show, or the copy lacks: English.
+        assert_eq!(setup::choose_language(&d, Some("Korean")), "English");
+        assert_eq!(setup::choose_language(&d, Some("Dutch")), "English");
+        setup::save_language(None).unwrap();
+        setup::save_language(None).unwrap();
+        assert_eq!(setup::saved_language(), None);
+        // The check requires the chosen language's file in English's place;
+        // without known size or checksum it is "not verified", not an error.
+        let c = setup::check_for(&d, false, "German");
+        assert_eq!(c.unverified, ["LANGUAGES/German.bin"]);
+        assert!(!c.missing.iter().chain(&c.different).any(|m| m.contains("German") || m.contains("English")));
+        assert!(c.key_files().iter().any(|f| f == "LANGUAGES/German.bin"));
+        assert!(!c.key_files().iter().any(|f| f == "LANGUAGES/English.bin"));
+        assert_eq!(c.verdict_skip(), Some("LANGUAGES/English.bin"));
+        let lines = setup::check_lines(&c, None);
+        let note = |(m, t): &(setup::Mark, String)| *m == setup::Mark::Info && t.contains("German.bin: not verified");
+        assert!(lines.iter().any(note), "{lines:?}");
+        // A file the copy lacks is missing, as English's is.
+        let c = setup::check_for(&d, false, "French");
+        assert!(c.missing.iter().any(|m| m == "LANGUAGES/French.bin") && c.unverified.is_empty());
+        let c = setup::check_for(&d, false, "English");
+        assert!(c.unverified.is_empty() && c.verdict_skip().is_none());
+        assert_eq!(c.different, ["LANGUAGES/English.bin"], "the dummy file differs from the known release");
+        // A copy without English.bin plays its first supported language;
+        // with only one the engine cannot show, English (and the check
+        // says the file is missing).
+        std::fs::remove_file(d.join("LANGUAGES/English.bin")).unwrap();
+        assert_eq!(setup::choose_language(&d, None), "German");
+        std::fs::remove_file(d.join("LANGUAGES/German.bin")).unwrap();
+        assert_eq!(setup::choose_language(&d, None), "English");
+        std::fs::remove_dir_all(&d).unwrap();
+    }
+
     /// L1: the language list of a LANGUAGES folder (any case; the shared
     /// tables left out), SPEED2.EXE not needed, the shared check
     /// wording, and the kept texture-pack folder (in a sandboxed data
@@ -815,7 +872,7 @@ mod tests {
         }
         assert_eq!(setup::installed_languages(&d), ["English", "French", "German"]);
         assert!(setup::installed_languages(&d.join("nope")).is_empty());
-        let c = setup::check(&d, false);
+        let c = setup::check_for(&d, false, "English");
         assert!(!c.missing.iter().chain(&c.different).any(|m| m == "SPEED2.EXE"));
         assert!(!setup::KEY_FILES.iter().any(|(f, ..)| f.eq_ignore_ascii_case("SPEED2.EXE")));
         // The wording: one line per missing file, the differing ones named.

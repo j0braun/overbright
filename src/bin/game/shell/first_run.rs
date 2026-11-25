@@ -15,7 +15,8 @@ pub(crate) fn game_folder(command: &super::command::Command) -> Result<bool> {
     use std::io::IsTerminal;
     let report = |root: &std::path::Path, c: &setup::Check| {
         println!("game folder: {}", root.display());
-        for (file, _, _) in setup::KEY_FILES {
+        for file in c.key_files() {
+            let file = file.as_str();
             let path = setup::key_file_path(root, file);
             let state = if c.missing.iter().any(|m| m == file) {
                 "MISSING".to_string()
@@ -29,7 +30,13 @@ pub(crate) fn game_folder(command: &super::command::Command) -> Result<bool> {
                 };
                 format!(
                     "{len} bytes{hash}{}",
-                    if c.different.iter().any(|d| d == file) { " (differs from the known release)" } else { "" }
+                    if c.different.iter().any(|d| d == file) {
+                        " (differs from the known release)"
+                    } else if c.unverified.iter().any(|d| d == file) {
+                        " (not verified)"
+                    } else {
+                        ""
+                    }
                 )
             };
             println!("  {file}: {state}");
@@ -97,6 +104,13 @@ pub(crate) fn game_folder(command: &super::command::Command) -> Result<bool> {
         root = Some(dir);
     }
     let Some(root) = root else { anyhow::bail!("{}", setup::help(None, None)) };
+    // The text language: `--language`, else the kept choice (language.txt),
+    // else English; one the game folder lacks or the engine cannot show is
+    // English. Fixed before any thread reads it.
+    let language = setup::choose_language(&root, super::cli::LANGUAGE_ARG.get().map(String::as_str));
+    nfsu2::game_assets::set_text_language(&language);
+    nfsu2::frontend::format::set_separators(&language);
+    log::info!("text language {language}");
     // Sizes on every start; the hashes too when the folder was found
     // rather than given (a first run).
     let given = std::env::var_os("NFSU2_ROOT").is_some();

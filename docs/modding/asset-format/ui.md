@@ -21,7 +21,7 @@ Schemas: [`fe-package`](schemas/fe-package.schema.json), [`font`](schemas/font.s
 |---|---|---|---|
 | FEng packages: chunk 0x30203 (plain) and 0x30210 (u32 hash, then a JDLZ or HUFF block) in `FRONTEND/FrontB.lzc` (137), `GLOBAL/GlobalB.lzc` (19), `GLOBAL/GLOBALA.BUN` (2), `GLOBAL/InGameCommon.lzc` (27), `GLOBAL/InGameRace.bun` (13), `InGameFreeRoam.bun` (1), `InGameDrag.bun` (14), `InGameDrift.bun` (14), `InGamePerformanceTuning.bun` (9) | 236 chunks (215 JDLZ, 6 HUFF, 15 plain), 206 distinct names; the 30 repeated copies are byte-identical (measured) | `ob.fe-package` | `src/frontend/feng/parse.rs:193` |
 | Fonts: chunk 0x30201 in `GLOBAL/GLOBALA.BUN` (1) and in every `LANGUAGES/<Lang>.bin` (6 or 7 each) | 87 chunks, 377,872 bytes, 15 distinct fonts | `ob.font` | `src/frontend/feng/font.rs:55` |
-| The front-end asset set: which files the engine merges, in which order | 12 files (`ASSET_FILES`) | rules, §3.3 | `src/frontend/assets.rs:62`, `:83` |
+| The front-end asset set: which files the engine merges, in which order | 12 files (`asset_files(language)`: 11 shared, then the active language's text file) | rules, §3.3 | `src/frontend/assets.rs` |
 | HUD: packages, element tables, custom-gauge pictures | 4 single-player HUD packages, 8 split-screen ones, `HUD_World_Loading` | §3.4 (no kind of its own) | `src/frontend/hud/mod.rs:50` |
 | Garage platforms `FRONTEND/PLATFORMS/*.BIN`, environment maps `FRONTEND/ENVMAPS/*.bin` | 8 + 2 files | units, §3.5 | `src/garage.rs:570`, `crates/ob-formats/src/formats/magazines.rs:88` |
 
@@ -349,7 +349,7 @@ Example: [`examples/ui/frontend/ui/fonts/demo_font.toml`](examples/ui/frontend/u
 The engine builds one front-end asset set at start (`src/frontend/assets.rs:83`). With the base set alone it MUST
 get exactly what it gets from the original files today:
 
-1. **Packages**: every `fe-package` item, keyed by name without `.fng`. Today the first file in `ASSET_FILES`
+1. **Packages**: every `fe-package` item, keyed by name without `.fng`. Today the first file in `asset_files` (`frontend::assets`)
    order wins a name; all duplicates are byte-identical, so the base set holds one copy (`UI.15` at import).
 2. **Textures**: the UI texture sets of [textures.md](textures.md) in the original file order (`FrontB.lzc`,
    `GlobalB.lzc`, `GLOBALA.BUN`, `InGameCommon.lzc`, the four `InGame*.bun`, `InGamePerformanceTuning.bun`,
