@@ -44,6 +44,10 @@ Scenarios (`--scen`):
 | `outrun` | (not yet) | an encounter car's challenge taken from free roam, the throttle held (see below) |
 | `qr:circuit`, `qr:sprint`, `qr:drag` | Quick Race of that mode, its first track, traffic level 3, from the green; the player holds the throttle (`TRAFH_DRIVER=auto` the autopilot), in a drag the drag bot | the same through the menus (the mode list position is assumed for sprint and drag; check `OUT/*.nav/menu-*.png`, `--menu` overrides) |
 
+`--track N` picks a Quick Race's track: N Right presses on the track list (0 the first; with the
+harness's save, circuit 1 is 4001 Outer Ring, circuit 0 is 4014; `TRAFH_TRACK` on this game's side). The
+original's table header carries `trackpos=N`, this game's `track=<id>`.
+
 `run` options: `--seeds` (`0-2`, `0,4,7`; 0 is the default stream, n the traffic seed knob
 `NFSU2_TRAFFIC_SEED`; a seed over 0 also seeds the shared generator as a boot of its own, so
 the pool's models differ as between boots of the original; `TRAFH_BOOT=0` keeps the default), `--seconds`, `--wine COPY --display N --runs N` (the original's side;
@@ -194,11 +198,6 @@ as negative ids); `TRAFH_NAT_ENT=1` (the original) writes `L<lane> own=s:off:acr
 pt=<record>:<cp>:<metres past it>` from the entries the car's last think left (planner at controller
 +0x54) — its own entry and the tracked car's, `off` off the planner's lane as 0x402ED0 reads it. The
 original's poll then reads about half as many samples a second; the statistics are per sample.
-`TRAFH_NAT_WORLD=1` (the original) adds comment lines per sample: `# n` the player's place, facing and
-road node (controller +0x0C: the point's place and race coordinate +0x08, as the placer 0x42E9F0 reads it),
-`# c` each traffic car's race coordinate (+0x8FC) and `# w` the world's tracked count (+0x14), coordinates
-(+0xE0 / +0xE4) and places (+0x80 / +0x90) that 0x5F12B0 / 0x5F0FC0 measure from, and the player's +0x8FC.
-A placed car's `# c` at its spawn row less the player's is the placement's race-coordinate distance.
 
 ## Screenshots, horns, outruns
 

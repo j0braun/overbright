@@ -541,9 +541,14 @@ pub mod probe {
             let st = t.steps[e.step.min(t.steps.len() - 1)];
             let cp = &f.records[st.record].points[st.cp];
             let q = f.point(st.record, st.cp, st.backward, e.d, lane_offset(cp, lane(s0.lane, st.backward)) + e.x[s0.lane - 1]);
-            line += &format!(" @{:.2},{:.2}", q.x, q.y);
+            let past = f.along(st.record, st.cp, st.backward, own_xy(es)) - e.d;
+            line += &format!(" @{:.2},{:.2} pt={}:{}:{past:.1}", q.x, q.y, f.records[st.record].id, st.cp);
         }
         LAST.with(|m| m.borrow_mut().insert(id, line));
+    }
+
+    fn own_xy(es: &[Entry]) -> Vec2 {
+        es.first().map_or(Vec2::ZERO, |e| e.other.position)
     }
 
     /// The car's last entries (`id` its `Other::id`), taken.
