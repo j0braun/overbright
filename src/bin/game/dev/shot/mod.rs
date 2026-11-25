@@ -776,6 +776,8 @@ fn write_outputs(game: &mut Game, s: Setup, keys: Keys, drawn: Offscreen, out: &
         &mut ui,
         &game.game_data.assets,
         &nfsu2::render::FrameSettings::new(&game.settings.custom, nfsu2::render::RenderOptions::in_force()),
+        (width, height),
+        nfsu2::render::display::front_msaa_samples(&game.settings.custom, &gpu, &nfsu2::render::RenderOptions::in_force()),
     );
     upload_movie(&mut game.mode, &gpu, &mut ui);
     // NFSU2_SHOT_MS: the front end's time for the shot (default 5000 ms),

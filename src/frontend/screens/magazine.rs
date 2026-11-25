@@ -25,8 +25,12 @@ pub const DVD_ICON: u32 = fe_ids::DVD_ICON;
 /// and H/2 − h/2 − 4 to H/2 + h/2 − 6 down, w = 320 · W/640, h = 432 ·
 /// H/480 — at 640 × 480 the 333 × 430 pixels from (150, 20) (`CROP`) —
 /// copied into the 512² "ScreenCap" texture; it goes into MagImage
-/// (0xD1CC9C37) under "SCREENSHOTHASH". The clone composes that screen at
-/// 640 × 480 — the background layer, the career car at the camera, the
+/// (0xD1CC9C37) under "SCREENSHOTHASH". The back buffer is the swap chain's
+/// (GetBackBuffer at 0x5BA7AD → 0x870850), multisampled with Full Screen
+/// Anti-Aliasing on (MultiSampleType 0x86F880), so the shot is the full
+/// resolution's antialiased frame, resolved by the StretchRect. The clone
+/// composes that screen at the window's 4:3 size ([`CoverView::screen_for`])
+/// — the background layer, the career car at the camera, the
 // prov: inferred frontend.screens.CoverView
 /// masthead and extra — and binds the rectangle under `SHOT` (**inferred**:
 /// UI_MagazineBack draws behind the car, the lens across the screen's
@@ -57,10 +61,58 @@ pub struct CoverView {
 
 impl CoverView {
     pub const IMAGE: u32 = fe_ids::IMAGE;
-    /// The composed screen the shot is taken from (FEng's canvas).
+    /// FEng's canvas, which the screen shows the cover's composition on.
     pub const SCREEN: (u32, u32) = (640, 480);
-    /// The shot's rectangle of it, origin and size (0x5C3130 at 640 × 480).
+    /// The shot's rectangle on the canvas, origin and size (0x5C3130 at
+    /// 640 × 480; where the reward draws the shot).
     pub const CROP: ((u32, u32), (u32, u32)) = ((150, 20), (333, 430));
+
+    /// The composed screen for a window `out` big: the canvas at the size
+    /// the window shows it (its 4:3 part, the front end's pillar- or
+    /// letterbox), at least 1 × 1. Native composes on the real back buffer
+    /// (0x870980 × 0x870984); the clone keeps the 4:3 composition at any
+    /// window shape.
+    pub fn screen_for(out: (u32, u32)) -> (u32, u32) {
+        let (w, h) = (u64::from(out.0.max(1)), u64::from(out.1.max(1)));
+        let (w, h) = if w * 3 >= h * 4 { ((h * 4 + 1) / 3, h) } else { (w, (w * 3 + 2) / 4) };
+        (w.max(1) as u32, h.max(1) as u32)
+    }
+
+    /// 0x5C3130's rectangle of a `screen` big (origin and size): w = 320 ·
+    /// W / 640 and h = 432 · H / 480 (truncated, 0x75BED4), from W/2 − w/2
+    /// − 10 to W/2 + w/2 + 3 across and H/2 − h/2 − 4 to H/2 + h/2 − 6
+    /// down (the halves by signed division), clamped to the screen.
+    pub fn crop_for(screen: (u32, u32)) -> ((u32, u32), (u32, u32)) {
+        let (sw, sh) = (i64::from(screen.0), i64::from(screen.1));
+        let (w, h) = ((320.0 * sw as f32 * (1.0 / 640.0)) as i64, (432.0 * sh as f32 * (1.0 / 480.0)) as i64);
+        let (x0, x1) = ((sw / 2 - w / 2 - 10).max(0), (sw / 2 + w / 2 + 3).min(sw));
+        let (y0, y1) = ((sh / 2 - h / 2 - 4).max(0), (sh / 2 + h / 2 - 6).min(sh));
+        ((x0 as u32, y0 as u32), ((x1 - x0).max(1) as u32, (y1 - y0).max(1) as u32))
+    }
+
+    /// The supersampling factor (per side) the clone composes the shot at
+    /// for an anti-aliased frame like native's multisampled back buffer:
+    /// the scene's MSAA `samples` (Full Screen Anti-Aliasing, or the
+    /// Anti-Aliasing row's MSAA) as about as many samples per pixel (2× →
+    /// 2, 4× → 2, 8× → 3, 16× → 4), the row's SSAA as its scale, and its
+    /// post AA (FXAA / SMAA / TAA, no pass on the shot) as 2; 1 with
+    /// anti-aliasing off, as native.
+    pub fn aa_factor(samples: u32, post_aa: u8) -> u32 {
+        let msaa = match samples {
+            0 | 1 => 1,
+            2..=4 => 2,
+            5..=9 => 3,
+            _ => 4,
+        };
+        let row = match post_aa {
+            0 | 3..=5 => 1,
+            6 | 7 => 2,
+            8 | 9 => 3,
+            10 => 4,
+            _ => 2,
+        };
+        msaa.max(row)
+    }
 
     /// The picked layers' quads on the photo shoot's screen: behind the
     /// car (UI_MagazineBack's "MagazineBack") and over it
@@ -172,5 +224,56 @@ impl CoverView {
             state.hidden.insert(Self::IMAGE);
         }
         layout(assets, package, &state, now - self.opened)
+    }
+}
+
+#[cfg(test)]
+mod cover_size_tests {
+    use super::CoverView;
+
+    /// #238: the shot's rectangle follows the window (0x5C3130's formula):
+    /// at 640 × 480 the native 333 × 430 from (150, 20), larger windows a
+    /// larger shot, every common shape composed 4:3 at the window's height
+    /// (or width, for the taller shapes).
+    #[test]
+    fn the_cover_shot_follows_the_window_size() {
+        assert_eq!(CoverView::screen_for((640, 480)), (640, 480));
+        assert_eq!(CoverView::crop_for(CoverView::screen_for((640, 480))), CoverView::CROP);
+        // Native at 1280 × 960: w 640, h 864 → 653 × 862 from (310, 44).
+        assert_eq!(CoverView::crop_for((1280, 960)), ((310, 44), (653, 862)));
+        for (out, screen) in [
+            ((800, 600), (800, 600)),
+            ((1024, 768), (1024, 768)),
+            ((1280, 1024), (1280, 960)),
+            ((1366, 768), (1024, 768)),
+            ((1600, 900), (1200, 900)),
+            ((1920, 1080), (1440, 1080)),
+            ((1920, 1200), (1600, 1200)),
+            ((2560, 1080), (1440, 1080)),
+            ((2560, 1440), (1920, 1440)),
+            ((3440, 1440), (1920, 1440)),
+            ((3840, 2160), (2880, 2160)),
+            ((5120, 1440), (1920, 1440)),
+        ] {
+            assert_eq!(CoverView::screen_for(out), screen, "{out:?}");
+            let ((x, y), (w, h)) = CoverView::crop_for(screen);
+            assert!(x + w <= screen.0 && y + h <= screen.1, "{out:?}: inside the screen");
+            // The same share of the screen as at 640 × 480, to a few pixels.
+            let (sx, sy) = (screen.0 as f32 / 640.0, screen.1 as f32 / 480.0);
+            assert!((w as f32 - 320.0 * sx).abs() <= 14.0 && (h as f32 - 432.0 * sy).abs() <= 4.0, "{out:?}: {w} × {h}");
+        }
+    }
+
+    /// Anti-aliasing off composes at 1 sample like native without FSAA;
+    /// MSAA, SSAA and the post AAs supersample the shot.
+    #[test]
+    fn the_cover_shot_is_antialiased_when_the_frame_is() {
+        assert_eq!(CoverView::aa_factor(1, 0), 1);
+        assert_eq!(CoverView::aa_factor(2, 0), 2);
+        assert_eq!(CoverView::aa_factor(4, 4), 2);
+        assert_eq!(CoverView::aa_factor(8, 5), 3);
+        assert_eq!(CoverView::aa_factor(1, 1), 2);
+        assert_eq!(CoverView::aa_factor(1, 7), 2);
+        assert_eq!(CoverView::aa_factor(1, 10), 4);
     }
 }
