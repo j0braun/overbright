@@ -1,6 +1,6 @@
 # Modding
 
-Pages for modders: texture packs, the editors, and the planned asset format. Overbright ships no replacement
+Pages for modders: texture packs, the editors, Studio and the asset format (a draft). Overbright ships no replacement
 art; every pack is one you add yourself.
 
 ## Texture mods
@@ -26,5 +26,7 @@ art; every pack is one you add yourself.
 
 ## Asset format (draft)
 
-[asset-format/](asset-format/README.md): the planned format for base sets and mod packs. It is a design and
-not implemented yet; `crates/ob-asset-format` tests its examples and schemas.
+[asset-format/](asset-format/README.md): the format for base sets and mod packs. It is mostly a design: its core
+library (`crates/ob-asset-format`) exists and tests the examples and schemas, Studio and its command-line tool
+use it for a mod's changes and checks, and the map editor's run files ([runs.md](asset-format/runs.md)) are one
+of its kinds; no program reads game data through it yet.

@@ -20,9 +20,11 @@
 pub mod anim;
 pub mod backdrop;
 pub mod check;
+pub mod crash_report;
 pub mod dirs;
 pub mod draw;
 pub mod font;
+pub mod game_data;
 pub mod headless;
 pub mod layout;
 pub mod legends;
@@ -37,6 +39,7 @@ pub mod saves_page;
 pub mod screens;
 pub mod sounds;
 pub mod start_log;
+pub mod studio_seen;
 pub mod transfer;
 pub mod ui;
 #[cfg(windows)]

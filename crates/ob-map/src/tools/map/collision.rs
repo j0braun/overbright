@@ -67,6 +67,9 @@ pub struct Wall {
     pub tall: bool,
     /// The barrier group (0: always there).
     pub group: u8,
+    /// The face's corners as the pack stores them (3 or 4): how a map mod
+    /// names it to remove it (`format::CollisionEdit::Remove`).
+    pub corners: Vec<Vec3>,
     /// The parts along `a` → `b` (fractions 0..1) with no scenery at them,
     /// in order; empty for a fully covered wall. A barrier group's walls are
     /// not tested (all of them bare).
@@ -303,7 +306,7 @@ fn wall_of(f: &CollisionFace, floors: &FloorGrid) -> Wall {
         let hi = pts.iter().map(|p| p.z).fold(f32::MIN, f32::max);
         (lo, hi)
     };
-    Wall { a, b, z0, z1, tall, group: f.group, bare: Vec::new() }
+    Wall { a, b, z0, z1, tall, group: f.group, bare: Vec::new(), corners: f.vertices[..f.corners.clamp(3, 4)].to_vec() }
 }
 
 /// The pieces of `w` no steep scenery triangle comes within

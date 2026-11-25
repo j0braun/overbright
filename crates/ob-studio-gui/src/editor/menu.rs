@@ -51,6 +51,8 @@ pub enum Action {
     Hint(bool),
     /// The collision layer (View ▸ Collision).
     Collision(super::collision::Show),
+    /// Arm a drawing tool (Edit ▸ Draw wall / Draw ground).
+    Draw(super::collision::Draw),
 }
 
 /// A request for one of the editor's parts.
@@ -60,6 +62,8 @@ pub enum Command {
     Delete,
     SelectAllOfSolid,
     DropToGround,
+    Rotate90,
+    FaceCamera,
     ResetCamera,
     FrameSelection,
     NewRace,
@@ -69,11 +73,13 @@ pub enum Command {
 
 impl Command {
     /// Every command, for the test that each one has a taker.
-    pub const ALL: [Command; 9] = [
+    pub const ALL: [Command; 11] = [
         Command::Duplicate,
         Command::Delete,
         Command::SelectAllOfSolid,
         Command::DropToGround,
+        Command::Rotate90,
+        Command::FaceCamera,
         Command::ResetCamera,
         Command::FrameSelection,
         Command::NewRace,
@@ -94,10 +100,15 @@ impl Command {
     /// Why `self` cannot run on `s` now (the menu shows it disabled with
     /// this text), or None when a part takes and runs it.
     pub fn unavailable(self, s: &EditorState) -> Option<&'static str> {
-        let props_only = matches!(self, Command::Duplicate | Command::SelectAllOfSolid | Command::DropToGround);
+        let props_only = matches!(
+            self,
+            Command::Duplicate | Command::SelectAllOfSolid | Command::DropToGround | Command::Rotate90 | Command::FaceCamera
+        );
         match self {
             _ if props_only && (s.mode != Mode::Props || s.selection.is_empty()) => Some("Select a prop first"),
-            Command::Delete if s.mode == Mode::Props && s.selection.is_empty() => Some("Select a prop first"),
+            Command::Delete if s.mode == Mode::Props && s.selection.is_empty() && s.wall.is_none() => {
+                Some("Select a prop first")
+            }
             Command::Delete if s.mode == Mode::Races && s.point.is_none() => Some("Select a race point first"),
             Command::ResetCamera | Command::FrameSelection if s.view == View::Map => Some("In the 3D view only (M)"),
             _ => None,
@@ -112,6 +123,26 @@ fn commands_id() -> egui::Id {
 /// Post `c` for this frame.
 pub fn post(ctx: &egui::Context, c: Command) {
     ctx.data_mut(|d| d.get_temp_mut_or_default::<Vec<Command>>(commands_id()).push(c));
+}
+
+fn hosted_id() -> egui::Id {
+    egui::Id::new("ob-editor-hosted")
+}
+
+/// Mark the editor drawing on `ctx` as hosted by Studio, which keeps Ctrl+D for itself (Changes,
+/// docs/modding/studio.md): the editor then neither reads nor shows Ctrl+D for Duplicate.
+pub fn set_hosted(ctx: &egui::Context) {
+    ctx.data_mut(|d| d.insert_temp(hosted_id(), true));
+}
+
+/// Studio hosts the editor drawing on `ctx` ([`set_hosted`]).
+pub fn hosted(ctx: &egui::Context) -> bool {
+    ctx.data(|d| d.get_temp::<bool>(hosted_id()).unwrap_or(false))
+}
+
+/// Duplicate's key as shown: Ctrl+D in the editor's own window, none inside Studio (Ctrl+D is Changes there).
+pub fn duplicate_key(ctx: &egui::Context) -> &'static str {
+    if hosted(ctx) { "" } else { "Ctrl+D" }
 }
 
 /// Whether `c` was posted this frame (taking it: one part handles it).
@@ -199,7 +230,7 @@ impl Tool {
         match self {
             Tool::Select => "Select tool: a click selects a prop or a race point, never adds",
             Tool::Move => "Move tool: drag an arrow to move the selected props",
-            Tool::Rotate => "Rotate tool: drag the ring to turn the selected props",
+            Tool::Rotate => "Rotate tool: drag the ring to turn the selected props (Alt: turn freely)",
             Tool::Checkpoint => "Checkpoint tool: a click on the road adds a checkpoint",
             Tool::Start => "Start tool: a click on the road puts the start line",
             Tool::Finish => "Finish tool: a click on the road puts the finish line",
@@ -310,13 +341,16 @@ pub const KEYS: &[Binding] = &[
     b("Edit", "Ctrl+D", words::DUPLICATE, &[Key::D]),
     b("Edit", "Del", words::DELETE, &[Key::Delete]),
     b("Edit", "End", "Drop to the ground", &[Key::End]),
+    b("Edit", "RMB on a prop / Shift+F10", "The prop menu: Rotate 90°, Rotate…, Face camera", &[Key::F10]),
     b("Edit", "Ctrl+Z, Ctrl+Y (Ctrl+Shift+Z)", "Undo, redo", &[Key::Z, Key::Y]),
     b("File", "Ctrl+N, Ctrl+O", "New map mod, open a map mod", &[Key::N, Key::O]),
     b("File", "Ctrl+S", words::SAVE, &[Key::S]),
     b("File", "Ctrl+Q", words::QUIT, &[Key::Q]),
     b("File", "Enter", "Confirm a dialog", &[Key::Enter]),
     b("Run", "F5 / Shift+F5", "Test race / Drive here", &[Key::F5]),
-    b("Run", "Space", "Play / pause the simulation (Simulate tab)", &[Key::Space]),
+    b("Run", "Space", "Play / pause the simulation (its timeline under the view)", &[Key::Space]),
+    b("Run", "Left / Right, Shift+Left / Right", "The simulation a recorded frame back / on, a second with Shift", &[Key::ArrowLeft, Key::ArrowRight]),
+    b("Run", "Up / Down", "Show the line above / below in What went wrong (Simulate tab)", &[Key::ArrowUp, Key::ArrowDown]),
 ];
 
 /// The Controls dialog's rows, grouped: the tools first (from
@@ -507,10 +541,21 @@ pub fn edit_items(app: &App, ui: &mut egui::Ui, out: &mut Vec<Action>) {
     }
     ui.separator();
     let s = app.state.as_ref();
-    command(ui, s, words::DUPLICATE, "Ctrl+D", Command::Duplicate);
+    let dup = duplicate_key(ui.ctx());
+    command(ui, s, words::DUPLICATE, dup, Command::Duplicate);
     command(ui, s, words::DELETE, "Del", Command::Delete);
     command(ui, s, "Select all of this solid", "", Command::SelectAllOfSolid);
     command(ui, s, "Drop to ground", "End", Command::DropToGround);
+    command(ui, s, "Rotate 90°", "", Command::Rotate90);
+    command(ui, s, "Face camera", "", Command::FaceCamera);
+    ui.separator();
+    let open = s.is_some();
+    if item(ui, "Draw wall", None, open) {
+        out.push(Action::Draw(super::collision::Draw::Wall { first: None }));
+    }
+    if item(ui, "Draw ground", None, open) {
+        out.push(Action::Draw(super::collision::Draw::Ground { points: Vec::new() }));
+    }
 }
 
 /// The View menu's items.
@@ -913,7 +958,7 @@ pub fn tool_hint(tool: Tool, r: &Races) -> &'static str {
     match tool {
         Tool::Select => "Click a prop or a race point to select it · Ctrl+click: add to the selection",
         Tool::Move => "Drag an arrow to move the selection · Shift+drag: copy · Alt: no snapping",
-        Tool::Rotate => "Drag the ring to turn the selection · Alt: no snapping",
+        Tool::Rotate => "Drag the ring to turn the selection · Alt: turn freely · right-click a prop: Rotate 90°, Face camera",
         _ => r.hint(),
     }
 }
@@ -933,6 +978,11 @@ pub fn hint_job(s: &EditorState, p: &Props, r: &Races) -> egui::text::LayoutJob 
         job.append(" back to Select", 0.0, egui::TextFormat::simple(small.clone(), theme::ink()));
     }
     job.append(tool_hint(tool, r), 18.0, egui::TextFormat::simple(small.clone(), theme::ink()));
+    // Turning a prop: the key and the menu, where the tool is not Rotate.
+    if matches!(tool, Tool::Select | Tool::Move) && s.mode == Mode::Props && !s.selection.is_empty() {
+        chip(&mut job, "E", 18.0);
+        job.append(" rotate · right-click: Rotate 90°, Face camera", 0.0, egui::TextFormat::simple(small.clone(), theme::ink()));
+    }
     if !tool.armed() && (!s.selection.is_empty() || s.point.is_some()) {
         chip(&mut job, "Esc", 18.0);
         job.append(" clear the selection", 0.0, egui::TextFormat::simple(small.clone(), theme::ink()));

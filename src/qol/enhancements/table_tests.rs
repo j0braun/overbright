@@ -8,7 +8,7 @@ use super::super::*;
 use super::oracle::{Old, old_preset_base};
 
 /// The keys of the nested groups (`extras`, `pad`; their own code).
-const NESTED_KEYS: [&str; 18] = [
+const NESTED_KEYS: [&str; 19] = [
     "enh.low_latency",
     "enh.replay_cameras",
     "enh.hud_palette",
@@ -16,7 +16,8 @@ const NESTED_KEYS: [&str; 18] = [
     "enh.hud_speedo",
     "enh.hud_info",
     "enh.reduced_flashing",
-    "enh.power_saving",
+    "enh.background",
+    "enh.power_caps",
     "enh.mark_spot",
     "enh.pad_layout",
     "enh.pad_deadzone",
@@ -369,6 +370,7 @@ fn every_ui_value_is_kept_by_the_table() {
         RowId::PhotoMode,
         RowId::LowLatency,
         RowId::MarkSpot,
+        RowId::Background,
         RowId::PowerSaving,
         RowId::ReplayCameras,
         RowId::HudPalette,

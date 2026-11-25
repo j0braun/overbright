@@ -5,6 +5,10 @@ impl Game {
         let Mode::Menu(Menu::Icons(m, kind)) = &mut self.mode else { unreachable!() };
         let kind = *kind;
         let at = m.selected;
+        // FORWARD is playing: input is off until its end (0x52FC00).
+        if m.forward.is_some() {
+            return Ok(());
+        }
         if key == Key::Back {
             return self.icons_back(kind, at);
         }
@@ -22,6 +26,26 @@ impl Game {
             self.race_flow.post_race_selection = m.selected + 1;
         }
         if let Some(action) = action {
+            // Accept plays the Event Handler's FORWARD where the package
+            // answers 0x0C407210 with it, and 0x543D50 acts on its end
+            // (`IconMenu::forward`, `icon_forward_tick`), except for a
+            // direct option (+0x45, `DIRECT_OPTIONS`), whose screen gets
+            // accept at once; the Car Shop's own handler waits for the end
+            // with its direct options too (observed under Wine, 60 fps:
+            // Body Shop 7 frames after the key). A locked option only
+            // sounds WRONG.
+            let icon = match &self.mode {
+                Mode::Menu(Menu::Icons(m, _)) => m.options.get(m.selected).map(|o| o.icon),
+                _ => None,
+            };
+            let forward = self.game_data.assets.package(kind.package()).is_some_and(screens::accept_plays_forward)
+                && (kind == MenuKind::CustomizeCategory || !icon.is_some_and(|i| screens::DIRECT_OPTIONS.contains(&i)));
+            if forward && action != Action::Unavailable && !crate::dev_hooks::instant_forward() {
+                if let Mode::Menu(Menu::Icons(m, _)) = &mut self.mode {
+                    m.forward = Some((now, action));
+                }
+                return Ok(());
+            }
             self.act(action, kind)?;
         }
         Ok(())

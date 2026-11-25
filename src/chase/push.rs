@@ -1,7 +1,7 @@
 use glam::Vec3;
 
 use super::*;
-use crate::render::Camera;
+use crate::draw::camera::Camera;
 
 /// The chase views' world push (0x453570 → 0x444530, for kinds 0, 1 and
 /// 5, after the shake), so the eye does not sit behind a wall. From

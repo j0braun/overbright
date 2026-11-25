@@ -238,6 +238,17 @@ fn front_end_screens() {
     game.menu_key(Key::Accept).unwrap();
     assert!(matches!(game.mode, Mode::Menu(Menu::Icons(_, MenuKind::CustomizeCategory))));
     assert!(game.profile.as_ref().is_some_and(|p| p.scratch));
+    // Accept plays the Event Handler's FORWARD; the Body Shop comes on its
+    // 0xE1FDE1D1 (140 package ms = 116.7 ms; 0x543D50), keys wait.
+    game.menu_key(Key::Accept).unwrap();
+    assert!(matches!(&game.mode, Mode::Menu(Menu::Icons(m, MenuKind::CustomizeCategory)) if m.forward.is_some()));
+    let left = game.icon_forward_left().unwrap();
+    assert!(left > 100.0 && left <= 140.0 / 1.2 + 0.01, "{left}");
+    game.menu_key(Key::Right).unwrap();
+    assert!(matches!(&game.mode, Mode::Menu(Menu::Icons(m, _)) if m.selected == 0));
+    game.icon_forward_finish();
+    assert!(matches!(game.mode, Mode::Menu(Menu::Parts(_))));
+    game.mode = game.icon_menu(MenuKind::CustomizeCategory);
     game.act(Action::CustomizeCategory(0), MenuKind::CustomizeCategory).unwrap();
     assert!(matches!(game.mode, Mode::Menu(Menu::Parts(_))));
     game.mode = game.icon_menu(MenuKind::Crib);

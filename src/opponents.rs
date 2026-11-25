@@ -8,7 +8,7 @@
 //! skill; any other is the named car type.
 
 use crate::formats::bundle::{chunks, read_f32, walk};
-use crate::frontend::career::Event;
+use crate::frontend::career::events::Event;
 
 pub use crate::game_rng::GameRng;
 #[cfg(feature = "dev-harness")]
@@ -64,7 +64,7 @@ pub fn car_pool(suv_event: bool) -> &'static [u8] {
 /// CIVIC, RSX) for region 0 and 0x7F6DC0 (ending in CORSA, PEUGOT106) for
 /// any other.
 pub fn car_pool_in(region: u32, suv_event: bool) -> &'static [u8] {
-    use crate::frontend::career::{OPPONENT_CARS_ALT, OPPONENT_SUVS};
+    use crate::frontend::career::events::{OPPONENT_CARS_ALT, OPPONENT_SUVS};
     if suv_event {
         &OPPONENT_SUVS
     } else if region == 0 {
@@ -229,8 +229,8 @@ impl GridOrder {
     /// The career's choice (0x5322F0 at 0x53250F, table 0x5325CC on the
     /// event's +0x0F): circuit, sprint and drag 3, street X and drift 2,
     /// special 1.
-    pub fn career(kind: crate::frontend::career::EventKind) -> GridOrder {
-        use crate::frontend::career::EventKind as K;
+    pub fn career(kind: crate::frontend::career::events::EventKind) -> GridOrder {
+        use crate::frontend::career::events::EventKind as K;
         match kind {
             K::StreetX | K::Drift => GridOrder::AiFirst,
             K::Special => GridOrder::HumansFirst,
@@ -262,7 +262,7 @@ mod grid_tests {
     #[test]
     fn drift_starts_the_player_behind_the_rivals() {
         let mut rng = GameRng::default();
-        assert_eq!(grid_slots(GridOrder::career(crate::frontend::career::EventKind::Drift), 3, &mut rng), vec![3, 0, 1, 2]);
+        assert_eq!(grid_slots(GridOrder::career(crate::frontend::career::events::EventKind::Drift), 3, &mut rng), vec![3, 0, 1, 2]);
         assert_eq!(grid_slots(GridOrder::HumansFirst, 3, &mut rng), vec![0, 1, 2, 3]);
         // Order 3 swaps racer 0 with a drawn racer; the slots stay a
         // permutation and only racer 0 and that racer move.

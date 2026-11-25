@@ -289,3 +289,83 @@ pub fn page_fill() -> Color32 {
 pub fn rule() -> Color32 {
     theme::over(tokens().row_rule, tokens().slab.over(tokens().page))
 }
+
+/// A secondary button: an outlined pill, the label in the italic label face (beside a main action).
+pub fn pill(text: &str) -> egui::Button<'static> {
+    let t = tokens();
+    egui::Button::new(egui::RichText::new(text.to_string()).font(font(LABEL, 17.0)).color(rgb(t.ink)))
+        .fill(Color32::TRANSPARENT)
+        .stroke(Stroke::new(1.5, rgb(t.outline)))
+        .corner_radius(CornerRadius::same(18))
+        .min_size(vec2(0.0, 36.0))
+}
+
+/// What a verdict card shows (Home's card, the tutorial's card): its lamp, a small line over the title, the title,
+/// its words, the main action and the second one.
+pub struct Card<'a> {
+    /// A check lamp (ready) or a numbered step lamp.
+    pub step: Option<usize>,
+    pub kicker: Option<&'a str>,
+    pub head: &'a str,
+    pub line: &'a str,
+    pub main: &'a str,
+    pub second: &'a str,
+}
+
+/// The card's height at `width` (as high as its words).
+pub fn card_height(p: &Painter, c: &Card, width: f32) -> f32 {
+    let g = p.layout(c.line.to_string(), font("body", 15.0), Color32::WHITE, width - 48.0);
+    let kick = if c.kicker.is_some() { 20.0 } else { 0.0 };
+    kick + 52.0 + g.size().y + 14.0 + 40.0 + 16.0
+}
+
+/// Draw the verdict card (the launcher's Game check: a lime edge, the lamp, the title, its words, the actions)
+/// with its top left at `min`, `width` wide, on `fill`. The rectangle and the two buttons' responses.
+pub fn card(
+    ui: &mut egui::Ui,
+    p: &Painter,
+    min: Pos2,
+    width: f32,
+    c: &Card,
+    fill: Color32,
+) -> (Rect, egui::Response, egui::Response) {
+    let t = tokens();
+    let h = card_height(p, c, width);
+    let card = Rect::from_min_size(min, vec2(width, h));
+    p.rect_filled(card, 8.0, fill);
+    p.rect_filled(
+        Rect::from_min_size(card.min, vec2(4.0, card.height())),
+        CornerRadius { nw: 8, sw: 8, ne: 0, se: 0 },
+        rgb(t.lime),
+    );
+    let mut top = card.top();
+    if let Some(k) = c.kicker {
+        p.text(pos2(card.left() + 20.0, top + 14.0), Align2::LEFT_TOP, k, font("body", 12.0), rgb(t.dim));
+        top += 20.0;
+    }
+    let lamp_c = pos2(card.left() + 30.0, top + 30.0);
+    match c.step {
+        Some(n) => {
+            p.circle_filled(lamp_c, 10.0, rgb(t.lime));
+            p.text(lamp_c, Align2::CENTER_CENTER, n.to_string(), font(SEMI, 13.0), rgb(t.on_play));
+        }
+        None => check_lamp(p, lamp_c, 20.0),
+    }
+    p.text(pos2(card.left() + 48.0, top + 30.0), Align2::LEFT_CENTER, c.head, font(theme::TITLE, 22.0), rgb(t.ink));
+    let g = p.layout(c.line.to_string(), font("body", 15.0), rgb(t.ink), width - 48.0);
+    p.galley(pos2(card.left() + 20.0, top + 52.0), g, rgb(t.ink));
+    let buttons = Rect::from_min_size(pos2(card.left() + 20.0, card.bottom() - 56.0), vec2(width - 40.0, 40.0));
+    let (a, b) = ui
+        .scope_builder(egui::UiBuilder::new().max_rect(buttons), |ui| {
+            ui.horizontal(|ui| {
+                ui.spacing_mut().button_padding = vec2(18.0, 8.0);
+                ui.spacing_mut().item_spacing.x = 12.0;
+                let a = ui.add(theme::main_action(c.main).min_size(vec2(0.0, 36.0)));
+                let b = ui.add(pill(c.second));
+                (a, b)
+            })
+            .inner
+        })
+        .inner;
+    (card, a, b)
+}

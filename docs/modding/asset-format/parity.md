@@ -59,8 +59,8 @@ before any decoding changes. Then each kind **graduates**: its decoded files rep
 values, and every gate must again reproduce its baseline bit for bit — and the kind's load benchmarks must not be
 slower ([performance.md](performance.md) §6). Kinds graduate **on demand**, when a tool or a base set needs them
 ([import.md](import.md) §4.1); the goal is that every kind graduates. During the move the developer harness can run either source
-(`NFSU2_ASSETS=original|base`, with `NFSU2_BASE_SET` naming the base set; harness builds only; a run that read the
-base set says so in its log with a line starting `assets: base`, which the gate scripts require); when every kind has graduated, the shipping game no longer links
+(the asset layer's switch `NFSU2_BASE`: `off`, or a base set's folder or id; a run that read the base set says so
+in its log with the layer's exit line `asset layer: ... from base set`, which the gate scripts require); when every kind has graduated, the shipping game no longer links
 the original's parsers (they live in the importer), and a layering check fails if game code depends on them.
 
 ## 4. Per kind: level, proof, size

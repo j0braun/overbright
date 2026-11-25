@@ -150,6 +150,7 @@ impl Game {
             opened: self.now(),
             total: None,
             arrows: Default::default(),
+            motion: Default::default(),
         }))
     }
 

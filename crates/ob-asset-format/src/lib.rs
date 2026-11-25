@@ -17,10 +17,15 @@
 //! - [`order`]: `order.txt` and `active.txt` (layering.md §2, layout.md §1).
 //! - [`layering`]: the layer stack and the merge of items: merge, add, replace, disable, and the clash list
 //!   (layering.md).
+//! - [`import`]: the importer at stage 0: the player's own copy of the game into a base set, every content file
+//!   kept byte for byte (import.md).
 //! - [`docs`]: the generated parts of the specification (rule tables, field tables, schemas) and the check that
 //!   the pages and the code agree.
 //!
-//! Nothing in the game reads through this crate yet; the format is still a draft (docs/modding/asset-format/README.md).
+//! - [`mount`]: a finished base set mounted as the game's asset layer (import.md §13).
+//!
+//! The game reads its files through [`mount`] when an import exists; the rest of the format is still a draft
+//! (docs/modding/asset-format/README.md).
 
 // A refusal carries its whole context (pack, path, field, message) and is only made on the cold path.
 #![allow(clippy::result_large_err)]
@@ -30,10 +35,12 @@ pub mod digest;
 pub mod docs;
 pub mod fields;
 pub mod float;
+pub mod import;
 pub mod json;
 pub mod kinds;
 pub mod layering;
 pub mod manifest;
+pub mod mount;
 pub mod names;
 pub mod order;
 mod refusal;

@@ -839,8 +839,13 @@ is native; nothing was traced for it beyond the native facts cited.
   docs/playing/controller-support.md "The settings": `enh.pad_layout`,
   `enh.pad_deadzone`, `enh.pad_trigger_deadzone`, `enh.pad_saturation`,
   `enh.pad_steer_curve`, `enh.pad_rumble`, `enh.pad_pause_on_disconnect 1`,
-  `enh.pad_safe_bind 1`, `enh.pad_sticks_quit 1`), written only when not native (a file with
+  `enh.pad_safe_bind 1`, `enh.pad_sticks_quit 1`; In the background as `enh.background`
+  1 Keep running / 2 Draw less, Pause being native; Power Saving as `enh.power_caps` 1 Menus /
+  2 Menus + Battery), written only when not native (a file with
   none reads as native; out-of-range values are held to the rows' ranges).
+  An older `enh.power_saving N` line (0 Off, 1 Background, 2 + Menus, 3 + Battery) is still
+  read: N ≥ 1 becomes `enh.background 2` (Draw less) and `enh.power_caps N − 1`; it is
+  never written again (docs/original/focus-loss.md).
   The F3 overlay's "Deviations" rows list them (`Settings::deviations`:
   wide aspect, vsync-off mailbox, then the page's; "none" when native).
 * **Saves.** The native writer goes through a temporary file and a rename

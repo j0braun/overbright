@@ -22,6 +22,8 @@ log.workspace = true
 miniz_oxide.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+# A mod's texture list (`looks.toml`), read for the sharing warning. MIT OR Apache-2.0.
+toml.workspace = true
 
 [dev-dependencies]
 # The asset format's run file kind (`ob.run`), which the simulation stream's tests keep the writer and reader on.

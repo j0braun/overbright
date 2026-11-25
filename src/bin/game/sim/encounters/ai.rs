@@ -352,6 +352,9 @@ fn encounter_actions_step(
         drift: false,
         drag: false,
         held,
+        // The encounter's track record is not read (**open**): the
+        // proposals keep the hold.
+        contact_held: held,
         block_row: r.speed.skill(),
         hits,
         touching,

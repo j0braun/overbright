@@ -208,11 +208,15 @@ links = [1, 2, 3, 0, 2, 3, 0, 1, 3, 0, 1, 2]
 - **Mod packs may not change collision in this version.** Every operation on `ob.collision` and
   `ob.collision-shared` items is refused (`MRG.3`), and a mod pack holding a file of this page is refused
   (`COL.7`). Barrier groups' `on` is run-time state, not a pack value.
-- **Placements and collision.** Moving, disabling or adding a placement ([world.md](world.md) §4) does not change
-  any face: a moved or disabled building keeps its collision where the original has it, and an added one has none.
-  Knock-over props are the exception: their collision is their kind's volume, so a moved prop is hit where it now
-  stands, a disabled one is gone, and an added placement with `prop` is a prop with that volume. This is today's
-  behaviour of map mods (docs/modding/map-editor.md "Limits").
+- **Placements and collision.** Map mods' moved, disabled and added static placements take their solid's walls
+  with them at load time (docs/modding/map-editor.md "Collision of edited scenery"): the stored packs are not
+  changed, the loaded ones are. Knock-over props keep their kind's volume, so a moved prop is hit where it now
+  stands, a disabled one is gone, and an added placement with `prop` is a prop with that volume.
+- **Removed and drawn faces.** A map mod's `[collision.remove]` takes original faces of barrier group 0 out of
+  every loaded pack's cells (the face stays in the face list, so no index moves), and `[collision.wall]` /
+  `[collision.ground]` add faces as moved scenery's are added: walls (flag 0x02) after a cell's own references,
+  drawn floors (flag 0x01) before them, since the height query stops at a cell's first wall (0x5E72F0)
+  (docs/modding/map-editor.md "Removed and drawn collision").
 
 ### 4.1 Extension point: collision deltas (reserved, refused for now)
 

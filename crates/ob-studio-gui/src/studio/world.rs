@@ -43,6 +43,7 @@ impl Studio {
     /// Host `app` (made with [`App::new_in`] on this window's context) as the World and Races workspaces.
     pub fn attach_editor(&mut self, app: App) {
         let seen_tab = app.tab;
+        crate::editor::menu::set_hosted(&app.ctx);
         self.editor = Some(Hosted { app, asked: None, tools_for: None, seen_tab });
     }
 

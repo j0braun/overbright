@@ -1,4 +1,4 @@
-use crate::frontend::career::{RouteTriggers, Trigger};
+use crate::frontend::career::triggers::{RouteTriggers, Trigger};
 use glam::{Vec2, Vec3};
 use std::path::Path;
 

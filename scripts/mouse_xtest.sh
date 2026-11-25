@@ -125,7 +125,7 @@ run_config() {
     probe+=",GenericDialog_SMALL:#B8A7C6CC,GenericDialog_SMALL:#B8A7C6CD,GenericDialog_MED:#B8A7C6CC,GenericDialog_MED:#B8A7C6CD"
     # setsid: the sandbox leads its own process group (killed as a group).
     env -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE -u NFSU2_HEADLESS_ONLY DISPLAY=:$D XDG_DATA_HOME="$DIR/data" NFSU2_CACHE_DIR="${NFSU2_CACHE_DIR:-$OUT/cache}" MESA_VK_WSI_DEBUG=sw \
-        ${scale:+WINIT_X11_SCALE_FACTOR=$scale} NFSU2_INPUT_LOG="$LOG" NFSU2_INPUT_PROBE="$probe" \
+        ${scale:+WINIT_X11_SCALE_FACTOR=$scale} NFSU2_INPUT_LOG="$LOG" NFSU2_INPUT_PROBE="$probe" NFSU2_KEEP_RUNNING=1 \
         setsid bwrap --dev-bind / / --tmpfs /dev/snd --tmpfs "${XDG_RUNTIME_DIR:-/run/user/$(id -u)}" --unsetenv WAYLAND_DISPLAY \
         "$BIN" >"$DIR/game.log" 2>&1 &
     GAME=$!

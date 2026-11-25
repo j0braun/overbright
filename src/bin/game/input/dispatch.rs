@@ -393,7 +393,7 @@ fn reset_key_allowed(d: &Drive, race: Option<&Race>, outrun: bool, event_kind: u
 fn free_roam_reset_zones<'a>(caches: &'a Caches, root: &std::path::Path) -> &'a [nfsu2::ai::route::ResetZone] {
     caches.reset_zones.get_or_init(|| {
         let path = root.join(format!("TRACKS/ROUTES{EXPLORE_REGION}/PathsFreeRoam.bin"));
-        std::fs::read(path).map(|d| nfsu2::ai::route::ResetZone::parse(&d)).unwrap_or_default()
+        nfsu2::game_fs::read_file(&path).map(|d| nfsu2::ai::route::ResetZone::parse(&d)).unwrap_or_default()
     })
 }
 

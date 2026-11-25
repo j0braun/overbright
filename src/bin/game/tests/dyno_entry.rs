@@ -64,7 +64,7 @@ fn dyno_entry_with_an_encounter_racer_about() {
             .filter(|f| f.flags & 0x0B == 0)
             .map(|f| (f.vertices[0] + f.vertices[1] + f.vertices[2]) / 3.0)
             .collect();
-        (floors, d.world.ground.pack_count())
+        (floors, d.world.ground.grids().count())
     };
     let runs: usize = std::env::var("B236_RUNS").ok().and_then(|v| v.parse().ok()).unwrap_or(24);
     let mut past_dyno = 0;
@@ -93,7 +93,7 @@ fn dyno_entry_with_an_encounter_racer_about() {
         game.dyno.tuning_mode = 0;
         game.customize_dyno_yes().unwrap();
         assert!(game.on_dyno_track(), "run {i}: on the dyno");
-        let dyno_packs = game.sim.drive.as_ref().unwrap().world.ground.pack_count();
+        let dyno_packs = game.sim.drive.as_ref().unwrap().world.ground.grids().count();
         past_dyno += pack.is_some_and(|p| p >= dyno_packs) as usize;
         // The DynoEnter scene and the dyno's first menu, frame by frame.
         for _ in 0..60 {

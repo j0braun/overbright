@@ -22,8 +22,7 @@ pub(crate) fn note_pipeline(tag: u64) {
 pub(crate) fn note_pipeline_at(at: &'static std::panic::Location<'static>, tag: u64) {
     PIPELINES_BUILT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     note_build(at, tag);
-    static LOG: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
-    if *LOG.get_or_init(crate::render::debug_env::nfsu2_pipeline_log) {
+    if *crate::render::debug_env::once::pipeline_log() {
         eprintln!("pipeline built: {}:{}", at.file(), at.line());
     }
 }

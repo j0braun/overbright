@@ -1,4 +1,4 @@
-use crate::frontend::Quad;
+use crate::draw::quad::Quad;
 
 /// Scale the HUD's quads by `scale` (1: untouched). The quads are grouped
 /// into HUD parts (quads whose rectangles touch or overlap, within 4

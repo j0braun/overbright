@@ -20,6 +20,7 @@ scripts/checks/loadgate.sh run <outdir> base=<game>[@original|@base] new=<game>[
 scripts/checks/selfcheck.sh <outdir>             # the gates' self-test: broken inputs must fail, good ones pass (~20 s)
 scripts/checks/devprobes.sh                      # the developer probes (devprobes/) still compile: cargo check -p devprobes
 scripts/checks/crate_layers.sh [repo]            # the crate layers: no new upward reference, package edges only down, no dev-harness in the shipped tree, Studio's crates through `nfsu2::studio_api` only (ARCHITECTURE.md "Layers"; in fast and full)
+scripts/checks/layering.sh [repo]               # the render layers (core/native: no enhancement layer, QoL read or global state beyond layering-allow.txt; render code: no settings read beyond layering-settings-allow.txt), the game names the harness only behind its feature; in fast and full
 scripts/checks/soak_images.sh <game> <outdir> [runs]   # the gate's image dumps N times with one binary (run-to-run flakes; "Image soak")
 scripts/checks/fuzz.sh                           # the fuzz smoke: every parser target on mutated inputs (docs/developing/fuzzing.md; FUZZ_SECS, FUZZ_ITERS, FUZZ_ONLY)
 scripts/checks/release_check.sh [outdir]          # the shipping binary (no dev-harness): no harness strings, harness flags give the usage error
@@ -29,6 +30,7 @@ scripts/checks/wine_smoke.sh <outdir> [game]     # the Windows dev-harness game.
 scripts/checks/traffic_harness.sh <outdir> [bin]  # the traffic harness, this game only: free roam standing and with the scripted player, statistics (report-only, in no set; docs/traffic-harness.md)
 scripts/checks/wine_smoke.sh --selfcheck <outdir> [game]   # every Wine smoke check on a broken input: each must fail
 scripts/checks/wine_smoke.sh --env-check <outdir>  # the Wine runs' environment on a stand-in for wine (no Wine needed)
+ASSET_LAYER=1 scripts/checks/gate.sh …           # the parity with the new binary reading through an import of NFSU2_ROOT (docs/modding/asset-format/import.md §13)
 CHECKS=full scripts/checks/gate.sh …            # with the rate gate v2 (counted by default: RATE=strict; RATE=0 leaves it out)
 scripts/perf/perf.sh rate <outdir> <game>        # the rate gate v2 alone: hash columns, α=0 images, WAVs across 30/60/120/200 Hz + jitter
 ```
@@ -64,7 +66,7 @@ same results as the shipped profile (Rust does no fast-math); only build time an
 - Cargo keeps each profile in its own folder under the target dir: the checks' binaries are in
   `target/gate/` (`game`, `examples/pixdiff`, …), the shipped profile's in `target/release/`; gate and
   release artifacts never mix. The scripts that default to a binary (`resolutions.sh`, `lavapipe.sh`,
-  `halo.sh`, `wine_smoke.sh`, `texture_mod_shot.sh`, `selfcheck.sh`'s pixdiff, `shot_targets.py`) read
+  `halo.sh`, `wine_smoke.sh`, `texture_mod_shot.sh`, `map_mod_looks_shot.sh`, `selfcheck.sh`'s pixdiff, `shot_targets.py`) read
   it from the profile's folder.
 - checks.txt's first line names the profile (`profile gate`). With `PREV=<earlier outdir>` a run built
   with another profile is named (`note: PREV was built with profile …`; runs without the word were
@@ -357,9 +359,10 @@ ASSETS=base NFSU2_BASE_SET=<dir> scripts/checks/baselines.sh check …   # the s
   (note, source commit, GPU, the set) and the binary's load numbers (`summary.md`, `summary.json`: the load-speed
   gate's warm, cold and 4-core runs). Machine-local, never in the repository: the pictures' hashes depend on the GPU
   and its driver.
-- **The source switch**: `ASSETS=original` (the default) or `ASSETS=base`. Every run gets `NFSU2_ASSETS` set to
-  it (and `NFSU2_BASE_SET` for `base`); a `base` run counts only when the game's log has a line starting
-  `assets: base`, so a binary without the asset layer can never pass as one that read the base set. A baseline is
+- **The source switch**: `ASSETS=original` (the default) or `ASSETS=base`. Every run gets the asset layer's switch:
+  `NFSU2_BASE=off`, or for `base` `NFSU2_BASE` set to the folder `NFSU2_BASE_SET` names; a `base` run counts only
+  when the game's log has the layer's exit line (`asset layer: ... from base set`) and an `original` run only
+  without it, so a binary without the asset layer can never pass as one that read the base set. A baseline is
   always recorded from the original files.
 - **Verdicts**: `BASELINES: PASS: identical to the stored baseline` or `BASELINES: FAIL: N items differ` with
   every changed item (`diff.tsv`: item, stored hash, new hash, detail). A run that fails, a missing picture or a
@@ -426,7 +429,7 @@ scripts/checks/loadgate.sh selftest                      # the statistics on gen
 - **Verdict.** One line per mode (`loadgate: cold: SLOWER: totals: …; slower stage: explore World::load: from the
   cache +20.1 ms (+…%)`), then `LOADGATE: PASS|FAIL: …`; `loadgate.md` holds every measure's medians, shift,
   interval, noise, limit and p. A run that failed (rc ≠ 0, a panic line, no JSON or trace, a `base` arm without
-  `assets: base`) or fewer than 8 runs in an arm fails the gate.
+  the asset layer's exit line, an `original` arm with it) or fewer than 8 runs in an arm fails the gate.
 - **Machine.** `LOADGATE_LOCK=<file>`: each repetition holds `flock` on that file (a shared machine's measuring
   lock); `LOADGATE_MAXLOAD=N`: each repetition first waits for a 1-minute load average under N
   (`LOADGATE_MAXWAIT` s at most, default 1800). About 25 s per repetition of two arms, three modes and two scenes on
@@ -662,6 +665,9 @@ and our Xvfb (by PID) are stopped.
 - Never heard: the prefix has no sound driver (`HKCU\Software\Wine\Drivers` `Audio` empty, set right after the
   first boot; Wine's ALSA driver opens the machine's sound cards directly, which a private `XDG_RUNTIME_DIR` does
   not stop), and the windowed steps start the game with `NFSU2_AUDIO_HOST=none` (no sound device is opened).
+  They also set `NFSU2_KEEP_RUNNING=1`: nobody focuses their window, and In the background's native Pause
+  would stop the game (docs/original/focus-loss.md). The other windowed scripts (`*_xtest.sh`,
+  `dyno_xvfb.sh`) set it too.
   `w_window` and `l_play` fail when their logs say a device was opened (`audio: … output at`, an ALSA message);
   `--env-check` proves the wrapper carries the switch. The launcher's fresh-machine test starts its game the
   same way and fails on the same line.

@@ -2,7 +2,9 @@
 //! not) to its run copy (`.editor/run/map.obmap`; `map.obmap` is only
 //! written by Save), starts the game beside itself with only that copy
 //! (`game --map-file <run copy> --map-race <id>` or `--map-at
-//! x,y,z,heading`, and `--map-result <file>`), keeps editing while it runs,
+//! x,y,z,heading`, `--map-result <file>`, and `--looks-live
+//! <mod>/textures`: the mod's painted textures, shown and reloaded live in
+//! that run, docs/modding/studio-looks.md), keeps editing while it runs,
 //! and reads the run's result line when the game has ended. A race that
 //! finished is marked tested by its content (`validate::Tested`,
 //! `.editor/tested.txt`, never exported), so the mark holds after the same
@@ -34,14 +36,17 @@ pub fn game_exe() -> PathBuf {
     crate::platform::dirs::game_exe()
 }
 
-/// The game's command line for a test run of the mod file `file`.
-pub fn args(file: &Path, target: &Target, result: &Path) -> Vec<String> {
+/// The game's command line for a test run of the mod file `file`, with the
+/// mod's texture folder `looks` (`<mod>/textures`; watched in that run, so a
+/// texture painted while it runs shows too).
+pub fn args(file: &Path, target: &Target, result: &Path, looks: &Path) -> Vec<String> {
     let mut a = vec!["--map-file".to_string(), file.display().to_string()];
     match target {
         Target::Race(id) => a.extend(["--map-race".to_string(), id.clone()]),
         Target::At(p, h) => a.extend(["--map-at".to_string(), format!("{},{},{},{}", p.x, p.y, p.z, h)]),
     }
     a.extend(["--map-result".to_string(), result.display().to_string()]);
+    a.extend(["--looks-live".to_string(), looks.display().to_string()]);
     a
 }
 
@@ -149,7 +154,7 @@ impl TestPlay {
         };
         let label = race.as_ref().map_or_else(|| "free roam".to_string(), |r| r.name.clone());
         let child = Command::new(exe)
-            .args(args(&file, &target, &result))
+            .args(args(&file, &target, &result, &s.maps.join(&s.session.folder).join(store::TEXTURES)))
             .env("NFSU2_ROOT", &s.root)
             .stdin(Stdio::null())
             .stdout(Stdio::null())
@@ -231,6 +236,20 @@ pub struct TestPanel {
 /// How often a running test is looked at while the window is idle.
 const POLL_EVERY: std::time::Duration = std::time::Duration::from_millis(250);
 
+fn started_id() -> egui::Id {
+    egui::Id::unique("editor.testplay.started")
+}
+
+/// How many test runs this window started (Studio's tutorial ticks its Drive it step on it).
+pub fn started(ctx: &egui::Context) -> u64 {
+    ctx.data(|d| d.get_temp::<u64>(started_id()).unwrap_or(0))
+}
+
+/// Count one more started test run.
+pub fn count_start(ctx: &egui::Context) {
+    ctx.data_mut(|d| *d.get_temp_mut_or_default::<u64>(started_id()) += 1);
+}
+
 fn strip_id() -> egui::Id {
     egui::Id::unique("editor.testplay.strip")
 }
@@ -245,15 +264,20 @@ impl super::state::Panel for TestPanel {
     fn ui(&mut self, s: &mut EditorState, ui: &mut egui::Ui) {
         self.run(s, ui);
         let words = self.test.as_ref().map(|t| super::modes::strip(t.race.as_ref().map(|r| r.name.as_str())));
-        ui.ctx().data_mut(|d| match words {
-            Some(w) => {
-                d.insert_temp(strip_id(), w);
-            }
-            None => {
-                d.remove::<String>(strip_id());
-            }
-        });
+        set_strip(ui.ctx(), words);
     }
+}
+
+/// Set (Some) or clear the game-window strip's words: a test runs (Studio's status bar and Jobs tab show it too).
+pub fn set_strip(ctx: &egui::Context, words: Option<String>) {
+    ctx.data_mut(|d| match words {
+        Some(w) => {
+            d.insert_temp(strip_id(), w);
+        }
+        None => {
+            d.remove::<String>(strip_id());
+        }
+    });
 }
 
 impl TestPanel {
@@ -289,7 +313,10 @@ impl TestPanel {
         };
         if let Some(t) = target {
             match TestPlay::start(s, &game_exe(), t) {
-                Ok(t) => self.test = Some(t),
+                Ok(t) => {
+                    self.test = Some(t);
+                    count_start(&ctx);
+                }
                 Err(e) => s.status = e,
             }
             ctx.request_repaint_after(POLL_EVERY);
@@ -321,18 +348,21 @@ mod tests {
     fn the_game_is_asked_for_the_race_or_the_spot() {
         let r = Path::new("/m/my-map/.editor/test-result.txt");
         let f = Path::new("/m/my-map/.editor/run/map.obmap");
+        let l = Path::new("/m/my-map/textures");
         assert_eq!(
-            args(f, &Target::Race("dock".into()), r),
+            args(f, &Target::Race("dock".into()), r, l),
             [
                 "--map-file",
                 "/m/my-map/.editor/run/map.obmap",
                 "--map-race",
                 "dock",
                 "--map-result",
-                "/m/my-map/.editor/test-result.txt"
+                "/m/my-map/.editor/test-result.txt",
+                "--looks-live",
+                "/m/my-map/textures"
             ]
         );
-        let a = args(f, &Target::At(Vec3::new(-1.5, 2.0, 3.25), 90.0), r);
+        let a = args(f, &Target::At(Vec3::new(-1.5, 2.0, 3.25), 90.0), r, l);
         assert_eq!(a[2..4], ["--map-at".to_string(), "-1.5,2,3.25,90".to_string()]);
     }
 
@@ -471,6 +501,8 @@ mod tests {
         let argv = std::fs::read_to_string(dir.join("args")).unwrap();
         let run = store::run_file(&maps, "my-map").display().to_string();
         assert!(argv.starts_with(&format!("--map-file\n{run}\n--map-race\ndock\n--map-result\n")), "{argv}");
+        let looks = maps.join("my-map").join(store::TEXTURES).display().to_string();
+        assert!(argv.ends_with(&format!("--looks-live\n{looks}\n")), "the mod's textures, live: {argv}");
         // The mark is the race's content: saving the same race keeps it, a change clears it.
         store::save(&maps, "my-map", &map).unwrap();
         assert!(Tested::load(&editor).is_tested(&store::read_file(&maps.join("my-map").join(store::FILE)).unwrap().races[0]));

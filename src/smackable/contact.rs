@@ -272,7 +272,7 @@ pub(super) fn against_wall(b: &Body, impulse: Vec3) -> Vec3 {
 /// the prop is sounding (inferred: sounding while that record lives).
 #[allow(clippy::too_many_arguments)]
 pub(super) fn prop_sound(prop: &Prop, b: &mut Body, partner: Partner, point: Vec3, impulse: Vec3, kind: usize, sounds: &mut crate::drive::ContactSounds) {
-    use crate::audio::collision as sound;
+    use crate::audio::world::impacts as sound;
     if b.sounds.contains_key(&partner) {
         return;
     }

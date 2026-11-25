@@ -16,6 +16,7 @@ pub mod races;
 pub mod sim;
 pub mod state;
 pub mod testplay;
+pub mod thumbs;
 pub mod theme;
 pub mod tree;
 pub mod tree_props;

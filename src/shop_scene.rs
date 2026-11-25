@@ -271,7 +271,7 @@ impl Scene {
     /// fraction the scene's +0x2C over +0x30, the clone's frame over the
     /// length; the entry at the fraction, 0x442B20, shown when its type
     /// is above 1, 0x5FB46C; its points in the scene's frame, space 3).
-    pub fn camera(&self, track: &CameraTrack, frame: f32, origin: Mat4, ground: Option<&dyn Fn(Vec3) -> Option<f32>>) -> Option<crate::render::camera::Camera> {
+    pub fn camera(&self, track: &CameraTrack, frame: f32, origin: Mat4, ground: Option<&dyn Fn(Vec3) -> Option<f32>>) -> Option<crate::draw::camera::Camera> {
         let fraction = frame / self.length.max(1.0);
         let i = track_camera::entry_index(track, fraction)?;
         if track.entries[i].mover <= 1 {

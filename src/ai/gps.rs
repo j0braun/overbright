@@ -861,7 +861,7 @@ mod data_tests {
         let mut f = RouteFile::parse(&std::fs::read(dir.join("RoutesFreeRoam.bin")).unwrap());
         f.finalize_free_roam_paths(&std::fs::read(dir.join("PathsFreeRoam.bin")).unwrap(), 4000, stage);
         let races = f.records.iter().filter(|r| r.is_race()).count();
-        let mut goals: Vec<Vec3> = crate::frontend::career::RouteTriggers::load(&root).iter().map(|t| t.gps).filter(|g| *g != Vec3::ZERO).collect();
+        let mut goals: Vec<Vec3> = crate::frontend::career::triggers::RouteTriggers::load(&root).iter().map(|t| t.gps).filter(|g| *g != Vec3::ZERO).collect();
         goals.sort_by(|a, b| a.x.total_cmp(&b.x).then(a.y.total_cmp(&b.y)));
         goals.dedup_by(|a, b| (*a - *b).length() < 1.0);
         // The road under a point: the nearest control point's height and direction.
@@ -870,7 +870,7 @@ mod data_tests {
             (c.position, c.tangent)
         };
         let mut starts = vec![("intro", (Vec3::new(1695.3, -883.6, 24.1), Vec2::new(0.982, -0.190)))];
-        if let Some((p, _)) = crate::frontend::career::free_roam_start(&root) {
+        if let Some((p, _)) = crate::frontend::career::triggers::free_roam_start(&root) {
             starts.push(("free roam start", on_road(p)));
         }
         for k in 0..6 {

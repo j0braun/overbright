@@ -185,7 +185,7 @@ Each kind's move to the format ([parity.md](parity.md) §3) passes this gate in 
   every run) and on four cores, the stages from the trace's spans, the verdict naming the slower stage. Today's
   numbers are stored with the output baselines (`scripts/checks/baselines.sh`) and listed in
   docs/notes/performance/budget.md "The load gate's set: warm, cold, four cores, integrated GPU".
-- **Both sources in one binary.** The developer harness reads each kind either way (`NFSU2_ASSETS=original|base`),
+- **Both sources in one binary.** The developer harness reads each kind either way (`NFSU2_BASE=off` or a base set),
   and the two arms run interleaved, so machine noise affects both alike
   (`loadgate.sh run OUT orig=GAME@original base=GAME@base`).
 - **Benchmarks.** Existing: `--bench transitions` (menu first), `--bench boot`, `--bench explore` / `race`, the load

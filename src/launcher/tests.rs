@@ -99,8 +99,9 @@ fn every_screen_fits_every_size() {
         for (w, h) in SIZES {
             let a = app(&env, &fonts, s, w, h, 1.0);
             let mut ui = a.ui.clone();
-            if matches!(s, Screen::Mods | Screen::Storage) {
-                // A long list of mods scrolls.
+            if matches!(s, Screen::Mods | Screen::Storage | Screen::Dev) {
+                // A long list of mods scrolls (the Dev page's tools too, on
+                // the smallest windows).
                 ui.view.h = ui.content_h.max(ui.view.h);
             }
             if s.document() {
@@ -377,6 +378,11 @@ fn first_run_flow() {
     assert_eq!(a.screen, Screen::FirstRun);
     a.st.focus = Some("check");
     key(&mut a, &fonts, Key::Enter);
+    key(&mut a, &fonts, Key::Enter);
+    // The next step: the own copy, Make copy chosen; Not now goes on to the main screen.
+    assert_eq!(a.screen, Screen::GameData);
+    assert_eq!(focus(&a), "import");
+    a.st.focus = Some("later");
     key(&mut a, &fonts, Key::Enter);
     assert_eq!(a.screen, Screen::Main);
     assert_eq!(a.model.languages, ["English", "French", "German"]);
@@ -990,7 +996,7 @@ fn every_state_fits_every_size_and_scale() {
                 let mut ui = a.ui.clone();
                 // The main screen with the shaders' block may scroll (Play stays in view).
                 let shaders = a.screen == Screen::Main && super::screens::shaders(&a.model) != super::screens::Shaders::Quiet;
-                let may_scroll = a.screen.document() || matches!(a.screen, Screen::Mods | Screen::Storage) || shaders || (h as f32 / dpi) < 480.0;
+                let may_scroll = a.screen.document() || matches!(a.screen, Screen::Mods | Screen::Storage | Screen::Dev) || shaders || (h as f32 / dpi) < 480.0;
                 if may_scroll {
                     ui.view.h = ui.content_h.max(ui.view.h);
                 }
@@ -1552,7 +1558,7 @@ fn crowded_browser<'e>(env: &'e FakeEnv, fonts: &Fonts, n: usize, w: u32, h: u32
 
 /// From the first start to Play with nothing but clicks: Browse…, the
 /// game folder found by a double click, Use this folder, Use this folder,
-/// a cycle's arrow, the start checkbox, Play.
+/// Make copy, Continue, a cycle's arrow, the start checkbox, Play.
 #[test]
 fn mouse_only_from_the_first_start_to_play() {
     let fonts = Fonts::new();
@@ -1576,6 +1582,11 @@ fn mouse_only_from_the_first_start_to_play() {
     click(&mut a, &fonts, "use");
     assert_eq!(a.screen, Screen::Check);
     click(&mut a, &fonts, "use");
+    // The own copy offered next: one click makes it (in the background), Continue goes on.
+    assert_eq!(a.screen, Screen::GameData);
+    click(&mut a, &fonts, "import");
+    a.poll_jobs(&fonts);
+    click(&mut a, &fonts, "continue");
     assert_eq!(a.screen, Screen::Main);
     click(&mut a, &fonts, "row_screen");
     assert_eq!(a.screen, Screen::Settings);
@@ -2010,6 +2021,9 @@ fn the_games_error_kind_line() {
     assert_eq!(ErrorKind::of_window_error("the display refused the size"), ErrorKind::NoWindow);
     let ended = |named, panicked, no_window| Ended {
         code: Some(2),
+        signal: None,
+        pid: 1,
+        started_at: std::time::SystemTime::UNIX_EPOCH,
         secs: 1.0,
         panicked,
         no_window,
@@ -2396,9 +2410,28 @@ fn mods_on_overbright_packs_and_map_mods() {
     let maps = crate::tools::map::store::maps_dir();
     let m = crate::tools::map::MapMod { name: "Drift park".into(), ..Default::default() };
     crate::tools::map::store::save(&maps, "drift-park", &m).unwrap();
-    assert_eq!(env.maps(), [super::model::MapRow { folder: "drift-park".into(), name: "Drift park".into(), on: false, races: 0, props: 0 }]);
+    assert_eq!(env.maps(), [super::model::MapRow { folder: "drift-park".into(), name: "Drift park".into(), on: false, races: 0, props: 0, textures: 0 }]);
     env.set_map("drift-park", true).unwrap();
     assert!(env.maps()[0].on);
+    // Its painted textures: counted on the row, exported, imported back
+    // (asked first: a pack file without a record counts as derived).
+    let tex = maps.join("drift-park").join(crate::tools::map::store::TEXTURES).join("world").join("1A2B3C4D.png");
+    std::fs::create_dir_all(tex.parent().unwrap()).unwrap();
+    std::fs::write(&tex, &png).unwrap();
+    std::fs::create_dir_all(maps.join("drift-park").join("work")).unwrap();
+    std::fs::write(maps.join("drift-park").join("work").join("paint.png"), &png).unwrap();
+    assert_eq!(env.maps()[0].textures, 1);
+    assert_eq!(env.map_derived("drift-park"), 1);
+    let out = dir.join("exports");
+    assert!(env.export_map("drift-park", &out, false).is_err(), "not without the yes");
+    let zip = env.export_map("drift-park", &out, true).unwrap();
+    let back = env.import_map(&zip).unwrap();
+    assert_ne!(back, "drift-park");
+    assert_eq!(std::fs::read(maps.join(&back).join("textures/world/1A2B3C4D.png")).unwrap(), png);
+    assert!(!maps.join(&back).join("work").exists(), "work files stay home");
+    assert_eq!(env.maps().iter().find(|r| r.folder == back).unwrap().textures, 1);
+    crate::tools::map::share::files(&maps.join(&back)).unwrap();
+    std::fs::remove_dir_all(maps.join(&back)).unwrap();
     // Use mods: off kept in its file until turned on again.
     assert!(env.paused().is_none());
     let p = Paused { maps: vec!["drift-park".into()], ..Default::default() };
@@ -2574,6 +2607,68 @@ fn locations_file_round_trip_and_copy() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
+/// Studio's state on the Dev page, headless: not beside the launcher (the
+/// button greyed, the Studio row says so), found and not open (the last
+/// mod named), started here with a mod open (its lock and holder in the
+/// State row's help), open elsewhere (another program's lock); the Mods
+/// page's map mod rows say which mod is being edited in Studio. Every row
+/// is reached by the keys (Down) and has its help.
+#[test]
+fn dev_page_studio_state() {
+    let fonts = Fonts::new();
+    let env = FakeEnv;
+    let state = |n: &str| super::headless::state_app(&env, &fonts, n, 1280, 720, 1.0).unwrap();
+    let missing = state("dev-studio-missing");
+    let t = all_text(&missing);
+    assert!(!missing.ui.get("studio").unwrap().enabled, "greyed without Studio's program");
+    assert!(t.contains("Not beside the launcher") && t.contains("None yet"), "{t}");
+    assert!(t.contains("(overbright-studio) is not beside the launcher"), "the State row's help says why: {t}");
+    let idle = state("dev-studio-idle");
+    let t = all_text(&idle);
+    assert!(idle.ui.get("studio").unwrap().enabled);
+    assert!(t.contains(&format!("Studio {}", idle.model.version)) && t.contains("Ready, not open"), "{t}");
+    assert!(t.contains("Drift park") && t.contains("No mod is open for writing now"), "{t}");
+    let run = state("dev-studio-running");
+    let t = all_text(&run);
+    assert!(!run.ui.get("studio").unwrap().enabled, "open: greyed until it closes");
+    assert!(t.contains("Open on Drift park"), "{t}");
+    assert!(t.contains("Drift park is open for writing in Overbright Studio (process 4242) since"), "{t}");
+    let away = state("dev-studio-elsewhere");
+    let t = all_text(&away);
+    assert!(away.ui.get("studio").unwrap().enabled, "a Studio not started here leaves the button usable");
+    assert!(t.contains("Open elsewhere on Open docks"), "{t}");
+    assert!(t.contains("Drift park is open for writing in Studio's command-line tool (process 4242)"), "{t}");
+    // The keys reach every Studio row, in order, each with its help.
+    let mut a = state("dev-studio-idle");
+    a.st.focus = Some("studio");
+    a.rebuild(&fonts);
+    for (id, want) in [("studio_state", "holds a mod's lock"), ("studio_last", "one list")] {
+        key(&mut a, &fonts, Key::Down);
+        assert_eq!(focus(&a), id);
+        assert!(all_text(&a).contains(want), "{id}: {}", all_text(&a));
+    }
+    key(&mut a, &fonts, Key::Down);
+    assert_eq!(focus(&a), "studio_cli");
+    // The Mods page: the mod Studio has open is marked; others are not.
+    let (_, mut m) = super::headless::state_model("dev-studio-running").unwrap();
+    m.studio = super::model::EditorRun::Closed;
+    let mut mods = App::new(&env, m, Screen::Mods, (1280, 720), 1.0, &fonts);
+    mods.rebuild(&fonts);
+    let t = all_text(&mods);
+    assert!(t.contains("2 races · 9 prop edits · being edited in Studio"), "{t}");
+    assert_eq!(t.matches("being edited").count(), 1, "{t}");
+    for (w, h) in SIZES {
+        for dpi in [1.0, 1.5] {
+            for n in ["dev-studio-missing", "dev-studio-running", "dev-studio-elsewhere"] {
+                let a = super::headless::state_app(&env, &fonts, n, w, h, dpi).unwrap();
+                let mut ui = a.ui.clone();
+                ui.view.h = ui.content_h.max(ui.view.h);
+                check_layout(&ui, &fonts, &format!("{n} {w}x{h} at {dpi}"));
+            }
+        }
+    }
+}
+
 /// The Dev page: fourth in the page bar (LB / RB go round all four); the
 /// map editor's button (preview); the game with the editor tools once; the
 /// support file and the logs.
@@ -2606,13 +2701,13 @@ fn dev_page() {
     st.model.studio_here = false;
     st.rebuild(&fonts);
     assert!(!st.ui.get("studio").unwrap().enabled, "greyed without Studio's program");
-    assert!(all_text(&st).contains("(overbright-studio) is not beside the launcher"));
+    assert!(all_text(&st).contains("Not beside the launcher"), "{}", all_text(&st));
     st.model.studio_here = true;
     st.rebuild(&fonts);
     st.st.focus = Some("studio");
     key(&mut st, &fonts, Key::Enter);
     assert!(st.studio_job.is_some() && !st.ui.get("studio").unwrap().enabled, "open: greyed until it closes");
-    assert!(all_text(&st).contains("Studio is open"), "{}", all_text(&st));
+    assert!(all_text(&st).contains("Open, no mod open yet"), "{}", all_text(&st));
     for (id, want) in [("studio", "World"), ("studio_cli", "overbright-studio-cli"), ("map_editor", "without Studio")] {
         st.st.focus = Some(id);
         st.rebuild(&fonts);
@@ -2620,7 +2715,8 @@ fn dev_page() {
     }
     let t = all_text(&a);
     assert!(t.contains("F7: the texture editor") && t.contains("F8: the free camera") && t.contains("F3"), "{t}");
-    assert_eq!(focus(&a), "editor_play");
+    assert_eq!(focus(&a), "studio", "the page leads to Studio");
+    a.st.focus = Some("editor_play");
     assert_eq!(key(&mut a, &fonts, Key::Enter), Outcome::Play);
     assert_eq!(a.model.play_args, ["--editor"]);
     a.st.focus = Some("support");
@@ -2692,7 +2788,7 @@ fn mods_page_starts_the_map_editor() {
     let env = FakeEnv;
     let mut a = app(&env, &fonts, Screen::Mods, 1280, 720, 1.0);
     let t = all_text(&a);
-    assert!(t.contains("2 races · 9 prop edits") && t.contains("14 prop edits"), "{t}");
+    assert!(t.contains("2 races · 9 prop edits") && t.contains("14 prop edits · 5 textures"), "{t}");
     assert!(a.ui.get("map_open").unwrap().enabled);
     a.model.mods.map_sel = Some("open-docks".into());
     a.event(&Event::Activate("map_open"));
@@ -3037,4 +3133,160 @@ fn troubleshooting_table_matches_the_check_screen() {
     ]
     .to_vec();
     assert_eq!(titles, want, "the table's first column, in the screen's order");
+}
+
+/// Export… of a map mod with textures from the original game's pixels asks
+/// first ("Made from the original game"); Cancel exports nothing, Export
+/// anyway exports.
+#[test]
+fn map_export_asks_before_derived_textures() {
+    let fonts = Fonts::new();
+    let env = FakeEnv;
+    let mut a = app(&env, &fonts, Screen::Mods, 1280, 720, 1.0);
+    a.model.mods.map_sel = Some("open-docks".into());
+    a.model.browse.purpose = super::model::BrowseFor::MapExport;
+    a.use_folder(std::path::PathBuf::from("/exports"));
+    a.rebuild(&fonts);
+    assert!(matches!(&a.model.ask, Some(super::model::Dialog::MapExportDerived(f, _, 5)) if f == "open-docks"));
+    let t = all_text(&a);
+    assert!(t.contains("Made from the original game") && t.contains("5 textures are made from"), "{t}");
+    a.event(&Event::Activate("map_export_cancel"));
+    assert!(a.model.ask.is_none() && a.model.mods.results.is_empty(), "nothing exported");
+    a.use_folder(std::path::PathBuf::from("/exports"));
+    a.event(&Event::Activate("map_export_yes"));
+    assert_eq!(a.model.mods.results[0].1, "Exported: /exports/open-docks.zip");
+    // A mod without such textures exports straight away.
+    a.model.mods.map_sel = Some("drift-park".into());
+    a.use_folder(std::path::PathBuf::from("/exports"));
+    assert!(a.model.ask.is_none());
+    assert_eq!(a.model.mods.results[0].1, "Exported: /exports/drift-park.zip");
+}
+
+/// The own copy (`game_data`): offered after the game check with Make copy chosen, made in the background
+/// while the launcher stays usable, then shown as ready in Settings › Advanced.
+#[test]
+fn game_data_flow() {
+    use super::game_data::{State, Status};
+    let fonts = Fonts::new();
+    let env = FakeEnv;
+    let mut a = app(&env, &fonts, Screen::Check, 960, 720, 1.0);
+    assert_eq!(focus(&a), "use");
+    key(&mut a, &fonts, Key::Enter);
+    assert_eq!(a.screen, Screen::GameData);
+    assert_eq!(a.model.game_data.state, State::Offer);
+    assert_eq!(a.model.game_data.size, 1_801_794_145);
+    // One confirm starts it; Stop is then the focus.
+    key(&mut a, &fonts, Key::Enter);
+    assert!(a.model.game_data.running());
+    assert!(a.game_data_busy());
+    assert_eq!(focus(&a), "stop");
+    // Back leaves it running behind the main screen, whose state line says so.
+    key(&mut a, &fonts, Key::Escape);
+    assert_eq!(a.screen, Screen::Main);
+    assert!(super::screens::game_state(&a.model).1.contains("making your own copy"));
+    assert!(a.poll_jobs(&fonts));
+    assert!(!a.game_data_busy());
+    assert!(matches!(a.model.game_data.status, Status::Ready { known: true, .. }));
+    assert!(matches!(a.model.game_data.state, State::Done { known: true, .. }));
+    // Settings › Advanced › Game data: ready, Check copy offered; Back returns to Advanced.
+    a.go(Screen::Advanced);
+    a.rebuild(&fonts);
+    let row = a.ui.widgets.iter().flat_map(|w| &w.texts).any(|t| t.text == "Your own copy: ready");
+    assert!(row, "the Advanced row says the copy is ready");
+    a.event(&super::ui::Event::Activate("game_data"));
+    a.rebuild(&fonts);
+    assert_eq!(a.screen, Screen::GameData);
+    assert_eq!(focus(&a), "continue");
+    key(&mut a, &fonts, Key::Escape);
+    assert_eq!(a.screen, Screen::Advanced);
+    assert_eq!(focus(&a), "game_data");
+    // With a copy there, the first-run step is not offered again.
+    assert!(!a.offer_game_data());
+}
+
+/// Stop, then a failure: Try again runs the same again; a damaged copy offers Repair.
+#[test]
+fn game_data_stop_fail_and_repair() {
+    use super::game_data::{End, Job, Kind, Msg, State, Status};
+    let fonts = Fonts::new();
+    let env = FakeEnv;
+    let mut a = app(&env, &fonts, Screen::Main, 960, 720, 1.0);
+    assert!(a.offer_game_data(), "no copy: offered");
+    a.rebuild(&fonts);
+    key(&mut a, &fonts, Key::Enter);
+    a.game_data_job = Some(Job::scripted(vec![Msg::End(End::Stopped { done: 5, of: 10 })]));
+    a.event(&super::ui::Event::Activate("stop"));
+    assert!(a.model.game_data.stopping);
+    a.poll_jobs(&fonts);
+    assert_eq!(a.model.game_data.state, State::Stopped { done: 5, of: 10 });
+    assert_eq!(a.model.game_data.status, Status::Partial);
+    assert_eq!(focus(&a), "import", "Go on");
+    a.event(&super::ui::Event::Activate("import"));
+    a.game_data_job = Some(Job::scripted(vec![Msg::End(End::Failed("A file could not be read".into()))]));
+    a.poll_jobs(&fonts);
+    assert!(matches!(a.model.game_data.state, State::Failed(_)));
+    assert_eq!(focus(&a), "retry");
+    key(&mut a, &fonts, Key::Enter);
+    assert!(a.model.game_data.running() && a.model.game_data.last == Kind::Import);
+    a.game_data_job = Some(Job::scripted(vec![Msg::End(End::NoSpace { need: 2, free: 1, place: "/home".into() })]));
+    a.poll_jobs(&fonts);
+    assert!(matches!(a.model.game_data.state, State::NoSpace { .. }));
+    // A damaged copy: Repair chosen.
+    a.model.game_data.status = Status::Damaged(2);
+    a.open_game_data(true);
+    a.rebuild(&fonts);
+    assert_eq!(a.model.game_data.state, State::Damaged(2));
+    assert_eq!(focus(&a), "repair");
+    key(&mut a, &fonts, Key::Enter);
+    assert_eq!(a.model.game_data.last, Kind::Repair);
+}
+
+/// The crash report window: the reason in words, the system's record and the
+/// run's logs on the failure screen, "Copy for a bug report" puts the
+/// redacted text on the clipboard; a failure without a run (not started) and
+/// every other state show none of it.
+#[test]
+fn the_crash_report_window() {
+    let fonts = Fonts::new();
+    let env = FakeEnv;
+    for (state, word) in
+        [("crash-panic", "internal error"), ("crash-signal", "segmentation fault"), ("crash-windows", "access violation")]
+    {
+        let mut a = super::headless::state_app(&env, &fonts, state, 1280, 720, 1.0).unwrap();
+        let t = all_text(&a);
+        assert!(t.contains(word) && t.contains("Logs of this run"), "{state}: {t}");
+        assert!(a.ui.get("copy_report").is_some() && a.ui.get("open_logs").is_some(), "{state}");
+        assert!(!t.contains("Asking the system"), "{state}");
+        super::model::COPIED.with(|c| *c.borrow_mut() = None);
+        click(&mut a, &fonts, "copy_report");
+        let copied = super::model::COPIED.with(|c| c.borrow().clone()).expect("the clipboard got the text");
+        assert!(copied.contains("Overbright crash report") && copied.contains(word), "{state}: {copied}");
+        assert!(copied.contains("===== system errors =====") && copied.contains("not sent anywhere"));
+        assert!(all_text(&a).contains("Copied"), "{state}");
+        assert!(a.ui.get("copy_report").is_some());
+    }
+    // No run, no window: the earlier states are unchanged.
+    for state in ["start-failed", "no-game-window", "failure-details"] {
+        let a = super::headless::state_app(&env, &fonts, state, 1280, 720, 1.0).unwrap();
+        assert!(a.ui.get("copy_report").is_none() && !all_text(&a).contains("Logs of this run"), "{state}");
+    }
+    // The system's record is asked for while it is read.
+    let mut a = super::headless::state_app(&env, &fonts, "crash-signal", 1280, 720, 1.0).unwrap();
+    a.model.failure.as_mut().unwrap().report.as_mut().unwrap().asking = true;
+    a.rebuild(&fonts);
+    assert!(all_text(&a).contains("Asking the system"));
+    // A clean end never reaches the screen: the run's verdict.
+    let clean = super::run::Ended {
+        code: Some(0),
+        signal: None,
+        pid: 1,
+        started_at: std::time::SystemTime::UNIX_EPOCH,
+        secs: 600.0,
+        panicked: false,
+        no_window: false,
+        named: None,
+        tail: Vec::new(),
+        log: None,
+    };
+    assert!(!clean.failed());
 }

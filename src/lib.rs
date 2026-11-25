@@ -35,6 +35,7 @@ mod testkit_tests {
 }
 
 pub mod ai;
+pub mod asset_layer;
 pub mod ai_looks;
 pub mod carfx_pops;
 pub mod track_camera;
@@ -135,6 +136,7 @@ pub use ob_core::{
     build_info, console, draw, failed_load, fingerprint, frame_clock, fxhash, game_clock, game_fs, game_rng, log_file,
     region,
 };
+pub use ob_core::{input, race_mode};
 pub use ob_core::{env_parsed, env_set, env_value, env_value_os, game_root, persist, persist_enum, unique_tag};
 
 // The file-format parsers and the engine's tables (docs/original/exe-tables.md),

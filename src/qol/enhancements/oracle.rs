@@ -733,9 +733,9 @@ impl Old for Enhancements {
             crate::upscale_pack::set_choice(e.texture_pack)
         );
         old_call!(
-            stringify!(crate::render::display::set_hud_full_width),
+            stringify!(crate::draw::ui_frame::set_hud_full_width),
             e.hud_full_width,
-            crate::render::display::set_hud_full_width(e.hud_full_width)
+            crate::draw::ui_frame::set_hud_full_width(e.hud_full_width)
         );
         if stored.crash_reports {
             old_call!("crash::keep_log", (), crash::keep_log());

@@ -1,0 +1,11 @@
+{
+  "command": "pack.create",
+  "error": {
+    "kind": "usage",
+    "message": "Give the mod a name",
+    "reason": "no_name"
+  },
+  "exit": 2,
+  "format": 1,
+  "ok": false
+}

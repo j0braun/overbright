@@ -419,6 +419,11 @@ fn post_setup(game: &mut Game, screen: &str, cust: bool) -> Result<Keys> {
     if key_gap.is_some() || after_keys.is_some() {
         game.pacing.clock = Some(f64::from(keys_at) / 1000.0);
     }
+    if after_keys.is_some()
+        && let Mode::Menu(Menu::Parts(b)) = &mut game.mode
+    {
+        b.step(keys_at);
+    }
     if let Ok(keys) = std::env::var("NFSU2_SHOT_KEYS") {
         for k in keys.split(',').map(str::trim).filter(|k| !k.is_empty()) {
             let key = match k {
@@ -439,6 +444,18 @@ fn post_setup(game: &mut Game, screen: &str, cust: bool) -> Result<Keys> {
             // The frame's widget state (`rating_up`) as play leaves it.
             let _ = game.shop_rating_quads(game.now());
             game.menu_key(key)?;
+            // No ticks run in a shot: the Car Shop's FORWARD ends at once
+            // (`IconMenu::forward`) unless the still falls inside it, and a
+            // frame sequence's browser scrollers start their ease here.
+            if game.icon_forward_left().is_some_and(|left| after_keys.is_none_or(|a| a >= left)) {
+                game.icon_forward_finish();
+            }
+            if after_keys.is_some() {
+                let now = game.now();
+                if let Mode::Menu(Menu::Parts(b)) = &mut game.mode {
+                    b.step(now);
+                }
+            }
             if let (Some(gap), Some(c)) = (key_gap, game.pacing.clock) {
                 game.pacing.clock = Some(c + gap / 1000.0);
             }

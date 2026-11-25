@@ -766,9 +766,16 @@
         {
           "key": "rotation",
           "type": "mat3",
-          "required": "yes",
+          "required": "no",
           "merge": false,
           "label": "Rotation"
+        },
+        {
+          "key": "heading",
+          "type": "f32",
+          "required": "no",
+          "merge": false,
+          "label": "Heading"
         }
       ]
     },
@@ -827,6 +834,13 @@
           "label": "Rotation"
         },
         {
+          "key": "heading",
+          "type": "f32",
+          "required": "no",
+          "merge": false,
+          "label": "Heading"
+        },
+        {
           "key": "id",
           "type": "text",
           "required": "no",
@@ -874,6 +888,90 @@
           "required": "yes",
           "merge": false,
           "label": "Object"
+        }
+      ]
+    },
+    {
+      "name": "collision.remove",
+      "kind": "edit",
+      "summary": "Take out a wall of the original's collision, or a drawn wall or ground",
+      "args": [
+        {
+          "key": "target",
+          "type": "json",
+          "required": "yes",
+          "merge": false,
+          "label": "Collision"
+        }
+      ]
+    },
+    {
+      "name": "collision.wall",
+      "kind": "edit",
+      "summary": "Draw a wall of a height between two points",
+      "args": [
+        {
+          "key": "from",
+          "type": "vec3",
+          "required": "yes",
+          "merge": false,
+          "label": "From"
+        },
+        {
+          "key": "to",
+          "type": "vec3",
+          "required": "yes",
+          "merge": false,
+          "label": "To"
+        },
+        {
+          "key": "height",
+          "type": "f32",
+          "required": "yes",
+          "merge": false,
+          "label": "Height"
+        },
+        {
+          "key": "surface",
+          "type": "u8",
+          "required": "yes",
+          "merge": false,
+          "label": "Surface"
+        },
+        {
+          "key": "id",
+          "type": "text",
+          "required": "no",
+          "merge": false,
+          "label": "Id"
+        }
+      ]
+    },
+    {
+      "name": "collision.ground",
+      "kind": "edit",
+      "summary": "Draw ground over an outline",
+      "args": [
+        {
+          "key": "outline",
+          "type": "list of vec3",
+          "required": "yes",
+          "merge": false,
+          "label": "Outline"
+        },
+        {
+          "key": "surface",
+          "type": "u8",
+          "required": "yes",
+          "merge": false,
+          "label": "Surface"
+        },
+        {
+          "key": "id",
+          "type": "text",
+          "required": "no",
+          "merge": false,
+          "label": "Id"
         }
       ]
     },
@@ -1146,6 +1244,41 @@
       ]
     },
     {
+      "name": "pack.create",
+      "kind": "run",
+      "summary": "Make a new map mod, nothing changed yet or from a template (its folder from its name unless given)",
+      "args": [
+        {
+          "key": "name",
+          "type": "text",
+          "required": "yes",
+          "merge": false,
+          "label": "Name"
+        },
+        {
+          "key": "folder",
+          "type": "text",
+          "required": "no",
+          "merge": false,
+          "label": "Folder"
+        },
+        {
+          "key": "template",
+          "type": "text",
+          "required": "no",
+          "merge": false,
+          "label": "Start from: empty (default), sprint, circuit or sample"
+        },
+        {
+          "key": "maps",
+          "type": "text",
+          "required": "no",
+          "merge": false,
+          "label": "Mods folder (default: the game's map mods folder)"
+        }
+      ]
+    },
+    {
       "name": "pack.details",
       "kind": "edit",
       "summary": "Change the pack's name, author and description",
@@ -1184,6 +1317,27 @@
           "required": "yes",
           "merge": false,
           "label": "File"
+        }
+      ]
+    },
+    {
+      "name": "pack.export",
+      "kind": "run",
+      "summary": "Export the mod as one file to share: a .zip (or a folder), without its work files",
+      "args": [
+        {
+          "key": "to",
+          "type": "text",
+          "required": "yes",
+          "merge": false,
+          "label": "Export to"
+        },
+        {
+          "key": "derived-ok",
+          "type": "bool",
+          "required": "no",
+          "merge": false,
+          "label": "Share textures made from the original game's pixels"
         }
       ]
     },

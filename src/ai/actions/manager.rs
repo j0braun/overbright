@@ -48,6 +48,11 @@ impl Actions {
         self.last_velocity = Some(scene.me.velocity);
         let (list, own) = entries(route, scene, accel);
         self.listed = list.iter().map(|e| e.car.id).collect();
+        // 0x41D530's room margin takes the own entry's +0x08 (the planner's
+        // entries of this think).
+        if let Some(o) = own {
+            route.own_across = list[o].across;
+        }
         // The car's own entry is always in the original's list (0x6148F0
         // keeps the node whose car is the car), so a running
         // AccidentRecovery goes on to its reset (0x424210 reads no entry)
@@ -151,6 +156,11 @@ impl Actions {
             Kind::Avoid => self.avoid(route, scene, &list, own, accel, fresh),
             Kind::Recover => self.recover(route, scene, fresh),
             Kind::OffsetPursuit => self.offset_pursuit(route, scene, list, own, fresh),
+            // The drag race's own actions run in `drag_think` only.
+            Kind::DragLane | Kind::DragWall | Kind::DragHit => {
+                let path = self.drive(route, scene, fresh);
+                Steer { path, cap: None, pedals: true, reset: false }
+            }
         };
         self.last_path = steer.path.clone();
         steer
@@ -174,7 +184,7 @@ impl Actions {
         // in the start hold, a racer in contact).
         if ty != 0xB
             && pri <= HIT_PRIORITY
-            && !scene.held
+            && !scene.contact_held
             && let Some(id) = hitter(list, own, scene.hits)
         {
             // 0x42D1F5 / 0x42D7F5: 0x40D5C0 before the constructor.
@@ -325,6 +335,7 @@ impl Actions {
             // down and upright.
             Kind::Recover => self.reset_made || (scene.wheels_down == 4 && scene.up_z > UPRIGHT),
             Kind::OffsetPursuit => false,
+            Kind::DragLane | Kind::DragWall | Kind::DragHit => true,
         }
     }
 
@@ -516,7 +527,7 @@ impl Actions {
         let e = self.tracked(list).copied();
         let (mut near, mut far) = (false, false);
         if let Some(e) = e.as_ref()
-            && !scene.held
+            && !scene.contact_held
         {
             let minus_first = e.rel_lateral > 0.0;
             // 0x42F330: slow = +0x42C (the forward speed) under 11.18 m/s

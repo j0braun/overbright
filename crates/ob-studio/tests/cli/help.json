@@ -18,8 +18,14 @@
         {
           "flag": "--rotation",
           "label": "Rotation",
-          "needed": true,
+          "needed": false,
           "type": "mat3"
+        },
+        {
+          "flag": "--heading",
+          "label": "Heading",
+          "needed": false,
+          "type": "f32"
         }
       ],
       "kind": "edit",
@@ -76,6 +82,12 @@
           "type": "mat3"
         },
         {
+          "flag": "--heading",
+          "label": "Heading",
+          "needed": false,
+          "type": "f32"
+        },
+        {
           "flag": "--id",
           "label": "Id",
           "needed": false,
@@ -125,6 +137,84 @@
       "kind": "edit",
       "summary": "Stand a prop on the floor under it",
       "words": "props drop"
+    },
+    {
+      "command": "collision.remove",
+      "flags": [
+        {
+          "flag": "--target",
+          "label": "Collision",
+          "needed": true,
+          "type": "json"
+        }
+      ],
+      "kind": "edit",
+      "summary": "Take out a wall of the original's collision, or a drawn wall or ground",
+      "words": "collision remove"
+    },
+    {
+      "command": "collision.wall",
+      "flags": [
+        {
+          "flag": "--from",
+          "label": "From",
+          "needed": true,
+          "type": "vec3"
+        },
+        {
+          "flag": "--to",
+          "label": "To",
+          "needed": true,
+          "type": "vec3"
+        },
+        {
+          "flag": "--height",
+          "label": "Height",
+          "needed": true,
+          "type": "f32"
+        },
+        {
+          "flag": "--surface",
+          "label": "Surface",
+          "needed": true,
+          "type": "u8"
+        },
+        {
+          "flag": "--id",
+          "label": "Id",
+          "needed": false,
+          "type": "text"
+        }
+      ],
+      "kind": "edit",
+      "summary": "Draw a wall of a height between two points",
+      "words": "collision wall"
+    },
+    {
+      "command": "collision.ground",
+      "flags": [
+        {
+          "flag": "--outline",
+          "label": "Outline",
+          "needed": true,
+          "type": "list of vec3"
+        },
+        {
+          "flag": "--surface",
+          "label": "Surface",
+          "needed": true,
+          "type": "u8"
+        },
+        {
+          "flag": "--id",
+          "label": "Id",
+          "needed": false,
+          "type": "text"
+        }
+      ],
+      "kind": "edit",
+      "summary": "Draw ground over an outline",
+      "words": "collision ground"
     },
     {
       "command": "race.create",
@@ -375,6 +465,38 @@
       "words": "race put"
     },
     {
+      "command": "pack.create",
+      "flags": [
+        {
+          "flag": "--name",
+          "label": "Name",
+          "needed": true,
+          "type": "text"
+        },
+        {
+          "flag": "--folder",
+          "label": "Folder",
+          "needed": false,
+          "type": "text"
+        },
+        {
+          "flag": "--template",
+          "label": "Start from: empty (default), sprint, circuit or sample",
+          "needed": false,
+          "type": "text"
+        },
+        {
+          "flag": "--maps",
+          "label": "Mods folder (default: the game's map mods folder)",
+          "needed": false,
+          "type": "text"
+        }
+      ],
+      "kind": "run",
+      "summary": "Make a new map mod, nothing changed yet or from a template (its folder from its name unless given)",
+      "words": "pack create"
+    },
+    {
       "command": "pack.details",
       "flags": [
         {
@@ -413,6 +535,26 @@
       "kind": "edit",
       "summary": "Put the whole map in place (from a map file)",
       "words": "pack put"
+    },
+    {
+      "command": "pack.export",
+      "flags": [
+        {
+          "flag": "--to",
+          "label": "Export to",
+          "needed": true,
+          "type": "text"
+        },
+        {
+          "flag": "--derived-ok",
+          "label": "Share textures made from the original game's pixels",
+          "needed": false,
+          "type": "bool"
+        }
+      ],
+      "kind": "run",
+      "summary": "Export the mod as one file to share: a .zip (or a folder), without its work files",
+      "words": "pack export"
     },
     {
       "command": "pack.repair",

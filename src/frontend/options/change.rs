@@ -186,9 +186,13 @@ pub fn change(id: RowId, s: &mut Settings, player: usize, right: bool, has_profi
             s.enh.extras.mark_spot =
                 if right { (s.enh.extras.mark_spot + 1) % n } else { (s.enh.extras.mark_spot + n - 1) % n }
         }
+        RowId::Background => {
+            s.enh.extras.background =
+                if right { (s.enh.extras.background + 1) % 3 } else { (s.enh.extras.background + 2) % 3 }
+        }
         RowId::PowerSaving => {
             s.enh.extras.power_saving =
-                if right { (s.enh.extras.power_saving + 1) % 4 } else { (s.enh.extras.power_saving + 3) % 4 }
+                if right { (s.enh.extras.power_saving + 1) % 3 } else { (s.enh.extras.power_saving + 2) % 3 }
         }
         RowId::ReplayCameras => s.enh.extras.replay_cameras = !s.enh.extras.replay_cameras,
         RowId::HudPalette => {

@@ -63,6 +63,13 @@ do not change: only `#[test]` items use these flags.
   early and never turns a load error into a skip (`.ok()?`).
 * Tests marked with a plain `#[ignore = "..."]` (GPU probes, diagnostics)
   run only on request: `cargo test --release -- --ignored NAME`.
+* **Needs `spirv-val`:** `every_module_is_valid_vulkan_spirv`
+  (`src/render/core/shader/validate_tests.rs`) writes every shader module the
+  renderer builds to SPIR-V with the same naga the Vulkan backend uses and
+  checks it with `spirv-val --target-env vulkan1.1` (from the Vulkan SDK or
+  the `spirv-tools` package), because some drivers crash on invalid SPIR-V.
+  Without `spirv-val` it passes with a "skipped" note: install it to run the
+  check.
 
 ### Memory
 

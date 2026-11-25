@@ -131,7 +131,8 @@ game's normal-priority threads always win a core.
 - **Alt+F4:** winit hands `WM_SYSKEYDOWN` to `DefWindowProc`, which sends `WM_CLOSE`, that is
   `CloseRequested`, which the game already ends on (`window.rs`).
 - **Alt+Tab out of exclusive full screen:** the system minimises the window; the surface is reconfigured on the
-  size and occlusion events (**unverified**).
+  size and occlusion events (**unverified**). By default the game pauses while it is away
+  ([focus-loss.md](../original/focus-loss.md)).
 
 ### Program manifest
 

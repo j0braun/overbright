@@ -451,6 +451,16 @@ mod tests {
     /// A mod in this test's data folder with a short sprint over the first
     /// three checkpoints of a career sprint's track.
     fn sprint_mod(game: &Game, folder: &str) {
+        sprint_mod_with(game, folder, Vec::new(), Vec::new());
+    }
+
+    /// [`sprint_mod`] with the scenery edits `props`.
+    fn sprint_mod_with(
+        game: &Game,
+        folder: &str,
+        props: Vec<nfsu2::tools::map::PropEdit>,
+        collision: Vec<nfsu2::tools::map::CollisionEdit>,
+    ) {
         let event = game
             .game_data
             .career
@@ -464,7 +474,7 @@ mod tests {
         let native = career::load_route(&game.game_data.root, &track, false).unwrap();
         let mut race = CustomRace::new("short", number, RaceKind::Sprint);
         race.checkpoints = native.checkpoints[..3].to_vec();
-        let m = MapMod { name: "Sim".into(), races: vec![race], ..Default::default() };
+        let m = MapMod { name: "Sim".into(), races: vec![race], props, collision, ..Default::default() };
         let dir = store::maps_dir();
         store::save(&dir, folder, &m).unwrap();
         store::set_enabled(&dir, folder, true).unwrap();
@@ -472,11 +482,23 @@ mod tests {
     }
 
     fn simulate(seed: u64, seconds: f32) -> (String, &'static str) {
+        simulate_with(seed, seconds, "sim-run", Vec::new(), Vec::new())
+    }
+
+    /// [`simulate`] of the sprint with the scenery edits `props`, in `folder`.
+    fn simulate_with(
+        seed: u64,
+        seconds: f32,
+        folder: &str,
+        props: Vec<nfsu2::tools::map::PropEdit>,
+        collision: Vec<nfsu2::tools::map::CollisionEdit>,
+    ) -> (String, &'static str) {
+        // The mod is written before the game that runs it starts (its
+        // start preloads the region with the mods as they are then).
+        sprint_mod_with(&Game::new().unwrap(), folder, props, collision);
         let mut game = Game::new().unwrap();
-        sprint_mod(&game, "sim-run");
         game.profile = None;
-        let t =
-            crate::shell::cli::MapTest { folder: "sim-run".into(), race: Some("short".into()), ..Default::default() };
+        let t = crate::shell::cli::MapTest { folder: folder.into(), race: Some("short".into()), ..Default::default() };
         let run = SimRun { mode: SimMode::Race, stream: None, seed, seconds: Some(seconds) };
         let mut s = Streamer::new(Vec::new());
         let why = game.simulate(&t, &run, &mut s, &|| false).unwrap();
@@ -522,6 +544,96 @@ mod tests {
             track.len() > 500 && (last.z - first.z).abs() < 1.0 && last.truncate().distance(at.truncate()) < 3.0,
             "{first} → {last}"
         );
+    }
+
+    /// The racers' cars (the player's slot and the opponents) each tick.
+    fn racers(stream: &str) -> Vec<Vec<CarSample>> {
+        stream
+            .lines()
+            .filter_map(|l| Line::parse(l).unwrap())
+            .filter_map(|l| if let Line::Frame(f) = l { Some(f) } else { None })
+            .filter(|f| f.time >= 0.0)
+            .map(|f| f.cars.into_iter().filter(|c| matches!(c.kind, CarKind::Player | CarKind::Racer)).collect())
+            .collect()
+    }
+
+    /// The editor's simulation with real cars: original street lights the
+    /// mod moves into a row across the sprint's road stop every racer there
+    /// (the AI drives them all), where the same race without the mod passes.
+    #[test]
+    #[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
+    fn moved_street_lights_stop_the_simulated_racers_where_they_now_stand() {
+        let (plain, _) = simulate_with(3, 25.0, "sim-lights", Vec::new(), Vec::new());
+        let ticks = racers(&plain);
+        let player = |t: &Vec<CarSample>| t.iter().find(|c| c.id == 0).map(|c| c.position);
+        let start = player(&ticks[0]).unwrap();
+        let at = |d: f32| ticks.iter().filter_map(player).find(|p| p.truncate().distance(start.truncate()) > d);
+        let (line, ahead) = (at(80.0).expect("the player's slot drives 80 m"), at(90.0).unwrap());
+        let dir = (ahead - line).truncate().normalize().extend(0.0);
+        let across = Vec3::new(-dir.y, dir.x, 0.0);
+        let past = |ticks: &[Vec<CarSample>]| {
+            ticks.iter().flatten().map(|c| (c.position - line).dot(dir)).fold(f32::MIN, f32::max)
+        };
+        assert!(past(&ticks) > 20.0, "the racers pass the spot without the mod");
+
+        // Street lights with collision of their own, moved 1 m apart across the road.
+        let world = nfsu2::world::World::load(&nfsu2::game_root(), "L4RA").unwrap();
+        let light = world.solid_named("XO_STREETLIGHTD_1A_00").unwrap();
+        let props: Vec<nfsu2::tools::map::PropEdit> = (0..world.placements.len())
+            .filter(|&i| {
+                let p = &world.placements[i];
+                p.solid == light && !world.collision_of_placement(light, p.transform).is_empty()
+            })
+            .take(41)
+            .enumerate()
+            .map(|(k, i)| nfsu2::tools::map::PropEdit::Move {
+                target: world.placement_ref("L4RA", i).unwrap(),
+                position: line + across * (k as f32 - 20.0) - Vec3::Z * 0.6,
+                rotation: glam::Mat3::IDENTITY,
+            })
+            .collect();
+        assert_eq!(props.len(), 41);
+        let (walled, _) = simulate_with(3, 25.0, "sim-lights", props, Vec::new());
+        let ticks = racers(&walled);
+        assert!(ticks.len() > 600 && ticks[0].len() >= 2, "{} ticks", ticks.len());
+        let got = past(&ticks);
+        eprintln!("furthest past the row: without the lights {:.1} m, with them {got:.2} m", past(&racers(&plain)));
+        assert!(got < 0.0, "a racer's centre passed the moved lights ({got} m)");
+    }
+
+    /// The editor's simulation with real cars: a wall the mod draws across
+    /// the sprint's road (two points, 2 m high) stops every racer there
+    /// (the AI drives them all); the same race without it passes.
+    #[test]
+    #[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
+    fn a_drawn_wall_stops_the_simulated_racers() {
+        let (plain, _) = simulate_with(3, 25.0, "sim-wall", Vec::new(), Vec::new());
+        let ticks = racers(&plain);
+        let player = |t: &Vec<CarSample>| t.iter().find(|c| c.id == 0).map(|c| c.position);
+        let start = player(&ticks[0]).unwrap();
+        let at = |d: f32| ticks.iter().filter_map(player).find(|p| p.truncate().distance(start.truncate()) > d);
+        let (line, ahead) = (at(80.0).expect("the player's slot drives 80 m"), at(90.0).unwrap());
+        let dir = (ahead - line).truncate().normalize().extend(0.0);
+        let across = Vec3::new(-dir.y, dir.x, 0.0);
+        let past = |ticks: &[Vec<CarSample>]| {
+            ticks.iter().flatten().map(|c| (c.position - line).dot(dir)).fold(f32::MIN, f32::max)
+        };
+        assert!(past(&ticks) > 20.0, "the racers pass the spot without the wall");
+        let foot = line - Vec3::Z * 0.6;
+        let wall = nfsu2::tools::map::CollisionEdit::Wall {
+            id: "wall-1".into(),
+            region: "L4RA".into(),
+            from: foot - across * 25.0,
+            to: foot + across * 25.0,
+            height: 2.0,
+            surface: 16,
+        };
+        let (walled, _) = simulate_with(3, 25.0, "sim-wall", Vec::new(), vec![wall]);
+        let ticks = racers(&walled);
+        assert!(ticks.len() > 600 && ticks[0].len() >= 2, "{} ticks", ticks.len());
+        let got = past(&ticks);
+        eprintln!("furthest past the drawn wall: without it {:.1} m, with it {got:.2} m", past(&racers(&plain)));
+        assert!(got < 0.0, "a racer's centre passed the drawn wall ({got} m)");
     }
 
     #[test]

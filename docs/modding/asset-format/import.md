@@ -1,6 +1,7 @@
 # Asset format: the importer
 
-Status: **draft 1 — design, not implemented yet.** Part of the [Overbright asset format](README.md); rules from [conventions.md](conventions.md)
+Status: **draft 1 — stage 0 implemented** (`crates/ob-asset-format/src/import.rs`, the console program
+`overbright-import`; §13), decoding units not yet. The game reads through a finished, verified base set by default (§13, "Reading through the asset layer"). Part of the [Overbright asset format](README.md); rules from [conventions.md](conventions.md)
 apply. Schema of the import record: [`schemas/import.schema.json`](schemas/import.schema.json).
 
 The importer turns the player's own installed copy of the game into a base set, once. It is the only part of
@@ -307,3 +308,73 @@ can be moved to another drive (`locations.txt`, docs/playing/platform-dirs.md).
 | IMP.6 | The staging folder belongs to another edition or importer version than this run; it is discarded and the import starts over. |
 | IMP.7 | A release build found a `linked` base set (it offers to make it independent), or a linked set's referenced file is missing or changed. |
 <!-- /generated -->
+
+## 13. What is implemented (stage 0)
+
+`overbright-import import|verify|repair|fingerprint [--game <dir>] [--base <dir>] [--id <id>] [--force] [--manifest]`
+(`crates/ob-asset-format/src/bin/overbright-import.rs`; `--game` defaults to `NFSU2_ROOT`, `--base` to `<app>/base`).
+It prints the progress lines of §9 and ends with `ok=1`, or `error=<one line>` and `ok=0` (exit code 1).
+
+- **Editions.** `pc12-eu` with all 1,250 content files (`crates/ob-asset-format/editions/pc12-eu.tsv`: path, size,
+  SHA-256; made by `overbright-import fingerprint --manifest`, names and hashes only). Anything else is `custom`
+  with its differing files (`MODIFIED`, `unknown`, `missing`) against the closest edition.
+- **Units.** Every unit is at stage 0 (`kept`): each content file is one stored, aligned entry
+  `residual/<ORIGINAL/PATH>.kept.bin` plus its file map `residual/<ORIGINAL/PATH>.map.toml` (`container = "plain"`,
+  one `kept` node), in the bundle of its load unit (layout.md §5). `SDATA/sdat.viv` is read by two audio units and
+  so goes in `global.obz`. Stored entries are aligned to 64 bytes, the bundle writer's alignment (the 256 of
+  residual.md §2 is open).
+- **Journal and resume.** `base/.staging-<id>/journal.txt` starts with the source identity, the epoch and the unit
+  version; each finished bundle (written to a temporary name, flushed, renamed) appends `unit <name> <size>
+  <digest>`. A rerun keeps the units whose bundles are still there at their size and writes the rest; a staging
+  folder of another identity or version is discarded (`IMP.6`).
+- **Checks.** Before writing: free space for the units still to do (`IMP.2`). After: every bundle re-read, its size
+  and digest against the journal, every CRC, every kept file's SHA-256 against the original's (the stage-0
+  rebuild check, `IMP.4`). `pack.toml` is checked by the manifest reader; `import.toml` is written last, then the
+  staging folder is renamed into place and `active.txt` written if there is none.
+- **Verify and repair.** `verify` re-checks a finished set (`LAY.3` per damaged unit); `repair` rebuilds the damaged
+  bundles from the game folder when its identity still matches the record (the writer is deterministic, so the
+  rebuilt bundle equals the recorded one).
+- **Read only.** The game folder is opened for reading only; `SPEED2.EXE` is hashed for the record only. The
+  reference install imports in about 50 s from and to an NVMe SSD (1.80 GB).
+- Not yet: the launcher screen, the cook step (§5 step 7), decoding units (§4.1), linked sets (§4.2), pausing
+  for the game.
+
+### Reading through the asset layer
+
+- **On by default when an import exists.** At start the game mounts the active base set (`<app>/base/active.txt`,
+  else the only set there; `src/asset_layer.rs`, `crates/ob-asset-format/src/mount.rs`) and from then on takes the
+  game's files from it: one read path (`crates/ob-core/src/game_fs/layer.rs`) behind `game_fs::read`,
+  `game_fs::read_file`, `game_fs::open_file` / `open_reader` and the cache's `SourceBytes`, answered with a slice
+  of the mapped bundle (stored, aligned: no copy). A name in a content folder (§2) that the set does not hold,
+  and that the import's scan did not skip (`[[source.skipped]]`), was not in the install: the read is answered
+  "no such file" from the set's index without asking the folder (the original asks for some such names and goes
+  on without them: 0x432C00 builds `NIS\Scene_%s_EvtTrk.txt` for every scene and skips the track when the file
+  is missing, and the reference install has no `Scene_EndingNis04_EvtTrk.txt`). Any other name is read from the
+  game folder and counted.
+  Without a set, or when it does not verify, nothing is mounted and every read is the game folder's, exactly as
+  before. Every kind is still at stage 0, so the parsers are today's and see the original's bytes.
+- **Verification on mount** (layout.md §5): `import.toml` read, its checks passed, its epoch not newer than this
+  Overbright (`VER.4`); every bundle present at its recorded size; each bundle's `xxh3-128` digest compared with
+  the record unless its size, modification time and inode match the stamp of an earlier verification
+  (`base-verified-<id>.txt` in the cache folder); every kept file a stored, aligned entry of its recorded size
+  (`LAY.3` otherwise). About 0.1 s for the reference install with the bundles in the page cache; a stamped
+  mount ~20 ms. A refused set is logged (`asset layer: …; reading the game folder`) and the game folder used.
+- **Files changed in the folder after the import** (a mod that replaces a file, such as an HD sky's
+  `TRACKS/LOC4DYNTEX.BIN`): the set keeps serving its own copy; the mount compares every file's size with the
+  folder's and logs the changed ones (`asset layer: … changed in the game folder since your own copy was made`).
+- **`NFSU2_BASE`**: unset or `active` = the default above; `off` (or `0`) = the game folder always; a set id under
+  `<app>/base` or a set's folder = that set. At exit a log line counts the reads from the set, the names the
+  install does not have, and the game files read from the folder (each such name listed after it,
+  `asset layer: not in base set: <NAME> (<n>x)`).
+- **Sealed check**: `scripts/checks/sealed_copy.sh GAME SET OUT` runs the full playthrough twice, on the folder
+  (`NFSU2_BASE=off`) and on the set with the game folder replaced, in a user + mount namespace, by a skeleton of
+  unreadable sparse files (names, sizes and times kept), without capabilities: both runs pass, their state hashes
+  are identical and the sealed run reads 0 game files from the folder. On the reference install: 22,639 reads
+  from the set, 151 names not in the install, 0 from the folder, 308,107 steps identical.
+- **Not yet**: the game folder is still the namespace: directory listings, existence checks and the cache's
+  source keys look at it, so it must still be there; a lint on stray opens; read-ahead of bundles; the
+  background re-digest; the launcher's switch.
+- **The gate**: `ASSET_LAYER=1 scripts/checks/gate.sh …` imports `NFSU2_ROOT` into the gate's folder and runs the
+  parity with the new binary on that set (the base binary reads the folder): every hash must match, and every new
+  run must report reads from the set and none may read a game file from the folder (the names are listed). Without it the parity's runs have no base set (their data folders are
+  fresh), so they read the game folder as before.

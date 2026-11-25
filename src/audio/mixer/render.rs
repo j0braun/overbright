@@ -53,6 +53,8 @@ pub struct Mix {
     acc_bus: f32,
     /// Frames rendered (a check aid's clock).
     rendered: u64,
+    /// Held ([`Mix::hold`]): the device gets silence and nothing moves on.
+    held: bool,
     /// A check aid: the stops so far (frame, the largest |last sample ×
     /// gain| on a channel: the step a cut would leave), at most
     /// [`STOP_LOG`] (preallocated: the callback never allocates).
@@ -98,6 +100,7 @@ impl Mix {
             acc: [0.0; 3],
             acc_bus: 0.0,
             rendered: 0,
+            held: false,
             #[cfg(any(test, feature = "dev-harness"))]
             stops: Vec::with_capacity(STOP_LOG),
             stem_energy: Vec::new(),
@@ -384,7 +387,23 @@ impl Mix {
         self.tracks.iter().find(|t| t.id == id).map(|t| (t.pos, t.paused))
     }
 
+    /// Hold everything (In the background's Pause, as SPEED2.EXE's
+    /// 0x4810F0 at a focus loss): the device gets silence, and no voice,
+    /// track, stream or effect moves on until it is let go, where each
+    /// goes on from where it stood.
+    pub fn hold(&mut self, held: bool) {
+        self.held = held;
+    }
+
+    pub fn held(&self) -> bool {
+        self.held
+    }
+
     pub fn render(&mut self, out: &mut [f32], channels: usize) {
+        if self.held {
+            out.fill(0.0);
+            return;
+        }
         let ch = channels.max(1);
         // The library mixes in chunks of at most 256 frames (0x7295A8) and
         // runs the FX graph after each (0x7294CC).

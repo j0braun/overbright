@@ -1,0 +1,454 @@
+overbright-map 1
+name = Sample race pack
+author = Overbright
+description = A sample: three street races through Coal Harbor, downtown and Beacon Hill, with barriers, barrels and curve signs marking the way.
+
+[prop.add]
+region = L4RA
+solid = XS_WARNCURVE_1A_00
+position = -1112.29 -1810.59 14.6
+rotation = -0.9998346 0.018187098 0 -0.018187098 -0.9998346 0 0 0 1
+
+[prop.add]
+region = L4RA
+solid = XO_ROADBARRIERB_1A_00
+position = -1116.5 -1834.35 13.634441
+rotation = -0.102526575 -0.9947303 0 0.9947303 -0.102526575 0 0 0 1
+
+[prop.add]
+region = L4RA
+solid = XO_ROADBARRIERB_1A_00
+position = -1116.62 -1846.72 13.636276
+rotation = 0.08323332 -0.9965301 0 0.9965301 0.08323332 0 0 0 1
+
+[prop.add]
+region = L4RA
+solid = XO_ROADBARRIERB_1A_00
+position = -1115.25 -1859.46 13.636276
+rotation = 0.2965046 -0.95503145 0 0.95503145 0.2965046 0 0 0 1
+
+[prop.add]
+region = L4RA
+solid = XO_ROADBARRIERB_1A_00
+position = -1109.17 -1870.73 13.640154
+rotation = 0.49577883 -0.8684488 0 0.8684488 0.49577883 0 0 0 1
+
+[prop.add]
+region = L4RA
+solid = XO_ROADBARRIERB_1A_00
+position = -1100.39 -1881.63 13.67595
+rotation = 0.742592 -0.6697441 0 0.6697441 0.742592 0 0 0 1
+
+[prop.add]
+region = L4RA
+solid = XS_WARNCURVE_1A_00
+position = -1074.54 -1908.72 13.567079
+rotation = -0.80575407 -0.5922502 0 0.5922502 -0.80575407 0 0 0 1
+
+[prop.add]
+region = L4RA
+solid = XO_ROADBARRIERB_1A_00
+position = -1072.59 -1927.17 13.63237
+rotation = 0.07453272 -0.99721855 0 0.99721855 0.07453272 0 0 0 1
+
+[prop.add]
+region = L4RA
+solid = XO_ROADBARRIERB_1A_00
+position = -1070.45 -1939.47 13.664541
+rotation = 0.2657153 -0.96405154 0 0.96405154 0.2657153 0 0 0 1
+
+[prop.add]
+region = L4RA
+solid = XO_ROADBARRIERB_1A_00
+position = -1065.65 -1953.47 13.667526
+rotation = 0.60105294 -0.79920924 0 0.79920924 0.60105294 0 0 0 1
+
+[prop.add]
+region = L4RA
+solid = XO_ROADBARRIERB_1A_00
+position = -1053.54 -1961.96 13.667526
+rotation = 0.85246897 -0.52277786 0 0.52277786 0.85246897 0 0 0 1
+
+[prop.add]
+region = L4RA
+solid = XO_ROADBARRIERB_1A_00
+position = -1038.66 -1966.89 14.6
+rotation = 0.99599546 -0.089403555 0 0.089403555 0.99599546 0 0 0 1
+
+[prop.add]
+region = L4RA
+solid = XS_WARNCURVER_1A_00
+position = 682.75 -1721.35 8.672547
+rotation = 0.55239946 -0.83357954 0 0.83357954 0.55239946 0 0 0 1
+
+[prop.add]
+region = L4RA
+solid = XO_ROADBARRIERB_1A_00
+position = 676.06 -1685.87 9.7
+rotation = 0.3367195 0.941605 0 -0.941605 0.3367195 0 0 0 1
+
+[prop.add]
+region = L4RA
+solid = XO_ROADBARRIERB_1A_00
+position = 685.25 -1672.43 8.636276
+rotation = 0.75598025 0.6545944 0 -0.6545944 0.75598025 0 0 0 1
+
+[prop.add]
+region = L4RA
+solid = XO_ROADBARRIERB_1A_00
+position = 697.37 -1663.33 9.6
+rotation = 0.9526317 0.30412626 0 -0.30412626 0.9526317 0 0 0 1
+
+[prop.add]
+region = L4RA
+solid = XO_ROADBARRIERB_1A_00
+position = 712.52 -1663.73 8.636276
+rotation = 0.99543345 -0.095458224 0 0.095458224 0.99543345 0 0 0 1
+
+[prop.add]
+region = L4RA
+solid = XO_ROADBARRIERB_1A_00
+position = 721.46 -1664.23 8.6614685
+rotation = 0.99986976 -0.016139427 0 0.016139427 0.99986976 0 0 0 1
+
+[prop.add]
+region = L4RA
+solid = XO_WATERBARRELA_1A_00
+position = -1112.2 -1791.22 14.66
+rotation = 0.0389315 -0.9992419 0 0.9992419 0.0389315 0 0 0 1
+
+[prop.add]
+region = L4RA
+solid = XO_WATERBARRELA_1A_00
+position = -1112.19 -1806.22 14.63
+rotation = 0.0389315 -0.9992419 0 0.9992419 0.0389315 0 0 0 1
+
+[prop.add]
+region = L4RA
+solid = XO_WATERBARRELA_1A_00
+position = -1090.22 -1790.36 13.907906
+rotation = 0.0389315 -0.9992419 0 0.9992419 0.0389315 0 0 0 1
+
+[prop.add]
+region = L4RA
+solid = XO_WATERBARRELA_1A_00
+position = -1090.21 -1805.36 13.677908
+rotation = 0.0389315 -0.9992419 0 0.9992419 0.0389315 0 0 0 1
+
+[prop.add]
+region = L4RA
+solid = XO_CRASHBARRELA_1A_00
+position = 878.44 -1405.25 9.408215
+rotation = -0.012830765 0.9999177 0 -0.9999177 -0.012830765 0 0 0 1
+
+[prop.add]
+region = L4RA
+solid = XO_CRASHBARRELA_1A_00
+position = 878.31 -1395.25 9.246472
+rotation = -0.012830765 0.9999177 0 -0.9999177 -0.012830765 0 0 0 1
+
+[prop.add]
+region = L4RA
+solid = XO_CRASHBARRELA_1A_00
+position = 856.44 -1405.53 9.265417
+rotation = -0.012830765 0.9999177 0 -0.9999177 -0.012830765 0 0 0 1
+
+[prop.add]
+region = L4RA
+solid = XO_CRASHBARRELA_1A_00
+position = 856.32 -1395.53 9.23703
+rotation = -0.012830765 0.9999177 0 -0.9999177 -0.012830765 0 0 0 1
+
+[prop.add]
+region = L4RA
+solid = XS_WARNCURVER_1A_00
+position = 456.27 -10.1 17.759035
+rotation = -0.9961185 0.0880225 0 -0.0880225 -0.9961185 0 0 0 1
+
+[prop.add]
+region = L4RA
+solid = XO_ROADBARRIERB_1A_00
+position = 470.5 -41.76 17.784014
+rotation = -0.59005845 -0.80736053 0 0.80736053 -0.59005845 0 0 0 1
+
+[prop.add]
+region = L4RA
+solid = XO_ROADBARRIERB_1A_00
+position = 459.64 -51.81 17.683151
+rotation = -0.8504099 -0.5261206 0 0.5261206 -0.8504099 0 0 0 1
+
+[prop.add]
+region = L4RA
+solid = XO_ROADBARRIERB_1A_00
+position = 447.73 -58.55 17.683151
+rotation = -0.9645953 -0.26373437 0 0.26373437 -0.9645953 0 0 0 1
+
+[prop.add]
+region = L4RA
+solid = XO_ROADBARRIERB_1A_00
+position = 434.04 -58.81 17.776901
+rotation = -0.999795 0.020247709 0 -0.020247709 -0.999795 0 0 0 1
+
+[prop.add]
+region = L4RA
+solid = XO_ROADBARRIERB_1A_00
+position = 420.86 -56.79 17.791908
+rotation = -0.959916 0.2802878 0 -0.2802878 -0.959916 0 0 0 1
+
+[prop.add]
+region = L4RA
+solid = XS_WARNCURVER_1A_00
+position = 92.15 19.43 16.827127
+rotation = -0.51001495 0.86016554 0 -0.86016554 -0.51001495 0 0 0 1
+
+[prop.add]
+region = L4RA
+solid = XO_ROADBARRIERB_1A_00
+position = 82.47 -14.04 16.367813
+rotation = -0.8754463 -0.48331532 0 0.48331532 -0.8754463 0 0 0 1
+
+[prop.add]
+region = L4RA
+solid = XO_ROADBARRIERB_1A_00
+position = 68.87 -18.69 16.183151
+rotation = -0.98808867 -0.15388562 0 0.15388562 -0.98808867 0 0 0 1
+
+[prop.add]
+region = L4RA
+solid = XO_ROADBARRIERB_1A_00
+position = 56.32 -20.37 16.085495
+rotation = -0.998677 0.05142145 0 -0.05142145 -0.998677 0 0 0 1
+
+[prop.add]
+region = L4RA
+solid = XO_ROADBARRIERB_1A_00
+position = 44.01 -17.41 16.085495
+rotation = -0.96705824 0.25455528 0 -0.25455528 -0.96705824 0 0 0 1
+
+[prop.add]
+region = L4RA
+solid = XO_ROADBARRIERB_1A_00
+position = 31.33 -11.9 16.183151
+rotation = -0.8463463 0.53263295 0 -0.53263295 -0.8463463 0 0 0 1
+
+[prop.add]
+region = L4RA
+solid = XS_WARNCURVER_1A_00
+position = -235.55 306.7 0.06933433
+rotation = 0.8269868 0.56222135 0 -0.56222135 0.8269868 0 0 0 1
+
+[prop.add]
+region = L4RA
+solid = XO_ROADBARRIERB_1A_00
+position = -263.73 323.74 0.9161023
+rotation = -0.052895196 0.99860007 0 -0.99860007 -0.052895196 0 0 0 1
+
+[prop.add]
+region = L4RA
+solid = XO_ROADBARRIERB_1A_00
+position = -261.68 338.38 0.9409642
+rotation = 0.3252524 0.9456272 0 -0.9456272 0.3252524 0 0 0 1
+
+[prop.add]
+region = L4RA
+solid = XO_ROADBARRIERB_1A_00
+position = -257.73 349.49 0.843308
+rotation = 0.4523751 0.89182776 0 -0.89182776 0.4523751 0 0 0 1
+
+[prop.add]
+region = L4RA
+solid = XO_ROADBARRIERB_1A_00
+position = -251.1 359.24 0.843308
+rotation = 0.570878 0.8210349 0 -0.8210349 0.570878 0 0 0 1
+
+[prop.add]
+region = L4RA
+solid = XO_ROADBARRIERB_1A_00
+position = -240.78 369.48 0.9409642
+rotation = 0.8253937 0.5645576 0 -0.5645576 0.8253937 0 0 0 1
+
+[prop.add]
+region = L4RA
+solid = XO_WATERBARRELA_1A_00
+position = 351.71 489.56 8.56987
+rotation = 0.9550641 0.2963992 0 -0.2963992 0.9550641 0 0 0 1
+
+[prop.add]
+region = L4RA
+solid = XO_WATERBARRELA_1A_00
+position = 366.49 491.14 9.31745
+rotation = 0.9550641 0.2963992 0 -0.2963992 0.9550641 0 0 0 1
+
+[prop.add]
+region = L4RA
+solid = XO_WATERBARRELA_1A_00
+position = 345.19 510.57 9.938678
+rotation = 0.9550641 0.2963992 0 -0.2963992 0.9550641 0 0 0 1
+
+[prop.add]
+region = L4RA
+solid = XO_WATERBARRELA_1A_00
+position = 359.97 512.15 10.911868
+rotation = 0.9550641 0.2963992 0 -0.2963992 0.9550641 0 0 0 1
+
+[prop.add]
+region = L4RA
+solid = XO_CRASHBARRELA_1A_00
+position = 185.43 421.02 5.7
+rotation = 0.8493831 0.5277768 0 -0.5277768 0.8493831 0 0 0 1
+
+[prop.add]
+region = L4RA
+solid = XO_CRASHBARRELA_1A_00
+position = 193.93 426.3 5.7
+rotation = 0.8493831 0.5277768 0 -0.5277768 0.8493831 0 0 0 1
+
+[prop.add]
+region = L4RA
+solid = XO_CRASHBARRELA_1A_00
+position = 173.82 439.71 5.7
+rotation = 0.8493831 0.5277768 0 -0.5277768 0.8493831 0 0 0 1
+
+[prop.add]
+region = L4RA
+solid = XO_CRASHBARRELA_1A_00
+position = 182.32 444.98 5.7
+rotation = 0.8493831 0.5277768 0 -0.5277768 0.8493831 0 0 0 1
+
+[prop.add]
+region = L4RA
+solid = XS_WARNCURVER_1A_00
+position = -2491.3 2545.2 290.5
+rotation = 0.983978 -0.17829022 0 0.17829022 0.983978 0 0 0 1
+
+[prop.add]
+region = L4RA
+solid = XO_ROADBARRIERB_1A_00
+position = -2498.67 2576.12 290.0625
+rotation = 0.6220683 0.78296304 0 -0.78296304 0.6220683 0 0 0 1
+
+[prop.add]
+region = L4RA
+solid = XO_ROADBARRIERB_1A_00
+position = -2489.37 2585.29 290.18704
+rotation = 0.7916707 0.6109481 0 -0.6109481 0.7916707 0 0 0 1
+
+[prop.add]
+region = L4RA
+solid = XO_ROADBARRIERB_1A_00
+position = -2479.59 2592.6 290.33258
+rotation = 0.88366276 0.4681241 0 -0.4681241 0.88366276 0 0 0 1
+
+[prop.add]
+region = L4RA
+solid = XO_ROADBARRIERB_1A_00
+position = -2468.06 2596.58 290.39087
+rotation = 0.9501512 0.31178945 0 -0.31178945 0.9501512 0 0 0 1
+
+[prop.add]
+region = L4RA
+solid = XO_ROADBARRIERB_1A_00
+position = -2453.78 2598.59 290.60626
+rotation = 0.99932045 -0.036859773 0 0.036859773 0.99932045 0 0 0 1
+
+[prop.add]
+region = L4RA
+solid = XO_WATERBARRELA_1A_00
+position = -1898.99 2379.83 278.81
+rotation = -0.99789834 -0.06479859 0 0.06479859 -0.99789834 0 0 0 1
+
+[prop.add]
+region = L4RA
+solid = XO_WATERBARRELA_1A_00
+position = -1913.98 2379.24 277.79
+rotation = -0.99789834 -0.06479859 0 0.06479859 -0.99789834 0 0 0 1
+
+[prop.add]
+region = L4RA
+solid = XO_WATERBARRELA_1A_00
+position = -1897.57 2357.88 277.51276
+rotation = -0.99789834 -0.06479859 0 0.06479859 -0.99789834 0 0 0 1
+
+[prop.add]
+region = L4RA
+solid = XO_WATERBARRELA_1A_00
+position = -1912.55 2357.28 276.7063
+rotation = -0.99789834 -0.06479859 0 0.06479859 -0.99789834 0 0 0 1
+
+[prop.add]
+region = L4RA
+solid = XO_CRASHBARRELA_1A_00
+position = -2094.41 2719.09 315.7
+rotation = 0.7753921 0.63148004 0 -0.63148004 0.7753921 0 0 0 1
+
+[prop.add]
+region = L4RA
+solid = XO_CRASHBARRELA_1A_00
+position = -2086.65 2725.4 316.51
+rotation = 0.7753921 0.63148004 0 -0.63148004 0.7753921 0 0 0 1
+
+[prop.add]
+region = L4RA
+solid = XO_CRASHBARRELA_1A_00
+position = -2108.3 2736.15 314.43753
+rotation = 0.7753921 0.63148004 0 -0.63148004 0.7753921 0 0 0 1
+
+[prop.add]
+region = L4RA
+solid = XO_CRASHBARRELA_1A_00
+position = -2100.55 2742.46 315.25204
+rotation = 0.7753921 0.63148004 0 -0.63148004 0.7753921 0 0 0 1
+
+[race]
+id = harbour-line
+name = Harbour Line
+track = 4041
+backward = no
+mode = sprint
+laps = 1
+checkpoint = -1101.3 -1811.4
+checkpoint = -937.2 -1974.7
+checkpoint = -640.1 -1918
+checkpoint = -342 -1950.7
+checkpoint = -69.6 -2064.4
+checkpoint = 179.3 -1892.6
+checkpoint = 461.9 -1782.7
+checkpoint = 731.9 -1677.4
+checkpoint = 867.6 -1424.4
+start = -1101.6 -1780.8 13.6 -89.4
+finish = 870.4 -1382.9 9.2 86.1
+
+[race]
+id = downtown-loop
+name = Downtown Loop
+track = 4013
+backward = no
+mode = circuit
+laps = 3
+checkpoint = 368.5 501.7
+checkpoint = 496 336
+checkpoint = 457.9 80.5
+checkpoint = 336.8 6.6
+checkpoint = 96.8 9.4
+checkpoint = -91.9 143.2
+checkpoint = -251.2 333
+checkpoint = -9 368.8
+start = 338.9 497.1 8.5 8.8
+
+[race]
+id = beacon-hill-sprint
+name = Beacon Hill Sprint
+track = 4061
+backward = no
+mode = sprint
+laps = 1
+checkpoint = -1919.2 2368.1
+checkpoint = -2158.6 2297.4
+checkpoint = -2432.2 2187.8
+checkpoint = -2732 2225.9
+checkpoint = -3006.6 2287.4
+checkpoint = -2790.8 2444.4
+checkpoint = -2517.3 2474.3
+checkpoint = -2309.7 2608.1
+start = -1888.3 2369.5 278.2 -177.4
+finish = -2091.8 2735.4 315.7 30.3

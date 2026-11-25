@@ -3,18 +3,75 @@
 //! from the region's collision packs, as the game loads them, drawn in the
 //! 3D view and on the Map. Off, the invisible barriers only (walls no
 //! scenery stands at, and the race and career barriers), or all collision
-//! (also the walls behind scenery and the floors). Read-only.
+//! (also the walls behind scenery and the floors).
 //!
-//! The layer is built the first time it is shown, from the world as the
-//! original places it (`session.base`), so a wall counts as invisible where
-//! the original game shows nothing at it.
+//! The layer is built the first time it is shown, and again whenever the
+//! mod changes the static collision (moved scenery, removed and drawn
+//! walls and ground), from the collision in play; the cover test looks at
+//! the scenery as the original places it (`session.base`), so a wall
+//! counts as invisible where the original game shows nothing at it.
+//!
+//! With the layer shown a click on a wall selects it (a drawn ground: a
+//! click inside it), and the Properties panel offers Remove wall (Del),
+//! one undo step. Edit ▸ Draw wall arms two clicks on the ground (a wall
+//! of the panel's height between them); Edit ▸ Draw ground clicks an
+//! outline, ended with Enter or a click on its first point. Esc disarms.
+//! The same in Top and on the Map (the point is the mouse's x/y at the
+//! floor's height there, a wall is picked by its foot). A drawn point snaps
+//! to collision corners and the ends of the mod's drawn walls within
+//! [`SNAP_PX`] (Alt: no snapping), a ring marking the corner.
 
 use egui::{Color32, Pos2, Rect, Shape, Stroke};
 use glam::{Vec2, Vec3};
 
 use super::overlay::{Overlay, colour, line2d};
 use super::state::{EditorState, View};
+use crate::tools::map::CollisionEdit;
 use crate::tools::map::collision::{self, Layer, Wall};
+// Named `Target` here: the controls test reads every `Key::` as a key.
+use crate::tools::map::ops::{CollisionKey as Target, Op};
+
+/// A drawing tool armed (Edit ▸ Draw wall / Draw ground) and its points so far.
+#[derive(Clone, Debug, PartialEq)]
+pub enum Draw {
+    Wall { first: Option<Vec3> },
+    Ground { points: Vec<Vec3> },
+}
+
+/// The settings a drawn wall or ground gets (the Properties panel's).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct DrawSettings {
+    /// A wall's height, metres.
+    pub height: f32,
+    /// The surface id; None: the floor's under the first point.
+    pub surface: Option<u8>,
+}
+
+impl Default for DrawSettings {
+    fn default() -> Self {
+        DrawSettings { height: 2.0, surface: None }
+    }
+}
+
+/// A piece of static collision selected in the layer.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Picked {
+    pub key: Target,
+    /// What it is, for the panel ("Invisible wall", "Drawn wall wall-1").
+    pub what: String,
+    /// Its outline on the ground (a wall: its foot), for the highlight.
+    pub outline: Vec<Vec3>,
+    /// A wall's height range.
+    pub z: (f32, f32),
+}
+
+/// A click this close (points) to a wall's foot or top picks it.
+const PICK_PX: f32 = 8.0;
+/// A click this close (points) to an outline's first point closes it.
+const CLOSE_PX: f32 = 10.0;
+/// A drawn point this close (points) to a collision corner or the end of a
+/// drawn wall snaps to it (Alt places without snapping).
+pub const SNAP_PX: f32 = 10.0;
 
 /// What the layer shows.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
@@ -110,7 +167,7 @@ pub fn layer_of(s: &EditorState) -> Layer {
     let t = std::time::Instant::now();
     let scenery = scenery(s);
     let world = &s.session.world;
-    let layer = collision::build(world.ground.faces(), &world.barrier_groups, &scenery);
+    let layer = collision::build(world.ground.listed_faces(), &world.barrier_groups, &scenery);
     let c = layer.counts();
     log::info!(
         "collision layer: {} faces read, {} invisible walls, {} barrier walls, {} walls at scenery, {} floors ({} scenery triangles, {:.0} ms)",
@@ -128,26 +185,38 @@ pub fn layer_of(s: &EditorState) -> Layer {
 /// The layer kept for the open region, drawn over the viewport.
 #[derive(Default)]
 pub struct CollisionOverlay {
-    /// The region it was built for, and the layer.
-    layer: Option<(String, Layer)>,
+    /// The region and collision version it was built for, and the layer.
+    layer: Option<(String, u64, Layer)>,
 }
 
 impl CollisionOverlay {
     fn layer(&mut self, s: &EditorState) -> &Layer {
-        if self.layer.as_ref().is_none_or(|(r, _)| *r != s.session.region) {
-            self.layer = Some((s.session.region.clone(), layer_of(s)));
+        let version = s.session.world.map_overlay.collision_version;
+        if self.layer.as_ref().is_none_or(|(r, v, _)| *r != s.session.region || *v != version) {
+            self.layer = Some((s.session.region.clone(), version, layer_of(s)));
         }
-        &self.layer.as_ref().unwrap().1
+        &self.layer.as_ref().unwrap().2
     }
 }
 
 impl super::app::Overlay for CollisionOverlay {
     fn overlay(&mut self, s: &mut EditorState, ctx: &egui::Context, painter: &egui::Painter, rect: Rect) -> bool {
+        let proj = Proj::of(s, ctx, rect);
+        let taken = proj.as_ref().is_some_and(|proj| draw_input(self, s, ctx, painter, rect, proj));
         let show = s.collision;
         if show == Show::Off {
-            return false;
+            return taken;
         }
         let map = super::sim::panel::map_transform(ctx);
+        let taken =
+            taken || (s.draw.is_none() && proj.as_ref().is_some_and(|proj| pick_input(self, s, ctx, rect, proj)));
+        if let (Some(p), Some(proj)) = (&s.wall, &proj) {
+            poly(proj, painter, &p.outline, p.outline.len() > 2, colour::SELECT, 3.0);
+            if p.z.1 > p.z.0 && !proj.is_2d() {
+                let top: Vec<Vec3> = p.outline.iter().map(|v| v.truncate().extend(p.z.1)).collect();
+                poly(proj, painter, &top, false, colour::SELECT, 2.0);
+            }
+        }
         let layer = self.layer(s);
         match s.view {
             View::ThreeD => paint_3d(layer, show, &Overlay::new(painter, &s.camera, rect)),
@@ -159,8 +228,533 @@ impl super::app::Overlay for CollisionOverlay {
         }
         let floors = s.view == View::ThreeD && s.camera.fov_y >= 5f32.to_radians();
         legend(layer, show, floors, painter, rect);
-        false
+        taken
     }
+}
+
+/// How the view puts a world point on the screen: the 3D camera, the
+/// overview (Top) or the Map. The race tools read the same views.
+pub enum Proj {
+    Camera(crate::draw::camera::Camera, Rect),
+    Top(super::camera::TopView, Rect),
+    Map(Vec2, f32, Rect),
+}
+
+impl Proj {
+    pub fn of(s: &EditorState, ctx: &egui::Context, rect: Rect) -> Option<Proj> {
+        match s.view {
+            View::Map => super::sim::panel::map_transform(ctx).map(|(c, k, r)| Proj::Map(c, k, r)),
+            View::ThreeD => Some(match super::viewport::top_view(ctx) {
+                Some((top, shown)) => Proj::Top(top, shown),
+                None => Proj::Camera(s.camera, rect),
+            }),
+        }
+    }
+
+    pub fn is_2d(&self) -> bool {
+        !matches!(self, Proj::Camera(..))
+    }
+
+    pub fn at(&self, p: Vec3) -> Option<Pos2> {
+        match self {
+            Proj::Camera(c, r) => super::camera::project(c, *r, p),
+            Proj::Top(top, r) => {
+                let (m, c) = (top.metres_per_point(*r), r.center());
+                Some(Pos2::new(c.x + (p.x - top.centre.x) / m, c.y - (p.y - top.centre.y) / m))
+            }
+            Proj::Map(centre, scale, r) => {
+                let c = r.center();
+                Some(Pos2::new(c.x + (p.x - centre.x) * scale, c.y - (p.y - centre.y) * scale))
+            }
+        }
+    }
+
+    /// Metres per screen point (2D views; the 3D view has no one scale).
+    pub fn metres_per_point(&self) -> Option<f32> {
+        match self {
+            Proj::Camera(..) => None,
+            Proj::Top(top, r) => Some(top.metres_per_point(*r)),
+            Proj::Map(_, scale, _) => Some(1.0 / scale),
+        }
+    }
+}
+
+/// A world polyline in the view (closed when `closed`).
+fn poly(proj: &Proj, painter: &egui::Painter, points: &[Vec3], closed: bool, c: Color32, width: f32) {
+    match proj {
+        Proj::Camera(cam, rect) => Overlay::new(painter, cam, *rect).polyline(points, closed, c, width),
+        _ => {
+            let n = points.len();
+            for k in 0..n {
+                if k + 1 == n && !closed {
+                    break;
+                }
+                if let (Some(a), Some(b)) = (proj.at(points[k]), proj.at(points[(k + 1) % n])) {
+                    line2d(painter, a, b, c, width);
+                }
+            }
+        }
+    }
+}
+
+/// A point of the collision a drawn point snaps to.
+pub fn snap_to(corners: impl IntoIterator<Item = Vec3>, proj: &Proj, at: Pos2) -> Option<Vec3> {
+    corners
+        .into_iter()
+        .filter_map(|c| proj.at(c).map(|p| (p.distance(at), c)))
+        .filter(|(d, _)| *d <= SNAP_PX)
+        .min_by(|a, b| a.0.total_cmp(&b.0))
+        .map(|(_, c)| c)
+}
+
+/// The corners near the ground point `g` a drawn point may snap to: the
+/// original collision's (walls' feet, floors' corners) and the ends of the
+/// mod's own drawn walls and outlines.
+fn snap_corners(o: &mut CollisionOverlay, s: &EditorState, proj: &Proj, g: Vec3) -> Vec<Vec3> {
+    let reach = proj.metres_per_point().map_or(40.0, |m| (SNAP_PX + 2.0) * m);
+    let (lo, hi) = (g.truncate() - Vec2::splat(reach), g.truncate() + Vec2::splat(reach));
+    let mut out = Vec::new();
+    // The sides of a drawn wall's box are not corners to snap to: its ends are.
+    let drawn: Vec<(Vec2, Vec2)> = s
+        .session
+        .map
+        .collision
+        .iter()
+        .filter_map(|e| match e {
+            CollisionEdit::Wall { region, from, to, .. } if region.eq_ignore_ascii_case(&s.session.region) => {
+                Some((from.truncate(), to.truncate()))
+            }
+            _ => None,
+        })
+        .collect();
+    let on_drawn = |p: Vec2| {
+        drawn.iter().any(|&(a, b)| {
+            let ab = b - a;
+            let t = ((p - a).dot(ab) / ab.length_squared().max(1e-6)).clamp(0.0, 1.0);
+            (a + ab * t).distance(p) <= crate::tools::map::draw::WALL_THICKNESS
+        })
+    };
+    let layer = o.layer(s);
+    let (walls, floors) = layer.near(lo, hi);
+    for i in walls {
+        let w = &layer.walls[i as usize];
+        if on_drawn(w.a.lerp(w.b, 0.5)) {
+            continue;
+        }
+        out.push(w.a.extend(w.z0));
+        out.push(w.b.extend(w.z0));
+    }
+    for i in floors {
+        out.extend_from_slice(layer.floors[i as usize].points());
+    }
+    for e in &s.session.map.collision {
+        match e {
+            CollisionEdit::Wall { region, from, to, .. } if region.eq_ignore_ascii_case(&s.session.region) => {
+                out.extend([*from, *to]);
+            }
+            CollisionEdit::Ground { region, outline, .. } if region.eq_ignore_ascii_case(&s.session.region) => {
+                out.extend_from_slice(outline);
+            }
+            _ => {}
+        }
+    }
+    out
+}
+
+/// The ground under the mouse when the left button went down over the
+/// view this frame (not over a window or a handle), snapped to existing
+/// corners unless Alt is held.
+fn pressed_ground(
+    o: &mut CollisionOverlay,
+    s: &EditorState,
+    ctx: &egui::Context,
+    rect: Rect,
+    proj: &Proj,
+    snap: bool,
+) -> Option<(Pos2, Option<Vec3>)> {
+    let (pointer, pressed) = ctx.input(|i| (i.pointer.hover_pos(), i.pointer.primary_pressed()));
+    let p = pointer
+        .filter(|p| rect.contains(*p) && ctx.layer_id_at(*p).is_none_or(|l| l.order == egui::Order::Background))?;
+    if !pressed || super::app::flying(ctx) || super::app::pointer_taken(ctx) {
+        return None;
+    }
+    Some((p, if snap { ground_snapped(o, s, ctx, rect, proj, p) } else { super::app::race_ground(s, ctx, rect, p) }))
+}
+
+/// The world point under screen point `p` for drawing (see
+/// [`pressed_ground`]).
+fn ground_snapped(
+    o: &mut CollisionOverlay,
+    s: &EditorState,
+    ctx: &egui::Context,
+    rect: Rect,
+    proj: &Proj,
+    p: Pos2,
+) -> Option<Vec3> {
+    let g = super::app::race_ground(s, ctx, rect, p)?;
+    if ctx.input(|i| i.modifiers.alt) {
+        return Some(g);
+    }
+    let cands = snap_corners(o, s, proj, g);
+    Some(snap_to(cands, proj, p).unwrap_or(g))
+}
+
+/// The snap marker: a ring and a dot on the point a click would take.
+fn snap_marker(proj: &Proj, painter: &egui::Painter, snapped: Vec3, plain: Vec3) {
+    if snapped == plain {
+        return;
+    }
+    if let Some(at) = proj.at(snapped) {
+        painter.circle_stroke(at, SNAP_PX * 0.6, Stroke::new(2.0, colour::SELECT));
+        painter.circle_filled(at, 2.5, colour::SELECT);
+    }
+}
+
+/// The armed drawing tool: its clicks, Enter and Esc, and its preview.
+/// True when it took the pointer.
+fn draw_input(
+    o: &mut CollisionOverlay,
+    s: &mut EditorState,
+    ctx: &egui::Context,
+    painter: &egui::Painter,
+    rect: Rect,
+    proj: &Proj,
+) -> bool {
+    let Some(draw) = s.draw.clone() else { return false };
+    let (enter, esc) = if ctx.egui_wants_keyboard_input() {
+        (false, false)
+    } else {
+        ctx.input_mut(|i| {
+            (
+                i.consume_key(egui::Modifiers::NONE, egui::Key::Enter),
+                i.consume_key(egui::Modifiers::NONE, egui::Key::Escape),
+            )
+        })
+    };
+    if esc {
+        s.draw = None;
+        return false;
+    }
+    let hover_at = ctx.input(|i| i.pointer.hover_pos()).filter(|p| rect.contains(*p));
+    let plain = hover_at.and_then(|p| super::app::race_ground(s, ctx, rect, p));
+    let hover = hover_at.and_then(|p| ground_snapped(o, s, ctx, rect, proj, p));
+    if let (Some(h), Some(g)) = (hover, plain) {
+        snap_marker(proj, painter, h, g);
+    }
+    let click = pressed_ground(o, s, ctx, rect, proj, true);
+    match draw {
+        Draw::Wall { first } => {
+            if let (Some(a), Some(b)) = (first, hover) {
+                let h = s.draw_settings.height;
+                if proj.is_2d() {
+                    poly(proj, painter, &[a, b], false, colour::SELECT, 2.0);
+                } else {
+                    for side in crate::tools::map::draw::wall_box(a, b, h) {
+                        poly(proj, painter, &side, true, colour::SELECT, 1.5);
+                    }
+                }
+            }
+            match click {
+                Some((_, Some(at))) => {
+                    match first {
+                        None => s.draw = Some(Draw::Wall { first: Some(at) }),
+                        Some(a) => {
+                            let surface = s.draw_settings.surface.unwrap_or_else(|| surface_under(s, a));
+                            let op =
+                                Op::DrawWall { from: a, to: at, height: s.draw_settings.height, surface, id: None };
+                            let _ = super::undo::run(s, op);
+                            s.draw = Some(Draw::Wall { first: None });
+                        }
+                    }
+                    true
+                }
+                Some((_, None)) => {
+                    s.status = "No ground under the mouse: fly closer".into();
+                    true
+                }
+                None => false,
+            }
+        }
+        Draw::Ground { mut points } => {
+            let mut line = points.clone();
+            line.extend(hover);
+            poly(proj, painter, &line, points.len() >= 2, colour::SELECT, 2.0);
+            let close = |at: Pos2| points.first().and_then(|p| proj.at(*p)).is_some_and(|f| f.distance(at) < CLOSE_PX);
+            let mut finish = enter;
+            let took = match click {
+                Some((at, _)) if points.len() >= 3 && close(at) => {
+                    finish = true;
+                    true
+                }
+                Some((_, Some(at))) => {
+                    if points.len() < crate::tools::map::format::MAX_OUTLINE {
+                        points.push(at);
+                    }
+                    true
+                }
+                Some((_, None)) => {
+                    s.status = "No ground under the mouse: fly closer".into();
+                    true
+                }
+                None => false,
+            };
+            if finish && points.len() >= 3 {
+                let surface = s.draw_settings.surface.unwrap_or_else(|| surface_under(s, points[0]));
+                let _ = super::undo::run(s, Op::DrawGround { outline: points, surface, id: None });
+                s.draw = Some(Draw::Ground { points: Vec::new() });
+            } else {
+                s.draw = Some(Draw::Ground { points });
+            }
+            took
+        }
+    }
+}
+
+/// The surface id of the floor under `p` (the most common floor surface of
+/// the region where there is none).
+pub fn surface_under(s: &EditorState, p: Vec3) -> u8 {
+    let world = &s.session.world;
+    let near = world
+        .ground
+        .listed_faces()
+        .filter(|f| !f.is_wall() && f.flags & 0x08 == 0)
+        .find(|f| {
+            let n = f.corners.clamp(3, 4);
+            let v: Vec<Vec2> = f.vertices[..n].iter().map(|v| v.truncate()).collect();
+            let at = p.truncate();
+            let side = |a: Vec2, b: Vec2| (b - a).perp_dot(at - a);
+            let signs: Vec<f32> = (0..n).map(|k| side(v[k], v[(k + 1) % n])).collect();
+            signs.iter().all(|&x| x >= 0.0) || signs.iter().all(|&x| x <= 0.0)
+        })
+        .map(|f| f.surface);
+    near.unwrap_or_else(|| {
+        let mut count = [0usize; 256];
+        for f in world.ground.listed_faces().filter(|f| !f.is_wall()) {
+            count[f.surface as usize] += 1;
+        }
+        (0..=255u8).max_by_key(|&k| count[k as usize]).unwrap_or(0)
+    })
+}
+
+/// A click on a wall (or inside drawn ground) selects it. True when it
+/// picked one.
+fn pick_input(o: &mut CollisionOverlay, s: &mut EditorState, ctx: &egui::Context, rect: Rect, proj: &Proj) -> bool {
+    let Some((at, ground)) = pressed_ground(o, s, ctx, rect, proj, false) else { return false };
+    let show = s.collision;
+    let camera = s.camera;
+    let layer = o.layer(s);
+    let ov = |p: Vec3| super::camera::project(&camera, rect, p);
+    let near = |a: Pos2, b: Pos2| {
+        let ab = b - a;
+        let t = ((at - a).dot(ab) / ab.length_sq().max(1e-6)).clamp(0.0, 1.0);
+        (a + ab * t).distance(at)
+    };
+    let (centre, reach) = match (proj.metres_per_point(), ground) {
+        (Some(m), Some(g)) => (g.truncate(), (PICK_PX + 2.0) * m),
+        (Some(_), None) => (Vec2::ZERO, -1.0),
+        (None, _) => (camera.position.truncate(), WALLS_NEAR),
+    };
+    let walls =
+        if reach < 0.0 { Vec::new() } else { layer.near(centre - Vec2::splat(reach), centre + Vec2::splat(reach)).0 };
+    let mut best: Option<(f32, u32)> = None;
+    for &i in &walls {
+        let w = &layer.walls[i as usize];
+        if parts(w, show).is_empty() {
+            continue;
+        }
+        if proj.is_2d() {
+            // Seen from above a wall is its foot.
+            let (Some(f0), Some(f1)) = (proj.at(w.a.extend(w.z0)), proj.at(w.b.extend(w.z0))) else { continue };
+            let d = near(f0, f1);
+            if d <= PICK_PX && best.is_none_or(|(bd, _)| d < bd) {
+                best = Some((d, i));
+            }
+            continue;
+        }
+        let q = w.quad(0.0, 1.0);
+        let (Some(f0), Some(f1), Some(t0), Some(t1)) = (ov(q[0]), ov(q[1]), ov(q[3]), ov(q[2])) else { continue };
+        let d = near(f0, f1).min(near(t0, t1)).min(near(f0, t0)).min(near(f1, t1));
+        let inside = Shape::convex_polygon(vec![f0, f1, t1, t0], Color32::WHITE, Stroke::NONE)
+            .visual_bounding_rect()
+            .contains(at)
+            && {
+                let poly = [f0, f1, t1, t0];
+                let s: Vec<f32> = (0..4)
+                    .map(|k| {
+                        (poly[(k + 1) % 4] - poly[k]).x * (at - poly[k]).y
+                            - (poly[(k + 1) % 4] - poly[k]).y * (at - poly[k]).x
+                    })
+                    .collect();
+                s.iter().all(|&x| x >= 0.0) || s.iter().all(|&x| x <= 0.0)
+            };
+        let d = if inside { 0.0 } else { d };
+        let depth = w.a.lerp(w.b, 0.5).extend(w.z0).distance(camera.position);
+        if d <= PICK_PX
+            && best.is_none_or(|(bd, bi)| {
+                let bw = &layer.walls[bi as usize];
+                (d, depth) < (bd, bw.a.lerp(bw.b, 0.5).extend(bw.z0).distance(camera.position))
+            })
+        {
+            best = Some((d, i));
+        }
+    }
+    let picked = match best {
+        Some((_, i)) => {
+            let w = layer.walls[i as usize].clone();
+            Some(picked_wall(s, &w))
+        }
+        None => ground.and_then(|g| picked_ground(s, g)),
+    };
+    match picked {
+        Some(p) => {
+            s.selection.clear();
+            s.wall = Some(p);
+            true
+        }
+        None => {
+            s.wall = None;
+            false
+        }
+    }
+}
+
+/// What a click on wall `w` selects: a drawn wall (its whole box) when it
+/// is one of the mod's, else the original face.
+fn picked_wall(s: &EditorState, w: &Wall) -> Picked {
+    let mid = w.a.lerp(w.b, 0.5);
+    let drawn = s.session.map.collision.iter().find_map(|e| match e {
+        CollisionEdit::Wall { id, region, from, to, .. } if region.eq_ignore_ascii_case(&s.session.region) => {
+            let (a, b) = (from.truncate(), to.truncate());
+            let ab = b - a;
+            let t = ((mid - a).dot(ab) / ab.length_squared().max(1e-6)).clamp(0.0, 1.0);
+            ((a + ab * t).distance(mid) <= crate::tools::map::draw::WALL_THICKNESS).then(|| (id.clone(), *from, *to))
+        }
+        _ => None,
+    });
+    match drawn {
+        Some((id, from, to)) => Picked {
+            what: format!("Drawn wall {id}"),
+            key: Target::Drawn(id),
+            outline: vec![from, to],
+            z: (w.z0, w.z1),
+        },
+        None => Picked {
+            what: match w.kind() {
+                collision::WallKind::Invisible => "Invisible wall".into(),
+                collision::WallKind::Barrier => "Race or career barrier".into(),
+                collision::WallKind::Visible => "Wall behind scenery".into(),
+            },
+            key: Target::Original(w.corners.clone()),
+            outline: vec![w.a.extend(w.z0), w.b.extend(w.z0)],
+            z: (w.z0, w.z1),
+        },
+    }
+}
+
+/// The mod's drawn ground under `at`, if any.
+fn picked_ground(s: &EditorState, at: Vec3) -> Option<Picked> {
+    s.session.map.collision.iter().find_map(|e| match e {
+        CollisionEdit::Ground { id, region, outline, .. } if region.eq_ignore_ascii_case(&s.session.region) => {
+            let p = at.truncate();
+            let n = outline.len();
+            let mut inside = false;
+            for k in 0..n {
+                let (a, b) = (outline[k].truncate(), outline[(k + 1) % n].truncate());
+                if (a.y > p.y) != (b.y > p.y) && p.x < a.x + (p.y - a.y) / (b.y - a.y) * (b.x - a.x) {
+                    inside = !inside;
+                }
+            }
+            inside.then(|| Picked {
+                what: format!("Drawn ground {id}"),
+                key: Target::Drawn(id.clone()),
+                outline: outline.clone(),
+                z: (0.0, 0.0),
+            })
+        }
+        _ => None,
+    })
+}
+
+/// Remove the selected wall or drawn piece (Del, the panel's button): one
+/// undo step.
+pub fn remove_picked(s: &mut EditorState) -> bool {
+    let Some(p) = s.wall.take() else { return false };
+    if let Target::Original(_) = &p.key
+        && p.what.starts_with("Race")
+    {
+        s.status = "A race's barriers are switched per race: they cannot be removed".into();
+        s.wall = Some(p);
+        return true;
+    }
+    let _ = super::undo::run(s, Op::RemoveCollision { target: p.key });
+    true
+}
+
+/// The Properties panel for the selected wall or ground, or the armed
+/// drawing tool.
+pub fn panel(s: &mut EditorState, ui: &mut egui::Ui) -> bool {
+    use crate::launch::theme::THEME_A;
+    use egui::RichText;
+    let dim = |t: &str| RichText::new(t).small().color(super::theme::rgb(THEME_A.dim));
+    if let Some(d) = s.draw.clone() {
+        let (title, hint) = match &d {
+            Draw::Wall { first: None } => ("Draw wall", "Click the wall's first end on the ground."),
+            Draw::Wall { first: Some(_) } => ("Draw wall", "Click its other end. Esc stops drawing."),
+            Draw::Ground { points } if points.len() < 3 => {
+                ("Draw ground", "Click the outline's corners on the ground.")
+            }
+            Draw::Ground { .. } => ("Draw ground", "Enter or a click on the first corner ends the outline. Esc stops."),
+        };
+        ui.label(RichText::new(title).strong().color(super::theme::rgb(THEME_A.ink)));
+        ui.label(dim(hint));
+        egui::Grid::new("draw-settings").num_columns(2).show(ui, |ui| {
+            if matches!(d, Draw::Wall { .. }) {
+                ui.label("Height");
+                ui.add(
+                    egui::DragValue::new(&mut s.draw_settings.height)
+                        .range(crate::tools::map::format::MIN_WALL_HEIGHT..=crate::tools::map::format::MAX_WALL_HEIGHT)
+                        .speed(0.05)
+                        .suffix(" m"),
+                );
+                ui.end_row();
+            }
+            ui.label("Surface");
+            ui.horizontal(|ui| {
+                let mut from_floor = s.draw_settings.surface.is_none();
+                if ui.checkbox(&mut from_floor, "the floor's").changed() {
+                    s.draw_settings.surface = if from_floor { None } else { Some(16) };
+                }
+                if let Some(v) = s.draw_settings.surface.as_mut() {
+                    ui.add(egui::DragValue::new(v).range(0..=255));
+                }
+            });
+            ui.end_row();
+        });
+        ui.label(dim("A drawn wall is a closed box 0.5 m thick, so it blocks from both sides at any frame rate."));
+        if ui.button("Stop drawing").on_hover_text("Esc").clicked() {
+            s.draw = None;
+        }
+        return true;
+    }
+    let Some(p) = s.wall.clone() else { return false };
+    ui.label(RichText::new(&p.what).strong().color(super::theme::rgb(THEME_A.ink)));
+    if p.outline.len() == 2 {
+        let l = p.outline[0].truncate().distance(p.outline[1].truncate());
+        ui.label(dim(&format!("{l:.1} m long · {:.1} m high · static collision", p.z.1 - p.z.0)));
+    } else {
+        ui.label(dim(&format!("{} corners · static collision", p.outline.len())));
+    }
+    let barrier = p.what.starts_with("Race");
+    let label = if matches!(p.key, Target::Drawn(_)) { "Delete" } else { "Remove wall" };
+    if ui.add_enabled(!barrier, egui::Button::new(label)).on_hover_text("Del").clicked() {
+        remove_picked(s);
+    }
+    if barrier {
+        ui.label(dim("A race's barriers are switched per race; this map mod cannot remove them."));
+    } else {
+        ui.label(dim("Removing it takes it out of the game's collision with this map mod; Undo brings it back."));
+    }
+    true
 }
 
 /// The parts of `w` drawn under `show`: (t0, t1, colour).

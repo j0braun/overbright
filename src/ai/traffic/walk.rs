@@ -248,6 +248,22 @@ pub(super) struct WalkPoint {
 }
 
 impl TrafficLane {
+    /// The car's road where it is, for the controller's vt+0x2C (0x40D4F0,
+    /// the distance past the road's edge at the route point): the walk's
+    /// first control point, the one behind the car (**inferred** as the
+    /// traffic controller's route point +0x0C).
+    pub fn edge(&self, f: &RouteFile) -> Option<crate::ai::driver::RoadEdge> {
+        let s = *self.steps.front()?;
+        let c = f.records.get(s.record)?.points.get(s.cp)?;
+        Some(crate::ai::driver::RoadEdge {
+            position: c.position.truncate(),
+            tangent: c.tangent,
+            travel: f.direction(s.record, s.cp, s.backward),
+            half_width: c.half_width,
+            backward: s.backward,
+        })
+    }
+
     /// The route manager's walk extension (0x428030 → 0x422220; verified):
     /// the walk keeps the car's nearest point and grows until its last
     /// point lies at least `reach` on from it — max(125 m (0x7E8E60), 4 s

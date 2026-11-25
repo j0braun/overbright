@@ -4,8 +4,32 @@ Plug in a gamepad and play: Overbright sets up Xbox, PlayStation, Switch Pro, St
 modern controls, analog triggers as pedals and Start to pause. You can plug a pad in or out while the game
 runs. Old DirectInput pads and wheels keep the original game's controls.
 
-Tested with a virtual Xbox 360 pad only. Rumble, PlayStation and Switch pads and the Steam Deck's controls
-have not been tried on real hardware yet.
+Tested with a virtual Xbox 360 pad and a virtual force-feedback wheel only. Rumble, force feedback on a
+real wheel, PlayStation and Switch pads and the Steam Deck's controls have not been tried on real hardware
+yet.
+
+## Wheels and force feedback
+
+A racing wheel drives as in the original: its own steering (the **Wheel Range** slider on the Wheel
+options page sets how much of the wheel's turn gives full lock), and the original's force feedback — a
+centring spring at full lock and in the menus, a damper that fades with speed, the tyres' pull as a
+steering force (its divisor is **Road Feedback**), the road surface as a vibration, a light wheel in
+deep puddles, and short jolts on hard speed changes and bumps. **Overall Force Strength** sets the
+strength (as in the original, anything from 0.4 up is full strength) and **Feedback** (Player options)
+turns the effects off except the centring spring. This is on whenever a wheel with force feedback is the
+driving device; there is no extra option. Without such a device nothing changes.
+
+- Linux: the effects go to the wheel's event device (`/dev/input/event*`, which needs write access; desktop
+  systems give it to the logged-in user for game controllers). Effects the driver does not offer are
+  skipped: the mainline Logitech driver (hid-logitech, lg4ff) has only the steering force and autocenter,
+  so the spring, damper, surface and jolts need a driver that offers them (new-lg4ff, hid-tmff2, the
+  Fanatec driver).
+- Windows: the effects go through DirectInput 8, as in the original: the game controller with the wheel's
+  vendor and product id that reports force-feedback actuators, opened exclusive in the foreground (so the
+  forces stop while the game window is in the background, as in the original). Not yet tried on a real
+  wheel: the calls are tested against the original's parameters and the build runs under Wine, but no
+  wheel driver has received them.
+- Gamepads keep the Rumble extra; the original gives XInput pads nothing.
 
 ## The two layouts
 
@@ -99,7 +123,7 @@ This is what the original's own controls give a modern pad, and what Original st
 | Xbox (045E) | left stick | **buttons** B / A; the triggers do nothing (the default combined pedal axis lRz does not exist on the XInput HID layout) | RB / LB, Start = shift up, Back = shift down | **none** (no pad pause in the original's defaults) | A / B |
 | PlayStation (054C) | left stick | **right stick** up/down (lRz), Cross = throttle, Square = brake; triggers unused | R1 / L1 … | none | **Square / Cross** |
 | Switch Pro (057E), Steam Deck / Steam Input (28DE), 8BitDo, generic | left stick | right stick up/down; West = brake, South = throttle | | none | **West / South** |
-| DirectInput wheel | not tested (the DevType Driving comes only from the product table) | | | | |
+| Racing wheel (Logitech, Thrustmaster, Fanatec and the others SDL lists) | the wheel, through the original's wheel steering (Wheel Range, no rate limit) | a combined pedal axis is bound only on a wheel without separate pedal axes; otherwise bind the pedals on the Controls page, as in the original | generic buttons | none | as a generic pad |
 
 Other things the original does with a pad, which Original keeps:
 
@@ -155,7 +179,14 @@ filters off.
   jolt (0x5C9770) when the speed changes by more than 4 m/s from one update to the next or the bump stops
   hit; jolts are at least 0.15 s apart. Feedback off and drag races keep only the spring. The console builds'
   pad vibration (0x5727C0 → 0x572620 → 0x4022C0) ends in a bare `ret` on the PC. The effect model is
-  `nfsu2::pad::ff::Original`; it sends nothing to a device yet. The Rumble setting is Overbright's own model:
+  `nfsu2::pad::ff::Original`, stepped once per 1/60 s world tick by `Game::ff_tick` (`Host::ff_tick`: the
+  driving path while the player drives, the front-end path otherwise; the gain from Overall Force Strength
+  when driving starts, autocenter off on a wheel when the device opens) and played by
+  `nfsu2::pad::ff_out` (Linux evdev: EVIOCSFF uploads, EV_FF play / stop / FF_GAIN / FF_AUTOCENTER;
+  DirectInput ±10000 → evdev ±0x7FFF, a +X direction → 0x4000 as SDL and Wine map it; one actuator
+  assumed, **inferred**: evdev does not say which axes take forces; Windows: `ff_out::dinput`, the
+  original's DirectInput calls, below). The Feedback option is enabled while
+  such a device drives (`Host::force_feedback`, 0x5B8250's question). The Rumble setting is Overbright's own model:
   the jolt on the strong motor (by the speed change, and by the wheels' suspension travel over 0.05 m in a
   tick, which stands in for the bump stops: **inferred**), and the weak motor on the road texture (0x5C9FE0's
   surface table: surfaces 8–11 and 15–17, amplitude / 2 × min(1, speed / 13 m/s); plain asphalt gives none),
@@ -200,7 +231,7 @@ Auto is a default for how a device is presented, like the display mode: document
   kernel driver with the evdev gamepad codes) gives South, East and the left stick, and the product is not one
   the original has a preset or type override for (`host::legacy_product`: the nine 0x7FE7F8 presets, which
   are Logitech Dual Action / Rumble Pad / WingMan, the EMS PS2 adapter, Saitek and the old Microsoft pad, and
-  the 0x800588 wheel). Xbox, PlayStation, Switch Pro, Steam Deck / Steam Input and 8BitDo pads resolve to
+  the 0x800588 wheel, and every wheel `host::is_wheel` names). Xbox, PlayStation, Switch Pro, Steam Deck / Steam Input and 8BitDo pads resolve to
   Modern; old DirectInput pads and wheels to Original. The scripted pad's `connect <id> <vid> <pid> legacy`
   forces a non-standard device.
 - **Saved bindings keep working:** when the profile holds an Original block for the pad (its own GUID) that
@@ -232,7 +263,24 @@ drives, Start pauses, B resumes, d-pad name entry, unplugging pauses). End to en
 Xbox 360 pad read by gilrs (a developer probe, not in the public repository): detection, the Original and
 Modern reports, the hat d-pad, unplugging, and the three-pad rescan.
 
+Force feedback and wheels: `ff::tests` (the effect model), `ff_out` (units; `plays_on_a_device_node`, ignored,
+plays one of each effect on `NFSU2_FF_NODE`), `host::tests::wheel_and_force_feedback` (a scripted G29 with
+`connect 1 046d c24f ff`: wheel layout and axes, no default pedals, autocenter off, the front-end spring, the
+gain), `host::tests::gilrs_finds_a_virtual_ff_wheel` (ignored, the same through gilrs), `drive::tests::
+wheel_steering` (0x4061C0), game.rs `wheel_force_feedback_at_any_frame_rate` (real assets, a race: the
+damper and the steering force play, the same calls on the same ticks at 30, 60, 120 and 200 fps). The two
+ignored tests ran against a uinput force-feedback wheel (a developer script, not in the repository) that
+logged every upload and play: spring, damper, constant, sine → square (released and made again), the
+150 ms square jolt with its 20 ms fade, the negative damper, gain and autocenter all arrived. gilrs itself
+uploads one rumble-style periodic effect (magnitude 0) on such a device.
+
 ## Open
+
+- Force feedback on a real wheel (strength and direction of the steering force by feel; Linux drivers that
+  lack effects), and on Windows at all (a DirectInput output is to come). The steering force's sign follows
+  DirectInput's +X → evdev 0x4000 mapping (SDL, Wine), not checked on hardware.
+- Which axes and buttons gilrs gives a real wheel (`Layout::Wheel` reads gilrs's left stick, LeftZ, right
+  stick and RightZ, which is how gilrs names unmapped ABS_X / Y / Z / RX / RY / RZ).
 
 - Rumble on a real pad (the uinput pad has no force feedback; gilrs's force feedback needs write access to the
   event node).

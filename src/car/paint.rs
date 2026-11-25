@@ -34,7 +34,7 @@ impl Car {
     /// point the `CARSKIN` light material at the paint's material.
     /// Set the car up for a race mode: the stock handling, with that
     /// mode's tune and the performance set-up redone (0x5B6130).
-    pub fn set_race(&mut self, race: crate::race::RaceMode) {
+    pub fn set_race(&mut self, race: crate::race_mode::RaceMode) {
         let mut h = self.car_type.stock.clone();
         crate::handling::setup_performance(&mut h, race);
         self.car_type.handling = h;

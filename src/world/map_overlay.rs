@@ -5,13 +5,14 @@
 //! world's [`World::reset_to_loaded`] comes back to the world with its
 //! mods. With no edit for the region nothing is touched.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use glam::{Mat3, Mat4, Vec3};
 
 use super::*;
 use crate::tools::map::{MapMod, PropEdit, PropRef};
+use super::prop_collision::SceneryEdit;
 
 /// How close (metres) an edit's `at` must be to the placement it names.
 pub const MATCH_DISTANCE: f32 = 0.05;
@@ -149,6 +150,7 @@ impl World {
     pub fn note_original(&mut self, i: usize, target: &PropRef) {
         let Some(p) = self.placements.get(i) else { return };
         self.map_overlay.original_at.entry(i).or_insert(p.transform.w_axis.truncate());
+        self.map_overlay.original_transform.entry(i).or_insert(p.transform);
         self.map_overlay.originals.entry(i).or_insert_with(|| target.clone());
     }
 
@@ -162,7 +164,8 @@ impl World {
             .flat_map(|(m, (_, md))| md.props.iter().enumerate().map(move |(k, e)| (m, k, e)))
             .filter(|(.., e)| e.region().eq_ignore_ascii_case(region))
             .collect();
-        if edits.is_empty() {
+        let drawn = super::DrawnCollision::of(region, mods.iter().flat_map(|(_, m)| &m.collision));
+        if edits.is_empty() && drawn.is_empty() {
             return;
         }
         let _t = crate::prof::span("World: map mods");
@@ -172,24 +175,45 @@ impl World {
         // order).
         let found: Vec<Option<usize>> =
             edits.iter().map(|(.., e)| e.target().and_then(|t| self.find_placement(t))).collect();
+        let has_prop = |w: &World, i: usize| w.smackables.iter().any(|s| s.placement == i);
+        // Static scenery whose collision changes: (placement, where it stood
+        // in the original, where it stands now).
+        let mut scenery: Vec<SceneryEdit> = Vec::new();
+        let mut scenery_at: HashMap<usize, usize> = HashMap::new();
         for ((m, _, e), found) in edits.into_iter().zip(found) {
             let folder = &mods[m].0;
+            if let (PropEdit::Move { .. } | PropEdit::Delete { .. }, Some(i)) = (e, found)
+                && !has_prop(self, i)
+                && !scenery_at.contains_key(&i)
+            {
+                scenery_at.insert(i, scenery.len());
+                scenery.push(SceneryEdit { placement: i, from: Some(self.placements[i].transform), to: None });
+            }
             match (e, found) {
                 (PropEdit::Move { target, position, rotation }, Some(i)) => {
                     self.note_original(i, target);
                     self.set_placement_transform(i, transform_of(*position, *rotation));
                     self.map_overlay.moved += 1;
+                    if let Some(&k) = scenery_at.get(&i) {
+                        scenery[k].to = Some(transform_of(*position, *rotation));
+                    }
                 }
                 (PropEdit::Delete { target }, Some(i)) => {
                     self.note_original(i, target);
                     self.hide_placement(i);
                     self.map_overlay.deleted += 1;
+                    if let Some(&k) = scenery_at.get(&i) {
+                        scenery[k].to = None;
+                    }
                 }
                 (PropEdit::Add { id, solid, position, rotation, .. }, _) => {
                     match self.add_placement(solid, transform_of(*position, *rotation)) {
                         Some(i) => {
                             self.map_overlay.first_added.get_or_insert(i);
                             self.map_overlay.added.insert(i, (folder.clone(), id.clone()));
+                            if !has_prop(self, i) {
+                                scenery.push(SceneryEdit { placement: i, from: None, to: Some(transform_of(*position, *rotation)) });
+                            }
                         }
                         None => self.map_overlay.missing += 1,
                     }
@@ -197,6 +221,7 @@ impl World {
                 _ => self.map_overlay.missing += 1,
             }
         }
+        self.map_overlay.collision = self.apply_map_collision(&scenery, &drawn);
         let applied = &self.map_overlay;
         if applied.missing > 0 {
             log::warn!(
@@ -205,11 +230,16 @@ impl World {
             );
         }
         log::info!(
-            "map mods on {region}: {} moved, {} deleted, {} added",
+            "map mods on {region}: {} moved, {} deleted, {} added; static collision: {} face(s) out, {} in",
             applied.moved,
             applied.deleted,
-            applied.added.len()
+            applied.added.len(),
+            applied.collision.cut,
+            applied.collision.added
         );
+        if applied.collision.unmatched > 0 {
+            log::warn!("map mods: {} removed collision face(s) for {region} are not in its collision", applied.collision.unmatched);
+        }
         self.light_placements = Default::default();
         self.light_by_section = Default::default();
         self.retake_loaded();
@@ -376,6 +406,8 @@ struct Live {
     adds: Vec<AddState>,
     /// Each add's place among the adds, by serial (NONE: not in the mod).
     order: Vec<u32>,
+    /// The scenery collision the edits changed, and how to take it back.
+    collision: super::prop_collision::SavedCollision,
 }
 
 #[derive(Clone, PartialEq)]
@@ -794,16 +826,23 @@ impl World {
         let n = finds.n;
         let mut live = match self.map_overlay.index.live.take() {
             Some(l) if l.region == region => l,
-            other => Box::new(Live {
-                region: region.to_string(),
-                base: other.map_or_else(|| Arc::new(self.base_of(n)), |l| l.base),
-                found: HashMap::new(),
-                serials: HashMap::new(),
-                next_serial: 0,
-                entries: Vec::new(),
-                adds: Vec::new(),
-                order: Vec::new(),
-            }),
+            other => {
+                let (base, collision) = match other {
+                    Some(l) => (l.base, l.collision),
+                    None => (Arc::new(self.base_of(n)), Default::default()),
+                };
+                Box::new(Live {
+                    region: region.to_string(),
+                    base,
+                    collision,
+                    found: HashMap::new(),
+                    serials: HashMap::new(),
+                    next_serial: 0,
+                    entries: Vec::new(),
+                    adds: Vec::new(),
+                    order: Vec::new(),
+                })
+            }
         };
         let base = live.base.clone();
 
@@ -964,10 +1003,12 @@ impl World {
                         o.originals.insert(i, target.clone());
                     }
                     o.original_at.insert(i, b.transform.w_axis.truncate());
+                    o.original_transform.insert(i, b.transform);
                 }
                 None => {
                     o.originals.remove(&i);
                     o.original_at.remove(&i);
+                    o.original_transform.remove(&i);
                 }
             }
         }
@@ -1074,6 +1115,39 @@ impl World {
         if lights {
             self.light_placements = Default::default();
             self.light_by_section = Default::default();
+        }
+
+        // ... and the static collision of the scenery the edits moved,
+        // deleted and added, listed as `apply_map_mods` lists it (in edit
+        // order, each original once, as its last edit leaves it).
+        let mut scenery: Vec<SceneryEdit> = Vec::new();
+        let mut listed: HashSet<u32> = HashSet::new();
+        let original_of: HashMap<u32, u32> = entries.iter().map(|en| (en.edit, en.j)).collect();
+        let mut add_k = 0;
+        for (k, e) in edits.iter().enumerate() {
+            if matches!(e, PropEdit::Add { .. }) {
+                let a = add_k;
+                add_k += 1;
+                if let Some(r) = results[a].as_ref().filter(|r| r.prop.is_none()) {
+                    let to = transform_of(adds[a].position, adds[a].rotation);
+                    debug_assert_eq!(r.placement.solid, self.placements[index_of[a]].solid);
+                    scenery.push(SceneryEdit { placement: index_of[a], from: None, to: Some(to) });
+                }
+                continue;
+            }
+            let Some(&j) = original_of.get(&(k as u32)) else { continue };
+            if base.prop_of.contains_key(&(j as usize)) || !listed.insert(j) {
+                continue;
+            }
+            let to = match run_of(&entries, j).last().map(|en| &en.kind) {
+                Some(Kind::Move(t)) => Some(*t),
+                _ => None,
+            };
+            scenery.push(SceneryEdit { placement: j as usize, from: Some(base.placements[j as usize].transform), to });
+        }
+        let drawn = super::DrawnCollision::of(region, &map.collision);
+        if self.redo_scenery_collision(&mut live.collision, &scenery, &drawn) {
+            any = true;
         }
 
         for (a, r) in adds.iter_mut().zip(results) {

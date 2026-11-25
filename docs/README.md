@@ -17,14 +17,17 @@ Getting the game running, the settings, and what differs from the original. See 
 
 ## Modding
 
-Texture packs, the texture editor, the map editor and the planned asset format. See [modding/](modding/README.md).
+Texture packs, the texture editor, the map editor, Overbright Studio and the asset format (a draft). See
+[modding/](modding/README.md).
 
 - [Texture packs](modding/texture-packs.md): add HD textures and the HUD mod.
 - [TexMod packs](modding/texmod-import.md): use `.tpf` packages made for the original.
 - [Texture editor](modding/texture-editor.md) and [map editor](modding/map-editor.md).
-- [Overbright Studio (preview)](modding/studio-start.md): the editor's new home, and its
-  [command-line tool](modding/studio-cli.md).
-- [Asset format (draft)](modding/asset-format/README.md): the planned format for base sets and mod packs.
+- Overbright Studio (preview), the map editor's new home: [getting started](modding/studio-start.md),
+  [its window](modding/studio.md), [its command-line tool](modding/studio-cli.md) and
+  [Looks](modding/studio-looks.md) (painting a game texture in your own paint program).
+- [Asset format (draft)](modding/asset-format/README.md): the format for base sets and mod packs; Studio and
+  the map editor's run files use its core library already.
 
 ## Building and testing
 

@@ -22,6 +22,14 @@ use crate::world::World;
 /// Default snap steps.
 pub const SNAP_METRES: f32 = 0.25;
 pub const SNAP_DEGREES: f32 = 15.0;
+/// A placed solid's front: the local axis its face looks along, −y. The
+/// game's signs carry their readable side there (their pictures from that
+/// side show the sign face, from the others its back), so a prop's
+/// heading (where its local x points, [`edit::heading_of`]) is its front
+/// turned 90° counter-clockwise: [`heading_facing`].
+pub const FRONT: Vec3 = Vec3::NEG_Y;
+/// The most selected props whose front arrow is drawn.
+const MAX_FRONTS: usize = 32;
 /// How near (screen points) the pointer must be to grab a handle.
 const GRAB: f32 = 7.0;
 /// The handles' length on screen, roughly (points).
@@ -107,6 +115,13 @@ pub struct Props {
     live: Option<Live>,
     /// The handle under the pointer this frame.
     pub hover: Option<Handle>,
+    /// The prop menu's place while it is open (screen), and the turn its
+    /// Rotate… item holds (degrees).
+    menu_at: Option<Pos2>,
+    pub turn_by: f32,
+    /// Where the right button went down over the viewport and the camera
+    /// then: a click (no move, no flight) opens the prop menu.
+    rmb_from: Option<(Pos2, Vec3)>,
 }
 
 impl Default for Props {
@@ -119,6 +134,9 @@ impl Default for Props {
             drag: None,
             live: None,
             hover: None,
+            menu_at: None,
+            turn_by: 45.0,
+            rmb_from: None,
         }
     }
 }
@@ -169,6 +187,34 @@ pub fn ground_under(s: &EditorState, rect: Rect, at: Pos2) -> Option<Vec3> {
 pub fn camera_heading(s: &EditorState) -> f32 {
     let f = s.camera.forward();
     f.y.atan2(f.x).to_degrees()
+}
+
+/// The heading (degrees) that turns a prop's front ([`FRONT`]) towards
+/// `front` degrees (the game's convention: around +z from +x).
+pub fn heading_facing(front: f32) -> f32 {
+    wrap(front + 90.0)
+}
+
+/// Where a prop's front points (degrees) for a rotation.
+pub fn front_of(rotation: Mat3) -> f32 {
+    wrap(edit::heading_of(rotation) - 90.0)
+}
+
+/// The world direction of a rotation's front ([`FRONT`]), level (None:
+/// the prop lies on its front or back).
+pub fn front_dir(rotation: Mat3) -> Option<Vec3> {
+    let f = -rotation.row(1);
+    let flat = Vec3::new(f.x, f.y, 0.0);
+    (flat.length() > 0.2).then(|| flat.normalize())
+}
+
+/// The heading that turns a prop standing at `at` to face the camera (its
+/// front towards the eye; seen from straight above, the camera's own
+/// heading turned round).
+pub fn heading_to_camera(s: &EditorState, at: Vec3) -> f32 {
+    let d = (s.camera.position - at).truncate();
+    let front = if d.length() < 1e-3 { camera_heading(s) + 180.0 } else { d.y.atan2(d.x).to_degrees() };
+    heading_facing(front)
 }
 
 /// The world length at `pivot` that is [`HANDLE_POINTS`] long on screen
@@ -238,6 +284,7 @@ fn placements_of(s: &EditorState, added: &[PropKey]) -> Vec<usize> {
 /// Delete the selection (Del).
 pub fn delete_selection(s: &mut EditorState) {
     if s.selection.is_empty() {
+        super::collision::remove_picked(s);
         return;
     }
     let (of, ops): (Vec<usize>, Vec<Op>) = editable(s).into_iter().map(|(i, key)| (i, Op::Delete { key })).unzip();
@@ -312,6 +359,34 @@ pub fn upright_selection(s: &mut EditorState) {
         })
         .unzip();
     run_on(s, "Upright", &of, ops);
+}
+
+/// Turn the selection by `degrees` about its pivot (counter-clockwise
+/// seen from above), one undo step ("Rotate 90°", "Rotate…").
+pub fn rotate_selection(s: &mut EditorState, degrees: f32) {
+    let Some(pivot) = pivot(s) else { return };
+    let (of, ops): (Vec<usize>, Vec<Op>) = editable(s)
+        .into_iter()
+        .filter_map(|(i, key)| {
+            let (p, r) = edit::placement_parts(&s.session.world, i)?;
+            Some((i, Op::Place { key, position: turn_about(p, pivot, degrees), rotation: edit::turned(r, degrees) }))
+        })
+        .unzip();
+    run_on(s, "Rotate", &of, ops);
+}
+
+/// Turn each selected prop where it stands so its front faces the
+/// camera, one undo step ("Face camera").
+pub fn face_camera_selection(s: &mut EditorState) {
+    let (of, ops): (Vec<usize>, Vec<Op>) = editable(s)
+        .into_iter()
+        .filter_map(|(i, key)| {
+            let (position, r) = edit::placement_parts(&s.session.world, i)?;
+            let rotation = edit::with_heading(r, heading_to_camera(s, position));
+            Some((i, Op::Place { key, position, rotation }))
+        })
+        .unzip();
+    run_on(s, "Face camera", &of, ops);
 }
 
 /// Place a new prop of `solid` standing on the ground at `at`, facing
@@ -586,7 +661,127 @@ impl Props {
                 }
             }
         }
+        self.draw_fronts(s, painter, rect, len);
         painter.circle_filled(c, 3.5, colour(THEME_A.play));
+    }
+
+    /// A small flat arrow at each selected prop's foot along its front
+    /// ([`FRONT`]): where a sign's face looks, which way Face camera turns.
+    fn draw_fronts(&self, s: &EditorState, painter: &egui::Painter, rect: Rect, len: f32) {
+        let col = colour(THEME_A.lime);
+        for (k, &i) in s.selection.iter().take(MAX_FRONTS).enumerate() {
+            let Some((p, r)) = edit::placement_parts(&s.session.world, i) else { continue };
+            let Some(dir) = front_dir(r) else { continue };
+            let (Some(a), Some(b)) = (project(s, rect, p), project(s, rect, p + dir * len * 0.55)) else { continue };
+            if a.distance(b) < 6.0 {
+                continue;
+            }
+            let d = (b - a).normalized();
+            let side = egui::vec2(-d.y, d.x) * 5.0;
+            painter.line_segment([a, b - d * 6.0], Stroke::new(2.0, col));
+            painter.add(egui::Shape::convex_polygon(vec![b + d * 3.0, b - d * 7.0 + side, b - d * 7.0 - side], col, Stroke::NONE));
+            if k == 0 {
+                painter.text(b + d * 6.0, egui::Align2::LEFT_CENTER, "front", egui::FontId::proportional(12.0), col);
+            }
+        }
+    }
+
+    /// The prop menu: a right-click on a prop in the viewport (one that
+    /// does not fly the camera) selects it unless it is selected already
+    /// and opens the menu there; Shift+F10 opens it at the selection.
+    /// Its items act on the selection, each one undo step.
+    pub fn context_menu(&mut self, s: &mut EditorState, ctx: &egui::Context, rect: Rect) {
+        use egui::PointerButton::Secondary;
+        let (pressed, clicked, at) =
+            ctx.input(|i| (i.pointer.button_pressed(Secondary), i.pointer.button_clicked(Secondary), i.pointer.interact_pos()));
+        if pressed {
+            self.rmb_from = at.filter(|p| rect.contains(*p)).map(|p| (p, s.camera.position));
+        }
+        let mut open = false;
+        if clicked
+            && let Some((at, eye)) = self.rmb_from.take()
+            && s.camera.position.distance(eye) < 1e-3
+        {
+            let (e, d) = screen_ray(s, rect, at);
+            if let Some(hit) = super::viewport::pick(&s.session.world, e, d) {
+                if !s.selection.contains(&hit.placement) {
+                    s.selection = vec![hit.placement];
+                }
+                self.menu_at = Some(at);
+                open = true;
+            }
+        }
+        let key = !ctx.egui_wants_keyboard_input()
+            && !s.selection.is_empty()
+            && ctx.input_mut(|i| i.consume_key(egui::Modifiers::SHIFT, egui::Key::F10));
+        if key {
+            self.menu_at = Some(pivot(s).and_then(|p| project(s, rect, p)).unwrap_or(rect.center()));
+            open = true;
+        }
+        let Some(at) = self.menu_at else { return };
+        let id = egui::Id::unique("editor.prop-menu");
+        let shown = egui::Popup::new(id, ctx.clone(), egui::PopupAnchor::Position(at), egui::LayerId::new(egui::Order::Foreground, id))
+            .kind(egui::PopupKind::Menu)
+            .layout(egui::Layout::top_down_justified(egui::Align::Min))
+            .style(egui::containers::menu::menu_style)
+            .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
+            .open_memory(open.then_some(egui::SetOpenCommand::Bool(true)))
+            .show(|ui| self.menu_items(s, ui));
+        if shown.is_none() || s.selection.is_empty() {
+            self.menu_at = None;
+            egui::Popup::close_id(ctx, id);
+        }
+    }
+
+    /// The prop menu's items (also the Edit menu's turns, `menu`).
+    pub fn menu_items(&mut self, s: &mut EditorState, ui: &mut Ui) {
+        let what = label_of(&s.session.world, "", &s.selection);
+        ui.label(RichText::new(what.trim()).small().color(colour(THEME_A.dim)));
+        if ui.button("Rotate 90°").on_hover_text("A quarter turn to the left, seen from above").clicked() {
+            rotate_selection(s, 90.0);
+            ui.close();
+        }
+        ui.menu_button("Rotate…", |ui| {
+            ui.horizontal(|ui| {
+                ui.label("Turn by");
+                let r = ui.add(egui::DragValue::new(&mut self.turn_by).range(-180.0..=180.0).speed(1.0).suffix("°"));
+                let enter = r.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
+                if ui.button("Turn").clicked() || enter {
+                    rotate_selection(s, self.turn_by);
+                    ui.close();
+                }
+            });
+            ui.horizontal(|ui| {
+                for (t, by) in [("−90°", -90.0), ("180°", 180.0), ("−15°", -15.0), ("+15°", 15.0)] {
+                    if ui.button(t).clicked() {
+                        rotate_selection(s, by);
+                        ui.close();
+                    }
+                }
+            });
+            ui.label(
+                RichText::new("Positive turns to the left, seen from above. The Heading in Properties sets it exactly.")
+                    .small()
+                    .color(colour(THEME_A.dim)),
+            );
+        });
+        if ui.button("Face camera").on_hover_text("Turn its front (the arrow at its foot) towards you").clicked() {
+            face_camera_selection(s);
+            ui.close();
+        }
+        ui.separator();
+        if ui.button("Drop to ground").clicked() {
+            drop_selection(s);
+            ui.close();
+        }
+        if ui.button("Duplicate").clicked() {
+            duplicate_selection(s, None);
+            ui.close();
+        }
+        if ui.button("Delete").clicked() {
+            delete_selection(s);
+            ui.close();
+        }
     }
 
     /// The Props keys (not while a text field has the keyboard or the
@@ -598,6 +793,7 @@ impl Props {
             return;
         }
         use egui::{Key, Modifiers};
+        let hosted = super::menu::hosted(ctx);
         let (q, w, e, del, end, dup, esc) = ctx.input_mut(|i| {
             (
                 i.consume_key(Modifiers::NONE, Key::Q),
@@ -605,7 +801,7 @@ impl Props {
                 i.consume_key(Modifiers::NONE, Key::E),
                 i.consume_key(Modifiers::NONE, Key::Delete),
                 i.consume_key(Modifiers::NONE, Key::End),
-                i.consume_key(Modifiers::COMMAND, Key::D),
+                !hosted && i.consume_key(Modifiers::COMMAND, Key::D),
                 i.consume_key(Modifiers::NONE, Key::Escape),
             )
         });
@@ -625,6 +821,8 @@ impl Props {
         }
         if esc && self.drag.is_none() {
             s.selection.clear();
+            s.wall = None;
+            s.draw = None;
         }
     }
 }
@@ -705,6 +903,12 @@ impl Panel for Props {
             && let Some(live) = self.live.take()
         {
             live.take_back(s);
+        }
+        if !s.selection.is_empty() {
+            s.wall = None;
+        }
+        if s.selection.is_empty() && super::collision::panel(s, ui) {
+            return;
         }
         let Some(&first) = s.selection.first() else {
             ui.label(RichText::new("Nothing selected").color(colour(THEME_A.dim)));
@@ -816,7 +1020,7 @@ impl Panel for Props {
             if ui.add_enabled(resettable, egui::Button::new("Reset to original")).clicked() {
                 reset_selection(s);
             }
-            if ui.add_enabled(editable, egui::Button::new("Duplicate")).on_hover_text("Ctrl+D").clicked() {
+            if ui.add_enabled(editable, egui::Button::new("Duplicate")).on_hover_text(super::menu::duplicate_key(ui.ctx())).clicked() {
                 duplicate_selection(s, None);
             }
             if ui.add_enabled(editable, egui::Button::new("Delete")).on_hover_text("Del").clicked() {
@@ -828,7 +1032,7 @@ impl Panel for Props {
         ui.label(RichText::new(if knock {
             "Knock-over props carry their own collision: it moves with the prop."
         } else {
-            "Static scenery keeps its collision where the original has it: a moved or deleted piece still blocks there."
+            "Static scenery takes its collision with it: a moved piece blocks where it now stands, a deleted one nowhere."
         })
         .small()
         .color(colour(THEME_A.dim)));
@@ -1116,4 +1320,101 @@ pub(crate) mod tests {
         assert_eq!(to_segment(Pos2::new(5.0, 3.0), a, b), 3.0);
         assert_eq!(to_segment(Pos2::new(-4.0, 3.0), a, b), 5.0);
     }
+
+    /// The prop menu's turns: each is one undo step, named for the prop,
+    /// and undo puts the prop back as it was.
+    #[test]
+    fn the_prop_menus_turns_are_one_undo_step_each() {
+        let mut s = state();
+        s.selection = vec![0];
+        let start = s.session.world.placements[0].transform;
+        let heading = |s: &EditorState| edit::heading_of(edit::placement_parts(&s.session.world, 0).unwrap().1);
+        rotate_selection(&mut s, 90.0);
+        assert!((heading(&s) - 90.0).abs() < 1e-3, "{}", heading(&s));
+        assert_eq!(s.session.undo.undo_label(), Some("Rotate XC_CONE_01"));
+        rotate_selection(&mut s, -15.0);
+        assert!((heading(&s) - 75.0).abs() < 1e-3);
+        // Face camera: the front (local −y) towards the eye at (0, −20).
+        face_camera_selection(&mut s);
+        assert_eq!(s.session.undo.undo_label(), Some("Face camera XC_CONE_01"));
+        let (at, r) = edit::placement_parts(&s.session.world, 0).unwrap();
+        let to_eye = (s.camera.position - at).truncate().normalize();
+        let front = front_dir(r).unwrap().truncate();
+        assert!(front.dot(to_eye) > 0.9999, "front {front} towards {to_eye}");
+        assert!((at - Vec3::new(10.0, 0.0, 0.0)).length() < 1e-4, "turned where it stands");
+        for _ in 0..3 {
+            assert!(crate::editor::undo::undo(&mut s));
+        }
+        assert!(s.session.world.placements[0].transform.abs_diff_eq(start, 1e-4), "undone");
+        // Two props turn about their centre.
+        s.selection = vec![0, 1];
+        rotate_selection(&mut s, 180.0);
+        let a = s.session.world.placements[0].transform.w_axis.truncate();
+        assert!((a - Vec3::new(20.0, 0.0, 0.0)).length() < 1e-3, "{a}");
+        assert_eq!(s.session.undo.undo_label(), Some("Rotate 2 props"));
+    }
+
+    /// A new prop from the browser shows its front to the camera.
+    #[test]
+    fn a_dropped_prop_faces_the_camera() {
+        let mut s = state();
+        let at = Vec3::new(10.0, 10.0, 0.0);
+        let h = heading_to_camera(&s, at);
+        let i = place_new(&mut s, "XC_CONE_01", at, h).unwrap();
+        let (p, r) = edit::placement_parts(&s.session.world, i).unwrap();
+        let to_eye = (s.camera.position - p).truncate().normalize();
+        assert!(front_dir(r).unwrap().truncate().dot(to_eye) > 0.9999);
+        assert!((front_of(r) - to_eye.y.atan2(to_eye.x).to_degrees()).abs() < 1e-2);
+    }
+
+    /// A right-click on a prop (the camera not flown) selects it and opens
+    /// the prop menu there; on empty ground, or after a flight, nothing.
+    #[test]
+    fn a_right_click_on_a_prop_opens_its_menu() {
+        let mut s = state();
+        let mut p = Props::default();
+        let ctx = egui::Context::default();
+        let rect = viewport();
+        let run = |p: &mut Props, s: &mut EditorState, events: Vec<egui::Event>| {
+            let input = egui::RawInput { screen_rect: Some(rect), events, ..Default::default() };
+            let _ = crate::editor::run_headless(&ctx, input, |ui| p.context_menu(s, ui.ctx(), rect));
+        };
+        let rmb = |at: Pos2, pressed: bool| egui::Event::PointerButton {
+            pos: at,
+            button: egui::PointerButton::Secondary,
+            pressed,
+            modifiers: Default::default(),
+        };
+        let on = project(&s, rect, Vec3::new(20.0, 0.0, 0.5)).unwrap();
+        let ground = project(&s, rect, Vec3::new(40.0, 40.0, 0.0)).unwrap();
+        // Empty ground: no menu.
+        run(&mut p, &mut s, vec![egui::Event::PointerMoved(ground), rmb(ground, true)]);
+        run(&mut p, &mut s, vec![rmb(ground, false)]);
+        assert!(p.menu_at.is_none() && s.selection.is_empty());
+        // Flown between press and release: no menu.
+        run(&mut p, &mut s, vec![egui::Event::PointerMoved(on), rmb(on, true)]);
+        s.camera.position.x += 1.0;
+        run(&mut p, &mut s, vec![rmb(on, false)]);
+        assert!(p.menu_at.is_none());
+        s.camera.position.x -= 1.0;
+        // A click on the second cone: it is selected, the menu is open.
+        run(&mut p, &mut s, vec![rmb(on, true)]);
+        run(&mut p, &mut s, vec![rmb(on, false)]);
+        assert_eq!(s.selection, vec![1]);
+        assert_eq!(p.menu_at, Some(on));
+        run(&mut p, &mut s, vec![]);
+        assert!(p.menu_at.is_some(), "stays open");
+        // Shift+F10 opens it at the selection too.
+        let mut q = Props::default();
+        let key = egui::Event::Key {
+            key: egui::Key::F10,
+            physical_key: None,
+            pressed: true,
+            repeat: false,
+            modifiers: egui::Modifiers::SHIFT,
+        };
+        run(&mut q, &mut s, vec![key]);
+        assert!(q.menu_at.is_some());
+    }
+
 }

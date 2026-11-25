@@ -16,9 +16,7 @@
 
 use std::path::{Path, PathBuf};
 
-/// The language whose text file the game loads when nothing else is
-/// chosen (`LANGUAGES/English.bin`).
-pub const DEFAULT_LANGUAGE: &str = "English";
+pub use crate::qol::language::{DEFAULT_LANGUAGE, Support, language_support, text_file_of, valid_language_name};
 
 /// The language the running game was started with ([`set_text_language`]).
 static ACTIVE_LANGUAGE: std::sync::OnceLock<String> = std::sync::OnceLock::new();
@@ -43,46 +41,9 @@ pub fn set_text_language(name: &str) -> bool {
     ACTIVE_LANGUAGE.set(name.to_string()).is_ok()
 }
 
-/// The text file of a language: strings (chunk 0x39000) and fonts (chunk
-/// 0x30201).
-pub fn text_file_of(language: &str) -> String {
-    format!("LANGUAGES/{language}.bin")
-}
-
 /// The text file the game loads ([`text_language`]).
 pub fn text_file() -> String {
     text_file_of(text_language())
-}
-
-/// Whether the engine can show a language's file well.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Support {
-    Yes,
-    /// No, and why (a player's words).
-    No(&'static str),
-}
-
-/// What the engine can do with the language file `name` (any case).
-///
-/// The one-byte languages read through the string table's character map
-/// (`frontend::feng::strings`): **inferred** to work for every file that
-/// has one, since the engine reads them as `English.bin`. Spanish and
-/// Italian were tried and start in their language; the others were not. The rest
-/// cannot be shown well today (docs/modding/asset-format/text.md §3.3,
-/// §10).
-pub fn language_support(name: &str) -> Support {
-    // prov: inferred game_assets.language_support
-    match name.to_ascii_lowercase().as_str() {
-        "english" | "french" | "german" | "italian" | "spanish" | "dutch" | "swedish" | "danish" => Support::Yes,
-        "korean" => Support::No("its character map is not decoded yet"),
-        "japanese" | "chinese" | "thailand" => Support::No("its text table is empty in this edition"),
-        _ => Support::No("Overbright does not know this language file"),
-    }
-}
-
-/// Whether `name` can be a language name in a path (letters and digits).
-pub fn valid_language_name(name: &str) -> bool {
-    !name.is_empty() && name.len() <= 32 && name.bytes().all(|b| b.is_ascii_alphanumeric())
 }
 
 /// Language names and their movie suffixes. Seen in the data: `_en`, the

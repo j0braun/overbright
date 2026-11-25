@@ -194,7 +194,90 @@ pub fn build(req: &SupportRequest) -> String {
 /// Home folders as `~` (`qol::crash::scrub`), then any user name left in a
 /// path as `<user>`.
 pub fn scrub(s: &str) -> String {
-    scrub_users(&crate::qol::crash::scrub(s))
+    scrub_ids(&scrub_users(&crate::qol::crash::scrub(s)))
+}
+
+/// Hardware identifiers made unreadable: the value of any `serial` line,
+/// MAC addresses and UUIDs / GUIDs (device and pipeline-cache ids).
+pub fn scrub_ids(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    for (n, line) in s.split('\n').enumerate() {
+        if n > 0 {
+            out.push('\n');
+        }
+        let line = if line.to_ascii_lowercase().contains("serial")
+            && let Some(i) = line.find([':', '='])
+        {
+            format!("{} <serial>", &line[..=i])
+        } else {
+            line.to_string()
+        };
+        out.push_str(&scrub_hex_ids(&line));
+    }
+    out
+}
+
+/// `8-4-4-4-12` hex groups as `<id>` and six hex pairs joined by `:` or
+/// `-` as `<mac>`.
+fn scrub_hex_ids(s: &str) -> String {
+    let b = s.as_bytes();
+    let hex = |i: usize, n: usize, sep: Option<u8>| -> bool {
+        // n hex digits at i, or (sep) pairs separated by sep.
+        match sep {
+            None => i + n <= b.len() && b[i..i + n].iter().all(u8::is_ascii_hexdigit),
+            Some(c) => (0..6).all(|k| {
+                let j = i + k * 3;
+                j + 2 <= b.len()
+                    && b[j].is_ascii_hexdigit()
+                    && b[j + 1].is_ascii_hexdigit()
+                    && (k == 5 || b.get(j + 2) == Some(&c))
+            }),
+        }
+    };
+    let word = |i: usize| i > 0 && (b[i - 1].is_ascii_alphanumeric());
+    let mut out = String::with_capacity(s.len());
+    let mut i = 0;
+    while i < s.len() {
+        if !word(i) && b[i].is_ascii_hexdigit() {
+            let uuid = [8usize, 4, 4, 4, 12];
+            let mut j = i;
+            let mut ok = true;
+            for (k, n) in uuid.iter().enumerate() {
+                if k > 0 {
+                    if b.get(j) == Some(&b'-') {
+                        j += 1
+                    } else {
+                        ok = false;
+                        break;
+                    }
+                }
+                if hex(j, *n, None) {
+                    j += n
+                } else {
+                    ok = false;
+                    break;
+                }
+            }
+            if ok && !b.get(j).is_some_and(u8::is_ascii_alphanumeric) {
+                out.push_str("<id>");
+                i = j;
+                continue;
+            }
+            if let Some(c) = [b':', b'-']
+                .into_iter()
+                .find(|&c| hex(i, 17, Some(c)) && !b.get(i + 17).is_some_and(u8::is_ascii_alphanumeric))
+            {
+                let _ = c;
+                out.push_str("<mac>");
+                i += 17;
+                continue;
+            }
+        }
+        let ch = s[i..].chars().next().unwrap_or('\0');
+        out.push(ch);
+        i += ch.len_utf8().max(1);
+    }
+    out
 }
 
 /// The folder after `/home/`, `/Users/` or `\Users\` (any case; Wine's
@@ -243,7 +326,7 @@ fn default_game_exe(origin: Origin) -> PathBuf {
     }
 }
 
-fn system() -> String {
+pub(crate) fn system() -> String {
     let mut v = Vec::new();
     #[cfg(windows)]
     match crate::console::windows_version() {
@@ -466,7 +549,7 @@ fn ask(exe: &Path, args: &[&str]) -> String {
     run_limited(cmd, CHILD_LIMIT, &format!("{} {}", exe.display(), args.join(" ")))
 }
 
-fn no_window(cmd: &mut std::process::Command) {
+pub(crate) fn no_window(cmd: &mut std::process::Command) {
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
@@ -477,7 +560,7 @@ fn no_window(cmd: &mut std::process::Command) {
     let _ = cmd;
 }
 
-fn run_limited(mut cmd: std::process::Command, limit: Duration, what: &str) -> String {
+pub(crate) fn run_limited(mut cmd: std::process::Command, limit: Duration, what: &str) -> String {
     let mut child = match cmd.spawn() {
         Ok(c) => c,
         Err(e) => return format!("{what}: could not start: {e}"),

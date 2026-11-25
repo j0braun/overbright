@@ -260,41 +260,9 @@ pub fn new_id(packages: &Path, name: &str) -> String {
 }
 
 /// Free bytes on the disk holding `dir` (its nearest existing parent);
-/// None when the system does not say.
+/// None when the system does not say ([`ob_core::platform::fs::free_space`]).
 pub fn free_space(dir: &Path) -> Option<u64> {
-    let mut d = dir;
-    while !d.exists() {
-        d = d.parent()?;
-    }
-    free_space_of(d)
-}
-
-#[cfg(unix)]
-fn free_space_of(d: &Path) -> Option<u64> {
-    use std::os::unix::ffi::OsStrExt;
-    let c = std::ffi::CString::new(d.as_os_str().as_bytes()).ok()?;
-    let mut s: libc::statvfs = unsafe { std::mem::zeroed() };
-    // SAFETY: `c` is a NUL-terminated path, `s` a writable statvfs.
-    (unsafe { libc::statvfs(c.as_ptr(), &mut s) } == 0).then(|| s.f_bavail as u64 * s.f_frsize as u64)
-}
-
-#[cfg(windows)]
-fn free_space_of(d: &Path) -> Option<u64> {
-    use std::os::windows::ffi::OsStrExt;
-    #[link(name = "kernel32")]
-    unsafe extern "system" {
-        fn GetDiskFreeSpaceExW(dir: *const u16, avail: *mut u64, total: *mut u64, free: *mut u64) -> i32;
-    }
-    let w: Vec<u16> = d.as_os_str().encode_wide().chain(Some(0)).collect();
-    let mut avail = 0u64;
-    // SAFETY: `w` is NUL-terminated; the out pointers may be null except `avail`.
-    (unsafe { GetDiskFreeSpaceExW(w.as_ptr(), &mut avail, std::ptr::null_mut(), std::ptr::null_mut()) } != 0)
-        .then_some(avail)
-}
-
-#[cfg(not(any(unix, windows)))]
-fn free_space_of(_d: &Path) -> Option<u64> {
-    None
+    ob_core::platform::fs::free_space(dir)
 }
 
 /// A package read from the player's files.

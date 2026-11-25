@@ -111,6 +111,7 @@ fn reset_row_to(id: RowId, s: &mut Settings, native_of_s: Option<&Settings>) {
             e.set_skips(movies, d.skip_title != 0)
         }
         RowId::LowLatency => e.extras.low_latency = d.extras.low_latency,
+        RowId::Background => e.extras.background = d.extras.background,
         RowId::PowerSaving => e.extras.power_saving = d.extras.power_saving,
         RowId::ReplayCameras => e.extras.replay_cameras = d.extras.replay_cameras,
         RowId::HudPalette => e.extras.palette = d.extras.palette,

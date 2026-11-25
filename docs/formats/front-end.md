@@ -2639,7 +2639,7 @@ the maintainer's probe `pad_probe` lists what the game sees.
   zone (as the original sets none; gilrs's filters are off).
 * **Force feedback** (**verified** in the disassembly, **observed** under
   Wine with a virtual FF wheel where marked; the model is
-  `nfsu2::pad::ff::Original`, no device output yet). DirectInput 8 effects
+  `nfsu2::pad::ff::Original`, played by `nfsu2::pad::ff_out`). DirectInput 8 effects
   on any device that reports FF actuators; no XInput (no import, string or
   GUID). The console builds' pad vibration (0x5727C0 → 0x572620 →
   0x4022C0) ends in a bare `ret` on the PC.
@@ -2747,6 +2747,32 @@ the maintainer's probe `pad_probe` lists what the game sees.
     an effect that does not play is started (Start(1, 0)). The jolt is
     started on every pass. 0x86F86C (tested by the constant and periodic
     functions) is only ever written 0.
+  * **The DirectInput calls** (**verified** in the disassembly; the clone's
+    Windows output `pad::ff_out::dinput` makes the same calls). Every
+    DIEFFECT (dwSize 0x38): flags DIEFF_OBJECTOFFSETS | DIEFF_CARTESIAN
+    (0x12), sample period 0, gain 10000, DIEB_NOTRIGGER, repeat 0, start
+    delay 0, cAxes = the actuator count, axes DIJOFS_X, DIJOFS_Y (data
+    format c_dfDIJoystick2, 0x7BFDE0: 0x110 bytes, 0xA4 objects).
+    Conditions (0x5C04F0): direction {1, 1}, no envelope, one DICONDITION
+    per axis {offset, coefficients ±c, saturations s, deadband 0}, the
+    second {0, 8000, 8000, 8000, 8000, 500}, infinite. Constant (0x5C0210):
+    direction {1, 0}, an all-zero DIENVELOPE, lMagnitude, infinite.
+    Periodic (0x5C8D30): direction {1, 0}, magnitude as a DWORD (a negative
+    jolt stays its bit pattern), offset 0, phase 0, period in µs; the road
+    surface infinite with a zero envelope, the jolt 150000 µs, period 75000,
+    fade time 20000. GUIDs 0x7BFC90 Spring, 0x7BFCA0..0x7BFCD0 SawtoothDown,
+    SawtoothUp, Triangle, Sine, 0x7BFCE0 Square, 0x7BFCF0 ConstantForce.
+    Updates are SetParameters(DIEP_TYPESPECIFICPARAMS | DIEP_ENVELOPE =
+    0x140) (0x5C06B0, 0x5C03A0, 0x5C8EE0). Start (0x5BFEF0): Acquire, and
+    only if it succeeds Start(1, 0). Stop (0x5BFF70): Acquire (result
+    unused), Stop. Release of a slot (0x5C0000): Acquire, Unload (the COM
+    object is not released). The opener: SetDataFormat, then
+    SetCooperativeLevel(window 0x870990, 5), EnumObjects, and
+    SetProperty(DIPROP_AUTOCENTER, DIPH_DEVICE, 0) on a driving device.
+    The clone sets a two-axis data format with X and Y at the same offsets
+    (only the actuator offsets matter to the effects), finds the game's
+    window for the cooperative level, and matches the device by guidProduct
+    = MAKELONG(vid, pid) among attached FF game controllers.
   * **Device class.** A gamepad-class device (0x15, 0x86F8A8) gets the
     damper, road surface, jolts and the full-lock spring, but no constant
     force and no Feedback-off or front-end spring. Under DirectInput an
@@ -2765,6 +2791,35 @@ the maintainer's probe `pad_probe` lists what the game sees.
   * **Open**: what the front-end path does in the pause (whether the
     driver update runs there); the order within the world update between
     the tyre forces 0x406460 reads and the mover; the +0x690 driver.
+* **Wheels** (**verified** in the disassembly; not observed under Wine:
+  no wheel in the prefix). 0x41DFC0 steers through 0x4061C0 instead of
+  0x416BB0 when the channel is a wheel (0x5C1010: DI8DEVTYPE_DRIVING, the
+  driver's type or 0x800588's override). The steering object (input +0x220)
+  holds player block +0x19 at +4 and Wheel Range (+0x1C) at +8 (0x41E23E..
+  0x41E255). 0x4061C0(x, dt): x = clamp(x, −R, R), u = 2 · (x + R) / 2R − 1,
+  s = graph 0x7E9E88 (values 0x7E92D8: −1, −0.8, −0.615, −0.483, −0.388,
+  −0.288, −0.22, −0.161, −0.111, −0.057, 0, …) at u. Unless +4 is set, the
+  lock is 0x405DC0's with the wheel's angle graph 0x7E9EEC (0..160 m/s →
+  0x7E91A4: 45, 15, 11, 8, 7, 7…) in place of 0x7E9ED8: lock = graph
+  0x7E9F00(|mean +0x20|) · angle(v) · (graph 0x7E9F14(v) · (1 − (gas + 1 −
+  (brake + handbrake) / 2) / 2) + 1); with +4 set it stays 45. No
+  slow-down after a wall. The drift flag +0x10 as 0x405DC0 (on above 15°
+  slip at 13.41 m/s, off under 5°). A counter-steer (s · slip < 0) while
+  drifting or with |slip| > lock takes lock = min(|slip|, 45) — the whole
+  slip, not 0x7E9F5C's share; else at |mean| ≥ 0.5 lock = max(lock, +0x80
+  − 0 · dt), and +0x80 is not written here. The angle clamp(lock ·
+  ratio(handling +0x270) · s, ±45) goes straight to the word +0x7C
+  (_ftol(a · 65536) / 360): no rate limit (0x4060E0 is not called) and no
+  drift ratio boost. It returns s (the FF's steering and the mean 0x576AB0
+  take it). Player block +0x19 has no writer found besides the profile
+  load (**inferred** 0). The clone: `CarState::steer_wheel`, chosen by
+  `Controls::wheel` (the Wheel Range) when the driving device is a wheel.
+  Which products count as wheels: 0x800588's 044F:04B2 and, standing in
+  for the type each vendor's driver reports (**inferred**), SDL 2's wheel
+  list (`pad::host::WHEELS`). A wheel is presented in DirectInput's axis
+  order (`Layout::Wheel`: lX the wheel, lY, lZ, lRx, lRy, lRz raw), so
+  0x5C11B0's wheel defaults apply: the combined pedal axis only on a wheel
+  without lZ / lRz, else the pedals are bound on the Controls page.
 * **Synthetic input** (clone): `NFSU2_PAD_SCRIPT=<file>`, lines `<s>
   connect <id> [vid pid]`, `disconnect <id>`, `axis <id> lx|ly|rx|ry|lt|rt
   <v>`, `button <id> <name> 0|1` on the game clock; the shots poll it at
@@ -3504,3 +3559,39 @@ follows from the selection alone). What each list's fill passes to it:
   developer key, unreachable in normal play).
 * **Not read by the executable**: LANGUAGES\Labels.bin, Largest.bin and
   the agree.* files (no string names them).
+
+## Shop menu animations (traced in SPEED2.EXE; checked against the original under Wine at 60 fps)
+
+* **Scroll ease.** Both scroller classes ease their offset with 0x574E40 (cubic Hermite, length 0.3 s): the screens'
+  IconScrollerMenu (0x543AA0 sets +0xB4 = 0.3 at 0x543BDF) and the parts browsers' strip and column (0x5435E0 mallocs
+  the ease and sets its length 0.3; used by UI_GenericParts_Browser 0x55E830, the rim, decal, ICE and neon
+  browsers). The update 0x538770 places the items at the offset (0x52EEB0) and steps the ease; a new selection
+  (0x52EE50) sets the target to minus the item's place and restarts from the current value and speed (mode 2);
+  filling the scroller (0x5386B0) puts it at rest on the item. Clone: `ScrollEase`
+  (src/frontend/widgets/scroll_ease.rs), used by `IconMenu` and `PartsBrowser::step` (stepped on the tick).
+  Observed: a strip step slides with an ease over about 150 ms of visible motion at 60 fps.
+* **Accept on the Car Shop (FORWARD).** 0x543D50 on 0x0C407210, for an option neither locked (+0x22) nor direct
+  (+0x45): 0x51FD20 (the strip's fade by place off), 0x52FC00 (input off), 0x50DA20 sends 0x0C407210 to the
+  package. UI_ChooseCustomizeCategory's Event Handler answers it with FORWARD (0xDE6EFF34, 140 package ms; 0x301:
+  unless already playing it): 0xAADD0187 to every object (their 0xBCBFCC87: alpha to 0 over 100 ms) and
+  0xE1FDE1D1 to the screen at 140, on which 0x543D50 runs the option's action. Observed: the strip, title and frame
+  fade over five frames and the Body Shop comes up about 130 ms after the key (Wine, 60 fps: fade from the key's
+  frame, Body Shop 7 frames later). Most icon menus' handlers answer 0x0C407210 with FORWARD (UI_Main, UI_StartCareer,
+  UI_CareerCrib, UI_pause, UI_postrace, UI_QRModeSelect, the customize, paint, rim and vinyl categories and others;
+  not UI_OptionsMain or UI_ChoosePerformanceCategory). An option built "direct" (+0x45 = 1) gets the screen's
+  handler called with accept at once instead (FORWARD still plays): UI_Main's LAN and Profile Manager (0x4AEF5B,
+  0x4AEFE9), the crib's Explore / Resume Career, Tuning and Main Menu (0x4AF870…0x4AFA67), the pause and post-race
+  exits (0x4BEEC3…0x4C2F50, 0x5229E1, 0x53CC09), the customize categories (0x520E0C…0x520F07; the Car Shop's own
+  handler still switches on 0xE1FDE1D1, observed), the performance package's options (0x556ED1, 0x557089) and the
+  Quick Race modes (0x55747A…0x557602). Observed: UI_Main's Customize fades over six frames and Car Select comes up
+  eight frames after the key. Clone: `IconMenu::forward`, `accept_plays_forward`, `DIRECT_OPTIONS`.
+* **Opening a parts list (ASSLESS).** 0x55EDE0 plays ASSLESS (0x66EC937D) on UI_GenericParts_Browser's Event
+  Handler (0x537C10): 0x9F2182F0 to every object, which the column's objects (group 0x4A1316E9, frame 0xD82B4A08,
+  bar, arrows, handle, the PARTS_ICON items) answer with their own ASSLESS (alpha up from 0 over 100 ms), and
+  0x84FBF415 to the screen at 100 ms. The column's scroller hides its master MINI_MASTER when built (0x5435E0 →
+  0x50CA00), so only the PARTS_ICON clones show. Clone: `ScreenState::played`. Observed under Wine at 60 fps: the
+  column comes in over about four frames (alpha 0.52, 0.72, 0.93, 1 of full on the frames after the key); nothing
+  grows, and the bright spot left of the car is the garage's own light, there before the key.
+* **The selection glow** (CATEGORY_ONLY 0xDF422345) runs its looping Animate (1200 package ms: lit, fades out
+  over 320, dark, back over 200) whatever the strip does; a step does not restart or hide it (Wine: a step at the
+  end of the lit phase fades the glow while the strip slides, the pulse's own timing).

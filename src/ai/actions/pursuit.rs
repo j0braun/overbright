@@ -151,7 +151,7 @@ impl Actions {
     ) -> (Kind, i32, Option<usize>, Option<Plan>) {
         if ty != 0xB
             && pri <= HIT_PRIORITY
-            && !scene.held
+            && !scene.contact_held
             && let Some(id) = hitter(list, own, scene.hits)
         {
             // 0x42DB59: 0x40D5C0 before the constructor.

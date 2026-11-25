@@ -4,8 +4,8 @@
 //! parallel tests, took each other's impacts before). Each queue keeps its
 //! cap as before: past it the oldest drop.
 
-use crate::audio::collision::{Impact, Pending};
-use crate::audio::scrape::{Push, Pushes};
+use crate::audio::world::impacts::{Impact, Pending};
+use crate::audio::car::pushes::{Push, Pushes};
 
 /// A session's posted contact sounds, waiting for its audio.
 #[derive(Clone, Debug, Default)]
@@ -49,7 +49,7 @@ impl ContactSounds {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::audio::scrape::Class;
+    use crate::audio::car::pushes::Class;
     use glam::Vec3;
 
     fn impact(n: usize) -> Impact {

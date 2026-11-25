@@ -214,6 +214,8 @@ pub(crate) struct Pacing {
     pub(crate) focused: bool,
     pub(crate) occluded: bool,
     pub(crate) battery: Option<(bool, Instant)>,
+    /// In the background's Pause is on (`Game::background_pause`).
+    pub(crate) background_paused: bool,
     pub(crate) last_update_dt: f32,
     /// Motion blur and depth of field (docs/notes/graphics/motionblur-dof.md): the world time stepped (s); the drawn
     /// poses' time is this less (1 − α) of the last tick (α is
@@ -253,6 +255,7 @@ impl Pacing {
             focused: true,
             occluded: false,
             battery: None,
+            background_paused: false,
             last_update_dt: 1.0 / 60.0,
             world_time: 0.0,
             slow_tick_alpha: None,

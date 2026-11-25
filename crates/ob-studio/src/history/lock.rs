@@ -289,4 +289,50 @@ mod tests {
         }
         assert_eq!(refused, 0, "a lock let go was still held by a program being started");
     }
+
+    /// The launcher's Dev and Mods pages read the lock without taking it (`nfsu2::studio_api::launcher::studio_seen`, which
+    /// cannot name this crate): its file names are these, and it sees a lock another process holds, with the note's
+    /// holder, and a free lock once that process lets it go.
+    #[test]
+    fn the_launcher_sees_a_lock_held_by_another_process() {
+        use nfsu2::studio_api::launcher::studio_seen as seen;
+        assert_eq!((seen::LOCK, seen::OWNER, seen::STUDIO), (LOCK, OWNER, super::super::STUDIO));
+        let s = ob_testkit::Scratch::new("studio-lock-launcher");
+        let edir = s.path().join("drift-park").join(".editor");
+        let folders = ["drift-park".to_string()];
+        let mut child = std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", "history::lock::tests::launcher_lock_holder", "--nocapture", "--test-threads=1"])
+            .env("OB_LAUNCHER_LOCK_HOLD", s.path())
+            .stdout(std::process::Stdio::null())
+            .spawn()
+            .unwrap();
+        let ready = s.path().join("ready");
+        let t0 = std::time::Instant::now();
+        while !ready.exists() {
+            assert!(t0.elapsed().as_secs() < 30 && child.try_wait().unwrap().is_none(), "the holder did not start");
+            std::thread::sleep(std::time::Duration::from_millis(20));
+        }
+        let got = seen::read(s.path(), &folders, &s.path().join("none"));
+        std::fs::write(s.path().join("release"), b"").unwrap();
+        assert!(child.wait().unwrap().success());
+        assert_eq!(got.held.len(), 1, "{got:?}");
+        let h = &got.held[0];
+        assert_eq!((h.folder.as_str(), h.program.as_deref(), h.pid), ("drift-park", Some(super::super::STUDIO), Some(child.id())));
+        assert!(h.by_studio());
+        assert!(edir.join(LOCK).is_file());
+        assert_eq!(seen::read(s.path(), &folders, &s.path().join("none")).held, Vec::new(), "free once the holder ended");
+    }
+
+    /// The other process of [`the_launcher_sees_a_lock_held_by_another_process`] (does nothing on its own).
+    #[test]
+    fn launcher_lock_holder() {
+        let Some(dir) = std::env::var_os("OB_LAUNCHER_LOCK_HOLD").map(std::path::PathBuf::from) else { return };
+        let lock = try_take(&dir.join("drift-park").join(".editor"), super::super::STUDIO).unwrap().expect("free");
+        std::fs::write(dir.join("ready"), b"").unwrap();
+        let t0 = std::time::Instant::now();
+        while !dir.join("release").exists() && t0.elapsed().as_secs() < 30 {
+            std::thread::sleep(std::time::Duration::from_millis(20));
+        }
+        drop(lock);
+    }
 }

@@ -135,11 +135,17 @@ impl MapView {
                 None => self.centre = s.camera.position.truncate(),
             }
         }
+        // A finding shown from the Simulate tab.
+        if let Some(p) = crate::editor::sim::panel::take_map_centre(ui.ctx()) {
+            self.centre = p;
+        }
 
         // Input: drag pans (either button), the wheel zooms, Home fits,
-        // a double-click moves the 3D camera there.
+        // a double-click moves the 3D camera there; not while an overlay
+        // has the pointer (a race point placed or dragged).
         let ctx = ui.ctx().clone();
-        if response.dragged() {
+        let taken = super::app::pointer_taken(&ctx);
+        if response.dragged() && !taken {
             self.pan(response.drag_delta());
         }
         if let Some(at) = response.hover_pos() {
@@ -156,7 +162,7 @@ impl MapView {
             self.fit(lo, hi);
         }
         let move_to =
-            if response.double_clicked() { response.interact_pointer_pos().map(|at| self.to_world(at)) } else { None };
+            if response.double_clicked() && !taken { response.interact_pointer_pos().map(|at| self.to_world(at)) } else { None };
 
         // The region: every drivable section's outline.
         let edge = Stroke::new(1.0, colour::DIM.gamma_multiply(0.3));

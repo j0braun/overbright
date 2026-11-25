@@ -22,6 +22,7 @@ use crate::render::Gpu;
 use crate::tools::map::history::{self, History};
 use crate::tools::map::{MapMod, store, valid_id, valid_region};
 use crate::world::World;
+pub use parts::race_ground;
 
 /// The region a new mod starts on.
 pub const DEFAULT_REGION: &str = "L4RA";
@@ -229,7 +230,7 @@ pub struct Cli {
     pub tab: Option<String>,
     /// Placements selected for the shot (`--select 12,40`).
     pub select: Vec<usize>,
-    /// A recorded simulation to show (`--sim stream.txt[@seconds[:car]]`, the car followed).
+    /// A recorded simulation to show (`--sim stream.txt[@seconds[:car[:chase]]]`, the car followed).
     pub sim: Option<String>,
     /// A toolbar button the pointer rests on, its tooltip shown
     /// (`--hover simulate|drive-here|test-race`).
@@ -272,7 +273,7 @@ impl Default for Cli {
     }
 }
 
-pub const USAGE: &str = "usage: overbright-editor [--mod <folder>] [--region <code>] [--maps <dir>]\n       overbright-editor --shot out.png [--size WxH] [--scale F] [--mod <folder>] [--region <code>] [--mode props|races] [--tool <name>] [--view 3d|map|street|whole|top] [--light work|game] [--tab browser|validation|simulate|log] [--select N,M] [--sim stream.txt[@seconds[:car]]] [--hover simulate|drive-here|test-race] [--dialog how-to-test|controls] [--run test-race|drive-here] [--collision off|invisible|all] [--camera x,y,z[,yaw,pitch]]";
+pub const USAGE: &str = "usage: overbright-editor [--mod <folder>] [--region <code>] [--maps <dir>]\n       overbright-editor --shot out.png [--size WxH] [--scale F] [--mod <folder>] [--region <code>] [--mode props|races] [--tool <name>] [--view 3d|map|street|whole|top] [--light work|game] [--tab browser|validation|simulate|log] [--select N,M] [--sim stream.txt[,more.txt…][@seconds[:car[:chase]]]] [--hover simulate|drive-here|test-race] [--dialog how-to-test|controls] [--run test-race|drive-here] [--collision off|invisible|all] [--camera x,y,z[,yaw,pitch]]";
 
 impl Cli {
     pub fn parse<I: IntoIterator<Item = String>>(args: I) -> Result<Cli> {
@@ -441,12 +442,20 @@ pub struct Panels {
     pub props: parts::Shared<super::props::Props>,
     /// The race tools and road snapping (the toolbar's race slot).
     pub races: parts::Shared<super::races::Races>,
+    /// The prop browser (its pictures are drawn after the egui pass,
+    /// [`App::render_view`]).
+    pub browser: parts::Shared<super::browser::Browser>,
+    /// The simulation (the Simulate tab, its button, hook and overlay).
+    pub sim: super::sim::panel::Shared,
     /// Called every frame after the layout (no visible place): handlers of
     /// menu commands such as Test race.
     pub hooks: Vec<Box<dyn Panel>>,
     /// Drawn over the viewport, before it handles the pointer: handles,
     /// drop targets, the keys that act in the viewport.
     pub overlays: Vec<Box<dyn Overlay>>,
+    /// Strips under the 3D view / map, inside the centre (the simulation's
+    /// timeline); each shows only while it has something to show.
+    pub under_view: Vec<Box<dyn Panel>>,
 }
 
 /// Something drawn over the viewport `rect` with `painter` (a layer above
@@ -502,12 +511,15 @@ impl Panels {
                 Box::new(parts::Follow(races.clone())),
                 // Under the props' and races' marks.
                 Box::new(super::collision::CollisionOverlay::default()),
-                Box::new(parts::PropsOverlay { props: props.clone(), browser }),
+                Box::new(parts::PropsOverlay { props: props.clone(), browser: browser.clone() }),
                 Box::new(parts::RacesOverlay { races: races.clone(), dragging: false }),
-                Box::new(super::sim::SimOverlay(sim)),
+                Box::new(super::sim::SimOverlay(sim.clone())),
             ],
+            under_view: vec![Box::new(super::sim::Timeline(sim.clone()))],
+            sim,
             props,
             races,
+            browser,
         }
     }
 }
@@ -616,6 +628,13 @@ mod parts {
             if menu::take(ctx, Command::DropToGround) {
                 props::drop_selection(s);
             }
+            if menu::take(ctx, Command::Rotate90) {
+                props::rotate_selection(s, 90.0);
+            }
+            if menu::take(ctx, Command::FaceCamera) {
+                props::face_camera_selection(s);
+            }
+            p.context_menu(s, ctx, rect);
             if menu::take(ctx, Command::SelectAllOfSolid)
                 && let Some(solid) = s.selection.first().and_then(|&i| s.session.world.placements.get(i)).map(|pl| pl.solid)
             {
@@ -670,12 +689,14 @@ mod parts {
         }
     }
 
-    /// The races over the viewport in both views (the current race bright
+    /// The races over the viewport in every view (the current race bright
     /// with its grid, lines and checkpoints, the others' routes dim), and
-    /// in the 3D view the left button for them:
+    /// in each of them (3D, Top, Map) the left button for them:
     /// - a race tool armed: a click picks a point of the selected race or
     ///   uses the tool on the ground under the mouse; a drag moves the
-    ///   picked point (one undo step on release);
+    ///   picked point (one undo step on release). In Top and Map the
+    ///   ground is the x/y under the mouse at the road's height there
+    ///   ([`race_ground`]), never a ray from the camera far above;
     /// - otherwise (Select, Move, Rotate): a click on a race point (of any
     ///   race) selects it and may drag it; a click anywhere else is the
     ///   props' (the viewport picks), so it never adds.
@@ -685,6 +706,25 @@ mod parts {
     pub struct RacesOverlay {
         pub races: Shared<Races>,
         pub dragging: bool,
+    }
+
+    /// The ground under screen point `at` for the race tools: in Map and
+    /// Top the world x/y under it at the road's height there (the highest
+    /// floor, as a snapped point gets it); in 3D where the mouse ray meets
+    /// the ground.
+    pub fn race_ground(s: &EditorState, ctx: &egui::Context, rect: egui::Rect, at: egui::Pos2) -> Option<glam::Vec3> {
+        let xy = match s.view {
+            View::Map => {
+                let (centre, scale, map) = crate::editor::sim::panel::map_transform(ctx)?;
+                let c = map.center();
+                centre + glam::Vec2::new(at.x - c.x, c.y - at.y) / scale
+            }
+            View::ThreeD => match crate::editor::viewport::top_view(ctx) {
+                Some((top, shown)) => top.to_world(shown, at),
+                None => return props::ground_under(s, rect, at),
+            },
+        };
+        Some(xy.extend(crate::editor::validate::ground(s, xy)))
     }
 
     impl Overlay for RacesOverlay {
@@ -698,7 +738,7 @@ mod parts {
             let mut r = self.races.borrow_mut();
             r.update(s);
             match s.view {
-                View::ThreeD => r.paint_overlay(s, painter, rect),
+                View::ThreeD => r.paint_overlay(s, painter, rect, crate::editor::viewport::top_view(ctx).is_some()),
                 View::Map => {
                     if let Some((centre, scale, map)) = crate::editor::sim::panel::map_transform(ctx) {
                         let c = map.center();
@@ -709,11 +749,6 @@ mod parts {
                     }
                 }
             }
-            let edits = s.view == View::ThreeD;
-            if self.dragging && !edits {
-                r.release(s);
-                self.dragging = false;
-            }
             if s.mode == Mode::Races {
                 if !flying(ctx) {
                     r.keys(s, ctx);
@@ -721,9 +756,6 @@ mod parts {
                 if menu::take(ctx, Command::Delete) {
                     r.delete_selected(s);
                 }
-            }
-            if !edits {
-                return false;
             }
             let (pointer, pressed, down, mods) = ctx.input(|i| {
                 (i.pointer.hover_pos(), i.pointer.primary_pressed(), i.pointer.primary_down(), i.modifiers)
@@ -733,7 +765,7 @@ mod parts {
             });
             if self.dragging {
                 if down {
-                    if let Some(at) = pointer.and_then(|p| props::ground_under(s, rect, p)) {
+                    if let Some(at) = pointer.and_then(|p| race_ground(s, ctx, rect, p)) {
                         r.drag(s, at, mods.alt);
                     }
                     return true;
@@ -745,7 +777,7 @@ mod parts {
             if !pressed || flying(ctx) || super::pointer_taken(ctx) {
                 return false;
             }
-            let Some(at) = over.and_then(|p| props::ground_under(s, rect, p)) else { return false };
+            let Some(at) = over.and_then(|p| race_ground(s, ctx, rect, p)) else { return false };
             let armed = s.mode == Mode::Races && r.tool != crate::editor::races::Tool::Select;
             if armed {
                 r.click(s, at, mods.shift, mods.alt);
@@ -797,8 +829,11 @@ pub enum Dialog {
         author: String,
         description: String,
     },
+    /// `derived`: the mod's textures made from the original game's pixels
+    /// (the warning shows first, and the yes is "Export anyway").
     Export {
         path: String,
+        derived: usize,
     },
     Import {
         path: String,
@@ -1081,14 +1116,11 @@ impl App {
         Ok(())
     }
 
-    /// Make a new mod `folder` (named `name`) on `region` and open it.
+    /// Make a new mod `folder` (named `name`) on `region` and open it (Studio's New mod and the command line's
+    /// `pack create` make it the same way, `ob_studio::create`).
     pub fn new_mod(&mut self, folder: &str, name: &str, region: &str) -> Result<()> {
-        ensure!(valid_id(folder), "`{folder}` is not a folder name: use a-z, 0-9, - and _");
-        let region = region.to_ascii_uppercase();
-        ensure!(valid_region(&region), "`{region}` is not a region code (as L4RA)");
-        ensure!(!self.maps.join(folder).join(store::FILE).exists(), "a map mod `{folder}` exists already");
-        let m = MapMod { name: name.trim().to_string(), ..MapMod::default() };
-        save_mod(&self.maps, folder, &m)?;
+        ob_studio::create::create(&self.maps, folder, name, region)?;
+        let region = region.trim().to_ascii_uppercase();
         ModView { region: Some(region.clone()), camera: None, panels: self.layout.sizes }.write(&self.maps, folder)?;
         self.open(folder, Some(&region))
     }
@@ -1337,8 +1369,9 @@ impl App {
             A::Export => {
                 if let Some(s) = &self.state {
                     // Overbright's exports folder (made by the export), never the home folder itself.
-                    let to = crate::platform::dirs::exports().join(format!("{}.zip", s.session.folder));
-                    self.dialog = Some(Dialog::Export { path: to.display().to_string() });
+                    let path = ob_studio::share::default_zip(&crate::platform::dirs::exports(), &s.session.folder);
+                    let derived = crate::tools::map::share::derived(&self.maps.join(&s.session.folder)).len();
+                    self.dialog = Some(Dialog::Export { path: path.display().to_string(), derived });
                 }
             }
             A::Import => self.dialog = Some(Dialog::Import { path: String::new() }),
@@ -1371,6 +1404,18 @@ impl App {
             A::Collision(c) => {
                 if let Some(s) = self.state.as_mut() {
                     s.collision = c;
+                }
+            }
+            A::Draw(d) => {
+                if let Some(s) = self.state.as_mut() {
+                    // What is drawn shows in the collision layer.
+                    if s.collision == super::collision::Show::Off {
+                        s.collision = super::collision::Show::Invisible;
+                    }
+                    s.selection.clear();
+                    s.wall = None;
+                    s.view = View::ThreeD;
+                    s.draw = Some(d);
                 }
             }
             A::View(v) => {
@@ -1682,11 +1727,21 @@ impl App {
     pub fn view_ui(&mut self, ui: &mut egui::Ui) {
         let Some(s) = self.state.as_mut() else { return };
         let p = &mut self.panels;
+        // The strips under the view first: the view takes what is left.
+        for u in p.under_view.iter_mut() {
+            u.ui(s, ui);
+        }
+        let rest = ui.available_rect_before_wrap();
+        ui.scope_builder(egui::UiBuilder::new().max_rect(rest), |ui| Self::view_rest(s, p, &mut self.view_rect, ui));
+    }
+
+    /// The view in the centre's rectangle left by the strips under it.
+    fn view_rest(s: &mut EditorState, p: &mut Panels, view_rect: &mut egui::Rect, ui: &mut egui::Ui) {
         // The overlays first (their own layer above the viewport's image),
         // so the viewport knows whether they took the pointer; each sees
         // whether one before it did.
         let rect = ui.max_rect();
-        self.view_rect = rect;
+        *view_rect = rect;
         let layer = egui::LayerId::new(egui::Order::Middle, egui::Id::unique("editor.viewport.overlay"));
         let painter = ui.ctx().layer_painter(layer).with_clip_rect(rect);
         let mut taken = false;
@@ -1706,6 +1761,9 @@ impl App {
         if let Some(s) = self.state.as_mut() {
             let mut gfx = Gfx { gpu, egui: egui_r, encoder };
             self.panels.viewport.render(s, &mut gfx);
+            // The prop browser's pictures still to draw (a few a frame; the
+            // browser asks for the next frame while any are left).
+            self.panels.browser.borrow_mut().thumbs.build(gpu, &s.session.region, &s.session.world);
         }
     }
 
@@ -1770,7 +1828,7 @@ impl App {
                         ui.weak(format!("Folder: {}", folder_from(name)));
                     }
                     ui.horizontal(|ui| {
-                        if ui.add(theme::main_action("Create")).clicked()
+                        if ui.add(theme::main_action(words::CREATE)).clicked()
                             || ui.input(|i| i.key_pressed(egui::Key::Enter))
                         {
                             let f = if folder.is_empty() { folder_from(name) } else { folder.clone() };
@@ -1852,14 +1910,19 @@ impl App {
                         }
                     });
                 }
-                Dialog::Export { path } => {
+                Dialog::Export { path, derived } => {
                     ui.label(theme::title("Export map mod"));
-                    ui.label("A .zip file, or a folder:");
+                    ui.label("A .zip file, or a folder (the map and the mod's textures):");
                     ui.text_edit_singleline(path);
+                    if *derived > 0 {
+                        ui.label(theme::title(words::DERIVED_TITLE));
+                        ui.label(crate::tools::map::share::derived_warning(*derived));
+                    }
+                    let (yes, ok) = if *derived > 0 { (words::EXPORT_ANYWAY, true) } else { ("Export", false) };
                     ui.horizontal(|ui| {
-                        if ui.add(theme::main_action("Export")).clicked() {
+                        if ui.add(theme::main_action(yes)).clicked() {
                             let p = PathBuf::from(path.trim());
-                            then = Some(Box::new(move |app: &mut App| app.export(&p)));
+                            then = Some(Box::new(move |app: &mut App| app.export(&p, ok)));
                             keep = false;
                         }
                         if ui.button(words::CANCEL).clicked() {
@@ -1983,7 +2046,10 @@ impl App {
         }
     }
 
-    fn export(&mut self, to: &Path) {
+    /// Export the mod as a shared copy (`ob_map::tools::map::share`: the map
+    /// and its textures; `derived_ok`: the yes to textures from the original
+    /// game's pixels).
+    fn export(&mut self, to: &Path, derived_ok: bool) {
         let Some(folder) = self.state.as_ref().map(|s| s.session.folder.clone()) else { return };
         let r = (|| -> Result<()> {
             if self.state.as_ref().is_some_and(|s| s.session.dirty) {
@@ -1992,7 +2058,8 @@ impl App {
             if let Some(p) = to.parent().filter(|p| !p.as_os_str().is_empty()) {
                 std::fs::create_dir_all(p).with_context(|| format!("making {}", p.display()))?;
             }
-            store::export(&self.maps, &folder, to)
+            ob_studio::share::export(&self.maps, &folder, to, derived_ok)?;
+            Ok(())
         })();
         match r {
             Ok(()) => self.say(format!("Exported {folder} to {}", to.display())),
@@ -2001,7 +2068,7 @@ impl App {
     }
 
     fn import(&mut self, from: &Path) {
-        match store::import(&self.maps, from) {
+        match crate::tools::map::share::import(&self.maps, from).map_err(anyhow::Error::msg) {
             Ok(f) => {
                 self.say(format!("Imported {f}"));
                 self.guarded(Then::Open(f));
@@ -2107,16 +2174,7 @@ pub fn read_only_strip(ui: &mut egui::Ui, text: &str) -> bool {
 
 /// A folder name from a mod's name ("Casino sprints" → casino-sprints).
 pub fn folder_from(name: &str) -> String {
-    let mut f = String::new();
-    for c in name.trim().chars() {
-        if c.is_ascii_alphanumeric() {
-            f.push(c.to_ascii_lowercase());
-        } else if (c == ' ' || c == '-' || c == '_') && !f.ends_with('-') && !f.is_empty() {
-            f.push('-');
-        }
-    }
-    let f = f.trim_end_matches('-').chars().take(40).collect::<String>();
-    if f.is_empty() { "my-map".into() } else { f }
+    ob_studio::create::folder_from(name)
 }
 
 fn new_dialog() -> Dialog {
@@ -2187,7 +2245,16 @@ pub fn shot(app: &mut App, gpu: &Gpu, size: (u32, u32), scale: f32, out: &Path) 
     }
     // A tooltip or a dialog needs a few more frames to fade in.
     let frames = if app.shot_hover.is_some() || app.dialog.is_some() { 12 } else { 4 };
-    for frame in 0..frames {
+    // And until the prop browser's pictures are all drawn (a few a frame),
+    // plus one frame to show them.
+    let mut frame = 0;
+    let mut settle = 0;
+    loop {
+        let pending = app.panels.browser.borrow().thumbs.pending();
+        settle = if pending > 0 { 0 } else { settle + 1 };
+        if frame >= frames && settle >= 2 || frame >= frames + SHOT_PICTURE_FRAMES {
+            break;
+        }
         // The pointer on the item named, once the toolbar has laid out.
         let at = app.shot_hover.and_then(|name| {
             menu::toolbar_fit(&app.ctx)?.items.iter().find(|i| i.0 == name).map(|i| i.1.center())
@@ -2204,6 +2271,7 @@ pub fn shot(app: &mut App, gpu: &Gpu, size: (u32, u32), scale: f32, out: &Path) 
         let full = app.frame(raw);
         let bufs = app.paint(gpu, &mut egui_r, &view, size, full);
         gpu.queue.submit(bufs);
+        frame += 1;
     }
     let bytes_per_row = (size.0 * 4).div_ceil(256) * 256;
     let readback = gpu.device.create_buffer(&wgpu::BufferDescriptor {
@@ -2239,6 +2307,9 @@ pub fn shot(app: &mut App, gpu: &Gpu, size: (u32, u32), scale: f32, out: &Path) 
     }
     Ok(())
 }
+
+/// The most frames a `--shot` adds for the prop browser's pictures.
+const SHOT_PICTURE_FRAMES: usize = 400;
 
 /// The animation time of a `--shot` (seconds).
 pub const SHOT_CLOCK: f32 = 10.0;
@@ -2321,6 +2392,10 @@ pub fn apply_cli_view(app: &mut App, cli: &Cli) {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "races_views_tests.rs"]
+mod races_views_tests;
 
 #[cfg(test)]
 mod tests {
@@ -2955,13 +3030,13 @@ mod tests {
         let mut a = app(&s);
         a.new_mod("docks", "", "L4RA").unwrap();
         a.act(menu::Action::Export);
-        let Some(Dialog::Export { path }) = &a.dialog else { panic!("{:?}", a.dialog) };
+        let Some(Dialog::Export { path, .. }) = &a.dialog else { panic!("{:?}", a.dialog) };
         let proposed = PathBuf::from(path);
         assert_eq!(proposed, crate::platform::dirs::exports().join("docks.zip"));
         assert_ne!(proposed.parent(), crate::platform::dirs::home().as_deref(), "not the home folder");
         a.dialog = None;
         let to = s.path().join("exports").join("docks.zip");
-        a.export(&to);
+        a.export(&to, false);
         assert!(to.is_file(), "the folder is made and the file written");
     }
 }

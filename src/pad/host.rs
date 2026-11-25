@@ -25,6 +25,9 @@ pub struct PadInputs {
     pub sticks: [f32; 4],
     /// Left / right analog triggers, 0..1.
     pub triggers: [f32; 2],
+    /// The raw Z and Rz axes, −1..1 (a wheel's pedals; gilrs's LeftZ /
+    /// RightZ).
+    pub z: [f32; 2],
     /// By [`Btn`].
     pub buttons: [bool; 17],
 }
@@ -89,6 +92,10 @@ pub enum Layout {
     /// the left stick, lRx / lRy the right, lZ the left trigger and lRz the
     /// right (−10000 released, 10000 full), POV 0 the d-pad.
     Modern,
+    /// A racing wheel ([`is_wheel`]), presented as DirectInput gives a
+    /// DI8DEVTYPE_DRIVING device: lX the wheel, lY lZ lRx lRy lRz raw
+    /// (gilrs's left y, LeftZ, right x / y, RightZ), the generic buttons.
+    Wheel,
 }
 
 /// A pad's family, for the button names the UI shows (Modern layout).
@@ -124,6 +131,11 @@ impl Family {
 }
 
 impl Layout {
+    /// The native layout of a product: a wheel, or by vendor.
+    pub fn native(vid: u16, pid: u16) -> Layout {
+        if is_wheel(vid, pid) { Layout::Wheel } else { Layout::for_vendor(vid) }
+    }
+
     pub fn for_vendor(vid: u16) -> Layout {
         match vid {
             0x045E => Layout::Xbox,
@@ -137,7 +149,7 @@ impl Layout {
         match self {
             Layout::Xbox => &[South, East, West, North, L1, R1, Select, Start, L3, R3],
             Layout::Sony => &[West, South, East, North, L1, R1, L2, R2, Select, Start, L3, R3, Mode],
-            Layout::Generic => &[West, South, East, North, L1, R1, L2, R2, Select, Start, L3, R3],
+            Layout::Generic | Layout::Wheel => &[West, South, East, North, L1, R1, L2, R2, Select, Start, L3, R3],
             Layout::Modern => &[South, East, West, North, L1, R1, Select, Start, L3, R3, Mode],
         }
     }
@@ -152,8 +164,11 @@ impl Layout {
             Layout::Generic => (4, 12, [true, true, true, false, false, true, false, false]),
             // X Y Z Rx Ry Rz.
             Layout::Modern => (6, 11, [true, true, true, true, true, true, false, false]),
+            // X Y Z Rx Ry Rz.
+            Layout::Wheel => (6, 12, [true, true, true, true, true, true, false, false]),
         };
-        Caps { dev_type: super::dev_type(vid, pid, DevType::Gamepad), axes, buttons, povs: 1, ff: false, vid, pid, objects }
+        let reported = if self == Layout::Wheel { DevType::Driving } else { DevType::Gamepad };
+        Caps { dev_type: super::dev_type(vid, pid, reported), axes, buttons, povs: 1, ff: false, vid, pid, objects }
     }
 
     /// The DIJOYSTATE2 the pad's inputs give.
@@ -179,6 +194,12 @@ impl Layout {
             Layout::Generic => {
                 s.axes[2] = r(rx);
                 s.axes[5] = r(-ry);
+            }
+            Layout::Wheel => {
+                s.axes[2] = r(p.z[0]);
+                s.axes[3] = r(rx);
+                s.axes[4] = r(-ry);
+                s.axes[5] = r(p.z[1]);
             }
             Layout::Modern => {
                 s.axes[2] = r(lt * 2.0 - 1.0);
@@ -277,8 +298,36 @@ pub fn modern_binding_name(b: super::Binding, family: Family) -> String {
 /// A legacy DirectInput-style device for Controller Layout Auto: one the
 /// original has a preset for (0x7FE7F8) or a type override (0x800588: a
 /// wheel, the Saitek pad), which stay Original.
+/// The racing wheels SDL 2 lists (`initial_wheel_devices`,
+/// THIRD-PARTY-NOTICES.md): the devices whose vendor drivers report
+/// DI8DEVTYPE_DRIVING under DirectInput, which the original reads from the
+/// device instance (0x5BFB70; **inferred**: the reported type stands in for
+/// what each driver says).
+pub const WHEELS: &[(u16, u16)] = &[
+    (0x0079, 0x1864),
+    (0x046D, 0xC294), (0x046D, 0xC295), (0x046D, 0xC298), (0x046D, 0xC299), (0x046D, 0xC29A), (0x046D, 0xC29B),
+    (0x046D, 0xC24F), (0x046D, 0xC260), (0x046D, 0xC261), (0x046D, 0xC262), (0x046D, 0xC268), (0x046D, 0xC269),
+    (0x046D, 0xC272), (0x046D, 0xC26D), (0x046D, 0xC26E), (0x046D, 0xC266), (0x046D, 0xC267), (0x046D, 0xCA03),
+    (0x044F, 0xB65D), (0x044F, 0xB66D), (0x044F, 0xB677), (0x044F, 0xB696), (0x044F, 0xB66E), (0x044F, 0xB66F),
+    (0x044F, 0xB65E), (0x044F, 0xB664), (0x044F, 0xB669), (0x044F, 0xB67F), (0x044F, 0xB691), (0x044F, 0xB692),
+    (0x0483, 0x0522), (0x0483, 0xA355),
+    (0x0EB7, 0x0001), (0x0EB7, 0x0004), (0x0EB7, 0x0005), (0x0EB7, 0x0006), (0x0EB7, 0x0007), (0x0EB7, 0x0011),
+    (0x0EB7, 0x0020), (0x0EB7, 0x0197), (0x0EB7, 0x038E), (0x0EB7, 0x0E03),
+    (0x11FF, 0x0511), (0x1209, 0xFFB0),
+    (0x16D0, 0x0D5A), (0x16D0, 0x0D5F), (0x16D0, 0x0D60), (0x16D0, 0x0D61),
+    (0x2433, 0xF300), (0x2433, 0xF301), (0x2433, 0xF303), (0x2433, 0xF306),
+    (0x3416, 0x0301), (0x3416, 0x0302),
+    (0x346E, 0x0000), (0x346E, 0x0002), (0x346E, 0x0004), (0x346E, 0x0005), (0x346E, 0x0006),
+];
+
+/// A product presented as a wheel: [`WHEELS`] or the original's own
+/// override (0x800588: 044F:04B2).
+pub fn is_wheel(vid: u16, pid: u16) -> bool {
+    WHEELS.contains(&(vid, pid)) || super::dev_type(vid, pid, DevType::Gamepad) == DevType::Driving
+}
+
 pub fn legacy_product(vid: u16, pid: u16) -> bool {
-    super::PRESETS.iter().any(|(p, ..)| *p == (vid, pid)) || super::TYPE_OVERRIDES.iter().any(|(p, _)| *p == (vid, pid))
+    super::PRESETS.iter().any(|(p, ..)| *p == (vid, pid)) || super::TYPE_OVERRIDES.iter().any(|(p, _)| *p == (vid, pid)) || is_wheel(vid, pid)
 }
 
 /// gilrs's view of a standard gamepad (**clone heuristic**): its mapping
@@ -302,7 +351,7 @@ impl Device {
     /// A pad as the native layouts present it (`modern` false), or under
     /// the Controller Layout Modern extra.
     pub fn new(source: Source, guid: [u8; 16], name: String, vid: u16, pid: u16, modern: bool) -> Device {
-        let layout = if modern { Layout::Modern } else { Layout::for_vendor(vid) };
+        let layout = if modern { Layout::Modern } else { Layout::native(vid, pid) };
         let caps = layout.caps(vid, pid);
         let map = if modern { PadMap::modern(&caps) } else { PadMap::attach(&caps) };
         let guid = if modern { modern_guid(guid) } else { guid };
@@ -356,6 +405,18 @@ pub struct Changes {
 }
 
 /// The game's controllers.
+/// The driving channel's force feedback (0x870760's per-channel state and
+/// the device behind it).
+#[derive(Debug)]
+pub struct Ff {
+    pub source: Source,
+    pub out: super::ff_out::Output,
+    pub model: super::ff::Original,
+    /// The player's input object is up (driving): the gain was set at its
+    /// start (0x41E28D).
+    driving: bool,
+}
+
 pub struct Host {
     gilrs: Option<gilrs::Gilrs>,
     script: Option<Script>,
@@ -372,6 +433,11 @@ pub struct Host {
     /// gilrs rumble effects per device (strong, weak).
     effects: Vec<(gilrs::GamepadId, gilrs::ff::Effect, gilrs::ff::Effect)>,
     rumble_last: (f32, f32),
+    /// The force-feedback device on the driving channel and the original's
+    /// effect model for it (None: no device with FF actuators).
+    ff: Option<Ff>,
+    /// Scripted pads connected with `ff` (a recorder takes their effects).
+    script_ff: Vec<u32>,
     /// The profile's controller blocks ([`Host::set_saved_blocks`]).
     saved: Vec<[u8; super::BLOCK_LEN]>,
     /// [`Host::both_sticks`]: both sticks were seen released on the
@@ -391,14 +457,14 @@ impl Host {
             None
         };
         let script = std::env::var_os("NFSU2_PAD_SCRIPT").and_then(|p| std::fs::read_to_string(&p).map_err(|e| eprintln!("{}: {e}", p.to_string_lossy())).ok()).map(|t| Script::parse(&t));
-        let mut h = Host { gilrs, script, devices: Vec::new(), options: PadOptions::default(), tick: i64::MIN, ticked: false, rumble_out: Vec::new(), effects: Vec::new(), rumble_last: (0.0, 0.0), saved: Vec::new(), sticks_armed: false };
+        let mut h = Host { gilrs, script, devices: Vec::new(), options: PadOptions::default(), tick: i64::MIN, ticked: false, rumble_out: Vec::new(), effects: Vec::new(), rumble_last: (0.0, 0.0), ff: None, script_ff: Vec::new(), saved: Vec::new(), sticks_armed: false };
         h.rescan();
         h
     }
 
     /// A host with the given script and no real pads (tests).
     pub fn scripted(text: &str) -> Host {
-        Host { gilrs: None, script: Some(Script::parse(text)), devices: Vec::new(), options: PadOptions::default(), tick: i64::MIN, ticked: false, rumble_out: Vec::new(), effects: Vec::new(), rumble_last: (0.0, 0.0), saved: Vec::new(), sticks_armed: false }
+        Host { gilrs: None, script: Some(Script::parse(text)), devices: Vec::new(), options: PadOptions::default(), tick: i64::MIN, ticked: false, rumble_out: Vec::new(), effects: Vec::new(), rumble_last: (0.0, 0.0), ff: None, script_ff: Vec::new(), saved: Vec::new(), sticks_armed: false }
     }
 
     /// The Controller extras in force. A layout change re-presents every
@@ -430,7 +496,7 @@ impl Host {
     /// defaults.
     fn native_custom(&self, guid: &[u8; 16], vid: u16, pid: u16) -> bool {
         self.saved.iter().any(|b| b[..16] == guid[..] && {
-            let caps = Layout::for_vendor(vid).caps(vid, pid);
+            let caps = Layout::native(vid, pid).caps(vid, pid);
             let mut a = PadMap::attach(&caps);
             let defaults = a.to_block(guid);
             a.apply_block(b);
@@ -468,6 +534,7 @@ impl Host {
             self.effects.clear();
         }
         self.publish();
+        self.ff_sync();
         changed
     }
 
@@ -503,6 +570,7 @@ impl Host {
             any |= self.attach(d);
         }
         self.publish();
+        self.ff_sync();
         any
     }
 
@@ -585,8 +653,91 @@ impl Host {
         }
         if ch.attached || ch.detached {
             self.publish();
+            self.ff_sync();
         }
         ch
+    }
+
+    /// Keeps the force-feedback output on the driving channel (the first
+    /// device): opened for a device with FF actuators, with autocenter off
+    /// on a wheel (0x5CD3E7); dropped when that device goes.
+    fn ff_sync(&mut self) {
+        let first = self.devices.first().map(|d| (d.source, d.caps.dev_type));
+        if self.ff.as_ref().map(|f| f.source) == first.map(|f| f.0) {
+            if self.ff.is_some()
+                && let Some(d) = self.devices.first_mut()
+            {
+                d.caps.ff = true;
+            }
+            return;
+        }
+        self.ff = None;
+        let Some((source, class)) = first else { return };
+        let out = match source {
+            Source::Script(n) => self.script_ff.contains(&n).then(|| (super::ff_out::Output::recorder(), 1)),
+            #[cfg(target_os = "linux")]
+            Source::Gilrs(id) => {
+                use gilrs::LinuxGamepadExt;
+                self.gilrs.as_ref().and_then(|g| g.connected_gamepad(id)).and_then(|p| super::ff_out::Output::open(p.devpath()))
+            }
+            #[cfg(windows)]
+            Source::Gilrs(_) => self.devices.first().and_then(|d| super::ff_out::Output::open_dinput(d.caps.vid, d.caps.pid)),
+            #[cfg(not(any(target_os = "linux", windows)))]
+            Source::Gilrs(_) => None,
+        };
+        let Some((mut out, actuators)) = out else { return };
+        let Some(model) = super::ff::Original::new(super::ff::Device { class, actuators }) else { return };
+        if class == DevType::Driving {
+            out.call(self.tick, super::ff_out::Call::Autocenter(false), actuators);
+        }
+        if let Some(d) = self.devices.first_mut() {
+            d.caps.ff = true;
+        }
+        self.ff = Some(Ff { source, out, model, driving: false });
+    }
+
+    /// A device with force-feedback actuators drives (0x5B8250's question:
+    /// the Feedback option is enabled).
+    pub fn force_feedback(&self) -> bool {
+        self.ff.is_some()
+    }
+
+    /// The driving channel is a wheel (0x5C1010): 0x41DFC0 steers through
+    /// 0x4061C0.
+    pub fn wheel_drives(&self) -> bool {
+        self.devices.first().is_some_and(|d| d.caps.dev_type == DevType::Driving)
+    }
+
+    /// The force feedback's state (tests, the recorder's calls).
+    pub fn ff(&self) -> Option<&Ff> {
+        self.ff.as_ref()
+    }
+
+    /// One world tick of the original's force feedback: `driving` the feed
+    /// and options of 0x406460 while the player drives (game state 4), the
+    /// front-end path (0x5CFE40) otherwise; `strength` Overall Force
+    /// Strength, set as the gain when driving starts (the input object's
+    /// start, 0x41E28D → 0x5C9130). Nothing without an FF device.
+    pub fn ff_tick(&mut self, driving: Option<(super::ff::Feed, super::ff::Options)>, strength: f32, clock: super::ff::Clock) {
+        let Some(f) = self.ff.as_mut() else { return };
+        let tick = self.tick;
+        let actuators = f.model.device().actuators;
+        let cmds = match driving {
+            Some((feed, options)) => {
+                if !f.driving {
+                    f.driving = true;
+                    f.out.call(tick, super::ff_out::Call::Gain(super::ff::gain(strength)), actuators);
+                }
+                f.model.driving(&feed, &options, clock)
+            }
+            None => {
+                f.driving = false;
+                f.model.front_end()
+            }
+        };
+        for c in cmds {
+            f.out.call(tick, super::ff_out::Call::Command(c), actuators);
+        }
     }
 
     fn script_line(&mut self, w: &[String], ch: &mut Changes) {
@@ -604,6 +755,11 @@ impl Host {
                 // `legacy` after the ids: a DirectInput-style device (Auto
                 // leaves it Original); else standard unless a legacy product.
                 let standard = !w.iter().any(|t| t == "legacy") && !legacy_product(vid, pid);
+                // `ff`: the device reports force-feedback actuators; a
+                // recorder plays its effects.
+                if w.iter().any(|t| t == "ff") && !self.script_ff.contains(&n) {
+                    self.script_ff.push(n);
+                }
                 let d = self.present(Source::Script(n), guid, format!("Script pad {n}"), vid, pid, standard);
                 ch.attached |= self.attach(d);
             }
@@ -623,6 +779,8 @@ impl Host {
                     Some("ry") => d.inputs.sticks[3] = v,
                     Some("lt") => d.inputs.triggers[0] = v,
                     Some("rt") => d.inputs.triggers[1] = v,
+                    Some("lz") => d.inputs.z[0] = v,
+                    Some("rz") => d.inputs.z[1] = v,
                     _ => {}
                 }
             }
@@ -744,6 +902,7 @@ fn gilrs_inputs(p: &gilrs::Gamepad<'_>) -> PadInputs {
     let mut i = PadInputs { sticks: [p.value(Axis::LeftStickX), p.value(Axis::LeftStickY), p.value(Axis::RightStickX), p.value(Axis::RightStickY)], ..Default::default() };
     let trigger = |b: Button| p.button_data(b).map_or(0.0, |d| d.value());
     i.triggers = [trigger(Button::LeftTrigger2), trigger(Button::RightTrigger2)];
+    i.z = [p.value(Axis::LeftZ), p.value(Axis::RightZ)];
     let map = [
         (Btn::South, Button::South),
         (Btn::East, Button::East),
@@ -780,6 +939,57 @@ fn gilrs_inputs(p: &gilrs::Gamepad<'_>) -> PadInputs {
 mod tests {
     use super::*;
     use crate::pad::{act, axis, driving};
+
+    /// A wheel the original's type override or the SDL list names is
+    /// presented as DI8DEVTYPE_DRIVING with the wheel's raw axes (0x5C11B0
+    /// then leaves pedals with lZ / lRz unbound); `ff` gives it the
+    /// recorder: autocenter off at once, the front-end spring 7000 per
+    /// tick, the gain from Overall Force Strength when driving starts.
+    #[test]
+    fn wheel_and_force_feedback() {
+        use crate::pad::ff::{Clock, Command, Effect, Feed, Options, Slot};
+        use crate::pad::ff_out::Call;
+        assert!(is_wheel(0x046D, 0xC24F) && is_wheel(0x044F, 0x04B2) && !is_wheel(0x045E, 0x028E));
+        let mut h = Host::scripted("0 connect 1 046d c24f ff\n0 axis 1 lx -0.5\n0 axis 1 rz 0.25\n");
+        h.poll(0.0);
+        assert!(h.wheel_drives() && h.force_feedback());
+        let d = &h.devices[0];
+        assert_eq!((d.layout, d.caps.dev_type, d.caps.ff), (Layout::Wheel, DevType::Driving, true));
+        assert_eq!((d.state.axes[0], d.state.axes[5]), (-5000, 2500));
+        // Separate pedal axes: no combined default (0x5C12EF).
+        assert!(!d.map.on[3]);
+        h.ff_tick(None, 1.0, Clock::default());
+        let feed = Feed { speed: 20.0, front_down: [true, true], front_surface: [1, 1], ..Feed::default() };
+        h.ff_tick(Some((feed, Options::default())), 0.3, Clock::default());
+        let calls: Vec<Call> = h.ff().unwrap().out.calls().iter().map(|c| c.1).collect();
+        assert_eq!(calls[0], Call::Autocenter(false));
+        assert_eq!(calls[1], Call::Command(Command::Set(Effect::Spring { coef: 7_000 })));
+        assert_eq!(calls[2], Call::Command(Command::Start(Slot::Spring)));
+        assert_eq!(calls[3], Call::Gain(7_600));
+        assert!(calls[4..].contains(&Call::Command(Command::Stop(Slot::Spring))));
+        // A plain pad: no force feedback, no wheel.
+        let mut p = Host::scripted("0 connect 1 045e 028e\n");
+        p.poll(0.0);
+        assert!(!p.wheel_drives() && !p.force_feedback());
+        p.ff_tick(None, 1.0, Clock::default());
+        assert!(p.ff().is_none());
+    }
+
+    /// gilrs finds a virtual force-feedback wheel (uinput, 046D:C24F, the
+    /// node in `NFSU2_FF_NODE`): it is presented as a wheel and its node
+    /// opened for the effects.
+    #[test]
+    #[cfg(target_os = "linux")]
+    #[ignore = "needs NFSU2_FF_NODE, a virtual force-feedback wheel"]
+    fn gilrs_finds_a_virtual_ff_wheel() {
+        let _ = std::env::var("NFSU2_FF_NODE").expect("NFSU2_FF_NODE");
+        let mut h = Host::new(true);
+        h.poll(0.0);
+        let d = h.devices.iter().find(|d| (d.caps.vid, d.caps.pid) == (0x046D, 0xC24F)).expect("the wheel");
+        assert_eq!(d.layout, Layout::Wheel);
+        assert!(h.wheel_drives() && h.force_feedback(), "{:?}", h.devices.iter().map(|d| &d.name).collect::<Vec<_>>());
+        h.ff_tick(None, 1.0, crate::pad::ff::Clock::default());
+    }
 
     #[test]
     fn layouts() {

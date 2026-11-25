@@ -216,8 +216,8 @@ pub(crate) fn traffic_fill_plan(
                 let coords: Vec<(f32, bool)> = plan
                     .iter()
                     .flatten()
-                    .map(|q| (road.locate_once(q.1.truncate()), false))
-                    .chain(racers.iter().map(|r| (road.locate_once(r.0), true)))
+                    .map(|q| (road.locate_once(q.1.truncate()), true))
+                    .chain(racers.iter().map(|r| (road.locate_once(r.0), false)))
                     .chain(std::iter::once((p.coord, false)))
                     .collect();
                 let gate = |at: Vec2, c: f32, coordinate: bool| {
@@ -271,13 +271,17 @@ pub(crate) fn traffic_fill_apply(world: &World, t: &mut Traffic, plan: FillPlan,
 /// × 0.01 × the road length) is refused. Then a point measured by race
 /// coordinate (`coordinate`, 0x5DCC90) is refused in race status 4
 /// (`racing`) within 250 m of the player's (0x409890 → 0x5F12B0) and when
-/// a car is near (0x411060: an AI racer, controller type 3, within `gap`
-/// either way; the others — the player, traffic — with the point less than
-/// `gap` ahead of them); any other point in 2D: in race status 4 within
+/// a car is near (0x411060: a traffic car — car +0x14 → +4 = 3, the kind
+/// the world's car draw 0x6316E0 and the think gate read as traffic —
+/// within `gap` either way; the others — the player, the racers — with the
+/// point less than `gap` ahead of them; **verified**, asm 0x4110C0..0x4110F4;
+/// the clone once had the two the other way round, reading type 3 as an AI
+/// racer, and so placed traffic right behind other traffic);
+/// any other point in 2D: in race status 4 within
 /// 250 m (0x78429C) of the player (0x409840 → 0x5F0FC0) and within `gap`
 /// of any car (0x410FC0: every listed car not parked or hidden, the placed
 /// one aside). `coords` are the cars' race coordinates (each with whether
-/// it is an AI racer), `cars` their places. The cars' race coordinates are
+/// it is a traffic car), `cars` their places. The cars' race coordinates are
 // prov: inferred game.traffic_fill-2
 /// their places located on the race road (**inferred**; a car placed by
 /// 0x42C670 / 0x42C950 starts with the point's +0x08); 0x5F12B0 /
@@ -303,9 +307,9 @@ pub(crate) fn drag_gate(
     }
     if coordinate {
         let near_player = racing && road.difference(c, p.coord).abs() < DESPAWN;
-        let near_car = coords.iter().any(|&(o, racer)| {
+        let near_car = coords.iter().any(|&(o, traffic)| {
             let d = road.difference(c, o);
-            if racer { d.abs() < gap } else { d > 0.0 && d < gap }
+            if traffic { d.abs() < gap } else { d > 0.0 && d < gap }
         });
         !near_player && !near_car
     } else {

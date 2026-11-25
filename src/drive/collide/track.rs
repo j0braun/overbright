@@ -356,16 +356,16 @@ impl CarState {
                 r.impulse += push;
                 hit = Some((r.impulse, r.life, r.upright));
                 // 0x4814E0 then 0x4792D0: the scrape's arming (audio::scrape).
-                sounds.pushes.post(crate::audio::scrape::Push {
+                sounds.pushes.post(crate::audio::car::pushes::Push {
                     record: r.id,
-                    class: crate::audio::scrape::Class::Track,
+                    class: crate::audio::car::pushes::Class::Track,
                     slide,
                     at: point,
                 });
                 // The record's sound (0x5A9630 → 0x4797B0): its first push
                 // picks the kind and volume (audio::collision).
                 if !r.sounded {
-                    use crate::audio::collision as sound;
+                    use crate::audio::world::impacts as sound;
                     r.sounded = true;
                     // A new hit for the Rumble extra; not the underbody on
                     // a floor-like polygon while the car stands on its

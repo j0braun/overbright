@@ -446,6 +446,23 @@ fn looks_open_import_and_list() {
     assert_eq!(golden("looks-import", &import, &s, &dir, &e), cli::OK);
     assert!(dir.join("textures/world/00000ABC.png").is_file(), "the pack data");
     assert_eq!(golden("looks-list", &["looks", "list", "--mod", "<mod>"], &s, &dir, &e), cli::OK);
+    // `pack export`: the texture started from the game's pixels, so the export needs the yes.
+    let zip = s.path().join("shared/docks.zip");
+    let to = zip.to_string_lossy().to_string();
+    assert_eq!(
+        golden("pack-export-derived", &["pack", "export", "--mod", "<mod>", "--to", &to], &s, &dir, &e),
+        cli::FAILED
+    );
+    assert!(!zip.exists());
+    let (code, out, _) = run(&["pack", "export", "--mod", "<mod>", "--to", &to, "--derived-ok", "--json"], &dir, &e);
+    assert_eq!(code, cli::OK, "{out}");
+    let doc: Value = serde_json::from_str(&out).unwrap();
+    assert_eq!(doc["derived"], 1);
+    assert_eq!(doc["build"], ob_studio::share::build());
+    let fresh = s.path().join("fresh-maps");
+    let f = ob_studio::share::import(&fresh, &zip).unwrap();
+    assert!(fresh.join(&f).join("textures/world/00000ABC.png").is_file());
+    assert!(!fresh.join(&f).join("work").exists());
     let h =
         History::open_read(&dir, &dir.join(store::EDITOR_DIR), ob_studio::MOD_DOCS, std::sync::Arc::new(disk::Real))
             .unwrap();
@@ -544,6 +561,48 @@ fn a_mod_left_unreadable_says_so_and_pack_repair_mends_it() {
     let (code, _, err) = run(&["pack", "repair", "--mod", "<mod>"], &dir, &e);
     assert!(code == cli::FAILED && err.contains("no safe repair"), "{err}");
     assert_eq!(text(&dir), zero);
+}
+
+#[test]
+fn pack_create_makes_a_new_mod_and_refuses_clashes_and_bad_names() {
+    let (s, _) = fixture("cli-create", false);
+    let maps = s.path().to_path_buf();
+    let e = no_game();
+    let cases: &[(&str, &[&str], i32)] = &[
+        ("pack-create", &["pack", "create", "--name", "Harbour edits", "--maps", "<mod>"], cli::OK),
+        (
+            "pack-create-folder",
+            &["pack", "create", "--name", "Night lights", "--folder", "night_2", "--maps", "<mod>"],
+            cli::OK,
+        ),
+        ("pack-create-folder-used", &["pack", "create", "--name", "Harbour edits", "--maps", "<mod>"], cli::FAILED),
+        (
+            "pack-create-name-used",
+            &["pack", "create", "--name", "docks", "--folder", "d2", "--maps", "<mod>"],
+            cli::FAILED,
+        ),
+        ("pack-create-no-name", &["pack", "create", "--name", "  ", "--maps", "<mod>"], cli::USAGE),
+        (
+            "pack-create-bad-folder",
+            &["pack", "create", "--name", "X", "--folder", "../up", "--maps", "<mod>"],
+            cli::USAGE,
+        ),
+        ("pack-create-missing-name", &["pack", "create", "--maps", "<mod>"], cli::USAGE),
+    ];
+    for (case, words, code) in cases {
+        assert_eq!(golden(case, words, &s, &maps, &e), *code, "{case}");
+    }
+    assert_eq!(store::list(&maps), ["docks", "harbour-edits", "night_2"]);
+    let made = store::read_file(&maps.join("harbour-edits").join(store::FILE)).unwrap();
+    assert_eq!(made.name, "Harbour edits");
+    assert!(made.props.is_empty() && made.races.is_empty());
+    // The new mod is one the other commands take.
+    let (code, out, _) = run(&["history", "show", "--mod", "<mod>/harbour-edits"], &maps, &e);
+    assert_eq!(code, cli::OK, "{out}");
+    // The plain text says where it is and how to edit it.
+    let (code, out, _) = run(&["pack", "create", "--name", "Third", "--maps", "<mod>"], &maps, &e);
+    assert_eq!(code, cli::OK);
+    assert!(out.contains("Made Third in ") && out.contains("--mod "), "{out}");
 }
 
 /// A start written at a height with no road (z = 0 under the road, or none given) takes the road's height when

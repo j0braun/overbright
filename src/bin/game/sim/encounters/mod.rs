@@ -956,6 +956,7 @@ fn goal9_think(r: &mut EncounterCar, i: usize, f: &EncounterFrame, field: &mut n
                         drift: false,
                         drag: false,
                         held: false,
+                        contact_held: false,
                         block_row: skill,
                         hits: &hits,
                         touching: !partners.is_empty(),

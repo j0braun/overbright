@@ -64,10 +64,10 @@ pub fn check(root: &Path, hash: bool) -> Check {
 /// listed in [`Check::unverified`] instead of being compared.
 pub fn check_for(root: &Path, hash: bool, language: &str) -> Check {
     let mut c = Check { language: language.to_string(), ..Default::default() };
-    let english = crate::game_assets::text_file_of(crate::game_assets::DEFAULT_LANGUAGE);
+    let english = super::language::text_file_of(super::language::DEFAULT_LANGUAGE);
     for (file, size, known) in KEY_FILES {
-        if file == english && !language.eq_ignore_ascii_case(crate::game_assets::DEFAULT_LANGUAGE) {
-            let own = crate::game_assets::text_file_of(language);
+        if file == english && !language.eq_ignore_ascii_case(super::language::DEFAULT_LANGUAGE) {
+            let own = super::language::text_file_of(language);
             if key_file_path(root, &own).is_file() { c.unverified.push(own) } else { c.missing.push(own) }
             continue;
         }
@@ -102,14 +102,14 @@ impl Check {
     /// The text file this check required (English's when it was not made
     /// for a language).
     pub fn text_file(&self) -> String {
-        let l = if self.language.is_empty() { crate::game_assets::DEFAULT_LANGUAGE } else { &self.language };
-        crate::game_assets::text_file_of(l)
+        let l = if self.language.is_empty() { super::language::DEFAULT_LANGUAGE } else { &self.language };
+        super::language::text_file_of(l)
     }
 
     /// The files this check required: [`KEY_FILES`]' names, with the
     /// chosen language's text file in place of English's.
     pub fn key_files(&self) -> Vec<String> {
-        let english = crate::game_assets::text_file_of(crate::game_assets::DEFAULT_LANGUAGE);
+        let english = super::language::text_file_of(super::language::DEFAULT_LANGUAGE);
         KEY_FILES.iter().map(|k| if k.0 == english { self.text_file() } else { k.0.to_string() }).collect()
     }
 
@@ -117,7 +117,7 @@ impl Check {
     /// ([`crate::fingerprint::Fingerprint::verdict_skipping`]): the English
     /// text file, when the check was made for another language.
     pub fn verdict_skip(&self) -> Option<&'static str> {
-        (!self.language.is_empty() && !self.language.eq_ignore_ascii_case(crate::game_assets::DEFAULT_LANGUAGE))
+        (!self.language.is_empty() && !self.language.eq_ignore_ascii_case(super::language::DEFAULT_LANGUAGE))
             .then_some("LANGUAGES/English.bin")
     }
 }
@@ -132,12 +132,12 @@ pub fn language_in_use(root: &Path) -> String {
 /// The text language to use in `root`, by name as [`installed_languages`]
 /// gives it: `requested` (the command line's `--language`), else the kept
 /// choice ([`saved_language`]), when that language's file is in `root` and
-/// [`crate::game_assets::language_support`] says the engine can show it.
+/// [`super::language::language_support`] says the engine can show it.
 /// Otherwise English; and a copy without `English.bin` falls back to its
 /// first supported language (a single-language edition) rather than to a
 /// file that is not there. A choice that cannot be used is logged.
 pub fn choose_language(root: &Path, requested: Option<&str>) -> String {
-    use crate::game_assets::{DEFAULT_LANGUAGE, Support, language_support, valid_language_name};
+    use super::language::{DEFAULT_LANGUAGE, Support, language_support, valid_language_name};
     let installed = installed_languages(root);
     let wanted = requested.map(str::to_string).or_else(saved_language);
     if let Some(w) = wanted.filter(|w| !w.eq_ignore_ascii_case(DEFAULT_LANGUAGE)) {
@@ -250,11 +250,11 @@ pub fn saved_language_file() -> PathBuf {
 }
 
 /// The kept language name, if one was chosen and is a name that can be
-/// part of a path ([`crate::game_assets::valid_language_name`]).
+/// part of a path ([`super::language::valid_language_name`]).
 pub fn saved_language() -> Option<String> {
     let text = std::fs::read_to_string(saved_language_file()).ok()?;
     let t = text.trim();
-    crate::game_assets::valid_language_name(t).then(|| t.to_string())
+    super::language::valid_language_name(t).then(|| t.to_string())
 }
 
 /// Keeps `name` as the text language (the same atomic write as
@@ -273,7 +273,7 @@ pub fn save_language(name: Option<&str>) -> std::io::Result<()> {
 /// The language files of `root`'s `LANGUAGES` folder, by name (`English`,
 /// `French`, …; any case, sorted), without the shared tables that are not
 /// a language (`Labels`, `Largest`, `LanguageTextures`). Which of them the
-/// engine can show is [`crate::game_assets::language_support`].
+/// engine can show is [`super::language::language_support`].
 pub fn installed_languages(root: &Path) -> Vec<String> {
     let Some(dir) = crate::formats::viv::find_ci(root, "LANGUAGES") else { return Vec::new() };
     let Ok(rd) = std::fs::read_dir(dir) else { return Vec::new() };

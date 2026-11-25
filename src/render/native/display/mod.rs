@@ -3,20 +3,19 @@
 //! besides the post passes' [`super::postfx::Switches`]. See docs/formats.md
 //! "Options", **Custom display values in effect**.
 
-use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
+use std::sync::atomic::{AtomicU8, Ordering};
 
 mod monitor;
 mod options;
 mod present;
 mod sampler;
 mod surface;
-mod ui_frame;
 pub use monitor::*;
 pub use options::*;
 pub use present::*;
 pub use sampler::*;
 pub use surface::*;
-pub use ui_frame::*;
+pub use crate::draw::ui_frame::*;
 
 #[cfg(test)]
 mod tests {

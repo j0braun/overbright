@@ -54,6 +54,12 @@ by Emil Ernerfeldt and the egui contributors. Their licence texts,
 with those of every other crate, are in THIRD-PARTY-LICENSES.txt of a release. egui's
 bundled default fonts are not built in (the editor uses the Sofia Sans faces above).
 
+## windows (DirectInput bindings)
+
+The Windows force-feedback output (`src/pad/ff_out/dinput.rs`) calls DirectInput 8 through Microsoft's
+`windows` crate 0.62 (https://github.com/microsoft/windows-rs), used as a Rust crate, unmodified:
+MIT OR Apache-2.0, by Microsoft. Its licence texts are in THIRD-PARTY-LICENSES.txt of a release.
+
 ## FFmpeg (VP6 and MPEG audio tables)
 
 Used in `src/exe_tables/third_party/ffmpeg_vp6.rs` and
@@ -116,6 +122,30 @@ WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
 ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 ```
+
+## SDL (racing wheel product list)
+
+Used in `src/pad/host.rs` (`WHEELS`): the vendor and product ids of the racing wheels SDL 2 lists in
+`src/joystick/SDL_joystick.c` (`initial_wheel_devices`), the devices Overbright presents as wheels.
+Upstream: https://github.com/libsdl-org/SDL. Licence: zlib.
+
+Copyright (C) 1997-2026 Sam Lantinga <slouken@libsdl.org>
+
+This software is provided 'as-is', without any express or implied
+warranty.  In no event will the authors be held liable for any damages
+arising from the use of this software.
+
+Permission is granted to anyone to use this software for any purpose,
+including commercial applications, and to alter it and redistribute it
+freely, subject to the following restrictions:
+
+1. The origin of this software must not be misrepresented; you must not
+   claim that you wrote the original software. If you use this software
+   in a product, an acknowledgment in the product documentation would be
+   appreciated but is not required.
+2. Altered source versions must be plainly marked as such, and must not be
+   misrepresented as being the original software.
+3. This notice may not be removed or altered from any source distribution.
 
 ## Format references (no code taken)
 

@@ -11,12 +11,13 @@
 //! * [`setup`]: finding and checking the game folder on a first run.
 
 #[cfg(test)]
-use crate::frontend::Quad;
+use crate::draw::quad::Quad;
 
 mod enhancements;
 mod frame;
 mod hdr;
 mod hud_scale;
+pub mod language;
 mod levels;
 mod presets;
 mod render_scale;
@@ -456,7 +457,8 @@ mod tests {
                 hud_speedo: 90,
                 hud_info: 115,
                 reduced_flashing: true,
-                power_saving: 3,
+                background: 2,
+                power_saving: 2,
                 mark_spot: 2,
             },
             pad: crate::pad::extras::PadOptions {
@@ -490,7 +492,7 @@ mod tests {
             assert!(back.parse(k, v));
         }
         assert_eq!(back, e);
-        assert_eq!(e.deviations().len(), 81);
+        assert_eq!(e.deviations().len(), 82);
         assert!(!back.parse("detail", "3"));
         // Volumetric Fog's Next-Gen tier (3) and the Sky row round-trip, clamped.
         let mut n = Enhancements::default();
@@ -693,8 +695,8 @@ mod tests {
             q((0.0, 0.0), (640.0, 480.0)),
         ];
         // Their anchors (`display::Place`, as the HUD's packages set them).
-        v[0].place = crate::render::display::Place::new(1, 1);
-        v[1].place = crate::render::display::Place::TOP_CENTRE;
+        v[0].place = crate::draw::ui_frame::Place::new(1, 1);
+        v[1].place = crate::draw::ui_frame::Place::TOP_CENTRE;
         let before = v.clone();
         let rects = |v: &[Quad]| v.iter().map(|q| q.rect).collect::<Vec<_>>();
         scale_hud(&mut v, 1.0);

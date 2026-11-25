@@ -14,6 +14,12 @@ pub const STEER_RESPONSE_DRIFT: [f32; 21] = [
     0.319, 0.492, 0.688, 1.0, 1.0,
 ];
 
+/// A wheel's steering response over input −1..1 in 21 steps (0x4061C0: graph 0x7E9E88, values 0x7E92D8).
+pub const STEER_RESPONSE_WHEEL: [f32; 21] = [
+    -1.0, -0.8, -0.615, -0.483, -0.388, -0.288, -0.22, -0.161, -0.111, -0.057, 0.0, 0.057, 0.111, 0.161, 0.22, 0.288,
+    0.388, 0.483, 0.615, 0.8, 1.0,
+];
+
 /// Tyre lateral force curves: row 0 is all zero (0x86B34C, zero-filled data), rows 1..6 from 0x7FC744 (graph 0x7FC7D4).
 pub const LATERAL: [[f32; 6]; 7] = [
     [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],

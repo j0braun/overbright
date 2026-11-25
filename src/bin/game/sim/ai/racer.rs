@@ -53,6 +53,11 @@ pub(crate) struct RacerActions<'a> {
     pub(crate) me: nfsu2::ai::actions::RoadCar,
     pub(crate) block_row: usize,
     pub(crate) hits: Vec<usize>,
+    /// The racers among `hits` whose record's summed pushes reach the drag
+    /// got-hit threshold, and whether a wall contact is live (the drag
+    /// chooser's tests, `Actions::drag_think`).
+    pub(crate) hard: Vec<usize>,
+    pub(crate) wall: bool,
     pub(crate) touching: bool,
     /// This frame is the controller's full think (0x42AE2F); between them
     /// the action's last output is kept (only Block updates, 0x42ADA4).
@@ -106,6 +111,26 @@ pub(crate) fn road_car(
         } else {
             nfsu2::ai::actions::CarPath::default()
         },
+    }
+}
+
+/// A traffic car's path for the racers' sweeps (0x4275E0): its driver's
+/// (car +0x30 → +0x10, the path of its last think) while it is on its road,
+/// its controller's vt+0x2C (0x40D4F0, the distance past the road's edge
+/// at its route point) at most −0.25; else none, and the sweep takes the
+/// prediction 0x425A40 (`road_car`'s default).
+pub(crate) fn traffic_road_path(
+    c: &mut nfsu2::ai::actions::RoadCar,
+    t: &crate::sim::traffic::TrafficCar,
+    routes: &nfsu2::formats::ai_routes::RouteFile,
+) {
+    let on_road = t
+        .lane
+        .as_ref()
+        .and_then(|l| l.edge(routes))
+        .is_some_and(|e| nfsu2::ai::driver::past_edge(&t.state, &e) <= nfsu2::ai::actions::TRAFFIC_OWN_PATH_EDGE);
+    if on_road && let Some((path, _)) = &t.plan {
+        c.path = nfsu2::ai::actions::CarPath::from_points(path);
     }
 }
 
@@ -345,6 +370,7 @@ fn racer_drag_actions_step(
                 drift: false,
                 drag: true,
                 held,
+                contact_held: held && !route.hold_spares_contacts,
                 block_row: a.block_row,
                 hits: &a.hits,
                 touching: a.touching,
@@ -353,23 +379,56 @@ fn racer_drag_actions_step(
                 forward_speed: state.speed(),
                 odds: ai.tuning.pass_odds(r.speed.skill()),
             };
+            // The chooser, the running action's done test and its update
+            // run on the controller's full think only (0x42AE2F → 0x42B1CB
+            // …), as for any racer; between them the fallback (0x42AD16)
+            // updates only an action whose vt+0x10 is true, and the drag
+            // goal's actions' is 0x404800 (false: the lane action 0x785820,
+            // the got-hit 0x78588C, the wall 0x7858D4), so the driver keeps
+            // the running action's last path and cap. (The lane action's
+            // path is still rebuilt each frame from the lane record:
+            // **inferred**, its geometry the same.)
+            let retained = a.retained.as_ref().filter(|s| !s.path.is_empty() && !a.full);
+            if let Some(steer) = retained.cloned() {
+                if let Some(cap) = steer.cap {
+                    *target = target.min(cap);
+                }
+                a.actions.last_path = steer.path.clone();
+                return steer.path;
+            }
             let driven = std::mem::take(&mut a.actions.last_path);
             let driven = if driven.is_empty() { lane_path.clone() } else { driven };
-            match a.actions.drag_avoid(route, &scene, r.lane, &driven, field_rng) {
+            let touch = nfsu2::ai::actions::DragTouch { wall: a.wall, hard: &a.hard };
+            if !a.full && a.retained.is_some() {
+                // Between full thinks with the lane action running (its
+            // retained steer has no path).
+                a.actions.last_path = lane_path.clone();
+                return lane_path;
+            }
+            match a.actions.drag_think(route, &scene, r.lane, &driven, &touch, field_rng) {
                 Some(steer) => {
                     if let Some(cap) = steer.cap {
                         *target = target.min(cap);
                     }
                     a.actions.last_path = steer.path.clone();
+                    *a.retained = Some(steer.clone());
                     steer.path
                 }
                 None => {
                     a.actions.last_path = lane_path.clone();
+                    *a.retained = Some(nfsu2::ai::actions::Steer { path: Vec::new(), cap: None, pedals: true, reset: false });
                     lane_path
                 }
             }
         }
-        _ => lane_path,
+        Some(a) => {
+            // GetUnstuck runs (priority 500): it replaces the drag action;
+            // the next frame after it chooses afresh.
+            a.actions.drag_reset();
+            *a.retained = None;
+            lane_path
+        }
+        None => lane_path,
     }
 }
 
@@ -447,6 +506,7 @@ fn racer_line_actions_step(
                 drift: h.race.drift(),
                 drag: race_type.drag(),
                 held,
+                contact_held: held && !route.hold_spares_contacts,
                 block_row: a.block_row,
                 hits: &a.hits,
                 touching: a.touching,

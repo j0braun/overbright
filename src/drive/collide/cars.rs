@@ -228,14 +228,14 @@ fn post_effects(
     // The record's sound (0x5A9630 → 0x4797B0) on its first push.
     if !std::mem::replace(&mut pair.sounded, true) {
         let (sa, sb) = (&cars[a].state, &cars[b].state);
-        let kind = crate::audio::collision::car_kind(sa.forward(), sa.position, sb.forward(), sb.position, point);
+        let kind = crate::audio::world::impacts::car_kind(sa.forward(), sa.position, sb.forward(), sb.position, point);
         sounds.impacts.post(point, kind, j.length());
     }
     // 0x4792D0: the scrape's arming; a car-against-car object never
     // starts FX_Scrape (audio::scrape).
-    sounds.pushes.post(crate::audio::scrape::Push {
+    sounds.pushes.post(crate::audio::car::pushes::Push {
         record: pair.id,
-        class: crate::audio::scrape::Class::Cars,
+        class: crate::audio::car::pushes::Class::Cars,
         slide,
         at: point,
     });

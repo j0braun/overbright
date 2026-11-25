@@ -44,10 +44,12 @@ pub enum Screen {
     /// The developer tools: the map editor, the game with the editor
     /// tools, the support file and the logs.
     Dev,
+    /// Your own copy of the game: offered after the game check, and in Settings › Advanced.
+    GameData,
 }
 
 impl Screen {
-    pub const ALL: [Screen; 17] = [
+    pub const ALL: [Screen; 18] = [
         Screen::FirstRun,
         Screen::Check,
         Screen::Main,
@@ -65,6 +67,7 @@ impl Screen {
         Screen::Recover,
         Screen::Storage,
         Screen::Dev,
+        Screen::GameData,
     ];
 
     pub fn name(self) -> &'static str {
@@ -86,6 +89,7 @@ impl Screen {
             Screen::Recover => "recover",
             Screen::Storage => "storage",
             Screen::Dev => "dev",
+            Screen::GameData => "game-data",
         }
     }
 
@@ -106,7 +110,8 @@ impl Screen {
             | Screen::Storage
             | Screen::About
             | Screen::Licence
-            | Screen::Notices => Some(1),
+            | Screen::Notices
+            | Screen::GameData => Some(1),
             Screen::Mods => Some(2),
             Screen::Saves => Some(3),
             Screen::Dev => Some(4),
@@ -118,7 +123,16 @@ impl Screen {
     pub fn document(self) -> bool {
         matches!(self, Screen::Licence | Screen::Notices)
     }
+
+    /// A page that shows Studio's state (the Dev page, the Mods page's map
+    /// mods): Studio's locks and recent list are read while it is shown.
+    pub fn sees_studio(self) -> bool {
+        matches!(self, Screen::Dev | Screen::Mods)
+    }
 }
+
+/// How often the Dev and Mods pages read Studio's state again.
+pub const STUDIO_LOOK: std::time::Duration = std::time::Duration::from_secs(2);
 
 /// What the window must do after an input.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -174,6 +188,8 @@ pub struct App<'e> {
     pub back: Screen,
     /// The page slide and Play's glow.
     pub motion: super::anim::Motion,
+    /// The own copy's run (import, check, repair) on its worker ([`super::game_data`]).
+    pub game_data_job: Option<super::game_data::Job>,
     /// Files being copied to a new folder on a worker.
     pub copy_job: Option<
         std::sync::mpsc::Receiver<(crate::platform::dirs::Location, PathBuf, Result<super::transfer::Done, String>)>,
@@ -182,10 +198,15 @@ pub struct App<'e> {
     pub keys_after: Option<std::time::Instant>,
     /// The support file being written on a worker.
     pub support_job: Option<std::sync::mpsc::Receiver<Result<PathBuf, String>>>,
+    /// The system's errors for the crashed game being asked on a worker.
+    pub crash_job: Option<std::sync::mpsc::Receiver<Vec<String>>>,
     /// The map editor started from the Mods page, while it is open.
     pub editor_job: Option<Box<dyn super::model::EditorJob>>,
     /// Studio, when the launcher started it (its end polled by the window).
     pub studio_job: Option<Box<dyn super::model::EditorJob>>,
+    /// When Studio's locks and recent list were last read (the Dev and
+    /// Mods pages read them again every [`STUDIO_LOOK`]).
+    pub studio_looked: Option<std::time::Instant>,
     /// The Saves page's worker: its result on the way, and what its jobs
     /// keep between runs.
     pub saves_rx: Option<std::sync::mpsc::Receiver<super::saves::jobs::Done>>,
@@ -401,6 +422,16 @@ pub fn build(b: &mut Builder, m: &Model, screen: Screen) {
             }
             _ => {}
         }
+    }
+    if screen == Screen::Mods
+        && let Some(Dialog::MapExportDerived(f, _, n)) = &m.ask
+    {
+        let name = m.mods.maps.iter().find(|r| &r.folder == f).map_or(f.as_str(), |r| r.name.as_str());
+        b.dialog(
+            words::DERIVED_TITLE,
+            &format!("{name}: {}", crate::tools::map::share::derived_warning(*n)),
+            &[("map_export_cancel", words::CANCEL), ("map_export_yes", words::EXPORT_ANYWAY)],
+        );
     }
     if screen == Screen::Mods
         && let Some(key) = &m.mods.confirm
@@ -657,6 +688,7 @@ fn build_page(b: &mut Builder, m: &Model, screen: Screen) {
         }
         Screen::Mods => build_mods(b, m),
         Screen::Prepare => build_prepare(b, m),
+        Screen::GameData => super::game_data::build(b, m),
         Screen::FirstRun
         | Screen::Check
         | Screen::Failure
@@ -819,6 +851,8 @@ pub fn game_state(m: &Model) -> (Mark, String) {
         ProbeState::Pending => (Mark::Info, format!("{found} · checking this computer…")),
         ProbeState::Ready(p) if !p.ok() => (Mark::Warn, format!("{found} · no graphics adapter answered (see below)")),
         ProbeState::Failed(_) => (Mark::Warn, format!("{found} · this computer was not checked")),
+        // The own copy being made behind the main screen.
+        _ if m.game_data.running() => (Mark::Info, m.game_data.background_words().unwrap_or_default()),
         _ => match &m.prepare.state {
             // The prepare step running by itself (`Prepare::background`).
             super::prepare::State::Idle | super::prepare::State::Running { .. } if m.prepare.background => {
@@ -1387,7 +1421,15 @@ fn build_advanced(b: &mut Builder, m: &Model) {
     b.value_row("language", "Game language", &m.language_name(), &langs, false, m.root.is_some() && langs.len() > 1);
     let no = m.unsupported_languages();
     if !no.is_empty() {
-        let list: Vec<String> = no.iter().map(|(l, why)| format!("{l} ({why})")).collect();
+        // Languages with the same reason share it: a shorter line, so the page keeps fitting.
+        let mut groups: Vec<(&str, Vec<&str>)> = Vec::new();
+        for (l, why) in &no {
+            match groups.iter_mut().find(|(w, _)| w == why) {
+                Some((_, ls)) => ls.push(l),
+                None => groups.push((why, vec![l])),
+            }
+        }
+        let list: Vec<String> = groups.iter().map(|(why, ls)| format!("{} ({why})", ls.join(", "))).collect();
         b.dim(&format!("Not supported yet: {}.", list.join("; ")));
     }
     b.value_row(
@@ -1416,6 +1458,7 @@ fn build_advanced(b: &mut Builder, m: &Model) {
     );
     if m.root.is_some() {
         b.sum_row("prepare", "Get shaders ready again", "");
+        b.sum_row("game_data", "Game data", &m.game_data.row_words());
     }
     b.sum_row("import", "Import saves", "from the original game");
     b.sum_row("storage", "Storage", if m.portable.on { "Portable: beside the program" } else { "Where Overbright keeps its files" });
@@ -1446,10 +1489,14 @@ fn build_dev(b: &mut Builder, m: &Model) {
     b.in_column(cols.left);
     b.section_a("Studio");
     b.buttons(Align::Left, vec![studio_button(m)]);
-    if !m.studio_here {
-        b.status(Mark::Error, "Studio's program (overbright-studio) is not beside the launcher.");
-    }
     studio_status(b, m);
+    let rows = studio_rows(m);
+    // Clear of the button's focus ring.
+    b.gap(6.0);
+    let lw = b.lamp_label_w(&rows.iter().map(|r| r.2.as_str()).collect::<Vec<_>>());
+    for (id, mark, label, value) in &rows {
+        b.lamp_row(Some(id), *mark, label, lw, value);
+    }
     b.sum_row("studio_cli", "Command-line tool", if m.studio_cli_here { "Open folder" } else { "Not here" });
     b.section_a("Standalone map editor");
     b.buttons(Align::Left, vec![map_editor_button(m)]);
@@ -1481,7 +1528,8 @@ fn build_dev(b: &mut Builder, m: &Model) {
             "overbright-studio-cli: Studio's edits and checks from a shell or a script. It is not beside the \
              launcher in this copy of Overbright."
         };
-        let (h, t) = match b.st.focus.unwrap_or("editor_play") {
+        let state_help = studio_state_help(m);
+        let (h, t) = match b.st.focus.unwrap_or(dev_focus(m)) {
             "support" => (
                 "Support file",
                 "One text file for a bug report: this computer, the game's check, the settings and the last logs, \
@@ -1494,6 +1542,12 @@ fn build_dev(b: &mut Builder, m: &Model) {
                  workspace. It is a preview: not every part is finished; keep a copy of mods you care about.",
             ),
             "studio_cli" => ("Command-line tool", cli),
+            "studio_state" => ("Studio", state_help.as_str()),
+            "studio_last" => (
+                "Last mod",
+                "The mod opened last in Studio's World workspace or in the map editor (they keep one list). Studio \
+                 lists it on its Home.",
+            ),
             "map_editor" => (
                 "Standalone map editor (preview)",
                 "The desktop map editor on its own, without Studio: props, custom races, test runs in the game and \
@@ -1508,7 +1562,14 @@ fn build_dev(b: &mut Builder, m: &Model) {
         b.describe(r, h, t);
     }
     b.y = left_bottom.max(b.widgets.last().map_or(0.0, |w| w.rect.bottom()));
-    b.default_focus = Some("editor_play");
+    b.default_focus = Some(dev_focus(m));
+}
+
+/// The Dev page's first focus: Studio's button (the page leads there), its
+/// state row while the button is greyed.
+fn dev_focus(m: &Model) -> &'static str {
+    let open = matches!(m.studio, super::model::EditorRun::Open(_));
+    if m.studio_here && !open { "studio" } else { "studio_state" }
 }
 
 /// Studio's button: starts Studio on its Home; greyed when it is not
@@ -1518,13 +1579,77 @@ pub fn studio_button(m: &Model) -> Ctrl {
     Ctrl::Button { id: "studio", text: "Open Studio (preview)".into(), primary: false, enabled: m.studio_here && !open }
 }
 
-/// Studio's state under its button: open, or why it failed.
+/// Why Studio failed, under its button (its other states are its rows).
 fn studio_status(b: &mut Builder, m: &Model) {
-    match &m.studio {
-        super::model::EditorRun::Open(_) => b.status(Mark::Busy, "Studio is open in its own window."),
-        super::model::EditorRun::Failed(e) => b.status(Mark::Error, &format!("Studio: {e}")),
-        super::model::EditorRun::Closed => {}
+    if let super::model::EditorRun::Failed(e) = &m.studio {
+        b.status(Mark::Error, &format!("Studio: {e}"));
     }
+}
+
+/// A map mod's name on the Dev page (its folder when it is not listed).
+fn mod_name<'a>(m: &'a Model, folder: &'a str) -> &'a str {
+    m.mods.maps.iter().find(|r| r.folder == folder).map_or(folder, |r| r.name.as_str())
+}
+
+/// Studio's rows on the Dev page: Studio with its version (found beside
+/// the launcher or not) and its state (open or not, the mod it has open,
+/// from the mods' write locks); the last mod opened.
+pub fn studio_rows(m: &Model) -> [(&'static str, Mark, String, String); 2] {
+    use super::model::EditorRun;
+    let seen = &m.studio_seen;
+    let by_studio: Vec<&str> = seen.held.iter().filter(|h| h.by_studio()).map(|h| mod_name(m, &h.folder)).collect();
+    let on = match by_studio.as_slice() {
+        [] => None,
+        [one] => Some(format!("on {one}")),
+        [one, rest @ ..] => Some(format!("on {one} and {}", super::model::count(rest.len(), "more", "more"))),
+    };
+    let ours = matches!(m.studio, EditorRun::Open(_));
+    let (mark, state) = match (m.studio_here, ours, on) {
+        (_, true, Some(on)) => (Mark::Busy, format!("Open {on}")),
+        (_, true, None) => (Mark::Busy, "Open, no mod open yet".to_string()),
+        (_, false, Some(on)) => (Mark::Busy, format!("Open elsewhere {on}")),
+        (true, false, None) => (Mark::Ok, "Ready, not open".to_string()),
+        (false, false, None) => (Mark::Error, "Not beside the launcher".to_string()),
+    };
+    let label = if m.studio_here { format!("Studio {}", m.version) } else { "Studio".to_string() };
+    let last = seen.last.as_deref().map_or_else(|| "None yet".to_string(), |f| mod_name(m, f).to_string());
+    [("studio_state", mark, label, state), ("studio_last", Mark::Info, "Last mod".to_string(), last)]
+}
+
+/// The State row's help: what is open, and every mod's write lock with who
+/// holds it (as Studio's note beside the lock says).
+fn studio_state_help(m: &Model) -> String {
+    let mut t = if m.studio_here {
+        format!("overbright-studio {}, beside the launcher (it comes with this copy of Overbright). ", m.version)
+    } else {
+        "Studio's program (overbright-studio) is not beside the launcher in this copy of Overbright, so Open Studio \
+         is greyed. "
+            .to_string()
+    };
+    t.push_str(
+        "Studio is open when the launcher started it or when it has a mod open (Studio holds a mod's lock while it \
+         edits it, so no other program writes to it). ",
+    );
+    if m.studio_seen.held.is_empty() {
+        t.push_str("No mod is open for writing now.");
+    }
+    for h in &m.studio_seen.held {
+        let who = match (&h.program, h.pid) {
+            // The command-line tool's own name ("overbright-studio (command line)").
+            (Some(p), Some(pid)) if p.contains("command line") => format!("Studio's command-line tool (process {pid})"),
+            (Some(p), Some(pid)) => format!("{p} (process {pid})"),
+            _ => "another program".into(),
+        };
+        let since = h
+            .since
+            .map(|ms| {
+                let t = std::time::UNIX_EPOCH + std::time::Duration::from_millis(ms);
+                format!(" since {}", super::localtime::date_time(t))
+            })
+            .unwrap_or_default();
+        t.push_str(&format!("{} is open for writing in {who}{since}. ", mod_name(m, &h.folder)));
+    }
+    t.trim_end().to_string()
 }
 
 /// The map editor's button: starts the desktop editor on its own Open /
@@ -1713,13 +1838,18 @@ fn build_crash(b: &mut Builder, m: &Model) {
     };
     b.dim(&where_);
     b.gap(8.0);
-    b.buttons(
-        Align::Left,
-        vec![
-            Ctrl::button("open_logs", "Open log folder"),
-            Ctrl::button("details", if m.failure_details { "Hide details" } else { "Details" }),
-        ],
-    );
+    let report = f.and_then(|f| f.report.as_ref());
+    let mut row = vec![
+        Ctrl::button("open_logs", "Open log folder"),
+        Ctrl::button("details", if m.failure_details { "Hide details" } else { "Details" }),
+    ];
+    if report.is_some() {
+        row.insert(0, Ctrl::button("copy_report", "Copy for a bug report"));
+    }
+    b.buttons(Align::Left, row);
+    if let Some(r) = report {
+        crash_report_block(b, r);
+    }
     if m.failure_details {
         b.gap(10.0);
         b.dim(&format!("It ended with {}.", f.map_or("an unknown result", |f| f.how.as_str())));
@@ -1734,6 +1864,34 @@ fn build_crash(b: &mut Builder, m: &Model) {
     }
     support_line(b, m);
     message(b, m);
+}
+
+/// The crash report window's part of the failure screen: how the game
+/// ended in words, the system's errors for it, the logs of the run.
+fn crash_report_block(b: &mut Builder, r: &super::model::CrashReport) {
+    b.gap(10.0);
+    b.dim(&format!("What happened: the game ran {:.0} s, then {}.", r.secs, r.reason));
+    b.gap(6.0);
+    if r.asking {
+        b.dim("Asking the system for its record of the crash…");
+    } else if r.errors.is_empty() {
+        b.dim("The system has no record of it that can be read without admin rights.");
+    } else {
+        b.dim("The system's record of it:");
+        b.gap(4.0);
+        b.panel(&r.errors.iter().take(TAIL_SHOWN).cloned().collect::<Vec<_>>());
+    }
+    b.gap(6.0);
+    if r.logs.is_empty() {
+        b.dim("No log file was written during this run.");
+    } else {
+        let name = |p: &Path| p.file_name().map_or_else(String::new, |n| n.to_string_lossy().to_string());
+        let mut names: Vec<String> = r.logs.iter().rev().take(3).map(|p| name(p)).collect();
+        if r.logs.len() > 3 {
+            names.push(format!("and {} more", r.logs.len() - 3));
+        }
+        b.dim(&format!("Logs of this run: {}.", names.join(", ")));
+    }
 }
 
 /// The support file written: where, and Open folder.
@@ -2018,7 +2176,12 @@ fn build_mods(b: &mut Builder, m: &Model) {
     }
     let editing = matches!(mods.editor, super::model::EditorRun::Open(_));
     for (i, r) in mods.maps.iter().enumerate().take(MAP_IDS.len()) {
-        b.toggle_sub(MAP_IDS[i], &r.name, &map_detail(r), r.on && live, live && !editing);
+        let detail = match m.studio_seen.held_on(&r.folder) {
+            Some(h) if h.by_studio() => format!("{} · being edited in Studio", map_detail(r)),
+            Some(_) => format!("{} · being edited", map_detail(r)),
+            None => map_detail(r),
+        };
+        b.toggle_sub(MAP_IDS[i], &r.name, &detail, r.on && live, live && !editing);
     }
     b.gap(6.0);
     let any = !mods.maps.is_empty();
@@ -2062,14 +2225,16 @@ fn editor_status(b: &mut Builder, m: &Model) {
     }
 }
 
-/// A map mod's line under its name: its races and prop edits.
+/// A map mod's line under its name: its races, prop edits and the
+/// textures it changes.
 pub fn map_detail(r: &super::model::MapRow) -> String {
-    match (r.races, r.props) {
-        (0, 0) => "Empty".into(),
-        (n, 0) => super::model::count(n, "race", "races"),
-        (0, p) => super::model::count(p, "prop edit", "prop edits"),
-        (n, p) => format!("{} · {}", super::model::count(n, "race", "races"), super::model::count(p, "prop edit", "prop edits")),
-    }
+    use super::model::count;
+    let parts: Vec<String> = [(r.races, "race", "races"), (r.props, "prop edit", "prop edits"), (r.textures, "texture", "textures")]
+        .into_iter()
+        .filter(|(n, ..)| *n > 0)
+        .map(|(n, one, many)| count(n, one, many))
+        .collect();
+    if parts.is_empty() { "Empty".into() } else { parts.join(" · ") }
 }
 
 /// The Mods page's side note.
@@ -2114,10 +2279,13 @@ impl<'e> App<'e> {
             back: Screen::Main,
             motion: Default::default(),
             support_job: None,
+            crash_job: None,
             editor_job: None,
             studio_job: None,
+            studio_looked: None,
             keys_after: None,
             copy_job: None,
+            game_data_job: None,
             saves_rx: None,
             saves_ctx: None,
         };
@@ -2227,6 +2395,129 @@ impl<'e> App<'e> {
         false
     }
 
+    /// The own copy offered as the next step: after the game check of a first run, or at a start without a
+    /// copy (unless "Not now" was chosen before). Not when a copy is there (whole or to repair) or a run goes on.
+    pub fn offer_game_data(&mut self) -> bool {
+        use super::game_data::Status;
+        let g = &self.model.game_data;
+        if self.model.root.is_none() || g.running() || matches!(g.status, Status::Ready { .. } | Status::Damaged(_)) {
+            return false;
+        }
+        self.open_game_data(false);
+        true
+    }
+
+    /// The Game data screen (`from_settings`: from Settings › Advanced, Back returns there).
+    pub fn open_game_data(&mut self, from_settings: bool) {
+        let root = self.model.root.clone();
+        let g = &mut self.model.game_data;
+        g.from_settings = from_settings;
+        if !g.running() {
+            g.state = super::game_data::GameData::state_for(&g.status);
+            g.stopping = false;
+        }
+        if g.size == 0
+            && let Some(r) = root
+        {
+            g.size = self.env.game_data_size(&r);
+        }
+        self.go(Screen::GameData);
+    }
+
+    fn game_data_leave(&mut self) {
+        if self.model.game_data.from_settings {
+            self.go(Screen::Advanced);
+            self.st.focus = Some("game_data");
+        } else {
+            self.go(Screen::Main);
+        }
+    }
+
+    /// Starts `kind` in the background (one run at a time).
+    fn game_data_run(&mut self, kind: super::game_data::Kind) {
+        use super::game_data::{Kind, State};
+        let Some(root) = self.model.root.clone() else {
+            self.model.message = Some((Mark::Warn, "Choose the game's folder first.".into()));
+            return;
+        };
+        if self.game_data_job.is_some() {
+            return;
+        }
+        let g = &mut self.model.game_data;
+        g.last = kind;
+        g.stopping = false;
+        g.state = State::Running {
+            fraction: 0.0,
+            words: if kind == Kind::Verify { "Checking the copy" } else { "Reading your game files" }.into(),
+        };
+        log::info!("game data: {kind:?} started");
+        self.game_data_job = Some(self.env.game_data_start(kind, &root));
+        self.st.focus = None;
+    }
+
+    /// A run's messages applied. True when the screen changed.
+    fn poll_game_data(&mut self) -> bool {
+        use super::game_data::{End, GameData, Msg, State, Status};
+        let Some(job) = self.game_data_job.as_mut() else { return false };
+        let msgs = job.poll();
+        if msgs.is_empty() {
+            return false;
+        }
+        let g = &mut self.model.game_data;
+        for m in msgs {
+            match m {
+                Msg::Progress { fraction, words } => {
+                    if g.running() {
+                        g.state = State::Running { fraction, words };
+                    }
+                }
+                Msg::End(end) => {
+                    self.game_data_job = None;
+                    g.stopping = false;
+                    g.state = match end {
+                        End::Ready { status, differing } => {
+                            g.status = status;
+                            match &g.status {
+                                Status::Ready { edition, known } => {
+                                    State::Done { edition: edition.clone(), known: *known, differing }
+                                }
+                                other => GameData::state_for(other),
+                            }
+                        }
+                        End::Stopped { done, of } => {
+                            g.status = Status::Partial;
+                            State::Stopped { done, of }
+                        }
+                        End::Damaged(n) => {
+                            g.status = Status::Damaged(n);
+                            State::Damaged(n)
+                        }
+                        End::NoSpace { need, free, place } => State::NoSpace { need, free, place },
+                        End::Failed(e) => State::Failed(e),
+                    };
+                    if self.screen == Screen::GameData {
+                        self.st.focus = None;
+                    }
+                    break;
+                }
+            }
+        }
+        true
+    }
+
+    /// A run goes on (the window wakes for its messages).
+    pub fn game_data_busy(&self) -> bool {
+        self.game_data_job.is_some()
+    }
+
+    /// The launcher closes: a run still going is asked to stop (the next start goes on from it).
+    pub fn finish_game_data(&mut self) {
+        if let Some(j) = self.game_data_job.take() {
+            log::info!("game data: stopped with the launcher");
+            j.finish(std::time::Duration::from_secs(3));
+        }
+    }
+
     pub fn go(&mut self, s: Screen) {
         if let (Some(a), Some(b)) = (self.screen.page(), s.page())
             && a != b
@@ -2234,6 +2525,9 @@ impl<'e> App<'e> {
             self.motion.page_changed(if b > a { 1 } else { -1 });
         }
         self.screen = s;
+        if s.sees_studio() {
+            self.look_at_studio();
+        }
         let pointer = self.st.pointer;
         self.st = UiState { pointer, ..UiState::default() };
         self.model.message = None;
@@ -2509,7 +2803,7 @@ impl<'e> App<'e> {
     }
 
     /// The browser's folder taken for its purpose.
-    fn use_folder(&mut self, dir: PathBuf) {
+    pub(super) fn use_folder(&mut self, dir: PathBuf) {
         match self.model.browse.purpose {
             BrowseFor::Game => {
                 self.model.check = Some(self.env.check(&dir));
@@ -2539,10 +2833,11 @@ impl<'e> App<'e> {
             BrowseFor::MapExport => {
                 self.go(Screen::Mods);
                 if let Some(f) = self.model.mods.map_sel.clone().or_else(|| self.model.mods.maps.first().map(|r| r.folder.clone())) {
-                    self.model.mods.results = vec![match self.env.export_map(&f, &dir) {
-                        Ok(p) => (Mark::Ok, format!("Exported: {}", p.display())),
-                        Err(e) => (Mark::Error, format!("{f}: not exported: {e}")),
-                    }];
+                    // Textures from the original game's pixels: the question first.
+                    match self.env.map_derived(&f) {
+                        0 => self.export_map(&f, &dir, false),
+                        n => self.model.ask = Some(Dialog::MapExportDerived(f, dir, n)),
+                    }
                 }
             }
             BrowseFor::Packages if self.env.mod_kind(&dir).is_some() => {
@@ -2665,6 +2960,24 @@ impl<'e> App<'e> {
         m.own = self.env.own_packs();
         m.maps = self.env.maps();
         self.check_conflict();
+        self.look_at_studio();
+    }
+
+    /// Reads what is seen of Studio again (its locks on the map mods, the
+    /// last mod opened; read only, nothing is started). True when it changed.
+    pub fn look_at_studio(&mut self) -> bool {
+        let folders: Vec<String> = self.model.mods.maps.iter().map(|r| r.folder.clone()).collect();
+        let seen = self.env.studio_seen(&folders);
+        self.studio_looked = Some(std::time::Instant::now());
+        let changed = seen != self.model.studio_seen;
+        self.model.studio_seen = seen;
+        changed
+    }
+
+    /// When the Dev or Mods page reads Studio's state again (None: another
+    /// page; nothing is read there).
+    pub fn studio_wake(&self) -> Option<std::time::Instant> {
+        self.screen.sees_studio().then(|| self.studio_looked.map_or_else(std::time::Instant::now, |t| t + STUDIO_LOOK))
     }
 
     fn check_conflict(&mut self) {
@@ -2677,6 +2990,15 @@ impl<'e> App<'e> {
 
     /// "Use mods" turned off (every mod off for the game, what was on set
     /// aside) or on (given back).
+    /// Export the map mod `f` into `dir` (`derived_ok`: the player said yes
+    /// to its textures from the original game's pixels).
+    fn export_map(&mut self, f: &str, dir: &Path, derived_ok: bool) {
+        self.model.mods.results = vec![match self.env.export_map(f, dir, derived_ok) {
+            Ok(p) => (Mark::Ok, format!("Exported: {}", p.display())),
+            Err(e) => (Mark::Error, format!("{f}: not exported: {e}")),
+        }];
+    }
+
     fn toggle_mods_in_use(&mut self) {
         use super::model::Paused;
         let m = &mut self.model;
@@ -2900,6 +3222,11 @@ impl<'e> App<'e> {
                     m.ask = None;
                     let id = *id;
                     self.switch_portable(id);
+                }
+                Event::Activate("map_export_yes") => {
+                    if let Some(Dialog::MapExportDerived(f, dir, _)) = m.ask.take() {
+                        self.export_map(&f, &dir, true);
+                    }
                 }
                 Event::Activate("reset_yes") => {
                     self.reset_defaults();
@@ -3434,6 +3761,57 @@ impl<'e> App<'e> {
         self.support_done(r);
     }
 
+    /// The crashed game's system errors, asked on a worker (the tools can
+    /// take seconds); shown when they come.
+    pub fn ask_system_errors(&mut self, pid: u32) {
+        if self.env.background_support() {
+            let (tx, rx) = std::sync::mpsc::channel();
+            let spawned = std::thread::Builder::new().name("crash-errors".into()).spawn(move || {
+                let _ = tx.send(crate::launcher::crash_report::system_errors(pid, "game"));
+            });
+            if spawned.is_ok() {
+                self.crash_job = Some(rx);
+                return;
+            }
+        }
+        let errors = self.env.crash_errors(pid, "game");
+        self.crash_errors_done(errors);
+    }
+
+    fn crash_errors_done(&mut self, errors: Vec<String>) {
+        if let Some(r) = self.model.failure.as_mut().and_then(|f| f.report.as_mut()) {
+            r.errors = errors;
+            r.asking = false;
+        }
+    }
+
+    /// "Copy for a bug report": the redacted text onto the clipboard; with
+    /// no clipboard tool, saved as a file whose folder opens.
+    fn copy_report(&mut self) {
+        let Some(f) = self.model.failure.as_ref() else { return };
+        let Some(r) = f.report.as_ref() else { return };
+        let facts = crate::launcher::crash_report::Facts {
+            program: "the game".into(),
+            reason: r.reason.clone(),
+            secs: r.secs,
+            during_start: f.during_start,
+            tail: f.tail.clone(),
+            errors: r.errors.clone(),
+            logs: r.logs.clone(),
+        };
+        let text = crate::launcher::crash_report::report(&facts);
+        self.model.message = Some(match self.env.copy_text(&text) {
+            Ok(()) => (Mark::Ok, "Copied. Paste it into your bug report; nothing was sent.".into()),
+            Err(e) => match crate::launcher::crash_report::save_text(&self.model.logs_dir, &text) {
+                Ok(p) => {
+                    self.model.support = Some(p.clone());
+                    (Mark::Info, format!("The clipboard isn't available ({e}). The report is saved: {}", p.display()))
+                }
+                Err(e2) => (Mark::Error, format!("The report could not be copied ({e}) or saved ({e2}).")),
+            },
+        });
+    }
+
     fn support_done(&mut self, r: Result<PathBuf, String>) {
         self.model.support_busy = false;
         match r {
@@ -3504,7 +3882,11 @@ impl<'e> App<'e> {
     /// The window's poll: a finished support file shown, the map editor's
     /// end. True when the screen changed.
     pub fn poll_jobs(&mut self, fonts: &Fonts) -> bool {
-        if self.poll_editor() | self.poll_studio() || self.poll_saves() {
+        if self.poll_editor() | self.poll_studio() | self.poll_game_data() || self.poll_saves() {
+            self.rebuild(fonts);
+            return true;
+        }
+        if self.studio_wake().is_some_and(|t| std::time::Instant::now() >= t) && self.look_at_studio() {
             self.rebuild(fonts);
             return true;
         }
@@ -3519,6 +3901,23 @@ impl<'e> App<'e> {
                 Err(std::sync::mpsc::TryRecvError::Disconnected) => {
                     self.copy_job = None;
                     self.model.copy_busy = false;
+                    self.rebuild(fonts);
+                    return true;
+                }
+                Err(std::sync::mpsc::TryRecvError::Empty) => {}
+            }
+        }
+        if let Some(rx) = &self.crash_job {
+            match rx.try_recv() {
+                Ok(v) => {
+                    self.crash_job = None;
+                    self.crash_errors_done(v);
+                    self.rebuild(fonts);
+                    return true;
+                }
+                Err(std::sync::mpsc::TryRecvError::Disconnected) => {
+                    self.crash_job = None;
+                    self.crash_errors_done(Vec::new());
                     self.rebuild(fonts);
                     return true;
                 }
@@ -3590,6 +3989,8 @@ impl<'e> App<'e> {
                             self.model.languages = self.env.languages(&c.root);
                             self.model.root = Some(c.root);
                             self.go(Screen::Main);
+                            // The next step of the setup: the own copy, offered with Make copy chosen.
+                            self.offer_game_data();
                         }
                         Err(err) => {
                             self.model.message = Some((Mark::Error, format!("The folder could not be kept: {err}")))
@@ -3803,6 +4204,7 @@ impl<'e> App<'e> {
                     return Outcome::Play;
                 }
             }
+            (Screen::Failure, Event::Activate("copy_report")) => self.copy_report(),
             (Screen::Failure, Event::Activate("open_logs")) => {
                 let dir = self
                     .model
@@ -3915,6 +4317,30 @@ impl<'e> App<'e> {
                 self.model.prepare.wanted = false;
                 self.go(Screen::Main);
             }
+            (Screen::GameData, Event::Activate("import")) => self.game_data_run(super::game_data::Kind::Import),
+            (Screen::GameData, Event::Activate("import_again")) => {
+                self.game_data_run(super::game_data::Kind::ImportAgain)
+            }
+            (Screen::GameData, Event::Activate("retry")) => self.game_data_run(self.model.game_data.last),
+            (Screen::GameData, Event::Activate("repair")) => self.game_data_run(super::game_data::Kind::Repair),
+            (Screen::GameData, Event::Activate("verify")) => self.game_data_run(super::game_data::Kind::Verify),
+            (Screen::GameData, Event::Activate("stop")) => {
+                if let Some(j) = &self.game_data_job {
+                    j.stop();
+                    self.model.game_data.stopping = true;
+                }
+            }
+            (Screen::GameData, Event::Activate("storage")) => {
+                self.refresh_storage();
+                self.go(Screen::Storage);
+            }
+            (Screen::GameData, Event::Activate("later")) => {
+                self.env.set_game_data_later();
+                self.game_data_leave();
+            }
+            // Back while a run goes on: it goes on behind the other screens.
+            (Screen::GameData, Event::Activate("continue") | Event::Back) => self.game_data_leave(),
+            (Screen::Advanced, Event::Activate("game_data")) => self.open_game_data(true),
             (Screen::Advanced, Event::Activate("prepare")) => self.start_prepare(),
             // This computer checked again (a driver installed meanwhile):
             // the window runs the probe.

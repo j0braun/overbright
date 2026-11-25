@@ -13,6 +13,11 @@ pub struct Controls {
     /// The hydraulics input (controls +0x1EC bounce, +0x1FC pressure;
     /// `crate::hydraulics::Controller`).
     pub hydraulics: crate::hydraulics::Input,
+    /// The player drives with a wheel (a DI8DEVTYPE_DRIVING channel,
+    /// 0x5C1010): its Wheel Range (player block +0x1C, 0.1–1). 0x41DFC0
+    /// then steers through 0x4061C0 instead of 0x416BB0
+    /// ([`CarState`]'s wheel steering). None: keyboard and pads.
+    pub wheel: Option<f32>,
 }
 
 /// What an AI driver hands the car each frame (the CarDriver block the
@@ -193,6 +198,9 @@ impl CarState {
     /// held while the stick is past half, and replaced by a share of the
     /// slip angle when counter-steering a slide.
     pub(super) fn steer(&mut self, h: &Handling, controls: Controls, dt: f32) {
+        if let Some(range) = controls.wheel {
+            return self.steer_wheel(h, controls, range, dt);
+        }
         let speed = self.velocity.length();
         // The game's steering is positive to the left.
         let raw = -controls.steer.clamp(-1.0, 1.0);
@@ -277,6 +285,48 @@ impl CarState {
         // (0x783AF4) test at 0x416D77 that would zero it never holds.
         self.steer_degrees = quantise_steer(angle);
         // After the steering, the shaped input joins the mean (0x41E03B).
+        self.steer_average.add(input, dt);
+        self.last_steer_input = input;
+    }
+
+    /// A wheel's steering (0x4061C0, from 0x41DFC0 when the channel is a
+    /// wheel, 0x5C1010). The input is clamped to ±`range` (Wheel Range)
+    /// and stretched over −1..1, then shaped by the wheel's response
+    /// (0x7E9E88); the lock is 0x405DC0's with the wheel's angle curve
+    /// (0x7E9EEC) and no slow-down after a wall; a counter-steer may use the
+    /// whole slip angle (up to 45°). The wheel angle is set at once: no
+    /// rate limit (0x4060E0 is not called), and the held lock (+0x80) is
+    /// read but not written. Player block +0x19 (this +4), which would
+    /// skip the lock and leave it at 45°, is taken as 0 (**inferred**: no
+    /// writer found besides the profile load).
+    fn steer_wheel(&mut self, h: &Handling, controls: Controls, range: f32, dt: f32) {
+        let speed = self.velocity.length();
+        let r = range;
+        let x = (-controls.steer).clamp(-r, r);
+        let t = (x - -r) / (r - -r);
+        let input = sample(&*STEER_RESPONSE_WHEEL, -1.0, 1.0, t + t - 1.0);
+        // Kept for the pad path's yaw acceleration (car +0x128).
+        self.last_yaw_rate = self.spin.z;
+        self.last_steer_dt = dt;
+        let pedals = controls.throttle + 1.0 - (controls.handbrake + controls.brake) * 0.5;
+        let pedal_bonus = (1.0 - pedals * 0.5) * sample(&STEER_SPEED, 0.0, 160.0, speed) + 1.0;
+        let held = self.steer_average.mean.abs();
+        let mut lock = sample(&LOCK_GAIN, 0.0, 1.0, held) * (sample(&WHEEL_MAX_ANGLE, 0.0, 160.0, speed) * pedal_bonus);
+        let slip = self.slip_degrees();
+        if self.drifting {
+            if slip.abs() < DRIFT_OFF_DEGREES {
+                self.drifting = false;
+            }
+        } else if slip.abs() > DRIFT_ON_DEGREES && speed >= DRIFT_ON_SPEED {
+            self.drifting = true;
+        }
+        if input * slip < 0.0 && (self.drifting || slip.abs() > lock) {
+            lock = slip.abs().min(45.0);
+        } else if held >= 0.5 {
+            lock = lock.max(self.steer_limit);
+        }
+        let angle = (lock * h.steering_ratio * input).clamp(-45.0, 45.0);
+        self.steer_degrees = quantise_steer(angle);
         self.steer_average.add(input, dt);
         self.last_steer_input = input;
     }
@@ -395,6 +445,7 @@ impl CarState {
                 steer: controls.steer,
                 nitrous: controls.nitrous,
                 hydraulics: controls.hydraulics,
+                wheel: controls.wheel,
             };
         }
 
@@ -419,6 +470,7 @@ impl CarState {
             steer: controls.steer,
             nitrous: controls.nitrous,
             hydraulics: controls.hydraulics,
+            wheel: controls.wheel,
         }
     }
 

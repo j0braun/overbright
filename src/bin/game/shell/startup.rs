@@ -167,7 +167,7 @@ pub(crate) fn main() -> Result<()> {
     // (the shot table; scripts/checks/shot_targets.py).
     #[cfg(feature = "dev-harness")]
     if command == Command::ShotList {
-        dev::shot::targets::print_list();
+        dev_hooks::print_shot_list();
         return Ok(());
     }
     // First run: the game folder (QoL; nothing changes when NFSU2_ROOT
@@ -191,6 +191,9 @@ pub(crate) fn main() -> Result<()> {
     }
     // The headless modes' data folders (removed at the end).
     let _data = headless_data(&command);
+    // The asset layer (src/asset_layer.rs): the imported base set when there is one and it verifies, else the
+    // game folder as before; `NFSU2_BASE=off` keeps the game folder.
+    nfsu2::asset_layer::mount_from_env(&nfsu2::game_root());
     // --crash-test: a deliberate panic with Crash Reports on (in the data
     // folder's overbright/crashes), to check the report.
     if command == Command::CrashTest {
@@ -219,6 +222,7 @@ pub(crate) fn main() -> Result<()> {
     } else {
         nfsu2::cache::flush();
     }
+    nfsu2::asset_layer::report();
     if let Err(e) = &result {
         // In the log file too (a player's report then has the reason).
         log::error!("the game stopped: {e:#}");

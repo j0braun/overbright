@@ -132,7 +132,7 @@ impl PartAnimations {
     pub fn load(root: &Path, car: &str) -> Option<PartAnimations> {
         let dir = crate::game_fs::path(root, &format!("CARS/{car}"));
         let file = std::fs::read_dir(&dir).ok()?.flatten().find(|e| e.file_name().to_string_lossy().eq_ignore_ascii_case("PARTS_ANIMATIONS.BIN"))?;
-        let data = std::fs::read(file.path()).ok()?;
+        let data = crate::game_fs::read_file(&file.path()).ok()?;
         match PartAnimations::parse(&data, car) {
             Ok(a) => Some(a),
             Err(e) => {

@@ -195,8 +195,10 @@ fn race_ai_pass(
             road_cars.push(c);
         }
         if let Some(t) = race.racers.traffic.as_ref() {
-            for (k, c) in t.cars.iter().enumerate() {
-                road_cars.push(road_car(
+            // Only road objects (`TrafficCar::road_object`): a pooled car's
+            // last place and velocity are no obstacle for the racers' sweeps.
+            for (k, c) in t.cars.iter().enumerate().filter(|(_, c)| c.road_object()) {
+                let mut rc = road_car(
                     1000 + k,
                     &c.car,
                     &c.state,
@@ -204,10 +206,13 @@ fn race_ai_pass(
                     false,
                     false,
                     dt,
-                ));
+                );
+                traffic_road_path(&mut rc, c, &t.routes);
+                road_cars.push(rc);
             }
         }
-        race.replay.road_prev = road_cars.iter().filter(|c| c.id == 0 || c.id >= 1000).map(|c| (c.id, c.velocity)).collect();
+        race.replay.road_prev =
+            road_cars.iter().filter(|c| c.id == 0 || c.id >= 1000).map(|c| (c.id, c.velocity)).collect();
         let rival_count = race.racers.rivals.len() as i32;
         let f = RivalFrame {
             ai,
@@ -243,7 +248,16 @@ fn race_ai_pass(
         // Past the line the player's car is an AI racer's (0x606CC0 →
         // 0x5EBA40(3), see `Autopilot`).
         if let Some(a) = race.autopilot.as_mut() {
-            autopilot_think(d, a, race.racers.me.along, race.racers.me.finished.is_some(), ai, routes, &mut race.racers.cars.rng, tick);
+            autopilot_think(
+                d,
+                a,
+                race.racers.me.along,
+                race.racers.me.finished.is_some(),
+                ai,
+                routes,
+                &mut race.racers.cars.rng,
+                tick,
+            );
         }
     }
 }
@@ -387,6 +401,29 @@ fn rival_think(
         .unwrap_or_else(|| road_car(i + 1, &r.car, &r.state, None, true, false, dt));
     let partners = cars.partners(i as u64 + 1);
     let hits: Vec<usize> = partners.iter().filter(|&&o| o < TRAFFIC_ID).map(|&o| o as usize).collect();
+    // The drag got-hit proposal's partners: a record whose summed pushes
+    // (+0x60) reach 0x78373C (0x403410 → 0x402AE0).
+    let me_id = i as u64 + 1;
+    let mut hard: Vec<usize> = cars
+        .records()
+        .into_iter()
+        .filter(|&(_, _, _, j)| j >= nfsu2::ai::actions::DRAG_HIT_IMPULSE)
+        .filter_map(|(a, b, _, _)| {
+            if a == me_id {
+                Some(b)
+            } else if b == me_id {
+                Some(a)
+            } else {
+                None
+            }
+        })
+        .filter(|&o| o < TRAFFIC_ID)
+        .map(|o| o as usize)
+        .collect();
+    hard.sort_unstable();
+    hard.dedup();
+    // 0x403450: a live record against an upright track polygon (0x5A0170).
+    let wall = r.state.contacts.iter().any(|n| n.touching == nfsu2::drive::Touching::Track { upright: true });
     let full = r.think.full_think(nfsu2::ai::encounter_controller::ThinkInput {
         // The race's own world-update count and clock (both kept
         // by the replay's snapshot) stand for 0x7FB724 / 0x865188.
@@ -412,6 +449,8 @@ fn rival_think(
         me,
         block_row: r.block_row,
         hits,
+        hard,
+        wall,
         touching: !partners.is_empty(),
         full,
         retained: &mut r.retained,
@@ -761,8 +800,8 @@ fn race_post(
         }
     }
     let mode = d.car.car_type.handling.race;
-    for (p, state) in
-        std::iter::once((&race.racers.me, &mut d.state)).chain(race.racers.rivals.iter_mut().map(|r| (&r.progress, &mut r.state)))
+    for (p, state) in std::iter::once((&race.racers.me, &mut d.state))
+        .chain(race.racers.rivals.iter_mut().map(|r| (&r.progress, &mut r.state)))
     {
         if p.leaves_traffic(mode) {
             state.car_collisions = false;

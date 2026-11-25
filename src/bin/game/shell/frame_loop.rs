@@ -221,16 +221,50 @@ impl Game {
         self.streak_govern(sample);
     }
 
-    /// Power Saving's cap for this frame (`nfsu2::extras::power_cap`):
-    /// None with the row Off (no state read at all). The monitor's refresh
-    /// rate and the battery are read again every few seconds.
+    /// In the background's Pause (native; docs/original/focus-loss.md): a
+    /// window that is not the focused one or is hidden stops. Called once
+    /// per turn of the event loop; true while paused (no frame is asked
+    /// for). Going in: the sound held (`Mixer::hold_all`, as 0x4810F0 holds the
+    /// music and speech) and the held keys let go (as WM_ACTIVATEAPP's
+    /// 0x5B7EF0); coming back: the time away dropped, not caught up (the
+    /// original's real clock 0x8651A8 and sim clock 0x865188 stand still
+    /// while it waits), and the sound let go. Keep running and Draw less
+    /// never pause. Only the window's event loop asks (the headless runs
+    /// have no focus to lose).
+    pub(crate) fn background_pause(&mut self) -> bool {
+        let away = !self.pacing.focused || self.pacing.occluded;
+        let pause = away && nfsu2::extras::background() == nfsu2::extras::BACKGROUND_PAUSE;
+        if pause != self.pacing.background_paused {
+            self.pacing.background_paused = pause;
+            if let Some(a) = self.audio.as_ref() {
+                a.mixer.hold_all(pause);
+            }
+            if pause {
+                self.release_all_keys();
+            } else {
+                self.pacing.last = Instant::now();
+            }
+            nfsu2::diag::events::record(
+                nfsu2::diag::events::Kind::Window,
+                if pause { "in the background: paused" } else { "in the background: resumed" },
+            );
+            log::info!("in the background: {}", if pause { "paused" } else { "resumed" });
+        }
+        pause
+    }
+
+    /// Power Saving's and Draw less's cap for this frame
+    /// (`nfsu2::extras::power_cap`): None with Power Saving Off and In the
+    /// background not Draw less (no state read at all). The monitor's
+    /// refresh rate and the battery are read again every few seconds.
     pub(crate) fn power_cap(&mut self) -> Option<std::time::Duration> {
         let level = nfsu2::extras::power_saving();
-        if level == 0 {
+        let background = nfsu2::extras::background();
+        if level == 0 && background != nfsu2::extras::BACKGROUND_DRAW_LESS {
             return None;
         }
         if self.pacing.battery.as_ref().is_none_or(|(_, at)| at.elapsed().as_secs_f32() > 5.0) {
-            let battery = level >= 3 && nfsu2::extras::on_battery();
+            let battery = level >= 2 && nfsu2::extras::on_battery();
             self.pacing.refresh_hz = self
                 .platform.window
                 .as_ref()
@@ -247,7 +281,7 @@ impl Game {
             battery: self.pacing.battery.is_some_and(|b| b.0),
             refresh_hz: self.pacing.refresh_hz,
         };
-        nfsu2::extras::power_cap(level, state)
+        nfsu2::extras::power_cap(level, background, state)
     }
 
     /// The VRR cap's period (`latency::vrr_period`) while a panel is

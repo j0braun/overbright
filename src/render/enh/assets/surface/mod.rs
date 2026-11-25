@@ -42,7 +42,7 @@ pub use builder::*;
 pub use cache::*;
 pub use classify::*;
 pub use normals::*;
-pub(in crate::render) mod gpu;
+pub(crate) mod gpu;
 
 #[cfg(test)]
 mod tests {

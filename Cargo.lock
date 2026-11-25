@@ -1761,7 +1761,7 @@ dependencies = [
 
 [[package]]
 name = "nfsu2"
-version = "0.5.3"
+version = "0.6.0"
 dependencies = [
  "ab_glyph",
  "anyhow",
@@ -1796,6 +1796,7 @@ dependencies = [
  "tiny-skia",
  "toml",
  "wgpu",
+ "windows",
  "winit",
  "x11-dl",
  "xxhash-rust",
@@ -1873,11 +1874,13 @@ dependencies = [
 
 [[package]]
 name = "ob-asset-format"
-version = "0.5.3"
+version = "0.6.0"
 dependencies = [
  "memmap2",
  "miniz_oxide 0.8.9",
+ "ob-core",
  "ob-formats",
+ "ob-testkit",
  "semver",
  "sha2",
  "toml",
@@ -1886,7 +1889,7 @@ dependencies = [
 
 [[package]]
 name = "ob-core"
-version = "0.5.3"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "bytemuck",
@@ -1902,7 +1905,7 @@ dependencies = [
 
 [[package]]
 name = "ob-formats"
-version = "0.5.3"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "block_compression",
@@ -1919,11 +1922,11 @@ dependencies = [
 
 [[package]]
 name = "ob-look"
-version = "0.5.3"
+version = "0.6.0"
 
 [[package]]
 name = "ob-map"
-version = "0.5.3"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "glam",
@@ -1934,11 +1937,12 @@ dependencies = [
  "ob-formats",
  "serde",
  "serde_json",
+ "toml",
 ]
 
 [[package]]
 name = "ob-studio"
-version = "0.5.3"
+version = "0.6.0"
 dependencies = [
  "glam",
  "image",
@@ -1957,10 +1961,11 @@ dependencies = [
 
 [[package]]
 name = "ob-studio-gui"
-version = "0.5.3"
+version = "0.6.0"
 dependencies = [
  "ab_glyph",
  "anyhow",
+ "bytemuck",
  "egui",
  "egui-wgpu",
  "egui-winit",
@@ -1980,11 +1985,12 @@ dependencies = [
  "toml",
  "wgpu",
  "winit",
+ "xxhash-rust",
 ]
 
 [[package]]
 name = "ob-testkit"
-version = "0.5.3"
+version = "0.6.0"
 
 [[package]]
 name = "objc-sys"

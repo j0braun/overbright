@@ -8,6 +8,7 @@ waits for it and reads its output.
 ```
 overbright-studio-cli help                                   # every command, flag and exit code
 overbright-studio-cli help race point add                    # one command's flags
+overbright-studio-cli pack create --name "Docks remix"       # a new mod in the map mods folder
 overbright-studio-cli race set --mod maps/docks --race loop --laps 3 --dry-run
 overbright-studio-cli ops apply --mod maps/docks --file edits.jsonl --label "Night version"
 overbright-studio-cli checks run --mod maps/docks --json
@@ -21,12 +22,15 @@ and its schema export (`crates/ob-studio/schema/studio.json`) use, so `help` is 
 
 | Command | Kind | What it does |
 |---|---|---|
-| `props move` | edit | Move a prop (`--key`, `--position`, `--rotation`) |
+| `props move` | edit | Move a prop (`--key`, `--position`, and `--heading` or `--rotation`) |
 | `props delete` | edit | Hide an original prop or remove an added one |
 | `props reset` | edit | Put an original prop back as the original has it |
-| `props add` | edit | Add a prop of one of the region's objects (`--solid`, `--position`, optional `--rotation`, `--id`, `--ground`) |
+| `props add` | edit | Add a prop of one of the region's objects (`--solid`, `--position`, optional `--heading` or `--rotation`, `--id`, `--ground`) |
 | `props duplicate` | edit | Copy a prop to a new place |
 | `props drop` | edit | Stand a prop on the floor under it |
+| `collision remove` | edit | Take out a wall of the original's static collision (`--target '{"original": [[x, y, z], ...]}'`, its corners as the collision view's Inspector shows them) or a drawn wall or ground (`--target '{"drawn": "wall-1"}'`) |
+| `collision wall` | edit | Draw a wall from `--from` to `--to` (each `[x, y, z]` on the road), `--height` metres tall, with surface id `--surface` (optional `--id`) |
+| `collision ground` | edit | Draw ground over `--outline` (3 to 32 points `[[x, y, z], ...]`), with surface id `--surface` (optional `--id`) |
 | `race create` | edit | Make a race on a base track (`--track`, optional `--kind`, default sprint, and `--id`) |
 | `race delete` | edit | Delete a race |
 | `race set` | edit | Change a race's `--name`, `--id`, `--track`, `--kind`, `--laps` or `--backward`; several at once are one step |
@@ -34,8 +38,10 @@ and its schema export (`crates/ob-studio/schema/studio.json`) use, so `help` is 
 | `race point move` | edit | Move a race point to `--position`, or a checkpoint one place `--later` (or `--later=false`: earlier) in the route |
 | `race point delete` | edit | Delete a race point (`--part`, optional `--index`) |
 | `race put` | edit | Put a whole race in place (`--to`, the race as JSON) |
+| `pack create` | run | Make a new map mod with nothing changed yet (`--name`; optional `--folder`, else made from the name, and `--maps`, the mods folder, default the map mods folder; `--region` is the region it is edited on; `--template sprint`, `circuit` or `sample` starts it with a sprint along the docks, a three-lap circuit downtown or the sample race pack, as Home's templates do) |
 | `pack details` | edit | Change the mod's `--name`, `--author` and `--description` (those left out stay) |
 | `pack put` | edit | Put the whole map in place, from a map file (`--file`) |
+| `pack export` | run | Export the mod as one file to share (`--to` a `.zip`, or a new folder), without its work files; textures made from the original game's pixels need `--derived-ok` ([Studio](studio.md#the-mod-page)) |
 | `pack repair` | edit | Repair a `map.obmap` that no longer reads, where a safe repair exists (a sprint or drift race with more than one lap runs its one lap), as one step |
 | `edit group` | edit | Several edits as one step (`--label`, `--ops`: the edits as a JSON list) |
 | `ops apply` | edit | Apply an operations file as one step (`--file`, optional `--label`) |
@@ -54,7 +60,7 @@ Flags every command takes:
 | `--mod DIR` | The mod's folder (the one holding `map.obmap`). |
 | `--game DIR` | The game folder. Without it the tool looks where the editor and the game look: `NFSU2_ROOT` when it is set, else the folder chosen in the launcher. Prop edits and the checks read it. |
 | `--region NAME` | The region the mod is edited on (default `L4RA`). |
-| `--dry-run` | Show what an edit would change and change nothing. |
+| `--dry-run` | Show what an edit would change and change nothing. On a command that is not an edit it is a usage error. |
 | `--json` | Print one JSON document on stdout. |
 | `--wait SECONDS` | How long to wait for Studio's answer when Studio has the mod open (default 10). |
 | `--no-inbox` | When another program has the mod open, fail at once instead of asking it. |
@@ -63,7 +69,9 @@ Flags every command takes:
 `overbright-studio-cli --version` prints the version line, as the game, the launcher and the editor do.
 
 Values: `--flag value` or `--flag=value`. Numbers as usual; a position as `x,y,z` or a JSON list; a rotation as
-nine numbers (its three rows) or a JSON list of rows; a yes/no flag alone means yes (`--ground`), `--ground=false`
+nine numbers (its three rows) or a JSON list of rows; a prop's `--heading` in degrees as the Properties panel shows
+it (around +z from +x, positive to the left seen from above): a moved prop keeps its tilt (as Heading in
+Properties does), an added one stands upright; `--heading` and `--rotation` together are a usage error; a yes/no flag alone means yes (`--ground`), `--ground=false`
 no. A prop's `--key` is `added:<id>` for a prop the mod added, or the key as JSON for an original one
 (`{"original": {"region": "L4RA", "section": 1407, "solid": "…", "at": [x, y, z]}}`, as `history show` and the
 editor's operations files write it). An unknown command or flag, a missing argument or a value of the wrong type is
@@ -96,6 +104,14 @@ An edit's document holds:
 `text`, the `race` it is about, the `point` and the place (`at`, x and y) the editor's Show goes to, and the `fix`
 the editor offers. `history show` gives `step` (the current one), `steps` and `undone` (each with `step`,
 `author`, `label`, `time_ms`), `versions` and `unsaved`.
+
+`pack create` gives `name`, `folder`, `dir` (the new mod's folder, for `--mod`), `region` and `template`. It never writes over
+a mod: a folder in use (`error.reason` `folder_used`) or a name another mod has (`name_used`) fails with exit 1;
+no name (`no_name`), a name over 60 characters (`long_name`), a folder name with other characters than a-z, 0-9,
+`-` and `_` (`bad_folder`) or a bad `--region` (`bad_region`) is a usage error (exit 2).
+
+`pack export` gives `to`, `files`, `bytes`, `derived` (the textures from the original game's pixels) and
+`build`; refused for derived textures, its `error.reason` is `derived` and `derived` lists them.
 
 `looks open` gives `texture`, `name`, `work_file`, `origin` (`game` or `blank`) and `derived`. `looks import`
 gives `outcome` (`made` with its `step`, `unchanged`, or `sent` with the inbox `request` when Studio or the map
@@ -147,7 +163,8 @@ Studio's history shows the step, and Edit ▸ Undo takes it back like any other.
 (errors), what is likely a mistake (warnings) and what is fine. They read the base tracks' road networks from the
 game folder (exit 4 when it is not known or does not read; a mod without races needs no game), and the region's
 world for the floor under each start line, finish line and grid slot ("has no floor under it", "is N m above the
-floor"; [Map editor](map-editor.md)). The exit code is 3 when a check finds an error, so a script or a build can
+floor"; [Map editor](map-editor.md)), and the mod's drawn and removed collision, on the region's world with that
+collision applied (so a start on drawn ground has a floor). The exit code is 3 when a check finds an error, so a script or a build can
 stop on it.
 
 `race point add`, `race point move` and `race put` give a start or finish line or a grid slot the road's height

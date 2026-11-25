@@ -25,6 +25,29 @@ fn op(tag: &str, fields: &BTreeMap<String, Value>, take: &[&str]) -> Value {
     Value::Object(o)
 }
 
+/// An upright rotation turned to `heading` degrees (around +z from +x, the game's convention; the Properties
+/// panel's Heading), as the edit's rows (its local x, y and z axes).
+fn upright(heading: f32) -> [[f32; 3]; 3] {
+    let (s, c) = heading.to_radians().sin_cos();
+    [[c, s, 0.0], [-s, c, 0.0], [0.0, 0.0, 1.0]]
+}
+
+/// The rotation of `props move` / `props add`: `--rotation` as given, or `--heading` in degrees as an upright
+/// rotation; not both. `props move` then turns the prop's own rotation in the world to the heading, so its tilt is
+/// kept as the Properties panel's Heading keeps it ([`super::try_edit`]).
+fn rotation_arg(name: &str, a: &BTreeMap<String, Value>) -> Result<Option<Value>, Usage> {
+    match (a.get("rotation"), a.get("heading")) {
+        (Some(_), Some(_)) => Err(format!("`{name}`: give --rotation or --heading, not both")),
+        (Some(r), None) => Ok(Some(r.clone())),
+        (None, Some(h)) => {
+            let deg = h.as_f64().filter(|d| d.is_finite());
+            let deg = deg.ok_or_else(|| format!("`{name}` --heading: expected degrees, got {h}"))?;
+            Ok(Some(json!(upright(deg as f32))))
+        }
+        (None, None) => Ok(None),
+    }
+}
+
 fn point(a: &BTreeMap<String, Value>) -> Value {
     json!({ "part": a["part"], "index": a.get("index").cloned().unwrap_or(json!(0)) })
 }
@@ -33,14 +56,23 @@ fn point(a: &BTreeMap<String, Value>) -> Value {
 /// that keep what it has).
 pub fn request(name: &str, a: &BTreeMap<String, Value>, map: &MapMod, dir: &Path) -> Result<Value, Usage> {
     Ok(match name {
-        "props.move" => op("place", a, &["key", "position", "rotation"]),
+        "props.move" => {
+            let mut v = op("place", a, &["key", "position"]);
+            let r = rotation_arg("props move", a)?.ok_or("`props move` needs --rotation or --heading")?;
+            v.as_object_mut().unwrap().insert("rotation".into(), r);
+            v
+        }
         "props.delete" => op("delete", a, &["key"]),
         "props.reset" => op("reset", a, &["key"]),
         "props.drop" => op("drop_to_ground", a, &["key"]),
+        "collision.remove" => op("remove_collision", a, &["target"]),
+        "collision.wall" => op("draw_wall", a, &["from", "to", "height", "surface", "id"]),
+        "collision.ground" => op("draw_ground", a, &["outline", "surface", "id"]),
         "props.duplicate" => op("duplicate", a, &["key", "position"]),
         "props.add" => {
-            let mut v = op("add", a, &["solid", "position", "rotation", "id", "ground"]);
-            v.as_object_mut().unwrap().entry("rotation").or_insert(json!(IDENTITY));
+            let mut v = op("add", a, &["solid", "position", "id", "ground"]);
+            let r = rotation_arg("props add", a)?.unwrap_or(json!(IDENTITY));
+            v.as_object_mut().unwrap().insert("rotation".into(), r);
             v
         }
         "race.create" => {
@@ -133,4 +165,42 @@ pub fn request(name: &str, a: &BTreeMap<String, Value>, map: &MapMod, dir: &Path
 /// The edit the JSON `v` is (a usage error when it is not one).
 pub fn read(v: &Value) -> Result<Op, Usage> {
     serde_json::from_value(v.clone()).map_err(|e| format!("not an edit: {e}"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn args(pairs: &[(&str, Value)]) -> BTreeMap<String, Value> {
+        pairs.iter().map(|(k, v)| (k.to_string(), v.clone())).collect()
+    }
+
+    #[test]
+    fn heading_is_degrees_as_the_properties_panel_shows_it() {
+        let map = MapMod::default();
+        let dir = Path::new("");
+        let a = args(&[("solid", json!("BOX")), ("position", json!([1.0, 2.0, 3.0])), ("heading", json!(90.0))]);
+        let v = request("props.add", &a, &map, dir).unwrap();
+        let Op::Add { rotation, .. } = read(&v).unwrap() else { panic!("{v}") };
+        // The heading is where the local x axis points: 90° is +y.
+        let x = rotation.row(0);
+        assert!((x.y.atan2(x.x).to_degrees() - 90.0).abs() < 1e-4, "{rotation}");
+        assert!((rotation.row(2) - glam::Vec3::Z).length() < 1e-6, "upright");
+        // No heading: the identity, as before.
+        let mut b = a.clone();
+        b.remove("heading");
+        let Op::Add { rotation, .. } = read(&request("props.add", &b, &map, dir).unwrap()).unwrap() else { panic!() };
+        assert_eq!(rotation, glam::Mat3::IDENTITY);
+        // Move takes one of the two, not both, not neither.
+        let m = args(&[("key", json!({"added": "a1"})), ("position", json!([0.0, 0.0, 0.0])), ("heading", json!(-45.0))]);
+        let Op::Place { rotation, .. } = read(&request("props.move", &m, &map, dir).unwrap()).unwrap() else { panic!() };
+        let x = rotation.row(0);
+        assert!((x.y.atan2(x.x).to_degrees() + 45.0).abs() < 1e-4);
+        let mut both = m.clone();
+        both.insert("rotation".into(), json!(upright(0.0)));
+        assert!(request("props.move", &both, &map, dir).unwrap_err().contains("not both"));
+        let mut neither = m.clone();
+        neither.remove("heading");
+        assert!(request("props.move", &neither, &map, dir).unwrap_err().contains("--heading"));
+    }
 }

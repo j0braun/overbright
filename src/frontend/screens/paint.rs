@@ -292,7 +292,7 @@ impl PaintShop {
         }
         let mut quads = layout(assets, package, &state, now - self.opened);
         let icons: Vec<u32> = slots.iter().map(|s| s.1).collect();
-        quads.extend(scroller_quads(package, ui_main::SLOT, fe_ids::OPTION_TEMPLATE, &icons, self.slot, true, 40.0, 480.0));
+        quads.extend(scroller_quads(package, ui_main::SLOT, fe_ids::OPTION_TEMPLATE, &icons, self.slot, self.slot as f32, true, 40.0, 480.0));
         quads
     }
 }

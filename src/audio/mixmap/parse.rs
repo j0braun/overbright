@@ -193,6 +193,6 @@ impl MixMap {
         };
         let dir = find(&find(root, "SOUND")?, "MixMaps")?;
         let path = find(&dir, Self::file_name(k))?;
-        MixMap::parse(&std::fs::read(path).ok()?)
+        MixMap::parse(&crate::game_fs::read_file(&path).ok()?)
     }
 }

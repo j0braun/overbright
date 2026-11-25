@@ -51,7 +51,7 @@ pub fn named_app<'e>(env: &'e FakeEnv, fonts: &Fonts, name: &str, w: u32, h: u32
 
 /// The named states: (name, the screen it is shown on). The fake data of
 /// each comes from [`state_model`].
-pub const STATES: [(&str, Screen); 73] = [
+pub const STATES: [(&str, Screen); 89] = [
     ("no-game", Screen::FirstRun),
     ("check-ok", Screen::Check),
     ("check-movies", Screen::Check),
@@ -75,6 +75,9 @@ pub const STATES: [(&str, Screen); 73] = [
     ("start-failed", Screen::Failure),
     ("no-game-window", Screen::Failure),
     ("failure-details", Screen::Failure),
+    ("crash-panic", Screen::Failure),
+    ("crash-signal", Screen::Failure),
+    ("crash-windows", Screen::Failure),
     ("unreadable-folder", Screen::Browse),
     ("saves-empty", Screen::Saves),
     ("saves-found", Screen::Saves),
@@ -86,6 +89,10 @@ pub const STATES: [(&str, Screen); 73] = [
     ("saves-busy", Screen::Saves),
     ("saves-bad-file", Screen::Saves),
     ("saves-long-names", Screen::Saves),
+    ("dev-studio-missing", Screen::Dev),
+    ("dev-studio-idle", Screen::Dev),
+    ("dev-studio-running", Screen::Dev),
+    ("dev-studio-elsewhere", Screen::Dev),
     ("mods-empty", Screen::Mods),
     ("mods-busy", Screen::Mods),
     ("mods-results", Screen::Mods),
@@ -103,6 +110,15 @@ pub const STATES: [(&str, Screen); 73] = [
     ("prepare-running", Screen::Prepare),
     ("prepare-done", Screen::Prepare),
     ("prepare-failed", Screen::Prepare),
+    ("game-data-offer", Screen::GameData),
+    ("game-data-running", Screen::GameData),
+    ("game-data-checking", Screen::GameData),
+    ("game-data-stopped", Screen::GameData),
+    ("game-data-space", Screen::GameData),
+    ("game-data-done", Screen::GameData),
+    ("game-data-custom", Screen::GameData),
+    ("game-data-damaged", Screen::GameData),
+    ("game-data-failed", Screen::GameData),
     ("first-none", Screen::FirstRun),
     ("first-several", Screen::FirstRun),
     ("err-own", Screen::Check),
@@ -322,6 +338,58 @@ pub fn state_model(name: &str) -> Option<(Screen, Model)> {
             f.tail = vec!["could not open a window: the display refused the size".into()];
         }
         "failure-details" => m.failure_details = true,
+        // The crash report window: the reason in words, the system's
+        // record, the logs of the run, Copy for a bug report.
+        "crash-panic" | "crash-signal" | "crash-windows" => {
+            let logs = "/data/player/.local/share/overbright/logs";
+            let f = m.failure.as_mut().expect("the fake data has a failure");
+            f.during_start = false;
+            let (code, signal, errors): (Option<i32>, Option<i32>, Vec<&str>) = match name {
+                "crash-panic" => (Some(101), None, Vec::new()),
+                "crash-signal" => (
+                    None,
+                    Some(11),
+                    vec![
+                        "TIME PID UID GID SIG COREFILE EXE SIZE",
+                        "Wed 2026-11-25 14:02:11 UTC 41872 1000 1000 SIGSEGV missing /opt/overbright/game -",
+                    ],
+                ),
+                _ => (
+                    Some(0xC000_0005u32 as i32),
+                    None,
+                    vec![
+                        "Faulting application name: game.exe, version: 0.6.0.0",
+                        "Faulting module name: nvoglv64.dll, exception code: 0xc0000005",
+                    ],
+                ),
+            };
+            f.kind = crate::launcher::run::ErrorKind::Crash;
+            f.how = crate::launcher::run::Ended {
+                code,
+                signal,
+                pid: 41872,
+                started_at: std::time::SystemTime::UNIX_EPOCH,
+                secs: 95.0,
+                panicked: name == "crash-panic",
+                no_window: false,
+                named: None,
+                tail: Vec::new(),
+                log: None,
+            }
+            .how();
+            f.report = Some(crate::launcher::model::CrashReport {
+                reason: crate::launcher::crash_report::reason(code, signal, name == "crash-panic"),
+                pid: 41872,
+                secs: 95.0,
+                errors: errors.into_iter().map(String::from).collect(),
+                asking: false,
+                logs: vec![
+                    PathBuf::from(format!("{logs}/launcher-20261125-140010.log")),
+                    PathBuf::from(format!("{logs}/game-20261125-140012.log")),
+                    PathBuf::from("/data/player/.local/share/overbright/crashes/crash-20261125-140211.txt"),
+                ],
+            });
+        }
         "first-several" => {}
         "main-gone" => {
             let gone = PathBuf::from("/media/player/USB/Need for Speed Underground 2");
@@ -499,6 +567,25 @@ pub fn state_model(name: &str) -> Option<(Screen, Model)> {
                 f.source.label = "Steam (Proton) prefix 1234567890 in /media/player/Spiele-SSD/SteamLibrary".into();
             }
         }
+        // Studio on the Dev page: not beside the launcher; found and not
+        // open; started here with a mod open (its lock held); open elsewhere
+        // (another Studio's lock, and the command-line tool's on a second mod).
+        "dev-studio-missing" => {
+            m.studio_here = false;
+            m.studio_seen.last = None;
+        }
+        "dev-studio-idle" => {}
+        "dev-studio-running" => {
+            m.studio = super::model::EditorRun::Open(None);
+            m.studio_seen.held = vec![fake_held("drift-park", super::studio_seen::STUDIO)];
+        }
+        "dev-studio-elsewhere" => {
+            m.studio_seen.held = vec![
+                fake_held("drift-park", "overbright-studio (command line)"),
+                fake_held("open-docks", super::studio_seen::STUDIO),
+            ];
+            m.studio_seen.last = Some("open-docks".into());
+        }
         "mods-empty" => {
             m.mods.list.clear();
             m.mods.own.clear();
@@ -508,6 +595,9 @@ pub fn state_model(name: &str) -> Option<(Screen, Model)> {
             m.prepare.state = super::prepare::State::Running { n: 2, of: 5, what: "shader programs".into() }
         }
         "prepare-done" => m.prepare.state = super::prepare::State::Done,
+        n if n.starts_with("game-data-") => {
+            super::game_data::state(n, &mut m);
+        }
         "prepare-failed" => m.prepare.state = super::prepare::State::Failed("it ended with code 1".into()),
         "mods-map-editor-open" => {
             m.mods.map_sel = Some("drift-park".into());
@@ -595,10 +685,26 @@ pub fn state_model(name: &str) -> Option<(Screen, Model)> {
     Some((screen, m))
 }
 
+/// A mod's write lock in the fake data: held by `program` (a fixed process
+/// and time).
+fn fake_held(folder: &str, program: &str) -> super::studio_seen::Held {
+    super::studio_seen::Held {
+        folder: folder.into(),
+        program: Some(program.into()),
+        pid: Some(4242),
+        since: Some(1_795_000_000_000),
+    }
+}
+
 /// The state `name` built at `w` × `h` (None: not a state).
 pub fn state_app<'e>(env: &'e FakeEnv, fonts: &Fonts, name: &str, w: u32, h: u32, dpi: f32) -> Option<App<'e>> {
     let (screen, m) = state_model(name)?;
     let mut a = App::new(env, m, screen, (w, h), dpi, fonts);
+    // Studio's state rows with the State row's help (the locks) beside them.
+    if name.starts_with("dev-studio-") {
+        a.st.focus = Some("studio_state");
+        a.rebuild(fonts);
+    }
     if name == "browse-many" {
         a.st.set_first("dirs", 16);
         if let Some(r) = a.ui.get("dirs").map(|w| w.rect) {

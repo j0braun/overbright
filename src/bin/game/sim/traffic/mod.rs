@@ -62,6 +62,14 @@ pub(crate) struct TrafficCar {
 }
 
 impl TrafficCar {
+    /// A road object for the other cars' road entries (0x6148F0 keeps a
+    /// node's car when its +0x550 is set, `active`): placed and active. A
+    /// pooled or paused car keeps its last place and velocity but is no
+    /// obstacle, for the traffic and the racers alike.
+    pub(crate) fn road_object(&self) -> bool {
+        self.lane.is_some() && self.active
+    }
+
     /// The car's race coordinate (car +0x8FC) in a race
     /// ([`nfsu2::ai::traffic::race_coord_step`]); its place located on the
     /// road until the first frame has taken it.
@@ -160,10 +168,10 @@ impl Traffic {
         use nfsu2::ai::traffic::{Crossings, TrafficZone, dense_pool, pool_size};
         let path = nfsu2::game_fs::path(&root, &format!("TRACKS/ROUTES{region}/{}", files.0));
         let routes = nfsu2::formats::ai_routes::RouteFile::parse(
-            &std::fs::read(&path).with_context(|| format!("reading {}", path.display()))?,
+            &nfsu2::game_fs::read_file(&path).with_context(|| format!("reading {}", path.display()))?,
         );
         let paths = nfsu2::game_fs::path(&root, &format!("TRACKS/ROUTES{region}/{}", files.1));
-        let zones = TrafficZone::parse(&std::fs::read(&paths).with_context(|| format!("reading {}", paths.display()))?);
+        let zones = TrafficZone::parse(&nfsu2::game_fs::read_file(&paths).with_context(|| format!("reading {}", paths.display()))?);
         let tuning = tuning.context("no AI tuning")?;
         let spacing: Vec<(f32, f32)> = (0..9).filter_map(|r| tuning.traffic_spacing(r)).collect();
         let track = track.context("no track record")?;

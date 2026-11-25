@@ -17,8 +17,10 @@ pub mod fxhash;
 pub mod game_clock;
 pub mod game_fs;
 pub mod game_rng;
+pub mod input;
 pub mod log_file;
 pub mod platform;
+pub mod race_mode;
 pub mod prof;
 pub mod region;
 

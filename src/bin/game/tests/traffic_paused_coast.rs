@@ -44,7 +44,8 @@ fn a_parked_car_coasts_inactive_on_its_old_walk() {
     for _ in 0..(120 * 60) {
         step(&mut game);
         let Mode::Race(rc) = &game.mode else { panic!("the race ended") };
-        if rc.racers.traffic.as_ref().is_some_and(|t| t.cars.iter().any(|c| c.lane.is_some())) && rc.timing.clock >= 0.0 {
+        if rc.racers.traffic.as_ref().is_some_and(|t| t.cars.iter().any(|c| c.lane.is_some())) && rc.timing.clock >= 0.0
+        {
             after_green += 1;
         }
         if after_green >= 8 * 60 {
@@ -88,11 +89,19 @@ fn a_parked_car_coasts_inactive_on_its_old_walk() {
             // Paused: never active, never a placed car (no road entry,
             // no collision body, not drawn).
             assert!(!c.active && c.lane.is_none(), "car {i}: a paused car is inactive and unplaced");
+            // Nor a road object for anyone, the racers included (their
+            // sweeps once met pooled cars at their last place).
+            assert!(!c.road_object(), "car {i}: a paused car is a road object");
             let p = c.state.position;
             if k == 0 && c.coast.is_some() && c.mover.is_some() {
                 coasting += 1;
                 moved += usize::from(last[k].is_some_and(|q| q.distance(p) > 0.05));
-            } else if k == 1 && c.coast.is_some() && c.mover.is_none() && c.belt.belt.is_none() && c.state.melo.is_none() {
+            } else if k == 1
+                && c.coast.is_some()
+                && c.mover.is_none()
+                && c.belt.belt.is_none()
+                && c.state.melo.is_none()
+            {
                 // Mode 0 moves nothing.
                 if let Some(q) = last[k] {
                     assert!(q.distance(p) < 1e-4, "car {i}: mode 0 moved {} m", q.distance(p));
@@ -124,13 +133,8 @@ fn a_path_planned_afresh_posts_driver_event_4() {
     game.profile = Some(profile);
     game.explore(None).unwrap();
     let routes = game.sim.encounters.as_ref().unwrap().routes.clone();
-    let (rec, cp) = routes
-        .file
-        .records
-        .iter()
-        .enumerate()
-        .find_map(|(i, r)| (r.points.len() > 8).then_some((i, 2)))
-        .unwrap();
+    let (rec, cp) =
+        routes.file.records.iter().enumerate().find_map(|(i, r)| (r.points.len() > 8).then_some((i, 2))).unwrap();
     let position = routes.file.records[rec].points[cp].position;
     let direction = routes.file.direction(rec, cp, false);
     let mut route = nfsu2::ai::route::RacerRoute::start(&routes, position, direction).expect("a route");
@@ -149,11 +153,8 @@ fn a_path_planned_afresh_posts_driver_event_4() {
     route.line_path(&routes, 0.05, on, fwd, 15.0, false, true, 0.0);
     assert!(route.take_replanned());
     // The driver takes event 4 as one update without the trackers' rate.
-    let mut driver = nfsu2::ai::driver::AiDriver::new(
-        &game.sim.drive.as_ref().unwrap().car.car_type.handling,
-        false,
-        1.0,
-    );
+    let mut driver =
+        nfsu2::ai::driver::AiDriver::new(&game.sim.drive.as_ref().unwrap().car.car_type.handling, false, 1.0);
     driver.event = 4;
     let d = game.sim.drive.as_ref().unwrap();
     let input = nfsu2::ai::driver::DriverInputs {

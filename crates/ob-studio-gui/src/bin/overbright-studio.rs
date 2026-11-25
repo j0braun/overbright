@@ -7,8 +7,8 @@
 //!                                                        mods folder, or its folder's path)
 //! overbright-studio --shot out.png [--size WxH] [--scale F] [--mod <folder>] [--maps <dir>]
 //!                   [--workspace home|world|races|mod|settings|changes] [--input mouse|keyboard|xbox|playstation|deck]
-//!                   [--focus rail|address|toolbar|left|view|right|bottom] [--drawer] [--find] [--address]
-//!                   [--select N]
+//!                   [--focus rail|address|toolbar|left|view|right|bottom] [--drawer] [--files] [--warning] [--find] [--address]
+//!                   [--select N] [--row N] [--places] [--job WORDS] [--right-tab inspector|history|help] [--new-mod NAME]
 //!                                   the whole window drawn off-screen into a PNG (no window)
 //! ```
 //! A `--shot` prints one line "studio layout: fits …" or "studio layout: clipped: …" (the clip and overlap check).
@@ -24,6 +24,7 @@ use anyhow::{Context as _, Result, bail};
 use nfsu2::studio_api::render::Gpu;
 use ob_look::legends::InputKind;
 use ob_studio_gui::editor::app::App;
+use ob_studio_gui::studio::focus::RightTab;
 use ob_studio_gui::studio::nav::{Area, Pad};
 use ob_studio_gui::studio::workspace::Workspace;
 use ob_studio_gui::studio::{Studio, layout, shot};
@@ -32,7 +33,7 @@ use winit::event::WindowEvent;
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
 use winit::window::{Window, WindowId};
 
-const USAGE: &str = "usage: overbright-studio [--mod <folder>] [--maps <dir>]\n       overbright-studio --shot out.png [--size WxH] [--scale F] [--mod <folder>] [--maps <dir>] [--workspace home|world|races|mod|settings|changes] [--input mouse|keyboard|xbox|playstation|deck] [--focus rail|address|toolbar|left|view|right|bottom] [--drawer] [--find] [--address] [--select N]";
+const USAGE: &str = "usage: overbright-studio [--mod <folder>] [--maps <dir>]\n       overbright-studio --shot out.png [--size WxH] [--scale F] [--mod <folder>] [--maps <dir>] [--workspace home|world|races|mod|settings|changes] [--input mouse|keyboard|xbox|playstation|deck] [--focus rail|address|toolbar|left|view|right|bottom] [--drawer] [--files] [--warning] [--find] [--address] [--select N] [--row N] [--places] [--job WORDS] [--right-tab inspector|history|help] [--new-mod NAME] [--tutorial 1-6] [--race-tutorial 1-7]";
 
 #[derive(Default)]
 struct Cli {
@@ -45,10 +46,28 @@ struct Cli {
     input: Option<InputKind>,
     focus: Option<Area>,
     drawer: bool,
+    /// The Mod page: its Files fold open (`--files`), the warning before exporting textures from the original
+    /// game's pixels up (`--warning`).
+    files: bool,
+    warning: bool,
     find: bool,
     address: bool,
-    /// The placement selected in World (a `--shot`).
+    /// The placement selected in World; on Changes, the focused value row (a `--shot`).
     select: Option<usize>,
+    /// The New mod dialog open with this name typed (a `--shot`).
+    new_mod: Option<String>,
+    /// The first tutorial ("Your first mod") at this step (1 … 5, 6: the last card) on the open mod (a `--shot`).
+    tutorial: Option<usize>,
+    /// The race tutorial at this step (1 … 6, 7: the last card) on the open mod (a `--shot`).
+    race_tutorial: Option<usize>,
+    /// The focused area's control at this index (`--row`, a `--shot`).
+    row: Option<usize>,
+    /// The places under ← open, after a walk through World and Mod (a `--shot`).
+    places: bool,
+    /// A running job's words (as a test run says them; a `--shot`).
+    job: Option<String>,
+    /// The right dock's tab (`--right-tab inspector|history|help`, a `--shot`).
+    right_tab: Option<RightTab>,
 }
 
 fn parse(args: impl Iterator<Item = String>) -> Result<Cli> {
@@ -96,9 +115,37 @@ fn parse(args: impl Iterator<Item = String>) -> Result<Cli> {
                 );
             }
             "--drawer" => c.drawer = true,
+            "--row" => c.row = Some(val("--row")?.parse()?),
+            "--places" => c.places = true,
+            "--job" => c.job = Some(val("--job")?),
+            "--right-tab" => {
+                c.right_tab = Some(match val("--right-tab")?.as_str() {
+                    "inspector" => RightTab::Inspector,
+                    "history" => RightTab::History,
+                    "help" => RightTab::Help,
+                    v => bail!("--right-tab {v}?"),
+                })
+            }
+            "--files" => c.files = true,
+            "--warning" => c.warning = true,
             "--find" => c.find = true,
             "--address" => c.address = true,
             "--select" => c.select = Some(val("--select")?.parse()?),
+            "--new-mod" => c.new_mod = Some(val("--new-mod")?),
+            "--race-tutorial" => {
+                let n: usize = val("--race-tutorial")?.parse()?;
+                if !(1..=7).contains(&n) {
+                    bail!("--race-tutorial: 1 … 7");
+                }
+                c.race_tutorial = Some(n);
+            }
+            "--tutorial" => {
+                let n: usize = val("--tutorial")?.parse()?;
+                if !(1..=6).contains(&n) {
+                    bail!("--tutorial: 1 … 6");
+                }
+                c.tutorial = Some(n);
+            }
             "--version" => {}
             other => bail!("unknown argument {other}\n{USAGE}"),
         }
@@ -166,11 +213,72 @@ fn run_shot(cli: &Cli) -> Result<()> {
     let size = cli.size.unwrap_or((1920, 1080));
     let scale = cli.scale.unwrap_or_else(|| layout::ui_scale(size.0, size.1));
     let mut s = new_studio(cli)?;
+    if cli.places {
+        use ob_studio_gui::studio::nav::Command;
+        s.command(Command::Workspace(Workspace::World), None);
+        s.command(Command::Workspace(Workspace::Mod), None);
+        s.nav.mouse();
+        s.places_menu = true;
+    }
+    if let Some(j) = &cli.job {
+        ob_studio_gui::editor::testplay::set_strip(&s.ctx, Some(j.clone()));
+    }
     if let Some(w) = cli.workspace {
         s.nav.workspace = w;
         if w == Workspace::Changes {
             let folder = s.open_mod().map(|m| m.folder.clone());
             s.changes.ensure(folder.as_deref());
+        }
+        if w == Workspace::Mod {
+            let folder = s.open_mod().map(|m| m.folder.clone());
+            s.mod_page.load(folder.as_deref());
+            s.mod_page.files_open = cli.files;
+            s.mod_page.confirm = cli.warning;
+        }
+    }
+    if let Some(n) = cli.race_tutorial {
+        use ob_studio_gui::studio::guide::{Guide, Tutorial};
+        let ws = s.nav.workspace;
+        s.start_tutorial(Tutorial::FirstRace);
+        let folder = s.open_mod().map(|m| m.folder.clone());
+        // The steps' own buttons up to step n (in Races: the race made, its start and points placed as they do).
+        if let Some(g) = s.guide.as_mut() {
+            g.made = folder;
+        }
+        s.nav.workspace = ws;
+        if ws == Workspace::Races {
+            for k in 2..n.min(5) {
+                if let Some(g) = s.guide.as_mut() {
+                    g.step = Guide::step_at(Tutorial::FirstRace, k);
+                }
+                s.guide_main();
+                shot::frames(&mut s, size, scale, 3);
+            }
+        }
+        if let Some(g) = s.guide.as_mut() {
+            g.step = Guide::step_at(Tutorial::FirstRace, n);
+        }
+    }
+    if let Some(n) = cli.tutorial {
+        use ob_studio_gui::studio::guide::{Guide, Step, Tutorial};
+        let ws = s.nav.workspace;
+        s.start_tutorial(Tutorial::FirstMod);
+        let folder = s.open_mod().map(|m| m.folder.clone());
+        if let Some(g) = s.guide.as_mut() {
+            g.made = folder;
+            g.step = Guide::step_at(Tutorial::FirstMod, n);
+        }
+        s.nav.workspace = ws;
+        // Past Go to a street in World: Take me there, as the step's button does.
+        if n >= 3 && ws == Workspace::World {
+            if let Some(g) = s.guide.as_mut() {
+                g.step = Step::GoToStreet;
+            }
+            s.guide_main();
+            shot::frames(&mut s, size, scale, 2);
+            if let Some(g) = s.guide.as_mut() {
+                g.step = Guide::step_at(Tutorial::FirstMod, n);
+            }
         }
     }
     if let Some(i) = cli.input {
@@ -180,6 +288,16 @@ fn run_shot(cli: &Cli) -> Result<()> {
         s.nav.area = a;
     }
     s.nav.drawer_open = cli.drawer;
+    if let Some(t) = cli.right_tab {
+        s.right_tab = t;
+    }
+    if let Some(i) = cli.row {
+        // One frame draws the area's controls, then the focus on the one asked for.
+        shot::frames(&mut s, size, scale, 1);
+        if let Some(a) = cli.focus {
+            s.spots.set(a, i);
+        }
+    }
     if cli.find {
         s.nav.find_open = true;
     }
@@ -187,11 +305,21 @@ fn run_shot(cli: &Cli) -> Result<()> {
         s.command(ob_studio_gui::studio::nav::Command::EditAddress, None);
         s.nav.input = cli.input.unwrap_or(InputKind::Keyboard);
     }
-    if let Some(i) = cli.select {
+    if let Some(i) = cli.select
+        && s.nav.workspace == Workspace::Changes
+    {
+        s.changes.focus = i.min(s.changes.lines().len().saturating_sub(1));
+    } else if let Some(i) = cli.select {
         // One frame so World opens the mod, then the selection.
         shot::frames(&mut s, size, scale, 1);
         if let Some(st) = s.editor.as_mut().and_then(|h| h.app.state.as_mut()) {
             st.selection = vec![i];
+        }
+    }
+    if let Some(name) = &cli.new_mod {
+        s.open_new_mod();
+        if let Some(d) = s.new_mod.as_mut() {
+            d.name = name.clone();
         }
     }
     let gpu = pollster::block_on(Gpu::new(None, Gpu::new_instance()))?;
@@ -323,7 +451,8 @@ impl Runner {
             _ => return,
         };
         let view = frame.texture.create_view(&Default::default());
-        let bufs = shot::paint(&mut self.studio, &w.gpu, &mut w.renderer, &view, (w.config.width, w.config.height), full);
+        let bufs =
+            shot::paint(&mut self.studio, &w.gpu, &mut w.renderer, &view, (w.config.width, w.config.height), full);
         w.gpu.queue.submit(bufs);
         w.window.pre_present_notify();
         w.gpu.queue.present(frame);

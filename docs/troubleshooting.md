@@ -45,6 +45,15 @@ folder cannot be written, next to the program, then to the temporary folder. The
 Home folders are written as `~` and user names in paths as `<user>`. The file holds no saves and no game
 files.
 
+## When the game closes unexpectedly
+
+The launcher's window then says how it ended in plain words (a signal or a Windows exception code named), shows
+the system's own record of it where it can be read without admin rights (Linux: the coredump list and journal
+lines of that process; Windows: the Application event log's crash entries of the last minutes), and names the
+log files written during that run. **Copy for a bug report** puts one redacted text (no home folders, user
+names, hardware serials or device ids) on the clipboard; without a clipboard tool it saves the text as a file
+and shows its folder. **Open log folder** opens the logs. Nothing is sent anywhere.
+
 ## Where the logs are
 
 | File | Windows | Linux |
@@ -121,6 +130,11 @@ pipeline (src/…:…)`); it ends with what to try. In order:
    NVIDIA's or Intel's current one). Driver updates fix most of these.
 2. **Set Graphics to Original** in the launcher (or start once with the launcher's safe start). The game then
    builds far fewer shader programs, so a crash in one of the Enhanced effects' programs does not happen.
+
+One such crash is known: on AMD's Windows driver, **LOD Fade with multisampling** (Enhanced graphics, LOD
+Fade on, more than 1 sample per pixel) can close the game while it prepares the graphics
+([#155](https://github.com/j0braun/overbright/issues/155)). Turn LOD Fade or multisampling off. At 1 sample
+per pixel LOD Fade uses a program the driver builds, with the same picture.
 
 A maintainer may ask you for one more start to narrow it down, for example with wgpu's `WGPU_DEBUG=1`
 switch (it hands the driver the shaders with their source lines; a known crash of AMD's Windows Vulkan driver

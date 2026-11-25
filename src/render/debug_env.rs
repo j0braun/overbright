@@ -2,8 +2,8 @@
 //! variable (one place to find them).
 //!
 //! Each function keeps the parse rule and the read frequency of the code it
-//! replaced: it reads the environment on every call (several callers cache
-//! the result in their own `OnceLock`, as before) and no truthiness rule was
+//! replaced: it reads the environment on every call (the reads core/ and
+//! native/ kept once per run are cached in [`once`]) and no truthiness rule was
 //! unified, so `=0` still means different things per variable (see each
 //! line). Unifying the rules, and caching here, are later, logic-changing
 //! steps. `NFSU2_*` are Overbright's switches (measurement and tuning aids,
@@ -176,6 +176,10 @@ pub fn nfsu2_pop_oracle() -> bool {
 /// `NFSU2_POP_VERBOSE`: set at all prints per-event pop lines.
 pub fn nfsu2_pop_verbose() -> bool {
     set("NFSU2_POP_VERBOSE")
+}
+/// `NFSU2_UI_GEOM`: the UI geometry dump's file (raw `var_os`).
+pub fn nfsu2_ui_geom() -> Option<std::path::PathBuf> {
+    os("NFSU2_UI_GEOM").map(std::path::PathBuf::from)
 }
 /// `NFSU2_FRAME_CAP`: frames per second cap as `f64`; unset or unparsable: `None` (the caller drops values <= 0).
 pub fn nfsu2_frame_cap() -> Option<f64> {
@@ -522,4 +526,42 @@ pub fn test_child_mode(name: &str) -> Result<String, VarError> {
 #[cfg(test)]
 pub fn nfsu2_world_texture_pack_raw() -> Option<OsString> {
     os("NFSU2_WORLD_TEXTURE_PACK")
+}
+
+/// The variables core/ and native/ read once per run: each read on its
+/// first call and kept (the `OnceLock` each caller held before, now here,
+/// so those layers hold no global state; scripts/checks/layering.sh).
+pub mod once {
+    use std::sync::OnceLock;
+
+    macro_rules! once {
+        ($($(#[$m:meta])* $name:ident: $t:ty = $read:path;)*) => {$(
+            $(#[$m])*
+            pub fn $name() -> &'static $t {
+                static V: OnceLock<$t> = OnceLock::new();
+                V.get_or_init($read)
+            }
+        )*};
+    }
+
+    once! {
+        /// [`super::nfsu2_pipeline_log`].
+        pipeline_log: bool = super::nfsu2_pipeline_log;
+        /// [`super::nfsu2_rt_pool`].
+        rt_pool: bool = super::nfsu2_rt_pool;
+        /// [`super::nfsu2_quad_dump`].
+        quad_dump: bool = super::nfsu2_quad_dump;
+        /// [`super::nfsu2_lamp_specialise_off`].
+        lamp_specialise_off: bool = super::nfsu2_lamp_specialise_off;
+        /// [`super::nfsu2_depth_prepass`].
+        depth_prepass: Option<u8> = super::nfsu2_depth_prepass;
+        /// [`super::nfsu2_check_stages`].
+        check_stages: Option<u32> = super::nfsu2_check_stages;
+        /// [`super::nfsu2_audio_only`].
+        audio_only: Option<String> = super::nfsu2_audio_only;
+        /// [`super::nfsu2_frame_cap`].
+        frame_cap: Option<f64> = super::nfsu2_frame_cap;
+        /// [`super::nfsu2_ui_geom`].
+        ui_geom: Option<std::path::PathBuf> = super::nfsu2_ui_geom;
+    }
 }

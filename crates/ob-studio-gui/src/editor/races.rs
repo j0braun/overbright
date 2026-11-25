@@ -86,6 +86,31 @@ pub struct Races {
     typing: bool,
 }
 
+/// Points along `net`'s roads ahead of `from`, setting off along `dir`: one at each distance of `at` (metres,
+/// rising) driven along the road, following its bends (a junction goes the way nearest straight on). Fewer when
+/// the road ends first.
+pub fn ahead(net: &RoadNet, from: Vec2, dir: Vec2, at: &[f32]) -> Vec<Vec2> {
+    const STEP: f32 = 5.0;
+    let Some(mut rp) = race::snap(net, from) else { return Vec::new() };
+    let mut d = if rp.dir.dot(dir) < 0.0 { -rp.dir } else { rp.dir };
+    let (mut p, mut gone, mut out) = (rp.at, 0.0f32, Vec::new());
+    for &want in at {
+        while gone + STEP <= want {
+            let Some(next) = race::snap(net, p + d * STEP) else { return out };
+            let moved = next.at.distance(p);
+            if moved < STEP * 0.25 {
+                return out; // the road ends
+            }
+            rp = next;
+            d = if rp.dir.dot(d) < 0.0 { -rp.dir } else { rp.dir };
+            p = rp.at;
+            gone += STEP;
+        }
+        out.push(p);
+    }
+    out
+}
+
 /// The x/y of a race point (grid slots of a race without its own grid:
 /// the default grid's).
 pub fn point_xy(r: &CustomRace, p: RacePoint) -> Option<Vec2> {
@@ -551,19 +576,22 @@ impl Races {
         }
     }
 
-    /// The route, checkpoints, grid and lines over the 3D view.
-    pub fn paint_overlay(&mut self, s: &mut EditorState, painter: &egui::Painter, rect: egui::Rect) {
+    /// The route, checkpoints, grid and lines over the 3D view; `top`: the
+    /// top-down overview shows (the base track's roads are drawn whole,
+    /// as in Map, not only near the camera).
+    pub fn paint_overlay(&mut self, s: &mut EditorState, painter: &egui::Painter, rect: egui::Rect, top: bool) {
         self.update(s);
         let to = |p: Vec3| project(s, rect, p);
         let ground = |p: Vec2| p.extend(validate::ground(s, p) + 0.3);
-        self.paint(s, painter, &|p: Vec3| to(p), &ground, true);
+        let near = if top { None } else { Some(900.0) };
+        self.paint(s, painter, &|p: Vec3| to(p), &ground, true, near);
     }
 
     /// The same over the 2D map view; `to_screen` maps world x/y.
     pub fn paint_map(&mut self, s: &mut EditorState, painter: &egui::Painter, to_screen: &dyn Fn(Vec2) -> egui::Pos2) {
         self.update(s);
         let to = |p: Vec3| Some(to_screen(p.truncate()));
-        self.paint(s, painter, &to, &|p: Vec2| p.extend(0.0), false);
+        self.paint(s, painter, &to, &|p: Vec2| p.extend(0.0), false, None);
     }
 
     fn paint(
@@ -573,6 +601,7 @@ impl Races {
         to: &dyn Fn(Vec3) -> Option<egui::Pos2>,
         ground: &dyn Fn(Vec2) -> Vec3,
         labels: bool,
+        near: Option<f32>,
     ) {
         let t = theme();
         let (lime, err, ink, page) = (rgb(t.lime), rgb(t.err), rgb(t.ink), rgb(t.page));
@@ -597,6 +626,24 @@ impl Races {
             }
             flush(&mut run);
         };
+        // The selected race's base track: the roads it may use, faint under the route (a barrier-closed road is
+        // left out). Over the 3D street view only those `near` the camera.
+        let track = s.race.and_then(|k| s.session.map.races.get(k)).map(|r| r.track);
+        if let Some(net) = track.and_then(|t| s.nets.get(&t)).and_then(|n| n.as_ref()) {
+            let faint = egui::Color32::from_rgba_unmultiplied(lime.r(), lime.g(), lime.b(), 50);
+            let eye = s.camera.position.truncate();
+            for seg in &net.segments {
+                if seg.barriers.iter().any(|&b| net.closed.get(b).copied().unwrap_or(false)) {
+                    continue;
+                }
+                let Some(nodes) = net.nodes.get(seg.first..seg.end.min(net.nodes.len())) else { continue };
+                if near.is_some_and(|m| nodes.first().is_none_or(|n| n.0.distance(eye) > m)) {
+                    continue;
+                }
+                let pts: Vec<Vec3> = nodes.iter().map(|n| ground(n.0)).collect();
+                line(&pts, egui::Stroke::new(2.0, faint), false);
+            }
+        }
         for (k, r) in s.session.map.races.iter().enumerate() {
             let current = s.race == Some(k);
             let alpha = if current { 255 } else { 90 };

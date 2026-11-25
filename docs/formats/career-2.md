@@ -262,8 +262,8 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
   base ctor 0x4234A0 with type 0xC, vtable 0x78588C; 0x4243B0 with type 1,
   vtable 0x785858, DAT_00865188 copied to +0x228 (a start tick: **Inferred**,
   its writers 0x57A180 and 0x601C26 are not traced) and a float argument
-  (+0x21C; +0x22C = that + 2.0); the chooser's tests for 0xF / 0xC / 0x12
-  are not traced, not ported) when they apply, else its default (slot +0x3C, 0x426EC0): AIActionDriveTrafficLane
+  (+0x21C; +0x22C = that + 2.0); the tests for 0xF / 0xC / 0x12 are below,
+  "Wall-hit / got-hit actions") when they apply, else its default (slot +0x3C, 0x426EC0): AIActionDriveTrafficLane
   (type 7, vtable 0x785820), the traffic lane action. The goal's lane
   class (slot +0x20, 0x40CAA0) is 2 (traffic lanes; "Win road race"
   0x40CA60 gives 1, the racing line), so the action's update 0x4242D0,
@@ -463,19 +463,54 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
   per-frame update, so how often 0x42CAA0, 0x42A050 and 0x42ABD0 run is not
   yet known. **Verified** gate: 0x42CAA0 returns early, without calling 0x42A190 or 0x42A360, when the signed dword at 0x82A3A4 is above 0 (jg at 0x42CABA to the epilogue at 0x42CD50); otherwise both calls run once each, with no branch between them. The file image holds 65535 there, and the disassembly shows no store to 0x82A3A4 by its absolute address, so its runtime value is unknown.
   **Not ported**: the clone keeps its list.
-  **Wall-hit / got-hit
-  actions** (partly traced, **not ported**): the class-name table lists
-  AIActionHitWallDragRace and AIActionIJustGotHitDragRace, not yet mapped
-  to vtables. Type 0xF (vtable 0x7858D4): vtable slot 2, 0x4249C0
-  (decompiled): the nearest lane (0x40F4A0) at rate 0.151 (0x3E1A9FBE) with
-  offset 0, path 0x420D40, speed from controller slot +0x7C, +0x1FC = 0,
-  +0x1FD = +0x1FE = 1. Its apply test 0x403450 (verified) returns 300 while
-  a wall contact is live (0x5A0170 on each contact record) and −1
-  otherwise. Type 1 (vtable 0x785858, ctor 0x4243B0: start tick
-  DAT_00865188 at +0x228, window +0x22C = param + 2.0) and type 0xC (vtable 0x78588C,
-  ctor 0x424560) are constructors only so far; type 0x12 (vtable 0x7859D4,
-  slot 2 0x42DCB0) likewise. **Open**: their update and end logic, and the
-  chooser conditions (0x42D470).
+  **Wall-hit / got-hit actions** (verified in the disassembly; ported,
+  `Actions::drag_think`, src/ai/actions/drag.rs). The chooser 0x42D470 makes
+  one proposal, the first that applies, which the action manager takes only
+  over a lower priority (or a done action): GetUnstuck (500, the running
+  action not type 9 and at most 500); type 0x12 "Pick route to avoid
+  animation" (vtable 0x7859D4, priority 600, update 0x42DCB0, done 0x403510)
+  when planner +0x3E8 ≠ −1 and controller +0x780 ≠ 0 — +0x780 is written only
+  by the constructors (0x4205A4, 0x4261BF: 0), and under Wine it read 0 in
+  every racing sample of the Quick Race drags, so the action is never
+  proposed (not ported); "I just hit a wall (in a drag race)!" (type 0xF,
+  vtable 0x7858D4, ctor 0x424980) with 0x403450's 300 while any of the
+  body's contact records (car +0x3C, count +0x18, 0x5A0830) is against an
+  upright track polygon (0x5A0170); "I just got hit (in a drag race)!"
+  (type 0xC, vtable 0x78588C, ctor 0x424560(400, −1, hitter)) with
+  0x403410's 400 when 0x402AE0(planner, 8.3333 (0x78373C), 1) finds a racer
+  whose record's summed pushes (+0x60) are at least 8.3333 (the road race's
+  IJustGotHit asks with −1: any record); AvoidAvoidable (300) when the
+  running action is not type 1 and its priority at most 300; else the lane
+  action (0x426EC0: type 7, priority 0). Done tests (slot 6): 0xF 0x4034A0,
+  no wall record left; 0xC 0x41CC90, 0x402AE0(planner, −1, 1) finds no racer
+  (another racer in contact is taken over). Updates (slot 2): 0xF 0x4249C0,
+  the lane nearest the car (0x40F4A0 at car +0x60) becomes the record with
+  offset 0 and rate 0.151 (0x405410, 0x3E1A9FBE), the path 0x420D40, speed
+  the cap (controller vt+0x7C), +0x1FC = 0, +0x1FD = +0x1FE = 1. 0xC 0x4246B0:
+  with the hitter (+0x218), the car's nearest lane L (at its place) and the
+  hitter's (at its place); both found: x = 0x60C020 (the hitter's offset less
+  the car's); another lane, L is kept; the same lane: a = |the car off L's
+  centre| (0x60BFB0), b = the hitter's; `yield` = (the hitter not behind,
+  0x60C000 ≥ 0) when a < the car's half width (entry +0x08) and b < the
+  hitter's, else (a ≥ b or the hitter is the human, 0x614890); the lane on
+  the hitter's side (L − 1 for x < 0, else L + 1) is asked of 0x412500 (the
+  car as third argument); allowed and not `yield`: L kept; else the other
+  side's lane when 0x412500 allows it, else L; the record (lane, 0, 0.151).
+  Then the path, the cap, +0x1F4 = +0x1F8 = 0, +0x1FC = 0, pedals on (a
+  DragCarController, car +0x24 = 2, also clears its change window). The
+  class-name table's AIActionHitWallDragRace and AIActionIJustGotHitDragRace
+  are these two. **Inferred** in the port: the hitter's lane and offsets
+  are read at the car's own route point (natively at the hitter's road
+  point). The chooser, the running action's done test and its update run
+  on the controller's full think only (0x42AE2F, in a drag every fourth
+  world update on the racer's slot once 0.2 s have passed; the choice at
+  0x42B1CB → 0x403120 …); between them the fallback 0x42AD16 updates only
+  an action whose vt+0x10 is true, and the drag actions' (0x785820,
+  0x78588C, 0x7858D4) is 0x404800, false, so the driver keeps the running
+  action's last path and cap. **Inferred**: the lane action's path is
+  rebuilt each frame from its lane record. Type 1 (vtable 0x785858, ctor
+  0x4243B0: start tick DAT_00865188 at +0x228, window +0x22C = param + 2.0)
+  as above.
   **Verified**: the step of 0x40FC80 is the distance from the previous
   FuturePoint: vt+0x18 (0x40B050, in the three FuturePoint vtables
   0x7846F0 / 0x784A48 / 0x784AA0) returns, for a point with an object at

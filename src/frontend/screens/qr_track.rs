@@ -196,6 +196,7 @@ impl QuickRace {
             fe_hash("TRACK_ICON"),
             &icons,
             self.selected,
+            self.selected as f32,
             true,
             40.0,
             480.0,

@@ -6,8 +6,9 @@
 //!
 //! The editor's own files for a mod (its view, autosave, tested marks, the
 //! last test's result, and the run copy a test or simulation plays) are in
-//! the mod's `.editor/` folder ([`editor_dir`]); export and import take only
-//! `map.obmap`.
+//! the mod's `.editor/` folder ([`editor_dir`]). [`export`] and [`import`]
+//! here take only `map.obmap`; the programs share a mod through
+//! [`super::share`], which takes its textures along too.
 
 use std::path::{Path, PathBuf};
 
@@ -19,6 +20,9 @@ use super::format::{MAX_FILE_BYTES, MapMod, valid_id};
 pub const FILE: &str = "map.obmap";
 /// The list of mods in use.
 pub const ENABLED: &str = "enabled.txt";
+/// The pack data's folder in a mod's folder (`world/<HASH>.png`, `car/<HASH>.png`): the textures the mod
+/// changes, read by the game while the mod is enabled (Studio Looks writes them).
+pub const TEXTURES: &str = "textures";
 
 /// The editor's folder inside a mod's folder (never exported).
 pub const EDITOR_DIR: &str = ".editor";
@@ -189,7 +193,7 @@ pub fn load_enabled(dir: &Path) -> Vec<(String, MapMod)> {
 
 /// A folder name for an imported mod: `name` cleaned, else `map`, with a
 /// number added while the folder exists.
-fn free_folder(dir: &Path, name: &str) -> String {
+pub fn free_folder(dir: &Path, name: &str) -> String {
     let mut base: String = name
         .to_ascii_lowercase()
         .chars()

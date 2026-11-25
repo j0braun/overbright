@@ -41,19 +41,33 @@ sits on one smoked slab; the footer has the version and the button legends of th
 - `settings-adv`: Text size (100 / 125 / 150 %: above 100 % the page keeps the larger text and
   scrolls), Motion (Full / Reduced), Launcher sounds (off by default: a soft tick on a focus move and a press,
   synthesised, through cpal; never in tests or with `NFSU2_AUDIO_HOST=none`), Get shaders ready again,
-  Storage › (below), Import saves (opens the Saves page), About Overbright (licence, notices, Make portable); This computer at the right.
+  Game data › (your own copy: ready, not made yet, needs repair; "Game data" below), Storage › (below), Import saves (opens the Saves page), About Overbright (licence, notices, Make portable); This computer at the right.
 - `dev` (the fifth page; LB / RB, Q / E go round all five): Studio (the "Open Studio (preview)" button,
   `screens::studio_button`: starts `overbright-studio` on its Home with the shown game folder as `NFSU2_ROOT`; the
-  map editor is its World workspace; greyed with a line saying why when it is not beside the launcher,
-  `dirs::studio_exe`, `OB_STUDIO_EXE` names another; while it is open the button is greyed and a line says so, a
-  failed start or a bad exit is an error line, and when it closes the map mods are read again), Studio's
+  map editor is its World workspace; greyed when it is not beside the launcher, `dirs::studio_exe`,
+  `OB_STUDIO_EXE` names another; while it is open the button is greyed, a failed start or a bad exit is an error
+  line, and when it closes the map mods are read again; the page's first focus), Studio's state
+  (`screens::studio_rows`, `dev-studio-missing`, `dev-studio-idle`, `dev-studio-running`, `dev-studio-elsewhere`):
+  a "Studio <version>" row (it comes with the launcher, so it has the launcher's version) saying "Not beside the
+  launcher", "Ready, not open", "Open on <mod>" (started here) or "Open elsewhere on <mod>" (a Studio not started
+  by the launcher), and a "Last mod" row (the first of `editor-recent.txt` in Overbright's folder, the list Studio's
+  World workspace and the map editor keep); the Studio row's help names every mod open for writing and who holds it.
+  The state is read only, from the files Studio itself uses (`launcher::studio_seen`): a mod is open for writing
+  while a live program holds the lock on its `.editor/studio.lock` (asked with `F_GETLK` on Linux, tried and let go
+  at once on Windows, as Studio's own look at a mod; a lock left by a program that ended is free), and
+  `.editor/studio-owner.toml` beside it names the program, its process and since when. Nothing is started and no
+  file is written; the Dev and Mods pages read it when shown and again every two seconds (`screens::STUDIO_LOOK`),
+  other pages never. A test in `ob-studio` (`history::lock`) holds a lock from another process and checks the
+  launcher sees it. Studio's
   command-line tool (`overbright-studio-cli`, `dirs::studio_cli_exe`: the row says what it is and where, and Open
   folder shows the program folder; the launcher never opens a terminal), the Standalone map editor (the "Open map
   editor (preview)" button, `screens::map_editor_button`: starts the desktop map editor on its own Open / New;
   greyed with a line saying why when `overbright-editor` is not beside the launcher, `dirs::editor_exe`), "Start
   the game with the editor tools" (this one start with `--editor`: F7 the texture editor, F8 the free camera;
   `Model::play_args`), Support file (Save…) and the Logs folder (Open), the F3 overlay's key; a description of
-  the focused row at the right, for every row. The mod rows do not yet show a mod open in Studio or made in it.
+  the focused row at the right, for every row. On the smallest windows (640 × 480, 150 % at 1280 × 720) the page
+  scrolls, the focused row kept in view. The Mods page's map mod rows add "being edited in Studio" to a mod Studio
+  has open; a "new from Studio" mark for mods made in Studio is still open (Studio keeps no such mark yet).
   Advanced keeps the rest.
 - `storage` (`storage-portable`, `storage-custom`, `storage-missing`, `storage-copy-back`; Settings › Advanced ›
   Storage): Portable mode as a switch (on: asks, offers to copy what is kept now into `<program>/data`, writes
@@ -73,9 +87,11 @@ arguments (`Outcome::Restart`; the new one waits for the old one's lock)), then 
   (Overbright packs from `obpack`, then the imported TexMod / TexWizard packages, each with a switch; Remove is
   X / Space and asks first); a message when two packs that are on change the same textures, with Change the
   order (Move up / Move down) when both are in the same list; Add a mod…; HUD (HD HUD and maps, Add HUD mod…,
-  Choose folder…, Forget folder); Map mods (`tools::map::store`: a switch each with its races and prop
-  edits under the name; Open in map editor (the chosen mod; the editor's own Open / New is the Dev page's button), Import a
-  map mod…, Export… as a `.zip`). The map editor (`overbright-editor`, `dirs::editor_exe` beside the launcher,
+  Choose folder…, Forget folder); Map mods (`tools::map::store`: a switch each with its races, prop
+  edits and changed textures under the name; Open in map editor (the chosen mod; the editor's own Open / New is the Dev page's button), Import a
+  map mod… (the map and its textures, `tools::map::share::import`), Export… as a `.zip` with the mod's textures
+  (`tools::map::share::export`; a mod with textures from the original game's pixels asks first, "Made from the
+  original game": Export anyway or Cancel)). The map editor (`overbright-editor`, `dirs::editor_exe` beside the launcher,
   `OB_EDITOR_EXE` names another) starts with `--mod <folder>` and the shown game folder as `NFSU2_ROOT`; one at a
   time: while it is open the section's controls are greyed and a line says the page waits; when it closes the
   map mods are read again (`App::poll_jobs`); a failed start or a bad exit is shown as an error line. The
@@ -256,7 +272,7 @@ shows a busy line and greys the actions meanwhile; the page takes no input while
   `first-start`, `probe-failed`, `no-vulkan` (the probe found no Vulkan
   driver: the line names the package to install), `long-values` (a long German path, many
   languages, a long pad name), `language-unsupported` (Settings › Advanced with every language the engine cannot show installed), `unofficial`, `portable` (About of a portable install), `start-failed`,
-  `unreadable-folder`, the Saves page's `saves-*` and the Mods page's
+  `unreadable-folder`, the Saves page's `saves-*`, the Dev page's `dev-studio-*` and the Mods page's
   `mods-empty`, `mods-busy`, `mods-results`, `mods-remove`, `mods-hud-complete`,
   `mods-hud-incomplete`.
 - Folders: `src/launcher/dirs.rs`, through `platform::dirs` (the home folder and the game's executable
@@ -282,7 +298,7 @@ device, no log file. `key=value` lines, unknown keys ignored, exit 0 (or 1
 with `error=` and `ok=0` without an adapter):
 ```
 probe=1
-version=Overbright 0.5.3 (commit unknown, linux-x86_64)
+version=Overbright 0.6.0 (commit unknown, linux-x86_64)
 adapter.name=…            adapter.backend=Vulkan   adapter.type=DiscreteGpu
 adapter.pci=1002:1234     adapter.driver=…         adapter.vram=<bytes, 0 unknown>
 gpu.class=high            (qol::classify_gpu: the presets' tiers)
@@ -618,7 +634,8 @@ for players, the shipped program names per system (`overbright` /
   `qol::setup::tests::help_is_worded_for_each_system`.
 - `tests/launcher_render.rs`: the 66 renders (11 screens × 6 sizes) and the
   31 states at 1366 × 768 with 150 % scaling (`state-<name>-1366x768@150.png`)
-  against `tests/launcher/*.png` (our own images; at most 0.05 % of pixels off by
+  against `tests/launcher/*.png` (the Saves page's `saves-*` and the Dev page's `dev-*` states also at every
+  size; our own images; at most 0.05 % of pixels off by
   more than 2), and a self-check that a changed screen fails. Re-bless:
   `OB_LAUNCHER_BLESS=1 cargo test --release --test launcher_render`, look
   at the PNGs, `optipng -o2`.
@@ -970,6 +987,34 @@ States for `--render`: `prepare-running`, `prepare-done`, `prepare-failed`. Test
 `launch::prepare::tests` (the lines), `launcher::prepare::tests` (the state), `the_prepare_step_is_offered_once_skippable_and_can_be_asked_for`,
 the fresh-machine walk's step p (started behind the main screen after the folder is used, its
 line, not started again, Prepare again to Done, the stamp, `prepared=1` from the probe).
+
+## Game data (your own copy)
+
+`Screen::GameData` and `launcher::game_data`: your own copy of the game, made once from the game folder by the
+importer (`ob_asset_format::import`, docs/modding/asset-format/import.md) into `<app>/base` (in portable mode beside
+the program). The game folder is only read.
+
+- Offered as the next step of the setup: after **Use this folder** on the game check the screen opens with
+  **Make copy** chosen (one confirm); **Not now** goes on to the main screen. A start with a game folder but no copy
+  opens on the offer too (`run_with_root`, `App::offer_game_data`) unless **Not now** was chosen before
+  (`game-data-later.txt` in Overbright's own folder). Settings › Advanced › **Game data** opens it at any time.
+- The run (import, Check copy, Repair) goes on a worker thread (`game_data::start`; at most half the cores) while
+  the launcher stays usable: Back leaves it running and the main screen's line beside Play says so. Its
+  `key=value` lines become the bar (`Tracker`: reading the files, copying in GB, checking the copy). **Stop** asks
+  the importer to stop between its units; the next **Go on** resumes from its journal (also after a restart: the
+  staging folder is seen at the start). A launcher closed mid-run stops it the same way.
+- Ends: ready (the known release, or "your own install" with the number of files that differ), stopped, not
+  enough space (needed, free, where; nothing written; **Storage…**), failed (the importer's line; **Try again**
+  runs it again), needs repair (**Repair** rebuilds the damaged parts from the game folder; when the folder no
+  longer holds the same files, **Make a new copy**).
+- What the folder holds is read at the start (`game_data::status`: the record and every part at its size); **Check
+  copy** reads every part back. The game itself chooses between the copy and the folder (not the launcher).
+
+States for `--render`: `game-data-offer`, `-running`, `-checking`, `-stopped`, `-space`, `-done`, `-custom`,
+`-damaged`, `-failed`, at every size and at 1366 × 768 @150 %. Tests: `game_data::tests` (the lines, the folder),
+`game_data_flow`, `game_data_stop_fail_and_repair`, `first_run_flow`, `mouse_only_from_the_first_start_to_play`,
+tests/launcher_fresh.sh steps e and d (offered after Use, Not now kept at the second start), tests/launcher_mouse.sh
+step w (Not now by the mouse under Wine).
 
 ## Portable mode
 

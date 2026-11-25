@@ -78,6 +78,7 @@ impl Shared {
 pub struct Running {
     child: Child,
     started: Instant,
+    started_at: std::time::SystemTime,
     shared: Arc<Mutex<Shared>>,
     readers: Vec<std::thread::JoinHandle<()>>,
     /// The start marker this start wrote (removed at the end).
@@ -90,6 +91,12 @@ pub struct Running {
 pub struct Ended {
     /// The exit code (None: ended by a signal).
     pub code: Option<i32>,
+    /// The signal that ended it (Linux and macOS), if one did.
+    pub signal: Option<i32>,
+    /// Its process id and when it started: the system's records and the
+    /// logs of this run are looked up by them.
+    pub pid: u32,
+    pub started_at: std::time::SystemTime,
     pub secs: f32,
     pub panicked: bool,
     /// The game's window could not open ([`NO_WINDOW`]).
@@ -123,12 +130,18 @@ impl Ended {
         self.failed() && self.secs < START_SECS
     }
 
+    /// The end in plain words (`launcher::crash_report::reason`).
+    pub fn reason(&self) -> String {
+        crate::launcher::crash_report::reason(self.code, self.signal, self.panicked)
+    }
+
     /// "exit code 101", "a crash (panic), exit code 101", "ended by the
     /// system".
     pub fn how(&self) -> String {
-        let code = match self.code {
-            Some(c) => format!("exit code {c}"),
-            None => "ended by the system".into(),
+        let code = match (self.code, self.signal) {
+            (Some(c), _) => format!("exit code {c}"),
+            (None, Some(s)) => format!("signal {s}"),
+            (None, None) => "ended by the system".into(),
         };
         if self.panicked {
             format!("a crash (panic), {code}")
@@ -276,14 +289,14 @@ fn start_marked(
             }
         }));
     }
-    Ok(Running { child, started: Instant::now(), shared, readers, marker, log })
+    Ok(Running { child, started: Instant::now(), started_at: std::time::SystemTime::now(), shared, readers, marker, log })
 }
 
 impl Running {
     /// The end, once the game has ended (None while it runs).
     pub fn poll(&mut self) -> Option<Ended> {
         match self.child.try_wait() {
-            Ok(Some(status)) => Some(self.finish(status.code())),
+            Ok(Some(status)) => Some(self.finish(Some(status))),
             Ok(None) => None,
             Err(_) => Some(self.finish(None)),
         }
@@ -291,15 +304,20 @@ impl Running {
 
     /// Waits for the end.
     pub fn wait(mut self) -> Ended {
-        let code = self.child.wait().ok().and_then(|s| s.code());
-        self.finish(code)
+        let status = self.child.wait().ok();
+        self.finish(status)
     }
 
     pub fn id(&self) -> u32 {
         self.child.id()
     }
 
-    fn finish(&mut self, code: Option<i32>) -> Ended {
+    fn finish(&mut self, status: Option<std::process::ExitStatus>) -> Ended {
+        let code = status.and_then(|s| s.code());
+        #[cfg(unix)]
+        let signal = status.and_then(|s| std::os::unix::process::ExitStatusExt::signal(&s));
+        #[cfg(not(unix))]
+        let signal = None;
         clear_marker_of(&self.marker, self.child.id());
         let secs = self.started.elapsed().as_secs_f32();
         // The readers end at the pipes' end (a child the game started could
@@ -317,6 +335,9 @@ impl Running {
         let tail: Vec<String> = sh.tail.iter().cloned().collect();
         let e = Ended {
             code,
+            signal,
+            pid: self.child.id(),
+            started_at: self.started_at,
             secs,
             panicked: sh.panicked,
             no_window: sh.no_window,
@@ -539,6 +560,29 @@ mod tests {
         assert!(e.tail.iter().any(|l| l == "root=/games/nfsu2"), "{e:?}");
         // A missing program.
         assert!(start(&dir.join("nope"), &[], None, None).is_err());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// A game killed by a signal: no exit code, the signal and the words for
+    /// it, a failure; a clean exit is none.
+    #[test]
+    fn a_signal_kill_is_told_in_words() {
+        let dir = std::env::temp_dir().join(format!("ob-run-sig-{}", crate::unique_tag()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let stub = dir.join("stub-game");
+        std::fs::write(&stub, "#!/bin/sh\necho 'stub: about to crash' >&2\nkill -SEGV $$\nsleep 5\n").unwrap();
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&stub, std::fs::Permissions::from_mode(0o755)).unwrap();
+        let marker = dir.join("start-marker.txt");
+        let e = start_marked(&stub, &[], None, None, marker.clone()).unwrap().wait();
+        assert_eq!((e.code, e.signal), (None, Some(11)), "{e:?}");
+        assert!(e.failed() && e.pid > 0);
+        assert!(e.reason().contains("segmentation fault"), "{}", e.reason());
+        assert_eq!(e.how(), "signal 11");
+        assert!(e.tail.iter().any(|l| l.contains("about to crash")));
+        std::fs::write(&stub, "#!/bin/sh\nexit 0\n").unwrap();
+        let e = start_marked(&stub, &[], None, None, marker).unwrap().wait();
+        assert!(!e.failed() && e.signal.is_none());
         let _ = std::fs::remove_dir_all(&dir);
     }
 

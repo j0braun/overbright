@@ -6,7 +6,7 @@ use glam::{Mat3, Vec2, Vec3};
 use super::*;
 use nfsu2::studio_api::world::Placement;
 use ob_map::tools::map::format::{PropRef, RaceKind};
-use ob_map::tools::map::ops::Change;
+use ob_map::tools::map::ops::{Change, CollisionKey};
 
 const REGION: &str = "L4RA";
 
@@ -67,6 +67,9 @@ fn tag(op: &Op) -> &'static str {
         Op::Add { .. } => "add",
         Op::Duplicate { .. } => "duplicate",
         Op::DropToGround { .. } => "drop_to_ground",
+        Op::RemoveCollision { .. } => "remove_collision",
+        Op::DrawWall { .. } => "draw_wall",
+        Op::DrawGround { .. } => "draw_ground",
         Op::NewRace { .. } => "new_race",
         Op::DeleteRace { .. } => "delete_race",
         Op::RenameRace { .. } => "rename_race",
@@ -85,7 +88,7 @@ fn tag(op: &Op) -> &'static str {
         Op::Group { .. } => "group",
     }
 }
-const VARIANTS: usize = 22;
+const VARIANTS: usize = 25;
 
 fn odd_rotation() -> Mat3 {
     Mat3::from_euler(glam::EulerRot::ZYX, 0.3, -0.1, 1.0e-7)
@@ -133,6 +136,7 @@ fn every_op() -> Vec<Op> {
             },
         ],
         races: vec![race.clone()],
+        collision: vec![],
     };
     let pt = |part, index| RacePoint { part, index };
     vec![
@@ -149,6 +153,10 @@ fn every_op() -> Vec<Op> {
         },
         Op::Duplicate { key: first.clone(), position: Vec3::new(f32::MIN_POSITIVE, -0.0, 99_999.99) },
         Op::DropToGround { key: added.clone() },
+        Op::RemoveCollision { target: CollisionKey::Original(vec![Vec3::new(0.125, -3.5, 2.0e-3); 3]) },
+        Op::RemoveCollision { target: CollisionKey::Drawn("wall-1".into()) },
+        Op::DrawWall { from: Vec3::ZERO, to: Vec3::new(10.1, 0.3, -0.2), height: 2.5, surface: 16, id: None },
+        Op::DrawGround { outline: vec![Vec3::ZERO, Vec3::X, Vec3::Y], surface: 0, id: Some("g".into()) },
         Op::NewRace { track: 4001, kind: RaceKind::StreetX, id: None },
         Op::NewRace { track: 7, kind: RaceKind::Drift, id: Some("drift".into()) },
         Op::DeleteRace { race: "loop".into() },

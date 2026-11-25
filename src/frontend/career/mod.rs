@@ -19,14 +19,13 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::path::Path;
 
 use anyhow::{Context, Result};
-use glam::{Vec2, Vec3};
+use glam::Vec3;
 
 use crate::formats::bundle::{chunks, read_cstr, read_f32, read_u16, read_u32};
 use crate::formats::hash::bin_hash;
-use crate::race::RaceMode;
 
 mod data;
-mod events;
+pub mod events;
 mod intro;
 mod lists;
 mod native_map;
@@ -39,7 +38,7 @@ mod shops;
 mod slots;
 mod sms_rules;
 pub mod stats;
-mod triggers;
+pub mod triggers;
 
 pub use data::*;
 pub use events::*;

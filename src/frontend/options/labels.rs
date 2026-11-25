@@ -90,6 +90,8 @@ pub(crate) const OVERLAY_LOG: u32 = 0xC1_04E0_EF;
 /// Power Saving (the maintainer's private capture); 0xE8, clear of
 /// every copy's ids (2026-11-05).
 pub(crate) const POWER_SAVING: u32 = 0xC1_04E0_E8;
+/// In the background (docs/playing/modern-extras.md §5).
+pub(crate) const BACKGROUND: u32 = 0xC1_04E0_E9;
 /// Mark Spot Key (docs/playing/mark-spot.md).
 pub(crate) const MARK_SPOT: u32 = 0xC1_04E0_6D;
 // Wet roads and SSR (docs/notes/graphics/reflections.md "Wet Roads and Screen-Space Reflections"); ids clear of the Graphics page's (0x40..0x47 taken).
@@ -256,6 +258,7 @@ pub fn clone_label(hash: u32) -> Option<&'static str> {
         OVERLAY_SCALE => "Overlay Scale",
         OVERLAY_LOG => "Performance Log (CSV)",
         POWER_SAVING => "Power Saving",
+        BACKGROUND => "In the Background",
         MARK_SPOT => "Mark Spot Key",
         WET_ROADS => "Wet Roads",
         DYNAMIC_LAMPS => "Dynamic Lamps",

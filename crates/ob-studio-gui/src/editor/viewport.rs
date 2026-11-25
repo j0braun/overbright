@@ -607,6 +607,7 @@ impl Viewport {
         if let Some(at) = self.rebuild_at {
             ui.ctx().request_repaint_after(at.saturating_duration_since(Instant::now()));
         }
+        publish_top(ui.ctx(), self.persp.is_some().then_some((self.top, rect)));
     }
 
     fn input(&mut self, s: &mut EditorState, ui: &egui::Ui, response: &egui::Response) {
@@ -748,6 +749,7 @@ impl Viewport {
         }
         s.camera = self.top.camera();
         if response.double_clicked_by(egui::PointerButton::Primary)
+            && !self.suppress_pick
             && let Some(at) = response.interact_pointer_pos()
         {
             let (eye, dir) = self.pick_ray(s, at);
@@ -1106,6 +1108,21 @@ pub fn whole_frame(
 }
 
 /// The map view's wheel zoom factor for a scroll of `scroll` points.
+fn top_id() -> egui::Id {
+    egui::Id::unique("editor.viewport.top")
+}
+
+pub(super) fn publish_top(ctx: &egui::Context, top: Option<(TopView, Rect)>) {
+    ctx.data_mut(|d| d.insert_temp(top_id(), top));
+}
+
+/// The top-down overview's pan and zoom and the rectangle it filled, as the
+/// viewport last drew it (None: the 3D camera shows). The overlays run
+/// before the viewport, so they work on the image the user sees.
+pub fn top_view(ctx: &egui::Context) -> Option<(TopView, Rect)> {
+    ctx.data(|d| d.get_temp::<Option<(TopView, Rect)>>(top_id()).flatten())
+}
+
 fn mapview_zoom(scroll: f32) -> f32 {
     super::mapview::ZOOM_STEP.powf(scroll / 50.0)
 }

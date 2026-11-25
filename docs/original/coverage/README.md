@@ -33,6 +33,12 @@ status then describes the default branch as it is.
 Within a row, "verified", "observed", "inferred" and "open" keep their usual meaning in these docs
 (traced; read under Wine; reasoned, not traced; not known).
 
+The original's AI is frame-rate dependent: its think slots, avoidance proposals and contact tests
+run per frame. A native number for an AI row is therefore taken with the original at a fixed 1/60 s
+frame, this game's own world step, and is marked "fixed 1/60"; numbers from older real-time runs on
+wined3d, at an unknown frame rate, are indicative only (see "A valid native measurement" in
+[parity-harness.md](../../developing/parity-harness.md)).
+
 ## Maps
 
 | Map | Subsystem |

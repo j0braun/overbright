@@ -608,6 +608,7 @@ impl ApplicationHandler for Game {
             // Either way the held keys and modifiers are let go
             // (`InputEvent::Focus`): their releases may have gone to another
             // window (Alt-Tab).
+            // In the background's Pause reads them too (`background_pause`).
             WindowEvent::Focused(f) => {
                 self.pacing.focused = f;
                 nfsu2::diag::events::set_shown(f, self.pacing.occluded);
@@ -685,6 +686,16 @@ impl ApplicationHandler for Game {
                     self.input_now(e);
                 }
             }
+            // Paused in the background: an uncovered window is drawn again
+            // as it stood (no time passes; a hidden one is not drawn).
+            WindowEvent::RedrawRequested if self.pacing.background_paused => {
+                if !self.pacing.occluded {
+                    self.pacing.last = Instant::now();
+                    if let Err(e) = self.redraw() {
+                        log::error!("frame: {e:#}");
+                    }
+                }
+            }
             WindowEvent::RedrawRequested => {
                 if let Err(e) = self.redraw() {
                     log::error!("frame: {e:#}");
@@ -703,6 +714,13 @@ impl ApplicationHandler for Game {
         if self.platform.exit_requested || self.platform.quit_app {
             event_loop.exit();
         }
+        // In the background's Pause: the loop sleeps until the next window
+        // event (SPEED2.EXE's pump 0x5BF1D0 waits in GetMessage).
+        if self.background_pause() {
+            event_loop.set_control_flow(winit::event_loop::ControlFlow::Wait);
+            return;
+        }
+        event_loop.set_control_flow(winit::event_loop::ControlFlow::Poll);
         if let Some(window) = self.platform.window.as_ref().and_then(|w| w.window.as_ref()) {
             window.request_redraw();
         }

@@ -74,10 +74,19 @@ Also fixed: the crash's vertical push factor is 1.2 in a drag race, not 1.1
 
 ## Open
 
-* The drag chooser's other actions: type 0x12 (600, on controller +0x780),
-  0xF "I just hit a wall" (0x403450), 0xC (0x403410 → 0x424560), and
-  AvoidAvoidable's end test in a drag race (0x42BA80's 0x4140E0 /
-  0x410A50): the clone ends it at the next think and sweeps again.
+* The drag chooser's wall and got-hit actions (0xF, 0xC) are now ported and
+  type 0x12 is never proposed (docs/formats/career-2.md, "Wall-hit / got-hit
+  actions"); AvoidAvoidable's end test in a drag race is traced (docs/formats/ai.md, "Done (slot 6
+  0x42BA80)"): without a new hit that 0x4140E0 passes it ends, as the clone's; open: 0x4140E0's
+  crossing filter on the drag sweep.
+* Rivals and traffic in Quick Race drag (Bayview Bridge, traffic 3, fixed 1/60 s, 45 s): the
+  rivals' road entries held the whole traffic pool, pooled cars included at their last place and
+  velocity (0x6148F0 keeps only cars with +0x550 set). A rival swept such a car, changed lanes to
+  avoid it and crossed a real car's lane: 5 traffic hits in 3 of 16 runs, against none in 10
+  native runs. With the racers' entries limited to road objects (`TrafficCar::road_object`):
+  no hit in 16 runs; rivals more than 1 m off a lane centre 0.034 of the samples [0.006–0.059]
+  (native 0.025 [0.013–0.045], before 0.057); progress at 30 s 0.608 [0.579–0.634] (native
+  0.629 [0.604–0.651], before 0.601); no rival totaled (before 1 in 16).
 * 0x60BF80 in the near / far test (taken as false, as in the road port).
 * Against the original: the rivals' totals with a *driving* player were not
   measured under Wine (the November report triage's 8 native runs had the player standing, so the

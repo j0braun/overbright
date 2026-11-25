@@ -102,7 +102,7 @@ pub(super) fn find_pass(
     accel: f32,
     fresh: bool,
 ) -> Option<(usize, Plan)> {
-    if scene.held || scene.clock <= PASS_AFTER {
+    if scene.contact_held || scene.clock <= PASS_AFTER {
         return None;
     }
     let mine = &list[own];

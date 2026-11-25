@@ -5,9 +5,12 @@
 //! state and no check variable is set, so the shipped game runs the same.
 #[cfg(feature = "dev-harness")]
 pub(crate) use crate::dev::hooks::{
-    audio_capture_frame, audio_tick_end, check_tick_dt, frame_trace, headless_size, parity_grid, rain_clock_override, record_state, replay_controls,
+    audio_capture_frame, audio_tick_end, check_tick_dt, frame_trace, headless_size, instant_forward, parity_grid, rain_clock_override, record_state, replay_controls,
     rng_pin, teleport, unknown_flag,
 };
+/// `--shot-list`'s table (called only under the feature: no stub).
+#[cfg(feature = "dev-harness")]
+pub(crate) use crate::dev::shot::targets::print_list as print_shot_list;
 #[cfg(not(feature = "dev-harness"))]
 pub(crate) use stubs::*;
 
@@ -18,6 +21,11 @@ pub(crate) const USAGE: &str = "usage: game [--no-boot] [--editor] [--language <
 mod stubs {
     use crate::{Controls, Game};
     use glam::Vec2;
+
+    /// No harness run: an icon menu's accept waits for FORWARD's end.
+    pub(crate) fn instant_forward() -> bool {
+        false
+    }
 
     /// No shot set a rain clock.
     pub(crate) fn rain_clock_override() -> Option<f32> {

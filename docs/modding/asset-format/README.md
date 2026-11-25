@@ -1,13 +1,16 @@
 # The Overbright asset format
 
-Status: **draft 1 — design; the core library exists (`crates/ob-asset-format`), no program reads game data
-through it yet.**
+Status: **draft 1 — design; the core library exists (`crates/ob-asset-format`) and Studio and the run files
+use it; no program reads game data through it yet.**
 
-> **This is a design.** No released Overbright build reads or writes this format yet: today the game reads the
-> original game folder directly, and its caches and mod files are the ones described in the other docs
-> ([asset-cache.md](../../developing/asset-cache.md), [texture-packs.md](../texture-packs.md), [map-editor.md](../map-editor.md)).
-> Programs and tools named here (`overbright-import`, `overbright-studio-cli`, Studio, the web build) are planned,
-> and so are the source paths, checks and tests the pages name as the place a rule will live. Rules, ids and
+> **This is mostly a design.** The game still reads the original game folder directly, and its caches and mod
+> files are the ones described in the other docs ([asset-cache.md](../../developing/asset-cache.md),
+> [texture-packs.md](../texture-packs.md), [map-editor.md](../map-editor.md)). What uses the format today: the map
+> editor's run files ([runs.md](runs.md), `ob.run`), and Studio (preview) and its command-line tool
+> `overbright-studio-cli`, which use the core library for a mod's changes and checks
+> ([studio.md](../studio.md), [studio-cli.md](../studio-cli.md)). The other programs named here
+> (`overbright-import`, the web build) are planned, and so are the source paths, checks and tests the pages name
+> as the place a rule will live, where they do not exist yet. Rules, ids and
 > numbers may still change before the first implementation; numbers marked [guess] or [est] are estimates.
 > The format's core library exists (`crates/ob-asset-format`: exact floats, names and digests, bundles, the
 > manifest, `order.txt`, the layer stack and the merge engine, the rule registry); no program reads game data

@@ -178,7 +178,7 @@ fn mv(x: f32, to: f32) -> PropEdit {
 }
 
 fn mapmod(props: Vec<PropEdit>, races: Vec<CustomRace>) -> MapMod {
-    MapMod { name: "m".into(), author: String::new(), description: String::new(), props, races }
+    MapMod { name: "m".into(), author: String::new(), description: String::new(), props, races, collision: vec![] }
 }
 
 #[test]
@@ -239,4 +239,59 @@ fn map_reset_puts_a_prop_back_or_takes_the_edit_out() {
     let rows = map::compare_maps(&m, &back, "harbour");
     assert_eq!(rows.len(), 1);
     assert_eq!(rows[0].values[0].field, "position");
+}
+
+fn paint(hashes: &[(u32, &str)]) -> crate::looks::Looks {
+    use crate::looks::{Domain, Entry, Origin, TextureId};
+    let mut l = crate::looks::Looks::default();
+    for (h, img) in hashes {
+        let id = TextureId::new(Domain::World, *h);
+        l.entries.insert(
+            id,
+            Entry {
+                id,
+                name: format!("TEX_{h:X}"),
+                origin: Origin::Game,
+                image: img.to_string(),
+                width: 64,
+                height: 64,
+            },
+        );
+    }
+    l
+}
+
+#[test]
+fn textures_layer_in_their_enabled_order() {
+    use super::looks::{GAME, IMAGE, Textures, compare_looks, reset};
+    let mine = paint(&[(0x1A, "aaaa"), (0x2B, "bbbb")]);
+    let other = paint(&[(0x2B, "cccc")]);
+    let game = Textures::new(&[("mine".into(), mine.clone()), ("other".into(), other.clone())]);
+    let rows = game.this_mod("mine");
+    assert_eq!(rows.len(), 2, "one row per texture");
+    let v = value(&rows, "world:0x0000001A", IMAGE);
+    assert_eq!(v.from, From::Yours);
+    assert_eq!(v.original, Some(toml::Value::String(GAME.into())));
+    assert_eq!(v.yours, Some(toml::Value::String("aaaa".into())));
+    let v = value(&rows, "world:0x0000002B", IMAGE);
+    assert_eq!(v.from, From::Other("other".into()), "the stronger mod's paint is drawn");
+    assert!(v.loses());
+    assert_eq!(v.game, Some(toml::Value::String("cccc".into())));
+    let c = game.clashes("mine");
+    assert_eq!(c.len(), 1);
+    assert_eq!(c[0].stack.iter().map(|(p, _)| p.as_str()).collect::<Vec<_>>(), ["", "mine", "other"]);
+    // The other way round, yours wins.
+    let flipped = Textures::new(&[("other".into(), other), ("mine".into(), mine.clone())]);
+    assert!(flipped.this_mod("mine").iter().all(|r| !r.loses()));
+    // A step that painted one more texture and repainted one.
+    let after = paint(&[(0x1A, "dddd"), (0x2B, "bbbb"), (0x3C, "eeee")]);
+    let steps = compare_looks(&mine, &after);
+    assert_eq!(steps.len(), 2);
+    assert!(steps.iter().all(|r| !r.added && r.kind == "texture"));
+    let new = steps.iter().find(|r| r.key == "world:0x0000003C").unwrap();
+    assert_eq!(new.values[0].original, Some(toml::Value::String(GAME.into())));
+    // Reset gives a texture back to the game.
+    let back = reset(&mine, &["world:0x0000001A"]).unwrap();
+    assert_eq!(back.entries.len(), 1);
+    assert!(reset(&mine, &["world:0x000000FF"]).is_none());
 }

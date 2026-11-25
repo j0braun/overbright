@@ -256,8 +256,8 @@ pub fn summarize(ms: &[f32]) -> Option<Summary> {
         return None;
     }
     let mut sorted = ms.to_vec();
-    let median = crate::overlay::stats::percentile(&mut sorted, 0.5);
-    let p99 = crate::overlay::stats::percentile(&mut sorted, 0.99);
+    let median = crate::prof::percentile(&mut sorted, 0.5);
+    let p99 = crate::prof::percentile(&mut sorted, 0.99);
     drop(sorted);
     let line = (2.0 * median).max(4.0);
     let (mut t, mut hitches, mut hitch_ms, mut first_minute) = (0.0f64, 0, 0.0f64, 0);

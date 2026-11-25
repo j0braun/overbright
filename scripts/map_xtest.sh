@@ -113,7 +113,7 @@ run_save() {
     printf 'resolution 1280x960\nfullscreen 0\n' >"$DIR/data/overbright/options.txt"
     local probe="map,UI_PC_Help_Bar:icon_1,UI_PC_Help_Bar:icon_2,GenericDialog_SMALL:#B8A7C6CC,GenericDialog_SMALL:#B8A7C6CD"
     env -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE -u NFSU2_HEADLESS_ONLY DISPLAY=:$D XDG_DATA_HOME="$DIR/data" NFSU2_CACHE_DIR="${NFSU2_CACHE_DIR:-$OUT/cache}" MESA_VK_WSI_DEBUG=sw \
-        NFSU2_INPUT_LOG="$LOG" NFSU2_INPUT_PROBE="$probe" \
+        NFSU2_INPUT_LOG="$LOG" NFSU2_INPUT_PROBE="$probe" NFSU2_KEEP_RUNNING=1 \
         setsid bwrap --unshare-pid --dev-bind / / --tmpfs /dev/snd --tmpfs "${XDG_RUNTIME_DIR:-/run/user/$(id -u)}" --unsetenv WAYLAND_DISPLAY \
         "$BIN" >"$DIR/game.log" 2>&1 &
     GAME=$!

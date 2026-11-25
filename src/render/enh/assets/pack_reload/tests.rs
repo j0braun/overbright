@@ -288,7 +288,7 @@ fn frame_does_nothing_with_the_setting_off() {
     let _g = crate::qol::test_globals();
     crate::qol::Enhancements::default().apply();
     let g = generation();
-    assert!(!frame(true));
+    assert!(!frame(true, crate::qol::reload_packs()));
     assert!(!RUNNING.load(Ordering::Relaxed));
     assert_eq!(generation(), g);
 }
@@ -484,7 +484,7 @@ fn every_save_shows_under_a_slow_disk() {
             let mut seen = generation();
             *drawn.lock().unwrap() = loaded_top(false, &tex).2;
             while !stop.load(Ordering::Relaxed) {
-                frame(false);
+                frame(false, crate::qol::reload_packs());
                 let (now, hit) = changed_since(seen, false, HASH);
                 seen = now;
                 if hit {

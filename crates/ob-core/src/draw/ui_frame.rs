@@ -1,4 +1,4 @@
-use super::*;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 // The aspect mode and the views' projection factors are display values the
 // camera computes with (`draw::aspect`).

@@ -291,6 +291,21 @@ perfgate_nopreset() {
 expect fail perfgate-max-runs-with-preset perfgate perfgate-max-runs-with-preset benchfailenh:enh.stub
 expect pass perfgate-max-skipped-without-preset perfgate_nopreset perfgate-max-skipped-without-preset benchfailenh:enh.stub
 
+# ---- loadgate.sh: the asset layer's arms --------------------------------------------------------
+# One binary, both sources: the base arm must have read the set (the layer's exit line), the original arm must not.
+loadg() {
+  local c=$1; shift
+  stub "$O/$c/b" "$@"; mkdir -p "$O/$c/set" "$O/$c/out/bin"
+  # loadgate runs private copies of the binaries (OUT/bin/LABEL): the stub's faults beside them.
+  cp "$O/$c/b/faults" "$O/$c/out/bin/faults"
+  NFSU2_BASE_SET="$O/$c/set" REPS=8 MODES=warm SCENES="explore race" FRAMES=3 "$HERE/loadgate.sh" bench "$O/$c/out" \
+    orig="$O/$c/b/game@original" base="$O/$c/b/game@base" || return 1
+  python3 -I "$REPO/scripts/perf/loadstat.py" gate "$O/$c/out" --base orig --new base
+}
+expect pass loadgate-layer-good loadg loadgate-layer-good
+expect fail loadgate-layer-not-read loadg loadgate-layer-not-read nolayer
+expect fail loadgate-layer-in-original loadg loadgate-layer-in-original layeralways
+
 # ---- lavapipe.sh ---------------------------------------------------------------------
 : > "$O/fake_icd.json"
 lvp() { local c=$1; shift; stub "$O/$c/b" "$@"; LVP_ICD="$O/fake_icd.json" LVP_SHOTS="main" "$HERE/lavapipe.sh" "$O/$c/out" "$O/$c/b/game"; }
@@ -345,6 +360,32 @@ halo_private() {
 }
 expect pass halo-skipped-without-private-set halo_public halo-skipped-without-private-set
 expect fail halo-runs-with-private-set halo_private halo-runs-with-private-set
+
+# ---- layering.sh (the render and harness layering lint) -------------------------------------------------------
+# A small tree with the lint and its two lists: one listed hit per rule passes, test code passes; a new hit of
+# each rule (the harness outside its feature, an ungated test module, a settings read, the enhancement layer, a
+# QoL read, global state) fails.
+layering() {
+  local c=$1 what=${2:-} t="$O/$1"
+  mkdir -p "$t/scripts/checks" "$t/src/render/native" "$t/src/bin/game/hud"
+  cp "$HERE/layering.sh" "$t/scripts/checks/"
+  printf '# list\nsrc/render/native/a.rs\tlet x = crate::qol::hdr_active();\nsrc/render/native/a.rs\tfn t() { crate::qol::Enhancements::default().apply(); }\n' > "$t/scripts/checks/layering-settings-allow.txt"
+  printf '# list\nqol\tsrc/render/native/a.rs\tlet x = crate::qol::hdr_active();\twhy\nstate\tsrc/render/native/a.rs\tstatic N: AtomicU8 = AtomicU8::new(0);\twhy\n' > "$t/scripts/checks/layering-allow.txt"
+  printf 'fn f() {\n    let x = crate::qol::hdr_active();\n}\nstatic N: AtomicU8 = AtomicU8::new(0);\n#[cfg(test)]\nmod tests {\n    fn t() { crate::qol::Enhancements::default().apply(); }\n}\n' > "$t/src/render/native/a.rs"
+  printf '#[cfg(all(test, feature = "dev-harness"))]\nmod tests;\n#[cfg(feature = "dev-harness")]\nuse crate::dev::x;\n' > "$t/src/bin/game/hud/mod.rs"
+  printf 'fn t() { crate::dev::state_hash::v(); }\n' > "$t/src/bin/game/hud/tests.rs"
+  case $what in
+    harness) printf 'fn g() { dev::shot::list(); }\n' >> "$t/src/bin/game/hud/mod.rs" ;;
+    test-mod) printf 'mod tests;\n' > "$t/src/bin/game/hud/mod.rs" ;;
+    settings) printf 'fn h() { crate::render::RenderOptions::in_force(); }\n' >> "$t/src/render/native/a.rs" ;;
+    enh) printf 'use crate::render::enh::x;\n' >> "$t/src/render/native/a.rs" ;;
+    qol) printf 'fn h() { let y = crate::qol::hdr_active(); }\n' >> "$t/src/render/native/a.rs" ;;
+    state) printf 'static M: Mutex<u8> = Mutex::new(0);\n' >> "$t/src/render/native/a.rs" ;;
+  esac
+  bash "$t/scripts/checks/layering.sh" "$t"
+}
+expect pass layering-good layering layering-good
+for w in harness test-mod settings enh qol state; do expect fail "layering-new-$w" layering "layering-new-$w" "$w"; done
 
 # ---- cases of the maintainer's own release tools (selfcheck.d/*.sh, sourced here; not in public checkouts) -------
 rel_cases=0

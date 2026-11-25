@@ -67,6 +67,18 @@ impl Workspace {
         }
     }
 
+    /// What it is for, in one line (Home's "what each place does").
+    pub fn what(self) -> &'static str {
+        match self {
+            Workspace::Home => "Your mods, and where to start",
+            Workspace::World => "Move, add and hide props in the city, and drive there",
+            Workspace::Races => "Make a race: start, checkpoints, finish; test and simulate it",
+            Workspace::Changes => "Everything your mod changes, and which mod wins",
+            Workspace::Mod => "Its details, whether it is ready to share, and Export",
+            Workspace::Settings => "Studio's own settings",
+        }
+    }
+
     pub fn section(self) -> Section {
         match self {
             Workspace::Home => Section::Top,

@@ -2,7 +2,7 @@
   "command": "ops.apply",
   "error": {
     "kind": "usage",
-    "message": "<tmp>/ops.jsonl:2: not an edit: unknown variant `frob`, expected one of `place`, `delete`, `reset`, `add`, `duplicate`, `drop_to_ground`, `new_race`, `delete_race`, `rename_race`, `set_race_id`, `set_track`, `set_kind`, `set_laps`, `set_direction`, `add_point`, `move_point`, `delete_point`, `move_checkpoint`, `put_race`, `details`, `put_mod`, `group` at line 1 column 12"
+    "message": "<tmp>/ops.jsonl:2: not an edit: unknown variant `frob`, expected one of `place`, `delete`, `reset`, `add`, `duplicate`, `drop_to_ground`, `remove_collision`, `draw_wall`, `draw_ground`, `new_race`, `delete_race`, `rename_race`, `set_race_id`, `set_track`, `set_kind`, `set_laps`, `set_direction`, `add_point`, `move_point`, `delete_point`, `move_checkpoint`, `put_race`, `details`, `put_mod`, `group` at line 1 column 12"
   },
   "exit": 2,
   "format": 1,

@@ -50,7 +50,7 @@ proptest = { version = "1", default-features = false, features = ["std"] }
 
 # One version for every package of the workspace (the release's).
 [workspace.package]
-version = "0.5.3"
+version = "0.6.0"
 edition = "2024"
 license = "GPL-3.0-or-later"
 
@@ -63,6 +63,10 @@ ob-formats = { path = "crates/ob-formats" }
 ob-map = { path = "crates/ob-map" }
 # The look shared by the launcher, the map editor and Studio (crates/ob-look), re-exported at `launch::theme`.
 ob-look = { path = "crates/ob-look" }
+# The asset format: the base set the game reads through by default once a verified import exists
+# (src/asset_layer.rs), the importer the launcher's Game data screen runs (src/launcher/game_data.rs), and the run
+# file check (`ob.run`) on the simulation's stream (src/bin/game/enh/sim_stream.rs).
+ob-asset-format = { path = "crates/ob-asset-format" }
 anyhow.workspace = true
 bytemuck.workspace = true
 glam.workspace = true
@@ -112,14 +116,24 @@ serde_json.workspace = true
 # The allocator's memory probe (/proc/meminfo, sysctl) before main.
 libc.workspace = true
 
+# Force feedback on Windows (`pad::ff_out::dinput`): the DirectInput 8 calls
+# of the original through Microsoft's `windows` bindings, MIT OR Apache-2.0,
+# already in the tree through cpal and gilrs (no new crate).
+[target.'cfg(windows)'.dependencies.windows]
+version = "0.62"
+features = [
+    "Win32_Devices_HumanInterfaceDevice",
+    "Win32_Foundation",
+    "Win32_System_LibraryLoader",
+    "Win32_UI_WindowsAndMessaging",
+]
+
 [dev-dependencies]
 # Property-based fuzzing of the file readers (tests/fuzz_readers.rs).
 # MIT OR Apache-2.0.
 proptest.workspace = true
 # The test kit (crates/ob-testkit, docs/developing/testing.md).
 ob-testkit = { path = "crates/ob-testkit" }
-# The asset format's run file check (`ob.run`) on the simulation's stream (src/bin/game/enh/sim_stream.rs).
-ob-asset-format = { path = "crates/ob-asset-format" }
 
 [features]
 # Tracy: `cargo build --release --features profile-tracy`, then connect the

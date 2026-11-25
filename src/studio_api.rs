@@ -16,7 +16,12 @@
 /// The world: placements and their original keys (`World::original_placement`),
 /// the map overlay, loading a region.
 pub mod world {
-    pub use crate::world::{HIDDEN_FLAG, Placement, World, is_panorama, parts_of, transform_of};
+    pub use crate::world::{DrawnCollision, HIDDEN_FLAG, Placement, World, face_key, is_panorama, parts_of, transform_of};
+}
+
+/// The id of this build (the build that writes a shared mod's provenance).
+pub mod build {
+    pub use crate::BUILD_ID;
 }
 
 /// The knock-over props a world keeps.
@@ -50,6 +55,22 @@ pub mod car {
     pub use crate::car::{Car, WheelPose};
 }
 
+/// The game's in-race camera, for a recorded run's chase view: the camera,
+/// the car state it reads, the view the game starts on (Far), and a car
+/// with only what the camera needs (its type: camera views and gearing).
+pub mod chase {
+    pub use crate::chase::{ChaseCamera, VIEW_ORDER};
+    pub use crate::drive::CarState;
+
+    /// The player setting's default view (Far: setting 3 → kind 0).
+    pub const DEFAULT_KIND: u16 = VIEW_ORDER[3];
+
+    /// The car `name`'s type and collision hull, no models or textures.
+    pub fn physics_car(game_root: &std::path::Path, name: &str) -> anyhow::Result<crate::car::Car> {
+        crate::car::Car::load_physics(game_root, name, &[], &|_| false, None)
+    }
+}
+
 /// The game's light flares: a car's head and brake light sprites as the
 /// game's glow pass builds them (`WorldRenderer::upload_glows` /
 /// `draw_glows` draw them).
@@ -79,6 +100,14 @@ pub mod platform {
 pub mod qol {
     pub mod setup {
         pub use crate::qol::setup::{game_root, saved_root};
+    }
+}
+
+/// The launcher's read-only look at Studio's write locks (its Dev and Mods
+/// pages); Studio's lock test checks the launcher sees what Studio holds.
+pub mod launcher {
+    pub mod studio_seen {
+        pub use crate::launcher::studio_seen::{LOCK, OWNER, STUDIO, read};
     }
 }
 

@@ -3,6 +3,7 @@
 pub mod slider_list;
 pub mod icon_scroller;
 pub mod icon_menu;
+pub mod scroll_ease;
 pub mod arrow_blink;
 pub mod scroll_bar;
 pub mod footer;

@@ -52,6 +52,26 @@ fn sample() -> MapMod {
             },
         ],
         races: vec![race, sprint],
+        collision: vec![
+            CollisionEdit::Remove {
+                region: "L4RA".into(),
+                corners: vec![Vec3::new(1.0, 2.5, 3.125), Vec3::new(1.0, 2.5, 7.0), Vec3::new(4.0, 2.5, 7.0)],
+            },
+            CollisionEdit::Wall {
+                id: "wall-1".into(),
+                region: "L4RA".into(),
+                from: Vec3::new(10.0, 20.0, 3.5),
+                to: Vec3::new(30.0, 25.5, 4.0),
+                height: 2.5,
+                surface: 16,
+            },
+            CollisionEdit::Ground {
+                id: "ground-1".into(),
+                region: "L4RA".into(),
+                outline: vec![Vec3::new(0.0, 0.0, 1.0), Vec3::new(10.0, 0.0, 1.0), Vec3::new(10.0, 10.0, 2.0)],
+                surface: 0,
+            },
+        ],
     }
 }
 
@@ -261,7 +281,7 @@ fn the_default_grid_stands_behind_the_start() {
 
 // ---- with the game's files ----------------------------------------------
 
-fn track(root: &std::path::Path, number: u16) -> crate::frontend::career::Track {
+fn track(root: &std::path::Path, number: u16) -> crate::frontend::career::tracks::Track {
     let career = crate::frontend::career::CareerData::load(root).unwrap();
     career.tracks.get(&number).unwrap_or_else(|| panic!("track {number}")).clone()
 }
@@ -363,7 +383,7 @@ fn a_custom_race_on_native_checkpoints_is_the_native_road() {
     let root = testkit::game_root();
     for number in [4001u16, 4126] {
         let t = track(&root, number);
-        let native = crate::frontend::career::load_route(&root, &t, false).unwrap();
+        let native = crate::frontend::career::routes::load_route(&root, &t, false).unwrap();
         let mut r = CustomRace::new("t", number, if native.loops { RaceKind::Circuit } else { RaceKind::Sprint });
         r.checkpoints = native.checkpoints.clone();
         let net = race::road_net(&root, &t).unwrap();

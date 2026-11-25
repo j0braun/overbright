@@ -153,7 +153,21 @@ pub fn language_args(language: &str) -> Vec<String> {
 
 /// The failure screen's data for an ended run.
 pub fn failure_of(e: &Ended) -> Failure {
-    Failure { kind: e.kind(), during_start: e.during_start(), how: e.how(), tail: e.tail.clone(), log: e.log.clone() }
+    Failure {
+        kind: e.kind(),
+        during_start: e.during_start(),
+        how: e.how(),
+        tail: e.tail.clone(),
+        log: e.log.clone(),
+        report: Some(super::model::CrashReport {
+            reason: e.reason(),
+            pid: e.pid,
+            secs: e.secs,
+            errors: Vec::new(),
+            asking: true,
+            logs: crate::launcher::crash_report::run_logs(e.started_at),
+        }),
+    }
 }
 
 impl Run<'_> {
@@ -253,7 +267,9 @@ impl Run<'_> {
         if e.failed() {
             log::warn!("the game ended with {} after {:.1} s", e.how(), e.secs);
             eprintln!("overbright: showing the failure screen ({})", e.how());
-            self.show_failure(failure_of(&e));
+            let f = failure_of(&e);
+            self.show_failure(f);
+            self.app.ask_system_errors(e.pid);
         } else {
             self.outcome = Outcome::Quit;
         }
@@ -1154,12 +1170,16 @@ impl ApplicationHandler for Run<'_> {
             || self.dialog.is_some()
             || self.app.model.dialog.is_some()
             || self.prepare.is_some()
+            || self.app.game_data_busy()
         {
             el.set_control_flow(ControlFlow::WaitUntil(Instant::now() + Duration::from_millis(50)));
         } else if self.pad.is_some() {
             el.set_control_flow(ControlFlow::WaitUntil(Instant::now() + Duration::from_millis(16)));
         } else if let Some(t) = self.app.saves_wake() {
             // The Saves page's Undo goes away by itself.
+            el.set_control_flow(ControlFlow::WaitUntil(t));
+        } else if let Some(t) = self.app.studio_wake() {
+            // The Dev and Mods pages read Studio's state again.
             el.set_control_flow(ControlFlow::WaitUntil(t));
         } else {
             el.set_control_flow(ControlFlow::Wait);
@@ -1238,6 +1258,10 @@ pub fn run_with_root(env: &dyn Env, start: Start) -> Result<Outcome, String> {
     model.just_found = model.root.is_some() && crate::qol::setup::saved_root().is_none();
     let model_root = model.root.clone();
     let mut app = App::new(env, model, start.screen, (960, 720), 1.0, &fonts);
+    // A start without the own copy (and no "Not now" before): the copy is offered first, Make copy chosen.
+    if start.screen == Screen::Main && app.model.failure.is_none() && !env.game_data_later() && app.offer_game_data() {
+        app.rebuild(&fonts);
+    }
     app.apply_prefs();
     app.st.input = deck::default_input();
     let el = EventLoop::new().map_err(|e| format!("no display for the launcher window: {e}"))?;
@@ -1302,6 +1326,8 @@ pub fn run_with_root(env: &dyn Env, start: Start) -> Result<Outcome, String> {
     if let Some(job) = run.prepare.take() {
         job.stop();
     }
+    // The own copy's run: asked to stop; its journal keeps what was finished.
+    run.app.finish_game_data();
     match run.error {
         Some(e) => Err(e),
         None => Ok(if run.outcome == Outcome::Stay { Outcome::Quit } else { run.outcome }),

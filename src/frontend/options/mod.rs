@@ -305,6 +305,7 @@ mod tests {
             HUD_INFO,
             REDUCED_FLASHING,
             POWER_SAVING,
+            BACKGROUND,
             MARK_SPOT,
             AMBIENT_DETAIL,
         ];
@@ -690,6 +691,7 @@ mod tests {
                 RowId::SkipMovies,
                 RowId::SkipTitle,
                 RowId::LowLatency,
+                RowId::Background,
                 RowId::PowerSaving,
                 RowId::ReplayCameras,
                 RowId::HudPalette,

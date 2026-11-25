@@ -110,9 +110,10 @@ W() { env -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE XDG_RUNTIME_DIR="$O/xdg" DISPLA
 # NFSU2_HEADLESS_ONLY (checks.sh exports it for everything it starts; the game refuses to open a window with it,
 # and Wine hands the Unix environment to the Windows program). Only ever on our own display, and never heard:
 # NFSU2_AUDIO_HOST=none (the game opens no sound device) on top of the prefix without a sound driver.
+# NFSU2_KEEP_RUNNING: the window nobody focuses keeps running (In the background is Pause by default).
 WWIN() {
   [ -n "$DNUM" ] || ck_die "a windowed run without our own display"
-  env -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE -u NFSU2_HEADLESS_ONLY XDG_RUNTIME_DIR="$O/xdg" DISPLAY=":$DNUM" NFSU2_AUDIO_HOST=none "$@"
+  env -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE -u NFSU2_HEADLESS_ONLY XDG_RUNTIME_DIR="$O/xdg" DISPLAY=":$DNUM" NFSU2_AUDIO_HOST=none NFSU2_KEEP_RUNNING=1 "$@"
 }
 # wp PATH: PATH as Wine's programs see it. winepath -w cuts its answer at MAX_PATH (Wine 11: a 282-character
 # folder came back as its first 257 characters, a folder that does not exist); a path outside the prefix's
@@ -442,6 +443,14 @@ if [ -z "$EXE" ]; then
   # cargo would call the game crate fresh and hand back that tree's exe. Its fingerprints go, so the game
   # crate (only) is always rebuilt (~1-2 min; the dependencies stay cached).
   rm -rf "$B"/target-windows/x86_64-pc-windows-gnu/release/.fingerprint/nfsu2-*
+  # build.sh fetches the crates inside the container with no network (FETCH_NETWORK defaults to none), so a
+  # gate whose cache is empty fails with "Could not resolve host". The host fetches them here, into the
+  # cargo-home build.sh mounts (host networking works); skipped when the cache already has every crate of Cargo.lock.
+  mkdir -p "$B/cargo-home"
+  if ! CARGO_HOME="$B/cargo-home" cargo fetch --locked --offline --manifest-path "$REPO/Cargo.toml" > /dev/null 2>&1; then
+    CARGO_HOME="$B/cargo-home" nice -n 10 cargo fetch --locked --manifest-path "$REPO/Cargo.toml" > "$O/crate_fetch.log" 2>&1 \
+      || say "host cargo fetch failed ($O/crate_fetch.log); the build below shows why"
+  fi
   JOBS=${JOBS:-4} "$REPO/scripts/release/container/build.sh" --windows --dev-harness --fast --no-check "$REPO" "$B" \
     > "$O/build.log" 2>&1 &
   wait $!; rc=$?

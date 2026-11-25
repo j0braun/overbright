@@ -19,7 +19,9 @@ pub(super) fn explicit_roots(variable: &str, value: Option<std::ffi::OsString>) 
 
 /// The folders a domain's replacements come from, first match wins.
 /// The scoped variables are read once (restart to change them) and come
-/// first; then the Overbright packs (`obpack`: the player's order, each
+/// first; then the enabled map mods' textures (`tools::map::texture_roots`:
+/// what a mod painted in Studio Looks, the strongest mod first); then the
+/// Overbright packs (`obpack`: the player's order, each
 /// compiled into the cache); then the texture mods the launcher keeps (`texture_mods`: the
 /// packages that are on, in the launcher's order); then the World Texture
 /// Pack row's folders (read at each load:
@@ -44,6 +46,13 @@ pub(super) fn roots(domain: Domain) -> Vec<PathBuf> {
             .clone(),
     };
     if domain != Domain::Ui {
+        // The enabled map mods' textures (Studio Looks), the strongest mod
+        // first, before the packs (none enabled: nothing added, the native path).
+        for r in crate::tools::map::texture_roots(domain == Domain::Car) {
+            if !v.contains(&r) {
+                v.push(r);
+            }
+        }
         // Overbright packs (`obpack`, docs/modding/texture-packs.md), compiled, in
         // the player's order (none installed: nothing added, the native path).
         let d = if domain == Domain::Car { crate::obpack::Domain::Car } else { crate::obpack::Domain::World };

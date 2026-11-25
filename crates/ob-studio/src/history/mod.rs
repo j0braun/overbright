@@ -36,6 +36,20 @@ use journal::Rec;
 
 /// The journal's file, in the mod's editor folder.
 pub const JOURNAL: &str = "history.journal";
+/// The build that last wrote the mod's files, with their hashes then (in the mod's editor folder): a later build
+/// reads it to repair what an older one wrote wrong. Its own file, so a journal stays readable by older builds.
+pub const SAVED_BY: &str = "saved-by.json";
+
+/// Who last wrote a mod's files ([`SAVED_BY`]).
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct SavedBy {
+    /// The build (`Overbright 0.6.0 (build 0123456789abcdef)`, [`crate::share::build`]).
+    pub build: String,
+    /// When (Unix ms).
+    pub at: u64,
+    /// Each document's hash as written (hex), so a reader tells whether a file is still as that build left it.
+    pub docs: BTreeMap<String, String>,
+}
 /// How many steps are kept (as the editor's undo kept).
 pub const MAX_STEPS: usize = 256;
 /// The journal is written afresh (only what is kept) once it has this many records.
@@ -736,16 +750,38 @@ impl History {
         };
     }
 
+    /// Record this build as the writer of the files with `docs` hashes ([`SAVED_BY`]), after the journal says
+    /// they were written. A crash before it leaves the last stamp (or none): `saved_by` then names an older build
+    /// or hashes that no longer match, which a reader takes as "written by an unknown build".
+    fn stamp(&self, docs: &BTreeMap<String, u64>) -> Result<()> {
+        let by = SavedBy {
+            build: crate::share::build(),
+            at: now_ms(),
+            docs: docs.iter().map(|(k, h)| (k.clone(), format!("{h:016x}"))).collect(),
+        };
+        let text = serde_json::to_string_pretty(&by).unwrap_or_default();
+        self.disk.write_atomic(&self.edir.join(SAVED_BY), text.as_bytes())?;
+        Ok(())
+    }
+
+    /// The build that last wrote the mod's files, as it recorded itself (None: no Studio save since builds
+    /// recorded themselves, or the record does not read).
+    pub fn saved_by(&self) -> Option<SavedBy> {
+        let bytes = self.disk.read(&self.edir.join(SAVED_BY)).ok()?;
+        serde_json::from_slice(&bytes).ok()
+    }
+
     fn mark_saved(&mut self, s: State) -> Result<()> {
         if hashes(&s) == self.r.saved_hashes() && self.r.saved_state.as_ref() == Some(&s) {
             return Ok(());
         }
         let rec = Rec::Saved { at: now_ms(), docs: hashes(&s) };
         self.append(&rec)?;
+        let docs = hashes(&s);
         self.r.records -= 1;
         self.r.apply(rec);
         self.r.saved_state = Some(s);
-        Ok(())
+        self.stamp(&docs)
     }
 
     /// Write the journal afresh with only what is kept (one whole-file write: the old journal or the new one).

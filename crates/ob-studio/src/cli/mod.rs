@@ -168,8 +168,10 @@ fn dispatch(line: &args::Line, env: &Env) -> Done {
             let doc: Value = serde_json::from_str(&registry::export().pretty()).unwrap_or_default();
             Done { code: OK, text: vec![registry::export().pretty()], doc: json!({ "schema": doc }) }
         }
+        "pack.create" => create(line),
         "checks.run" => with_mod(line, |m| checks(line, env, m)),
         "history.show" => with_mod(line, history_show),
+        "pack.export" => with_mod(line, |m| export(line, m)),
         "looks.open" | "looks.import" | "looks.watch" | "looks.list" => {
             with_mod(line, |m| crate::cli::looks::run(cmd.name, line, env, m))
         }
@@ -351,6 +353,18 @@ fn try_edit(line: &args::Line, cmd: &Command, env: &Env, m: &Mod) -> Result<Done
         World::default()
     };
     let mut session = MapSession::new(&region, &m.folder, map, world);
+    // `props move --heading`: the prop's own rotation turned to the heading, its tilt kept (the Properties panel's
+    // Heading); an upright one when the world does not have the prop (the session then refuses the move).
+    let op = match (op, line.args.get("heading").and_then(Value::as_f64)) {
+        (Op::Place { key, position, rotation }, Some(h)) if cmd.name == "props.move" => {
+            let rotation = session
+                .placement_of(&key)
+                .and_then(|i| nfsu2::studio_api::map::edit::placement_parts(&session.world, i))
+                .map_or(rotation, |(_, r)| nfsu2::studio_api::map::edit::with_heading(r, h as f32));
+            Op::Place { key, position, rotation }
+        }
+        (op, _) => op,
+    };
     let mut change = match session.run(op) {
         Ok(c) => c,
         Err(r) => {
@@ -475,6 +489,75 @@ fn try_edit(line: &args::Line, cmd: &Command, env: &Env, m: &Mod) -> Result<Done
     }
 }
 
+// ---- a new mod ----------------------------------------------------------------------------------------------------
+
+fn create(line: &args::Line) -> Done {
+    let text = |k: &str| line.args.get(k).and_then(Value::as_str).map(str::to_string);
+    let name = text("name").unwrap_or_default();
+    let maps = text("maps").filter(|m| !m.is_empty()).map(PathBuf::from).unwrap_or_else(store::maps_dir);
+    let region = line.flag("region").unwrap_or(crate::create::REGION).to_string();
+    let word = text("template").unwrap_or_else(|| "empty".into());
+    let Some(template) = crate::create::Template::from_word(&word) else {
+        let words: Vec<&str> = crate::create::Template::ALL.iter().map(|t| t.word()).collect();
+        let mut d = fail(USAGE, format!("no template {word}: use {}", words.join(", ")));
+        d.doc["error"]["reason"] = json!("bad_template");
+        return d;
+    };
+    let made = crate::create::plan(&maps, &name, text("folder").as_deref()).and_then(|folder| {
+        crate::create::create_from(&maps, &folder, &name, &region, template).map(|dir| (folder, dir))
+    });
+    match made {
+        Ok((folder, dir)) => Done {
+            code: OK,
+            text: vec![
+                format!("Made {} in {}", name.trim(), dir.display()),
+                format!("Edit it with --mod {}", dir.display()),
+            ],
+            doc: json!({
+                "name": name.trim(),
+                "folder": folder,
+                "dir": dir.to_string_lossy(),
+                "region": region.trim().to_ascii_uppercase(),
+                "template": template.word(),
+            }),
+        },
+        Err(r) => {
+            let mut d = fail(if r.is_input() { USAGE } else { FAILED }, r.to_string());
+            d.doc["error"]["reason"] = json!(r.reason());
+            d
+        }
+    }
+}
+
+// ---- sharing ------------------------------------------------------------------------------------------------------
+
+fn export(line: &args::Line, m: &Mod) -> Done {
+    let to = PathBuf::from(line.args.get("to").and_then(Value::as_str).unwrap_or_default());
+    let ok = line.args.get("derived-ok").and_then(Value::as_bool).unwrap_or(false);
+    match crate::share::export_dir(&m.dir, &m.folder, &to, ok) {
+        Ok(e) => Done {
+            code: OK,
+            text: vec![format!("Exported {} to {} ({} files)", m.folder, e.to.display(), e.files)],
+            doc: json!({
+                "to": e.to.to_string_lossy(),
+                "files": e.files,
+                "bytes": e.bytes,
+                "derived": e.derived,
+                "build": crate::share::build(),
+            }),
+        },
+        Err(crate::share::Refused::Derived(d)) => {
+            let message = format!("{} Give --derived-ok to export them.", crate::share::derived_warning(d.len()));
+            let list: Vec<Value> = d.iter().map(|d| json!({ "texture": d.id.to_string(), "name": d.name })).collect();
+            let mut done = fail(FAILED, message);
+            done.doc["error"]["reason"] = json!("derived");
+            done.doc["derived"] = json!(list);
+            done
+        }
+        Err(e) => fail(FAILED, e.to_string()),
+    }
+}
+
 // ---- reads --------------------------------------------------------------------------------------------------------
 
 fn level_word(l: Level) -> &'static str {
@@ -509,14 +592,21 @@ fn checks(line: &args::Line, env: &Env, m: &Mod) -> Done {
     }
     let tested = validate::Tested::load(&m.edir);
     let mut found = validate::checks(&map, &nets, &tracks, &tested);
-    // The floor under the start, finish and grid, from the region's world (read when the game is at hand).
+    // The floor under the start, finish and grid and the mod's drawn and removed collision, from the region's
+    // world with the mod on it (its drawn ground is a floor), read when the game is at hand.
     let spots = map.races.iter().any(|r| r.start.is_some() || r.finish.is_some() || !r.grid.is_empty());
-    if spots
+    if (spots || !map.collision.is_empty())
         && let Ok(root) = game_root(line, env)
-        && let Ok(world) = (env.world)(&root, region)
+        && let Ok(mut world) = (env.world)(&root, region)
         && world.has_floors()
     {
-        found.extend(validate::floor_checks(&map, &|p| world.road_height_below(p)));
+        if !map.collision.is_empty() {
+            world.apply_map_mods(region, &[(m.folder.clone(), map.clone())]);
+        }
+        let under = |p| world.road_height_below(p);
+        found.extend(validate::floor_checks(&map, &under));
+        let c = &world.map_overlay.collision;
+        found.extend(validate::collision_checks(&map, &under, &c.unmatched_at, &c.outside_at));
         found.sort_by_key(|c| (std::cmp::Reverse(c.level), c.ok));
     }
     let count = |l: Level| found.iter().filter(|c| c.level == l && !c.ok).count();

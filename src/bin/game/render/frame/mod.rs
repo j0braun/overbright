@@ -293,7 +293,7 @@ impl FrameDraw<'_, '_, '_, '_> {
         // Reload Packs When Changed (docs/modding/pack-hot-reload.md): the pack
         // watcher, and the HD UI Art row live; the maps' calibration follows.
         // The calibration (game data) in `drawn_update`, after the draw.
-        if nfsu2::render::pack_reload::frame(self.v.settings.enh.hd_ui) {
+        if nfsu2::render::pack_reload::frame(self.v.settings.enh.hd_ui, nfsu2::qol::reload_packs()) {
             self.out.packs_reloaded = true;
         }
         // g_TextureFiltering, for the renderers built from here on

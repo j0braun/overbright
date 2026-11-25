@@ -13,7 +13,7 @@ use super::format::{CarInfo, CarKind, CarLook, CarSample, Event, EventKind, Fram
 pub const PLAYER_SLOT: &str = "Your slot (AI)";
 
 /// The playback speeds offered.
-pub const SPEEDS: [f32; 6] = [0.25, 0.5, 1.0, 2.0, 4.0, 8.0];
+pub const SPEEDS: [f32; 5] = [0.25, 0.5, 1.0, 2.0, 4.0];
 
 /// Every record of one run, in order.
 #[derive(Clone, Debug, Default)]
@@ -98,6 +98,17 @@ impl Recording {
     pub fn frame_at(&self, time: f32) -> Option<&Frame> {
         let k = self.frames.partition_point(|f| f.time <= time);
         self.frames.get(k.saturating_sub(1))
+    }
+
+    /// The time of the recorded frame nearest `time`.
+    pub fn nearest_frame(&self, time: f32) -> Option<f32> {
+        let k = self.frames.partition_point(|f| f.time <= time);
+        let before = k.checked_sub(1).map(|i| self.frames[i].time);
+        let after = self.frames.get(k).map(|f| f.time);
+        match (before, after) {
+            (Some(a), Some(b)) => Some(if time - a <= b - time { a } else { b }),
+            (a, b) => a.or(b),
+        }
     }
 
     /// The car's look at `time` (none in a stream without looks).
@@ -326,11 +337,31 @@ pub struct Playback {
     pub follow: Option<u32>,
     /// Hold at the newest frame while the run streams (live).
     pub live: bool,
+    /// The time shown when the playback last started, was moved or changed
+    /// speed, the speed then, and the real seconds played since (summed in
+    /// f64): the time shown is `anchor + played × speed`, so it is the same
+    /// after the same real time at any display rate.
+    anchor: f32,
+    anchor_speed: usize,
+    played: f64,
+    /// The time as the last tick left it (moved since: anchored again).
+    ticked: f32,
 }
 
 impl Default for Playback {
     fn default() -> Playback {
-        Playback { phase: Phase::Idle, playing: true, speed: 2, time: f32::NEG_INFINITY, follow: None, live: true }
+        Playback {
+            phase: Phase::Idle,
+            playing: true,
+            speed: 2,
+            time: f32::NEG_INFINITY,
+            follow: None,
+            live: true,
+            anchor: f32::NEG_INFINITY,
+            anchor_speed: 2,
+            played: 0.0,
+            ticked: f32::NEG_INFINITY,
+        }
     }
 }
 
@@ -373,16 +404,51 @@ impl Playback {
         if !self.time.is_finite() {
             self.time = lo;
         }
+        // Moved (scrub, step, a jump), paused or another speed: play on
+        // from here.
+        if !self.playing || self.time != self.ticked || self.speed != self.anchor_speed {
+            self.anchor = self.time;
+            self.anchor_speed = self.speed;
+            self.played = 0.0;
+        }
         if self.playing {
-            self.time += dt * self.speed();
+            self.played += f64::from(dt);
+            self.time = (f64::from(self.anchor) + self.played * f64::from(self.speed())) as f32;
         }
         if self.time >= hi {
+            // Held at the newest frame: play on from there.
             self.time = hi;
+            self.anchor = hi;
+            self.played = 0.0;
             if self.phase == Phase::Done {
                 self.playing = false;
             }
         }
         self.time = self.time.clamp(lo, hi);
+        self.ticked = self.time;
+    }
+
+    /// Step `n` recorded frames on (back when negative) from the time
+    /// shown, landing on a frame's time exactly (pauses).
+    pub fn step(&mut self, rec: &Recording, n: i32) {
+        let f = &rec.frames;
+        if f.is_empty() {
+            return;
+        }
+        // The frame at or before the time shown (-1: before the first).
+        let k = f.partition_point(|x| x.time <= self.time) as i64 - 1;
+        let on = k >= 0 && f[k as usize].time == self.time;
+        let to = if n < 0 && !on { k + i64::from(n) + 1 } else { k + i64::from(n) };
+        self.time = f[to.clamp(0, f.len() as i64 - 1) as usize].time;
+        self.playing = false;
+    }
+
+    /// Scrub to the recorded frame nearest `time` (pauses).
+    pub fn seek_frame(&mut self, rec: &Recording, time: f32) {
+        if let Some(t) = rec.nearest_frame(time) {
+            self.time = t;
+            self.playing = false;
+        }
     }
 
     /// Scrub to `time` (pauses).
@@ -536,7 +602,7 @@ mod tests {
         for _ in 0..10 {
             p.faster();
         }
-        assert_eq!(p.speed(), 8.0);
+        assert_eq!(p.speed(), 4.0);
         // A finished run stops at its end; play again restarts it.
         let rec = race(121, Some("finish"));
         p.observe(&rec, false);

@@ -17,7 +17,8 @@ use glam::{Vec2, Vec3};
 use super::junction_cache::JunctionCache;
 use crate::formats::ai_routes::{RouteFile, lane, lane_offset};
 use crate::formats::bundle::{chunks, read_f32, read_u16, read_u32, walk};
-use crate::frontend::career::{Track, Trigger};
+use crate::frontend::career::tracks::Track;
+use crate::frontend::career::triggers::Trigger;
 use crate::opponents::{Bounds, GameRng};
 
 mod human;
@@ -50,6 +51,10 @@ const KEEP_BEHIND: usize = 20;
 const PATH_POINTS: usize = 20;
 /// The path's margin inside a lane's room (0x420D40 with a rate ≠ 999).
 const ROOM_MARGIN: f32 = 1.0;
+/// The lane record's jump rate (0x7E8E68 = 999.0): AvoidAvoidable's
+/// fallback plan. 0x420D40 gives it no room margin, and 0x41BFE0 plans
+/// a path on it afresh from the car on every think.
+pub const JUMP_RATE: f32 = 999.0;
 /// 0x420D40's margin in drift races (0x40A00000) for a racer (car +0x1C).
 const ROOM_MARGIN_DRIFT: f32 = 5.0;
 /// 0x41BFE0's re-plan distances: 1.5 m (0x7E8D94), 4.5 m in drift races.
@@ -199,7 +204,7 @@ impl AiRoutes {
             track.number,
             if backward { "B" } else { "F" }
         ));
-        let data = std::fs::read(&path).with_context(|| format!("reading {}", path.display()))?;
+        let data = crate::game_fs::read_file(&path).with_context(|| format!("reading {}", path.display()))?;
         let paths = crate::game_fs::read(root, &format!("TRACKS/ROUTES{}/Paths{}.bin", track.region, track.number))
             .unwrap_or_default();
         Ok(AiRoutes {
@@ -888,6 +893,74 @@ mod tests {
         assert!(path[0].distance(on_line) > 1.0, "the inserted point is offset by the lateral, not its line place");
     }
 
+    /// A straight 400 m record along +x (41 control points 10 m apart,
+    /// 8 m to either side of the line).
+    fn straight_road() -> AiRoutes {
+        use crate::formats::ai_routes::{ControlPoint, RouteRecord};
+        let points = (0..41)
+            .map(|i| ControlPoint {
+                position: Vec3::new(10.0 * i as f32, 0.0, 0.0),
+                coord: 0.0,
+                flags: 0,
+                length: 10.0,
+                half_width: [8.0, 8.0],
+                tangent: Vec2::X,
+                junctions: [0xFFFF; 2],
+                bank: 0.0,
+                grade: 0.0,
+                lane_position: [0; 10],
+                lane_speed: [100; 10],
+            })
+            .collect();
+        let record = RouteRecord {
+            id: 1,
+            name: String::new(),
+            kind: 0,
+            coord_range: (0.0, 0.0),
+            bounds: [0.0; 4],
+            flags: 0,
+            fade: [false; 2],
+            lanes: [false; 10],
+            points,
+        };
+        AiRoutes {
+            file: RouteFile { records: vec![record], ..RouteFile::default() },
+            track: 4000,
+            backward: false,
+            race_coords: false,
+            resets: Vec::new(),
+            blocks: Vec::new(),
+        }
+    }
+
+    /// 0x41BFE0 plans afresh on a lane record at the jump rate 999 (the
+    /// AvoidAvoidable fallback): its offset starts at the car. At any
+    /// other rate the driven path's first max(30 m, |v| / 2) stay (0x420D40),
+    /// so the same offset only begins past them.
+    #[test]
+    fn the_jump_rate_plans_afresh_from_the_car() {
+        let routes = straight_road();
+        let at = Vec3::new(5.0, 0.0, 0.0);
+        let mut route = RacerRoute::from_node(&routes, at, 0, 0, false);
+        for _ in 0..3 {
+            route.update(&routes, at, 16.0, Vec2::X, 0, false, &|_| 1.0);
+        }
+        let plain = route.line_path(&routes, 0.05, at, Vec3::X, 16.0, false, false, 0.0);
+        assert!(plain.len() > 5, "a path on the line: {plain:?}");
+        assert!(plain.iter().all(|q| q.y.abs() < 1e-3));
+        // Rate 0.15 (an AvoidAvoidable step): the kept 30 m stay on the line.
+        let mut kept = route.clone();
+        let stepped = kept.line_path(&routes, 0.15, at, Vec3::X, 16.0, false, false, 4.0);
+        assert!(stepped.iter().take_while(|q| q.x < at.x + 30.0).all(|q| q.y.abs() < 1e-3), "{stepped:?}");
+        // The jump rate: the offset from the first point on, held 0 m
+        // inside the room (8 m).
+        let jumped = route.line_path(&routes, JUMP_RATE, at, Vec3::X, 16.0, false, false, 4.0);
+        let first = jumped.first().expect("a path");
+        assert!(first.x < at.x + 15.0 && (first.y.abs() - 4.0).abs() < 1e-3, "{jumped:?}");
+        let edge = route.line_path(&routes, JUMP_RATE, at, Vec3::X, 16.0, false, false, 7.5);
+        assert!(edge.iter().all(|q| (q.y.abs() - 7.5).abs() < 1e-3), "no margin at the jump rate: {edge:?}");
+    }
+
     fn outrun_speed_fixture() -> (AiTuning, RacerRoute) {
         let mut tuning = AiTuning { data: vec![0; 0xAE0] };
         for skill in 0..10 {
@@ -923,12 +996,14 @@ mod tests {
             dead_end: false,
             clock: 0.0,
             branch_hold: 12.0,
+            hold_spares_contacts: false,
             drag: false,
             human: false,
             rng: GameRng::default(),
             race_coord: None,
             junction_odds: [0.0, 0.0, 1.0],
             outrun_leader_positions: None,
+            own_across: 0.0,
             outrun_chaser: false,
             search_rebuild_pending: false,
             line: Vec::new(),

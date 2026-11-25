@@ -95,10 +95,13 @@ seconds per wall second, with 20-25 polls per game second (`--no-pace` leaves it
 keys, the shove and the polls are on the game clock; the pace only sets how much game time one
 poll covers. A run whose game clock stops for 60 s ends with an error. The
 guard of a fixed run wants **the cave still in place at the end** (the main loop's call, FIXED,
-1000/N ms, the limiter period 0: `cave.Cave.fixed_held`) **and at least N − 1 world updates per
-game second** (`# fps … fixed 60 valid 1|0`) instead of the 100 fps / 95 % test. More than N is
-allowed: frames in which the game clock stands (a race's finish and results) add updates
-without game time, so a 40 s drag reads about 65. The rate is logged only, and the machine load
+1000/N ms, the limiter period at most 1/N s: `cave.Cave.fixed_held`) **and at least N − 1 world
+updates per game second** (`# fps … fixed 60 valid 1|0`) instead of the 100 fps / 95 % test. More
+than N is allowed: frames in which the game clock stands (a race's finish and results) add updates
+without game time, so a 40 s drag reads about 65. In a drag the original sets the limiter period
+to 1/30 s at the race end, when every car stands at the finish (observed; inferred to be the
+race-ending scene, the writer is not trapped), so the guard fails a `qr:drag` run that goes past
+it: keep a drag run shorter than its race, or cut its rows at the period change and say so. The rate is logged only, and the machine load
 does not change the result. The table header carries `fixed=60`; `trafh.py
 stats` puts each fixed step in its own column (`native-fixed60`) and real-time runs in
 `native`, never mixed. Use fixed 60 for every AI comparison with this game (traffic, encounters,

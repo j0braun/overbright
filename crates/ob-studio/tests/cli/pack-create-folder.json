@@ -1,0 +1,11 @@
+{
+  "command": "pack.create",
+  "dir": "<tmp>/night_2",
+  "exit": 0,
+  "folder": "night_2",
+  "format": 1,
+  "name": "Night lights",
+  "ok": true,
+  "region": "L4RA",
+  "template": "empty"
+}
