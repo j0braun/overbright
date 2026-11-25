@@ -16,6 +16,7 @@ impl Game {
     /// with the tick that made them, and the tick's sounds hear the dyno's
     /// held camera (after the sounds they would be one tick late).
     pub(crate) fn fe_tick_before_sounds(&mut self) {
+        self.icon_forward_tick();
         self.garage_tick();
         let tuning_world = self.tuning_menu_over_world();
         self.dyno_camera_update(tuning_world);
@@ -26,9 +27,43 @@ impl Game {
     /// `prepare_frame`'s layout). Neither posts a sound: photo mode is the
     /// clone's (no native step), the hit map is a layout.
     pub(crate) fn fe_tick(&mut self) {
+        let now = self.now();
+        if let Mode::Menu(Menu::Parts(b)) = &mut self.mode {
+            b.step(now);
+        }
         self.photo_close_update();
         self.free_camera_close_update();
         self.fe_map_tick();
+    }
+
+    /// An icon menu's accept waiting on the Event Handler's FORWARD
+    /// (`IconMenu::forward`): its 0xE1FDE1D1 reaches the screen at
+    /// `forward_ms` and 0x543D50 runs the option's action then.
+    fn icon_forward_tick(&mut self) {
+        if self.icon_forward_left().is_some_and(|left| left <= 0.0) {
+            self.icon_forward_finish();
+        }
+    }
+
+    /// How long until a pending FORWARD's end (ms; None: none pending).
+    pub(crate) fn icon_forward_left(&self) -> Option<f32> {
+        let Mode::Menu(Menu::Icons(m, kind)) = &self.mode else { return None };
+        let (start, _) = m.forward?;
+        let wait = self.game_data.assets.package(kind.package()).and_then(nfsu2::frontend::screens::forward_ms).unwrap_or(0.0);
+        Some(start + wait - self.now())
+    }
+
+    /// A pending FORWARD's end: the option's action.
+    pub(crate) fn icon_forward_finish(&mut self) {
+        let Mode::Menu(Menu::Icons(m, kind)) = &mut self.mode else { return };
+        let Some((_, action)) = m.forward else { return };
+        let kind = *kind;
+        if let Mode::Menu(Menu::Icons(m, _)) = &mut self.mode {
+            m.forward = None;
+        }
+        if let Err(e) = self.act(action, kind) {
+            log::warn!("icon menu {kind:?}: {action:?} after FORWARD: {e:#}");
+        }
     }
 
     /// The mouse's hit map from the tick's layout — the same layout

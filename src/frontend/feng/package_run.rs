@@ -171,6 +171,21 @@ pub fn run_package(package: &Package, state: &ScreenState, now: f32) -> PackageR
         let (start, name) = run.history[i][0];
         schedule(&mut heap, i, 0, start.max(0.0), start, name);
     }
+    // Scripts the screen's code played on objects after their INIT.
+    for &(object, name, start) in &state.played {
+        let t = (start * FE_RATE).max(0.0);
+        if t > now {
+            continue;
+        }
+        for (i, o) in objects.iter().enumerate() {
+            if o.hash == object && o.scripts.iter().any(|s| s.name == name) {
+                generation[i] = generation[i].wrapping_add(1);
+                fixed[i] = fixed[i].max(t);
+                run.history[i].push((t, name));
+                schedule(&mut heap, i, generation[i], t, t, name);
+            }
+        }
+    }
     // A dialog over this screen started its DIM (see [`with_dim`]): the
     // named objects run their DIM script (0x9E99) from then on, after
     // what the screen had given them.

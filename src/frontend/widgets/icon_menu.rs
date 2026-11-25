@@ -17,9 +17,12 @@ pub struct IconMenu {
     pub options: Vec<IconOption>,
     pub selected: usize,
     pub opened: f32,
-    /// The scroll offset's ease (0x574E40): start time (ms), start value
-    /// and speed, target.
-    scroll: (f32, f32, f32, f32),
+    /// The scroll offset's ease (0x574E40).
+    scroll: ScrollEase,
+    /// Accept played the Event Handler's FORWARD (0xDE6EFF34) at this time
+    /// (ms): the option's action runs on its 0xE1FDE1D1 (see
+    /// [`forward_ms`]); keys wait for it.
+    pub forward: Option<(f32, Action)>,
     /// Text the screen's code sets per option (object, text), by option.
     pub extra: Vec<Vec<(u32, String)>>,
     /// Objects the screen hides.
@@ -65,11 +68,84 @@ pub struct OptionState {
 }
 
 /// The scroller's constants (constructor 0x543AA0 with 0x543850): the gap
-/// between icons, the strip width (the constructor's 480), the ease
-/// length (0.3 s) and the size of icons not selected (0x52F8D0: × 0.8).
+/// between icons, the strip width (the constructor's 480) and the size of
+/// icons not selected (0x52F8D0: × 0.8); the ease is [`ScrollEase`].
 pub(crate) const ICON_GAP: f32 = 40.0;
 pub(crate) const STRIP_WIDTH: f32 = 480.0;
-pub(crate) const SCROLL_TIME: f32 = 300.0;
+use super::scroll_ease::ScrollEase;
+
+/// The Event Handler's FORWARD (fe_hash 0xDE6EFF34): IconScrollerMenu's
+/// accept (0x0C407210 in 0x543D50, an option neither locked nor direct,
+/// +0x45) stops the strip's fade by place (0x51FD20) and input (0x52FC00)
+/// and sends 0x0C407210 to the package (0x50DA20); UI_ChooseCustomizeCategory's
+/// Event Handler answers it with FORWARD (unless already playing it,
+/// 0x301), which sends 0xAADD0187 to every object (their own 0xBCBFCC87:
+/// alpha down to 0 over 100 ms) and 0xE1FDE1D1 to the screen at 140 ms,
+/// on which 0x543D50 runs the option's action (vtable +0xC). Observed
+/// against the original under Wine (60 fps, Car Shop → Body Shop): the
+/// strip, title and frame fade over five frames and Body Shop comes up
+/// about 130 ms after the key.
+pub const FORWARD_SCRIPT: u32 = 0xDE6E_FF34;
+
+/// Whether the package's Event Handler answers accept (0x0C407210) with
+/// FORWARD (the `MsgR` node's set-script entry), as UI_Main,
+/// UI_StartCareer, the pause and post-race strips, the customize and paint
+/// categories and most other icon menus do (UI_OptionsMain and
+/// UI_ChoosePerformanceCategory do not).
+pub fn accept_plays_forward(package: &crate::frontend::feng::Package) -> bool {
+    package.object(crate::frontend::EVENT_HANDLER).is_some_and(|h| {
+        h.messages
+            .iter()
+            .filter(|m| m.message == 0x0C40_7210)
+            .any(|m| m.entries.iter().any(|e| e[0] == 0 && e[1] == FORWARD_SCRIPT))
+    })
+}
+
+/// The options built "direct" (item +0x45 = 1), by icon: 0x543D50 calls
+/// the screen's handler with accept at once (vtable +0xC) instead of on
+/// FORWARD's 0xE1FDE1D1, the FORWARD itself still playing. Traced from the
+/// builders' stores: UI_Main's LAN and Profile Manager (0x4AEF5B,
+/// 0x4AEFE9); the crib's Explore / Resume Career, Tuning and Main Menu
+/// (0x4AF870, 0x4AF994, 0x4AFA67); 0x3B1B7603 (0x4BC854); the pause and
+/// post-race strips' Return to Explore, Return to World Map, Restart, Quit
+/// to Main Menu, Next Race / Resume Race (0x4BEEC3…0x4BF070, 0x4C2C44…
+/// 0x4C2F50, 0x5229E1, 0x53CC09); the customize categories' Body Parts,
+/// Performance Parts and Interiors / Specialties (0x520E0C, 0x520E6E,
+/// 0x520F07); the performance package's parts and stock (0x556ED1,
+/// 0x557089); the Quick Race modes (0x55747A…0x557602).
+pub const DIRECT_OPTIONS: [u32; 21] = [
+    0xD13A_2E66,
+    0x6B30_3856,
+    0xA230_CD88,
+    0x7A9B_397A,
+    0xFC39_853F,
+    0x3B1B_7603,
+    0x62AA_0DF6,
+    0x3109_913C,
+    0xB295_A6B6,
+    0x4C9E_34E6,
+    0x12BB_5EA2,
+    0xB802_F10E,
+    0xC56D_3032,
+    0x3F40_E75F,
+    0xC7D3_F6A7,
+    0x6A93_275F,
+    0xE963_8D3E,
+    0xAAAB_31E9,
+    0x0011_9144,
+    0x13A4_CEEB,
+    0x3F64_95C5,
+];
+
+/// When FORWARD's 0xE1FDE1D1 reaches the screen (screen ms, the package's
+/// time over `FE_RATE`), or None when the package's Event Handler has no
+/// FORWARD that sends it.
+pub fn forward_ms(package: &crate::frontend::feng::Package) -> Option<f32> {
+    let handler = package.object(crate::frontend::EVENT_HANDLER)?;
+    let s = handler.scripts.iter().find(|s| s.name == FORWARD_SCRIPT)?;
+    let e = s.events.iter().find(|e| e.message == 0xE1FD_E1D1)?;
+    Some(e.time as f32 / crate::frontend::feng::script::FE_RATE)
+}
 pub(crate) const UNSELECTED_SCALE: f32 = 0.8;
 
 impl IconMenu {
@@ -80,7 +156,8 @@ impl IconMenu {
             options,
             selected: 0,
             opened: now,
-            scroll: (now, 0.0, 0.0, 0.0),
+            scroll: ScrollEase::at_from(now, 0.0),
+            forward: None,
             extra: Vec::new(),
             hide: Vec::new(),
             hide_option: Vec::new(),
@@ -94,17 +171,9 @@ impl IconMenu {
         }
     }
 
-    /// The scroll offset and its speed at `now` (a cubic Hermite from the
-    /// value and speed at the start to the target at rest, 0x574E40).
+    /// The scroll offset and its speed at `now` ([`ScrollEase`], 0x574E40).
     fn offset(&self, now: f32) -> (f32, f32) {
-        let (start, p0, v0, p1) = self.scroll;
-        let t = ((now - start) / SCROLL_TIME).clamp(0.0, 1.0);
-        let v0 = v0 * SCROLL_TIME;
-        let a = v0 - 2.0 * (p1 - p0);
-        let b = 3.0 * (p1 - p0) - 2.0 * v0;
-        let value = ((a * t + b) * t + v0) * t + p0;
-        let speed = ((3.0 * a * t + 2.0 * b) * t + v0) / SCROLL_TIME;
-        if t >= 1.0 { (p1, 0.0) } else { (value, speed) }
+        self.scroll.value(now)
     }
 
     /// Open on option `i`, already scrolled to it.
@@ -112,14 +181,13 @@ impl IconMenu {
         let i = i.min(self.options.len().saturating_sub(1));
         let target = -(i as f32) * (118.0 + ICON_GAP);
         self.selected = i;
-        self.scroll = (self.opened, target, 0.0, target);
+        self.scroll = ScrollEase::at_from(self.opened, target);
     }
 
     fn select(&mut self, i: usize, now: f32, spacing: f32) {
-        let (p, v) = self.offset(now);
         self.selected = i;
         self.top = 0;
-        self.scroll = (now, p, v, -(i as f32) * spacing);
+        self.scroll.retarget(now, -(i as f32) * spacing);
     }
 
     /// The menu event whose sound a key plays on the strip

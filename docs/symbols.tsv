@@ -3917,3 +3917,4 @@ CarDriver_t+0x1D9	struct-field	CarDriver_t.keep_path	0x420D40 keeps the path's f
 0x5B7EF0	function	Input_ResetDeviceStates	WM_ACTIVATEAPP's reset of the input devices' state blocks (0x874C48, 0x874FB8, 0x875328): held keys let go	inferred	docs/original/focus-loss.md
 0x870988	global	g_AppActive	WM_ACTIVATEAPP's wParam; WM_SIZE sets !IsIconic; 0 while the window is in the background (observed under Wine)	verified	docs/original/focus-loss.md
 0x8709E0	global	g_AppInactiveAudio	WM_ACTIVATE's last inactive state; on a change the music and speech are held (0x4810F0) or resumed (0x481210)	verified	docs/original/focus-loss.md
+0x52EE50	function	Scroller_StepTo	a scroller's new selection: target -item place, ease mode 2 (from the current value and speed)	verified	formats/front-end.md (shop menu animations)

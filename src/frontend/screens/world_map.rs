@@ -377,6 +377,7 @@ impl WorldMap {
             fe_hash("EVENT_ICONS"),
             &icons,
             pos - 1,
+            (pos - 1) as f32,
             false,
             20.0,
             273.0,

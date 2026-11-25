@@ -156,3 +156,19 @@ pub fn dim_alpha_of(package: &Package, template: &feng::Object) -> Option<f32> {
     apply(&mut a, s, dim.age_ms.clamp(0.0, s.length as f32) as u32);
     Some(a.color()[3])
 }
+
+/// The alpha factor (0–1 of its INIT's) an icon cloned from `template`
+/// has `age_ms` (screen ms) into its own `script`, which it runs when the
+/// handler's script of that name broadcasts to the package (the clones copy
+/// their template's scripts); None when the template has no such script.
+pub fn script_alpha(template: &feng::Object, script: u32, age_ms: f32) -> Option<f32> {
+    let s = template.scripts.iter().find(|s| s.name == script)?;
+    let base = template.attributes.color()[3];
+    if base <= 0.0 {
+        return None;
+    }
+    let mut a = template.attributes;
+    let t = (age_ms * crate::frontend::feng::script::FE_RATE).clamp(0.0, s.length as f32);
+    apply(&mut a, s, t as u32);
+    Some((a.color()[3] / base).clamp(0.0, 1.0))
+}

@@ -1583,6 +1583,10 @@ fn race_start_scene_draws_the_player_car_in_every_view() {
 #[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
 fn focus_loss_pauses_and_resumes() {
     testkit::game();
+    // The background setting and the forced Keep running are process-wide:
+    // another test's Enhancements reset (its extras' background) would
+    // pause this one's Keep running ticks (`test_isolation`).
+    super::test_isolation::exclusive();
     let mut game = Game::new().unwrap();
     let mut p = Profile::new("FOCUS");
     p.skip_intro(&game.game_data.career, &game.game_data.root, "PEUGOT", &mut game.rng);

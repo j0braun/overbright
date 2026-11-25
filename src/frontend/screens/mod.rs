@@ -30,7 +30,7 @@ pub use super::widgets::arrow_blink::{ARROW_BLINK_MS, ArrowBlink, SCROLLBAR_ARRO
 pub(crate) use super::widgets::footer::footer;
 pub use super::widgets::footer::total_cost;
 pub use super::widgets::help_bar::*;
-pub use super::widgets::icon_menu::{IconMenu, OptionState};
+pub use super::widgets::icon_menu::{DIRECT_OPTIONS, FORWARD_SCRIPT, IconMenu, OptionState, accept_plays_forward, forward_ms};
 pub(crate) use super::widgets::scroll_bar::scroll_bar_at;
 pub(crate) use super::widgets::scroll_bar::scroll_bar_named;
 pub use super::widgets::stat_bar::{PACKAGE_BARS, PART_BARS, StatBar, stat_bar};
@@ -690,7 +690,7 @@ mod list_opening_tests {
     fn browser(package: &'static str, slot: u8, installed: Option<usize>) -> PartsBrowser {
         let parts = (0..6u32).map(|i| (0x100 + i, format!("P{i}"), 0, true, installed == Some(i as usize))).collect();
         let categories = vec![BrowserCategory { slot, icon: 0, label: 0, parts, locked: false, action: CategoryAction::Parts, text: None }];
-        PartsBrowser { package, title: 0, sub: None, categories, category: 0, part: None, opened: 0.0, total: None, arrows: ArrowBlink::default() }
+        PartsBrowser { package, title: 0, sub: None, categories, category: 0, part: None, opened: 0.0, total: None, arrows: ArrowBlink::default(), motion: Default::default() }
     }
 
     /// The parts lists open on the installed part (0x53A4C0 → 0x538710,

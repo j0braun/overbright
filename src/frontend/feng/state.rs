@@ -84,6 +84,12 @@ pub struct ScreenState {
     /// old focus Button_UnHighlight (0x55D1E635) and the new one
     /// Button_Highlight (0xABC08912), which the buttons' `MsgR` answer.
     pub focus: Vec<(f32, u32)>,
+    /// Scripts the screen's code plays on an object after its INIT
+    /// (0x537C10(package, object, name)): (object hash, script name, start
+    /// ms), in time order. Unlike `scripts` the object's INIT and what the
+    /// package's messages gave it run until then, and the played script's
+    /// events reach the package's objects from its start.
+    pub played: Vec<(u32, u32, f32)>,
 }
 
 impl ScreenState {

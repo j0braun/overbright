@@ -10,12 +10,16 @@ use crate::frontend::widgets::icon_menu::UNSELECTED_SCALE;
 /// one sits on the master at full size, the others at 0.8 of it (kept to
 /// their leading edge, centred across), none outside the `extent` around
 /// the master, and fading over 0.8 of an icon at the ends (0x50D8D0).
+/// `at` is the scroll in items (the selected item at rest; between two
+/// while the scroller's ease, [`super::scroll_ease::ScrollEase`], moves:
+/// 0x52EEB0 places every item at the ease's offset plus its own place).
 pub(crate) fn scroller_quads(
     package: &crate::frontend::feng::Package,
     master: u32,
     template: u32,
     icons: &[u32],
     selected: usize,
+    at: f32,
     across: bool,
     gap: f32,
     extent: f32,
@@ -44,7 +48,7 @@ pub(crate) fn scroller_quads(
         );
     }
     for (i, &icon) in icons.iter().enumerate() {
-        let along = (i as f32 - selected as f32) * pitch;
+        let along = (i as f32 - at) * pitch;
         if along.abs() > extent * 0.5 {
             continue;
         }

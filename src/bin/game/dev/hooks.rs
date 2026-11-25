@@ -14,6 +14,15 @@ pub(crate) fn rain_clock_override() -> Option<f32> {
     (bits != 0).then(|| f32::from_bits(bits))
 }
 
+/// A scripted harness run (selftest, flows, playthrough, bench, photo
+/// check): an icon menu's accept acts at once instead of on FORWARD's end.
+pub(crate) static INSTANT_FORWARD: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// Whether an icon menu's accept skips FORWARD's wait (`INSTANT_FORWARD`).
+pub(crate) fn instant_forward() -> bool {
+    INSTANT_FORWARD.load(std::sync::atomic::Ordering::Relaxed)
+}
+
 /// After each world update: the state hash line (`state_hash`,
 /// NFSU2_STATE_HASH).
 pub(crate) fn record_state(game: &Game, dt: f32) {
