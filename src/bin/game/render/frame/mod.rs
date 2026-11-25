@@ -857,6 +857,7 @@ impl FrameDraw<'_, '_, '_, '_> {
         for t in self.r.ui_uploads.drain(..) {
             w.ui.add_texture(&w.gpu, &t);
         }
+        let cover_samples = nfsu2::render::display::front_msaa_samples(&self.v.settings.custom, &w.gpu, &settings.opts);
         draw_cover(
             self.v.mode,
             self.r.writes.cover_car,
@@ -866,6 +867,8 @@ impl FrameDraw<'_, '_, '_, '_> {
             &mut w.ui,
             &self.v.game_data.assets,
             settings,
+            out_size,
+            cover_samples,
         );
         // The frame marked shown in `drawn_update`, after the draw.
         self.out.movie_uploaded = upload_movie_frame(self.v.mode, &w.gpu, &mut w.ui);

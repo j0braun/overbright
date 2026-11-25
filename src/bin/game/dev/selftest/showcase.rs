@@ -163,13 +163,13 @@ pub(crate) fn selftest_showcase_picture(game: &mut Game) -> Result<()> {
         game.draw()?;
         let on = game.showcase.cover_car.as_ref().and_then(|c| c.pixels.clone()).context("reward shadow on")?;
         game.settings.custom[2] = 0;
-        game.showcase.cover_car.as_mut().unwrap().target = None;
+        game.showcase.cover_car.as_mut().unwrap().drawn = false;
         game.draw()?;
         let off = game.showcase.cover_car.as_ref().and_then(|c| c.pixels.clone()).context("reward shadow off")?;
         let changed = on.0.chunks_exact(4).zip(off.0.chunks_exact(4)).filter(|(a, b)| a != b).count();
         anyhow::ensure!(changed > 0, "reward kind{kind} must include its FE shadow");
         game.settings.custom[2] = 1;
-        game.showcase.cover_car.as_mut().unwrap().target = None;
+        game.showcase.cover_car.as_mut().unwrap().drawn = false;
         game.draw()?;
         anyhow::ensure!(
             game.showcase.cover_car.as_ref().and_then(|c| c.pixels.as_ref()) == Some(&on),
