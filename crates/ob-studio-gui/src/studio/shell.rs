@@ -14,8 +14,10 @@ use crate::editor::theme::{self, SEMI, TITLE, font, rgb, tokens};
 use super::address::{Address, CRUMB, Places, STUDIO, Target};
 use super::changes::{self, Ask};
 use super::draw::{self, Card, Source};
+use super::focus::{self, Spot, Spots};
 use super::guide::{self, Guide};
 use super::home::{self, ModSummary, Saved};
+use super::inside::{FindItem, PLACES_SHOWN};
 use super::layout::{self, Dock, Layout, Memory, Want};
 use super::memory::Memories;
 use super::mod_page::{self, Act};
@@ -36,13 +38,7 @@ pub const SAMPLE_FOLDER: &str = "sample-race-pack";
 /// Between two menus.
 const MENU_GAP: f32 = 16.0;
 
-/// The right dock's tabs.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum RightTab {
-    Inspector,
-    History,
-    Help,
-}
+pub use super::focus::RightTab;
 
 /// The bottom dock's shared tabs.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -103,6 +99,12 @@ pub struct Studio {
     pub guide: Option<Guide>,
     /// Where the tutorial's card was drawn in the last frame (the layout check counts it as a part).
     pub guide_rect: Option<Rect>,
+    /// The shell's own controls and the focus inside each area ([`focus`]).
+    pub spots: Spots,
+    /// The Find list's focused entry (↑ ↓, the D-pad).
+    pub find_focus: usize,
+    /// The places list under ← (a right-click on it) is open.
+    pub places_menu: bool,
 }
 
 /// What one of Home's controls does.
@@ -161,10 +163,23 @@ impl Studio {
             guide: None,
             guide_rect: None,
             home_new: NEW_ROWS.len(),
+            spots: Spots::default(),
+            find_focus: 0,
+            places_menu: false,
         };
         let here = s.address();
         s.places.go(here);
+        s.check_open();
         s
+    }
+
+    /// The open mod's checks as the Mod page makes them (the status bar's counts, the Problems tab), read when a
+    /// mod opens and again when World or Races is left.
+    fn check_open(&mut self) {
+        let f = self.open_mod().map(|m| m.folder.clone());
+        if f.is_some() {
+            self.mod_page.load(f.as_deref());
+        }
     }
 
     pub fn open_mod(&self) -> Option<&ModSummary> {
@@ -252,6 +267,8 @@ impl Studio {
         }
         if self.nav.workspace == Workspace::Mod {
             self.mod_page.load(Some(&self.mods[i].folder.clone()));
+        } else {
+            self.check_open();
         }
     }
 
@@ -263,7 +280,7 @@ impl Studio {
                 None => self.changes.ensure(None),
             }
         }
-        if w == Workspace::Mod {
+        if w == Workspace::Mod || (self.nav.workspace.kind() == Kind::Tool && w.kind() == Kind::Page) {
             let f = self.open_mod().map(|m| m.folder.clone());
             self.mod_page.load(f.as_deref());
         }
@@ -277,7 +294,7 @@ impl Studio {
         self.places.go(here);
     }
 
-    fn layout_now(&self) -> Layout {
+    pub(super) fn layout_now(&self) -> Layout {
         let size = self.last.as_ref().map_or(vec2(1536.0, 864.0), |l| l.size);
         layout::layout(size.x, size.y, &self.want())
     }
@@ -358,7 +375,7 @@ impl Studio {
     }
 
     /// Follow `a` without making a new place (back and forward).
-    fn go_quiet(&mut self, a: &Address) -> Result<(), String> {
+    pub(super) fn go_quiet(&mut self, a: &Address) -> Result<(), String> {
         if let Target::View { view, query } = &a.target
             && let Some(w) = Workspace::from_view(&format!("@{view}"))
         {
@@ -391,6 +408,35 @@ impl Studio {
                 _ => {}
             }
             return;
+        }
+        if self.places_menu && b == Pad::B {
+            self.places_menu = false;
+            return;
+        }
+        if self.nav.find_open {
+            // The Find list: the D-pad moves, A runs the entry, B closes.
+            self.nav.input = kind;
+            match b {
+                Pad::Up => return self.find_step(-1),
+                Pad::Down => return self.find_step(1),
+                Pad::A => return self.find_enter(),
+                _ => {}
+            }
+        }
+        if self.on_spots() {
+            let key = match b {
+                Pad::Up => Some(egui::Key::ArrowUp),
+                Pad::Down => Some(egui::Key::ArrowDown),
+                Pad::Left => Some(egui::Key::ArrowLeft),
+                Pad::Right => Some(egui::Key::ArrowRight),
+                Pad::A => Some(egui::Key::Enter),
+                _ => None,
+            };
+            if let Some(k) = key {
+                self.nav.input = kind;
+                self.spot_key(k, false);
+                return;
+            }
         }
         if self.on_home_rows() {
             let done = match b {
@@ -738,15 +784,50 @@ impl Studio {
         let inside = editing && matches!(self.nav.area, Area::View | Area::Left | Area::Bottom);
         let rows =
             self.on_changes_rows() || (self.on_mod_rows() && self.mod_page.editing.is_none()) || self.on_home_rows();
+        let spots = self.on_spots();
+        let find = self.nav.find_open;
+        let places_menu = self.places_menu;
         let mut row_keys = vec![];
+        let mut spot_keys = vec![];
+        let mut find_keys = vec![];
         raw.events.retain(|e| match e {
+            egui::Event::Key { key, pressed: true, .. } if places_menu && *key == egui::Key::Escape => {
+                find_keys.push(*key);
+                false
+            }
+            egui::Event::Key { key, pressed: true, modifiers, .. }
+                if find
+                    && !modifiers.command
+                    && !modifiers.alt
+                    && matches!(key, egui::Key::ArrowUp | egui::Key::ArrowDown) =>
+            {
+                find_keys.push(*key);
+                false
+            }
             egui::Event::Key { key, pressed: true, modifiers, .. }
                 if rows
                     && !modifiers.command
                     && !modifiers.alt
-                    && matches!(key, egui::Key::ArrowUp | egui::Key::ArrowDown | egui::Key::Enter) =>
+                    && matches!(key, egui::Key::ArrowUp | egui::Key::ArrowDown | egui::Key::Enter | egui::Key::Tab) =>
             {
                 row_keys.push((*key, modifiers.shift));
+                false
+            }
+            egui::Event::Key { key, pressed: true, modifiers, .. }
+                if spots
+                    && !modifiers.command
+                    && !modifiers.alt
+                    && matches!(
+                        key,
+                        egui::Key::ArrowUp
+                            | egui::Key::ArrowDown
+                            | egui::Key::ArrowLeft
+                            | egui::Key::ArrowRight
+                            | egui::Key::Enter
+                            | egui::Key::Tab
+                    ) =>
+            {
+                spot_keys.push((*key, modifiers.shift));
                 false
             }
             egui::Event::Key { key, pressed: true, modifiers, .. } => {
@@ -781,9 +862,28 @@ impl Studio {
             }
             _ => true,
         });
+        for key in find_keys {
+            self.nav.input = InputKind::Keyboard;
+            match key {
+                egui::Key::ArrowUp => self.find_step(-1),
+                egui::Key::ArrowDown => self.find_step(1),
+                _ => self.places_menu = false,
+            }
+        }
+        for (key, shift) in spot_keys {
+            self.nav.input = InputKind::Keyboard;
+            self.spot_key(key, shift);
+        }
         for (key, shift) in row_keys {
             self.nav.input = InputKind::Keyboard;
             self.nav.level = Level::Row;
+            if key == egui::Key::Tab {
+                let d = if shift { -1 } else { 1 };
+                if !self.page_step(d) {
+                    self.tab_out(d);
+                }
+                continue;
+            }
             if self.nav.workspace == Workspace::Home {
                 match key {
                     egui::Key::ArrowUp => self.home_step(-1),
@@ -856,26 +956,28 @@ impl Studio {
         }
     }
 
-    fn find_enter(&mut self) {
-        let text = self.find_text.trim().to_string();
-        self.nav.find_open = false;
-        if let Ok(a) = Address::parse(&text) {
-            self.verdict = self.go(&a).err();
-        } else if let Some(w) = Workspace::ALL.into_iter().find(|w| w.name().eq_ignore_ascii_case(&text)) {
-            self.workspace(w);
-        }
-        self.find_text.clear();
-    }
-
     /// One frame. Its texture changes are kept for the next paint (the output's `textures_delta` is left empty).
     pub fn frame(&mut self, mut raw: egui::RawInput) -> egui::FullOutput {
         self.sync_editor();
         self.guide_frame();
+        self.take_mouse_places(&mut raw);
         self.take_keys(&mut raw);
         let ctx = self.ctx.clone();
+        self.spots.begin();
         let mut full = ctx.run_ui(raw, |ui| self.ui(ui));
+        self.spots.end();
         self.textures.0.append(std::mem::take(&mut full.textures_delta));
         full
+    }
+
+    /// Register one of the shell's controls drawn at `r` ([`focus`]); true when it has the focus and keys or a pad
+    /// are in use (the selection fill drawn under it when `fill`; the ring comes after everything).
+    fn spot(&mut self, p: &egui::Painter, a: Area, s: Spot, r: Rect, fill: bool) -> bool {
+        let f = self.spots.add(a, s, r) && self.nav.area == a && self.nav.legend();
+        if f && fill {
+            focus::fill(p, r);
+        }
+        f
     }
 
     fn time(&self) -> f32 {
@@ -931,6 +1033,9 @@ impl Studio {
         }
         if self.nav.find_open {
             self.find_list(ui, &l);
+        }
+        if self.places_menu {
+            self.places_list(ui, &l);
         }
         if self.nav.level == Level::Menu {
             self.focus_menu(ui, &l);
@@ -1061,22 +1166,32 @@ impl Studio {
         // ← →
         let bf = l.menu.back_fwd;
         let half = Rect::from_min_size(bf.min + vec2(0.0, 4.0), vec2(bf.width() / 2.0 - 2.0, bf.height() - 8.0));
-        for (i, (txt, can, c)) in
-            [("←", self.places.can_back(), Command::LastPlace), ("→", self.places.can_forward(), Command::NextPlace)]
-                .into_iter()
-                .enumerate()
+        for (i, (txt, can, c, spot)) in [
+            ("←", self.places.can_back(), Command::LastPlace, Spot::Back),
+            ("→", self.places.can_forward(), Command::NextPlace, Spot::Forward),
+        ]
+        .into_iter()
+        .enumerate()
         {
             let r = half.translate(vec2(i as f32 * (half.width() + 4.0), 0.0));
             let resp = ui.interact(r, egui::Id::unique(("backfwd", i)), egui::Sense::click());
-            p.rect_filled(r, 4.0, theme::over(t.button_fill, t.page));
+            if !self.spot(&p, Area::Address, spot, r, true) {
+                p.rect_filled(r, 4.0, theme::over(t.button_fill, t.page));
+            }
             let col = if can { rgb(t.ink) } else { rgb(t.disabled) };
             p.text(r.center(), Align2::CENTER_CENTER, txt, font(SEMI, 15.0), col);
             if resp.clicked() && can {
                 self.command(c, None);
             }
+            // A right-click on ← lists the places you were.
+            if i == 0 && resp.secondary_clicked() && can {
+                self.nav.mouse();
+                self.places_menu = true;
+            }
         }
         // The address: names, or the address itself after Ctrl+L.
         let a = l.menu.address.shrink2(vec2(0.0, 4.0));
+        self.spot(&p, Area::Address, Spot::Address, a, false);
         p.rect_filled(a, 4.0, theme::over(t.field, t.page));
         p.rect_stroke(a, 4.0, Stroke::new(1.0, theme::over(t.field_edge, t.page)), StrokeKind::Inside);
         if self.nav.address_text {
@@ -1121,6 +1236,7 @@ impl Studio {
         }
         // Find.
         let f = l.menu.find.shrink2(vec2(0.0, 4.0));
+        self.spot(&p, Area::Address, Spot::Find, f, false);
         p.rect_filled(f, 4.0, theme::over(t.field, t.page));
         p.rect_stroke(f, 4.0, Stroke::new(1.0, theme::over(t.field_edge, t.page)), StrokeKind::Inside);
         let cap_w = draw::glyph_width(&p, ob_look::legends::Glyph::Key("Ctrl+K"));
@@ -1251,10 +1367,12 @@ impl Studio {
             }
             bottom -= 4.0;
         }
-        let focused = self.nav.area == Area::Rail && self.nav.legend();
+        // Reading order: top to bottom.
+        slots.sort_by(|a, b| a.1.top().total_cmp(&b.1.top()));
         for (w, slot) in slots {
             let current = w == self.nav.workspace.on_rail();
             let resp = ui.interact(slot, egui::Id::unique(("rail", w.name())), egui::Sense::click());
+            let focused = self.spot(&p, Area::Rail, Spot::Rail(w), slot, !current);
             if current {
                 p.rect_filled(slot, 6.0, theme::over(t.slab, t.page));
                 // The launcher's page mark: a ringed dot on the rail line.
@@ -1262,11 +1380,8 @@ impl Studio {
                 p.circle_filled(c, 7.0, draw::page_fill());
                 p.circle_stroke(c, 6.0, Stroke::new(1.5, rgb(t.dot)));
                 p.circle_filled(c, 3.0, rgb(t.dot));
-            } else if resp.hovered() {
+            } else if resp.hovered() && !focused {
                 p.rect_filled(slot, 6.0, theme::over(t.hover, t.page));
-            }
-            if current && focused {
-                p.rect_stroke(slot, 6.0, Stroke::new(2.0, rgb(t.lime)), StrokeKind::Inside);
             }
             let col = if current { rgb(t.lime) } else { rgb(t.ink) };
             let icon_c = if names { pos2(slot.center().x, slot.top() + 22.0) } else { slot.center() };
@@ -1405,7 +1520,7 @@ impl Studio {
             let i = *target;
             *target += 1;
             if ring && i == self.home_focus && focus.is_some() {
-                p.rect_stroke(r.expand(3.0), 8.0, Stroke::new(2.0, rgb(t.lime)), StrokeKind::Outside);
+                focus::ring(&p, r.expand(5.0));
             }
             if clicked {
                 *acted = targets.get(i).copied();
@@ -1442,6 +1557,11 @@ impl Studio {
             ],
             None => vec![(Mark::Info, "Your mods", home::plural(self.mods.len(), "mod", "mods"))],
         };
+        // The busy line (the launcher's Game check): what runs now.
+        let mut rows = rows;
+        if let Some(job) = self.jobs().first() {
+            rows.push((Mark::Busy, "Jobs", job.line()));
+        }
         let label_w = (left.width() * 0.35).min(200.0);
         for (mark, name, value) in rows {
             let row = Rect::from_min_size(pos2(left.left(), y), vec2(left.width(), 38.0));
@@ -1668,6 +1788,7 @@ impl Studio {
             self.editor_toolbar(ui, tb);
         } else if let Some(tb) = l.toolbar {
             let pill_r = Rect::from_min_size(pos2(tb.right() - 160.0, tb.top() + 6.0), vec2(150.0, 28.0));
+            self.spot(&p, Area::Toolbar, Spot::Test, pill_r.expand(3.0), false);
             ui.put(pill_r, theme::main_action("Test  F5"));
             p.text(
                 pos2(tb.left() + 12.0, tb.center().y),
@@ -1729,6 +1850,11 @@ impl Studio {
                 BottomTab::Editor => 3 + extra.iter().position(|t| Some(t.0) == shown_tab).unwrap_or(0),
             };
             let rects = tabs(&p, r, &names, sel, self.nav.area == Area::Bottom);
+            if !editing {
+                for (i, tr) in rects.iter().enumerate() {
+                    self.spot(&p, Area::Bottom, Spot::BottomTab(i), *tr, false);
+                }
+            }
             if matches!(l.bottom_dock, Dock::Open(_)) {
                 let body = r.with_min_y(r.top() + 42.0).shrink2(vec2(12.0, 0.0));
                 use super::world::EditorBody;
@@ -1737,33 +1863,49 @@ impl Studio {
                     BottomTab::Log if editing => self.editor_bottom(ui, body, EditorBody::Log),
                     BottomTab::Problems if editing => self.editor_bottom(ui, body, EditorBody::Problems),
                     tab => {
-                        let line = match tab {
-                            BottomTab::Problems => words::NO_PROBLEMS,
-                            BottomTab::Jobs => words::NO_JOBS,
-                            _ => words::NOTHING_LOGGED,
+                        // The shell's own lists: what the checks found, the jobs that run.
+                        let mut lines: Vec<(Mark, String)> = match tab {
+                            BottomTab::Problems => self.problem_lines(),
+                            BottomTab::Jobs => self.jobs().iter().map(|j| (Mark::Busy, j.line())).collect(),
+                            _ => vec![],
                         };
-                        draw::lamp(&p, pos2(body.left() + 8.0, body.top() + 14.0), 10.0, Mark::Ok, 0.0);
-                        p.text(
-                            pos2(body.left() + 24.0, body.top() + 14.0),
-                            Align2::LEFT_CENTER,
-                            line,
-                            font("body", 15.0),
-                            rgb(t.ink),
-                        );
+                        if lines.is_empty() {
+                            let line = match tab {
+                                BottomTab::Problems => words::NO_PROBLEMS,
+                                BottomTab::Jobs => words::NO_JOBS,
+                                _ => words::NOTHING_LOGGED,
+                            };
+                            lines.push((Mark::Ok, line.to_string()));
+                        }
+                        let time = self.time();
+                        let mut clip = p.clone();
+                        clip.set_clip_rect(body);
+                        for (i, (mark, line)) in lines.into_iter().enumerate() {
+                            let row = Rect::from_min_size(
+                                pos2(body.left() - 6.0, body.top() + 2.0 + i as f32 * 30.0),
+                                vec2(body.width() + 12.0, 28.0),
+                            );
+                            if row.bottom() > body.bottom() {
+                                break;
+                            }
+                            if !editing {
+                                self.spot(&clip, Area::Bottom, Spot::BottomRow(i), row, true);
+                            }
+                            draw::lamp(&clip, pos2(row.left() + 14.0, row.center().y), 10.0, mark, time);
+                            clip.text(
+                                pos2(row.left() + 30.0, row.center().y),
+                                Align2::LEFT_CENTER,
+                                line,
+                                font("body", 15.0),
+                                rgb(t.ink),
+                            );
+                        }
                     }
                 }
             }
             for (i, tr) in rects.into_iter().enumerate() {
                 if ui.interact(tr, egui::Id::unique(("btab", i)), egui::Sense::click()).clicked() {
-                    match i {
-                        0 => self.bottom_tab = BottomTab::Problems,
-                        1 => self.bottom_tab = BottomTab::Log,
-                        2 => self.bottom_tab = BottomTab::Jobs,
-                        n => {
-                            self.bottom_tab = BottomTab::Editor;
-                            self.editor_pick_tab(extra[n - 3].0);
-                        }
-                    }
+                    self.pick_bottom_tab(i);
                 }
             }
         }
@@ -1792,6 +1934,60 @@ impl Studio {
             self.right_dock(ui, &p, d);
         }
         let _ = base;
+        // The docks' inner edges: drag to size them (kept per workspace, as the folds are).
+        let side_max = l.size.x * layout::SIDE_MAX_FRAC;
+        if let (Some(r), Dock::Open(_)) = (l.left, l.left_dock) {
+            let edge = Rect::from_min_max(pos2(r.right() - 3.0, r.top()), pos2(r.right() + 3.0, r.bottom()));
+            self.resize(ui, "left", edge, egui::CursorIcon::ResizeHorizontal, |m, at| {
+                m.left_w = Some((at.x - r.left()).clamp(layout::LEFT_MIN, side_max.max(layout::LEFT_MIN)));
+            });
+        }
+        if let (Some(r), Dock::Open(_)) = (l.right, l.right_dock) {
+            let edge = Rect::from_min_max(pos2(r.left() - 3.0, r.top()), pos2(r.left() + 3.0, r.bottom()));
+            self.resize(ui, "right", edge, egui::CursorIcon::ResizeHorizontal, |m, at| {
+                m.right_w = Some((r.right() - at.x).clamp(layout::RIGHT_MIN, side_max.max(layout::RIGHT_MIN)));
+            });
+        }
+        if let (Some(r), Dock::Open(_)) = (l.bottom, l.bottom_dock) {
+            let edge = Rect::from_min_max(pos2(r.left(), r.top() - 3.0), pos2(r.right(), r.top() + 3.0));
+            self.resize(ui, "bottom", edge, egui::CursorIcon::ResizeVertical, |m, at| {
+                m.bottom_h = Some((r.bottom() - at.y).clamp(layout::BOTTOM_DRAG_MIN, layout::BOTTOM_MAX));
+            });
+        }
+    }
+
+    /// A dock's edge to drag: while dragged, `set` sizes the dock in the workspace's memory from the pointer; the
+    /// size is kept (written) when the drag ends.
+    fn resize(
+        &mut self,
+        ui: &mut egui::Ui,
+        id: &'static str,
+        edge: Rect,
+        cursor: egui::CursorIcon,
+        set: impl Fn(&mut Memory, Pos2),
+    ) {
+        let resp = ui.interact(edge, egui::Id::unique(("resize", id)), egui::Sense::drag());
+        if resp.hovered() || resp.dragged() {
+            ui.ctx().set_cursor_icon(cursor);
+            let mid = edge.center();
+            let line = if edge.width() < edge.height() {
+                [pos2(mid.x, edge.top()), pos2(mid.x, edge.bottom())]
+            } else {
+                [pos2(edge.left(), mid.y), pos2(edge.right(), mid.y)]
+            };
+            ui.painter().line_segment(line, Stroke::new(2.0, rgb(tokens().lime)));
+        }
+        if resp.dragged()
+            && let Some(at) = resp.interact_pointer_pos()
+        {
+            self.nav.mouse();
+            let mut m = self.memories.get(self.nav.workspace);
+            set(&mut m, at);
+            self.memories.set(self.nav.workspace, m);
+        }
+        if resp.drag_stopped() {
+            self.set_memory(|_| {});
+        }
     }
 
     fn set_memory(&mut self, f: impl FnOnce(&mut Memory)) {
@@ -1805,7 +2001,7 @@ impl Studio {
         }
     }
 
-    fn mod_tree(&self, p: &egui::Painter, r: Rect) {
+    fn mod_tree(&mut self, p: &egui::Painter, r: Rect) {
         let t = tokens();
         let Some(m) = self.open_mod() else {
             p.text(r.left_top() + vec2(0.0, 8.0), Align2::LEFT_TOP, "No mod open", font("body", 15.0), rgb(t.dim));
@@ -1818,10 +2014,18 @@ impl Studio {
             (format!("Hidden · {}", m.hidden), 18.0),
             (format!("Races · {}", m.races), 0.0),
         ];
-        let mut y = r.top() + 8.0;
-        for (text, indent) in rows {
-            p.text(pos2(r.left() + indent, y), Align2::LEFT_TOP, text, draw::label_font(15.0), rgb(t.ink));
-            y += 28.0;
+        let mut y = r.top() + 4.0;
+        for (i, (text, indent)) in rows.into_iter().enumerate() {
+            let row = Rect::from_min_size(pos2(r.left() - 6.0, y), vec2(r.width() + 12.0, 28.0));
+            self.spot(p, Area::Left, Spot::Tree(i), row, true);
+            p.text(
+                pos2(r.left() + indent, row.center().y),
+                Align2::LEFT_CENTER,
+                text,
+                draw::label_font(15.0),
+                rgb(t.ink),
+            );
+            y += 30.0;
         }
     }
 
@@ -1834,6 +2038,7 @@ impl Studio {
         };
         let rects = tabs(p, r, &["Inspector", "History", "Help"], sel, self.nav.area == Area::Right);
         for (tab, tr) in [RightTab::Inspector, RightTab::History, RightTab::Help].into_iter().zip(rects) {
+            self.spot(p, Area::Right, Spot::RightTab(tab), tr, false);
             let i = tab as usize;
             if ui.interact(tr, egui::Id::unique(("rtab", i)), egui::Sense::click()).clicked() {
                 self.right_tab = tab;
@@ -1873,20 +2078,28 @@ impl Studio {
                     .open_mod()
                     .and_then(|m| m.last_step.clone())
                     .map_or(words::NO_STEPS.to_string(), |s| format!("Last step: {s}"));
-                clip.text(body.left_top(), Align2::LEFT_TOP, line, font("body", 15.0), rgb(t.ink));
+                let row = Rect::from_min_size(body.left_top() - vec2(6.0, 0.0), vec2(body.width() + 12.0, 28.0));
+                self.spot(&clip, Area::Right, Spot::RightRow(0), row, true);
+                clip.text(pos2(body.left(), row.center().y), Align2::LEFT_CENTER, line, font("body", 15.0), rgb(t.ink));
             }
             RightTab::Help => {
                 let mut y = body.top();
-                for k in KEYS.iter().take(10) {
-                    clip.text(pos2(body.left(), y), Align2::LEFT_TOP, k.keys, font(SEMI, 13.0), rgb(t.ink));
+                for (i, k) in KEYS.iter().take(10).enumerate() {
+                    let row = Rect::from_min_size(pos2(body.left() - 6.0, y), vec2(body.width() + 12.0, 24.0));
+                    if row.bottom() > body.bottom() {
+                        break;
+                    }
+                    self.spot(&clip, Area::Right, Spot::RightRow(i), row, true);
+                    let cy = row.center().y;
+                    clip.text(pos2(body.left(), cy), Align2::LEFT_CENTER, k.keys, font(SEMI, 13.0), rgb(t.ink));
                     clip.text(
-                        pos2(body.left() + 150.0, y),
-                        Align2::LEFT_TOP,
+                        pos2(body.left() + 150.0, cy),
+                        Align2::LEFT_CENTER,
                         k.word,
                         draw::label_font(13.0),
                         rgb(t.dim),
                     );
-                    y += 22.0;
+                    y += 24.0;
                 }
             }
         }
@@ -1932,7 +2145,7 @@ impl Studio {
         }
     }
 
-    fn status(&self, ui: &mut egui::Ui, l: &Layout) {
+    fn status(&mut self, ui: &mut egui::Ui, l: &Layout) {
         let t = tokens();
         let p = ui.painter().clone();
         let r = l.status;
@@ -1999,9 +2212,46 @@ impl Studio {
             }
             right = p.text(pos2(right, cy), Align2::RIGHT_CENTER, a, f.clone(), rgb(t.ink)).left();
         }
-        if l.size.x >= layout::DRAWER_FROM_W && right - 120.0 > x {
-            let n = editor.map_or(0, |(_, s)| s.session.issues.len());
-            p.text(pos2(right - 24.0, cy), Align2::RIGHT_CENTER, format!("Problems {n}"), f, rgb(t.ink));
+        // The busy job line (the oldest job; the Jobs tab lists them all), then what the checks found. Both are
+        // optional: they drop when the bar has no room (narrow windows first).
+        let wide = l.size.x >= layout::DRAWER_FROM_W;
+        let time = self.time();
+        if let Some(job) = self.jobs().first() {
+            let line = job.line();
+            let w = p.layout_no_wrap(line.clone(), f.clone(), Color32::WHITE).size().x + 18.0;
+            if right - 24.0 - w > x + 24.0 {
+                let left = p.text(pos2(right - 24.0, cy), Align2::RIGHT_CENTER, line, f.clone(), rgb(t.ink)).left();
+                draw::lamp(&p, pos2(left - 10.0, cy), 10.0, Mark::Busy, time);
+                right = left - 18.0;
+            }
+        }
+        let mut clicked = false;
+        if wide && let Some(c) = self.counts() {
+            let (a, b) = c.words();
+            let bw =
+                b.as_ref().map_or(0.0, |b| p.layout_no_wrap(format!(" · {b}"), f.clone(), Color32::WHITE).size().x);
+            let aw = p.layout_no_wrap(a.clone(), f.clone(), Color32::WHITE).size().x;
+            let end = right - 24.0;
+            if end - aw - bw > x + 24.0 {
+                if let Some(b) = b {
+                    let left = p.text(pos2(end, cy), Align2::RIGHT_CENTER, b, f.clone(), rgb(t.warn)).left();
+                    p.text(pos2(left, cy), Align2::RIGHT_CENTER, " · ", f.clone(), rgb(t.ink));
+                }
+                let col = if c.problems > 0 { rgb(t.err) } else { rgb(t.ink) };
+                p.text(pos2(end - bw, cy), Align2::RIGHT_CENTER, a, f.clone(), col);
+                // A click shows them: the Problems tab while the map editor has the mod, else the Mod page's list.
+                let hit = Rect::from_min_max(pos2(end - bw - aw - 4.0, r.top()), pos2(end + 4.0, r.bottom()));
+                clicked = ui.interact(hit, egui::Id::unique("status-problems"), egui::Sense::click()).clicked();
+            }
+        }
+        if clicked {
+            self.nav.mouse();
+            if self.editing() {
+                self.set_memory(|m| m.bottom_folded = Some(false));
+                self.bottom_tab = BottomTab::Problems;
+            } else {
+                self.workspace(Workspace::Mod);
+            }
         }
     }
 
@@ -2025,52 +2275,104 @@ impl Studio {
                 Stroke::new(2.0, rgb(tokens().lime)),
             );
         }
+        // The focused control inside the area: its ring, over everything the area drew.
+        if self.spot_area()
+            && let Some(r) = self.spots.focused_rect(self.nav.area)
+        {
+            focus::ring(ui.painter(), r);
+        }
     }
 
+    /// Find's list under its field: Go to, Commands (with their keys), Places you were. A click, or Enter / A on
+    /// the focused entry, takes it.
     fn find_list(&mut self, ui: &mut egui::Ui, l: &Layout) {
         let t = tokens();
         let f = l.menu.find;
         let w = 420.0f32.min(l.size.x - 24.0);
-        let r = Rect::from_min_size(pos2((f.right() - w).max(12.0), f.bottom() + 2.0), vec2(w, 320.0));
-        let q = self.find_text.trim().to_ascii_lowercase();
-        let mut go = None;
-        egui::Area::new(egui::Id::unique("find-list")).fixed_pos(r.min).order(egui::Order::Foreground).show(
-            ui.ctx(),
-            |ui| {
+        let at = pos2((f.right() - w).max(12.0), f.bottom() + 2.0);
+        let items = self.find_items();
+        self.find_focus = self.find_focus.min(items.len().saturating_sub(1));
+        let ring = self.nav.legend();
+        let names: Vec<String> = items
+            .iter()
+            .map(|i| match i {
+                FindItem::Go(ws) => ws.name().to_string(),
+                FindItem::Run(c) => KEYS.iter().find(|k| k.command == *c).map_or("", |k| k.word).to_string(),
+                FindItem::Place(n) => self.places.back_list().nth(n - 1).map_or(String::new(), |a| self.place_name(a)),
+            })
+            .collect();
+        let keys: Vec<String> = items
+            .iter()
+            .map(|i| match i {
+                FindItem::Go(ws) => format!("Ctrl+{}", ws.ctrl_key()),
+                FindItem::Run(c) => KEYS.iter().find(|k| k.command == *c).map_or("", |k| k.keys).to_string(),
+                FindItem::Place(_) => String::new(),
+            })
+            .collect();
+        let mut run = None;
+        egui::Area::new(egui::Id::unique("find-list"))
+            .fixed_pos(at)
+            .fade_in(false)
+            .order(egui::Order::Foreground)
+            .show(ui.ctx(), |ui| {
                 egui::Frame::popup(ui.style()).show(ui, |ui| {
                     ui.set_width(w - 16.0);
-                    ui.label(RichText::new("GO TO").font(font("body", 11.0)).color(rgb(t.dim)));
-                    for ws in Workspace::ALL
-                        .into_iter()
-                        .filter(|ws| q.is_empty() || ws.name().to_ascii_lowercase().contains(&q))
-                    {
-                        if ui
-                            .add(
-                                egui::Button::new(ws.name())
-                                    .shortcut_text(format!("Ctrl+{}", ws.ctrl_key()))
-                                    .frame(false),
-                            )
-                            .clicked()
-                        {
-                            go = Some(ws);
+                    let mut head = None;
+                    for (k, item) in items.iter().enumerate() {
+                        let h = match item {
+                            FindItem::Go(_) => words::FIND_GO_TO,
+                            FindItem::Run(_) => words::FIND_COMMANDS,
+                            FindItem::Place(_) => words::PLACES_YOU_WERE,
+                        };
+                        if head != Some(h) {
+                            head = Some(h);
+                            ui.label(RichText::new(h).font(font("body", 11.0)).color(rgb(t.dim)));
                         }
-                    }
-                    ui.label(RichText::new("COMMANDS").font(font("body", 11.0)).color(rgb(t.dim)));
-                    for k in KEYS.iter().filter(|k| q.is_empty() || k.word.to_ascii_lowercase().contains(&q)).take(6) {
-                        let _ = ui.add(egui::Button::new(k.word).shortcut_text(k.keys).frame(false));
-                    }
-                    if self.places.can_back() {
-                        ui.label(RichText::new("PLACES YOU WERE").font(font("body", 11.0)).color(rgb(t.dim)));
-                        for a in self.places.back_list().take(4) {
-                            ui.label(RichText::new(a.to_string()).color(rgb(t.dim)));
+                        let focused = k == self.find_focus;
+                        let b = egui::Button::new(&names[k]).shortcut_text(&keys[k]).frame(false);
+                        let resp = ui.add_sized(vec2(ui.available_width(), ui.spacing().interact_size.y), b);
+                        if focused && ring {
+                            focus::ring(ui.painter(), resp.rect);
+                        }
+                        if resp.clicked() {
+                            run = Some(*item);
                         }
                     }
                 });
-            },
-        );
-        if let Some(ws) = go {
-            self.nav.find_open = false;
-            self.workspace(ws);
+            });
+        if let Some(i) = run {
+            self.nav.mouse();
+            self.find_run(i);
+        }
+    }
+
+    /// The places you were, under ← (a right-click on it): newest first; a click goes back to one.
+    fn places_list(&mut self, ui: &mut egui::Ui, l: &Layout) {
+        let names: Vec<String> = self.places.back_list().take(PLACES_SHOWN).map(|a| self.place_name(a)).collect();
+        let at = l.menu.back_fwd.left_bottom() + vec2(0.0, 2.0);
+        let mut pick = None;
+        let mut away = false;
+        egui::Area::new(egui::Id::unique("places-list"))
+            .fixed_pos(at)
+            .fade_in(false)
+            .order(egui::Order::Foreground)
+            .show(ui.ctx(), |ui| {
+                egui::Frame::popup(ui.style()).show(ui, |ui| {
+                    ui.set_min_width(260.0);
+                    ui.label(RichText::new(words::PLACES_YOU_WERE).font(font("body", 11.0)).color(rgb(tokens().dim)));
+                    for (n, name) in names.iter().enumerate() {
+                        if ui.add(egui::Button::new(name).frame(false)).clicked() {
+                            pick = Some(n + 1);
+                        }
+                    }
+                });
+                away = ui.input(|i| i.pointer.any_pressed()) && !ui.ui_contains_pointer();
+            });
+        if let Some(n) = pick {
+            self.places_menu = false;
+            self.go_back(n);
+        } else if away || names.is_empty() {
+            self.places_menu = false;
         }
     }
 
@@ -2087,9 +2389,11 @@ impl Studio {
         };
         let mut pick = None;
         let mut pick_changes = None;
-        egui::Area::new(egui::Id::unique("focus-menu")).fixed_pos(at).order(egui::Order::Foreground).show(
-            ui.ctx(),
-            |ui| {
+        egui::Area::new(egui::Id::unique("focus-menu"))
+            .fixed_pos(at)
+            .fade_in(false)
+            .order(egui::Order::Foreground)
+            .show(ui.ctx(), |ui| {
                 egui::Frame::popup(ui.style()).show(ui, |ui| {
                     ui.set_min_width(240.0);
                     let _ = ui.add_enabled(false, egui::Button::new(ob_look::words::UNDO).shortcut_text("Ctrl+Z"));
@@ -2111,8 +2415,7 @@ impl Studio {
                     }
                     ui.label(RichText::new(self.address().to_string()).font(font("body", 12.0)).color(rgb(t.dim)));
                 });
-            },
-        );
+            });
         if let Some(c) = pick {
             self.command(c, None);
             self.nav.level = Level::Row;

@@ -34,6 +34,11 @@ pub const LEGEND_NOTE_PAD: &str = "Pad: the legend follows the device you used l
 pub const NO_PROBLEMS: &str = "No problems found";
 pub const NOTHING_LOGGED: &str = "Nothing logged yet";
 pub const NO_JOBS: &str = "No jobs running";
+pub const PROBLEMS: &str = "Problems";
+pub const SIMULATING: &str = "Simulating…";
+pub const FIND_GO_TO: &str = "GO TO";
+pub const FIND_COMMANDS: &str = "COMMANDS";
+pub const PLACES_YOU_WERE: &str = "PLACES YOU WERE";
 pub const NO_STEPS: &str = "No steps yet";
 pub const NO_MODS_YET: &str = "No mods yet";
 pub const ONLY_THIS_WINDOW: &str = "Changes · only this window writes it";
@@ -93,7 +98,36 @@ pub const SAMPLE_LINE: &str = "Three races with start gates and signs";
 pub const STARTS_WITH: &str = "Starts with";
 
 /// Every word above.
-pub const ALL: [&str; 47] = [
+pub const ALL: [&str; 81] = [
+    RACE_TUTORIAL_ROW,
+    RACE_TUTORIAL_ROW_LINE,
+    OPEN_SAMPLE,
+    SPRINT_RACE,
+    SPRINT_RACE_LINE,
+    CIRCUIT_RACE,
+    CIRCUIT_RACE_LINE,
+    SAMPLE,
+    SAMPLE_RACE_PACK,
+    SAMPLE_LINE,
+    STARTS_WITH,
+    START_HERE,
+    PLACES,
+    TUTORIAL,
+    TUTORIAL_ROW,
+    TUTORIAL_ROW_LINE,
+    END_TUTORIAL,
+    GO_TO_RACES,
+    NEW_MOD,
+    NEW_MOD_TITLE,
+    NEW_MOD_LINE,
+    NAME,
+    FOLDER,
+    NAME_HINT,
+    NEW_MOD_GOES,
+    NEW_MOD_NAME_FIRST,
+    START_NEW,
+    EMPTY_MAP_MOD,
+    EMPTY_MAP_MOD_LINE,
     MOD_PAGE_NO_MOD,
     MOD_DETAILS,
     IN_GAME_ON_SHORT,
@@ -107,6 +141,11 @@ pub const ALL: [&str; 47] = [
     NO_PROBLEMS,
     NOTHING_LOGGED,
     NO_JOBS,
+    PROBLEMS,
+    SIMULATING,
+    FIND_GO_TO,
+    FIND_COMMANDS,
+    PLACES_YOU_WERE,
     NO_STEPS,
     NO_MODS_YET,
     ONLY_THIS_WINDOW,

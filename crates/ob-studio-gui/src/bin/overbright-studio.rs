@@ -8,7 +8,7 @@
 //! overbright-studio --shot out.png [--size WxH] [--scale F] [--mod <folder>] [--maps <dir>]
 //!                   [--workspace home|world|races|mod|settings|changes] [--input mouse|keyboard|xbox|playstation|deck]
 //!                   [--focus rail|address|toolbar|left|view|right|bottom] [--drawer] [--files] [--warning] [--find] [--address]
-//!                   [--select N] [--new-mod NAME]
+//!                   [--select N] [--row N] [--places] [--job WORDS] [--right-tab inspector|history|help] [--new-mod NAME]
 //!                                   the whole window drawn off-screen into a PNG (no window)
 //! ```
 //! A `--shot` prints one line "studio layout: fits …" or "studio layout: clipped: …" (the clip and overlap check).
@@ -24,6 +24,7 @@ use anyhow::{Context as _, Result, bail};
 use nfsu2::studio_api::render::Gpu;
 use ob_look::legends::InputKind;
 use ob_studio_gui::editor::app::App;
+use ob_studio_gui::studio::focus::RightTab;
 use ob_studio_gui::studio::nav::{Area, Pad};
 use ob_studio_gui::studio::workspace::Workspace;
 use ob_studio_gui::studio::{Studio, layout, shot};
@@ -32,7 +33,7 @@ use winit::event::WindowEvent;
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
 use winit::window::{Window, WindowId};
 
-const USAGE: &str = "usage: overbright-studio [--mod <folder>] [--maps <dir>]\n       overbright-studio --shot out.png [--size WxH] [--scale F] [--mod <folder>] [--maps <dir>] [--workspace home|world|races|mod|settings|changes] [--input mouse|keyboard|xbox|playstation|deck] [--focus rail|address|toolbar|left|view|right|bottom] [--drawer] [--files] [--warning] [--find] [--address] [--select N] [--new-mod NAME] [--tutorial 1-6] [--race-tutorial 1-7]";
+const USAGE: &str = "usage: overbright-studio [--mod <folder>] [--maps <dir>]\n       overbright-studio --shot out.png [--size WxH] [--scale F] [--mod <folder>] [--maps <dir>] [--workspace home|world|races|mod|settings|changes] [--input mouse|keyboard|xbox|playstation|deck] [--focus rail|address|toolbar|left|view|right|bottom] [--drawer] [--files] [--warning] [--find] [--address] [--select N] [--row N] [--places] [--job WORDS] [--right-tab inspector|history|help] [--new-mod NAME] [--tutorial 1-6] [--race-tutorial 1-7]";
 
 #[derive(Default)]
 struct Cli {
@@ -59,6 +60,14 @@ struct Cli {
     tutorial: Option<usize>,
     /// The race tutorial at this step (1 … 6, 7: the last card) on the open mod (a `--shot`).
     race_tutorial: Option<usize>,
+    /// The focused area's control at this index (`--row`, a `--shot`).
+    row: Option<usize>,
+    /// The places under ← open, after a walk through World and Mod (a `--shot`).
+    places: bool,
+    /// A running job's words (as a test run says them; a `--shot`).
+    job: Option<String>,
+    /// The right dock's tab (`--right-tab inspector|history|help`, a `--shot`).
+    right_tab: Option<RightTab>,
 }
 
 fn parse(args: impl Iterator<Item = String>) -> Result<Cli> {
@@ -106,6 +115,17 @@ fn parse(args: impl Iterator<Item = String>) -> Result<Cli> {
                 );
             }
             "--drawer" => c.drawer = true,
+            "--row" => c.row = Some(val("--row")?.parse()?),
+            "--places" => c.places = true,
+            "--job" => c.job = Some(val("--job")?),
+            "--right-tab" => {
+                c.right_tab = Some(match val("--right-tab")?.as_str() {
+                    "inspector" => RightTab::Inspector,
+                    "history" => RightTab::History,
+                    "help" => RightTab::Help,
+                    v => bail!("--right-tab {v}?"),
+                })
+            }
             "--files" => c.files = true,
             "--warning" => c.warning = true,
             "--find" => c.find = true,
@@ -193,6 +213,16 @@ fn run_shot(cli: &Cli) -> Result<()> {
     let size = cli.size.unwrap_or((1920, 1080));
     let scale = cli.scale.unwrap_or_else(|| layout::ui_scale(size.0, size.1));
     let mut s = new_studio(cli)?;
+    if cli.places {
+        use ob_studio_gui::studio::nav::Command;
+        s.command(Command::Workspace(Workspace::World), None);
+        s.command(Command::Workspace(Workspace::Mod), None);
+        s.nav.mouse();
+        s.places_menu = true;
+    }
+    if let Some(j) = &cli.job {
+        ob_studio_gui::editor::testplay::set_strip(&s.ctx, Some(j.clone()));
+    }
     if let Some(w) = cli.workspace {
         s.nav.workspace = w;
         if w == Workspace::Changes {
@@ -258,6 +288,16 @@ fn run_shot(cli: &Cli) -> Result<()> {
         s.nav.area = a;
     }
     s.nav.drawer_open = cli.drawer;
+    if let Some(t) = cli.right_tab {
+        s.right_tab = t;
+    }
+    if let Some(i) = cli.row {
+        // One frame draws the area's controls, then the focus on the one asked for.
+        shot::frames(&mut s, size, scale, 1);
+        if let Some(a) = cli.focus {
+            s.spots.set(a, i);
+        }
+    }
     if cli.find {
         s.nav.find_open = true;
     }

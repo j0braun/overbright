@@ -83,6 +83,8 @@ pub struct Data {
     pub clashes: Vec<ClashLine>,
     pub derived: Vec<Derived>,
     pub ready: Vec<Point>,
+    /// The map checks' warnings (the ready list says them in one line).
+    pub check_warnings: usize,
 }
 
 fn read_map(maps: &Path, folder: &str) -> Result<MapMod> {
@@ -147,7 +149,11 @@ pub fn load(maps: &Path, folder: &str, game: Option<&Path>, given: Option<GivenT
     let derived = share::derived(&dir);
     let checks = run_checks(&map, &dir, game, given);
     let ready = share::ready(&map, checks.as_deref(), derived.len());
+    let check_warnings = checks
+        .as_deref()
+        .map_or(0, |c| c.iter().filter(|c| c.level == ob_studio::session::Level::Warning && !c.ok).count());
     Ok(Data {
+        check_warnings,
         folder: folder.into(),
         files: share::files(&dir).unwrap_or_default(),
         in_game: c.in_game,
@@ -284,6 +290,14 @@ impl Page {
             // Overbright's exports folder (made by the export), never the home folder itself.
             self.export_to = share::default_zip(&crate::platform::dirs::exports(), folder).display().to_string();
         }
+    }
+
+    /// What the ready list says is wrong: (problems: points that stop the export, warnings: the rest, the map
+    /// checks' warnings among them). The status bar shows them.
+    pub fn counts(&self) -> Option<(usize, usize)> {
+        let d = self.data.as_ref()?;
+        let bad = |l| d.ready.iter().filter(|p| !p.ok && p.level == l).count();
+        Some((bad(ob_studio::session::Level::Error), bad(ob_studio::session::Level::Warning) + d.check_warnings))
     }
 
     pub fn line(&self) -> Line {
