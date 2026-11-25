@@ -62,6 +62,14 @@ pub(crate) struct TrafficCar {
 }
 
 impl TrafficCar {
+    /// A road object for the other cars' road entries (0x6148F0 keeps a
+    /// node's car when its +0x550 is set, `active`): placed and active. A
+    /// pooled or paused car keeps its last place and velocity but is no
+    /// obstacle, for the traffic and the racers alike.
+    pub(crate) fn road_object(&self) -> bool {
+        self.lane.is_some() && self.active
+    }
+
     /// The car's race coordinate (car +0x8FC) in a race
     /// ([`nfsu2::ai::traffic::race_coord_step`]); its place located on the
     /// road until the first frame has taken it.
