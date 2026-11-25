@@ -15,7 +15,8 @@
 //!   generator as a boot of its own unless `TRAFH_BOOT=0`), `TRAFH_EVERY` (2: a row
 //!   set every second 1/60 s tick), `TRAFH_AT` (`x,y,z,heading°`, the free-roam
 //!   stand and the route's start), `TRAFH_LEVEL` (3: a Quick Race's traffic
-//!   level), `TRAFH_DRIVER` (a race's player: `throttle`, `auto` the
+//!   level), `TRAFH_TRACK` (0: a Quick Race's track, Right presses on the
+//!   track list), `TRAFH_DRIVER` (a race's player: `throttle`, `auto` the
 //!   autopilot, `drag` the drag bot; default `drag` in a drag, else `throttle`).
 //!
 //! Writes `<dir>/ours-<scen>-s<seed>.tsv` and, for `bot`, `<dir>/route.tsv`
@@ -97,6 +98,20 @@ impl Table {
     }
 
     fn traffic(&mut self, t: f32, tr: &Traffic) {
+        // `TRAFH_ENT=1` (with dev-harness): the road entries of the car's last
+        // think in the note (the entries probe's line, `nfsu2::ai::traffic::probe`).
+        #[cfg(feature = "dev-harness")]
+        fn entries_note(i: usize) -> String {
+            if std::env::var("TRAFH_ENT").is_ok() {
+                nfsu2::ai::traffic::probe::take(i).unwrap_or_default()
+            } else {
+                String::new()
+            }
+        }
+        #[cfg(not(feature = "dev-harness"))]
+        fn entries_note(_: usize) -> String {
+            String::new()
+        }
         for (i, c) in tr.cars.iter().enumerate() {
             let l = c.lane.as_ref();
             let (mode, speed) = match (l, &c.mover, &c.belt.belt, &c.state.melo) {
@@ -144,7 +159,7 @@ impl Table {
                     stopped: c.stopped,
                     active: c.active,
                     brake: c.state.brake_lights(false),
-                    note: String::new(),
+                    note: entries_note(i),
                 },
             );
         }
@@ -708,6 +723,10 @@ fn traffic_harness() {
             game.mode = game.icon_menu(MenuKind::Main);
             game.act(Action::QuickRace, MenuKind::Main).unwrap();
             game.act(Action::QrMode(qr), MenuKind::QrMode).unwrap();
+            // `TRAFH_TRACK=n`: the mode's n-th track (n Right presses on UI_QRTrackSelect).
+            for _ in 0..env_or::<u32>("TRAFH_TRACK", 0) {
+                game.menu_key(Key::Right).unwrap();
+            }
             for _ in 0..3 {
                 game.menu_key(Key::Accept).unwrap();
             }

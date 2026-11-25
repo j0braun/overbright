@@ -283,7 +283,9 @@ fn race_traffic_probe() {
 /// the window while it moves (mean speed over 1 m/s), or that turns
 /// over 300° within 25 m of where it was 10 s earlier, is circling. The
 /// lane's own direction over the same window is logged, so a lane that
-/// loops (a ramp) tells itself apart.
+/// loops (a ramp) tells itself apart. A belt car's heading turning round
+/// in one update (the original's BeltMover coming to a stand) starts its
+/// window over and is logged as a turn-round, not counted.
 struct CircleWatch {
     /// Per car: (time, unwrapped heading, speed, position, unwrapped lane direction).
     hist: Vec<std::collections::VecDeque<(f32, f32, f32, Vec2, f32)>>,
@@ -291,13 +293,15 @@ struct CircleWatch {
     last: Vec<f32>,
     found: Vec<String>,
     spins: usize,
+    /// Belt cars' one-update turn-rounds (the original's, not counted).
+    turn_rounds: usize,
 }
 
 impl CircleWatch {
     const WINDOW: f32 = 10.0;
     const TURN: f32 = 300.0;
     fn new(n: usize) -> CircleWatch {
-        CircleWatch { hist: vec![Default::default(); n], last: vec![f32::NEG_INFINITY; n], found: Vec::new(), spins: 0 }
+        CircleWatch { hist: vec![Default::default(); n], last: vec![f32::NEG_INFINITY; n], found: Vec::new(), spins: 0, turn_rounds: 0 }
     }
 
     fn watch(&mut self, t: &Traffic, ts: f32, place: &str) {
@@ -359,6 +363,31 @@ impl CircleWatch {
                 }
             }
             let wrap = |a: f32| a.sin().atan2(a.cos());
+            // A BeltMover (mode 4) car whose heading turns round in one
+            // update is the original's turn-round, not circling: the
+            // belt's heading is its velocity 0.4 s ahead through a 0.4 s
+            // blend (0x59EC90 → 0x591B80), and a belt built toward target
+            // 0 (0x5916A0, 0.5 s) carries that blend through zero as the
+            // car comes to a stand — observed in the original
+            // (docs/evidence/traf-fix/native-belt-flip.txt: +0x40C turns
+            // 180° in one sample as +0x42C crosses 0). It starts the
+            // window over (logged, not counted), so a car flipping there
+            // and back is not "turned 360°".
+            if c.belt.belt.is_some()
+                && let Some(&(pt, ph, _, pp, _)) = h.back()
+                && pp.distance(p) < 10.0
+                && wrap(heading - ph).abs() > std::f32::consts::FRAC_PI_2
+            {
+                println!(
+                    "{place} {ts:7.1} s car {i:2} {} belt turn-round: {:.0}° in {:.3} s, {:.2} m, at {speed:.2} m/s",
+                    c.car.car_type.name,
+                    wrap(heading - ph).to_degrees(),
+                    ts - pt,
+                    pp.distance(p)
+                );
+                self.turn_rounds += 1;
+                h.clear();
+            }
             let (hu, du) = match h.back() {
                 // A jump (a new placement) starts over.
                 Some(&(_, ph, _, pp, pd)) if pp.distance(p) < 10.0 => (ph + wrap(heading - ph), pd + wrap(dir - pd)),
@@ -556,27 +585,21 @@ fn traffic_circling_soak() {
 
 /// A short soak (two spots, 90 s each, one race) for every test run.
 ///
-/// KNOWN DEFECT, open: on the default stream one traffic car (a PARCELVAN)
-/// "circles" about 80 s into the race on track 4014; other world streams
-/// (`NFSU2_TRAFFIC_SEED` 1-5) pass. Traced (`SOAK_TRACE`,
-/// docs/notes/parity/race-ai-parity.md "The traffic walk's turns"): not the walk — the car's walk runs
-/// straight down record 11 throughout. The car is on the BeltMover (mode 4,
-/// the world under it not loaded) in "Avoid Cars", which asks for 0 (a car
-/// on the next lane within 15 m, 0x424CB0); the belt built with target 0
-/// decelerates at v0 / 0.5 s (0x5916A0) and its heading, taken from the
-/// velocity 0.4 s ahead (0x59EC90 → 0x591B80), turns round 0.1 s after
-/// each think's rebuild — the original does the same (observed: belt cars
-/// reaching 0 flip by 180° and run backwards). What differs is how often:
-/// measured alike (throttle only from the green, docs/notes/parity/race-ai-parity.md
-/// "Belt cars in "Avoid Cars"") the clone's race belt cars spend 38 % of their time in "Avoid
-/// Cars", 10 % of that under 3 m/s; the original's 9 % and 4 % (four runs,
-/// 1.6–17 %). The rules match (0x4145B0, 0x424CB0, 0x41CD10, 0x402ED0 re-read);
-/// the clone's belt cars run in denser platoons (open). With the placer starting from the human's road node
-/// (the human controller's road node) the test passes on the default stream and on
-/// streams 1–5, because other cars are placed; the cause stands (the long
-/// soak `traffic_circling_soak` still finds belt avoiders turning round).
-/// The test runs in every test run again: if a change of the random streams
-/// makes it fail, that is this open defect showing, not the change.
+/// Belt cars' turn-rounds are logged, not counted (see `CircleWatch`):
+/// a BeltMover (mode 4) car braking toward target 0 — "Avoid Cars" asking
+/// 0 within 15 m (0x424CB0), or "Obey traffic intersections" at its line
+/// (0x425150, action +0x1F4 = 0, so the belt's 0.5 s) — has its heading
+/// (the velocity 0.4 s ahead through a 0.4 s blend, 0x59EC90 → 0x591B80)
+/// carried through zero by the blend and turns round by about 180° in
+/// one update; the next think's rebuild toward a target over 0 turns it
+/// back. The original does the same (`native-belt-flip.txt`). Counted, a
+/// standing car's two flips read as "turned 360°" (traffic stream 5's
+/// HATCHBACK02 at an intersection in the countdown, 8.4 / 10.4 s; on
+/// the default stream a PICKUP flips at 93 s). How often the clone's belt cars
+/// get there is the open part (docs/notes/parity/race-ai-parity.md "Belt
+/// cars in "Avoid Cars""). The MeloMvr car in "Avoid Cars" once seen
+/// orbiting at 12.6 m/s on stream 5 (spot 1, 66 s) no longer appears with
+/// the traffic and racer fixes since (#141, #217): streams 0–12 pass.
 #[test]
 #[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
 fn traffic_does_not_circle() {
@@ -632,7 +655,7 @@ fn traffic_soak(spots: usize, secs: f32, races: usize, race_secs: f32) -> Vec<St
             w.watch(game.sim.traffic.as_ref().unwrap(), frame as f32 / 60.0, &place);
             frames_total += 1;
         }
-        println!("{place}: {} circling, {} spins after hits", w.found.len(), w.spins);
+        println!("{place}: {} circling, {} spins after hits, {} belt turn-rounds", w.found.len(), w.spins, w.turn_rounds);
         found.extend(w.found);
     }
     game.platform.keys.clear();
@@ -675,7 +698,7 @@ fn traffic_soak(spots: usize, secs: f32, races: usize, race_secs: f32) -> Vec<St
             }
             frames_total += 1;
         }
-        println!("{place}: {} circling, {} spins after hits", w.found.len(), w.spins);
+        println!("{place}: {} circling, {} spins after hits, {} belt turn-rounds", w.found.len(), w.spins, w.turn_rounds);
         found.extend(w.found);
     }
     println!("soak: {frames_total} frames, {} circling", found.len());
