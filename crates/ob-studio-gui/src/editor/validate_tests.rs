@@ -336,3 +336,25 @@ fn the_games_own_races_validate_cleanly() {
     // A handful start away from their network (on a lot beside it).
     assert!(checked >= 20 && off.len() * 10 <= checked, "{checked} checked, grids off the network: {off:?}");
 }
+
+#[test]
+fn a_drawn_wall_across_the_route_is_named_and_shown_where_it_crosses() {
+    use crate::tools::map::CollisionEdit;
+    let mut m = map_of(vec![sprint(&[(10.0, 0.0), (190.0, 0.0)])]);
+    let wall = |id: &str, x: f32| CollisionEdit::Wall {
+        id: id.into(),
+        region: "L4RA".into(),
+        from: Vec3::new(x, -8.0, 0.0),
+        to: Vec3::new(x, 8.0, 0.0),
+        height: 2.0,
+        surface: 0,
+    };
+    m.collision = vec![wall("wall-1", 100.0), wall("wall-2", 300.0)];
+    let c = run(&m, &straight(false));
+    let w = warnings(&c);
+    assert_eq!(w.len(), 1, "{c:#?}");
+    assert_eq!(w[0].text, "Sprint: the drawn wall wall-1 crosses the route; the cars run into it");
+    let at = w[0].at.unwrap();
+    assert!(at.distance(Vec2::new(100.0, 0.0)) < 0.5, "Show goes to the crossing: {at}");
+    assert!(!c.iter().any(|c| c.ok && c.text.contains("grid slots")), "no all-clear line with a warning");
+}

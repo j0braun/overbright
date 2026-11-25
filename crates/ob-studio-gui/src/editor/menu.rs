@@ -114,6 +114,26 @@ pub fn post(ctx: &egui::Context, c: Command) {
     ctx.data_mut(|d| d.get_temp_mut_or_default::<Vec<Command>>(commands_id()).push(c));
 }
 
+fn hosted_id() -> egui::Id {
+    egui::Id::new("ob-editor-hosted")
+}
+
+/// Mark the editor drawing on `ctx` as hosted by Studio, which keeps Ctrl+D for itself (Changes,
+/// docs/modding/studio.md): the editor then neither reads nor shows Ctrl+D for Duplicate.
+pub fn set_hosted(ctx: &egui::Context) {
+    ctx.data_mut(|d| d.insert_temp(hosted_id(), true));
+}
+
+/// Studio hosts the editor drawing on `ctx` ([`set_hosted`]).
+pub fn hosted(ctx: &egui::Context) -> bool {
+    ctx.data(|d| d.get_temp::<bool>(hosted_id()).unwrap_or(false))
+}
+
+/// Duplicate's key as shown: Ctrl+D in the editor's own window, none inside Studio (Ctrl+D is Changes there).
+pub fn duplicate_key(ctx: &egui::Context) -> &'static str {
+    if hosted(ctx) { "" } else { "Ctrl+D" }
+}
+
 /// Whether `c` was posted this frame (taking it: one part handles it).
 pub fn take(ctx: &egui::Context, c: Command) -> bool {
     ctx.data_mut(|d| {
@@ -507,7 +527,8 @@ pub fn edit_items(app: &App, ui: &mut egui::Ui, out: &mut Vec<Action>) {
     }
     ui.separator();
     let s = app.state.as_ref();
-    command(ui, s, words::DUPLICATE, "Ctrl+D", Command::Duplicate);
+    let dup = duplicate_key(ui.ctx());
+    command(ui, s, words::DUPLICATE, dup, Command::Duplicate);
     command(ui, s, words::DELETE, "Del", Command::Delete);
     command(ui, s, "Select all of this solid", "", Command::SelectAllOfSolid);
     command(ui, s, "Drop to ground", "End", Command::DropToGround);

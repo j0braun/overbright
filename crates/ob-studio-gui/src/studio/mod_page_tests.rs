@@ -58,16 +58,19 @@ fn maps(name: &str, derived: bool) -> PathBuf {
     std::fs::write(d.join("enabled.txt"), "harbour-edits\ndrift-park\n").unwrap();
     let dir = d.join("harbour-edits");
     let origin = if derived { "game" } else { "blank" };
+    // A picture the game reads, named by its hash in the list (the ready list checks both).
+    let png = ob_studio::looks::encode_png(4, 4, &[200; 64]).unwrap();
+    let image = ob_studio::looks::image_hash(&png);
     std::fs::write(
         dir.join("looks.toml"),
         format!(
             "format = 1\n\n[[texture]]\nid = \"world:0x1A2B3C4D\"\nname = \"DOCK_SIGN\"\norigin = \"{origin}\"\n\
-             image = \"00112233aabbccdd\"\nwidth = 4\nheight = 4\n"
+             image = \"{image}\"\nwidth = 4\nheight = 4\n"
         ),
     )
     .unwrap();
     std::fs::create_dir_all(dir.join("textures/world")).unwrap();
-    std::fs::write(dir.join("textures/world/1A2B3C4D.png"), b"\x89PNG pixels").unwrap();
+    std::fs::write(dir.join("textures/world/1A2B3C4D.png"), &png).unwrap();
     std::fs::create_dir_all(dir.join("work/looks/world")).unwrap();
     std::fs::write(dir.join("work/looks/world/DOCK_SIGN.png"), b"work").unwrap();
     d

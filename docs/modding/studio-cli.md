@@ -8,6 +8,7 @@ waits for it and reads its output.
 ```
 overbright-studio-cli help                                   # every command, flag and exit code
 overbright-studio-cli help race point add                    # one command's flags
+overbright-studio-cli pack create --name "Docks remix"       # a new mod in the map mods folder
 overbright-studio-cli race set --mod maps/docks --race loop --laps 3 --dry-run
 overbright-studio-cli ops apply --mod maps/docks --file edits.jsonl --label "Night version"
 overbright-studio-cli checks run --mod maps/docks --json
@@ -21,10 +22,10 @@ and its schema export (`crates/ob-studio/schema/studio.json`) use, so `help` is 
 
 | Command | Kind | What it does |
 |---|---|---|
-| `props move` | edit | Move a prop (`--key`, `--position`, `--rotation`) |
+| `props move` | edit | Move a prop (`--key`, `--position`, and `--heading` or `--rotation`) |
 | `props delete` | edit | Hide an original prop or remove an added one |
 | `props reset` | edit | Put an original prop back as the original has it |
-| `props add` | edit | Add a prop of one of the region's objects (`--solid`, `--position`, optional `--rotation`, `--id`, `--ground`) |
+| `props add` | edit | Add a prop of one of the region's objects (`--solid`, `--position`, optional `--heading` or `--rotation`, `--id`, `--ground`) |
 | `props duplicate` | edit | Copy a prop to a new place |
 | `props drop` | edit | Stand a prop on the floor under it |
 | `race create` | edit | Make a race on a base track (`--track`, optional `--kind`, default sprint, and `--id`) |
@@ -56,7 +57,7 @@ Flags every command takes:
 | `--mod DIR` | The mod's folder (the one holding `map.obmap`). |
 | `--game DIR` | The game folder. Without it the tool looks where the editor and the game look: `NFSU2_ROOT` when it is set, else the folder chosen in the launcher. Prop edits and the checks read it. |
 | `--region NAME` | The region the mod is edited on (default `L4RA`). |
-| `--dry-run` | Show what an edit would change and change nothing. |
+| `--dry-run` | Show what an edit would change and change nothing. On a command that is not an edit it is a usage error. |
 | `--json` | Print one JSON document on stdout. |
 | `--wait SECONDS` | How long to wait for Studio's answer when Studio has the mod open (default 10). |
 | `--no-inbox` | When another program has the mod open, fail at once instead of asking it. |
@@ -65,7 +66,9 @@ Flags every command takes:
 `overbright-studio-cli --version` prints the version line, as the game, the launcher and the editor do.
 
 Values: `--flag value` or `--flag=value`. Numbers as usual; a position as `x,y,z` or a JSON list; a rotation as
-nine numbers (its three rows) or a JSON list of rows; a yes/no flag alone means yes (`--ground`), `--ground=false`
+nine numbers (its three rows) or a JSON list of rows; a prop's `--heading` in degrees as the Properties panel shows
+it (around +z from +x, positive to the left seen from above): a moved prop keeps its tilt (as Heading in
+Properties does), an added one stands upright; `--heading` and `--rotation` together are a usage error; a yes/no flag alone means yes (`--ground`), `--ground=false`
 no. A prop's `--key` is `added:<id>` for a prop the mod added, or the key as JSON for an original one
 (`{"original": {"region": "L4RA", "section": 1407, "solid": "…", "at": [x, y, z]}}`, as `history show` and the
 editor's operations files write it). An unknown command or flag, a missing argument or a value of the wrong type is
@@ -157,7 +160,8 @@ Studio's history shows the step, and Edit ▸ Undo takes it back like any other.
 (errors), what is likely a mistake (warnings) and what is fine. They read the base tracks' road networks from the
 game folder (exit 4 when it is not known or does not read; a mod without races needs no game), and the region's
 world for the floor under each start line, finish line and grid slot ("has no floor under it", "is N m above the
-floor"; [Map editor](map-editor.md)). The exit code is 3 when a check finds an error, so a script or a build can
+floor"; [Map editor](map-editor.md)), and the mod's drawn and removed collision, on the region's world with that
+collision applied (so a start on drawn ground has a floor). The exit code is 3 when a check finds an error, so a script or a build can
 stop on it.
 
 `race point add`, `race point move` and `race put` give a start or finish line or a grid slot the road's height

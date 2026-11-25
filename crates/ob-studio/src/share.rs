@@ -84,6 +84,54 @@ pub fn ready(map: &MapMod, checks: Option<&[Check]>, derived: usize) -> Vec<Poin
     v
 }
 
+/// The "Ready to share" list's lines for the mod's textures in `dir` (docs/modding/studio-looks.md): each texture
+/// the list (`looks.toml`) names must be in the pack data the game reads (`textures/…`), as the picture the list
+/// names, in a size the game takes; else the shared copy would lack it or carry another picture. None with no
+/// textures.
+pub fn looks(dir: &Path) -> Vec<Point> {
+    use crate::looks::{FILE, Looks, PACK_DIR, image_hash, work};
+    let text = std::fs::read_to_string(dir.join(FILE)).unwrap_or_default();
+    let list = match Looks::parse(&text) {
+        Ok(l) => l,
+        Err(e) => {
+            return vec![Point {
+                level: Level::Error,
+                ok: false,
+                text: format!("The texture list does not read ({e})"),
+            }];
+        }
+    };
+    if list.entries.is_empty() {
+        return Vec::new();
+    }
+    let mut v = Vec::new();
+    for e in list.entries.values() {
+        let name = if e.name.is_empty() { e.id.to_string() } else { e.name.clone() };
+        let file = format!("{PACK_DIR}/{}", e.id.pack_file());
+        let why = match std::fs::read(dir.join(&file)) {
+            Err(_) => Some(format!("Texture {name}: its picture is missing ({file})")),
+            Ok(png) => match work::check(&png) {
+                Err(err) => Some(format!("Texture {name}: its picture is {err}")),
+                Ok(_) if image_hash(&png) != e.image => {
+                    Some(format!("Texture {name}: its picture ({file}) is not the one the texture list names"))
+                }
+                Ok(_) => None,
+            },
+        };
+        if let Some(text) = why {
+            v.push(Point { level: Level::Error, ok: false, text });
+        }
+    }
+    if v.is_empty() {
+        v.push(Point {
+            level: Level::Error,
+            ok: true,
+            text: format!("{} in place", plural(list.entries.len(), "texture")),
+        });
+    }
+    v
+}
+
 /// No error in `points`: the mod may be exported.
 pub fn is_ready(points: &[Point]) -> bool {
     points.iter().all(|p| p.ok || p.level != Level::Error)

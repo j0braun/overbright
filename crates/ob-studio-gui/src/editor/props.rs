@@ -598,6 +598,7 @@ impl Props {
             return;
         }
         use egui::{Key, Modifiers};
+        let hosted = super::menu::hosted(ctx);
         let (q, w, e, del, end, dup, esc) = ctx.input_mut(|i| {
             (
                 i.consume_key(Modifiers::NONE, Key::Q),
@@ -605,7 +606,7 @@ impl Props {
                 i.consume_key(Modifiers::NONE, Key::E),
                 i.consume_key(Modifiers::NONE, Key::Delete),
                 i.consume_key(Modifiers::NONE, Key::End),
-                i.consume_key(Modifiers::COMMAND, Key::D),
+                !hosted && i.consume_key(Modifiers::COMMAND, Key::D),
                 i.consume_key(Modifiers::NONE, Key::Escape),
             )
         });
@@ -816,7 +817,7 @@ impl Panel for Props {
             if ui.add_enabled(resettable, egui::Button::new("Reset to original")).clicked() {
                 reset_selection(s);
             }
-            if ui.add_enabled(editable, egui::Button::new("Duplicate")).on_hover_text("Ctrl+D").clicked() {
+            if ui.add_enabled(editable, egui::Button::new("Duplicate")).on_hover_text(super::menu::duplicate_key(ui.ctx())).clicked() {
                 duplicate_selection(s, None);
             }
             if ui.add_enabled(editable, egui::Button::new("Delete")).on_hover_text("Del").clicked() {

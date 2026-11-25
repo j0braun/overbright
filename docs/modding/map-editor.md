@@ -4,7 +4,9 @@
 > files may still change between versions. Keep a copy of map mods you care about.
 
 The same editor runs in its own window (`overbright-editor`) and as the World and Races workspaces of Overbright
-Studio ([Studio](studio.md)); its tools, keys and files are the same in both.
+Studio ([Studio](studio.md)); its tools, keys and files are the same in both, except that in Studio Ctrl+D opens
+Studio's Changes page (Duplicate stays in the Edit menu and the prop menu) and Ctrl+N opens Studio's New mod
+dialog.
 
 With the map editor you can:
 
@@ -174,6 +176,12 @@ While the right mouse button is held the tool keys fly the camera instead (W A S
   no floor at all (off the map) the height stays as given, and Validation reports "has no floor under it" (an
   error for the start and the grid, where the cars would fall through the world; a warning for the finish) or
   "is N m above the floor" (a warning).
+- **Checks of drawn and removed collision** (all warnings): a drawn wall that crosses a race's route (Show goes to
+  the crossing); a drawn wall standing more than 2 m above the floor, or with no floor, under one end (cars drive
+  under it); a removed wall the region's collision does not have (removing it does nothing); a drawn wall or ground
+  partly outside the region's collision area (the game leaves that part out). `overbright-studio-cli checks run`
+  runs them too, on the region's world with the mod's drawn collision applied, so a race start on drawn ground has
+  a floor.
 
 ## Saving
 
@@ -204,6 +212,7 @@ The editor's own files live in the mod's `.editor/` folder. They are never expor
 |---|---|
 | `editor.toml` | the view: region, camera, the widths of the tree and the properties and the height of the bottom tabs (written on save, when another mod is opened and when the window closes) |
 | `history.journal` | every step, with its author and the last saves (the history) |
+| `saved-by.json` | the build that last wrote the mod's files and each file's hash then, written on every save, so a later build can repair what an older one wrote wrong (checked by `every_save_records_the_build_that_wrote_it`) |
 | `studio.lock`, `studio-owner.toml` | the write lock while a program has the mod open, and which program it is (removed when it closes the mod; one left by a program that died is ignored) |
 | `inbox/` | changes other programs send to the program that has the mod open |
 | `map.obmap.autosave` | an older editor's unsaved changes (offered once, then removed) |

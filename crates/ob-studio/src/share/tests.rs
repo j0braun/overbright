@@ -137,3 +137,39 @@ fn names_outside_the_folder_are_never_written() {
         let _ = std::fs::remove_dir_all(&d);
     }
 }
+
+#[test]
+fn the_ready_list_names_textures_whose_picture_is_missing_or_not_the_listed_one() {
+    let maps = scratch("looks-ready");
+    make(&maps, "m", Origin::Blank);
+    let dir = maps.join("m");
+    let png = looks::encode_png(4, 4, &[200; 64]).unwrap();
+    let texts = |dir: &Path| looks(dir).into_iter().map(|p| (p.ok, p.text)).collect::<Vec<_>>();
+    // The fake picture: not a PNG.
+    assert!(
+        texts(&dir)[0].1.starts_with("Texture DOCK_SIGN: its picture is not a PNG the game reads"),
+        "{:?}",
+        texts(&dir)
+    );
+    put(&dir.join("textures/world/1A2B3C4D.png"), &png);
+    assert_eq!(
+        texts(&dir),
+        vec![(
+            false,
+            "Texture DOCK_SIGN: its picture (textures/world/1A2B3C4D.png) is not the one the texture list names".into()
+        )]
+    );
+    let mut l = Looks::parse(&std::fs::read_to_string(dir.join(looks::FILE)).unwrap()).unwrap();
+    l.entries.values_mut().for_each(|e| e.image = looks::image_hash(&png));
+    put(&dir.join(looks::FILE), l.write().as_bytes());
+    assert_eq!(texts(&dir), vec![(true, "1 texture in place".into())]);
+    std::fs::remove_file(dir.join("textures/world/1A2B3C4D.png")).unwrap();
+    assert_eq!(
+        texts(&dir),
+        vec![(false, "Texture DOCK_SIGN: its picture is missing (textures/world/1A2B3C4D.png)".into())]
+    );
+    assert!(!is_ready(&looks(&dir)));
+    put(&dir.join(looks::FILE), b"format = [");
+    assert!(texts(&dir)[0].1.starts_with("The texture list does not read"));
+    let _ = std::fs::remove_dir_all(&maps);
+}

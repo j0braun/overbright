@@ -838,6 +838,15 @@ impl Page {
         jump(self.data()?, &rows[g], Some(&rows[g].values[v].field))
     }
 
+    /// The focused row's Show action: its word ("Show in World", "Show in Races", "Show in History") and where it
+    /// leads. None: the row has nowhere to go (a texture no kept step painted).
+    pub fn focused_jump(&self) -> Option<(&'static str, String)> {
+        let rows = self.rows();
+        let (g, _) = *self.lines().get(self.focus)?;
+        let a = self.focused_address()?;
+        Some((jump_word(&rows[g]), a))
+    }
+
     /// Focus the first value row of item `key` (an item address that leads to Changes); false when it has none.
     pub fn focus_item(&mut self, kind: &str, key: &str) -> bool {
         self.set_mode(Mode::ThisMod);
@@ -911,7 +920,7 @@ pub fn jump_word(r: &Row) -> &'static str {
     match r.kind {
         map::RACE => "Show in Races",
         tex::TEXTURE => "Show in History",
-        _ => "Show in World",
+        _ => super::words::SHOW_IN_WORLD,
     }
 }
 
@@ -1102,7 +1111,7 @@ impl Page {
             p.text(pos2(fl.left(), fl.center().y), Align2::LEFT_CENTER, "Show", font("body", 14.0), rgb(t.dim));
             let mut bx = fl.left() + 44.0;
             for (s, word) in
-                [(Show::Mine, "Everything I change"), (Show::Losing, "Only what loses"), (Show::All, "All values")]
+                [(Show::Mine, "Everything this mod changes"), (Show::Losing, "Only what loses"), (Show::All, "All values")]
             {
                 let g = p.layout_no_wrap(word.into(), font(LABEL, 14.0), rgb(t.ink));
                 let r = Rect::from_min_size(pos2(bx, fl.top() + 1.0), vec2(g.size().x + 28.0, 24.0));

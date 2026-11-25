@@ -148,7 +148,8 @@ pub fn load(maps: &Path, folder: &str, game: Option<&Path>, given: Option<GivenT
         .collect();
     let derived = share::derived(&dir);
     let checks = run_checks(&map, &dir, game, given);
-    let ready = share::ready(&map, checks.as_deref(), derived.len());
+    let mut ready = share::ready(&map, checks.as_deref(), derived.len());
+    ready.extend(share::looks(&dir));
     let check_warnings = checks
         .as_deref()
         .map_or(0, |c| c.iter().filter(|c| c.level == ob_studio::session::Level::Warning && !c.ok).count());
