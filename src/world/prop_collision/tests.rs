@@ -1,5 +1,5 @@
 use super::*;
-use crate::tools::map::{MapMod, PropEdit};
+use crate::tools::map::{CollisionEdit, MapMod, PropEdit};
 
 fn l4ra() -> World {
     World::load(&crate::testkit::game_root(), "L4RA").unwrap()
@@ -399,7 +399,6 @@ fn removed_original_walls_leave_what_a_deleted_light_leaves() {
     let mut n = l4ra();
     n.apply_map_mods("L4RA", &[("test".to_string(), none)]);
     assert_eq!(n.map_overlay.collision.unmatched, 1);
-    assert_eq!(n.map_overlay.collision.unmatched_at, vec![Vec3::splat(0.125)], "where the checks point");
     assert!(collision_of(&n) == collision_of(&plain));
 }
 

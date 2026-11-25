@@ -19,6 +19,7 @@ pub mod tools {
     /// adds the world side (applying, sessions, the in-game editor).
     pub mod map {
         pub mod collision;
+        pub mod draw;
         pub mod format;
         pub mod ops;
         pub mod race;

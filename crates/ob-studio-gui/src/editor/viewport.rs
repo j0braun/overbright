@@ -1112,7 +1112,7 @@ fn top_id() -> egui::Id {
     egui::Id::unique("editor.viewport.top")
 }
 
-fn publish_top(ctx: &egui::Context, top: Option<(TopView, Rect)>) {
+pub(super) fn publish_top(ctx: &egui::Context, top: Option<(TopView, Rect)>) {
     ctx.data_mut(|d| d.insert_temp(top_id(), top));
 }
 

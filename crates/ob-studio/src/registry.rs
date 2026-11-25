@@ -201,6 +201,8 @@ const TEXT: Ty = Ty::Str { min: 0, max: usize::MAX, pattern: None };
 const F32: Ty = Ty::Def("f32", &Ty::F32);
 const VEC3: Ty = Ty::Def("vec3", &Ty::Array { item: &F32, min: 3, max: Some(3), unique: false });
 const MAT3: Ty = Ty::Def("mat3", &Ty::Array { item: &F32, min: 9, max: Some(9), unique: false });
+const U8: Ty = Ty::Def("u8", &Ty::Int { min: 0, max: 255 });
+const OUTLINE: Ty = Ty::Array { item: &VEC3, min: 3, max: Some(32), unique: false };
 const U16: Ty = Ty::Def("u16", &Ty::Int { min: 0, max: 65535 });
 const U32: Ty = Ty::Def("u32", &Ty::Int { min: 0, max: u32::MAX as i64 });
 const SOLID: Ty = Ty::Ref("solid", &TEXT);
@@ -263,6 +265,34 @@ pub const COMMANDS: &[Command] = &[
         kind: CommandKind::Edit,
         summary: "Stand a prop on the floor under it",
         args: &[KEY],
+    },
+    Command {
+        name: "collision.remove",
+        kind: CommandKind::Edit,
+        summary: "Take out a wall of the original's collision, or a drawn wall or ground",
+        args: &[f("target", JSON, Req::Yes, "Collision")],
+    },
+    Command {
+        name: "collision.wall",
+        kind: CommandKind::Edit,
+        summary: "Draw a wall of a height between two points",
+        args: &[
+            f("from", VEC3, Req::Yes, "From"),
+            f("to", VEC3, Req::Yes, "To"),
+            f("height", F32, Req::Yes, "Height"),
+            f("surface", U8, Req::Yes, "Surface"),
+            f("id", TEXT, Req::No, "Id"),
+        ],
+    },
+    Command {
+        name: "collision.ground",
+        kind: CommandKind::Edit,
+        summary: "Draw ground over an outline",
+        args: &[
+            f("outline", OUTLINE, Req::Yes, "Outline"),
+            f("surface", U8, Req::Yes, "Surface"),
+            f("id", TEXT, Req::No, "Id"),
+        ],
     },
     Command {
         name: "race.create",
@@ -418,6 +448,9 @@ pub fn command_of(op: &Op) -> &'static str {
         Op::Add { .. } => "props.add",
         Op::Duplicate { .. } => "props.duplicate",
         Op::DropToGround { .. } => "props.drop",
+        Op::RemoveCollision { .. } => "collision.remove",
+        Op::DrawWall { .. } => "collision.wall",
+        Op::DrawGround { .. } => "collision.ground",
         Op::NewRace { .. } => "race.create",
         Op::DeleteRace { .. } => "race.delete",
         Op::RenameRace { .. }

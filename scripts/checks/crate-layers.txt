@@ -38,6 +38,7 @@ formats ob-formats
 
 frontend::career::routes ob-map
 frontend::career::tracks ob-map
+tools::map::draw ob-map
 tools::map::format ob-map
 tools::map::ops ob-map
 tools::map::race ob-map

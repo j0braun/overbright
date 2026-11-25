@@ -28,6 +28,9 @@ and its schema export (`crates/ob-studio/schema/studio.json`) use, so `help` is 
 | `props add` | edit | Add a prop of one of the region's objects (`--solid`, `--position`, optional `--heading` or `--rotation`, `--id`, `--ground`) |
 | `props duplicate` | edit | Copy a prop to a new place |
 | `props drop` | edit | Stand a prop on the floor under it |
+| `collision remove` | edit | Take out a wall of the original's static collision (`--target '{"original": [[x, y, z], ...]}'`, its corners as the collision view's Inspector shows them) or a drawn wall or ground (`--target '{"drawn": "wall-1"}'`) |
+| `collision wall` | edit | Draw a wall from `--from` to `--to` (each `[x, y, z]` on the road), `--height` metres tall, with surface id `--surface` (optional `--id`) |
+| `collision ground` | edit | Draw ground over `--outline` (3 to 32 points `[[x, y, z], ...]`), with surface id `--surface` (optional `--id`) |
 | `race create` | edit | Make a race on a base track (`--track`, optional `--kind`, default sprint, and `--id`) |
 | `race delete` | edit | Delete a race |
 | `race set` | edit | Change a race's `--name`, `--id`, `--track`, `--kind`, `--laps` or `--backward`; several at once are one step |

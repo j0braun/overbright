@@ -16,7 +16,7 @@
 /// The world: placements and their original keys (`World::original_placement`),
 /// the map overlay, loading a region.
 pub mod world {
-    pub use crate::world::{HIDDEN_FLAG, Placement, World, is_panorama, parts_of, transform_of};
+    pub use crate::world::{DrawnCollision, HIDDEN_FLAG, Placement, World, face_key, is_panorama, parts_of, transform_of};
 }
 
 /// The id of this build (the build that writes a shared mod's provenance).

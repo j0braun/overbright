@@ -212,6 +212,11 @@ links = [1, 2, 3, 0, 2, 3, 0, 1, 3, 0, 1, 2]
   with them at load time (docs/modding/map-editor.md "Collision of edited scenery"): the stored packs are not
   changed, the loaded ones are. Knock-over props keep their kind's volume, so a moved prop is hit where it now
   stands, a disabled one is gone, and an added placement with `prop` is a prop with that volume.
+- **Removed and drawn faces.** A map mod's `[collision.remove]` takes original faces of barrier group 0 out of
+  every loaded pack's cells (the face stays in the face list, so no index moves), and `[collision.wall]` /
+  `[collision.ground]` add faces as moved scenery's are added: walls (flag 0x02) after a cell's own references,
+  drawn floors (flag 0x01) before them, since the height query stops at a cell's first wall (0x5E72F0)
+  (docs/modding/map-editor.md "Removed and drawn collision").
 
 ### 4.1 Extension point: collision deltas (reserved, refused for now)
 

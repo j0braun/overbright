@@ -54,6 +54,7 @@ fn maps(name: &str) -> PathBuf {
         description: String::new(),
         props: vec![mv(-860.2, -842.4), mv(-805.1, -799.2), PropEdit::Delete { target: target(-700.0) }],
         races: vec![race],
+        collision: vec![],
     };
     let drift = MapMod {
         name: "Drift park".into(),
@@ -61,6 +62,7 @@ fn maps(name: &str) -> PathBuf {
         description: String::new(),
         props: vec![mv(-805.1, -801.0)],
         races: vec![],
+        collision: vec![],
     };
     put(&d, "harbour-edits", &harbour);
     put(&d, "drift-park", &drift);

@@ -284,6 +284,7 @@ fn placements_of(s: &EditorState, added: &[PropKey]) -> Vec<usize> {
 /// Delete the selection (Del).
 pub fn delete_selection(s: &mut EditorState) {
     if s.selection.is_empty() {
+        super::collision::remove_picked(s);
         return;
     }
     let (of, ops): (Vec<usize>, Vec<Op>) = editable(s).into_iter().map(|(i, key)| (i, Op::Delete { key })).unzip();
@@ -820,6 +821,8 @@ impl Props {
         }
         if esc && self.drag.is_none() {
             s.selection.clear();
+            s.wall = None;
+            s.draw = None;
         }
     }
 }
@@ -900,6 +903,12 @@ impl Panel for Props {
             && let Some(live) = self.live.take()
         {
             live.take_back(s);
+        }
+        if !s.selection.is_empty() {
+            s.wall = None;
+        }
+        if s.selection.is_empty() && super::collision::panel(s, ui) {
+            return;
         }
         let Some(&first) = s.selection.first() else {
             ui.label(RichText::new("Nothing selected").color(colour(THEME_A.dim)));
@@ -1023,7 +1032,7 @@ impl Panel for Props {
         ui.label(RichText::new(if knock {
             "Knock-over props carry their own collision: it moves with the prop."
         } else {
-            "Static scenery keeps its collision where the original has it: a moved or deleted piece still blocks there."
+            "Static scenery takes its collision with it: a moved piece blocks where it now stands, a deleted one nowhere."
         })
         .small()
         .color(colour(THEME_A.dim)));

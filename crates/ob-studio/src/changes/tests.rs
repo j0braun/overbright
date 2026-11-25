@@ -178,7 +178,7 @@ fn mv(x: f32, to: f32) -> PropEdit {
 }
 
 fn mapmod(props: Vec<PropEdit>, races: Vec<CustomRace>) -> MapMod {
-    MapMod { name: "m".into(), author: String::new(), description: String::new(), props, races }
+    MapMod { name: "m".into(), author: String::new(), description: String::new(), props, races, collision: vec![] }
 }
 
 #[test]

@@ -54,10 +54,6 @@ pub struct PropCollision {
     pub outside: usize,
     /// Removed faces the original's collision does not have.
     pub unmatched: usize,
-    /// Where those are (each one's corners' centre), in the mods' order: the map checks point at them.
-    pub unmatched_at: Vec<Vec3>,
-    /// The drawn faces outside every pack's grid (each one's corners' centre), in the mods' order.
-    pub outside_at: Vec<Vec3>,
 }
 
 /// A map mod's removed and drawn collision on one region
@@ -89,11 +85,6 @@ impl DrawnCollision {
     }
 }
 
-/// The centre of a face's corners.
-fn centre(corners: &[Vec3]) -> Vec3 {
-    corners.iter().copied().sum::<Vec3>() / corners.len().max(1) as f32
-}
-
 /// A face's corners as the packs store them (eighths of a metre across,
 /// 1/256 m up): how a removal names an original face.
 pub fn face_key(corners: &[Vec3]) -> Vec<[i32; 3]> {
@@ -113,11 +104,33 @@ const FLAG_LEVELS: u8 = 0x01;
 /// One edited original or added placement whose static collision changes:
 /// where its faces stand in the original (`from`, an original placement),
 /// and where they stand now (`to`; None for deleted).
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct SceneryEdit {
     pub placement: usize,
     pub from: Option<Mat4>,
     pub to: Option<Mat4>,
+}
+
+/// What the editor's live re-apply (`World::reapply_map_mod`) needs to take
+/// its scenery collision back to the original's: the edits it applied, the
+/// packs as they were before (grid, face count) and the collision
+/// triangles as they were. Empty while no edit changed the collision.
+#[derive(Clone, Default)]
+pub(super) struct SavedCollision {
+    edits: Vec<SceneryEdit>,
+    drawn: DrawnCollision,
+    packs: Vec<(usize, (crate::formats::collision::CollisionGrid, usize))>,
+    faces: Option<Vec<crate::collision::Source>>,
+    /// Shapes found on the original's collision, which no edit changes: an
+    /// original placement's own faces (pack, face) and in its space, and a
+    /// solid's shape for added placements.
+    cache: ShapeCache,
+}
+
+#[derive(Clone, Default)]
+struct ShapeCache {
+    own: HashMap<usize, (Vec<(usize, usize)>, Vec<LocalFace>)>,
+    solids: HashMap<usize, Vec<LocalFace>>,
 }
 
 impl World {
@@ -233,24 +246,79 @@ impl World {
     /// placement's faces (an original's own, an added one's its solid's)
     /// are written at its place now. Nothing is touched for an empty list.
     pub fn apply_scenery_collision(&mut self, edits: &[SceneryEdit]) -> PropCollision {
+        self.scenery_collision(edits, &DrawnCollision::default(), None, &mut ShapeCache::default())
+    }
+
+    /// [`World::apply_scenery_collision`] with a mod's removed and drawn
+    /// collision: the removed original faces leave every pack with the
+    /// edited scenery's, and the drawn faces are written after its new
+    /// ones.
+    pub fn apply_map_collision(&mut self, edits: &[SceneryEdit], drawn: &DrawnCollision) -> PropCollision {
+        self.scenery_collision(edits, drawn, None, &mut ShapeCache::default())
+    }
+
+    /// The live re-apply's [`World::apply_scenery_collision`]: when `edits`
+    /// differ from those `saved` holds, the original's collision is put back
+    /// and `edits` are applied to it, so the world's collision is the one a
+    /// load with the mod makes (the same faces in the same order). Nothing
+    /// is touched while the edits stay the same, nor for no edits on the
+    /// original's collision. True when the collision changed.
+    pub(super) fn redo_scenery_collision(
+        &mut self,
+        saved: &mut SavedCollision,
+        edits: &[SceneryEdit],
+        drawn: &DrawnCollision,
+    ) -> bool {
+        if saved.edits == edits && saved.drawn == *drawn {
+            return false;
+        }
+        for (pi, state) in saved.packs.drain(..).rev() {
+            self.ground.restore_pack(pi, state);
+        }
+        if let Some(faces) = saved.faces.take() {
+            self.collision_faces = faces;
+            self.collision = Default::default();
+        }
+        saved.edits = edits.to_vec();
+        saved.drawn = drawn.clone();
+        self.map_overlay.collision_version += 1;
+        if !(edits.is_empty() && drawn.is_empty()) && !self.ground.is_empty() {
+            saved.faces = Some(self.collision_faces.clone());
+            self.map_overlay.collision = self.scenery_collision(edits, drawn, Some(&mut saved.packs), &mut saved.cache);
+        } else {
+            self.map_overlay.collision = PropCollision::default();
+        }
+        true
+    }
+
+    fn scenery_collision(
+        &mut self,
+        edits: &[SceneryEdit],
+        drawn: &DrawnCollision,
+        mut save: Option<&mut Vec<(usize, (crate::formats::collision::CollisionGrid, usize))>>,
+        cache: &mut ShapeCache,
+    ) -> PropCollision {
         let mut done = PropCollision::default();
-        if edits.is_empty() || self.ground.is_empty() {
+        if (edits.is_empty() && drawn.is_empty()) || self.ground.is_empty() {
             return done;
         }
         let _t = crate::prof::span("World: map mods' collision");
         let mut cut: HashMap<usize, HashSet<u16>> = HashMap::new();
         let mut add: Vec<CollisionFace> = Vec::new();
-        let mut shapes: HashMap<usize, Vec<LocalFace>> = HashMap::new();
         for e in edits {
             let solid = self.placements[e.placement].solid;
             let shape = match e.from {
                 Some(from) => {
-                    for (pi, fi) in self.collision_of_placement(solid, from) {
+                    let (own, shape) = cache
+                        .own
+                        .entry(e.placement)
+                        .or_insert_with(|| (self.collision_of_placement(solid, from), self.local_faces(solid, from)));
+                    for &(pi, fi) in own.iter() {
                         cut.entry(pi).or_default().insert(fi as u16);
                     }
-                    self.local_faces(solid, from)
+                    &*shape
                 }
-                None => shapes.entry(solid).or_insert_with(|| self.solid_collision(solid)).clone(),
+                None => &*cache.solids.entry(solid).or_insert_with(|| self.solid_collision(solid)),
             };
             if !shape.is_empty() {
                 done.solids_with_collision += 1;
@@ -276,21 +344,22 @@ impl World {
                 }
             }
             done.unmatched = wanted.values().filter(|h| !**h).count();
-            let mut told = HashSet::new();
-            for c in &drawn.remove {
-                let k = face_key(c);
-                if !wanted[&k] && told.insert(k) {
-                    done.unmatched_at.push(centre(c));
-                }
-            }
         }
-        let first_drawn = add.len();
         add.extend(drawn.faces.iter().map(|f| world_face(&drawn_local(f), Mat4::IDENTITY)));
         // Each new face into every pack whose grid covers it.
         let mut per_pack: HashMap<usize, Vec<(CollisionFace, Vec<(usize, u16)>)>> = HashMap::new();
         for (k, f) in add.iter().enumerate() {
             let mut any = false;
+            let n = f.corners.clamp(3, 4);
+            let (xl, xh) = (f.x[..n].iter().min().map_or(0, |&v| v), f.x[..n].iter().max().map_or(0, |&v| v));
+            let (yl, yh) = (f.y[..n].iter().min().map_or(0, |&v| v), f.y[..n].iter().max().map_or(0, |&v| v));
+            let (xl, xh, yl, yh) = (xl as f64 / 8.0, xh as f64 / 8.0, yl as f64 / 8.0, yh as f64 / 8.0);
             for (pi, g) in self.ground.grids().enumerate() {
+                // A grid the face's bounds miss lists it in no cell.
+                let (ox, oy) = (g.origin[0] as f64, g.origin[1] as f64);
+                if xh < ox || yh < oy || xl > ox + g.width as f64 * CELL || yl > oy + g.height as f64 * CELL {
+                    continue;
+                }
                 let cells = cells_of(f, g.origin, g.width, g.height);
                 if !cells.is_empty() {
                     per_pack.entry(pi).or_default().push((*f, cells));
@@ -310,7 +379,7 @@ impl World {
         let none = HashSet::new();
         // The triangles of the collision the rest of the game asks (walls
         // for the camera, the props, the AI): the same change.
-        let mut cut_triangles: HashSet<(u32, [[u32; 3]; 3])> = HashSet::new();
+        let mut cut_triangles: crate::fxhash::FxHashSet<(u32, [[u32; 3]; 3])> = Default::default();
         let mut new_sources = Vec::new();
         for pi in packs {
             let section = self.ground.grids().nth(pi).map_or(0, |g| g.section as u32);
@@ -322,6 +391,9 @@ impl World {
                         cut_triangles.insert((section, t.map(|v| v.to_array().map(f32::to_bits))));
                     }
                 }
+            }
+            if let (Some(save), Some(state)) = (save.as_deref_mut(), self.ground.pack_state(pi)) {
+                save.push((pi, state));
             }
             if !self.ground.edit_pack(pi, c, &a) {
                 log::warn!("map mods: collision pack {section} is full; its scenery collision is left as it was");

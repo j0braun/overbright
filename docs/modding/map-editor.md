@@ -85,7 +85,7 @@ Reset camera in the map view). Every item does something; a test checks that eac
 | Menu | Items |
 |---|---|
 | File | **File ▸ New map mod…** (Ctrl+N: a name, its folder and the region), **File ▸ Open map mod…** (Ctrl+O), the five most recent mods, **File ▸ Save** (Ctrl+S), **File ▸ Mod details…** (name, author, description), **File ▸ Import…** (a mod folder, a `map.obmap` or a `.zip`), **File ▸ Export…** (a `.zip` or a folder: the map and the mod's textures, `looks.toml` and `textures/`, never `work/` or `.editor/`; textures from the original game's pixels are warned about first; it proposes `<folder>.zip` in the `exports` folder of Overbright's data folder, made on the first export, and the status line says where the file went), **File ▸ Quit** (Ctrl+Q; saves first, and asks only when that fails) |
-| Edit | **Edit ▸ Undo** and **Edit ▸ Redo**, named by the step they undo or redo (256 steps), **Edit ▸ Duplicate**, **Edit ▸ Delete**, **Edit ▸ Select all of this solid**, **Edit ▸ Drop to ground**, **Edit ▸ Rotate 90°**, **Edit ▸ Face camera** |
+| Edit | **Edit ▸ Undo** and **Edit ▸ Redo**, named by the step they undo or redo (256 steps), **Edit ▸ Duplicate**, **Edit ▸ Delete**, **Edit ▸ Select all of this solid**, **Edit ▸ Drop to ground**, **Edit ▸ Rotate 90°**, **Edit ▸ Face camera**, **Edit ▸ Draw wall**, **Edit ▸ Draw ground** (see Removed and drawn collision) |
 | View | **View ▸ 3D view**, **View ▸ Map** (M switches), **View ▸ Frame selection** (F), **View ▸ Reset camera** (the region's overview), **View ▸ Collision ▸ Off**, **View ▸ Collision ▸ Invisible barriers** and **View ▸ Collision ▸ All collision** (see Collision), **View ▸ Hint line** |
 | Race | **Race ▸ New race**, **Race ▸ Test race** (F5), **Race ▸ Drive here** (Shift+F5) |
 | Help | **Help ▸ Controls**: every key, made from the editor's key table |
@@ -412,8 +412,9 @@ results do not count toward the career.
 
 ## Collision
 
-The Collision submenu of the View menu draws the game's own collision over the 3D view, the top overview and
-the Map. It is read-only: nothing about collision is changed, saved or sent to the game.
+The Collision submenu of the View menu draws the game's collision over the 3D view, the top overview and the
+Map: the original's, with the mod's moved scenery, removed walls and drawn walls and ground (see "Removed and
+drawn collision"). It is drawn again whenever an edit, undo or redo changes the collision.
 
 - **View ▸ Collision ▸ Off** (the default) draws nothing.
 - **View ▸ Collision ▸ Invisible barriers** draws the walls a player cannot see: in red the invisible walls,
@@ -426,8 +427,8 @@ a see-through panel with its outline; in the top overview and on the Map it is a
 
 What is drawn:
 
-- The faces come from the region's collision packs as the game loads them (docs/modding/asset-format/collision.md);
-  a face stored in several packs is drawn once. Edits in the mod do not change them (see Limits).
+- The faces come from the region's collision packs as the game loads them with the mod
+  (docs/modding/asset-format/collision.md); a face stored in several packs is drawn once.
 - **Race and career barriers** are the walls of a barrier group other than 0 (`BARRIERS_<n>`,
   `PLAYER_BARRIERS_<n>`, `BARRIERS_CAREER<n>`). The game switches them on per race or per career stage; the
   editor draws them all, whichever are on.
@@ -440,6 +441,38 @@ What is drawn:
   above them.
 - In the 3D view walls are drawn up to a few hundred metres from the camera (farther from higher up) and floors
   up to 120 m.
+
+## Removed and drawn collision
+
+With the collision layer shown, a click on a wall in the 3D view selects it (outlined in lime; a click inside a
+drawn ground selects that), and the Properties panel names it and its size.
+
+- **Remove wall** (Del) takes the selected wall out of the game's collision: an invisible wall, a wall behind
+  scenery, or a drawn wall or ground (named **Delete** for those). It is one undo step ("Remove wall",
+  "Remove wall-1"); the scenery standing there stays. Race and career barriers cannot be removed (the game
+  switches them per race). Only static collision is touched: knock-over props keep their own.
+- **Edit ▸ Draw wall**: two clicks on the ground make a wall between them, of the Properties panel's height
+  (0.5 to 50 m, default 2 m), standing on the ground's height at each end. A drawn wall is a closed box 0.5 m
+  thick reaching 0.5 m below the ground, so a car meets it from either side at any frame rate. The tool stays
+  armed for the next wall; Esc stops it.
+- **Edit ▸ Draw ground**: clicks on the ground make an outline (3 to 32 corners, not crossing itself), ended
+  with Enter or a click on its first corner: a floor over it, at its corners' heights. Drawn ground goes first
+  in its cells and competes by height with the other floors there (flag 0x01), so it carries a car that drives
+  onto it without taking the ground from a road above or below it.
+- Picking and drawing work in the 3D view, in Top and on the Map alike: in Top and on the Map the point is the
+  mouse's x/y at the road's or floor's height there (as for race points), and a click picks a wall by its foot.
+  Drawn points snap to existing collision corners and to the ends of your own drawn walls and outlines within
+  10 points on the screen; a ring shows the corner a click takes, and Alt places the point where the mouse is.
+  Enter, Esc and Del work as in the 3D view.
+- Each drawn wall and ground has a surface id (grip and sound): by default that of the floor under its first
+  point; the Properties panel sets another.
+- With Show off, drawing switches the layer to Invisible barriers so the new wall shows.
+
+In the file these are `[collision.remove]`, `[collision.wall]` and `[collision.ground]` sections (see File
+format); the game's load and the editor's world write them as they write moved scenery's walls (below), so Test
+race, Drive here and Simulate collide with them as the editor shows. A removed face the region does not have is
+counted in the log ("removed collision face(s) … are not in its collision") and does nothing. Without such
+sections nothing changes.
 
 ## Collision of edited scenery
 
@@ -459,11 +492,16 @@ names the placement a face came from. A map mod's scenery gets the collision the
 - Without a map mod, or with one that edits only knock-over props and solids without collision, the packs are
   the original's, unchanged.
 - The game's log says how many faces the mods took out and wrote ("static collision: … out, … in").
+- The editor's world follows each edit, undo and redo at once: a moved solid stops cars and shows in the collision
+  layer where it now stands, with the same faces in the same order as the game's load of the mod gives; taking
+  the edits back leaves the original's collision, bit for bit. Test race, Drive here and Simulate load the run
+  copy and so get the same collision.
 
-Code: `src/world/prop_collision.rs` (the shape, the cells), `TrackGround::edit_pack` in `src/ground.rs`; tests in
-`src/world/prop_collision/tests.rs` (a car at 70 m/s into an added and a moved street light at 30, 60, 120 and 200
-steps a second). Open: the original's own pack build is not traced (the cell rule is read from the shipped packs);
-the editor's live view applies the collision only when the game loads the mod.
+Code: `src/world/prop_collision.rs` (the shape, the cells, the editor's re-apply), `TrackGround::edit_pack` in
+`src/ground.rs`; tests in `src/world/prop_collision/tests.rs` (a car at 70 m/s into an added, a moved and an
+editor-moved street light at 30, 60, 120 and 200 steps a second; the editor's world against a load, step by step)
+and `src/bin/game/enh/sim_stream.rs` (a simulated sprint whose racers stop at a row of moved street lights).
+Open: the original's own pack build is not traced (the cell rule is read from the shipped packs).
 
 ## Limits
 
@@ -471,7 +509,7 @@ the editor's live view applies the collision only when the game loads the mod.
   floors (a ramp, a raised platform) stay where the original has them, and a solid the original gives no
   collision (benches, most signs) has none when added.
 - Overlays (route, checkpoints, handles, collision) are drawn over the world without depth.
-- The collision layer only shows collision; walls and barriers cannot be drawn or removed on their own yet.
+- Drawn ground is flat between its corners.
 - Shops, event markers, traffic lanes and AI lanes cannot be edited yet. Drag races are not offered (their lanes
   are fixed to the drag tracks).
 - Copy and paste in text fields work only inside the editor (no system clipboard); screen readers are not
@@ -512,6 +550,9 @@ Header: `name`, `author`, `description` (optional, at most 200 characters each).
 | `[prop.move]` | `region`, `section`, `solid`, `at`, `nth` — the original placement; `position` (x y z), `rotation` (9 numbers: the local x, y, z axes as rows) |
 | `[prop.delete]` | `region`, `section`, `solid`, `at`, `nth` |
 | `[prop.add]` | `id`, `region`, `solid`, `position`, `rotation` |
+| `[collision.remove]` | `region`, `corner` (x y z, 3 or 4 times: an original face's corners as its pack stores them) |
+| `[collision.wall]` | `id` (a-z 0-9 - _, unique among the drawn walls and ground), `region`, `from`, `to` (x y z: the wall's ends on the ground, 0.5 to 500 m apart), `height` (0.5 to 50 m), `surface` (0 to 255) |
+| `[collision.ground]` | `id`, `region`, `point` (x y z, 3 to 32 times, an outline that does not cross itself, at most 500 m across), `surface` |
 | `[race]` | `id` (a-z 0-9 - _, unique), `name`, `track` (base track number), `backward` (yes/no: the base track's backward barriers and lanes), `mode` (circuit, sprint, streetx, drift), `laps` (1–20; 1 for sprint and drift), `checkpoint` (x y, repeated, in order, at most 64), `grid` (x y z heading, repeated, at most 8, pole first), `start` / `finish` (x y z heading) |
 
 Every heading is in degrees around +z from +x and is the way the cars face: a grid slot's car, the cars behind

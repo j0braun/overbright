@@ -51,6 +51,8 @@ pub enum Action {
     Hint(bool),
     /// The collision layer (View ▸ Collision).
     Collision(super::collision::Show),
+    /// Arm a drawing tool (Edit ▸ Draw wall / Draw ground).
+    Draw(super::collision::Draw),
 }
 
 /// A request for one of the editor's parts.
@@ -104,7 +106,9 @@ impl Command {
         );
         match self {
             _ if props_only && (s.mode != Mode::Props || s.selection.is_empty()) => Some("Select a prop first"),
-            Command::Delete if s.mode == Mode::Props && s.selection.is_empty() => Some("Select a prop first"),
+            Command::Delete if s.mode == Mode::Props && s.selection.is_empty() && s.wall.is_none() => {
+                Some("Select a prop first")
+            }
             Command::Delete if s.mode == Mode::Races && s.point.is_none() => Some("Select a race point first"),
             Command::ResetCamera | Command::FrameSelection if s.view == View::Map => Some("In the 3D view only (M)"),
             _ => None,
@@ -542,6 +546,14 @@ pub fn edit_items(app: &App, ui: &mut egui::Ui, out: &mut Vec<Action>) {
     command(ui, s, "Drop to ground", "End", Command::DropToGround);
     command(ui, s, "Rotate 90°", "", Command::Rotate90);
     command(ui, s, "Face camera", "", Command::FaceCamera);
+    ui.separator();
+    let open = s.is_some();
+    if item(ui, "Draw wall", None, open) {
+        out.push(Action::Draw(super::collision::Draw::Wall { first: None }));
+    }
+    if item(ui, "Draw ground", None, open) {
+        out.push(Action::Draw(super::collision::Draw::Ground { points: Vec::new() }));
+    }
 }
 
 /// The View menu's items.

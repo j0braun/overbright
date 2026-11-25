@@ -139,6 +139,84 @@
       "words": "props drop"
     },
     {
+      "command": "collision.remove",
+      "flags": [
+        {
+          "flag": "--target",
+          "label": "Collision",
+          "needed": true,
+          "type": "json"
+        }
+      ],
+      "kind": "edit",
+      "summary": "Take out a wall of the original's collision, or a drawn wall or ground",
+      "words": "collision remove"
+    },
+    {
+      "command": "collision.wall",
+      "flags": [
+        {
+          "flag": "--from",
+          "label": "From",
+          "needed": true,
+          "type": "vec3"
+        },
+        {
+          "flag": "--to",
+          "label": "To",
+          "needed": true,
+          "type": "vec3"
+        },
+        {
+          "flag": "--height",
+          "label": "Height",
+          "needed": true,
+          "type": "f32"
+        },
+        {
+          "flag": "--surface",
+          "label": "Surface",
+          "needed": true,
+          "type": "u8"
+        },
+        {
+          "flag": "--id",
+          "label": "Id",
+          "needed": false,
+          "type": "text"
+        }
+      ],
+      "kind": "edit",
+      "summary": "Draw a wall of a height between two points",
+      "words": "collision wall"
+    },
+    {
+      "command": "collision.ground",
+      "flags": [
+        {
+          "flag": "--outline",
+          "label": "Outline",
+          "needed": true,
+          "type": "list of vec3"
+        },
+        {
+          "flag": "--surface",
+          "label": "Surface",
+          "needed": true,
+          "type": "u8"
+        },
+        {
+          "flag": "--id",
+          "label": "Id",
+          "needed": false,
+          "type": "text"
+        }
+      ],
+      "kind": "edit",
+      "summary": "Draw ground over an outline",
+      "words": "collision ground"
+    },
+    {
       "command": "race.create",
       "flags": [
         {

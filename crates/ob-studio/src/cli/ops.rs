@@ -65,6 +65,9 @@ pub fn request(name: &str, a: &BTreeMap<String, Value>, map: &MapMod, dir: &Path
         "props.delete" => op("delete", a, &["key"]),
         "props.reset" => op("reset", a, &["key"]),
         "props.drop" => op("drop_to_ground", a, &["key"]),
+        "collision.remove" => op("remove_collision", a, &["target"]),
+        "collision.wall" => op("draw_wall", a, &["from", "to", "height", "surface", "id"]),
+        "collision.ground" => op("draw_ground", a, &["outline", "surface", "id"]),
         "props.duplicate" => op("duplicate", a, &["key", "position"]),
         "props.add" => {
             let mut v = op("add", a, &["solid", "position", "id", "ground"]);
