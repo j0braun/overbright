@@ -271,7 +271,7 @@ shows a busy line and greys the actions meanwhile; the page takes no input while
   `not-a-game-folder`, `files-missing`, `checking`,
   `first-start`, `probe-failed`, `no-vulkan` (the probe found no Vulkan
   driver: the line names the package to install), `long-values` (a long German path, many
-  languages, a long pad name), `unofficial`, `portable` (About of a portable install), `start-failed`,
+  languages, a long pad name), `language-unsupported` (Settings › Advanced with every language the engine cannot show installed), `unofficial`, `portable` (About of a portable install), `start-failed`,
   `unreadable-folder`, the Saves page's `saves-*`, the Dev page's `dev-studio-*` and the Mods page's
   `mods-empty`, `mods-busy`, `mods-results`, `mods-remove`, `mods-hud-complete`,
   `mods-hud-incomplete`.
