@@ -375,6 +375,38 @@
       "words": "race put"
     },
     {
+      "command": "pack.create",
+      "flags": [
+        {
+          "flag": "--name",
+          "label": "Name",
+          "needed": true,
+          "type": "text"
+        },
+        {
+          "flag": "--folder",
+          "label": "Folder",
+          "needed": false,
+          "type": "text"
+        },
+        {
+          "flag": "--template",
+          "label": "Start from: empty (default), sprint, circuit or sample",
+          "needed": false,
+          "type": "text"
+        },
+        {
+          "flag": "--maps",
+          "label": "Mods folder (default: the game's map mods folder)",
+          "needed": false,
+          "type": "text"
+        }
+      ],
+      "kind": "run",
+      "summary": "Make a new map mod, nothing changed yet or from a template (its folder from its name unless given)",
+      "words": "pack create"
+    },
+    {
       "command": "pack.details",
       "flags": [
         {
@@ -415,11 +447,24 @@
       "words": "pack put"
     },
     {
-      "command": "pack.repair",
-      "flags": [],
-      "kind": "edit",
-      "summary": "Repair a map file that no longer reads, where a safe repair exists (as one undo step)",
-      "words": "pack repair"
+      "command": "pack.export",
+      "flags": [
+        {
+          "flag": "--to",
+          "label": "Export to",
+          "needed": true,
+          "type": "text"
+        },
+        {
+          "flag": "--derived-ok",
+          "label": "Share textures made from the original game's pixels",
+          "needed": false,
+          "type": "bool"
+        }
+      ],
+      "kind": "run",
+      "summary": "Export the mod as one file to share: a .zip (or a folder), without its work files",
+      "words": "pack export"
     },
     {
       "command": "edit.group",

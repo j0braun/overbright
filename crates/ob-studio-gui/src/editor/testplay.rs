@@ -231,6 +231,20 @@ pub struct TestPanel {
 /// How often a running test is looked at while the window is idle.
 const POLL_EVERY: std::time::Duration = std::time::Duration::from_millis(250);
 
+fn started_id() -> egui::Id {
+    egui::Id::unique("editor.testplay.started")
+}
+
+/// How many test runs this window started (Studio's tutorial ticks its Drive it step on it).
+pub fn started(ctx: &egui::Context) -> u64 {
+    ctx.data(|d| d.get_temp::<u64>(started_id()).unwrap_or(0))
+}
+
+/// Count one more started test run.
+pub fn count_start(ctx: &egui::Context) {
+    ctx.data_mut(|d| *d.get_temp_mut_or_default::<u64>(started_id()) += 1);
+}
+
 fn strip_id() -> egui::Id {
     egui::Id::unique("editor.testplay.strip")
 }
@@ -289,7 +303,10 @@ impl TestPanel {
         };
         if let Some(t) = target {
             match TestPlay::start(s, &game_exe(), t) {
-                Ok(t) => self.test = Some(t),
+                Ok(t) => {
+                    self.test = Some(t);
+                    count_start(&ctx);
+                }
                 Err(e) => s.status = e,
             }
             ctx.request_repaint_after(POLL_EVERY);

@@ -8,6 +8,7 @@ waits for it and reads its output.
 ```
 overbright-studio-cli help                                   # every command, flag and exit code
 overbright-studio-cli help race point add                    # one command's flags
+overbright-studio-cli pack create --name "Docks remix"       # a new mod in the map mods folder
 overbright-studio-cli race set --mod maps/docks --race loop --laps 3 --dry-run
 overbright-studio-cli ops apply --mod maps/docks --file edits.jsonl --label "Night version"
 overbright-studio-cli checks run --mod maps/docks --json
@@ -34,9 +35,10 @@ and its schema export (`crates/ob-studio/schema/studio.json`) use, so `help` is 
 | `race point move` | edit | Move a race point to `--position`, or a checkpoint one place `--later` (or `--later=false`: earlier) in the route |
 | `race point delete` | edit | Delete a race point (`--part`, optional `--index`) |
 | `race put` | edit | Put a whole race in place (`--to`, the race as JSON) |
+| `pack create` | run | Make a new map mod with nothing changed yet (`--name`; optional `--folder`, else made from the name, and `--maps`, the mods folder, default the map mods folder; `--region` is the region it is edited on; `--template sprint`, `circuit` or `sample` starts it with a sprint along the docks, a three-lap circuit downtown or the sample race pack, as Home's templates do) |
 | `pack details` | edit | Change the mod's `--name`, `--author` and `--description` (those left out stay) |
 | `pack put` | edit | Put the whole map in place, from a map file (`--file`) |
-| `pack repair` | edit | Repair a `map.obmap` that no longer reads, where a safe repair exists (a sprint or drift race with more than one lap runs its one lap), as one step |
+| `pack export` | run | Export the mod as one file to share (`--to` a `.zip`, or a new folder), without its work files; textures made from the original game's pixels need `--derived-ok` ([Studio](studio.md#the-mod-page)) |
 | `edit group` | edit | Several edits as one step (`--label`, `--ops`: the edits as a JSON list) |
 | `ops apply` | edit | Apply an operations file as one step (`--file`, optional `--label`) |
 | `looks open` | run | Open a texture in your own paint program: writes its work file (`--texture world:0x1A2B3C4D`; the game's pixels, or `--blank` for an empty canvas) ([Studio Looks](studio-looks.md)) |
@@ -96,6 +98,14 @@ An edit's document holds:
 `text`, the `race` it is about, the `point` and the place (`at`, x and y) the editor's Show goes to, and the `fix`
 the editor offers. `history show` gives `step` (the current one), `steps` and `undone` (each with `step`,
 `author`, `label`, `time_ms`), `versions` and `unsaved`.
+
+`pack create` gives `name`, `folder`, `dir` (the new mod's folder, for `--mod`), `region` and `template`. It never writes over
+a mod: a folder in use (`error.reason` `folder_used`) or a name another mod has (`name_used`) fails with exit 1;
+no name (`no_name`), a name over 60 characters (`long_name`), a folder name with other characters than a-z, 0-9,
+`-` and `_` (`bad_folder`) or a bad `--region` (`bad_region`) is a usage error (exit 2).
+
+`pack export` gives `to`, `files`, `bytes`, `derived` (the textures from the original game's pixels) and
+`build`; refused for derived textures, its `error.reason` is `derived` and `derived` lists them.
 
 `looks open` gives `texture`, `name`, `work_file`, `origin` (`game` or `blank`) and `derived`. `looks import`
 gives `outcome` (`made` with its `step`, `unchanged`, or `sent` with the inbox `request` when Studio or the map

@@ -19,6 +19,11 @@ pub mod world {
     pub use crate::world::{HIDDEN_FLAG, Placement, World, is_panorama, parts_of, transform_of};
 }
 
+/// The id of this build (the build that writes a shared mod's provenance).
+pub mod build {
+    pub use crate::BUILD_ID;
+}
+
 /// The knock-over props a world keeps.
 pub mod smackable {
     pub use crate::smackable::Prop;

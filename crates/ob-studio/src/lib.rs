@@ -7,6 +7,7 @@
 pub use nfsu2::studio_api;
 
 pub mod changes;
+pub mod create;
 pub mod cli;
 pub mod history;
 pub mod keys;
@@ -14,6 +15,7 @@ pub mod looks;
 pub mod merge;
 pub mod registry;
 pub mod session;
+pub mod share;
 pub mod validate;
 
 /// The documents of a mod's history: the map (`map.obmap`) and the texture list (`looks.toml`, [`looks`]).

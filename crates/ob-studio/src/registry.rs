@@ -320,6 +320,17 @@ pub const COMMANDS: &[Command] = &[
         args: &[RACE_ID, f("to", JSON, Req::Yes, "Race")],
     },
     Command {
+        name: "pack.create",
+        kind: CommandKind::Run,
+        summary: "Make a new map mod, nothing changed yet or from a template (its folder from its name unless given)",
+        args: &[
+            f("name", TEXT, Req::Yes, "Name"),
+            f("folder", TEXT, Req::No, "Folder"),
+            f("template", TEXT, Req::No, "Start from: empty (default), sprint, circuit or sample"),
+            f("maps", TEXT, Req::No, "Mods folder (default: the game's map mods folder)"),
+        ],
+    },
+    Command {
         name: "pack.details",
         kind: CommandKind::Edit,
         summary: "Change the pack's name, author and description",
@@ -336,10 +347,13 @@ pub const COMMANDS: &[Command] = &[
         args: &[FILE],
     },
     Command {
-        name: "pack.repair",
-        kind: CommandKind::Edit,
-        summary: "Repair a map file that no longer reads, where a safe repair exists (as one undo step)",
-        args: &[],
+        name: "pack.export",
+        kind: CommandKind::Run,
+        summary: "Export the mod as one file to share: a .zip (or a folder), without its work files",
+        args: &[
+            f("to", TEXT, Req::Yes, "Export to"),
+            f("derived-ok", Ty::Bool, Req::No, "Share textures made from the original game's pixels"),
+        ],
     },
     Command {
         name: "edit.group",

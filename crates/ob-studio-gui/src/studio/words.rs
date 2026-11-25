@@ -24,7 +24,6 @@ pub const SAVED: &str = "Saved automatically";
 pub const SAVING_BEHIND: &str = "Saving is behind";
 pub const SAVING: &str = "Saving…";
 pub const NO_MOD_STATUS: &str = "No mod open";
-pub const MOD_PAGE: &str = "Sharing your mod comes here: check it, pack it and make it ready for others.";
 pub const SETTINGS_PAGE: &str = "Studio's settings come here: UI size, keys and pads.";
 pub const TOOLS_COME: &str = "Open a mod to edit its world";
 pub const VIEW_PLACEHOLDER: &str = "Open a mod on Home or in the Mod menu";
@@ -46,8 +45,94 @@ pub const COPY_ADDRESS: &str = "Copy address";
 pub const TEST_HERE: &str = "Test here";
 pub const NOTHING_SELECTED: &str = "Nothing selected";
 
+/// The Mod page.
+pub const MOD_PAGE_NO_MOD: &str = "Open a mod to see its details, check it and share it.";
+pub const MOD_DETAILS: &str = "Mod details";
+pub const IN_GAME_ON_SHORT: &str = "On";
+pub const READY_TO_SHARE: &str = "READY TO SHARE";
+pub const EXPORT: &str = "Export";
+pub const EXPORT_ANYWAY: &str = "Export anyway";
+pub const DERIVED_TITLE: &str = "Made from the original game";
+pub const SHOW: &str = "Show";
+pub const HIDE: &str = "Hide";
+pub const NOT_SET: &str = "Not set";
+
+/// Making a mod: Home's "Start something new", File ▸ New mod… and its dialog.
+pub const NEW_MOD: &str = "New mod…";
+pub const NEW_MOD_TITLE: &str = "New mod";
+pub const NEW_MOD_LINE: &str = "Move, add and hide props and make races. The game's own files stay as they are.";
+pub const NAME: &str = "Name";
+pub const FOLDER: &str = "Folder";
+pub const NAME_HINT: &str = "Docks remix";
+pub const NEW_MOD_GOES: &str = "Goes in the folder";
+pub const NEW_MOD_NAME_FIRST: &str = "Type a name; the folder is made from it";
+pub const START_NEW: &str = "START SOMETHING NEW";
+pub const EMPTY_MAP_MOD: &str = "Empty map mod";
+pub const EMPTY_MAP_MOD_LINE: &str = "Props and races, nothing else";
+
+/// Home's start and the tutorials (`guide`).
+pub const START_HERE: &str = "START HERE";
+pub const PLACES: &str = "WHAT EACH PLACE DOES";
+pub const TUTORIAL: &str = "Tutorial";
+pub const TUTORIAL_ROW: &str = "Your first mod";
+pub const TUTORIAL_ROW_LINE: &str = "Tutorial · make a mod, place a prop, drive it, share it";
+pub const END_TUTORIAL: &str = "End tutorial";
+pub const GO_TO_RACES: &str = "Go to Races";
+pub const RACE_TUTORIAL_ROW: &str = "Make your first race";
+pub const RACE_TUTORIAL_ROW_LINE: &str = "Tutorial · base track, start, race points, test, share";
+pub const OPEN_SAMPLE: &str = "Open the sample";
+
+/// Home's templates and the sample (`ob_studio::create::Template`).
+pub const SPRINT_RACE: &str = "Sprint race";
+pub const SPRINT_RACE_LINE: &str = "One sprint along the docks, ready to change";
+pub const CIRCUIT_RACE: &str = "Circuit race";
+pub const CIRCUIT_RACE_LINE: &str = "Three laps downtown, ready to change";
+pub const SAMPLE: &str = "SAMPLE";
+pub const SAMPLE_RACE_PACK: &str = "Sample race pack";
+pub const SAMPLE_LINE: &str = "Three races with start gates and signs";
+pub const STARTS_WITH: &str = "Starts with";
+
 /// Every word above.
-pub const ALL: [&str; 38] = [
+pub const ALL: [&str; 76] = [
+    RACE_TUTORIAL_ROW,
+    RACE_TUTORIAL_ROW_LINE,
+    OPEN_SAMPLE,
+    SPRINT_RACE,
+    SPRINT_RACE_LINE,
+    CIRCUIT_RACE,
+    CIRCUIT_RACE_LINE,
+    SAMPLE,
+    SAMPLE_RACE_PACK,
+    SAMPLE_LINE,
+    STARTS_WITH,
+    START_HERE,
+    PLACES,
+    TUTORIAL,
+    TUTORIAL_ROW,
+    TUTORIAL_ROW_LINE,
+    END_TUTORIAL,
+    GO_TO_RACES,
+    NEW_MOD,
+    NEW_MOD_TITLE,
+    NEW_MOD_LINE,
+    NAME,
+    FOLDER,
+    NAME_HINT,
+    NEW_MOD_GOES,
+    NEW_MOD_NAME_FIRST,
+    START_NEW,
+    EMPTY_MAP_MOD,
+    EMPTY_MAP_MOD_LINE,
+    MOD_PAGE_NO_MOD,
+    MOD_DETAILS,
+    IN_GAME_ON_SHORT,
+    READY_TO_SHARE,
+    EXPORT,
+    EXPORT_ANYWAY,
+    DERIVED_TITLE,
+    SHOW,
+    HIDE,
+    NOT_SET,
     NO_PROBLEMS,
     NOTHING_LOGGED,
     NO_JOBS,
@@ -79,7 +164,6 @@ pub const ALL: [&str; 38] = [
     SAVING_BEHIND,
     SAVING,
     NO_MOD_STATUS,
-    MOD_PAGE,
     SETTINGS_PAGE,
     TOOLS_COME,
     VIEW_PLACEHOLDER,

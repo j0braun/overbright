@@ -189,7 +189,7 @@ pub fn load_enabled(dir: &Path) -> Vec<(String, MapMod)> {
 
 /// A folder name for an imported mod: `name` cleaned, else `map`, with a
 /// number added while the folder exists.
-fn free_folder(dir: &Path, name: &str) -> String {
+pub fn free_folder(dir: &Path, name: &str) -> String {
     let mut base: String = name
         .to_ascii_lowercase()
         .chars()

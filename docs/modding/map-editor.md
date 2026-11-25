@@ -153,7 +153,9 @@ While the right mouse button is held the tool keys fly the camera instead (W A S
 
 - **Race ▸ New race** (or **New race…** in the tree) makes a sprint on the selected race's base track, else on the race
   track whose roads come nearest to where the camera looks, and arms Start: click the road for the start line, then for the checkpoints (the Checkpoint tool is armed for you),
-  finish last for a sprint. Points snap to the base track's roads while Snap is on (Alt: no snapping).
+  finish last for a sprint. Points snap to the base track's roads while Snap is on (Alt: no snapping). The
+  selected race's base-track roads are drawn faint green over the 3D view (near the camera) and the map: a race
+  may only use those roads.
 - With **Select**, a click on a race point selects it, a drag moves it, Del removes it, `[` / `]` step through the
   checkpoints. With Checkpoint armed, Shift+click on the route inserts a checkpoint into that leg. Grid adds a
   slot (8 at most; with a slot selected, a click moves it).

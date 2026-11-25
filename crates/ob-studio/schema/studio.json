@@ -1146,6 +1146,41 @@
       ]
     },
     {
+      "name": "pack.create",
+      "kind": "run",
+      "summary": "Make a new map mod, nothing changed yet or from a template (its folder from its name unless given)",
+      "args": [
+        {
+          "key": "name",
+          "type": "text",
+          "required": "yes",
+          "merge": false,
+          "label": "Name"
+        },
+        {
+          "key": "folder",
+          "type": "text",
+          "required": "no",
+          "merge": false,
+          "label": "Folder"
+        },
+        {
+          "key": "template",
+          "type": "text",
+          "required": "no",
+          "merge": false,
+          "label": "Start from: empty (default), sprint, circuit or sample"
+        },
+        {
+          "key": "maps",
+          "type": "text",
+          "required": "no",
+          "merge": false,
+          "label": "Mods folder (default: the game's map mods folder)"
+        }
+      ]
+    },
+    {
       "name": "pack.details",
       "kind": "edit",
       "summary": "Change the pack's name, author and description",
@@ -1188,10 +1223,25 @@
       ]
     },
     {
-      "name": "pack.repair",
-      "kind": "edit",
-      "summary": "Repair a map file that no longer reads, where a safe repair exists (as one undo step)",
-      "args": []
+      "name": "pack.export",
+      "kind": "run",
+      "summary": "Export the mod as one file to share: a .zip (or a folder), without its work files",
+      "args": [
+        {
+          "key": "to",
+          "type": "text",
+          "required": "yes",
+          "merge": false,
+          "label": "Export to"
+        },
+        {
+          "key": "derived-ok",
+          "type": "bool",
+          "required": "no",
+          "merge": false,
+          "label": "Share textures made from the original game's pixels"
+        }
+      ]
     },
     {
       "name": "edit.group",
