@@ -198,6 +198,11 @@ as negative ids); `TRAFH_NAT_ENT=1` (the original) writes `L<lane> own=s:off:acr
 pt=<record>:<cp>:<metres past it>` from the entries the car's last think left (planner at controller
 +0x54) — its own entry and the tracked car's, `off` off the planner's lane as 0x402ED0 reads it. The
 original's poll then reads about half as many samples a second; the statistics are per sample.
+`TRAFH_NAT_WORLD=1` (the original) adds comment lines per sample: `# n` the player's place, facing and
+road node (controller +0x0C: the point's place and race coordinate +0x08, as the placer 0x42E9F0 reads it),
+`# c` each traffic car's race coordinate (+0x8FC) and `# w` the world's tracked count (+0x14), coordinates
+(+0xE0 / +0xE4) and places (+0x80 / +0x90) that 0x5F12B0 / 0x5F0FC0 measure from, and the player's +0x8FC.
+A placed car's `# c` at its spawn row less the player's is the placement's race-coordinate distance.
 
 ## Screenshots, horns, outruns
 
