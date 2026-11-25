@@ -44,10 +44,12 @@ pub enum Screen {
     /// The developer tools: the map editor, the game with the editor
     /// tools, the support file and the logs.
     Dev,
+    /// Your own copy of the game: offered after the game check, and in Settings › Advanced.
+    GameData,
 }
 
 impl Screen {
-    pub const ALL: [Screen; 17] = [
+    pub const ALL: [Screen; 18] = [
         Screen::FirstRun,
         Screen::Check,
         Screen::Main,
@@ -65,6 +67,7 @@ impl Screen {
         Screen::Recover,
         Screen::Storage,
         Screen::Dev,
+        Screen::GameData,
     ];
 
     pub fn name(self) -> &'static str {
@@ -86,6 +89,7 @@ impl Screen {
             Screen::Recover => "recover",
             Screen::Storage => "storage",
             Screen::Dev => "dev",
+            Screen::GameData => "game-data",
         }
     }
 
@@ -106,7 +110,8 @@ impl Screen {
             | Screen::Storage
             | Screen::About
             | Screen::Licence
-            | Screen::Notices => Some(1),
+            | Screen::Notices
+            | Screen::GameData => Some(1),
             Screen::Mods => Some(2),
             Screen::Saves => Some(3),
             Screen::Dev => Some(4),
@@ -174,6 +179,8 @@ pub struct App<'e> {
     pub back: Screen,
     /// The page slide and Play's glow.
     pub motion: super::anim::Motion,
+    /// The own copy's run (import, check, repair) on its worker ([`super::game_data`]).
+    pub game_data_job: Option<super::game_data::Job>,
     /// Files being copied to a new folder on a worker.
     pub copy_job: Option<
         std::sync::mpsc::Receiver<(crate::platform::dirs::Location, PathBuf, Result<super::transfer::Done, String>)>,
@@ -657,6 +664,7 @@ fn build_page(b: &mut Builder, m: &Model, screen: Screen) {
         }
         Screen::Mods => build_mods(b, m),
         Screen::Prepare => build_prepare(b, m),
+        Screen::GameData => super::game_data::build(b, m),
         Screen::FirstRun
         | Screen::Check
         | Screen::Failure
@@ -819,6 +827,8 @@ pub fn game_state(m: &Model) -> (Mark, String) {
         ProbeState::Pending => (Mark::Info, format!("{found} · checking this computer…")),
         ProbeState::Ready(p) if !p.ok() => (Mark::Warn, format!("{found} · no graphics adapter answered (see below)")),
         ProbeState::Failed(_) => (Mark::Warn, format!("{found} · this computer was not checked")),
+        // The own copy being made behind the main screen.
+        _ if m.game_data.running() => (Mark::Info, m.game_data.background_words().unwrap_or_default()),
         _ => match &m.prepare.state {
             // The prepare step running by itself (`Prepare::background`).
             super::prepare::State::Idle | super::prepare::State::Running { .. } if m.prepare.background => {
@@ -1424,6 +1434,7 @@ fn build_advanced(b: &mut Builder, m: &Model) {
     );
     if m.root.is_some() {
         b.sum_row("prepare", "Get shaders ready again", "");
+        b.sum_row("game_data", "Game data", &m.game_data.row_words());
     }
     b.sum_row("import", "Import saves", "from the original game");
     b.sum_row("storage", "Storage", if m.portable.on { "Portable: beside the program" } else { "Where Overbright keeps its files" });
@@ -2126,6 +2137,7 @@ impl<'e> App<'e> {
             studio_job: None,
             keys_after: None,
             copy_job: None,
+            game_data_job: None,
             saves_rx: None,
             saves_ctx: None,
         };
@@ -2233,6 +2245,129 @@ impl<'e> App<'e> {
             return true;
         }
         false
+    }
+
+    /// The own copy offered as the next step: after the game check of a first run, or at a start without a
+    /// copy (unless "Not now" was chosen before). Not when a copy is there (whole or to repair) or a run goes on.
+    pub fn offer_game_data(&mut self) -> bool {
+        use super::game_data::Status;
+        let g = &self.model.game_data;
+        if self.model.root.is_none() || g.running() || matches!(g.status, Status::Ready { .. } | Status::Damaged(_)) {
+            return false;
+        }
+        self.open_game_data(false);
+        true
+    }
+
+    /// The Game data screen (`from_settings`: from Settings › Advanced, Back returns there).
+    pub fn open_game_data(&mut self, from_settings: bool) {
+        let root = self.model.root.clone();
+        let g = &mut self.model.game_data;
+        g.from_settings = from_settings;
+        if !g.running() {
+            g.state = super::game_data::GameData::state_for(&g.status);
+            g.stopping = false;
+        }
+        if g.size == 0
+            && let Some(r) = root
+        {
+            g.size = self.env.game_data_size(&r);
+        }
+        self.go(Screen::GameData);
+    }
+
+    fn game_data_leave(&mut self) {
+        if self.model.game_data.from_settings {
+            self.go(Screen::Advanced);
+            self.st.focus = Some("game_data");
+        } else {
+            self.go(Screen::Main);
+        }
+    }
+
+    /// Starts `kind` in the background (one run at a time).
+    fn game_data_run(&mut self, kind: super::game_data::Kind) {
+        use super::game_data::{Kind, State};
+        let Some(root) = self.model.root.clone() else {
+            self.model.message = Some((Mark::Warn, "Choose the game's folder first.".into()));
+            return;
+        };
+        if self.game_data_job.is_some() {
+            return;
+        }
+        let g = &mut self.model.game_data;
+        g.last = kind;
+        g.stopping = false;
+        g.state = State::Running {
+            fraction: 0.0,
+            words: if kind == Kind::Verify { "Checking the copy" } else { "Reading your game files" }.into(),
+        };
+        log::info!("game data: {kind:?} started");
+        self.game_data_job = Some(self.env.game_data_start(kind, &root));
+        self.st.focus = None;
+    }
+
+    /// A run's messages applied. True when the screen changed.
+    fn poll_game_data(&mut self) -> bool {
+        use super::game_data::{End, GameData, Msg, State, Status};
+        let Some(job) = self.game_data_job.as_mut() else { return false };
+        let msgs = job.poll();
+        if msgs.is_empty() {
+            return false;
+        }
+        let g = &mut self.model.game_data;
+        for m in msgs {
+            match m {
+                Msg::Progress { fraction, words } => {
+                    if g.running() {
+                        g.state = State::Running { fraction, words };
+                    }
+                }
+                Msg::End(end) => {
+                    self.game_data_job = None;
+                    g.stopping = false;
+                    g.state = match end {
+                        End::Ready { status, differing } => {
+                            g.status = status;
+                            match &g.status {
+                                Status::Ready { edition, known } => {
+                                    State::Done { edition: edition.clone(), known: *known, differing }
+                                }
+                                other => GameData::state_for(other),
+                            }
+                        }
+                        End::Stopped { done, of } => {
+                            g.status = Status::Partial;
+                            State::Stopped { done, of }
+                        }
+                        End::Damaged(n) => {
+                            g.status = Status::Damaged(n);
+                            State::Damaged(n)
+                        }
+                        End::NoSpace { need, free, place } => State::NoSpace { need, free, place },
+                        End::Failed(e) => State::Failed(e),
+                    };
+                    if self.screen == Screen::GameData {
+                        self.st.focus = None;
+                    }
+                    break;
+                }
+            }
+        }
+        true
+    }
+
+    /// A run goes on (the window wakes for its messages).
+    pub fn game_data_busy(&self) -> bool {
+        self.game_data_job.is_some()
+    }
+
+    /// The launcher closes: a run still going is asked to stop (the next start goes on from it).
+    pub fn finish_game_data(&mut self) {
+        if let Some(j) = self.game_data_job.take() {
+            log::info!("game data: stopped with the launcher");
+            j.finish(std::time::Duration::from_secs(3));
+        }
     }
 
     pub fn go(&mut self, s: Screen) {
@@ -3512,7 +3647,7 @@ impl<'e> App<'e> {
     /// The window's poll: a finished support file shown, the map editor's
     /// end. True when the screen changed.
     pub fn poll_jobs(&mut self, fonts: &Fonts) -> bool {
-        if self.poll_editor() | self.poll_studio() || self.poll_saves() {
+        if self.poll_editor() | self.poll_studio() | self.poll_game_data() || self.poll_saves() {
             self.rebuild(fonts);
             return true;
         }
@@ -3598,6 +3733,8 @@ impl<'e> App<'e> {
                             self.model.languages = self.env.languages(&c.root);
                             self.model.root = Some(c.root);
                             self.go(Screen::Main);
+                            // The next step of the setup: the own copy, offered with Make copy chosen.
+                            self.offer_game_data();
                         }
                         Err(err) => {
                             self.model.message = Some((Mark::Error, format!("The folder could not be kept: {err}")))
@@ -3923,6 +4060,30 @@ impl<'e> App<'e> {
                 self.model.prepare.wanted = false;
                 self.go(Screen::Main);
             }
+            (Screen::GameData, Event::Activate("import")) => self.game_data_run(super::game_data::Kind::Import),
+            (Screen::GameData, Event::Activate("import_again")) => {
+                self.game_data_run(super::game_data::Kind::ImportAgain)
+            }
+            (Screen::GameData, Event::Activate("retry")) => self.game_data_run(self.model.game_data.last),
+            (Screen::GameData, Event::Activate("repair")) => self.game_data_run(super::game_data::Kind::Repair),
+            (Screen::GameData, Event::Activate("verify")) => self.game_data_run(super::game_data::Kind::Verify),
+            (Screen::GameData, Event::Activate("stop")) => {
+                if let Some(j) = &self.game_data_job {
+                    j.stop();
+                    self.model.game_data.stopping = true;
+                }
+            }
+            (Screen::GameData, Event::Activate("storage")) => {
+                self.refresh_storage();
+                self.go(Screen::Storage);
+            }
+            (Screen::GameData, Event::Activate("later")) => {
+                self.env.set_game_data_later();
+                self.game_data_leave();
+            }
+            // Back while a run goes on: it goes on behind the other screens.
+            (Screen::GameData, Event::Activate("continue") | Event::Back) => self.game_data_leave(),
+            (Screen::Advanced, Event::Activate("game_data")) => self.open_game_data(true),
             (Screen::Advanced, Event::Activate("prepare")) => self.start_prepare(),
             // This computer checked again (a driver installed meanwhile):
             // the window runs the probe.

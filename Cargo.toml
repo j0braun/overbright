@@ -63,6 +63,9 @@ ob-formats = { path = "crates/ob-formats" }
 ob-map = { path = "crates/ob-map" }
 # The look shared by the launcher, the map editor and Studio (crates/ob-look), re-exported at `launch::theme`.
 ob-look = { path = "crates/ob-look" }
+# The asset format: the importer the launcher's Game data screen runs (src/launcher/game_data.rs), and the run
+# file check (`ob.run`) on the simulation's stream (src/bin/game/enh/sim_stream.rs).
+ob-asset-format = { path = "crates/ob-asset-format" }
 anyhow.workspace = true
 bytemuck.workspace = true
 glam.workspace = true
@@ -118,8 +121,6 @@ libc.workspace = true
 proptest.workspace = true
 # The test kit (crates/ob-testkit, docs/developing/testing.md).
 ob-testkit = { path = "crates/ob-testkit" }
-# The asset format's run file check (`ob.run`) on the simulation's stream (src/bin/game/enh/sim_stream.rs).
-ob-asset-format = { path = "crates/ob-asset-format" }
 
 [features]
 # Tracy: `cargo build --release --features profile-tracy`, then connect the

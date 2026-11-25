@@ -22,7 +22,7 @@
 #   h. Play starts the game; its log file appears in the logs folder and reports its start
 #      (`game start: done`); the game window is closed as a player would (WM_DELETE_WINDOW); the
 #      game ends with 0 and the launcher logs "a normal end" and exits 0;
-#   i. a second start opens straight on the main screen with the saved folder.
+#   i. a second start opens straight on the main screen with the saved folder (Not now on the own-copy offer is kept).
 # The screens are read from the launcher's own log (RUST_LOG launcher::screen=debug: each screen's
 # texts, its controls' ids, "(off)" and boxes) and kept as screenshots in <work dir>.
 #
@@ -227,7 +227,12 @@ has "Ready, some movies won't play" && has "3 movies are missing (2 story, 1 tut
 has "26 of 29" || fail "no movie count in the summary rows: $(cat "$W/screen.txt")"
 shot e-no-exe
 X xdotool key Return   # Use this folder (focused)
-screen main 1 || fail "Use did not open the main screen"
+# The next step of the setup: your own copy of the game, offered with Make copy chosen; Not now goes on.
+screen game-data 1 || fail "Use did not offer your own copy (the Game data screen)"
+has "Make your own copy" && grep -qE '^  \[button import @' "$W/screen.txt" || fail "no offer: $(cat "$W/screen.txt")"
+shot e-game-data-offer
+click later || fail "no Not now button"
+screen main 1 || fail "Not now did not open the main screen"
 wait_for "probe: the game folder changed" 1 10 || fail "no new probe for the chosen folder"
 wait_for "first-run values [0-9]" 1 30 || fail "the new probe gave no first-run values: $(grep 'probe:' "$L")"
 ok "no SPEED2.EXE, three movies missing: used; probe run again with it ($(grep -oE 'first-run values [^;]*$' "$L" | tail -1))"
@@ -289,7 +294,9 @@ shot d-case-swapped
 VLINE=$(grep -F 'Version 1.2' "$W/screen.txt" | sed 's/^  \[[^]]*\] //')
 m0=$(grep -c "screen main$" "$L")
 X xdotool key Return
-screen main $((m0 + 1)) || fail "Use did not open the main screen"
+screen game-data 2 || fail "Use did not offer your own copy again for the new folder"
+click later || fail "no Not now button"
+screen main $((m0 + 1)) || fail "Not now did not open the main screen"
 wait_for "probe: the game folder changed" 2 10 || fail "no new probe for the second folder"
 ok "accepted and used: $VLINE"
 

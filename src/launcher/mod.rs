@@ -23,6 +23,7 @@ pub mod check;
 pub mod dirs;
 pub mod draw;
 pub mod font;
+pub mod game_data;
 pub mod headless;
 pub mod layout;
 pub mod legends;

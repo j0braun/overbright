@@ -302,7 +302,10 @@ if [ -e "$H/NFSU2" ]; then
   click_id button use
   wait_until 30 eval '[ "$(q screen)" = check ] && [ -n "$(q box button use)" ] && echo yes' || fail "the game folder is not usable: $(cat "$W/screen.txt")"
   click_id button use
-  wait_until 10 screen_is main || fail "Use this folder did not reach the main screen"
+  # The own copy offered next (docs/launcher.md, "Game data"): Not now by the mouse.
+  wait_until 10 screen_is game-data || fail "Use this folder did not offer your own copy"
+  click_id button later
+  wait_until 10 screen_is main || fail "Not now did not reach the main screen"
   ok "the game folder chosen by the mouse: the main screen"
   click_id row row_mods
   wait_until 5 screen_is mods || fail "Mods"
