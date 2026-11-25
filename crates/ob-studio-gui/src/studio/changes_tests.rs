@@ -499,3 +499,56 @@ fn many_presses_on_changes_load_nothing_new() {
     assert!(s.changes.picked.len() <= s.changes.lines().len());
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// Every text a frame drew.
+fn drawn_texts(out: &egui::FullOutput) -> Vec<String> {
+    fn walk(s: &egui::Shape, v: &mut Vec<String>) {
+        match s {
+            egui::Shape::Text(t) => v.push(t.galley.text().to_string()),
+            egui::Shape::Vec(list) => list.iter().for_each(|s| walk(s, v)),
+            _ => {}
+        }
+    }
+    let mut v = vec![];
+    for c in &out.shapes {
+        walk(&c.shape, &mut v);
+    }
+    v
+}
+
+#[test]
+fn the_focus_menu_shows_each_row_where_it_has_a_place() {
+    let dir = maps("menu-show");
+    let size = (1280, 800);
+    let mut s = Studio::new(dir.clone(), Some("harbour-edits"));
+    s.go(&Address::view("harbour-edits", "@world")).unwrap();
+    s.go(&Address::parse("ob://harbour-edits/@changes").unwrap()).unwrap();
+    frames(&mut s, size, 1.0, 1);
+    let n = s.changes.lines().len();
+    let mut race_line = None;
+    for i in 0..n {
+        s.changes.focus = i;
+        let (g, _) = s.changes.lines()[i];
+        let kind = s.changes.rows()[g].kind.to_string();
+        let (word, at) = s.changes.focused_jump().expect("props and races have a place");
+        if kind == ob_studio::changes::map::RACE {
+            assert_eq!(word, "Show in Races");
+            race_line = Some(i);
+        } else {
+            assert_eq!(word, "Show in World", "{kind}");
+        }
+        assert!(at.starts_with("ob://harbour-edits/"), "{at}");
+    }
+    // The menu on the race's row offers Races, never World.
+    s.changes.focus = race_line.expect("the mod adds a race");
+    s.nav.level = Level::Row;
+    s.frame(raw_input(size, 1.0, 0, vec![key(egui::Key::F10, false, true)]));
+    assert_eq!(s.nav.level, Level::Menu);
+    let (out, _) = frames(&mut s, size, 1.0, 1);
+    let t = drawn_texts(&out);
+    // The menu's items: Reset to original, then the row's Show, then Copy address.
+    let r = t.iter().rposition(|x| x == "Reset to original").expect("the menu is drawn");
+    assert_eq!(t[r + 1], "Show in Races", "{t:?}");
+    assert_eq!(t[r + 2], "Copy address", "{t:?}");
+    let _ = std::fs::remove_dir_all(&dir);
+}

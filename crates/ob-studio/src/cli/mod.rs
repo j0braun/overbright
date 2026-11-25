@@ -353,6 +353,18 @@ fn try_edit(line: &args::Line, cmd: &Command, env: &Env, m: &Mod) -> Result<Done
         World::default()
     };
     let mut session = MapSession::new(&region, &m.folder, map, world);
+    // `props move --heading`: the prop's own rotation turned to the heading, its tilt kept (the Properties panel's
+    // Heading); an upright one when the world does not have the prop (the session then refuses the move).
+    let op = match (op, line.args.get("heading").and_then(Value::as_f64)) {
+        (Op::Place { key, position, rotation }, Some(h)) if cmd.name == "props.move" => {
+            let rotation = session
+                .placement_of(&key)
+                .and_then(|i| nfsu2::studio_api::map::edit::placement_parts(&session.world, i))
+                .map_or(rotation, |(_, r)| nfsu2::studio_api::map::edit::with_heading(r, h as f32));
+            Op::Place { key, position, rotation }
+        }
+        (op, _) => op,
+    };
     let mut change = match session.run(op) {
         Ok(c) => c,
         Err(r) => {
@@ -580,14 +592,21 @@ fn checks(line: &args::Line, env: &Env, m: &Mod) -> Done {
     }
     let tested = validate::Tested::load(&m.edir);
     let mut found = validate::checks(&map, &nets, &tracks, &tested);
-    // The floor under the start, finish and grid, from the region's world (read when the game is at hand).
+    // The floor under the start, finish and grid and the mod's drawn and removed collision, from the region's
+    // world with the mod on it (its drawn ground is a floor), read when the game is at hand.
     let spots = map.races.iter().any(|r| r.start.is_some() || r.finish.is_some() || !r.grid.is_empty());
-    if spots
+    if (spots || !map.collision.is_empty())
         && let Ok(root) = game_root(line, env)
-        && let Ok(world) = (env.world)(&root, region)
+        && let Ok(mut world) = (env.world)(&root, region)
         && world.has_floors()
     {
-        found.extend(validate::floor_checks(&map, &|p| world.road_height_below(p)));
+        if !map.collision.is_empty() {
+            world.apply_map_mods(region, &[(m.folder.clone(), map.clone())]);
+        }
+        let under = |p| world.road_height_below(p);
+        found.extend(validate::floor_checks(&map, &under));
+        let c = &world.map_overlay.collision;
+        found.extend(validate::collision_checks(&map, &under, &c.unmatched_at, &c.outside_at));
         found.sort_by_key(|c| (std::cmp::Reverse(c.level), c.ok));
     }
     let count = |l: Level| found.iter().filter(|c| c.level == l && !c.ok).count();

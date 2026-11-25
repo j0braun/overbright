@@ -38,6 +38,7 @@ pub const PROBLEMS: &str = "Problems";
 pub const SIMULATING: &str = "Simulating…";
 pub const FIND_GO_TO: &str = "GO TO";
 pub const FIND_COMMANDS: &str = "COMMANDS";
+pub const FIND_MODS: &str = "YOUR MODS";
 pub const PLACES_YOU_WERE: &str = "PLACES YOU WERE";
 pub const NO_STEPS: &str = "No steps yet";
 pub const NO_MODS_YET: &str = "No mods yet";
@@ -98,7 +99,7 @@ pub const SAMPLE_LINE: &str = "Three races with start gates and signs";
 pub const STARTS_WITH: &str = "Starts with";
 
 /// Every word above.
-pub const ALL: [&str; 81] = [
+pub const ALL: [&str; 82] = [
     RACE_TUTORIAL_ROW,
     RACE_TUTORIAL_ROW_LINE,
     OPEN_SAMPLE,
@@ -145,6 +146,7 @@ pub const ALL: [&str; 81] = [
     SIMULATING,
     FIND_GO_TO,
     FIND_COMMANDS,
+    FIND_MODS,
     PLACES_YOU_WERE,
     NO_STEPS,
     NO_MODS_YET,

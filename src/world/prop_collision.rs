@@ -52,7 +52,63 @@ pub struct PropCollision {
     pub solids_with_collision: usize,
     /// Faces outside every pack's grid (not written).
     pub outside: usize,
+    /// Removed faces the original's collision does not have.
+    pub unmatched: usize,
+    /// Where those are (each one's corners' centre), in the mods' order: the map checks point at them.
+    pub unmatched_at: Vec<Vec3>,
+    /// The drawn faces outside every pack's grid (each one's corners' centre), in the mods' order.
+    pub outside_at: Vec<Vec3>,
 }
+
+/// A map mod's removed and drawn collision on one region
+/// (`format::CollisionEdit`, docs/modding/map-editor.md "Removed and drawn
+/// collision"): the corners of the original faces taken out, and the drawn
+/// faces, in the mods' order.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct DrawnCollision {
+    pub remove: Vec<Vec<Vec3>>,
+    pub faces: Vec<crate::tools::map::draw::DrawnFace>,
+}
+
+impl DrawnCollision {
+    /// The collision edits of `region` among `edits`, in order.
+    pub fn of<'a>(region: &str, edits: impl IntoIterator<Item = &'a crate::tools::map::CollisionEdit>) -> DrawnCollision {
+        use crate::tools::map::CollisionEdit;
+        let mut d = DrawnCollision::default();
+        for e in edits.into_iter().filter(|e| e.region().eq_ignore_ascii_case(region)) {
+            match e {
+                CollisionEdit::Remove { corners, .. } => d.remove.push(corners.clone()),
+                _ => d.faces.extend(crate::tools::map::draw::faces(e)),
+            }
+        }
+        d
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.remove.is_empty() && self.faces.is_empty()
+    }
+}
+
+/// The centre of a face's corners.
+fn centre(corners: &[Vec3]) -> Vec3 {
+    corners.iter().copied().sum::<Vec3>() / corners.len().max(1) as f32
+}
+
+/// A face's corners as the packs store them (eighths of a metre across,
+/// 1/256 m up): how a removal names an original face.
+pub fn face_key(corners: &[Vec3]) -> Vec<[i32; 3]> {
+    corners.iter().map(|v| [(v.x * 8.0).round() as i32, (v.y * 8.0).round() as i32, (v.z * 256.0).round() as i32]).collect()
+}
+
+/// Drawn face `f` as a local face at the identity: a wall (flag 0x02) or,
+/// for ground, a floor that competes by height with the others (0x01) and
+/// so does not take the ground from a road above or below it.
+fn drawn_local(f: &crate::tools::map::draw::DrawnFace) -> LocalFace {
+    LocalFace { corners: f.corners, quad: f.quad, surface: f.surface, flags: if f.wall { FLAG_WALL } else { FLAG_LEVELS } }
+}
+
+/// Face flag 0x01: a floor on one of several levels.
+const FLAG_LEVELS: u8 = 0x01;
 
 /// One edited original or added placement whose static collision changes:
 /// where its faces stand in the original (`from`, an original placement),
@@ -203,9 +259,36 @@ impl World {
                 add.extend(shape.iter().map(|f| world_face(f, to)));
             }
         }
+        // The removed faces: every pack's static face with those corners.
+        if !drawn.remove.is_empty() {
+            let mut wanted: HashMap<Vec<[i32; 3]>, bool> = drawn.remove.iter().map(|c| (face_key(c), false)).collect();
+            for (pi, g) in self.ground.grids().enumerate() {
+                let _ = g;
+                let mut fi = 0;
+                while let Some(f) = self.ground.face_at(pi, fi) {
+                    if f.group == 0
+                        && let Some(hit) = wanted.get_mut(&face_key(&f.vertices[..f.corners.clamp(3, 4)]))
+                    {
+                        *hit = true;
+                        cut.entry(pi).or_default().insert(fi as u16);
+                    }
+                    fi += 1;
+                }
+            }
+            done.unmatched = wanted.values().filter(|h| !**h).count();
+            let mut told = HashSet::new();
+            for c in &drawn.remove {
+                let k = face_key(c);
+                if !wanted[&k] && told.insert(k) {
+                    done.unmatched_at.push(centre(c));
+                }
+            }
+        }
+        let first_drawn = add.len();
+        add.extend(drawn.faces.iter().map(|f| world_face(&drawn_local(f), Mat4::IDENTITY)));
         // Each new face into every pack whose grid covers it.
         let mut per_pack: HashMap<usize, Vec<(CollisionFace, Vec<(usize, u16)>)>> = HashMap::new();
-        for f in &add {
+        for (k, f) in add.iter().enumerate() {
             let mut any = false;
             for (pi, g) in self.ground.grids().enumerate() {
                 let cells = cells_of(f, g.origin, g.width, g.height);
@@ -216,6 +299,9 @@ impl World {
             }
             if !any {
                 done.outside += 1;
+                if let Some(d) = k.checked_sub(first_drawn).and_then(|d| drawn.faces.get(d)) {
+                    done.outside_at.push(centre(&d.corners[..if d.quad { 4 } else { 3 }]));
+                }
             }
         }
         let packs: HashSet<usize> = cut.keys().chain(per_pack.keys()).copied().collect();

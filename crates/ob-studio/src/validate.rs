@@ -13,7 +13,9 @@ use glam::{Vec2, Vec3};
 
 use crate::session::Level;
 use ob_formats::formats::roads::RoadNet;
-use ob_map::tools::map::format::{CustomRace, MAX_CHECKPOINTS, MAX_GRID, MAX_LAPS, MapMod, Spot, valid_id};
+use ob_map::tools::map::format::{
+    CollisionEdit, CustomRace, MAX_CHECKPOINTS, MAX_GRID, MAX_LAPS, MapMod, Spot, valid_id,
+};
 use ob_map::tools::map::ops::{RacePart, RacePoint};
 use ob_map::tools::map::race::{self, RoadPoint};
 
@@ -91,6 +93,11 @@ pub struct Check {
 impl Check {
     fn new(level: Level, race: usize, text: String) -> Check {
         Check { level, ok: false, text, race: Some(race), point: None, at: None, fix: None }
+    }
+
+    /// An entry of the mod as a whole (its drawn and removed collision), not of one race.
+    fn general(level: Level, text: String, at: Vec2) -> Check {
+        Check { level, ok: false, text, race: None, point: None, at: Some(at), fix: None }
     }
 
     fn at(mut self, at: Vec2, point: Option<RacePoint>) -> Check {
@@ -402,6 +409,16 @@ pub fn race_checks(
             }
         }
     }
+    // A drawn wall across the route: the cars hit it (a wall on a bridge over the route is told too; the route
+    // has no heights).
+    if let Some(line) = road.as_deref() {
+        for e in &map.collision {
+            let CollisionEdit::Wall { id, from, to, .. } = e else { continue };
+            if let Some(at) = crossing(line, from.truncate(), to.truncate()) {
+                out.push(warn(format!("the drawn wall {id} crosses the route; the cars run into it")).at(at, None));
+            }
+        }
+    }
     if road.is_some() && out.iter().all(|c| c.level == Level::Info) {
         let mut parts = Vec::new();
         if r.start.is_some() {
@@ -489,6 +506,84 @@ pub fn floor_checks(map: &MapMod, under: &dyn Fn(Vec3) -> Option<f32>) -> Vec<Ch
         }
     }
     out
+}
+
+/// The checks of the mod's drawn and removed collision that need the region's world (docs/modding/map-editor.md
+/// "Removed and drawn collision"): a drawn wall standing above the floor at an end (the cars drive under it, as
+/// `under` in [`floor_checks`]); `unmatched`: the removed walls the region's collision does not have (removing
+/// them does nothing); `outside`: drawn faces outside the region's collision area (the game leaves them out),
+/// both as the world reports them after applying the mod (`PropCollision::unmatched_at`, `outside_at`).
+pub fn collision_checks(
+    map: &MapMod,
+    under: &dyn Fn(Vec3) -> Option<f32>,
+    unmatched: &[Vec3],
+    outside: &[Vec3],
+) -> Vec<Check> {
+    let mut out = Vec::new();
+    for e in &map.collision {
+        let CollisionEdit::Wall { id, from, to, .. } = e else { continue };
+        let high = [from, to].into_iter().map(|p| (p, under(*p + Vec3::Z).map(|z| p.z - z))).find(|(_, h)| match h {
+            Some(h) => *h > ABOVE_FLOOR_M,
+            None => true,
+        });
+        if let Some((p, h)) = high {
+            let text = match h {
+                Some(h) => {
+                    format!("The drawn wall {id} stands {h:.0} m above the floor at one end; cars drive under it")
+                }
+                None => format!("The drawn wall {id} has no floor under one end; cars may drive under it"),
+            };
+            out.push(Check::general(Level::Warning, text, p.truncate()));
+        }
+    }
+    for p in unmatched {
+        out.push(Check::general(
+            Level::Warning,
+            "A removed wall is not in this region's collision (the game's files differ from the ones it was removed \
+             from); removing it does nothing"
+                .into(),
+            p.truncate(),
+        ));
+    }
+    // One entry per drawn wall or ground with a face outside, at that face.
+    let mut told = std::collections::HashSet::new();
+    for p in outside {
+        let owner = map.collision.iter().find(|e| {
+            ob_map::tools::map::draw::faces(e).iter().any(|f| {
+                let n = if f.quad { 4 } else { 3 };
+                (f.corners[..n].iter().copied().sum::<Vec3>() / n as f32).distance(*p) < 0.01
+            })
+        });
+        let Some(e) = owner else { continue };
+        let id = e.id().unwrap_or_default().to_string();
+        if !told.insert(id.clone()) {
+            continue;
+        }
+        let what = if matches!(e, CollisionEdit::Wall { .. }) { "wall" } else { "ground" };
+        out.push(Check::general(
+            Level::Warning,
+            format!(
+                "The drawn {what} {id} is partly outside the region's collision area; the game leaves that part out"
+            ),
+            p.truncate(),
+        ));
+    }
+    out
+}
+
+/// Where segment `a` → `b` first crosses `line` (None: it does not).
+fn crossing(line: &[Vec2], a: Vec2, b: Vec2) -> Option<Vec2> {
+    let d = b - a;
+    line.windows(2).find_map(|w| {
+        let e = w[1] - w[0];
+        let den = d.perp_dot(e);
+        if den.abs() < 1e-6 {
+            return None;
+        }
+        let q = w[0] - a;
+        let (t, u) = (q.perp_dot(e) / den, q.perp_dot(d) / den);
+        ((0.0..=1.0).contains(&t) && (0.0..=1.0).contains(&u)).then(|| a + d * t)
+    })
 }
 
 /// Whether any of `checks` blocks Test race for race `k`.
@@ -639,5 +734,49 @@ mod floor_tests {
         );
         assert_eq!(c[0].point, Some(RacePoint { part: RacePart::Start, index: 0 }));
         assert_eq!(c[2].at, Some(Vec2::new(500.0, 0.0)), "Show goes there");
+    }
+
+    #[test]
+    fn drawn_walls_above_the_floor_unmatched_removals_and_faces_outside_are_flagged() {
+        let wall = |id: &str, x: f32, z: f32| CollisionEdit::Wall {
+            id: id.into(),
+            region: "L4RA".into(),
+            from: Vec3::new(x, 0.0, z),
+            to: Vec3::new(x, 10.0, z),
+            height: 2.0,
+            surface: 0,
+        };
+        let ground = CollisionEdit::Ground {
+            id: "ground-1".into(),
+            region: "L4RA".into(),
+            outline: vec![Vec3::new(0.0, 0.0, 12.0), Vec3::new(10.0, 0.0, 12.0), Vec3::new(0.0, 10.0, 12.0)],
+            surface: 0,
+        };
+        let map = MapMod {
+            collision: vec![
+                wall("wall-1", 0.0, 12.0),
+                wall("wall-2", 10.0, 20.0),
+                wall("wall-3", 500.0, 0.0),
+                ground.clone(),
+            ],
+            ..MapMod::default()
+        };
+        let face = ob_map::tools::map::draw::faces(&ground)[0];
+        let outside = [face.corners[..3].iter().copied().sum::<Vec3>() / 3.0];
+        let unmatched = [Vec3::new(5.0, 5.0, 12.0)];
+        let c = collision_checks(&map, &road, &unmatched, &outside);
+        let texts: Vec<&str> = c.iter().map(|c| c.text.as_str()).collect();
+        assert_eq!(
+            texts,
+            vec![
+                "The drawn wall wall-2 stands 8 m above the floor at one end; cars drive under it",
+                "The drawn wall wall-3 has no floor under one end; cars may drive under it",
+                "A removed wall is not in this region's collision (the game's files differ from the ones it was \
+                 removed from); removing it does nothing",
+                "The drawn ground ground-1 is partly outside the region's collision area; the game leaves that part out",
+            ]
+        );
+        assert!(c.iter().all(|c| c.level == Level::Warning && c.race.is_none() && c.at.is_some()));
+        assert_eq!(c[2].at, Some(Vec2::new(5.0, 5.0)), "Show goes to the removed wall");
     }
 }

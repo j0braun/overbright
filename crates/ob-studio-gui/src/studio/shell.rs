@@ -270,7 +270,7 @@ impl Studio {
         }
     }
 
-    fn switch_mod(&mut self, i: usize) {
+    pub(super) fn switch_mod(&mut self, i: usize) {
         self.open = Some(i);
         self.memories = Memories::load(&self.mods[i].dir);
         if self.nav.workspace == Workspace::Changes {
@@ -638,11 +638,11 @@ impl Studio {
         }
     }
 
-    fn home_act(&mut self, a: HomeAct) {
+    pub(super) fn home_act(&mut self, a: HomeAct) {
         match a {
             HomeAct::GoToWorld => self.workspace(Workspace::World),
             HomeAct::MakeARace => self.workspace(Workspace::Races),
-            HomeAct::OpenAMod => self.nav.find_open = true,
+            HomeAct::OpenAMod => self.find_mods(),
             HomeAct::NewMod => self.open_new_mod(),
             HomeAct::Mod(i) => {
                 self.switch_mod(i);
@@ -2299,7 +2299,7 @@ impl Studio {
         }
     }
 
-    /// Find's list under its field: Go to, Commands (with their keys), Places you were. A click, or Enter / A on
+    /// Find's list under its field: Go to, your mods, Commands (with their keys), Places you were. A click, or Enter / A on
     /// the focused entry, takes it.
     fn find_list(&mut self, ui: &mut egui::Ui, l: &Layout) {
         let t = tokens();
@@ -2313,6 +2313,7 @@ impl Studio {
             .iter()
             .map(|i| match i {
                 FindItem::Go(ws) => ws.name().to_string(),
+                FindItem::Mod(i) => self.mods.get(*i).map_or(String::new(), |m| m.name.clone()),
                 FindItem::Run(c) => KEYS.iter().find(|k| k.command == *c).map_or("", |k| k.word).to_string(),
                 FindItem::Place(n) => self.places.back_list().nth(n - 1).map_or(String::new(), |a| self.place_name(a)),
             })
@@ -2321,6 +2322,7 @@ impl Studio {
             .iter()
             .map(|i| match i {
                 FindItem::Go(ws) => format!("Ctrl+{}", ws.ctrl_key()),
+                FindItem::Mod(i) => if Some(*i) == self.open { "open".to_string() } else { String::new() },
                 FindItem::Run(c) => KEYS.iter().find(|k| k.command == *c).map_or("", |k| k.keys).to_string(),
                 FindItem::Place(_) => String::new(),
             })
@@ -2337,6 +2339,7 @@ impl Studio {
                     for (k, item) in items.iter().enumerate() {
                         let h = match item {
                             FindItem::Go(_) => words::FIND_GO_TO,
+                            FindItem::Mod(_) => words::FIND_MODS,
                             FindItem::Run(_) => words::FIND_COMMANDS,
                             FindItem::Place(_) => words::PLACES_YOU_WERE,
                         };
@@ -2422,7 +2425,11 @@ impl Studio {
                         if ui.add_enabled(can, egui::Button::new(words::RESET_TO_ORIGINAL)).clicked() {
                             pick_changes = Some(true);
                         }
-                        if ui.add(egui::Button::new(words::SHOW_IN_WORLD)).clicked() {
+                        // Show only where the row leads somewhere, in its own words (a race in Races, a
+                        // texture in History).
+                        if let Some((word, _)) = self.changes.focused_jump()
+                            && ui.add(egui::Button::new(word)).clicked()
+                        {
                             pick_changes = Some(false);
                         }
                     }

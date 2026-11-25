@@ -15,6 +15,8 @@ use super::workspace::{Kind, Workspace};
 pub enum FindItem {
     /// Go to a workspace.
     Go(Workspace),
+    /// Open one of your mods (an index into the window's mods).
+    Mod(usize),
     /// Run a command (the key table's).
     Run(Command),
     /// A place you were: so many steps back.
@@ -192,11 +194,14 @@ impl Studio {
 
     // --- Find -----------------------------------------------------------------------------------------------
 
-    /// The Find list's entries for the typed words: workspaces, commands, places you were.
+    /// The Find list's entries for the typed words: workspaces, your mods, commands, places you were.
     pub fn find_items(&self) -> Vec<FindItem> {
         let q = self.find_text.trim().to_ascii_lowercase();
         let hit = |s: &str| q.is_empty() || s.to_ascii_lowercase().contains(&q);
         let mut v: Vec<FindItem> = Workspace::ALL.into_iter().filter(|w| hit(w.name())).map(FindItem::Go).collect();
+        v.extend(
+            self.mods.iter().enumerate().filter(|(_, m)| hit(&m.name) || hit(&m.folder)).map(|(i, _)| FindItem::Mod(i)),
+        );
         let mut seen = vec![];
         for k in KEYS.iter().filter(|k| runs_from_find(k.command) && hit(k.word)) {
             let can = match k.command {
@@ -217,6 +222,21 @@ impl Studio {
             }
         }
         v
+    }
+
+    /// Find open on its mods (Home's Open a mod): the first mod focused, or the first entry when there is none.
+    pub fn find_mods(&mut self) {
+        self.nav.find_open = true;
+        self.find_text.clear();
+        self.find_focus = self.find_items().iter().position(|i| matches!(i, FindItem::Mod(_))).unwrap_or(0);
+    }
+
+    /// Open the `i`-th mod from Find (as a mod row on Home does).
+    fn open_from_find(&mut self, i: usize) {
+        if i < self.mods.len() {
+            self.switch_mod(i);
+            self.home_focus = 0;
+        }
     }
 
     /// ↑ ↓ (the D-pad) in the Find list.
@@ -251,6 +271,7 @@ impl Studio {
         self.find_focus = 0;
         match i {
             FindItem::Go(w) => self.workspace(w),
+            FindItem::Mod(i) => self.open_from_find(i),
             FindItem::Run(c) => self.command(c, self.input_pad()),
             FindItem::Place(n) => self.go_back(n),
         }

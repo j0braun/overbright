@@ -128,7 +128,7 @@ pub const KEYS: [KeyRow; 20] = [
         keys: "Shift+F10 / Menu key",
         pad: Some(Btn::X),
         word: "Menu",
-        help: "The focused thing's menu: undo, nudge step, reset, test here, copy address",
+        help: "The focused thing's menu: undo, redo, test here, reset (on Changes), copy address",
     },
     KeyRow {
         command: Command::Find,
@@ -146,10 +146,10 @@ pub const KEYS: [KeyRow; 20] = [
     },
     KeyRow {
         command: Command::Workspace(Workspace::Home),
-        keys: "Ctrl+1 … Ctrl+0",
+        keys: "Ctrl+1 … Ctrl+0, Ctrl+,",
         pad: None,
         word: "Workspace",
-        help: "A workspace by its number on the rail",
+        help: "A workspace by its number on the rail; Ctrl+, opens Settings",
     },
     KeyRow {
         command: Command::NextArea,
@@ -301,7 +301,7 @@ pub fn key_command(k: Key) -> Option<Command> {
     Some(match (k.key, k.ctrl, k.shift, k.alt) {
         (K::F6, false, false, false) => Command::NextArea,
         (K::F6, false, true, false) => Command::PrevArea,
-        (K::F10, false, true, false) => Command::Menu,
+        (K::F10, false, true, false) | (K::Menu, false, false, false) => Command::Menu,
         (K::F5, false, false, false) => Command::Test,
         (K::F1, false, false, false) => Command::Tutorial,
         (K::K, true, false, false) => Command::Find,

@@ -381,3 +381,31 @@ fn the_status_bar_shows_the_running_job_and_what_the_checks_found() {
     assert!(t.iter().any(|t| t == "Give the mod a name"), "{t:?}");
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+#[test]
+fn open_a_mod_lists_the_mods_in_find_and_opens_the_one_taken() {
+    let dir = two("open-a-mod");
+    let size = (1280, 800);
+    let mut s = Studio::new(dir.clone(), None);
+    frames(&mut s, size, 1.0, 2);
+    s.home_act(super::shell::HomeAct::OpenAMod);
+    assert!(s.nav.find_open);
+    let items = s.find_items();
+    let mods: Vec<usize> = items.iter().filter_map(|i| if let FindItem::Mod(m) = i { Some(*m) } else { None }).collect();
+    assert_eq!(mods.len(), 2, "both mods listed: {items:?}");
+    assert!(matches!(items[s.find_focus], FindItem::Mod(_)), "the first mod has the focus");
+    press(&mut s, size, vec![]);
+    let out = press(&mut s, size, vec![]);
+    assert!(s.nav.find_open);
+    let t = texts(&out);
+    assert!(t.iter().filter(|x| *x == "YOUR MODS").count() >= 2, "Home's and Find's: {t:?}");
+    assert!(t.iter().any(|x| x == "Drift park") && t.iter().any(|x| x == "Harbour edits"), "{t:?}");
+    // Typing narrows them; Enter opens the one left.
+    press(&mut s, size, vec![egui::Event::Text("drift".into())]);
+    assert!(s.find_items().iter().any(|i| matches!(i, FindItem::Mod(_))));
+    s.find_focus = s.find_items().iter().position(|i| matches!(i, FindItem::Mod(_))).unwrap();
+    press(&mut s, size, vec![key(egui::Key::Enter, false, false)]);
+    assert!(!s.nav.find_open);
+    assert_eq!(s.open_mod().map(|m| m.folder.as_str()), Some("drift-park"));
+    let _ = std::fs::remove_dir_all(&dir);
+}

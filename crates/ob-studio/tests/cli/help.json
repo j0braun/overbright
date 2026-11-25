@@ -18,8 +18,14 @@
         {
           "flag": "--rotation",
           "label": "Rotation",
-          "needed": true,
+          "needed": false,
           "type": "mat3"
+        },
+        {
+          "flag": "--heading",
+          "label": "Heading",
+          "needed": false,
+          "type": "f32"
         }
       ],
       "kind": "edit",
@@ -74,6 +80,12 @@
           "label": "Rotation",
           "needed": false,
           "type": "mat3"
+        },
+        {
+          "flag": "--heading",
+          "label": "Heading",
+          "needed": false,
+          "type": "f32"
         },
         {
           "flag": "--id",

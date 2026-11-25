@@ -1,8 +1,10 @@
 # Studio Looks
 
 > **Preview.** This is Looks' first part: the work files, the history and the live test game, on the command line
-> (`overbright-studio-cli looks …`, [Studio command-line tool](studio-cli.md)). Picking a texture in the 3D view,
-> the before/after slider, where a texture is used, and the sharing warnings come in Studio's window later.
+> (`overbright-studio-cli looks …`, [Studio command-line tool](studio-cli.md)). In Studio's window, Changes lists
+> and resets the painted textures and the Mod page warns before sharing derived ones
+> ([Studio](studio.md#changes)); picking a texture in the 3D view, the before/after slider and where a texture is
+> used come later.
 
 Looks lets you paint the game's textures in your own paint program. Overbright ships no texture art: the textures
 you start from are your own game's, read from your game files, and what you paint stays in your mod's folder.

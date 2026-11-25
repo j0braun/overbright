@@ -766,9 +766,16 @@
         {
           "key": "rotation",
           "type": "mat3",
-          "required": "yes",
+          "required": "no",
           "merge": false,
           "label": "Rotation"
+        },
+        {
+          "key": "heading",
+          "type": "f32",
+          "required": "no",
+          "merge": false,
+          "label": "Heading"
         }
       ]
     },
@@ -825,6 +832,13 @@
           "required": "no",
           "merge": false,
           "label": "Rotation"
+        },
+        {
+          "key": "heading",
+          "type": "f32",
+          "required": "no",
+          "merge": false,
+          "label": "Heading"
         },
         {
           "key": "id",

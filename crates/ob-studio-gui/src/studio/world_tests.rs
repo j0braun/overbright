@@ -152,3 +152,24 @@ fn into_and_out_of_world_by_keyboard_and_pad() {
     assert!(s.go(&Address::parse("ob://harbour-edits/race/harbour-edits:nope").unwrap()).is_err());
     assert!(s.close_requested());
 }
+
+#[test]
+fn ctrl_d_is_changes_inside_studio_and_duplicate_shows_no_key() {
+    let sc = Scratch::new("studio-world-ctrl-d");
+    // The editor in its own window: Duplicate is Ctrl+D.
+    let own = App::new(sc.path().join("game"), sc.path().join("maps"), Box::new(|_, _| Ok(World::default())));
+    assert_eq!(menu::duplicate_key(&own.ctx), "Ctrl+D");
+    assert!(!menu::hosted(&own.ctx));
+    // Hosted: one key, one meaning. Ctrl+D opens Changes; Duplicate (Edit, the prop menu) shows no key.
+    let mut s = studio(&sc);
+    assert!(menu::hosted(&s.ctx));
+    assert_eq!(menu::duplicate_key(&s.ctx), "");
+    let size = (1280, 800);
+    s.go(&Address::view("harbour-edits", "@world")).unwrap();
+    frames(&mut s, size, 1.0, 2);
+    assert!(s.editing());
+    s.editor.as_mut().unwrap().app.state.as_mut().unwrap().mode = Mode::Props;
+    frames(&mut s, size, 1.0, 1);
+    press(&mut s, size, vec![key(egui::Key::D, true)]);
+    assert_eq!(s.nav.workspace, Workspace::Changes);
+}

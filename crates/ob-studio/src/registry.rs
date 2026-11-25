@@ -225,7 +225,7 @@ pub const COMMANDS: &[Command] = &[
         name: "props.move",
         kind: CommandKind::Edit,
         summary: "Move a prop",
-        args: &[KEY, AT, f("rotation", MAT3, Req::Yes, "Rotation")],
+        args: &[KEY, AT, f("rotation", MAT3, Req::No, "Rotation"), HEADING],
     },
     Command {
         name: "props.delete",
@@ -247,6 +247,7 @@ pub const COMMANDS: &[Command] = &[
             f("solid", SOLID, Req::Yes, "Object"),
             AT,
             f("rotation", MAT3, Req::No, "Rotation"),
+            HEADING,
             f("id", TEXT, Req::No, "Id"),
             f("ground", Ty::Bool, Req::No, "On the ground"),
         ],

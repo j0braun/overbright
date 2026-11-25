@@ -513,7 +513,7 @@ impl Studio {
 /// track's road, facing down it, its height the road's).
 fn place_start(s: &mut crate::editor::state::EditorState, races: &mut crate::editor::races::Races) {
     if s.race.is_none_or(|k| k >= s.session.map.races.len()) {
-        s.status = "Make a race first: Go to the docks, or Race > New race".into();
+        s.status = "Make a race first: Go to the docks, or Test › New race".into();
         return;
     }
     s.mode = crate::editor::state::Mode::Races;
@@ -530,7 +530,7 @@ fn add_points(s: &mut crate::editor::state::EditorState, races: &mut crate::edit
     use crate::editor::races::{Tool, ahead};
     use crate::editor::validate::ground;
     let Some((track, start)) = s.race.and_then(|k| s.session.map.races.get(k)).map(|r| (r.track, r.start)) else {
-        s.status = "Make a race first: Go to the docks, or Race > New race".into();
+        s.status = "Make a race first: Go to the docks, or Test › New race".into();
         return;
     };
     let Some(start) = start else {

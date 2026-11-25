@@ -53,9 +53,30 @@ fn key(k: egui::Key) -> egui::Event {
 
 const SIZE: (u32, u32) = (1280, 800);
 
+thread_local! {
+    /// The window the walkthroughs run at (size, UI scale): 1280x800 at 1, or one of the polish sizes.
+    static VIEW: std::cell::Cell<((u32, u32), f32)> = const { std::cell::Cell::new((SIZE, 1.0)) };
+}
+
+fn size() -> (u32, u32) {
+    VIEW.with(|v| v.get().0)
+}
+
+fn scale() -> f32 {
+    VIEW.with(|v| v.get().1)
+}
+
+/// Two frames; the window's layout has no clipped or overlapping part.
+fn fits(s: &mut Studio) {
+    let (_, l) = frames(s, size(), scale(), 2);
+    assert!(l.problems().is_empty(), "{:?} at {:?}: {:?}", s.nav.workspace, VIEW.with(|v| v.get()), l.problems());
+}
+
+/// A key, then two frames; the window's layout has no clipped or overlapping part.
 fn press(s: &mut Studio, k: egui::Key) {
-    s.frame(raw_input(SIZE, 1.0, 0, vec![key(k)]));
-    frames(s, SIZE, 1.0, 2);
+    s.frame(raw_input(size(), scale(), 0, vec![key(k)]));
+    let (_, l) = frames(s, size(), scale(), 2);
+    assert!(l.problems().is_empty(), "{:?} after {k:?} at {:?}: {:?}", s.nav.workspace, VIEW.with(|v| v.get()), l.problems());
 }
 
 fn step(s: &Studio) -> Step {
@@ -70,19 +91,40 @@ fn added(s: &Studio) -> usize {
 /// Share it: the Mod page's own export, into the scratch folder (never the player's exports folder).
 fn export(s: &mut Studio, sc: &Scratch) {
     assert_eq!(s.nav.workspace, Workspace::Mod);
-    frames(s, SIZE, 1.0, 2);
+    fits(s);
     s.mod_page.export_to = sc.path().join("out.zip").display().to_string();
     // The card's button on the Mod page is the page's Export.
     s.guide_main();
     assert!(sc.path().join("out.zip").is_file(), "{:?}", s.mod_page.note);
-    frames(s, SIZE, 1.0, 1);
+    frames(s, size(), scale(), 1);
 }
 
 #[test]
 fn the_tutorial_by_keyboard() {
-    let sc = Scratch::new("studio-guide-keys");
+    first_mod_by_keyboard("studio-guide-keys");
+}
+
+#[test]
+fn the_tutorial_by_pad() {
+    first_mod_by_pad("studio-guide-pad");
+}
+
+/// The polish walkthroughs: Home → the tutorial → World → the Mod page → export, by keyboard and by pad, at the
+/// smallest common window and at 4K with the UI at 2.
+#[test]
+fn the_tutorial_walks_through_at_1024x768_and_4k() {
+    for (w, h, sc) in [(1024, 768, 1.0), (3840, 2160, 2.0)] {
+        VIEW.with(|v| v.set(((w, h), sc)));
+        first_mod_by_keyboard(&format!("studio-guide-keys-{w}"));
+        first_mod_by_pad(&format!("studio-guide-pad-{w}"));
+    }
+    VIEW.with(|v| v.set((SIZE, 1.0)));
+}
+
+fn first_mod_by_keyboard(name: &str) {
+    let sc = Scratch::new(name);
     let mut s = studio(&sc);
-    frames(&mut s, SIZE, 1.0, 2);
+    frames(&mut s, size(), scale(), 2);
     // F1 starts it on Home; F1 again opens the New mod dialog with the tutorial's name; Enter makes the mod.
     press(&mut s, egui::Key::F1);
     assert_eq!((s.nav.workspace, step(&s)), (Workspace::Home, Step::MakeMod));
@@ -107,7 +149,7 @@ fn the_tutorial_by_keyboard() {
     assert!(!s.editor.as_ref().unwrap().app.state.as_ref().unwrap().status.is_empty());
     assert_eq!(step(&s), Step::DriveIt);
     crate::editor::testplay::count_start(&s.ctx);
-    frames(&mut s, SIZE, 1.0, 1);
+    frames(&mut s, size(), scale(), 1);
     assert_eq!(step(&s), Step::ShareIt);
     // The card floats over the view and fits in it.
     let r = s.guide_rect.expect("the card is drawn over World");
@@ -119,12 +161,11 @@ fn the_tutorial_by_keyboard() {
     assert!(s.guide.is_none());
 }
 
-#[test]
-fn the_tutorial_by_pad() {
-    let sc = Scratch::new("studio-guide-pad");
+fn first_mod_by_pad(name: &str) {
+    let sc = Scratch::new(name);
     let mut s = studio(&sc);
     s.nav.input = InputKind::Xbox;
-    frames(&mut s, SIZE, 1.0, 2);
+    frames(&mut s, size(), scale(), 2);
     // START HERE is one of Home's controls: down to it, A.
     let at = s.home_targets().iter().position(|a| *a == HomeAct::StartTutorial(guide::Tutorial::FirstMod)).unwrap();
     for _ in 0..at {
@@ -137,17 +178,18 @@ fn the_tutorial_by_pad() {
         if s.nav.workspace != Workspace::Home {
             s.command(super::nav::Command::Workspace(Workspace::Home), Some(InputKind::Xbox));
         }
-        frames(s, SIZE, 1.0, 1);
+        frames(s, size(), scale(), 1);
         for _ in 0..12 {
             s.pad(Pad::Up, InputKind::Xbox);
         }
         assert_eq!(s.home_targets()[s.home_focus], HomeAct::GuideMain);
         s.pad(Pad::A, InputKind::Xbox);
-        frames(s, SIZE, 1.0, 3);
+        frames(s, size(), scale(), 1);
+        fits(s);
     };
     card(&mut s);
     s.pad(Pad::A, InputKind::Xbox);
-    frames(&mut s, SIZE, 1.0, 2);
+    frames(&mut s, size(), scale(), 2);
     assert_eq!(step(&s), Step::GoToStreet);
     card(&mut s);
     assert_eq!(step(&s), Step::PlaceProp);
@@ -155,14 +197,14 @@ fn the_tutorial_by_pad() {
     assert_eq!(added(&s), 1);
     card(&mut s);
     crate::editor::testplay::count_start(&s.ctx);
-    frames(&mut s, SIZE, 1.0, 1);
+    frames(&mut s, size(), scale(), 1);
     assert_eq!(step(&s), Step::ShareIt);
     card(&mut s);
     export(&mut s, &sc);
     assert_eq!(step(&s), Step::Done);
     // The last card's second button: Races, the tutorial closed.
     s.command(super::nav::Command::Workspace(Workspace::Home), Some(InputKind::Xbox));
-    frames(&mut s, SIZE, 1.0, 1);
+    frames(&mut s, size(), scale(), 1);
     s.pad(Pad::Down, InputKind::Xbox);
     s.pad(Pad::A, InputKind::Xbox);
     assert!(s.guide.is_none());
@@ -249,7 +291,7 @@ fn dock_assets() -> Box<dyn crate::tools::map::assets::MapAssets> {
 /// none), then back to Home.
 fn open_on_the_dock_road(s: &mut Studio) {
     s.command(super::nav::Command::Workspace(Workspace::Races), None);
-    frames(s, SIZE, 1.0, 2);
+    frames(s, size(), scale(), 2);
     let app = &mut s.editor.as_mut().unwrap().app;
     // The race tools read the tracks once: from the new assets.
     *app.panels.races.borrow_mut() = crate::editor::races::Races::new();
@@ -257,7 +299,7 @@ fn open_on_the_dock_road(s: &mut Studio) {
     st.assets = dock_assets();
     s.mod_page.given_tracks = Some(dock_assets);
     s.command(super::nav::Command::Workspace(Workspace::Home), None);
-    frames(s, SIZE, 1.0, 1);
+    frames(s, size(), scale(), 1);
 }
 
 fn race(s: &Studio) -> crate::tools::map::CustomRace {
@@ -291,7 +333,7 @@ fn race_steps(s: &mut Studio, main: &dyn Fn(&mut Studio)) {
 fn the_race_tutorial_by_keyboard() {
     let sc = Scratch::new("studio-race-guide-keys");
     let mut s = studio(&sc);
-    frames(&mut s, SIZE, 1.0, 2);
+    frames(&mut s, size(), scale(), 2);
     // START HERE's second row: down to it, Enter.
     let at = s.home_targets().iter().position(|a| *a == HomeAct::StartTutorial(Tutorial::FirstRace)).unwrap();
     for _ in 0..at {
@@ -309,7 +351,7 @@ fn the_race_tutorial_by_keyboard() {
     press(&mut s, egui::Key::F1);
     assert_eq!(step(&s), Step::TestRace);
     crate::editor::testplay::count_start(&s.ctx);
-    frames(&mut s, SIZE, 1.0, 1);
+    frames(&mut s, size(), scale(), 1);
     assert_eq!(step(&s), Step::ShareIt);
     let r = s.guide_rect.expect("the card is drawn over Races");
     assert!(s.last.as_ref().unwrap().view.contains_rect(r), "{r:?}");
@@ -330,7 +372,7 @@ fn the_race_tutorial_by_pad() {
     let sc = Scratch::new("studio-race-guide-pad");
     let mut s = studio(&sc);
     s.nav.input = InputKind::Xbox;
-    frames(&mut s, SIZE, 1.0, 2);
+    frames(&mut s, size(), scale(), 2);
     let at = s.home_targets().iter().position(|a| *a == HomeAct::StartTutorial(Tutorial::FirstRace)).unwrap();
     for _ in 0..at {
         s.pad(Pad::Down, InputKind::Xbox);
@@ -341,23 +383,24 @@ fn the_race_tutorial_by_pad() {
         if s.nav.workspace != Workspace::Home {
             s.command(super::nav::Command::Workspace(Workspace::Home), Some(InputKind::Xbox));
         }
-        frames(s, SIZE, 1.0, 1);
+        frames(s, size(), scale(), 1);
         for _ in 0..16 {
             s.pad(Pad::Up, InputKind::Xbox);
         }
         assert_eq!(s.home_targets()[s.home_focus], HomeAct::GuideMain);
         s.pad(Pad::A, InputKind::Xbox);
-        frames(s, SIZE, 1.0, 3);
+        frames(s, size(), scale(), 1);
+        fits(s);
     };
     card(&mut s);
     s.pad(Pad::A, InputKind::Xbox);
-    frames(&mut s, SIZE, 1.0, 2);
+    frames(&mut s, size(), scale(), 2);
     assert_eq!(s.open_mod().unwrap().folder, "my-first-race");
     open_on_the_dock_road(&mut s);
     race_steps(&mut s, &|s| card(s));
     card(&mut s);
     crate::editor::testplay::count_start(&s.ctx);
-    frames(&mut s, SIZE, 1.0, 1);
+    frames(&mut s, size(), scale(), 1);
     assert_eq!(step(&s), Step::ShareIt);
     card(&mut s);
     export(&mut s, &sc);
@@ -371,7 +414,7 @@ fn templates_and_the_sample_from_home() {
     use ob_studio::create::Template;
     let sc = Scratch::new("studio-templates");
     let mut s = studio(&sc);
-    frames(&mut s, SIZE, 1.0, 2);
+    frames(&mut s, size(), scale(), 2);
     let to = |s: &mut Studio, a: HomeAct| {
         let at = s.home_targets().iter().position(|x| *x == a).unwrap_or_else(|| panic!("{a:?}"));
         for _ in 0..30 {
@@ -385,15 +428,15 @@ fn templates_and_the_sample_from_home() {
     to(&mut s, HomeAct::Template(Template::Circuit));
     press(&mut s, egui::Key::Enter);
     assert_eq!(s.new_mod.as_ref().map(|d| d.template), Some(Template::Circuit));
-    s.frame(raw_input(SIZE, 1.0, 0, vec![egui::Event::Text("Downtown laps".into())]));
-    frames(&mut s, SIZE, 1.0, 1);
+    s.frame(raw_input(size(), scale(), 0, vec![egui::Event::Text("Downtown laps".into())]));
+    frames(&mut s, size(), scale(), 1);
     press(&mut s, egui::Key::Enter);
     let m = s.open_mod().expect("made and open");
     assert_eq!((m.folder.as_str(), m.races), ("downtown-laps", 1));
     // The sample by pad: A on its row, twice: one copy.
     s.nav.input = InputKind::Xbox;
     for round in 0..2 {
-        frames(&mut s, SIZE, 1.0, 1);
+        frames(&mut s, size(), scale(), 1);
         let at = s.home_targets().iter().position(|x| *x == HomeAct::Template(Template::Sample)).unwrap();
         for _ in 0..30 {
             s.pad(Pad::Up, InputKind::Xbox);

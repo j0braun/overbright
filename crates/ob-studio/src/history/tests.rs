@@ -58,6 +58,26 @@ fn steps_undo_and_redo_survive_a_reopen() {
 }
 
 #[test]
+fn every_save_records_the_build_that_wrote_it() {
+    let s = Scratch::new("history-saved-by");
+    std::fs::write(s.path().join(store::FILE), map("a", &[])).unwrap();
+    let mut h = open(s.path());
+    assert_eq!(h.saved_by(), None, "nothing written by Studio yet");
+    h.commit(STUDIO, "To b", put(&map("b", &[]))).unwrap();
+    h.save().unwrap();
+    let by = h.saved_by().expect("the save stamped itself");
+    assert_eq!(by.build, crate::share::build());
+    assert_eq!(by.docs[store::FILE], format!("{:016x}", journal::hash(&file(s.path()))), "the file as written");
+    // The next save stamps again, with the new file's hash; a reopened history reads the same.
+    h.commit(STUDIO, "To c", put(&map("c", &[]))).unwrap();
+    h.save().unwrap();
+    let again = h.saved_by().unwrap();
+    assert_eq!(again.docs[store::FILE], format!("{:016x}", journal::hash(&map("c", &[]))));
+    drop(h);
+    assert_eq!(open(s.path()).saved_by(), Some(again));
+}
+
+#[test]
 fn discarding_unsaved_steps_is_one_undoable_step() {
     let s = Scratch::new("history-discard");
     std::fs::write(s.path().join(store::FILE), map("a", &[])).unwrap();
