@@ -576,19 +576,22 @@ impl Races {
         }
     }
 
-    /// The route, checkpoints, grid and lines over the 3D view.
-    pub fn paint_overlay(&mut self, s: &mut EditorState, painter: &egui::Painter, rect: egui::Rect) {
+    /// The route, checkpoints, grid and lines over the 3D view; `top`: the
+    /// top-down overview shows (the base track's roads are drawn whole,
+    /// as in Map, not only near the camera).
+    pub fn paint_overlay(&mut self, s: &mut EditorState, painter: &egui::Painter, rect: egui::Rect, top: bool) {
         self.update(s);
         let to = |p: Vec3| project(s, rect, p);
         let ground = |p: Vec2| p.extend(validate::ground(s, p) + 0.3);
-        self.paint(s, painter, &|p: Vec3| to(p), &ground, true);
+        let near = if top { None } else { Some(900.0) };
+        self.paint(s, painter, &|p: Vec3| to(p), &ground, true, near);
     }
 
     /// The same over the 2D map view; `to_screen` maps world x/y.
     pub fn paint_map(&mut self, s: &mut EditorState, painter: &egui::Painter, to_screen: &dyn Fn(Vec2) -> egui::Pos2) {
         self.update(s);
         let to = |p: Vec3| Some(to_screen(p.truncate()));
-        self.paint(s, painter, &to, &|p: Vec2| p.extend(0.0), false);
+        self.paint(s, painter, &to, &|p: Vec2| p.extend(0.0), false, None);
     }
 
     fn paint(
@@ -598,6 +601,7 @@ impl Races {
         to: &dyn Fn(Vec3) -> Option<egui::Pos2>,
         ground: &dyn Fn(Vec2) -> Vec3,
         labels: bool,
+        near: Option<f32>,
     ) {
         let t = theme();
         let (lime, err, ink, page) = (rgb(t.lime), rgb(t.err), rgb(t.ink), rgb(t.page));
@@ -623,7 +627,7 @@ impl Races {
             flush(&mut run);
         };
         // The selected race's base track: the roads it may use, faint under the route (a barrier-closed road is
-        // left out). Over the 3D view only those near the camera.
+        // left out). Over the 3D street view only those `near` the camera.
         let track = s.race.and_then(|k| s.session.map.races.get(k)).map(|r| r.track);
         if let Some(net) = track.and_then(|t| s.nets.get(&t)).and_then(|n| n.as_ref()) {
             let faint = egui::Color32::from_rgba_unmultiplied(lime.r(), lime.g(), lime.b(), 50);
@@ -633,7 +637,7 @@ impl Races {
                     continue;
                 }
                 let Some(nodes) = net.nodes.get(seg.first..seg.end.min(net.nodes.len())) else { continue };
-                if labels && nodes.first().is_none_or(|n| n.0.distance(eye) > 900.0) {
+                if near.is_some_and(|m| nodes.first().is_none_or(|n| n.0.distance(eye) > m)) {
                     continue;
                 }
                 let pts: Vec<Vec3> = nodes.iter().map(|n| ground(n.0)).collect();
