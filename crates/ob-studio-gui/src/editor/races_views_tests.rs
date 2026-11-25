@@ -318,3 +318,172 @@ fn a_map_drag_off_the_points_pans() {
     assert!((after.x - before.x).abs() > 1.0, "{before} -> {after}");
     assert_eq!(race(&a).checkpoints.len(), 2);
 }
+
+// ---- walls and ground drawn and picked in Map and Top (#139) ----
+
+fn click_mods(a: &mut App, p: Vec2, mods: egui::Modifiers) {
+    let at = screen(a, p);
+    let b = |pressed| Event::PointerButton { pos: at, button: egui::PointerButton::Primary, pressed, modifiers: mods };
+    frame(a, vec![Event::ModifiersChanged(mods), Event::PointerMoved(at)]);
+    frame(a, vec![b(true)]);
+    frame(a, vec![b(false)]);
+    frame(a, vec![Event::ModifiersChanged(Default::default())]);
+    frame(a, vec![]);
+}
+
+fn zoom_top(a: &mut App) {
+    let at = screen(a, Vec2::new(200.0, 0.0));
+    for _ in 0..40 {
+        let (top, rect) = crate::editor::viewport::top_view(&a.ctx).unwrap();
+        if top.metres_per_point(rect) < 1.2 {
+            break;
+        }
+        let wheel = Event::MouseWheel {
+            unit: egui::MouseWheelUnit::Point,
+            delta: egui::vec2(0.0, 120.0),
+            modifiers: Default::default(),
+            phase: egui::TouchPhase::Move,
+            source: egui::MouseWheelSource::Wheel,
+        };
+        frame(a, vec![Event::PointerMoved(at), wheel]);
+    }
+}
+
+fn collision_of(a: &App) -> Vec<String> {
+    // The test world has no collision packs: the mod's edits are what
+    // the game's load writes into them (the real world is compared in
+    // collision_tests).
+    let s = a.state.as_ref().unwrap();
+    s.session
+        .world
+        .ground
+        .listed_faces()
+        .map(|f| format!("{f:?}"))
+        .chain(s.session.map.collision.iter().map(|e| format!("{e:?}")))
+        .collect()
+}
+
+fn drawn_walls(a: &App) -> Vec<(Vec3, Vec3)> {
+    use crate::tools::map::CollisionEdit;
+    a.state
+        .as_ref()
+        .unwrap()
+        .session
+        .map
+        .collision
+        .iter()
+        .filter_map(|e| match e {
+            CollisionEdit::Wall { from, to, .. } => Some((*from, *to)),
+            _ => None,
+        })
+        .collect()
+}
+
+fn draw_and_pick(view: &str) {
+    let s = Scratch::new(&format!("editor-collision-draw-{view}"));
+    let mut a = editor(&s, view);
+    if view == "top" {
+        zoom_top(&mut a);
+    }
+    let st = a.state.as_mut().unwrap();
+    st.mode = Mode::Props;
+    st.collision = crate::editor::collision::Show::Invisible;
+    let original = collision_of(&a);
+    let none = egui::Modifiers::NONE;
+    let tol = |a: &App, m: f32| {
+        m * if view == "map" {
+            1.0 / crate::editor::sim::panel::map_transform(&a.ctx).unwrap().1
+        } else {
+            let (t, r) = crate::editor::viewport::top_view(&a.ctx).unwrap();
+            t.metres_per_point(r)
+        }
+    };
+
+    // Two clicks make a wall: x/y from the mouse, the floor's height.
+    a.state.as_mut().unwrap().draw = Some(crate::editor::collision::Draw::Wall { first: None });
+    click_mods(&mut a, Vec2::new(100.0, 40.0), none);
+    click_mods(&mut a, Vec2::new(140.0, 40.0), none);
+    let w = drawn_walls(&a);
+    assert_eq!(w.len(), 1, "{view}: {:?}", a.state.as_ref().unwrap().status);
+    let (from, to) = w[0];
+    assert!(
+        from.truncate().distance(Vec2::new(100.0, 40.0)) <= tol(&a, 1.0)
+            && to.truncate().distance(Vec2::new(140.0, 40.0)) <= tol(&a, 1.0),
+        "{view}: {from} {to}"
+    );
+    assert!((from.z - FLOOR_Z).abs() < 0.05 && (to.z - FLOOR_Z).abs() < 0.05, "{view}: height {from} {to}");
+    assert_eq!(undo_label(&a), Some("Draw wall"), "{view}");
+    let one = collision_of(&a);
+    assert_ne!(one, original, "{view}: the wall is in the collision");
+
+    // Same collision as the wall run as the op the 3D view runs.
+    {
+        let s2 = Scratch::new(&format!("editor-collision-draw-{view}-3d"));
+        let mut b = editor(&s2, "map");
+        let st = b.state.as_mut().unwrap();
+        let op = crate::tools::map::ops::Op::DrawWall {
+            from,
+            to,
+            height: 2.0,
+            surface: crate::editor::collision::surface_under(st, from),
+            id: None,
+        };
+        crate::editor::undo::run(st, op).unwrap();
+        assert_eq!(collision_of(&b), one, "{view}: as drawn in 3D");
+    }
+
+    // A second wall started 3 points from the first one's end snaps to it;
+    // with Alt it lands where the mouse is.
+    let near_end = to.truncate() + Vec2::new(0.0, 3.0 * tol(&a, 1.0));
+    click_mods(&mut a, near_end, none);
+    click_mods(&mut a, Vec2::new(140.0, 90.0), none);
+    let w = drawn_walls(&a);
+    assert_eq!(w.len(), 2, "{view}");
+    assert!(w[1].0.truncate().distance(to.truncate()) < 1e-3, "{view}: snapped {} to {}", w[1].0, to);
+    click_mods(&mut a, near_end, egui::Modifiers::ALT);
+    click_mods(&mut a, Vec2::new(180.0, 90.0), none);
+    let w = drawn_walls(&a);
+    assert_eq!(w.len(), 3, "{view}");
+    assert!(w[2].0.truncate().distance(near_end) <= tol(&a, 1.0), "{view}: Alt places at the mouse, got {}", w[2].0);
+    assert!(w[2].0.truncate().distance(to.truncate()) > tol(&a, 1.0), "{view}: Alt did not snap");
+    let three = collision_of(&a);
+
+    // Undo and redo, exact (picking needs the real collision: collision_tests).
+    a.state.as_mut().unwrap().draw = None;
+    let stt = a.state.as_mut().unwrap();
+    for _ in 0..3 {
+        assert!(crate::editor::undo::undo(stt));
+    }
+    assert_eq!(collision_of(&a), original, "{view}: undo all");
+    let stt = a.state.as_mut().unwrap();
+    for _ in 0..3 {
+        assert!(crate::editor::undo::redo(stt));
+    }
+    assert_eq!(collision_of(&a), three, "{view}: redo");
+
+    // Ground: an outline of clicks ended with Enter, at the floor's height.
+    a.state.as_mut().unwrap().draw = Some(crate::editor::collision::Draw::Ground { points: Vec::new() });
+    for p in [Vec2::new(20.0, 100.0), Vec2::new(60.0, 100.0), Vec2::new(60.0, 130.0)] {
+        click_mods(&mut a, p, egui::Modifiers::ALT);
+    }
+    frame(&mut a, key(egui::Key::Enter).to_vec());
+    frame(&mut a, vec![]);
+    assert_eq!(undo_label(&a), Some("Draw ground"), "{view}");
+    let g = a.state.as_ref().unwrap().session.map.collision.iter().find_map(|e| match e {
+        crate::tools::map::CollisionEdit::Ground { outline, .. } => Some(outline.clone()),
+        _ => None,
+    });
+    let g = g.expect("a drawn ground");
+    assert_eq!(g.len(), 3, "{view}");
+    assert!(g.iter().all(|p| (p.z - FLOOR_Z).abs() < 0.05), "{view}: {g:?}");
+}
+
+#[test]
+fn walls_and_ground_are_drawn_snapped_and_picked_on_the_map() {
+    draw_and_pick("map");
+}
+
+#[test]
+fn walls_and_ground_are_drawn_snapped_and_picked_in_top() {
+    draw_and_pick("top");
+}

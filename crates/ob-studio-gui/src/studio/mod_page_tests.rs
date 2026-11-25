@@ -51,6 +51,7 @@ fn maps(name: &str, derived: bool) -> PathBuf {
         description: "Cones at the docks".into(),
         props: vec![mv(-860.2, -842.4), mv(-805.1, -799.2)],
         races: vec![],
+        collision: vec![],
     };
     let drift = MapMod { name: "Drift park".into(), props: vec![mv(-805.1, -801.0)], ..Default::default() };
     put(&d, "harbour-edits", &harbour);

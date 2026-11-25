@@ -13,11 +13,11 @@
 use glam::Vec3;
 
 use nfsu2::studio_api::map::edit;
-use nfsu2::studio_api::world::World;
+use nfsu2::studio_api::world::{World, face_key};
 use ob_map::tools::map::format::{
-    CustomRace, MAX_LAPS, MAX_TEXT, MapMod, PropEdit, Spot, check_laps, check_rotation, valid_id, valid_solid,
+    CollisionEdit, CustomRace, MAX_COLLISION, MAX_LAPS, MAX_TEXT, MapMod, PropEdit, Spot, check_laps, check_rotation, valid_id, valid_solid,
 };
-use ob_map::tools::map::ops::{Change, Op, PropKey, RacePart, RacePoint, Refused, ensure, max_points, valid_position};
+use ob_map::tools::map::ops::{Change, CollisionKey, Op, PropKey, RacePart, RacePoint, Refused, ensure, max_points, valid_position};
 use ob_map::tools::map::race;
 use ob_map::tools::map::store;
 
@@ -418,6 +418,19 @@ impl MapSession {
     }
 
     /// Refused as [`Refused::BadValue`] with the reason, unless `r` is Ok.
+    /// A drawn wall's or ground's id: `id` when it is free, else the first
+    /// free `<kind>-<n>`.
+    fn collision_id(&self, id: Option<String>, kind: &str) -> Result<String, Refused> {
+        match id {
+            Some(id) => {
+                ensure(valid_id(&id), Refused::BadValue)?;
+                ensure(self.map.collision.iter().all(|e| e.id() != Some(id.as_str())), Refused::IdTaken)?;
+                Ok(id)
+            }
+            None => Ok(self.map.fresh_collision_id(kind)),
+        }
+    }
+
     fn check<E: std::fmt::Display>(&mut self, r: Result<(), E>) -> Result<(), Refused> {
         r.map_err(|e| {
             self.refused_why = Some(e.to_string());
@@ -490,6 +503,45 @@ impl MapSession {
                 let i = self.placement(&key)?;
                 edit::drop_to_ground(&mut self.map, &folder, &mut self.world, &region, i)?;
                 self.world_changed = true;
+            }
+            Op::RemoveCollision { target } => match target {
+                CollisionKey::Drawn(id) => {
+                    let k = self.map.collision.iter().position(|e| e.id() == Some(id.as_str())).ok_or(Refused::NoCollision)?;
+                    self.map.collision.remove(k);
+                }
+                CollisionKey::Original(corners) => {
+                    let e = CollisionEdit::Remove { region: region.clone(), corners };
+                    self.check(e.check())?;
+                    let CollisionEdit::Remove { corners, .. } = &e else { unreachable!() };
+                    let key = face_key(corners);
+                    let removed = |m: &MapMod| {
+                        m.collision.iter().any(|c| {
+                            matches!(c, CollisionEdit::Remove { region: r, corners: k } if r.eq_ignore_ascii_case(&region) && face_key(k) == key)
+                        })
+                    };
+                    // A face of the original's (drawn faces join the packs later in their lists, and are no
+                    // removal's), barrier group 0 only: a race's barriers are switched per race.
+                    let original = self.world.ground.faces().any(|f| f.group == 0 && face_key(&f.vertices[..f.corners.clamp(3, 4)]) == key);
+                    ensure(original || removed(&self.map), Refused::NoCollision)?;
+                    if !removed(&self.map) {
+                        ensure(self.map.collision.len() < MAX_COLLISION, Refused::Full)?;
+                        self.map.collision.push(e);
+                    }
+                }
+            },
+            Op::DrawWall { from, to, height, surface, id } => {
+                let id = self.collision_id(id, "wall")?;
+                let e = CollisionEdit::Wall { id, region: region.clone(), from, to, height, surface };
+                self.check(e.check())?;
+                ensure(self.map.collision.len() < MAX_COLLISION, Refused::Full)?;
+                self.map.collision.push(e);
+            }
+            Op::DrawGround { outline, surface, id } => {
+                let id = self.collision_id(id, "ground")?;
+                let e = CollisionEdit::Ground { id, region: region.clone(), outline, surface };
+                self.check(e.check())?;
+                ensure(self.map.collision.len() < MAX_COLLISION, Refused::Full)?;
+                self.map.collision.push(e);
             }
             Op::NewRace { track, kind, id } => {
                 let id = match id {

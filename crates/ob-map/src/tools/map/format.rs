@@ -68,6 +68,123 @@ pub struct MapMod {
     pub description: String,
     pub props: Vec<PropEdit>,
     pub races: Vec<CustomRace>,
+    /// Static collision taken out or drawn ([`CollisionEdit`]); left out of
+    /// the JSON when empty.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub collision: Vec<CollisionEdit>,
+}
+
+/// At most this many collision edits in one mod.
+pub const MAX_COLLISION: usize = 10_000;
+/// A drawn ground's outline: 3 to this many points.
+pub const MAX_OUTLINE: usize = 32;
+/// A drawn wall's height, metres.
+pub const MIN_WALL_HEIGHT: f32 = 0.5;
+pub const MAX_WALL_HEIGHT: f32 = 50.0;
+/// A drawn wall's length (its foot, metres).
+pub const MIN_WALL_LENGTH: f32 = 0.5;
+pub const MAX_WALL_LENGTH: f32 = 500.0;
+/// A drawn ground's size across (metres).
+pub const MAX_GROUND_SIZE: f32 = 500.0;
+
+/// One change to a region's static collision (docs/modding/map-editor.md
+/// "Removed and drawn collision").
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "edit", rename_all = "snake_case", deny_unknown_fields)]
+pub enum CollisionEdit {
+    /// A face of the original's static collision (barrier group 0) taken
+    /// out of every pack that holds it, named by its corners as the packs
+    /// store them (3 or 4).
+    Remove {
+        region: String,
+        #[serde(with = "glam_json::vec3s")]
+        corners: Vec<Vec3>,
+    },
+    /// A drawn wall: a closed box along `from` → `to` ([`super::draw`]),
+    /// standing on their heights, `height` metres tall.
+    Wall {
+        id: String,
+        region: String,
+        #[serde(with = "glam_json::vec3")]
+        from: Vec3,
+        #[serde(with = "glam_json::vec3")]
+        to: Vec3,
+        height: f32,
+        surface: u8,
+    },
+    /// Drawn ground: a floor over the outline (its points' heights).
+    Ground {
+        id: String,
+        region: String,
+        #[serde(with = "glam_json::vec3s")]
+        outline: Vec<Vec3>,
+        surface: u8,
+    },
+}
+
+impl CollisionEdit {
+    pub fn region(&self) -> &str {
+        match self {
+            CollisionEdit::Remove { region, .. } | CollisionEdit::Wall { region, .. } | CollisionEdit::Ground { region, .. } => region,
+        }
+    }
+
+    /// A drawn wall's or ground's id (None for a removal).
+    pub fn id(&self) -> Option<&str> {
+        match self {
+            CollisionEdit::Wall { id, .. } | CollisionEdit::Ground { id, .. } => Some(id),
+            CollisionEdit::Remove { .. } => None,
+        }
+    }
+
+    /// Whether the edit holds values the file can hold and the game can
+    /// build (the reader and every op check this one rule).
+    pub fn check(&self) -> Result<(), String> {
+        let fine = |v: &Vec3| v.is_finite() && v.abs().max_element() <= MAX_COORD;
+        if !valid_region(self.region()) {
+            return Err(format!("`{}` is not a region name", self.region()));
+        }
+        if let Some(id) = self.id()
+            && !valid_id(id)
+        {
+            return Err(format!("`{id}` is not an id (a-z, 0-9, - and _, at most 40)"));
+        }
+        match self {
+            CollisionEdit::Remove { corners, .. } => {
+                if !(3..=4).contains(&corners.len()) || !corners.iter().all(fine) {
+                    return Err("a removed face has 3 or 4 corners".into());
+                }
+            }
+            CollisionEdit::Wall { from, to, height, .. } => {
+                if !fine(from) || !fine(to) || !height.is_finite() {
+                    return Err("a wall's ends must be on the map".into());
+                }
+                let l = from.truncate().distance(to.truncate());
+                if !(MIN_WALL_LENGTH..=MAX_WALL_LENGTH).contains(&l) {
+                    return Err(format!("a wall is {MIN_WALL_LENGTH} to {MAX_WALL_LENGTH} m long"));
+                }
+                if !(MIN_WALL_HEIGHT..=MAX_WALL_HEIGHT).contains(height) {
+                    return Err(format!("a wall is {MIN_WALL_HEIGHT} to {MAX_WALL_HEIGHT} m high"));
+                }
+                if (from.z - to.z).abs() > 100.0 {
+                    return Err("a wall's ends are at most 100 m apart in height".into());
+                }
+            }
+            CollisionEdit::Ground { outline, .. } => {
+                if !(3..=MAX_OUTLINE).contains(&outline.len()) || !outline.iter().all(fine) {
+                    return Err(format!("a ground's outline has 3 to {MAX_OUTLINE} points"));
+                }
+                let (lo, hi) = outline.iter().fold((Vec3::MAX, Vec3::MIN), |(l, h), p| (l.min(*p), h.max(*p)));
+                if (hi - lo).truncate().max_element() > MAX_GROUND_SIZE || hi.z - lo.z > 100.0 {
+                    return Err(format!("a ground is at most {MAX_GROUND_SIZE} m across"));
+                }
+                if super::draw::triangulate(outline).is_none() {
+                    return Err("a ground's outline must not cross itself".into());
+                }
+            }
+        }
+        Ok(())
+    }
 }
 
 /// An original placement, named by where the original data has it: its
@@ -479,7 +596,9 @@ impl MapMod {
             }
             if let Some(kind) = l.strip_prefix('[') {
                 let Some(kind) = kind.strip_suffix(']') else { return err(n, "a section name must end with `]`") };
-                if !["prop.move", "prop.delete", "prop.add", "race"].contains(&kind) {
+                if !["prop.move", "prop.delete", "prop.add", "race", "collision.remove", "collision.wall", "collision.ground"]
+                    .contains(&kind)
+                {
                     return err(n, format!("unknown section [{kind}]"));
                 }
                 blocks.push(Block { kind: kind.into(), line: n, keys: Vec::new() });
@@ -537,6 +656,14 @@ impl MapMod {
                         rotation: rotation(ro, rol)?,
                     });
                 }
+                k if k.starts_with("collision.") => {
+                    let e = Self::parse_collision(b)?;
+                    e.check().or_else(|e| err(b.line, e))?;
+                    m.collision.push(e);
+                    if m.collision.len() > MAX_COLLISION {
+                        return err(b.line, format!("more than {MAX_COLLISION} collision edits"));
+                    }
+                }
                 _ => m.races.push(Self::parse_race(b, fixes.as_deref_mut())?),
             }
             if m.props.len() > MAX_PROPS {
@@ -579,7 +706,57 @@ impl MapMod {
                 return err(b.line, format!("race id `{}` used twice", r.id));
             }
         }
+        let mut drawn = std::collections::HashSet::new();
+        for (b, e) in blocks.iter().filter(|b| b.kind.starts_with("collision.")).zip(&m.collision) {
+            if let Some(id) = e.id()
+                && !drawn.insert(id.to_string())
+            {
+                return err(b.line, format!("collision id `{id}` used twice"));
+            }
+        }
         Ok(m)
+    }
+
+    fn parse_collision(b: &Block) -> Result<CollisionEdit, FormatError> {
+        let (r, rl) = b.need("region")?;
+        let region = region(r, rl)?;
+        let surface = |b: &Block| -> Result<u8, FormatError> {
+            let (v, l) = b.need("surface")?;
+            v.parse().map_err(|_| FormatError { line: l, message: format!("`{v}` is not a surface id (0 to 255)") })
+        };
+        let id = |b: &Block| -> Result<String, FormatError> {
+            let (v, l) = b.need("id")?;
+            if !valid_id(v) {
+                return err(l, format!("`{v}` is not an id (a-z, 0-9, - and _, at most 40)"));
+            }
+            Ok(v.to_string())
+        };
+        let points = |key: &str| b.all(key).map(|(v, l)| vec3(v, l)).collect::<Result<Vec<_>, _>>();
+        Ok(match b.kind.as_str() {
+            "collision.remove" => {
+                b.check_keys(&["region", "corner"])?;
+                CollisionEdit::Remove { region, corners: points("corner")? }
+            }
+            "collision.wall" => {
+                b.check_keys(&["id", "region", "from", "to", "height", "surface"])?;
+                let (f, fl) = b.need("from")?;
+                let (t, tl) = b.need("to")?;
+                let (h, hl) = b.need("height")?;
+                let height = h.parse().map_err(|_| FormatError { line: hl, message: format!("`{h}` is not a number") })?;
+                CollisionEdit::Wall { id: id(b)?, region, from: vec3(f, fl)?, to: vec3(t, tl)?, height, surface: surface(b)? }
+            }
+            _ => {
+                b.check_keys(&["id", "region", "point", "surface"])?;
+                CollisionEdit::Ground { id: id(b)?, region, outline: points("point")?, surface: surface(b)? }
+            }
+        })
+    }
+
+    /// An id no drawn wall or ground of this mod has: `<kind>-<n>`, the
+    /// first free.
+    pub fn fresh_collision_id(&self, kind: &str) -> String {
+        let ids: std::collections::HashSet<&str> = self.collision.iter().filter_map(CollisionEdit::id).collect();
+        (1..).map(|n| format!("{kind}-{n}")).find(|i| !ids.contains(i.as_str())).unwrap_or_default()
     }
 
     fn parse_race(b: &Block, fixes: Option<&mut Vec<String>>) -> Result<CustomRace, FormatError> {
@@ -714,6 +891,31 @@ impl MapMod {
             }
             if let Some(p) = &r.finish {
                 let _ = writeln!(s, "finish = {}", spot(p));
+            }
+        }
+        for e in &self.collision {
+            match e {
+                CollisionEdit::Remove { region, corners } => {
+                    let _ = writeln!(s, "\n[collision.remove]\nregion = {region}");
+                    for c in corners {
+                        let _ = writeln!(s, "corner = {}", v3(*c));
+                    }
+                }
+                CollisionEdit::Wall { id, region, from, to, height, surface } => {
+                    let _ = writeln!(
+                        s,
+                        "\n[collision.wall]\nid = {id}\nregion = {region}\nfrom = {}\nto = {}\nheight = {height}\nsurface = {surface}",
+                        v3(*from),
+                        v3(*to)
+                    );
+                }
+                CollisionEdit::Ground { id, region, outline, surface } => {
+                    let _ = writeln!(s, "\n[collision.ground]\nid = {id}\nregion = {region}");
+                    for p in outline {
+                        let _ = writeln!(s, "point = {}", v3(*p));
+                    }
+                    let _ = writeln!(s, "surface = {surface}");
+                }
             }
         }
         s

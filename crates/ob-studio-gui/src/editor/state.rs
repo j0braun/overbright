@@ -57,6 +57,12 @@ pub struct EditorState {
     pub view: View,
     /// The collision layer over the view (View ▸ Collision).
     pub collision: super::collision::Show,
+    /// The wall or drawn ground selected in the collision layer.
+    pub wall: Option<super::collision::Picked>,
+    /// The drawing tool armed (Edit ▸ Draw wall / Draw ground), and what it
+    /// draws with.
+    pub draw: Option<super::collision::Draw>,
+    pub draw_settings: super::collision::DrawSettings,
     /// The simulation's cars drawn as models over the 3D view (Simulate
     /// tab, "Car models").
     pub replay: super::sim::cars::Replay,
@@ -101,6 +107,9 @@ impl EditorState {
             mode: Mode::Props,
             view: View::ThreeD,
             collision: super::collision::Show::Off,
+            wall: None,
+            draw: None,
+            draw_settings: Default::default(),
             replay: Default::default(),
             status: String::new(),
             nets: HashMap::new(),

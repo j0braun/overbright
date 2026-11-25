@@ -15,7 +15,7 @@
 pub mod assets;
 pub mod edit;
 // The map data without a world (crates/ob-map), at its old paths.
-pub use ob_map::tools::map::{format, ops, race, share, sim, store};
+pub use ob_map::tools::map::{draw, format, ops, race, share, sim, store};
 
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
@@ -36,6 +36,9 @@ pub struct Applied {
     pub original_transform: HashMap<usize, glam::Mat4>,
     /// What the edits did to the static collision (`World::apply_scenery_collision`).
     pub collision: crate::world::PropCollision,
+    /// Counts the editor's live re-applies that changed the static
+    /// collision (its collision view is built again when it moves).
+    pub collision_version: u64,
     /// The added placements: the mod folder and the add's id.
     pub added: HashMap<usize, (String, String)>,
     /// The first added placement (all after it are added).

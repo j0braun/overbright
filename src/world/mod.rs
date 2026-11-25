@@ -30,7 +30,7 @@ mod scenery;
 pub use self::anims::*;
 pub use self::data::*;
 pub use self::map_overlay::{MATCH_DISTANCE, MapIndex, parts_of, transform_of};
-pub use self::prop_collision::{LocalFace, PropCollision, SceneryEdit, cells_of, world_face};
+pub use self::prop_collision::{DrawnCollision, LocalFace, PropCollision, SceneryEdit, cells_of, face_key, world_face};
 use self::parse::*;
 pub use self::scenery::*;
 

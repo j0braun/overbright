@@ -559,7 +559,7 @@ impl Game {
             None => {
                 let (world, car) = std::thread::scope(|scope| {
                     let car = scope.spawn(|| car_of(preloaded_car));
-                    let world = scope.spawn(|| match preloaded_world {
+                    let world = scope.spawn(nfsu2::platform::dirs::carry_data_home(|| match preloaded_world {
                         Some(h) => {
                             let (world, renderer) = h.join().expect("the world's preload");
                             (world, renderer)
@@ -573,7 +573,7 @@ impl Game {
                             }
                             (world, None)
                         }
-                    });
+                    }));
                     while !(car.is_finished() && world.is_finished()) {
                         gate.tick(window, assets, now_ms(started));
                         std::thread::sleep(std::time::Duration::from_millis(1));

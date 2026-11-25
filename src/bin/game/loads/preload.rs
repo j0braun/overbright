@@ -184,8 +184,9 @@ impl Preload {
     ) -> std::thread::JoinHandle<PreloadedWorld> {
         std::thread::Builder::new()
             .name("preload".into())
-            .spawn(move || {
-                Self::pool().install(move || {
+            // (Tests: the load reads the calling test's map mods.)
+            .spawn(nfsu2::platform::dirs::carry_data_home(move || {
+                Self::pool().install(nfsu2::platform::dirs::carry_data_home(move || {
                     let _t = nfsu2::prof::span("preload: world");
                     let world = nfsu2::tools::map::load_world(&root, &region);
                     // Its collision too, which the drive's first placing
@@ -228,8 +229,8 @@ impl Preload {
                         });
                     }
                     (world, renderer)
-                })
-            })
+                }))
+            }))
             .expect("the preload thread")
     }
 }

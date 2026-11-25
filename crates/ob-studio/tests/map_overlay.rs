@@ -173,6 +173,22 @@ fn assert_same(a: &World, b: &World, what: &str) {
     assert_eq!(o.added, p.added, "{what}: added");
     assert_eq!(o.first_added, p.first_added, "{what}: first_added");
     assert_eq!((o.moved, o.deleted, o.missing), (p.moved, p.deleted, p.missing), "{what}: counts");
+    assert_eq!(o.collision, p.collision, "{what}: static collision counts");
+    assert!(static_collision(a) == static_collision(b), "{what}: static collision");
+}
+
+/// The collision packs, cell by cell and face by face.
+fn static_collision(w: &World) -> Vec<String> {
+    let mut out = Vec::new();
+    for (pi, g) in w.ground.grids().enumerate() {
+        out.push(format!("{:?} {:?}", g.cells, g.refs));
+        let mut fi = 0;
+        while let Some(f) = w.ground.face_at(pi, fi) {
+            out.push(format!("{f:?}"));
+            fi += 1;
+        }
+    }
+    out
 }
 
 fn rotation(r: &mut Rng) -> Mat3 {
@@ -349,6 +365,8 @@ fn mod_of(w: &World, region: &str, edits: usize) -> MapMod {
         let i = (k * stride + 7) % n;
         let p = &w.placements[i];
         let (at, rot) = parts_of(p.transform);
+        // A scaled placement's rotation is no mod file's (rows must be unit axes).
+        let rot = if ob_map::tools::map::format::check_rotation(&rot).is_ok() { rot } else { Mat3::IDENTITY };
         match k % 10 {
             0..=6 => {
                 let target = w.placement_ref(region, i).unwrap();
@@ -406,7 +424,9 @@ fn bench_one_gesture() {
         let (at, rot) = parts_of(s.world.placements[i].transform);
         let (m1, p1) = time(reps, |k| {
             let position = at + Vec3::new(0.01 * k as f32, 0.0, 0.0);
-            s.run(Op::Place { key: moved.clone(), position, rotation: rot }).unwrap();
+            if let Err(e) = s.run(Op::Place { key: moved.clone(), position, rotation: rot }) {
+                panic!("{e:?}: {:?}", s.refused_why);
+            }
         });
         // An untouched original (a fresh drag's first step).
         let fresh_from = (0..s.world.placements.len())
@@ -419,6 +439,7 @@ fn bench_one_gesture() {
             }
             let key = s.key_of(next).unwrap();
             let (at, rot) = parts_of(s.world.placements[next].transform);
+            let rot = if ob_map::tools::map::format::check_rotation(&rot).is_ok() { rot } else { Mat3::IDENTITY };
             s.run(Op::Place { key, position: at + Vec3::Z, rotation: rot }).unwrap();
         });
         // An added prop (its add in the middle of the list).

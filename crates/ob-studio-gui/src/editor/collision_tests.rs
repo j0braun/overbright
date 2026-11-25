@@ -266,3 +266,249 @@ fn the_airports_invisible_wall_shows() {
     // walls stand behind scenery.
     assert!(c.barriers > 10_000 && c.visible > c.invisible, "{c:?}");
 }
+
+/// The collision in play, face by face (pack order).
+fn listed_of(s: &EditorState) -> Vec<String> {
+    s.session.world.ground.listed_faces().map(|f| format!("{f:?}")).collect()
+}
+
+/// One frame of the layer's overlay in a 1600 x 960 view with `events`.
+fn frame(o: &mut CollisionOverlay, s: &mut EditorState, ctx: &egui::Context, events: Vec<egui::Event>) -> bool {
+    use crate::editor::app::Overlay as _;
+    let rect = Rect::from_min_size(Pos2::ZERO, egui::vec2(1600.0, 960.0));
+    let input = egui::RawInput { screen_rect: Some(rect), events, ..Default::default() };
+    let mut taken = false;
+    let _ = crate::editor::run_headless(ctx, input, |ui| taken = o.overlay(s, ui.ctx(), ui.painter(), rect));
+    taken
+}
+
+/// A left click at `at` (pointer moved there first, pressed, released).
+fn click(o: &mut CollisionOverlay, s: &mut EditorState, ctx: &egui::Context, at: Pos2) -> bool {
+    let b = |pressed| egui::Event::PointerButton {
+        pos: at,
+        button: egui::PointerButton::Primary,
+        pressed,
+        modifiers: Default::default(),
+    };
+    frame(o, s, ctx, vec![egui::Event::PointerMoved(at)]);
+    let took = frame(o, s, ctx, vec![b(true)]);
+    frame(o, s, ctx, vec![b(false)]);
+    took
+}
+
+/// With the game's files, in the 3D view: Edit ▸ Draw wall and two clicks
+/// on the plaza make one undo step whose wall the layer shows (built again)
+/// and the world collides with; a click selects it and Del removes it;
+/// undo and redo give the same collision. A click on the airport's
+/// invisible wall selects that original face, Remove wall takes it out of
+/// the layer and the game's collision, Undo brings it back.
+#[test]
+#[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
+fn walls_are_drawn_picked_and_removed_with_the_mouse() {
+    let root = crate::testkit::game_root();
+    let world = crate::world::World::load(&root, "L4RA").unwrap();
+    let spot = Vec3::new(-327.0, -535.0, 21.269472);
+    let spot = spot.truncate().extend(world.collision().ground_at(spot).unwrap().0);
+    let camera = Camera::looking_at(spot + Vec3::new(0.0, 12.0, 5.0), spot);
+    let dir = std::env::temp_dir();
+    let mut s = EditorState::new(root, "L4RA", dir, "fixture", Default::default(), world, camera);
+    s.collision = Show::Invisible;
+    let rect = Rect::from_min_size(Pos2::ZERO, egui::vec2(1600.0, 960.0));
+    let ctx = egui::Context::default();
+    let mut o = CollisionOverlay::default();
+    frame(&mut o, &mut s, &ctx, vec![]);
+    let before = o.layer(&s).counts();
+    let original = listed_of(&s);
+
+    s.draw = Some(Draw::Wall { first: None });
+    let cam = s.camera;
+    let on = |p: Vec3| super::super::camera::project(&cam, rect, p).unwrap();
+    let (a, b) = (on(spot - Vec3::X * 6.0), on(spot + Vec3::X * 6.0));
+    assert!(click(&mut o, &mut s, &ctx, a), "the first end");
+    assert!(click(&mut o, &mut s, &ctx, b), "the second end");
+    assert_eq!(s.session.undo.undo_label(), Some("Draw wall"));
+    let [CollisionEdit::Wall { from, to, height, .. }] = s.session.map.collision.as_slice() else {
+        panic!("{:?}", s.session.map.collision)
+    };
+    assert!(
+        from.truncate().distance((spot - Vec3::X * 6.0).truncate()) < 1.5
+            && to.truncate().distance((spot + Vec3::X * 6.0).truncate()) < 1.5,
+        "{from} {to}"
+    );
+    assert_eq!(*height, 2.0);
+    let drawn = o.layer(&s).counts();
+    // The box's four sides (invisible where no scenery stands at them).
+    assert_eq!(drawn.invisible + drawn.visible, before.invisible + before.visible + 4, "{before:?} → {drawn:?}");
+    assert!(drawn.invisible > before.invisible);
+    let with_wall = listed_of(&s);
+
+    // Select it and remove it (Del), then undo and redo.
+    s.draw = None;
+    assert!(click(&mut o, &mut s, &ctx, on(spot + Vec3::Z)), "a click on the drawn wall");
+    let p = s.wall.clone().expect("the drawn wall selected");
+    assert_eq!(p.key, Target::Drawn("wall-1".into()));
+    crate::editor::props::delete_selection(&mut s);
+    assert!(s.session.map.collision.is_empty());
+    assert_eq!(s.session.undo.undo_label(), Some("Remove wall-1"));
+    assert_eq!(o.layer(&s).counts(), before);
+    assert!(listed_of(&s) == original, "the original's collision");
+    s.session.undo();
+    assert!(listed_of(&s) == with_wall, "undo: the wall again");
+    s.session.undo();
+    assert!(listed_of(&s) == original, "undo: no wall");
+    s.session.redo();
+    assert!(listed_of(&s) == with_wall, "redo: the wall");
+    s.session.undo();
+
+    // The airport's invisible wall.
+    let (wa, wb) = (Vec2::new(1716.6, -892.3), Vec2::new(1724.1, -850.1));
+    let mid = wa.lerp(wb, 0.5);
+    let floor = s.session.world.collision().ground_at(mid.extend(500.0)).map_or(0.0, |(z, _)| z);
+    let normal = (wb - wa).perp().normalize();
+    s.camera = Camera::looking_at((mid + normal * 25.0).extend(floor + 3.0), mid.extend(floor + 1.5));
+    let at = super::super::camera::project(&s.camera, rect, mid.extend(floor + 1.5)).unwrap();
+    assert!(click(&mut o, &mut s, &ctx, at), "a click on the airport wall");
+    let p = s.wall.clone().expect("a wall selected");
+    let Target::Original(corners) = &p.key else { panic!("{p:?}") };
+    assert_eq!(p.what, "Invisible wall");
+    let wall_at = |l: &Layer| l.walls.iter().any(|w| w.corners == *corners);
+    assert!(wall_at(o.layer(&s)));
+    crate::editor::props::delete_selection(&mut s);
+    assert_eq!(s.session.undo.undo_label(), Some("Remove wall"));
+    assert!(!wall_at(o.layer(&s)), "removed from the layer");
+    let key = nfsu2::studio_api::world::face_key(corners);
+    let listed = |s: &EditorState| {
+        s.session
+            .world
+            .ground
+            .listed_faces()
+            .any(|f| nfsu2::studio_api::world::face_key(&f.vertices[..f.corners.clamp(3, 4)]) == key)
+    };
+    assert!(!listed(&s), "removed from the game's collision");
+    s.session.undo();
+    assert!(listed(&s) && wall_at(o.layer(&s)), "undo brings it back");
+    assert!(listed_of(&s) == original);
+}
+
+/// Walls drawn and picked on the Map and in Top (the overview), with the
+/// game's files: x/y from the mouse and the floor's height, the same
+/// collision as the wall drawn in the 3D view, a click picks it, Del and
+/// undo/redo are exact, and a point drawn within a few points of the first
+/// wall's end snaps to it (Alt: not).
+#[test]
+#[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
+fn walls_are_drawn_and_picked_on_the_map_and_in_top() {
+    use crate::editor::state::View;
+    let root = crate::testkit::game_root();
+    let spot = Vec3::new(-327.0, -535.0, 21.269472);
+    let rect = Rect::from_min_size(Pos2::ZERO, egui::vec2(1600.0, 960.0));
+    let (a, b) = (Vec3::new(-333.0, -535.0, 0.0), Vec3::new(-321.0, -535.0, 0.0));
+    let new_state = || {
+        let world = crate::world::World::load(&root, "L4RA").unwrap();
+        let z = world.collision().ground_at(spot).unwrap().0;
+        let camera =
+            Camera::looking_at(spot.truncate().extend(z) + Vec3::new(0.0, 12.0, 5.0), spot.truncate().extend(z));
+        let mut s =
+            EditorState::new(root.clone(), "L4RA", std::env::temp_dir(), "fixture", Default::default(), world, camera);
+        s.collision = Show::Invisible;
+        (s, z)
+    };
+    let (r, _) = new_state();
+    let original = listed_of(&r);
+
+    for view in ["map", "top"] {
+        let (mut s, z) = new_state();
+        let ctx = egui::Context::default();
+        // 4 points per metre: 10 points are 2.5 m.
+        let top = super::super::camera::TopView { centre: spot.truncate(), half_height: 960.0 / 2.0 / 4.0 };
+        let publish = |ctx: &egui::Context| {
+            if view == "map" {
+                crate::editor::sim::panel::publish_map(ctx, spot.truncate(), 4.0, rect);
+            } else {
+                super::super::viewport::publish_top(ctx, Some((top, rect)));
+            }
+        };
+        s.view = if view == "map" { View::Map } else { View::ThreeD };
+        let at = |p: Vec3| Pos2::new(800.0 + (p.x - spot.x) * 4.0, 480.0 - (p.y - spot.y) * 4.0);
+        let mut o = CollisionOverlay::default();
+        let click_at = |o: &mut CollisionOverlay, s: &mut EditorState, p: Pos2, alt: bool| {
+            let m = if alt { egui::Modifiers::ALT } else { egui::Modifiers::NONE };
+            let b = |pressed| egui::Event::PointerButton {
+                pos: p,
+                button: egui::PointerButton::Primary,
+                pressed,
+                modifiers: m,
+            };
+            publish(&ctx);
+            frame(o, s, &ctx, vec![egui::Event::ModifiersChanged(m), egui::Event::PointerMoved(p)]);
+            let took = frame(o, s, &ctx, vec![b(true)]);
+            frame(o, s, &ctx, vec![b(false)]);
+            frame(o, s, &ctx, vec![egui::Event::ModifiersChanged(Default::default())]);
+            took
+        };
+        publish(&ctx);
+        frame(&mut o, &mut s, &ctx, vec![]);
+        s.draw = Some(Draw::Wall { first: None });
+        assert!(click_at(&mut o, &mut s, at(a), false), "{view}: first end");
+        assert!(click_at(&mut o, &mut s, at(b), false), "{view}: second end");
+        let [CollisionEdit::Wall { from, to, .. }] = s.session.map.collision.as_slice() else {
+            panic!("{view}: {:?}", s.session.map.collision)
+        };
+        assert!(
+            from.truncate().distance(a.truncate()) < 0.5 && to.truncate().distance(b.truncate()) < 0.5,
+            "{view}: {from} {to}"
+        );
+        assert!((from.z - z).abs() < 0.2, "{view}: height {} vs the floor's {z}", from.z);
+        let (from, to) = (*from, *to);
+        let with_wall = listed_of(&s);
+        // The same wall through the same op: the same collision, face for face.
+        let (mut r2, _) = new_state();
+        let surface = surface_under(&r2, from);
+        super::super::undo::run(&mut r2, Op::DrawWall { from, to, height: 2.0, surface, id: None }).unwrap();
+        assert_eq!(listed_of(&r2), with_wall, "{view}: as drawn in 3D");
+
+        // Snap: a start 3 points from the wall's end takes its place; Alt keeps the mouse's.
+        let near = to + Vec3::new(0.0, 0.75, 0.0);
+        click_at(&mut o, &mut s, at(near), false);
+        click_at(&mut o, &mut s, at(near + Vec3::new(0.0, 10.0, 0.0)), false);
+        let walls: Vec<(Vec3, Vec3)> = s
+            .session
+            .map
+            .collision
+            .iter()
+            .filter_map(|e| match e {
+                CollisionEdit::Wall { from, to, .. } => Some((*from, *to)),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(walls.len(), 2, "{view}");
+        assert!(walls[1].0.truncate().distance(to.truncate()) < 1e-3, "{view}: snapped {}", walls[1].0);
+        click_at(&mut o, &mut s, at(near), true);
+        click_at(&mut o, &mut s, at(near + Vec3::new(10.0, 10.0, 0.0)), true);
+        let c = s.session.map.collision.last().cloned();
+        let Some(CollisionEdit::Wall { from: f3, .. }) = c else { panic!("{view}: {c:?}") };
+        assert!(f3.truncate().distance(near.truncate()) < 0.3, "{view}: Alt: {f3}");
+
+        // Pick the first wall (on its foot), Del, undo, redo.
+        s.draw = None;
+        let ground_mid = (from + to) * 0.5;
+        assert!(click_at(&mut o, &mut s, at(ground_mid), false), "{view}: a click on the wall");
+        assert_eq!(s.wall.clone().map(|p| p.key), Some(Target::Drawn("wall-1".into())), "{view}");
+        crate::editor::props::delete_selection(&mut s);
+        assert!(
+            s.session.map.collision.len() == 2
+                && matches!(&s.session.map.collision[0], CollisionEdit::Wall { id, .. } if id == "wall-2"),
+            "{view}: Del"
+        );
+        let removed = listed_of(&s);
+        s.session.undo();
+        assert_eq!(s.session.map.collision.len(), 3, "{view}");
+        s.session.redo();
+        assert_eq!(listed_of(&s), removed, "{view}: redo");
+        s.session.undo();
+        for _ in 0..3 {
+            s.session.undo();
+        }
+        assert_eq!(listed_of(&s), original, "{view}: undo all");
+    }
+}

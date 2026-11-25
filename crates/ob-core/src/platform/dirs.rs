@@ -396,6 +396,10 @@ mod thread_override {
     pub(super) fn set(dir: PathBuf) {
         DATA_HOME.with_borrow_mut(|d| *d = Some(dir));
     }
+
+    pub(super) fn put(dir: Option<PathBuf>) {
+        DATA_HOME.with_borrow_mut(|d| *d = dir);
+    }
 }
 
 /// Tests: the calling thread's data home is `dir` from now on (Overbright's
@@ -404,6 +408,22 @@ mod thread_override {
 #[doc(hidden)]
 pub fn set_thread_data_home(dir: PathBuf) {
     thread_override::set(dir);
+}
+
+/// `f` for another thread, run there with the calling thread's data home
+/// ([`set_thread_data_home`]): a load a test's thread hands to a worker
+/// reads the test's folders (its map mods), not the player's (a pool
+/// thread takes each caller's anew). Only `f` for a build without the
+/// developer harness.
+pub fn carry_data_home<R>(f: impl FnOnce() -> R) -> impl FnOnce() -> R {
+    let home = thread_data_home();
+    move || {
+        #[cfg(any(test, feature = "dev-harness"))]
+        thread_override::put(home);
+        #[cfg(not(any(test, feature = "dev-harness")))]
+        let _ = home;
+        f()
+    }
 }
 
 fn thread_data_home() -> Option<PathBuf> {

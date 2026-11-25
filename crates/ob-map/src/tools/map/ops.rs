@@ -75,6 +75,9 @@ pub enum Refused {
     Full,
     /// Another race or add of the mod has that id.
     IdTaken,
+    /// The region's static collision has no such face, or the mod no
+    /// such drawn wall or ground.
+    NoCollision,
     /// A value out of range: a position off the map or not a number, an
     /// id or a text the file format does not allow, a lap count.
     BadValue,
@@ -92,6 +95,7 @@ impl std::fmt::Display for Refused {
             Refused::NoPoint => "The race has no such point",
             Refused::Full => "The race holds no more points of that kind",
             Refused::IdTaken => "That id is already in use",
+            Refused::NoCollision => "No such wall or ground",
             Refused::BadValue => "Value out of range",
         })
     }
@@ -108,6 +112,18 @@ impl std::error::Error for Refused {}
 pub enum PropKey {
     Original(PropRef),
     Added(String),
+}
+
+/// A piece of static collision as a map mod names it: a face of the
+/// original's by its corners as the packs store them, or a wall or ground
+/// the mod drew by its id. JSON: `{"original": [[x, y, z], ..]}` or
+/// `{"drawn": "wall-1"}`.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CollisionKey {
+    #[serde(with = "glam_json::vec3s")]
+    Original(Vec<Vec3>),
+    Drawn(String),
 }
 
 /// One point of a race: a checkpoint, a grid slot, the start or the
@@ -164,6 +180,35 @@ pub enum Op {
     },
     /// Stand a prop on the floor under it. "Drop to ground NAME".
     DropToGround { key: PropKey },
+
+    // ---- collision ----
+    /// Take a piece of static collision out: an original face (a wall or
+    /// barrier of barrier group 0, also an invisible one) is removed, a
+    /// drawn wall or ground deleted. "Remove wall" / "Remove wall-1".
+    RemoveCollision { target: CollisionKey },
+    /// A wall `height` metres tall along `from` → `to`, standing on their
+    /// heights (a closed box, `draw::wall_box`); `id` names it (`wall-<n>`,
+    /// the first free, when left out); `surface` the surface id. "Draw
+    /// wall".
+    DrawWall {
+        #[serde(with = "glam_json::vec3")]
+        from: Vec3,
+        #[serde(with = "glam_json::vec3")]
+        to: Vec3,
+        height: f32,
+        surface: u8,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        id: Option<String>,
+    },
+    /// Ground over `outline` (3 to 32 points, their heights; it must not
+    /// cross itself); `id` as for a wall (`ground-<n>`). "Draw ground".
+    DrawGround {
+        #[serde(with = "glam_json::vec3s")]
+        outline: Vec<Vec3>,
+        surface: u8,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        id: Option<String>,
+    },
 
     // ---- races ----
     /// A new race on base track `track`: id `id` (else `race-<n>`, the
@@ -274,6 +319,10 @@ impl Op {
             Op::Add { solid, .. } => format!("Add {solid}"),
             Op::Duplicate { key, .. } => format!("Duplicate {}", prop_name(map, key)),
             Op::DropToGround { key } => format!("Drop to ground {}", prop_name(map, key)),
+            Op::RemoveCollision { target: CollisionKey::Original(_) } => "Remove wall".into(),
+            Op::RemoveCollision { target: CollisionKey::Drawn(id) } => format!("Remove {id}"),
+            Op::DrawWall { .. } => "Draw wall".into(),
+            Op::DrawGround { .. } => "Draw ground".into(),
             Op::NewRace { track, .. } => format!("New race on track {track}"),
             Op::DeleteRace { race } => format!("Delete race {}", race_name(race)),
             Op::RenameRace { .. } => "Rename race".into(),
@@ -409,6 +458,16 @@ pub mod glam_json {
         }
         pub fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<Mat3, D::Error> {
             <[[f32; 3]; 3]>::deserialize(d).map(|rows| Mat3::from_cols_array_2d(&rows).transpose())
+        }
+    }
+
+    pub mod vec3s {
+        use super::*;
+        pub fn serialize<S: Serializer>(v: &[Vec3], s: S) -> Result<S::Ok, S::Error> {
+            s.collect_seq(v.iter().map(|p| p.to_array()))
+        }
+        pub fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<Vec<Vec3>, D::Error> {
+            <Vec<[f32; 3]>>::deserialize(d).map(|v| v.into_iter().map(Vec3::from_array).collect())
         }
     }
 

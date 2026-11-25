@@ -892,6 +892,90 @@
       ]
     },
     {
+      "name": "collision.remove",
+      "kind": "edit",
+      "summary": "Take out a wall of the original's collision, or a drawn wall or ground",
+      "args": [
+        {
+          "key": "target",
+          "type": "json",
+          "required": "yes",
+          "merge": false,
+          "label": "Collision"
+        }
+      ]
+    },
+    {
+      "name": "collision.wall",
+      "kind": "edit",
+      "summary": "Draw a wall of a height between two points",
+      "args": [
+        {
+          "key": "from",
+          "type": "vec3",
+          "required": "yes",
+          "merge": false,
+          "label": "From"
+        },
+        {
+          "key": "to",
+          "type": "vec3",
+          "required": "yes",
+          "merge": false,
+          "label": "To"
+        },
+        {
+          "key": "height",
+          "type": "f32",
+          "required": "yes",
+          "merge": false,
+          "label": "Height"
+        },
+        {
+          "key": "surface",
+          "type": "u8",
+          "required": "yes",
+          "merge": false,
+          "label": "Surface"
+        },
+        {
+          "key": "id",
+          "type": "text",
+          "required": "no",
+          "merge": false,
+          "label": "Id"
+        }
+      ]
+    },
+    {
+      "name": "collision.ground",
+      "kind": "edit",
+      "summary": "Draw ground over an outline",
+      "args": [
+        {
+          "key": "outline",
+          "type": "list of vec3",
+          "required": "yes",
+          "merge": false,
+          "label": "Outline"
+        },
+        {
+          "key": "surface",
+          "type": "u8",
+          "required": "yes",
+          "merge": false,
+          "label": "Surface"
+        },
+        {
+          "key": "id",
+          "type": "text",
+          "required": "no",
+          "merge": false,
+          "label": "Id"
+        }
+      ]
+    },
+    {
       "name": "race.create",
       "kind": "edit",
       "summary": "Make a race on a base track",

@@ -22,6 +22,7 @@ use crate::render::Gpu;
 use crate::tools::map::history::{self, History};
 use crate::tools::map::{MapMod, store, valid_id, valid_region};
 use crate::world::World;
+pub use parts::race_ground;
 
 /// The region a new mod starts on.
 pub const DEFAULT_REGION: &str = "L4RA";
@@ -1396,6 +1397,18 @@ impl App {
             A::Collision(c) => {
                 if let Some(s) = self.state.as_mut() {
                     s.collision = c;
+                }
+            }
+            A::Draw(d) => {
+                if let Some(s) = self.state.as_mut() {
+                    // What is drawn shows in the collision layer.
+                    if s.collision == super::collision::Show::Off {
+                        s.collision = super::collision::Show::Invisible;
+                    }
+                    s.selection.clear();
+                    s.wall = None;
+                    s.view = View::ThreeD;
+                    s.draw = Some(d);
                 }
             }
             A::View(v) => {
