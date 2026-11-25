@@ -15,7 +15,9 @@
 # Environment: JOBS (default 4: cargo jobs and the container's CPU limit), PODMAN (default podman),
 # OB_SOURCE_URL (where the source is published; build.rs passes it on, docs/developing/building-releases.md),
 # IMAGE (the Windows image, default overbright-build:<hash of Containerfile>), IMAGE_LINUX (default
-# overbright-build-linux:<hash of Containerfile.linux>); each is built when missing.
+# overbright-build-linux:<hash of Containerfile.linux>); each is built when missing. FETCH_NETWORK (default
+# none: the crate cache is used as it is; set it to default to download missing crates first, e.g. after a
+# Cargo.lock change, where the offline build would fail).
 # Out dir: src/ (the copied tree), cargo-home/ (the crate cache, reused), target-linux/, target-windows/
 # (cargo's target directories, reused while their image stays the same), dist/<target>/ (the binaries),
 # build.log.
@@ -103,8 +105,8 @@ run() { # run <image> <network: default|none> <env...>: inside.sh in the image
         -e SOURCE_DATE_EPOCH="$SOURCE_DATE_EPOCH" -e OB_SOURCE_URL="${OB_SOURCE_URL:-}" "$@" "$img" bash /inside.sh
 }
 {
-    # The crates once with the network (a no-op when the cache has them), then the build offline.
-    run "$IMAGE" default -e MODE=fetch
+    # The crates once (no network unless FETCH_NETWORK=default; cargo fetch then works from the cache), then the build offline.
+    run "$IMAGE" "${FETCH_NETWORK:-none}" -e MODE=fetch
     rm -rf "$OUT/dist"/*
     for t in $TARGETS; do
         img=$IMAGE; [ "$t" = linux ] && img=$IMAGE_LINUX

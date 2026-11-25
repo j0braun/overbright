@@ -116,11 +116,14 @@ WWIN() {
 }
 # wp PATH: PATH as Wine's programs see it. winepath -w cuts its answer at MAX_PATH (Wine 11: a 282-character
 # folder came back as its first 257 characters, a folder that does not exist); a path outside the prefix's
-# drive_c is the Z: drive (the root) and the path with backslashes, so a cut answer is replaced by that.
+# drive_c is the Z: drive (the root) and the path with backslashes, so a cut answer is replaced by that. A cut
+# answer is not always a clean prefix (with accents, Wine 11.22 ends it in a stray character), so an answer of
+# 250 characters or more counts as cut whatever its tail.
 wp() {
   local w z="Z:${1//\//\\}"
   w=$(WINEPREFIX="$O/prefix" W winepath -w "$1" 2> /dev/null)
   case $z in "$w"?*) w=$z ;; esac
+  [ ${#w} -ge 250 ] && w=$z
   printf '%s\n' "$w"
 }
 FAIL=() XFAIL=()
