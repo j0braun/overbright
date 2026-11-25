@@ -335,13 +335,7 @@ impl Game {
                 nfsu2::character::SceneCharacters::parse(&b).map_err(|e| eprintln!("scene characters: {e:#}")).ok()
             })
             .filter(|c| !c.instances.is_empty())
-            .map(|set| SceneCrowd {
-                set: std::sync::Arc::new(set),
-                origin,
-                frame: 0.0,
-                length: scene.length,
-                id: DrawId::new(),
-            });
+            .map(|set| SceneCrowd::new(std::sync::Arc::new(set), origin, scene.length, &d.world));
         // Its line (`audio::speech::nis::race_start`): the NIS load
         // 0x435BE0 asks NisAudio_Request (0x435CE8) for the scene with the
         // entry's variant; the player car's engine sound index picks the
@@ -483,13 +477,7 @@ impl Game {
             let origin = origin(ground, heading + std::f32::consts::PI);
             let crowd = crowd_ahead.unwrap_or_else(|| super::endings_ahead::crowd_of(&self.game_data.root, &scene));
             self.scenes.crowd = crowd
-                .map(|set| SceneCrowd {
-                    set,
-                    origin,
-                    frame: 0.0,
-                    length: scene.length,
-                    id: DrawId::new(),
-                });
+                .map(|set| SceneCrowd::new(set, origin, scene.length, &d.world));
             self.scenes.shop = Some(ShopRun {
                 audio: nfsu2::shop_scene::audio::Run::with_carry(self.pacing.cadence.clock.carry),
                 companion,

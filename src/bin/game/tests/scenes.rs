@@ -830,3 +830,107 @@ fn an_ending_read_ahead_is_the_one_loaded_at_the_finish() {
     assert!(played >= 4, "endings checked: {played}");
 }
 
+
+/// The race start scenes' people stand on the ground at every start: each
+/// skinned character's lowest vertex within a few centimetres of the
+/// ground under its bone 1 (0x436050 puts its world height on that ground
+/// + 0.05 every update), for every career track's start and every intro
+/// scene its start can draw. Without the ground step the scene's single
+/// height at the start line left people below the road or in the air
+/// where the road slopes or curbs rise. Real assets, no GPU; run with
+/// isolated XDG homes.
+#[test]
+#[ignore = "requires original assets; loads every career track (minutes)"]
+fn race_start_crowd_stands_on_the_ground() {
+    use nfsu2::shop_scene::{IntroTable, Scene, SceneKind, origin};
+    testkit::game();
+    let mut game = Game::new().unwrap();
+    game.settings.custom[5] = 1;
+    let mut profile = Profile::new("CROWD_GROUND_TEST");
+    profile.skip_intro(&game.game_data.career, &game.game_data.root, "PEUGOT", &mut game.rng);
+    game.profile = Some(profile);
+    let table = IntroTable::load(&game.game_data.root).unwrap();
+    let limit = std::env::var("OB_CROWD_TRACKS").ok().and_then(|v| v.parse::<usize>().ok()).unwrap_or(usize::MAX);
+    let mut seen = std::collections::HashSet::new();
+    // Per placement the lowest and the highest feet-to-ground gap and where, and how many person frames
+    // were more than 0.1 m under the ground or 0.3 m over it.
+    type Worst = ((f32, String), (f32, String), usize, usize, usize);
+    let fresh = || -> Worst { ((f32::INFINITY, String::new()), (f32::NEG_INFINITY, String::new()), 0, 0, 0) };
+    let (mut checked, mut worst, mut flat_worst) = (0usize, fresh(), fresh());
+    let events: Vec<(usize, u16)> =
+        game.game_data.career.events.iter().enumerate().map(|(i, e)| (i, e.track)).collect();
+    for (e, number) in events {
+        if seen.len() >= limit || !seen.insert(number) {
+            continue;
+        }
+        if game.start_race(e, false, false).is_err() {
+            continue;
+        }
+        let Mode::Race(race) = &game.mode else { continue };
+        let Some(track) = game.game_data.career.tracks.get(&number) else { continue };
+        let (Some(at), Some(heading)) = (race.route.start_line, race.route.start_heading) else { continue };
+        let picks = table.race_candidates(
+            track.number,
+            !race.reversed,
+            race.racers.rivals.len() as u32 + 1,
+            race.grid_slot as u8 + 1,
+            track.start_kind as u8,
+        );
+        let d = game.sim.drive.as_ref().unwrap();
+        let o = origin(Vec3::new(at.x, at.y, d.world.grid_height(at)), heading);
+        let mut scenes: Vec<u8> =
+            picks.iter().filter_map(|&k| IntroTable::scene_number(table.race_list[k].hash)).collect();
+        scenes.dedup();
+        for n in scenes {
+            let Ok(scene) = Scene::load(&game.game_data.root, SceneKind::Intro(n)) else { continue };
+            let Some(set) =
+                nfsu2::game_fs::read(&game.game_data.root, &format!("NIS/Scene_{}_BundleB.bun", scene.kind.name()))
+                    .ok()
+                    .and_then(|b| nfsu2::character::SceneCharacters::parse(&b).ok())
+            else {
+                continue;
+            };
+            let mut crowd = SceneCrowd::new(std::sync::Arc::new(set), o, scene.length, &d.world);
+            while crowd.frame < crowd.length {
+                let t = crowd.frame / nfsu2::shop_scene::FPS;
+                let probes = crowd.set.ground_probe(t, o, &crowd.lifts);
+                for (lifts, out) in [(&crowd.lifts[..], &mut worst), (&[][..], &mut flat_worst)] {
+                    // `posed` leaves out exactly the characters `ground_probe` has no point for.
+                    let points = probes.iter().flatten();
+                    for (i, ((model, palette, world), p)) in
+                        crowd.set.posed(t, o, lifts).into_iter().zip(points).enumerate()
+                    {
+                        let Some(g) = d.world.grid_ground(*p) else { continue };
+                        let low = crowd.set.models[model]
+                            .skin(&palette, world)
+                            .iter()
+                            .map(|v| v.0.z)
+                            .fold(f32::INFINITY, f32::min);
+                        let gap = low - g;
+                        let at = || format!("track {number} IntroNis{n:02} person {i} frame {:.0}", crowd.frame);
+                        if gap < out.0.0 {
+                            out.0 = (gap, at());
+                        }
+                        if gap > out.1.0 {
+                            out.1 = (gap, at());
+                        }
+                        out.2 += usize::from(gap < -0.1);
+                        out.3 += usize::from(gap > 0.3);
+                        out.4 += 1;
+                    }
+                }
+                checked += 1;
+                crowd.advance(10.0 / nfsu2::shop_scene::FPS, &d.world);
+            }
+        }
+    }
+    eprintln!(
+        "{} tracks, {checked} scene frames; feet to ground (lowest, highest, frames under / over, frames): {worst:?}",
+        seen.len()
+    );
+    eprintln!("without the ground step: {flat_worst:?}");
+    assert!(checked > 100, "scene frames checked: {checked}");
+    // 0.05 over the ground, the lowest vertex a sole's thickness lower; a few dance steps lift a foot.
+    assert!(worst.0.0 > -0.1, "a person's feet {} m under the ground: {}", worst.0.0, worst.0.1);
+    assert!(worst.1.0 < 0.25, "a person's feet {} m over the ground: {}", worst.1.0, worst.1.1);
+}

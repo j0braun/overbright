@@ -502,8 +502,11 @@ pub(super) fn replay(game: &mut Game, cx: &ShotCtx) -> Result<Mode> {
 pub(super) fn qrstart(game: &mut Game, cx: &ShotCtx) -> Result<Mode> {
     let &ShotCtx { gpu, format, screen, .. } = cx;
     // NFSU2_QR_MODE=drift|sprint|drag|circuit: that mode's first
-    // track (default Circuit).
+    // track (default Circuit), or NFSU2_QR_TRACK=<track number>.
     let mode = qr_mode_env();
+    if let Some(t) = std::env::var("NFSU2_QR_TRACK").ok().and_then(|v| v.parse::<u16>().ok()) {
+        game.settings.qr[nfsu2::frontend::quick_race::race_type(mode)].track = t;
+    }
     game.quick.tracks = game.quick_track_select(mode, 0.0);
     let e = game.quick_event(mode);
     game.quick.car = Some(std::env::var("NFSU2_QR_CAR").unwrap_or_else(|_| "PEUGOT".into()));

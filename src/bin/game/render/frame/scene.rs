@@ -858,7 +858,7 @@ impl WorldScene<'_, '_> {
         if let (Mode::Race(_) | Mode::Menu(_), Some(c), Some(r)) =
             (game.mode, game.scene_crowd, render.world.as_mut())
         {
-            let SceneCrowd { set, origin, id, .. } = c;
+            let SceneCrowd { set, origin, id, lifts, .. } = c;
             let frame = game.poses.crowd_frame(c);
             let renderer = render.crowds.slot(id);
             let cr = renderer.get_or_insert_with(|| nfsu2::render::characters::CharacterRenderer::new(gpu, r, set));
@@ -872,6 +872,7 @@ impl WorldScene<'_, '_> {
                 set,
                 frame / nfsu2::shop_scene::FPS,
                 *origin,
+                lifts,
             );
         }
         drop(sub);

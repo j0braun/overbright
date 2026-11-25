@@ -51,7 +51,7 @@ impl Game {
         // **Inferred**: her flares fire before the world's particle update
         // (0x492E10) in the frame.
         if let (Mode::Race(_), Some(c)) = (&self.mode, self.scenes.crowd.as_ref()) {
-            let flares = c.set.flares(c.frame / nfsu2::shop_scene::FPS, c.origin);
+            let flares = c.set.flares(c.frame / nfsu2::shop_scene::FPS, c.origin, &c.lifts);
             d.effects.system.views = vec![d.camera.position];
             d.effects.flag_girl(&d.world.emitters, &flares);
         }

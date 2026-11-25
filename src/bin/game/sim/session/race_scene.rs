@@ -17,7 +17,7 @@ impl Session<'_> {
             d.screen_flash.step(dt * nfsu2::shop_scene::FPS);
         }
         if let Some(c) = self.crowd.as_mut() {
-            c.frame += dt * nfsu2::shop_scene::FPS;
+            c.advance(dt, &d.world);
             if c.frame >= c.length {
                 *self.crowd = None;
             }
