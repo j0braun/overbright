@@ -151,6 +151,13 @@ pub const OPPONENT_CARS_ALT: [u8; 26] = [
 pub const OPPONENT_SUVS: [u8; 3] = [8, 9, 10];
 
 impl Event {
+    /// The track of tournament round `round` (the race list's +0 track,
+    /// 0x85BAB8; what Race_SetupFromEvent loads for that round), the
+    /// event's own track when it has no race list.
+    pub fn round_track(&self, round: usize) -> u16 {
+        self.races.get(round).map_or(self.track, |r| r.0)
+    }
+
     /// The open-event slot it fills (0x513600): 0..4 normal circuit,
     /// drag, drift, sprint, street X; 5 SUV; 6..10 the same types as
     /// sponsor races. URL races have none.
