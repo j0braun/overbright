@@ -51,7 +51,7 @@ pub fn named_app<'e>(env: &'e FakeEnv, fonts: &Fonts, name: &str, w: u32, h: u32
 
 /// The named states: (name, the screen it is shown on). The fake data of
 /// each comes from [`state_model`].
-pub const STATES: [(&str, Screen); 86] = [
+pub const STATES: [(&str, Screen); 85] = [
     ("no-game", Screen::FirstRun),
     ("check-ok", Screen::Check),
     ("check-movies", Screen::Check),
@@ -103,6 +103,15 @@ pub const STATES: [(&str, Screen); 86] = [
     ("prepare-running", Screen::Prepare),
     ("prepare-done", Screen::Prepare),
     ("prepare-failed", Screen::Prepare),
+    ("game-data-offer", Screen::GameData),
+    ("game-data-running", Screen::GameData),
+    ("game-data-checking", Screen::GameData),
+    ("game-data-stopped", Screen::GameData),
+    ("game-data-space", Screen::GameData),
+    ("game-data-done", Screen::GameData),
+    ("game-data-custom", Screen::GameData),
+    ("game-data-damaged", Screen::GameData),
+    ("game-data-failed", Screen::GameData),
     ("first-none", Screen::FirstRun),
     ("first-several", Screen::FirstRun),
     ("err-own", Screen::Check),
@@ -508,6 +517,9 @@ pub fn state_model(name: &str) -> Option<(Screen, Model)> {
             m.prepare.state = super::prepare::State::Running { n: 2, of: 5, what: "shader programs".into() }
         }
         "prepare-done" => m.prepare.state = super::prepare::State::Done,
+        n if n.starts_with("game-data-") => {
+            super::game_data::state(n, &mut m);
+        }
         "prepare-failed" => m.prepare.state = super::prepare::State::Failed("it ended with code 1".into()),
         "mods-map-editor-open" => {
             m.mods.map_sel = Some("drift-park".into());

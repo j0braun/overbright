@@ -1154,6 +1154,7 @@ impl ApplicationHandler for Run<'_> {
             || self.dialog.is_some()
             || self.app.model.dialog.is_some()
             || self.prepare.is_some()
+            || self.app.game_data_busy()
         {
             el.set_control_flow(ControlFlow::WaitUntil(Instant::now() + Duration::from_millis(50)));
         } else if self.pad.is_some() {
@@ -1238,6 +1239,10 @@ pub fn run_with_root(env: &dyn Env, start: Start) -> Result<Outcome, String> {
     model.just_found = model.root.is_some() && crate::qol::setup::saved_root().is_none();
     let model_root = model.root.clone();
     let mut app = App::new(env, model, start.screen, (960, 720), 1.0, &fonts);
+    // A start without the own copy (and no "Not now" before): the copy is offered first, Make copy chosen.
+    if start.screen == Screen::Main && app.model.failure.is_none() && !env.game_data_later() && app.offer_game_data() {
+        app.rebuild(&fonts);
+    }
     app.apply_prefs();
     app.st.input = deck::default_input();
     let el = EventLoop::new().map_err(|e| format!("no display for the launcher window: {e}"))?;
@@ -1302,6 +1307,8 @@ pub fn run_with_root(env: &dyn Env, start: Start) -> Result<Outcome, String> {
     if let Some(job) = run.prepare.take() {
         job.stop();
     }
+    // The own copy's run: asked to stop; its journal keeps what was finished.
+    run.app.finish_game_data();
     match run.error {
         Some(e) => Err(e),
         None => Ok(if run.outcome == Outcome::Stay { Outcome::Quit } else { run.outcome }),
