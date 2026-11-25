@@ -1162,6 +1162,9 @@ impl ApplicationHandler for Run<'_> {
         } else if let Some(t) = self.app.saves_wake() {
             // The Saves page's Undo goes away by itself.
             el.set_control_flow(ControlFlow::WaitUntil(t));
+        } else if let Some(t) = self.app.studio_wake() {
+            // The Dev and Mods pages read Studio's state again.
+            el.set_control_flow(ControlFlow::WaitUntil(t));
         } else {
             el.set_control_flow(ControlFlow::Wait);
         }

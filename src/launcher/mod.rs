@@ -38,6 +38,7 @@ pub mod saves_page;
 pub mod screens;
 pub mod sounds;
 pub mod start_log;
+pub mod studio_seen;
 pub mod transfer;
 pub mod ui;
 #[cfg(windows)]

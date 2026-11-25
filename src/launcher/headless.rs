@@ -51,7 +51,7 @@ pub fn named_app<'e>(env: &'e FakeEnv, fonts: &Fonts, name: &str, w: u32, h: u32
 
 /// The named states: (name, the screen it is shown on). The fake data of
 /// each comes from [`state_model`].
-pub const STATES: [(&str, Screen); 85] = [
+pub const STATES: [(&str, Screen); 76] = [
     ("no-game", Screen::FirstRun),
     ("check-ok", Screen::Check),
     ("check-movies", Screen::Check),
@@ -86,6 +86,10 @@ pub const STATES: [(&str, Screen); 85] = [
     ("saves-busy", Screen::Saves),
     ("saves-bad-file", Screen::Saves),
     ("saves-long-names", Screen::Saves),
+    ("dev-studio-missing", Screen::Dev),
+    ("dev-studio-idle", Screen::Dev),
+    ("dev-studio-running", Screen::Dev),
+    ("dev-studio-elsewhere", Screen::Dev),
     ("mods-empty", Screen::Mods),
     ("mods-busy", Screen::Mods),
     ("mods-results", Screen::Mods),
@@ -508,6 +512,25 @@ pub fn state_model(name: &str) -> Option<(Screen, Model)> {
                 f.source.label = "Steam (Proton) prefix 1234567890 in /media/player/Spiele-SSD/SteamLibrary".into();
             }
         }
+        // Studio on the Dev page: not beside the launcher; found and not
+        // open; started here with a mod open (its lock held); open elsewhere
+        // (another Studio's lock, and the command-line tool's on a second mod).
+        "dev-studio-missing" => {
+            m.studio_here = false;
+            m.studio_seen.last = None;
+        }
+        "dev-studio-idle" => {}
+        "dev-studio-running" => {
+            m.studio = super::model::EditorRun::Open(None);
+            m.studio_seen.held = vec![fake_held("drift-park", super::studio_seen::STUDIO)];
+        }
+        "dev-studio-elsewhere" => {
+            m.studio_seen.held = vec![
+                fake_held("drift-park", "overbright-studio (command line)"),
+                fake_held("open-docks", super::studio_seen::STUDIO),
+            ];
+            m.studio_seen.last = Some("open-docks".into());
+        }
         "mods-empty" => {
             m.mods.list.clear();
             m.mods.own.clear();
@@ -607,10 +630,26 @@ pub fn state_model(name: &str) -> Option<(Screen, Model)> {
     Some((screen, m))
 }
 
+/// A mod's write lock in the fake data: held by `program` (a fixed process
+/// and time).
+fn fake_held(folder: &str, program: &str) -> super::studio_seen::Held {
+    super::studio_seen::Held {
+        folder: folder.into(),
+        program: Some(program.into()),
+        pid: Some(4242),
+        since: Some(1_795_000_000_000),
+    }
+}
+
 /// The state `name` built at `w` × `h` (None: not a state).
 pub fn state_app<'e>(env: &'e FakeEnv, fonts: &Fonts, name: &str, w: u32, h: u32, dpi: f32) -> Option<App<'e>> {
     let (screen, m) = state_model(name)?;
     let mut a = App::new(env, m, screen, (w, h), dpi, fonts);
+    // Studio's state rows with the State row's help (the locks) beside them.
+    if name.starts_with("dev-studio-") {
+        a.st.focus = Some("studio_state");
+        a.rebuild(fonts);
+    }
     if name == "browse-many" {
         a.st.set_first("dirs", 16);
         if let Some(r) = a.ui.get("dirs").map(|w| w.rect) {
