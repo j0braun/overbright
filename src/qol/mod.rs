@@ -17,6 +17,7 @@ mod enhancements;
 mod frame;
 mod hdr;
 mod hud_scale;
+pub mod language;
 mod levels;
 mod presets;
 mod render_scale;

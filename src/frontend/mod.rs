@@ -39,7 +39,7 @@ pub mod strings {
 
 pub use crate::render::display::Place;
 pub use assets::{Assets, asset_files, in_game_alias};
-pub use feng::dim::{DIM_SCRIPT, EVENT_HANDLER, MENUFADE_SCRIPT, MENUFADEOUT_SCRIPT, UNDIM_SCRIPT, dim_alpha, dim_alpha_of, dim_script, with_dim, with_dim_scripts, with_dim_undim};
+pub use feng::dim::{DIM_SCRIPT, EVENT_HANDLER, MENUFADE_SCRIPT, MENUFADEOUT_SCRIPT, UNDIM_SCRIPT, dim_alpha, dim_alpha_of, dim_script, script_alpha, with_dim, with_dim_scripts, with_dim_undim};
 #[cfg(any(test, feature = "dev-harness"))]
 pub use feng::layout::drawn_texts;
 pub use feng::layout::layout;

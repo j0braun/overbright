@@ -227,7 +227,7 @@ impl Fingerprint {
     /// [`Fingerprint::verdict`] when the game does not need the file
     /// `skip` (the English text file under another text language): that
     /// file is left out of the verdict when it is missing. A present one
-    /// still counts.
+    /// still counts. Missing [`OPTIONAL`] files are always left out.
     pub fn verdict_skipping(&self, skip: Option<&str>) -> Verdict {
         let data = || {
             self.files.iter().filter(move |f| {

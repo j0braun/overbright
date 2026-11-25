@@ -701,11 +701,15 @@ pub fn format_locations(list: &[(Location, PathBuf)]) -> String {
     s
 }
 
+/// The kept reading of the locations file: its path, modified time then and
+/// the folders. Dropped by [`set_location`], so a write in the same
+/// timestamp tick as the last reading is not hidden by the old list.
+type SeenLocations = Option<(PathBuf, Option<std::time::SystemTime>, Vec<(Location, PathBuf)>)>;
+static SEEN: std::sync::Mutex<SeenLocations> = std::sync::Mutex::new(None);
+
 /// The folders put elsewhere, as the locations file says now (read again
 /// when it changed).
 pub fn overrides() -> Vec<(Location, PathBuf)> {
-    static SEEN: std::sync::Mutex<Option<(PathBuf, Option<std::time::SystemTime>, Vec<(Location, PathBuf)>)>> =
-        std::sync::Mutex::new(None);
     let f = locations_file();
     let mtime = std::fs::metadata(&f).and_then(|m| m.modified()).ok();
     let mut seen = SEEN.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
@@ -737,15 +741,17 @@ pub fn set_location(loc: Location, to: Option<&Path>) -> std::io::Result<()> {
     if let Some(d) = f.parent() {
         std::fs::create_dir_all(d)?;
     }
-    if list.is_empty() {
-        return match std::fs::remove_file(&f) {
+    let done = if list.is_empty() {
+        match std::fs::remove_file(&f) {
             Err(e) if e.kind() != std::io::ErrorKind::NotFound => Err(e),
             _ => Ok(()),
-        };
-    }
-    let tmp = f.with_extension("txt.tmp");
-    std::fs::write(&tmp, format_locations(&list))?;
-    std::fs::rename(&tmp, &f)
+        }
+    } else {
+        let tmp = f.with_extension("txt.tmp");
+        std::fs::write(&tmp, format_locations(&list)).and_then(|()| std::fs::rename(&tmp, &f))
+    };
+    *SEEN.lock().unwrap_or_else(std::sync::PoisonError::into_inner) = None;
+    done
 }
 
 /// Where `loc` is by default (no override).
@@ -1055,5 +1061,31 @@ mod tests {
             vec![("/home/u".to_string(), "$HOME"), ("C:\\Users\\u".to_string(), "%USERPROFILE%")]
         );
         assert!(home_tokens(&|_| Some("/".to_string())).is_empty());
+    }
+
+    /// Two writes inside one timestamp tick: the second list is read, not
+    /// the kept first one (the file's time is put back to what it was).
+    #[test]
+    fn a_second_write_in_the_same_tick_is_read() {
+        let home = std::env::temp_dir().join(format!("nfsu2-locations-test-{}", std::process::id()));
+        std::thread::spawn(move || {
+            set_thread_data_home(home.clone());
+            let (a, b) = (home.join("a"), home.join("b"));
+            set_location(Location::Logs, Some(&a)).unwrap();
+            assert_eq!(overrides(), vec![(Location::Logs, a.clone())]);
+            let tick = std::fs::metadata(locations_file()).unwrap().modified().unwrap();
+            set_location(Location::Maps, Some(&b)).unwrap();
+            let back = std::fs::OpenOptions::new().write(true).open(locations_file()).unwrap();
+            back.set_modified(tick).unwrap();
+            drop(back);
+            let got = overrides();
+            assert!(got.contains(&(Location::Logs, a)) && got.contains(&(Location::Maps, b)), "{got:?}");
+            set_location(Location::Logs, None).unwrap();
+            set_location(Location::Maps, None).unwrap();
+            assert!(overrides().is_empty());
+            std::fs::remove_dir_all(&home).ok();
+        })
+        .join()
+        .unwrap();
     }
 }
