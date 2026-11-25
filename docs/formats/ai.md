@@ -1796,28 +1796,6 @@ Explore mode's and races' traffic. Verified except where noted.
   `headon_stops` and `headon_pairs`): at the same fixed 1/60 step both
   games stand at about the same rate (about 0.4 pairs per 5 minutes of
   free roam with the player driving).
-* **Two oncoming traffic cars on a sharp bend** (observed under Wine,
-  Quick Race circuit 4014 at traffic Maximum, the harness's fixed 1/60
-  step, both games' road entries read per sample: `TRAFH_ENT` /
-  `TRAFH_NAT_ENT`, docs/traffic-harness.md). At the bend near (−395, 4)
-  a car driving north-west stands up to 7 m before its walk point (the
-  control point ahead: a segment under 16 m has no 8 m points, and the
-  point behind is dropped once the one ahead is nearer, 0x428030 →
-  0x4198C0 → 0x419670, verified). Its own entry's lateral (0x419B20 on
-  lane 0, measured off that point's outgoing direction) then reads it
-  2–3 m off its lane towards the oncoming lane: in the original the
-  median is −2.85 m (88 % of such samples beyond 1.5 m), in the clone
-  −2.1 m. 0x402ED0 centres its side window on that lateral, so an
-  oncoming car on the other lane falls inside it, each car tracks the
-  other and both stand under the slow rule (the junction stand above).
-  The original stands there too: a run at the same step stood from 19.4 s
-  with the two cars at (−398, 6) and (−391, 3), the clone's seed 12 at
-  (−397.6, 5.1) and (−391.6, 3.1), with the same entries: the
-  south-east car sees the other 5.7 m ahead at off 0.2 (its own 0.8), the
-  north-west car sees it 6.7 m ahead at off −4.4 (its own −2.3; window
-  2.38 m), in the clone 6.0 m ahead at −4.6 (own −2.6) and 5.1 m at
-  −0.05 (own 0.45); both stood until a racer hit one. Such a stand ≥ 10 s came in 2 of 9 runs of the original
-  and 7 of 16 of the clone (120 s each); the rules are the same.
 * **Lane check** (verified in the decompile and the asm 0x428A6B–0x428C45
   unless noted; ported, `TrafficLane::lane_check`, `lane_reach`,
   `lane_allowed`): the planner update 0x428720 (once a think, 0x429E6B)
