@@ -56,8 +56,22 @@ pink diamond is another mod's that wins in your game.
 Both are the map editor ([Map editor](map-editor.md)) on the open mod, the same editor `overbright-editor` shows:
 its toolbar in the toolbar row, the Mod tree in the left panel, the selection's properties in the Inspector, its
 tabs (Prop browser, Validation, Simulate) after Problems, Log and Jobs, the hint line under the view, and the 3D
-view or the map drawn in the window by the game's own renderer. World brings the prop tools forward, Races the race
-tools; the editor's menu items join Studio's menus (Edit, View, Test: New race, Test race, Drive here). Problems
+view or the map drawn in the window by the game's own renderer. The two show different parts of it:
+
+- **World** is the props: the left panel lists the Props branch, the toolbar has Select, Move, Rotate, Snap and Drive
+  here (no race tools, Test race or Simulate), the Inspector is the selected prop's, the bottom tabs are Prop
+  browser and Validation, the collision layer can be switched on, and the race route is not drawn.
+- **Races** is the races: the left panel lists the mod's races (with New race), the toolbar adds the race tools
+  (Checkpoint, Start, Finish, Grid), Test race and Simulate, the Inspector is the selected race's or race point's,
+  the bottom tabs are Validation and Simulate, the route is drawn over the props, which are dimmed, and the
+  collision layer is off.
+
+In the game a race's barriers (`BARRIERS_<track>`, `PLAYER_BARRIERS_<track>`) are on only during a race on that base
+track, so the collision layer follows the workspace: World draws the permanent walls and free roam's own barriers
+(`BARRIERS_4000`, the career stages'), the races' barriers only with View > Collision > Show race barriers; Races
+draws the selected race's barriers over the permanent walls, dimmed.
+
+Each keeps its own selection, camera, view and layers while the other shows. The editor's menu items join Studio's menus (Edit, View, Test: New race, Test race, Drive here). Problems
 lists the mod's warnings and errors; Log is the editor's log.
 
 The editor's keys work as in its own window (Q W E tools, Ctrl+Z / Ctrl+Y, F5 Test race, Shift+F5 Drive here,

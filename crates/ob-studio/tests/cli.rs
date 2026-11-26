@@ -99,7 +99,8 @@ fn run(words: &[&str], dir: &Path, env: &Env) -> (i32, String, String) {
     (code, String::from_utf8(out).unwrap(), String::from_utf8(err).unwrap())
 }
 
-/// Paths under the scratch folder as `<tmp>/…` (with `/` on every system), times as 0.
+/// Paths under the scratch folder as `<tmp>/…` (with `/` on every system), times as 0, the build line and a pack's size
+/// (which holds the build line) as placeholders.
 fn normal(v: &mut Value, tmp: &str) {
     match v {
         Value::String(s) => {
@@ -115,6 +116,15 @@ fn normal(v: &mut Value, tmp: &str) {
         }
         Value::Array(a) => a.iter_mut().for_each(|x| normal(x, tmp)),
         Value::Object(o) => {
+            // A written pack's size depends on the build line inside it, so it is checked against the file on disk
+            // (the document must tell the truth) and kept out of the golden.
+            if let (Some(to), Some(n)) = (o.get("to").and_then(Value::as_str), o.get("bytes").and_then(Value::as_u64)) {
+                if to.ends_with(".obpk") {
+                    let len = std::fs::metadata(to).unwrap_or_else(|e| panic!("{to}: {e}")).len();
+                    assert_eq!(n, len, "{to}: \"bytes\" is the written file's size");
+                    o.insert("bytes".into(), Value::from("<bytes>"));
+                }
+            }
             for (k, x) in o.iter_mut() {
                 if k == "time_ms" {
                     *x = Value::from(0);

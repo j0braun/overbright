@@ -25,6 +25,17 @@ pub enum Mode {
     Races,
 }
 
+/// Which part of the mod the editor is brought forward for. `Both` is the editor's own window; Studio's World
+/// workspace is `World` (the props: their tree, tools and layer; race layers hidden) and Races is `Races` (the
+/// race list, race tools and route layer; the props layer dimmed).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub enum Focus {
+    #[default]
+    Both,
+    World,
+    Races,
+}
+
 /// What the centre shows (M switches).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum View {
@@ -57,9 +68,13 @@ pub struct EditorState {
     pub point: Option<RacePoint>,
     pub camera: Camera,
     pub mode: Mode,
+    /// Which workspace the editor is shown for (Studio sets it; the editor's own window shows both).
+    pub focus: Focus,
     pub view: View,
     /// The collision layer over the view (View ▸ Collision).
     pub collision: super::collision::Show,
+    /// World: the collision layer also draws the races' barriers (off: permanent walls and free roam's own).
+    pub race_barriers: bool,
     /// The wall or drawn ground selected in the collision layer.
     pub wall: Option<super::collision::Picked>,
     /// The drawing tool armed (Edit ▸ Draw wall / Draw ground), and what it
@@ -109,8 +124,10 @@ impl EditorState {
             point: None,
             camera,
             mode: Mode::Props,
+            focus: Focus::Both,
             view: View::ThreeD,
             collision: super::collision::Show::Off,
+            race_barriers: false,
             wall: None,
             draw: None,
             draw_settings: Default::default(),

@@ -115,14 +115,14 @@ fn draw() -> image::RgbaImage {
             let right = Rect::from_min_max(Pos2::new(W as f32 / 2.0, 0.0), Pos2::new(W as f32, H as f32));
             let painter = ui.painter_at(left);
             painter.rect_filled(left, 0.0, colour::PAGE);
-            paint_map(&layer, Show::All, &painter, Vec2::new(30.0, 40.0), 1.2, left);
-            legend(&layer, Show::All, false, &painter, left);
+            paint_map(&layer, Show::All, &Scope::ALL, &painter, Vec2::new(30.0, 40.0), 1.2, left);
+            legend(&layer, Show::All, &Scope::ALL, false, &painter, left);
             let painter = ui.painter_at(right);
             painter.rect_filled(right, 0.0, Color32::from_rgb(40, 44, 48));
             // From the south-west, 25 m up, looking north-east and down.
             let cam = Camera::looking_at(Vec3::new(-70.0, -60.0, 25.0), Vec3::new(30.0, 40.0, 0.0));
-            paint_3d(&layer, Show::Invisible, &Overlay::new(&painter, &cam, right));
-            legend(&layer, Show::Invisible, true, &painter, right);
+            paint_3d(&layer, Show::Invisible, &Scope::ALL, &Overlay::new(&painter, &cam, right));
+            legend(&layer, Show::Invisible, &Scope::ALL, true, &painter, right);
         });
         deltas.push(frame.textures_delta);
         shapes = frame.shapes;
@@ -522,4 +522,40 @@ fn the_key_steps_round_and_floors_are_coloured_by_kind() {
     assert_eq!(floor_colour(&f(false)), key::FLOOR);
     assert_eq!(floor_colour(&f(true)), key::FLOOR_OFF);
     assert_ne!(key::FLOOR, key::FLOOR_OFF);
+}
+
+#[test]
+fn collision_layers_follow_the_workspace() {
+    use crate::editor::state::Focus;
+    let names = ["NONE", "BARRIERS_4000", "BARRIERS_4126", "PLAYER_BARRIERS_4126", "BARRIERS_CAREER1"];
+    let groups = names.map(|n| BarrierGroup { hash: 0, name: n.to_string() });
+    let wall_at = |g: u8, x: f32| {
+        let v = [Vec3::new(x, 0.0, 0.0), Vec3::new(x, 10.0, 0.0), Vec3::new(x, 10.0, 4.0), Vec3::new(x, 0.0, 4.0)];
+        face(FLAG_WALL | FLAG_QUAD, g, v)
+    };
+    let faces: Vec<_> = (0..5u8).map(|g| wall_at(g, g as f32 * 20.0)).collect();
+    let layer = collision::build(&faces, &groups, &[]);
+    let drawn = |scope: Scope| -> Vec<(String, Weight)> {
+        layer.walls.iter().map(|w| (layer.group_name(w.group).to_string(), scope.weight(&layer, w))).collect()
+    };
+    let w = |scope: Scope, name: &str| drawn(scope).into_iter().find(|(n, _)| n == name).map_or(Weight::Hidden, |x| x.1);
+    assert_eq!(group_track("PLAYER_BARRIERS_4126"), Some(4126));
+    assert_eq!(group_track("BARRIERS_CAREER1"), None);
+    // World: permanent walls, free roam's own and the career stages'; a race's barriers only on request.
+    let world = Scope { focus: Focus::World, track: None, race_barriers: false };
+    assert_eq!(w(world, "NONE"), Weight::Full);
+    assert_eq!(w(world, "BARRIERS_4000"), Weight::Full);
+    assert_eq!(w(world, "BARRIERS_CAREER1"), Weight::Full);
+    assert_eq!(w(world, "BARRIERS_4126"), Weight::Hidden);
+    assert_eq!(w(Scope { race_barriers: true, ..world }, "BARRIERS_4126"), Weight::Full);
+    // Races: the selected race's barriers, the permanent walls dimmed, nothing else.
+    let races = Scope { focus: Focus::Races, track: Some(4126), race_barriers: false };
+    assert_eq!(w(races, "NONE"), Weight::Dim);
+    assert_eq!(w(races, "BARRIERS_4126"), Weight::Full);
+    assert_eq!(w(races, "PLAYER_BARRIERS_4126"), Weight::Full);
+    assert_eq!(w(races, "BARRIERS_4000"), Weight::Hidden);
+    assert_eq!(w(races, "BARRIERS_CAREER1"), Weight::Hidden);
+    assert_eq!(w(Scope { track: None, ..races }, "BARRIERS_4126"), Weight::Hidden);
+    // The editor's own window draws everything.
+    assert_eq!(w(Scope::ALL, "BARRIERS_4126"), Weight::Full);
 }

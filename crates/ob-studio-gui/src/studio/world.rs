@@ -15,7 +15,8 @@ use ob_look::lamp::Mark;
 
 use crate::editor::app::{self, App};
 use crate::editor::menu;
-use crate::editor::state::{Level, Mode};
+use crate::draw::camera::Camera;
+use crate::editor::state::{EditorState, Focus, Level, Mode, RacePoint, View};
 use crate::editor::theme::{font, rgb, tokens};
 
 use super::Studio;
@@ -37,6 +38,43 @@ pub struct Hosted {
     tools_for: Option<Workspace>,
     /// The editor's bottom tab as last seen (a part asking for its tab brings it forward).
     seen_tab: &'static str,
+    /// What each workspace had when it was left: its selection, camera and layers.
+    kept: Vec<(Workspace, Kept)>,
+}
+
+/// A workspace's own view of the open mod, kept while another workspace shows.
+#[derive(Clone, Debug)]
+pub(super) struct Kept {
+    pub selection: Vec<usize>,
+    pub race: Option<usize>,
+    pub point: Option<RacePoint>,
+    pub camera: Camera,
+    pub view: View,
+    pub collision: crate::editor::collision::Show,
+    pub tab: &'static str,
+}
+
+impl Kept {
+    fn take(s: &EditorState, tab: &'static str) -> Kept {
+        Kept {
+            selection: s.selection.clone(),
+            race: s.race,
+            point: s.point,
+            camera: s.camera,
+            view: s.view,
+            collision: s.collision,
+            tab,
+        }
+    }
+}
+
+/// The editor's focus for a workspace.
+pub(super) fn focus_of(ws: Workspace) -> Focus {
+    match ws {
+        Workspace::World => Focus::World,
+        Workspace::Races => Focus::Races,
+        _ => Focus::Both,
+    }
 }
 
 impl Studio {
@@ -47,7 +85,7 @@ impl Studio {
         let mut app = app;
         let sim = app.panels.sim.clone();
         app.panels.tabs.push(("telemetry", "Telemetry", Box::new(crate::editor::sim::graphs::TelemetryTab(sim))));
-        self.editor = Some(Hosted { app, asked: None, tools_for: None, seen_tab });
+        self.editor = Some(Hosted { app, asked: None, tools_for: None, seen_tab, kept: Vec::new() });
     }
 
     /// The editor shows in this frame: a tool workspace with a mod open in the editor.
@@ -76,6 +114,7 @@ impl Studio {
             && h.asked.as_deref() != Some(folder.as_str())
         {
             h.asked = Some(folder.clone());
+            h.kept.clear();
             let open = h.app.state.as_ref().is_some_and(|s| s.session.folder == folder);
             if !open && let Err(e) = h.app.open(&folder, None) {
                 self.verdict = Some(format!("Could not open the mod: {e:#}"));
@@ -86,7 +125,40 @@ impl Studio {
             && ws != Workspace::Browser
             && h.tools_for != Some(ws)
         {
+            // Leave the last workspace's selection, camera and layers with it; take this one's back.
+            let prev = h.tools_for;
+            if let Some(prev) = prev {
+                h.kept.retain(|(w, _)| *w != prev);
+                h.kept.push((prev, Kept::take(s, h.app.tab)));
+            }
             h.tools_for = Some(ws);
+            s.focus = focus_of(ws);
+            match h.kept.iter().find(|(w, _)| *w == ws).map(|(_, k)| k.clone()) {
+                Some(k) => {
+                    let n = s.session.world.placements.len();
+                    s.selection = k.selection.into_iter().filter(|&i| i < n).collect();
+                    s.race = k.race.filter(|&i| i < s.session.map.races.len());
+                    s.point = k.point;
+                    s.camera = k.camera;
+                    s.view = k.view;
+                    s.collision = k.collision;
+                    h.app.tab = k.tab;
+                }
+                None => {
+                    // First time here: World starts with the prop browser, Races with the race's Simulate tab,
+                    // and each its own selection.
+                    if prev.is_some() {
+                        s.selection.clear();
+                        s.point = None;
+                        s.collision = crate::editor::collision::Show::Off;
+                    }
+                    match ws {
+                        Workspace::World => h.app.tab = "browser",
+                        Workspace::Races => h.app.tab = crate::editor::sim::TAB,
+                        _ => {}
+                    }
+                }
+            }
             s.mode = if matches!(ws, Workspace::Races | Workspace::Runs) { Mode::Races } else { Mode::Props };
             if ws == Workspace::Runs {
                 // The tab of a run's graphs first; the run's own view (the editor's, with its timeline).
@@ -276,9 +348,17 @@ impl Studio {
     pub(super) fn editor_tabs(&self) -> Vec<(&'static str, &'static str)> {
         match self.editor.as_ref() {
             Some(h) if self.editing() => {
-                let runs = self.nav.workspace == Workspace::Runs;
-                let mut v: Vec<_> =
-                    h.app.tab_titles().into_iter().filter(|t| t.0 != "log" && (runs || t.0 != "telemetry")).collect();
+                let ws = self.nav.workspace;
+                let runs = ws == Workspace::Runs;
+                // World: the props' tabs (no Simulate); Races: the race's (no Prop browser).
+                let mut v: Vec<_> = h
+                    .app
+                    .tab_titles()
+                    .into_iter()
+                    .filter(|t| t.0 != "log" && (runs || t.0 != "telemetry"))
+                    .filter(|t| !(ws == Workspace::World && t.0 == crate::editor::sim::TAB))
+                    .filter(|t| !(ws == Workspace::Races && t.0 == "browser"))
+                    .collect();
                 // Runs: its graphs first, so the tab strip's room is not spent before it.
                 if runs && let Some(k) = v.iter().position(|t| t.0 == "telemetry") {
                     let t = v.remove(k);

@@ -24,7 +24,7 @@ use ob_look::words;
 use super::app::App;
 use super::props::{self, Props};
 use super::races::{self, Races};
-use super::state::{EditorState, Level, Mode, View};
+use super::state::{EditorState, Focus, Level, Mode, View};
 use super::theme;
 
 /// What the shell does itself.
@@ -53,6 +53,7 @@ pub enum Action {
     Hint(bool),
     /// The collision layer (View ▸ Collision).
     Collision(super::collision::Show),
+    RaceBarriers,
     /// Arm a drawing tool (Edit ▸ Draw wall / Draw ground).
     Draw(super::collision::Draw),
 }
@@ -615,6 +616,13 @@ pub fn view_items(app: &App, ui: &mut egui::Ui, out: &mut Vec<Action>) {
                     out.push(Action::Collision(c));
                 }
             }
+            if s.is_some_and(|s| s.focus == Focus::World) {
+                ui.separator();
+                let on = s.is_some_and(|s| s.race_barriers);
+                if ui.add(egui::Button::selectable(on, "Show race barriers")).on_hover_text("The barriers a race switches on: in the game they are on only during that race. Races shows the selected race's.").clicked() {
+                    out.push(Action::RaceBarriers);
+                }
+            }
         });
     });
     ui.separator();
@@ -790,6 +798,12 @@ fn part_job(
     tool: Tool,
 ) -> Option<egui::text::LayoutJob> {
     let key = |t: Tool| (tier == 0).then(|| t.key().name());
+    // World: no race tools (the race tools' slot is not drawn).
+    if s.focus == Focus::World
+        && matches!(part, Part::SlotStart | Part::SlotEnd | Part::Tool(Tool::Checkpoint | Tool::Start | Tool::Finish | Tool::Grid))
+    {
+        return None;
+    }
     Some(match part {
         Part::Tool(t) => label_job(t.name(), key(t), tool == t, t.unavailable(s).is_none()),
         Part::Snap => snap_job(p, r, tool, tier),
@@ -840,6 +854,9 @@ fn needed(ui: &egui::Ui, tier: usize, s: &EditorState, p: &Props, r: &Races, too
         .data(|d| d.get_temp::<f32>(sim_width_id()))
         .unwrap_or_else(|| text_width(ui, label_job("Simulate", None, false, true)) + 2.0 * pad);
     let (drive, test) = right_words(tier);
+    if s.focus == Focus::World {
+        return w + gap * (n - 1) as f32 + GAP + text_width(ui, label_job(drive, None, false, true)) + 4.0 * pad + 8.0;
+    }
     let right = sim
         + text_width(ui, label_job(drive, None, false, true))
         + 2.0 * pad
@@ -956,7 +973,7 @@ pub fn toolbar(app: &mut App, ui: &mut egui::Ui, out: &mut Vec<Action>) {
             }
         }
         // The race tools' slot: a frame around them.
-        if slot.width() > 0.0 {
+        if slot.width() > 0.0 && s.focus != Focus::World {
             let r = egui::Rect::from_x_y_ranges(slot.x_range(), ui.max_rect().y_range()).shrink2(egui::vec2(0.0, 3.0));
             ui.painter().rect_stroke(
                 r,
@@ -967,7 +984,16 @@ pub fn toolbar(app: &mut App, ui: &mut egui::Ui, out: &mut Vec<Action>) {
         }
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             let (drive, test) = right_words(tier);
+            let world = s.focus == Focus::World;
             let errors = s.session.issues.iter().any(|i| i.level == Level::Error);
+            if world {
+                let r = ui.button(label_job(drive, None, false, true)).on_hover_text(super::modes::DRIVE_HERE.tooltip());
+                if r.clicked() {
+                    post(ui.ctx(), Command::DriveHere);
+                }
+                fit.items.push(("Drive here".into(), r.rect));
+                return;
+            }
             let r = ui.add_enabled(!errors, theme::main_action(test));
             let r = if errors {
                 r.on_disabled_hover_text("Fix the errors in Validation first")
@@ -1031,7 +1057,12 @@ pub fn hint_job(s: &EditorState, p: &Props, r: &Races) -> egui::text::LayoutJob 
         chip(&mut job, "Esc", 14.0);
         job.append(" back to Select", 0.0, egui::TextFormat::simple(small.clone(), theme::ink()));
     }
-    job.append(tool_hint(tool, r), 18.0, egui::TextFormat::simple(small.clone(), theme::ink()));
+    let words = match (tool, s.focus) {
+        (Tool::Select, Focus::World) => "Click a prop to select it · Ctrl+click: add to the selection",
+        (Tool::Select, Focus::Races) => "Click a race point to select it",
+        _ => tool_hint(tool, r),
+    };
+    job.append(words, 18.0, egui::TextFormat::simple(small.clone(), theme::ink()));
     // Turning a prop: the key and the menu, where the tool is not Rotate.
     if matches!(tool, Tool::Select | Tool::Move) && s.mode == Mode::Props && !s.selection.is_empty() {
         chip(&mut job, "E", 18.0);

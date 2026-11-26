@@ -173,3 +173,70 @@ fn ctrl_d_is_changes_inside_studio_and_duplicate_shows_no_key() {
     press(&mut s, size, vec![key(egui::Key::D, true)]);
     assert_eq!(s.nav.workspace, Workspace::Changes);
 }
+
+fn names(s: &Studio) -> Vec<String> {
+    menu::toolbar_fit(&s.ctx).expect("toolbar laid out").items.into_iter().map(|i| i.0).collect()
+}
+
+fn ed(s: &mut Studio) -> &mut crate::editor::state::EditorState {
+    s.editor.as_mut().unwrap().app.state.as_mut().unwrap()
+}
+
+#[test]
+fn world_and_races_show_their_own_tools_layers_and_state() {
+    use crate::editor::collision::Show;
+    use crate::editor::state::Focus;
+    let sc = Scratch::new("studio-world-races-distinct");
+    let size = (1280, 800);
+    let mut s = studio(&sc);
+    s.nav.workspace = Workspace::World;
+    frames(&mut s, size, 1.0, 3);
+    // World: the props' side; no race tools, Test race or Simulate in the toolbar.
+    assert_eq!(ed(&mut s).focus, Focus::World);
+    assert_eq!(ed(&mut s).mode, Mode::Props);
+    let world = names(&s);
+    assert!(world.contains(&"Move".to_string()) && world.contains(&"Drive here".to_string()), "{world:?}");
+    for gone in ["Checkpoint", "Start", "Finish", "Grid", "Test race", "Simulate"] {
+        assert!(!world.contains(&gone.to_string()), "World shows {gone}: {world:?}");
+    }
+    assert_eq!(super::world::focus_of(Workspace::World), Focus::World);
+    assert_eq!(s.editor_tabs().iter().map(|t| t.0).collect::<Vec<_>>().contains(&"browser"), true);
+    assert!(!s.editor_tabs().iter().any(|t| t.0 == crate::editor::sim::TAB));
+    // World: a selection, the collision layer, the camera.
+    ed(&mut s).selection = vec![];
+    ed(&mut s).collision = Show::All;
+    ed(&mut s).camera.position.x += 123.0;
+    let world_cam = ed(&mut s).camera;
+    // Races: the race side; race tools, Test race and Simulate; the props' tab out; its own layers.
+    s.workspace(Workspace::Races);
+    frames(&mut s, size, 1.0, 3);
+    assert_eq!(ed(&mut s).focus, Focus::Races);
+    assert_eq!(ed(&mut s).mode, Mode::Races);
+    assert_eq!(ed(&mut s).race, Some(0));
+    assert_eq!(ed(&mut s).collision, Show::Off, "the collision layer belongs to World");
+    let races = names(&s);
+    for shown in ["Checkpoint", "Start", "Finish", "Grid", "Test race", "Simulate"] {
+        assert!(races.contains(&shown.to_string()), "Races lacks {shown}: {races:?}");
+    }
+    assert_ne!(world, races);
+    assert!(!s.editor_tabs().iter().any(|t| t.0 == "browser"));
+    assert!(s.editor_tabs().iter().any(|t| t.0 == crate::editor::sim::TAB));
+    // The race branch alone in the left panel's rail labels.
+    let labels = crate::editor::tree::rail_labels(Some(ed(&mut s)));
+    assert_eq!(labels, ["Mod".to_string(), "Races 1".to_string()]);
+    ed(&mut s).point = Some(crate::editor::state::RacePoint { part: crate::tools::map::ops::RacePart::Checkpoint, index: 1 });
+    ed(&mut s).camera.position.x -= 77.0;
+    let races_cam = ed(&mut s).camera;
+    // Back in World: its own camera and layer come back, the race's point is not there.
+    s.workspace(Workspace::World);
+    frames(&mut s, size, 1.0, 3);
+    assert_eq!(ed(&mut s).collision, Show::All);
+    assert_eq!(ed(&mut s).camera.position, world_cam.position);
+    assert_eq!(ed(&mut s).point, None);
+    assert_eq!(crate::editor::tree::rail_labels(Some(ed(&mut s))), ["Mod".to_string(), "Props 0".to_string()]);
+    s.workspace(Workspace::Races);
+    frames(&mut s, size, 1.0, 3);
+    assert_eq!(ed(&mut s).camera.position, races_cam.position);
+    assert_eq!(ed(&mut s).point, Some(crate::editor::state::RacePoint { part: crate::tools::map::ops::RacePart::Checkpoint, index: 1 }));
+    assert!(s.close_requested());
+}
