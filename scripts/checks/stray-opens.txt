@@ -1,0 +1,80 @@
+# stray_opens.py's list: per file, how many direct std::fs opens production code may hold and why (the file's header).
+# file	count	reason
+crates/ob-asset-format/src/bundle.rs	2	the import and the base set itself (the game folder is the import's source)
+crates/ob-asset-format/src/docs.rs	2	the import and the base set itself (the game folder is the import's source)
+crates/ob-asset-format/src/import.rs	10	the import and the base set itself (the game folder is the import's source)
+crates/ob-asset-format/src/modpack.rs	3	the player's packs, mods and importers (user-chosen paths)
+crates/ob-asset-format/src/mount.rs	6	the import and the base set itself (the game folder is the import's source)
+crates/ob-core/src/cache/bytes.rs	2	the layer's own folder side or its stamp/cache files
+crates/ob-core/src/cache/file.rs	2	the asset cache, shader cache and cache verification (own data)
+crates/ob-core/src/cache/keys.rs	1	the layer's own folder side or its stamp/cache files (the cache key of a folder file)
+crates/ob-core/src/cache/prune.rs	5	the asset cache, shader cache and cache verification (own data)
+crates/ob-core/src/cache/read_ahead.rs	1	the layer's own folder side or its stamp/cache files
+crates/ob-core/src/cache/temp.rs	4	the asset cache, shader cache and cache verification (own data)
+crates/ob-core/src/fingerprint.rs	2	the game-folder check (size and hash of key files before an import)
+crates/ob-core/src/log_file.rs	2	the program's own data: settings, saves, logs, launcher state, the player's folders
+crates/ob-core/src/platform/dirs.rs	3	the program's own data: settings, saves, logs, launcher state, the player's folders
+crates/ob-core/src/platform/vulkan.rs	2	system files (/proc, /sys, /dev, /etc)
+crates/ob-core/src/prof/mod.rs	6	system files (/proc, /sys, /dev, /etc) and the program's own files
+crates/ob-formats/src/formats/magazines.rs	1	lists a game-folder directory to find a file's spelling (the layer answers no listing yet: open item of #74)
+crates/ob-formats/src/formats/texwizard.rs	7	the player's packs, mods and importers (user-chosen paths)
+crates/ob-formats/src/formats/zam.rs	1	lists a game-folder directory to find a file's spelling (the layer answers no listing yet: open item of #74)
+crates/ob-formats/src/formats/zip.rs	1	the player's packs, mods and importers (user-chosen paths)
+src/asset_layer.rs	1	the import and the base set itself (the game folder is the import's source)
+src/audio/engine.rs	1	lists a game-folder directory to find a file's spelling (the layer answers no listing yet: open item of #74)
+src/audio/mixmap/parse.rs	1	lists a game-folder directory to find a file's spelling (the layer answers no listing yet: open item of #74)
+src/audio/reverb/graph.rs	1	lists a game-folder directory to find a file's spelling (the layer answers no listing yet: open item of #74)
+src/bin/bundle_dump.rs	1	a developer tool or an override folder from the environment
+src/bin/car_inspect.rs	1	a developer tool or an override folder from the environment
+src/bin/game/shell/first_run.rs	2	the game-folder check (size and hash of key files before an import)
+src/bin/game/sim/session/replay.rs	1	the program's own data: settings, saves, logs, launcher state, the player's folders
+src/cache/verify.rs	3	the asset cache, shader cache and cache verification (own data)
+src/diag/support.rs	15	system files (/proc, /sys, /dev, /etc) and the program's own files
+src/extras.rs	2	the player's packs, mods and importers (user-chosen paths)
+src/frontend/career/triggers.rs	1	lists a game-folder directory to find a file's spelling (the layer answers no listing yet: open item of #74)
+src/frontend/enh/map_pack.rs	1	the player's packs, mods and importers (user-chosen paths)
+src/frontend/profiles/store.rs	6	the program's own data: settings, saves, logs, launcher state, the player's folders
+src/frontend/settings/gpu_rating.rs	2	system files (/proc, /sys, /dev, /etc) and the program's own files
+src/frontend/settings/options_txt.rs	1	the program's own data: settings, saves, logs, launcher state, the player's folders
+src/game_assets.rs	3	lists a game-folder directory to find a file's spelling (the layer answers no listing yet: open item of #74); and SPEED2.EXE, which the set does not keep, read from the folder
+src/garage.rs	1	lists a game-folder directory to find a file's spelling (the layer answers no listing yet: open item of #74)
+src/hud_mod.rs	5	the player's packs, mods and importers (user-chosen paths)
+src/latency.rs	5	system files (/proc, /sys, /dev, /etc) and the program's own files
+src/launcher/crash_report.rs	3	the program's own data: settings, saves, logs, launcher state, the player's folders
+src/launcher/game_data.rs	5	the program's own data: settings, saves, logs, launcher state, the player's folders
+src/launcher/model.rs	10	the program's own data: settings, saves, logs, launcher state, the player's folders
+src/launcher/platform_deck.rs	1	system files (/proc, /sys, /dev, /etc) and the program's own files
+src/launcher/run.rs	4	the program's own data: settings, saves, logs, launcher state, the player's folders
+src/launcher/saves/jobs.rs	1	the program's own data: settings, saves, logs, launcher state, the player's folders
+src/launcher/saves/mod.rs	4	the program's own data: settings, saves, logs, launcher state, the player's folders
+src/launcher/saves/sources.rs	1	the program's own data: settings, saves, logs, launcher state, the player's folders
+src/launcher/saves/summary.rs	4	the program's own data: settings, saves, logs, launcher state, the player's folders
+src/launcher/start_log.rs	2	the program's own data: settings, saves, logs, launcher state, the player's folders
+src/launcher/studio_seen.rs	3	the program's own data: settings, saves, logs, launcher state, the player's folders
+src/launcher/transfer.rs	8	the program's own data: settings, saves, logs, launcher state, the player's folders
+src/launcher/trial.rs	1	the program's own data: settings, saves, logs, launcher state, the player's folders
+src/mod_packs/content.rs	3	the player's packs, mods and importers (user-chosen paths)
+src/mod_packs/convert.rs	5	the player's packs, mods and importers (user-chosen paths)
+src/mod_packs/inside.rs	2	the player's packs, mods and importers (user-chosen paths)
+src/mod_packs/pack_export.rs	2	the player's packs, mods and importers (user-chosen paths)
+src/obpack/index.rs	1	the player's packs, mods and importers (user-chosen paths)
+src/overlay/system/sources.rs	13	system files (/proc, /sys, /dev, /etc) and the program's own files
+src/pad/ff_out.rs	1	system files (/proc, /sys, /dev, /etc) and the program's own files
+src/pad/host.rs	1	a developer tool or an override folder from the environment
+src/qol/crash.rs	1	system files (/proc, /sys, /dev, /etc) and the program's own files
+src/qol/saves.rs	2	the program's own data: settings, saves, logs, launcher state, the player's folders
+src/qol/setup.rs	10	the game-folder check (size and hash of key files before an import); and the saved folder/pack/language choices
+src/qol/waits.rs	3	system files (/proc, /sys, /dev, /etc) and the program's own files
+src/render/core/pipeline_cache.rs	1	the asset cache, shader cache and cache verification (own data)
+src/render/enh/assets/hd_ui.rs	4	the player's packs, mods and importers (user-chosen paths)
+src/render/enh/assets/pack_reload/watch.rs	4	the player's packs, mods and importers (user-chosen paths)
+src/render/enh/assets/pack_select.rs	5	system files (/proc, /sys, /dev, /etc) and the program's own files
+src/render/enh/assets/surface/cache.rs	2	the player's packs, mods and importers (user-chosen paths)
+src/render/enh/assets/texture_pack/cache.rs	2	the player's packs, mods and importers (user-chosen paths)
+src/render/enh/assets/texture_pack/decode.rs	1	the player's packs, mods and importers (user-chosen paths)
+src/render/enh/lighting/probes/field.rs	1	a developer tool or an override folder from the environment
+src/render/enh/volumes/water/mod.rs	1	a developer tool or an override folder from the environment
+src/render/native/post/mod.rs	1	a developer tool or an override folder from the environment
+src/texture_mods.rs	4	the player's packs, mods and importers (user-chosen paths)
+src/tpf_import.rs	4	the player's packs, mods and importers (user-chosen paths)
+src/upscale_pack.rs	5	the player's packs, mods and importers (user-chosen paths)

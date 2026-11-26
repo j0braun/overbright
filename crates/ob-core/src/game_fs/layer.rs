@@ -50,6 +50,12 @@ pub trait Layer: Send + Sync {
     fn absent(&self, _key: &str) -> bool {
         false
     }
+    /// The SHA-256 of the game file `key`'s bytes as the set recorded them (the set's bundles are verified at
+    /// mount, so the bytes [`Layer::get`] answers have this digest), when it knows it. The asset cache keys a
+    /// source by it ([`identity`]) instead of the game folder's stat.
+    fn digest(&self, _key: &str) -> Option<[u8; 32]> {
+        None
+    }
     /// A short name for log lines (the base set's id).
     fn name(&self) -> &str;
 }
@@ -86,6 +92,10 @@ pub fn mount(root: &Path, layer: Arc<dyn Layer>) {
     *MOUNT.write().unwrap_or_else(std::sync::PoisonError::into_inner) = Some(Mount { roots, layer });
 }
 
+/// Held by a test that mounts a layer: the mount is process-wide.
+#[cfg(test)]
+pub static TEST_MOUNT: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 /// Takes the layer down (tests; the game mounts once and keeps it).
 pub fn unmount() {
     *MOUNT.write().unwrap_or_else(std::sync::PoisonError::into_inner) = None;
@@ -118,6 +128,35 @@ fn key(rel: &str) -> Option<String> {
 fn key_of_path(m: &Mount, path: &Path) -> Option<String> {
     let rel = m.roots.iter().find_map(|r| path.strip_prefix(r).ok())?;
     key(rel.to_str()?)
+}
+
+/// What the layer holds for the game file at `path`, without counting a read (the read-ahead's question: it warms
+/// what a load will read, it is not one).
+pub fn peek(path: &Path) -> Lookup {
+    let g = MOUNT.read().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let Some(m) = g.as_ref() else { return Lookup::Folder };
+    let Some(k) = key_of_path(m, path) else { return Lookup::Folder };
+    if let Some(b) = m.layer.get(&k) {
+        Lookup::Held(b)
+    } else if m.layer.absent(&k) {
+        Lookup::Absent
+    } else {
+        Lookup::Folder
+    }
+}
+
+/// The identity of the game file at `path` as the mounted layer holds it: its size and its recorded content digest
+/// (the first 128 bits of the SHA-256, as two words). None without a layer, outside the game folder, or when the
+/// layer does not hold the file or does not know its digest. Reads nothing and counts nothing: the layer's own
+/// record answers, so a cache over the file is checked without touching the game folder or the bytes.
+pub fn identity(path: &Path) -> Option<(u64, [u64; 2])> {
+    let g = MOUNT.read().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let m = g.as_ref()?;
+    let k = key_of_path(m, path)?;
+    let len = m.layer.get(&k)?.len() as u64;
+    let d = m.layer.digest(&k)?;
+    let w = |i: usize| u64::from_le_bytes(d[i..i + 8].try_into().expect("8 bytes"));
+    Some((len, [w(0), w(8)]))
 }
 
 /// What the layer answers for one game file.

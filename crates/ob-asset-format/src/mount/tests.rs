@@ -53,6 +53,13 @@ fn reads_go_through_the_mounted_layer() {
     let via_path = ob_core::game_fs::read_file(&ob_core::game_fs::path(&game, "TRACKS/L4RA.BUN")).unwrap();
     let via_map = ob_core::cache::SourceBytes::open(&game.join("TRACKS/L4RA.BUN")).unwrap().to_vec();
     let not_content = ob_core::game_fs::read(&game, "SPEED2.EXE").unwrap();
+    // The asset cache's key of that file: the imported bytes' size and SHA-256, whatever the folder holds now.
+    let id = ob_core::game_fs::identity(&game.join("TRACKS/L4RA.BUN")).unwrap();
+    let want = <sha2::Sha256 as sha2::Digest>::digest(b"track bundle");
+    assert_eq!(id.0, 12);
+    assert_eq!(id.1[0].to_le_bytes(), want[..8]);
+    assert_eq!(id.1[1].to_le_bytes(), want[8..16]);
+    assert!(ob_core::game_fs::identity(&game.join("SPEED2.EXE")).is_none());
     let (layer, bytes, _) = ob_core::game_fs::counts();
     ob_core::game_fs::unmount();
     assert_eq!(via_rel, b"track bundle");

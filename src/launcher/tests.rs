@@ -2488,6 +2488,22 @@ fn mods_on_mod_packs() {
     env.move_pack("cones", -1).unwrap();
     assert_eq!(env.packs()[0].id, "cones");
     assert!(env.move_pack("cones", -1).is_err(), "not past the top");
+    // order.txt: first line strongest, as the rows show it; the file is what moved.
+    let mods = crate::mod_packs::mods_dir();
+    let listed = |dir: &std::path::Path| -> Vec<String> {
+        std::fs::read_to_string(dir.join("order.txt"))
+            .unwrap()
+            .lines()
+            .filter(|l| !l.trim().is_empty() && !l.starts_with('#'))
+            .map(|l| l.trim_start_matches('-').to_string())
+            .collect()
+    };
+    assert_eq!(listed(&mods), ["cones", "docks"]);
+    env.move_pack("cones", 1).unwrap();
+    assert_eq!(env.packs().iter().map(|r| r.id.as_str()).collect::<Vec<_>>(), ["docks", "cones"]);
+    assert_eq!(listed(&mods), ["docks", "cones"]);
+    assert!(env.move_pack("cones", 1).is_err(), "not past the bottom");
+    assert!(env.move_pack("nothing", 1).is_err(), "not installed: not moved");
     let _ = std::fs::remove_dir_all(&dir);
 }
 
@@ -3443,9 +3459,35 @@ fn mods_pack_reorder_by_keys_and_drag() {
     let ev = handle(&a.ui, &mut a.st.clone(), &Input::Key(Key::MoveDown));
     assert_eq!(ev, [Event::Move("mk0", "mk1")]);
     assert!(handle(&a.ui, &mut a.st.clone(), &Input::Key(Key::MoveUp)).is_empty(), "not past the top");
+    let order = |a: &App| a.model.mods.packs.iter().map(|r| r.id.clone()).collect::<Vec<_>>();
+    assert_eq!(order(&a), ["docks-remix", "cone-pack"]);
     key(&mut a, &fonts, Key::MoveDown);
     assert_eq!(focus(&a), "mk1", "the row stays focused where it went");
     assert_eq!(a.model.mods.pack_sel.as_deref(), Some("docks-remix"), "the moved pack stays chosen");
+    assert_eq!(order(&a), ["cone-pack", "docks-remix"], "Alt+Down / the right trigger: one place weaker");
+    // The pad's triggers are the same keys; at the end nothing moves.
+    key(&mut a, &fonts, Key::MoveDown);
+    assert_eq!(order(&a), ["cone-pack", "docks-remix"], "not past the bottom");
+    key(&mut a, &fonts, Key::MoveUp);
+    assert_eq!(order(&a), ["docks-remix", "cone-pack"], "Alt+Up / the left trigger: one place stronger");
+    assert_eq!(focus(&a), "mk0");
+    // A real drag through the app: the first pack row dropped on the second.
+    let (r0, r1) = (on_window(&a, "mk0"), on_window(&a, "mk1"));
+    let x = r0.cx() - 100.0;
+    a.input(&Input::MouseMove(x, r0.cy()), &fonts);
+    a.input(&Input::MouseDown(x, r0.cy()), &fonts);
+    a.input(&Input::MouseMove(x, r1.cy()), &fonts);
+    a.input(&Input::MouseUp(x, r1.cy()), &fonts);
+    assert_eq!(order(&a), ["cone-pack", "docks-remix"], "dropped on the second row: moved down");
+    assert_eq!(focus(&a), "mk1");
+    assert_eq!(a.model.mods.pack_sel.as_deref(), Some("docks-remix"));
+    // Dragged back up.
+    let (r0, r1) = (on_window(&a, "mk0"), on_window(&a, "mk1"));
+    a.input(&Input::MouseMove(x, r1.cy()), &fonts);
+    a.input(&Input::MouseDown(x, r1.cy()), &fonts);
+    a.input(&Input::MouseMove(x, r0.cy()), &fonts);
+    a.input(&Input::MouseUp(x, r0.cy()), &fonts);
+    assert_eq!(order(&a), ["docks-remix", "cone-pack"], "dragged back up");
     // A drag: down on the first pack row, over the second, up.
     let r0 = a.ui.get("mk0").unwrap().rect;
     let r1 = a.ui.get("mk1").unwrap().rect;
@@ -3471,4 +3513,42 @@ fn mods_pack_reorder_by_keys_and_drag() {
     super::ui::render(&a.ui, &st, &fonts, &mut c);
     super::ui::render(&a.ui, &super::ui::UiState::default(), &fonts, &mut c2);
     assert_ne!(c.pixmap.data(), c2.pixmap.data(), "the landing line is drawn");
+}
+
+/// Texture packs move within their own kind only: an imported package dropped on an Overbright pack (or the other
+/// way round) is refused with a note and nothing changes; two imported packages swap; the move keys stop at the end of their kind.
+#[test]
+fn mods_texture_pack_reorder_never_crosses_kinds() {
+    let fonts = Fonts::new();
+    let env = FakeEnv;
+    let mut a = app(&env, &fonts, Screen::Mods, 1280, 720, 1.0);
+    let ids = |a: &App| -> (Vec<String>, Vec<String>) {
+        (a.model.mods.own.iter().map(|o| o.id.clone()).collect(), a.model.mods.list.iter().map(|(e, _)| e.id.clone()).collect())
+    };
+    let was = ids(&a);
+    assert_eq!(was.0, ["night-roads"]);
+    assert_eq!(was.1, ["roads-hd", "garage-redux"]);
+    let n = a.model.mods.own.len();
+    assert!(a.ui.reorder.contains(&super::screens::PACK_IDS[n]) && a.ui.reorder.contains(&super::screens::PACK_IDS[n + 1]));
+    let drag = |a: &mut App, from: &'static str, to: &'static str| {
+        let (r0, r1) = (on_window(a, from), on_window(a, to));
+        let x = r0.cx() - 100.0;
+        a.input(&Input::MouseMove(x, r0.cy()), &fonts);
+        a.input(&Input::MouseDown(x, r0.cy()), &fonts);
+        a.input(&Input::MouseMove(x, r1.cy()), &fonts);
+        a.input(&Input::MouseUp(x, r1.cy()), &fonts);
+    };
+    // Imported onto Overbright: refused.
+    drag(&mut a, super::screens::PACK_IDS[n], super::screens::PACK_IDS[0]);
+    assert_eq!(ids(&a), was, "imported onto Overbright: never swapped");
+    drag(&mut a, super::screens::PACK_IDS[0], super::screens::PACK_IDS[n]);
+    assert_eq!(ids(&a), was, "Overbright onto imported: never swapped");
+    a.st.focus = Some(super::screens::PACK_IDS[n]);
+    key(&mut a, &fonts, Key::MoveUp);
+    assert_eq!(ids(&a), was, "the move key stops at the top of its own kind");
+    // Imported onto imported: moved, and the row stays where it went.
+    drag(&mut a, super::screens::PACK_IDS[n], super::screens::PACK_IDS[n + 1]);
+    assert_eq!(ids(&a).1, ["garage-redux", "roads-hd"]);
+    assert_eq!(ids(&a).0, ["night-roads"]);
+    assert_eq!(focus(&a), super::screens::PACK_IDS[n + 1]);
 }

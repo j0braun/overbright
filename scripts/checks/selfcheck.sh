@@ -431,6 +431,26 @@ layering() {
 expect pass layering-good layering layering-good
 for w in harness test-mod settings enh qol state; do expect fail "layering-new-$w" layering "layering-new-$w" "$w"; done
 
+# ---- stray_opens.sh (the stray-open lint) ----------------------------------------------------------------------
+# A small tree: a listed count passes; a new file with a direct open, one more open in a listed file, a list line
+# above the file's count, and test code (not counted) behave as the lint says.
+stray_opens() {
+  local c=$1 what=${2:-} t="$O/$1"
+  mkdir -p "$t/scripts/checks" "$t/src"
+  cp "$HERE/stray_opens.sh" "$HERE/stray_opens.py" "$t/scripts/checks/"
+  printf 'fn f() { let _ = std::fs::read("a"); }\n// std::fs::read("c")\n#[cfg(test)]\nmod t { fn g() { std::fs::read("b"); } }\n' > "$t/src/a.rs"
+  printf '# list\nsrc/a.rs\t1\town data\n' > "$t/scripts/checks/stray-opens.txt"
+  case $what in
+    new-file) printf 'fn f() { let _ = std::fs::File::open("a"); }\n' > "$t/src/b.rs" ;;
+    more) printf 'fn h() { let _ = std::fs::read_dir("a"); }\n' | cat - "$t/src/a.rs" > "$t/src/a2.rs" && mv "$t/src/a2.rs" "$t/src/a.rs" ;;
+    stale) printf '# list\nsrc/a.rs\t2\town data\n' > "$t/scripts/checks/stray-opens.txt" ;;
+    noreason) printf '# list\nsrc/a.rs\t1\t\n' > "$t/scripts/checks/stray-opens.txt" ;;
+  esac
+  bash "$t/scripts/checks/stray_opens.sh" "$t"
+}
+expect pass stray-opens-good stray_opens stray-opens-good
+for w in new-file more stale noreason; do expect fail "stray-opens-$w" stray_opens "stray-opens-$w" "$w"; done
+
 # ---- cases of the maintainer's own release tools (selfcheck.d/*.sh, sourced here; not in public checkouts) -------
 rel_cases=0
 for f in "$HERE"/selfcheck.d/*.sh; do [ -f "$f" ] || continue; . "$f"; rel_cases=1; done

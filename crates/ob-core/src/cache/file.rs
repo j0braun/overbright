@@ -76,7 +76,34 @@ impl CacheFile {
                 log::info!("cache {kind}: other source files");
                 return None;
             }
-            let (size, mtime, ino) = stat(&source_path(root, rel))?;
+            let src = source_path(root, rel);
+            // A source the mounted asset layer holds is keyed by the layer's recorded digest: nothing of the
+            // game folder is read (it may be gone), and nothing is hashed.
+            if let Some((size, hash)) = crate::game_fs::identity(&src) {
+                if size != s.size {
+                    log::info!("cache {kind}: {rel} changed");
+                    return None;
+                }
+                if s.ino == LAYER_INO {
+                    if hash != s.hash {
+                        log::info!("cache {kind}: {rel} changed");
+                        return None;
+                    }
+                } else if content_hash(&src) == Some(s.hash) {
+                    // Made from the folder's file: the same content, rewritten under the layer's key.
+                    retimed = true;
+                } else {
+                    log::info!("cache {kind}: {rel} changed");
+                    return None;
+                }
+                continue;
+            }
+            if s.ino == LAYER_INO {
+                // Made from the layer's copy, now read from the folder: no digest to compare.
+                log::info!("cache {kind}: {rel} keyed by the asset layer");
+                return None;
+            }
+            let (size, mtime, ino) = stat(&src)?;
             if size != s.size {
                 log::info!("cache {kind}: {rel} changed");
                 return None;
@@ -149,6 +176,9 @@ impl CacheFile {
         }
     }
 }
+
+/// The `ino` of a source keyed by the asset layer's digest (no file time or inode: [`crate::game_fs::identity`]).
+pub(super) const LAYER_INO: u64 = u64::MAX;
 
 /// A cache source's file: `rel` under the game folder `root` in the
 /// folder's own spelling ([`crate::game_fs::path`]); per-file caches pass
@@ -476,6 +506,10 @@ pub(super) fn header_for(
     let mut keys = Vec::new();
     for rel in sources {
         let p = source_path(root, rel);
+        if let Some((size, hash)) = crate::game_fs::identity(&p) {
+            keys.push(SourceFile { rel: rel.clone(), size, mtime_ns: 0, ino: LAYER_INO, hash });
+            continue;
+        }
         let before = stat(&p).ok_or_else(|| std::io::Error::other(format!("{rel} unreadable")))?;
         let hash = content_hash(&p).ok_or_else(|| std::io::Error::other(format!("{rel} unreadable")))?;
         // A file changing while it is hashed is not cached.

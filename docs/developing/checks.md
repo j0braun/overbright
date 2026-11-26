@@ -21,6 +21,7 @@ scripts/checks/selfcheck.sh <outdir>             # the gates' self-test: broken 
 scripts/checks/devprobes.sh                      # the developer probes (devprobes/) still compile: cargo check -p devprobes
 scripts/checks/crate_layers.sh [repo]            # the crate layers: no new upward reference, package edges only down, no dev-harness in the shipped tree, Studio's crates through `nfsu2::studio_api` only (ARCHITECTURE.md "Layers"; in fast and full)
 scripts/checks/layering.sh [repo]               # the render layers (core/native: no enhancement layer, QoL read or global state beyond layering-allow.txt; render code: no settings read beyond layering-settings-allow.txt), the game names the harness only behind its feature; in fast and full
+scripts/checks/stray_opens.sh [repo]            # the stray-open lint: no direct `std::fs` open of a path in production code beyond the counts of stray-opens.txt (a game file is read through `game_fs`, which the asset layer answers); in fast and full
 scripts/checks/soak_images.sh <game> <outdir> [runs]   # the gate's image dumps N times with one binary (run-to-run flakes; "Image soak")
 scripts/checks/fuzz.sh                           # the fuzz smoke: every parser target on mutated inputs (docs/developing/fuzzing.md; FUZZ_SECS, FUZZ_ITERS, FUZZ_ONLY)
 scripts/checks/release_check.sh [outdir]          # the shipping binary (no dev-harness): no harness strings, harness flags give the usage error
