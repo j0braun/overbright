@@ -86,7 +86,7 @@ Reset camera in the map view). Every item does something; a test checks that eac
 |---|---|
 | File | **File ▸ New map mod…** (Ctrl+N: a name, its folder and the region), **File ▸ Open map mod…** (Ctrl+O), the five most recent mods, **File ▸ Save** (Ctrl+S), **File ▸ Mod details…** (name, author, description), **File ▸ Import…** (a mod folder, a `map.obmap` or a `.zip`), **File ▸ Export…** (a `.zip` or a folder: the map and the mod's textures, `looks.toml` and `textures/`, never `work/` or `.editor/`; textures from the original game's pixels are warned about first; it proposes `<folder>.zip` in the `exports` folder of Overbright's data folder, made on the first export, and the status line says where the file went), **File ▸ Export as mod pack…** (a `.obpk` file for the launcher's Mods page: the placements, races and textures as the asset format's own files; it proposes `<folder>-1.0.0.obpk` in the `exports` folder), **File ▸ Quit** (Ctrl+Q; saves first, and asks only when that fails) |
 | Edit | **Edit ▸ Undo** and **Edit ▸ Redo**, named by the step they undo or redo (256 steps), **Edit ▸ Duplicate**, **Edit ▸ Delete**, **Edit ▸ Select all of this solid**, **Edit ▸ Drop to ground**, **Edit ▸ Rotate 90°**, **Edit ▸ Face camera**, **Edit ▸ Draw wall**, **Edit ▸ Draw ground** (see Removed and drawn collision) |
-| View | **View ▸ 3D view**, **View ▸ Map** (M switches), **View ▸ Frame selection** (F), **View ▸ Reset camera** (the region's overview), **View ▸ Collision ▸ Off**, **View ▸ Collision ▸ Invisible barriers** and **View ▸ Collision ▸ All collision** (see Collision), **View ▸ Collision ▸ Show race barriers** (only in Studio's World: the other races' barriers, off by default), **View ▸ Hint line** |
+| View | **View ▸ 3D view**, **View ▸ Map** (M switches), **View ▸ Frame selection** (F), **View ▸ Reset camera** (the region's overview), **View ▸ Top view** (T), **View ▸ Isometric view**, **View ▸ Go to…**, **View ▸ Views ▸ Save view…** and the Views menu's **Delete view** submenu (see Hiding props, views and Go to), **View ▸ Collision ▸ Off**, **View ▸ Collision ▸ Invisible barriers** and **View ▸ Collision ▸ All collision** (see Collision), **View ▸ Collision ▸ Show race barriers** (only in Studio's World: the other races' barriers, off by default), **View ▸ Hide selected** (H), **View ▸ Isolate selected** (Shift+H), **View ▸ Show all** (Alt+H), **View ▸ This mod's changes only** (see Hiding props), **View ▸ Hint line** |
 | Race | **Race ▸ New race**, **Race ▸ Test race** (F5), **Race ▸ Drive here** (Shift+F5), **Race ▸ Restart race** (Ctrl+F5) |
 | Help | **Help ▸ Controls**: every key, made from the editor's key table |
 
@@ -116,6 +116,9 @@ do nothing while a text field has the keyboard.
 | `Home` | Fit the overview or the map to the region |
 | `M` | 3D view / Map |
 | `L` | Collision layer: off / invisible barriers / all collision |
+| `H` | Hide the selected props (this view only) |
+| `Shift+H` | Show only the selected props |
+| `Alt+H` | Show every prop again |
 | `LMB / Ctrl+LMB` | Select / add to the selection |
 | `Shift + drag an arrow` | Copy the selection and move the copy |
 | `Alt while dragging or placing` | No snapping |
@@ -137,6 +140,29 @@ do nothing while a text field has the keyboard.
 | `Up / Down` | Show the line above / below in What went wrong (Simulate tab) |
 
 While the right mouse button is held the tool keys fly the camera instead (W A S D, Q / E).
+
+## Hiding props, views and Go to
+
+These only change what the view shows. None of it is a step in the undo list, none of it is written to the map, and a
+mod saved with props hidden is byte for byte the mod saved without.
+
+- **Hiding props.** **H** hides the selected props, **Shift+H** isolates them (only they are drawn) and **Alt+H**
+  draws everything again; the same three are in the View menu (**Hide selected**, **Isolate selected**, **Show all**).
+  A hidden prop is not drawn and not picked in the 3D view; the collision layer still shows its walls.
+  **This mod's changes only** draws just the props the mod moved, deleted or added, so you see your own work on its
+  own; the Show all item leaves that filter alone, switch it off with its own item. Going to a hidden prop shows it
+  again. An undo that removes added props forgets their hiding.
+- **Camera presets.** **Top view** (T) is the top-down overview, **Isometric view** looks at the selection, or at what
+  the camera looks at, from a corner at 45 degrees, and **Frame selection** (F) flies to the selected props. In the
+  map view the presets switch to the 3D view first.
+- **Go to…** opens a box that takes coordinates (`x, y`, in the world's metres), a prop's name (part of the name is
+  enough; with several matches the one nearest the camera is taken, and it is selected) or a race point of the
+  selected race: `start`, `finish`, `checkpoint 3` or `grid 2`, counted from 1. When it finds nothing it says so
+  in the box and stays open.
+- **Views.** **View ▸ Views ▸ Save view…** keeps the camera and the layers (the collision layer, the race barriers,
+  3D view or Map, and the changes-only filter) under a name; the same name again replaces that view. Saved views
+  are listed in the same menu, a click brings one back, and the Views menu's **Delete view** submenu removes one. They are
+  kept per mod in `editor.toml` next to the camera, not in the mod, so they are not exported or shared with it.
 
 ## Props
 
@@ -238,7 +264,7 @@ The editor's own files live in the mod's `.editor/` folder. They are never expor
 
 | File | Holds |
 |---|---|
-| `editor.toml` | the view: region, camera, the widths of the tree and the properties and the height of the bottom tabs (written on save, when another mod is opened and when the window closes) |
+| `editor.toml` | the view: region, camera, the saved views, the widths of the tree and the properties and the height of the bottom tabs (written on save, when another mod is opened and when the window closes) |
 | `history.journal` | every step, with its author and the last saves (the history) |
 | `saved-by.json` | the build that last wrote the mod's files and each file's hash then, written on every save, so a later build can repair what an older one wrote wrong (checked by `every_save_records_the_build_that_wrote_it`) |
 | `studio.lock`, `studio-owner.toml` | the write lock while a program has the mod open, and which program it is (removed when it closes the mod; one left by a program that died is ignored) |

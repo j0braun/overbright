@@ -22,7 +22,7 @@
 //! status bar says so while it reloads. The game is probed every few
 //! seconds (a command it must answer), at most `link::MAX_RUNS` runs are
 //! open at once over every window, and the run starts with the focus
-//! (`EditorState::focus`: car and world clock).
+//! (`EditorState::run_focus`: car and world clock).
 
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};

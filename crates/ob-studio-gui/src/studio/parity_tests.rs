@@ -97,6 +97,10 @@ fn action(a: &Action) -> Cli {
         },
         // Whether other races' barriers are drawn in World: a view setting, like the camera views.
         Action::RaceBarriers => WindowOnly(VIEWING),
+        Action::Goal(_) | Action::GoTo | Action::SaveView | Action::RecallView(_) | Action::DeleteView(_) => WindowOnly(VIEWING),
+        Action::HideSelected | Action::IsolateSelected | Action::ShowAll | Action::ModOnly => WindowOnly(
+            "hides or isolates props in the window's view only, never in the mod; a script reads and writes the data itself",
+        ),
         Action::Draw(d) => match d {
             Draw::Wall { .. } => Has(&["collision wall"]),
             Draw::Ground { .. } => Has(&["collision ground"]),

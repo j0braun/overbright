@@ -302,6 +302,11 @@ pub struct Viewport {
     cars: Option<super::sim::cars::CarDraw>,
     /// The replay's version last drawn.
     drawn_replay: u64,
+    /// The placements the renderer holds as hidden for the view's filter (view state: the world's own flags
+    /// are untouched).
+    applied: std::collections::HashSet<usize>,
+    /// The filter's generation last applied.
+    applied_gen: u64,
 }
 
 impl Default for Viewport {
@@ -345,6 +350,8 @@ impl Viewport {
             work: None,
             lit: false,
             cars: None,
+            applied: Default::default(),
+            applied_gen: 0,
             drawn_replay: 0,
         }
     }
@@ -517,6 +524,45 @@ impl Viewport {
         }
     }
 
+    /// Take a camera goal (View ▸ Top view / Isometric view, Go to, a saved view).
+    pub fn go(&mut self, s: &mut EditorState, goal: super::views::Goal) {
+        use super::views::Goal;
+        match goal {
+            Goal::Top => self.enter_top(s),
+            Goal::Isometric => {
+                self.leave_top(s, None);
+                let spheres: Vec<(Vec3, f32)> =
+                    s.selection.iter().filter_map(|&i| placement_sphere(&s.session.world, i)).collect();
+                let (centre, radius) = union_sphere(&spheres).unwrap_or_else(|| {
+                    let c = s.camera;
+                    let at = ground_hit(&s.session.world, c.position, c.forward(), PICK_RANGE)
+                        .unwrap_or(c.position + c.forward() * 60.0);
+                    (at, 20.0)
+                });
+                s.camera = super::views::isometric(centre, radius * 3.0 + 50.0);
+            }
+            Goal::Frame => {
+                self.leave_top(s, None);
+                self.frame_selection(s);
+            }
+            Goal::At(at) => {
+                self.leave_top(s, None);
+                let ground = s
+                    .session
+                    .world
+                    .collision()
+                    .ground_at(at.extend(500.0))
+                    .map_or(s.camera.position.z.min(0.0), |(z, _)| z);
+                s.camera = cam::fly_to(&s.camera, at.extend(ground));
+            }
+            Goal::Camera(p, yaw, pitch) => {
+                self.leave_top(s, None);
+                s.camera = crate::draw::camera::Camera::new(p, yaw, pitch);
+            }
+        }
+        self.redraw = true;
+    }
+
     /// The panel: the map view or the 3D image, with `draw` called to add
     /// the other panels' overlays (route, checkpoints, gizmo) on top.
     pub fn show(&mut self, s: &mut EditorState, ui: &mut egui::Ui, draw: impl FnOnce(&mut EditorState, &Overlay)) {
@@ -586,6 +632,9 @@ impl Viewport {
         draw(s, &overlay);
 
         let ctx = ui.ctx().clone();
+        if let Some(goal) = s.goal.take() {
+            self.go(s, goal);
+        }
         if menu::take(&ctx, Command::FrameSelection) {
             self.frame_selection(s);
         }
@@ -698,7 +747,7 @@ impl Viewport {
             if let Some(at) = pointer {
                 if moved || self.hover.is_none() {
                     let (eye, dir) = self.pick_ray(s, at);
-                    self.hover = pick(&s.session.world, eye, dir);
+                    self.hover = pick_where(&s.session.world, eye, dir, &|i| super::views::view_hides(s, i));
                 }
             } else {
                 self.hover = None;
@@ -710,7 +759,9 @@ impl Viewport {
         if response.clicked_by(egui::PointerButton::Primary) {
             let Some(at) = response.interact_pointer_pos() else { return };
             let (eye, dir) = self.pick_ray(s, at);
-            let hit = (s.mode == Mode::Props).then(|| pick(&s.session.world, eye, dir)).flatten();
+            let hit = (s.mode == Mode::Props)
+                .then(|| pick_where(&s.session.world, eye, dir, &|i| super::views::view_hides(s, i)))
+                .flatten();
             let modifiers = ctx.input(|i| i.modifiers);
             self.click = Some(Click {
                 at,
@@ -902,6 +953,9 @@ impl Viewport {
             self.renderer = Some(WorldRenderer::new(gpu, &s.session.world, FORMAT, &self.options()));
             self.rebuild_at = None;
             self.index = Some(SectionIndex::new(&s.session.world));
+            // The filter's hiding is applied again below.
+            self.applied.clear();
+            self.applied_gen = u64::MAX;
             // A new renderer starts from the world as it is now.
             s.session.world.take_changed();
             s.session.world_changed = false;
@@ -912,10 +966,27 @@ impl Viewport {
             s.session.world_changed = false;
             for i in s.session.world.take_changed() {
                 if let Some(p) = s.session.world.placements.get(i) {
-                    renderer.update_placement(gpu, i, p.transform, p.flags);
+                    let view = if self.applied.contains(&i) { HIDDEN_FLAG } else { 0 };
+                    renderer.update_placement(gpu, i, p.transform, p.flags | view);
                 }
             }
             self.redraw = true;
+            self.applied_gen = u64::MAX;
+        }
+        // The view's hide / isolate / this-mod-only filter: only the placements whose state changed.
+        if self.applied_gen != s.filter.generation || (self.applied_gen == u64::MAX && (s.filter.active() || !self.applied.is_empty())) {
+            let want = super::views::hidden_set(s);
+            for &i in want.symmetric_difference(&self.applied) {
+                if let Some(p) = s.session.world.placements.get(i) {
+                    let view = if want.contains(&i) { HIDDEN_FLAG } else { 0 };
+                    renderer.update_placement(gpu, i, p.transform, p.flags | view);
+                }
+            }
+            if want != self.applied {
+                self.redraw = true;
+            }
+            self.applied = want;
+            self.applied_gen = s.filter.generation;
         }
         if self.want.0 == 0 || self.want.1 == 0 {
             return false;
@@ -1226,10 +1297,15 @@ pub fn ray_box(o: Vec3, d: Vec3, lo: Vec3, hi: Vec3) -> Option<f32> {
 /// a bounding sphere of at most [`MAX_PICK_RADIUS`], within
 /// [`PICK_RANGE`].
 pub fn pick(world: &World, eye: Vec3, dir: Vec3) -> Option<Hit> {
+    pick_where(world, eye, dir, &|_| false)
+}
+
+/// [`pick`], leaving out the placements `left_out` names (the view's hidden props).
+pub fn pick_where(world: &World, eye: Vec3, dir: Vec3, left_out: &dyn Fn(usize) -> bool) -> Option<Hit> {
     let dir = dir.normalize_or_zero();
     let mut best: Option<Hit> = None;
     for (i, p) in world.placements.iter().enumerate() {
-        if p.flags & (HIDDEN_FLAG | NO_MATRIX_FLAG) != 0 {
+        if p.flags & (HIDDEN_FLAG | NO_MATRIX_FLAG) != 0 || left_out(i) {
             continue;
         }
         let Some((c, r)) = placement_sphere(world, i) else { continue };
