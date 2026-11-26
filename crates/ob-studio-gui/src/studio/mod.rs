@@ -46,6 +46,8 @@ pub use shell::Studio;
 #[cfg(test)]
 mod browser_tests;
 #[cfg(test)]
+mod docs_tests;
+#[cfg(test)]
 mod guide_tests;
 #[cfg(test)]
 mod inside_tests;

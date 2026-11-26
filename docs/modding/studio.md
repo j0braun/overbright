@@ -277,11 +277,12 @@ letters are the tools' keys and typing here (the launcher keeps Q E, Space and R
 | Y · △ · Y | Ctrl+K | Find: names, commands, places, pasted addresses |
 | LB RB · L1 R1 · L1 R1 | Ctrl+PgUp, Ctrl+PgDn; Ctrl+1 … Ctrl+0; Ctrl+, (Settings) | Workspace |
 | LT RT · L2 R2 · L2 R2 | Shift+F6, F6 | Area |
-| D-pad | Tab, arrows | Move focus; ◀ ▶ change a value |
+| D-pad | Tab, arrows; ← → | Move focus; ◀ ▶ change a value |
 | Menu · Options · Menu | F5 | Test |
-| View · Create · View | Alt+← (Alt+→ forward) | Last place |
+| View · Create · View | Alt+←, Alt+→ | Last place, and forward again |
 | Sticks | Right mouse button + WASD | Move and look in the 3D view |
 | Deck L4 R4 | Ctrl+Z, Ctrl+Y | Undo, redo |
+| – | Ctrl+L, Ctrl+Shift+C | Show the address to edit or paste; copy it |
 | – | Ctrl+D | Changes |
 | – | Ctrl+G | Data |
 | – | Ctrl+N | New mod |
@@ -325,3 +326,5 @@ toolbar check, and walks into and out of World by keyboard and pad. `studio::gui
 keyboard and by pad on a stand-in city and makes the templates and the sample from Home; `studio::mod_page_tests`
 keeps a detail as one step, exports a mod with derived textures and imports it again; `studio::changes_tests`
 resets values and textures as single undoable steps and walks the rows by keyboard and pad.
+`studio::docs_tests` reads this page against the code: the Keyboard and pad table is the key table both ways, and
+every key the page names is in Studio's or the map editor's key table. A key added to the code needs a row here.
