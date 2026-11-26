@@ -81,13 +81,26 @@ impl TrafficCar {
     /// The frame's relocation (0x604750 → 0x5DA340 on car +0x60): the
     /// locator moves on once the car is its threshold (|Δx| + |Δy|) from
     /// where it was last asked.
-    pub(crate) fn refresh_coord(&mut self, road: &nfsu2::formats::roads::RoadRoute) {
+    ///
+    /// Then, on every 60th world update (0x7FB724 % 60 = 0) for a car
+    /// with a mover (car +0x28 ≠ 0), a locator whose point on the road
+    /// (+0x10) is over 300 m and at most 5000 m (2D) from where it was
+    /// last asked (+0x08) is cleared and located again (0x604750 at
+    /// 0x604942–0x6049CB → 0x5DA3E0; **verified**, the disassembly): a
+    /// car that drove off the race road no longer keeps the node it left
+    /// it by. (Past 5000 m 0x604750 asks for the car's reset, car +0x96C,
+    /// not ported: no traffic lane is that far from its race road.)
+    pub(crate) fn refresh_coord(&mut self, road: &nfsu2::formats::roads::RoadRoute, updates: u64) {
         let p = self.state.position.truncate();
         let loc = self.coord.get_or_insert_with(|| nfsu2::formats::roads::Locator {
             threshold: TRAFFIC_LOCATOR_STEP,
             ..Default::default()
         });
         road.relocate(loc, p);
+        let off = loc.last.distance(loc.point);
+        if off > LOCATOR_RESYNC && off <= 5000.0 && updates.is_multiple_of(60) {
+            road.relocate_afresh(loc, p);
+        }
     }
 
     /// The locator set at a placement (0x5FBEE0): for a point measured by
@@ -109,6 +122,10 @@ impl TrafficCar {
         self.coord = Some(loc);
     }
 }
+
+/// How far (m, 2D) a car's locator may lie from where it was last asked
+/// before 0x604750 locates it afresh (0x7852A8; **verified**).
+pub(crate) const LOCATOR_RESYNC: f32 = 300.0;
 
 /// A traffic car's locator threshold (car +0x910 = locator +0x38): 16 m
 /// of |Δx| + |Δy|, set by the car's constructor 0x604270 for a car of

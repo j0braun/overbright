@@ -66,11 +66,21 @@ pub(crate) struct RacerActions<'a> {
 }
 
 /// A car as the racers' road entries see it (`ai::actions::RoadCar`):
-// prov: inferred game.road_car
-/// half its length and width (handling +0x224 / +0x228, **inferred** for
-/// the shape extents 0x5AACE0 reads), its acceleration along its velocity
-/// from the retained world acceleration (0x60BE40 → 0x5EC340). Legacy
-/// caller history remains in the interface but no longer determines it.
+/// half its length and width, its acceleration along its velocity from
+/// the retained world acceleration (0x60BE40 → 0x5EC340). Legacy caller
+/// history remains in the interface but no longer determines it.
+///
+/// The half extents are its body's (car +0x3C) bounds: the entries
+/// (0x6148F0 → 0x5AACE0) and the sweep's boxes (0x4275E0: the car's own
+/// through 0x5EC260, body +0xE0 / +0xF0; the other's through 0x614850 →
+/// 0x5AACE0) take |max − min| / 2 (0x4040A0), and a car's body (kind 1,
+/// 0x5A1A00) bounds its `_CV` hull's vertices less the centre of mass
+/// (**verified**, the decompiles; the player's body +0xE0 / +0xF0 read
+/// live under Wine equal its hull's, `chase::body_box`). The handling's
+/// +0x224 / +0x228, which the clone once took, are a default 4.2 × 1.625 m
+/// on every traffic model, 0.1–0.2 m narrower than their hulls (a van's
+/// 2.01 m, an SUV's 2.05 m), so racers passed traffic too close. A car
+/// without a hull keeps the handling's.
 pub(crate) fn road_car(
     id: usize,
     car: &Car,
@@ -91,7 +101,11 @@ pub(crate) fn road_car(
         forward: Vec2::new(f.x, f.y).normalize_or(Vec2::X),
         accel,
         forward_accel: state.forward_acceleration(),
-        half: Vec2::new(dims[0], dims[1]) * 0.5,
+        half: if car.hull.is_empty() {
+            Vec2::new(dims[0], dims[1]) * 0.5
+        } else {
+            nfsu2::ai::traffic::Other::half_box(&car.hull)
+        },
         racer,
         human,
         traffic: !racer,
