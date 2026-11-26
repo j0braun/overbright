@@ -19,55 +19,96 @@ pub(crate) struct Link {
     beat: std::time::Instant,
     ok: bool,
     note: String,
+    /// Turns of the loop so far (the state file says them).
+    turns: u64,
 }
 
 impl Link {
     pub(crate) fn new(dir: std::path::PathBuf) -> Link {
         log::info!("map test: Studio link {}", dir.display());
-        let mut l = Link { dir, seen: 0, polled: std::time::Instant::now(), beat: std::time::Instant::now(), ok: true, note: String::new() };
+        let mut l = Link { dir, seen: 0, polled: std::time::Instant::now(), beat: std::time::Instant::now(), ok: true, note: String::new(), turns: 0 };
         l.write();
         l
     }
 
     fn write(&mut self) {
         self.beat = std::time::Instant::now();
-        let s = GameState { pid: std::process::id(), seq: self.seen, beat_ms: link::now_ms(), ok: self.ok, note: self.note.clone() };
+        let s = GameState { pid: std::process::id(), seq: self.seen, beat_ms: link::now_ms(), ok: self.ok, note: self.note.clone(), turns: self.turns };
         if let Err(e) = link::write_state(&self.dir, &s) {
             log::warn!("Studio link: state not written: {e}");
         }
     }
 
-    /// One look between two frames.
-    pub(crate) fn poll(&mut self, game: &mut Game, test: &mut super::cli::MapTest, watch: &mut super::cli::EndWatch) {
+    /// One look between two frames. True: Studio asked the run to end.
+    pub(crate) fn poll(&mut self, game: &mut Game, test: &mut super::cli::MapTest, watch: &mut super::cli::EndWatch) -> bool {
+        self.turns += 1;
+        let Some(c) = self.next() else { return false };
+        match c.op {
+            Op::Probe | Op::Stop => {
+                // Answered at once, nothing started over.
+                self.finish(Ok(()), c.seq);
+                return c.op == Op::Stop;
+            }
+            Op::Apply | Op::Restart => {}
+        }
+        let r = apply(game, test, &c);
+        self.finish(r, c.seq);
+        // The run began again: the end watch starts over with it.
+        *watch = super::cli::EndWatch::new(test);
+        false
+    }
+
+    /// One look of a headless run (a simulation): probe and stop only, as
+    /// there is no window to start over. True: end the run.
+    pub(crate) fn poll_headless(&mut self) -> bool {
+        self.turns += 1;
+        let Some(c) = self.next() else { return false };
+        let r = match c.op {
+            Op::Probe | Op::Stop => Ok(()),
+            Op::Apply | Op::Restart => Err("a simulation is not started over; start another".to_string()),
+        };
+        self.finish(r, c.seq);
+        c.op == Op::Stop
+    }
+
+    /// The new command, when it is time to look and there is one; else the
+    /// beat when it is due.
+    fn next(&mut self) -> Option<link::Command> {
         if self.polled.elapsed() < POLL {
-            return;
+            return None;
         }
         self.polled = std::time::Instant::now();
-        match link::read_command(&self.dir).filter(|c| c.seq > self.seen) {
-            Some(c) => {
-                self.seen = c.seq;
-                match apply(game, test, &c) {
-                    Ok(()) => (self.ok, self.note) = (true, String::new()),
-                    Err(e) => {
-                        log::warn!("Studio link: command {} not done: {e}", c.seq);
-                        (self.ok, self.note) = (false, e);
-                    }
-                }
-                // The run began again: the end watch starts over with it.
-                *watch = super::cli::EndWatch::new(test);
-                self.write();
-            }
-            None if self.beat.elapsed() >= BEAT => self.write(),
-            None => {}
+        let c = link::read_command(&self.dir).filter(|c| c.seq > self.seen);
+        if c.is_none() && self.beat.elapsed() >= BEAT {
+            self.write();
         }
+        c
+    }
+
+    fn finish(&mut self, r: Result<(), String>, seq: u64) {
+        self.seen = seq;
+        match r {
+            Ok(()) => (self.ok, self.note) = (true, String::new()),
+            Err(e) => {
+                log::warn!("Studio link: command {seq} not done: {e}");
+                (self.ok, self.note) = (false, e);
+            }
+        }
+        self.write();
     }
 }
 
-/// Do `c`: the aim it names (else the run's own), the mod read again for
+/// Do `c` (an apply or restart): the aim it names (else the run's own), the mod read again for
 /// `Apply` (free roam then goes on from where the car is), the run started
 /// over. The run's aim changes only when it started.
 fn apply(game: &mut Game, test: &mut super::cli::MapTest, c: &link::Command) -> Result<(), String> {
     let mut t = test.clone();
+    if let Some(f) = &c.focus {
+        if !f.valid() {
+            return Err("the car or clock is not one the game takes".into());
+        }
+        (t.car, t.clock) = (f.car.clone(), f.clock);
+    }
     match &c.aim {
         Some(Aim::Race(id)) => {
             if !nfsu2::tools::map::valid_id(id) {
@@ -100,4 +141,43 @@ fn apply(game: &mut Game, test: &mut super::cli::MapTest, c: &link::Command) -> 
     game.restart_map_test(&t).map_err(|e| format!("{e:#}"))?;
     *test = t;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use nfsu2::tools::map::link::Command;
+
+    fn send(dir: &std::path::Path, seq: u64, op: Op) {
+        link::write_command(dir, &Command { seq, op, aim: None, focus: None }).unwrap();
+        std::thread::sleep(POLL + std::time::Duration::from_millis(20));
+    }
+
+    /// A headless run answers a probe at once, says it cannot start over,
+    /// and ends on a stop; each command is dealt with once.
+    #[test]
+    fn a_simulation_answers_probes_and_stops() {
+        let d = std::env::temp_dir().join(format!("ob-link-headless-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&d);
+        let mut l = Link::new(d.clone());
+        assert_eq!(link::read_state(&d).unwrap().seq, 0, "alive before any command");
+        std::thread::sleep(POLL + std::time::Duration::from_millis(20));
+        assert!(!l.poll_headless(), "nothing sent");
+        send(&d, 1, Op::Probe);
+        assert!(!l.poll_headless());
+        let g = link::read_state(&d).unwrap();
+        assert_eq!((g.seq, g.ok), (1, true), "probed: answered");
+        assert!(g.turns >= 2, "the loop's turns are said: {}", g.turns);
+        send(&d, 2, Op::Apply);
+        assert!(!l.poll_headless(), "a simulation is not started over");
+        let g = link::read_state(&d).unwrap();
+        assert_eq!((g.seq, g.ok), (2, false));
+        assert!(g.note.contains("simulation"), "{}", g.note);
+        send(&d, 2, Op::Stop);
+        assert!(!l.poll_headless(), "a command number is dealt with once");
+        send(&d, 3, Op::Stop);
+        assert!(l.poll_headless(), "stop ends the run");
+        assert_eq!(link::read_state(&d).unwrap().seq, 3);
+        let _ = std::fs::remove_dir_all(&d);
+    }
 }

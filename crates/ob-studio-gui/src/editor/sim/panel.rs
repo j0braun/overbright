@@ -210,7 +210,8 @@ impl Sim {
             What::World(..) => None,
         };
         let unsaved = if s.session.dirty { " (unsaved changes)" } else { "" };
-        match SimChild::start(exe, &args(&file, &what, seed), &s.root) {
+        let link = crate::tools::map::link::sim_dir(&s.maps, &s.session.folder);
+        match SimChild::launch(exe, &args(&file, &what, seed), &s.root, &link, &s.maps) {
             Ok(c) => {
                 self.child = Some(c);
                 self.rec = Recording::default();

@@ -51,6 +51,9 @@ pub struct EditorState {
     pub selection: Vec<usize>,
     /// The race being edited (index into `session.map.races`).
     pub race: Option<usize>,
+    /// What a test run starts with besides the place: the car and the
+    /// world clock (time of day and weather); empty: the game's own.
+    pub focus: crate::tools::map::link::Focus,
     pub point: Option<RacePoint>,
     pub camera: Camera,
     pub mode: Mode,
@@ -102,6 +105,7 @@ impl EditorState {
             session: MapSession::new(region, folder, map, world),
             selection: Vec::new(),
             race,
+            focus: Default::default(),
             point: None,
             camera,
             mode: Mode::Props,

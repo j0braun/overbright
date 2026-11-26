@@ -294,7 +294,7 @@ impl Game {
         let warm_for = self.platform.window.as_ref().map(|w| (w.gpu.clone(), self.warm_target(&w.gpu)));
         let drive = self.sim.drive.as_mut().unwrap();
         if reuse {
-            drive.restart_clock();
+            drive.restart_clock(self.test_clock);
         }
         drive.barriers = barriers;
         drive.world.set_up_barriers(&barriers);
@@ -619,8 +619,8 @@ impl Game {
             screen_flash: Default::default(),
             horizon_fog: Default::default(),
             motion: Default::default(),
-            time_of_day: rain_clock().map_or_else(TimeOfDay::default, |c| TimeOfDay::default().after(c - 1.0)),
-            clock: rain_clock().unwrap_or(1.0),
+            time_of_day: rain_clock().or(self.test_clock).map_or_else(TimeOfDay::default, |c| TimeOfDay::default().after(c - 1.0)),
+            clock: rain_clock().or(self.test_clock).unwrap_or(1.0),
             world_clock: Default::default(),
             weather: nfsu2::weather::Weather::with_lens(&self.sim.lens),
             human_road: Default::default(),

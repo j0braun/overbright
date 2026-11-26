@@ -15,7 +15,14 @@
 //! network): edits to the mod (props, race points) go to the run copy and
 //! the game starts the run over with them between two frames; Test race and
 //! Drive here while it runs send the new aim; Restart race starts over. The
-//! status bar says whether the game is connected.
+//! status bar says whether the game is connected. Moved or added props reach
+//! the game by a reload of the region's world (the loading screen, a few
+//! seconds: the placements are set up when the world is built, and a prop
+//! moved in place is not yet taken by every part of the game), and the
+//! status bar says so while it reloads. The game is probed every few
+//! seconds (a command it must answer), at most `link::MAX_RUNS` runs are
+//! open at once over every window, and the run starts with the focus
+//! (`EditorState::focus`: car and world clock).
 
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
@@ -47,7 +54,7 @@ pub fn game_exe() -> PathBuf {
 /// The game's command line for a test run of the mod file `file`, with the
 /// mod's texture folder `looks` (`<mod>/textures`; watched in that run, so a
 /// texture painted while it runs shows too).
-pub fn args(file: &Path, target: &Target, result: &Path, looks: &Path, link: &Path) -> Vec<String> {
+pub fn args(file: &Path, target: &Target, result: &Path, looks: &Path, link: &Path, focus: &link::Focus) -> Vec<String> {
     let mut a = vec!["--map-file".to_string(), file.display().to_string()];
     match target {
         Target::Race(id) => a.extend(["--map-race".to_string(), id.clone()]),
@@ -56,6 +63,7 @@ pub fn args(file: &Path, target: &Target, result: &Path, looks: &Path, link: &Pa
     a.extend(["--map-result".to_string(), result.display().to_string()]);
     a.extend(["--looks-live".to_string(), looks.display().to_string()]);
     a.extend(["--studio-link".to_string(), link.display().to_string()]);
+    a.extend(focus.args());
     a
 }
 
@@ -125,12 +133,33 @@ pub struct TestPlay {
     sent: MapMod,
     /// What the game said last (None: nothing yet).
     game: Option<link::GameState>,
+    /// This run's place among the few ([`link::Slot`]).
+    slot: link::Slot,
+    /// The last command number that starts the run over (an apply or a
+    /// restart); a probe's is not counted.
+    work: u64,
+    /// The last such command reloads the world (props changed).
+    reloading: bool,
+    /// The focus as the game was last given it.
+    focus_sent: link::Focus,
+    /// The probe sent and when (None: none waiting for its answer).
+    probe: Option<(u64, std::time::Instant)>,
+    /// When the next probe is due, and how often they go.
+    probe_next: std::time::Instant,
+    probe_every: std::time::Duration,
 }
+
+/// How long a probe may wait for its answer before the game counts as not
+/// answering, and how often one is sent.
+const PROBE_WAIT: std::time::Duration = std::time::Duration::from_secs(3);
+const PROBE_EVERY: std::time::Duration = std::time::Duration::from_secs(5);
 
 /// The status bar's words for the link: whether the game is connected.
 pub const GAME_CONNECTED: &str = "Game connected";
 pub const GAME_NOT_CONNECTED: &str = "Game not connected";
 pub const GAME_APPLYING: &str = "Game applying changes";
+pub const GAME_RELOADING: &str = "Game reloading the world";
+pub const GAME_NO_ANSWER: &str = "Game not answering";
 
 /// How a test run ended.
 #[derive(Clone, Debug, PartialEq)]
@@ -166,6 +195,10 @@ impl TestPlay {
         if let Some(why) = blocked(s, &target) {
             return Err(why);
         }
+        if !s.focus.valid() {
+            return Err("The test car or clock is not one the game takes".into());
+        }
+        let slot = link::Slot::take(&s.maps)?;
         let file = write_run_copy(s)?;
         let dir = store::editor_dir(&s.maps, &s.session.folder);
         let result = dir.join(RESULT_FILE);
@@ -178,7 +211,7 @@ impl TestPlay {
         };
         let label = race.as_ref().map_or_else(|| "free roam".to_string(), |r| r.name.clone());
         let child = Command::new(exe)
-            .args(args(&file, &target, &result, &s.maps.join(&s.session.folder).join(store::TEXTURES), &link))
+            .args(args(&file, &target, &result, &s.maps.join(&s.session.folder).join(store::TEXTURES), &link, &s.focus))
             .env("NFSU2_ROOT", &s.root)
             .stdin(Stdio::null())
             .stdout(Stdio::null())
@@ -191,7 +224,25 @@ impl TestPlay {
             Target::At(..) => format!("Driving from the camera's spot…{unsaved}"),
         };
         let sent = s.session.map.clone();
-        Ok(TestPlay { child, target, label, result, race, dir, link, seq: 0, sent, game: None })
+        Ok(TestPlay {
+            child,
+            target,
+            label,
+            result,
+            race,
+            dir,
+            link,
+            seq: 0,
+            sent,
+            game: None,
+            slot,
+            work: 0,
+            reloading: false,
+            focus_sent: s.focus.clone(),
+            probe: None,
+            probe_next: std::time::Instant::now() + PROBE_EVERY,
+            probe_every: PROBE_EVERY,
+        })
     }
 
     /// The run's end once the game has ended (None while it runs).
@@ -215,12 +266,42 @@ impl TestPlay {
     /// (a command it has not dealt with yet), or not connected (it has
     /// not said anything lately).
     pub fn link_words(&mut self) -> &'static str {
+        self.slot.touch();
         self.game = link::read_state(&self.link).filter(|g| g.pid == self.child.id());
-        match &self.game {
-            Some(g) if g.seq < self.seq => GAME_APPLYING,
-            Some(g) if g.alive(link::now_ms()) => GAME_CONNECTED,
-            _ => GAME_NOT_CONNECTED,
+        if let (Some(g), Some((q, _))) = (&self.game, self.probe)
+            && g.seq >= q
+        {
+            self.probe = None;
         }
+        match &self.game {
+            Some(g) if !g.alive(link::now_ms()) => GAME_NOT_CONNECTED,
+            Some(g) if g.seq < self.work => {
+                if self.reloading {
+                    GAME_RELOADING
+                } else {
+                    GAME_APPLYING
+                }
+            }
+            Some(_) if self.probe.is_some_and(|(_, at)| at.elapsed() > PROBE_WAIT) => GAME_NO_ANSWER,
+            Some(_) => GAME_CONNECTED,
+            None => GAME_NOT_CONNECTED,
+        }
+    }
+
+    /// Send a probe when one is due: the game is there, has dealt with
+    /// everything sent, and none waits for its answer. The command file
+    /// holds one command, so a probe never goes over one the game has not
+    /// read.
+    pub fn probe_due(&mut self) -> Result<(), String> {
+        let idle = self.game.as_ref().is_some_and(|g| g.seq >= self.seq && g.alive(link::now_ms()));
+        if !idle || self.probe.is_some() || std::time::Instant::now() < self.probe_next {
+            return Ok(());
+        }
+        self.seq += 1;
+        self.probe = Some((self.seq, std::time::Instant::now()));
+        self.probe_next = std::time::Instant::now() + self.probe_every;
+        link::write_command(&self.link, &link::Command { seq: self.seq, op: Op::Probe, aim: None, focus: None })
+            .map_err(|e| format!("The game was not probed: {e}"))
     }
 
     /// Whether the game has said it is there (a command may be sent).
@@ -231,24 +312,38 @@ impl TestPlay {
     /// Send the game a command: the mod as it is in the editor to the run
     /// copy first (for `Apply`), then the command.
     pub fn send(&mut self, s: &EditorState, op: Op, aim: Option<Aim>) -> Result<(), String> {
+        if !s.focus.valid() {
+            return Err("The test car or clock is not one the game takes".into());
+        }
+        let mut reloading = false;
         if op == Op::Apply {
             write_run_copy(s)?;
+            // A reload still owed stays one (this command takes its place).
+            let owed = self.reloading && self.game.as_ref().is_none_or(|g| g.seq < self.work);
+            reloading = owed || s.session.map.props != self.sent.props;
             self.sent = s.session.map.clone();
         }
+        let focus = (self.focus_sent != s.focus).then(|| s.focus.clone());
         self.seq += 1;
-        link::write_command(&self.link, &link::Command { seq: self.seq, op, aim })
-            .map_err(|e| format!("The game was not told: {e}"))
+        link::write_command(&self.link, &link::Command { seq: self.seq, op, aim, focus: focus.clone() })
+            .map_err(|e| format!("The game was not told: {e}"))?;
+        // Written: what the game now owes (a probe over it is lost).
+        (self.work, self.reloading, self.probe) = (self.seq, reloading, None);
+        if focus.is_some() {
+            self.focus_sent = s.focus.clone();
+        }
+        Ok(())
     }
 
     /// The mod changed since the game was last given it.
     pub fn changed(&self, s: &EditorState) -> bool {
-        s.session.map != self.sent
+        s.session.map != self.sent || s.focus != self.focus_sent
     }
 
     /// What the game said about the last command: its note when it could
     /// not do it.
     pub fn problem(&self) -> Option<String> {
-        self.game.as_ref().filter(|g| !g.ok && g.seq == self.seq).map(|g| g.note.clone())
+        self.game.as_ref().filter(|g| !g.ok && g.seq == self.work).map(|g| g.note.clone())
     }
 }
 
@@ -361,6 +456,9 @@ impl TestPanel {
         let restart = super::menu::take(&ctx, super::menu::Command::RestartTest);
         if let Some(t) = self.test.as_mut() {
             let (words, quiet) = (t.link_words(), t.problem());
+            if let Err(e) = t.probe_due() {
+                s.status = e;
+            }
             set_link(&ctx, Some(words.to_string()));
             let aim = if race {
                 s.race.and_then(|k| s.session.map.races.get(k)).map(|r| Aim::Race(r.id.clone()))
@@ -486,7 +584,7 @@ mod tests {
         let l = Path::new("/m/my-map/textures");
         let k = Path::new("/m/my-map/.editor/link");
         assert_eq!(
-            args(f, &Target::Race("dock".into()), r, l, k),
+            args(f, &Target::Race("dock".into()), r, l, k, &link::Focus::default()),
             [
                 "--map-file",
                 "/m/my-map/.editor/run/map.obmap",
@@ -500,8 +598,11 @@ mod tests {
                 "/m/my-map/.editor/link"
             ]
         );
-        let a = args(f, &Target::At(Vec3::new(-1.5, 2.0, 3.25), 90.0), r, l, k);
+        let a = args(f, &Target::At(Vec3::new(-1.5, 2.0, 3.25), 90.0), r, l, k, &link::Focus::default());
         assert_eq!(a[2..4], ["--map-at".to_string(), "-1.5,2,3.25,90".to_string()]);
+        let focus = link::Focus { car: Some("240SX".into()), clock: Some(600.0) };
+        let a = args(f, &Target::At(Vec3::ZERO, 0.0), r, l, k, &focus);
+        assert_eq!(a[a.len() - 4..], ["--map-car", "240SX", "--map-clock", "600"], "the focus is the game's flags");
     }
 
     #[test]
@@ -693,7 +794,7 @@ mod tests {
         frame(&mut s, &mut panel);
         assert_eq!(link_words(&ctx).as_deref(), Some(GAME_NOT_CONNECTED), "the game has said nothing yet");
         let said = |seq: u64, ok: bool, note: &str| {
-            link::write_state(&linkdir, &link::GameState { pid, seq, beat_ms: link::now_ms(), ok, note: note.into() }).unwrap();
+            link::write_state(&linkdir, &link::GameState { pid, seq, beat_ms: link::now_ms(), ok, note: note.into(), turns: 1 }).unwrap();
         };
         said(0, true, "");
         frame(&mut s, &mut panel);
@@ -719,9 +820,97 @@ mod tests {
         frame(&mut s, &mut panel);
         assert!(s.status.contains("race x is gone"), "{}", s.status);
         // A game that is gone says nothing: not connected.
-        link::write_state(&linkdir, &link::GameState { pid, seq: 2, beat_ms: 1, ok: true, note: String::new() }).unwrap();
+        link::write_state(&linkdir, &link::GameState { pid, seq: 2, beat_ms: 1, ok: true, note: String::new(), turns: 1 }).unwrap();
         frame(&mut s, &mut panel);
         assert_eq!(link_words(&ctx).as_deref(), Some(GAME_NOT_CONNECTED));
         let _ = panel.test.as_mut().unwrap().child.kill();
+    }
+
+    /// The health check, the reload words and the focus over the link: a
+    /// probe goes out when the game is idle and never over a command it has
+    /// not read; moved props say the world reloads; a game that beats but
+    /// does not answer a probe is "not answering"; a changed focus goes
+    /// with an apply.
+    #[cfg(unix)]
+    #[test]
+    fn the_link_probes_says_reloads_and_carries_the_focus() {
+        use crate::tools::map::PropEdit;
+        let scratch = crate::testkit::Scratch::new("testplay-probe");
+        let dir = scratch.path().to_path_buf();
+        let exe = stand_in(&dir, "5");
+        let mut s = state(&dir, MapMod::default());
+        let mut test = start_test(&mut s, &exe, Target::At(Vec3::ZERO, 0.0)).unwrap();
+        test.probe_every = std::time::Duration::ZERO;
+        test.probe_next = std::time::Instant::now();
+        let linkdir = link::dir(&s.maps, "my-map");
+        let pid = test.child.id();
+        let said = |seq: u64| {
+            link::write_state(&linkdir, &link::GameState { pid, seq, beat_ms: link::now_ms(), ok: true, note: String::new(), turns: 9 }).unwrap();
+        };
+        // Nothing said yet: no probe.
+        test.link_words();
+        test.probe_due().unwrap();
+        assert!(link::read_command(&linkdir).is_none(), "not to a game that has not appeared");
+        said(0);
+        assert_eq!(test.link_words(), GAME_CONNECTED);
+        test.probe_due().unwrap();
+        let c = link::read_command(&linkdir).unwrap();
+        assert_eq!((c.seq, c.op), (1, Op::Probe));
+        // Unanswered for a while: the game beats, but does not answer.
+        test.probe_due().unwrap();
+        assert_eq!(link::read_command(&linkdir).unwrap().seq, 1, "one probe at a time");
+        test.probe = Some((1, std::time::Instant::now() - PROBE_WAIT - std::time::Duration::from_millis(10)));
+        assert_eq!(test.link_words(), GAME_NO_ANSWER);
+        said(1);
+        assert_eq!(test.link_words(), GAME_CONNECTED, "answered");
+        // Props moved: the game says it reloads the world; the probe does not wait over it.
+        s.session.map.props.push(PropEdit::Delete {
+            target: crate::tools::map::PropRef { region: "L4RA".into(), section: 1, solid: "X".into(), at: Vec3::ZERO, nth: 0 },
+        });
+        test.send(&s, Op::Apply, None).unwrap();
+        assert_eq!(test.link_words(), GAME_RELOADING);
+        test.probe_due().unwrap();
+        assert_eq!(link::read_command(&linkdir).unwrap().op, Op::Apply, "a probe never goes over a command not read");
+        said(2);
+        assert_eq!(test.link_words(), GAME_CONNECTED);
+        // Another change (not props): applying, not reloading.
+        s.session.map.name = "Other".into();
+        test.send(&s, Op::Apply, None).unwrap();
+        assert_eq!(test.link_words(), GAME_APPLYING);
+        said(3);
+        // The focus goes with the next command, once.
+        assert!(!test.changed(&s));
+        s.focus = link::Focus { car: Some("240SX".into()), clock: Some(600.0) };
+        assert!(test.changed(&s), "a new focus starts the run over");
+        test.send(&s, Op::Apply, None).unwrap();
+        assert_eq!(link::read_command(&linkdir).unwrap().focus, Some(s.focus.clone()));
+        said(4);
+        assert!(!test.changed(&s));
+        test.send(&s, Op::Restart, None).unwrap();
+        assert_eq!(link::read_command(&linkdir).unwrap().focus, None, "sent once");
+        s.focus.clock = Some(0.1);
+        assert!(test.send(&s, Op::Restart, None).is_err(), "a clock the game cannot take is not sent");
+        let _ = test.child.kill();
+    }
+
+    /// At most `MAX_RUNS` runs at once: a new test waits for a place, and the
+    /// place comes back when the run ends.
+    #[cfg(unix)]
+    #[test]
+    fn a_test_waits_for_a_place_when_the_runs_are_all_open() {
+        let scratch = crate::testkit::Scratch::new("testplay-cap");
+        let dir = scratch.path().to_path_buf();
+        let exe = stand_in(&dir, "5");
+        let mut s = state(&dir, MapMod::default());
+        let held: Vec<_> = (0..link::MAX_RUNS).map(|_| link::Slot::take(&s.maps).unwrap()).collect();
+        let e = TestPlay::start(&mut s, &exe, Target::At(Vec3::ZERO, 0.0)).unwrap_err();
+        assert!(e.contains("game runs are open"), "{e}");
+        assert!(!store::run_file(&s.maps, "my-map").exists(), "nothing written for a run that did not start");
+        drop(held);
+        let mut t = start_test(&mut s, &exe, Target::At(Vec3::ZERO, 0.0)).unwrap();
+        assert_eq!(link::Slot::live(&link::Slot::dir(&s.maps)), 1);
+        let _ = t.child.kill();
+        drop(t);
+        assert_eq!(link::Slot::live(&link::Slot::dir(&s.maps)), 0, "the place is back");
     }
 }

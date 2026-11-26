@@ -5,7 +5,11 @@ use crate::*;
 /// also steps the weather up to it. The sky cycle (0x60FAB0) starts as
 /// it would be that long after a load.
 pub(crate) fn rain_clock() -> Option<f32> {
-    debug_env().rain_clock.clone().and_then(|v| v.parse::<f32>().ok()).or_else(crate::dev_hooks::rain_clock_override)
+    debug_env()
+        .rain_clock
+        .clone()
+        .and_then(|v| v.parse::<f32>().ok())
+        .or_else(crate::dev_hooks::rain_clock_override)
 }
 
 impl Drive {
@@ -17,13 +21,14 @@ impl Drive {
     /// 0x581830 → 0x5815D0 → 0x60A9B0 → 0x5FF700, then World_Start), so it
     /// starts them as a new drive does. Observed under Wine: resuming a
     /// career read 1.93 s on the first in-world frame.
-    pub(crate) fn restart_clock(&mut self) {
-        self.clock = rain_clock().unwrap_or(1.0);
+    pub(crate) fn restart_clock(&mut self, test_clock: Option<f32>) {
+        let start = rain_clock().or(test_clock);
+        self.clock = start.unwrap_or(1.0);
         self.world_clock = Default::default();
         // The human controller is rebuilt with the world (node +0x0C 0,
         // way flag 1: 0x40F630).
         self.human_road = Default::default();
-        self.time_of_day = rain_clock().map_or_else(TimeOfDay::default, |c| TimeOfDay::default().after(c - 1.0));
+        self.time_of_day = start.map_or_else(TimeOfDay::default, |c| TimeOfDay::default().after(c - 1.0));
         nfsu2::weather::set_clock(&self.world, self.clock);
     }
 

@@ -434,7 +434,11 @@ pub(crate) fn run(game: &mut Game, t: &crate::shell::cli::MapTest, run: &SimRun)
         }
     };
     let mut s = Streamer::new(sink);
-    let why = match game.simulate(t, run, &mut s, &|| quit.load(std::sync::atomic::Ordering::Relaxed)) {
+    // Studio's link (`--studio-link`): the run answers a probe and ends on a
+    // stop command, besides `quit` on standard input.
+    let link = std::cell::RefCell::new(t.link.clone().map(crate::shell::studio_link::Link::new));
+    let stop = || quit.load(std::sync::atomic::Ordering::Relaxed) || link.borrow_mut().as_mut().is_some_and(|l| l.poll_headless());
+    let why = match game.simulate(t, run, &mut s, &stop) {
         Ok(why) => why.to_string(),
         Err(e) => format!("error {e:#}"),
     };
