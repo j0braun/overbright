@@ -244,3 +244,44 @@ fn replay_extended_cameras_follow_the_native_six() {
         .collect();
     assert_eq!(seq, [1, 2, 3, 4, 5, 0, 1]);
 }
+
+/// #240: in a replay the player's car is left out of the draw only while
+/// the replay's view is the chase mover on a view that hides the car (the
+/// player's bumper view); a route track camera and a typed one (Jump,
+/// Burnout ...) are track movers (0x12) that always show the car, and with
+/// it its shadow and neon (one test, `view_leaves_out_player`).
+#[test]
+#[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
+fn replay_track_cameras_show_the_players_car_in_the_bumper_view() {
+    crate::tests::testkit::game();
+    let mut game = super::rivals_ahead::career_at(0, 0);
+    // Driven in the chase view: the replay's automatic camera still picks
+    // among all five views (the bumper too, `ReplayCamera::direct`).
+    game.settings.players[0].camera = 3;
+    let e = game.game_data.career.events.iter().position(|e| e.unlock == dday::STAGE0_RACES[0]).unwrap();
+    game.start_race(e, false, false).unwrap();
+    while game.scenes.shop.is_some() && matches!(game.mode, Mode::Race(_)) {
+        game.advance_for(1.0 / 60.0).unwrap();
+    }
+    let d = game.sim.drive.as_mut().unwrap();
+    assert!(!view_leaves_out_player(&game.mode, d, None, false), "driving in the chase view shows the car");
+    d.chase = ChaseCamera::new(&d.car, VIEW_ORDER[0]);
+    let Mode::Race(r) = &mut game.mode else { panic!("racing") };
+    r.replay.playback = Some(Playback::default());
+    let hidden = |game: &Game, photo| view_leaves_out_player(&game.mode, game.sim.drive.as_ref().unwrap(), None, photo);
+    assert!(hidden(&game, false), "replay on the bumper chase view");
+    let Mode::Race(r) = &mut game.mode else { panic!() };
+    r.replay.playback.as_mut().unwrap().typed_shot = Some(nfsu2::track_camera::TypedShot { group: 0, track: 0, start: 0.0, mirror: false });
+    assert!(!hidden(&game, false), "replay on a typed track camera shows the car");
+    let Mode::Race(r) = &mut game.mode else { panic!() };
+    let p = r.replay.playback.as_mut().unwrap();
+    p.typed_shot = None;
+    p.camera.index = 6;
+    assert!(!hidden(&game, false), "replay on an extra camera shows the car");
+    let Mode::Race(r) = &mut game.mode else { panic!() };
+    r.replay.playback.as_mut().unwrap().camera.index = 0;
+    assert!(!hidden(&game, true), "photo mode shows the car");
+    let d = game.sim.drive.as_mut().unwrap();
+    d.chase = ChaseCamera::new(&d.car, VIEW_ORDER[1]);
+    assert!(!hidden(&game, false), "replay on the hood view shows the car");
+}

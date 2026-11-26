@@ -205,7 +205,8 @@ pub(crate) fn view_leaves_out_player(mode: &Mode, drive: &Drive, scene: Option<&
 
 /// The type of the first player's camera mover (player +0x238 → +0x0C, the
 /// type Camera_Factory 0x5F1FE0 built) for the views the clone has: the
-/// showcase's 0x14 (0x501290), a replay's track camera 0x12 (0x5FB5B2),
+/// showcase's 0x14 (0x501290), a replay's track camera 0x12 (0x5FB5B2; a
+/// route track or a typed one, both are the director's `was` shot),
 /// else the chase camera 1. (The game's others: 0x0D / 0x0E the look-back
 /// and nearby-object keys 0x7F / 0x80 (0x602BE0), 0x0F / 0x10 the jump
 /// cameras of racer +0x58 = 6 / 7 (0x604750), 0x11 input mode 5
@@ -221,7 +222,7 @@ pub(crate) fn native_mover_type(mode: &Mode, drive: Option<&Drive>) -> u32 {
         Mode::Race(r) if r.replay.playback.as_ref().is_some_and(|p| p.camera.index >= 6) => {
             0x200 + r.replay.playback.as_ref().map_or(0, |p| p.camera.index as u32)
         }
-        Mode::Race(r) if r.replay.playback.as_ref().is_some_and(|p| p.track.shot.is_some()) => 0x12,
+        Mode::Race(r) if r.replay.playback.as_ref().is_some_and(|p| p.track.shot.is_some() || p.typed_shot.is_some()) => 0x12,
         // The crash / jump camera (Camera_Factory 0x0F / 0x10).
         Mode::Race(r) if r.camera.shot.as_ref().is_some_and(|s| s.visible) && r.replay.playback.is_none() => {
             if r.camera.events.kind == 7 {
