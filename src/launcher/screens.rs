@@ -1520,49 +1520,60 @@ fn build_dev(b: &mut Builder, m: &Model) {
     message(b, m);
     let left_bottom = b.y;
     if let Some(r) = cols.right {
-        let cli = if m.studio_cli_here {
-            "overbright-studio-cli, beside the launcher: Studio's edits and checks from a shell or a script, one \
-             command per edit, with JSON output. Run it in a terminal; \"overbright-studio-cli help\" lists every \
-             command. Open folder shows where it is."
-        } else {
-            "overbright-studio-cli: Studio's edits and checks from a shell or a script. It is not beside the \
-             launcher in this copy of Overbright."
-        };
-        let state_help = studio_state_help(m);
-        let (h, t) = match b.st.focus.unwrap_or(dev_focus(m)) {
-            "support" => (
-                "Support file",
-                "One text file for a bug report: this computer, the game's check, the settings and the last logs, \
-                 with your home folder left out. It is saved in the logs folder.",
-            ),
-            "dev_logs" => ("Logs folder", "The game's and the launcher's logs, crash reports and support files."),
-            "studio" => (
-                "Studio (preview)",
-                "Overbright Studio in its own window: the place where mods are made. The map editor is its World \
-                 workspace. It is a preview: not every part is finished; keep a copy of mods you care about.",
-            ),
-            "studio_cli" => ("Command-line tool", cli),
-            "studio_state" => ("Studio", state_help.as_str()),
-            "studio_last" => (
-                "Last mod",
-                "The mod opened last in Studio's World workspace or in the map editor (they keep one list). Studio \
-                 lists it on its Home.",
-            ),
-            "map_editor" => (
-                "Standalone map editor (preview)",
-                "The desktop map editor on its own, without Studio: props, custom races, test runs in the game and \
-                 AI simulations. It is a preview: not every part is finished.",
-            ),
-            _ => (
-                "Editor tools",
-                "Starts the game once with --editor: F7 opens the texture editor, F8 the free camera. Your next \
-                 start from Play is a normal one. F3 shows the performance overlay in every start.",
-            ),
-        };
-        b.describe(r, h, t);
+        let id = b.st.focus.unwrap_or(dev_focus(m));
+        let (h, t) = dev_help(m, id).unwrap_or_else(|| dev_help(m, "editor_play").expect("a row"));
+        b.describe(r, h, &t);
     }
     b.y = left_bottom.max(b.widgets.last().map_or(0.0, |w| w.rect.bottom()));
     b.default_focus = Some(dev_focus(m));
+}
+
+/// What the focused row of the Dev page does, as the title and the text at the right; None for an id the page has
+/// no row for. Every focusable row has one (a test walks the page).
+pub fn dev_help(m: &Model, id: &str) -> Option<(&'static str, String)> {
+    let r = |title: &'static str, text: &str| Some((title, text.to_string()));
+    match id {
+        "support" => r(
+            "Support file",
+            "One text file for a bug report: this computer, the game's check, the settings and the last logs, \
+             with your home folder left out. It is saved in the logs folder.",
+        ),
+        "open_support" => r("Open folder", "Shows the folder the support file was saved in."),
+        "dev_logs" => r("Logs folder", "The game's and the launcher's logs, crash reports and support files."),
+        "studio" => r(
+            "Studio (preview)",
+            "Overbright Studio in its own window: the place where mods are made. The map editor is its World \
+             workspace. It is a preview: not every part is finished; keep a copy of mods you care about.",
+        ),
+        "studio_cli" if m.studio_cli_here => r(
+            "Command-line tool",
+            "overbright-studio-cli, beside the launcher: Studio's edits and checks from a shell or a script, one \
+             command per edit, with JSON output. Run it in a terminal; \"overbright-studio-cli help\" lists every \
+             command. Open folder shows where it is.",
+        ),
+        "studio_cli" => r(
+            "Command-line tool",
+            "overbright-studio-cli: Studio's edits and checks from a shell or a script. It is not beside the \
+             launcher in this copy of Overbright.",
+        ),
+        "studio_state" => Some(("Studio", studio_state_help(m))),
+        "studio_last" => r(
+            "Last mod",
+            "The mod opened last in Studio's World workspace or in the map editor (they keep one list). Studio \
+             lists it on its Home.",
+        ),
+        "map_editor" => r(
+            "Standalone map editor (preview)",
+            "The desktop map editor on its own, without Studio: props, custom races, test runs in the game and \
+             AI simulations. It is a preview: not every part is finished.",
+        ),
+        "editor_play" => r(
+            "Editor tools",
+            "Starts the game once with --editor: F7 opens the texture editor, F8 the free camera. Your next \
+             start from Play is a normal one. F3 shows the performance overlay in every start.",
+        ),
+        _ => None,
+    }
 }
 
 /// The Dev page's first focus: Studio's button (the page leads there), its
@@ -2093,6 +2104,36 @@ pub struct ModLine {
     pub note: Option<(Mark, String)>,
 }
 
+/// The map mod Studio opens for the row `id`: a map mod's own folder; a mod pack made from a map mod of the same
+/// name (its id is that mod's folder) when Studio is beside the launcher. None: Studio cannot open this row.
+pub fn studio_target(m: &Model, id: &str) -> Option<String> {
+    if let Some(i) = MAP_IDS.iter().position(|p| *p == id) {
+        return m.mods.maps.get(i).map(|r| r.folder.clone());
+    }
+    let i = MODPACK_IDS.iter().position(|p| *p == id)?;
+    let pack = m.mods.packs.get(i)?;
+    m.mods.maps.iter().find(|r| r.folder == pack.id).map(|r| r.folder.clone())
+}
+
+/// The warning under a refused mod pack: why it is not used and, when Studio can open the mod it was made from,
+/// where to repair it.
+fn refused_words(m: &Model, id: &str, name: &str, why: &str) -> String {
+    if m.studio_here && m.mods.maps.iter().any(|r| r.folder == id) {
+        format!("{name} can't load: {why} · Open in Studio to repair")
+    } else {
+        format!("{name}: not used, {why}")
+    }
+}
+
+/// The row the Chosen mod buttons act on (the last one focused, else the first one shown).
+pub fn chosen_id(m: &Model) -> Option<Id> {
+    let all = mod_lines(m);
+    let kinds: Vec<ListKind> = ListKind::ALL.into_iter().filter(|k| all.iter().any(|l| l.kind == *k)).collect();
+    let filter = m.mods.filter.filter(|k| kinds.contains(k));
+    let shown: Vec<&ModLine> = all.iter().filter(|l| filter.is_none_or(|k| l.kind == k)).collect();
+    chosen_line(m, &shown).map(|l| l.id)
+}
+
 /// Every mod in one list: texture packs (Overbright's own, then imported,
 /// the loader's order), mod packs (load order, the strongest first), the HUD
 /// mod, the map mods.
@@ -2121,11 +2162,7 @@ pub fn mod_lines(m: &Model) -> Vec<ModLine> {
             detail: format!("{} · #{} · {}", ListKind::Pack.one(), i + 1, pack_detail(r)),
             on: r.on && r.refused.is_none() && live,
             enabled: live && r.refused.is_none(),
-            note: r
-                .refused
-                .as_ref()
-                .filter(|_| r.on || r.new)
-                .map(|why| (Mark::Warn, format!("{}: not used, {why}", r.name))),
+            note: r.refused.as_ref().filter(|_| r.on || r.new).map(|why| (Mark::Warn, refused_words(m, &r.id, &r.name, why))),
         });
     }
     if let Some((mark, words)) = hud_words(m) {
@@ -2243,6 +2280,7 @@ fn build_mods(b: &mut Builder, m: &Model) {
             Ctrl::button("pack_browse", "HUD folder…"),
         ],
     );
+    b.buttons(Align::Left, vec![Ctrl::Button { id: "apply", text: "Apply, don't play".into(), primary: false, enabled: !busy }]);
     if let Some(t) = &mods.busy {
         b.gap(6.0);
         b.status(Mark::Busy, t);
@@ -2334,6 +2372,32 @@ fn build_mods(b: &mut Builder, m: &Model) {
             Ctrl::Button { id: "pack_forget", text: "Forget HUD folder".into(), primary: false, enabled: is(ListKind::Hud) && !dir.is_empty() },
         ],
     );
+    let studio_free = m.studio_here && !matches!(m.studio, super::model::EditorRun::Open(_));
+    let target = chosen.and_then(|l| studio_target(m, l.id));
+    b.buttons(
+        Align::Left,
+        vec![Ctrl::Button {
+            id: "studio_mod",
+            text: "Open in Studio".into(),
+            primary: false,
+            enabled: studio_free && target.is_some() && !editing,
+        }],
+    );
+    match &m.studio {
+        super::model::EditorRun::Open(f) => {
+            let name = f.as_ref().and_then(|f| mods.maps.iter().find(|r| &r.folder == f)).map(|r| r.name.as_str());
+            b.status(
+                Mark::Busy,
+                &match name {
+                    Some(n) => format!("Studio is open on {n}. It saves as you work; this page reads the mod again when Studio closes."),
+                    None => "Studio is open. It saves as you work; this page reads the mods again when Studio closes.".into(),
+                },
+            );
+        }
+        super::model::EditorRun::Failed(e) => b.status(Mark::Error, &format!("Studio: {e}")),
+        super::model::EditorRun::Closed if target.is_some() => b.dim(STUDIO_SAVES),
+        super::model::EditorRun::Closed => {}
+    }
     b.buttons(
         Align::Left,
         vec![
@@ -2368,6 +2432,7 @@ fn build_mods(b: &mut Builder, m: &Model) {
     for l in mounted_words(m) {
         b.dim(&l);
     }
+
     if !all.iter().any(|l| l.kind == ListKind::Hud) {
         b.dim(HUD_INTRO);
     }
@@ -2422,6 +2487,14 @@ pub fn pack_detail(r: &super::model::PackRow) -> String {
 /// A map mod's line under its name: its races, prop edits and the
 /// textures it changes.
 pub fn map_detail(r: &super::model::MapRow) -> String {
+    let own = map_detail_counts(r);
+    if r.new_from_studio { format!("{own} · {NEW_FROM_STUDIO}") } else { own }
+}
+
+/// The mark on a mod made in Studio that is not turned on yet.
+pub const NEW_FROM_STUDIO: &str = "new from Studio";
+
+fn map_detail_counts(r: &super::model::MapRow) -> String {
     use super::model::count;
     let parts: Vec<String> = [(r.races, "race", "races"), (r.props, "prop edit", "prop edits"), (r.textures, "texture", "textures")]
         .into_iter()
@@ -2430,6 +2503,10 @@ pub fn map_detail(r: &super::model::MapRow) -> String {
         .collect();
     if parts.is_empty() { "Empty".into() } else { parts.join(" · ") }
 }
+
+/// Under Open in Studio: there is nothing to save by hand.
+pub const STUDIO_SAVES: &str = "Studio saves the mod as you work: there is no Save to press, and the mod stays off \
+until you turn it on here.";
 
 /// The Mods page's side note.
 pub const ABOUT_MODS: &str = "Overbright copies each mod into its own folder; your game folder and your downloads are \
@@ -3661,8 +3738,14 @@ impl<'e> App<'e> {
                     self.open_editor(f);
                 }
             }
+            (Screen::Mods, Event::Activate("apply")) => self.apply_mods(),
+            (Screen::Mods, Event::Activate("studio_mod")) => {
+                if let Some(f) = chosen_id(&self.model).and_then(|id| studio_target(&self.model, id)) {
+                    self.open_studio(Some(f));
+                }
+            }
             (Screen::Dev, Event::Activate("map_editor")) => self.open_editor(None),
-            (Screen::Dev, Event::Activate("studio")) => self.open_studio(),
+            (Screen::Dev, Event::Activate("studio")) => self.open_studio(None),
             (Screen::Dev, Event::Activate("studio_cli")) => {
                 let d = super::dirs::studio_cli_exe().parent().map(Path::to_path_buf).unwrap_or_default();
                 self.open_folder(&d);
@@ -4177,17 +4260,31 @@ impl<'e> App<'e> {
 
     /// Starts Studio on its Home (one at a time); a failed start is shown
     /// under its button.
-    pub fn open_studio(&mut self) {
+    pub fn open_studio(&mut self, folder: Option<String>) {
         if self.studio_job.is_some() {
             return;
         }
-        match self.env.start_studio(self.model.root.as_deref()) {
+        match self.env.start_studio(folder.as_deref(), self.model.root.as_deref()) {
             Ok(job) => {
                 self.studio_job = Some(job);
-                self.model.studio = super::model::EditorRun::Open(None);
+                self.model.studio = super::model::EditorRun::Open(folder);
             }
             Err(e) => self.model.studio = super::model::EditorRun::Failed(e),
         }
+    }
+
+    /// Apply only: keeps every choice about the mods (the lists are kept as they change; the HUD mod and the texture
+    /// folder are kept with the settings) and says what the game will use, without starting the game.
+    fn apply_mods(&mut self) {
+        let line = if !self.save_choices() {
+            return;
+        } else if self.model.mods.paused {
+            (Mark::Ok, "Applied: Use mods is off, so the game starts with its own files. The game was not started.".to_string())
+        } else {
+            let on = mounted_words(&self.model).join(" · ");
+            (Mark::Ok, format!("Applied: {on}. The game was not started; it uses these at its next start."))
+        };
+        self.model.mods.results = vec![line];
     }
 
     /// Studio's end: its button usable again, the map mods read again (it
@@ -4704,14 +4801,19 @@ impl<'e> App<'e> {
     /// the probe's first-run values, as the game's first start would
     /// (`model::save_choices`).
     fn save(&mut self) -> bool {
-        let first = self.model.probe.first_run().cloned();
-        let m = &mut self.model;
         if !matches!(
             self.screen,
             Screen::Main | Screen::Failure | Screen::Settings | Screen::Advanced | Screen::Recover
         ) {
             return true;
         }
+        self.save_choices()
+    }
+
+    /// Keeps the choices (the texture folder, the HUD mod, the settings) whatever the screen is.
+    fn save_choices(&mut self) -> bool {
+        let first = self.model.probe.first_run().cloned();
+        let m = &mut self.model;
         if m.choices.texture_pack != m.saved.texture_pack {
             m.pack_status = self.env.set_pack(&m.choices.texture_pack);
         }

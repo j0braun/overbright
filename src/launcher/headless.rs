@@ -51,7 +51,7 @@ pub fn named_app<'e>(env: &'e FakeEnv, fonts: &Fonts, name: &str, w: u32, h: u32
 
 /// The named states: (name, the screen it is shown on). The fake data of
 /// each comes from [`state_model`].
-pub const STATES: [(&str, Screen); 91] = [
+pub const STATES: [(&str, Screen); 94] = [
     ("no-game", Screen::FirstRun),
     ("check-ok", Screen::Check),
     ("check-movies", Screen::Check),
@@ -143,6 +143,9 @@ pub const STATES: [(&str, Screen); 91] = [
     ("mods-order", Screen::Mods),
     ("mods-inside", Screen::Mods),
     ("mods-try-ended", Screen::Mods),
+    ("mods-studio-open", Screen::Mods),
+    ("mods-repair", Screen::Mods),
+    ("mods-applied", Screen::Mods),
 ];
 
 /// A checked fake install: the key files `missing` and `different`, the
@@ -514,6 +517,38 @@ pub fn state_model(name: &str) -> Option<(Screen, Model)> {
                     dir: "/home/player/.local/share/overbright/tries/docks-remix-2026-11-25-18-04-12".into(),
                 },
             ));
+        }
+        // A map mod open in Studio (started from the row): the auto-save note and the greyed button.
+        "mods-studio-open" => {
+            m.mods.cur = Some("mp0");
+            m.mods.map_sel = Some("drift-park".into());
+            m.studio = super::model::EditorRun::Open(Some("drift-park".into()));
+            m.studio_seen.held = vec![fake_held("drift-park", super::studio_seen::STUDIO)];
+        }
+        // A refused pack that was made from a map mod: the repair message, Open in Studio ready.
+        "mods-repair" => {
+            let i = m.mods.packs.iter().position(|r| r.id == "docks-remix").unwrap_or(0);
+            m.mods.packs[i].on = true;
+            m.mods.packs[i].refused = Some("3 street objects were made for a different game version".into());
+            m.mods.maps.push(super::model::MapRow {
+                folder: "docks-remix".into(),
+                name: "Docks remix".into(),
+                on: false,
+                races: 1,
+                props: 3,
+                textures: 0,
+                new_from_studio: false,
+            });
+            m.mods.cur = Some(super::screens::MODPACK_IDS[i]);
+            m.mods.pack_sel = Some("docks-remix".into());
+        }
+        "mods-applied" => {
+            m.mods.results = vec![(
+                Mark::Ok,
+                "Applied: Mod packs (strongest first): Docks remix, Cone pack · Map mods: Drift park. The game was \
+                 not started; it uses these at its next start."
+                    .into(),
+            )];
         }
         "mods-order" => {
             m.mods.list.iter_mut().for_each(|(e, _)| e.on = true);

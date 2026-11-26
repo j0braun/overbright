@@ -2427,7 +2427,7 @@ fn mods_on_overbright_packs_and_map_mods() {
     let maps = crate::tools::map::store::maps_dir();
     let m = crate::tools::map::MapMod { name: "Drift park".into(), ..Default::default() };
     crate::tools::map::store::save(&maps, "drift-park", &m).unwrap();
-    assert_eq!(env.maps(), [super::model::MapRow { folder: "drift-park".into(), name: "Drift park".into(), on: false, races: 0, props: 0, textures: 0 }]);
+    assert_eq!(env.maps(), [super::model::MapRow { folder: "drift-park".into(), name: "Drift park".into(), on: false, races: 0, props: 0, textures: 0, new_from_studio: false }]);
     env.set_map("drift-park", true).unwrap();
     assert!(env.maps()[0].on);
     // Its painted textures: counted on the row, exported, imported back
@@ -3551,4 +3551,150 @@ fn mods_texture_pack_reorder_never_crosses_kinds() {
     assert_eq!(ids(&a).1, ["garage-redux", "roads-hd"]);
     assert_eq!(ids(&a).0, ["night-roads"]);
     assert_eq!(focus(&a), super::screens::PACK_IDS[n + 1]);
+}
+
+/// "Open in Studio" on the Mods page: a map mod's row starts Studio on that mod (one Studio at a time, the
+/// button greyed and the auto-save note said while it is open), the row of a mod pack made from a map mod does
+/// the same, a row Studio cannot open leaves the button greyed, and the page reads the mods again when Studio
+/// closes. Nothing real is started: the fake data's editor stands in.
+#[test]
+fn mods_page_opens_a_mod_in_studio() {
+    use super::model::{EditorRun, FakeEditor};
+    let fonts = Fonts::new();
+    let env = FakeEnv;
+    let mut a = app(&env, &fonts, Screen::Mods, 1280, 720, 1.0);
+    // A texture row: nothing for Studio to open.
+    a.model.mods.cur = Some("pk0");
+    a.rebuild(&fonts);
+    assert!(!a.ui.get("studio_mod").unwrap().enabled, "{}", all_text(&a));
+    // A map mod: Studio opens it by its folder.
+    a.model.mods.cur = Some("mp1");
+    a.rebuild(&fonts);
+    assert!(a.ui.get("studio_mod").unwrap().enabled);
+    assert!(all_text(&a).contains("Studio saves the mod as you work"), "the auto-save note: {}", all_text(&a));
+    a.event(&Event::Activate("studio_mod"));
+    a.rebuild(&fonts);
+    assert_eq!(a.model.studio, EditorRun::Open(Some("open-docks".into())));
+    assert!(a.studio_job.is_some());
+    assert!(!a.ui.get("studio_mod").unwrap().enabled, "one Studio at a time");
+    let t = all_text(&a);
+    assert!(t.contains("Studio is open on Open docks. It saves as you work"), "{t}");
+    assert!(!t.contains("there is no Save to press"), "the note gives way to the state: {t}");
+    // It closes: usable again, the mods read again.
+    let end = std::rc::Rc::new(std::cell::Cell::new(Some(Ok(()))));
+    a.studio_job = Some(Box::new(FakeEditor(end)));
+    assert!(a.poll_jobs(&fonts));
+    assert_eq!(a.model.studio, EditorRun::Closed);
+    assert!(a.ui.get("studio_mod").unwrap().enabled);
+    // Studio not beside the launcher: greyed.
+    a.model.studio_here = false;
+    a.rebuild(&fonts);
+    assert!(!a.ui.get("studio_mod").unwrap().enabled);
+    // A refused pack made from a map mod of the same name: the repair message, and its button.
+    let mut b = super::headless::state_app(&env, &fonts, "mods-repair", 1280, 720, 1.0).unwrap();
+    let t = all_text(&b);
+    assert!(
+        t.contains("Docks remix can't load: 3 street objects were made for a different game version · Open in Studio to repair"),
+        "{t}"
+    );
+    assert!(b.ui.get("studio_mod").unwrap().enabled);
+    b.event(&Event::Activate("studio_mod"));
+    assert_eq!(b.model.studio, EditorRun::Open(Some("docks-remix".into())));
+    // A refused pack with no mod behind it, or without Studio: the plain line.
+    let mut c = super::headless::state_app(&env, &fonts, "mods-repair", 1280, 720, 1.0).unwrap();
+    c.model.studio_here = false;
+    c.rebuild(&fonts);
+    let t = all_text(&c);
+    assert!(t.contains("Docks remix: not used, 3 street objects") && !t.contains("to repair"), "{t}");
+    assert!(!c.ui.get("studio_mod").unwrap().enabled);
+}
+
+/// The real start: `overbright-studio --mod <folder>` (a stand-in named by OB_STUDIO_EXE) with the game folder as
+/// NFSU2_ROOT; from the Dev page, Studio starts on its Home with no `--mod`.
+#[cfg(unix)]
+#[test]
+fn studio_starts_with_the_mod_and_the_game_folder() {
+    use super::model::{Env, RealEnv};
+    use std::os::unix::fs::PermissionsExt;
+    let dir = std::env::temp_dir().join(format!("ob-launcher-studio-{}", crate::unique_tag()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let exe = dir.join("overbright-studio");
+    std::fs::write(&exe, "#!/bin/sh\necho \"$* root=$NFSU2_ROOT\" >> \"$(dirname \"$0\")/args\"\n").unwrap();
+    std::fs::set_permissions(&exe, std::fs::Permissions::from_mode(0o755)).unwrap();
+    // SAFETY: only Studio's start reads this variable.
+    unsafe { std::env::set_var("OB_STUDIO_EXE", &exe) };
+    let root = std::path::Path::new("/games/nfsu2");
+    for folder in [Some("drift-park"), None] {
+        let mut job = RealEnv.start_studio(folder, Some(root)).unwrap();
+        let t0 = std::time::Instant::now();
+        let end = loop {
+            if let Some(e) = job.poll() {
+                break e;
+            }
+            assert!(t0.elapsed().as_secs() < 20);
+            std::thread::sleep(std::time::Duration::from_millis(20));
+        };
+        assert_eq!(end, Ok(()));
+    }
+    assert_eq!(std::fs::read_to_string(dir.join("args")).unwrap(), "--mod drift-park root=/games/nfsu2\n root=/games/nfsu2\n");
+    unsafe { std::env::set_var("OB_STUDIO_EXE", dir.join("missing")) };
+    assert!(RealEnv.start_studio(None, None).err().unwrap().contains("could not be started"));
+    unsafe { std::env::remove_var("OB_STUDIO_EXE") };
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// A mod made in Studio and not turned on yet says "new from Studio" in its row; one that was turned on does not.
+#[test]
+fn a_new_mod_from_studio_is_marked() {
+    let fonts = Fonts::new();
+    let env = FakeEnv;
+    let a = app(&env, &fonts, Screen::Mods, 1280, 720, 1.0);
+    let t = all_text(&a);
+    assert!(t.contains("14 prop edits · 5 textures · new from Studio"), "{t}");
+    assert_eq!(t.matches("new from Studio").count(), 1, "{t}");
+    let mut b = app(&env, &fonts, Screen::Mods, 1280, 720, 1.0);
+    b.model.mods.maps[1].new_from_studio = false;
+    b.rebuild(&fonts);
+    assert!(!all_text(&b).contains("new from Studio"));
+}
+
+/// Apply, don't play: keeps the choices and says what the game will use, and starts nothing.
+#[test]
+fn apply_only_keeps_the_mods_without_starting_the_game() {
+    let fonts = Fonts::new();
+    let env = FakeEnv;
+    let mut a = app(&env, &fonts, Screen::Mods, 1280, 720, 1.0);
+    assert!(a.ui.get("apply").unwrap().enabled);
+    let o = a.event(&Event::Activate("apply"));
+    assert_eq!(o, Outcome::Stay, "the game is not started");
+    a.rebuild(&fonts);
+    let t = all_text(&a);
+    assert!(t.contains("Applied: ") && t.contains("The game was not started"), "{t}");
+    assert!(a.studio_job.is_none() && a.model.play_args.is_empty());
+    // Use mods off: the line says the game starts with its own files.
+    a.model.mods.paused = true;
+    a.event(&Event::Activate("apply"));
+    a.rebuild(&fonts);
+    assert!(all_text(&a).contains("Use mods is off"), "{}", all_text(&a));
+}
+
+/// Every focusable row of the Dev page has its own help (not another row's), in every state of the page.
+#[test]
+fn every_dev_row_has_its_help() {
+    let fonts = Fonts::new();
+    let env = FakeEnv;
+    for n in ["dev-studio-missing", "dev-studio-idle", "dev-studio-running", "dev-studio-elsewhere"] {
+        let mut a = super::headless::state_app(&env, &fonts, n, 1280, 720, 1.0).unwrap();
+        a.model.support = Some(std::path::PathBuf::from("/logs/support.txt"));
+        a.rebuild(&fonts);
+        let ids: Vec<super::ui::Id> = a.ui.focus_order();
+        assert!(ids.len() >= 7, "{n}: {ids:?}");
+        for id in ids {
+            let (title, text) = super::screens::dev_help(&a.model, id).unwrap_or_else(|| panic!("{n}: {id} has no help"));
+            assert!(!title.is_empty() && text.len() > 20, "{n}: {id}");
+            a.st.focus = Some(id);
+            a.rebuild(&fonts);
+            assert!(all_text(&a).contains(&text[..20]), "{n}: {id}'s help is shown: {}", all_text(&a));
+        }
+    }
 }

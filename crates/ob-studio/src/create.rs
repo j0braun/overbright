@@ -223,6 +223,9 @@ pub fn create_from(
     let text = format!("# Overbright map editor: this mod's view (not part of the mod).\nregion = \"{region}\"\n");
     ob_core::platform::fs::write_atomic(&view, text.as_bytes(), false)
         .map_err(|e| Refused::Disk(format!("{}: {e}", view.display())))?;
+    // The launcher marks the mod "new from Studio" until it is turned on (a best-effort note, nothing depends on it).
+    let note = store::editor_dir(maps, folder).join(store::NEW_FROM_STUDIO);
+    let _ = ob_core::platform::fs::write_atomic(&note, b"Made in Overbright Studio; off until turned on in the launcher.\n", false);
     Ok(dir)
 }
 
@@ -286,6 +289,18 @@ mod tests {
         assert_eq!(plan(&maps, "harbour EDITS", Some("other")), Err(Refused::NameUsed("harbour-edits".into())));
         assert!(create(&maps, "harbour-edits", "", REGION).is_err(), "never over an existing mod");
         assert_eq!(store::read_file(&dir.join(store::FILE)).unwrap().name, "Harbour edits");
+        let _ = std::fs::remove_dir_all(&maps);
+    }
+
+    #[test]
+    fn a_new_mod_is_marked_new_until_turned_on() {
+        let maps = temp("newmark");
+        create(&maps, "fresh", "Fresh", REGION).unwrap();
+        assert!(store::new_from_studio(&maps, "fresh"));
+        store::set_enabled(&maps, "fresh", false).unwrap();
+        assert!(store::new_from_studio(&maps, "fresh"), "off again is not turned on");
+        store::set_enabled(&maps, "fresh", true).unwrap();
+        assert!(!store::new_from_studio(&maps, "fresh"));
         let _ = std::fs::remove_dir_all(&maps);
     }
 

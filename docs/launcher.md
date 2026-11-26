@@ -67,8 +67,21 @@ sits on one smoked slab; the footer has the version and the button legends of th
   `Model::play_args`), Support file (Save…) and the Logs folder (Open), the F3 overlay's key; a description of
   the focused row at the right, for every row. On the smallest windows (640 × 480, 150 % at 1280 × 720) the page
   scrolls, the focused row kept in view. The Mods page's map mod rows add "being edited in Studio" to a mod Studio
-  has open; a "new from Studio" mark for mods made in Studio is still open (Studio keeps no such mark yet).
+  has open, and "new from Studio" to a mod Studio made that has not been turned on yet (Studio's New mod writes
+  `.editor/new-from-studio`, `store::NEW_FROM_STUDIO`; turning the mod on in the launcher removes it). Every
+  focusable row has its help at the right (`screens::dev_help`; test `every_dev_row_has_its_help` walks the page in
+  each Studio state); the Dev renders did not change, so none were re-blessed.
   Advanced keeps the rest.
+- Mods page, Studio and apply-only (#85): **Open in Studio** (Chosen mod) starts `overbright-studio --mod <folder>`
+  (`Env::start_studio(folder, root)`, the Dev page's start with a folder) for the chosen map mod, or for a mod pack
+  whose id is the folder of a map mod (one Studio at a time; the page reads the mods again when it closes). Under
+  it, "Studio saves the mod as you work…" (auto-save note), or the open state while it runs. A refused mod pack made
+  from such a mod says "<name> can't load: <why> · Open in Studio to repair" (plain "not used" without Studio or
+  such a mod). **Apply, don't play** keeps the choices (HUD mod, texture folder, settings) and says what the game
+  will use, without starting it. New renders: `mods-studio-open`, `mods-repair`, `mods-applied`; every Mods render
+  was re-blessed (new button rows, the chip); no other page changed. Tests: `mods_page_opens_a_mod_in_studio`,
+  `studio_starts_with_the_mod_and_the_game_folder` (stand-in program), `a_new_mod_from_studio_is_marked`,
+  `apply_only_keeps_the_mods_without_starting_the_game`.
 - `storage` (`storage-portable`, `storage-custom`, `storage-missing`, `storage-copy-back`; Settings › Advanced ›
   Storage): Portable mode as a switch (on: asks, offers to copy what is kept now into `<program>/data`, writes
   `portable.txt`; off: asks, offers to copy back, removes `portable.txt`, the data folder stays; every copy
