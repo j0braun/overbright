@@ -116,6 +116,70 @@ impl Show {
     }
 }
 
+/// Which barrier groups a workspace's collision layer draws. In the game a barrier group is switched on by what
+/// is being played: `BARRIERS_<track>` and `PLAYER_BARRIERS_<track>` by a race on that base track (free roam is
+/// track 4000), `BARRIERS_CAREER<n>` by career stage n in free roam; group 0 is always there. World draws the
+/// permanent walls and free roam's own groups (the other races' barriers on request); Races draws the selected
+/// race's barriers over the permanent walls, dimmed.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub struct Scope {
+    pub focus: super::state::Focus,
+    /// Races: the selected race's base track (None: no race selected, no barriers).
+    pub track: Option<u16>,
+    /// World: also draw the barriers of races.
+    pub race_barriers: bool,
+}
+
+/// How a wall is drawn under a [`Scope`].
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Weight {
+    Full,
+    Dim,
+    Hidden,
+}
+
+/// The free roam track's number (its barrier groups are `BARRIERS_4000`, `PLAYER_BARRIERS_4000`).
+pub const FREE_ROAM: u16 = 4000;
+
+/// The base track a barrier group's name belongs to (`BARRIERS_4126`, `PLAYER_BARRIERS_4126`); None for the
+/// career stages' (`BARRIERS_CAREER2`) and anything else.
+pub fn group_track(name: &str) -> Option<u16> {
+    let n = name.strip_prefix("PLAYER_BARRIERS_").or_else(|| name.strip_prefix("BARRIERS_"))?;
+    n.parse().ok()
+}
+
+impl Scope {
+    /// Everything at full strength (the editor's own window).
+    pub const ALL: Scope = Scope { focus: super::state::Focus::Both, track: None, race_barriers: true };
+
+    pub fn of(s: &EditorState) -> Scope {
+        use super::state::Focus;
+        let track = s.race.and_then(|i| s.session.map.races.get(i)).map(|r| r.track);
+        Scope { focus: s.focus, track, race_barriers: s.race_barriers && s.focus == Focus::World }
+    }
+
+    /// How wall `w` of `layer` is drawn.
+    pub fn weight(&self, layer: &Layer, w: &Wall) -> Weight {
+        use super::state::Focus;
+        if self.focus == Focus::Both {
+            return Weight::Full;
+        }
+        let track = if w.group == 0 { None } else { group_track(layer.group_name(w.group)) };
+        match (self.focus, w.group) {
+            (Focus::World, 0) => Weight::Full,
+            (Focus::World, _) => match track {
+                Some(n) if n != FREE_ROAM && !self.race_barriers => Weight::Hidden,
+                _ => Weight::Full,
+            },
+            (_, 0) => Weight::Dim,
+            _ => match (track, self.track) {
+                (Some(n), Some(r)) if n == r => Weight::Full,
+                _ => Weight::Hidden,
+            },
+        }
+    }
+}
+
 /// The layer's colours, the overlays' semantic ones: red for invisible
 /// walls (what a player runs into unwarned), amber for the switched race
 /// and career barriers, neutral for the rest.
@@ -228,17 +292,18 @@ impl super::app::Overlay for CollisionOverlay {
                 poly(proj, painter, &top, false, colour::SELECT, 2.0);
             }
         }
+        let scope = Scope::of(s);
         let layer = self.layer(s);
         match s.view {
-            View::ThreeD => paint_3d(layer, show, &Overlay::new(painter, &s.camera, rect)),
+            View::ThreeD => paint_3d(layer, show, &scope, &Overlay::new(painter, &s.camera, rect)),
             View::Map => {
                 if let Some((centre, scale, map)) = map {
-                    paint_map(layer, show, painter, centre, scale, map);
+                    paint_map(layer, show, &scope, painter, centre, scale, map);
                 }
             }
         }
         let floors = s.view == View::ThreeD && s.camera.fov_y >= 5f32.to_radians();
-        legend(layer, show, floors, painter, rect);
+        legend(layer, show, &scope, floors, painter, rect);
         taken
     }
 }
@@ -552,6 +617,7 @@ pub fn surface_under(s: &EditorState, p: Vec3) -> u8 {
 fn pick_input(o: &mut CollisionOverlay, s: &mut EditorState, ctx: &egui::Context, rect: Rect, proj: &Proj) -> bool {
     let Some((at, ground)) = pressed_ground(o, s, ctx, rect, proj, false) else { return false };
     let show = s.collision;
+    let scope = Scope::of(s);
     let camera = s.camera;
     let layer = o.layer(s);
     let ov = |p: Vec3| super::camera::project(&camera, rect, p);
@@ -570,7 +636,7 @@ fn pick_input(o: &mut CollisionOverlay, s: &mut EditorState, ctx: &egui::Context
     let mut best: Option<(f32, u32)> = None;
     for &i in &walls {
         let w = &layer.walls[i as usize];
-        if parts(w, show).is_empty() {
+        if parts(layer, w, show, &scope).is_empty() {
             continue;
         }
         if proj.is_2d() {
@@ -769,15 +835,20 @@ pub fn panel(s: &mut EditorState, ui: &mut egui::Ui) -> bool {
 }
 
 /// The parts of `w` drawn under `show`: (t0, t1, colour).
-fn parts(w: &Wall, show: Show) -> Vec<(f32, f32, Color32)> {
+fn parts(layer: &Layer, w: &Wall, show: Show, scope: &Scope) -> Vec<(f32, f32, Color32)> {
     let mut out = Vec::new();
+    let weight = scope.weight(layer, w);
+    if weight == Weight::Hidden {
+        return out;
+    }
+    let dim = |c: Color32| if weight == Weight::Dim { c.gamma_multiply(0.3) } else { c };
     if w.group != 0 {
         out.push((0.0, 1.0, key::BARRIER));
         return out;
     }
-    out.extend(w.bare.iter().map(|&(a, b)| (a, b, key::INVISIBLE)));
+    out.extend(w.bare.iter().map(|&(a, b)| (a, b, dim(key::INVISIBLE))));
     if show == Show::All {
-        out.extend(w.covered().into_iter().map(|(a, b)| (a, b, key::VISIBLE)));
+        out.extend(w.covered().into_iter().map(|(a, b)| (a, b, dim(key::VISIBLE))));
     }
     out
 }
@@ -789,7 +860,7 @@ pub fn floor_colour(f: &collision::Floor) -> Color32 {
 
 /// The walls (and floors) around the camera in the 3D view: each part a
 /// see-through quad with its outline.
-pub fn paint_3d(layer: &Layer, show: Show, o: &Overlay) {
+pub fn paint_3d(layer: &Layer, show: Show, scope: &Scope, o: &Overlay) {
     let cam = o.camera.position;
     if o.camera.fov_y < 5f32.to_radians() {
         // The top-down overview (T): seen from far above, a wall is its
@@ -800,7 +871,7 @@ pub fn paint_3d(layer: &Layer, show: Show, o: &Overlay) {
             let q = w.quad(t0, t1);
             Some((o.at(q[0])?, o.at(q[1])?))
         };
-        foot_lines(layer, &walls, show, o.painter, &feet);
+        foot_lines(layer, &walls, show, scope, o.painter, &feet);
         return;
     }
     let reach = (WALLS_NEAR + cam.z.max(0.0) * 1.5).min(WALLS_FAR);
@@ -819,8 +890,8 @@ pub fn paint_3d(layer: &Layer, show: Show, o: &Overlay) {
         if (w.a.distance(cam.truncate())).min(w.b.distance(cam.truncate())) > reach + w.length() {
             continue;
         }
-        for (t0, t1, c) in parts(w, show) {
-            let alpha = if c == key::VISIBLE { 40 } else { 70 };
+        for (t0, t1, c) in parts(layer, w, show, scope) {
+            let alpha = if c.a() < 255 { 20 } else if c == key::VISIBLE { 40 } else { 70 };
             quad(o, &w.quad(t0, t1), Some(key::fill(c, alpha)), c, 1.5);
         }
         drawn += 1;
@@ -866,13 +937,13 @@ fn thick(screen: &[Pos2]) -> bool {
 
 /// The walls on the Map: each part a line along its foot (`centre` and
 /// `scale` the map's, `map` its rectangle).
-pub fn paint_map(layer: &Layer, show: Show, painter: &egui::Painter, centre: Vec2, scale: f32, map: Rect) {
+pub fn paint_map(layer: &Layer, show: Show, scope: &Scope, painter: &egui::Painter, centre: Vec2, scale: f32, map: Rect) {
     let c = map.center();
     let to = |p: Vec2| Pos2::new(c.x + (p.x - centre.x) * scale, c.y - (p.y - centre.y) * scale);
     let half = Vec2::new(map.width(), map.height()) * 0.5 / scale;
     let (walls, _) = layer.near(centre - half, centre + half);
     let feet = |w: &Wall, t0: f32, t1: f32| Some((to(w.a + (w.b - w.a) * t0), to(w.a + (w.b - w.a) * t1)));
-    foot_lines(layer, &walls, show, painter, &feet);
+    foot_lines(layer, &walls, show, scope, painter, &feet);
 }
 
 /// The parts of `walls` as lines along their feet (`feet` puts a part on
@@ -881,21 +952,22 @@ fn foot_lines(
     layer: &Layer,
     walls: &[u32],
     show: Show,
+    scope: &Scope,
     painter: &egui::Painter,
     feet: &dyn Fn(&Wall, f32, f32) -> Option<(Pos2, Pos2)>,
 ) {
     let mut lines: Vec<(Pos2, Pos2, Color32)> = Vec::new();
     for &i in walls {
         let w = &layer.walls[i as usize];
-        for (t0, t1, colour) in parts(w, show) {
+        for (t0, t1, colour) in parts(layer, w, show, scope) {
             if let Some((a, b)) = feet(w, t0, t1) {
                 lines.push((a, b, colour));
             }
         }
     }
-    lines.sort_by_key(|l| if l.2 == key::VISIBLE { 0 } else { 1 });
+    lines.sort_by_key(|l| if l.2.a() < 255 || l.2 == key::VISIBLE { 0 } else { 1 });
     for (a, b, colour) in lines {
-        if colour == key::VISIBLE {
+        if colour == key::VISIBLE || colour.a() < 255 {
             painter.line_segment([a, b], Stroke::new(1.0, colour));
         } else {
             // A part shorter than a pixel still shows as a dot.
@@ -908,11 +980,17 @@ fn foot_lines(
 /// The colour key at the view's bottom right (the overview's scale line
 /// holds the bottom left), on the overlays' dark fill.
 /// `floors`: the view draws the floors (the 3D view does, the Map not).
-pub fn legend(layer: &Layer, show: Show, floors: bool, painter: &egui::Painter, rect: Rect) {
+pub fn legend(layer: &Layer, show: Show, scope: &Scope, floors: bool, painter: &egui::Painter, rect: Rect) {
     let counts = layer.counts();
+    let barriers = layer.walls.iter().filter(|w| w.group != 0 && scope.weight(layer, w) == Weight::Full).count();
+    let barrier_title = match scope.focus {
+        super::state::Focus::Races => "This race's barriers",
+        super::state::Focus::World if !scope.race_barriers => "Free roam and career barriers",
+        _ => "Race and career barriers",
+    };
     let mut rows = vec![
         (key::INVISIBLE, format!("Invisible walls ({})", counts.invisible)),
-        (key::BARRIER, format!("Race and career barriers ({})", counts.barriers)),
+        (key::BARRIER, format!("{barrier_title} ({barriers})")),
     ];
     if show == Show::All {
         rows.push((key::VISIBLE, format!("Walls behind scenery ({})", counts.visible)));

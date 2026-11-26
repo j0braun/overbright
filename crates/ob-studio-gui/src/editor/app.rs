@@ -535,7 +535,7 @@ mod parts {
     use crate::editor::menu::{self, Command};
     use crate::editor::props::{self, Props};
     use crate::editor::races::Races;
-    use crate::editor::state::{Mode, View};
+    use crate::editor::state::{Focus, Mode, View};
     use crate::editor::{tree_props, tree_races};
 
     pub type Shared<T> = Rc<RefCell<T>>;
@@ -581,8 +581,21 @@ mod parts {
     pub struct Follow(pub Shared<Races>);
 
     impl Overlay for Follow {
-        fn overlay(&mut self, s: &mut EditorState, _: &egui::Context, _: &egui::Painter, _: egui::Rect) -> bool {
+        fn overlay(&mut self, s: &mut EditorState, _: &egui::Context, painter: &egui::Painter, rect: egui::Rect) -> bool {
             let mut r = self.0.borrow_mut();
+            match s.focus {
+                // World: the props' side only.
+                Focus::World => s.mode = Mode::Props,
+                // Races: the race's side only, the props layer dimmed under the route.
+                Focus::Races => {
+                    if s.mode == Mode::Props {
+                        s.mode = Mode::Races;
+                        s.selection.clear();
+                    }
+                    painter.rect_filled(rect, 0.0, crate::editor::theme::rgb(crate::editor::theme::tokens().page).gamma_multiply(0.5));
+                }
+                Focus::Both => {}
+            }
             if s.mode == Mode::Props && r.tool != crate::editor::races::Tool::Select {
                 r.tool = crate::editor::races::Tool::Select;
             }
@@ -735,6 +748,10 @@ mod parts {
             painter: &egui::Painter,
             rect: egui::Rect,
         ) -> bool {
+            // World: the race layers are hidden.
+            if s.focus == Focus::World {
+                return false;
+            }
             let mut r = self.races.borrow_mut();
             r.update(s);
             match s.view {
@@ -1418,6 +1435,11 @@ impl App {
             A::Collision(c) => {
                 if let Some(s) = self.state.as_mut() {
                     s.collision = c;
+                }
+            }
+            A::RaceBarriers => {
+                if let Some(s) = self.state.as_mut() {
+                    s.race_barriers = !s.race_barriers;
                 }
             }
             A::Draw(d) => {

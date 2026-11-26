@@ -122,8 +122,16 @@ pub fn show(
     }
     ui.add_space(4.0);
     egui::ScrollArea::vertical().id_salt("tree").auto_shrink([false, false]).show(ui, |ui| {
-        for b in branches.iter_mut() {
-            b.ui(s, ui);
+        // Branch 0 is Races, branch 1 Props: a workspace shows its own.
+        for (k, b) in branches.iter_mut().enumerate() {
+            let show = match s.focus {
+                super::state::Focus::Both => true,
+                super::state::Focus::World => k == 1,
+                super::state::Focus::Races => k == 0,
+            };
+            if show {
+                b.ui(s, ui);
+            }
         }
     });
     fold
@@ -132,7 +140,15 @@ pub fn show(
 /// The rail's labels: "Mod", "Races N", "Props N".
 pub fn rail_labels(s: Option<&EditorState>) -> Vec<String> {
     match s {
-        Some(s) => vec!["Mod".into(), format!("Races {}", s.session.map.races.len()), format!("Props {}", prop_count(s))],
+        Some(s) => {
+            let races = format!("Races {}", s.session.map.races.len());
+            let props = format!("Props {}", prop_count(s));
+            match s.focus {
+                super::state::Focus::Both => vec!["Mod".into(), races, props],
+                super::state::Focus::World => vec!["Mod".into(), props],
+                super::state::Focus::Races => vec!["Mod".into(), races],
+            }
+        }
         None => vec!["Mod".into()],
     }
 }
