@@ -400,6 +400,12 @@
               "type": "u32",
               "required": "no",
               "merge": false
+            },
+            {
+              "key": "hash",
+              "type": "u32",
+              "required": "no",
+              "merge": false
             }
           ]
         },
@@ -628,6 +634,48 @@
                 },
                 {
                   "key": "lights",
+                  "type": "u8",
+                  "required": "no",
+                  "merge": false
+                },
+                {
+                  "key": "gear",
+                  "type": "int",
+                  "required": "no",
+                  "merge": false
+                },
+                {
+                  "key": "rpm",
+                  "type": "f32",
+                  "required": "no",
+                  "merge": false
+                },
+                {
+                  "key": "throttle",
+                  "type": "f32",
+                  "required": "no",
+                  "merge": false
+                },
+                {
+                  "key": "brake",
+                  "type": "f32",
+                  "required": "no",
+                  "merge": false
+                },
+                {
+                  "key": "handbrake",
+                  "type": "f32",
+                  "required": "no",
+                  "merge": false
+                },
+                {
+                  "key": "steerin",
+                  "type": "f32",
+                  "required": "no",
+                  "merge": false
+                },
+                {
+                  "key": "nitrous",
                   "type": "u8",
                   "required": "no",
                   "merge": false
@@ -1633,7 +1681,7 @@
     {
       "name": "runs.telemetry",
       "kind": "read",
-      "summary": "One car's telemetry in a run: speed over time, distance from the racing line, its events",
+      "summary": "One car's telemetry in a run: speed over time, distance from the racing line, its events, and the gear, rpm and pedals of a run recorded with the drive channels",
       "args": [
         {
           "key": "run",

@@ -515,7 +515,7 @@ pub const COMMANDS: &[Command] = &[
     Command {
         name: "runs.telemetry",
         kind: CommandKind::Read,
-        summary: "One car's telemetry in a run: speed over time, distance from the racing line, its events",
+        summary: "One car's telemetry in a run: speed over time, distance from the racing line, its events, and the gear, rpm and pedals of a run recorded with the drive channels",
         args: &[RUN_NAME, f("car", U32, Req::No, "Car number (default: the player's slot, 0)")],
     },
     Command {

@@ -1,4 +1,5 @@
 {
+  "brake": null,
   "car": 2,
   "command": "runs.telemetry",
   "events": [
@@ -25,13 +26,18 @@
   ],
   "exit": 0,
   "format": 1,
+  "gear": null,
   "lateral": null,
   "name": "Golf",
   "ok": true,
   "player": false,
+  "rpm": null,
   "run": "seed1",
   "series": {
+    "brake": null,
+    "gear": null,
     "lateral": null,
+    "rpm": null,
     "speed": [
       [
         -1.0,
@@ -1013,12 +1019,16 @@
         60.0,
         20.0
       ]
-    ]
+    ],
+    "steer": null,
+    "throttle": null
   },
   "speed": {
     "max": 20.0,
     "mean": 19.67346954345703,
     "min": 0.0,
     "samples": 245
-  }
+  },
+  "steer": null,
+  "throttle": null
 }

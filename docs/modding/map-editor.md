@@ -87,7 +87,7 @@ Reset camera in the map view). Every item does something; a test checks that eac
 | File | **File ▸ New map mod…** (Ctrl+N: a name, its folder and the region), **File ▸ Open map mod…** (Ctrl+O), the five most recent mods, **File ▸ Save** (Ctrl+S), **File ▸ Mod details…** (name, author, description), **File ▸ Import…** (a mod folder, a `map.obmap` or a `.zip`), **File ▸ Export…** (a `.zip` or a folder: the map and the mod's textures, `looks.toml` and `textures/`, never `work/` or `.editor/`; textures from the original game's pixels are warned about first; it proposes `<folder>.zip` in the `exports` folder of Overbright's data folder, made on the first export, and the status line says where the file went), **File ▸ Export as mod pack…** (a `.obpk` file for the launcher's Mods page: the placements, races and textures as the asset format's own files; it proposes `<folder>-1.0.0.obpk` in the `exports` folder), **File ▸ Quit** (Ctrl+Q; saves first, and asks only when that fails) |
 | Edit | **Edit ▸ Undo** and **Edit ▸ Redo**, named by the step they undo or redo (256 steps), **Edit ▸ Duplicate**, **Edit ▸ Delete**, **Edit ▸ Select all of this solid**, **Edit ▸ Drop to ground**, **Edit ▸ Rotate 90°**, **Edit ▸ Face camera**, **Edit ▸ Draw wall**, **Edit ▸ Draw ground** (see Removed and drawn collision) |
 | View | **View ▸ 3D view**, **View ▸ Map** (M switches), **View ▸ Frame selection** (F), **View ▸ Reset camera** (the region's overview), **View ▸ Top view** (T), **View ▸ Isometric view**, **View ▸ Go to…**, **View ▸ Views ▸ Save view…** and the Views menu's **Delete view** submenu (see Hiding props, views and Go to), **View ▸ Collision ▸ Off**, **View ▸ Collision ▸ Invisible barriers** and **View ▸ Collision ▸ All collision** (see Collision), **View ▸ Collision ▸ Show race barriers** (only in Studio's World: the other races' barriers, off by default), **View ▸ Hide selected** (H), **View ▸ Isolate selected** (Shift+H), **View ▸ Show all** (Alt+H), **View ▸ This mod's changes only** (see Hiding props), **View ▸ Hint line** |
-| Race | **Race ▸ New race**, **Race ▸ Test race** (F5), **Race ▸ Drive here** (Shift+F5), **Race ▸ Restart race** (Ctrl+F5) |
+| Race | **Race ▸ New race**, **Race ▸ Test race** (F5), **Race ▸ Drive here** (Shift+F5), **Race ▸ Restart race** (Ctrl+F5), **Race ▸ Drive to record** |
 | Help | **Help ▸ Controls**: every key, made from the editor's key table |
 
 ## Controls
@@ -376,8 +376,16 @@ game --map-file <run copy> --map-at x,y,z,heading --simulate-world --stream - --
   with the race's events (below). The same seed gives the same stream, byte for byte.
 - The run ends at the race's end (every racer through), after `--sim-seconds` (default 900 for a race, 120 in
   free roam), or when standard input reads `quit` (the editor's **Stop**).
+- `--run-channels drive,hash` adds the opt-in channels to the file: each car's gear, rpm and pedals, and the
+  state hash of every tick instead of every 60 (docs/modding/asset-format/runs.md, 3.3). Without it the file is
+  as it was. Reading the channels changes nothing in the run.
 - `--stream`, `--sim-seed` and `--sim-seconds` without `--simulate` / `--simulate-world`, `--simulate` without
   `--map-race`, or `--simulate-world` without `--map-at` are usage errors.
+
+`--record <file>` (with `--map-file` or `--map-mod` and `--map-race` or `--map-at`, not with `--simulate`) makes the
+test window write the same run file as you drive it, one frame per update at any frame rate, until the race ends,
+the window closes or the run is started over by the link; `--run-channels` applies to it too. Studio's **Drive to
+record** starts the game this way (docs/modding/studio.md, "Runs"). Without the flag nothing is written.
 
 The editor reads the stream while it arrives and never waits for the game. A run shown has a **timeline** under
 the 3D view / Map (it reads only the recorded run, so it serves a saved one too): a track over everything recorded

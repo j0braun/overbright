@@ -89,11 +89,13 @@ pub enum Command {
     DriveHere,
     /// Start the open test game's run over.
     RestartTest,
+    /// Drive to record: a test run whose drive is kept as a run (Runs).
+    RecordDrive,
 }
 
 impl Command {
     /// Every command, for the test that each one has a taker.
-    pub const ALL: [Command; 12] = [
+    pub const ALL: [Command; 13] = [
         Command::Duplicate,
         Command::Delete,
         Command::SelectAllOfSolid,
@@ -106,6 +108,7 @@ impl Command {
         Command::TestRace,
         Command::DriveHere,
         Command::RestartTest,
+        Command::RecordDrive,
     ];
 
     /// What the menu item says when hovered (the test modes say who
@@ -730,6 +733,7 @@ pub fn race_items(app: &App, ui: &mut egui::Ui, _out: &mut Vec<Action>) {
     command(ui, s, "Test race", "F5", Command::TestRace);
     command(ui, s, "Drive here", "Shift+F5", Command::DriveHere);
     command(ui, s, "Restart race", "Ctrl+F5", Command::RestartTest);
+    command(ui, s, "Drive to record", "", Command::RecordDrive);
 }
 
 /// The Help menu's items.
@@ -1353,7 +1357,7 @@ mod tests {
                     s.selection = vec![0];
                     s.point = Some(RacePoint { part: RacePart::Checkpoint, index: 0 });
                     s.maps = match c {
-                        Command::TestRace | Command::DriveHere => not_a_folder.clone(),
+                        Command::TestRace | Command::DriveHere | Command::RecordDrive => not_a_folder.clone(),
                         _ => dir.path().join("maps"),
                     };
                     if c.unavailable(s).is_some() {
@@ -1364,7 +1368,7 @@ mod tests {
                     let _ = app.frame(raw());
                     assert!(app.untaken.is_empty(), "{c:?} not taken in {mode:?} / {view:?}");
                     let s = app.state.as_ref().unwrap();
-                    if matches!(c, Command::TestRace | Command::DriveHere) {
+                    if matches!(c, Command::TestRace | Command::DriveHere | Command::RecordDrive) {
                         assert!(
                             s.status.starts_with("The run copy was not written") || s.status.starts_with("Cannot test"),
                             "{c:?}: {}",

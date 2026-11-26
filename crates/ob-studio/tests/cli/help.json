@@ -854,7 +854,7 @@
         }
       ],
       "kind": "read",
-      "summary": "One car's telemetry in a run: speed over time, distance from the racing line, its events",
+      "summary": "One car's telemetry in a run: speed over time, distance from the racing line, its events, and the gear, rpm and pedals of a run recorded with the drive channels",
       "words": "runs telemetry"
     },
     {

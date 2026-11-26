@@ -400,7 +400,8 @@ impl Cli {
                     c.run = Some(match v.as_str() {
                         "test-race" => menu::Command::TestRace,
                         "drive-here" => menu::Command::DriveHere,
-                        _ => bail!("--run: `{v}` (test-race or drive-here)"),
+                        "record-drive" => menu::Command::RecordDrive,
+                        _ => bail!("--run: `{v}` (test-race, drive-here or record-drive)"),
                     });
                     // A shot never starts the real game (it would open a window).
                     ensure!(

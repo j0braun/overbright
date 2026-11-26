@@ -335,6 +335,7 @@ mod tests {
                 lift: [0.02; 4],
                 lights: LIGHT_HEAD | LIGHT_BRAKE,
             }),
+            drive: None,
         }
     }
 

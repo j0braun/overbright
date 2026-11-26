@@ -323,3 +323,42 @@ fn it_draws_at_the_review_sizes() {
         }
     }
 }
+
+/// A run recorded with the drive channels shows them as graphs beside speed and the racing line, inside the dock,
+/// and the same run's tick-hash compare names the tick the runs parted at.
+#[test]
+fn a_recorded_drive_shows_gear_and_inputs_and_compares_by_tick() {
+    use ob_studio::runs::fixtures::driven;
+    for (w, h, sys) in [(960, 600, 1.0), (1920, 1080, 1.0)] {
+        let sc = Scratch::new(&format!("runs-drive-{w}x{h}"));
+        let mut s = studio(&sc);
+        let d = dir(&s);
+        for (name, seed, at) in [("drive1", 1, 70), ("drive2", 2, 70)] {
+            let text: String = driven(seed, at).iter().map(|l| l.write() + "\n").collect();
+            std::fs::write(library::path(&d, name), text).unwrap();
+        }
+        s.runs.changed();
+        s.nav.workspace = Workspace::Runs;
+        let scale = sys * layout::ui_scale((w as f32 / sys) as u32, (h as f32 / sys) as u32);
+        frames(&mut s, (w, h), scale, 3);
+        let (sm, ctx) = (sim(&s), s.ctx.clone());
+        s.runs.open(&d, &sm, &ctx, "drive1");
+        s.runs.compare(&d, &sm, "drive2");
+        let (_, l) = frames(&mut s, (w, h), scale, 3);
+        assert!(l.problems().is_empty(), "{w}x{h}: {:?}", l.problems());
+        {
+            let b = sm.borrow();
+            let t = telemetry::of(&b.rec, 0, None);
+            assert_eq!(graphs::Channel::of(&t).len(), 6, "speed, line, gear, throttle, brake, steering");
+            let p = telemetry::parting(&b.rec, b.ghost.as_ref().unwrap(), 0);
+            assert_eq!(p.hash_tick, Some(70), "the tick itself");
+        }
+        if let Some(bottom) = l.bottom.filter(|_| matches!(l.bottom_dock, layout::Dock::Open(_))) {
+            let g = graphs::drawn(&s.ctx);
+            assert_eq!(g.len(), 6, "{w}x{h}: every channel drew");
+            for r in g {
+                assert!(r.min.x >= bottom.min.x - 1.0 && r.max.x <= bottom.max.x + 1.0, "{w}x{h}: {r:?} outside {bottom:?}");
+            }
+        }
+    }
+}

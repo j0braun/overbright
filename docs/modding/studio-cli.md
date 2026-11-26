@@ -58,7 +58,7 @@ and its schema export (`crates/ob-studio/schema/studio.json`) use, so `help` is 
 | `collision show` | read | What the World view's collision layer shows in `--mode` `off`, `invisible` (invisible walls and the race and career barriers) or `all` (default; also the walls behind scenery and the floors), counted as the window builds it; with `--mod` the mod's removed and drawn collision applies; needs the game |
 | `runs list` | read | The mod's kept runs (simulations and recordings), newest first, as the Runs workspace lists them |
 | `runs show` | read | Open a run (`--run`): its race, seed, how it ended, the results and the problems it found |
-| `runs telemetry` | read | One car's telemetry in a run (`--run`, optional `--car`, default the player's slot 0): speed over time, distance from the racing line when the mod has the run's race, its events |
+| `runs telemetry` | read | One car's telemetry in a run (`--run`, optional `--car`, default the player's slot 0): speed over time, distance from the racing line when the mod has the run's race, its events, and the gear, rpm and pedals of a run recorded with the drive channels |
 | `runs compare` | read | Compare a run with another (`--run`, `--with`, optional `--car`): the tick its state hashes part and when the car is over a metre from where the first has it |
 | `runs rename` | run | Rename a run (`--run`, `--to`); never over another run |
 | `runs delete` | run | Delete a run file (`--run`); there is no dry run and no undo |
@@ -147,8 +147,9 @@ the same words give the same answer. On a near miss (`--filter barier`, `looks f
 `runs list` gives `count` and `runs` (`run`, `what`: the race's id or `world`, `seed`, `end`, `bytes`, `time_ms`). `runs show` gives
 `what`, `seed`, `end`, `span`, `frames`, `cars`, `standings` (`car`, `name`, `place`, `time`, `best`, `laps`, `dnf`) and
 `problems`. `runs telemetry` gives `speed` and, when the mod has the run's race, `lateral` (each `samples`, `min`, `max`,
-`mean`), the car's `events` and the whole `series` (time, value). `runs compare` gives `same`, `hash_tick`, `time` and
-`apart`. A run that is not there fails with `error.reason` `no_run`, a car it does not have with `no_car`.
+`mean`), the car's `events` and the whole `series` (time, value); a run recorded with the drive channels also has `gear`
+(-1 reverse, 0 neutral), `rpm`, `throttle`, `brake` and `steer` (null in a run without them). `runs compare` gives
+`same`, `hash_tick`, `time` and `apart`. A run that is not there fails with `error.reason` `no_run`, a car it does not have with `no_car`.
 
 `data kinds` gives `kinds` (each `kind`, `rows`, `columns`). `data show` gives `kind`, `total`, `count`, `columns` (`field`,
 `label`, `type`, `editable`) and `rows`: each `key` and `cells` by column, each cell `text`, `from` (`original`, `yours` or

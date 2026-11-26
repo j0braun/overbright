@@ -55,6 +55,20 @@ pub fn game_exe() -> PathBuf {
 /// mod's texture folder `looks` (`<mod>/textures`; watched in that run, so a
 /// texture painted while it runs shows too).
 pub fn args(file: &Path, target: &Target, result: &Path, looks: &Path, link: &Path, focus: &link::Focus) -> Vec<String> {
+    run_args(file, target, result, looks, link, focus, None)
+}
+
+/// [`args`] for a run that is kept (Drive to record): the game also writes its run file to `record`, with the
+/// drive channels and the state hash of every tick (`--record`, `--run-channels`, docs/modding/studio.md, "Runs").
+pub fn run_args(
+    file: &Path,
+    target: &Target,
+    result: &Path,
+    looks: &Path,
+    link: &Path,
+    focus: &link::Focus,
+    record: Option<&Path>,
+) -> Vec<String> {
     let mut a = vec!["--map-file".to_string(), file.display().to_string()];
     match target {
         Target::Race(id) => a.extend(["--map-race".to_string(), id.clone()]),
@@ -64,6 +78,9 @@ pub fn args(file: &Path, target: &Target, result: &Path, looks: &Path, link: &Pa
     a.extend(["--looks-live".to_string(), looks.display().to_string()]);
     a.extend(["--studio-link".to_string(), link.display().to_string()]);
     a.extend(focus.args());
+    if let Some(r) = record {
+        a.extend(["--record".to_string(), r.display().to_string(), "--run-channels".to_string(), "drive,hash".to_string()]);
+    }
     a
 }
 
@@ -127,6 +144,8 @@ pub struct TestPlay {
     dir: PathBuf,
     /// The link folder (`--studio-link`).
     link: PathBuf,
+    /// The run this test keeps (Drive to record): its name in the Runs list.
+    recording: Option<String>,
     /// The last command number sent.
     seq: u64,
     /// The mod as the game was last given it.
@@ -192,6 +211,12 @@ impl TestPlay {
     /// start the game with `exe`. The editor keeps its state, unsaved
     /// changes included; only the status changes.
     pub fn start(s: &mut EditorState, exe: &Path, target: Target) -> Result<TestPlay, String> {
+        TestPlay::start_run(s, exe, target, false)
+    }
+
+    /// [`TestPlay::start`], with `record` the drive is kept as a run in the mod's runs folder
+    /// (`.editor/runs/drive-<race>.obrun`, never over another run).
+    pub fn start_run(s: &mut EditorState, exe: &Path, target: Target, record: bool) -> Result<TestPlay, String> {
         if let Some(why) = blocked(s, &target) {
             return Err(why);
         }
@@ -210,8 +235,27 @@ impl TestPlay {
             Target::At(..) => None,
         };
         let label = race.as_ref().map_or_else(|| "free roam".to_string(), |r| r.name.clone());
+        let recording = if record {
+            let base = match &target {
+                Target::Race(id) => format!("drive-{id}"),
+                Target::At(..) => "drive-free-roam".to_string(),
+            };
+            let dir = super::sim::library::dir(&s.maps, &s.session.folder);
+            let name = super::sim::library::free_name(&dir, &base)?;
+            Some((super::sim::library::path(&dir, &name), name))
+        } else {
+            None
+        };
         let child = Command::new(exe)
-            .args(args(&file, &target, &result, &s.maps.join(&s.session.folder).join(store::TEXTURES), &link, &s.run_focus))
+            .args(run_args(
+                &file,
+                &target,
+                &result,
+                &s.maps.join(&s.session.folder).join(store::TEXTURES),
+                &link,
+                &s.run_focus,
+                recording.as_ref().map(|r| r.0.as_path()),
+            ))
             .env("NFSU2_ROOT", &s.root)
             .stdin(Stdio::null())
             .stdout(Stdio::null())
@@ -219,9 +263,11 @@ impl TestPlay {
             .spawn()
             .map_err(|e| format!("The game could not start ({}): {e}", exe.display()))?;
         let unsaved = if s.session.dirty { " (testing unsaved changes)" } else { "" };
-        s.status = match &target {
-            Target::Race(_) => format!("Testing {label}…{unsaved}"),
-            Target::At(..) => format!("Driving from the camera's spot…{unsaved}"),
+        s.status = match (&target, &recording) {
+            (Target::Race(_), Some((_, n))) => format!("Recording {label} as {n}…{unsaved}"),
+            (Target::At(..), Some((_, n))) => format!("Recording a drive from the camera's spot as {n}…{unsaved}"),
+            (Target::Race(_), None) => format!("Testing {label}…{unsaved}"),
+            (Target::At(..), None) => format!("Driving from the camera's spot…{unsaved}"),
         };
         let sent = s.session.map.clone();
         Ok(TestPlay {
@@ -236,6 +282,7 @@ impl TestPlay {
             sent,
             game: None,
             slot,
+            recording: recording.map(|r| r.1),
             work: 0,
             reloading: false,
             focus_sent: s.run_focus.clone(),
@@ -378,6 +425,9 @@ pub fn poll(s: &mut EditorState, test: &mut Option<TestPlay>) -> Option<bool> {
         }
         Ended::Failed(how) => format!("The game ended without a result ({how}); see its log"),
     };
+    if let Some(name) = &t.recording {
+        s.status = format!("{} · kept as the run {name} (Runs)", s.status);
+    }
     *test = None;
     Some(marked)
 }
@@ -454,6 +504,12 @@ impl TestPanel {
             ctx.request_repaint();
         }
         let restart = super::menu::take(&ctx, super::menu::Command::RestartTest);
+        let record = super::menu::take(&ctx, super::menu::Command::RecordDrive);
+        if record && self.test.is_some() {
+            // The game writes its run from its start: the open test stays as it is.
+            s.status = "A test is open: close its game window, then Drive to record starts a new one".into();
+            return;
+        }
         if let Some(t) = self.test.as_mut() {
             let (words, quiet) = (t.link_words(), t.problem());
             if let Err(e) = t.probe_due() {
@@ -506,9 +562,10 @@ impl TestPanel {
         if restart {
             s.status = "No test is running (F5 starts one)".into();
         }
-        let target = if race {
+        let target = if race || record {
             match s.race.and_then(|k| s.session.map.races.get(k)) {
                 Some(r) => Some(Target::Race(r.id.clone())),
+                None if record => Some(drive_spot(s)),
                 None => {
                     s.status = "Choose a race to test (Races)".into();
                     None
@@ -520,7 +577,7 @@ impl TestPanel {
             None
         };
         if let Some(t) = target {
-            match TestPlay::start(s, &game_exe(), t) {
+            match TestPlay::start_run(s, &game_exe(), t, record) {
                 Ok(t) => {
                     self.test = Some(t);
                     count_start(&ctx);
@@ -606,6 +663,18 @@ mod tests {
     }
 
     #[test]
+    fn drive_to_record_asks_the_game_for_its_run_file_with_the_channels() {
+        let (r, f) = (Path::new("/m/m/.editor/test-result.txt"), Path::new("/m/m/.editor/run/map.obmap"));
+        let (l, k) = (Path::new("/m/m/textures"), Path::new("/m/m/.editor/link"));
+        let plain = args(f, &Target::Race("dock".into()), r, l, k, &link::Focus::default());
+        assert!(!plain.iter().any(|a| a.starts_with("--record")), "a test that is not recorded has no flag");
+        let rec = Path::new("/m/m/.editor/runs/drive-dock.obrun");
+        let a = run_args(f, &Target::Race("dock".into()), r, l, k, &link::Focus::default(), Some(rec));
+        assert_eq!(a[..plain.len()], plain[..], "the same test");
+        assert_eq!(a[plain.len()..], ["--record", "/m/m/.editor/runs/drive-dock.obrun", "--run-channels", "drive,hash"]);
+    }
+
+    #[test]
     fn result_lines_read() {
         let o = Outcome::parse("finished=yes place=2 of=4 time=83.412 laps=2\n");
         assert_eq!(
@@ -655,7 +724,7 @@ mod tests {
         let exe = dir.join("game");
         std::fs::write(
             &exe,
-            format!("#!/bin/sh\nsleep {pause}\nwhile [ $# -gt 0 ]; do [ \"$1\" = --map-result ] && r=$2; echo \"$1\" >> \"$(dirname \"$0\")/args\"; shift; done\necho 'finished=yes place=1 of=4 time=61.5 laps=1' > \"$r\"\n"),
+            format!("#!/bin/sh\nsleep {pause}\nwhile [ $# -gt 0 ]; do [ \"$1\" = --map-result ] && r=$2; [ \"$1\" = --record ] && w=$2; echo \"$1\" >> \"$(dirname \"$0\")/args\"; shift; done\n[ -n \"$w\" ] && printf 'OBSIM 1 schema=ob.run/1.1 mode=race seed=1 race=dock hash=1\\nEND quit\\n' > \"$w\"\necho 'finished=yes place=1 of=4 time=61.5 laps=1' > \"$r\"\n"),
         )
         .unwrap();
         std::fs::set_permissions(&exe, std::fs::Permissions::from_mode(0o755)).unwrap();
@@ -748,6 +817,53 @@ mod tests {
         assert!(Tested::load(&editor).is_tested(&store::read_file(&maps.join("my-map").join(store::FILE)).unwrap().races[0]));
         race.checkpoints[1].x += 0.5;
         assert!(!Tested::load(&editor).is_tested(&race));
+    }
+
+    /// Drive to record with a stand-in game: its run file lands in the mod's runs folder under a free name, the
+    /// game is asked for the channels, and the status says where the drive was kept; a second drive never
+    /// replaces the first.
+    #[cfg(unix)]
+    #[test]
+    fn a_recorded_drive_is_kept_as_a_run_in_the_list() {
+        let scratch = crate::testkit::Scratch::new("testplay-record");
+        let dir = scratch.path().to_path_buf();
+        let exe = stand_in(&dir, "0");
+        let mut race = CustomRace::new("dock", 4001, RaceKind::Sprint);
+        race.name = "Dock sprint".into();
+        race.checkpoints = vec![Vec2::new(1.0, 2.0), Vec2::new(30.0, 2.0)];
+        let mut s = state(&dir, MapMod { name: "Rec".into(), races: vec![race], ..Default::default() });
+        let runs = super::super::sim::library::dir(&s.maps, &s.session.folder);
+        for name in ["drive-dock", "drive-dock-2"] {
+            let mut test = None;
+            let mut tries = 0;
+            loop {
+                match TestPlay::start_run(&mut s, &exe, Target::Race("dock".into()), true) {
+                    Err(e) if e.contains("os error 26") && tries < 100 => {
+                        tries += 1;
+                        std::thread::sleep(std::time::Duration::from_millis(20));
+                    }
+                    r => break test = Some(r.unwrap()),
+                }
+            }
+            assert_eq!(s.status, format!("Recording Dock sprint as {name}…"));
+            wait(&mut s, &mut test);
+            assert!(s.status.ends_with(&format!("· kept as the run {name} (Runs)")), "{}", s.status);
+            assert!(super::super::sim::library::path(&runs, name).is_file(), "{name} is in the list");
+        }
+        let kept: Vec<String> = super::super::sim::library::list(&runs).into_iter().map(|e| e.name).collect();
+        assert_eq!(kept.len(), 2, "{kept:?}");
+        let argv = std::fs::read_to_string(dir.join("args")).unwrap();
+        assert!(argv.contains("--record\n") && argv.contains("--run-channels\ndrive,hash\n"), "{argv}");
+        // A test that is open is not turned into a recording: the command says so and starts nothing.
+        let mut panel = TestPanel::default();
+        let ctx = egui::Context::default();
+        let exe = stand_in(&dir, "5");
+        panel.test = Some(start_test(&mut s, &exe, Target::Race("dock".into())).unwrap());
+        super::super::menu::post(&ctx, super::super::menu::Command::RecordDrive);
+        let _ = crate::editor::run_headless(&ctx, egui::RawInput::default(), |ui| panel.ui(&mut s, ui));
+        assert!(s.status.starts_with("A test is open"), "{}", s.status);
+        assert_eq!(super::super::sim::library::list(&runs).len(), 2);
+        drop(panel);
     }
 
     /// Edits made while the game runs reach neither the running game's copy
