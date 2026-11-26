@@ -53,6 +53,8 @@ pub enum Act {
     OpenTexture { hash: u32, name: String },
     /// Export a model as a glTF reference for an outside 3D program (into the mod's `.editor/reference/`).
     ExportModel { solid: usize, name: String },
+    /// Bring the model's exported file, edited outside, back as a mod model (from `.editor/reference/`).
+    ImportModel { solid: usize, name: String },
 }
 
 /// What the page drew where (the layout check).
@@ -245,6 +247,14 @@ impl Page {
                 Some(Act::ExportModel { solid: m.solid, name: m.name.clone() })
             }
             Hit::Texture(_) => None,
+        }
+    }
+
+    /// What Ctrl+I does: bring the focused model's exported file back.
+    pub fn import_act(&self) -> Option<Act> {
+        match self.export_act()? {
+            Act::ExportModel { solid, name } => Some(Act::ImportModel { solid, name }),
+            _ => None,
         }
     }
 
@@ -847,6 +857,14 @@ impl Page {
                     *act = self.export_act();
                 }
                 drawn.buttons.push(er);
+                // And the edited file comes back as a mod model.
+                let ir = Rect::from_min_size(er.right_top() + vec2(8.0, 0.0), vec2(120.0, 24.0));
+                if ir.right() <= r.right() - 4.0 {
+                    if ui.put(ir, small_button("Bring back", false)).clicked() {
+                        *act = self.import_act();
+                    }
+                    drawn.buttons.push(ir);
+                }
             }
         }
     }

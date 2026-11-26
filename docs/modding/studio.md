@@ -187,8 +187,15 @@ Export glTF (Ctrl+E, X on the pad) writes the model as a glTF 2.0 file for an ou
 viewer): `<name>.gltf`, `<name>.bin` and its textures as PNG, in the mod's `.editor/reference/` folder, which the
 mod's shared copy leaves out. It is a read-only reference: the pictures and shapes are your own game files, so the
 file says `origin = "from-game-files"`, `share = "local-only"` (its `asset.extras` and a `LOCAL-ONLY.txt` beside it)
-and Studio never writes into the game's folder. The game's +Z up is turned to glTF's +Y up by a root node. Bringing an
-edited model back as a mod model is not part of this step.
+and Studio never writes into the game's folder. The game's +Z up is turned to glTF's +Y up by a root node. Bring back
+(Ctrl+I) takes the exported file, edited in your 3D program, back as a mod model: its materials are mapped onto the
+model's parts by name (the names the export gave them), the model keeps the game's texture list, flags and
+markers, and anything that cannot be mapped is refused with the reason in the verdict line (a material that is
+not a part, a part with no triangles, no texture coordinates, over 65,535 vertices, a file for another model).
+The mod model is kept in `.editor/models/` with a record (`<name>.model.toml`): made from your game files, it is
+local-only and a shared copy leaves it out. The file is read by a worker process of its own with a time and
+memory limit, so a file that crashes the reader cannot take Studio down. `browser export` and `browser import`
+do the same from the command line (`--own` there says a model is entirely your own work).
 ↑ ↓ and Tab move over the chips and results, ← → change a chip (in the results they move in the search field), Esc
 (B) goes back. Cars and regions the mod is not edited on are not indexed yet.
 

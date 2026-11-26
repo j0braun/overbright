@@ -573,6 +573,25 @@ pub const COMMANDS: &[Command] = &[
         summary: "Where a model or texture is used: its placements, sections, textures or models (the Browser's used by)",
         args: &[f("text", TEXT, Req::Yes, "Its name (all words, any case) or hash")],
     },
+    Command {
+        name: "browser.export",
+        kind: CommandKind::Run,
+        summary: "Write a model as a glTF reference for an outside 3D program (marked as from the game files, local-only)",
+        args: &[
+            f("text", TEXT, Req::Yes, "The model's name (all words, any case) or hash"),
+            f("to", TEXT, Req::No, "The folder to write (default the mod's .editor/reference; never inside the game's folder)"),
+        ],
+    },
+    Command {
+        name: "browser.import",
+        kind: CommandKind::Run,
+        summary: "Bring an edited glTF back as a mod model, mapped onto the original model's parts; refuses what cannot be mapped",
+        args: &[
+            f("file", TEXT, Req::Yes, "The edited .gltf (with its .bin beside it)"),
+            f("model", TEXT, Req::No, "The model it is for (default the one the file says it was exported from)"),
+            f("own", Ty::Bool, Req::No, "The model is entirely your own work: shared with the mod, without the game's pictures"),
+        ],
+    },
     Command { name: "checks.run", kind: CommandKind::Read, summary: "Run the map checks on the pack", args: &[] },
     Command {
         name: "history.show",

@@ -1826,6 +1826,55 @@
       ]
     },
     {
+      "name": "browser.export",
+      "kind": "run",
+      "summary": "Write a model as a glTF reference for an outside 3D program (marked as from the game files, local-only)",
+      "args": [
+        {
+          "key": "text",
+          "type": "text",
+          "required": "yes",
+          "merge": false,
+          "label": "The model's name (all words, any case) or hash"
+        },
+        {
+          "key": "to",
+          "type": "text",
+          "required": "no",
+          "merge": false,
+          "label": "The folder to write (default the mod's .editor/reference; never inside the game's folder)"
+        }
+      ]
+    },
+    {
+      "name": "browser.import",
+      "kind": "run",
+      "summary": "Bring an edited glTF back as a mod model, mapped onto the original model's parts; refuses what cannot be mapped",
+      "args": [
+        {
+          "key": "file",
+          "type": "text",
+          "required": "yes",
+          "merge": false,
+          "label": "The edited .gltf (with its .bin beside it)"
+        },
+        {
+          "key": "model",
+          "type": "text",
+          "required": "no",
+          "merge": false,
+          "label": "The model it is for (default the one the file says it was exported from)"
+        },
+        {
+          "key": "own",
+          "type": "bool",
+          "required": "no",
+          "merge": false,
+          "label": "The model is entirely your own work: shared with the mod, without the game's pictures"
+        }
+      ]
+    },
+    {
       "name": "checks.run",
       "kind": "read",
       "summary": "Run the map checks on the pack",

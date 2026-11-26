@@ -193,9 +193,12 @@ fn a_model_exports_and_a_texture_does_not() {
     p.ensure(&Source { region: "L4RA", world: &w, mod_props: 0, thumbs: None });
     p.focus = FIRST_RESULT;
     assert_eq!(p.export_act(), Some(Act::ExportModel { solid: 1, name: "XB_BENCH_01".into() }));
+    // Bring back is for the same model; a texture has neither.
+    assert_eq!(p.import_act(), Some(Act::ImportModel { solid: 1, name: "XB_BENCH_01".into() }));
     p.query.text = "tex_1".into();
     p.ensure(&Source { region: "L4RA", world: &w, mod_props: 0, thumbs: None });
     assert_eq!(p.export_act(), None, "a texture has no glTF");
+    assert_eq!(p.import_act(), None);
     // On a chip line nothing is focused to export.
     p.focus = 0;
     assert_eq!(p.export_act(), None);

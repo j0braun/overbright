@@ -882,3 +882,93 @@ fn collision_show_counts_what_each_mode_of_the_layer_draws() {
     }
     assert_eq!(run(&["collision", "show"], &dir, &no_game()).0, cli::NO_GAME);
 }
+
+/// A region with one model that has real geometry (two parts) for the export and import commands.
+fn model_env() -> Env {
+    use ob_formats::formats::solid::{Material, Solid, Vertex};
+    let v = |p: [f32; 3], uv: [f32; 2]| Vertex { position: p, color: [255; 4], uv };
+    let solid = Solid {
+        name: "XC_CONE_01".into(),
+        hash: 0x55,
+        bbox_min: [0.0; 3],
+        bbox_max: [1.0, 1.0, 2.0],
+        textures: vec![0x0000_0ABC, 0x0000_0ABD],
+        vertices: vec![
+            v([0.0, 0.0, 0.0], [0.0, 0.0]),
+            v([1.0, 0.0, 0.0], [1.0, 0.0]),
+            v([1.0, 1.0, 2.0], [1.0, 1.0]),
+            v([0.0, 1.0, 2.0], [0.0, 1.0]),
+        ],
+        normals: Vec::new(),
+        light_materials: Vec::new(),
+        indices: vec![0, 1, 2, 0, 2, 3],
+        materials: vec![
+            Material { texture_slot: 0, light_material: 0xFF, first_index: 0, index_count: 3, flags: 0 },
+            Material { texture_slot: 1, light_material: 0xFF, first_index: 3, index_count: 3, flags: 0 },
+        ],
+        mesh_flags: 0,
+        markers: Vec::new(),
+        light_markers: Vec::new(),
+    };
+    Env {
+        world: Box::new(move |root, _| {
+            let mut w = (looks_env().world)(root, "L4RA")?;
+            w.solids = vec![solid.clone()];
+            let place = nfsu2::studio_api::world::Placement {
+                solid: 0,
+                low_solid: None,
+                mid_solid: None,
+                transform: glam::Mat4::IDENTITY,
+                section: 1,
+                flags: 0,
+                cull_radius: 5.0,
+            };
+            w.placements = vec![place];
+            Ok(w)
+        }),
+        ..env()
+    }
+}
+
+#[test]
+fn a_model_goes_out_as_gltf_and_an_edited_one_comes_back_as_a_mod_model() {
+    let (s, dir) = fixture("cli-model", false);
+    let e = model_env();
+    // Out: the reference lands in the mod's work folder, marked; the game folder is never a target.
+    assert_eq!(golden("browser-export", &["browser", "export", "cone", "--mod", "<mod>"], &s, &dir, &e), cli::OK);
+    let reference = dir.join(".editor/reference");
+    assert!(reference.join("XC_CONE_01.gltf").is_file() && reference.join("LOCAL-ONLY.txt").is_file());
+    let r = run(&["browser", "export", "cone", "--mod", "<mod>", "--to", "game/models"], &dir, &e); assert_eq!(r.0, cli::FAILED, "{r:?}");
+    assert_eq!(run(&["browser", "export", "zebra", "--mod", "<mod>"], &dir, &e).0, cli::FAILED);
+    assert_eq!(run(&["browser", "export", "cone"], &dir, &e).0, cli::USAGE);
+
+    // Back: the unedited file maps onto the two parts and stays on this computer.
+    let file = reference.join("XC_CONE_01.gltf").to_string_lossy().into_owned();
+    let imp = ["browser", "import", "--mod", "<mod>", "--file", file.as_str()];
+    assert_eq!(golden("browser-import", &imp, &s, &dir, &e), cli::OK);
+    assert!(dir.join(".editor/models/XC_CONE_01.gltf").is_file());
+    assert!(dir.join(".editor/models/XC_CONE_01.model.toml").is_file());
+    assert!(!dir.join("models").exists(), "a model from the game's files is never shared");
+    // Own work: refused while the shape is the game's own and the file says so; accepted once edited.
+    let own = [&imp[..], &["--own"]].concat();
+    assert_eq!(golden("browser-import-own-refused", &own, &s, &dir, &e), cli::FAILED);
+    let bin = reference.join("XC_CONE_01.bin");
+    let mut b = std::fs::read(&bin).unwrap();
+    b[0..4].copy_from_slice(&5.0f32.to_le_bytes());
+    std::fs::write(&bin, b).unwrap();
+    let mut g: Value = serde_json::from_slice(&std::fs::read(&file).unwrap()).unwrap();
+    g["asset"]["extras"] = serde_json::json!({ "model": "XC_CONE_01" });
+    std::fs::write(&file, serde_json::to_vec_pretty(&g).unwrap()).unwrap();
+    assert_eq!(golden("browser-import-own", &own, &s, &dir, &e), cli::OK);
+    assert!(dir.join("models/XC_CONE_01.gltf").is_file());
+    // Refusals say why: a model the file is not for, a part that is not the model's, no model named.
+    assert_eq!(golden("browser-import-other-model", &[&imp[..], &["--model", "zebra"]].concat(), &s, &dir, &e), cli::FAILED);
+    g["materials"][0]["name"] = serde_json::json!("CHROME");
+    std::fs::write(&file, serde_json::to_vec_pretty(&g).unwrap()).unwrap();
+    assert_eq!(golden("browser-import-unmapped", &imp, &s, &dir, &e), cli::FAILED);
+    g["asset"].as_object_mut().unwrap().remove("extras");
+    std::fs::write(&file, serde_json::to_vec_pretty(&g).unwrap()).unwrap();
+    assert_eq!(run(&imp, &dir, &e).0, cli::USAGE);
+    assert_eq!(run(&["browser", "import", "--mod", "<mod>"], &dir, &e).0, cli::USAGE);
+    assert_eq!(run(&[&imp[..], &["--model", "cone"]].concat(), &dir, &no_game()).0, cli::NO_GAME);
+}

@@ -1021,6 +1021,52 @@
       "words": "browser used"
     },
     {
+      "command": "browser.export",
+      "flags": [
+        {
+          "flag": "--text",
+          "label": "The model's name (all words, any case) or hash",
+          "needed": true,
+          "type": "text"
+        },
+        {
+          "flag": "--to",
+          "label": "The folder to write (default the mod's .editor/reference; never inside the game's folder)",
+          "needed": false,
+          "type": "text"
+        }
+      ],
+      "kind": "run",
+      "summary": "Write a model as a glTF reference for an outside 3D program (marked as from the game files, local-only)",
+      "words": "browser export"
+    },
+    {
+      "command": "browser.import",
+      "flags": [
+        {
+          "flag": "--file",
+          "label": "The edited .gltf (with its .bin beside it)",
+          "needed": true,
+          "type": "text"
+        },
+        {
+          "flag": "--model",
+          "label": "The model it is for (default the one the file says it was exported from)",
+          "needed": false,
+          "type": "text"
+        },
+        {
+          "flag": "--own",
+          "label": "The model is entirely your own work: shared with the mod, without the game's pictures",
+          "needed": false,
+          "type": "bool"
+        }
+      ],
+      "kind": "run",
+      "summary": "Bring an edited glTF back as a mod model, mapped onto the original model's parts; refuses what cannot be mapped",
+      "words": "browser import"
+    },
+    {
       "command": "checks.run",
       "flags": [],
       "kind": "read",

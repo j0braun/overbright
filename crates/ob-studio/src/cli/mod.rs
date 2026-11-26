@@ -192,7 +192,8 @@ fn dispatch(line: &args::Line, env: &Env) -> Done {
         }
         "data.kinds" | "data.show" => with_mod(line, |m| data::run(cmd.name, line, m)),
         "collision.show" => collision::show(line, env),
-        "browser.search" | "browser.used" => browser::run(cmd.name, line, env),
+        "browser.search" | "browser.used" | "browser.export" => browser::run(cmd.name, line, env),
+        "browser.import" => with_mod(line, |m| browser::import(line, env, &m.dir)),
         "looks.open" | "looks.import" | "looks.watch" | "looks.list" => {
             with_mod(line, |m| crate::cli::looks::run(cmd.name, line, env, m))
         }
