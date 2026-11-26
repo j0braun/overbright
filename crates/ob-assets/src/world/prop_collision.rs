@@ -58,6 +58,20 @@ pub struct PropCollision {
     pub unmatched_at: Vec<Vec3>,
     /// The drawn faces outside every pack's grid (each one's corners' centre), in the mods' order.
     pub outside_at: Vec<Vec3>,
+    /// The faces the edits wrote, each with what wrote it and its corners' [`face_key`] (the collision view
+    /// marks them apart from the original's).
+    pub marks: Vec<(CollisionOrigin, Vec<[i32; 3]>)>,
+}
+
+/// What wrote a face of the edited collision.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum CollisionOrigin {
+    /// An added placement's own collision.
+    Added,
+    /// A moved original's collision, at its new place.
+    Moved,
+    /// A wall or ground the mod drew.
+    Drawn,
 }
 
 /// A map mod's removed and drawn collision on one region
@@ -314,6 +328,7 @@ impl World {
         let _t = crate::prof::span("World: map mods' collision");
         let mut cut: HashMap<usize, HashSet<u16>> = HashMap::new();
         let mut add: Vec<CollisionFace> = Vec::new();
+        let mut origin: Vec<CollisionOrigin> = Vec::new();
         for e in edits {
             let solid = self.placements[e.placement].solid;
             let shape = match e.from {
@@ -334,6 +349,8 @@ impl World {
             }
             if let Some(to) = e.to {
                 add.extend(shape.iter().map(|f| world_face(f, to)));
+                let o = if e.from.is_some() { CollisionOrigin::Moved } else { CollisionOrigin::Added };
+                origin.extend(shape.iter().map(|_| o));
             }
         }
         // The removed faces: every pack's static face with those corners.
@@ -363,6 +380,7 @@ impl World {
         }
         let first_drawn = add.len();
         add.extend(drawn.faces.iter().map(|f| world_face(&drawn_local(f), Mat4::IDENTITY)));
+        origin.extend(drawn.faces.iter().map(|_| CollisionOrigin::Drawn));
         // Each new face into every pack whose grid covers it.
         let mut per_pack: HashMap<usize, Vec<(CollisionFace, Vec<(usize, u16)>)>> = HashMap::new();
         for (k, f) in add.iter().enumerate() {
@@ -372,7 +390,10 @@ impl World {
                 per_pack.entry(pi).or_default().push((*f, cells));
                 any = true;
             }
-            if !any {
+            if any {
+                let n = f.corners.clamp(3, 4);
+                done.marks.push((origin[k], face_key(&f.vertices[..n])));
+            } else {
                 done.outside += 1;
                 if let Some(d) = k.checked_sub(first_drawn).and_then(|d| drawn.faces.get(d)) {
                     done.outside_at.push(centre(&d.corners[..if d.quad { 4 } else { 3 }]));

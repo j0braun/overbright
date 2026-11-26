@@ -107,6 +107,8 @@ fn action(a: &Action) -> Cli {
         Action::Collision(s) => match s {
             Show::Off | Show::Invisible | Show::All => Has(&["collision show"]),
         },
+        // What colours the layer: a view setting, like the camera views.
+        Action::CollisionColour(_) => WindowOnly(VIEWING),
         // Whether other races' barriers are drawn in World: a view setting, like the camera views.
         Action::RaceBarriers => WindowOnly(VIEWING),
         Action::Goal(_) | Action::GoTo | Action::SaveView | Action::RecallView(_) | Action::DeleteView(_) => {

@@ -88,7 +88,7 @@ A menu item that cannot act now is greyed out and says why when hovered (Duplica
 |---|---|
 | File | **File ▸ New map mod…** (Ctrl+N: a name, its folder and the region), **File ▸ Open map mod…** (Ctrl+O), the five most recent mods, **File ▸ Save** (Ctrl+S), **File ▸ Mod details…** (name, author, description), **File ▸ Import…** (a mod folder, a `map.obmap` or a `.zip`), **File ▸ Export…** (a `.zip` or a folder: the map and the mod's textures, `looks.toml` and `textures/`, never `work/` or `.editor/`; textures from the original game's pixels are warned about first; it proposes `<folder>.zip` in the `exports` folder of Overbright's data folder, made on the first export, and the status line says where the file went), **File ▸ Export as mod pack…** (a `.obpk` file for the launcher's Mods page: the placements, races and textures as the asset format's own files; it proposes `<folder>-1.0.0.obpk` in the `exports` folder), **File ▸ Quit** (Ctrl+Q; saves first, and asks only when that fails) |
 | Edit | **Edit ▸ Undo** and **Edit ▸ Redo**, named by the step they undo or redo (256 steps), **Edit ▸ Duplicate**, **Edit ▸ Delete**, **Edit ▸ Select all of this solid**, **Edit ▸ Drop to ground**, **Edit ▸ Rotate 90°**, **Edit ▸ Face camera**, **Edit ▸ Draw wall**, **Edit ▸ Draw ground** (see Removed and drawn collision) |
-| View | **View ▸ Roads** (the road network over the top view), **View ▸ Frame selection** (F), **View ▸ Reset camera** (the region's overview), **View ▸ Top view** (T), **View ▸ Isometric view**, **View ▸ Go to…**, **View ▸ Views ▸ Save view…** and the Views menu's **Delete view** submenu (see Hiding props, views and Go to), **View ▸ Collision ▸ Off**, **View ▸ Collision ▸ Invisible barriers** and **View ▸ Collision ▸ All collision** (see Collision), **View ▸ Collision ▸ Show race barriers** (only in Studio's World: the other races' barriers, off by default), **View ▸ Hide selected** (H), **View ▸ Isolate selected** (Shift+H), **View ▸ Show all** (Alt+H), **View ▸ This mod's changes only** (see Hiding props), **View ▸ Hint line** |
+| View | **View ▸ Roads** (the road network over the top view), **View ▸ Frame selection** (F), **View ▸ Reset camera** (the region's overview), **View ▸ Top view** (T), **View ▸ Isometric view**, **View ▸ Go to…**, **View ▸ Views ▸ Save view…** and the Views menu's **Delete view** submenu (see Hiding props, views and Go to), **View ▸ Collision ▸ Off**, **View ▸ Collision ▸ Invisible barriers** and **View ▸ Collision ▸ All collision**, **View ▸ Collision ▸ By kind** and **View ▸ Collision ▸ By surface** (see Collision), **View ▸ Collision ▸ Show race barriers** (only in Studio's World: the other races' barriers, off by default), **View ▸ Hide selected** (H), **View ▸ Isolate selected** (Shift+H), **View ▸ Show all** (Alt+H), **View ▸ This mod's changes only** (see Hiding props), **View ▸ Hint line** |
 | Race | **Race ▸ New race**, **Race ▸ Test race** (F5), **Race ▸ Drive here** (Shift+F5), **Race ▸ Restart race** (Ctrl+F5), **Race ▸ Drive to record** |
 | Help | **Help ▸ Controls**: every key, made from the editor's key table |
 
@@ -524,6 +524,15 @@ drawn collision"). It is drawn again whenever an edit, undo or redo changes the 
 
 The L key steps through the three.
 
+- **View ▸ Collision ▸ By kind** (the default) colours the walls and floors as above.
+- **View ▸ Collision ▸ By surface** colours every wall, barrier and floor by the surface id its face carries in the
+  pack (grip and sound; the same id always has the same colour), and the key lists the most common ids with their
+  counts. Ids have no names yet.
+
+The mod's own collision is set apart from the original's in every mode, in thicker lines, and shows in Invisible
+barriers too: an added prop's collision in blue, a moved prop's at its new place in lime, the walls and ground the
+mod drew in green; the key counts each. It is a view only: nothing is written to the mod.
+
 A key at the view's bottom right names the colours and counts each kind in the region. In the 3D view a wall is
 a see-through panel with its outline; in the top overview and on the Map it is a line along its foot.
 
@@ -575,6 +584,23 @@ format); the game's load and the editor's world write them as they write moved s
 race, Drive here and Simulate collide with them as the editor shows. A removed face the region does not have is
 counted in the log ("removed collision face(s) … are not in its collision") and does nothing. Without such
 sections nothing changes.
+
+## Pop-in and models of added and moved props
+
+The game draws a prop only while the road section under the camera lists the prop's section (the region's visible
+lists) and the prop is big enough on screen (the scenery size cull; docs/notes/graphics/pop-in.md). An added prop
+takes the section of the nearest placement, a moved one keeps its own. Validation therefore warns, with **Show** to
+the prop's place:
+
+- **would pop in**: an added or moved prop that some road section within sight of it (its cull radius: about 135 m
+  for an ordinary prop, at most 400 m) does not draw its section for. A moved prop is reported only for the road
+  sections it is newly out of: the ones that already did not draw it at its old place are the original's own.
+- **cannot be loaded**: an added prop none of whose drawn sections (the road sections that draw the prop's
+  section, with their lists) has a placement of its model is an error, one some of them lack a warning. This is
+  inferred from the region's placements; the game's loader itself is not consulted. An added prop whose model has
+  no triangles is an error.
+
+At most 25 of each are listed, the rest counted. The checks only read the world; nothing is written to the mod.
 
 ## Collision of edited scenery
 

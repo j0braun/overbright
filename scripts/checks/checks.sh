@@ -89,6 +89,28 @@ run() {
   STEP_S[$name]=$(( $(date +%s) - t ))
 }
 
+# step_limit BASE: BASE seconds on a quiet machine, up to 3 times as many when the load (1 minute) is above the cores:
+# gates run in parallel and a test run that takes 700 s alone takes 2500 s at load 36.
+step_limit() {
+  local base=$1 cores load f
+  cores=$(nproc 2> /dev/null || echo 1); load=$(cut -d' ' -f1 /proc/loadavg 2> /dev/null || echo 0)
+  f=$(awk -v l="$load" -v c="$cores" 'BEGIN { f = int((l + c - 1) / c); if (f < 1) f = 1; if (f > 3) f = 3; print f }')
+  echo $(( base * f ))
+}
+# explain_rc NAME LIMIT: what a step's rc means, in words (a bare 143 says nothing). 124 is the step's own timeout;
+# 137/143 below the limit is a SIGKILL/SIGTERM from outside (not this script: nothing here signals a step), with
+# the load and free memory at the end and any kernel OOM line of the last hour (journalctl, when readable).
+explain_rc() {
+  local name=$1 lim=$2 s=${STEP_S[$1]:-0} load mem oom
+  load=$(cut -d' ' -f1-3 /proc/loadavg 2> /dev/null); mem=$(awk '/MemAvailable/ { printf "%d MB", $2 / 1024 }' /proc/meminfo 2> /dev/null)
+  case $RC in
+    124) say "  $name: timed out after $s s (limit $lim s) at load $load, $mem available" ;;
+    137|143)
+      oom=$(journalctl --since "1 hour ago" --no-pager -k 2> /dev/null | grep -i -E 'out of memory|oom-kill|Killed process' | tail -2 | tr '\n' ' ')
+      say "  $name: $([ $RC = 143 ] && echo SIGTERM || echo SIGKILL) after $s s (limit $lim s, so not this step's timeout) from outside, at load $load, $mem available${oom:+; kernel: $oom}${oom:-; no OOM line in the kernel log}" ;;
+  esac
+}
+
 say "checks $SET $(date -Is) repo $REPO target $CARGO_TARGET_DIR profile $CK_PROFILE jobs $JOBS det $DET local env $CK_LOCAL_ENV"
 # bad_log NAME: fail the step when its log has a panic / validation-error line (render workers' panics do
 # not end the process, so rc 0 alone is not enough).
@@ -96,8 +118,9 @@ bad_log() { local n; n=$(ck_bad "$O/$1.log"); [ "$n" = 0 ] || { say "  $1: $n pa
 
 # ---- build -------------------------------------------------------------------
 if [ -z "${SKIP_BUILD:-}" ]; then
-  run build 3600 cargo build --profile "$CK_PROFILE" --bins --examples --features dev-harness
-  say "build rc=$RC ${STEP_S[build]} s"
+  BL=$(step_limit 3600)
+  run build "$BL" cargo build --profile "$CK_PROFILE" --bins --examples --features dev-harness
+  say "build rc=$RC ${STEP_S[build]} s"; explain_rc build "$BL"
   if [ $RC != 0 ]; then grep -E '^error' -A8 "$O/build.log" | head -40 | tee -a "$OUT"; fail build; say "BUILD FAILED, stopping"; fi
 fi
 [ -x "$BIN" ] || { fail "no binary $BIN"; }
@@ -122,7 +145,15 @@ fi
 if [ -z "${SKIP_TESTS:-}" ] && [ "$SET" != shots ]; then
   # The tests run with the player's own folders hidden behind empty ones (home_mask.sh: a user + mount namespace),
   # so a test that resolves them anyway writes nothing real, and the step fails when anything landed there.
-  run tests 3600 "$HERE/home_mask.sh" run "$O/home-mask" cargo test --profile "$CK_PROFILE" --no-fail-fast --features dev-harness
+  TL=$(step_limit 3600)
+  run tests "$TL" "$HERE/home_mask.sh" run "$O/home-mask" cargo test --profile "$CK_PROFILE" --no-fail-fast --features dev-harness
+  # A SIGTERM/SIGKILL below the limit came from outside (a stray kill, not a failing test): say so and run the step
+  # once more (the first log is kept as tests.killed.log); a second kill, or any other rc, stands.
+  if { [ "$RC" = 143 ] || [ "$RC" = 137 ]; } && [ "${STEP_S[tests]}" -lt "$TL" ]; then
+    explain_rc tests "$TL"; mv "$O/tests.log" "$O/tests.killed.log"; say "  tests: running the step once more"
+    run tests "$TL" "$HERE/home_mask.sh" run "$O/home-mask" cargo test --profile "$CK_PROFILE" --no-fail-fast --features dev-harness
+  fi
+  explain_rc tests "$TL"
   # A test that runs the game's own test binary as a child prints the child's "test result" lines too:
   # each binary's own result is the last one before the next header.
   read -r P F I B R < <(awk '

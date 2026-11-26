@@ -22,6 +22,7 @@ pub mod runs;
 pub mod session;
 pub mod share;
 pub mod validate;
+pub mod world_checks;
 pub mod writer_bugs;
 
 /// The documents of a mod's history: the map (`map.obmap`) and the texture list (`looks.toml`, [`looks`]).

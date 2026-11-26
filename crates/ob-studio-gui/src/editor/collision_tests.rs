@@ -512,7 +512,7 @@ fn the_key_steps_round_and_floors_are_coloured_by_kind() {
     assert_eq!(Show::Off.next(), Show::Invisible);
     assert_eq!(Show::Invisible.next(), Show::All);
     assert_eq!(Show::All.next(), Show::Off);
-    let f = |not_ground| collision::Floor { corners: [Vec3::ZERO; 4], n: 3, not_ground };
+    let f = |not_ground| collision::Floor { corners: [Vec3::ZERO; 4], n: 3, not_ground, surface: 0, mine: collision::Mine::Original };
     assert_eq!(floor_colour(&f(false)), key::FLOOR);
     assert_eq!(floor_colour(&f(true)), key::FLOOR_OFF);
     assert_ne!(key::FLOOR, key::FLOOR_OFF);
@@ -536,14 +536,14 @@ fn collision_layers_follow_the_workspace() {
     assert_eq!(group_track("PLAYER_BARRIERS_4126"), Some(4126));
     assert_eq!(group_track("BARRIERS_CAREER1"), None);
     // World: permanent walls, free roam's own and the career stages'; a race's barriers only on request.
-    let world = Scope { focus: Focus::World, track: None, race_barriers: false };
+    let world = Scope { focus: Focus::World, track: None, race_barriers: false, colour: Colour::Kind };
     assert_eq!(w(world, "NONE"), Weight::Full);
     assert_eq!(w(world, "BARRIERS_4000"), Weight::Full);
     assert_eq!(w(world, "BARRIERS_CAREER1"), Weight::Full);
     assert_eq!(w(world, "BARRIERS_4126"), Weight::Hidden);
     assert_eq!(w(Scope { race_barriers: true, ..world }, "BARRIERS_4126"), Weight::Full);
     // Races: the selected race's barriers, the permanent walls dimmed, nothing else.
-    let races = Scope { focus: Focus::Races, track: Some(4126), race_barriers: false };
+    let races = Scope { focus: Focus::Races, track: Some(4126), race_barriers: false, colour: Colour::Kind };
     assert_eq!(w(races, "NONE"), Weight::Dim);
     assert_eq!(w(races, "BARRIERS_4126"), Weight::Full);
     assert_eq!(w(races, "PLAYER_BARRIERS_4126"), Weight::Full);
@@ -552,4 +552,75 @@ fn collision_layers_follow_the_workspace() {
     assert_eq!(w(Scope { track: None, ..races }, "BARRIERS_4126"), Weight::Hidden);
     // The editor's own window draws everything.
     assert_eq!(w(Scope::ALL, "BARRIERS_4126"), Weight::Full);
+}
+
+/// The made-up region with a surface id on every face (the walls 1..; the floor 7).
+fn surfaced() -> Layer {
+    let mut l = region();
+    for (i, w) in l.walls.iter_mut().enumerate() {
+        w.surface = 1 + (i % 2) as u8;
+    }
+    l.floors[0].surface = 7;
+    l
+}
+
+#[test]
+fn surfaces_have_stable_far_apart_colours_and_are_counted() {
+    assert_eq!(key::surface(3), key::surface(3));
+    assert_ne!(key::surface(1), key::surface(2));
+    let l = surfaced();
+    let s = l.surfaces();
+    assert_eq!(s.iter().map(|x| x.1).sum::<usize>(), l.walls.len() + l.floors.len());
+    assert!(s.iter().any(|&(id, n)| id == 7 && n == 1));
+}
+
+#[test]
+fn colouring_by_surface_paints_each_part_in_its_surface_colour() {
+    let l = surfaced();
+    let by = |colour| Scope { colour, ..Scope::ALL };
+    let bare = l.walls.iter().find(|w| w.group == 0 && !w.bare.is_empty()).unwrap();
+    let kind = parts(&l, bare, Show::All, &by(Colour::Kind));
+    assert!(kind.iter().any(|p| p.2 == key::INVISIBLE) && kind.iter().all(|p| p.2 != key::surface(bare.surface)));
+    let surf = parts(&l, bare, Show::All, &by(Colour::Surface));
+    assert!(surf.iter().any(|p| p.2 == key::surface(bare.surface)));
+    // A barrier takes its surface colour too, not the amber.
+    let barrier = l.walls.iter().find(|w| w.group != 0).unwrap();
+    assert_eq!(parts(&l, barrier, Show::Invisible, &by(Colour::Kind))[0].2, key::BARRIER);
+    assert_eq!(parts(&l, barrier, Show::Invisible, &by(Colour::Surface))[0].2, key::surface(barrier.surface));
+    // Floors likewise.
+    assert_eq!(floor_shown(&l.floors[0], &by(Colour::Surface)), key::surface(7));
+    assert_eq!(floor_shown(&l.floors[0], &by(Colour::Kind)), key::FLOOR);
+}
+
+#[test]
+fn the_mods_own_collision_is_set_apart_in_every_mode() {
+    use collision::Mine;
+    let mut l = surfaced();
+    assert_eq!(l.mine(), (0, 0, 0));
+    // Mark by the corners: the south wall added, the floor drawn, the east wall moved.
+    let south = l.walls.iter().find(|w| w.a.y == 0.0 && w.b.y == 0.0 && w.group == 0).unwrap().corners.clone();
+    let east = l.walls.iter().find(|w| w.a.x == 60.0 && w.b.x == 60.0).unwrap().corners.clone();
+    let floor = l.floors[0].points().to_vec();
+    l.mark(&|c| if c == south.as_slice() { Mine::Added } else if c == east.as_slice() { Mine::Moved } else if c == floor.as_slice() { Mine::Drawn } else { Mine::Original });
+    assert_eq!(l.mine(), (1, 1, 1));
+    let (added, moved, drawn) = (key::mine(Mine::Added).unwrap(), key::mine(Mine::Moved).unwrap(), key::mine(Mine::Drawn).unwrap());
+    assert!(added != moved && moved != drawn && added != drawn);
+    assert_eq!(key::mine(Mine::Original), None);
+    for colour in Colour::ALL {
+        let scope = Scope { colour, ..Scope::ALL };
+        for show in [Show::Invisible, Show::All] {
+            let w = l.walls.iter().find(|w| w.mine == Mine::Added).unwrap();
+            assert_eq!(parts(&l, w, show, &scope), vec![(0.0, 1.0, added)], "{colour:?} {show:?}");
+            let w = l.walls.iter().find(|w| w.mine == Mine::Moved).unwrap();
+            assert_eq!(parts(&l, w, show, &scope), vec![(0.0, 1.0, moved)]);
+        }
+        assert_eq!(floor_shown(&l.floors[0], &scope), drawn);
+    }
+}
+
+#[test]
+fn the_colouring_is_a_view_setting_kept_out_of_the_mod() {
+    let names: Vec<&str> = Colour::ALL.iter().map(|c| c.label()).collect();
+    assert_eq!(names, ["By kind", "By surface"]);
+    assert_eq!(Colour::default(), Colour::Kind);
 }
