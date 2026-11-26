@@ -32,7 +32,7 @@ pub use self::anims::*;
 pub use self::data::*;
 pub use self::props::Prop;
 pub use self::map_overlay::{MATCH_DISTANCE, MapIndex, parts_of, transform_of};
-pub use self::prop_collision::{DrawnCollision, LocalFace, PropCollision, SceneryEdit, WriteError, cells_of, face_key, packs_of, world_face, write_edited_packs};
+pub use self::prop_collision::{CollisionOrigin, DrawnCollision, LocalFace, PropCollision, SceneryEdit, WriteError, cells_of, face_key, packs_of, world_face, write_edited_packs};
 use self::parse::*;
 pub use self::cache::geometry;
 pub use self::scenery::*;

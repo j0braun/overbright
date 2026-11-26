@@ -32,8 +32,10 @@ pub fn refresh(s: &mut EditorState, region_tracks: &[u16], tested: &Tested) -> V
         out.extend(ob_studio::validate::floor_checks(&s.session.map, &under));
         let c = &w.map_overlay.collision;
         out.extend(ob_studio::validate::collision_checks(&s.session.map, &under, &c.unmatched_at, &c.outside_at));
-        out.sort_by_key(|c| (std::cmp::Reverse(c.level), c.ok));
     }
+    // The props the mod added or moved: where they would pop in, and models a section cannot load (view-only).
+    out.extend(ob_studio::world_checks::of(w));
+    out.sort_by_key(|c| (std::cmp::Reverse(c.level), c.ok));
     s.session.issues = out
         .iter()
         .map(|c| Issue { level: c.level, text: c.text.clone(), race: c.race, at: c.at.map(|p| p.extend(ground(s, p))) })

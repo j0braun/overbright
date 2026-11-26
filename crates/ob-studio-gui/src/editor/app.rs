@@ -1529,6 +1529,11 @@ impl App {
                     s.collision = c;
                 }
             }
+            A::CollisionColour(c) => {
+                if let Some(s) = self.state.as_mut() {
+                    s.collision_colour = c;
+                }
+            }
             A::RaceBarriers => {
                 if let Some(s) = self.state.as_mut() {
                     s.race_barriers = !s.race_barriers;

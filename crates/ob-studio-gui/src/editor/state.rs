@@ -66,6 +66,8 @@ pub struct EditorState {
     pub roads: bool,
     /// The collision layer over the view (View ▸ Collision).
     pub collision: super::collision::Show,
+    /// What colours the collision layer (View ▸ Collision ▸ By kind / By surface).
+    pub collision_colour: super::collision::Colour,
     /// World: the collision layer also draws the races' barriers (off: permanent walls and free roam's own).
     pub race_barriers: bool,
     /// What the view leaves out (H, Shift+H, this mod's changes only): view state, never in the mod.
@@ -137,6 +139,7 @@ impl EditorState {
             focus: Focus::Both,
             roads: true,
             collision: super::collision::Show::Off,
+            collision_colour: super::collision::Colour::Kind,
             race_barriers: false,
             filter: Default::default(),
             goal: None,

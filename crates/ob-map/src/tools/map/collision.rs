@@ -52,6 +52,19 @@ pub enum WallKind {
     Visible,
 }
 
+/// Whether a face is the original's or written by the mod (the collision view marks the mod's apart).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+pub enum Mine {
+    #[default]
+    Original,
+    /// An added prop's own collision.
+    Added,
+    /// A moved prop's collision, at its new place.
+    Moved,
+    /// A wall or ground the mod drew.
+    Drawn,
+}
+
 /// One wall face, as drawn.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Wall {
@@ -67,6 +80,9 @@ pub struct Wall {
     pub tall: bool,
     /// The barrier group (0: always there).
     pub group: u8,
+    /// The surface id (grip and sound; the pack's polygon byte 0x0B).
+    pub surface: u8,
+    pub mine: Mine,
     /// The face's corners as the pack stores them (3 or 4): how a map mod
     /// names it to remove it (`format::CollisionEdit::Remove`).
     pub corners: Vec<Vec3>,
@@ -125,6 +141,9 @@ pub struct Floor {
     pub n: usize,
     /// Flag 0x08: not ground for the wheels.
     pub not_ground: bool,
+    /// The surface id (grip and sound).
+    pub surface: u8,
+    pub mine: Mine,
 }
 
 impl Floor {
@@ -156,6 +175,39 @@ pub struct Counts {
 }
 
 impl Layer {
+    /// Mark the faces `of` (given a face's corners) says the mod wrote.
+    pub fn mark(&mut self, of: &dyn Fn(&[Vec3]) -> Mine) {
+        for w in &mut self.walls {
+            w.mine = of(&w.corners);
+        }
+        for f in &mut self.floors {
+            f.mine = of(f.points());
+        }
+    }
+
+    /// How many walls and floors each kind of mod face has: (added, moved, drawn).
+    pub fn mine(&self) -> (usize, usize, usize) {
+        let mut c = (0, 0, 0);
+        for m in self.walls.iter().map(|w| w.mine).chain(self.floors.iter().map(|f| f.mine)) {
+            match m {
+                Mine::Added => c.0 += 1,
+                Mine::Moved => c.1 += 1,
+                Mine::Drawn => c.2 += 1,
+                Mine::Original => {}
+            }
+        }
+        c
+    }
+
+    /// The surfaces the faces have, with how many faces each (by id).
+    pub fn surfaces(&self) -> Vec<(u8, usize)> {
+        let mut n = [0usize; 256];
+        for s in self.walls.iter().map(|w| w.surface).chain(self.floors.iter().map(|f| f.surface)) {
+            n[s as usize] += 1;
+        }
+        (0..=255u8).filter(|&s| n[s as usize] > 0).map(|s| (s, n[s as usize])).collect()
+    }
+
     pub fn counts(&self) -> Counts {
         let mut c = Counts { floors: self.floors.len(), ..Counts::default() };
         for w in &self.walls {
@@ -261,7 +313,7 @@ pub fn build<'a>(
         if f.is_wall() {
             walls_raw.push(*f);
         } else {
-            layer.floors.push(Floor { corners: f.vertices, n: f.corners, not_ground: f.flags & 0x08 != 0 });
+            layer.floors.push(Floor { corners: f.vertices, n: f.corners, not_ground: f.flags & 0x08 != 0, surface: f.surface, mine: Mine::Original });
         }
     }
     let floors = FloorGrid::new(&layer.floors);
@@ -306,7 +358,7 @@ fn wall_of(f: &CollisionFace, floors: &FloorGrid) -> Wall {
         let hi = pts.iter().map(|p| p.z).fold(f32::MIN, f32::max);
         (lo, hi)
     };
-    Wall { a, b, z0, z1, tall, group: f.group, bare: Vec::new(), corners: f.vertices[..f.corners.clamp(3, 4)].to_vec() }
+    Wall { a, b, z0, z1, tall, group: f.group, surface: f.surface, mine: Mine::Original, bare: Vec::new(), corners: f.vertices[..f.corners.clamp(3, 4)].to_vec() }
 }
 
 /// The pieces of `w` no steep scenery triangle comes within

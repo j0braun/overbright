@@ -27,7 +27,7 @@ use glam::{Vec2, Vec3};
 use super::overlay::{Overlay, colour, line2d};
 use super::state::EditorState;
 use crate::tools::map::CollisionEdit;
-use crate::tools::map::collision::{self, Layer, Wall};
+use crate::tools::map::collision::{self, Layer, Mine, Wall};
 // Named `Target` here: the controls test reads every `Key::` as a key.
 use crate::tools::map::ops::{CollisionKey as Target, Op};
 
@@ -73,7 +73,7 @@ const CLOSE_PX: f32 = 10.0;
 /// drawn wall snaps to it (Alt places without snapping).
 pub const SNAP_PX: f32 = 10.0;
 
-pub use ob_studio::collision_view::Show;
+pub use ob_studio::collision_view::{Colour, Show};
 
 /// Which barrier groups a workspace's collision layer draws. In the game a barrier group is switched on by what
 /// is being played: `BARRIERS_<track>` and `PLAYER_BARRIERS_<track>` by a race on that base track (free roam is
@@ -87,6 +87,8 @@ pub struct Scope {
     pub track: Option<u16>,
     /// World: also draw the barriers of races.
     pub race_barriers: bool,
+    /// What colours the walls and floors.
+    pub colour: Colour,
 }
 
 /// How a wall is drawn under a [`Scope`].
@@ -109,12 +111,12 @@ pub fn group_track(name: &str) -> Option<u16> {
 
 impl Scope {
     /// Everything at full strength (the editor's own window).
-    pub const ALL: Scope = Scope { focus: super::state::Focus::Both, track: None, race_barriers: true };
+    pub const ALL: Scope = Scope { focus: super::state::Focus::Both, track: None, race_barriers: true, colour: Colour::Kind };
 
     pub fn of(s: &EditorState) -> Scope {
         use super::state::Focus;
         let track = s.race.and_then(|i| s.session.map.races.get(i)).map(|r| r.track);
-        Scope { focus: s.focus, track, race_barriers: s.race_barriers && s.focus == Focus::World }
+        Scope { focus: s.focus, track, race_barriers: s.race_barriers && s.focus == Focus::World, colour: s.collision_colour }
     }
 
     /// How wall `w` of `layer` is drawn.
@@ -152,11 +154,33 @@ pub mod key {
     /// A floor the wheels do not count as ground (flag 0x08).
     pub const FLOOR_OFF: Color32 = colour::SELECT;
 
+    /// The colours of the mod's own collision, set apart from the original's in every mode (an added prop's, a
+    /// moved prop's, a drawn wall or ground).
+    pub fn mine(m: collision::Mine) -> Option<Color32> {
+        let t = crate::launch::theme::THEME_A;
+        let rgb = |c: crate::launch::theme::Rgb| Color32::from_rgb(c.0, c.1, c.2);
+        match m {
+            collision::Mine::Original => None,
+            collision::Mine::Added => Some(rgb(t.info)),
+            collision::Mine::Moved => Some(rgb(t.sel)),
+            collision::Mine::Drawn => Some(rgb(t.ok)),
+        }
+    }
+
+    /// The colour of surface `id` (the same id always the same hue; neighbouring ids are far apart).
+    pub fn surface(id: u8) -> Color32 {
+        let hue = (id as f32 * 0.381_966).fract();
+        egui::ecolor::Hsva::new(hue, 0.55, 0.95, 1.0).into()
+    }
+
     /// A wall's fill: its colour, see-through.
     pub fn fill(c: Color32, alpha: u8) -> Color32 {
         Color32::from_rgba_unmultiplied(c.r(), c.g(), c.b(), alpha)
     }
 }
+
+/// The most surface rows the legend lists.
+const SURFACE_ROWS: usize = 8;
 
 /// How far from the camera the 3D view draws walls and floors (metres; the
 /// walls' reach grows with the camera's height, for the overview).
@@ -177,7 +201,8 @@ pub fn layer_of(s: &EditorState) -> Layer {
     let t = std::time::Instant::now();
     let scenery = scenery(s);
     let world = &s.session.world;
-    let layer = collision::build(world.ground.listed_faces(), &world.barrier_groups, &scenery);
+    let mut layer = collision::build(world.ground.listed_faces(), &world.barrier_groups, &scenery);
+    ob_studio::collision_view::mark(&mut layer, world);
     let c = layer.counts();
     log::info!(
         "collision layer: {} faces read, {} invisible walls, {} barrier walls, {} walls at scenery, {} floors ({} scenery triangles, {:.0} ms)",
@@ -752,7 +777,8 @@ pub fn panel(s: &mut EditorState, ui: &mut egui::Ui) -> bool {
     true
 }
 
-/// The parts of `w` drawn under `show`: (t0, t1, colour).
+/// The parts of `w` drawn under `show`: (t0, t1, colour). The mod's own walls are drawn whole in their own colour
+/// in every mode; with the surface colouring each part has its face's surface colour.
 fn parts(layer: &Layer, w: &Wall, show: Show, scope: &Scope) -> Vec<(f32, f32, Color32)> {
     let mut out = Vec::new();
     let weight = scope.weight(layer, w);
@@ -760,13 +786,20 @@ fn parts(layer: &Layer, w: &Wall, show: Show, scope: &Scope) -> Vec<(f32, f32, C
         return out;
     }
     let dim = |c: Color32| if weight == Weight::Dim { c.gamma_multiply(0.3) } else { c };
-    if w.group != 0 {
-        out.push((0.0, 1.0, key::BARRIER));
+    if let Some(c) = key::mine(w.mine) {
+        out.push((0.0, 1.0, dim(c)));
         return out;
     }
-    out.extend(w.bare.iter().map(|&(a, b)| (a, b, dim(key::INVISIBLE))));
+    let by_surface = scope.colour == Colour::Surface;
+    if w.group != 0 {
+        out.push((0.0, 1.0, if by_surface { key::surface(w.surface) } else { key::BARRIER }));
+        return out;
+    }
+    let bare = if by_surface { key::surface(w.surface) } else { key::INVISIBLE };
+    out.extend(w.bare.iter().map(|&(a, b)| (a, b, dim(bare))));
     if show == Show::All {
-        out.extend(w.covered().into_iter().map(|(a, b)| (a, b, dim(key::VISIBLE))));
+        let covered = if by_surface { key::surface(w.surface).gamma_multiply(0.5) } else { key::VISIBLE };
+        out.extend(w.covered().into_iter().map(|(a, b)| (a, b, dim(covered))));
     }
     out
 }
@@ -774,6 +807,15 @@ fn parts(layer: &Layer, w: &Wall, show: Show, scope: &Scope) -> Vec<(f32, f32, C
 /// A floor's colour by kind: drivable ground, or a face the wheels pass through.
 pub fn floor_colour(f: &collision::Floor) -> Color32 {
     if f.not_ground { key::FLOOR_OFF } else { key::FLOOR }
+}
+
+/// A floor's colour under `scope`: the mod's own set apart, else by kind or by surface.
+fn floor_shown(f: &collision::Floor, scope: &Scope) -> Color32 {
+    match (key::mine(f.mine), scope.colour) {
+        (Some(c), _) => c,
+        (None, Colour::Surface) => key::surface(f.surface),
+        (None, Colour::Kind) => floor_colour(f),
+    }
 }
 
 /// The walls (and floors) around the camera in the 3D view: each part a
@@ -794,12 +836,14 @@ pub fn paint_3d(layer: &Layer, show: Show, scope: &Scope, o: &Overlay) {
     }
     let reach = (WALLS_NEAR + cam.z.max(0.0) * 1.5).min(WALLS_FAR);
     let (walls, _) = layer.near(cam.truncate() - Vec2::splat(reach), cam.truncate() + Vec2::splat(reach));
-    if show == Show::All {
+    {
         let (_, floors) =
             layer.near(cam.truncate() - Vec2::splat(FLOORS_NEAR), cam.truncate() + Vec2::splat(FLOORS_NEAR));
-        for &i in floors.iter().take(MAX_FLOORS) {
-            let f = &layer.floors[i as usize];
-            quad(o, f.points(), None, key::fill(floor_colour(f), 150), 1.0);
+        // The mod's own floors (drawn ground, an added prop's) show in every mode, the original's in All.
+        let shown = floors.iter().map(|&i| &layer.floors[i as usize]).filter(|f| show == Show::All || f.mine != Mine::Original);
+        for f in shown.take(MAX_FLOORS) {
+            let width = if f.mine == Mine::Original { 1.0 } else { 3.0 };
+            quad(o, f.points(), None, key::fill(floor_shown(f, scope), 150), width);
         }
     }
     let mut drawn = 0;
@@ -816,7 +860,7 @@ pub fn paint_3d(layer: &Layer, show: Show, scope: &Scope, o: &Overlay) {
             } else {
                 70
             };
-            quad(o, &w.quad(t0, t1), Some(key::fill(c, alpha)), c, 1.5);
+            quad(o, &w.quad(t0, t1), Some(key::fill(c, alpha)), c, if w.mine == Mine::Original { 1.5 } else { 3.0 });
         }
         drawn += 1;
         if drawn >= MAX_WALLS {
@@ -920,18 +964,36 @@ pub fn legend(layer: &Layer, show: Show, scope: &Scope, floors: bool, painter: &
         super::state::Focus::World if !scope.race_barriers => "Free roam and career barriers",
         _ => "Race and career barriers",
     };
-    let mut rows = vec![
-        (key::INVISIBLE, format!("Invisible walls ({})", counts.invisible)),
-        (key::BARRIER, format!("{barrier_title} ({barriers})")),
-    ];
-    if show == Show::All {
-        rows.push((key::VISIBLE, format!("Walls behind scenery ({})", counts.visible)));
-        if floors {
-            let off = layer.floors.iter().filter(|f| f.not_ground).count();
-            rows.push((key::FLOOR, format!("Road floors ({})", counts.floors - off)));
-            if off > 0 {
-                rows.push((key::FLOOR_OFF, format!("Floors that are not ground ({off})")));
+    let mut rows: Vec<(Color32, String)> = Vec::new();
+    if scope.colour == Colour::Surface {
+        // By surface: one row per surface id the region has (the commonest first, a few), then the rest.
+        let mut all = layer.surfaces();
+        all.sort_by_key(|&(id, n)| (std::cmp::Reverse(n), id));
+        for &(id, n) in all.iter().take(SURFACE_ROWS) {
+            rows.push((key::surface(id), format!("Surface {id} ({n})")));
+        }
+        if all.len() > SURFACE_ROWS {
+            let rest: usize = all[SURFACE_ROWS..].iter().map(|r| r.1).sum();
+            rows.push((colour::DIM, format!("{} more surfaces ({rest})", all.len() - SURFACE_ROWS)));
+        }
+    } else {
+        rows.push((key::INVISIBLE, format!("Invisible walls ({})", counts.invisible)));
+        rows.push((key::BARRIER, format!("{barrier_title} ({barriers})")));
+        if show == Show::All {
+            rows.push((key::VISIBLE, format!("Walls behind scenery ({})", counts.visible)));
+            if floors {
+                let off = layer.floors.iter().filter(|f| f.not_ground).count();
+                rows.push((key::FLOOR, format!("Road floors ({})", counts.floors - off)));
+                if off > 0 {
+                    rows.push((key::FLOOR_OFF, format!("Floors that are not ground ({off})")));
+                }
             }
+        }
+    }
+    let (added, moved, drawn) = layer.mine();
+    for (m, n, what) in [(Mine::Added, added, "Added props'"), (Mine::Moved, moved, "Moved props'"), (Mine::Drawn, drawn, "Drawn by this mod")] {
+        if let (Some(c), true) = (key::mine(m), n > 0) {
+            rows.push((c, format!("{what} ({n})")));
         }
     }
     let font = egui::FontId::proportional(13.0);

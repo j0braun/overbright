@@ -54,6 +54,8 @@ pub enum Action {
     Hint(bool),
     /// The collision layer (View ▸ Collision).
     Collision(super::collision::Show),
+    /// What colours the collision layer (View ▸ Collision ▸ By kind / By surface).
+    CollisionColour(super::collision::Colour),
     RaceBarriers,
     /// Arm a drawing tool (Edit ▸ Draw wall / Draw ground).
     Draw(super::collision::Draw),
@@ -685,6 +687,13 @@ pub fn view_items(app: &App, ui: &mut egui::Ui, out: &mut Vec<Action>) {
             for c in super::collision::Show::ALL {
                 if ui.add(egui::Button::selectable(shown == Some(c), c.label())).clicked() {
                     out.push(Action::Collision(c));
+                }
+            }
+            ui.separator();
+            let colour = s.map(|s| s.collision_colour);
+            for c in super::collision::Colour::ALL {
+                if ui.add(egui::Button::selectable(colour == Some(c), c.label())).clicked() {
+                    out.push(Action::CollisionColour(c));
                 }
             }
             if s.is_some_and(|s| s.focus == Focus::World) {

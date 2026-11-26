@@ -96,7 +96,7 @@ impl Check {
     }
 
     /// An entry of the mod as a whole (its drawn and removed collision), not of one race.
-    fn general(level: Level, text: String, at: Vec2) -> Check {
+    pub(crate) fn general(level: Level, text: String, at: Vec2) -> Check {
         Check { level, ok: false, text, race: None, point: None, at: Some(at), fix: None }
     }
 

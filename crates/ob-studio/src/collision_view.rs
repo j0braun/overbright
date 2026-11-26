@@ -3,8 +3,8 @@
 //! collision packs. The window draws it; `collision show` on the command line counts what each mode shows.
 
 use glam::Vec3;
-use nfsu2::studio_api::world::{HIDDEN_FLAG, Placement, World};
-use ob_map::tools::map::collision::{self, Counts, Layer};
+use nfsu2::studio_api::world::{CollisionOrigin, HIDDEN_FLAG, Placement, World, face_key};
+use ob_map::tools::map::collision::{self, Counts, Layer, Mine};
 
 /// What the layer shows.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
@@ -50,6 +50,51 @@ impl Show {
 }
 
 
+/// What colours the layer: the kinds a player meets, or the surface id of each face.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub enum Colour {
+    #[default]
+    Kind,
+    Surface,
+}
+
+impl Colour {
+    pub const ALL: [Colour; 2] = [Colour::Kind, Colour::Surface];
+
+    /// Its name in the View menu.
+    pub fn label(self) -> &'static str {
+        match self {
+            Colour::Kind => "By kind",
+            Colour::Surface => "By surface",
+        }
+    }
+}
+
+/// Mark the faces of `layer` the mod wrote (`world.map_overlay.collision.marks`), so a view can set them apart
+/// from the original's.
+pub fn mark(layer: &mut Layer, world: &World) {
+    let marks: std::collections::HashMap<&Vec<[i32; 3]>, Mine> = world
+        .map_overlay
+        .collision
+        .marks
+        .iter()
+        .map(|(o, k)| {
+            (
+                k,
+                match o {
+                    CollisionOrigin::Added => Mine::Added,
+                    CollisionOrigin::Moved => Mine::Moved,
+                    CollisionOrigin::Drawn => Mine::Drawn,
+                },
+            )
+        })
+        .collect();
+    if marks.is_empty() {
+        return;
+    }
+    layer.mark(&|corners| marks.get(&face_key(corners)).copied().unwrap_or(Mine::Original));
+}
+
 /// The scenery triangles the cover test looks at: the original's
 /// placements as drawn in free roam (no panorama, no race-only or
 /// group-switched pieces), see-through ones included (a fence is seen).
@@ -81,7 +126,9 @@ const RACE_ONLY: u16 = 0x0200;
 
 /// The layer of `world` (the region as the original has it), the cover test over `placements`.
 pub fn layer_of(world: &World, placements: &[Placement]) -> Layer {
-    collision::build(world.ground.listed_faces(), &world.barrier_groups, &scenery(world, placements))
+    let mut layer = collision::build(world.ground.listed_faces(), &world.barrier_groups, &scenery(world, placements));
+    mark(&mut layer, world);
+    layer
 }
 
 impl Show {
