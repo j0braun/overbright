@@ -1,0 +1,13 @@
+{
+  "command": "browser.import",
+  "error": {
+    "kind": "failed",
+    "message": "not imported: the file is marked as from your game files: it stays on this computer. Remove the mark only when the model is entirely your own work",
+    "reasons": [
+      "the file is marked as from your game files: it stays on this computer. Remove the mark only when the model is entirely your own work"
+    ]
+  },
+  "exit": 1,
+  "format": 1,
+  "ok": false
+}

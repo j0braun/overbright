@@ -65,7 +65,11 @@ fn hit_line(ix: &Index, h: Hit) -> String {
 }
 
 pub(super) fn run(name: &str, line: &args::Line, env: &Env) -> Done {
-    if name == "browser.used" { used(line, env) } else { search(line, env) }
+    match name {
+        "browser.used" => used(line, env),
+        "browser.export" => export(line, env),
+        _ => search(line, env),
+    }
 }
 
 fn search(line: &args::Line, env: &Env) -> Done {
@@ -168,4 +172,115 @@ fn used(line: &args::Line, env: &Env) -> Done {
         lines.push(format!("Nothing matches `{}` in {region}", q.text));
     }
     Done { code: OK, text: lines, doc: json!({ "region": region, "text": q.text, "count": docs.len(), "found": docs }) }
+}
+
+/// The one model `text` names in the region's index: an exact name, else the only model the words find.
+fn model_named(ix: &Index, text: &str) -> Result<usize, Done> {
+    let q = Query { text: text.to_string(), kind: Kind::Models, ..Query::default() };
+    let hits: Vec<usize> = ix.search(&q).into_iter().filter_map(|h| if let Hit::Model(i) = h { Some(i) } else { None }).collect();
+    if let Some(&i) = hits.iter().find(|&&i| ix.models[i].name.eq_ignore_ascii_case(text)) {
+        return Ok(ix.models[i].solid);
+    }
+    match hits.as_slice() {
+        [i] => Ok(ix.models[*i].solid),
+        [] => Err(fail(super::FAILED, format!("no model matches `{text}`"))),
+        many => {
+            let names: Vec<&str> = many.iter().take(6).map(|&i| ix.models[i].name.as_str()).collect();
+            Err(fail(super::FAILED, format!("`{text}` matches {} models ({}…): give the whole name", many.len(), names.join(", "))))
+        }
+    }
+}
+
+/// `browser export`: the model as a glTF reference, as the window's Export glTF writes it.
+pub(super) fn export(line: &args::Line, env: &Env) -> Done {
+    use crate::browser::gltf;
+    let name = text(line, "text");
+    let to = text(line, "to");
+    let dir =    match (Some(to).filter(|t| !t.is_empty()), line.flag("mod").filter(|t| !t.is_empty())) {
+        (Some(t), _) => std::path::PathBuf::from(t),
+        (None, Some(m)) => gltf::reference_dir(std::path::Path::new(m)),
+        (None, None) => return fail(USAGE, "--to (a folder) or --mod is needed: where the glTF is written"),
+    };
+    let root = match game_root(line, env) {
+        Ok(r) => r,
+        Err(d) => return d,
+    };
+    let region = line.flag("region").unwrap_or(REGION).to_string();
+    let world = match (env.world)(&root, &region) {
+        Ok(w) => w,
+        Err(e) => return fail(NO_GAME, format!("the game's world does not load: {e}")),
+    };
+    let ix = Index::build(&region, &world);
+    let solid = match model_named(&ix, &name) {
+        Ok(s) => s,
+        Err(d) => return d,
+    };
+    match gltf::write_reference(&dir, Some(&root), &world.solids[solid], &world.textures, &region) {
+        Ok(r) => Done {
+            code: OK,
+            text: vec![format!("{} written: from your game files, local-only (see {})", r.gltf.display(), gltf::NOTE_FILE)],
+            doc: json!({ "region": region, "model": world.solids[solid].name, "gltf": r.gltf, "bin": r.bin, "textures": r.textures, "note": r.note, "origin": "from-game-files", "share": "local-only" }),
+        },
+        Err(e) => fail(super::FAILED, e),
+    }
+}
+
+/// `browser import`: an edited glTF mapped onto the original model's parts and kept in the mod.
+pub(super) fn import(line: &args::Line, env: &Env, mod_dir: &std::path::Path) -> Done {
+    use crate::browser::import;
+    let file = std::path::PathBuf::from(text(line, "file"));
+    let own = line.args.get("own").and_then(Value::as_bool).unwrap_or(false);
+    let foreign = match crate::browser::worker::read(&file) {
+        Ok(f) => f,
+        Err(r) => return refused(&r),
+    };
+    let wanted = match Some(text(line, "model")).filter(|m| !m.is_empty()).or_else(|| foreign.model.clone()) {
+        Some(m) => m,
+        None => return fail(USAGE, "--model is needed: the file does not say which model it was exported from"),
+    };
+    let root = match game_root(line, env) {
+        Ok(r) => r,
+        Err(d) => return d,
+    };
+    let region = line.flag("region").unwrap_or(REGION).to_string();
+    let world = match (env.world)(&root, &region) {
+        Ok(w) => w,
+        Err(e) => return fail(NO_GAME, format!("the game's world does not load: {e}")),
+    };
+    let ix = Index::build(&region, &world);
+    let solid = match model_named(&ix, &wanted) {
+        Ok(s) => s,
+        Err(d) => return d,
+    };
+    let orig = &world.solids[solid];
+    let imp = match import::map_onto(&foreign, orig, &world.textures) {
+        Ok(i) => i,
+        Err(r) => return refused(&r),
+    };
+    if own && let Err(r) = import::check_own(&foreign, &imp, orig) {
+        return refused(&r);
+    }
+    match import::write_model(mod_dir, &imp, &world.textures, &region, own) {
+        Ok(k) => Done {
+            code: OK,
+            text: vec![
+                format!("{} kept as a mod model in {}: {} vertices, {} triangles", orig.name, k.dir.display(), imp.solid.vertices.len(), imp.solid.indices.len() / 3),
+                if own { "shared with the mod (your own work)".into() } else { "from your game files: it stays on this computer and is not in the shared copy".to_string() },
+            ],
+            doc: json!({
+                "region": region, "model": orig.name, "dir": k.dir, "gltf": k.gltf, "record": k.record, "shared": k.shared,
+                "origin": if own { "own" } else { "from-game-files" },
+                "vertices": imp.solid.vertices.len(), "triangles": imp.solid.indices.len() / 3,
+                "parts": imp.parts.iter().map(|(n, t)| json!({ "name": n, "triangles": t })).collect::<Vec<_>>(),
+            }),
+        },
+        Err(e) => fail(super::FAILED, e),
+    }
+}
+
+fn refused(r: &crate::browser::import::Refusal) -> Done {
+    let mut d = fail(super::FAILED, format!("not imported: {r}"));
+    d.text = r.0.iter().map(|w| format!("not imported: {w}")).collect();
+    d.doc["error"]["reasons"] = json!(r.0);
+    d
 }

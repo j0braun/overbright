@@ -437,6 +437,8 @@ impl Index {
 }
 
 pub mod gltf;
+pub mod import;
+pub mod worker;
 
 #[cfg(test)]
 mod tests;

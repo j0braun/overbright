@@ -66,6 +66,8 @@ and its schema export (`crates/ob-studio/schema/studio.json`) use, so `help` is 
 | `data set` | edit | Write one cell as the grid does (`--kind`, `--row` the row's key as `data show` gives it, `--field` the column, `--value` as typed into the cell): one undo step, with a request, a diff and `--dry-run` like any edit |
 | `browser search` | read | Search the region's models and textures as the Browser workspace does: words of the name, a hash or `section:N` (after the command or `--text`), `--kind` all, models or textures, `--category` for models, `--textures` any, in-use, unused, animated or large; needs the game |
 | `browser used` | read | Where a model or texture is used: a model's placements, sections and textures, a texture's models and sections; needs the game |
+| `browser export` | run | Write a model as a glTF 2.0 file for an outside 3D program, as the Browser's Export glTF does (the model's name or hash after the command or `--text`; `--to` a folder, else the mod's `.editor/reference/`; never inside the game's folder). The files say `origin = "from-game-files"`, `share = "local-only"`; needs the game |
+| `browser import` | run | Bring an edited glTF back as a mod model (`--file`, optional `--model`, default the one the file says it was exported from; needs `--mod` and the game). The file's materials are mapped onto the original model's parts by name; a material that is not a part, a part with no triangles, texture coordinates or (lit models) normals missing, more than 65,535 vertices, or a file for another model is refused with the reason (exit 1). A model made from your game files is kept in the mod's `.editor/models/` and never shared; `--own` says the model is entirely your own work: it goes to `models/` (shared) without the game's pictures, and is refused while the file is still marked from the game's files or the shape is the game's unchanged. The file is read by an isolated worker process (20 s, 3 GB of memory on Linux and macOS, bounded output): a file that crashes or hangs it is refused and nothing else is touched |
 | `game find` | read | The game folder the tool uses and where it came from: `--game`, `NFSU2_ROOT` or the launcher's choice (exit 4 when none, or it does not exist) |
 | `checks run` | read | Run the map checks on the mod |
 | `history show` | read | The mod's kept steps, with their authors |
@@ -135,6 +137,8 @@ The first three read the same lists the window shows (the prop browser, the race
 the same words give the same answer. On a near miss (`--filter barier`, `looks find raod`, `--category barier`,
 `--region L4RB`, a command or `--template` with a typo) the answer says "Did you mean": plain text on the line after,
 `did_you_mean` in the JSON for the lists, and in the message of a usage error. The list commands need no `--mod`.
+
+`browser export` gives `region`, `model`, `gltf`, `bin`, `textures`, `note`, `origin` and `share`; `browser import` gives `region`, `model`, `dir`, `gltf`, `record`, `shared`, `origin`, `vertices`, `triangles` and `parts` (each `name`, `triangles`); a refusal has `error.reasons`, every reason on its own line in the text.
 
 `collision show` gives `region`, `mode`, `label`, `faces_read`, `counts` (each `what` the mode lists and its `count`) and
 `all` (`invisible`, `barriers`, `visible`, `floors`, `floors_not_ground`: every kind whatever the mode).

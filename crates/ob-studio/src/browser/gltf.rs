@@ -77,6 +77,21 @@ pub struct Reference {
     pub note: PathBuf,
 }
 
+/// The name of a part whose texture is not known: `slot<N>`.
+pub(crate) fn slot_name(slot: u8) -> String {
+    format!("slot{slot}")
+}
+
+/// The name an export gives the part (glTF material) that draws texture slot `slot` of `solid`: the texture's
+/// name, else [`slot_name`]. An import maps a file's materials back onto the original's parts by it.
+pub fn part_name(solid: &Solid, textures: &HashMap<u32, Texture>, slot: u8) -> String {
+    solid
+        .textures
+        .get(slot as usize)
+        .and_then(|h| textures.get(h))
+        .map_or_else(|| slot_name(slot), |t| t.name.clone())
+}
+
 fn pad4(v: &mut Vec<u8>) {
     while v.len() % 4 != 0 {
         v.push(0);
@@ -158,7 +173,7 @@ pub fn build<'a>(
             let hash = solid.textures.get(m.texture_slot as usize).copied();
             let tex = hash.and_then(|h| textures.get(&h));
             let mut mat = json!({
-                "name": tex.map(|t| t.name.clone()).unwrap_or_else(|| format!("slot{}", m.texture_slot)),
+                "name": tex.map(|t| t.name.clone()).unwrap_or_else(|| slot_name(m.texture_slot)),
                 "doubleSided": true,
                 "pbrMetallicRoughness": { "metallicFactor": 0.0, "roughnessFactor": 1.0 },
             });

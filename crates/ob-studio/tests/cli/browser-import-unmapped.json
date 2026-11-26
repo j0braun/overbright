@@ -1,0 +1,14 @@
+{
+  "command": "browser.import",
+  "error": {
+    "kind": "failed",
+    "message": "not imported: material `CHROME` is not a part of XC_CONE_01 (its parts: ROAD, slot1); the part `ROAD` has no triangles in the file: every part of the model has to stay",
+    "reasons": [
+      "material `CHROME` is not a part of XC_CONE_01 (its parts: ROAD, slot1)",
+      "the part `ROAD` has no triangles in the file: every part of the model has to stay"
+    ]
+  },
+  "exit": 1,
+  "format": 1,
+  "ok": false
+}

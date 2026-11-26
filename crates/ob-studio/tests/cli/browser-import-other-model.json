@@ -1,0 +1,10 @@
+{
+  "command": "browser.import",
+  "error": {
+    "kind": "failed",
+    "message": "no model matches `zebra`"
+  },
+  "exit": 1,
+  "format": 1,
+  "ok": false
+}

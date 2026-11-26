@@ -1,0 +1,25 @@
+{
+  "command": "browser.import",
+  "dir": "<tmp>/docks/.editor/models",
+  "exit": 0,
+  "format": 1,
+  "gltf": "<tmp>/docks/.editor/models/XC_CONE_01.gltf",
+  "model": "XC_CONE_01",
+  "ok": true,
+  "origin": "from-game-files",
+  "parts": [
+    {
+      "name": "ROAD",
+      "triangles": 1
+    },
+    {
+      "name": "slot1",
+      "triangles": 1
+    }
+  ],
+  "record": "<tmp>/docks/.editor/models/XC_CONE_01.model.toml",
+  "region": "L4RA",
+  "shared": false,
+  "triangles": 2,
+  "vertices": 4
+}

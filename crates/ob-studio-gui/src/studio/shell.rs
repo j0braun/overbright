@@ -812,6 +812,43 @@ impl Studio {
                     }
                 });
             }
+            browser::Act::ImportModel { solid, name } => {
+                let Some(folder) = self.open_mod().map(|m| m.folder.clone()) else { return };
+                let Some(st) = self.editor.as_ref().and_then(|h| h.app.state.as_ref()) else { return };
+                let world = &st.session.world;
+                self.verdict = Some(match world.solids.get(solid) {
+                    None => format!("{name} is not in the loaded region"),
+                    Some(orig) => {
+                        let file = ob_studio::browser::gltf::reference_dir(std::path::Path::new(&folder))
+                            .join(format!("{}.gltf", ob_studio::browser::gltf::file_stem(&orig.name)));
+                        if !file.is_file() {
+                            format!("{name} has no exported file to bring back: Export glTF (Ctrl+E) first, edit it, then Bring back")
+                        } else {
+                            let done = ob_studio::browser::worker::read(&file)
+                                .and_then(|f| ob_studio::browser::import::map_onto(&f, orig, &world.textures))
+                                .map_err(|r| r.to_string())
+                                .and_then(|imp| {
+                                    ob_studio::browser::import::write_model(
+                                        std::path::Path::new(&folder),
+                                        &imp,
+                                        &world.textures,
+                                        &st.session.region,
+                                        false,
+                                    )
+                                    .map(|k| (imp, k))
+                                });
+                            match done {
+                                Ok((imp, k)) => format!(
+                                    "{name} brought back as a mod model ({} triangles) in {}: from your game files, local-only, never shared with the mod",
+                                    imp.solid.indices.len() / 3,
+                                    k.dir.display()
+                                ),
+                                Err(e) => format!("{name} was not brought back: {e}"),
+                            }
+                        }
+                    }
+                });
+            }
             browser::Act::OpenTexture { hash, name } => {
                 let id = ob_studio::looks::TextureId::new(ob_studio::looks::Domain::World, hash).to_string();
                 let Some(folder) = self.open_mod().map(|m| m.folder.clone()) else { return };
@@ -1014,6 +1051,7 @@ impl Studio {
         let browser_chips = browser_rows && self.browser.focus < browser::FIRST_RESULT;
         let mut chip_keys = vec![];
         let mut export_key = false;
+        let mut import_key = false;
         let runs_rows = self.nav.workspace == Workspace::Runs && self.runs.row_focused(&self.ctx);
         let mut runs_steps: Vec<i32> = vec![];
         let mut runs_key = None;
@@ -1055,6 +1093,12 @@ impl Studio {
                 if browser_rows && modifiers.command && !modifiers.alt && !modifiers.shift =>
             {
                 export_key = true;
+                false
+            }
+            egui::Event::Key { key: egui::Key::I, pressed: true, modifiers, .. }
+                if browser_rows && modifiers.command && !modifiers.alt && !modifiers.shift =>
+            {
+                import_key = true;
                 false
             }
             egui::Event::Key { key, pressed: true, modifiers, .. }
@@ -1163,6 +1207,13 @@ impl Studio {
             match self.browser.export_act() {
                 Some(a) => self.browser_act(a),
                 None => self.verdict = Some("Choose a model to export it: textures have no glTF".into()),
+            }
+        }
+        if import_key {
+            self.nav.input = InputKind::Keyboard;
+            match self.browser.import_act() {
+                Some(a) => self.browser_act(a),
+                None => self.verdict = Some("Choose a model to bring back: textures have no glTF".into()),
             }
         }
         for (key, shift) in row_keys {
