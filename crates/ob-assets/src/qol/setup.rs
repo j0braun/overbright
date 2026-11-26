@@ -167,9 +167,9 @@ pub fn key_file_path(root: &Path, file: &str) -> PathBuf {
 /// Whether `root` looks like the game folder (its main data files are
 /// there).
 pub fn looks_like_game(root: &Path) -> bool {
-    crate::game_fs::path(root, "GLOBAL/GlobalB.lzc").is_file()
-        && crate::game_fs::path(root, "FRONTEND/FrontB.lzc").is_file()
-        && crate::game_fs::path(root, "TRACKS").is_dir()
+    crate::game_fs::is_file(root, "GLOBAL/GlobalB.lzc")
+        && crate::game_fs::is_file(root, "FRONTEND/FrontB.lzc")
+        && crate::game_fs::is_dir(root, "TRACKS")
 }
 
 /// The file a folder chosen by `--set-root` or the prompt is kept in

@@ -17,14 +17,9 @@ crates/ob-core/src/platform/dirs.rs	3	the program's own data: settings, saves, l
 crates/ob-core/src/platform/vulkan.rs	2	system files (/proc, /sys, /dev, /etc)
 crates/ob-core/src/prof/mod.rs	6	system files (/proc, /sys, /dev, /etc) and the program's own files
 crates/ob-core/src/studio_run.rs	4	own data: the run notes and logs of Studio and the map editor
-crates/ob-formats/src/formats/magazines.rs	1	lists a game-folder directory to find a file's spelling (the layer answers no listing yet: open item of #74)
 crates/ob-formats/src/formats/texwizard.rs	7	the player's packs, mods and importers (user-chosen paths)
-crates/ob-formats/src/formats/zam.rs	1	lists a game-folder directory to find a file's spelling (the layer answers no listing yet: open item of #74)
 crates/ob-formats/src/formats/zip.rs	1	the player's packs, mods and importers (user-chosen paths)
 src/asset_layer.rs	1	the import and the base set itself (the game folder is the import's source)
-src/audio/engine.rs	1	lists a game-folder directory to find a file's spelling (the layer answers no listing yet: open item of #74)
-src/audio/mixmap/parse.rs	1	lists a game-folder directory to find a file's spelling (the layer answers no listing yet: open item of #74)
-src/audio/reverb/graph.rs	1	lists a game-folder directory to find a file's spelling (the layer answers no listing yet: open item of #74)
 src/bin/bundle_dump.rs	1	a developer tool or an override folder from the environment
 src/bin/car_inspect.rs	1	a developer tool or an override folder from the environment
 src/bin/game/shell/first_run.rs	2	the game-folder check (size and hash of key files before an import)
@@ -32,13 +27,11 @@ src/bin/game/sim/session/replay.rs	1	the program's own data: settings, saves, lo
 src/cache/verify.rs	3	the asset cache, shader cache and cache verification (own data)
 src/diag/support.rs	15	system files (/proc, /sys, /dev, /etc) and the program's own files
 crates/ob-settings/src/extras.rs	2	the player's packs, mods and importers (user-chosen paths)
-crates/ob-assets/src/frontend/career/triggers.rs	1	lists a game-folder directory to find a file's spelling (the layer answers no listing yet: open item of #74)
 src/frontend/enh/map_pack.rs	1	the player's packs, mods and importers (user-chosen paths)
 src/frontend/profiles/store.rs	6	the program's own data: settings, saves, logs, launcher state, the player's folders
 src/frontend/settings/gpu_rating.rs	2	system files (/proc, /sys, /dev, /etc) and the program's own files
 src/frontend/settings/options_txt.rs	1	the program's own data: settings, saves, logs, launcher state, the player's folders
-crates/ob-assets/src/game_assets.rs	3	lists a game-folder directory to find a file's spelling (the layer answers no listing yet: open item of #74); and SPEED2.EXE, which the set does not keep, read from the folder
-src/garage.rs	1	lists a game-folder directory to find a file's spelling (the layer answers no listing yet: open item of #74)
+crates/ob-assets/src/game_assets.rs	1	SPEED2.EXE, which the set does not keep, read from the folder
 crates/ob-assets/src/hud_mod.rs	5	the player's packs, mods and importers (user-chosen paths)
 src/latency.rs	5	system files (/proc, /sys, /dev, /etc) and the program's own files
 src/launcher/crash_report.rs	3	the program's own data: settings, saves, logs, launcher state, the player's folders
@@ -74,7 +67,6 @@ crates/ob-assets/src/render/enh/assets/pack_select.rs	5	system files (/proc, /sy
 crates/ob-assets/src/render/enh/assets/surface/cache.rs	2	the player's packs, mods and importers (user-chosen paths)
 crates/ob-assets/src/render/enh/assets/texture_pack/cache.rs	2	the player's packs, mods and importers (user-chosen paths)
 crates/ob-assets/src/render/enh/assets/texture_pack/decode.rs	1	the player's packs, mods and importers (user-chosen paths)
-src/render/enh/lighting/probes/field.rs	1	a developer tool or an override folder from the environment
 src/render/enh/volumes/water/mod.rs	1	a developer tool or an override folder from the environment
 src/render/native/post/mod.rs	1	a developer tool or an override folder from the environment
 crates/ob-assets/src/texture_mods.rs	4	the player's packs, mods and importers (user-chosen paths)

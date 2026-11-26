@@ -36,14 +36,9 @@ use crate::world::{Placement, World};
 /// The platform `name`'s file, FRONTEND/PLATFORMS/<name>.BIN (its name
 /// matched without case), which [`Platform::load`] reads.
 pub fn platform_file(root: &Path, name: &str) -> Result<std::path::PathBuf> {
-    let dir = crate::game_fs::path(root, "FRONTEND/PLATFORMS");
     let want = format!("{name}.BIN");
-    std::fs::read_dir(&dir)
-        .with_context(|| format!("{}", dir.display()))?
-        .flatten()
-        .map(|e| e.path())
-        .find(|p| p.file_name().is_some_and(|f| f.to_string_lossy().eq_ignore_ascii_case(&want)))
-        .with_context(|| format!("no {want} in {}", dir.display()))
+    crate::game_fs::find_in(root, "FRONTEND/PLATFORMS", &want)
+        .with_context(|| format!("no {want} in {}", crate::game_fs::path(root, "FRONTEND/PLATFORMS").display()))
 }
 
 /// The platform scenes by number (0x7F60E8; 0x4A7180 loads

@@ -56,6 +56,12 @@ pub trait Layer: Send + Sync {
     fn digest(&self, _key: &str) -> Option<[u8; 32]> {
         None
     }
+    /// The entries directly in the game folder `dir` (its name relative to the game folder, upper case, `/`
+    /// separated), as (upper-case name, is a folder): None when the layer cannot answer the whole listing (it does
+    /// not know the folder, or keeps only part of it), and the folder is asked.
+    fn list(&self, _dir: &str) -> Option<Vec<(String, bool)>> {
+        None
+    }
     /// A short name for log lines (the base set's id).
     fn name(&self) -> &str;
 }
@@ -221,15 +227,56 @@ pub fn layered(path: &Path) -> Option<Mapped> {
     }
 }
 
+/// The layer's key of `rel` under `root`.
+fn key_rel(m: &Mount, root: &Path, rel: &str) -> Option<String> {
+    match key_of_path(m, root) {
+        Some(base) => key(&format!("{base}/{rel}")),
+        None if m.roots.iter().any(|r| r == root) => key(rel),
+        None => None,
+    }
+}
+
+/// What the layer knows of a name under the game folder.
+pub enum Presence {
+    File,
+    Dir,
+    /// The layer knows there is no such file or folder.
+    Absent,
+    /// No layer, outside the game folder, or the layer cannot tell: ask the folder.
+    Unknown,
+}
+
+/// Whether the game file or folder `rel` under `root` is there, by the layer's index (reads nothing, counts
+/// nothing).
+pub(super) fn presence(root: &Path, rel: &str) -> Presence {
+    let g = MOUNT.read().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let Some(m) = g.as_ref() else { return Presence::Unknown };
+    let Some(k) = key_rel(m, root, rel) else { return Presence::Unknown };
+    if m.layer.get(&k).is_some() {
+        Presence::File
+    } else if m.layer.list(&k).is_some() {
+        Presence::Dir
+    } else if m.layer.absent(&k) {
+        Presence::Absent
+    } else {
+        Presence::Unknown
+    }
+}
+
+/// The layer's listing of the folder `rel` under `root` (upper-case names, `true` for a folder); None when the
+/// layer does not answer it.
+pub(super) fn list_rel(root: &Path, rel: &str) -> Option<Vec<(String, bool)>> {
+    let g = MOUNT.read().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let m = g.as_ref()?;
+    let k = key_rel(m, root, rel)?;
+    m.layer.list(&k)
+}
+
 /// What the layer answers for the game file `rel` under `root`.
 pub(super) fn lookup_rel(root: &Path, rel: &str) -> Lookup {
     let g = MOUNT.read().unwrap_or_else(std::sync::PoisonError::into_inner);
     let Some(m) = g.as_ref() else { return Lookup::Folder };
-    let k = match key_of_path(m, root) {
-        Some(base) => key(&format!("{base}/{rel}")),
-        None if m.roots.iter().any(|r| r == root) => key(rel),
-        None => None,
-    };
+    let k = key_rel(m, root, rel);
     match k {
         Some(k) => served(m, &k),
         None => Lookup::Folder,

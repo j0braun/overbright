@@ -227,7 +227,7 @@ impl Traffic {
         let models: Vec<usize> = car_types
             .iter()
             .enumerate()
-            .filter(|(_, t)| t.traffic && nfsu2::game_fs::path(&root, &format!("CARS/{}", t.name)).is_dir())
+            .filter(|(_, t)| t.traffic && nfsu2::game_fs::is_dir(&root, &format!("CARS/{}", t.name)))
             .map(|(i, _)| i)
             .collect();
         anyhow::ensure!(!models.is_empty(), "no traffic car models");

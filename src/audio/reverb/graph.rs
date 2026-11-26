@@ -198,12 +198,7 @@ impl Graph {
     /// case-insensitively, as Windows opens them).
     pub fn load(root: &Path, index: usize, rate: u32) -> Option<Graph> {
         let want = format!("{}.fx", PRESETS.get(index)?).to_ascii_lowercase();
-        let dir = crate::game_fs::path(root, "SOUND/FXEDIT");
-        let path = std::fs::read_dir(&dir)
-            .ok()?
-            .flatten()
-            .map(|e| e.path())
-            .find(|p| p.file_name().and_then(|n| n.to_str()).is_some_and(|n| n.to_ascii_lowercase() == want))?;
+        let path = crate::game_fs::find_in(root, "SOUND/FXEDIT", &want)?;
         Graph::parse(&crate::game_fs::read_file(&path).ok()?, rate)
     }
 

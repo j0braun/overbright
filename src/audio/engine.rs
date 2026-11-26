@@ -34,12 +34,7 @@ pub fn gin_path(root: &Path, entry: usize) -> Option<PathBuf> {
 
 /// A GIN file of SOUND/ENGINE by name, ignoring case.
 pub fn gin_file(root: &Path, file: &str) -> Option<PathBuf> {
-    let dir = crate::game_fs::path(root, "SOUND/ENGINE");
-    let exact = dir.join(file);
-    if exact.exists() {
-        return Some(exact);
-    }
-    std::fs::read_dir(&dir).ok()?.flatten().map(|e| e.path()).find(|p| p.file_name().is_some_and(|n| n.eq_ignore_ascii_case(file)))
+    crate::game_fs::find_in(root, "SOUND/ENGINE", file)
 }
 
 #[cfg(test)]

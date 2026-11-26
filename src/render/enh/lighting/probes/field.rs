@@ -253,18 +253,13 @@ pub fn ambient_terms(cube: &[Vec3; 6], native: &[Vec4; 10]) -> [Vec4; 10] {
 
 /// A region's route files: free roam first, then every race's forward file.
 pub fn region_routes(root: &std::path::Path, region: &str) -> Vec<RouteFile> {
-    let dir = crate::game_fs::path(root, &format!("TRACKS/ROUTES{region}"));
-    let mut names: Vec<std::path::PathBuf> = std::fs::read_dir(&dir)
-        .map(|d| {
-            d.filter_map(|e| e.ok().map(|e| e.path()))
-                .filter(|p| {
-                    p.file_name()
-                        .and_then(|n| n.to_str())
-                        .is_some_and(|n| n.starts_with("Routes") && n.ends_with("F.bin"))
-                })
-                .collect()
+    let mut names: Vec<std::path::PathBuf> = crate::game_fs::list_paths(root, &format!("TRACKS/ROUTES{region}"))
+        .unwrap_or_default()
+        .into_iter()
+        .filter(|p| {
+            p.file_name().and_then(|n| n.to_str()).map(str::to_ascii_lowercase).is_some_and(|n| n.starts_with("routes") && n.ends_with("f.bin"))
         })
-        .unwrap_or_default();
+        .collect();
     names.sort();
     names.insert(0, crate::game_fs::path(root, &format!("TRACKS/ROUTES{region}/RoutesFreeRoam.bin")));
     names.iter().filter_map(|p| crate::game_fs::read_file(p).ok()).map(|d| RouteFile::parse(&d)).collect()
