@@ -1898,3 +1898,78 @@ fn a_race_keeps_the_rain_out_under_its_own_tracks_roofs() {
         assert!(!weather.covered_at(under.truncate().extend(roof.position.z + 1.0)), "{region}: above the roof");
     }
 }
+
+/// #240 (0.6.1): the bumper view's hidden player car still drew its neon
+/// tubes (the yellow outline at the bottom of the screen) in free roam: the
+/// tubes' glow list (`glow_quads`) did not take the view's test. In free
+/// roam and in a race, standing and moving, the bumper view's glow list
+/// carries no neon tube of the player's car, the hood view's does.
+#[test]
+#[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
+fn bumper_view_draws_no_neon_tubes_of_the_players_car_in_every_mode() {
+    use crate::render::frame::cars::{CarSet, DrawnCars, TrafficSet};
+    testkit::game();
+    let tube_quads = |game: &mut Game, moving: bool, what: &str| -> (bool, usize) {
+        let d = game.sim.drive.as_mut().unwrap();
+        d.car.neon = nfsu2::shadow::Neon { base: [255, 255, 0, 255], delta: [0; 4], lit: true };
+        d.car.neon_tubes = vec![[Vec3::new(-0.9, 1.9, 0.2), Vec3::new(0.9, 1.9, 0.2)]];
+        if moving {
+            d.state.velocity = d.state.forward() * 20.0;
+        }
+        let d = game.sim.drive.as_ref().unwrap();
+        let hidden = view_leaves_out_player(&game.mode, d, game.scenes.shop.as_ref(), false);
+        let poses = crate::render::snapshot::FramePoses::live(Some(d));
+        let cars = DrawnCars::of_parts(
+            &game.mode,
+            game.sim.paused_race.as_ref(),
+            game.sim.traffic.as_ref(),
+            game.sim.encounters.as_ref(),
+            game.scenes.shop.as_ref(),
+            &poses,
+            CarSet { paused_race: false, traffic: TrafficSet::Live },
+        );
+        let opts = nfsu2::render::RenderOptions::default();
+        let with = |hide: bool| {
+            crate::render::native::glows::glow_quads(
+                d, &d.camera, cars.poses, cars.race, cars.encounters, cars.traffic, 16.0 / 9.0, 1.0, None, &opts, 0, hide,
+            )
+            .len()
+        };
+        let (shown, hid) = (with(false), with(true));
+        assert!(shown > hid, "{what}: the test car's tubes are in the list ({shown} vs {hid})");
+        (hidden, if hidden { hid } else { shown })
+    };
+    for camera in [0u8, 1] {
+        let left_out = camera == 0;
+        for moving in [false, true] {
+            let what = format!("free roam, camera {camera}, moving {moving}");
+            let mut game = super::rivals_ahead::career_at(0, 0);
+            game.settings.players[0].camera = camera;
+            {
+                let d = game.sim.drive.as_mut().unwrap();
+                d.chase = ChaseCamera::new(&d.car, VIEW_ORDER[camera as usize]);
+            }
+            game.advance_for(0.5).unwrap();
+            let (hidden, _) = tube_quads(&mut game, moving, &what);
+            assert_eq!(hidden, left_out, "{what}");
+
+            let what = format!("race, camera {camera}, moving {moving}");
+            let mut game = super::rivals_ahead::career_at(0, 0);
+            game.settings.players[0].camera = camera;
+            let e = game.game_data.career.events.iter().position(|e| e.unlock == dday::STAGE0_RACES[0]).unwrap();
+            game.start_race(e, false, false).unwrap();
+            let mut seen = false;
+            for _ in 0..60 * 30 {
+                game.step_for(1.0 / 60.0).unwrap();
+                if game.scenes.shop.as_ref().is_some_and(|r| r.camera_holds_view()) {
+                    continue;
+                }
+                let (hidden, _) = tube_quads(&mut game, moving, &what);
+                assert_eq!(hidden, left_out, "{what}");
+                seen = true;
+                break;
+            }
+            assert!(seen, "{what}: the start scene ended");
+        }
+    }
+}

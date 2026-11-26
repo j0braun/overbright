@@ -379,6 +379,8 @@ pub(crate) fn water_prepare(
 /// deviations, docs/notes/graphics/lamps-shadows.md), the player's first (the headlight's
 /// own car); empty when both are off.
 /// `seconds`: the neon's clock ([`nfsu2::shadow::neon_color`]).
+/// `player_hidden`: the view leaves the player's car out, so its underglow
+/// lights nothing either.
 pub(crate) fn car_occluders(
     d: &Drive,
     camera: &Camera,
@@ -389,6 +391,7 @@ pub(crate) fn car_occluders(
     traffic: Option<&Traffic>,
     seconds: f32,
     opts: &nfsu2::render::RenderOptions,
+    player_hidden: bool,
 ) -> Vec<nfsu2::render::lamps::Occluder> {
     let contact = opts.contact_shadows;
     // The underglow's light: for the contact shadow and SSAO.
@@ -414,7 +417,11 @@ pub(crate) fn car_occluders(
         max: car.shadow_box.1,
         glow: if glows { glow(car) } else { 0.0 },
     };
-    let mut out = vec![occ(&d.car, poses.player())];
+    let mut player = occ(&d.car, poses.player());
+    if player_hidden {
+        player.glow = 0.0;
+    }
+    let mut out = vec![player];
     out.extend(companion.map(|(c, s)| occ(c, s)));
     out.extend(race.into_iter().flat_map(|r| r.racers.rivals.iter().map(|r| occ(&r.car, poses.car(&r.id, &r.state)))));
     out.extend(encounters.into_iter().flat_map(|e| e.cars.iter().filter(|c| c.active).map(|c| occ(&c.car, poses.car(&c.id, &c.state)))));
