@@ -301,7 +301,11 @@ mod tests {
 
     #[test]
     fn write_puts_report_and_save_copy_in_the_data_folder() {
-        crate::frontend::profiles::sandbox::enter(&std::env::temp_dir().join(format!("nfsu2-mark-{}", std::process::id())));
+        // A fresh data folder for this thread (as `frontend::profiles::sandbox::enter` makes one; the report needs no profile).
+        let fresh = std::env::temp_dir().join(format!("nfsu2-mark-{}-{:?}", std::process::id(), std::thread::current().id()));
+        let _ = std::fs::remove_dir_all(&fresh);
+        std::fs::create_dir_all(&fresh).unwrap();
+        crate::platform::dirs::set_thread_data_home(fresh);
         let mut s = spot();
         s.profile_save = Some(b"SAVE".to_vec());
         let a = write(&s).unwrap();

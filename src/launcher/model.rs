@@ -2591,7 +2591,7 @@ impl Env for RealEnv {
 pub fn check_result(root: &Path, c: &setup::Check, fp: Option<&crate::fingerprint::Fingerprint>) -> CheckResult {
     let lines: Vec<(Mark, String)> = setup::check_lines(c, fp)
         .into_iter()
-        .map(|(m, t)| (Mark::from(m), t))
+        .map(|(m, t)| (crate::launcher::ui::lamp(m), t))
         .filter(|(m, t)| !(*m == Mark::Info && (t.starts_with("Mod files found") || t.starts_with("SPEED2.EXE"))))
         .collect();
     // A folder with an error line cannot be used, files all there or

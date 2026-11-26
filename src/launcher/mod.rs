@@ -50,3 +50,5 @@ pub mod window;
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod texture_mod_tests;

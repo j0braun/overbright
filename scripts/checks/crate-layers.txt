@@ -10,7 +10,7 @@ crate ob-settings crates/ob-settings/src
 # The middle layers (settings, assets, simulation, audio, render, menus) are still modules of the library; the
 # check keeps their references pointing down until they move into crates of their own. Audio, render and the
 # menus are listed in a line (audio, then render, then the menus), so a reference up that line is refused too.
-crate ob-assets src
+crate ob-assets crates/ob-assets/src
 crate ob-sim src
 crate ob-audio src
 crate ob-render src
@@ -59,9 +59,26 @@ tools::map::store ob-map
 qol ob-settings
 qol::setup ob-assets
 qol::tests nfsu2
+# Test modules that drive the menus or the simulation stay with the library when their module
+# moves into its crate: the crate's own tests stay in the crate, these join the library's tests.
+game_assets::tests nfsu2
+tools::map::tests nfsu2
+# The map editor's adapter over the career data (menus layer): the editor itself is an asset module, this file stays
+# with the library.
+tools::map::assets nfsu2
+world::prop_collision::tests nfsu2
 pad::extras ob-settings
 world ob-assets
 car ob-assets
+# The car's records and the physics code that reads and installs them: the car loads their data and sets them up, so
+# they sit with it.
+part_anim ob-assets
+narrow ob-assets
+nitrous ob-assets
+performance ob-assets
+race ob-assets
+tuning ob-assets
+handling ob-assets
 character ob-assets
 collision ob-assets
 ground ob-assets
@@ -89,6 +106,12 @@ tools::map ob-assets
 render::enh::assets::car_model ob-assets
 render::enh::assets::neon_quality ob-assets
 render::enh::assets::hd_ui ob-assets
+# The shadow's refinement (an inherent method of the effects' shadow type) sits with the type.
+render::enh::geometry::shadow_refine ob-assets
+render::enh::assets::pack_select ob-assets
+render::enh::assets::texture_pack ob-assets
+# The pack loader's tests drive the renderer and its environment switches: they stay with the library.
+render::enh::assets::texture_pack::tests nfsu2
 render::enh::assets::surface ob-assets
 surface_maps ob-assets
 render::native::fx ob-assets
@@ -120,19 +143,12 @@ replay_cams ob-sim
 racer_reset ob-sim
 interpolate ob-sim
 garage ob-sim
-part_anim ob-sim
-narrow ob-sim
-nitrous ob-sim
 opponents ob-sim
 outrun ob-sim
 pad ob-sim
-performance ob-sim
 photo ob-sim
-race ob-sim
 smackable ob-sim
 standings ob-sim
-tuning ob-sim
-handling ob-sim
 hydraulics ob-sim
 weather ob-sim
 mark_spot ob-sim
@@ -170,6 +186,7 @@ package ob-formats
 package ob-asset-format
 package ob-map
 package ob-settings
+package ob-assets
 package nfsu2
 package ob-studio
 package ob-studio-gui
@@ -181,6 +198,7 @@ forbid ob-formats wgpu winit cpal egui
 forbid ob-asset-format wgpu winit cpal egui
 forbid ob-map wgpu winit cpal egui
 forbid ob-settings winit cpal egui
+forbid ob-assets winit cpal egui
 forbid ob-look wgpu winit cpal egui
 forbid nfsu2 egui
 forbid ob-studio egui

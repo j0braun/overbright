@@ -1,13 +1,10 @@
 //! Quality-of-life options: **clone deviations**, every one opt-in, every
 //! default native (docs/formats.md, "QoL (clone deviation)"). The settings store
-//! and its option table are `ob_settings::qol` (re-exported here at the old
-//! path); what needs the library stays: [`setup`], finding and checking the game
-//! folder on a first run.
+//! and its option table are `ob_settings::qol`, and `setup` (finding and
+//! checking the game folder on a first run) is `ob_assets::qol::setup`
+//! (re-exported here at the old path); the library's own tests stay here.
 
-pub use ob_settings::qol::*;
-
-/// First run: finding the game folder and checking it.
-pub mod setup;
+pub use ob_assets::qol::*;
 
 #[cfg(test)]
 mod tests;

@@ -8,41 +8,7 @@
 
 use super::*;
 
-static LIVE: Mutex<Option<PathBuf>> = Mutex::new(None);
-/// Whether [`LIVE`] is set: the native path (no live folder) never takes the lock.
-static LIVE_ON: AtomicBool = AtomicBool::new(false);
-
-/// The test run's live folder (None: no live textures, the default).
-pub fn set_live(folder: Option<PathBuf>) {
-    let changed = {
-        let mut l = LIVE.lock().unwrap_or_else(|e| e.into_inner());
-        let changed = *l != folder;
-        LIVE_ON.store(folder.is_some(), Ordering::Release);
-        *l = folder;
-        changed
-    };
-    if changed {
-        crate::obpack::forget_roots();
-    }
-}
-
-/// The live folder, if this run has one.
-pub fn live() -> Option<PathBuf> {
-    if !LIVE_ON.load(Ordering::Acquire) {
-        return None;
-    }
-    LIVE.lock().unwrap_or_else(|e| e.into_inner()).clone()
-}
-
-/// The live folder of a domain's textures (`world`, `car`; none for the UI).
-pub(in crate::render) fn live_root(domain: Domain) -> Option<PathBuf> {
-    let sub = match domain {
-        Domain::World => "world",
-        Domain::Car => "car",
-        Domain::Ui => return None,
-    };
-    live().map(|l| l.join(sub))
-}
+pub use super::texture_pack::{live, set_live};
 
 /// What the loader gives for `texture` of the world (`car` false) or the
 /// cars now: its top level's size and first pixel (RGBA). Studio's test of

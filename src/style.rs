@@ -48,12 +48,8 @@ const SPRAY_MPH: f32 = 5.0;
 /// "No hit yet" (0x79DC20): misc +0x2C is 0 or 0x7FFFFFFF.
 const NO_HIT: f32 = 99_999.9;
 
-/// The nitrous tank a change of `points` in the style total is worth
-/// (0x601737: Δ / 15 (0x7A5460) × 0.01 (0x78425C)): 1500 points fill a
-/// tank.
-pub fn refill_fraction(points: f32) -> f32 {
-    points / 15.0 * 0.01
-}
+/// The nitrous tank a change of `points` in the style total is worth ([`crate::nitrous::refill_fraction`]).
+pub use crate::nitrous::refill_fraction;
 
 /// A push that passed the contact callback's gate (0x56FB30; see
 /// `CarState::style_contact`).

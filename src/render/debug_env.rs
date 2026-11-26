@@ -481,14 +481,8 @@ pub fn nfsu2_smoke2_g10() -> bool {
 
 // --- texture packs ------------------------------------------------------
 
-/// `NFSU2_WORLD_TEXTURE_PACK`: PATH-style list of world pack folders; empty counts as unset.
-pub fn nfsu2_world_texture_pack() -> Option<OsString> {
-    os("NFSU2_WORLD_TEXTURE_PACK").filter(|p| !p.is_empty())
-}
-/// `NFSU2_CAR_TEXTURE_PACK`: PATH-style list of car pack folders; empty counts as unset.
-pub fn nfsu2_car_texture_pack() -> Option<OsString> {
-    os("NFSU2_CAR_TEXTURE_PACK").filter(|p| !p.is_empty())
-}
+// `NFSU2_WORLD_TEXTURE_PACK` and `NFSU2_CAR_TEXTURE_PACK` (PATH-style lists of pack folders; empty counts as unset) are
+// read by the pack loader itself (`enh::assets::texture_pack::roots`), which sits below the renderer.
 
 // --- test harness variables (child processes, data fixtures) -------------
 

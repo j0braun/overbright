@@ -153,14 +153,12 @@ pub fn read_limited(program: &Path, file: &Path, time: Duration, cap: usize) -> 
 #[cfg(all(test, unix))]
 mod tests {
     use super::*;
-    use std::os::unix::fs::PermissionsExt;
 
     fn script(tag: &str, body: &str) -> PathBuf {
         let d = std::env::temp_dir().join(format!("ob-worker-{tag}-{}", ob_core::unique_tag()));
         std::fs::create_dir_all(&d).unwrap();
         let p = d.join("worker.sh");
-        std::fs::write(&p, format!("#!/bin/sh\n{body}\n")).unwrap();
-        std::fs::set_permissions(&p, std::fs::Permissions::from_mode(0o755)).unwrap();
+        ob_testkit::write_script(&p, &format!("#!/bin/sh\n{body}\n"));
         p
     }
 

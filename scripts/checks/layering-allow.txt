@@ -34,7 +34,7 @@ state	src/render/native/display/monitor.rs	static MONITOR: std::sync::RwLock<Opt
 state	src/render/native/display/present.rs	static MODES: std::sync::RwLock<Vec<(u32, u32)>> = std::sync::RwLock::new(Vec::new());	the monitor and its display modes as the window reports them, one per process
 state	src/render/native/display/present.rs	static VSYNC_OFF_MAILBOX: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(true);	the present mode vsync off asks for (Mailbox or Immediate), set at start-up
 state	src/render/native/display/sampler.rs	static TEXTURE_FILTER: AtomicU8 = AtomicU8::new(2);	native: BASETEXTUREFILTERPARAM, the device-wide anisotropy the samplers read when built
-state	src/render/native/fx/fog.rs	static LAST_SAMPLE: std::sync::Mutex<Option<[f32; 5]>> = std::sync::Mutex::new(None);	native: 0x89E850, the fog's last row, process-wide like the original's
+state	crates/ob-assets/src/render/native/fx/fog.rs	static LAST_SAMPLE: std::sync::Mutex<Option<[f32; 5]>> = std::sync::Mutex::new(None);	native: 0x89E850, the fog's last row, process-wide like the original's
 state	src/render/native/post/lens_drops.rs	static PLAIN_COPY: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);	tests and measurements: the switch to the older path they compare
 state	src/render/native/post/lens_drops.rs	static IN_PLACE: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);	tests: the counter they read back
 state	src/render/native/post/mod.rs	static PLAIN_TINT: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);	tests and measurements: the switch to the older path they compare

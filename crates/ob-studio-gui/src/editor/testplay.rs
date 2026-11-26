@@ -720,14 +720,11 @@ mod tests {
     /// itself and the result line, after `pause` seconds.
     #[cfg(unix)]
     fn stand_in(dir: &Path, pause: &str) -> PathBuf {
-        use std::os::unix::fs::PermissionsExt;
         let exe = dir.join("game");
-        std::fs::write(
+        crate::testkit::write_script(
             &exe,
-            format!("#!/bin/sh\nsleep {pause}\nwhile [ $# -gt 0 ]; do [ \"$1\" = --map-result ] && r=$2; [ \"$1\" = --record ] && w=$2; echo \"$1\" >> \"$(dirname \"$0\")/args\"; shift; done\n[ -n \"$w\" ] && printf 'OBSIM 1 schema=ob.run/1.1 mode=race seed=1 race=dock hash=1\\nEND quit\\n' > \"$w\"\necho 'finished=yes place=1 of=4 time=61.5 laps=1' > \"$r\"\n"),
-        )
-        .unwrap();
-        std::fs::set_permissions(&exe, std::fs::Permissions::from_mode(0o755)).unwrap();
+            &format!("#!/bin/sh\nsleep {pause}\nwhile [ $# -gt 0 ]; do [ \"$1\" = --map-result ] && r=$2; [ \"$1\" = --record ] && w=$2; echo \"$1\" >> \"$(dirname \"$0\")/args\"; shift; done\n[ -n \"$w\" ] && printf 'OBSIM 1 schema=ob.run/1.1 mode=race seed=1 race=dock hash=1\\nEND quit\\n' > \"$w\"\necho 'finished=yes place=1 of=4 time=61.5 laps=1' > \"$r\"\n"),
+        );
         exe
     }
 

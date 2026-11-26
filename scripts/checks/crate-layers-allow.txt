@@ -3,37 +3,7 @@
 # and so does a line here that no longer matches one. `crate_layers.py --list` prints the current set.
 # src/qol/mod.rs render::blur_dof: the library's own (cfg(test)) `test_globals` also resets photo mode; the file is the
 # library's facade over the settings crate, not a module of it.
-src/audio/speech/mod.rs frontend::dday::Hints
-src/audio/trax/caption.rs frontend::layout
-src/audio/trax/caption.rs frontend::screens::EA_TRAX
-src/car/load.rs part_anim::Styles
-src/car/load.rs performance::Package
-src/car/mod.rs handling
-src/car/mod.rs handling::Handling
-src/car/mod.rs handling::parse_handling
-src/car/mod.rs part_anim::Channels
-src/car/mod.rs part_anim::Styles
-src/car/mod.rs performance::parse
-src/car/mod.rs render::display::texture_sampler
-src/car/model.rs narrow::body_point
-src/car/paint.rs handling::setup_performance
-src/car/parts.rs performance::Package
-src/car/record.rs handling::setup_performance
-src/car/record.rs handling::upgrade_state
-src/car/record.rs performance::Package
-src/car/record.rs performance::install
-src/car/record.rs performance::state_levels
-src/car/record.rs performance::upgrade
-src/car/record.rs tuning::Settings
-src/car/record.rs tuning::Unlock
-src/car/record.rs tuning::apply
-src/car/wheels.rs render::car_pack_rgba
-src/game_assets/tests.rs frontend::asset_files
-src/game_assets/tests.rs frontend::career::CareerData
-src/handling/drivetrain/turbo.rs audio::transients
-src/mark_spot.rs frontend::profiles::sandbox
 src/qol/mod.rs render::blur_dof
-src/render/enh/assets/hd_ui.rs frontend::map_pack::parse
 src/render/enh/post/blur_dof.rs frontend::graphics_table::row
 src/render/enh/post/blur_dof.rs frontend::options
 src/render/enh/post/blur_dof.rs frontend::options::RowId
@@ -48,17 +18,3 @@ src/render/native/ui/geom_dump.rs frontend::mouse::geom_rects
 src/render/native/ui/geom_dump.rs frontend::mouse::inside
 src/render/native/world/record.rs tools::texed::note_world_slots
 src/render/native/world/record.rs tools::texed::recording
-src/texture_mods/tests.rs launcher::model::import_paths
-src/texture_mods/tests.rs launcher::model::packages_here
-src/texture_mods/tests.rs launcher::model::read_packages
-src/tools/map/assets.rs frontend::career::CareerData
-src/tools/map/tests.rs frontend::career::CareerData
-src/upscale_pack.rs render::enh::assets::pack_select
-src/upscale_pack.rs render::enh::assets::pack_select::*
-src/world/anims.rs audio::enviro
-src/world/cache.rs render::prepared
-src/world/map_overlay.rs smackable::Prop
-src/world/mod.rs smackable::Prop
-src/world/parse.rs smackable::Prop
-src/world/prop_collision/tests.rs drive::CarState
-src/world/prop_collision/tests.rs drive::Controls

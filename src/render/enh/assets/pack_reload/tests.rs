@@ -184,6 +184,7 @@ fn listing_takes_pack_files_only() {
 /// the domain as a whole.
 #[test]
 fn watcher_publishes_changes_and_the_loader_follows() {
+    let _stack = crate::mod_packs::test_lock();
     const CHILD: &str = "NFSU2_PACK_WATCH_TEST_CHILD";
     let dir = match crate::render::debug_env::test_child(CHILD) {
         Some(_) => PathBuf::from(crate::render::debug_env::nfsu2_world_texture_pack_raw().unwrap()),

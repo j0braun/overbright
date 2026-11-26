@@ -1,2 +1,2 @@
 pub mod lod_fade;
-pub mod shadow_refine;
+pub use ob_assets::render::enh::geometry::shadow_refine;

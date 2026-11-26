@@ -144,7 +144,7 @@ mod tests {
             let first = &group[0];
             let anchor = glam::Vec2::new(first[4], first[5]);
             let recent: Vec<usize> = first[8..8 + first[7] as usize].iter().map(|&x| x as usize).collect();
-            state.ground = world.ground.native_history(&world.visibility, anchor, first[6], &recent, barriers.clone());
+            state.ground = world.ground.native_history(&crate::testkit::private("docs/evidence/full-phase-inputs/ground-faces.bin"), &world.visibility, anchor, first[6], &recent, barriers.clone());
             for (i, r) in group.iter().enumerate() {
                 assert_eq!(r[1] as usize, i);
                 let rest = Vec3::new(r[12], r[13], r[14]);

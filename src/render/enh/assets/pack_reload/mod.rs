@@ -45,22 +45,6 @@ pub use watch::*;
 #[cfg(test)]
 mod tests;
 
-/// Tests: a slow disk or a slow reload, injected at the watcher's and the
-/// loader's steps (a random wait of up to this many ms; 0: none).
+/// Tests: a slow disk or a slow reload ([`SLOW_MS`], [`slow_step`]) are defined with the pack loader.
 #[cfg(test)]
-pub(in crate::render) static SLOW_MS: AtomicU64 = AtomicU64::new(0);
-
-/// Tests: wait as [`SLOW_MS`] says.
-#[cfg(test)]
-pub(in crate::render) fn slow_step() {
-    let ms = SLOW_MS.load(Ordering::Relaxed);
-    if ms == 0 {
-        return;
-    }
-    static SEED: AtomicU64 = AtomicU64::new(0x9E37_79B9_7F4A_7C15);
-    let mut x = SEED.fetch_add(0x9E37_79B9_7F4A_7C15, Ordering::Relaxed);
-    x ^= x >> 33;
-    x = x.wrapping_mul(0xFF51_AFD7_ED55_8CCD);
-    x ^= x >> 33;
-    std::thread::sleep(Duration::from_micros(x % (ms * 1000)));
-}
+pub(in crate::render) use super::texture_pack::{SLOW_MS, slow_step};

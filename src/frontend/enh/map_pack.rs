@@ -2,39 +2,7 @@
 use crate::frontend::career::Track;
 use std::{collections::HashMap, path::Path};
 
-/// Validate the whole sidecar without filesystem access or mutation. Values
-/// retain Binary's world coordinates and 512-reference menu units.
-/// Each row is (track number, field index, value).
-pub(crate) fn parse(text: &str) -> anyhow::Result<Vec<(u16, usize, f32)>> {
-    use anyhow::ensure;
-    let mut rows = Vec::new();
-    let mut seen = std::collections::HashSet::new();
-    for line in text.lines().map(str::trim).filter(|l| !l.is_empty() && !l.starts_with('#')) {
-        let parts: Vec<_> = line.split_whitespace().collect();
-        ensure!(parts.len() == 3, "map override requires track, field, value");
-        let track: u16 = parts[0].parse()?;
-        let value: f32 = parts[2].parse()?;
-        ensure!(value.is_finite(), "nonfinite map override");
-        let field = match parts[1] {
-            "TrackMapCalibrationOffsetX" => 0,
-            "TrackMapCalibrationOffsetY" => 1,
-            "TrackMapCalibrationZoomIn" => {
-                ensure!(value > 0.0, "map zoom must be positive");
-                2
-            }
-            "MenuMapZoomOffsetX" => 3,
-            "MenuMapZoomOffsetY" => 4,
-            "MenuMapZoomWidth" => {
-                ensure!(value >= 0.0, "map window cannot be negative");
-                5
-            }
-            other => anyhow::bail!("unknown map override field: {other}"),
-        };
-        ensure!(seen.insert((track, field)), "duplicate map override");
-        rows.push((track, field, value));
-    }
-    Ok(rows)
-}
+pub(crate) use crate::render::enh::assets::hd_ui::parse_map_overrides as parse;
 
 /// Parse before changing anything. Generic packs may override just one field;
 /// the combined HD UI pack's completeness requirements live in hd_ui_pack.
