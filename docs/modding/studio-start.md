@@ -39,7 +39,8 @@ If the launcher says Studio's program is not beside it, unpack the whole downloa
 - **The workspaces on the rail** at the left. A workspace keeps its place and its Ctrl+number.
 - **Keyboard and pad**: everything works with a mouse, a keyboard or a game pad (Xbox, PlayStation, Steam Deck).
 
-The window, its keys and its pad buttons are on the [Studio page](studio.md).
+The window, its keys and its pad buttons are on the [Studio page](studio.md). A step-by-step path from install to a
+shared mod is [From install to a shared mod](getting-started.md); sharing is [Share your mod as a pack](share-a-pack.md).
 
 ## The command-line tool
 

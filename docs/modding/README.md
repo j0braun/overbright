@@ -3,6 +3,13 @@
 Pages for modders: texture packs, the editors, Studio and the asset format (a draft). Overbright ships no replacement
 art; every pack is one you add yourself.
 
+## Start here
+
+| Page | What it covers |
+|---|---|
+| [From install to a shared mod](getting-started.md) | The whole path: open Studio, the tutorials, a race, Changes, a test, the checks and the export. |
+| [Share your mod as a pack](share-a-pack.md) | The `.zip` and `.obpk` files, what they hold, and how a friend adds one. |
+
 ## Texture mods
 
 | Page | What it covers |

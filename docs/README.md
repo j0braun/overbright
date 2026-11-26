@@ -21,6 +21,7 @@ Texture packs, the texture editor, the map editor, Overbright Studio and the ass
 [modding/](modding/README.md).
 
 - [Texture packs](modding/texture-packs.md): add HD textures and the HUD mod.
+- [From install to a shared mod](modding/getting-started.md) and [Share your mod as a pack](modding/share-a-pack.md): the modder's path in order.
 - [TexMod packs](modding/texmod-import.md): use `.tpf` packages made for the original.
 - [Texture editor](modding/texture-editor.md) and [map editor](modding/map-editor.md).
 - Overbright Studio (preview), the map editor's new home: [getting started](modding/studio-start.md),
