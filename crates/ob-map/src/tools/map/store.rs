@@ -40,9 +40,18 @@ pub const TESTED: &str = "tested.txt";
 /// The last test run's result line (`game --map-result`).
 pub const TEST_RESULT: &str = "test-result.txt";
 
+/// The note Studio's New mod writes into [`EDITOR_DIR`]: the mod was made in Studio and has not been turned on in the
+/// launcher yet (the launcher's "new from Studio" mark; turning the mod on removes it).
+pub const NEW_FROM_STUDIO: &str = "new-from-studio";
+
 /// `<dir>/<folder>/.editor`: the editor's files for that mod.
 pub fn editor_dir(dir: &Path, folder: &str) -> PathBuf {
     dir.join(folder).join(EDITOR_DIR)
+}
+
+/// The mod was made in Studio and has not been turned on yet ([`NEW_FROM_STUDIO`]).
+pub fn new_from_studio(dir: &Path, folder: &str) -> bool {
+    editor_dir(dir, folder).join(NEW_FROM_STUDIO).is_file()
 }
 
 /// `<dir>/<folder>/.editor/run/map.obmap`: the copy of the mod as it is in
@@ -147,6 +156,10 @@ pub fn enabled(dir: &Path) -> Vec<String> {
 
 /// Turn `folder` on or off in `<dir>/enabled.txt`.
 pub fn set_enabled(dir: &Path, folder: &str, on: bool) -> Result<()> {
+    if on {
+        // Switched on once: no longer new (best effort; the note is only a mark).
+        let _ = std::fs::remove_file(editor_dir(dir, folder).join(NEW_FROM_STUDIO));
+    }
     ensure!(valid_id(folder), "`{folder}` is not a map mod folder name");
     let mut list = enabled(dir);
     list.retain(|f| f != folder);

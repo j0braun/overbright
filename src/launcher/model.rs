@@ -757,6 +757,8 @@ pub struct MapRow {
     pub props: usize,
     /// The game's textures it changes (its `textures/` folder, Studio Looks).
     pub textures: usize,
+    /// Made in Studio and not turned on yet (`store::new_from_studio`): the row's "new from Studio" mark.
+    pub new_from_studio: bool,
 }
 
 /// The map editor as the Mods page shows it.
@@ -1415,8 +1417,9 @@ pub trait Env {
         super::dirs::studio_cli_exe().is_file()
     }
     /// Starts Studio (`overbright-studio`, [`super::dirs::studio_exe`]) on
-    /// its Home; `root`: the game folder shown, given as `NFSU2_ROOT`.
-    fn start_studio(&self, _root: Option<&Path>) -> Result<Box<dyn EditorJob>, String> {
+    /// its Home, or with the mod in `folder` open (`--mod`); `root`: the
+    /// game folder shown, given as `NFSU2_ROOT`.
+    fn start_studio(&self, _folder: Option<&str>, _root: Option<&Path>) -> Result<Box<dyn EditorJob>, String> {
         Err("no Studio here".into())
     }
     /// Overbright's own copy of the game ([`super::game_data`]): where it is kept (`<app>/base`).
@@ -2329,7 +2332,8 @@ impl Env for RealEnv {
                 let (races, props) = m.as_ref().map_or((0, 0), |m| (m.races.len(), m.props.len()));
                 let name = m.map(|m| m.name).filter(|n| !n.trim().is_empty()).unwrap_or_else(|| f.clone());
                 let textures = crate::tools::map::share::textures(&dir.join(&f)).len();
-                MapRow { on: on.contains(&f), name, folder: f, races, props, textures }
+                let new_from_studio = crate::tools::map::store::new_from_studio(&dir, &f);
+                MapRow { on: on.contains(&f), name, folder: f, races, props, textures, new_from_studio }
             })
             .collect()
     }
@@ -2448,15 +2452,18 @@ impl Env for RealEnv {
         super::studio_seen::read(&crate::tools::map::store::maps_dir(), folders, &recent)
     }
 
-    fn start_studio(&self, root: Option<&Path>) -> Result<Box<dyn EditorJob>, String> {
+    fn start_studio(&self, folder: Option<&str>, root: Option<&Path>) -> Result<Box<dyn EditorJob>, String> {
         let exe = super::dirs::studio_exe();
         let mut cmd = std::process::Command::new(&exe);
+        if let Some(f) = folder {
+            cmd.args(["--mod", f]);
+        }
         if let Some(r) = root {
             cmd.env("NFSU2_ROOT", r);
         }
         cmd.stdin(std::process::Stdio::null()).stdout(std::process::Stdio::null()).stderr(std::process::Stdio::null());
         let child = cmd.spawn().map_err(|e| format!("Studio could not be started ({}): {e}", exe.display()))?;
-        log::info!("Studio started (pid {})", child.id());
+        log::info!("Studio started (pid {}) on {}", child.id(), folder.unwrap_or("its Home"));
         Ok(Box::new(EditorProcess(child, "Studio")))
     }
 
@@ -3017,8 +3024,8 @@ impl Env for FakeEnv {
 
     fn maps(&self) -> Vec<MapRow> {
         vec![
-            MapRow { folder: "drift-park".into(), name: "Drift park".into(), on: true, races: 2, props: 9, textures: 0 },
-            MapRow { folder: "open-docks".into(), name: "Open docks".into(), on: false, races: 0, props: 14, textures: 5 },
+            MapRow { folder: "drift-park".into(), name: "Drift park".into(), on: true, races: 2, props: 9, textures: 0, new_from_studio: false },
+            MapRow { folder: "open-docks".into(), name: "Open docks".into(), on: false, races: 0, props: 14, textures: 5, new_from_studio: true },
         ]
     }
 
@@ -3107,7 +3114,7 @@ impl Env for FakeEnv {
         true
     }
 
-    fn start_studio(&self, _root: Option<&Path>) -> Result<Box<dyn EditorJob>, String> {
+    fn start_studio(&self, _folder: Option<&str>, _root: Option<&Path>) -> Result<Box<dyn EditorJob>, String> {
         Ok(Box::new(FakeEditor::default()))
     }
 
