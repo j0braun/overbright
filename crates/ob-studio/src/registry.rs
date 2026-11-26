@@ -412,6 +412,15 @@ pub const COMMANDS: &[Command] = &[
         ],
     },
     Command {
+        name: "modpack.report",
+        kind: CommandKind::Read,
+        summary: "What a mod pack changes compared with the game, in words: its props, races, textures, credits and clashes",
+        args: &[
+            f("pack", TEXT, Req::Yes, "A .obpk file or pack folder, or the id of an installed pack"),
+            f("to", TEXT, Req::No, "Also write the report to this text file"),
+        ],
+    },
+    Command {
         name: "pack.repair",
         kind: CommandKind::Edit,
         summary: "Repair a map file that no longer reads, where a safe repair exists (as one undo step)",

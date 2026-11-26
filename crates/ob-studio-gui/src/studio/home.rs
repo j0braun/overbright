@@ -134,6 +134,9 @@ pub fn summary(maps: &Path, folder: &str) -> Result<ModSummary> {
         Err(e) => {
             let mut why = format!("{} does not read: {e}", store::FILE);
             if !ob_studio::cli::repairs(text).is_empty() {
+                for f in ob_studio::writer_bugs::check(text, h.saved_by().as_ref()) {
+                    why.push_str(&format!(". {}", f.sentence()));
+                }
                 why.push_str(&format!(". {}", ob_studio::cli::repair_hint(&s.dir)));
             }
             s.saved = Saved::Error(why)

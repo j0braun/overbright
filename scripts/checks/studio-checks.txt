@@ -7,3 +7,4 @@ print-ok crates/ob-studio/src/bin/overbright-studio-cli.rs the command-line tool
 print-ok crates/ob-studio-gui/src/bin/overbright-editor.rs a program's own output
 print-ok crates/ob-studio-gui/src/bin/overbright-studio.rs a program's own output
 print-ok crates/ob-studio-gui/src/editor/app.rs the layout line the window prints on request
+print-ok crates/ob-studio/src/browser/worker.rs the glTF worker's answer to Studio, one JSON line on standard output

@@ -219,6 +219,15 @@ until the resolver exists (the pack is not mounted and the log says which entry)
 The launcher offers "Convert to the new format" per pack; conversion writes a format-2 folder next to the old one,
 keeps the old one as a backup, and is lossless (a test reads both and compares the merged data).
 
+**One load path** (`src/mod_packs/stack.rs`): the game reads every mod kind's textures through one function,
+`mod_packs::texture_layers`, which returns the layers strongest first, each with its id and kind: the packs switched on
+in `order.txt` and the plain map mods (the packs above the map mods), the Overbright texture packs, the texture packages
+the launcher keeps, the World Texture Pack row's imported and generated folders; the HUD mod is the layer the loader
+falls back to when no other is in use. Map data comes through `mod_packs::mount_all` (the plain map mods weakest, then
+the packs). Each kind keeps its own list and its own order among its layers, so a player's existing mods read exactly as
+before; with none in use the stack is empty and nothing is read or written. A converted pack (§7 above) is a layer like
+any other.
+
 ## 8. Saves and the layer stack
 
 Profile saves are not assets: they keep the original game's own format, and the original game can load them

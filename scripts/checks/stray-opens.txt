@@ -3,7 +3,7 @@
 crates/ob-asset-format/src/bundle.rs	2	the import and the base set itself (the game folder is the import's source)
 crates/ob-asset-format/src/docs.rs	2	the import and the base set itself (the game folder is the import's source)
 crates/ob-asset-format/src/import.rs	10	the import and the base set itself (the game folder is the import's source)
-crates/ob-asset-format/src/modpack.rs	3	the player's packs, mods and importers (user-chosen paths)
+crates/ob-asset-format/src/modpack.rs	5	the player's packs, mods and importers (user-chosen paths)
 crates/ob-asset-format/src/mount.rs	6	the import and the base set itself (the game folder is the import's source)
 crates/ob-core/src/cache/bytes.rs	2	the layer's own folder side or its stamp/cache files
 crates/ob-core/src/cache/file.rs	2	the asset cache, shader cache and cache verification (own data)
@@ -56,6 +56,7 @@ src/launcher/transfer.rs	8	the program's own data: settings, saves, logs, launch
 src/launcher/trial.rs	1	the program's own data: settings, saves, logs, launcher state, the player's folders
 src/mod_packs/content.rs	3	the player's packs, mods and importers (user-chosen paths)
 src/mod_packs/convert.rs	5	the player's packs, mods and importers (user-chosen paths)
+src/mod_packs/credits.rs	1	the player's mod credits file (a user-chosen folder)
 src/mod_packs/inside.rs	2	the player's packs, mods and importers (user-chosen paths)
 src/mod_packs/pack_export.rs	2	the player's packs, mods and importers (user-chosen paths)
 src/obpack/index.rs	1	the player's packs, mods and importers (user-chosen paths)

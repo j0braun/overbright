@@ -186,6 +186,7 @@ fn dispatch(line: &args::Line, env: &Env) -> Done {
         "pack.export" => with_mod(line, |m| export(line, m)),
         "modpack.export" => with_mod(line, |m| export_pack(line, m)),
         "modpack.convert" => convert_pack(line),
+        "modpack.report" => report_pack(line),
         "props.solids" | "race.tracks" | "looks.find" | "game.find" => find::run(cmd.name, line, env),
         "runs.list" | "runs.show" | "runs.telemetry" | "runs.compare" | "runs.rename" | "runs.delete" => {
             with_mod(line, |m| runs::run(cmd.name, line, m))
@@ -237,12 +238,20 @@ fn read_map(h: &History) -> Result<MapMod, Done> {
     MapMod::parse(text).map_err(|e| {
         let mut message = format!("{} does not read: {e}", store::FILE);
         let fixes = repairs(text);
+        let found = crate::writer_bugs::check(text, h.saved_by().as_ref());
         if !fixes.is_empty() {
+            for f in &found {
+                message.push_str(&format!(". {}", f.sentence()));
+            }
             message.push_str(&format!(". {}", repair_hint(h.dir())));
         }
         let mut d = fail(FAILED, message);
         if !fixes.is_empty() {
-            d.doc["error"]["repair"] = json!({ "command": "pack repair", "fixes": fixes });
+            let bugs: Vec<Value> = found
+                .iter()
+                .map(|f| json!({ "id": f.id, "what": f.what, "written_by": f.written_by }))
+                .collect();
+            d.doc["error"]["repair"] = json!({ "command": "pack repair", "fixes": fixes, "writer_bugs": bugs });
             d.text.extend(fixes.iter().map(|f| format!("  repair: {f}")));
         }
         d
@@ -646,6 +655,28 @@ fn convert_pack(line: &args::Line) -> Done {
         Err(e) if e.contains("original game's pixels") => fail(FAILED, format!("{e} Give --derived-ok to convert them.")),
         Err(e) => fail(FAILED, e),
     }
+}
+
+/// `modpack report`: the edit report of a pack (a file, a folder, or an installed id), as text.
+fn report_pack(line: &args::Line) -> Done {
+    use nfsu2::studio_api::mod_packs as mp;
+    let which = line.args.get("pack").and_then(Value::as_str).unwrap_or_default();
+    let base = mp::base_in_use();
+    let path = Path::new(which);
+    let report = if path.exists() { mp::report_of_path(path, base.as_ref()) } else {
+        mp::report_of_id(which, base.as_ref())
+            .ok_or_else(|| format!("{which} is neither a pack file or folder nor an installed pack"))
+    };
+    let text = match report {
+        Ok(t) => t,
+        Err(e) => return fail(FAILED, e),
+    };
+    if let Some(to) = line.args.get("to").and_then(Value::as_str).filter(|t| !t.is_empty())
+        && let Err(e) = std::fs::write(to, &text)
+    {
+        return fail(FAILED, format!("{to}: {e}"));
+    }
+    Done { code: OK, doc: json!({ "pack": which, "report": text }), text: text.lines().map(str::to_string).collect() }
 }
 
 // ---- reads --------------------------------------------------------------------------------------------------------

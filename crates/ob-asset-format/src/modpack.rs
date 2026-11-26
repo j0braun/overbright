@@ -116,6 +116,26 @@ pub fn scan(dir: &Path) -> Scan {
     out
 }
 
+/// Reads one pack by its path (a pack folder or a `.obpk` file), wherever it is: the manifest only. For a pack that
+/// is not installed (a file the player was given, to look at before adding it).
+pub fn open(path: &Path) -> Result<Installed, String> {
+    let name = path.file_name().and_then(|n| n.to_str()).ok_or_else(|| format!("{}: not a pack", path.display()))?;
+    let meta = std::fs::metadata(path).map_err(|e| format!("{}: {e}", path.display()))?;
+    let ((m, warnings), source) = if meta.is_dir() {
+        let bytes = std::fs::read(path.join(crate::manifest::FILE))
+            .map_err(|_| format!("{}: a folder without pack.toml is not a mod pack", path.display()))?;
+        (Manifest::parse(&bytes, Container::Folder(name)).map_err(|e| e.to_string())?, Source::Folder(path.to_path_buf()))
+    } else if name.ends_with(&format!(".{EXTENSION}")) {
+        (read_pack_file(path, name).map_err(|e| e.to_string())?, Source::File(path.to_path_buf()))
+    } else {
+        return Err(format!("{}: not a pack folder or .{EXTENSION} file", path.display()));
+    };
+    if m.format < 2 || m.kind != PackKind::Mod {
+        return Err(format!("{}: not a mod pack", path.display()));
+    }
+    Ok(Installed { id: m.id.clone(), manifest: m, source, warnings })
+}
+
 fn read_pack_file(path: &Path, name: &str) -> Result<(Manifest, Vec<String>), Refusal> {
     let b = Bundle::open(path, bundle::Kind::PackFile)?;
     let e = b

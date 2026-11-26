@@ -27,6 +27,16 @@ pub struct Inside {
     /// The map regions its prop edits are in.
     pub regions: Vec<String>,
     pub textures: usize,
+    /// Collision edits (walls and grounds drawn, faces taken out).
+    pub collision: usize,
+    /// Each prop edit in words (for the edit report).
+    pub prop_lines: Vec<String>,
+    /// Each race in words.
+    pub race_lines: Vec<String>,
+    /// The textures it replaces, as `world:0x1A2B3C4D` / `car:…`.
+    pub texture_ids: Vec<String>,
+    /// Who made third-party assets in it (the credits in its provenance).
+    pub credits: Vec<super::credits::Credit>,
     /// Where a converted pack came from (its provenance), when it was made by `modpack convert`.
     pub converted_from: Option<String>,
     /// Why it cannot be used with the base set in use.
@@ -50,6 +60,9 @@ impl Inside {
             v.push(self.description.trim().to_string());
         }
         v.push(format!("Made for {}", self.made_for));
+        for c in &self.credits {
+            v.push(format!("Credit: {}", c.line()));
+        }
         if let Some(f) = &self.converted_from {
             v.push(format!("Provenance: converted from {f}"));
         }
@@ -60,6 +73,7 @@ impl Inside {
             (self.races, "race", "races"),
             (self.moved, "moved prop", "moved props"),
             (self.deleted, "deleted prop", "deleted props"),
+            (self.collision, "collision edit", "collision edits"),
             (self.added, "added prop", "added props"),
             (self.textures, "texture", "textures"),
         ]
@@ -89,6 +103,13 @@ pub fn inside(id: &str, base: Option<&BaseId>) -> Option<Inside> {
     let dir = super::mods_dir();
     let scan = modpack::scan(&dir);
     let p = scan.packs.iter().find(|p| p.id == id)?;
+    Some(inside_of(p, base, true))
+}
+
+/// The report for the pack `p`, installed in the mods folder or not (a file the player was given: no order, so no
+/// clashes with the packs that are on).
+pub fn inside_of(p: &modpack::Installed, base: Option<&BaseId>, installed: bool) -> Inside {
+    let (id, dir) = (p.id.as_str(), super::mods_dir());
     let m = &p.manifest;
     let mut out = Inside {
         id: id.into(),
@@ -108,28 +129,47 @@ pub fn inside(id: &str, base: Option<&BaseId>) -> Option<Inside> {
     } else {
         "any copy of the game".into()
     };
-    out.refused = modpack::plan_with(&dir, base, &super::engine(), Some(id))
-        .refused
-        .into_iter()
-        .find(|(r, _)| r == id)
-        .map(|(_, why)| why);
-    out.converted_from = provenance_text(p).and_then(|t| converted_from(&t));
+    out.refused = if installed {
+        modpack::plan_with(&dir, base, &super::engine(), Some(id)).refused.into_iter().find(|(r, _)| r == id).map(|(_, why)| why)
+    } else {
+        modpack::check_base(m, base).err()
+    };
+    let prov = provenance_text(p);
+    out.converted_from = prov.as_deref().and_then(converted_from);
+    out.credits = prov.as_deref().map(super::credits::parse).unwrap_or_default();
     if let Ok(root) = super::materialize(p) {
         if let Ok(Some(map)) = super::content::read(&root) {
             out.races = map.races.len();
+            out.collision = map.collision.len();
+            out.race_lines = map
+                .races
+                .iter()
+                .map(|r| {
+                    let laps = if r.kind.loops() { format!(", {}", n(r.laps as usize, "lap", "laps")) } else { String::new() };
+                    format!("{} ({}{laps}, {})", if r.name.trim().is_empty() { &r.id } else { r.name.trim() }, r.kind.name(), n(r.checkpoints.len(), "checkpoint", "checkpoints"))
+                })
+                .collect();
             let mut regions = BTreeSet::new();
             for e in &map.props {
                 match e {
-                    PropEdit::Move { target, .. } => {
+                    PropEdit::Move { target, position, .. } => {
                         out.moved += 1;
+                        out.prop_lines.push(format!(
+                            "Moves {} in {} by {:.1} m",
+                            target.solid,
+                            target.region,
+                            position.distance(target.at)
+                        ));
                         regions.insert(target.region.clone());
                     }
                     PropEdit::Delete { target } => {
                         out.deleted += 1;
+                        out.prop_lines.push(format!("Removes {} in {}", target.solid, target.region));
                         regions.insert(target.region.clone());
                     }
-                    PropEdit::Add { region, .. } => {
+                    PropEdit::Add { region, solid, .. } => {
                         out.added += 1;
+                        out.prop_lines.push(format!("Adds {solid} in {region}"));
                         regions.insert(region.clone());
                     }
                 }
@@ -150,8 +190,10 @@ pub fn inside(id: &str, base: Option<&BaseId>) -> Option<Inside> {
             }
         }
         out.textures = seen.len();
-            }
-    out.clashes = super::clash_pairs_with(base, Some(id))
+        out.texture_ids = seen.iter().map(|(car, s)| format!("{}:{s}", if *car { "car" } else { "world" })).collect();
+    }
+    if installed {
+        out.clashes = super::clash_pairs_with(base, Some(id))
         .into_iter()
         .filter_map(|(weaker, stronger, c)| {
             if stronger == id {
@@ -163,11 +205,12 @@ pub fn inside(id: &str, base: Option<&BaseId>) -> Option<Inside> {
             }
         })
         .collect();
-    Some(out)
+    }
+    out
 }
 
 /// The text of a pack's `provenance.toml` (a folder's file, or the entry in the pack file).
-fn provenance_text(p: &modpack::Installed) -> Option<String> {
+pub(super) fn provenance_text(p: &modpack::Installed) -> Option<String> {
     use ob_asset_format::bundle::{self, Bundle};
     let name = crate::tools::map::share::PROVENANCE;
     match &p.source {

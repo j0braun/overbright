@@ -46,36 +46,18 @@ pub(super) fn roots(domain: Domain) -> Vec<PathBuf> {
             .clone(),
     };
     if domain != Domain::Ui {
-        // The enabled map mods' textures (Studio Looks), the strongest mod
-        // first, before the packs (none enabled: nothing added, the native path).
-        for r in crate::tools::map::texture_roots(domain == Domain::Car) {
+        // Every mod kind's textures, as the layers of the one mod pack stack (`mod_packs::texture_layers`): the
+        // packs switched on and the enabled map mods' textures (Studio Looks), the Overbright packs, the texture
+        // packages the launcher keeps and the World Texture Pack row's folders, the strongest first (none in
+        // use: nothing added, the native path).
+        for r in crate::mod_packs::texture_stack_dirs(domain == Domain::Car) {
             if !v.contains(&r) {
                 v.push(r);
-            }
-        }
-        // Overbright packs (`obpack`, docs/modding/texture-packs.md), compiled, in
-        // the player's order (none installed: nothing added, the native path).
-        let d = if domain == Domain::Car { crate::obpack::Domain::Car } else { crate::obpack::Domain::World };
-        for r in crate::obpack::enabled_roots(d) {
-            if !v.contains(&r) {
-                v.push(r);
-            }
-        }
-        // The texture mods kept by the launcher, in its order (none kept:
-        // nothing added, the native path).
-        for d in crate::texture_mods::enabled_roots(domain == Domain::Car) {
-            if !v.contains(&d) {
-                v.push(d);
-            }
-        }
-        for d in crate::upscale_pack::selected_all(domain == Domain::Car) {
-            if !v.contains(&d) {
-                v.push(d);
             }
         }
     }
     if v.is_empty() {
-        v.extend(crate::hd_ui_pack::active_root().map(Path::to_path_buf));
+        v.extend(crate::mod_packs::hud_layer().map(|l| l.dir));
     }
     // A Studio test run's live textures (`--looks-live`) before every
     // other pack (none: the folders above, unchanged).

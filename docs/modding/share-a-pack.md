@@ -50,6 +50,31 @@ Studio never turns a mod on by itself. Packs apply in the order the launcher sho
 **Move up** and **Move down** change it. If two mods give the same value, Studio's Changes page shows who wins
 ([Overbright Studio](studio.md#changes)).
 
+## Credits
+
+If your mod uses art or other assets that someone else made, list them in a file named `credits.toml` in the mod's
+folder, one table per asset:
+
+```toml
+[[credit]]
+name = "Brick wall texture"
+by = "Someone"
+licence = "CC-BY-4.0"
+source = "https://example.org/bricks"
+```
+
+`name` and `by` are needed; `licence` and `source` are optional. The file travels with the mod in a `.zip`, and an
+export or conversion to a `.obpk` writes the credits into the pack's `provenance.toml`, so they stay with it. A texture
+pack that is converted adds its own author as the credit for its images by itself. The launcher's **Look inside** and
+the edit report show the credits, next to the authors in the pack's manifest.
+
+## What a pack changes
+
+A pack's **Look inside** on the Mods page, and `overbright-studio-cli modpack report --pack <file or id>`, say in words
+what it changes compared with the game: its props (each moved, removed or added), races, collision edits and the
+textures it replaces, its credits, which game copy it was made for, and what it overrules among the packs that are
+on. Nothing is switched on or written by it, so you can read the report of a pack file before you add it.
+
 ## If a pack is refused
 
 The launcher shows a reason under the pack's name and does not mount it. The usual reasons: it was made for

@@ -633,6 +633,26 @@
       "words": "modpack convert"
     },
     {
+      "command": "modpack.report",
+      "flags": [
+        {
+          "flag": "--pack",
+          "label": "A .obpk file or pack folder, or the id of an installed pack",
+          "needed": true,
+          "type": "text"
+        },
+        {
+          "flag": "--to",
+          "label": "Also write the report to this text file",
+          "needed": false,
+          "type": "text"
+        }
+      ],
+      "kind": "read",
+      "summary": "What a mod pack changes compared with the game, in words: its props, races, textures, credits and clashes",
+      "words": "modpack report"
+    },
+    {
       "command": "pack.repair",
       "flags": [],
       "kind": "edit",
