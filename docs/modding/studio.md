@@ -55,7 +55,7 @@ pink diamond is another mod's that wins in your game.
 
 Both are the map editor ([Map editor](map-editor.md)) on the open mod, the same editor `overbright-editor` shows:
 its toolbar in the toolbar row, the Mod tree in the left panel, the selection's properties in the Inspector, its
-tabs (Prop browser, Validation, Simulate) after Problems, Log and Jobs, the hint line under the view, and the 3D
+tabs (Prop browser, Race, Validation, Simulate) after Problems, Log and Jobs, the hint line under the view, and the 3D
 view or the map drawn in the window by the game's own renderer. The two show different parts of it:
 
 - **World** is the props: the left panel lists the Props branch, the toolbar has Select, Move, Rotate, Snap and Drive
@@ -63,7 +63,7 @@ view or the map drawn in the window by the game's own renderer. The two show dif
   browser and Validation, the collision layer can be switched on, and the race route is not drawn.
 - **Races** is the races: the left panel lists the mod's races (with New race), the toolbar adds the race tools
   (Checkpoint, Start, Finish, Grid), Test race and Simulate, the Inspector is the selected race's or race point's,
-  the bottom tabs are Validation and Simulate, the route is drawn over the props, which are dimmed, and the
+  the bottom tabs are Race (the race as a strip of its stops and legs), Validation and Simulate, the route is drawn over the props, which are dimmed, and the
   collision layer is off.
 
 In the game a race's barriers (`BARRIERS_<track>`, `PLAYER_BARRIERS_<track>`) are on only during a race on that base
@@ -350,7 +350,7 @@ Back and forward (Alt+← / Alt+→, the mouse's side buttons 4 and 5, the ← �
 last 50 places of the window; a right-click on ← lists them by name, newest first, and goes back to the one taken.
 
 Find (Ctrl+K, the pad's Y) lists Go to (the workspaces), your mods (taking one opens it; Home's Open a mod opens Find on them), Commands with their keys (Test while World or Races is
-open, Last place and Next place when there is one, Address, Copy address, Changes, New mod, Tutorial, Undo, Redo) and the places you were, narrowed by what is typed. ↑ ↓ (the D-pad)
+open, Last place and Next place when there is one, Address, Copy address, Changes, New mod, Tutorial, Undo, Redo), the places you were and, in World and Races, the game's neighbourhoods of the region (Places: Enter flies the view to one; the one under the camera is named in the address bar and the status bar), narrowed by what is typed. ↑ ↓ (the D-pad)
 move in the list; Enter (A) or a click runs the command or goes to the workspace or place; a pasted `ob://` address
 goes straight there. An address Studio cannot follow (a mod you do not have, a screen this version lacks) is
 not followed silently: the window says why.

@@ -7,12 +7,13 @@ pub mod app;
 pub mod browser;
 pub mod camera;
 pub mod collision;
-pub mod mapview;
 pub mod menu;
 pub mod modes;
 pub mod overlay;
 pub mod props;
+pub mod race_strip;
 pub mod races;
+pub mod roads;
 pub mod sim;
 pub mod state;
 pub mod testplay;
@@ -33,7 +34,7 @@ mod docs_tests;
 #[cfg(test)]
 mod views_tests;
 
-pub use state::{EditorState, Issue, Level, Mode, Panel, RacePoint, View, commit, project};
+pub use state::{EditorState, Issue, Level, Mode, Panel, RacePoint, commit, project};
 
 /// One frame of `ui` on `ctx` without a window or a GPU (the tests). The frame's texture changes (the font
 /// atlas) have no renderer to go to, so they are dropped on purpose (egui asserts in debug builds that a

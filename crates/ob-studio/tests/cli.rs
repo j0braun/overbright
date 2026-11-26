@@ -78,6 +78,7 @@ fn env() -> Env {
                 tracks: vec![TrackInfo { number: 4001, name: "Docks".into() }],
                 nets: HashMap::from([(4001, straight())]),
                 free_roam: Vec::new(),
+                places: Vec::new(),
             })
         }),
         poll: Duration::from_millis(5),

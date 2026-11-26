@@ -13,7 +13,8 @@ use glam::Vec2;
 
 pub use ob_studio::validate::*;
 
-use super::state::{EditorState, Issue, Level, commit};
+use super::state::{EditorState, Issue, Level};
+use crate::tools::map::ops::Op;
 
 /// The ground under `p` in the edited world (0 with none).
 pub fn ground(s: &EditorState, p: Vec2) -> f32 {
@@ -47,8 +48,9 @@ pub fn apply(s: &mut EditorState, k: usize, fix: &Fix) {
     let heights = |p: Vec2| s.session.world.grid_ground(p.extend(1.0e5)).unwrap_or(0.0);
     let mut map = s.session.map.clone();
     if fix_race(&mut map, k, fix, net.as_ref(), &heights) {
-        s.session.map = map;
-        commit(s, &fix.label());
+        let Some(to) = map.races.get(k).cloned() else { return };
+        let race = s.session.map.races[k].id.clone();
+        let _ = super::undo::run(s, Op::Group { label: fix.label(), ops: vec![Op::PutRace { race, to }] });
     }
 }
 

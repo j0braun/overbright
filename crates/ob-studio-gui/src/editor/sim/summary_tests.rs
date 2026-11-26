@@ -84,7 +84,7 @@ fn several_runs_count_how_often_each_problem_happened() {
 #[test]
 fn the_summary_is_shown_and_walked_with_the_keyboard() {
     use crate::editor::app::App;
-    use crate::editor::state::{Mode, View};
+    use crate::editor::state::Mode;
     use crate::tools::map::assets::{GivenAssets, TrackInfo};
     use egui::{Event, Pos2, Rect};
 
@@ -115,7 +115,7 @@ fn the_summary_is_shown_and_walked_with_the_keyboard() {
         });
         st.race = Some(0);
         st.mode = Mode::Races;
-        st.view = View::Map;
+        a.panels.viewport.set_look(st, "top");
     }
     a.tab = super::super::TAB;
     let frame = |a: &mut App, events: Vec<Event>| {

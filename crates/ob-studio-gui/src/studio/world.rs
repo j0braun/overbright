@@ -13,10 +13,11 @@ use egui::{Align2, Rect, Stroke, UiBuilder, pos2, vec2};
 use nfsu2::studio_api::render::Gpu;
 use ob_look::lamp::Mark;
 
+use crate::draw::camera::Camera;
 use crate::editor::app::{self, App};
 use crate::editor::menu;
-use crate::draw::camera::Camera;
-use crate::editor::state::{EditorState, Focus, Level, Mode, RacePoint, View};
+use crate::editor::state::{EditorState, Focus, Level, Mode, RacePoint};
+use crate::tools::map::assets::Place;
 use crate::editor::theme::{font, rgb, tokens};
 
 use super::Studio;
@@ -49,7 +50,6 @@ pub(super) struct Kept {
     pub race: Option<usize>,
     pub point: Option<RacePoint>,
     pub camera: Camera,
-    pub view: View,
     pub collision: crate::editor::collision::Show,
     pub tab: &'static str,
 }
@@ -61,7 +61,6 @@ impl Kept {
             race: s.race,
             point: s.point,
             camera: s.camera,
-            view: s.view,
             collision: s.collision,
             tab,
         }
@@ -140,12 +139,11 @@ impl Studio {
                     s.race = k.race.filter(|&i| i < s.session.map.races.len());
                     s.point = k.point;
                     s.camera = k.camera;
-                    s.view = k.view;
                     s.collision = k.collision;
                     h.app.tab = k.tab;
                 }
                 None => {
-                    // First time here: World starts with the prop browser, Races with the race's Simulate tab,
+                    // First time here: World starts with the prop browser, Races with the race strip,
                     // and each its own selection.
                     if prev.is_some() {
                         s.selection.clear();
@@ -154,7 +152,7 @@ impl Studio {
                     }
                     match ws {
                         Workspace::World => h.app.tab = "browser",
-                        Workspace::Races => h.app.tab = crate::editor::sim::TAB,
+                        Workspace::Races => h.app.tab = crate::editor::race_strip::TAB,
                         _ => {}
                     }
                 }
@@ -176,13 +174,33 @@ impl Studio {
         }
     }
 
-    /// The names after the workspace in the address bar: the region, then the selected prop or race.
+    /// The open mod's region's neighbourhoods (World and Races only).
+    pub(super) fn hoods(&self) -> Vec<Place> {
+        if !self.editing() {
+            return vec![];
+        }
+        self.editor.as_ref().and_then(|h| h.app.state.as_ref()).map(|s| s.places()).unwrap_or_default()
+    }
+
+    /// Find ▸ Places: the editor's view goes to the neighbourhood's centre.
+    pub(super) fn go_hood(&mut self, i: usize) {
+        let Some(p) = self.hoods().into_iter().nth(i) else { return };
+        let c = p.centre();
+        if let Some(s) = self.editor.as_mut().and_then(|h| h.app.state.as_mut()) {
+            self.verdict = crate::editor::views::go_to(s, &format!("{:.0}, {:.0}", c.x, c.y)).err();
+            s.status = format!("Went to {}", p.name);
+        }
+    }
+
+    /// The names after the workspace in the address bar: the region, the neighbourhood under the camera, then the
+    /// selected prop or race.
     pub(super) fn editor_crumbs(&self) -> Vec<String> {
         let Some(s) = self.editor.as_ref().and_then(|h| h.app.state.as_ref()) else { return vec![] };
         if self.nav.workspace.kind() != Kind::Tool {
             return vec![];
         }
         let mut v = vec![s.session.region.clone()];
+        v.extend(s.place_name());
         match self.nav.workspace {
             Workspace::Races => {
                 if let Some(r) = s.race.and_then(|i| s.session.map.races.get(i)) {
@@ -358,6 +376,7 @@ impl Studio {
                     .filter(|t| t.0 != "log" && (runs || t.0 != "telemetry"))
                     .filter(|t| !(ws == Workspace::World && t.0 == crate::editor::sim::TAB))
                     .filter(|t| !(ws == Workspace::Races && t.0 == "browser"))
+                    .filter(|t| !(ws == Workspace::World && t.0 == crate::editor::race_strip::TAB))
                     .collect();
                 // Runs: its graphs first, so the tab strip's room is not spent before it.
                 if runs && let Some(k) = v.iter().position(|t| t.0 == "telemetry") {

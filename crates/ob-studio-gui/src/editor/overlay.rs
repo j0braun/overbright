@@ -39,7 +39,7 @@ pub mod colour {
     pub const WARN: Color32 = rgb(THEME_A.warn);
     /// The dark rim under every overlay line so it reads on bright ground.
     pub const SHADOW: Color32 = Color32::from_rgba_premultiplied(2, 3, 2, 170);
-    /// The page under the map view.
+    /// The page under the top view's roads.
     pub const PAGE: Color32 = rgb(THEME_A.page);
     /// Text on a lime fill.
     pub const ON_SELECT: Color32 = rgb(THEME_A.on_mark);

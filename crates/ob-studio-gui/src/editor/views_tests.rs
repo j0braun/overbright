@@ -6,7 +6,7 @@ use glam::{Mat4, Vec2, Vec3};
 
 use super::app::{App, ModView};
 use super::menu::Action;
-use super::state::{EditorState, Mode, View};
+use super::state::{EditorState, Mode};
 use super::views::*;
 use crate::testkit::Scratch;
 
@@ -201,11 +201,10 @@ fn go_to_reads_coordinates_names_and_race_points() {
     );
     assert!(resolve(s, "checkpoint 9").is_err() && resolve(s, "checkpoint 0").is_err());
     // Going to a prop selects it, frames it and brings it back from hiding.
-    s.view = View::Map;
     s.filter.hide(&[2]);
     go_to(s, "tree").unwrap();
     assert_eq!(s.selection, vec![2]);
-    assert_eq!((s.view, s.mode, s.goal), (View::ThreeD, Mode::Props, Some(Goal::Frame)));
+    assert_eq!((s.mode, s.goal), (Mode::Props, Some(Goal::Frame)));
     assert!(!s.filter.hidden.contains(&2));
     go_to(s, "3, 4").unwrap();
     assert_eq!(s.goal, Some(Goal::At(Vec2::new(3.0, 4.0))));
@@ -265,9 +264,8 @@ fn camera_actions_switch_to_the_3d_view() {
     let mut a = app(&dir);
     a.new_mod("goal", "Goal", "L4RA").unwrap();
     frame(&mut a, Vec::new());
-    st(&mut a).view = View::Map;
     a.act(Action::Goal(Goal::Isometric));
-    assert_eq!((st(&mut a).view, st(&mut a).goal), (View::ThreeD, Some(Goal::Isometric)));
+    assert_eq!(st(&mut a).goal, Some(Goal::Isometric));
     // The viewport takes the goal in its next frame.
     frame(&mut a, Vec::new());
     assert!(st(&mut a).goal.is_none());

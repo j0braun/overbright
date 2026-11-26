@@ -331,7 +331,7 @@ editor_args() {
   case $1 in
     e_start) echo "--size 1280x720" ;;
     e_props) echo "--size 1280x720 --mod smoke --mode props --view 3d --tab browser" ;;
-    e_races) echo "--size 1600x960 --scale 1.5 --mod smoke --mode races --view map --tab validation" ;;
+    e_races) echo "--size 1600x960 --scale 1.5 --mod smoke --mode races --view top --tab validation" ;;
     s_start) echo "--size 1280x720" ;;
   esac
 }

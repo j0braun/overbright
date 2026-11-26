@@ -10,7 +10,7 @@ use std::collections::{BTreeSet, HashSet};
 use glam::{Vec2, Vec3};
 
 use super::collision::Show;
-use super::state::{EditorState, RacePoint, View};
+use super::state::{EditorState, RacePoint};
 use crate::draw::camera::Camera;
 use crate::tools::map::edit::RacePart;
 
@@ -155,7 +155,6 @@ pub struct SavedView {
     pub camera: (Vec3, f32, f32),
     pub collision: Show,
     pub race_barriers: bool,
-    pub map: bool,
     pub mod_only: bool,
 }
 
@@ -166,7 +165,6 @@ impl SavedView {
             camera: (camera.position, camera.yaw, camera.pitch),
             collision: s.collision,
             race_barriers: s.race_barriers,
-            map: s.view == View::Map,
             mod_only: s.filter.mod_only,
         }
     }
@@ -175,7 +173,6 @@ impl SavedView {
     pub fn recall(&self, s: &mut EditorState) {
         s.collision = self.collision;
         s.race_barriers = self.race_barriers;
-        s.view = if self.map { View::Map } else { View::ThreeD };
         if s.filter.mod_only != self.mod_only {
             s.filter.set_mod_only(self.mod_only);
         }
@@ -216,7 +213,8 @@ pub enum Target {
 }
 
 fn numbers(q: &str) -> Option<Vec<f32>> {
-    let parts: Vec<&str> = q.split(|c: char| c == ',' || c == ';' || c.is_whitespace()).filter(|p| !p.is_empty()).collect();
+    let parts: Vec<&str> =
+        q.split(|c: char| c == ',' || c == ';' || c.is_whitespace()).filter(|p| !p.is_empty()).collect();
     let v: Option<Vec<f32>> = parts.iter().map(|p| p.parse::<f32>().ok().filter(|v| v.is_finite())).collect();
     v.filter(|v| (2..=3).contains(&v.len()))
 }
@@ -271,7 +269,6 @@ pub fn resolve(s: &EditorState, query: &str) -> Result<Target, String> {
 /// Carry out a Go to: select and frame a prop, or point the camera at the place.
 pub fn go_to(s: &mut EditorState, query: &str) -> Result<(), String> {
     let t = resolve(s, query)?;
-    s.view = View::ThreeD;
     match t {
         Target::At(at) => {
             s.goal = Some(Goal::At(at));

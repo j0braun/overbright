@@ -397,8 +397,7 @@ fn walls_are_drawn_picked_and_removed_with_the_mouse() {
 /// wall's end snaps to it (Alt: not).
 #[test]
 #[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
-fn walls_are_drawn_and_picked_on_the_map_and_in_top() {
-    use crate::editor::state::View;
+fn walls_are_drawn_and_picked_in_top() {
     let root = crate::testkit::game_root();
     let spot = Vec3::new(-327.0, -535.0, 21.269472);
     let rect = Rect::from_min_size(Pos2::ZERO, egui::vec2(1600.0, 960.0));
@@ -416,19 +415,14 @@ fn walls_are_drawn_and_picked_on_the_map_and_in_top() {
     let (r, _) = new_state();
     let original = listed_of(&r);
 
-    for view in ["map", "top"] {
+    for view in ["top"] {
         let (mut s, z) = new_state();
         let ctx = egui::Context::default();
         // 4 points per metre: 10 points are 2.5 m.
         let top = super::super::camera::TopView { centre: spot.truncate(), half_height: 960.0 / 2.0 / 4.0 };
         let publish = |ctx: &egui::Context| {
-            if view == "map" {
-                crate::editor::sim::panel::publish_map(ctx, spot.truncate(), 4.0, rect);
-            } else {
-                super::super::viewport::publish_top(ctx, Some((top, rect)));
-            }
+            super::super::viewport::publish_top(ctx, Some((top, rect)));
         };
-        s.view = if view == "map" { View::Map } else { View::ThreeD };
         let at = |p: Vec3| Pos2::new(800.0 + (p.x - spot.x) * 4.0, 480.0 - (p.y - spot.y) * 4.0);
         let mut o = CollisionOverlay::default();
         let click_at = |o: &mut CollisionOverlay, s: &mut EditorState, p: Pos2, alt: bool| {

@@ -660,8 +660,8 @@ The map editor (`overbright-editor`, docs/modding/map-editor.md) draws its whole
 step runs it on three screens at the sizes of the resolution matrix (`resolutions.py`'s `MATRIX`; `EDITOR_SET=family`:
 its `FAMILY_SET`) plus `2560x1440@1.5` and `3840x2160@2` (display scales; `EDITOR_SCALES`):
 `start` (no map mod open), `props_3d` (a map mod made by the script, with no edits, open on the city with the
-props' side in front and the 3D view, the prop browser below) and `races_map` (the races' side in front on the 2D
-road-network map, the validation list). Every run starts with no display variable at all (`DISPLAY`, `WAYLAND_DISPLAY` unset), so an editor that
+props' side in front and the 3D view, the prop browser below) and `races_map` (the races' side in front in the top
+view with the road network, the validation list). Every run starts with no display variable at all (`DISPLAY`, `WAYLAND_DISPLAY` unset), so an editor that
 tried to open a window would fail; each cell has its own data, cache and maps folders under the output dir.
 A cell passes when the run exits 0, its log has no panic / validation-error line, the PNG has exactly the asked
 pixel size, the image is not one flat colour (grey standard deviation ≥ `EDITOR_MIN_STD`, 0.02) and, on the two

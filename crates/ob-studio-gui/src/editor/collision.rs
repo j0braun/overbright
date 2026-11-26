@@ -25,7 +25,7 @@ use egui::{Color32, Pos2, Rect, Shape, Stroke};
 use glam::{Vec2, Vec3};
 
 use super::overlay::{Overlay, colour, line2d};
-use super::state::{EditorState, View};
+use super::state::EditorState;
 use crate::tools::map::CollisionEdit;
 use crate::tools::map::collision::{self, Layer, Wall};
 // Named `Target` here: the controls test reads every `Key::` as a key.
@@ -217,7 +217,6 @@ impl super::app::Overlay for CollisionOverlay {
         if show == Show::Off {
             return taken;
         }
-        let map = super::sim::panel::map_transform(ctx);
         let taken =
             taken || (s.draw.is_none() && proj.as_ref().is_some_and(|proj| pick_input(self, s, ctx, rect, proj)));
         if let (Some(p), Some(proj)) = (&s.wall, &proj) {
@@ -229,37 +228,26 @@ impl super::app::Overlay for CollisionOverlay {
         }
         let scope = Scope::of(s);
         let layer = self.layer(s);
-        match s.view {
-            View::ThreeD => paint_3d(layer, show, &scope, &Overlay::new(painter, &s.camera, rect)),
-            View::Map => {
-                if let Some((centre, scale, map)) = map {
-                    paint_map(layer, show, &scope, painter, centre, scale, map);
-                }
-            }
-        }
-        let floors = s.view == View::ThreeD && s.camera.fov_y >= 5f32.to_radians();
+        paint_3d(layer, show, &scope, &Overlay::new(painter, &s.camera, rect));
+        let floors = s.camera.fov_y >= 5f32.to_radians();
         legend(layer, show, &scope, floors, painter, rect);
         taken
     }
 }
 
 /// How the view puts a world point on the screen: the 3D camera, the
-/// overview (Top) or the Map. The race tools read the same views.
+/// overview (Top). The race tools read the same views.
 pub enum Proj {
     Camera(crate::draw::camera::Camera, Rect),
     Top(super::camera::TopView, Rect),
-    Map(Vec2, f32, Rect),
 }
 
 impl Proj {
     pub fn of(s: &EditorState, ctx: &egui::Context, rect: Rect) -> Option<Proj> {
-        match s.view {
-            View::Map => super::sim::panel::map_transform(ctx).map(|(c, k, r)| Proj::Map(c, k, r)),
-            View::ThreeD => Some(match super::viewport::top_view(ctx) {
-                Some((top, shown)) => Proj::Top(top, shown),
-                None => Proj::Camera(s.camera, rect),
-            }),
-        }
+        Some(match super::viewport::top_view(ctx) {
+            Some((top, shown)) => Proj::Top(top, shown),
+            None => Proj::Camera(s.camera, rect),
+        })
     }
 
     pub fn is_2d(&self) -> bool {
@@ -273,10 +261,6 @@ impl Proj {
                 let (m, c) = (top.metres_per_point(*r), r.center());
                 Some(Pos2::new(c.x + (p.x - top.centre.x) / m, c.y - (p.y - top.centre.y) / m))
             }
-            Proj::Map(centre, scale, r) => {
-                let c = r.center();
-                Some(Pos2::new(c.x + (p.x - centre.x) * scale, c.y - (p.y - centre.y) * scale))
-            }
         }
     }
 
@@ -285,7 +269,6 @@ impl Proj {
         match self {
             Proj::Camera(..) => None,
             Proj::Top(top, r) => Some(top.metres_per_point(*r)),
-            Proj::Map(_, scale, _) => Some(1.0 / scale),
         }
     }
 }
@@ -826,7 +809,13 @@ pub fn paint_3d(layer: &Layer, show: Show, scope: &Scope, o: &Overlay) {
             continue;
         }
         for (t0, t1, c) in parts(layer, w, show, scope) {
-            let alpha = if c.a() < 255 { 20 } else if c == key::VISIBLE { 40 } else { 70 };
+            let alpha = if c.a() < 255 {
+                20
+            } else if c == key::VISIBLE {
+                40
+            } else {
+                70
+            };
             quad(o, &w.quad(t0, t1), Some(key::fill(c, alpha)), c, 1.5);
         }
         drawn += 1;
@@ -872,7 +861,15 @@ fn thick(screen: &[Pos2]) -> bool {
 
 /// The walls on the Map: each part a line along its foot (`centre` and
 /// `scale` the map's, `map` its rectangle).
-pub fn paint_map(layer: &Layer, show: Show, scope: &Scope, painter: &egui::Painter, centre: Vec2, scale: f32, map: Rect) {
+pub fn paint_map(
+    layer: &Layer,
+    show: Show,
+    scope: &Scope,
+    painter: &egui::Painter,
+    centre: Vec2,
+    scale: f32,
+    map: Rect,
+) {
     let c = map.center();
     let to = |p: Vec2| Pos2::new(c.x + (p.x - centre.x) * scale, c.y - (p.y - centre.y) * scale);
     let half = Vec2::new(map.width(), map.height()) * 0.5 / scale;

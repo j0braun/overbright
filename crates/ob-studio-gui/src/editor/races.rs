@@ -4,7 +4,7 @@
 //! behind it ([`super::validate`]).
 //!
 //! Every tool works on a world point (the viewport's ground point under
-//! the cursor, or the map view's x/y) and snaps it to the base track's
+//! the cursor, or the top view's x/y) and snaps it to the base track's
 //! road network unless snapping is off or Alt is held. Every edit is an
 //! [`Op`] run through [`undo::run`]: one undo step per click, per drag
 //! (on release) and per typed value. The tracks and their road networks
@@ -587,7 +587,7 @@ impl Races {
         self.paint(s, painter, &|p: Vec3| to(p), &ground, true, near);
     }
 
-    /// The same over the 2D map view; `to_screen` maps world x/y.
+    /// The same over the top view; `to_screen` maps world x/y.
     pub fn paint_map(&mut self, s: &mut EditorState, painter: &egui::Painter, to_screen: &dyn Fn(Vec2) -> egui::Pos2) {
         self.update(s);
         let to = |p: Vec3| Some(to_screen(p.truncate()));
@@ -956,6 +956,13 @@ impl Races {
         if validate::panel(s, &checks, ui) {
             self.update(s);
         }
+    }
+
+    /// The Race tab: the selected race as a strip ([`super::race_strip`]).
+    pub fn strip(&mut self, s: &mut EditorState, ui: &mut egui::Ui) {
+        self.update(s);
+        let (checks, previews) = (self.checks.clone(), self.previews.clone());
+        super::race_strip::tab(s, &checks, &previews, ui);
     }
 
     /// The counts for the tab's title and the status bar: (errors, warnings).
