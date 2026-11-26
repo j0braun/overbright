@@ -5,7 +5,7 @@ use super::*;
 impl Hud {
     /// 0x4DA640 / 0x4CA840: the minimap.
     pub(super) fn track_map(&mut self, f: &QuadsFrame<'_>) {
-        let QuadsFrame { package, input, lo, .. } = *f;
+        let QuadsFrame { assets, package, input, lo, .. } = *f;
         let s = &mut self.state;
         // 0x4DA640: the minimap's filter, GPS search and 0x697D2BCA groups
         // stay hidden outside the GPS and filter states; 0x4CA840 frames
@@ -15,7 +15,7 @@ impl Hud {
         }
         if lo & 0x1 != 0 {
             match &input.map {
-                Some(m) if m.texture.is_some() && m.size > 0.0 => minimap(s, package, m),
+                Some(m) if m.texture.is_some() && m.size > 0.0 => minimap(s, package, &|t| assets.textures.contains_key(&t), m),
                 _ => {
                     for e in ELEMENTS.iter().filter(|e| e.lo == 0x1 && e.objects.contains(&"Track2000_map")) {
                         for n in e.objects {

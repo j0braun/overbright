@@ -13,13 +13,14 @@ pub struct MapView {
     /// The player: world x, y and heading (radians about +z, 0 = +x).
     pub player: glam::Vec2,
     pub heading: f32,
-    /// Markers: the indicator name ("CIRCUITEVENTINDICATOR_", …), the
+    /// Markers (the last field: a sponsor event, whose item takes the
+    /// cross texture, 0x4AC460): the indicator name ("CIRCUITEVENTINDICATOR_", …), the
     /// world position and, for a car (AIRACERINDICATOR_, item type 3), its
     /// heading (radians about +z, 0 = +x); each name's objects are used in
     /// order. The race's start and finish items (types 1 and 2, flag 1 at
     /// 0x4EC950) never show: 0x4CA6D0's table 0x4CA7E4 sends types 0–2 to
     /// "hidden", so the clone lists none.
-    pub icons: Vec<(&'static str, glam::Vec2, Option<f32>)>,
+    pub icons: Vec<(&'static str, glam::Vec2, Option<f32>, bool)>,
     /// Markers this many windows away or further are dropped: 1, or 10
     /// in free roam with the GPS on, in stage 0 or during a world
     /// challenge (0x4CA840).

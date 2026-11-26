@@ -124,6 +124,14 @@ impl Gps {
         self.on() && (self.at - at).abs().max_element() <= 0.001
     }
 
+    /// 0x4C8410: the minimap's GPS group (0x697D2BCA) shows in states 0-3
+    /// and is hidden in state 4, the router idle after an arrival
+    /// (0x42A360), a race's start (0x541170) or a deactivation. The map
+    /// point it goes to, or None while the group stays hidden.
+    pub fn ring_point(&self) -> Option<Vec2> {
+        self.on().then_some(self.map)
+    }
+
     /// The minimap's GPS_SEARCH_ERROR text (0x4C8410): states 1 and 2.
     pub fn error(&self) -> Option<u32> {
         match self.state() {
