@@ -20,6 +20,8 @@ use crate::{Refusal, Rule};
 pub struct BaseSet {
     id: String,
     files: HashMap<String, ob_core::game_fs::Mapped>,
+    /// The recorded SHA-256 of every kept file (the asset cache's source keys).
+    digests: HashMap<String, [u8; 32]>,
     /// What the import's scan skipped inside the content folders (upper case): not known absent.
     skipped: Vec<String>,
     /// Bytes hashed at this mount (0 when every bundle's stamp matched).
@@ -143,6 +145,7 @@ impl BaseSet {
         }
         // Index every kept file.
         let mut files = HashMap::new();
+        let mut digests = HashMap::new();
         for f in &rec.scan.files {
             let unit = unit_of(&f.path);
             let lay3 = |m: String| Refusal::new(Rule::Lay3, m).in_pack(&rec.id);
@@ -159,7 +162,11 @@ impl BaseSet {
             let start = e.data_offset as usize;
             let m = ob_core::game_fs::Mapped::new(map, start..start + e.size as usize)
                 .ok_or_else(|| lay3(format!("{unit}.obz: {} lies outside the bundle", f.path)))?;
-            files.insert(f.path.replace('\\', "/").to_ascii_uppercase(), m);
+            let key = f.path.replace('\\', "/").to_ascii_uppercase();
+            if let Some(d) = f.sha256 {
+                digests.insert(key.clone(), d);
+            }
+            files.insert(key, m);
         }
         if let Some(d) = stamps
             && hashed > 0
@@ -172,7 +179,7 @@ impl BaseSet {
             }
         }
         let skipped = rec.scan.skipped.iter().map(|(p, _)| p.replace('\\', "/").to_ascii_uppercase()).collect();
-        Ok(BaseSet { id: rec.id, files, skipped, hashed })
+        Ok(BaseSet { id: rec.id, files, digests, skipped, hashed })
     }
 
     pub fn id(&self) -> &str {
@@ -210,6 +217,9 @@ impl BaseSet {
 impl ob_core::game_fs::Layer for BaseSet {
     fn get(&self, key: &str) -> Option<ob_core::game_fs::Mapped> {
         self.files.get(key).cloned()
+    }
+    fn digest(&self, key: &str) -> Option<[u8; 32]> {
+        self.digests.get(key).copied()
     }
     fn name(&self) -> &str {
         &self.id

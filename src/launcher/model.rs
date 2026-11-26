@@ -2657,6 +2657,18 @@ pub fn save_choices(c: &Choices, first: Option<&FirstRun>) -> Result<(), SaveErr
 /// Fixed data for the renders and tests.
 pub struct FakeEnv;
 
+thread_local! {
+    /// The fake mod packs' load order, kept like `order.txt` (the real file's `Order`), so a move changes what
+    /// `packs()` lists. One per thread: each test starts from the fake's own order.
+    static FAKE_PACK_ORDER: std::cell::RefCell<ob_asset_format::order::Order> = std::cell::RefCell::new({
+        let mut o = ob_asset_format::order::Order::default();
+        for id in ["docks-remix", "cone-pack"] {
+            o.set_enabled(id, true);
+        }
+        o
+    });
+}
+
 /// A fake asset report for the renders: the US layout (every movie
 /// without a language suffix, movies.tag), all found but `missing`.
 pub fn fake_assets(root: &Path, missing: &[&str]) -> crate::game_assets::Report {
@@ -3020,10 +3032,15 @@ impl Env for FakeEnv {
             refused: refused.map(str::to_string),
             clash: clash.map(str::to_string),
         };
-        vec![
+        let mut rows = vec![
             row("docks-remix", "Docks remix", true, None, Some("overrules cone-pack (3 values)")),
             row("cone-pack", "Cone pack", true, None, Some("overruled by docks-remix (3 values)")),
-        ]
+        ];
+        FAKE_PACK_ORDER.with(|o| {
+            let o = o.borrow();
+            rows.sort_by_key(|r| o.packs().position(|(i, _)| i == r.id).unwrap_or(usize::MAX));
+        });
+        rows
     }
 
     fn pack_inside(&self, _id: &str) -> Vec<String> {
@@ -3040,8 +3057,11 @@ impl Env for FakeEnv {
         Ok(Vec::new())
     }
 
-    fn move_pack(&self, _id: &str, _by: isize) -> Result<(), String> {
-        Ok(())
+    fn move_pack(&self, id: &str, by: isize) -> Result<(), String> {
+        // The same ordering function `order.txt` uses.
+        FAKE_PACK_ORDER.with(|o| {
+            if o.borrow_mut().move_pack(id, by) { Ok(()) } else { Err(format!("{id} cannot move further")) }
+        })
     }
 
     fn import_pack(&self, _from: &Path) -> Result<String, String> {

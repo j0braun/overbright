@@ -93,6 +93,71 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
     }
 
+    /// A source the asset layer holds is keyed by the layer's digest: the cache is a hit with the game folder
+    /// gone, a miss when the digest or size differ, and a folder-made cache is rewritten under the layer's key.
+    #[test]
+    fn a_layered_source_is_keyed_by_its_digest() {
+        use crate::game_fs;
+        let _mount = game_fs::TEST_MOUNT.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        struct One(std::sync::Mutex<(Vec<u8>, [u8; 32])>);
+        impl game_fs::Layer for One {
+            fn get(&self, key: &str) -> Option<game_fs::Mapped> {
+                if key != "A.BIN" {
+                    return None;
+                }
+                let bytes = self.0.lock().unwrap().0.clone();
+                let mut f = tempfile_map(&bytes);
+                f.1 = bytes.len();
+                game_fs::Mapped::new(f.0, 0..f.1)
+            }
+            fn digest(&self, key: &str) -> Option<[u8; 32]> {
+                (key == "A.BIN").then(|| self.0.lock().unwrap().1)
+            }
+            fn name(&self) -> &str {
+                "unit-layer"
+            }
+        }
+        fn tempfile_map(b: &[u8]) -> (std::sync::Arc<memmap2::Mmap>, usize) {
+            let mut m = memmap2::MmapMut::map_anon(b.len().max(1)).unwrap();
+            m[..b.len()].copy_from_slice(b);
+            (std::sync::Arc::new(m.make_read_only().unwrap()), 0)
+        }
+        let dir = std::env::temp_dir().join(format!("nfsu2-cache-layered-{}", std::process::id()));
+        let root = dir.join("game-layered");
+        std::fs::create_dir_all(&root).unwrap();
+        let cache = dir.join("cache");
+        let layer = std::sync::Arc::new(One(std::sync::Mutex::new((b"layer bytes".to_vec(), [7; 32]))));
+        game_fs::mount(&root, layer.clone());
+        let data: Bytes = vec![1u8; 5000].into();
+        let sections = vec![("data".to_string(), data)];
+        // No file in the game folder at all: the layer's identity is the key.
+        write_now(&cache, &root, "layered", &["A.BIN".into()], &sections, crate::BUILD_ID).unwrap();
+        let open = || CacheFile::open_in(&cache, crate::BUILD_ID, &root, "layered", &["A.BIN"]);
+        assert!(open().is_some_and(|c| !c.retimed), "a hit with the folder file missing");
+        layer.0.lock().unwrap().1 = [8; 32];
+        assert!(open().is_none(), "another digest is a miss");
+        layer.0.lock().unwrap().1 = [7; 32];
+        assert!(open().is_some());
+        layer.0.lock().unwrap().0 = b"other bytes!".to_vec();
+        assert!(open().is_none(), "the same size but another digest is a miss");
+        layer.0.lock().unwrap().0 = b"layer bytes!".to_vec();
+        assert!(open().is_none(), "another size is a miss");
+        layer.0.lock().unwrap().0 = b"layer bytes".to_vec();
+        // Without the layer the same cache has no digest to compare: a miss, never a stale hit.
+        game_fs::unmount();
+        std::fs::write(root.join("A.BIN"), b"layer bytes").unwrap();
+        assert!(open().is_none(), "a layer-keyed cache is not trusted from the folder");
+        // Made from the folder, then opened through the layer: the same content is a hit, rewritten.
+        write_now(&cache, &root, "layered", &["A.BIN".into()], &sections, crate::BUILD_ID).unwrap();
+        game_fs::mount(&root, layer.clone());
+        layer.0.lock().unwrap().1 = [7; 32];
+        let c = open().expect("folder-made cache opens through the layer");
+        assert!(c.retimed);
+        drop(c);
+        game_fs::unmount();
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
     /// A cache file that is empty, shorter than its header, garbage or a
     /// valid file cut at any point is a miss (never a panic), and the
     /// rewrite that follows a miss is a hit with the right bytes: a corrupt

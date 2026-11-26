@@ -34,8 +34,10 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, PoisonError};
 
 mod layer;
+#[cfg(test)]
+pub use layer::TEST_MOUNT;
 pub use layer::{
-    FileBytes, FileReader, Layer, Lookup, Mapped, absent_count, counts, layered, lookup, misses, mount, mounted,
+    FileBytes, FileReader, Layer, Lookup, Mapped, absent_count, counts, identity, layered, lookup, misses, mount, mounted, peek,
     open_file, open_reader, read_file, unmount,
 };
 

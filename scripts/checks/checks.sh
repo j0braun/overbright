@@ -321,6 +321,11 @@ if [ "$SET" != shots ]; then
   run layering 120 "$HERE/layering.sh" "$REPO"
   say "layering rc=$RC: $(grep -E '^LAYERING: ok' "$O/layering.log" | cut -c11-160)"
   [ $RC = 0 ] || { grep -vE '^LAYERING: ok' "$O/layering.log" | head -20 | tee -a "$OUT"; fail layering; }
+  # The stray-open lint (stray_opens.py, stray-opens.txt): a game file is read through game_fs (the asset layer), so
+  # no file holds a direct std::fs open beyond its listed count.
+  run stray_opens 60 "$HERE/stray_opens.sh" "$REPO"
+  say "stray_opens rc=$RC: $(grep -E '^STRAY OPENS: ok' "$O/stray_opens.log" | cut -c14-160)"
+  [ $RC = 0 ] || { grep -vE '^STRAY OPENS: ok' "$O/stray_opens.log" | head -20 | tee -a "$OUT"; fail stray_opens; }
   # The importers' unit tests (scripts/tests) need Pillow: without it they are recorded as skipped. They are part
   # of the private set (with the importers they test): a public checkout has no scripts/tests/.
   if [ ! -d "$REPO/scripts/tests" ]; then
