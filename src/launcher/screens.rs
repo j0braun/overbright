@@ -871,7 +871,7 @@ pub fn dialog_title(p: BrowseFor) -> &'static str {
         BrowseFor::Saves => "Choose the original game's save folder",
         BrowseFor::Packages => "Choose the folder that holds the texture packages",
         BrowseFor::HudMod => "Choose the HUD mod's folder",
-        BrowseFor::MapMod => "Choose the map mod (a folder with map.obmap, or its .zip)",
+        BrowseFor::MapMod => "Choose the map mod (a folder with map.obmap, its .zip) or a mod pack (.obpk)",
         BrowseFor::MapExport => "Choose the folder to export the map mod to",
         BrowseFor::SavesExport => "Choose the folder to export the profile to",
         BrowseFor::Location => "Choose the new folder",
@@ -2007,6 +2007,9 @@ pub const PACK_IDS: [&str; 24] = [
     "pk0", "pk1", "pk2", "pk3", "pk4", "pk5", "pk6", "pk7", "pk8", "pk9", "pk10", "pk11", "pk12", "pk13", "pk14",
     "pk15", "pk16", "pk17", "pk18", "pk19", "pk20", "pk21", "pk22", "pk23",
 ];
+pub const MODPACK_IDS: [&str; 16] = [
+    "mk0", "mk1", "mk2", "mk3", "mk4", "mk5", "mk6", "mk7", "mk8", "mk9", "mk10", "mk11", "mk12", "mk13", "mk14", "mk15",
+];
 pub const MAP_IDS: [&str; 16] = [
     "mp0", "mp1", "mp2", "mp3", "mp4", "mp5", "mp6", "mp7", "mp8", "mp9", "mp10", "mp11", "mp12", "mp13", "mp14", "mp15",
 ];
@@ -2136,6 +2139,38 @@ fn build_mods(b: &mut Builder, m: &Model) {
         b.status(*mark, line);
     }
     message(b, m);
+    b.section_a("Mod packs");
+    let editing = matches!(mods.editor, super::model::EditorRun::Open(_));
+    if mods.packs.is_empty() {
+        b.dim("None added. A pack (.obpk) holds one mod; the first in the list is the strongest.");
+    }
+    for (i, r) in mods.packs.iter().enumerate().take(MODPACK_IDS.len()) {
+        b.toggle_sub(MODPACK_IDS[i], &r.name, &pack_detail(r), r.on && r.refused.is_none() && live, live && r.refused.is_none());
+        if let Some(why) = r.refused.as_ref().filter(|_| r.on || r.new) {
+            b.status(Mark::Warn, &format!("{}: not used, {why}", r.name));
+        }
+    }
+    b.gap(6.0);
+    let sel = mods.pack_sel.as_ref().and_then(|s| mods.packs.iter().position(|r| &r.id == s));
+    b.buttons(
+        Align::Left,
+        vec![
+            Ctrl::Button { id: "pack_up", text: "Move up".into(), primary: false, enabled: live && sel.is_some_and(|i| i > 0) },
+            Ctrl::Button {
+                id: "pack_down",
+                text: "Move down".into(),
+                primary: false,
+                enabled: live && sel.is_some_and(|i| i + 1 < mods.packs.len()),
+            },
+            Ctrl::Button { id: "pack_import", text: "Import…".into(), primary: false, enabled: !editing },
+            Ctrl::Button {
+                id: "map_export_pack",
+                text: "Export a map mod…".into(),
+                primary: false,
+                enabled: !mods.maps.is_empty() && !editing,
+            },
+        ],
+    );
     let left_bottom = b.y;
     // The HUD and the map mods: the right column (under the left one when
     // the window is narrow).
@@ -2223,6 +2258,18 @@ fn editor_status(b: &mut Builder, m: &Model) {
         super::model::EditorRun::Failed(e) => b.status(Mark::Error, &format!("The map editor: {e}")),
         super::model::EditorRun::Closed => b.dim("The map editor is its own window. Races are tested from it."),
     }
+}
+
+/// A mod pack's line under its name: version, its place in the order, what it clashes with.
+pub fn pack_detail(r: &super::model::PackRow) -> String {
+    let mut parts = vec![format!("version {}", r.version)];
+    if r.new {
+        parts.push("new, off".into());
+    }
+    if let Some(c) = &r.clash {
+        parts.push(c.clone());
+    }
+    parts.join(" · ")
 }
 
 /// A map mod's line under its name: its races, prop edits and the
@@ -2607,6 +2654,8 @@ impl<'e> App<'e> {
                 self.model.mods.sel = i;
             } else if let Some(i) = MAP_IDS.iter().position(|p| *p == f) {
                 self.model.mods.map_sel = self.model.mods.maps.get(i).map(|r| r.folder.clone());
+            } else if let Some(i) = MODPACK_IDS.iter().position(|p| *p == f) {
+                self.model.mods.pack_sel = self.model.mods.packs.get(i).map(|r| r.id.clone());
             }
         }
         let mut out = Outcome::Stay;
@@ -2943,9 +2992,40 @@ impl<'e> App<'e> {
         self.refresh_mods();
     }
 
+    /// A mod pack's switch.
+    fn toggle_mod_pack(&mut self, i: usize) {
+        let Some(r) = self.model.mods.packs.get(i).cloned() else { return };
+        self.model.mods.pack_sel = Some(r.id.clone());
+        self.model.mods.results = match self.env.set_mod_pack(&r.id, !r.on) {
+            Ok(also) if !also.is_empty() => {
+                vec![(Mark::Info, format!("{} turned on too, below {}: {} needs {}", also.join(", "), r.name, r.name, also.join(", ")))]
+            }
+            Ok(_) => Vec::new(),
+            Err(e) => vec![(Mark::Error, format!("{}: {e}", r.name))],
+        };
+        self.refresh_mods();
+    }
+
+    /// Moves the chosen mod pack one place; the page keeps it chosen.
+    fn move_mod_pack(&mut self, by: isize) {
+        let Some(id) = self.model.mods.pack_sel.clone() else { return };
+        if let Err(e) = self.env.move_pack(&id, by) {
+            self.model.mods.results = vec![(Mark::Error, format!("{id}: {e}"))];
+        }
+        self.refresh_mods();
+    }
+
     /// A map mod imported.
     fn import_map(&mut self, from: &Path) {
         let name = from.file_name().map_or(String::new(), |n| n.to_string_lossy().into_owned());
+        if from.extension().is_some_and(|e| e.eq_ignore_ascii_case("obpk")) {
+            self.model.mods.results = vec![match self.env.import_pack(from) {
+                Ok(id) => (Mark::Ok, format!("{name}: mod pack added ({id}); turn it on below")),
+                Err(e) => (Mark::Error, format!("{name}: not added: {e}")),
+            }];
+            self.refresh_mods();
+            return;
+        }
         self.model.mods.results = vec![match self.env.import_map(from) {
             Ok(f) => (Mark::Ok, format!("{name}: map mod added ({f}); turn it on below")),
             Err(e) => (Mark::Error, format!("{name}: not a map mod Overbright can read: {e}")),
@@ -2959,6 +3039,7 @@ impl<'e> App<'e> {
         m.list = self.env.mods();
         m.own = self.env.own_packs();
         m.maps = self.env.maps();
+        m.packs = self.env.packs();
         self.check_conflict();
         self.look_at_studio();
     }
@@ -2993,7 +3074,9 @@ impl<'e> App<'e> {
     /// Export the map mod `f` into `dir` (`derived_ok`: the player said yes
     /// to its textures from the original game's pixels).
     fn export_map(&mut self, f: &str, dir: &Path, derived_ok: bool) {
-        self.model.mods.results = vec![match self.env.export_map(f, dir, derived_ok) {
+        let packed = self.model.mods.export_pack;
+        let r = if packed { self.env.export_pack(f, dir, derived_ok) } else { self.env.export_map(f, dir, derived_ok) };
+        self.model.mods.results = vec![match r {
             Ok(p) => (Mark::Ok, format!("Exported: {}", p.display())),
             Err(e) => (Mark::Error, format!("{f}: not exported: {e}")),
         }];
@@ -3007,6 +3090,7 @@ impl<'e> App<'e> {
                 own: m.mods.own.iter().map(|o| (o.id.clone(), o.on)).collect(),
                 packages: m.mods.list.iter().map(|(e, _)| (e.id.clone(), e.on)).collect(),
                 maps: m.mods.maps.iter().filter(|r| r.on).map(|r| r.folder.clone()).collect(),
+                packs: m.mods.packs.iter().filter(|r| r.on).map(|r| r.id.clone()).collect(),
                 hud: m.choices.hud_mod,
             };
             if let Err(e) = self.env.set_paused(Some(&p)) {
@@ -3022,6 +3106,10 @@ impl<'e> App<'e> {
                 r.on = false;
                 let _ = self.env.set_map(&r.folder, false);
             }
+            for r in m.mods.packs.iter_mut().filter(|r| r.on) {
+                r.on = false;
+                let _ = self.env.set_mod_pack(&r.id, false);
+            }
         } else {
             let p = self.env.paused().or_else(|| m.set_aside.take()).unwrap_or_default();
             let was = |l: &[(String, bool)], id: &str| l.iter().find(|(i, _)| i == id).is_none_or(|(_, on)| *on);
@@ -3032,6 +3120,12 @@ impl<'e> App<'e> {
                 r.on = p.maps.contains(&r.folder);
                 if r.on {
                     let _ = self.env.set_map(&r.folder, true);
+                }
+            }
+            for r in m.mods.packs.iter_mut() {
+                r.on = p.packs.contains(&r.id) && r.refused.is_none();
+                if r.on {
+                    let _ = self.env.set_mod_pack(&r.id, true);
                 }
             }
             m.mods.paused = false;
@@ -3294,6 +3388,18 @@ impl<'e> App<'e> {
                     }
                 }
             }
+            (Screen::Mods, Event::Toggle(id)) if MODPACK_IDS.contains(id) => {
+                let i = MODPACK_IDS.iter().position(|p| p == id).unwrap_or(0);
+                self.toggle_mod_pack(i);
+            }
+            (Screen::Mods, Event::Activate("pack_up")) => self.move_mod_pack(-1),
+            (Screen::Mods, Event::Activate("pack_down")) => self.move_mod_pack(1),
+            (Screen::Mods, Event::Activate("pack_import")) => self.browse(BrowseFor::MapMod, None),
+            (Screen::Mods, Event::Activate("map_export_pack")) => {
+                self.model.mods.export_pack = true;
+                let start = super::dirs::home();
+                self.choose_folder(BrowseFor::MapExport, start);
+            }
             (Screen::Mods, Event::Activate("order")) => {
                 self.model.mods.show_order = true;
                 self.st.focus = Some("up");
@@ -3332,6 +3438,7 @@ impl<'e> App<'e> {
                 self.open_folder(&d);
             }
             (Screen::Mods, Event::Activate("map_export")) => {
+                self.model.mods.export_pack = false;
                 let start = super::dirs::home();
                 self.choose_folder(BrowseFor::MapExport, start);
             }

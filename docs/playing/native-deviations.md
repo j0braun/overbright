@@ -200,7 +200,7 @@ Lighting replaces Dynamic Lamps); the page says so and never changes the
 stored value.
 
 Map mods and the map editor (docs/modding/map-editor.md): with no map mod listed in `maps/enabled.txt`, worlds and races
-are the original's; the editor is reachable only after a start with `--editor`.
+are the original's; the editor is reachable only after a start with `--editor`. Mod packs (`mods/order.txt`, docs/modding/asset-format/layering.md) are the same: with no `order.txt`, or no pack switched on, nothing beyond that file is read and the game is the original's.
 
 ## 4. Speed-ups that change neither the look nor the play
 

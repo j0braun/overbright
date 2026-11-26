@@ -1789,6 +1789,7 @@ dependencies = [
  "proptest",
  "rayon",
  "rfd",
+ "semver",
  "serde",
  "serde_json",
  "sha2",

@@ -62,6 +62,7 @@ car ob-assets
 character ob-assets
 collision ob-assets
 ground ob-assets
+mod_packs ob-assets
 movie ob-assets
 particles ob-assets
 game_assets ob-assets

@@ -97,8 +97,8 @@ import = "import.toml"
 | `extensions_required` | array<string> | no | `[]` | Subset of `extensions_used` a reader MUST know (`CONV.14`). |
 | `extensions_safe_to_copy` | array<string> | no | `[]` | Subset of `extensions_used` whose data a tool that does not know them may keep when it rewrites an item (conventions §9); an extension not listed is not safe to copy. |
 | `[game]` | table | no | – | What the pack was made against. |
-| `game.bases` | array<string> | no | `["*"]` | Base set ids it supports, `*` wildcards allowed (`nfsu2-pc12-*`). A mismatch is only a warning in the launcher; what refuses a pack made for another base set is any reference or guard that does not match (conventions §11: the whole pack, with the stale items listed). |
-| `game.fingerprint` | array<sha256> | no | – | Format-1 compatibility field: digests of key original files; read and shown, never required. |
+| `game.bases` | array<string> | no | `["*"]` | Base set ids it supports, `*` wildcards allowed (`nfsu2-pc12-*`). The game refuses a pack whose list has no match for the base set in use, or that names a base set when no imported copy is in use, and says which it was made for; a pack that is on but refused is not mounted at all. Any reference or guard that does not match refuses it too (conventions §11: the whole pack, with the stale items listed). |
+| `game.fingerprint` | array<sha256> | no | – | Digests that identify the copy of the game the pack was made for (`sha256:<hex>`, the import record's `source.identity`; Overbright's exporter writes it beside `bases`). A non-empty list the base set in use is not on is refused like a base set mismatch. Format-1 files may list digests of key original files, which are read and shown. |
 | `[dependencies]` | table packId → versionReq | no | – | Required packs, enabled and below this one ([layering.md](layering.md) §2, `ORD.2`). |
 | `[optional]` | table packId → versionReq | no | – | If present and enabled, kept below this one; never required. |
 | `[conflicts]` | table packId → versionReq | no | – | Never enabled together (`ORD.3`). |

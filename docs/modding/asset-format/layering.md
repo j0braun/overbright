@@ -52,6 +52,16 @@ hd-hud
   dependency is refused for any reason is refused too, and the message names the dependency that caused it
   (`ORD.4`).
 
+**What the game does with it** (implemented, `crates/ob-asset-format/src/modpack.rs`, `src/mod_packs/`). At start the
+game reads `mods/order.txt` (no file, or no pack on: nothing else is read, the game is the original's), checks each pack
+that is on (the `overbright` range `MAN.3`, `game.bases` and `game.fingerprint` against the base set in use, `residual/`
+and `import.toml` `MRG.6`, dependencies and conflicts `ORD.2`–`ORD.4`) and mounts the rest, the first line the strongest.
+A pack that is refused is not mounted at all and the log and the launcher say why ("made for the base set nfsu2-pc12-eu;
+the one in use is …"). A pack made from a Studio map mod holds the map mod's own files (`map.obmap`, `textures/world|car/…`)
+until the per-kind files of this format are written by the exporter; the game reads them above the plain map mods and
+reports clashes between packs (§4) in its log and in the launcher's Mods page. A `.obpk` is unpacked once into the cache,
+keyed by its digest.
+
 ## 3. Merge rules
 
 Every kind page defines its items, their keys, and which of the operations below it allows. The rules here are the

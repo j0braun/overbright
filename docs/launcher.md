@@ -91,7 +91,7 @@ arguments (`Outcome::Restart`; the new one waits for the old one's lock)), then 
   edits and changed textures under the name; Open in map editor (the chosen mod; the editor's own Open / New is the Dev page's button), Import a
   map mod… (the map and its textures, `tools::map::share::import`), Export… as a `.zip` with the mod's textures
   (`tools::map::share::export`; a mod with textures from the original game's pixels asks first, "Made from the
-  original game": Export anyway or Cancel)). The map editor (`overbright-editor`, `dirs::editor_exe` beside the launcher,
+  original game": Export anyway or Cancel)); Mod packs (`mod_packs`: the `.obpk` packs and pack folders in `mods/`, one switch each under the name with its version, what it overrules or is overruled by, and why a pack is refused; Move up / Move down change the order in `mods/order.txt`, the first line the strongest; Import… takes a `.obpk` (also through the map mod import's file list), Export a map mod… writes the chosen map mod as `<id>-<version>.obpk`; a pack made for another base set is shown with the base set it needs and is never mounted). The map editor (`overbright-editor`, `dirs::editor_exe` beside the launcher,
   `OB_EDITOR_EXE` names another) starts with `--mod <folder>` and the shown game folder as `NFSU2_ROOT`; one at a
   time: while it is open the section's controls are greyed and a line says the page waits; when it closes the
   map mods are read again (`App::poll_jobs`); a failed start or a bad exit is shown as an error line. The
