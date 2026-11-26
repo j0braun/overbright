@@ -461,7 +461,7 @@ impl Game {
         }
         self.traffic_models_draws(placed);
         if let (Some(t), Some(plan), Some(d)) = (race.racers.traffic.as_mut(), plan, self.sim.drive.as_ref()) {
-            crate::sim::traffic::place::traffic_fill_apply(&d.world, t, plan, true);
+            crate::sim::traffic::place::traffic_fill_apply(&d.world, t, plan, true, Some(&race.route.road));
         }
         self.placed_traffic_renderers(race.racers.traffic.iter().flat_map(|t| t.cars.iter().map(|c| (&c.id, &*c.car))));
     }

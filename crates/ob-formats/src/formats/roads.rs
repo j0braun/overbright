@@ -36,6 +36,30 @@ pub struct Segment {
     pub exits: [Vec<(usize, u8)>; 2],
     /// Barrier records (0x3414D) that close the segment.
     pub barriers: Vec<usize>,
+    /// The tracks the segment is for (+0xAC, a count, and the u16 track
+    /// numbers from +0xAE) or not for (+0xAD, its count, the same list).
+    pub tracks: TrackList,
+}
+
+/// A segment's track list (0x5D4F70).
+#[derive(Clone, Debug, Default)]
+pub struct TrackList {
+    pub only: u8,
+    pub not: u8,
+    pub ids: Vec<u16>,
+}
+
+impl TrackList {
+    /// 0x5D4F70 (**verified**, the decompile): with an "only" count the
+    /// track must be among that many ids; else with a "not" count it must
+    /// not be; with neither every track may use the segment.
+    pub fn allows(&self, track: u16) -> bool {
+        if self.only != 0 {
+            self.ids.iter().take(self.only as usize).any(|&t| t == track)
+        } else {
+            !self.ids.iter().take(self.not as usize).any(|&t| t == track)
+        }
+    }
 }
 
 #[derive(Clone, Debug, Default)]
@@ -60,6 +84,10 @@ pub struct RoadNet {
     /// How many segment ranges and node-to-segment links [`RoadNet::parse`]
     /// had to repair (0 for every shipped file).
     pub repaired: usize,
+    /// The race's track number (the checkpoint record's +0x00, search
+    /// state +0x14): the search takes only segments whose track list
+    /// allows it (0x5D4F70). None: every segment.
+    pub track: Option<u16>,
 }
 
 /// The search state 0x5D53E0 copies per branch (28 dwords): the distance
@@ -99,6 +127,11 @@ impl RoadNet {
                         spline_length: r.f32_at(0x6C)?,
                         exits: [group(0x24, r.u8_at(0x22)?)?, group(0x44, r.u8_at(0x23)?)?],
                         barriers,
+                        tracks: {
+                            let (only, not) = (r.u8_at(0xAC)?, r.u8_at(0xAD)?);
+                            let n = only.max(not).min(7) as usize;
+                            TrackList { only, not, ids: (0..n).map(|k| r.u16_at(0xAE + 2 * k)).collect::<FormatResult<_>>()? }
+                        },
                     })
                 });
             }
@@ -171,7 +204,9 @@ impl RoadNet {
     /// shortest way on to the target within the depth limit and the bound.
     fn search(&self, s: &mut Search, seg: usize, dir: u8, depth: usize) -> bool {
         let Some(segment) = self.segments.get(seg) else { return false };
-        if s.taken.len() == 16 {
+        // 0x5D53E0 first: 16 taken ends it, and a segment not for this
+        // race's track (0x5D4F70 on the state's +0x14) is refused.
+        if s.taken.len() == 16 || self.track.is_some_and(|t| !segment.tracks.allows(t)) {
             return false;
         }
         if s.taken.iter().any(|t| t.0 == seg) && seg != s.target {
@@ -283,64 +318,30 @@ impl RoadNet {
     /// each node's place along the road (+0x14, 0x5D52D0). The polyline
     /// is the nodes in driving order at those places.
     pub fn race_road(&self, route: &[(usize, u8)], loops: bool) -> RoadRoute {
+        self.race_road_with(route, loops, false)
+    }
+
+    /// [`RoadNet::race_road`] with the checkpoint record's byte +4
+    /// (`branches`): the other ways off the route that come back to it,
+    /// each its own stretch of road whose places run, scaled, over the
+    /// route's places it bypasses (0x5E5BC0's second loop).
+    pub fn race_road_with(&self, route: &[(usize, u8)], loops: bool, branches: bool) -> RoadRoute {
         // A route names segments of this network.
         let route: Vec<(usize, u8)> = route.iter().copied().filter(|&(seg, _)| seg < self.segments.len()).collect();
         let route = &route[..];
         let count = route.len();
         let node = |k: usize| self.nodes.get(k).map_or(Vec2::ZERO, |n| n.0);
-        // The way a route segment leaves its far end and enters its near
-        // end, in driving order (0x5E48C0: the neighbour's second node
-        // less its first, or its last but one less its last).
-        let lead = |seg: usize, dir: u8, out: bool| {
-            let s = &self.segments[seg];
-            if (dir == 0) != out { node(s.end.saturating_sub(2)) - node(s.end.saturating_sub(1)) } else { node(s.first + 1) - node(s.first) }
-        };
         // While building, the route's length (+0x18) is 1 (0x5E5BC0), so
         // a locator's fraction is its distance.
         let nodes = (0..self.nodes.len()).map(|j| RoadNode { at: node(j), segment: self.nodes[j].1, near: self.links.get(j).map_or(0xFF, |l| l.0), far: self.links.get(j).map_or(0, |l| l.1), links: self.links.get(j).map_or([-1; 3], |l| l.2), along: self.along.get(j).copied().unwrap_or(0.0) }).collect();
         let bounds = self.segments.iter().map(|s| (s.first..s.end.min(self.nodes.len())).fold((Vec2::MAX, Vec2::MIN), |(lo, hi), j| (lo.min(node(j)), hi.max(node(j))))).collect();
         let mut road = RoadRoute { length: 1.0, loops, piece_of: vec![None; self.segments.len()], nodes, bounds, ..Default::default() };
-        let mut end = 0.0;
-        for (k, &(seg, dir)) in route.iter().enumerate() {
-            let s = &self.segments[seg];
-            let (a, b) = (node(s.first), node(s.end.max(s.first + 1) - 1));
-            road.piece_of[seg] = None;
-            // The segment starts where a fresh locator (0x5DEDA0) puts its
-            // driving start (+0x88, or +0x90 run backward) on the splines
-            // built so far: 0 for the first, else the last one's end and
-            // the gap to it.
-            let start = road.locate_once(if dir == 0 { a } else { b });
-            // The phantom control points before the first node and after
-            // the last (0x5D50A0): from the neighbours along the route,
-            // else the end piece carried on.
-            let mut before = None;
-            let mut after = None;
-            if k > 0 || loops {
-                let (ps, pd) = route[(count + k - 1) % count];
-                let v = lead(ps, pd, false);
-                if dir == 0 { before = Some(a + v) } else { after = Some(b + v) }
-            }
-            if k + 1 < count || loops {
-                let (ns, nd) = route[(k + 1) % count];
-                let v = lead(ns, nd, true);
-                if dir == 0 { after = Some(b + v) } else { before = Some(a + v) }
-            }
-            let mut cps = vec![before.unwrap_or(a - (node(s.first + 1) - a))];
-            cps.extend((s.first..s.end).map(node));
-            cps.push(after.unwrap_or(b + (b - node(s.end.max(2) - 2))));
-            let mut spline = RoadSpline { segment: seg, dir, first: s.first, exported: s.spline_length, cps: cps.iter().map(|p| Vec4::new(p.x, p.y, 0.0, 0.0)).collect(), ..Default::default() };
-            spline.measure(16);
-            let n = s.end.saturating_sub(s.first) as f32;
-            spline.w1 = spline.eval(1.0, false).w;
-            spline.length = spline.eval(n, false).w - spline.w1;
-            // 0x5D52D0: direction 1 runs from the far end back.
-            (spline.start, spline.scale) = if dir == 0 { (start, 1.0) } else { (start + spline.length, -1.0) };
-            end = start + spline.length;
-            for j in s.first..s.end.min(self.nodes.len()) {
-                road.nodes[j].along = spline.along((j - s.first + 1) as f32);
-            }
-            road.piece_of[seg] = Some(road.splines.len());
-            road.splines.push(spline);
+        let end = self.build_pieces(&mut road, route, loops, count, 1.0);
+        // The race's road length (+0x18) and its half (+0x1C) are set
+        // before the branches are searched (0x5E5BC0).
+        road.length = end;
+        if branches {
+            self.build_branches(&mut road, route, end);
         }
         let along: Vec<f32> = road.nodes.iter().map(|n| n.along).collect();
         let start = end;
@@ -368,6 +369,191 @@ impl RoadNet {
         }
         RoadRoute { points, at, length: start, segments, ..road }
     }
+}
+
+impl RoadNet {
+    /// 0x5E48C0: the splines of the segments in `list`, each starting
+    /// where a fresh locator puts its driving start on the road built so
+    /// far (0x5DEDA0), its places scaled by `f` (0x5D52D0); the phantom
+    /// control points from the list's neighbours (indices taken modulo
+    /// `modulo`, the main route's count, as the game does; around the
+    /// ends only when `wrap`). Returns the last segment's end.
+    fn build_pieces(&self, road: &mut RoadRoute, list: &[(usize, u8)], wrap: bool, modulo: usize, f: f32) -> f32 {
+        let count = list.len();
+        let node = |k: usize| self.nodes.get(k).map_or(Vec2::ZERO, |n| n.0);
+        // The way a segment leaves its far end and enters its near end, in
+        // driving order (the neighbour's second node less its first, or
+        // its last but one less its last).
+        let lead = |seg: usize, dir: u8, out: bool| {
+            let s = &self.segments[seg];
+            if (dir == 0) != out { node(s.end.saturating_sub(2)) - node(s.end.saturating_sub(1)) } else { node(s.first + 1) - node(s.first) }
+        };
+        let modulo = modulo.max(1);
+        let mut end = 0.0;
+        for (k, &(seg, dir)) in list.iter().enumerate() {
+            let s = &self.segments[seg];
+            let (a, b) = (node(s.first), node(s.end.max(s.first + 1) - 1));
+            road.piece_of[seg] = None;
+            let start = road.locate_once(if dir == 0 { a } else { b });
+            let mut before = None;
+            let mut after = None;
+            if k > 0 || wrap {
+                let (ps, pd) = list[((modulo + k - 1) % modulo).min(count - 1)];
+                let v = lead(ps, pd, false);
+                if dir == 0 { before = Some(a + v) } else { after = Some(b + v) }
+            }
+            if k + 1 < count || wrap {
+                let (ns, nd) = list[((k + 1) % modulo).min(count - 1)];
+                let v = lead(ns, nd, true);
+                if dir == 0 { after = Some(b + v) } else { before = Some(a + v) }
+            }
+            let mut cps = vec![before.unwrap_or(a - (node(s.first + 1) - a))];
+            cps.extend((s.first..s.end).map(node));
+            cps.push(after.unwrap_or(b + (b - node(s.end.max(2) - 2))));
+            let mut spline = RoadSpline { segment: seg, dir, first: s.first, exported: s.spline_length, cps: cps.iter().map(|p| Vec4::new(p.x, p.y, 0.0, 0.0)).collect(), ..Default::default() };
+            spline.measure(16);
+            let n = s.end.saturating_sub(s.first) as f32;
+            spline.w1 = spline.eval(1.0, false).w;
+            spline.length = spline.eval(n, false).w - spline.w1;
+            // 0x5D52D0: the end is start + f × length; direction 1 runs
+            // from the far end back.
+            let e = start + f * spline.length;
+            (spline.start, spline.scale) = if dir == 0 { (start, f) } else { (e, -f) };
+            end = e;
+            for j in s.first..s.end.min(self.nodes.len()) {
+                road.nodes[j].along = spline.along((j - s.first + 1) as f32);
+            }
+            road.piece_of[seg] = Some(road.splines.len());
+            road.splines.push(spline);
+        }
+        end
+    }
+
+    /// 0x5E5BC0's second loop (**verified**, the decompile; the record's
+    /// byte +4 set): for each stretch built so far (the route, then the
+    /// branches as they are added, at most 16 in all), for each of its
+    /// segments, the up to four ways out of its driving end onto a segment
+    /// not yet on the road: a search (0x5D53E0 with no target, depth 15)
+    /// from there that ends on a road segment entered its own way, whose
+    /// place there (its driving start, +0x74 / +0x78; the road's length
+    /// for 0 on a loop) is at or past the branch's start and at least half
+    /// the branch's length on (the start: where a fresh locator puts the
+    /// way out's first point). The branch's segments are built (0x5E48C0
+    /// with scale 1), then again with scale (rejoin − start) / (built end
+    /// − start), so its places run from its start to the rejoin.
+    fn build_branches(&self, road: &mut RoadRoute, route: &[(usize, u8)], length: f32) {
+        let main = route.len();
+        let mut stretches: Vec<Vec<(usize, u8)>> = vec![route.to_vec()];
+        let mut on: Vec<Option<u8>> = vec![None; self.segments.len()];
+        for &(seg, dir) in route {
+            on[seg] = Some(dir);
+        }
+        let mut total = route.len();
+        let mut k = 0;
+        while k < stretches.len() {
+            for i in 0..stretches[k].len() {
+                let (seg, dir) = stretches[k][i];
+                for e in 0..4 {
+                    if stretches.len() > 15 {
+                        break;
+                    }
+                    let Some(&(next, next_dir)) = self.segments[seg].exits[if dir == 0 { 1 } else { 0 }].get(e) else { continue };
+                    if next >= self.segments.len() || on[next].is_some() {
+                        continue;
+                    }
+                    let s = &self.segments[next];
+                    let first = self.nodes.get(s.first).map_or(Vec2::ZERO, |n| n.0);
+                    let last = self.nodes.get(s.end.max(s.first + 1) - 1).map_or(Vec2::ZERO, |n| n.0);
+                    let start = road.locate_once(if next_dir == 0 { first } else { last });
+                    let mut b = Branch { distance: 0.0, rejoin: 0.0, bound: 9_999_999.0, start, taken: Vec::new() };
+                    if !self.branch_search(road, &on, length, &mut b, next, next_dir, 0) {
+                        continue;
+                    }
+                    let list: Vec<(usize, u8)> = b.taken.iter().copied().take(128usize.saturating_sub(total)).collect();
+                    total += list.len();
+                    for &(sg, d) in &list {
+                        on[sg] = Some(d);
+                    }
+                    let built = self.build_pieces(road, &list, false, main, 1.0);
+                    let span = built - start;
+                    let f = if span.abs() > 1e-6 { (b.rejoin - start) / span } else { 1.0 };
+                    self.build_pieces(road, &list, false, main, f);
+                    stretches.push(list);
+                }
+            }
+            k += 1;
+        }
+    }
+
+    /// 0x5D53E0 with no target (a branch's search): the state's distance,
+    /// the rejoin place (+0x04), the bound and the start place (+0x18).
+    #[allow(clippy::too_many_arguments)]
+    fn branch_search(&self, road: &RoadRoute, on: &[Option<u8>], length: f32, b: &mut Branch, seg: usize, dir: u8, depth: usize) -> bool {
+        const DEPTH: usize = 15;
+        let Some(segment) = self.segments.get(seg) else { return false };
+        if b.taken.len() == 16 || self.track.is_some_and(|t| !segment.tracks.allows(t)) {
+            return false;
+        }
+        if b.taken.iter().any(|t| t.0 == seg) {
+            return false;
+        }
+        if segment.barriers.iter().any(|&x| self.closed.get(x).copied().unwrap_or(false)) {
+            return false;
+        }
+        if let Some(on_dir) = on[seg] {
+            // On the road: rejoin when entered its own way.
+            if dir != on_dir {
+                return false;
+            }
+            let Some(k) = road.piece_of[seg] else { return false };
+            let sp = &road.splines[k];
+            // +0x74 for direction 0, +0x78 for 1: the place at its
+            // driving start.
+            let mut at = if dir == 0 { sp.start } else { sp.start - sp.scale.abs() * sp.length };
+            if at == 0.0 {
+                if !road.loops {
+                    return false;
+                }
+                at = length;
+            }
+            if b.start <= at && b.distance > 0.0 && 0.5 <= (at - b.start) / b.distance {
+                b.rejoin = at;
+                return true;
+            }
+            return false;
+        }
+        b.taken.push((seg, dir));
+        b.distance += segment.length;
+        if depth + 1 > DEPTH || b.distance > b.bound {
+            return false;
+        }
+        let mut best: Option<Branch> = None;
+        for &(next, next_dir) in &segment.exits[if dir == 0 { 1 } else { 0 }] {
+            let mut br = b.clone();
+            if self.branch_search(road, on, length, &mut br, next, next_dir, depth + 1) && best.as_ref().is_none_or(|x| br.distance < x.distance) {
+                b.bound = br.distance;
+                br.bound = br.distance;
+                best = Some(br);
+            }
+        }
+        match best {
+            Some(x) => {
+                *b = x;
+                true
+            }
+            None => false,
+        }
+    }
+}
+
+/// A branch search's state (0x5D53E0's 28 dwords, no target).
+#[derive(Clone)]
+struct Branch {
+    distance: f32,
+    rejoin: f32,
+    bound: f32,
+    start: f32,
+    taken: Vec<(usize, u8)>,
 }
 
 /// A route segment's spline (0x57A310 type 2: a uniform Catmull-Rom
@@ -683,6 +869,41 @@ impl RoadRoute {
         }
     }
 
+    /// 0x5D9CD0 (**verified**, the decompile): the route node nearest a
+    /// place and race coordinate, by its 2D distance + |its place along −
+    /// `coord`| / 4 (the short way round a circuit); the first such node
+    /// on a tie.
+    pub fn node_at(&self, p: Vec2, coord: f32) -> Option<usize> {
+        let mut best: Option<(usize, f32)> = None;
+        for (k, s) in self.splines.iter().enumerate() {
+            if self.piece_of[s.segment] != Some(k) {
+                continue;
+            }
+            for j in s.first..s.first + s.cps.len() - 2 {
+                let d = (self.difference(self.nodes[j].along, coord) * 0.25).abs() + self.nodes[j].at.distance(p);
+                if best.is_none_or(|b| d < b.1) {
+                    best = Some((j, d));
+                }
+            }
+        }
+        best.map(|b| b.0)
+    }
+
+    /// 0x5DA420 (**verified**): the locator cleared (+0x18) and located at
+    /// `p` from the node [`RoadRoute::node_at`] finds for `p` and `coord`
+    /// (0x5D9CD0, then 0x5D9E40 with that node).
+    pub fn locate_at(&self, loc: &mut Locator, p: Vec2, coord: f32) {
+        loc.node = None;
+        if self.nodes.is_empty() {
+            // A road without its network (no nodes): the plain place.
+            self.locate(loc, p);
+        } else if let Some(n) = self.node_at(p, coord) {
+            loc.node = Some(n);
+            loc.last = p;
+            self.locate(loc, p);
+        }
+    }
+
     /// A fresh locator's place for `p` (0x5DEDA0).
     pub fn locate_once(&self, p: Vec2) -> f32 {
         let mut loc = Locator::default();
@@ -765,5 +986,83 @@ fn to_piece(a: Vec2, b: Vec2, p: Vec2) -> (f32, usize) {
         (p.distance(b), 1)
     } else {
         ((ab.y * (p.x - a.x) - ab.x * (p.y - a.y)).abs() / ab.length(), (along_b < along_a) as usize)
+    }
+}
+
+#[cfg(test)]
+mod branch_tests {
+    use super::*;
+
+    /// A route of three segments along +x (0..600 m) and a fourth leaving
+    /// the first's end, bowing out to y = 60 and coming back at the third's
+    /// start.
+    fn net() -> RoadNet {
+        let pts: [(f32, f32, usize); 12] = [
+            (0.0, 0.0, 0),
+            (100.0, 0.0, 0),
+            (200.0, 0.0, 0),
+            (200.0, 0.0, 1),
+            (300.0, 0.0, 1),
+            (400.0, 0.0, 1),
+            (400.0, 0.0, 2),
+            (500.0, 0.0, 2),
+            (600.0, 0.0, 2),
+            (200.0, 0.0, 3),
+            (300.0, 60.0, 3),
+            (400.0, 0.0, 3),
+        ];
+        let mut net = RoadNet {
+            nodes: pts.iter().map(|&(x, y, s)| (Vec2::new(x, y), s)).collect(),
+            links: vec![(0xFF, 0, [-1; 3]); pts.len()],
+            along: vec![0.0; pts.len()],
+            ..RoadNet::default()
+        };
+        let seg = |first, length, exits: [Vec<(usize, u8)>; 2]| Segment {
+            first,
+            end: first + 3,
+            length,
+            spline_length: length,
+            exits,
+            barriers: vec![],
+            tracks: Default::default(),
+        };
+        net.segments = vec![
+            seg(0, 200.0, [vec![], vec![(1, 0), (3, 0)]]),
+            seg(3, 200.0, [vec![(0, 1)], vec![(2, 0)]]),
+            seg(6, 200.0, [vec![(1, 1), (3, 1)], vec![]]),
+            seg(9, 233.0, [vec![(0, 1)], vec![(2, 0)]]),
+        ];
+        net
+    }
+
+    #[test]
+    fn a_way_off_the_route_that_comes_back_runs_over_the_places_it_bypasses() {
+        let net = net();
+        let route = [(0, 0), (1, 0), (2, 0)];
+        let plain = net.race_road(&route, false);
+        assert!(plain.piece_of[3].is_none());
+        let road = net.race_road_with(&route, false, true);
+        let k = road.piece_of[3].expect("the branch is part of the road");
+        let s = &road.splines[k];
+        // From the route's place where it leaves (200) to where it comes
+        // back (the third segment's start, 400), scaled to fit.
+        assert!((s.start - 200.0).abs() < 1.0, "{}", s.start);
+        assert!((s.start + s.scale * s.length - 400.0).abs() < 1.0, "{} {}", s.scale, s.length);
+        assert!(s.scale < 1.0);
+        let mid = road.locate_once(Vec2::new(300.0, 59.0));
+        assert!((mid - 300.0).abs() < 15.0, "{mid}");
+        assert!((road.length - plain.length).abs() < 1e-3);
+    }
+
+    #[test]
+    fn a_segment_not_for_the_race_s_track_is_not_searched() {
+        let mut net = net();
+        net.segments[3].tracks = TrackList { only: 1, not: 0, ids: vec![4002] };
+        net.track = Some(4001);
+        let road = net.race_road_with(&[(0, 0), (1, 0), (2, 0)], false, true);
+        assert!(road.piece_of[3].is_none());
+        net.segments[3].tracks = TrackList { only: 0, not: 1, ids: vec![4001] };
+        assert!(!net.segments[3].tracks.allows(4001) && net.segments[3].tracks.allows(4002));
+        assert!(TrackList::default().allows(4001));
     }
 }

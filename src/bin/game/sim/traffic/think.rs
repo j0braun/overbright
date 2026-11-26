@@ -35,6 +35,7 @@ pub(crate) fn traffic_think(
     drag: Option<DragPlace>,
     node: Option<(usize, usize)>,
     wrong_way: bool,
+    coords: Option<&RaceCoords>,
     dt: f32,
 ) -> TrafficFrame {
     use nfsu2::ai::traffic::think_slot;
@@ -50,7 +51,7 @@ pub(crate) fn traffic_think(
     }
     t.timer -= dt;
     if t.timer <= 0.0 {
-        traffic_place_pass(world, t, player, racers, road, drag, node, wrong_way);
+        traffic_place_pass(world, t, player, racers, road, drag, node, wrong_way, coords);
     }
     // The thinks take turns by frame (0x429D90 on the frame loop's counter
     // 0x7FB724, one per call of 0x57A0F0 from the loop at 0x5814FA).
@@ -85,6 +86,7 @@ fn traffic_place_pass(
     drag: Option<DragPlace>,
     node: Option<(usize, usize)>,
     wrong_way: bool,
+    coords: Option<&RaceCoords>,
 ) {
     use nfsu2::ai::traffic::{
         DESPAWN, JAM_CAR, JAM_PLAYER, JAM_REACH, PLACE_DRAG, PLACE_INTERVAL, PLACE_INTERVAL_DRAG, TrafficLane, spacing,
@@ -98,10 +100,21 @@ fn traffic_place_pass(
     let (forward, speed) = (player.orientation * Vec3::X, player.velocity.truncate().length());
     let n = t.cars.len();
     let list = world.visible_sections_at(player.position).map(|(_, l)| l);
-    // The player's race coordinate (racer +0x8FC): the drag placement's;
-    // in the other races the player's place located on the race road, as
-    // the cars' (**inferred**, as `dist`).
-    let me_coord = drag.map(|p| p.coord).or_else(|| road.map(|r| r.locate_once(me.truncate())));
+    // The player's race coordinate (racer +0x8FC): the road locator's
+    // place (car +0x8D8, its +0x24), which the car's update relocates each
+    // frame from where it last was (0x604750 → 0x5DA340; **verified**).
+    // The clone once located the player afresh on each pass (the nearest
+    // road node anywhere, 0x5DEDA0): where the circuit runs past itself
+    // (4001's records 414 / 509) that jumped ~280 m ahead, and the placer
+    // put same-way traffic up to ~600 m ahead, in the racers' way.
+    let me_coord = drag
+        .map(|p| p.coord)
+        .or_else(|| coords.map(|c| c.me))
+        .or_else(|| road.map(|r| r.locate_once(me.truncate())));
+    // The racers' race coordinates likewise (their car +0x8FC).
+    let racer_coord = |k: usize, r: &nfsu2::ai::traffic::Other, road: &nfsu2::formats::roads::RoadRoute| {
+        coords.and_then(|c| c.racers.get(k).copied()).unwrap_or_else(|| road.locate_once(r.position))
+    };
     // 0x42F910 draws the spacing (0x418240) for each human racer
     // before it walks the slots, on every pass, whether or not a car is
     // then tried (**verified**, the decompile 0x42F910: the loop over
@@ -201,16 +214,15 @@ fn traffic_place_pass(
                 // the player, the racers — with the point less than the
                 // spacing ahead of them). The traffic's race
                 // coordinates are their +0x8FC (`TrafficCar::race_coord`),
-                // the racers' their places located on the race road
-                // prov: inferred game.traffic_think-2
-                // (**inferred**, as `dist` does).
+                // the racers' theirs (`RaceCoords`: each car's road
+                // locator, car +0x8D8, which its update 0x604750 moves on).
                 let coords: Vec<(f32, bool)> = t
                     .cars
                     .iter()
                     .enumerate()
                     .filter(|&(j, c)| j != i && c.lane.is_some())
                     .map(|(_, c)| (c.race_coord(road), true))
-                    .chain(racers.iter().map(|r| (road.locate_once(r.position), false)))
+                    .chain(racers.iter().enumerate().map(|(k, r)| (racer_coord(k, r, road), false)))
                     .chain(std::iter::once((p.coord, false)))
                     .collect();
                 let flat: Vec<Vec2> = others.iter().copied().chain(std::iter::once(me.truncate())).collect();
@@ -231,7 +243,7 @@ fn traffic_place_pass(
                     .enumerate()
                     .filter(|&(j, c)| j != i && c.lane.is_some())
                     .map(|(_, c)| (c.race_coord(road), true))
-                    .chain(racers.iter().map(|r| (road.locate_once(r.position), false)))
+                    .chain(racers.iter().enumerate().map(|(k, r)| (racer_coord(k, r, road), false)))
                     .chain(std::iter::once((mc, false)))
                     .collect();
                 let flat: Vec<Vec2> = others.iter().copied().chain(std::iter::once(me.truncate())).collect();
@@ -296,8 +308,19 @@ fn traffic_place_pass(
         if let Some((lane, at, heading)) = placed {
             t.tries.1 += 1;
             place_traffic(world, &mut t.cars[i], &t.routes, lane, at, heading);
-            // A placed car's race coordinate is its point's (observed).
-            t.cars[i].coord = road.map(|r| (r.locate_once(at.truncate()), at.truncate()));
+            // A placed car's locator (car +0x8D8) is set from its point
+            // (0x5FBEE0; its race coordinate the point's, observed).
+            if let Some(r) = road {
+                let point = t.cars[i].lane.as_ref().and_then(|l| l.current(&t.routes)).and_then(|(rec, cp, ..)| {
+                    nfsu2::ai::traffic::coordinate_point(&t.routes, rec, cp).then(|| {
+                        let c = &t.routes.records[rec].points[cp];
+                        (c.position.truncate(), c.coord)
+                    })
+                });
+                t.cars[i].place_coord(r, point, at.truncate());
+            } else {
+                t.cars[i].coord = None;
+            }
             // Car +0x550: 0x42A050 → 0x402110 on a paused car, then
             // 0x5FBEE0's 0x5F6CE0 (see `TrafficCar::active`).
             let c = &mut t.cars[i];

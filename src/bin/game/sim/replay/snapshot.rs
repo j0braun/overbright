@@ -84,8 +84,8 @@ pub(crate) struct TrafficSnapshot {
         bool,
         BeltState,
         // The paused car's walk, +0x550, +0x77D and the race coordinate
-        // (+0x8FC) with where it was taken.
-        (Option<nfsu2::ai::traffic::TrafficLane>, bool, bool, Option<(f32, Vec2)>),
+        // (+0x8FC): its road locator (car +0x8D8).
+        (Option<nfsu2::ai::traffic::TrafficLane>, bool, bool, Option<nfsu2::formats::roads::Locator>),
     )>,
     pub(crate) rng: nfsu2::opponents::GameRng,
     pub(crate) clock: f32,

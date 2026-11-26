@@ -286,6 +286,7 @@ fn net_of_lines<'a>(lines: impl Iterator<Item = &'a [Vec3]>) -> RoadNet {
             spline_length: length,
             exits: [Vec::new(), Vec::new()],
             barriers: Vec::new(),
+            tracks: Default::default(),
         });
     }
     net

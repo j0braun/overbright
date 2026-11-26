@@ -40,25 +40,6 @@ pub use walk::*;
 
 #[cfg(test)]
 mod tests {
-    /// The race coordinate holds until the car has moved COORD_STEP, then
-    /// takes the place again (observed steps of 11.6 m).
-    #[test]
-    fn race_coord_moves_on_in_steps() {
-        let locate = |p: Vec2| p.x;
-        let mut held = Some((100.0, Vec2::new(100.0, 0.0)));
-        let mut seen = vec![];
-        for k in 1..=60 {
-            let p = Vec2::new(100.0 + k as f32 * 0.5, 0.0);
-            held = Some(race_coord_step(held, p, locate));
-            seen.push(held.unwrap().0);
-        }
-        assert_eq!(seen[0], 100.0);
-        assert_eq!(seen[22], 100.0, "11.5 m on: still the old one");
-        assert_eq!(seen[23], 112.0, "12 m on: taken again");
-        assert_eq!(seen[59], 124.0);
-        assert_eq!(race_coord_step(None, Vec2::new(5.0, 1.0), locate), (5.0, Vec2::new(5.0, 1.0)));
-    }
-
     use super::*;
 
     /// 0x420D40 keeps a traffic car's path front between thinks (the

@@ -101,6 +101,14 @@ pub(crate) fn place_on_road(
     }
 }
 
+/// The race coordinates (car +0x8FC) the placer reads in a race: the
+/// player's and each racer's, from their road locators (car +0x8D8,
+/// `Progress::along`).
+pub(crate) struct RaceCoords {
+    pub(crate) me: f32,
+    pub(crate) racers: Vec<f32>,
+}
+
 /// What the drag placement (0x42E620) reads of the race: the player's race
 /// coordinate and lane (2–5), the race clock, the start line's race
 /// coordinate and the track's start gap (None when its byte +0xF4 +
@@ -252,11 +260,25 @@ pub(crate) fn traffic_fill_plan(
 /// under Wine: the stage-4 drag S4_H_DRAG_15 made its 12 pool cars, car
 /// table 0x89E810 entries +4 = 3, but its world list held the 4 racers all
 /// race). In free roam they stay for the placer.
-pub(crate) fn traffic_fill_apply(world: &World, t: &mut Traffic, plan: FillPlan, drop_unplaced: bool) {
+///
+/// In a race each car's road locator (car +0x8D8) starts at its place from
+/// the route node nearest it and its point's race coordinate (0x42C670 →
+/// the car's constructor 0x604270 → 0x5DA420; **verified**).
+pub(crate) fn traffic_fill_apply(
+    world: &World,
+    t: &mut Traffic,
+    plan: FillPlan,
+    drop_unplaced: bool,
+    road: Option<&nfsu2::formats::roads::RoadRoute>,
+) {
     t.filled = true;
     for (c, p) in t.cars.iter_mut().zip(plan) {
         if let Some((lane, at, heading)) = p {
+            let coord = lane.current(&t.routes).map(|(rec, cp, ..)| t.routes.records[rec].points[cp].coord);
             place_traffic(world, c, &t.routes, lane, at, heading);
+            if let (Some(r), Some(k)) = (road, coord) {
+                c.place_coord(r, Some((at.truncate(), k)), at.truncate());
+            }
         }
     }
     if drop_unplaced {
