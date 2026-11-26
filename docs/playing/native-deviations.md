@@ -1,6 +1,6 @@
 # Differences from the original game
 
-Overbright plays like the original PC game (`SPEED2.EXE`, version 1.2) unless you change a setting. This page
+Overbright plays like the original (choice: the rule of this page; each row below carries its own basis) PC game (`SPEED2.EXE`, version 1.2) unless you change a setting. This page
 lists every place where it knowingly differs, and every optional setting with the switch that controls it. If
 you find a difference that is not listed here, it is a bug: please report it.
 
@@ -40,7 +40,7 @@ you find a difference that is not listed here, it is a bug: please report it.
 | Font and 2D rendering | 640 x 480 canvas, original filtering | Text and 2D art may use modern filtering (sharper edges, better sampling) so that they look like the original at high resolutions; no UI or font upscaling is applied unless HD UI + Maps is on | Look like the original at today's resolutions | None | choice |
 | First-run game detection | Registry-based install | Finds and checks the game folder on the first run; the game's saves are read and written in the original's profile format; extra settings go to a separate options file | Running on the player's own files | None | choice |
 
-Kept as in the original on purpose: the master-volume curve (the original is
+Kept as in the original on purpose (the master-volume curve observed under Wine: docs/original/audio-levels.md; the rest inferred: docs/notes/graphics/graphics-settings-audit.md): the master-volume curve (the original is
 silent near 10 percent; an optional smooth curve is planned), the original's
 Customize Display rows and their values, what each physics step does at 60 Hz,
 and all gameplay data.

@@ -1,6 +1,6 @@
 # Replay cameras
 
-After a race, the replay's automatic camera works as in the original: mostly 3-second shots from the
+After a race, the replay's automatic camera works as in the original (traced; observed under Wine: docs/notes/parity/replay-cameras.md): mostly 3-second shots from the
 track's typed cameras (speed, corner, burnout, power slide and others), with the chase view in between while
 the car is slow.
 

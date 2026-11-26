@@ -59,7 +59,7 @@ laps, times, leader board).
 full-screen flash is the scenes' SCREEN_FLASH; the weather has no visual flash (thunder is sound only). It
 does not yet cover Take Picture's flash.
 
-**In the Background.** Native: like the original, the game pauses while its window is not the focused one or
+**In the Background.** Native: like the original (observed: docs/evidence/focus-loss/, docs/original/focus-loss.md), the game pauses while its window is not the focused one or
 is minimised. The race, the drawing and the sound stop, and keys you held are let go. When you come back it goes
 on from where it stood; the time away is not caught up. **Keep running** lets the race and the sound go on.
 **Draw less** does too, but draws only 30 frames a second, which saves power. The game's world still runs at its

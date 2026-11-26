@@ -2,7 +2,7 @@
 
 What a player waits for between the game's start and driving, outside a race's own load: the start to the
 first frame, the boot screens and the title, the menus' steps, the garage's scene, the first frame of free roam.
-Measured in the shipping game's own wait lines (docs/developing/waits-log.md). None of this is native behaviour: the
+Measured in the shipping game's own wait lines (docs/developing/waits-log.md). None of this is native behaviour (choice: load timing is Overbright's own): the
 original reads its files and makes its objects when it needs them; here the same objects are made earlier or
 off the frame that shows them, so nothing drawn, heard or simulated changes. The opt-ins are the Skip Intro
 Movies and Skip Title Screen rows (below, and docs/playing/native-deviations.md).

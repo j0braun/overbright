@@ -4,7 +4,7 @@ Three rows that light the cars better, all off by default:
 
 | Row (Advanced page group) | Values | options.txt | What you see |
 |---|---|---|---|
-| **Headlight Beams** (Lighting & Effects) | Off / On / Next-Gen | `enh.headlight_beams 0/1/2` | Every car gets the headlight projector that only the player's car has in the original. Next-Gen adds the beams in the air: [Next-Gen car lights](car-lights.md). |
+| **Headlight Beams** (Lighting & Effects) | Off / On / Next-Gen | `enh.headlight_beams 0/1/2` | Every car gets the headlight projector that only the player's car has in the original (inferred: docs/formats/career-1.md, Car Headlight). Next-Gen adds the beams in the air: [Next-Gen car lights](car-lights.md). |
 | **Light Probes** (Lighting & Effects) | Off / On | `enh.light_probes 0/1` | Cars take the light of the place they drive through, from light probes along the roads. |
 | **Enhanced Glass** (Image Quality) | Off / On | `enh.enhanced_glass 0/1` | Car windows and lamp covers that bend the view behind them and reflect the surroundings. |
 

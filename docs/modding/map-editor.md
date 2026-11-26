@@ -531,7 +531,7 @@ The game bakes the collision of its static scenery into each stream section's co
 names the placement a face came from. A map mod's scenery gets the collision the original gives the same solid:
 
 - **Knock-over props** (cones, road barriers, fences, barrels, …) are knock-over props wherever they stand: an
-  added copy knocks over like the original, a moved one is hit where it now stands, a deleted one is gone.
+  added copy knocks over like the original (choice: format rule; the original's layout is in docs/formats/), a moved one is hit where it now stands, a deleted one is gone.
 - **Static solids** (street lights, walls, …): a solid's collision is the walls standing inside the box of one
   of its original placements, taken into the solid's own space. Walls of a barrier group (race barriers), walls
   reaching ±2048 m (invisible walls) and floors are never taken. Where the solid's placements differ, the shape

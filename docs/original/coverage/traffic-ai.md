@@ -45,14 +45,14 @@ unknown frame rate: they are indicative only until they are measured again.
 
 | Address | Name | What it does | Ours | Status | Evidence | Risk |
 |---|---|---|---|---|---|---|
-| 0x4FE9F0 | Traffic_SetupPool | cars in the pool: track byte +0xEC + 2·level + reversed; none at level 0 | `ai/traffic/pool.rs:pool_size` | **PORTED** | verified; 16 cars at track 4000, level 3 in both games | low |
-| 0x412BE0 | Traffic_AssignModels | a model per pool car from the traffic types under their zone caps, random while fewer than 7 models are used | `ai/traffic/pool.rs:assign_models`, `sim/traffic/mod.rs:populate` | **PORTED** | verified, draw on the shared generator (0x412C9A); harness model shares within the spread (drag 8 vs 4 pools, free roam 8 vs 4) | low |
-| 0x412840 | TrafficModels_Reset | manager reset: a skin byte per model (0x61BC30), body paint (0x6371F0) | `sim/traffic/mod.rs:load` (draws only) | **PORTED** | verified; the draws are kept in order (`bin/game/sim/rng.rs:world_build`), the results do not show: every traffic car draws `<CAR>_SKIN1` | low (draw order) |
-| 0x61BC30 | CarSkin_Pick | skin byte = table[rand(count)] | `rng_sites.rs:model_slots` (draw only) | **NOT NEEDED** | verified: the remap 0x636850 maps SKIN1 to SKIN1 for all 15 traffic types, so the byte never reaches a texture; the draw is kept | none |
-| 0x6371F0 | Ride_RandomPaint | ride slot 0x3F paint part per model | `ai_looks.rs:random_paint` (draw only) | **NOT NEEDED** | verified: the attribute only replaces `CARSKIN`, which no traffic geometry uses | none |
-| 0x412950 | TrafficModels_Stream | every 5 s frees and loads model data by zone, not bound to any car | — | **NOT NEEDED** | verified: no placed car changes model during a track load; the clone keeps every pool model loaded | none |
-| 0x412DB0, 0x420030, 0x420140, 0x412910, 0x41AC40 | — | load the chosen models; bind each car to its entry; teardown; drop users | `sim/traffic/mod.rs:load`, `load_cars` | **PORTED** | verified (model fixed per track load, pool rebuilt on the next free roam) | low |
-| 0x412720 | — | save / restore of the model manager | — | **NOT NEEDED** | the clone rebuilds the pool on load; no player-visible state | none |
+| 0x4FE9F0 | Traffic_SetupPool | cars in the pool: track byte +0xEC + 2·level + reversed; none at level 0 | `ai/traffic/pool.rs:pool_size` | **PORTED** | traced; 16 cars at track 4000, level 3 in both games | low |
+| 0x412BE0 | Traffic_AssignModels | a model per pool car from the traffic types under their zone caps, random while fewer than 7 models are used | `ai/traffic/pool.rs:assign_models`, `sim/traffic/mod.rs:populate` | **PORTED** | traced, draw on the shared generator (0x412C9A); harness model shares within the spread (drag 8 vs 4 pools, free roam 8 vs 4) | low |
+| 0x412840 | TrafficModels_Reset | manager reset: a skin byte per model (0x61BC30), body paint (0x6371F0) | `sim/traffic/mod.rs:load` (draws only) | **PORTED** | traced; the draws are kept in order (`bin/game/sim/rng.rs:world_build`), the results do not show: every traffic car draws `<CAR>_SKIN1` | low (draw order) |
+| 0x61BC30 | CarSkin_Pick | skin byte = table[rand(count)] | `rng_sites.rs:model_slots` (draw only) | **NOT NEEDED** | traced: the remap 0x636850 maps SKIN1 to SKIN1 for all 15 traffic types, so the byte never reaches a texture; the draw is kept | none |
+| 0x6371F0 | Ride_RandomPaint | ride slot 0x3F paint part per model | `ai_looks.rs:random_paint` (draw only) | **NOT NEEDED** | traced: the attribute only replaces `CARSKIN`, which no traffic geometry uses | none |
+| 0x412950 | TrafficModels_Stream | every 5 s frees and loads model data by zone, not bound to any car | — | **NOT NEEDED** | traced: no placed car changes model during a track load; the clone keeps every pool model loaded | none |
+| 0x412DB0, 0x420030, 0x420140, 0x412910, 0x41AC40 | — | load the chosen models; bind each car to its entry; teardown; drop users | `sim/traffic/mod.rs:load`, `load_cars` | **PORTED** | traced (model fixed per track load, pool rebuilt on the next free roam) | low |
+| 0x412720 | — | save / restore of the model manager | — | **NOT NEEDED** | choice: the clone rebuilds the pool on load; no player-visible state | none |
 
 ## Placement, keep test and race fill
 

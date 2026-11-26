@@ -77,7 +77,7 @@ losslessly (section 8); only its *name* and *description* carry the tag.
 
 - Text whose exact characters matter (strings, credits, legal texts) is written as basic strings with escapes
   (`\n`, `\t`, `\u0085`), never as multi-line strings: TOML parsers may normalise line endings inside multi-line
-  strings, and the format keeps every character as the original has it.
+  strings, and the format keeps every character as the original (choice: format rule; the original's layout is in docs/formats/) has it.
 - Integers that are bit sets or ids MAY be written as hex integers (`0x0200`); readers MUST accept decimal, hex
   (`0x`), octal and binary TOML integers alike. Writers write flags and ids in hex, counts in decimal.
 
@@ -237,7 +237,7 @@ format, until an open video codec is chosen, [movies.md](movies.md)).
 ### 5.1 Coordinate system
 
 World space is the original's: **right-handed, +Z up**, one unit = one metre (the format docs treat it so, e.g.
-the 32 m collision cells, docs/formats/cars-1.md). Car space: **+X forward, +Y left, +Z up**, origin as the original
+the 32 m collision cells, docs/formats/cars-1.md). Car space: **+X forward, +Y left, +Z up**, origin as the original (choice: format rule; the original's layout is in docs/formats/)
 puts it (src/replay_cams.rs, `CarState`). Every position, direction and bounding box in the format is in one of
 these two spaces, and the field table says which.
 
@@ -269,7 +269,7 @@ from binary angles) MUST be exact in both directions or it is not converted.
 ### 5.3 Rotations and transforms
 
 Rotations are 3×3 matrices, row-major, each row one local axis expressed in the parent space, applied to row
-vectors (`p' = p · M + t`), as the original does (docs/formats/world.md "Scenery"). Quaternions and Euler angles are
+vectors (`p' = p · M + t`), as the original (choice: format rule; the original's layout is in docs/formats/) does (docs/formats/world.md "Scenery"). Quaternions and Euler angles are
 never canonical data; tools MAY show them.
 
 ### 5.4 Colours
@@ -296,7 +296,7 @@ whatever the texture format defines.
 
 ### 6.3 Game names
 
-Names the original uses (solids, textures, cars, parts) are kept exactly as the original stores them, including
+Names the original uses (solids, textures, cars, parts) are kept exactly as the original (choice: format rule; the original's layout is in docs/formats/) stores them, including
 case and punctuation (texture names contain `.`, `'`, `&` and `-`). Where the original stores a name truncated and
 its hash is of the full name, the format stores **what the engine uses**:
 
@@ -307,7 +307,7 @@ its hash is of the full name, the format stores **what the engine uses**:
   name no completion matched ([meshes.md](meshes.md)).
 
 **Names that stand for original files** (a sound bank's file stem, a movie's file stem, an engine recording) are
-looked up without regard to ASCII case, as the original's file opens are (its tables spell some names differently
+looked up without regard to ASCII case, as the original (choice: format rule; the original's layout is in docs/formats/)'s file opens are (its tables spell some names differently
 from the install). The stored key keeps the install's spelling; a pack MUST NOT define two such keys of one kind
 that differ only in case (`CONV.13`). Kind pages say which of their keys are of this sort.
 

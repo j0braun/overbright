@@ -1,6 +1,6 @@
 # Cheat codes
 
-Overbright has the original PC game's cheat codes and handles them the same way.
+Overbright has the original PC game's cheat codes and handles them the same way (inferred: docs/formats/career-3.md, the cheat code table; tests/native_save.rs).
 
 ## Using a code
 
@@ -31,7 +31,7 @@ same kind and value, and that is `gimmevisual1`'s.
 
 ### Bonus money and new profiles
 
-The bank bonus reaches a profile in one of three ways, as in the original:
+The bank bonus reaches a profile in one of three ways, as in the original (open: no trace note for the bank bonus paths):
 
 - **The start's question** "Would you like to create a new profile?" (when no profile exists): the profile
   keeps the career in memory. With `regmybank` and `ordermebaby` typed, it is saved with **200**.
