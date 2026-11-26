@@ -727,7 +727,7 @@ mod shared_part_tests {
             let clamp = alpha(127, y);
             assert!(wrap > ref_a && clamp <= ref_a, "row {y}: wrap {wrap} clamp {clamp}");
         }
-        let s = crate::render::display::texture_sampler("car", crate::render::RenderOptions::in_force().anisotropy);
+        let s = crate::render::display::texture_sampler("car", crate::qol::RenderOptions::in_force().anisotropy);
         assert_eq!(
             (s.address_mode_u, s.address_mode_v),
             (wgpu::AddressMode::Repeat, wgpu::AddressMode::Repeat),

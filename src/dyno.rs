@@ -109,7 +109,7 @@ pub struct DynoPull {
 
 /// The rollers' model (0x56D060: 0x637DC0 with the hash of the name at
 /// 0x79DC24), a solid of the dyno region's own stream (L4RG).
-pub const ROLLER_MODEL: &str = "XO_DYNOROLLERA_1A_01";
+pub use crate::world::DYNO_ROLLER_MODEL as ROLLER_MODEL;
 /// 0x56D1B0: each wheel's roller sits this far ahead of (wheels 0 and 2)
 /// or behind (1 and 3) the wheel's centre along the car, m.
 const ROLLER_SPLIT: f32 = 0.26;

@@ -849,7 +849,7 @@ pub fn fe_actions(r: &Report) -> u64 {
     !r.mask & 0x0000_FFFF_F800_0000
 }
 
-pub mod extras;
+pub use ob_settings::pad::extras;
 pub mod ff;
 pub mod ff_out;
 pub mod host;

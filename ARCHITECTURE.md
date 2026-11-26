@@ -24,7 +24,7 @@ the frame loop and the glue that turns the library's parts into the running game
 | audio | `audio/` | The original's audio objects and mixer: banks, codecs, the engine chain, car and world sounds, speech, EA Trax and the interactive score, reverb. |
 | rendering | `render/` | The wgpu renderer, in three layers (below). |
 | input and platform | `pad/`, `platform/`, `allocator.rs`, `latency.rs` | Gamepads (gilrs), folders and paths per OS (docs/playing/platform-dirs.md), the allocator choice, frame pacing. |
-| extras and tools | `qol/`, `diag/`, `overlay/`, `mark_spot.rs`, `photo.rs`, `upscale*.rs`, `texture_mods.rs`, `tpf_import.rs`, `texwizard_import.rs`, `hud_mod.rs`, `hd_ui_pack.rs`, `model_fixes.rs` | The opt-in quality-of-life features, the F3 overlay, the support file and event log (docs/troubleshooting.md), report and photo tools, texture-pack generation, the texture mods' and the HUD mod's import. |
+| extras and tools | `qol/` (the settings store is `crates/ob-settings`), `diag/`, `overlay/`, `mark_spot.rs`, `photo.rs`, `upscale*.rs`, `texture_mods.rs`, `tpf_import.rs`, `texwizard_import.rs`, `hud_mod.rs`, `hd_ui_pack.rs`, `model_fixes.rs` | The opt-in quality-of-life features, the F3 overlay, the support file and event log (docs/troubleshooting.md), report and photo tools, texture-pack generation, the texture mods' and the HUD mod's import. |
 | launcher | `launcher/` (binary `src/bin/overbright.rs`), `launch/` | The launcher: game-folder search and check, settings, the start choices, the Mods page (texture mods, the HUD mod), start. CPU-drawn (no wgpu), so it opens without a Vulkan driver (docs/launcher.md). `launch/` is the contract the game and the map editor share with it (`game --probe`'s report, `game --prepare`'s lines, the `error.kind=` line, the look's colour tokens from `crates/ob-look`); the game binary, the map editor and the rest of the library name no `launcher::` path (a few library tests still use the launcher's model). |
 
 ### Rendering layers
@@ -53,12 +53,12 @@ layering, and the generator that keeps the specification's rule tables and schem
 `ob-formats`; nothing in the game reads through it yet), `ob-map` (`crates/ob-map`: the map data — map mod
 files and their store, the edit operations, custom races and the original's race tracks and routes they run on,
 the simulation stream — on `ob-core` and `ob-formats`; the map editor's session, which owns a world, stays in the
-library), then the rest of the library. Beside them, `ob-look` (`crates/ob-look`: the look the launcher, the map
+library), `ob-settings` (`crates/ob-settings`: the settings store and its option table, `qol`, with the extras' and the pad's options; on `ob-core` and `ob-formats`, with wgpu's plain types for the adapter facts; `qol::setup`, which needs the game's assets, stays in the library), then the rest of the library. Beside them, `ob-look` (`crates/ob-look`: the look the launcher, the map
 editor and Studio share — colour tokens, lamps, the type, the button legends' data and the words on shared buttons and menu items; no dependencies) sits below the
-library, which re-exports its tokens at `launch::theme`. The library's middle parts are layers of the same list
-while they are still its modules: settings (`qol`), assets, the simulation, audio, render and the menus, bottom to
+library, which re-exports its tokens at `launch::theme`. The library's other middle parts are layers of the same list
+while they are still its modules: assets, the simulation, audio, render and the menus, bottom to
 top; a module is placed by its path, so a GPU-free module may sit below its folder's layer (the effects' data under
-`render::native::fx` is in assets), and the next step moves each layer into a crate of its own. Each layer's
+`render::native::fx` is in assets), and the next steps move each layer into a crate of its own, bottom-up (settings is done). Each layer's
 modules are listed in `scripts/checks/crate-layers.txt`; `scripts/checks/crate_layers.sh` (in every checks set)
 fails on a reference from a module to a higher layer that is not on `crate-layers-allow.txt` (the references
 still to be moved; the list only shrinks), on a package dependency that points up (`cargo metadata`), on a

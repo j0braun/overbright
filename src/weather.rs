@@ -243,18 +243,7 @@ fn sin16(a: i32) -> f32 {
     ((a & 0xFFFF) as f32 * (std::f32::consts::TAU / 65536.0)).sin()
 }
 
-/// The world clock 0x7FB718 (seconds of sim time, 1.0 at track load) as
-/// the game last set it ([`set_clock`]); the cars' grip reads the rain
-/// through it (0x5ED5E0). The game has one global; the clone keeps it in
-/// the loaded world, so two games in one process (the tests run side by
-/// side) do not drive each other's rain and grip.
-pub struct WorldClock(std::sync::atomic::AtomicU32);
-
-impl Default for WorldClock {
-    fn default() -> WorldClock {
-        WorldClock(std::sync::atomic::AtomicU32::new(1.0f32.to_bits()))
-    }
-}
+pub use crate::world::WorldClock;
 
 pub fn set_clock(world: &World, clock: f32) {
     world.world_clock.0.store(clock.to_bits(), std::sync::atomic::Ordering::Relaxed);

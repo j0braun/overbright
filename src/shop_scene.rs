@@ -48,8 +48,7 @@ pub mod audio;
 pub mod effects;
 pub mod wheels;
 
-/// The scene clock, frames a second (the controllers' 30, 0x785BD8).
-pub const FPS: f32 = 30.0;
+pub use crate::world::SCENE_FPS as FPS;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SceneKind {
@@ -567,49 +566,7 @@ pub fn origin(at: Vec3, heading: f32) -> Mat4 {
     Mat4::from_translation(at) * Mat4::from_rotation_z(heading)
 }
 
-/// A shop door's animation state (an entity controller: +0x64 the frame,
-/// +0x60 the length, +0x40 the rate, +0x10 the state, +0x08 open).
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
-pub struct Door {
-    pub frame: f32,
-    pub length: f32,
-    /// Frames a scene frame while moving (0x435660: length ÷ duration).
-    pub rate: f32,
-    /// Where it is going: 0 or the length.
-    pub target: f32,
-}
-
-impl Door {
-    pub fn new(length: f32) -> Door {
-        Door { length, ..Default::default() }
-    }
-
-    /// The door message (0x435660 with the position and the duration):
-    /// with no duration (under 1e-6) the frame goes to the length when the
-    /// position is 1 and to 0 otherwise, at once; with one the controller
-    /// plays at length ÷ duration. **Inferred**: the way it plays (0x435660
-    /// sets no direction; the clone moves towards the position's end).
-    pub fn message(&mut self, position: f32, duration: f32) {
-        let open = (position - 1.0).abs() < 1e-6;
-        self.target = if open { self.length } else { 0.0 };
-        if duration.abs() < 1e-6 {
-            self.frame = self.target;
-            self.rate = 0.0;
-        } else {
-            self.rate = self.length / duration;
-        }
-    }
-
-    /// Advance `dt` seconds (0x435140: 30 × rate frames a second).
-    pub fn step(&mut self, dt: f32) {
-        let step = FPS * self.rate * dt;
-        if self.frame < self.target {
-            self.frame = (self.frame + step).min(self.target);
-        } else if self.frame > self.target {
-            self.frame = (self.frame - step).max(self.target);
-        }
-    }
-}
+pub use crate::world::Door;
 
 #[cfg(test)]
 mod tests {
@@ -741,4 +698,3 @@ mod tests {
     }
 }
 
-crate::persist!(Door { frame, length, rate, target });

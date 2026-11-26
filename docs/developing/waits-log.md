@@ -140,7 +140,7 @@ the start scene played out, 4.9 s with it skipped.
 
 ## Code
 
-`src/qol/waits.rs` (the lines' logic, pure and unit-tested: `Tracker`, `Frames`, `summarize`, `Load`,
+`crates/ob-settings/src/qol/waits.rs` (the lines' logic, pure and unit-tested: `Tracker`, `Frames`, `summarize`, `Load`,
 `cache_state`), `src/bin/game/shell/waits.rs` (the game's hooks: `Game::waits_frame` from `redraw`,
 `waits_end` from `exit`), the load's parts in `loads/drive_in.rs`, the start's in `shell/cli.rs` and
 `shell/window.rs`, the rivals' in `flow/race_setup.rs`, the keys in `shell/window.rs`'s event handler and

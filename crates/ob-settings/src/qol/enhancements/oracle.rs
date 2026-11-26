@@ -728,9 +728,9 @@ impl Old for Enhancements {
         old_store!(FAR_DRAW, e.far_draw);
         old_store!(TRAFFIC_DENSITY, e.traffic_density);
         old_call!(
-            stringify!(crate::upscale_pack::set_choice),
+            stringify!(super::pack_choice::set_choice),
             e.texture_pack,
-            crate::upscale_pack::set_choice(e.texture_pack)
+            super::super::pack_choice::set_choice(e.texture_pack)
         );
         old_call!(
             stringify!(crate::draw::ui_frame::set_hud_full_width),

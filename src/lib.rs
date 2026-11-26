@@ -54,7 +54,6 @@ pub mod difficulty;
 pub mod dyno;
 pub mod fog;
 pub mod latency;
-pub mod extras;
 pub mod replay_cams;
 pub mod racer_reset;
 pub mod interpolate;
@@ -138,6 +137,8 @@ pub use ob_core::{
     region,
 };
 pub use ob_core::{input, race_mode};
+// The settings store and the extras' options, crates/ob-settings (`qol` also keeps `qol::setup` here).
+pub use ob_settings::extras;
 pub use ob_core::{env_parsed, env_set, env_value, env_value_os, game_root, persist, persist_enum, unique_tag};
 
 // The file-format parsers and the engine's tables (docs/original/exe-tables.md),

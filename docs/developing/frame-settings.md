@@ -17,7 +17,7 @@ state was stepped with (see "A tick's settings and a frame's").
   distances; 72 fields, a `Copy` value: `RenderOptions` 88 bytes,
   `FrameSettings` with `Display` and `Switches` 104 bytes; 72 and 88 before
   the post chain's and the Enhanced effects' rows).
-  `RenderOptions::in_force()` (`src/qol/frame.rs`) copies them from the
+  `RenderOptions::in_force()` (`crates/ob-settings/src/qol/frame.rs`) copies them from the
   settings store with the store's own getters, so each field is exactly the
   value its getter returns (a ray-traced tier only while the device traces,
   HDR only where supported, ...). Derived values are methods
@@ -171,7 +171,7 @@ the streak buffer's `streak_probe_due` and probe bookkeeping (a decision
 before a frame is drawn); `qol::hdr_output_active()` in the window's
 swap-chain switch (`sync_hdr`).
 
-The store holds the values in force as one value (`qol::InForce`, src/qol/store.rs): the
+The store holds the values in force as one value (`qol::InForce`, crates/ob-settings/src/qol/store.rs): the
 effective `Enhancements` (the stored values with the engine rules applied) and the device's and the session's
 facts (caps, MSAA mask, ray-tracing and HDR support, the HDR signal and display, output size, Compare, the
 temporal frame, the HDR pattern). No value lives in a global atomic: every getter reads through the store, every

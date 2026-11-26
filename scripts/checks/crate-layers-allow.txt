@@ -1,6 +1,8 @@
 # The upward references the tree still has (scripts/checks/crate_layers.py, ARCHITECTURE.md "Layers"): FILE PATH,
 # the referring file and the path it names, no line numbers. Only shrinks: a new upward reference fails the check,
 # and so does a line here that no longer matches one. `crate_layers.py --list` prints the current set.
+# src/qol/mod.rs render::blur_dof: the library's own (cfg(test)) `test_globals` also resets photo mode; the file is the
+# library's facade over the settings crate, not a module of it.
 src/audio/speech/mod.rs frontend::dday::Hints
 src/audio/trax/caption.rs frontend::layout
 src/audio/trax/caption.rs frontend::screens::EA_TRAX
@@ -12,7 +14,6 @@ src/car/mod.rs handling::parse_handling
 src/car/mod.rs part_anim::Channels
 src/car/mod.rs part_anim::Styles
 src/car/mod.rs performance::parse
-src/car/mod.rs render::RenderOptions
 src/car/mod.rs render::display::texture_sampler
 src/car/model.rs narrow::body_point
 src/car/paint.rs handling::setup_performance
@@ -31,28 +32,7 @@ src/game_assets/tests.rs frontend::asset_files
 src/game_assets/tests.rs frontend::career::CareerData
 src/handling/drivetrain/turbo.rs audio::transients
 src/mark_spot.rs frontend::profiles::sandbox
-src/qol/crash.rs platform::monitor::in_guard
-src/qol/enhancements.rs extras::Extras
-src/qol/enhancements.rs pad::extras::PadOptions
-src/qol/enhancements.rs upscale_pack::set_choice
-src/qol/enhancements/oracle.rs upscale_pack::set_choice
-src/qol/enhancements/table_tests.rs frontend::enh::graphics_table
-src/qol/enhancements/table_tests.rs frontend::options
-src/qol/enhancements/table_tests.rs frontend::options::RowId
-src/qol/enhancements/table_tests.rs frontend::options::Settings
-src/qol/enhancements/table_tests.rs frontend::options::change
-src/qol/frame.rs render::RenderOptions
-src/qol/hdr.rs render::hdr_output
-src/qol/mod.rs extras::Extras
-src/qol/mod.rs frontend::options::Settings
-src/qol/mod.rs frontend::profiles::sandbox
-src/qol/mod.rs pad::extras::PadOptions
 src/qol/mod.rs render::blur_dof
-src/qol/render_scale.rs render::fsr2
-src/qol/saves.rs frontend::profiles::FOLDER
-src/qol/setup.rs game_assets::Report
-src/qol/setup.rs game_assets::active_language
-src/qol/setup.rs game_assets::scan_for
 src/render/enh/assets/hd_ui.rs frontend::map_pack::parse
 src/render/enh/post/blur_dof.rs frontend::graphics_table::row
 src/render/enh/post/blur_dof.rs frontend::options
@@ -76,12 +56,9 @@ src/tools/map/tests.rs frontend::career::CareerData
 src/upscale_pack.rs render::enh::assets::pack_select
 src/upscale_pack.rs render::enh::assets::pack_select::*
 src/world/anims.rs audio::enviro
-src/world/anims.rs shop_scene::Door
 src/world/cache.rs render::prepared
 src/world/map_overlay.rs smackable::Prop
 src/world/mod.rs smackable::Prop
-src/world/mod.rs weather::WorldClock
-src/world/parse.rs dyno::ROLLER_MODEL
 src/world/parse.rs smackable::Prop
 src/world/prop_collision/tests.rs drive::CarState
 src/world/prop_collision/tests.rs drive::Controls

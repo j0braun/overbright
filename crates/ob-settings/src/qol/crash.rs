@@ -121,7 +121,7 @@ pub fn install() {
     std::panic::set_hook(Box::new(move |info| {
         // A monitor call's panic the caller catches and answers with a
         // fallback (`platform::monitor::guarded`): no message, no report.
-        if crate::platform::monitor::in_guard() {
+        if crate::platform::guard::in_guard() {
             return;
         }
         default(info);

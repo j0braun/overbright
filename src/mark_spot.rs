@@ -8,8 +8,7 @@
 
 use std::path::{Path, PathBuf};
 
-/// The keys the Mark Spot Key row offers (index 1..; 0 = Off).
-pub const KEYS: [&str; 5] = ["Off", "F9", "F10", "F11", "F12"];
+pub use crate::extras::MARK_KEYS as KEYS;
 
 /// Where the reports go: `platform::dirs::marks()` (`<data home>/overbright/marks/`).
 pub fn dir() -> PathBuf {

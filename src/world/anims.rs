@@ -2,6 +2,52 @@ use glam::{Mat4, Vec3};
 
 use super::*;
 
+/// A shop door's animation state (an entity controller: +0x64 the frame,
+/// +0x60 the length, +0x40 the rate, +0x10 the state, +0x08 open).
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct Door {
+    pub frame: f32,
+    pub length: f32,
+    /// Frames a scene frame while moving (0x435660: length ÷ duration).
+    pub rate: f32,
+    /// Where it is going: 0 or the length.
+    pub target: f32,
+}
+
+impl Door {
+    pub fn new(length: f32) -> Door {
+        Door { length, ..Default::default() }
+    }
+
+    /// The door message (0x435660 with the position and the duration):
+    /// with no duration (under 1e-6) the frame goes to the length when the
+    /// position is 1 and to 0 otherwise, at once; with one the controller
+    /// plays at length ÷ duration. **Inferred**: the way it plays (0x435660
+    /// sets no direction; the clone moves towards the position's end).
+    pub fn message(&mut self, position: f32, duration: f32) {
+        let open = (position - 1.0).abs() < 1e-6;
+        self.target = if open { self.length } else { 0.0 };
+        if duration.abs() < 1e-6 {
+            self.frame = self.target;
+            self.rate = 0.0;
+        } else {
+            self.rate = self.length / duration;
+        }
+    }
+
+    /// Advance `dt` seconds (0x435140: 30 × rate frames a second).
+    pub fn step(&mut self, dt: f32) {
+        let step = super::SCENE_FPS * self.rate * dt;
+        if self.frame < self.target {
+            self.frame = (self.frame + step).min(self.target);
+        } else if self.frame > self.target {
+            self.frame = (self.frame - step).max(self.target);
+        }
+    }
+}
+
+crate::persist!(Door { frame, length, rate, target });
+
 /// A shop door (a "DoorAnim" world-animation instance): its slats are
 /// placements posed by their animations at the door's frame.
 #[derive(Clone, Debug)]
@@ -11,7 +57,7 @@ pub struct WorldDoor {
     pub transform: Mat4,
     /// (placement, animation hash, rest matrix) per slat.
     pub pieces: Vec<(usize, u32, Mat4)>,
-    pub state: crate::shop_scene::Door,
+    pub state: Door,
 }
 
 /// A world-animation instance that plays by itself (0x43A4A0: no
@@ -209,7 +255,7 @@ impl World {
                 keys: inst.keys,
                 transform: inst.transform,
                 pieces: Vec::new(),
-                state: crate::shop_scene::Door::default(),
+                state: Door::default(),
             };
             let entities: Vec<_> = self.world_anims.tree(inst.tree).filter(|e| e.parent != 0).cloned().collect();
             for e in entities {

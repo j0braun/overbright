@@ -14,7 +14,7 @@ tests in the code that touches files, devices or user data: `crates/ob-core/src/
 (decoder threads), `crates/ob-formats/src/formats/native_save.rs`, `src/frontend/profiles/`,
 `src/frontend/career/` (`Profile::from_native`: constant offsets, capped
 counts, map lookups only), `src/frontend/options/` (options.txt),
-`src/qol/` (saves, backups, crash reports, game-root file),
+`crates/ob-settings/src/qol/` (saves, backups, crash reports, game-root file),
 `src/hd_ui_pack.rs`, `src/frontend/map_pack.rs`,
 `src/render/texture_pack.rs` + `src/upscale.rs` (`parse_dds`),
 `src/surface_maps.rs`, `src/bin/game/enh/photo/`. The headless check tools in

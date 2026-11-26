@@ -109,8 +109,8 @@ pub(super) fn scene_size_for(v: u8, percent: u8, aa: u8, out: (u32, u32), sample
     // Upscaling: the scene at its share of the screen, whatever the
     // Render Scale and the SSAA (the temporal pass takes it to the screen).
     // FSR 2's render sizes (each side divided by the mode's ratio).
-    if let Some(ratio) = crate::render::fsr2::ratio(v) {
-        return crate::render::fsr2::render_size(out, ratio);
+    if let Some(ratio) = super::fsr2::ratio(v) {
+        return super::fsr2::render_size(out, ratio);
     }
     if let Some(share) = upscale_share(v) {
         return upscale_size(out, share);
@@ -152,7 +152,7 @@ pub fn upscale_share(v: u8) -> Option<f64> {
         1 | 4 => Some(0.67),
         2 | 5 => Some(0.58),
         3 | 6 => Some(0.5),
-        v => crate::render::fsr2::ratio(v).map(|r| 1.0 / r),
+        v => super::fsr2::ratio(v).map(|r| 1.0 / r),
     }
 }
 

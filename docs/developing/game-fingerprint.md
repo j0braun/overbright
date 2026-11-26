@@ -2,7 +2,7 @@
 
 Not native: clone tooling (first-run QoL family). Code: `crates/ob-core/src/fingerprint.rs`,
 hooks in `src/bin/game.rs` (`--check-game`, the window start) and
-`src/qol/` (`crash::report`).
+`crates/ob-settings/src/qol/` (`crash::report`).
 
 The clone reads GLOBAL/GlobalB.lzc's car, upgrade and career rows and the
 other data files; a modded GlobalB.lzc can look and play differently, so

@@ -1,34 +1,11 @@
 //! The option table's generated code against the hand-written code it
 //! replaced (`super::oracle`): options.txt text byte for byte, both parsers,
 //! the deviation list, `apply_now`'s stores in order and the presets'
-//! keep-list; and every value the settings page can set kept by the table.
+//! keep-list (the settings page's values kept by the table: the library's `qol::tests`).
 
 use super::super::atomics::APPLY_LOG;
 use super::super::*;
 use super::oracle::{Old, old_preset_base};
-
-/// The keys of the nested groups (`extras`, `pad`; their own code).
-const NESTED_KEYS: [&str; 19] = [
-    "enh.low_latency",
-    "enh.replay_cameras",
-    "enh.hud_palette",
-    "enh.hud_minimap",
-    "enh.hud_speedo",
-    "enh.hud_info",
-    "enh.reduced_flashing",
-    "enh.background",
-    "enh.power_caps",
-    "enh.mark_spot",
-    "enh.pad_layout",
-    "enh.pad_deadzone",
-    "enh.pad_trigger_deadzone",
-    "enh.pad_saturation",
-    "enh.pad_steer_curve",
-    "enh.pad_rumble",
-    "enh.pad_pause_on_disconnect",
-    "enh.pad_safe_bind",
-    "enh.pad_sticks_quit",
-];
 
 fn table_keys() -> Vec<&'static str> {
     OPTION_ROWS.iter().filter_map(|r| r.key).collect()
@@ -326,88 +303,4 @@ fn preset_keep_list_as_before() {
             }
         }
     }
-}
-
-/// Every value the settings page can set (each Graphics row's tiers, each
-/// QoL row stepped both ways) is written under a key of the table (or of a
-/// nested group) and read back to the same value. Lists the keys no row
-/// sets.
-#[test]
-fn every_ui_value_is_kept_by_the_table() {
-    use crate::frontend::enh::graphics_table;
-    use crate::frontend::options::{RowId, Settings, change};
-    let mut seen = std::collections::BTreeSet::new();
-    let mut check = |s: &Settings, what: &str| {
-        let text = new_text(&s.enh);
-        let (back, known) = read(&text, false);
-        assert_eq!(back, s.enh, "{what}: {text}");
-        assert!(known.iter().all(|&k| k), "{what}");
-        for l in text.lines() {
-            seen.insert(l.split_once(' ').unwrap().0.to_string());
-        }
-    };
-    for r in graphics_table::ROWS.iter() {
-        for i in 0..r.tiers.len() {
-            let mut s = Settings::default();
-            (r.set)(&mut s, i);
-            check(&s, &format!("{:?} tier {i}", r.id));
-        }
-    }
-    let qol = [
-        RowId::FovOffset,
-        RowId::HudScale,
-        RowId::HudLayout,
-        RowId::FrameCap,
-        RowId::DurableSaves,
-        RowId::SaveBackups,
-        RowId::CrashReports,
-        RowId::ListsOpenInstalled,
-        RowId::OutrunVariety,
-        RowId::FixModels,
-        RowId::TrafficDensity,
-        RowId::SkipMovies,
-        RowId::SkipTitle,
-        RowId::PhotoMode,
-        RowId::LowLatency,
-        RowId::MarkSpot,
-        RowId::Background,
-        RowId::PowerSaving,
-        RowId::ReplayCameras,
-        RowId::HudPalette,
-        RowId::HudMinimap,
-        RowId::HudSpeedo,
-        RowId::HudInfo,
-        RowId::ReducedFlashing,
-        RowId::PadLayout,
-        RowId::PadDeadzone,
-        RowId::PadTriggerDeadzone,
-        RowId::PadSaturation,
-        RowId::PadSteerCurve,
-        RowId::PadRumble,
-        RowId::PadPauseOnDisconnect,
-        RowId::PadSafeBind,
-        RowId::PadSticksQuit,
-        RowId::HdUi,
-        RowId::ReloadPacks,
-    ];
-    for id in qol {
-        for right in [true, false] {
-            let mut s = Settings::default();
-            for n in 0..24 {
-                change(id, &mut s, 0, right, false);
-                check(&s, &format!("{id:?} step {n} {right}"));
-            }
-        }
-    }
-    let unset: Vec<_> = all_keys().into_iter().filter(|k| !seen.contains(*k)).collect();
-    // enh.anisotropy and enh.reflection_rate are removed clone rows: their
-    // Customize Display rows (Texture Filtering, Car Reflection Update
-    // Rate) read them and put them to 0 on any change (graphics_table);
-    // boot_loading_min_ms has no row (options.txt only); launcher.skip is
-    // the launcher's (L1).
-    assert_eq!(
-        unset,
-        ["enh.anisotropy", "enh.reflection_rate", "enh.boot_loading_min_ms", "launcher.skip"],
-        "keys no settings-page row sets"
-    );
 }

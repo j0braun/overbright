@@ -866,7 +866,7 @@ options! {
     texture_pack: u8 = 0,
         key "enh.texture_pack", presets keep, write 68,
         dev [63 tiers ["texture pack", "texture pack lean"]],
-        apply [65 call crate::upscale_pack::set_choice],
+        apply [65 call super::pack_choice::set_choice],
         parse (|old, v| min_u32(old, v, 2));
 
     /// docs/original/loading-image.md: the least time PC_Loading stays up over
@@ -1091,3 +1091,26 @@ impl Enhancements {
 mod oracle;
 #[cfg(test)]
 mod table_tests;
+
+/// The keys of the nested groups (`extras`, `pad`; their own code).
+pub const NESTED_KEYS: [&str; 19] = [
+    "enh.low_latency",
+    "enh.replay_cameras",
+    "enh.hud_palette",
+    "enh.hud_minimap",
+    "enh.hud_speedo",
+    "enh.hud_info",
+    "enh.reduced_flashing",
+    "enh.background",
+    "enh.power_caps",
+    "enh.mark_spot",
+    "enh.pad_layout",
+    "enh.pad_deadzone",
+    "enh.pad_trigger_deadzone",
+    "enh.pad_saturation",
+    "enh.pad_steer_curve",
+    "enh.pad_rumble",
+    "enh.pad_pause_on_disconnect",
+    "enh.pad_safe_bind",
+    "enh.pad_sticks_quit",
+];

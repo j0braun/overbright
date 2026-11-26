@@ -34,6 +34,26 @@ pub use self::prop_collision::{DrawnCollision, LocalFace, PropCollision, Scenery
 use self::parse::*;
 pub use self::scenery::*;
 
+/// The scene clock, frames a second (the controllers' 30, 0x785BD8).
+pub const SCENE_FPS: f32 = 30.0;
+
+/// The dyno rollers' model (0x56D060: 0x637DC0 with the hash of the name at
+/// 0x79DC24), a solid of the dyno region's own stream (L4RG).
+pub const DYNO_ROLLER_MODEL: &str = "XO_DYNOROLLERA_1A_01";
+
+/// The world clock 0x7FB718 (seconds of sim time, 1.0 at track load) as
+/// the game last set it (`weather::set_clock`); the cars' grip reads the rain
+/// through it (0x5ED5E0). The game has one global; the clone keeps it in
+/// the loaded world, so two games in one process (the tests run side by
+/// side) do not drive each other's rain and grip.
+pub struct WorldClock(pub(crate) std::sync::atomic::AtomicU32);
+
+impl Default for WorldClock {
+    fn default() -> WorldClock {
+        WorldClock(std::sync::atomic::AtomicU32::new(1.0f32.to_bits()))
+    }
+}
+
 #[derive(Default)]
 pub struct World {
     /// MARKER_GPS_AID's placement (0x5F3E20 takes the solid by its bin
@@ -71,7 +91,7 @@ pub struct World {
     /// Keep All Loaded's look-ahead (clone deviation, built on first use).
     lookahead: LookaheadCache,
     /// The world clock 0x7FB718 (`weather::set_clock`).
-    pub world_clock: crate::weather::WorldClock,
+    pub world_clock: WorldClock,
     /// The game's collision faces as triangles (stream `0x80034130` packs).
     collision_faces: Vec<Source>,
     /// The game's ground query over the collision packs.

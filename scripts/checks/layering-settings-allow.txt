@@ -7,6 +7,8 @@
 #   src/render/enh/assets/car_model/{fixes,smooth}.rs  loads: the car build's options
 #   src/render/enh/assets/hd_ui.rs              loads: the saved texture pack's folder
 #   src/render/core/shader/registry.rs          `world_source`, the shader text its tests read (test-only use)
+#   src/render/native/frame_settings.rs        the type's re-export: RenderOptions lives with the settings store that fills it
+#   src/render/enh/post/{hdr_output,fsr2}.rs, enh/assets/pack_select.rs   re-exports: the types and tables the settings store holds, kept at their render paths
 #   the rest                                    tests: the store set up and read back by the tests themselves
 #                                               (*_tests.rs, tests.rs, `#[cfg(test)]` modules)
 src/render/core/gpu.rs	crate::qol::crash::set_adapter(&adapter.get_info());
@@ -95,3 +97,7 @@ src/render/pop_meter.rs	crate::qol::set_output_size((3840, 2160));
 src/render/pop_meter.rs	crate::qol::set_output_size((64, 48));
 src/render/pop_meter.rs	let _g = crate::qol::test_globals();
 src/render/pop_meter.rs	let need = super::super::main_min_size(&crate::render::RenderOptions::in_force());
+src/render/native/frame_settings.rs	pub use crate::qol::RenderOptions;
+src/render/enh/post/hdr_output.rs	pub use crate::qol::hdr_output::{Calibration, DEFAULT_PAPER, DEFAULT_PEAK, Signal, Transfer};
+src/render/enh/post/fsr2.rs	pub use crate::qol::fsr2::{MODES, ratio, render_size};
+src/render/enh/assets/pack_select.rs	pub use crate::qol::pack_choice::{choice, set_choice};

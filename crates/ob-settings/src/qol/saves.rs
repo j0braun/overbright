@@ -9,7 +9,7 @@ pub use crate::platform::fs::write_atomic;
 /// (FindFirstFileA "\*", 0x6FC01E), so nothing of the clone's goes
 /// there.
 pub fn backup_root() -> PathBuf {
-    crate::platform::dirs::data_home().join(format!("{} Backups", crate::frontend::profiles::FOLDER))
+    crate::platform::dirs::data_home().join(format!("{} Backups", crate::platform::dirs::PROFILES_FOLDER))
 }
 
 /// Copy the profile file `path` (if there is one) into `dir` as

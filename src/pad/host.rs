@@ -15,22 +15,9 @@
 //! L2 R2 Select Start L3 R3). Sticks read downwards positive (DirectInput's
 //! lY), ±1 → ±10000.
 
+pub use super::extras::{Family, PadInputs};
 use super::extras::PadOptions;
 use super::{Caps, DevType, DiState, FeRepeat, PadMap, Report, CHANNELS};
-
-/// A standard pad's inputs (gilrs's layout).
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
-pub struct PadInputs {
-    /// Left x, left y (up +), right x, right y (up +), −1..1.
-    pub sticks: [f32; 4],
-    /// Left / right analog triggers, 0..1.
-    pub triggers: [f32; 2],
-    /// The raw Z and Rz axes, −1..1 (a wheel's pedals; gilrs's LeftZ /
-    /// RightZ).
-    pub z: [f32; 2],
-    /// By [`Btn`].
-    pub buttons: [bool; 17],
-}
 
 /// The standard buttons, in [`PadInputs::buttons`] order.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -96,38 +83,6 @@ pub enum Layout {
     /// DI8DEVTYPE_DRIVING device: lX the wheel, lY lZ lRx lRy lRz raw
     /// (gilrs's left y, LeftZ, right x / y, RightZ), the generic buttons.
     Wheel,
-}
-
-/// A pad's family, for the button names the UI shows (Modern layout).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Family {
-    Xbox,
-    PlayStation,
-    Nintendo,
-    Other,
-}
-
-impl Family {
-    pub fn for_vendor(vid: u16) -> Family {
-        match vid {
-            0x045E => Family::Xbox,
-            0x054C => Family::PlayStation,
-            0x057E => Family::Nintendo,
-            // Steam Input's virtual pads and the Deck are Xbox-labelled.
-            0x28DE => Family::Xbox,
-            _ => Family::Other,
-        }
-    }
-
-    /// The face button names, South East West North, then Start.
-    pub fn names(self) -> [&'static str; 5] {
-        match self {
-            Family::Xbox | Family::Other => ["A", "B", "X", "Y", "Start"],
-            Family::PlayStation => ["Cross", "Circle", "Square", "Triangle", "Options"],
-            // Nintendo's labels sit on the other positions: East is A.
-            Family::Nintendo => ["B", "A", "Y", "X", "+"],
-        }
-    }
 }
 
 impl Layout {
@@ -595,7 +550,11 @@ impl Host {
 
     /// The hub's and the deviations list's view of what the pads resolved to.
     fn publish(&self) {
+        #[cfg(not(test))]
         super::extras::set_resolved(self.devices.iter().any(|d| d.layout != Layout::Modern), self.devices.iter().any(|d| d.layout == Layout::Modern));
+        // The tests run in parallel: each sees its own.
+        #[cfg(test)]
+        super::extras::set_resolved_on_this_thread(self.devices.iter().any(|d| d.layout != Layout::Modern), self.devices.iter().any(|d| d.layout == Layout::Modern));
     }
 
     /// A pad is presented as Modern (the d-pad name entry, the footers).
