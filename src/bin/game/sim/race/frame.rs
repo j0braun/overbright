@@ -89,11 +89,12 @@ pub(crate) fn race_frame(
         race.ai_refill();
     }
     // The world clock, sky cycle and rain run through the race as through
-    // its start scene and countdown (which tick it themselves). A replay
-    // leaves them where the race ended (its clock is **open**).
-    if !replaying {
-        d.tick_clock(dt, rng);
-    }
+    // its start scene and countdown (which tick it themselves), and
+    // through a replay: the time step 0x57A0F0 runs on every simulated
+    // frame, and the replay's snapshots restore the world time
+    // ("WorldTime", 0x57BBB0), so the grip's rain (0x5ED5E0) and the
+    // falling drops play as in the race.
+    d.tick_clock(dt, rng);
 }
 
 /// The road's driving direction under the player's car as the wrong-way
