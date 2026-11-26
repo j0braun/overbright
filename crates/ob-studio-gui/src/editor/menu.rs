@@ -18,8 +18,8 @@
 //! test runs every command for both kinds of selection and in both views
 //! to keep that list empty.
 
-use ob_look::words;
 use egui::{Key, KeyboardShortcut, Modifiers};
+use ob_look::words;
 
 use super::app::App;
 use super::props::{self, Props};
@@ -105,7 +105,11 @@ impl Command {
     pub fn unavailable(self, s: &EditorState) -> Option<&'static str> {
         let props_only = matches!(
             self,
-            Command::Duplicate | Command::SelectAllOfSolid | Command::DropToGround | Command::Rotate90 | Command::FaceCamera
+            Command::Duplicate
+                | Command::SelectAllOfSolid
+                | Command::DropToGround
+                | Command::Rotate90
+                | Command::FaceCamera
         );
         match self {
             _ if props_only && (s.mode != Mode::Props || s.selection.is_empty()) => Some("Select a prop first"),
@@ -335,6 +339,7 @@ pub const KEYS: &[Binding] = &[
     b("View", "T", "Top-down overview on / off", &[Key::T]),
     b("View", "Home", "Fit the overview or the map to the region", &[Key::Home]),
     b("View", "M", "3D view / Map", &[Key::M]),
+    b("View", "L", "Collision layer: off / invisible barriers / all collision", &[Key::L]),
     b("Tools", "Esc", "Back to Select (a race tool armed); else clear the selection", &[Key::Escape]),
     b("Edit", "LMB / Ctrl+LMB", "Select / add to the selection", &[]),
     b("Edit", "Shift + drag an arrow", "Copy the selection and move the copy", &[]),
@@ -353,8 +358,18 @@ pub const KEYS: &[Binding] = &[
     b("Run", "F5 / Shift+F5", "Test race / Drive here", &[Key::F5]),
     b("Run", "Ctrl+F5", "Restart race (the open test game)", &[Key::F5]),
     b("Run", "Space", "Play / pause the simulation (its timeline under the view)", &[Key::Space]),
-    b("Run", "Left / Right, Shift+Left / Right", "The simulation a recorded frame back / on, a second with Shift", &[Key::ArrowLeft, Key::ArrowRight]),
-    b("Run", "Up / Down", "Show the line above / below in What went wrong (Simulate tab)", &[Key::ArrowUp, Key::ArrowDown]),
+    b(
+        "Run",
+        "Left / Right, Shift+Left / Right",
+        "The simulation a recorded frame back / on, a second with Shift",
+        &[Key::ArrowLeft, Key::ArrowRight],
+    ),
+    b(
+        "Run",
+        "Up / Down",
+        "Show the line above / below in What went wrong (Simulate tab)",
+        &[Key::ArrowUp, Key::ArrowDown],
+    ),
 ];
 
 /// The Controls dialog's rows, grouped: the tools first (from
@@ -382,9 +397,10 @@ pub fn shortcuts(app: &App, ctx: &egui::Context, out: &mut Vec<Action>) {
     let open = app.state.is_some();
     let typing = ctx.egui_wants_keyboard_input();
     let flying = super::app::flying(ctx);
-    let armed = app.state.as_ref().is_some_and(|s| {
-        current_tool(s, &app.panels.props.borrow(), &app.panels.races.borrow()).armed()
-    });
+    let armed = app
+        .state
+        .as_ref()
+        .is_some_and(|s| current_tool(s, &app.panels.props.borrow(), &app.panels.races.borrow()).armed());
     ctx.input_mut(|i| {
         if i.consume_shortcut(&NEW) {
             out.push(Action::NewMod);
@@ -416,6 +432,10 @@ pub fn shortcuts(app: &App, ctx: &egui::Context, out: &mut Vec<Action>) {
         }
         if flying || i.modifiers.any() {
             return;
+        }
+        if i.consume_key(Modifiers::NONE, Key::L) {
+            let now = app.state.as_ref().map_or(super::collision::Show::Off, |s| s.collision);
+            out.push(Action::Collision(now.next()));
         }
         for t in Tool::ALL {
             if i.consume_key(Modifiers::NONE, t.key()) {
@@ -506,8 +526,10 @@ pub fn bar(app: &App, ui: &mut egui::Ui, out: &mut Vec<Action>) {
                     let (r, _) = ui.allocate_exact_size(egui::vec2(8.0, 8.0), egui::Sense::hover());
                     ui.painter().circle_filled(r.center(), 3.5, theme::warn());
                 }
-                let name = if s.session.map.name.is_empty() { s.session.folder.as_str() } else { s.session.map.name.as_str() };
-                let text = egui::RichText::new(format!("{name} · {}", s.session.region)).font(theme::font(theme::SEMI, 14.0));
+                let name =
+                    if s.session.map.name.is_empty() { s.session.folder.as_str() } else { s.session.map.name.as_str() };
+                let text =
+                    egui::RichText::new(format!("{name} · {}", s.session.region)).font(theme::font(theme::SEMI, 14.0));
                 ui.add(egui::Label::new(text).truncate());
             });
         }
@@ -754,7 +776,14 @@ fn trim_num(v: f32) -> String {
     s.trim_end_matches('0').trim_end_matches('.').to_string()
 }
 
-fn part_job(part: Part, tier: usize, s: &EditorState, p: &Props, r: &Races, tool: Tool) -> Option<egui::text::LayoutJob> {
+fn part_job(
+    part: Part,
+    tier: usize,
+    s: &EditorState,
+    p: &Props,
+    r: &Races,
+    tool: Tool,
+) -> Option<egui::text::LayoutJob> {
     let key = |t: Tool| (tier == 0).then(|| t.key().name());
     Some(match part {
         Part::Tool(t) => label_job(t.name(), key(t), tool == t, t.unavailable(s).is_none()),
@@ -892,7 +921,9 @@ pub fn toolbar(app: &mut App, ui: &mut egui::Ui, out: &mut Vec<Action>) {
                         ui.checkbox(&mut p.snap, "Snap props");
                         ui.horizontal(|ui| {
                             ui.label("Step");
-                            ui.add(egui::DragValue::new(&mut p.snap_metres).range(0.01..=10.0).speed(0.01).suffix(" m"));
+                            ui.add(
+                                egui::DragValue::new(&mut p.snap_metres).range(0.01..=10.0).speed(0.01).suffix(" m"),
+                            );
                             ui.add(egui::DragValue::new(&mut p.snap_degrees).range(1.0..=90.0).speed(0.5).suffix("°"));
                         });
                         ui.checkbox(&mut rc.snap, "Snap race points to the road");
@@ -907,7 +938,11 @@ pub fn toolbar(app: &mut App, ui: &mut egui::Ui, out: &mut Vec<Action>) {
                     };
                     let Some(j) = r else { continue };
                     let resp = ui.add_enabled(on, egui::Button::new(j)).on_hover_text(tip);
-                    let resp = if on { resp } else { resp.on_disabled_hover_text(format!("Nothing to {}", name.to_lowercase())) };
+                    let resp = if on {
+                        resp
+                    } else {
+                        resp.on_disabled_hover_text(format!("Nothing to {}", name.to_lowercase()))
+                    };
                     if resp.clicked() {
                         out.push(a);
                     }
@@ -966,7 +1001,9 @@ pub fn tool_hint(tool: Tool, r: &Races) -> &'static str {
     match tool {
         Tool::Select => "Click a prop or a race point to select it · Ctrl+click: add to the selection",
         Tool::Move => "Drag an arrow to move the selection · Shift+drag: copy · Alt: no snapping",
-        Tool::Rotate => "Drag the ring to turn the selection · Alt: turn freely · right-click a prop: Rotate 90°, Face camera",
+        Tool::Rotate => {
+            "Drag the ring to turn the selection · Alt: turn freely · right-click a prop: Rotate 90°, Face camera"
+        }
         _ => r.hint(),
     }
 }
@@ -978,7 +1015,11 @@ pub fn hint_job(s: &EditorState, p: &Props, r: &Races) -> egui::text::LayoutJob 
     let tool = current_tool(s, p, r);
     let small = egui::FontId::proportional(13.0);
     let mut job = egui::text::LayoutJob::default();
-    job.append(&format!("{} tool", tool.name()), 0.0, egui::TextFormat::simple(theme::font(theme::LABEL, 14.0), theme::lime()));
+    job.append(
+        &format!("{} tool", tool.name()),
+        0.0,
+        egui::TextFormat::simple(theme::font(theme::LABEL, 14.0), theme::lime()),
+    );
     let chip = hint_chip;
     // The way back first: it must show on the narrowest window.
     if tool.armed() {
@@ -989,7 +1030,11 @@ pub fn hint_job(s: &EditorState, p: &Props, r: &Races) -> egui::text::LayoutJob 
     // Turning a prop: the key and the menu, where the tool is not Rotate.
     if matches!(tool, Tool::Select | Tool::Move) && s.mode == Mode::Props && !s.selection.is_empty() {
         chip(&mut job, "E", 18.0);
-        job.append(" rotate · right-click: Rotate 90°, Face camera", 0.0, egui::TextFormat::simple(small.clone(), theme::ink()));
+        job.append(
+            " rotate · right-click: Rotate 90°, Face camera",
+            0.0,
+            egui::TextFormat::simple(small.clone(), theme::ink()),
+        );
     }
     if !tool.armed() && (!s.selection.is_empty() || s.point.is_some()) {
         chip(&mut job, "Esc", 18.0);
@@ -1149,8 +1194,8 @@ mod tests {
     #[test]
     fn every_command_offered_is_taken() {
         use crate::editor::state::RacePoint;
-        use crate::tools::map::edit::RacePart;
         use crate::tools::map::Spot;
+        use crate::tools::map::edit::RacePart;
 
         let dir = crate::testkit::Scratch::new("editor-commands");
         // Test race and Drive here save the mod first: a maps "folder" that
@@ -1230,31 +1275,60 @@ mod tests {
         current_tool(app.state.as_ref().unwrap(), &app.panels.props.borrow(), &app.panels.races.borrow())
     }
 
+    /// L steps the collision layer Off, Invisible barriers, All collision, Off (hidden by default).
+    #[test]
+    fn l_steps_the_collision_layer() {
+        use super::super::collision::Show;
+        let dir = crate::testkit::Scratch::new("editor-collision-key");
+        let mut app = App::new(
+            dir.path().join("game"),
+            dir.path().join("maps"),
+            Box::new(|_: &std::path::Path, _: &str| Ok(world())),
+        );
+        app.new_mod("coll", "Coll", "L4RA").unwrap();
+        frame_with(&mut app, Vec::new());
+        assert_eq!(app.state.as_ref().unwrap().collision, Show::Off);
+        for want in [Show::Invisible, Show::All, Show::Off] {
+            frame_with(&mut app, vec![key(Key::L)]);
+            assert_eq!(app.state.as_ref().unwrap().collision, want);
+        }
+    }
+
     /// The tools' keys pick tools; a race tool needs a race and stays armed
     /// until Esc; Tab is not the editor's (keyboard focus); a prop picked
     /// disarms the race tool.
     #[test]
     fn tool_keys_esc_and_no_tab() {
         let dir = crate::testkit::Scratch::new("editor-tools");
-        let mut app =
-            App::new(dir.path().join("game"), dir.path().join("maps"), Box::new(|_: &std::path::Path, _: &str| Ok(world())));
+        let mut app = App::new(
+            dir.path().join("game"),
+            dir.path().join("maps"),
+            Box::new(|_: &std::path::Path, _: &str| Ok(world())),
+        );
         app.new_mod("tools", "Tools", "L4RA").unwrap();
         frame_with(&mut app, Vec::new());
         assert_eq!(tool(&app), Tool::Select, "nothing armed at the start");
         frame_with(&mut app, vec![key(Key::C)]);
         assert_eq!(tool(&app), Tool::Select, "no race: the race tools stay off");
-        assert_eq!(Tool::Checkpoint.unavailable(app.state.as_ref().unwrap()), Some("Make a race first: Race > New race"));
+        assert_eq!(
+            Tool::Checkpoint.unavailable(app.state.as_ref().unwrap()),
+            Some("Make a race first: Race > New race")
+        );
         let s = app.state.as_mut().unwrap();
         s.session.map.races = vec![crate::editor::validate::tests::sprint(&[(20.0, 0.0), (200.0, 0.0)])];
         s.race = Some(0);
-        for (k, t) in [(Key::W, Tool::Move), (Key::E, Tool::Rotate), (Key::Q, Tool::Select), (Key::C, Tool::Checkpoint)] {
+        for (k, t) in [(Key::W, Tool::Move), (Key::E, Tool::Rotate), (Key::Q, Tool::Select), (Key::C, Tool::Checkpoint)]
+        {
             frame_with(&mut app, vec![key(k)]);
             assert_eq!(tool(&app), t, "{k:?}");
         }
         assert_eq!(app.state.as_ref().unwrap().mode, Mode::Races);
         let s = app.state.as_ref().unwrap();
         let hint = hint_job(s, &app.panels.props.borrow(), &app.panels.races.borrow()).text;
-        assert!(hint.starts_with("Checkpoint tool") && hint.contains("Esc") && hint.contains("back to Select"), "{hint}");
+        assert!(
+            hint.starts_with("Checkpoint tool") && hint.contains("Esc") && hint.contains("back to Select"),
+            "{hint}"
+        );
         for (k, t) in [(Key::S, Tool::Start), (Key::X, Tool::Finish), (Key::G, Tool::Grid)] {
             frame_with(&mut app, vec![key(k)]);
             assert_eq!(tool(&app), t, "{k:?}");

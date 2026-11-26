@@ -16,14 +16,15 @@ pub mod races;
 pub mod sim;
 pub mod state;
 pub mod testplay;
-pub mod thumbs;
 pub mod theme;
+pub mod thumbs;
 pub mod tree;
 pub mod tree_props;
 pub mod tree_races;
 pub mod undo;
 pub mod validate;
 pub mod viewport;
+pub mod weak;
 pub mod worklight;
 
 #[cfg(test)]

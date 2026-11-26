@@ -512,3 +512,14 @@ fn walls_are_drawn_and_picked_on_the_map_and_in_top() {
         assert_eq!(listed_of(&s), original, "{view}: undo all");
     }
 }
+
+#[test]
+fn the_key_steps_round_and_floors_are_coloured_by_kind() {
+    assert_eq!(Show::Off.next(), Show::Invisible);
+    assert_eq!(Show::Invisible.next(), Show::All);
+    assert_eq!(Show::All.next(), Show::Off);
+    let f = |not_ground| collision::Floor { corners: [Vec3::ZERO; 4], n: 3, not_ground };
+    assert_eq!(floor_colour(&f(false)), key::FLOOR);
+    assert_eq!(floor_colour(&f(true)), key::FLOOR_OFF);
+    assert_ne!(key::FLOOR, key::FLOOR_OFF);
+}

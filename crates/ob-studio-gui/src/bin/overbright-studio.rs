@@ -9,7 +9,7 @@
 //!                   [--workspace home|world|races|browser|runs|mod|settings|changes] [--input mouse|keyboard|xbox|playstation|deck]
 //!                   [--focus rail|address|toolbar|left|view|right|bottom] [--drawer] [--files] [--warning] [--find] [--address]
 //!                   [--run NAME] [--compare NAME] [--car ID] [--at SECONDS]
-//!                   [--select N] [--search WORDS] [--kind models|textures] [--row N] [--places] [--job WORDS] [--right-tab inspector|history|help] [--new-mod NAME]
+//!                   [--select N] [--collision off|invisible|all] [--search WORDS] [--kind models|textures] [--row N] [--places] [--job WORDS] [--right-tab inspector|history|help] [--new-mod NAME]
 //!                                   the whole window drawn off-screen into a PNG (no window)
 //! ```
 //! A `--shot` prints one line "studio layout: fits …" or "studio layout: clipped: …" (the clip and overlap check).
@@ -57,6 +57,7 @@ struct Cli {
     select: Option<usize>,
     /// The Browser's search text and kind (a `--shot`).
     search: Option<String>,
+    collision: Option<ob_studio_gui::editor::collision::Show>,
     kind: Option<String>,
     /// Runs: the run opened, the run compared with it, the car whose telemetry shows, the time shown (a `--shot`).
     run: Option<String>,
@@ -140,6 +141,13 @@ fn parse(args: impl Iterator<Item = String>) -> Result<Cli> {
             "--find" => c.find = true,
             "--address" => c.address = true,
             "--select" => c.select = Some(val("--select")?.parse()?),
+            "--collision" => {
+                let v = val("--collision")?;
+                c.collision = Some(
+                    ob_studio_gui::editor::collision::Show::parse(&v.to_ascii_lowercase())
+                        .with_context(|| format!("--collision {v}? (off, invisible or all)"))?,
+                );
+            }
             "--search" => c.search = Some(val("--search")?),
             "--kind" => c.kind = Some(val("--kind")?),
             "--run" => c.run = Some(val("--run")?),
@@ -196,6 +204,11 @@ fn new_studio(cli: &Cli) -> Result<Studio> {
         Box::new(|root, region| nfsu2::studio_api::world::World::load(root, region)),
     );
     s.attach_editor(editor);
+    ob_studio_gui::editor::weak::load();
+    // OB_STUDIO_WEAK=auto|full|weak overrides the saved choice for this run (shots, testing).
+    if let Some(p) = std::env::var("OB_STUDIO_WEAK").ok().and_then(|v| ob_studio_gui::editor::weak::Pref::parse(&v)) {
+        ob_studio_gui::editor::weak::set_pref(p);
+    }
     Ok(s)
 }
 
@@ -367,6 +380,13 @@ fn run_shot(cli: &Cli) -> Result<()> {
         shot::frames(&mut s, size, scale, 1);
         if let Some(st) = s.editor.as_mut().and_then(|h| h.app.state.as_mut()) {
             st.selection = vec![i];
+        }
+    }
+    if let Some(c) = cli.collision {
+        // One frame so World opens the mod, then the layer.
+        shot::frames(&mut s, size, scale, 1);
+        if let Some(st) = s.editor.as_mut().and_then(|h| h.app.state.as_mut()) {
+            st.collision = c;
         }
     }
     if let Some(name) = &cli.new_mod {
