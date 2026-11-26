@@ -799,7 +799,7 @@ Entry fields:
 | `id` | string `[a-z0-9][a-z0-9_-]{0,31}` | – | add | – | Local id; the item's key is `<this pack id>:<id>`. |
 | `scenery` | u32 | – | add | – | The scenery section the placement belongs to: it is drawn exactly when that scenery section is drawn (`WLD.14`). |
 | `solid` | ref solid | – | add | – | LOD A: a scoped reference (`solid:<NAME>` or `solid:0x<HASH>`), resolved in this region's unit by [meshes.md](meshes.md)'s lookup order. |
-| `lod_b`, `lod_c` | ref solid | – | no | none | Lower LODs, resolved as `solid` (none: nothing drawn at that detail, as the original). |
+| `lod_b`, `lod_c` | ref solid | – | no | none | Lower LODs, resolved as `solid` (none: nothing drawn at that detail, as the original (choice: format rule; the original's layout is in docs/formats/)). |
 | `radius_m` | f32 | m | no | half the solid's box diagonal | Bounding radius (the cull adds 6). |
 | `flags` | u16 | – | no | `0x0000` | Instance flags (§3.4.1); add only. |
 | `prop` | ref prop-kind | – | no | none | Add only: the placement is also a knock-over prop of this kind (an item key of this region, `prop-kind:<REGION>/<NAME>`). |

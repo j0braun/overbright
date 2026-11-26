@@ -412,7 +412,7 @@ The event track, a text file the original parses at run time (0x432D00). Schema:
 | `schema` | string | – | yes | – | `ob.scene-events/1.0` |
 | `event` | array<table> | – | yes | – | The track's `EVENT:` lines in file order. |
 | `event.frame` | `token` | frame (1/30 s) | yes | – | The line's second word. |
-| `event.kind` | string | – | yes | – | The third word, as written: any word of 1–200 characters without whitespace (always a string, whatever its form). The reference install's tracks use `CAR_AUDIO_PATTERN`, `SEQ_CAR_NITRO`, `CAR_TRIGGER_EFFECT`, `SCREEN_FLASH`, `CAR_HYDRAULIC_EXTEND`, `CAR_HYDRAULIC_BOUNCE`, `SEQ_CAR_BURNOUT`, `WORLD_MESSAGE`, `SEQ_CAR_TORQUE`, `CAR_BURNOUT_ADDITIVE`, `CAR_BRAKE_LOCK`; the engine also reads `CAR_ENGINE_TORQUE`. Unknown kinds are kept and ignored, as the original's consumers ignore them. |
+| `event.kind` | string | – | yes | – | The third word, as written: any word of 1–200 characters without whitespace (always a string, whatever its form). The reference install's tracks use `CAR_AUDIO_PATTERN`, `SEQ_CAR_NITRO`, `CAR_TRIGGER_EFFECT`, `SCREEN_FLASH`, `CAR_HYDRAULIC_EXTEND`, `CAR_HYDRAULIC_BOUNCE`, `SEQ_CAR_BURNOUT`, `WORLD_MESSAGE`, `SEQ_CAR_TORQUE`, `CAR_BURNOUT_ADDITIVE`, `CAR_BRAKE_LOCK`; the engine also reads `CAR_ENGINE_TORQUE`. Unknown kinds are kept and ignored, as the original (choice: format rule; the original's layout is in docs/formats/)'s consumers ignore them. |
 | `event.args` | array<`token`> | – | no | `[]` | The remaining words. At most 16. |
 | `event.index`, `event.op`, `event.disabled` | – | – | no | – | Packs (§4). |
 

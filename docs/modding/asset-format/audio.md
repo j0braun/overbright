@@ -112,7 +112,7 @@ A mod pack adds its own payloads next to its TOML files (`audio/ingame/banks/IG_
 
 ### 3.1 Payload framings (binary, passthrough)
 
-Every original audio payload is stored byte for byte as the original holds it. These layouts are the documented
+Every original audio payload is stored byte for byte as the original (choice: format rule; the original's layout is in docs/formats/) holds it. These layouts are the documented
 framings; the meaning of each structure is in docs/formats/audio.md (sections named per row).
 
 | Layout | Element | What the array holds | Read by |
@@ -489,7 +489,7 @@ stream = [ { offset = 0, frames = 11955200 }, { offset = 2930688, frames = 63436
 ### 3.6 Mix map (`ob.mix-map/1.0`)
 
 The words the engine reads (`src/audio/mixmap/parse.rs:75-155`), raw, per section in file order. Values are kept
-as the original's `u32` words; their bit fields are documented per field.
+as the original (choice: format rule; the original's layout is in docs/formats/)'s `u32` words; their bit fields are documented per field.
 
 | Field | Type | Unit | Req. | Default | Meaning |
 |---|---|---|---|---|---|

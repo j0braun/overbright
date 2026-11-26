@@ -12,7 +12,7 @@ pattern.
 
 | Row | Values | Default |
 |---|---|---|
-| HDR Output | Off / On | Off (normal SDR output, as the original) |
+| HDR Output | Off / On | Off (normal SDR output, as the original (choice: HDR is an extra, SDR is the native output)) |
 | Peak Brightness | Auto / 400…10000 nits | Auto |
 | Paper White | Auto / 80…400 nits | Auto |
 | SDR Gamma | 2.2 / sRGB / 2.4 | 2.2 |
@@ -86,7 +86,7 @@ lens drops work on neighbouring pixels and stay passes; only the bleach bypass m
 only it becomes the table (LUT).
 
 - **Capture:** Overbright's ports of the original passes (`fs_bleach0/1/2`, with 8-bit targets between them,
-  as in the original) run on an **identity strip** of 32³ colours (`identity_strip`, texel (r + 32·b, g)) whose
+  as in the original; traced: docs/formats/world.md, Screen filters) run on an **identity strip** of 32³ colours (`identity_strip`, texel (r + 32·b, g)) whose
   lattice sits on 8-bit codes k(i) = round(i·255/31) (0, 8, 16, 25, …, 255). So the LUT is the original grade
   exactly at every lattice point. It is rebuilt on the GPU (three passes over 1024 × 32 texels) whenever the
   frame's grade values change (bleach amount, TINTCOLOR.w, TINTCOLOR.rgb; the screen tint moves while
@@ -146,7 +146,7 @@ writes the swap chain.
 - Encoding: **HDR10** is BT.709 → BT.2020 (the BT.2087 matrix) and ST 2084 PQ, on `Rgb10a2Unorm` +
   `SurfaceColorSpace::Bt2100Pq`. **scRGB** is linear BT.709 with 1.0 = 80 nits, on `Rgba16Float` +
   `ExtendedSrgbLinear`.
-- The streak buffer still saturates at 1, as in the original (its steady state would blow out otherwise). The
+- The streak buffer still saturates at 1, as in the original (traced: docs/formats/world.md, Screen filters) (its steady state would blow out otherwise). The
   extra brightness comes from the scene's additive draws and from the graded image + streaks.
 
 ### Calibration

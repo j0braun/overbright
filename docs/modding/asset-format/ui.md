@@ -69,7 +69,7 @@ text/<language>/
 | `fe-package:<NAME>` | a package | `NAME` without `.fng`, case as stored; the engine's package map uses the same key (`src/frontend/assets.rs:134`). |
 | `fe-object:<NAME>/0xID` | an object of a package | `ID` = the object's `id` (`OP` word 0) as 8 upper-case hex digits. Used by references and by the layering extension point (§4). |
 | `font:<name>` | a font | Matched without case, by `fe_hash` of the name (`crates/ob-formats/src/formats/hash.rs:158`), as the engine looks fonts up (`src/frontend/assets.rs:218`). Resolution order: the active language's `fonts/`, then `frontend/ui/fonts/` (§3.3). |
-| `fe-platform:<NAME>` | the unit `frontend/platforms/<NAME>/` | `NAME` = the original file's stem (`Showroom`); the engine's table names (`SHOWROOM`, `src/garage.rs:52`) match it without case, as the original's file lookup does (a file-name key, conventions §6.3, `CONV.13`). |
+| `fe-platform:<NAME>` | the unit `frontend/platforms/<NAME>/` | `NAME` = the original file's stem (`Showroom`); the engine's table names (`SHOWROOM`, `src/garage.rs:52`) match it without case, as the original (choice: format rule; the original's layout is in docs/formats/)'s file lookup does (a file-name key, conventions §6.3, `CONV.13`). |
 | `fe-envmap:<NAME>` | the unit `frontend/envmaps/<NAME>/` | Named by magazine records (`crates/ob-formats/src/formats/magazines.rs:77`). |
 
 Object name hashes repeat inside 209 of the 236 package chunks (library instances share names); the `id` never
@@ -175,7 +175,7 @@ no negative steps). So, normatively, and only for these fields:
 - `color_bgra` and `corner_colors_bgra` are the stored `i32` words in the stored order (blue, green, red, alpha),
   not `color` strings; `rotation` is the stored quaternion (x, y, z, w), not a `mat3`. The same holds for the
   `base` and `delta` values of tracks (`track[]` below).
-- Writers MUST write them as the original's words; readers MUST NOT convert them before the scripts run, and
+- Writers MUST write them as the original (choice: format rule; the original's layout is in docs/formats/)'s words; readers MUST NOT convert them before the scripts run, and
   refuse any other form (a `color` string, a matrix, Euler angles) with `UI.16`. Tools MAY show them as
   `#RRGGBBAA` colours and angles.
 
@@ -380,7 +380,7 @@ HUD layout as data with anchors is an extension point (§9), not part of 1.0.
 ### 3.5 Garage platforms and environment maps
 
 Front-end data whose items are stored by other pages. Each is a sub-unit of `frontend/` that the engine loads
-whole, as the original loads the whole file:
+whole, as the original (choice: format rule; the original's layout is in docs/formats/) loads the whole file:
 
 | Unit | Original | Bytes | Contents (measured) | Read by |
 |---|---|---|---|---|

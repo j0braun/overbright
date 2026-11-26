@@ -375,7 +375,7 @@ changes a frame) re-records the baselines **in the same change**, and every chan
 
 1. `baselines.sh check` against `current` lists what moved.
 2. A reasons file names the cause for every changed item, one `<glob><TAB><why>` per line (the first matching glob
-   counts), for example `sim/*<TAB>rivals brake for the corner as the original does` or
+   counts), for example `sim/*<TAB>rivals brake for the corner as the original (choice: example text for a reason file) does` or
    `image/img-race-*<TAB>…`.
 3. `baselines.sh rebless <outdir> <game> <reasons> "<change>"` runs the set again and refuses (`BASELINES: FAIL: N
    of M changed items have no reason`) while a single item is unmapped; with all mapped it records the new

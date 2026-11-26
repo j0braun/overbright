@@ -57,6 +57,25 @@ expect() {
   else BAD+=("$name"); echo "BAD  $name: expected $want, got rc $rc (log $O/$name.log):"; tail -5 "$O/$name.log" | sed 's/^/       /'; fi
 }
 
+# ---- evidence.sh: a claim row without a tag fails ----------------------------------------------------------------
+ev_tree() { # DIR: a copy of the docs and the allow list the check reads
+  mkdir -p "$1/docs/original/coverage" "$1/docs/playing" "$1/scripts/checks"
+  cp "$REPO"/docs/original/coverage/*.md "$1/docs/original/coverage/"
+  cp "$REPO/docs/playing/native-deviations.md" "$1/docs/playing/"
+  cp "$REPO/scripts/checks/evidence-allow.txt" "$1/scripts/checks/"
+}
+ev_tree "$O/ev-good"
+expect pass evidence-good "$HERE/evidence.sh" "$O/ev-good"
+ev_tree "$O/ev-cov"
+printf '\n| Address | Name | What it does | Ours | Status | Evidence | Risk |\n|---|---|---|---|---|---|---|\n| 0x999999 | — | a planted claim | — | **PORTED** | looks right | low |\n' >> "$O/ev-cov/docs/original/coverage/racer-ai.md"
+expect fail evidence-untagged-coverage-row "$HERE/evidence.sh" "$O/ev-cov"
+ev_tree "$O/ev-dev"
+sed -i '0,/| choice |$/s//| |/' "$O/ev-dev/docs/playing/native-deviations.md"
+expect fail evidence-untagged-deviation-row "$HERE/evidence.sh" "$O/ev-dev"
+ev_tree "$O/ev-prose"
+printf '\nThe planted rule works exactly like the original does.\n' >> "$O/ev-prose/docs/playing/native-deviations.md"
+expect fail evidence-untagged-prose-claim "$HERE/evidence.sh" "$O/ev-prose"
+
 # ---- perf.sh parity ------------------------------------------------------------
 # parity CASE BASE_FAULTS NEW_FAULTS [ENV…]: the parity gates on two stubs.
 parity() {

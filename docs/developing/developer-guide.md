@@ -50,7 +50,7 @@ Diagnostic switches for `world`:
 ## Graphics options (clone deviations)
 
 Options > Display > Enhancements > **Graphics** holds opt-in graphics
-enhancements; each one starts at the native value, and with all of them
+enhancements; each one starts at the native value (choice: the rule of the Enhancements page), and with all of them
 native the frames are the same as without the page. Restore Native (on
 both pages) turns everything back.
 

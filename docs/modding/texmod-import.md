@@ -76,7 +76,7 @@ Code: `tpf_import::convert`, `match_tone`.
   1024 × 8192 → 512 × 4096). The loader takes DXT3 DDS (`Bc2RgbaUnorm`, decoded without BC support).
 - Uncompressed, BMP, PNG, or sizes that are not whole blocks → `<HASH>.png` (RGBA8; the loader makes the mip
   levels), halved while over 4096. No upscaling and no colour-space change (UNORM, like D3D9).
-- Images identical to the original (same size, texels within ±2) are skipped (20 in this pack).
+- Images identical to the original (choice: format rule; the original's layout is in docs/formats/) (same size, texels within ±2) are skipped (20 in this pack).
 - **Tone match** (the default; `--tone keep` keeps the pack as authored), so the game keeps its look: on the
   original's grid the replacement gets the original's mean colour and luma contrast. Low frequencies are
   scaled about their mean (gain 0.5 to 2), the pack's finer detail is kept on top, and the mean is trimmed
@@ -93,7 +93,7 @@ Code: `tpf_import::convert`, `match_tone`.
 - **Coverage:** 110 of 110 package textures matched. 82 world (roads and lane strips, road patches,
   sidewalks, grass, dirt, freeway walls and barriers, palms, hedges, brick and concrete walls, crates), 25
   garage and shop scenes (`FRONTEND/PLATFORMS`), 3 GLOBAL. 95 files written (92 world, 3 car), 20 skipped as
-  identical to the original. The pack has no sky texture, so the sky stays the original's. 4 cut-out
+  identical to the original (choice: format rule; the original's layout is in docs/formats/). The pack has no sky texture, so the sky stays the original's. 4 cut-out
   textures have new outlines (two palms, fence spikes, an airport line: the alpha-test coverage differs by
   10–39 %, the author's art).
 - **Memory:** the pack's arrays are cached and opaque DXT3/DXT5 art uploads as BC1 (lossless): 290 → 251 MB

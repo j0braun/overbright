@@ -161,7 +161,7 @@ it never runs at all. So the clone's world no longer follows the display:
   1/60 s (16.7 ms) more than stepping on every frame, and a key press waits
   up to 1/60 s for the next update, as on the original at 60 fps. A tap
   shorter than one update between two updates is not seen by the held-key
-  read (the same as the original's once-a-frame polling at 60 fps).
+  read (the same as the original (choice: the design decision of this page)'s once-a-frame polling at 60 fps).
 * **The harness on the tick cadence** (2026-11-12;
   `src/bin/game/dev/ticks.rs`): `--shot`, `--selftest`, `--flow`,
   `--playthrough` and the game's tests step the world only by ticks, as the
@@ -390,7 +390,7 @@ device, which plays real time).
 A track's end (`track_playing`) still follows the mixer's playback: offline
 the capture renders each tick's frames after its sounds (`dev_hooks::audio_tick_end`,
 and the pump waits for the decoders), so it is a function of the ticks; on a
-device it follows the device as the original's stream state does. Real-time
+device it follows the device as the original (choice: the design decision of this page)'s stream state does. Real-time
 onset bound (plan §1.5): a sound posted at tick n plays at most one drawn
 frame after the tick's time.
 

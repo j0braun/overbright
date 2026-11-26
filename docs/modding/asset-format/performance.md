@@ -146,7 +146,7 @@ today and by the Prepare step.
 
 ### 3.8 GPU-ready data and memory
 
-Texture blocks are uploaded as stored (BC1/BC2/BC3 as the original has them); vertex and index arrays are uploaded
+Texture blocks are uploaded as stored (BC1/BC2/BC3 as the original (choice: format rule; the original's layout is in docs/formats/) has them); vertex and index arrays are uploaded
 from the mapping. Mapped pages are file-backed and reclaimable, so mapping a bundle does not raise the committed
 memory the way reading it into heap buffers would.
 

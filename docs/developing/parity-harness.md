@@ -581,7 +581,7 @@ The native race status and racer offsets used are listed under Fields.
 * A held left turn is re-sent every frame (`native.py`: held by the press, not by the value 0x00).
 * Fields `lock_*`, `ntq_*`, `torq_*`, `steer_drift`, `steer_avg`, `steer_rate`, `steer_lim`,
   `steer_last`, `hb_ramp`, `hop_t`, `hop_calm`, `rb_damp`; scenarios `corner_*`.
-* Since the clone's sub-step ends with its force pass as the original's does (docs/formats.md, **Order
+* Since the clone's sub-step ends with its force pass as the original's does (traced: docs/formats/cars-1.md, **Order
   of a frame and a sub-step**), a frame's recorded tyre forces, slips, loads, torques and the
   drivetrain's input shaft are taken at the same point in both games. The suspension compressions
   are still put one sub-step behind at a transplant (`put_suspensions`): the transplanted car has

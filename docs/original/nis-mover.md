@@ -194,7 +194,7 @@ native frames 34–38 above, clone 36–40 below).
 **Clone.** `ScreenFlash::advance` fires on the scene update whose clock
 passes the event's frame and steps 2 per scene frame (1/30 s of game time,
 so any update or display rate gives the same three frames; the scene
-limiter draws the race starts at 30 frames a second, as natively), and
+limiter draws the race starts at 30 frames a second, as native (traced: this page, Native chain, 0x435F40)), and
 keeps stepping after the scene ends. `rain_frame` hands the tint pass the
 flash's multiplier over the rain's. The tint pass now draws a multiplier
 above 1 as dest × min(m, 1) then dest × (1 + max(m − 1, 0)) (Blend

@@ -49,7 +49,7 @@ The importer knows **editions**: for each, a key, a name, the region, and the co
   its identity>`.
 - A **custom** import runs the same decoders. Files a decoder refuses are kept whole in the residual. The launcher
   says plainly: "Your game files differ from the versions Overbright was checked against; it will run, but may not
-  match the original exactly." It lists the differing files (`MODIFIED or unknown`, as `--check-game` does today).
+  match the original (choice: format rule; the original's layout is in docs/formats/) exactly." It lists the differing files (`MODIFIED or unknown`, as `--check-game` does today).
 - New editions are added to the table from a manifest of hashes (made by `overbright-studio-cli base fingerprint
   --manifest`; it holds names, sizes and hashes only, no game data) and a full import and parity run on that
   edition.

@@ -1,6 +1,6 @@
 # Motion blur and depth of field
 
-Modern motion blur and a cinematic depth of field, in the same rows as the original's own effects.
+Modern motion blur and a cinematic depth of field, in the same rows as the original's own effects (inferred: docs/notes/graphics/motionblur-dof.md).
 
 | Row (Advanced → Lighting & Effects) | Values | options.txt |
 |---|---|---|

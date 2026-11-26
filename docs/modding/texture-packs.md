@@ -191,7 +191,7 @@ Packs it names come first, in its order; `off` ones are not used. Packs it does 
 
 The loader's whole order is: the developer variables (`NFSU2_WORLD_TEXTURE_PACK`, `NFSU2_CAR_TEXTURE_PACK`),
 then the Overbright packs, then the launcher's imported TexMod and TexWizard packages, then the World Texture
-Pack row's folders. With no pack folder, or nothing on, the loader reads nothing and works as the original.
+Pack row's folders. With no pack folder, or nothing on, the loader reads nothing and works as the original (choice: format rule; the original's layout is in docs/formats/).
 
 ### Formats and compiling
 
@@ -319,7 +319,7 @@ Code: `src/texture_mods.rs`.
 - The game (`render::texture_pack::roots`) uses `NFSU2_WORLD_TEXTURE_PACK` / `NFSU2_CAR_TEXTURE_PACK` first,
   then the packages that are on, in the list's order, then the World Texture Pack row's folders. The list is
   read when a world or a car loads (at most every half second). With no list, or nothing on, the loader works
-  as the original.
+  as the original (choice: format rule; the original's layout is in docs/formats/).
 - Rendered check (`scripts/checks/texture_mod_shot.sh GAME OUTDIR`): a package made in a prepared data folder
   (`NFSU2_SHOT_DATA`; a 4 × 4 magenta PNG under the name of every city texture, listed on) changes the
   free-roam shot (82 % of the pixels, 64 % magenta; the car and the HUD untouched). Listed off, and with no

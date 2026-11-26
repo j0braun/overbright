@@ -1,6 +1,6 @@
 # Optional graphics settings
 
-Every setting here is off until you turn it on; with all of them off the game looks exactly like the original.
+Every setting here is off until you turn it on; with all of them off the game looks exactly like the original (choice: the rule of the Enhancements page, see docs/playing/native-deviations.md).
 You find them under **Options → Display → Enhancements**: the main page sets the graphics mode, the quality
 level, upscaling, anti-aliasing and ray tracing; **Advanced** opens one page per group below. The groups and
 the rows in them follow the settings model (`src/frontend/enh/settings_model/model.rs`).

@@ -238,5 +238,5 @@ autopilot's road node record 79 point 3), but the race's progress locator
 so `wrong_way` fires. **Resolved (2026-11-04)**: not a crossing road
 but route segment 12's own spline loop (three nodes 10 m apart, phantom
 points from 50–80 m neighbours, 0x5E48C0 → 0x5D50A0); the original's
-locator gives the same way there under Wine — native behaviour, see
+locator gives the same way there under Wine — native behaviour (observed: docs/notes/parity/small-fixes.md and docs/evidence/small-fixes-2026-11/locator-4005-native.txt), see
 internal notes item 1.
