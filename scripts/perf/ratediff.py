@@ -75,6 +75,16 @@ def first_diffs(ha, ra, hb, rb, cols):
     return out
 
 
+def vals(c, d, ha, ra, hb, rb):
+    """A counted column's first difference as "col step N: ref=<value> got=<value>" (the failure needs no second run to read)."""
+    if d[0] != 'tick':
+        return f'{c} ends at step {d[1]}: ref {len(ra)} steps, got {len(rb)}'
+    def at(h, r):
+        i = h.index(c)
+        return r[d[1]][i] if i < len(r[d[1]]) else '(none)'
+    return f'{c} step {d[1]} (row id {ra[d[1]][0]}): ref={at(ha, ra)} got={at(hb, rb)}'
+
+
 def cell(d, nd):
     if d is None:
         return '='
@@ -152,7 +162,8 @@ def main(argv):
             order = sorted(diff, key=lambda c: (fd[c][1], common.index(c)))
             diffs.append(f'{hz} vs {ref} Hz: {same} of {len(common)} columns identical'
                          + (f'; first: {", ".join(f"{c}@{cells[c]}" for c in order)}' if diff else '')
-                         + (f' [counted: {", ".join(counted)}]' if counted else ''))
+                         + (f' [counted: {", ".join(counted)}]' if counted else '')
+                         + (f' [values at the first differing step: {"; ".join(vals(c, fd[c], rh, rr, head, rows) for c in [x for x in order if x in counted][:6])}]' if counted else ''))
     if out_json:
         with open(out_json, 'w') as f:
             json.dump(res, f)

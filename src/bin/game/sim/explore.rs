@@ -55,6 +55,7 @@ pub(crate) fn step_explore_traced(
             None,
             d.human_road.node,
             false,
+            None,
             dt,
         )
     });

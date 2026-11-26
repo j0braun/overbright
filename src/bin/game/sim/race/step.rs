@@ -41,7 +41,7 @@ pub(crate) fn race_traffic_fill(d: &Drive, race: &mut Race, clock: f32, drag: bo
             &mut race.racers.cars.rng,
         );
         if let Some(t) = race.racers.traffic.as_mut() {
-            traffic_fill_apply(&d.world, t, plan, true);
+            traffic_fill_apply(&d.world, t, plan, true, Some(&race.route.road));
         }
     }
 }
@@ -646,6 +646,10 @@ fn race_world_step(
             start_line: race.route.start_at,
             start_gap: race.start_gap,
         });
+        let coords = RaceCoords {
+            me: race.racers.me.along,
+            racers: race.racers.rivals.iter().map(|r| r.progress.along).collect(),
+        };
         // The traffic's draws are the world generator's: the race
         // field's, lent to the traffic for its think.
         std::mem::swap(&mut t.field.rng, &mut race.racers.cars.rng);
@@ -660,6 +664,7 @@ fn race_world_step(
             d.human_road.node,
             // The human's wrong-way byte (+0x248) for 0x42E9F0.
             race.wrong_way,
+            Some(&coords),
             dt,
         );
         std::mem::swap(&mut t.field.rng, &mut race.racers.cars.rng);

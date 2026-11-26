@@ -110,7 +110,7 @@ impl Table {
                 .cars
                 .iter()
                 .enumerate()
-                .map(|(i, c)| format!("{i}:{}:{:.1}", u8::from(c.lane.is_none()), c.coord.map_or(f32::NAN, |x| x.0)))
+                .map(|(i, c)| format!("{i}:{}:{:.1}", u8::from(c.lane.is_none()), c.coord.map_or(f32::NAN, |x| x.along)))
                 .collect();
             let _ = writeln!(self.w, "# p\t{t:.3}\t{:.4}\t{}\t{}", tr.timer, tr.cursor, cars.join(" "));
         }

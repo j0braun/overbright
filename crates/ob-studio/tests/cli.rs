@@ -39,6 +39,7 @@ fn straight() -> RoadNet {
         spline_length: 200.0,
         exits,
         barriers: vec![],
+        tracks: Default::default(),
     };
     net.segments = vec![seg(0, [vec![], vec![(1, 0)]]), seg(3, [vec![(0, 1)], vec![]])];
     net

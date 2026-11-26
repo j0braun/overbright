@@ -56,9 +56,11 @@ pub(crate) struct TrafficCar {
     /// inactive, until the world unloads (mode 4, the belt built from
     /// that path) or the placer places it again (see `traffic_stream`).
     pub(crate) coast: Option<nfsu2::ai::traffic::TrafficLane>,
-    /// Its race coordinate (car +0x8FC) in a race and where it was
-    /// taken ([`nfsu2::ai::traffic::race_coord_step`]).
-    pub(crate) coord: Option<(f32, Vec2)>,
+    /// Its road locator in a race (car +0x8D8; its +0x24 is the race
+    /// coordinate, car +0x8FC): set at placement, then moved on each frame
+    /// once the car is [`TRAFFIC_LOCATOR_STEP`] from where it was last
+    /// asked.
+    pub(crate) coord: Option<nfsu2::formats::roads::Locator>,
 }
 
 impl TrafficCar {
@@ -70,20 +72,50 @@ impl TrafficCar {
         self.lane.is_some() && self.active
     }
 
-    /// The car's race coordinate (car +0x8FC) in a race
-    /// ([`nfsu2::ai::traffic::race_coord_step`]); its place located on the
-    /// road until the first frame has taken it.
+    /// The car's race coordinate (car +0x8FC) in a race: its locator's
+    /// place (+0x24); its place located on the road until it has one.
     pub(crate) fn race_coord(&self, road: &nfsu2::formats::roads::RoadRoute) -> f32 {
-        self.coord.map_or_else(|| road.locate_once(self.state.position.truncate()), |c| c.0)
+        self.coord.map_or_else(|| road.locate_once(self.state.position.truncate()), |c| c.along)
     }
 
-    /// The frame's step of the race coordinate
-    /// ([`nfsu2::ai::traffic::race_coord_step`]).
+    /// The frame's relocation (0x604750 → 0x5DA340 on car +0x60): the
+    /// locator moves on once the car is its threshold (|Δx| + |Δy|) from
+    /// where it was last asked.
     pub(crate) fn refresh_coord(&mut self, road: &nfsu2::formats::roads::RoadRoute) {
         let p = self.state.position.truncate();
-        self.coord = Some(nfsu2::ai::traffic::race_coord_step(self.coord, p, |p| road.locate_once(p)));
+        let loc = self.coord.get_or_insert_with(|| nfsu2::formats::roads::Locator {
+            threshold: TRAFFIC_LOCATOR_STEP,
+            ..Default::default()
+        });
+        road.relocate(loc, p);
+    }
+
+    /// The locator set at a placement (0x5FBEE0): for a point measured by
+    /// race coordinate (0x5DCC90) from the route node nearest the point
+    /// and its coordinate (+0x08; 0x5DA420), else from the place alone
+    /// (0x5DA3E0); then relocated at the car's place (0x5DA340).
+    pub(crate) fn place_coord(
+        &mut self,
+        road: &nfsu2::formats::roads::RoadRoute,
+        point: Option<(Vec2, f32)>,
+        at: Vec2,
+    ) {
+        let mut loc = nfsu2::formats::roads::Locator { threshold: TRAFFIC_LOCATOR_STEP, ..Default::default() };
+        match point {
+            Some((p, c)) => road.locate_at(&mut loc, p, c),
+            None => road.locate(&mut loc, at),
+        }
+        road.relocate(&mut loc, at);
+        self.coord = Some(loc);
     }
 }
+
+/// A traffic car's locator threshold (car +0x910 = locator +0x38): 16 m
+/// of |Δx| + |Δy|, set by the car's constructor 0x604270 for a car of
+/// kind 3 (traffic; **verified**). Under Wine the race coordinate moved
+/// on after 11.1–12.1 m (2D), which a 16 m |Δx| + |Δy| gives on roads
+/// running near the diagonal.
+pub(crate) const TRAFFIC_LOCATOR_STEP: f32 = 16.0;
 
 /// The traffic of explore mode (the region's RoutesFreeRoam.bin) or of a
 /// race (the race's Routes<track><F|B>.bin, which carries the same

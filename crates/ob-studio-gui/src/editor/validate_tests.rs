@@ -29,6 +29,7 @@ pub(crate) fn straight(barrier: bool) -> RoadNet {
         spline_length: 200.0,
         exits,
         barriers,
+        tracks: Default::default(),
     };
     net.segments = vec![seg(0, [vec![], vec![(1, 0)]], vec![]), seg(3, [vec![(0, 1)], vec![]], vec![0])];
     net.closed = vec![barrier];
