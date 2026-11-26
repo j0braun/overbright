@@ -328,7 +328,20 @@ fn run_cli(args: &[String]) -> Result<(), String> {
     // game folder; a start that did not finish; the skip option off.
     // Otherwise the game starts at once.
     let unfinished = usable && run::start_unfinished();
-    if screen.is_none() && usable && !unfinished && model::load_choices().0.skip && !force {
+    // Studio or the map editor ended badly since the last start (a note left by a run that did not end
+    // cleanly): the window shows the same report window the game's bad end gets, and the game does not
+    // start under it.
+    let studio_bad = if screen.is_none() && !unfinished { model::Env::studio_bad_exits(&model::RealEnv) } else { Vec::new() };
+    if let Some(bad) = studio_bad.last() {
+        log::info!(
+            "start: {} (pid {}) ended without a clean end ({} found)",
+            bad.note.program,
+            bad.note.pid,
+            studio_bad.len()
+        );
+        failure = Some(window::studio_failure(bad, None, None));
+    }
+    if screen.is_none() && usable && !unfinished && failure.is_none() && model::load_choices().0.skip && !force {
         if nfsu2::launcher::platform_deck::held_at_start() {
             log::info!("Shift / Ctrl / View held: the launcher window");
         } else {

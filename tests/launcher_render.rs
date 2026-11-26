@@ -24,7 +24,8 @@ const CHECK_STATES: [&str; 7] = [
 ];
 /// The crash report window's states, at every size of [`SIZES`] at 150 %
 /// (`state-<name>-<w>x<h>@150.png`).
-const CRASH_STATES: [&str; 3] = ["crash-panic", "crash-signal", "crash-windows"];
+const CRASH_STATES: [&str; 5] =
+    ["crash-panic", "crash-signal", "crash-windows", "crash-studio-panic", "crash-studio-killed"];
 /// The states' size and scale: a common laptop screen at 150 %.
 const STATE_SIZE: (u32, u32, f32) = (1366, 768, 1.5);
 

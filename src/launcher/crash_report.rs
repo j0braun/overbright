@@ -150,6 +150,8 @@ pub fn run_logs(since: SystemTime) -> Vec<PathBuf> {
 pub struct Facts {
     /// "the game".
     pub program: String,
+    /// Facts about the program to print under the first line (its version, the mod that was open).
+    pub extra: Vec<String>,
     pub reason: String,
     pub secs: f32,
     pub during_start: bool,
@@ -171,6 +173,9 @@ pub fn report(f: &Facts) -> String {
         if f.during_start { " (while starting)" } else { "" },
         f.reason,
     );
+    if !f.extra.is_empty() {
+        s += &format!("{}\n", f.extra.join("\n"));
+    }
     s += &format!("\n===== system =====\n{}\n", support::system());
     s += "\n===== system errors =====\n";
     if f.errors.is_empty() {
@@ -291,6 +296,7 @@ mod tests {
             errors: vec![format!("coredump {home}/core"), "C:\\Users\\Jane Doe\\AppData\\x".into()],
             logs: vec![log],
             during_start: false,
+            extra: Vec::new(),
         };
         let t = report(&f);
         for bad in ["janedoe", "Jane Doe", "ABC123XYZ", "123e4567", "00:1A:2B", "4D:5E"] {

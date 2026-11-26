@@ -1120,6 +1120,11 @@ impl App {
     /// loaded, the mod applied, its history opened (read-only when another
     /// program has the mod open), and the restore prompt when the history
     /// holds unsaved steps (or an older editor's autosave is newer).
+    /// The mod open now (its folder name).
+    pub fn open_folder(&self) -> Option<&str> {
+        self.state.as_ref().map(|s| s.session.folder.as_str())
+    }
+
     pub fn open(&mut self, folder: &str, region: Option<&str>) -> Result<()> {
         ensure!(valid_id(folder), "`{folder}` is not a map mod folder name (a-z, 0-9, - and _)");
         // The mod open until now keeps its view.

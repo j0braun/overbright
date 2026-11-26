@@ -204,6 +204,8 @@ pub struct App<'e> {
     pub editor_job: Option<Box<dyn super::model::EditorJob>>,
     /// Studio, when the launcher started it (its end polled by the window).
     pub studio_job: Option<Box<dyn super::model::EditorJob>>,
+    /// The mod folder the last Studio start opened (None: its Home), for "Open Studio again".
+    pub studio_last: Option<String>,
     /// When Studio's locks and recent list were last read (the Dev and
     /// Mods pages read them again every [`STUDIO_LOOK`]).
     pub studio_looked: Option<std::time::Instant>,
@@ -1817,6 +1819,10 @@ fn build_recover(b: &mut Builder, m: &Model) {
 /// The game stopped: what happened, the fix, the support file.
 fn build_crash(b: &mut Builder, m: &Model) {
     let f = m.failure.as_ref();
+    if let Some(run) = f.and_then(|f| f.studio.as_ref()) {
+        build_studio_crash(b, m, run);
+        return;
+    }
     let kind = f.map_or(ErrorKind::Other, |f| f.kind);
     let during = f.is_some_and(|f| f.during_start);
     let issue = match kind {
@@ -1843,6 +1849,12 @@ fn build_crash(b: &mut Builder, m: &Model) {
     b.page_title("Need for Speed Underground 2", None);
     b.message_with(Mark::Error, &title, &text, ctrls);
     b.default_focus = Some(first);
+    crash_tools(b, m);
+}
+
+/// What both crash windows share below the message: the log, the buttons, the report, the details and the support file.
+fn crash_tools(b: &mut Builder, m: &Model) {
+    let f = m.failure.as_ref();
     let where_ = match f.and_then(|f| f.log.as_ref()) {
         Some(l) => format!("The log file: {}", l.display()),
         None => format!("Logs folder: {}", m.logs_dir.display()),
@@ -1877,11 +1889,41 @@ fn build_crash(b: &mut Builder, m: &Model) {
     message(b, m);
 }
 
+/// Studio's (or the map editor's) bad end: the same window as the game's, with its own words
+/// (docs/troubleshooting.md "After a crash").
+fn build_studio_crash(b: &mut Builder, m: &Model, run: &super::model::StudioRun) {
+    let editor = run.program.contains("map editor");
+    let (title, again) = if editor {
+        ("The map editor stopped unexpectedly", ("editor_again", "Open the map editor again"))
+    } else {
+        ("Studio stopped unexpectedly", ("studio_again", "Open Studio again"))
+    };
+    let ctrls = vec![
+        Ctrl::primary(again.0, again.1),
+        Ctrl::button("support", "Save support file…"),
+        Ctrl::button("back", words::BACK),
+    ];
+    b.page_title("Need for Speed Underground 2", None);
+    b.message_with(
+        Mark::Error,
+        title,
+        "Open it again; steps it had already saved are kept. If it happens again, send the report when you ask for help.",
+        ctrls,
+    );
+    b.default_focus = Some(again.0);
+    b.dim(&match &run.opened {
+        Some(name) => format!("The mod that was open: {name}"),
+        None => "No mod was open.".to_string(),
+    });
+    b.dim(&format!("Version: {}", run.version));
+    crash_tools(b, m);
+}
+
 /// The crash report window's part of the failure screen: how the game
 /// ended in words, the system's errors for it, the logs of the run.
 fn crash_report_block(b: &mut Builder, r: &super::model::CrashReport) {
     b.gap(10.0);
-    b.dim(&format!("What happened: the game ran {:.0} s, then {}.", r.secs, r.reason));
+    b.dim(&format!("What happened: {} ran {:.0} s, then {}.", r.program, r.secs, r.reason));
     b.gap(6.0);
     if r.asking {
         b.dim("Asking the system for its record of the crash…");
@@ -2553,6 +2595,7 @@ impl<'e> App<'e> {
             crash_job: None,
             editor_job: None,
             studio_job: None,
+            studio_last: None,
             studio_looked: None,
             keys_after: None,
             copy_job: None,
@@ -4183,18 +4226,19 @@ impl<'e> App<'e> {
 
     /// The crashed game's system errors, asked on a worker (the tools can
     /// take seconds); shown when they come.
-    pub fn ask_system_errors(&mut self, pid: u32) {
+    pub fn ask_system_errors(&mut self, pid: u32, exe: &str) {
         if self.env.background_support() {
             let (tx, rx) = std::sync::mpsc::channel();
+            let exe = exe.to_string();
             let spawned = std::thread::Builder::new().name("crash-errors".into()).spawn(move || {
-                let _ = tx.send(crate::launcher::crash_report::system_errors(pid, "game"));
+                let _ = tx.send(crate::launcher::crash_report::system_errors(pid, &exe));
             });
             if spawned.is_ok() {
                 self.crash_job = Some(rx);
                 return;
             }
         }
-        let errors = self.env.crash_errors(pid, "game");
+        let errors = self.env.crash_errors(pid, exe);
         self.crash_errors_done(errors);
     }
 
@@ -4210,8 +4254,16 @@ impl<'e> App<'e> {
     fn copy_report(&mut self) {
         let Some(f) = self.model.failure.as_ref() else { return };
         let Some(r) = f.report.as_ref() else { return };
+        let studio = f.studio.as_ref();
         let facts = crate::launcher::crash_report::Facts {
-            program: "the game".into(),
+            program: r.program.clone(),
+            extra: studio.map_or_else(Vec::new, |s| {
+                vec![
+                    format!("program: {}", s.program),
+                    format!("version: {}", s.version),
+                    format!("mod open: {}", s.opened.as_deref().unwrap_or("none")),
+                ]
+            }),
             reason: r.reason.clone(),
             secs: r.secs,
             during_start: f.during_start,
@@ -4267,6 +4319,7 @@ impl<'e> App<'e> {
         match self.env.start_studio(folder.as_deref(), self.model.root.as_deref()) {
             Ok(job) => {
                 self.studio_job = Some(job);
+                self.studio_last = folder.clone();
                 self.model.studio = super::model::EditorRun::Open(folder);
             }
             Err(e) => self.model.studio = super::model::EditorRun::Failed(e),
@@ -4291,24 +4344,52 @@ impl<'e> App<'e> {
     /// may have made or changed one). True when it ended.
     fn poll_studio(&mut self) -> bool {
         let Some(end) = self.studio_job.as_mut().and_then(|j| j.poll()) else { return false };
-        self.studio_job = None;
+        let job = self.studio_job.take();
         self.model.studio = match end {
             Ok(()) => super::model::EditorRun::Closed,
             Err(e) => super::model::EditorRun::Failed(e),
         };
+        if self.model.studio != super::model::EditorRun::Closed {
+            self.show_studio_crash(job.as_deref());
+        }
         self.refresh_mods();
         true
+    }
+
+    /// A bad end of Studio or the map editor the launcher started: when it left its run note behind (it did
+    /// not end by its own choice), the failure screen shows the report window, as after the game's.
+    fn show_studio_crash(&mut self, job: Option<&dyn super::model::EditorJob>) {
+        let (pid, code, signal) = job.map_or((None, None, None), |j| {
+            let e = j.exit();
+            (e.pid, e.code, e.signal)
+        });
+        let mut found = self.env.studio_bad_exits();
+        let Some(i) = found.iter().rposition(|b| Some(b.note.pid) == pid).or(found.len().checked_sub(1)) else { return };
+        let bad = found.swap_remove(i);
+        self.show_studio_failure(&bad, code, signal);
+    }
+
+    /// The report window for `bad`.
+    pub fn show_studio_failure(&mut self, bad: &ob_core::studio_run::BadExit, code: Option<i32>, signal: Option<i32>) {
+        self.model.failure = Some(super::window::studio_failure(bad, code, signal));
+        self.model.failure_details = false;
+        self.model.support = None;
+        self.go(Screen::Failure);
+        self.ask_system_errors(bad.note.pid, &bad.note.exe);
     }
 
     /// The map editor's end: the page usable again, its map mods read
     /// again (the editor may have made or changed one). True when it ended.
     fn poll_editor(&mut self) -> bool {
         let Some(end) = self.editor_job.as_mut().and_then(|j| j.poll()) else { return false };
-        self.editor_job = None;
+        let job = self.editor_job.take();
         self.model.mods.editor = match end {
             Ok(()) => super::model::EditorRun::Closed,
             Err(e) => super::model::EditorRun::Failed(e),
         };
+        if self.model.mods.editor != super::model::EditorRun::Closed {
+            self.show_studio_crash(job.as_deref());
+        }
         self.refresh_mods();
         true
     }
@@ -4615,7 +4696,15 @@ impl<'e> App<'e> {
             (Screen::About, Event::Activate("notices")) => self.go(Screen::Notices),
             (Screen::Licence | Screen::Notices, Event::Activate("back") | Event::Back) => self.go(Screen::About),
             (Screen::Failure, Event::Activate("settings")) => self.go(Screen::Settings),
-            (Screen::Failure, Event::Back) => self.go(Screen::Main),
+            (Screen::Failure, Event::Back | Event::Activate("back")) => self.go(Screen::Main),
+            (Screen::Failure, Event::Activate("studio_again")) => {
+                self.open_studio(self.studio_last.clone());
+                self.go(Screen::Dev);
+            }
+            (Screen::Failure, Event::Activate("editor_again")) => {
+                self.open_editor(None);
+                self.go(Screen::Mods);
+            }
             (Screen::Failure, Event::Activate("retry")) => return Outcome::Play,
             (Screen::Failure, Event::Activate("details")) => self.model.failure_details = !self.model.failure_details,
             (Screen::Failure, Event::Activate("folder")) => match self.model.root.clone() {

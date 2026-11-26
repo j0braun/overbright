@@ -16,6 +16,7 @@ crates/ob-core/src/log_file.rs	2	the program's own data: settings, saves, logs, 
 crates/ob-core/src/platform/dirs.rs	3	the program's own data: settings, saves, logs, launcher state, the player's folders
 crates/ob-core/src/platform/vulkan.rs	2	system files (/proc, /sys, /dev, /etc)
 crates/ob-core/src/prof/mod.rs	6	system files (/proc, /sys, /dev, /etc) and the program's own files
+crates/ob-core/src/studio_run.rs	4	own data: the run notes and logs of Studio and the map editor
 crates/ob-formats/src/formats/magazines.rs	1	lists a game-folder directory to find a file's spelling (the layer answers no listing yet: open item of #74)
 crates/ob-formats/src/formats/texwizard.rs	7	the player's packs, mods and importers (user-chosen paths)
 crates/ob-formats/src/formats/zam.rs	1	lists a game-folder directory to find a file's spelling (the layer answers no listing yet: open item of #74)

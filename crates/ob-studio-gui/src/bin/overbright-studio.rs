@@ -214,7 +214,7 @@ fn new_studio(cli: &Cli) -> Result<Studio> {
 
 fn main() -> ExitCode {
     ob_core::console::attach();
-    let _ = env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).try_init();
+    let logger = || env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info"));
     if std::env::args().nth(1).as_deref() == Some("--version") {
         println!("{} studio (preview)", ob_core::build_info::version_line());
         return ExitCode::SUCCESS;
@@ -222,11 +222,23 @@ fn main() -> ExitCode {
     let cli = match parse(std::env::args().skip(1)) {
         Ok(c) => c,
         Err(e) => {
+            let _ = logger().try_init();
             ob_core::console::fatal(&format!("{e:#}"));
             return ExitCode::from(2);
         }
     };
+    // A window run keeps a log and a note that goes with a clean end (the launcher shows its crash report
+    // window for a note left behind); a picture does neither.
+    if cli.shot.is_none() {
+        let inner = logger().build();
+        let filter = inner.filter();
+        ob_core::studio_run::begin("Overbright Studio", Box::new(inner), filter);
+    } else {
+        let _ = logger().try_init();
+    }
     let r = if cli.shot.is_some() { run_shot(&cli) } else { window(cli) };
+    // Whatever returns here is an end the program chose (a quit, or an error it tells the player).
+    ob_core::studio_run::finish();
     match r {
         Ok(()) => ExitCode::SUCCESS,
         Err(e) => {
@@ -606,6 +618,8 @@ impl ApplicationHandler for Runner {
         let pads = self.poll_pads();
         let Some(w) = self.win.as_ref() else { return };
         let now = Instant::now();
+        // The run note names the mod open (name only).
+        ob_core::studio_run::set_open(self.studio.open_mod().map(|m| m.folder.as_str()));
         // The map editor's history: saving at quiet points, steps from other programs.
         if pads || self.studio.tick(now) {
             w.window.request_redraw();

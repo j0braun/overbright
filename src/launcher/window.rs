@@ -171,13 +171,57 @@ pub fn failure_of(e: &Ended) -> Failure {
         how: e.how(),
         tail: e.tail.clone(),
         log: e.log.clone(),
+        studio: None,
         report: Some(super::model::CrashReport {
+            program: "the game".into(),
             reason: e.reason(),
             pid: e.pid,
             secs: e.secs,
             errors: Vec::new(),
             asking: true,
             logs: crate::launcher::crash_report::run_logs(e.started_at),
+        }),
+    }
+}
+
+/// The failure screen's data for a Studio or map editor run that ended badly: what its note and log
+/// say, and how it ended when the launcher saw it (`code`, `signal`; None for both when it was found at
+/// the next start).
+pub fn studio_failure(bad: &ob_core::studio_run::BadExit, code: Option<i32>, signal: Option<i32>) -> Failure {
+    let panicked = bad.note.panic.is_some();
+    let program = if bad.note.program.contains("map editor") { "the map editor" } else { "Studio" };
+    let known = code.is_some() || signal.is_some();
+    let reason = if known || panicked {
+        super::crash_report::reason(code, signal, panicked)
+    } else {
+        "it ended without a clean quit (it crashed or was closed from outside; its end was not seen)".to_string()
+    };
+    let end = match (code, signal) {
+        (Some(c), _) => format!("exit code {c}"),
+        (None, Some(s)) => format!("signal {s}"),
+        (None, None) => "no end status (it was found at the next start)".into(),
+    };
+    let secs = bad.secs();
+    Failure {
+        kind: super::run::ErrorKind::Crash,
+        during_start: secs < super::run::START_SECS,
+        how: if panicked { format!("a crash (panic), {end}") } else { end },
+        tail: bad.log.as_deref().map(|l| ob_core::studio_run::tail_lines(l, 40)).unwrap_or_default(),
+        log: bad.log.clone(),
+        report: Some(super::model::CrashReport {
+            program: program.into(),
+            reason,
+            pid: bad.note.pid,
+            secs,
+            errors: Vec::new(),
+            asking: true,
+            logs: crate::launcher::crash_report::run_logs(bad.started_at()),
+        }),
+        studio: Some(super::model::StudioRun {
+            program: bad.note.program.clone(),
+            exe: bad.note.exe.clone(),
+            version: bad.note.version.clone(),
+            opened: bad.note.opened.clone(),
         }),
     }
 }
@@ -325,7 +369,7 @@ impl Run<'_> {
             eprintln!("overbright: showing the failure screen ({})", e.how());
             let f = failure_of(&e);
             self.show_failure(f);
-            self.app.ask_system_errors(e.pid);
+            self.app.ask_system_errors(e.pid, "game");
         } else {
             self.outcome = Outcome::Quit;
         }
@@ -1397,6 +1441,14 @@ pub fn run_with_root(env: &dyn Env, start: Start) -> Result<Outcome, String> {
     // A start without the own copy (and no "Not now" before): the copy is offered first, Make copy chosen.
     if start.screen == Screen::Main && app.model.failure.is_none() && !env.game_data_later() && app.offer_game_data() {
         app.rebuild(&fonts);
+    }
+    // A failure shown at the start (a bad end the launcher found, or the skip rule's): the system's record asked for.
+    if let Some(f) = app.model.failure.as_ref()
+        && let Some(r) = f.report.as_ref().filter(|r| r.asking)
+    {
+        let exe = f.studio.as_ref().map_or("game".to_string(), |s| s.exe.clone());
+        let pid = r.pid;
+        app.ask_system_errors(pid, &exe);
     }
     app.apply_prefs();
     app.st.input = deck::default_input();
