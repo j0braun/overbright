@@ -19,7 +19,7 @@ use std::collections::{HashMap, HashSet};
 use glam::{DVec2, Mat4, Vec2, Vec3};
 
 use super::*;
-use crate::formats::collision::{CollisionFace, FLAG_QUAD, FLAG_TALL, FLAG_WALL};
+use crate::formats::collision::{CollisionFace, CollisionPack, FLAG_QUAD, FLAG_TALL, FLAG_WALL};
 
 /// How far (metres, in the solid's space) a face's corner may stand outside
 /// the solid's box and still be the solid's own.
@@ -367,21 +367,10 @@ impl World {
         let mut per_pack: HashMap<usize, Vec<(CollisionFace, Vec<(usize, u16)>)>> = HashMap::new();
         for (k, f) in add.iter().enumerate() {
             let mut any = false;
-            let n = f.corners.clamp(3, 4);
-            let (xl, xh) = (f.x[..n].iter().min().map_or(0, |&v| v), f.x[..n].iter().max().map_or(0, |&v| v));
-            let (yl, yh) = (f.y[..n].iter().min().map_or(0, |&v| v), f.y[..n].iter().max().map_or(0, |&v| v));
-            let (xl, xh, yl, yh) = (xl as f64 / 8.0, xh as f64 / 8.0, yl as f64 / 8.0, yh as f64 / 8.0);
-            for (pi, g) in self.ground.grids().enumerate() {
-                // A grid the face's bounds miss lists it in no cell.
-                let (ox, oy) = (g.origin[0] as f64, g.origin[1] as f64);
-                if xh < ox || yh < oy || xl > ox + g.width as f64 * CELL || yl > oy + g.height as f64 * CELL {
-                    continue;
-                }
-                let cells = cells_of(f, g.origin, g.width, g.height);
-                if !cells.is_empty() {
-                    per_pack.entry(pi).or_default().push((*f, cells));
-                    any = true;
-                }
+            let grids: Vec<([f32; 2], u16, u16)> = self.ground.grids().map(|g| (g.origin, g.width, g.height)).collect();
+            for (pi, cells) in packs_of(f, &grids) {
+                per_pack.entry(pi).or_default().push((*f, cells));
+                any = true;
             }
             if !any {
                 done.outside += 1;
@@ -438,6 +427,108 @@ impl World {
         self.collision = Default::default();
         done
     }
+}
+
+/// Every pack that holds face `f`, with the cells and masks it takes there
+/// (`grids`: each pack's origin, width and height). A face on the edge
+/// between sections lies in the grids of every pack it reaches, so it is
+/// listed in each of them, as the original lists such a face in each
+/// section's pack.
+pub fn packs_of(f: &CollisionFace, grids: &[([f32; 2], u16, u16)]) -> Vec<(usize, Vec<(usize, u16)>)> {
+    let n = f.corners.clamp(3, 4);
+    let (xl, xh) = (f.x[..n].iter().min().map_or(0, |&v| v), f.x[..n].iter().max().map_or(0, |&v| v));
+    let (yl, yh) = (f.y[..n].iter().min().map_or(0, |&v| v), f.y[..n].iter().max().map_or(0, |&v| v));
+    let (xl, xh, yl, yh) = (xl as f64 / 8.0, xh as f64 / 8.0, yl as f64 / 8.0, yh as f64 / 8.0);
+    let mut out = Vec::new();
+    for (pi, &(origin, width, height)) in grids.iter().enumerate() {
+        // A grid the face's bounds miss lists it in no cell.
+        let (ox, oy) = (origin[0] as f64, origin[1] as f64);
+        if xh < ox || yh < oy || xl > ox + width as f64 * CELL || yl > oy + height as f64 * CELL {
+            continue;
+        }
+        let cells = cells_of(f, origin, width, height);
+        if !cells.is_empty() {
+            out.push((pi, cells));
+        }
+    }
+    out
+}
+
+/// What writing edited collision packs failed on.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum WriteError {
+    /// Two of the packs have the same section number: one would overwrite the other.
+    Duplicate(u16),
+    /// A pack's face or reference count would pass the format's u16 limit.
+    Full(u16),
+    /// A written pack does not read back as it was written.
+    ReadBack(u16),
+}
+
+impl std::fmt::Display for WriteError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            WriteError::Duplicate(s) => write!(f, "two collision packs are section {s}"),
+            WriteError::Full(s) => write!(f, "collision pack {s} is full"),
+            WriteError::ReadBack(s) => write!(f, "collision pack {s} does not read back as written"),
+        }
+    }
+}
+
+impl std::error::Error for WriteError {}
+
+/// The packs an edit touches, written: `base` are the original's packs,
+/// `cut` the faces taken out per pack (index into `base`, face index) and
+/// `add` the faces put in. Each new face goes into every pack that holds
+/// it ([`packs_of`]); the result is every touched pack's chunk bytes with
+/// its section number, in pack order. Each is parsed again and compared
+/// with what was written, and no two packs may share a section.
+pub fn write_edited_packs(
+    base: &[CollisionPack],
+    cut: &HashMap<usize, HashSet<u16>>,
+    add: &[CollisionFace],
+) -> Result<Vec<(u16, Vec<u8>)>, WriteError> {
+    let mut seen = HashSet::new();
+    for p in base {
+        if !seen.insert(p.section) {
+            return Err(WriteError::Duplicate(p.section));
+        }
+    }
+    let grids: Vec<([f32; 2], u16, u16)> = base.iter().map(|p| (p.origin, p.width, p.height)).collect();
+    let mut per_pack: HashMap<usize, Vec<(CollisionFace, Vec<(usize, u16)>)>> = HashMap::new();
+    for f in add {
+        for (pi, cells) in packs_of(f, &grids) {
+            per_pack.entry(pi).or_default().push((*f, cells));
+        }
+    }
+    let mut touched: Vec<usize> = cut.keys().chain(per_pack.keys()).copied().collect();
+    touched.sort_unstable();
+    touched.dedup();
+    let none = HashSet::new();
+    let mut out = Vec::new();
+    for pi in touched {
+        let Some(pack) = base.get(pi) else { continue };
+        let a = per_pack.remove(&pi).unwrap_or_default();
+        let (refs, cells) = crate::formats::collision::edit_cells(
+            &pack.cells,
+            &pack.refs,
+            pack.faces.len(),
+            cut.get(&pi).unwrap_or(&none),
+            &a,
+        )
+        .ok_or(WriteError::Full(pack.section))?;
+        let mut edited = pack.clone();
+        edited.refs = refs;
+        edited.cells = cells;
+        edited.faces.extend(a.iter().map(|(f, _)| crate::formats::collision::face_record(f)));
+        let bytes = edited.write();
+        let back = crate::formats::bundle::chunks(&bytes, 0).next().and_then(|c| CollisionPack::parse(c).ok());
+        if back.as_ref() != Some(&edited) {
+            return Err(WriteError::ReadBack(pack.section));
+        }
+        out.push((pack.section, bytes));
+    }
+    Ok(out)
 }
 
 /// A face's triangles as the load makes them (corners 0 1 2, then 0 2 3).

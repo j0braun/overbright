@@ -7,6 +7,12 @@ use ob_asset_format::modpack::{self, BaseId};
 use super::*;
 use crate::tools::map::{MapMod, PropEdit, PropRef};
 
+/// The mounted base, the mounted packs and the cache folder are process-wide: the tests that set them take turns.
+fn serial() -> std::sync::MutexGuard<'static, ()> {
+    static LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    LOCK.lock().unwrap_or_else(|e| e.into_inner())
+}
+
 fn scratch(tag: &str) -> PathBuf {
     let d = std::env::temp_dir().join(format!("ob-modpacks-{tag}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&d);
@@ -41,6 +47,7 @@ fn make(maps: &Path, folder: &str, m: &MapMod, texture: bool) {
 
 #[test]
 fn a_map_mod_becomes_a_pack_the_game_mounts() {
+    let _serial = serial();
     let home = scratch("home");
     crate::platform::dirs::set_thread_data_home(home.clone());
     let cache = scratch("cache");
@@ -109,6 +116,8 @@ fn a_map_mod_becomes_a_pack_the_game_mounts() {
 
 #[test]
 fn derived_textures_need_a_yes_and_keep_the_pack_local() {
+    let _serial = serial();
+    let _c = crate::cache::override_dir(scratch("derived_-cache"));
     let maps = scratch("derived");
     make(&maps, "m", &mov("M", 1.0), false);
     let out = scratch("derived-out");
@@ -126,6 +135,7 @@ fn derived_textures_need_a_yes_and_keep_the_pack_local() {
 
 #[test]
 fn look_inside_reads_a_pack_and_its_clashes_without_switching_anything_on() {
+    let _serial = serial();
     let home = scratch("in-home");
     crate::platform::dirs::set_thread_data_home(home.clone());
     let cache = scratch("in-cache");
@@ -206,6 +216,8 @@ fn unpack(file: &Path, into: &Path) {
 
 #[test]
 fn a_pack_holds_each_kind_as_its_own_file_and_reads_back_whole() {
+    let _serial = serial();
+    let _c = crate::cache::override_dir(scratch("a_pack_h-cache"));
     let maps = scratch("kinds");
     let m = full_mod();
     make(&maps, "full", &m, true);
@@ -251,6 +263,7 @@ fn a_pack_holds_each_kind_as_its_own_file_and_reads_back_whole() {
 
 #[test]
 fn an_older_pack_with_a_map_file_still_mounts_and_an_index_key_is_refused() {
+    let _serial = serial();
     let home = scratch("old-home");
     crate::platform::dirs::set_thread_data_home(home.clone());
     let cache = scratch("old-cache");
@@ -293,6 +306,8 @@ fn png(dir: &Path, rel: &str) {
 
 #[test]
 fn a_legacy_map_mod_folder_and_zip_convert_with_provenance() {
+    let _serial = serial();
+    let _c = crate::cache::override_dir(scratch("a_legacy-cache"));
     let maps = scratch("conv-maps");
     // A folder name that is not an id, as the old editor allowed.
     let src = scratch("conv-src");
@@ -329,6 +344,7 @@ fn a_legacy_map_mod_folder_and_zip_convert_with_provenance() {
 
 #[test]
 fn a_legacy_texture_pack_converts_to_overrides_the_game_reads() {
+    let _serial = serial();
     let home = scratch("tex-home");
     crate::platform::dirs::set_thread_data_home(home.clone());
     let cache = scratch("tex-cache");
@@ -382,6 +398,7 @@ fn a_legacy_texture_pack_converts_to_overrides_the_game_reads() {
 
 #[test]
 fn look_inside_shows_converted_provenance_and_an_old_map_obmap_pack() {
+    let _serial = serial();
     let home = scratch("inc-home");
     crate::platform::dirs::set_thread_data_home(home.clone());
     let cache = scratch("inc-cache");
