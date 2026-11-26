@@ -442,6 +442,9 @@ pub fn trial_saves() -> Option<PathBuf> {
     std::env::var_os(TRIAL_SAVES_VAR).filter(|d| !d.is_empty()).map(PathBuf::from)
 }
 
+/// The profiles' folder name (0x7F66A0 → 0x78E8F4; `frontend::profiles::FOLDER`).
+pub const PROFILES_FOLDER: &str = "NFS Underground 2";
+
 /// The profiles' parent ([`Layout::data_home`], or where the player put
 /// the saves: [`Location::Saves`]).
 pub fn data_home() -> PathBuf {

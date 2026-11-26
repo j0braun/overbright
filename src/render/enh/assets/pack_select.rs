@@ -8,20 +8,11 @@ use crate::upscale_pack::*;
 
 // ------------------------------------------------------------ the choice
 
-static CHOICE: AtomicU8 = AtomicU8::new(0);
+pub use crate::qol::pack_choice::{choice, set_choice};
 /// The adapter's dedicated memory in bytes (0 unknown) and whether it is an
 /// integrated / software adapter.
 static VRAM: AtomicU64 = AtomicU64::new(0);
 static SMALL: AtomicBool = AtomicBool::new(false);
-
-/// The World Texture Pack row's value (`qol::Enhancements::texture_pack`).
-pub fn set_choice(v: u8) {
-    CHOICE.store(v.min(2), Ordering::Relaxed);
-}
-
-pub fn choice() -> u8 {
-    CHOICE.load(Ordering::Relaxed)
-}
 
 /// The adapter (from `render::Gpu::new`): its memory, read from the DRM
 /// sysfs node with the same PCI vendor/device (amdgpu, i915/xe export

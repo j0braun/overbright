@@ -788,7 +788,7 @@ the clone does instead (`render::display`, `frontend::options`,
 
 Agreed deviations, each **opt-in**: with the defaults
 the clone behaves and renders as before (shots pixel-identical, bar the
-Display page's new last row). Code: `src/qol/` (`Enhancements`, `saves`,
+Display page's new last row). Code: `crates/ob-settings/src/qol/` (`Enhancements`, `saves`,
 `crash`, `setup`), `frontend::options` (rows, options.txt),
 `frontend::profiles::write_to`, `chase.rs`, `render::display::frame_cap`,
 `bin/game.rs` (`game_folder`, `overlay_quads`, `PerfOverlay`). Nothing here

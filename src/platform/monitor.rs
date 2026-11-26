@@ -15,11 +15,7 @@
 
 use winit::monitor::{MonitorHandle, VideoModeHandle};
 
-thread_local! {
-    /// Inside [`guarded`]: the panic hook stays quiet (no message, no
-    /// crash report: the caller logs one warning and goes on).
-    static GUARDED: std::cell::Cell<u32> = const { std::cell::Cell::new(0) };
-}
+pub use ob_core::platform::guard::in_guard;
 
 /// The panic hook in force, wrapped once so that a panic inside
 /// [`guarded`] prints nothing (a hook installed later, the crash
@@ -36,19 +32,11 @@ fn quiet_hook() {
     });
 }
 
-/// Whether the calling thread is inside [`guarded`] (the panic hooks
-/// say nothing then).
-pub fn in_guard() -> bool {
-    GUARDED.with(|g| g.get() > 0)
-}
-
 /// `f`, a call into winit's monitor API; None (with one warning naming
 /// `what`) when it panics.
 pub fn guarded<T>(what: &str, f: impl FnOnce() -> T) -> Option<T> {
     quiet_hook();
-    GUARDED.with(|g| g.set(g.get() + 1));
-    let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(f));
-    GUARDED.with(|g| g.set(g.get() - 1));
+    let r = ob_core::platform::guard::enter(|| std::panic::catch_unwind(std::panic::AssertUnwindSafe(f)));
     match r {
         Ok(v) => Some(v),
         Err(e) => {

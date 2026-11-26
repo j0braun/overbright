@@ -30,7 +30,7 @@ src/bin/game/shell/first_run.rs	2	the game-folder check (size and hash of key fi
 src/bin/game/sim/session/replay.rs	1	the program's own data: settings, saves, logs, launcher state, the player's folders
 src/cache/verify.rs	3	the asset cache, shader cache and cache verification (own data)
 src/diag/support.rs	15	system files (/proc, /sys, /dev, /etc) and the program's own files
-src/extras.rs	2	the player's packs, mods and importers (user-chosen paths)
+crates/ob-settings/src/extras.rs	2	the player's packs, mods and importers (user-chosen paths)
 src/frontend/career/triggers.rs	1	lists a game-folder directory to find a file's spelling (the layer answers no listing yet: open item of #74)
 src/frontend/enh/map_pack.rs	1	the player's packs, mods and importers (user-chosen paths)
 src/frontend/profiles/store.rs	6	the program's own data: settings, saves, logs, launcher state, the player's folders
@@ -61,10 +61,10 @@ src/obpack/index.rs	1	the player's packs, mods and importers (user-chosen paths)
 src/overlay/system/sources.rs	13	system files (/proc, /sys, /dev, /etc) and the program's own files
 src/pad/ff_out.rs	1	system files (/proc, /sys, /dev, /etc) and the program's own files
 src/pad/host.rs	1	a developer tool or an override folder from the environment
-src/qol/crash.rs	1	system files (/proc, /sys, /dev, /etc) and the program's own files
-src/qol/saves.rs	2	the program's own data: settings, saves, logs, launcher state, the player's folders
+crates/ob-settings/src/qol/crash.rs	1	system files (/proc, /sys, /dev, /etc) and the program's own files
+crates/ob-settings/src/qol/saves.rs	2	the program's own data: settings, saves, logs, launcher state, the player's folders
 src/qol/setup.rs	10	the game-folder check (size and hash of key files before an import); and the saved folder/pack/language choices
-src/qol/waits.rs	3	system files (/proc, /sys, /dev, /etc) and the program's own files
+crates/ob-settings/src/qol/waits.rs	3	system files (/proc, /sys, /dev, /etc) and the program's own files
 src/render/core/pipeline_cache.rs	1	the asset cache, shader cache and cache verification (own data)
 src/render/enh/assets/hd_ui.rs	4	the player's packs, mods and importers (user-chosen paths)
 src/render/enh/assets/pack_reload/watch.rs	4	the player's packs, mods and importers (user-chosen paths)

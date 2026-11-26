@@ -5,6 +5,9 @@
 
 use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 
+/// The keys the Mark Spot Key row offers (index 1..; 0 = Off).
+pub const MARK_KEYS: [&str; 5] = ["Off", "F9", "F10", "F11", "F12"];
+
 /// HUD element scale steps, percent (100 native).
 pub const ELEMENT_STEPS: [u8; 7] = [70, 80, 90, 100, 115, 130, 150];
 
@@ -39,7 +42,7 @@ pub struct Extras {
     /// uncapped).
     pub power_saving: u8,
     /// Mark Spot Key (docs/playing/mark-spot.md): 0 Off (native), else the key
-    /// `crate::mark_spot::KEYS[n]` writes a mark-this-spot report.
+    /// `MARK_KEYS[n]` writes a mark-this-spot report.
     pub mark_spot: u8,
 }
 
@@ -75,7 +78,7 @@ impl Extras {
             v.push(format!("power saving {}", POWER_NAMES[usize::from(self.power_saving.min(2))]));
         }
         if self.mark_spot != 0 {
-            v.push(format!("mark spot {}", crate::mark_spot::KEYS[usize::from(self.mark_spot).min(crate::mark_spot::KEYS.len() - 1)]));
+            v.push(format!("mark spot {}", MARK_KEYS[usize::from(self.mark_spot).min(MARK_KEYS.len() - 1)]));
         }
     }
 
@@ -137,7 +140,7 @@ impl Extras {
                     self.power_saving = v.saturating_sub(1);
                 }
             }
-            "enh.mark_spot" => self.mark_spot = value.parse::<u8>().map_or(self.mark_spot, |v| v.min(crate::mark_spot::KEYS.len() as u8 - 1)),
+            "enh.mark_spot" => self.mark_spot = value.parse::<u8>().map_or(self.mark_spot, |v| v.min(MARK_KEYS.len() as u8 - 1)),
             _ => return false,
         }
         true
@@ -349,7 +352,7 @@ pub const FLASH_ALPHA: f32 = 0.25;
 
 /// Reduced Flashing: the NIS SCREEN_FLASH's amount is held to this
 /// (the tint pass then brightens by × 1.25 instead of × 1.99,
-/// [`crate::screen_flash`]).
+/// `screen_flash`).
 pub const FLASH_AMOUNT: f32 = 0.25;
 
 pub fn reduce_flashes(quads: &mut [crate::draw::quad::Quad]) {

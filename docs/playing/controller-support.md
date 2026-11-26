@@ -149,7 +149,7 @@ nothing), and a third pad is taken when one of the first two is unplugged (befor
 
 The rest of this page is for developers. The original's pad model and addresses are in
 [formats.md](../formats.md) **Gamepads and joysticks**. Code: `src/pad.rs` (the original's logic),
-`src/pad/host.rs` (gilrs and the scripted pad), `src/pad/extras.rs` (the optional settings), game.rs
+`src/pad/host.rs` (gilrs and the scripted pad), `crates/ob-settings/src/pad/extras.rs` (the optional settings), game.rs
 `pad_frame` / `controls`. Detection and hot-plug use gilrs, with the SDL_GameControllerDB built in and its
 filters off.
 

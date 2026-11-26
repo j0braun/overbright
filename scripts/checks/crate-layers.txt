@@ -6,10 +6,10 @@
 crate ob-core crates/ob-core/src
 crate ob-formats crates/ob-formats/src
 crate ob-map crates/ob-map/src
+crate ob-settings crates/ob-settings/src
 # The middle layers (settings, assets, simulation, audio, render, menus) are still modules of the library; the
 # check keeps their references pointing down until they move into crates of their own. Audio, render and the
 # menus are listed in a line (audio, then render, then the menus), so a reference up that line is refused too.
-crate ob-settings src
 crate ob-assets src
 crate ob-sim src
 crate ob-audio src
@@ -57,6 +57,9 @@ tools::map::store ob-map
 
 # The middle layers' modules (everything not listed here and not below is the top layer).
 qol ob-settings
+qol::setup ob-assets
+qol::tests nfsu2
+pad::extras ob-settings
 world ob-assets
 car ob-assets
 character ob-assets
@@ -112,7 +115,7 @@ event_camera ob-sim
 difficulty ob-sim
 dyno ob-sim
 latency ob-sim
-extras ob-sim
+extras ob-settings
 replay_cams ob-sim
 racer_reset ob-sim
 interpolate ob-sim
@@ -166,6 +169,7 @@ package ob-look
 package ob-formats
 package ob-asset-format
 package ob-map
+package ob-settings
 package nfsu2
 package ob-studio
 package ob-studio-gui
@@ -176,6 +180,7 @@ forbid ob-core wgpu winit cpal egui
 forbid ob-formats wgpu winit cpal egui
 forbid ob-asset-format wgpu winit cpal egui
 forbid ob-map wgpu winit cpal egui
+forbid ob-settings winit cpal egui
 forbid ob-look wgpu winit cpal egui
 forbid nfsu2 egui
 forbid ob-studio egui

@@ -7,8 +7,8 @@ pub const HDR_PAPER_STEPS: [u16; 8] = [80, 100, 120, 160, 203, 250, 300, 400];
 
 /// The HDR signal the window's surface offers (set at window creation;
 /// None headless and on SDR-only surfaces).
-pub fn set_hdr_output_support(signal: Option<crate::render::hdr_output::Signal>) {
-    use crate::render::hdr_output::Signal;
+pub fn set_hdr_output_support(signal: Option<super::hdr_output::Signal>) {
+    use super::hdr_output::Signal;
     let signal = match signal {
         None => 0,
         Some(Signal::Pq) => 1,
@@ -17,8 +17,8 @@ pub fn set_hdr_output_support(signal: Option<crate::render::hdr_output::Signal>)
     change(|s| s.hdr_signal = signal);
 }
 
-pub fn hdr_output_signal() -> Option<crate::render::hdr_output::Signal> {
-    use crate::render::hdr_output::Signal;
+pub fn hdr_output_signal() -> Option<super::hdr_output::Signal> {
+    use super::hdr_output::Signal;
     match read(|s| s.hdr_signal) {
         1 => Some(Signal::Pq),
         2 => Some(Signal::ScRgb),
@@ -50,8 +50,8 @@ pub fn set_hdr_pattern(rect: Option<[f32; 4]>) {
 
 /// The display transform's calibration in force (Auto: the display's
 /// values, else the defaults).
-pub fn hdr_calibration() -> crate::render::hdr_output::Calibration {
-    use crate::render::hdr_output::{Calibration, DEFAULT_PAPER, DEFAULT_PEAK, Transfer};
+pub fn hdr_calibration() -> super::hdr_output::Calibration {
+    use super::hdr_output::{Calibration, DEFAULT_PAPER, DEFAULT_PEAK, Transfer};
     let pick = |set: u16, reported: u16, default: f32| {
         if set != 0 {
             f32::from(set)

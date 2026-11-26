@@ -235,7 +235,7 @@ shows a busy line and greys the actions meanwhile; the page takes no input while
 
 **Prerequisites, in the library**
 - `launcher.skip` (bool, native off): a row of the option table
-  (`qol/enhancements.rs`, `presets keep`, write rank 70, no deviation, no
+  (`crates/ob-settings/src/qol/enhancements.rs`, `presets keep`, write rank 70, no deviation, no
   apply). options.txt dispatches `launcher.*` keys to it
   (`frontend/settings/options_txt.rs`), so the game, which rewrites
   options.txt from its model, keeps the line. Restore Native leaves it.

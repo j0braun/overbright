@@ -474,7 +474,7 @@ impl World {
     /// of the region's XO_DYNOROLLERA_1A_01 (0x56D060: the model by its
     /// name hash, 0x637DC0), in the always-drawn section and hidden.
     fn add_dyno_rollers(&mut self) {
-        let Some(&solid) = self.solid_by_hash.get(&bin_hash(crate::dyno::ROLLER_MODEL)) else { return };
+        let Some(&solid) = self.solid_by_hash.get(&bin_hash(crate::world::DYNO_ROLLER_MODEL)) else { return };
         if self.solids[solid].indices.is_empty() {
             return;
         }

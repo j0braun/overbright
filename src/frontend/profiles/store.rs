@@ -6,8 +6,7 @@ use super::current::*;
 use super::sanitize;
 use crate::formats::native_save::NativeSave;
 
-/// The folder name (0x7F66A0 → 0x78E8F4).
-pub const FOLDER: &str = "NFS Underground 2";
+pub use crate::platform::dirs::PROFILES_FOLDER as FOLDER;
 
 /// The clone's %LOCALAPPDATA%: `platform::dirs::data_home` (Linux: the
 /// XDG data directory; a test thread's sandbox when it is in one).

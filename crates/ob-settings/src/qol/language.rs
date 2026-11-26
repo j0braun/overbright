@@ -1,6 +1,6 @@
 //! The text languages the engine can show: the default, a language's file
 //! and what the engine can do with it. Pure, so the settings layer can ask
-//! (re-exported by [`crate::game_assets`]).
+//! (re-exported by `game_assets`).
 
 /// The language whose text file the game loads when nothing else is
 /// chosen (`LANGUAGES/English.bin`).

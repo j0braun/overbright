@@ -10,8 +10,53 @@
 //! the frame rate. The rumble model ([`Rumble`]) runs on the world's
 //! fixed 1/60 s ticks.
 
-use super::host::{Family, PadInputs};
 use std::sync::atomic::{AtomicU8, Ordering};
+
+/// A standard pad's inputs (gilrs's layout).
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct PadInputs {
+    /// Left x, left y (up +), right x, right y (up +), −1..1.
+    pub sticks: [f32; 4],
+    /// Left / right analog triggers, 0..1.
+    pub triggers: [f32; 2],
+    /// The raw Z and Rz axes, −1..1 (a wheel's pedals; gilrs's LeftZ /
+    /// RightZ).
+    pub z: [f32; 2],
+    /// By `pad::host::Btn`.
+    pub buttons: [bool; 17],
+}
+
+/// A pad's family, for the button names the UI shows (Modern layout).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Family {
+    Xbox,
+    PlayStation,
+    Nintendo,
+    Other,
+}
+
+impl Family {
+    pub fn for_vendor(vid: u16) -> Family {
+        match vid {
+            0x045E => Family::Xbox,
+            0x054C => Family::PlayStation,
+            0x057E => Family::Nintendo,
+            // Steam Input's virtual pads and the Deck are Xbox-labelled.
+            0x28DE => Family::Xbox,
+            _ => Family::Other,
+        }
+    }
+
+    /// The face button names, South East West North, then Start.
+    pub fn names(self) -> [&'static str; 5] {
+        match self {
+            Family::Xbox | Family::Other => ["A", "B", "X", "Y", "Start"],
+            Family::PlayStation => ["Cross", "Circle", "Square", "Triangle", "Options"],
+            // Nintendo's labels sit on the other positions: East is A.
+            Family::Nintendo => ["B", "A", "Y", "X", "+"],
+        }
+    }
+}
 
 /// The device the help texts name (Controller Layout Modern): 0 the
 /// keyboard (native), else 1 + the [`Family`] of the pad used last.
@@ -55,26 +100,26 @@ pub const LAYOUT_STEPS: [u8; 3] = [LAYOUT_AUTO, LAYOUT_MODERN, LAYOUT_ORIGINAL];
 /// What the attached pads resolved to (the hub's "Auto (Modern)" and the
 /// deviations list): bit 0 a pad presented as Original, bit 1 one as
 /// Modern; 0 no pad.
-/// (Per thread in the library's tests, which run in parallel.)
-#[cfg(not(test))]
 static RESOLVED: AtomicU8 = AtomicU8::new(0);
-#[cfg(test)]
-thread_local!(static RESOLVED_T: AtomicU8 = const { AtomicU8::new(0) });
+thread_local!(static RESOLVED_HERE: std::cell::Cell<Option<u8>> = const { std::cell::Cell::new(None) });
+
+fn resolved_bits(original: bool, modern: bool) -> u8 {
+    u8::from(original) | (u8::from(modern) << 1)
+}
 
 pub fn set_resolved(original: bool, modern: bool) {
-    let v = u8::from(original) | (u8::from(modern) << 1);
-    #[cfg(not(test))]
-    RESOLVED.store(v, Ordering::Relaxed);
-    #[cfg(test)]
-    RESOLVED_T.with(|r| r.store(v, Ordering::Relaxed));
+    RESOLVED.store(resolved_bits(original, modern), Ordering::Relaxed);
+}
+
+/// Test isolation (the library's tests run in parallel): [`resolved`] on this
+/// thread answers this value, whatever [`set_resolved`] stored. Not used outside tests.
+pub fn set_resolved_on_this_thread(original: bool, modern: bool) {
+    RESOLVED_HERE.with(|r| r.set(Some(resolved_bits(original, modern))));
 }
 
 /// (a pad is presented as Original, one as Modern).
 pub fn resolved() -> (bool, bool) {
-    #[cfg(not(test))]
-    let v = RESOLVED.load(Ordering::Relaxed);
-    #[cfg(test)]
-    let v = RESOLVED_T.with(|r| r.load(Ordering::Relaxed));
+    let v = RESOLVED_HERE.with(std::cell::Cell::get).unwrap_or_else(|| RESOLVED.load(Ordering::Relaxed));
     (v & 1 != 0, v & 2 != 0)
 }
 /// Stick dead zone steps, percent of the travel (0 native).
@@ -438,13 +483,13 @@ mod tests {
         assert_eq!(o, "enh.pad_layout 0\n");
         // Auto is a deviation only while it makes a pad Modern.
         let mut v = Vec::new();
-        set_resolved(true, false);
+        set_resolved_on_this_thread(true, false);
         d.deviations(&mut v);
         assert!(v.is_empty());
-        set_resolved(false, true);
+        set_resolved_on_this_thread(false, true);
         d.deviations(&mut v);
         assert_eq!(v, ["modern controller layout"]);
-        set_resolved(false, false);
+        set_resolved_on_this_thread(false, false);
         assert!(PadOptions::default().modern_for(true, false) && !PadOptions::default().modern_for(false, false) && !PadOptions::default().modern_for(true, true));
         assert!(PadOptions { layout: LAYOUT_MODERN, ..d }.modern_for(false, true) && !PadOptions { layout: LAYOUT_ORIGINAL, ..d }.modern_for(true, false));
         let e = PadOptions { layout: 1, deadzone: 10, trigger_deadzone: 5, saturation: 90, steer_curve: 150, rumble: 70, pause_on_disconnect: true, safe_bind: true, sticks_quit: true };

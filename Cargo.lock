@@ -1783,6 +1783,7 @@ dependencies = [
  "ob-formats",
  "ob-look",
  "ob-map",
+ "ob-settings",
  "ob-testkit",
  "pollster 0.4.0",
  "profiling",
@@ -1939,6 +1940,19 @@ dependencies = [
  "serde",
  "serde_json",
  "toml",
+]
+
+[[package]]
+name = "ob-settings"
+version = "0.6.3"
+dependencies = [
+ "env_logger",
+ "glam",
+ "log",
+ "ob-core",
+ "ob-formats",
+ "ob-testkit",
+ "wgpu",
 ]
 
 [[package]]

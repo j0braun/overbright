@@ -68,7 +68,7 @@ HDR Output and Motion Blur stay (an output choice and the original's own setting
 Original; Enhanced lists 9 graphics rows and scrolls (the UI_Options package has room for 7 rows plus the 4-line
 detail).
 
-**The levels** are data (`src/qol/levels.rs`), the same on every GPU class. A level sets every value the presets
+**The levels** are data (`crates/ob-settings/src/qol/levels.rs`), the same on every GPU class. A level sets every value the presets
 reset except the main page's choices (Upscaling and Render Scale; Anti-Aliasing with MSAA / filter / sharpening;
 Motion Blur; Rain on the Lens; the two ray-traced tiers), which stay and are not compared:
 

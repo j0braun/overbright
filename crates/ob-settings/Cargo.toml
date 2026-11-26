@@ -1,0 +1,26 @@
+[package]
+name = "ob-settings"
+version.workspace = true
+edition.workspace = true
+description = "Overbright's settings layer: the settings store and option table, the extras' and pad options."
+license.workspace = true
+publish = false
+build = "build.rs"
+
+# The settings store (`qol`), the extras' and the pad's options. On ob-core and ob-formats only; no window or audio
+# crate (the GPU's adapter facts are read through wgpu's plain types), checked by scripts/checks/crate_layers.sh.
+[dependencies]
+ob-core = { path = "../ob-core" }
+ob-formats = { path = "../ob-formats" }
+env_logger.workspace = true
+glam.workspace = true
+log.workspace = true
+wgpu.workspace = true
+
+[dev-dependencies]
+# The test kit (crates/ob-testkit, docs/developing/testing.md).
+ob-testkit = { path = "../ob-testkit" }
+
+[features]
+# The developer harness's hooks (the root package's `dev-harness` turns it on).
+dev-harness = ["ob-core/dev-harness", "ob-formats/dev-harness"]

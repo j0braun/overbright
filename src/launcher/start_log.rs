@@ -178,7 +178,7 @@ pub fn panic_message() -> Option<String> {
 pub fn install_panic_hook() {
     let default = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |info| {
-        if crate::platform::monitor::in_guard() {
+        if crate::platform::guard::in_guard() {
             return;
         }
         default(info);
