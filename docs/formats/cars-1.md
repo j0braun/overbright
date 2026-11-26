@@ -3084,8 +3084,9 @@ The game's world collision step (0x5FFA60) runs after the cars have moved.
     `XECS_SOLID_WALL`, CAR `XECI_CAR`; event 6 (closing speed,
     +0x90/+0x94): ROAD and SOLID_WALL `XECS_SOLID_WALL`, GRASS, WOOD,
     PLASTIC and GLASS as for 5; other surfaces none (events 0–4 are the
-    tyre groups, e.g. `XETT_ROAD_SK`; no direct call posts them, since the
-    only callers of 0x5DC4D0 push 6 (0x5A9804) and 5 (0x5A9890)). A track
+    tyre groups, e.g. `XETT_ROAD_SK`; 0x5DC4D0's only callers push 6
+    (0x5A9804) and 5 (0x5A9890); events 0–4 are fired by each car's update
+    through 0x61FB10 kinds 1–5, see "Car ground effects" below). A track
     loader (0x615CD0) also
     registers placed emitters of types 1–5 into rows 0–4 by their surface.
     The thresholds and groups (0x800EE0 + 0x98·s, event 5 +0x80/+0x84/+0x88,
@@ -3276,19 +3277,66 @@ The game's world collision step (0x5FFA60) runs after the cars have moved.
       reaches 0x436050. The disassembly has 315 indirect calls through
       `[reg+0x18]`; none is yet tied to this vtable.
       0x436050 calls 0x4335C0 and 0x434B00 directly. The list is the
-      XECH_FLAG_GIRL_FLARE group (0x439780); which code posts the tyre
-      groups below stays **open**.
+      XECH_FLAG_GIRL_FLARE group (0x439780). The tyre groups below are
+      fired by each car's update 0x5F5740 ("Car ground effects", below).
       The binary holds six surface pairs, `XETT_{GRASS,DEEPWATER,PUDDLE,
       RRCSSW,DIRTRD,ROAD}_{SK,SP}`, at 0x7A48D8 to 0x7A4B20, and the block also holds `_DR`
       and `_DRSL` names. No code operand in the disassembly points into the
       block (the only nearby one is a float at 0x7A4824), and REA finds no
-      xref to 0x7A48E8. But the .data section holds 4-byte pointers to every
-      name (VAs 0x800FBC to 0x801830); what reads them is **open**. The twelve
-      bin_hash values (h × 33 + c, seed 0xFFFFFFFF) occur neither as immediates
-      in the code nor as 32-bit words in the EXE. The clone's surface table (`particles.rs`, lines 627-649)
-      is its own choice. The tyre
+      xref to 0x7A48E8. The .data section's 4-byte pointers to every name
+      (VAs 0x800FBC to 0x801830) are the surface table's event names (0x800EE0
+      + 0x98·s, +0x44 + 0xC·event), which 0x5E0630 hashes at run time (the
+      hashes are therefore in no instruction). The tyre
       object's dword +0x34 picks a branch by its bit 0x40 (0x434B00, `je` at
       0x434B5D; verified by disassembly); the rest of 0x434B00 is **open**.
+    * **Car ground effects** (**verified** 2026-11-26: REA decompile of
+      0x5F5740, 0x61FB10, 0x615CD0; disassembly 0x5F57D0..0x5F5DBB and the
+      marker fill 0x639118..0x6395A0; `particles::GroundFx`,
+      `Effects::ground_effects`). Each car's update 0x5F5740 (called from the
+      world update 0x60A205 after the particle update, with the distance
+      0x5F1170 from the listener, only under 150 m, 0x7A5498) first fires the
+      car effect kinds 1–5 through 0x61FB10. For kinds 1–5 0x615CD0 takes the
+      surface table's list, [0x883E68] − 0xE8 + (kind · 29 + surface) · 8,
+      that is event kind − 1 of the surface (0 `_DR` / `_DRSL`, 1 `_DR`, 2
+      `_SK`, 3 `_SP`, 4 `XEBO_`), the named group's GLOBALB templates cloned
+      (0x48B8B0), each keeping its own axes. Per wheel on the ground (+0x390 +
+      i; FL FR RR RL) on its surface (+0x394 + 4i), with the exported pair
+      +0x3B4 + 8i (slip along, 0 while gripping; speed across):
+      - **Skid** (kind 3, event 2, e.g. `XETT_ROAD_SK` 5..40): the pair's
+        length past the low end times the wheel's skid time ramp — the time
+        (+0x99C + 4i, the game clock's step summed; reset when the length is
+        not past the low end or the car is 150 m away) under 0.15 s ×0, 0.7
+        ×0.25, 2 ×0.5, 4 ×0.75, else ×1 — clamped 0..1 (kept at +0x3E4 + 4i).
+        Velocity: with the wheel turning (+0x330 + 4i ≠ 0) the car's x axis
+        × 50 · intensity against the turn (0x441000 on +0xD0), else the car's.
+      - **Wheel spin** (kind 4, event 3, `XETT_ROAD_SP` 2..200): rear wheels
+        only (the parameters 0x50000 / 0x60000 skipped), under 40 m, the
+        exported slip itself (signed) past the low end; velocity = the
+        wheel's matrix (+0x130 + 0x40·i) × (slip, across, 0) + the car's.
+      - Both burst at the wheel's own marker: 0x61FB10 hands the parameter's
+        high word (5 + wheel) as the marker group.
+      With three wheels down or more: the surface under the centre of mass
+      (0x5E72F0 on +0x60), the speed in mph (+0x430 × 2.237): kind 1 (event
+      0) and kind 2 (event 1) by their ranges, and when the two sum past 1
+      the one with the higher low end loses twice the excess; kind 5 (event
+      4, ROAD 1..2) by the bump stops' sum (+0x370..+0x37C) — the landing's
+      sparks, flash and smoke (`XEBO_ROAD`). Kinds 1, 2 and 5 stand at the
+      car's origin (+0x50, +0xD0) with the car's velocity and the
+      description's own marker group (+0x5C); kinds 3 and 4 at the centre of
+      mass (+0x60, +0x90). The markers (render +0x548 + 8·group, filed by
+      0x639118..0x6395A0 from the ride's wheel positions, 0x5B5360(1)
+      +0x10 + 0x30·i, flag bits cleared): 0 the origin, 1 the front axle's
+      middle, 2 the rear's, 3 the FL–RL side's, 4 the FR–RR side's, 5..8 each
+      wheel. Each emitter bursts −intensity (0x491E50: 1 + ⌊intensity ·
+      rate⌋ particles), every update: `XETT_RoadSk_SmkA` / `XETT_RoadSp_SmkA`
+      (rate 1, life 4 s) give 1 particle a wheel and update, 2 at full
+      intensity. The rows (event: group lo..hi): ROAD/ROAD_WET/ROAD_DRIFT/
+      ROAD_BRIDGE 0 `XETT_ROAD_DR` (no description) 20..100, 2 `_SK` 5..40,
+      3 `_SP` 2..200, 4 `XEBO_ROAD` 1..2; PUDDLE 0 `XETT_PUDDLE_DRSL` 3..30,
+      1 `_DR` 35..100; DEEP_WATER likewise with `XETT_DEEPWATER_*` (all
+      rows: `particles::SURFACE_EVENTS`). No shipped track has PUDDLE or
+      ROAD_WET faces; Bayview (L4RA / L4RD) has four DEEP_WATER floors near
+      (−930, 375): the only drive spray of the original, rain or not.
     * **Emitter draws** (verified by the decompile of 0x491E50 and the
       operands of its `_ftol` calls, 0x75BED4, unless marked):
       - Seed: an emitter with +0x24 = 0 takes the global state 0x7F3940

@@ -84,6 +84,9 @@ mod map_widget;
 mod env_ticks;
 // The enhancement effects on ticks.
 mod tick_effects;
+// The cars' ground effects (tyre smoke, spray, bottom-out).
+#[cfg(test)]
+mod ground_effects;
 // The fog's and the rain's faster passes against their plain forms.
 #[cfg(test)]
 mod fog_rain_paths;

@@ -121,31 +121,3 @@ pub fn burst(system: &mut System, library: &Library, b: &Burst, seed: &mut Rng) 
         system.emit(library, &mut e, -b.share);
     }
 }
-
-/// The tyres' groups by surface (the table's events 0–4 at +0x44..+0x74:
-/// 0 `_DRSL`, 1 `_DR`, 2 `_SK`, 3 `_SP`, 4 the `XEBO_` bottom-out): event 2
-/// (`skid`) or 3 (wheelspin). Groups no description carries (the
-/// `XEM_ROADSK*` colours, puddle and deep-water skids) spawn nothing.
-/// **Inferred**: which wheel state posts which event and how much (the
-/// tyre effect driver is not traced; the clone emits a sliding wheel's
-/// slip speed × dt, `_SK` when it slides more sideways than along).
-pub fn tyre_group(surface: u8, skid: bool) -> Option<&'static str> {
-    Some(match (surface, skid) {
-        (1 | 2 | 3 | 7, true) => "XETT_ROAD_SK",
-        (1 | 2 | 3 | 7, false) => "XETT_ROAD_SP",
-        (4, true) => "XEM_ROADSKBLUE",
-        (5, true) => "XEM_ROADSKYELW",
-        (6, true) => "XEM_ROADSKRED",
-        (8 | 9, true) => "XETT_DIRTRD_SK",
-        (8 | 9, false) => "XETT_DIRTRD_SP",
-        (10 | 11 | 12 | 16, true) => "XETT_RRCSSW_SK",
-        (10 | 11 | 12 | 16, false) => "XETT_RRCSSW_SP",
-        (13, true) => "XETT_PUDDLE_SK",
-        (13, false) => "XETT_PUDDLE_SP",
-        (14, true) => "XETT_DEEPWATER_SK",
-        (14, false) => "XETT_DEEPWATER_SP",
-        (15, true) => "XETT_GRASS_SK",
-        (15, false) => "XETT_GRASS_SP",
-        _ => return None,
-    })
-}
