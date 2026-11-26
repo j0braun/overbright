@@ -64,7 +64,7 @@ The editor's keys work as in its own window (Q W E tools, Ctrl+Z / Ctrl+Y, F5 Te
 RMB + WASD to fly). While the view, the tree or the bottom dock has focus, Enter, Esc, Tab and the arrows are the
 editor's; F6 and the pad's triggers still move between areas. The pad's L4 / R4 (Deck) undo and redo, the Menu
 button tests the race. Studio keeps a few keys for itself: Ctrl+D opens Changes (the editor's Duplicate is in Edit
-and the prop menu) and Ctrl+N opens Studio's New mod dialog.
+and the prop menu), Ctrl+G opens Data and Ctrl+N opens Studio's New mod dialog.
 
 ## Home
 
@@ -200,6 +200,27 @@ leaves room for.
 Runs only reads the files (and keeps, renames or deletes them). Driving a route to record it, telemetry to a port
 and a race from a driven line are not in it yet.
 
+## Data
+
+Ctrl+G (or `ob://<mod id>/@data`) opens the Data page over World; Esc goes back. It shows one kind of record at a
+time as a table: **Props** (the props the mod moves, hides or adds) or **Races**. The columns are the kind's
+schema (`ob_studio::data`: the same fields the file check and the inspector use); the rows are the Changes rows, so
+each cell carries the same mark (ring: the original game's, lime dot: yours, pink diamond: another mod's) and a
+value of yours shows "was" and the original beside it. A mod's value is an overlay on the original's: the table
+holds only what the mod gives.
+
+- **Sort.** Click a header, or ↑ to the header, ← → to a column and Enter (A): up, then down, then off.
+- **Search** narrows the rows to those with the words in any cell.
+- **Edit.** ↑ ↓ ← → (the D-pad) move between cells. Enter (A) edits a cell, Enter keeps it, Esc (B) leaves it. A
+  yes / no cell flips at once. Each edit is one undo step of the mod's history, named as the editor names it
+  ("Laps 4"), and Ctrl+Z takes it back; the same op runs from the editor, the command line and agents. A value the
+  format refuses leaves the mod as it was and says why.
+- **In Changes** on the focused row opens that row's entry on the Changes page.
+
+Races can be edited at any time (Name, Race type, Base track, Laps, Backward); a race's checkpoints are shown by
+their count and a prop's Object is shown only: those columns cannot be written here yet. A prop's Position, Heading
+and Hidden are edited while World has the mod open (they need the city loaded); without it the page says so.
+
 ## The Mod page
 
 Ctrl+0 (SHARE ▸ Mod, `ob://<mod id>/@mod`) shows the open mod as you share it:
@@ -262,6 +283,7 @@ letters are the tools' keys and typing here (the launcher keeps Q E, Space and R
 | Sticks | Right mouse button + WASD | Move and look in the 3D view |
 | Deck L4 R4 | Ctrl+Z, Ctrl+Y | Undo, redo |
 | – | Ctrl+D | Changes |
+| – | Ctrl+G | Data |
 | – | Ctrl+N | New mod |
 | – (Home's card) | F1 | The tutorial's step; starts the tutorial |
 

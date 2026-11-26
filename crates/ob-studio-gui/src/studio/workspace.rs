@@ -18,6 +18,8 @@ pub enum Workspace {
     Settings,
     /// The Changes page (Ctrl+D): not on the rail; it opens over World and goes back to where it was opened.
     Changes,
+    /// The Data page (Ctrl+G): not on the rail either; it opens over World and goes back to where it was opened.
+    Data,
 }
 
 /// Where a workspace sits on the rail.
@@ -65,6 +67,7 @@ impl Workspace {
             Workspace::Mod => "Mod",
             Workspace::Settings => "Settings",
             Workspace::Changes => "Changes",
+            Workspace::Data => "Data",
         }
     }
 
@@ -79,6 +82,7 @@ impl Workspace {
             Workspace::Mod => "0",
             Workspace::Settings => ",",
             Workspace::Changes => "D",
+            Workspace::Data => "G",
         }
     }
 
@@ -91,6 +95,7 @@ impl Workspace {
             Workspace::Browser => "Find the game's models and textures by name, and where each is used",
             Workspace::Runs => "Play a recorded run back, read its telemetry, compare two runs",
             Workspace::Changes => "Everything your mod changes, and which mod wins",
+            Workspace::Data => "Your props and races as a table: sort, search, edit a cell",
             Workspace::Mod => "Its details, whether it is ready to share, and Export",
             Workspace::Settings => "Studio's own settings",
         }
@@ -99,9 +104,12 @@ impl Workspace {
     pub fn section(self) -> Section {
         match self {
             Workspace::Home => Section::Top,
-            Workspace::World | Workspace::Races | Workspace::Browser | Workspace::Runs | Workspace::Changes => {
-                Section::Make
-            }
+            Workspace::World
+                | Workspace::Races
+                | Workspace::Browser
+                | Workspace::Runs
+                | Workspace::Changes
+                | Workspace::Data => Section::Make,
             Workspace::Mod => Section::Share,
             Workspace::Settings => Section::Bottom,
         }
@@ -125,6 +133,7 @@ impl Workspace {
             Workspace::Mod => "@mod",
             Workspace::Settings => "@settings",
             Workspace::Changes => "@changes",
+            Workspace::Data => "@data",
         }
     }
 
@@ -133,12 +142,12 @@ impl Workspace {
     }
 
     /// The pages that are not on the rail (opened by key, address or a button).
-    pub const PAGES: [Workspace; 1] = [Workspace::Changes];
+    pub const PAGES: [Workspace; 2] = [Workspace::Changes, Workspace::Data];
 
     /// The rail's entry that shows as current while this is open (Changes: World).
     pub fn on_rail(self) -> Workspace {
         match self {
-            Workspace::Changes => Workspace::World,
+            Workspace::Changes | Workspace::Data => Workspace::World,
             w => w,
         }
     }

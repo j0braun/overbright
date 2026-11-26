@@ -22,6 +22,7 @@
 pub mod address;
 pub mod browser;
 pub mod changes;
+pub mod data;
 pub mod draw;
 pub mod focus;
 pub mod guide;

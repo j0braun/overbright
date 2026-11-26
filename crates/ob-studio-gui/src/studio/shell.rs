@@ -23,6 +23,7 @@ use super::layout::{self, Dock, Layout, Memory, Want};
 use super::memory::Memories;
 use super::mod_page::{self, Act};
 use super::nav::{self, Area, Command, KEYS, Level, Nav, Pad};
+use super::data;
 use super::new_mod;
 use super::words;
 use super::workspace::{Kind, Section, Workspace};
@@ -84,6 +85,8 @@ pub struct Studio {
     pub(crate) textures: crate::editor::app::PendingTextures,
     /// The Changes page.
     pub changes: changes::Page,
+    /// The Data page.
+    pub data: data::Page,
     /// The Mod page.
     pub mod_page: mod_page::Page,
     /// The Browser workspace.
@@ -160,6 +163,7 @@ impl Studio {
             editor: None,
             textures: Default::default(),
             changes: changes::Page::new(maps.clone()),
+            data: data::Page::default(),
             mod_page: mod_page::Page::new(maps.clone()),
             browser: browser::Page::new(),
             runs: Default::default(),
@@ -248,6 +252,9 @@ impl Studio {
             Target::View { view, query } => {
                 let w = Workspace::from_view(&format!("@{view}"))
                     .ok_or_else(|| format!("Studio has no screen @{view} yet"))?;
+                if w == Workspace::Data && (self.open.is_none() || a.pack == STUDIO) {
+                    return Err("Data shows a mod: open one first".into());
+                }
                 if w == Workspace::Changes {
                     if self.open.is_none() || a.pack == STUDIO {
                         return Err("Changes shows a mod: open one first".into());
@@ -285,8 +292,11 @@ impl Studio {
     pub(super) fn switch_mod(&mut self, i: usize) {
         self.open = Some(i);
         self.memories = Memories::load(&self.mods[i].dir);
-        if self.nav.workspace == Workspace::Changes {
+        if self.nav.workspace == Workspace::Changes || self.nav.workspace == Workspace::Data {
             self.changes.ensure(Some(&self.mods[i].folder.clone()));
+        }
+        if self.nav.workspace == Workspace::Data {
+            self.data_reload();
         }
         if self.nav.workspace == Workspace::Mod {
             self.mod_page.load(Some(&self.mods[i].folder.clone()));
@@ -296,11 +306,14 @@ impl Studio {
     }
 
     pub(super) fn workspace(&mut self, w: Workspace) {
-        if w == Workspace::Changes {
+        if w == Workspace::Changes || w == Workspace::Data {
             // Read again on every visit: World may have changed the mod since.
             match self.open_mod().map(|m| m.folder.clone()) {
                 Some(f) => self.changes.load(&f),
                 None => self.changes.ensure(None),
+            }
+            if w == Workspace::Data {
+                self.data_reload();
             }
         }
         if w == Workspace::Mod || (self.nav.workspace.kind() == Kind::Tool && w.kind() == Kind::Page) {
@@ -480,6 +493,25 @@ impl Studio {
                 Pad::Up => Some(self.changes.step_focus(-1, false)),
                 Pad::Down => Some(self.changes.step_focus(1, false)),
                 Pad::A => Some(self.changes.toggle_pick()),
+                _ => None,
+            };
+            if done.is_some() {
+                self.nav.input = kind;
+                self.nav.level = Level::Row;
+                return;
+            }
+        }
+        if self.on_data_rows() {
+            let done = match b {
+                Pad::Up if !self.data.typing() => Some(self.data.step_row(-1)),
+                Pad::Down if !self.data.typing() => Some(self.data.step_row(1)),
+                Pad::Left if !self.data.typing() => Some(self.data.step_col(-1)),
+                Pad::Right if !self.data.typing() => Some(self.data.step_col(1)),
+                Pad::A => {
+                    self.data_activate();
+                    Some(true)
+                }
+                Pad::B if self.data.back() => Some(true),
                 _ => None,
             };
             if done.is_some() {
@@ -849,6 +881,53 @@ impl Studio {
             && self.verdict.is_none()
     }
 
+    /// The Data page's rows and cells have the keys (↑ ↓ ← →, Enter / A): its view has focus and nothing else is typed.
+    fn on_data_rows(&self) -> bool {
+        self.nav.workspace == Workspace::Data
+            && self.nav.area == Area::View
+            && self.nav.level != Level::Menu
+            && !self.nav.find_open
+            && !self.nav.address_text
+            && self.verdict.is_none()
+    }
+
+    /// The Changes page's rows, as the Data page's table has them.
+    pub fn data_reload(&mut self) {
+        let rows = self.changes.data().map(|d| d.rows.clone()).unwrap_or_default();
+        self.data.load(&rows);
+    }
+
+    /// Write `text` in a cell of the Data page as one undo step: in the editor session that writes the mod when
+    /// World or Races has it open, else (races only; props need World's loaded city) in the mod's history.
+    pub fn data_edit(&mut self, kind: &'static str, key: &str, field: &'static str, text: &str) {
+        let Some(folder) = self.open_mod().map(|m| m.folder.clone()) else { return };
+        let session = self.editor.as_mut().and_then(|h| h.app.state.as_mut()).map(|s| &mut s.session);
+        let done = self.changes.edit_cell(session, &folder, kind, key, field, text);
+        self.data.note = Some(match done {
+            Ok(l) => format!("{l} · Ctrl+Z takes it back"),
+            Err(e) => format!("Not changed: {e}"),
+        });
+        self.changes.load(&folder);
+        self.data_reload();
+    }
+
+    /// Enter / pad A on the Data page.
+    fn data_activate(&mut self) {
+        match self.data.activate() {
+            Some(data::Ask::Edit { kind, key, field, text }) => self.data_edit(kind, &key, field, &text),
+            Some(data::Ask::Changes { kind, key }) => self.data_show_changes(kind, &key),
+            _ => {}
+        }
+    }
+
+    /// A Data row's entry on the Changes page.
+    pub(super) fn data_show_changes(&mut self, kind: &str, key: &str) {
+        self.workspace(Workspace::Changes);
+        if !self.changes.focus_item(kind, key) {
+            self.verdict = Some("Changes has no entry for that row".into());
+        }
+    }
+
     /// The keys of this frame's input that are the shell's: taken out of the input, run.
     fn take_keys(&mut self, raw: &mut egui::RawInput) {
         if self.new_mod.is_some() {
@@ -893,7 +972,10 @@ impl Studio {
             return;
         }
         let mut cmds = vec![];
-        let typing = self.nav.address_text || self.nav.find_open || self.mod_page.editing.is_some();
+        let typing = self.nav.address_text
+            || self.nav.find_open
+            || self.mod_page.editing.is_some()
+            || (self.nav.workspace == Workspace::Data && self.data.typing());
         // In World and Races the map editor has its own keys: its undo, redo and F5 (its shortcuts read them),
         // and while its view, tree or docks have focus the keys that act inside an area.
         let editing = self.editing() && !typing;
@@ -902,6 +984,7 @@ impl Studio {
             || (self.on_mod_rows() && self.mod_page.editing.is_none())
             || self.on_home_rows()
             || self.on_browser_rows();
+        let data_rows = self.on_data_rows() && !self.data.typing();
         let browser_rows = self.on_browser_rows();
         let browser_chips = browser_rows && self.browser.focus < browser::FIRST_RESULT;
         let mut chip_keys = vec![];
@@ -962,10 +1045,11 @@ impl Studio {
                 false
             }
             egui::Event::Key { key, pressed: true, modifiers, .. }
-                if rows
+                if (rows || data_rows)
                     && !modifiers.command
                     && !modifiers.alt
-                    && matches!(key, egui::Key::ArrowUp | egui::Key::ArrowDown | egui::Key::Enter | egui::Key::Tab) =>
+                    && (matches!(key, egui::Key::ArrowUp | egui::Key::ArrowDown | egui::Key::Enter | egui::Key::Tab)
+                        || (data_rows && matches!(key, egui::Key::ArrowLeft | egui::Key::ArrowRight))) =>
             {
                 row_keys.push((*key, modifiers.shift));
                 false
@@ -1060,6 +1144,16 @@ impl Studio {
                 }
                 continue;
             }
+            if self.nav.workspace == Workspace::Data {
+                match key {
+                    egui::Key::ArrowUp => _ = self.data.step_row(-1),
+                    egui::Key::ArrowDown => _ = self.data.step_row(1),
+                    egui::Key::ArrowLeft => _ = self.data.step_col(-1),
+                    egui::Key::ArrowRight => _ = self.data.step_col(1),
+                    _ => self.data_activate(),
+                }
+                continue;
+            }
             if self.nav.workspace == Workspace::Browser {
                 match key {
                     egui::Key::ArrowUp => {
@@ -1095,6 +1189,22 @@ impl Studio {
             }
         }
         for c in cmds {
+            if self.nav.workspace == Workspace::Data {
+                if c == Command::Select && self.data.editing.is_some() {
+                    self.data_activate();
+                    continue;
+                }
+                if c == Command::Back && self.data.back() {
+                    continue;
+                }
+                if matches!(c, Command::Undo | Command::Redo) && !self.data.typing() {
+                    let session = self.editor.as_mut().and_then(|h| h.app.state.as_mut()).map(|s| &mut s.session);
+                    self.changes.undo_with(c == Command::Redo, session);
+                    self.data.note = self.changes.note.clone();
+                    self.data_reload();
+                    continue;
+                }
+            }
             if matches!(c, Command::Undo | Command::Redo) && self.nav.workspace == Workspace::Changes {
                 let session = self.editor.as_mut().and_then(|h| h.app.state.as_mut()).map(|s| &mut s.session);
                 self.changes.undo_with(c == Command::Redo, session);
@@ -1625,6 +1735,20 @@ impl Studio {
                         self.places.go(here);
                     }
                     None => {}
+                }
+            }
+            Workspace::Data => {
+                let inner = slab.shrink2(vec2(20.0, 14.0));
+                let focused = self.nav.area == Area::View && self.nav.legend();
+                let (ask, _) = self.data.draw(ui, inner, focused);
+                if let Some(k) = self.data.kind_pick.take() {
+                    let rows = self.changes.data().map(|d| d.rows.clone()).unwrap_or_default();
+                    self.data.set_kind(k, &rows);
+                }
+                match ask {
+                    Some(data::Ask::Changes { kind, key }) => self.data_show_changes(kind, &key),
+                    Some(data::Ask::Edit { kind, key, field, text }) => self.data_edit(kind, &key, field, &text),
+                    _ => {}
                 }
             }
             Workspace::Browser => {

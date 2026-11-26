@@ -168,9 +168,10 @@ fn it_draws_inside_its_slab_at_each_size() {
         let mut p = Page::new();
         let inner = egui::Rect::from_min_size(egui::pos2(20.0, 20.0), egui::vec2(width - 100.0, height - 150.0));
         for _ in 0..2 {
-            let _ = ctx.run_ui(raw_input((width as u32, height as u32), 1.0, 1, vec![]), |ui| {
+            let mut out = ctx.run_ui(raw_input((width as u32, height as u32), 1.0, 1, vec![]), |ui| {
                 p.draw(ui, inner, true, true, Some(Source { region: "L4RA", world: &w, mod_props: 0, thumbs: None }));
             });
+            out.textures_delta.clear();
         }
         let d = &p.last;
         let inside = inner.expand(1.0);
