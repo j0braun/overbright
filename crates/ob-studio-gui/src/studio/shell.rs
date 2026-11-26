@@ -21,6 +21,7 @@ use super::inside::{FindItem, PLACES_SHOWN};
 use super::layout::{self, Dock, Layout, Memory, Want};
 use super::memory::Memories;
 use super::mod_page::{self, Act};
+use super::browser;
 use super::nav::{self, Area, Command, KEYS, Level, Nav, Pad};
 use super::new_mod;
 use super::words;
@@ -85,6 +86,8 @@ pub struct Studio {
     pub changes: changes::Page,
     /// The Mod page.
     pub mod_page: mod_page::Page,
+    /// The Browser workspace.
+    pub browser: browser::Page,
     /// The New mod dialog, while it is open.
     pub new_mod: Option<new_mod::Dialog>,
     /// Home's focused control (keyboard and pad): an index into [`Studio::home_targets`].
@@ -156,6 +159,7 @@ impl Studio {
             textures: Default::default(),
             changes: changes::Page::new(maps.clone()),
             mod_page: mod_page::Page::new(maps.clone()),
+            browser: browser::Page::new(),
             new_mod: None,
             home_focus: 0,
             home_rows: 6,
@@ -217,6 +221,11 @@ impl Studio {
         v.extend(self.editor_crumbs());
         if self.nav.workspace == Workspace::Changes {
             v.push(self.changes.mode.name().to_string());
+        }
+        if self.nav.workspace == Workspace::Browser
+            && let Some(n) = self.browser.crumb()
+        {
+            v.push(n);
         }
         v
     }
@@ -475,6 +484,24 @@ impl Studio {
                 return;
             }
         }
+        if self.on_browser_rows() {
+            let handled = match b {
+                Pad::Up => Some(self.browser.step_focus(-1)).map(|_| None),
+                Pad::Down => Some(self.browser.step_focus(1)).map(|_| None),
+                Pad::Left => Some(self.browser.step_chip(-1)).map(|_| None),
+                Pad::Right => Some(self.browser.step_chip(1)).map(|_| None),
+                Pad::A => Some(self.browser.activate()),
+                _ => None,
+            };
+            if let Some(act) = handled {
+                self.nav.input = kind;
+                self.nav.level = Level::Row;
+                if let Some(a) = act {
+                    self.browser_act(a);
+                }
+                return;
+            }
+        }
         if self.on_mod_rows() {
             let act = match b {
                 Pad::Up => Some(self.mod_page.step_focus(-1)).map(|_| None),
@@ -667,6 +694,57 @@ impl Studio {
             && self.new_mod.is_none()
     }
 
+    /// The Browser's lines have the keys (↑ ↓, Enter / A, ← → on its chips), the search field the typed letters.
+    pub(super) fn on_browser_rows(&self) -> bool {
+        self.nav.workspace == Workspace::Browser
+            && self.nav.area == Area::View
+            && self.nav.level != Level::Menu
+            && !self.nav.find_open
+            && !self.nav.address_text
+            && self.verdict.is_none()
+            && self.new_mod.is_none()
+    }
+
+    /// Take a Browser result to where it is worked on: a model to World, a texture to Looks (Changes).
+    pub(super) fn browser_act(&mut self, a: browser::Act) {
+        match a {
+            browser::Act::ShowModel { solid, name, placement } => {
+                // Chosen in the prop browser too, so Ctrl+D in World places another.
+                if let Some(h) = self.editor.as_ref() {
+                    h.app.panels.browser.borrow_mut().chosen = Some(name.clone());
+                }
+                let addr = placement.and_then(|pi| {
+                    let s = self.editor.as_ref()?.app.state.as_ref()?;
+                    let (sec, n) = s.session.world.original_key(pi)?;
+                    Some(Address::item(&s.session.folder, "placement", &[&s.session.region, &sec.to_string(), &n.to_string()]))
+                });
+                let _ = solid;
+                match addr {
+                    Some(a) => {
+                        self.workspace(Workspace::World);
+                        self.verdict = self.go(&a).err();
+                    }
+                    None => {
+                        self.workspace(Workspace::World);
+                        self.verdict = Some(format!("{name} is not placed in this region: it is chosen, Ctrl+D places it"));
+                    }
+                }
+            }
+            browser::Act::OpenTexture { hash, name } => {
+                let id = ob_studio::looks::TextureId::new(ob_studio::looks::Domain::World, hash).to_string();
+                let Some(folder) = self.open_mod().map(|m| m.folder.clone()) else { return };
+                self.changes.ensure(Some(&folder));
+                let painted = self.changes.data().is_some_and(|d| d.textures.contains_key(&id));
+                if painted {
+                    let a = Address::item(&folder, ob_studio::changes::looks::TEXTURE, &[&id]);
+                    self.verdict = self.go(&a).err();
+                } else {
+                    self.verdict = Some(format!("{name} is not changed by this mod yet. Start it with: looks open --texture {id}"));
+                }
+            }
+        }
+    }
+
     /// The Mod page's rows have the keys (↑ ↓, Enter / A), as the Changes page's do.
     fn on_mod_rows(&self) -> bool {
         self.nav.workspace == Workspace::Mod
@@ -794,7 +872,10 @@ impl Studio {
         let editing = self.editing() && !typing;
         let inside = editing && matches!(self.nav.area, Area::View | Area::Left | Area::Bottom);
         let rows =
-            self.on_changes_rows() || (self.on_mod_rows() && self.mod_page.editing.is_none()) || self.on_home_rows();
+            self.on_changes_rows() || (self.on_mod_rows() && self.mod_page.editing.is_none()) || self.on_home_rows() || self.on_browser_rows();
+        let browser_rows = self.on_browser_rows();
+        let browser_chips = browser_rows && self.browser.focus < browser::FIRST_RESULT;
+        let mut chip_keys = vec![];
         let spots = self.on_spots();
         let find = self.nav.find_open;
         let places_menu = self.places_menu;
@@ -814,6 +895,20 @@ impl Studio {
             {
                 find_keys.push(*key);
                 false
+            }
+            egui::Event::Key { key, pressed: true, modifiers, .. }
+                if browser_rows
+                    && !modifiers.command
+                    && !modifiers.alt
+                    && matches!(key, egui::Key::ArrowLeft | egui::Key::ArrowRight) =>
+            {
+                // On a chip line they change the chip; on a result they move the cursor in the search field.
+                if browser_chips {
+                    chip_keys.push(if *key == egui::Key::ArrowLeft { -1 } else { 1 });
+                    false
+                } else {
+                    true
+                }
             }
             egui::Event::Key { key, pressed: true, modifiers, .. }
                 if rows
@@ -885,6 +980,10 @@ impl Studio {
             self.nav.input = InputKind::Keyboard;
             self.spot_key(key, shift);
         }
+        for d in chip_keys {
+            self.nav.input = InputKind::Keyboard;
+            self.browser.step_chip(d);
+        }
         for (key, shift) in row_keys {
             self.nav.input = InputKind::Keyboard;
             self.nav.level = Level::Row;
@@ -900,6 +999,22 @@ impl Studio {
                     egui::Key::ArrowUp => self.home_step(-1),
                     egui::Key::ArrowDown => self.home_step(1),
                     _ => self.home_activate(),
+                }
+                continue;
+            }
+            if self.nav.workspace == Workspace::Browser {
+                match key {
+                    egui::Key::ArrowUp => {
+                        self.browser.step_focus(-1);
+                    }
+                    egui::Key::ArrowDown => {
+                        self.browser.step_focus(1);
+                    }
+                    _ => {
+                        if let Some(a) = self.browser.activate() {
+                            self.browser_act(a);
+                        }
+                    }
                 }
                 continue;
             }
@@ -1452,6 +1567,36 @@ impl Studio {
                         self.places.go(here);
                     }
                     None => {}
+                }
+            }
+            Workspace::Browser => {
+                let inner = slab.shrink2(vec2(20.0, 14.0));
+                let focused = self.nav.area == Area::View && self.nav.legend();
+                let typing = self.nav.area == Area::View
+                    && self.nav.level != Level::Menu
+                    && !self.nav.find_open
+                    && !self.nav.address_text
+                    && self.verdict.is_none()
+                    && self.new_mod.is_none();
+                let has_mod = self.open_mod().is_some();
+                let a = {
+                    let Studio { editor, browser, .. } = self;
+                    match editor.as_ref().and_then(|h| h.app.state.as_ref().map(|s| (h, s))) {
+                        Some((h, s)) if has_mod => {
+                            let mut guard = h.app.panels.browser.borrow_mut();
+                            let src = browser::Source {
+                                region: &s.session.region,
+                                world: &s.session.world,
+                                mod_props: s.session.map.props.len(),
+                                thumbs: Some(&mut guard.thumbs),
+                            };
+                            browser.draw(ui, inner, focused, typing, Some(src))
+                        }
+                        _ => browser.draw(ui, inner, focused, typing, None),
+                    }
+                };
+                if let Some(a) = a {
+                    self.browser_act(a);
                 }
             }
             Workspace::Mod => {

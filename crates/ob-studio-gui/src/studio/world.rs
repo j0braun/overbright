@@ -64,7 +64,7 @@ impl Studio {
     /// for the workspace, a part's tab request followed.
     pub(super) fn sync_editor(&mut self) {
         let ws = self.nav.workspace;
-        if ws.kind() != Kind::Tool {
+        if ws.kind() != Kind::Tool && ws != Workspace::Browser {
             return;
         }
         let folder = self.open_mod().map(|m| m.folder.clone());
@@ -80,6 +80,7 @@ impl Studio {
             h.tools_for = None;
         }
         if let Some(s) = h.app.state.as_mut()
+            && ws != Workspace::Browser
             && h.tools_for != Some(ws)
         {
             h.tools_for = Some(ws);
@@ -203,7 +204,18 @@ impl Studio {
             && let Some(h) = self.editor.as_mut()
         {
             h.app.render_view(gpu, egui_r, encoder);
+        } else if self.nav.workspace == Workspace::Browser
+            && let Some(h) = self.editor.as_mut()
+        {
+            // The Browser's model pictures, drawn by the prop browser's renderer (a few a frame).
+            h.app.build_thumbs(gpu);
         }
+    }
+
+    /// The Browser shows and the prop pictures it asked for are not all drawn yet (a `--shot` waits for them).
+    pub fn browser_pictures_pending(&self) -> bool {
+        self.nav.workspace == Workspace::Browser
+            && self.editor.as_ref().is_some_and(|h| h.app.panels.browser.borrow().thumbs.pending() > 0)
     }
 
     /// The editor's toolbar in the toolbar row.

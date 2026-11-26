@@ -6,9 +6,9 @@
 //! overbright-studio [--mod <name|folder>] [--maps <dir>]  the window, with that mod open (its folder name in the
 //!                                                        mods folder, or its folder's path)
 //! overbright-studio --shot out.png [--size WxH] [--scale F] [--mod <folder>] [--maps <dir>]
-//!                   [--workspace home|world|races|mod|settings|changes] [--input mouse|keyboard|xbox|playstation|deck]
+//!                   [--workspace home|world|races|browser|mod|settings|changes] [--input mouse|keyboard|xbox|playstation|deck]
 //!                   [--focus rail|address|toolbar|left|view|right|bottom] [--drawer] [--files] [--warning] [--find] [--address]
-//!                   [--select N] [--row N] [--places] [--job WORDS] [--right-tab inspector|history|help] [--new-mod NAME]
+//!                   [--select N] [--search WORDS] [--kind models|textures] [--row N] [--places] [--job WORDS] [--right-tab inspector|history|help] [--new-mod NAME]
 //!                                   the whole window drawn off-screen into a PNG (no window)
 //! ```
 //! A `--shot` prints one line "studio layout: fits …" or "studio layout: clipped: …" (the clip and overlap check).
@@ -54,6 +54,9 @@ struct Cli {
     address: bool,
     /// The placement selected in World; on Changes, the focused value row (a `--shot`).
     select: Option<usize>,
+    /// The Browser's search text and kind (a `--shot`).
+    search: Option<String>,
+    kind: Option<String>,
     /// The New mod dialog open with this name typed (a `--shot`).
     new_mod: Option<String>,
     /// The first tutorial ("Your first mod") at this step (1 … 5, 6: the last card) on the open mod (a `--shot`).
@@ -131,6 +134,8 @@ fn parse(args: impl Iterator<Item = String>) -> Result<Cli> {
             "--find" => c.find = true,
             "--address" => c.address = true,
             "--select" => c.select = Some(val("--select")?.parse()?),
+            "--search" => c.search = Some(val("--search")?),
+            "--kind" => c.kind = Some(val("--kind")?),
             "--new-mod" => c.new_mod = Some(val("--new-mod")?),
             "--race-tutorial" => {
                 let n: usize = val("--race-tutorial")?.parse()?;
@@ -305,7 +310,23 @@ fn run_shot(cli: &Cli) -> Result<()> {
         s.command(ob_studio_gui::studio::nav::Command::EditAddress, None);
         s.nav.input = cli.input.unwrap_or(InputKind::Keyboard);
     }
-    if let Some(i) = cli.select
+    if s.nav.workspace == Workspace::Browser {
+        use ob_studio::browser::Kind;
+        // Frames so the mod opens in the editor and the index is made, then the search and the focused result.
+        shot::frames(&mut s, size, scale, 2);
+        if let Some(t) = &cli.search {
+            s.browser.query.text = t.clone();
+        }
+        match cli.kind.as_deref() {
+            Some("models") => s.browser.query.kind = Kind::Models,
+            Some("textures") => s.browser.query.kind = Kind::Textures,
+            _ => {}
+        }
+        shot::frames(&mut s, size, scale, 2);
+        if let Some(i) = cli.select {
+            s.browser.focus = ob_studio_gui::studio::browser::FIRST_RESULT + i;
+        }
+    } else if let Some(i) = cli.select
         && s.nav.workspace == Workspace::Changes
     {
         s.changes.focus = i.min(s.changes.lines().len().saturating_sub(1));

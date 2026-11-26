@@ -159,6 +159,9 @@ impl Studio {
                 self.home_focus = if end { self.home_targets().len().saturating_sub(1) } else { 0 }
             }
             Workspace::Mod if a == Area::View => self.mod_page.step_focus(if end { 1000 } else { -1000 }),
+            Workspace::Browser if a == Area::View => {
+                self.browser.focus = if end { self.browser.lines().saturating_sub(1) } else { 0 }
+            }
             Workspace::Changes if a == Area::View => {
                 self.changes.focus = if end { self.changes.lines().len().saturating_sub(1) } else { 0 }
             }
@@ -183,6 +186,7 @@ impl Studio {
                 self.mod_page.step_focus(d);
                 self.mod_page.focus != before
             }
+            Workspace::Browser => self.browser.step_focus(d),
             Workspace::Changes => {
                 let before = self.changes.focus;
                 self.changes.step_focus(d, false);
