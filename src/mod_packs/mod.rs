@@ -13,8 +13,11 @@
 
 mod content;
 mod convert;
+mod inside;
 mod layers;
 mod pack_export;
+
+pub use inside::{Inside, inside};
 
 pub use layers::{added_key, heading, layers, placement_key, race_key};
 pub use convert::{Converted, convert_legacy};
@@ -41,6 +44,14 @@ pub fn mods_dir() -> PathBuf {
 /// This Overbright's version.
 pub fn engine() -> semver::Version {
     env!("CARGO_PKG_VERSION").parse().unwrap_or_else(|_| semver::Version::new(0, 0, 0))
+}
+
+/// The environment variable of a trial run: the id of a pack that is on for this run only.
+pub const TRY_VAR: &str = "NFSU2_TRY_PACK";
+
+/// The pack this run tries (the launcher's "Try it once"), if any.
+pub fn tried() -> Option<String> {
+    std::env::var(TRY_VAR).ok().filter(|v| !v.is_empty())
 }
 
 /// Records the base set the game mounted (None: the game folder is read).
@@ -91,8 +102,8 @@ pub fn texture_dirs(car: bool) -> Vec<PathBuf> {
 
 /// Reads the packs switched on against `base`: the plan (refusals, notices), the map mods and where each is read from.
 /// `taken`: the names the plain map mods already use.
-fn load(base: Option<&BaseId>, taken: &[String]) -> (modpack::Plan, Mounted, Vec<(String, PathBuf)>) {
-    let plan = modpack::plan(&mods_dir(), base, &engine());
+fn load(base: Option<&BaseId>, taken: &[String], extra: Option<&str>) -> (modpack::Plan, Mounted, Vec<(String, PathBuf)>) {
+    let plan = modpack::plan_with(&mods_dir(), base, &engine(), extra);
     let mut out = Mounted::default();
     let mut roots = Vec::new();
     for p in &plan.layers {
@@ -123,11 +134,15 @@ fn load(base: Option<&BaseId>, taken: &[String]) -> (modpack::Plan, Mounted, Vec
 /// Mounts the packs switched on in `order.txt`. `taken`: the names the plain map mods already use (a pack with such an
 /// id is not mounted; the log says so).
 pub fn mount(taken: &[String]) -> Mounted {
-    if !mods_dir().join(modpack::ORDER_FILE).is_file() {
+    let extra = tried();
+    if extra.is_none() && !mods_dir().join(modpack::ORDER_FILE).is_file() {
         return Mounted::default();
     }
     let base = mounted_base();
-    let (plan, out, roots) = load(base.as_ref(), taken);
+    let (plan, out, roots) = load(base.as_ref(), taken, extra.as_deref());
+    if let Some(id) = &extra {
+        log::info!("mod pack {id}: tried for this run only; order.txt is not changed");
+    }
     for n in &plan.notices {
         log::warn!("mod packs: {n}");
     }
@@ -161,7 +176,12 @@ pub fn mount(taken: &[String]) -> Mounted {
 /// The clashes among the packs that are on, as the launcher shows them (nothing is logged or mounted): each pair of
 /// packs and how many values they both give, weaker first.
 pub fn clash_pairs(base: Option<&BaseId>) -> Vec<(String, String, usize)> {
-    let (_, out, _) = load(base, &[]);
+    clash_pairs_with(base, None)
+}
+
+/// [`clash_pairs`] with the pack `extra` counted as on.
+pub fn clash_pairs_with(base: Option<&BaseId>, extra: Option<&str>) -> Vec<(String, String, usize)> {
+    let (_, out, _) = load(base, &[], extra);
     let mut pairs: Vec<(String, String, usize)> = Vec::new();
     for c in clashes(&out.mods) {
         match pairs.iter_mut().find(|p| p.0 == c.weaker && p.1 == c.stronger) {
@@ -192,7 +212,7 @@ pub fn clashes(mods: &[(String, MapMod)]) -> Vec<Clash> {
 }
 
 /// A pack's files on disk: its folder, or the folder its pack file was unpacked into.
-fn materialize(p: &modpack::Installed) -> Result<PathBuf, String> {
+pub(crate) fn materialize(p: &modpack::Installed) -> Result<PathBuf, String> {
     use ob_asset_format::bundle::{self, Bundle};
     let file = match &p.source {
         modpack::Source::Folder(d) => return Ok(d.clone()),

@@ -124,6 +124,41 @@ fn derived_textures_need_a_yes_and_keep_the_pack_local() {
     let _ = std::fs::remove_dir_all(out);
 }
 
+#[test]
+fn look_inside_reads_a_pack_and_its_clashes_without_switching_anything_on() {
+    let home = scratch("in-home");
+    crate::platform::dirs::set_thread_data_home(home.clone());
+    let cache = scratch("in-cache");
+    let _c = crate::cache::override_dir(cache.clone());
+    let maps = scratch("in-maps");
+    make(&maps, "docks", &mov("Docks", 1.0), true);
+    make(&maps, "cones", &mov("Cones", 2.0), false);
+    let out = scratch("in-out");
+    for f in ["docks", "cones"] {
+        export_map_mod(&maps, f, &out, None, &ExportOpts { derived_ok: true, ..opts() }).unwrap();
+        modpack::import(&mods_dir(), &out.join(format!("{f}-1.0.0.obpk")), &engine()).unwrap();
+    }
+    assert!(inside("nope", None).is_none());
+    let alone = inside("docks", None).unwrap();
+    assert_eq!((alone.moved, alone.deleted, alone.added, alone.races, alone.textures), (1, 0, 0, 0, 1));
+    assert_eq!(alone.regions, ["L4RA"]);
+    assert_eq!(alone.made_for, "any copy of the game");
+    assert!(alone.clashes.is_empty() && alone.refused.is_none());
+    assert!(alone.lines().iter().any(|l| l == "Changes 1 moved prop, 1 texture"), "{:?}", alone.lines());
+    // cones is on; docks (off) is looked at: it would overrule cones on the one value both move.
+    modpack::set_enabled(&mods_dir(), "cones", true).unwrap();
+    let order = std::fs::read(mods_dir().join(modpack::ORDER_FILE)).unwrap();
+    let i = inside("docks", None).unwrap();
+    assert_eq!(i.clashes.len(), 1);
+    assert_eq!(i.clashes[0].0, "cones");
+    assert!(i.lines().iter().any(|l| l.starts_with("Overrule") && l.contains("cones")), "{:?}", i.lines());
+    assert_eq!(std::fs::read(mods_dir().join(modpack::ORDER_FILE)).unwrap(), order, "order.txt is not touched");
+    assert!(!modpack::rows(&mods_dir(), None, &engine()).iter().any(|r| r.id == "docks" && r.on));
+    for d in [home, cache, maps, out] {
+        let _ = std::fs::remove_dir_all(d);
+    }
+}
+
 fn full_mod() -> MapMod {
     use ob_map::tools::map::format::{CollisionEdit, CustomRace, RaceKind, Spot};
     let rot = Mat3::from_cols(Vec3::new(0.0, 1.0, 0.0), Vec3::new(-1.0, 0.0, 0.0), Vec3::new(0.0, 0.0, 1.0));
@@ -341,6 +376,41 @@ fn a_legacy_texture_pack_converts_to_overrides_the_game_reads() {
     png(&dir, "world/0x12345678.png");
     assert!(convert_legacy(&dir, &out, Some("pretty-roads"), None, &opts()).unwrap_err().contains("same texture"));
     for d in [home, cache, src, out, root] {
+        let _ = std::fs::remove_dir_all(d);
+    }
+}
+
+#[test]
+fn look_inside_shows_converted_provenance_and_an_old_map_obmap_pack() {
+    let home = scratch("inc-home");
+    crate::platform::dirs::set_thread_data_home(home.clone());
+    let cache = scratch("inc-cache");
+    let _c = crate::cache::override_dir(cache.clone());
+    let src = scratch("inc-src");
+    let dir = src.join("Docks Old");
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(dir.join("map.obmap"), mov("Docks", 1.0).write()).unwrap();
+    let out = scratch("inc-out");
+    let c = convert_legacy(&dir, &out, None, None, &opts()).unwrap();
+    modpack::import(&mods_dir(), &c.exported.to, &engine()).unwrap();
+    let i = inside("docks-old", None).unwrap();
+    assert_eq!((i.moved, i.regions.as_slice()), (1, ["L4RA".to_string()].as_slice()));
+    assert_eq!(i.converted_from.as_deref(), Some("map mod Docks Old"));
+    assert!(i.lines().iter().any(|l| l == "Provenance: converted from map mod Docks Old"), "{:?}", i.lines());
+    // A pack folder in the old form: only map.obmap and textures/world.
+    let old = mods_dir().join("old");
+    store::save(&mods_dir(), "old", &mov("Old", 4.0)).unwrap();
+    std::fs::create_dir_all(old.join("textures/world")).unwrap();
+    std::fs::write(old.join("textures/world/00000ABC.png"), b"png").unwrap();
+    std::fs::write(
+        old.join("pack.toml"),
+        "format = 2\nkind = \"mod\"\nid = \"old\"\nname = \"Old\"\nversion = \"1.0.0\"\noverbright = \">=0.1\"\norigin = \"own-work\"\nshare = \"local-only\"\ncontents = [\"world\"]\naffects_play = true\n",
+    )
+    .unwrap();
+    let o = inside("old", None).unwrap();
+    assert_eq!((o.moved, o.textures, o.converted_from.clone()), (1, 1, None));
+    assert!(!o.lines().iter().any(|l| l.starts_with("Provenance")));
+    for d in [home, cache, src, out] {
         let _ = std::fs::remove_dir_all(d);
     }
 }

@@ -193,7 +193,18 @@ pub fn game_logs_itself(args: &[String]) -> bool {
 /// given to the game as `NFSU2_ROOT` so it plays the folder the player
 /// chose even when another one is set in the environment.
 pub fn start(exe: &Path, args: &[String], log_dir: Option<&Path>, root: Option<&Path>) -> Result<Running, String> {
-    start_marked(exe, args, log_dir, root, super::dirs::start_marker())
+    start_env(exe, args, log_dir, root, &[])
+}
+
+/// [`start`] with more environment variables for the game (a trial run's).
+pub fn start_env(
+    exe: &Path,
+    args: &[String],
+    log_dir: Option<&Path>,
+    root: Option<&Path>,
+    env: &[(String, String)],
+) -> Result<Running, String> {
+    start_marked(exe, args, log_dir, root, env, super::dirs::start_marker())
 }
 
 /// [`start`] with the start marker at `marker` (the tests keep it in their
@@ -203,6 +214,7 @@ fn start_marked(
     args: &[String],
     log_dir: Option<&Path>,
     root: Option<&Path>,
+    env: &[(String, String)],
     marker: PathBuf,
 ) -> Result<Running, String> {
     let mut shared = Shared { file_all: !game_logs_itself(args), ..Default::default() };
@@ -240,6 +252,7 @@ fn start_marked(
     if let Some(r) = root {
         cmd.env("NFSU2_ROOT", r);
     }
+    cmd.envs(env.iter().map(|(k, v)| (k, v)));
     // Windows: no console window for a console-subsystem game (a check
     // build); the shipping game is a window program anyway.
     #[cfg(windows)]
@@ -522,7 +535,7 @@ mod tests {
         // in the test's own folder.
         let marker = dir.join("start-marker.txt");
         let start = |exe: &Path, args: &[String], logs: Option<&Path>, root: Option<&Path>| {
-            start_marked(exe, args, logs, root, marker.clone())
+            start_marked(exe, args, logs, root, &[], marker.clone())
         };
         let r = start(&stub, &["--windowed".into()], Some(&logs), None).unwrap();
         assert!(marker.is_file(), "the start writes its marker where it is told");
@@ -574,14 +587,14 @@ mod tests {
         use std::os::unix::fs::PermissionsExt;
         std::fs::set_permissions(&stub, std::fs::Permissions::from_mode(0o755)).unwrap();
         let marker = dir.join("start-marker.txt");
-        let e = start_marked(&stub, &[], None, None, marker.clone()).unwrap().wait();
+        let e = start_marked(&stub, &[], None, None, &[], marker.clone()).unwrap().wait();
         assert_eq!((e.code, e.signal), (None, Some(11)), "{e:?}");
         assert!(e.failed() && e.pid > 0);
         assert!(e.reason().contains("segmentation fault"), "{}", e.reason());
         assert_eq!(e.how(), "signal 11");
         assert!(e.tail.iter().any(|l| l.contains("about to crash")));
         std::fs::write(&stub, "#!/bin/sh\nexit 0\n").unwrap();
-        let e = start_marked(&stub, &[], None, None, marker).unwrap().wait();
+        let e = start_marked(&stub, &[], None, None, &[], marker).unwrap().wait();
         assert!(!e.failed() && e.signal.is_none());
         let _ = std::fs::remove_dir_all(&dir);
     }

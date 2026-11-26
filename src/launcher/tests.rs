@@ -3339,3 +3339,43 @@ fn the_crash_report_window() {
     };
     assert!(!clean.failed());
 }
+
+/// The Mods page's "Look inside" shows the lines about the chosen pack and closes again; "Try it once" starts the game
+/// with that pack as the run's trial and asks for nothing else; the copy that a trial leaves is kept or discarded.
+#[test]
+fn mods_look_inside_try_it_once_and_the_saves_copy() {
+    let fonts = Fonts::new();
+    let env = FakeEnv;
+    let mut a = app(&env, &fonts, Screen::Mods, 1280, 720, 1.0);
+    // Nothing chosen yet: nothing opens and nothing starts.
+    a.event(&Event::Activate("pack_inside"));
+    assert!(a.model.mods.inside.is_none());
+    assert_ne!(a.event(&Event::Activate("pack_try")), Outcome::Play);
+    a.model.mods.pack_sel = Some("cone-pack".into());
+    a.rebuild(&fonts);
+    a.event(&Event::Activate("pack_inside"));
+    let (name, lines) = a.model.mods.inside.clone().unwrap();
+    assert_eq!(name, "Cone pack");
+    assert!(lines.iter().any(|l| l.starts_with("Changes")));
+    a.rebuild(&fonts);
+    assert!(a.ui.get("inside_close").is_some());
+    a.event(&Event::Activate("inside_close"));
+    assert!(a.model.mods.inside.is_none());
+    // Try it once: the pack is named for the run; order.txt (the fake env has none) is not asked about.
+    assert_eq!(a.event(&Event::Activate("pack_try")), Outcome::Play);
+    assert_eq!(a.model.mods.try_pack.as_deref(), Some("cone-pack"));
+    // After a trial: the copy is offered, Keep leaves it, Discard refuses a folder that is not a trial copy.
+    let tries = super::trial::tries_dir();
+    let t = super::trial::Trial { pack: "cone-pack".into(), dir: tries.join("cone-pack-x") };
+    a.model.mods.try_pack = None;
+    a.model.mods.tried = Some(("Cone pack".into(), t.clone()));
+    a.rebuild(&fonts);
+    assert!(a.ui.get("try_keep").is_some() && a.ui.get("try_discard").is_some());
+    a.event(&Event::Activate("try_keep"));
+    assert!(a.model.mods.tried.is_none());
+    assert!(a.model.mods.results[0].1.contains("kept"));
+    let stray = super::trial::Trial { pack: "x".into(), dir: std::env::temp_dir().join("ob-not-a-trial-copy") };
+    a.model.mods.tried = Some(("X".into(), stray));
+    a.event(&Event::Activate("try_discard"));
+    assert_eq!(a.model.mods.results[0].0, Mark::Error);
+}

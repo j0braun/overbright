@@ -143,6 +143,31 @@ expect pass rate-differs-counted rate_rc rate-differs-counted 1 ratedep
 # The image classes count ("images@CLASS fail"); with them reported a difference is exit 3.
 expect pass rate-images-counted rate_rc rate-images-counted 1 rateimg
 expect pass rate-images-report-only rate_rc_report rate-images-report-only 3 rateimg
+# The image check's evidence: a planted 1-pixel difference is printed (class, rate, tick, count, max diff, box, pixel
+# values) and the reference, the frame and a diff PNG are kept in the folder RATE_EVIDENCE_DIR names (not the real one).
+rate_evidence() {
+  local d="$O/rate-evidence-case"; rm -rf "$d"; mkdir -p "$d/ref" "$d/120" "$d/evid"
+  python3 -I - "$HERE/../perf" "$d" << 'PY' || return 1
+import sys
+sys.path.insert(0, sys.argv[1])
+import rateimg
+d = sys.argv[2]
+rows = [bytes([10, 20, 30] * 8) for _ in range(8)]
+rateimg.write_png(d + '/ref/tick-000006.png', 8, 8, rows)
+rows[3] = bytes([10, 20, 30] * 5 + [11, 20, 30] + [10, 20, 30] * 2)
+rateimg.write_png(d + '/120/tick-000006.png', 8, 8, rows)
+PY
+  RATE_EVIDENCE_DIR="$d/evid" python3 -I "$HERE/../perf/rateimg.py" "$PIXDIFF" step "$d/ref" "120=$d/120" > "$d/out" 2> "$d/err"
+  [ $? = 1 ] || { echo "rc is not 1"; return 1; }
+  local f; f=$(ls -d "$d"/evid/*/ 2> /dev/null | head -1); [ -n "$f" ] || { echo "no evidence folder"; return 1; }
+  grep -q "evidence ${f%/}" "$d/out" || { echo "the line does not name the folder"; return 1; }
+  grep -q "class step, 120 Hz, tick-000006: 1 px differ, max channel diff 1, bbox x 5..5 y 3..3" "$d/err" || { echo "detail line missing"; cat "$d/err"; return 1; }
+  grep -q '(5,3) ref (10, 20, 30) got (11, 20, 30)' "$d/err" || { echo "pixel values missing"; return 1; }
+  for n in step-120hz-tick-000006-ref.png step-120hz-tick-000006.png step-120hz-tick-000006-diff.png; do
+    [ -s "$f$n" ] || { echo "missing $n"; return 1; }
+  done
+}
+expect pass rate-image-evidence rate_evidence
 # A jittered run that ends short of the others counts (the runs end on a tick count at every schedule).
 expect pass rate-jitter-short-counted rate_rc rate-jitter-short-counted 1 jittershort
 expect fail rate-run-fails rate rate-run-fails rc:firstrace
