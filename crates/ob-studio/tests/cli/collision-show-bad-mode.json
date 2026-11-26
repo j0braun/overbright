@@ -1,0 +1,11 @@
+{
+  "command": "collision.show",
+  "error": {
+    "kind": "usage",
+    "message": "--mode: no mode `some`: use off, invisible or all",
+    "reason": "bad_mode"
+  },
+  "exit": 2,
+  "format": 1,
+  "ok": false
+}

@@ -1,0 +1,11 @@
+{
+  "command": "data.show",
+  "error": {
+    "kind": "usage",
+    "message": "--sort: no column `colour`: use name, type, track, laps, backward, checkpoints",
+    "reason": "bad_column"
+  },
+  "exit": 2,
+  "format": 1,
+  "ok": false
+}

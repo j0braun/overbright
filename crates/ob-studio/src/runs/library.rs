@@ -150,7 +150,7 @@ pub fn path(dir: &Path, name: &str) -> PathBuf {
 
 #[cfg(test)]
 mod tests {
-    use super::super::summary::tests::lines;
+    use crate::runs::fixtures::lines;
     use super::*;
 
     fn text(seed: u64) -> String {
@@ -159,7 +159,7 @@ mod tests {
 
     #[test]
     fn saved_runs_are_listed_renamed_and_deleted() {
-        let d = crate::testkit::Scratch::new("runs-library");
+        let d = ob_testkit::Scratch::new("runs-library");
         let dir = dir(d.path(), "docks");
         assert!(list(&dir).is_empty(), "no folder: no runs");
         assert_eq!(save(&dir, "sim-r-seed1", &text(1)).unwrap(), "sim-r-seed1");
@@ -204,7 +204,7 @@ mod tests {
     /// Runs are the editor's, not the mod's: sharing the mod leaves them out.
     #[test]
     fn a_mod_shared_has_no_runs() {
-        let d = crate::testkit::Scratch::new("runs-not-shared");
+        let d = ob_testkit::Scratch::new("runs-not-shared");
         let mdir = d.path().join("docks");
         std::fs::create_dir_all(&mdir).unwrap();
         let rdir = dir(d.path(), "docks");

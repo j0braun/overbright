@@ -783,6 +783,244 @@
       "words": "game find"
     },
     {
+      "command": "collision.show",
+      "flags": [
+        {
+          "flag": "--mode",
+          "label": "off, invisible or all (default all)",
+          "needed": false,
+          "type": "text"
+        }
+      ],
+      "kind": "read",
+      "summary": "What the collision layer shows in a mode (off, invisible barriers or all collision), counted as the World view draws it; with --mod the mod's removed and drawn collision applies",
+      "words": "collision show"
+    },
+    {
+      "command": "runs.list",
+      "flags": [],
+      "kind": "read",
+      "summary": "The mod's kept runs (simulations and recordings), newest first, as the Runs workspace lists them",
+      "words": "runs list"
+    },
+    {
+      "command": "runs.show",
+      "flags": [
+        {
+          "flag": "--run",
+          "label": "The run's name (`runs list`)",
+          "needed": true,
+          "type": "text"
+        }
+      ],
+      "kind": "read",
+      "summary": "Open a run: its race, seed, how it ended, the results and the problems it found",
+      "words": "runs show"
+    },
+    {
+      "command": "runs.telemetry",
+      "flags": [
+        {
+          "flag": "--run",
+          "label": "The run's name (`runs list`)",
+          "needed": true,
+          "type": "text"
+        },
+        {
+          "flag": "--car",
+          "label": "Car number (default: the player's slot, 0)",
+          "needed": false,
+          "type": "u32"
+        }
+      ],
+      "kind": "read",
+      "summary": "One car's telemetry in a run: speed over time, distance from the racing line, its events",
+      "words": "runs telemetry"
+    },
+    {
+      "command": "runs.compare",
+      "flags": [
+        {
+          "flag": "--run",
+          "label": "The run's name (`runs list`)",
+          "needed": true,
+          "type": "text"
+        },
+        {
+          "flag": "--with",
+          "label": "The run to compare it with",
+          "needed": true,
+          "type": "text"
+        },
+        {
+          "flag": "--car",
+          "label": "Car number (default 0)",
+          "needed": false,
+          "type": "u32"
+        }
+      ],
+      "kind": "read",
+      "summary": "Compare two runs: where they part and when a car is over a metre from where the first has it",
+      "words": "runs compare"
+    },
+    {
+      "command": "runs.rename",
+      "flags": [
+        {
+          "flag": "--run",
+          "label": "The run's name (`runs list`)",
+          "needed": true,
+          "type": "text"
+        },
+        {
+          "flag": "--to",
+          "label": "The new name",
+          "needed": true,
+          "type": "text"
+        }
+      ],
+      "kind": "run",
+      "summary": "Rename a run (never over another run)",
+      "words": "runs rename"
+    },
+    {
+      "command": "runs.delete",
+      "flags": [
+        {
+          "flag": "--run",
+          "label": "The run's name (`runs list`)",
+          "needed": true,
+          "type": "text"
+        }
+      ],
+      "kind": "destructive",
+      "summary": "Delete a run file",
+      "words": "runs delete"
+    },
+    {
+      "command": "data.kinds",
+      "flags": [],
+      "kind": "read",
+      "summary": "The kinds of records the Data grid shows, with their columns and how many rows the mod's view has",
+      "words": "data kinds"
+    },
+    {
+      "command": "data.show",
+      "flags": [
+        {
+          "flag": "--kind",
+          "label": "The kind: placement or race",
+          "needed": true,
+          "type": "text"
+        },
+        {
+          "flag": "--search",
+          "label": "Keep rows where any cell has all these words",
+          "needed": false,
+          "type": "text"
+        },
+        {
+          "flag": "--filter",
+          "label": "Keep rows whose column has the text: `column=text`",
+          "needed": false,
+          "type": "text"
+        },
+        {
+          "flag": "--sort",
+          "label": "Sort by this column (smallest first)",
+          "needed": false,
+          "type": "text"
+        },
+        {
+          "flag": "--desc",
+          "label": "Largest first",
+          "needed": false,
+          "type": "bool"
+        }
+      ],
+      "kind": "read",
+      "summary": "One kind's table as the Data grid shows it, with where each value comes from",
+      "words": "data show"
+    },
+    {
+      "command": "data.set",
+      "flags": [
+        {
+          "flag": "--kind",
+          "label": "The kind: placement or race",
+          "needed": true,
+          "type": "text"
+        },
+        {
+          "flag": "--row",
+          "label": "The row's key, as `data show` gives it",
+          "needed": true,
+          "type": "text"
+        },
+        {
+          "flag": "--field",
+          "label": "The column's field",
+          "needed": true,
+          "type": "text"
+        },
+        {
+          "flag": "--value",
+          "label": "The value, as typed into the cell",
+          "needed": true,
+          "type": "text"
+        }
+      ],
+      "kind": "edit",
+      "summary": "Write one cell of the Data grid as one undo step (the cell as the grid takes it typed)",
+      "words": "data set"
+    },
+    {
+      "command": "browser.search",
+      "flags": [
+        {
+          "flag": "--text",
+          "label": "Words of the name, a hash (0x1A2B3C4D) or section:N",
+          "needed": false,
+          "type": "text"
+        },
+        {
+          "flag": "--kind",
+          "label": "all, models or textures (default all)",
+          "needed": false,
+          "type": "text"
+        },
+        {
+          "flag": "--category",
+          "label": "Models only: knock-over, barriers, signs, street, trees or all",
+          "needed": false,
+          "type": "text"
+        },
+        {
+          "flag": "--textures",
+          "label": "Textures only: any, in-use, unused, animated or large",
+          "needed": false,
+          "type": "text"
+        }
+      ],
+      "kind": "read",
+      "summary": "Search the region's models and textures by name, hash or `section:N`, as the Browser workspace does",
+      "words": "browser search"
+    },
+    {
+      "command": "browser.used",
+      "flags": [
+        {
+          "flag": "--text",
+          "label": "Its name (all words, any case) or hash",
+          "needed": true,
+          "type": "text"
+        }
+      ],
+      "kind": "read",
+      "summary": "Where a model or texture is used: its placements, sections, textures or models (the Browser's used by)",
+      "words": "browser used"
+    },
+    {
       "command": "checks.run",
       "flags": [],
       "kind": "read",

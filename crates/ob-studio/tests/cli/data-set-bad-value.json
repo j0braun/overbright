@@ -1,0 +1,12 @@
+{
+  "command": "data.set",
+  "error": {
+    "detail": "\"many\" is not a whole number",
+    "kind": "failed",
+    "message": "\"many\" is not a whole number",
+    "reason": "bad_value"
+  },
+  "exit": 1,
+  "format": 1,
+  "ok": false
+}

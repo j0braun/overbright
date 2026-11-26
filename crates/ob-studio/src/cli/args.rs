@@ -95,7 +95,7 @@ pub fn parse(argv: &[String]) -> Result<Line, String> {
                 // `looks find road`: the words after a command that takes `text` are the text.
                 let taker = (1..words.len()).rev().find_map(|n| {
                     command_of_words(&words[..n])
-                        .filter(|c| c.args.iter().any(|f| f.key == "text" && matches!(f.req, Req::Yes)))
+                        .filter(|c| c.args.iter().any(|f| f.key == "text"))
                         .map(|c| (c, n))
                 });
                 match taker {

@@ -216,6 +216,7 @@ const AT: Field = f("position", VEC3, Req::Yes, "Position");
 const HEADING: Field = f("heading", F32, Req::No, "Heading");
 const POINT_PART: Field = f("part", PART, Req::Yes, "Part");
 const POINT_INDEX: Field = f("index", U32, Req::No, "Number");
+const RUN_NAME: Field = f("run", TEXT, Req::Yes, "The run's name (`runs list`)");
 const FILE: Field = f("file", TEXT, Req::Yes, "File");
 /// A game texture (`world:0x1A2B3C4D`, Studio Looks).
 const TEXTURE: Field = f("texture", TEXT, Req::Yes, "Texture");
@@ -483,6 +484,94 @@ pub const COMMANDS: &[Command] = &[
         kind: CommandKind::Read,
         summary: "Show which game folder the tool uses and why (--game, NFSU2_ROOT or the launcher)",
         args: &[],
+    },
+    Command {
+        name: "collision.show",
+        kind: CommandKind::Read,
+        summary: "What the collision layer shows in a mode (off, invisible barriers or all collision), counted as the World view draws it; with --mod the mod's removed and drawn collision applies",
+        args: &[f("mode", TEXT, Req::No, "off, invisible or all (default all)")],
+    },
+    Command {
+        name: "runs.list",
+        kind: CommandKind::Read,
+        summary: "The mod's kept runs (simulations and recordings), newest first, as the Runs workspace lists them",
+        args: &[],
+    },
+    Command {
+        name: "runs.show",
+        kind: CommandKind::Read,
+        summary: "Open a run: its race, seed, how it ended, the results and the problems it found",
+        args: &[RUN_NAME],
+    },
+    Command {
+        name: "runs.telemetry",
+        kind: CommandKind::Read,
+        summary: "One car's telemetry in a run: speed over time, distance from the racing line, its events",
+        args: &[RUN_NAME, f("car", U32, Req::No, "Car number (default: the player's slot, 0)")],
+    },
+    Command {
+        name: "runs.compare",
+        kind: CommandKind::Read,
+        summary: "Compare two runs: where they part and when a car is over a metre from where the first has it",
+        args: &[RUN_NAME, f("with", TEXT, Req::Yes, "The run to compare it with"), f("car", U32, Req::No, "Car number (default 0)")],
+    },
+    Command {
+        name: "runs.rename",
+        kind: CommandKind::Run,
+        summary: "Rename a run (never over another run)",
+        args: &[RUN_NAME, f("to", TEXT, Req::Yes, "The new name")],
+    },
+    Command {
+        name: "runs.delete",
+        kind: CommandKind::Destructive,
+        summary: "Delete a run file",
+        args: &[RUN_NAME],
+    },
+    Command {
+        name: "data.kinds",
+        kind: CommandKind::Read,
+        summary: "The kinds of records the Data grid shows, with their columns and how many rows the mod's view has",
+        args: &[],
+    },
+    Command {
+        name: "data.show",
+        kind: CommandKind::Read,
+        summary: "One kind's table as the Data grid shows it, with where each value comes from",
+        args: &[
+            f("kind", TEXT, Req::Yes, "The kind: placement or race"),
+            f("search", TEXT, Req::No, "Keep rows where any cell has all these words"),
+            f("filter", TEXT, Req::No, "Keep rows whose column has the text: `column=text`"),
+            f("sort", TEXT, Req::No, "Sort by this column (smallest first)"),
+            f("desc", Ty::Bool, Req::No, "Largest first"),
+        ],
+    },
+    Command {
+        name: "data.set",
+        kind: CommandKind::Edit,
+        summary: "Write one cell of the Data grid as one undo step (the cell as the grid takes it typed)",
+        args: &[
+            f("kind", TEXT, Req::Yes, "The kind: placement or race"),
+            f("row", TEXT, Req::Yes, "The row's key, as `data show` gives it"),
+            f("field", TEXT, Req::Yes, "The column's field"),
+            f("value", TEXT, Req::Yes, "The value, as typed into the cell"),
+        ],
+    },
+    Command {
+        name: "browser.search",
+        kind: CommandKind::Read,
+        summary: "Search the region's models and textures by name, hash or `section:N`, as the Browser workspace does",
+        args: &[
+            f("text", TEXT, Req::No, "Words of the name, a hash (0x1A2B3C4D) or section:N"),
+            f("kind", TEXT, Req::No, "all, models or textures (default all)"),
+            f("category", TEXT, Req::No, "Models only: knock-over, barriers, signs, street, trees or all"),
+            f("textures", TEXT, Req::No, "Textures only: any, in-use, unused, animated or large"),
+        ],
+    },
+    Command {
+        name: "browser.used",
+        kind: CommandKind::Read,
+        summary: "Where a model or texture is used: its placements, sections, textures or models (the Browser's used by)",
+        args: &[f("text", TEXT, Req::Yes, "Its name (all words, any case) or hash")],
     },
     Command { name: "checks.run", kind: CommandKind::Read, summary: "Run the map checks on the pack", args: &[] },
     Command {

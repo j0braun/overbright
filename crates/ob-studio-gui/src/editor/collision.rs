@@ -73,48 +73,7 @@ const CLOSE_PX: f32 = 10.0;
 /// drawn wall snaps to it (Alt places without snapping).
 pub const SNAP_PX: f32 = 10.0;
 
-/// What the layer shows.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
-pub enum Show {
-    #[default]
-    Off,
-    /// Invisible walls and the race and career barriers.
-    Invisible,
-    /// Also the walls behind scenery and the floors.
-    All,
-}
-
-impl Show {
-    pub const ALL: [Show; 3] = [Show::Off, Show::Invisible, Show::All];
-
-    /// Its name in the View menu.
-    pub fn label(self) -> &'static str {
-        match self {
-            Show::Off => "Off",
-            Show::Invisible => "Invisible barriers",
-            Show::All => "All collision",
-        }
-    }
-
-    /// The next state (the L key): Off, Invisible barriers, All collision, Off.
-    pub fn next(self) -> Show {
-        match self {
-            Show::Off => Show::Invisible,
-            Show::Invisible => Show::All,
-            Show::All => Show::Off,
-        }
-    }
-
-    /// `--collision off|invisible|all`.
-    pub fn parse(v: &str) -> Option<Show> {
-        match v {
-            "off" => Some(Show::Off),
-            "invisible" => Some(Show::Invisible),
-            "all" => Some(Show::All),
-            _ => None,
-        }
-    }
-}
+pub use ob_studio::collision_view::Show;
 
 /// Which barrier groups a workspace's collision layer draws. In the game a barrier group is switched on by what
 /// is being played: `BARRIERS_<track>` and `PLAYER_BARRIERS_<track>` by a race on that base track (free roam is
@@ -208,34 +167,10 @@ const FLOORS_NEAR: f32 = 120.0;
 const MAX_WALLS: usize = 8000;
 const MAX_FLOORS: usize = 4000;
 
-/// The scenery triangles the cover test looks at: the original's
-/// placements as drawn in free roam (no panorama, no race-only or
-/// group-switched pieces), see-through ones included (a fence is seen).
+/// The scenery triangles the cover test looks at (the original's placements, [`ob_studio::collision_view`]).
 pub fn scenery(s: &EditorState) -> Vec<[Vec3; 3]> {
-    let world = &s.session.world;
-    let mut out = Vec::new();
-    for p in &s.session.base.placements {
-        let Some(solid) = world.solids.get(p.solid) else { continue };
-        if solid.name.starts_with("PAN_") || p.flags & (crate::world::HIDDEN_FLAG | RACE_ONLY) != 0 {
-            continue;
-        }
-        for tri in solid.indices.chunks_exact(3) {
-            let Some(c) = (0..3)
-                .map(|i| {
-                    solid.vertices.get(tri[i] as usize).map(|v| p.transform.transform_point3(Vec3::from(v.position)))
-                })
-                .collect::<Option<Vec<Vec3>>>()
-            else {
-                continue;
-            };
-            out.push([c[0], c[1], c[2]]);
-        }
-    }
-    out
+    ob_studio::collision_view::scenery(&s.session.world, &s.session.base.placements)
 }
-
-/// The race-only scenery flag (`world::scenery`'s 0x200).
-const RACE_ONLY: u16 = 0x0200;
 
 /// The layer of the open region (read from the loaded collision packs).
 pub fn layer_of(s: &EditorState) -> Layer {

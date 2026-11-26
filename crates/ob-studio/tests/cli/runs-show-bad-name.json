@@ -1,0 +1,10 @@
+{
+  "command": "runs.show",
+  "error": {
+    "kind": "usage",
+    "message": "--run: A run's name has letters, digits, - _ and . (not first)"
+  },
+  "exit": 2,
+  "format": 1,
+  "ok": false
+}

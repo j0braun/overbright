@@ -1,0 +1,28 @@
+{
+  "all": {
+    "barriers": 0,
+    "floors": 0,
+    "floors_not_ground": 0,
+    "invisible": 0,
+    "visible": 0
+  },
+  "command": "collision.show",
+  "counts": [
+    {
+      "count": 0,
+      "what": "Invisible walls"
+    },
+    {
+      "count": 0,
+      "what": "Race and career barriers"
+    }
+  ],
+  "exit": 0,
+  "faces_read": 0,
+  "format": 1,
+  "label": "Invisible barriers",
+  "mod": null,
+  "mode": "invisible",
+  "ok": true,
+  "region": "L4RA"
+}

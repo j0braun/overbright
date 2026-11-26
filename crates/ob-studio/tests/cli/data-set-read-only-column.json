@@ -1,0 +1,12 @@
+{
+  "command": "data.set",
+  "error": {
+    "detail": "Checkpoints cannot be changed here yet",
+    "kind": "failed",
+    "message": "Checkpoints cannot be changed here yet",
+    "reason": "bad_value"
+  },
+  "exit": 1,
+  "format": 1,
+  "ok": false
+}

@@ -756,3 +756,112 @@ fn the_list_and_find_commands_read_what_the_window_reads() {
     assert_eq!(code, cli::OK);
     assert!(out.contains("Did you mean `barrier`?"), "{out}");
 }
+
+/// Run files in the mod's editor folder, as the window's Runs workspace keeps them.
+fn put_runs(dir: &Path) {
+    use ob_studio::runs::{fixtures, library};
+    let runs = dir.join(store::EDITOR_DIR).join("runs");
+    let text = |seed, prop_crash| -> String {
+        fixtures::lines(seed, prop_crash, false).iter().map(|l| l.write() + "\n").collect()
+    };
+    library::save(&runs, "seed1", &text(1, true)).unwrap();
+    library::save(&runs, "seed2", &text(2, false)).unwrap();
+}
+
+#[test]
+fn the_runs_commands_read_and_change_the_runs_the_window_lists() {
+    let (s, dir) = fixture("cli-runs", false);
+    let e = env();
+    put_runs(&dir);
+    let cases: &[(&str, &[&str], i32)] = &[
+        ("runs-list", &["runs", "list", "--mod", "<mod>"], cli::OK),
+        ("runs-show", &["runs", "show", "--mod", "<mod>", "--run", "seed1"], cli::OK),
+        ("runs-telemetry", &["runs", "telemetry", "--mod", "<mod>", "--run", "seed1", "--car", "2"], cli::OK),
+        ("runs-telemetry-no-car", &["runs", "telemetry", "--mod", "<mod>", "--run", "seed1", "--car", "9"], cli::FAILED),
+        ("runs-compare", &["runs", "compare", "--mod", "<mod>", "--run", "seed1", "--with", "seed2"], cli::OK),
+        ("runs-show-missing", &["runs", "show", "--mod", "<mod>", "--run", "nothing"], cli::FAILED),
+        ("runs-show-bad-name", &["runs", "show", "--mod", "<mod>", "--run", "../x"], cli::USAGE),
+        ("runs-rename", &["runs", "rename", "--mod", "<mod>", "--run", "seed2", "--to", "other"], cli::OK),
+        ("runs-rename-taken", &["runs", "rename", "--mod", "<mod>", "--run", "seed1", "--to", "other"], cli::FAILED),
+        ("runs-delete", &["runs", "delete", "--mod", "<mod>", "--run", "other"], cli::OK),
+        ("runs-delete-gone", &["runs", "delete", "--mod", "<mod>", "--run", "other"], cli::FAILED),
+        ("runs-dry-run-refused", &["runs", "delete", "--mod", "<mod>", "--run", "seed1", "--dry-run"], cli::USAGE),
+    ];
+    for (case, words, code) in cases {
+        assert_eq!(golden(case, words, &s, &dir, &e), *code, "{case}");
+    }
+    // The telemetry is the window's: speed from the file, the racing line from the mod's race.
+    let (_, out, _) = run(&["runs", "telemetry", "--mod", "<mod>", "--run", "seed1", "--car", "2", "--json"], &dir, &e);
+    let doc: Value = serde_json::from_str(&out).unwrap();
+    assert!(doc["lateral"].is_null(), "the run's race `r` is not in the mod: no line to measure from");
+    assert_eq!(doc["speed"]["max"], 20.0);
+    // Deleting left the other run alone.
+    assert!(dir.join(store::EDITOR_DIR).join("runs").join("seed1.obrun").is_file());
+}
+
+#[test]
+fn the_data_commands_read_the_grid_and_write_cells_as_undo_steps() {
+    let (s, dir) = fixture("cli-data", true);
+    let e = env();
+    let key = "docks:sprint";
+    let set = |v: &'static str| ["data", "set", "--mod", "<mod>", "--kind", "race", "--row", key, "--field", "name", "--value", v];
+    let cases: &[(&str, &[&str], i32)] = &[
+        ("data-kinds", &["data", "kinds", "--mod", "<mod>"], cli::OK),
+        ("data-show-race", &["data", "show", "--mod", "<mod>", "--kind", "race"], cli::OK),
+        ("data-show-search", &["data", "show", "--mod", "<mod>", "--kind", "race", "--search", "short"], cli::OK),
+        ("data-show-sorted", &["data", "show", "--mod", "<mod>", "--kind", "race", "--sort", "name", "--desc"], cli::OK),
+        ("data-show-filter", &["data", "show", "--mod", "<mod>", "--kind", "race", "--filter", "name=sprint"], cli::OK),
+        ("data-show-bad-kind", &["data", "show", "--mod", "<mod>", "--kind", "rac"], cli::USAGE),
+        ("data-show-bad-column", &["data", "show", "--mod", "<mod>", "--kind", "race", "--sort", "colour"], cli::USAGE),
+        ("data-set-dry-run", &[&set("Docks run")[..], &["--dry-run"]].concat(), cli::OK),
+        ("data-set", &set("Docks run"), cli::OK),
+        ("data-set-unchanged", &set("Docks run"), cli::OK),
+        ("data-set-read-only-column", &["data", "set", "--mod", "<mod>", "--kind", "race", "--row", key, "--field", "checkpoints", "--value", "3"], cli::FAILED),
+        ("data-set-bad-value", &["data", "set", "--mod", "<mod>", "--kind", "race", "--row", key, "--field", "laps", "--value", "many"], cli::FAILED),
+    ];
+    for (case, words, code) in cases {
+        assert_eq!(golden(case, words, &s, &dir, &e), *code, "{case}");
+    }
+    // The cell is the race's name, in one history step the window shows and can undo.
+    assert!(text(&dir).contains("name = Docks run"));
+    let (_, out, _) = run(&["history", "show", "--mod", "<mod>", "--json"], &dir, &e);
+    assert!(out.contains("Docks run") || out.contains("Rename"), "{out}");
+}
+
+#[test]
+fn the_browser_commands_read_the_regions_index() {
+    let (s, dir) = fixture("cli-browser", false);
+    let e = lists_env();
+    let cases: &[(&str, &[&str], i32)] = &[
+        ("browser-search", &["browser", "search"], cli::OK),
+        ("browser-search-words", &["browser", "search", "cone"], cli::OK),
+        ("browser-search-models", &["browser", "search", "--text", "x", "--kind", "models", "--category", "signs"], cli::OK),
+        ("browser-search-textures", &["browser", "search", "--kind", "textures", "--textures", "unused"], cli::OK),
+        ("browser-search-bad-kind", &["browser", "search", "--kind", "model"], cli::USAGE),
+        ("browser-used", &["browser", "used", "cone"], cli::OK),
+        ("browser-used-none", &["browser", "used", "zebra"], cli::OK),
+        ("browser-used-no-text", &["browser", "used"], cli::USAGE),
+    ];
+    for (case, words, code) in cases {
+        assert_eq!(golden(case, words, &s, &dir, &e), *code, "{case}");
+    }
+    for w in [&["browser", "search"][..], &["browser", "used", "cone"]] {
+        assert_eq!(run(w, &dir, &no_game()).0, cli::NO_GAME, "{w:?}");
+    }
+}
+
+#[test]
+fn collision_show_counts_what_each_mode_of_the_layer_draws() {
+    let (s, dir) = fixture("cli-collision", false);
+    let e = lists_env();
+    let cases: &[(&str, &[&str], i32)] = &[
+        ("collision-show", &["collision", "show"], cli::OK),
+        ("collision-show-invisible", &["collision", "show", "--mode", "invisible"], cli::OK),
+        ("collision-show-off", &["collision", "show", "--mode", "off", "--mod", "<mod>"], cli::OK),
+        ("collision-show-bad-mode", &["collision", "show", "--mode", "some"], cli::USAGE),
+    ];
+    for (case, words, code) in cases {
+        assert_eq!(golden(case, words, &s, &dir, &e), *code, "{case}");
+    }
+    assert_eq!(run(&["collision", "show"], &dir, &no_game()).0, cli::NO_GAME);
+}

@@ -1,0 +1,13 @@
+{
+  "apart": null,
+  "car": 0,
+  "command": "runs.compare",
+  "exit": 0,
+  "format": 1,
+  "hash_tick": null,
+  "ok": true,
+  "run": "seed1",
+  "same": true,
+  "time": null,
+  "with": "seed2"
+}

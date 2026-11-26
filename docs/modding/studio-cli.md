@@ -54,6 +54,18 @@ and its schema export (`crates/ob-studio/schema/studio.json`) use, so `help` is 
 | `props solids` | read | The region's placeable solids, as the prop browser lists them (`--filter` words of the name, `--category` knock-over, barriers, signs, street, trees or all; default all), with where they are placed; needs the game |
 | `race tracks` | read | The region's base tracks a race can be on, as the race panel lists them (number and name); needs the game |
 | `looks find` | read | Find the region's world textures by name words or hash: `looks find road` or `--text 0x1A2B3C4D`; gives each texture's id for `looks open`, name and size; needs the game |
+| `collision show` | read | What the World view's collision layer shows in `--mode` `off`, `invisible` (invisible walls and the race and career barriers) or `all` (default; also the walls behind scenery and the floors), counted as the window builds it; with `--mod` the mod's removed and drawn collision applies; needs the game |
+| `runs list` | read | The mod's kept runs (simulations and recordings), newest first, as the Runs workspace lists them |
+| `runs show` | read | Open a run (`--run`): its race, seed, how it ended, the results and the problems it found |
+| `runs telemetry` | read | One car's telemetry in a run (`--run`, optional `--car`, default the player's slot 0): speed over time, distance from the racing line when the mod has the run's race, its events |
+| `runs compare` | read | Compare a run with another (`--run`, `--with`, optional `--car`): the tick its state hashes part and when the car is over a metre from where the first has it |
+| `runs rename` | run | Rename a run (`--run`, `--to`); never over another run |
+| `runs delete` | run | Delete a run file (`--run`); there is no dry run and no undo |
+| `data kinds` | read | The kinds the Data grid shows (placement, race) with their columns and row counts |
+| `data show` | read | One kind's table as the Data grid shows it (`--kind`; optional `--search` words, `--filter column=text`, `--sort column`, `--desc`), each value with where it comes from (original, yours, another mod) |
+| `data set` | edit | Write one cell as the grid does (`--kind`, `--row` the row's key as `data show` gives it, `--field` the column, `--value` as typed into the cell): one undo step, with a request, a diff and `--dry-run` like any edit |
+| `browser search` | read | Search the region's models and textures as the Browser workspace does: words of the name, a hash or `section:N` (after the command or `--text`), `--kind` all, models or textures, `--category` for models, `--textures` any, in-use, unused, animated or large; needs the game |
+| `browser used` | read | Where a model or texture is used: a model's placements, sections and textures, a texture's models and sections; needs the game |
 | `game find` | read | The game folder the tool uses and where it came from: `--game`, `NFSU2_ROOT` or the launcher's choice (exit 4 when none, or it does not exist) |
 | `checks run` | read | Run the map checks on the mod |
 | `history show` | read | The mod's kept steps, with their authors |
@@ -124,6 +136,25 @@ the same words give the same answer. On a near miss (`--filter barier`, `looks f
 `--region L4RB`, a command or `--template` with a typo) the answer says "Did you mean": plain text on the line after,
 `did_you_mean` in the JSON for the lists, and in the message of a usage error. The list commands need no `--mod`.
 
+`collision show` gives `region`, `mode`, `label`, `faces_read`, `counts` (each `what` the mode lists and its `count`) and
+`all` (`invisible`, `barriers`, `visible`, `floors`, `floors_not_ground`: every kind whatever the mode).
+
+`runs list` gives `count` and `runs` (`run`, `what`: the race's id or `world`, `seed`, `end`, `bytes`, `time_ms`). `runs show` gives
+`what`, `seed`, `end`, `span`, `frames`, `cars`, `standings` (`car`, `name`, `place`, `time`, `best`, `laps`, `dnf`) and
+`problems`. `runs telemetry` gives `speed` and, when the mod has the run's race, `lateral` (each `samples`, `min`, `max`,
+`mean`), the car's `events` and the whole `series` (time, value). `runs compare` gives `same`, `hash_tick`, `time` and
+`apart`. A run that is not there fails with `error.reason` `no_run`, a car it does not have with `no_car`.
+
+`data kinds` gives `kinds` (each `kind`, `rows`, `columns`). `data show` gives `kind`, `total`, `count`, `columns` (`field`,
+`label`, `type`, `editable`) and `rows`: each `key` and `cells` by column, each cell `text`, `from` (`original`, `yours` or
+`mod <name>`), `yours` and `original` (the original's value when it differs). A cell the format cannot write yet, or a
+row another mod owns, is refused by `data set` with `error.reason` `bad_value` and the grid's words in `error.detail`.
+
+`browser search` gives `region`, `text`, `count`, `found` (`models` and `textures` the words find at their widest) and `hits`
+(a model's `name`, `hash`, `placed`, `shown`, `sections`, `triangles`, `textures`, `used`; a texture's `name`, `texture`
+(its Looks id), `width`, `height`, `animated`, `models`, `materials`, `used`). `browser used` gives `found`: those hits with
+a model's `placements`, `as_lod`, `section_list` and `texture_list`, or a texture's `model_list` and `section_list`.
+
 `pack export` gives `to`, `files`, `bytes`, `derived` (the textures from the original game's pixels) and
 `build`; refused for derived textures, its `error.reason` is `derived` and `derived` lists them.
 
@@ -136,6 +167,18 @@ editor has the mod open: that program makes the step and, when it next saves the
 texture under `textures/`, as `looks import` does itself when nothing else has the mod open). `looks watch` gives `saves`, one per save taken in, with its `outcome` (or `refused` and the `reason`).
 `looks list` gives `textures` (each with `texture`, `name`, `origin`, `derived`, `size`, `image`, `pack_file`)
 and `work`.
+
+## Same as the window
+
+The window's commands and the command line's are the same functions: the Runs list, Data grid, Browser index and
+collision layer the window draws are read from the code the commands call (`ob_studio::runs`, `data`, `browser`,
+`collision_view`). A test (`crates/ob-studio-gui/src/studio/parity_tests.rs`) lists the window's workspaces, menu
+actions, menu commands and key table and fails when one has neither a counterpart here nor a reason to be
+window-only. What stays in the window only: the camera, layout and what is drawn (View, Frame, Reset camera), focus,
+areas, places and dialogs, the Test and Drive here buttons that start the game on the open mod (the tool has no
+game window), Undo and Redo (a command is one step of the same history, `history show`; an edit is taken back by
+the edit that reverses it), Save (a command's step is written at once), opening a mod (a command names `--mod`) and
+Studio's settings.
 
 ## Exit codes
 
@@ -193,6 +236,6 @@ given and `checks run` with the game reports it.
 The tool is `crates/ob-studio/src/bin/overbright-studio-cli.rs` over `ob_studio::cli` (no window: it links Studio's
 operation layer only). `crates/ob-studio/tests/cli.rs` runs it on mods written in the test and compares each JSON
 document with its kept copy in `crates/ob-studio/tests/cli/` (`OB_STUDIO_BLESS=1` rewrites them; review the diff);
-it also checks that every registered command is on the command line and documented here, and that every exit code
+it also checks that every registered command is on the command line and documented here (and the window's side: `parity_tests.rs` above), and that every exit code
 is in the table above. Every edit the map editor makes goes through its JSON and back before it runs
 (`ob_studio::session::through_json`), so a request JSON cannot carry fails the editor's tests.

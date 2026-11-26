@@ -1576,6 +1576,256 @@
       "args": []
     },
     {
+      "name": "collision.show",
+      "kind": "read",
+      "summary": "What the collision layer shows in a mode (off, invisible barriers or all collision), counted as the World view draws it; with --mod the mod's removed and drawn collision applies",
+      "args": [
+        {
+          "key": "mode",
+          "type": "text",
+          "required": "no",
+          "merge": false,
+          "label": "off, invisible or all (default all)"
+        }
+      ]
+    },
+    {
+      "name": "runs.list",
+      "kind": "read",
+      "summary": "The mod's kept runs (simulations and recordings), newest first, as the Runs workspace lists them",
+      "args": []
+    },
+    {
+      "name": "runs.show",
+      "kind": "read",
+      "summary": "Open a run: its race, seed, how it ended, the results and the problems it found",
+      "args": [
+        {
+          "key": "run",
+          "type": "text",
+          "required": "yes",
+          "merge": false,
+          "label": "The run's name (`runs list`)"
+        }
+      ]
+    },
+    {
+      "name": "runs.telemetry",
+      "kind": "read",
+      "summary": "One car's telemetry in a run: speed over time, distance from the racing line, its events",
+      "args": [
+        {
+          "key": "run",
+          "type": "text",
+          "required": "yes",
+          "merge": false,
+          "label": "The run's name (`runs list`)"
+        },
+        {
+          "key": "car",
+          "type": "u32",
+          "required": "no",
+          "merge": false,
+          "label": "Car number (default: the player's slot, 0)"
+        }
+      ]
+    },
+    {
+      "name": "runs.compare",
+      "kind": "read",
+      "summary": "Compare two runs: where they part and when a car is over a metre from where the first has it",
+      "args": [
+        {
+          "key": "run",
+          "type": "text",
+          "required": "yes",
+          "merge": false,
+          "label": "The run's name (`runs list`)"
+        },
+        {
+          "key": "with",
+          "type": "text",
+          "required": "yes",
+          "merge": false,
+          "label": "The run to compare it with"
+        },
+        {
+          "key": "car",
+          "type": "u32",
+          "required": "no",
+          "merge": false,
+          "label": "Car number (default 0)"
+        }
+      ]
+    },
+    {
+      "name": "runs.rename",
+      "kind": "run",
+      "summary": "Rename a run (never over another run)",
+      "args": [
+        {
+          "key": "run",
+          "type": "text",
+          "required": "yes",
+          "merge": false,
+          "label": "The run's name (`runs list`)"
+        },
+        {
+          "key": "to",
+          "type": "text",
+          "required": "yes",
+          "merge": false,
+          "label": "The new name"
+        }
+      ]
+    },
+    {
+      "name": "runs.delete",
+      "kind": "destructive",
+      "summary": "Delete a run file",
+      "args": [
+        {
+          "key": "run",
+          "type": "text",
+          "required": "yes",
+          "merge": false,
+          "label": "The run's name (`runs list`)"
+        }
+      ]
+    },
+    {
+      "name": "data.kinds",
+      "kind": "read",
+      "summary": "The kinds of records the Data grid shows, with their columns and how many rows the mod's view has",
+      "args": []
+    },
+    {
+      "name": "data.show",
+      "kind": "read",
+      "summary": "One kind's table as the Data grid shows it, with where each value comes from",
+      "args": [
+        {
+          "key": "kind",
+          "type": "text",
+          "required": "yes",
+          "merge": false,
+          "label": "The kind: placement or race"
+        },
+        {
+          "key": "search",
+          "type": "text",
+          "required": "no",
+          "merge": false,
+          "label": "Keep rows where any cell has all these words"
+        },
+        {
+          "key": "filter",
+          "type": "text",
+          "required": "no",
+          "merge": false,
+          "label": "Keep rows whose column has the text: `column=text`"
+        },
+        {
+          "key": "sort",
+          "type": "text",
+          "required": "no",
+          "merge": false,
+          "label": "Sort by this column (smallest first)"
+        },
+        {
+          "key": "desc",
+          "type": "bool",
+          "required": "no",
+          "merge": false,
+          "label": "Largest first"
+        }
+      ]
+    },
+    {
+      "name": "data.set",
+      "kind": "edit",
+      "summary": "Write one cell of the Data grid as one undo step (the cell as the grid takes it typed)",
+      "args": [
+        {
+          "key": "kind",
+          "type": "text",
+          "required": "yes",
+          "merge": false,
+          "label": "The kind: placement or race"
+        },
+        {
+          "key": "row",
+          "type": "text",
+          "required": "yes",
+          "merge": false,
+          "label": "The row's key, as `data show` gives it"
+        },
+        {
+          "key": "field",
+          "type": "text",
+          "required": "yes",
+          "merge": false,
+          "label": "The column's field"
+        },
+        {
+          "key": "value",
+          "type": "text",
+          "required": "yes",
+          "merge": false,
+          "label": "The value, as typed into the cell"
+        }
+      ]
+    },
+    {
+      "name": "browser.search",
+      "kind": "read",
+      "summary": "Search the region's models and textures by name, hash or `section:N`, as the Browser workspace does",
+      "args": [
+        {
+          "key": "text",
+          "type": "text",
+          "required": "no",
+          "merge": false,
+          "label": "Words of the name, a hash (0x1A2B3C4D) or section:N"
+        },
+        {
+          "key": "kind",
+          "type": "text",
+          "required": "no",
+          "merge": false,
+          "label": "all, models or textures (default all)"
+        },
+        {
+          "key": "category",
+          "type": "text",
+          "required": "no",
+          "merge": false,
+          "label": "Models only: knock-over, barriers, signs, street, trees or all"
+        },
+        {
+          "key": "textures",
+          "type": "text",
+          "required": "no",
+          "merge": false,
+          "label": "Textures only: any, in-use, unused, animated or large"
+        }
+      ]
+    },
+    {
+      "name": "browser.used",
+      "kind": "read",
+      "summary": "Where a model or texture is used: its placements, sections, textures or models (the Browser's used by)",
+      "args": [
+        {
+          "key": "text",
+          "type": "text",
+          "required": "yes",
+          "merge": false,
+          "label": "Its name (all words, any case) or hash"
+        }
+      ]
+    },
+    {
       "name": "checks.run",
       "kind": "read",
       "summary": "Run the map checks on the pack",

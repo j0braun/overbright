@@ -1,0 +1,62 @@
+{
+  "command": "browser.search",
+  "count": 4,
+  "exit": 0,
+  "format": 1,
+  "found": {
+    "models": 3,
+    "textures": 1
+  },
+  "hits": [
+    {
+      "hash": "0x00000000",
+      "knock_over": false,
+      "name": "XB_BARRIER_03",
+      "placed": 1,
+      "sections": 1,
+      "shown": 1,
+      "textures": 0,
+      "triangles": 0,
+      "type": "model",
+      "used": "1 placed in 1 section"
+    },
+    {
+      "hash": "0x00000000",
+      "knock_over": false,
+      "name": "XC_CONE_01",
+      "placed": 2,
+      "sections": 1,
+      "shown": 2,
+      "textures": 0,
+      "triangles": 0,
+      "type": "model",
+      "used": "2 placed in 1 section"
+    },
+    {
+      "hash": "0x00000000",
+      "knock_over": false,
+      "name": "XS_SIGN_STOP",
+      "placed": 1,
+      "sections": 1,
+      "shown": 1,
+      "textures": 0,
+      "triangles": 0,
+      "type": "model",
+      "used": "1 placed in 1 section"
+    },
+    {
+      "animated": false,
+      "height": 4,
+      "materials": 0,
+      "models": 0,
+      "name": "ROAD",
+      "texture": "world:0x00000ABC",
+      "type": "texture",
+      "used": "No model of this region draws it",
+      "width": 4
+    }
+  ],
+  "ok": true,
+  "region": "L4RA",
+  "text": ""
+}

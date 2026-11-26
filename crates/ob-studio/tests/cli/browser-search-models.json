@@ -1,0 +1,27 @@
+{
+  "command": "browser.search",
+  "count": 1,
+  "exit": 0,
+  "format": 1,
+  "found": {
+    "models": 3,
+    "textures": 0
+  },
+  "hits": [
+    {
+      "hash": "0x00000000",
+      "knock_over": false,
+      "name": "XS_SIGN_STOP",
+      "placed": 1,
+      "sections": 1,
+      "shown": 1,
+      "textures": 0,
+      "triangles": 0,
+      "type": "model",
+      "used": "1 placed in 1 section"
+    }
+  ],
+  "ok": true,
+  "region": "L4RA",
+  "text": "x"
+}

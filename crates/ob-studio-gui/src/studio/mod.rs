@@ -52,6 +52,8 @@ mod guide_tests;
 #[cfg(test)]
 mod inside_tests;
 #[cfg(test)]
+mod parity_tests;
+#[cfg(test)]
 mod runs_tests;
 #[cfg(test)]
 mod tests;
