@@ -152,6 +152,31 @@ package and is compiled into each place that uses it:
 | game binary test modules (`src/bin/game/*.rs`) | `#[path = "../../../tests/common/mod.rs"] mod testkit;` inside the module |
 | another workspace crate's tests | `#[cfg(test)] mod testkit { ob_testkit::bind!(); }` (its build.rs declares `ob_game` / `ob_private` as the root build.rs does) |
 
+### The screenshot matrix
+
+A page of the launcher or of Studio is drawn at the sizes of `ob_testkit::matrix::STANDARD` (960 x 600,
+1280 x 800, 1366 x 768 at 150 %, 1920 x 1080, 2560 x 1080, 3840 x 2160 at 200 %) and checked for clipping and
+overlap by the kit, not by a loop of its own:
+
+* `ob_testkit::matrix::check(page, variants, draw)` runs `draw` at every size and variant. `draw` returns the
+  problems it found; every failing size is reported at once. `kit::fit` and `kit::clipped` are the geometry
+  checks (a part outside the window, no room, an overlap; an item outside its page).
+* Studio: `studio::matrix::page(name, frames, setup, check)` (crates/ob-studio-gui/src/studio/matrix.rs) draws a
+  Studio page at those sizes with the mouse, the keys and the pad, adds the layout's own problems, and hands the
+  page's drawn rows to `check`. A window under Studio's smallest (960 x 600 logical) is checked for its one line
+  only.
+* The launcher: `every_screen_fits_the_standard_matrix` (src/launcher/tests.rs).
+
+A new page adds a call, not a size list.
+
+### Studio's words
+
+Every plain word Studio draws is a constant of `crates/ob-studio-gui/src/studio/words.rs`, so a translation has
+one file to start from. The test `every_word_comes_from_the_table` scans the code of `src/studio` for a loose
+capitalised string literal (no `{`, not in an assertion, log or attribute) and names the file and line; a
+formatted line is a function of the table (`looking_only_row`). `words_are_plain` checks the table against the
+plain-words rules (no jargon, a capital first, only the characters the faces have).
+
 ### The player's folders are off limits
 
 A test never reads or writes the player's own folders (`<data home>/overbright`,

@@ -11,6 +11,7 @@ use ob_look::legends::InputKind;
 
 use super::super::Studio;
 use super::super::address::Address;
+use super::super::matrix;
 use super::super::nav::{Area, Level, Pad};
 use super::super::shot::{frames, raw_input};
 use super::super::workspace::Workspace;
@@ -201,28 +202,32 @@ fn export_warns_for_derived_textures_and_imports_again_as_the_same_mod() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
-/// The four review sizes.
-const REVIEW: [(u32, u32); 4] = [(1920, 1080), (1280, 800), (1024, 768), (2560, 1080)];
-
 #[test]
 fn drawn_at_the_review_sizes_inside_the_page() {
     let dir = maps("draw", false);
-    for size in REVIEW {
-        for input in [InputKind::Mouse, InputKind::Keyboard, InputKind::Xbox] {
+    let drawn = matrix::page(
+        "mod page",
+        2,
+        |_, _| {
             let mut s = studio(&dir);
             s.go(&Address::view("harbour-edits", "@mod")).unwrap();
             s.mod_page.files_open = true;
-            s.nav.input = input;
-            let (_, l) = frames(&mut s, size, 1.0, 2);
-            assert!(l.problems().is_empty(), "{size:?} {input:?}: {:?}", l.problems());
+            s
+        },
+        |s, l, size, input| {
             let last = &s.mod_page.last;
-            assert!(last.rows.len() >= 10, "{size:?}: {} rows drawn", last.rows.len());
-            for r in &last.rows {
-                assert!(l.view.expand(1.0).contains_rect(*r), "{size:?}: row {r:?} outside the page {:?}", l.view);
+            let mut p = matrix::inside_view(l, &last.rows);
+            // The smallest window shows fewer lines of the page.
+            if last.rows.len() < if size.h < 700 { 6 } else { 10 } {
+                p.push(format!("{}: {} rows drawn", size.label(), last.rows.len()));
             }
-            assert_eq!(last.focus.is_some(), input != InputKind::Mouse, "{size:?} {input:?}: the focus ring");
-        }
-    }
+            if last.focus.is_some() != (input != InputKind::Mouse) {
+                p.push("the focus ring does not follow the input".into());
+            }
+            p
+        },
+    );
+    assert!(drawn >= 12, "{drawn}");
     let _ = std::fs::remove_dir_all(&dir);
 }
 

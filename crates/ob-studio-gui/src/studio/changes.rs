@@ -21,6 +21,7 @@ use crate::tools::map::session::MapSession;
 use crate::tools::map::{MapMod, store};
 
 use super::draw::{self, Source};
+use super::words;
 
 /// What the page compares.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -38,10 +39,10 @@ pub enum Mode {
 impl Mode {
     pub fn name(&self) -> &'static str {
         match self {
-            Mode::ThisMod => "This mod",
-            Mode::Step(_) => "History step",
-            Mode::Version(_) => "Compare versions",
-            Mode::Clashes => "Clashes",
+            Mode::ThisMod => words::THIS_MOD,
+            Mode::Step(_) => words::HISTORY_STEP,
+            Mode::Version(_) => words::COMPARE_VERSIONS,
+            Mode::Clashes => words::CLASHES,
         }
     }
 
@@ -378,19 +379,19 @@ pub fn field_rank(field: &str) -> usize {
 /// A field's name on a row.
 pub fn field_name(field: &str) -> String {
     match field {
-        "position" => "Position".into(),
-        "heading" => "Heading".into(),
-        "disabled" => "Hidden".into(),
-        "solid" => "Prop".into(),
-        "name" => "Name".into(),
-        "type" => "Race type".into(),
-        "laps" => "Laps".into(),
-        "track" => "Base track".into(),
-        "backward" => "Backward".into(),
-        "checkpoints" => "Checkpoints".into(),
-        "grid" => "Start grid".into(),
-        "race" => "Race".into(),
-        "image" => "Image".into(),
+        "position" => words::POSITION.into(),
+        "heading" => words::HEADING.into(),
+        "disabled" => words::HIDDEN.into(),
+        "solid" => words::PROP.into(),
+        "name" => words::NAME.into(),
+        "type" => words::RACE_TYPE.into(),
+        "laps" => words::LAPS.into(),
+        "track" => words::BASE_TRACK.into(),
+        "backward" => words::BACKWARD.into(),
+        "checkpoints" => words::CHECKPOINTS.into(),
+        "grid" => words::START_GRID.into(),
+        "race" => words::RACE.into(),
+        "image" => words::IMAGE.into(),
         other => {
             let mut c = other.chars();
             c.next().map_or(String::new(), |f| f.to_uppercase().chain(c).collect())
@@ -449,7 +450,7 @@ pub fn item_words(d: &Data, r: &Row) -> (String, String) {
             .and_then(|v| v.game.clone().or(v.yours.clone()))
             .and_then(|v| v.as_str().map(str::to_string))
             .unwrap_or_else(|| r.key.clone());
-        return (name, "Race · added by you".into());
+        return (name, words::RACE_ADDED_BY_YOU.into());
     }
     let parts: Vec<&str> = r.key.split('/').collect();
     let region = parts.first().copied().unwrap_or_default();
@@ -791,7 +792,7 @@ impl Page {
         let Some(d) = self.data() else { return };
         let folder = d.folder.clone();
         if picks.is_empty() {
-            self.note = Some("Nothing to reset here: pick a value of yours".into());
+            self.note = Some(words::NOTHING_TO_RESET_HERE_PICK_A.into());
             return;
         }
         let rows = self.rows();
@@ -871,8 +872,8 @@ impl Page {
             None => undo(&self.maps, &folder, redo),
         };
         self.note = Some(match done {
-            Ok(Some(l)) => format!("{}: {l}", if redo { "Redone" } else { "Undone" }),
-            Ok(None) => "Nothing to take back".into(),
+            Ok(Some(l)) => format!("{}: {l}", if redo { words::REDONE } else { words::UNDONE }),
+            Ok(None) => words::NOTHING_TO_TAKE_BACK.into(),
             Err(e) => format!("{e:#}"),
         });
         self.load(&folder);
@@ -965,8 +966,8 @@ pub fn jump(d: &Data, r: &Row, field: Option<&str>) -> Option<String> {
 /// The Show button's word for a row.
 pub fn jump_word(r: &Row) -> &'static str {
     match r.kind {
-        map::RACE => "Show in Races",
-        tex::TEXTURE => "Show in History",
+        map::RACE => words::SHOW_IN_RACES,
+        tex::TEXTURE => words::SHOW_IN_HISTORY,
         _ => super::words::SHOW_IN_WORLD,
     }
 }
@@ -1067,11 +1068,11 @@ impl Page {
 
         // The title line: back crumb, title, the modes with content.
         let y0 = list.top();
-        p.text(pos2(list.left(), y0 + 14.0), Align2::LEFT_CENTER, "← World", draw::label_font(16.0), rgb(t.dim));
+        p.text(pos2(list.left(), y0 + 14.0), Align2::LEFT_CENTER, words::WORLD, draw::label_font(16.0), rgb(t.dim));
         let after_back = list.left() + 84.0;
-        let kx = draw::glyph(&p, ob_look::legends::Glyph::Key("Esc"), after_back, y0 + 14.0);
+        let kx = draw::glyph(&p, ob_look::legends::Glyph::Key(words::ESC), after_back, y0 + 14.0);
         let title_x = after_back + kx + 16.0;
-        let tg = p.layout_no_wrap("Changes".into(), font(TITLE, 24.0), rgb(t.lime));
+        let tg = p.layout_no_wrap(words::CHANGES.into(), font(TITLE, 24.0), rgb(t.lime));
         let tw = tg.size().x;
         p.galley(pos2(title_x, y0 + 14.0 - tg.size().y / 2.0), tg, rgb(t.lime));
         if ui
@@ -1115,7 +1116,7 @@ impl Page {
         let Some(d) = self.data().cloned() else {
             let line = match &self.data {
                 Some(Err(e)) => e.clone(),
-                _ => "No mod open: open one on Home to see what it changes".into(),
+                _ => words::NO_MOD_OPEN_OPEN_ONE_ON_2.into(),
             };
             p.text(pos2(list.left(), y0 + 60.0), Align2::LEFT_TOP, line, font("body", 15.0), rgb(t.dim));
             return (ask, drawn);
@@ -1155,12 +1156,12 @@ impl Page {
         let rows = self.rows();
         if self.mode == Mode::ThisMod {
             let fl = Rect::from_min_size(pos2(list.left(), top), vec2(list.width(), 26.0));
-            p.text(pos2(fl.left(), fl.center().y), Align2::LEFT_CENTER, "Show", font("body", 14.0), rgb(t.dim));
+            p.text(pos2(fl.left(), fl.center().y), Align2::LEFT_CENTER, words::SHOW, font("body", 14.0), rgb(t.dim));
             let mut bx = fl.left() + 44.0;
             for (s, word) in [
-                (Show::Mine, "Everything this mod changes"),
-                (Show::Losing, "Only what loses"),
-                (Show::All, "All values"),
+                (Show::Mine, words::EVERYTHING_THIS_MOD_CHANGES),
+                (Show::Losing, words::ONLY_WHAT_LOSES),
+                (Show::All, words::ALL_VALUES),
             ] {
                 let g = p.layout_no_wrap(word.into(), font(LABEL, 14.0), rgb(t.ink));
                 let r = Rect::from_min_size(pos2(bx, fl.top() + 1.0), vec2(g.size().x + 28.0, 24.0));
@@ -1363,9 +1364,9 @@ impl Page {
                         let mut bx = line.right() - 4.0;
                         for a in acts.iter().rev() {
                             let word = match a {
-                                Action::Reset => "Reset",
-                                Action::Remove => "Remove",
-                                Action::ShowInClashes => "Show in Clashes",
+                                Action::Reset => words::RESET,
+                                Action::Remove => words::REMOVE,
+                                Action::ShowInClashes => words::SHOW_IN_CLASHES,
                             };
                             let g = p.layout_no_wrap(word.into(), font(LABEL, 14.0), rgb(t.ink));
                             let br = Rect::from_min_size(
@@ -1435,10 +1436,10 @@ impl Page {
         if rows.is_empty() {
             let line = match &self.mode {
                 Mode::ThisMod if self.show == Show::Losing => {
-                    "Nothing of yours loses: every value you give is used in your game"
+                    words::NOTHING_OF_YOURS_LOSES_EVERY_VALUE
                 }
-                Mode::ThisMod => "Nothing changed yet: the original everywhere",
-                _ => "No values differ",
+                Mode::ThisMod => words::NOTHING_CHANGED_YET_THE_ORIGINAL_EVERYWHERE,
+                _ => words::NO_VALUES_DIFFER,
             };
             clip.text(pos2(list.left(), y + 10.0), Align2::LEFT_TOP, line, font("body", 15.0), rgb(t.dim));
         }
@@ -1455,13 +1456,13 @@ impl Page {
                 v
             };
             let ty = y + 6.0;
-            let g = clip.layout_no_wrap("Clashes".into(), font(TITLE, 19.0), rgb(t.lime));
+            let g = clip.layout_no_wrap(words::CLASHES.into(), font(TITLE, 19.0), rgb(t.lime));
             let w = g.size().x;
             clip.galley(pos2(list.left(), ty), g, rgb(t.lime));
             clip.text(
                 pos2(list.left() + w + 6.0, ty + 12.0),
                 Align2::LEFT_CENTER,
-                "· the stack as columns, in your game's order",
+                words::THE_STACK_AS_COLUMNS_IN_YOUR,
                 font("body", 13.0),
                 rgb(t.dim),
             );
@@ -1471,7 +1472,7 @@ impl Page {
             let col_x = |i: usize| if i == 0 { list.left() + 8.0 } else { list.left() + first_w + cw * (i - 1) as f32 };
             let mut ry = ty + 30.0;
             let head_y = ry + 14.0;
-            clip.text(pos2(col_x(0), head_y), Align2::LEFT_CENTER, "Value", font("body", 12.0), rgb(t.dim));
+            clip.text(pos2(col_x(0), head_y), Align2::LEFT_CENTER, words::VALUE, font("body", 12.0), rgb(t.dim));
             draw::source_mark(&clip, pos2(col_x(1) + 4.0, head_y), 8.0, Source::Original);
             clip.text(pos2(col_x(1) + 12.0, head_y), Align2::LEFT_CENTER, "original", font("body", 12.0), rgb(t.dim));
             for (i, id) in packs.iter().enumerate() {
@@ -1488,7 +1489,7 @@ impl Page {
             clip.text(
                 pos2(col_x(cols - 1), head_y),
                 Align2::LEFT_CENTER,
-                "In your game",
+                words::IN_YOUR_GAME,
                 font("body", 12.0),
                 rgb(t.dim),
             );
@@ -1549,7 +1550,7 @@ impl Page {
             None => {
                 let strip = Rect::from_min_max(pos2(inner.right() - 26.0, inner.top()), inner.max);
                 p.rect_filled(strip, 4.0, theme::over(t.panel, t.slab.over(t.page)));
-                let g = p.layout_no_wrap("Inspector".into(), draw::label_font(14.0), rgb(t.ink));
+                let g = p.layout_no_wrap(words::INSPECTOR.into(), draw::label_font(14.0), rgb(t.ink));
                 let pos = Pos2::new(strip.center().x - g.size().y / 2.0, strip.top() + 16.0 + g.size().x);
                 p.add(egui::epaint::TextShape::new(pos, g, rgb(t.ink)).with_angle(-std::f32::consts::FRAC_PI_2));
                 if ui.interact(strip, egui::Id::unique("chg-insp-strip"), egui::Sense::click()).clicked() {
@@ -1582,12 +1583,12 @@ impl Page {
         let body = r.shrink2(vec2(14.0, 6.0));
         let mut clip = p.clone();
         clip.set_clip_rect(r);
-        clip.text(body.left_top(), Align2::LEFT_TOP, "Inspector", draw::label_font(16.0), rgb(t.lime));
+        clip.text(body.left_top(), Align2::LEFT_TOP, words::INSPECTOR, draw::label_font(16.0), rgb(t.lime));
         let Some(&(g, vi)) = self.lines().get(self.focus) else {
             clip.text(
                 body.left_top() + vec2(0.0, 34.0),
                 Align2::LEFT_TOP,
-                "Nothing selected",
+                words::NOTHING_SELECTED,
                 font(TITLE, 19.0),
                 rgb(t.ink),
             );
@@ -1695,22 +1696,22 @@ impl Page {
             &clip,
             &mut y,
             Some(Source::Original),
-            "Original",
+            words::ORIGINAL,
             if row.added { "none: you added it".into() } else { orig },
         );
-        line(&clip, &mut y, Some(Source::Yours), "Yours", txt(v.yours.as_ref()));
+        line(&clip, &mut y, Some(Source::Yours), words::YOURS, txt(v.yours.as_ref()));
         if let From::Other(_) = &v.from {
             line(
                 &clip,
                 &mut y,
                 Some(Source::AnotherMod),
-                "In your game",
+                words::IN_YOUR_GAME,
                 format!("{} · {}", txt(v.game.as_ref()), who_text(&v.from, &d.stack)),
             );
         }
         let step = last_step(d, row);
         if let Some(s) = step {
-            line(&clip, &mut y, None, "Changed in", format!("step {} · {}", s.seq, s.label));
+            line(&clip, &mut y, None, words::CHANGED_IN, format!("step {} · {}", s.seq, s.label));
         }
         y += 6.0;
         let acts = self.actions(row, v);
@@ -1723,13 +1724,13 @@ impl Page {
             r.right() <= body.right() && ui.put(r, small_button(word, false)).clicked()
         };
         if (acts.contains(&Action::Reset) || acts.contains(&Action::Remove))
-            && button(if acts.contains(&Action::Remove) { "Remove" } else { "Reset" }, &mut bx)
+            && button(if acts.contains(&Action::Remove) { words::REMOVE } else { words::RESET }, &mut bx)
         {
             self.reset();
             ask = Some(Ask::Moved);
         }
         if let Some(s) = step
-            && button("Show in History", &mut bx)
+            && button(words::SHOW_IN_HISTORY, &mut bx)
         {
             self.set_mode(Mode::Step(s.seq));
             ask = Some(Ask::Moved);
@@ -1738,7 +1739,7 @@ impl Page {
             ask = Some(Ask::Go(item_address(&d.folder, row, Some(&v.field))));
         }
         y += 36.0;
-        let hint = "Pick several rows (Shift+↓, or A on each with the pad) to reset them in one step.";
+        let hint = words::PICK_SEVERAL_ROWS_SHIFT_OR_A;
         let g = clip.layout(hint.into(), font("body", 13.0), rgb(t.dim), body.width());
         clip.galley(pos2(body.left(), y), g, rgb(t.dim));
         let _ = SEMI;

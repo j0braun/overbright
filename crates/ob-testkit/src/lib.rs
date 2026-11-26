@@ -44,6 +44,8 @@
 //! `cfg(ob_game)`: a data test that forgot the attribute fails instead of
 //! passing. scripts/checks/checks.sh counts the ignores by their reason.
 
+pub mod matrix;
+
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 

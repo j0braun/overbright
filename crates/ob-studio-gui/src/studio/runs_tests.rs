@@ -6,6 +6,7 @@ use ob_look::legends::InputKind;
 
 use super::Studio;
 use super::layout;
+use super::matrix;
 use super::shot::{frames, raw_input};
 use super::workspace::Workspace;
 use crate::editor::app::App;
@@ -284,44 +285,51 @@ fn the_ghost_is_where_the_clock_says_at_any_display_rate() {
 /// list inside their panels.
 #[test]
 fn it_draws_at_the_review_sizes() {
-    for (w, h, sys) in [(960, 600, 1.0), (1280, 800, 1.0), (1920, 1080, 1.0), (3840, 2160, 2.0)] {
-        for input in [InputKind::Mouse, InputKind::Keyboard, InputKind::Xbox] {
-            let sc = Scratch::new(&format!("runs-draw-{w}x{h}-{input:?}"));
+    let scratches = std::cell::RefCell::new(vec![]);
+    let drawn = matrix::page(
+        "runs",
+        3,
+        |size, input| {
+            let sc = Scratch::new(&format!("runs-draw-{}-{input:?}", size.label()));
             let mut s = studio(&sc);
             s.nav.workspace = Workspace::Runs;
+            let (px, scale) = ((size.w, size.h), matrix::scale_of(size));
             s.nav.input = input;
-            let scale = sys * layout::ui_scale((w as f32 / sys) as u32, (h as f32 / sys) as u32);
-            frames(&mut s, (w, h), scale, 3);
+            frames(&mut s, px, scale, 3);
             let d = dir(&s);
             let (sm, ctx) = (sim(&s), s.ctx.clone());
             s.runs.open(&d, &sm, &ctx, "seed1");
-            frames(&mut s, (w, h), scale, 3);
+            frames(&mut s, px, scale, 3);
             s.runs.compare(&d, &sm, "seed2");
             {
                 let mut b = sm.borrow_mut();
                 let rec = b.rec.clone();
                 b.play.seek_frame(&rec, 31.0);
             }
-            let (_, l) = frames(&mut s, (w, h), scale, 3);
-            assert!(l.problems().is_empty(), "{w}x{h}@{sys} {input:?}: {:?}", l.problems());
-            assert!(!s.runs.rows.is_empty(), "{w}x{h}: the list drew");
+            scratches.borrow_mut().push(sc);
+            s
+        },
+        |s, l, _, _| {
+            let mut p = vec![];
+            if s.runs.rows.is_empty() {
+                p.push("the list did not draw".into());
+            }
             if let Some(left) = l.left {
-                for r in &s.runs.rows {
-                    assert!(left.expand(1.0).contains_rect(*r), "{w}x{h}: row {r:?} outside {left:?}");
-                }
+                let rows: Vec<(&str, _)> = s.runs.rows.iter().map(|r| ("row", matrix::rect(*r))).collect();
+                p.extend(ob_testkit::matrix::clipped(matrix::rect(left), &rows));
             }
             if let Some(bottom) = l.bottom.filter(|_| matches!(l.bottom_dock, layout::Dock::Open(_))) {
                 let g = graphs::drawn(&s.ctx);
-                assert!(!g.is_empty(), "{w}x{h}: the graphs drew");
-                for r in g {
-                    assert!(
-                        r.min.x >= bottom.min.x - 1.0 && r.max.x <= bottom.max.x + 1.0,
-                        "{w}x{h}: graph {r:?} outside {bottom:?}"
-                    );
+                if g.is_empty() {
+                    p.push("the graphs did not draw".into());
                 }
+                let items: Vec<(&str, _)> = g.iter().map(|r| ("graph", matrix::rect(*r))).collect();
+                p.extend(ob_testkit::matrix::clipped(matrix::rect(bottom), &items));
             }
-        }
-    }
+            p
+        },
+    );
+    assert!(drawn >= 12, "{drawn}");
 }
 
 /// A run recorded with the drive channels shows them as graphs beside speed and the racing line, inside the dock,

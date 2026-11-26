@@ -13,6 +13,7 @@ use ob_studio::data::{Grid, KINDS};
 use crate::editor::theme::{self, LABEL, SEMI, TITLE, font, rgb, tokens};
 
 use super::draw::{self, Source};
+use super::words;
 
 const ROW_H: f32 = 28.0;
 const HEAD_H: f32 = 30.0;
@@ -21,7 +22,7 @@ const SHOW_W: f32 = 112.0;
 
 /// The kind's name on its tab.
 pub fn kind_name(kind: &str) -> &'static str {
-    if kind == PLACEMENT { "Props" } else { "Races" }
+    if kind == PLACEMENT { words::PROPS } else { words::RACES }
 }
 
 /// What the page asks the shell to do.
@@ -196,7 +197,7 @@ impl Page {
         let mut ask = None;
         let mut drawn = Drawn::default();
         let y0 = inner.top();
-        let tg = p.layout_no_wrap("Data".into(), font(TITLE, 24.0), rgb(t.lime));
+        let tg = p.layout_no_wrap(words::DATA.into(), font(TITLE, 24.0), rgb(t.lime));
         let tw = tg.size().x;
         p.galley(pos2(inner.left(), y0 + 14.0 - tg.size().y / 2.0), tg, rgb(t.lime));
         let mut x = inner.left() + tw + 18.0;
@@ -228,7 +229,7 @@ impl Page {
             let mut text = self.grid.as_ref().map_or(String::new(), |g| g.search.clone());
             let before = text.clone();
             let resp =
-                ui.put(search, egui::TextEdit::singleline(&mut text).hint_text("Search").font(font("body", 15.0)));
+                ui.put(search, egui::TextEdit::singleline(&mut text).hint_text(words::SEARCH).font(font("body", 15.0)));
             if std::mem::take(&mut self.release) {
                 resp.surrender_focus();
             }
@@ -249,7 +250,7 @@ impl Page {
             p.text(
                 pos2(inner.left(), y0 + 60.0),
                 Align2::LEFT_TOP,
-                "No mod open: open one on Home to see its data",
+                words::NO_MOD_OPEN_OPEN_ONE_ON_3,
                 font("body", 15.0),
                 rgb(t.dim),
             );
@@ -339,9 +340,9 @@ impl Page {
                 pos2(body.left() + 6.0, body.top() + 10.0),
                 Align2::LEFT_TOP,
                 if grid.counts().0 == 0 {
-                    "This mod gives no values of this kind yet"
+                    words::THIS_MOD_GIVES_NO_VALUES_OF
                 } else {
-                    "No row matches the search"
+                    words::NO_ROW_MATCHES_THE_SEARCH
                 },
                 font("body", 15.0),
                 rgb(t.dim),
@@ -417,7 +418,7 @@ impl Page {
             if on_row {
                 let br = Rect::from_min_size(pos2(line.right() - SHOW_W, y + 2.0), vec2(SHOW_W, ROW_H - 4.0));
                 if br.bottom() <= body.bottom()
-                    && ui.put(br, super::changes::small_button("In Changes", false)).clicked()
+                    && ui.put(br, super::changes::small_button(words::IN_CHANGES, false)).clicked()
                 {
                     ask = self.focused_changes();
                 }

@@ -1031,6 +1031,55 @@ fn every_state_fits_every_size_and_scale() {
     }
 }
 
+/// Every launcher screen and named state through the shared screenshot-matrix kit (`ob_testkit::matrix`, the
+/// same sizes Studio's pages are drawn at, 960 x 600 to 4K at 200 %): every widget inside the window and every
+/// text inside its widget; a page that scrolls (documents, the lists, the shaders' block) is checked at its
+/// content height.
+#[test]
+fn every_screen_fits_the_standard_matrix() {
+    use ob_testkit::matrix as kit;
+    let fonts = Fonts::new();
+    let env = FakeEnv;
+    let rect = |r: &Rect| [r.x, r.y, r.x + r.w, r.y + r.h];
+    let names: Vec<(&str, Option<Screen>)> = Screen::ALL
+        .iter()
+        .map(|s| (s.name(), Some(*s)))
+        .chain(super::headless::STATES.iter().map(|(n, _)| (*n, None)))
+        .collect();
+    let labels: Vec<&str> = names.iter().map(|(n, _)| *n).collect();
+    let n = kit::check("launcher", &labels, |size, name| {
+        let screen = names.iter().find(|(n, _)| *n == name).and_then(|(_, s)| *s);
+        let a = match screen {
+            Some(s) => app(&env, &fonts, s, size.w, size.h, size.scale),
+            None => super::headless::state_app(&env, &fonts, name, size.w, size.h, size.scale).unwrap(),
+        };
+        let mut view = a.ui.view;
+        let shaders = a.screen == Screen::Main && super::screens::shaders(&a.model) != super::screens::Shaders::Quiet;
+        let may_scroll = a.screen.document()
+            || matches!(a.screen, Screen::Mods | Screen::Storage | Screen::Dev)
+            || shaders
+            || size.logical().1 < 480.0;
+        if may_scroll {
+            view.h = a.ui.content_h.max(view.h);
+        }
+        let mut p = vec![];
+        if !may_scroll && a.ui.content_h > view.h + 0.5 {
+            p.push(format!("{name}: the page does not fit ({} > {})", a.ui.content_h, view.h));
+        }
+        let widgets: Vec<(&str, kit::Rect)> = a.ui.widgets.iter().map(|w| ("widget", rect(&w.rect))).collect();
+        p.extend(kit::clipped(rect(&view), &widgets).into_iter().map(|m| format!("{name}: {m}")));
+        for w in &a.ui.widgets {
+            if matches!(w.kind, Kind::List { .. }) {
+                continue;
+            }
+            let texts: Vec<(&str, kit::Rect)> = w.texts.iter().map(|t| ("text", rect(&t.rect))).collect();
+            p.extend(kit::clipped(rect(&w.rect), &texts).into_iter().map(|m| format!("{name}: {m}")));
+        }
+        p
+    });
+    assert_eq!(n, 6 * names.len());
+}
+
 /// A screen's texts, joined with spaces (wrapped lines rejoined).
 fn all_text(a: &App) -> String {
     a.ui.widgets.iter().flat_map(|w| w.texts.iter().map(|t| t.text.clone())).collect::<Vec<_>>().join(" ")

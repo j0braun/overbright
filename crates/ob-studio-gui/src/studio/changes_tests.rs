@@ -11,6 +11,7 @@ use ob_studio::changes::From;
 
 use super::super::Studio;
 use super::super::address::Address;
+use super::super::matrix;
 use super::super::nav::{Area, Level, Pad};
 use super::super::shot::{frames, raw_input};
 use super::super::workspace::Workspace;
@@ -161,29 +162,34 @@ fn addresses_name_the_pages_modes() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
-/// The four review sizes.
-const REVIEW: [(u32, u32); 4] = [(1920, 1080), (1280, 800), (1024, 768), (2560, 1080)];
-
 #[test]
 fn drawn_at_the_review_sizes_inside_the_page() {
     let dir = maps("draw");
-    for size in REVIEW {
-        for input in [InputKind::Mouse, InputKind::Keyboard, InputKind::Xbox] {
+    let drawn = matrix::page(
+        "changes",
+        2,
+        |_, _| {
             let mut s = Studio::new(dir.clone(), Some("harbour-edits"));
             s.go(&Address::parse("ob://harbour-edits/@changes").unwrap()).unwrap();
-            s.nav.input = input;
-            let (_, l) = frames(&mut s, size, 1.0, 2);
-            assert!(l.problems().is_empty(), "{size:?} {input:?}: {:?}", l.problems());
+            s
+        },
+        |s, l, size, input| {
             let last = &s.changes.last;
-            assert!(last.rows.len() >= 8, "{size:?}: {} rows drawn", last.rows.len());
-            for r in &last.rows {
-                assert!(l.view.expand(1.0).contains_rect(*r), "{size:?}: row {r:?} outside the page {:?}", l.view);
+            let mut p = matrix::inside_view(l, &last.rows);
+            if last.rows.len() < 8 {
+                p.push(format!("{} rows drawn", last.rows.len()));
             }
             // The Inspector beside the list on wide windows; a strip below.
-            assert_eq!(last.inspector.is_some(), size.0 >= 1280, "{size:?}");
-            assert_eq!(last.focus.is_some(), input != InputKind::Mouse, "the focus ring follows the keys");
-        }
-    }
+            if last.inspector.is_some() != (l.view.width() >= 1000.0) {
+                p.push(format!("the Inspector {:?} in a view {:.0} wide", last.inspector, l.view.width()));
+            }
+            if last.focus.is_some() != (input != InputKind::Mouse) {
+                p.push(format!("{}: the focus ring does not follow the keys", size.label()));
+            }
+            p
+        },
+    );
+    assert!(drawn >= 12, "{drawn}");
     let _ = std::fs::remove_dir_all(&dir);
 }
 
@@ -449,31 +455,34 @@ fn a_texture_reset_is_one_step_and_one_undo() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
-/// The sizes the Looks rows are checked at (pixels, scale).
-const LOOKS_SIZES: [((u32, u32), f32); 4] =
-    [((1024, 768), 1.0), ((1920, 1080), 1.0), ((2560, 1440), 1.5), ((3840, 2160), 2.0)];
-
 #[test]
 fn looks_rows_fit_at_the_review_sizes() {
     let dir = maps_with_looks("looks-draw");
-    for (size, scale) in LOOKS_SIZES {
-        for input in [InputKind::Mouse, InputKind::Keyboard, InputKind::Xbox] {
+    let drawn = matrix::page(
+        "looks rows",
+        2,
+        |_, _| {
             let mut s = Studio::new(dir.clone(), Some("harbour-edits"));
             s.go(&Address::parse(&format!("ob://harbour-edits/texture/{SIGN_TEX}")).unwrap()).unwrap();
-            s.nav.input = input;
-            let (_, l) = frames(&mut s, size, scale, 2);
-            assert!(l.problems().is_empty(), "{size:?}@{scale} {input:?}: {:?}", l.problems());
+            s
+        },
+        |s, l, size, input| {
             let last = &s.changes.last;
-            assert!(last.rows.len() >= 8, "{size:?}: {} rows drawn", last.rows.len());
-            for r in last.rows.iter().chain(&last.focus) {
-                assert!(l.view.expand(1.0).contains_rect(*r), "{size:?}: row {r:?} outside the page {:?}", l.view);
+            let rows: Vec<egui::Rect> = last.rows.iter().chain(&last.focus).copied().collect();
+            let mut p = matrix::inside_view(l, &rows);
+            if last.rows.len() < if size.h < 700 { 7 } else { 8 } {
+                p.push(format!("{} rows drawn", last.rows.len()));
             }
-            if input != InputKind::Mouse {
-                assert!(last.focus.is_some(), "{size:?}: the focused texture row is in view");
+            if input != InputKind::Mouse && last.focus.is_none() {
+                p.push("the focused texture row is not in view".into());
             }
-            assert!(s.changes.thumbs_loaded() >= 2, "{size:?}: the painted images' thumbnails");
-        }
-    }
+            if s.changes.thumbs_loaded() < 2 {
+                p.push(format!("{}: the painted images' thumbnails", size.label()));
+            }
+            p
+        },
+    );
+    assert!(drawn >= 12, "{drawn}");
     let _ = std::fs::remove_dir_all(&dir);
 }
 

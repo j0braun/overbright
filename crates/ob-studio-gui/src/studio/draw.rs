@@ -310,6 +310,57 @@ pub fn pill(text: &str) -> egui::Button<'static> {
         .min_size(vec2(0.0, 36.0))
 }
 
+/// A summary row's height (Home's rows under the verdict card).
+pub const SUMMARY_ROW_H: f32 = 38.0;
+
+/// The head every row of a list of facts starts with: a lamp, then the name in the dim body face, the row's
+/// vertical centre `r.center().y`. The one place the launcher's Game-check rows are built (Home, the Mod page).
+pub fn row_head(p: &Painter, r: Rect, mark: Mark, name: &str, name_size: f32, time: f32) {
+    let t = tokens();
+    lamp(p, pos2(r.left() + 14.0, r.center().y), 11.0, mark, time);
+    p.text(pos2(r.left() + 32.0, r.center().y), Align2::LEFT_CENTER, name, font("body", name_size), rgb(t.dim));
+}
+
+/// One summary row: lamp, name and value.
+pub struct SummaryRow<'a> {
+    pub mark: Mark,
+    pub name: &'a str,
+    pub value: String,
+}
+
+impl<'a> SummaryRow<'a> {
+    pub fn new(mark: Mark, name: &'a str, value: impl Into<String>) -> Self {
+        SummaryRow { mark, name, value: value.into() }
+    }
+
+    /// The busy line (the launcher's Game check): the turning lamp and what runs now.
+    pub fn busy(name: &'a str, what: impl Into<String>) -> Self {
+        SummaryRow::new(Mark::Busy, name, what)
+    }
+}
+
+/// The summary rows from `y` down in `area`'s width, the values at `label_w`, each with a rule under it; the `y`
+/// below the last.
+pub fn summary_rows(p: &Painter, area: Rect, mut y: f32, rows: &[SummaryRow], label_w: f32, time: f32) -> f32 {
+    let t = tokens();
+    for r in rows {
+        let row = Rect::from_min_size(pos2(area.left(), y), vec2(area.width(), SUMMARY_ROW_H));
+        row_head(p, row, r.mark, r.name, 16.0, time);
+        let mut clip = p.clone();
+        clip.set_clip_rect(Rect::from_min_max(pos2(row.left() + label_w, row.top()), row.max));
+        clip.text(
+            pos2(row.left() + label_w, row.center().y),
+            Align2::LEFT_CENTER,
+            &r.value,
+            font("body", 16.0),
+            rgb(t.ink),
+        );
+        p.line_segment([row.left_bottom(), row.right_bottom()], Stroke::new(1.0, rule()));
+        y += SUMMARY_ROW_H;
+    }
+    y
+}
+
 /// What a verdict card shows (Home's card, the tutorial's card): its lamp, a small line over the title, the title,
 /// its words, the main action and the second one.
 pub struct Card<'a> {
@@ -378,4 +429,43 @@ pub fn card(
         })
         .inner;
     (card, a, b)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The summary rows and the busy line are built here once: the rows stack at their height, the value clips at
+    /// its column, the busy lamp turns with the clock, and the Home page and the Mod page share the row head.
+    #[test]
+    fn summary_rows_stack_and_the_busy_lamp_turns() {
+        let ctx = egui::Context::default();
+        crate::editor::theme::apply(&ctx);
+        let _ = ctx.run_ui(egui::RawInput::default(), |_| {});
+        let area = Rect::from_min_size(pos2(10.0, 0.0), vec2(400.0, 300.0));
+        let rows = [
+            SummaryRow::new(Mark::Ok, "Changes", "3 changes"),
+            SummaryRow::new(Mark::Warn, "Saved", "x".repeat(200)),
+            SummaryRow::busy("Jobs", "Simulating…"),
+        ];
+        let mut ends = vec![];
+        let mut busy = vec![];
+        for time in [0.0, 0.25] {
+            let mut end = 0.0;
+            let out = ctx.run_ui(egui::RawInput::default(), |ui| {
+                end = summary_rows(ui.painter(), area, 20.0, &rows, 120.0, time);
+            });
+            ends.push(end);
+            // The rows' own shapes: three rules, lamps and texts (the busy lamp is an arc).
+            let lines = out
+                .shapes
+                .iter()
+                .filter(|c| matches!(&c.shape, Shape::LineSegment { .. }))
+                .count();
+            assert_eq!(lines, 3, "a rule under each row");
+            busy.push(format!("{:?}", out.shapes.iter().filter(|c| matches!(&c.shape, Shape::Path(_))).map(|c| &c.shape).collect::<Vec<_>>()));
+        }
+        assert_eq!(ends, [20.0 + 3.0 * SUMMARY_ROW_H; 2]);
+        assert_ne!(busy[0], busy[1], "the busy lamp turns with the clock");
+    }
 }
