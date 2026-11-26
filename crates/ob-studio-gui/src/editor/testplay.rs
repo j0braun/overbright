@@ -195,7 +195,7 @@ impl TestPlay {
         if let Some(why) = blocked(s, &target) {
             return Err(why);
         }
-        if !s.focus.valid() {
+        if !s.run_focus.valid() {
             return Err("The test car or clock is not one the game takes".into());
         }
         let slot = link::Slot::take(&s.maps)?;
@@ -211,7 +211,7 @@ impl TestPlay {
         };
         let label = race.as_ref().map_or_else(|| "free roam".to_string(), |r| r.name.clone());
         let child = Command::new(exe)
-            .args(args(&file, &target, &result, &s.maps.join(&s.session.folder).join(store::TEXTURES), &link, &s.focus))
+            .args(args(&file, &target, &result, &s.maps.join(&s.session.folder).join(store::TEXTURES), &link, &s.run_focus))
             .env("NFSU2_ROOT", &s.root)
             .stdin(Stdio::null())
             .stdout(Stdio::null())
@@ -238,7 +238,7 @@ impl TestPlay {
             slot,
             work: 0,
             reloading: false,
-            focus_sent: s.focus.clone(),
+            focus_sent: s.run_focus.clone(),
             probe: None,
             probe_next: std::time::Instant::now() + PROBE_EVERY,
             probe_every: PROBE_EVERY,
@@ -312,7 +312,7 @@ impl TestPlay {
     /// Send the game a command: the mod as it is in the editor to the run
     /// copy first (for `Apply`), then the command.
     pub fn send(&mut self, s: &EditorState, op: Op, aim: Option<Aim>) -> Result<(), String> {
-        if !s.focus.valid() {
+        if !s.run_focus.valid() {
             return Err("The test car or clock is not one the game takes".into());
         }
         let mut reloading = false;
@@ -323,21 +323,21 @@ impl TestPlay {
             reloading = owed || s.session.map.props != self.sent.props;
             self.sent = s.session.map.clone();
         }
-        let focus = (self.focus_sent != s.focus).then(|| s.focus.clone());
+        let focus = (self.focus_sent != s.run_focus).then(|| s.run_focus.clone());
         self.seq += 1;
         link::write_command(&self.link, &link::Command { seq: self.seq, op, aim, focus: focus.clone() })
             .map_err(|e| format!("The game was not told: {e}"))?;
         // Written: what the game now owes (a probe over it is lost).
         (self.work, self.reloading, self.probe) = (self.seq, reloading, None);
         if focus.is_some() {
-            self.focus_sent = s.focus.clone();
+            self.focus_sent = s.run_focus.clone();
         }
         Ok(())
     }
 
     /// The mod changed since the game was last given it.
     pub fn changed(&self, s: &EditorState) -> bool {
-        s.session.map != self.sent || s.focus != self.focus_sent
+        s.session.map != self.sent || s.run_focus != self.focus_sent
     }
 
     /// What the game said about the last command: its note when it could
@@ -880,15 +880,15 @@ mod tests {
         said(3);
         // The focus goes with the next command, once.
         assert!(!test.changed(&s));
-        s.focus = link::Focus { car: Some("240SX".into()), clock: Some(600.0) };
+        s.run_focus = link::Focus { car: Some("240SX".into()), clock: Some(600.0) };
         assert!(test.changed(&s), "a new focus starts the run over");
         test.send(&s, Op::Apply, None).unwrap();
-        assert_eq!(link::read_command(&linkdir).unwrap().focus, Some(s.focus.clone()));
+        assert_eq!(link::read_command(&linkdir).unwrap().focus, Some(s.run_focus.clone()));
         said(4);
         assert!(!test.changed(&s));
         test.send(&s, Op::Restart, None).unwrap();
         assert_eq!(link::read_command(&linkdir).unwrap().focus, None, "sent once");
-        s.focus.clock = Some(0.1);
+        s.run_focus.clock = Some(0.1);
         assert!(test.send(&s, Op::Restart, None).is_err(), "a clock the game cannot take is not sent");
         let _ = test.child.kill();
     }

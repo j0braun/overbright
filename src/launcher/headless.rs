@@ -606,6 +606,7 @@ pub fn state_model(name: &str) -> Option<(Screen, Model)> {
             m.mods.list.clear();
             m.mods.own.clear();
             m.mods.maps.clear();
+            m.mods.packs.clear();
         }
         "prepare-running" => {
             m.prepare.state = super::prepare::State::Running { n: 2, of: 5, what: "shader programs".into() }

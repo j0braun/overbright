@@ -947,6 +947,8 @@ impl Run<'_> {
                         gilrs::Button::East => Key::Escape,
                         gilrs::Button::LeftTrigger => Key::PagePrev,
                         gilrs::Button::RightTrigger => Key::PageNext,
+                        gilrs::Button::LeftTrigger2 => Key::MoveUp,
+                        gilrs::Button::RightTrigger2 => Key::MoveDown,
                         gilrs::Button::West => Key::ActionX,
                         gilrs::Button::North => Key::ActionY,
                         _ => continue,
@@ -1144,6 +1146,8 @@ impl ApplicationHandler for Run<'_> {
                 let shift = self.mods.shift_key();
                 let key = match &event.logical_key {
                     WKey::Named(n) => match n {
+                        NamedKey::ArrowUp if self.mods.alt_key() => Some(Key::MoveUp),
+                        NamedKey::ArrowDown if self.mods.alt_key() => Some(Key::MoveDown),
                         NamedKey::ArrowUp => Some(Key::Up),
                         NamedKey::ArrowDown => Some(Key::Down),
                         NamedKey::ArrowLeft => Some(Key::Left),

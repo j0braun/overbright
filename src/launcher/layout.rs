@@ -102,6 +102,12 @@ pub struct Builder<'a> {
     pub slab: Option<usize>,
     /// The backdrop the page asks for.
     pub scene: super::backdrop::Scene,
+    /// The rows that can be moved ([`Ui::reorder`]).
+    pub reorder: Vec<Id>,
+    /// Switch rows with a second line are a little lower (a long list,
+    /// the Mods page) have this height at least and less room round the text
+    /// (look-A units); 0 = the usual 56.
+    pub row_min: f32,
 }
 
 /// A two-column page's columns ([`Builder::columns`]); `right` is None when
@@ -151,6 +157,8 @@ impl<'a> Builder<'a> {
             framed: false,
             slab: None,
             scene: super::backdrop::Scene::Plain,
+            reorder: Vec::new(),
+            row_min: 0.0,
         }
     }
 
@@ -615,7 +623,11 @@ impl<'a> Builder<'a> {
         let small = self.fs_min(Face::LabelItalic, 15.0, 14.0);
         let lh = self.lh_of(Face::LabelItalic, size);
         let sh = self.lh_of(Face::LabelItalic, small);
-        let h = (lh + sh + self.a(16.0)).max(self.a(56.0));
+        let h = if self.row_min > 0.0 {
+            (lh + sh + self.a(8.0)).max(self.a(self.row_min))
+        } else {
+            (lh + sh + self.a(16.0)).max(self.a(56.0))
+        };
         let r = Rect::new(self.x0, self.y, self.width(), h);
         let knob = Rect::new(r.right() - self.a(70.0), r.cy() - self.a(14.0), self.a(52.0), self.a(28.0));
         let pad = self.a(18.0);
@@ -1542,6 +1554,7 @@ impl<'a> Builder<'a> {
             slack: self.slack,
             scene: self.scene,
             slab: slab_rect,
+            reorder: self.reorder,
         }
     }
 }
@@ -1558,7 +1571,7 @@ pub fn build_fit(
     st: &mut UiState,
     f: impl Fn(&mut Builder),
 ) -> Ui {
-    build_fit_scaled(fonts, w, h, dpi, shrink, 1.0, st, f)
+    build_fit_scaled(fonts, w, h, dpi, shrink, 1.0, super::ui::MIN_UNIT, st, f)
 }
 
 /// [`build_fit`] with the text size (`scale`, 1 = 100 %): above 100 % the
@@ -1571,12 +1584,13 @@ pub fn build_fit_scaled(
     dpi: f32,
     shrink: bool,
     scale: f32,
+    min_unit: f32,
     st: &mut UiState,
     f: impl Fn(&mut Builder),
 ) -> Ui {
     let m0 = Metrics::for_size(w, h, dpi);
     let mut u = m0.u * scale.max(1.0);
-    let floor = if shrink && scale <= 1.0 { super::ui::MIN_UNIT * dpi } else { u };
+    let floor = if shrink && scale <= 1.0 { min_unit * dpi } else { u };
     loop {
         let mut b = Builder::new(fonts, m0.with_unit(u), st);
         f(&mut b);

@@ -1382,7 +1382,7 @@ fn hud_mod_from_its_downloads() {
     key(&mut a, &fonts, Key::Space);
     assert!(a.model.choices.hud_mod);
     let t = all_text(&a);
-    assert!(t.contains("HD HUD and maps complete"), "{t}");
+    assert!(t.contains("HUD mod · complete"), "{t}");
 }
 
 /// A fresh install: no packages, the sentence on what can be added, and
@@ -2838,12 +2838,14 @@ fn mods_page_starts_the_map_editor() {
     let mut a = app(&env, &fonts, Screen::Mods, 1280, 720, 1.0);
     let t = all_text(&a);
     assert!(t.contains("2 races · 9 prop edits") && t.contains("14 prop edits · 5 textures"), "{t}");
+    a.model.mods.cur = Some("mp1");
+    a.rebuild(&fonts);
     assert!(a.ui.get("map_open").unwrap().enabled);
     a.model.mods.map_sel = Some("open-docks".into());
     a.event(&Event::Activate("map_open"));
     a.rebuild(&fonts);
     assert_eq!(a.model.mods.editor, EditorRun::Open(Some("open-docks".into())));
-    for id in ["map_open", "map_import", "map_export"] {
+    for id in ["map_open", "pack_import", "map_export"] {
         assert!(!a.ui.get(id).unwrap().enabled, "{id} waits while the editor is open");
     }
     assert!(all_text(&a).contains("The map editor is open on Open docks"), "{}", all_text(&a));
@@ -3378,4 +3380,95 @@ fn mods_look_inside_try_it_once_and_the_saves_copy() {
     a.model.mods.tried = Some(("X".into(), stray));
     a.event(&Event::Activate("try_discard"));
     assert_eq!(a.model.mods.results[0].0, Mark::Error);
+}
+
+/// The Mods page's one list: every kind of mod in it (texture packs, mod packs, the HUD mod, map mods), each row
+/// naming its kind; the filter chips narrow it by kind; the actions under it follow the chosen row's kind.
+#[test]
+fn mods_one_list_with_filters_and_chosen_actions() {
+    let fonts = Fonts::new();
+    let env = FakeEnv;
+    let mut a = app(&env, &fonts, Screen::Mods, 1280, 720, 1.0);
+    let lines = super::screens::mod_lines(&a.model);
+    let kinds: Vec<_> = lines.iter().map(|l| l.kind).collect();
+    for k in super::model::ListKind::ALL {
+        assert!(kinds.contains(&k) || k == super::model::ListKind::Hud, "{k:?} is in the list");
+        assert!(lines.iter().filter(|l| l.kind == k).all(|l| l.detail.starts_with(k.one())), "{k:?} named in its rows");
+    }
+    for id in ["pk0", "mk0", "mp0"] {
+        assert!(a.ui.get(id).is_some(), "{id} in the one list");
+    }
+    assert!(all_text(&a).contains("Mod pack · #1 · version 1.2.0"), "{}", all_text(&a));
+    assert!(all_text(&a).contains("MOUNTED NOW"), "what is mounted is said");
+    // The chosen row is a texture pack: the pack and map actions wait.
+    a.st.focus = Some("pk0");
+    key(&mut a, &fonts, Key::Down);
+    assert!(!a.ui.get("pack_inside").unwrap().enabled && !a.ui.get("map_open").unwrap().enabled);
+    // A mod pack chosen: its actions; a filter hides the other kinds.
+    a.st.focus = Some("mk0");
+    key(&mut a, &fonts, Key::Down);
+    assert_eq!(a.model.mods.cur, Some("mk1"));
+    assert!(a.ui.get("pack_inside").unwrap().enabled && a.ui.get("pack_up").unwrap().enabled);
+    a.st.focus = Some("kf_packs");
+    key(&mut a, &fonts, Key::Enter);
+    assert_eq!(a.model.mods.filter, Some(super::model::ListKind::Pack));
+    assert!(a.ui.get("pk0").is_none() && a.ui.get("mp0").is_none() && a.ui.get("mk1").is_some());
+    assert_eq!(focus(&a), "kf_packs");
+    a.st.focus = Some("kf_maps");
+    key(&mut a, &fonts, Key::Enter);
+    assert!(a.ui.get("mk0").is_none() && a.ui.get("mp1").is_some());
+    a.st.focus = Some("mp0");
+    key(&mut a, &fonts, Key::Down);
+    assert!(a.ui.get("map_open").unwrap().enabled && !a.ui.get("pack_up").unwrap().enabled);
+    a.st.focus = Some("kf_all");
+    key(&mut a, &fonts, Key::Enter);
+    assert!(a.model.mods.filter.is_none() && a.ui.get("pk0").is_some());
+    // No filter chips when there is one kind or none.
+    let a = super::headless::state_app(&env, &fonts, "mods-empty", 1280, 720, 1.0).unwrap();
+    assert!(a.ui.get("kf_all").is_none());
+}
+
+/// Moving a mod pack in the load order: the move keys (Alt+Up / Alt+Down, the pad's triggers) and a drag with the
+/// mouse send the same move; a click without dragging still switches the row; the row stays focused where it went.
+#[test]
+fn mods_pack_reorder_by_keys_and_drag() {
+    use super::ui::{Drag, handle};
+    let fonts = Fonts::new();
+    let env = FakeEnv;
+    let mut a = app(&env, &fonts, Screen::Mods, 1280, 720, 1.0);
+    assert_eq!(a.ui.reorder.iter().filter(|r| r.starts_with("mk")).count(), 2, "the pack rows can be moved");
+    assert!(!a.ui.reorder.contains(&"mp0") && !a.ui.reorder.contains(&"hud"));
+    // The keys.
+    a.st.focus = Some("mk0");
+    let ev = handle(&a.ui, &mut a.st.clone(), &Input::Key(Key::MoveDown));
+    assert_eq!(ev, [Event::Move("mk0", "mk1")]);
+    assert!(handle(&a.ui, &mut a.st.clone(), &Input::Key(Key::MoveUp)).is_empty(), "not past the top");
+    key(&mut a, &fonts, Key::MoveDown);
+    assert_eq!(focus(&a), "mk1", "the row stays focused where it went");
+    assert_eq!(a.model.mods.pack_sel.as_deref(), Some("docks-remix"), "the moved pack stays chosen");
+    // A drag: down on the first pack row, over the second, up.
+    let r0 = a.ui.get("mk0").unwrap().rect;
+    let r1 = a.ui.get("mk1").unwrap().rect;
+    let mut st = a.st.clone();
+    st.scroll = 0.0;
+    assert!(handle(&a.ui, &mut st, &Input::MouseDown(r0.cx() - 100.0, r0.cy())).is_empty());
+    assert!(matches!(st.drag, Some(Drag::Row { live: false, .. })));
+    handle(&a.ui, &mut st, &Input::MouseMove(r0.cx() - 100.0, r1.cy()));
+    assert!(matches!(st.drag, Some(Drag::Row { id: "mk0", over: "mk1", live: true, .. })));
+    let ev = handle(&a.ui, &mut st, &Input::MouseUp(r0.cx() - 100.0, r1.cy()));
+    assert_eq!(ev, [Event::Move("mk0", "mk1")], "dropped: moved, not switched");
+    assert!(st.drag.is_none());
+    // A click: no drag went live, the row is switched.
+    let mut st = a.st.clone();
+    handle(&a.ui, &mut st, &Input::MouseDown(r0.cx(), r0.cy()));
+    let ev = handle(&a.ui, &mut st, &Input::MouseUp(r0.cx(), r0.cy()));
+    assert_eq!(ev, [Event::Toggle("mk0")]);
+    // The drag is drawn: a line where the row would land.
+    let mut st = a.st.clone();
+    st.drag = Some(Drag::Row { id: "mk0", y0: r0.cy(), over: "mk1", live: true });
+    let mut c = super::draw::Canvas::new(1280, 720);
+    let mut c2 = super::draw::Canvas::new(1280, 720);
+    super::ui::render(&a.ui, &st, &fonts, &mut c);
+    super::ui::render(&a.ui, &super::ui::UiState::default(), &fonts, &mut c2);
+    assert_ne!(c.pixmap.data(), c2.pixmap.data(), "the landing line is drawn");
 }

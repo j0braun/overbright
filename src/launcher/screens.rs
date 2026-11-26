@@ -11,11 +11,11 @@ use super::draw::theme;
 use super::font::{Cut, Face, Fonts};
 use super::layout::{Align, Builder, Ctrl, Link, build_fit};
 use super::model::{
-    BrowseFor, Dialog, DialogAsk, DirEntry, Env, Graphics, Issue, Model, Picked, ProbeState, Problem, Verdict,
+    BrowseFor, Dialog, DialogAsk, DirEntry, Env, Graphics, Issue, ListKind, Model, Picked, ProbeState, Problem, Verdict,
     path_parts, windows_form,
 };
 use super::run::ErrorKind;
-use super::ui::{Event, Input, Key, Mark, Rect, Ui, UiState, apply_edit, handle};
+use super::ui::{Event, Id, Input, Key, Mark, Rect, Ui, UiState, apply_edit, handle};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Screen {
@@ -2076,9 +2076,121 @@ fn hud_words(m: &Model) -> Option<(Mark, String)> {
     })
 }
 
-/// The Mods page: Use mods, the texture packs (own and imported) with
-/// their switches, the order only when two packs collide, the HUD mod,
-/// the map mods; About mods at the right.
+/// One row of the Mods list: any kind of mod, as the asset layer sees it
+/// (what is on, what it changes, what it clashes with, why it is refused).
+#[derive(Clone, Debug, PartialEq)]
+pub struct ModLine {
+    pub kind: ListKind,
+    /// The row's widget id (the kind's own ids: `pk…`, `mk…`, `hud`, `mp…`).
+    pub id: Id,
+    pub name: String,
+    /// The line under the name; starts with the kind.
+    pub detail: String,
+    pub on: bool,
+    /// The switch can be used.
+    pub enabled: bool,
+    /// A warning under the row (a refused pack, an incomplete HUD mod).
+    pub note: Option<(Mark, String)>,
+}
+
+/// Every mod in one list: texture packs (Overbright's own, then imported,
+/// the loader's order), mod packs (load order, the strongest first), the HUD
+/// mod, the map mods.
+pub fn mod_lines(m: &Model) -> Vec<ModLine> {
+    let mods = &m.mods;
+    let live = !mods.paused;
+    let busy = mods.busy.is_some();
+    let editing = matches!(mods.editor, super::model::EditorRun::Open(_));
+    let mut v = Vec::new();
+    for (i, l) in pack_lines(m).into_iter().enumerate().take(PACK_IDS.len()) {
+        v.push(ModLine {
+            kind: ListKind::Texture,
+            id: PACK_IDS[i],
+            detail: format!("{} · {}", ListKind::Texture.one(), l.detail),
+            name: l.name,
+            on: l.on && live,
+            enabled: live && l.usable && !busy,
+            note: None,
+        });
+    }
+    for (i, r) in mods.packs.iter().enumerate().take(MODPACK_IDS.len()) {
+        v.push(ModLine {
+            kind: ListKind::Pack,
+            id: MODPACK_IDS[i],
+            name: r.name.clone(),
+            detail: format!("{} · #{} · {}", ListKind::Pack.one(), i + 1, pack_detail(r)),
+            on: r.on && r.refused.is_none() && live,
+            enabled: live && r.refused.is_none(),
+            note: r
+                .refused
+                .as_ref()
+                .filter(|_| r.on || r.new)
+                .map(|why| (Mark::Warn, format!("{}: not used, {why}", r.name))),
+        });
+    }
+    if let Some((mark, words)) = hud_words(m) {
+        v.push(ModLine {
+            kind: ListKind::Hud,
+            id: "hud",
+            name: "HD HUD and maps".into(),
+            detail: format!("{} · {words}", ListKind::Hud.one()),
+            on: m.choices.hud_mod && live,
+            enabled: live,
+            note: (mark == Mark::Warn || mark == Mark::Error).then(|| (mark, words)),
+        });
+    }
+    for (i, r) in mods.maps.iter().enumerate().take(MAP_IDS.len()) {
+        let detail = match m.studio_seen.held_on(&r.folder) {
+            Some(h) if h.by_studio() => format!("{} · being edited in Studio", map_detail(r)),
+            Some(_) => format!("{} · being edited", map_detail(r)),
+            None => map_detail(r),
+        };
+        v.push(ModLine {
+            kind: ListKind::Map,
+            id: MAP_IDS[i],
+            name: r.name.clone(),
+            detail: format!("{} · {detail}", ListKind::Map.one()),
+            on: r.on && live,
+            enabled: live && !editing,
+            note: None,
+        });
+    }
+    v
+}
+
+/// What is on, in the order the game takes it: the Mods page's side summary.
+pub fn mounted_words(m: &Model) -> Vec<String> {
+    if m.mods.paused {
+        return vec!["Nothing: Use mods is off, the game starts with its own files.".into()];
+    }
+    let lines = mod_lines(m);
+    let mut out = Vec::new();
+    for k in ListKind::ALL {
+        let on: Vec<&str> = lines.iter().filter(|l| l.kind == k && l.on).map(|l| l.name.as_str()).collect();
+        if on.is_empty() {
+            continue;
+        }
+        out.push(match k {
+            ListKind::Pack => format!("{} (strongest first): {}", k.many(), on.join(", ")),
+            ListKind::Hud => "HUD mod".to_string(),
+            _ => format!("{}: {}", k.many(), on.join(", ")),
+        });
+    }
+    if out.is_empty() {
+        out.push("Nothing: the game's own textures, HUD and maps.".into());
+    }
+    out
+}
+
+/// The kind of the chosen row (the last one focused), or of the first one
+/// shown when none was chosen yet.
+fn chosen_line<'a>(m: &Model, shown: &[&'a ModLine]) -> Option<&'a ModLine> {
+    m.mods.cur.and_then(|c| shown.iter().find(|l| l.id == c)).or_else(|| shown.first()).copied()
+}
+
+/// The Mods page: Use mods, one list of every mod (texture packs, mod packs,
+/// the HUD mod, map mods) filtered by kind, the actions on the chosen row,
+/// what is mounted and About mods at the right.
 fn build_mods(b: &mut Builder, m: &Model) {
     let mods = &m.mods;
     let busy = mods.busy.is_some();
@@ -2090,15 +2202,73 @@ fn build_mods(b: &mut Builder, m: &Model) {
         b.row_note("Off: the game starts with its own textures, HUD and maps. Your list is kept.");
     }
     let live = !mods.paused;
-    b.section_a("Texture packs");
-    let lines = pack_lines(m);
-    if lines.is_empty() {
-        b.dim("None added: the game shows its own textures.");
+    let all = mod_lines(m);
+    let kinds: Vec<ListKind> = ListKind::ALL.into_iter().filter(|k| all.iter().any(|l| l.kind == *k)).collect();
+    let filter = mods.filter.filter(|k| kinds.contains(k));
+    if kinds.len() >= 2 {
+        b.gap(6.0);
+        let chip = |id, text: &str, on| Ctrl::Button { id, text: text.into(), primary: on, enabled: true };
+        let mut chips = vec![chip("kf_all", "All", filter.is_none())];
+        for k in &kinds {
+            chips.push(chip(filter_id(*k), k.many(), filter == Some(*k)));
+        }
+        b.buttons(Align::Left, chips);
     }
-    for (i, l) in lines.iter().enumerate().take(PACK_IDS.len()) {
-        b.toggle_sub(PACK_IDS[i], &l.name, &l.detail, l.on && live, live && l.usable && !busy);
+    b.section_a("Your mods");
+    b.row_min = 44.0;
+    let shown: Vec<&ModLine> = all.iter().filter(|l| filter.is_none_or(|k| l.kind == k)).collect();
+    if all.is_empty() {
+        b.dim("None added: the game shows its own textures, HUD and maps.");
+    } else if shown.is_empty() {
+        b.dim("None of this kind added.");
     }
-    if live && let Some(c) = &mods.conflict {
+    for l in &shown {
+        b.toggle_sub(l.id, &l.name, &l.detail, l.on, l.enabled);
+        if matches!(l.kind, ListKind::Texture | ListKind::Pack) && l.enabled {
+            b.reorder.push(l.id);
+        }
+        if let Some((mark, t)) = &l.note {
+            b.status(*mark, t);
+        }
+    }
+    b.gap(10.0);
+    let editing = matches!(mods.editor, super::model::EditorRun::Open(_));
+    let hud_busy = mods.hud_busy.is_some();
+    b.buttons(
+        Align::Left,
+        vec![
+            Ctrl::Button { id: "add", text: "Add a mod…".into(), primary: false, enabled: !busy },
+            Ctrl::Button { id: "pack_import", text: "Import…".into(), primary: false, enabled: !editing },
+            Ctrl::Button { id: "hud_add", text: "Add HUD mod…".into(), primary: false, enabled: !hud_busy },
+            Ctrl::button("pack_browse", "HUD folder…"),
+        ],
+    );
+    if let Some(t) = &mods.busy {
+        b.gap(6.0);
+        b.status(Mark::Busy, t);
+    }
+    for (mark, line) in &mods.results {
+        b.status(*mark, line);
+    }
+    if let Some(t) = &mods.hud_busy {
+        b.status(Mark::Busy, t);
+    }
+    for (mark, line) in &mods.hud_results {
+        b.status(*mark, line);
+    }
+    message(b, m);
+    let left_bottom = b.y;
+    // What is mounted and the side note: the right column (under the left
+    // one when the window is narrow).
+    match cols.right {
+        Some(r) => b.in_column(r),
+        None => b.gap(8.0),
+    }
+    if filter.is_none_or(|k| k == ListKind::Texture)
+        && live
+        && let Some(c) = &mods.conflict
+    {
+        let lines = pack_lines(m);
         b.gap(6.0);
         let ctrls = if !c.same_list {
             Vec::new()
@@ -2129,54 +2299,47 @@ fn build_mods(b: &mut Builder, m: &Model) {
             ctrls,
         );
     }
-    b.gap(10.0);
-    b.buttons(Align::Left, vec![Ctrl::Button { id: "add", text: "Add a mod…".into(), primary: false, enabled: !busy }]);
-    if let Some(t) = &mods.busy {
-        b.gap(6.0);
-        b.status(Mark::Busy, t);
-    }
-    for (mark, line) in &mods.results {
-        b.status(*mark, line);
-    }
-    message(b, m);
-    b.section_a("Mod packs");
-    let editing = matches!(mods.editor, super::model::EditorRun::Open(_));
-    if mods.packs.is_empty() {
-        b.dim("None added. A pack (.obpk) holds one mod; the first in the list is the strongest.");
-    }
-    for (i, r) in mods.packs.iter().enumerate().take(MODPACK_IDS.len()) {
-        b.toggle_sub(MODPACK_IDS[i], &r.name, &pack_detail(r), r.on && r.refused.is_none() && live, live && r.refused.is_none());
-        if let Some(why) = r.refused.as_ref().filter(|_| r.on || r.new) {
-            b.status(Mark::Warn, &format!("{}: not used, {why}", r.name));
-        }
+    // The actions on the chosen row: those of its kind can be used.
+    let chosen = chosen_line(m, &shown);
+    let kind = chosen.map(|l| l.kind);
+    b.section_a("Chosen mod");
+    match chosen {
+        Some(l) => b.dim(&format!("{} · {}", l.name, l.kind.one())),
+        None => b.dim("Choose a mod in the list to move it, look inside it or open it."),
     }
     b.gap(6.0);
     let sel = mods.pack_sel.as_ref().and_then(|s| mods.packs.iter().position(|r| &r.id == s));
+    let is = |k| kind == Some(k);
     b.buttons(
         Align::Left,
         vec![
-            Ctrl::Button { id: "pack_up", text: "Move up".into(), primary: false, enabled: live && sel.is_some_and(|i| i > 0) },
+            Ctrl::Button { id: "pack_up", text: "Move up".into(), primary: false, enabled: live && is(ListKind::Pack) && sel.is_some_and(|i| i > 0) },
             Ctrl::Button {
                 id: "pack_down",
                 text: "Move down".into(),
                 primary: false,
-                enabled: live && sel.is_some_and(|i| i + 1 < mods.packs.len()),
+                enabled: live && is(ListKind::Pack) && sel.is_some_and(|i| i + 1 < mods.packs.len()),
             },
-            Ctrl::Button { id: "pack_import", text: "Import…".into(), primary: false, enabled: !editing },
-            Ctrl::Button {
-                id: "map_export_pack",
-                text: "Export a map mod…".into(),
-                primary: false,
-                enabled: !mods.maps.is_empty() && !editing,
-            },
+            Ctrl::Button { id: "pack_inside", text: "Look inside".into(), primary: false, enabled: is(ListKind::Pack) && sel.is_some() },
         ],
     );
     let ok_pack = sel.and_then(|i| mods.packs.get(i)).filter(|r| r.refused.is_none());
+    let any_map = !mods.maps.is_empty();
+    let dir = m.choices.texture_pack.trim();
     b.buttons(
         Align::Left,
         vec![
-            Ctrl::Button { id: "pack_inside", text: "Look inside".into(), primary: false, enabled: sel.is_some() },
-            Ctrl::Button { id: "pack_try", text: "Try it once".into(), primary: false, enabled: live && ok_pack.is_some() && !editing },
+            Ctrl::Button { id: "pack_try", text: "Try it once".into(), primary: false, enabled: live && is(ListKind::Pack) && ok_pack.is_some() && !editing },
+            Ctrl::Button { id: "remove", text: "Remove".into(), primary: false, enabled: live && !busy && is(ListKind::Texture) },
+            Ctrl::Button { id: "pack_forget", text: "Forget HUD folder".into(), primary: false, enabled: is(ListKind::Hud) && !dir.is_empty() },
+        ],
+    );
+    b.buttons(
+        Align::Left,
+        vec![
+            Ctrl::Button { id: "map_open", text: "Open in map editor".into(), primary: false, enabled: any_map && is(ListKind::Map) && !editing && m.editor_here },
+            Ctrl::Button { id: "map_export", text: "Export…".into(), primary: false, enabled: any_map && is(ListKind::Map) && !editing },
+            Ctrl::Button { id: "map_export_pack", text: "Export as a mod pack…".into(), primary: false, enabled: any_map && is(ListKind::Map) && !editing },
         ],
     );
     if let Some((name, lines)) = &mods.inside {
@@ -2200,73 +2363,28 @@ fn build_mods(b: &mut Builder, m: &Model) {
             vec![Ctrl::button("try_keep", "Keep the copy"), Ctrl::button("try_discard", "Discard the copy")],
         );
     }
-    let left_bottom = b.y;
-    // The HUD and the map mods: the right column (under the left one when
-    // the window is narrow).
-    match cols.right {
-        Some(r) => b.in_column(r),
-        None => b.gap(8.0),
-    }
-    b.section_a("HUD");
-    match hud_words(m) {
-        Some((mark, words)) => {
-            b.toggle_sub("hud", "HD HUD and maps", &words, m.choices.hud_mod && live, live);
-            if mark == Mark::Warn || mark == Mark::Error {
-                b.status(mark, &words);
-            }
-        }
-        None => b.dim(HUD_INTRO),
-    }
-    if let Some(t) = &mods.hud_busy {
-        b.status(Mark::Busy, t);
-    }
-    for (mark, line) in &mods.hud_results {
-        b.status(*mark, line);
-    }
-    let hud_busy = mods.hud_busy.is_some();
-    let dir = m.choices.texture_pack.trim();
-    b.gap(6.0);
-    b.buttons(
-        Align::Left,
-        vec![
-            Ctrl::Button { id: "hud_add", text: "Add HUD mod…".into(), primary: false, enabled: !hud_busy },
-            Ctrl::button("pack_browse", "Choose folder…"),
-            Ctrl::Button { id: "pack_forget", text: "Forget folder".into(), primary: false, enabled: !dir.is_empty() },
-        ],
-    );
-    b.section_a("Map mods");
-    if mods.maps.is_empty() {
-        b.dim("None added: the game's own city. Make one in the map editor.");
-    }
-    let editing = matches!(mods.editor, super::model::EditorRun::Open(_));
-    for (i, r) in mods.maps.iter().enumerate().take(MAP_IDS.len()) {
-        let detail = match m.studio_seen.held_on(&r.folder) {
-            Some(h) if h.by_studio() => format!("{} · being edited in Studio", map_detail(r)),
-            Some(_) => format!("{} · being edited", map_detail(r)),
-            None => map_detail(r),
-        };
-        b.toggle_sub(MAP_IDS[i], &r.name, &detail, r.on && live, live && !editing);
-    }
-    b.gap(6.0);
-    let any = !mods.maps.is_empty();
-    b.buttons(
-        Align::Left,
-        vec![
-            Ctrl::Button {
-                id: "map_open",
-                text: "Open in map editor".into(),
-                primary: false,
-                enabled: any && !editing && m.editor_here,
-            },
-            Ctrl::Button { id: "map_import", text: "Import a map mod…".into(), primary: false, enabled: !editing },
-            Ctrl::Button { id: "map_export", text: "Export…".into(), primary: false, enabled: any && !editing },
-        ],
-    );
     editor_status(b, m);
+    b.section_a("Mounted now");
+    for l in mounted_words(m) {
+        b.dim(&l);
+    }
+    if !all.iter().any(|l| l.kind == ListKind::Hud) {
+        b.dim(HUD_INTRO);
+    }
     b.gap(14.0);
     b.dim(ABOUT_MODS);
     b.y = left_bottom.max(b.y);
-    b.default_focus = Some(if lines.is_empty() { "add" } else { PACK_IDS[0] });
+    b.default_focus = Some(shown.first().map_or("add", |l| l.id));
+}
+
+/// The id of a kind's filter button.
+fn filter_id(k: ListKind) -> Id {
+    match k {
+        ListKind::Texture => "kf_tex",
+        ListKind::Pack => "kf_packs",
+        ListKind::Hud => "kf_hud",
+        ListKind::Map => "kf_maps",
+    }
 }
 
 /// The map editor's state under its buttons (Mods and Dev pages): open on
@@ -2383,6 +2501,8 @@ impl<'e> App<'e> {
             // A long page scrolls instead of shrinking.
             !s.document() && s != Screen::Storage,
             scale,
+            // The Mods list grows with the mods: it scrolls before its text gets small.
+            if s == Screen::Mods { super::ui::MIN_UNIT_LIST } else { super::ui::MIN_UNIT },
             &mut self.st,
             |b| build(b, m, s),
         );
@@ -2679,6 +2799,9 @@ impl<'e> App<'e> {
         if self.screen == Screen::Mods
             && let Some(f) = self.ui.focused(&self.st)
         {
+            if let Some(row) = PACK_IDS.iter().chain(&MODPACK_IDS).chain(&MAP_IDS).chain(&["hud"]).find(|p| **p == f) {
+                self.model.mods.cur = Some(row);
+            }
             if let Some(i) = PACK_IDS.iter().position(|p| *p == f) {
                 self.model.mods.sel = i;
             } else if let Some(i) = MAP_IDS.iter().position(|p| *p == f) {
@@ -3050,6 +3173,42 @@ impl<'e> App<'e> {
         self.refresh_mods();
     }
 
+    /// A row of the Mods list moved to another's place (a drag, or the move
+    /// keys): mod packs in the load order, texture packs within their list.
+    /// The row stays chosen and focused.
+    fn move_row(&mut self, from: Id, to: Id) {
+        let m = &self.model.mods;
+        if let (Some(i), Some(j)) = (MODPACK_IDS.iter().position(|p| *p == from), MODPACK_IDS.iter().position(|p| *p == to)) {
+            let Some(r) = m.packs.get(i).cloned() else { return };
+            if let Err(e) = self.env.move_pack(&r.id, j as isize - i as isize) {
+                self.model.mods.results = vec![(Mark::Error, format!("{}: {e}", r.name))];
+            } else {
+                self.model.mods.results = Vec::new();
+            }
+            self.model.mods.pack_sel = Some(r.id);
+            self.model.mods.cur = Some(MODPACK_IDS[j]);
+            self.st.focus = Some(MODPACK_IDS[j]);
+            self.refresh_mods();
+        } else if let (Some(i), Some(j)) =
+            (PACK_IDS.iter().position(|p| *p == from), PACK_IDS.iter().position(|p| *p == to))
+        {
+            let n = m.own.len();
+            if (i < n) != (j < n) {
+                self.model.mods.results =
+                    vec![(Mark::Info, "Overbright packs come before imported packs: they keep their own order.".into())];
+                return;
+            }
+            self.model.mods.sel = i;
+            let step = if j > i { 1 } else { -1 };
+            for _ in 0..i.abs_diff(j) {
+                self.move_pack(step);
+            }
+            self.model.mods.results = Vec::new();
+            self.model.mods.cur = Some(PACK_IDS[j]);
+            self.st.focus = Some(PACK_IDS[j]);
+        }
+    }
+
     /// A map mod imported.
     fn import_map(&mut self, from: &Path) {
         let name = from.file_name().map_or(String::new(), |n| n.to_string_lossy().into_owned());
@@ -3408,6 +3567,11 @@ impl<'e> App<'e> {
                 ))
             }
             (Screen::Mods, Event::Toggle("use_mods")) => self.toggle_mods_in_use(),
+            (Screen::Mods, Event::Activate(id)) if id.starts_with("kf_") => {
+                self.model.mods.filter = ListKind::ALL.into_iter().find(|k| filter_id(*k) == *id);
+                self.st.focus = Some(id);
+            }
+            (Screen::Mods, Event::Move(from, to)) => self.move_row(from, to),
             (Screen::Mods, Event::Toggle(id)) if PACK_IDS.contains(id) => {
                 let i = PACK_IDS.iter().position(|p| p == id).unwrap_or(0);
                 self.toggle_pack(i);
@@ -3491,7 +3655,6 @@ impl<'e> App<'e> {
                 let n = pack_lines(&self.model).len();
                 self.model.mods.sel = self.model.mods.sel.min(n.saturating_sub(1));
             }
-            (Screen::Mods, Event::Activate("map_import")) => self.browse(BrowseFor::MapMod, None),
             (Screen::Mods, Event::Activate("map_open")) => {
                 let f = self.model.mods.map_sel.clone().or_else(|| self.model.mods.maps.first().map(|r| r.folder.clone()));
                 if f.is_some() {

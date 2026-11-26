@@ -675,6 +675,41 @@ pub struct Mods {
     pub tried: Option<(String, super::trial::Trial)>,
     /// The map editor started from this page.
     pub editor: EditorRun,
+    /// The list shows only this kind of mod (None: all).
+    pub filter: Option<ListKind>,
+    /// The row last chosen in the list (its widget id): the actions under
+    /// the list act on it.
+    pub cur: Option<&'static str>,
+}
+
+/// The kinds of mod in the Mods list.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ListKind {
+    Texture,
+    Pack,
+    Hud,
+    Map,
+}
+
+impl ListKind {
+    pub const ALL: [ListKind; 4] = [ListKind::Texture, ListKind::Pack, ListKind::Hud, ListKind::Map];
+    /// The name of one of the kind, and of the kind's filter.
+    pub fn one(self) -> &'static str {
+        match self {
+            ListKind::Texture => "Texture pack",
+            ListKind::Pack => "Mod pack",
+            ListKind::Hud => "HUD mod",
+            ListKind::Map => "Map mod",
+        }
+    }
+    pub fn many(self) -> &'static str {
+        match self {
+            ListKind::Texture => "Texture packs",
+            ListKind::Pack => "Mod packs",
+            ListKind::Hud => "HUD",
+            ListKind::Map => "Map mods",
+        }
+    }
 }
 
 /// One of Overbright's own packs as the Mods page shows it.
