@@ -79,8 +79,12 @@ fn solids(line: &args::Line, env: &Env) -> Done {
     let search = text(line, "filter");
     let all = browse::entries(&world);
     let shown = browse::filtered(&all, filter, &search);
-    let mut lines: Vec<String> =
-        shown.iter().map(|e| format!("{:<28} {:<10} {} placed", e.name, if e.knock_over { "knock-over" } else { "static" }, e.placed)).collect();
+    let mut lines: Vec<String> = shown
+        .iter()
+        .map(|e| {
+            format!("{:<28} {:<10} {} placed", e.name, if e.knock_over { "knock-over" } else { "static" }, e.placed)
+        })
+        .collect();
     let mut doc = json!({
         "region": region(line),
         "count": shown.len(),
@@ -147,33 +151,51 @@ fn regions(root: &std::path::Path) -> Vec<String> {
 }
 
 fn find_texture(line: &args::Line, env: &Env) -> Done {
+    use crate::browser::{Hit, Index, Kind, Query};
     let search = text(line, "text");
     let world = match world(line, env) {
         Ok(w) => w,
         Err(d) => return d,
     };
-    let words: Vec<String> = search.split_whitespace().map(str::to_ascii_lowercase).collect();
-    let hash = search.trim().trim_start_matches("0x").trim_start_matches("0X");
-    let by_hash = (!hash.is_empty() && hash.len() <= 8).then(|| u32::from_str_radix(hash, 16).ok()).flatten();
-    let mut found: Vec<_> = world
-        .textures
-        .values()
-        .filter(|t| {
-            let n = t.name.to_ascii_lowercase();
-            Some(t.hash) == by_hash || (!words.is_empty() && words.iter().all(|w| n.contains(w.as_str())))
+    // The Browser's own index and search ([`crate::browser`]): one answer in Studio and here.
+    let index = Index::build(&region(line), &world);
+    let q = Query { text: search.clone(), kind: Kind::Textures, ..Default::default() };
+    let mut found: Vec<usize> =
+        index.search(&q).into_iter().filter_map(|h| if let Hit::Texture(i) = h { Some(i) } else { None }).collect();
+    found.sort_by(|&a, &b| {
+        let (a, b) = (&index.textures[a], &index.textures[b]);
+        a.name.cmp(&b.name).then(a.hash.cmp(&b.hash))
+    });
+    let mut lines: Vec<String> = found
+        .iter()
+        .map(|&i| {
+            let t = &index.textures[i];
+            format!("{:<28} {}  {}x{}  {}", t.name, t.id(), t.width, t.height, index.texture_used(i))
         })
         .collect();
-    found.sort_by(|a, b| a.name.cmp(&b.name).then(a.hash.cmp(&b.hash)));
-    let id = |h: u32| crate::looks::TextureId::new(crate::looks::Domain::World, h).to_string();
-    let mut lines: Vec<String> =
-        found.iter().map(|t| format!("{:<28} {}  {}x{}", t.name, id(t.hash), t.width, t.height)).collect();
     let mut doc = json!({
         "region": region(line),
         "text": search,
         "count": found.len(),
-        "textures": found.iter().map(|t| json!({
-            "texture": id(t.hash), "name": t.name, "width": t.width, "height": t.height,
-        })).collect::<Vec<_>>(),
+        "textures": found.iter().map(|&i| {
+            let t = &index.textures[i];
+            json!({
+                "texture": t.id().to_string(),
+                "name": t.name,
+                "hash": format!("0x{:08X}", t.hash),
+                "width": t.width,
+                "height": t.height,
+                "animated": t.animated,
+                "materials": t.materials(),
+                "used": index.texture_used(i),
+                "used_by": t.used_by.iter().map(|&(m, n)| json!({
+                    "model": index.models[m].name, "materials": n,
+                })).collect::<Vec<_>>(),
+                "sections": index.texture_sections(i).iter().map(|&(s, n)| json!({
+                    "section": s, "placements": n,
+                })).collect::<Vec<_>>(),
+            })
+        }).collect::<Vec<_>>(),
     });
     if found.is_empty() {
         lines.push(format!("No texture matches `{search}` in {}", region(line)));

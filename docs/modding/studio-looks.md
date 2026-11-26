@@ -4,7 +4,7 @@
 > (`overbright-studio-cli looks …`, [Studio command-line tool](studio-cli.md)). In Studio's window, Changes lists
 > and resets the painted textures and the Mod page warns before sharing derived ones
 > ([Studio](studio.md#changes)); picking a texture in the 3D view, the before/after slider and where a texture is
-> used come later.
+> used come later. `looks find` and the blank guide are described below.
 
 Looks lets you paint the game's textures in your own paint program. Overbright ships no texture art: the textures
 you start from are your own game's, read from your game files, and what you paint stays in your mod's folder.
@@ -30,6 +30,20 @@ overbright-studio-cli looks watch --mod maps/docks
   and writes `looks.toml` and the texture under `textures/` when it next saves the mod (about 2 s later, or on
   Ctrl+S). Undo there takes the texture away again.
 - **`looks list`** shows the mod's changed textures and its work files.
+- **`looks find <words>`** (or `--text 0x1A2B3C4D`) finds the region's world textures by name or hash and says where
+  each is used: its id for `looks open`, name, hash, size, the models that draw it and the sections they are in. It
+  is the search of Studio's Browser, so the same words give the same answer in both.
+
+No marker file is needed for a program that saves in two steps: a work file is read only after it stopped changing
+over one look and only when it reads as a whole PNG, so a half-written file is never taken in (a test tries every
+length of a write).
+
+### The guide on a blank canvas
+
+A texture painted from blank shows, in Studio's Changes (the Inspector, beside the original), a faint outline of
+the original's layout over your canvas. The guide is made from the original's pixels while the page is drawn and is
+never written: not into the work file, the image store or the pack data, so the texture stays clean and stays marked
+`blank`.
 
 A texture is named by its domain (`world` or `car`) and the game's hash of its name: `world:0x1A2B3C4D`. The
 texture editor in the game (F7, [Texture editor](texture-editor.md)) shows both.

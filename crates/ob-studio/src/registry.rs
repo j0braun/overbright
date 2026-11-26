@@ -476,7 +476,7 @@ pub const COMMANDS: &[Command] = &[
     Command {
         name: "looks.find",
         kind: CommandKind::Read,
-        summary: "Find the region's world textures by name or hash (words after the command or --text)",
+        summary: "Find the region's world textures by name or hash, with where each is used (words after the command or --text)",
         args: &[f("text", TEXT, Req::Yes, "Words of the name, or the hash (0x1A2B3C4D)")],
     },
     Command {

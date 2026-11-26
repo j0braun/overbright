@@ -554,3 +554,57 @@ fn the_focus_menu_shows_each_row_where_it_has_a_place() {
     assert_eq!(t[r + 2], "Copy address", "{t:?}");
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// Every file under `dir`, by path, with its bytes.
+fn bytes_of(dir: &Path) -> BTreeMap<PathBuf, Vec<u8>> {
+    fn walk(d: &Path, out: &mut BTreeMap<PathBuf, Vec<u8>>) {
+        for e in std::fs::read_dir(d).into_iter().flatten().flatten() {
+            let p = e.path();
+            if p.is_dir() {
+                walk(&p, out);
+            } else {
+                out.insert(p.clone(), std::fs::read(&p).unwrap_or_default());
+            }
+        }
+    }
+    let mut out = BTreeMap::new();
+    walk(dir, &mut out);
+    out
+}
+
+/// The guide of a texture painted from blank is drawn at every review size, for every input, and the mod's files
+/// (the texture, the store, the list) are the same bytes with it on.
+#[test]
+fn the_blank_guide_is_drawn_and_never_saved() {
+    use ob_studio::looks::{Domain, Origin, Original, TextureId, Textures};
+    struct Game;
+    impl Textures for Game {
+        fn original(&self, _: TextureId) -> Option<Original> {
+            let mut rgba = [200u8, 200, 200, 255].repeat(32 * 32);
+            for i in 0..32 {
+                rgba[(i * 32 + 16) * 4..(i * 32 + 16) * 4 + 3].copy_from_slice(&[20, 20, 20]);
+            }
+            Some(Original { name: "SIGN_CASINO".into(), width: 32, height: 32, rgba, used_by: Vec::new() })
+        }
+    }
+    let dir = maps("looks-guide");
+    let mut e = painted(&dir, "harbour-edits", 0x5160, "SIGN_CASINO", [255, 255, 255]);
+    e.origin = Origin::Blank;
+    assert_eq!(e.id, TextureId::new(Domain::World, 0x5160));
+    paint(&dir, "harbour-edits", vec![e]);
+    let before = bytes_of(&dir);
+    for (size, scale) in [((960, 600), 1.0), ((1920, 1080), 1.0)] {
+        for input in [InputKind::Mouse, InputKind::Keyboard, InputKind::Xbox] {
+            let mut s = Studio::new(dir.clone(), Some("harbour-edits"));
+            s.go(&Address::parse(&format!("ob://harbour-edits/texture/{SIGN_TEX}")).unwrap()).unwrap();
+            s.nav.input = input;
+            frames(&mut s, size, scale, 1);
+            s.changes.feed_originals(&egui::Context::default(), &Game);
+            assert_eq!(s.changes.guides_loaded(), 1, "{size:?} {input:?}: the guide is made from the original");
+            let (_, l) = frames(&mut s, size, scale, 2);
+            assert!(l.problems().is_empty(), "{size:?}@{scale} {input:?}: {:?}", l.problems());
+        }
+    }
+    assert_eq!(bytes_of(&dir), before, "the guide is never saved: every file of the mod keeps its bytes");
+    let _ = std::fs::remove_dir_all(&dir);
+}

@@ -486,7 +486,11 @@ fn looks_open_import_and_list() {
         cli::FAILED
     );
     assert!(!packs.exists());
-    let (code, out, _) = run(&["modpack", "export", "--mod", "<mod>", "--to", &pto, "--derived-ok", "--version", "1.2.0", "--json"], &dir, &e);
+    let (code, out, _) = run(
+        &["modpack", "export", "--mod", "<mod>", "--to", &pto, "--derived-ok", "--version", "1.2.0", "--json"],
+        &dir,
+        &e,
+    );
     assert_eq!(code, cli::OK, "{out}");
     let doc: Value = serde_json::from_str(&out).unwrap();
     assert_eq!(doc["id"], "docks");
@@ -498,13 +502,20 @@ fn looks_open_import_and_list() {
         assert!(b.get(f).is_some(), "{f}");
     }
     assert!(b.get("map.obmap").is_none());
-    assert_eq!(run(&["modpack", "export", "--mod", "<mod>", "--to", &pto, "--derived-ok", "--version", "one"], &dir, &e).0, cli::USAGE);
+    assert_eq!(
+        run(&["modpack", "export", "--mod", "<mod>", "--to", &pto, "--derived-ok", "--version", "one"], &dir, &e).0,
+        cli::USAGE
+    );
     // `modpack convert`: the plain mod (its zip from `pack export`) becomes a pack, refused when it is neither kind.
     let conv = s.path().join("converted");
     let (cto, czip) = (conv.to_string_lossy().to_string(), zip.to_string_lossy().to_string());
     let words = ["modpack", "convert", "--from", &czip, "--to", &cto, "--id", "docks-old", "--derived-ok"];
     assert_eq!(golden("modpack-convert", &words, &s, &dir, &e), cli::OK);
-    let b = ob_asset_format::bundle::Bundle::open(&conv.join("docks-old-1.0.0.obpk"), ob_asset_format::bundle::Kind::PackFile).unwrap();
+    let b = ob_asset_format::bundle::Bundle::open(
+        &conv.join("docks-old-1.0.0.obpk"),
+        ob_asset_format::bundle::Kind::PackFile,
+    )
+    .unwrap();
     let prov = String::from_utf8(b.read(b.get("provenance.toml").unwrap()).unwrap().into_owned()).unwrap();
     assert!(prov.contains("converted = true"), "{prov}");
     let nothing = s.path().join("nothing");
@@ -690,12 +701,18 @@ fn lists_env() -> Env {
         hash: 0,
         bbox_min: [-0.5, -0.5, 0.0],
         bbox_max: [0.5, 0.5, 1.0],
-        textures: Vec::new(),
+        textures: vec![0x0000_0ABC],
         vertices: Vec::new(),
         normals: Vec::new(),
         light_materials: Vec::new(),
-        indices: Vec::new(),
-        materials: Vec::new(),
+        indices: vec![0; 6],
+        materials: vec![ob_formats::formats::solid::Material {
+            texture_slot: 0,
+            light_material: 0xFF,
+            first_index: 0,
+            index_count: 3,
+            flags: 0,
+        }],
         mesh_flags: 0,
         markers: Vec::new(),
         light_markers: Vec::new(),
