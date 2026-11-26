@@ -31,6 +31,11 @@ pub const INSPECTOR_EMPTY: &str = "Pick something in the view or the tree.";
 pub const LEGEND_NOTE_KEYS: &str = "Keyboard: the legend follows the device you used last";
 pub const LEGEND_NOTE_PAD: &str = "Pad: the legend follows the device you used last";
 
+/// The Runs workspace.
+pub const RUNS: &str = "Runs";
+pub const NO_RUNS: &str = "No runs yet";
+pub const NO_RUNS_HOW: &str = "Simulate a race with the Simulate button and its run is kept here.";
+
 pub const NO_PROBLEMS: &str = "No problems found";
 pub const NOTHING_LOGGED: &str = "Nothing logged yet";
 pub const NO_JOBS: &str = "No jobs running";

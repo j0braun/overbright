@@ -6,8 +6,9 @@
 //! overbright-studio [--mod <name|folder>] [--maps <dir>]  the window, with that mod open (its folder name in the
 //!                                                        mods folder, or its folder's path)
 //! overbright-studio --shot out.png [--size WxH] [--scale F] [--mod <folder>] [--maps <dir>]
-//!                   [--workspace home|world|races|browser|mod|settings|changes] [--input mouse|keyboard|xbox|playstation|deck]
+//!                   [--workspace home|world|races|browser|runs|mod|settings|changes] [--input mouse|keyboard|xbox|playstation|deck]
 //!                   [--focus rail|address|toolbar|left|view|right|bottom] [--drawer] [--files] [--warning] [--find] [--address]
+//!                   [--run NAME] [--compare NAME] [--car ID] [--at SECONDS]
 //!                   [--select N] [--search WORDS] [--kind models|textures] [--row N] [--places] [--job WORDS] [--right-tab inspector|history|help] [--new-mod NAME]
 //!                                   the whole window drawn off-screen into a PNG (no window)
 //! ```
@@ -57,6 +58,11 @@ struct Cli {
     /// The Browser's search text and kind (a `--shot`).
     search: Option<String>,
     kind: Option<String>,
+    /// Runs: the run opened, the run compared with it, the car whose telemetry shows, the time shown (a `--shot`).
+    run: Option<String>,
+    compare: Option<String>,
+    car: Option<u32>,
+    at: Option<f32>,
     /// The New mod dialog open with this name typed (a `--shot`).
     new_mod: Option<String>,
     /// The first tutorial ("Your first mod") at this step (1 … 5, 6: the last card) on the open mod (a `--shot`).
@@ -136,6 +142,10 @@ fn parse(args: impl Iterator<Item = String>) -> Result<Cli> {
             "--select" => c.select = Some(val("--select")?.parse()?),
             "--search" => c.search = Some(val("--search")?),
             "--kind" => c.kind = Some(val("--kind")?),
+            "--run" => c.run = Some(val("--run")?),
+            "--compare" => c.compare = Some(val("--compare")?),
+            "--car" => c.car = Some(val("--car")?.parse()?),
+            "--at" => c.at = Some(val("--at")?.parse()?),
             "--new-mod" => c.new_mod = Some(val("--new-mod")?),
             "--race-tutorial" => {
                 let n: usize = val("--race-tutorial")?.parse()?;
@@ -310,7 +320,29 @@ fn run_shot(cli: &Cli) -> Result<()> {
         s.command(ob_studio_gui::studio::nav::Command::EditAddress, None);
         s.nav.input = cli.input.unwrap_or(InputKind::Keyboard);
     }
-    if s.nav.workspace == Workspace::Browser {
+    if s.nav.workspace == Workspace::Runs {
+        // Frames so the mod opens in the editor; then the run, the run compared and the car.
+        shot::frames(&mut s, size, scale, 3);
+        if let Some(folder) = s.open_mod().map(|m| m.folder.clone()) {
+            let dir = ob_studio_gui::editor::sim::library::dir(&s.maps, &folder);
+            let sim = s.editor.as_ref().map(|h| h.app.panels.sim.clone());
+            if let (Some(sim), Some(r)) = (sim.as_ref(), cli.run.as_deref()) {
+                let ctx = s.ctx.clone();
+                s.runs.open(&dir, sim, &ctx, r);
+                shot::frames(&mut s, size, scale, 3);
+                if let Some(c) = cli.compare.as_deref() {
+                    s.runs.compare(&dir, sim, c);
+                }
+                let mut b = sim.borrow_mut();
+                b.tele_car = cli.car;
+                if let Some(t) = cli.at {
+                    let rec = b.rec.clone();
+                    b.play.seek_frame(&rec, t);
+                }
+            }
+        }
+        shot::frames(&mut s, size, scale, 3);
+    } else if s.nav.workspace == Workspace::Browser {
         use ob_studio::browser::Kind;
         // Frames so the mod opens in the editor and the index is made, then the search and the focused result.
         shot::frames(&mut s, size, scale, 2);

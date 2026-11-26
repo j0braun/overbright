@@ -12,6 +12,7 @@ use crate::editor::menu;
 use crate::editor::theme::{self, SEMI, TITLE, font, rgb, tokens};
 
 use super::address::{Address, CRUMB, Places, STUDIO, Target};
+use super::browser;
 use super::changes::{self, Ask};
 use super::draw::{self, Card, Source};
 use super::focus::{self, Spot, Spots};
@@ -21,7 +22,6 @@ use super::inside::{FindItem, PLACES_SHOWN};
 use super::layout::{self, Dock, Layout, Memory, Want};
 use super::memory::Memories;
 use super::mod_page::{self, Act};
-use super::browser;
 use super::nav::{self, Area, Command, KEYS, Level, Nav, Pad};
 use super::new_mod;
 use super::words;
@@ -88,6 +88,8 @@ pub struct Studio {
     pub mod_page: mod_page::Page,
     /// The Browser workspace.
     pub browser: browser::Page,
+    /// The Runs workspace's list.
+    pub runs: super::runs::Page,
     /// The New mod dialog, while it is open.
     pub new_mod: Option<new_mod::Dialog>,
     /// Home's focused control (keyboard and pad): an index into [`Studio::home_targets`].
@@ -160,6 +162,7 @@ impl Studio {
             changes: changes::Page::new(maps.clone()),
             mod_page: mod_page::Page::new(maps.clone()),
             browser: browser::Page::new(),
+            runs: Default::default(),
             new_mod: None,
             home_focus: 0,
             home_rows: 6,
@@ -324,6 +327,7 @@ impl Studio {
             legend: self.nav.legend(),
             memory: self.memories.get(self.nav.workspace),
             drawer_open: self.nav.drawer_open,
+            reading: self.nav.workspace == Workspace::Runs,
             ..Want::new(self.nav.workspace.kind())
         }
     }
@@ -483,6 +487,22 @@ impl Studio {
                 self.nav.level = Level::Row;
                 return;
             }
+        }
+        if self.nav.workspace == Workspace::Runs
+            && self.nav.area == Area::Left
+            && self.editing()
+            && matches!(b, Pad::Up | Pad::Down | Pad::A)
+        {
+            // The list in the left panel: the D-pad moves over the runs, A opens the one it is on (Compare,
+            // Rename and Delete are in X's menu).
+            self.nav.input = kind;
+            self.nav.level = Level::Row;
+            match b {
+                Pad::Up => self.runs.step(&self.ctx.clone(), -1),
+                Pad::Down => self.runs.step(&self.ctx.clone(), 1),
+                _ => self.runs.key = Some(egui::Key::Enter),
+            }
+            return;
         }
         if self.on_browser_rows() {
             let handled = match b {
@@ -716,7 +736,11 @@ impl Studio {
                 let addr = placement.and_then(|pi| {
                     let s = self.editor.as_ref()?.app.state.as_ref()?;
                     let (sec, n) = s.session.world.original_key(pi)?;
-                    Some(Address::item(&s.session.folder, "placement", &[&s.session.region, &sec.to_string(), &n.to_string()]))
+                    Some(Address::item(
+                        &s.session.folder,
+                        "placement",
+                        &[&s.session.region, &sec.to_string(), &n.to_string()],
+                    ))
                 });
                 let _ = solid;
                 match addr {
@@ -726,7 +750,8 @@ impl Studio {
                     }
                     None => {
                         self.workspace(Workspace::World);
-                        self.verdict = Some(format!("{name} is not placed in this region: it is chosen, Ctrl+D places it"));
+                        self.verdict =
+                            Some(format!("{name} is not placed in this region: it is chosen, Ctrl+D places it"));
                     }
                 }
             }
@@ -739,7 +764,9 @@ impl Studio {
                     let a = Address::item(&folder, ob_studio::changes::looks::TEXTURE, &[&id]);
                     self.verdict = self.go(&a).err();
                 } else {
-                    self.verdict = Some(format!("{name} is not changed by this mod yet. Start it with: looks open --texture {id}"));
+                    self.verdict = Some(format!(
+                        "{name} is not changed by this mod yet. Start it with: looks open --texture {id}"
+                    ));
                 }
             }
         }
@@ -871,11 +898,16 @@ impl Studio {
         // and while its view, tree or docks have focus the keys that act inside an area.
         let editing = self.editing() && !typing;
         let inside = editing && matches!(self.nav.area, Area::View | Area::Left | Area::Bottom);
-        let rows =
-            self.on_changes_rows() || (self.on_mod_rows() && self.mod_page.editing.is_none()) || self.on_home_rows() || self.on_browser_rows();
+        let rows = self.on_changes_rows()
+            || (self.on_mod_rows() && self.mod_page.editing.is_none())
+            || self.on_home_rows()
+            || self.on_browser_rows();
         let browser_rows = self.on_browser_rows();
         let browser_chips = browser_rows && self.browser.focus < browser::FIRST_RESULT;
         let mut chip_keys = vec![];
+        let runs_rows = self.nav.workspace == Workspace::Runs && self.runs.row_focused(&self.ctx);
+        let mut runs_steps: Vec<i32> = vec![];
+        let mut runs_key = None;
         let spots = self.on_spots();
         let find = self.nav.find_open;
         let places_menu = self.places_menu;
@@ -909,6 +941,25 @@ impl Studio {
                 } else {
                     true
                 }
+            }
+            egui::Event::Key { key, pressed: true, modifiers, .. }
+                if runs_rows
+                    && !modifiers.command
+                    && !modifiers.alt
+                    && !modifiers.shift
+                    && matches!(key, egui::Key::ArrowUp | egui::Key::ArrowDown) =>
+            {
+                runs_steps.push(if *key == egui::Key::ArrowUp { -1 } else { 1 });
+                false
+            }
+            // The list's own keys: the editor must not see them (Delete would delete its selection).
+            egui::Event::Key { key, pressed: true, modifiers, .. }
+                if runs_rows
+                    && modifiers.is_none()
+                    && matches!(key, egui::Key::Delete | egui::Key::F2 | egui::Key::C) =>
+            {
+                runs_key = Some(*key);
+                false
             }
             egui::Event::Key { key, pressed: true, modifiers, .. }
                 if rows
@@ -979,6 +1030,13 @@ impl Studio {
         for (key, shift) in spot_keys {
             self.nav.input = InputKind::Keyboard;
             self.spot_key(key, shift);
+        }
+        if runs_key.is_some() {
+            self.runs.key = runs_key;
+        }
+        for d in runs_steps {
+            self.nav.input = InputKind::Keyboard;
+            self.runs.step(&self.ctx, d);
         }
         for d in chip_keys {
             self.nav.input = InputKind::Keyboard;
@@ -1978,15 +2036,18 @@ impl Studio {
             p.line_segment([r.right_top(), r.right_bottom()], Stroke::new(1.0, draw::rule()));
             match l.left_dock {
                 Dock::Open(_) => {
-                    tabs(&p, r, &["Mod"], 0, self.nav.area == Area::Left);
+                    let runs = editing && self.nav.workspace == Workspace::Runs;
+                    tabs(&p, r, &[if runs { words::RUNS } else { "Mod" }], 0, self.nav.area == Area::Left);
                     let body = r.shrink2(vec2(12.0, 0.0)).with_min_y(r.top() + 44.0);
-                    if editing {
+                    if runs {
+                        self.runs_left(ui, body);
+                    } else if editing {
                         self.editor_tree(ui, body);
                     } else {
                         self.mod_tree(&p, body);
                     }
                 }
-                _ => strip(&p, r, "Mod"),
+                _ => strip(&p, r, if editing && self.nav.workspace == Workspace::Runs { words::RUNS } else { "Mod" }),
             }
             if l.left_dock == Dock::Folded
                 && ui.interact(r, egui::Id::unique("left-strip"), egui::Sense::click()).clicked()
@@ -2476,7 +2537,13 @@ impl Studio {
             .iter()
             .map(|i| match i {
                 FindItem::Go(ws) => format!("Ctrl+{}", ws.ctrl_key()),
-                FindItem::Mod(i) => if Some(*i) == self.open { "open".to_string() } else { String::new() },
+                FindItem::Mod(i) => {
+                    if Some(*i) == self.open {
+                        "open".to_string()
+                    } else {
+                        String::new()
+                    }
+                }
                 FindItem::Run(c) => KEYS.iter().find(|k| k.command == *c).map_or("", |k| k.keys).to_string(),
                 FindItem::Place(_) => String::new(),
             })
@@ -2562,6 +2629,7 @@ impl Studio {
         };
         let mut pick = None;
         let mut pick_changes = None;
+        let mut pick_runs = None;
         egui::Area::new(egui::Id::unique("focus-menu"))
             .fixed_pos(at)
             .fade_in(false)
@@ -2587,6 +2655,20 @@ impl Studio {
                             pick_changes = Some(false);
                         }
                     }
+                    if self.nav.workspace == Workspace::Runs && self.nav.area == Area::Left {
+                        ui.separator();
+                        let has = self.runs.cursor.is_some();
+                        for (word, key) in [
+                            ("Open", egui::Key::Enter),
+                            ("Compare with the run shown", egui::Key::C),
+                            ("Rename", egui::Key::F2),
+                            ("Delete", egui::Key::Delete),
+                        ] {
+                            if ui.add_enabled(has, egui::Button::new(word)).clicked() {
+                                pick_runs = Some(key);
+                            }
+                        }
+                    }
                     if ui.add(egui::Button::new(words::COPY_ADDRESS).shortcut_text("Ctrl+Shift+C")).clicked() {
                         pick = Some(Command::CopyAddress);
                     }
@@ -2595,6 +2677,10 @@ impl Studio {
             });
         if let Some(c) = pick {
             self.command(c, None);
+            self.nav.level = Level::Row;
+        }
+        if pick_runs.is_some() {
+            self.runs.key = pick_runs;
             self.nav.level = Level::Row;
         }
         match pick_changes {

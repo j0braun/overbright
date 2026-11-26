@@ -8,10 +8,13 @@
 
 pub mod cams;
 pub mod cars;
+pub mod graphs;
+pub mod library;
 pub mod panel;
 pub mod record;
 pub mod run;
 pub mod summary;
+pub mod telemetry;
 pub mod timeline;
 
 // The stream's format and its detectors live in the library, which the
