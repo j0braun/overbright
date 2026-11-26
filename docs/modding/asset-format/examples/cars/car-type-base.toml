@@ -115,7 +115,7 @@ preload_downforce = 0.5
 [handling]
 steering_ratio = 1.0
 drift_grip = [0.0, 2.5]
-yaw_limit_airborne_knm = 15.0
+yaw_limit_on_knm = 15.0
 top_speed_mph = 120.0
 
 [brakes]

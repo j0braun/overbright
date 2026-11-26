@@ -1407,15 +1407,22 @@ drivetrain at +0x4C and the tuning block at +0x54.
 * **Brakes and grip** (0x5A4D90): foot brake per wheel 2 × share × pedal
   (share = 1 − +0x38C front, +0x38C rear). A burnout (throttle > 0.8,
   brake > 0.5, under 10 mph) puts mph × 0.05 on the rear instead.
-  Handbrake [0, 0, 1, 1] × pedal, +0.5 above 0.2 when no wheel is down or
-  the car slides (|slip| > 0.3 rad) under 80 mph. Grip base 1 (mover +0x6C),
-  ×0.85 with no wheel down. The rear also gets a sliding bonus (0x5990D0)
+  Handbrake [0, 0, 1, 1] × pedal, +0.5 above 0.2 with Stability Control on
+  or when the car slides (|slip| > 0.3 rad) under 80 mph (0x5A4F2E). Grip
+  base 1 (mover +0x6C), ×0.85 (0x7FC060) with Stability Control on, not in a
+  drift race (0x5A4DA8). "Stability Control on" is car +0x464 = 0, read
+  through the mover's physics view (+0x58, car + 0x40) at +0x424; the view's
+  wheels-down count is +0x3E4 (0x5A49BE), so these were once misread as "no
+  wheel down" (**observed** under Wine, PEUGOT standing on four wheels:
+  wheel +0x180 is 0.85 with the option on, 1 with it off). The rear also
+  gets a sliding bonus (0x5990D0, both bases a + b with Stability Control
+  on, the flag its sixth argument)
   ramped with the handbrake (mover +0x70: +1/s released, −20/s held, down to
   0.5) and a post-crash graph (0x802570: (0, 0), (0.4, 1), (1, 1), (2, 0))
   over the 4 s after the car last touched a wall.
-* **Yaw limit** (0x5A49B0): record +0x398 (17) in the air, +0x39C on the
-  ground; 0 on the ground means none, except 20 while counter-steering with
-  |slip| > 0.1.
+* **Yaw limit** (0x5A49B0): record +0x398 (17) with Stability Control on
+  (0x5A4C65), else +0x39C; 0 there means none, except 20 while
+  counter-steering with |slip| > 0.1.
 * **Car modes** (car +0x38, 0x5A4A6C): 0 normal and 2 (in contact) switch
   the rigid body's angular damping (+0x154) and rest damping (+0x150) on,
   with gravity 9.8. 1 is crash mode, set by car-against-car contacts
@@ -3084,8 +3091,9 @@ The game's world collision step (0x5FFA60) runs after the cars have moved.
     `XECS_SOLID_WALL`, CAR `XECI_CAR`; event 6 (closing speed,
     +0x90/+0x94): ROAD and SOLID_WALL `XECS_SOLID_WALL`, GRASS, WOOD,
     PLASTIC and GLASS as for 5; other surfaces none (events 0–4 are the
-    tyre groups, e.g. `XETT_ROAD_SK`; no direct call posts them, since the
-    only callers of 0x5DC4D0 push 6 (0x5A9804) and 5 (0x5A9890)). A track
+    tyre groups, e.g. `XETT_ROAD_SK`; 0x5DC4D0's only callers push 6
+    (0x5A9804) and 5 (0x5A9890); events 0–4 are fired by each car's update
+    through 0x61FB10 kinds 1–5, see "Car ground effects" below). A track
     loader (0x615CD0) also
     registers placed emitters of types 1–5 into rows 0–4 by their surface.
     The thresholds and groups (0x800EE0 + 0x98·s, event 5 +0x80/+0x84/+0x88,
@@ -3094,15 +3102,16 @@ The game's world collision step (0x5FFA60) runs after the cars have moved.
     SOLID_WALL (20) 10..15 / 15..50, CAR (28) 10..15 / none; the pair's
     surface (0x592C20) is the one with the larger +0x34 (road and walls
     0.1, grass 1, wood/plastic/glass 0.5, car 0). The clone posts both
-    events on every push of a car against the track (`drive`: a wall as
-    SOLID_WALL and a floor as ROAD; the clone's own comment says the face's
-    surface byte is not carried to the contact) and of two cars (CAR, the
-    faster car's velocity); the props' contacts post none. Verified game side:
+    events on every push of a car against the track (`drive`: the polygon's
+    own surface byte; a track without collision packs takes a wall as
+    SOLID_WALL and a floor as ROAD — Bayview's walls are nearly all
+    SOLID_WALL, its floors ROAD, sidewalk, dirt, cobblestone and grass) and
+    of two cars (CAR, the faster car's velocity); the props' contacts post
+    none. Verified game side:
     a track body's surface is the polygon's byte +0x0B, the face's surface byte
     (vtable 0x7A22B0 +0x58 → 0x593DA0, which movsx's it; the ground query
     0x5E72F0 writes the same byte through its int* argument), and a prop's is
-    info +0xD0 (vtable 0x7A26A0 +0x58 → 0x5B1CB0). The clone's wall/floor split
-    is therefore an approximation, a port gap.
+    info +0xD0 (vtable 0x7A26A0 +0x58 → 0x5B1CB0).
   * **Particle effects** (`src/particles/`; verified unless marked):
     * Descriptions: chunk `0x35021` (GLOBALB 92, L4RA 37), body aligned
       to 16, version 4 at +8, count +0xC, 0x220-byte records from +0x10
@@ -3276,19 +3285,66 @@ The game's world collision step (0x5FFA60) runs after the cars have moved.
       reaches 0x436050. The disassembly has 315 indirect calls through
       `[reg+0x18]`; none is yet tied to this vtable.
       0x436050 calls 0x4335C0 and 0x434B00 directly. The list is the
-      XECH_FLAG_GIRL_FLARE group (0x439780); which code posts the tyre
-      groups below stays **open**.
+      XECH_FLAG_GIRL_FLARE group (0x439780). The tyre groups below are
+      fired by each car's update 0x5F5740 ("Car ground effects", below).
       The binary holds six surface pairs, `XETT_{GRASS,DEEPWATER,PUDDLE,
       RRCSSW,DIRTRD,ROAD}_{SK,SP}`, at 0x7A48D8 to 0x7A4B20, and the block also holds `_DR`
       and `_DRSL` names. No code operand in the disassembly points into the
       block (the only nearby one is a float at 0x7A4824), and REA finds no
-      xref to 0x7A48E8. But the .data section holds 4-byte pointers to every
-      name (VAs 0x800FBC to 0x801830); what reads them is **open**. The twelve
-      bin_hash values (h × 33 + c, seed 0xFFFFFFFF) occur neither as immediates
-      in the code nor as 32-bit words in the EXE. The clone's surface table (`particles.rs`, lines 627-649)
-      is its own choice. The tyre
+      xref to 0x7A48E8. The .data section's 4-byte pointers to every name
+      (VAs 0x800FBC to 0x801830) are the surface table's event names (0x800EE0
+      + 0x98·s, +0x44 + 0xC·event), which 0x5E0630 hashes at run time (the
+      hashes are therefore in no instruction). The tyre
       object's dword +0x34 picks a branch by its bit 0x40 (0x434B00, `je` at
       0x434B5D; verified by disassembly); the rest of 0x434B00 is **open**.
+    * **Car ground effects** (**verified** 2026-11-26: REA decompile of
+      0x5F5740, 0x61FB10, 0x615CD0; disassembly 0x5F57D0..0x5F5DBB and the
+      marker fill 0x639118..0x6395A0; `particles::GroundFx`,
+      `Effects::ground_effects`). Each car's update 0x5F5740 (called from the
+      world update 0x60A205 after the particle update, with the distance
+      0x5F1170 from the listener, only under 150 m, 0x7A5498) first fires the
+      car effect kinds 1–5 through 0x61FB10. For kinds 1–5 0x615CD0 takes the
+      surface table's list, [0x883E68] − 0xE8 + (kind · 29 + surface) · 8,
+      that is event kind − 1 of the surface (0 `_DR` / `_DRSL`, 1 `_DR`, 2
+      `_SK`, 3 `_SP`, 4 `XEBO_`), the named group's GLOBALB templates cloned
+      (0x48B8B0), each keeping its own axes. Per wheel on the ground (+0x390 +
+      i; FL FR RR RL) on its surface (+0x394 + 4i), with the exported pair
+      +0x3B4 + 8i (slip along, 0 while gripping; speed across):
+      - **Skid** (kind 3, event 2, e.g. `XETT_ROAD_SK` 5..40): the pair's
+        length past the low end times the wheel's skid time ramp — the time
+        (+0x99C + 4i, the game clock's step summed; reset when the length is
+        not past the low end or the car is 150 m away) under 0.15 s ×0, 0.7
+        ×0.25, 2 ×0.5, 4 ×0.75, else ×1 — clamped 0..1 (kept at +0x3E4 + 4i).
+        Velocity: with the wheel turning (+0x330 + 4i ≠ 0) the car's x axis
+        × 50 · intensity against the turn (0x441000 on +0xD0), else the car's.
+      - **Wheel spin** (kind 4, event 3, `XETT_ROAD_SP` 2..200): rear wheels
+        only (the parameters 0x50000 / 0x60000 skipped), under 40 m, the
+        exported slip itself (signed) past the low end; velocity = the
+        wheel's matrix (+0x130 + 0x40·i) × (slip, across, 0) + the car's.
+      - Both burst at the wheel's own marker: 0x61FB10 hands the parameter's
+        high word (5 + wheel) as the marker group.
+      With three wheels down or more: the surface under the centre of mass
+      (0x5E72F0 on +0x60), the speed in mph (+0x430 × 2.237): kind 1 (event
+      0) and kind 2 (event 1) by their ranges, and when the two sum past 1
+      the one with the higher low end loses twice the excess; kind 5 (event
+      4, ROAD 1..2) by the bump stops' sum (+0x370..+0x37C) — the landing's
+      sparks, flash and smoke (`XEBO_ROAD`). Kinds 1, 2 and 5 stand at the
+      car's origin (+0x50, +0xD0) with the car's velocity and the
+      description's own marker group (+0x5C); kinds 3 and 4 at the centre of
+      mass (+0x60, +0x90). The markers (render +0x548 + 8·group, filed by
+      0x639118..0x6395A0 from the ride's wheel positions, 0x5B5360(1)
+      +0x10 + 0x30·i, flag bits cleared): 0 the origin, 1 the front axle's
+      middle, 2 the rear's, 3 the FL–RL side's, 4 the FR–RR side's, 5..8 each
+      wheel. Each emitter bursts −intensity (0x491E50: 1 + ⌊intensity ·
+      rate⌋ particles), every update: `XETT_RoadSk_SmkA` / `XETT_RoadSp_SmkA`
+      (rate 1, life 4 s) give 1 particle a wheel and update, 2 at full
+      intensity. The rows (event: group lo..hi): ROAD/ROAD_WET/ROAD_DRIFT/
+      ROAD_BRIDGE 0 `XETT_ROAD_DR` (no description) 20..100, 2 `_SK` 5..40,
+      3 `_SP` 2..200, 4 `XEBO_ROAD` 1..2; PUDDLE 0 `XETT_PUDDLE_DRSL` 3..30,
+      1 `_DR` 35..100; DEEP_WATER likewise with `XETT_DEEPWATER_*` (all
+      rows: `particles::SURFACE_EVENTS`). No shipped track has PUDDLE or
+      ROAD_WET faces; Bayview (L4RA / L4RD) has four DEEP_WATER floors near
+      (−930, 375): the only drive spray of the original, rain or not.
     * **Emitter draws** (verified by the decompile of 0x491E50 and the
       operands of its `_ftol` calls, 0x75BED4, unless marked):
       - Seed: an emitter with +0x24 = 0 takes the global state 0x7F3940
@@ -3787,7 +3843,8 @@ The game's world collision step (0x5FFA60) runs after the cars have moved.
     global count is 0x82B944: +1 on each insert (0x481E13–0x481E21), −1 on
     each unlink (0x481C82, 0x469D98); the gate does not read it. One object
     per record holds (0x481CD0's key test on the list at +0x24).
-  * Attached models and effects (traced, **not ported**): the info's +0x84
+  * Attached models and effects (traced; the +0x88 effects **ported** 2026-11-26,
+    `Effects::start_attached`, the +0x84 list not): the info's +0x84
     / +0x88 hashes are gathered at load (0x5B4230) by 0x48B8B0 from the
     emitter manager 0x8357E0's list (+8): every entry whose description
     (+0x1C) has that hash at +0x10 is copied (0x48B830: 0xD0 bytes, the
@@ -3801,6 +3858,13 @@ The game's world collision step (0x5FFA60) runs after the cars have moved.
     L4RA: `ZCS_BarrelFireA` +0x88 0x64C2C940, `ZCS_Barrel_A` +0x88
     0x95C9F5FA, `ZCS_WaterBarrel` +0x84 0x95C9F5FA / +0x88 0x95C9F5FB,
     `ZCS_XO_GreenHDoor_00` +0x88 0xE84348EA; the rest have neither.
+    0x95C9F5FA is `XES_Barrel_WaterA_SplashA`'s group (rate 125, on 0.5 s
+    less up to 30 %, off for ever: one splash of about 45–63 drops when a
+    yellow water barrel is knocked loose), 0xE84348EA
+    `XES_XO_GreenH_Glass_A`'s; 0x64C2C940 and 0x95C9F5FB have no
+    descriptions in GLOBALB or L4RA. (The +0x88 → +0xF0 → body +0x4FC chain
+    and the start at 0x5ADFDC rechecked in the disassembly, 0x5B4263,
+    0x5B193A, 0x5ADFC6.)
     (Earlier notes said the `XO_BulletSS` / `XO_TableSS` kinds have +0x88
     = 1; they have 0.)
   * The `XO_BulletSS_nn` / `XO_TableSS_00` kinds (L4RA: 12 and 1) have one

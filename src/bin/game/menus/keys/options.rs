@@ -1,12 +1,31 @@
 use crate::*;
 
 impl Game {
-    pub(super) fn options_key(&mut self, key: Key, now: f32) -> Result<()> {
+    /// The Stability Control row's handler (0x4C3200) writes the option
+    /// byte and queues race command kind 2 (0x578F00), which
+    /// RaceCommand_Apply (0x4A7B30) puts at once in the player's controller
+    /// (+0x21) and car (+0x464): a change in the pause's Player options
+    /// reaches the car being driven, not only the next one placed. A race
+    /// being recorded logs it for its replay.
+    fn apply_stability(&mut self) {
+        let off = self.settings.players[0].stability_off;
+        let Some(d) = self.sim.drive.as_mut() else { return };
+        if d.state.stability_off == off {
+            return;
+        }
+        d.state.stability_off = off;
+        if let Some(rec) = self.sim.paused_race.as_mut().and_then(|r| r.replay.recording.as_mut()) {
+            rec.stability = Some(off);
+        }
+    }
+
+    pub(crate) fn options_key(&mut self, key: Key, now: f32) -> Result<()> {
         let Mode::Menu(Menu::Options(o)) = &mut self.mode else { unreachable!() };
         match o.key(key, &mut self.settings, self.platform.pads.force_feedback(), self.profile.is_some(), now) {
             OptionsKey::None => {}
             OptionsKey::Changed => {
                 let _ = self.settings.save();
+                self.apply_stability();
             }
             // Back (0x49C690 on the screen's out animation): Gameplay
             // asks before leaving when save prompts went off ("turn off

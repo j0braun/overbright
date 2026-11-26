@@ -84,6 +84,9 @@ mod map_widget;
 mod env_ticks;
 // The enhancement effects on ticks.
 mod tick_effects;
+// The cars' ground effects (tyre smoke, spray, bottom-out).
+#[cfg(test)]
+mod ground_effects;
 // The fog's and the rain's faster passes against their plain forms.
 #[cfg(test)]
 mod fog_rain_paths;
@@ -121,6 +124,7 @@ mod dyno_entry;
 // The manual gearbox through the player's keys and controller.
 #[cfg(test)]
 mod manual_gears;
+mod stability_control;
 // The map editor and custom races (docs/modding/map-editor.md).
 #[cfg(test)]
 mod map_editor;

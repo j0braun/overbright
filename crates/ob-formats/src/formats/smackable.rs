@@ -92,6 +92,11 @@ pub struct ObjectInfo {
     pub friction: f32,
     /// Index into [`MATERIALS`] (from +0xDC).
     pub material: usize,
+    /// +0x88: the description group of the effects started when the prop
+    /// first moves (0x5B4230 gathers its emitters by 0x48B8B0; 0x5ADFA0
+    /// starts them): `ZCS_Barrel_A`'s is `XES_Barrel_WaterA_SplashA`'s.
+    /// 0 none.
+    pub effects: u32,
 }
 
 /// One placed prop, 0x70 bytes after a 0x10-byte header {u32, u32, i16
@@ -162,6 +167,7 @@ pub fn parse_infos(chunk: Chunk<'_>) -> Vec<ObjectInfo> {
             restitution: r.f32_at(0xCC)?.min(0.005),
             friction: r.f32_at(0xE0)?.max(0.3),
             material: MATERIALS.iter().position(|m| hash(m) == material_hash).unwrap_or(0),
+            effects: r.u32_at(0x88)?,
         })
     };
     // Whole 0x100-byte records: no read fails.
@@ -195,4 +201,4 @@ pub fn parse_instances(chunk: Chunk<'_>) -> Vec<ObjectInstance> {
 
 crate::persist!(SceneryGroup { name, hash, on, members });
 crate::persist!(SceneryLink { section, instance, flags, kind, instance_flags });
-crate::persist!(ObjectInfo { name, key, mass, inertia, centre_of_mass, break_impulse, restitution, friction, material });
+crate::persist!(ObjectInfo { name, key, mass, inertia, centre_of_mass, break_impulse, restitution, friction, material, effects });

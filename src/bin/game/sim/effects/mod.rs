@@ -4,12 +4,19 @@ mod markers;
 pub(crate) use markers::*;
 
 /// The particle effects ([`nfsu2::particles`]): the contact bursts the
-/// physics posts, the tyres' running emitters, per (car, wheel,
-/// description), and the free-roam marker effects.
+/// physics posts, the cars' ground effects (tyre smoke, spray, bottom-out)
+/// and the free-roam marker effects.
 pub(crate) struct Effects {
     pub(crate) system: nfsu2::particles::System,
     pub(crate) rng: nfsu2::particles::Rng,
-    pub(crate) tyres: std::collections::HashMap<(usize, usize, usize), nfsu2::particles::Emitter>,
+    /// The surface table's emitter lists the ground effects fire (0x5E0630,
+    /// the object at 0x883E68: one list per (event, surface), the named
+    /// group's templates cloned, each with its own axes), made when first
+    /// fired; shared by every car, as natively.
+    pub(crate) ground: std::collections::HashMap<(usize, u8), Vec<(glam::Mat4, nfsu2::particles::Emitter)>>,
+    /// Per car: the ground effects' skid timers (0x5F5740) and the query
+    /// for the surface under the car.
+    pub(crate) ground_cars: std::collections::HashMap<usize, (nfsu2::particles::GroundFx, nfsu2::ground::GroundQuery)>,
     /// The nitrous flames' emitters, per (car, description, exhaust).
     pub(crate) flames: std::collections::HashMap<(usize, usize, usize), nfsu2::particles::Emitter>,
     /// The twelve marker effects (0x890130, 0x30 bytes each; see
@@ -23,6 +30,12 @@ pub(crate) struct Effects {
     /// once, [0x827B28]: one per description of the group
     /// "XECH_FLAG_GIRL_FLARE", 0x48B8B0 — glow, smoke, sparks in GLOBALB).
     pub(crate) flag_girl: Vec<nfsu2::particles::Emitter>,
+    /// The props' attached effects (info +0x88): per prop index, the
+    /// group's emitters, started when it is first knocked loose.
+    pub(crate) attached: std::collections::BTreeMap<usize, Vec<nfsu2::particles::Emitter>>,
+    /// This update's knocked props and their poses
+    /// (`smackable::Props::knocked_poses`), set by the tick before the step.
+    pub(crate) knocked: Vec<(usize, glam::Mat4)>,
     /// The cars' purge smoke emitters (kinds 13 / 14), per car.
     pub(crate) purges: std::collections::HashMap<usize, PurgeSmoke>,
     /// The turbo's flame pops (0x5EBE10 at a shift, 0x5F5F5F revving in
@@ -136,11 +149,14 @@ impl Default for Effects {
         Effects {
             system: Default::default(),
             rng: nfsu2::particles::Rng(0x12345678),
-            tyres: Default::default(),
+            ground: Default::default(),
+            ground_cars: Default::default(),
             flames: Default::default(),
             markers: Default::default(),
             placed: None,
             flag_girl: Vec::new(),
+            attached: Default::default(),
+            knocked: Vec::new(),
             purges: Default::default(),
             pops: Default::default(),
             clock: 0.0,
@@ -236,6 +252,7 @@ impl Effects {
         let library = &world.emitters;
         self.clock += dt;
         self.start_placed(world);
+        self.start_attached(world);
         // Record this update's births for the detailed smoke (no
         // change to the spawns themselves; None on Original).
         let particle_tier = settings.particles;
@@ -251,7 +268,6 @@ impl Effects {
         self.system.births = (detail.is_some() || sparks_fire).then(Vec::new);
         self.system.views = vec![view];
         let contacts = self.contact_bursts(library, sparks_fire);
-        self.tyre_effects(library, cars, dt);
         self.run_emitters(world, dt);
         let velocities: Vec<Option<Vec3>> = cars.iter().map(|c| c.map(|c| c.1.velocity)).collect();
         let emit_first = order.emit_before_update;
@@ -264,13 +280,13 @@ impl Effects {
         // 0.8 m at 180 km/h, inside the car's body, so the flame vanished
         // at speed.
         if emit_first {
-            self.car_effects(library, cars, scene_flames);
+            self.car_effects(world, cars, scene_flames, dt);
         }
         self.system.update(library, dt, |key| {
             key.checked_sub(FLAME_KEY).and_then(|i| velocities.get(i as usize).copied().flatten())
         });
         if !emit_first {
-            self.car_effects(library, cars, scene_flames);
+            self.car_effects(world, cars, scene_flames, dt);
         }
         self.feed_births(world, cars, &contacts, detail, cinematic, sparks_fire, dt);
     }
@@ -291,6 +307,39 @@ impl Effects {
                 placed.push((p.switch, e));
             }
             self.placed = Some(placed);
+        }
+    }
+
+    /// The props' attached effects: on a prop's first move (0x5ADFA0, once)
+    /// each emitter copied from its info's +0x88 list (0x5B1550, state 1)
+    /// is started (0x48BC50: emitting for +0x24 ± +0x28, then off for
+    /// +0x2C ± +0x30, 0 for ever) on the manager's list; every frame the
+    /// prop's update (0x5ADB30) sets its matrix to the prop's.
+    /// `XES_Barrel_WaterA_SplashA` (the yellow water barrels): 125 a second
+    /// for 0.35–0.5 s.
+    fn start_attached(&mut self, world: &nfsu2::world::World) {
+        let library = &world.emitters;
+        // Props put back (a new world or a restart) take their effects
+        // with them.
+        let knocked = &self.knocked;
+        self.attached.retain(|i, _| knocked.iter().any(|k| k.0 == *i));
+        for &(i, pose) in &self.knocked {
+            let Some(prop) = world.smackables.get(i) else { continue };
+            let rng = &mut self.rng;
+            let list = self.attached.entry(i).or_insert_with(|| {
+                library
+                    .group_templates(prop.info.effects)
+                    .into_iter()
+                    .map(|(d, _)| {
+                        let mut e = nfsu2::particles::Emitter::new(d, pose, (rng.next() * 4.0e9) as u32);
+                        e.start(library);
+                        e
+                    })
+                    .collect()
+            });
+            for e in list {
+                e.transform = pose;
+            }
         }
     }
 
@@ -333,28 +382,76 @@ impl Effects {
         contacts
     }
 
-    /// The sliding wheels' running emitters, per (car, wheel, description).
-    fn tyre_effects(&mut self, library: &nfsu2::particles::Library, cars: &[Option<(&Car, &CarState)>], dt: f32) {
+    /// One car's ground effects (0x5F5740's first part, each car's update
+    /// after the particle update): [`nfsu2::particles::GroundFx`]'s fires,
+    /// each bursting the surface event's list at its markers.
+    fn ground_effects(&mut self, world: &nfsu2::world::World, ci: usize, car: &Car, state: &CarState, dt: f32) {
         use nfsu2::particles as fx;
-        for (ci, (car, state)) in cars.iter().enumerate().filter_map(|(i, c)| c.map(|c| (i, c))) {
-            let rot = glam::Mat3::from_quat(state.orientation);
-            for (wi, w) in state.wheels.iter().enumerate() {
-                if !w.on_ground || !w.sliding {
-                    continue;
+        let library = &world.emitters;
+        let rot = glam::Mat3::from_quat(state.orientation);
+        let com = state.com_world(Vec3::from(car.car_type.handling.centre_of_mass));
+        let (ground, query) = self.ground_cars.entry(ci).or_default();
+        let centre_surface = world.ground_for(query, com).map(|g| g.2);
+        let input = fx::CarIn {
+            wheels: std::array::from_fn(|i| {
+                let w = &state.wheels[i];
+                fx::WheelIn {
+                    on_ground: w.on_ground,
+                    surface: w.surface,
+                    slip: w.exported_slip,
+                    lateral: w.lateral_slip,
+                    spin: w.spin,
                 }
-                let skid = w.lateral_slip.abs() >= w.slip.abs();
-                let Some(group) = fx::tyre_group(w.surface, skid) else { continue };
-                let spec = car.car_type.wheels[wi];
-                let at = state.position + rot * (spec.position - Vec3::Z * spec.radius);
-                let transform = glam::Mat4::from_rotation_translation(state.orientation, at);
-                let amount = dt * w.slip.hypot(w.lateral_slip);
-                for d in library.group(nfsu2::formats::hash::bin_hash(group)) {
-                    let seed = (self.rng.next() * 4.0e9) as u32;
-                    let e = self.tyres.entry((ci, wi, d)).or_insert_with(|| fx::Emitter::new(d, transform, seed));
-                    e.transform = transform;
-                    e.velocity = state.velocity;
-                    self.system.emit(library, e, amount);
-                }
+            }),
+            speed: state.velocity.length(),
+            bump: state.bump_totals.iter().sum(),
+            centre_surface,
+            distance: self.system.views.first().map_or(0.0, |v| v.distance(com)),
+        };
+        let fires = ground.update(&input, dt);
+        if fires.is_empty() {
+            return;
+        }
+        let wheels: [Vec3; 4] = std::array::from_fn(|i| car.car_type.wheels[i].position);
+        for f in fires {
+            let event = f.event();
+            let list = self.ground.entry((event, f.surface)).or_insert_with(|| {
+                let Some(name) = fx::surface_events(f.surface)[event].0 else { return Vec::new() };
+                library
+                    .group_templates(nfsu2::formats::hash::bin_hash(name))
+                    .into_iter()
+                    .map(|(d, own)| (own, fx::Emitter::new(d, own, (self.rng.next() * 4.0e9) as u32)))
+                    .collect()
+            });
+            // 0x61FB10: the wheel kinds stand on the centre of mass (+0x60,
+            // the body's matrix +0x90), the others on the origin (+0x50,
+            // +0xD0); both are the body's rotation here.
+            let base = if f.wheel.is_some() { com } else { state.position };
+            let velocity = match f.velocity {
+                fx::FireVelocity::Car => state.velocity,
+                fx::FireVelocity::Body(v) => rot * v,
+                // **Inferred**: the wheel's matrix (+0x130 + 0x40·i) as the
+                // body's rotation (the rear wheels, the only ones spinning
+                // smoke, do not steer).
+                fx::FireVelocity::WheelPlusCar(v) => rot * v + state.velocity,
+            };
+            for (own, e) in list.iter_mut() {
+                let Some(d) = library.descriptions.get(e.description) else { continue };
+                let group = f.wheel.map_or(d.marker_group, |w| 5 + w as u32);
+                let Some(at) = fx::marker(group, &wheels) else { continue };
+                // car × (the template's own axes at the marker), 0x615CD0.
+                e.transform = glam::Mat4::from_rotation_translation(state.orientation, base)
+                    * glam::Mat4::from_cols(
+                        own.x_axis.truncate().extend(0.0),
+                        own.y_axis.truncate().extend(0.0),
+                        own.z_axis.truncate().extend(0.0),
+                        at.extend(1.0),
+                    );
+                e.velocity = velocity;
+                // The owner key (the render object's first dword): the
+                // carried ones (deep water's drops) follow the car.
+                e.key = FLAME_KEY + ci as u32;
+                self.system.emit(library, e, -f.intensity);
             }
         }
     }
@@ -369,6 +466,10 @@ impl Effects {
                 self.system.run(library, e, dt);
             }
         }
+        // The props' attached effects are on the same list (0x48BC50).
+        for e in self.attached.values_mut().flatten() {
+            self.system.run(library, e, dt);
+        }
         // The marker effects' emitters run with the rest (0x492E10).
         for (_, emitters) in self.markers.iter_mut().flatten() {
             for e in emitters {
@@ -381,10 +482,12 @@ impl Effects {
     /// pops, the start scene's flames, the purge and the nitrous flame.
     fn car_effects(
         &mut self,
-        library: &nfsu2::particles::Library,
+        world: &nfsu2::world::World,
         cars: &[Option<(&Car, &CarState)>],
         scene_flames: &[f32],
+        dt: f32,
     ) {
+        let library = &world.emitters;
         let this = self;
         // The nitrous flame (0x5F5F0B, each car's update): while a shot
         // runs (0x59FA40) and 0x5ECDC0 gives 0, 0x61FB10(10, 1.0, 0, 0)
@@ -400,6 +503,8 @@ impl Effects {
         // list's fill from the car data is not traced). The purge smoke
         // (kind 13 / 14): `PurgeSmoke`.
         for (ci, (car, state)) in cars.iter().enumerate().filter_map(|(i, c)| c.map(|c| (i, c))) {
+            // The ground effects come first in the car's update (0x5F57D0..0x5F5DBB).
+            this.ground_effects(world, ci, car, state, dt);
             // The turbo's flame pops (CARFX_NITRO, intensity L · 2/7):
             // at a shift (Car_Frame 0x6012C0 → 0x5EBE10) and revving in
             // neutral (0x5F5F5F, after the shot's flame or purge in
