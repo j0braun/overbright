@@ -315,6 +315,22 @@ fn resolution_list_per_display_path() {
     assert_eq!((info.desktop, info.modes.clone(), info.exclusive), ((1920, 1080), p.monitor_modes.clone(), true));
 }
 
+/// A desktop below the panel's native modes (scaled handheld): the
+/// launcher's full-screen list offers them, as the game does.
+#[test]
+fn resolution_list_offers_modes_above_the_desktop() {
+    let fonts = Fonts::new();
+    let env = FakeEnv;
+    let mut a = app(&env, &fonts, Screen::Settings, 1280, 720, 1.0);
+    let m = a.model.monitor.as_mut().unwrap();
+    m.desktop = (1280, 800);
+    m.modes = vec![(1280, 800), (1920, 1200)];
+    a.model.choices.fullscreen = true;
+    assert_eq!(a.model.modes(), vec![(1280, 800), (1920, 1200)]);
+    a.model.choices.fullscreen = false;
+    assert!(!a.model.modes().iter().any(|&(w, h)| w > 1280 || h > 800));
+}
+
 #[test]
 fn controls_change_the_model() {
     let fonts = Fonts::new();
