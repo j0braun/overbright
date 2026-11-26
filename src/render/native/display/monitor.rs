@@ -4,7 +4,8 @@
 //!
 //! The row offers only sizes the active path can output: windowed, the
 //! fixed list and the monitor's modes that fit on the monitor; full
-//! screen, the monitor's own video modes (exclusive) and its desktop size
+//! screen, the monitor's own video modes (exclusive; also those above the
+//! current desktop size) and its desktop size
 //! (borderless); on Wayland, which has no exclusive mode, the desktop size
 //! alone. Before a monitor is known (headless runs, the launcher) the list
 //! is [`modes`]'s, as before.
@@ -67,8 +68,8 @@ impl MonitorInfo {
 /// The Resolution row's list on `monitor` for the windowed or full-screen
 /// path (sorted, deduplicated, every entry at least [`MIN_WINDOW`]).
 /// Windowed: [`mode_list`] of the monitor's modes and desktop size, the
-/// sizes larger than the desktop left out. Full screen: the monitor's
-/// video modes and the desktop size (exclusive), or the desktop size alone
+/// sizes larger than the desktop left out. Full screen: all of the monitor's
+/// video modes, those above the desktop size too, and the desktop size (exclusive), or the desktop size alone
 /// (no exclusive mode: borderless). No monitor: [`mode_list`] of none.
 pub fn modes_for(monitor: Option<&MonitorInfo>, fullscreen: bool) -> Vec<(u32, u32)> {
     let Some(m) = monitor else { return mode_list(&[]) };
@@ -82,7 +83,9 @@ pub fn modes_for(monitor: Option<&MonitorInfo>, fullscreen: bool) -> Vec<(u32, u
         }
         mode_list(&sizes).into_iter().filter(fits).collect()
     } else if m.exclusive {
-        m.modes.iter().copied().chain(known.then_some(m.desktop)).filter(big).filter(fits).collect()
+        // Every mode the monitor lists, above the desktop size too (a handheld
+        // or scaled panel whose desktop sits below its native modes).
+        m.modes.iter().copied().chain(known.then_some(m.desktop)).filter(big).collect()
     } else {
         known.then_some(m.desktop).into_iter().collect()
     };
@@ -173,6 +176,20 @@ mod tests {
         assert!(!w.contains(&(720, 400)) && w.windows(2).all(|p| p[0] < p[1]));
         // Exclusive full screen: the monitor's modes and its desktop only.
         assert_eq!(modes_for(Some(&fhd), true), vec![(640, 480), (800, 600), (1280, 720), (1920, 1080)]);
+        // A 1080p desktop on a 1440p / 4K panel: its modes above the desktop
+        // are offered in exclusive full screen, not windowed.
+        let big = mon((1920, 1080), &[(1280, 800), (1920, 1080), (2560, 1440), (3840, 2160)], true);
+        let f = modes_for(Some(&big), true);
+        assert!(f.contains(&(2560, 1440)) && f.contains(&(3840, 2160)) && f.contains(&(1920, 1080)));
+        assert!(!modes_for(Some(&big), false).contains(&(3840, 2160)));
+        // Handheld: 1280x800 desktop (scaled) on a 1920x1200 panel.
+        let hh = mon((1280, 800), &[(1280, 800), (1920, 1200)], true);
+        assert_eq!(modes_for(Some(&hh), true), vec![(1280, 800), (1920, 1200)]);
+        // Ultrawide and HiDPI 1.5 (physical size is the desktop): same rule.
+        let uw = mon((2560, 1080), &[(2560, 1080), (3440, 1440)], true);
+        assert!(modes_for(Some(&uw), true).contains(&(3440, 1440)));
+        let hidpi = mon((3840, 2160), &[(1920, 1080), (2560, 1440), (3840, 2160)], true);
+        assert_eq!(modes_for(Some(&hidpi), true), vec![(1920, 1080), (2560, 1440), (3840, 2160)]);
         // No exclusive mode (Wayland): borderless at the desktop size.
         let way = mon((2560, 1440), &[(2560, 1440)], false);
         assert_eq!(modes_for(Some(&way), true), vec![(2560, 1440)]);

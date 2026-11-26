@@ -202,7 +202,11 @@ impl Game {
     /// and in an outrun its racers.
     /// …with each marker entry's GPS target (the hash 0x529490 keeps and
     /// the route trigger), None for a car.
-    pub(crate) fn world_entries(&self) -> Vec<(&'static str, glam::Vec2, Option<f32>, Option<(u32, career::Trigger)>)> {
+    /// The fifth field is a sponsor event (+0x34 = 1), whose minimap item
+    /// takes the cross texture (0x4AC460, called per item by 0x4CA840).
+    pub(crate) fn world_entries(
+        &self,
+    ) -> Vec<(&'static str, glam::Vec2, Option<f32>, Option<(u32, career::Trigger)>, bool)> {
         let icons =
             self.career_world.event_starts.as_ref().filter(|_| self.career_world.challenge.is_none()).map_or_else(Vec::new, |(_, starts)| {
                 starts
@@ -219,35 +223,35 @@ impl Game {
                             (career::EventKind::StreetX, _) => "STREETEVENTINDICATOR_",
                             _ => "CIRCUITEVENTINDICATOR_",
                         };
-                        (name, t.position.truncate(), None, Some((e.unlock, t)))
+                        (name, t.position.truncate(), None, Some((e.unlock, t)), e.category == career::Category::Sponsor)
                     })
                     .collect()
             });
         let mut icons: Vec<_> = icons;
         match self.challenge_goal_marker() {
             Some((MarkerTarget::Shop(s), t)) => {
-                icons.push((self.game_data.career.shops[s].icon(), t.position.truncate(), None, Some((self.game_data.career.shops[s].hash, t))))
+                icons.push((self.game_data.career.shops[s].icon(), t.position.truncate(), None, Some((self.game_data.career.shops[s].hash, t)), false))
             }
             Some((MarkerTarget::Shoot(h), t)) => {
-                icons.push(("SHOWCASEINDICATOR_", t.position.truncate(), None, Some((h, t))))
+                icons.push(("SHOWCASEINDICATOR_", t.position.truncate(), None, Some((h, t)), false))
             }
             Some(_) => {}
             None if self.career_world.challenge.is_some() => {}
             None => {
                 icons.extend(self.open_shops().into_iter().map(|(s, t)| {
-                    (self.game_data.career.shops[s].icon(), t.position.truncate(), None, Some((self.game_data.career.shops[s].hash, t)))
+                    (self.game_data.career.shops[s].icon(), t.position.truncate(), None, Some((self.game_data.career.shops[s].hash, t)), false)
                 }));
                 icons.extend(
                     self.shoots()
                         .into_iter()
-                        .map(|(h, t)| ("SHOWCASEINDICATOR_", t.position.truncate(), None, Some((h, t)))),
+                        .map(|(h, t)| ("SHOWCASEINDICATOR_", t.position.truncate(), None, Some((h, t)), false)),
                 );
             }
         }
         // The world challenges on offer (type 15, legend group 0xD: the
         // showcase icon, 0x4965F0).
         icons.extend(self.challenge_markers().into_iter().map(|(i, t)| {
-            ("SHOWCASEINDICATOR_", t.position.truncate(), None, Some((self.game_data.career.mag_triggers[i].name, t)))
+            ("SHOWCASEINDICATOR_", t.position.truncate(), None, Some((self.game_data.career.mag_triggers[i].name, t)), false)
         }));
         // An outrun (race state 7): 0x607190 makes every AI car of
         // the world list a racer (0x5FC2B0), so each gets a type-3
@@ -268,7 +272,7 @@ impl Game {
                 e.cars
                     .iter()
                     .filter(|c| c.active && c.done.is_none())
-                    .map(|c| ("AIRACERINDICATOR_", c.state.position.truncate(), Some(c.state.heading()), None)),
+                    .map(|c| ("AIRACERINDICATOR_", c.state.position.truncate(), Some(c.state.heading()), None, false)),
             );
         }
         icons
@@ -343,7 +347,7 @@ impl Game {
                     .racers.rivals
                     .iter()
                     .filter(|v| v.progress.finished.is_none())
-                    .map(|v| ("AIRACERINDICATOR_", v.state.position.truncate(), Some(v.state.heading())))
+                    .map(|v| ("AIRACERINDICATOR_", v.state.position.truncate(), Some(v.state.heading()), false))
                     .collect();
                 (track, icons, 1.0)
             }
@@ -352,7 +356,7 @@ impl Game {
                     .world_entries()
                     .into_iter()
                     .filter(|e| self.minimap_shows(e.0, e.3.as_ref()))
-                    .map(|(n, p, h, _)| (n, p, h))
+                    .map(|(n, p, h, _, sp)| (n, p, h, sp))
                     .collect();
                 // 0x4CA840 (0x4CA9F6..0x4CAA4A): markers at or past 1 window
                 // go, past 10 instead in free roam (race state 0x89E7B0 = 0,
@@ -400,7 +404,7 @@ impl Game {
             // 0x4DA640 → 0x4C8410: an engaged GPS (+0x29) in a career's
             // free roam puts 0x697D2BCA at its map point (0x5010C0 →
             // 0x4CB150 → 0x4CAE60).
-            gps: gps.map(|g| g.map),
+            gps: gps.and_then(|g| g.ring_point()),
             // 0x4C8410: GPS_Search_Group while the search runs or failed
             // and the follower holds no route; GPS_SEARCH_ERROR with the
             // state's text (0x155409E8 / 0x31139B65).

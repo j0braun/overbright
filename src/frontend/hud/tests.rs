@@ -381,3 +381,101 @@ fn drift_angle_backing_follows_the_turbo() {
         }
     }
 }
+
+/// A package holding the minimap's frame and one marker object each.
+fn minimap_package(markers: &[&str]) -> crate::frontend::feng::Package {
+    let object = |hash: u32, size: f32| {
+        let mut attributes = crate::frontend::feng::Attributes { words: [0; 37], len: 37 };
+        attributes.words[14] = size.to_bits();
+        attributes.words[15] = size.to_bits();
+        crate::frontend::feng::Object {
+            kind: crate::frontend::feng::Kind::Image,
+            hash,
+            guid: 0,
+            flags: 0,
+            resource: 0,
+            parent: None,
+            attributes,
+            image_flags: 0,
+            text: String::new(),
+            label: None,
+            justify: 0,
+            leading: 0,
+            max_width: 0,
+            scripts: Vec::new(),
+            responses: Vec::new(),
+            messages: Vec::new(),
+        }
+    };
+    let mut objects = vec![object(fe_hash("Track2000_map"), 100.0)];
+    objects.extend(markers.iter().map(|n| object(fe_hash(n), 10.0)));
+    crate::frontend::feng::Package { name: String::new(), path: String::new(), resources: Vec::new(), objects, buttons: Vec::new() }
+}
+
+fn minimap_view(icons: Vec<(&'static str, glam::Vec2, Option<f32>, bool)>) -> MapView {
+    MapView { texture: Some(1), size: 1000.0, zoom: 1.0, range: 1.0, icons, ..Default::default() }
+}
+
+/// 0x4AC460, called per item by 0x4CA840: an event marker whose event is a
+/// sponsor race (+0x34 = 1) takes the cross texture 0xB90F50BB (the World
+/// Map's), the others keep the object's own image.
+#[test]
+fn sponsor_races_take_the_cross_on_the_minimap() {
+    let package = minimap_package(&["CIRCUITEVENTINDICATOR_0", "CIRCUITEVENTINDICATOR_1"]);
+    let at = glam::Vec2::new(10.0, 0.0);
+    let view = minimap_view(vec![
+        ("CIRCUITEVENTINDICATOR_", at, None, true),
+        ("CIRCUITEVENTINDICATOR_", at, None, false),
+    ]);
+    let mut s = ScreenState::default();
+    minimap(&mut s, &package, &|_| true, &view);
+    assert_eq!(s.image.get(&fe_hash("CIRCUITEVENTINDICATOR_0")), Some(&fe_ids::BOX_OFF));
+    assert_eq!(s.image.get(&fe_hash("CIRCUITEVENTINDICATOR_1")), None);
+    // Without the cross texture in the archive the icon stays as it is.
+    let mut s = ScreenState::default();
+    minimap(&mut s, &package, &|_| false, &view);
+    assert!(s.image.get(&fe_hash("CIRCUITEVENTINDICATOR_0")).is_none());
+}
+
+/// 0x4C8410: the GPS group 0x697D2BCA goes to the target only while the
+/// GPS reads on (states 0-3); once the router is idle (arrival, a race's
+/// start, deactivation: state 4) it stays hidden, and a minimap without a
+/// GPS point hides it.
+#[test]
+fn gps_ring_stops_when_the_gps_reads_off() {
+    use crate::frontend::career::Trigger;
+    use glam::{Vec2, Vec3};
+    let t = Trigger {
+        name: 0,
+        position: Vec3::new(5.0, 5.0, 0.0),
+        gps: Vec3::ZERO,
+        min: Vec2::ZERO,
+        max: Vec2::ZERO,
+        polygon: [Vec2::ZERO; 8],
+        points: 0,
+    };
+    let mut gps = crate::frontend::dday::Gps::engage(1, &t, None);
+    // No car, no search: reads off.
+    assert_eq!(gps.state(), 4);
+    assert_eq!(gps.ring_point(), None);
+    // A found route: the ring sits at the target.
+    gps.router.result = 2;
+    assert_eq!(gps.state(), 3);
+    assert_eq!(gps.ring_point(), Some(Vec2::new(5.0, 5.0)));
+    // Arrival (0x42A360) and a race's start (0x541170) clear the router.
+    gps.drop_route();
+    assert_eq!(gps.state(), 4);
+    assert_eq!(gps.ring_point(), None);
+    // The minimap hides the group without a point and shows it with one.
+    let package = minimap_package(&[]);
+    let mut view = minimap_view(Vec::new());
+    view.gps = gps.ring_point();
+    let mut s = ScreenState::default();
+    s.hidden.insert(fe_ids::GPS);
+    minimap(&mut s, &package, &|_| true, &view);
+    assert!(s.hidden.contains(&fe_ids::GPS) && !s.shown.contains(&fe_ids::GPS));
+    gps.router.result = 2;
+    view.gps = gps.ring_point();
+    minimap(&mut s, &package, &|_| true, &view);
+    assert!(s.shown.contains(&fe_ids::GPS));
+}
