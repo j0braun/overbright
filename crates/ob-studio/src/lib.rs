@@ -10,6 +10,7 @@ pub mod browse;
 pub mod browser;
 pub mod changes;
 pub mod create;
+pub mod data;
 pub mod cli;
 pub mod history;
 pub mod keys;

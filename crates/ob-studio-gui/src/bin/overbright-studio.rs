@@ -6,7 +6,7 @@
 //! overbright-studio [--mod <name|folder>] [--maps <dir>]  the window, with that mod open (its folder name in the
 //!                                                        mods folder, or its folder's path)
 //! overbright-studio --shot out.png [--size WxH] [--scale F] [--mod <folder>] [--maps <dir>]
-//!                   [--workspace home|world|races|browser|runs|mod|settings|changes] [--input mouse|keyboard|xbox|playstation|deck]
+//!                   [--workspace home|world|races|browser|runs|mod|settings|changes|data] [--input mouse|keyboard|xbox|playstation|deck]
 //!                   [--focus rail|address|toolbar|left|view|right|bottom] [--drawer] [--files] [--warning] [--find] [--address]
 //!                   [--run NAME] [--compare NAME] [--car ID] [--at SECONDS]
 //!                   [--select N] [--collision off|invisible|all] [--search WORDS] [--kind models|textures] [--row N] [--places] [--job WORDS] [--right-tab inspector|history|help] [--new-mod NAME]
@@ -34,7 +34,7 @@ use winit::event::WindowEvent;
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
 use winit::window::{Window, WindowId};
 
-const USAGE: &str = "usage: overbright-studio [--mod <folder>] [--maps <dir>]\n       overbright-studio --shot out.png [--size WxH] [--scale F] [--mod <folder>] [--maps <dir>] [--workspace home|world|races|mod|settings|changes] [--input mouse|keyboard|xbox|playstation|deck] [--focus rail|address|toolbar|left|view|right|bottom] [--drawer] [--files] [--warning] [--find] [--address] [--select N] [--row N] [--places] [--job WORDS] [--right-tab inspector|history|help] [--new-mod NAME] [--tutorial 1-6] [--race-tutorial 1-7]";
+const USAGE: &str = "usage: overbright-studio [--mod <folder>] [--maps <dir>]\n       overbright-studio --shot out.png [--size WxH] [--scale F] [--mod <folder>] [--maps <dir>] [--workspace home|world|races|mod|settings|changes|data] [--input mouse|keyboard|xbox|playstation|deck] [--focus rail|address|toolbar|left|view|right|bottom] [--drawer] [--files] [--warning] [--find] [--address] [--select N] [--row N] [--places] [--job WORDS] [--right-tab inspector|history|help] [--new-mod NAME] [--tutorial 1-6] [--race-tutorial 1-7]";
 
 #[derive(Default)]
 struct Cli {
@@ -256,6 +256,11 @@ fn run_shot(cli: &Cli) -> Result<()> {
         if w == Workspace::Changes {
             let folder = s.open_mod().map(|m| m.folder.clone());
             s.changes.ensure(folder.as_deref());
+        }
+        if w == Workspace::Data {
+            let folder = s.open_mod().map(|m| m.folder.clone());
+            s.changes.ensure(folder.as_deref());
+            s.data_reload();
         }
         if w == Workspace::Mod {
             let folder = s.open_mod().map(|m| m.folder.clone());

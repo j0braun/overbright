@@ -802,6 +802,34 @@ impl Page {
         self.load(&folder);
     }
 
+    /// A cell of the Data page written as one undo step: in `session` when it is the one that writes the mod, else
+    /// (a race; a prop needs World's loaded city) in the mod's own history. The step's name.
+    pub fn edit_cell(
+        &mut self,
+        session: Option<&mut MapSession>,
+        folder: &str,
+        kind: &str,
+        key: &str,
+        field: &str,
+        text: &str,
+    ) -> std::result::Result<String, String> {
+        if let Some(s) = writer(session, folder) {
+            return ob_studio::data::edit(s, folder, kind, key, field, text).map(|c| c.label);
+        }
+        if kind != map::RACE {
+            return Err("props are edited with World open: open World first".into());
+        }
+        let h = open_write(&self.maps, folder).map_err(|e| format!("{e:#}"))?;
+        let m = MapMod::parse(h.doc(store::FILE).unwrap_or_default()).map_err(|e| e.to_string())?;
+        let mut s = MapSession::new("L4RA", folder, m, crate::world::World::default());
+        s.keep_in(h);
+        let done = ob_studio::data::edit(&mut s, folder, kind, key, field, text).map(|c| c.label);
+        if let Some(h) = s.history.as_mut() {
+            h.save().map_err(|e| e.to_string())?;
+        }
+        done
+    }
+
     /// Ctrl+Z / Ctrl+Y on the page.
     pub fn undo(&mut self, redo: bool) {
         self.undo_with(redo, None);

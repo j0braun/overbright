@@ -108,7 +108,7 @@ pub struct KeyRow {
 }
 
 /// The key table: Help ▸ Controls and the legend row are made from it.
-pub const KEYS: [KeyRow; 20] = [
+pub const KEYS: [KeyRow; 21] = [
     KeyRow {
         command: Command::Select,
         keys: "Enter",
@@ -207,6 +207,13 @@ pub const KEYS: [KeyRow; 20] = [
         pad: None,
         word: "Changes",
         help: "What the open mod changes, value by value, and which mod wins",
+    },
+    KeyRow {
+        command: Command::Workspace(Workspace::Data),
+        keys: "Ctrl+G",
+        pad: None,
+        word: "Data",
+        help: "Your props and races as a table: sort, search, edit a cell",
     },
     KeyRow {
         command: Command::NewMod,
@@ -314,6 +321,7 @@ pub fn key_command(k: Key) -> Option<Command> {
         (K::Z, true, false, false) => Command::Undo,
         (K::N, true, false, false) => Command::NewMod,
         (K::D, true, false, false) => Command::Workspace(Workspace::Changes),
+        (K::G, true, false, false) => Command::Workspace(Workspace::Data),
         (K::Y, true, false, false) => Command::Redo,
         (K::Escape, false, false, false) => Command::Back,
         (K::Enter, false, false, false) => Command::Select,

@@ -34,6 +34,7 @@ pub fn runs_from_find(c: Command) -> bool {
             | Command::CopyAddress
             | Command::NewMod
             | Command::Workspace(Workspace::Changes)
+            | Command::Workspace(Workspace::Data)
             | Command::Tutorial
             | Command::Undo
             | Command::Redo
@@ -165,6 +166,10 @@ impl Studio {
             Workspace::Changes if a == Area::View => {
                 self.changes.focus = if end { self.changes.lines().len().saturating_sub(1) } else { 0 }
             }
+            Workspace::Data if a == Area::View => {
+                let n = self.data.grid.as_ref().map_or(0, |g| g.counts().1);
+                self.data.row = if end { n.checked_sub(1) } else { Some(0).filter(|_| n > 0) }
+            }
             _ => self.spots.set(a, if end { usize::MAX } else { 0 }),
         }
     }
@@ -192,6 +197,7 @@ impl Studio {
                 self.changes.step_focus(d, false);
                 self.changes.focus != before
             }
+            Workspace::Data => self.data.step_row(d),
             _ => false,
         }
     }
