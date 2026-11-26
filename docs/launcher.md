@@ -861,6 +861,27 @@ test, the real import path on the player's game files, broken and foreign packag
 `texture_pack::tests::launcher_texture_mods_reach_the_loader`; the renders `mods-*.png` and the states
 `mods-empty`, `mods-busy`, `mods-results`, `mods-remove`, `mods-hud-complete`, `mods-hud-incomplete`.
 
+**One list** (`screens::mod_lines`, `build_mods`): every kind of mod is a row of one list, each row a switch
+with its kind first in the line under the name (`model::ListKind`): texture packs (Overbright's own first, then the
+imported ones: the loader's order), mod packs (`.obpk`, the load order from `order.txt`, "#1" the strongest, with
+what it overrules or is overruled by and, in a warning under the row, why it is refused), the HUD mod and the map
+mods. The ids stay the kind's own (`pk…`, `mk…`, `hud`, `mp…`). With two kinds or more in the list, filter buttons
+(All, Texture packs, Mod packs, HUD, Map mods; `Mods::filter`) narrow it; the filter only hides rows, the list is
+the same. The right column names the **chosen mod** (the row last focused, `Mods::cur`) and its actions, which are
+only enabled for its kind: Move up, Move down, Look inside and Try it once for a mod pack; Remove for a texture
+pack; Forget HUD folder for the HUD mod; Open in map editor, Export… and Export as a mod pack… for a map mod.
+Under them **Mounted now** says what is on in the order the game takes it (`screens::mounted_words`; nothing when
+Use mods is off or nothing is added), then the side note. Add a mod…, Import a pack or map mod…, Add HUD mod… and
+Choose HUD folder… are under the list. The two-pack collision message of the texture packs stays under the list.
+
+The order is changed in the list too: a mod pack row is dragged to another place (a press on it moves the row
+after 6 units of travel, a lime line shows where it lands, a click without travel still switches it), or moved
+one place with Alt+Up / Alt+Down (`Key::MoveUp` / `MoveDown`) or the pad's left / right triggers; both send
+`Event::Move(row, row it takes the place of)` (`ui::Ui::reorder` lists the rows that can move; a row moves among
+its own group). A mod pack moves in `order.txt` (`modpack::move_pack` by the distance), a texture pack within its
+list; an Overbright pack and an imported pack never swap (the first always comes before). The moved row stays
+focused and chosen. Tests: `mods_one_list_with_filters_and_chosen_actions`, `mods_pack_reorder_by_keys_and_drag`.
+
 **The HUD mod from its downloads** (`hud_mod`, docs/modding/texture-packs.md "The HUD mod"): **Add HUD mod…**
 opens the folder browser (purpose `HudMod`: folders, and `.zip` / `.7z` / `.rar` files with their kind and
 size). Enter on a `.zip`, or "Use this folder", takes it (`App::hud_pick`): the part it is (HUD part:
