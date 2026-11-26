@@ -39,6 +39,9 @@ pub(crate) struct Game {
     pub(crate) race_flow: flow::RaceFlow,
     /// The Quick Race set-up ([`menus::car_select::QuickRaceState`]).
     pub(crate) quick: menus::car_select::QuickRaceState,
+    /// A test run's focus clock (`--map-clock`, Studio's link): the world
+    /// clock a drive starts at, when no developer override names one.
+    pub(crate) test_clock: Option<f32>,
     /// The front end's state between screens ([`menus::FeState`]).
     pub(crate) fe: menus::FeState,
     /// The save points and customize session ([`menus::save_flow::SaveFlow`]).
@@ -190,6 +193,7 @@ impl Game {
             hud_state: Default::default(),
             race_flow: Default::default(),
             quick: Default::default(),
+            test_clock: None,
             fe: menus::FeState::new(boot_profiles),
             save_flow: Default::default(),
             dyno: Default::default(),

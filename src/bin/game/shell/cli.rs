@@ -245,10 +245,16 @@ pub(crate) struct MapTest {
     /// (`tools::map::link`): it takes commands (apply the mod again, start
     /// over) between frames and says it is alive. A window test run's only.
     pub(crate) link: Option<std::path::PathBuf>,
+    /// `--map-car <name>`: the car of the run (else the save's or the first
+    /// Quick Race car).
+    pub(crate) car: Option<String>,
+    /// `--map-clock <seconds>`: the world clock the run starts at (sets the
+    /// time of day and the weather as the game's cycle has them then).
+    pub(crate) clock: Option<f32>,
 }
 
 /// The test-run flags; each takes one value.
-pub(crate) const MAP_FLAGS: [&str; 10] = [
+pub(crate) const MAP_FLAGS: [&str; 12] = [
     "--map-mod",
     "--map-file",
     "--map-race",
@@ -259,6 +265,8 @@ pub(crate) const MAP_FLAGS: [&str; 10] = [
     "--sim-seconds",
     "--looks-live",
     "--studio-link",
+    "--map-car",
+    "--map-clock",
 ];
 
 /// `--language <name>`: the text language for this run (the file
@@ -372,6 +380,18 @@ impl MapTest {
                         }
                         t.link = Some(v.into());
                     }
+                    "--map-car" => {
+                        twice(t.car.is_some())?;
+                        if !nfsu2::tools::map::link::valid_car(&v) {
+                            return Err(format!("--map-car: `{v}` is not a car name"));
+                        }
+                        t.car = Some(v);
+                    }
+                    "--map-clock" => {
+                        twice(t.clock.is_some())?;
+                        let n = v.parse::<f32>().ok().filter(|n| nfsu2::tools::map::link::Focus { car: None, clock: Some(*n) }.valid());
+                        t.clock = Some(n.ok_or_else(|| format!("--map-clock: `{v}` is not 1..{} seconds", nfsu2::tools::map::link::MAX_CLOCK))?);
+                    }
                     "--sim-seconds" => {
                         twice(seconds.is_some())?;
                         let n = v.parse::<f32>().ok().filter(|n| n.is_finite() && *n > 0.0 && *n <= 86_400.0);
@@ -420,7 +440,6 @@ impl MapTest {
             None => Ok(Some(t)),
             Some(SimMode::Race) if t.race.is_none() => Err("--simulate needs --map-race <id>".into()),
             Some(SimMode::World) if t.at.is_none() => Err("--simulate-world needs --map-at x,y,z,heading".into()),
-            Some(_) if t.link.is_some() => Err("--studio-link is for a window run, not --simulate".into()),
             Some(mode) => {
                 t.simulate = Some(crate::enh::sim_stream::SimRun { mode, stream, seed: seed.unwrap_or(1), seconds });
                 Ok(Some(t))
@@ -586,8 +605,13 @@ impl ApplicationHandler for TestLoop<'_> {
             return;
         }
         // Between two frames, never inside a tick: what Studio sent.
-        if let Some(l) = self.link.as_mut() {
-            l.poll(self.game, &mut self.test, &mut self.watch);
+        if let Some(l) = self.link.as_mut()
+            && l.poll(self.game, &mut self.test, &mut self.watch)
+        {
+            // Studio asked the run to end.
+            self.watch.write(self.result.as_deref());
+            event_loop.exit();
+            return;
         }
         self.game.about_to_wait(event_loop);
     }
@@ -658,10 +682,33 @@ mod map_test_tests {
             &["--map-mod", "m", "--map-race", "r", "--studio-link"][..],
             &["--map-mod", "m", "--map-race", "r", "--studio-link", ""],
             &["--map-mod", "m", "--map-race", "r", "--studio-link", "a", "--studio-link", "b"],
-            &["--map-mod", "m", "--map-race", "r", "--simulate", "--studio-link", "a"],
             &["--studio-link", "a"],
         ] {
             assert!(MapTest::parse(&args(bad)).is_err(), "{bad:?}");
+        }
+        // A headless simulation takes the link too (probe, stop).
+        let t = MapTest::parse(&args(&["--map-mod", "m", "--map-race", "r", "--simulate", "--studio-link", "a"])).unwrap().unwrap();
+        assert!(t.simulate.is_some() && t.link.is_some());
+    }
+
+    #[test]
+    fn the_focus_flags_name_a_car_and_a_clock() {
+        let t = MapTest::parse(&args(&["--map-mod", "m", "--map-race", "r", "--map-car", "240SX", "--map-clock", "600"])).unwrap().unwrap();
+        assert_eq!((t.car.as_deref(), t.clock), (Some("240SX"), Some(600.0)));
+        let t = MapTest::parse(&args(&["--map-mod", "m", "--map-race", "r"])).unwrap().unwrap();
+        assert_eq!((t.car, t.clock), (None, None), "without them the run is as it was");
+        assert_eq!(MapTest::strip(&args(&["--map-car", "350Z", "--map-clock", "9", "--no-boot"])), args(&["--no-boot"]));
+        for bad in [
+            &["--map-car", "../x"][..],
+            &["--map-car", "A", "--map-car", "B"],
+            &["--map-clock", "0"],
+            &["--map-clock", "nan"],
+            &["--map-clock", "99999"],
+            &["--map-clock"],
+        ] {
+            let mut a = vec!["--map-mod", "m", "--map-race", "r"];
+            a.extend(bad);
+            assert!(MapTest::parse(&args(&a)).is_err(), "{bad:?}");
         }
     }
 

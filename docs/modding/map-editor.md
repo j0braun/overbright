@@ -283,7 +283,17 @@ frame rate), the game reads `command.txt`; a new command reads the mod's run cop
 restart, not yet while you drag; the game loads the region again, behind its loading screen. F5 or Shift+F5 while the game is
 open send the new race or spot instead of refusing. Free roam goes on from where the car is after an edit. A run that
 cannot start (the race was deleted, no road at the spot) stays as it was and the status bar says why. The game writes its own state about twice
-a second; the status bar shows "Game connected", "Game applying changes" or "Game not connected".
+a second; the status bar shows "Game connected", "Game applying changes", "Game reloading the world" (moved or added
+props: the placements are set up when the world is built, so they show after the reload, not in place),
+"Game not answering" or "Game not connected". Studio also sends a probe every few seconds while the game is idle (a
+command the game answers at once, so a game that beats but does not read the command file shows as not answering; a
+probe never goes over a command the game has not read). At most four game runs (test windows and simulations, of every
+mod and window of the data folder) are open at once; a fifth waits ("4 game runs are open already") and a place that
+nothing touched for 15 seconds counts as free. `--map-car <name>` and `--map-clock <seconds>` start the run with a car of
+the game and a world clock (the time of day and weather as the game's cycle has them that long after a load; 1 to 3600);
+Studio sends its test focus (car, clock) at the start and with the next command when it changes, which starts the run
+over. A simulation (`--simulate`) takes `--studio-link` as well: it answers a probe and ends on a stop command, and is
+not started over (it says so).
 
 Test race does not save `map.obmap` itself; the status bar adds "(testing unsaved changes)" while the mod
 has steps not yet saved. `--map-file <path>` reads the mod from that file; in the run the mod is known by
