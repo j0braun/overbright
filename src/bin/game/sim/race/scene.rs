@@ -204,9 +204,9 @@ fn mover_step(
 /// Native NIS wheel speeds (0x5AB890) with phase preserved across scene
 /// placements. The pose velocity remains the clone's channel derivative,
 /// not the original mode-5 rigid-body solution. The NIS tyres (0x5AB550)
-/// expose hub slip and the >6 m/s skid flag through 0x5A2B70. The clone's
-/// existing tyre emitter selection/rate remain inferred (particles::tyre_group);
-/// this is not a claim of native smoke parity. Torque/audio remain separate.
+/// expose hub slip and the >6 m/s skid flag through 0x5A2B70, which the
+/// ground effects read as the car's exported pair (`particles::GroundFx`).
+/// Torque/audio remain separate.
 pub(crate) fn scene_wheels(
     state: &mut CarState,
     car: &Car,
@@ -242,6 +242,8 @@ pub(crate) fn scene_wheels(
         let (sin, cos) = (heading + if i < 2 { steer } else { 0.0 }).sin_cos();
         wheel.slip = spin * spec.radius - (hub.x * cos + hub.y * sin);
         wheel.lateral_slip = hub.y * cos - hub.x * sin;
+        // 0x5A2B70 copies the NIS pair to the car as it is (`nis.rs`).
+        wheel.exported_slip = wheel.slip;
         wheel.sliding = wheel.on_ground && wheel.slip.hypot(wheel.lateral_slip) > 6.0;
     }
     // 5AB53F -> 5A2B70 publishes after NIS motion. This uses the existing

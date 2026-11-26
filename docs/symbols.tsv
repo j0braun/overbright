@@ -3471,7 +3471,7 @@ RenderInfo_t+0x2D44	struct-field	RenderInfo_t.part_anims	part animations	verifie
 0x4C1920	function	Garage_FireCarEffect	GarageMain's FE car: 0x61FBB0(kind, amount, param)	verified	formats.md (Specialties: hydraulics level 3 and the purge)
 0x61FBB0	function	CarRender_FireEffectFE	front-end car effect: 0x615CD0 with the FE car's position (+0x910) and matrix (+0x920), no velocity	verified	formats.md (Specialties: hydraulics level 3 and the purge)
 0x61FB10	function	CarRender_FireEffect	in-game car effect (needs render +0x554, car +0x5B0 = 0): 0x615CD0 with the car's matrix and velocity	verified	formats.md (Specialties: hydraulics level 3 and the purge)
-0x615CD0	function	CarRender_BurstEffect	per emitter of kind list (render +0x458 + 8·kind) and per point of its marker group (+0x548 + 8·desc+0x5C): emitter axes mirrored by the point's flag bits, at the point, × car; burst -amount (0x491E50); kind 13 also runs 14	verified	formats.md (Specialties: hydraulics level 3 and the purge)
+0x615CD0	function	CarRender_BurstEffect	per emitter of kind list (render +0x458 + 8·kind) and per point of its marker group (+0x548 + 8·desc+0x5C): emitter axes mirrored by the point's flag bits, at the point, × car; burst -amount (0x491E50); kinds 1-5 take the surface table's list (0x883E68 - 0xE8 + (kind*29 + surface)*8) instead; kind 13 also runs 14	verified	formats.md (Specialties: hydraulics level 3 and the purge)
 0x48B920	function	Emitters_Recolor	HSL shift of each emitter's description keys (+0xA0, times +0x90/3) into a colour slot (0x8A3F60), emitter +0x30 = slot	verified	formats.md (Specialties: hydraulics level 3 and the purge)
 0x488270	function	Rgb_ToHsl	RGB 0..1 → HSL (hue 0..1)	verified	formats.md (Specialties: hydraulics level 3 and the purge)
 0x4883F0	function	Hsl_ToRgb	HSL → RGB 0..1	verified	formats.md (Specialties: hydraulics level 3 and the purge)
@@ -3586,7 +3586,7 @@ RenderInfo_t+0x2D44	struct-field	RenderInfo_t.part_anims	part animations	verifie
 0x8392C0	global	g_FERide	the front-end shop ride the lists read their fitted part from (0x610300); holds the bought parts, not the graphics setup (Wine)	verified	formats.md (List openings)
 0x430DC0	label	NISEvent_ExpandNitro	SEQ_CAR_NITRO: four records from 0x7EA240 (torque at f, CARFX_NITRO on at f+2 with 2x intensity, off at f+5, torque off at f+10)	verified	internal notes
 0x430B20	label	NISEvent_TypeByName	event track type names: CAR_TRIGGER_EFFECT 1, ...	verified	internal notes
-0x5F5740	function	Car_UpdateEffects	per-car update in 0x609CF0 (after the particle update): nitrous flame / purge car effects via 0x61FB10	verified	internal notes
+0x5F5740	function	Car_UpdateEffects	per-car update in 0x609CF0 (after the particle update): the ground effects (kinds 1-5: skid, wheel spin, drive spray, bottom-out from the surface table's events), then nitrous flame / purge car effects via 0x61FB10	verified	formats/cars-1.md (Car ground effects)
 0x5D50A0	function	RoadSegment_BuildRaceSpline	a route segment's type-2 spline: phantom points (args or the end pieces carried on), nodes, arc lengths	verified	internal notes
 0x4395F0	function	NISEvents_Advance	adds dt to the event clock (+0x0C) and dispatches the sorted records whose frame x f32(1/30) is strictly below it (index +0x10)	verified	docs/original/nis-audio-patterns.md
 0x43AF20	function	NIS_UpdateScenes	walks the scene list (0x827B88, head +4 = scene +0x10) and updates each scene (0x43ABC0)	verified	docs/original/nis-audio-patterns.md
