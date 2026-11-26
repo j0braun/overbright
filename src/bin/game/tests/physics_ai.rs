@@ -160,6 +160,9 @@ fn headless_drive(root: &std::path::Path, region: &str, car: &str) -> Drive {
 fn slalom_steers_like_the_original_at_low_frame_rates() {
     let root = testkit::game_root();
     let mut d = headless_drive(std::path::Path::new(&root), "L4RA", "240SX");
+    // The replay's player car ran with the option's default, Stability
+    // Control Off (car +0x464 = 1; 0x5116E0).
+    d.state.stability_off = true;
     let frames =
         &testkit::private_str("docs/evidence/drive-parity/240sx-slalom-50fps.frames");
     let expected_csv = testkit::private_str("docs/evidence/drive-parity/240sx-slalom-50fps.csv");

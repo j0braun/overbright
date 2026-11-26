@@ -46,7 +46,8 @@ fn lancer() -> Car {
 #[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
 fn dyno_pull_matches_the_original() {
     let car = lancer();
-    let mut pull = DynoPull::new(car);
+    // Recorded with the player's default, Stability Control Off.
+    let mut pull = DynoPull::new(car).with_stability_off(true);
     let frame = nfsu2::dyno::FRAME;
     // (time, gear, rpm, spin) each frame until the pull ends.
     let mut trace = Vec::new();

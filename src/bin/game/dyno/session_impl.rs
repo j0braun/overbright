@@ -294,7 +294,7 @@ impl Game {
             Some((&self.game_data.career.tuning, &settings)),
         )
         .ok()
-        .map(nfsu2::dyno::DynoPull::new);
+        .map(|car| nfsu2::dyno::DynoPull::new(car).with_stability_off(self.settings.players[0].stability_off));
         Mode::Menu(Menu::DynoChart(screens::DynoChart {
             engine: h.engine,
             first,
