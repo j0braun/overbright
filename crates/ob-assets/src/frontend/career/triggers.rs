@@ -105,11 +105,8 @@ pub fn neighbourhood_hash(name: u32) -> u32 {
 
 impl RouteTriggers {
     pub fn load(root: &Path) -> RouteTriggers {
-        let dir = crate::game_fs::path(root, "TRACKS/ROUTESL4RA");
-        let file = std::fs::read_dir(&dir).ok().and_then(|d| {
-            d.flatten()
-                .map(|e| e.path())
-                .find(|p| p.file_name().is_some_and(|n| n.to_string_lossy().starts_with("Paths")))
+        let file = crate::game_fs::list_paths(root, "TRACKS/ROUTESL4RA").and_then(|d| {
+            d.into_iter().find(|p| p.file_name().is_some_and(|n| n.to_string_lossy().to_ascii_lowercase().starts_with("paths")))
         });
         let data = file.and_then(|f| crate::game_fs::read_file(&f).ok()).unwrap_or_default();
         RouteTriggers {

@@ -184,15 +184,7 @@ impl MixMap {
     }
 
     pub fn load(root: &std::path::Path, k: usize) -> Option<MixMap> {
-        let find = |dir: &std::path::Path, name: &str| {
-            std::fs::read_dir(dir)
-                .ok()?
-                .flatten()
-                .map(|e| e.path())
-                .find(|p| p.file_name().and_then(|n| n.to_str()).is_some_and(|n| n.eq_ignore_ascii_case(name)))
-        };
-        let dir = find(&find(root, "SOUND")?, "MixMaps")?;
-        let path = find(&dir, Self::file_name(k))?;
+        let path = crate::game_fs::find_in(root, "SOUND/MixMaps", Self::file_name(k))?;
         MixMap::parse(&crate::game_fs::read_file(&path).ok()?)
     }
 }

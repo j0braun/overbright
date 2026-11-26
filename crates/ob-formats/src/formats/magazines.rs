@@ -88,9 +88,7 @@ pub const ENVMAP_FACES: [&str; 6] = ["XPOS", "XNEG", "YPOS", "YNEG", "ZPOS", "ZN
 pub fn load_envmap(root: &std::path::Path, name: &str) -> Option<Vec<crate::formats::texture::Texture>> {
     // The game opens "%s.BIN"; the files are "<name>.bin" (Windows paths
     // ignore case).
-    let dir = crate::game_fs::path(root, "FRONTEND/ENVMAPS");
-    let want = format!("{name}.bin");
-    let file = std::fs::read_dir(&dir).ok()?.flatten().map(|e| e.path()).find(|p| p.file_name().is_some_and(|f| f.to_string_lossy().eq_ignore_ascii_case(&want)))?;
+    let file = crate::game_fs::find_in(root, "FRONTEND/ENVMAPS", &format!("{name}.bin"))?;
     let data = crate::game_fs::read_file(&file).ok()?;
     let mut faces: [Option<crate::formats::texture::Texture>; 6] = Default::default();
     crate::formats::bundle::walk(crate::formats::bundle::chunks(&data, 0), &mut |c| {

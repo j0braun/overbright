@@ -170,7 +170,7 @@ pub fn resolve_movie_for(root: &Path, name: &str, language: &str) -> Resolved {
         if tried.iter().any(|t| t.eq_ignore_ascii_case(&file)) {
             continue;
         }
-        let found = crate::game_fs::find(root, &format!("MOVIES/{file}")).filter(|p| p.is_file());
+        let found = crate::game_fs::find_file(root, &format!("MOVIES/{file}"));
         tried.push(file);
         if let Some(p) = found {
             return Resolved { want: name.to_string(), file: Some(p), how, tried };
@@ -178,15 +178,13 @@ pub fn resolve_movie_for(root: &Path, name: &str, language: &str) -> Resolved {
     }
     tried.push(format!("{stem}_*.vp6"));
     // (lower-case name, suffix, path), the first by name.
-    let any = movies_dir(root).and_then(|dir| {
-        let mut v: Vec<(String, String, PathBuf)> = std::fs::read_dir(&dir)
-            .ok()?
-            .flatten()
-            .filter(|e| e.path().is_file())
-            .filter_map(|e| {
-                let n = e.file_name().to_string_lossy().into_owned();
+    let any = crate::game_fs::list_paths(root, "MOVIES").and_then(|paths| {
+        let mut v: Vec<(String, String, PathBuf)> = paths
+            .into_iter()
+            .filter_map(|p| {
+                let n = p.file_name()?.to_string_lossy().into_owned();
                 let s = suffix_of(&n, stem)?.to_ascii_lowercase();
-                Some((n.to_ascii_lowercase(), s, e.path()))
+                Some((n.to_ascii_lowercase(), s, p))
             })
             .collect();
         v.sort();
@@ -201,7 +199,7 @@ pub fn resolve_movie_for(root: &Path, name: &str, language: &str) -> Resolved {
 /// A file found by its name only (any case): [`How::Built`] or
 /// [`How::Missing`]. The text file and the menus' files.
 pub fn resolve_file(root: &Path, rel: &str) -> Resolved {
-    let file = crate::game_fs::find(root, rel).filter(|p| p.is_file());
+    let file = crate::game_fs::find_file(root, rel);
     let how = if file.is_some() { How::Built } else { How::Missing };
     Resolved { want: rel.to_string(), file, how, tried: vec![rel.to_string()] }
 }
@@ -349,10 +347,7 @@ impl Layout {
 /// The movie layout of `root` (from MOVIES' names: a name the executable
 /// suffixes, with a two-letter suffix or none).
 pub fn layout(root: &Path) -> Layout {
-    let Some(dir) = movies_dir(root) else { return Layout::NoMovies };
-    let names: Vec<String> = std::fs::read_dir(&dir)
-        .map(|rd| rd.flatten().map(|e| e.file_name().to_string_lossy().into_owned()).collect())
-        .unwrap_or_default();
+    let Some(names) = crate::game_fs::list(root, "MOVIES") else { return Layout::NoMovies };
     let tag = names.iter().any(|n| n.eq_ignore_ascii_case("movies.tag"));
     let mut suffixes: Vec<String> = Vec::new();
     let mut plain = 0;
