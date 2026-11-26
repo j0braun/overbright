@@ -8,9 +8,33 @@
   "text": "0x0ABC",
   "textures": [
     {
+      "animated": false,
+      "hash": "0x00000ABC",
       "height": 4,
+      "materials": 3,
       "name": "ROAD",
+      "sections": [
+        {
+          "placements": 4,
+          "section": 1
+        }
+      ],
       "texture": "world:0x00000ABC",
+      "used": "3 materials in 3 models",
+      "used_by": [
+        {
+          "materials": 1,
+          "model": "XB_BARRIER_03"
+        },
+        {
+          "materials": 1,
+          "model": "XC_CONE_01"
+        },
+        {
+          "materials": 1,
+          "model": "XS_SIGN_STOP"
+        }
+      ],
       "width": 4
     }
   ]

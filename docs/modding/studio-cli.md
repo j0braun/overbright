@@ -53,7 +53,7 @@ and its schema export (`crates/ob-studio/schema/studio.json`) use, so `help` is 
 | `looks list` | read | The mod's changed textures and work files, with where their pixels started |
 | `props solids` | read | The region's placeable solids, as the prop browser lists them (`--filter` words of the name, `--category` knock-over, barriers, signs, street, trees or all; default all), with where they are placed; needs the game |
 | `race tracks` | read | The region's base tracks a race can be on, as the race panel lists them (number and name); needs the game |
-| `looks find` | read | Find the region's world textures by name words or hash: `looks find road` or `--text 0x1A2B3C4D`; gives each texture's id for `looks open`, name and size; needs the game |
+| `looks find` | read | Find the region's world textures by name words or hash: `looks find road` or `--text 0x1A2B3C4D`; gives each texture's id for `looks open`, name, hash, size and where it is used (the models that draw it and the sections they are in), the same search as Studio's Browser; needs the game |
 | `collision show` | read | What the World view's collision layer shows in `--mode` `off`, `invisible` (invisible walls and the race and career barriers) or `all` (default; also the walls behind scenery and the floors), counted as the window builds it; with `--mod` the mod's removed and drawn collision applies; needs the game |
 | `runs list` | read | The mod's kept runs (simulations and recordings), newest first, as the Runs workspace lists them |
 | `runs show` | read | Open a run (`--run`): its race, seed, how it ended, the results and the problems it found |
@@ -130,7 +130,7 @@ no name (`no_name`), a name over 60 characters (`long_name`), a folder name with
 
 `props solids` gives `region`, `count` and `solids` (each `name`, `knock_over`, `placed`, `categories`); `race tracks`
 gives `region`, `count` and `tracks` (`number`, `name`); `looks find` gives `region`, `text`, `count` and `textures`
-(`texture`, `name`, `width`, `height`); `game find` gives `game` and `source` (`--game`, `NFSU2_ROOT` or `launcher`).
+(`texture`, `name`, `hash`, `width`, `height`, `animated`, `materials`, `used`, `used_by` (`model`, `materials`) and `sections` (`section`, `placements`)); `game find` gives `game` and `source` (`--game`, `NFSU2_ROOT` or `launcher`).
 The first three read the same lists the window shows (the prop browser, the race panel's tracks, Looks' textures), so
 the same words give the same answer. On a near miss (`--filter barier`, `looks find raod`, `--category barier`,
 `--region L4RB`, a command or `--template` with a typo) the answer says "Did you mean": plain text on the line after,

@@ -629,6 +629,11 @@ impl Page {
         self.thumbs.0.values().filter(|t| t.is_some()).count()
     }
 
+    /// How many guides (the outline of a blank-painted texture's original) the page holds (the tests).
+    pub fn guides_loaded(&self) -> usize {
+        self.thumbs.0.iter().filter(|(k, t)| k.starts_with("guide:") && t.is_some()).count()
+    }
+
     /// The game's own textures the rows name, as thumbnails, from the region World has loaded (each read once).
     pub fn feed_originals(&mut self, ctx: &egui::Context, game: &dyn ob_studio::looks::Textures) {
         let Some(d) = self.data() else { return };
@@ -638,9 +643,17 @@ impl Page {
             let Ok(id) = k.parse::<ob_studio::looks::TextureId>() else { continue };
             // Not in this region: asked again when another region is loaded.
             let Some(o) = game.original(id) else { continue };
-            let t = thumb_image(o.width, o.height, &o.rgba)
-                .map(|i| ctx.load_texture(format!("chg-thumb-game-{k}"), i, egui::TextureOptions::LINEAR));
+            let img = thumb_image(o.width, o.height, &o.rgba);
+            // The guide for a texture painted from blank: the outline of this thumbnail's layout, only ever drawn.
+            let guide = img.as_ref().and_then(|i| {
+                let px: Vec<u8> = i.pixels.iter().flat_map(|c| c.to_srgba_unmultiplied()).collect();
+                let g = ob_studio::looks::guide::outline(i.size[0] as u32, i.size[1] as u32, &px)?;
+                Some(egui::ColorImage::from_rgba_unmultiplied(i.size, &g))
+            });
+            let t = img.map(|i| ctx.load_texture(format!("chg-thumb-game-{k}"), i, egui::TextureOptions::LINEAR));
             self.thumbs.0.insert(format!("game:{k}"), t);
+            let g = guide.map(|i| ctx.load_texture(format!("chg-guide-{k}"), i, egui::TextureOptions::LINEAR));
+            self.thumbs.0.insert(format!("guide:{k}"), g);
         }
     }
 
@@ -1144,9 +1157,11 @@ impl Page {
             let fl = Rect::from_min_size(pos2(list.left(), top), vec2(list.width(), 26.0));
             p.text(pos2(fl.left(), fl.center().y), Align2::LEFT_CENTER, "Show", font("body", 14.0), rgb(t.dim));
             let mut bx = fl.left() + 44.0;
-            for (s, word) in
-                [(Show::Mine, "Everything this mod changes"), (Show::Losing, "Only what loses"), (Show::All, "All values")]
-            {
+            for (s, word) in [
+                (Show::Mine, "Everything this mod changes"),
+                (Show::Losing, "Only what loses"),
+                (Show::All, "All values"),
+            ] {
                 let g = p.layout_no_wrap(word.into(), font(LABEL, 14.0), rgb(t.ink));
                 let r = Rect::from_min_size(pos2(bx, fl.top() + 1.0), vec2(g.size().x + 28.0, 24.0));
                 if ui.put(r, small_button(word, self.show == s)).clicked() {
@@ -1641,6 +1656,18 @@ impl Page {
                 let tr = Rect::from_min_size(pos2(x, y), vec2(side, side));
                 let th = self.thumb(ui.ctx(), d, &row.key, val.as_ref());
                 draw_thumb(&clip, tr, th, src);
+                // A texture painted from blank: the original's layout as a faint guide over the canvas (drawn
+                // here only; the texture file never holds it).
+                if src == Source::Yours && d.textures.get(&row.key).and_then(|t| t.origin) == Some(Origin::Blank) {
+                    if let Some(g) = self.thumbs.get(&format!("guide:{}", row.key)) {
+                        clip.image(
+                            g,
+                            tr.shrink(1.0),
+                            Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)),
+                            Color32::WHITE,
+                        );
+                    }
+                }
                 clip.text(pos2(x, tr.bottom() + 9.0), Align2::LEFT_CENTER, word, font("body", 12.0), rgb(t.dim));
             }
             y += side + 24.0;

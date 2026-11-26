@@ -192,3 +192,89 @@ fn materialize_removes_only_textures_the_list_lacks() {
     assert!(world.join("readme.txt").exists(), "not a texture file of the list's form");
     let _ = std::fs::remove_dir_all(dir.parent().unwrap());
 }
+
+/// Every byte of a mod folder, by path.
+fn tree(dir: &Path) -> BTreeMap<std::path::PathBuf, Vec<u8>> {
+    fn walk(d: &Path, out: &mut BTreeMap<std::path::PathBuf, Vec<u8>>) {
+        for e in std::fs::read_dir(d).into_iter().flatten().flatten() {
+            let p = e.path();
+            if p.is_dir() {
+                walk(&p, out);
+            } else {
+                out.insert(p.clone(), std::fs::read(&p).unwrap_or_default());
+            }
+        }
+    }
+    let mut out = BTreeMap::new();
+    walk(dir, &mut out);
+    out
+}
+
+/// A layout to outline: a dark frame and a dark cross on light grey, 16 x 16.
+fn layout() -> Vec<u8> {
+    let mut px = [200u8, 200, 200, 255].repeat(16 * 16);
+    for y in 0..16 {
+        for x in 0..16 {
+            if x == 0 || y == 0 || x == 15 || y == 15 || x == 8 || y == 8 {
+                px[(y * 16 + x) * 4..(y * 16 + x) * 4 + 3].copy_from_slice(&[20, 20, 20]);
+            }
+        }
+    }
+    px
+}
+
+#[test]
+fn the_guide_outlines_the_layout_and_is_never_written() {
+    let g = guide::outline(16, 16, &layout()).unwrap();
+    assert_eq!(g.len(), 16 * 16 * 4);
+    let alpha = |x: usize, y: usize| g[(y * 16 + x) * 4 + 3];
+    assert!(alpha(8, 4) > 0 && alpha(4, 8) > 0, "the cross shows");
+    assert_eq!(alpha(4, 4), 0, "the flat areas stay clear");
+    assert!(g.chunks(4).all(|p| p[3] <= guide::MAX_ALPHA), "faint");
+    assert_eq!(guide::outline(16, 16, &[0; 12]), None, "pixels that do not fill the size");
+    assert!(guide::outline(4, 4, &[7u8; 64]).unwrap().chunks(4).all(|p| p[3] == 0), "a flat texture has no layout");
+
+    // With the guide made from the original, the blank canvas, the work file, the store and the pack are the
+    // same bytes as without it.
+    let dir = mod_dir("guide");
+    let edir = dir.join(".editor");
+    let mut w = Workbench::open(&dir, &edir);
+    let f = w.start(&Looks::default(), WALL, &fake(), true).unwrap();
+    let before = tree(&dir);
+    let orig = fake().original(WALL).unwrap();
+    let _ = guide::outline(orig.width, orig.height, &orig.rgba).unwrap();
+    assert_eq!(tree(&dir), before, "the guide writes nothing");
+    assert!(w.poll().is_empty(), "and is no save");
+    let (_, _, px) = decode_png(&std::fs::read(w.path(&f)).unwrap()).unwrap();
+    assert!(px.chunks(4).all(|p| p == work::BLANK), "the canvas stays clean");
+    let _ = std::fs::remove_dir_all(dir.parent().unwrap());
+}
+
+#[test]
+fn a_half_written_file_is_never_taken_in_whatever_the_length() {
+    // The save path is the hand-off: a file counts once it stopped changing over one look and reads as a whole
+    // PNG, so no prefix of a write is ever imported as another image.
+    let dir = mod_dir("prefix");
+    let edir = dir.join(".editor");
+    let mut w = Workbench::open(&dir, &edir);
+    let f = w.start(&Looks::default(), WALL, &fake(), true).unwrap();
+    let work = w.path(&f);
+    let full = png(77);
+    for n in 0..full.len() {
+        std::fs::write(&work, &full[..n]).unwrap();
+        let _ = w.poll();
+        for r in w.poll() {
+            match r {
+                Err((id, _)) => assert_eq!(id, WALL),
+                // Only a prefix that lacks nothing but the closing chunk reads, and then as the same pixels.
+                Ok(s) => assert_eq!(decode_png(&s.png).unwrap(), decode_png(&full).unwrap(), "prefix {n}"),
+            }
+        }
+    }
+    std::fs::write(&work, &full).unwrap();
+    let _ = w.poll();
+    let saved = w.poll().pop().unwrap().unwrap();
+    assert_eq!(saved.png, full, "the whole file is taken in, exactly once");
+    assert!(w.poll().is_empty());
+    let _ = std::fs::remove_dir_all(dir.parent().unwrap());
+}
