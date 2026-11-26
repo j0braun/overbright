@@ -187,7 +187,6 @@ game.race_start_scene	open	docs/formats.md	Open: the complete NISMover pose/forc
 game.racer_think	inferred	docs/formats.md	NIS movers is inferred: no gas, the hold's brake, neutral).
 game.replay_typed_input	inferred	docs/notes/parity/drag-drift-outrun-parity.md,docs/notes/parity/replay-cameras.md	path's curvature (0x5EB320; inferred here from the velocity's turn
 game.reset_to_road	inferred	docs/formats.md,docs/original/nis-mover.md	Inferred: the human's road node is the AI racer controller's route
-game.road_car	inferred	docs/formats.md	half its length and width (handling +0x224 / +0x228, inferred for
 game.shop_preview_item	inferred	docs/formats.md	(under Wine RED's underglow; inferred that it is
 game.shop_preview_item-2	inferred	docs/formats.md	0x4C2100(0x1D)). Inferred: the rims' strip picks the
 game.shop_rating_quads_of	inferred	docs/formats.md	inferred: the overlay's opening refresh pushes it).

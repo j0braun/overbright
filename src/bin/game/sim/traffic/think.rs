@@ -46,7 +46,7 @@ pub(crate) fn traffic_think(
     // The traffic's race coordinates (car +0x8FC) move on in steps.
     if let Some(road) = road {
         for c in t.cars.iter_mut().filter(|c| c.lane.is_some()) {
-            c.refresh_coord(road);
+            c.refresh_coord(road, t.updates);
         }
     }
     t.timer -= dt;

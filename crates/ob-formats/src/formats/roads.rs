@@ -869,6 +869,15 @@ impl RoadRoute {
         }
     }
 
+    /// 0x5DA3E0 (**verified**, the decompile): the locator's node cleared
+    /// (+0x18), then 0x5DA340 — so the next locate that runs (now, if `p`
+    /// is its threshold from the last ask, else a later frame's) searches
+    /// the nearest route node afresh.
+    pub fn relocate_afresh(&self, loc: &mut Locator, p: Vec2) {
+        loc.node = None;
+        self.relocate(loc, p);
+    }
+
     /// 0x5D9CD0 (**verified**, the decompile): the route node nearest a
     /// place and race coordinate, by its 2D distance + |its place along −
     /// `coord`| / 4 (the short way round a circuit); the first such node
