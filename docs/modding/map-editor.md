@@ -89,7 +89,7 @@ A menu item that cannot act now is greyed out and says why when hovered (Duplica
 | File | **File ▸ New map mod…** (Ctrl+N: a name, its folder and the region), **File ▸ Open map mod…** (Ctrl+O), the five most recent mods, **File ▸ Save** (Ctrl+S), **File ▸ Mod details…** (name, author, description), **File ▸ Import…** (a mod folder, a `map.obmap` or a `.zip`), **File ▸ Export…** (a `.zip` or a folder: the map and the mod's textures, `looks.toml` and `textures/`, never `work/` or `.editor/`; textures from the original game's pixels are warned about first; it proposes `<folder>.zip` in the `exports` folder of Overbright's data folder, made on the first export, and the status line says where the file went), **File ▸ Export as mod pack…** (a `.obpk` file for the launcher's Mods page: the placements, races and textures as the asset format's own files; it proposes `<folder>-1.0.0.obpk` in the `exports` folder), **File ▸ Quit** (Ctrl+Q; saves first, and asks only when that fails) |
 | Edit | **Edit ▸ Undo** and **Edit ▸ Redo**, named by the step they undo or redo (256 steps), **Edit ▸ Duplicate**, **Edit ▸ Delete**, **Edit ▸ Select all of this solid**, **Edit ▸ Drop to ground**, **Edit ▸ Rotate 90°**, **Edit ▸ Face camera**, **Edit ▸ Draw wall**, **Edit ▸ Draw ground** (see Removed and drawn collision) |
 | View | **View ▸ Roads** (the road network over the top view), **View ▸ Frame selection** (F), **View ▸ Reset camera** (the region's overview), **View ▸ Top view** (T), **View ▸ Isometric view**, **View ▸ Go to…**, **View ▸ Views ▸ Save view…** and the Views menu's **Delete view** submenu (see Hiding props, views and Go to), **View ▸ Collision ▸ Off**, **View ▸ Collision ▸ Invisible barriers** and **View ▸ Collision ▸ All collision**, **View ▸ Collision ▸ By kind** and **View ▸ Collision ▸ By surface** (see Collision), **View ▸ Collision ▸ Show race barriers** (only in Studio's World: the other races' barriers, off by default), **View ▸ Hide selected** (H), **View ▸ Isolate selected** (Shift+H), **View ▸ Show all** (Alt+H), **View ▸ This mod's changes only** (see Hiding props), **View ▸ Hint line** |
-| Race | **Race ▸ New race**, **Race ▸ Test race** (F5), **Race ▸ Drive here** (Shift+F5), **Race ▸ Restart race** (Ctrl+F5), **Race ▸ Drive to record** |
+| Race | **Race ▸ New race**, **Race ▸ Test race** (F5), **Race ▸ Drive here** (Shift+F5), **Race ▸ Restart race** (Ctrl+F5), **Race ▸ Drive to record**, **Race ▸ Test car and clock…** |
 | Help | **Help ▸ Controls**: every key, made from the editor's key table |
 
 ## Controls
@@ -310,13 +310,17 @@ The test game stays open and takes your edits. Studio starts it with `--studio-l
 small files in that folder (`command.txt` from Studio, `game.txt` from the game), each written through a temporary file;
 nothing listens on a network, and it is the same on Windows and Linux. Without the flag the game never looks at the
 folder. About ten times a second, between two frames (never inside a simulation step, so play is the same at any
-frame rate), the game reads `command.txt`; a new command reads the mod's run copy again and starts the run over with it
-(race points, props), or only starts over (**Race ▸ Restart race**, Ctrl+F5). A moved or added prop shows after that
-restart, not yet while you drag; the game loads the region again, behind its loading screen. F5 or Shift+F5 while the game is
-open send the new race or spot instead of refusing. Free roam goes on from where the car is after an edit. A run that
+frame rate), the game reads `command.txt`; a new command reads the mod's run copy again. Moved, deleted and added props and drawn or removed collision go into the
+running world in place, within a moment and without a loading screen: a linked run keeps the region's original
+placements beside the modded state, so each edit derives the placements again from original and mod (the same world a
+fresh load of the edited mod makes), the renderer's instances and the scenery collision follow, the car stays where it is
+and the clock keeps running. An added or removed prop makes the world renderer again (a pause of a moment, no load). What
+cannot go in place (the races changed, a new aim, car or clock) starts the run over behind the loading screen, and the
+status bar says "reloaded" with the reason. **Race ▸ Restart race** (Ctrl+F5) only starts over. F5 or Shift+F5 while the game is
+open send the new race or spot instead of refusing. Free roam goes on from where the car is after a reload. A run that
 cannot start (the race was deleted, no road at the spot) stays as it was and the status bar says why. The game writes its own state about twice
-a second; the status bar shows "Game connected", "Game applying changes", "Game reloading the world" (moved or added
-props: the placements are set up when the world is built, so they show after the reload, not in place),
+a second; the status bar shows "Game connected", "Game applying changes", "Game reloading the world" (the races
+changed: the run starts over), and then what the game did ("Game: applied live", "Game: reloaded: the races changed"),
 "Game not answering" or "Game not connected". Studio also sends a probe every few seconds while the game is idle (a
 command the game answers at once, so a game that beats but does not read the command file shows as not answering; a
 probe never goes over a command the game has not read). At most four game runs (test windows and simulations, of every
@@ -324,7 +328,8 @@ mod and window of the data folder) are open at once; a fifth waits ("4 game runs
 nothing touched for 15 seconds counts as free. `--map-car <name>` and `--map-clock <seconds>` start the run with a car of
 the game and a world clock (the time of day and weather as the game's cycle has them that long after a load; 1 to 3600);
 Studio sends its test focus (car, clock) at the start and with the next command when it changes, which starts the run
-over. A simulation (`--simulate`) takes `--studio-link` as well: it answers a probe and ends on a stop command, and is
+over; **Race ▸ Test car and clock…** sets it (a car's name in the game, like 240SX, and a clock of 1 to 3600 seconds; each
+empty means the game's own, and the game refuses a car it does not have and keeps the run as it was). Studio starts its runs with `--map-mem-cap 8192`: a run whose resident memory passes that many MiB (Linux; it is not measured elsewhere) stops itself and says so over the link, so one runaway run cannot take the machine down with the others. A simulation (`--simulate`) takes `--studio-link` as well: it answers a probe and ends on a stop command, and is
 not started over (it says so).
 
 Test race does not save `map.obmap` itself; the status bar adds "(testing unsaved changes)" while the mod

@@ -80,3 +80,4 @@ src/render/native/post/mod.rs	1	a developer tool or an override folder from the 
 crates/ob-assets/src/texture_mods.rs	4	the player's packs, mods and importers (user-chosen paths)
 crates/ob-assets/src/tpf_import.rs	4	the player's packs, mods and importers (user-chosen paths)
 crates/ob-assets/src/upscale_pack.rs	5	the player's packs, mods and importers (user-chosen paths)
+src/bin/game/shell/studio_link.rs	1	system files (/proc: the run's own resident memory for its memory cap)

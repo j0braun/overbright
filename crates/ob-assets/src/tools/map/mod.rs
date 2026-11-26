@@ -49,6 +49,9 @@ pub struct Applied {
     /// The originals indexed for naming them, and what the editor's live
     /// re-apply keeps (`World::reapply_map_mod`).
     pub index: crate::world::MapIndex,
+    /// A live re-apply changed the world after its loaded state was taken
+    /// ([`crate::world::World::reset_to_loaded`] takes it again first).
+    pub loaded_stale: bool,
 }
 
 impl Applied {
@@ -56,6 +59,19 @@ impl Applied {
     pub fn placement_of_add(&self, folder: &str, id: &str) -> Option<usize> {
         self.added.iter().find(|(_, (f, a))| f == folder && a == id).map(|(i, _)| *i)
     }
+}
+
+/// A run with Studio's link (`--studio-link`): its worlds keep their
+/// original placements beside the modded state ([`crate::world::World::reapply_map_mod`]),
+/// so an edit from Studio can be applied in place. Off: the world is made as ever.
+pub static LIVE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+pub fn set_live(on: bool) {
+    LIVE.store(on, std::sync::atomic::Ordering::Relaxed);
+}
+
+pub fn live() -> bool {
+    LIVE.load(std::sync::atomic::Ordering::Relaxed)
 }
 
 pub static EDITOR: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
@@ -205,7 +221,12 @@ pub fn texture_roots(car: bool) -> Vec<std::path::PathBuf> {
 pub fn load_world(root: &std::path::Path, region: &str) -> anyhow::Result<crate::world::World> {
     let mut world = crate::world::World::load(root, region)?;
     let mods = active();
-    if !mods.is_empty() {
+    if live() && let [(folder, map)] = &mods[..] {
+        // Studio's link: the same world, made so that its original data
+        // stays at hand for the next edit.
+        world.reapply_map_mod(region, folder, map);
+        world.retake_loaded();
+    } else if !mods.is_empty() {
         world.apply_map_mods(region, &mods);
     }
     Ok(world)

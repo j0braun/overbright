@@ -1213,7 +1213,7 @@ pub(crate) fn map_race_event(career: &career::CareerData, race: &nfsu2::tools::m
 }
 
 #[cfg(test)]
-mod map_test_tests {
+pub(crate) mod map_test_tests {
     use crate::*;
     use nfsu2::tools::map::{CustomRace, MapMod, RaceKind, store};
 
@@ -1222,7 +1222,7 @@ mod map_test_tests {
     /// is the test thread's sandbox (`test_isolation`, only with
     /// `dev-harness`): without it these tests would write into the
     /// player's maps folder, so they are ignored then.
-    fn sprint_mod(game: &Game, folder: &str) -> (CustomRace, career::Route) {
+    pub(crate) fn sprint_mod(game: &Game, folder: &str) -> (CustomRace, career::Route) {
         let event = game
             .game_data
             .career

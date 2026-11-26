@@ -939,6 +939,12 @@ pub enum Dialog {
     SaveView {
         name: String,
     },
+    /// Race ▸ Test car and clock…: `car` empty is the game's own, `clock` empty the load's own.
+    TestFocus {
+        car: String,
+        clock: String,
+        error: String,
+    },
 }
 
 /// What waits on the unsaved-changes question.
@@ -1545,6 +1551,16 @@ impl App {
                 }
             }
             A::GoTo => self.dialog = Some(Dialog::GoTo { query: String::new(), error: String::new() }),
+            A::TestFocus => {
+                if let Some(s) = self.state.as_ref() {
+                    let f = &s.run_focus;
+                    self.dialog = Some(Dialog::TestFocus {
+                        car: f.car.clone().unwrap_or_default(),
+                        clock: f.clock.map(|c| c.to_string()).unwrap_or_default(),
+                        error: String::new(),
+                    });
+                }
+            }
             A::HideSelected => {
                 if let Some(s) = self.state.as_mut() {
                     super::views::hide_selected(s);
@@ -2184,6 +2200,37 @@ impl App {
                             let n = name.clone();
                             then = Some(Box::new(move |app: &mut App| app.save_view(&n)));
                             keep = false;
+                        }
+                        if ui.button(words::CANCEL).clicked() {
+                            keep = false;
+                        }
+                    });
+                }
+                Dialog::TestFocus { car, clock, error } => {
+                    ui.label(theme::title("Test car and clock"));
+                    ui.label("The car a test run drives (a car's name in the game, like 240SX; empty: the save's or the first Quick Race car):");
+                    ui.text_edit_singleline(car);
+                    ui.label("The world clock it starts at, in seconds (1 to 3600; sets the time of day and weather; empty: a new load's):");
+                    ui.text_edit_singleline(clock);
+                    if !error.is_empty() {
+                        ui.colored_label(theme::error(), error.as_str());
+                    }
+                    ui.horizontal(|ui| {
+                        if ui.add(theme::main_action(words::OK)).clicked() || ui.input(|i| i.key_pressed(egui::Key::Enter)) {
+                            match parse_focus(car, clock) {
+                                Ok(f) => {
+                                    if let Some(s) = self.state.as_mut() {
+                                        s.status = if f.is_empty() {
+                                            "Test runs start with the game's own car and clock".into()
+                                        } else {
+                                            format!("Test runs start with{}; an open game starts over with the next change", f.words())
+                                        };
+                                        s.run_focus = f;
+                                    }
+                                    keep = false;
+                                }
+                                Err(e) => *error = e,
+                            }
                         }
                         if ui.button(words::CANCEL).clicked() {
                             keep = false;
@@ -3330,4 +3377,20 @@ mod tests {
         a.export_pack(&to, false);
         assert!(to.is_file(), "the pack file is written");
     }
+}
+
+/// The test focus the Race ▸ Test car and clock dialog's two fields name (each empty: the game's own).
+pub fn parse_focus(car: &str, clock: &str) -> Result<crate::tools::map::link::Focus, String> {
+    let (car, clock) = (car.trim(), clock.trim());
+    let f = crate::tools::map::link::Focus {
+        car: (!car.is_empty()).then(|| car.to_string()),
+        clock: if clock.is_empty() { None } else { Some(clock.parse::<f32>().map_err(|_| format!("`{clock}` is not a number of seconds"))?) },
+    };
+    if !f.car.as_deref().is_none_or(crate::tools::map::link::valid_car) {
+        return Err("A car name has letters, digits, - and _ only (like 240SX)".into());
+    }
+    if !f.valid() {
+        return Err(format!("The clock is 1 to {} seconds", crate::tools::map::link::MAX_CLOCK));
+    }
+    Ok(f)
 }

@@ -114,6 +114,7 @@ fn action(a: &Action) -> Cli {
         Action::Goal(_) | Action::GoTo | Action::SaveView | Action::RecallView(_) | Action::DeleteView(_) => {
             WindowOnly(VIEWING)
         }
+        Action::TestFocus => WindowOnly("picks the car and world clock the window's next test game starts with; a command has no game window"),
         Action::HideSelected | Action::IsolateSelected | Action::ShowAll | Action::ModOnly => WindowOnly(
             "hides or isolates props in the window's view only, never in the mod; a script reads and writes the data itself",
         ),

@@ -255,6 +255,9 @@ pub(crate) struct MapTest {
     /// `--map-clock <seconds>`: the world clock the run starts at (sets the
     /// time of day and the weather as the game's cycle has them then).
     pub(crate) clock: Option<f32>,
+    /// `--map-mem-cap <MiB>`: the run stops itself (and says so over the link) when its resident memory passes this
+    /// (Linux; elsewhere not measured). Studio starts its runs with one.
+    pub(crate) mem_cap: Option<u64>,
     /// `--record <file>`: the window run writes its run file there as it is driven (`enh::sim_stream`).
     pub(crate) record: Option<std::path::PathBuf>,
     /// `--run-channels drive,hash`: the run file's opt-in channels (a simulation's or a recording's).
@@ -262,7 +265,7 @@ pub(crate) struct MapTest {
 }
 
 /// The test-run flags; each takes one value.
-pub(crate) const MAP_FLAGS: [&str; 14] = [
+pub(crate) const MAP_FLAGS: [&str; 15] = [
     "--record",
     "--run-channels",
     "--map-mod",
@@ -277,6 +280,7 @@ pub(crate) const MAP_FLAGS: [&str; 14] = [
     "--studio-link",
     "--map-car",
     "--map-clock",
+    "--map-mem-cap",
 ];
 
 /// `--language <name>`: the text language for this run (the file
@@ -402,6 +406,11 @@ impl MapTest {
                         twice(t.clock.is_some())?;
                         let n = v.parse::<f32>().ok().filter(|n| nfsu2::tools::map::link::Focus { car: None, clock: Some(*n) }.valid());
                         t.clock = Some(n.ok_or_else(|| format!("--map-clock: `{v}` is not 1..{} seconds", nfsu2::tools::map::link::MAX_CLOCK))?);
+                    }
+                    "--map-mem-cap" => {
+                        twice(t.mem_cap.is_some())?;
+                        let n = v.parse::<u64>().ok().filter(|n| (256..=1_048_576).contains(n));
+                        t.mem_cap = Some(n.ok_or_else(|| format!("--map-mem-cap: `{v}` is not 256..1048576 MiB"))?);
                     }
                     "--record" => {
                         twice(t.record.is_some())?;
@@ -649,7 +658,7 @@ impl ApplicationHandler for TestLoop<'_> {
 /// Run the event loop for a test run; the result line written at its end
 /// (also when the window was closed).
 fn run_test_loop(event_loop: EventLoop<()>, game: &mut Game, t: &MapTest) -> Result<()> {
-    let link = t.link.clone().map(super::studio_link::Link::new);
+    let link = t.link.clone().map(|d| super::studio_link::Link::new(d).with_cap(t.mem_cap));
     let mut h = TestLoop { game, watch: EndWatch::new(t), test: t.clone(), link, result: t.result.clone(), clock: std::time::Instant::now() };
     let r = event_loop.run_app(&mut h);
     h.game.end_recording("quit");
@@ -687,6 +696,17 @@ mod map_test_tests {
             assert!(MapTest::parse(&args(bad)).is_err(), "{bad:?}");
         }
         assert_eq!(MapTest::strip(&args(&["--record", "f", "--run-channels", "drive", "--no-boot"])), args(&["--no-boot"]));
+    }
+
+    #[test]
+    fn the_memory_cap_flag_takes_mebibytes() {
+        let t = MapTest::parse(&args(&["--map-mod", "m", "--map-at", "1,2,3,4", "--map-mem-cap", "8192"])).unwrap().unwrap();
+        assert_eq!(t.mem_cap, Some(8192));
+        assert_eq!(MapTest::parse(&args(&["--map-mod", "m", "--map-at", "1,2,3,4"])).unwrap().unwrap().mem_cap, None, "opt-in");
+        for bad in ["0", "255", "x", "2000000"] {
+            assert!(MapTest::parse(&args(&["--map-mod", "m", "--map-at", "1,2,3,4", "--map-mem-cap", bad])).is_err(), "{bad}");
+        }
+        assert_eq!(MapTest::strip(&args(&["--map-mem-cap", "8192", "--no-boot"])), args(&["--no-boot"]));
     }
 
     #[test]

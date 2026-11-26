@@ -21,14 +21,55 @@ pub(crate) struct Link {
     note: String,
     /// Turns of the loop so far (the state file says them).
     turns: u64,
+    /// The mod as the world was last made with it (an edit is applied in
+    /// place against it).
+    known: Option<nfsu2::tools::map::MapMod>,
+    /// What the last command did, one line (the state file says it).
+    done: String,
+    /// `--map-mem-cap`: the resident memory (bytes) at which the run stops itself, and when it looked last.
+    cap: Option<(u64, std::time::Instant)>,
+}
+
+/// The process's resident memory in bytes (Linux; None elsewhere).
+fn resident_bytes() -> Option<u64> {
+    let t = std::fs::read_to_string("/proc/self/status").ok()?;
+    let kb = t.lines().find_map(|l| l.strip_prefix("VmRSS:"))?.split_whitespace().next()?.parse::<u64>().ok()?;
+    Some(kb * 1024)
+}
+
+/// The one mod this run applies, as the game has it now.
+fn current_mod() -> Option<(String, nfsu2::tools::map::MapMod)> {
+    nfsu2::tools::map::active().first().cloned()
 }
 
 impl Link {
     pub(crate) fn new(dir: std::path::PathBuf) -> Link {
         log::info!("map test: Studio link {}", dir.display());
-        let mut l = Link { dir, seen: 0, polled: std::time::Instant::now(), beat: std::time::Instant::now(), ok: true, note: String::new(), turns: 0 };
+        let mut l = Link { dir, seen: 0, polled: std::time::Instant::now(), beat: std::time::Instant::now(), ok: true, note: String::new(), turns: 0, known: current_mod().map(|m| m.1), done: String::new(), cap: None };
         l.write();
         l
+    }
+
+    /// Stop the run when its memory passes `mb` MiB (`--map-mem-cap`).
+    pub(crate) fn with_cap(mut self, mb: Option<u64>) -> Link {
+        self.cap = mb.map(|m| (m << 20, std::time::Instant::now()));
+        self
+    }
+
+    /// Whether the run is over its memory cap (looked at about once a second); says so over the link when it is.
+    fn over_cap(&mut self) -> bool {
+        let Some((cap, at)) = self.cap.as_mut() else { return false };
+        if at.elapsed() < std::time::Duration::from_secs(1) {
+            return false;
+        }
+        *at = std::time::Instant::now();
+        let cap = *cap;
+        let Some(used) = resident_bytes().filter(|&u| u > cap) else { return false };
+        let note = format!("the game stopped: it used {} MiB, over the cap of {} MiB", used >> 20, cap >> 20);
+        log::error!("Studio link: {note}");
+        (self.ok, self.note) = (false, note);
+        self.write();
+        true
     }
 
     fn write(&mut self) {
@@ -42,6 +83,9 @@ impl Link {
     /// One look between two frames. True: Studio asked the run to end.
     pub(crate) fn poll(&mut self, game: &mut Game, test: &mut super::cli::MapTest, watch: &mut super::cli::EndWatch) -> bool {
         self.turns += 1;
+        if self.over_cap() {
+            return true;
+        }
         let Some(c) = self.next() else { return false };
         match c.op {
             Op::Probe | Op::Stop => {
@@ -51,10 +95,13 @@ impl Link {
             }
             Op::Apply | Op::Restart => {}
         }
-        let r = apply(game, test, &c);
-        self.finish(r, c.seq);
+        let r = apply(game, test, &c, &mut self.known, &mut self.done);
+        let restarted = r == Ok(true);
+        self.finish(r.map(|_| ()), c.seq);
         // The run began again: the end watch starts over with it.
-        *watch = super::cli::EndWatch::new(test);
+        if restarted {
+            *watch = super::cli::EndWatch::new(test);
+        }
         false
     }
 
@@ -62,6 +109,9 @@ impl Link {
     /// there is no window to start over. True: end the run.
     pub(crate) fn poll_headless(&mut self) -> bool {
         self.turns += 1;
+        if self.over_cap() {
+            return true;
+        }
         let Some(c) = self.next() else { return false };
         let r = match c.op {
             Op::Probe | Op::Stop => Ok(()),
@@ -88,7 +138,7 @@ impl Link {
     fn finish(&mut self, r: Result<(), String>, seq: u64) {
         self.seen = seq;
         match r {
-            Ok(()) => (self.ok, self.note) = (true, String::new()),
+            Ok(()) => (self.ok, self.note) = (true, std::mem::take(&mut self.done)),
             Err(e) => {
                 log::warn!("Studio link: command {seq} not done: {e}");
                 (self.ok, self.note) = (false, e);
@@ -101,7 +151,34 @@ impl Link {
 /// Do `c` (an apply or restart): the aim it names (else the run's own), the mod read again for
 /// `Apply` (free roam then goes on from where the car is), the run started
 /// over. The run's aim changes only when it started.
-fn apply(game: &mut Game, test: &mut super::cli::MapTest, c: &link::Command) -> Result<(), String> {
+fn apply(
+    game: &mut Game,
+    test: &mut super::cli::MapTest,
+    c: &link::Command,
+    known: &mut Option<nfsu2::tools::map::MapMod>,
+    done: &mut String,
+) -> Result<bool, String> {
+    // An edit alone (no new aim, no new car or clock) goes into the running
+    // world; what cannot goes the way of a restart, and says why.
+    let mut why = None;
+    if c.op == Op::Apply && c.aim.is_none() && c.focus.is_none() {
+        if let Some(o) = nfsu2::tools::map::only() {
+            nfsu2::tools::map::store::read_file(&o.path(&nfsu2::tools::map::store::maps_dir()))
+                .map_err(|e| format!("the mod: {e:#}"))?;
+        }
+        nfsu2::tools::map::reload_active();
+        match (known.as_ref(), current_mod()) {
+            (Some(old), Some((folder, new))) => match game.apply_map_live(old, &new, &folder) {
+                Ok(what) => {
+                    *known = Some(new);
+                    *done = what.to_string();
+                    return Ok(false);
+                }
+                Err(e) => why = Some(e),
+            },
+            _ => why = Some("no mod known to the run".into()),
+        }
+    }
     let mut t = test.clone();
     if let Some(f) = &c.focus {
         if !f.valid() {
@@ -142,7 +219,9 @@ fn apply(game: &mut Game, test: &mut super::cli::MapTest, c: &link::Command) -> 
     game.end_recording("restart");
     game.restart_map_test(&t).map_err(|e| format!("{e:#}"))?;
     *test = t;
-    Ok(())
+    *known = current_mod().map(|m| m.1);
+    *done = why.map_or_else(|| "reloaded".to_string(), |w| format!("reloaded: {w}"));
+    Ok(true)
 }
 
 #[cfg(test)]
@@ -153,6 +232,26 @@ mod tests {
     fn send(dir: &std::path::Path, seq: u64, op: Op) {
         link::write_command(dir, &Command { seq, op, aim: None, focus: None }).unwrap();
         std::thread::sleep(POLL + std::time::Duration::from_millis(20));
+    }
+
+    /// A run over its memory cap says so over the link and ends; under it (or with no cap) it goes on.
+    #[test]
+    fn a_run_over_its_memory_cap_stops_and_says_so() {
+        let d = std::env::temp_dir().join(format!("ob-link-cap-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&d);
+        let mut l = Link::new(d.clone()).with_cap(Some(1_000_000));
+        l.cap.as_mut().unwrap().1 -= std::time::Duration::from_secs(2);
+        assert!(!l.poll_headless(), "far under a cap of a million MiB");
+        let mut l = Link::new(d.clone()).with_cap(Some(1));
+        l.cap.as_mut().unwrap().1 -= std::time::Duration::from_secs(2);
+        if resident_bytes().is_some() {
+            assert!(l.poll_headless(), "over a 1 MiB cap");
+            let g = link::read_state(&d).unwrap();
+            assert!(!g.ok && g.note.contains("cap"), "{g:?}");
+        }
+        let mut l = Link::new(d.clone());
+        assert!(!l.poll_headless(), "no cap, no stop");
+        let _ = std::fs::remove_dir_all(&d);
     }
 
     /// A headless run answers a probe at once, says it cannot start over,
