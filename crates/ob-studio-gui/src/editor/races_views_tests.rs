@@ -79,7 +79,6 @@ fn editor(s: &Scratch, view: &str) -> App {
         st.session.world.road_height_below(Vec3::new(100.0, 0.0, 100.0)).is_some_and(|z| (z - FLOOR_Z).abs() < 0.01)
     );
     match view {
-        "map" => st.view = View::Map,
         "top" => {
             let st = a.state.as_mut().unwrap();
             a.panels.viewport.set_look(st, "top");
@@ -102,12 +101,6 @@ fn frame(a: &mut App, events: Vec<Event>) {
 
 /// World x/y on screen as the view last drew it.
 fn screen(a: &App, p: Vec2) -> Pos2 {
-    let st = a.state.as_ref().unwrap();
-    if st.view == View::Map {
-        let (centre, scale, rect) = crate::editor::sim::panel::map_transform(&a.ctx).expect("the map drew");
-        let c = rect.center();
-        return Pos2::new(c.x + (p.x - centre.x) * scale, c.y - (p.y - centre.y) * scale);
-    }
     let (top, rect) = crate::editor::viewport::top_view(&a.ctx).expect("the overview drew");
     let m = top.metres_per_point(rect);
     let c = rect.center();
@@ -157,9 +150,9 @@ fn undo_label(a: &App) -> Option<&str> {
 fn place_and_drag(view: &str) {
     let s = Scratch::new(&format!("editor-race-points-{view}"));
     let mut a = editor(&s, view);
-    let snap_m = match view {
+    let snap_m = {
         // The overview opens on the region: zoom in on the road first.
-        "top" => {
+        {
             let at = screen(&a, Vec2::new(200.0, 0.0));
             for _ in 0..40 {
                 let (top, rect) = crate::editor::viewport::top_view(&a.ctx).unwrap();
@@ -183,7 +176,6 @@ fn place_and_drag(view: &str) {
             let (top, rect) = crate::editor::viewport::top_view(&a.ctx).unwrap();
             top.metres_per_point(rect)
         }
-        _ => 1.0 / crate::editor::sim::panel::map_transform(&a.ctx).unwrap().1,
     };
     assert!(snap_m < 2.0, "{view}: {snap_m} m per point");
     let before = race(&a).clone();
@@ -231,7 +223,6 @@ fn place_and_drag(view: &str) {
 
     // A drag of the start moves it along the road (snapped, the road's height): one step.
     let shown = |a: &App| match view {
-        "map" => crate::editor::sim::panel::map_transform(&a.ctx).unwrap().0,
         _ => crate::editor::viewport::top_view(&a.ctx).unwrap().0.centre,
     };
     let centre = shown(&a);
@@ -272,20 +263,15 @@ fn place_and_drag(view: &str) {
 }
 
 #[test]
-fn race_points_are_placed_and_dragged_on_the_map() {
-    place_and_drag("map");
-}
-
-#[test]
 fn race_points_are_placed_and_dragged_in_top() {
     place_and_drag("top");
 }
 
-/// A drag on the Map that does not start on a race point still pans.
+/// A drag in the overview that does not start on a race point still pans.
 #[test]
-fn a_map_drag_off_the_points_pans() {
+fn an_overview_drag_off_the_points_pans() {
     let s = Scratch::new("editor-race-points-pan");
-    let mut a = editor(&s, "map");
+    let mut a = editor(&s, "top");
     frame(&mut a, key(egui::Key::C).to_vec());
     let before = crate::editor::sim::panel::map_transform(&a.ctx).unwrap().0;
     // Off the road and its points: 60 points above the map's middle (the road runs through it).
@@ -391,12 +377,8 @@ fn draw_and_pick(view: &str) {
     let original = collision_of(&a);
     let none = egui::Modifiers::NONE;
     let tol = |a: &App, m: f32| {
-        m * if view == "map" {
-            1.0 / crate::editor::sim::panel::map_transform(&a.ctx).unwrap().1
-        } else {
-            let (t, r) = crate::editor::viewport::top_view(&a.ctx).unwrap();
-            t.metres_per_point(r)
-        }
+        let (t, r) = crate::editor::viewport::top_view(&a.ctx).unwrap();
+        m * t.metres_per_point(r)
     };
 
     // Two clicks make a wall: x/y from the mouse, the floor's height.
@@ -419,7 +401,7 @@ fn draw_and_pick(view: &str) {
     // Same collision as the wall run as the op the 3D view runs.
     {
         let s2 = Scratch::new(&format!("editor-collision-draw-{view}-3d"));
-        let mut b = editor(&s2, "map");
+        let mut b = editor(&s2, "top");
         let st = b.state.as_mut().unwrap();
         let op = crate::tools::map::ops::Op::DrawWall {
             from,
@@ -476,11 +458,6 @@ fn draw_and_pick(view: &str) {
     let g = g.expect("a drawn ground");
     assert_eq!(g.len(), 3, "{view}");
     assert!(g.iter().all(|p| (p.z - FLOOR_Z).abs() < 0.05), "{view}: {g:?}");
-}
-
-#[test]
-fn walls_and_ground_are_drawn_snapped_and_picked_on_the_map() {
-    draw_and_pick("map");
 }
 
 #[test]

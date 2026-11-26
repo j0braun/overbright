@@ -105,11 +105,11 @@ impl Workspace {
         match self {
             Workspace::Home => Section::Top,
             Workspace::World
-                | Workspace::Races
-                | Workspace::Browser
-                | Workspace::Runs
-                | Workspace::Changes
-                | Workspace::Data => Section::Make,
+            | Workspace::Races
+            | Workspace::Browser
+            | Workspace::Runs
+            | Workspace::Changes
+            | Workspace::Data => Section::Make,
             Workspace::Mod => Section::Share,
             Workspace::Settings => Section::Bottom,
         }

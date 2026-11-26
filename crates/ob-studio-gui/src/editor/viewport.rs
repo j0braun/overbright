@@ -1,7 +1,7 @@
 //! The 3D viewport: the world drawn by the game's own [`WorldRenderer`] into
 //! an off-screen target that egui shows as an image, the fly camera, mouse
-//! picking, the selection outline, and the 2D map view (M) in the same
-//! place.
+//! picking, the selection outline, and the top view's road layer.
+
 //!
 //! Two calls a frame, both from the shell:
 //! 1. [`Panel::ui`] inside the egui pass, after the shell's overlays (the
@@ -50,10 +50,10 @@ use glam::{Vec2, Vec3};
 
 use super::app::{self, Gfx};
 use super::camera::{self as cam, FlyCam, FlyInput, TopView};
-use super::mapview::MapView;
 use super::menu::{self, Command};
 use super::overlay::{Overlay, colour};
-use super::state::{EditorState, Mode, Panel, View};
+use super::roads::RoadLayer;
+use super::state::{EditorState, Mode, Panel};
 use crate::render::{FrameParams, Gpu, RenderOptions, WorldRenderer, create_depth};
 use crate::world::{HIDDEN_FLAG, World};
 
@@ -237,8 +237,8 @@ struct Target {
 /// The viewport panel.
 pub struct Viewport {
     pub fly: FlyCam,
-    /// The 2D map view (shown when the state's view is [`View::Map`]).
-    pub map: MapView,
+    /// The road network drawn over the top view.
+    pub roads: RoadLayer,
     /// The rectangle the image took this frame (screen points).
     pub rect: Rect,
     /// The placement under the mouse (Props mode, not while flying).
@@ -319,7 +319,7 @@ impl Viewport {
     pub fn new() -> Viewport {
         Viewport {
             fly: FlyCam::default(),
-            map: MapView::default(),
+            roads: RoadLayer::default(),
             rect: Rect::NOTHING,
             hover: None,
             click: None,
@@ -563,14 +563,16 @@ impl Viewport {
         self.redraw = true;
     }
 
-    /// The panel: the map view or the 3D image, with `draw` called to add
+    /// The panel: the 3D image or the overview, with `draw` called to add
     /// the other panels' overlays (route, checkpoints, gizmo) on top.
     pub fn show(&mut self, s: &mut EditorState, ui: &mut egui::Ui, draw: impl FnOnce(&mut EditorState, &Overlay)) {
         self.click = None;
-        if s.view == View::Map {
-            self.flying = false;
-            self.map.show(s, ui);
-            return;
+        // A finding shown from the Simulate tab: the overview centres on it and stays.
+        if let Some(at) = crate::editor::sim::panel::take_map_centre(ui.ctx())
+            && self.persp.is_some()
+        {
+            self.top.centre = at;
+            s.camera = self.top.camera();
         }
         // Someone else moved the camera while the overview showed (a
         // "Show" in a list, Reset camera): back to 3D at that place.
@@ -619,7 +621,9 @@ impl Viewport {
         let camera = s.camera;
         let overlay = Overlay::new(&painter, &camera, rect);
         if self.look == Look::Top {
+            self.roads.paint(s, &painter, &self.top, rect);
             self.top_marks(s, &overlay);
+            self.top_camera(s, &painter, rect, response.hover_pos());
         }
         if let Some(h) = self.hover.filter(|h| !s.selection.contains(&h.placement))
             && let Some((t, lo, hi)) = super::overlay::placement_box(&s.session.world, h.placement)
@@ -672,6 +676,11 @@ impl Viewport {
             ui.ctx().request_repaint_after(at.saturating_duration_since(Instant::now()));
         }
         publish_top(ui.ctx(), self.persp.is_some().then_some((self.top, rect)));
+        // The overview is the plan the overlays draw on (cars as arrows).
+        crate::editor::sim::panel::publish_map(
+            ui.ctx(),
+            self.persp.is_some().then(|| (self.top.centre, 1.0 / self.top.metres_per_point(rect), rect)),
+        );
     }
 
     fn input(&mut self, s: &mut EditorState, ui: &egui::Ui, response: &egui::Response) {
@@ -831,6 +840,14 @@ impl Viewport {
     /// The overview's marks: the mod's moved and added props (lime). The
     /// races are drawn by Races mode's own overlay, only in that mode.
     fn top_marks(&self, s: &EditorState, o: &Overlay) {
+        // The selection, as the old map drew it.
+        for &i in &s.selection {
+            if let Some(p) = s.session.world.placements.get(i)
+                && let Some(q) = o.at(p.transform.w_axis.truncate())
+            {
+                o.painter.circle_stroke(q, 5.0, egui::Stroke::new(2.0, colour::SELECT));
+            }
+        }
         let base = &s.session.base.placements;
         for (i, p) in s.session.world.placements.iter().enumerate() {
             let changed = match base.get(i) {
@@ -847,6 +864,41 @@ impl Viewport {
                 o.painter.circle(q, 4.0, colour::SHADOW, egui::Stroke::new(2.0, ring));
             }
         }
+    }
+
+    /// The 3D camera over the overview: where it will come back to, as an arrow along its heading, and the x, y
+    /// under the pointer.
+    fn top_camera(&self, s: &EditorState, painter: &egui::Painter, rect: Rect, hover: Option<Pos2>) {
+        if let Some(cam) = self.persp {
+            let (m, c) = (self.top.metres_per_point(rect), rect.center());
+            let p = Pos2::new(
+                c.x + (cam.position.x - self.top.centre.x) / m,
+                c.y - (cam.position.y - self.top.centre.y) / m,
+            );
+            let f = cam.forward();
+            let dir = Vec2::new(f.x, f.y).normalize_or(Vec2::Y);
+            let d = EVec2::new(dir.x, -dir.y);
+            let side = EVec2::new(-d.y, d.x);
+            let tip = p + d * 14.0;
+            let pts = vec![tip, p - d * 6.0 + side * 7.0, p - d * 6.0 - side * 7.0];
+            if rect.contains(p) {
+                painter.add(egui::Shape::convex_polygon(
+                    pts,
+                    colour::SELECT,
+                    egui::Stroke::new(1.5, egui::Color32::BLACK),
+                ));
+            }
+        }
+        if let Some(at) = hover.filter(|a| rect.contains(*a)) {
+            let p = self.top.to_world(rect, at);
+            super::overlay::label2d(
+                painter,
+                rect.left_bottom() + EVec2::new(70.0, -14.0),
+                &format!("{:.0}, {:.0}", p.x, p.y),
+                colour::DIM,
+            );
+        }
+        let _ = s;
     }
 
     /// The look buttons at the image's top right: Auto, Street, Whole map,
@@ -974,7 +1026,9 @@ impl Viewport {
             self.applied_gen = u64::MAX;
         }
         // The view's hide / isolate / this-mod-only filter: only the placements whose state changed.
-        if self.applied_gen != s.filter.generation || (self.applied_gen == u64::MAX && (s.filter.active() || !self.applied.is_empty())) {
+        if self.applied_gen != s.filter.generation
+            || (self.applied_gen == u64::MAX && (s.filter.active() || !self.applied.is_empty()))
+        {
             let want = super::views::hidden_set(s);
             for &i in want.symmetric_difference(&self.applied) {
                 if let Some(p) = s.session.world.placements.get(i) {
@@ -1220,8 +1274,11 @@ pub fn top_view(ctx: &egui::Context) -> Option<(TopView, Rect)> {
     ctx.data(|d| d.get_temp::<Option<(TopView, Rect)>>(top_id()).flatten())
 }
 
+/// One wheel notch zooms the overview by this.
+const ZOOM_STEP: f32 = 1.2;
+
 fn mapview_zoom(scroll: f32) -> f32 {
-    super::mapview::ZOOM_STEP.powf(scroll / 50.0)
+    ZOOM_STEP.powf(scroll / 50.0)
 }
 
 /// What a draw depends on in the camera.

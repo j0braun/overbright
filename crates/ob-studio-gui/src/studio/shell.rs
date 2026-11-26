@@ -14,6 +14,7 @@ use crate::editor::theme::{self, SEMI, TITLE, font, rgb, tokens};
 use super::address::{Address, CRUMB, Places, STUDIO, Target};
 use super::browser;
 use super::changes::{self, Ask};
+use super::data;
 use super::draw::{self, Card, Source};
 use super::focus::{self, Spot, Spots};
 use super::guide::{self, Guide};
@@ -23,7 +24,6 @@ use super::layout::{self, Dock, Layout, Memory, Want};
 use super::memory::Memories;
 use super::mod_page::{self, Act};
 use super::nav::{self, Area, Command, KEYS, Level, Nav, Pad};
-use super::data;
 use super::new_mod;
 use super::words;
 use super::workspace::{Kind, Section, Workspace};
@@ -890,9 +890,14 @@ impl Studio {
                     self.editor.as_mut().and_then(|h| h.app.state.as_mut()).filter(|s| s.session.folder == folder);
                 let r = match hosted {
                     Some(st) => {
-                        let changed = mod_page::apply(&mut st.session.map, line, &text);
+                        let mut edited = st.session.map.clone();
+                        let changed = mod_page::apply(&mut edited, line, &text);
                         if changed {
-                            crate::editor::commit(st, words::MOD_DETAILS);
+                            let (name, author, description) = (edited.name, edited.author, edited.description);
+                            let _ = crate::editor::undo::run(
+                                st,
+                                crate::tools::map::ops::Op::Details { name, author, description },
+                            );
                         }
                         let saved = self.editor.as_mut().map_or(Ok(()), |h| h.app.save());
                         saved.map(|()| changed)
@@ -1124,8 +1129,10 @@ impl Studio {
                 if (rows || data_rows)
                     && !modifiers.command
                     && !modifiers.alt
-                    && (matches!(key, egui::Key::ArrowUp | egui::Key::ArrowDown | egui::Key::Enter | egui::Key::Tab)
-                        || (data_rows && matches!(key, egui::Key::ArrowLeft | egui::Key::ArrowRight))) =>
+                    && (matches!(
+                        key,
+                        egui::Key::ArrowUp | egui::Key::ArrowDown | egui::Key::Enter | egui::Key::Tab
+                    ) || (data_rows && matches!(key, egui::Key::ArrowLeft | egui::Key::ArrowRight))) =>
             {
                 row_keys.push((*key, modifiers.shift));
                 false
@@ -2794,6 +2801,7 @@ impl Studio {
                 FindItem::Mod(i) => self.mods.get(*i).map_or(String::new(), |m| m.name.clone()),
                 FindItem::Run(c) => KEYS.iter().find(|k| k.command == *c).map_or("", |k| k.word).to_string(),
                 FindItem::Place(n) => self.places.back_list().nth(n - 1).map_or(String::new(), |a| self.place_name(a)),
+                FindItem::Hood(i) => self.hoods().get(*i).map_or(String::new(), |p| p.name.clone()),
             })
             .collect();
         let keys: Vec<String> = items
@@ -2808,7 +2816,7 @@ impl Studio {
                     }
                 }
                 FindItem::Run(c) => KEYS.iter().find(|k| k.command == *c).map_or("", |k| k.keys).to_string(),
-                FindItem::Place(_) => String::new(),
+                FindItem::Place(_) | FindItem::Hood(_) => String::new(),
             })
             .collect();
         let mut run = None;
@@ -2826,6 +2834,7 @@ impl Studio {
                             FindItem::Mod(_) => words::FIND_MODS,
                             FindItem::Run(_) => words::FIND_COMMANDS,
                             FindItem::Place(_) => words::PLACES_YOU_WERE,
+                            FindItem::Hood(_) => words::FIND_PLACES,
                         };
                         if head != Some(h) {
                             head = Some(h);

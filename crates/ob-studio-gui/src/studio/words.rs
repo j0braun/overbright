@@ -47,6 +47,7 @@ pub const FIND_GO_TO: &str = "GO TO";
 pub const FIND_COMMANDS: &str = "COMMANDS";
 pub const FIND_MODS: &str = "YOUR MODS";
 pub const PLACES_YOU_WERE: &str = "PLACES YOU WERE";
+pub const FIND_PLACES: &str = "PLACES";
 pub const NO_STEPS: &str = "No steps yet";
 pub const NO_MODS_YET: &str = "No mods yet";
 pub const ONLY_THIS_WINDOW: &str = "Changes · only this window writes it";
@@ -106,7 +107,7 @@ pub const SAMPLE_LINE: &str = "Three races with start gates and signs";
 pub const STARTS_WITH: &str = "Starts with";
 
 /// Every word above.
-pub const ALL: [&str; 84] = [
+pub const ALL: [&str; 85] = [
     RACE_TUTORIAL_ROW,
     RACE_TUTORIAL_ROW_LINE,
     OPEN_SAMPLE,
@@ -155,6 +156,7 @@ pub const ALL: [&str; 84] = [
     FIND_COMMANDS,
     FIND_MODS,
     PLACES_YOU_WERE,
+    FIND_PLACES,
     NO_STEPS,
     NO_MODS_YET,
     ONLY_THIS_WINDOW,

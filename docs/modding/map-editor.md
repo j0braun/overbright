@@ -56,7 +56,10 @@ There are no modes: one tree, one toolbar, and the tools follow what is selected
   race…**), then **Props** (the moved, deleted and added props; each with **Reset to original** and **Delete**).
   A click on a row selects it. Below 1400 points of window width the tree starts folded to a narrow rail that
   names its three parts; a click on the rail opens it, the button at the tree's top folds it again.
-- **Centre: the view.** The 3D view, drawn by the game's own renderer, or the 2D road-network **Map** (M). The
+- **Centre: the view.** The 3D view, drawn by the game's own renderer, or the top-down overview (T) with the road
+  network (**View ▸ Roads**, on by default: the drivable sections' outlines, the roads a race's base track allows (bright, the
+  rest dim),
+  the closed race barriers in red, the camera as an arrow, the pointer's x, y; a double-click flies to the place). The
   selection and its handles are drawn on top, and in both views the races: the selected race bright with its
   start and finish lines, grid and checkpoints, the others' routes dim. The buttons at the view's top right pick
   the look: **Auto** (street near the ground, whole map from above), **Street** (what the game draws on the
@@ -67,9 +70,9 @@ There are no modes: one tree, one toolbar, and the tools follow what is selected
   measures the picture's average brightness, raises the darks by up to 32 times along a curve that keeps white
   white and each colour's hue, and lifts black slightly. The game, its renderer and its options are not changed.
 - **Hint line** (under the view): the tool in force, what a click does with it, **Esc** back to Select while a
-  race tool is armed, and how to fly. **hide** at its right; **View ▸ Hint line** shows it again.
+  race tool is armed, and how to fly (over the top view: right-drag pans, the wheel zooms, Home fits, a double-click flies there). **hide** at its right; **View ▸ Hint line** shows it again.
 - **Right: Properties** of the selection (below). Its button folds it to a rail.
-- **Bottom tabs**: **Prop browser**, **Validation**, **Simulate** and **Log**. The button at the right of the
+- **Bottom tabs**: **Prop browser**, **Race**, **Validation**, **Simulate** and **Log**. The button at the right of the
   tabs folds them to the tab strip. The side and bottom panels are resized by dragging their edge; their sizes
   are kept with the mod.
 - **Menu bar**: the menus below, and the mod's name and region at the right with a dot while there are
@@ -79,14 +82,13 @@ There are no modes: one tree, one toolbar, and the tools follow what is selected
 
 ## Menus
 
-A menu item that cannot act now is greyed out and says why when hovered (Duplicate with no prop selected,
-Reset camera in the map view). Every item does something; a test checks that each one has a taker.
+A menu item that cannot act now is greyed out and says why when hovered (Duplicate with no prop selected). Every item does something; a test checks that each one has a taker.
 
 | Menu | Items |
 |---|---|
 | File | **File ▸ New map mod…** (Ctrl+N: a name, its folder and the region), **File ▸ Open map mod…** (Ctrl+O), the five most recent mods, **File ▸ Save** (Ctrl+S), **File ▸ Mod details…** (name, author, description), **File ▸ Import…** (a mod folder, a `map.obmap` or a `.zip`), **File ▸ Export…** (a `.zip` or a folder: the map and the mod's textures, `looks.toml` and `textures/`, never `work/` or `.editor/`; textures from the original game's pixels are warned about first; it proposes `<folder>.zip` in the `exports` folder of Overbright's data folder, made on the first export, and the status line says where the file went), **File ▸ Export as mod pack…** (a `.obpk` file for the launcher's Mods page: the placements, races and textures as the asset format's own files; it proposes `<folder>-1.0.0.obpk` in the `exports` folder), **File ▸ Quit** (Ctrl+Q; saves first, and asks only when that fails) |
 | Edit | **Edit ▸ Undo** and **Edit ▸ Redo**, named by the step they undo or redo (256 steps), **Edit ▸ Duplicate**, **Edit ▸ Delete**, **Edit ▸ Select all of this solid**, **Edit ▸ Drop to ground**, **Edit ▸ Rotate 90°**, **Edit ▸ Face camera**, **Edit ▸ Draw wall**, **Edit ▸ Draw ground** (see Removed and drawn collision) |
-| View | **View ▸ 3D view**, **View ▸ Map** (M switches), **View ▸ Frame selection** (F), **View ▸ Reset camera** (the region's overview), **View ▸ Top view** (T), **View ▸ Isometric view**, **View ▸ Go to…**, **View ▸ Views ▸ Save view…** and the Views menu's **Delete view** submenu (see Hiding props, views and Go to), **View ▸ Collision ▸ Off**, **View ▸ Collision ▸ Invisible barriers** and **View ▸ Collision ▸ All collision** (see Collision), **View ▸ Collision ▸ Show race barriers** (only in Studio's World: the other races' barriers, off by default), **View ▸ Hide selected** (H), **View ▸ Isolate selected** (Shift+H), **View ▸ Show all** (Alt+H), **View ▸ This mod's changes only** (see Hiding props), **View ▸ Hint line** |
+| View | **View ▸ Roads** (the road network over the top view), **View ▸ Frame selection** (F), **View ▸ Reset camera** (the region's overview), **View ▸ Top view** (T), **View ▸ Isometric view**, **View ▸ Go to…**, **View ▸ Views ▸ Save view…** and the Views menu's **Delete view** submenu (see Hiding props, views and Go to), **View ▸ Collision ▸ Off**, **View ▸ Collision ▸ Invisible barriers** and **View ▸ Collision ▸ All collision** (see Collision), **View ▸ Collision ▸ Show race barriers** (only in Studio's World: the other races' barriers, off by default), **View ▸ Hide selected** (H), **View ▸ Isolate selected** (Shift+H), **View ▸ Show all** (Alt+H), **View ▸ This mod's changes only** (see Hiding props), **View ▸ Hint line** |
 | Race | **Race ▸ New race**, **Race ▸ Test race** (F5), **Race ▸ Drive here** (Shift+F5), **Race ▸ Restart race** (Ctrl+F5), **Race ▸ Drive to record** |
 | Help | **Help ▸ Controls**: every key, made from the editor's key table |
 
@@ -110,11 +112,10 @@ do nothing while a text field has the keyboard.
 | `RMB + Q / E  (F / R)` | Fly down / up |
 | `RMB + wheel` | Fly speed |
 | `Shift / Ctrl while flying` | Fast / slow |
-| `Wheel` | Dolly; in the overview and the map: zoom |
+| `Wheel` | Dolly; in the overview: zoom |
 | `F` | Frame the selection |
 | `T` | Top-down overview on / off |
-| `Home` | Fit the overview or the map to the region |
-| `M` | 3D view / Map |
+| `Home` | Fit the overview to the region |
 | `L` | Collision layer: off / invisible barriers / all collision |
 | `H` | Hide the selected props (this view only) |
 | `Shift+H` | Show only the selected props |
@@ -153,8 +154,7 @@ mod saved with props hidden is byte for byte the mod saved without.
   own; the Show all item leaves that filter alone, switch it off with its own item. Going to a hidden prop shows it
   again. An undo that removes added props forgets their hiding.
 - **Camera presets.** **Top view** (T) is the top-down overview, **Isometric view** looks at the selection, or at what
-  the camera looks at, from a corner at 45 degrees, and **Frame selection** (F) flies to the selected props. In the
-  map view the presets switch to the 3D view first.
+  the camera looks at, from a corner at 45 degrees, and **Frame selection** (F) flies to the selected props.
 - **Go to…** opens a box that takes coordinates (`x, y`, in the world's metres), a prop's name (part of the name is
   enough; with several matches the one nearest the camera is taken, and it is selected) or a race point of the
   selected race: `start`, `finish`, `checkpoint 3` or `grid 2`, counted from 1. When it finds nothing it says so
@@ -218,6 +218,12 @@ mod saved with props hidden is byte for byte the mod saved without.
 - **Properties** of a race: name, mode (circuit, sprint, street X, drift), laps, **Base track** (which race track
   lends the road network, barriers, AI lanes, traffic and opponents), **Direction** (forward or backward),
   length, status, **Delete race**; of a race point its position.
+- **Race** (bottom tab): the selected race as one strip, S · 1 · 2 · … · F, with the length of each leg's road and
+  whether a road leads through it (a leg without one is dashed red, with **Show** and its fix); a circuit ends with
+  the way back to the first checkpoint. A stop selects that point; the **+** between two checkpoints puts a new one
+  into that leg, in the middle of its road (one undo step, the same edit as `race point add --index`). Under the
+  name stands the race's badge: can't race, not tested or tested. Tab and the arrows move between the stops and the
+  buttons, Enter takes one (A on the pad).
 - **Validation** (bottom tab): every problem of every race, each with **Show** and, where one exists, a
   one-click fix (**Try base track N**, **Snap grid to road**, **Snap start to road**, **Snap finish to route**,
   **Turn start along route**, **Set laps to N**, **Rename to …**). A start line facing more than 45° off the
@@ -345,7 +351,8 @@ start (an unknown id, no route, no career event of its mode on its base track) m
 reason in its log and no result line, which the editor reports.
 
 **Drive here** (Shift+F5) does the same with `--map-at x,y,z,heading` (heading in degrees around +z from +x) in
-place of `--map-race`: free roam with only this mod, from the camera's spot on the ground. Esc ends the run
+place of `--map-race`: free roam with only this mod, from the camera's spot on the ground. While the pointer is on the **Drive here** button the view marks the spot (the car's footprint with its nose
+along the heading); the spot is moved out of the way of any prop this mod added, so the car never starts inside one. Esc ends the run
 (`drove=yes`). A spot with no floor of the game's collision under it at any height (past a road's edge) ends the
 start with "no ground at x, y" in the log, as a race that cannot be raced does; `--simulate-world` ends its stream
 with that reason, which the Simulate tab shows.
@@ -388,7 +395,7 @@ the window closes or the run is started over by the link; `--run-channels` appli
 record** starts the game this way (docs/modding/studio.md, "Runs"). Without the flag nothing is written.
 
 The editor reads the stream while it arrives and never waits for the game. A run shown has a **timeline** under
-the 3D view / Map (it reads only the recorded run, so it serves a saved one too): a track over everything recorded
+the 3D view or the top view (it reads only the recorded run, so it serves a saved one too): a track over everything recorded
 so far that a click or drag moves along (always to a recorded frame), **<** / **>** a recorded frame back / on
 (Left / Right; Shift: a second), **Play** / **Pause** (Space), the speed (0.25x to 4x), the time, and the camera:
 **Free camera** (fly it yourself), **Follow** (behind and above the car chosen beside it) or **Chase** (the game's

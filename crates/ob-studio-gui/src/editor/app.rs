@@ -14,7 +14,7 @@ use anyhow::{Context as _, Result, bail, ensure};
 use glam::Vec3;
 
 use super::menu;
-use super::state::{EditorState, Mode, Panel, View};
+use super::state::{EditorState, Mode, Panel};
 use super::theme;
 use super::undo;
 use crate::draw::camera::Camera;
@@ -157,16 +157,14 @@ impl ModView {
                             _ => super::collision::Show::Off,
                         };
                         let flag = |k: &str| v.get(k).and_then(|b| b.as_bool()).unwrap_or(false);
-                        (!name.is_empty() && c.len() == 3 && c.iter().chain([&yaw, &pitch]).all(|f| f.is_finite())).then(|| {
-                            super::views::SavedView {
+                        (!name.is_empty() && c.len() == 3 && c.iter().chain([&yaw, &pitch]).all(|f| f.is_finite()))
+                            .then(|| super::views::SavedView {
                                 name,
                                 camera: (Vec3::new(c[0], c[1], c[2]), yaw, pitch),
                                 collision,
                                 race_barriers: flag("race_barriers"),
-                                map: flag("map"),
                                 mod_only: flag("mod_only"),
-                            }
-                        })
+                            })
                     })
                     .collect()
             })
@@ -199,8 +197,8 @@ impl ModView {
                 super::collision::Show::All => "all",
             };
             s.push_str(&format!(
-                "\n[[views]]\nname = {:?}\ncamera = [{:?}, {:?}, {:?}]\nyaw = {:?}\npitch = {:?}\ncollision = \"{collision}\"\nrace_barriers = {}\nmap = {}\nmod_only = {}\n",
-                v.name, p.x, p.y, p.z, yaw, pitch, v.race_barriers, v.map, v.mod_only
+                "\n[[views]]\nname = {:?}\ncamera = [{:?}, {:?}, {:?}]\nyaw = {:?}\npitch = {:?}\ncollision = \"{collision}\"\nrace_barriers = {}\nmod_only = {}\n",
+                v.name, p.x, p.y, p.z, yaw, pitch, v.race_barriers, v.mod_only
             ));
         }
         crate::qol::saves::write_atomic(&store::editor_dir(maps, folder).join(EDITOR_TOML), s.as_bytes(), false)?;
@@ -252,7 +250,7 @@ fn note_recent(maps: &Path, folder: &str) {
 const HOVER: [(&str, &str); 3] = [("simulate", "Simulate"), ("drive-here", "Drive here"), ("test-race", "Test race")];
 
 /// `overbright-editor [--mod <folder>] [--region <code>] [--maps <dir>]
-/// [--shot out.png --size WxH [--scale F] [--mode props|races] [--view 3d|map|street|whole|top] [--light work|game] [--tab <name>]]`
+/// [--shot out.png --size WxH [--scale F] [--mode props|races] [--view 3d|street|whole|top] [--light work|game] [--tab <name>]]`
 #[derive(Clone, Debug, PartialEq)]
 pub struct Cli {
     pub folder: Option<String>,
@@ -267,7 +265,6 @@ pub struct Cli {
     pub mode: Option<Mode>,
     /// A toolbar tool picked (`--tool select|move|rotate|checkpoint|start|finish|grid`).
     pub tool: Option<menu::Tool>,
-    pub view: Option<View>,
     /// The 3D view's look (`--view street|whole|top`).
     pub look: Option<String>,
     /// Work light or Game look (`--light work|game`).
@@ -303,7 +300,6 @@ impl Default for Cli {
             scale: 1.0,
             mode: None,
             tool: None,
-            view: None,
             look: None,
             light: None,
             tab: None,
@@ -318,7 +314,7 @@ impl Default for Cli {
     }
 }
 
-pub const USAGE: &str = "usage: overbright-editor [--mod <folder>] [--region <code>] [--maps <dir>]\n       overbright-editor --shot out.png [--size WxH] [--scale F] [--mod <folder>] [--region <code>] [--mode props|races] [--tool <name>] [--view 3d|map|street|whole|top] [--light work|game] [--tab browser|validation|simulate|log] [--select N,M] [--sim stream.txt[,more.txt…][@seconds[:car[:chase]]]] [--hover simulate|drive-here|test-race] [--dialog how-to-test|controls] [--run test-race|drive-here] [--collision off|invisible|all] [--camera x,y,z[,yaw,pitch]]";
+pub const USAGE: &str = "usage: overbright-editor [--mod <folder>] [--region <code>] [--maps <dir>]\n       overbright-editor --shot out.png [--size WxH] [--scale F] [--mod <folder>] [--region <code>] [--mode props|races] [--tool <name>] [--view 3d|street|whole|top] [--light work|game] [--tab browser|validation|race|simulate|log] [--select N,M] [--sim stream.txt[,more.txt…][@seconds[:car[:chase]]]] [--hover simulate|drive-here|test-race] [--dialog how-to-test|controls] [--run test-race|drive-here] [--collision off|invisible|all] [--camera x,y,z[,yaw,pitch]]";
 
 impl Cli {
     pub fn parse<I: IntoIterator<Item = String>>(args: I) -> Result<Cli> {
@@ -360,23 +356,18 @@ impl Cli {
                 }
                 "--tool" => {
                     let v = val("--tool")?.to_ascii_lowercase();
-                    c.tool = Some(
-                        menu::Tool::ALL.into_iter().find(|t| t.name().eq_ignore_ascii_case(&v)).with_context(|| {
-                            format!("--tool: `{v}` (select, move, rotate, checkpoint, start, finish or grid)")
-                        })?,
-                    );
+                    c.tool =
+                        Some(menu::Tool::ALL.into_iter().find(|t| t.name().eq_ignore_ascii_case(&v)).with_context(
+                            || format!("--tool: `{v}` (select, move, rotate, checkpoint, start, finish or grid)"),
+                        )?);
                 }
                 "--view" => {
                     let v = val("--view")?;
-                    c.view = Some(match v.as_str() {
-                        "3d" => View::ThreeD,
-                        "map" => View::Map,
-                        "street" | "whole" | "top" => {
-                            c.look = Some(v.clone());
-                            View::ThreeD
-                        }
-                        v => bail!("--view: `{v}` (3d, map, street, whole or top)"),
-                    })
+                    match v.as_str() {
+                        "3d" => {}
+                        "street" | "whole" | "top" => c.look = Some(v.clone()),
+                        v => bail!("--view: `{v}` (3d, street, whole or top)"),
+                    }
                 }
                 "--light" => {
                     let v = val("--light")?;
@@ -412,7 +403,8 @@ impl Cli {
                 "--collision" => {
                     let v = val("--collision")?.to_ascii_lowercase();
                     c.collision = Some(
-                        super::collision::Show::parse(&v).with_context(|| format!("--collision: `{v}` (off, invisible or all)"))?,
+                        super::collision::Show::parse(&v)
+                            .with_context(|| format!("--collision: `{v}` (off, invisible or all)"))?,
                     );
                 }
                 "--camera" => {
@@ -423,7 +415,8 @@ impl Cli {
                         .collect::<Result<_, _>>()
                         .with_context(|| format!("--camera: `{v}` is not x,y,z[,yaw,pitch]"))?;
                     ensure!(n.len() == 3 || n.len() == 5, "--camera: `{v}` is not x,y,z[,yaw,pitch]");
-                    c.camera = Some([n[0], n[1], n[2], n.get(3).copied().unwrap_or(0.0), n.get(4).copied().unwrap_or(0.0)]);
+                    c.camera =
+                        Some([n[0], n[1], n[2], n.get(3).copied().unwrap_or(0.0), n.get(4).copied().unwrap_or(0.0)]);
                 }
                 "--select" => {
                     let v = val("--select")?;
@@ -544,6 +537,7 @@ impl Panels {
             properties: vec![Box::new(parts::PropsPanel(props.clone())), Box::new(parts::RacesPanel(races.clone()))],
             tabs: vec![
                 ("browser", "Prop browser", Box::new(parts::BrowserTab(browser.clone()))),
+                (super::race_strip::TAB, "Race", Box::new(parts::RaceStripTab(races.clone()))),
                 ("validation", "Validation", Box::new(parts::RacesValidation(races.clone()))),
                 (super::sim::TAB, "Simulate", Box::new(super::sim::SimTab(sim.clone()))),
             ],
@@ -557,6 +551,7 @@ impl Panels {
                 Box::new(parts::Follow(races.clone())),
                 // Under the props' and races' marks.
                 Box::new(super::collision::CollisionOverlay::default()),
+                Box::new(super::testplay::SpawnMarker),
                 Box::new(parts::PropsOverlay { props: props.clone(), browser: browser.clone() }),
                 Box::new(parts::RacesOverlay { races: races.clone(), dragging: false }),
                 Box::new(super::sim::SimOverlay(sim.clone())),
@@ -581,7 +576,7 @@ mod parts {
     use crate::editor::menu::{self, Command};
     use crate::editor::props::{self, Props};
     use crate::editor::races::Races;
-    use crate::editor::state::{Focus, Mode, View};
+    use crate::editor::state::{Focus, Mode};
     use crate::editor::{tree_props, tree_races};
 
     pub type Shared<T> = Rc<RefCell<T>>;
@@ -627,7 +622,13 @@ mod parts {
     pub struct Follow(pub Shared<Races>);
 
     impl Overlay for Follow {
-        fn overlay(&mut self, s: &mut EditorState, _: &egui::Context, painter: &egui::Painter, rect: egui::Rect) -> bool {
+        fn overlay(
+            &mut self,
+            s: &mut EditorState,
+            _: &egui::Context,
+            painter: &egui::Painter,
+            rect: egui::Rect,
+        ) -> bool {
             let mut r = self.0.borrow_mut();
             match s.focus {
                 // World: the props' side only.
@@ -638,7 +639,11 @@ mod parts {
                         s.mode = Mode::Races;
                         s.selection.clear();
                     }
-                    painter.rect_filled(rect, 0.0, crate::editor::theme::rgb(crate::editor::theme::tokens().page).gamma_multiply(0.5));
+                    painter.rect_filled(
+                        rect,
+                        0.0,
+                        crate::editor::theme::rgb(crate::editor::theme::tokens().page).gamma_multiply(0.5),
+                    );
                 }
                 Focus::Both => {}
             }
@@ -695,13 +700,18 @@ mod parts {
             }
             p.context_menu(s, ctx, rect);
             if menu::take(ctx, Command::SelectAllOfSolid)
-                && let Some(solid) = s.selection.first().and_then(|&i| s.session.world.placements.get(i)).map(|pl| pl.solid)
+                && let Some(solid) =
+                    s.selection.first().and_then(|&i| s.session.world.placements.get(i)).map(|pl| pl.solid)
             {
                 let hidden = crate::world::HIDDEN_FLAG;
                 s.selection = (0..s.session.world.placements.len())
-                    .filter(|&i| s.session.world.placements[i].solid == solid && s.session.world.placements[i].flags & hidden == 0)
+                    .filter(|&i| {
+                        s.session.world.placements[i].solid == solid
+                            && s.session.world.placements[i].flags & hidden == 0
+                    })
                     .collect();
-                s.status = format!("Selected {} of {}", s.selection.len(), props::name(&s.session.world, s.selection[0]));
+                s.status =
+                    format!("Selected {} of {}", s.selection.len(), props::name(&s.session.world, s.selection[0]));
             }
             taken
         }
@@ -737,6 +747,15 @@ mod parts {
         }
     }
 
+    /// The Race tab: the selected race as one strip.
+    pub struct RaceStripTab(pub Shared<Races>);
+
+    impl Panel for RaceStripTab {
+        fn ui(&mut self, s: &mut EditorState, ui: &mut egui::Ui) {
+            self.0.borrow_mut().strip(s, ui);
+        }
+    }
+
     /// Race ▸ New race, every frame.
     pub struct RacesHook(pub Shared<Races>);
 
@@ -767,21 +786,14 @@ mod parts {
         pub dragging: bool,
     }
 
-    /// The ground under screen point `at` for the race tools: in Map and
+    /// The ground under screen point `at` for the race tools: in
     /// Top the world x/y under it at the road's height there (the highest
     /// floor, as a snapped point gets it); in 3D where the mouse ray meets
     /// the ground.
     pub fn race_ground(s: &EditorState, ctx: &egui::Context, rect: egui::Rect, at: egui::Pos2) -> Option<glam::Vec3> {
-        let xy = match s.view {
-            View::Map => {
-                let (centre, scale, map) = crate::editor::sim::panel::map_transform(ctx)?;
-                let c = map.center();
-                centre + glam::Vec2::new(at.x - c.x, c.y - at.y) / scale
-            }
-            View::ThreeD => match crate::editor::viewport::top_view(ctx) {
-                Some((top, shown)) => top.to_world(shown, at),
-                None => return props::ground_under(s, rect, at),
-            },
+        let xy = match crate::editor::viewport::top_view(ctx) {
+            Some((top, shown)) => top.to_world(shown, at),
+            None => return props::ground_under(s, rect, at),
         };
         Some(xy.extend(crate::editor::validate::ground(s, xy)))
     }
@@ -800,18 +812,7 @@ mod parts {
             }
             let mut r = self.races.borrow_mut();
             r.update(s);
-            match s.view {
-                View::ThreeD => r.paint_overlay(s, painter, rect, crate::editor::viewport::top_view(ctx).is_some()),
-                View::Map => {
-                    if let Some((centre, scale, map)) = crate::editor::sim::panel::map_transform(ctx) {
-                        let c = map.center();
-                        let to = |p: glam::Vec2| {
-                            egui::pos2(c.x + (p.x - centre.x) * scale, c.y - (p.y - centre.y) * scale)
-                        };
-                        r.paint_map(s, painter, &to);
-                    }
-                }
-            }
+            r.paint_overlay(s, painter, rect, crate::editor::viewport::top_view(ctx).is_some());
             if s.mode == Mode::Races {
                 if !flying(ctx) {
                     r.keys(s, ctx);
@@ -820,9 +821,8 @@ mod parts {
                     r.delete_selected(s);
                 }
             }
-            let (pointer, pressed, down, mods) = ctx.input(|i| {
-                (i.pointer.hover_pos(), i.pointer.primary_pressed(), i.pointer.primary_down(), i.modifiers)
-            });
+            let (pointer, pressed, down, mods) = ctx
+                .input(|i| (i.pointer.hover_pos(), i.pointer.primary_pressed(), i.pointer.primary_down(), i.modifiers));
             let over = pointer.filter(|p| {
                 rect.contains(*p) && ctx.layer_id_at(*p).is_none_or(|l| l.order == egui::Order::Background)
             });
@@ -851,7 +851,14 @@ mod parts {
             // selected race's first.
             let order = s.race.into_iter().chain((0..s.session.map.races.len()).filter(|k| Some(*k) != s.race));
             let hit = order
-                .filter_map(|k| s.session.map.races.get(k).and_then(|race| crate::editor::races::pick(race, at.truncate(), crate::editor::races::PICK_M)).map(|p| (k, p)))
+                .filter_map(|k| {
+                    s.session
+                        .map
+                        .races
+                        .get(k)
+                        .and_then(|race| crate::editor::races::pick(race, at.truncate(), crate::editor::races::PICK_M))
+                        .map(|p| (k, p))
+                })
                 .next();
             match hit {
                 Some((k, _)) => {
@@ -1094,8 +1101,13 @@ impl App {
     pub fn title(&self) -> String {
         match &self.state {
             Some(s) => {
-                let name = if s.session.map.name.is_empty() { s.session.folder.as_str() } else { s.session.map.name.as_str() };
-                format!("Overbright Map Editor (preview) — {name} · {}{}", s.session.region, if s.session.dirty { " ●" } else { "" })
+                let name =
+                    if s.session.map.name.is_empty() { s.session.folder.as_str() } else { s.session.map.name.as_str() };
+                format!(
+                    "Overbright Map Editor (preview) — {name} · {}{}",
+                    s.session.region,
+                    if s.session.dirty { " ●" } else { "" }
+                )
             }
             None => "Overbright Map Editor (preview)".into(),
         }
@@ -1204,7 +1216,8 @@ impl App {
     pub fn new_mod(&mut self, folder: &str, name: &str, region: &str) -> Result<()> {
         ob_studio::create::create(&self.maps, folder, name, region)?;
         let region = region.trim().to_ascii_uppercase();
-        ModView { region: Some(region.clone()), camera: None, panels: self.layout.sizes, views: Vec::new() }.write(&self.maps, folder)?;
+        ModView { region: Some(region.clone()), camera: None, panels: self.layout.sizes, views: Vec::new() }
+            .write(&self.maps, folder)?;
         self.open(folder, Some(&region))
     }
 
@@ -1476,8 +1489,10 @@ impl App {
             A::ExportPack => {
                 if let Some(s) = &self.state {
                     // The exports folder, the pack's own file name (`<id>-1.0.0.obpk`).
-                    let path = crate::platform::dirs::exports()
-                        .join(ob_studio::share::pack_file_name(&s.session.folder, &ob_studio::share::PackOpts::default()));
+                    let path = crate::platform::dirs::exports().join(ob_studio::share::pack_file_name(
+                        &s.session.folder,
+                        &ob_studio::share::PackOpts::default(),
+                    ));
                     let derived = crate::tools::map::share::derived(&self.maps.join(&s.session.folder)).len();
                     self.dialog = Some(Dialog::ExportPack { path: path.display().to_string(), derived });
                 }
@@ -1521,7 +1536,6 @@ impl App {
             }
             A::Goal(g) => {
                 if let Some(s) = self.state.as_mut() {
-                    s.view = View::ThreeD;
                     s.goal = Some(g);
                 }
             }
@@ -1573,13 +1587,12 @@ impl App {
                     }
                     s.selection.clear();
                     s.wall = None;
-                    s.view = View::ThreeD;
                     s.draw = Some(d);
                 }
             }
-            A::View(v) => {
+            A::Roads => {
                 if let Some(s) = self.state.as_mut() {
-                    s.view = v;
+                    s.roads = !s.roads;
                 }
             }
             A::Tab(t) => self.tab = t,
@@ -1677,7 +1690,9 @@ impl App {
             } else {
                 let mut open = false;
                 egui::Panel::right("properties-rail").exact_size(super::tree::RAIL).resizable(false).show(ui, |ui| {
-                    ui.vertical_centered(|ui| open = super::tree::rail(ui, &[title.to_string()], super::tree::Fold::Left));
+                    ui.vertical_centered(|ui| {
+                        open = super::tree::rail(ui, &[title.to_string()], super::tree::Fold::Left)
+                    });
                 });
                 if open {
                     self.layout.properties = true;
@@ -2063,10 +2078,7 @@ impl App {
                             let (n, a, de) = (name.clone(), author.clone(), description.clone());
                             then = Some(Box::new(move |app: &mut App| {
                                 if let Some(s) = app.state.as_mut() {
-                                    s.session.map.name = n;
-                                    s.session.map.author = a;
-                                    s.session.map.description = de;
-                                    super::commit(s, "Mod details");
+                                    let _ = super::undo::run(s, crate::tools::map::ops::Op::Details { name: n, author: a, description: de });
                                 }
                             }));
                             keep = false;
@@ -2500,9 +2512,9 @@ pub fn shot(app: &mut App, gpu: &Gpu, size: (u32, u32), scale: f32, out: &Path) 
             break;
         }
         // The pointer on the item named, once the toolbar has laid out.
-        let at = app.shot_hover.and_then(|name| {
-            menu::toolbar_fit(&app.ctx)?.items.iter().find(|i| i.0 == name).map(|i| i.1.center())
-        });
+        let at = app
+            .shot_hover
+            .and_then(|name| menu::toolbar_fit(&app.ctx)?.items.iter().find(|i| i.0 == name).map(|i| i.1.center()));
         let mut raw = egui::RawInput {
             screen_rect: Some(rect),
             time: Some(frame as f64 / 60.0),
@@ -2586,9 +2598,6 @@ pub fn apply_cli_view(app: &mut App, cli: &Cli) {
         if let Some(m) = cli.mode {
             s.mode = m;
         }
-        if let Some(v) = cli.view {
-            s.view = v;
-        }
         if let Some(look) = &cli.look {
             app.panels.viewport.set_look(s, look);
         }
@@ -2606,7 +2615,7 @@ pub fn apply_cli_view(app: &mut App, cli: &Cli) {
             s.selection = cli.select.iter().copied().filter(|&i| i < s.session.world.placements.len()).collect();
             // The 3D view (also Top) framed on it, as F does: the viewport
             // takes the command in the shot's first frame.
-            if !s.selection.is_empty() && s.view == View::ThreeD {
+            if !s.selection.is_empty() {
                 menu::post(&app.ctx, menu::Command::FrameSelection);
             }
         }
@@ -2679,7 +2688,7 @@ mod tests {
             "--mode",
             "races",
             "--view",
-            "map",
+            "top",
             "--tab",
             "Validation",
             "--scale",
@@ -2696,13 +2705,13 @@ mod tests {
         assert_eq!(c.tool, Some(menu::Tool::Checkpoint));
         assert_eq!(c.shot, Some(PathBuf::from("o.png")));
         assert_eq!(
-            (c.size, c.scale, c.mode, c.view, c.tab.as_deref()),
-            ((1280, 720), 1.5, Some(Mode::Races), Some(View::Map), Some("validation"))
+            (c.size, c.scale, c.mode, c.look.as_deref(), c.tab.as_deref()),
+            ((1280, 720), 1.5, Some(Mode::Races), Some("top"), Some("validation"))
         );
-        assert_eq!(c.look, None);
+        assert_eq!(p(&["--view", "3d"]).unwrap().look, None);
+        assert!(p(&["--view", "map"]).is_err(), "the Map is the top view now");
         for look in ["street", "whole", "top"] {
-            let c = p(&["--view", look]).unwrap();
-            assert_eq!((c.view, c.look.as_deref()), (Some(View::ThreeD), Some(look)));
+            assert_eq!(p(&["--view", look]).unwrap().look.as_deref(), Some(look));
         }
         assert_eq!(c.light, None);
         for light in ["work", "game"] {
@@ -3070,11 +3079,17 @@ mod tests {
         let s = Scratch::new("editor-view");
         let maps = s.path().join("maps");
         let panels = PanelSizes { tree: Some(300.0), properties: None, bottom: Some(240.0) };
-        let v = ModView { region: Some("L4RA".into()), camera: Some((Vec3::new(1.5, -2.0, 30.25), 0.5, -0.25)), panels, views: Vec::new() };
+        let v = ModView {
+            region: Some("L4RA".into()),
+            camera: Some((Vec3::new(1.5, -2.0, 30.25), 0.5, -0.25)),
+            panels,
+            views: Vec::new(),
+        };
         v.write(&maps, "v").unwrap();
         assert_eq!(ModView::read(&maps, "v"), v);
         assert!(store::editor_dir(&maps, "v").join(EDITOR_TOML).is_file());
-        std::fs::write(store::editor_dir(&maps, "v").join(EDITOR_TOML), "tree_width = 1e9\nbottom_height = -3\n").unwrap();
+        std::fs::write(store::editor_dir(&maps, "v").join(EDITOR_TOML), "tree_width = 1e9\nbottom_height = -3\n")
+            .unwrap();
         assert_eq!(ModView::read(&maps, "v").panels, PanelSizes::default(), "nonsense sizes are dropped");
         let m = MapMod {
             props: vec![PropEdit::Add {
@@ -3218,8 +3233,20 @@ mod tests {
             (3840.0, 2160.0),
         ];
         let order = [
-            "Select", "Move", "Rotate", "Snap", "Checkpoint", "Start", "Finish", "Grid", "Undo", "Redo", "Save",
-            "Simulate", "Drive here", "Test race",
+            "Select",
+            "Move",
+            "Rotate",
+            "Snap",
+            "Checkpoint",
+            "Start",
+            "Finish",
+            "Grid",
+            "Undo",
+            "Redo",
+            "Save",
+            "Simulate",
+            "Drive here",
+            "Test race",
         ];
         let mut race = crate::editor::validate::tests::sprint(&[(20.0, 0.0), (200.0, 0.0)]);
         race.name = "Casino sprint".into();

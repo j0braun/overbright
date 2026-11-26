@@ -417,7 +417,6 @@ impl Studio {
                 match a {
                     Act::TakeMeThere => {
                         let spot = Vec3::from(SPOT);
-                        s.view = crate::editor::state::View::ThreeD;
                         s.camera = crate::draw::camera::Camera::looking_at(spot + Vec3::from(EYE_BACK), spot);
                         app.panels.viewport.set_look(s, "street");
                         s.status = "Here: street level, a place to start".into();
@@ -426,7 +425,6 @@ impl Studio {
                     Act::NewRace => {
                         let spot = Vec3::from(RACE_SPOT);
                         let look = spot + Vec3::from((Vec2::from(RACE_LOOK) * 30.0, 0.0));
-                        s.view = crate::editor::state::View::ThreeD;
                         s.camera = crate::draw::camera::Camera::looking_at(spot + Vec3::from(RACE_EYE_BACK), look);
                         app.panels.viewport.set_look(s, "street");
                         let mut races = app.panels.races.borrow_mut();

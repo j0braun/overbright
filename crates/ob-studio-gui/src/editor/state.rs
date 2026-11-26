@@ -36,14 +36,6 @@ pub enum Focus {
     Races,
 }
 
-/// What the centre shows (M switches).
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
-pub enum View {
-    #[default]
-    ThreeD,
-    Map,
-}
-
 pub use crate::tools::map::ops::RacePoint;
 pub use crate::tools::map::session::{Issue, Level, MapSession};
 
@@ -70,7 +62,8 @@ pub struct EditorState {
     pub mode: Mode,
     /// Which workspace the editor is shown for (Studio sets it; the editor's own window shows both).
     pub focus: Focus,
-    pub view: View,
+    /// The road network over the top view (View ▸ Roads).
+    pub roads: bool,
     /// The collision layer over the view (View ▸ Collision).
     pub collision: super::collision::Show,
     /// World: the collision layer also draws the races' barriers (off: permanent walls and free roam's own).
@@ -106,6 +99,17 @@ pub trait Panel {
 }
 
 impl EditorState {
+    /// The region's named neighbourhoods (the game's world map; empty where it names none).
+    pub fn places(&self) -> Vec<crate::tools::map::assets::Place> {
+        self.assets.places(&self.session.region)
+    }
+
+    /// The neighbourhood under the camera.
+    pub fn place_name(&self) -> Option<String> {
+        let at = self.camera.position.truncate();
+        crate::tools::map::assets::place_at(&self.places(), at).map(|p| p.name.clone())
+    }
+
     /// A state for `map` on `world`, a region as loaded without map mods
     /// (`World::load`); `map` is applied to it here. The undo history
     /// starts at `map`.
@@ -131,7 +135,7 @@ impl EditorState {
             camera,
             mode: Mode::Props,
             focus: Focus::Both,
-            view: View::ThreeD,
+            roads: true,
             collision: super::collision::Show::Off,
             race_barriers: false,
             filter: Default::default(),

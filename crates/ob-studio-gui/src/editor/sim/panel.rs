@@ -15,7 +15,7 @@ use super::summary::{self, Group, RunFindings};
 use crate::editor::app::Overlay as ViewOverlay;
 use crate::editor::modes::{self, SIMULATE, SIMULATE_WORLD};
 use crate::editor::overlay::{Overlay, colour, label2d, line2d};
-use crate::editor::state::{EditorState, Issue, Level, Panel, View};
+use crate::editor::state::{EditorState, Issue, Level, Panel};
 use crate::editor::theme;
 
 /// The bottom tab's key (`--tab simulate`).
@@ -154,15 +154,15 @@ pub fn take_tab_request(ctx: &egui::Context) -> Option<&'static str> {
     ctx.data_mut(|d| d.remove_temp::<&'static str>(egui::Id::unique("editor.tab.request")))
 }
 
-/// The map view's transform this frame (centre, points per metre, rect),
-/// so overlays can draw on the map.
-pub fn publish_map(ctx: &egui::Context, centre: Vec2, scale: f32, rect: Rect) {
-    ctx.data_mut(|d| d.insert_temp(ctx_id("map"), (centre, scale, rect)));
+/// The top view's transform this frame (centre, points per metre, rect; None: the 3D view shows), so overlays
+/// can draw on the plan.
+pub fn publish_map(ctx: &egui::Context, map: Option<(Vec2, f32, Rect)>) {
+    ctx.data_mut(|d| d.insert_temp(ctx_id("map"), map));
 }
 
-/// The map view's transform as last published.
+/// The top view's transform as last published.
 pub fn map_transform(ctx: &egui::Context) -> Option<(Vec2, f32, Rect)> {
-    ctx.data(|d| d.get_temp(ctx_id("map")))
+    ctx.data(|d| d.get_temp::<Option<(Vec2, f32, Rect)>>(ctx_id("map")).flatten())
 }
 
 /// A recording to show without running the game (`--sim <file>[@seconds[:car[:chase]]]`
@@ -525,8 +525,10 @@ impl Panel for SimHook {
         if sim.play.playing || sim.running() || s.replay.loading {
             ctx.request_repaint();
         }
+        // In the top view the cars are arrows on the plan, and the camera stays where the user put it.
+        let plan = super::super::viewport::top_view(&ctx).is_some();
         // The cars of the time shown, for the viewport to draw as models.
-        let shown = if s.view == View::ThreeD && s.replay.models {
+        let shown = if !plan && s.replay.models {
             super::cars::replay_cars(&sim.rec, sim.play.time, &sim.play.cars(&sim.rec))
         } else {
             Vec::new()
@@ -534,9 +536,7 @@ impl Panel for SimHook {
         s.replay.set(shown);
         // Ride with the car followed in the 3D view (Follow or the game's
         // chase camera).
-        if s.view == View::ThreeD
-            && let Some(id) = sim.play.follow
-        {
+        if !plan && let Some(id) = sim.play.follow {
             let sim = &mut *sim;
             if let Some(look) = cams::view(&sim.rec, sim.cam, &mut sim.chase_cars, &s.root, id, sim.play.time) {
                 (s.camera.position, s.camera.yaw, s.camera.pitch) = (look.position, look.yaw, look.pitch);
@@ -1007,8 +1007,8 @@ impl ViewOverlay for SimOverlay {
             let c = if id == 0 || sim.play.follow == Some(id) { colour::SELECT } else { colour::INK };
             c.gamma_multiply(0.55)
         };
-        match s.view {
-            View::ThreeD => {
+        match map_transform(ctx) {
+            None => {
                 let o = Overlay::new(painter, &s.camera, rect);
                 for (id, pieces) in &traces {
                     for p in pieces {
@@ -1042,8 +1042,7 @@ impl ViewOverlay for SimOverlay {
                     o.label(c.position + Vec3::Z * 2.2, &format!("B {}", short(&label_name(g, c.id))), gcol);
                 }
             }
-            View::Map => {
-                let Some((centre, scale, mrect)) = map_transform(ctx) else { return false };
+            Some((centre, scale, mrect)) => {
                 let to = |p: Vec3| {
                     let c = mrect.center();
                     Pos2::new(c.x + (p.x - centre.x) * scale, c.y - (p.y - centre.y) * scale)

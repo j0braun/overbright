@@ -19,8 +19,54 @@ pub struct TrackInfo {
     pub name: String,
 }
 
+/// A named neighbourhood: the world rectangle (x, y) the game's own world map shows under its name.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Place {
+    pub name: String,
+    pub lo: glam::Vec2,
+    pub hi: glam::Vec2,
+}
+
+impl Place {
+    pub fn centre(&self) -> glam::Vec2 {
+        (self.lo + self.hi) * 0.5
+    }
+}
+
+/// The neighbourhood a world point (x, y) is in: of the places whose rectangle holds it, the one whose centre is
+/// nearest (the game's zoom rectangles overlap), None outside all of them.
+pub fn place_at(places: &[Place], p: glam::Vec2) -> Option<&Place> {
+    places
+        .iter()
+        .filter(|q| p.cmpge(q.lo).all() && p.cmple(q.hi).all())
+        .min_by(|a, b| a.centre().distance(p).total_cmp(&b.centre().distance(p)))
+}
+
+/// The world map's names for its zoom records 1..: after the full map, the neighbourhoods in the game's order.
+pub const PLACE_NAMES: [&str; 5] = ["City Core", "Beacon Hill", "Jackson Heights", "Coal Harbor East", "Coal Harbor West"];
+
+/// The neighbourhoods of a free roam whose minimap frame is `frame` (world x at the left edge, world y at the top,
+/// the world size it covers) from the world map's zoom records (centre and size in texels of the 512 texel map).
+pub fn places_from(frame: [f32; 3], zooms: &[(f32, f32, f32, u32)]) -> Vec<Place> {
+    let [left, top, size] = frame;
+    let to = |u: f32, v: f32| glam::Vec2::new(left + u / 512.0 * size, top - v / 512.0 * size);
+    zooms
+        .iter()
+        .skip(1)
+        .zip(PLACE_NAMES)
+        .map(|(&(x, y, s, _), name)| {
+            let (a, b) = (to(x, y), to(x + s, y + s));
+            Place { name: name.to_string(), lo: a.min(b), hi: a.max(b) }
+        })
+        .collect()
+}
+
 /// The game data a map editor reads.
 pub trait MapAssets {
+    /// The region's neighbourhoods by name (empty: the game names none for it).
+    fn places(&self, _region: &str) -> Vec<Place> {
+        Vec::new()
+    }
     /// The race tracks of `region` a custom race can borrow the set-up
     /// of (those with a career event), by number.
     fn tracks(&self, region: &str) -> Vec<TrackInfo>;
@@ -58,6 +104,14 @@ impl GameAssets {
 }
 
 impl MapAssets for GameAssets {
+    fn places(&self, region: &str) -> Vec<Place> {
+        // The world map is the free roam's (track 4000).
+        match self.track(4000).filter(|t| t.region == region) {
+            Some(t) => places_from([t.map_left, t.map_top, t.map_size], &*crate::frontend::screens::WORLD_MAP_ZOOMS),
+            None => Vec::new(),
+        }
+    }
+
     fn tracks(&self, region: &str) -> Vec<TrackInfo> {
         let Some(career) = self.career() else { return Vec::new() };
         let mut list: Vec<TrackInfo> = career
@@ -91,9 +145,15 @@ pub struct GivenAssets {
     pub nets: HashMap<u16, RoadNet>,
     /// [`MapAssets::free_roam_lines`] of every region.
     pub free_roam: Vec<Vec<glam::Vec3>>,
+    /// [`MapAssets::places`] of every region.
+    pub places: Vec<Place>,
 }
 
 impl MapAssets for GivenAssets {
+    fn places(&self, _region: &str) -> Vec<Place> {
+        self.places.clone()
+    }
+
     fn tracks(&self, _region: &str) -> Vec<TrackInfo> {
         self.tracks.clone()
     }
@@ -104,5 +164,26 @@ impl MapAssets for GivenAssets {
 
     fn free_roam_lines(&self, _region: &str) -> Vec<Vec<glam::Vec3>> {
         self.free_roam.clone()
+    }
+}
+
+#[cfg(test)]
+mod place_tests {
+    use super::*;
+    use glam::Vec2;
+
+    #[test]
+    fn the_world_maps_zoom_rectangles_become_named_places() {
+        // A 1000 m map with its top left at (-500, 500): texel (256, 256) is the world's origin.
+        let zooms = [(0.0, 0.0, 512.0, 0), (128.0, 128.0, 256.0, 0), (0.0, 128.0, 256.0, 0)];
+        let p = places_from([-500.0, 500.0, 1000.0], &zooms);
+        assert_eq!(p.len(), 2);
+        assert_eq!(p[0].name, "City Core");
+        assert_eq!((p[0].lo, p[0].hi), (Vec2::new(-250.0, -250.0), Vec2::new(250.0, 250.0)));
+        assert_eq!(p[1].name, "Beacon Hill");
+        // Overlapping rectangles: the nearest centre wins; outside all, none.
+        assert_eq!(place_at(&p, Vec2::new(-190.0, 200.0)).map(|q| q.name.as_str()), Some("Beacon Hill"));
+        assert_eq!(place_at(&p, Vec2::new(0.0, 0.0)).map(|q| q.name.as_str()), Some("City Core"));
+        assert_eq!(place_at(&p, Vec2::new(900.0, 0.0)), None);
     }
 }

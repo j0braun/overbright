@@ -9,7 +9,6 @@ use super::nav::{self, KEYS};
 use super::workspace::Workspace;
 use crate::editor::collision::{Draw, Show};
 use crate::editor::menu::{Action, Command, Tool};
-use crate::editor::state::View;
 
 /// What the command line has for a window command.
 #[derive(Clone, Copy, Debug)]
@@ -22,8 +21,10 @@ enum Cli {
 
 use Cli::{Has, WindowOnly};
 
-const VIEWING: &str = "a way of looking at the window's view (camera, layout, what is drawn); a script reads and writes the data itself";
-const WINDOW_STATE: &str = "state of the open window (focus, areas, dialogs, history of places); a command runs once and has none";
+const VIEWING: &str =
+    "a way of looking at the window's view (camera, layout, what is drawn); a script reads and writes the data itself";
+const WINDOW_STATE: &str =
+    "state of the open window (focus, areas, dialogs, history of places); a command runs once and has none";
 
 fn workspace(w: Workspace) -> Cli {
     match w {
@@ -48,10 +49,21 @@ fn nav_command(c: nav::Command) -> Cli {
         ),
         C::NewMod => Has(&["pack create"]),
         C::Test => WindowOnly("starts the game on the open mod and shows it; the command line has no game window"),
-        C::Select | C::Back | C::Menu | C::Find | C::PrevWorkspace | C::NextWorkspace | C::NextArea | C::PrevArea
-        | C::Move | C::Change | C::LastPlace | C::NextPlace | C::EditAddress | C::CopyAddress | C::Tutorial => {
-            WindowOnly(WINDOW_STATE)
-        }
+        C::Select
+        | C::Back
+        | C::Menu
+        | C::Find
+        | C::PrevWorkspace
+        | C::NextWorkspace
+        | C::NextArea
+        | C::PrevArea
+        | C::Move
+        | C::Change
+        | C::LastPlace
+        | C::NextPlace
+        | C::EditAddress
+        | C::CopyAddress
+        | C::Tutorial => WindowOnly(WINDOW_STATE),
     }
 }
 
@@ -73,7 +85,9 @@ fn menu_command(c: Command) -> Cli {
 fn action(a: &Action) -> Cli {
     match a {
         Action::NewMod => Has(&["pack create"]),
-        Action::OpenMod | Action::OpenRecent(_) => WindowOnly("picks which mod the window has open; a command names its mod with --mod"),
+        Action::OpenMod | Action::OpenRecent(_) => {
+            WindowOnly("picks which mod the window has open; a command names its mod with --mod")
+        }
         Action::Save => WindowOnly("a command's step is written at once; there is nothing unsaved to save"),
         Action::Details => Has(&["pack details"]),
         Action::Import => Has(&["modpack convert", "pack put", "looks import"]),
@@ -88,16 +102,16 @@ fn action(a: &Action) -> Cli {
             Tool::Move | Tool::Rotate => Has(&["props move", "race point move"]),
             Tool::Checkpoint | Tool::Start | Tool::Finish | Tool::Grid => Has(&["race point add"]),
         },
-        Action::View(v) => match v {
-            View::ThreeD | View::Map => WindowOnly(VIEWING),
-        },
+        Action::Roads => WindowOnly("a drawing over the window's top view; `checks run` reports the roads' own findings"),
         // The collision layer's three modes: `collision show --mode` counts what each draws.
         Action::Collision(s) => match s {
             Show::Off | Show::Invisible | Show::All => Has(&["collision show"]),
         },
         // Whether other races' barriers are drawn in World: a view setting, like the camera views.
         Action::RaceBarriers => WindowOnly(VIEWING),
-        Action::Goal(_) | Action::GoTo | Action::SaveView | Action::RecallView(_) | Action::DeleteView(_) => WindowOnly(VIEWING),
+        Action::Goal(_) | Action::GoTo | Action::SaveView | Action::RecallView(_) | Action::DeleteView(_) => {
+            WindowOnly(VIEWING)
+        }
         Action::HideSelected | Action::IsolateSelected | Action::ShowAll | Action::ModOnly => WindowOnly(
             "hides or isolates props in the window's view only, never in the mod; a script reads and writes the data itself",
         ),
@@ -114,7 +128,10 @@ fn check(what: &str, c: Cli) {
         Has(words) => {
             assert!(!words.is_empty(), "{what}");
             for w in words {
-                assert!(registry::command(&w.replace(' ', ".")).is_some(), "{what}: `{w}` is not a command of the registry");
+                assert!(
+                    registry::command(&w.replace(' ', ".")).is_some(),
+                    "{what}: `{w}` is not a command of the registry"
+                );
             }
         }
         WindowOnly(why) => assert!(why.len() >= 20, "{what}: a window-only command needs its reason"),
@@ -144,8 +161,7 @@ fn every_window_command_has_a_command_line_counterpart_or_a_reason() {
         Action::Quit,
         Action::Undo,
         Action::Redo,
-        Action::View(View::ThreeD),
-        Action::View(View::Map),
+        Action::Roads,
         Action::Tab(""),
         Action::Controls,
         Action::HowToTest,

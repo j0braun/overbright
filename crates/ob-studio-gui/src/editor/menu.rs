@@ -24,7 +24,7 @@ use ob_look::words;
 use super::app::App;
 use super::props::{self, Props};
 use super::races::{self, Races};
-use super::state::{EditorState, Focus, Level, Mode, View};
+use super::state::{EditorState, Focus, Level, Mode};
 use super::theme;
 
 /// What the shell does itself.
@@ -44,7 +44,8 @@ pub enum Action {
     Redo,
     /// Pick a toolbar tool (its key or its button).
     Tool(Tool),
-    View(View),
+    /// View ▸ Roads: the road network over the top view.
+    Roads,
     Tab(&'static str),
     Controls,
     /// Help ▸ How to test your race.
@@ -138,7 +139,6 @@ impl Command {
                 Some("Select a prop first")
             }
             Command::Delete if s.mode == Mode::Races && s.point.is_none() => Some("Select a race point first"),
-            Command::ResetCamera | Command::FrameSelection if s.view == View::Map => Some("In the 3D view only (M)"),
             _ => None,
         }
     }
@@ -355,11 +355,10 @@ pub const KEYS: &[Binding] = &[
     b("View", "RMB + Q / E  (F / R)", "Fly down / up", &[Key::Q, Key::E, Key::F, Key::R]),
     b("View", "RMB + wheel", "Fly speed", &[]),
     b("View", "Shift / Ctrl while flying", "Fast / slow", &[]),
-    b("View", "Wheel", "Dolly; in the overview and the map: zoom", &[]),
+    b("View", "Wheel", "Dolly; in the overview: zoom", &[]),
     b("View", "F", "Frame the selection", &[Key::F]),
     b("View", "T", "Top-down overview on / off", &[Key::T]),
-    b("View", "Home", "Fit the overview or the map to the region", &[Key::Home]),
-    b("View", "M", "3D view / Map", &[Key::M]),
+    b("View", "Home", "Fit the overview to the region", &[Key::Home]),
     b("View", "H", "Hide the selected props (this view only)", &[Key::H]),
     b("View", "Shift+H", "Show only the selected props", &[Key::H]),
     b("View", "Alt+H", "Show every prop again", &[Key::H]),
@@ -449,10 +448,6 @@ pub fn shortcuts(app: &App, ctx: &egui::Context, out: &mut Vec<Action>) {
         }
         if typing {
             return;
-        }
-        if i.consume_key(Modifiers::NONE, Key::M) {
-            let v = app.state.as_ref().map_or(View::ThreeD, |s| s.view);
-            out.push(Action::View(if v == View::ThreeD { View::Map } else { View::ThreeD }));
         }
         if i.consume_key(Modifiers::SHIFT, Key::H) {
             out.push(Action::IsolateSelected);
@@ -635,12 +630,13 @@ pub fn edit_items(app: &App, ui: &mut egui::Ui, out: &mut Vec<Action>) {
 /// The View menu's items.
 pub fn view_items(app: &App, ui: &mut egui::Ui, out: &mut Vec<Action>) {
     let open = app.state.is_some();
-    let v = app.state.as_ref().map(|s| s.view);
-    if ui.add_enabled(open, egui::Button::selectable(v == Some(View::ThreeD), "3D view").shortcut_text("M")).clicked() {
-        out.push(Action::View(View::ThreeD));
-    }
-    if ui.add_enabled(open, egui::Button::selectable(v == Some(View::Map), "Map").shortcut_text("M")).clicked() {
-        out.push(Action::View(View::Map));
+    let roads = app.state.as_ref().is_some_and(|s| s.roads);
+    if ui
+        .add_enabled(open, egui::Button::selectable(roads, "Roads"))
+        .on_hover_text("The road network over the top view (T)")
+        .clicked()
+    {
+        out.push(Action::Roads);
     }
     ui.separator();
     let s = app.state.as_ref();
@@ -717,7 +713,11 @@ pub fn view_items(app: &App, ui: &mut egui::Ui, out: &mut Vec<Action>) {
         out.push(Action::ShowAll);
     }
     let only = s.is_some_and(|s| s.filter.mod_only);
-    if ui.add_enabled(open, egui::Button::selectable(only, "This mod's changes only")).on_hover_text("Draw only the props this mod moved, deleted or added (this view only)").clicked() {
+    if ui
+        .add_enabled(open, egui::Button::selectable(only, "This mod's changes only"))
+        .on_hover_text("Draw only the props this mod moved, deleted or added (this view only)")
+        .clicked()
+    {
         out.push(Action::ModOnly);
     }
     ui.separator();
@@ -896,7 +896,10 @@ fn part_job(
     let key = |t: Tool| (tier == 0).then(|| t.key().name());
     // World: no race tools (the race tools' slot is not drawn).
     if s.focus == Focus::World
-        && matches!(part, Part::SlotStart | Part::SlotEnd | Part::Tool(Tool::Checkpoint | Tool::Start | Tool::Finish | Tool::Grid))
+        && matches!(
+            part,
+            Part::SlotStart | Part::SlotEnd | Part::Tool(Tool::Checkpoint | Tool::Start | Tool::Finish | Tool::Grid)
+        )
     {
         return None;
     }
@@ -1083,7 +1086,11 @@ pub fn toolbar(app: &mut App, ui: &mut egui::Ui, out: &mut Vec<Action>) {
             let world = s.focus == Focus::World;
             let errors = s.session.issues.iter().any(|i| i.level == Level::Error);
             if world {
-                let r = ui.button(label_job(drive, None, false, true)).on_hover_text(super::modes::DRIVE_HERE.tooltip());
+                let r =
+                    ui.button(label_job(drive, None, false, true)).on_hover_text(super::modes::DRIVE_HERE.tooltip());
+                if r.hovered() || r.has_focus() {
+                    super::testplay::mark_drive_hover(ui.ctx());
+                }
                 if r.clicked() {
                     post(ui.ctx(), Command::DriveHere);
                 }
@@ -1101,6 +1108,9 @@ pub fn toolbar(app: &mut App, ui: &mut egui::Ui, out: &mut Vec<Action>) {
             }
             let test_rect = r.rect;
             let r = ui.button(label_job(drive, None, false, true)).on_hover_text(super::modes::DRIVE_HERE.tooltip());
+            if r.hovered() || r.has_focus() {
+                super::testplay::mark_drive_hover(ui.ctx());
+            }
             if r.clicked() {
                 post(ui.ctx(), Command::DriveHere);
             }
@@ -1139,6 +1149,12 @@ pub fn tool_hint(tool: Tool, r: &Races) -> &'static str {
 /// get back to Select (a race tool armed) or clear the selection, how to
 /// fly.
 pub fn hint_job(s: &EditorState, p: &Props, r: &Races) -> egui::text::LayoutJob {
+    hint_job_in(s, p, r, false)
+}
+
+/// [`hint_job`] for the view shown: over the top view (`plan`) the end names the overview's own mouse controls
+/// instead of how to fly.
+pub fn hint_job_in(s: &EditorState, p: &Props, r: &Races, plan: bool) -> egui::text::LayoutJob {
     let tool = current_tool(s, p, r);
     let small = egui::FontId::proportional(13.0);
     let mut job = egui::text::LayoutJob::default();
@@ -1172,6 +1188,13 @@ pub fn hint_job(s: &EditorState, p: &Props, r: &Races) -> egui::text::LayoutJob 
         chip(&mut job, "Esc", 18.0);
         job.append(" clear the selection", 0.0, egui::TextFormat::simple(small.clone(), theme::ink()));
     }
+    if plan {
+        chip(&mut job, "RMB", 18.0);
+        job.append(" drag pan · wheel zoom · ", 0.0, egui::TextFormat::simple(small.clone(), theme::ink()));
+        chip(&mut job, "Home", 0.0);
+        job.append(" fit · double-click: fly there", 0.0, egui::TextFormat::simple(small, theme::ink()));
+        return job;
+    }
     chip(&mut job, "RMB", 18.0);
     job.append(" + ", 0.0, egui::TextFormat::simple(small.clone(), theme::dim()));
     chip(&mut job, "WASD", 0.0);
@@ -1202,7 +1225,7 @@ pub fn game_job(what: &str) -> egui::text::LayoutJob {
 /// The hint line under the view ([`hint_job`]), with "hide" at its
 /// right (View > Hint line brings it back).
 pub fn hint_line(s: &EditorState, p: &Props, r: &Races, ui: &mut egui::Ui, out: &mut Vec<Action>) {
-    let job = hint_job(s, p, r);
+    let job = hint_job_in(s, p, r, super::viewport::top_view(ui.ctx()).is_some());
     ui.horizontal_centered(|ui| {
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             if ui.small_button("hide").on_hover_text("Hide the hint line (View > Hint line)").clicked() {
@@ -1238,9 +1261,10 @@ pub fn status(app: &App, ui: &mut egui::Ui) {
             let wide = ui.available_width() > 700.0;
             if wide {
                 let c = s.camera;
+                let place = s.place_name().map(|n| format!("{n}  ")).unwrap_or_default();
                 ui.weak(
                     egui::RichText::new(format!(
-                        "{:.0}, {:.0}, {:.0}  heading {:.0}°  FOV {:.0}°",
+                        "{place}{:.0}, {:.0}, {:.0}  heading {:.0}°  FOV {:.0}°",
                         c.position.x,
                         c.position.y,
                         c.position.z,
@@ -1277,6 +1301,16 @@ pub fn status(app: &App, ui: &mut egui::Ui) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_hint_names_the_overview_controls_over_the_top_view() {
+        let s = crate::editor::props::tests::state();
+        let (p, r) = (Props::default(), Races::default());
+        let fly = hint_job_in(&s, &p, &r, false).text;
+        let plan = hint_job_in(&s, &p, &r, true).text;
+        assert!(fly.contains("fly") && !fly.contains("pan"), "{fly}");
+        assert!(plan.contains("pan") && plan.contains("zoom") && plan.contains("double-click"), "{plan}");
+    }
 
     #[test]
     fn commands_are_taken_once_and_cleared() {
@@ -1349,11 +1383,12 @@ mod tests {
         let _ = app.frame(raw());
         let mut offered = std::collections::HashSet::new();
         for mode in [Mode::Props, Mode::Races] {
-            for view in [View::ThreeD, View::Map] {
+            for view in ["3D", "top"] {
                 for c in Command::ALL {
                     let s = app.state.as_mut().unwrap();
                     s.session.map.races = vec![race.clone()];
-                    (s.mode, s.view, s.race) = (mode, view, Some(0));
+                    (s.mode, s.race) = (mode, Some(0));
+                    let _ = view;
                     s.selection = vec![0];
                     s.point = Some(RacePoint { part: RacePart::Checkpoint, index: 0 });
                     s.maps = match c {
@@ -1382,10 +1417,9 @@ mod tests {
         assert!(never.is_empty(), "never offered: {never:?}");
         // Disabled ones say why.
         let s = app.state.as_mut().unwrap();
-        (s.mode, s.view) = (Mode::Props, View::Map);
+        s.mode = Mode::Props;
         s.selection.clear();
         assert_eq!(Command::Duplicate.unavailable(s), Some("Select a prop first"));
-        assert_eq!(Command::ResetCamera.unavailable(s), Some("In the 3D view only (M)"));
         s.mode = Mode::Races;
         assert_eq!(Command::DropToGround.unavailable(s), Some("Select a prop first"));
     }

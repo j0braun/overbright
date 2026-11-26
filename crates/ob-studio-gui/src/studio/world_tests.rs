@@ -202,6 +202,7 @@ fn world_and_races_show_their_own_tools_layers_and_state() {
     assert_eq!(super::world::focus_of(Workspace::World), Focus::World);
     assert_eq!(s.editor_tabs().iter().map(|t| t.0).collect::<Vec<_>>().contains(&"browser"), true);
     assert!(!s.editor_tabs().iter().any(|t| t.0 == crate::editor::sim::TAB));
+    assert!(!s.editor_tabs().iter().any(|t| t.0 == crate::editor::race_strip::TAB), "the Race tab is Races'");
     // World: a selection, the collision layer, the camera.
     ed(&mut s).selection = vec![];
     ed(&mut s).collision = Show::All;
@@ -221,10 +222,13 @@ fn world_and_races_show_their_own_tools_layers_and_state() {
     assert_ne!(world, races);
     assert!(!s.editor_tabs().iter().any(|t| t.0 == "browser"));
     assert!(s.editor_tabs().iter().any(|t| t.0 == crate::editor::sim::TAB));
+    assert!(s.editor_tabs().iter().any(|t| t.0 == crate::editor::race_strip::TAB), "Races has the Race tab");
+    assert!(!world.is_empty());
     // The race branch alone in the left panel's rail labels.
     let labels = crate::editor::tree::rail_labels(Some(ed(&mut s)));
     assert_eq!(labels, ["Mod".to_string(), "Races 1".to_string()]);
-    ed(&mut s).point = Some(crate::editor::state::RacePoint { part: crate::tools::map::ops::RacePart::Checkpoint, index: 1 });
+    ed(&mut s).point =
+        Some(crate::editor::state::RacePoint { part: crate::tools::map::ops::RacePart::Checkpoint, index: 1 });
     ed(&mut s).camera.position.x -= 77.0;
     let races_cam = ed(&mut s).camera;
     // Back in World: its own camera and layer come back, the race's point is not there.
@@ -237,6 +241,40 @@ fn world_and_races_show_their_own_tools_layers_and_state() {
     s.workspace(Workspace::Races);
     frames(&mut s, size, 1.0, 3);
     assert_eq!(ed(&mut s).camera.position, races_cam.position);
-    assert_eq!(ed(&mut s).point, Some(crate::editor::state::RacePoint { part: crate::tools::map::ops::RacePart::Checkpoint, index: 1 }));
+    assert_eq!(
+        ed(&mut s).point,
+        Some(crate::editor::state::RacePoint { part: crate::tools::map::ops::RacePart::Checkpoint, index: 1 })
+    );
     assert!(s.close_requested());
+}
+
+/// The game's neighbourhoods: the one under the camera in the address bar and the status bar, and Find ▸ Places
+/// goes to each.
+#[test]
+fn the_neighbourhood_under_the_camera_is_named_and_find_goes_to_each() {
+    use super::inside::FindItem;
+    use crate::tools::map::assets::{GivenAssets, Place};
+    let sc = Scratch::new("studio-world-places");
+    let mut s = studio(&sc);
+    s.nav.workspace = Workspace::World;
+    frames(&mut s, (1920, 1080), 1.0, 2);
+    let place = |name: &str, x: f32| Place { name: name.into(), lo: Vec2::new(x, -50.0), hi: Vec2::new(x + 100.0, 50.0) };
+    {
+        let st = s.editor.as_mut().unwrap().app.state.as_mut().unwrap();
+        st.assets = Box::new(GivenAssets { places: vec![place("Beacon Hill", 0.0), place("City Core", 500.0)], ..Default::default() });
+        st.camera.position = glam::Vec3::new(50.0, 0.0, 30.0);
+    }
+    assert_eq!(s.editor_crumbs(), ["L4RA", "Beacon Hill"]);
+    let st = s.editor.as_ref().unwrap().app.state.as_ref().unwrap();
+    assert_eq!(st.place_name().as_deref(), Some("Beacon Hill"));
+    // Find lists them under PLACES; picking one sends the view there.
+    s.find_text = "core".into();
+    assert_eq!(s.find_items(), [FindItem::Hood(1)]);
+    s.find_run(FindItem::Hood(1));
+    let st = s.editor.as_ref().unwrap().app.state.as_ref().unwrap();
+    assert_eq!(st.goal, Some(crate::editor::views::Goal::At(Vec2::new(550.0, 0.0))));
+    // Outside every place: no name.
+    let st = s.editor.as_mut().unwrap().app.state.as_mut().unwrap();
+    st.camera.position = glam::Vec3::new(5000.0, 0.0, 30.0);
+    assert_eq!(st.place_name(), None);
 }

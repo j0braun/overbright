@@ -623,7 +623,90 @@ pub fn drive_spot(s: &EditorState) -> Target {
         .or_else(|| crate::tools::map::edit::ray_ground(&s.session.world, eye, -Vec3::Z, 1500.0))
         .unwrap_or(eye);
     let heading = if f.truncate().length() > 1e-3 { f.y.atan2(f.x).to_degrees() } else { 0.0 };
-    Target::At(at, heading)
+    Target::At(clear_of_added_props(s, at), heading)
+}
+
+/// How far from an added prop's box the car's centre stays (half the car's length and a margin), metres.
+pub const SPAWN_CLEARANCE: f32 = 3.0;
+
+/// `at` moved out of the way of the props this mod added: the car would start inside one otherwise. A spot clear of
+/// them all stays where it is; the height of a moved one is the ground's.
+pub fn clear_of_added_props(s: &EditorState, at: Vec3) -> Vec3 {
+    let w = &s.session.world;
+    let circles: Vec<(glam::Vec2, f32)> = (s.session.base.placements.len()..w.placements.len())
+        .filter_map(|i| super::overlay::placement_box(w, i))
+        .map(|(t, lo, hi)| {
+            let c = t.transform_point3((lo + hi) * 0.5).truncate();
+            let r = super::overlay::box_corners(t, lo, hi).iter().map(|p| p.truncate().distance(c)).fold(0.0, f32::max);
+            (c, r)
+        })
+        .collect();
+    let mut xy = at.truncate();
+    let mut moved = false;
+    for _ in 0..8 {
+        let mut again = false;
+        for &(c, r) in &circles {
+            let d = xy - c;
+            if d.length() < r + SPAWN_CLEARANCE {
+                xy = c + d.normalize_or(glam::Vec2::X) * (r + SPAWN_CLEARANCE);
+                again = true;
+            }
+        }
+        moved |= again;
+        if !again {
+            break;
+        }
+    }
+    if !moved {
+        return at;
+    }
+    let z = crate::tools::map::edit::ray_ground(w, xy.extend(at.z + 50.0), -Vec3::Z, 400.0).map_or(at.z, |g| g.z);
+    xy.extend(z)
+}
+
+fn hover_id() -> egui::Id {
+    egui::Id::unique("editor.drive_here.hover")
+}
+
+/// The Drive here button is under the pointer or focused this frame: the view shows where the car will start.
+pub fn mark_drive_hover(ctx: &egui::Context) {
+    let now = ctx.input(|i| i.time);
+    ctx.data_mut(|d| d.insert_temp(hover_id(), now));
+    ctx.request_repaint_after(std::time::Duration::from_millis(300));
+}
+
+/// The spawn marker over the view while Drive here is hovered: the car's footprint at the spot, its nose along the
+/// heading, in the 3D view and the top view alike.
+#[derive(Default)]
+pub struct SpawnMarker;
+
+impl super::app::Overlay for SpawnMarker {
+    fn overlay(&mut self, s: &mut EditorState, ctx: &egui::Context, painter: &egui::Painter, rect: egui::Rect) -> bool {
+        let stamp = ctx.data(|d| d.get_temp::<f64>(hover_id()));
+        if !stamp.is_some_and(|t| ctx.input(|i| i.time) - t < 0.25) {
+            return false;
+        }
+        let Target::At(p, heading) = drive_spot(s) else { return false };
+        let Some(proj) = super::collision::Proj::of(s, ctx, rect) else { return false };
+        let a = heading.to_radians();
+        let (fwd, side) = (glam::Vec2::new(a.cos(), a.sin()), glam::Vec2::new(-a.sin(), a.cos()));
+        let (half_l, half_w) = (2.3, 0.95);
+        let at = |f: f32, w: f32| proj.at(p + (fwd * f + side * w).extend(0.0) + Vec3::Z * 0.1);
+        let pts: Vec<egui::Pos2> =
+            [(half_l, half_w), (half_l, -half_w), (-half_l, -half_w), (-half_l, half_w)].iter().filter_map(|&(f, w)| at(f, w)).collect();
+        if pts.len() == 4 {
+            painter.add(egui::Shape::convex_polygon(
+                pts,
+                super::overlay::colour::SELECT.gamma_multiply(0.35),
+                egui::Stroke::new(2.0, super::overlay::colour::SELECT),
+            ));
+        }
+        if let (Some(tail), Some(nose)) = (at(0.0, 0.0), at(half_l + 2.5, 0.0)) {
+            super::overlay::line2d(painter, tail, nose, super::overlay::colour::SELECT, 2.0);
+            super::overlay::label2d(painter, nose + egui::vec2(8.0, -8.0), "Car starts here", super::overlay::colour::INK);
+        }
+        false
+    }
 }
 
 #[cfg(test)]
@@ -697,6 +780,45 @@ mod tests {
             crate::world::World::default(),
             crate::draw::camera::Camera::new(Vec3::new(10.0, 20.0, 5.0), 0.0, 0.0),
         )
+    }
+
+    /// Drive here puts the car where the camera looks, but never inside a prop this mod added.
+    #[test]
+    fn the_spawn_point_stays_clear_of_added_props() {
+        let mut s = super::super::props::tests::state();
+        let Target::At(before, _) = drive_spot(&s) else { panic!("a spot") };
+        assert!(before.truncate().distance(glam::Vec2::new(10.0, 0.0)) < 1.0, "the cone the camera looks at: {before}");
+        // The original cone is not an added prop: the spot stays.
+        assert_eq!(clear_of_added_props(&s, before), before);
+        crate::editor::props::place_new(&mut s, "XC_CONE_01", Vec3::new(10.0, 0.0, 0.0), 0.0).unwrap();
+        let Target::At(after, _) = drive_spot(&s) else { panic!("a spot") };
+        assert!(after.truncate().distance(glam::Vec2::new(10.0, 0.0)) >= SPAWN_CLEARANCE - 1e-3, "{after}");
+        assert!(after.z.abs() < 0.1, "on the ground: {after}");
+        // A spot far from it stays.
+        let far = Vec3::new(100.0, 100.0, 0.0);
+        assert_eq!(clear_of_added_props(&s, far), far);
+    }
+
+    /// Over the Drive here button the view shows the car's footprint at the spot, in the 3D view and the top view.
+    #[test]
+    fn the_spawn_marker_shows_while_drive_here_is_hovered() {
+        use super::super::app::Overlay;
+        let mut s = super::super::props::tests::state();
+        let rect = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(800.0, 450.0));
+        let count = |s: &mut EditorState, hover: bool| {
+            let ctx = egui::Context::default();
+            let mut m = SpawnMarker;
+            let mut out = ctx.run_ui(egui::RawInput { screen_rect: Some(rect), ..Default::default() }, |ui| {
+                if hover {
+                    mark_drive_hover(ui.ctx());
+                }
+                m.overlay(s, ui.ctx(), ui.painter(), rect);
+            });
+            out.textures_delta.clear();
+            out.shapes.len()
+        };
+        assert_eq!(count(&mut s, false), 0, "no marker without the hover");
+        assert!(count(&mut s, true) >= 3, "the footprint, the nose and its words");
     }
 
     #[test]

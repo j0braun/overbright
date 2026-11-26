@@ -21,6 +21,8 @@ pub enum FindItem {
     Run(Command),
     /// A place you were: so many steps back.
     Place(usize),
+    /// A neighbourhood of the open mod's region (an index into the game's named places): the editor goes there.
+    Hood(usize),
 }
 
 /// The commands Find lists and runs (the ones that do something by themselves; moving focus is not one).
@@ -231,6 +233,11 @@ impl Studio {
                 v.push(FindItem::Place(i + 1));
             }
         }
+        for (i, p) in self.hoods().iter().enumerate() {
+            if hit(&p.name) {
+                v.push(FindItem::Hood(i));
+            }
+        }
         v
     }
 
@@ -284,6 +291,7 @@ impl Studio {
             FindItem::Mod(i) => self.open_from_find(i),
             FindItem::Run(c) => self.command(c, self.input_pad()),
             FindItem::Place(n) => self.go_back(n),
+            FindItem::Hood(i) => self.go_hood(i),
         }
     }
 
