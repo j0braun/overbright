@@ -142,3 +142,27 @@ fn import_checks_and_never_replaces() {
     let _ = std::fs::remove_dir_all(src);
     let _ = std::fs::remove_dir_all(d);
 }
+
+#[test]
+fn a_pack_tried_once_is_on_for_that_plan_only() {
+    let d = scratch("try");
+    put(&d, "lib", "");
+    put(&d, "top", "\n[dependencies]\nlib = \">=1.0\"\n");
+    put(&d, "other", "");
+    set_enabled(&d, "other", true).unwrap();
+    let before = std::fs::read(d.join(ORDER_FILE)).unwrap();
+    let ids = |p: &Plan| p.layers.iter().map(|l| l.id.clone()).collect::<Vec<_>>();
+    assert_eq!(ids(&plan_with(&d, None, &engine(), None)), ["other"]);
+    // The tried pack and what it needs come on; the pack that was on stays.
+    let p = plan_with(&d, None, &engine(), Some("top"));
+    assert_eq!(p.layers.len(), 3, "{:?}", ids(&p));
+    assert!(ids(&p).iter().position(|i| i == "lib") < ids(&p).iter().position(|i| i == "top"), "{:?}", ids(&p));
+    assert_eq!(std::fs::read(d.join(ORDER_FILE)).unwrap(), before, "order.txt is not touched");
+    assert_eq!(ids(&plan(&d, None, &engine())), ["other"]);
+    // With no order.txt at all the pack is still tried, and the folder stays as it was.
+    std::fs::remove_file(d.join(ORDER_FILE)).unwrap();
+    assert_eq!(ids(&plan_with(&d, None, &engine(), Some("other"))), ["other"]);
+    assert!(!d.join(ORDER_FILE).exists());
+    assert!(plan_with(&d, None, &engine(), Some("nope")).notices.iter().any(|n| n.contains("not installed")));
+    let _ = std::fs::remove_dir_all(d);
+}

@@ -200,6 +200,12 @@ fn read_order(dir: &Path) -> Result<(Order, Vec<String>), String> {
 /// The stack of the packs that are on in `dir`'s `order.txt`, with the engine range, the base set, residual data and
 /// the dependency and conflict rules checked. A refused pack is not mounted at all.
 pub fn plan(dir: &Path, base: Option<&BaseId>, engine: &semver::Version) -> Plan {
+    plan_with(dir, base, engine, None)
+}
+
+/// [`plan`] with the pack `extra` also on for this plan only (a trial run): `order.txt` is not written; the pack's
+/// dependencies come on with it, as [`set_enabled`] does.
+pub fn plan_with(dir: &Path, base: Option<&BaseId>, engine: &semver::Version, extra: Option<&str>) -> Plan {
     let scan = scan(dir);
     let mut plan = Plan::default();
     for (n, why) in &scan.problems {
@@ -212,7 +218,15 @@ pub fn plan(dir: &Path, base: Option<&BaseId>, engine: &semver::Version) -> Plan
             return plan;
         }
     };
+    let mut order = order;
     plan.notices.extend(notes);
+    if let Some(id) = extra {
+        if scan.packs.iter().any(|p| p.id == id) {
+            enable_in(&scan, &mut order, id);
+        } else {
+            plan.notices.push(format!("{id}: not installed, not tried"));
+        }
+    }
     let installed: BTreeMap<&str, &Installed> = scan.packs.iter().map(|p| (p.id.as_str(), p)).collect();
     let (on, missing) = order.enabled(|id| installed.contains_key(id));
     for m in missing {
@@ -337,34 +351,41 @@ pub fn set_enabled(dir: &Path, id: &str, on: bool) -> Result<Vec<String>, String
         return Err(format!("{id} is not installed"));
     }
     let mut order = read_order(dir)?.0;
-    order.set_enabled(id, on);
-    let mut also = Vec::new();
-    if on {
-        // Dependencies, depth first, each below what needs it.
-        let mut stack = vec![id.to_string()];
-        while let Some(top) = stack.pop() {
-            let Some(p) = scan.packs.iter().find(|p| p.id == top) else { continue };
-            for dep in p.manifest.dependencies.keys() {
-                if !scan.packs.iter().any(|q| &q.id == dep) {
-                    continue;
-                }
-                if !order.packs().any(|(i, o)| i == dep && o) {
-                    order.set_enabled(dep, true);
-                    also.push(dep.clone());
-                }
-                // A dependency sits below what needs it (later in the file).
-                let pos = |o: &Order, x: &str| o.packs().position(|(i, _)| i == x);
-                while let (Some(a), Some(b)) = (pos(&order, &top), pos(&order, dep)) {
-                    if b > a || !order.move_pack(dep, 1) {
-                        break;
-                    }
-                }
-                stack.push(dep.clone());
-            }
-        }
-    }
+    let also = if on {
+        enable_in(&scan, &mut order, id)
+    } else {
+        order.set_enabled(id, false);
+        Vec::new()
+    };
     write_order(dir, &order)?;
     Ok(also)
+}
+
+/// Turns `id` on in `order` with its dependencies (depth first, each below what needs it); the ones turned on too.
+fn enable_in(scan: &Scan, order: &mut Order, id: &str) -> Vec<String> {
+    order.set_enabled(id, true);
+    let mut also = Vec::new();
+    let mut stack = vec![id.to_string()];
+    while let Some(top) = stack.pop() {
+        let Some(p) = scan.packs.iter().find(|p| p.id == top) else { continue };
+        for dep in p.manifest.dependencies.keys() {
+            if !scan.packs.iter().any(|q| &q.id == dep) {
+                continue;
+            }
+            if !order.packs().any(|(i, o)| i == dep && o) {
+                order.set_enabled(dep, true);
+                also.push(dep.clone());
+            }
+            let pos = |o: &Order, x: &str| o.packs().position(|(i, _)| i == x);
+            while let (Some(a), Some(b)) = (pos(order, &top), pos(order, dep)) {
+                if b > a || !order.move_pack(dep, 1) {
+                    break;
+                }
+            }
+            stack.push(dep.clone());
+        }
+    }
+    also
 }
 
 /// Moves a pack `by` places in `order.txt` (negative: stronger).

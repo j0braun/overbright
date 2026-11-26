@@ -667,6 +667,12 @@ pub struct Mods {
     pub pack_sel: Option<String>,
     /// The next Export writes a mod pack file instead of a `.zip`.
     pub export_pack: bool,
+    /// "Look inside" is open on this pack: its name and the lines about it.
+    pub inside: Option<(String, Vec<String>)>,
+    /// Play starts the game with this pack on for the run only ("Try it once").
+    pub try_pack: Option<String>,
+    /// A trial run ended and its saves copy waits for Keep or Discard.
+    pub tried: Option<(String, super::trial::Trial)>,
     /// The map editor started from this page.
     pub editor: EditorRun,
 }
@@ -1297,6 +1303,10 @@ pub trait Env {
     fn set_map(&self, folder: &str, on: bool) -> Result<(), String>;
     /// The mod packs in `order.txt`'s order, strongest first.
     fn packs(&self) -> Vec<PackRow> {
+        Vec::new()
+    }
+    /// What a mod pack changes ("Look inside"): the lines to show.
+    fn pack_inside(&self, _id: &str) -> Vec<String> {
         Vec::new()
     }
     /// Switches a mod pack on or off; the packs it needed that were turned on with it.
@@ -2323,6 +2333,11 @@ impl Env for RealEnv {
             .collect()
     }
 
+    fn pack_inside(&self, id: &str) -> Vec<String> {
+        let base = crate::mod_packs::base_in_use();
+        crate::mod_packs::inside(id, base.as_ref()).map(|i| i.lines()).unwrap_or_else(|| vec!["Not installed".into()])
+    }
+
     fn set_mod_pack(&self, id: &str, on: bool) -> Result<Vec<String>, String> {
         ob_asset_format::modpack::set_enabled(&crate::mod_packs::mods_dir(), id, on)
     }
@@ -2973,6 +2988,16 @@ impl Env for FakeEnv {
         vec![
             row("docks-remix", "Docks remix", true, None, Some("overrules cone-pack (3 values)")),
             row("cone-pack", "Cone pack", true, None, Some("overruled by docks-remix (3 values)")),
+        ]
+    }
+
+    fn pack_inside(&self, _id: &str) -> Vec<String> {
+        vec![
+            "Version 1.2.0 by Ana Docks".into(),
+            "Made for any copy of the game".into(),
+            "Changes 2 races, 5 moved props, 1 deleted prop, 3 textures".into(),
+            "Regions Docks, Airport".into(),
+            "Overrules cone-pack (3 values)".into(),
         ]
     }
 

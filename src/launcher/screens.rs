@@ -2171,6 +2171,35 @@ fn build_mods(b: &mut Builder, m: &Model) {
             },
         ],
     );
+    let ok_pack = sel.and_then(|i| mods.packs.get(i)).filter(|r| r.refused.is_none());
+    b.buttons(
+        Align::Left,
+        vec![
+            Ctrl::Button { id: "pack_inside", text: "Look inside".into(), primary: false, enabled: sel.is_some() },
+            Ctrl::Button { id: "pack_try", text: "Try it once".into(), primary: false, enabled: live && ok_pack.is_some() && !editing },
+        ],
+    );
+    if let Some((name, lines)) = &mods.inside {
+        b.gap(6.0);
+        b.section_a(&format!("Inside {name}"));
+        for l in lines {
+            b.dim(l);
+        }
+        b.gap(6.0);
+        b.buttons(Align::Left, vec![Ctrl::button("inside_close", "Close")]);
+    }
+    if let Some((name, t)) = &mods.tried {
+        b.gap(6.0);
+        b.message_with(
+            Mark::Ok,
+            &format!("{name} was tried once"),
+            &format!(
+                "Your own saves were not touched. The game wrote into a copy: {}. Keep it to look at, or discard it.",
+                t.dir.display()
+            ),
+            vec![Ctrl::button("try_keep", "Keep the copy"), Ctrl::button("try_discard", "Discard the copy")],
+        );
+    }
     let left_bottom = b.y;
     // The HUD and the map mods: the right column (under the left one when
     // the window is narrow).
@@ -3006,6 +3035,12 @@ impl<'e> App<'e> {
         self.refresh_mods();
     }
 
+    /// The mod pack chosen on the Mods page.
+    fn selected_pack(&self) -> Option<super::model::PackRow> {
+        let id = self.model.mods.pack_sel.as_ref()?;
+        self.model.mods.packs.iter().find(|r| &r.id == id).cloned()
+    }
+
     /// Moves the chosen mod pack one place; the page keeps it chosen.
     fn move_mod_pack(&mut self, by: isize) {
         let Some(id) = self.model.mods.pack_sel.clone() else { return };
@@ -3394,6 +3429,38 @@ impl<'e> App<'e> {
             }
             (Screen::Mods, Event::Activate("pack_up")) => self.move_mod_pack(-1),
             (Screen::Mods, Event::Activate("pack_down")) => self.move_mod_pack(1),
+            (Screen::Mods, Event::Activate("pack_inside")) => {
+                if let Some(r) = self.selected_pack() {
+                    let lines = self.env.pack_inside(&r.id);
+                    self.model.mods.inside = Some((r.name, lines));
+                }
+            }
+            (Screen::Mods, Event::Activate("inside_close")) => self.model.mods.inside = None,
+            (Screen::Mods, Event::Activate("pack_try")) => {
+                if let Some(r) = self.selected_pack().filter(|r| r.refused.is_none()) {
+                    self.model.mods.try_pack = Some(r.id);
+                    self.model.mods.tried = None;
+                    self.motion.play_pressed();
+                    if self.save() {
+                        return Some(Outcome::Play);
+                    }
+                    self.model.mods.try_pack = None;
+                }
+            }
+            (Screen::Mods, Event::Activate("try_keep")) => {
+                if let Some((name, t)) = self.model.mods.tried.take() {
+                    self.model.mods.results =
+                        vec![(Mark::Ok, format!("{name}: the saves copy is kept in {}", t.dir.display()))];
+                }
+            }
+            (Screen::Mods, Event::Activate("try_discard")) => {
+                if let Some((name, t)) = self.model.mods.tried.take() {
+                    self.model.mods.results = vec![match t.discard(&super::trial::tries_dir()) {
+                        Ok(()) => (Mark::Ok, format!("{name}: the saves copy is discarded")),
+                        Err(e) => (Mark::Error, format!("{name}: the saves copy was not discarded: {e}")),
+                    }];
+                }
+            }
             (Screen::Mods, Event::Activate("pack_import")) => self.browse(BrowseFor::MapMod, None),
             (Screen::Mods, Event::Activate("map_export_pack")) => {
                 self.model.mods.export_pack = true;

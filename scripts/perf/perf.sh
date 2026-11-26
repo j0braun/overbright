@@ -582,7 +582,7 @@ rate_gates() {
         [ "$s" = "$ref" ] || dirs+=("$s=$out/img-$cls-$s")
       done
       [ $cls = orig ] && [ -d "$out/img-orig-ctl" ] && dirs+=("ctl=$out/img-orig-ctl")
-      local il; il=$(python3 "$HERE/rateimg.py" "$pix" "$cls" "$out/img-$cls-$ref" "${dirs[@]}"); local irc=$?
+      local il; il=$(python3 -I "$HERE/rateimg.py" "$pix" "$cls" "$out/img-$cls-$ref" "${dirs[@]}"); local irc=$?
       # An image class the policy marks "images@CLASS fail" counts (a difference, or for taa one over its bound).
       local ipol; ipol=$(awk -v k="images@$cls" '$1 == k { print $2 }' "${RATE_POLICY:-$HERE/../checks/rate-columns.txt}" 2>/dev/null)
       if [ $irc != 0 ] && [ "$ipol" = fail ]; then hard=$((hard + 1)); say_rate "  FAIL: images $il"

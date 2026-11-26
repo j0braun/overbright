@@ -55,6 +55,8 @@ struct Run<'e> {
     error: Option<String>,
     game: GameStart,
     running: Option<Running>,
+    /// The trial run in `running` ("Try it once"): its saves copy is dealt with when the game ends.
+    trial: Option<super::trial::Trial>,
     probe: Option<std::sync::mpsc::Receiver<Result<Probe, String>>>,
     /// The game folder the last probe was run with (a new folder: run
     /// again, so the probe's result belongs to the chosen folder).
@@ -145,8 +147,13 @@ pub struct GameStart {
 
 impl GameStart {
     pub fn start(&self) -> Result<Running, String> {
+        self.start_with(&[])
+    }
+
+    /// [`GameStart::start`] with more environment variables for the game (a trial run's).
+    pub fn start_with(&self, env: &[(String, String)]) -> Result<Running, String> {
         let logs = self.logs.then(super::dirs::logs);
-        super::run::start(&self.exe, &self.args, logs.as_deref(), self.root.as_deref())
+        super::run::start_env(&self.exe, &self.args, logs.as_deref(), self.root.as_deref(), env)
     }
 }
 
@@ -238,15 +245,41 @@ impl Run<'_> {
         // The language chosen on the Settings page, also kept in
         // language.txt for a start without the launcher.
         game.args.extend(language_args(&self.app.model.choices.language));
-        match game.start() {
+        // Try it once: the pack on for this run, the saves in a copy.
+        let trial = match self.app.model.mods.try_pack.take() {
+            Some(id) => {
+                match super::trial::begin(&id, &super::trial::tries_dir(), &super::dirs::profiles()) {
+                    Ok(t) => Some(t),
+                    Err(e) => {
+                        self.app.model.starting = false;
+                        self.app.model.mods.results = vec![(super::ui::Mark::Error, e)];
+                        self.app.refresh_mods();
+                        self.app.rebuild(&self.fonts);
+                        if let Some(w) = &self.window {
+                            w.request_redraw();
+                        }
+                        return;
+                    }
+                }
+            }
+            None => None,
+        };
+        let env = trial.as_ref().map(|t| t.env()).unwrap_or_default();
+        match game.start_with(&env) {
             Ok(r) => {
+                self.trial = trial;
                 log::info!("game started (pid {})", r.id());
                 if let Some(w) = &self.window {
                     w.set_visible(false);
                 }
                 self.running = Some(r);
             }
-            Err(e) => self.show_failure(Failure::not_started(e)),
+            Err(e) => {
+                if let Some(t) = trial {
+                    let _ = t.discard(&super::trial::tries_dir());
+                }
+                self.show_failure(Failure::not_started(e))
+            }
         }
     }
 
@@ -269,6 +302,24 @@ impl Run<'_> {
         let Some(r) = self.running.as_mut() else { return };
         let Some(e) = r.poll() else { return };
         self.running = None;
+        if let Some(t) = self.trial.take() {
+            log::info!("trial run of {} ended; its saves copy is {}", t.pack, t.dir.display());
+            let name = self.app.model.mods.packs.iter().find(|r| r.id == t.pack).map_or(t.pack.clone(), |r| r.name.clone());
+            self.app.model.mods.tried = Some((name, t));
+            if !e.failed() {
+                self.app.model.starting = false;
+                self.app.motion.play_reset();
+                self.app.go(Screen::Mods);
+                self.app.refresh_mods();
+                self.app.rebuild(&self.fonts);
+                if let Some(w) = &self.window {
+                    w.set_visible(true);
+                    w.focus_window();
+                    w.request_redraw();
+                }
+                return;
+            }
+        }
         if e.failed() {
             log::warn!("the game ended with {} after {:.1} s", e.how(), e.secs);
             eprintln!("overbright: showing the failure screen ({})", e.how());
@@ -1379,6 +1430,7 @@ pub fn run_with_root(env: &dyn Env, start: Start) -> Result<Outcome, String> {
         error: None,
         game: start.game,
         running: None,
+        trial: None,
         probe,
         probed_root,
         probing: start.probe,

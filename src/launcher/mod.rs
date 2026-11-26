@@ -42,6 +42,7 @@ pub mod sounds;
 pub mod start_log;
 pub mod studio_seen;
 pub mod transfer;
+pub mod trial;
 pub mod ui;
 #[cfg(windows)]
 mod win_dialog;

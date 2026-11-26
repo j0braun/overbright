@@ -51,7 +51,7 @@ pub fn named_app<'e>(env: &'e FakeEnv, fonts: &Fonts, name: &str, w: u32, h: u32
 
 /// The named states: (name, the screen it is shown on). The fake data of
 /// each comes from [`state_model`].
-pub const STATES: [(&str, Screen); 89] = [
+pub const STATES: [(&str, Screen); 91] = [
     ("no-game", Screen::FirstRun),
     ("check-ok", Screen::Check),
     ("check-movies", Screen::Check),
@@ -141,6 +141,8 @@ pub const STATES: [(&str, Screen); 89] = [
     ("settings-suggested", Screen::Settings),
     ("mods-conflict", Screen::Mods),
     ("mods-order", Screen::Mods),
+    ("mods-inside", Screen::Mods),
+    ("mods-try-ended", Screen::Mods),
 ];
 
 /// A checked fake install: the key files `missing` and `different`, the
@@ -498,6 +500,20 @@ pub fn state_model(name: &str) -> Option<(Screen, Model)> {
                 textures: 214,
                 same_list: false,
             });
+        }
+        "mods-inside" => {
+            m.mods.pack_sel = Some("docks-remix".into());
+            m.mods.inside = Some(("Docks remix".into(), Env::pack_inside(&FakeEnv, "docks-remix")));
+        }
+        "mods-try-ended" => {
+            m.mods.pack_sel = Some("docks-remix".into());
+            m.mods.tried = Some((
+                "Docks remix".into(),
+                super::trial::Trial {
+                    pack: "docks-remix".into(),
+                    dir: "/home/player/.local/share/overbright/tries/docks-remix-2026-11-25-18-04-12".into(),
+                },
+            ));
         }
         "mods-order" => {
             m.mods.list.iter_mut().for_each(|(e, _)| e.on = true);
