@@ -16,6 +16,7 @@ use super::changes::small_button;
 use crate::editor::sim::library::{self, Entry};
 use crate::editor::sim::panel::{Shared, ghost_colour, load_recording};
 use crate::editor::theme::{self, LABEL, font, rgb, tokens};
+use super::words;
 
 /// A run's row (points): its name, and what it is under it.
 pub const ROW_H: f32 = 46.0;
@@ -118,7 +119,7 @@ impl Page {
             s.clear_ghost();
             self.note = None;
         } else if s.shown == name {
-            self.note = Some("That run is the one shown: pick another to compare it with".into());
+            self.note = Some(words::THAT_RUN_IS_THE_ONE_SHOWN.into());
         } else {
             self.note = s.set_ghost(&library::path(dir, name)).err();
         }
@@ -193,9 +194,9 @@ impl Page {
                     }
                 });
                 if ui
-                    .add(small_button("Drive to record", false))
+                    .add(small_button(words::DRIVE_TO_RECORD, false))
                     .on_hover_text(
-                        "Start the game on the chosen race (or from the camera's spot), drive it yourself, and keep the drive here as a run",
+                        words::START_THE_GAME_ON_THE_CHOSEN,
                     )
                     .clicked()
                 {
@@ -223,7 +224,7 @@ impl Page {
                     }
                     let _ = resp
                         .clone()
-                        .on_hover_text("Enter: open it · C: compare with the run shown · F2: rename · Delete: delete");
+                        .on_hover_text(words::ENTER_OPEN_IT_C_COMPARE_WITH);
                     let p = ui.painter_at(row);
                     let is_shown = shown == e.name;
                     let is_ghost = ghost == e.name;
@@ -342,11 +343,11 @@ impl Page {
                 }
                 let enter = r.lost_focus() && ui.input(|i| i.key_pressed(Key::Enter));
                 let esc = ui.input(|i| i.key_pressed(Key::Escape));
-                let ok = ui.add(small_button("Rename", false)).clicked() || enter;
+                let ok = ui.add(small_button(words::RENAME, false)).clicked() || enter;
                 if ok {
                     *act = Some(("do-rename", format!("{from}\n{text}")));
                 }
-                if esc || ui.add(small_button("Cancel", false)).clicked() {
+                if esc || ui.add(small_button(words::CANCEL, false)).clicked() {
                     *act = Some(("cancel", String::new()));
                 }
             });
@@ -355,28 +356,28 @@ impl Page {
         if self.confirm.as_deref() == Some(name) {
             ui.horizontal_wrapped(|ui| {
                 ui.label(egui::RichText::new(format!("Delete {name}?")).color(rgb(t.warn)));
-                let del = ui.add(small_button("Delete", false));
+                let del = ui.add(small_button(words::DELETE, false));
                 if del.clicked() || ui.input(|i| i.key_pressed(Key::Enter)) && !del.has_focus() {
                     *act = Some(("do-delete", name.to_string()));
                 }
-                if ui.add(small_button("Keep", false)).clicked() || ui.input(|i| i.key_pressed(Key::Escape)) {
+                if ui.add(small_button(words::KEEP, false)).clicked() || ui.input(|i| i.key_pressed(Key::Escape)) {
                     *act = Some(("cancel", String::new()));
                 }
             });
             return;
         }
         ui.horizontal_wrapped(|ui| {
-            if ui.add(small_button("Open", shown)).on_hover_text("Show it in the view (Enter)").clicked() {
+            if ui.add(small_button(words::OPEN, shown)).on_hover_text(words::SHOW_IT_IN_THE_VIEW_ENTER).clicked() {
                 *act = Some(("open", name.to_string()));
             }
-            let cmp = if ghost { "Stop comparing" } else { "Compare" };
-            if ui.add(small_button(cmp, ghost)).on_hover_text("Draw it as ghosts over the run shown (C)").clicked() {
+            let cmp = if ghost { words::STOP_COMPARING } else { words::COMPARE };
+            if ui.add(small_button(cmp, ghost)).on_hover_text(words::DRAW_IT_AS_GHOSTS_OVER_THE).clicked() {
                 *act = Some(("compare", name.to_string()));
             }
-            if ui.add(small_button("Rename", false)).on_hover_text("F2").clicked() {
+            if ui.add(small_button(words::RENAME, false)).on_hover_text("F2").clicked() {
                 *act = Some(("rename", name.to_string()));
             }
-            if ui.add(small_button("Delete", false)).on_hover_text("Delete").clicked() {
+            if ui.add(small_button(words::DELETE, false)).on_hover_text(words::DELETE).clicked() {
                 *act = Some(("delete", name.to_string()));
             }
         });

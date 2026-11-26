@@ -10,6 +10,7 @@ use ob_look::legends::InputKind;
 
 use super::super::Studio;
 use super::super::address::Address;
+use super::super::matrix;
 use super::super::nav::{Area, Pad};
 use super::super::shot::{frames, raw_input};
 use super::super::workspace::Workspace;
@@ -221,24 +222,30 @@ fn pad_walks_and_edits_a_switch() {
 #[test]
 fn drawn_at_the_review_sizes_inside_the_page() {
     let dir = maps("draw");
-    for (size, scale) in [((960, 600), 1.0), ((1280, 800), 1.0), ((1920, 1080), 1.0), ((3840, 2160), 2.0)] {
-        for kind in ["placement", "race"] {
-            for input in [InputKind::Mouse, InputKind::Xbox] {
+    for kind in ["placement", "race"] {
+        let drawn = matrix::page(
+            &format!("data {kind}"),
+            2,
+            |_, _| {
                 let mut s = Studio::new(dir.clone(), Some("harbour-edits"));
                 s.go(&Address::parse("ob://harbour-edits/@data").unwrap()).unwrap();
                 let rows = s.changes.data().unwrap().rows.clone();
-                s.data.set_kind(if kind == "race" { "race" } else { "placement" }, &rows);
-                s.nav.input = input;
-                let (_, l) = frames(&mut s, size, scale, 2);
-                assert!(l.problems().is_empty(), "{size:?} {kind}: {:?}", l.problems());
+                s.data.set_kind(kind, &rows);
+                s
+            },
+            |s, l, size, input| {
                 let last = &s.data.last;
-                assert!(!last.rows.is_empty() && last.header.is_some(), "{size:?} {kind}");
-                for r in &last.rows {
-                    assert!(l.view.expand(1.0).contains_rect(*r), "{size:?}: row {r:?} outside {:?}", l.view);
+                let mut p = matrix::inside_view(l, &last.rows);
+                if last.rows.is_empty() || last.header.is_none() {
+                    p.push(format!("{}: no rows or header drawn", size.label()));
                 }
-                assert_eq!(last.focus.is_some(), input != InputKind::Mouse, "{size:?} {kind}");
-            }
-        }
+                if last.focus.is_some() != (input != InputKind::Mouse) {
+                    p.push("the focus ring does not follow the input".into());
+                }
+                p
+            },
+        );
+        assert!(drawn >= 12, "{drawn}");
     }
     let _ = std::fs::remove_dir_all(&dir);
 }

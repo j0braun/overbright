@@ -4,6 +4,8 @@
 //! bottom. Only the workspaces this version has are listed (no greyed slots); a shipped workspace never moves and
 //! its Ctrl+number is never given to another.
 
+use super::words;
+
 /// One workspace.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Workspace {
@@ -59,15 +61,15 @@ impl Workspace {
     /// Its name on the rail, in the address bar and in Find.
     pub fn name(self) -> &'static str {
         match self {
-            Workspace::Home => "Home",
-            Workspace::World => "World",
-            Workspace::Races => "Races",
-            Workspace::Browser => "Browser",
-            Workspace::Runs => "Runs",
-            Workspace::Mod => "Mod",
-            Workspace::Settings => "Settings",
-            Workspace::Changes => "Changes",
-            Workspace::Data => "Data",
+            Workspace::Home => words::HOME,
+            Workspace::World => words::WORLD_2,
+            Workspace::Races => words::RACES,
+            Workspace::Browser => words::BROWSER,
+            Workspace::Runs => words::RUNS,
+            Workspace::Mod => words::MOD,
+            Workspace::Settings => words::SETTINGS,
+            Workspace::Changes => words::CHANGES,
+            Workspace::Data => words::DATA,
         }
     }
 
@@ -89,15 +91,15 @@ impl Workspace {
     /// What it is for, in one line (Home's "what each place does").
     pub fn what(self) -> &'static str {
         match self {
-            Workspace::Home => "Your mods, and where to start",
-            Workspace::World => "Move, add and hide props in the city, and drive there",
-            Workspace::Races => "Make a race: start, checkpoints, finish; test and simulate it",
-            Workspace::Browser => "Find the game's models and textures by name, and where each is used",
-            Workspace::Runs => "Play a recorded run back, read its telemetry, compare two runs",
-            Workspace::Changes => "Everything your mod changes, and which mod wins",
-            Workspace::Data => "Your props and races as a table: sort, search, edit a cell",
-            Workspace::Mod => "Its details, whether it is ready to share, and Export",
-            Workspace::Settings => "Studio's own settings",
+            Workspace::Home => words::YOUR_MODS_AND_WHERE_TO_START,
+            Workspace::World => words::MOVE_ADD_AND_HIDE_PROPS_IN,
+            Workspace::Races => words::MAKE_A_RACE_START_CHECKPOINTS_FINISH,
+            Workspace::Browser => words::FIND_THE_GAME_S_MODELS_AND,
+            Workspace::Runs => words::PLAY_A_RECORDED_RUN_BACK_READ,
+            Workspace::Changes => words::EVERYTHING_YOUR_MOD_CHANGES_AND_WHICH,
+            Workspace::Data => words::YOUR_PROPS_AND_RACES_AS_A,
+            Workspace::Mod => words::ITS_DETAILS_WHETHER_IT_IS_READY,
+            Workspace::Settings => words::STUDIO_S_OWN_SETTINGS,
         }
     }
 

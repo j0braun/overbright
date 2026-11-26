@@ -9,6 +9,7 @@ use ob_look::legends::{Btn, InputKind};
 
 use super::layout::{Dock, Layout};
 use super::workspace::Workspace;
+use super::words;
 
 /// The areas, always in this order.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -29,13 +30,13 @@ impl Area {
 
     pub fn name(self) -> &'static str {
         match self {
-            Area::Rail => "Rail",
-            Area::Address => "Address",
-            Area::Toolbar => "Toolbar",
-            Area::Left => "Left panel",
-            Area::View => "View",
-            Area::Right => "Right dock",
-            Area::Bottom => "Bottom dock",
+            Area::Rail => words::RAIL,
+            Area::Address => words::ADDRESS,
+            Area::Toolbar => words::TOOLBAR,
+            Area::Left => words::LEFT_PANEL,
+            Area::View => words::VIEW,
+            Area::Right => words::RIGHT_DOCK,
+            Area::Bottom => words::BOTTOM_DOCK,
         }
     }
 }
@@ -111,144 +112,144 @@ pub struct KeyRow {
 pub const KEYS: [KeyRow; 21] = [
     KeyRow {
         command: Command::Select,
-        keys: "Enter",
+        keys: words::ENTER,
         pad: Some(Btn::Confirm),
-        word: "Select",
-        help: "Take the focused item",
+        word: words::SELECT,
+        help: words::TAKE_THE_FOCUSED_ITEM,
     },
     KeyRow {
         command: Command::Back,
-        keys: "Esc",
+        keys: words::ESC,
         pad: Some(Btn::Back),
-        word: "Back",
-        help: "One level out: menu, field, row, area, then the page's back link",
+        word: words::BACK,
+        help: words::ONE_LEVEL_OUT_MENU_FIELD_ROW,
     },
     KeyRow {
         command: Command::Menu,
-        keys: "Shift+F10 / Menu key",
+        keys: words::SHIFT_F10_MENU_KEY,
         pad: Some(Btn::X),
-        word: "Menu",
-        help: "The focused thing's menu: undo, redo, test here, reset (on Changes), copy address",
+        word: words::MENU,
+        help: words::THE_FOCUSED_THING_S_MENU_UNDO,
     },
     KeyRow {
         command: Command::Find,
-        keys: "Ctrl+K",
+        keys: words::CTRL_K,
         pad: Some(Btn::Y),
-        word: "Find",
-        help: "Find names, commands, places and pasted addresses",
+        word: words::FIND,
+        help: words::FIND_NAMES_COMMANDS_PLACES_AND_PASTED,
     },
     KeyRow {
         command: Command::NextWorkspace,
-        keys: "Ctrl+PgUp / Ctrl+PgDn",
+        keys: words::CTRL_PGUP_CTRL_PGDN,
         pad: Some(Btn::Pages),
-        word: "Workspace",
-        help: "The workspace above or below on the rail",
+        word: words::WORKSPACE,
+        help: words::THE_WORKSPACE_ABOVE_OR_BELOW_ON,
     },
     KeyRow {
         command: Command::Workspace(Workspace::Home),
-        keys: "Ctrl+1 … Ctrl+0, Ctrl+,",
+        keys: words::CTRL_1_CTRL_0_CTRL,
         pad: None,
-        word: "Workspace",
-        help: "A workspace by its number on the rail; Ctrl+, opens Settings",
+        word: words::WORKSPACE,
+        help: words::A_WORKSPACE_BY_ITS_NUMBER_ON,
     },
     KeyRow {
         command: Command::NextArea,
-        keys: "F6 / Shift+F6",
+        keys: words::F6_SHIFT_F6,
         pad: Some(Btn::Area),
-        word: "Area",
-        help: "The next or previous area: rail, address, toolbar, left panel, view, right dock, bottom dock",
+        word: words::AREA,
+        help: words::THE_NEXT_OR_PREVIOUS_AREA_RAIL,
     },
     KeyRow {
         command: Command::Move,
-        keys: "Tab / arrows",
+        keys: words::TAB_ARROWS,
         pad: Some(Btn::Move),
-        word: "Move",
-        help: "Between the controls of an area, in reading order",
+        word: words::MOVE,
+        help: words::BETWEEN_THE_CONTROLS_OF_AN_AREA,
     },
     KeyRow {
         command: Command::Change,
-        keys: "← →",
+        keys: words::TEXT,
         pad: Some(Btn::Change),
-        word: "Change",
-        help: "Change a value by its nudge step (Shift: ten steps)",
+        word: words::CHANGE,
+        help: words::CHANGE_A_VALUE_BY_ITS_NUDGE,
     },
     KeyRow {
         command: Command::Test,
         keys: "F5",
         pad: Some(Btn::Start),
-        word: "Test",
-        help: "Test what the Test button names",
+        word: words::TEST,
+        help: words::TEST_WHAT_THE_TEST_BUTTON_NAMES,
     },
     KeyRow {
         command: Command::LastPlace,
-        keys: "Alt+←",
+        keys: words::ALT,
         pad: Some(Btn::LastPlace),
-        word: "Last place",
-        help: "Back to the last place (forward: Alt+→)",
+        word: words::LAST_PLACE,
+        help: words::BACK_TO_THE_LAST_PLACE_FORWARD,
     },
-    KeyRow { command: Command::NextPlace, keys: "Alt+→", pad: None, word: "Next place", help: "Forward again" },
+    KeyRow { command: Command::NextPlace, keys: words::ALT_2, pad: None, word: words::NEXT_PLACE, help: words::FORWARD_AGAIN },
     KeyRow {
         command: Command::EditAddress,
-        keys: "Ctrl+L",
+        keys: words::CTRL_L,
         pad: None,
-        word: "Address",
-        help: "Show the address to edit or paste; Enter goes there",
+        word: words::ADDRESS,
+        help: words::SHOW_THE_ADDRESS_TO_EDIT_OR,
     },
     KeyRow {
         command: Command::CopyAddress,
-        keys: "Ctrl+Shift+C",
+        keys: words::CTRL_SHIFT_C,
         pad: None,
-        word: "Copy address",
-        help: "Copy the focused item's address",
+        word: words::COPY_ADDRESS,
+        help: words::COPY_THE_FOCUSED_ITEM_S_ADDRESS,
     },
     KeyRow {
         command: Command::Workspace(Workspace::Changes),
-        keys: "Ctrl+D",
+        keys: words::CTRL_D,
         pad: None,
-        word: "Changes",
-        help: "What the open mod changes, value by value, and which mod wins",
+        word: words::CHANGES,
+        help: words::WHAT_THE_OPEN_MOD_CHANGES_VALUE,
     },
     KeyRow {
         command: Command::Workspace(Workspace::Data),
-        keys: "Ctrl+G",
+        keys: words::CTRL_G,
         pad: None,
-        word: "Data",
-        help: "Your props and races as a table: sort, search, edit a cell",
+        word: words::DATA,
+        help: words::YOUR_PROPS_AND_RACES_AS_A,
     },
     KeyRow {
         command: Command::NewMod,
-        keys: "Ctrl+N",
+        keys: words::CTRL_N,
         pad: None,
-        word: "New mod",
-        help: "Make a new map mod (Home: Empty map mod)",
+        word: words::NEW_MOD_TITLE,
+        help: words::MAKE_A_NEW_MAP_MOD_HOME,
     },
     KeyRow {
         command: Command::Tutorial,
         keys: "F1",
         pad: None,
-        word: "Tutorial",
-        help: "Do the tutorial's step (Home's card holds it for the pad); starts the tutorial",
+        word: words::TUTORIAL,
+        help: words::DO_THE_TUTORIAL_S_STEP_HOME,
     },
     KeyRow {
         command: Command::Undo,
-        keys: "Ctrl+Z",
+        keys: words::CTRL_Z,
         pad: Some(Btn::DeckGrips),
-        word: "Undo",
-        help: "Take back the last step (Deck: L4)",
+        word: words::UNDO,
+        help: words::TAKE_BACK_THE_LAST_STEP_DECK,
     },
     KeyRow {
         command: Command::Redo,
-        keys: "Ctrl+Y",
+        keys: words::CTRL_Y,
         pad: Some(Btn::DeckGrips),
-        word: "Redo",
-        help: "Make it again (Deck: R4)",
+        word: words::REDO,
+        help: words::MAKE_IT_AGAIN_DECK_R4,
     },
     KeyRow {
         command: Command::Move,
-        keys: "RMB + WASD",
+        keys: words::RMB_WASD,
         pad: Some(Btn::Sticks),
-        word: "Fly",
-        help: "Move and look in the 3D view while it has focus",
+        word: words::FLY,
+        help: words::MOVE_AND_LOOK_IN_THE_3D,
     },
 ];
 
@@ -489,18 +490,18 @@ impl Nav {
 
     /// The legend row's roles on the focused area (five or six), with their words.
     pub fn legend_roles(&self) -> Vec<(Btn, &'static str)> {
-        let mut v = vec![(Btn::Confirm, "Select"), (Btn::Back, "Back")];
+        let mut v = vec![(Btn::Confirm, words::SELECT), (Btn::Back, words::BACK)];
         if self.input.is_pad() {
-            v.push((Btn::X, "Menu"));
+            v.push((Btn::X, words::MENU));
         }
-        v.push((Btn::Y, "Find"));
-        v.push((Btn::Pages, "Workspace"));
-        v.push((Btn::Area, "Area"));
+        v.push((Btn::Y, words::FIND));
+        v.push((Btn::Pages, words::WORKSPACE));
+        v.push((Btn::Area, words::AREA));
         if self.input.is_pad() && self.workspace.kind() == super::workspace::Kind::Tool {
-            v.push((Btn::Start, "Test"));
+            v.push((Btn::Start, words::TEST));
         }
         if self.input.is_pad() {
-            v.push((Btn::LastPlace, "Last place"));
+            v.push((Btn::LastPlace, words::LAST_PLACE));
         }
         v
     }

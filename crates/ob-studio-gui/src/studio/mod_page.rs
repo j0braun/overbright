@@ -48,12 +48,12 @@ pub const LINES: [Line; 7] =
 impl Line {
     pub fn label(self) -> &'static str {
         match self {
-            Line::Name => "Name",
-            Line::Author => "Author",
-            Line::Description => "Description",
-            Line::Files => "Files",
-            Line::Clashes => "Clashes",
-            Line::ExportTo => "Export to",
+            Line::Name => words::NAME,
+            Line::Author => words::AUTHOR,
+            Line::Description => words::DESCRIPTION,
+            Line::Files => words::FILES,
+            Line::Clashes => words::CLASHES,
+            Line::ExportTo => words::EXPORT_TO,
             Line::Export => words::EXPORT,
         }
     }
@@ -139,8 +139,8 @@ pub fn load(maps: &Path, folder: &str, game: Option<&Path>, given: Option<GivenT
             let row = c.rows.iter().find(|r| r.kind == k.kind && r.key == k.key);
             let item = row.map_or_else(|| k.key.clone(), |r| changes::item_words(&c, r).0);
             let (winner, source) = match &k.winner {
-                From::Yours => ("Yours wins".to_string(), Source::Yours),
-                From::Original => ("The original stays".to_string(), Source::Original),
+                From::Yours => (words::YOURS_WINS.to_string(), Source::Yours),
+                From::Original => (words::THE_ORIGINAL_STAYS.to_string(), Source::Original),
                 From::Other(p) => (format!("{} wins", name_of(p)), Source::AnotherMod),
             };
             ClashLine { item, field: field_name(&k.field), winner, source }
@@ -365,7 +365,7 @@ impl Page {
         }
         if self.confirm {
             self.confirm = false;
-            self.note = Some((Mark::Info, "Not exported".into()));
+            self.note = Some((Mark::Info, words::NOT_EXPORTED.into()));
             return true;
         }
         false
@@ -376,12 +376,12 @@ impl Page {
     pub fn export(&mut self, derived_ok: bool) {
         let Some(d) = &self.data else { return };
         if !share::is_ready(&d.ready) {
-            self.note = Some((Mark::Error, "Not ready to share yet: see the list".into()));
+            self.note = Some((Mark::Error, words::NOT_READY_TO_SHARE_YET_SEE.into()));
             return;
         }
         let to = PathBuf::from(self.export_to.trim());
         if self.export_to.trim().is_empty() {
-            self.note = Some((Mark::Error, "Say where to export to".into()));
+            self.note = Some((Mark::Error, words::SAY_WHERE_TO_EXPORT_TO.into()));
             return;
         }
         match share::export(&self.maps, &d.folder, &to, derived_ok) {
@@ -419,7 +419,7 @@ impl Page {
         let t = tokens();
         let p = ui.painter().clone();
         let Some(d) = self.data.clone() else {
-            p.text(inner.left_top(), Align2::LEFT_TOP, "Mod", font(TITLE, 34.0), rgb(t.lime));
+            p.text(inner.left_top(), Align2::LEFT_TOP, words::MOD, font(TITLE, 34.0), rgb(t.lime));
             let line = self.error.clone().unwrap_or_else(|| words::MOD_PAGE_NO_MOD.to_string());
             p.text(inner.left_top() + vec2(0.0, 58.0), Align2::LEFT_TOP, line, font("body", 16.0), rgb(t.dim));
             return None;
@@ -465,8 +465,7 @@ impl Page {
             }
             drawn.rows.push(r);
             let is_focus = line.is_some_and(|l| this.line() == l);
-            draw::lamp(&p, pos2(r.left() + 14.0, r.center().y), 11.0, mark, time);
-            p.text(pos2(r.left() + 32.0, r.center().y), Align2::LEFT_CENTER, name, font("body", 15.0), rgb(t.dim));
+            draw::row_head(&p, r, mark, name, 15.0, time);
             let cell_x = if name.is_empty() { r.left() + 32.0 } else { r.left() + label_w };
             let cell = Rect::from_min_max(pos2(cell_x, r.top() + 3.0), r.max - vec2(6.0, 3.0));
             if is_focus && this.editing.is_some() {
@@ -502,7 +501,7 @@ impl Page {
             }
         }
         let game = if d.in_game { words::IN_GAME_ON_SHORT.to_string() } else { words::OFF_IN_GAME.to_string() };
-        row(ui, &mut y, left, None, if d.in_game { Mark::Ok } else { Mark::Info }, "In your game", &game, self, drawn);
+        row(ui, &mut y, left, None, if d.in_game { Mark::Ok } else { Mark::Info }, words::IN_YOUR_GAME, &game, self, drawn);
         let size: u64 = d.files.iter().map(|f| f.size).sum();
         let files = format!("{} · {}", home::plural(d.files.len(), "file", "files"), bytes(size));
         let files = format!("{files} · {}", if self.files_open { words::HIDE } else { words::SHOW });
@@ -545,12 +544,12 @@ impl Page {
             }
         }
         let clash_word = if d.clashes.is_empty() {
-            "None with the mods in your game".to_string()
+            words::NONE_WITH_THE_MODS_IN_YOUR.to_string()
         } else {
             format!("{} · Show in Changes", home::plural(d.clashes.len(), "value", "values"))
         };
         let cm = if d.clashes.is_empty() { Mark::Ok } else { Mark::Warn };
-        if row(ui, &mut y, left, Some(Line::Clashes), cm, "Clashes", &clash_word, self, drawn) {
+        if row(ui, &mut y, left, Some(Line::Clashes), cm, words::CLASHES, &clash_word, self, drawn) {
             clicked = Some(Line::Clashes);
         }
         for c in d.clashes.iter().take(6) {

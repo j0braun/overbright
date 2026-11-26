@@ -25,6 +25,7 @@ use super::address::{Address, Target};
 use super::draw;
 use super::layout::Layout;
 use super::workspace::{Kind, Workspace};
+use super::words;
 
 /// The hint line under the view, and the strips over it (points).
 pub const STRIP_H: f32 = 26.0;
@@ -83,7 +84,7 @@ impl Studio {
         crate::editor::menu::set_hosted(&app.ctx);
         let mut app = app;
         let sim = app.panels.sim.clone();
-        app.panels.tabs.push(("telemetry", "Telemetry", Box::new(crate::editor::sim::graphs::TelemetryTab(sim))));
+        app.panels.tabs.push(("telemetry", words::TELEMETRY, Box::new(crate::editor::sim::graphs::TelemetryTab(sim))));
         self.editor = Some(Hosted { app, asked: None, tools_for: None, seen_tab, kept: Vec::new() });
     }
 
@@ -251,19 +252,19 @@ impl Studio {
         let Target::Item { kind, key, .. } = &a.target else { return Ok(()) };
         self.sync_editor();
         let Some(h) = self.editor.as_mut() else { return Ok(()) };
-        let Some(s) = h.app.state.as_mut() else { return Err("The mod is not open in the map editor".into()) };
+        let Some(s) = h.app.state.as_mut() else { return Err(words::THE_MOD_IS_NOT_OPEN_IN.into()) };
         match kind.as_str() {
             "placement" | "prop" => {
                 let [region, sec, n] = key.as_slice() else {
-                    return Err("A prop's address is region/section/index".into());
+                    return Err(words::A_PROP_S_ADDRESS_IS_REGION.into());
                 };
                 if *region != s.session.region {
                     return Err(format!("This mod is open on {}, not {region}", s.session.region));
                 }
                 let (Ok(sec), Ok(n)) = (sec.parse::<u32>(), n.parse::<u32>()) else {
-                    return Err("A prop's address is region/section/index".into());
+                    return Err(words::A_PROP_S_ADDRESS_IS_REGION.into());
                 };
-                let i = s.session.world.original_placement(sec, n).ok_or("No such prop in this region")?;
+                let i = s.session.world.original_placement(sec, n).ok_or(words::NO_SUCH_PROP_IN_THIS_REGION)?;
                 s.selection = vec![i];
                 s.mode = Mode::Props;
                 menu::post(&self.ctx, menu::Command::FrameSelection);
@@ -271,7 +272,7 @@ impl Studio {
             }
             "race" => {
                 let id = key.first().and_then(|k| k.split_once(':')).map(|(_, id)| id).unwrap_or_default();
-                let i = s.session.map.races.iter().position(|r| r.id == id).ok_or("No such race in this mod")?;
+                let i = s.session.map.races.iter().position(|r| r.id == id).ok_or(words::NO_SUCH_RACE_IN_THIS_MOD)?;
                 s.race = Some(i);
                 s.point = None;
                 s.mode = Mode::Races;

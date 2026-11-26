@@ -15,7 +15,7 @@ use super::address::{Address, CRUMB, Places, STUDIO, Target};
 use super::browser;
 use super::changes::{self, Ask};
 use super::data;
-use super::draw::{self, Card, Source};
+use super::draw::{self, Card, Source, SummaryRow};
 use super::focus::{self, Spot, Spots};
 use super::guide::{self, Guide};
 use super::home::{self, ModSummary, Saved};
@@ -30,7 +30,7 @@ use super::workspace::{Kind, Section, Workspace};
 use ob_studio::create::Template;
 
 /// The menus, left to right (Test and Mod fold into Go and File on narrow windows).
-const MENUS: [&str; 7] = ["File", "Edit", "View", "Go", "Test", "Mod", "Help"];
+const MENUS: [&str; 7] = [words::FILE, words::EDIT, words::VIEW, words::GO, words::TEST, words::MOD, words::HELP];
 /// Home's "what each place does" rows, in rail order.
 const PLACES: [Workspace; 4] = [Workspace::World, Workspace::Races, Workspace::Changes, Workspace::Mod];
 /// Home's "start something new" rows: Empty map mod, the templates, the sample (in that order; as many as fit).
@@ -253,11 +253,11 @@ impl Studio {
                 let w = Workspace::from_view(&format!("@{view}"))
                     .ok_or_else(|| format!("Studio has no screen @{view} yet"))?;
                 if w == Workspace::Data && (self.open.is_none() || a.pack == STUDIO) {
-                    return Err("Data shows a mod: open one first".into());
+                    return Err(words::DATA_SHOWS_A_MOD_OPEN_ONE.into());
                 }
                 if w == Workspace::Changes {
                     if self.open.is_none() || a.pack == STUDIO {
-                        return Err("Changes shows a mod: open one first".into());
+                        return Err(words::CHANGES_SHOWS_A_MOD_OPEN_ONE.into());
                     }
                     let m = changes::Mode::from_query(query).ok_or_else(|| format!("Changes has no view {a}"))?;
                     self.changes.mode = m;
@@ -268,7 +268,7 @@ impl Studio {
             Target::Item { kind, key, .. } if kind == ob_studio::changes::looks::TEXTURE => {
                 // A texture has no view of its own yet: its row on Changes.
                 if self.open.is_none() || a.pack == STUDIO {
-                    return Err("Changes shows a mod: open one first".into());
+                    return Err(words::CHANGES_SHOWS_A_MOD_OPEN_ONE.into());
                 }
                 self.workspace(Workspace::Changes);
                 if !self.changes.focus_item(kind, &key.join("/")) {
@@ -991,7 +991,7 @@ impl Studio {
     pub(super) fn data_show_changes(&mut self, kind: &str, key: &str) {
         self.workspace(Workspace::Changes);
         if !self.changes.focus_item(kind, key) {
-            self.verdict = Some("Changes has no entry for that row".into());
+            self.verdict = Some(words::CHANGES_HAS_NO_ENTRY_FOR_THAT.into());
         }
     }
 
@@ -1213,14 +1213,14 @@ impl Studio {
             self.nav.input = InputKind::Keyboard;
             match self.browser.export_act() {
                 Some(a) => self.browser_act(a),
-                None => self.verdict = Some("Choose a model to export it: textures have no glTF".into()),
+                None => self.verdict = Some(words::CHOOSE_A_MODEL_TO_EXPORT_IT.into()),
             }
         }
         if import_key {
             self.nav.input = InputKind::Keyboard;
             match self.browser.import_act() {
                 Some(a) => self.browser_act(a),
-                None => self.verdict = Some("Choose a model to bring back: textures have no glTF".into()),
+                None => self.verdict = Some(words::CHOOSE_A_MODEL_TO_BRING_BACK.into()),
             }
         }
         for (key, shift) in row_keys {
@@ -1464,13 +1464,13 @@ impl Studio {
                 ui.spacing_mut().item_spacing.x = MENU_GAP;
                 ui.style_mut().visuals.button_frame = false;
                 let short = l.menu.short_menus;
-                ui.menu_button("File", |ui| {
-                    if ui.add(egui::Button::new(words::NEW_MOD).shortcut_text("Ctrl+N")).clicked() {
+                ui.menu_button(words::FILE, |ui| {
+                    if ui.add(egui::Button::new(words::NEW_MOD).shortcut_text(words::CTRL_N)).clicked() {
                         self.open_new_mod();
                     }
                     ui.separator();
                     if short {
-                        ui.label(RichText::new("Mod").color(rgb(t.dim)));
+                        ui.label(RichText::new(words::MOD).color(rgb(t.dim)));
                         self.mod_menu(ui);
                         ui.separator();
                     }
@@ -1482,19 +1482,19 @@ impl Studio {
                         self.quit = true;
                     }
                 });
-                ui.menu_button("Edit", |ui| {
+                ui.menu_button(words::EDIT, |ui| {
                     if let Some(app) = self.editor_app() {
                         app.menu_items(ui, menu::edit_items);
                         ui.separator();
                     } else {
-                        let _ = ui.add_enabled(false, egui::Button::new(ob_look::words::UNDO).shortcut_text("Ctrl+Z"));
-                        let _ = ui.add_enabled(false, egui::Button::new(ob_look::words::REDO).shortcut_text("Ctrl+Y"));
+                        let _ = ui.add_enabled(false, egui::Button::new(ob_look::words::UNDO).shortcut_text(words::CTRL_Z));
+                        let _ = ui.add_enabled(false, egui::Button::new(ob_look::words::REDO).shortcut_text(words::CTRL_Y));
                     }
-                    if ui.add(egui::Button::new(words::COPY_ADDRESS).shortcut_text("Ctrl+Shift+C")).clicked() {
+                    if ui.add(egui::Button::new(words::COPY_ADDRESS).shortcut_text(words::CTRL_SHIFT_C)).clicked() {
                         self.command(Command::CopyAddress, None);
                     }
                 });
-                ui.menu_button("View", |ui| {
+                ui.menu_button(words::VIEW, |ui| {
                     if let Some(app) = self.editor_app() {
                         app.menu_items(ui, menu::view_items);
                         ui.separator();
@@ -1503,7 +1503,7 @@ impl Studio {
                         self.reset_layout();
                     }
                 });
-                ui.menu_button("Go", |ui| {
+                ui.menu_button(words::GO, |ui| {
                     for w in Workspace::ALL {
                         if ui.add(egui::Button::new(w.name()).shortcut_text(format!("Ctrl+{}", w.ctrl_key()))).clicked()
                         {
@@ -1511,10 +1511,10 @@ impl Studio {
                         }
                     }
                     ui.separator();
-                    if ui.add(egui::Button::new("Find…").shortcut_text("Ctrl+K")).clicked() {
+                    if ui.add(egui::Button::new(words::FIND_2).shortcut_text(words::CTRL_K)).clicked() {
                         self.command(Command::Find, None);
                     }
-                    if ui.add(egui::Button::new("Address").shortcut_text("Ctrl+L")).clicked() {
+                    if ui.add(egui::Button::new(words::ADDRESS).shortcut_text(words::CTRL_L)).clicked() {
                         self.command(Command::EditAddress, None);
                     }
                     if short {
@@ -1522,33 +1522,33 @@ impl Studio {
                         if let Some(app) = self.editor_app() {
                             app.menu_items(ui, menu::race_items);
                         } else {
-                            let _ = ui.add_enabled(false, egui::Button::new("Test").shortcut_text("F5"));
+                            let _ = ui.add_enabled(false, egui::Button::new(words::TEST).shortcut_text("F5"));
                         }
                     }
                 });
                 if !short {
-                    ui.menu_button("Test", |ui| {
+                    ui.menu_button(words::TEST, |ui| {
                         if let Some(app) = self.editor_app() {
                             app.menu_items(ui, menu::race_items);
                         } else {
-                            let _ = ui.add_enabled(false, egui::Button::new("Test").shortcut_text("F5"));
+                            let _ = ui.add_enabled(false, egui::Button::new(words::TEST).shortcut_text("F5"));
                         }
                     });
-                    ui.menu_button("Mod", |ui| self.mod_menu(ui));
+                    ui.menu_button(words::MOD, |ui| self.mod_menu(ui));
                 }
-                ui.menu_button("Help", |ui| {
+                ui.menu_button(words::HELP, |ui| {
                     if ui.add(egui::Button::new(words::TUTORIAL).shortcut_text("F1")).clicked() {
                         self.start_tutorial(guide::Tutorial::FirstMod);
                     }
                     if ui.button(words::RACE_TUTORIAL_ROW).clicked() {
                         self.start_tutorial(guide::Tutorial::FirstRace);
                     }
-                    if ui.button("Controls").clicked() {
+                    if ui.button(words::CONTROLS).clicked() {
                         self.controls = true;
                     }
                     if let Some(app) = self.editor_app() {
                         ui.separator();
-                        ui.label(RichText::new("Map editor").color(rgb(t.dim)));
+                        ui.label(RichText::new(words::MAP_EDITOR).color(rgb(t.dim)));
                         app.menu_items(ui, menu::help_items);
                     }
                 });
@@ -1616,7 +1616,7 @@ impl Studio {
                 p.text(
                     pos2(a.right() - 10.0, a.center().y),
                     Align2::RIGHT_CENTER,
-                    "Ctrl+L",
+                    words::CTRL_L,
                     font(SEMI, 11.0),
                     rgb(t.dim),
                 );
@@ -1630,10 +1630,10 @@ impl Studio {
         self.spot(&p, Area::Address, Spot::Find, f, false);
         p.rect_filled(f, 4.0, theme::over(t.field, t.page));
         p.rect_stroke(f, 4.0, Stroke::new(1.0, theme::over(t.field_edge, t.page)), StrokeKind::Inside);
-        let cap_w = draw::glyph_width(&p, ob_look::legends::Glyph::Key("Ctrl+K"));
+        let cap_w = draw::glyph_width(&p, ob_look::legends::Glyph::Key(words::CTRL_K));
         let show_cap = f.width() > cap_w + 70.0;
         if show_cap {
-            draw::key_cap_right(&p, "Ctrl+K", f.right() - 4.0, f.center().y);
+            draw::key_cap_right(&p, words::CTRL_K, f.right() - 4.0, f.center().y);
         }
         let text_r = Rect::from_min_max(
             f.min + vec2(8.0, 2.0),
@@ -2000,55 +2000,37 @@ impl Studio {
         take(a.rect, a.clicked(), &mut target, &mut acted);
         take(b.rect, b.clicked(), &mut target, &mut acted);
 
-        // The summary rows.
-        let mut y = card.bottom() + 10.0;
-        let rows: Vec<(Mark, &str, String)> = match self.open_mod() {
+        // The summary rows, then the busy line (the launcher's Game check): what runs now.
+        let mut rows: Vec<SummaryRow> = match self.open_mod() {
             Some(m) => vec![
-                (Mark::Ok, "Changes", m.changes_text()),
-                (
+                SummaryRow::new(Mark::Ok, words::CHANGES, m.changes_text()),
+                SummaryRow::new(
                     if m.in_game { Mark::Ok } else { Mark::Info },
-                    "In your game",
-                    if m.in_game { "On".into() } else { words::OFF_IN_GAME.into() },
+                    words::IN_YOUR_GAME,
+                    if m.in_game { words::IN_GAME_ON_SHORT } else { words::OFF_IN_GAME },
                 ),
                 match &m.saved {
-                    Saved::Saved => (Mark::Ok, "Saved", "Automatically".into()),
-                    Saved::Behind => (Mark::Warn, "Saved", words::SAVING_BEHIND.into()),
-                    Saved::Saving => (Mark::Info, "Saved", words::SAVING.into()),
-                    Saved::Error(e) => (Mark::Error, "Saved", e.clone()),
+                    Saved::Saved => SummaryRow::new(Mark::Ok, words::ROW_SAVED, words::AUTOMATICALLY),
+                    Saved::Behind => SummaryRow::new(Mark::Warn, words::ROW_SAVED, words::SAVING_BEHIND),
+                    Saved::Saving => SummaryRow::new(Mark::Info, words::ROW_SAVED, words::SAVING),
+                    Saved::Error(e) => SummaryRow::new(Mark::Error, words::ROW_SAVED, e.clone()),
                 },
-                (
+                SummaryRow::new(
                     if m.read_only_by.is_some() { Mark::Warn } else { Mark::Ok },
-                    "Open for",
+                    words::ROW_OPEN_FOR,
                     match &m.read_only_by {
-                        Some(o) => format!("Looking only · {o} has it"),
+                        Some(o) => words::looking_only_row(o),
                         None => words::ONLY_THIS_WINDOW.into(),
                     },
                 ),
             ],
-            None => vec![(Mark::Info, "Your mods", home::plural(self.mods.len(), "mod", "mods"))],
+            None => vec![SummaryRow::new(Mark::Info, words::ROW_YOUR_MODS, home::plural(self.mods.len(), "mod", "mods"))],
         };
-        // The busy line (the launcher's Game check): what runs now.
-        let mut rows = rows;
         if let Some(job) = self.jobs().first() {
-            rows.push((Mark::Busy, "Jobs", job.line()));
+            rows.push(SummaryRow::busy(words::JOBS, job.line()));
         }
         let label_w = (left.width() * 0.35).min(200.0);
-        for (mark, name, value) in rows {
-            let row = Rect::from_min_size(pos2(left.left(), y), vec2(left.width(), 38.0));
-            draw::lamp(&p, pos2(row.left() + 14.0, row.center().y), 11.0, mark, self.time());
-            p.text(pos2(row.left() + 32.0, row.center().y), Align2::LEFT_CENTER, name, font("body", 16.0), rgb(t.dim));
-            let mut clip = p.clone();
-            clip.set_clip_rect(Rect::from_min_max(pos2(row.left() + label_w, row.top()), row.max));
-            clip.text(
-                pos2(row.left() + label_w, row.center().y),
-                Align2::LEFT_CENTER,
-                value,
-                font("body", 16.0),
-                rgb(t.ink),
-            );
-            p.line_segment([row.left_bottom(), row.right_bottom()], Stroke::new(1.0, draw::rule()));
-            y += 38.0;
-        }
+        let mut y = draw::summary_rows(&p, left, card.bottom() + 10.0, &rows, label_w, self.time());
 
         // What each place does: a row per workspace a mod is made in, as many as fit (left column).
         y += 24.0;
@@ -2135,7 +2117,7 @@ impl Studio {
             }
             y += 14.0;
         }
-        p.text(pos2(col.left(), y), Align2::LEFT_TOP, "YOUR MODS", font("body", 12.0), rgb(t.dim));
+        p.text(pos2(col.left(), y), Align2::LEFT_TOP, words::FIND_MODS, font("body", 12.0), rgb(t.dim));
         y += 22.0;
         let mut rows_drawn = 0;
         // Room for the new rows under your mods, one mod row still left: all four as tall as your mods' rows, else
@@ -2179,7 +2161,7 @@ impl Studio {
             y += 60.0;
         }
         if self.mods.is_empty() {
-            p.text(pos2(col.left(), y), Align2::LEFT_TOP, "None yet", font("body", 15.0), rgb(t.dim));
+            p.text(pos2(col.left(), y), Align2::LEFT_TOP, words::NONE_YET, font("body", 15.0), rgb(t.dim));
             y += 30.0;
         }
         y += 14.0;
@@ -2259,7 +2241,7 @@ impl Studio {
         } else if let Some(tb) = l.toolbar {
             let pill_r = Rect::from_min_size(pos2(tb.right() - 160.0, tb.top() + 6.0), vec2(150.0, 28.0));
             self.spot(&p, Area::Toolbar, Spot::Test, pill_r.expand(3.0), false);
-            ui.put(pill_r, theme::main_action("Test  F5"));
+            ui.put(pill_r, theme::main_action(words::TEST_F5));
             p.text(
                 pos2(tb.left() + 12.0, tb.center().y),
                 Align2::LEFT_CENTER,
@@ -2289,7 +2271,7 @@ impl Studio {
             match l.left_dock {
                 Dock::Open(_) => {
                     let runs = editing && self.nav.workspace == Workspace::Runs;
-                    tabs(&p, r, &[if runs { words::RUNS } else { "Mod" }], 0, self.nav.area == Area::Left);
+                    tabs(&p, r, &[if runs { words::RUNS } else { words::MOD }], 0, self.nav.area == Area::Left);
                     let body = r.shrink2(vec2(12.0, 0.0)).with_min_y(r.top() + 44.0);
                     if runs {
                         self.runs_left(ui, body);
@@ -2299,7 +2281,7 @@ impl Studio {
                         self.mod_tree(&p, body);
                     }
                 }
-                _ => strip(&p, r, if editing && self.nav.workspace == Workspace::Runs { words::RUNS } else { "Mod" }),
+                _ => strip(&p, r, if editing && self.nav.workspace == Workspace::Runs { words::RUNS } else { words::MOD }),
             }
             if l.left_dock == Dock::Folded
                 && ui.interact(r, egui::Id::unique("left-strip"), egui::Sense::click()).clicked()
@@ -2313,7 +2295,7 @@ impl Studio {
             p.line_segment([r.left_top(), r.right_top()], Stroke::new(1.0, draw::rule()));
             // Problems · Log · Jobs, then the map editor's own tabs (World, Races).
             let extra = self.editor_tabs();
-            let mut names = vec!["Problems", "Log", "Jobs"];
+            let mut names = vec![words::PROBLEMS, words::LOG, words::JOBS];
             names.extend(extra.iter().map(|t| t.1));
             let shown_tab = if self.bottom_tab == BottomTab::Editor { self.editor_tab() } else { None };
             let sel = match self.bottom_tab {
@@ -2388,7 +2370,7 @@ impl Studio {
             p.line_segment([r.left_top(), r.left_bottom()], Stroke::new(1.0, draw::rule()));
             match l.right_dock {
                 Dock::Open(_) => self.right_dock(ui, &p, r),
-                _ => strip(&p, r, "Inspector"),
+                _ => strip(&p, r, words::INSPECTOR),
             }
             if !matches!(l.right_dock, Dock::Open(_))
                 && ui.interact(r, egui::Id::unique("right-strip"), egui::Sense::click()).clicked()
@@ -2477,7 +2459,7 @@ impl Studio {
     fn mod_tree(&mut self, p: &egui::Painter, r: Rect) {
         let t = tokens();
         let Some(m) = self.open_mod() else {
-            p.text(r.left_top() + vec2(0.0, 8.0), Align2::LEFT_TOP, "No mod open", font("body", 15.0), rgb(t.dim));
+            p.text(r.left_top() + vec2(0.0, 8.0), Align2::LEFT_TOP, words::NO_MOD_TITLE, font("body", 15.0), rgb(t.dim));
             return;
         };
         let rows = [
@@ -2509,7 +2491,7 @@ impl Studio {
             RightTab::History => 1,
             RightTab::Help => 2,
         };
-        let rects = tabs(p, r, &["Inspector", "History", "Help"], sel, self.nav.area == Area::Right);
+        let rects = tabs(p, r, &[words::INSPECTOR, words::HISTORY, words::HELP], sel, self.nav.area == Area::Right);
         for (tab, tr) in [RightTab::Inspector, RightTab::History, RightTab::Help].into_iter().zip(rects) {
             self.spot(p, Area::Right, Spot::RightTab(tab), tr, false);
             let i = tab as usize;
@@ -2641,7 +2623,7 @@ impl Studio {
             None => self.open_mod().map(|m| m.saved.clone()),
         };
         let (mark, text) = match saved.as_ref() {
-            None => (Mark::Info, words::NO_MOD_STATUS.to_string()),
+            None => (Mark::Info, words::NO_MOD_TITLE.to_string()),
             Some(Saved::Saved) => (Mark::Ok, words::SAVED.to_string()),
             Some(Saved::Saving) => (Mark::Info, words::SAVING.to_string()),
             Some(Saved::Behind) => (Mark::Warn, words::SAVING_BEHIND.to_string()),
@@ -2909,10 +2891,10 @@ impl Studio {
             .show(ui.ctx(), |ui| {
                 egui::Frame::popup(ui.style()).show(ui, |ui| {
                     ui.set_min_width(240.0);
-                    let _ = ui.add_enabled(false, egui::Button::new(ob_look::words::UNDO).shortcut_text("Ctrl+Z"));
-                    let _ = ui.add_enabled(false, egui::Button::new(ob_look::words::REDO).shortcut_text("Ctrl+Y"));
+                    let _ = ui.add_enabled(false, egui::Button::new(ob_look::words::UNDO).shortcut_text(words::CTRL_Z));
+                    let _ = ui.add_enabled(false, egui::Button::new(ob_look::words::REDO).shortcut_text(words::CTRL_Y));
                     ui.separator();
-                    let _ = ui.add_enabled(false, egui::Button::new(words::TEST_HERE).shortcut_text("Shift+F5"));
+                    let _ = ui.add_enabled(false, egui::Button::new(words::TEST_HERE).shortcut_text(words::SHIFT_F5));
                     if self.nav.workspace == Workspace::Changes && self.nav.area == Area::View {
                         ui.separator();
                         let can = !self.changes.reset_picks().is_empty();
@@ -2931,17 +2913,17 @@ impl Studio {
                         ui.separator();
                         let has = self.runs.cursor.is_some();
                         for (word, key) in [
-                            ("Open", egui::Key::Enter),
-                            ("Compare with the run shown", egui::Key::C),
-                            ("Rename", egui::Key::F2),
-                            ("Delete", egui::Key::Delete),
+                            (words::OPEN, egui::Key::Enter),
+                            (words::COMPARE_WITH_THE_RUN_SHOWN, egui::Key::C),
+                            (words::RENAME, egui::Key::F2),
+                            (words::DELETE, egui::Key::Delete),
                         ] {
                             if ui.add_enabled(has, egui::Button::new(word)).clicked() {
                                 pick_runs = Some(key);
                             }
                         }
                     }
-                    if ui.add(egui::Button::new(words::COPY_ADDRESS).shortcut_text("Ctrl+Shift+C")).clicked() {
+                    if ui.add(egui::Button::new(words::COPY_ADDRESS).shortcut_text(words::CTRL_SHIFT_C)).clicked() {
                         pick = Some(Command::CopyAddress);
                     }
                     ui.label(RichText::new(self.address().to_string()).font(font("body", 12.0)).color(rgb(t.dim)));
@@ -2973,7 +2955,7 @@ impl Studio {
 
     fn controls_window(&mut self, ui: &mut egui::Ui) {
         let mut open = true;
-        egui::Window::new("Controls").open(&mut open).collapsible(false).resizable(false).show(ui.ctx(), |ui| {
+        egui::Window::new(words::CONTROLS).open(&mut open).collapsible(false).resizable(false).show(ui.ctx(), |ui| {
             egui::Grid::new("controls").striped(true).show(ui, |ui| {
                 for k in KEYS {
                     ui.label(RichText::new(k.keys).font(font(SEMI, 13.0)));

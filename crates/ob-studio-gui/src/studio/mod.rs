@@ -54,6 +54,8 @@ mod inside_tests;
 #[cfg(test)]
 mod parity_tests;
 #[cfg(test)]
+mod matrix;
+#[cfg(test)]
 mod runs_tests;
 #[cfg(test)]
 mod tests;

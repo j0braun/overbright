@@ -18,6 +18,7 @@ use super::draw;
 use crate::editor::theme::{self, LABEL, TITLE, font, rgb, tokens};
 use crate::editor::thumbs::Thumbs;
 use crate::world::World;
+use super::words;
 
 /// A result row's height (points).
 pub const ROW_H: f32 = 34.0;
@@ -342,7 +343,7 @@ impl Page {
             (Some(_), Some(i)) => format!("{} models · {} textures in {}", i.models.len(), i.textures.len(), i.region),
             _ => String::new(),
         };
-        let tg = clip.layout_no_wrap("Browser".into(), font(TITLE, 24.0), rgb(t.lime));
+        let tg = clip.layout_no_wrap(words::BROWSER.into(), font(TITLE, 24.0), rgb(t.lime));
         let tw = tg.size().x;
         clip.galley(pos2(inner.left(), inner.top() + 14.0 - tg.size().y / 2.0), tg, rgb(t.lime));
         clip.text(
@@ -356,7 +357,7 @@ impl Page {
             clip.text(
                 pos2(inner.left(), inner.top() + 60.0),
                 Align2::LEFT_TOP,
-                "No mod open: open one on Home to browse the game's models and textures of its region",
+                words::NO_MOD_OPEN_OPEN_ONE_ON,
                 font("body", 15.0),
                 rgb(t.dim),
             );
@@ -370,7 +371,7 @@ impl Page {
         let field = ui.put(
             search,
             egui::TextEdit::singleline(&mut self.query.text)
-                .hint_text("Search models and textures by name, 0x hash or section:1407")
+                .hint_text(words::SEARCH_MODELS_AND_TEXTURES_BY_NAME)
                 .font(font("body", 15.0))
                 .desired_width(search.width()),
         );
@@ -440,7 +441,7 @@ impl Page {
                 clip.text(
                     pos2(inner.left() + 4.0, line1.center().y),
                     Align2::LEFT_CENTER,
-                    "Choose Models or Textures to filter them",
+                    words::CHOOSE_MODELS_OR_TEXTURES_TO_FILTER,
                     font("body", 13.0),
                     rgb(t.dim),
                 );
@@ -517,9 +518,9 @@ impl Page {
         clip.set_clip_rect(*list);
         if self.hits.is_empty() {
             let line = if self.query.text.trim().is_empty() {
-                "Nothing in this region"
+                words::NOTHING_IN_THIS_REGION
             } else {
-                "No model or texture matches"
+                words::NO_MODEL_OR_TEXTURE_MATCHES
             };
             clip.text(
                 pos2(list.left() + 4.0, list.top() + 8.0),
@@ -693,7 +694,7 @@ impl Page {
             clip.text(
                 r.left_top() + vec2(14.0, 14.0),
                 Align2::LEFT_TOP,
-                "Choose a result to see it and where it is used",
+                words::CHOOSE_A_RESULT_TO_SEE_IT,
                 font("body", 14.0),
                 rgb(t.dim),
             );
@@ -741,7 +742,7 @@ impl Page {
                         format!("Model · {} · {}", categories(&e), if m.knock_over { "knock-over" } else { "static" }),
                         lines,
                         links,
-                        "Show in World",
+                        words::SHOW_IN_WORLD,
                     )
                 }
                 Hit::Texture(i) => {
@@ -771,7 +772,7 @@ impl Page {
                         ),
                         lines,
                         links,
-                        "Open in Looks",
+                        words::OPEN_IN_LOOKS,
                     )
                 }
             }
@@ -797,8 +798,8 @@ impl Page {
             && let Hit::Model(i) = h
         {
             let word = match self.index().map(|x| x.models[i].solid) {
-                Some(s) if drawable(src.world, s) => "Drawing…",
-                _ => "No picture",
+                Some(s) if drawable(src.world, s) => words::DRAWING,
+                _ => words::NO_PICTURE,
             };
             clip.text(pic.center(), Align2::CENTER_CENTER, word, font("body", 13.0), rgb(t.dim));
         }
@@ -824,7 +825,7 @@ impl Page {
             line(&clip, l, 14.0, rgb(t.ink), &mut y);
         }
         if !links.is_empty() && y + 20.0 < r.bottom() {
-            let head = if matches!(h, Hit::Model(_)) { "Textures" } else { "Used by models" };
+            let head = if matches!(h, Hit::Model(_)) { words::TEXTURES } else { words::USED_BY_MODELS };
             clip.text(pos2(tx, y), Align2::LEFT_TOP, head, font(LABEL, 13.0), rgb(t.dim));
             y += 18.0;
             for (label, to) in links {
@@ -853,14 +854,14 @@ impl Page {
             // A model also goes to an outside 3D program, as a reference marked as from the game files.
             let er = Rect::from_min_size(br.right_top() + vec2(8.0, 0.0), vec2(120.0, 24.0));
             if matches!(h, Hit::Model(_)) && er.right() <= r.right() - 4.0 {
-                if ui.put(er, small_button("Export glTF", false)).clicked() {
+                if ui.put(er, small_button(words::EXPORT_GLTF, false)).clicked() {
                     *act = self.export_act();
                 }
                 drawn.buttons.push(er);
                 // And the edited file comes back as a mod model.
                 let ir = Rect::from_min_size(er.right_top() + vec2(8.0, 0.0), vec2(120.0, 24.0));
                 if ir.right() <= r.right() - 4.0 {
-                    if ui.put(ir, small_button("Bring back", false)).clicked() {
+                    if ui.put(ir, small_button(words::BRING_BACK, false)).clicked() {
                         *act = self.import_act();
                     }
                     drawn.buttons.push(ir);
