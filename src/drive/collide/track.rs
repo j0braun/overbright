@@ -18,7 +18,7 @@ impl CarState {
         car: &Car,
         world: &World,
         start: &Pose,
-    ) -> Vec<((usize, usize), Vec<Vec3>, Vec3, bool, f32, bool)> {
+    ) -> Vec<((usize, usize), Vec<Vec3>, Vec3, bool, f32, bool, u8)> {
         if world.ground.is_empty() {
             let (end, begin) = (Self::hull_at(car, &self.pose()), Self::hull_at(car, start));
             let (mut lo, mut hi) = (glam::Vec2::splat(f32::MAX), glam::Vec2::splat(f32::MIN));
@@ -31,7 +31,10 @@ impl CarState {
                 .triangles_near(lo - 0.1, hi + 0.1)
                 .into_iter()
                 .map(|(i, c, n, wall)| {
-                    ((usize::MAX, i), c.to_vec(), n, wall, c.iter().fold(f32::MIN, |m, p| m.max(p.x)), true)
+                    // Render faces carry no surface: a wall SOLID_WALL (20), a
+                    // floor ROAD (1).
+                    let surface = if wall { 20 } else { 1 };
+                    ((usize::MAX, i), c.to_vec(), n, wall, c.iter().fold(f32::MIN, |m, p| m.max(p.x)), true, surface)
                 })
                 .collect();
         }
@@ -81,7 +84,7 @@ impl CarState {
         self.pair_made.retain(|k, _| records.contains_key(k) || picked.iter().any(|p| p.id == *k));
         picked
             .into_iter()
-            .map(|p| (p.id, p.corners[..p.count].to_vec(), p.normal, p.flags & 0x02 != 0, p.max.x, p.turn))
+            .map(|p| (p.id, p.corners[..p.count].to_vec(), p.normal, p.flags & 0x02 != 0, p.max.x, p.turn, p.surface))
             .collect()
     }
 
@@ -89,7 +92,7 @@ impl CarState {
     /// body list's order (by box high x; 0x5B23C0's sweep).
     pub(in crate::drive) fn stamp_track_pairs(
         &mut self,
-        polygons: &[((usize, usize), Vec<Vec3>, Vec3, bool, f32, bool)],
+        polygons: &[((usize, usize), Vec<Vec3>, Vec3, bool, f32, bool, u8)],
     ) {
         let mut new: Vec<_> =
             polygons.iter().filter(|p| !self.pair_made.contains_key(&p.0)).map(|p| (p.4, p.0)).collect();
@@ -189,8 +192,8 @@ impl CarState {
             side_end.with_body(narrow::Body { stored: &car.hull, offset, rot: Mat3::from_quat(pose.orientation), at: com_end })
         };
         let mut first: Option<TrackEvent> = None;
-        for (key, corners, normal, wall, _, turn) in cache.polygons.as_ref().unwrap() {
-            let (key, normal, wall, turn) = (*key, *normal, *wall, *turn);
+        for (key, corners, normal, wall, _, turn, surface) in cache.polygons.as_ref().unwrap() {
+            let (key, normal, wall, turn, surface) = (*key, *normal, *wall, *turn, *surface);
             if resolved.get(&key).copied().unwrap_or(0) >= contact::MAX_PER_POLYGON {
                 continue;
             }
@@ -219,6 +222,7 @@ impl CarState {
                     normal,
                     wall,
                     turn,
+                    surface,
                     made: self.pair_made[&key],
                 });
             }
@@ -230,7 +234,7 @@ impl CarState {
     /// if it overlapped for the whole span, and the impulse (0x5AF0F0).
     pub(in crate::drive) fn resolve_track(&mut self, car: &Car, start: &Pose, span: f32, e: TrackEvent, sounds: &mut ContactSounds) {
         let h = &car.car_type.handling;
-        let TrackEvent { t, stuck, key, corners, normal, wall, turn, .. } = e;
+        let TrackEvent { t, stuck, key, corners, normal, wall, turn, surface, .. } = e;
         let end = Self::hull_at(car, &self.pose());
         let begin = Self::hull_at(car, start);
         let f = if span > 1e-6 { t / span } else { 0.0 };
@@ -332,13 +336,11 @@ impl CarState {
         }
         if let Some((linear, angular)) = contact::impulse(&body, point - com, normal, restitution, friction) {
             // Every push's contact effects (0x5A9630 → 0x5DC4D0): the pair's
-            // surface against the car's (28). **Inferred**: a wall is
-            // SOLID_WALL (20) and a floor ROAD (1); the face's own surface
-            // byte is not carried to the contact. Event 6 ramps on the
-            // push's sliding speed (record +0x40).
-            let face = if wall { 20 } else { 1 };
+            // surface (0x592C20) against the car's (28): the polygon's own
+            // (+0x0B, the face's byte 2, vtable 0x7A22B0 +0x58 → 0x593DA0).
+            // Event 6 ramps on the push's sliding speed (record +0x40).
             crate::particles::post_contact(
-                crate::particles::pair_surface(crate::particles::CAR_SURFACE, face),
+                crate::particles::pair_surface(crate::particles::CAR_SURFACE, surface),
                 point,
                 slide,
                 linear.length(),
@@ -522,7 +524,7 @@ impl CarState {
 /// of its contacts is resolved.
 #[derive(Default)]
 pub(in crate::drive) struct TrackCache {
-    pub(in crate::drive) polygons: Option<Vec<((usize, usize), Vec<Vec3>, Vec3, bool, f32, bool)>>,
+    pub(in crate::drive) polygons: Option<Vec<((usize, usize), Vec<Vec3>, Vec3, bool, f32, bool, u8)>>,
     sorted: bool,
     hulls: Option<(Vec<Vec3>, Vec<Vec3>)>,
     /// What the cache was made at (checked in debug builds).
@@ -559,6 +561,8 @@ pub(in crate::drive) struct TrackEvent {
     wall: bool,
     /// X+0x64 of the contact: whether 0x593E00 turns the normal.
     turn: bool,
+    /// The polygon's surface (+0x0B), for the contact effects.
+    surface: u8,
     /// The pair's place in the pair list.
     pub(in crate::drive) made: u64,
 }

@@ -3095,15 +3095,16 @@ The game's world collision step (0x5FFA60) runs after the cars have moved.
     SOLID_WALL (20) 10..15 / 15..50, CAR (28) 10..15 / none; the pair's
     surface (0x592C20) is the one with the larger +0x34 (road and walls
     0.1, grass 1, wood/plastic/glass 0.5, car 0). The clone posts both
-    events on every push of a car against the track (`drive`: a wall as
-    SOLID_WALL and a floor as ROAD; the clone's own comment says the face's
-    surface byte is not carried to the contact) and of two cars (CAR, the
-    faster car's velocity); the props' contacts post none. Verified game side:
+    events on every push of a car against the track (`drive`: the polygon's
+    own surface byte; a track without collision packs takes a wall as
+    SOLID_WALL and a floor as ROAD — Bayview's walls are nearly all
+    SOLID_WALL, its floors ROAD, sidewalk, dirt, cobblestone and grass) and
+    of two cars (CAR, the faster car's velocity); the props' contacts post
+    none. Verified game side:
     a track body's surface is the polygon's byte +0x0B, the face's surface byte
     (vtable 0x7A22B0 +0x58 → 0x593DA0, which movsx's it; the ground query
     0x5E72F0 writes the same byte through its int* argument), and a prop's is
-    info +0xD0 (vtable 0x7A26A0 +0x58 → 0x5B1CB0). The clone's wall/floor split
-    is therefore an approximation, a port gap.
+    info +0xD0 (vtable 0x7A26A0 +0x58 → 0x5B1CB0).
   * **Particle effects** (`src/particles/`; verified unless marked):
     * Descriptions: chunk `0x35021` (GLOBALB 92, L4RA 37), body aligned
       to 16, version 4 at +8, count +0xC, 0x220-byte records from +0x10
@@ -3835,7 +3836,8 @@ The game's world collision step (0x5FFA60) runs after the cars have moved.
     global count is 0x82B944: +1 on each insert (0x481E13–0x481E21), −1 on
     each unlink (0x481C82, 0x469D98); the gate does not read it. One object
     per record holds (0x481CD0's key test on the list at +0x24).
-  * Attached models and effects (traced, **not ported**): the info's +0x84
+  * Attached models and effects (traced; the +0x88 effects **ported** 2026-11-26,
+    `Effects::start_attached`, the +0x84 list not): the info's +0x84
     / +0x88 hashes are gathered at load (0x5B4230) by 0x48B8B0 from the
     emitter manager 0x8357E0's list (+8): every entry whose description
     (+0x1C) has that hash at +0x10 is copied (0x48B830: 0xD0 bytes, the
@@ -3849,6 +3851,13 @@ The game's world collision step (0x5FFA60) runs after the cars have moved.
     L4RA: `ZCS_BarrelFireA` +0x88 0x64C2C940, `ZCS_Barrel_A` +0x88
     0x95C9F5FA, `ZCS_WaterBarrel` +0x84 0x95C9F5FA / +0x88 0x95C9F5FB,
     `ZCS_XO_GreenHDoor_00` +0x88 0xE84348EA; the rest have neither.
+    0x95C9F5FA is `XES_Barrel_WaterA_SplashA`'s group (rate 125, on 0.5 s
+    less up to 30 %, off for ever: one splash of about 45–63 drops when a
+    yellow water barrel is knocked loose), 0xE84348EA
+    `XES_XO_GreenH_Glass_A`'s; 0x64C2C940 and 0x95C9F5FB have no
+    descriptions in GLOBALB or L4RA. (The +0x88 → +0xF0 → body +0x4FC chain
+    and the start at 0x5ADFDC rechecked in the disassembly, 0x5B4263,
+    0x5B193A, 0x5ADFC6.)
     (Earlier notes said the `XO_BulletSS` / `XO_TableSS` kinds have +0x88
     = 1; they have 0.)
   * The `XO_BulletSS_nn` / `XO_TableSS_00` kinds (L4RA: 12 and 1) have one

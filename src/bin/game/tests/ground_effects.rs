@@ -117,3 +117,30 @@ fn ground_effects_fire_as_the_original() {
     dry.step(&world, road_car.position - road_car.forward() * 6.0, &[Some((&car, &road_car))], &[], dt, &settings);
     assert_eq!(count(&dry, &world, "XETT_DpWtr") + count(&dry, &world, "XETT_Puddle"), 0);
 }
+
+/// A knocked yellow water barrel (`ZCS_Barrel_A`, info +0x88
+/// `XES_Barrel_WaterA_SplashA`) splashes once: its emitter starts with the
+/// prop's first move (0x5ADFA0) and runs 0.35–0.5 s (+0x24 less up to +0x28 of it) at 125 a second,
+/// then stays off; it follows the prop (0x5ADB30).
+#[test]
+#[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
+fn a_knocked_water_barrel_splashes_once() {
+    let root = testkit::game_root();
+    let world = World::load(&root, "L4RA").unwrap();
+    let settings = crate::sim::TickSettings::take(&[0; 22]);
+    let (i, prop) = world.smackables.iter().enumerate().find(|(_, p)| p.info.name == "ZCS_Barrel_A").expect("a water barrel");
+    assert_eq!(prop.info.effects, 0x95C9_F5FA);
+    let mut fx = Effects::default();
+    let at = prop.rest.w_axis.truncate();
+    let mut series = Vec::new();
+    for step in 0..120 {
+        // Not yet knocked for the first 10 updates.
+        fx.knocked = if step < 10 { Vec::new() } else { vec![(i, prop.rest * glam::Mat4::from_translation(Vec3::X * step as f32 * 0.05))] };
+        fx.step(&world, at + Vec3::new(8.0, 0.0, 2.0), &[], &[], 1.0 / 60.0, &settings);
+        series.push(count(&fx, &world, "XES_Barrel_WaterA_SplashA"));
+    }
+    assert_eq!(series[9], 0);
+    let made = *series.iter().max().unwrap();
+    assert!((40..=66).contains(&made), "125 a second for 0.35–0.5 s: {made}");
+    assert!(series[60..].windows(2).all(|w| w[1] <= w[0]), "off for ever after its on time");
+}
