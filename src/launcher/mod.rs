@@ -30,6 +30,7 @@ pub mod layout;
 pub mod legends;
 pub mod localtime;
 pub mod model;
+pub mod pad_filter;
 pub mod platform_deck;
 pub mod prepare;
 pub mod probe;
