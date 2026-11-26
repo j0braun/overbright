@@ -59,6 +59,7 @@ mod rumble_feed;
 #[cfg(test)]
 mod rate;
 mod replay;
+mod replay_steps;
 mod rng;
 mod saves_shops;
 mod scene_audio;

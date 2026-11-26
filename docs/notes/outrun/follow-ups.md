@@ -377,8 +377,8 @@ world-update boundary: free roam with/without traffic, races, held start scenes,
 and stationary world views. `restart_clock` and fresh loads reset it to tick
 4000/update 0. Encounter activation does not reset or advance it. Physics
 substeps do not advance it. Paused paths which do not simulate the world do not
-advance it. Existing replay clock behavior remains open; this change does not
-claim a native replay reconstruction. The live 509-boundary evidence establishes
+advance it. A replay snapshot holds it with the world clock ("WorldTime",
+0x57BBB0) and a replayed frame advances it as a live one does. The live 509-boundary evidence establishes
 rounding and increment order for ordinary world updates, not every menu branch.
 
 `402530` clears the driver inputs and sets controller byte `+710`. `40D550`
