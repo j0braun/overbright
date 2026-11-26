@@ -35,7 +35,7 @@ job, `--right-tab` picks the right dock's tab. The game folder is
 | Rail | Home at the top, then the workspaces that make things (MAKE) in the order they shipped, then Mod (SHARE) and Settings at the bottom. With names and Ctrl+number at 850 or more points high, icons only below (the name shows on hover). A workspace never moves and its Ctrl+number is never given to another. |
 | Left panel | The workspace's own (World: the Mod tree). 270 points (230 under 1400 wide), dragged between 180 and 40 % of the width; folds to a 28-point strip under 1400 wide. |
 | Right dock | Inspector, History, Help. 320 points (300 under 1400 wide), 260 to 40 %; under 1180 wide a 28-point strip that opens a 340-point drawer over the view (Esc or B closes it). |
-| Bottom dock | Problems, Log, Jobs, then the workspace's tabs. 20 % of the height (120 to 240); folded to its tab strip under 700 points high. It spans the view's width only. |
+| Bottom dock | Problems, Log, Jobs, then the workspace's tabs. 20 % of the height (120 to 240); folded to its tab strip under 700 points high (Runs: open at any height, 36 % of it, for its graphs). It spans the view's width only. |
 | View | A tool workspace's 3D view, at least 480 × 270: when the docks would squeeze it, the right dock becomes a drawer first, then the left panel folds. On Home, Mod and Settings: the page, on a slab at most 1320 points wide. |
 | Legend row | The keys or buttons that matter in the focused area, right-aligned, as the launcher shows them. Hidden while the mouse is used; it comes back with the first key that moves focus or any pad button. |
 | Status bar | Left: whether the work is saved ("Saved automatically" once the files have every step, "Saving…" for the moment before, "Saving is behind", a disk problem in red) and the last step to undo. Right: what the checks found ("Problems 0 · 1 warning": the map editor's checks in World and Races, else the Mod page's ready list with the map checks; a click shows them), the busy line of a running job (a test in the game, a simulation with its run "2 of 5"; the Jobs tab and Home list them), and whether the mod is on in your game. The counts and the busy line drop first on narrow windows. |
@@ -171,6 +171,34 @@ its first placement (and choosing it in the prop browser, so Ctrl+D places anoth
 so); a texture to its row in Looks on Changes when the mod paints it, else the `looks open` command that starts it.
 ↑ ↓ and Tab move over the chips and results, ← → change a chip (in the results they move in the search field), Esc
 (B) goes back. Cars and regions the mod is not edited on are not indexed yet.
+
+## Runs
+
+Ctrl+5 (MAKE ▸ Runs, `ob://<mod id>/@runs`) is where a mod's recorded runs are read. It is the map editor's own
+view, timeline and cameras (the same playback as the Simulate tab; there is no second player) with the list of the
+mod's run files in the left panel and a Telemetry tab in the bottom dock. Both are open at any window size the view
+leaves room for.
+
+- The list. Every run file in the mod's editor folder (`.editor/runs/*.obrun`, never exported) is a row: its name,
+  the race (or "free roam"), the seed, how it ended and how big it is. A simulation that ends (Simulate in the
+  toolbar) is kept there by itself as `sim-<race>-seed<n>`; a run file put in that folder shows up too. Enter (A)
+  opens the row in the view, paused at the start: scrub, play, step, change the speed and ride with a car as for any
+  run, at any display rate. Under the row the cursor is on: Compare, Rename and Delete (C, F2, Delete). Rename
+  never replaces another run; Delete asks first (Enter deletes, Esc keeps). The pad's D-pad moves over the rows, A
+  opens, X's menu has the rest.
+- Telemetry. For the car chosen (the one followed, else the first racer): its speed over the run's time, and how
+  far it is from the racing line, left of its way positive (the race's start, checkpoints and finish in the open
+  mod; a circuit closes the loop), with a tick for each event of the car and a line at the time shown. A click or a
+  drag on a graph moves the playback. The values are the run file's, frame by frame. A channel the file does not
+  carry is not drawn: the gear is not in a run file v1, and the lateral graph says so when the run's race is not in
+  the open mod.
+- Compare. Compare on a second run draws its racers as ghost outlines in the view (and arrows in the Map) on the
+  same race clock, a row of its events under the timeline's track, its graphs in the Telemetry tab, and where it
+  parts from the first: the first state hash that differs, or its car a metre from the first's at the same time.
+  Compare again on the same row stops it.
+
+Runs only reads the files (and keeps, renames or deletes them). Driving a route to record it, telemetry to a port
+and a race from a driven line are not in it yet.
 
 ## The Mod page
 

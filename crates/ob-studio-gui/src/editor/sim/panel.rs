@@ -13,8 +13,8 @@ use super::record::{Phase, Playback, Recording};
 use super::run::{SimChild, What, args};
 use super::summary::{self, Group, RunFindings};
 use crate::editor::app::Overlay as ViewOverlay;
-use crate::editor::overlay::{Overlay, colour, label2d, line2d};
 use crate::editor::modes::{self, SIMULATE, SIMULATE_WORLD};
+use crate::editor::overlay::{Overlay, colour, label2d, line2d};
 use crate::editor::state::{EditorState, Issue, Level, Panel, View};
 use crate::editor::theme;
 
@@ -73,6 +73,18 @@ pub struct Sim {
     pub chase_cars: ChaseCars,
     /// The timeline's track as last drawn.
     pub track_rect: Rect,
+    /// A second run drawn as ghosts over the first, on the same race clock (Runs, compare).
+    pub ghost: Option<Recording>,
+    /// The car whose telemetry the Telemetry tab shows (none: the car followed, else the first racer).
+    pub tele_car: Option<u32>,
+    /// The name of the ghost's run (its file's name).
+    pub ghost_name: String,
+    /// When the ghost's run parts from the one shown (a state hash or a car's place differs), if it does.
+    pub parts_at: Option<f32>,
+    /// The lines the game streamed for the run going (kept to save it as a run file when it ends).
+    raw: String,
+    /// The name of the run shown, as the Runs list names it (empty: a run not saved).
+    pub shown: String,
 }
 
 /// The list under the results table.
@@ -108,6 +120,12 @@ impl Default for Sim {
             cam: CamMode::default(),
             chase_cars: ChaseCars::default(),
             track_rect: Rect::NOTHING,
+            ghost: None,
+            tele_car: None,
+            ghost_name: String::new(),
+            parts_at: None,
+            raw: String::new(),
+            shown: String::new(),
         }
     }
 }
@@ -196,6 +214,8 @@ impl Sim {
             Ok(c) => {
                 self.child = Some(c);
                 self.rec = Recording::default();
+                self.raw.clear();
+                self.shown.clear();
                 self.play.start();
                 s.status = match &what {
                     What::Race(_) => format!("Simulating the race…{unsaved}"),
@@ -204,6 +224,18 @@ impl Sim {
                 self.what = Some(what);
             }
             Err(e) => s.status = e,
+        }
+    }
+
+    /// Keep the run that just ended as a run file of the open mod (its Runs list), named from its race and seed.
+    fn save_run(&mut self, s: &mut EditorState) {
+        let dir = super::library::dir(&s.maps, &s.session.folder);
+        let h = self.rec.header.clone().unwrap_or_default();
+        let what = if h.race.is_empty() { "world".to_string() } else { h.race.clone() };
+        let base = format!("sim-{what}-seed{}", h.seed);
+        match super::library::save(&dir, &base, &std::mem::take(&mut self.raw)) {
+            Ok(name) => self.shown = name,
+            Err(e) => s.status = format!("The run is not saved to Runs: {e}"),
         }
     }
 
@@ -223,6 +255,8 @@ impl Sim {
             changed |= !lines.is_empty();
             for l in &lines {
                 self.rec.push_line(l);
+                self.raw.push_str(l);
+                self.raw.push('\n');
             }
             self.play.observe(&self.rec, running);
             if !running {
@@ -264,6 +298,7 @@ impl Sim {
         }
         let text = std::fs::read_to_string(path).map_err(|e| format!("{path}: {e}"))?;
         self.rec = Recording::read(&text);
+        self.shown = std::path::Path::new(path).file_stem().map_or_else(String::new, |n| n.to_string_lossy().into());
         self.play.start();
         self.play.observe(&self.rec, false);
         if let Some(t) = at {
@@ -278,6 +313,62 @@ impl Sim {
             SimMode::World => What::World(Vec3::ZERO, 0.0),
         });
         Ok(())
+    }
+
+    /// Nothing shown any more (the run shown was deleted): the recording, the playback and what was read from them.
+    pub fn unload(&mut self) {
+        self.stop();
+        self.rec = Recording::default();
+        self.play = Playback::default();
+        self.batch.clear();
+        self.stash.clear();
+        self.groups.clear();
+        self.pick = None;
+        self.shown.clear();
+        self.parts_at = None;
+        self.what = None;
+    }
+
+    /// Draw the run in `path` as ghosts over the one shown (the same race clock).
+    pub fn set_ghost(&mut self, path: &std::path::Path) -> Result<(), String> {
+        let text = std::fs::read_to_string(path).map_err(|e| format!("{}: {e}", path.display()))?;
+        self.ghost = Some(Recording::read(&text));
+        self.ghost_name = path.file_stem().map_or_else(String::new, |n| n.to_string_lossy().into());
+        self.refresh_parting();
+        Ok(())
+    }
+
+    pub fn clear_ghost(&mut self) {
+        self.ghost = None;
+        self.ghost_name.clear();
+        self.parts_at = None;
+    }
+
+    /// Work out where the ghost's run parts from the one shown (its racers a metre apart at the same time, or the
+    /// first state hash that differs).
+    pub fn refresh_parting(&mut self) {
+        self.parts_at = self.ghost.as_ref().and_then(|g| {
+            let mut at: Vec<f32> = self
+                .rec
+                .racers()
+                .into_iter()
+                .filter_map(|id| {
+                    let p = super::telemetry::parting(&self.rec, g, id);
+                    p.apart.into_iter().chain(p.time).reduce(f32::min)
+                })
+                .collect();
+            at.sort_by(f32::total_cmp);
+            at.first().copied()
+        });
+    }
+
+    /// The racers of the ghost run at the time shown.
+    pub fn ghost_cars(&self) -> Vec<CarSample> {
+        let Some(g) = self.ghost.as_ref() else { return Vec::new() };
+        if self.play.time == f32::NEG_INFINITY {
+            return Vec::new();
+        }
+        g.cars_at(self.play.time).into_iter().filter(|c| c.kind.races()).collect()
     }
 
     /// Show what went wrong in `f`: its run (the recording swapped in when
@@ -395,6 +486,7 @@ impl Panel for SimHook {
                     let sim = &mut *sim;
                     sim.batch = sim.stash.iter().chain([&sim.rec]).map(|r| findings_of(r, s)).collect();
                     sim.regroup();
+                    sim.refresh_parting();
                 }
             }
         }
@@ -406,6 +498,9 @@ impl Panel for SimHook {
         if was_running && !sim.running() {
             let race = sim.what.as_ref().is_some_and(|w| w.mode() == SimMode::Race);
             let ok = !matches!(sim.play.phase, Phase::Failed(_));
+            if ok && sim.rec.end.is_some() && !sim.rec.frames.is_empty() {
+                sim.save_run(s);
+            }
             if race && ok {
                 let f = findings_of(&sim.rec, s);
                 sim.batch.push(f);
@@ -516,7 +611,8 @@ fn legend(ui: &mut egui::Ui, s: &mut EditorState, traces: &mut bool) {
         // The 3D view's cars: the game's car models (the default) or boxes
         // in the colours below.
         let mut models = s.replay.models;
-        if ui.checkbox(&mut models, "Car models").on_hover_text("The cars as the game draws them; off: boxes").changed() {
+        if ui.checkbox(&mut models, "Car models").on_hover_text("The cars as the game draws them; off: boxes").changed()
+        {
             s.replay.set_models(models);
         }
         ui.add_space(6.0);
@@ -936,6 +1032,14 @@ impl ViewOverlay for SimOverlay {
                         );
                     }
                 }
+                // The second run's racers as ghosts: outlines in the info colour.
+                let gcol = ghost_colour();
+                for c in sim.ghost_cars() {
+                    let t = Mat4::from_rotation_translation(c.rotation, c.position);
+                    o.box_outline(t, -CAR_HALF + Vec3::Z * CAR_BOTTOM, CAR_HALF + Vec3::Z * CAR_TOP, gcol, 1.5);
+                    let g = sim.ghost.as_ref().expect("ghost cars come from a ghost");
+                    o.label(c.position + Vec3::Z * 2.2, &format!("B {}", short(&label_name(g, c.id))), gcol);
+                }
             }
             View::Map => {
                 let Some((centre, scale, mrect)) = map_transform(ctx) else { return false };
@@ -975,10 +1079,29 @@ impl ViewOverlay for SimOverlay {
                         line2d(painter, at - egui::vec2(len, 0.0), at + egui::vec2(len, 0.0), col, 1.0);
                     }
                 }
+                let gcol = ghost_colour();
+                for c in sim.ghost_cars() {
+                    let at = to(c.position);
+                    if !rect.expand(20.0).contains(at) {
+                        continue;
+                    }
+                    let h = c.heading();
+                    let len = (4.4 * scale).max(9.0);
+                    let d = egui::vec2(h.cos(), -h.sin());
+                    let side = egui::vec2(-d.y, d.x) * len * 0.45;
+                    let tip = at + d * len * 0.6;
+                    let back = at - d * len * 0.4;
+                    painter.add(egui::Shape::closed_line(vec![tip, back + side, back - side], Stroke::new(1.5, gcol)));
+                }
             }
         }
         taken
     }
+}
+
+/// The second run's colour: the look's info token.
+pub fn ghost_colour() -> Color32 {
+    theme::rgb(theme::tokens().info)
 }
 
 /// The car's own name for a label (its model, not "Your slot (AI)").
@@ -1030,6 +1153,34 @@ mod tests {
         sim.rec = Recording::default();
         sync_issues(&mut sim, &mut s);
         assert_eq!(s.session.issues.len(), 1);
+    }
+
+    /// A run that ended is kept in the mod's Runs list, named from its race and seed, as the game streamed it.
+    #[test]
+    fn a_run_that_ended_is_kept_as_a_run_file() {
+        let maps = crate::testkit::Scratch::new("sim-keeps-run");
+        let mut s = EditorState::new(
+            std::path::PathBuf::new(),
+            "L4RA",
+            std::path::PathBuf::new(),
+            "m",
+            Default::default(),
+            crate::world::World::default(),
+            crate::draw::camera::Camera::new(Vec3::ZERO, 0.0, 0.0),
+        );
+        s.maps = maps.path().to_path_buf();
+        let text: String =
+            super::super::summary::tests::lines(7, true, false).iter().map(|l| l.write() + "\n").collect();
+        let mut sim = Sim { rec: Recording::read(&text), raw: text.clone(), ..Default::default() };
+        sim.save_run(&mut s);
+        assert_eq!(sim.shown, "sim-r-seed7");
+        let dir = super::super::library::dir(maps.path(), "m");
+        assert_eq!(std::fs::read_to_string(super::super::library::path(&dir, "sim-r-seed7")).unwrap(), text);
+        // The same seed again does not replace it.
+        sim.raw = text;
+        sim.save_run(&mut s);
+        assert_eq!(sim.shown, "sim-r-seed7-2");
+        assert_eq!(super::super::library::list(&dir).len(), 2);
     }
 
     #[test]

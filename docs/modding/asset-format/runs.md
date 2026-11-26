@@ -9,7 +9,9 @@ read the same file.
 
 Overbright's own data; nothing of the original maps here (the original's replays are not files). A run file is
 written by the game while it runs (`game … --simulate --stream <file>`, docs/modding/map-editor.md) and read while
-it grows. It is not part of a pack: packs do not ship runs, and no other kind refers to one.
+it grows. It is not part of a pack: packs do not ship runs, and no other kind refers to one. Studio keeps the runs of a mod
+in its editor folder (`.editor/runs/`, never exported) and lists them in its Runs workspace
+(docs/modding/studio.md, "Runs").
 
 ## 2. Files and keys
 

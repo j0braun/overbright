@@ -327,6 +327,7 @@ pub fn key_command(k: Key) -> Option<Command> {
                 K::Num2 => "2",
                 K::Num3 => "3",
                 K::Num4 => "4",
+                K::Num5 => "5",
                 K::Comma => ",",
                 _ => return None,
             };
@@ -599,6 +600,7 @@ mod tests {
         assert_eq!(k(egui::Key::Num3, true), Some(Command::Workspace(Workspace::Races)));
         assert_eq!(k(egui::Key::Num4, true), Some(Command::Workspace(Workspace::Browser)));
         assert_eq!(k(egui::Key::Num0, true), Some(Command::Workspace(Workspace::Mod)));
+        assert_eq!(k(egui::Key::Num5, true), Some(Command::Workspace(Workspace::Runs)));
         assert_eq!(k(egui::Key::Num9, true), None, "no workspace there yet");
         // Letters are the tools' keys and typing: Studio takes none without Ctrl.
         assert_eq!(k(egui::Key::Q, false), None);

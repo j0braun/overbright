@@ -8,6 +8,7 @@
 //! * [`nav`]: the areas, the key table, the pad's buttons, Esc / B and the legend row's rule.
 //! * [`address`]: `ob://` addresses of items and screens, back and forward.
 //! * [`browser`]: the Browser workspace (the game's models and textures by name, and where each is used).
+//! * [`runs`]: the Runs workspace's list (the editor's playback, Telemetry tab and compare are the editor's).
 //! * [`changes`]: the Changes page (what the open mod changes, value by value, and who wins).
 //! * [`mod_page`]: the Mod page (details, files, clashes, ready to share, export).
 //! * [`new_mod`]: the New mod dialog.
@@ -32,6 +33,7 @@ pub mod memory;
 pub mod mod_page;
 pub mod nav;
 pub mod new_mod;
+pub mod runs;
 pub mod shell;
 pub mod shot;
 pub mod words;
@@ -46,6 +48,8 @@ mod browser_tests;
 mod guide_tests;
 #[cfg(test)]
 mod inside_tests;
+#[cfg(test)]
+mod runs_tests;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]

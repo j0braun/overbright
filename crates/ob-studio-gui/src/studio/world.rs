@@ -44,6 +44,9 @@ impl Studio {
     pub fn attach_editor(&mut self, app: App) {
         let seen_tab = app.tab;
         crate::editor::menu::set_hosted(&app.ctx);
+        let mut app = app;
+        let sim = app.panels.sim.clone();
+        app.panels.tabs.push(("telemetry", "Telemetry", Box::new(crate::editor::sim::graphs::TelemetryTab(sim))));
         self.editor = Some(Hosted { app, asked: None, tools_for: None, seen_tab });
     }
 
@@ -84,8 +87,12 @@ impl Studio {
             && h.tools_for != Some(ws)
         {
             h.tools_for = Some(ws);
-            s.mode = if ws == Workspace::Races { Mode::Races } else { Mode::Props };
-            if ws == Workspace::Races && s.race.is_none() && !s.session.map.races.is_empty() {
+            s.mode = if matches!(ws, Workspace::Races | Workspace::Runs) { Mode::Races } else { Mode::Props };
+            if ws == Workspace::Runs {
+                // The tab of a run's graphs first; the run's own view (the editor's, with its timeline).
+                h.app.tab = "telemetry";
+            }
+            if matches!(ws, Workspace::Races | Workspace::Runs) && s.race.is_none() && !s.session.map.races.is_empty() {
                 s.race = Some(0);
             }
         }
@@ -108,6 +115,12 @@ impl Studio {
             Workspace::Races => {
                 if let Some(r) = s.race.and_then(|i| s.session.map.races.get(i)) {
                     v.push(if r.name.is_empty() { r.id.clone() } else { r.name.clone() });
+                }
+            }
+            Workspace::Runs => {
+                let shown = self.editor.as_ref().map(|h| h.app.panels.sim.borrow().shown.clone()).unwrap_or_default();
+                if !shown.is_empty() {
+                    v.push(shown);
                 }
             }
             _ => {
@@ -134,6 +147,7 @@ impl Studio {
                 let r = s.race.and_then(|i| s.session.map.races.get(i))?;
                 Some(Address::item(pack, "race", &[&format!("{pack}:{}", r.id)]))
             }
+            Workspace::Runs => None,
             _ => {
                 let i = *s.selection.first()?;
                 let (sec, n) = s.session.world.original_key(i)?;
@@ -236,6 +250,19 @@ impl Studio {
         });
     }
 
+    /// The Runs workspace's list in the left panel.
+    pub(super) fn runs_left(&mut self, ui: &mut egui::Ui, r: Rect) {
+        let Some(folder) = self.open_mod().map(|m| m.folder.clone()) else { return };
+        let Some(h) = self.editor.as_ref() else { return };
+        let sim = h.app.panels.sim.clone();
+        let dir = crate::editor::sim::library::dir(&self.maps, &folder);
+        // A run the Simulate button just kept is in the list at once.
+        if sim.borrow().running() {
+            self.runs.changed();
+        }
+        self.runs.ui(ui, r, &sim, &dir);
+    }
+
     /// The selection's properties in the Inspector.
     pub(super) fn editor_inspector(&mut self, ui: &mut egui::Ui, r: Rect) {
         let Some(app) = self.editor_app() else { return };
@@ -248,7 +275,17 @@ impl Studio {
     /// The editor's bottom tabs after Studio's own (key, title); the editor's Log is Studio's.
     pub(super) fn editor_tabs(&self) -> Vec<(&'static str, &'static str)> {
         match self.editor.as_ref() {
-            Some(h) if self.editing() => h.app.tab_titles().into_iter().filter(|t| t.0 != "log").collect(),
+            Some(h) if self.editing() => {
+                let runs = self.nav.workspace == Workspace::Runs;
+                let mut v: Vec<_> =
+                    h.app.tab_titles().into_iter().filter(|t| t.0 != "log" && (runs || t.0 != "telemetry")).collect();
+                // Runs: its graphs first, so the tab strip's room is not spent before it.
+                if runs && let Some(k) = v.iter().position(|t| t.0 == "telemetry") {
+                    let t = v.remove(k);
+                    v.insert(0, t);
+                }
+                v
+            }
             _ => vec![],
         }
     }

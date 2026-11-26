@@ -259,6 +259,11 @@ pub fn rail_icon(p: &Painter, w: Workspace, c: Pos2, col: Color32) {
             p.circle_stroke(c + vec2(-2.0, -2.0), 6.0, s);
             p.line_segment([c + vec2(2.5, 2.5), c + vec2(8.0, 8.0)], s);
         }
+        Workspace::Runs => {
+            // A play triangle over a track line.
+            p.add(Shape::closed_line(vec![c + vec2(-5.0, -8.0), c + vec2(6.0, -2.5), c + vec2(-5.0, 3.0)], s));
+            p.line_segment([c + vec2(-8.0, 8.0), c + vec2(8.0, 8.0)], s);
+        }
         Workspace::Mod => {
             let top = [c + vec2(0.0, -9.0), c + vec2(8.0, -4.5), c + vec2(0.0, 0.0), c + vec2(-8.0, -4.5)];
             p.add(Shape::closed_line(top.to_vec(), s));

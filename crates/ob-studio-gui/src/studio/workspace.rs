@@ -12,6 +12,8 @@ pub enum Workspace {
     Races,
     /// The game's assets by name: models and textures, where each is used.
     Browser,
+    /// The mod's recorded runs: play one back, its telemetry, compare two.
+    Runs,
     Mod,
     Settings,
     /// The Changes page (Ctrl+D): not on the rail; it opens over World and goes back to where it was opened.
@@ -42,11 +44,12 @@ pub enum Kind {
 
 impl Workspace {
     /// Every workspace in rail order (top to bottom).
-    pub const ALL: [Workspace; 6] = [
+    pub const ALL: [Workspace; 7] = [
         Workspace::Home,
         Workspace::World,
         Workspace::Races,
         Workspace::Browser,
+        Workspace::Runs,
         Workspace::Mod,
         Workspace::Settings,
     ];
@@ -58,6 +61,7 @@ impl Workspace {
             Workspace::World => "World",
             Workspace::Races => "Races",
             Workspace::Browser => "Browser",
+            Workspace::Runs => "Runs",
             Workspace::Mod => "Mod",
             Workspace::Settings => "Settings",
             Workspace::Changes => "Changes",
@@ -71,6 +75,7 @@ impl Workspace {
             Workspace::World => "2",
             Workspace::Races => "3",
             Workspace::Browser => "4",
+            Workspace::Runs => "5",
             Workspace::Mod => "0",
             Workspace::Settings => ",",
             Workspace::Changes => "D",
@@ -84,6 +89,7 @@ impl Workspace {
             Workspace::World => "Move, add and hide props in the city, and drive there",
             Workspace::Races => "Make a race: start, checkpoints, finish; test and simulate it",
             Workspace::Browser => "Find the game's models and textures by name, and where each is used",
+            Workspace::Runs => "Play a recorded run back, read its telemetry, compare two runs",
             Workspace::Changes => "Everything your mod changes, and which mod wins",
             Workspace::Mod => "Its details, whether it is ready to share, and Export",
             Workspace::Settings => "Studio's own settings",
@@ -93,7 +99,9 @@ impl Workspace {
     pub fn section(self) -> Section {
         match self {
             Workspace::Home => Section::Top,
-            Workspace::World | Workspace::Races | Workspace::Browser | Workspace::Changes => Section::Make,
+            Workspace::World | Workspace::Races | Workspace::Browser | Workspace::Runs | Workspace::Changes => {
+                Section::Make
+            }
             Workspace::Mod => Section::Share,
             Workspace::Settings => Section::Bottom,
         }
@@ -101,7 +109,7 @@ impl Workspace {
 
     pub fn kind(self) -> Kind {
         match self {
-            Workspace::World | Workspace::Races => Kind::Tool,
+            Workspace::World | Workspace::Races | Workspace::Runs => Kind::Tool,
             _ => Kind::Page,
         }
     }
@@ -113,6 +121,7 @@ impl Workspace {
             Workspace::World => "@world",
             Workspace::Races => "@races",
             Workspace::Browser => "@browser",
+            Workspace::Runs => "@runs",
             Workspace::Mod => "@mod",
             Workspace::Settings => "@settings",
             Workspace::Changes => "@changes",
@@ -154,7 +163,10 @@ mod tests {
     #[test]
     fn rail_order_and_keys() {
         let sections: Vec<_> = Workspace::ALL.iter().map(|w| w.section()).collect();
-        assert_eq!(sections, [Section::Top, Section::Make, Section::Make, Section::Make, Section::Share, Section::Bottom]);
+        assert_eq!(
+            sections,
+            [Section::Top, Section::Make, Section::Make, Section::Make, Section::Make, Section::Share, Section::Bottom]
+        );
         let keys: Vec<_> = Workspace::ALL.iter().map(|w| w.ctrl_key()).collect();
         for (i, k) in keys.iter().enumerate() {
             assert!(!keys[..i].contains(k), "Ctrl+{k} twice");
@@ -164,6 +176,7 @@ mod tests {
         assert_eq!(Workspace::for_ctrl_key("3"), Some(Workspace::Races));
         assert_eq!(Workspace::for_ctrl_key("0"), Some(Workspace::Mod));
         assert_eq!(Workspace::for_ctrl_key("4"), Some(Workspace::Browser));
+        assert_eq!(Workspace::for_ctrl_key("5"), Some(Workspace::Runs));
     }
 
     #[test]

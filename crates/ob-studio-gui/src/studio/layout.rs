@@ -35,6 +35,8 @@ pub const SIDE_MAX_FRAC: f32 = 0.4;
 /// tab strip, and below which window height it starts folded.
 pub const BOTTOM_FRAC: f32 = 0.2;
 pub const BOTTOM_MIN: f32 = 120.0;
+/// The bottom dock's share of the height where it holds graphs (Runs).
+pub const READING_BOTTOM_FRAC: f32 = 0.36;
 pub const BOTTOM_MAX: f32 = 240.0;
 pub const BOTTOM_DRAG_MIN: f32 = 80.0;
 pub const BOTTOM_TABS: f32 = 34.0;
@@ -113,11 +115,22 @@ pub struct Want {
     /// The menus' and the mod name's widths as drawn (the caller measures them).
     pub menus_w: f32,
     pub mod_name_w: f32,
+    /// The left panel (a list) and the bottom dock (graphs) are the workspace's main controls (Runs): open at any
+    /// size the view leaves room for, the bottom taller, unless the player folded or dragged them.
+    pub reading: bool,
 }
 
 impl Want {
     pub fn new(kind: Kind) -> Want {
-        Want { kind, legend: false, memory: Memory::default(), drawer_open: false, menus_w: 340.0, mod_name_w: 140.0 }
+        Want {
+            kind,
+            legend: false,
+            memory: Memory::default(),
+            drawer_open: false,
+            menus_w: 340.0,
+            mod_name_w: 140.0,
+            reading: false,
+        }
     }
 }
 
@@ -239,7 +252,7 @@ fn tool(out: &mut Layout, want: &Want) {
     out.toolbar = Some(toolbar);
 
     // The rules' first choice, then what the player kept.
-    let mut left = if m.left_folded.unwrap_or(w < WIDE) {
+    let mut left = if m.left_folded.unwrap_or(w < WIDE && !want.reading) {
         Dock::Folded
     } else {
         let d = if w >= WIDE { LEFT_W } else { LEFT_W_NARROW };
@@ -271,10 +284,11 @@ fn tool(out: &mut Layout, want: &Want) {
     out.right_dock = right;
 
     let mid = Rect::from_min_max(pos2(body.left() + lw, body.top()), pos2(body.right() - rw, body.bottom()));
-    let mut bottom = if m.bottom_folded.unwrap_or(out.size.y < BOTTOM_FOLD_BELOW_H) {
+    let mut bottom = if m.bottom_folded.unwrap_or(out.size.y < BOTTOM_FOLD_BELOW_H && !want.reading) {
         Dock::Folded
     } else {
-        let d = (mid.height() * BOTTOM_FRAC).clamp(BOTTOM_MIN, BOTTOM_MAX);
+        let frac = if want.reading { READING_BOTTOM_FRAC } else { BOTTOM_FRAC };
+        let d = (mid.height() * frac).clamp(BOTTOM_MIN, BOTTOM_MAX);
         Dock::Open(m.bottom_h.map_or(d, |x| x.clamp(BOTTOM_DRAG_MIN, BOTTOM_MAX)))
     };
     if let Dock::Open(bh) = bottom
