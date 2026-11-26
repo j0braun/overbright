@@ -1,25 +1,13 @@
 {
   "command": "browser.search",
-  "count": 1,
+  "count": 0,
   "exit": 0,
   "format": 1,
   "found": {
     "models": 3,
     "textures": 1
   },
-  "hits": [
-    {
-      "animated": false,
-      "height": 4,
-      "materials": 0,
-      "models": 0,
-      "name": "ROAD",
-      "texture": "world:0x00000ABC",
-      "type": "texture",
-      "used": "No model of this region draws it",
-      "width": 4
-    }
-  ],
+  "hits": [],
   "ok": true,
   "region": "L4RA",
   "text": ""

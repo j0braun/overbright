@@ -15,8 +15,8 @@
       "placed": 1,
       "sections": 1,
       "shown": 1,
-      "textures": 0,
-      "triangles": 0,
+      "textures": 1,
+      "triangles": 2,
       "type": "model",
       "used": "1 placed in 1 section"
     }

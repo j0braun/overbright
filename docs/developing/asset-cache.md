@@ -24,8 +24,10 @@ such cache. A single player with one build sees the same cache contents and the 
   `PLAYER_DIRS=` leaves the step out while the player plays on the same machine). One change is not counted: a
   game log (`logs/game-<start time>.log`) that was there before the run and has only grown, which is the
   player's own running game writing on; a game started by a check would make a log of its own. And while a
-  game or launcher that uses the player's folders runs (a process named `game` or `overbright` without
-  `NFSU2_CACHE_DIR` in its environment, sampled every few seconds: `ck_player_watch`), a change there is the
+  game, launcher, Studio or map editor that uses the player's folders runs (a process named `game`,
+  `overbright`, `overbright-studio` or `overbright-editor` whose environment has no `NFSU2_CACHE_DIR`, no
+  `NFSU2_DATA_DIR` and no other `HOME` or `XDG_DATA_HOME` than the caller's, sampled every few seconds:
+  `ck_player_watch`; a test's run under a fake home is not one), a change there is the
   player's own game at work: the run prints the differences and the program's path, lists "player folders" as
   a skip and does not fail on it.
 

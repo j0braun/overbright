@@ -143,11 +143,39 @@ wrun() {
   BAD=$(ck_bad "$O/$name.log")
 }
 # result NAME OK DETAIL: a step's line; OK = ok | XFAIL | anything else (a failure).
+# A step's duration is the time since the previous step's result (the steps run one after the other); every
+# duration is printed at the end ("step_seconds:"), so a slow run shows where it was slow.
+LAST_T=$(date +%s) DURS=() EVID=()
+# evidence NAME SECS DETAIL: a failed step keeps its log, its work folders (screen.txt, PNGs) and its timing in
+# $WINE_EVIDENCE_DIR (default `overbright-wine-evidence` in the system temp folder)/<date-time>-<rev>-NAME/, outside the gate folder that is
+# deleted afterwards; the 20 newest folders stay. Not kept in --selfcheck / --env-check (broken inputs on purpose)
+# unless WINE_EVIDENCE_DIR is set. Failing to keep evidence never changes the result.
+evidence() {
+  local n=$1 base=${WINE_EVIDENCE_DIR:-} d rev f
+  if [ -z "$base" ]; then
+    [ "$SELFCHECK" = 1 ] || [ "$ENVCHECK" = 1 ] && return 0
+    base="${TMPDIR:-/tmp}/overbright-wine-evidence"
+  fi
+  rev=$(git -C "$REPO" rev-parse --short HEAD 2> /dev/null || echo norev)
+  d="$base/$(date +%Y%m%d-%H%M%S)-$rev-$n"
+  mkdir -p "$d" 2> /dev/null || return 0
+  for f in "$O/$n.log" "$O/$n"*.png; do [ -f "$f" ] && cp -- "$f" "$d/"; done
+  for f in "$O/$n" "$O/tmp/$n"; do [ -d "$f" ] && { mkdir -p "$d/$(basename "$f")_dir"; cp -r -- "$f/." "$d/$(basename "$f")_dir/" 2> /dev/null; }; done
+  printf 'step=%s\nseconds=%s\ndetail=%s\nrev=%s\ndate=%s\n' "$n" "$2" "$3" "$rev" "$(date -Is)" > "$d/timing.txt"
+  EVID+=("$d")
+  # Keep the 20 newest (the names start with the date-time); older ones go by literal path.
+  local all=() old i
+  while IFS= read -r f; do all+=("$f"); done < <(ls -1d "$base"/[0-9]*-*/ 2> /dev/null | sed 's:/$::' | sort)
+  old=$(( ${#all[@]} - 20 ))
+  for (( i = 0; i < old; i++ )); do rm -rf -- "${all[$i]}"; done
+  return 0
+}
 result() {
+  local now secs; now=$(date +%s); secs=$(( now - LAST_T )); LAST_T=$now; DURS+=("$1=${secs}s")
   case $2 in
     ok) say "$1: ok $3" ;;
     XFAIL) XFAIL+=("$1"); say "$1: XFAIL $3" ;;
-    *) FAIL+=("$1"); say "$1: FAIL $3" ;;
+    *) FAIL+=("$1"); say "$1: FAIL $3"; evidence "$1" "$secs" "$3" ;;
   esac
 }
 
@@ -421,6 +449,12 @@ EOF
   done
   ok=ok; grep -qx 'env: NFSU2_HEADLESS_ONLY=1' "$O/env_headless.log" || ok=no
   result env_headless $ok "$(grep -m1 -o 'NFSU2_HEADLESS_ONLY=.*' "$O/env_headless.log")"
+  # Self-test of the evidence copy (selfcheck.sh): a faked failed step with a log and a work folder.
+  if [ -n "${WINE_EVIDENCE_FAKE:-}" ]; then
+    mkdir -p "$O/fake_step"; echo "fake log" > "$O/fake_step.log"; echo "fake screen" > "$O/fake_step/screen.txt"; : > "$O/fake_step/a.png"
+    result fake_step no "faked failure"
+    say "evidence: ${EVID[*]:-none}"
+  fi
   if [ ${#FAIL[@]} = 0 ]; then say "WINE_SMOKE_ENVCHECK: PASS ($(( $(date +%s) - T0 )) s)"; exit 0; fi
   say "WINE_SMOKE_ENVCHECK: FAIL (${FAIL[*]}) ($(( $(date +%s) - T0 )) s)"; exit 1
 fi
@@ -647,7 +681,9 @@ if command -v xdotool > /dev/null; then
   say "windows on :$DNUM at the end: $(DISPLAY=":$DNUM" xdotool search --onlyvisible --name . 2> /dev/null | wc -l) (the shots are headless)"
 fi
 SECS=$(( $(date +%s) - T0 ))
+say "step_seconds: ${DURS[*]}"
 X=""; [ ${#XFAIL[@]} -gt 0 ] && X=" xfail: ${XFAIL[*]};"
 if [ ${#FAIL[@]} = 0 ]; then say "WINE_SMOKE: PASS (${X# } $SECS s)"; exit 0; fi
-say "WINE_SMOKE: FAIL (${FAIL[*]};$X $SECS s)"
+E=""; [ ${#EVID[@]} -gt 0 ] && E=" evidence: ${EVID[*]};"
+say "WINE_SMOKE: FAIL (${FAIL[*]};$X$E $SECS s)"
 exit 1

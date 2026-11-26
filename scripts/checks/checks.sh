@@ -326,6 +326,11 @@ if [ "$SET" != shots ]; then
   run stray_opens 60 "$HERE/stray_opens.sh" "$REPO"
   say "stray_opens rc=$RC: $(grep -E '^STRAY OPENS: ok' "$O/stray_opens.log" | cut -c14-160)"
   [ $RC = 0 ] || { grep -vE '^STRAY OPENS: ok' "$O/stray_opens.log" | head -20 | tee -a "$OUT"; fail stray_opens; }
+  # The Studio preview's checks (studio_checks.py, studio-checks.txt): dependency budget, lint, every registry command
+  # documented and tested.
+  run studio_checks 240 "$HERE/studio_checks.sh" "$REPO"
+  say "studio_checks rc=$RC: $(grep -cE '^STUDIO CHECKS: [a-z]+ ok' "$O/studio_checks.log") parts ok"
+  [ $RC = 0 ] || { grep -vE '^STUDIO CHECKS: [a-z]+ ok' "$O/studio_checks.log" | head -20 | tee -a "$OUT"; fail studio_checks; }
   # The importers' unit tests (scripts/tests) need Pillow: without it they are recorded as skipped. They are part
   # of the private set (with the importers they test): a public checkout has no scripts/tests/.
   if [ ! -d "$REPO/scripts/tests" ]; then

@@ -22,6 +22,8 @@ pub(crate) const OPTIONS_SHOT_AT: f32 = -600.0;
 
 /// Headless: draw one screen to a PNG.
 pub(crate) fn shot(game: &mut Game, screen: &str, out: &str) -> Result<()> {
+    // A name the table does not have fails here, before any setup, with a message of its own.
+    targets::require_known(screen)?;
     // Check targets (scripts/checks): `photo`, photo mode's first frame
     // (the photo check's help-bar still, free roam); `explore_rain`, free
     // roam in the shower at world clock 162 s (the bench's rain scene).
