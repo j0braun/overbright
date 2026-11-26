@@ -184,3 +184,19 @@ fn it_draws_inside_its_slab_at_each_size() {
         assert!(d.rows.iter().all(|r| !r.intersects(v)));
     }
 }
+
+#[test]
+fn a_model_exports_and_a_texture_does_not() {
+    let w = region();
+    let mut p = page(&w);
+    p.query.text = "bench".into();
+    p.ensure(&Source { region: "L4RA", world: &w, mod_props: 0, thumbs: None });
+    p.focus = FIRST_RESULT;
+    assert_eq!(p.export_act(), Some(Act::ExportModel { solid: 1, name: "XB_BENCH_01".into() }));
+    p.query.text = "tex_1".into();
+    p.ensure(&Source { region: "L4RA", world: &w, mod_props: 0, thumbs: None });
+    assert_eq!(p.export_act(), None, "a texture has no glTF");
+    // On a chip line nothing is focused to export.
+    p.focus = 0;
+    assert_eq!(p.export_act(), None);
+}
