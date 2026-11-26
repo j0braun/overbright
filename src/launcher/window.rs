@@ -42,7 +42,12 @@ struct Run<'e> {
     mouse: (f32, f32),
     pad: Option<gilrs::Gilrs>,
     /// The left stick's last direction (−1, 0, 1 per axis) for edges.
-    stick: (i8, i8),
+    stick: (super::pad_filter::Stick, super::pad_filter::Stick),
+    pad_name: super::pad_filter::NameDebounce,
+    pad_at: Option<Instant>,
+    pad_events: u32,
+    /// Input-mode switch log: (window start, switches in it, shown).
+    mode_log: (Option<Instant>, u32, u32),
     /// A direction held on the pad (d-pad or stick) and when it repeats
     /// next, as a held arrow key does.
     held: Option<(Key, Instant)>,
@@ -589,6 +594,9 @@ impl Run<'_> {
     /// a key or a pad and shows on a mouse movement.
     fn used(&mut self, kind: InputKind) {
         let changed = deck::note_input(kind);
+        if changed {
+            self.log_mode_switch(kind);
+        }
         self.app.st.input = kind;
         let hide = kind != InputKind::Mouse;
         if let Some(w) = &self.window {
@@ -600,6 +608,65 @@ impl Run<'_> {
             }
         }
         self.cursor_hidden = hide;
+    }
+
+    /// The input mode switched: one line, at most 5 in a second (the rest
+    /// counted), so a log shows a mode that flips on its own.
+    fn log_mode_switch(&mut self, kind: InputKind) {
+        let now = Instant::now();
+        let (start, n, shown) = &mut self.mode_log;
+        if start.is_none_or(|t| now.duration_since(t) >= Duration::from_secs(1)) {
+            if *n > *shown {
+                log::info!("input: {} more mode switches in the last second", *n - *shown);
+            }
+            *start = Some(now);
+            *n = 0;
+            *shown = 0;
+        }
+        *n += 1;
+        if *shown < 5 {
+            *shown += 1;
+            log::info!("input: mode now {kind:?}");
+        }
+    }
+
+    /// A pad shown (or gone): its name, backend, mapping and resting axis values.
+    fn log_pad(&self) {
+        let Some(g) = &self.pad else { return };
+        let backend = if cfg!(windows) {
+            "windows (XInput / Windows.Gaming.Input)"
+        } else if cfg!(target_os = "linux") {
+            "linux evdev"
+        } else {
+            "system"
+        };
+        let mut any = false;
+        for (id, p) in g.gamepads().filter(|(_, p)| p.is_connected()) {
+            any = true;
+            let axes = [
+                gilrs::Axis::LeftStickX,
+                gilrs::Axis::LeftStickY,
+                gilrs::Axis::RightStickX,
+                gilrs::Axis::RightStickY,
+                gilrs::Axis::LeftZ,
+                gilrs::Axis::RightZ,
+                gilrs::Axis::DPadX,
+                gilrs::Axis::DPadY,
+            ]
+            .map(|a| format!("{a:?}={}", p.axis_code(a).map_or("none".to_string(), |_| format!("{:.2}", p.value(a)))))
+            .join(" ");
+            log::info!(
+                "gamepad {id}: \"{}\" backend {backend}, mapping {:?}, vendor {:04x?} product {:04x?}, force feedback {}; resting {axes}",
+                p.name(),
+                p.mapping_source(),
+                p.vendor_id(),
+                p.product_id(),
+                p.is_ff_supported()
+            );
+        }
+        if !any {
+            log::info!("gamepad: none connected");
+        }
     }
 
     fn focused_is_field(&self) -> bool {
@@ -776,8 +843,16 @@ impl Run<'_> {
     fn poll_pad(&mut self) {
         let Some(g) = &mut self.pad else { return };
         let name = g.gamepads().find(|(_, p)| p.is_connected()).map(|(_, p)| p.name().to_string());
-        if name != self.app.model.controller {
+        if let Some(name) = self.pad_name.update(Instant::now(), &name, &self.app.model.controller) {
             self.app.model.controller = name;
+            self.log_pad();
+            // A newly shown pad: its sticks' resting values.
+            if let Some(g) = &self.pad
+                && let Some((_, p)) = g.gamepads().find(|(_, p)| p.is_connected())
+            {
+                self.stick.0.calibrate(p.value(gilrs::Axis::LeftStickX));
+                self.stick.1.calibrate(p.value(gilrs::Axis::LeftStickY));
+            }
             self.app.rebuild(&self.fonts);
             if let Some(w) = &self.window {
                 w.request_redraw();
@@ -789,7 +864,12 @@ impl Run<'_> {
         let is_move = |k: Key| matches!(k, Key::Up | Key::Down | Key::Left | Key::Right);
         let mut kind = None;
         while let Some(ev) = g.next_event() {
-            if matches!(ev.event, gilrs::EventType::ButtonPressed(..) | gilrs::EventType::AxisChanged(..)) {
+            // The first events of the run, to see what a pad sends.
+            if self.pad_events < 30 {
+                self.pad_events += 1;
+                log::info!("gamepad event {}: {:?}", self.pad_events, ev.event);
+            }
+            if matches!(ev.event, gilrs::EventType::ButtonPressed(..)) {
                 let p = g.gamepad(ev.id);
                 kind = Some(deck::pad_kind(p.name(), p.vendor_id()));
             }
@@ -826,37 +906,35 @@ impl Run<'_> {
                     inputs.push(Input::Key(k));
                 }
                 gilrs::EventType::AxisChanged(axis, v, _) => {
-                    let dir = if v > 0.6 {
-                        1
-                    } else if v < -0.6 {
-                        -1
-                    } else {
-                        0
-                    };
                     match axis {
-                        gilrs::Axis::LeftStickX if dir != self.stick.0 => {
-                            self.stick.0 = dir;
-                            if self.held.is_some_and(|(h, _)| matches!(h, Key::Left | Key::Right)) {
-                                self.held = None;
-                            }
-                            if dir != 0 {
-                                let k = if dir > 0 { Key::Right } else { Key::Left };
-                                self.held = Some((k, now + REPEAT_DELAY));
-                                inputs.push(Input::Key(k));
-                            }
-                        }
-                        gilrs::Axis::LeftStickY if dir != self.stick.1 => {
-                            self.stick.1 = dir;
-                            if self.held.is_some_and(|(h, _)| matches!(h, Key::Up | Key::Down)) {
-                                self.held = None;
-                            }
-                            if dir != 0 {
-                                // gilrs: up is positive.
-                                let k = if dir > 0 { Key::Up } else { Key::Down };
-                                self.held = Some((k, now + REPEAT_DELAY));
-                                inputs.push(Input::Key(k));
+                        gilrs::Axis::LeftStickX => {
+                            if let Some(dir) = self.stick.0.feed(v) {
+                                if self.held.is_some_and(|(h, _)| matches!(h, Key::Left | Key::Right)) {
+                                    self.held = None;
+                                }
+                                if dir != 0 {
+                                    let k = if dir > 0 { Key::Right } else { Key::Left };
+                                    self.held = Some((k, now + REPEAT_DELAY));
+                                    inputs.push(Input::Key(k));
+                                    kind = Some(deck::pad_kind(g.gamepad(ev.id).name(), g.gamepad(ev.id).vendor_id()));
+                                }
                             }
                         }
+                        gilrs::Axis::LeftStickY => {
+                            if let Some(dir) = self.stick.1.feed(v) {
+                                if self.held.is_some_and(|(h, _)| matches!(h, Key::Up | Key::Down)) {
+                                    self.held = None;
+                                }
+                                if dir != 0 {
+                                    // gilrs: up is positive.
+                                    let k = if dir > 0 { Key::Up } else { Key::Down };
+                                    self.held = Some((k, now + REPEAT_DELAY));
+                                    inputs.push(Input::Key(k));
+                                    kind = Some(deck::pad_kind(g.gamepad(ev.id).name(), g.gamepad(ev.id).vendor_id()));
+                                }
+                            }
+                        }
+                        // Other axes (motion sensor, triggers, right stick) are not input here.
                         _ => {}
                     }
                 }
@@ -876,6 +954,7 @@ impl Run<'_> {
             _ => true,
         });
         if !inputs.is_empty() {
+            self.pad_at = Some(now);
             self.app.model.pad_input = true;
             let kind = kind.unwrap_or_else(|| {
                 let k = deck::last_input();
@@ -1036,14 +1115,12 @@ impl ApplicationHandler for Run<'_> {
                     },
                     // Ctrl+B / Ctrl+E / Ctrl+Z: the Saves page's back up,
                     // export and undo.
-                    WKey::Character(c) if self.mods.control_key() && !shift => {
-                        match c.to_ascii_lowercase().as_str() {
-                            "b" => Some(Key::BackUp),
-                            "e" => Some(Key::Export),
-                            "z" => Some(Key::Undo),
-                            _ => None,
-                        }
-                    }
+                    WKey::Character(c) if self.mods.control_key() && !shift => match c.to_ascii_lowercase().as_str() {
+                        "b" => Some(Key::BackUp),
+                        "e" => Some(Key::Export),
+                        "z" => Some(Key::Undo),
+                        _ => None,
+                    },
                     // Q / E: the pages; R: a page's second action (not
                     // while a text field takes letters).
                     WKey::Character(c) if !self.focused_is_field() && !self.mods.control_key() => {
@@ -1069,9 +1146,11 @@ impl ApplicationHandler for Run<'_> {
                 }
             }
             WindowEvent::CursorMoved { position, .. } => {
+                let old_mouse = self.mouse;
                 let moved = (position.x as f32, position.y as f32) != self.mouse;
                 self.mouse = (position.x as f32, position.y as f32);
-                if moved {
+                let (dx, dy) = (position.x as f32 - old_mouse.0, position.y as f32 - old_mouse.1);
+                if moved && super::pad_filter::mouse_move_counts(dx, dy, self.pad_at.map(|t| t.elapsed())) {
                     self.used(InputKind::Mouse);
                 }
                 log::debug!(target: "launcher::input", "cursor {:.1},{:.1} scale {}", position.x, position.y,
@@ -1139,7 +1218,9 @@ impl ApplicationHandler for Run<'_> {
         // A busy spinner turns (about 30 frames a second); a support file
         // being written is polled.
         // "Shaders ready" goes away by itself.
-        if self.app.shaders_ready_shown() && self.app.model.prepare.done_at.is_some_and(|t| t.elapsed() > SHADERS_READY_FOR) {
+        if self.app.shaders_ready_shown()
+            && self.app.model.prepare.done_at.is_some_and(|t| t.elapsed() > SHADERS_READY_FOR)
+        {
             self.app.model.prepare.done_at = None;
             self.app.rebuild(&self.fonts);
             if let Some(w) = &self.window {
@@ -1288,7 +1369,11 @@ pub fn run_with_root(env: &dyn Env, start: Start) -> Result<Outcome, String> {
         mods: ModifiersState::empty(),
         mouse: (0.0, 0.0),
         pad,
-        stick: (0, 0),
+        stick: Default::default(),
+        pad_name: Default::default(),
+        pad_at: None,
+        pad_events: 0,
+        mode_log: (None, 0, 0),
         held: None,
         outcome: Outcome::Stay,
         error: None,
