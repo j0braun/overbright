@@ -163,6 +163,16 @@ fn telemetry(line: &args::Line, m: &Mod, name: &str, rec: &Recording) -> Done {
     if let Some((lo, hi)) = t.lateral.as_deref().and_then(telemetry::range) {
         text.push(format!("  off the racing line {lo:.1} to {hi:.1} m"));
     }
+    if let Some((lo, hi)) = t.gear.as_deref().and_then(telemetry::range) {
+        text.push(format!("  gear {} to {}", gear_word(lo), gear_word(hi)));
+    }
+    if let Some((_, hi)) = t.throttle.as_deref().and_then(telemetry::range) {
+        let full = t.throttle.as_deref().map_or(0, |s| s.iter().filter(|p| p.1 > 0.95).count());
+        text.push(format!("  throttle up to {:.0} % ({full} of {} frames flat out)", hi * 100.0, t.speed.len()));
+    }
+    if let Some((_, hi)) = t.brake.as_deref().and_then(telemetry::range) {
+        text.push(format!("  brake up to {:.0} %", hi * 100.0));
+    }
     for (time, kind, cp) in &t.events {
         text.push(format!("  {:>7} {} (checkpoint {cp})", secs(*time), kind_word(*kind)));
     }
@@ -170,12 +180,28 @@ fn telemetry(line: &args::Line, m: &Mod, name: &str, rec: &Recording) -> Done {
         "run": name, "car": car, "name": rec.name(car), "player": rec.cars[&car].kind == CarKind::Player,
         "speed": series(&t.speed),
         "lateral": t.lateral.as_deref().map(series),
+        "gear": t.gear.as_deref().map(series),
+        "rpm": t.rpm.as_deref().map(series),
+        "throttle": t.throttle.as_deref().map(series),
+        "brake": t.brake.as_deref().map(series),
+        "steer": t.steer.as_deref().map(series),
         "events": t.events.iter().map(|(time, kind, cp)| json!({
             "time": time, "kind": kind_word(*kind), "checkpoint": cp,
         })).collect::<Vec<_>>(),
-        "series": { "speed": t.speed, "lateral": t.lateral },
+        "series": {
+            "speed": t.speed, "lateral": t.lateral, "gear": t.gear, "rpm": t.rpm, "throttle": t.throttle,
+            "brake": t.brake, "steer": t.steer,
+        },
     });
     Done { code: OK, text, doc }
+}
+
+fn gear_word(v: f32) -> String {
+    match v.round() as i32 {
+        -1 => "R".into(),
+        0 => "N".into(),
+        g => g.to_string(),
+    }
 }
 
 fn compare(line: &args::Line, dir: &std::path::Path) -> Done {

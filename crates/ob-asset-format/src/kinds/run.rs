@@ -18,9 +18,11 @@ use crate::{Refusal, Rule};
 /// The kind's name in a schema id, and the major and highest minor version this reader knows.
 pub const KIND: &str = "run";
 pub const MAJOR: u32 = 1;
-pub const MINOR: u32 = 0;
+pub const MINOR: u32 = 1;
 /// The schema id a writer of this version puts in the header (`schema=`).
 pub const SCHEMA: &str = "ob.run/1.0";
+/// The schema id of a run written with the drive channels or a state hash at another interval.
+pub const SCHEMA_DRIVE: &str = "ob.run/1.1";
 
 /// One record of the run file.
 #[derive(Clone, Copy, Debug)]
@@ -36,6 +38,11 @@ pub struct Record {
     /// The last field takes the rest of the line: a text (a name), or a list of tables split at `|` (a tick's
     /// cars).
     pub rest: bool,
+}
+
+/// A field added in minor version 1.
+const fn rf1(key: &'static str, ty: Ty, req: Req, doc_type: &'static str, meaning: &'static str) -> Field {
+    Field { key, ty, req, doc_type, doc_meaning: meaning, since: 1, ..Field::BLANK }
 }
 
 const fn rf(key: &'static str, ty: Ty, req: Req, doc_type: &'static str, meaning: &'static str) -> Field {
@@ -107,6 +114,13 @@ const HEADER: &[Field] = &[
     rf("track", U16, Req::No, "u16", "The base track."),
     rf("laps", U32, Req::No, "u32", "The race's laps."),
     rf("checkpoints", U32, Req::No, "u32", "The race's checkpoints."),
+    rf1(
+        "hash",
+        Ty::Int { min: 1, max: 1_000_000 },
+        Req::No,
+        "u32",
+        "How often `H` is written, in ticks (60 when absent; 1: every tick).",
+    ),
 ];
 
 const CAR: &[Field] = &[
@@ -140,6 +154,13 @@ const CAR: &[Field] = &[
     rf("lift2", F32, Req::No, "f32 m", ""),
     rf("lift3", F32, Req::No, "f32 m", ""),
     rf("lights", U8, Req::No, "u8", "Bit 1 headlights, bit 2 brake lights."),
+    rf1("gear", Ty::Int { min: -1, max: 20 }, Req::No, "i32", "The drive channels: -1 reverse, 0 neutral, 1.. the gear."),
+    rf1("rpm", F32, Req::No, "f32", "The shown engine speed."),
+    rf1("throttle", F32, Req::No, "f32", "The pedals as the car took them, 0..1."),
+    rf1("brake", F32, Req::No, "f32", ""),
+    rf1("handbrake", F32, Req::No, "f32", ""),
+    rf1("steerin", F32, Req::No, "f32", "The steering input, -1 (left) .. 1 (right)."),
+    rf1("nitrous", U8, Req::No, "u8", "1 while the nitrous key is held."),
 ];
 
 /// The record of one car at a tick (a part of [`RUN`]'s `F`).
@@ -529,6 +550,21 @@ mod tests {
         assert_eq!(s.schema, SCHEMA);
         assert!(s.ended);
         assert!(s.records.iter().all(|r| r.1 > 0), "the example shows every record: {:?}", s.records);
+    }
+
+    #[test]
+    fn the_drive_example_passes_and_a_first_minor_file_refuses_the_new_fields() {
+        let path = format!("{}/../../docs/modding/asset-format/examples/runs/drive.obrun", env!("CARGO_MANIFEST_DIR"));
+        let text = std::fs::read_to_string(path).unwrap();
+        let s = check_run(&text).unwrap();
+        assert_eq!((s.schema.as_str(), s.ended), (SCHEMA_DRIVE, true));
+        // The same file declared 1.0: its drive fields are newer than it says (VER.6).
+        let old = text.replace("ob.run/1.1", "ob.run/1.0");
+        assert_eq!(check_run(&old).unwrap_err().rule, Rule::Ver6);
+        // A 1.0 file of the poses only has none of them and passes.
+        check_run(&example()).unwrap();
+        assert!(check_run(&text.replace(" hash=1", "")).is_ok(), "the hash key is optional");
+        assert_eq!(check_run(&text.replace("hash=1", "hash=0")).unwrap_err().rule, Rule::Conv6);
     }
 
     #[test]

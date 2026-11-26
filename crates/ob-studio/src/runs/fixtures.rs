@@ -2,7 +2,7 @@
 
 use glam::{Quat, Vec3};
 
-use super::format::{CarInfo, CarKind, CarSample, Event, EventKind, Frame, Header, Line, ResultRow};
+use super::format::{CarInfo, CarKind, CarSample, Drive, Event, EventKind, Frame, Header, Line, ResultRow, StateHash};
 use super::record::Recording;
 
 /// A recorded sprint along y = 0 (x = 20 m/s × t): racer 1 stops at
@@ -40,6 +40,7 @@ pub fn lines(seed: u64, prop_crash: bool, start_crash: bool) -> Vec<Line> {
                     checkpoint: 0,
                     place: id + 1,
                     wheels: None,
+                    drive: None,
                 }
             })
             .collect();
@@ -79,3 +80,39 @@ pub fn race(seed: u64, prop_crash: bool, start_crash: bool) -> Recording {
     r
 }
 
+
+/// A recorded drive of the player's slot with the drive channels and the state hash of every tick: 120 ticks along
+/// y = 0, 2nd gear for the first second and 3rd after, full throttle, the brake from 1.5 s, the wheel turned right
+/// from 1 s. The hashes are `seed`-based; from tick `parts_at` they differ from the run of any other `seed`.
+pub fn driven(seed: u64, parts_at: u64) -> Vec<Line> {
+    let mut r = vec![Line::Header(Header { version: 1, seed, hash_every: 1, race: "r".into(), ..Default::default() })];
+    r.push(Line::Car(CarInfo { id: 0, kind: CarKind::Player, name: "Peugeot 206".into() }));
+    for tick in 0..120u64 {
+        let t = tick as f32 / 60.0;
+        let car = CarSample {
+            id: 0,
+            kind: CarKind::Player,
+            position: Vec3::new(10.0 * t, 0.0, 0.0),
+            rotation: Quat::IDENTITY,
+            speed: 10.0,
+            lap: 0,
+            checkpoint: 0,
+            place: 1,
+            wheels: Some(Default::default()),
+            drive: Some(Drive {
+                gear: if tick < 60 { 2 } else { 3 },
+                rpm: 3000.0 + tick as f32 * 10.0,
+                throttle: 1.0,
+                brake: if t >= 1.5 { 0.5 } else { 0.0 },
+                handbrake: 0.0,
+                steer: if t >= 1.0 { 0.25 } else { 0.0 },
+                nitrous: false,
+            }),
+        };
+        r.push(Line::Frame(Frame { tick, time: t, cars: vec![car] }));
+        let hash = if tick >= parts_at { 1_000_000 * seed + tick } else { tick };
+        r.push(Line::Hash { tick, hash: StateHash(hash) });
+    }
+    r.push(Line::End("quit".into()));
+    r
+}

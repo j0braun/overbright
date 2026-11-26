@@ -737,6 +737,21 @@ impl CarState {
         }
     }
 
+    /// The gear as a number, for a recording: -1 reverse, 0 neutral (or no drivetrain), 1.. the gear
+    /// ([`CarState::gear_name`] as a number).
+    pub fn gear_number(&self) -> i32 {
+        match self.drivetrain.as_ref().map(|d| d.gear) {
+            Some(0) => -1,
+            Some(NEUTRAL) | None => 0,
+            Some(g) => g as i32 - 1,
+        }
+    }
+
+    /// The pedals and steering the car took in its last update (`frame_pedals`), for a recording; read only.
+    pub fn last_controls(&self) -> Controls {
+        self.frame_pedals
+    }
+
     /// The replay manager's DUMMY_SNAPSHOT (0x57C190, every 100 world
     /// updates while it records): a take (+0x40 = 1) into an empty buffer,
     /// so only the serialisers' take branches act. The rigid body's

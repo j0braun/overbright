@@ -150,9 +150,9 @@ pub(crate) fn run(command: &Command, args: &[String]) -> Result<()> {
     // 0x57ECC0: the random numbers seeded from the clock at boot, so each
     // run draws its own rivals, names and grid (headless runs keep the
     // static seed).
-    game.rng = nfsu2::opponents::GameRng::boot(
-        std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_nanos() as u64 >> 8),
-    );
+    let boot_seed =
+        std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_nanos() as u64 >> 8);
+    game.rng = nfsu2::opponents::GameRng::boot(boot_seed);
     // The start-up's draws come after the seed (0x57ED5C before 0x57ED7C):
     // made again on the clock's state.
     game.boot_draws();
@@ -164,6 +164,7 @@ pub(crate) fn run(command: &Command, args: &[String]) -> Result<()> {
     // A test run of the desktop map editor: straight onto the race's grid
     // (or the spot in free roam) with only its mod, no boot screens.
     let test = MAP_TEST.get().cloned();
+
     // The map editor's and Studio's test game, and scripted windowed runs
     // (`NFSU2_KEEP_RUNNING`), run in a window nobody focuses: In the
     // background is Keep running for them.
@@ -173,6 +174,9 @@ pub(crate) fn run(command: &Command, args: &[String]) -> Result<()> {
     }
     if let Some(t) = &test {
         game.start_map_test(t)?;
+        if let Some(path) = &t.record {
+            game.start_recording(t, path, boot_seed)?;
+        }
     } else if !matches!(command, Command::Window { no_boot: true }) {
         // The boot screens first (0x4D9580), unless asked to skip them.
         let _t = nfsu2::prof::span("start: boot screen");
@@ -251,10 +255,16 @@ pub(crate) struct MapTest {
     /// `--map-clock <seconds>`: the world clock the run starts at (sets the
     /// time of day and the weather as the game's cycle has them then).
     pub(crate) clock: Option<f32>,
+    /// `--record <file>`: the window run writes its run file there as it is driven (`enh::sim_stream`).
+    pub(crate) record: Option<std::path::PathBuf>,
+    /// `--run-channels drive,hash`: the run file's opt-in channels (a simulation's or a recording's).
+    pub(crate) channels: crate::enh::sim_stream::Channels,
 }
 
 /// The test-run flags; each takes one value.
-pub(crate) const MAP_FLAGS: [&str; 12] = [
+pub(crate) const MAP_FLAGS: [&str; 14] = [
+    "--record",
+    "--run-channels",
     "--map-mod",
     "--map-file",
     "--map-race",
@@ -314,6 +324,7 @@ impl MapTest {
         let mut t = MapTest::default();
         let (mut folder, mut file, mut seen) = (None, None::<std::path::PathBuf>, false);
         let (mut mode, mut stream, mut seed, mut seconds) = (None, None, None, None);
+        let mut channels = None;
         let mut i = 0;
         while i < args.len() {
             let flag = args[i].as_str();
@@ -392,6 +403,17 @@ impl MapTest {
                         let n = v.parse::<f32>().ok().filter(|n| nfsu2::tools::map::link::Focus { car: None, clock: Some(*n) }.valid());
                         t.clock = Some(n.ok_or_else(|| format!("--map-clock: `{v}` is not 1..{} seconds", nfsu2::tools::map::link::MAX_CLOCK))?);
                     }
+                    "--record" => {
+                        twice(t.record.is_some())?;
+                        if v.is_empty() {
+                            return Err("--record needs a file".into());
+                        }
+                        t.record = Some(v.into());
+                    }
+                    "--run-channels" => {
+                        twice(channels.is_some())?;
+                        channels = Some(crate::enh::sim_stream::Channels::parse(&v)?);
+                    }
                     "--sim-seconds" => {
                         twice(seconds.is_some())?;
                         let n = v.parse::<f32>().ok().filter(|n| n.is_finite() && *n > 0.0 && *n <= 86_400.0);
@@ -433,6 +455,13 @@ impl MapTest {
             _ => {}
         }
         use nfsu2::tools::map::sim::format::SimMode;
+        if channels.is_some() && mode.is_none() && t.record.is_none() {
+            return Err("--run-channels needs --simulate, --simulate-world or --record".into());
+        }
+        if t.record.is_some() && mode.is_some() {
+            return Err("--record is for the window's run; a simulation writes its file with --stream".into());
+        }
+        t.channels = channels.unwrap_or_default();
         match mode {
             None if stream.is_some() || seed.is_some() || seconds.is_some() => {
                 Err("--stream, --sim-seed and --sim-seconds need --simulate or --simulate-world".into())
@@ -623,6 +652,7 @@ fn run_test_loop(event_loop: EventLoop<()>, game: &mut Game, t: &MapTest) -> Res
     let link = t.link.clone().map(super::studio_link::Link::new);
     let mut h = TestLoop { game, watch: EndWatch::new(t), test: t.clone(), link, result: t.result.clone(), clock: std::time::Instant::now() };
     let r = event_loop.run_app(&mut h);
+    h.game.end_recording("quit");
     h.watch.write(t.result.as_deref());
     Ok(r?)
 }
@@ -633,6 +663,30 @@ mod map_test_tests {
 
     fn args(a: &[&str]) -> Vec<String> {
         a.iter().map(|s| s.to_string()).collect()
+    }
+
+    #[test]
+    fn a_window_run_is_recorded_with_record_and_the_channels_are_opt_in() {
+        use crate::enh::sim_stream::Channels;
+        let t = MapTest::parse(&args(&["--map-mod", "m", "--map-race", "r", "--record", "/d/run.obrun"])).unwrap().unwrap();
+        assert_eq!((t.record.as_deref(), t.channels), (Some(std::path::Path::new("/d/run.obrun")), Channels::default()));
+        let t = MapTest::parse(&args(&["--map-mod", "m", "--map-at", "1,2,3,4", "--record", "r.obrun", "--run-channels", "drive,hash"]))
+            .unwrap()
+            .unwrap();
+        assert_eq!(t.channels, Channels { drive: true, hash: true });
+        let t = MapTest::parse(&args(&["--map-mod", "m", "--map-race", "r", "--simulate", "--run-channels", "hash"])).unwrap().unwrap();
+        assert_eq!(t.channels, Channels { drive: false, hash: true });
+        assert_eq!(MapTest::parse(&args(&["--map-mod", "m", "--map-race", "r"])).unwrap().unwrap().record, None, "no flag, no file");
+        for bad in [
+            &["--map-mod", "m", "--map-race", "r", "--run-channels", "drive"][..],
+            &["--map-mod", "m", "--map-race", "r", "--record", "a", "--run-channels", "speed"],
+            &["--map-mod", "m", "--map-race", "r", "--record", "a", "--record", "b"],
+            &["--map-mod", "m", "--map-race", "r", "--simulate", "--record", "a"],
+            &["--map-mod", "m", "--map-race", "r", "--record"],
+        ] {
+            assert!(MapTest::parse(&args(bad)).is_err(), "{bad:?}");
+        }
+        assert_eq!(MapTest::strip(&args(&["--record", "f", "--run-channels", "drive", "--no-boot"])), args(&["--no-boot"]));
     }
 
     #[test]

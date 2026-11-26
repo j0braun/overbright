@@ -813,6 +813,37 @@ fn put_runs(dir: &Path) {
     library::save(&runs, "seed2", &text(2, false)).unwrap();
 }
 
+/// A run recorded with the drive channels and the hash of every tick (docs/modding/asset-format/runs.md, 3.3): its
+/// telemetry has the gear and the pedals, and a second run names the tick it parted at.
+#[test]
+fn the_runs_commands_show_the_drive_channels_and_the_tick_two_runs_part_at() {
+    use ob_studio::runs::{fixtures, library};
+    let (s, dir) = fixture("cli-runs-drive", false);
+    let e = env();
+    let runs = dir.join(store::EDITOR_DIR).join("runs");
+    let text = |seed, parts_at| -> String { fixtures::driven(seed, parts_at).iter().map(|l| l.write() + "\n").collect() };
+    library::save(&runs, "drive1", &text(1, 70)).unwrap();
+    library::save(&runs, "drive2", &text(2, 70)).unwrap();
+    library::save(&runs, "drive3", &text(3, 1000)).unwrap();
+    let cases: &[(&str, &[&str], i32)] = &[
+        ("runs-telemetry-drive", &["runs", "telemetry", "--mod", "<mod>", "--run", "drive1", "--car", "0"], cli::OK),
+        ("runs-compare-tick", &["runs", "compare", "--mod", "<mod>", "--run", "drive1", "--with", "drive2"], cli::OK),
+    ];
+    for (case, words, code) in cases {
+        assert_eq!(golden(case, words, &s, &dir, &e), *code, "{case}");
+    }
+    let (code, out, _) = run(&["runs", "compare", "--mod", "<mod>", "--run", "drive1", "--with", "drive3", "--json"], &dir, &e);
+    assert_eq!(code, cli::OK);
+    let doc: Value = serde_json::from_str(&out).unwrap();
+    assert_eq!(doc["hash_tick"], 70, "the tick itself: the hash is carried every tick");
+    let (_, out, _) = run(&["runs", "compare", "--mod", "<mod>", "--run", "drive1", "--with", "drive3", "--json"], &dir, &e);
+    let doc: Value = serde_json::from_str(&out).unwrap();
+    assert_eq!(doc["hash_tick"], 70);
+    let (_, out, _) = run(&["runs", "compare", "--mod", "<mod>", "--run", "drive3", "--with", "drive3", "--json"], &dir, &e);
+    let doc: Value = serde_json::from_str(&out).unwrap();
+    assert!(doc["hash_tick"].is_null() && doc["same"] == true);
+}
+
 #[test]
 fn the_runs_commands_read_and_change_the_runs_the_window_lists() {
     let (s, dir) = fixture("cli-runs", false);

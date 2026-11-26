@@ -75,6 +75,7 @@ impl Game {
         self.capture_tick(dt);
         drop(span);
         self.pacing.last_update_dt = dt;
+        self.record_tick(dt);
         self.smooth_slow_update(before);
         Ok(())
     }

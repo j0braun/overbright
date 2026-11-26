@@ -192,6 +192,15 @@ impl Page {
                         ui.label(egui::RichText::new("simulating…").color(theme::dim()));
                     }
                 });
+                if ui
+                    .add(small_button("Drive to record", false))
+                    .on_hover_text(
+                        "Start the game on the chosen race (or from the camera's spot), drive it yourself, and keep the drive here as a run",
+                    )
+                    .clicked()
+                {
+                    crate::editor::menu::post(&ctx, crate::editor::menu::Command::RecordDrive);
+                }
                 if count == 0 {
                     ui.add_space(6.0);
                     ui.label(egui::RichText::new(crate::studio::words::NO_RUNS).color(rgb(t.ink)));

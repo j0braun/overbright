@@ -42,6 +42,8 @@ pub(crate) struct Game {
     /// A test run's focus clock (`--map-clock`, Studio's link): the world
     /// clock a drive starts at, when no developer override names one.
     pub(crate) test_clock: Option<f32>,
+    /// The run file a window test run writes as it is driven (`--record`, `enh::sim_stream`).
+    pub(crate) recorder: Option<crate::enh::sim_stream::Recorder>,
     /// The front end's state between screens ([`menus::FeState`]).
     pub(crate) fe: menus::FeState,
     /// The save points and customize session ([`menus::save_flow::SaveFlow`]).
@@ -194,6 +196,7 @@ impl Game {
             race_flow: Default::default(),
             quick: Default::default(),
             test_clock: None,
+            recorder: None,
             fe: menus::FeState::new(boot_profiles),
             save_flow: Default::default(),
             dyno: Default::default(),

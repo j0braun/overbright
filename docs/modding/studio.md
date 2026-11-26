@@ -216,16 +216,27 @@ leaves room for.
 - Telemetry. For the car chosen (the one followed, else the first racer): its speed over the run's time, and how
   far it is from the racing line, left of its way positive (the race's start, checkpoints and finish in the open
   mod; a circuit closes the loop), with a tick for each event of the car and a line at the time shown. A click or a
-  drag on a graph moves the playback. The values are the run file's, frame by frame. A channel the file does not
-  carry is not drawn: the gear is not in a run file v1, and the lateral graph says so when the run's race is not in
-  the open mod.
+  drag on a graph moves the playback. The values are the run file's, frame by frame. A run recorded with the drive
+  channels (Drive to record, below, or `--run-channels drive`) also has the car's gear, throttle, brake and steering
+  input as graphs, and the gear in the readout; a channel the file does not carry is not drawn (an older run has
+  none of them), and the lateral graph says so when the run's race is not in the open mod.
 - Compare. Compare on a second run draws its racers as ghost outlines in the view (and arrows in the Map) on the
   same race clock, a row of its events under the timeline's track, its graphs in the Telemetry tab, and where it
-  parts from the first: the first state hash that differs, or its car a metre from the first's at the same time.
-  Compare again on the same row stops it.
+  parts from the first: the first state hash that differs (the tick itself when both runs carry the hash of every
+  tick, as a recording does; within the 60 ticks before it otherwise), or its car a metre from the first's at the
+  same time. Compare again on the same row stops it.
+- Drive to record. The button above the list (also Test ▸ Drive to record) starts the game on the race chosen in
+  Races, or from the camera's spot when none is, in its window as Test race does, and the run you drive is kept
+  as a run (`drive-<race>`, `-2`, `-3` when taken). The game writes the run file as you drive (one frame per
+  update, whatever the display rate, with the drive channels and the state hash of every tick), so it can be
+  opened in the list while the game still runs; it ends when the race does, when the game window is closed, or
+  when Studio starts the run over (an edit that reaches the game does that: the recording stops where it was and
+  keeps what it has). Recording reads the game and never changes it: the run is the same with it on or off. A
+  test that is already open stays as it is; close its window first. A command line has no game window, so there
+  is no `runs` command for it (`game … --record <file>` is the game's own flag, docs/modding/asset-format/runs.md).
 
-Runs only reads the files (and keeps, renames or deletes them). Driving a route to record it, telemetry to a port
-and a race from a driven line are not in it yet.
+Runs only reads the files (and keeps, renames or deletes them). Telemetry to a port and a race from a driven line
+are not in it yet.
 
 ## Data
 

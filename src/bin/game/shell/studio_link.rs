@@ -138,6 +138,8 @@ fn apply(game: &mut Game, test: &mut super::cli::MapTest, c: &link::Command) -> 
         }
         nfsu2::tools::map::reload_active();
     }
+    // A recording ends where the run is started over (its file stays as far as it got).
+    game.end_recording("restart");
     game.restart_map_test(&t).map_err(|e| format!("{e:#}"))?;
     *test = t;
     Ok(())

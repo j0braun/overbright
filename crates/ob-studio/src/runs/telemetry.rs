@@ -1,11 +1,12 @@
 //! Telemetry read from a recording: one car's speed over time, how far it was from the race's racing line
 //! (left or right of it), and the events that touched it. Everything is worked out from the run file's records
-//! (docs/modding/asset-format/runs.md); a channel the file does not carry (gear) is not here. Plain data, so the
+//! (docs/modding/asset-format/runs.md); a channel the file does not carry (the drive channels of a run written
+//! without them: gear, rpm and the pedals) is `None`. Plain data, so the
 //! values are checked against the file without a window.
 
 use glam::Vec2;
 
-use super::format::{CarSample, EventKind};
+use super::format::{CarSample, EventKind, StateHash};
 use super::record::Recording;
 
 /// One channel over time: (time in s, value) in time order.
@@ -21,6 +22,15 @@ pub struct Telemetry {
     pub lateral: Option<Series>,
     /// The events of the car: time, kind, checkpoint.
     pub events: Vec<(f32, EventKind, u32)>,
+    /// The drive channels (a run written with them): -1 reverse, 0 neutral, 1.. the gear.
+    pub gear: Option<Series>,
+    /// The shown engine speed (rpm).
+    pub rpm: Option<Series>,
+    /// The pedals, 0..1.
+    pub throttle: Option<Series>,
+    pub brake: Option<Series>,
+    /// The steering input, -1 (left) .. 1 (right).
+    pub steer: Option<Series>,
 }
 
 /// The racing line of a race: where it starts, its checkpoints in order, where it finishes; a circuit closes the
@@ -74,6 +84,14 @@ pub fn of(rec: &Recording, id: u32, line: Option<&Line>) -> Telemetry {
     for f in &rec.frames {
         let Some(c) = f.cars.iter().find(|c| c.id == id) else { continue };
         t.speed.push((f.time, c.speed));
+        if let Some(d) = c.drive {
+            let mut put = |s: &mut Option<Series>, v: f32| s.get_or_insert_with(Vec::new).push((f.time, v));
+            put(&mut t.gear, d.gear as f32);
+            put(&mut t.rpm, d.rpm);
+            put(&mut t.throttle, d.throttle);
+            put(&mut t.brake, d.brake);
+            put(&mut t.steer, d.steer);
+        }
         if let (Some(l), Some(v)) = (line, t.lateral.as_mut()) {
             v.push((f.time, l.offset(c.position.truncate())));
         }
@@ -98,7 +116,8 @@ pub fn range(s: &[(f32, f32)]) -> Option<(f32, f32)> {
 /// How two runs compare: where they part and how far apart their cars are.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Parting {
-    /// The tick of the first state hash that differs (the same seed and the same game give none).
+    /// The tick of the first state hash that differs (the same seed and the same game give none). With the hash
+    /// every tick it is the tick the runs parted at.
     pub hash_tick: Option<u64>,
     /// The time the runs first differ, when both have a frame of that tick.
     pub time: Option<f32>,
@@ -108,10 +127,19 @@ pub struct Parting {
 
 /// Where run `b` parts from run `a` (compared at the same race time).
 pub fn parting(a: &Recording, b: &Recording, id: u32) -> Parting {
-    let hash_tick = a.hashes.iter().zip(&b.hashes).find(|(x, y)| x != y).map(|(x, _)| x.0);
+    // By tick: two runs may carry the hash at another interval (every tick, or every 60), and a hash covers every
+    // tick before it, so the first tick both have where it differs is where they had parted by.
+    let hash_tick = a
+        .hashes
+        .iter()
+        .find(|(tick, h)| b.hashes.binary_search_by_key(tick, |x| x.0).is_ok_and(|k| b.hashes[k].1 != *h))
+        .map(|x| x.0);
     let time = hash_tick.and_then(|t| {
-        // The hash at tick T covers every tick up to T: the run parts somewhere in the 60 ticks before.
-        let from = t.saturating_sub(59);
+        // The hash at tick T covers every tick up to T: the run parts somewhere in the interval before (the
+        // one tick itself when the runs carry the hash every tick).
+        let every = |r: &Recording| r.header.as_ref().map_or(StateHash::EVERY, |h| h.hash_interval());
+        let every = every(a).max(every(b));
+        let from = t.saturating_sub(every.saturating_sub(1));
         let first = |r: &Recording| r.frames.iter().find(|f| f.tick >= from).map(|f| f.time);
         first(a).or(first(b))
     });
@@ -200,5 +228,61 @@ mod tests {
         let p = parting(&d, &e, 0);
         assert_eq!(p.hash_tick, Some(119));
         assert!(p.time.is_some());
+    }
+
+    /// A run of `n` ticks of one car, with the drive channels when `drive`, and the state hash every tick when
+    /// `every` is 1 (every 60 otherwise); `hash(tick)` is the hash it carries.
+    fn driven(n: u64, drive: bool, every: u64, hash: impl Fn(u64) -> u64) -> Recording {
+        use crate::runs::format::{CarKind, Drive, Frame, Header, Line as L};
+        let mut r = Recording::default();
+        r.push(L::Header(Header { version: 1, hash_every: if every == 1 { 1 } else { 0 }, ..Default::default() }));
+        for tick in 0..n {
+            let d = Drive { gear: (tick / 2) as i32 - 1, rpm: 3000.0 + tick as f32, throttle: 1.0, brake: 0.0, handbrake: 0.0, steer: -0.5, nitrous: false };
+            let car = CarSample {
+                id: 0,
+                kind: CarKind::Player,
+                position: glam::Vec3::new(tick as f32, 0.0, 0.0),
+                rotation: glam::Quat::IDENTITY,
+                speed: 5.0,
+                lap: 0,
+                checkpoint: 0,
+                place: 1,
+                wheels: None,
+                drive: drive.then_some(d),
+            };
+            r.push(L::Frame(Frame { tick, time: tick as f32 / 60.0, cars: vec![car] }));
+            if (tick + 1) % every == 0 {
+                r.push(L::Hash { tick, hash: crate::runs::format::StateHash(hash(tick)) });
+            }
+        }
+        r
+    }
+
+    #[test]
+    fn the_drive_channels_are_series_of_the_car_and_a_run_without_them_has_none() {
+        let with = of(&driven(6, true, 60, |_| 0), 0, None);
+        assert_eq!(with.gear.as_deref().map(|g| g.iter().map(|p| p.1).collect::<Vec<_>>()), Some(vec![-1.0, -1.0, 0.0, 0.0, 1.0, 1.0]));
+        assert_eq!(with.throttle.as_ref().map(Vec::len), Some(6));
+        assert_eq!(value_at(with.steer.as_ref().unwrap(), 0.05), Some(-0.5));
+        assert_eq!(value_at(with.rpm.as_ref().unwrap(), 3.0 / 60.0), Some(3003.0));
+        let without = of(&driven(6, false, 60, |_| 0), 0, None);
+        assert!(without.gear.is_none() && without.rpm.is_none() && without.throttle.is_none() && without.brake.is_none());
+        assert_eq!(without.speed.len(), 6, "the poses are there either way");
+    }
+
+    #[test]
+    fn a_hash_every_tick_names_the_tick_the_runs_parted_at() {
+        let a = driven(200, true, 1, |t| t);
+        // B has the same state until tick 123, then another hash for every tick after (a hash covers all before it).
+        let b = driven(200, true, 1, |t| if t >= 123 { t + 1_000_000 } else { t });
+        let p = parting(&a, &b, 0);
+        assert_eq!(p.hash_tick, Some(123));
+        assert_eq!(p.time, Some(123.0 / 60.0), "the tick itself, not a minute's window");
+        // Against a run that carries the hash every 60 ticks the common ticks decide, within that interval.
+        let c = driven(200, false, 60, |t| if t >= 123 { t + 1_000_000 } else { t });
+        let p = parting(&a, &c, 0);
+        assert_eq!(p.hash_tick, Some(179));
+        assert!(p.time.is_some_and(|t| t <= 179.0 / 60.0 && t >= 120.0 / 60.0), "{:?}", p.time);
+        assert_eq!(parting(&a, &a, 0).hash_tick, None);
     }
 }

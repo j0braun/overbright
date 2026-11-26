@@ -127,8 +127,8 @@ pub fn delete(dir: &Path, name: &str) -> Result<(), String> {
     std::fs::remove_file(file(dir, name)).map_err(|e| format!("{name}: {e}"))
 }
 
-/// Write `text` as a new run named from `base` (`-2`, `-3` … when the name is taken); the name it got.
-pub fn save(dir: &Path, base: &str, text: &str) -> Result<String, String> {
+/// A free run name made from `base` (`-2`, `-3` … when it is taken); the folder is made.
+pub fn free_name(dir: &Path, base: &str) -> Result<String, String> {
     let base: String =
         base.chars().map(|c| if c.is_ascii_alphanumeric() || matches!(c, '-' | '_') { c } else { '-' }).collect();
     let base: String = base.chars().take(MAX_NAME - 4).collect();
@@ -139,6 +139,12 @@ pub fn save(dir: &Path, base: &str, text: &str) -> Result<String, String> {
         n += 1;
         name = format!("{base}-{n}");
     }
+    Ok(name)
+}
+
+/// Write `text` as a new run named from `base` (`-2`, `-3` … when the name is taken); the name it got.
+pub fn save(dir: &Path, base: &str, text: &str) -> Result<String, String> {
+    let name = free_name(dir, base)?;
     std::fs::write(file(dir, &name), text).map_err(|e| format!("{name}: {e}"))?;
     Ok(name)
 }
@@ -215,5 +221,16 @@ mod tests {
             "{:?}",
             files.iter().map(|f| &f.path).collect::<Vec<_>>()
         );
+    }
+
+    #[test]
+    fn a_free_name_is_not_taken_and_save_uses_it() {
+        let d = ob_testkit::Scratch::new("runs-free-name");
+        let dir = d.path().join("runs");
+        assert_eq!(free_name(&dir, "drive-dock").unwrap(), "drive-dock");
+        std::fs::write(path(&dir, "drive-dock"), text(1)).unwrap();
+        assert_eq!(free_name(&dir, "drive-dock").unwrap(), "drive-dock-2");
+        assert_eq!(save(&dir, "drive-dock", &text(2)).unwrap(), "drive-dock-2");
+        assert_eq!(free_name(&dir, "drive dock").unwrap(), "drive-dock-3", "a name made safe, then free");
     }
 }

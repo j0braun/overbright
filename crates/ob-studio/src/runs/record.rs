@@ -499,6 +499,7 @@ mod tests {
             checkpoint: 0,
             place,
             wheels: None,
+            drive: None,
         }
     }
 
