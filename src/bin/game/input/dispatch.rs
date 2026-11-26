@@ -157,8 +157,11 @@ impl Game {
             // Agreed deviation (docs/playing/native-deviations.md "Skipping scenes"): Enter skips an in-engine scene
             // (the career start fly-over, a shop's drive-in / drive-out) to
             // its end, as if it had played out.
+            // A controller's Engage button skips as Enter does (the original's
+            // skip is the Engage action, 0x5FA890).
             Mode::Explore
-                if self.scenes.shop.is_some() && matches!(code, Some(KeyCode::Enter | KeyCode::NumpadEnter)) =>
+                if self.scenes.shop.is_some()
+                    && (bound.engage || matches!(code, Some(KeyCode::Enter | KeyCode::NumpadEnter))) =>
             {
                 if let Some(run) = self.scenes.shop.as_mut() {
                     run.frame = run.scene.length;
@@ -175,7 +178,9 @@ impl Game {
             // tuning screen made (0x6067A0 → 0x83A650, stored by the
             // screens 0x55A470 / 0x55A630 / 0x55AA50): the dyno menu, which
             // in a test run (0x83A644 = 0) has the test run's options.
-            Mode::Race(race) if race.test.is_some() && code == Some(KeyCode::Escape) => {
+            // (The Pause action, as the keyboard's Esc: a controller's Pause
+            // button too.)
+            Mode::Race(race) if race.test.is_some() && (bound.pause || code == Some(KeyCode::Escape)) => {
                 // The run is paused under the test run's menu.
                 let Mode::Race(race) = std::mem::replace(&mut self.mode, Mode::Explore) else { unreachable!() };
                 self.sim.paused_race = Some(race);
@@ -206,7 +211,7 @@ impl Game {
             // 0x475330 replaces the line with the armed backup line
             // (0x45AD40(7), "Button THrough NIS Playing").
             Mode::Race(_)
-                if matches!(code, Some(KeyCode::Enter | KeyCode::NumpadEnter))
+                if (bound.engage || matches!(code, Some(KeyCode::Enter | KeyCode::NumpadEnter)))
                     && self.scenes.shop.as_ref().is_some_and(|r| r.frame < r.scene.marks[1] as f32) =>
             {
                 if let Some(run) = self.scenes.shop.as_mut() {

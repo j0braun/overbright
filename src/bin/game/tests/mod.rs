@@ -27,6 +27,8 @@ mod native_fe_part2;
 #[cfg(test)]
 mod intro_skip_grid;
 #[cfg(test)]
+mod pad_navigation;
+#[cfg(test)]
 mod countdown_brake;
 #[cfg(test)]
 mod human_road_path;
