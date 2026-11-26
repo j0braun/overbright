@@ -50,20 +50,32 @@ fn main() -> ExitCode {
         unsafe { std::env::set_var(name, dir) };
     }
     ob_core::console::attach();
-    let _ = env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).try_init();
+    let logger = || env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info"));
     if std::env::args().nth(1).as_deref() == Some("--version") {
         println!("{} map editor (preview)", ob_core::build_info::version_line());
         return ExitCode::SUCCESS;
     }
-    log::info!("{} map editor (preview)", ob_core::build_info::version_line());
     let cli = match Cli::parse(std::env::args().skip(1)) {
         Ok(c) => c,
         Err(e) => {
+            let _ = logger().try_init();
             ob_core::console::fatal(&format!("{e:#}"));
             return ExitCode::from(2);
         }
     };
+    // A window run keeps a log and a note that goes with a clean end (the launcher shows its crash report
+    // window for a note left behind); a picture does neither.
+    if cli.shot.is_none() {
+        let inner = logger().build();
+        let filter = inner.filter();
+        ob_core::studio_run::begin("Overbright map editor", Box::new(inner), filter);
+    } else {
+        let _ = logger().try_init();
+    }
+    log::info!("{} map editor (preview)", ob_core::build_info::version_line());
     let r = if cli.shot.is_some() { shot(&cli) } else { window(cli) };
+    // Whatever returns here is an end the program chose (a quit, or an error it tells the player).
+    ob_core::studio_run::finish();
     match r {
         Ok(()) => ExitCode::SUCCESS,
         Err(e) => {
@@ -237,6 +249,8 @@ impl ApplicationHandler for Runner {
     fn about_to_wait(&mut self, el: &ActiveEventLoop) {
         let Some(w) = self.win.as_ref() else { return };
         let now = Instant::now();
+        // The run note names the mod open (name only).
+        ob_core::studio_run::set_open(self.app.open_folder());
         // Redraw on input, when egui asks, and when the mod's history did
         // something (saved, took in another program's step).
         if self.app.next_tick() <= now && self.app.tick(now) {

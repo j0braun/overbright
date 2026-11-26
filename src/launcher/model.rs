@@ -776,6 +776,18 @@ pub enum EditorRun {
 pub trait EditorJob {
     /// None while it runs; then Ok, or the words for how it ended.
     fn poll(&mut self) -> Option<Result<(), String>>;
+    /// The program's process and how it ended, once it has (what is not known is None).
+    fn exit(&self) -> EditorExit {
+        EditorExit::default()
+    }
+}
+
+/// How a started program ended.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct EditorExit {
+    pub pid: Option<u32>,
+    pub code: Option<i32>,
+    pub signal: Option<i32>,
 }
 
 thread_local! {
@@ -785,7 +797,7 @@ thread_local! {
 
 /// The real editor process: a started program (the map editor or Studio) and its name for the
 /// words of a bad end.
-struct EditorProcess(std::process::Child, &'static str);
+struct EditorProcess(std::process::Child, &'static str, EditorExit);
 
 impl EditorJob for EditorProcess {
     fn poll(&mut self) -> Option<Result<(), String>> {
@@ -797,10 +809,15 @@ impl EditorJob for EditorProcess {
                 let signal = std::os::unix::process::ExitStatusExt::signal(&st);
                 #[cfg(not(unix))]
                 let signal = None;
+                self.2 = EditorExit { pid: Some(self.0.id()), code: st.code(), signal };
                 Some(Err(format!("{} stopped: {}.", self.1, crate::launcher::crash_report::reason(st.code(), signal, false))))
             }
             Err(e) => Some(Err(e.to_string())),
         }
+    }
+
+    fn exit(&self) -> EditorExit {
+        EditorExit { pid: Some(self.0.id()), ..self.2 }
     }
 }
 
@@ -812,6 +829,12 @@ impl EditorJob for FakeEditor {
     fn poll(&mut self) -> Option<Result<(), String>> {
         self.0.take()
     }
+}
+
+thread_local! {
+    /// The bad ends of Studio the fake data's start finds (tests).
+    pub static STUDIO_EXITS: std::cell::RefCell<Vec<ob_core::studio_run::BadExit>> =
+        const { std::cell::RefCell::new(Vec::new()) };
 }
 
 /// Two packs that change the same textures: the first wins.
@@ -1067,6 +1090,21 @@ pub struct Failure {
     /// The crash report window's part: set when the game ran and ended
     /// badly (None: it could not be started).
     pub report: Option<CrashReport>,
+    /// Set when it was Studio or the map editor that ended badly (None: the game).
+    pub studio: Option<StudioRun>,
+}
+
+/// What the report window says of a Studio (or map editor) run that ended badly.
+#[derive(Clone, Debug, PartialEq)]
+pub struct StudioRun {
+    /// "Overbright Studio" or "Overbright map editor".
+    pub program: String,
+    /// Its program's file name without the extension (the system's records are asked for by it).
+    pub exe: String,
+    /// The build it was (`build_info::version_line`).
+    pub version: String,
+    /// The mod that was open: its name only.
+    pub opened: Option<String>,
 }
 
 /// What the failure screen adds for a game that ran and ended badly
@@ -1074,6 +1112,8 @@ pub struct Failure {
 /// that process, the logs written during the run.
 #[derive(Clone, Debug, PartialEq)]
 pub struct CrashReport {
+    /// Who ended: "the game", "Studio", "the map editor".
+    pub program: String,
     /// "it tried to use memory it must not (a segmentation fault, signal 11)".
     pub reason: String,
     pub pid: u32,
@@ -1089,7 +1129,15 @@ pub struct CrashReport {
 impl Failure {
     /// The game program could not be started at all (`how`: why).
     pub fn not_started(how: String) -> Failure {
-        Failure { kind: super::run::ErrorKind::NoProgram, during_start: true, how, tail: Vec::new(), log: None, report: None }
+        Failure {
+            kind: super::run::ErrorKind::NoProgram,
+            during_start: true,
+            how,
+            tail: Vec::new(),
+            log: None,
+            report: None,
+            studio: None,
+        }
     }
 }
 
@@ -1451,6 +1499,11 @@ pub trait Env {
         false
     }
     fn set_game_data_later(&self) {}
+    /// Studio and map editor runs that ended without a clean end, taken (each is told once):
+    /// the notes they left ([`ob_core::studio_run`]). The fake data's are the tests' own.
+    fn studio_bad_exits(&self) -> Vec<ob_core::studio_run::BadExit> {
+        Vec::new()
+    }
     /// What is seen of Studio for the map mods `folders`: their write locks
     /// held by a live program and the last mod opened, read only
     /// ([`super::studio_seen`]); the fake data sees nothing.
@@ -2417,7 +2470,7 @@ impl Env for RealEnv {
         cmd.stdin(std::process::Stdio::null()).stdout(std::process::Stdio::null()).stderr(std::process::Stdio::null());
         let child = cmd.spawn().map_err(|e| format!("the map editor could not be started ({}): {e}", exe.display()))?;
         log::info!("map editor started (pid {}) on {}", child.id(), folder.unwrap_or("its own choice"));
-        Ok(Box::new(EditorProcess(child, "the map editor")))
+        Ok(Box::new(EditorProcess(child, "the map editor", EditorExit::default())))
     }
 
     fn game_data_base(&self) -> PathBuf {
@@ -2447,6 +2500,10 @@ impl Env for RealEnv {
         }
     }
 
+    fn studio_bad_exits(&self) -> Vec<ob_core::studio_run::BadExit> {
+        ob_core::studio_run::take_bad_exits(&ob_core::studio_run::dir(), &crate::platform::dirs::logs())
+    }
+
     fn studio_seen(&self, folders: &[String]) -> super::studio_seen::StudioSeen {
         let recent = crate::platform::dirs::config().join(super::studio_seen::RECENT_FILE);
         super::studio_seen::read(&crate::tools::map::store::maps_dir(), folders, &recent)
@@ -2464,7 +2521,7 @@ impl Env for RealEnv {
         cmd.stdin(std::process::Stdio::null()).stdout(std::process::Stdio::null()).stderr(std::process::Stdio::null());
         let child = cmd.spawn().map_err(|e| format!("Studio could not be started ({}): {e}", exe.display()))?;
         log::info!("Studio started (pid {}) on {}", child.id(), folder.unwrap_or("its Home"));
-        Ok(Box::new(EditorProcess(child, "Studio")))
+        Ok(Box::new(EditorProcess(child, "Studio", EditorExit::default())))
     }
 
     fn export_map(&self, folder: &str, to: &Path, derived_ok: bool) -> Result<PathBuf, String> {
@@ -2800,6 +2857,7 @@ impl Env for FakeEnv {
                 .to_vec(),
                 log: Some(PathBuf::from("/data/player/.local/share/overbright/logs/launcher-20261112-210501.log")),
                 report: None,
+                studio: None,
             }),
             browse: Browse {
                 purpose: BrowseFor::Game,
@@ -2867,6 +2925,10 @@ impl Env for FakeEnv {
 
     fn crash_errors(&self, _pid: u32, _exe_name: &str) -> Vec<String> {
         Vec::new()
+    }
+
+    fn studio_bad_exits(&self) -> Vec<ob_core::studio_run::BadExit> {
+        STUDIO_EXITS.with(|e| std::mem::take(&mut *e.borrow_mut()))
     }
 
     fn copy_text(&self, text: &str) -> Result<(), String> {

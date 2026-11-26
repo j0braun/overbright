@@ -54,6 +54,17 @@ log files written during that run. **Copy for a bug report** puts one redacted t
 names, hardware serials or device ids) on the clipboard; without a clipboard tool it saves the text as a file
 and shows its folder. **Open log folder** opens the logs. Nothing is sent anywhere.
 
+### After Studio or the map editor ends badly
+
+The same window appears. Each window run of Studio (and of the map editor) writes `studio-<time>.log` in the logs
+folder (five kept) and a small note, `studio-runs/run-<process>.txt` in Overbright's own folder, that it holds
+locked while it lives and removes when it ends by its own choice (a quit, or an error it told you about). A note
+left behind with no live program holding it means a crash, a panic or a kill. The launcher shows the window at once
+when it started the program, else at its next start (the game is then not started under it). The window names
+Studio's version, the mod that was open (its name only), the log's last lines and how it ended (the signal or exit
+code when the launcher saw it end), and offers **Copy for a bug report**, **Open log folder** and **Open Studio
+again**; the text is redacted the same way. A bad end is told once.
+
 ## Where the logs are
 
 | File | Windows | Linux |

@@ -3358,6 +3358,104 @@ fn the_crash_report_window() {
     assert!(!clean.failed());
 }
 
+/// The same report window after a bad end of Studio (fake runs in a temp folder: a clean quit, a panic, a
+/// kill): only a note left behind shows it, with Studio's log tail, version and the mod's name, redacted;
+/// a clean quit never does; the render states carry the same words.
+#[test]
+fn the_crash_report_window_after_studio() {
+    use super::model::{FakeEditor, STUDIO_EXITS};
+    use ob_core::studio_run::{Held, Note, take_bad_exits};
+    let fonts = Fonts::new();
+    let env = FakeEnv;
+    let dir = std::env::temp_dir().join(format!("ob-studio-crash-{}", crate::unique_tag()));
+    crate::platform::dirs::set_thread_data_home(dir.clone());
+    let (runs, logs) = (dir.join("runs"), crate::platform::dirs::logs());
+    std::fs::create_dir_all(&logs).unwrap();
+    let home = format!("/{}/{}", "home", "janedoe");
+    let note = |log: &str| Note {
+        program: "Overbright Studio".into(),
+        exe: "overbright-studio".into(),
+        version: "Overbright 0.6.0 (build abc1234)".into(),
+        opened: Some("drift-park".into()),
+        log: Some(log.into()),
+        ..Note::default()
+    };
+    let write_log = |name: &str, last: &str| {
+        std::fs::write(logs.join(name), format!("  1.000 [INFO x] opened {home}/mods/drift-park\n{last}\n")).unwrap();
+    };
+    // A clean quit leaves no note: nothing to show.
+    Held::create(&runs, note("studio-clean.log")).unwrap().finish();
+    assert!(take_bad_exits(&runs, &logs).is_empty());
+
+    // A panic: the note holds the line, the log its backtrace; the launcher saw the process end (code 101).
+    write_log("studio-panic.log", "  9.000 [PANIC main] at x.rs:1: boom");
+    let mut h = Held::create(&runs, note("studio-panic.log")).unwrap();
+    h.record_panic("boom at x.rs:1");
+    let pid = h.note.pid;
+    drop(h);
+    STUDIO_EXITS.with(|e| *e.borrow_mut() = take_bad_exits(&runs, &logs));
+    let mut a = app(&env, &fonts, Screen::Dev, 1280, 720, 1.0);
+    let end = std::rc::Rc::new(std::cell::Cell::new(Some(Err("Studio stopped: it stopped with exit code 101.".into()))));
+    a.studio_job = Some(Box::new(FakeEditor(end)));
+    assert!(a.poll_jobs(&fonts));
+    assert_eq!(a.screen, Screen::Failure);
+    let t = all_text(&a);
+    for want in ["Studio stopped unexpectedly", "drift-park", "Overbright 0.6.0 (build abc1234)", "internal error", "studio-panic.log"] {
+        assert!(t.contains(want), "{want} missing: {t}");
+    }
+    assert!(a.ui.get("studio_again").is_some() && a.ui.get("copy_report").is_some() && a.ui.get("open_logs").is_some());
+    super::model::COPIED.with(|c| *c.borrow_mut() = None);
+    click(&mut a, &fonts, "copy_report");
+    let copied = super::model::COPIED.with(|c| c.borrow().clone()).expect("the clipboard got the text");
+    for want in ["Overbright crash report", "Studio ended after", "mod open: drift-park", "version: Overbright 0.6.0", "Studio's last lines", "[PANIC main]"] {
+        assert!(copied.contains(want), "{want} missing:\n{copied}");
+    }
+    assert!(!copied.contains("janedoe"), "a home folder left in:\n{copied}");
+    let _ = pid;
+    // Open Studio again starts it and goes to the Dev page.
+    a.event(&Event::Activate("studio_again"));
+    assert_eq!(a.screen, Screen::Dev);
+    assert!(a.studio_job.is_some());
+
+    // Killed, found at the next start: no end status, no panic line; the words say so.
+    write_log("studio-killed.log", "  5.000 [INFO x] saved");
+    drop(Held::create(&runs, note("studio-killed.log")).unwrap());
+    let bad = take_bad_exits(&runs, &logs);
+    assert_eq!(bad.len(), 1);
+    let f = super::window::studio_failure(&bad[0], None, None);
+    assert!(f.report.as_ref().unwrap().reason.contains("without a clean quit"), "{:?}", f.report);
+    assert!(f.how.contains("no end status") && f.studio.is_some());
+    let mut a = app(&env, &fonts, Screen::Main, 1280, 720, 1.0);
+    a.show_studio_failure(&bad[0], None, None);
+    assert_eq!(a.screen, Screen::Failure);
+    a.rebuild(&fonts);
+    assert!(all_text(&a).contains("without a clean quit"));
+    // Killed from outside while the launcher watched: the signal is in the words.
+    let f = super::window::studio_failure(&bad[0], None, Some(9));
+    assert!(f.report.unwrap().reason.contains("killed"));
+
+    // A clean end (the job ends Ok) and an end with no note (an error told to the player) show no window.
+    let mut a = app(&env, &fonts, Screen::Dev, 1280, 720, 1.0);
+    let end = std::rc::Rc::new(std::cell::Cell::new(Some(Ok(()))));
+    a.studio_job = Some(Box::new(FakeEditor(end)));
+    assert!(a.poll_jobs(&fonts));
+    assert_eq!(a.screen, Screen::Dev);
+    let end = std::rc::Rc::new(std::cell::Cell::new(Some(Err("Studio stopped: it stopped with exit code 1.".into()))));
+    a.studio_job = Some(Box::new(FakeEditor(end)));
+    assert!(a.poll_jobs(&fonts));
+    assert_eq!(a.screen, Screen::Dev, "no note, no report window");
+    assert!(a.model.failure.as_ref().is_none_or(|f| f.studio.is_none()));
+
+    // The render states.
+    for (state, word) in [("crash-studio-panic", "internal error"), ("crash-studio-killed", "without a clean quit")] {
+        let a = super::headless::state_app(&env, &fonts, state, 1280, 720, 1.0).unwrap();
+        let t = all_text(&a);
+        assert!(t.contains("Studio stopped unexpectedly") && t.contains(word) && t.contains("drift-park"), "{state}: {t}");
+        assert!(a.ui.get("copy_report").is_some() && a.ui.get("open_logs").is_some() && a.ui.get("studio_again").is_some());
+    }
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
 /// The Mods page's "Look inside" shows the lines about the chosen pack and closes again; "Try it once" starts the game
 /// with that pack as the run's trial and asks for nothing else; the copy that a trial leaves is kept or discarded.
 #[test]
