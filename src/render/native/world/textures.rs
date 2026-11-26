@@ -87,24 +87,6 @@ pub(crate) fn texture_layer(
     }
 }
 
-/// The car pack's replacement for `t` (G7b2), its top level as RGBA8.
-pub(crate) fn car_pack_rgba(t: &Texture) -> Option<(u32, u32, Vec<u8>)> {
-    let r = texture_pack::replacement(texture_pack::Domain::Car, t, 4096)?;
-    match r.format {
-        None => Some((r.width, r.height, r.bytes[..(r.width * r.height * 4) as usize].to_vec())),
-        Some(format) => {
-            let e = crate::upscale::Encoded {
-                format,
-                width: r.width,
-                height: r.height,
-                mips: r.mips,
-                data: r.bytes.clone(),
-            };
-            Some((r.width, r.height, e.as_texture(t).decode_rgba()))
-        }
-    }
-}
-
 /// Apply only pixel data; all original material/UV metadata remains in `Texture`.
 pub(in crate::render) fn texture_layer_with_pack(
     domain: texture_pack::Domain,

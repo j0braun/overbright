@@ -22,9 +22,9 @@ src/render/core/gpu.rs	crate::qol::set_rt_offered(rt::adapter_can(adapter));
 src/render/core/gpu.rs	crate::qol::set_rt_support(device.features().contains(rt::FEATURE));
 src/render/core/gpu.rs	log::info!("GPU class: {} (the presets' effect tiers)", crate::qol::gpu_class().name());
 src/render/core/shader/registry.rs	u8::from(lamps && crate::render::modern_light::enabled(&crate::render::RenderOptions::in_force())),
-src/render/enh/assets/car_model/fixes.rs	crate::qol::fix_models()
-src/render/enh/assets/car_model/smooth.rs	crate::qol::smooth_cars()
-src/render/enh/assets/hd_ui.rs	None => crate::qol::setup::saved_texture_pack()
+crates/ob-assets/src/render/enh/assets/car_model/fixes.rs	crate::qol::fix_models()
+crates/ob-assets/src/render/enh/assets/car_model/smooth.rs	crate::qol::smooth_cars()
+crates/ob-assets/src/render/enh/assets/hd_ui.rs	None => crate::qol::setup::saved_texture_pack()
 src/render/enh/assets/pack_reload/tests.rs	assert!(!frame(true, crate::qol::reload_packs()));
 src/render/enh/assets/pack_reload/tests.rs	crate::qol::Enhancements::default().apply();
 src/render/enh/assets/pack_reload/tests.rs	frame(false, crate::qol::reload_packs());
@@ -100,4 +100,4 @@ src/render/pop_meter.rs	let need = super::super::main_min_size(&crate::render::R
 src/render/native/frame_settings.rs	pub use crate::qol::RenderOptions;
 src/render/enh/post/hdr_output.rs	pub use crate::qol::hdr_output::{Calibration, DEFAULT_PAPER, DEFAULT_PEAK, Signal, Transfer};
 src/render/enh/post/fsr2.rs	pub use crate::qol::fsr2::{MODES, ratio, render_size};
-src/render/enh/assets/pack_select.rs	pub use crate::qol::pack_choice::{choice, set_choice};
+crates/ob-assets/src/render/enh/assets/pack_select.rs	pub use crate::qol::pack_choice::{choice, set_choice};

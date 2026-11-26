@@ -143,22 +143,7 @@ fn levels((format, width, height, mips): (wgpu::TextureFormat, u32, u32, u32), l
     out
 }
 
-/// All solids' vertices and indices back to back (the indices padded to
-/// a 4-byte multiple, as buffer sizes must be).
-pub(crate) fn geometry(world: &World) -> (Bytes, Bytes) {
-    let mut vertices: Vec<u8> = Vec::with_capacity(
-        world.solids.iter().map(|s| s.vertices.len() * std::mem::size_of::<crate::formats::solid::Vertex>()).sum(),
-    );
-    let mut indices: Vec<u16> = Vec::with_capacity(world.solids.iter().map(|s| s.indices.len()).sum::<usize>() + 1);
-    for solid in &world.solids {
-        vertices.extend_from_slice(bytemuck::cast_slice(&solid.vertices));
-        indices.extend_from_slice(&solid.indices);
-    }
-    if indices.len() % 2 == 1 {
-        indices.push(0);
-    }
-    (vertices.into(), bytemuck::cast_slice::<u16, u8>(&indices).into())
-}
+pub(crate) use crate::world::geometry;
 
 /// The vertex and index buffers' bytes in a track's cache: the world's
 /// ("w.vertices" / "w.indices", which [`geometry`] makes from the world),

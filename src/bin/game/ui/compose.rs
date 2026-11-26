@@ -12,7 +12,7 @@ impl Game {
             // Chyron_FE in the front end (game state 3), else Chyron_IG
             // (0x4AC9F0): the dyno's menus are in game (state 6).
             let fe = matches!(self.mode, Mode::Menu(_)) && !self.dyno_music_session();
-            quads.extend(nfsu2::audio::music::chyron_quads(&self.game_data.assets, c, now, fe));
+            quads.extend(nfsu2::frontend::screens::jukebox::chyron_quads(&self.game_data.assets, c, now, fe));
         }
         quads
     }

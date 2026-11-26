@@ -25,7 +25,7 @@ use crate::formats::bundle::{chunks, read_cstr, read_f32, read_u16, read_u32};
 use crate::formats::hash::bin_hash;
 
 mod data;
-pub mod events;
+pub use ob_assets::frontend::career::events;
 mod intro;
 mod lists;
 mod native_map;
@@ -38,7 +38,7 @@ mod shops;
 mod slots;
 mod sms_rules;
 pub mod stats;
-pub mod triggers;
+pub use ob_assets::frontend::career::triggers;
 
 pub use data::*;
 pub use events::*;

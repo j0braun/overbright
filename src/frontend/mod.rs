@@ -29,7 +29,7 @@ pub mod settings_page;
 pub mod sms;
 pub mod status;
 pub mod widgets;
-pub mod assets;
+pub use ob_assets::frontend::assets;
 pub mod font {
     pub use super::feng::font::*;
 }

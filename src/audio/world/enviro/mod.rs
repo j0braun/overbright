@@ -92,17 +92,8 @@ use crate::audio::traffic::Doppler;
 use glam::Vec3;
 use std::collections::HashMap;
 
-/// One world-animation entity as 0x439F40 finds it.
-#[derive(Clone, Copy, Debug)]
-pub struct AnimPoint {
-    /// The instance record's +0x00.
-    pub id: u32,
-    /// The entity's hash.
-    pub hash: u32,
-    pub position: Vec3,
-    /// The entity's player waits (start delay or pause).
-    pub hidden: bool,
-}
+/// One world-animation entity as 0x439F40 finds it (defined with the world animations, [`crate::world::AnimPoint`]).
+pub use crate::world::AnimPoint;
 
 /// The race kind the plane table is picked by (0x476E00).
 #[derive(Clone, Copy, Debug, Default, PartialEq)]

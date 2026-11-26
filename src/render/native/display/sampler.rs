@@ -43,3 +43,17 @@ pub fn texture_sampler(label: &str, anisotropy: u16) -> wgpu::SamplerDescriptor<
         ..Default::default()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    /// The TIBURON wheel's cap samples WRAP (car::tests, the wheel line): car.efx's sampler 1.
+    #[test]
+    fn the_car_sampler_wraps() {
+        let s = super::texture_sampler("car", 0);
+        assert_eq!(
+            (s.address_mode_u, s.address_mode_v),
+            (wgpu::AddressMode::Repeat, wgpu::AddressMode::Repeat),
+            "car.efx's sampler 1 is WRAP"
+        );
+    }
+}

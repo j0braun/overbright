@@ -20,6 +20,9 @@ pub use hints::*;
 pub use script::*;
 
 #[cfg(test)]
+mod speech_tests;
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use crate::audio::speech::lines;

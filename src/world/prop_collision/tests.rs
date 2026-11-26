@@ -1,4 +1,7 @@
-use super::*;
+use crate::formats::collision::FLAG_TALL;
+use crate::world::*;
+use glam::{Mat4, Vec3};
+use std::collections::{HashMap, HashSet};
 use crate::tools::map::{CollisionEdit, MapMod, PropEdit};
 
 fn l4ra() -> World {

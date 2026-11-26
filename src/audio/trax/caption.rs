@@ -78,31 +78,6 @@ impl Chyron {
     }
 }
 
-/// The caption's quads at `now` (ms, the screens' clock).
-pub fn chyron_quads(
-    assets: &crate::frontend::assets::Assets,
-    c: &Chyron,
-    now: f32,
-    front_end: bool,
-) -> Vec<crate::draw::quad::Quad> {
-    use crate::frontend::screens::EA_TRAX;
-    let Some(&(title, artist, album)) = EA_TRAX.get(c.song) else {
-        return Vec::new();
-    };
-    let ms = now - c.at;
-    let longest = title.len().max(artist.len()).max(album.len());
-    let (name, script, at) = chyron::phase(longest, c.go.map(|g| g - c.at), front_end);
-    let Some(package) = assets.package(name) else {
-        return Vec::new();
-    };
-    let mut state = crate::frontend::feng::state::ScreenState::default();
-    state.text.insert(chyron::TITLE, title.to_string());
-    state.text.insert(chyron::ARTIST, artist.to_string());
-    state.text.insert(chyron::ALBUM, album.to_string());
-    state.run(chyron::ROOT, &script, at);
-    crate::frontend::layout(assets, package, &state, ms)
-}
-
 #[cfg(test)]
 mod real_time_clock_tests {
     use super::Chyron;

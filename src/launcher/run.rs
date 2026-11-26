@@ -522,14 +522,11 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         let stub = dir.join("stub-game");
-        std::fs::write(
+        crate::testkit::write_script(
             &stub,
             "#!/bin/sh\necho \"stub: starting with $*\"\necho 'GPU adapter: stub' >&2\n\
              echo \"thread 'main' panicked at src/stub.rs:1:1:\" >&2\necho 'no GPU adapter' >&2\nexit 101\n",
-        )
-        .unwrap();
-        use std::os::unix::fs::PermissionsExt;
-        std::fs::set_permissions(&stub, std::fs::Permissions::from_mode(0o755)).unwrap();
+        );
         let logs = dir.join("logs");
         // Never the player's data folder: every start here keeps its marker
         // in the test's own folder.
@@ -583,9 +580,7 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("ob-run-sig-{}", crate::unique_tag()));
         std::fs::create_dir_all(&dir).unwrap();
         let stub = dir.join("stub-game");
-        std::fs::write(&stub, "#!/bin/sh\necho 'stub: about to crash' >&2\nkill -SEGV $$\nsleep 5\n").unwrap();
-        use std::os::unix::fs::PermissionsExt;
-        std::fs::set_permissions(&stub, std::fs::Permissions::from_mode(0o755)).unwrap();
+        crate::testkit::write_script(&stub, "#!/bin/sh\necho 'stub: about to crash' >&2\nkill -SEGV $$\nsleep 5\n");
         let marker = dir.join("start-marker.txt");
         let e = start_marked(&stub, &[], None, None, &[], marker.clone()).unwrap().wait();
         assert_eq!((e.code, e.signal), (None, Some(11)), "{e:?}");
@@ -593,7 +588,7 @@ mod tests {
         assert!(e.reason().contains("segmentation fault"), "{}", e.reason());
         assert_eq!(e.how(), "signal 11");
         assert!(e.tail.iter().any(|l| l.contains("about to crash")));
-        std::fs::write(&stub, "#!/bin/sh\nexit 0\n").unwrap();
+        crate::testkit::write_script(&stub, "#!/bin/sh\nexit 0\n");
         let e = start_marked(&stub, &[], None, None, &[], marker).unwrap().wait();
         assert!(!e.failed() && e.signal.is_none());
         let _ = std::fs::remove_dir_all(&dir);

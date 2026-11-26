@@ -16,9 +16,9 @@ license.workspace = true
 # here builds only the game, the editor, their tools and the public examples; `cargo check --release
 # -p devprobes` (scripts/checks/devprobes.sh) keeps the probes compiling.
 [workspace]
-members = [".", "crates/ob-core", "crates/ob-formats", "crates/ob-asset-format", "crates/ob-map", "crates/ob-settings", "crates/ob-look", "crates/ob-studio", "crates/ob-studio-gui", "crates/ob-testkit"]
+members = [".", "crates/ob-core", "crates/ob-formats", "crates/ob-asset-format", "crates/ob-map", "crates/ob-settings", "crates/ob-assets", "crates/ob-look", "crates/ob-studio", "crates/ob-studio-gui", "crates/ob-testkit"]
 exclude = ["fuzz"]
-default-members = [".", "crates/ob-core", "crates/ob-formats", "crates/ob-asset-format", "crates/ob-map", "crates/ob-settings", "crates/ob-look", "crates/ob-studio", "crates/ob-studio-gui"]
+default-members = [".", "crates/ob-core", "crates/ob-formats", "crates/ob-asset-format", "crates/ob-map", "crates/ob-settings", "crates/ob-assets", "crates/ob-look", "crates/ob-studio", "crates/ob-studio-gui"]
 
 # The versions every package of the workspace takes (`dep.workspace = true` in its manifest), so the
 # library's crates, the game and the leaf crates build against one copy of each.
@@ -63,6 +63,8 @@ ob-formats = { path = "crates/ob-formats" }
 ob-map = { path = "crates/ob-map" }
 # The settings layer (crates/ob-settings: the settings store `qol`, the extras' and pad options), re-exported at its old paths.
 ob-settings = { path = "crates/ob-settings" }
+# The asset layer (crates/ob-assets: the world, the cars and the records a car installs, the game data, the pack loader and the texture mods, the map tools' world side), re-exported at its old paths.
+ob-assets = { path = "crates/ob-assets" }
 # The look shared by the launcher, the map editor and Studio (crates/ob-look), re-exported at `launch::theme`.
 ob-look = { path = "crates/ob-look" }
 # The asset format: the base set the game reads through by default once a verified import exists
@@ -151,7 +153,7 @@ mimalloc = ["dep:mimalloc"]
 # error. The checks, the gate, perf.sh and pgo.sh build with it:
 # `cargo build --release --features dev-harness`; the game's tests need it
 # too (`cargo test --release --features dev-harness`).
-dev-harness = ["ob-core/dev-harness", "ob-formats/dev-harness", "ob-map/dev-harness", "ob-settings/dev-harness", "ob-look/dev-harness"]
+dev-harness = ["ob-core/dev-harness", "ob-formats/dev-harness", "ob-map/dev-harness", "ob-settings/dev-harness", "ob-assets/dev-harness", "ob-look/dev-harness"]
 
 # Integration tests that use the developer harness's library aids
 # (`frontend::drawn_texts`): built only with `dev-harness`.

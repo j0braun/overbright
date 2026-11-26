@@ -2901,12 +2901,10 @@ fn mods_page_starts_the_map_editor() {
 #[test]
 fn the_map_editor_starts_with_the_mod_and_the_game_folder() {
     use super::model::{Env, RealEnv};
-    use std::os::unix::fs::PermissionsExt;
     let dir = std::env::temp_dir().join(format!("ob-launcher-editor-{}", crate::unique_tag()));
     std::fs::create_dir_all(&dir).unwrap();
     let exe = dir.join("overbright-editor");
-    std::fs::write(&exe, "#!/bin/sh\necho \"$* root=$NFSU2_ROOT\" > \"$(dirname \"$0\")/args\"\n").unwrap();
-    std::fs::set_permissions(&exe, std::fs::Permissions::from_mode(0o755)).unwrap();
+    crate::testkit::write_script(&exe, "#!/bin/sh\necho \"$* root=$NFSU2_ROOT\" > \"$(dirname \"$0\")/args\"\n");
     // SAFETY: only the editor's start reads this variable.
     unsafe { std::env::set_var("OB_EDITOR_EXE", &exe) };
     assert_eq!(super::dirs::editor_exe(), exe);
@@ -3713,12 +3711,10 @@ fn mods_page_opens_a_mod_in_studio() {
 #[test]
 fn studio_starts_with_the_mod_and_the_game_folder() {
     use super::model::{Env, RealEnv};
-    use std::os::unix::fs::PermissionsExt;
     let dir = std::env::temp_dir().join(format!("ob-launcher-studio-{}", crate::unique_tag()));
     std::fs::create_dir_all(&dir).unwrap();
     let exe = dir.join("overbright-studio");
-    std::fs::write(&exe, "#!/bin/sh\necho \"$* root=$NFSU2_ROOT\" >> \"$(dirname \"$0\")/args\"\n").unwrap();
-    std::fs::set_permissions(&exe, std::fs::Permissions::from_mode(0o755)).unwrap();
+    crate::testkit::write_script(&exe, "#!/bin/sh\necho \"$* root=$NFSU2_ROOT\" >> \"$(dirname \"$0\")/args\"\n");
     // SAFETY: only Studio's start reads this variable.
     unsafe { std::env::set_var("OB_STUDIO_EXE", &exe) };
     let root = std::path::Path::new("/games/nfsu2");

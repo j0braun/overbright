@@ -207,26 +207,11 @@ mod tests {
     fn a_child_stream_is_read_without_waiting() {
         let s = crate::testkit::Scratch::new("sim-child");
         let exe = s.path().join("fake-game");
-        std::fs::write(
+        crate::testkit::write_script(
             &exe,
             "#!/bin/sh\necho 'OBSIM 1 mode=race seed=1 race=r track=1 laps=1 checkpoints=2'\necho 'F 0 -1.000'\necho 'END finish'\n",
-        )
-        .unwrap();
-        use std::os::unix::fs::PermissionsExt;
-        std::fs::set_permissions(&exe, std::fs::Permissions::from_mode(0o755)).unwrap();
-        // Tried again while the script is "busy": a test on another thread
-        // may fork while it is still open for writing (ETXTBSY until that
-        // child execs).
-        let mut tries = 0;
-        let mut c = loop {
-            match SimChild::start(&exe, &[], s.path()) {
-                Err(e) if e.contains("os error 26") && tries < 100 => {
-                    tries += 1;
-                    std::thread::sleep(std::time::Duration::from_millis(20));
-                }
-                r => break r.unwrap(),
-            }
-        };
+        );
+        let mut c = SimChild::start(&exe, &[], s.path()).unwrap();
         let mut rec = super::super::record::Recording::default();
         let t = std::time::Instant::now();
         loop {

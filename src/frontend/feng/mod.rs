@@ -14,16 +14,15 @@
 //!
 //! Inside `ObjD` and `Scrp` the tags are two characters with a 16-bit size.
 
-mod anim;
+use ob_assets::frontend::feng::anim;
 pub mod dim;
-pub mod font;
+pub use ob_assets::frontend::feng::font;
 pub mod layout;
-pub mod model;
+pub use ob_assets::frontend::feng::model;
 pub mod package_run;
-pub mod parse;
+pub use ob_assets::frontend::feng::parse;
 pub mod script;
-pub mod state;
-pub mod strings;
+pub use ob_assets::frontend::feng::{state, strings};
 pub mod text;
 
 pub use anim::*;

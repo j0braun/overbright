@@ -21,10 +21,8 @@ pub use accel::AccelTrans;
 pub use shifting::{Physics, Shifting};
 pub use tables::*;
 
-/// `Sin16` (0x43C2B0): sin(p · 2π / 65536) by a Taylor series.
-pub fn sin16(p: u16) -> f32 {
-    (p as f32 * 9.58738e-05).sin()
-}
+/// `Sin16` (0x43C2B0), defined with the simulation that also uses it ([`crate::handling::sin16`]).
+pub use crate::handling::sin16;
 
 #[cfg(test)]
 mod tests {

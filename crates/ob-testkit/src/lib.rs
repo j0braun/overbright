@@ -300,6 +300,52 @@ impl Drop for Scratch {
     }
 }
 
+/// Writes `body` as an executable script at `path`, ready to be started at
+/// once. A test binary runs tests on many threads: a fork on another thread
+/// can inherit this file's write descriptor between the write and its own
+/// exec, and an exec of the script meanwhile fails with "Text file busy"
+/// (ETXTBSY). Renaming does not help (the inode is what is busy), so after
+/// closing the file this waits until no process holds it open for writing
+/// any more (those children exec within milliseconds).
+#[cfg(unix)]
+pub fn write_script(path: &Path, body: &str) {
+    use std::os::unix::fs::PermissionsExt;
+    std::fs::write(path, body).unwrap_or_else(|e| panic!("script {}: {e}", path.display()));
+    std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o755)).unwrap();
+    let Ok(want) = std::fs::canonicalize(path) else { return };
+    let me = std::process::id().to_string();
+    let t = std::time::Instant::now();
+    while t.elapsed().as_secs() < 10 && held_open(&want, &me) {
+        std::thread::sleep(std::time::Duration::from_millis(2));
+    }
+}
+
+/// Whether any process (not `skip`, this one: its own descriptors are the
+/// test's and cannot be in a fork's way) has `file` open (Linux /proc; elsewhere
+/// nothing is seen). Over-approximates "for writing", which only waits longer.
+#[cfg(unix)]
+fn held_open(file: &Path, skip: &str) -> bool {
+    let Ok(procs) = std::fs::read_dir("/proc") else { return false };
+    for p in procs.flatten() {
+        let name = p.file_name();
+        let name = name.to_string_lossy();
+        if !name.bytes().all(|b| b.is_ascii_digit()) {
+            continue;
+        }
+        let Ok(fds) = std::fs::read_dir(p.path().join("fd")) else { continue };
+        for fd in fds.flatten() {
+            if std::fs::read_link(fd.path()).is_ok_and(|l| l == file) {
+                // A fork child of this very test binary is a different pid; the
+                // test binary's own threads share one pid and are skipped.
+                if *name != *skip {
+                    return true;
+                }
+            }
+        }
+    }
+    false
+}
+
 /// A name part no other process and no earlier call of this process uses:
 /// the process id, the time of the first call and a counter (the game's
 /// `unique_tag`, same form).
@@ -351,7 +397,7 @@ pub fn source_tree(root: &str, paths: &[&str]) -> String {
 #[macro_export]
 macro_rules! bind {
     () => {
-        pub use $crate::{Game, NEEDS_GAME, NEEDS_PRIVATE, Scratch, fixture_cache, pinned, private_root, source_tree};
+        pub use $crate::{Game, NEEDS_GAME, NEEDS_PRIVATE, Scratch, fixture_cache, pinned, private_root, source_tree, write_script};
 
         /// The kit's hooks into this crate (`ob_testkit::Hooks`).
         pub static HOOKS: $crate::Hooks = $crate::Hooks {

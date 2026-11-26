@@ -70,15 +70,14 @@ pub struct TextBox {
 // The lamps are the shared look's (ob-look).
 pub use ob_look::lamp::Mark;
 
-impl From<crate::qol::setup::Mark> for Mark {
-    fn from(m: crate::qol::setup::Mark) -> Mark {
-        use crate::qol::setup::Mark as M;
-        match m {
-            M::Ok => Mark::Ok,
-            M::Warn => Mark::Warn,
-            M::Info => Mark::Info,
-            M::Error => Mark::Error,
-        }
+/// The shared look's lamp for a setup line's mark.
+pub fn lamp(m: crate::qol::setup::Mark) -> Mark {
+    use crate::qol::setup::Mark as M;
+    match m {
+        M::Ok => Mark::Ok,
+        M::Warn => Mark::Warn,
+        M::Info => Mark::Info,
+        M::Error => Mark::Error,
     }
 }
 

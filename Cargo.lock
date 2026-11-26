@@ -1779,6 +1779,7 @@ dependencies = [
  "mimalloc",
  "miniz_oxide 0.8.9",
  "ob-asset-format",
+ "ob-assets",
  "ob-core",
  "ob-formats",
  "ob-look",
@@ -1886,6 +1887,38 @@ dependencies = [
  "semver",
  "sha2",
  "toml",
+ "xxhash-rust",
+]
+
+[[package]]
+name = "ob-assets"
+version = "0.6.3"
+dependencies = [
+ "anyhow",
+ "block_compression",
+ "bytemuck",
+ "env_logger",
+ "glam",
+ "image",
+ "libc",
+ "log",
+ "lzma-rs",
+ "memmap2",
+ "miniz_oxide 0.8.9",
+ "ob-asset-format",
+ "ob-core",
+ "ob-formats",
+ "ob-map",
+ "ob-settings",
+ "ob-testkit",
+ "profiling",
+ "rayon",
+ "semver",
+ "serde",
+ "serde_json",
+ "sha2",
+ "toml",
+ "wgpu",
  "xxhash-rust",
 ]
 

@@ -32,14 +32,14 @@ src/bin/game/sim/session/replay.rs	1	the program's own data: settings, saves, lo
 src/cache/verify.rs	3	the asset cache, shader cache and cache verification (own data)
 src/diag/support.rs	15	system files (/proc, /sys, /dev, /etc) and the program's own files
 crates/ob-settings/src/extras.rs	2	the player's packs, mods and importers (user-chosen paths)
-src/frontend/career/triggers.rs	1	lists a game-folder directory to find a file's spelling (the layer answers no listing yet: open item of #74)
+crates/ob-assets/src/frontend/career/triggers.rs	1	lists a game-folder directory to find a file's spelling (the layer answers no listing yet: open item of #74)
 src/frontend/enh/map_pack.rs	1	the player's packs, mods and importers (user-chosen paths)
 src/frontend/profiles/store.rs	6	the program's own data: settings, saves, logs, launcher state, the player's folders
 src/frontend/settings/gpu_rating.rs	2	system files (/proc, /sys, /dev, /etc) and the program's own files
 src/frontend/settings/options_txt.rs	1	the program's own data: settings, saves, logs, launcher state, the player's folders
-src/game_assets.rs	3	lists a game-folder directory to find a file's spelling (the layer answers no listing yet: open item of #74); and SPEED2.EXE, which the set does not keep, read from the folder
+crates/ob-assets/src/game_assets.rs	3	lists a game-folder directory to find a file's spelling (the layer answers no listing yet: open item of #74); and SPEED2.EXE, which the set does not keep, read from the folder
 src/garage.rs	1	lists a game-folder directory to find a file's spelling (the layer answers no listing yet: open item of #74)
-src/hud_mod.rs	5	the player's packs, mods and importers (user-chosen paths)
+crates/ob-assets/src/hud_mod.rs	5	the player's packs, mods and importers (user-chosen paths)
 src/latency.rs	5	system files (/proc, /sys, /dev, /etc) and the program's own files
 src/launcher/crash_report.rs	3	the program's own data: settings, saves, logs, launcher state, the player's folders
 src/launcher/game_data.rs	5	the program's own data: settings, saves, logs, launcher state, the player's folders
@@ -54,29 +54,29 @@ src/launcher/start_log.rs	2	the program's own data: settings, saves, logs, launc
 src/launcher/studio_seen.rs	3	the program's own data: settings, saves, logs, launcher state, the player's folders
 src/launcher/transfer.rs	8	the program's own data: settings, saves, logs, launcher state, the player's folders
 src/launcher/trial.rs	1	the program's own data: settings, saves, logs, launcher state, the player's folders
-src/mod_packs/content.rs	3	the player's packs, mods and importers (user-chosen paths)
-src/mod_packs/convert.rs	5	the player's packs, mods and importers (user-chosen paths)
-src/mod_packs/credits.rs	1	the player's mod credits file (a user-chosen folder)
-src/mod_packs/inside.rs	2	the player's packs, mods and importers (user-chosen paths)
-src/mod_packs/pack_export.rs	2	the player's packs, mods and importers (user-chosen paths)
-src/obpack/index.rs	1	the player's packs, mods and importers (user-chosen paths)
+crates/ob-assets/src/mod_packs/content.rs	3	the player's packs, mods and importers (user-chosen paths)
+crates/ob-assets/src/mod_packs/convert.rs	5	the player's packs, mods and importers (user-chosen paths)
+crates/ob-assets/src/mod_packs/credits.rs	1	the player's mod credits file (a user-chosen folder)
+crates/ob-assets/src/mod_packs/inside.rs	2	the player's packs, mods and importers (user-chosen paths)
+crates/ob-assets/src/mod_packs/pack_export.rs	2	the player's packs, mods and importers (user-chosen paths)
+crates/ob-assets/src/obpack/index.rs	1	the player's packs, mods and importers (user-chosen paths)
 src/overlay/system/sources.rs	13	system files (/proc, /sys, /dev, /etc) and the program's own files
 src/pad/ff_out.rs	1	system files (/proc, /sys, /dev, /etc) and the program's own files
 src/pad/host.rs	1	a developer tool or an override folder from the environment
 crates/ob-settings/src/qol/crash.rs	1	system files (/proc, /sys, /dev, /etc) and the program's own files
 crates/ob-settings/src/qol/saves.rs	2	the program's own data: settings, saves, logs, launcher state, the player's folders
-src/qol/setup.rs	10	the game-folder check (size and hash of key files before an import); and the saved folder/pack/language choices
+crates/ob-assets/src/qol/setup.rs	10	the game-folder check (size and hash of key files before an import); and the saved folder/pack/language choices
 crates/ob-settings/src/qol/waits.rs	3	system files (/proc, /sys, /dev, /etc) and the program's own files
 src/render/core/pipeline_cache.rs	1	the asset cache, shader cache and cache verification (own data)
-src/render/enh/assets/hd_ui.rs	4	the player's packs, mods and importers (user-chosen paths)
+crates/ob-assets/src/render/enh/assets/hd_ui.rs	4	the player's packs, mods and importers (user-chosen paths)
 src/render/enh/assets/pack_reload/watch.rs	4	the player's packs, mods and importers (user-chosen paths)
-src/render/enh/assets/pack_select.rs	5	system files (/proc, /sys, /dev, /etc) and the program's own files
-src/render/enh/assets/surface/cache.rs	2	the player's packs, mods and importers (user-chosen paths)
-src/render/enh/assets/texture_pack/cache.rs	2	the player's packs, mods and importers (user-chosen paths)
-src/render/enh/assets/texture_pack/decode.rs	1	the player's packs, mods and importers (user-chosen paths)
+crates/ob-assets/src/render/enh/assets/pack_select.rs	5	system files (/proc, /sys, /dev, /etc) and the program's own files
+crates/ob-assets/src/render/enh/assets/surface/cache.rs	2	the player's packs, mods and importers (user-chosen paths)
+crates/ob-assets/src/render/enh/assets/texture_pack/cache.rs	2	the player's packs, mods and importers (user-chosen paths)
+crates/ob-assets/src/render/enh/assets/texture_pack/decode.rs	1	the player's packs, mods and importers (user-chosen paths)
 src/render/enh/lighting/probes/field.rs	1	a developer tool or an override folder from the environment
 src/render/enh/volumes/water/mod.rs	1	a developer tool or an override folder from the environment
 src/render/native/post/mod.rs	1	a developer tool or an override folder from the environment
-src/texture_mods.rs	4	the player's packs, mods and importers (user-chosen paths)
-src/tpf_import.rs	4	the player's packs, mods and importers (user-chosen paths)
-src/upscale_pack.rs	5	the player's packs, mods and importers (user-chosen paths)
+crates/ob-assets/src/texture_mods.rs	4	the player's packs, mods and importers (user-chosen paths)
+crates/ob-assets/src/tpf_import.rs	4	the player's packs, mods and importers (user-chosen paths)
+crates/ob-assets/src/upscale_pack.rs	5	the player's packs, mods and importers (user-chosen paths)
