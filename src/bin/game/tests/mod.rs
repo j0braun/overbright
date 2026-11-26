@@ -48,6 +48,7 @@ mod race_route;
 // The crash camera in free roam.
 #[cfg(test)]
 mod roam_crash_camera;
+mod wall_top_speed;
 #[cfg(test)]
 mod rival_pace;
 mod rivals_ahead;

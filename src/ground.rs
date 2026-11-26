@@ -310,31 +310,9 @@ impl TrackGround {
     pub fn edit_pack(&mut self, pack: usize, cut: &std::collections::HashSet<u16>, add: &[(CollisionFace, Vec<(usize, u16)>)]) -> bool {
         let Some(pk) = self.packs.get_mut(pack) else { return false };
         let g = &pk.grid;
-        let added_refs: usize = add.iter().map(|(_, c)| c.len()).sum();
-        if pk.polygons.len() + add.len() > u16::MAX as usize + 1 || g.refs.len() + added_refs > u16::MAX as usize {
+        let Some((refs, cells)) = crate::formats::collision::edit_cells(&g.cells, &g.refs, pk.polygons.len(), cut, add) else {
             return false;
-        }
-        let mut per_cell: Vec<Vec<(u16, u16)>> = vec![Vec::new(); g.cells.len()];
-        let mut floors_of: Vec<Vec<(u16, u16)>> = vec![Vec::new(); g.cells.len()];
-        for (k, (f, cells)) in add.iter().enumerate() {
-            let face = (pk.polygons.len() + k) as u16;
-            let to = if f.flags & 0x0A == 0 { &mut floors_of } else { &mut per_cell };
-            for &(c, mask) in cells {
-                if let Some(l) = to.get_mut(c) {
-                    l.push((face, mask));
-                }
-            }
-        }
-        let mut refs = Vec::with_capacity(g.refs.len() + added_refs);
-        let mut cells = Vec::with_capacity(g.cells.len());
-        for (c, &(first, count)) in g.cells.iter().enumerate() {
-            let start = refs.len();
-            refs.extend(floors_of[c].iter().copied());
-            let own = g.refs.get(first as usize..first as usize + count as usize).unwrap_or(&[]);
-            refs.extend(own.iter().filter(|(f, _)| !cut.contains(f)));
-            refs.extend(per_cell[c].iter().copied());
-            cells.push((start as u16, (refs.len() - start) as u16));
-        }
+        };
         pk.grid.refs = refs;
         pk.grid.cells = cells;
         pk.polygons.extend(add.iter().map(|(f, _)| Polygon::new(*f)));
