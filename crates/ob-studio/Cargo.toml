@@ -19,6 +19,7 @@ ob-core = { path = "../ob-core" }
 ob-formats = { path = "../ob-formats" }
 ob-map = { path = "../ob-map" }
 glam.workspace = true
+semver.workspace = true
 toml.workspace = true
 # The history's journal records and the inbox's requests (JSON), checked by a hash per record.
 serde.workspace = true

@@ -809,6 +809,11 @@ Entry fields:
 | `extras` | table | – | no | – | |
 
 On an original placement, `merge` may set `position`, `rotation` and `disabled` only; any other field is `MRG.3`.
+
+A pack Overbright writes from a map mod (Studio, the launcher, `modpack convert`) carries the map mod's own reference of an
+original in `extras.legacy = { section, solid, at, nth }` and no `key`, because the `<scenery>/<index>` key needs the base
+set's placement table (§4.4); an entry with `id` is an addition as written above (without `scenery`: the map mod has none).
+The game applies those entries by the reference, and refuses a pack whose entry has a `key` alone until the resolver exists.
 Coordinates lie within ±100,000 m (`WLD.12`).
 
 ```toml

@@ -557,6 +557,82 @@
       "words": "pack export"
     },
     {
+      "command": "modpack.export",
+      "flags": [
+        {
+          "flag": "--to",
+          "label": "Export to: a .obpk file, or a folder",
+          "needed": true,
+          "type": "text"
+        },
+        {
+          "flag": "--version",
+          "label": "Pack version (default 1.0.0)",
+          "needed": false,
+          "type": "text"
+        },
+        {
+          "flag": "--licence",
+          "label": "SPDX licence; without one the pack stays on this computer",
+          "needed": false,
+          "type": "text"
+        },
+        {
+          "flag": "--derived-ok",
+          "label": "Share textures made from the original game's pixels",
+          "needed": false,
+          "type": "bool"
+        }
+      ],
+      "kind": "run",
+      "summary": "Export the mod as a mod pack file (.obpk): its placements, races and textures as the asset format's own files",
+      "words": "modpack export"
+    },
+    {
+      "command": "modpack.convert",
+      "flags": [
+        {
+          "flag": "--from",
+          "label": "The map mod or texture pack: a folder or .zip",
+          "needed": true,
+          "type": "text"
+        },
+        {
+          "flag": "--to",
+          "label": "Write to: a .obpk file, or a folder",
+          "needed": true,
+          "type": "text"
+        },
+        {
+          "flag": "--id",
+          "label": "Pack id (default: made from the name)",
+          "needed": false,
+          "type": "text"
+        },
+        {
+          "flag": "--version",
+          "label": "Pack version (default 1.0.0)",
+          "needed": false,
+          "type": "text"
+        },
+        {
+          "flag": "--licence",
+          "label": "SPDX licence; without one the pack stays on this computer",
+          "needed": false,
+          "type": "text"
+        },
+        {
+          "flag": "--derived-ok",
+          "label": "Convert textures made from the original game's pixels",
+          "needed": false,
+          "type": "bool"
+        }
+      ],
+      "kind": "run",
+      "summary": "Convert a plain map mod or a texture pack (a folder or .zip) to a mod pack file (.obpk)",
+      "words": "modpack convert"
+    },
+    {
       "command": "pack.repair",
       "flags": [],
       "kind": "edit",
@@ -657,6 +733,54 @@
       "kind": "read",
       "summary": "The mod's textures and work files, with where their pixels started",
       "words": "looks list"
+    },
+    {
+      "command": "props.solids",
+      "flags": [
+        {
+          "flag": "--filter",
+          "label": "Words the name has (all of them, any case)",
+          "needed": false,
+          "type": "text"
+        },
+        {
+          "flag": "--category",
+          "label": "Only one category: knock-over, barriers, signs, street, trees or all (default all)",
+          "needed": false,
+          "type": "text"
+        }
+      ],
+      "kind": "read",
+      "summary": "List the region's placeable solids (the prop browser's list), by name, with where they are placed",
+      "words": "props solids"
+    },
+    {
+      "command": "race.tracks",
+      "flags": [],
+      "kind": "read",
+      "summary": "List the region's base tracks a race can be on (number and name)",
+      "words": "race tracks"
+    },
+    {
+      "command": "looks.find",
+      "flags": [
+        {
+          "flag": "--text",
+          "label": "Words of the name, or the hash (0x1A2B3C4D)",
+          "needed": true,
+          "type": "text"
+        }
+      ],
+      "kind": "read",
+      "summary": "Find the region's world textures by name or hash (words after the command or --text)",
+      "words": "looks find"
+    },
+    {
+      "command": "game.find",
+      "flags": [],
+      "kind": "read",
+      "summary": "Show which game folder the tool uses and why (--game, NFSU2_ROOT or the launcher)",
+      "words": "game find"
     },
     {
       "command": "checks.run",

@@ -1,0 +1,17 @@
+{
+  "command": "looks.find",
+  "count": 1,
+  "exit": 0,
+  "format": 1,
+  "ok": true,
+  "region": "L4RA",
+  "text": "0x0ABC",
+  "textures": [
+    {
+      "height": 4,
+      "name": "ROAD",
+      "texture": "world:0x00000ABC",
+      "width": 4
+    }
+  ]
+}

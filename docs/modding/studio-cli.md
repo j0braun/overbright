@@ -42,6 +42,8 @@ and its schema export (`crates/ob-studio/schema/studio.json`) use, so `help` is 
 | `pack details` | edit | Change the mod's `--name`, `--author` and `--description` (those left out stay) |
 | `pack put` | edit | Put the whole map in place, from a map file (`--file`) |
 | `pack export` | run | Export the mod as one file to share (`--to` a `.zip`, or a new folder), without its work files; textures made from the original game's pixels need `--derived-ok` ([Studio](studio.md#the-mod-page)) |
+| `modpack export` | run | Export the mod as a mod pack file, `<id>-<version>.obpk` (`--to` a `.obpk` or a folder; optional `--version`, default 1.0.0, `--licence` as an SPDX expression, else the pack stays on this computer; `--derived-ok` as for `pack export`). Its placements, races and textures are the asset format's own files ([layering](asset-format/layering.md#7-todays-mod-registries-as-legacy-packs)) and the provenance is the launcher export's |
+| `modpack convert` | run | Convert a plain map mod or an Overbright texture pack (format 1: `world/`, `car/`, `any/`; `--from` a folder or `.zip`) to a mod pack file (`--to`; optional `--id`, `--version`, `--licence`, `--derived-ok`). The provenance says `converted`; what the pack format has no place for is listed (`left out`), a folder that is neither kind is refused. A converted texture pack stays on this computer. Needs no `--mod` |
 | `pack repair` | edit | Repair a `map.obmap` that no longer reads, where a safe repair exists (a sprint or drift race with more than one lap runs its one lap), as one step |
 | `edit group` | edit | Several edits as one step (`--label`, `--ops`: the edits as a JSON list) |
 | `ops apply` | edit | Apply an operations file as one step (`--file`, optional `--label`) |
@@ -49,6 +51,10 @@ and its schema export (`crates/ob-studio/schema/studio.json`) use, so `help` is 
 | `looks import` | edit | Take a texture's work file in now, as one step (`--texture`) |
 | `looks watch` | run | Watch the work files and take each save in as one step (optional `--seconds`; default until Ctrl+C) |
 | `looks list` | read | The mod's changed textures and work files, with where their pixels started |
+| `props solids` | read | The region's placeable solids, as the prop browser lists them (`--filter` words of the name, `--category` knock-over, barriers, signs, street, trees or all; default all), with where they are placed; needs the game |
+| `race tracks` | read | The region's base tracks a race can be on, as the race panel lists them (number and name); needs the game |
+| `looks find` | read | Find the region's world textures by name words or hash: `looks find road` or `--text 0x1A2B3C4D`; gives each texture's id for `looks open`, name and size; needs the game |
+| `game find` | read | The game folder the tool uses and where it came from: `--game`, `NFSU2_ROOT` or the launcher's choice (exit 4 when none, or it does not exist) |
 | `checks run` | read | Run the map checks on the mod |
 | `history show` | read | The mod's kept steps, with their authors |
 | `schema export` | read | The kinds' and commands' schemas |
@@ -110,8 +116,19 @@ a mod: a folder in use (`error.reason` `folder_used`) or a name another mod has 
 no name (`no_name`), a name over 60 characters (`long_name`), a folder name with other characters than a-z, 0-9,
 `-` and `_` (`bad_folder`) or a bad `--region` (`bad_region`) is a usage error (exit 2).
 
+`props solids` gives `region`, `count` and `solids` (each `name`, `knock_over`, `placed`, `categories`); `race tracks`
+gives `region`, `count` and `tracks` (`number`, `name`); `looks find` gives `region`, `text`, `count` and `textures`
+(`texture`, `name`, `width`, `height`); `game find` gives `game` and `source` (`--game`, `NFSU2_ROOT` or `launcher`).
+The first three read the same lists the window shows (the prop browser, the race panel's tracks, Looks' textures), so
+the same words give the same answer. On a near miss (`--filter barier`, `looks find raod`, `--category barier`,
+`--region L4RB`, a command or `--template` with a typo) the answer says "Did you mean": plain text on the line after,
+`did_you_mean` in the JSON for the lists, and in the message of a usage error. The list commands need no `--mod`.
+
 `pack export` gives `to`, `files`, `bytes`, `derived` (the textures from the original game's pixels) and
 `build`; refused for derived textures, its `error.reason` is `derived` and `derived` lists them.
+
+`modpack export` gives `to`, `id`, `files`, `bytes` and `build`, and refuses derived textures like `pack export`
+(`error.reason` is `derived`). `modpack convert` gives the same plus `kind` (`map mod` or `texture pack`) and `skipped`.
 
 `looks open` gives `texture`, `name`, `work_file`, `origin` (`game` or `blank`) and `derived`. `looks import`
 gives `outcome` (`made` with its `step`, `unchanged`, or `sent` with the inbox `request` when Studio or the map

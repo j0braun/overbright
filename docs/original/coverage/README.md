@@ -30,8 +30,9 @@ One row per original function (or per tight group of helpers that only make sens
 A row may add **in change** when another branch is rewriting that area at the time of writing; the
 status then describes the default branch as it is.
 
-Within a row, "verified", "observed", "inferred" and "open" keep their usual meaning in these docs
-(traced; read under Wine; reasoned, not traced; not known).
+Within a row, the evidence words are the tags of the evidence register
+([evidence.md](../../developing/evidence.md)): **traced**, **observed**, **inferred**, **choice** and **open**.
+A row without one of them fails the evidence check.
 
 The original's AI is frame-rate dependent: its think slots, avoidance proposals and contact tests
 run per frame. A native number for an AI row is therefore taken with the original at a fixed 1/60 s

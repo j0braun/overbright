@@ -249,6 +249,11 @@ Ctrl+0 (SHARE ▸ Mod, `ob://<mod id>/@mod`) shows the open mod as you share it:
   yet: see the list" and writes nothing. You are responsible for what you share; Overbright never hosts or
   shares mods.
 
+**File ▸ Export as mod pack…** writes the mod as one `<id>-<version>.obpk` instead: the file the launcher's Mods page
+takes (it holds the placements, races and textures as their own files, with the same provenance). It asks for the
+same yes for textures from the original game's pixels. The command line has `modpack export` (and `modpack convert`
+for an older map mod or texture pack: [Studio command-line tool](studio-cli.md)).
+
 The command-line tool exports the same way: `overbright-studio-cli pack export --mod <dir> --to <file.zip>`
 (`--derived-ok` for textures from the original game's pixels; [Studio command-line tool](studio-cli.md)).
 

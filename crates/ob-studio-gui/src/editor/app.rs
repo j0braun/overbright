@@ -835,6 +835,11 @@ pub enum Dialog {
         path: String,
         derived: usize,
     },
+    /// Export as a mod pack file (`derived` as in [`Dialog::Export`]).
+    ExportPack {
+        path: String,
+        derived: usize,
+    },
     Import {
         path: String,
     },
@@ -1372,6 +1377,15 @@ impl App {
                     let path = ob_studio::share::default_zip(&crate::platform::dirs::exports(), &s.session.folder);
                     let derived = crate::tools::map::share::derived(&self.maps.join(&s.session.folder)).len();
                     self.dialog = Some(Dialog::Export { path: path.display().to_string(), derived });
+                }
+            }
+            A::ExportPack => {
+                if let Some(s) = &self.state {
+                    // The exports folder, the pack's own file name (`<id>-1.0.0.obpk`).
+                    let path = crate::platform::dirs::exports()
+                        .join(ob_studio::share::pack_file_name(&s.session.folder, &ob_studio::share::PackOpts::default()));
+                    let derived = crate::tools::map::share::derived(&self.maps.join(&s.session.folder)).len();
+                    self.dialog = Some(Dialog::ExportPack { path: path.display().to_string(), derived });
                 }
             }
             A::Import => self.dialog = Some(Dialog::Import { path: String::new() }),
@@ -1937,6 +1951,26 @@ impl App {
                         }
                     });
                 }
+                Dialog::ExportPack { path, derived } => {
+                    ui.label(theme::title("Export as mod pack"));
+                    ui.label("A .obpk file, or a folder: the placements, races and textures of the mod, as the mods page of the launcher takes them:");
+                    ui.text_edit_singleline(path);
+                    if *derived > 0 {
+                        ui.label(theme::title(words::DERIVED_TITLE));
+                        ui.label(crate::tools::map::share::derived_warning(*derived));
+                    }
+                    let (yes, ok) = if *derived > 0 { (words::EXPORT_ANYWAY, true) } else { ("Export", false) };
+                    ui.horizontal(|ui| {
+                        if ui.add(theme::main_action(yes)).clicked() {
+                            let p = PathBuf::from(path.trim());
+                            then = Some(Box::new(move |app: &mut App| app.export_pack(&p, ok)));
+                            keep = false;
+                        }
+                        if ui.button(words::CANCEL).clicked() {
+                            keep = false;
+                        }
+                    });
+                }
                 Dialog::Import { path } => {
                     ui.label(theme::title("Import map mod"));
                     ui.label("A .zip file or a folder holding map.obmap:");
@@ -2070,6 +2104,22 @@ impl App {
         })();
         match r {
             Ok(()) => self.say(format!("Exported {folder} to {}", to.display())),
+            Err(e) => self.fail("Could not export", e),
+        }
+    }
+
+    /// Export the mod as a mod pack file (`ob_studio::share::export_pack`; `derived_ok` as for [`Self::export`]).
+    fn export_pack(&mut self, to: &Path, derived_ok: bool) {
+        let Some(folder) = self.state.as_ref().map(|s| s.session.folder.clone()) else { return };
+        let r = (|| -> Result<ob_studio::share::PackExported> {
+            if self.state.as_ref().is_some_and(|s| s.session.dirty) {
+                self.save()?;
+            }
+            let o = ob_studio::share::PackOpts { derived_ok, ..Default::default() };
+            Ok(ob_studio::share::export_pack(&self.maps.join(&folder), &folder, to, &o)?)
+        })();
+        match r {
+            Ok(e) => self.say(format!("Exported {folder} as a mod pack to {}", e.to.display())),
             Err(e) => self.fail("Could not export", e),
         }
     }
@@ -3045,5 +3095,20 @@ mod tests {
         let to = s.path().join("exports").join("docks.zip");
         a.export(&to, false);
         assert!(to.is_file(), "the folder is made and the file written");
+    }
+
+    /// File ▸ Export as mod pack… proposes `<id>-1.0.0.obpk` in the exports folder and writes the pack there.
+    #[test]
+    fn export_as_mod_pack_writes_an_obpk() {
+        let s = Scratch::new("editor-export-pack");
+        let mut a = app(&s);
+        a.new_mod("docks", "", "L4RA").unwrap();
+        a.act(menu::Action::ExportPack);
+        let Some(Dialog::ExportPack { path, .. }) = &a.dialog else { panic!("{:?}", a.dialog) };
+        assert_eq!(PathBuf::from(path), crate::platform::dirs::exports().join("docks-1.0.0.obpk"));
+        a.dialog = None;
+        let to = s.path().join("exports").join("docks-1.0.0.obpk");
+        a.export_pack(&to, false);
+        assert!(to.is_file(), "the pack file is written");
     }
 }

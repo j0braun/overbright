@@ -6,7 +6,7 @@
 #                              intro GPS, rain flow, showcase, 1080p shot, drive bench, playthrough, combination matrix, resolution matrix,
 #                              the map editor's shot matrix (EDITOR_SHOTS=1 runs it in fast too)
 #   checks.sh shots   OUTDIR T…  just those shot targets (twice with DET=1)
-#   (fast and full also run the provenance-tag check, layering.sh and the importer unit tests; full, or LAVAPIPE=1, the lavapipe
+#   (fast and full also run the provenance-tag check, the evidence-tag check (evidence.sh), layering.sh and the importer unit tests; full, or LAVAPIPE=1, the lavapipe
 #   check (SKIP without the driver is recorded as skipped, LAVAPIPE=require fails instead); full also selfcheck.sh,
 #   the gates' own self-test, and release_check.sh, the shipping binary without the dev harness; RELEASE=1 runs it
 #   in fast too; full, or FRESH=1, tests/launcher_fresh.sh (the launcher's first run on a fresh machine), tests/launcher_mouse.sh (the launcher by the mouse alone, scale 1 and 2) and tests/launcher_wayland.sh (the same browser on a private headless Wayland session at scale 1 to 2); full, or WINE_SMOKE=1, the Windows build under Wine, report-only: wine_smoke.sh, WINE_SMOKE=off skips;
@@ -307,6 +307,10 @@ if [ "$SET" != shots ]; then
   run provenance 120 python3 "$HERE/provenance.py" "$REPO"
   say "provenance rc=$RC: $(grep -E '^provenance: [0-9]+ ids' "$O/provenance.log" | cut -c13-160)"
   [ $RC = 0 ] || { grep -E '^provenance: ' "$O/provenance.log" | grep -v ' ids (' | head -20 | tee -a "$OUT"; fail provenance; }
+  # The evidence register (docs/developing/evidence.md): every claim row in the coverage maps and the deviation table is tagged.
+  run evidence 60 "$HERE/evidence.sh" "$REPO"
+  say "evidence rc=$RC: $(tail -1 "$O/evidence.log" | cut -c11-160)"
+  [ $RC = 0 ] || { grep -E '^evidence: ' "$O/evidence.log" | grep -v ' claim rows' | head -20 | tee -a "$OUT"; fail evidence; }
   # The workspace's layers (ARCHITECTURE.md "Layers"): no new upward reference, package edges only downward,
   # no dev-harness in the shipped packages' tree.
   run crate_layers 300 "$HERE/crate_layers.sh" "$REPO"

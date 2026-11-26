@@ -1,0 +1,16 @@
+{
+  "command": "props.solids",
+  "count": 1,
+  "exit": 0,
+  "format": 1,
+  "ok": true,
+  "region": "L4RA",
+  "solids": [
+    {
+      "categories": "Barriers",
+      "knock_over": false,
+      "name": "XB_BARRIER_03",
+      "placed": 1
+    }
+  ]
+}

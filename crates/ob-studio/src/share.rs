@@ -153,5 +153,59 @@ pub fn export_dir(dir: &Path, folder: &str, to: &Path, derived_ok: bool) -> Resu
     ob_map::tools::map::share::export_dir(dir, folder, to, derived_ok, &build())
 }
 
+// ---- mod packs ----------------------------------------------------------------------------------------------------
+
+pub use nfsu2::studio_api::mod_packs::{Converted, Exported as PackExported};
+
+/// What the author chooses for a pack file.
+#[derive(Clone, Debug)]
+pub struct PackOpts {
+    pub version: semver::Version,
+    /// An SPDX expression; without one the pack is `local-only` (a public pack needs a licence).
+    pub licence: Option<String>,
+    /// The yes to textures made from the original game's pixels (the pack is then `local-only`).
+    pub derived_ok: bool,
+}
+
+impl Default for PackOpts {
+    fn default() -> PackOpts {
+        PackOpts { version: semver::Version::new(1, 0, 0), licence: None, derived_ok: false }
+    }
+}
+
+fn pack_export_opts(o: &PackOpts) -> nfsu2::studio_api::mod_packs::ExportOpts<'_> {
+    nfsu2::studio_api::mod_packs::ExportOpts {
+        version: o.version.clone(),
+        licence: o.licence.as_deref(),
+        derived_ok: o.derived_ok,
+        build: build(),
+    }
+}
+
+/// The file name `<id>-<version>.obpk` of a pack made with `o`.
+pub fn pack_file_name(folder: &str, o: &PackOpts) -> String {
+    ob_asset_format::modpack::file_name(folder, &o.version)
+}
+
+/// Exports the mod in `dir` as a mod pack file `<id>-<version>.obpk` (docs/modding/asset-format/layout.md §4) to `to`
+/// (a `.obpk` path, or a folder): the same pack and provenance the launcher's export writes, made for the base set in
+/// use. Textures from the original game's pixels need `derived_ok` ([`Refused::Derived`]).
+pub fn export_pack(dir: &Path, folder: &str, to: &Path, o: &PackOpts) -> Result<PackExported, Refused> {
+    let d = derived(dir);
+    if !d.is_empty() && !o.derived_ok {
+        return Err(Refused::Derived(d));
+    }
+    let base = nfsu2::studio_api::mod_packs::base_in_use();
+    nfsu2::studio_api::mod_packs::export_mod_dir(dir, folder, to, base.as_ref(), &pack_export_opts(o))
+        .map_err(Refused::Failed)
+}
+
+/// Converts a plain map mod or an Overbright texture pack (a folder or `.zip`) to a mod pack file at `to`; the provenance
+/// says it was converted. What the pack format cannot hold is refused or listed in [`Converted::skipped`].
+pub fn convert_pack(from: &Path, to: &Path, id: Option<&str>, o: &PackOpts) -> Result<Converted, String> {
+    let base = nfsu2::studio_api::mod_packs::base_in_use();
+    nfsu2::studio_api::mod_packs::convert_legacy(from, to, id, base.as_ref(), &pack_export_opts(o))
+}
+
 #[cfg(test)]
 mod tests;

@@ -1,0 +1,8 @@
+{
+  "command": "game.find",
+  "exit": 0,
+  "format": 1,
+  "game": "<tmp>/docks",
+  "ok": true,
+  "source": "--game"
+}

@@ -1,0 +1,14 @@
+{
+  "command": "race.tracks",
+  "count": 1,
+  "exit": 0,
+  "format": 1,
+  "ok": true,
+  "region": "L4RB",
+  "tracks": [
+    {
+      "name": "Docks",
+      "number": 4001
+    }
+  ]
+}

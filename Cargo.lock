@@ -1954,6 +1954,7 @@ dependencies = [
  "ob-formats",
  "ob-map",
  "ob-testkit",
+ "semver",
  "serde",
  "serde_json",
  "toml",

@@ -11,13 +11,15 @@
 //! A pack that is refused (another Overbright, another base set, a missing dependency) is not mounted at all and the
 //! log says why; clashes between packs are logged, never errors.
 
+mod content;
+mod convert;
 mod layers;
 mod pack_export;
 
 pub use layers::{added_key, heading, layers, placement_key, race_key};
-pub use pack_export::{ExportOpts, Exported, export_map_mod};
+pub use convert::{Converted, convert_legacy};
+pub use pack_export::{ExportOpts, Exported, export_map_mod, export_mod_dir};
 
-use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::RwLock;
 
@@ -28,7 +30,8 @@ use crate::tools::map::MapMod;
 use crate::tools::map::store;
 
 static BASE: RwLock<Option<BaseId>> = RwLock::new(None);
-static ROOTS: RwLock<Option<HashMap<String, PathBuf>>> = RwLock::new(None);
+/// The mounted packs and where each is read from, weakest first.
+static ROOTS: RwLock<Vec<(String, PathBuf)>> = RwLock::new(Vec::new());
 
 /// `<app>/mods`.
 pub fn mods_dir() -> PathBuf {
@@ -76,15 +79,22 @@ pub struct Mounted {
 
 /// The folder a mounted pack's files are read from (`map.obmap`, `textures/`).
 pub fn root_of(id: &str) -> Option<PathBuf> {
-    ROOTS.read().unwrap_or_else(|e| e.into_inner()).as_ref().and_then(|m| m.get(id).cloned())
+    ROOTS.read().unwrap_or_else(|e| e.into_inner()).iter().find(|r| r.0 == id).map(|r| r.1.clone())
+}
+
+/// The texture folders of the mounted packs (the world's, or the cars' with `car`), the strongest pack first. None
+/// mounted: empty.
+pub fn texture_dirs(car: bool) -> Vec<PathBuf> {
+    let roots = ROOTS.read().unwrap_or_else(|e| e.into_inner());
+    roots.iter().rev().flat_map(|r| content::texture_dirs(&r.1, car)).collect()
 }
 
 /// Reads the packs switched on against `base`: the plan (refusals, notices), the map mods and where each is read from.
 /// `taken`: the names the plain map mods already use.
-fn load(base: Option<&BaseId>, taken: &[String]) -> (modpack::Plan, Mounted, HashMap<String, PathBuf>) {
+fn load(base: Option<&BaseId>, taken: &[String]) -> (modpack::Plan, Mounted, Vec<(String, PathBuf)>) {
     let plan = modpack::plan(&mods_dir(), base, &engine());
     let mut out = Mounted::default();
-    let mut roots = HashMap::new();
+    let mut roots = Vec::new();
     for p in &plan.layers {
         if taken.iter().any(|t| *t == p.id) {
             log::warn!("mod pack {} is not used: a map mod folder in maps/ has the same name", p.id);
@@ -97,17 +107,14 @@ fn load(base: Option<&BaseId>, taken: &[String]) -> (modpack::Plan, Mounted, Has
                 continue;
             }
         };
-        let file = root.join(store::FILE);
-        if !file.is_file() {
-            log::info!("mod pack {}: no map data in it; nothing to apply", p.id);
-            continue;
-        }
-        match store::read_file(&file) {
-            Ok(m) => {
-                roots.insert(p.id.clone(), root);
-                out.mods.push((p.id.clone(), m));
+        roots.push((p.id.clone(), root.clone()));
+        match content::read(&root) {
+            Ok(Some(m)) => out.mods.push((p.id.clone(), m)),
+            Ok(None) => log::info!("mod pack {}: no map data in it", p.id),
+            Err(e) => {
+                roots.pop();
+                log::warn!("mod pack {} is not used: {e}", p.id);
             }
-            Err(e) => log::warn!("mod pack {} is not used: {e:#}", p.id),
         }
     }
     (plan, out, roots)
@@ -147,7 +154,7 @@ pub fn mount(taken: &[String]) -> Mounted {
             log::warn!("mod packs clash: {} more not listed", clashes.len() - 20);
         }
     }
-    *ROOTS.write().unwrap_or_else(|e| e.into_inner()) = Some(roots);
+    *ROOTS.write().unwrap_or_else(|e| e.into_inner()) = roots;
     out
 }
 
@@ -201,7 +208,9 @@ fn materialize(p: &modpack::Installed) -> Result<PathBuf, String> {
     b.verify().map_err(|e| e.to_string())?;
     let tmp = cache.join("mod-packs").join(format!(".tmp-{}-{}", p.id, ob_core::unique_tag()));
     let _ = std::fs::remove_dir_all(&tmp);
-    let wanted = |path: &str| path == store::FILE || path.starts_with("textures/");
+    let wanted = |path: &str| {
+        path == store::FILE || ["textures/", "world/", "races/", "cars/", "global/"].iter().any(|d| path.starts_with(d))
+    };
     let mut total = 0u64;
     let r = (|| -> Result<(), String> {
         for e in b.entries().iter().filter(|e| wanted(&e.path)) {

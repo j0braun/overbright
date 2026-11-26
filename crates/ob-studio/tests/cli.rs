@@ -70,6 +70,7 @@ fn fixture(tag: &str, broken: bool) -> (Scratch, PathBuf) {
 fn env() -> Env {
     Env {
         game: Some(PathBuf::from("game")),
+        game_source: "NFSU2_ROOT",
         world: Box::new(|_, _| Ok(World::default())),
         assets: Box::new(|_| {
             Box::new(GivenAssets {
@@ -116,6 +117,9 @@ fn normal(v: &mut Value, tmp: &str) {
             for (k, x) in o.iter_mut() {
                 if k == "time_ms" {
                     *x = Value::from(0);
+                } else if k == "build" {
+                    // The build line differs with every build.
+                    *x = Value::from("<build>");
                 } else {
                     normal(x, tmp);
                 }
@@ -463,6 +467,41 @@ fn looks_open_import_and_list() {
     let f = ob_studio::share::import(&fresh, &zip).unwrap();
     assert!(fresh.join(&f).join("textures/world/00000ABC.png").is_file());
     assert!(!fresh.join(&f).join("work").exists());
+    // `modpack export`: the same yes for the same texture; the pack holds the race and the texture as their own files.
+    let packs = s.path().join("packs");
+    let pto = packs.to_string_lossy().to_string();
+    assert_eq!(
+        golden("modpack-export-derived", &["modpack", "export", "--mod", "<mod>", "--to", &pto], &s, &dir, &e),
+        cli::FAILED
+    );
+    assert!(!packs.exists());
+    let (code, out, _) = run(&["modpack", "export", "--mod", "<mod>", "--to", &pto, "--derived-ok", "--version", "1.2.0", "--json"], &dir, &e);
+    assert_eq!(code, cli::OK, "{out}");
+    let doc: Value = serde_json::from_str(&out).unwrap();
+    assert_eq!(doc["id"], "docks");
+    let file = packs.join("docks-1.2.0.obpk");
+    assert_eq!(doc["to"], file.to_string_lossy().as_ref());
+    let b = ob_asset_format::bundle::Bundle::open(&file, ob_asset_format::bundle::Kind::PackFile).unwrap();
+    b.verify().unwrap();
+    for f in ["pack.toml", "provenance.toml", "races/sprint.toml", "world/_any/textures/images/0x00000ABC.png"] {
+        assert!(b.get(f).is_some(), "{f}");
+    }
+    assert!(b.get("map.obmap").is_none());
+    assert_eq!(run(&["modpack", "export", "--mod", "<mod>", "--to", &pto, "--derived-ok", "--version", "one"], &dir, &e).0, cli::USAGE);
+    // `modpack convert`: the plain mod (its zip from `pack export`) becomes a pack, refused when it is neither kind.
+    let conv = s.path().join("converted");
+    let (cto, czip) = (conv.to_string_lossy().to_string(), zip.to_string_lossy().to_string());
+    let words = ["modpack", "convert", "--from", &czip, "--to", &cto, "--id", "docks-old", "--derived-ok"];
+    assert_eq!(golden("modpack-convert", &words, &s, &dir, &e), cli::OK);
+    let b = ob_asset_format::bundle::Bundle::open(&conv.join("docks-old-1.0.0.obpk"), ob_asset_format::bundle::Kind::PackFile).unwrap();
+    let prov = String::from_utf8(b.read(b.get("provenance.toml").unwrap()).unwrap().into_owned()).unwrap();
+    assert!(prov.contains("converted = true"), "{prov}");
+    let nothing = s.path().join("nothing");
+    std::fs::create_dir_all(&nothing).unwrap();
+    let nothing = nothing.to_string_lossy().to_string();
+    let (code, _, err) = run(&["modpack", "convert", "--from", &nothing, "--to", &cto], &dir, &e);
+    assert_eq!(code, cli::FAILED);
+    assert!(err.contains("neither a map mod"), "{err}");
     let h =
         History::open_read(&dir, &dir.join(store::EDITOR_DIR), ob_studio::MOD_DOCS, std::sync::Arc::new(disk::Real))
             .unwrap();
@@ -630,4 +669,79 @@ fn race_points_take_the_road_height_and_the_checks_look_under_them() {
     assert!(out.contains("grid slot 1 has no floor under it") && out.contains("fall through the world"), "{out}");
     assert!(out.contains("the finish line has no floor under it"), "{out}");
     assert!(!out.contains("start line has no floor"), "{out}");
+}
+
+/// The game for the list commands: a region with cones, a barrier and a sign placed, one texture named ROAD.
+fn lists_env() -> Env {
+    use ob_formats::formats::solid::Solid;
+    let solid = |name: &str| Solid {
+        name: name.into(),
+        hash: 0,
+        bbox_min: [-0.5, -0.5, 0.0],
+        bbox_max: [0.5, 0.5, 1.0],
+        textures: Vec::new(),
+        vertices: Vec::new(),
+        normals: Vec::new(),
+        light_materials: Vec::new(),
+        indices: Vec::new(),
+        materials: Vec::new(),
+        mesh_flags: 0,
+        markers: Vec::new(),
+        light_markers: Vec::new(),
+    };
+    Env {
+        world: Box::new(move |root, _| {
+            let mut w = (looks_env().world)(root, "L4RA")?;
+            w.solids = vec![solid("XC_CONE_01"), solid("XB_BARRIER_03"), solid("XS_SIGN_STOP")];
+            let place = |solid| nfsu2::studio_api::world::Placement {
+                solid,
+                low_solid: None,
+                mid_solid: None,
+                transform: glam::Mat4::IDENTITY,
+                section: 1,
+                flags: 0,
+                cull_radius: 5.0,
+            };
+            w.placements = vec![place(0), place(0), place(1), place(2)];
+            Ok(w)
+        }),
+        ..env()
+    }
+}
+
+#[test]
+fn the_list_and_find_commands_read_what_the_window_reads() {
+    let (s, dir) = fixture("cli-lists", false);
+    let e = lists_env();
+    let cases: &[(&str, &[&str], i32)] = &[
+        ("props-solids", &["props", "solids"], cli::OK),
+        ("props-solids-filter", &["props", "solids", "--filter", "barrier"], cli::OK),
+        ("props-solids-category", &["props", "solids", "--category", "signs"], cli::OK),
+        ("props-solids-near-miss", &["props", "solids", "--filter", "barier"], cli::OK),
+        ("props-solids-bad-category", &["props", "solids", "--category", "barier"], cli::USAGE),
+        ("race-tracks", &["race", "tracks"], cli::OK),
+        ("race-tracks-other-region", &["race", "tracks", "--region", "L4RB"], cli::OK),
+        ("looks-find", &["looks", "find", "road"], cli::OK),
+        ("looks-find-hash", &["looks", "find", "--text", "0x0ABC"], cli::OK),
+        ("looks-find-near-miss", &["looks", "find", "raod"], cli::OK),
+        ("looks-find-no-text", &["looks", "find"], cli::USAGE),
+        ("game-find", &["game", "find", "--game", "<mod>"], cli::OK),
+        ("game-find-missing-folder", &["game", "find", "--game", "<mod>/nowhere"], cli::NO_GAME),
+        ("unknown-command-near-miss", &["looks", "fnd"], cli::USAGE),
+    ];
+    for (case, words, code) in cases {
+        assert_eq!(golden(case, words, &s, &dir, &e), *code, "{case}");
+    }
+    // The prop browser's list and the command give the same solids.
+    let (_, out, _) = run(&["props", "solids", "--category", "knock-over", "--json"], &dir, &e);
+    let doc: Value = serde_json::from_str(&out).unwrap();
+    assert_eq!(doc["count"], 0, "nothing in the fixture world is knocked over");
+    // Without the game the lists say so and exit 4; the tool needs no mod for them.
+    for w in [&["props", "solids"][..], &["race", "tracks"], &["looks", "find", "road"], &["game", "find"]] {
+        assert_eq!(run(w, &dir, &no_game()).0, cli::NO_GAME, "{w:?}");
+    }
+    // The plain text names the near miss.
+    let (code, out, _) = run(&["props", "solids", "--filter", "barier"], &dir, &e);
+    assert_eq!(code, cli::OK);
+    assert!(out.contains("Did you mean `barrier`?"), "{out}");
 }
