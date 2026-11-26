@@ -88,9 +88,12 @@ impl CarState {
         let mph = self.speed() * MPH;
         let down = self.wheels_down();
         let slip = self.body_slip();
-        // Grip base (mover +0x6C = 1), ×0.85 with no wheel down (not in
-        // drift events).
-        let base = if down == 0 && !h.race.drift() { 0.85 } else { 1.0 };
+        // Stability Control on: car +0x464 (the mover's physics view
+        // +0x58, +0x424) clear. The view's wheels-down count is +0x3E4.
+        let stability = !self.stability_off;
+        // Grip base (mover +0x6C = 1), ×0.85 (0x7FC060) with Stability
+        // Control on (0x5A4DA8; not in drift events).
+        let base = if stability && !h.race.drift() { 0.85 } else { 1.0 };
         let base = base * (1.0 - wet * (1.0 - 0.975));
         // The rear-grip bonus fades in at 1/s after the handbrake is let go
         // and drops to half at 20/s while it is held (mover +0x70).
@@ -109,7 +112,9 @@ impl CarState {
                 2.0 * share * pedals.brake
             };
             let mut hand = HANDBRAKE_WHEELS[i] * pedals.handbrake;
-            if hand > 0.2 && (down == 0 || (slip.abs() > 0.3 && mph < 80.0)) {
+            // +0.5 with Stability Control on, else only sliding under
+            // 80 mph (0x5A4F2E).
+            if hand > 0.2 && (stability || (slip.abs() > 0.3 && mph < 80.0)) {
                 hand += 0.5;
             }
             self.wheels[i].handbrake = hand;
@@ -117,7 +122,7 @@ impl CarState {
             self.wheels[i].grip = if i < 2 || h.race.drift() || h.race.url() {
                 base
             } else {
-                let bonus = self.rear_grip_bonus(h, slip, hand, down, forward_z);
+                let bonus = self.rear_grip_bonus(h, slip, hand, stability, forward_z);
                 ((bonus - 1.0) * self.handbrake_ramp + 1.0) * base
             };
         }
@@ -129,10 +134,12 @@ impl CarState {
             self.wheels.iter().filter(|w| w.on_ground).map(|w| surface(w.surface).drag).sum::<f32>() / down as f32
         };
         let lz = self.angular_momentum.z;
-        self.yaw_limit = if down == 0 {
-            h.yaw_limit_airborne
-        } else if h.yaw_limit_ground != 0.0 {
-            h.yaw_limit_ground
+        // With Stability Control on (0x5A4C65) the record's +0x398, else
+        // its +0x39C.
+        self.yaw_limit = if stability {
+            h.yaw_limit_on
+        } else if h.yaw_limit_off != 0.0 {
+            h.yaw_limit_off
         } else if slip * lz < 0.0 && slip.abs() > 0.1 {
             20.0
         } else {
@@ -281,14 +288,16 @@ impl CarState {
     /// up to 0.35 more growing with slip angle and speed, from bases that
     /// are mostly there for the two seconds after a collision (graph
     /// 0x802570). None while the handbrake is held under 20° of slip.
-    pub(super) fn rear_grip_bonus(&self, h: &Handling, slip: f32, hand: f32, down: usize, forward_z: f32) -> f32 {
+    pub(super) fn rear_grip_bonus(&self, h: &Handling, slip: f32, hand: f32, stability: bool, forward_z: f32) -> f32 {
         let after_crash = if self.since_collision < 4.0 {
             graph(&[(0.0, 0.0), (0.4, 1.0), (1.0, 1.0), (2.0, 0.0)], self.since_collision)
         } else {
             0.0
         };
         let [a, b] = h.drift_grip;
-        let base = if down == 0 { a + b } else { b * after_crash + a };
+        // Both bases with Stability Control on (the call's flag argument,
+        // car +0x464 = 0, 0x5A5044 → 0x5990DE).
+        let base = if stability { a + b } else { b * after_crash + a };
         let plain = forward_z.abs() + 1.0;
         if hand > 0.5 && slip.abs() < 20f32.to_radians() {
             return plain;

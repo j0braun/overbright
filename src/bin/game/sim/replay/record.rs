@@ -12,6 +12,9 @@ pub(crate) struct Recording {
     /// A shift (up?) or reset key since the last frame.
     pub(crate) shift: Option<bool>,
     pub(crate) reset: bool,
+    /// A Stability Control change from the pause's Player options since
+    /// the last frame (race command kind 2, logged at its loop by 0x578F00).
+    pub(crate) stability: Option<bool>,
     /// The LAP_SNAPSHOTs in time order (the manager's list +0x98), the
     /// interval between them (+0xC4) and the time recorded so far (the
     /// tick 0x865188 less the start +0x84, here the frames' dt summed).
@@ -57,6 +60,7 @@ impl Recording {
             frames: Vec::new(),
             shift: None,
             reset: false,
+            stability: None,
             laps: Vec::new(),
             interval: LAP_INTERVAL,
             elapsed: 0.0,
@@ -168,4 +172,7 @@ pub(crate) struct ReplayFrame {
     pub(crate) dt: f32,
     pub(crate) shift: Option<bool>,
     pub(crate) reset: bool,
+    /// The player's Stability Control set off (`Some(true)`) or on before
+    /// this frame (`Recording::stability`).
+    pub(crate) stability: Option<bool>,
 }

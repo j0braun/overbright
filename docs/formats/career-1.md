@@ -1787,7 +1787,15 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
   0x5EA8F0 map ≠ Off, 0x5F32B0 gauges, 0x5EA8D0 score, 0x5F33C0 lap info /
   split ≠ Off / position / leaderboard), the camera (option → view kind
   0x502500; the camera key steps it, 0x502540: wrap at Far, Super Far in
-  drift), the transmission (racer info +0x20; manual shifting). **Open**: map rotation (mode 2), stability,
+  drift), the transmission (racer info +0x20; manual shifting), Stability
+  Control (car +0x464, set when the car is placed, 0x5F1802 → 0x5F3E20,
+  and at once from the row's handler 0x4C3200: race command kind 2 through
+  0x578F00 → 0x4A7B30, logged for the replay; read by 0x59D4A0's callers
+  0x59D6BE / 0x5A84DD, the rear launch grip with it off, by the frame
+  set-up 0x5A4D90 at 0x5A4DA8 / 0x5A4F2E / 0x5A5044 and 0x5A49B0 at
+  0x5A4C65, the grip × 0.85, handbrake, rear-bonus and yaw-limit terms with
+  it on (docs/formats/cars-1.md "Brakes and grip"), and by 0x5A33F0, whose
+  factor 0x7A1998 is 1). **Open**: map rotation (mode 2),
   jump camera, rearview mirror rendering, volumes (no audio), the save
   prompt flow (0x4F37F0). **Custom display values in effect**
   (**verified** readers in the frame function 0x5CAAE0): Light Glow
