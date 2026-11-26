@@ -1,0 +1,11 @@
+{
+  "command": "runs.show",
+  "error": {
+    "kind": "failed",
+    "message": "no run called nothing (see `runs list`)",
+    "reason": "no_run"
+  },
+  "exit": 1,
+  "format": 1,
+  "ok": false
+}

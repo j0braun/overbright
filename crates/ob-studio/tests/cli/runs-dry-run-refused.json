@@ -1,0 +1,10 @@
+{
+  "command": "runs.delete",
+  "error": {
+    "kind": "usage",
+    "message": "--dry-run is for edits; `runs delete` changes nothing"
+  },
+  "exit": 2,
+  "format": 1,
+  "ok": false
+}

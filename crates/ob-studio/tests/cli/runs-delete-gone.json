@@ -1,0 +1,10 @@
+{
+  "command": "runs.delete",
+  "error": {
+    "kind": "failed",
+    "message": "no run called other (see `runs list`)"
+  },
+  "exit": 1,
+  "format": 1,
+  "ok": false
+}

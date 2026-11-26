@@ -125,7 +125,7 @@ pub fn parting(a: &Recording, b: &Recording, id: u32) -> Parting {
 
 #[cfg(test)]
 mod tests {
-    use super::super::summary::tests::race;
+    use crate::runs::fixtures::race;
     use super::*;
 
     fn straight() -> Line {

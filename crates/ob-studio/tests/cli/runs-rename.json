@@ -1,0 +1,8 @@
+{
+  "command": "runs.rename",
+  "exit": 0,
+  "format": 1,
+  "ok": true,
+  "run": "seed2",
+  "to": "other"
+}

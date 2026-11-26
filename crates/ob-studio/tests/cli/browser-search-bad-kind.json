@@ -1,0 +1,11 @@
+{
+  "command": "browser.search",
+  "error": {
+    "kind": "usage",
+    "message": "--kind: no `model`: use all, models, textures. Did you mean `models`?",
+    "reason": "bad_kind"
+  },
+  "exit": 2,
+  "format": 1,
+  "ok": false
+}

@@ -1,0 +1,72 @@
+{
+  "cars": {
+    "count": 3,
+    "racers": [
+      0,
+      1,
+      2
+    ]
+  },
+  "command": "runs.show",
+  "end": "limit",
+  "exit": 0,
+  "format": 1,
+  "frames": 245,
+  "ok": true,
+  "problems": [
+    {
+      "cars": [
+        1
+      ],
+      "checkpoint": 3,
+      "kind": "stuck",
+      "text": "Simulation: AI got stuck before checkpoint 3",
+      "time": 14.0
+    },
+    {
+      "cars": [
+        2
+      ],
+      "checkpoint": 2,
+      "kind": "crash",
+      "text": "Simulation: AI crashed before checkpoint 2",
+      "time": 20.0
+    }
+  ],
+  "run": "seed1",
+  "seed": 1,
+  "span": {
+    "from": -1.0,
+    "to": 60.0
+  },
+  "standings": [
+    {
+      "best": null,
+      "car": 0,
+      "dnf": false,
+      "laps": [],
+      "name": "Your slot (AI)",
+      "place": 1,
+      "time": 50.0
+    },
+    {
+      "best": null,
+      "car": 2,
+      "dnf": false,
+      "laps": [],
+      "name": "Golf",
+      "place": 2,
+      "time": 58.0
+    },
+    {
+      "best": null,
+      "car": 1,
+      "dnf": true,
+      "laps": [],
+      "name": "Civic",
+      "place": 0,
+      "time": null
+    }
+  ],
+  "what": "r"
+}

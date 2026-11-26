@@ -1,0 +1,19 @@
+{
+  "all": {
+    "barriers": 0,
+    "floors": 0,
+    "floors_not_ground": 0,
+    "invisible": 0,
+    "visible": 0
+  },
+  "command": "collision.show",
+  "counts": [],
+  "exit": 0,
+  "faces_read": 0,
+  "format": 1,
+  "label": "Off",
+  "mod": "<tmp>/docks",
+  "mode": "off",
+  "ok": true,
+  "region": "L4RA"
+}

@@ -1,0 +1,10 @@
+{
+  "command": "runs.rename",
+  "error": {
+    "kind": "failed",
+    "message": "There is a run called other already"
+  },
+  "exit": 1,
+  "format": 1,
+  "ok": false
+}

@@ -666,7 +666,7 @@ picture. scripts/checks/editor_shots.sh runs it at every size of the resolution 
   (`crates/ob-studio-gui/tests/reference/collision-layer.png`, `OB_BLESS=1` writes it again).
 - The simulation's cars: the game writes each car's look and wheels into the stream
   (`src/bin/game/enh/sim_stream.rs`; a car keeps the visual parts it was built with, `Car::look_parts`);
-  `crates/ob-studio-gui/src/editor/sim/record.rs` keeps the looks by time and blends each car between the two
+  `crates/ob-studio/src/runs/record.rs` keeps the looks by time and blends each car between the two
   updates around the time shown (`Recording::cars_at`), and `editor/sim/cars.rs` builds each look once with the
   game's car loader (on up to four threads; a shot waits for them), gives each car its own car renderer and
   draws them right after the world, through `nfsu2::studio_api::{car, render::car}`.

@@ -1,0 +1,131 @@
+{
+  "columns": [
+    {
+      "editable": true,
+      "field": "name",
+      "label": "Name",
+      "type": "text"
+    },
+    {
+      "editable": true,
+      "field": "type",
+      "label": "Mode",
+      "type": "enum"
+    },
+    {
+      "editable": true,
+      "field": "track",
+      "label": "Base track",
+      "type": "int"
+    },
+    {
+      "editable": true,
+      "field": "laps",
+      "label": "Laps",
+      "type": "int"
+    },
+    {
+      "editable": true,
+      "field": "backward",
+      "label": "Backward",
+      "type": "bool"
+    },
+    {
+      "editable": false,
+      "field": "checkpoints",
+      "label": "Checkpoints",
+      "type": "count"
+    }
+  ],
+  "command": "data.show",
+  "count": 2,
+  "exit": 0,
+  "format": 1,
+  "kind": "race",
+  "ok": true,
+  "rows": [
+    {
+      "cells": {
+        "backward": {
+          "from": "yours",
+          "original": null,
+          "text": "no",
+          "yours": true
+        },
+        "checkpoints": {
+          "from": "yours",
+          "original": null,
+          "text": "3 checkpoints",
+          "yours": true
+        },
+        "laps": {
+          "from": "yours",
+          "original": null,
+          "text": "1",
+          "yours": true
+        },
+        "name": {
+          "from": "yours",
+          "original": null,
+          "text": "Sprint",
+          "yours": true
+        },
+        "track": {
+          "from": "yours",
+          "original": null,
+          "text": "4001",
+          "yours": true
+        },
+        "type": {
+          "from": "yours",
+          "original": null,
+          "text": "sprint",
+          "yours": true
+        }
+      },
+      "key": "docks:sprint"
+    },
+    {
+      "cells": {
+        "backward": {
+          "from": "yours",
+          "original": null,
+          "text": "no",
+          "yours": true
+        },
+        "checkpoints": {
+          "from": "yours",
+          "original": null,
+          "text": "1 checkpoint",
+          "yours": true
+        },
+        "laps": {
+          "from": "yours",
+          "original": null,
+          "text": "1",
+          "yours": true
+        },
+        "name": {
+          "from": "yours",
+          "original": null,
+          "text": "Sprint",
+          "yours": true
+        },
+        "track": {
+          "from": "yours",
+          "original": null,
+          "text": "4001",
+          "yours": true
+        },
+        "type": {
+          "from": "yours",
+          "original": null,
+          "text": "sprint",
+          "yours": true
+        }
+      },
+      "key": "docks:short"
+    }
+  ],
+  "total": 2
+}

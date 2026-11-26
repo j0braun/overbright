@@ -485,7 +485,7 @@ impl Playback {
 mod tests {
     use glam::Quat;
 
-    use super::super::format::{CarInfo, SimMode};
+    use crate::runs::format::{CarInfo, SimMode};
     use super::*;
 
     fn car(id: u32, kind: CarKind, x: f32, place: u32) -> CarSample {

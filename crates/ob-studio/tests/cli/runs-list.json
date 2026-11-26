@@ -1,0 +1,25 @@
+{
+  "command": "runs.list",
+  "count": 2,
+  "exit": 0,
+  "format": 1,
+  "ok": true,
+  "runs": [
+    {
+      "bytes": 48322,
+      "end": "limit",
+      "run": "seed2",
+      "seed": 2,
+      "time_ms": 0,
+      "what": "r"
+    },
+    {
+      "bytes": 48388,
+      "end": "limit",
+      "run": "seed1",
+      "seed": 1,
+      "time_ms": 0,
+      "what": "r"
+    }
+  ]
+}

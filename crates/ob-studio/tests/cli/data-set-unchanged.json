@@ -1,0 +1,18 @@
+{
+  "change": {
+    "changed": false,
+    "label": "Rename race",
+    "race": "sprint"
+  },
+  "command": "data.set",
+  "exit": 0,
+  "format": 1,
+  "label": "Rename race",
+  "ok": true,
+  "outcome": "unchanged",
+  "request": {
+    "name": "Docks run",
+    "op": "rename_race",
+    "race": "sprint"
+  }
+}
