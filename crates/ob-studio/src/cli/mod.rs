@@ -17,6 +17,7 @@
 
 pub mod args;
 pub mod diff;
+pub mod find;
 pub mod looks;
 pub mod ops;
 
@@ -81,6 +82,8 @@ pub struct Env {
     /// The game folder unless `--game` gives one: `NFSU2_ROOT`, else the one the launcher set (as the editor and
     /// the game find it).
     pub game: Option<PathBuf>,
+    /// Where [`Env::game`] came from, for `game find`: `NFSU2_ROOT` or `launcher`.
+    pub game_source: &'static str,
     /// The region `.1` of the game folder `.0` as loaded without map mods.
     pub world: Box<dyn Fn(&Path, &str) -> Result<World, String>>,
     /// The game data the checks read, from the game folder.
@@ -94,6 +97,11 @@ impl Env {
     pub fn system() -> Env {
         Env {
             game: nfsu2::studio_api::qol::setup::game_root(),
+            game_source: if std::env::var_os("NFSU2_ROOT").is_some_and(|v| !v.is_empty()) {
+                "NFSU2_ROOT"
+            } else {
+                "launcher"
+            },
             world: Box::new(|root, region| World::load(root, region).map_err(|e| format!("{e:#}"))),
             assets: Box::new(|root| Box::new(GameAssets::new(root.to_path_buf()))),
             poll: Duration::from_millis(50),
@@ -172,6 +180,9 @@ fn dispatch(line: &args::Line, env: &Env) -> Done {
         "checks.run" => with_mod(line, |m| checks(line, env, m)),
         "history.show" => with_mod(line, history_show),
         "pack.export" => with_mod(line, |m| export(line, m)),
+        "modpack.export" => with_mod(line, |m| export_pack(line, m)),
+        "modpack.convert" => convert_pack(line),
+        "props.solids" | "race.tracks" | "looks.find" | "game.find" => find::run(cmd.name, line, env),
         "looks.open" | "looks.import" | "looks.watch" | "looks.list" => {
             with_mod(line, |m| crate::cli::looks::run(cmd.name, line, env, m))
         }
@@ -499,7 +510,11 @@ fn create(line: &args::Line) -> Done {
     let word = text("template").unwrap_or_else(|| "empty".into());
     let Some(template) = crate::create::Template::from_word(&word) else {
         let words: Vec<&str> = crate::create::Template::ALL.iter().map(|t| t.word()).collect();
-        let mut d = fail(USAGE, format!("no template {word}: use {}", words.join(", ")));
+        let mut message = format!("no template {word}: use {}", words.join(", "));
+        if let Some(n) = crate::browse::did_you_mean(&word, words.iter().copied()) {
+            message.push_str(&format!(". Did you mean `{n}`?"));
+        }
+        let mut d = fail(USAGE, message);
         d.doc["error"]["reason"] = json!("bad_template");
         return d;
     };
@@ -555,6 +570,66 @@ fn export(line: &args::Line, m: &Mod) -> Done {
             done
         }
         Err(e) => fail(FAILED, e.to_string()),
+    }
+}
+
+/// The author's choices for a pack file from the flags.
+fn pack_opts(line: &args::Line) -> Result<crate::share::PackOpts, Done> {
+    let version = match line.args.get("version").and_then(Value::as_str) {
+        None => semver::Version::new(1, 0, 0),
+        Some(v) => v.parse().map_err(|_| fail(USAGE, format!("--version: `{v}` is not a version like 1.0.0")))?,
+    };
+    Ok(crate::share::PackOpts {
+        version,
+        licence: line.args.get("licence").and_then(Value::as_str).map(str::to_string),
+        derived_ok: line.args.get("derived-ok").and_then(Value::as_bool).unwrap_or(false),
+    })
+}
+
+fn pack_done(verb: &str, id: &str, e: &crate::share::PackExported, extra: Value, notes: Vec<String>) -> Done {
+    let mut text = vec![format!("{verb} {id} to {} ({} files)", e.to.display(), e.files)];
+    text.extend(notes);
+    let mut doc = json!({ "to": e.to.to_string_lossy(), "id": e.id, "files": e.files, "bytes": e.bytes, "build": crate::share::build() });
+    if let (Value::Object(d), Value::Object(x)) = (&mut doc, extra) {
+        d.extend(x);
+    }
+    Done { code: OK, text, doc }
+}
+
+fn export_pack(line: &args::Line, m: &Mod) -> Done {
+    let to = PathBuf::from(line.args.get("to").and_then(Value::as_str).unwrap_or_default());
+    let o = match pack_opts(line) {
+        Ok(o) => o,
+        Err(d) => return d,
+    };
+    match crate::share::export_pack(&m.dir, &m.folder, &to, &o) {
+        Ok(e) => pack_done("Exported", &m.folder, &e, json!({}), Vec::new()),
+        Err(crate::share::Refused::Derived(d)) => {
+            let message = format!("{} Give --derived-ok to export them.", crate::share::derived_warning(d.len()));
+            let list: Vec<Value> = d.iter().map(|d| json!({ "texture": d.id.to_string(), "name": d.name })).collect();
+            let mut done = fail(FAILED, message);
+            done.doc["error"]["reason"] = json!("derived");
+            done.doc["derived"] = json!(list);
+            done
+        }
+        Err(e) => fail(FAILED, e.to_string()),
+    }
+}
+
+fn convert_pack(line: &args::Line) -> Done {
+    let text = |k: &str| line.args.get(k).and_then(Value::as_str).unwrap_or_default();
+    let o = match pack_opts(line) {
+        Ok(o) => o,
+        Err(d) => return d,
+    };
+    let id = Some(text("id")).filter(|i| !i.is_empty());
+    match crate::share::convert_pack(Path::new(text("from")), Path::new(text("to")), id, &o) {
+        Ok(c) => {
+            let notes: Vec<String> = c.skipped.iter().map(|s| format!("left out: {s}")).collect();
+            pack_done("Converted", &c.exported.id.clone(), &c.exported, json!({ "kind": c.kind, "skipped": c.skipped }), notes)
+        }
+        Err(e) if e.contains("original game's pixels") => fail(FAILED, format!("{e} Give --derived-ok to convert them.")),
+        Err(e) => fail(FAILED, e),
     }
 }
 
@@ -680,7 +755,7 @@ fn history_show(m: &Mod) -> Done {
 
 fn help(cmd: Option<&'static Command>, words: &[String]) -> Done {
     if !words.is_empty() && cmd.is_none() {
-        return fail(USAGE, format!("unknown command `{}`", words.join(" ")));
+        return fail(USAGE, args::unknown_command(words));
     }
     let mut text = Vec::new();
     match cmd {

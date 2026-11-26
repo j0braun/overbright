@@ -8,7 +8,6 @@
 //! towards the camera) or chosen and placed with Ctrl+D. The tiles are
 //! buttons: Tab / the arrows reach them and Enter or Space chooses one.
 
-use std::collections::HashSet;
 
 use egui::{Color32, Rect, RichText, Sense, Stroke, Ui};
 use glam::Vec3;
@@ -17,160 +16,14 @@ use super::props::{colour, ground_under, heading_to_camera, place_new};
 use super::thumbs::Thumbs;
 use super::state::{EditorState, Panel, project};
 use crate::launch::theme::THEME_A;
-use crate::tools::map::edit::MAX_PICK_RADIUS;
-use crate::world::{HIDDEN_FLAG, World};
+#[cfg(test)]
+use crate::world::World;
 
-/// A browser filter. The categories other than knock-over go by the
-/// solid's name (the game's own naming: XC_CONE, XB_BENCH …); a solid
-/// can be in more than one.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
-pub enum Filter {
-    #[default]
-    KnockOver,
-    Barriers,
-    Signs,
-    StreetFurniture,
-    Trees,
-    All,
-}
-
-impl Filter {
-    pub const ALL: [Filter; 6] =
-        [Filter::KnockOver, Filter::Barriers, Filter::Signs, Filter::StreetFurniture, Filter::Trees, Filter::All];
-
-    pub fn name(self) -> &'static str {
-        match self {
-            Filter::KnockOver => "Knock-over",
-            Filter::Barriers => "Barriers",
-            Filter::Signs => "Signs",
-            Filter::StreetFurniture => "Street furniture",
-            Filter::Trees => "Trees",
-            Filter::All => "All in region",
-        }
-    }
-
-    /// The name on a narrow browser.
-    pub fn short(self) -> &'static str {
-        match self {
-            Filter::StreetFurniture => "Street",
-            Filter::All => "All",
-            f => f.name(),
-        }
-    }
-
-    fn words(self) -> &'static [&'static str] {
-        match self {
-            Filter::Barriers => &["BARRIER", "BARRICADE", "JERSEY", "FENCE", "CONE", "BARREL", "BLOCK"],
-            Filter::Signs => &["SIGN", "BILLBOARD", "ARROW"],
-            Filter::StreetFurniture => &[
-                "BENCH", "HYDRANT", "DUMP", "TRASH", "BIN", "MAIL", "PHONE", "METER", "LAMP", "LIGHT", "POLE", "NEWS",
-                "TABLE", "CHAIR", "PLANTER", "BOLLARD",
-            ],
-            Filter::Trees => &["TREE", "PALM", "BUSH", "PLANT", "SHRUB", "HEDGE"],
-            Filter::KnockOver | Filter::All => &[],
-        }
-    }
-
-    /// Whether `e` belongs to this filter.
-    pub fn matches(self, e: &Entry) -> bool {
-        match self {
-            Filter::All => true,
-            Filter::KnockOver => e.knock_over,
-            f => {
-                let n = e.name.to_ascii_uppercase();
-                f.words().iter().any(|w| n.contains(w))
-            }
-        }
-    }
-}
-
-/// One placeable solid.
-#[derive(Clone, Debug, PartialEq)]
-pub struct Entry {
-    pub solid: usize,
-    pub name: String,
-    pub knock_over: bool,
-    /// Shown placements of it in the world (with the mod).
-    pub placed: usize,
-}
+pub use ob_studio::browse::{Entry, Filter, categories, counts, details, entries, filtered};
 
 /// The drag payload of a tile.
 #[derive(Clone, Debug, PartialEq)]
 pub struct DragSolid(pub String);
-
-/// The solids a player can place: those the region places with a matrix
-/// and small enough to pick, with their counts, by name.
-pub fn entries(world: &World) -> Vec<Entry> {
-    let knock: HashSet<usize> =
-        world.smackables.iter().filter_map(|p| world.placements.get(p.placement)).map(|p| p.solid).collect();
-    let mut placed = vec![0usize; world.solids.len()];
-    let mut placeable = vec![false; world.solids.len()];
-    for p in &world.placements {
-        let Some(s) = world.solids.get(p.solid) else { continue };
-        if p.flags & 0x0100 != 0 {
-            continue;
-        }
-        let r = (glam::Vec3::from_array(s.bbox_max) - glam::Vec3::from_array(s.bbox_min)).length() * 0.5;
-        if r > MAX_PICK_RADIUS || r < 0.05 {
-            continue;
-        }
-        placeable[p.solid] = true;
-        if p.flags & HIDDEN_FLAG == 0 {
-            placed[p.solid] += 1;
-        }
-    }
-    let mut out: Vec<Entry> = (0..world.solids.len())
-        .filter(|&i| placeable[i])
-        .map(|i| Entry {
-            solid: i,
-            name: world.solids[i].name.clone(),
-            knock_over: knock.contains(&i),
-            placed: placed[i],
-        })
-        .collect();
-    out.sort_by(|a, b| a.name.cmp(&b.name));
-    out
-}
-
-/// The entries passing `filter` and the search text (any word, case
-/// ignored).
-pub fn filtered<'a>(all: &'a [Entry], filter: Filter, search: &str) -> Vec<&'a Entry> {
-    let words: Vec<String> = search.split_whitespace().map(|w| w.to_ascii_uppercase()).collect();
-    all.iter()
-        .filter(|e| filter.matches(e))
-        .filter(|e| {
-            let n = e.name.to_ascii_uppercase();
-            words.iter().all(|w| n.contains(w.as_str()))
-        })
-        .collect()
-}
-
-/// Each filter's count of the entries matching `search`.
-pub fn counts(all: &[Entry], search: &str) -> Vec<(Filter, usize)> {
-    Filter::ALL.iter().map(|&f| (f, filtered(all, f, search).len())).collect()
-}
-
-/// The categories `e` is in, by name ("Barriers, Signs"); "Other" when
-/// none.
-pub fn categories(e: &Entry) -> String {
-    let c: Vec<&str> = [Filter::Barriers, Filter::Signs, Filter::StreetFurniture, Filter::Trees]
-        .into_iter()
-        .filter(|f| f.matches(e))
-        .map(Filter::name)
-        .collect();
-    if c.is_empty() { "Other".into() } else { c.join(", ") }
-}
-
-/// The details line's words for `e`.
-pub fn details(e: &Entry) -> String {
-    format!(
-        "{} · {} · {} · {} placed in the region",
-        e.name,
-        categories(e),
-        if e.knock_over { "knock-over" } else { "static" },
-        e.placed
-    )
-}
 
 /// A tile's size (points): the picture, the name, the kind.
 pub const TILE: egui::Vec2 = egui::vec2(112.0, 92.0);

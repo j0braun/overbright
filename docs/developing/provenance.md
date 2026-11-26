@@ -1,6 +1,6 @@
 # Provenance tags (2026-11-05)
 
-Not native: review tooling. The docs say which values are **verified**
+Not native: review tooling. The tags used in the docs are defined in [evidence.md](evidence.md). The docs say which values are **verified**
 (traced), **inferred** or **open** (docs/formats.md, top); until now that
 was prose only, so a code site resting on an inferred value was invisible
 at review time. Now such a site carries a machine-checked tag:

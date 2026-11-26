@@ -1,0 +1,13 @@
+{
+  "build": "<build>",
+  "bytes": 1245,
+  "command": "modpack.convert",
+  "exit": 0,
+  "files": 4,
+  "format": 1,
+  "id": "docks-old",
+  "kind": "map mod",
+  "ok": true,
+  "skipped": [],
+  "to": "<tmp>/converted/docks-old-1.0.0.obpk"
+}

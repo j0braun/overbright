@@ -22,6 +22,7 @@ and the [developer guide](developer-guide.md).
 | [Differential parity harness](parity-harness.md) | The harness that runs Overbright and the original from one start and compares them. |
 | [Traffic parity harness](../traffic-harness.md) | Seeded headless traffic sessions compared with the original's statistics. |
 | [Performance harness and gates](perf-gates.md) | The gates a performance change runs before and after. |
+| [Evidence register and test rules](evidence.md) | The tags for claims about the original (observed, traced, inferred, choice, open), the check that enforces them, and two rules for test code and visual changes. |
 | [Provenance tags](provenance.md) | How docs mark values as verified, observed, inferred or open. |
 
 ## How the program is built

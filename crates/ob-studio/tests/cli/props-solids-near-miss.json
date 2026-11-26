@@ -1,0 +1,10 @@
+{
+  "command": "props.solids",
+  "count": 0,
+  "did_you_mean": "barrier",
+  "exit": 0,
+  "format": 1,
+  "ok": true,
+  "region": "L4RA",
+  "solids": []
+}

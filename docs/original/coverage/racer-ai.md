@@ -8,7 +8,7 @@ route layer"), and for drag and drift in [formats/career-1.md](../../formats/car
 [formats/career-2.md](../../formats/career-2.md).
 
 "Ours" names the file under `src/` and the function; `ai/` is `src/ai/`, `sim/` is
-`src/bin/game/sim/`. Evidence words: **verified** (read in the original's code), **observed** (read in
+`src/bin/game/sim/`. Evidence words: **traced** (read in the original's code), **observed** (read in
 the original under Wine), **inferred**, **open**. Comparisons in races use the
 [parity harness](../../developing/parity-harness.md) (same save, grid, cars and inputs in both games)
 and are summarised in [race-ai-parity.md](../../notes/parity/race-ai-parity.md).
@@ -47,47 +47,47 @@ rate"); older real-time runs on wined3d at an unknown frame rate are indicative 
 
 | Address | Name | What it does | Ours | Status | Evidence | Risk |
 |---|---|---|---|---|---|---|
-| 0x4260B0 | — (racer controller ctor, type 3) | controller plus driver: CarDriver 0x425AB0, DriftDriver 0x425E40 in drift | `sim/ai/racer.rs`, `ai/driver/mod.rs` | **PORTED** | verified | low |
-| 0x42ABD0 | AIRacer_Think | full think on the frame counter's slot (mod 8, mod 4 in drag) and 0.2 s after the last; fallback in between | `sim/ai/racer.rs:racer_think`, `ai/encounter_controller.rs:ThinkSchedule` | **PORTED** | verified; observed: action changes fall on one residue mod 8 per rival in both games. The original's slot counts frames, so its think comes about every 0.27 s at 60 fps and 0.2 s at 120; compare at fixed 1/60 | low |
-| 0x420810 | — (controller think) | catch-up refresh, path hand-over, driver step | `ai/route/path.rs:take_replanned`, `sim/ai/racer.rs:racer_driver_step` | **PORTED** | verified | low |
-| 0x42C060, 0x42AA20 | —, AIController_SetGoal | the race goal at the green (1, or 2 / 3 in drag) | `sim/ai/racer.rs:racer_think` | **PORTED** | verified; observed goal 1 and action 6 on the frame after the green | low |
-| 0x42D0F0 | GoalWinRoadRace_Choose | GetUnstuck, IJustGotHit, AvoidAvoidable, AccidentRecovery, Block, Pass, JustDrive by priority | `ai/actions/manager.rs:think`, `choose` | **PORTED** | verified | low |
-| 0x408280 | — (controller vt+0x9C, willingness) | refuse an object for 1 s, else a world-generator draw under the row's odds | `ai/actions/manager.rs:willing` | **PORTED** | verified, the draw on the shared generator | low |
-| 0x403120, 0x401990, 0x4234A0, 0x403560 | AIAction_Status, AIAction_IsDone, AIAction_Ctor | action status, replace by priority, base ctor | `ai/actions/manager.rs:done` | **PORTED** | verified | low |
-| 0x41BCF0, 0x413CC0 | —, RaceGoal_TakeJunction | goal slot 10: take a junction by the skill row's odds (shortcuts) | `ai/route/walk.rs`, `sim/ai/racer.rs:racer_think` | **PORTED** | verified (0x413E33–0x413EC9, world generator at 0x413DCB / 0x413E57) | low |
-| 0x5EF000 | — (start hold) | racers 100–105 wait 12 − 0.5·(n − 100) s before branches, passes and unsticking; none in a drag race (0x89E7D8 / 0x890108, verified) | `ai/route/walk.rs:start_hold` | **GUESSED** | verified rule; the racer number 100 + i is observed in Quick Race only, inferred for career | low |
-| 0x40D980 | AICtl_HumanSpeedJitter | every 1 s a factor 1 ± 0.1 (world generator) for a human-class car with car +0x9A8 set, else 1 | — | **MISSING** | verified in this map's trace; the reader of controller +0x790 and the meaning of car +0x9A8 are **open**; never runs for AI racers (class 2) | low (draw order when it runs) |
+| 0x4260B0 | — (racer controller ctor, type 3) | controller plus driver: CarDriver 0x425AB0, DriftDriver 0x425E40 in drift | `sim/ai/racer.rs`, `ai/driver/mod.rs` | **PORTED** | traced | low |
+| 0x42ABD0 | AIRacer_Think | full think on the frame counter's slot (mod 8, mod 4 in drag) and 0.2 s after the last; fallback in between | `sim/ai/racer.rs:racer_think`, `ai/encounter_controller.rs:ThinkSchedule` | **PORTED** | traced; observed: action changes fall on one residue mod 8 per rival in both games. The original's slot counts frames, so its think comes about every 0.27 s at 60 fps and 0.2 s at 120; compare at fixed 1/60 | low |
+| 0x420810 | — (controller think) | catch-up refresh, path hand-over, driver step | `ai/route/path.rs:take_replanned`, `sim/ai/racer.rs:racer_driver_step` | **PORTED** | traced | low |
+| 0x42C060, 0x42AA20 | —, AIController_SetGoal | the race goal at the green (1, or 2 / 3 in drag) | `sim/ai/racer.rs:racer_think` | **PORTED** | traced; observed goal 1 and action 6 on the frame after the green | low |
+| 0x42D0F0 | GoalWinRoadRace_Choose | GetUnstuck, IJustGotHit, AvoidAvoidable, AccidentRecovery, Block, Pass, JustDrive by priority | `ai/actions/manager.rs:think`, `choose` | **PORTED** | traced | low |
+| 0x408280 | — (controller vt+0x9C, willingness) | refuse an object for 1 s, else a world-generator draw under the row's odds | `ai/actions/manager.rs:willing` | **PORTED** | traced, the draw on the shared generator | low |
+| 0x403120, 0x401990, 0x4234A0, 0x403560 | AIAction_Status, AIAction_IsDone, AIAction_Ctor | action status, replace by priority, base ctor | `ai/actions/manager.rs:done` | **PORTED** | traced | low |
+| 0x41BCF0, 0x413CC0 | —, RaceGoal_TakeJunction | goal slot 10: take a junction by the skill row's odds (shortcuts) | `ai/route/walk.rs`, `sim/ai/racer.rs:racer_think` | **PORTED** | traced (0x413E33–0x413EC9, world generator at 0x413DCB / 0x413E57) | low |
+| 0x5EF000 | — (start hold) | racers 100–105 wait 12 − 0.5·(n − 100) s before branches, passes and unsticking; none in a drag race (0x89E7D8 / 0x890108, traced) | `ai/route/walk.rs:start_hold` | **GUESSED** | traced rule; the racer number 100 + i is observed in Quick Race only, inferred for career | low |
+| 0x40D980 | AICtl_HumanSpeedJitter | every 1 s a factor 1 ± 0.1 (world generator) for a human-class car with car +0x9A8 set, else 1 | — | **MISSING** | traced in this map's trace; the reader of controller +0x790 and the meaning of car +0x9A8 are **open**; never runs for AI racers (class 2) | low (draw order when it runs) |
 
 ## Route, driving line and speed
 
 | Address | Name | What it does | Ours | Status | Evidence | Risk |
 |---|---|---|---|---|---|---|
-| 0x42CDC0, 0x413590, 0x5E2E50 | — | road node search: race records by mask, coordinate range first | `ai/route/walk.rs:find`, `restart` | **SIMPLIFIED** | verified; the old-node direction blend is not used and the walk's start passes no race coordinate (the record decides in a race) | low |
-| 0x422220, 0x41EC20, 0x418C50, 0x418DA0, 0x41A180 | AIRoute_Walk, … | the racer's walk: points, 8 m fill points, Hermite bend of the lane offsets | `ai/route/walk.rs` | **PORTED** | verified; read under Wine (record 476 and 655 fill points) | low |
-| 0x41EE20, 0x418A50, 0x40B0B0 | AIWalk_AddTurn | corner apex at a bit-26 junction: trim, insert, walk to the apex | `ai/route/walk.rs` (lane line at s_t) | **SIMPLIFIED** | verified; the clone takes the lane line at s_t and skips the trim and insert; the comparands' vectors are **open** | med: line through turn junctions |
-| 0x422780, 0x419000 | —, AIWalk_BendTurnLanes | after the speeds, bend the lane offsets of each turn record (+0xD0, 0x80 bytes) on Hermite curves | — | **MISSING** | verified in this map's trace (0x419000 adds 0x4123C0 of a Hermite blend to each walk point's +0x04 over a turn's points) | med: same as the apex row |
-| 0x40A8C0, 0x411DD0 | — | lane speed bytes per point; speed at s | `ai/route/lane_speeds.rs`, `ai/route/query.rs` | **PORTED** | verified | low |
-| 0x5E9E90, 0x5DDFD0, 0x5E8790 | — | racing-line speeds rewritten at race load (50 rounds), by speed mode and class | `ai/route/lane_speeds.rs:racing_speeds` | **SIMPLIFIED** | verified; observed career class 0 at load; the writer of that 0 is **open** and taken as observed | low |
-| 0x42B340, 0x41D530, 0x420D40, 0x40FC80 | — (JustDrive path) | the next 20 points, back to the line at 0.05 m per m (0.2 in Street X) | `ai/route/path.rs:line_path`, `ai/actions/manager.rs:just_drive` | **PORTED** | verified; observed: JustDrive held the plain plan in 971 of 973 samples, the clone the same | low |
-| 0x41C5E0 | — (target speed) | speed at s + a 5-s offset draw × row factor × catch-up | `ai/route/target_speed.rs`, `sim/encounters/ai.rs:goal_speed` | **PORTED** | verified; draw on the shared generator | low |
-| 0x4172D0, 0x4084A0, 0x413390 | — (catch-up) | every 0.3 s: gap curves by skill, line-speed term, fade; off in drag and drift | `ai/route/target_speed.rs:catch_up_multiplier` | **PORTED** | verified; observed +0x770 0.6267 / 0.6514 equal to the formula; career circuit 0.774–0.798 vs 0.796–0.808 | low |
-| 0x40F690, 0x5EB210 | — | the human's line-speed mean for the catch-up | `sim/race/step.rs:race_ai_pass`, `ai/route/target_speed.rs` | **SIMPLIFIED** | verified; the human's road node uses the human-mask search, which is still partly **open** (racer +0x8FC) | low |
-| 0x415F80, 0x404EF0 | AIDriver_LookAhead, AI_PathFirstAhead | look-ahead point on the path, corner excess × 7 in the first 5 s | `ai/driver/car.rs` | **PORTED** | verified; observed look-ahead within 0.25 m in Street X | low |
-| 0x415F80 curve 0x7E9DE4 | — | look-ahead class curve on movers 3 / 4 | — | **NOT NEEDED** | verified: no racer car takes it in the retail data | none |
+| 0x42CDC0, 0x413590, 0x5E2E50 | — | road node search: race records by mask, coordinate range first | `ai/route/walk.rs:find`, `restart` | **SIMPLIFIED** | traced; the old-node direction blend is not used and the walk's start passes no race coordinate (the record decides in a race) | low |
+| 0x422220, 0x41EC20, 0x418C50, 0x418DA0, 0x41A180 | AIRoute_Walk, … | the racer's walk: points, 8 m fill points, Hermite bend of the lane offsets | `ai/route/walk.rs` | **PORTED** | traced; read under Wine (record 476 and 655 fill points) | low |
+| 0x41EE20, 0x418A50, 0x40B0B0 | AIWalk_AddTurn | corner apex at a bit-26 junction: trim, insert, walk to the apex | `ai/route/walk.rs` (lane line at s_t) | **SIMPLIFIED** | traced; the clone takes the lane line at s_t and skips the trim and insert; the comparands' vectors are **open** | med: line through turn junctions |
+| 0x422780, 0x419000 | —, AIWalk_BendTurnLanes | after the speeds, bend the lane offsets of each turn record (+0xD0, 0x80 bytes) on Hermite curves | — | **MISSING** | traced in this map's trace (0x419000 adds 0x4123C0 of a Hermite blend to each walk point's +0x04 over a turn's points) | med: same as the apex row |
+| 0x40A8C0, 0x411DD0 | — | lane speed bytes per point; speed at s | `ai/route/lane_speeds.rs`, `ai/route/query.rs` | **PORTED** | traced | low |
+| 0x5E9E90, 0x5DDFD0, 0x5E8790 | — | racing-line speeds rewritten at race load (50 rounds), by speed mode and class | `ai/route/lane_speeds.rs:racing_speeds` | **SIMPLIFIED** | traced; observed career class 0 at load; the writer of that 0 is **open** and taken as observed | low |
+| 0x42B340, 0x41D530, 0x420D40, 0x40FC80 | — (JustDrive path) | the next 20 points, back to the line at 0.05 m per m (0.2 in Street X) | `ai/route/path.rs:line_path`, `ai/actions/manager.rs:just_drive` | **PORTED** | traced; observed: JustDrive held the plain plan in 971 of 973 samples, the clone the same | low |
+| 0x41C5E0 | — (target speed) | speed at s + a 5-s offset draw × row factor × catch-up | `ai/route/target_speed.rs`, `sim/encounters/ai.rs:goal_speed` | **PORTED** | traced; draw on the shared generator | low |
+| 0x4172D0, 0x4084A0, 0x413390 | — (catch-up) | every 0.3 s: gap curves by skill, line-speed term, fade; off in drag and drift | `ai/route/target_speed.rs:catch_up_multiplier` | **PORTED** | traced; observed +0x770 0.6267 / 0.6514 equal to the formula; career circuit 0.774–0.798 vs 0.796–0.808 | low |
+| 0x40F690, 0x5EB210 | — | the human's line-speed mean for the catch-up | `sim/race/step.rs:race_ai_pass`, `ai/route/target_speed.rs` | **SIMPLIFIED** | traced; the human's road node uses the human-mask search, which is still partly **open** (racer +0x8FC) | low |
+| 0x415F80, 0x404EF0 | AIDriver_LookAhead, AI_PathFirstAhead | look-ahead point on the path, corner excess × 7 in the first 5 s | `ai/driver/car.rs` | **PORTED** | traced; observed look-ahead within 0.25 m in Street X | low |
+| 0x415F80 curve 0x7E9DE4 | — | look-ahead class curve on movers 3 / 4 | — | **NOT NEEDED** | traced: no racer car takes it in the retail data | none |
 | 0x419E10 | AI_ListBend | the bend used by the pass side | `ai/route/query.rs:bend` | **GUESSED** | the value from three line points (0x419F39 on) is **inferred** | low |
 
 ## Low-level driver
 
 | Address | Name | What it does | Ours | Status | Evidence | Risk |
 |---|---|---|---|---|---|---|
-| 0x425AB0 | CarDriver_Ctor | driver, throttle cap +0x22C by difficulty for class 2 | `ai/driver/mod.rs` | **PORTED** | verified (0x425B44–0x425B67) | low |
-| 0x421030 | AIDriver_Update | mode by mover, look-ahead, steering, pedals, countdown, nitrous hold | `ai/driver/car.rs` | **PORTED** | verified; observed frame 0 and 1 at the green match | low |
-| 0x409B50, 0x409DA0, 0x579F30, 0x576980 | — (adaptive PID, running mean) | steering and speed PIDs | `ai/driver/pid.rs` | **PORTED** | verified | low |
-| 0x41D8D0, 0x4183F0, 0x576BC0 | AIDriver_SpeedControl, — | speed control and its trackers | `ai/driver/car.rs` | **PORTED** | verified | low |
-| 0x43E6D0 | — (angles) | arcsine table angles | `ai/driver/math.rs:angle16` | **PORTED** | verified | low |
-| 0x59FA40 | — (nitrous hold) | when the driver holds nitrous | `ai/driver/car.rs` (`nitrous_hold`) | **PORTED** | verified | low |
-| 0x4057C0 | — (slip trackers) | slip of the driven pair | `ai/driver/car.rs:track_slip` | **PORTED** | verified, observed | low |
-| 0x425E40, 0x416120 | CarDriver_DriftCtor | DriftDriver: hold, target ≤ 31.29 m/s | `ai/driver/drift.rs` | **PORTED** | verified | low |
+| 0x425AB0 | CarDriver_Ctor | driver, throttle cap +0x22C by difficulty for class 2 | `ai/driver/mod.rs` | **PORTED** | traced (0x425B44–0x425B67) | low |
+| 0x421030 | AIDriver_Update | mode by mover, look-ahead, steering, pedals, countdown, nitrous hold | `ai/driver/car.rs` | **PORTED** | traced; observed frame 0 and 1 at the green match | low |
+| 0x409B50, 0x409DA0, 0x579F30, 0x576980 | — (adaptive PID, running mean) | steering and speed PIDs | `ai/driver/pid.rs` | **PORTED** | traced | low |
+| 0x41D8D0, 0x4183F0, 0x576BC0 | AIDriver_SpeedControl, — | speed control and its trackers | `ai/driver/car.rs` | **PORTED** | traced | low |
+| 0x43E6D0 | — (angles) | arcsine table angles | `ai/driver/math.rs:angle16` | **PORTED** | traced | low |
+| 0x59FA40 | — (nitrous hold) | when the driver holds nitrous | `ai/driver/car.rs` (`nitrous_hold`) | **PORTED** | traced | low |
+| 0x4057C0 | — (slip trackers) | slip of the driven pair | `ai/driver/car.rs:track_slip` | **PORTED** | traced, observed | low |
+| 0x425E40, 0x416120 | CarDriver_DriftCtor | DriftDriver: hold, target ≤ 31.29 m/s | `ai/driver/drift.rs` | **PORTED** | traced | low |
 | 0x421030 at status 3 | — (countdown and green) | gas 1, brake 1, gear 1 in the countdown; release at the green | `ai/driver/car.rs:scene_hold`, `green_release` | **PORTED** | observed in circuit, sprint, Street X, drag (`circuit_cd`) | low |
 | — (who clears the brake at the green) | — | the green's update releases the brake | `ai/driver/car.rs:green_release` | **GUESSED** | observed only; the writer is **open** | low |
 
@@ -95,48 +95,48 @@ rate"); older real-time runs on wined3d at an unknown frame rate are indicative 
 
 | Address | Name | What it does | Ours | Status | Evidence | Risk |
 |---|---|---|---|---|---|---|
-| 0x42B570, 0x4235A0 | — (JustDrive) | plain plan; hand-back of a pass / block offset when clear | `ai/actions/manager.rs:just_drive` | **PORTED** | verified | low |
-| 0x40E390 | AIDriver_NitrousRequest | nitrous ask in JustDrive, Pass and AvoidAvoidable (far) | `ai/actions/manager.rs` (JustDrive only) | **MISSING** | verified calls; not ported in Pass (target within 5 m/s) and AvoidAvoidable (far); the racers' nitrous outside drag is **open** | med: rivals pull away less on straights |
-| 0x42B5B0, 0x429890, 0x41D2D0 | — (Pass proposal, plan beside, side) | find a racer ahead to pass; offset beside it | `ai/actions/plans.rs:find_pass`, `pass_plan`, `side` | **PORTED** | verified; observed Pass at rate 0.05, offsets ±4.0…6.2 m vs ours ±2.9…6.0 m | low |
-| 0x42B940, 0x42B7F0, 0x40E4A0 | — (Pass update, done, given up) | keep the side plan, retarget, end after 3 s | `ai/actions/manager.rs:pass` | **PORTED** | verified | low |
-| 0x403A40 | AI_CanReach | can the car reach a target: accelerations against the gap | `ai/actions/entries.rs:reachable` | **GUESSED** | verified formula; the accelerations are taken from the velocity change over a frame (**inferred**) | low |
-| 0x414130, 0x423A10, 0x41CC40, 0x40E5D0 | — (Block) | block a faster racer behind; offset onto it | `ai/actions/plans.rs:find_block`, `ai/actions/manager.rs:block` | **PORTED** | verified; rows 200 / 200 / 400 by racer row (observed 1 for every rival); not seen under Wine (no follower close enough) | low |
-| 0x428DF0, 0x428CE0, 0x4275E0, 0x420B80 | — (clear test, sweep) | sweep the car along its path against the others' paths for 3 s | `ai/actions/sweep.rs:clear`, `sweep`, `predicted` | **SIMPLIFIED** | verified; a traffic car on its road (vt+0x2C 0x40D4F0 ≤ −0.25) swept along its driver's path; not ported: a car going backwards (0x425910 / 0x425980), the human's path (taken as a traffic car's prediction, `ai.actions.swept`) | low |
-| 0x6148F0 | AIPlanner_BuildRoadEntries | the objects around the car | `ai/actions/entries.rs:entries` | **SIMPLIFIED** | verified; extents from the handling dimensions (**inferred**), no race-coordinate window and object filter (0x5EC070, car +0x550) | low |
+| 0x42B570, 0x4235A0 | — (JustDrive) | plain plan; hand-back of a pass / block offset when clear | `ai/actions/manager.rs:just_drive` | **PORTED** | traced | low |
+| 0x40E390 | AIDriver_NitrousRequest | nitrous ask in JustDrive, Pass and AvoidAvoidable (far) | `ai/actions/manager.rs` (JustDrive only) | **MISSING** | traced calls; not ported in Pass (target within 5 m/s) and AvoidAvoidable (far); the racers' nitrous outside drag is **open** | med: rivals pull away less on straights |
+| 0x42B5B0, 0x429890, 0x41D2D0 | — (Pass proposal, plan beside, side) | find a racer ahead to pass; offset beside it | `ai/actions/plans.rs:find_pass`, `pass_plan`, `side` | **PORTED** | traced; observed Pass at rate 0.05, offsets ±4.0…6.2 m vs ours ±2.9…6.0 m | low |
+| 0x42B940, 0x42B7F0, 0x40E4A0 | — (Pass update, done, given up) | keep the side plan, retarget, end after 3 s | `ai/actions/manager.rs:pass` | **PORTED** | traced | low |
+| 0x403A40 | AI_CanReach | can the car reach a target: accelerations against the gap | `ai/actions/entries.rs:reachable` | **GUESSED** | traced formula; the accelerations are taken from the velocity change over a frame (**inferred**) | low |
+| 0x414130, 0x423A10, 0x41CC40, 0x40E5D0 | — (Block) | block a faster racer behind; offset onto it | `ai/actions/plans.rs:find_block`, `ai/actions/manager.rs:block` | **PORTED** | traced; rows 200 / 200 / 400 by racer row (observed 1 for every rival); not seen under Wine (no follower close enough) | low |
+| 0x428DF0, 0x428CE0, 0x4275E0, 0x420B80 | — (clear test, sweep) | sweep the car along its path against the others' paths for 3 s | `ai/actions/sweep.rs:clear`, `sweep`, `predicted` | **SIMPLIFIED** | traced; a traffic car on its road (vt+0x2C 0x40D4F0 ≤ −0.25) swept along its driver's path; not ported: a car going backwards (0x425910 / 0x425980), the human's path (taken as a traffic car's prediction, `ai.actions.swept`) | low |
+| 0x6148F0 | AIPlanner_BuildRoadEntries | the objects around the car | `ai/actions/entries.rs:entries` | **SIMPLIFIED** | traced; extents from the handling dimensions (**inferred**), no race-coordinate window and object filter (0x5EC070, car +0x550) | low |
 | 0x404910 | AI_EntryReach | the reach max(125 m, speed × vt+0x60) | `ai/actions/entries.rs:reach` | **SIMPLIFIED** | the vt+0x60 term is **open** (`ai.actions.predicted`) | low |
-| 0x42BA20, 0x4243B0, 0x42F330, 0x428FD0, 0x42BA80 | — (AvoidAvoidable) | step the offset in the room, else the 999 fallback; near / far speed | `ai/actions/manager.rs:avoid`, `ai/actions/plans.rs:avoid_plan` | **SIMPLIFIED** | verified; observed rate 999 and −6.5 m; not ported: +0x220's road-section test (never set in races seen), the nitrous ask; contact kind taken as any car contact (**inferred**) | low |
-| 0x423CC0, 0x403320, 0x402AE0, 0x423E20, 0x41CC90 | — (IJustGotHit) | move off the hitter at rate 0.25; speed by who hit | `ai/actions/manager.rs:got_hit` | **SIMPLIFIED** | verified; observed type 0xB at 400, rates 0.25 / 0.05; 0x40DF50's road-edge state is taken as never (**open**) | low |
-| 0x423E20 tail (0x424083 …) | — | reversing out past an edge: target from 0x40DEE0, rest skipped | — | **MISSING** | verified, not ported | low |
-| 0x4241C0, 0x424210, 0x4033D0, 0x6012C0 | — (AccidentRecovery) | a rolled racer waits 5 s, then the reset on its road node | `ai/actions/manager.rs:recover`, `sim/race/frame.rs:reset_rival` | **GUESSED** | verified; the node is the walk's current FuturePoint (**inferred**); a drag lane's lateral (0x403DB0 / 0x5E2DB0) not ported | low |
-| 0x5ECF30 | Car_SetDebugTint | debug colour from Block and AvoidAvoidable | — | **NOT NEEDED** | verified: a debug tint | none |
+| 0x42BA20, 0x4243B0, 0x42F330, 0x428FD0, 0x42BA80 | — (AvoidAvoidable) | step the offset in the room, else the 999 fallback; near / far speed | `ai/actions/manager.rs:avoid`, `ai/actions/plans.rs:avoid_plan` | **SIMPLIFIED** | traced; observed rate 999 and −6.5 m; not ported: +0x220's road-section test (never set in races seen), the nitrous ask; contact kind taken as any car contact (**inferred**) | low |
+| 0x423CC0, 0x403320, 0x402AE0, 0x423E20, 0x41CC90 | — (IJustGotHit) | move off the hitter at rate 0.25; speed by who hit | `ai/actions/manager.rs:got_hit` | **SIMPLIFIED** | traced; observed type 0xB at 400, rates 0.25 / 0.05; 0x40DF50's road-edge state is taken as never (**open**) | low |
+| 0x423E20 tail (0x424083 …) | — | reversing out past an edge: target from 0x40DEE0, rest skipped | — | **MISSING** | traced, not ported | low |
+| 0x4241C0, 0x424210, 0x4033D0, 0x6012C0 | — (AccidentRecovery) | a rolled racer waits 5 s, then the reset on its road node | `ai/actions/manager.rs:recover`, `sim/race/frame.rs:reset_rival` | **GUESSED** | traced; the node is the walk's current FuturePoint (**inferred**); a drag lane's lateral (0x403DB0 / 0x5E2DB0) not ported | low |
+| 0x5ECF30 | Car_SetDebugTint | debug colour from Block and AvoidAvoidable | — | **NOT NEEDED** | traced: a debug tint | none |
 
 ## Mistakes and recovery (GetUnstuck)
 
 | Address | Name | What it does | Ours | Status | Evidence | Risk |
 |---|---|---|---|---|---|---|
-| 0x40E7C0, 0x423C30, 0x426230 | — (stuck test, ctor) | off route over 20 m, leaving the road, or a front / side contact while slow; once per 6 s | `ai/driver/unstuck.rs:update` | **PORTED** | verified; start hold and the AccidentRecovery priority rule ported | low |
-| 0x420940, 0x404CD0 | — (GetUnstuck begin) | reverse at −6 m/s (−15 for class 3) along the route, steering mirrored | `ai/driver/unstuck.rs:first_path`, `travel_frame` | **PORTED** | verified | low |
-| 0x40E9F0, 0x414440, 0x4143F0, 0x4032A0 | — (given up, done, facing point) | end on a rear contact, leaving the road, or facing the point | `ai/driver/unstuck.rs:update`, `facing`, `ai/route/path.rs:facing_point` | **PORTED** | verified | low |
-| 0x40DF50, 0x401C10, 0x402A40 | — | leaving the road; past the edge; contact side | `ai/driver/unstuck.rs:leaving_road`, `past_edge`, `contact_side` | **PORTED** | verified | low |
-| 0x4083E0, 0x40D4F0, 0x42C2F6 | — | minimum run 1.3 s, 1.6 s when off the road and the progress mean is low | `ai/driver/unstuck.rs:travel_frame` | **GUESSED** | verified; the clone treats every race as a coordinate race (**inferred**) | low |
+| 0x40E7C0, 0x423C30, 0x426230 | — (stuck test, ctor) | off route over 20 m, leaving the road, or a front / side contact while slow; once per 6 s | `ai/driver/unstuck.rs:update` | **PORTED** | traced; start hold and the AccidentRecovery priority rule ported | low |
+| 0x420940, 0x404CD0 | — (GetUnstuck begin) | reverse at −6 m/s (−15 for class 3) along the route, steering mirrored | `ai/driver/unstuck.rs:first_path`, `travel_frame` | **PORTED** | traced | low |
+| 0x40E9F0, 0x414440, 0x4143F0, 0x4032A0 | — (given up, done, facing point) | end on a rear contact, leaving the road, or facing the point | `ai/driver/unstuck.rs:update`, `facing`, `ai/route/path.rs:facing_point` | **PORTED** | traced | low |
+| 0x40DF50, 0x401C10, 0x402A40 | — | leaving the road; past the edge; contact side | `ai/driver/unstuck.rs:leaving_road`, `past_edge`, `contact_side` | **PORTED** | traced | low |
+| 0x4083E0, 0x40D4F0, 0x42C2F6 | — | minimum run 1.3 s, 1.6 s when off the road and the progress mean is low | `ai/driver/unstuck.rs:travel_frame` | **GUESSED** | traced; the clone treats every race as a coordinate race (**inferred**) | low |
 
 ## Movers
 
 | Address | Name | What it does | Ours | Status | Evidence | Risk |
 |---|---|---|---|---|---|---|
-| 0x42C0C7–0x42C2DE, 0x402450, 0x5F4410 | —, RacerCtl_OnContact | physics hold 5 s, then MeloMvr (3) or BeltMover (4) by the world loaded | `sim/ai/mover.rs:racer_mover`, `belt_wanted`, `leave_belt` | **PORTED** | verified; observed rivals on mode 3 after the hold, 4 out of the loaded world | low |
-| 0x5A9040, 0x59EC90 | — (BeltMover) | belt line with constant acceleration | `ai/belt.rs:build`, `step` | **SIMPLIFIED** | verified; the hand-back to physics on a belt contact stays out (**open**: the clone's belt lines cross race barriers); lap times within 0.5–1.5 s by row | med: a rival on a belt can lose time against a barrier |
+| 0x42C0C7–0x42C2DE, 0x402450, 0x5F4410 | —, RacerCtl_OnContact | physics hold 5 s, then MeloMvr (3) or BeltMover (4) by the world loaded | `sim/ai/mover.rs:racer_mover`, `belt_wanted`, `leave_belt` | **PORTED** | traced; observed rivals on mode 3 after the hold, 4 out of the loaded world | low |
+| 0x5A9040, 0x59EC90 | — (BeltMover) | belt line with constant acceleration | `ai/belt.rs:build`, `step` | **SIMPLIFIED** | traced; the hand-back to physics on a belt contact stays out (**open**: the clone's belt lines cross race barriers); lap times within 0.5–1.5 s by row | med: a rival on a belt can lose time against a barrier |
 
 ## Per race type
 
 | Address | Name | What it does | Ours | Status | Evidence | Risk |
 |---|---|---|---|---|---|---|
-| 0x42D470 | AI_ChooseAction | GetUnstuck, type 0x12, wall hit 0xF, hit 0xC, AvoidAvoidable, else Drive Traffic Lane | `ai/drag.rs`, `ai/actions/drag.rs:drag_avoid` | **SIMPLIFIED** | verified list; GetUnstuck, AvoidAvoidable and the lane action ported; the chooser's tests for 0xF / 0xC / 0x12 not traced | med |
-| 0x403450, 0x4249C0 | — (wall hit in drag, 0xF) | after a wall contact: nearest lane, offset 0, rate 0.151 | — | **MISSING** | verified apply test and update; not ported | med: drag rival after a wall touch |
+| 0x42D470 | AI_ChooseAction | GetUnstuck, type 0x12, wall hit 0xF, hit 0xC, AvoidAvoidable, else Drive Traffic Lane | `ai/drag.rs`, `ai/actions/drag.rs:drag_avoid` | **SIMPLIFIED** | traced list; GetUnstuck, AvoidAvoidable and the lane action ported; the chooser's tests for 0xF / 0xC / 0x12 not traced | med |
+| 0x403450, 0x4249C0 | — (wall hit in drag, 0xF) | after a wall contact: nearest lane, offset 0, rate 0.151 | — | **MISSING** | traced apply test and update; not ported | med: drag rival after a wall touch |
 | 0x403410, 0x424560 (0xC), 0x42DCB0 (0x12) | — (drag got-hit, type 0x12) | drag hit and type 0x12 actions | — | **MISSING**, in change | ctors traced only; update and end **open**. Observed at fixed 1/60 after a shove (9 runs): the original's rival is back within 0.5 m of a lane centre in 0.09 s (p50), is more than 1 m off a lane in 0.06 of moving samples, takes the got-hit action (0xC) in 8 % of the samples in the second after a contact (mostly it keeps the lane action 7 or AvoidAvoidable) and is never totaled. A port in change does not match yet (0.67 s, 0.15, 30 %, 0.9 totals per run): see gap 3 | med |
 | 0x4242D0, 0x420ED0, 0x410CA0 | — (Drive Traffic Lane in drag) | the drag lane; target 1000 | `ai/drag.rs`, `ai/actions/drag.rs` | **PORTED** | observed target 1000; lane path steer within 0.03° | low |
-| — (drag shifts) | — | shift offset from the skill row, shown rpm, grade | `ai/drag.rs` | **PORTED** | verified and observed (drag shift sweep) | low |
-| — (Street X) | — | line rate 0.2, no Block, facing point 1 ahead, catch-up bytes 0 | `ai/route/path.rs:line_path`, `ai/actions/manager.rs` | **PORTED** | verified; observed steer within 0.05° for 4 frames | low |
+| — (drag shifts) | — | shift offset from the skill row, shown rpm, grade | `ai/drag.rs` | **PORTED** | traced and observed (drag shift sweep) | low |
+| — (Street X) | — | line rate 0.2, no Block, facing point 1 ahead, catch-up bytes 0 | `ai/route/path.rs:line_path`, `ai/actions/manager.rs` | **PORTED** | traced; observed steer within 0.05° for 4 frames | low |
 | 0x42D32D, 0x42D92D (Street X block skip) | — | a block keyed on the racer row in two choosers | — | **MISSING** | **open**: not traced further | low |
 | — (Lap KO, URL) | — | the road goal with race type 3 / URL tracks | as above | **PORTED** | observed launches and distances within a few metres; URL action changes 9–15 vs 4–6 per 20 s | low |
 | 0x5260C0, 0x5B6AE0, 0x5B54A0 | — (upgrades from skill) | the rivals' parts from rating and handling score | `bin/game/flow/race_setup.rs:start_round` | **PORTED** | observed: identical fitted parts and rating 196.564 | low |

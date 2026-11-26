@@ -113,7 +113,7 @@ pub mod launcher {
 
 /// Mod packs (docs/modding/asset-format/layering.md): a map mod as layer entries, and the export as a pack file.
 pub mod mod_packs {
-    pub use crate::mod_packs::{ExportOpts, Exported, added_key, base_in_use, clashes, engine, export_map_mod, heading, layers, mods_dir, placement_key, race_key};
+    pub use crate::mod_packs::{Converted, ExportOpts, Exported, added_key, convert_legacy, base_in_use, clashes, engine, export_map_mod, export_mod_dir, heading, layers, mods_dir, placement_key, race_key};
 }
 
 /// The map editor's logic on a world: the edits and the game data it reads

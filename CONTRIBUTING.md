@@ -54,6 +54,10 @@ and 200 fps. A frame cap is never a fix for a rate-dependent bug.
 4. The rate gate (`RATE=1`, docs/developing/checks.md "Rate gate") compares the simulation across 30, 60, 120 and 200 Hz;
    a change must not make a column that was identical differ.
 5. Headless only: the checks never open a window on your desktop.
+6. Test rules (docs/developing/evidence.md): test and audit code never changes the game's normal path, and a
+   visual change comes with same-pose before and after shots. A claim about the original in the audit docs
+   carries a tag (observed, traced, inferred, choice or open); `scripts/checks/evidence.sh` fails on an
+   untagged one.
 
 ### Before you send a change
 

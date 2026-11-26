@@ -1,0 +1,11 @@
+{
+  "command": "game.find",
+  "error": {
+    "kind": "no_game",
+    "message": "the game folder <tmp>/docks/nowhere (from --game) does not exist",
+    "source": "--game"
+  },
+  "exit": 4,
+  "format": 1,
+  "ok": false
+}

@@ -37,6 +37,8 @@ pub enum Action {
     Details,
     Import,
     Export,
+    /// File ▸ Export as mod pack… (a `.obpk`, docs/modding/asset-format/layout.md §4).
+    ExportPack,
     Quit,
     Undo,
     Redo,
@@ -552,6 +554,9 @@ pub fn mod_file_items(app: &App, ui: &mut egui::Ui, out: &mut Vec<Action>) {
     }
     if item(ui, "Export…", None, open) {
         out.push(Action::Export);
+    }
+    if item(ui, "Export as mod pack…", None, open) {
+        out.push(Action::ExportPack);
     }
 }
 

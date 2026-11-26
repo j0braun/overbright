@@ -1342,6 +1342,90 @@
       ]
     },
     {
+      "name": "modpack.export",
+      "kind": "run",
+      "summary": "Export the mod as a mod pack file (.obpk): its placements, races and textures as the asset format's own files",
+      "args": [
+        {
+          "key": "to",
+          "type": "text",
+          "required": "yes",
+          "merge": false,
+          "label": "Export to: a .obpk file, or a folder"
+        },
+        {
+          "key": "version",
+          "type": "text",
+          "required": "no",
+          "merge": false,
+          "label": "Pack version (default 1.0.0)"
+        },
+        {
+          "key": "licence",
+          "type": "text",
+          "required": "no",
+          "merge": false,
+          "label": "SPDX licence; without one the pack stays on this computer"
+        },
+        {
+          "key": "derived-ok",
+          "type": "bool",
+          "required": "no",
+          "merge": false,
+          "label": "Share textures made from the original game's pixels"
+        }
+      ]
+    },
+    {
+      "name": "modpack.convert",
+      "kind": "run",
+      "summary": "Convert a plain map mod or a texture pack (a folder or .zip) to a mod pack file (.obpk)",
+      "args": [
+        {
+          "key": "from",
+          "type": "text",
+          "required": "yes",
+          "merge": false,
+          "label": "The map mod or texture pack: a folder or .zip"
+        },
+        {
+          "key": "to",
+          "type": "text",
+          "required": "yes",
+          "merge": false,
+          "label": "Write to: a .obpk file, or a folder"
+        },
+        {
+          "key": "id",
+          "type": "text",
+          "required": "no",
+          "merge": false,
+          "label": "Pack id (default: made from the name)"
+        },
+        {
+          "key": "version",
+          "type": "text",
+          "required": "no",
+          "merge": false,
+          "label": "Pack version (default 1.0.0)"
+        },
+        {
+          "key": "licence",
+          "type": "text",
+          "required": "no",
+          "merge": false,
+          "label": "SPDX licence; without one the pack stays on this computer"
+        },
+        {
+          "key": "derived-ok",
+          "type": "bool",
+          "required": "no",
+          "merge": false,
+          "label": "Convert textures made from the original game's pixels"
+        }
+      ]
+    },
+    {
       "name": "pack.repair",
       "kind": "edit",
       "summary": "Repair a map file that no longer reads, where a safe repair exists (as one undo step)",
@@ -1442,6 +1526,53 @@
       "name": "looks.list",
       "kind": "read",
       "summary": "The mod's textures and work files, with where their pixels started",
+      "args": []
+    },
+    {
+      "name": "props.solids",
+      "kind": "read",
+      "summary": "List the region's placeable solids (the prop browser's list), by name, with where they are placed",
+      "args": [
+        {
+          "key": "filter",
+          "type": "text",
+          "required": "no",
+          "merge": false,
+          "label": "Words the name has (all of them, any case)"
+        },
+        {
+          "key": "category",
+          "type": "text",
+          "required": "no",
+          "merge": false,
+          "label": "Only one category: knock-over, barriers, signs, street, trees or all (default all)"
+        }
+      ]
+    },
+    {
+      "name": "race.tracks",
+      "kind": "read",
+      "summary": "List the region's base tracks a race can be on (number and name)",
+      "args": []
+    },
+    {
+      "name": "looks.find",
+      "kind": "read",
+      "summary": "Find the region's world textures by name or hash (words after the command or --text)",
+      "args": [
+        {
+          "key": "text",
+          "type": "text",
+          "required": "yes",
+          "merge": false,
+          "label": "Words of the name, or the hash (0x1A2B3C4D)"
+        }
+      ]
+    },
+    {
+      "name": "game.find",
+      "kind": "read",
+      "summary": "Show which game folder the tool uses and why (--game, NFSU2_ROOT or the launcher)",
       "args": []
     },
     {

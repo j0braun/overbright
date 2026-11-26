@@ -180,14 +180,20 @@ pub fn texture_roots(car: bool) -> Vec<std::path::PathBuf> {
     let fresh = c.as_ref().is_some_and(|s| s.dir == dir && s.at.elapsed() < std::time::Duration::from_millis(500));
     if !fresh {
         let mods = active();
-        let roots = |sub: &str| -> Vec<std::path::PathBuf> {
-            mods.iter()
-                .rev()
-                .map(|(f, _)| crate::mod_packs::root_of(f).unwrap_or_else(|| dir.join(f)).join(store::TEXTURES).join(sub))
-                .filter(|d| d.is_dir())
-                .collect()
+        // The packs switched on come above the plain map mods (`mod_packs::mount`); the packs' own folders are
+        // theirs to name (`mod_packs::texture_dirs`).
+        let roots = |car: bool| -> Vec<std::path::PathBuf> {
+            let mut v = crate::mod_packs::texture_dirs(car);
+            v.extend(
+                mods.iter()
+                    .rev()
+                    .filter(|(f, _)| crate::mod_packs::root_of(f).is_none())
+                    .map(|(f, _)| dir.join(f).join(store::TEXTURES).join(if car { "car" } else { "world" }))
+                    .filter(|d| d.is_dir()),
+            );
+            v
         };
-        let (world, car) = (roots("world"), roots("car"));
+        let (world, car) = (roots(false), roots(true));
         let new = c.as_ref().is_none_or(|s| s.dir != dir || s.world != world || s.car != car);
         if new && !(world.is_empty() && car.is_empty()) {
             log::info!("map mod textures: {} world, {} car folders", world.len(), car.len());

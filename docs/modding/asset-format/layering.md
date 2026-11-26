@@ -57,8 +57,11 @@ game reads `mods/order.txt` (no file, or no pack on: nothing else is read, the g
 that is on (the `overbright` range `MAN.3`, `game.bases` and `game.fingerprint` against the base set in use, `residual/`
 and `import.toml` `MRG.6`, dependencies and conflicts `ORD.2`–`ORD.4`) and mounts the rest, the first line the strongest.
 A pack that is refused is not mounted at all and the log and the launcher say why ("made for the base set nfsu2-pc12-eu;
-the one in use is …"). A pack made from a Studio map mod holds the map mod's own files (`map.obmap`, `textures/world|car/…`)
-until the per-kind files of this format are written by the exporter; the game reads them above the plain map mods and
+the one in use is …"). A pack made from a Studio map mod holds the kinds as their own files: `world/<REGION>/placements.toml`
+(`ob.placements`), `races/<id>.toml` (`ob.race`) and image-only texture entries (`world/_any/textures/images/0x<HASH>.png`,
+`cars/_any/textures/images/…`); the static collision edits, which have no kind file yet, stay in a `map.obmap` that holds
+nothing else. An older pack with its whole map in `map.obmap` and `textures/world|car/…` still reads, and a converted texture
+pack's `global/textures/images/` folders are read by renderer (§7). The game reads them above the plain map mods and
 reports clashes between packs (§4) in its log and in the launcher's Mods page. A `.obpk` is unpacked once into the cache,
 keyed by its digest.
 
@@ -201,6 +204,17 @@ packs without moving or rewriting a file, in the order the launcher shows them t
 | The HUD mod | mod pack `hud-mod`, `origin = "from-game-files"`, `share = "local-only"` | its textures become texture overrides; its map calibration rows become merges of the track-map records ([career.md](career.md)) |
 | Upscale / HD UI art (`texture-pack/`) | mod pack `upscale-art`, `origin = "from-game-files"`, `share = "local-only"` | |
 | Map mods (`maps/<folder>/map.obmap`, `maps/enabled.txt`) | mod pack per folder: placements as `world/<REGION>/placements.toml` entries (`ob.placements`), `[race]` sections as `races/` | placement references (stream section, solid name, position within 5 cm; `nth` only in the map editor's next format-1 revision) resolved as in [world.md](world.md) §4.4 |
+
+**Conversion in the tools** (`overbright-studio-cli modpack convert`, `src/mod_packs/convert.rs`): a plain map mod (folder or
+`.zip`) is written as above; an Overbright texture pack of format 1 becomes `global/textures/overrides.toml` with one entry per
+image (`draw` as the table says, `compress = "none"` from the manifest) and its images under `global/textures/images/<world|car|any>/`;
+the game reads those folders by renderer (its own domain first, then `any/`). The provenance carries `converted = true` and
+`converted_from`. A converted texture pack is `origin = "from-game-files"`, `share = "local-only"`: where its pixels came from is
+not known. Files the pack has no place for (any non-image file) are listed and left out; a name that is no pack id, two
+images for one texture in one folder, or a folder with neither kind of content are refused. A placement written from a map mod
+carries the map mod's reference (`extras.legacy`: stream section, solid, position, `nth`) and no `key`: resolving the
+`<scenery>/<index>` key needs the base set's placement table, so a placement named only by that key is refused by the game
+until the resolver exists (the pack is not mounted and the log says which entry).
 
 The launcher offers "Convert to the new format" per pack; conversion writes a format-2 folder next to the old one,
 keeps the old one as a backup, and is lossless (a test reads both and compares the merged data).
