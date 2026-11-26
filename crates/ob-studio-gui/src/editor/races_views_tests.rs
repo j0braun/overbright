@@ -464,3 +464,83 @@ fn draw_and_pick(view: &str) {
 fn walls_and_ground_are_drawn_snapped_and_picked_in_top() {
     draw_and_pick("top");
 }
+
+/// A recorded sequence of collision edits (two walls, a ground, a wall deleted with the Del key, an undo and a redo) writes
+/// the same mod bytes whatever the tools' grammar around them: the file's
+/// FNV-1a hash is the one the sequence wrote before the tools shared one
+/// grammar.
+#[test]
+fn a_recorded_collision_sequence_writes_the_same_mod() {
+    use crate::editor::collision::{Draw, Picked};
+    use crate::tools::map::ops::CollisionKey as Target;
+    let s = Scratch::new("editor-collision-recorded");
+    let mut a = editor(&s, "top");
+    zoom_top(&mut a);
+    let st = a.state.as_mut().unwrap();
+    st.mode = Mode::Props;
+    st.collision = crate::editor::collision::Show::Invisible;
+    let alt = egui::Modifiers::ALT;
+    a.state.as_mut().unwrap().draw = Some(Draw::Wall { first: None });
+    click_mods(&mut a, Vec2::new(100.0, 40.0), alt);
+    click_mods(&mut a, Vec2::new(140.0, 40.0), alt);
+    click_mods(&mut a, Vec2::new(140.0, 90.0), alt);
+    click_mods(&mut a, Vec2::new(180.0, 90.0), alt);
+    a.state.as_mut().unwrap().draw = Some(Draw::Ground { points: Vec::new() });
+    for p in [Vec2::new(20.0, 100.0), Vec2::new(60.0, 100.0), Vec2::new(60.0, 130.0)] {
+        click_mods(&mut a, p, alt);
+    }
+    frame(&mut a, key(egui::Key::Enter).to_vec());
+    frame(&mut a, vec![]);
+    let st = a.state.as_mut().unwrap();
+    st.draw = None;
+    st.wall = Some(Picked {
+        key: Target::Drawn("wall-1".into()),
+        what: "Drawn wall wall-1".into(),
+        outline: vec![Vec3::ZERO, Vec3::X],
+        z: (0.0, 2.0),
+    });
+    frame(&mut a, key(egui::Key::Delete).to_vec());
+    frame(&mut a, vec![]);
+    let st = a.state.as_mut().unwrap();
+    assert_eq!(st.session.undo.undo_label(), Some("Remove wall-1"));
+    assert!(crate::editor::undo::undo(st));
+    assert!(crate::editor::undo::redo(st));
+    let bytes = st.session.map.write();
+    let hash = bytes.bytes().fold(0xcbf2_9ce4_8422_2325u64, |h, b| (h ^ u64::from(b)).wrapping_mul(0x0100_0000_01b3));
+    assert_eq!(hash, 0x18be_739e_1622_f11d, "the recorded sequence's file changed");
+}
+
+/// The collision tools' Esc and Backspace: one level back at a time, and the hint line names the tool.
+#[test]
+fn esc_steps_back_one_level_in_the_collision_tools() {
+    use crate::editor::collision::Draw;
+    let s = Scratch::new("editor-collision-esc");
+    let mut a = editor(&s, "top");
+    zoom_top(&mut a);
+    a.state.as_mut().unwrap().mode = Mode::Props;
+    let alt = egui::Modifiers::ALT;
+    let hint = |a: &App| {
+        let (p, r) = (a.panels.props.borrow(), a.panels.races.borrow());
+        crate::editor::menu::hint_job(a.state.as_ref().unwrap(), &p, &r).text
+    };
+    a.state.as_mut().unwrap().draw = Some(Draw::Wall { first: None });
+    assert!(hint(&a).starts_with("Draw wall") && hint(&a).contains("stop drawing"), "{}", hint(&a));
+    click_mods(&mut a, Vec2::new(100.0, 40.0), alt);
+    assert!(matches!(a.state.as_ref().unwrap().draw, Some(Draw::Wall { first: Some(_) })));
+    assert!(hint(&a).contains("cancel this shape"), "{}", hint(&a));
+    frame(&mut a, key(egui::Key::Escape).to_vec());
+    assert_eq!(a.state.as_ref().unwrap().draw, Some(Draw::Wall { first: None }), "Esc drops the begun wall");
+    assert!(a.state.as_ref().unwrap().session.map.collision.is_empty());
+    frame(&mut a, key(egui::Key::Escape).to_vec());
+    assert_eq!(a.state.as_ref().unwrap().draw, None, "the next Esc puts the tool down");
+
+    a.state.as_mut().unwrap().draw = Some(Draw::Ground { points: Vec::new() });
+    for p in [Vec2::new(20.0, 100.0), Vec2::new(60.0, 100.0)] {
+        click_mods(&mut a, p, alt);
+    }
+    frame(&mut a, key(egui::Key::Backspace).to_vec());
+    let Some(Draw::Ground { points }) = a.state.as_ref().unwrap().draw.clone() else { panic!("ground armed") };
+    assert_eq!(points.len(), 1, "Backspace takes back the last corner");
+    frame(&mut a, key(egui::Key::Escape).to_vec());
+    assert_eq!(a.state.as_ref().unwrap().draw, Some(Draw::Ground { points: Vec::new() }));
+}

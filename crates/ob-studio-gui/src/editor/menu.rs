@@ -83,6 +83,8 @@ pub enum Action {
 pub enum Command {
     Duplicate,
     Delete,
+    /// Edit ▸ Collision ▸ Remove wall (Del on the selected wall or drawn ground).
+    RemoveWall,
     SelectAllOfSolid,
     DropToGround,
     Rotate90,
@@ -100,9 +102,10 @@ pub enum Command {
 
 impl Command {
     /// Every command, for the test that each one has a taker.
-    pub const ALL: [Command; 13] = [
+    pub const ALL: [Command; 14] = [
         Command::Duplicate,
         Command::Delete,
+        Command::RemoveWall,
         Command::SelectAllOfSolid,
         Command::DropToGround,
         Command::Rotate90,
@@ -143,6 +146,13 @@ impl Command {
                 Some("Select a prop first")
             }
             Command::Delete if s.mode == Mode::Races && s.point.is_none() => Some("Select a race point first"),
+            Command::RemoveWall => match &s.wall {
+                None => Some("Select a wall first (View ▸ Collision shows them)"),
+                Some(p) if super::collision::is_barrier(p) => {
+                    Some("A race's barriers are switched per race; they cannot be removed")
+                }
+                Some(_) => None,
+            },
             _ => None,
         }
     }
@@ -375,6 +385,8 @@ pub const KEYS: &[Binding] = &[
     b("Edit", "[ / ]", "Previous / next checkpoint", &[Key::OpenBracket, Key::CloseBracket]),
     b("Edit", "Ctrl+D", words::DUPLICATE, &[Key::D]),
     b("Edit", "Del", words::DELETE, &[Key::Delete]),
+    b("Edit", "B / Shift+B", "Draw wall / Draw ground (Enter or the first corner finishes the outline)", &[Key::B]),
+    b("Edit", "Esc, Backspace", "In a drawing tool: Esc drops the shape, again puts the tool down; Backspace the last corner", &[Key::Backspace]),
     b("Edit", "End", "Drop to the ground", &[Key::End]),
     b("Edit", "RMB on a prop / Shift+F10", "The prop menu: Rotate 90°, Rotate…, Face camera", &[Key::F10]),
     b("Edit", "Ctrl+Z, Ctrl+Y (Ctrl+Shift+Z)", "Undo, redo", &[Key::Z, Key::Y]),
@@ -459,8 +471,14 @@ pub fn shortcuts(app: &App, ctx: &egui::Context, out: &mut Vec<Action>) {
         if i.consume_key(Modifiers::ALT, Key::H) {
             out.push(Action::ShowAll);
         }
+        if i.consume_key(Modifiers::SHIFT, Key::B) {
+            out.push(Action::Draw(super::collision::Draw::Ground { points: Vec::new() }));
+        }
         if flying || i.modifiers.any() {
             return;
+        }
+        if i.consume_key(Modifiers::NONE, Key::B) {
+            out.push(Action::Draw(super::collision::Draw::Wall { first: None }));
         }
         if i.consume_key(Modifiers::NONE, Key::H) {
             out.push(Action::HideSelected);
@@ -622,13 +640,19 @@ pub fn edit_items(app: &App, ui: &mut egui::Ui, out: &mut Vec<Action>) {
     command(ui, s, "Rotate 90°", "", Command::Rotate90);
     command(ui, s, "Face camera", "", Command::FaceCamera);
     ui.separator();
+    // One group for the collision tools: the same selection (a click on a wall), the same Del, Esc and Alt.
     let open = s.is_some();
-    if item(ui, "Draw wall", None, open) {
-        out.push(Action::Draw(super::collision::Draw::Wall { first: None }));
-    }
-    if item(ui, "Draw ground", None, open) {
-        out.push(Action::Draw(super::collision::Draw::Ground { points: Vec::new() }));
-    }
+    ui.menu_button("Collision", |ui| {
+        if item_why(ui, "Draw wall", "B", (!open).then_some("Open a map mod first")) {
+            out.push(Action::Draw(super::collision::Draw::Wall { first: None }));
+            ui.close();
+        }
+        if item_why(ui, "Draw ground", "Shift+B", (!open).then_some("Open a map mod first")) {
+            out.push(Action::Draw(super::collision::Draw::Ground { points: Vec::new() }));
+            ui.close();
+        }
+        command(ui, s, "Remove wall", "Del", Command::RemoveWall);
+    });
 }
 
 /// The View menu's items.
@@ -1174,20 +1198,28 @@ pub fn hint_job_in(s: &EditorState, p: &Props, r: &Races, plan: bool) -> egui::t
     let tool = current_tool(s, p, r);
     let small = egui::FontId::proportional(13.0);
     let mut job = egui::text::LayoutJob::default();
-    job.append(
-        &format!("{} tool", tool.name()),
-        0.0,
-        egui::TextFormat::simple(theme::font(theme::LABEL, 14.0), theme::lime()),
-    );
+    // A collision drawing tool names itself and what its clicks do; Esc steps back one level at a time.
+    let drawing = s.draw.as_ref();
+    let name = match drawing {
+        Some(super::collision::Draw::Wall { .. }) => "Draw wall".to_string(),
+        Some(super::collision::Draw::Ground { .. }) => "Draw ground".to_string(),
+        None => format!("{} tool", tool.name()),
+    };
+    job.append(&name, 0.0, egui::TextFormat::simple(theme::font(theme::LABEL, 14.0), theme::lime()));
     let chip = hint_chip;
     // The way back first: it must show on the narrowest window.
-    if tool.armed() {
+    if let Some(d) = drawing {
+        chip(&mut job, "Esc", 14.0);
+        job.append(&format!(" {}", super::collision::esc_words(d)), 0.0, egui::TextFormat::simple(small.clone(), theme::ink()));
+    } else if tool.armed() {
         chip(&mut job, "Esc", 14.0);
         job.append(" back to Select", 0.0, egui::TextFormat::simple(small.clone(), theme::ink()));
     }
-    let words = match (tool, s.focus) {
-        (Tool::Select, Focus::World) => "Click a prop to select it · Ctrl+click: add to the selection",
-        (Tool::Select, Focus::Races) => "Click a race point to select it",
+    let words = match (drawing, tool, s.focus) {
+        (Some(d), _, _) => super::collision::draw_words(d),
+        (None, Tool::Select, _) if s.wall.is_some() => "A wall is selected · Del removes it · click another wall to pick it",
+        (None, Tool::Select, Focus::World) => "Click a prop to select it · Ctrl+click: add to the selection",
+        (None, Tool::Select, Focus::Races) => "Click a race point to select it",
         _ => tool_hint(tool, r),
     };
     job.append(words, 18.0, egui::TextFormat::simple(small.clone(), theme::ink()));
@@ -1200,7 +1232,7 @@ pub fn hint_job_in(s: &EditorState, p: &Props, r: &Races, plan: bool) -> egui::t
             egui::TextFormat::simple(small.clone(), theme::ink()),
         );
     }
-    if !tool.armed() && (!s.selection.is_empty() || s.point.is_some()) {
+    if drawing.is_none() && !tool.armed() && (!s.selection.is_empty() || s.point.is_some() || s.wall.is_some()) {
         chip(&mut job, "Esc", 18.0);
         job.append(" clear the selection", 0.0, egui::TextFormat::simple(small.clone(), theme::ink()));
     }
@@ -1406,6 +1438,13 @@ mod tests {
                     (s.mode, s.race) = (mode, Some(0));
                     let _ = view;
                     s.selection = vec![0];
+                    use crate::tools::map::ops::CollisionKey as Target;
+                    s.wall = (c == Command::RemoveWall).then(|| crate::editor::collision::Picked {
+                        key: Target::Drawn("wall-1".into()),
+                        what: "Drawn wall wall-1".into(),
+                        outline: vec![glam::Vec3::ZERO, glam::Vec3::X],
+                        z: (0.0, 2.0),
+                    });
                     s.point = Some(RacePoint { part: RacePart::Checkpoint, index: 0 });
                     s.maps = match c {
                         Command::TestRace | Command::DriveHere | Command::RecordDrive => not_a_folder.clone(),
