@@ -24,7 +24,9 @@ pub const SAVED: &str = "Saved automatically";
 pub const SAVING_BEHIND: &str = "Saving is behind";
 pub const SAVING: &str = "Saving…";
 pub const NO_MOD_STATUS: &str = "No mod open";
-pub const SETTINGS_PAGE: &str = "Studio's settings come here: UI size, keys and pads.";
+pub const SETTINGS_PAGE: &str = "Studio's settings: the world view first; UI size, keys and pads come next.";
+pub const WORLD_VIEW: &str = "WORLD VIEW";
+pub const WORLD_VIEW_LINE: &str = "Auto draws the lighter picture on integrated and software graphics. Weak GPU draws smaller, shorter and without shadows or reflections. Only Studio's view changes, never the game.";
 pub const TOOLS_COME: &str = "Open a mod to edit its world";
 pub const VIEW_PLACEHOLDER: &str = "Open a mod on Home or in the Mod menu";
 pub const INSPECTOR_EMPTY: &str = "Pick something in the view or the tree.";
@@ -104,7 +106,7 @@ pub const SAMPLE_LINE: &str = "Three races with start gates and signs";
 pub const STARTS_WITH: &str = "Starts with";
 
 /// Every word above.
-pub const ALL: [&str; 82] = [
+pub const ALL: [&str; 84] = [
     RACE_TUTORIAL_ROW,
     RACE_TUTORIAL_ROW_LINE,
     OPEN_SAMPLE,
@@ -182,6 +184,8 @@ pub const ALL: [&str; 82] = [
     SAVING,
     NO_MOD_STATUS,
     SETTINGS_PAGE,
+    WORLD_VIEW,
+    WORLD_VIEW_LINE,
     TOOLS_COME,
     VIEW_PLACEHOLDER,
     INSPECTOR_EMPTY,

@@ -115,6 +115,7 @@ do nothing while a text field has the keyboard.
 | `T` | Top-down overview on / off |
 | `Home` | Fit the overview or the map to the region |
 | `M` | 3D view / Map |
+| `L` | Collision layer: off / invisible barriers / all collision |
 | `LMB / Ctrl+LMB` | Select / add to the selection |
 | `Shift + drag an arrow` | Copy the selection and move the copy |
 | `Alt while dragging or placing` | No snapping |
@@ -468,7 +469,9 @@ drawn collision"). It is drawn again whenever an edit, undo or redo changes the 
 - **View ▸ Collision ▸ Invisible barriers** draws the walls a player cannot see: in red the invisible walls,
   in amber the race and career barriers.
 - **View ▸ Collision ▸ All collision** adds, in grey, the walls that stand behind scenery and, in the 3D view,
-  the floors near the camera.
+  the floors near the camera: road floors in the road colour, floors the wheels do not count as ground in lime.
+
+The L key steps through the three.
 
 A key at the view's bottom right names the colours and counts each kind in the region. In the 3D view a wall is
 a see-through panel with its outline; in the top overview and on the Map it is a line along its foot.

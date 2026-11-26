@@ -96,6 +96,15 @@ impl Show {
         }
     }
 
+    /// The next state (the L key): Off, Invisible barriers, All collision, Off.
+    pub fn next(self) -> Show {
+        match self {
+            Show::Off => Show::Invisible,
+            Show::Invisible => Show::All,
+            Show::All => Show::Off,
+        }
+    }
+
     /// `--collision off|invisible|all`.
     pub fn parse(v: &str) -> Option<Show> {
         match v {
@@ -117,6 +126,8 @@ pub mod key {
     pub const BARRIER: Color32 = colour::WARN;
     pub const VISIBLE: Color32 = colour::DIM;
     pub const FLOOR: Color32 = colour::ROAD;
+    /// A floor the wheels do not count as ground (flag 0x08).
+    pub const FLOOR_OFF: Color32 = colour::SELECT;
 
     /// A wall's fill: its colour, see-through.
     pub fn fill(c: Color32, alpha: u8) -> Color32 {
@@ -771,6 +782,11 @@ fn parts(w: &Wall, show: Show) -> Vec<(f32, f32, Color32)> {
     out
 }
 
+/// A floor's colour by kind: drivable ground, or a face the wheels pass through.
+pub fn floor_colour(f: &collision::Floor) -> Color32 {
+    if f.not_ground { key::FLOOR_OFF } else { key::FLOOR }
+}
+
 /// The walls (and floors) around the camera in the 3D view: each part a
 /// see-through quad with its outline.
 pub fn paint_3d(layer: &Layer, show: Show, o: &Overlay) {
@@ -794,7 +810,7 @@ pub fn paint_3d(layer: &Layer, show: Show, o: &Overlay) {
             layer.near(cam.truncate() - Vec2::splat(FLOORS_NEAR), cam.truncate() + Vec2::splat(FLOORS_NEAR));
         for &i in floors.iter().take(MAX_FLOORS) {
             let f = &layer.floors[i as usize];
-            quad(o, f.points(), None, key::fill(key::FLOOR, 150), 1.0);
+            quad(o, f.points(), None, key::fill(floor_colour(f), 150), 1.0);
         }
     }
     let mut drawn = 0;
@@ -901,7 +917,11 @@ pub fn legend(layer: &Layer, show: Show, floors: bool, painter: &egui::Painter, 
     if show == Show::All {
         rows.push((key::VISIBLE, format!("Walls behind scenery ({})", counts.visible)));
         if floors {
-            rows.push((key::FLOOR, format!("Floors ({})", counts.floors)));
+            let off = layer.floors.iter().filter(|f| f.not_ground).count();
+            rows.push((key::FLOOR, format!("Road floors ({})", counts.floors - off)));
+            if off > 0 {
+                rows.push((key::FLOOR_OFF, format!("Floors that are not ground ({off})")));
+            }
         }
     }
     let font = egui::FontId::proportional(13.0);

@@ -254,6 +254,8 @@ pub struct Viewport {
     target: Option<Target>,
     /// Pixel size the last layout asked for.
     want: (u32, u32),
+    /// Weak-GPU mode in force (see [`super::weak`]), as last resolved on the adapter.
+    weak: bool,
     rebuild_at: Option<Instant>,
     /// The camera last drawn (position, yaw, pitch, fov) and whether a
     /// draw is due for another reason.
@@ -321,6 +323,7 @@ impl Viewport {
             renderer: None,
             target: None,
             want: (0, 0),
+            weak: false,
             rebuild_at: None,
             drawn: None,
             redraw: true,
@@ -470,11 +473,22 @@ impl Viewport {
             || s.session.world_changed
             || s.session.adds_changed
             || self.rebuild_at.is_some()
-            || self.target.as_ref().is_none_or(|t| t.size != self.want)
+            || self.target.as_ref().is_none_or(|t| t.size != self.goal())
             || self.drawn != Some(camera_key(&s.camera))
             || self.drawn_look != Some((self.look, self.haze))
             || (self.light && !self.lit)
             || self.drawn_replay != s.replay.version
+    }
+
+    /// The size the world is drawn at: the window's, or less in weak-GPU mode.
+    fn goal(&self) -> (u32, u32) {
+        super::weak::drawn_size(self.want, self.weak)
+    }
+
+    /// The render options of a frame: the player's, lightened in weak-GPU mode.
+    fn options(&self) -> RenderOptions {
+        let o = RenderOptions::in_force();
+        if self.weak { super::weak::lighten(&o) } else { o }
     }
 
     /// An overlay painter on the viewport for this frame (clipped to it).
@@ -490,7 +504,8 @@ impl Viewport {
     /// Point the camera at the selection (F): the union of the selected
     /// placements' bounding spheres; nothing when nothing is selected.
     pub fn frame_selection(&mut self, s: &mut EditorState) {
-        let spheres: Vec<(Vec3, f32)> = s.selection.iter().filter_map(|&i| placement_sphere(&s.session.world, i)).collect();
+        let spheres: Vec<(Vec3, f32)> =
+            s.selection.iter().filter_map(|&i| placement_sphere(&s.session.world, i)).collect();
         if let Some((centre, radius)) = union_sphere(&spheres) {
             if self.persp.is_some() {
                 self.top.centre = centre.truncate();
@@ -753,8 +768,8 @@ impl Viewport {
             && let Some(at) = response.interact_pointer_pos()
         {
             let (eye, dir) = self.pick_ray(s, at);
-            let ground =
-                ground_hit(&s.session.world, eye, dir, PICK_RANGE).unwrap_or_else(|| self.top.to_world(rect, at).extend(0.0));
+            let ground = ground_hit(&s.session.world, eye, dir, PICK_RANGE)
+                .unwrap_or_else(|| self.top.to_world(rect, at).extend(0.0));
             let from = self.persp.unwrap_or(s.camera);
             self.leave_top(s, Some(cam::fly_to(&from, ground)));
             return;
@@ -869,6 +884,14 @@ impl Viewport {
         encoder: &mut wgpu::CommandEncoder,
     ) -> bool {
         let now = Instant::now();
+        let weak = super::weak::resolve(super::weak::pref(), &gpu.adapter.get_info());
+        if weak != self.weak {
+            self.weak = weak;
+            if self.renderer.is_some() {
+                self.rebuild_at = Some(now);
+            }
+        }
+        super::weak::set_active(weak);
         if s.session.adds_changed {
             s.session.adds_changed = false;
             if self.renderer.is_some() {
@@ -876,7 +899,7 @@ impl Viewport {
             }
         }
         if self.renderer.is_none() || self.rebuild_at.is_some_and(|t| now >= t) {
-            self.renderer = Some(WorldRenderer::new(gpu, &s.session.world, FORMAT, &crate::render::RenderOptions::in_force()));
+            self.renderer = Some(WorldRenderer::new(gpu, &s.session.world, FORMAT, &self.options()));
             self.rebuild_at = None;
             self.index = Some(SectionIndex::new(&s.session.world));
             // A new renderer starts from the world as it is now.
@@ -897,8 +920,8 @@ impl Viewport {
         if self.want.0 == 0 || self.want.1 == 0 {
             return false;
         }
-        if self.target.as_ref().is_none_or(|t| t.size != self.want) {
-            let size = self.want;
+        if self.target.as_ref().is_none_or(|t| t.size != self.goal()) {
+            let size = self.goal();
             let texture = gpu.device.create_texture(&wgpu::TextureDescriptor {
                 label: Some("editor viewport"),
                 size: wgpu::Extent3d { width: size.0, height: size.1, depth_or_array_layers: 1 },
@@ -953,16 +976,19 @@ impl Viewport {
         let size = target.size;
         let aspect = size.0 as f32 / size.1 as f32;
         let time_of_day = crate::sky::TimeOfDay::default();
-        let game_fog = self.fog.update_weighted(&s.session.world, s.camera.position.truncate(), time_of_day.fog_weight());
+        let game_fog =
+            self.fog.update_weighted(&s.session.world, s.camera.position.truncate(), time_of_day.fog_weight());
         let look = self.look;
-        let height = if look == Look::Whole { self.height_over_ground(&s.session.world, s.camera.position) } else { 0.0 };
+        let height =
+            if look == Look::Whole { self.height_over_ground(&s.session.world, s.camera.position) } else { 0.0 };
         let index = self.index.get_or_insert_with(|| SectionIndex::new(&s.session.world));
         let lists = whole_frame(index, &s.camera, look, aspect, height, &self.top, self.haze, game_fog);
         let Some(target) = self.target.as_ref() else { return false };
         let Some(renderer) = self.renderer.as_mut() else { return false };
+        let base = if self.weak { super::weak::lighten(&RenderOptions::in_force()) } else { RenderOptions::in_force() };
         let opts = match look {
-            Look::Street => crate::render::RenderOptions::in_force(),
-            Look::Whole | Look::Top => whole_options(&crate::render::RenderOptions::in_force(), size.0),
+            Look::Street => base,
+            Look::Whole | Look::Top => whole_options(&base, size.0),
         };
         let shown: &[super::sim::cars::ReplayCar] = if s.replay.models { &s.replay.cars } else { &[] };
         let pools = self.cars.as_ref().map(|c| c.pools(shown)).unwrap_or_default();
@@ -976,7 +1002,7 @@ impl Viewport {
             far_sections: None,
             fog: lists.fog,
             time: self.clock.unwrap_or_else(|| self.started.elapsed().as_secs_f32()),
-            road_reflections: look == Look::Street,
+            road_reflections: look == Look::Street && !self.weak,
             road_reflection_plane: None,
             sky: time_of_day.sky(),
             reversed: false,

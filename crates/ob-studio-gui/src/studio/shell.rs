@@ -1672,8 +1672,39 @@ impl Studio {
                     font("body", 16.0),
                     rgb(t.dim),
                 );
+                self.world_view_setting(ui, inner.min + vec2(0.0, 110.0), inner.width());
             }
         }
+    }
+
+    /// Settings ▸ World view: Auto, Full or Weak GPU, kept in the settings file.
+    fn world_view_setting(&mut self, ui: &mut egui::Ui, at: egui::Pos2, width: f32) {
+        use crate::editor::weak::{self, Pref};
+        let t = tokens();
+        let p = ui.painter().clone();
+        p.text(at, Align2::LEFT_TOP, words::WORLD_VIEW, font("body", 13.0), rgb(t.dim));
+        let row = Rect::from_min_size(at + vec2(0.0, 26.0), vec2(width.min(560.0), 40.0));
+        let now = weak::pref();
+        let mut chosen = None;
+        ui.scope_builder(egui::UiBuilder::new().max_rect(row), |ui| {
+            ui.horizontal(|ui| {
+                for c in Pref::ALL {
+                    let mut b = draw::pill(c.label());
+                    if c == now {
+                        b = b.stroke(Stroke::new(2.0, rgb(t.lime)));
+                    }
+                    if ui.add(b).clicked() {
+                        chosen = Some(c);
+                    }
+                }
+            });
+        });
+        if let Some(c) = chosen {
+            weak::set_pref(c);
+            weak::save(c);
+        }
+        let g = p.layout(words::WORLD_VIEW_LINE.to_string(), font("body", 14.0), rgb(t.dim), width.min(560.0));
+        p.galley(at + vec2(0.0, 80.0), g, rgb(t.dim));
     }
 
     fn home(&mut self, ui: &mut egui::Ui, inner: Rect) {
@@ -2447,12 +2478,30 @@ impl Studio {
                 right = left - 18.0;
             }
         }
+        // Weak-GPU mode of the world view (while the editor shows).
+        if editor.is_some()
+            && let Some(g) = crate::editor::weak::status_words()
+        {
+            let w = p.layout_no_wrap(g.clone(), f.clone(), Color32::WHITE).size().x + 18.0;
+            if right - 24.0 - w > x + 24.0 {
+                let left = p.text(pos2(right - 24.0, cy), Align2::RIGHT_CENTER, g, f.clone(), rgb(t.warn)).left();
+                right = left - 18.0;
+            }
+        }
         // The test game's link: connected or not (while a test runs).
         if let Some(g) = crate::editor::testplay::link_words(&self.ctx) {
             let on = g == crate::editor::testplay::GAME_CONNECTED;
             let w = p.layout_no_wrap(g.clone(), f.clone(), Color32::WHITE).size().x + 18.0;
             if right - 24.0 - w > x + 24.0 {
-                let left = p.text(pos2(right - 24.0, cy), Align2::RIGHT_CENTER, g, f.clone(), if on { rgb(t.lime) } else { rgb(t.warn) }).left();
+                let left = p
+                    .text(
+                        pos2(right - 24.0, cy),
+                        Align2::RIGHT_CENTER,
+                        g,
+                        f.clone(),
+                        if on { rgb(t.lime) } else { rgb(t.warn) },
+                    )
+                    .left();
                 right = left - 18.0;
             }
         }
