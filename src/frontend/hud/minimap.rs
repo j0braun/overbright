@@ -5,7 +5,7 @@ use super::*;
 /// with the car): the map's texture window is 0.3 / zoom of the map wide,
 /// centred on the player; markers sit at their offset from the player in
 /// window units times the map's size, pulled in to 0.55 and dropped past 1.
-pub(super) fn minimap(s: &mut ScreenState, package: &super::super::feng::Package, m: &MapView) {
+pub(super) fn minimap(s: &mut ScreenState, package: &super::super::feng::Package, has_texture: &dyn Fn(u32) -> bool, m: &MapView) {
     let window = 0.3 / m.zoom.max(0.001);
     let to_map = |p: glam::Vec2| glam::Vec2::new((p.x - m.left) / m.size, (m.top - p.y) / m.size);
     let centre = to_map(m.player);
@@ -38,7 +38,7 @@ pub(super) fn minimap(s: &mut ScreenState, package: &super::super::feng::Package
     s.angle.insert(player, (90.0 - m.heading.to_degrees()).to_radians() - a);
     let (sin, cos) = a.sin_cos();
     let mut used: crate::fxhash::FxHashMap<&str, u32> = Default::default();
-    for (base, world, heading) in &m.icons {
+    for (base, world, heading, sponsor) in &m.icons {
         let n = used.entry(base).or_insert(0);
         let h = fe_hash(&format!("{base}{n}"));
         *n += 1;
@@ -52,6 +52,12 @@ pub(super) fn minimap(s: &mut ScreenState, package: &super::super::feng::Package
             d *= 0.55 / dist;
         }
         s.position.insert(h, glam::Vec2::new(at.x + size.x * d.x, at.y + size.y * d.y));
+        // 0x4AC460 (per item, from 0x4CA840): an event marker (types 12-18)
+        // whose event has +0x34 = 1, a sponsor race, takes texture
+        // 0xB90F50BB, the cross the World Map shows.
+        if *sponsor && has_texture(fe_ids::BOX_OFF) {
+            s.image.insert(h, fe_ids::BOX_OFF);
+        }
         // Every shown item turns (0x4CA840: 0x43E6D0(dir y, dir x) − a,
         // 0x43E6D0(y, x) being atan2(x, y), so 90° − the direction's
         // angle): a car's (0x4AC2B0 cases 3 / 4: (cos h, sin h) of car
