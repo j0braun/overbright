@@ -404,6 +404,51 @@ pub struct Changes {
     pub driver_lost: bool,
 }
 
+/// The controllers' frame time watch: a frame over [`FrameWatch::SLOW`] is
+/// counted, and a log line says so at most every [`FrameWatch::EVERY`]
+/// (the support file then shows a controller frame that costs the game its
+/// frame rate, as a per-frame device lookup once did).
+#[derive(Debug, Default)]
+pub struct FrameWatch {
+    slow: u32,
+    longest: std::time::Duration,
+    last: Option<std::time::Instant>,
+}
+
+impl FrameWatch {
+    pub const SLOW: std::time::Duration = std::time::Duration::from_millis(4);
+    pub const EVERY: std::time::Duration = std::time::Duration::from_secs(10);
+
+    pub fn note(
+        &mut self,
+        took: std::time::Duration,
+        now: std::time::Instant,
+        lookups: u32,
+        lookup_time: std::time::Duration,
+    ) -> Option<String> {
+        if took < Self::SLOW {
+            return None;
+        }
+        self.slow += 1;
+        self.longest = self.longest.max(took);
+        if self.last.is_some_and(|t| now.duration_since(t) < Self::EVERY) {
+            return None;
+        }
+        let line = format!(
+            "pads: the controllers' frame took {:.1} ms ({} slow frames over {} ms, longest {:.1} ms); force-feedback device lookups {lookups} in {:.0} ms",
+            took.as_secs_f64() * 1e3,
+            self.slow,
+            Self::SLOW.as_millis(),
+            self.longest.as_secs_f64() * 1e3,
+            lookup_time.as_secs_f64() * 1e3
+        );
+        self.last = Some(now);
+        self.slow = 0;
+        self.longest = std::time::Duration::ZERO;
+        Some(line)
+    }
+}
+
 /// The game's controllers.
 /// The driving channel's force feedback (0x870760's per-channel state and
 /// the device behind it).
@@ -436,6 +481,16 @@ pub struct Host {
     /// The force-feedback device on the driving channel and the original's
     /// effect model for it (None: no device with FF actuators).
     ff: Option<Ff>,
+    /// The driving channel's device the force-feedback output was last
+    /// looked up for, found or not ([`Host::ff_sync`]): the lookup runs
+    /// once per device that takes the channel, never per frame.
+    ff_looked: Option<Source>,
+    /// Force-feedback device lookups made and their time (the log's
+    /// controller lines, [`FrameWatch`]).
+    pub ff_lookups: u32,
+    pub ff_lookup_time: std::time::Duration,
+    /// The controllers' frame time watch ([`Host::frame_took`]).
+    watch: FrameWatch,
     /// Scripted pads connected with `ff` (a recorder takes their effects).
     script_ff: Vec<u32>,
     /// The profile's controller blocks ([`Host::set_saved_blocks`]).
@@ -457,14 +512,14 @@ impl Host {
             None
         };
         let script = std::env::var_os("NFSU2_PAD_SCRIPT").and_then(|p| std::fs::read_to_string(&p).map_err(|e| eprintln!("{}: {e}", p.to_string_lossy())).ok()).map(|t| Script::parse(&t));
-        let mut h = Host { gilrs, script, devices: Vec::new(), options: PadOptions::default(), tick: i64::MIN, ticked: false, rumble_out: Vec::new(), effects: Vec::new(), rumble_last: (0.0, 0.0), ff: None, script_ff: Vec::new(), saved: Vec::new(), sticks_armed: false };
+        let mut h = Host { gilrs, script, devices: Vec::new(), options: PadOptions::default(), tick: i64::MIN, ticked: false, rumble_out: Vec::new(), effects: Vec::new(), rumble_last: (0.0, 0.0), ff: None, ff_looked: None, ff_lookups: 0, ff_lookup_time: std::time::Duration::ZERO, watch: FrameWatch::default(), script_ff: Vec::new(), saved: Vec::new(), sticks_armed: false };
         h.rescan();
         h
     }
 
     /// A host with the given script and no real pads (tests).
     pub fn scripted(text: &str) -> Host {
-        Host { gilrs: None, script: Some(Script::parse(text)), devices: Vec::new(), options: PadOptions::default(), tick: i64::MIN, ticked: false, rumble_out: Vec::new(), effects: Vec::new(), rumble_last: (0.0, 0.0), ff: None, script_ff: Vec::new(), saved: Vec::new(), sticks_armed: false }
+        Host { gilrs: None, script: Some(Script::parse(text)), devices: Vec::new(), options: PadOptions::default(), tick: i64::MIN, ticked: false, rumble_out: Vec::new(), effects: Vec::new(), rumble_last: (0.0, 0.0), ff: None, ff_looked: None, ff_lookups: 0, ff_lookup_time: std::time::Duration::ZERO, watch: FrameWatch::default(), script_ff: Vec::new(), saved: Vec::new(), sticks_armed: false }
     }
 
     /// The Controller extras in force. A layout change re-presents every
@@ -661,9 +716,15 @@ impl Host {
     /// Keeps the force-feedback output on the driving channel (the first
     /// device): opened for a device with FF actuators, with autocenter off
     /// on a wheel (0x5CD3E7); dropped when that device goes.
+    ///
+    /// The device lookup (on Windows DirectInput8Create and an EnumDevices
+    /// of the attached game controllers, which can take a tenth of a second
+    /// or more) runs once for each device that takes the channel, whether it
+    /// finds force feedback or not: called every frame (the Controller
+    /// extras re-applied), it only restores the found device's flag.
     fn ff_sync(&mut self) {
         let first = self.devices.first().map(|d| (d.source, d.caps.dev_type));
-        if self.ff.as_ref().map(|f| f.source) == first.map(|f| f.0) {
+        if self.ff_looked == first.map(|f| f.0) {
             if self.ff.is_some()
                 && let Some(d) = self.devices.first_mut()
             {
@@ -671,9 +732,38 @@ impl Host {
             }
             return;
         }
+        self.ff_looked = first.map(|f| f.0);
         self.ff = None;
         let Some((source, class)) = first else { return };
-        let out = match source {
+        let started = std::time::Instant::now();
+        let out = self.ff_open(source);
+        let took = started.elapsed();
+        self.ff_lookups += 1;
+        self.ff_lookup_time += took;
+        if let Some(d) = self.devices.first() {
+            log::info!(
+                "pads: force feedback on {:?} ({:04x}:{:04x}): {} (looked up in {:.1} ms)",
+                d.name,
+                d.caps.vid,
+                d.caps.pid,
+                if out.is_some() { "found" } else { "none" },
+                took.as_secs_f64() * 1e3
+            );
+        }
+        let Some((mut out, actuators)) = out else { return };
+        let Some(model) = super::ff::Original::new(super::ff::Device { class, actuators }) else { return };
+        if class == DevType::Driving {
+            out.call(self.tick, super::ff_out::Call::Autocenter(false), actuators);
+        }
+        if let Some(d) = self.devices.first_mut() {
+            d.caps.ff = true;
+        }
+        self.ff = Some(Ff { source, out, model, driving: false });
+    }
+
+    /// The force-feedback output of the device `source`, if it has one.
+    fn ff_open(&self, source: Source) -> Option<(super::ff_out::Output, u8)> {
+        match source {
             Source::Script(n) => self.script_ff.contains(&n).then(|| (super::ff_out::Output::recorder(), 1)),
             #[cfg(target_os = "linux")]
             Source::Gilrs(id) => {
@@ -684,16 +774,13 @@ impl Host {
             Source::Gilrs(_) => self.devices.first().and_then(|d| super::ff_out::Output::open_dinput(d.caps.vid, d.caps.pid)),
             #[cfg(not(any(target_os = "linux", windows)))]
             Source::Gilrs(_) => None,
-        };
-        let Some((mut out, actuators)) = out else { return };
-        let Some(model) = super::ff::Original::new(super::ff::Device { class, actuators }) else { return };
-        if class == DevType::Driving {
-            out.call(self.tick, super::ff_out::Call::Autocenter(false), actuators);
         }
-        if let Some(d) = self.devices.first_mut() {
-            d.caps.ff = true;
-        }
-        self.ff = Some(Ff { source, out, model, driving: false });
+    }
+
+    /// The controllers' frame took `took` (the game's `pad_frame`): a line
+    /// for the log when frames are slow ([`FrameWatch`]).
+    pub fn frame_took(&mut self, took: std::time::Duration, now: std::time::Instant) -> Option<String> {
+        self.watch.note(took, now, self.ff_lookups, self.ff_lookup_time)
     }
 
     /// A device with force-feedback actuators drives (0x5B8250's question:
@@ -1144,6 +1231,49 @@ mod tests {
         assert_eq!((h.devices[0].guid, h.devices[0].layout), (native_guid, Layout::Sony));
         let ch = h.poll(1.0);
         assert!(ch.detached && ch.driver_lost && h.devices.len() == 1);
+    }
+
+    /// The force-feedback device is looked up once per device that takes
+    /// the driving channel, found or not, not every frame (#310: on Windows
+    /// a pad without force feedback made every frame run DirectInput's
+    /// device enumeration, 6 fps): many frames of the per-frame calls
+    /// (`set_options` then `poll`) make one lookup; a re-plug makes one more.
+    #[test]
+    fn force_feedback_lookup_is_bounded() {
+        for ff in ["", " ff"] {
+            let mut h = Host::scripted(&format!("0 connect 1 045e 028e{ff}\n5 disconnect 1\n6 connect 1 045e 028e{ff}\n"));
+            for frame in 0..600 {
+                let t = frame as f32 / 120.0;
+                h.set_options(PadOptions { layout: (frame / 200) as u8 % 2, ..Default::default() });
+                h.poll(t);
+            }
+            assert_eq!(h.ff_lookups, 1, "one lookup for the attached pad{ff}");
+            assert_eq!(h.force_feedback(), !ff.is_empty());
+            assert_eq!(h.devices[0].caps.ff, !ff.is_empty(), "the flag survives a re-presentation");
+            h.poll(5.0);
+            assert!(h.devices.is_empty() && !h.force_feedback());
+            for frame in 0..100 {
+                h.set_options(PadOptions::default());
+                h.poll(6.0 + frame as f32 / 120.0);
+            }
+            assert_eq!(h.ff_lookups, 2, "one more for the re-plugged pad{ff}");
+            assert_eq!(h.force_feedback(), !ff.is_empty());
+        }
+    }
+
+    /// A slow controller frame reaches the log at most every ten seconds.
+    #[test]
+    fn slow_controller_frames_are_reported_rate_limited() {
+        use std::time::{Duration, Instant};
+        let mut w = FrameWatch::default();
+        let t0 = Instant::now();
+        assert!(w.note(Duration::from_millis(1), t0, 0, Duration::ZERO).is_none());
+        let first = w.note(Duration::from_millis(160), t0, 3, Duration::from_millis(480)).expect("the first slow frame");
+        assert!(first.contains("160.0 ms") && first.contains("lookups 3 in 480 ms"), "{first}");
+        let lines = (1..60).filter_map(|i| w.note(Duration::from_millis(160), t0 + Duration::from_millis(i * 160), 3, Duration::ZERO)).count();
+        assert_eq!(lines, 0, "within ten seconds");
+        let again = w.note(Duration::from_millis(170), t0 + Duration::from_secs(11), 3, Duration::ZERO).expect("after ten seconds");
+        assert!(again.contains("60 slow frames") && again.contains("longest 170.0 ms"), "{again}");
     }
 
     #[test]
