@@ -151,6 +151,27 @@ mod's texture list, so the game draws its own again (one step; Ctrl+Z brings the
 follow). *Show in History* opens the step that last painted it. `ob://<mod id>/texture/world:0x1A2B3C4D` opens
 Changes on that texture's row. A history step or a version compare lists the textures it painted.
 
+## Browser
+
+Ctrl+4 (MAKE ▸ Browser, `ob://<mod id>/@browser`) searches the game's assets of the region the open mod is edited
+on: its models (the solids the region draws) and its textures, by name across both kinds. Type words of a name (all
+must be in it), a hash (`0x1A2B3C4D`) or `section:1407` (what is placed or seen in that streaming section). The chips
+under the field pick the kind (All, Models, Textures, each with how many the words find) and that kind's filter:
+models by category (the prop browser's), textures by use (In use, Unused, Animated, Large).
+
+Every result says where it is used, worked out once from the loaded region and kept while it stays the same: a
+model, how many placements stand it, in which sections, how many are hidden by a mod, and which textures its
+materials draw; a texture, how many materials in how many models draw it, and in which sections they are seen. A
+name in those lists is a link: it shows that result. The viewer beside the list (under it on a narrow window) shows
+a model's picture, drawn by the prop browser's renderer and kept in the same cache, or the texture's pixels as
+Looks reads them.
+
+Browser only reads. Enter (A) or the button takes a result to where it is worked on: a model to World, selecting
+its first placement (and choosing it in the prop browser, so Ctrl+D places another; a model with no placement says
+so); a texture to its row in Looks on Changes when the mod paints it, else the `looks open` command that starts it.
+↑ ↓ and Tab move over the chips and results, ← → change a chip (in the results they move in the search field), Esc
+(B) goes back. Cars and regions the mod is not edited on are not indexed yet.
+
 ## The Mod page
 
 Ctrl+0 (SHARE ▸ Mod, `ob://<mod id>/@mod`) shows the open mod as you share it:

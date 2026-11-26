@@ -67,10 +67,13 @@ pub fn shot(s: &mut Studio, gpu: &Gpu, size: (u32, u32), scale: f32, out: &Path)
         h.app.fixed_clock = true;
         h.app.panels.viewport.fix_clock(crate::editor::app::SHOT_CLOCK);
     }
-    for i in 0..4 {
+    // Four frames, and while the Browser's pictures are still being drawn (a few a frame) more, to a limit.
+    let mut i = 0;
+    while i < 4 || (i < 80 && s.browser_pictures_pending()) {
         let full = s.frame(raw_input(size, scale, i, vec![]));
         let bufs = paint(s, gpu, &mut egui_r, &view, size, full);
         gpu.queue.submit(bufs);
+        i += 1;
     }
     let bytes_per_row = (size.0 * 4).div_ceil(256) * 256;
     let readback = gpu.device.create_buffer(&wgpu::BufferDescriptor {

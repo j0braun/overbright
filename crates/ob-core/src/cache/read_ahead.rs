@@ -147,11 +147,16 @@ pub fn frame_started() {
 /// Whether the reader is to give way now: a hold, or a frame that has run
 /// for longer than [`BUSY_FRAME`].
 fn give_way() -> bool {
+    give_way_at(epoch().elapsed().as_nanos())
+}
+
+/// [`give_way`] at `now` (ns since [`epoch`]).
+fn give_way_at(now: u128) -> bool {
     if HOLDS.load(Ordering::Acquire) > 0 {
         return true;
     }
     let started = FRAME.load(Ordering::Acquire);
-    started != 0 && epoch().elapsed().as_nanos().saturating_sub(u128::from(started)) > BUSY_FRAME.as_nanos()
+    started != 0 && now.saturating_sub(u128::from(started)) > BUSY_FRAME.as_nanos()
 }
 
 /// The reader thread: the queue's files, one after another.
@@ -372,21 +377,33 @@ mod tests {
         drop(h);
         assert!(give_way(), "one hold is still held");
         drop(h2);
+        // A frame's age is judged against a given time, not the clock
+        // (a loaded machine can stall a test thread for longer than a
+        // frame between two calls).
+        let started = 1_000_000_000u64;
+        FRAME.store(started, Ordering::Release);
+        let at = |after: Duration| u128::from(started) + after.as_nanos();
+        assert!(!give_way_at(at(Duration::ZERO)), "a frame that just started");
+        assert!(!give_way_at(at(BUSY_FRAME)), "a frame of just the busy length");
+        assert!(give_way_at(at(BUSY_FRAME + Duration::from_millis(1))), "a frame that runs long");
         frame_started();
-        assert!(!give_way(), "a frame that just started");
-        std::thread::sleep(BUSY_FRAME + Duration::from_millis(20));
-        assert!(give_way(), "a frame that runs long");
-        frame_started();
-        assert!(!give_way());
-        // A held reader waits for the hold to go.
-        let h = hold();
-        let waited = std::thread::spawn(wait_turn);
-        std::thread::sleep(Duration::from_millis(60));
-        frame_started();
-        drop(h);
-        let waited = waited.join().unwrap();
+        assert!(!give_way_at(u128::from(FRAME.load(Ordering::Acquire))), "the next frame started");
         FRAME.store(0, Ordering::Release);
-        assert!(waited >= Duration::from_millis(50), "{waited:?}");
+        assert!(!give_way_at(u128::MAX), "no frame yet");
+        // A held reader waits for the hold to go: it is still waiting
+        // after it has been seen to enter the wait, and ends once the
+        // hold is dropped (no frame is running then).
+        let h = hold();
+        let (entered, seen) = std::sync::mpsc::channel();
+        let waiter = std::thread::spawn(move || {
+            entered.send(()).unwrap();
+            wait_turn()
+        });
+        seen.recv().unwrap();
+        std::thread::sleep(Duration::from_millis(60));
+        assert!(!waiter.is_finished(), "the reader waits while the hold lives");
+        drop(h);
+        waiter.join().unwrap();
     }
 
     /// Queued files are read in the order queued, each once a run, by one

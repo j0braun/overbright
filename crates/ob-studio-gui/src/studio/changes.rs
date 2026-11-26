@@ -540,10 +540,16 @@ const THUMB_PX: u32 = 96;
 
 /// `rgba` (w × h) scaled down to at most [`THUMB_PX`] a side (nearest pixel).
 fn thumb_image(w: u32, h: u32, rgba: &[u8]) -> Option<egui::ColorImage> {
+    thumb_image_at(w, h, rgba, THUMB_PX)
+}
+
+/// `rgba` (w × h) scaled down to at most `max` pixels a side (nearest pixel): Looks' thumbnails, and the
+/// Browser's texture pictures.
+pub(super) fn thumb_image_at(w: u32, h: u32, rgba: &[u8], max: u32) -> Option<egui::ColorImage> {
     if w == 0 || h == 0 || rgba.len() < (w * h * 4) as usize {
         return None;
     }
-    let k = (w.max(h) as f32 / THUMB_PX as f32).max(1.0);
+    let k = (w.max(h) as f32 / max as f32).max(1.0);
     let (tw, th) = (((w as f32 / k) as u32).max(1), ((h as f32 / k) as u32).max(1));
     let mut px = Vec::with_capacity((tw * th * 4) as usize);
     for y in 0..th {
@@ -943,7 +949,7 @@ const NOTE_H: f32 = 22.0;
 const INSPECTOR_FROM_W: f32 = 1100.0;
 const INSPECTOR_W: f32 = 300.0;
 
-fn small_button(text: &str, on: bool) -> egui::Button<'static> {
+pub(super) fn small_button(text: &str, on: bool) -> egui::Button<'static> {
     let t = tokens();
     let b = egui::Button::new(RichText::new(text.to_string()).font(font(LABEL, 14.0)).color(if on {
         rgb(t.lime)

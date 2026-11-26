@@ -1767,6 +1767,13 @@ impl App {
         }
     }
 
+    /// Draw the prop pictures still queued (the Browser workspace, which has no editor view to render).
+    pub fn build_thumbs(&mut self, gpu: &Gpu) {
+        if let Some(s) = self.state.as_ref() {
+            self.panels.browser.borrow_mut().thumbs.build(gpu, &s.session.region, &s.session.world);
+        }
+    }
+
     fn welcome(&mut self, ui: &mut egui::Ui, actions: &mut Vec<menu::Action>) {
         ui.vertical(|ui| {
             ui.label(egui::RichText::new("Overbright Map Editor").font(theme::font(theme::TITLE, 30.0)).color(theme::lime()));
