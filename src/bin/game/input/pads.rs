@@ -74,8 +74,14 @@ impl Game {
     pub(crate) fn pad_frame(&mut self) {
         // The Controller extras (a layout change re-presents the pads,
         // each taking its map for that layout from the profile).
+        let started = std::time::Instant::now();
         let relayout = self.platform.pads.set_options(self.settings.enh.pad);
         let changes = self.platform.pads.poll(self.seconds());
+        // A slow controller frame (a device lookup, a driver that blocks)
+        // reaches the log, at most every ten seconds.
+        if let Some(line) = self.platform.pads.frame_took(started.elapsed(), std::time::Instant::now()) {
+            log::warn!("{line}");
+        }
         // A button pressed: the log's waits count from it (docs/developing/waits-log.md).
         if self.platform.pads.pressed() != 0 {
             self.loads.waits.key();
