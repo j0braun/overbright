@@ -507,11 +507,12 @@ impl WorldScene<'_, '_> {
         // World Detail Extreme (clone deviation): the far sections.
         let far = drawn.as_ref().and_then(|l| d.world.far_sections_at(cam.position, l, opts.far_draw));
         let cars = DrawnCars::of(game, CarSet { paused_race: inp.paused_fallback, traffic: TrafficSet::Live });
+        let hidden = view_leaves_out_player(game.mode, d, game.shop_scene, inp.photo_open);
         let (occluders, traced_cars) = {
             let (companion, race, encounters, traffic) = cars.parts();
             publish_car_lights(d, cars.poses, companion, race, encounters, traffic, inp.clocks.seconds, opts);
             (
-                car_occluders(d, cam, cars.poses, companion, race, encounters, traffic, inp.clocks.seconds, opts),
+                car_occluders(d, cam, cars.poses, companion, race, encounters, traffic, inp.clocks.seconds, opts, hidden),
                 rt_cars(cam.position, cars.poses, companion, race, encounters, traffic, opts),
             )
         };
@@ -1068,13 +1069,14 @@ impl WorldScene<'_, '_> {
         let (gpu, color, depth) = (*gpu, *color, *depth);
         let cam: &Camera = camera;
         let late_on = matches!(path, ScenePath::Window { late_on: true, .. });
+        let hidden = view_leaves_out_player(game.mode, d, game.shop_scene, inp.photo_open);
         let sub = nfsu2::prof::acc::span("  glows");
         let switches = inp.settings.switches;
         let set = CarSet { paused_race: inp.paused_fallback, traffic: inp.glow_traffic };
         if !inp.gate_glow || (switches.light_glow && render.world.is_some()) {
             let cars = DrawnCars::of(game, set);
             let quads =
-                glow_quads(d, cam, cars.poses, cars.race, cars.encounters, cars.traffic, inp.aspect, inp.clocks.seconds, self.drawn.as_deref(), &inp.settings.opts, inp.stepped().wet_interaction);
+                glow_quads(d, cam, cars.poses, cars.race, cars.encounters, cars.traffic, inp.aspect, inp.clocks.seconds, self.drawn.as_deref(), &inp.settings.opts, inp.stepped().wet_interaction, hidden);
             let r = render.world.as_mut().unwrap();
             r.upload_glows(gpu, &quads);
             if inp.gate_glow && !switches.streaks() && !late_on {
@@ -1086,7 +1088,7 @@ impl WorldScene<'_, '_> {
             // sprites are dropped).
             let cars = DrawnCars::of(game, set);
             let _ =
-                glow_quads(d, cam, cars.poses, cars.race, cars.encounters, cars.traffic, inp.aspect, inp.clocks.seconds, self.drawn.as_deref(), &inp.settings.opts, inp.stepped().wet_interaction);
+                glow_quads(d, cam, cars.poses, cars.race, cars.encounters, cars.traffic, inp.aspect, inp.clocks.seconds, self.drawn.as_deref(), &inp.settings.opts, inp.stepped().wet_interaction, hidden);
         }
         drop(sub);
     }

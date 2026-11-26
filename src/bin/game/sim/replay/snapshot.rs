@@ -10,6 +10,12 @@ pub(crate) struct Snapshot {
     pub(crate) ai_frames: u64,
     /// The world update counter (the DUMMY_SNAPSHOT's cadence).
     pub(crate) world_updates: u64,
+    /// The world time (the snapshot's "WorldTime" chunk, 0x57BBB0: the
+    /// tick 0x865188, the clock 0x7FB718 and the counters beside them):
+    /// the cars' grip reads the rain through the clock (0x5ED5E0), so a
+    /// replay runs it again from here.
+    pub(crate) world_clock: f32,
+    pub(crate) world_tick: nfsu2::ai::encounter_controller::WorldClock,
     /// The race's traffic as it was (its cars keep their models).
     pub(crate) traffic: Option<TrafficSnapshot>,
     pub(crate) player: CarState,
@@ -142,6 +148,8 @@ impl Snapshot {
         Snapshot {
             ai_frames: race.racers.ai_frames,
             world_updates: race.replay.world_updates,
+            world_clock: d.clock,
+            world_tick: d.world_clock.clone(),
             traffic: race.racers.traffic.as_ref().map(TrafficSnapshot::take),
             player: d.state.clone(),
             chase: d.chase.clone(),
@@ -197,6 +205,9 @@ impl Snapshot {
             s.restore(t);
         }
         d.state = self.player.clone();
+        d.clock = self.world_clock;
+        d.world_clock = self.world_tick.clone();
+        nfsu2::weather::set_clock(&d.world, d.clock);
         race.racers.ai_frames = self.ai_frames;
         race.replay.world_updates = self.world_updates;
         d.chase = self.chase.clone();
