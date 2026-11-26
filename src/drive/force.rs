@@ -90,7 +90,10 @@ impl CarState {
         let slip = self.body_slip();
         // Stability Control on: car +0x464 (the mover's physics view
         // +0x58, +0x424) clear. The view's wheels-down count is +0x3E4.
-        let stability = !self.stability_off;
+        // A traffic car's flag is 0 (observed under Wine) but its own
+        // movers (TrafficMover, MeloMvr) never run this set-up; the clone's
+        // full-physics stand-in for them takes none of these terms.
+        let stability = !self.stability_off && !self.traffic;
         // Grip base (mover +0x6C = 1), ×0.85 (0x7FC060) with Stability
         // Control on (0x5A4DA8; not in drift events).
         let base = if stability && !h.race.drift() { 0.85 } else { 1.0 };

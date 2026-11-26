@@ -407,6 +407,11 @@ impl Encounters {
                     e.state =
                         CarState::new(Vec3::new(position.x, position.y, ground - (w.position.z - w.radius)), heading);
                     e.state.nitrous = tank;
+                    // Car +0x464: the encounter racers read 1 under Wine
+                    // with the player's option Off (writer not traced;
+                    // **inferred**: the player's value, as 0x403C20 gives
+                    // racers at a race start).
+                    e.state.stability_off = d.state.stability_off;
                     e.state.start_race(RaceMode::FreeRoam);
                     e.state.velocity = dir.extend(0.0) * speed;
                     // Road placement publishes its unadjusted lane argument;

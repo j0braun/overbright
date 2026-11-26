@@ -216,6 +216,13 @@ pub struct Pose {
 }
 
 impl DynoPull {
+    /// The player's Stability Control (car +0x464: the dyno race places
+    /// the player's own car, 0x5F1802 → 0x5F3E20).
+    pub fn with_stability_off(mut self, off: bool) -> DynoPull {
+        self.state.stability_off = off;
+        self
+    }
+
     /// 0x56D350 for `car`, at rest on a flat floor.
     pub fn new(car: Car) -> DynoPull {
         let w = car.car_type.wheels[0];

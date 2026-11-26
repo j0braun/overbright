@@ -213,8 +213,9 @@ pub struct CarState {
     /// start (0x403C20 from 0x60A88C) gives every AI racer player 1's
     /// value; the car constructor zeroes it (0x591ED5), so traffic has 0
     // prov: inferred drive.suspension_load
-    /// (**inferred**: no other writer reaches traffic). Gates
-    /// [`launch_grip`].
+    /// (**inferred**: no other writer reaches traffic; read 0 on every
+    /// traffic car under Wine). Off gates [`launch_grip`]; on, the frame
+    /// set-up's grip, handbrake, rear-bonus and yaw-limit terms.
     pub stability_off: bool,
     /// The wheels down when the frame began, as the mover hands them to
     /// the aero (0x5ABC00 → aero +0x14 = car +0x424 / 4). The drivetrain
