@@ -503,7 +503,7 @@ impl Panels {
             ],
             run_tools: vec![Box::new(super::sim::SimTool(sim.clone()))],
             hooks: vec![
-                Box::new(super::testplay::TestPanel { test: None, races: Some(races.clone()) }),
+                Box::new(super::testplay::TestPanel { races: Some(races.clone()), ..Default::default() }),
                 Box::new(parts::RacesHook(races.clone())),
                 Box::new(super::sim::SimHook(sim.clone())),
             ],

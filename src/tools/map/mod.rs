@@ -15,7 +15,7 @@
 pub mod assets;
 pub mod edit;
 // The map data without a world (crates/ob-map), at its old paths.
-pub use ob_map::tools::map::{draw, format, ops, race, share, sim, store};
+pub use ob_map::tools::map::{draw, format, link, ops, race, share, sim, store};
 
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
