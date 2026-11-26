@@ -183,6 +183,12 @@ Looks reads them.
 Browser only reads. Enter (A) or the button takes a result to where it is worked on: a model to World, selecting
 its first placement (and choosing it in the prop browser, so Ctrl+D places another; a model with no placement says
 so); a texture to its row in Looks on Changes when the mod paints it, else the `looks open` command that starts it.
+Export glTF (Ctrl+E, X on the pad) writes the model as a glTF 2.0 file for an outside 3D program (Blender, any glTF
+viewer): `<name>.gltf`, `<name>.bin` and its textures as PNG, in the mod's `.editor/reference/` folder, which the
+mod's shared copy leaves out. It is a read-only reference: the pictures and shapes are your own game files, so the
+file says `origin = "from-game-files"`, `share = "local-only"` (its `asset.extras` and a `LOCAL-ONLY.txt` beside it)
+and Studio never writes into the game's folder. The game's +Z up is turned to glTF's +Y up by a root node. Bringing an
+edited model back as a mod model is not part of this step.
 ↑ ↓ and Tab move over the chips and results, ← → change a chip (in the results they move in the search field), Esc
 (B) goes back. Cars and regions the mod is not edited on are not indexed yet.
 

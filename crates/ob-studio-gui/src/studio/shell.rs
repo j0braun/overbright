@@ -543,6 +543,7 @@ impl Studio {
                 Pad::Left => Some(self.browser.step_chip(-1)).map(|_| None),
                 Pad::Right => Some(self.browser.step_chip(1)).map(|_| None),
                 Pad::A => Some(self.browser.activate()),
+                Pad::X => Some(self.browser.export_act()),
                 _ => None,
             };
             if let Some(act) = handled {
@@ -787,6 +788,30 @@ impl Studio {
                     }
                 }
             }
+            browser::Act::ExportModel { solid, name } => {
+                let Some(folder) = self.open_mod().map(|m| m.folder.clone()) else { return };
+                let Some(st) = self.editor.as_ref().and_then(|h| h.app.state.as_ref()) else { return };
+                let game = nfsu2::studio_api::qol::setup::game_root();
+                let dir = ob_studio::browser::gltf::reference_dir(std::path::Path::new(&folder));
+                self.verdict = Some(match st.session.world.solids.get(solid) {
+                    None => format!("{name} is not in the loaded region"),
+                    Some(s) => {
+                        match ob_studio::browser::gltf::write_reference(
+                            &dir,
+                            game.as_deref(),
+                            s,
+                            &st.session.world.textures,
+                            &st.session.region,
+                        ) {
+                            Ok(r) => format!(
+                                "{name} exported to {}: from your game files, for your own 3D program, never shared with the mod",
+                                r.gltf.parent().unwrap_or(&dir).display()
+                            ),
+                            Err(e) => format!("{name} was not exported: {e}"),
+                        }
+                    }
+                });
+            }
             browser::Act::OpenTexture { hash, name } => {
                 let id = ob_studio::looks::TextureId::new(ob_studio::looks::Domain::World, hash).to_string();
                 let Some(folder) = self.open_mod().map(|m| m.folder.clone()) else { return };
@@ -988,6 +1013,7 @@ impl Studio {
         let browser_rows = self.on_browser_rows();
         let browser_chips = browser_rows && self.browser.focus < browser::FIRST_RESULT;
         let mut chip_keys = vec![];
+        let mut export_key = false;
         let runs_rows = self.nav.workspace == Workspace::Runs && self.runs.row_focused(&self.ctx);
         let mut runs_steps: Vec<i32> = vec![];
         let mut runs_key = None;
@@ -1024,6 +1050,12 @@ impl Studio {
                 } else {
                     true
                 }
+            }
+            egui::Event::Key { key: egui::Key::E, pressed: true, modifiers, .. }
+                if browser_rows && modifiers.command && !modifiers.alt && !modifiers.shift =>
+            {
+                export_key = true;
+                false
             }
             egui::Event::Key { key, pressed: true, modifiers, .. }
                 if runs_rows
@@ -1125,6 +1157,13 @@ impl Studio {
         for d in chip_keys {
             self.nav.input = InputKind::Keyboard;
             self.browser.step_chip(d);
+        }
+        if export_key {
+            self.nav.input = InputKind::Keyboard;
+            match self.browser.export_act() {
+                Some(a) => self.browser_act(a),
+                None => self.verdict = Some("Choose a model to export it: textures have no glTF".into()),
+            }
         }
         for (key, shift) in row_keys {
             self.nav.input = InputKind::Keyboard;

@@ -436,5 +436,7 @@ impl Index {
     }
 }
 
+pub mod gltf;
+
 #[cfg(test)]
 mod tests;

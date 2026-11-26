@@ -51,6 +51,8 @@ pub enum Act {
     ShowModel { solid: usize, name: String, placement: Option<usize> },
     /// Open a texture in Looks.
     OpenTexture { hash: u32, name: String },
+    /// Export a model as a glTF reference for an outside 3D program (into the mod's `.editor/reference/`).
+    ExportModel { solid: usize, name: String },
 }
 
 /// What the page drew where (the layout check).
@@ -232,6 +234,17 @@ impl Page {
                 let t = idx.textures.get(i)?;
                 Some(Act::OpenTexture { hash: t.hash, name: t.name.clone() })
             }
+        }
+    }
+
+    /// What Ctrl+E / X does: export the focused result when it is a model (a texture has no glTF).
+    pub fn export_act(&self) -> Option<Act> {
+        match self.focused_hit()? {
+            Hit::Model(i) => {
+                let m = self.index()?.models.get(i)?;
+                Some(Act::ExportModel { solid: m.solid, name: m.name.clone() })
+            }
+            Hit::Texture(_) => None,
         }
     }
 
@@ -827,6 +840,14 @@ impl Page {
                 *act = self.act_for(h);
             }
             drawn.buttons.push(br);
+            // A model also goes to an outside 3D program, as a reference marked as from the game files.
+            let er = Rect::from_min_size(br.right_top() + vec2(8.0, 0.0), vec2(120.0, 24.0));
+            if matches!(h, Hit::Model(_)) && er.right() <= r.right() - 4.0 {
+                if ui.put(er, small_button("Export glTF", false)).clicked() {
+                    *act = self.export_act();
+                }
+                drawn.buttons.push(er);
+            }
         }
     }
 }
