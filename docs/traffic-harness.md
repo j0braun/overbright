@@ -204,6 +204,23 @@ road node (controller +0x0C: the point's place and race coordinate +0x08, as the
 (+0xE0 / +0xE4) and places (+0x80 / +0x90) that 0x5F12B0 / 0x5F0FC0 measure from, and the player's +0x8FC.
 A placed car's `# c` at its spawn row less the player's is the placement's race-coordinate distance.
 
+## The placer's tries
+
+`TRAFH_PLACER=1` (this game, a dev-harness build) writes a `# try` line for each placer try
+(0x42F910): the car's slot, whether it was parked, its race coordinate less the player's, whether it
+was placed, the outcome (`ok:<reach measure>`, `jam` / `zone` for 0x42F800's 99999 refusal, `keep`
+for 0x42ED4C, `reach`, `walk0`, `walk`, `stay`, `tries`), the player's race coordinate, the spacing and
+the start (cursor, number of starts, 0x417D80), and a `# p` line per row set (countdown, cursor,
+`slot:parked:race coordinate` per car). In the original, `TRAFH_NAT_WORLD=1` adds a `# p` line per
+sample (placer world +0x118: countdown +0, cursor +4; `slot:car:<+0x77C><+0x77D>:<walk +0xC8>` per
+traffic car; the start cursor +0x0C; 0x827ACC) and once a `# jn` line (the junctions with +0x0C bit
+21, which make 0x40ABB0 park a car near its walk's end: none on 4001 and 4014). `TRAFH_NAT_PLACE=1`
+counts the placer's outcomes in place (tools/parity/placecnt.py: 0x42F800 and 0x42E9F0 entries and
+each way 0x42E9F0 gives up, stubs after the parity cave) and writes them as `# pc` lines. The
+original's Quick Race menu taps can miss the Traffic Level row (three of ten earlier 4001 runs raced
+at Minimum, one with Difficulty set to Easy instead): `trafh_native.py` reads the race's level
+(0x89E7A8) at the green and fails a run whose level is not `--level`.
+
 ## Screenshots, horns, outruns
 
 - `--shots N` (`run` and `trafh_native.py`): the original's bot takes a screenshot of the car it

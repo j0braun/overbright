@@ -59,6 +59,36 @@ pub fn race_coord_step(held: Option<(f32, Vec2)>, p: Vec2, locate: impl FnOnce(V
     }
 }
 
+/// The last placement's outcome (probe use, `TRAFH_PLACER`).
+#[cfg(feature = "dev-harness")]
+pub mod place_probe {
+    use std::cell::RefCell;
+    thread_local! {
+        pub(super) static WHY: RefCell<String> = const { RefCell::new(String::new()) };
+        pub(super) static STARTS: std::cell::Cell<(usize, usize)> = const { std::cell::Cell::new((0, 0)) };
+    }
+    /// The last placement's start (cursor, number of starts).
+    pub fn starts() -> (usize, usize) {
+        STARTS.with(|x| x.get())
+    }
+    /// The last placement's outcome, taken.
+    pub fn take() -> String {
+        WHY.with(|w| std::mem::take(&mut *w.borrow_mut()))
+    }
+}
+
+#[cfg(feature = "dev-harness")]
+fn why(w: &str) {
+    place_probe::WHY.with(|x| {
+        let mut x = x.borrow_mut();
+        x.clear();
+        x.push_str(w);
+    });
+}
+
+#[cfg(not(feature = "dev-harness"))]
+fn why(_: &str) {}
+
 /// The drag placement's search reach (0x7E9720, 250 m; 0x42E620 hands it
 /// to 0x417C60).
 pub const DRAG_REACH: f32 = 250.0;
@@ -714,7 +744,9 @@ impl TrafficLane {
         // against 13.154 m for record 692's segment 7 and 15.6 m for 692's
         // prov: inferred ai.traffic.spawn_from
         // point 8, the nearest point; **inferred** from that observation).
-        let near = node.or_else(|| road_node(f, player.truncate()))?;
+        let near = node.or_else(|| road_node(f, player.truncate()));
+        why("node");
+        let near = near?;
         // 0x42ED4C reads the byte before the flip ([esp+0xE]).
         let forward = ahead;
         // In a coordinate race (0x88F2BE, the race road built) the byte
@@ -722,6 +754,9 @@ impl TrafficLane {
         let ahead = ahead != (coordinate && f.records[near.0].flags & 2 != 0);
         let all = starts(f, Step { record: near.0, cp: near.1, backward: !ahead, lane: 0 }, PLACER_STARTS);
         *cursor = cursor.wrapping_add(1) % all.len();
+        #[cfg(feature = "dev-harness")]
+        place_probe::STARTS.with(|x| x.set((*cursor, all.len())));
+        why("walk0");
         let mut s = placer_walk(f, all[*cursor], SPAWN_START, coordinate, false, rng)?;
         for _ in 0..SPAWN_TRIES {
             let cp = &f.records[s.record].points[s.cp];
@@ -733,6 +768,7 @@ impl TrafficLane {
                 None => dist(cp.position.truncate(), player.truncate()),
             };
             if measure > SPAWN_MAX {
+                why("reach");
                 return None;
             }
             // 0x410CA0's side flag is (walk byte clear) ≠ the draw, set
@@ -753,6 +789,7 @@ impl TrafficLane {
                 if let Some(old) = race.and_then(|r| r.own.map(|o| (r.diff)(o, r.coord))) {
                     let farther = if forward { old > 0.0 && measure > old } else { old < 0.0 && measure < old };
                     if farther {
+                        why("keep");
                         return None;
                     }
                 }
@@ -778,17 +815,22 @@ impl TrafficLane {
                 t.roomed = t.steps.len();
                 let at = point(f, start, 0.0);
                 let dir = f.direction(start.record, start.cp, start.backward);
+                #[cfg(feature = "dev-harness")]
+                why(&format!("ok:{measure:.1}"));
                 return Some((t, at, dir.y.atan2(dir.x)));
             }
             // On by max(the point's segment, the spacing); a walk that
             // fails or stays put ends the placement (the walk at 0x42ED06; 0x42ED29 returns 0).
             let step = cp.length.max(spacing);
+            why("walk");
             let n = placer_walk(f, s, step, coordinate, false, rng)?;
             if (n.record, n.cp) == (s.record, s.cp) {
+                why("stay");
                 return None;
             }
             s = n;
         }
+        why("tries");
         None
     }
 

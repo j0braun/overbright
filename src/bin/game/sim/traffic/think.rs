@@ -273,6 +273,26 @@ fn traffic_place_pass(
         };
         t.tries.0 += 1;
         let failed = placed.is_none();
+        #[cfg(feature = "dev-harness")]
+        if place_probe::on() {
+            let why = if gap.is_none() {
+                (if jammed { "jam" } else { "zone" }).to_string()
+            } else {
+                nfsu2::ai::traffic::place_probe::take()
+            };
+            let own_d = match (road, me_coord) {
+                (Some(r), Some(mc)) => r.difference(t.cars[i].race_coord(r), mc),
+                _ => 0.0,
+            };
+            place_probe::push(format!(
+                "{i}\t{}\t{own_d:.1}\t{}\t{why}\t{:.1}\t{}\t{:?}",
+                u8::from(t.cars[i].held || was.as_ref().is_some_and(|w| w.0.is_none())),
+                u8::from(!failed),
+                me_coord.unwrap_or(0.0),
+                gap.map_or(-1.0, |g| g),
+                nfsu2::ai::traffic::place_probe::starts()
+            ));
+        }
         if let Some((lane, at, heading)) = placed {
             t.tries.1 += 1;
             place_traffic(world, &mut t.cars[i], &t.routes, lane, at, heading);
@@ -307,6 +327,26 @@ fn traffic_place_pass(
         if tries >= if drag.is_some() { PLACE_DRAG } else { 1 } {
             break;
         }
+    }
+}
+
+/// The placer's tries since the last take (probe use, `TRAFH_PLACER`).
+#[cfg(feature = "dev-harness")]
+pub(crate) mod place_probe {
+    use std::cell::RefCell;
+    thread_local! {
+        static TRIES: RefCell<Vec<String>> = const { RefCell::new(Vec::new()) };
+    }
+    /// Whether `TRAFH_PLACER` is set (read once).
+    pub(crate) fn on() -> bool {
+        static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+        *ON.get_or_init(|| std::env::var_os("TRAFH_PLACER").is_some())
+    }
+    pub(crate) fn push(s: String) {
+        TRIES.with(|t| t.borrow_mut().push(s));
+    }
+    pub(crate) fn take() -> Vec<String> {
+        TRIES.with(|t| std::mem::take(&mut *t.borrow_mut()))
     }
 }
 

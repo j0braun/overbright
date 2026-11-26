@@ -98,6 +98,22 @@ impl Table {
     }
 
     fn traffic(&mut self, t: f32, tr: &Traffic) {
+        // `TRAFH_PLACER=1` (with dev-harness): the placer's tries since the last rows
+        // (car, parked before, its Δ race coordinate, placed, outcome, the player's coordinate,
+        // spacing) and each car's state (slot:parked:race coordinate).
+        #[cfg(feature = "dev-harness")]
+        if std::env::var("TRAFH_PLACER").is_ok() {
+            for l in crate::sim::traffic::think::place_probe::take() {
+                let _ = writeln!(self.w, "# try\t{t:.3}\t{l}");
+            }
+            let cars: Vec<String> = tr
+                .cars
+                .iter()
+                .enumerate()
+                .map(|(i, c)| format!("{i}:{}:{:.1}", u8::from(c.lane.is_none()), c.coord.map_or(f32::NAN, |x| x.0)))
+                .collect();
+            let _ = writeln!(self.w, "# p\t{t:.3}\t{:.4}\t{}\t{}", tr.timer, tr.cursor, cars.join(" "));
+        }
         // `TRAFH_ENT=1` (with dev-harness): the road entries of the car's last
         // think in the note (the entries probe's line, `nfsu2::ai::traffic::probe`).
         #[cfg(feature = "dev-harness")]
