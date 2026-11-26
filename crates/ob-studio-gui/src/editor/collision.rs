@@ -236,6 +236,9 @@ impl CollisionOverlay {
 
 impl super::app::Overlay for CollisionOverlay {
     fn overlay(&mut self, s: &mut EditorState, ctx: &egui::Context, painter: &egui::Painter, rect: Rect) -> bool {
+        if super::menu::take(ctx, super::menu::Command::RemoveWall) {
+            remove_picked(s);
+        }
         let proj = Proj::of(s, ctx, rect);
         let taken = proj.as_ref().is_some_and(|proj| draw_input(self, s, ctx, painter, rect, proj));
         let show = s.collision;
@@ -440,18 +443,24 @@ fn draw_input(
     proj: &Proj,
 ) -> bool {
     let Some(draw) = s.draw.clone() else { return false };
-    let (enter, esc) = if ctx.egui_wants_keyboard_input() {
-        (false, false)
+    let (enter, esc, backspace) = if ctx.egui_wants_keyboard_input() {
+        (false, false, false)
     } else {
         ctx.input_mut(|i| {
             (
                 i.consume_key(egui::Modifiers::NONE, egui::Key::Enter),
                 i.consume_key(egui::Modifiers::NONE, egui::Key::Escape),
+                i.consume_key(egui::Modifiers::NONE, egui::Key::Backspace),
             )
         })
     };
     if esc {
-        s.draw = None;
+        step_back(s);
+        return false;
+    }
+    // Backspace takes back the outline's last corner (the way Esc takes back the whole shape).
+    if backspace && let Some(Draw::Ground { points }) = s.draw.as_mut() {
+        points.pop();
         return false;
     }
     let hover_at = ctx.input(|i| i.pointer.hover_pos()).filter(|p| rect.contains(*p));
@@ -527,6 +536,41 @@ fn draw_input(
             took
         }
     }
+}
+
+/// Esc, one step back at a time (as with the race tools): the shape being drawn is dropped and the tool stays
+/// armed; with no shape begun the tool is put down; with no tool the selected wall is let go.
+pub fn step_back(s: &mut EditorState) {
+    match s.draw.as_mut() {
+        Some(Draw::Wall { first }) if first.is_some() => *first = None,
+        Some(Draw::Ground { points }) if !points.is_empty() => points.clear(),
+        Some(_) => s.draw = None,
+        None => s.wall = None,
+    }
+}
+
+/// What the hint line and the Properties panel say for `d`, so a drawing tool reads the same in both: the
+/// next click, how to finish, how to step back.
+pub fn draw_words(d: &Draw) -> &'static str {
+    match d {
+        Draw::Wall { first: None } => "Click the wall's first end on the ground · Alt: no snapping",
+        Draw::Wall { first: Some(_) } => "Click the wall's other end · Alt: no snapping",
+        Draw::Ground { points } if points.len() < 3 => {
+            "Click the outline's corners on the ground · Backspace: last corner · Alt: no snapping"
+        }
+        Draw::Ground { .. } => {
+            "Click more corners · Enter or a click on the first corner finishes · Backspace: last corner"
+        }
+    }
+}
+
+/// What Esc does under the armed tool `d`, for the hint line.
+pub fn esc_words(d: &Draw) -> &'static str {
+    let begun = match d {
+        Draw::Wall { first } => first.is_some(),
+        Draw::Ground { points } => !points.is_empty(),
+    };
+    if begun { "cancel this shape" } else { "stop drawing" }
 }
 
 /// The surface id of the floor under `p` (the most common floor surface of
@@ -695,13 +739,16 @@ fn picked_ground(s: &EditorState, at: Vec3) -> Option<Picked> {
     })
 }
 
+/// Whether `p` is one of a race's or the career's barriers (the game switches them per race, so they stay).
+pub fn is_barrier(p: &Picked) -> bool {
+    matches!(p.key, Target::Original(_)) && p.what.starts_with("Race")
+}
+
 /// Remove the selected wall or drawn piece (Del, the panel's button): one
 /// undo step.
 pub fn remove_picked(s: &mut EditorState) -> bool {
     let Some(p) = s.wall.take() else { return false };
-    if let Target::Original(_) = &p.key
-        && p.what.starts_with("Race")
-    {
+    if is_barrier(&p) {
         s.status = "A race's barriers are switched per race: they cannot be removed".into();
         s.wall = Some(p);
         return true;
@@ -717,16 +764,10 @@ pub fn panel(s: &mut EditorState, ui: &mut egui::Ui) -> bool {
     use egui::RichText;
     let dim = |t: &str| RichText::new(t).small().color(super::theme::rgb(THEME_A.dim));
     if let Some(d) = s.draw.clone() {
-        let (title, hint) = match &d {
-            Draw::Wall { first: None } => ("Draw wall", "Click the wall's first end on the ground."),
-            Draw::Wall { first: Some(_) } => ("Draw wall", "Click its other end. Esc stops drawing."),
-            Draw::Ground { points } if points.len() < 3 => {
-                ("Draw ground", "Click the outline's corners on the ground.")
-            }
-            Draw::Ground { .. } => ("Draw ground", "Enter or a click on the first corner ends the outline. Esc stops."),
-        };
+        let title = if matches!(d, Draw::Wall { .. }) { "Draw wall" } else { "Draw ground" };
         ui.label(RichText::new(title).strong().color(super::theme::rgb(THEME_A.ink)));
-        ui.label(dim(hint));
+        ui.label(dim(draw_words(&d)));
+        ui.label(dim(&format!("Esc: {}", esc_words(&d))));
         egui::Grid::new("draw-settings").num_columns(2).show(ui, |ui| {
             if matches!(d, Draw::Wall { .. }) {
                 ui.label("Height");
@@ -751,7 +792,7 @@ pub fn panel(s: &mut EditorState, ui: &mut egui::Ui) -> bool {
             ui.end_row();
         });
         ui.label(dim("A drawn wall is a closed box 0.5 m thick, so it blocks from both sides at any frame rate."));
-        if ui.button("Stop drawing").on_hover_text("Esc").clicked() {
+        if ui.button("Stop drawing").on_hover_text("Esc, twice while a shape is begun").clicked() {
             s.draw = None;
         }
         return true;
@@ -764,7 +805,7 @@ pub fn panel(s: &mut EditorState, ui: &mut egui::Ui) -> bool {
     } else {
         ui.label(dim(&format!("{} corners · static collision", p.outline.len())));
     }
-    let barrier = p.what.starts_with("Race");
+    let barrier = is_barrier(&p);
     let label = if matches!(p.key, Target::Drawn(_)) { "Delete" } else { "Remove wall" };
     if ui.add_enabled(!barrier, egui::Button::new(label)).on_hover_text("Del").clicked() {
         remove_picked(s);

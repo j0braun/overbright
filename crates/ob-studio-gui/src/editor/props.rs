@@ -820,9 +820,12 @@ impl Props {
             duplicate_selection(s, cursor);
         }
         if esc && self.drag.is_none() {
-            s.selection.clear();
-            s.wall = None;
-            s.draw = None;
+            if s.draw.is_some() {
+                super::collision::step_back(s);
+            } else {
+                s.selection.clear();
+                s.wall = None;
+            }
         }
     }
 }

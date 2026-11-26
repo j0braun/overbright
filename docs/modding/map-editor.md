@@ -87,7 +87,7 @@ A menu item that cannot act now is greyed out and says why when hovered (Duplica
 | Menu | Items |
 |---|---|
 | File | **File ▸ New map mod…** (Ctrl+N: a name, its folder and the region), **File ▸ Open map mod…** (Ctrl+O), the five most recent mods, **File ▸ Save** (Ctrl+S), **File ▸ Mod details…** (name, author, description), **File ▸ Import…** (a mod folder, a `map.obmap` or a `.zip`), **File ▸ Export…** (a `.zip` or a folder: the map and the mod's textures, `looks.toml` and `textures/`, never `work/` or `.editor/`; textures from the original game's pixels are warned about first; it proposes `<folder>.zip` in the `exports` folder of Overbright's data folder, made on the first export, and the status line says where the file went), **File ▸ Export as mod pack…** (a `.obpk` file for the launcher's Mods page: the placements, races and textures as the asset format's own files; it proposes `<folder>-1.0.0.obpk` in the `exports` folder), **File ▸ Quit** (Ctrl+Q; saves first, and asks only when that fails) |
-| Edit | **Edit ▸ Undo** and **Edit ▸ Redo**, named by the step they undo or redo (256 steps), **Edit ▸ Duplicate**, **Edit ▸ Delete**, **Edit ▸ Select all of this solid**, **Edit ▸ Drop to ground**, **Edit ▸ Rotate 90°**, **Edit ▸ Face camera**, **Edit ▸ Draw wall**, **Edit ▸ Draw ground** (see Removed and drawn collision) |
+| Edit | **Edit ▸ Undo** and **Edit ▸ Redo**, named by the step they undo or redo (256 steps), **Edit ▸ Duplicate**, **Edit ▸ Delete**, **Edit ▸ Select all of this solid**, **Edit ▸ Drop to ground**, **Edit ▸ Rotate 90°**, **Edit ▸ Face camera**, **Edit ▸ Collision ▸ Draw wall**, **Edit ▸ Collision ▸ Draw ground** and **Edit ▸ Collision ▸ Remove wall** (see Removed and drawn collision) |
 | View | **View ▸ Roads** (the road network over the top view), **View ▸ Frame selection** (F), **View ▸ Reset camera** (the region's overview), **View ▸ Top view** (T), **View ▸ Isometric view**, **View ▸ Go to…**, **View ▸ Views ▸ Save view…** and the Views menu's **Delete view** submenu (see Hiding props, views and Go to), **View ▸ Collision ▸ Off**, **View ▸ Collision ▸ Invisible barriers** and **View ▸ Collision ▸ All collision**, **View ▸ Collision ▸ By kind** and **View ▸ Collision ▸ By surface** (see Collision), **View ▸ Collision ▸ Show race barriers** (only in Studio's World: the other races' barriers, off by default), **View ▸ Hide selected** (H), **View ▸ Isolate selected** (Shift+H), **View ▸ Show all** (Alt+H), **View ▸ This mod's changes only** (see Hiding props), **View ▸ Hint line** |
 | Race | **Race ▸ New race**, **Race ▸ Test race** (F5), **Race ▸ Drive here** (Shift+F5), **Race ▸ Restart race** (Ctrl+F5), **Race ▸ Drive to record**, **Race ▸ Test car and clock…** |
 | Help | **Help ▸ Controls**: every key, made from the editor's key table |
@@ -127,6 +127,8 @@ do nothing while a text field has the keyboard.
 | `[ / ]` | Previous / next checkpoint |
 | `Ctrl+D` | Duplicate |
 | `Del` | Delete |
+| `B / Shift+B` | Draw wall / Draw ground (Enter or the first corner finishes the outline) |
+| `Esc, Backspace` | In a drawing tool: Esc drops the shape, again puts the tool down; Backspace the last corner |
 | `End` | Drop to the ground |
 | `RMB on a prop / Shift+F10` | The prop menu: Rotate 90°, Rotate…, Face camera |
 | `Ctrl+Z, Ctrl+Y (Ctrl+Shift+Z)` | Undo, redo |
@@ -563,15 +565,15 @@ What is drawn:
 With the collision layer shown, a click on a wall in the 3D view selects it (outlined in lime; a click inside a
 drawn ground selects that), and the Properties panel names it and its size.
 
-- **Remove wall** (Del) takes the selected wall out of the game's collision: an invisible wall, a wall behind
+- **Edit ▸ Collision ▸ Remove wall** (Del, or the Properties panel's button) takes the selected wall out of the game's collision: an invisible wall, a wall behind
   scenery, or a drawn wall or ground (named **Delete** for those). It is one undo step ("Remove wall",
   "Remove wall-1"); the scenery standing there stays. Race and career barriers cannot be removed (the game
   switches them per race). Only static collision is touched: knock-over props keep their own.
-- **Edit ▸ Draw wall**: two clicks on the ground make a wall between them, of the Properties panel's height
+- **Edit ▸ Collision ▸ Draw wall** (B): two clicks on the ground make a wall between them, of the Properties panel's height
   (0.5 to 50 m, default 2 m), standing on the ground's height at each end. A drawn wall is a closed box 0.5 m
   thick reaching 0.5 m below the ground, so a car meets it from either side at any frame rate. The tool stays
-  armed for the next wall; Esc stops it.
-- **Edit ▸ Draw ground**: clicks on the ground make an outline (3 to 32 corners, not crossing itself), ended
+  armed for the next wall.
+- **Edit ▸ Collision ▸ Draw ground** (Shift+B): clicks on the ground make an outline (3 to 32 corners, not crossing itself), ended
   with Enter or a click on its first corner: a floor over it, at its corners' heights. Drawn ground goes first
   in its cells and competes by height with the other floors there (flag 0x01), so it carries a car that drives
   onto it without taking the ground from a road above or below it.
@@ -583,6 +585,29 @@ drawn ground selects that), and the Properties panel names it and its size.
 - Each drawn wall and ground has a surface id (grip and sound): by default that of the floor under its first
   point; the Properties panel sets another.
 - With Show off, drawing switches the layer to Invisible barriers so the new wall shows.
+
+One grammar for the collision tools (draw wall, draw ground, remove wall; moving scenery takes its collision along
+by itself and has no tool of its own):
+
+- **One menu group**: the three tools are the Collision group of the Edit menu, with their keys on the items. The
+  layer's own settings stay in the Collision group of the View menu.
+- **One selection**: a click on a wall (or inside a drawn ground) selects it, one piece at a time, and clears the
+  prop selection; picking a prop clears the wall. A tool armed does not pick.
+- **One set of keys**: a click places or picks, Alt places without snapping, Enter confirms what is begun (an
+  outline), Del removes the selected piece (also from the menu). Esc steps back one level at a time: the shape
+  being drawn is dropped (the tool stays armed), the next Esc puts the tool down, the next clears the selected
+  wall. Backspace takes back an outline's last corner.
+- **One undo granularity**: every finished wall, every finished ground and every removal is one undo step named
+  after it ("Draw wall", "Draw ground", "Remove wall", "Remove wall-1"); a half-drawn shape is not a step. Moved
+  scenery's collision is part of the move's step.
+- **One status**: the hint line under the view names the tool ("Draw wall", "Draw ground"), what the next click
+  does and what Esc does; the same words head the Properties panel; the status bar reports each finished step.
+- Keyboard and pad reach all of it: the menu group opens like any other menu, and the keys above are the ones the
+  Controls dialog lists.
+
+What is written to the mod does not depend on how an edit was made (menu, key, or the command line): a recorded
+sequence of draws and removals writes the same file bytes (test
+`a_recorded_collision_sequence_writes_the_same_mod`).
 
 In the file these are `[collision.remove]`, `[collision.wall]` and `[collision.ground]` sections (see File
 format); the game's load and the editor's world write them as they write moved scenery's walls (below), so Test

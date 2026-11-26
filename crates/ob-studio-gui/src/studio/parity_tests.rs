@@ -72,6 +72,7 @@ fn menu_command(c: Command) -> Cli {
         Command::Duplicate => Has(&["props duplicate"]),
         Command::Delete => Has(&["props delete", "race point delete", "race delete"]),
         Command::DropToGround => Has(&["props drop"]),
+        Command::RemoveWall => Has(&["collision remove"]),
         Command::NewRace => Has(&["race create"]),
         Command::SelectAllOfSolid => WindowOnly("a selection in the window; a script names the props it means (`props solids` lists where each is placed)"),
         Command::Rotate90 | Command::FaceCamera => Has(&["props move"]),
