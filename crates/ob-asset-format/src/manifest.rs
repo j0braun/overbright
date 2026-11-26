@@ -166,7 +166,7 @@ const GAME_FIELDS: &[Field] = &[
         doc_name: "`game.bases`",
         doc_type: "array<string>",
         doc_default: "`[\"*\"]`",
-        doc_meaning: "Base set ids it supports, `*` wildcards allowed (`nfsu2-pc12-*`). A mismatch is only a warning in the launcher; what refuses a pack made for another base set is any reference or guard that does not match (conventions §11: the whole pack, with the stale items listed).",
+        doc_meaning: "Base set ids it supports, `*` wildcards allowed (`nfsu2-pc12-*`). The game refuses a pack whose list has no match for the base set in use, or that names a base set when no imported copy is in use, and says which it was made for; a pack that is on but refused is not mounted at all. Any reference or guard that does not match refuses it too (conventions §11: the whole pack, with the stale items listed).",
         ..Field::BLANK
     },
     Field {
@@ -175,7 +175,7 @@ const GAME_FIELDS: &[Field] = &[
         doc_name: "`game.fingerprint`",
         doc_type: "array<sha256>",
         doc_default: "–",
-        doc_meaning: "Format-1 compatibility field: digests of key original files; read and shown, never required.",
+        doc_meaning: "Digests that identify the copy of the game the pack was made for (`sha256:<hex>`, the import record's `source.identity`; Overbright's exporter writes it beside `bases`). A non-empty list the base set in use is not on is refused like a base set mismatch. Format-1 files may list digests of key original files, which are read and shown.",
         ..Field::BLANK
     },
 ];

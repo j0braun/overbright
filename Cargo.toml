@@ -70,6 +70,7 @@ ob-asset-format = { path = "crates/ob-asset-format" }
 anyhow.workspace = true
 bytemuck.workspace = true
 glam.workspace = true
+semver.workspace = true
 wgpu.workspace = true
 winit.workspace = true
 pollster.workspace = true

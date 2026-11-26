@@ -122,6 +122,22 @@ impl Order {
         (on, notices)
     }
 
+    /// Moves a listed pack `by` places among the listed packs (negative: towards the strongest end); comment lines
+    /// stay where they are. False when the pack is not listed or the move would leave the list.
+    pub fn move_pack(&mut self, id: &str, by: isize) -> bool {
+        let at: Vec<usize> = self.lines.iter().enumerate().filter(|(_, l)| matches!(l, Line::Pack { .. })).map(|(i, _)| i).collect();
+        let Some(from) = at.iter().position(|&i| matches!(&self.lines[i], Line::Pack { id: have, .. } if have == id)) else {
+            return false;
+        };
+        let to = from as isize + by;
+        if to < 0 || to as usize >= at.len() {
+            return false;
+        }
+        // The pack lines trade places; the comments between them keep theirs.
+        self.lines.swap(at[from], at[to as usize]);
+        true
+    }
+
     /// Switches a pack on or off in its place; a pack not yet listed is added at the bottom (weakest).
     pub fn set_enabled(&mut self, id: &str, on: bool) {
         for l in &mut self.lines {

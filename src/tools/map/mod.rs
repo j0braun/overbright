@@ -129,7 +129,13 @@ fn read_mods(dir: &std::path::Path, only: Option<Only>) -> Vec<(String, MapMod)>
                 Vec::new()
             }
         },
-        None => store::load_enabled(dir),
+        None => {
+            let mut mods = store::load_enabled(dir);
+            // The mod packs switched on in mods/order.txt come above the plain map mods (weakest first).
+            let taken: Vec<String> = mods.iter().map(|m| m.0.clone()).collect();
+            mods.extend(crate::mod_packs::mount(&taken).mods);
+            mods
+        }
     }
 }
 
@@ -177,7 +183,7 @@ pub fn texture_roots(car: bool) -> Vec<std::path::PathBuf> {
         let roots = |sub: &str| -> Vec<std::path::PathBuf> {
             mods.iter()
                 .rev()
-                .map(|(f, _)| dir.join(f).join(store::TEXTURES).join(sub))
+                .map(|(f, _)| crate::mod_packs::root_of(f).unwrap_or_else(|| dir.join(f)).join(store::TEXTURES).join(sub))
                 .filter(|d| d.is_dir())
                 .collect()
         };

@@ -661,6 +661,12 @@ pub struct Mods {
     pub conflict: Option<Conflict>,
     /// The map mod chosen for Export and Open in map editor (its folder).
     pub map_sel: Option<String>,
+    /// Mod packs (`<app>/mods`), in `order.txt`'s order: the strongest first.
+    pub packs: Vec<PackRow>,
+    /// The mod pack chosen for Move up / Move down (its id).
+    pub pack_sel: Option<String>,
+    /// The next Export writes a mod pack file instead of a `.zip`.
+    pub export_pack: bool,
     /// The map editor started from this page.
     pub editor: EditorRun,
 }
@@ -682,6 +688,21 @@ pub struct OwnPack {
 /// (`Overbright 0.5.0 (build …)`, as Studio writes it).
 pub fn share_build() -> String {
     format!("Overbright {} (build {:016x})", env!("CARGO_PKG_VERSION"), crate::studio_api::build::BUILD_ID.0)
+}
+
+/// A mod pack as the Mods page shows it.
+#[derive(Clone, Debug, PartialEq)]
+pub struct PackRow {
+    pub id: String,
+    pub name: String,
+    pub version: String,
+    pub on: bool,
+    /// In the mods folder but not in `order.txt` yet.
+    pub new: bool,
+    /// Why it cannot be used.
+    pub refused: Option<String>,
+    /// What it overrules or is overruled by among the packs that are on: "2 values with docks".
+    pub clash: Option<String>,
 }
 
 /// A map mod as the Mods page shows it.
@@ -885,6 +906,8 @@ pub struct Paused {
     pub own: Vec<(String, bool)>,
     pub packages: Vec<(String, bool)>,
     pub maps: Vec<String>,
+    /// Mod packs that were on.
+    pub packs: Vec<String>,
     pub hud: bool,
 }
 
@@ -900,6 +923,9 @@ impl Paused {
         for f in &self.maps {
             s += &format!("map on {f}\n");
         }
+        for f in &self.packs {
+            s += &format!("pack on {f}\n");
+        }
         s += &format!("hud {}\n", if self.hud { "on" } else { "off" });
         s
     }
@@ -912,6 +938,7 @@ impl Paused {
                 (Some("own"), Some(s), Some(id)) => p.own.push((id.into(), s == "on")),
                 (Some("package"), Some(s), Some(id)) => p.packages.push((id.into(), s == "on")),
                 (Some("map"), Some("on"), Some(f)) => p.maps.push(f.into()),
+                (Some("pack"), Some("on"), Some(f)) => p.packs.push(f.into()),
                 (Some("hud"), Some(s), None) => p.hud = s == "on",
                 _ => {}
             }
@@ -1268,6 +1295,26 @@ pub trait Env {
     /// The map mods with their on / off.
     fn maps(&self) -> Vec<MapRow>;
     fn set_map(&self, folder: &str, on: bool) -> Result<(), String>;
+    /// The mod packs in `order.txt`'s order, strongest first.
+    fn packs(&self) -> Vec<PackRow> {
+        Vec::new()
+    }
+    /// Switches a mod pack on or off; the packs it needed that were turned on with it.
+    fn set_mod_pack(&self, _id: &str, _on: bool) -> Result<Vec<String>, String> {
+        Err("mod packs are not available here".into())
+    }
+    /// Moves a mod pack `by` places (negative: stronger).
+    fn move_pack(&self, _id: &str, _by: isize) -> Result<(), String> {
+        Err("mod packs are not available here".into())
+    }
+    /// Adds a mod pack file (`.obpk`); its id.
+    fn import_pack(&self, _from: &Path) -> Result<String, String> {
+        Err("mod packs are not available here".into())
+    }
+    /// Exports a map mod as a mod pack file into `to`; the file written.
+    fn export_pack(&self, _folder: &str, _to: &Path, _derived_ok: bool) -> Result<PathBuf, String> {
+        Err("mod packs are not available here".into())
+    }
     /// Imports a map mod (folder, `map.obmap` or `.zip`); its folder name.
     fn import_map(&self, from: &Path) -> Result<String, String>;
     /// Exports a map mod as a `.zip` into `to`, with its textures; the file
@@ -1470,7 +1517,7 @@ pub fn convert_hud(parts: &crate::hud_mod::Parts, progress: &(dyn Fn(String) + S
     HudOutcome { lines, dir: r.ok().map(|s| s.dir) }
 }
 
-/// The ZIP, 7-Zip and RAR files in `dir`, sorted by name, with their kind
+/// The ZIP, 7-Zip, RAR and mod pack (.obpk) files in `dir`, sorted by name, with their kind
 /// and size as the note.
 pub fn read_archives(dir: &Path) -> Vec<DirEntry> {
     let Ok(rd) = std::fs::read_dir(dir) else { return Vec::new() };
@@ -1482,6 +1529,7 @@ pub fn read_archives(dir: &Path) -> Vec<DirEntry> {
             let ext = e.path().extension()?.to_str()?.to_ascii_lowercase();
             let kind = match ext.as_str() {
                 "zip" => "ZIP archive",
+                "obpk" => "Mod pack archive",
                 "7z" => "7-Zip archive (extract it first)",
                 "rar" => "RAR archive (extract it first)",
                 _ => return None,
@@ -1966,7 +2014,7 @@ impl Env for RealEnv {
                 let list = self.mods();
                 let own = self.own_packs();
                 let conflict = self.conflict(&own, &list.iter().map(|(e, _)| e.clone()).collect::<Vec<_>>());
-                Mods { list, own, maps: self.maps(), paused: self.paused().is_some(), conflict, ..Default::default() }
+                Mods { list, own, maps: self.maps(), packs: self.packs(), paused: self.paused().is_some(), conflict, ..Default::default() }
             },
             hud: self.hud(&pack),
             prepare: Prepare::default(),
@@ -2244,6 +2292,59 @@ impl Env for RealEnv {
     fn set_map(&self, folder: &str, on: bool) -> Result<(), String> {
         crate::tools::map::store::set_enabled(&crate::tools::map::store::maps_dir(), folder, on)
             .map_err(|e| format!("{e:#}"))
+    }
+
+    fn packs(&self) -> Vec<PackRow> {
+        use crate::mod_packs as mp;
+        let base = mp::base_in_use();
+        let pairs = mp::clash_pairs(base.as_ref());
+        ob_asset_format::modpack::rows(&mp::mods_dir(), base.as_ref(), &mp::engine())
+            .into_iter()
+            .map(|r| {
+                let clash = pairs
+                    .iter()
+                    .filter(|(a, b, _)| *a == r.id || *b == r.id)
+                    .map(|(a, b, n)| {
+                        let (other, verb) = if *a == r.id { (b, "overruled by") } else { (a, "overrules") };
+                        format!("{verb} {other} ({})", count(*n, "value", "values"))
+                    })
+                    .collect::<Vec<_>>()
+                    .join("; ");
+                PackRow {
+                    id: r.id,
+                    name: r.name,
+                    version: r.version,
+                    on: r.on,
+                    new: r.new,
+                    refused: r.refused,
+                    clash: (!clash.is_empty()).then_some(clash),
+                }
+            })
+            .collect()
+    }
+
+    fn set_mod_pack(&self, id: &str, on: bool) -> Result<Vec<String>, String> {
+        ob_asset_format::modpack::set_enabled(&crate::mod_packs::mods_dir(), id, on)
+    }
+
+    fn move_pack(&self, id: &str, by: isize) -> Result<(), String> {
+        ob_asset_format::modpack::move_pack(&crate::mod_packs::mods_dir(), id, by)
+    }
+
+    fn import_pack(&self, from: &Path) -> Result<String, String> {
+        ob_asset_format::modpack::import(&crate::mod_packs::mods_dir(), from, &crate::mod_packs::engine())
+    }
+
+    fn export_pack(&self, folder: &str, to: &Path, derived_ok: bool) -> Result<PathBuf, String> {
+        let opts = crate::mod_packs::ExportOpts {
+            version: semver::Version::new(1, 0, 0),
+            licence: None,
+            derived_ok,
+            build: share_build(),
+        };
+        let base = crate::mod_packs::base_in_use();
+        crate::mod_packs::export_map_mod(&crate::tools::map::store::maps_dir(), folder, to, base.as_ref(), &opts)
+            .map(|e| e.to)
     }
 
     fn import_map(&self, from: &Path) -> Result<String, String> {
@@ -2651,7 +2752,7 @@ impl Env for FakeEnv {
                 let list = self.mods();
                 let own = self.own_packs();
                 let conflict = self.conflict(&own, &list.iter().map(|(e, _)| e.clone()).collect::<Vec<_>>());
-                Mods { list, own, maps: self.maps(), paused: self.paused().is_some(), conflict, ..Default::default() }
+                Mods { list, own, maps: self.maps(), packs: self.packs(), paused: self.paused().is_some(), conflict, ..Default::default() }
             },
             hud: None,
             prepare: Prepare::default(),
@@ -2857,6 +2958,38 @@ impl Env for FakeEnv {
             MapRow { folder: "drift-park".into(), name: "Drift park".into(), on: true, races: 2, props: 9, textures: 0 },
             MapRow { folder: "open-docks".into(), name: "Open docks".into(), on: false, races: 0, props: 14, textures: 5 },
         ]
+    }
+
+    fn packs(&self) -> Vec<PackRow> {
+        let row = |id: &str, name: &str, on, refused: Option<&str>, clash: Option<&str>| PackRow {
+            id: id.into(),
+            name: name.into(),
+            version: "1.2.0".into(),
+            on,
+            new: false,
+            refused: refused.map(str::to_string),
+            clash: clash.map(str::to_string),
+        };
+        vec![
+            row("docks-remix", "Docks remix", true, None, Some("overrules cone-pack (3 values)")),
+            row("cone-pack", "Cone pack", true, None, Some("overruled by docks-remix (3 values)")),
+        ]
+    }
+
+    fn set_mod_pack(&self, _id: &str, _on: bool) -> Result<Vec<String>, String> {
+        Ok(Vec::new())
+    }
+
+    fn move_pack(&self, _id: &str, _by: isize) -> Result<(), String> {
+        Ok(())
+    }
+
+    fn import_pack(&self, _from: &Path) -> Result<String, String> {
+        Ok("docks-remix".into())
+    }
+
+    fn export_pack(&self, folder: &str, to: &Path, _derived_ok: bool) -> Result<PathBuf, String> {
+        Ok(to.join(format!("{folder}-1.0.0.obpk")))
     }
 
     fn set_map(&self, _folder: &str, _on: bool) -> Result<(), String> {

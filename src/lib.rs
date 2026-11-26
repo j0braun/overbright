@@ -36,6 +36,7 @@ mod testkit_tests {
 
 pub mod ai;
 pub mod asset_layer;
+pub mod mod_packs;
 pub mod ai_looks;
 pub mod carfx_pops;
 pub mod track_camera;

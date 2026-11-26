@@ -1281,6 +1281,7 @@ fn launcher_prefs_and_paused_round_trip() {
         own: vec![("night-roads".into(), true)],
         packages: vec![("roads-hd".into(), false)],
         maps: vec!["drift-park".into()],
+        packs: vec!["docks-remix".into()],
         hud: true,
     };
     assert_eq!(Paused::parse(&q.text()), q);
@@ -2455,6 +2456,38 @@ fn mods_on_overbright_packs_and_map_mods() {
     assert_eq!(env.paused(), Some(p));
     env.set_paused(None).unwrap();
     assert!(env.paused().is_none());
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// The Mods page's mod packs on a sandboxed data folder: a map mod exported as a pack file, imported (off, new),
+/// switched on, moved, and "Use mods: Off" remembering it.
+#[test]
+fn mods_on_mod_packs() {
+    use super::model::{Env, RealEnv};
+    let dir = std::env::temp_dir().join(format!("ob-launcher-packs-{}", crate::unique_tag()));
+    crate::frontend::profiles::sandbox::enter(&dir);
+    let env = RealEnv;
+    assert!(env.packs().is_empty(), "nothing installed: nothing listed");
+    let maps = crate::tools::map::store::maps_dir();
+    for f in ["docks", "cones"] {
+        let m = crate::tools::map::MapMod { name: f.to_uppercase(), ..Default::default() };
+        crate::tools::map::store::save(&maps, f, &m).unwrap();
+    }
+    let out = dir.join("exports");
+    for f in ["docks", "cones"] {
+        let file = env.export_pack(f, &out, false).unwrap();
+        assert_eq!(file, out.join(format!("{f}-1.0.0.obpk")));
+        assert_eq!(env.import_pack(&file).unwrap(), f);
+    }
+    assert!(env.import_pack(&out.join("docks-1.0.0.obpk")).unwrap_err().contains("already installed"));
+    let rows = env.packs();
+    assert_eq!(rows.iter().map(|r| (r.id.as_str(), r.on, r.new)).collect::<Vec<_>>(), [("cones", false, true), ("docks", false, true)]);
+    env.set_mod_pack("docks", true).unwrap();
+    env.set_mod_pack("cones", true).unwrap();
+    assert_eq!(env.packs().iter().map(|r| (r.id.as_str(), r.on)).collect::<Vec<_>>(), [("docks", true), ("cones", true)]);
+    env.move_pack("cones", -1).unwrap();
+    assert_eq!(env.packs()[0].id, "cones");
+    assert!(env.move_pack("cones", -1).is_err(), "not past the top");
     let _ = std::fs::remove_dir_all(&dir);
 }
 
