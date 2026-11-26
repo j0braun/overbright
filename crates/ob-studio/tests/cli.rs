@@ -506,6 +506,16 @@ fn looks_open_import_and_list() {
         run(&["modpack", "export", "--mod", "<mod>", "--to", &pto, "--derived-ok", "--version", "one"], &dir, &e).0,
         cli::USAGE
     );
+    // `modpack report`: the pack file read in words, nothing written; a name that is no pack is refused.
+    let (code, out, _) = run(&["modpack", "report", "--pack", &file.to_string_lossy(), "--json"], &dir, &e);
+    assert_eq!(code, cli::OK, "{out}");
+    let doc: Value = serde_json::from_str(&out).unwrap();
+    let rep = doc["report"].as_str().unwrap();
+    assert!(rep.starts_with("Edit report: ") && rep.contains("Compared with the game") && rep.contains("Races"), "{rep}");
+    let rto = s.path().join("report.txt");
+    let (code, _, _) = run(&["modpack", "report", "--pack", &file.to_string_lossy(), "--to", &rto.to_string_lossy()], &dir, &e);
+    assert_eq!((code, std::fs::read_to_string(&rto).unwrap()), (cli::OK, rep.to_string()));
+    assert_eq!(run(&["modpack", "report", "--pack", "no-such-pack"], &dir, &e).0, cli::FAILED);
     // `modpack convert`: the plain mod (its zip from `pack export`) becomes a pack, refused when it is neither kind.
     let conv = s.path().join("converted");
     let (cto, czip) = (conv.to_string_lossy().to_string(), zip.to_string_lossy().to_string());
@@ -607,6 +617,10 @@ fn a_mod_left_unreadable_says_so_and_pack_repair_mends_it() {
     let msg = doc["error"]["message"].as_str().unwrap();
     assert!(msg.contains("line 8: a sprint race runs one lap") && msg.contains("pack repair"), "{msg}");
     assert_eq!(doc["error"]["repair"]["fixes"].as_array().unwrap().len(), 1, "{out}");
+    // The known writer bug is named; with no record of who wrote the file it was an older build.
+    assert!(msg.contains("An older build wrote a sprint or drift race with more than one lap"), "{msg}");
+    assert_eq!(doc["error"]["repair"]["writer_bugs"][0]["id"], "laps-on-a-sprint", "{out}");
+    assert!(doc["error"]["repair"]["writer_bugs"][0]["written_by"].is_null());
     let (code, _, _) = run(&["pack", "repair", "--mod", "<mod>", "--dry-run"], &dir, &e);
     assert_eq!((code, text(&dir).as_str()), (cli::OK, broken), "a dry run writes nothing");
     let (code, out, err) = run(&["pack", "repair", "--mod", "<mod>"], &dir, &e);
@@ -615,6 +629,20 @@ fn a_mod_left_unreadable_says_so_and_pack_repair_mends_it() {
     assert_eq!((m.races[0].kind, m.races[0].laps), (RaceKind::Sprint, 1));
     let (code, out, _) = run(&["pack", "repair", "--mod", "<mod>"], &dir, &e);
     assert!(code == cli::OK && out.contains("Nothing to repair"), "{out}");
+    // A file the mod's record says a named build wrote: the finding names that build.
+    std::fs::write(dir.join(store::FILE), broken).unwrap();
+    std::fs::remove_dir_all(dir.join(store::EDITOR_DIR)).unwrap();
+    std::fs::create_dir_all(dir.join(store::EDITOR_DIR)).unwrap();
+    std::fs::write(
+        dir.join(store::EDITOR_DIR).join(ob_studio::history::SAVED_BY),
+        r#"{"build":"Overbright 0.5.0 (build 00000000000000aa)","at":1,"docs":{}}"#,
+    )
+    .unwrap();
+    let (_, out, _) = run(&["history", "show", "--mod", "<mod>", "--json"], &dir, &e);
+    let doc: Value = serde_json::from_str(&out).unwrap();
+    let msg = doc["error"]["message"].as_str().unwrap();
+    assert!(msg.contains("Overbright 0.5.0 (build 00000000000000aa) wrote a sprint or drift race"), "{msg}");
+    assert_eq!(doc["error"]["repair"]["writer_bugs"][0]["written_by"], "Overbright 0.5.0 (build 00000000000000aa)");
     // No safe repair: refused, the file kept.
     let zero =
         "overbright-map 1\n\n[prop.add]\nregion = L4RA\nsolid = X\nposition = 0 0 0\nrotation = 0 0 0 0 0 0 0 0 0\n";

@@ -44,6 +44,7 @@ and its schema export (`crates/ob-studio/schema/studio.json`) use, so `help` is 
 | `pack export` | run | Export the mod as one file to share (`--to` a `.zip`, or a new folder), without its work files; textures made from the original game's pixels need `--derived-ok` ([Studio](studio.md#the-mod-page)) |
 | `modpack export` | run | Export the mod as a mod pack file, `<id>-<version>.obpk` (`--to` a `.obpk` or a folder; optional `--version`, default 1.0.0, `--licence` as an SPDX expression, else the pack stays on this computer; `--derived-ok` as for `pack export`). Its placements, races and textures are the asset format's own files ([layering](asset-format/layering.md#7-todays-mod-registries-as-legacy-packs)) and the provenance is the launcher export's |
 | `modpack convert` | run | Convert a plain map mod or an Overbright texture pack (format 1: `world/`, `car/`, `any/`; `--from` a folder or `.zip`) to a mod pack file (`--to`; optional `--id`, `--version`, `--licence`, `--derived-ok`). The provenance says `converted`; what the pack format has no place for is listed (`left out`), a folder that is neither kind is refused. A converted texture pack stays on this computer. Needs no `--mod` |
+| `modpack report` | read | What a mod pack changes compared with the game, in words (`--pack` a `.obpk` file, a pack folder, or the id of an installed pack; optional `--to` also writes the text to a file): who made it and for which game copy, its credits, each prop it moves, removes or adds, its races, the textures it replaces, and what it overrules among the packs that are on (an installed pack only). Needs no `--mod`; nothing is mounted or switched on |
 | `pack repair` | edit | Repair a `map.obmap` that no longer reads, where a safe repair exists (a sprint or drift race with more than one lap runs its one lap), as one step |
 | `edit group` | edit | Several edits as one step (`--label`, `--ops`: the edits as a JSON list) |
 | `ops apply` | edit | Apply an operations file as one step (`--file`, optional `--label`) |
@@ -163,7 +164,7 @@ a model's `placements`, `as_lod`, `section_list` and `texture_list`, or a textur
 `build`; refused for derived textures, its `error.reason` is `derived` and `derived` lists them.
 
 `modpack export` gives `to`, `id`, `files`, `bytes` and `build`, and refuses derived textures like `pack export`
-(`error.reason` is `derived`). `modpack convert` gives the same plus `kind` (`map mod` or `texture pack`) and `skipped`.
+(`error.reason` is `derived`). `modpack convert` gives the same plus `kind` (`map mod` or `texture pack`) and `skipped`. `modpack report` gives `pack` and `report` (the text).
 
 `looks open` gives `texture`, `name`, `work_file`, `origin` (`game` or `blank`) and `derived`. `looks import`
 gives `outcome` (`made` with its `step`, `unchanged`, or `sent` with the inbox `request` when Studio or the map
@@ -213,7 +214,7 @@ Studio's history shows the step, and Edit ▸ Undo takes it back like any other.
 - **Only files that read**: every edit is checked against the map file's rules before it becomes a step (a sprint
   or drift race runs one lap, a rotation's rows are unit axes, …), and a file is written only when it reads back,
   so no command leaves a mod that no longer opens. A dry run makes the same checks. A mod an older tool left
-  unreadable this way is repaired with `pack repair` (one undoable step; `--dry-run` shows it first).
+  unreadable this way is repaired with `pack repair` (one undoable step; `--dry-run` shows it first). The refusal also names the **known writer bug** the file has and the build that wrote it, as the mod recorded it in `.editor/saved-by.json` (`An older build wrote …` when there is no record); `error.repair.writer_bugs` lists each with its `id`, `what` and `written_by`. A new known bug is one more row of the list in `crates/ob-studio/src/writer_bugs.rs`, with its test.
 - **Studio has the mod open**: only one program writes a mod at a time. The tool then puts its change into the
   mod's inbox (`.editor/inbox/`); Studio makes it as one step at its next look and answers, and the tool prints
   that answer. A change made against the mod as the tool read it is merged item by item: if Studio changed the same

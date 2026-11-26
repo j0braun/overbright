@@ -26,7 +26,8 @@ Label ids 0xC104E0A0..A4 (`options::GROUP_WEATHER`, `WET_CAR`, …).
 - Wetness +0x509C, step 0x61F2BD: up by 0.05 of the gap a step while it rains, down by 0.0015.
   The game sets it to 1 at track load (0x61E100) and only uses it for the flare stretch.
 - Cover zones +0x1E4 / +0x1E8 (0x61E710, route triggers of kinds 5 and 6). The native drops are hidden
-  under a cover.
+  under a cover; the amount and the wetness are not, so the road under a roof (tunnels, covered lots)
+  stays as wet as in the open, natively and with Wet Roads (docs/formats/world.md, Rain, "Cover").
 - World clock 0x7FB718 and the lens drops 0x5C7AC0 (rain_drop.efx, `render/rain.rs`).
 - Street lamps: the light packs (`lamps::lamps_of`).
 

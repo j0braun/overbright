@@ -431,3 +431,156 @@ fn look_inside_shows_converted_provenance_and_an_old_map_obmap_pack() {
         let _ = std::fs::remove_dir_all(d);
     }
 }
+
+fn layer_ids(car: bool) -> Vec<(String, LayerKind)> {
+    // The kinds read their lists at most every half second.
+    std::thread::sleep(std::time::Duration::from_millis(550));
+    texture_layers(car).into_iter().map(|l| (l.id, l.kind)).collect()
+}
+
+/// Every mod kind that has textures mounts through the one stack, strongest first as the game always read them:
+/// the packs, the plain map mods, the texture packages; with none in use the stack is empty (the native path).
+#[test]
+fn every_mod_kind_mounts_through_the_one_stack() {
+    let _serial = serial();
+    let home = scratch("stack-home");
+    crate::platform::dirs::set_thread_data_home(home.clone());
+    let cache = scratch("stack-cache");
+    let _c = crate::cache::override_dir(cache.clone());
+    set_base(None);
+    assert!(layer_ids(false).is_empty() && layer_ids(true).is_empty(), "no mod: native");
+    assert!(mount_all(&store::maps_dir()).is_empty());
+    assert!(!mods_dir().exists(), "nothing is written for a player with no mods");
+
+    // A plain map mod with world textures, switched on in maps/enabled.txt.
+    let maps = store::maps_dir();
+    make(&maps, "docks", &mov("Docks", 1.0), true);
+    store::set_enabled(&maps, "docks", true).unwrap();
+    crate::tools::map::reload_active();
+    assert_eq!(layer_ids(false), [("docks".to_string(), LayerKind::MapMod)]);
+    assert!(layer_ids(true).is_empty(), "no car textures");
+
+    // An imported texture package the launcher keeps.
+    let pkg = crate::texture_mods::packages_dir().join("roads");
+    png(&pkg, "world/00000ABC.png");
+    png(&pkg, "car/00000ABC.png");
+    crate::texture_mods::save(&[crate::texture_mods::Entry { id: "roads".into(), on: true }]).unwrap();
+
+    // A mod pack in mods/, switched on: above both.
+    let out = scratch("stack-out");
+    let tmpmaps = scratch("stack-maps2");
+    make(&tmpmaps, "cones", &mov("Cones", 2.0), true);
+    export_map_mod(&tmpmaps, "cones", &out, None, &ExportOpts { derived_ok: true, ..opts() }).unwrap();
+    modpack::import(&mods_dir(), &out.join("cones-1.0.0.obpk"), &engine()).unwrap();
+    modpack::set_enabled(&mods_dir(), "cones", true).unwrap();
+    crate::tools::map::reload_active();
+    assert_eq!(
+        layer_ids(false),
+        [
+            ("cones".to_string(), LayerKind::Pack),
+            ("docks".to_string(), LayerKind::MapMod),
+            ("roads".to_string(), LayerKind::TexMod)
+        ]
+    );
+    assert_eq!(layer_ids(true), [("roads".to_string(), LayerKind::TexMod)]);
+    // The loader's folders are the same list.
+    assert_eq!(texture_stack_dirs(false), texture_layers(false).into_iter().map(|l| l.dir).collect::<Vec<_>>());
+    // One load path: the map data of the plain mod and of the pack come out of the same call, weakest first.
+    let ids: Vec<String> = mount_all(&maps).into_iter().map(|m| m.0).collect();
+    assert_eq!(ids, ["docks", "cones"]);
+
+    // Everything off: native again.
+    modpack::set_enabled(&mods_dir(), "cones", false).unwrap();
+    store::set_enabled(&maps, "docks", false).unwrap();
+    crate::texture_mods::save(&[]).unwrap();
+    crate::tools::map::reload_active();
+    assert!(layer_ids(false).is_empty());
+    set_base(None);
+    for d in [home, cache, out, tmpmaps] {
+        let _ = std::fs::remove_dir_all(d);
+    }
+}
+
+const CREDITS: &str = "[[credit]]\nname = \"Brick wall\"\nby = \"Someone\"\nlicence = \"CC-BY-4.0\"\nsource = \"https://example.org/b\"\n\n[[credit]]\nname = \"No author\"\n";
+
+#[test]
+fn credits_are_read_and_written_again_and_unfit_entries_are_left_out() {
+    let c = credits::parse(CREDITS);
+    assert_eq!(c.len(), 1, "an entry with no author is left out");
+    assert_eq!(c[0].line(), "Brick wall by Someone, CC-BY-4.0, https://example.org/b");
+    assert_eq!(credits::parse(&format!("format = 1\n{}", credits::toml(&c))), c, "written and read again");
+    assert!(credits::parse("not toml [").is_empty());
+}
+
+/// Credits kept in the mod folder go into the pack's provenance on export and on conversion, a converted texture pack
+/// credits its own author, and Look inside and the edit report show them.
+#[test]
+fn credits_are_kept_on_export_and_convert_and_shown() {
+    let _serial = serial();
+    let home = scratch("cr-home");
+    crate::platform::dirs::set_thread_data_home(home.clone());
+    let cache = scratch("cr-cache");
+    let _c = crate::cache::override_dir(cache.clone());
+    set_base(None);
+    let maps = scratch("cr-maps");
+    let mut m = mov("Docks", 1.0);
+    m.author = "Me".into();
+    make(&maps, "docks", &m, true);
+    std::fs::write(maps.join("docks").join("credits.toml"), CREDITS).unwrap();
+    let out = scratch("cr-out");
+    let e = export_map_mod(&maps, "docks", &out, None, &ExportOpts { derived_ok: true, ..opts() }).unwrap();
+    let prov = |p: &Path| {
+        let b = ob_asset_format::bundle::Bundle::open(p, ob_asset_format::bundle::Kind::PackFile).unwrap();
+        String::from_utf8(b.read(b.get("provenance.toml").unwrap()).unwrap().into_owned()).unwrap()
+    };
+    assert_eq!(credits::parse(&prov(&e.to)).len(), 1, "{}", prov(&e.to));
+    // Convert the same folder: the credits file is carried, not listed as left out.
+    let conv = scratch("cr-conv");
+    let c = convert_legacy(&maps.join("docks"), &conv, Some("docks-old"), None, &ExportOpts { derived_ok: true, ..opts() }).unwrap();
+    assert!(c.skipped.is_empty(), "{:?}", c.skipped);
+    assert_eq!(credits::parse(&prov(&c.exported.to)), credits::parse(CREDITS));
+    // A texture pack of someone else's credits its author by itself.
+    let tp = scratch("cr-tp");
+    let dir = tp.join("Pretty Roads");
+    png(&dir, "world/00000ABC.png");
+    std::fs::write(
+        dir.join(crate::obpack::manifest::FILE),
+        "format = 1\nname = \"Pretty Roads\"\nauthor = \"Roady\"\nlicence = \"CC0-1.0\"\n",
+    )
+    .unwrap();
+    let t = convert_legacy(&dir, &conv, None, None, &opts()).unwrap();
+    let got = credits::parse(&prov(&t.exported.to));
+    assert_eq!(got.len(), 1);
+    assert_eq!((got[0].by.as_str(), got[0].licence.as_deref()), ("Roady", Some("CC0-1.0")));
+
+    // Look inside and the report show them; the report reads a pack file that is not installed.
+    modpack::import(&mods_dir(), &e.to, &engine()).unwrap();
+    let i = inside("docks", None).unwrap();
+    assert!(i.lines().iter().any(|l| l == "Credit: Brick wall by Someone, CC-BY-4.0, https://example.org/b"), "{:?}", i.lines());
+    let text = report_of_id("docks", None).unwrap();
+    assert!(text.starts_with("Edit report: Docks (docks 1.0.0)"), "{text}");
+    for want in [
+        "Version 1.0.0 by Me",
+        "Compared with the game",
+        "Changes 1 moved prop, 1 texture",
+        "Moves XO_CONE_01 in L4RA by 22.1 m",
+        "world:0x12345678",
+        "Credits",
+        "Brick wall by Someone, CC-BY-4.0",
+    ] {
+        assert!(text.contains(want), "{want}: {text}");
+    }
+    assert!(report_of_id("nope", None).is_none());
+    // Not installed: read from the file itself, with no clashes and no order.
+    let other = scratch("cr-other");
+    let f = other.join("docks-old-1.0.0.obpk");
+    std::fs::copy(&c.exported.to, &f).unwrap();
+    let t2 = report_of_path(&f, None).unwrap();
+    assert!(t2.contains("Edit report: Docks (docks-old 1.0.0)") && t2.contains("Provenance: converted from"), "{t2}");
+    assert!(report_of_path(&other, None).is_err() && report_of_path(&other.join("nope.obpk"), None).is_err());
+    // Read only: nothing is switched on.
+    assert!(!mods_dir().join(modpack::ORDER_FILE).exists());
+    for d in [home, cache, maps, out, conv, tp, other] {
+        let _ = std::fs::remove_dir_all(d);
+    }
+}

@@ -130,11 +130,8 @@ fn read_mods(dir: &std::path::Path, only: Option<Only>) -> Vec<(String, MapMod)>
             }
         },
         None => {
-            let mut mods = store::load_enabled(dir);
-            // The mod packs switched on in mods/order.txt come above the plain map mods (weakest first).
-            let taken: Vec<String> = mods.iter().map(|m| m.0.clone()).collect();
-            mods.extend(crate::mod_packs::mount(&taken).mods);
-            mods
+            // The plain map mods and the mod packs switched on, as one stack (`mod_packs::mount_all`).
+            crate::mod_packs::mount_all(dir)
         }
     }
 }

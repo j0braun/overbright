@@ -12,14 +12,20 @@
 //! log says why; clashes between packs are logged, never errors.
 
 mod content;
+mod credits;
 mod convert;
 mod inside;
 mod layers;
 mod pack_export;
+mod report;
+mod stack;
 
 pub use inside::{Inside, inside};
+pub use stack::{Layer, LayerKind, hud_layer, texture_layers, texture_stack_dirs};
 
 pub use layers::{added_key, heading, layers, placement_key, race_key};
+pub use credits::Credit;
+pub use report::{of_id as report_of_id, of_path as report_of_path, text as report_text};
 pub use convert::{Converted, convert_legacy};
 pub use pack_export::{ExportOpts, Exported, export_map_mod, export_mod_dir};
 
@@ -171,6 +177,16 @@ pub fn mount(taken: &[String]) -> Mounted {
     }
     *ROOTS.write().unwrap_or_else(|e| e.into_inner()) = roots;
     out
+}
+
+/// Everything the game reads map data from, weakest first: the plain map mods `enabled.txt` lists in `maps`, then the
+/// packs switched on in `order.txt` (a pack whose id a map mod folder already has is not mounted). The one load path
+/// for both kinds: the game, the launcher's checks and the tools all read the stack here.
+pub fn mount_all(maps: &Path) -> Vec<(String, MapMod)> {
+    let mut mods = store::load_enabled(maps);
+    let taken: Vec<String> = mods.iter().map(|m| m.0.clone()).collect();
+    mods.extend(mount(&taken).mods);
+    mods
 }
 
 /// The clashes among the packs that are on, as the launcher shows them (nothing is logged or mounted): each pair of

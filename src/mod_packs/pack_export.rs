@@ -106,8 +106,14 @@ pub(super) fn write_pack(b: Build, to: &Path, base: Option<&BaseId>, o: &ExportO
 }
 
 /// `provenance.toml`: the export's, and for a converted legacy mod where it came from.
-pub(super) fn provenance_text(build: &str, derived: &[share::Derived], converted_from: Option<&str>) -> String {
-    let t = share::provenance(build, derived);
+pub(super) fn provenance_text(
+    build: &str,
+    derived: &[share::Derived],
+    converted_from: Option<&str>,
+    credits: &[super::credits::Credit],
+) -> String {
+    let mut t = share::provenance(build, derived);
+    t.push_str(&super::credits::toml(credits));
     match converted_from {
         Some(from) => {
             t.replacen("\nformat = ", &format!("\nconverted = true\nconverted_from = {}\nformat = ", q(from)), 1)
@@ -203,7 +209,7 @@ pub(super) fn export_dir(
     } else {
         ("own-work", "local-only")
     };
-    let provenance = provenance_text(&o.build, &derived, converted_from);
+    let provenance = provenance_text(&o.build, &derived, converted_from, &super::credits::of_dir(dir));
     write_pack(
         Build {
             id: folder,

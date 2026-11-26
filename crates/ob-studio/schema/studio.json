@@ -1426,6 +1426,27 @@
       ]
     },
     {
+      "name": "modpack.report",
+      "kind": "read",
+      "summary": "What a mod pack changes compared with the game, in words: its props, races, textures, credits and clashes",
+      "args": [
+        {
+          "key": "pack",
+          "type": "text",
+          "required": "yes",
+          "merge": false,
+          "label": "A .obpk file or pack folder, or the id of an installed pack"
+        },
+        {
+          "key": "to",
+          "type": "text",
+          "required": "no",
+          "merge": false,
+          "label": "Also write the report to this text file"
+        }
+      ]
+    },
+    {
       "name": "pack.repair",
       "kind": "edit",
       "summary": "Repair a map file that no longer reads, where a safe repair exists (as one undo step)",

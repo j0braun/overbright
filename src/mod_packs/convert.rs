@@ -8,6 +8,7 @@ use std::path::{Path, PathBuf};
 use ob_asset_format::modpack::BaseId;
 
 use super::content::GLOBAL_IMAGES;
+use super::credits;
 use super::pack_export::{self, Build, ExportOpts, Exported, q};
 use crate::tools::map::{share, store};
 
@@ -76,7 +77,7 @@ pub fn convert_legacy(
                 .map_err(|e| at(&e))?
                 .into_iter()
                 .map(|f| f.path)
-                .filter(|p| p != store::FILE && !p.starts_with("textures/") && p != share::LOOKS)
+                .filter(|p| p != store::FILE && !p.starts_with("textures/") && p != share::LOOKS && p != credits::FILE)
                 .collect();
             skipped.sort();
             Ok(Converted { exported: e, kind: "map mod", skipped })
@@ -262,10 +263,25 @@ fn texture_pack(
     }
     files.push(("global/textures/overrides.toml".into(), text.into_bytes()));
     let name = if manifest.name.trim().is_empty() { pid.clone() } else { manifest.name.clone() };
+    // The credits the pack's folder lists, and its own author as the credit for the images (added by itself: the pack
+    // names who made the art whatever the converting player is).
+    let mut credits = credits::of_dir(root);
+    if !manifest.author.trim().is_empty() {
+        let own = credits::Credit {
+            name: name.clone(),
+            by: manifest.author.trim().to_string(),
+            licence: Some(manifest.licence.trim().to_string()).filter(|l| !l.is_empty()),
+            source: Some(manifest.source.trim().to_string()).filter(|l| !l.is_empty()),
+        };
+        if !credits.iter().any(|c| c.by == own.by) {
+            credits.insert(0, own);
+        }
+    }
     let provenance = pack_export::provenance_text(
         &o.build,
         &[],
         Some(&format!("texture pack {}", from.file_name().and_then(|n| n.to_str()).unwrap_or("a texture pack"))),
+        &credits,
     );
     let e = pack_export::write_pack(
         Build {
