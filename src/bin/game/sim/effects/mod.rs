@@ -30,6 +30,12 @@ pub(crate) struct Effects {
     /// once, [0x827B28]: one per description of the group
     /// "XECH_FLAG_GIRL_FLARE", 0x48B8B0 — glow, smoke, sparks in GLOBALB).
     pub(crate) flag_girl: Vec<nfsu2::particles::Emitter>,
+    /// The props' attached effects (info +0x88): per prop index, the
+    /// group's emitters, started when it is first knocked loose.
+    pub(crate) attached: std::collections::BTreeMap<usize, Vec<nfsu2::particles::Emitter>>,
+    /// This update's knocked props and their poses
+    /// (`smackable::Props::knocked_poses`), set by the tick before the step.
+    pub(crate) knocked: Vec<(usize, glam::Mat4)>,
     /// The cars' purge smoke emitters (kinds 13 / 14), per car.
     pub(crate) purges: std::collections::HashMap<usize, PurgeSmoke>,
     /// The turbo's flame pops (0x5EBE10 at a shift, 0x5F5F5F revving in
@@ -149,6 +155,8 @@ impl Default for Effects {
             markers: Default::default(),
             placed: None,
             flag_girl: Vec::new(),
+            attached: Default::default(),
+            knocked: Vec::new(),
             purges: Default::default(),
             pops: Default::default(),
             clock: 0.0,
@@ -244,6 +252,7 @@ impl Effects {
         let library = &world.emitters;
         self.clock += dt;
         self.start_placed(world);
+        self.start_attached(world);
         // Record this update's births for the detailed smoke (no
         // change to the spawns themselves; None on Original).
         let particle_tier = settings.particles;
@@ -298,6 +307,39 @@ impl Effects {
                 placed.push((p.switch, e));
             }
             self.placed = Some(placed);
+        }
+    }
+
+    /// The props' attached effects: on a prop's first move (0x5ADFA0, once)
+    /// each emitter copied from its info's +0x88 list (0x5B1550, state 1)
+    /// is started (0x48BC50: emitting for +0x24 ± +0x28, then off for
+    /// +0x2C ± +0x30, 0 for ever) on the manager's list; every frame the
+    /// prop's update (0x5ADB30) sets its matrix to the prop's.
+    /// `XES_Barrel_WaterA_SplashA` (the yellow water barrels): 125 a second
+    /// for 0.35–0.5 s.
+    fn start_attached(&mut self, world: &nfsu2::world::World) {
+        let library = &world.emitters;
+        // Props put back (a new world or a restart) take their effects
+        // with them.
+        let knocked = &self.knocked;
+        self.attached.retain(|i, _| knocked.iter().any(|k| k.0 == *i));
+        for &(i, pose) in &self.knocked {
+            let Some(prop) = world.smackables.get(i) else { continue };
+            let rng = &mut self.rng;
+            let list = self.attached.entry(i).or_insert_with(|| {
+                library
+                    .group_templates(prop.info.effects)
+                    .into_iter()
+                    .map(|(d, _)| {
+                        let mut e = nfsu2::particles::Emitter::new(d, pose, (rng.next() * 4.0e9) as u32);
+                        e.start(library);
+                        e
+                    })
+                    .collect()
+            });
+            for e in list {
+                e.transform = pose;
+            }
         }
     }
 
@@ -423,6 +465,10 @@ impl Effects {
             if *switch == 0 || world.switches.contains(switch) {
                 self.system.run(library, e, dt);
             }
+        }
+        // The props' attached effects are on the same list (0x48BC50).
+        for e in self.attached.values_mut().flatten() {
+            self.system.run(library, e, dt);
         }
         // The marker effects' emitters run with the rest (0x492E10).
         for (_, emitters) in self.markers.iter_mut().flatten() {

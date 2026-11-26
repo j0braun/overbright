@@ -1280,6 +1280,7 @@ mod tests {
                 restitution: 0.0,
                 friction: 0.5,
                 material: key as usize % 19,
+                effects: 0,
             },
             shape: vec![Vec3::X, Vec3::Y * key as f32],
             offset: Vec3::ZERO,

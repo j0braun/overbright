@@ -76,6 +76,7 @@ impl Game {
         };
         let order = d.effects.order;
         d.effects.rain = d.weather.amount;
+        d.effects.knocked = d.props.knocked_poses(&d.world);
         d.effects.step_in_order(&d.world, d.camera.position, &cars, &scene_flames, order, dt, settings);
     }
 }

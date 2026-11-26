@@ -44,7 +44,8 @@
 //! Inferred: where the props' pairs sit among the cars' in the gather
 //! (after them; it decides only exact ties). Each record's first push
 //! posts the prop's impact sound ([`prop_sound`], `audio::collision`).
-//! Not ported: the attached effects and the props' contact particle
+//! The attached effects (info +0x88) start in the game's particle effects
+//! ([`Props::knocked_poses`]). Not ported: the props' contact particle
 //! effects (their surface index is not carried; the particle system is
 //! `crate::particles`, docs/formats.md).
 mod body;
@@ -350,6 +351,22 @@ impl Props {
     /// How many props have been knocked into motion at some point.
     pub fn knocked(&self) -> usize {
         self.bodies.iter().flatten().filter(|b| b.knocked).count()
+    }
+
+    /// The props knocked loose so far (0x5ADFA0 has run: +0x505), with
+    /// their pose: the attached effects (info +0x88) start then and follow
+    /// the prop (0x5ADB30).
+    pub fn knocked_poses(&self, world: &World) -> Vec<(usize, Mat4)> {
+        if !self.live(world) {
+            return Vec::new();
+        }
+        world
+            .smackables
+            .iter()
+            .zip(&self.bodies)
+            .enumerate()
+            .filter_map(|(i, (prop, b))| b.as_ref().filter(|b| b.knocked).map(|b| (i, transform(prop, b))))
+            .collect()
     }
 
     /// Every prop's drawn pose: a woken one's body, else its rest pose,
@@ -893,6 +910,7 @@ mod tests {
             friction: 0.3,
             centre_of_mass: Vec3::new(0.0, 0.0, 0.37),
             material: MATERIALS.iter().position(|m| *m == "TRAFFIC_CONE").unwrap(),
+            effects: 0,
         };
         let half = Vec3::new(0.3, 0.3, 0.4);
         let shape: Vec<Vec3> = (0..8)
@@ -941,6 +959,7 @@ mod tests {
             friction: 0.3,
             centre_of_mass: Vec3::new(-0.00048828125, 0.121032715, 2.1285436),
             material: 0,
+            effects: 0,
         };
         let prop = Prop { info, ..pylon() };
         let rot =
