@@ -124,6 +124,7 @@ mod dyno_entry;
 // The manual gearbox through the player's keys and controller.
 #[cfg(test)]
 mod manual_gears;
+mod stability_control;
 // The map editor and custom races (docs/modding/map-editor.md).
 #[cfg(test)]
 mod map_editor;

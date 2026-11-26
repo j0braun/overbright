@@ -3,7 +3,8 @@ use crate::*;
 /// One race frame after the green light, live or replayed: the cars, the
 /// clock and the player's run, drift scoring and the wrong-way test; past
 /// the line an AI racer controller drives the player's car (`Autopilot`). A replayed frame first
-/// applies the recorded shift / reset (live, the key did it already).
+/// applies the recorded shift / reset / Stability Control change (live, the
+/// key or the option did it already).
 pub(crate) fn race_frame(
     d: &mut Drive,
     race: &mut Race,
@@ -22,6 +23,9 @@ pub(crate) fn race_frame(
         }
         if frame.reset {
             reset_to_road(d, race);
+        }
+        if let Some(off) = frame.stability {
+            d.state.stability_off = off;
         }
     }
     if race.racers.me.finished.is_none() {

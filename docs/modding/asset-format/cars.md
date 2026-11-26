@@ -183,8 +183,8 @@ the record's 2,192 bytes, most of them zero in every record.
 | 0x388 | 4 | `f32` | `brakes.handbrake_knm` | kN·m | (×10) **verified** |
 | 0x38C | 4 | `f32` | `brakes.balance` | – | Front ×2(1−b), rear ×2b (0x5A4D90). **verified** |
 | 0x390 | 8 | `f32[2]` | `handling.drift_grip` | – | Rear-grip bonus bases while sliding (0x5990D0). **verified** |
-| 0x398 | 4 | `f32` | `handling.yaw_limit_airborne_knm` | kN·m | (0x5A49B0) **verified** |
-| 0x39C | 4 | `f32` | `handling.yaw_limit_ground_knm` | kN·m | 0 = only while counter-steering. **verified** |
+| 0x398 | 4 | `f32` | `handling.yaw_limit_on_knm` | kN·m | yaw-torque limit with Stability Control on (0x5A49B0 at 0x5A4C65) **verified** |
+| 0x39C | 4 | `f32` | `handling.yaw_limit_off_knm` | kN·m | the same with Stability Control off; 0 = only while counter-steering. **verified** |
 | 0x3A0 | 4 | `f32` | `handling.top_speed_mph` | mph | The rigid body's limiter (0x59C1F0). **verified** |
 | 0x3A4 | 12 | `f32[3]` | `handling.u_0x3a4` | – | **open** |
 | 0x3B0 | 4 | `f32` | `nitrous.capacity_s` | s | Tank (tuning slider 16). **verified** |

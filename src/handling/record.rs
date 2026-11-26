@@ -139,11 +139,12 @@ pub struct Handling {
     pub preload_downforce: f32,
     /// +0x390, +0x394: rear-grip bonus bases while sliding (0x5990D0).
     pub drift_grip: [f32; 2],
-    /// +0x398: yaw-torque limit with no wheel down, kN·m (0x5A49B0).
-    pub yaw_limit_airborne: f32,
-    /// +0x39C: yaw-torque limit on the ground; 0 = only while
-    /// counter-steering (then 20).
-    pub yaw_limit_ground: f32,
+    /// +0x398: yaw-torque limit with Stability Control on (car +0x464
+    /// clear), kN·m (0x5A49B0 at 0x5A4C65).
+    pub yaw_limit_on: f32,
+    /// +0x39C: yaw-torque limit with Stability Control off; 0 = only
+    /// while counter-steering (then 20).
+    pub yaw_limit_off: f32,
     /// +0x3A0: top speed, mph (the rigid body's limiter, 0x59C1F0).
     pub top_speed_mph: f32,
     /// The car's computed top speed, m/s (0x5B5940); set by
@@ -252,8 +253,8 @@ pub fn parse_handling(r: &[u8]) -> Handling {
         brake_balance: read_f32(r, 0x38C),
         preload_downforce: read_f32(r, 0x37C),
         drift_grip: [read_f32(r, 0x390), read_f32(r, 0x394)],
-        yaw_limit_airborne: read_f32(r, 0x398),
-        yaw_limit_ground: read_f32(r, 0x39C),
+        yaw_limit_on: read_f32(r, 0x398),
+        yaw_limit_off: read_f32(r, 0x39C),
         top_speed_mph: read_f32(r, 0x3A0),
         computed_top_speed: 0.0,
         gearing_top_speed: 0.0,

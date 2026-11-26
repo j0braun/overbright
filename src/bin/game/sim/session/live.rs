@@ -47,8 +47,13 @@ impl Session<'_> {
             race.camera.events.end();
         }
         d.impact.follow(&race.camera.events);
-        let frame =
-            ReplayFrame { controls, dt: sim_dt, shift: rec.shift.take(), reset: std::mem::take(&mut rec.reset) };
+        let frame = ReplayFrame {
+            controls,
+            dt: sim_dt,
+            shift: rec.shift.take(),
+            reset: std::mem::take(&mut rec.reset),
+            stability: rec.stability.take(),
+        };
         if frame.shift.is_none() && !frame.reset {
             rec.instant_replay(d, race);
             rec.lap_snapshot(d, race);

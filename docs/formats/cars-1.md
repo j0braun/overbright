@@ -1407,15 +1407,22 @@ drivetrain at +0x4C and the tuning block at +0x54.
 * **Brakes and grip** (0x5A4D90): foot brake per wheel 2 × share × pedal
   (share = 1 − +0x38C front, +0x38C rear). A burnout (throttle > 0.8,
   brake > 0.5, under 10 mph) puts mph × 0.05 on the rear instead.
-  Handbrake [0, 0, 1, 1] × pedal, +0.5 above 0.2 when no wheel is down or
-  the car slides (|slip| > 0.3 rad) under 80 mph. Grip base 1 (mover +0x6C),
-  ×0.85 with no wheel down. The rear also gets a sliding bonus (0x5990D0)
+  Handbrake [0, 0, 1, 1] × pedal, +0.5 above 0.2 with Stability Control on
+  or when the car slides (|slip| > 0.3 rad) under 80 mph (0x5A4F2E). Grip
+  base 1 (mover +0x6C), ×0.85 (0x7FC060) with Stability Control on, not in a
+  drift race (0x5A4DA8). "Stability Control on" is car +0x464 = 0, read
+  through the mover's physics view (+0x58, car + 0x40) at +0x424; the view's
+  wheels-down count is +0x3E4 (0x5A49BE), so these were once misread as "no
+  wheel down" (**observed** under Wine, PEUGOT standing on four wheels:
+  wheel +0x180 is 0.85 with the option on, 1 with it off). The rear also
+  gets a sliding bonus (0x5990D0, both bases a + b with Stability Control
+  on, the flag its sixth argument)
   ramped with the handbrake (mover +0x70: +1/s released, −20/s held, down to
   0.5) and a post-crash graph (0x802570: (0, 0), (0.4, 1), (1, 1), (2, 0))
   over the 4 s after the car last touched a wall.
-* **Yaw limit** (0x5A49B0): record +0x398 (17) in the air, +0x39C on the
-  ground; 0 on the ground means none, except 20 while counter-steering with
-  |slip| > 0.1.
+* **Yaw limit** (0x5A49B0): record +0x398 (17) with Stability Control on
+  (0x5A4C65), else +0x39C; 0 there means none, except 20 while
+  counter-steering with |slip| > 0.1.
 * **Car modes** (car +0x38, 0x5A4A6C): 0 normal and 2 (in contact) switch
   the rigid body's angular damping (+0x154) and rest damping (+0x150) on,
   with gravity 9.8. 1 is crash mode, set by car-against-car contacts
