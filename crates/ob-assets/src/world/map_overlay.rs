@@ -245,12 +245,19 @@ impl World {
         self.retake_loaded();
     }
 
+    /// Whether the original placements are kept for a live re-apply (the
+    /// world was made with [`World::reapply_map_mod`]).
+    pub fn has_live_base(&self) -> bool {
+        self.map_overlay.index.live.is_some()
+    }
+
     /// The loaded state taken again from the world as it is now (after
     /// its mods), for [`World::reset_to_loaded`].
     pub fn retake_loaded(&mut self) {
         let mut w = crate::cache::Writer::default();
         self.put_rest(&mut w);
         self.loaded = w.buf.into();
+        self.map_overlay.loaded_stale = false;
     }
 
     /// Move placement `i` (its knock-over prop's rest pose with it).
@@ -820,6 +827,12 @@ impl World {
     /// mod applied yet); edits made to the world directly in between
     /// (`tools::map::edit`) are taken back where `map` does not make them.
     /// True when anything changed.
+    ///
+    /// Called on a world made with this mod's own first call (the game's
+    /// `--studio-link` load: [`crate::tools::map::load_world`]), the world
+    /// before the call is the original, which this keeps at hand ([`Base`])
+    /// for every later call: an edit then re-derives the placements from
+    /// original and mod without a reload.
     pub fn reapply_map_mod(&mut self, region: &str, folder: &str, map: &MapMod) -> bool {
         self.index_originals();
         let finds = self.map_overlay.index.finds.clone().unwrap_or_else(|| unreachable!());
@@ -1155,6 +1168,7 @@ impl World {
         }
         (live.entries, live.adds, live.order) = (entries, adds, order);
         self.map_overlay.index.live = Some(live);
+        self.map_overlay.loaded_stale |= any;
         any
     }
 }

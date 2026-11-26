@@ -74,6 +74,7 @@ impl SimChild {
         crate::tools::map::link::clear(link);
         let mut a = args.to_vec();
         a.extend(["--studio-link".to_string(), link.display().to_string()]);
+        a.extend(crate::tools::map::link::mem_cap_args());
         SimChild::start_in(exe, &a, root, Some(slot), Some(link.to_path_buf()))
     }
 

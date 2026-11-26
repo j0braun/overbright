@@ -23,6 +23,14 @@ pub const ALIVE_MS: u64 = 3000;
 /// The most game runs (test windows and simulations, over every mod and
 /// every Studio window) that run at once ([`Slot::take`]).
 pub const MAX_RUNS: usize = 4;
+/// The memory a game run Studio starts may use (resident, MiB) before it stops itself
+/// (`--map-mem-cap`): one runaway run must not take the machine down with the others.
+pub const MEM_CAP_MB: u64 = 8192;
+/// The flag and value Studio starts a run with.
+pub fn mem_cap_args() -> [String; 2] {
+    ["--map-mem-cap".to_string(), MEM_CAP_MB.to_string()]
+}
+
 /// A run's slot counts while it was touched this recently (Studio touches
 /// it every poll); a Studio that died leaves a slot that expires.
 pub const SLOT_MS: u64 = 15_000;

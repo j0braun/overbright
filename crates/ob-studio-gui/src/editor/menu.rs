@@ -63,6 +63,8 @@ pub enum Action {
     Goal(super::views::Goal),
     /// View ▸ Go to…
     GoTo,
+    /// Race ▸ Test car and clock…: what a test run starts with besides the place.
+    TestFocus,
     /// H, Shift+H, Alt+H: the view's own hiding (never the mod's).
     HideSelected,
     IsolateSelected,
@@ -736,13 +738,18 @@ pub fn view_items(app: &App, ui: &mut egui::Ui, out: &mut Vec<Action>) {
 }
 
 /// The Race menu's items (Studio's Test menu).
-pub fn race_items(app: &App, ui: &mut egui::Ui, _out: &mut Vec<Action>) {
+pub fn race_items(app: &App, ui: &mut egui::Ui, out: &mut Vec<Action>) {
     let s = app.state.as_ref();
     command(ui, s, "New race", "", Command::NewRace);
     command(ui, s, "Test race", "F5", Command::TestRace);
     command(ui, s, "Drive here", "Shift+F5", Command::DriveHere);
     command(ui, s, "Restart race", "Ctrl+F5", Command::RestartTest);
     command(ui, s, "Drive to record", "", Command::RecordDrive);
+    ui.separator();
+    let why = s.is_none().then_some("Open a map mod first");
+    if item_why(ui, "Test car and clock…", "", why) {
+        out.push(Action::TestFocus);
+    }
 }
 
 /// The Help menu's items.

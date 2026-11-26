@@ -141,6 +141,8 @@ pub(crate) fn main() -> Result<()> {
                 None => Only::Folder(t.folder.clone()),
             };
             nfsu2::tools::map::set_only(Some(only));
+            // Studio's link: worlds keep their original placements for live edits.
+            nfsu2::tools::map::set_live(t.link.is_some());
             // Studio Looks: the mod's textures live in this run (opt-in).
             if let Some(dir) = &t.looks {
                 nfsu2::render::pack_reload::set_live(Some(dir.clone()));

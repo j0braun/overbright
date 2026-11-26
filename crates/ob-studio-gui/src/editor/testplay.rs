@@ -256,6 +256,7 @@ impl TestPlay {
                 &s.run_focus,
                 recording.as_ref().map(|r| r.0.as_path()),
             ))
+            .args(link::mem_cap_args())
             .env("NFSU2_ROOT", &s.root)
             .stdin(Stdio::null())
             .stdout(Stdio::null())
@@ -367,7 +368,8 @@ impl TestPlay {
             write_run_copy(s)?;
             // A reload still owed stays one (this command takes its place).
             let owed = self.reloading && self.game.as_ref().is_none_or(|g| g.seq < self.work);
-            reloading = owed || s.session.map.props != self.sent.props;
+            // Props and collision go into the running world; the races start the run over.
+            reloading = owed || s.session.map.races != self.sent.races;
             self.sent = s.session.map.clone();
         }
         let focus = (self.focus_sent != s.run_focus).then(|| s.run_focus.clone());
@@ -385,6 +387,12 @@ impl TestPlay {
     /// The mod changed since the game was last given it.
     pub fn changed(&self, s: &EditorState) -> bool {
         s.session.map != self.sent || s.run_focus != self.focus_sent
+    }
+
+    /// What the game said it did with the last command (`applied live`,
+    /// `reloaded: the races changed`).
+    pub fn done(&self) -> Option<String> {
+        self.game.as_ref().filter(|g| g.ok && g.seq == self.work && !g.note.is_empty()).map(|g| g.note.clone())
     }
 
     /// What the game said about the last command: its note when it could
@@ -443,6 +451,8 @@ pub struct TestPanel {
     pub races: Option<std::rc::Rc<std::cell::RefCell<super::races::Races>>>,
     /// The last problem the game reported, so the status says it once.
     pub told: Option<String>,
+    /// The last thing the game said it did (command number, words), so the status says it once.
+    pub told_done: Option<(u64, String)>,
 }
 
 /// How often a running test is looked at while the window is idle.
@@ -511,7 +521,7 @@ impl TestPanel {
             return;
         }
         if let Some(t) = self.test.as_mut() {
-            let (words, quiet) = (t.link_words(), t.problem());
+            let (words, quiet, done) = (t.link_words(), t.problem(), t.done());
             if let Err(e) = t.probe_due() {
                 s.status = e;
             }
@@ -554,11 +564,16 @@ impl TestPanel {
                 s.status = format!("The game kept the old run: {p}");
                 self.told = Some(p);
             }
+            if let Some(d) = done.filter(|d| self.told_done.as_ref() != Some(&(t.work, d.clone()))) {
+                s.status = format!("Game: {d}");
+                self.told_done = Some((t.work, d));
+            }
             ctx.request_repaint_after(POLL_EVERY);
             return;
         }
         set_link(&ctx, None);
         self.told = None;
+        self.told_done = None;
         if restart {
             s.status = "No test is running (F5 starts one)".into();
         }
@@ -716,6 +731,23 @@ mod tests {
     use crate::tools::map::{MapMod, RaceKind};
     use super::super::validate::Tested;
     use glam::Vec2;
+
+    #[test]
+    fn the_test_focus_dialog_takes_a_car_and_a_clock_or_neither() {
+        use super::super::app::parse_focus;
+        assert_eq!(parse_focus("", " "), Ok(link::Focus::default()));
+        assert_eq!(parse_focus(" 240SX ", "600"), Ok(link::Focus { car: Some("240SX".into()), clock: Some(600.0) }));
+        assert!(parse_focus("../x", "").is_err(), "a car name that cannot sit in a command line");
+        for bad in ["0", "9999", "abc", "nan"] {
+            assert!(parse_focus("", bad).is_err(), "{bad}");
+        }
+    }
+
+    #[test]
+    fn a_started_run_has_a_memory_cap() {
+        let a = link::mem_cap_args();
+        assert_eq!(a, ["--map-mem-cap".to_string(), link::MEM_CAP_MB.to_string()]);
+    }
 
     #[test]
     fn the_game_is_asked_for_the_race_or_the_spot() {
@@ -930,7 +962,10 @@ mod tests {
         assert!(argv.starts_with(&format!("--map-file\n{run}\n--map-race\ndock\n--map-result\n")), "{argv}");
         let looks = maps.join("my-map").join(store::TEXTURES).display().to_string();
         let link = link::dir(&maps, "my-map").display().to_string();
-        assert!(argv.ends_with(&format!("--looks-live\n{looks}\n--studio-link\n{link}\n")), "textures and link: {argv}");
+        assert!(
+            argv.ends_with(&format!("--looks-live\n{looks}\n--studio-link\n{link}\n--map-mem-cap\n{}\n", link::MEM_CAP_MB)),
+            "textures, link and memory cap: {argv}"
+        );
         // The mark is the race's content: saving the same race keeps it, a change clears it.
         store::save(&maps, "my-map", &map).unwrap();
         assert!(Tested::load(&editor).is_tested(&store::read_file(&maps.join("my-map").join(store::FILE)).unwrap().races[0]));
@@ -1098,28 +1133,33 @@ mod tests {
         assert_eq!(test.link_words(), GAME_NO_ANSWER);
         said(1);
         assert_eq!(test.link_words(), GAME_CONNECTED, "answered");
-        // Props moved: the game says it reloads the world; the probe does not wait over it.
+        // Props moved: the game applies them to the running world, no reload.
         s.session.map.props.push(PropEdit::Delete {
             target: crate::tools::map::PropRef { region: "L4RA".into(), section: 1, solid: "X".into(), at: Vec3::ZERO, nth: 0 },
         });
         test.send(&s, Op::Apply, None).unwrap();
+        assert_eq!(test.link_words(), GAME_APPLYING);
+        said(2);
+        // A race changed: the game starts the run over (reloads the world); the probe does not wait over it.
+        s.session.map.races.push(crate::tools::map::CustomRace::new("r2", 1, crate::tools::map::RaceKind::Sprint));
+        test.send(&s, Op::Apply, None).unwrap();
         assert_eq!(test.link_words(), GAME_RELOADING);
         test.probe_due().unwrap();
         assert_eq!(link::read_command(&linkdir).unwrap().op, Op::Apply, "a probe never goes over a command not read");
-        said(2);
+        said(3);
         assert_eq!(test.link_words(), GAME_CONNECTED);
         // Another change (not props): applying, not reloading.
         s.session.map.name = "Other".into();
         test.send(&s, Op::Apply, None).unwrap();
         assert_eq!(test.link_words(), GAME_APPLYING);
-        said(3);
+        said(4);
         // The focus goes with the next command, once.
         assert!(!test.changed(&s));
         s.run_focus = link::Focus { car: Some("240SX".into()), clock: Some(600.0) };
         assert!(test.changed(&s), "a new focus starts the run over");
         test.send(&s, Op::Apply, None).unwrap();
         assert_eq!(link::read_command(&linkdir).unwrap().focus, Some(s.run_focus.clone()));
-        said(4);
+        said(5);
         assert!(!test.changed(&s));
         test.send(&s, Op::Restart, None).unwrap();
         assert_eq!(link::read_command(&linkdir).unwrap().focus, None, "sent once");

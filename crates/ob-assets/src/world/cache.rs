@@ -212,6 +212,10 @@ impl World {
     /// The geometry, textures, ground and collision never change. False
     /// (and nothing changed) if the loaded state is not at hand.
     pub fn reset_to_loaded(&mut self, keep_barriers: bool) -> bool {
+        if std::mem::take(&mut self.map_overlay.loaded_stale) {
+            // A live re-apply changed the world since: that is the loaded state.
+            self.retake_loaded();
+        }
         let Some(mut fresh) = (!self.loaded.is_empty())
             .then(|| World::get_rest(&mut crate::cache::Reader::new(&self.loaded)).ok())
             .flatten()
