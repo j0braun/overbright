@@ -22,6 +22,8 @@ scripts/checks/devprobes.sh                      # the developer probes (devprob
 scripts/checks/crate_layers.sh [repo]            # the crate layers: no new upward reference, package edges only down, no dev-harness in the shipped tree, Studio's crates through `nfsu2::studio_api` only (ARCHITECTURE.md "Layers"; in fast and full)
 scripts/checks/layering.sh [repo]               # the render layers (core/native: no enhancement layer, QoL read or global state beyond layering-allow.txt; render code: no settings read beyond layering-settings-allow.txt), the game names the harness only behind its feature; in fast and full
 scripts/checks/stray_opens.sh [repo]            # the stray-open lint: no direct `std::fs` open of a path in production code beyond the counts of stray-opens.txt (a game file is read through `game_fs`, which the asset layer answers); in fast and full
+scripts/checks/studio_checks.sh [repo] [part]    # Studio's dependency budget, lint and registry coverage ("Studio checks"; in fast and full)
+scripts/checks/wasm32.sh [repo]                  # the packages on crate-layers.txt's `wasm` line build for wasm32 (part of crate_layers.sh; WASM32_REQUIRED=1 fails where the target is missing)
 scripts/checks/soak_images.sh <game> <outdir> [runs]   # the gate's image dumps N times with one binary (run-to-run flakes; "Image soak")
 scripts/checks/fuzz.sh                           # the fuzz smoke: every parser target on mutated inputs (docs/developing/fuzzing.md; FUZZ_SECS, FUZZ_ITERS, FUZZ_ONLY)
 scripts/checks/release_check.sh [outdir]          # the shipping binary (no dev-harness): no harness strings, harness flags give the usage error
@@ -102,6 +104,31 @@ private set (OB_PRIVATE), B both; ...` counts the three reasons apart
 G must be 0; with the private set here (`ck_private_here`) or
 `OB_REQUIRE=private`, P and B must be 0 too, else the step fails. A public
 checkout without the set passes with P and B stated.
+
+## A shot never draws a substitute screen
+
+`game --shot <name> <out.png>` draws the screen it names or fails. A name that is not in the shot table (after
+the `finished_career_`, `_kit`, `_audio`, `_spin`, `_cust` and `_dday` variants and the `crib_parts` and
+`explore_rain` aliases are read) stops before any setup with `no such screen`, a page of a family (`settings_<page>`,
+`options_graphics_<page>`) must be one the family lists, and a target that cannot reach its screen (`vinyl_ask` on a
+locked vinyl group) fails with the reason instead of drawing another list. The shot table's unit test
+(`shot_table_names`) checks that every listed name is accepted and that unknown names and unlisted pages are
+refused. A check that needs a different path than the player's says so (docs/developing/evidence.md, test rule 1).
+
+## Studio checks
+
+`studio_checks.sh` (fast and full; settings in `scripts/checks/studio-checks.txt`) checks three things about the
+Studio crates, and `selfcheck.sh` plants a failure for each:
+
+- **budget**: a Studio package's dependency tree stays within the crate count of its `budget` line (a new
+  dependency is a decision; a line more than 25 % above the real count is lowered).
+- **lint**: production code has no `dbg!`, `todo!` or `unimplemented!`, and prints (`println!`) only in the files a
+  `print-ok` line names, with its reason.
+- **registry**: every command of the Studio registry is documented in `docs/modding/studio-cli.md` and named by
+  a test, so a new command does not land without both.
+
+The web build is part of `crate_layers.sh`: the packages on the `wasm` line must build for
+`wasm32-unknown-unknown`.
 
 ## Shot targets added
 

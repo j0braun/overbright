@@ -108,16 +108,26 @@ ck_player_snapshot() {
   local d
   for d in $PLAYER_DIRS; do [ -d "$d" ] && find "$d" -printf "$d/%P\t%y\t%s\t%T@\n" 2>/dev/null; done | LC_ALL=C sort
 }
-# ck_player_games: the games and launchers running now that use the player's own folders: processes of this user
-# whose program is named game or overbright and whose environment has no NFSU2_CACHE_DIR (every game a check or a
-# gate starts has one). One program path per line. Linux only (reads /proc); prints nothing elsewhere.
+# ck_player_games: the programs running now that use the player's own folders: processes of this user whose program
+# is named game, overbright, overbright-studio, overbright-editor or overbright-studio-cli (the player's own session:
+# playing, or Studio open on a map mod) and whose environment names no folder of its own: no NFSU2_CACHE_DIR (every
+# game a check or a gate starts has one), no NFSU2_DATA_DIR, no XDG_DATA_HOME other than ours, and a HOME that is
+# ours (a test that runs a program under a fake home is not the player). One program path per line. Linux only
+# (reads /proc); prints nothing elsewhere.
 ck_player_games() {
-  local d exe
+  local d exe env
   for d in /proc/[0-9]*; do
     [ -O "$d" ] || continue
     exe=$(readlink "$d/exe" 2>/dev/null) || continue
-    case ${exe##*/} in game|overbright|"game (deleted)"|"overbright (deleted)") ;; *) continue ;; esac
-    grep -qz '^NFSU2_CACHE_DIR=' "$d/environ" 2>/dev/null && continue
+    case ${exe##*/} in
+      game|overbright|overbright-studio|overbright-editor|overbright-studio-cli) ;;
+      "game (deleted)"|"overbright (deleted)"|"overbright-studio (deleted)"|"overbright-editor (deleted)") ;;
+      *) continue ;;
+    esac
+    env=$(tr '\0' '\n' < "$d/environ" 2>/dev/null) || continue
+    grep -q '^NFSU2_CACHE_DIR=\|^NFSU2_DATA_DIR=' <<< "$env" && continue
+    grep -q '^HOME=' <<< "$env" && ! grep -qxF "HOME=${HOME:-}" <<< "$env" && continue
+    grep -q '^XDG_DATA_HOME=.' <<< "$env" && ! grep -qxF "XDG_DATA_HOME=${XDG_DATA_HOME:-}" <<< "$env" && continue
     echo "$exe"
   done
 }

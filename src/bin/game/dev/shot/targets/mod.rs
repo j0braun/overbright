@@ -104,8 +104,37 @@ fn find(screen: &str) -> Option<SceneFn> {
     let all = || GROUPS.iter().flat_map(|(_, t)| t.iter());
     all()
         .find(|t| matches!(t.pattern, Pattern::Name(n) if n == screen))
-        .or_else(|| all().find(|t| matches!(t.pattern, Pattern::Pages(p, _) if screen.starts_with(p))))
+        .or_else(|| {
+            // A family answers only to the pages it lists: `settings_nothing` is no screen, and must not
+            // draw one of the family's pages in its place.
+            all().find(|t| matches!(t.pattern, Pattern::Pages(p, pages) if screen.strip_prefix(p).is_some_and(|x| pages.contains(&x))))
+        })
         .map(|t| t.scene)
+}
+
+/// The screen as `fn shot`'s setup reads it once the prefix and suffix variants are off (`finished_career_`,
+/// `_kit`, `_audio`, `_spin`, `_cust`, `_dday`, in the setup's order) and the aliases resolved.
+fn base_screen(screen: &str) -> &str {
+    let s = screen.strip_prefix("finished_career_").unwrap_or(screen);
+    let s = s.strip_suffix("_kit").unwrap_or(s);
+    let s = s.strip_suffix("_audio").filter(|b| !matches!(*b, "options" | "pause")).unwrap_or(s);
+    let s = s.strip_suffix("_spin").unwrap_or(s);
+    let s = s.strip_suffix("_cust").unwrap_or(s);
+    let s = s.strip_suffix("_dday").unwrap_or(s);
+    match s {
+        "crib_parts" => "parts",
+        "explore_rain" => "explore",
+        _ => s,
+    }
+}
+
+/// `--shot <screen>` names a screen the table has (or `photo`), checked before anything is set up: a name that
+/// is none fails with this message instead of drawing another screen in its place.
+pub(crate) fn require_known(screen: &str) -> Result<()> {
+    if screen == "photo" || find(base_screen(screen)).is_some() {
+        return Ok(());
+    }
+    anyhow::bail!("--shot {screen}: no such screen (the names are listed by `game --shot-list`); nothing is drawn in its place")
 }
 
 /// The mode the shot draws for `cx.screen`.
@@ -175,6 +204,13 @@ mod tests {
                 .or(v.strip_suffix("_kit"))
                 .unwrap_or("parts");
             assert!(find(base).is_some(), "variant {v}: {base} is no target");
+        }
+        for (n, _) in list() {
+            require_known(&n).unwrap_or_else(|e| panic!("{e}"));
+        }
+        for bad in ["settings_nothing", "options_graphics_", "options_graphics_nothing", "no_such_screen", "main_nothing_kit"] {
+            let e = require_known(bad).expect_err(bad).to_string();
+            assert!(e.contains("no such screen") && e.contains(bad), "{e}");
         }
         let listed = list();
         let unique: std::collections::HashSet<_> = listed.iter().map(|(n, _)| n).collect();

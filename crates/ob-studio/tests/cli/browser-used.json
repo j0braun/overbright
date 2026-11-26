@@ -22,9 +22,15 @@
       ],
       "sections": 1,
       "shown": 2,
-      "texture_list": [],
-      "textures": 0,
-      "triangles": 0,
+      "texture_list": [
+        {
+          "materials": 1,
+          "name": "ROAD",
+          "texture": "world:0x00000ABC"
+        }
+      ],
+      "textures": 1,
+      "triangles": 2,
       "type": "model",
       "used": "2 placed in 1 section"
     }

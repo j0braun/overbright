@@ -56,16 +56,7 @@ while read -r _ p crates; do
   else echo "CRATE LAYERS: $p has none of: $crates"; fi
 done < <(grep -E '^forbid ' "$HERE/crate-layers.txt" | sed 's/#.*//')
 
-wasm=$(grep -E '^wasm ' "$HERE/crate-layers.txt" | sed 's/#.*//; s/^wasm //')
-if [ -n "$wasm" ]; then
-  if rustup target list --installed 2>/dev/null | grep -qx wasm32-unknown-unknown; then
-    args=(); for p in $wasm; do args+=(-p "$p"); done
-    if log=$(cargo check --locked "${args[@]}" --target wasm32-unknown-unknown 2>&1); then echo "CRATE LAYERS: wasm32 check ok ($wasm)"
-    else echo "CRATE LAYERS: wasm32 check failed ($wasm):"; grep -E '^error' --after-context=5 <<< "$log" | head -20; fail=1; fi
-  else
-    echo "CRATE LAYERS: wasm32 check skipped (rustup target wasm32-unknown-unknown not installed)"
-  fi
-fi
+bash "$HERE/wasm32.sh" "$REPO" || fail=1
 
 harness=0
 for p in $pk; do

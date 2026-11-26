@@ -245,13 +245,14 @@ pub(super) fn vinyl_parts(game: &mut Game, cx: &ShotCtx) -> Result<Mode> {
     }
     game.mode = game.vinyl_browser(0x40, Some(env("NFSU2_CAT", 9)), Some(env("NFSU2_PART", 0)));
     if screen == "vinyl_ask" {
-        // The group locked in this career: the first open one.
-        if let Mode::Menu(Menu::Parts(b)) = &mut game.mode
-            && b.categories.get(b.category).is_none_or(|c| c.locked)
-            && let Some(open) = b.categories.iter().position(|c| !c.locked)
-        {
-            b.category = open;
-            b.part = None;
+        // The requested group is locked in this career: the shot fails (NFSU2_UNLOCK_ALL=1 opens the groups)
+        // instead of drawing another group's list in its place.
+        if let Mode::Menu(Menu::Parts(b)) = &game.mode {
+            anyhow::ensure!(
+                b.categories.get(b.category).is_some_and(|c| !c.locked),
+                "vinyl_ask: the vinyl group NFSU2_CAT={} is locked in this career (NFSU2_UNLOCK_ALL=1 opens the groups); no other group is drawn in its place",
+                env("NFSU2_CAT", 9)
+            );
         }
         if let Some(p) = game.profile.as_mut() {
             p.cash = p.cash.max(100_000);
