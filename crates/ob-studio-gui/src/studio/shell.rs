@@ -2386,6 +2386,15 @@ impl Studio {
                 right = left - 18.0;
             }
         }
+        // The test game's link: connected or not (while a test runs).
+        if let Some(g) = crate::editor::testplay::link_words(&self.ctx) {
+            let on = g == crate::editor::testplay::GAME_CONNECTED;
+            let w = p.layout_no_wrap(g.clone(), f.clone(), Color32::WHITE).size().x + 18.0;
+            if right - 24.0 - w > x + 24.0 {
+                let left = p.text(pos2(right - 24.0, cy), Align2::RIGHT_CENTER, g, f.clone(), if on { rgb(t.lime) } else { rgb(t.warn) }).left();
+                right = left - 18.0;
+            }
+        }
         let mut clicked = false;
         if wide && let Some(c) = self.counts() {
             let (a, b) = c.words();

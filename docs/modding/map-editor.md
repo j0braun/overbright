@@ -87,7 +87,7 @@ Reset camera in the map view). Every item does something; a test checks that eac
 | File | **File ▸ New map mod…** (Ctrl+N: a name, its folder and the region), **File ▸ Open map mod…** (Ctrl+O), the five most recent mods, **File ▸ Save** (Ctrl+S), **File ▸ Mod details…** (name, author, description), **File ▸ Import…** (a mod folder, a `map.obmap` or a `.zip`), **File ▸ Export…** (a `.zip` or a folder: the map and the mod's textures, `looks.toml` and `textures/`, never `work/` or `.editor/`; textures from the original game's pixels are warned about first; it proposes `<folder>.zip` in the `exports` folder of Overbright's data folder, made on the first export, and the status line says where the file went), **File ▸ Quit** (Ctrl+Q; saves first, and asks only when that fails) |
 | Edit | **Edit ▸ Undo** and **Edit ▸ Redo**, named by the step they undo or redo (256 steps), **Edit ▸ Duplicate**, **Edit ▸ Delete**, **Edit ▸ Select all of this solid**, **Edit ▸ Drop to ground**, **Edit ▸ Rotate 90°**, **Edit ▸ Face camera**, **Edit ▸ Draw wall**, **Edit ▸ Draw ground** (see Removed and drawn collision) |
 | View | **View ▸ 3D view**, **View ▸ Map** (M switches), **View ▸ Frame selection** (F), **View ▸ Reset camera** (the region's overview), **View ▸ Collision ▸ Off**, **View ▸ Collision ▸ Invisible barriers** and **View ▸ Collision ▸ All collision** (see Collision), **View ▸ Hint line** |
-| Race | **Race ▸ New race**, **Race ▸ Test race** (F5), **Race ▸ Drive here** (Shift+F5) |
+| Race | **Race ▸ New race**, **Race ▸ Test race** (F5), **Race ▸ Drive here** (Shift+F5), **Race ▸ Restart race** (Ctrl+F5) |
 | Help | **Help ▸ Controls**: every key, made from the editor's key table |
 
 ## Controls
@@ -130,6 +130,7 @@ do nothing while a text field has the keyboard.
 | `Ctrl+Q` | Quit |
 | `Enter` | Confirm a dialog |
 | `F5 / Shift+F5` | Test race / Drive here |
+| `Ctrl+F5` | Restart race (the open test game) |
 | `Space` | Play / pause the simulation (its timeline under the view) |
 | `Left / Right, Shift+Left / Right` | The simulation a recorded frame back / on, a second with Shift |
 | `Up / Down` | Show the line above / below in What went wrong (Simulate tab) |
@@ -271,6 +272,17 @@ the game next to the editor on that copy:
 ```
 game --map-file <mod folder>/.editor/run/map.obmap --map-race <id> --map-result <mod folder>/.editor/test-result.txt
 ```
+
+The test game stays open and takes your edits. Studio starts it with `--studio-link <mod folder>/.editor/link`: two
+small files in that folder (`command.txt` from Studio, `game.txt` from the game), each written through a temporary file;
+nothing listens on a network, and it is the same on Windows and Linux. Without the flag the game never looks at the
+folder. About ten times a second, between two frames (never inside a simulation step, so play is the same at any
+frame rate), the game reads `command.txt`; a new command reads the mod's run copy again and starts the run over with it
+(race points, props), or only starts over (**Race ▸ Restart race**, Ctrl+F5). A moved or added prop shows after that
+restart, not yet while you drag; the game loads the region again, behind its loading screen. F5 or Shift+F5 while the game is
+open send the new race or spot instead of refusing. Free roam goes on from where the car is after an edit. A run that
+cannot start (the race was deleted, no road at the spot) stays as it was and the status bar says why. The game writes its own state about twice
+a second; the status bar shows "Game connected", "Game applying changes" or "Game not connected".
 
 Test race does not save `map.obmap` itself; the status bar adds "(testing unsaved changes)" while the mod
 has steps not yet saved. `--map-file <path>` reads the mod from that file; in the run the mod is known by

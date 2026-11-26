@@ -241,10 +241,14 @@ pub(crate) struct MapTest {
     /// watched whatever Reload Packs When Changed says
     /// (docs/modding/studio-looks.md). A test run's only.
     pub(crate) looks: Option<std::path::PathBuf>,
+    /// `--studio-link <folder>`: Studio's link to this window run
+    /// (`tools::map::link`): it takes commands (apply the mod again, start
+    /// over) between frames and says it is alive. A window test run's only.
+    pub(crate) link: Option<std::path::PathBuf>,
 }
 
 /// The test-run flags; each takes one value.
-pub(crate) const MAP_FLAGS: [&str; 9] = [
+pub(crate) const MAP_FLAGS: [&str; 10] = [
     "--map-mod",
     "--map-file",
     "--map-race",
@@ -254,6 +258,7 @@ pub(crate) const MAP_FLAGS: [&str; 9] = [
     "--sim-seed",
     "--sim-seconds",
     "--looks-live",
+    "--studio-link",
 ];
 
 /// `--language <name>`: the text language for this run (the file
@@ -360,6 +365,13 @@ impl MapTest {
                         }
                         t.looks = Some(v.into());
                     }
+                    "--studio-link" => {
+                        twice(t.link.is_some())?;
+                        if v.is_empty() {
+                            return Err("--studio-link needs a folder".into());
+                        }
+                        t.link = Some(v.into());
+                    }
                     "--sim-seconds" => {
                         twice(seconds.is_some())?;
                         let n = v.parse::<f32>().ok().filter(|n| n.is_finite() && *n > 0.0 && *n <= 86_400.0);
@@ -387,7 +399,7 @@ impl MapTest {
             }
             (None, None) => {
                 return Err(
-                    "--map-race, --map-at, --map-result, --simulate and --looks-live need --map-mod <folder> or \
+                    "--map-race, --map-at, --map-result, --simulate, --looks-live and --studio-link need --map-mod <folder> or \
                      --map-file <path>"
                         .into(),
                 );
@@ -408,6 +420,7 @@ impl MapTest {
             None => Ok(Some(t)),
             Some(SimMode::Race) if t.race.is_none() => Err("--simulate needs --map-race <id>".into()),
             Some(SimMode::World) if t.at.is_none() => Err("--simulate-world needs --map-at x,y,z,heading".into()),
+            Some(_) if t.link.is_some() => Err("--studio-link is for a window run, not --simulate".into()),
             Some(mode) => {
                 t.simulate = Some(crate::enh::sim_stream::SimRun { mode, stream, seed: seed.unwrap_or(1), seconds });
                 Ok(Some(t))
@@ -550,6 +563,9 @@ impl Game {
 struct TestLoop<'a> {
     game: &'a mut Game,
     watch: EndWatch,
+    test: MapTest,
+    /// Studio's link (`--studio-link`; none otherwise).
+    link: Option<super::studio_link::Link>,
     result: Option<std::path::PathBuf>,
     clock: std::time::Instant,
 }
@@ -569,6 +585,10 @@ impl ApplicationHandler for TestLoop<'_> {
             event_loop.exit();
             return;
         }
+        // Between two frames, never inside a tick: what Studio sent.
+        if let Some(l) = self.link.as_mut() {
+            l.poll(self.game, &mut self.test, &mut self.watch);
+        }
         self.game.about_to_wait(event_loop);
     }
 }
@@ -576,7 +596,8 @@ impl ApplicationHandler for TestLoop<'_> {
 /// Run the event loop for a test run; the result line written at its end
 /// (also when the window was closed).
 fn run_test_loop(event_loop: EventLoop<()>, game: &mut Game, t: &MapTest) -> Result<()> {
-    let mut h = TestLoop { game, watch: EndWatch::new(t), result: t.result.clone(), clock: std::time::Instant::now() };
+    let link = t.link.clone().map(super::studio_link::Link::new);
+    let mut h = TestLoop { game, watch: EndWatch::new(t), test: t.clone(), link, result: t.result.clone(), clock: std::time::Instant::now() };
     let r = event_loop.run_app(&mut h);
     h.watch.write(t.result.as_deref());
     Ok(r?)
@@ -620,6 +641,25 @@ mod map_test_tests {
             &["--map-mod", "m", "--map-at", "1,2,nan,4"],
             &["--map-mod", "m", "--map-at", "1e9,2,3,4"],
             &["--map-mod", "m", "--map-mod", "n", "--map-race", "r"],
+        ] {
+            assert!(MapTest::parse(&args(bad)).is_err(), "{bad:?}");
+        }
+    }
+
+    #[test]
+    fn the_studio_link_is_for_a_window_test_run() {
+        let t = MapTest::parse(&args(&["--map-file", "/d/m/.editor/run/map.obmap", "--map-race", "r", "--studio-link", "/d/m/.editor/link"]))
+            .unwrap()
+            .unwrap();
+        assert_eq!(t.link.as_deref(), Some(std::path::Path::new("/d/m/.editor/link")));
+        assert_eq!(MapTest::parse(&args(&["--map-mod", "m", "--map-race", "r"])).unwrap().unwrap().link, None, "no flag, no link");
+        assert_eq!(MapTest::strip(&args(&["--studio-link", "/x", "--no-boot"])), args(&["--no-boot"]));
+        for bad in [
+            &["--map-mod", "m", "--map-race", "r", "--studio-link"][..],
+            &["--map-mod", "m", "--map-race", "r", "--studio-link", ""],
+            &["--map-mod", "m", "--map-race", "r", "--studio-link", "a", "--studio-link", "b"],
+            &["--map-mod", "m", "--map-race", "r", "--simulate", "--studio-link", "a"],
+            &["--studio-link", "a"],
         ] {
             assert!(MapTest::parse(&args(bad)).is_err(), "{bad:?}");
         }

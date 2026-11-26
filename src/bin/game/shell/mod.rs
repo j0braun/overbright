@@ -12,6 +12,7 @@ pub(crate) mod prepare;
 pub(crate) mod probe;
 pub(crate) mod start_ahead;
 pub(crate) mod startup;
+pub(crate) mod studio_link;
 pub(crate) mod support;
 pub(crate) mod waits;
 pub(crate) mod window;

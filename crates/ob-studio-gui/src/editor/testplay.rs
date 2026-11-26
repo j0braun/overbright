@@ -9,6 +9,13 @@
 //! finished is marked tested by its content (`validate::Tested`,
 //! `.editor/tested.txt`, never exported), so the mark holds after the same
 //! race is saved and goes when it changes. One test at a time.
+//!
+//! The game stays open and is linked (`--studio-link <mod>/.editor/link`,
+//! `tools::map::link`: two small files in the player's own data folder, no
+//! network): edits to the mod (props, race points) go to the run copy and
+//! the game starts the run over with them between two frames; Test race and
+//! Drive here while it runs send the new aim; Restart race starts over. The
+//! status bar says whether the game is connected.
 
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
@@ -16,7 +23,8 @@ use std::process::{Child, Command, Stdio};
 use glam::Vec3;
 
 use super::state::{EditorState, Level};
-use crate::tools::map::{CustomRace, store};
+use crate::tools::map::link::{self, Aim, Op};
+use crate::tools::map::{CustomRace, MapMod, store};
 
 /// The result file's name in the mod's `.editor/` folder.
 pub const RESULT_FILE: &str = crate::tools::map::store::TEST_RESULT;
@@ -39,7 +47,7 @@ pub fn game_exe() -> PathBuf {
 /// The game's command line for a test run of the mod file `file`, with the
 /// mod's texture folder `looks` (`<mod>/textures`; watched in that run, so a
 /// texture painted while it runs shows too).
-pub fn args(file: &Path, target: &Target, result: &Path, looks: &Path) -> Vec<String> {
+pub fn args(file: &Path, target: &Target, result: &Path, looks: &Path, link: &Path) -> Vec<String> {
     let mut a = vec!["--map-file".to_string(), file.display().to_string()];
     match target {
         Target::Race(id) => a.extend(["--map-race".to_string(), id.clone()]),
@@ -47,6 +55,7 @@ pub fn args(file: &Path, target: &Target, result: &Path, looks: &Path) -> Vec<St
     }
     a.extend(["--map-result".to_string(), result.display().to_string()]);
     a.extend(["--looks-live".to_string(), looks.display().to_string()]);
+    a.extend(["--studio-link".to_string(), link.display().to_string()]);
     a
 }
 
@@ -108,7 +117,20 @@ pub struct TestPlay {
     race: Option<CustomRace>,
     /// The mod's `.editor/` folder (the tested marks).
     dir: PathBuf,
+    /// The link folder (`--studio-link`).
+    link: PathBuf,
+    /// The last command number sent.
+    seq: u64,
+    /// The mod as the game was last given it.
+    sent: MapMod,
+    /// What the game said last (None: nothing yet).
+    game: Option<link::GameState>,
 }
+
+/// The status bar's words for the link: whether the game is connected.
+pub const GAME_CONNECTED: &str = "Game connected";
+pub const GAME_NOT_CONNECTED: &str = "Game not connected";
+pub const GAME_APPLYING: &str = "Game applying changes";
 
 /// How a test run ended.
 #[derive(Clone, Debug, PartialEq)]
@@ -148,13 +170,15 @@ impl TestPlay {
         let dir = store::editor_dir(&s.maps, &s.session.folder);
         let result = dir.join(RESULT_FILE);
         let _ = std::fs::remove_file(&result);
+        let link = link::dir(&s.maps, &s.session.folder);
+        link::clear(&link);
         let race = match &target {
             Target::Race(id) => s.session.map.races.iter().find(|r| &r.id == id).cloned(),
             Target::At(..) => None,
         };
         let label = race.as_ref().map_or_else(|| "free roam".to_string(), |r| r.name.clone());
         let child = Command::new(exe)
-            .args(args(&file, &target, &result, &s.maps.join(&s.session.folder).join(store::TEXTURES)))
+            .args(args(&file, &target, &result, &s.maps.join(&s.session.folder).join(store::TEXTURES), &link))
             .env("NFSU2_ROOT", &s.root)
             .stdin(Stdio::null())
             .stdout(Stdio::null())
@@ -166,7 +190,8 @@ impl TestPlay {
             Target::Race(_) => format!("Testing {label}…{unsaved}"),
             Target::At(..) => format!("Driving from the camera's spot…{unsaved}"),
         };
-        Ok(TestPlay { child, target, label, result, race, dir })
+        let sent = s.session.map.clone();
+        Ok(TestPlay { child, target, label, result, race, dir, link, seq: 0, sent, game: None })
     }
 
     /// The run's end once the game has ended (None while it runs).
@@ -184,6 +209,46 @@ impl TestPlay {
 
     pub fn target(&self) -> &Target {
         &self.target
+    }
+
+    /// The game's words now (read from its state file): connected, applying
+    /// (a command it has not dealt with yet), or not connected (it has
+    /// not said anything lately).
+    pub fn link_words(&mut self) -> &'static str {
+        self.game = link::read_state(&self.link).filter(|g| g.pid == self.child.id());
+        match &self.game {
+            Some(g) if g.seq < self.seq => GAME_APPLYING,
+            Some(g) if g.alive(link::now_ms()) => GAME_CONNECTED,
+            _ => GAME_NOT_CONNECTED,
+        }
+    }
+
+    /// Whether the game has said it is there (a command may be sent).
+    pub fn connected(&mut self) -> bool {
+        self.link_words() != GAME_NOT_CONNECTED
+    }
+
+    /// Send the game a command: the mod as it is in the editor to the run
+    /// copy first (for `Apply`), then the command.
+    pub fn send(&mut self, s: &EditorState, op: Op, aim: Option<Aim>) -> Result<(), String> {
+        if op == Op::Apply {
+            write_run_copy(s)?;
+            self.sent = s.session.map.clone();
+        }
+        self.seq += 1;
+        link::write_command(&self.link, &link::Command { seq: self.seq, op, aim })
+            .map_err(|e| format!("The game was not told: {e}"))
+    }
+
+    /// The mod changed since the game was last given it.
+    pub fn changed(&self, s: &EditorState) -> bool {
+        s.session.map != self.sent
+    }
+
+    /// What the game said about the last command: its note when it could
+    /// not do it.
+    pub fn problem(&self) -> Option<String> {
+        self.game.as_ref().filter(|g| !g.ok && g.seq == self.seq).map(|g| g.note.clone())
     }
 }
 
@@ -231,6 +296,8 @@ pub struct TestPanel {
     /// The race tools, told to read the tested marks again after a test
     /// marked one.
     pub races: Option<std::rc::Rc<std::cell::RefCell<super::races::Races>>>,
+    /// The last problem the game reported, so the status says it once.
+    pub told: Option<String>,
 }
 
 /// How often a running test is looked at while the window is idle.
@@ -291,12 +358,55 @@ impl TestPanel {
             }
             ctx.request_repaint();
         }
-        if self.test.is_some() {
-            if race || drive {
-                s.status = "A test is running; close the game first".into();
+        let restart = super::menu::take(&ctx, super::menu::Command::RestartTest);
+        if let Some(t) = self.test.as_mut() {
+            let (words, quiet) = (t.link_words(), t.problem());
+            set_link(&ctx, Some(words.to_string()));
+            let aim = if race {
+                s.race.and_then(|k| s.session.map.races.get(k)).map(|r| Aim::Race(r.id.clone()))
+            } else if drive {
+                Some(match drive_spot(s) {
+                    Target::At(p, h) => Aim::At(p.x, p.y, p.z, h),
+                    Target::Race(id) => Aim::Race(id),
+                })
+            } else {
+                None
+            };
+            let ask = race || drive || restart;
+            if ask && !t.connected() {
+                s.status = "The game is not connected yet; try again in a moment".into();
+            } else if ask {
+                if race && aim.is_none() {
+                    s.status = "Choose a race to test (Races)".into();
+                } else if let Some(why) = aim.as_ref().and_then(|a| match a {
+                    Aim::Race(id) => blocked(s, &Target::Race(id.clone())),
+                    Aim::At(..) => None,
+                }) {
+                    s.status = why;
+                } else {
+                    let op = if t.changed(s) || aim.is_some() { Op::Apply } else { Op::Restart };
+                    s.status = match t.send(s, op, aim) {
+                        Ok(()) => if restart { "Race started over".into() } else { "Test updated in the open game".into() },
+                        Err(e) => e,
+                    };
+                }
+            } else if t.changed(s) && t.connected() && blocked_now(s, t).is_none() {
+                // An edit (a prop moved, a point added): the game takes the new mod.
+                if let Err(e) = t.send(s, Op::Apply, None) {
+                    s.status = e;
+                }
+            }
+            if let Some(p) = quiet.filter(|p| self.told.as_ref() != Some(p)) {
+                s.status = format!("The game kept the old run: {p}");
+                self.told = Some(p);
             }
             ctx.request_repaint_after(POLL_EVERY);
             return;
+        }
+        set_link(&ctx, None);
+        self.told = None;
+        if restart {
+            s.status = "No test is running (F5 starts one)".into();
         }
         let target = if race {
             match s.race.and_then(|k| s.session.map.races.get(k)) {
@@ -324,6 +434,31 @@ impl TestPanel {
     }
 }
 
+/// Whether an edit must wait: a race of the test with a blocking issue.
+fn blocked_now(s: &EditorState, t: &TestPlay) -> Option<String> {
+    blocked(s, t.target())
+}
+
+fn link_id() -> egui::Id {
+    egui::Id::unique("editor.testplay.link")
+}
+
+/// The status bar's words for the game link while a test runs (None: no test).
+pub fn link_words(ctx: &egui::Context) -> Option<String> {
+    ctx.data(|d| d.get_temp::<String>(link_id()))
+}
+
+fn set_link(ctx: &egui::Context, words: Option<String>) {
+    ctx.data_mut(|d| match words {
+        Some(w) => {
+            d.insert_temp(link_id(), w);
+        }
+        None => {
+            d.remove::<String>(link_id());
+        }
+    });
+}
+
 /// Drive here's spot: the ground the camera looks at (within 300 m), else
 /// the ground under the camera, else the camera's own place; facing the
 /// camera's way.
@@ -349,8 +484,9 @@ mod tests {
         let r = Path::new("/m/my-map/.editor/test-result.txt");
         let f = Path::new("/m/my-map/.editor/run/map.obmap");
         let l = Path::new("/m/my-map/textures");
+        let k = Path::new("/m/my-map/.editor/link");
         assert_eq!(
-            args(f, &Target::Race("dock".into()), r, l),
+            args(f, &Target::Race("dock".into()), r, l, k),
             [
                 "--map-file",
                 "/m/my-map/.editor/run/map.obmap",
@@ -359,10 +495,12 @@ mod tests {
                 "--map-result",
                 "/m/my-map/.editor/test-result.txt",
                 "--looks-live",
-                "/m/my-map/textures"
+                "/m/my-map/textures",
+                "--studio-link",
+                "/m/my-map/.editor/link"
             ]
         );
-        let a = args(f, &Target::At(Vec3::new(-1.5, 2.0, 3.25), 90.0), r, l);
+        let a = args(f, &Target::At(Vec3::new(-1.5, 2.0, 3.25), 90.0), r, l, k);
         assert_eq!(a[2..4], ["--map-at".to_string(), "-1.5,2,3.25,90".to_string()]);
     }
 
@@ -502,7 +640,8 @@ mod tests {
         let run = store::run_file(&maps, "my-map").display().to_string();
         assert!(argv.starts_with(&format!("--map-file\n{run}\n--map-race\ndock\n--map-result\n")), "{argv}");
         let looks = maps.join("my-map").join(store::TEXTURES).display().to_string();
-        assert!(argv.ends_with(&format!("--looks-live\n{looks}\n")), "the mod's textures, live: {argv}");
+        let link = link::dir(&maps, "my-map").display().to_string();
+        assert!(argv.ends_with(&format!("--looks-live\n{looks}\n--studio-link\n{link}\n")), "textures and link: {argv}");
         // The mark is the race's content: saving the same race keeps it, a change clears it.
         store::save(&maps, "my-map", &map).unwrap();
         assert!(Tested::load(&editor).is_tested(&store::read_file(&maps.join("my-map").join(store::FILE)).unwrap().races[0]));
@@ -531,5 +670,58 @@ mod tests {
         assert_eq!(store::read_file(&run).unwrap().name, "During");
         assert_eq!(s.status, "Driving from the camera's spot… (testing unsaved changes)");
         wait(&mut s, &mut test);
+    }
+
+    /// The link with a stand-in game that stays: its state file reads as
+    /// connected, an edit is sent as the run copy and an apply command, the
+    /// game's note about a command it could not do reaches the status.
+    #[cfg(unix)]
+    #[test]
+    fn the_game_stays_open_and_takes_edits() {
+        let scratch = crate::testkit::Scratch::new("testplay-link");
+        let dir = scratch.path().to_path_buf();
+        let exe = stand_in(&dir, "5");
+        let mut s = state(&dir, MapMod { name: "Before".into(), ..Default::default() });
+        let mut panel = TestPanel::default();
+        panel.test = Some(start_test(&mut s, &exe, Target::At(Vec3::ZERO, 0.0)).unwrap());
+        let ctx = egui::Context::default();
+        let frame = |s: &mut EditorState, panel: &mut TestPanel| {
+            let _ = crate::editor::run_headless(&ctx, egui::RawInput::default(), |ui| panel.ui(s, ui));
+        };
+        let linkdir = link::dir(&s.maps, "my-map");
+        let pid = panel.test.as_ref().unwrap().child.id();
+        frame(&mut s, &mut panel);
+        assert_eq!(link_words(&ctx).as_deref(), Some(GAME_NOT_CONNECTED), "the game has said nothing yet");
+        let said = |seq: u64, ok: bool, note: &str| {
+            link::write_state(&linkdir, &link::GameState { pid, seq, beat_ms: link::now_ms(), ok, note: note.into() }).unwrap();
+        };
+        said(0, true, "");
+        frame(&mut s, &mut panel);
+        assert_eq!(link_words(&ctx).as_deref(), Some(GAME_CONNECTED));
+        // An edit goes out: the run copy and one apply command.
+        s.session.map.name = "During".into();
+        frame(&mut s, &mut panel);
+        assert_eq!(store::read_file(&store::run_file(&s.maps, "my-map")).unwrap().name, "During");
+        let c = link::read_command(&linkdir).unwrap();
+        assert_eq!((c.seq, c.op), (1, Op::Apply));
+        frame(&mut s, &mut panel);
+        assert_eq!(link_words(&ctx).as_deref(), Some(GAME_APPLYING), "the game has not dealt with it");
+        assert_eq!(link::read_command(&linkdir).unwrap().seq, 1, "nothing changed, nothing sent again");
+        said(1, true, "");
+        frame(&mut s, &mut panel);
+        assert_eq!(link_words(&ctx).as_deref(), Some(GAME_CONNECTED));
+        // Restart race: the mod is as the game has it, so a plain restart.
+        super::super::menu::post(&ctx, super::super::menu::Command::RestartTest);
+        frame(&mut s, &mut panel);
+        let c = link::read_command(&linkdir).unwrap();
+        assert_eq!((c.seq, c.op), (2, Op::Restart));
+        said(2, false, "race x is gone");
+        frame(&mut s, &mut panel);
+        assert!(s.status.contains("race x is gone"), "{}", s.status);
+        // A game that is gone says nothing: not connected.
+        link::write_state(&linkdir, &link::GameState { pid, seq: 2, beat_ms: 1, ok: true, note: String::new() }).unwrap();
+        frame(&mut s, &mut panel);
+        assert_eq!(link_words(&ctx).as_deref(), Some(GAME_NOT_CONNECTED));
+        let _ = panel.test.as_mut().unwrap().child.kill();
     }
 }

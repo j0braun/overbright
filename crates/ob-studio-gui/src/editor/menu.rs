@@ -69,11 +69,13 @@ pub enum Command {
     NewRace,
     TestRace,
     DriveHere,
+    /// Start the open test game's run over.
+    RestartTest,
 }
 
 impl Command {
     /// Every command, for the test that each one has a taker.
-    pub const ALL: [Command; 11] = [
+    pub const ALL: [Command; 12] = [
         Command::Duplicate,
         Command::Delete,
         Command::SelectAllOfSolid,
@@ -85,6 +87,7 @@ impl Command {
         Command::NewRace,
         Command::TestRace,
         Command::DriveHere,
+        Command::RestartTest,
     ];
 
     /// What the menu item says when hovered (the test modes say who
@@ -348,6 +351,7 @@ pub const KEYS: &[Binding] = &[
     b("File", "Ctrl+Q", words::QUIT, &[Key::Q]),
     b("File", "Enter", "Confirm a dialog", &[Key::Enter]),
     b("Run", "F5 / Shift+F5", "Test race / Drive here", &[Key::F5]),
+    b("Run", "Ctrl+F5", "Restart race (the open test game)", &[Key::F5]),
     b("Run", "Space", "Play / pause the simulation (its timeline under the view)", &[Key::Space]),
     b("Run", "Left / Right, Shift+Left / Right", "The simulation a recorded frame back / on, a second with Shift", &[Key::ArrowLeft, Key::ArrowRight]),
     b("Run", "Up / Down", "Show the line above / below in What went wrong (Simulate tab)", &[Key::ArrowUp, Key::ArrowDown]),
@@ -425,6 +429,9 @@ pub fn shortcuts(app: &App, ctx: &egui::Context, out: &mut Vec<Action>) {
     if open && !typing {
         if ctx.input_mut(|i| i.consume_key(Modifiers::SHIFT, Key::F5)) {
             post(ctx, Command::DriveHere);
+        }
+        if ctx.input_mut(|i| i.consume_key(Modifiers::COMMAND, Key::F5)) {
+            post(ctx, Command::RestartTest);
         }
         if ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::F5)) {
             post(ctx, Command::TestRace);
@@ -595,6 +602,7 @@ pub fn race_items(app: &App, ui: &mut egui::Ui, _out: &mut Vec<Action>) {
     command(ui, s, "New race", "", Command::NewRace);
     command(ui, s, "Test race", "F5", Command::TestRace);
     command(ui, s, "Drive here", "Shift+F5", Command::DriveHere);
+    command(ui, s, "Restart race", "Ctrl+F5", Command::RestartTest);
 }
 
 /// The Help menu's items.
@@ -1077,6 +1085,11 @@ pub fn status(app: &App, ui: &mut egui::Ui) {
                 egui::RichText::new(format!("{e} {}", if e == 1 { "error" } else { "errors" })).size(12.0),
             );
             ui.separator();
+            if let Some(g) = super::testplay::link_words(ui.ctx()) {
+                let on = g == super::testplay::GAME_CONNECTED;
+                ui.colored_label(if on { theme::lime() } else { theme::warn() }, egui::RichText::new(g).size(12.0));
+                ui.separator();
+            }
             ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
                 ui.add(egui::Label::new(egui::RichText::new(&s.status).size(13.0)).truncate());
             });
