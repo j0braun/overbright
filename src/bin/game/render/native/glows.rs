@@ -82,6 +82,9 @@ pub(crate) fn tube_view(camera: &nfsu2::render::Camera, aspect: f32) -> nfsu2::s
 /// drawn shows no glow).
 /// `drawn`: the frame's drawn sections (`World::drawn_sections_at` at the
 /// camera).
+/// `player_hidden`: the view leaves the player's car out
+/// (`view_leaves_out_player`), so its neon tubes are not drawn either (the
+/// car list 0x8A30F0 the tubes walk lacks it).
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn glow_quads(
     d: &Drive,
@@ -95,6 +98,7 @@ pub(crate) fn glow_quads(
     drawn: Option<&[u32]>,
     opts: &nfsu2::render::RenderOptions,
     wet_interaction: u8,
+    player_hidden: bool,
 ) -> Vec<nfsu2::particles::Quad> {
     let axes = CameraAxes::look(camera.forward(), camera.up);
     let view = nfsu2::glow::View {
@@ -168,7 +172,9 @@ pub(crate) fn glow_quads(
     // 0x61ACA0 (0x5CB629, last): the neon tubes of the cars on the list
     // 0x8A30F0 (**inferred**: every car drawn).
     let tv = tube_view(camera, aspect);
-    neon_tubes(&tv, &d.car, poses.player().transform(), seconds, [None; 2], &mut quads);
+    if !player_hidden {
+        neon_tubes(&tv, &d.car, poses.player().transform(), seconds, [None; 2], &mut quads);
+    }
     for r in race.iter().flat_map(|r| &r.racers.rivals) {
         neon_tubes(&tv, &r.car, poses.car(&r.id, &r.state).transform(), seconds, [None; 2], &mut quads);
     }
