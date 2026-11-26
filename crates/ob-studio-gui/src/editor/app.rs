@@ -110,6 +110,8 @@ pub struct ModView {
     pub region: Option<String>,
     pub camera: Option<(Vec3, f32, f32)>,
     pub panels: PanelSizes,
+    /// The saved views (View ▸ Views).
+    pub views: Vec<super::views::SavedView>,
 }
 
 impl ModView {
@@ -138,7 +140,38 @@ impl ModView {
             properties: f("properties_width").and_then(panel_size),
             bottom: f("bottom_height").and_then(panel_size),
         };
-        ModView { region, camera, panels }
+        let num = |v: &toml::Value| v.as_float().or_else(|| v.as_integer().map(|i| i as f64)).map(|v| v as f32);
+        let views = t
+            .get("views")
+            .and_then(|v| v.as_array())
+            .map(|a| {
+                a.iter()
+                    .filter_map(|v| {
+                        let v = v.as_table()?;
+                        let name = v.get("name")?.as_str()?.trim().to_string();
+                        let c: Vec<f32> = v.get("camera")?.as_array()?.iter().filter_map(num).collect();
+                        let (yaw, pitch) = (num(v.get("yaw")?)?, num(v.get("pitch")?)?);
+                        let collision = match v.get("collision").and_then(|c| c.as_str()) {
+                            Some("invisible") => super::collision::Show::Invisible,
+                            Some("all") => super::collision::Show::All,
+                            _ => super::collision::Show::Off,
+                        };
+                        let flag = |k: &str| v.get(k).and_then(|b| b.as_bool()).unwrap_or(false);
+                        (!name.is_empty() && c.len() == 3 && c.iter().chain([&yaw, &pitch]).all(|f| f.is_finite())).then(|| {
+                            super::views::SavedView {
+                                name,
+                                camera: (Vec3::new(c[0], c[1], c[2]), yaw, pitch),
+                                collision,
+                                race_barriers: flag("race_barriers"),
+                                map: flag("map"),
+                                mod_only: flag("mod_only"),
+                            }
+                        })
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+        ModView { region, camera, panels, views }
     }
 
     pub fn write(&self, maps: &Path, folder: &str) -> Result<()> {
@@ -157,6 +190,18 @@ impl ModView {
             if let Some(v) = v.and_then(panel_size) {
                 s.push_str(&format!("{key} = {:?}\n", v.round()));
             }
+        }
+        for v in &self.views {
+            let (p, yaw, pitch) = v.camera;
+            let collision = match v.collision {
+                super::collision::Show::Off => "off",
+                super::collision::Show::Invisible => "invisible",
+                super::collision::Show::All => "all",
+            };
+            s.push_str(&format!(
+                "\n[[views]]\nname = {:?}\ncamera = [{:?}, {:?}, {:?}]\nyaw = {:?}\npitch = {:?}\ncollision = \"{collision}\"\nrace_barriers = {}\nmap = {}\nmod_only = {}\n",
+                v.name, p.x, p.y, p.z, yaw, pitch, v.race_barriers, v.map, v.mod_only
+            ));
         }
         crate::qol::saves::write_atomic(&store::editor_dir(maps, folder).join(EDITOR_TOML), s.as_bytes(), false)?;
         Ok(())
@@ -877,6 +922,15 @@ pub enum Dialog {
     Controls,
     /// Help ▸ How to test your race.
     HowToTest,
+    /// View ▸ Go to…: `error` is what the last try said.
+    GoTo {
+        query: String,
+        error: String,
+    },
+    /// View ▸ Views ▸ Save view…
+    SaveView {
+        name: String,
+    },
 }
 
 /// What waits on the unsaved-changes question.
@@ -1112,6 +1166,7 @@ impl App {
         self.layout.restore = view.panels;
         let mut s = EditorState::new(self.root.clone(), &region, self.maps.clone(), folder, map, world, camera);
         s.session.keep_in(h);
+        s.views = view.views.clone();
         s.status = format!("Opened {folder}");
         self.state = Some(s);
         self.last_tick = Instant::now();
@@ -1143,7 +1198,7 @@ impl App {
     pub fn new_mod(&mut self, folder: &str, name: &str, region: &str) -> Result<()> {
         ob_studio::create::create(&self.maps, folder, name, region)?;
         let region = region.trim().to_ascii_uppercase();
-        ModView { region: Some(region.clone()), camera: None, panels: self.layout.sizes }.write(&self.maps, folder)?;
+        ModView { region: Some(region.clone()), camera: None, panels: self.layout.sizes, views: Vec::new() }.write(&self.maps, folder)?;
         self.open(folder, Some(&region))
     }
 
@@ -1178,9 +1233,25 @@ impl App {
         panels.tree = r.tree.or(panels.tree);
         panels.properties = r.properties.or(panels.properties);
         panels.bottom = r.bottom.or(panels.bottom);
-        let view = ModView { region: Some(s.session.region.clone()), camera: Some((c.position, c.yaw, c.pitch)), panels };
+        let view = ModView {
+            region: Some(s.session.region.clone()),
+            camera: Some((c.position, c.yaw, c.pitch)),
+            panels,
+            views: s.views.clone(),
+        };
         if let Err(e) = view.write(&s.maps, &s.session.folder) {
             log::warn!("editor: {EDITOR_TOML} not written: {e:#}");
+        }
+    }
+
+    /// Save the current camera and layers as the view `name` (View ▸ Views ▸ Save view…), kept in
+    /// `editor.toml` with the mod (never in the mod itself).
+    pub fn save_view(&mut self, name: &str) {
+        let Some(s) = self.state.as_mut() else { return };
+        let c = self.panels.viewport.kept_camera(s);
+        if super::views::save_view(s, name, &c) {
+            s.status = format!("Saved view {}", name.trim());
+            self.keep_view();
         }
     }
 
@@ -1440,6 +1511,52 @@ impl App {
             A::RaceBarriers => {
                 if let Some(s) = self.state.as_mut() {
                     s.race_barriers = !s.race_barriers;
+                }
+            }
+            A::Goal(g) => {
+                if let Some(s) = self.state.as_mut() {
+                    s.view = View::ThreeD;
+                    s.goal = Some(g);
+                }
+            }
+            A::GoTo => self.dialog = Some(Dialog::GoTo { query: String::new(), error: String::new() }),
+            A::HideSelected => {
+                if let Some(s) = self.state.as_mut() {
+                    super::views::hide_selected(s);
+                }
+            }
+            A::IsolateSelected => {
+                if let Some(s) = self.state.as_mut() {
+                    super::views::isolate_selected(s);
+                }
+            }
+            A::ShowAll => {
+                if let Some(s) = self.state.as_mut() {
+                    super::views::show_all(s);
+                }
+            }
+            A::ModOnly => {
+                if let Some(s) = self.state.as_mut() {
+                    let on = !s.filter.mod_only;
+                    s.filter.set_mod_only(on);
+                    s.status = if on { "Showing this mod's changes only".into() } else { "Showing every prop".into() };
+                }
+            }
+            A::SaveView => self.dialog = Some(Dialog::SaveView { name: String::new() }),
+            A::RecallView(i) => {
+                if let Some(s) = self.state.as_mut()
+                    && let Some(v) = s.views.get(i).cloned()
+                {
+                    v.recall(s);
+                }
+            }
+            A::DeleteView(i) => {
+                if let Some(s) = self.state.as_mut()
+                    && i < s.views.len()
+                {
+                    let v = s.views.remove(i);
+                    s.status = format!("Deleted view {}", v.name);
+                    self.keep_view();
                 }
             }
             A::Draw(d) => {
@@ -2001,6 +2118,48 @@ impl App {
                         if ui.add_enabled(!path.trim().is_empty(), theme::main_action("Import")).clicked() {
                             let p = PathBuf::from(path.trim());
                             then = Some(Box::new(move |app: &mut App| app.import(&p)));
+                            keep = false;
+                        }
+                        if ui.button(words::CANCEL).clicked() {
+                            keep = false;
+                        }
+                    });
+                }
+                Dialog::GoTo { query, error } => {
+                    ui.label(theme::title("Go to"));
+                    ui.label("Coordinates (x, y), a prop's name, or a race point (start, finish, checkpoint 3):");
+                    let edit = ui.text_edit_singleline(query);
+                    edit.request_focus();
+                    if !error.is_empty() {
+                        ui.colored_label(theme::error(), error.as_str());
+                    }
+                    ui.horizontal(|ui| {
+                        let go = ui.add_enabled(!query.trim().is_empty(), theme::main_action("Go")).clicked()
+                            || ui.input(|i| i.key_pressed(egui::Key::Enter));
+                        if go && !query.trim().is_empty() {
+                            let r = self.state.as_mut().map(|s| super::views::go_to(s, query)).unwrap_or(Ok(()));
+                            match r {
+                                Ok(()) => keep = false,
+                                Err(e) => *error = e,
+                            }
+                        }
+                        if ui.button(words::CANCEL).clicked() {
+                            keep = false;
+                        }
+                    });
+                }
+                Dialog::SaveView { name } => {
+                    ui.label(theme::title("Save view"));
+                    ui.label("Name (the same name replaces that view):");
+                    ui.text_edit_singleline(name).request_focus();
+                    ui.horizontal(|ui| {
+                        let ok = !name.trim().is_empty();
+                        if (ui.add_enabled(ok, theme::main_action(words::SAVE)).clicked()
+                            || ui.input(|i| i.key_pressed(egui::Key::Enter)))
+                            && ok
+                        {
+                            let n = name.clone();
+                            then = Some(Box::new(move |app: &mut App| app.save_view(&n)));
                             keep = false;
                         }
                         if ui.button(words::CANCEL).clicked() {
@@ -2905,7 +3064,7 @@ mod tests {
         let s = Scratch::new("editor-view");
         let maps = s.path().join("maps");
         let panels = PanelSizes { tree: Some(300.0), properties: None, bottom: Some(240.0) };
-        let v = ModView { region: Some("L4RA".into()), camera: Some((Vec3::new(1.5, -2.0, 30.25), 0.5, -0.25)), panels };
+        let v = ModView { region: Some("L4RA".into()), camera: Some((Vec3::new(1.5, -2.0, 30.25), 0.5, -0.25)), panels, views: Vec::new() };
         v.write(&maps, "v").unwrap();
         assert_eq!(ModView::read(&maps, "v"), v);
         assert!(store::editor_dir(&maps, "v").join(EDITOR_TOML).is_file());

@@ -75,6 +75,12 @@ pub struct EditorState {
     pub collision: super::collision::Show,
     /// World: the collision layer also draws the races' barriers (off: permanent walls and free roam's own).
     pub race_barriers: bool,
+    /// What the view leaves out (H, Shift+H, this mod's changes only): view state, never in the mod.
+    pub filter: super::views::ViewFilter,
+    /// Where the camera goes next (a preset, Go to, a saved view); the viewport takes it.
+    pub goal: Option<super::views::Goal>,
+    /// The mod's saved views (`.editor/editor.toml`).
+    pub views: Vec<super::views::SavedView>,
     /// The wall or drawn ground selected in the collision layer.
     pub wall: Option<super::collision::Picked>,
     /// The drawing tool armed (Edit ▸ Draw wall / Draw ground), and what it
@@ -128,6 +134,9 @@ impl EditorState {
             view: View::ThreeD,
             collision: super::collision::Show::Off,
             race_barriers: false,
+            filter: Default::default(),
+            goal: None,
+            views: Vec::new(),
             wall: None,
             draw: None,
             draw_settings: Default::default(),

@@ -56,6 +56,21 @@ pub enum Action {
     RaceBarriers,
     /// Arm a drawing tool (Edit ▸ Draw wall / Draw ground).
     Draw(super::collision::Draw),
+    /// A camera preset (View ▸ Top view / Isometric view).
+    Goal(super::views::Goal),
+    /// View ▸ Go to…
+    GoTo,
+    /// H, Shift+H, Alt+H: the view's own hiding (never the mod's).
+    HideSelected,
+    IsolateSelected,
+    ShowAll,
+    /// View ▸ This mod's changes only.
+    ModOnly,
+    /// View ▸ Views ▸ Save view…
+    SaveView,
+    /// A saved view by position, to bring back or to delete.
+    RecallView(usize),
+    DeleteView(usize),
 }
 
 /// A request for one of the editor's parts.
@@ -342,6 +357,9 @@ pub const KEYS: &[Binding] = &[
     b("View", "T", "Top-down overview on / off", &[Key::T]),
     b("View", "Home", "Fit the overview or the map to the region", &[Key::Home]),
     b("View", "M", "3D view / Map", &[Key::M]),
+    b("View", "H", "Hide the selected props (this view only)", &[Key::H]),
+    b("View", "Shift+H", "Show only the selected props", &[Key::H]),
+    b("View", "Alt+H", "Show every prop again", &[Key::H]),
     b("View", "L", "Collision layer: off / invisible barriers / all collision", &[Key::L]),
     b("Tools", "Esc", "Back to Select (a race tool armed); else clear the selection", &[Key::Escape]),
     b("Edit", "LMB / Ctrl+LMB", "Select / add to the selection", &[]),
@@ -433,8 +451,17 @@ pub fn shortcuts(app: &App, ctx: &egui::Context, out: &mut Vec<Action>) {
             let v = app.state.as_ref().map_or(View::ThreeD, |s| s.view);
             out.push(Action::View(if v == View::ThreeD { View::Map } else { View::ThreeD }));
         }
+        if i.consume_key(Modifiers::SHIFT, Key::H) {
+            out.push(Action::IsolateSelected);
+        }
+        if i.consume_key(Modifiers::ALT, Key::H) {
+            out.push(Action::ShowAll);
+        }
         if flying || i.modifiers.any() {
             return;
+        }
+        if i.consume_key(Modifiers::NONE, Key::H) {
+            out.push(Action::HideSelected);
         }
         if i.consume_key(Modifiers::NONE, Key::L) {
             let now = app.state.as_ref().map_or(super::collision::Show::Off, |s| s.collision);
@@ -468,6 +495,15 @@ fn item(ui: &mut egui::Ui, text: &str, key: Option<&KeyboardShortcut>, enabled: 
         b = b.shortcut_text(ui.ctx().format_shortcut(k));
     }
     ui.add_enabled(enabled, b).clicked()
+}
+
+/// A menu item that says why it cannot act while `why` is set.
+fn item_why(ui: &mut egui::Ui, text: &str, key: &str, why: Option<&str>) -> bool {
+    let r = ui.add_enabled(why.is_none(), egui::Button::new(text).shortcut_text(key));
+    match why {
+        Some(w) => r.on_disabled_hover_text(w).clicked(),
+        None => r.clicked(),
+    }
 }
 
 /// A menu item that posts `c`: disabled with the reason while it cannot
@@ -607,6 +643,42 @@ pub fn view_items(app: &App, ui: &mut egui::Ui, out: &mut Vec<Action>) {
     let s = app.state.as_ref();
     command(ui, s, "Frame selection", "F", Command::FrameSelection);
     command(ui, s, "Reset camera", "", Command::ResetCamera);
+    let none = if open { None } else { Some("Open a map mod first") };
+    if item_why(ui, "Top view", "T", none) {
+        out.push(Action::Goal(super::views::Goal::Top));
+    }
+    if item_why(ui, "Isometric view", "", none) {
+        out.push(Action::Goal(super::views::Goal::Isometric));
+    }
+    if item_why(ui, "Go to…", "", none) {
+        out.push(Action::GoTo);
+    }
+    ui.add_enabled_ui(open, |ui| {
+        ui.menu_button("Views", |ui| {
+            if item_why(ui, "Save view…", "", none) {
+                out.push(Action::SaveView);
+            }
+            let saved = s.map_or(&[][..], |s| &s.views[..]);
+            if saved.is_empty() {
+                ui.weak("No saved views");
+            }
+            for (i, v) in saved.iter().enumerate() {
+                if ui.button(&v.name).on_hover_text("Bring back this camera and its layers").clicked() {
+                    out.push(Action::RecallView(i));
+                }
+            }
+            if !saved.is_empty() {
+                ui.separator();
+                ui.menu_button("Delete view", |ui| {
+                    for (i, v) in saved.iter().enumerate() {
+                        if ui.button(&v.name).clicked() {
+                            out.push(Action::DeleteView(i));
+                        }
+                    }
+                });
+            }
+        });
+    });
     ui.separator();
     let shown = s.map(|s| s.collision);
     ui.add_enabled_ui(open, |ui| {
@@ -625,6 +697,26 @@ pub fn view_items(app: &App, ui: &mut egui::Ui, out: &mut Vec<Action>) {
             }
         });
     });
+    ui.separator();
+    let sel = match s {
+        None => Some("Open a map mod first"),
+        Some(s) if s.selection.is_empty() => Some("Select a prop first"),
+        Some(_) => None,
+    };
+    if item_why(ui, "Hide selected", "H", sel) {
+        out.push(Action::HideSelected);
+    }
+    if item_why(ui, "Isolate selected", "Shift+H", sel) {
+        out.push(Action::IsolateSelected);
+    }
+    let any = s.is_some_and(|s| s.filter.hidden.len() + s.filter.isolated.as_ref().map_or(0, |i| i.len().max(1)) > 0);
+    if item_why(ui, "Show all", "Alt+H", if open { (!any).then_some("Nothing is hidden") } else { none }) {
+        out.push(Action::ShowAll);
+    }
+    let only = s.is_some_and(|s| s.filter.mod_only);
+    if ui.add_enabled(open, egui::Button::selectable(only, "This mod's changes only")).on_hover_text("Draw only the props this mod moved, deleted or added (this view only)").clicked() {
+        out.push(Action::ModOnly);
+    }
     ui.separator();
     if ui.add_enabled(open, egui::Button::selectable(app.layout.hint, "Hint line")).clicked() {
         out.push(Action::Hint(!app.layout.hint));

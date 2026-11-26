@@ -81,6 +81,7 @@ pub fn follow(s: &mut EditorState) {
 fn tidy(s: &mut EditorState) {
     let n = s.session.world.placements.len();
     s.selection.retain(|&i| i < n);
+    s.filter.prune(n);
 }
 
 /// Apply `s.session.map` to the world again from scratch (opening a mod,

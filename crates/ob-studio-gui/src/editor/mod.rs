@@ -24,11 +24,14 @@ pub mod tree_races;
 pub mod undo;
 pub mod validate;
 pub mod viewport;
+pub mod views;
 pub mod weak;
 pub mod worklight;
 
 #[cfg(test)]
 mod docs_tests;
+#[cfg(test)]
+mod views_tests;
 
 pub use state::{EditorState, Issue, Level, Mode, Panel, RacePoint, View, commit, project};
 

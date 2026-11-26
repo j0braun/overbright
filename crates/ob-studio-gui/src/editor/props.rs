@@ -703,7 +703,7 @@ impl Props {
             && s.camera.position.distance(eye) < 1e-3
         {
             let (e, d) = screen_ray(s, rect, at);
-            if let Some(hit) = super::viewport::pick(&s.session.world, e, d) {
+            if let Some(hit) = super::viewport::pick_where(&s.session.world, e, d, &|i| super::views::view_hides(s, i)) {
                 if !s.selection.contains(&hit.placement) {
                     s.selection = vec![hit.placement];
                 }
