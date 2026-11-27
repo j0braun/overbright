@@ -50,7 +50,7 @@ proptest = { version = "1", default-features = false, features = ["std"] }
 
 # One version for every package of the workspace (the release's).
 [workspace.package]
-version = "0.7.0"
+version = "0.7.1"
 edition = "2024"
 license = "GPL-3.0-or-later"
 
