@@ -424,20 +424,20 @@ expect fail halo-runs-with-private-set halo_private halo-runs-with-private-set
 # QoL read, global state) fails.
 layering() {
   local c=$1 what=${2:-} t="$O/$1"
-  mkdir -p "$t/scripts/checks" "$t/src/render/native" "$t/src/bin/game/hud"
+  mkdir -p "$t/scripts/checks" "$t/crates/ob-render/src/render/native" "$t/src/bin/game/hud"
   cp "$HERE/layering.sh" "$t/scripts/checks/"
-  printf '# list\nsrc/render/native/a.rs\tlet x = crate::qol::hdr_active();\nsrc/render/native/a.rs\tfn t() { crate::qol::Enhancements::default().apply(); }\n' > "$t/scripts/checks/layering-settings-allow.txt"
-  printf '# list\nqol\tsrc/render/native/a.rs\tlet x = crate::qol::hdr_active();\twhy\nstate\tsrc/render/native/a.rs\tstatic N: AtomicU8 = AtomicU8::new(0);\twhy\n' > "$t/scripts/checks/layering-allow.txt"
-  printf 'fn f() {\n    let x = crate::qol::hdr_active();\n}\nstatic N: AtomicU8 = AtomicU8::new(0);\n#[cfg(test)]\nmod tests {\n    fn t() { crate::qol::Enhancements::default().apply(); }\n}\n' > "$t/src/render/native/a.rs"
+  printf '# list\ncrates/ob-render/src/render/native/a.rs\tlet x = crate::qol::hdr_active();\ncrates/ob-render/src/render/native/a.rs\tfn t() { crate::qol::Enhancements::default().apply(); }\n' > "$t/scripts/checks/layering-settings-allow.txt"
+  printf '# list\nqol\tcrates/ob-render/src/render/native/a.rs\tlet x = crate::qol::hdr_active();\twhy\nstate\tcrates/ob-render/src/render/native/a.rs\tstatic N: AtomicU8 = AtomicU8::new(0);\twhy\n' > "$t/scripts/checks/layering-allow.txt"
+  printf 'fn f() {\n    let x = crate::qol::hdr_active();\n}\nstatic N: AtomicU8 = AtomicU8::new(0);\n#[cfg(test)]\nmod tests {\n    fn t() { crate::qol::Enhancements::default().apply(); }\n}\n' > "$t/crates/ob-render/src/render/native/a.rs"
   printf '#[cfg(all(test, feature = "dev-harness"))]\nmod tests;\n#[cfg(feature = "dev-harness")]\nuse crate::dev::x;\n' > "$t/src/bin/game/hud/mod.rs"
   printf 'fn t() { crate::dev::state_hash::v(); }\n' > "$t/src/bin/game/hud/tests.rs"
   case $what in
     harness) printf 'fn g() { dev::shot::list(); }\n' >> "$t/src/bin/game/hud/mod.rs" ;;
     test-mod) printf 'mod tests;\n' > "$t/src/bin/game/hud/mod.rs" ;;
-    settings) printf 'fn h() { crate::render::RenderOptions::in_force(); }\n' >> "$t/src/render/native/a.rs" ;;
-    enh) printf 'use crate::render::enh::x;\n' >> "$t/src/render/native/a.rs" ;;
-    qol) printf 'fn h() { let y = crate::qol::hdr_active(); }\n' >> "$t/src/render/native/a.rs" ;;
-    state) printf 'static M: Mutex<u8> = Mutex::new(0);\n' >> "$t/src/render/native/a.rs" ;;
+    settings) printf 'fn h() { crate::render::RenderOptions::in_force(); }\n' >> "$t/crates/ob-render/src/render/native/a.rs" ;;
+    enh) printf 'use crate::render::enh::x;\n' >> "$t/crates/ob-render/src/render/native/a.rs" ;;
+    qol) printf 'fn h() { let y = crate::qol::hdr_active(); }\n' >> "$t/crates/ob-render/src/render/native/a.rs" ;;
+    state) printf 'static M: Mutex<u8> = Mutex::new(0);\n' >> "$t/crates/ob-render/src/render/native/a.rs" ;;
   esac
   bash "$t/scripts/checks/layering.sh" "$t"
 }
