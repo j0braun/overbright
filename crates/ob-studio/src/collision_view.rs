@@ -70,6 +70,113 @@ impl Colour {
     }
 }
 
+/// One class of the layer the legend lists and a click can switch off: what the walls and floors are, and whose.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Class {
+    Invisible,
+    Barrier,
+    Behind,
+    Road,
+    NotGround,
+    Added,
+    Moved,
+    Drawn,
+}
+
+impl Class {
+    pub const ALL: [Class; 8] = [
+        Class::Invisible,
+        Class::Barrier,
+        Class::Behind,
+        Class::Road,
+        Class::NotGround,
+        Class::Added,
+        Class::Moved,
+        Class::Drawn,
+    ];
+
+    /// Its name in the View menu and the key.
+    pub fn label(self) -> &'static str {
+        match self {
+            Class::Invisible => "Invisible walls",
+            Class::Barrier => "Barriers",
+            Class::Behind => "Walls behind scenery",
+            Class::Road => "Road floors",
+            Class::NotGround => "Floors that are not ground",
+            Class::Added => "Added props'",
+            Class::Moved => "Moved props'",
+            Class::Drawn => "Drawn by this mod",
+        }
+    }
+
+    fn bit(self) -> u16 {
+        1 << self as u16
+    }
+}
+
+/// The opacities the View menu offers (percent of the layer's own strength).
+pub const OPACITIES: [u8; 4] = [25, 50, 75, 100];
+
+/// An opacity's name in the View menu.
+pub fn opacity_label(percent: u8) -> String {
+    format!("{percent} %")
+}
+
+/// How the layer is drawn besides what it shows: classes and surfaces switched off, opacity, wireframe and full-height
+/// walls. View state only: nothing of it is ever written to the mod.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Look {
+    hidden: u16,
+    surfaces: [u64; 4],
+    /// Percent of the layer's own strength, 10..=100.
+    pub opacity: u8,
+    /// Outlines only, no fill.
+    pub wireframe: bool,
+    /// Walls the game makes reach from -2048 m to 2048 m drawn that tall, not just beside the floors.
+    pub full_height: bool,
+}
+
+impl Default for Look {
+    fn default() -> Self {
+        Look::DEFAULT
+    }
+}
+
+impl Look {
+    pub const DEFAULT: Look = Look { hidden: 0, surfaces: [0; 4], opacity: 100, wireframe: false, full_height: false };
+
+    pub fn shows(&self, c: Class) -> bool {
+        self.hidden & c.bit() == 0
+    }
+
+    pub fn toggle(&mut self, c: Class) {
+        self.hidden ^= c.bit();
+    }
+
+    pub fn shows_surface(&self, id: u8) -> bool {
+        self.surfaces[(id >> 6) as usize] & (1 << (id & 63)) == 0
+    }
+
+    pub fn toggle_surface(&mut self, id: u8) {
+        self.surfaces[(id >> 6) as usize] ^= 1 << (id & 63);
+    }
+
+    /// Everything shown again (the opacity, wireframe and height stay).
+    pub fn show_every_kind(&mut self) {
+        self.hidden = 0;
+        self.surfaces = [0; 4];
+    }
+
+    pub fn set_opacity(&mut self, percent: u8) {
+        self.opacity = percent.clamp(10, 100);
+    }
+
+    /// A colour's alpha under the opacity.
+    pub fn alpha(&self, a: u8) -> u8 {
+        (a as u32 * self.opacity as u32 / 100) as u8
+    }
+}
+
 /// Mark the faces of `layer` the mod wrote (`world.map_overlay.collision.marks`), so a view can set them apart
 /// from the original's.
 pub fn mark(layer: &mut Layer, world: &World) {

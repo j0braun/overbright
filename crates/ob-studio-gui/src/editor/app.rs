@@ -1554,6 +1554,31 @@ impl App {
                     s.collision_colour = c;
                 }
             }
+            A::CollisionKind(c) => {
+                if let Some(s) = self.state.as_mut() {
+                    s.collision_look.toggle(c);
+                }
+            }
+            A::CollisionEveryKind => {
+                if let Some(s) = self.state.as_mut() {
+                    s.collision_look.show_every_kind();
+                }
+            }
+            A::CollisionOpacity(p) => {
+                if let Some(s) = self.state.as_mut() {
+                    s.collision_look.set_opacity(p);
+                }
+            }
+            A::CollisionWireframe => {
+                if let Some(s) = self.state.as_mut() {
+                    s.collision_look.wireframe = !s.collision_look.wireframe;
+                }
+            }
+            A::CollisionFullHeight => {
+                if let Some(s) = self.state.as_mut() {
+                    s.collision_look.full_height = !s.collision_look.full_height;
+                }
+            }
             A::RaceBarriers => {
                 if let Some(s) = self.state.as_mut() {
                     s.race_barriers = !s.race_barriers;
