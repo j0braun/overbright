@@ -53,7 +53,7 @@ animation ([animation.md](animation.md)); the in-engine scenes that place skinne
 ([animation.md](animation.md) §3.6). Solids do not link their levels of detail: the LODs are separate solids that
 scenery infos (three hashes) and car parts (`_A`…`_D` name suffixes) name.
 
-The opt-in **model fixes** (`src/render/enh/assets/car_model/fixes.rs`) are not part of the base set; §4.4 says how
+The opt-in **model fixes** (`crates/ob-render/src/render/enh/assets/car_model/fixes.rs`) are not part of the base set; §4.4 says how
 they become an opt-in pack.
 
 ## 2. Files and keys
@@ -564,7 +564,7 @@ original ([parity.md](parity.md) §1).
 
 ### 4.4 The model fixes as an opt-in pack
 
-The fixes (`src/render/enh/assets/car_model/fixes.rs`) are corrections of the shipped car models, applied today in
+The fixes (`crates/ob-render/src/render/enh/assets/car_model/fixes.rs`) are corrections of the shipped car models, applied today in
 code when the Enhancements row is on (off = untouched files). In the format they become a pack Overbright ships
 and the launcher offers as an opt-in (`origin = "own-work"`: the pack holds only patch data, no original bytes;
 [manifest.md](manifest.md)):

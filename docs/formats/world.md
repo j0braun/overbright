@@ -791,7 +791,7 @@ pass under the road reflection's **Contents**), so 0x5CCCE0 is not ported.
 `SKYDOME` (Z0, hash 0xBE43EDBB) references `SKY_SUNRISE_A_CAP` in slot 0
 (DXT3, blended) and `SKY_SUNRISE_A` in slot 1. Both are HUFF-compressed in
 LOC4DYNTEX.BIN, which is why the first version of the parser could not
-resolve them. Its mesh flags are 0. `src/sky.rs` has the cycle.
+resolve them. Its mesh flags are 0. `crates/ob-render/src/sky.rs` has the cycle.
 
 * **Placement.** The scenery loader skips the SKYDOME's hash (and
   0x72923C81) when binding scenery models (0x5DFAC6), so the Z0 instance is
@@ -1001,7 +1001,7 @@ L4RA.BUN container 0x8003B600 holds 13 named, position-dependent tables.
 
 ## Rain (2026-10-30; verified unless marked)
 
-`src/weather.rs`, `src/render/rain.rs`, `fog.rs` `update_rain`,
+`src/weather.rs`, `crates/ob-render/src/render/rain.rs`, `fog.rs` `update_rain`,
 `postfx.rs` `RainFrame`. The view's weather object is `*(view + 0x64)`
 (constructor 0x61E160; views from 0x48B1E0(i) = 0x832DE0 + 0x70·i). At
 track load 0x61E100 sets both views' wetness +0x509C = 1 and calls
@@ -1123,7 +1123,7 @@ it).
 * **Lens drops** (0x614100 / 0x5C7AC0 / rain_drop.efx; the original under
   Wine runs the widescreen fix with `RainDropletsScale = 0.5`, which makes
   them smaller round drops: not native): see
-  `src/render/rain.rs`. 20 drops (10 split screen) while rain ≠ 0 and not
+  `crates/ob-render/src/render/rain.rs`. 20 drops (10 split screen) while rain ≠ 0 and not
   under cover (+0x1E4), each (ctor 0x6140A0) life rand 1.5 + 0.3, speed
   rand 0.1 + 0.02, size rand 1; a live one slides down 0.2·speed·dt and
   out by |camera velocity|·1e-4 along unit(x − 0.5, y − 0.1); expired or
@@ -1346,7 +1346,7 @@ non-zero:
 The Bumper and Hood cameras show a rear-view mirror at the top of the
 screen when the Rearview Mirror option is on. It is a second world view,
 view 3, drawn into its own target and put on screen as one FE quad. The
-clone: `src/rear_view.rs`, `WorldView::RearView` (render/mod.rs),
+clone: `crates/ob-render/src/rear_view.rs`, `WorldView::RearView` (render/mod.rs),
 `Game::rear_view_on`, `rear_view_cars`; `--shot hood` / `--shot bumper`
 (`NFS_REAR_PNG=path` writes the mirror's image), `NFSU2_VIEW=k` for the
 bench.
@@ -1565,7 +1565,7 @@ bench.
     technique 0 is skipped or fails validation, the next technique is
     found and +0x18 follows its annotation (**inferred**: none, so
     clear). The clone has no per-effect switch: headlight_uniform
-    (src/render/mod.rs:109) takes only the pool, so it does not follow
+    (crates/ob-render/src/render/mod.rs:109) takes only the pool, so it does not follow
     this branch (only that function was read).
   * HeadlightTex is the texture `HEADLIGHTS` (0x5BC700: 0x4901D0 with
     return-default; 128 × 64 BGRA, the beam), HeadlightClipTex is the

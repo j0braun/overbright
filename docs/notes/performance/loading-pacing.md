@@ -145,12 +145,12 @@ surface / sheet pipelines when water first came into view), Extreme rain 1
 first possible, in the load's first frame:
 
 * `PostFx::multisampled` builds the motion blur's multisampled lerp with
-  the multisampled targets (`src/render/postfx.rs`);
-* `BlurDof::warm` (`src/render/enh/post/blur_dof.rs`), called by `blur_and_dof`
+  the multisampled targets (`crates/ob-render/src/render/postfx.rs`);
+* `BlurDof::warm` (`crates/ob-render/src/render/enh/post/blur_dof.rs`), called by `blur_and_dof`
   the first frame the passes are wanted: every motion / DOF pipeline for
   the scene's format and sample count;
-* `Detail::warm` (`src/render/gpu_particles.rs`, the pipeline build split
-  out as `GpuSmoke::pipeline`) and `Water::warm` (`src/render/enh/volumes/water/`),
+* `Detail::warm` (`crates/ob-render/src/render/gpu_particles.rs`, the pipeline build split
+  out as `GpuSmoke::pipeline`) and `Water::warm` (`crates/ob-render/src/render/enh/volumes/water/`),
   called in `draw_frame` before the passes with the same arguments as
   their draws;
 * `WeatherFx::draw` builds all four of its pipelines the first frame it

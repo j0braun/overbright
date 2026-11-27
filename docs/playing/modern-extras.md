@@ -74,7 +74,7 @@ The rest of this page is for developers. Nothing here is in `SPEED2.EXE`; what w
 section.
 
 Code: `crates/ob-settings/src/extras.rs` (the values, HUD element scale, flash cap, CPU palette), `src/latency.rs` (pacer,
-display model, VRR probe), `src/render/enh/post/fsr.rs` + `fsr.wgsl` (FSR 1), `src/replay_cams.rs` (extra
+display model, VRR probe), `crates/ob-render/src/render/enh/post/fsr.rs` + `fsr.wgsl` (FSR 1), `src/replay_cams.rs` (extra
 cameras, smooth slow motion). Hooks in `qol.rs` (one `extras` field; FSR tiers), `enhance.rs` (FSR in place
 of the resample), `ui.rs` / `ui.wgsl` (palette pipelines), `options.rs` / `graphics_table.rs` (rows),
 `bin/game.rs` (loop, replay, HUD, `--bench latency`).

@@ -11,8 +11,8 @@ The temporal tier's / the native one (gate: Original byte-identical, below).
 **Third-party code:** AMD FidelityFX Super Resolution 2, v2.2.1
 (https://github.com/GPUOpen-Effects/FidelityFX-FSR2, tag v2.2.1, MIT,
 Copyright (c) 2022-2023 Advanced Micro Devices, Inc.); full notice in
-THIRD-PARTY-NOTICES.md. Ported to WGSL in `src/render/fsr2.wgsl` (its
-header names the source files per pass), driven by `src/render/enh/post/fsr2.rs`.
+THIRD-PARTY-NOTICES.md. Ported to WGSL in `crates/ob-render/src/render/fsr2.wgsl` (its
+header names the source files per pass), driven by `crates/ob-render/src/render/enh/post/fsr2.rs`.
 
 ## Rows
 | row | values | options.txt |

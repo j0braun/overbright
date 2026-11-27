@@ -62,15 +62,15 @@ crates/ob-settings/src/qol/crash.rs	1	system files (/proc, /sys, /dev, /etc) and
 crates/ob-settings/src/qol/saves.rs	2	the program's own data: settings, saves, logs, launcher state, the player's folders
 crates/ob-assets/src/qol/setup.rs	10	the game-folder check (size and hash of key files before an import); and the saved folder/pack/language choices
 crates/ob-settings/src/qol/waits.rs	3	system files (/proc, /sys, /dev, /etc) and the program's own files
-src/render/core/pipeline_cache.rs	1	the asset cache, shader cache and cache verification (own data)
+crates/ob-render/src/render/core/pipeline_cache.rs	1	the asset cache, shader cache and cache verification (own data)
 crates/ob-assets/src/render/enh/assets/hd_ui.rs	4	the player's packs, mods and importers (user-chosen paths)
-src/render/enh/assets/pack_reload/watch.rs	4	the player's packs, mods and importers (user-chosen paths)
+crates/ob-render/src/render/enh/assets/pack_reload/watch.rs	4	the player's packs, mods and importers (user-chosen paths)
 crates/ob-assets/src/render/enh/assets/pack_select.rs	5	system files (/proc, /sys, /dev, /etc) and the program's own files
 crates/ob-assets/src/render/enh/assets/surface/cache.rs	2	the player's packs, mods and importers (user-chosen paths)
 crates/ob-assets/src/render/enh/assets/texture_pack/cache.rs	2	the player's packs, mods and importers (user-chosen paths)
 crates/ob-assets/src/render/enh/assets/texture_pack/decode.rs	1	the player's packs, mods and importers (user-chosen paths)
-src/render/enh/volumes/water/mod.rs	1	a developer tool or an override folder from the environment
-src/render/native/post/mod.rs	1	a developer tool or an override folder from the environment
+crates/ob-render/src/render/enh/volumes/water/mod.rs	1	a developer tool or an override folder from the environment
+crates/ob-render/src/render/native/post/mod.rs	1	a developer tool or an override folder from the environment
 crates/ob-assets/src/texture_mods.rs	4	the player's packs, mods and importers (user-chosen paths)
 crates/ob-assets/src/tpf_import.rs	4	the player's packs, mods and importers (user-chosen paths)
 crates/ob-assets/src/upscale_pack.rs	5	the player's packs, mods and importers (user-chosen paths)

@@ -1161,9 +1161,6 @@ fn pass(
 }
 
 #[cfg(test)]
-mod frontend_tests;
-
-#[cfg(test)]
 mod tests {
     use super::*;
     use glam::{Quat, Vec2};

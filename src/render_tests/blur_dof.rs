@@ -1,6 +1,6 @@
 //! Blur / depth-of-field tests that name the menus' option table (the top layer's tests).
 
-use super::*;
+use ob_render::render::blur_dof::*;
 
 /// The Graphics rows: Customize Display's values first, the clone's
 /// tiers above them (stored apart, the native value held on).

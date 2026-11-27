@@ -224,7 +224,7 @@ drawn or simulated):
   (they were copied into each car, ~37 MB a traffic car). The shared files,
   texture packs and part-file indexes are parsed once a run even when cars
   load in parallel (single-flight caches in `car.rs`).
-* **Asset cache** (`crates/ob-core/src/cache/`, `src/render/native/world/prepared.rs`): the parsed
+* **Asset cache** (`crates/ob-core/src/cache/`, `crates/ob-render/src/render/native/world/prepared.rs`): the parsed
   world, each car's models and texture packs and the shared part files'
   indexes, plus the world renderer's upload-ready data (the vertex and index
   buffers, the texture arrays' levels with rows padded to 256 bytes), in

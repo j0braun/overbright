@@ -1,6 +1,6 @@
 //! Display tests that name the menus' option table (the top layer's tests).
 
-use super::*;
+use ob_render::render::display::*;
 
 #[test]
 fn step_mode_over_the_mode_list() {

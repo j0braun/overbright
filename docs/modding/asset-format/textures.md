@@ -344,7 +344,7 @@ Flip-books (water, blinking signs, the star layer): a record per animation in th
 | `anim.hash` | hash32 | – | yes | – | Record +0x18: the base hash, the key. References to this hash in the views that see the file are animated. |
 | `anim.name` | name | – | no | none | Record +0x00 (≤ 23 characters). |
 | `anim.fps` | u32 | 1/s | yes, except in `merge` entries | – | Record +0x20: frames per second. Frame `i = trunc(t · fps) mod n` (crates/ob-formats/src/formats/texture_anim.rs:35). |
-| `anim.frames` | array<ref `texture`> | – | yes, except in `merge` entries | – | The frames in order (the frame table `0x30300103`); the record's count +0x1C is their number. Each resolves in the view like any reference; a view draws the animation only when more than one frame resolves (src/render/native/world/build/textures.rs:61). |
+| `anim.frames` | array<ref `texture`> | – | yes, except in `merge` entries | – | The frames in order (the frame table `0x30300103`); the record's count +0x1C is their number. Each resolves in the view like any reference; a view draws the animation only when more than one frame resolves (crates/ob-render/src/render/native/world/build/textures.rs:61). |
 | `anim.op`, `anim.disabled` | | | mod packs | | §4. |
 
 Two records with the same base hash in one view: the later in index order applies (the world loader's rule,
@@ -473,7 +473,7 @@ texture may use any input: the engine then draws it as an RGBA texture [open: vi
 
 Today's packs select replacements by **renderer**, not by file: a world pack applies to whatever the world renderer
 draws (regions, shops, scenes; GLOBAL's textures included), a car pack to the car renderer, the HUD mod to the
-interface (src/render/enh/assets/texture_pack/mod.rs:25, roots.rs:30; src/tpf_import.rs:32). The exact mapping is
+interface (crates/ob-render/src/render/enh/assets/texture_pack/mod.rs:25, roots.rs:30; src/tpf_import.rs:32). The exact mapping is
 therefore to the `global` scope with a `draw` filter:
 
 | Today | Mounted as |

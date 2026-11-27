@@ -12,7 +12,7 @@ Two parts:
    the remaining native cause found for the player's nitrous flames sometimes missing.
 2. **Next-Gen** (opt-in row **Sparks & Fire**, clone deviation): the native spark and flame births
    drawn as simulated, emissive, light-casting sparks and flames with heat haze
-   (`src/render/sparks_fire.rs`, `sparks_fire.wgsl`). Emit rules unchanged.
+   (`crates/ob-render/src/render/sparks_fire.rs`, `sparks_fire.wgsl`). Emit rules unchanged.
 
 ## 1. Native triggers (traced)
 
@@ -148,7 +148,7 @@ Unbound / GT7 show a short, very bright hot spot at the contact and a low jet of
 trailing behind it (they keep most of the car's motion and drop behind as they slow), a small local light,
 and hardly anything on a light touch.
 
-**What changed** (`src/render/sparks_fire.rs`, `sparks_fire.wgsl`; Original untouched):
+**What changed** (`crates/ob-render/src/render/sparks_fire.rs`, `sparks_fire.wgsl`; Original untouched):
 * **Count by the contact**: each burst now carries its push (`particles::Burst` `slide`, `impulse`,
   `normal`; clone-only fields, the native burst ignores them; the wall normal is turned toward the car).
   `intensity(slide, |J|)` = smoothstep(3, 30 m/s slide) × (0.4 + 0.6 · min(|J| / 12, 1)), at least

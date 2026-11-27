@@ -610,7 +610,7 @@ racing speeds; the point grid) are computed from the model and are not stored.
 routes' load (`src/ai/route/mod.rs:202`, a `std::fs::read` after `game_fs::path`); the route triggers' load, which
 takes the first `Paths*` file of `ROUTESL4RA` in directory order (`src/frontend/career/triggers.rs:102`, harmless only
 because every Paths file of a region carries the same triggers); the light-probe field, which lists the route folder
-(`src/render/enh/lighting/probes/field.rs:255`); the free-roam reset zones, which join the root without `game_fs`
+(`crates/ob-render/src/render/enh/lighting/probes/field.rs:255`); the free-roam reset zones, which join the root without `game_fs`
 (`src/bin/game/input/dispatch.rs:403`); `load_route` and `load_markers` (`crates/ob-map/src/frontend/career/routes.rs:23`, `:85`);
 the traffic load (`src/bin/game/sim/traffic/mod.rs:144`, `:147`); the free-roam route memo
 (`src/bin/game/loads/cache.rs:64`, `:68`); the custom races' network (`crates/ob-map/src/tools/map/race.rs:16`); the read-ahead

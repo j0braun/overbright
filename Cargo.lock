@@ -1785,6 +1785,7 @@ dependencies = [
  "ob-formats",
  "ob-look",
  "ob-map",
+ "ob-render",
  "ob-settings",
  "ob-sim",
  "ob-testkit",
@@ -1989,6 +1990,29 @@ dependencies = [
  "serde",
  "serde_json",
  "toml",
+]
+
+[[package]]
+name = "ob-render"
+version = "0.6.3"
+dependencies = [
+ "anyhow",
+ "bytemuck",
+ "glam",
+ "image",
+ "log",
+ "ob-assets",
+ "ob-core",
+ "ob-formats",
+ "ob-settings",
+ "ob-sim",
+ "ob-testkit",
+ "pollster 0.4.0",
+ "profiling",
+ "rayon",
+ "wgpu",
+ "winit",
+ "xxhash-rust",
 ]
 
 [[package]]
