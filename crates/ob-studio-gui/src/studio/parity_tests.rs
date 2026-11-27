@@ -109,6 +109,7 @@ fn action(a: &Action) -> Cli {
             Tool::Checkpoint | Tool::Start | Tool::Finish | Tool::Grid => Has(&["race point add"]),
         },
         Action::Roads => WindowOnly("a drawing over the window's top view; `checks run` reports the roads' own findings"),
+        Action::ShowNearestRoad => WindowOnly("a way of looking at the window's top view: it marks the road nearest the selection; `checks run` reports a point's distance from the roads"),
         // The collision layer's three modes: `collision show --mode` counts what each draws.
         Action::Collision(s) => match s {
             Show::Off | Show::Invisible | Show::All => Has(&["collision show"]),
@@ -171,6 +172,7 @@ fn every_window_command_has_a_command_line_counterpart_or_a_reason() {
         Action::Undo,
         Action::Redo,
         Action::Roads,
+        Action::ShowNearestRoad,
         Action::Tab(""),
         Action::Controls,
         Action::HowToTest,

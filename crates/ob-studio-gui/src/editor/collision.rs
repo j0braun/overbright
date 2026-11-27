@@ -715,6 +715,34 @@ fn picked_wall(s: &EditorState, w: &Wall) -> Picked {
     }
 }
 
+/// The mod's drawn wall or ground named `id` as the selection (None: the mod has none of that name here).
+pub fn pick_drawn(s: &EditorState, id: &str) -> Option<Picked> {
+    s.session.map.collision.iter().find_map(|e| match e {
+        CollisionEdit::Wall { id: i, region, from, to, height, .. }
+            if i == id && region.eq_ignore_ascii_case(&s.session.region) =>
+        {
+            let base = from.z.min(to.z);
+            Some(Picked {
+                what: format!("Drawn wall {id}"),
+                key: Target::Drawn(id.to_string()),
+                outline: vec![*from, *to],
+                z: (base, base + height),
+            })
+        }
+        CollisionEdit::Ground { id: i, region, outline, .. }
+            if i == id && region.eq_ignore_ascii_case(&s.session.region) =>
+        {
+            Some(Picked {
+                what: format!("Drawn ground {id}"),
+                key: Target::Drawn(id.to_string()),
+                outline: outline.clone(),
+                z: (0.0, 0.0),
+            })
+        }
+        _ => None,
+    })
+}
+
 /// The mod's drawn ground under `at`, if any.
 fn picked_ground(s: &EditorState, at: Vec3) -> Option<Picked> {
     s.session.map.collision.iter().find_map(|e| match e {

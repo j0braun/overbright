@@ -364,3 +364,23 @@ fn races_edit_only_through_ops() {
         assert!(!code.contains("CareerData") && !code.contains("race::road_net"), "{file} reads the game's files");
     }
 }
+
+/// In the top view a race point is grabbed within the same number of screen points at any zoom; the 3D view keeps
+/// its metres.
+#[test]
+fn the_top_views_grab_keeps_its_screen_size_at_any_zoom() {
+    use crate::editor::camera::TopView;
+    let rect = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(800.0, 450.0));
+    assert_eq!(pick_radius(None), PICK_M);
+    for half_height in [20.0_f32, 150.0, 2000.0] {
+        let top = TopView { centre: Vec2::ZERO, half_height };
+        let m = pick_radius(Some((top, rect)));
+        assert!((m / top.metres_per_point(rect) - PICK_POINTS).abs() < 1e-3, "{half_height}: {m} m");
+    }
+    // Zoomed out a checkpoint 30 m off is grabbed (it is a few points on screen); zoomed in it is not.
+    let r = sprint(&[(100.0, 0.0), (300.0, 0.0)]);
+    let near = Vec2::new(100.0, 30.0);
+    let out = pick_radius(Some((TopView { centre: Vec2::ZERO, half_height: 2000.0 }, rect)));
+    let inn = pick_radius(Some((TopView { centre: Vec2::ZERO, half_height: 20.0 }, rect)));
+    assert!(pick(&r, near, out).is_some() && pick(&r, near, inn).is_none());
+}

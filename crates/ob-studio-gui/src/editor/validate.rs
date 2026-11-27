@@ -64,6 +64,16 @@ pub fn show(s: &mut EditorState, c: &Check) {
         s.mode = super::state::Mode::Races;
     }
     s.point = c.point;
+    // An entry about a drawn wall or ground selects it (and puts the collision layer on, which draws the selection).
+    if let Some(id) = &c.wall
+        && let Some(p) = super::collision::pick_drawn(s, id)
+    {
+        s.selection.clear();
+        s.wall = Some(p);
+        if s.collision == super::collision::Show::Off {
+            s.collision = super::collision::Show::Invisible;
+        }
+    }
     if let Some(at) = c.at {
         let target = at.extend(ground(s, at));
         let f = s.camera.forward();

@@ -30,6 +30,15 @@ pub use crate::tools::map::assets::TrackInfo;
 
 /// A click this close (metres) to a race point picks it instead of placing.
 pub const PICK_M: f32 = 5.0;
+/// In the top view a race point is grabbed within this many screen points, at any zoom (the handles keep their
+/// pixel size); the 3D view keeps [`PICK_M`].
+pub const PICK_POINTS: f32 = 12.0;
+
+/// The metres a click may be from a race point to pick it: [`PICK_POINTS`] on screen in the top view `top`, else
+/// [`PICK_M`].
+pub fn pick_radius(top: Option<(super::camera::TopView, egui::Rect)>) -> f32 {
+    top.map_or(PICK_M, |(t, r)| t.metres_per_point(r) * PICK_POINTS)
+}
 /// The start and finish lines are drawn this wide.
 const LINE_HALF_M: f32 = 7.0;
 /// The race properties' label column.
@@ -73,6 +82,8 @@ pub struct Races {
     pub previews: Vec<Preview>,
     /// The point being dragged.
     dragging: Option<RacePoint>,
+    /// How near a click picks a race point (metres; None: [`PICK_M`]); the overlay sets it from the view.
+    pub pick_m: Option<f32>,
     /// A race being changed live (a drag, a dragged value): its index and
     /// how it was before, put back when the gesture ends in its op.
     live: Option<(usize, CustomRace)>,
@@ -440,7 +451,7 @@ impl Races {
             s.status = "Make a race first: Race > New race".into();
             return;
         };
-        if !shift && let Some(p) = pick(&s.session.map.races[k], at.truncate(), PICK_M) {
+        if !shift && let Some(p) = pick(&s.session.map.races[k], at.truncate(), self.pick_m.unwrap_or(PICK_M)) {
             s.point = Some(p);
             self.dragging = Some(p);
             return;
@@ -923,6 +934,7 @@ impl Races {
                     point: Some(p),
                     at: Some(Vec2::new(x, y)),
                     fix: None,
+                    wall: None,
                 };
                 validate::show(s, &c);
             }

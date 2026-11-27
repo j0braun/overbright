@@ -397,6 +397,7 @@ impl Sim {
                 point: None,
                 at: Some(at.truncate()),
                 fix: None,
+                wall: None,
             };
             crate::editor::validate::show(s, &c);
             request_map_centre(ctx, at.truncate());
@@ -827,6 +828,7 @@ fn summary_list(ui: &mut egui::Ui, s: &mut EditorState, sim: &mut Sim) -> bool {
                             point: None,
                             at: None,
                             fix: None,
+                            wall: None,
                         };
                         crate::editor::validate::mark(ui, &mark);
                         let r = ui.selectable_label(picked, &grp.text);

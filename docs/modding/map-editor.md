@@ -58,7 +58,7 @@ There are no modes: one tree, one toolbar, and the tools follow what is selected
   names its three parts; a click on the rail opens it, the button at the tree's top folds it again.
 - **Centre: the view.** The 3D view, drawn by the game's own renderer, or the top-down overview (T) with the road
   network (**View ▸ Roads**, on by default: the drivable sections' outlines, the roads a race's base track allows (bright, the
-  rest dim),
+  rest dim, and the base track's own route faint under them),
   the closed race barriers in red, the camera as an arrow, the pointer's x, y; a double-click flies to the place). The
   selection and its handles are drawn on top, and in both views the races: the selected race bright with its
   start and finish lines, grid and checkpoints, the others' routes dim. The buttons at the view's top right pick
@@ -88,7 +88,7 @@ A menu item that cannot act now is greyed out and says why when hovered (Duplica
 |---|---|
 | File | **File ▸ New map mod…** (Ctrl+N: a name, its folder and the region), **File ▸ Open map mod…** (Ctrl+O), the five most recent mods, **File ▸ Save** (Ctrl+S), **File ▸ Mod details…** (name, author, description), **File ▸ Import…** (a mod folder, a `map.obmap` or a `.zip`), **File ▸ Export…** (a `.zip` or a folder: the map and the mod's textures, `looks.toml` and `textures/`, never `work/` or `.editor/`; textures from the original game's pixels are warned about first; it proposes `<folder>.zip` in the `exports` folder of Overbright's data folder, made on the first export, and the status line says where the file went), **File ▸ Export as mod pack…** (a `.obpk` file for the launcher's Mods page: the placements, races and textures as the asset format's own files; it proposes `<folder>-1.0.0.obpk` in the `exports` folder), **File ▸ Quit** (Ctrl+Q; saves first, and asks only when that fails) |
 | Edit | **Edit ▸ Undo** and **Edit ▸ Redo**, named by the step they undo or redo (256 steps), **Edit ▸ Duplicate**, **Edit ▸ Delete**, **Edit ▸ Select all of this solid**, **Edit ▸ Drop to ground**, **Edit ▸ Rotate 90°**, **Edit ▸ Face camera**, **Edit ▸ Collision ▸ Draw wall**, **Edit ▸ Collision ▸ Draw ground** and **Edit ▸ Collision ▸ Remove wall** (see Removed and drawn collision) |
-| View | **View ▸ Roads** (the road network over the top view), **View ▸ Frame selection** (F), **View ▸ Reset camera** (the region's overview), **View ▸ Top view** (T), **View ▸ Isometric view**, **View ▸ Go to…**, **View ▸ Views ▸ Save view…** and the Views menu's **Delete view** submenu (see Hiding props, views and Go to), **View ▸ Collision ▸ Off**, **View ▸ Collision ▸ Invisible barriers** and **View ▸ Collision ▸ All collision**, **View ▸ Collision ▸ By kind** and **View ▸ Collision ▸ By surface** (see Collision), **View ▸ Collision ▸ Show race barriers** (only in Studio's World: the other races' barriers, off by default), **View ▸ Hide selected** (H), **View ▸ Isolate selected** (Shift+H), **View ▸ Show all** (Alt+H), **View ▸ This mod's changes only** (see Hiding props), **View ▸ Hint line** |
+| View | **View ▸ Roads** (the road network over the top view), **View ▸ Show nearest road**, **View ▸ Frame selection** (F), **View ▸ Reset camera** (the region's overview), **View ▸ Top view** (T), **View ▸ Isometric view**, **View ▸ Go to…**, **View ▸ Views ▸ Save view…** and the Views menu's **Delete view** submenu (see Hiding props, views and Go to), **View ▸ Collision ▸ Off**, **View ▸ Collision ▸ Invisible barriers** and **View ▸ Collision ▸ All collision**, **View ▸ Collision ▸ By kind** and **View ▸ Collision ▸ By surface** (see Collision), **View ▸ Collision ▸ Show race barriers** (only in Studio's World: the other races' barriers, off by default), **View ▸ Hide selected** (H), **View ▸ Isolate selected** (Shift+H), **View ▸ Show all** (Alt+H), **View ▸ This mod's changes only** (see Hiding props), **View ▸ Hint line** |
 | Race | **Race ▸ New race**, **Race ▸ Test race** (F5), **Race ▸ Drive here** (Shift+F5), **Race ▸ Restart race** (Ctrl+F5), **Race ▸ Drive to record**, **Race ▸ Test without selected props**, **Race ▸ What the game loaded**, **Race ▸ Test car and clock…** |
 | Help | **Help ▸ Controls**: every key, made from the editor's key table |
 
@@ -171,7 +171,7 @@ mod saved with props hidden is byte for byte the mod saved without.
 - **Select** a prop with a click in the view or in the tree; Ctrl+click adds to the selection. **Edit ▸ Select
   all of this solid** selects every placement of the same model.
 - **Move** shows an arrow per axis, **Rotate** (E) a ring around the vertical. The handles keep their size on
-  screen, in the 3D view and in Top. Moves snap to 0.25 m and turns to 15° while **Snap** is on (right-click it
+  screen, in the 3D view and in Top, and so does the reach of a race point's grab in Top (12 points at any zoom). Moves snap to 0.25 m and turns to 15° while **Snap** is on (right-click it
   for other steps; Alt held: no snapping, the ring turns freely). Shift while dragging an arrow moves a copy. A
   drag moves the world as you drag and is one undo step when released. With a prop selected the hint line names
   the Rotate key and the prop menu.
@@ -244,7 +244,12 @@ mod saved with props hidden is byte for byte the mod saved without.
   under it); a removed wall the region's collision does not have (removing it does nothing); a drawn wall or ground
   partly outside the region's collision area (the game leaves that part out). `overbright-studio-cli checks run`
   runs them too, on the region's world with the mod's drawn collision applied, so a race start on drawn ground has
-  a floor.
+  a floor. In the Validation tab, **Show** on an entry about a drawn wall or ground selects it (and switches the
+  collision layer on if it was off).
+- **View ▸ Show nearest road** marks the road nearest the selected race point or prop (with none selected, the
+  camera) in the roads the view shows, draws a line to it and takes the camera there; the status bar says how far
+  it is. The mark stays until the next use or until Roads is turned off. It is a way of looking at the view, so
+  the command line has no counterpart; `checks run` reports how far a checkpoint is from the roads.
 
 ## Saving
 

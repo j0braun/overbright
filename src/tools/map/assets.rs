@@ -95,6 +95,10 @@ pub trait MapAssets {
     /// The region's roads as a whole: the free roam's AI lanes, each a
     /// line of points (empty when unreadable).
     fn free_roam_lines(&self, region: &str) -> Vec<Vec<glam::Vec3>>;
+    /// The road line of base track `track`'s own route, in driving order (empty: no such track, or unreadable).
+    fn track_route(&self, _track: u16) -> Vec<glam::Vec2> {
+        Vec::new()
+    }
 }
 
 /// [`MapAssets`] from the game folder; the career data is read once, on
@@ -177,6 +181,13 @@ impl MapAssets for GameAssets {
         let routes = crate::formats::ai_routes::RouteFile::parse(&data);
         routes.records.iter().map(|r| r.points.iter().map(|p| p.position).collect()).collect()
     }
+
+    fn track_route(&self, track: u16) -> Vec<glam::Vec2> {
+        let Some(t) = self.track(track) else { return Vec::new() };
+        crate::frontend::career::routes::load_route(&self.root, t, false)
+            .map(|r| r.road.points)
+            .unwrap_or_default()
+    }
 }
 
 /// [`MapAssets`] given in memory: the same tracks for every region.
@@ -186,6 +197,8 @@ pub struct GivenAssets {
     pub nets: HashMap<u16, RoadNet>,
     /// [`MapAssets::free_roam_lines`] of every region.
     pub free_roam: Vec<Vec<glam::Vec3>>,
+    /// [`MapAssets::track_route`] by base track.
+    pub routes: HashMap<u16, Vec<glam::Vec2>>,
     /// [`MapAssets::places`] of every region.
     pub places: Vec<Place>,
 }
@@ -205,6 +218,10 @@ impl MapAssets for GivenAssets {
 
     fn free_roam_lines(&self, _region: &str) -> Vec<Vec<glam::Vec3>> {
         self.free_roam.clone()
+    }
+
+    fn track_route(&self, track: u16) -> Vec<glam::Vec2> {
+        self.routes.get(&track).cloned().unwrap_or_default()
     }
 }
 

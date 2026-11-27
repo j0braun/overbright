@@ -5,6 +5,7 @@
 
 use egui::{Align2, Color32, FontId, Pos2, Rect, Stroke};
 use glam::{Vec2, Vec3};
+use std::collections::HashMap;
 
 use super::camera::TopView;
 use super::overlay::{colour, line2d};
@@ -18,6 +19,69 @@ pub struct RoadLayer {
     overview: Option<Option<(u16, RoadNet)>>,
     /// The drivable sections' outlines (x, y), read from the world once.
     outlines: Option<Vec<Vec<Vec2>>>,
+    /// Each base track's own route line (x, y), read once through the assets.
+    routes: HashMap<u16, Vec<Vec2>>,
+}
+
+/// Where View ▸ Show nearest road looked from, and the road point it found: drawn over the top view until the
+/// next one or until Roads is turned off.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct NearestRoad {
+    pub from: Vec2,
+    pub at: Vec2,
+    /// The road segment, and the base track whose roads it is of (0: the region's free roam roads).
+    pub segment: usize,
+    pub track: u16,
+}
+
+/// The spot "Show nearest road" looks from: the selected race point, else the selected prop, else the camera.
+pub fn look_from(s: &EditorState) -> Vec2 {
+    let point = s
+        .point
+        .filter(|_| s.mode == super::state::Mode::Races)
+        .and_then(|p| super::races::point_xy(s.session.map.races.get(s.race?)?, p));
+    point
+        .or_else(|| {
+            let i = *s.selection.first()?;
+            crate::tools::map::edit::placement_parts(&s.session.world, i).map(|p| p.0.truncate())
+        })
+        .unwrap_or_else(|| s.camera.position.truncate())
+}
+
+/// The road nearest [`look_from`] in the roads the layer shows (the selected race's base track's, else the
+/// region's free roam roads), over the segments a closed race barrier does not shut.
+pub fn nearest(s: &mut EditorState) -> Option<NearestRoad> {
+    if let Some(t) = s.race.and_then(|k| s.session.map.races.get(k)).map(|r| r.track)
+        && !s.nets.contains_key(&t)
+    {
+        let net = s.assets.road_net(t);
+        s.nets.insert(t, net);
+    }
+    let from = look_from(s);
+    let hit = |track: u16, net: &RoadNet| {
+        crate::tools::map::race::snap(net, from).map(|rp| NearestRoad { from, at: rp.at, segment: rp.segment, track })
+    };
+    if let Some((t, net)) = race_network(s) {
+        return hit(t, net);
+    }
+    let (t, net) = overview_net(s.assets.as_ref(), &s.session.region)?;
+    hit(t, &net)
+}
+
+/// View ▸ Show nearest road: mark the nearest road and take the camera to it.
+pub fn show_nearest(s: &mut EditorState) {
+    match nearest(s) {
+        Some(n) => {
+            s.roads = true;
+            s.nearest_road = Some(n);
+            s.goal = Some(super::views::Goal::At(n.at));
+            s.status = format!("The nearest road is {:.0} m away", n.from.distance(n.at));
+        }
+        None => {
+            s.nearest_road = None;
+            s.status = "No road network to show".into();
+        }
+    }
 }
 
 impl RoadLayer {
@@ -33,6 +97,9 @@ impl RoadLayer {
         if self.overview.is_none() {
             self.overview = Some(overview_net(s.assets.as_ref(), &s.session.region));
         }
+        if let Some(t) = self.network(s).map(|(t, _)| t).filter(|t| *t != 0) {
+            self.routes.entry(t).or_insert_with(|| s.assets.track_route(t));
+        }
     }
 
     /// The network shown: the current race's base track's, else the lowest-numbered one loaded, else the region's
@@ -44,6 +111,7 @@ impl RoadLayer {
     /// Draw the layer over the top view `top` shown in `rect`.
     pub fn paint(&mut self, s: &mut EditorState, painter: &egui::Painter, top: &TopView, rect: Rect) {
         if !s.roads {
+            s.nearest_road = None;
             return;
         }
         self.load(s);
@@ -67,7 +135,18 @@ impl RoadLayer {
             {
                 draw_net(&painter, rect, &to, all, colour::ROAD.gamma_multiply(0.5), None);
             }
+            // The base track's own route, faint under its roads.
+            if let Some(line) = self.routes.get(&track).filter(|l| l.len() >= 2) {
+                let pts: Vec<Pos2> = line.iter().map(|&p| to(p)).collect();
+                painter.add(egui::Shape::line(pts, Stroke::new(5.0, colour::SELECT.gamma_multiply(0.22))));
+            }
             draw_net(&painter, rect, &to, net, colour::ROAD, (track != 0).then_some(track));
+            if let Some(n) = s.nearest_road {
+                let (a, b) = (to(n.from), to(n.at));
+                line2d(&painter, a, b, colour::SELECT, 1.5);
+                painter.circle_stroke(b, 9.0, Stroke::new(2.5, colour::SELECT));
+                painter.circle_filled(b, 2.5, colour::SELECT);
+            }
             painter.text(
                 rect.left_top() + egui::vec2(10.0, 8.0),
                 Align2::LEFT_TOP,
@@ -211,6 +290,79 @@ mod tests {
         let other = strokes(4002);
         assert!(!ok.is_empty() && !other.is_empty());
         assert_ne!(ok[0], other[0], "the same road, allowed and not");
+    }
+
+    /// The base track's own route is drawn faint under its roads, and only with its track chosen.
+    #[test]
+    fn the_base_tracks_own_route_is_drawn_faint() {
+        let mut s = crate::editor::props::tests::state();
+        let mut race = crate::editor::validate::tests::sprint(&[(20.0, 0.0), (380.0, 0.0)]);
+        race.track = 4001;
+        s.session.map.races = vec![race];
+        s.race = Some(0);
+        s.nets.insert(4001, Some(crate::editor::validate::tests::straight(true)));
+        let top = TopView { centre: Vec2::new(200.0, 0.0), half_height: 150.0 };
+        let rect = Rect::from_min_size(Pos2::ZERO, egui::vec2(800.0, 450.0));
+        let wide = |s: &mut EditorState| {
+            let mut layer = RoadLayer::default();
+            let ctx = egui::Context::default();
+            let out = ctx.run_ui(egui::RawInput { screen_rect: Some(rect), ..Default::default() }, |ui| {
+                layer.paint(s, ui.painter(), &top, rect)
+            });
+            out.shapes
+                .iter()
+                .filter(|c| matches!(&c.shape, egui::Shape::Path(p) if p.stroke.width == 5.0))
+                .count()
+        };
+        assert_eq!(wide(&mut s), 0, "the assets give no route");
+        s.assets = Box::new(crate::tools::map::assets::GivenAssets {
+            routes: std::collections::HashMap::from([(4001, vec![Vec2::new(0.0, 0.0), Vec2::new(400.0, 0.0)])]),
+            ..Default::default()
+        });
+        assert_eq!(wide(&mut s), 1, "the route line under the roads");
+    }
+
+    /// Show nearest road marks the road point nearest the selected race point (else the prop, else the camera),
+    /// takes the camera there and says how far it is; Roads off takes the mark away.
+    #[test]
+    fn show_nearest_road_marks_the_road_nearest_the_selection() {
+        let mut s = crate::editor::props::tests::state();
+        let mut race = crate::editor::validate::tests::sprint(&[(20.0, 0.0), (380.0, 0.0), (150.0, 40.0)]);
+        race.track = 4001;
+        s.session.map.races = vec![race];
+        s.race = Some(0);
+        s.nets.insert(4001, Some(crate::editor::validate::tests::straight(false)));
+        // Nothing selected: from the camera over (0, -20).
+        show_nearest(&mut s);
+        let n = s.nearest_road.expect("a road was found");
+        assert_eq!(n.from, s.camera.position.truncate());
+        assert!((n.at.y).abs() < 1e-3 && n.track == 4001, "{n:?}");
+        assert_eq!(s.goal, Some(super::super::views::Goal::At(n.at)));
+        // A race point: the third checkpoint is 40 m off the road.
+        s.mode = super::super::state::Mode::Races;
+        s.point = Some(crate::editor::state::RacePoint { part: crate::tools::map::edit::RacePart::Checkpoint, index: 2 });
+        show_nearest(&mut s);
+        let n = s.nearest_road.unwrap();
+        assert_eq!((n.from, n.at), (Vec2::new(150.0, 40.0), Vec2::new(150.0, 0.0)));
+        assert_eq!(s.status, "The nearest road is 40 m away");
+        // The mark is drawn with the roads and goes with them.
+        let top = TopView { centre: Vec2::new(200.0, 0.0), half_height: 150.0 };
+        let rect = Rect::from_min_size(Pos2::ZERO, egui::vec2(800.0, 450.0));
+        let paint = |s: &mut EditorState| {
+            let mut layer = RoadLayer::default();
+            let ctx = egui::Context::default();
+            let out = ctx.run_ui(egui::RawInput { screen_rect: Some(rect), ..Default::default() }, |ui| {
+                layer.paint(s, ui.painter(), &top, rect)
+            });
+            out.shapes.len()
+        };
+        let with = paint(&mut s);
+        s.nearest_road = None;
+        assert!(with > paint(&mut s), "the mark is a drawing of its own");
+        s.nearest_road = Some(n);
+        s.roads = false;
+        paint(&mut s);
+        assert!(s.nearest_road.is_none());
     }
 
     /// The top view draws the roads and shuts the closed barriers in red; View ▸ Roads takes them away.

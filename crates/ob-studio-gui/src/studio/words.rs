@@ -349,8 +349,10 @@ pub const LANGUAGE_FILES_NEED_GAME: &str = "The language files are read when the
 pub const GAME_FOLDER_NOT_SET: &str = "The game folder is not set: the launcher's setup has it";
 
 pub const SOUND: &str = "Sound";
+/// View menu: marks the road nearest the selection (else the camera) and goes to it.
+pub const SHOW_NEAREST_ROAD: &str = "Show nearest road";
 
-pub const ALL: [&str; 324] = [
+pub const ALL: [&str; 325] = [
     QUIT,
     STUDIO,
     TOO_SMALL,
@@ -675,6 +677,7 @@ pub const ALL: [&str; 324] = [
     NOT_DECODABLE,
     LANGUAGE_FILES_NEED_GAME,
     GAME_FOLDER_NOT_SET,
+    SHOW_NEAREST_ROAD,
 ];
 
 /// The characters beyond ASCII Studio's words and glyphs use (the faces must have them).
