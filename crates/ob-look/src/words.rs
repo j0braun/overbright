@@ -9,6 +9,11 @@
 pub const BACK: &str = "Back";
 /// Drop what the dialog would do.
 pub const CANCEL: &str = "Cancel";
+pub const SHARE: &str = "Share";
+/// The question before sharing while a test run leaves props out (Studio, Test without selected props).
+pub fn left_out_line(n: usize) -> String {
+    format!("{n} prop{} left out of the running test. They stay in what you share.", if n == 1 { " is" } else { "s are" })
+}
 /// Close a message.
 pub const OK: &str = "OK";
 /// Take the item or place the cursor is on (the pad's A, Enter).

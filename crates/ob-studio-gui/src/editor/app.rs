@@ -941,6 +941,11 @@ pub enum Dialog {
     SaveView {
         name: String,
     },
+    /// Before sharing while a test run leaves `n` props out; Share goes on to the export (`pack`: the pack).
+    LeftOut {
+        n: usize,
+        pack: bool,
+    },
     /// Race ▸ Test car and clock…: `car` empty is the game's own, `clock` empty the load's own.
     TestFocus {
         car: String,
@@ -1428,6 +1433,25 @@ impl App {
         }
     }
 
+    /// The Export (zip) or Export pack dialog for the open mod. What is shared is always the whole mod: the
+    /// left-out set of a running test never reaches the export.
+    pub fn open_export(&mut self, pack: bool) {
+        let Some(s) = &self.state else { return };
+        let derived = crate::tools::map::share::derived(&self.maps.join(&s.session.folder)).len();
+        if pack {
+            // The exports folder, the pack's own file name (`<id>-1.0.0.obpk`).
+            let path = crate::platform::dirs::exports().join(ob_studio::share::pack_file_name(
+                &s.session.folder,
+                &ob_studio::share::PackOpts::default(),
+            ));
+            self.dialog = Some(Dialog::ExportPack { path: path.display().to_string(), derived });
+        } else {
+            // Overbright's exports folder (made by the export), never the home folder itself.
+            let path = ob_studio::share::default_zip(&crate::platform::dirs::exports(), &s.session.folder);
+            self.dialog = Some(Dialog::Export { path: path.display().to_string(), derived });
+        }
+    }
+
     /// The window was asked to close: true when it may.
     pub fn close_requested(&mut self) -> bool {
         if !self.flush() {
@@ -1486,23 +1510,11 @@ impl App {
                     });
                 }
             }
-            A::Export => {
-                if let Some(s) = &self.state {
-                    // Overbright's exports folder (made by the export), never the home folder itself.
-                    let path = ob_studio::share::default_zip(&crate::platform::dirs::exports(), &s.session.folder);
-                    let derived = crate::tools::map::share::derived(&self.maps.join(&s.session.folder)).len();
-                    self.dialog = Some(Dialog::Export { path: path.display().to_string(), derived });
-                }
-            }
-            A::ExportPack => {
-                if let Some(s) = &self.state {
-                    // The exports folder, the pack's own file name (`<id>-1.0.0.obpk`).
-                    let path = crate::platform::dirs::exports().join(ob_studio::share::pack_file_name(
-                        &s.session.folder,
-                        &ob_studio::share::PackOpts::default(),
-                    ));
-                    let derived = crate::tools::map::share::derived(&self.maps.join(&s.session.folder)).len();
-                    self.dialog = Some(Dialog::ExportPack { path: path.display().to_string(), derived });
+            A::Export | A::ExportPack => {
+                let pack = matches!(a, A::ExportPack);
+                match self.state.as_ref().map(|s| s.left_out.len()) {
+                    Some(n) if n > 0 => self.dialog = Some(Dialog::LeftOut { n, pack }),
+                    _ => self.open_export(pack),
                 }
             }
             A::Import => self.dialog = Some(Dialog::Import { path: String::new() }),
@@ -2206,6 +2218,20 @@ impl App {
                         {
                             let n = name.clone();
                             then = Some(Box::new(move |app: &mut App| app.save_view(&n)));
+                            keep = false;
+                        }
+                        if ui.button(words::CANCEL).clicked() {
+                            keep = false;
+                        }
+                    });
+                }
+                Dialog::LeftOut { n, pack } => {
+                    ui.label(theme::title("Share"));
+                    ui.label(words::left_out_line(*n));
+                    ui.horizontal(|ui| {
+                        if ui.add(theme::main_action(words::SHARE)).clicked() || ui.input(|i| i.key_pressed(egui::Key::Enter)) {
+                            let pack = *pack;
+                            then = Some(Box::new(move |app: &mut App| app.open_export(pack)));
                             keep = false;
                         }
                         if ui.button(words::CANCEL).clicked() {
@@ -3383,6 +3409,50 @@ mod tests {
         let to = s.path().join("exports").join("docks-1.0.0.obpk");
         a.export_pack(&to, false);
         assert!(to.is_file(), "the pack file is written");
+    }
+
+    /// Sharing while a test leaves props out asks first, only while the left-out set is non-empty; Share goes on
+    /// to the export, and what is exported is the whole mod.
+    #[test]
+    fn sharing_asks_while_props_are_left_out_and_exports_the_whole_mod() {
+        use crate::tools::map::ops::PropKey as Named;
+        let s = Scratch::new("editor-leftout-ask");
+        let mut a = app(&s);
+        a.new_mod("docks", "", "L4RA").unwrap();
+        let add = crate::tools::map::PropEdit::Add {
+            id: "a1".into(),
+            region: "L4RA".into(),
+            solid: "XO_CONE_01".into(),
+            position: glam::Vec3::ZERO,
+            rotation: glam::Mat3::IDENTITY,
+        };
+        a.state.as_mut().unwrap().session.map.props.push(add);
+        {
+            let st = a.state.as_ref().unwrap();
+            crate::tools::map::store::save(&st.maps, &st.session.folder, &st.session.map).unwrap();
+        }
+        for pack in [false, true] {
+            let act = if pack { menu::Action::ExportPack } else { menu::Action::Export };
+            a.act(act.clone());
+            assert!(matches!(a.dialog, Some(Dialog::Export { .. } | Dialog::ExportPack { .. })), "no question when nothing is left out");
+            a.dialog = None;
+            a.state.as_mut().unwrap().left_out = vec![Named::Added("a1".into())];
+            a.act(act);
+            assert!(matches!(a.dialog, Some(Dialog::LeftOut { n: 1, pack: p }) if p == pack), "{:?}", a.dialog);
+            assert_eq!(words::left_out_line(1), "1 prop is left out of the running test. They stay in what you share.");
+            a.open_export(pack);
+            assert!(matches!(a.dialog, Some(Dialog::Export { .. } | Dialog::ExportPack { .. })), "Share goes on");
+            a.dialog = None;
+            a.state.as_mut().unwrap().left_out.clear();
+        }
+        a.state.as_mut().unwrap().left_out = vec![Named::Added("a1".into())];
+        let to = s.path().join("exports").join("docks.zip");
+        a.export(&to, false);
+        assert!(to.is_file());
+        let imported = s.path().join("again");
+        crate::tools::map::store::import(&imported, &to).unwrap();
+        let m = crate::tools::map::store::read_file(&imported.join("docks").join(crate::tools::map::store::FILE)).unwrap();
+        assert_eq!(m.props.len(), 1, "the left-out prop is in what was shared");
     }
 }
 
