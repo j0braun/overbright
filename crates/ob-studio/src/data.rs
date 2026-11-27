@@ -336,7 +336,7 @@ fn parse_int(s: &str, min: i64, max: i64) -> Result<i64, String> {
     if n < min || n > max { Err(format!("{n} is out of range ({min} to {max})")) } else { Ok(n) }
 }
 
-fn parse_vec3(s: &str) -> Result<Vec3, String> {
+pub(crate) fn parse_vec3(s: &str) -> Result<Vec3, String> {
     let v: Vec<f32> = s
         .split([',', ' ', ';'])
         .filter(|p| !p.is_empty())
@@ -381,6 +381,19 @@ fn position_of(map: &MapMod, pack: &str, key: &str) -> Option<Vec3> {
 /// The op that writes `text` in the cell (`field` of row `key` of `kind`) of the mod `map` (named `pack`). The
 /// words an error holds are the cell's.
 pub fn op_for(map: &MapMod, pack: &str, kind: &str, key: &str, field: &str, text: &str) -> Result<Op, String> {
+    op_for_in(map, pack, kind, key, field, text, None)
+}
+
+/// [`op_for`] when the same step also moves the prop to `moved_to` (a heading edit then turns it where it will be).
+fn op_for_in(
+    map: &MapMod,
+    pack: &str,
+    kind: &str,
+    key: &str,
+    field: &str,
+    text: &str,
+    moved_to: Option<Vec3>,
+) -> Result<Op, String> {
     let col = columns(kind).into_iter().find(|c| c.field == field).ok_or_else(|| format!("No column {field}"))?;
     if !col.editable {
         return Err(format!("{} cannot be changed here yet", col.label));
@@ -415,7 +428,9 @@ pub fn op_for(map: &MapMod, pack: &str, kind: &str, key: &str, field: &str, text
                 }
                 "heading" => {
                     let rotation = rotation.ok_or("Its heading is in the game's files: show it first (Hidden: no)")?;
-                    let position = position_of(map, pack, key).ok_or("Its position is in the game's files")?;
+                    let position = moved_to
+                        .or_else(|| position_of(map, pack, key))
+                        .ok_or("Its position is in the game's files")?;
                     let now = crate::changes::map::heading(rotation) as f32;
                     let to: f32 = text.trim().parse().map_err(|_| format!("\"{text}\" is not a number of degrees"))?;
                     Ok(Op::Place { key: pk, position, rotation: turn(rotation, to - now) })
@@ -458,6 +473,9 @@ pub fn edit_many(
         .run(Op::Group { label: label.to_string(), ops })
         .map_err(|e| session.refused_why.take().unwrap_or_else(|| e.to_string()))
 }
+
+mod exchange;
+pub use exchange::{CellEdit, export_file, read_file, Refusal, Span, csv_read, csv_write, edit_cells, plan, refusals_sentence};
 
 #[cfg(test)]
 mod tests;

@@ -184,6 +184,21 @@ pub const SEARCH: &str = "Search";
 pub const NO_MOD_OPEN_OPEN_ONE_ON_3: &str = "No mod open: open one on Home to see its data";
 pub const THIS_MOD_GIVES_NO_VALUES_OF: &str = "This mod gives no values of this kind yet";
 pub const NO_ROW_MATCHES_THE_SEARCH: &str = "No row matches the search";
+pub const FILL: &str = "Fill";
+pub const CELLS: &str = "Cells";
+pub const PASTE: &str = "Paste";
+pub const NOT_CHANGED: &str = "Not changed";
+pub const NOT_PASTED: &str = "Not pasted";
+pub const NOT_IMPORTED: &str = "Not imported";
+pub const COPIED: &str = "Copied";
+pub const NOTHING_TO_CHANGE: &str = "Nothing to change";
+pub const TABLE_WRITTEN_TO: &str = "Table written to";
+pub const EXPORT_TABLE: &str = "Export table";
+pub const IMPORT_TABLE: &str = "Import table";
+pub const TAKES_IT_BACK: &str = "Ctrl+Z takes it back";
+pub const NO_TABLE_FILE_YET: &str = "Export the table first: the file it brings back is not there yet";
+pub const SELECT_MODE_ON: &str = "Selecting: arrows extend the selection, Back ends it";
+pub const SELECT_MODE_OFF: &str = "Selecting ended";
 pub const IN_CHANGES: &str = "In Changes";
 pub const MAKE_A_MOD: &str = "Make a mod";
 pub const GO_TO_A_STREET: &str = "Go to a street";
@@ -533,6 +548,21 @@ pub const ALL: &[&str] = &[
     NO_MOD_OPEN_OPEN_ONE_ON_3,
     THIS_MOD_GIVES_NO_VALUES_OF,
     NO_ROW_MATCHES_THE_SEARCH,
+    FILL,
+    CELLS,
+    PASTE,
+    NOT_CHANGED,
+    NOT_PASTED,
+    NOT_IMPORTED,
+    COPIED,
+    NOTHING_TO_CHANGE,
+    TABLE_WRITTEN_TO,
+    EXPORT_TABLE,
+    IMPORT_TABLE,
+    TAKES_IT_BACK,
+    NO_TABLE_FILE_YET,
+    SELECT_MODE_ON,
+    SELECT_MODE_OFF,
     IN_CHANGES,
     MAKE_A_MOD,
     GO_TO_A_STREET,

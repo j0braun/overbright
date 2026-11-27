@@ -872,8 +872,31 @@ impl Page {
         field: &str,
         text: &str,
     ) -> std::result::Result<String, String> {
+        self.write_cells(session, folder, kind, |s| ob_studio::data::edit(s, folder, kind, key, field, text))
+    }
+
+    /// Several cells written as one undo step named `label`, all or none (the Data grid's fill, paste and import).
+    pub fn edit_cells(
+        &mut self,
+        session: Option<&mut MapSession>,
+        folder: &str,
+        kind: &str,
+        edits: &[ob_studio::data::CellEdit],
+        label: &str,
+    ) -> std::result::Result<String, String> {
+        self.write_cells(session, folder, kind, |s| ob_studio::data::edit_cells(s, folder, kind, edits, label))
+    }
+
+    /// `f` run in the session that writes the mod, or (races only) in the mod's history.
+    fn write_cells(
+        &mut self,
+        session: Option<&mut MapSession>,
+        folder: &str,
+        kind: &str,
+        f: impl FnOnce(&mut MapSession) -> std::result::Result<ob_map::tools::map::ops::Change, String>,
+    ) -> std::result::Result<String, String> {
         if let Some(s) = writer(session, folder) {
-            return ob_studio::data::edit(s, folder, kind, key, field, text).map(|c| c.label);
+            return f(s).map(|c| c.label);
         }
         if kind != map::RACE {
             return Err("props are edited with World open: open World first".into());
@@ -882,7 +905,7 @@ impl Page {
         let m = MapMod::parse(h.doc(store::FILE).unwrap_or_default()).map_err(|e| e.to_string())?;
         let mut s = MapSession::new("L4RA", folder, m, crate::world::World::default());
         s.keep_in(h);
-        let done = ob_studio::data::edit(&mut s, folder, kind, key, field, text).map(|c| c.label);
+        let done = f(&mut s).map(|c| c.label);
         if let Some(h) = s.history.as_mut() {
             h.save().map_err(|e| e.to_string())?;
         }

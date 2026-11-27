@@ -36,7 +36,7 @@ fn workspace(w: Workspace) -> Cli {
         Workspace::Mod => Has(&["pack details", "pack export", "modpack export", "modpack convert", "modpack report", "history show"]),
         Workspace::Settings => WindowOnly("Studio's own settings: layout, units and the look of the window"),
         Workspace::Changes => Has(&["data show", "history show"]),
-        Workspace::Data => Has(&["data kinds", "data show", "data set"]),
+        Workspace::Data => Has(&["data kinds", "data show", "data set", "data export", "data import"]),
     }
 }
 

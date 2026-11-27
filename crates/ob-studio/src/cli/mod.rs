@@ -195,6 +195,7 @@ fn dispatch(line: &args::Line, env: &Env) -> Done {
             with_mod(line, |m| runs::run(cmd.name, line, m))
         }
         "data.kinds" | "data.show" => with_mod(line, |m| data::run(cmd.name, line, m)),
+        "data.export" => with_mod(line, |m| data::export(line, env, m)),
         "collision.show" => collision::show(line, env),
         "browser.search" | "browser.used" | "browser.export" | "browser.sounds" | "browser.strings" | "browser.wav"
         | "browser.mesh" | "browser.area" => browser::run(cmd.name, line, env),
@@ -375,7 +376,7 @@ fn try_edit(line: &args::Line, cmd: &Command, env: &Env, m: &Mod) -> Result<Done
         (MapMod::default(), request)
     } else {
         let map = read_map(&h)?;
-        let request = if cmd.name == "data.set" {
+        let request = if cmd.name == "data.set" || cmd.name == "data.import" {
             data::request(line, &map, &m.folder)?
         } else {
             ops::request(cmd.name, &line.args, &map, Path::new("")).map_err(|e| fail(USAGE, e))?

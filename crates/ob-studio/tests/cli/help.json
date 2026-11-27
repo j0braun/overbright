@@ -995,6 +995,70 @@
       "words": "data set"
     },
     {
+      "command": "data.export",
+      "flags": [
+        {
+          "flag": "--kind",
+          "label": "The kind: placement or race",
+          "needed": true,
+          "type": "text"
+        },
+        {
+          "flag": "--to",
+          "label": "The CSV file to write (never inside the game's folder)",
+          "needed": true,
+          "type": "text"
+        },
+        {
+          "flag": "--search",
+          "label": "Keep rows where any cell has all these words",
+          "needed": false,
+          "type": "text"
+        },
+        {
+          "flag": "--filter",
+          "label": "Keep rows whose column has the text: `column=text`",
+          "needed": false,
+          "type": "text"
+        },
+        {
+          "flag": "--sort",
+          "label": "Sort by this column (smallest first)",
+          "needed": false,
+          "type": "text"
+        },
+        {
+          "flag": "--desc",
+          "label": "Largest first",
+          "needed": false,
+          "type": "bool"
+        }
+      ],
+      "kind": "run",
+      "summary": "Write one kind's table as a CSV file, as `data show` narrows it: a `row` column with each row's key, then the columns by field",
+      "words": "data export"
+    },
+    {
+      "command": "data.import",
+      "flags": [
+        {
+          "flag": "--kind",
+          "label": "The kind: placement or race",
+          "needed": true,
+          "type": "text"
+        },
+        {
+          "flag": "--from",
+          "label": "The CSV file to read",
+          "needed": true,
+          "type": "text"
+        }
+      ],
+      "kind": "edit",
+      "summary": "Bring a CSV file (as `data export` writes it) back as cell edits, each checked like `data set`, as one undo step; refuses the whole file when a cell is refused",
+      "words": "data import"
+    },
+    {
       "command": "browser.search",
       "flags": [
         {

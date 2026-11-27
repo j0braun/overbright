@@ -924,6 +924,34 @@ fn the_data_commands_read_the_grid_and_write_cells_as_undo_steps() {
 }
 
 #[test]
+fn data_export_and_import_round_trip_a_table_as_one_undo_step() {
+    let (s, dir) = fixture("cli-data-csv", true);
+    let e = env();
+    let file = dir.join("out").join("races.csv");
+    let f = file.to_string_lossy().to_string();
+    let export = ["data", "export", "--mod", "<mod>", "--kind", "race", "--to", f.as_str()];
+    let import = ["data", "import", "--mod", "<mod>", "--kind", "race", "--from", f.as_str()];
+    assert_eq!(golden("data-export", &export, &s, &dir, &e), cli::OK);
+    let csv = std::fs::read_to_string(&file).unwrap();
+    assert!(csv.starts_with("row,name,type,track,laps,backward,checkpoints\n"), "{csv}");
+    // Nothing changed in the file: nothing is made.
+    let before = text(&dir);
+    assert_eq!(golden("data-import-unchanged", &import, &s, &dir, &e), cli::OK);
+    assert_eq!(text(&dir), before);
+    // A name changed in the file is one step; a bad cell refuses the whole file.
+    std::fs::write(&file, csv.replacen("docks:sprint,Sprint", "docks:sprint,\"Docks, run\"", 1)).unwrap();
+    assert_eq!(golden("data-import", &import, &s, &dir, &e), cli::OK);
+    assert!(text(&dir).contains("Docks, run"));
+    let now = text(&dir);
+    std::fs::write(&file, csv.replace(",no,", ",maybe,")).unwrap();
+    assert_eq!(golden("data-import-bad-value", &import, &s, &dir, &e), cli::FAILED);
+    assert_eq!(text(&dir), now);
+    // Never into the game's folder.
+    let in_game = ["data", "export", "--mod", "<mod>", "--kind", "race", "--to", "game/x.csv"];
+    assert_eq!(run(&in_game, &dir, &e).0, cli::FAILED);
+}
+
+#[test]
 fn the_browser_commands_read_the_regions_index() {
     let (s, dir) = fixture("cli-browser", false);
     let e = lists_env();

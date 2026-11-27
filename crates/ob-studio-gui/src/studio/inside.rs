@@ -199,7 +199,7 @@ impl Studio {
                 self.changes.step_focus(d, false);
                 self.changes.focus != before
             }
-            Workspace::Data => self.data.step_row(d),
+            Workspace::Data => self.data.step_row(d, false),
             _ => false,
         }
     }

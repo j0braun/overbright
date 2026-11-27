@@ -1846,6 +1846,76 @@
       ]
     },
     {
+      "name": "data.export",
+      "kind": "run",
+      "summary": "Write one kind's table as a CSV file, as `data show` narrows it: a `row` column with each row's key, then the columns by field",
+      "args": [
+        {
+          "key": "kind",
+          "type": "text",
+          "required": "yes",
+          "merge": false,
+          "label": "The kind: placement or race"
+        },
+        {
+          "key": "to",
+          "type": "text",
+          "required": "yes",
+          "merge": false,
+          "label": "The CSV file to write (never inside the game's folder)"
+        },
+        {
+          "key": "search",
+          "type": "text",
+          "required": "no",
+          "merge": false,
+          "label": "Keep rows where any cell has all these words"
+        },
+        {
+          "key": "filter",
+          "type": "text",
+          "required": "no",
+          "merge": false,
+          "label": "Keep rows whose column has the text: `column=text`"
+        },
+        {
+          "key": "sort",
+          "type": "text",
+          "required": "no",
+          "merge": false,
+          "label": "Sort by this column (smallest first)"
+        },
+        {
+          "key": "desc",
+          "type": "bool",
+          "required": "no",
+          "merge": false,
+          "label": "Largest first"
+        }
+      ]
+    },
+    {
+      "name": "data.import",
+      "kind": "edit",
+      "summary": "Bring a CSV file (as `data export` writes it) back as cell edits, each checked like `data set`, as one undo step; refuses the whole file when a cell is refused",
+      "args": [
+        {
+          "key": "kind",
+          "type": "text",
+          "required": "yes",
+          "merge": false,
+          "label": "The kind: placement or race"
+        },
+        {
+          "key": "from",
+          "type": "text",
+          "required": "yes",
+          "merge": false,
+          "label": "The CSV file to read"
+        }
+      ]
+    },
+    {
       "name": "browser.search",
       "kind": "read",
       "summary": "Search the region's models and textures by name, hash or `section:N`, as the Browser workspace does",

@@ -188,3 +188,153 @@ fn a_column_fill_is_one_step() {
     assert!(edit_many(&mut s, PACK, RACE, "backward", &bad, "x").is_err());
     assert_eq!(s.map, before);
 }
+
+fn span(a: (usize, usize), b: (usize, usize)) -> Span {
+    Span::between(a, b)
+}
+
+#[test]
+fn one_value_fills_several_cells_as_one_step() {
+    let mut s = session();
+    let before = s.map.clone();
+    let mut g = races(&s);
+    g.sort_by(0); // alpha, Bravo, Charlie
+    let edits = g.fill(span((1, 4), (2, 4)), "yes").unwrap();
+    assert_eq!(edits.len(), 2);
+    edit_cells(&mut s, PACK, RACE, &edits, "Fill 2 cells").unwrap();
+    assert!(s.map.races.iter().filter(|r| r.id != "a").all(|r| r.backward));
+    assert_eq!(s.undo().as_deref(), Some("Fill 2 cells"));
+    assert_eq!(s.map, before);
+    // A read-only column in the block refuses the whole block.
+    let bad = g.fill(span((0, 3), (1, 5)), "2").unwrap_err();
+    assert!(bad.iter().all(|r| r.column == "Checkpoints" && r.why.contains("here yet")));
+}
+
+#[test]
+fn paste_checks_every_cell_and_refuses_the_block() {
+    let mut s = session();
+    let before = s.map.clone();
+    let mut g = races(&s);
+    g.sort_by(0);
+    // Tab text across two columns and two rows (name, type), anchored at the selection.
+    let ok = g.paste(span((0, 0), (0, 0)), "One\tcircuit\nTwo\tdrift").unwrap();
+    edit_cells(&mut s, PACK, RACE, &ok, "Paste 4 cells").unwrap();
+    assert!(s.map.races.iter().any(|r| r.name == "One" && r.kind == RaceKind::Circuit));
+    assert!(s.map.races.iter().any(|r| r.name == "Two" && r.kind == RaceKind::Drift));
+    assert_eq!(s.undo().as_deref(), Some("Paste 4 cells"));
+    assert_eq!(s.map, before);
+    // One bad cell (laps 99): nothing is made and the words name the cell.
+    let edits = g.paste(span((0, 0), (0, 0)), "X\tcircuit\t4002\t99").unwrap();
+    let why = edit_cells(&mut s, PACK, RACE, &edits, "Paste").unwrap_err();
+    assert!(why.contains("Laps") && why.contains("range"), "{why}");
+    assert_eq!(s.map, before);
+    // Too big for the table, and nothing to paste.
+    assert!(g.paste(span((2, 0), (2, 0)), "a\nb").unwrap_err()[0].why.contains("do not fit"));
+    assert!(g.paste(span((0, 0), (0, 0)), "").is_err());
+    // One value goes into every selected cell.
+    assert_eq!(g.paste(span((0, 3), (2, 3)), "2").unwrap().len(), 3);
+}
+
+#[test]
+fn a_position_pastes_as_one_cell_and_a_copy_pastes_back() {
+    let mut s = MapSession::new("L4RA", PACK, MapMod::default(), world());
+    let key = s.key_of(0).unwrap();
+    s.run(Op::Place { key, position: Vec3::new(11.0, 2.0, 0.0), rotation: Mat3::IDENTITY }).unwrap();
+    let g = Grid::build(&s.map, PACK, PLACEMENT).unwrap();
+    let at = (0..g.counts().1).find(|i| g.cell(*i, 1).unwrap().text == "11, 2, 0").unwrap();
+    let e = g.paste(span((at, 1), (at, 1)), "5, 6, 7").unwrap();
+    assert_eq!(e.len(), 1);
+    assert_eq!(e[0].text, "5, 6, 7");
+    // The copy of a block pastes back as no change.
+    let all = span((0, 0), (g.counts().1 - 1, 3));
+    assert!(g.paste(span((0, 0), (0, 0)), &g.copy_text(all)).unwrap().is_empty());
+    // Position and heading of one row go together.
+    let k = g.key(at).unwrap().to_string();
+    let both = [
+        CellEdit { key: k.clone(), field: "heading", text: "90".into() },
+        CellEdit { key: k, field: "position", text: "5, 6, 7".into() },
+    ];
+    edit_cells(&mut s, PACK, PLACEMENT, &both, "Paste").unwrap();
+    let g = Grid::build(&s.map, PACK, PLACEMENT).unwrap();
+    assert!((0..2).any(|i| g.cell(i, 1).unwrap().text == "5, 6, 7" && g.cell(i, 2).unwrap().text == "90"));
+}
+
+#[test]
+fn the_csv_round_trip_changes_nothing_and_edits_go_through_the_same_checks() {
+    let mut s = session();
+    let before = s.map.clone();
+    let mut g = races(&s);
+    g.sort_by(0);
+    g.set_search("a"); // alpha, Bravo, Charlie all have an a; the table is what is visible
+    let csv = g.csv();
+    assert!(csv.starts_with("row,name,type,track,laps,backward,checkpoints\n"), "{csv}");
+    // Nothing changed: no edits, so no step; the file written again is byte-identical.
+    assert!(g.import(&csv).unwrap().is_empty());
+    assert_eq!(csv_write(&csv_read(&csv, ',').unwrap()), csv);
+    // Edit two cells in the file (a name with a comma and a quote survives).
+    let edited = csv.replace("alpha", "\"al,\"\"pha\"\"\"").replace(",3,no,", ",4,no,");
+    let edits = g.import(&edited).unwrap();
+    assert_eq!(edits.len(), 2, "{edits:?}");
+    edit_cells(&mut s, PACK, RACE, &edits, "Import table").unwrap();
+    assert!(s.map.races.iter().any(|r| r.name == "al,\"pha\""));
+    assert_eq!(s.undo().as_deref(), Some("Import table"));
+    assert_eq!(s.map, before);
+    // Bad cells, unknown rows and columns, a read-only change: refused with words, nothing made.
+    let bad = g.import(&csv.replace(",3,no,", ",99,no,")).unwrap();
+    assert!(edit_cells(&mut s, PACK, RACE, &bad, "x").unwrap_err().contains("range"));
+    assert!(g.import(&csv.replace("my-map:a,", "nope,")).unwrap_err()[0].why.contains("not a row"));
+    assert!(g.import(&csv.replace("laps", "lapz")).unwrap_err()[0].why.contains("not a column"));
+    assert!(g.import(&csv.replace("2 checkpoints", "5 checkpoints")).is_err());
+    assert!(g.import("name\nx\n").is_err());
+    assert_eq!(s.map, before);
+}
+
+#[test]
+fn csv_reads_quotes_and_line_endings() {
+    assert_eq!(csv_read("a,\"b\r\nc\",\"d\"\"e\"\r\n\r\nf,,g", ',').unwrap(), [vec!["a", "b\r\nc", "d\"e"], vec!["f", "", "g"]]);
+    assert!(csv_read("a,\"b", ',').is_err());
+    assert_eq!(csv_read("", ',').unwrap().len(), 0);
+}
+
+#[test]
+fn a_file_is_written_where_chosen_and_never_in_the_game_folder() {
+    let s = session();
+    let g = races(&s);
+    let d = std::env::temp_dir().join(format!("ob-data-csv-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&d);
+    let file = d.join("out").join("races.csv");
+    export_file(&g, &file, Some(&d.join("game"))).unwrap();
+    assert_eq!(read_file(&file).unwrap(), g.csv());
+    let game = d.join("game");
+    std::fs::create_dir_all(&game).unwrap();
+    assert!(export_file(&g, &game.join("x.csv"), Some(&game)).unwrap_err().contains("game's own folder"));
+    assert!(!game.join("x.csv").exists());
+    let _ = std::fs::remove_dir_all(&d);
+}
+
+#[test]
+fn fifty_thousand_rows_build_and_stay_in_step() {
+    let rows: Vec<Row> = (0..50_000)
+        .map(|i| Row {
+            kind: RACE,
+            key: format!("big:r{i}"),
+            added: true,
+            values: vec![crate::changes::Value {
+                field: "laps".into(),
+                from: From::Yours,
+                game: Some(toml::Value::Integer(1 + i % 20)),
+                yours: Some(toml::Value::Integer(1 + i % 20)),
+                original: None,
+            }],
+        })
+        .collect();
+    let t = std::time::Instant::now();
+    let mut g = Grid::from_rows(RACE, &rows).unwrap();
+    g.sort_by(3);
+    g.set_search("17");
+    assert!(g.counts().1 > 0 && g.counts().1 < 50_000);
+    g.set_search("");
+    assert_eq!(g.counts(), (50_000, 50_000));
+    assert!(t.elapsed().as_secs() < 20, "{:?}", t.elapsed());
+    assert_eq!(g.csv().lines().count(), 50_001);
+}
